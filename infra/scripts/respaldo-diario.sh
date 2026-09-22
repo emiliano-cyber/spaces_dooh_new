@@ -206,12 +206,26 @@ DIR_RESPALDOS="${DIR_RESPALDOS:-$DIR_ESTADO/respaldos}"
 # lo que pase--, asi que una prueba de permisos daria VERDE sin probar nada. El
 # arnes comprueba que estas lineas EXISTEN (R10) y la comprobacion de verdad
 # esta en la tarjeta 12, contra el droplet, con un `ls -l`.
-umask 077
+# ⚠️ EL ORDEN DE ESTAS TRES LINEAS IMPORTA, y la primera version lo tenia MAL.
+#
+# Estaba `umask 077` ANTES del `mkdir -p`, y `mkdir -p` crea tambien los PADRES
+# que falten. En una maquina donde `/var/lib/space-os` todavia no exista --una
+# instancia recien dada de alta-- ese padre nacia **0700 y de root**, y con eso
+# los servicios que corren como otro usuario (`flota`, `altas`) dejan de poder
+# ATRAVESARLO: no necesitan leer los respaldos, pero si pasar por el directorio
+# de estado. Un respaldo que endurece un permiso de mas y tumba otro servicio no
+# es una mejora de seguridad, es una averia.
+#
+# Asi que: el arbol se crea con el umask de siempre, y lo estricto se aplica
+# SOLO A LA HOJA y al archivo.
 mkdir -p "$DIR_RESPALDOS" || salir "$EX_CONFIG" "ERROR respaldo-diario: no se pudo crear $DIR_RESPALDOS."
-# Explicito ademas del umask, porque el umask solo manda al CREAR: si el
-# directorio ya existia --y existe, lo crea `update.sh` desde hace meses-- se
-# quedaria con los 0755 con los que nacio.
+# Explicito, porque el umask solo manda al CREAR: si el directorio ya existia
+# --y existe, lo crea `update.sh` desde hace meses-- se habria quedado con los
+# 0755 con los que nacio.
 chmod 700 "$DIR_RESPALDOS" 2>/dev/null || registrar "   AVISO: no se pudo dejar $DIR_RESPALDOS en 0700; revisa quien puede leer los respaldos."
+# Y el umask DESPUES del arbol: a partir de aqui lo unico que se crea es el
+# dump, y ese si tiene que nacer 0600.
+umask 077
 
 # Mismo nombre y mismo formato que los de `update.sh:2333`, y eso es un
 # requisito, no una coincidencia: la poda de `respaldo.sh` busca

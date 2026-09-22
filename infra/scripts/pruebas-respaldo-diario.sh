@@ -506,6 +506,14 @@ if grep -qE 'chmod 700 "\$DIR_RESPALDOS"' "$GUION"; then bien
 else mal 'no se restringe el directorio de respaldos, que ya existe en 0755 creado por update.sh'; fi
 if grep -qE 'chmod 600 "\$BK"' "$GUION"; then bien
 else mal 'no se restringe el dump: lo crea pg_dump, no este guion, asi que el umask no basta'; fi
+# Y EL ORDEN, que la primera version tenia mal: con `umask 077` ANTES del
+# `mkdir -p`, los PADRES que falten nacen 0700 de root y los servicios que
+# corren como otro usuario (`flota`, `altas`) no pueden atravesar el directorio
+# de estado. Endurecer de mas y tumbar otro servicio no es seguridad, es averia.
+n_mkdir="$(grep -n 'mkdir -p "\$DIR_RESPALDOS"' "$GUION" | head -1 | cut -d: -f1)"
+n_umask="$(grep -n '^umask 077' "$GUION" | head -1 | cut -d: -f1)"
+if [ -n "$n_mkdir" ] && [ -n "$n_umask" ] && [ "$n_mkdir" -lt "$n_umask" ]; then bien
+else mal "el \`umask 077\` (linea ${n_umask:-?}) tiene que ir DESPUES del \`mkdir -p\` (linea ${n_mkdir:-?}): si no, los directorios padre nacen 0700 y \`flota\`/\`altas\` no pueden atravesarlos"; fi
 
 printf '\n%s escenarios · %s comprobaciones · %s fallos\n' "$ESCENARIOS" "$COMPROBACIONES" "$FALLOS"
 [ "$FALLOS" -eq 0 ] || exit 1

@@ -87,6 +87,31 @@ inventó aquí: es el que ya usa `respaldo.sh:229-232`.
 
 ### 3 · `SPACE_OS_CONF` manda — hay DOS montajes
 
+> [!danger] Y `SPACE_OS_CONF` **no basta**: sin `SPACE_OS_DIR_ESTADO`, DEMO borra los respaldos del PADRE
+> Encontrado en la revisión del 22/09, y es el fallo más grave que ha tenido este
+> trabajo. **`SPACE_OS_CONF` dice qué base respaldar; no dice dónde dejar los
+> respaldos.** El directorio sale de otra variable:
+>
+> `DIR_RESPALDOS` ← `$SPACE_OS_DIR_ESTADO/respaldos` ← `/var/lib/space-os` por omisión
+>
+> Y **nada fija `SPACE_OS_DIR_ESTADO` en producción** — solo aparece en los
+> arneses. Así que en el PADRE, DEMO y el propio PADRE compartirían
+> `/var/lib/space-os/respaldos`. La poda deja los **3 más recientes por fecha de
+> archivo**, mire de qué base sea cada uno: un respaldo diario de DEMO **se come
+> el directorio en tres días**, incluido el que `update.sh` del PADRE hace antes
+> de migrar. Y como DEMO no tiene respaldo remoto, **lo podado no está en ninguna
+> otra parte**.
+>
+> Agravante: los dos escriben `spaces_<fecha>.dump`, así que por el nombre **no se
+> distingue de qué base es cada uno**. No hay forma de darse cuenta después.
+>
+> **Las dos variables van siempre juntas**, en el paso B2 y en la línea de cron de
+> B3 de la tarjeta 12. No se arregló en código a propósito: el guion ya honra las
+> dos, y hacerle adivinar un subdirectorio por base rompería el contrato de
+> nombres que comparte con `update.sh` para la poda y el `pg_restore`.
+
+
+
 | Instancia | Configuración | Base |
 |---|---|---|
 | **g500** | `/etc/space-os/instancia.env` (estándar) | `spaces` |
@@ -123,12 +148,24 @@ escenario R9 del arnés.
 bash infra/scripts/pruebas-respaldo-diario.sh
 ```
 
-**16 escenarios · 61 comprobaciones · 0 fallos**, en **15 segundos** (medido el
+**16 escenarios · 62 comprobaciones · 0 fallos**, en **15 segundos** (medido el
 22/09). No sale a la red, no toca ninguna base y no toca ningún servidor: dobla
 `pg_dump`, `s3cmd` y `hostname`.
 
 Que tarde segundos es deliberado: `pruebas-update.sh` tarda 15 minutos y un arnés
 que nadie corre no defiende nada.
+
+**Corre en CI** desde el 22/09 (`.github/workflows/ci.yml`), y no como «un arnés
+más»: **R7 es un guard de deriva, y un guard que solo corre cuando alguien se
+acuerda defiende justo contra lo que no puede defender.** El coste no es el de
+`pruebas-update.sh` (15 min): son 16 segundos.
+
+> [!warning] R10 es un `grep`, no una prueba
+> El escenario de permisos comprueba que las líneas **están escritas** — `umask
+> 077`, los dos `chmod` y que el `umask` vaya **después** del `mkdir -p`. No puede
+> ver si el `chmod` llegó a correr ni si surtió efecto, y sobrevive a un
+> renombrado. Es lo único comprobable aquí (en Git Bash `umask` y `chmod` no se
+> reflejan en `stat`). **La comprobación real es el paso A2b de la tarjeta 12.**
 
 Muerden, comprobado con cinco mutantes el 22/09: quitar el guard de 0 bytes (R2),
 salir 0 con la subida fallida (R4), ignorar `SPACE_OS_CONF` (R1/R9), volver a
