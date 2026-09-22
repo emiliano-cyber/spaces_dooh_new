@@ -243,12 +243,28 @@ un droplet limpio. Por eso se corrigió y no se retiró.)
    `configtest` antes del reload no es adorno: un vhost con un error deja
    Apache sin arrancar, y ahí se cae **también market.adavailable.com**.
 
-4. **El backend**, en `backend/.env` del droplet:
+4. **El backend**, en `backend/.env` del droplet. **Se agrega UNA sola línea**:
    ```
-   PUBLIC_BASE_URL=https://eyes.g500.space-os.io
    MEDIAMTX_WHEP_PUBLIC=https://eyes.g500.space-os.io/whep
    ```
-   y reiniciar **solo** el backend, sin tocar el resto de la pila:
+
+   **NO se toca `PUBLIC_BASE_URL`, y no es pereza.** La auditoría encontró que
+   esa variable decide tres cosas más, todas hacia los equipos:
+
+   - **De dónde bajan las actualizaciones**: la orden `UPDATE_APP` lleva
+     `${PUBLIC_BASE_URL}/space-eye.apk`. Cambiarla mueve el origen de la OTA de
+     toda la flota en el mismo momento, y si el dominio o el certificado
+     fallaran, los equipos se quedan sin poder actualizarse.
+   - **Por dónde publican el RTSP**: si `MEDIAMTX_HOST` está vacío, el host sale
+     de aquí. Hoy los agentes publican contra una IP literal; cambiarlo les
+     agrega una dependencia de DNS que antes no tenían.
+   - **Qué URL recibe el verificador de IA** para leer cada foto.
+
+   Ninguna de las tres necesita cambiar para que el módulo funcione por HTTPS.
+   Se mueven después, una por una y con su propia comprobación. **La regla del
+   despliegue es cambiar lo mínimo que resuelve el problema.**
+
+   Reiniciar **solo** el backend, sin tocar el resto de la pila:
    ```bash
    docker compose -f infra/docker-compose.ip.yml --env-file backend/.env up -d backend
    ```
@@ -284,3 +300,38 @@ solo un archivo.
 - **Quién paga y opera** los droplets de cada hijo.
 - Si un cliente puede **mover el zoom y el brillo** de su cámara, o si eso se
   queda del lado de operación. Afecta a qué se migra en el paso 6.
+
+---
+
+## 8. La auditoría antes de subir (22-sep)
+
+Se ensayó el despliegue en local **con el mismo Apache 2.4.58 del droplet**, en
+un contenedor, con el vhost real delante del backend real. Resultados:
+
+| Prueba | Resultado |
+|---|---|
+| `apache2ctl configtest` del vhost | **Syntax OK** |
+| `/api/app/version` a través del proxy | 401 — llega al backend |
+| El dashboard de operación | 200, HTML completo |
+| `/whep/clave/whep` | llega a MediaMTX como `/clave/whep`, que es lo que espera |
+| Una ruta cualquiera | va al backend, el `/whep/` no se la lleva |
+| **Una foto real firmada** | **idéntica byte por byte** por el proxy y directa |
+| Firma alterada | **403** a través del proxy |
+| socket.io, sondeo | 200 |
+| socket.io, WebSocket | **101 Switching Protocols** |
+| La URL del vivo con el dominio puesto | `https://eyes.g500.space-os.io/whep/<clave>/whep` |
+
+**Dos cosas se corrigieron por lo que encontró la auditoría:**
+
+1. **`LimitRequestBody` se quitó del vhost.** Llevaba un comentario diciendo que
+   cortaba las subidas grandes. Se probó con el tope en 1 KB y un cuerpo de
+   10 KB **llegó igual al backend**, tanto en el vhost como dentro de un
+   `<Location>`: la directiva no se aplica a lo que reenvía `mod_proxy`. El
+   límite de verdad es el de multer en el backend (20 MB). Una línea que promete
+   algo que no hace es peor que no tenerla.
+2. **`PUBLIC_BASE_URL` sale del paso 4** (ver arriba).
+
+Lo que la auditoría **no** puede comprobar desde aquí, y hay que mirar en el
+droplet: que `certbot` emita el certificado, y que Apache siga sirviendo
+`market.adavailable.com` después del `reload` — por eso el `configtest` es
+obligatorio antes de recargar.
