@@ -113,6 +113,10 @@ cobranza.
 - [[convenciones]] — cómo se escribe código y documentación aquí
 - [[verificacion-de-produccion]] — comandos para comprobar qué corre de verdad
   en el droplet y qué hay en `spaces_prod` (sin ejecutar)
+- [[respaldo-diario]] — el respaldo por reloj de cada instancia, y en qué se
+  diferencia del que hace `update.sh` antes de migrar
+- [[restaurar-un-respaldo-en-local]] — el camino de vuelta: qué hacer con un
+  `.dump` una vez lo tienes
 
 ### 07 · Agentes
 - [[AGENTES]] — particionado, claims, ramas, conflictos

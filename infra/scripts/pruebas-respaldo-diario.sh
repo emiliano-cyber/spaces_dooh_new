@@ -417,6 +417,51 @@ for f in env_de_parametro clasificar_consulta partir_url destino_de_url decodifi
 done
 
 # ============================================================================
+#  R9 · LOS DOS MONTAJES — `SPACE_OS_CONF` manda sobre el valor por omision
+# ----------------------------------------------------------------------------
+#  Decision del dueno (22/09): **el respaldo diario es de TODAS las instancias**,
+#  no solo de las que tienen datos reales. Y los dos montajes que existen hoy no
+#  se configuran igual:
+#
+#    · g500 es ESTANDAR  -> /etc/space-os/instancia.env,      base `spaces`
+#    · DEMO vive DENTRO DEL PADRE -> SPACE_OS_CONF=/etc/space-os/demo-instancia.env,
+#                                    base `spaces_demo`
+#
+#  Si el guion ignorara `SPACE_OS_CONF`, en el PADRE leeria la configuracion
+#  equivocada y respaldaria la base equivocada — sin dar ningun error, porque
+#  las dos existen en esa maquina. Es un error real: costo media hora el 22/09.
+#  Mismo criterio que `update.sh:430`.
+# ============================================================================
+escenario 'R9 · con SPACE_OS_CONF se respalda la base de ESE archivo, no la de por omision'
+preparar
+# El montaje de DEMO: otro archivo, otra base, y sin credenciales de Spaces
+# (DEMO hoy no las tiene, medido el 22/09).
+CONF_DEMO="$RAIZ_TMP/demo-instancia.env"
+cat >"$CONF_DEMO" <<FIN
+DATABASE_URL=postgresql://spaces:$CLAVE@127.0.0.1:5432/spaces_demo
+INSTANCIA=demo
+FIN
+correr SPACE_OS_CONF="$CONF_DEMO" --
+codigo_es 0
+# La comprobacion que importa: la base es la de DEMO, no la `spaces` que sigue
+# estando en el archivo por omision del escenario.
+hubo_regex 'pg_dump-argv .*-d spaces_demo'
+no_hubo '-d spaces '
+# Y DEMO, sin credenciales, no es un error: dump local, poda, y se dice.
+dice 'respaldo remoto NO CONFIGURADO'
+dumps_son 1
+limpiar
+
+escenario 'R9b · el valor por omision sigue siendo el del montaje estandar'
+# No se ejecuta nada: se lee el guion. Un guion que cayera a otra ruta se
+# llevaria por delante a g500, que es el montaje estandar y el que tiene los
+# datos reales.
+if grep -qF '/etc/space-os/instancia.env' "$GUION"; then bien
+else mal 'el guion no cae a /etc/space-os/instancia.env, que es el montaje estandar de g500'; fi
+if grep -qF 'SPACE_OS_CONF' "$GUION"; then bien
+else mal 'el guion no respeta SPACE_OS_CONF: en el PADRE leeria la configuracion de la instancia equivocada'; fi
+
+# ============================================================================
 #  R8 · LO QUE ESTE GUION NO PUEDE HACER NUNCA
 # ============================================================================
 escenario 'R8 · no habla con ningun servidor ni toca update.sh'
