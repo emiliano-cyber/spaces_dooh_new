@@ -136,6 +136,43 @@ case "$sub" in
         if [ -n "${D_BORRAR_RESPALDOS_EN:-}" ]; then rm -f "$D_BORRAR_RESPALDOS_EN"/*.dump; fi
         [ -n "${D_MIGRAR_SALIDA:-}" ] && printf '%s\n' "$D_MIGRAR_SALIDA"
         exit "${D_MIGRAR_CODIGO:-0}" ;;
+      *SPACE_OS_CORRIDA*)
+        # La sonda de estado+decision del ADR 0037 (tarea 5): guion por stdin,
+        # igual que la huella. Se distingue por el `--env` que solo ella lleva
+        # -- no por el CONTENIDO del guion, que este doble no mira.
+        cat >/dev/null
+        if [ -z "${DATABASE_URL:-}" ]; then
+          echo 'estado: no se pudo conectar (falta DATABASE_URL)'
+          exit 9
+        fi
+        n=$(cat "$REG_ESTADO_N" 2>/dev/null || echo 0); n=$((n + 1))
+        printf '%s' "$n" >"$REG_ESTADO_N"
+        var="D_ESTADO_$n"
+        valor="${!var:-}"
+        [ -n "$valor" ] || valor="${D_ESTADO_1:-sin-tabla - -}"
+        case "$valor" in
+          FALLA) echo 'estado: no se pudo leer la base'; exit 9 ;;
+        esac
+        printf 'ESTADO %s\n' "$valor"
+        # Sin tabla no hay decision que tomar -- `decidir_actualizar()` en
+        # update.sh ni siquiera mira una linea DECISION en ese caso.
+        case "$valor" in
+          'sin-tabla '*) ;;
+          *)
+            dvar="D_DECISION_$n"
+            dvalor="${!dvar:-}"
+            [ -n "$dvalor" ] || dvalor="${D_DECISION_1:-no esperando-aprobacion}"
+            printf 'DECISION %s\n' "$dvalor" ;;
+        esac
+        exit 0 ;;
+      *SPACE_OS_VERSION_DISPONIBLE*)
+        # `marcar_instalado()`: la escritura de "instalado" al cerrar un
+        # update real (ADR 0037, tarea 5). Solo escribe, no lee -- por eso no
+        # comparte contador con la sonda de estado.
+        cat >/dev/null
+        [ "${D_INSTALADO_CODIGO:-0}" = 0 ] || { echo 'instalado: no se pudo escribir'; exit 9; }
+        printf 'INSTALADO ok\n'
+        exit 0 ;;
       *)
         # La sonda de huella: guion por stdin, que hay que consumir.
         cat >/dev/null
@@ -488,6 +525,10 @@ preparar() {
   export REG_DBURL="$RAIZ_TMP/dburl.txt"
   export REG_PGENV="$RAIZ_TMP/pgenv.txt"
   export REG_HUELLA_N="$RAIZ_TMP/huella.n"
+  # La sonda de estado+decision del ADR 0037 (tarea 5): contador APARTE del de
+  # la huella, para que llamarla no corra la numeracion de D_HUELLA_1/2/3 que
+  # ya usan ~130 escenarios.
+  export REG_ESTADO_N="$RAIZ_TMP/estado.n"
   export REG_CURL_N="$RAIZ_TMP/curl.n"
   export REG_PULL_N="$RAIZ_TMP/pull.n"
   export REG_S3ENV="$RAIZ_TMP/s3env.txt"
@@ -583,7 +624,9 @@ FIN
   unset D_HUELLA_3 D_PULL_FALLA D_RUN_FALLA D_RENAME_FALLA D_START_FALLA \
         PGD_VACIO PGD_FALLA PGR_CODIGO FLOCK_OCUPADO D_PENDIENTES_CODIGO S3_LENTO \
         D_LOGS_SALIDA PSQL_CODIGO PGR_LIST_CODIGO D_BORRAR_RESPALDOS_EN \
-        N_TEST_CODIGO D_CONTENEDOR_PARADO D_OPENSSL_VERSION LN_FALLA 2>/dev/null || true
+        N_TEST_CODIGO D_CONTENEDOR_PARADO D_OPENSSL_VERSION LN_FALLA \
+        D_ESTADO_1 D_ESTADO_2 D_ESTADO_3 D_DECISION_1 D_DECISION_2 D_DECISION_3 \
+        2>/dev/null || true
   export PGR_CODIGO=0
   export PGR_LIST_CODIGO=0
   export PSQL_CODIGO=0
@@ -598,6 +641,11 @@ FIN
   export D_RENAME_FALLA=0
   export D_START_FALLA=0
   export N_TEST_CODIGO=0
+  # Sin tabla actualizaciones_instancia por omision: los ~135 escenarios de
+  # antes del ADR 0037 no la esperan, y ese es justo el comportamiento que
+  # tienen que conservar (AVISO 7 de update.sh: sin tabla, se actualiza como
+  # siempre). Cada escenario del ADR 0037 pone su propio D_ESTADO_1/D_DECISION_1.
+  export D_INSTALADO_CODIGO=0
   export LN_FALLA=0
 }
 
@@ -828,6 +876,7 @@ subido_calla() { if grep -qF -- "$1" "$REG_S3_SUBIDO" 2>/dev/null; then mal "lo 
 # Sobre `update.log`, el que se queda en el droplet: la separacion solo vale si
 # lo crudo SIGUE estando en el disco de la instancia. Filtrar no es perder.
 log_local_dice() { if grep -qF -- "$1" "$SPACE_OS_DIR_LOG/update.log" 2>/dev/null; then bien; else mal "update.log no dice: $1"; fi; }
+log_local_calla() { if grep -qF -- "$1" "$SPACE_OS_DIR_LOG/update.log" 2>/dev/null; then mal "update.log NO deberia decir: $1"; else bien; fi; }
 # Sobre el ARCHIVO que viaja, tal cual esta en el disco de la instancia. No es lo
 # mismo que `subido_*`: eso mira lo que el doble de `s3cmd` recibio, y hay una
 # corrida —la que se encuentra el candado tomado— que no sube nada y aun asi
@@ -2376,7 +2425,11 @@ antes_que '--list' 'drop schema public cascade'
 antes_que 'drop schema public cascade' '--single-transaction'
 # La tercera lectura de la huella: la de DESPUES de restaurar. Sin ella el
 # arreglo no se comprueba a si mismo, y un arreglo que no se comprueba vuelve.
-veces_regex 3 'docker run --rm --interactive'
+# Y una CUARTA "docker run --rm --interactive" que no es huella: la sonda de
+# estado del ADR 0037 (tarea 5), que corre una vez por corrida ANTES del
+# respaldo. Sin tabla (el default de este escenario, que no la configura) cae
+# en "actualiza como siempre" y no cambia nada mas de este caso.
+veces_regex 4 'docker run --rm --interactive'
 log_dice 'la base volvio a su huella de antes de migrar'
 log_dice 'comprobado releyendola'
 log_dice 'VUELTA ATRAS COMPLETA'
@@ -3062,6 +3115,103 @@ no_hubo_regex 'ln -sfn.*sin-licencia'
 log_dice 'APAGARIA (8)'
 log_dice 'licencia: vencida'
 log_calla 'APAGADO (8)'
+limpiar
+
+# ─── ADR 0037 · CADA INSTANCIA ELIGE (E136-E141, tarea 5) ──────────────────
+#  `decidirActualizacion()` (`scripts/actualizaciones.mjs`) tiene sus PROPIAS
+#  pruebas (`scripts/actualizaciones.test.ts`) y no se repiten aqui. Lo que
+#  este arnes prueba es que `update.sh` la OBEDECE: que consulte la tabla, que
+#  no toque nada mientras espera, y que sin tabla siga actualizando como
+#  siempre. Por eso los dobles de `D_ESTADO_N`/`D_DECISION_N` dictan
+#  DIRECTAMENTE el veredicto en vez de recalcularlo -- reimplementar la regla
+#  aqui seria la misma trampa que el ADR 0037 prohibe en `guion_estado()`.
+
+# E136 · `--comprobar` con modo=aprobacion y SIN aprobacion: no toca nada.
+#        Es el caso mas importante de los seis: si esto llamara a pg_dump, al
+#        runner o conmutara el contenedor, un cron cada 15 minutos meteria un
+#        corte de servicio en mitad de la manana sin que nadie lo pidiera.
+preparar 'E136 --comprobar sin aprobacion: ni pg_dump, ni runner, ni conmuta, sale 0'
+export D_ESTADO_1='aprobacion sha256:instalada -'
+export D_DECISION_1='no esperando-aprobacion'
+correr --comprobar
+codigo_es 0
+no_hubo 'pg_dump'
+no_hubo 'node scripts/migrar.mjs'
+no_hubo '--detach'
+log_dice 'esperando-aprobacion'
+limpiar
+
+# E137 · `--comprobar` con una aprobacion que CUADRA: actualiza, y la
+#        aprobacion queda limpia (se ve por `marcar_instalado()` corriendo:
+#        `guion_instalado` pone `aprobado_digest = null` en el mismo UPDATE
+#        que escribe `version_instalada`/`digest_instalado`).
+preparar 'E137 --comprobar con aprobacion que cuadra: actualiza y limpia la aprobacion'
+export D_ESTADO_1='aprobacion sha256:instalada sha256:nuevo'
+export D_DECISION_1='si aprobada'
+correr --comprobar
+codigo_es 0
+hubo '--detach'
+hubo 'pg_dump'
+log_dice 'aprobada'
+log_local_dice 'INSTALADO ok'
+limpiar
+
+# E138 · `--comprobar` con una aprobacion CADUCA (el dueno aprobo un digest
+#        que ya no es el disponible, porque el canal se movio otra vez): NO
+#        actualiza. Es el caso negativo que sostiene el ADR 0037 -- aprobar
+#        "v0.4.2" no puede instalar una imagen que nadie miro.
+preparar 'E138 --comprobar con aprobacion caduca: no actualiza'
+export D_ESTADO_1='aprobacion sha256:instalada sha256:viejo-ya-aprobado'
+export D_DECISION_1='no aprobacion-caduca'
+correr --comprobar
+codigo_es 0
+no_hubo '--detach'
+no_hubo 'pg_dump'
+log_dice 'aprobacion-caduca'
+limpiar
+
+# E139 · `--comprobar` con modo=automatica: NO actualiza. No es su trabajo
+#        meter un corte de servicio a media manana; el automatico es de
+#        madrugada (la corrida SIN bandera, E140).
+preparar 'E139 --comprobar con modo=automatica: no actualiza'
+export D_ESTADO_1='automatica sha256:instalada -'
+export D_DECISION_1='no automatica-espera-madrugada'
+correr --comprobar
+codigo_es 0
+no_hubo '--detach'
+no_hubo 'pg_dump'
+log_dice 'automatica-espera-madrugada'
+limpiar
+
+# E140 · La corrida programada (SIN bandera, la de las 4:17) con
+#        modo=automatica: actualiza, como hoy. Es el control positivo de E139:
+#        la MISMA tabla, la MISMA imagen nueva, y la unica diferencia es la
+#        corrida -- por eso decide distinto.
+preparar 'E140 corrida programada con modo=automatica: actualiza, como hoy'
+export D_ESTADO_1='automatica sha256:instalada -'
+export D_DECISION_1='si automatica'
+correr
+codigo_es 0
+hubo '--detach'
+hubo 'pg_dump'
+log_dice 'automatica'
+log_local_dice 'INSTALADO ok'
+limpiar
+
+# E141 · `actualizaciones_instancia` NO EXISTE (imagen anterior a la migracion
+#        20260921): actualiza, COMO HOY, y lo dice en el log. Sin esto,
+#        desplegar la tarea 5 pararia a media flota en seco -- exactamente el
+#        AVISO 7 de update.sh. No se pone D_ESTADO_1: el default del arnes ES
+#        el sentinela `sin-tabla - -`, a proposito, para que los ~135
+#        escenarios de antes de esta tarea seguian corriendo sin tocarlos.
+preparar 'E141 actualizaciones_instancia no existe: actualiza como hoy, y lo dice'
+correr
+codigo_es 0
+hubo '--detach'
+hubo 'pg_dump'
+log_dice 'no existe todavia en esta instancia: se actualiza como antes del ADR 0037'
+# Y sin tabla no hay donde escribir "instalado": no se intenta.
+log_local_calla 'INSTALADO ok'
 limpiar
 
 printf '\n%s escenarios · %s comprobaciones · %s rojas\n' "$ESCENARIOS" "$COMPROBACIONES" "$FALLOS"
