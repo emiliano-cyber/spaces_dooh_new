@@ -174,10 +174,13 @@ Ninguna de las piezas de arriba se ha ejecutado contra un contenedor de
 verdad — lo probado es que `update.sh` **obedece** la línea que recibe, no que
 la línea se produzca sobre una base real. Y la migración **no puede
 distinguir** una instancia nueva de una que lleva meses corriendo: nace en
-`modo = 'aprobacion'`, así que si nadie toca las instancias existentes
-(**DEMO y g500**), dejan de actualizarse **en silencio**. Los pasos completos,
-en orden de lo que más duele si se olvida, están en la tarjeta humana:
-`docs/evidencias/tarjeta-actualizaciones-elegidas.md`.
+`modo = 'aprobacion'`. **Esto todavía no es un problema hoy**: la migración
+vive solo en esta rama —no en `main`—, así que DEMO y g500 corren sin la
+tabla y siguen actualizándose como siempre. El riesgo empieza **el día que
+una versión con esa migración llegue a esas instancias**: desde ese momento,
+si nadie las toca, dejan de actualizarse **en silencio**. Los pasos
+completos, en orden de lo que más duele si se olvida, están en la tarjeta
+humana: `docs/evidencias/tarjeta-actualizaciones-elegidas.md`.
 
 ## Relacionadas
 [[02-Backend/_indice|Índice de Backend]] · [[api-endpoints]] ·

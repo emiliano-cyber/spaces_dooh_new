@@ -26,9 +26,15 @@
 **Por qué:** la tabla `actualizaciones_instancia` nace con `modo = 'aprobacion'`
 por diseño (el dueño decide, nunca se le salta), y la migración **no tiene
 forma de distinguir** una instancia recién nacida de una que lleva meses
-corriendo. Sin este paso, **DEMO y g500 dejan de actualizarse en silencio**:
-ningún error, ningún aviso, nada en un log que alguien vaya a mirar. Simplemente
-se quedan esperando una aprobación que nadie sabe que hace falta dar.
+corriendo. **Esto todavía NO está pasando hoy** (2026-09-22): la migración
+`20260921_actualizaciones_instancia.sql` vive solo en esta rama —no en
+`main`—, así que DEMO y g500 corren sin la tabla y siguen actualizándose como
+siempre. El riesgo empieza **el día que una versión con esa migración llegue
+a esas instancias**: desde ese momento, sin este paso, **DEMO y g500
+dejarían de actualizarse en silencio** — ningún error, ningún aviso, nada en
+un log que alguien vaya a mirar. Se quedarían esperando una aprobación que
+nadie sabe que hace falta dar. Por eso este paso va **antes de publicar esa
+versión, o justo después**, no en un momento cualquiera.
 
 **Qué hacer, para CADA instancia que ya exista (hoy: DEMO y g500):**
 
@@ -278,9 +284,11 @@ sitio (disco, ruido en el panel, cuota de algún servicio externo).
 - Nadie ha corrido `update.sh --comprobar` contra un Postgres real (paso 2).
 - Nadie ha mirado la pantalla con un navegador (paso 4).
 - Nadie ha corrido `docker build` con este cambio dentro (paso 6).
-- Las instancias que ya existen (DEMO, g500, y cualquier otra) siguen en
-  `modo = 'aprobacion'` por defecto hasta que alguien corra el paso 1 —
-  **y hasta entonces se congelan en silencio**.
+- La migración de la tabla todavía no llegó a `main` ni a ninguna instancia:
+  hoy DEMO y g500 corren sin ella y siguen actualizándose como siempre. **El
+  día que una versión con esa migración les llegue**, nacerán en
+  `modo = 'aprobacion'` por defecto — y desde ese momento, hasta que alguien
+  corra el paso 1, **se congelarán en silencio**.
 - El cron nuevo no existe todavía en ninguna instancia ya aprovisionada hasta
   que alguien corra el paso 3.
 

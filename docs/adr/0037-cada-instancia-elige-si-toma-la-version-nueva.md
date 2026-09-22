@@ -175,11 +175,17 @@ de que los cortes son de madrugada.
 
 ### Lo que hay que hacer a mano, y si no se hace duele
 
-**Las instancias que YA existen se congelan en silencio.** La tabla nace con
-`aprobacion` por omisión y la migración no puede distinguir una instalación nueva
-de una que lleva meses corriendo. DEMO y g500 dejarían de actualizarse sin que nada
-diera error. **Va en la tarjeta humana del despliegue**: para cada instancia
-existente, fijar el modo a conciencia.
+**Las instancias que YA existen se congelarán en silencio EL DÍA QUE reciban
+esta migración.** Hoy (2026-09-21) no ha pasado todavía: la migración vive
+solo en esta rama, y DEMO y g500 corren sin la tabla, así que siguen
+actualizándose como siempre. El riesgo empieza en el momento en que una
+versión con `20260921_actualizaciones_instancia.sql` llegue a esas
+instancias — ahí la tabla nace con `aprobacion` por omisión y la migración no
+puede distinguir una instalación nueva de una que lleva meses corriendo.
+Desde ese momento, sin intervención, DEMO y g500 dejarían de actualizarse sin
+que nada diera error. **Va en la tarjeta humana del despliegue**: antes de
+publicar la versión que la lleve, o justo después, fijar el modo a
+conciencia en cada instancia existente.
 
 ### Lo que este ADR deja deliberadamente sin resolver
 
