@@ -234,6 +234,49 @@ que hay que tener juntas en la cabeza:
   tabla**. Este apartado y el paso 1 de la tarjeta decían lo contrario, y con
   eso la urgencia estaba atada al vehículo equivocado.
 
+### La primera adopción nacía anunciando una novedad falsa — CERRADO el 22/09
+
+*Medido en DEMO el 2026-09-22, la primera vez que el ADR corrió en un
+servidor. Expediente: `docs/evidencias/adr0037-demo-20260922.md`.*
+
+Tras actualizar, la fila quedó con `version_instalada` y `digest_instalado` en
+**NULL**. Con eso `hayNovedad` (`apps/web/app/api/actualizaciones/route.ts:69`)
+daba **verdadero**, y la pantalla del dueño anunciaba una `v0.6.0` disponible
+**teniendo `v0.6.0` corriendo**. Y si alguien aprobaba esa novedad falsa, la
+aprobación **no se consumía nunca** —la corrida siguiente sale por el corte de
+«sin cambios», que está por encima del bloque de decisión— y la pantalla
+prometía una instalación «en los próximos minutos» para siempre.
+
+**No era un caso de borde: le pasaba a toda instancia que adoptara el ADR**, y
+exactamente una vez, en la corrida de la adopción. La causa es que las dos
+piezas llegan por vehículos distintos (el apartado de arriba):
+
+1. `HAY_TABLA_ACTUALIZACIONES` se fija en el bloque **2b**, que corre **antes**
+   de las migraciones.
+2. La tabla la **crea** una migración que viaja **dentro de la imagen**, o sea
+   después.
+3. `marcar_instalado` solo corría si aquel flag valía 1 → en esa corrida, nunca.
+
+**Cómo se cerró.** El marcado sigue yendo **después de la salud** —afirmar una
+versión que la migración o la salud pudieran no haber dejado sirviendo es justo
+lo que no se debe hacer— y el corte de «sin cambios» **no se tocó**. Lo que
+cambia son dos cosas:
+
+- `guion_instalado` pregunta por `to_regclass` **en la misma conexión** en la
+  que escribiría, y contesta `INSTALADO sin-tabla` sin escribir nada si sigue
+  sin haberla. No se sondea aparte: una segunda sonda sería otro contenedor
+  efímero y otra ventana entre leer y escribir.
+- Se llama a `marcar_instalado` también cuando **la base cambió en esta
+  corrida** (`BASE_CAMBIO != no`), que es el único momento en que la tabla pudo
+  aparecer.
+
+Para una imagen anterior a esa migración **el resultado observable es el de
+antes**: no se escribe nada, no se grita, y ningún código de salida cambia de
+significado. Lo fijan **E148** (la tabla la crea la migración de esta corrida:
+al cerrar sí se anota) y **E149** (si sigue sin existir, no se escribe nada y
+no es un error) en `infra/scripts/pruebas-update.sh`, las dos **demostradas en
+rojo** contra el código anterior.
+
 ### El fantasma permanente: el corte compara Id, la decisión compara digest
 
 `update.sh` corta con «sin cambios» comparando el **Id** de la imagen; la
