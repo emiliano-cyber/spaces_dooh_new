@@ -5,6 +5,75 @@ verifico y que sigue pendiente. Lo mas reciente primero.
 
 ---
 
+## 2026-09-21 — Space Eyes se convierte en un modulo de SPACE OS
+
+Se cerro el encargo de llevar el modulo a un dashboard de monitoreo. Primero la
+maqueta (aprobada antes de escribir codigo, cuatro tableros: listado, ficha,
+comparar y movil) y luego la implementacion sobre lo que ya funcionaba. **Nada
+de lo que habia se quito**: la camara dentro de la ficha comercial
+(`SpaceEyeVision.tsx`) sigue igual.
+
+### Lo que se abrio en ESTE backend, y lo que NO se abrio
+
+`POST /api/eyes/devices/:id/captura` — pedirle una foto ahora a un equipo, desde
+una instancia. Ruta propia y no `POST /api/devices/:id/command` a proposito: esa
+acepta ocho tipos de orden (reiniciar la app, abrir la transmision, cambiar la
+configuracion, actualizar el programa), asi que dejar entrar una llave ahi seria
+dar las ocho para conseguir una, y la novena que se agregue vendria de regalo.
+Aqui el tipo de orden **no es un parametro**. Ademas aquella ruta apunta el autor
+con `req.user!.uid`, y una llave no es un usuario: con ella entrando, esa linea
+revienta con 500 en vez de negar.
+
+`GET /api/devices/:id/telemetry` entro en la lista blanca de llaves, y con el
+mismo movimiento se le puso el **candado del dueno**, que no tenia. Sin eso,
+abrir esa ruta habria entregado el historico —bateria, senal, temperaturas— de la
+flota entera a cualquier instancia que supiera un id: el mismo agujero que se
+cerro en la lista de equipos en septiembre, otra vez y por otra puerta.
+
+La captura es **la unica ruta de la lista blanca que no es GET**. Por eso la
+marca `escritura` de una llave alcanza exactamente eso y nada mas. El dia que se
+agregue otra, hay que volver a mirar que significa esa marca.
+
+### Como se verifica, sin depender de que alguien se acuerde
+
+`npm run prueba:captura-instancia` (en `backend/`). Crea sus propias llaves,
+prueba los seis caminos y las revoca. Comprueba que el dueno pide la foto; que
+una llave de solo lectura y un testigo de alta **no**; que **un equipo ajeno da
+404** aunque la llave tenga escritura; que el historico respeta al dueno; y que
+`command`, `logs`, el export CSV, `schedules`, `llaves` y `reaprender` **siguen
+cerradas**. Esa ultima parte es la que de verdad importa.
+
+### Del lado de SPACE OS (su repo, SIN COMMITEAR, se entrega como parche)
+
+Menu con grupo propio entre Inventario y Comercial; listado tipo centro de
+monitoreo; ficha con la fotografia de protagonista, la barra de estado encima de
+la imagen, las dos procedencias de foto separadas y comparables, y el historico
+en graficas. Permisos reutilizados (`inventario.ver` para mirar,
+`inventario.crear` para encender la camara) para **no necesitar migracion**: su
+catalogo de permisos viaja en sus migraciones y `tienePermiso` es fail-closed, o
+sea que un modulo nuevo sin su fila deja la pantalla en 403 para todos.
+
+La «foto del cliente» NO es almacenamiento nuevo: es la galeria de la pantalla
+(`sitios.fotos`), que ya existe y que el cliente ya llena desde Inventario.
+
+Verificado con SU arnes: 11 casos e2e con sesion y RLS de verdad
+(`lib/test/space-eyes.e2e.test.ts`), y las 1158 pruebas unitarias suyas en verde
+—una se puso roja por mi culpa y con razon: su pantalla de 404 exige un atajo por
+cada fase del menu, y yo habia agregado una fase sin atajo—.
+
+Todo el detalle, y lo que su equipo tiene que aplicar, en
+`docs/ENTREGA_MODULO_SPACE_EYES.md`.
+
+### Pendientes que deja
+
+1. **Desplegar.** Migraciones 015/016/017 primero, luego backend y frontend.
+2. **El parche de `SPACE_EYE_KEY`** sigue sin aplicarse en su repo. Mientras
+   entren con la cuenta admin, el aislamiento entre instancias es decorativo.
+3. La pantalla de descarga del instalador sellado (su lado) y `SPACE_EYE_*` en
+   su `instancia.env.example`.
+
+---
+
 ## 2026-08-17 — Revision de la Raspberry antes de mandarla a produccion
 
 Se reviso el equipo #13 contra produccion, con el equipo en linea, no sobre el

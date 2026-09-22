@@ -30,6 +30,15 @@ const RUTAS_DE_LLAVE: RegExp[] = [
   /^\/api\/devices\/\d+$/,
   /^\/api\/photos$/,
   /^\/api\/eyes\/cambios$/,
+  // Historico de telemetria del equipo (bateria, temperaturas, senal). El
+  // controlador comprueba el dueno: sin esa comprobacion, abrir esta ruta a las
+  // llaves entregaria el historico de la flota entera a cualquier instancia.
+  /^\/api\/devices\/\d+\/telemetry$/,
+  // La UNICA ruta que no es GET. Por eso la marca `escritura` de una llave
+  // alcanza exactamente esto -pedir una foto- y nada mas: no hay otra puerta
+  // abierta que no sea de lectura. Si algun dia se agrega otra, hay que volver
+  // a mirar que significa esa marca.
+  /^\/api\/eyes\/devices\/\d+\/captura$/,
 ];
 
 export async function requireUser(req: Request, res: Response, next: NextFunction) {

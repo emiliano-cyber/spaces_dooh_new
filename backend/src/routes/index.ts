@@ -84,6 +84,11 @@ export function createRoutes() {
 
   // Espejo de SPACE OS: de aqui saca cada instancia lo que cambio en SUS camaras.
   router.get('/api/eyes/cambios', requireUser, eyes.cambios);
+  // Lo UNICO que una instancia puede escribir: pedirle una foto a un equipo
+  // suyo. Ruta aparte de /api/devices/:id/command a proposito -esa acepta ocho
+  // tipos de orden y aqui el tipo no es un parametro-. Ver el comentario del
+  // controlador.
+  router.post('/api/eyes/devices/:id/captura', requireUser, eyes.pedirCaptura);
 
   // Llaves de servicio: como entra OTRO SISTEMA a leer, sin la cuenta admin.
   // Todo admin: crear una llave es repartir acceso a los datos de la flota.

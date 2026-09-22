@@ -45,10 +45,18 @@ export async function getTelemetry(req: Request, res: Response) {
   if (!deviceId) return res.status(400).json({ error: 'invalid_device' });
 
   const [devRows] = await pool.query<any[]>(
-    `SELECT id, name, online, last_seen_at FROM devices WHERE id = ?`, [deviceId]
+    `SELECT id, name, online, last_seen_at, owner FROM devices WHERE id = ?`, [deviceId]
   );
   const device = (devRows as any[])[0];
   if (!device) return res.status(404).json({ error: 'not_found' });
+  // Mismo alcance que la lista de equipos y la de fotos. Va aqui y no en la ruta
+  // porque esta consulta es la que decide: el dia que se abrio esta ruta a las
+  // llaves de instancia, sin esto se entregaba el historico -bateria, senal,
+  // temperaturas- de la flota entera a cualquier instancia que supiera un id.
+  // Un equipo ajeno se contesta 404, igual que uno que no existe.
+  if (req.servicio?.owner && device.owner !== req.servicio.owner) {
+    return res.status(404).json({ error: 'not_found' });
+  }
 
   const { from, to } = resolveRange(req.query.from as string, req.query.to as string);
   const granularity = (req.query.granularity as string) === 'hour' ? 'hour' : 'raw';

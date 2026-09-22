@@ -19,6 +19,8 @@
 import { Request, Response } from 'express';
 import { pool } from '../config/database';
 import { firmarFilas } from '../utils/firmaArchivos';
+import { redis } from '../config/redis';
+import { encuadreDe } from './dashboard.controller';
 
 // Tope de filas por respuesta. Con mas, la instancia vuelve a preguntar desde la
 // marca que se le devuelve: es preferible varias vueltas cortas a una respuesta
@@ -127,4 +129,66 @@ export async function cambios(req: Request, res: Response) {
     // siguiente da 403.
     fotos: firmarFilas(listaFotos),
   });
+}
+
+/**
+ * POST /api/eyes/devices/:id/captura
+ *
+ * Pedirle una foto AHORA al equipo, desde el modulo de una instancia. Es lo
+ * unico que una llave de servicio puede ESCRIBIR.
+ *
+ * POR QUE UNA RUTA PROPIA, Y NO LA DE SIEMPRE
+ * -------------------------------------------
+ * `POST /api/devices/:id/command` acepta ocho tipos de orden: reiniciar la app,
+ * abrir la transmision, cambiar la configuracion, actualizar el programa. Dejar
+ * entrar ahi a una llave seria dar las ocho para conseguir una, y el dia que se
+ * agregue la novena tambien la tendria sin que nadie lo decida. Aqui el tipo de
+ * orden NO es un parametro: es TAKE_PHOTO y punto, no se lee nada del cuerpo.
+ *
+ * Ademas aquella ruta apunta el autor con `req.user!.uid`, y una llave no es un
+ * usuario: con ella entrando, esa linea revienta con 500 en vez de negar.
+ *
+ * QUE SE COMPRUEBA
+ * ----------------
+ * Que la credencial sea una llave con escritura -el alcance de esa marca es
+ * exactamente esta ruta, porque es la unica que no es GET en la lista blanca- y
+ * que el equipo sea del dueno de la llave. Un equipo ajeno se contesta 404,
+ * igual que uno que no existe: decir "prohibido" ya confirmaria que existe.
+ */
+export async function pedirCaptura(req: Request, res: Response) {
+  const llave = req.servicio;
+  if (!llave) return res.status(401).json({ error: 'se_requiere_llave_de_servicio' });
+  // Segundo candado. Hoy no se alcanza: el middleware ya niega cualquier metodo
+  // que no sea GET a una llave sin escritura, y contesta antes que esto. Se deja
+  // puesto porque esa negativa vive en una lista de rutas que se edita, y el dia
+  // que alguien afloje ahi esta ruta no puede quedar abierta de rebote.
+  if (!llave.escritura) return res.status(403).json({ error: "llave_sin_permiso_de_captura" });
+
+  const deviceId = Number(req.params.id);
+  if (!Number.isInteger(deviceId) || deviceId <= 0) return res.status(400).json({ error: 'invalid_device' });
+
+  const [filas] = await pool.query<any[]>(
+    `SELECT id, owner, online FROM devices WHERE id = ? LIMIT 1`,
+    [deviceId]
+  );
+  const equipo = (filas as any[])[0];
+  if (!equipo) return res.status(404).json({ error: 'not_found' });
+  if (llave.owner && equipo.owner !== llave.owner) return res.status(404).json({ error: 'not_found' });
+
+  // El encuadre guardado del equipo viaja en la orden, igual que cuando la pide
+  // el dashboard: si no, la foto saldria con otro encuadre que las demas.
+  const payload = await encuadreDe(deviceId);
+
+  const [r] = await pool.query<any>(
+    `INSERT INTO commands (device_id, command_type, payload, priority, created_by, expires_at)
+     VALUES (?, 'TAKE_PHOTO', ?, 5, NULL, DATE_ADD(NOW(), INTERVAL 10 MINUTE))`,
+    [deviceId, JSON.stringify(payload ?? null)]
+  );
+  const command = { id: (r as any).insertId, command_type: 'TAKE_PHOTO', payload: payload ?? null };
+
+  await redis.publish('device:command', JSON.stringify({ device_id: deviceId, command }));
+
+  // `en_linea` le sirve a la interfaz para decir la verdad mientras espera: a un
+  // equipo caido la orden le llega cuando vuelva, no ahora.
+  res.json({ orden: command.id, en_linea: Boolean(equipo.online), estado: 'pendiente' });
 }

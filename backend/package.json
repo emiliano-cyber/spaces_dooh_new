@@ -8,6 +8,7 @@
     "worker:schedule": "tsx src/workers/scheduleWorker.ts",
     "migrate": "tsx scripts/migrate.ts",
     "prueba:horarios": "tsx scripts/prueba-horarios.ts",
+    "prueba:captura-instancia": "tsx scripts/prueba-captura-instancia.ts",
     "script:create-admin": "tsx scripts/create-admin.ts"
   },
   "dependencies": {
