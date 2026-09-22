@@ -206,37 +206,73 @@ ya arregladas:
   flota entera sin servidor, en silencio. Ahora el 4000 sigue abierto como
   **puente de migración** y se cierra el día que ningún equipo apunte a la IP.
 
-Los pasos, en orden:
+### ATENCIÓN: en el droplet de Space Eye **manda Apache**, no Caddy
 
-1. **DNS** (lo hacen ustedes): `eyes.g500.space-os.io` → `A` → `159.203.188.58`,
-   DNS only.
-2. En el `backend/.env` del droplet de Space Eye:
+Comprobado el 22-sep contra el servidor: **Apache 2.4.58 es el dueño del 80 y
+del 443** en `159.203.188.58`, sirviendo `market.adavailable.com` con su
+certificado de Let's Encrypt. `eyes.g500.space-os.io` ya resuelve ahí y cae en el
+vhost por omisión.
+
+O sea que **Caddy no puede tomar los puertos en esta máquina**, y el plan de
+cambiar de compose no aplica aquí. La buena noticia es que el camino que sí
+aplica es **mucho menos arriesgado**: no se toca el compose, no se reinicia la
+pila, y los equipos en campo ni se enteran. Solo se agrega un vhost delante.
+
+(El compose con Caddy queda igual de válido para un **hijo nuevo** que nazca en
+un droplet limpio. Por eso se corrigió y no se retiró.)
+
+### Los pasos, en orden
+
+1. **DNS** — hecho: `eyes.g500.space-os.io` → `A` → `159.203.188.58`.
+
+2. **Módulos y vhost** (en el droplet, como root):
+   ```bash
+   a2enmod proxy proxy_http proxy_wstunnel ssl rewrite headers
+   # el archivo está en el repo: infra/apache/eyes.g500.space-os.io.conf
+   scp infra/apache/eyes.g500.space-os.io.conf root@159.203.188.58:/etc/apache2/sites-available/
    ```
-   DOMAIN=eyes.g500.space-os.io
+
+3. **El certificado**, antes de habilitar el vhost de 443 (el archivo apunta a
+   rutas que todavía no existen, así que habilitarlo antes tumba Apache al
+   recargar):
+   ```bash
+   certbot certonly --apache -d eyes.g500.space-os.io
+   a2ensite eyes.g500.space-os.io
+   apache2ctl configtest && systemctl reload apache2
+   ```
+   `configtest` antes del reload no es adorno: un vhost con un error deja
+   Apache sin arrancar, y ahí se cae **también market.adavailable.com**.
+
+4. **El backend**, en `backend/.env` del droplet:
+   ```
    PUBLIC_BASE_URL=https://eyes.g500.space-os.io
    MEDIAMTX_WHEP_PUBLIC=https://eyes.g500.space-os.io/whep
    ```
-3. Desplegar con el compose de producción (Caddy saca el certificado solo):
+   y reiniciar **solo** el backend, sin tocar el resto de la pila:
    ```bash
-   docker compose -f infra/docker-compose.prod.yml --env-file backend/.env up -d
+   docker compose -f infra/docker-compose.ip.yml --env-file backend/.env up -d backend
    ```
-   **Siempre con `--env-file`**, o `MEDIAMTX_PASS` se queda vacía y el vivo deja
-   de autenticar.
-4. Comprobar, en este orden: `https://eyes.g500.space-os.io/api/app/version`
-   responde 401 (vivo y pidiendo credencial), la IP `:4000` **sigue
-   respondiendo** (la flota no se entera), y una vista en vivo abre por el
-   dominio.
-5. En el hijo de g500 (`g500.space-os.io`), su `.env`:
+   Siempre con `--env-file`, o `MEDIAMTX_PASS` se queda vacía y el vivo deja de
+   autenticar.
+
+5. **Comprobar, en este orden** (el segundo es el que importa):
+   ```bash
+   curl -sI https://eyes.g500.space-os.io/api/app/version   # 401 = vivo y pidiendo credencial
+   curl -sI http://159.203.188.58:4000/api/app/version      # 401 = LA FLOTA NO SE ENTERO
+   curl -sI https://market.adavailable.com/                 # el vecino sigue en pie
+   ```
+
+6. **El hijo de g500** (`g500.space-os.io`), en su `.env`:
    ```
    SPACE_EYE_BASE_URL=https://eyes.g500.space-os.io
    SPACE_EYE_KEY=se_...
    SPACE_EYE_PROVISION_TOKEN=se_...
    ```
-6. Las **builds nuevas** ya apuntan al dominio:
+
+7. **Las builds nuevas** ya apuntan al dominio:
    ```bash
-   ./gradlew assembleRelease -PserverUrl=https://eyes.g500.space-os.io   # APK
+   ./gradlew assembleRelease -PserverUrl=https://eyes.g500.space-os.io
    ```
-   y en los agentes, `server_url` en su `config.json`.
 
 Los equipos viejos **no se tocan**: siguen por IP hasta que una actualización les
 cambie el `server_url`. La APK necesita versión nueva; los agentes de PC y Pi,
