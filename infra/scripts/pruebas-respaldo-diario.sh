@@ -462,6 +462,49 @@ if grep -qF 'SPACE_OS_CONF' "$GUION"; then bien
 else mal 'el guion no respeta SPACE_OS_CONF: en el PADRE leeria la configuracion de la instancia equivocada'; fi
 
 # ============================================================================
+#  R11 · `DIR_RESPALDOS` SE PUEDE FIJAR DESDE LA PROPIA CONFIGURACION
+# ----------------------------------------------------------------------------
+#  Esta es la propiedad de la que depende el arreglo del PADRE, y por eso tiene
+#  prueba propia en vez de quedarse en prosa de una tarjeta.
+#
+#  EL PROBLEMA: en el PADRE hay DOS escritores en /var/lib/space-os/respaldos --
+#  el respaldo diario de DEMO y el `update.sh` de DEMO (`/etc/cron.d/space-os-demo`,
+#  04:31, que lleva `SPACE_OS_CONF` y nada mas). La poda deja 3 por fecha mire de
+#  que base sean, asi que DEMO se come los respaldos del PADRE.
+#
+#  POR QUE SE ARREGLA CON `DIR_RESPALDOS` Y NO CON `SPACE_OS_DIR_ESTADO`:
+#  `DIR_RESPALDOS` se deriva DESPUES de sourcear la configuracion --en este guion
+#  (`:187`, con el source en `:150`) y en `update.sh` (`:911`, source en `:841`)--
+#  asi que una linea dentro de `demo-instancia.env` la honran LOS DOS guiones.
+#  `SPACE_OS_DIR_ESTADO` se lee ANTES del source (`:116` aqui, `:431` alli): en la
+#  configuracion no serviria de nada, solo funciona como variable de entorno, y
+#  entonces hay que acordarse de ponerla en cada linea de cron de cada guion --
+#  dos variables acopladas que solo une la prosa. Esto ata el directorio a
+#  `SPACE_OS_CONF`, que es la unica que ya no se puede olvidar: sin ella la base
+#  es la equivocada y se nota enseguida.
+# ============================================================================
+escenario 'R11 · DIR_RESPALDOS desde el archivo de configuracion manda sobre el valor derivado'
+preparar
+OTRO="$RAIZ_TMP/estado-demo/respaldos"
+cat >"$CONF" <<FIN
+DATABASE_URL=postgresql://spaces:$CLAVE@127.0.0.1:5432/spaces_demo
+INSTANCIA=demo
+DIR_RESPALDOS=$OTRO
+FIN
+correr --
+codigo_es 0
+# El dump esta donde dice la configuracion...
+if find "$OTRO" -maxdepth 1 -type f -name 'spaces_*.dump' 2>/dev/null | grep -q .; then bien
+else mal "el dump no esta en el DIR_RESPALDOS de la configuracion ($OTRO)"; fi
+# ...y NO en el directorio por omision, que es el del PADRE. Esta es la
+# comprobacion que importa: la otra puede pasar escribiendo en los dos sitios.
+if find "$DIR_RESPALDOS" -maxdepth 1 -type f -name 'spaces_*.dump' 2>/dev/null | grep -q .; then
+  mal "el dump TAMBIEN cayo en el directorio por omision: en el PADRE eso es podar los respaldos de la otra instancia"
+else bien; fi
+hubo_regex 'pg_dump-argv .*--file='"$OTRO"'/spaces_'
+limpiar
+
+# ============================================================================
 #  R8 · LO QUE ESTE GUION NO PUEDE HACER NUNCA
 # ============================================================================
 escenario 'R8 · no habla con ningun servidor ni toca update.sh'
@@ -502,16 +545,23 @@ limpiar
 escenario 'R10 · el guion restringe permisos del directorio y del dump (leido, no ejecutado)'
 if grep -qE '^umask 077' "$GUION"; then bien
 else mal 'no hay `umask 077`: el dump naceria 0644, legible por cualquier usuario del droplet'; fi
-if grep -qE 'chmod 700 "\$DIR_RESPALDOS"' "$GUION"; then bien
+if grep -qE '^chmod 700 "\$DIR_RESPALDOS"' "$GUION"; then bien
 else mal 'no se restringe el directorio de respaldos, que ya existe en 0755 creado por update.sh'; fi
-if grep -qE 'chmod 600 "\$BK"' "$GUION"; then bien
+if grep -qE '^chmod 600 "\$BK"' "$GUION"; then bien
 else mal 'no se restringe el dump: lo crea pg_dump, no este guion, asi que el umask no basta'; fi
 # Y EL ORDEN, que la primera version tenia mal: con `umask 077` ANTES del
 # `mkdir -p`, los PADRES que falten nacen 0700 de root y los servicios que
 # corren como otro usuario (`flota`, `altas`) no pueden atravesar el directorio
 # de estado. Endurecer de mas y tumbar otro servicio no es seguridad, es averia.
-n_mkdir="$(grep -n 'mkdir -p "\$DIR_RESPALDOS"' "$GUION" | head -1 | cut -d: -f1)"
-n_umask="$(grep -n '^umask 077' "$GUION" | head -1 | cut -d: -f1)"
+# ⚠️ ANCLADOS A PRINCIPIO DE LINEA (`^`), y no es cosmetica: sin el ancla estos
+# dos `grep` casan tambien los COMENTARIOS. Se demostro el 22/09 -- un comentario
+# con el literal `mkdir -p "$DIR_RESPALDOS"` encima, el `umask` movido delante
+# del `mkdir` de verdad, y el arnes daba 0 fallos CON EL BUG PUESTO. El guard que
+# se anadio para que un bug real no volviera se dejaba burlar por una linea de
+# prosa. Hoy no pasaba por pura suerte: el comentario de `respaldo-diario.sh:211`
+# menciona `mkdir -p` pero sin la variable entrecomillada.
+n_mkdir="$(grep -nE '^mkdir -p "\$DIR_RESPALDOS"' "$GUION" | head -1 | cut -d: -f1)"
+n_umask="$(grep -nE '^umask 077' "$GUION" | head -1 | cut -d: -f1)"
 if [ -n "$n_mkdir" ] && [ -n "$n_umask" ] && [ "$n_mkdir" -lt "$n_umask" ]; then bien
 else mal "el \`umask 077\` (linea ${n_umask:-?}) tiene que ir DESPUES del \`mkdir -p\` (linea ${n_mkdir:-?}): si no, los directorios padre nacen 0700 y \`flota\`/\`altas\` no pueden atravesarlos"; fi
 

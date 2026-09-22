@@ -105,10 +105,40 @@ inventó aquí: es el que ya usa `respaldo.sh:229-232`.
 > Agravante: los dos escriben `spaces_<fecha>.dump`, así que por el nombre **no se
 > distingue de qué base es cada uno**. No hay forma de darse cuenta después.
 >
-> **Las dos variables van siempre juntas**, en el paso B2 y en la línea de cron de
-> B3 de la tarjeta 12. No se arregló en código a propósito: el guion ya honra las
-> dos, y hacerle adivinar un subdirectorio por base rompería el contrato de
-> nombres que comparte con `update.sh` para la poda y el `pg_restore`.
+> **Y no hay un escritor, hay dos.** El `update.sh` de DEMO escribe y poda en ese
+> mismo directorio: su cron es `/etc/cron.d/space-os-demo`, **04:31**, y lleva
+> `SPACE_OS_CONF` pero nada que mueva el directorio (`update.sh:431` y `:911` lo
+> derivan igual). Es más raro —solo cuando hay imagen nueva— y es **anterior** a
+> este trabajo, pero cuenta igual: un arreglo que cerrara solo el respaldo diario
+> dejaría el agujero medio abierto y la tarjeta diciendo que está cerrado.
+>
+> **La salida es UNA línea en la configuración de DEMO**, no una variable de
+> entorno repetida en cada cron:
+>
+> ```
+> DIR_RESPALDOS=/var/lib/space-os/demo/respaldos   # en demo-instancia.env
+> ```
+>
+> Funciona porque **los dos guiones derivan ese valor DESPUÉS de sourcear la
+> configuración**: `respaldo-diario.sh` (source `:150` → `DIR_RESPALDOS` `:187`) y
+> `update.sh` (source `:841` → `:911`). Así que **cierra los dos de golpe, sin
+> tocar `update.sh`**.
+>
+> **`SPACE_OS_DIR_ESTADO` no sirve para esto** y por eso se descartó: se lee
+> *antes* del source (`:116` aquí, `:431` allí), así que en el archivo no hace
+> nada — solo funciona como variable de entorno, y entonces hay que acordarse de
+> repetirla en cada línea de cron de cada guion. Eran **dos variables acopladas
+> que había que copiar juntas en dos sitios, y lo único que las unía era la
+> prosa**. Con `DIR_RESPALDOS` el directorio queda atado a `SPACE_OS_CONF`, que es
+> la única que ya no se puede olvidar: sin ella la base es la equivocada y se nota
+> en la primera línea del log.
+>
+> Lo fija el escenario **R11**, que comprueba además que el dump **no** cae
+> también en el directorio por omisión.
+>
+> No se arregló en código a propósito: hacerle adivinar un subdirectorio por base
+> rompería el contrato de nombres que comparte con `update.sh` para la poda y el
+> `pg_restore`.
 
 
 
@@ -148,7 +178,7 @@ escenario R9 del arnés.
 bash infra/scripts/pruebas-respaldo-diario.sh
 ```
 
-**16 escenarios · 62 comprobaciones · 0 fallos**, en **15 segundos** (medido el
+**17 escenarios · 66 comprobaciones · 0 fallos**, en **15 segundos** (medido el
 22/09). No sale a la red, no toca ninguna base y no toca ningún servidor: dobla
 `pg_dump`, `s3cmd` y `hostname`.
 
@@ -166,6 +196,13 @@ acuerda defiende justo contra lo que no puede defender.** El coste no es el de
 > ver si el `chmod` llegó a correr ni si surtió efecto, y sobrevive a un
 > renombrado. Es lo único comprobable aquí (en Git Bash `umask` y `chmod` no se
 > reflejan en `stat`). **La comprobación real es el paso A2b de la tarjeta 12.**
+>
+> ⚠️ **Y el guard de orden se dejó burlar una vez.** Nació con los `grep` sin
+> anclar, así que casaban también los comentarios: un comentario con el literal
+> `mkdir -p "$DIR_RESPALDOS"` encima y el `umask` movido delante del `mkdir` real
+> daban **0 fallos con el bug puesto**. Anclados a principio de línea (`^`) desde
+> el 22/09, y comprobado repitiendo ese mismo mutante. Un guard que se burla con
+> una línea de prosa es peor que no tenerlo: ocupa el sitio del que funcionaría.
 
 Muerden, comprobado con cinco mutantes el 22/09: quitar el guard de 0 bytes (R2),
 salir 0 con la subida fallida (R4), ignorar `SPACE_OS_CONF` (R1/R9), volver a
