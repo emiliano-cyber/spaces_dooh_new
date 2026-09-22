@@ -5,6 +5,22 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-09-22
+
+- **La demostración ya corre la versión nueva, y por primera vez decide si la
+  toma.** Se publicó la versión `v0.6.0` y la instancia de demostración la
+  instaló: con ella llega la tarjeta de **Actualizaciones** en Administración →
+  Configuración. A partir de la siguiente versión, esa instancia **no instalará
+  nada sin que alguien lo apruebe** desde esa pantalla — es el modo con el que
+  nace, y se puede cambiar a automática cuando se quiera.
+
+- **Y se corrigió un aviso falso que aparecía justo al estrenarla.** Al instalar
+  la versión que crea esta función, la pantalla decía que había una versión nueva
+  esperando cuando en realidad ya estaba instalada. Pasa solo la primera vez, en
+  cada instancia, y mientras dure alguien podría aprobar algo que no iba a
+  instalarse nunca. Se arregló en la demostración y queda anotado para que no
+  vuelva a pasar en las siguientes.
+
 ## 2026-09-21
 
 - **El Dueño ya puede ver y decidir si esta instancia toma la versión nueva.**
