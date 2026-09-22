@@ -2137,6 +2137,20 @@ const cli = new Client({ connectionString: process.env.DATABASE_URL })
 cli
   .connect()
   .then(async () => {
+    // LA TABLA PUEDE HABER APARECIDO —o seguir sin aparecer— DESPUES de que
+    // el bloque 2b mirara. Se pregunta AQUI, en la misma conexion en la que
+    // se escribiria, y no con una sonda aparte: una segunda sonda seria otro
+    // contenedor efimero y, sobre todo, otra ventana entre "leer" y
+    // "escribir" -- exactamente la que `aprobarDigest()` cierra del lado de
+    // la app con un UPDATE atomico. Que la tabla falte NO es un error: es el
+    // estado normal de una instancia con una imagen anterior a la migracion
+    // que la crea, y el que llama lo distingue por esta palabra.
+    const hay = (await cli.query("select to_regclass('public.actualizaciones_instancia') is not null as hay")).rows[0].hay
+    if (!hay) {
+      console.log('INSTALADO sin-tabla')
+      await cli.end()
+      return
+    }
     await cli.query(
       `update actualizaciones_instancia
           set version_instalada = $1, digest_instalado = $2, aprobado_digest = null,
@@ -2166,7 +2180,17 @@ marcar_instalado() {
   printf '%s\n' "$salida" >>"$LOG"
   if [ "$codigo" -ne 0 ]; then
     registrar "   AVISO: no se pudo anotar version_instalada/digest_instalado en actualizaciones_instancia ($salida). La instancia SI quedo actualizada; solo fallo el registro para la pantalla del dueno."
+    return 0
   fi
+  # SIN TABLA NO ES UN FALLO, y por eso no sale por el AVISO de arriba: una
+  # instancia con una imagen anterior a la migracion que crea la tabla se
+  # actualiza como siempre, y decirle "AVISO: no se pudo anotar" a cada
+  # corrida de toda esa parte de la flota es ruido, y el ruido se aprende a
+  # ignorar. Se dice lo que paso, que es otra cosa.
+  case "$salida" in
+    *'INSTALADO sin-tabla'*)
+      registrar "   actualizaciones_instancia sigue sin existir tras migrar: no hay donde anotar lo instalado, y no es un error (imagen anterior a esa migracion)." ;;
+  esac
 }
 
 # ─── --dry-run: mira y cuenta ──────────────────────────────────────────────
@@ -2557,9 +2581,33 @@ if [ "$sano" -eq 0 ]; then
   # ADR 0037: recien aqui, con la salud YA comprobada, se afirma "instalado" y
   # se limpia la aprobacion que lo pidio. Hacerlo antes -junto a la decision,
   # arriba- afirmaria una version que la migracion o la salud podrian no haber
-  # dejado sirviendo. Si no hay tabla (imagen anterior a esta migracion), no
-  # hay donde escribir y no se intenta.
-  if [ "$HAY_TABLA_ACTUALIZACIONES" = 1 ]; then
+  # dejado sirviendo. Eso NO cambia: el marcado sigue yendo despues de la
+  # salud, y solo aqui.
+  #
+  # LO QUE SI CAMBIO, Y POR QUE — defecto medido en DEMO el 2026-09-22:
+  # `HAY_TABLA_ACTUALIZACIONES` se fija en el bloque 2b, que corre ANTES de
+  # las migraciones, y la tabla la CREA una migracion que viaja DENTRO de la
+  # imagen. O sea que en la corrida que ADOPTA el ADR 0037 -la de toda
+  # instancia, una vez- el flag se queda en 0 y esto no se ejecutaba nunca:
+  # la fila nacia con `version_instalada` y `digest_instalado` en NULL,
+  # `hayNovedad` (`apps/web/app/api/actualizaciones/route.ts:69`) daba
+  # verdadero, y la pantalla del dueno anunciaba como disponible la version
+  # que ya estaba sirviendo. Y si el dueno aprobaba esa novedad falsa, la
+  # aprobacion no se consumia JAMAS: la corrida siguiente sale por el corte
+  # de "sin cambios", que esta por encima del bloque de decision.
+  #
+  # Por eso tambien se marca cuando la base CAMBIO en esta corrida: ese es el
+  # unico momento en que la tabla puede haber aparecido. `desconocido` -la
+  # segunda huella no se pudo leer- cuenta como "pudo cambiar", a proposito:
+  # ahi no se sabe nada, y equivocarse por intentarlo cuesta una linea de
+  # AVISO, mientras que equivocarse por callarse deja la pantalla mintiendo.
+  # No se vuelve a sondear la tabla antes de decidirlo -seria otro contenedor
+  # efimero-: es el propio `guion_instalado` el que pregunta por
+  # `to_regclass` en la MISMA conexion en la que escribiria, y contesta
+  # `sin-tabla` sin escribir nada si sigue sin haberla. Asi, para una imagen
+  # anterior a la migracion, el resultado observable es el de antes: no se
+  # escribe nada y no se grita.
+  if [ "$HAY_TABLA_ACTUALIZACIONES" = 1 ] || [ "$BASE_CAMBIO" != no ]; then
     marcar_instalado
   fi
   salir "$EX_OK" "OK: $VERSION_NUEVA sirviendo. La base cambio=$BASE_CAMBIO ($APLICADAS filas nuevas en schema_migrations). Respaldo en $BK"

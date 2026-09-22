@@ -903,6 +903,21 @@ Al actualizar de verdad, `marcar_instalado()` escribe
 arriba afirmaría una versión que la migración o la salud podrían no haber dejado
 sirviendo.
 
+> [!danger] Y no basta con que la tabla existiera al DECIDIR — medido en DEMO el 22/09
+> El bloque 2b mira la tabla **antes** de migrar, y la tabla la **crea** una
+> migración que viaja **dentro de la imagen**, o sea después. En la corrida que
+> **adopta** el ADR —una por instancia, y le toca a todas— el flag quedaba en 0 y
+> no se marcaba nada: la fila nacía con `version_instalada` y `digest_instalado`
+> en `NULL` y la pantalla del dueño anunciaba como disponible **la versión que ya
+> estaba sirviendo**.
+>
+> Desde el 22/09 se marca también cuando **la base cambió en esta corrida**, que
+> es el único momento en que la tabla pudo aparecer, y es el propio
+> `guion_instalado` el que pregunta por `to_regclass` **en la misma conexión** en
+> la que escribiría: si sigue sin haber tabla, contesta `sin-tabla` y no escribe
+> nada. Para una imagen anterior a esa migración **no cambia nada de lo
+> observable**. Detalle en [[02-Backend/actualizaciones-instancia]].
+
 > [!important] El corte de «sin cambios» ANOTA antes de salir
 > Es el camino que toma una instancia al día, o sea **95 de cada 96 corridas** del
 > cron nuevo. Hasta la ronda 1 salía sin pasar por la sonda, así que `comprobado_en`

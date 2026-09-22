@@ -18,8 +18,12 @@ La entrada más reciente va arriba.
   la versión que crea esta función, la pantalla decía que había una versión nueva
   esperando cuando en realidad ya estaba instalada. Pasa solo la primera vez, en
   cada instancia, y mientras dure alguien podría aprobar algo que no iba a
-  instalarse nunca. Se arregló en la demostración y queda anotado para que no
-  vuelva a pasar en las siguientes.
+  instalarse nunca. Se corrigió a mano en la demostración **y, el mismo día, en
+  el programa que actualiza las instancias**: ahora, al terminar de instalar, la
+  instancia anota sola qué versión quedó funcionando aunque la tarjeta de
+  Actualizaciones acabe de nacer en esa misma instalación. Ninguna instancia
+  volverá a estrenar la pantalla con ese aviso falso, y las que todavía no
+  tienen la función siguen actualizándose exactamente igual que antes.
 
 ## 2026-09-21
 

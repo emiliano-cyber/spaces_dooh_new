@@ -175,6 +175,19 @@ case "$sub" in
         # comparte contador con la sonda de estado.
         cat >/dev/null
         [ "${D_INSTALADO_CODIGO:-0}" = 0 ] || { echo 'instalado: no se pudo escribir'; exit 9; }
+        # LA TABLA PUEDE NO EXISTIR TODAVIA CUANDO SE VA A MARCAR, y el doble
+        # tiene que poder decirlo: desde el defecto medido en DEMO el 22/09 el
+        # propio `guion_instalado` pregunta por `to_regclass` en la MISMA
+        # conexion en la que escribiria. Por omision este doble contesta lo
+        # mismo que la sonda de estado de este escenario -- si aquella dijo
+        # `sin-tabla`, esta tampoco la ve --, y `D_TABLA_TRAS_MIGRAR=1` monta
+        # el caso que lo motivo todo: la tabla NO existia cuando se decidio y
+        # la CREO la migracion de esta misma corrida.
+        if [ "${D_TABLA_TRAS_MIGRAR:-0}" != 1 ]; then
+          case "${D_ESTADO_1:-sin-tabla - -}" in
+            'sin-tabla '*) printf 'INSTALADO sin-tabla\n'; exit 0 ;;
+          esac
+        fi
         printf 'INSTALADO ok\n'
         exit 0 ;;
       *)
@@ -630,7 +643,7 @@ FIN
         D_LOGS_SALIDA PSQL_CODIGO PGR_LIST_CODIGO D_BORRAR_RESPALDOS_EN \
         N_TEST_CODIGO D_CONTENEDOR_PARADO D_OPENSSL_VERSION LN_FALLA \
         D_ESTADO_1 D_ESTADO_2 D_ESTADO_3 D_DECISION_1 D_DECISION_2 D_DECISION_3 \
-        D_DIGEST \
+        D_DIGEST D_TABLA_TRAS_MIGRAR \
         2>/dev/null || true
   export PGR_CODIGO=0
   export PGR_LIST_CODIGO=0
@@ -3372,6 +3385,69 @@ log_dice 'sin cambios'
 no_hubo 'SPACE_OS_CORRIDA'
 no_hubo 'pg_dump'
 no_hubo '--detach'
+limpiar
+
+# ─── ADR 0037 · la tabla que APARECE a mitad de corrida (E148-E149) ────────
+#  Medido en DEMO el 2026-09-22, y no es un caso de borde: es lo que le pasa a
+#  TODA instancia el dia que adopta el ADR. `update.sh` vive en el anfitrion y
+#  la tabla la crea una migracion que viaja DENTRO de la imagen, asi que en esa
+#  corrida —y solo en esa— la tabla NO existe cuando el bloque 2b decide y SI
+#  existe cuando toca anotar lo instalado.
+
+# E148 · EL DEFECTO. El bloque 2b fija `HAY_TABLA_ACTUALIZACIONES` ANTES de las
+#        migraciones (`update.sh:2199`), y `marcar_instalado` solo corria si ese
+#        flag valia 1 (`:2562`). En la corrida que ADOPTA el ADR el flag se
+#        quedaba en 0 para siempre: la fila nacia con `version_instalada` y
+#        `digest_instalado` en NULL, `hayNovedad`
+#        (`apps/web/app/api/actualizaciones/route.ts:69`) daba verdadero, y la
+#        pantalla del dueno anunciaba como disponible la version que ya estaba
+#        sirviendo. Y si el dueno aprobaba esa novedad falsa, la aprobacion NO
+#        se consumia nunca —la corrida siguiente sale por el corte de "sin
+#        cambios", que esta por encima del bloque de decision—, asi que la
+#        pantalla prometia una instalacion "en los proximos minutos" para
+#        siempre.
+#
+#        `D_TABLA_TRAS_MIGRAR=1` monta exactamente eso y nada mas: la sonda de
+#        estado sigue contestando `sin-tabla` (el default del arnes, sin tocar),
+#        y la tabla existe solo cuando se va a marcar.
+preparar 'E148 la tabla la crea la migracion de esta corrida: al cerrar SI se anota lo instalado'
+export D_TABLA_TRAS_MIGRAR=1
+correr
+codigo_es 0
+hubo 'pg_dump'
+hubo 'node scripts/migrar.mjs'
+hubo '--detach'
+log_dice 'OK: v0.4.2 sirviendo'
+# La sonda dijo "sin tabla" —eso NO cambia, y es lo que hacia fallar el
+# marcado—, y aun asi, con la salud ya en verde, se anota lo instalado.
+log_dice 'no existe todavia en esta instancia'
+# La llamada de `marcar_instalado`, y no la de la sonda: la sonda lleva
+# `--env SPACE_OS_CORRIDA` ENTRE DATABASE_URL y esta, asi que las dos cadenas
+# no se pisan. Sin esta comprobacion, `log_local_dice` sola podria pasar con
+# una llamada que no fuera la del marcado.
+hubo '--env DATABASE_URL --env SPACE_OS_VERSION_DISPONIBLE'
+log_local_dice 'INSTALADO ok'
+# Y no se marca ANTES de la salud: el orden es lo unico que impide afirmar una
+# version que la migracion o la salud podrian no haber dejado sirviendo.
+antes_que 'curl' '--env DATABASE_URL --env SPACE_OS_VERSION_DISPONIBLE'
+log_calla 'no se pudo anotar'
+limpiar
+
+# E149 · …y la hermana que impide "arreglarlo" a lo bruto: si la tabla SIGUE
+#        sin existir despues de migrar (imagen anterior a la migracion que la
+#        crea, aplicando cualquier otra), NO se escribe nada y NO se grita. El
+#        propio `guion_instalado` pregunta por `to_regclass` en la misma
+#        conexion en la que escribiria, asi que la ausencia se DICE, no se
+#        confunde con un fallo: un `AVISO: no se pudo anotar` cada vez que una
+#        instancia vieja se actualiza seria ruido en el log de toda la flota, y
+#        el ruido se aprende a ignorar.
+preparar 'E149 si la tabla sigue sin existir tras migrar, no se escribe nada y no es un error'
+correr
+codigo_es 0
+log_dice 'OK: v0.4.2 sirviendo'
+log_local_calla 'INSTALADO ok'
+log_dice 'actualizaciones_instancia sigue sin existir'
+log_calla 'no se pudo anotar'
 limpiar
 
 printf '\n%s escenarios · %s comprobaciones · %s rojas\n' "$ESCENARIOS" "$COMPROBACIONES" "$FALLOS"
