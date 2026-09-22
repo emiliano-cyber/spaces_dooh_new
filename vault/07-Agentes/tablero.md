@@ -654,7 +654,7 @@ Claim aparte, aunque estés en otra zona. Lista completa en [[AGENTES]].
 
 | Archivo | Estado | Agente | Desde |
 |---|---|---|---|
-| `infra/scripts/update.sh`, `Dockerfile` | TOMADA | agente-tarea5-adr0037 | **2026-09-21: Tarea 5 del ADR 0037** — `update.sh --comprobar` obedece `actualizaciones_instancia`. No estaba en la lista de [[AGENTES]]; se añade aquí con el mismo criterio que los demás (bloquea a toda la flota), como ya se hizo una vez con `infra/scripts/` del alta (nota del 2026-09-14 más arriba). |
+| `infra/scripts/update.sh`, `Dockerfile` | LIBRE | — | **Liberada el 2026-09-21** al cerrar la Tarea 5 del ADR 0037 (`update.sh --comprobar` obedece `actualizaciones_instancia`). Se quedan en esta lista, aunque [[AGENTES]] no los nombre: tocarlos bloquea a toda la flota de instancias. |
 | `apps/web/middleware.ts` | LIBRE | — | — |
 | `apps/web/next.config.mjs` | LIBRE | — | — |
 | `apps/web/lib/server/db.ts` | LIBRE | — | — |

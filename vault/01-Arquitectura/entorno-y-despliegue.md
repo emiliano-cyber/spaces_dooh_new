@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: verificado
-actualizado: 2026-09-17
+actualizado: 2026-09-21
 tags: [despliegue, entorno, ci, env, instancias]
 archivos:
   - infra/scripts/pruebas-update.sh
@@ -25,6 +25,7 @@ archivos:
   - infra/scripts/respaldo.sh
   - infra/scripts/README.md
   - scripts/migrar.mjs
+  - scripts/actualizaciones.mjs
   - infra/nginx/demo.space-os.io.conf
   - infra/nginx/space-os.io.conf
   - infra/nginx/instancia.conf.tpl
@@ -718,6 +719,105 @@ El orden importa y está elegido para que cada paso falle antes de haber hecho d
 `pull` y comparar digest (igual → sale 0 sin tocar nada) → **respaldo** `pg_dump -Fc`
 **que se poda a 3 y se sube a Spaces** → anotar la versión anterior → **migrar** →
 **solo entonces** conmutar el tráfico → health check → vuelta atrás si no responde.
+
+#### `--comprobar` — el paso 2b, y la instancia que elige (21/09, ADR 0037)
+
+Desde el **ADR 0037** el orden de arriba tiene un paso más, **2b**, entre comparar
+el digest y respaldar: `update.sh` **consulta `actualizaciones_instancia` y
+obedece**. Antes el canal mandaba y la actualización era forzosa; ahora el dueño
+de la instancia puede pedir que su copia espere su aprobación.
+
+Son **dos corridas con trabajos distintos**, y esa separación es la que sostiene
+la promesa de que los cortes de servicio son de madrugada:
+
+| Corrida | Cuándo | Qué hace |
+|---|---|---|
+| `update.sh --comprobar` | cron cada 15 min | anota lo disponible y aplica **solo** si hay una aprobación cuyo digest cuadra. Con `modo = automatica` **no hace nada** |
+| `update.sh` (sin bandera) | cron 04:17 | la de siempre: aplica si `modo = automatica`, o si hay una aprobación que el cron frecuente no llegó a aplicar |
+
+> [!important] La decisión NO está escrita en bash, y eso es deliberado
+> La regla vive en `decidirActualizacion()` (`scripts/actualizaciones.mjs`, con sus
+> propias pruebas) y se **importa dentro del guion node** de la sonda de estado
+> (`guion_estado()`, junto a `guion_huella()`). Repetirla en dos idiomas es como
+> este mismo archivo se rompió antes: las dos copias divergen al primer cambio y
+> nadie se entera hasta que una instancia hace lo que la otra no esperaba.
+>
+> Consecuencia directa: **el `Dockerfile` tiene que copiar
+> `scripts/actualizaciones.mjs`** además de `scripts/migrar.mjs`. La copia de
+> scripts es por **lista blanca de archivo suelto**, así que sin esa línea la
+> sonda no encuentra el módulo dentro del contenedor y muere con `ENOENT` en la
+> primera corrida que jale la imagen nueva.
+
+La sonda sigue el patrón de la huella: guion **por STDIN**, con el `node` y el `pg`
+de la **misma imagen**, por la misma red y con la misma `DATABASE_URL` que el
+runner. Imprime dos líneas con marca, `ESTADO <modo> <digest_instalado>
+<aprobado_digest>` y `DECISION <si|no> <motivo>`, y **los nulos viajan como `-`,
+nunca como cadena vacía**: con campos separados por espacios un vacío corre los de
+la derecha y un `awk '{print $3}'` devuelve el campo equivocado **sin dar error**.
+
+Dos detalles del guion que no se ven leyendo y cuestan una tarde:
+
+- **Los módulos de `/app` se importan por URL `file://`**, con `pathToFileURL`, y
+  no por su ruta a secas. El guion llega **por STDIN**, así que no tiene archivo
+  propio del que colgar una ruta relativa, y un `import('/app/…')` queda a merced
+  de cómo resuelva node el padre de un script sin nombre. Si ese import fallara,
+  la sonda saldría con 9, se trataría como «sin tabla» y **el ADR 0037 no haría
+  nada, sin que nada diera error**.
+- **`migraciones_pendientes` no cuenta las `@tipo: datos`.** `update.sh` llama al
+  runner **sin** `--con-datos` a propósito, y el alta pasa `--instalacion-nueva`,
+  que tampoco lo implica: esas migraciones no se aplican nunca por esta vía. Hoy
+  hay **una** —`20260731_calendario_meses_cortos.sql`, medido el 21/09: 87 `.sql`,
+  **86** de esquema— y es la misma de la que sale el «75 y no 76» de DEMO.
+  Contarla dejaría la pantalla del dueño diciendo «traería 1 migración» **para
+  siempre**, con nada pendiente. El criterio se **importa** de
+  `tipoDeMigracion()` (`scripts/migrar.mjs`) en vez de repetirlo: la marca vale
+  solo en la **primera** línea, y un filtro por «el archivo contiene la cadena»
+  se saltaría en silencio justo la migración que crea `schema_migrations`, que la
+  menciona en su prosa.
+
+> [!danger] Que la tabla NO exista no es un error: es un dato
+> Una instancia con una imagen anterior a `20260921_actualizaciones_instancia.sql`
+> no la tiene. En ese caso el comportamiento es **el de hoy** —actualizar sin
+> preguntar— y se registra en el log. Es el mismo criterio que `schema_migrations`
+> ausente en la sonda de huella. **Sin esto, desplegar esto pararía a media flota
+> en seco** el día que jalara la imagen nueva: se quedaría esperando una
+> aprobación que nadie sabe que hay que dar. Lo fija **E141**.
+>
+> Y lo mismo si la base **no se puede leer** en 2b: se trata igual que sin tabla y
+> se sigue. El respaldo, tres pasos más abajo, va a topar con el mismo problema y
+> a explicarlo con su propio mensaje ya probado; 2b no se adelanta a inventar un
+> error propio.
+
+**Dónde va 2b, y por qué ahí.** Después de la compuerta de licencia (`EX_LICENCIA`,
+`update.sh:1206-1226`) y antes del respaldo. El orden importa: una aprobación del
+dueño **no puede resucitar una instancia con la licencia vencida**. Y `--dry-run`
+sale antes de llegar a 2b, que es lo que su cabecera promete.
+
+**Cuando no hay nada que hacer se sale con `EX_OK` (0), no con error.** Esperar una
+aprobación no es un fallo y un cron que corre cada 15 minutos no puede alarmar 96
+veces al día. Al actualizar de verdad, `marcar_instalado()` escribe
+`version_instalada`/`digest_instalado` y **limpia `aprobado_digest`** — y lo hace
+**solo al cerrar con la salud ya comprobada**, nunca junto a la decisión: escrito
+arriba afirmaría una versión que la migración o la salud podrían no haber dejado
+sirviendo.
+
+> [!warning] Dos huecos conocidos, medidos el 21/09
+> **1 · `comprobado_en` no se refresca cuando no hay imagen nueva.** El corte
+> `sin cambios` de `update.sh:1793-1794` sale con 0 **antes** de 2b, así que una
+> corrida `--comprobar` sobre una instancia ya al día no toca la tabla. El buzón
+> sigue correcto —`instalada` y `disponible` coinciden— pero la pantalla del dueño
+> enseña una hora de comprobación vieja. No se arregló aquí porque mover ese corte
+> cambia el camino de **todas** las corridas.
+>
+> **2 · `salir()` reporta al padre y sube el log en CADA corrida.** Con el cron de
+> 15 minutos eso pasa de 1 a **96 reportes y 96 subidas al día** por instancia.
+> Nadie lo ha dimensionado todavía, y la entrada de cron **no la pone esta tarea**.
+
+**El arnés.** Seis escenarios nuevos, **E136-E141**, y **E89** pasa de esperar 3 a
+**4** llamadas `docker run --rm --interactive` porque la sonda de estado corre una
+vez por corrida. `decidirActualizacion()` no se reimplementa en el arnés: los dobles
+`D_ESTADO_N`/`D_DECISION_N` **dictan** el veredicto, porque recalcular la regla ahí
+sería la misma trampa que el ADR prohíbe en bash.
 
 **Un respaldo vacío detiene el update**, y el archivo de 0 bytes **se borra** al
 abortar. El criterio se copió de `.github/workflows/deploy.yml:117-125`: un `pg_dump`

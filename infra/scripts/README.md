@@ -41,6 +41,9 @@ raíz, para poner o mantener una instancia en pie.
 ```bash
 /opt/space-os/update.sh --dry-run     # mira y cuenta. NO toca nada
 /opt/space-os/update.sh               # actualiza de verdad
+/opt/space-os/update.sh --comprobar   # ADR 0037: mira y anota lo disponible;
+                                      # aplica SOLO si hay una aprobacion que
+                                      # cuadra. Con modo=automatica no hace nada
 /opt/space-os/update.sh --simular-fallo-pull   # ensaya los reintentos (§ abajo)
 tail -n 40 /var/log/space-os/update.log        # todo, crudo, solo en el droplet
 cat /var/log/space-os/update-publicable.log    # solo esta corrida, filtrado:
@@ -98,7 +101,7 @@ cat /var/log/space-os/update-publicable.log    # solo esta corrida, filtrado:
 
 | Código | Qué pasó | ¿Hay que ir a mirar la base? |
 |---|---|---|
-| `0` | sin cambios, o actualizada y sana | no |
+| `0` | sin cambios, actualizada y sana, o **comprobado y a la espera de que el dueño apruebe** (ADR 0037): esperar no es un error | no |
 | `1` | no se pudo ni empezar: falta configuración, falló el pull, **el respaldo salió vacío**, no se pudo leer la huella de la base (§3), o el runner se negó a arrancar | no: **nada se tocó** |
 | `2` | las migraciones fallaron a medias o no se pudieron registrar | **el log lo dice, medido contra la base** (§3): `LA BASE CAMBIO` = sí; `la base NO cambio` = no |
 | `3` | el registro de la base y las migraciones de la imagen **no cuentan la misma historia** | no: **no se aplicó nada** |
