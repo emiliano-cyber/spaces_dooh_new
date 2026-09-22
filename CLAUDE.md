@@ -22,7 +22,7 @@ Confundirlos es el error más común al llegar.
 | **Formato** | Notas enlazadas entre sí, con frontmatter | Archivos sueltos: ADR, planes, runbooks, bitácora |
 | **Se lee** | Antes de tocar código | Cuando necesitas el porqué de una decisión |
 
-En `docs/` viven: los **ADR** (`docs/adr/`, van por la **0035**), los **planes**
+En `docs/` viven: los **ADR** (`docs/adr/`, van por la **0037**), los **planes**
 (`docs/Plan_*.md`), los **runbooks**, las **correcciones de datos en producción**
 (`docs/datos/`, cada una con su rollback capturado antes) y la **bitácora**
 (`docs/Registro_Cambios.md`), que está escrita para quien no programa.
@@ -33,20 +33,18 @@ En `docs/` viven: los **ADR** (`docs/adr/`, van por la **0035**), los **planes**
 
 ### Qué es, técnicamente
 
-**85 notas Markdown** en `vault/`, enlazadas entre sí con wikilinks. Está pensada
+**86 notas Markdown** en `vault/`, enlazadas entre sí con wikilinks. Está pensada
 para abrirse con Obsidian, pero **no hay carpeta `.obsidian/` en el repositorio**:
 no se versiona configuración de la herramienta. Consecuencia práctica: la bóveda es
 Markdown puro y **se lee igual desde un editor, desde `cat` o desde un agente**. No
 necesitas instalar nada.
 
-Al 2026-09-18 tiene **1101 enlaces internos** sobre **85 notas**, con **2
+Al 2026-09-22 tiene **1145 enlaces internos** sobre **86 notas**, con **2
 wikilinks rotos** —los dos apuntan a ADR, que viven en `docs/` y no en la
 bóveda, así que es un choque de convención más que un enlace muerto— y
-**0 notas huérfanas**: la de `diario/2026-09-17` dejó de estarlo el 18/09, al
-encadenarla desde el diario del día siguiente, que es como se enlazan los
-diarios entre sí. Las
-mediciones previas daban 753 sobre 57 (28/08), 606 sobre 48 (17/08) y 395
-sobre 43 (10/08).
+**0 notas huérfanas**. Las
+mediciones previas daban 1101 sobre 85 (18/09), 753 sobre 57 (28/08), 606
+sobre 48 (17/08) y 395 sobre 43 (10/08).
 
 > **Y ojo con lo que este párrafo afirmaba hasta hoy:** decía «0 rotos y 0
 > notas huérfanas» con fecha del 28/08, y **las dos afirmaciones eran falsas**
@@ -99,11 +97,11 @@ código, no de memoria:
 | Framework | Next.js 14.2.29, App Router | `apps/web/package.json:17` |
 | Base de datos | PostgreSQL, `pg` directo (sin ORM) | `apps/web/lib/server/db.ts:2` |
 | Aislamiento | RLS de Postgres por `app.tenant_id` | `apps/web/lib/server/db.ts:60` y `:79` |
-| Endpoints | **98** route handlers | `apps/web/app/api/**/route.ts` |
-| Tablas | **44** | `vault/04-Datos/esquema.md` |
-| Migraciones | **84** | `vault/04-Datos/migraciones.md` |
+| Endpoints | **99** route handlers | `apps/web/app/api/**/route.ts` |
+| Tablas | **45** | `vault/04-Datos/esquema.md` |
+| Migraciones | **87** | `vault/04-Datos/migraciones.md` |
 
-> Esos recuentos llevan fecha de validación **2026-09-18**. Trátalos como una
+> Esos recuentos llevan fecha de validación **2026-09-22**. Trátalos como una
 > afirmación con fecha, no como una verdad permanente — §5 explica cómo
 > reverificarlos.
 >
