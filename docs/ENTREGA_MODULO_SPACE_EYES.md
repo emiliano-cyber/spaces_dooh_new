@@ -83,6 +83,18 @@ lib/test/space-eyes.e2e.test.ts                  11 casos e2e (ver §6)
 
 **No hace falta ninguna migración.** Es deliberado, ver §4.
 
+Los quince archivos van juntos en **`docs/space-eyes-modulo.patch`**, al lado de
+este documento. Se aplica desde la raíz de `spaces_dooh_new`:
+
+```bash
+git apply --stat docs/space-eyes-modulo.patch   # qué toca, sin tocar nada
+git apply --check docs/space-eyes-modulo.patch  # si aplica limpio
+git apply docs/space-eyes-modulo.patch
+```
+
+El parche **no incluye** `next.config.mjs`: ese cambio es de desarrollo y se
+explica aparte en §7, para que su equipo decida.
+
 ## 4. Las tres decisiones de diseño que conviene no deshacer
 
 **El permiso se reutiliza: `inventario.ver` para mirar, `inventario.crear` para
