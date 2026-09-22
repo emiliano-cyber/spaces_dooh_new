@@ -2605,8 +2605,14 @@ if [ "$sano" -eq 0 ]; then
   # efimero-: es el propio `guion_instalado` el que pregunta por
   # `to_regclass` en la MISMA conexion en la que escribiria, y contesta
   # `sin-tabla` sin escribir nada si sigue sin haberla. Asi, para una imagen
-  # anterior a la migracion, el resultado observable es el de antes: no se
-  # escribe nada y no se grita.
+  # anterior a la migracion no se escribe nada y no se grita.
+  #
+  # Y lo que SI cambia para esa imagen, porque decir "no cambia nada
+  # observable" seria impreciso y aqui eso se paga caro: se levanta UN
+  # contenedor efimero de mas por corrida -el que pregunta y no escribe- y
+  # sale una linea de mas en el log. Lo que NO cambia es la base, el codigo
+  # de salida y la ausencia de AVISO. Solo pasa en corridas que cambian la
+  # base, no en las 95 de cada 96 que no tocan nada.
   if [ "$HAY_TABLA_ACTUALIZACIONES" = 1 ] || [ "$BASE_CAMBIO" != no ]; then
     marcar_instalado
   fi

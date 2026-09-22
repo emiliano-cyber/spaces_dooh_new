@@ -915,8 +915,15 @@ sirviendo.
 > es el único momento en que la tabla pudo aparecer, y es el propio
 > `guion_instalado` el que pregunta por `to_regclass` **en la misma conexión** en
 > la que escribiría: si sigue sin haber tabla, contesta `sin-tabla` y no escribe
-> nada. Para una imagen anterior a esa migración **no cambia nada de lo
-> observable**. Detalle en [[02-Backend/actualizaciones-instancia]].
+> nada.
+>
+> Para una imagen anterior a esa migración **no se escribe nada y no se grita**.
+> Y lo que **sí** cambia, porque decir «no cambia nada observable» sería
+> impreciso: un contenedor efímero de más por corrida —el que pregunta y no
+> escribe— y una línea de más en el log. Lo que no cambia es la base, el código
+> de salida y la ausencia de AVISO. Y solo ocurre en las corridas que **cambian
+> la base**, no en las 95 de cada 96 que no tocan nada.
+> Detalle en [[02-Backend/actualizaciones-instancia]].
 
 > [!important] El corte de «sin cambios» ANOTA antes de salir
 > Es el camino que toma una instancia al día, o sea **95 de cada 96 corridas** del
