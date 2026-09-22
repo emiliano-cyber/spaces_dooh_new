@@ -755,14 +755,33 @@ runner. Imprime dos líneas con marca, `ESTADO <modo> <digest_instalado>
 nunca como cadena vacía**: con campos separados por espacios un vacío corre los de
 la derecha y un `awk '{print $3}'` devuelve el campo equivocado **sin dar error**.
 
-Dos detalles del guion que no se ven leyendo y cuestan una tarde:
+Tres detalles del guion que no se ven leyendo y cuestan una tarde:
 
-- **Los módulos de `/app` se importan por URL `file://`**, con `pathToFileURL`, y
-  no por su ruta a secas. El guion llega **por STDIN**, así que no tiene archivo
-  propio del que colgar una ruta relativa, y un `import('/app/…')` queda a merced
-  de cómo resuelva node el padre de un script sin nombre. Si ese import fallara,
-  la sonda saldría con 9, se trataría como «sin tabla» y **el ADR 0037 no haría
-  nada, sin que nada diera error**.
+- **Los módulos de `/app` se importan por URL `file://`**, con `pathToFileURL`.
+  Es **defensa, no el arreglo de un fallo**: `import('/app/scripts/x.mjs')` a
+  secas **también funciona** desde un guion de STDIN. Se deja porque es la forma
+  que no depende de la plataforma ni de contra qué resuelva node un guion sin
+  nombre, y porque cuesta una línea.
+
+  > [!danger] Este párrafo afirmó lo contrario, y era falso
+  > Hasta la tarde del **21/09** decía que la ruta a secas «queda a merced de
+  > cómo resuelva node el padre de un script sin nombre» y que si fallara, «el
+  > ADR 0037 no haría nada sin que nada diera error». **Medido, es mentira:**
+  >
+  > ```
+  > $ echo "import('./x.mjs').catch(e => console.log(e.message))" | node
+  > Cannot find module …\x.mjs imported from …\[stdin]
+  > ```
+  >
+  > node le da al guion de STDIN el padre **`<cwd>/[stdin]`**, que es una URL
+  > `file:`, así que una ruta absoluta resuelve contra la raíz sin problema —
+  > comprobado cargando un módulo de verdad por `/Users/…/actualizaciones.mjs`.
+  >
+  > **De dónde salió el error:** se midió con `import('C:/…')`, que falla con
+  > `ERR_UNSUPPORTED_ESM_URL_SCHEME` porque en Windows `C:` se parsea como
+  > **protocolo**, y se generalizó de ahí a un caso que no era el del código. Es
+  > el vicio que este repositorio persigue en todas partes —afirmar sin medir—,
+  > cometido dentro del mismo commit que lo denunciaba en otros.
 - **`migraciones_pendientes` no cuenta las `@tipo: datos`.** `update.sh` llama al
   runner **sin** `--con-datos` a propósito, y el alta pasa `--instalacion-nueva`,
   que tampoco lo implica: esas migraciones no se aplican nunca por esta vía. Hoy
@@ -774,6 +793,11 @@ Dos detalles del guion que no se ven leyendo y cuestan una tarde:
   solo en la **primera** línea, y un filtro por «el archivo contiene la cadena»
   se saltaría en silencio justo la migración que crea `schema_migrations`, que la
   menciona en su prosa.
+- **El bloque de la sonda vive ARRIBA, lejos de `guion_huella()`**, y no es
+  desorden: `leer_estado_y_decision` se llama **dos** veces y la primera es en el
+  corte de «sin cambios», que está por encima de la huella. En bash una función
+  solo existe cuando su definición ya se ejecutó, así que dejarla abajo daba
+  `command not found` **en el camino más frecuente de todos**.
 
 > [!danger] Que la tabla NO exista no es un error: es un dato
 > Una instancia con una imagen anterior a `20260921_actualizaciones_instancia.sql`
@@ -783,41 +807,88 @@ Dos detalles del guion que no se ven leyendo y cuestan una tarde:
 > en seco** el día que jalara la imagen nueva: se quedaría esperando una
 > aprobación que nadie sabe que hay que dar. Lo fija **E141**.
 >
-> Y lo mismo si la base **no se puede leer** en 2b: se trata igual que sin tabla y
-> se sigue. El respaldo, tres pasos más abajo, va a topar con el mismo problema y
-> a explicarlo con su propio mensaje ya probado; 2b no se adelanta a inventar un
-> error propio.
+> Y si la base **no se puede leer** en 2b, se **comporta** igual —se sigue, y el
+> respaldo tres pasos más abajo topará con el mismo problema y lo explicará con su
+> propio mensaje ya probado— pero **lo dice distinto**, y esa diferencia costó una
+> corrección: hasta la ronda 1 el log afirmaba *«actualizaciones_instancia no
+> existe todavía en esta instancia»* también cuando la causa era que `to_regclass`
+> **no llegó a contestar**. La tabla podía estar ahí perfectamente. Mandar a quien
+> lee el log a las 4 de la mañana a buscar una migración que no falta es
+> exactamente el vicio que este archivo ya corrigió el 20/08 con «La base NO se
+> vació»: **lo que no se midió, no se afirma**. Lo fija **E143**.
 
 **Dónde va 2b, y por qué ahí.** Después de la compuerta de licencia (`EX_LICENCIA`,
-`update.sh:1206-1226`) y antes del respaldo. El orden importa: una aprobación del
+`update.sh:1223-1237`) y antes del respaldo. El orden importa: una aprobación del
 dueño **no puede resucitar una instancia con la licencia vencida**. Y `--dry-run`
 sale antes de llegar a 2b, que es lo que su cabecera promete.
 
 **Cuando no hay nada que hacer se sale con `EX_OK` (0), no con error.** Esperar una
 aprobación no es un fallo y un cron que corre cada 15 minutos no puede alarmar 96
-veces al día. Al actualizar de verdad, `marcar_instalado()` escribe
+veces al día. **Con una excepción, y tiene su propio recuadro más abajo**: una
+imagen sin `RepoDigest` no es una espera sino un bloqueo, y ésa sí sale con 1.
+Al actualizar de verdad, `marcar_instalado()` escribe
 `version_instalada`/`digest_instalado` y **limpia `aprobado_digest`** — y lo hace
 **solo al cerrar con la salud ya comprobada**, nunca junto a la decisión: escrito
 arriba afirmaría una versión que la migración o la salud podrían no haber dejado
 sirviendo.
 
-> [!warning] Dos huecos conocidos, medidos el 21/09
-> **1 · `comprobado_en` no se refresca cuando no hay imagen nueva.** El corte
-> `sin cambios` de `update.sh:1793-1794` sale con 0 **antes** de 2b, así que una
-> corrida `--comprobar` sobre una instancia ya al día no toca la tabla. El buzón
-> sigue correcto —`instalada` y `disponible` coinciden— pero la pantalla del dueño
-> enseña una hora de comprobación vieja. No se arregló aquí porque mover ese corte
-> cambia el camino de **todas** las corridas.
+> [!important] El corte de «sin cambios» ANOTA antes de salir
+> Es el camino que toma una instancia al día, o sea **95 de cada 96 corridas** del
+> cron nuevo. Hasta la ronda 1 salía sin pasar por la sonda, así que `comprobado_en`
+> **no se movía nunca**: la pantalla del dueño diría «comprobado hace tres días»
+> teniendo un cron cada cuarto de hora, y quien lo leyera concluiría que el
+> actualizador está roto — justo lo que esa pantalla existe para descartar.
 >
-> **2 · `salir()` reporta al padre y sube el log en CADA corrida.** Con el cron de
-> 15 minutos eso pasa de 1 a **96 reportes y 96 subidas al día** por instancia.
-> Nadie lo ha dimensionado todavía, y la entrada de cron **no la pone esta tarea**.
+> **El corte no se movió**, se anota antes de él: bajarlo cambiaría el camino de
+> *todas* las corridas y en ese camino no hay nada que arreglar. Ahí la sonda solo
+> escribe lo disponible y **su veredicto se ignora a propósito**, porque con el
+> mismo id no hay nada que decidir. Lo fija **E146**.
+>
+> **Y el `--dry-run` NO anota**, que es lo que este arreglo estuvo a punto de
+> romper: la sonda hace un `update … set comprobado_en = now()`, o sea que
+> **escribe**, y el bloque de `--dry-run` sale **más abajo** que este corte. Sin
+> ese guard, `--dry-run` sobre una instancia al día —el caso más común de todos—
+> estrenaría la bandera escribiendo en la base, contra lo que promete la cabecera.
+> Mismo criterio que el AVISO 6 con el reporte al padre: dejar una fila en el panel
+> también es tocar algo. Lo fija **E147**.
 
-**El arnés.** Seis escenarios nuevos, **E136-E141**, y **E89** pasa de esperar 3 a
-**4** llamadas `docker run --rm --interactive` porque la sonda de estado corre una
-vez por corrida. `decidirActualizacion()` no se reimplementa en el arnés: los dobles
+> [!danger] Una imagen sin `RepoDigest` **para en seco**, y no lo llama espera
+> Sin digest el ADR 0037 no puede funcionar: `decidirActualizacion` responde
+> `sin-disponible`, la pantalla no tiene nada que enseñar y `aprobarDigest()` exige
+> `digest_disponible = $1`, así que **el dueño no puede aprobar**. No es una espera:
+> es un bloqueo sin salida. Hasta la ronda 1 se saldaba con un **0** y un «esperar
+> no es un error» — invisible en un cron de cada 15 minutos.
+>
+> Ahora sale con **`EX_CONFIG` (1)**, cuya fila de la tabla ya dice lo que aquí es
+> literal: no se pudo ni empezar y **nada se tocó**. Tampoco se actualiza «como
+> antes del ADR»: el modo por omisión es `aprobacion`, y saltarse al dueño porque a
+> una imagen le falta un campo sería abrir justo la puerta que este ADR cierra.
+>
+> **Y la asimetría con la tabla ausente es deliberada**: donde no hay tabla no hay
+> dueño a quien saltarse, así que ahí una imagen sin digest **sigue actualizando
+> como siempre**. Si alguien «unifica» los dos casos, **E145** se pone rojo.
+> El caso normal lo fija **E144**. Suele significar que la imagen no se jaló de un
+> registro: un `docker load`, o una construida en el propio droplet.
+
+> [!note] Los 96 reportes al padre y las 96 subidas de log al día SE QUEDAN
+> `salir()` reporta a la flota y sube el log en **cada** corrida, así que con el
+> cron de 15 minutos eso pasa de 1 a **96 y 96 al día por instancia**. Se planteó
+> como pendiente y **el dueño decidió el 21/09 que se queda como está**: no es un
+> cabo suelto, es una decisión tomada. Si algún día molesta, el sitio es `salir()`
+> y la condición sería `CORRIDA`, no el cron.
+
+**El arnés.** Doce escenarios nuevos: **E136-E141** (ronda 1) y **E142-E147**
+(ronda 2), más **E89**, que pasa de esperar 3 a **4** llamadas
+`docker run --rm --interactive` porque la sonda de estado corre una vez por
+corrida. `decidirActualizacion()` no se reimplementa en el arnés: los dobles
 `D_ESTADO_N`/`D_DECISION_N` **dictan** el veredicto, porque recalcular la regla ahí
 sería la misma trampa que el ADR prohíbe en bash.
+
+> [!tip] `D_DIGEST` va con `${D_DIGEST-…}`, **sin** los dos puntos
+> Sus vecinas del doble usan `:-`. Con `:-`, un `D_DIGEST=''` volvería a dar el
+> digest de siempre y **E144 sería imposible de montar**. Es la misma trampa que
+> `PULL_ESPERAS` costó descubrir el 20/08, aquí a propósito y documentada en el
+> sitio.
 
 **Un respaldo vacío detiene el update**, y el archivo de 0 bytes **se borra** al
 abortar. El criterio se copió de `.github/workflows/deploy.yml:117-125`: un `pg_dump`
@@ -842,7 +913,7 @@ repetirla a ciegas es como se corrompe una base. El health check conserva sus 10
 de F3.4. Cada reintento sale **numerado** en el log (`reintento 2/3`), así que se
 cuenta desde fuera con `grep -c reintento /var/log/space-os/update.log`. Las esperas
 > [!danger] `instancia.env` NO es un `.env`: `update.sh` lo SOURCEA
-> `update.sh:700` hace `. "$CONF"`, así que ese archivo **es un script de shell**,
+> `update.sh:814` hace `. "$CONF"`, así que ese archivo **es un script de shell**,
 > no una lista de pares clave-valor. Consecuencia: **todo valor con espacios va
 > entrecomillado**, o bash toma la primera palabra como la asignación y **ejecuta
 > el resto como un comando**.
@@ -1100,7 +1171,7 @@ línea de comandos de ninguna llamada doblada.
 
 > [!warning] La retención la pone el BUCKET, y el ADR 0025 pide un año para otra cosa
 > Aquí no hay ni un borrado remoto, a propósito: lo que caduca lo caduca la **regla
-> de ciclo de vida** del bucket — 90 días para logs (`update.sh:253`) y el mismo
+> de ciclo de vida** del bucket — 90 días para logs (`update.sh:267`) y el mismo
 > criterio para respaldos.
 >
 > **Ojo con el cruce:** el ADR 0025 decidió que el **registro de accesos** se

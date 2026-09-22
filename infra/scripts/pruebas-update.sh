@@ -85,7 +85,11 @@ case "$sub" in
     viejo=0
     [ -n "${D_ID_CONTENEDOR:-}" ] && [ "$ref" = "${D_ID_CONTENEDOR:-}" ] && viejo=1
     case "$fmt" in
-      *RepoDigests*) [ "$viejo" = 1 ] && printf '%s\n' "${D_DIGEST_VIEJO:-reg/space-os@sha256:viejo}" || printf '%s\n' "${D_DIGEST:-reg/space-os@sha256:nuevo}" ;;
+      # `${D_DIGEST-…}` SIN los dos puntos, a diferencia de sus vecinas: con
+      # `:-`, un `D_DIGEST=''` volveria a dar el digest de siempre y seria
+      # imposible montar "la imagen no trae RepoDigest" (E144). Es la misma
+      # trampa que `PULL_ESPERAS` costo descubrir el 20/08, aqui a proposito.
+      *RepoDigests*) [ "$viejo" = 1 ] && printf '%s\n' "${D_DIGEST_VIEJO:-reg/space-os@sha256:viejo}" || printf '%s\n' "${D_DIGEST-reg/space-os@sha256:nuevo}" ;;
       *Config.Env*)  [ "$viejo" = 1 ] && printf 'SPACE_OS_VERSION=%s\n' "${D_VERSION_VIEJA:-v0.4.1}" || printf 'SPACE_OS_VERSION=%s\n' "${D_VERSION:-v0.4.2}" ;;
       *) printf '%s\n' "${D_ID_IMAGEN:-sha256:nueva}" ;;
     esac
@@ -154,8 +158,8 @@ case "$sub" in
           FALLA) echo 'estado: no se pudo leer la base'; exit 9 ;;
         esac
         printf 'ESTADO %s\n' "$valor"
-        # Sin tabla no hay decision que tomar -- `decidir_actualizar()` en
-        # update.sh ni siquiera mira una linea DECISION en ese caso.
+        # Sin tabla no hay decision que tomar -- el bloque «2b» de update.sh
+        # ni siquiera mira una linea DECISION en ese caso.
         case "$valor" in
           'sin-tabla '*) ;;
           *)
@@ -626,6 +630,7 @@ FIN
         D_LOGS_SALIDA PSQL_CODIGO PGR_LIST_CODIGO D_BORRAR_RESPALDOS_EN \
         N_TEST_CODIGO D_CONTENEDOR_PARADO D_OPENSSL_VERSION LN_FALLA \
         D_ESTADO_1 D_ESTADO_2 D_ESTADO_3 D_DECISION_1 D_DECISION_2 D_DECISION_3 \
+        D_DIGEST \
         2>/dev/null || true
   export PGR_CODIGO=0
   export PGR_LIST_CODIGO=0
@@ -3212,6 +3217,119 @@ hubo 'pg_dump'
 log_dice 'no existe todavia en esta instancia: se actualiza como antes del ADR 0037'
 # Y sin tabla no hay donde escribir "instalado": no se intenta.
 log_local_calla 'INSTALADO ok'
+limpiar
+
+# ─── ADR 0037 · los huecos de la ronda 1 (E142-E146, tarea 5) ──────────────
+#  Los cuatro primeros cierran caminos que EXISTIAN y no probaba nadie. El
+#  ultimo fija una asimetria a proposito, para que no se "arregle" por error.
+
+# E142 · `--comprobar` SIN la tabla. Es la unica de las siete combinaciones que
+#        la ronda 1 dejo sin escenario, y resulta ser **la del despliegue**:
+#        `update.sh` vive en el anfitrion y la migracion viaja DENTRO de la
+#        imagen, asi que son dos vehiculos distintos. En cuanto entre el cron
+#        de 15 minutos en un anfitrion cuya instancia todavia corre la imagen
+#        vieja, esta combinacion corre **96 veces al dia en cada instancia**.
+#        Si tocara algo -o si saliera != 0- se notaria en toda la flota a la
+#        vez, y el cron mandaria correo cada cuarto de hora.
+preparar 'E142 --comprobar sin la tabla: no toca nada, sale 0, y no es un error'
+correr --comprobar
+codigo_es 0
+no_hubo 'pg_dump'
+no_hubo 'node scripts/migrar.mjs'
+no_hubo '--detach'
+log_dice 'no existe todavia'
+limpiar
+
+# E143 · LA SONDA NO PUEDE LEER LA BASE (caida, credencial mala, red rota).
+#        Dos cosas que fijar, y la segunda es la que la ronda 1 hacia mal:
+#        que NO se toque nada y se salga con 0 -- el comportamiento de hoy--,
+#        y que el log NO afirme "la tabla no existe todavia", que es un hecho
+#        que nadie midio. `to_regclass` no llego a contestar: la tabla puede
+#        estar ahi perfectamente y el problema ser otro. Mandar a quien lee el
+#        log a buscar una migracion que no falta cuesta una madrugada.
+preparar 'E143 la sonda no puede leer la base: no toca nada y NO afirma que la tabla falte'
+export D_ESTADO_1=FALLA
+correr --comprobar
+codigo_es 0
+no_hubo 'pg_dump'
+no_hubo 'node scripts/migrar.mjs'
+no_hubo '--detach'
+log_dice 'NO SE PUDO LEER la base'
+log_calla 'no existe todavia en esta instancia'
+# Y el mensaje crudo de la sonda se queda en el log del droplet, que es donde
+# se diagnostica: filtrar no es perder.
+log_local_dice 'estado: no se pudo leer la base'
+limpiar
+
+# E144 · LA IMAGEN NO TRAE RepoDigest, con la tabla presente. Sin digest el
+#        ADR 0037 no puede funcionar: `decidirActualizacion` responde
+#        `sin-disponible`, la pantalla no tiene nada que ensenar y
+#        `aprobarDigest()` exige `digest_disponible = $1`, asi que el dueno
+#        **no puede aprobar**. No es una espera, es un bloqueo sin salida, y
+#        hasta la ronda 1 se saldaba con un 0 y un "esperar no es un error"
+#        -- invisible en un cron de cada 15 minutos.
+preparar 'E144 imagen sin RepoDigest y con tabla: para en seco, y no lo llama espera'
+export D_DIGEST=''
+export D_ESTADO_1='aprobacion sha256:instalada -'
+export D_DECISION_1='no sin-disponible'
+correr --comprobar
+codigo_es 1
+no_hubo 'pg_dump'
+no_hubo 'node scripts/migrar.mjs'
+no_hubo '--detach'
+log_dice 'no trae RepoDigest'
+log_calla 'Esperar no es un error'
+limpiar
+
+# E145 · La MISMA imagen sin RepoDigest, pero SIN la tabla: actualiza como
+#        antes del ADR 0037. La asimetria es deliberada y por eso tiene
+#        escenario propio: donde no hay tabla no hay dueno a quien saltarse,
+#        asi que parar ahi seria inventarse un fallo nuevo en instancias que
+#        hoy funcionan. Si alguien "unifica" los dos casos, este se pone rojo.
+preparar 'E145 sin tabla, la imagen sin RepoDigest sigue actualizando como antes'
+export D_DIGEST=''
+correr
+codigo_es 0
+hubo 'pg_dump'
+hubo '--detach'
+log_dice 'no existe todavia en esta instancia'
+limpiar
+
+# E146 · El corte de "sin cambios" ANOTA antes de salir. Es el camino que toma
+#        una instancia al dia, o sea 95 de cada 96 corridas del cron nuevo: si
+#        no pasara por la sonda, `comprobado_en` no se moveria nunca y la
+#        pantalla del dueno diria "comprobado hace tres dias" teniendo un cron
+#        cada cuarto de hora. Se ve porque la sonda corre igual (el `--env
+#        SPACE_OS_CORRIDA` es solo suyo) aunque el update no siga.
+preparar 'E146 sin cambios ANOTA la comprobacion antes de salir (ADR 0037)'
+export D_ID_CONTENEDOR='sha256:nueva'
+export D_ESTADO_1='aprobacion sha256:nuevo -'
+export D_DECISION_1='no sin-cambios'
+correr --comprobar
+codigo_es 0
+log_dice 'sin cambios'
+hubo 'SPACE_OS_CORRIDA'
+# Anotar es lo unico que hace: ni respaldo, ni runner, ni contenedor.
+no_hubo 'pg_dump'
+no_hubo 'node scripts/migrar.mjs'
+no_hubo '--detach'
+limpiar
+
+# E147 · …y el `--dry-run` sobre una instancia AL DIA no anota. Es la hermana
+#        de E146 y existe porque E146 abrio el agujero: la sonda hace un
+#        `update … set comprobado_en = now()`, o sea que ESCRIBE, y el bloque
+#        de `--dry-run` sale MAS ABAJO que el corte de "sin cambios". Sin el
+#        guard, la promesa de la cabecera -"NO toca nada"- se rompia justo en
+#        el caso mas comun. Mismo criterio que el AVISO 6 con el reporte al
+#        padre: dejar una fila en el panel tambien es tocar algo.
+preparar 'E147 --dry-run sobre una instancia al dia NO anota la comprobacion'
+export D_ID_CONTENEDOR='sha256:nueva'
+correr --dry-run
+codigo_es 0
+log_dice 'sin cambios'
+no_hubo 'SPACE_OS_CORRIDA'
+no_hubo 'pg_dump'
+no_hubo '--detach'
 limpiar
 
 printf '\n%s escenarios · %s comprobaciones · %s rojas\n' "$ESCENARIOS" "$COMPROBACIONES" "$FALLOS"

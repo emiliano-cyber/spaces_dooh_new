@@ -102,7 +102,7 @@ cat /var/log/space-os/update-publicable.log    # solo esta corrida, filtrado:
 | Código | Qué pasó | ¿Hay que ir a mirar la base? |
 |---|---|---|
 | `0` | sin cambios, actualizada y sana, o **comprobado y a la espera de que el dueño apruebe** (ADR 0037): esperar no es un error | no |
-| `1` | no se pudo ni empezar: falta configuración, falló el pull, **el respaldo salió vacío**, no se pudo leer la huella de la base (§3), o el runner se negó a arrancar | no: **nada se tocó** |
+| `1` | no se pudo ni empezar: falta configuración, falló el pull, **el respaldo salió vacío**, no se pudo leer la huella de la base (§3), el runner se negó a arrancar, o **la imagen no trae `RepoDigest` teniendo la tabla del ADR 0037** — ahí el dueño no puede aprobar nada, así que no es una espera sino un bloqueo | no: **nada se tocó** |
 | `2` | las migraciones fallaron a medias o no se pudieron registrar | **el log lo dice, medido contra la base** (§3): `LA BASE CAMBIO` = sí; `la base NO cambio` = no |
 | `3` | el registro de la base y las migraciones de la imagen **no cuentan la misma historia** | no: **no se aplicó nada** |
 | `4` | la salud falló y **la vuelta atrás salió bien** — la instancia sirve la versión anterior | no, pero hay que mirar el release |

@@ -41,9 +41,11 @@
 #       dueno apruebe (ADR 0037): esperar no es un error
 #    1  no se puede ni empezar: falta configuracion, falta docker o pg_dump,
 #       DATABASE_URL no se entiende como URL de conexion, el pull fallo, el
-#       respaldo salio VACIO, o el runner de migraciones se nego a arrancar
+#       respaldo salio VACIO, el runner de migraciones se nego a arrancar
 #       (por ejemplo: base con datos y sin `schema_migrations`, que pide
-#       intervencion humana). NADA se toco.
+#       intervencion humana), o la imagen no trae RepoDigest teniendo la tabla
+#       del ADR 0037 —ahi el dueno no puede aprobar nada, asi que no es una
+#       espera sino un bloqueo—. NADA se toco.
 #    2  las migraciones fallaron a medias, o se aplicaron y no se pudieron
 #       registrar: LA BASE PUDO CAMBIAR. No se conmuto el trafico —la version
 #       anterior sigue sirviendo— y NO se restaura nada automaticamente (ver
@@ -384,8 +386,9 @@
 #
 #  LA REGLA NO SE REPITE AQUI: vive en `decidirActualizacion()`
 #  (`scripts/actualizaciones.mjs`, con sus propias pruebas) y se importa DENTRO
-#  del guion node de la sonda de estado (`guion_estado`, junto a `guion_huella`
-#  mas abajo) -- nunca en bash. Por eso el Dockerfile tiene que copiar
+#  del guion node de la sonda de estado (`guion_estado()`, que vive justo antes
+#  de "Identidad de la imagen" y NO junto a `guion_huella()`: ver el porque en
+#  su propia cabecera) -- nunca en bash. Por eso el Dockerfile tiene que copiar
 #  `scripts/actualizaciones.mjs` ademas de `scripts/migrar.mjs`: sin esa linea
 #  en la lista blanca, la sonda no encuentra el modulo dentro del contenedor y
 #  esto se cae con ENOENT en la primera corrida que jale la imagen nueva.
@@ -454,7 +457,7 @@ DRY_RUN=0
 # nada mas: no llama a docker, asi que tampoco depende del registry.
 SIMULAR_FALLO_PULL=0
 # ADR 0037: separa "mirar" (el cron de cada 15 min) de "actualizar" (el de
-# siempre, a las 4:17). Ver AVISO 7 y `decidir_actualizar`, mas abajo.
+# siempre, a las 4:17). Ver AVISO 7 y el bloque «2b», mas abajo.
 COMPROBAR=0
 for arg in "$@"; do
   case "$arg" in
@@ -485,10 +488,27 @@ for arg in "$@"; do
     # `grep -n 'grep -c reintento\|── Cron'` dice que la politica de
     # reintentos termina en 159 y "── Cron" abre en 161, asi que 160 —la linea
     # en blanco de enmedio, otra vez— es el corte nuevo.
-    -h|--help) sed -n '2,160p' "$0"; exit 0 ;;
+    #
+    # Y CADUCO UNA CUARTA VEZ, en la ronda 2 de la misma tarea, por anadir DOS
+    # lineas a la fila del codigo 1 (la imagen sin RepoDigest). Van ya cuatro,
+    # y la leccion es siempre la misma: este numero NO se ajusta restando ni
+    # sumando de cabeza, se REMIDE. Hoy: la politica termina en 161, "── Cron"
+    # abre en 163, y el corte es 162 —la linea en blanco de enmedio—.
+    -h|--help) sed -n '2,162p' "$0"; exit 0 ;;
     *) echo "update: argumento desconocido: $arg (usa --dry-run, --comprobar, --simular-fallo-pull o --help)" >&2; exit "$EX_CONFIG" ;;
   esac
 done
+
+# ADR 0037 · que corrida es esta, en la palabra exacta que espera
+# `decidirActualizacion({ corrida })` (`scripts/actualizaciones.mjs`).
+# 'comprobar' es el cron nuevo, cada 15 min (mira y anota; aplica SOLO si hay
+# una aprobacion que cuadre); 'programada' es el de siempre, a las 4:17
+# (aplica en modo=automatica, o si hay una aprobacion que el cron frecuente no
+# llego a aplicar). Se fija AQUI, y no en el bloque 2b donde se usa, porque el
+# corte de "sin cambios" -que esta bastante mas arriba que 2b- tambien anota y
+# tambien la necesita.
+CORRIDA=programada
+if [ "$COMPROBAR" = 1 ]; then CORRIDA=comprobar; fi
 
 mkdir -p "$DIR_LOG" "$DIR_ESTADO"
 
@@ -1710,6 +1730,161 @@ MODO='(actualiza de verdad)'
 if [ "$DRY_RUN" = 1 ]; then MODO='(--dry-run: no se toca nada)'; fi
 registrar "── update $MODO · canal=$CANAL · imagen=$IMAGEN · base=$(destino_de_url "$DATABASE_URL")"
 
+# ─── El estado de la decision — ADR 0037 (ver AVISO 7) ─────────────────────
+# ESTE BLOQUE VA AQUI ARRIBA A PROPOSITO, y no junto a `guion_huella()` como
+# nacio: `leer_estado_y_decision` se llama DOS veces y la primera es en el
+# corte de "sin cambios", que esta por encima de la huella. En bash una
+# funcion solo existe cuando su definicion YA se ejecuto, asi que dejarla
+# abajo daba `command not found` justo en el camino mas frecuente de todos.
+#
+# Mismo patron que `guion_huella()`, mas abajo: el guion corre POR STDIN, con
+# el node y el pg de la MISMA imagen que se va a instalar, por la MISMA red y
+# con la MISMA DATABASE_URL que el runner -- si esto lee la base, el runner
+# tambien.
+# Hace dos cosas en UNA sola conexion -anota lo DISPONIBLE y lee lo que decidio
+# el dueno- porque dos guiones sueltos dejarian, entre "escribir" y "leer", la
+# misma ventana que `aprobarDigest()` cierra del lado de la app con un UPDATE
+# atomico (`apps/web/lib/server/actualizaciones-repo.ts:58-64`).
+#
+# La decision NO se repite en bash: se importa `decidirActualizacion` de
+# `scripts/actualizaciones.mjs` (con sus propias pruebas) DENTRO de este guion
+# node. Repetir la regla en dos idiomas es como este mismo archivo se rompio
+# antes (el recorte de URL, mas arriba): las dos copias divergen al primer
+# cambio y nadie se entera hasta que una instancia hace lo que la otra no
+# esperaba.
+guion_estado() {
+  cat <<'FIN_GUION_ESTADO'
+const { Client } = require('pg')
+// Los modulos de /app se importan por URL `file://`. Es defensa, NO el
+// arreglo de un fallo: `import('/app/scripts/x.mjs')` a secas TAMBIEN
+// funciona desde un guion de STDIN -- medido el 21/09: node le da a ese
+// guion el padre `<cwd>/[stdin]`, y una ruta absoluta resuelve contra la
+// raiz sin problema. La primera version de este comentario decia lo
+// contrario, y estaba mal: se midio con `import('C:/...')`, que falla con
+// ERR_UNSUPPORTED_ESM_URL_SCHEME porque en Windows `C:` se parsea como
+// PROTOCOLO, y se generalizo de ahi a un caso que no era el del codigo.
+// Se deja `pathToFileURL` porque es la forma que no depende de la
+// plataforma ni de contra que resuelva node un guion sin nombre, y porque
+// cuesta una linea; pero que conste que no tapa ningun agujero medido.
+const { pathToFileURL } = require('url')
+const cli = new Client({ connectionString: process.env.DATABASE_URL })
+cli
+  .connect()
+  .then(async () => {
+    const hay = (await cli.query("select to_regclass('public.actualizaciones_instancia') is not null as hay")).rows[0].hay
+    if (!hay) {
+      // Sentinela para el bloque «2b» de ESTE archivo: sin tabla no hay
+      // fila que leer ni escribir. Los nulos viajan como '-', nunca como
+      // cadena vacia -- con campos separados por espacios un vacio corre los
+      // de la derecha y un lector por posicion devuelve el campo equivocado
+      // sin dar error.
+      console.log('ESTADO sin-tabla - -')
+      await cli.end()
+      return
+    }
+    // Cuenta INFORMATIVA de migraciones pendientes, solo por nombre de
+    // archivo -- NO es la cuenta autoritativa (esa compara checksums y orden
+    // exacto, y es de migrar.mjs). Si esta corrida no va a actualizar, no
+    // puede llamar al runner solo para contar: por eso NO reusa --pendientes.
+    let pendientes = null
+    try {
+      const fs = require('fs')
+      const path = require('path')
+      const dir = path.join(process.cwd(), 'db', 'migrations')
+      // Las `@tipo: datos` NO se cuentan, y esto no es un detalle: `update.sh`
+      // llama al runner SIN `--con-datos` a proposito (`scripts/migrar.mjs:7`
+      // y `:705`), asi que esas migraciones no se aplican NUNCA por esta via
+      // -- tampoco en el alta, que pasa `--instalacion-nueva` y eso no implica
+      // `--con-datos`. Contarlas dejaria el numero de la pantalla del dueno
+      // permanentemente por encima de cero con nada pendiente de verdad: hoy
+      // hay una (`20260731_calendario_meses_cortos.sql`), que es de donde sale
+      // el "75 y no 76" de DEMO.
+      //
+      // El criterio se IMPORTA de `migrar.mjs` en vez de repetirlo: la marca
+      // vale solo en la PRIMERA linea, y un filtro por "el archivo contiene la
+      // cadena" daria por de datos --y se saltaria en silencio-- justo la
+      // migracion que crea `schema_migrations`, que la menciona en su prosa.
+      // Si esta imagen no trae el runner (AVISO 1), el import falla y el
+      // `catch` de abajo deja la cuenta en null, que es lo correcto: no se
+      // afirma lo que no se pudo medir.
+      const { tipoDeMigracion } = await import(pathToFileURL('/app/scripts/migrar.mjs').href)
+      const archivos = fs
+        .readdirSync(dir)
+        .filter((f) => f.endsWith('.sql'))
+        .filter((f) => tipoDeMigracion(fs.readFileSync(path.join(dir, f), 'utf8')) !== 'datos')
+      const hayRegistro = (await cli.query("select to_regclass('public.schema_migrations') is not null as hay")).rows[0].hay
+      const aplicadas = hayRegistro
+        ? new Set((await cli.query('select archivo from schema_migrations')).rows.map((r) => r.archivo))
+        : new Set()
+      pendientes = archivos.filter((a) => !aplicadas.has(a)).length
+    } catch (e) {
+      // Informativo: si no se puede contar, se anota null y se dice en el log
+      // de fuera. Mismo criterio que `registradas_de_huella` con la tabla
+      // ausente: lo que no se puede saber no se afirma.
+      console.error('estado: no se pudo contar migraciones pendientes: ' + e.message)
+    }
+    await cli.query(
+      `update actualizaciones_instancia
+          set version_disponible = $1, digest_disponible = $2,
+              migraciones_pendientes = $3, comprobado_en = now()
+        where id = true`,
+      [process.env.SPACE_OS_VERSION_DISPONIBLE || null, process.env.SPACE_OS_DIGEST_DISPONIBLE || null, pendientes],
+    )
+    const fila = (
+      await cli.query('select modo, digest_instalado, aprobado_digest from actualizaciones_instancia where id = true')
+    ).rows[0]
+    console.log('ESTADO ' + fila.modo + ' ' + (fila.digest_instalado || '-') + ' ' + (fila.aprobado_digest || '-'))
+    const { decidirActualizacion } = await import(pathToFileURL('/app/scripts/actualizaciones.mjs').href)
+    const d = decidirActualizacion({
+      modo: fila.modo,
+      corrida: process.env.SPACE_OS_CORRIDA,
+      digestInstalado: fila.digest_instalado,
+      digestDisponible: process.env.SPACE_OS_DIGEST_DISPONIBLE || null,
+      aprobadoDigest: fila.aprobado_digest,
+    })
+    console.log('DECISION ' + (d.actualizar ? 'si' : 'no') + ' ' + d.motivo)
+    await cli.end()
+  })
+  .catch(async (e) => {
+    console.error('estado: ' + e.message)
+    await cli.end().catch(() => {})
+    process.exit(9)
+  })
+FIN_GUION_ESTADO
+}
+
+# Corre `guion_estado` y deja el resultado en dos variables globales:
+#   ESTADO_LINEA    "<modo> <digest_instalado> <aprobado_digest>" (vacia si
+#                   la sonda no se pudo correr)
+#   DECISION_LINEA  "<si|no> <motivo>" (vacia si ESTADO_LINEA es sin-tabla, o
+#                   si el guion no llego a decidir)
+# Devuelve != 0 si la sonda no se pudo correr. El bloque «2b», mas abajo,
+# se COMPORTA igual que con sin-tabla -si la base no se puede leer aqui,
+# tampoco va a poder el respaldo tres pasos mas adelante, y ese es el error
+# que hay que ver: este guion no se adelanta a inventar uno propio-, pero lo
+# DICE distinto en el log, porque "no existe" es un hecho medido y "no se
+# pudo leer" es no saber nada.
+ESTADO_LINEA=''
+DECISION_LINEA=''
+leer_estado_y_decision() {
+  local salida codigo=0
+  export SPACE_OS_CORRIDA="$CORRIDA"
+  export SPACE_OS_VERSION_DISPONIBLE="$VERSION_NUEVA"
+  export SPACE_OS_DIGEST_DISPONIBLE="$DIGEST_NUEVO"
+  salida="$(guion_estado | docker run --rm --interactive \
+    --network "$RED_MIGRACION" --env DATABASE_URL \
+    --env SPACE_OS_CORRIDA --env SPACE_OS_VERSION_DISPONIBLE --env SPACE_OS_DIGEST_DISPONIBLE \
+    "$IMAGEN" node 2>&1)" || codigo=$?
+  if [ "$codigo" -ne 0 ]; then
+    printf '%s\n' "$salida" >>"$LOG"
+    return 1
+  fi
+  ESTADO_LINEA="$(printf '%s\n' "$salida" | sed -n 's/^ESTADO //p' | tail -n1)"
+  [ -n "$ESTADO_LINEA" ] || { printf '%s\n' "$salida" >>"$LOG"; return 1; }
+  DECISION_LINEA="$(printf '%s\n' "$salida" | sed -n 's/^DECISION //p' | tail -n1)"
+}
+
+
 # ─── Identidad de la imagen ────────────────────────────────────────────────
 # Se compara el Id local (el digest de la configuracion de la imagen) y no el
 # RepoDigest, porque el Id existe SIEMPRE en los dos lados —el de la imagen
@@ -1791,6 +1966,30 @@ VERSION_NUEVA="$(version_de_imagen "$IMAGEN")"
 [ -n "$VERSION_NUEVA" ] || VERSION_NUEVA="$CANAL"
 
 if [ -n "$ID_ACTUAL" ] && [ "$ID_ACTUAL" = "$ID_NUEVO" ]; then
+  # ADR 0037: ANOTAR antes de salir. Este es el camino NORMAL -una instancia al
+  # dia lo toma en las 95 corridas de cada 96-, y saliendo sin pasar por la
+  # sonda `comprobado_en` no se movia nunca: la pantalla del dueno diria
+  # "comprobado hace tres dias" teniendo un cron cada cuarto de hora, y quien
+  # lo leyera concluiria que el actualizador esta roto. Que es justo lo que la
+  # pantalla existe para descartar.
+  #
+  # El corte NO se mueve, se anota ANTES de el: bajarlo cambiaria el camino de
+  # TODAS las corridas, y no hay nada que arreglar en ese camino. Aqui la
+  # sonda solo escribe lo disponible; su veredicto se ignora a proposito,
+  # porque con el mismo id no hay nada que decidir.
+  #
+  # Y EL `--dry-run` NO ANOTA, que es la unica razon de este guard: la sonda
+  # hace un `update … set comprobado_en = now()`, o sea que ESCRIBE en la
+  # base, y la cabecera promete que `--dry-run` no toca nada. El bloque de
+  # `--dry-run` sale mas abajo que este corte, asi que sin este `if` una
+  # instancia al dia lo estrenaria escribiendo. Mismo criterio que el AVISO 6
+  # con el reporte al padre: el `--dry-run` no reporta, porque dejar una fila
+  # en el panel tambien es tocar algo.
+  if [ "$DRY_RUN" = 1 ]; then
+    registrar "   --dry-run: no se anota la comprobacion en actualizaciones_instancia (escribir es tocar)."
+  elif ! leer_estado_y_decision; then
+    registrar "   actualizaciones_instancia: no se pudo anotar la comprobacion (el mensaje de arriba es de la sonda). No cambia nada de esta corrida: no hay version nueva que instalar."
+  fi
   salir "$EX_OK" "sin cambios: la instancia ya corre $VERSION_NUEVA ($ID_NUEVO)."
 fi
 if [ -z "$ID_ACTUAL" ]; then
@@ -1908,145 +2107,6 @@ huella_base() {
 # Tercer campo de la huella: filas de `schema_migrations`, o -1 si no hay tabla.
 registradas_de_huella() { printf '%s' "$1" | awk '{print $3}'; }
 
-# ─── El estado de la decision — ADR 0037 (ver AVISO 7) ─────────────────────
-# Mismo patron que la huella, arriba: el guion corre POR STDIN, con el node y
-# el pg de la MISMA imagen que se va a instalar, por la MISMA red y con la
-# MISMA DATABASE_URL que el runner -- si esto lee la base, el runner tambien.
-# Hace dos cosas en UNA sola conexion -anota lo DISPONIBLE y lee lo que decidio
-# el dueno- porque dos guiones sueltos dejarian, entre "escribir" y "leer", la
-# misma ventana que `aprobarDigest()` cierra del lado de la app con un UPDATE
-# atomico (`apps/web/lib/server/actualizaciones-repo.ts:58-64`).
-#
-# La decision NO se repite en bash: se importa `decidirActualizacion` de
-# `scripts/actualizaciones.mjs` (con sus propias pruebas) DENTRO de este guion
-# node. Repetir la regla en dos idiomas es como este mismo archivo se rompio
-# antes (el recorte de URL, mas arriba): las dos copias divergen al primer
-# cambio y nadie se entera hasta que una instancia hace lo que la otra no
-# esperaba.
-guion_estado() {
-  cat <<'FIN_GUION_ESTADO'
-const { Client } = require('pg')
-// Los modulos de /app se importan por URL `file://` y NUNCA por su ruta a
-// secas: este guion llega por STDIN, asi que no tiene un archivo propio del
-// que colgar una ruta relativa, y un `import('/app/...')` depende de como
-// resuelva node el padre de un script sin nombre. `pathToFileURL` quita esa
-// dependencia y da el mismo especificador siempre.
-const { pathToFileURL } = require('url')
-const cli = new Client({ connectionString: process.env.DATABASE_URL })
-cli
-  .connect()
-  .then(async () => {
-    const hay = (await cli.query("select to_regclass('public.actualizaciones_instancia') is not null as hay")).rows[0].hay
-    if (!hay) {
-      // Sentinela para decidir_actualizar(), en ESTE archivo: sin tabla no hay
-      // fila que leer ni escribir. Los nulos viajan como '-', nunca como
-      // cadena vacia -- con campos separados por espacios un vacio corre los
-      // de la derecha y un lector por posicion devuelve el campo equivocado
-      // sin dar error.
-      console.log('ESTADO sin-tabla - -')
-      await cli.end()
-      return
-    }
-    // Cuenta INFORMATIVA de migraciones pendientes, solo por nombre de
-    // archivo -- NO es la cuenta autoritativa (esa compara checksums y orden
-    // exacto, y es de migrar.mjs). Si esta corrida no va a actualizar, no
-    // puede llamar al runner solo para contar: por eso NO reusa --pendientes.
-    let pendientes = null
-    try {
-      const fs = require('fs')
-      const path = require('path')
-      const dir = path.join(process.cwd(), 'db', 'migrations')
-      // Las `@tipo: datos` NO se cuentan, y esto no es un detalle: `update.sh`
-      // llama al runner SIN `--con-datos` a proposito (`scripts/migrar.mjs:7`
-      // y `:705`), asi que esas migraciones no se aplican NUNCA por esta via
-      // -- tampoco en el alta, que pasa `--instalacion-nueva` y eso no implica
-      // `--con-datos`. Contarlas dejaria el numero de la pantalla del dueno
-      // permanentemente por encima de cero con nada pendiente de verdad: hoy
-      // hay una (`20260731_calendario_meses_cortos.sql`), que es de donde sale
-      // el "75 y no 76" de DEMO.
-      //
-      // El criterio se IMPORTA de `migrar.mjs` en vez de repetirlo: la marca
-      // vale solo en la PRIMERA linea, y un filtro por "el archivo contiene la
-      // cadena" daria por de datos --y se saltaria en silencio-- justo la
-      // migracion que crea `schema_migrations`, que la menciona en su prosa.
-      // Si esta imagen no trae el runner (AVISO 1), el import falla y el
-      // `catch` de abajo deja la cuenta en null, que es lo correcto: no se
-      // afirma lo que no se pudo medir.
-      const { tipoDeMigracion } = await import(pathToFileURL('/app/scripts/migrar.mjs').href)
-      const archivos = fs
-        .readdirSync(dir)
-        .filter((f) => f.endsWith('.sql'))
-        .filter((f) => tipoDeMigracion(fs.readFileSync(path.join(dir, f), 'utf8')) !== 'datos')
-      const hayRegistro = (await cli.query("select to_regclass('public.schema_migrations') is not null as hay")).rows[0].hay
-      const aplicadas = hayRegistro
-        ? new Set((await cli.query('select archivo from schema_migrations')).rows.map((r) => r.archivo))
-        : new Set()
-      pendientes = archivos.filter((a) => !aplicadas.has(a)).length
-    } catch (e) {
-      // Informativo: si no se puede contar, se anota null y se dice en el log
-      // de fuera. Mismo criterio que `registradas_de_huella` con la tabla
-      // ausente: lo que no se puede saber no se afirma.
-      console.error('estado: no se pudo contar migraciones pendientes: ' + e.message)
-    }
-    await cli.query(
-      `update actualizaciones_instancia
-          set version_disponible = $1, digest_disponible = $2,
-              migraciones_pendientes = $3, comprobado_en = now()
-        where id = true`,
-      [process.env.SPACE_OS_VERSION_DISPONIBLE || null, process.env.SPACE_OS_DIGEST_DISPONIBLE || null, pendientes],
-    )
-    const fila = (
-      await cli.query('select modo, digest_instalado, aprobado_digest from actualizaciones_instancia where id = true')
-    ).rows[0]
-    console.log('ESTADO ' + fila.modo + ' ' + (fila.digest_instalado || '-') + ' ' + (fila.aprobado_digest || '-'))
-    const { decidirActualizacion } = await import(pathToFileURL('/app/scripts/actualizaciones.mjs').href)
-    const d = decidirActualizacion({
-      modo: fila.modo,
-      corrida: process.env.SPACE_OS_CORRIDA,
-      digestInstalado: fila.digest_instalado,
-      digestDisponible: process.env.SPACE_OS_DIGEST_DISPONIBLE || null,
-      aprobadoDigest: fila.aprobado_digest,
-    })
-    console.log('DECISION ' + (d.actualizar ? 'si' : 'no') + ' ' + d.motivo)
-    await cli.end()
-  })
-  .catch(async (e) => {
-    console.error('estado: ' + e.message)
-    await cli.end().catch(() => {})
-    process.exit(9)
-  })
-FIN_GUION_ESTADO
-}
-
-# Corre `guion_estado` y deja el resultado en dos variables globales:
-#   ESTADO_LINEA    "<modo> <digest_instalado> <aprobado_digest>" (vacia si
-#                   la sonda no se pudo correr)
-#   DECISION_LINEA  "<si|no> <motivo>" (vacia si ESTADO_LINEA es sin-tabla, o
-#                   si el guion no llego a decidir)
-# Devuelve != 0 si la sonda no se pudo correr. `decidir_actualizar()`, mas
-# abajo, trata eso IGUAL que sin-tabla: si la base no se puede leer aqui,
-# tampoco va a poder el respaldo tres pasos mas adelante, y ese es el error
-# que hay que ver -- este guion no se adelanta a inventar uno propio.
-ESTADO_LINEA=''
-DECISION_LINEA=''
-leer_estado_y_decision() {
-  local salida codigo=0
-  export SPACE_OS_CORRIDA="$CORRIDA"
-  export SPACE_OS_VERSION_DISPONIBLE="$VERSION_NUEVA"
-  export SPACE_OS_DIGEST_DISPONIBLE="$DIGEST_NUEVO"
-  salida="$(guion_estado | docker run --rm --interactive \
-    --network "$RED_MIGRACION" --env DATABASE_URL \
-    --env SPACE_OS_CORRIDA --env SPACE_OS_VERSION_DISPONIBLE --env SPACE_OS_DIGEST_DISPONIBLE \
-    "$IMAGEN" node 2>&1)" || codigo=$?
-  if [ "$codigo" -ne 0 ]; then
-    printf '%s\n' "$salida" >>"$LOG"
-    return 1
-  fi
-  ESTADO_LINEA="$(printf '%s\n' "$salida" | sed -n 's/^ESTADO //p' | tail -n1)"
-  [ -n "$ESTADO_LINEA" ] || { printf '%s\n' "$salida" >>"$LOG"; return 1; }
-  DECISION_LINEA="$(printf '%s\n' "$salida" | sed -n 's/^DECISION //p' | tail -n1)"
-}
-
 # ─── Marcar instalado tras un update real — ADR 0037 ───────────────────────
 # Mismo patron otra vez. Se llama UNA sola vez, al cerrar con salud -- nunca
 # junto a `leer_estado_y_decision()`: si se escribiera ahi y la migracion o la
@@ -2115,41 +2175,69 @@ if [ "$DRY_RUN" = 1 ]; then
 fi
 
 # ─── 2b · La decision de actualizar — ADR 0037 (ver AVISO 7) ───────────────
-# Cada corrida CONSULTA `actualizaciones_instancia` y OBEDECE. 'comprobar' es
-# el cron nuevo, cada 15 min (mira y anota; aplica SOLO si hay una aprobacion
-# que cuadre); 'programada' es el cron de siempre, a las 4:17 (aplica en
-# modo=automatica, o si hay una aprobacion que el cron frecuente no llego a
-# aplicar). Es la MISMA palabra que espera `decidirActualizacion({ corrida })`
-# en `scripts/actualizaciones.mjs`.
-CORRIDA=programada
-if [ "$COMPROBAR" = 1 ]; then CORRIDA=comprobar; fi
+# `CORRIDA` NO se fija aqui: viene de mas arriba, junto al parseo, porque el
+# corte de "sin cambios" tambien la necesita para anotar.
 
 HAY_TABLA_ACTUALIZACIONES=0
+# POR QUE no se pudo consultar la tabla. Son DOS causas y el log no puede
+# confundirlas: "no existe" es un hecho que la sonda MIDIO -`to_regclass`
+# devolvio null-, mientras que "no se pudo leer" es no saber nada: la base
+# puede estar caida, la credencial mala o la red rota, y la tabla existir
+# perfectamente. Afirmar "no existe todavia" en ese caso manda a quien lee el
+# log a buscar una migracion que no falta. Es el mismo vicio que este archivo
+# ya corrigio el 20/08 con "La base NO se vacio": lo que no se midio, no se
+# afirma.
+AI_CAUSA=ausente
 if ! leer_estado_y_decision; then
-  # La base no se pudo leer AQUI. No se inventa un motivo: se trata como si no
-  # existiera la tabla, y el respaldo de mas abajo va a topar con el mismo
-  # problema y a explicarlo con su propio mensaje, ya probado.
-  registrar "2b · actualizaciones_instancia: no se pudo leer (revisa el mensaje de arriba); se continua como si esta imagen no la trajera."
+  AI_CAUSA=ilegible
   ESTADO_LINEA='sin-tabla - -'
 fi
 
 AI_MODO="$(printf '%s' "$ESTADO_LINEA" | awk '{print $1}')"
 if [ "$AI_MODO" = 'sin-tabla' ]; then
-  # QUE LA TABLA NO EXISTA NO ES UN ERROR, ES UN DATO (AVISO 7): una instancia
-  # con una imagen anterior a esta migracion no la tiene, y el comportamiento
-  # es EL DE HOY. Sin esto, desplegar esta tarea pararia a media flota en
-  # seco el dia que jalara la imagen nueva.
-  registrar "2b · actualizaciones_instancia no existe todavia en esta instancia: se actualiza como antes del ADR 0037."
+  if [ "$AI_CAUSA" = ilegible ]; then
+    registrar "2b · actualizaciones_instancia: NO SE PUDO LEER la base; el mensaje de arriba es de la sonda. No se sabe si la tabla existe, asi que no se afirma. Se sigue con el comportamiento de antes del ADR 0037."
+  else
+    # QUE LA TABLA NO EXISTA NO ES UN ERROR, ES UN DATO (AVISO 7): una
+    # instancia con una imagen anterior a esta migracion no la tiene, y el
+    # comportamiento es EL DE HOY. Sin esto, desplegar esta tarea pararia a
+    # media flota en seco el dia que jalara la imagen nueva.
+    registrar "2b · actualizaciones_instancia no existe todavia en esta instancia: se actualiza como antes del ADR 0037."
+  fi
   if [ "$CORRIDA" = comprobar ]; then
-    # `--comprobar` sin la tabla no tiene nada que anotar ni que obedecer, y
-    # no es su trabajo forzar un update fuera de la madrugada: la corrida de
-    # las 4:17 sigue actualizando igual que siempre.
+    # `--comprobar` sin tabla -o sin poder leerla- no tiene nada que anotar ni
+    # que obedecer, y no es su trabajo forzar un update fuera de la madrugada:
+    # la corrida de las 4:17 sigue actualizando igual que siempre.
+    if [ "$AI_CAUSA" = ilegible ]; then
+      salir "$EX_OK" "--comprobar: no se pudo LEER actualizaciones_instancia, asi que no hay nada que anotar ni aprobacion que obedecer. No se toca nada. Si la base sigue sin responder, la corrida programada de las 4:17 topara con lo mismo al respaldar y ahi SI aborta, con su propio mensaje."
+    fi
     salir "$EX_OK" "--comprobar: actualizaciones_instancia no existe todavia, asi que no hay nada que anotar ni que aprobar. No se toca nada; la corrida programada de las 4:17 sigue actualizando como siempre."
   fi
   # CORRIDA=programada y sin tabla: se sigue de largo, sin llamar a
   # decidirActualizacion -- no hay fila que leer ni digest que comparar.
 else
   HAY_TABLA_ACTUALIZACIONES=1
+  # SIN RepoDigest NO HAY ADR 0037 POSIBLE, y esto NO se puede saldar con un 0.
+  # `digest_de_imagen()` devuelve el RepoDigest, que existe siempre despues de
+  # un `docker pull` de verdad; si falta, la imagen no vino de un registro.
+  # Y entonces las tres piezas del ADR se caen a la vez:
+  #   · `decidirActualizacion` responde `sin-disponible` y no actualiza;
+  #   · la pantalla del dueno no tiene digest que ensenar, y
+  #   · `aprobarDigest()` exige `digest_disponible = $1`
+  #     (`actualizaciones-repo.ts`), asi que el dueno NO PUEDE aprobar.
+  # O sea que no es una espera: es un BLOQUEO del que nadie puede salir. Decir
+  # "esperar no es un error" ahi seria mentira dos veces, y salir con 0 lo
+  # dejaria invisible en un cron que corre cada 15 minutos.
+  #
+  # Tampoco se actualiza a la brava "como antes del ADR": el modo por omision
+  # es `aprobacion`, y saltarse al dueno porque a una imagen le falta un campo
+  # seria abrir justo la puerta que este ADR cierra. Se para, y se para con
+  # `EX_CONFIG`, cuya fila de la tabla ya dice lo que aqui es literal: no se
+  # pudo ni empezar y NADA se toco. La tabla ausente es otro caso y sigue
+  # actualizando como siempre: alli no hay dueno a quien saltarse.
+  if [ -z "$DIGEST_NUEVO" ]; then
+    salir "$EX_CONFIG" "ERROR update: la imagen $IMAGEN no trae RepoDigest, asi que no hay digest disponible que anotar ni que aprobar. Con la tabla \`actualizaciones_instancia\` presente (ADR 0037) eso no es una espera sino un bloqueo: el dueno no puede aprobar lo que la pantalla no puede ensenarle. Suele significar que la imagen no se jalo de un registro (un \`docker load\`, o una construida en el propio droplet). Nada se toco: ni base, ni respaldo, ni contenedor."
+  fi
   AI_ACTUALIZAR="$(printf '%s' "$DECISION_LINEA" | awk '{print $1}')"
   AI_MOTIVO="$(printf '%s' "$DECISION_LINEA" | cut -d' ' -f2-)"
   # Lo desconocido no actualiza -- mismo criterio que decidirActualizacion: si
