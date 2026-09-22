@@ -67,10 +67,29 @@
 #    ciclo de vida de la cuenta: un `rm` remoto en un guion que corre en TODAS
 #    las instancias es una forma elegante de perderlo todo a la vez. Ver la
 #    cabecera de `respaldo.sh`.
-#  · No se protege de correr dos veces a la vez. Se penso y se descarto: un
-#    candado mal soltado deja la instancia SIN respaldos para siempre y en
-#    silencio, que es peor que dos dumps solapados. Si algun dia el dump tarda
-#    mas que el hueco entre corridas, esto hay que revisarlo.
+#  · NO TOMA CANDADO, y esto hay que leerlo entero porque la primera version de
+#    este comentario decia una cosa FALSA -- que un candado mal soltado dejaria
+#    la instancia sin respaldos para siempre--. Con `flock` eso no pasa: el
+#    candado lo tiene el nucleo y se suelta solo cuando el proceso muere.
+#    `update.sh` toma uno asi en su `:817` (`flock -n -E 75`) y ademas EXIGE el
+#    binario, o sea que en estas maquinas `flock` existe.
+#
+#    El motivo real de no tomarlo es otro y es mas flojo: este guion tiene UNA
+#    sola via de entrada (una linea de cron al dia) frente a las DOS de
+#    `update.sh` -- la de las 4:17 y el `--comprobar` cada 15 minutos, que son
+#    las que de verdad se pisan--, y el dump de la base de hoy tarda segundos.
+#    Con eso, el candado defiende de algo que hoy no puede pasar.
+#
+#    ⚠️ El coste de anadirlo despues es bajo y el patron ya esta escrito al
+#    lado. Si algun dia el dump se acerca a durar lo que el hueco entre
+#    corridas, o si alguien anade una segunda linea de cron, TOMALO. Queda
+#    anotado como hueco conocido en `vault/06-Operacion/respaldo-diario.md`.
+#
+#    (Y hay una razon menor por la que no se puso ya: `flock` no existe en el
+#    Git Bash donde corre el arnes, asi que exigirlo obligaria a doblarlo, y un
+#    doble de `flock` tiene que RE-EJECUTAR el guion -- que es justo el enredo
+#    que a `update.sh` le costo el defecto E59. No es una buena razon por si
+#    sola; es el desempate.)
 #
 # ── CONFIGURACION ──────────────────────────────────────────────────────────
 #    SPACE_OS_CONF       /etc/space-os/instancia.env   (se SOURCEA)

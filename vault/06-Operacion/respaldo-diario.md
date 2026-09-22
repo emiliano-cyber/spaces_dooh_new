@@ -139,10 +139,20 @@ argv»*) y tocar una sola copia de la derivación (R7).
 
 - **No borra nada en el bucket.** La retención remota (30 días) es regla de ciclo
   de vida de la cuenta. Ver la cabecera de `respaldo.sh`.
-- **No se protege de correr dos veces a la vez.** Se pensó y se descartó: un
-  candado mal soltado deja la instancia **sin respaldos para siempre y en
-  silencio**, que es peor que dos dumps solapados. Si algún día el dump tarda más
-  que el hueco entre corridas, hay que revisarlo.
+- **No toma candado** — y el primer borrador justificaba esto con algo **falso**
+  («un candado mal soltado dejaría la instancia sin respaldos para siempre»). Con
+  `flock` eso no ocurre: lo tiene el núcleo y se suelta cuando el proceso muere.
+  `update.sh` toma uno así (`update.sh:817`, `flock -n -E 75`) y además **exige**
+  el binario, así que en estas máquinas `flock` existe.
+
+  El motivo real es más flojo: este guion tiene **una sola** vía de entrada (una
+  línea de cron al día) frente a las **dos** de `update.sh` —la de las 4:17 y el
+  `--comprobar` cada 15 min, que son las que se pisan—, y el dump tarda segundos.
+
+  > [!warning] Hueco conocido, y barato de cerrar
+  > Si el dump se acerca a durar lo que el hueco entre corridas, o si alguien
+  > añade una segunda línea de cron, **hay que tomar el candado**. El patrón ya
+  > está escrito al lado, en `update.sh:802-818`.
 
 > [!warning] Nada de esto está instalado todavía
 > El guion existe y está probado **en la máquina de desarrollo**. La línea de
