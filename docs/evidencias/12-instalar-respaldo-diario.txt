@@ -1,0 +1,291 @@
+##############################################################
+#  12 · INSTALAR EL RESPALDO DIARIO EN UNA INSTANCIA
+#  Levantada el 2026-09-22. NO EJECUTADA todavia.
+#  La corre UNA PERSONA. Claude no entra a ningun servidor.
+##############################################################
+#
+#  QUE PASA HOY
+#  ------------
+#  g500 -la unica instancia con datos reales de cliente- saca
+#  sus datos del droplet UNICAMENTE cuando se despliega una
+#  version nueva. No es un olvido de configuracion: es donde
+#  vive el dump. `update.sh` respalda en su paso 3 y a ese paso
+#  solo se llega si hay imagen nueva; las corridas "sin cambios"
+#  salen antes.
+#
+#  Como `estable` no se mueve desde el 17/09, la copia remota
+#  mas reciente tiene CINCO DIAS y la subio una persona a mano.
+#  Medido en docs/evidencias/11-g500-sin-respaldo-programado.md
+#
+#  La regla real era "la frecuencia de tus respaldos la decide
+#  el ritmo de los releases". Esta tarjeta la rompe.
+#
+#  QUE INSTALA
+#  -----------
+#  `respaldo-diario.sh` + `conexion-pg.sh` en /opt/space-os/, y
+#  una linea de cron. NO toca `update.sh`, NO toca la base y NO
+#  reinicia nada. Si algo sale mal, la vuelta atras es borrar la
+#  linea de cron: la instancia queda EXACTAMENTE como hoy.
+#
+#  DECISION DEL DUENO (22/09): el respaldo diario es de TODAS
+#  las instancias, no solo de las que tienen datos reales.
+#  Por eso hay DOS bloques: los montajes no son iguales.
+#
+##############################################################
+#  LA HORA, Y POR QUE ESA
+##############################################################
+#
+#    03:41  respaldo diario   <- esta tarjeta
+#    04:17  update.sh         <- ya existente, no se toca
+#
+#  Va ANTES del update, y con 36 minutos de margen, por tres
+#  motivos:
+#
+#   1) Si el update de las 4:17 sale malo, hay un respaldo
+#      independiente de hace media hora. (El propio update hace
+#      el suyo, pero ese es justo el que no existe si el update
+#      no llega a correr.)
+#   2) No se solapan. El dump de una base de ~6 MB tarda
+#      segundos, pero el margen es gratis.
+#   3) El minuto 41 no es redondo a proposito: los minutos 00,
+#      15, 30 y 45 son donde se amontonan los cron de todo el
+#      mundo, y el `--comprobar` de `update.sh` ya corre cada
+#      15 minutos en punto.
+#
+##############################################################
+#  ⚠️  ANTES DE EMPEZAR, LOS DOS ERRORES QUE YA COSTARON TIEMPO
+##############################################################
+#
+#  1) LA REGION NO ES `nyc3`. `respaldo.sh:95` la trae como
+#     valor por omision y ESTA CUENTA USA `sfo3`. Si la
+#     instancia ya tiene SPACES_REGION en su instancia.env,
+#     no hay nada que hacer: este guion lee el mismo archivo.
+#     (Aprendido en la tarjeta 10.)
+#
+#  2) `respaldo-diario.sh` NECESITA `conexion-pg.sh` AL LADO.
+#     Sin el sale con 1 y no respalda nada. Son DOS archivos,
+#     no uno. `update.sh` tiene la misma relacion con
+#     `respaldo.sh` y ya mordio una vez.
+#
+##############################################################
+
+
+##############################################################
+#  BLOQUE A · g500  (MONTAJE ESTANDAR)
+#  Configuracion en /etc/space-os/instancia.env · base `spaces`
+##############################################################
+
+# --- A0 · Copiar los dos guiones desde el portatil -----------
+#     Se corre EN EL PORTATIL, desde la raiz del repositorio.
+#     g500 no se toca desde el PADRE: el PADRE no tiene llave
+#     hacia g500 (medido el 22/09), se entra desde el portatil.
+
+scp -i ~/.ssh/spaces_deploy \
+  infra/scripts/respaldo-diario.sh \
+  infra/scripts/conexion-pg.sh \
+  root@<IP-DE-G500>:/tmp/
+
+# --- A1 · Ponerlos en su sitio, con sus permisos ------------
+#     750 y de root, igual que update.sh y respaldo.sh.
+
+ssh -i ~/.ssh/spaces_deploy root@<IP-DE-G500> '
+  install -o root -g root -m 750 /tmp/respaldo-diario.sh /opt/space-os/respaldo-diario.sh &&
+  install -o root -g root -m 750 /tmp/conexion-pg.sh     /opt/space-os/conexion-pg.sh &&
+  rm -f /tmp/respaldo-diario.sh /tmp/conexion-pg.sh &&
+  ls -l /opt/space-os/'
+
+#     SE ESPERA ver los cuatro archivos:
+#       update.sh  respaldo.sh  respaldo-diario.sh  conexion-pg.sh
+
+# --- A2 · LA PRUEBA DE VERDAD, A MANO Y ANTES DEL CRON ------
+#     >>> ESTE PASO NO SE SALTA. <<<
+#     Correrlo a mano es lo unico que demuestra que en ESTA
+#     maquina funciona. Instalar el cron primero significa
+#     enterarse del fallo dentro de 24 horas, o nunca.
+
+ssh -i ~/.ssh/spaces_deploy root@<IP-DE-G500> '/opt/space-os/respaldo-diario.sh; echo "CODIGO: $?"'
+
+#     SE ESPERA, en este orden:
+#       1 · respaldo diario -> /var/lib/space-os/respaldos/spaces_AAAAMMDD_HHMMSS.dump · base=127.0.0.1:5432/spaces
+#          respaldo de NNNNNNN bytes          <- NO cero. Si dice 0 algo va mal.
+#          respaldo remoto -> s3://space-os-respaldos/g500/AAAA-MM-DD-HHMM.dump (por s3cmd)
+#          respaldo remoto OK: s3://...
+#          respaldo diario OK: la copia de hoy salio del droplet.
+#       CODIGO: 0
+#
+#     SI DA CODIGO 4 ("BACKUP VACIO"): no se subio nada y no se
+#       toco nada. Mira el `base=` de la primera linea: si esa
+#       no es la base de g500, lo que fallo fue interpretar
+#       DATABASE_URL, no el respaldo.
+#     SI DA CODIGO 5 ("RESPALDO REMOTO FALLIDO"): el dump esta
+#       bien y SIGUE en el droplet. Si el motivo es un 403, es
+#       permiso de la llave sobre ese bucket y se arregla en el
+#       panel de DigitalOcean, no aqui.
+#     SI DA CODIGO 1: falta un archivo o DATABASE_URL. El
+#       mensaje dice cual. No se toco nada.
+
+# --- A3 · Comprobar que el objeto EXISTE en el bucket -------
+#     El log diciendo OK no es la prueba; el objeto lo es.
+
+ssh -i ~/.ssh/spaces_deploy root@<IP-DE-G500> '
+  set -a; . /etc/space-os/instancia.env; set +a
+  conf=$(mktemp); chmod 600 "$conf"
+  printf "[default]\naccess_key = %s\nsecret_key = %s\nhost_base = %s.digitaloceanspaces.com\nhost_bucket = %%(bucket)s.%s.digitaloceanspaces.com\nuse_https = True\nsignature_v2 = False\n" \
+    "$SPACES_KEY" "$SPACES_SECRET" "${SPACES_REGION:-nyc3}" "${SPACES_REGION:-nyc3}" >"$conf"
+  s3cmd --config="$conf" ls s3://${SPACES_BUCKET:-space-os-respaldos}/${INSTANCIA:-g500}/ | tail -5
+  rm -f "$conf"'
+
+#     SE ESPERA: una linea NUEVA, con la fecha y hora de hoy y
+#     un tamano de varios MB. Si el tamano es 0, PARA: el guard
+#     deberia haberlo impedido y hay algo que entender.
+
+# --- A4 · Instalar el cron ----------------------------------
+#     Archivo APARTE de /etc/cron.d/space-os-update, que NO se
+#     toca: asi la vuelta atras es borrar un archivo y el
+#     actualizador no se entera de nada.
+
+ssh -i ~/.ssh/spaces_deploy root@<IP-DE-G500> 'cat >/etc/cron.d/space-os-respaldo <<CRON
+# El respaldo sale del droplet TODOS LOS DIAS, haya o no version nueva.
+# Ver vault/06-Operacion/respaldo-diario.md
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+41 3 * * * root /opt/space-os/respaldo-diario.sh >> /var/log/space-os/cron.log 2>&1
+CRON
+chmod 644 /etc/cron.d/space-os-respaldo
+cat /etc/cron.d/space-os-respaldo'
+
+#     OJO: el archivo TIENE que acabar en salto de linea y NO
+#     puede tener punto en el nombre -- cron ignora en silencio
+#     los archivos de /etc/cron.d con un punto en el nombre.
+#     Por eso se llama `space-os-respaldo` y no `space-os-respaldo.cron`.
+
+# --- A5 · Comprobar al dia siguiente ------------------------
+ssh -i ~/.ssh/spaces_deploy root@<IP-DE-G500> '
+  tail -n 20 /var/log/space-os/respaldo-diario.log
+  echo "--- veces que salio del droplet ---"
+  grep -c "respaldo remoto OK" /var/log/space-os/respaldo-diario.log'
+
+#     SE ESPERA: al menos 1, y una linea de las 03:41.
+#     Hoy ese mismo grep sobre update.log en g500 devuelve 0.
+
+# --- A6 · VUELTA ATRAS --------------------------------------
+#     Deja la instancia exactamente como estaba. No hay estado
+#     que deshacer: los dumps que haya creado son archivos de
+#     mas, y la poda los retira sola.
+
+ssh -i ~/.ssh/spaces_deploy root@<IP-DE-G500> '
+  rm -f /etc/cron.d/space-os-respaldo
+  rm -f /opt/space-os/respaldo-diario.sh /opt/space-os/conexion-pg.sh
+  ls /opt/space-os/'
+
+
+##############################################################
+#  BLOQUE B · DEMO  (DENTRO DEL PADRE)
+#  SPACE_OS_CONF=/etc/space-os/demo-instancia.env · base `spaces_demo`
+##############################################################
+#
+#  >>> LA DIFERENCIA QUE IMPORTA, Y ES LA QUE COSTO MEDIA HORA:
+#  >>> DEMO vive DENTRO del PADRE, y en esa maquina hay MAS DE
+#  >>> UNA configuracion de instancia. Sin `SPACE_OS_CONF`
+#  >>> delante, el guion lee /etc/space-os/instancia.env y
+#  >>> respaldaria LA BASE EQUIVOCADA -- sin dar ningun error,
+#  >>> porque las dos existen ahi.
+#
+#  Y una segunda diferencia: DEMO hoy NO tiene credenciales de
+#  Spaces. Eso NO es un fallo y el guion no lo trata como tal:
+#  hace el dump local, poda, lo dice y sale con 0. Si se decide
+#  darle credenciales, se anaden a demo-instancia.env y este
+#  mismo cron empieza a subir sin tocar nada mas.
+
+# --- B0 · Copiar los guiones (el PADRE es 137.184.107.53) ---
+#     Al PADRE se entra como el usuario `padre`, no como root.
+
+scp infra/scripts/respaldo-diario.sh infra/scripts/conexion-pg.sh padre@<IP-DEL-PADRE>:/tmp/
+
+# --- B1 · Ponerlos en su sitio ------------------------------
+ssh padre@<IP-DEL-PADRE> '
+  sudo install -o root -g root -m 750 /tmp/respaldo-diario.sh /opt/space-os/respaldo-diario.sh &&
+  sudo install -o root -g root -m 750 /tmp/conexion-pg.sh     /opt/space-os/conexion-pg.sh &&
+  rm -f /tmp/respaldo-diario.sh /tmp/conexion-pg.sh &&
+  ls -l /opt/space-os/'
+
+# --- B2 · LA PRUEBA A MANO, CON `SPACE_OS_CONF` DELANTE -----
+#     >>> Si te saltas la variable, esto respalda la instancia
+#     >>> equivocada Y PARECERA QUE FUNCIONO. Comprueba el
+#     >>> `base=` de la primera linea antes de seguir.
+
+ssh padre@<IP-DEL-PADRE> 'sudo SPACE_OS_CONF=/etc/space-os/demo-instancia.env /opt/space-os/respaldo-diario.sh; echo "CODIGO: $?"'
+
+#     SE ESPERA:
+#       1 · respaldo diario -> .../spaces_AAAAMMDD_HHMMSS.dump · base=...:5432/spaces_demo
+#                                                                            ^^^^^^^^^^^
+#                                        ESTA PALABRA es la comprobacion del bloque.
+#                                        Si dice `spaces` a secas, PARA: falto la variable.
+#          respaldo de NNNNNNN bytes
+#          respaldo remoto NO CONFIGURADO: faltan SPACES_KEY/SPACES_SECRET...
+#          respaldo diario terminado en local. Esta instancia NO tiene respaldo fuera...
+#       CODIGO: 0
+#
+#     El "NO CONFIGURADO" con codigo 0 es el comportamiento
+#     CORRECTO para DEMO hoy. No es un fallo que haya que
+#     arreglar antes de instalar el cron.
+
+# --- B3 · Instalar el cron de DEMO --------------------------
+#     La variable va EN LA LINEA, no como `SPACE_OS_CONF=` de
+#     cabecera: en /etc/cron.d una asignacion de cabecera vale
+#     para TODAS las lineas del archivo, y este archivo podria
+#     llevar mañana una segunda instancia del PADRE.
+#     La hora es 03:47 y no 03:41 para no solapar con g500 si
+#     algun dia comparten maquina o ancho de banda de subida.
+
+ssh padre@<IP-DEL-PADRE> 'sudo tee /etc/cron.d/space-os-respaldo-demo >/dev/null <<CRON
+# Respaldo diario de DEMO. DEMO vive dentro del PADRE, asi que la
+# configuracion se indica explicitamente. Ver vault/06-Operacion/respaldo-diario.md
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+47 3 * * * root SPACE_OS_CONF=/etc/space-os/demo-instancia.env /opt/space-os/respaldo-diario.sh >> /var/log/space-os/cron.log 2>&1
+CRON
+sudo chmod 644 /etc/cron.d/space-os-respaldo-demo
+cat /etc/cron.d/space-os-respaldo-demo'
+
+# --- B4 · Comprobar al dia siguiente ------------------------
+ssh padre@<IP-DEL-PADRE> '
+  sudo tail -n 20 /var/log/space-os/respaldo-diario.log
+  sudo ls -l /var/lib/space-os/respaldos/ | tail -5'
+
+#     SE ESPERA: una linea de las 03:47 con `base=...spaces_demo`,
+#     y como mucho 3 dumps en el directorio (los poda el guion).
+
+# --- B5 · VUELTA ATRAS --------------------------------------
+ssh padre@<IP-DEL-PADRE> '
+  sudo rm -f /etc/cron.d/space-os-respaldo-demo
+  sudo rm -f /opt/space-os/respaldo-diario.sh /opt/space-os/conexion-pg.sh'
+
+
+##############################################################
+#  LO QUE ESTA TARJETA **NO** CIERRA
+##############################################################
+#
+#  1) EL 403 DEL BUCKET DE LOGS. La llave de g500 funciona en
+#     `space-os-respaldos` y NO en `space-os-logs` (medido el
+#     22/09). O sea: el log de esta corrida se queda en el
+#     droplet, y para saber si el respaldo diario va bien hay
+#     que entrar al servidor -- que es justo lo que este modelo
+#     evita. SE ARREGLA EN EL PANEL DE DigitalOcean dando a esa
+#     llave acceso al bucket de logs. NO ES CODIGO y no lo
+#     arregla esta tarjeta.
+#
+#  2) LA ALERTA. Con el 403 de arriba puesto, sigue sin haber
+#     nada que avise si el respaldo diario deja de correr. El
+#     canal que existe es `reportar_a_flota` de `update.sh`, y
+#     este guion NO reporta al panel de flota. Decision
+#     pendiente: si el respaldo diario debe reportar, y a donde.
+#
+#  3) LAS DEMAS INSTANCIAS. Hoy son g500 y DEMO. La proxima que
+#     nazca deberia llevar esto desde el alta
+#     (`provision-instancia.sh` / `instalar-hijo.sh` escriben
+#     /etc/cron.d/space-os-update y NO este). Mientras no se
+#     haga, cada instancia nueva nace SIN respaldo diario y hay
+#     que acordarse de correr esta tarjeta.
+#
+##############################################################
