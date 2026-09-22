@@ -54,6 +54,19 @@ const schema = z.object({
   // API interna del servidor de medios (no se publica al exterior): sirve para
   // saber si un equipo ya empezo a transmitir.
   MEDIAMTX_API: z.string().default('http://mediamtx:9997'),
+  // La direccion PUBLICA por la que un navegador consume la vista en vivo.
+  //
+  // Hace falta desde que el dashboard de un cliente vive en HTTPS: una pagina
+  // https NO puede abrir un WHEP en http -el navegador lo bloquea como
+  // contenido mixto, sin avisar mas que en la consola-. Con esto puesto, la
+  // vista sale por el mismo dominio y certificado que la pagina, y quien la
+  // reenvia a MediaMTX es el proxy de delante.
+  //
+  //   MEDIAMTX_WHEP_PUBLIC=https://eyes.g500.space-os.io/whep
+  //
+  // Vacio = se sigue armando como siempre (http://<host>:8889/...), que es lo
+  // correcto mientras el servidor vaya por IP y sin TLS.
+  MEDIAMTX_WHEP_PUBLIC: z.string().default(''),
 
   MEDIASOUP_LISTEN_IP: z.string().default('0.0.0.0'),
   MEDIASOUP_ANNOUNCED_IP: z.string().default('127.0.0.1'),

@@ -3,5 +3,23 @@
 # Sustituye {$DOMAIN} via variable de entorno (DOMAIN en el .env del compose).
 {$DOMAIN} {
 	encode gzip
+
+	# ─── La vista en vivo, por el MISMO dominio y certificado ────────────────
+	#
+	#  Un navegador NO abre un WHEP en http desde una pagina https: lo bloquea
+	#  como contenido mixto y el unico rastro es una linea en la consola. Desde
+	#  que el cliente entra por https (space-os.io y g500.space-os.io), servir
+	#  el vivo por IP y puerto equivale a no tener vivo.
+	#
+	#  El backend arma la direccion publica con MEDIAMTX_WHEP_PUBLIC, que tiene
+	#  que terminar en este mismo /whep:
+	#    MEDIAMTX_WHEP_PUBLIC=https://{$DOMAIN}/whep
+	#
+	#  Va ANTES del proxy general: en Caddy gana la ruta mas especifica, pero
+	#  dejarlo escrito arriba evita la duda al leerlo.
+	handle_path /whep/* {
+		reverse_proxy mediamtx:8889
+	}
+
 	reverse_proxy backend:4000
 }

@@ -164,9 +164,87 @@ Se mitiga así, y conviene hacerlo desde el primer hijo:
 
 ---
 
-## 5. Lo que este documento NO decide
+## 5. El mapa real de dominios, y los nombres que faltan
 
-- **Qué dominio** usa cada Space Eye. Hace falta que lo definan ustedes.
+Lo que existe hoy (22-sep), confirmado contra los servidores:
+
+| Nombre | IP | Qué es | Protocolo |
+|---|---|---|---|
+| `space-os.io` | 137.184.107.53 | **el padre**, sistema real | HTTPS ✔ |
+| `g500.space-os.io` | 142.93.113.106 | **hijo de g500** | HTTPS ✔ |
+| `demo` · `ensayo4` · `prueba` | varias | demos | HTTPS ✔ |
+| — | 159.203.188.58 | **Space Eye** (todas las cámaras) | **HTTP, sin nombre** ⚠ |
+
+La convención que se propone, para que no haya que inventarla en cada alta:
+
+```
+eyes.<instancia>.space-os.io   →  el Space Eye de esa instancia
+```
+
+Es decir **`eyes.g500.space-os.io`** para el de g500, y `eyes.<hijo>.space-os.io`
+para cada hijo nuevo. El registro es un `A`, «DNS only», igual que los demás.
+
+**Dónde vive el Space Eye de g500: se queda en 159.203.188.58.** Mudarlo al
+droplet de g500 obligaría a mover MySQL, las fotos, MediaMTX y coturn, y los
+equipos en campo apuntan a esa IP: sería una migración con riesgo y sin premio.
+«Un Space Eye por hijo» se cumple igual — cada hijo tiene el suyo; que además
+comparta máquina con su SPACE OS es un detalle de despliegue, no de
+arquitectura. Los hijos nuevos sí pueden nacer con el suyo en su propio droplet.
+
+## 6. Cómo se pone en producción, sin romper la flota
+
+Dos cosas que faltaban en el repositorio y que habrían mordido en el despliegue,
+ya arregladas:
+
+- **El compose de producción no tenía MediaMTX.** Estaba solo en el de IP, así
+  que no existía una configuración con HTTPS *y* vista en vivo a la vez: o
+  certificado sin vivo, o vivo sin certificado. Con el cliente entrando por
+  https, lo segundo es no tener vivo.
+- **El compose de producción no publicaba el 4000.** Con Caddy delante todo
+  entra por 443, que es lo correcto… salvo que **los equipos ya instalados
+  apuntan a `http://<ip>:4000`**. Cambiar de compose sin más habría dejado a la
+  flota entera sin servidor, en silencio. Ahora el 4000 sigue abierto como
+  **puente de migración** y se cierra el día que ningún equipo apunte a la IP.
+
+Los pasos, en orden:
+
+1. **DNS** (lo hacen ustedes): `eyes.g500.space-os.io` → `A` → `159.203.188.58`,
+   DNS only.
+2. En el `backend/.env` del droplet de Space Eye:
+   ```
+   DOMAIN=eyes.g500.space-os.io
+   PUBLIC_BASE_URL=https://eyes.g500.space-os.io
+   MEDIAMTX_WHEP_PUBLIC=https://eyes.g500.space-os.io/whep
+   ```
+3. Desplegar con el compose de producción (Caddy saca el certificado solo):
+   ```bash
+   docker compose -f infra/docker-compose.prod.yml --env-file backend/.env up -d
+   ```
+   **Siempre con `--env-file`**, o `MEDIAMTX_PASS` se queda vacía y el vivo deja
+   de autenticar.
+4. Comprobar, en este orden: `https://eyes.g500.space-os.io/api/app/version`
+   responde 401 (vivo y pidiendo credencial), la IP `:4000` **sigue
+   respondiendo** (la flota no se entera), y una vista en vivo abre por el
+   dominio.
+5. En el hijo de g500 (`g500.space-os.io`), su `.env`:
+   ```
+   SPACE_EYE_BASE_URL=https://eyes.g500.space-os.io
+   SPACE_EYE_KEY=se_...
+   SPACE_EYE_PROVISION_TOKEN=se_...
+   ```
+6. Las **builds nuevas** ya apuntan al dominio:
+   ```bash
+   ./gradlew assembleRelease -PserverUrl=https://eyes.g500.space-os.io   # APK
+   ```
+   y en los agentes, `server_url` en su `config.json`.
+
+Los equipos viejos **no se tocan**: siguen por IP hasta que una actualización les
+cambie el `server_url`. La APK necesita versión nueva; los agentes de PC y Pi,
+solo un archivo.
+
+## 7. Lo que este documento NO decide
+
+- El registro DNS `eyes.g500.space-os.io` lo tienen que crear ustedes (§6, paso 1).
 - **Quién paga y opera** los droplets de cada hijo.
 - Si un cliente puede **mover el zoom y el brillo** de su cámara, o si eso se
   queda del lado de operación. Afecta a qué se migra en el paso 6.

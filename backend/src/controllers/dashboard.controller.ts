@@ -62,6 +62,8 @@ function servidorDeMedios() {
     webrtc: env.MEDIAMTX_WEBRTC_PORT,
     user: env.MEDIAMTX_USER,
     pass: env.MEDIAMTX_PASS,
+    // Sin dominio publico se arma como siempre, por IP y puerto.
+    whepBase: env.MEDIAMTX_WHEP_PUBLIC.replace(/\/+$/, ''),
   };
 }
 
@@ -491,7 +493,14 @@ export async function sendCommand(req: Request, res: Response) {
         ...(payload ?? {}),
         publish_url: `rtsp://${medios.user}:${medios.pass}@${medios.host}:${medios.rtsp}/${clave}`,
       };
-      stream = { modo: 'relay', whep: `http://${medios.host}:${medios.webrtc}/${clave}/whep` };
+      // La direccion que abrira el NAVEGADOR. Con dominio publico va por el
+      // proxy en https; sin el, por IP y puerto como hasta ahora.
+      stream = {
+        modo: 'relay',
+        whep: medios.whepBase
+          ? `${medios.whepBase}/${clave}/whep`
+          : `http://${medios.host}:${medios.webrtc}/${clave}/whep`,
+      };
     }
   }
 

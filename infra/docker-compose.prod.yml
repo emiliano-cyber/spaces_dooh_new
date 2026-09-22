@@ -33,6 +33,20 @@ services:
       context: ../backend
     restart: unless-stopped
     env_file: ../backend/.env
+    # ─── PUENTE DE MIGRACION: el 4000 sigue abierto ──────────────────────────
+    #
+    #  Este compose no publicaba el puerto del backend: con Caddy delante, todo
+    #  entra por 443 y con TLS, que es lo correcto. Pero los equipos que YA
+    #  estan instalados apuntan a `http://<ip>:4000` -la APK lo lleva compilado
+    #  y los agentes en su config.json-, asi que pasar de docker-compose.ip.yml
+    #  a este SIN esto deja a la flota entera sin servidor, en silencio y sin
+    #  forma de arreglarlo salvo yendo sitio por sitio.
+    #
+    #  Se cierra el dia que ningun equipo apunte a la IP: los agentes de PC y de
+    #  Raspberry cambian su `server_url` en una actualizacion; la APK necesita
+    #  una version nueva. Hasta entonces, se queda.
+    ports:
+      - "4000:4000"
     environment:
       DB_HOST: mysql
       REDIS_URL: redis://redis:6379
@@ -53,6 +67,27 @@ services:
     depends_on: [backend, redis]
 
   # Reverse proxy con HTTPS automatico (Let's Encrypt). Proxya HTTP y WebSocket.
+  # ─── Servidor de medios: la vista en vivo de la Raspberry y del agente de PC ──
+  #
+  #  Faltaba en este compose y estaba en el de IP, asi que NO habia forma de
+  #  tener HTTPS y vista en vivo a la vez: o certificado sin vivo, o vivo sin
+  #  certificado. Con el cliente entrando por https, eso es no tener vivo.
+  #
+  #  Los agentes PUBLICAN por RTSP (8554) contra este servicio; el navegador
+  #  CONSUME por WHEP, y ese lo sirve Caddy por el dominio con TLS -por eso 8889
+  #  ya no se publica al exterior-. 8189/udp si: son los medios WebRTC y van
+  #  directos, no por el proxy.
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    restart: unless-stopped
+    environment:
+      MTX_AUTHINTERNALUSERS_1_PASS: ${MEDIAMTX_PASS}
+    volumes:
+      - ./mediamtx/mediamtx.yml:/mediamtx.yml:ro
+    ports:
+      - "8554:8554"       # RTSP: entrada de los agentes
+      - "8189:8189/udp"   # medios WebRTC
+
   caddy:
     image: caddy:2
     restart: unless-stopped
