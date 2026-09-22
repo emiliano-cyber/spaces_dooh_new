@@ -1,7 +1,7 @@
 ---
 tipo: indice
 estado: verificado
-actualizado: 2026-09-17
+actualizado: 2026-09-21
 tags: [backend, indice]
 archivos:
   - apps/web/app/api/
@@ -10,13 +10,15 @@ archivos:
 
 # Índice — Backend
 
-El backend es un **BFF dentro de la propia app Next**: **96** Route Handlers
-sobre **105** archivos en `apps/web/lib/server/`.
+El backend es un **BFF dentro de la propia app Next**: **99** Route Handlers
+sobre **111** archivos en `apps/web/lib/server/`.
 No hay servicio aparte.
 
-> [!tip] Recuento medido el 2026-09-18 sobre el árbol FUSIONADO, no copiado
-> `find app/api -name route.ts | wc -l` y `ls lib/server/*.ts | wc -l`. La
-> medición del 27/08 decía 90 y 89, y las dos se habían quedado atrás. Y ojo con
+> [!tip] Recuento medido el 2026-09-21, en esta rama, con `node scripts/recuentos.mjs`
+> Decía 96/105 (18/09) y ya se había quedado atrás, otra vez, dos commits
+> después de medirse. `find app/api -name route.ts | wc -l` y `ls lib/server/*.ts
+> | wc -l` cuadran con lo que imprime el script. La medición del 27/08 decía 90 y
+> 89, y las dos se habían quedado atrás. Y ojo con
 > el modo en que este número engaña al fusionar: la rama de entidades midió 94 y
 > la de reportes se negó a dar cifra, **y las dos tenían razón en su árbol** —
 > juntas nacen `/api/entidades`, `/api/entidades/[id]` y
@@ -41,6 +43,7 @@ No hay servicio aparte.
 | [[cuestionario-bienvenida]] | El cuestionario que crea las razones sociales del owner al entrar |
 | [[integraciones-externas]] | DOOHmain, Space Eye, S3, Resend, Google, cron |
 | [[infraestructura-servidor]] | Pool, errores, folios, rate limit, subidas |
+| [[actualizaciones-instancia]] | ADR 0037: cada instancia elige si toma la versión nueva — el mapa de las cuatro piezas |
 
 ## Las tres capas
 

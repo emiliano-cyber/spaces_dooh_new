@@ -89,7 +89,7 @@ TPL_LICENCIA_HTML="$RAIZ/infra/nginx/publico/licencia-vencida.html"
 # no puede llegar mas alla de `verificar_licencia()` sin poder firmar una
 # licencia de prueba contra ALGUNA llave publica. Mismo patron que
 # `SPACE_OS_BASE_INSTANCIA_SH` (mas abajo) y que `LICENCIA_PUB` en
-# `update.sh:843`: ausente por omision, y con `--confirmar` en una maquina
+# `update.sh:853`: ausente por omision, y con `--confirmar` en una maquina
 # real esto sigue resolviendo al archivo del paquete, nunca a otro.
 LICENCIA_PUB_ORIGEN="${SPACE_OS_LICENCIA_PUB:-$RAIZ/infra/licencias/space-os.pub}"
 
@@ -413,7 +413,7 @@ done
 # `provision-instancia.sh`, que hace el mismo alta desde fuera por ssh. Este
 # guion NACIO copiando ese bloque, y la deriva empezo en ese mismo commit
 # (`CANAL`): escrita una vez, un arreglo de privilegios llega a los dos caminos
-# o a ninguno. Mismo patron que `update.sh` con `respaldo.sh` (`update.sh:209`).
+# o a ninguno. Mismo patron que `update.sh` con `respaldo.sh` (`update.sh:219`).
 #
 # No esta en la lista de arriba a proposito: a ese no le basta con existir, hay
 # que poder sourcearlo, y su ausencia merece su propio mensaje. Un instalador
@@ -425,13 +425,13 @@ done
 # el resto de lo que el paquete tiene que traer-- y no arriba: `--ayuda` tiene
 # que contestar aunque el paquete este incompleto, y lo que escribe quien
 # instala se revisa antes que los archivos que traemos nosotros. Mismo sitio que
-# `update.sh:768`, que sourcea `respaldo.sh` despues de leer su configuracion.
+# `update.sh:778`, que sourcea `respaldo.sh` despues de leer su configuracion.
 #
 # >>> Y la costura, dicha en voz alta: `SPACE_OS_BASE_INSTANCIA_SH` deja que el
 # >>> ENTORNO elija que archivo se sourcea, o sea que quien pueda ponerle una
 # >>> variable de entorno a este proceso puede ejecutar codigo suyo dentro de
 # >>> el, como root en la maquina del cliente. Se acepta por el mismo motivo que
-# >>> su hermana `SPACE_OS_RESPALDO_SH` (`update.sh:768`) --sin ella los
+# >>> su hermana `SPACE_OS_RESPALDO_SH` (`update.sh:778`) --sin ella los
 # >>> mutantes del arnes no pueden correr una copia del guion-- y no abre ninguna
 # >>> puerta nueva: esto lo lanza a mano quien ya es root. Si algun dia lo lanza
 # >>> un proceso menos privilegiado, esta linea es lo primero que hay que quitar.
@@ -864,6 +864,26 @@ cat <<'CRON' | escribir /etc/cron.d/space-os-update 644
 # La instancia se actualiza SOLA. Nadie entra por ssh desde fuera a desplegar.
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+# ADR 0037 (tarea 6): comprobar corre cada 15 min y solo actualiza si hay una
+# aprobacion cuyo digest cuadra con lo disponible; si no hay nada que hacer,
+# sale con 0 ("esperar no es un error"). El "|| [ $? -eq 75 ]" normaliza a 0 el
+# caso del candado de update.sh (flock, "ya habia otro update en marcha", que
+# tambien es un 0 en espiritu): sin el, la corrida de las 4:17 le pisa el paso
+# al --comprobar de al lado y el estado de salida de un cuarto de hora
+# perfectamente sano quedaria como fallo. Un fallo real (1-7) sigue saliendo
+# tal cual.
+#
+# DE DONDE NO SALE EL AVISO, y conviene decirlo aqui porque cuesta un
+# diagnostico entero: NO SALE POR CORREO. Cron manda correo por la SALIDA, no
+# por el codigo de salida, y las dos lineas de abajo redirigen stdout Y stderr
+# a cron.log con ">> ... 2>&1"; ademas este archivo no define MAILTO. Sin
+# salida no hay correo, para ningun codigo. El canal que SI existe y SI
+# funciona es `reportar_a_flota` con FLOTA_CODIGO (`update.sh:780-798`), que
+# corre en CADA `salir()` y llega al panel del padre: el aviso llega, pero se
+# mira en el panel de flota. El dueno acepto el coste de estas salidas con
+# error describiendolo como "hasta 96 correos al dia"; la via real es otra, y
+# queda escrito para que esa decision se pueda revisar sabiendo la verdad.
+*/15 * * * * root /opt/space-os/update.sh --comprobar >> /var/log/space-os/cron.log 2>&1 || [ $? -eq 75 ]
 17 4 * * * root /opt/space-os/update.sh >> /var/log/space-os/cron.log 2>&1
 CRON
 

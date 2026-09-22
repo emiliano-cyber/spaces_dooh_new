@@ -1,0 +1,190 @@
+===============================================================================
+ ESTADO DE LAS BASES DE DATOS — medido el 2026-09-21
+ SPACE OS · C:\Users\Server\spaces_doohmain_nueva
+===============================================================================
+
+ Todo lo de la seccion LOCAL esta MEDIDO hoy, no copiado.
+ Todo lo de la seccion SERVIDOR esta SIN MEDIR: yo no toco servidores, asi
+ que son comandos para que los corras tu. Lo que diga ahi es lo que espero
+ encontrar, no lo que se.
+
+
+-------------------------------------------------------------------------------
+ 1 · LO QUE HAY EN DISCO
+-------------------------------------------------------------------------------
+
+ 87 archivos en db/migrations/
+
+ Las cuatro ultimas:
+   20260918_entidad_tenant_compuesto.sql
+   20260921_corrige_acentos_catalogo_roles_entidad.sql      <- EN MAIN
+   20260921_restaura_contrasena_compartida_cambios.sql      <- EN MAIN
+   20260921_actualizaciones_instancia.sql                   <- SOLO EN LA RAMA
+                                                               feat/actualizacion-
+                                                               elegida-por-instancia
+
+ OJO CON LA TERCERA. Todavia NO esta fusionada. No debe llegar a ninguna
+ base de demostracion ni a ningun servidor hasta que su PR aterrice en main.
+
+
+-------------------------------------------------------------------------------
+ 2 · LAS BASES LOCALES (docker, puerto 5433)
+-------------------------------------------------------------------------------
+
+ base            | migrs | tablas | ultima aplicada
+ ----------------|-------|--------|-------------------------------------------
+ spaces          |   86  |   45   | 20260921_restaura_contrasena_compartida
+ spaces_ver2     |   85  |   44   | 20260921_restaura_contrasena_compartida
+ spaces_ver      |   81  |   43   | 20260917_entidades_fiscales
+ spaces_destino  |   79  |   40   | 20260910_pais_sin_default
+ spaces_puente   |   78  |   40   | 20260907_solo_google
+ spaces_prueba1  |   78  |   40   | 20260907_solo_google
+ spaces_prueba2  |   78  |   40   | 20260907_solo_google
+ spaces_prueba3  |   78  |   40   | 20260907_solo_google
+ spaces_e2e      |   --  |   --   | la recrea el arnes en cada corrida; su
+                                     estado entre corridas no significa nada
+
+ LAS DOS QUE IMPORTAN:
+
+   spaces       = tu base de desarrollo. La reconstrui hoy de cero (estaba
+                  muerta: 71 migraciones, sin las tablas nuevas) y la sembre.
+                  Tiene la tabla de la rama porque ahi es donde se probo.
+                  AL DIA. No le falta nada.
+
+   spaces_ver2  = la base de la DEMOSTRACION del 14 de octubre.
+                  AL DIA respecto a main. Le falta SOLO la migracion de la
+                  rama sin fusionar, y eso es CORRECTO: no se toca hasta
+                  que el PR aterrice.
+
+ Las otras seis son restos de ensayos viejos. No estorban. Si quieres
+ limpiar, se pueden borrar sin pensarlo: son datos de prueba.
+
+
+-------------------------------------------------------------------------------
+ 3 · QUE FALTA EN LOCAL
+-------------------------------------------------------------------------------
+
+ NADA AHORA MISMO.
+
+ Cuando el PR de feat/actualizacion-elegida-por-instancia aterrice en main,
+ y SOLO entonces, hay que llevar la migracion nueva a la base de la demo:
+
+   cd C:/Users/Server/spaces_doohmain_nueva
+   $env:DATABASE_URL="postgresql://spaces:spaces@localhost:5433/spaces_ver2"
+   node scripts/migrar.mjs
+
+   Esperado: "1 aplicadas, 1 de datos pendientes."
+
+ La pendiente de datos (20260731_calendario_meses_cortos.sql) NO se aplica y
+ eso es a proposito: las de @tipo: datos entran solo con --con-datos, y
+ update.sh no lo pasa nunca.
+
+
+-------------------------------------------------------------------------------
+ 4 · COMO COMPROBAR CUALQUIER BASE, LOCAL O REMOTA
+-------------------------------------------------------------------------------
+
+ Este es el comando que contesta "en que estado esta". NO aplica nada:
+
+   node scripts/migrar.mjs --pendientes
+
+ con DATABASE_URL apuntando a la base que quieras mirar.
+
+ COMO LEER SU SALIDA:
+
+   salida 0 + lista de pendientes  -> sana. Te dice que le falta.
+   salida 0 + "0 pendientes"       -> al dia.
+   salida 3 + "una migracion YA APLICADA tiene otro contenido en disco"
+                                   -> NO es que alguien editara una migracion.
+                                      Es casi seguro el arbol de trabajo en
+                                      CRLF. Ver seccion 6.
+   salida 1                        -> no puede ni empezar: falta configuracion
+                                      o no hay rol de aplicacion.
+
+
+-------------------------------------------------------------------------------
+ 5 · EL SERVIDOR — ESTO NO LO HE MEDIDO
+-------------------------------------------------------------------------------
+
+ Hay dos sitios con base propia, y el estado de los dos lo tienes que
+ comprobar tu. Yo no entro por ssh ni corro psql contra un servidor.
+
+ (a) DEMO, en el PADRE. Corre como CONTENEDOR desde la imagen del registry
+     desde el 02/09, con update.sh y cron.
+
+ (b) La instancia de cliente g500. Es la primera con DATOS REALES. Trata su
+     base distinto de todo lo demas de esta lista.
+
+ PARA CADA UNA, ENTRA AL DROPLET Y CORRE:
+
+     # que version sirve el contenedor
+     docker ps --format '{{.Names}}\t{{.Image}}\t{{.Status}}'
+
+     # en que estado esta su base, sin tocar nada
+     /opt/space-os/update.sh --dry-run
+
+     # y si quieres el detalle de migraciones:
+     tail -n 40 /var/log/space-os/update.log
+
+ QUE ESPERAR DE --dry-run:
+
+     "sin cambios"                          -> al dia
+     "pull v0.4.2 -> 3 migraciones pendientes" -> hay actualizacion esperando
+     cualquier mencion a "BACKUP VACIO"     -> PARA. Avisa. No sigas.
+
+ LO IMPORTANTE, Y ES LO QUE MAS FACIL SE OLVIDA:
+
+ Una instancia NO se actualiza aplicandole migraciones a mano. Se actualiza
+ sola, jalando la imagen nueva del registry. La cadena es:
+
+     1. el PR aterriza en main
+     2. sale una version nueva al canal (release.yml)
+     3. la instancia la jala en su cron de las 04:17
+
+ Si alguna vez te ves corriendo migrar.mjs a mano contra un servidor, algo
+ se salto un paso.
+
+
+-------------------------------------------------------------------------------
+ 6 · LA TRAMPA QUE COSTO EL DIAGNOSTICO DE HOY
+-------------------------------------------------------------------------------
+
+ Si migrar.mjs sale con CODIGO 3 diciendo que una migracion ya aplicada
+ cambio de contenido: casi seguro NO cambio. Lo que cambio es el arbol de
+ trabajo, que quedo en CRLF.
+
+ git status NO puede delatarlo: con el atributo "text" de .gitattributes,
+ git normaliza al commitear y el arbol sale limpio igual.
+
+ COMO SE VE (desde Git Bash, en la raiz del repo):
+
+     for f in db/migrations/*.sql; do
+       [ "$(sha256sum < "$f")" != "$(tr -d '\r' < "$f" | sha256sum)" ] && echo "CRLF: $f"
+     done
+
+     Sin salida = el arbol esta bien.
+
+ COMO SE ARREGLA (con git status limpio comprobado ANTES, o se lleva por
+ delante una migracion sin commitear):
+
+     git status --short db/migrations/     # tiene que salir VACIO
+     rm -f db/migrations/*.sql && git checkout -- db/migrations/
+
+ NO USES --forzar-checksum PARA ESTO. Esa bandera le dice al registro que
+ el contenido nuevo es el bueno, y aqui el bueno era el viejo: grabaria la
+ mentira.
+
+ Esta escrito completo en CLAUDE.md, en el bloque de trampas de entorno.
+
+
+-------------------------------------------------------------------------------
+ 7 · RESUMEN EN UNA LINEA
+-------------------------------------------------------------------------------
+
+ LOCAL:    al dia, no hace falta nada.
+ DEMO:     al dia respecto a main; la migracion de la rama entra cuando el
+           PR aterrice, no antes.
+ SERVIDOR: sin medir. Corre el --dry-run de la seccion 5 y comparalo con
+           lo que dice esta hoja.
+
+===============================================================================

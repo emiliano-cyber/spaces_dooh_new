@@ -1,15 +1,66 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-09-17
+actualizado: 2026-09-22
 tags: [datos, esquema, er, postgres]
 archivos:
   - db/schema.sql
   - db/semilla-desarrollo.sql
   - db/migrations/
+  - db/migrations/20260921_actualizaciones_instancia.sql
 ---
 
 # Esquema de datos
+
+> [!note] 2026-09-21 · tabla nueva, `actualizaciones_instancia` — ADR 0037
+> `db/migrations/20260921_actualizaciones_instancia.sql` — la tabla de LA
+> INSTANCIA (sin `tenant_id`, sin RLS, una sola fila con `check (id)` sobre una
+> pk booleana) que hace de buzón entre la aplicación y el actualizador: cada
+> droplet elige si toma la versión nueva cuando se publica una. Ver
+> [ADR 0037](../../docs/adr/0037-cada-instancia-elige-si-toma-la-version-nueva.md) y
+> [[migraciones]]. Mapa completo de las cuatro piezas en
+> [[actualizaciones-instancia]].
+>
+> **Tablas: 44 → 45**, medido con `node scripts/recuentos.mjs` sobre este árbol.
+>
+> Dos escritores separados por `grant` de COLUMNA, no por convención: la app
+> (`spaces_app`/`spaces_user`) solo puede escribir `modo`, `aprobado_digest`,
+> `aprobado_por`, `aprobado_en` y `actualizado_en`; las columnas de lo
+> *disponible* (`digest_disponible`, `version_disponible`, …) las escribe el
+> actualizador con el rol privilegiado. `obligatoria` nace sin escritor a
+> propósito — ver la cabecera de la migración.
+>
+> **Ojo con el candado que casi no restringe nada:**
+> `20260820_grants_rol_app.sql` y `20260824_grants_tablas_futuras.sql` fijan
+> privilegios POR OMISIÓN para el propietario que corre las migraciones, y esos
+> alcanzan a CUALQUIER tabla nueva que ese propietario cree — con
+> `select+insert+update+delete` de tabla COMPLETA. Un privilegio de tabla
+> completo gana siempre a uno por columna, así que sin un `revoke all` explícito
+> ANTES del `grant update (columnas)`, la app seguiría pudiendo escribir
+> `digest_disponible` pese al grant por columna. Lo delató la propia prueba de
+> este ADR — pasaba en verde por el motivo equivocado hasta que se añadió el
+> `revoke`. Cualquier tabla nueva con escritores separados por columna necesita
+> el mismo `revoke all` primero.
+>
+> **Corregido el 2026-09-22, en la revisión final de la rama — dos cosas, y la
+> migración se editó EN SU SITIO** porque no se había aplicado en ninguna parte
+> (vive solo en esta rama, no es zona R3):
+>
+> 1. **`aprobado_por` ahora es `on delete set null`.** Estaba sin cláusula, o
+>    sea `no action`, y era **la única de las trece FK a `usuarios` del esquema
+>    sin cláusula** — las otras doce son `cascade` o `set null`. Como
+>    `guion_instalado()` limpia `aprobado_digest` pero deja `aprobado_por`
+>    puesto, en cuanto alguien aprobaba **una** versión ese usuario ya no se
+>    podía borrar nunca: `borrarUsuario()` hace un `delete` a pelo y el 23503
+>    habría salido como **500 opaco**. Medido contra el Postgres local: con la
+>    cláusula vieja el borrado da `violates foreign key constraint`; con la
+>    nueva el borrado pasa y `aprobado_por` queda en `NULL`.
+> 2. **La cabecera de la migración avisa ahora del otro camino del mismo
+>    defecto:** cualquier migración futura con
+>    `grant … on all tables in schema public` a `spaces_app` **destruye en
+>    silencio** la separación por columna, porque en Postgres un grant de tabla
+>    gana al de columna. Es el mismo defecto del párrafo de arriba entrando por
+>    la puerta de al lado.
 
 > [!warning] 2026-09-17 · remedido, y tres de las cifras de abajo caducaron
 > Medido en este árbol al añadir `20260917_entidades_fiscales.sql`, con la
@@ -33,9 +84,10 @@ archivos:
 > archivos **sí** los aplica una actualización normal, sin `--con-datos`.
 > Comprobar por qué perdieron la marca es una tarea propia, no se hizo aquí.
 
-**PostgreSQL, un solo schema (`public`), 44 tablas, sin ORM.** `db/schema.sql`
+**PostgreSQL, un solo schema (`public`), ~~44~~ 45 tablas (ver la nota del
+21/09 arriba), sin ORM.** `db/schema.sql`
 (679 líneas) + **74** migraciones aditivas — **70 de esquema y 4 de datos**
-(medido el 27/08).
+(medido el 27/08, y ya caducado — ver los avisos de arriba).
 
 > [!warning] Las de datos son CUATRO, no una — y el runner las salta por defecto
 > Esta nota decía «una de datos» desde el 19/08 y ya entonces eran tres. Hoy

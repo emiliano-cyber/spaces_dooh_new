@@ -142,8 +142,8 @@ describe('el esquema base no trae la organización de nadie', () => {
     expect(primera.stdout).toContain(`${migracionesDeEsquema().length} aplicadas`)
   })
 
-  it('y deja las 44 tablas, sin que ninguna organización se haya colado', () => {
-    // 44 es la cuenta medida el 2026-09-18 sobre la receta completa. Si cambia,
+  it('y deja las 45 tablas, sin que ninguna organización se haya colado', () => {
+    // 45 es la cuenta medida el 2026-09-21 sobre la receta completa. Si cambia,
     // es porque una migración nueva añadió tabla: se actualiza a conciencia.
     //
     // Historia de la cifra, que es lo que la hace útil:
@@ -160,7 +160,11 @@ describe('el esquema base no trae la organización de nadie', () => {
     //     veces que esta prueba delata una tabla nueva antes que nadie, y esta
     //     vez lo hizo sobre un árbol donde se habían fusionado dos ramas que no
     //     se vieron entre sí — que es justo cuando algo se cuela.
-    expect(trasMigrar.tablas).toBe(44)
+    //   · 45 el 2026-09-21: `20260921_actualizaciones_instancia.sql` añade
+    //     `actualizaciones_instancia` (ADR 0037), el buzón de la instancia entre
+    //     la app y el actualizador. Quinta vez que esta prueba delata la tabla
+    //     nueva antes que nadie.
+    expect(trasMigrar.tablas).toBe(45)
     // Lo que de verdad importa: ni las migraciones resucitan al owner.
     expect(trasMigrar.tenants).toBe(0)
   })

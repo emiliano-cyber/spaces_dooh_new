@@ -41,6 +41,9 @@ raíz, para poner o mantener una instancia en pie.
 ```bash
 /opt/space-os/update.sh --dry-run     # mira y cuenta. NO toca nada
 /opt/space-os/update.sh               # actualiza de verdad
+/opt/space-os/update.sh --comprobar   # ADR 0037: mira y anota lo disponible;
+                                      # aplica SOLO si hay una aprobacion que
+                                      # cuadra. Con modo=automatica no hace nada
 /opt/space-os/update.sh --simular-fallo-pull   # ensaya los reintentos (§ abajo)
 tail -n 40 /var/log/space-os/update.log        # todo, crudo, solo en el droplet
 cat /var/log/space-os/update-publicable.log    # solo esta corrida, filtrado:
@@ -98,8 +101,8 @@ cat /var/log/space-os/update-publicable.log    # solo esta corrida, filtrado:
 
 | Código | Qué pasó | ¿Hay que ir a mirar la base? |
 |---|---|---|
-| `0` | sin cambios, o actualizada y sana | no |
-| `1` | no se pudo ni empezar: falta configuración, falló el pull, **el respaldo salió vacío**, no se pudo leer la huella de la base (§3), o el runner se negó a arrancar | no: **nada se tocó** |
+| `0` | sin cambios, actualizada y sana, o **comprobado y a la espera de que el dueño apruebe** (ADR 0037): esperar no es un error | no |
+| `1` | no se pudo ni empezar: falta configuración, falló el pull, **el respaldo salió vacío**, no se pudo leer la huella de la base (§3), el runner se negó a arrancar, **la imagen no trae `RepoDigest` teniendo la tabla del ADR 0037** —ahí el dueño no puede aprobar nada, así que no es una espera sino un bloqueo— o **`--comprobar` no pudo leer esa tabla** | no: ni respaldo, ni migración, ni contenedor, ni un dato de negocio. **Con una excepción desde el ADR 0037**: los dos cortes del paso 2b salen *después* de la sonda, así que esa corrida pudo dejar escrita la comprobación en `actualizaciones_instancia` |
 | `2` | las migraciones fallaron a medias o no se pudieron registrar | **el log lo dice, medido contra la base** (§3): `LA BASE CAMBIO` = sí; `la base NO cambio` = no |
 | `3` | el registro de la base y las migraciones de la imagen **no cuentan la misma historia** | no: **no se aplicó nada** |
 | `4` | la salud falló y **la vuelta atrás salió bien** — la instancia sirve la versión anterior | no, pero hay que mirar el release |
@@ -228,7 +231,7 @@ Si `flock` no está instalado, el script **no corre**.
 ### 0 · Las migraciones `@tipo: datos` **no las aplica el update: las aplica una persona**
 
 **Decisión de Jochelo, 2026-08-18.** `update.sh` llama al runner **sin
-`--con-datos`** (`update.sh:1018-1024`, remedido leyendo el archivo el 19/08 por
+`--con-datos`** (`update.sh:1028-1034`, remedido leyendo el archivo el 19/08 por
 **tercera vez ese día**: la cita decía `407-413`, luego `626-632`, luego
 `692-698`, luego `775-781`, luego `924-930`, y M3 la movió otras **94
 líneas**. Un archivo que crece invalida todas sus

@@ -296,7 +296,7 @@ Las e2e:
 > columna de texto y se compare contra una lista ordenada en JavaScript lleva
 > `collate "C"`. Hoy son tres, todas en `migraciones.e2e.test.ts`.
 >
-> ▸ **Lo que NO es un problema, comprobado**: `infra/scripts/update.sh:1371`
+> ▸ **Lo que NO es un problema, comprobado**: `infra/scripts/update.sh:1381`
 > usa `string_agg(… order by archivo)` sin collation, pero sus tres huellas
 > (`:1504`, `:1518`, `:1857`) se comparan **contra la misma base de la misma
 > instancia**, donde la collation es constante. Se revisó por sospecha y quedó

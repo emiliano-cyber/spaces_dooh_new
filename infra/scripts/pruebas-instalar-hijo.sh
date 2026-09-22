@@ -20,7 +20,7 @@
 #  nada de verdad) y NO usa una llave de licencia real: fabrica su propio par
 #  de llaves y firma su propia licencia de prueba en un directorio temporal,
 #  igual que ya hace `pruebas-update.sh` con `update.sh` (misma tecnica,
-#  mismo motivo: `update.sh:843` tambien deja `LICENCIA_PUB` como variable de
+#  mismo motivo: `update.sh:853` tambien deja `LICENCIA_PUB` como variable de
 #  entorno, y `instalar-hijo.sh` ahora tiene su propia costura equivalente,
 #  `SPACE_OS_LICENCIA_PUB`).
 #
@@ -194,7 +194,7 @@ valor_sourceado() {
 
 # El "destino" -- host:puerto/base, SIN credenciales -- es justo lo que
 # `destino_de_url()` calcula en `update.sh` para decidir si los dos archivos
-# hablan de la MISMA base (`update.sh:1430-1433`). Aqui basta con partir por
+# hablan de la MISMA base (`update.sh:1440-1443`). Aqui basta con partir por
 # el PRIMER `@` (las claves son hex: nunca llevan uno) DESPUES de comprobar
 # que el valor empieza por un esquema valido -- que es precisamente lo que
 # `partir_url()` en `update.sh` tambien exige antes de intentar nada. Una
@@ -222,7 +222,7 @@ DOM=prueba.ejemplo.com   # dominio de prueba, no existe
 #      la quita, se la queda dentro del valor.
 #   2. `instancia.env`: `DATABASE_URL` SI va entrecomillado -- bash lo
 #      sourcea, y sin comillas un espacio ejecuta la segunda palabra.
-#   3. La comparacion que hace abortar a `update.sh` (`update.sh:1430-1433`):
+#   3. La comparacion que hace abortar a `update.sh` (`update.sh:1440-1443`):
 #      el destino que se leeria de `app.env` con `grep`+`cut` (su propio
 #      metodo, sin sourcear) tiene que COINCIDIR con el de `instancia.env`.
 #      Antes de la tarea 11, la (1) fallaba: `app.env` tambien llevaba
@@ -267,6 +267,62 @@ fi
 escrito_dice /etc/space-os/app.env 'DATABASE_URL=postgresql://spaces_app:'
 escrito_dice /etc/space-os/instancia.env 'DATABASE_URL="postgresql://spaces_migrador:'
 limpiar
+
+# ============================================================================
+#  CRON · el cron frecuente --comprobar se suma al de las 4:17  (tarea 6, ADR 0037)
+# ----------------------------------------------------------------------------
+#  La entrada de las 4:17 sigue siendo la del modo automatico y la red de
+#  seguridad; no se toca. La nueva corre cada 15 minutos con `--comprobar`
+#  (SS3 del ADR): mira el registry y solo actualiza si hay una aprobacion que
+#  cuadra -- y si no hay nada que hacer, sale con 0 ("esperar no es un error").
+#
+#  El candado de `update.sh` (flock) sale con 75 cuando ya habia otro update en
+#  marcha (update.sh:74, "no es un error"). Sin tolerarlo en la propia linea de
+#  cron, la corrida de las 4:17 le pisaria el paso al --comprobar de al lado y
+#  el estado de salida de un cuarto de hora perfectamente sano quedaria como
+#  fallo -- hasta varias veces cada madrugada.
+#
+#  Y NO, no es por el correo de cron: corregido el 22/09 en la revision final.
+#  Cron manda correo por la SALIDA, no por el codigo de salida, y las dos
+#  lineas redirigen stdout y stderr a cron.log; ademas no hay MAILTO. El aviso
+#  de verdad llega por `reportar_a_flota` (update.sh:780-798) al panel del
+#  padre. Este comentario decia "cron mandaria correo por algo que funciona
+#  bien" y describia un canal que no existe.
+# ============================================================================
+escenario 'CRON · --comprobar se anade JUNTO a la entrada de las 4:17, no en su lugar'
+preparar
+fabricar_licencia p "$DOM"
+correr REGISTRY=registro.ejemplo/x PADRE_URL=https://padre.ejemplo.invalid FLOTA_TOKEN=t0ken-de-flota -- \
+  --instancia p --dominio "$DOM" --licencia "$LICDIR"
+codigo_es 0
+
+# La de siempre sigue exactamente igual.
+escrito_casa /etc/cron.d/space-os-update '^17 4 \* \* \* root /opt/space-os/update\.sh >> /var/log/space-os/cron\.log 2>&1$'
+
+# La nueva lleva --comprobar y corre cada 15 minutos.
+escrito_casa /etc/cron.d/space-os-update '^\*/15 \* \* \* \* root /opt/space-os/update\.sh --comprobar '
+
+# El candado (75) tolerado en la MISMA linea: un fallo real (1-7) sigue
+# saliendo con su codigo, porque solo el 75 se convierte en exito -- y ese
+# codigo es el que viaja al panel de flota, que es por donde llega el aviso
+# (no por correo: ver el bloque de arriba).
+escrito_dice /etc/cron.d/space-os-update '|| [ $? -eq 75 ]'
+limpiar
+
+escenario 'CRON · la linea --comprobar es IDENTICA en instalar-hijo.sh y provision-instancia.sh'
+# Ancorado a `^\*/15`, no a `--comprobar` a secas: el comentario de arriba
+# tambien menciona `--comprobar` y, si un dia difiere entre los dos guiones,
+# un grep sin ancla lo mezclaria con la linea de cron y podria dar un
+# falso verde.
+LINEA_A="$(grep -E -- '^\*/15 ' "$RAIZ/infra/scripts/instalar-hijo.sh" | tr -d '[:space:]')"
+LINEA_B="$(grep -E -- '^\*/15 ' "$RAIZ/infra/scripts/provision-instancia.sh" | tr -d '[:space:]')"
+if [ -z "$LINEA_A" ] || [ -z "$LINEA_B" ]; then
+  mal "no se encontro la linea --comprobar en alguno de los dos guiones (a='$LINEA_A' b='$LINEA_B')"
+elif [ "$LINEA_A" = "$LINEA_B" ]; then
+  bien
+else
+  mal "instalar-hijo.sh y provision-instancia.sh escriben la linea --comprobar distinta (a='$LINEA_A' b='$LINEA_B')"
+fi
 
 # ============================================================================
 #  PERMISOS · un secreto va en 600; un documento publico, en 644  (F2)

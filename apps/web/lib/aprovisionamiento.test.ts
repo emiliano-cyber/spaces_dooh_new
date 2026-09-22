@@ -118,7 +118,7 @@ function sqlDeRol(receta: string): { sql: string; donde: string } {
 
 describe('la imagen trae lo que la instancia necesita para migrar', () => {
   it('lleva `scripts/migrar.mjs`, y no una copia montada desde el anfitrión', () => {
-    // Con el runner dentro, `update.sh:1313` toma su primera rama sola y el
+    // Con el runner dentro, `update.sh:1323` toma su primera rama sola y el
     // runner viaja versionado CON la imagen que migra, que es lo que el plan
     // pedía desde F3.4 paso 5.
     expect(DOCKERFILE).toMatch(/COPY[^\n]*scripts\/migrar\.mjs/)

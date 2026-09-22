@@ -20,7 +20,7 @@
 #  `vault/06-Operacion/zonas-de-riesgo.md`.
 #
 #  El modo de fallo, que es lo que lo hace ROJO: `update.sh` hace `. "$CONF"`
-#  sobre `instancia.env` (`update.sh:740`) como root, por cron, cada noche. Ese
+#  sobre `instancia.env` (`update.sh:750`) como root, por cron, cada noche. Ese
 #  archivo no es texto: es bash. Un valor con un espacio dentro y sin comillas
 #  --`REGISTRY_TOKEN=tok canario`-- no es una asignacion, es `canario`
 #  EJECUTADO con `REGISTRY_TOKEN=tok` en su entorno. No da error, no lo dice
@@ -95,13 +95,13 @@ validar_valor_seguro() {
 # HASTA la tarea 11 esto era UNA sola funcion para los DOS archivos que se
 # escriben abajo, y siempre ENTRECOMILLABA el valor. Eso rompia `app.env`:
 # nadie lo sourcea, lo lee Docker como `--env-file`, y `update.sh` ya traia
-# escrito por que se lee asi (`update.sh:1417-1420`): *"Formato --env-file de
+# escrito por que se lee asi (`update.sh:1427-1430`): *"Formato --env-file de
 # docker: CLAVE=valor, sin comillas ni export. Por eso se lee con grep y no
 # con '.': sourcearlo interpretaria las comillas de otra manera que docker, y
 # ahi es donde nacen las diferencias invisibles."* Docker no las quita: se
 # las queda DENTRO del valor. Con eso, `url_de_env_app()` (grep+cut, sin
 # sourcear -- el mismo motivo de arriba) leia el `DATABASE_URL` de `app.env`
-# CON las comillas puestas, `update.sh:1430-1433` lo comparaba contra el de
+# CON las comillas puestas, `update.sh:1440-1443` lo comparaba contra el de
 # `instancia.env` (que si se sourcea, y sale SIN comillas), los dos destinos
 # no coincidian nunca, y el cron paraba con `EX_CONFIG` en su primera corrida:
 # la instancia quedaba servida pero sin poder actualizarse jamas.

@@ -23,6 +23,7 @@ import { TIPO_OT_LABEL, TIPO_OT_SOLO_FIJA, TIPO_OT_OBSOLETO, TODOS_TIPOS_OT, tip
 import { payloadCostosOt } from '@/lib/costos-ot-payload'
 import { OrganizacionesPanel } from '@/components/demo/admin/OrganizacionesPanel'
 import { ControlCambiosPanel } from '@/components/demo/admin/ControlCambiosPanel'
+import { ActualizacionesPanel } from '@/components/demo/admin/ActualizacionesPanel'
 import {
   listarUsuariosApi,
   invitarUsuarioApi,
@@ -673,6 +674,12 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
 
   return (
     <div className="space-y-4">
+      {/* ADR 0037: qué version corre esta instancia, qué hay disponible y
+          si el dueño la instala ahora o espera a la ventana automatica. Es
+          config de la INSTANCIA (el droplet), no del negocio del tenant, y
+          por eso va aparte de `ConfigNegocio` — no viaja en `guardar()`. */}
+      <ActualizacionesPanel onToast={onToast} />
+
       <Card>
         <CardHeader className="flex flex-row items-center gap-2"><Building2 className="h-4 w-4 text-muted" /><CardTitle>Identidad de la empresa</CardTitle></CardHeader>
         <CardContent className="space-y-4">

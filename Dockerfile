@@ -105,6 +105,17 @@ COPY --chown=node:node db/migrations ./db/migrations
 # son las dos lineas de arriba.
 COPY --chown=node:node scripts/migrar.mjs ./scripts/migrar.mjs
 
+# La decision pura del ADR 0037 (cada instancia elige si toma la version
+# nueva), DENTRO de la imagen por el mismo motivo que el runner de arriba:
+# `update.sh --comprobar` la importa desde su sonda de estado
+# (`guion_estado()` en `infra/scripts/update.sh`, justo antes de "Identidad de
+# la imagen"), y esa sonda corre DENTRO de un contenedor efimero de la imagen
+# que se construye aqui. Sin esta linea
+# en la lista blanca, la sonda no encuentra el modulo y muere con ENOENT en la
+# primera corrida que jale la imagen nueva -- exactamente el AVISO 1 de
+# `update.sh`, pero para `actualizaciones.mjs` en vez de `migrar.mjs`.
+COPY --chown=node:node scripts/actualizaciones.mjs ./scripts/actualizaciones.mjs
+
 # next/image escribe las imagenes remotas optimizadas bajo .next/cache. Sin este
 # directorio ya creado y con dueño, el usuario `node` no puede servirlas. Es el
 # unico sitio donde el proceso escribe: la instancia no necesita volumen.

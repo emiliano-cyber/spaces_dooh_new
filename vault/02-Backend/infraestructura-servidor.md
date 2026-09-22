@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-08-31
+actualizado: 2026-09-21
 tags: [backend, infraestructura, transversal, rojo]
 archivos:
   - apps/web/lib/server/db.ts
@@ -11,6 +11,7 @@ archivos:
   - apps/web/lib/server/uploads.ts
   - apps/web/lib/server/notificaciones-repo.ts
   - apps/web/lib/server/acciones-repo.ts
+  - apps/web/lib/server/actualizaciones-repo.ts
 ---
 
 # Infraestructura del servidor
@@ -56,6 +57,29 @@ Sustituye generadores aleatorios que chocaban contra sus propias restricciones
 
 Cuando chocaba, el vendedor veía `duplicate key value violates unique
 constraint` a media venta.
+
+## `actualizaciones-repo.ts` — el buzón de la instancia (ADR 0037)
+
+`actualizaciones_instancia (id boolean primary key, ...)`, UNA fila (`id =
+true`), global y **sin `tenant_id` ni RLS** — igual que `folios_consecutivos`
+arriba, y por el mismo motivo: describe el droplet, no una organización de
+dentro. Todo el archivo consulta con `qRaw`/`qRaw1`, nunca con `q`/`q1`: fijar
+`app.tenant_id` aquí no protegería nada.
+
+DOS escritores con papeles separados por `GRANT` de columna
+(`db/migrations/20260921_actualizaciones_instancia.sql`), no por convención:
+`update.sh` (rol privilegiado) escribe qué hay *disponible*; `PATCH
+/api/actualizaciones` (rol `spaces_app`) escribe solo *preferencia y
+aprobación* (`modo`, `aprobado_digest`, `aprobado_por`, `aprobado_en`). Un
+intento de escribir una columna ajena lo rechaza Postgres con `42501` — la
+capa de este archivo es la **segunda**, no la única.
+
+La pieza que defiende el ADR: `aprobarDigest()` compara y escribe en el
+**mismo** `UPDATE ... WHERE digest_disponible = $1` — atómico, para que entre
+leer «cuál es el disponible» y escribir la aprobación no quepa una corrida de
+`update.sh --comprobar` cambiándolo por debajo. Si el digest ya no cuadra, la
+sentencia actualiza cero filas y el repo lanza `AppError(..., 409)`. Endpoint
+en [[api-endpoints]].
 
 ## `rate-limit.ts` — limitador en memoria
 

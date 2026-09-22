@@ -14,6 +14,19 @@
 #                                        # el pull falla A PROPOSITO: ensaya la
 #                                        # politica de reintentos sin cortarle
 #                                        # la red al droplet. No toca nada.
+#    /opt/space-os/update.sh --comprobar
+#                                        # ADR 0037: mira el registry, anota lo
+#                                        # disponible en actualizaciones_instancia
+#                                        # y aplica SOLO si hay una aprobacion
+#                                        # cuyo digest cuadra. Con modo=automatica
+#                                        # no hace nada -- meter un corte de
+#                                        # servicio a media manana no es su
+#                                        # trabajo. Pensado para un cron cada
+#                                        # 15 min; la corrida SIN bandera (la de
+#                                        # las 4:17) sigue siendo la de siempre y
+#                                        # la red de seguridad si el cron
+#                                        # frecuente no llego a aplicar una
+#                                        # aprobacion. Ver AVISO 7.
 #    tail -n 40 /var/log/space-os/update.log        # todo, crudo, en el droplet
 #    cat /var/log/space-os/update-publicable.log    # solo esta corrida, filtrado:
 #                                                   # es lo que viaja al bucket
@@ -24,12 +37,21 @@
 #    cualquier mencion a "BACKUP VACIO"   → NO SEGUIR, avisar a una persona
 #
 #  Codigos de salida (los mira el cron, y los lee una persona en el log):
-#    0  sin cambios, o actualizada y sana
+#    0  sin cambios, actualizada y sana, o comprobado y a la espera de que el
+#       dueno apruebe (ADR 0037): esperar no es un error
 #    1  no se puede ni empezar: falta configuracion, falta docker o pg_dump,
 #       DATABASE_URL no se entiende como URL de conexion, el pull fallo, el
-#       respaldo salio VACIO, o el runner de migraciones se nego a arrancar
+#       respaldo salio VACIO, el runner de migraciones se nego a arrancar
 #       (por ejemplo: base con datos y sin `schema_migrations`, que pide
-#       intervencion humana). NADA se toco.
+#       intervencion humana), la imagen no trae RepoDigest teniendo la tabla
+#       del ADR 0037 —ahi el dueno no puede aprobar nada, asi que no es una
+#       espera sino un bloqueo—, o `--comprobar` no pudo LEER esa tabla.
+#       Ni respaldo, ni migracion, ni contenedor, ni un dato de negocio. CON
+#       UNA EXCEPCION desde el ADR 0037, y conviene saberla: los dos cortes
+#       del paso 2b salen DESPUES de la sonda, asi que esa corrida pudo dejar
+#       escrita la comprobacion en `actualizaciones_instancia`
+#       (`version_disponible`, `digest_disponible`, `migraciones_pendientes`,
+#       `comprobado_en`). "Nada se toco" a secas seria falso ahi.
 #    2  las migraciones fallaron a medias, o se aplicaron y no se pudieron
 #       registrar: LA BASE PUDO CAMBIAR. No se conmuto el trafico —la version
 #       anterior sigue sirviendo— y NO se restaura nada automaticamente (ver
@@ -144,9 +166,19 @@
 #  iguales no se distinguen de una repetida, y ademas se puede contar desde
 #  fuera con `grep -c reintento /var/log/space-os/update.log`.
 #
-# ── Cron: una vez al dia, con candado ──────────────────────────────────────
-#  /etc/cron.d/space-os-update:
-#    17 4 * * *  root  /opt/space-os/update.sh >/dev/null 2>&1
+# ── Cron: DOS entradas al dia (no una), con candado ────────────────────────
+#  /etc/cron.d/space-os-update, tal y como lo escriben `instalar-hijo.sh` y
+#  `provision-instancia.sh`:
+#    */15 * * * *  root  /opt/space-os/update.sh --comprobar >> …  || [ $? -eq 75 ]
+#    17   4 * * *  root  /opt/space-os/update.sh              >> …
+#  La de cada cuarto de hora COMPRUEBA (mira el registry, anota lo disponible)
+#  y solo actualiza si hay una aprobacion del dueno cuyo digest cuadra con lo
+#  disponible; la de las 04:17 es la del modo automatico, y la red de seguridad
+#  si una aprobacion no llego a aplicarse. ADR 0037.
+#  Este bloque decia "una vez al dia" y listaba solo la segunda: se quedo viejo
+#  el mismo dia que nacio la primera, y nadie lo noto hasta la revision final
+#  de la rama. Es el sexto descuadre de esta cabecera; por eso `E73` la vigila
+#  por los DOS extremos y por eso este aviso se escribe aqui y no en un commit.
 #  El candado lo toma el propio script (`flock -n` sobre
 #  /var/lock/space-os-update.lock), asi que tambien protege a la corrida que
 #  alguien lance a mano mientras el cron esta dentro. Mismo criterio que
@@ -360,6 +392,37 @@
 #  El `--dry-run` NO reporta. La cabecera promete que no toca nada, y un POST al
 #  padre —que deja una fila en su panel— es tocar algo. El log si sale (AVISO 5)
 #  porque es solo el relato de que no se hizo nada.
+#
+# ── AVISO 7 · cada instancia elige si toma la version nueva (ADR 0037) ─────
+#  Hasta esta tarea "el canal manda": si la etiqueta se movio, se actualiza sin
+#  preguntar. Desde aqui, el dueno puede pedir que su instancia espere su
+#  aprobacion -- ver `actualizaciones_instancia`
+#  (`db/migrations/20260921_actualizaciones_instancia.sql`) y
+#  `apps/web/lib/server/actualizaciones-repo.ts`.
+#
+#  LA REGLA NO SE REPITE AQUI: vive en `decidirActualizacion()`
+#  (`scripts/actualizaciones.mjs`, con sus propias pruebas) y se importa DENTRO
+#  del guion node de la sonda de estado (`guion_estado()`, que vive justo antes
+#  de "Identidad de la imagen" y NO junto a `guion_huella()`: ver el porque en
+#  su propia cabecera) -- nunca en bash. Por eso el Dockerfile tiene que copiar
+#  `scripts/actualizaciones.mjs` ademas de `scripts/migrar.mjs`: sin esa linea
+#  en la lista blanca, la sonda no encuentra el modulo dentro del contenedor y
+#  esto se cae con ENOENT en la primera corrida que jale la imagen nueva.
+#
+#  QUE LA TABLA NO EXISTA NO ES UN ERROR, ES UN DATO: una instancia con una
+#  imagen anterior a esta migracion no la tiene, y ahi el comportamiento es EL
+#  DE HOY -- actualizar sin preguntar, igual que hacia `schema_migrations`
+#  ausente en la sonda de huella (AVISO 3). Sin esto, desplegar esta tarea
+#  pararia a media flota en seco el dia que jalara la imagen nueva: la
+#  instancia se quedaria esperando una aprobacion que nadie sabe que dar,
+#  porque la pantalla que la pide tampoco existia hasta ahora.
+#
+#  `--comprobar` corre la MISMA logica de pull/digest/licencia que la corrida
+#  de siempre; la unica diferencia es que corrida=comprobar hace que
+#  `decidirActualizacion` NUNCA actualice en modo=automatica (ese corte es de
+#  madrugada, no de un cron cada 15 min), y que al no haber nada que hacer se
+#  sale con `EX_OK` en vez de seguir hacia el respaldo. La corrida sin bandera
+#  usa corrida=programada, que es la que SI obedece modo=automatica.
 # ============================================================================
 set -Eeuo pipefail
 
@@ -409,12 +472,16 @@ DRY_RUN=0
 # instancia de verdad sin tener que cortarle la red al droplet. Falla el pull y
 # nada mas: no llama a docker, asi que tampoco depende del registry.
 SIMULAR_FALLO_PULL=0
+# ADR 0037: separa "mirar" (el cron de cada 15 min) de "actualizar" (el de
+# siempre, a las 4:17). Ver AVISO 7 y el bloque «2b», mas abajo.
+COMPROBAR=0
 for arg in "$@"; do
   case "$arg" in
     --dry-run) DRY_RUN=1 ;;
     --simular-fallo-pull) SIMULAR_FALLO_PULL=1 ;;
-    # Hasta la linea 146: uso, codigos de salida, la ventana de corte, las
-    # claves de instancia.env y la politica de reintentos. Los AVISOS 1-5 no
+    --comprobar) COMPROBAR=1 ;;
+    # Hasta la linea 160: uso, codigos de salida, la ventana de corte, las
+    # claves de instancia.env y la politica de reintentos. Los AVISOS 1-7 no
     # salen en el --help a proposito: son para quien va a TOCAR el script, no
     # para quien lo corre. El corte se movio de 96 a 103 al entrar las claves
     # de Spaces (F3.7), a 109 con LOGS_BUCKET (F3.9), a 113 el 19/08 al
@@ -430,10 +497,36 @@ for arg in "$@"; do
     # estaba EN ROJO antes de tocar nada aqui. Al entrar FLOTA_REPORTE_URL
     # (F6.4, +7 lineas) se remidio leyendo: 145 es la ultima de la politica,
     # 147 abre "── Cron", y 146 —la linea en blanco de enmedio— es el corte.
-    -h|--help) sed -n '2,146p' "$0"; exit 0 ;;
-    *) echo "update: argumento desconocido: $arg (usa --dry-run, --simular-fallo-pull o --help)" >&2; exit "$EX_CONFIG" ;;
+    #
+    # Y volvio a caducar OTRA VEZ, por el mismo motivo: la tarea 5 (ADR 0037)
+    # anadio 13 lineas de "Uso:" documentando `--comprobar` y una de exit-code
+    # 0, TODAS antes del corte viejo de 146. Remedido leyendo (no restando):
+    # `grep -n 'grep -c reintento\|── Cron'` dice que la politica de
+    # reintentos termina en 159 y "── Cron" abre en 161, asi que 160 —la linea
+    # en blanco de enmedio, otra vez— es el corte nuevo.
+    #
+    # Y CADUCO UNA CUARTA VEZ, en la ronda 2 de la misma tarea, por anadir DOS
+    # lineas a la fila del codigo 1 (la imagen sin RepoDigest). Y una QUINTA
+    # en la ronda 3, por seis lineas mas en esa MISMA fila. Van cinco, todas
+    # por lo mismo, y la leccion no cambia: este numero NO se ajusta restando
+    # ni sumando de cabeza, se REMIDE leyendo. Hoy: la politica de reintentos
+    # termina en 167, "── Cron" abre en 169, y el corte es 168 —la linea en
+    # blanco de enmedio, como las cinco veces anteriores—.
+    -h|--help) sed -n '2,168p' "$0"; exit 0 ;;
+    *) echo "update: argumento desconocido: $arg (usa --dry-run, --comprobar, --simular-fallo-pull o --help)" >&2; exit "$EX_CONFIG" ;;
   esac
 done
+
+# ADR 0037 · que corrida es esta, en la palabra exacta que espera
+# `decidirActualizacion({ corrida })` (`scripts/actualizaciones.mjs`).
+# 'comprobar' es el cron nuevo, cada 15 min (mira y anota; aplica SOLO si hay
+# una aprobacion que cuadre); 'programada' es el de siempre, a las 4:17
+# (aplica en modo=automatica, o si hay una aprobacion que el cron frecuente no
+# llego a aplicar). Se fija AQUI, y no en el bloque 2b donde se usa, porque el
+# corte de "sin cambios" -que esta bastante mas arriba que 2b- tambien anota y
+# tambien la necesita.
+CORRIDA=programada
+if [ "$COMPROBAR" = 1 ]; then CORRIDA=comprobar; fi
 
 mkdir -p "$DIR_LOG" "$DIR_ESTADO"
 
@@ -1655,6 +1748,161 @@ MODO='(actualiza de verdad)'
 if [ "$DRY_RUN" = 1 ]; then MODO='(--dry-run: no se toca nada)'; fi
 registrar "── update $MODO · canal=$CANAL · imagen=$IMAGEN · base=$(destino_de_url "$DATABASE_URL")"
 
+# ─── El estado de la decision — ADR 0037 (ver AVISO 7) ─────────────────────
+# ESTE BLOQUE VA AQUI ARRIBA A PROPOSITO, y no junto a `guion_huella()` como
+# nacio: `leer_estado_y_decision` se llama DOS veces y la primera es en el
+# corte de "sin cambios", que esta por encima de la huella. En bash una
+# funcion solo existe cuando su definicion YA se ejecuto, asi que dejarla
+# abajo daba `command not found` justo en el camino mas frecuente de todos.
+#
+# Mismo patron que `guion_huella()`, mas abajo: el guion corre POR STDIN, con
+# el node y el pg de la MISMA imagen que se va a instalar, por la MISMA red y
+# con la MISMA DATABASE_URL que el runner -- si esto lee la base, el runner
+# tambien.
+# Hace dos cosas en UNA sola conexion -anota lo DISPONIBLE y lee lo que decidio
+# el dueno- porque dos guiones sueltos dejarian, entre "escribir" y "leer", la
+# misma ventana que `aprobarDigest()` cierra del lado de la app con un UPDATE
+# atomico (`apps/web/lib/server/actualizaciones-repo.ts:58-64`).
+#
+# La decision NO se repite en bash: se importa `decidirActualizacion` de
+# `scripts/actualizaciones.mjs` (con sus propias pruebas) DENTRO de este guion
+# node. Repetir la regla en dos idiomas es como este mismo archivo se rompio
+# antes (el recorte de URL, mas arriba): las dos copias divergen al primer
+# cambio y nadie se entera hasta que una instancia hace lo que la otra no
+# esperaba.
+guion_estado() {
+  cat <<'FIN_GUION_ESTADO'
+const { Client } = require('pg')
+// Los modulos de /app se importan por URL `file://`. Es defensa, NO el
+// arreglo de un fallo: `import('/app/scripts/x.mjs')` a secas TAMBIEN
+// funciona desde un guion de STDIN -- medido el 21/09: node le da a ese
+// guion el padre `<cwd>/[stdin]`, y una ruta absoluta resuelve contra la
+// raiz sin problema. La primera version de este comentario decia lo
+// contrario, y estaba mal: se midio con `import('C:/...')`, que falla con
+// ERR_UNSUPPORTED_ESM_URL_SCHEME porque en Windows `C:` se parsea como
+// PROTOCOLO, y se generalizo de ahi a un caso que no era el del codigo.
+// Se deja `pathToFileURL` porque es la forma que no depende de la
+// plataforma ni de contra que resuelva node un guion sin nombre, y porque
+// cuesta una linea; pero que conste que no tapa ningun agujero medido.
+const { pathToFileURL } = require('url')
+const cli = new Client({ connectionString: process.env.DATABASE_URL })
+cli
+  .connect()
+  .then(async () => {
+    const hay = (await cli.query("select to_regclass('public.actualizaciones_instancia') is not null as hay")).rows[0].hay
+    if (!hay) {
+      // Sentinela para el bloque «2b» de ESTE archivo: sin tabla no hay
+      // fila que leer ni escribir. Los nulos viajan como '-', nunca como
+      // cadena vacia -- con campos separados por espacios un vacio corre los
+      // de la derecha y un lector por posicion devuelve el campo equivocado
+      // sin dar error.
+      console.log('ESTADO sin-tabla - -')
+      await cli.end()
+      return
+    }
+    // Cuenta INFORMATIVA de migraciones pendientes, solo por nombre de
+    // archivo -- NO es la cuenta autoritativa (esa compara checksums y orden
+    // exacto, y es de migrar.mjs). Si esta corrida no va a actualizar, no
+    // puede llamar al runner solo para contar: por eso NO reusa --pendientes.
+    let pendientes = null
+    try {
+      const fs = require('fs')
+      const path = require('path')
+      const dir = path.join(process.cwd(), 'db', 'migrations')
+      // Las `@tipo: datos` NO se cuentan, y esto no es un detalle: `update.sh`
+      // llama al runner SIN `--con-datos` a proposito (`scripts/migrar.mjs:7`
+      // y `:705`), asi que esas migraciones no se aplican NUNCA por esta via
+      // -- tampoco en el alta, que pasa `--instalacion-nueva` y eso no implica
+      // `--con-datos`. Contarlas dejaria el numero de la pantalla del dueno
+      // permanentemente por encima de cero con nada pendiente de verdad: hoy
+      // hay una (`20260731_calendario_meses_cortos.sql`), que es de donde sale
+      // el "75 y no 76" de DEMO.
+      //
+      // El criterio se IMPORTA de `migrar.mjs` en vez de repetirlo: la marca
+      // vale solo en la PRIMERA linea, y un filtro por "el archivo contiene la
+      // cadena" daria por de datos --y se saltaria en silencio-- justo la
+      // migracion que crea `schema_migrations`, que la menciona en su prosa.
+      // Si esta imagen no trae el runner (AVISO 1), el import falla y el
+      // `catch` de abajo deja la cuenta en null, que es lo correcto: no se
+      // afirma lo que no se pudo medir.
+      const { tipoDeMigracion } = await import(pathToFileURL('/app/scripts/migrar.mjs').href)
+      const archivos = fs
+        .readdirSync(dir)
+        .filter((f) => f.endsWith('.sql'))
+        .filter((f) => tipoDeMigracion(fs.readFileSync(path.join(dir, f), 'utf8')) !== 'datos')
+      const hayRegistro = (await cli.query("select to_regclass('public.schema_migrations') is not null as hay")).rows[0].hay
+      const aplicadas = hayRegistro
+        ? new Set((await cli.query('select archivo from schema_migrations')).rows.map((r) => r.archivo))
+        : new Set()
+      pendientes = archivos.filter((a) => !aplicadas.has(a)).length
+    } catch (e) {
+      // Informativo: si no se puede contar, se anota null y se dice en el log
+      // de fuera. Mismo criterio que `registradas_de_huella` con la tabla
+      // ausente: lo que no se puede saber no se afirma.
+      console.error('estado: no se pudo contar migraciones pendientes: ' + e.message)
+    }
+    await cli.query(
+      `update actualizaciones_instancia
+          set version_disponible = $1, digest_disponible = $2,
+              migraciones_pendientes = $3, comprobado_en = now()
+        where id = true`,
+      [process.env.SPACE_OS_VERSION_DISPONIBLE || null, process.env.SPACE_OS_DIGEST_DISPONIBLE || null, pendientes],
+    )
+    const fila = (
+      await cli.query('select modo, digest_instalado, aprobado_digest from actualizaciones_instancia where id = true')
+    ).rows[0]
+    console.log('ESTADO ' + fila.modo + ' ' + (fila.digest_instalado || '-') + ' ' + (fila.aprobado_digest || '-'))
+    const { decidirActualizacion } = await import(pathToFileURL('/app/scripts/actualizaciones.mjs').href)
+    const d = decidirActualizacion({
+      modo: fila.modo,
+      corrida: process.env.SPACE_OS_CORRIDA,
+      digestInstalado: fila.digest_instalado,
+      digestDisponible: process.env.SPACE_OS_DIGEST_DISPONIBLE || null,
+      aprobadoDigest: fila.aprobado_digest,
+    })
+    console.log('DECISION ' + (d.actualizar ? 'si' : 'no') + ' ' + d.motivo)
+    await cli.end()
+  })
+  .catch(async (e) => {
+    console.error('estado: ' + e.message)
+    await cli.end().catch(() => {})
+    process.exit(9)
+  })
+FIN_GUION_ESTADO
+}
+
+# Corre `guion_estado` y deja el resultado en dos variables globales:
+#   ESTADO_LINEA    "<modo> <digest_instalado> <aprobado_digest>" (vacia si
+#                   la sonda no se pudo correr)
+#   DECISION_LINEA  "<si|no> <motivo>" (vacia si ESTADO_LINEA es sin-tabla, o
+#                   si el guion no llego a decidir)
+# Devuelve != 0 si la sonda no se pudo correr. El bloque «2b», mas abajo,
+# se COMPORTA igual que con sin-tabla -si la base no se puede leer aqui,
+# tampoco va a poder el respaldo tres pasos mas adelante, y ese es el error
+# que hay que ver: este guion no se adelanta a inventar uno propio-, pero lo
+# DICE distinto en el log, porque "no existe" es un hecho medido y "no se
+# pudo leer" es no saber nada.
+ESTADO_LINEA=''
+DECISION_LINEA=''
+leer_estado_y_decision() {
+  local salida codigo=0
+  export SPACE_OS_CORRIDA="$CORRIDA"
+  export SPACE_OS_VERSION_DISPONIBLE="$VERSION_NUEVA"
+  export SPACE_OS_DIGEST_DISPONIBLE="$DIGEST_NUEVO"
+  salida="$(guion_estado | docker run --rm --interactive \
+    --network "$RED_MIGRACION" --env DATABASE_URL \
+    --env SPACE_OS_CORRIDA --env SPACE_OS_VERSION_DISPONIBLE --env SPACE_OS_DIGEST_DISPONIBLE \
+    "$IMAGEN" node 2>&1)" || codigo=$?
+  if [ "$codigo" -ne 0 ]; then
+    printf '%s\n' "$salida" >>"$LOG"
+    return 1
+  fi
+  ESTADO_LINEA="$(printf '%s\n' "$salida" | sed -n 's/^ESTADO //p' | tail -n1)"
+  [ -n "$ESTADO_LINEA" ] || { printf '%s\n' "$salida" >>"$LOG"; return 1; }
+  DECISION_LINEA="$(printf '%s\n' "$salida" | sed -n 's/^DECISION //p' | tail -n1)"
+}
+
+
 # ─── Identidad de la imagen ────────────────────────────────────────────────
 # Se compara el Id local (el digest de la configuracion de la imagen) y no el
 # RepoDigest, porque el Id existe SIEMPRE en los dos lados —el de la imagen
@@ -1736,6 +1984,30 @@ VERSION_NUEVA="$(version_de_imagen "$IMAGEN")"
 [ -n "$VERSION_NUEVA" ] || VERSION_NUEVA="$CANAL"
 
 if [ -n "$ID_ACTUAL" ] && [ "$ID_ACTUAL" = "$ID_NUEVO" ]; then
+  # ADR 0037: ANOTAR antes de salir. Este es el camino NORMAL -una instancia al
+  # dia lo toma en las 95 corridas de cada 96-, y saliendo sin pasar por la
+  # sonda `comprobado_en` no se movia nunca: la pantalla del dueno diria
+  # "comprobado hace tres dias" teniendo un cron cada cuarto de hora, y quien
+  # lo leyera concluiria que el actualizador esta roto. Que es justo lo que la
+  # pantalla existe para descartar.
+  #
+  # El corte NO se mueve, se anota ANTES de el: bajarlo cambiaria el camino de
+  # TODAS las corridas, y no hay nada que arreglar en ese camino. Aqui la
+  # sonda solo escribe lo disponible; su veredicto se ignora a proposito,
+  # porque con el mismo id no hay nada que decidir.
+  #
+  # Y EL `--dry-run` NO ANOTA, que es la unica razon de este guard: la sonda
+  # hace un `update … set comprobado_en = now()`, o sea que ESCRIBE en la
+  # base, y la cabecera promete que `--dry-run` no toca nada. El bloque de
+  # `--dry-run` sale mas abajo que este corte, asi que sin este `if` una
+  # instancia al dia lo estrenaria escribiendo. Mismo criterio que el AVISO 6
+  # con el reporte al padre: el `--dry-run` no reporta, porque dejar una fila
+  # en el panel tambien es tocar algo.
+  if [ "$DRY_RUN" = 1 ]; then
+    registrar "   --dry-run: no se anota la comprobacion en actualizaciones_instancia (escribir es tocar)."
+  elif ! leer_estado_y_decision; then
+    registrar "   actualizaciones_instancia: no se pudo anotar la comprobacion (el mensaje de arriba es de la sonda). No cambia nada de esta corrida: no hay version nueva que instalar."
+  fi
   salir "$EX_OK" "sin cambios: la instancia ya corre $VERSION_NUEVA ($ID_NUEVO)."
 fi
 if [ -z "$ID_ACTUAL" ]; then
@@ -1853,6 +2125,50 @@ huella_base() {
 # Tercer campo de la huella: filas de `schema_migrations`, o -1 si no hay tabla.
 registradas_de_huella() { printf '%s' "$1" | awk '{print $3}'; }
 
+# ─── Marcar instalado tras un update real — ADR 0037 ───────────────────────
+# Mismo patron otra vez. Se llama UNA sola vez, al cerrar con salud -- nunca
+# junto a `leer_estado_y_decision()`: si se escribiera ahi y la migracion o la
+# salud fallaran despues, esta tabla afirmaria una version que no quedo
+# sirviendo. Limpia `aprobado_digest` de paso: la aprobacion ya se cumplio.
+guion_instalado() {
+  cat <<'FIN_GUION_INSTALADO'
+const { Client } = require('pg')
+const cli = new Client({ connectionString: process.env.DATABASE_URL })
+cli
+  .connect()
+  .then(async () => {
+    await cli.query(
+      `update actualizaciones_instancia
+          set version_instalada = $1, digest_instalado = $2, aprobado_digest = null,
+              actualizado_en = now()
+        where id = true`,
+      [process.env.SPACE_OS_VERSION_DISPONIBLE || null, process.env.SPACE_OS_DIGEST_DISPONIBLE || null],
+    )
+    console.log('INSTALADO ok')
+    await cli.end()
+  })
+  .catch(async (e) => {
+    console.error('instalado: ' + e.message)
+    await cli.end().catch(() => {})
+    process.exit(9)
+  })
+FIN_GUION_INSTALADO
+}
+
+marcar_instalado() {
+  local salida codigo=0
+  export SPACE_OS_VERSION_DISPONIBLE="$VERSION_NUEVA"
+  export SPACE_OS_DIGEST_DISPONIBLE="$DIGEST_NUEVO"
+  salida="$(guion_instalado | docker run --rm --interactive \
+    --network "$RED_MIGRACION" --env DATABASE_URL \
+    --env SPACE_OS_VERSION_DISPONIBLE --env SPACE_OS_DIGEST_DISPONIBLE \
+    "$IMAGEN" node 2>&1)" || codigo=$?
+  printf '%s\n' "$salida" >>"$LOG"
+  if [ "$codigo" -ne 0 ]; then
+    registrar "   AVISO: no se pudo anotar version_instalada/digest_instalado en actualizaciones_instancia ($salida). La instancia SI quedo actualizada; solo fallo el registro para la pantalla del dueno."
+  fi
+}
+
 # ─── --dry-run: mira y cuenta ──────────────────────────────────────────────
 if [ "$DRY_RUN" = 1 ]; then
   # `--pendientes` lista y no aplica (`scripts/migrar.mjs:598-604`): es la
@@ -1874,6 +2190,115 @@ if [ "$DRY_RUN" = 1 ]; then
     *) salir "$EX_CONFIG" "pull $VERSION_NUEVA -> el runner no pudo ni listar (codigo $codigo). El mensaje de arriba es suyo y dice que hacer. Nada se toco." ;;
   esac
   salir "$EX_OK" "--dry-run terminado. Ni base, ni contenedor, ni respaldo: nada cambio."
+fi
+
+# ─── 2b · La decision de actualizar — ADR 0037 (ver AVISO 7) ───────────────
+# `CORRIDA` NO se fija aqui: viene de mas arriba, junto al parseo, porque el
+# corte de "sin cambios" tambien la necesita para anotar.
+
+HAY_TABLA_ACTUALIZACIONES=0
+# POR QUE no se pudo consultar la tabla. Son DOS causas y el log no puede
+# confundirlas: "no existe" es un hecho que la sonda MIDIO -`to_regclass`
+# devolvio null-, mientras que "no se pudo leer" es no saber nada: la base
+# puede estar caida, la credencial mala o la red rota, y la tabla existir
+# perfectamente. Afirmar "no existe todavia" en ese caso manda a quien lee el
+# log a buscar una migracion que no falta. Es el mismo vicio que este archivo
+# ya corrigio el 20/08 con "La base NO se vacio": lo que no se midio, no se
+# afirma.
+AI_CAUSA=ausente
+if ! leer_estado_y_decision; then
+  AI_CAUSA=ilegible
+  ESTADO_LINEA='sin-tabla - -'
+fi
+
+AI_MODO="$(printf '%s' "$ESTADO_LINEA" | awk '{print $1}')"
+if [ "$AI_MODO" = 'sin-tabla' ]; then
+  if [ "$AI_CAUSA" = ilegible ]; then
+    registrar "2b · actualizaciones_instancia: NO SE PUDO LEER la base; el mensaje de arriba es de la sonda. No se sabe si la tabla existe, asi que no se afirma. Se sigue con el comportamiento de antes del ADR 0037."
+  else
+    # QUE LA TABLA NO EXISTA NO ES UN ERROR, ES UN DATO (AVISO 7): una
+    # instancia con una imagen anterior a esta migracion no la tiene, y el
+    # comportamiento es EL DE HOY. Sin esto, desplegar esta tarea pararia a
+    # media flota en seco el dia que jalara la imagen nueva.
+    registrar "2b · actualizaciones_instancia no existe todavia en esta instancia: se actualiza como antes del ADR 0037."
+  fi
+  if [ "$CORRIDA" = comprobar ]; then
+    # UNA BASE ILEGIBLE NO SALE EN VERDE. Decision del dueno, 2026-09-22, con
+    # el coste delante: hasta 96 salidas con error al dia mientras el problema
+    # dure.
+    #
+    # OJO CON COMO SE DESCRIBIO ESE COSTE, corregido en la revision final del
+    # 22/09: el dueno lo acepto como "hasta 96 correos al dia", y por correo NO
+    # llega ninguno. Cron manda correo por la SALIDA, no por el codigo de
+    # salida, y las dos lineas de /etc/cron.d/space-os-update redirigen stdout
+    # y stderr a cron.log; tampoco hay MAILTO. El aviso llega igual y por la
+    # via que este proyecto ya mira: `reportar_a_flota` (FLOTA_CODIGO, mas
+    # arriba en este mismo archivo) corre en CADA `salir()` y entrega el codigo
+    # al panel del padre. El comportamiento no cambia; lo que cambia es donde
+    # hay que ir a mirarlo.
+    # Hasta esta ronda salia con `EX_OK`, y eso es lo que estaba mal: con un
+    # cron cada 15 minutos, una base que no responde daba 96 VERDES al dia y
+    # el unico proceso que lo sabia cada cuarto de hora era justo el que se
+    # callaba. Nadie se enteraria hasta la corrida de las 4:17.
+    #
+    # El codigo NO se inventa: `EX_CONFIG` es el que este mismo guion ya usa
+    # cuando no puede leer la base -- la huella, en `:2317`, aborta con 1 y
+    # con el mismo argumento ("sin punto de partida no se puede decidir"). Y
+    # la fila del 1, en las dos tablas, ya listaba "no se pudo leer la huella
+    # de la base". Este caso es ese caso.
+    #
+    # Y NO SE DICE "nada se toco": la sonda fallo a mitad y desde fuera no se
+    # sabe si llego a escribir antes de caerse. Lo que si se sabe es lo que
+    # NO se toco.
+    if [ "$AI_CAUSA" = ilegible ]; then
+      salir "$EX_CONFIG" "ERROR update (--comprobar): NO SE PUDO LEER actualizaciones_instancia; el mensaje de arriba es de la sonda. Esto ya no sale con 0 a proposito: con un cron cada 15 minutos una base que no responde daria 96 corridas en verde al dia y nadie se enteraria hasta la madrugada. Mismo codigo y mismo criterio que cuando no se puede leer la huella de la base. No consta si la sonda alcanzo a escribir algo antes de fallar; lo que seguro NO se toco es el respaldo, el contenedor y los datos de negocio."
+    fi
+    # Sin tabla es otra cosa: ahi la sonda SI contesto, y contesto un hecho
+    # -no existe-. Eso no es un fallo, es el estado normal de una instancia
+    # con una imagen anterior a la migracion, y sale con 0.
+    salir "$EX_OK" "--comprobar: actualizaciones_instancia no existe todavia, asi que no hay nada que anotar ni que aprobar. No se toca nada; la corrida programada de las 4:17 sigue actualizando como siempre."
+  fi
+  # CORRIDA=programada y sin tabla: se sigue de largo, sin llamar a
+  # decidirActualizacion -- no hay fila que leer ni digest que comparar.
+else
+  HAY_TABLA_ACTUALIZACIONES=1
+  # SIN RepoDigest NO HAY ADR 0037 POSIBLE, y esto NO se puede saldar con un 0.
+  # `digest_de_imagen()` devuelve el RepoDigest, que existe siempre despues de
+  # un `docker pull` de verdad; si falta, la imagen no vino de un registro.
+  # Y entonces las tres piezas del ADR se caen a la vez:
+  #   · `decidirActualizacion` responde `sin-disponible` y no actualiza;
+  #   · la pantalla del dueno no tiene digest que ensenar, y
+  #   · `aprobarDigest()` exige `digest_disponible = $1`
+  #     (`actualizaciones-repo.ts`), asi que el dueno NO PUEDE aprobar.
+  # O sea que no es una espera: es un BLOQUEO del que nadie puede salir. Decir
+  # "esperar no es un error" ahi seria mentira dos veces, y salir con 0 lo
+  # dejaria invisible en un cron que corre cada 15 minutos.
+  #
+  # Tampoco se actualiza a la brava "como antes del ADR": el modo por omision
+  # es `aprobacion`, y saltarse al dueno porque a una imagen le falta un campo
+  # seria abrir justo la puerta que este ADR cierra. Se para, y se para con
+  # `EX_CONFIG`: no se pudo ni empezar. La tabla ausente es otro caso y sigue
+  # actualizando como siempre: alli no hay dueno a quien saltarse.
+  #
+  # Y EL MENSAJE NO PUEDE DECIR "nada se toco", aunque sea lo que apetece
+  # escribir en un abort: la sonda corre en `:2199`, ANTES de este corte, y su
+  # primera sentencia es un `update … set comprobado_en = now()`. Con la tabla
+  # presente -que es la condicion exacta para llegar aqui- esta corrida YA
+  # escribio, y ademas dejo `digest_disponible` en NULL. La primera version de
+  # este `salir` afirmaba lo contrario, en el mismo commit que arreglaba
+  # justamente eso tres parrafos mas arriba.
+  if [ -z "$DIGEST_NUEVO" ]; then
+    salir "$EX_CONFIG" "ERROR update: la imagen $IMAGEN no trae RepoDigest, asi que no hay digest disponible que anotar ni que aprobar. Con la tabla \`actualizaciones_instancia\` presente (ADR 0037) eso no es una espera sino un bloqueo: el dueno no puede aprobar lo que la pantalla no puede ensenarle. Suele significar que la imagen no se jalo de un registro (un \`docker load\`, o una construida en el propio droplet). Lo UNICO que esta corrida escribio es la comprobacion en \`actualizaciones_instancia\` -la sonda corre antes de este corte-, con \`digest_disponible\` en NULL. No se respaldo, no se migro, no se conmuto el trafico y no se toco ningun dato de negocio."
+  fi
+  AI_ACTUALIZAR="$(printf '%s' "$DECISION_LINEA" | awk '{print $1}')"
+  AI_MOTIVO="$(printf '%s' "$DECISION_LINEA" | cut -d' ' -f2-)"
+  # Lo desconocido no actualiza -- mismo criterio que decidirActualizacion: si
+  # la sonda no llego a imprimir DECISION, esto se trata como un "no".
+  [ "$AI_ACTUALIZAR" = si ] || AI_ACTUALIZAR=no
+  if [ "$AI_ACTUALIZAR" != si ]; then
+    salir "$EX_OK" "actualizaciones_instancia ($CORRIDA, modo=$AI_MODO): ${AI_MOTIVO:-sin-decision}. Esperar no es un error; no se toca nada."
+  fi
+  registrar "2b · actualizaciones_instancia ($CORRIDA, modo=$AI_MODO): ${AI_MOTIVO} -> se procede."
 fi
 
 # ─── 3 · Respaldo ──────────────────────────────────────────────────────────
@@ -2129,6 +2554,14 @@ if [ "$sano" -eq 0 ]; then
     echo "version=$VERSION_NUEVA"
     echo "fecha=$(date '+%Y-%m-%d %H:%M:%S%z')"
   } >"$DIR_ESTADO/version-actual"
+  # ADR 0037: recien aqui, con la salud YA comprobada, se afirma "instalado" y
+  # se limpia la aprobacion que lo pidio. Hacerlo antes -junto a la decision,
+  # arriba- afirmaria una version que la migracion o la salud podrian no haber
+  # dejado sirviendo. Si no hay tabla (imagen anterior a esta migracion), no
+  # hay donde escribir y no se intenta.
+  if [ "$HAY_TABLA_ACTUALIZACIONES" = 1 ]; then
+    marcar_instalado
+  fi
   salir "$EX_OK" "OK: $VERSION_NUEVA sirviendo. La base cambio=$BASE_CAMBIO ($APLICADAS filas nuevas en schema_migrations). Respaldo en $BK"
 fi
 

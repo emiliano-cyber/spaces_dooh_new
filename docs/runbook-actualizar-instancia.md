@@ -16,6 +16,30 @@ workflow. Esa era la forma vieja y se retiró el **2026-08-31** (F3.6, junto con
    `instancia.env`, jala la imagen si cambió, respalda, migra y comprueba salud. Si
    algo falla, vuelve atrás sola y se queda en la versión anterior.
 
+## Lo único que la imagen NO trae: el propio `update.sh`
+
+*Anotado el 2026-09-22, al encontrarlo en la revisión final del ADR 0037.*
+
+`update.sh` actualiza **el contenedor, no a sí mismo**. Vive en el **anfitrión**
+(`/opt/space-os/update.sh`) y **nada lo actualiza solo**: solo lo escriben
+`infra/scripts/instalar-hijo.sh` y `infra/scripts/provision-instancia.sh`, o sea
+en un alta o un aprovisionamiento. Todo lo demás —la aplicación, las migraciones,
+`scripts/`— viaja dentro de la imagen y llega solo.
+
+**Consecuencia:** cualquier cambio en `update.sh` (una bandera nueva, un paso
+nuevo) **no llega a las instancias que ya existen** por sí mismo. Hay que
+copiarlo, y el `case` del parseo **rechaza lo que no conoce**, así que una
+instancia con el `update.sh` viejo responde a una bandera nueva con `exit 1`.
+
+```bash
+scp infra/scripts/update.sh root@<IP>:/opt/space-os/update.sh
+ssh root@<IP> 'chown root:root /opt/space-os/update.sh; chmod 750 /opt/space-os/update.sh'
+ssh root@<IP> '/opt/space-os/update.sh --dry-run'   # no toca nada, y confirma que arranca
+```
+
+Es exactamente lo que hace el alta; a mano solo para las instancias que nacieron
+antes del cambio.
+
 ## Qué hace una persona
 
 **Nada, en el caso normal.** Y si hay que forzarlo, se entra a la instancia y se

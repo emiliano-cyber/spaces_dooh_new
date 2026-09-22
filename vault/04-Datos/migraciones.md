@@ -1,7 +1,7 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-09-17
+actualizado: 2026-09-21
 tags: [datos, migraciones, despliegue, rojo]
 archivos:
   - db/migrations/
@@ -17,6 +17,7 @@ archivos:
   - db/migrations/20260819_semilla_rol_permisos.sql
   - db/migrations/20260820_grants_rol_app.sql
   - db/migrations/20260820_catalogo_permisos_completo.sql
+  - db/migrations/20260824_grants_tablas_futuras.sql
   - db/migrations/20260825_sesion_metodo.sql
   - db/migrations/20260826_clientes_rfc_unico.sql
   - db/migrations/20260828_reautenticacion_por_defecto.sql
@@ -24,9 +25,39 @@ archivos:
   - db/migrations/20260917_costos_ot_por_tipo.sql
   - db/migrations/20260917_entidades_fiscales.sql
   - db/migrations/20260921_corrige_acentos_catalogo_roles_entidad.sql
+  - db/migrations/20260921_actualizaciones_instancia.sql
 ---
 
 # Migraciones
+
+> [!note] 2026-09-21 (tarde) · `actualizaciones_instancia` — ADR 0037, el buzón de la instancia
+> `20260921_actualizaciones_instancia.sql` — tabla nueva, de LA INSTANCIA (sin
+> `tenant_id`, sin RLS, hermana de `schema_migrations` y no de `config_negocio`
+> por lo que explica el propio ADR): una sola fila posible (`check (id)` sobre
+> una pk booleana) donde la aplicación escribe la preferencia del dueño y el
+> actualizador escribe lo que hay disponible. Ver
+> [ADR 0037](../../docs/adr/0037-cada-instancia-elige-si-toma-la-version-nueva.md).
+> Mapa completo en [[actualizaciones-instancia]].
+>
+> **Medido, no copiado:** `node scripts/recuentos.mjs` sobre este árbol da
+> **87 migraciones** y **45 tablas** tras aplicarlas todas. Verde en
+> `cd apps/web && npm run test:e2e -- migraciones` (34/34) y en la suite e2e
+> completa (463 pasadas, 1 skip, igual que antes de este cambio). Idempotente,
+> comprobado a mano contra `localhost:5433/spaces`: la primera corrida de
+> `node scripts/migrar.mjs` aplicó **1**, la segunda **0**.
+>
+> **El hallazgo que vale la pena repetir en cualquier tabla con escritores
+> separados por columna:** `20260820_grants_rol_app.sql` y
+> `20260824_grants_tablas_futuras.sql` conceden por OMISIÓN
+> `select+insert+update+delete` de tabla COMPLETA a `spaces_app`/`spaces_user`
+> sobre cualquier tabla nueva que cree el propietario que corre las
+> migraciones — y un privilegio de TABLA completo gana siempre a uno por
+> COLUMNA. La receta del brief de esta tarea traía el `grant update (columnas)`
+> sin el `revoke all` previo, y la prueba «el rol de la app puede leer todo, y
+> escribir SOLO lo del dueño» lo delató en rojo: la app sí podía escribir
+> `digest_disponible` pese al grant por columna. Se corrigió añadiendo
+> `revoke all on actualizaciones_instancia from %I` antes del `grant` — ver la
+> cabecera de la migración.
 
 > [!note] 2026-09-21 · un `update` para corregir dos acentos sembrados el 17/09
 > `20260921_corrige_acentos_catalogo_roles_entidad.sql` — D8 de
