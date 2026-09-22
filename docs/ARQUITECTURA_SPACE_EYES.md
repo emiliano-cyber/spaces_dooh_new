@@ -335,3 +335,60 @@ Lo que la auditoría **no** puede comprobar desde aquí, y hay que mirar en el
 droplet: que `certbot` emita el certificado, y que Apache siga sirviendo
 `market.adavailable.com` después del `reload` — por eso el `configtest` es
 obligatorio antes de recargar.
+
+---
+
+## 9. En qué orden se sube, y quién empuja a quién
+
+Son **tres cosas distintas, en tres sitios distintos**, y el orden entre ellas no
+es una preferencia: una depende de la otra.
+
+### Nadie empuja nada a los hijos
+
+El runbook de ellos lo dice en su primera línea: **«la instancia jala; el padre
+no empuja»**. Cada instancia corre `update.sh` por cron, compara el **canal** que
+tiene configurado (`beta` o `estable`), jala la imagen, comprueba salud y
+**vuelve atrás sola** si no arranca. El padre no participa.
+
+O sea que el orden entre instancias **se consigue con los canales**, no mandando
+nada: quien esté en `beta` lo recibe primero; los de `estable`, cuando se
+promueve. Promover no reconstruye — es el mismo binario, byte por byte.
+
+### El orden
+
+| # | Qué | Dónde | Por qué ahí |
+|---|---|---|---|
+| 0 | Aplicar el parche y hacer merge | repo de SPACE OS | No commiteamos en su repo; el parche es la entrega |
+| 1 | **Space Eye** | droplet `159.203.188.58` | **Va primero**, ver abajo |
+| 2 | Tag `vX.Y.Z` → canal `beta` | CI de ellos | La suite completa corre antes de construir la imagen |
+| 3 | Una **demo** toma `beta` | `prueba` / `ensayo4` | Confirma que el resto de SPACE OS no se movió |
+| 4 | El **padre** con su llave | `space-os.io` | Es quien ve la flota entera: aquí se valida el módulo con datos reales |
+| 5 | Promover a `estable` | CI | g500 lo jala por cron, sin que nadie entre |
+
+### Por qué Space Eye va primero
+
+Porque el módulo **depende de rutas que hoy no existen** en producción. Al revés,
+lo que se ve es esto:
+
+- «Tomar foto» → **404**, la ruta de captura no está.
+- La tarjeta de histórico → **403**, `/telemetry` no está en la lista blanca.
+
+Y al derecho no pasa nada: desplegar Space Eye primero **no cambia nada para
+nadie**. Agrega rutas que todavía no usa ningún cliente, y el candado de dueño
+que se le puso a `/telemetry` no afecta al dashboard, que entra con sesión de
+usuario y no con llave.
+
+### El módulo se degrada solo, y eso da margen
+
+Sin `SPACE_EYE_*` configuradas, la pantalla dice «la integración no está
+configurada» y **nada más se rompe**. Así que la imagen puede llegar a una
+instancia antes que su configuración, y el orden entre los pasos 3, 4 y 5 no es
+frágil.
+
+### Una nota sobre la CI de ellos
+
+`release.yml` corre typecheck, unitarias, build y **e2e** antes de publicar la
+imagen. Los 17 casos de `space-eyes.e2e.test.ts` necesitan un Space Eye y sus
+variables; **en su CI no estarán, y entonces se reportan SALTADOS, no fallidos**.
+Está hecho a propósito: una prueba que no puede correr no debe tumbar un release
+ajeno, y tampoco debe pasar en verde fingiendo que comprobó algo.
