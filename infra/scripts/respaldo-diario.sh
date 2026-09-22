@@ -185,7 +185,33 @@ command -v "$PG_DUMP" >/dev/null 2>&1 || salir "$EX_CONFIG" "ERROR respaldo-diar
 
 # ─── 1 · El dump ───────────────────────────────────────────────────────────
 DIR_RESPALDOS="${DIR_RESPALDOS:-$DIR_ESTADO/respaldos}"
+
+# ─── Un dump es la base entera. No lo lee todo el mundo ────────────────────
+# Encontrado revisando este cambio el 22/09: NADIE pone permisos a este
+# directorio. `update.sh:2332` hace `mkdir -p` a secas, y con el umask 022 de
+# root eso deja el directorio en 0755 y cada dump en 0644 -- o sea **la base de
+# datos completa legible por cualquier usuario local del droplet**, incluido el
+# que corre la aplicacion. Es el peor sitio donde relajar permisos: el respaldo
+# no tiene RLS, no tiene tenant y no tiene sesion; es todo, en claro.
+#
+# No es un fallo que traiga este guion —es anterior, y `update.sh` lo comparte—
+# pero este guion lo MULTIPLICA: pasa de un dump por release a uno por dia. Asi
+# que aqui se cierra, para los archivos que crea este guion.
+#
+# `update.sh` NO se toca (esta desplegado), asi que su dump sigue naciendo 0644
+# hasta que alguien lo arregle alli. Queda anotado en la nota de boveda.
+#
+# ⚠️ ESTO NO SE PUEDE COMPROBAR EN LA MAQUINA DE DESARROLLO: en Git Bash sobre
+# Windows `umask` y `chmod` no se reflejan en `stat` --medido: 644 y 755 pasara
+# lo que pase--, asi que una prueba de permisos daria VERDE sin probar nada. El
+# arnes comprueba que estas lineas EXISTEN (R10) y la comprobacion de verdad
+# esta en la tarjeta 12, contra el droplet, con un `ls -l`.
+umask 077
 mkdir -p "$DIR_RESPALDOS" || salir "$EX_CONFIG" "ERROR respaldo-diario: no se pudo crear $DIR_RESPALDOS."
+# Explicito ademas del umask, porque el umask solo manda al CREAR: si el
+# directorio ya existia --y existe, lo crea `update.sh` desde hace meses-- se
+# quedaria con los 0755 con los que nacio.
+chmod 700 "$DIR_RESPALDOS" 2>/dev/null || registrar "   AVISO: no se pudo dejar $DIR_RESPALDOS en 0700; revisa quien puede leer los respaldos."
 
 # Mismo nombre y mismo formato que los de `update.sh:2333`, y eso es un
 # requisito, no una coincidencia: la poda de `respaldo.sh` busca
@@ -209,6 +235,10 @@ if [ "$codigo" -ne 0 ] || [ ! -s "$BK" ]; then
   rm -f "$BK"
   salir "$EX_RESPALDO" "BACKUP VACIO — abortado, y NO se subio nada. El archivo de 0 bytes se borro para que no se confunda con un respaldo bueno. Mira primero base=$(destino_de_url "$DATABASE_URL"): si esa NO es la base de esta instancia, lo que fallo fue interpretar DATABASE_URL —no el respaldo— y hay que revisar la URL en $CONF. Si si lo es, revisa $PG_DUMP contra ella."
 fi
+# 0600 explicito por lo mismo que el directorio: el `umask` de arriba ya deberia
+# bastar, pero quien crea el archivo es `pg_dump` y no este guion, y un dia
+# `PG_DUMP` puede apuntar a un envoltorio con otro umask.
+chmod 600 "$BK" 2>/dev/null || registrar "   AVISO: no se pudo dejar $BK en 0600."
 registrar "   respaldo de $(wc -c <"$BK") bytes"
 
 # ─── 3 · La poda local ─────────────────────────────────────────────────────

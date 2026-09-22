@@ -480,5 +480,32 @@ if grep -qE '\bdocker\b' "$GUION"; then
 else bien; fi
 limpiar
 
+# ============================================================================
+#  R10 · LOS PERMISOS DEL RESPALDO
+# ----------------------------------------------------------------------------
+#  ⚠️ ESTE ESCENARIO LEE EL GUION EN VEZ DE EJECUTARLO, Y HAY QUE DECIR POR QUE.
+#
+#  Lo correcto seria correrlo y mirar los permisos del archivo. **No se puede
+#  aqui**: en Git Bash sobre Windows `umask` y `chmod` no se reflejan en `stat`
+#  -- medido el 22/09, un `(umask 077; touch f)` da 644 y un `chmod 600` tambien.
+#  O sea que la prueba buena daria VERDE con el guion arreglado Y con el guion
+#  roto, que es la peor clase de prueba: la que solo sirve para tranquilizar.
+#
+#  Asi que se comprueba lo unico que aqui se puede comprobar de verdad --que las
+#  lineas estan-- y LA COMPROBACION REAL VIVE EN LA TARJETA 12, contra el
+#  droplet, con un `ls -l` cuya salida esperada esta escrita.
+#
+#  Que importa: un dump es la base ENTERA, sin RLS, sin tenant y sin sesion. Con
+#  el umask 022 de root nace en 0644, legible por cualquier usuario local del
+#  droplet -- incluido el que corre la aplicacion.
+# ============================================================================
+escenario 'R10 · el guion restringe permisos del directorio y del dump (leido, no ejecutado)'
+if grep -qE '^umask 077' "$GUION"; then bien
+else mal 'no hay `umask 077`: el dump naceria 0644, legible por cualquier usuario del droplet'; fi
+if grep -qE 'chmod 700 "\$DIR_RESPALDOS"' "$GUION"; then bien
+else mal 'no se restringe el directorio de respaldos, que ya existe en 0755 creado por update.sh'; fi
+if grep -qE 'chmod 600 "\$BK"' "$GUION"; then bien
+else mal 'no se restringe el dump: lo crea pg_dump, no este guion, asi que el umask no basta'; fi
+
 printf '\n%s escenarios · %s comprobaciones · %s fallos\n' "$ESCENARIOS" "$COMPROBACIONES" "$FALLOS"
 [ "$FALLOS" -eq 0 ] || exit 1

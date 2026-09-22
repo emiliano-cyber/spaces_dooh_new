@@ -123,7 +123,7 @@ escenario R9 del arnés.
 bash infra/scripts/pruebas-respaldo-diario.sh
 ```
 
-**15 escenarios · 58 comprobaciones · 0 fallos**, en **15 segundos** (medido el
+**16 escenarios · 61 comprobaciones · 0 fallos**, en **15 segundos** (medido el
 22/09). No sale a la red, no toca ninguna base y no toca ningún servidor: dobla
 `pg_dump`, `s3cmd` y `hostname`.
 
@@ -134,6 +134,28 @@ Muerden, comprobado con cinco mutantes el 22/09: quitar el guard de 0 bytes (R2)
 salir 0 con la subida fallida (R4), ignorar `SPACE_OS_CONF` (R1/R9), volver a
 `--dbname="$DATABASE_URL"` (R6 dice literalmente *«la contrasena aparece en el
 argv»*) y tocar una sola copia de la derivación (R7).
+
+> [!danger] Un dump es la base entera, y nacía legible por todo el droplet
+> Encontrado al revisar este cambio el **22/09**. Nadie ponía permisos al
+> directorio de respaldos: `update.sh:2332` hace `mkdir -p` a secas y, con el
+> umask 022 de root, eso deja el directorio en **0755** y cada dump en **0644**.
+> Un dump no tiene RLS, ni tenant, ni sesión: es la base completa, en claro,
+> legible por cualquier usuario local del droplet — incluido el que corre la
+> aplicación.
+>
+> `respaldo-diario.sh` lo cierra **para los archivos que crea él**: `umask 077`,
+> `chmod 700` al directorio y `chmod 600` al dump.
+>
+> **`update.sh` sigue con el fallo**, porque no se toca (está desplegado). Sus
+> dumps siguen naciendo 0644, y los que ya existen en g500 también. Cerrarlo es
+> un `chmod` de una línea más un cambio en `update.sh` que exige su arnés de 15
+> minutos.
+>
+> ⚠️ **Y no se puede probar en la máquina de desarrollo**: en Git Bash sobre
+> Windows `umask` y `chmod` no se reflejan en `stat` (medido: 644 y 755 pase lo
+> que pase), así que una prueba de permisos daría verde con el guion roto. El
+> arnés comprueba que las líneas existen (**R10**); la comprobación real está en
+> el paso **A2b** de la tarjeta 12, contra el droplet.
 
 ## Lo que este guion NO hace
 

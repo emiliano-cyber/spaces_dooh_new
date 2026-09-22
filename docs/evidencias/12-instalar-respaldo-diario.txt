@@ -124,6 +124,35 @@ ssh -i ~/.ssh/spaces_deploy root@<IP-DE-G500> '/opt/space-os/respaldo-diario.sh;
 #     SI DA CODIGO 1: falta un archivo o DATABASE_URL. El
 #       mensaje dice cual. No se toco nada.
 
+# --- A2b · LOS PERMISOS DEL DUMP ----------------------------
+#     >>> ESTA COMPROBACION SOLO SE PUEDE HACER AQUI. <<<
+#     En la maquina de desarrollo (Git Bash sobre Windows)
+#     `umask` y `chmod` NO se reflejan: una prueba de permisos
+#     alli da verde pase lo que pase. Medido el 22/09. Asi que
+#     el arnes solo comprueba que las lineas existen, y la
+#     comprobacion de verdad es esta.
+#
+#     Por que importa: un dump es la base ENTERA -- sin RLS,
+#     sin tenant y sin sesion. Con el umask 022 de root nacia
+#     en 0644, legible por CUALQUIER usuario local del droplet,
+#     incluido el que corre la aplicacion.
+
+ssh -i ~/.ssh/spaces_deploy root@<IP-DE-G500> '
+  ls -ld /var/lib/space-os/respaldos
+  ls -l  /var/lib/space-os/respaldos | tail -4'
+
+#     SE ESPERA:
+#       drwx------  ... /var/lib/space-os/respaldos      <- 700
+#       -rw-------  ... spaces_AAAAMMDD_HHMMSS.dump      <- 600
+#
+#     OJO, Y ES ESPERADO: los dumps VIEJOS, los que dejo
+#     `update.sh`, seguiran en -rw-r--r--. Este guion arregla
+#     los suyos y el directorio; `update.sh` no se toca en esta
+#     tarjeta y su dump sigue naciendo 0644. Si quieres cerrar
+#     tambien esos:
+#
+#       chmod 600 /var/lib/space-os/respaldos/*.dump
+
 # --- A3 · Comprobar que el objeto EXISTE en el bucket -------
 #     El log diciendo OK no es la prueba; el objeto lo es.
 
