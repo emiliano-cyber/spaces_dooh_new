@@ -231,7 +231,7 @@ Si `flock` no está instalado, el script **no corre**.
 ### 0 · Las migraciones `@tipo: datos` **no las aplica el update: las aplica una persona**
 
 **Decisión de Jochelo, 2026-08-18.** `update.sh` llama al runner **sin
-`--con-datos`** (`update.sh:1018-1024`, remedido leyendo el archivo el 19/08 por
+`--con-datos`** (`update.sh:1028-1034`, remedido leyendo el archivo el 19/08 por
 **tercera vez ese día**: la cita decía `407-413`, luego `626-632`, luego
 `692-698`, luego `775-781`, luego `924-930`, y M3 la movió otras **94
 líneas**. Un archivo que crece invalida todas sus

@@ -2057,11 +2057,20 @@ limpiar
 #       cuatro lineas a la ayuda y nada lo dijo. Se fija por los DOS extremos —la
 #       ultima linea que le toca y la primera que ya no—, porque comprobar solo
 #       una deja pasar la mitad de los descuadres.
+#
+#       El centinela de ABAJO cambio el 22/09: el bloque de la cabecera que
+#       marcaba el limite decia «Cron: una vez al dia» y ya eran DOS crons
+#       desde la tarea 6 (ADR 0037). Al corregir el texto, el `log_calla`
+#       viejo habria pasado en verde por no existir la frase en ninguna parte
+#       —un verde vacio, el mismo vicio que E73 existe para cazar—, asi que el
+#       centinela sigue al texto nuevo. Corte remedido: `sed -n '2,168p'`
+#       (`update.sh:515`) sigue siendo correcto porque las lineas nuevas van
+#       DESPUES de la 168.
 preparar 'E73 el --help imprime la cabecera ENTERA, sin comerse el final'
 correr --help
 codigo_es 0
 log_dice 'fuera con `grep -c reintento'
-log_calla 'Cron: una vez al dia'
+log_calla 'Cron: DOS entradas al dia'
 limpiar
 
 # ─── LA CREDENCIAL EN LA CONSULTA (E74-E83) ────────────────────────────────
@@ -2622,7 +2631,7 @@ limpiar
 #  con que el `=` llegue como `%253D` para que el nombre decodificado sea
 #  `password%3DSECRETO`, sin ningun `=` que podar. La clase seguia abierta.
 #
-#  Es EXACTAMENTE lo que este mismo archivo ya advertia en `update.sh:855-866`:
+#  Es EXACTAMENTE lo que este mismo archivo ya advertia en `update.sh:865-876`:
 #  «una lista negra sobre un espacio de nombres que se decodifica no se puede
 #  demostrar completa. Siempre queda otra codificacion». La leccion de M3,
 #  repetida por tercera vez.
@@ -2704,7 +2713,7 @@ posteo_dice '"codigo":2'
 limpiar
 
 # E105 · Y EL QUE NO LLEGA, medido en vez de supuesto. El 75 —«habia otro update
-#        en marcha»— sale del proceso de FUERA del candado (`update.sh:707-711`),
+#        en marcha»— sale del proceso de FUERA del candado (`update.sh:717-721`),
 #        que no pasa por `salir`, y `salir` es la unica puerta que reporta. Asi
 #        que ese codigo NUNCA aparece en el panel: la corrida ocupada no manda
 #        nada en absoluto, y quien lea el panel vera el reporte de la corrida
@@ -3256,7 +3265,7 @@ limpiar
 #          15 minutos son 96 corridas verdes al dia con la base muerta y el
 #          unico proceso que lo sabe cada cuarto de hora es justo el que se
 #          calla. El codigo no se invento: `EX_CONFIG` es el que ya usa este
-#          guion cuando no puede leer la HUELLA de la base (`update.sh:2348`),
+#          guion cuando no puede leer la HUELLA de la base (`update.sh:2369`),
 #          y la fila del 1 ya listaba ese caso. El coste aceptado son hasta 96
 #          correos al dia mientras el problema dure.
 #        · El log NO afirma "la tabla no existe todavia", que es un hecho que

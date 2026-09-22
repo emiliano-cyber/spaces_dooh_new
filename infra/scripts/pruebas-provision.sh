@@ -680,8 +680,15 @@ limpiar
 #  El candado de `update.sh` (flock) sale con 75 cuando ya habia otro update en
 #  marcha (update.sh:74, "no es un error"). Sin tolerarlo en la propia linea de
 #  cron, la corrida de las 4:17 le pisaria el paso al --comprobar de al lado y
-#  cron mandaria correo por algo que funciona bien -- hasta varias veces cada
-#  madrugada, no una vez al dia como hoy.
+#  el estado de salida de un cuarto de hora perfectamente sano quedaria como
+#  fallo -- hasta varias veces cada madrugada.
+#
+#  Y NO, no es por el correo de cron: corregido el 22/09 en la revision final.
+#  Cron manda correo por la SALIDA, no por el codigo de salida, y las dos
+#  lineas redirigen stdout y stderr a cron.log; ademas no hay MAILTO. El aviso
+#  de verdad llega por `reportar_a_flota` (update.sh:780-798) al panel del
+#  padre. Este comentario decia "cron mandaria correo por algo que funciona
+#  bien" y describia un canal que no existe.
 #
 #  Se corre con --confirmar A PROPOSITO: `remoto_escribir()` en modo dry-run
 #  (`provision-instancia.sh:399-402`) no llega a llamar a `ssh`, asi que el
@@ -700,7 +707,9 @@ escrito_casa /etc/cron.d/space-os-update '^17 4 \* \* \* root /opt/space-os/upda
 escrito_casa /etc/cron.d/space-os-update '^\*/15 \* \* \* \* root /opt/space-os/update\.sh --comprobar '
 
 # El candado (75) tolerado en la MISMA linea: un fallo real (1-7) sigue
-# mandando correo, porque solo el 75 se convierte en exito.
+# saliendo con su codigo, porque solo el 75 se convierte en exito -- y ese
+# codigo es el que viaja al panel de flota, que es por donde llega el aviso
+# (no por correo: ver el bloque de arriba).
 escrito_dice /etc/cron.d/space-os-update '|| [ $? -eq 75 ]'
 limpiar
 
@@ -722,7 +731,7 @@ fi
 # ============================================================================
 #  R7 · lo que se ESCRIBE en la configuracion de una instancia  (2026-09-14)
 # ============================================================================
-#  `update.sh` hace `. "$CONF"` sobre `instancia.env` (`update.sh:740`) como
+#  `update.sh` hace `. "$CONF"` sobre `instancia.env` (`update.sh:750`) como
 #  root, por cron, cada noche. Eso significa que ese archivo NO ES TEXTO: es
 #  bash. `provision-instancia.sh` lo escribia con `sed` crudo, sin entrecomillar
 #  nada y sin rechazar nada, mientras `instalar-hijo.sh` --el otro camino de
@@ -1073,7 +1082,7 @@ if [ "${1:-}" = '--mutantes' ]; then
   #  Una barrida que solo pudiera mutar el guion dejaria los privilegios de los
   #  dos roles de Postgres sin nadie que comprobara que sus comprobaciones
   #  muerden -- que es justo lo que este bloque existe para evitar. Mismo
-  #  mecanismo de dos objetivos que `pruebas-update.sh:2963-2965` con
+  #  mecanismo de dos objetivos que `pruebas-update.sh:2972-2974` con
   #  `respaldo.sh`.
   #
   #  Los siete estaban medidos en el informe de la tarea y NO en el archivo, o

@@ -17,7 +17,74 @@
 > nunca corre `node` de verdad —, y los dos arneses de `instalar-hijo.sh` /
 > `provision-instancia.sh` comparando el texto que escribirían en el cron. Lo
 > que falta es el recorrido entero, en una máquina real, con un Postgres real
-> y una imagen real. Los pasos 1 a 3 de abajo son justo eso.
+> y una imagen real. Los pasos 0 a 3 de abajo son justo eso.
+>
+> **Dos cosas SÍ se midieron el 2026-09-22**, en la ola de arreglo de la
+> revisión final: el **paso 6** (`docker build` en verde y
+> `/app/scripts/actualizaciones.mjs` dentro del contenedor, con su `import()`
+> ejecutado) y la migración contra el Postgres local, incluida su idempotencia.
+> Y apareció un **paso 0** que antes no existía y sin el cual los pasos 1 a 3 no
+> hacen nada — léelo antes que ninguno.
+
+---
+
+## Paso 0 · Copiar el `update.sh` nuevo al anfitrión — SIN ESTO NADA DE LO DEMÁS FUNCIONA
+
+> [!danger] Este paso no existía hasta el 2026-09-22, y sin él los pasos 1 a 3 no hacen nada
+> **El despliegue va por DOS vehículos y esta tarjeta solo seguía uno.** La
+> migración y la aplicación viajan **dentro de la imagen** y llegan solas en la
+> primera actualización que tome la instancia. **`update.sh` no.** Vive en el
+> **anfitrión**, en `/opt/space-os/update.sh`, y **nada lo actualiza solo**:
+> solo lo escriben `instalar-hijo.sh` y `provision-instancia.sh`, es decir
+> instalaciones nuevas y aprovisionamientos. `update.sh` actualiza **el
+> contenedor, no a sí mismo**.
+>
+> El `update.sh` que hoy corre en DEMO y g500 es el de `main`, y su `case`
+> **rechaza cualquier argumento que no conozca** (`infra/scripts/update.sh`,
+> la rama `*)` del parseo). Así que `--comprobar` le da **`exit 1`**. Si se
+> hiciera el **paso 3** (la línea de cron `*/15`) sin hacer antes este paso,
+> el resultado sería: **`exit 1` cada 15 minutos, 96 veces al día, para
+> siempre, y el ADR 0037 sin ningún efecto.**
+
+**Qué hacer, para CADA instancia que ya exista (hoy: DEMO y g500), y ANTES que
+los pasos 1 y 3:**
+
+1. Desde tu máquina, con el repositorio a la mano, copia el archivo:
+   ```bash
+   scp infra/scripts/update.sh root@<IP-de-la-instancia>:/opt/space-os/update.sh
+   ```
+2. Entra y déjale el modo que le toca (**750**, el mismo que le pone el
+   instalador — el archivo lo corre `root` desde cron y no tiene por qué
+   leerlo nadie más):
+   ```bash
+   ssh root@<IP-de-la-instancia>
+   chown root:root /opt/space-os/update.sh
+   chmod 750 /opt/space-os/update.sh
+   ```
+3. **Comprueba que el que quedó SÍ conoce `--comprobar`** — esta es la línea
+   que distingue el nuevo del viejo:
+   ```bash
+   /opt/space-os/update.sh --help | grep -c comprobar
+   ```
+   **Debe salir un número mayor que 0.** Si sale `0`, el archivo que hay ahí
+   sigue siendo el viejo: la copia no llegó, o llegó a otra ruta. **No sigas
+   al paso 3 hasta que esto no dé un número.**
+
+4. Y una comprobación de que no rompiste lo de hoy, porque este archivo lo
+   corre el cron de madrugada:
+   ```bash
+   /opt/space-os/update.sh --dry-run
+   ```
+   Debe terminar en `--dry-run terminado. Ni base, ni contenedor, ni respaldo:
+   nada cambio.` Si no, **vuelve a poner el `update.sh` anterior** (el de
+   `main`) antes de irte: una instancia con un actualizador roto no se
+   actualiza ninguna noche.
+
+> [!note] Por qué esto no es «desplegar en el servidor»
+> Copiar `update.sh` al anfitrión es exactamente lo que ya hacen
+> `instalar-hijo.sh` y `provision-instancia.sh` en cada alta; aquí se hace a
+> mano solo porque estas dos instancias nacieron antes. **Nadie edita nada en
+> el servidor**: se copia el archivo del repositorio tal cual.
 
 ---
 
@@ -26,15 +93,27 @@
 **Por qué:** la tabla `actualizaciones_instancia` nace con `modo = 'aprobacion'`
 por diseño (el dueño decide, nunca se le salta), y la migración **no tiene
 forma de distinguir** una instancia recién nacida de una que lleva meses
-corriendo. **Esto todavía NO está pasando hoy** (2026-09-22): la migración
-`20260921_actualizaciones_instancia.sql` vive solo en esta rama —no en
-`main`—, así que DEMO y g500 corren sin la tabla y siguen actualizándose como
-siempre. El riesgo empieza **el día que una versión con esa migración llegue
-a esas instancias**: desde ese momento, sin este paso, **DEMO y g500
-dejarían de actualizarse en silencio** — ningún error, ningún aviso, nada en
-un log que alguien vaya a mirar. Se quedarían esperando una aprobación que
-nadie sabe que hace falta dar. Por eso este paso va **antes de publicar esa
-versión, o justo después**, no en un momento cualquiera.
+corriendo. Si se deja en `aprobacion` sin que nadie lo sepa, **DEMO y g500
+dejarían de actualizarse en silencio** — ningún error, ningún aviso, nada en un
+log que alguien vaya a mirar. Se quedarían esperando una aprobación que nadie
+sabe que hace falta dar.
+
+> [!important] Cuándo empieza de verdad ese riesgo — corregido el 2026-09-22
+> Hasta hoy este paso decía que el congelamiento empieza **el día que llegue la
+> migración**. **Es falso, y la diferencia cambia cuándo hay que correr esto.**
+> La migración sola **no congela nada**: crea la tabla y ya. El `update.sh`
+> viejo —el que hoy corre en DEMO y g500— **ni siquiera la lee**, así que una
+> instancia puede recibir la migración y seguir actualizándose como siempre,
+> indefinidamente.
+>
+> **El congelamiento empieza el día que llega el `update.sh` NUEVO**, o sea el
+> día que alguien haga el **paso 0** — porque `update.sh` vive en el anfitrión
+> y nada lo actualiza solo. La urgencia estaba atada al vehículo equivocado.
+>
+> **Consecuencia práctica:** este paso no va atado a publicar una versión, va
+> atado al paso 0. Hazlo **justo después del paso 0 y antes del paso 3**, en la
+> misma sesión y en la misma instancia. Hoy (2026-09-22) no ha pasado nada de
+> esto: DEMO y g500 corren sin la tabla **y** con el `update.sh` de `main`.
 
 **Qué hacer, para CADA instancia que ya exista (hoy: DEMO y g500):**
 
@@ -105,6 +184,7 @@ sonda se produzca sola sobre datos reales.
    | `2b · actualizaciones_instancia: NO SE PUDO LEER la base...` y sale con código **1** | La sonda no pudo consultar la tabla — revisa credenciales/red antes de seguir, NO es el resultado esperado |
    | `ERROR update: la imagen ... no trae RepoDigest...` y sale con código **1** | La imagen de DEMO no viene de un registro (por ejemplo, se cargó a mano). No es un fallo de esta tarea, pero bloquea todo el ADR en esa instancia hasta que la imagen sí venga jalada del registry |
    | `--comprobar: actualizaciones_instancia no existe todavia...` y sale con **0** | DEMO todavía no tiene la migración aplicada. Espera a que corra la corrida programada (o fuerza `/opt/space-os/update.sh` sin banderas) y repite este paso después |
+   | `update: argumento desconocido: --comprobar (usa --dry-run, --simular-fallo-pull o --help)` y sale con **1** — fíjate en que la lista **no menciona `--comprobar`** | **El `update.sh` de esa máquina es el VIEJO: el paso 0 no se hizo, o no llegó.** No es un fallo de esta tarea ni del ADR — es que el archivo del anfitrión no se actualiza solo. Vuelve al **paso 0**, y no pongas el cron del paso 3 hasta que `--help \| grep -c comprobar` dé un número mayor que 0: con el `update.sh` viejo, esa línea de cron daría este mismo error 96 veces al día |
 
 4. Lee la tabla después, para confirmar que quedó anotado:
    ```bash
@@ -130,6 +210,14 @@ cron viejo de las 04:17 — nada dispara `--comprobar`, así que aunque el paso 
 deje una instancia en `aprobacion`, el dueño nunca verá la novedad hasta la
 madrugada siguiente, y «instalar ahora» seguiría sin significar un cuarto de
 hora.
+
+> [!danger] NO hagas este paso sin haber hecho el PASO 0 en esa misma instancia
+> El `update.sh` viejo **no conoce `--comprobar`**: su `case` rechaza lo
+> desconocido y sale con **1**. Poner esta línea de cron sobre un `update.sh`
+> viejo da **`exit 1` cada 15 minutos, 96 veces al día, para siempre**, sin que
+> el ADR llegue a tener ningún efecto. La comprobación que lo descarta es la del
+> paso 0: `/opt/space-os/update.sh --help | grep -c comprobar` tiene que dar un
+> número mayor que 0.
 
 **Qué hacer, para cada instancia ya aprovisionada:**
 
@@ -232,7 +320,24 @@ alguien la firme primero.
 
 ---
 
-## Paso 6 · `docker build` nunca se corrió
+## Paso 6 · ~~`docker build` nunca se corrió~~ — CERRADO el 2026-09-22
+
+> [!success] Medido, no leído: la imagen se construyó y el módulo está dentro
+> `docker build -t space-os-prueba-0037 .` terminó **en verde** (manifest list
+> `sha256:9f796cb9…`), y dentro del contenedor:
+>
+> ```
+> $ docker run --rm --entrypoint sh space-os-prueba-0037 -c "ls -la /app/scripts/"
+> -rwxr-xr-x 1 node node  1547 Sep 21 22:20 actualizaciones.mjs
+> -rwxr-xr-x 1 node node 41324 Aug 31 22:25 migrar.mjs
+> ```
+>
+> Y el `import()` que hace la sonda de `update.sh`, ejecutado de verdad ahí
+> dentro, devuelve `MODOS, decidirActualizacion`. **El punto único de fallo de
+> toda la función queda comprobado por construcción**, no por lectura. Lo de
+> abajo se conserva como explicación de por qué este paso existía.
+
+
 
 La línea que copia `scripts/actualizaciones.mjs` a la imagen (`Dockerfile:117`)
 está verificada **solo por lectura** — nadie ha construido la imagen de verdad
@@ -279,18 +384,80 @@ sitio (disco, ruido en el panel, cuota de algún servicio externo).
 
 ---
 
+## Paso 8 · Un síntoma que hay que saber reconocer: «se instalará en los próximos minutos» PARA SIEMPRE
+
+**Qué se vería:** la pantalla de Administración dice *«Aprobaste vX.Y.Z: se
+instalará en los próximos minutos, o de madrugada a más tardar»*, y pasan las
+horas, y los días, y no se instala nunca. Ningún error. El log de
+`update.sh --comprobar` dice `sin cambios` una y otra vez.
+
+**Por qué pasa, en una frase:** dentro de `update.sh` hay **dos identidades
+distintas de la misma imagen**, y el corte de «no hay nada que hacer» usa una
+mientras la pantalla y la decisión del dueño usan la otra. El corte compara el
+**Id** de la imagen; la sonda, la pantalla y la aprobación comparan el
+**RepoDigest**. Si una imagen cambia de RepoDigest **sin** cambiar de Id, la
+sonda anota el digest nuevo (la pantalla ofrece «Instalar»), el dueño aprueba,
+y el corte de `sin cambios` sale **antes** de llegar al bloque que consumiría
+esa aprobación. **La aprobación no se consume nunca.**
+
+**No es teórico, y ya pasó en este proyecto:** reetiquetar con
+`imagetools create` no reescribe la imagen, la envuelve en un índice nuevo —
+digest distinto, mismo contenido. Está documentado en el `CLAUDE.md` del
+repositorio, en el aviso del 2026-09-02 sobre `v0.1.0` y la promoción a
+`estable` (`beta` era `manifest.v2+json` y `estable` un `manifest.list.v2+json`
+envolviéndola). Desde entonces se reetiqueta con `crane copy`, que sí reescribe
+los mismos bytes, pero **nada impide que vuelva a ocurrir por otra vía**.
+
+**Cómo confirmarlo antes de tocar nada** (en la instancia afectada):
+
+```bash
+docker image inspect --format '{{.Id}}' "$IMAGEN"
+docker image inspect --format '{{index .RepoDigests 0}}' "$IMAGEN"
+sudo -u postgres psql -d spaces -c "select digest_instalado, digest_disponible, aprobado_digest from actualizaciones_instancia;"
+```
+
+Es este caso si **`digest_instalado` ≠ `digest_disponible` = `aprobado_digest`**
+y aun así el log dice `sin cambios` (el `Id` no se movió).
+
+**Remedio a mano, y es una sola línea** — borra la aprobación que nunca se va a
+consumir, con lo que la pantalla deja de mentir y vuelve a pedir aprobación:
+
+```bash
+sudo -u postgres psql -d spaces -c "update actualizaciones_instancia set aprobado_digest = null;"
+```
+
+> [!warning] Esto es un parche, no el arreglo
+> El arreglo de verdad es que el corte de `sin cambios` refresque
+> `digest_instalado` cuando el `Id` coincide, para que las dos identidades no
+> puedan discrepar. **No se hizo en esta ola a propósito:** ese corte está en el
+> camino de **todas** las corridas de **todas** las instancias —las 95 de cada
+> 96 pasan por ahí— y tocarlo junto a una ola de arreglos de prosa habría sido
+> cambiar el camino caliente sin una corrida real de por medio. Queda propuesto
+> en el informe de la ola y sin aplicar.
+
+---
+
 ## Resumen — qué NO tiene red todavía
 
 - Nadie ha corrido `update.sh --comprobar` contra un Postgres real (paso 2).
 - Nadie ha mirado la pantalla con un navegador (paso 4).
-- Nadie ha corrido `docker build` con este cambio dentro (paso 6).
+- ~~Nadie ha corrido `docker build` con este cambio dentro (paso 6).~~ **Hecho
+  el 22/09**: la imagen construyó en verde, `/app/scripts/actualizaciones.mjs`
+  existe dentro del contenedor y el `import()` de la sonda devuelve
+  `decidirActualizacion`.
+- **El `update.sh` nuevo no está en ninguna instancia** y no llega solo: vive
+  en el anfitrión y solo lo escriben el instalador y el aprovisionador (paso
+  0). Hasta que alguien lo copie, **este ADR no tiene ningún efecto** sobre
+  DEMO ni g500, y el cron del paso 3 les daría `exit 1` cada 15 minutos.
 - La migración de la tabla todavía no llegó a `main` ni a ninguna instancia:
-  hoy DEMO y g500 corren sin ella y siguen actualizándose como siempre. **El
-  día que una versión con esa migración les llegue**, nacerán en
-  `modo = 'aprobacion'` por defecto — y desde ese momento, hasta que alguien
-  corra el paso 1, **se congelarán en silencio**.
+  hoy DEMO y g500 corren sin ella y siguen actualizándose como siempre. La
+  migración **por sí sola no congela nada** —el `update.sh` viejo ni la lee—:
+  el congelamiento empieza cuando conviven la tabla **y** el `update.sh` nuevo,
+  o sea a partir del paso 0, y hasta que alguien corra el paso 1.
 - El cron nuevo no existe todavía en ninguna instancia ya aprovisionada hasta
-  que alguien corra el paso 3.
+  que alguien corra el paso 3 — **y el paso 3 depende del paso 0**.
+- El fantasma de «Id contra digest» (paso 8) **no tiene arreglo en el código**:
+  hay un remedio a mano y un síntoma descrito, nada más.
 
 Ningún paso de esta tarjeta se ejecutó al escribirla. Se escribió para que la
 corra una persona con acceso a los droplets — la propia regla de este

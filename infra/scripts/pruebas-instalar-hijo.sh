@@ -20,7 +20,7 @@
 #  nada de verdad) y NO usa una llave de licencia real: fabrica su propio par
 #  de llaves y firma su propia licencia de prueba en un directorio temporal,
 #  igual que ya hace `pruebas-update.sh` con `update.sh` (misma tecnica,
-#  mismo motivo: `update.sh:843` tambien deja `LICENCIA_PUB` como variable de
+#  mismo motivo: `update.sh:853` tambien deja `LICENCIA_PUB` como variable de
 #  entorno, y `instalar-hijo.sh` ahora tiene su propia costura equivalente,
 #  `SPACE_OS_LICENCIA_PUB`).
 #
@@ -194,7 +194,7 @@ valor_sourceado() {
 
 # El "destino" -- host:puerto/base, SIN credenciales -- es justo lo que
 # `destino_de_url()` calcula en `update.sh` para decidir si los dos archivos
-# hablan de la MISMA base (`update.sh:1430-1433`). Aqui basta con partir por
+# hablan de la MISMA base (`update.sh:1440-1443`). Aqui basta con partir por
 # el PRIMER `@` (las claves son hex: nunca llevan uno) DESPUES de comprobar
 # que el valor empieza por un esquema valido -- que es precisamente lo que
 # `partir_url()` en `update.sh` tambien exige antes de intentar nada. Una
@@ -222,7 +222,7 @@ DOM=prueba.ejemplo.com   # dominio de prueba, no existe
 #      la quita, se la queda dentro del valor.
 #   2. `instancia.env`: `DATABASE_URL` SI va entrecomillado -- bash lo
 #      sourcea, y sin comillas un espacio ejecuta la segunda palabra.
-#   3. La comparacion que hace abortar a `update.sh` (`update.sh:1430-1433`):
+#   3. La comparacion que hace abortar a `update.sh` (`update.sh:1440-1443`):
 #      el destino que se leeria de `app.env` con `grep`+`cut` (su propio
 #      metodo, sin sourcear) tiene que COINCIDIR con el de `instancia.env`.
 #      Antes de la tarea 11, la (1) fallaba: `app.env` tambien llevaba
@@ -279,8 +279,15 @@ limpiar
 #  El candado de `update.sh` (flock) sale con 75 cuando ya habia otro update en
 #  marcha (update.sh:74, "no es un error"). Sin tolerarlo en la propia linea de
 #  cron, la corrida de las 4:17 le pisaria el paso al --comprobar de al lado y
-#  cron mandaria correo por algo que funciona bien -- hasta varias veces cada
-#  madrugada, no una vez al dia como hoy.
+#  el estado de salida de un cuarto de hora perfectamente sano quedaria como
+#  fallo -- hasta varias veces cada madrugada.
+#
+#  Y NO, no es por el correo de cron: corregido el 22/09 en la revision final.
+#  Cron manda correo por la SALIDA, no por el codigo de salida, y las dos
+#  lineas redirigen stdout y stderr a cron.log; ademas no hay MAILTO. El aviso
+#  de verdad llega por `reportar_a_flota` (update.sh:780-798) al panel del
+#  padre. Este comentario decia "cron mandaria correo por algo que funciona
+#  bien" y describia un canal que no existe.
 # ============================================================================
 escenario 'CRON · --comprobar se anade JUNTO a la entrada de las 4:17, no en su lugar'
 preparar
@@ -296,7 +303,9 @@ escrito_casa /etc/cron.d/space-os-update '^17 4 \* \* \* root /opt/space-os/upda
 escrito_casa /etc/cron.d/space-os-update '^\*/15 \* \* \* \* root /opt/space-os/update\.sh --comprobar '
 
 # El candado (75) tolerado en la MISMA linea: un fallo real (1-7) sigue
-# mandando correo, porque solo el 75 se convierte en exito.
+# saliendo con su codigo, porque solo el 75 se convierte en exito -- y ese
+# codigo es el que viaja al panel de flota, que es por donde llega el aviso
+# (no por correo: ver el bloque de arriba).
 escrito_dice /etc/cron.d/space-os-update '|| [ $? -eq 75 ]'
 limpiar
 

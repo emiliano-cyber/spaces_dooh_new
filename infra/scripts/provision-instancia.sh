@@ -256,7 +256,7 @@ fi
 # la base, del esquema y de las migraciones. La comparte con
 # `instalar-hijo.sh`, que hace el mismo alta desde dentro de la maquina del
 # cliente: escrita una vez, un arreglo de privilegios llega a los dos caminos o
-# a ninguno. Mismo patron que `update.sh` con `respaldo.sh` (`update.sh:209`) y
+# a ninguno. Mismo patron que `update.sh` con `respaldo.sh` (`update.sh:219`) y
 # por el mismo motivo, dicho ahi: lo que se copia, deriva.
 #
 # Si no esta al lado, se PARA aqui y lo dice, antes de tocar el servidor:
@@ -268,14 +268,14 @@ fi
 # motivos: `--ayuda` tiene que contestar aunque el paquete este incompleto (con
 # el `source` arriba salia con EX_ENTORNO en vez de imprimir la ayuda), y lo que
 # escribe el operador se revisa antes que los archivos que traemos nosotros.
-# Mismo sitio que `update.sh:768`, que sourcea `respaldo.sh` despues de leer su
+# Mismo sitio que `update.sh:778`, que sourcea `respaldo.sh` despues de leer su
 # configuracion.
 #
 # >>> Y una costura que conviene tener presente: `SPACE_OS_BASE_INSTANCIA_SH`
 # >>> deja que el ENTORNO elija que archivo se sourcea, o sea que quien puede
 # >>> poner una variable de entorno a este proceso puede ejecutar codigo suyo
 # >>> dentro de el. Se acepta a proposito, con los ojos abiertos y por el mismo
-# >>> motivo que su hermana `SPACE_OS_RESPALDO_SH` (`update.sh:768`): sin ella,
+# >>> motivo que su hermana `SPACE_OS_RESPALDO_SH` (`update.sh:778`): sin ella,
 # >>> los mutantes del arnes no pueden correr una copia del guion y la barrida
 # >>> entera se vuelve un falso verde. Quien corre esto ya es root en el
 # >>> servidor del cliente por ssh, asi que no abre ninguna puerta que no
@@ -296,7 +296,7 @@ fi
 # tres funciones existieron desde el 2026-09-11 **solo en `instalar-hijo.sh`**,
 # asi que durante tres dias el camino administrado --el de los clientes que
 # HAY, incluido g500-- escribio `instancia.env` con `sed` crudo. `update.sh` lo
-# SOURCEA como root por cron cada noche (`update.sh:740`), asi que un valor con
+# SOURCEA como root por cron cada noche (`update.sh:750`), asi que un valor con
 # un espacio dentro no es un valor: es su segunda palabra EJECUTADA. Es la zona
 # R7 de `vault/06-Operacion/zonas-de-riesgo.md`, y el 2026-09-14 un canario en
 # el PATH del arnes demostro que no era teorico.
@@ -722,7 +722,7 @@ aplicar_sql_superusuario "$(sql_crear_base)"
 # Antes esto hacia `cd /var/www/Spaces && node scripts/migrar.mjs`: un repo
 # clonado y un Node que una instancia NO TIENE -- es el sentido de que exista la
 # imagen. Ahora migra con la MISMA imagen que va a correr, que es tambien la que
-# lleva las migraciones dentro. Mismo idioma que `update.sh:1324-1330`.
+# lleva las migraciones dentro. Mismo idioma que `update.sh:1334-1340`.
 paso "Esquema y migraciones"
 registro_login
 remoto "docker pull '$IMAGEN'"
@@ -750,7 +750,7 @@ remoto "mkdir -p /etc/space-os"
 # `instalar-hijo.sh` lo escribia en los dos. El que tenia razon es el
 # instalador, y no es opinion: la aplicacion lo lee de SU entorno
 # (`apps/web/app/api/version/route.ts:105-113`), que sale de `app.env` por
-# `docker --env-file` (`update.sh:97,2007`), y la plantilla lo dice donde lo
+# `docker --env-file` (`update.sh:97,2017`), y la plantilla lo dice donde lo
 # declara («repetido a proposito», `infra/env/app.env.example:149-156`). No se
 # notaba porque la plantilla ya trae `estable` y este guion tambien usa
 # `estable` por omision: la unica corrida en que divergian era un ensayo con
@@ -820,7 +820,7 @@ paso "Actualizador"
 remoto "mkdir -p /opt/space-os /var/log/space-os"
 remoto_escribir /opt/space-os/update.sh 750 < "$RAIZ/infra/scripts/update.sh"
 # `respaldo.sh` NO es opcional, y olvidarlo no da un aviso: da una instancia
-# rota en silencio. `update.sh:579-582` lo busca AL LADO SUYO y **aborta con
+# rota en silencio. `update.sh:589-592` lo busca AL LADO SUYO y **aborta con
 # EX_CONFIG si no esta** —«sin el, la instancia se actualizaria sin respaldo
 # fuera del droplet y llenando el disco»—, asi que una instancia recien
 # aprovisionada fallaria en CADA corrida del cron, de madrugada y sin que nadie
@@ -833,11 +833,23 @@ SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 # ADR 0037 (tarea 6): comprobar corre cada 15 min y solo actualiza si hay una
 # aprobacion cuyo digest cuadra con lo disponible; si no hay nada que hacer,
-# sale con 0 ("esperar no es un error"). El "|| [ $? -eq 75 ]" tolera el
-# candado de update.sh (flock, "ya habia otro update en marcha", tambien sale
-# 0 en espiritu): sin esto, la corrida de las 4:17 le pisa el paso al
-# --comprobar de al lado y cron manda correo por algo que funciona bien,
-# hasta varias veces cada madrugada. Un fallo real (1-7) lo sigue mandando.
+# sale con 0 ("esperar no es un error"). El "|| [ $? -eq 75 ]" normaliza a 0 el
+# caso del candado de update.sh (flock, "ya habia otro update en marcha", que
+# tambien es un 0 en espiritu): sin el, la corrida de las 4:17 le pisa el paso
+# al --comprobar de al lado y el estado de salida de un cuarto de hora
+# perfectamente sano quedaria como fallo. Un fallo real (1-7) sigue saliendo
+# tal cual.
+#
+# DE DONDE NO SALE EL AVISO, y conviene decirlo aqui porque cuesta un
+# diagnostico entero: NO SALE POR CORREO. Cron manda correo por la SALIDA, no
+# por el codigo de salida, y las dos lineas de abajo redirigen stdout Y stderr
+# a cron.log con ">> ... 2>&1"; ademas este archivo no define MAILTO. Sin
+# salida no hay correo, para ningun codigo. El canal que SI existe y SI
+# funciona es `reportar_a_flota` con FLOTA_CODIGO (`update.sh:780-798`), que
+# corre en CADA `salir()` y llega al panel del padre: el aviso llega, pero se
+# mira en el panel de flota. El dueno acepto el coste de estas salidas con
+# error describiendolo como "hasta 96 correos al dia"; la via real es otra, y
+# queda escrito para que esa decision se pueda revisar sabiendo la verdad.
 */15 * * * * root /opt/space-os/update.sh --comprobar >> /var/log/space-os/cron.log 2>&1 || [ $? -eq 75 ]
 17 4 * * * root /opt/space-os/update.sh >> /var/log/space-os/cron.log 2>&1
 CRON
@@ -850,7 +862,7 @@ CRON
 # los dos decia que simplemente no habia nada levantado.
 #
 # Y no habia razon tecnica para esperar: `update.sh` comprueba la salud contra
-# `http://127.0.0.1:3000` (`update.sh:750`), asi que NO necesita ni el DNS ni el
+# `http://127.0.0.1:3000` (`update.sh:760`), asi que NO necesita ni el DNS ni el
 # certificado. Se arranca aqui, que es lo que se hizo a mano y funciono.
 #
 # Si falla NO se aborta: la maquina ya existe y esta aprovisionada, y el estado

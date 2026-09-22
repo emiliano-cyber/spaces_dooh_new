@@ -82,7 +82,7 @@ actualiza.* Vive en `scripts/actualizaciones.test.ts` y en el motivo
 
 ## Por qué los dos escritores están separados por GRANT, no por convención
 
-`db/migrations/20260921_actualizaciones_instancia.sql:66-83` no confía en que
+`db/migrations/20260921_actualizaciones_instancia.sql:96-113` no confía en que
 nadie llame a la función equivocada: hace `revoke all` y luego
 `grant update (modo, aprobado_digest, aprobado_por, aprobado_en,
 actualizado_en)` — **por columna**, sobre `spaces_app` (y `spaces_user` en el
@@ -150,10 +150,40 @@ con salida 0 aunque `--comprobar` corra 96 veces al día:
   sigue saliendo en 0, es una instancia con imagen anterior a la migración—:
   no saber nada no es lo mismo que saber que algo falta.
 
-El coste de este diseño —hasta 96 correos al día mientras el problema dure—
-está aceptado a conciencia y documentado en `infra/scripts/update.sh` junto a
-la decisión. Ver la tarjeta humana, punto 7, para lo que falta medir de este
-coste en la práctica.
+> [!danger] Y la PANTALLA pintaba VERDE en el primero de los dos — corregido el 22/09
+> Con una imagen sin `RepoDigest`, la sonda escribe `comprobado_en = now()` y
+> deja `digest_disponible` en `NULL`. Con eso `route.ts` calcula
+> `hayNovedad = false` y `textoDeEstado()` caía en **«Al día»**, la única frase
+> en verde que tiene la tarjeta. O sea: `update.sh --comprobar` saliendo con
+> **1** cada cuarto de hora y la pantalla del dueño diciendo que todo está bien
+> — el peor par posible, y justo en el estado que el ADR llama *bloqueo sin
+> salida*.
+>
+> `actualizaciones-ui.ts` tiene ahora una rama explícita **antes** de la de «al
+> día»: si hay `comprobadoEn` y **no** hay `digestDisponible`, tono `alerta` y
+> una frase que dice que el actualizador no pudo leer el digest de la imagen y
+> que hay que mirarlo. Con su prueba negativa, demostrada en rojo antes del
+> arreglo.
+
+El coste de este diseño —hasta 96 salidas con error al día mientras el problema
+dure— está aceptado a conciencia y documentado en `infra/scripts/update.sh`
+junto a la decisión. Ver la tarjeta humana, punto 7, para lo que falta medir de
+este coste en la práctica.
+
+> [!warning] Ese coste se aceptó llamándolo «96 correos», y por correo no llega nada
+> *Corregido el 2026-09-22, revisión final de la rama.* **Cron manda correo por
+> la SALIDA, no por el código de salida.** Las dos entradas de
+> `/etc/cron.d/space-os-update` redirigen stdout y stderr a `cron.log`
+> (`>> … 2>&1`) y el archivo no define `MAILTO`: sin salida no hay correo, para
+> ningún código.
+>
+> **El comportamiento es el correcto y el aviso sí llega, por el panel de
+> flota:** `reportar_a_flota` con `FLOTA_CODIGO` (`infra/scripts/update.sh:780-798`)
+> corre en cada `salir()` y entrega el código al PADRE. Queda escrito, y no
+> simplemente reescrito, porque **el dueño aceptó el coste describiéndolo como
+> correos** y esa decisión tiene que poder revisarse sabiendo cuál es el canal
+> de verdad. Si lo que se quería era un correo, hoy no existe: haría falta
+> `MAILTO` y quitar la redirección, y eso es otra decisión.
 
 ## Dónde vive cada pieza
 
@@ -165,8 +195,8 @@ coste en la práctica.
 | Decisión pura | `scripts/actualizaciones.mjs` → `decidirActualizacion()`, con `scripts/actualizaciones.test.ts` | [[modelo-instancias-soberanas]] |
 | Pantalla | `ActualizacionesPanel.tsx` (pinta) + `actualizaciones-ui.ts` (frase y tono, con pruebas — el `.tsx` no las tiene porque `vitest.config.ts` no monta jsdom) + `lib/data/actualizaciones-api.ts` (tipo y fetch, en `lib/data/` para no arrastrar `pg` al navegador) | [[modulos-internos]] |
 | Actualizador | `infra/scripts/update.sh`, paso **2b** (entre comparar digest y respaldar), banderas `--comprobar` / sin bandera | [[entorno-y-despliegue]] |
-| Cron | `infra/scripts/instalar-hijo.sh:874` y `infra/scripts/provision-instancia.sh:841` — misma línea, `*/15 * * * * root /opt/space-os/update.sh --comprobar …`, junto a la de las 04:17, no en su lugar | [[entorno-y-despliegue]] |
-| Copia a la imagen | `Dockerfile:117`, `COPY scripts/actualizaciones.mjs` — verificado solo por lectura, ver la tarjeta humana punto 6 | [[entorno-y-despliegue]] |
+| Cron | `infra/scripts/instalar-hijo.sh:886` y `infra/scripts/provision-instancia.sh:853` — misma línea, `*/15 * * * * root /opt/space-os/update.sh --comprobar …`, junto a la de las 04:17, no en su lugar | [[entorno-y-despliegue]] |
+| Copia a la imagen | `Dockerfile:117`, `COPY scripts/actualizaciones.mjs` — **construido y comprobado el 22/09**: `docker build` en verde y `/app/scripts/actualizaciones.mjs` dentro del contenedor, con su `import()` devolviendo `decidirActualizacion` | [[entorno-y-despliegue]] |
 
 ## Lo que hay que hacer a mano, y que no se le puede pedir a este commit
 
@@ -176,11 +206,50 @@ la línea se produzca sobre una base real. Y la migración **no puede
 distinguir** una instancia nueva de una que lleva meses corriendo: nace en
 `modo = 'aprobacion'`. **Esto todavía no es un problema hoy**: la migración
 vive solo en esta rama —no en `main`—, así que DEMO y g500 corren sin la
-tabla y siguen actualizándose como siempre. El riesgo empieza **el día que
-una versión con esa migración llegue a esas instancias**: desde ese momento,
-si nadie las toca, dejan de actualizarse **en silencio**. Los pasos
-completos, en orden de lo que más duele si se olvida, están en la tarjeta
-humana: `docs/evidencias/tarjeta-actualizaciones-elegidas.md`.
+tabla y siguen actualizándose como siempre. Los pasos completos, en orden de lo
+que más duele si se olvida, están en la tarjeta humana:
+`docs/evidencias/tarjeta-actualizaciones-elegidas.md`.
+
+### El despliegue va por DOS vehículos, y el que importa no llega solo
+
+*Encontrado el 2026-09-22, en la revisión final de la rama — mirando las siete
+tareas juntas, no una a una.*
+
+| Pieza | Vehículo | Cómo llega a una instancia que ya existe |
+|---|---|---|
+| Migración, aplicación, `scripts/actualizaciones.mjs` | **La imagen** | Sola, en la primera actualización que tome |
+| **`update.sh`** | **El anfitrión** (`/opt/space-os/update.sh`) | **A mano.** Solo lo escriben `instalar-hijo.sh` y `provision-instancia.sh`, o sea altas y aprovisionamientos |
+
+`update.sh` actualiza **el contenedor, no a sí mismo**. De ahí salen dos cosas
+que hay que tener juntas en la cabeza:
+
+- **El ADR no tiene ningún efecto hasta que alguien copie el `update.sh`
+  nuevo.** El que corre hoy en DEMO y g500 es el de `main`, y su `case` rechaza
+  lo desconocido: `--comprobar` le da **`exit 1`**. La línea de cron `*/15` de
+  la tarjeta, puesta sin esa copia, sería `exit 1` **96 veces al día, para
+  siempre**. Por eso la tarjeta tiene ahora un **paso 0** que va antes del cron,
+  con su comprobación (`--help | grep -c comprobar`).
+- **El congelamiento empieza con el `update.sh` nuevo, no con la migración.**
+  La migración por sí sola no congela nada: el `update.sh` viejo **ni lee la
+  tabla**. Este apartado y el paso 1 de la tarjeta decían lo contrario, y con
+  eso la urgencia estaba atada al vehículo equivocado.
+
+### El fantasma permanente: el corte compara Id, la decisión compara digest
+
+`update.sh` corta con «sin cambios» comparando el **Id** de la imagen; la
+sonda, la pantalla y la aprobación del dueño comparan el **RepoDigest**. Si una
+imagen cambia de RepoDigest sin cambiar de Id —un reetiquetado: le pasó a este
+proyecto con `imagetools create` sobre `v0.1.0`, ver el aviso del 02/09 en
+`CLAUDE.md`—, la sonda anota el digest nuevo, la pantalla ofrece *Instalar*, el
+dueño aprueba… y **la aprobación no se consume nunca**, porque el corte sale
+antes del bloque 2b. La pantalla diría «se instalará en los próximos minutos»
+indefinidamente.
+
+**No se arregló en esta ola a propósito**: ese corte está en el camino de todas
+las corridas de toda la flota. Queda como **síntoma reconocible con remedio a
+mano** en el paso 8 de la tarjeta (`update actualizaciones_instancia set
+aprobado_digest = null;`), y como propuesta —refrescar `digest_instalado`
+cuando el Id coincide— sin aplicar.
 
 ## Relacionadas
 [[02-Backend/_indice|Índice de Backend]] · [[api-endpoints]] ·

@@ -1,7 +1,7 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-09-21
+actualizado: 2026-09-22
 tags: [datos, esquema, er, postgres]
 archivos:
   - db/schema.sql
@@ -41,6 +41,26 @@ archivos:
 > este ADR — pasaba en verde por el motivo equivocado hasta que se añadió el
 > `revoke`. Cualquier tabla nueva con escritores separados por columna necesita
 > el mismo `revoke all` primero.
+>
+> **Corregido el 2026-09-22, en la revisión final de la rama — dos cosas, y la
+> migración se editó EN SU SITIO** porque no se había aplicado en ninguna parte
+> (vive solo en esta rama, no es zona R3):
+>
+> 1. **`aprobado_por` ahora es `on delete set null`.** Estaba sin cláusula, o
+>    sea `no action`, y era **la única de las trece FK a `usuarios` del esquema
+>    sin cláusula** — las otras doce son `cascade` o `set null`. Como
+>    `guion_instalado()` limpia `aprobado_digest` pero deja `aprobado_por`
+>    puesto, en cuanto alguien aprobaba **una** versión ese usuario ya no se
+>    podía borrar nunca: `borrarUsuario()` hace un `delete` a pelo y el 23503
+>    habría salido como **500 opaco**. Medido contra el Postgres local: con la
+>    cláusula vieja el borrado da `violates foreign key constraint`; con la
+>    nueva el borrado pasa y `aprobado_por` queda en `NULL`.
+> 2. **La cabecera de la migración avisa ahora del otro camino del mismo
+>    defecto:** cualquier migración futura con
+>    `grant … on all tables in schema public` a `spaces_app` **destruye en
+>    silencio** la separación por columna, porque en Postgres un grant de tabla
+>    gana al de columna. Es el mismo defecto del párrafo de arriba entrando por
+>    la puerta de al lado.
 
 > [!warning] 2026-09-17 · remedido, y tres de las cifras de abajo caducaron
 > Medido en este árbol al añadir `20260917_entidades_fiscales.sql`, con la

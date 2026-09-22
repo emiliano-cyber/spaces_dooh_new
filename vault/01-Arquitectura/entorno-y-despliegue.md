@@ -718,6 +718,22 @@ manual completo —configuración, códigos de salida, cron— está en
 > SSH entrante, no hay repositorio clonado, no hay compilación en el servidor: la
 > instancia **jala**, el padre no empuja.
 
+> [!danger] `update.sh` actualiza el CONTENEDOR, no a sí mismo — y nada lo actualiza solo
+> *Encontrado el 2026-09-22, en la revisión final del ADR 0037.* **El despliegue
+> va por dos vehículos:**
+>
+> | Pieza | Vehículo | Cómo llega a una instancia que ya existe |
+> |---|---|---|
+> | Aplicación, migraciones, `scripts/` | **La imagen** | Sola, en la primera actualización que tome |
+> | **`update.sh`** (y `respaldo.sh`, `migrar.mjs` del anfitrión) | **El anfitrión** | **A mano.** Solo lo escriben `instalar-hijo.sh` y `provision-instancia.sh` |
+>
+> **Cualquier cambio en `update.sh` no llega solo.** Y el `case` del parseo
+> rechaza lo desconocido, así que una bandera nueva sobre un `update.sh` viejo
+> da **`exit 1`**. Fue exactamente lo que la tarjeta del ADR 0037 iba a provocar
+> —96 `exit 1` al día— al mandar poner el cron `--comprobar` sin copiar antes el
+> guion. De ahí el **paso 0** de esa tarjeta y la sección nueva de
+> `docs/runbook-actualizar-instancia.md`.
+
 El orden importa y está elegido para que cada paso falle antes de haber hecho daño:
 `pull` y comparar digest (igual → sale 0 sin tocar nada) → **respaldo** `pg_dump -Fc`
 **que se poda a 3 y se sube a Spaces** → anotar la versión anterior → **migrar** →
@@ -747,7 +763,7 @@ la promesa de que los cortes de servicio son de madrugada:
 > y funcionaban a mano, pero **nada los lanzaba cada 15 minutos**. La única
 > entrada de cron real era la de las 04:17.
 >
-> Ahora `instalar-hijo.sh:874` y `provision-instancia.sh:841` escriben, **junto
+> Ahora `instalar-hijo.sh:886` y `provision-instancia.sh:853` escriben, **junto
 > a** la de las 04:17 y sin reemplazarla, la misma línea en los dos caminos de
 > alta:
 >
@@ -850,18 +866,27 @@ Tres detalles del guion que no se ven leyendo y cuestan una tarde:
 > respaldo, tres pasos más abajo, topará con el mismo problema y lo explicará con
 > su propio mensaje ya probado), pero **`--comprobar` ya no sale con 0**: sale con
 > **1**, el mismo que este guion usa cuando no puede leer la huella de la base
-> (`update.sh:2348`). Lo fija **E143**, que nació fijando lo contrario.
+> (`update.sh:2369`). Lo fija **E143**, que nació fijando lo contrario.
 
 > [!note] Por qué cambió, y quién lo decidió
 > El 2026-09-22, con el coste delante. Con el cron de 15 minutos, salir con 0 daba
 > **96 corridas en verde al día con la base muerta**, y el único proceso que lo
 > sabía cada cuarto de hora era justo el que se callaba: nadie se enteraría hasta
-> las 04:17. **Coste aceptado: hasta 96 correos al día mientras el problema dure.**
-> Es preferible a 96 verdes falsos, que es lo que este proyecto lleva meses
-> quitándose de encima.
+> las 04:17. **Coste aceptado: hasta 96 salidas con error al día mientras el
+> problema dure.** Es preferible a 96 verdes falsos, que es lo que este proyecto
+> lleva meses quitándose de encima.
+>
+> ⚠️ **El dueño aceptó ese coste llamándolo «96 correos al día», y ese canal no
+> existe** (corregido el 22/09, revisión final). Cron manda correo por la
+> **salida**, no por el código de salida, y las dos líneas de cron redirigen
+> stdout y stderr a `cron.log`; tampoco hay `MAILTO`. **El aviso llega igual, y
+> por donde este proyecto ya mira: el panel de flota** — `reportar_a_flota` con
+> `FLOTA_CODIGO` (`update.sh:780-798`) corre en cada `salir()`. Se deja anotado
+> en vez de reescrito porque la decisión fue suya y tiene que poder revisarla
+> sabiendo la vía real.
 
 **Dónde va 2b, y por qué ahí.** Después de la compuerta de licencia (`EX_LICENCIA`,
-`update.sh:1240-1254`) y antes del respaldo. El orden importa: una aprobación del
+`update.sh:1250-1264`) y antes del respaldo. El orden importa: una aprobación del
 dueño **no puede resucitar una instancia con la licencia vencida**. Y `--dry-run`
 sale antes de llegar a 2b, que es lo que su cabecera promete.
 
@@ -889,6 +914,19 @@ sirviendo.
 > *todas* las corridas y en ese camino no hay nada que arreglar. Ahí la sonda solo
 > escribe lo disponible y **su veredicto se ignora a propósito**, porque con el
 > mismo id no hay nada que decidir. Lo fija **E146**.
+>
+> ⚠️ **Y ahí hay un fantasma permanente, encontrado el 22/09 en la revisión
+> final:** ese corte compara el **Id** de la imagen, mientras que la sonda, la
+> pantalla y la aprobación del dueño comparan el **RepoDigest**. Si una imagen
+> cambia de RepoDigest sin cambiar de Id —un reetiquetado; le pasó a este
+> proyecto con `imagetools create` sobre `v0.1.0`, ver el aviso del 02/09 en
+> `CLAUDE.md`— la sonda anota el digest nuevo, la pantalla ofrece *Instalar*, el
+> dueño aprueba **y la aprobación no se consume nunca**, porque el corte sale
+> antes del 2b. La pantalla diría «se instalará en los próximos minutos»
+> indefinidamente. **No se arregló** —tocar ese corte cambia el camino de las 95
+> de cada 96— y queda como síntoma con remedio a mano (`update
+> actualizaciones_instancia set aprobado_digest = null;`) en el **paso 8** de
+> `docs/evidencias/tarjeta-actualizaciones-elegidas.md`.
 >
 > **Y el `--dry-run` NO anota**, que es lo que este arreglo estuvo a punto de
 > romper: la sonda hace un `update … set comprobado_en = now()`, o sea que
@@ -971,7 +1009,7 @@ repetirla a ciegas es como se corrompe una base. El health check conserva sus 10
 de F3.4. Cada reintento sale **numerado** en el log (`reintento 2/3`), así que se
 cuenta desde fuera con `grep -c reintento /var/log/space-os/update.log`. Las esperas
 > [!danger] `instancia.env` NO es un `.env`: `update.sh` lo SOURCEA
-> `update.sh:831` hace `. "$CONF"`, así que ese archivo **es un script de shell**,
+> `update.sh:841` hace `. "$CONF"`, así que ese archivo **es un script de shell**,
 > no una lista de pares clave-valor. Consecuencia: **todo valor con espacios va
 > entrecomillado**, o bash toma la primera palabra como la asignación y **ejecuta
 > el resto como un comando**.
@@ -1229,7 +1267,7 @@ línea de comandos de ninguna llamada doblada.
 
 > [!warning] La retención la pone el BUCKET, y el ADR 0025 pide un año para otra cosa
 > Aquí no hay ni un borrado remoto, a propósito: lo que caduca lo caduca la **regla
-> de ciclo de vida** del bucket — 90 días para logs (`update.sh:275`) y el mismo
+> de ciclo de vida** del bucket — 90 días para logs (`update.sh:285`) y el mismo
 > criterio para respaldos.
 >
 > **Ojo con el cruce:** el ADR 0025 decidió que el **registro de accesos** se

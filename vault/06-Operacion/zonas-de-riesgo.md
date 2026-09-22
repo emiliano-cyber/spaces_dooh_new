@@ -251,7 +251,7 @@ limitador en memoria funcione.
 
 > [!danger] 2026-09-11 · `provision-instancia.sh` escribe la configuración de un cliente SIN saneamiento — hallazgo de forma, no explotado hoy
 > **Por qué:** `update.sh` **sourcea** `instancia.env` (`. "$CONF"`,
-> `update.sh:740`) como root, por cron, cada noche. Eso significa que ese
+> `update.sh:750`) como root, por cron, cada noche. Eso significa que ese
 > archivo no es texto: es bash. Un valor con un espacio dentro, sin comillas,
 > se lee como DOS palabras — la primera queda como una asignación de entorno
 > para la segunda, que bash **ejecuta como un comando**. En el servidor de un

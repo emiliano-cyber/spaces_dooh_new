@@ -22,6 +22,15 @@ const HORA_VENTANA_AUTOMATICA = '04:17'
 //
 //  1. Si nunca se comprobo, se dice: fingir que esta al dia seria mentir con
 //     un dato que no existe.
+//  1b. Si SE comprobo y aun asi no hay digest disponible, es el bloqueo sin
+//     salida del ADR 0037 ("Dos casos que NO son espera"): la imagen no trae
+//     `RepoDigest`, asi que no hay nada que aprobar y el dueno no puede
+//     decidir aunque quiera. Va ANTES del "al dia" a proposito. Hasta la
+//     revision final de la rama caia en el `!hayNovedad` de abajo y la
+//     pantalla pintaba VERDE -- la unica frase tranquilizadora que hay --
+//     mientras `update.sh --comprobar` salia con 1 cada cuarto de hora. Ese
+//     es el peor par posible: el actualizador gritando y la pantalla diciendo
+//     que todo esta bien.
 //  2. Si no hay novedad, es la unica frase en verde.
 //  3. Con novedad y modo automatica, la aprobacion NO importa (igual que en
 //     `decidirActualizacion`): se dice cuando entra, nunca "pronto".
@@ -34,6 +43,13 @@ export function textoDeEstado(e: EstadoActualizacion): { tono: TonoEstado; texto
     return {
       tono: 'info',
       texto: 'Esta instancia todavia no se ha comprobado contra el registro: no se sabe si hay una version nueva.',
+    }
+  }
+
+  if (!e.digestDisponible) {
+    return {
+      tono: 'alerta',
+      texto: 'Se comprobo contra el registro, pero el actualizador no pudo leer el digest de la imagen: no hay nada que aprobar y esta instancia no puede instalar una version nueva hasta que se revise. Avisa a quien opera el servidor.',
     }
   }
 
@@ -76,9 +92,21 @@ export function textoDeEstado(e: EstadoActualizacion): { tono: TonoEstado; texto
 // El texto del ConfirmDialog del boton "Instalar". Instalar corta el
 // servicio y migra la base (ADR 0037): el dialogo tiene que decir CUANTAS
 // migraciones trae y que va a haber un corte, nunca un clic suelto.
+//
+// `migracionesPendientes === null` NO es cero, y la diferencia importa justo
+// aqui. Hasta la revision final de la rama el `?? 0` las juntaba, asi que el
+// dialogo que precede a un CORTE DE SERVICIO afirmaba "No trae migraciones
+// pendientes" cuando lo cierto era que nadie las pudo contar (la sonda no
+// llego a escribir `migraciones_pendientes`). Decir que no hay ninguna es
+// exactamente lo que hace que alguien pulse sin pensarlo.
 export function textoConfirmarInstalar(e: EstadoActualizacion): string {
   const version = e.versionDisponible ?? 'la version disponible'
-  const n = e.migracionesPendientes ?? 0
-  const migraciones = n === 0 ? 'No trae migraciones pendientes' : `Trae ${conteo(n, 'migracion', 'migraciones')} pendiente${n === 1 ? '' : 's'}`
+  const n = e.migracionesPendientes
+  const migraciones =
+    n == null
+      ? 'No se pudo contar cuantas migraciones trae'
+      : n === 0
+        ? 'No trae migraciones pendientes'
+        : `Trae ${conteo(n, 'migracion', 'migraciones')} pendiente${n === 1 ? '' : 's'}`
   return `Vas a instalar ${version}. ${migraciones}. El servicio se corta mientras dura la instalacion.`
 }

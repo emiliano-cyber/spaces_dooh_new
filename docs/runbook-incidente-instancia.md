@@ -22,7 +22,7 @@
 ## Paso 0 · Qué dice la instancia sin que nadie entre
 
 La instancia **reporta hacia fuera** al terminar cada actualización
-(`update.sh:589-639`). El padre nunca le pregunta: es ella la que habla. Así que lo
+(`update.sh:599-649`). El padre nunca le pregunta: es ella la que habla. Así que lo
 primero es leer lo que ya dijo.
 
 **Desde el PADRE:**
@@ -49,7 +49,7 @@ cat estado/<instancia>.json 2>/dev/null | head -40
 > [!warning] Un silencio no es una caída
 > Que no haya reporte sólo dice que **la instancia no habló**. El envío es a
 > propósito «mejor esfuerzo»: si el padre no está, la instancia sigue y guarda el
-> reporte para la corrida siguiente (`update.sh:637`). Confundir silencio con
+> reporte para la corrida siguiente (`update.sh:647`). Confundir silencio con
 > caída es cómo se abre una sesión que no hacía falta.
 
 ---

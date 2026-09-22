@@ -208,7 +208,7 @@ cmd_limpiar_esquema() {
   printf "rm -f %s" "$RUTA_ESQUEMA_TMP"
 }
 
-# `--instalacion-nueva` lo pasa el ALTA y nunca `update.sh` (`update.sh:1511`
+# `--instalacion-nueva` lo pasa el ALTA y nunca `update.sh` (`update.sh:1521`
 # llama al runner sin banderas): el runner se verifica a si mismo y aborta si no
 # puede distinguir una base nueva de una rezagada, y esa distincion solo la sabe
 # quien acaba de crear la base. El orden de las migraciones no es lexicografico puro — el mapa

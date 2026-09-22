@@ -128,8 +128,26 @@ cron cada quince minutos, **96 veces al día**:
 
 Los dos usan el código que este actualizador ya tenía para «no se pudo ni
 empezar», que es el mismo con el que aborta cuando no puede leer la huella de la
-base. **El coste está aceptado**: hasta 96 correos al día mientras el problema
-dure. Es preferible a 96 corridas en verde con la base muerta.
+base. **El coste está aceptado**: hasta 96 salidas con error al día mientras el
+problema dure. Es preferible a 96 corridas en verde con la base muerta.
+
+> [!warning] El coste se aceptó llamándolo «96 correos al día», y ese canal no existe
+> *Corregido el 2026-09-22, en la revisión final de la rama.* **Cron manda
+> correo por la SALIDA, no por el código de salida**, y las dos entradas de
+> `/etc/cron.d/space-os-update` redirigen stdout **y** stderr a `cron.log`
+> (`>> … 2>&1`); el archivo tampoco define `MAILTO`. Sin salida no hay correo,
+> para ningún código: **no llegaría ni uno.**
+>
+> **El comportamiento sigue siendo el correcto y el aviso sí llega** — por otra
+> vía: `reportar_a_flota` con `FLOTA_CODIGO` (`infra/scripts/update.sh:780-798`)
+> corre en **cada** `salir()` y entrega el código al PADRE, así que estos dos
+> casos se ven **en el panel de flota**, 96 veces al día, no en un buzón.
+>
+> Se deja escrito en vez de reescribir la frase y ya, porque **el dueño aceptó
+> el coste describiéndolo como correos**: es una decisión suya y tiene que
+> poder revisarse sabiendo cuál es el canal de verdad. Si lo que quería era un
+> correo, hoy no lo hay y hace falta `MAILTO` (y quitar la redirección), que es
+> una decisión aparte y no se toma aquí.
 
 ### Qué se prueba, y dónde
 
@@ -175,17 +193,41 @@ de que los cortes son de madrugada.
 
 ### Lo que hay que hacer a mano, y si no se hace duele
 
-**Las instancias que YA existen se congelarán en silencio EL DÍA QUE reciban
-esta migración.** Hoy (2026-09-21) no ha pasado todavía: la migración vive
-solo en esta rama, y DEMO y g500 corren sin la tabla, así que siguen
-actualizándose como siempre. El riesgo empieza en el momento en que una
-versión con `20260921_actualizaciones_instancia.sql` llegue a esas
-instancias — ahí la tabla nace con `aprobacion` por omisión y la migración no
-puede distinguir una instalación nueva de una que lleva meses corriendo.
-Desde ese momento, sin intervención, DEMO y g500 dejarían de actualizarse sin
-que nada diera error. **Va en la tarjeta humana del despliegue**: antes de
-publicar la versión que la lleve, o justo después, fijar el modo a
-conciencia en cada instancia existente.
+**Las instancias que YA existen se congelarán en silencio EL DÍA QUE reciban el
+`update.sh` NUEVO** — no el día que reciban la migración. Hoy (2026-09-22) no
+ha pasado: DEMO y g500 corren sin la tabla y con el `update.sh` de `main`, así
+que se actualizan como siempre.
+
+> [!important] La urgencia estaba atada al vehículo equivocado
+> *Corregido el 2026-09-22, en la revisión final de la rama.* Hasta hoy este
+> párrafo decía que el riesgo empieza cuando llegue
+> `20260921_actualizaciones_instancia.sql`. **Es falso, y por una razón que se
+> ve en cuanto se separan los dos vehículos:**
+>
+> - La **migración** viaja **dentro de la imagen** y llega sola, en la primera
+>   actualización que tome la instancia. Pero la migración por sí sola **no
+>   congela nada**: crea la tabla y se acabó. El `update.sh` viejo —el que hoy
+>   corre en DEMO y g500— **ni siquiera la lee**. Para él la tabla no existe.
+> - El **`update.sh`** vive en el **ANFITRIÓN** (`/opt/space-os/update.sh`) y
+>   **nada lo actualiza solo**: solo lo escriben `instalar-hijo.sh` y
+>   `provision-instancia.sh`, es decir en instalaciones nuevas y
+>   aprovisionamientos. `update.sh` actualiza el contenedor, **no a sí mismo**.
+>
+> Así que el congelamiento empieza el día que alguien **copie a mano el
+> `update.sh` nuevo** a una instancia existente. Es una consecuencia buena de
+> un hecho malo, y el hecho malo es el de la §siguiente: sin esa copia, el ADR
+> **no tiene ningún efecto** en las instancias que ya existen, y la línea de
+> cron `--comprobar` que la tarjeta manda poner le daría `exit 1` al
+> `update.sh` viejo —cuyo `case` rechaza lo desconocido— **cada 15 minutos,
+> para siempre**.
+
+La tabla nace con `aprobacion` por omisión y la migración no puede distinguir
+una instalación nueva de una que lleva meses corriendo, así que en cuanto
+conviven la tabla **y** el `update.sh` nuevo, DEMO y g500 dejarían de
+actualizarse sin que nada diera error. **Va en la tarjeta humana del
+despliegue**, y el orden manda: **primero copiar `update.sh` (paso 0), después
+fijar el modo a conciencia en cada instancia existente (paso 1), y solo
+entonces el cron (paso 3).**
 
 ### Lo que este ADR deja deliberadamente sin resolver
 

@@ -49,10 +49,14 @@ export function ActualizacionesPanel({ onToast }: { onToast: (m: string) => void
   async function cargar() {
     try {
       // Fetch crudo, no `getEstadoActualizacionApi()`: aquí hace falta EL
-      // STATUS, no solo el cuerpo, para distinguir "sin permiso" (se oculta,
-      // como `OrganizacionesPanel`) de un fallo real (se dice). El resto de
-      // los usos del endpoint, más abajo, sí pueden usar la función de
-      // `lib/data/`: para entonces el panel ya se sabe visible.
+      // STATUS, no solo el cuerpo, para distinguir "sin permiso" de un fallo
+      // real. Los dos se DICEN, cada uno con su frase — este comentario
+      // afirmaba "se oculta, como `OrganizacionesPanel`" y era falso desde la
+      // ronda 1 de revisión, que es justo cuando se cambió a explicar el 403
+      // (ver la cabecera del archivo): un panel que desaparece deja al Dueño
+      // adivinando qué permiso le falta. El resto de los usos del endpoint,
+      // más abajo, sí pueden usar la función de `lib/data/`: para entonces el
+      // panel ya se sabe visible.
       const r = await fetch('/spaces-dooh/api/actualizaciones/', { cache: 'no-store' })
       if (r.status === 401 || r.status === 403) { setStatus('sin-permiso'); return }
       if (!r.ok) { setStatus('error'); return }
@@ -151,7 +155,11 @@ export function ActualizacionesPanel({ onToast }: { onToast: (m: string) => void
                 Disponible: <span className="demo-num text-ink">{estado.versionDisponible ?? '—'}</span>
               </span>
               <span>
-                Migraciones: <span className="demo-num text-ink">{estado.migracionesPendientes ?? 0}</span>
+                {/* `?? '—'`, nunca `?? 0`: null es "no se pudo contar", no
+                    "ninguna". Pintarlo como 0 al lado del botón que corta el
+                    servicio es la misma mentira que corregía
+                    `textoConfirmarInstalar`. */}
+                Migraciones: <span className="demo-num text-ink">{estado.migracionesPendientes ?? '—'}</span>
               </span>
               <span className="inline-flex items-center gap-1">
                 <History className="h-3 w-3" /> Comprobado: <span className="text-ink">{formatearFecha(estado.comprobadoEn)}</span>

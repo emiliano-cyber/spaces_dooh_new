@@ -28,6 +28,25 @@
 --  `spaces_app` seguiria pudiendo escribir `digest_disponible` pese al `grant
 --  update (...)` de abajo. Se detecto con la propia prueba de este ADR: pasaba
 --  en verde por el motivo equivocado hasta que se anadio.
+--
+--  AVISO PARA QUIEN ESCRIBA UNA MIGRACION FUTURA -- y es la unica forma de que
+--  esta separacion sobreviva a la proxima:
+--    · CUALQUIER `grant ... on all tables in schema public to spaces_app` (o a
+--      `spaces_user`) DESTRUYE esta separacion EN SILENCIO. En Postgres un
+--      privilegio de TABLA gana siempre a uno por COLUMNA --el de columna solo
+--      decide cuando no hay uno de tabla que ya lo cubra--, asi que un grant de
+--      esa forma le devuelve a la app el `update` sobre `digest_disponible` sin
+--      borrar ni una linea de lo de aqui abajo. Nada da error, nada cambia de
+--      aspecto, y la app vuelve a poder aprobarse a si misma una imagen que
+--      nadie publico.
+--    · No es un riesgo teorico: es EL MISMO defecto que el parrafo de arriba
+--      ya cazo una vez en esta rama, entrando por la otra puerta --alli por los
+--      privilegios POR OMISION de `20260824_grants_tablas_futuras.sql`, aqui
+--      por un grant explicito--.
+--    · Si una migracion futura necesita un grant amplio, tiene que REPETIR
+--      despues el `revoke all` + el `grant update (...)` por columna de esta
+--      tabla. Si no, la prueba de permisos del ADR 0037 volvera a pasar en
+--      verde por el motivo equivocado.
 -- ============================================================================
 begin;
 
@@ -39,7 +58,18 @@ create table if not exists actualizaciones_instancia (
   modo text not null default 'aprobacion'
     constraint actualizaciones_instancia_modo_ck check (modo in ('automatica', 'aprobacion')),
   aprobado_digest text,
-  aprobado_por uuid references usuarios(id),
+  -- `on delete set null`, y NO es cosmetica: sin clausula, Postgres deja
+  -- `no action`, o sea que la fila de esta tabla BLOQUEA el borrado del
+  -- usuario. `guion_instalado()` limpia `aprobado_digest` al instalar pero
+  -- deja `aprobado_por` puesto para siempre, asi que en cuanto alguien
+  -- aprueba UNA version ya no se le puede dar de baja: `borrarUsuario()`
+  -- (`apps/web/lib/server/usuarios-repo.ts:143`) haria un `delete` a pelo y
+  -- el 23503 saldria como 500 opaco, sin nadie que lo tradujera. Era la
+  -- UNICA de las trece FK a `usuarios` del esquema sin clausula; las otras
+  -- doce son `cascade` o `set null`. `set null` y no `cascade` porque el
+  -- borrado de un usuario no puede llevarse por delante la fila unica que
+  -- describe el droplet.
+  aprobado_por uuid references usuarios(id) on delete set null,
   aprobado_en timestamptz,
 
   -- ── Lo que ve el actualizador (lo escribe update.sh) ────────────────────

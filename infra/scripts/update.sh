@@ -166,9 +166,19 @@
 #  iguales no se distinguen de una repetida, y ademas se puede contar desde
 #  fuera con `grep -c reintento /var/log/space-os/update.log`.
 #
-# ── Cron: una vez al dia, con candado ──────────────────────────────────────
-#  /etc/cron.d/space-os-update:
-#    17 4 * * *  root  /opt/space-os/update.sh >/dev/null 2>&1
+# ── Cron: DOS entradas al dia (no una), con candado ────────────────────────
+#  /etc/cron.d/space-os-update, tal y como lo escriben `instalar-hijo.sh` y
+#  `provision-instancia.sh`:
+#    */15 * * * *  root  /opt/space-os/update.sh --comprobar >> …  || [ $? -eq 75 ]
+#    17   4 * * *  root  /opt/space-os/update.sh              >> …
+#  La de cada cuarto de hora COMPRUEBA (mira el registry, anota lo disponible)
+#  y solo actualiza si hay una aprobacion del dueno cuyo digest cuadra con lo
+#  disponible; la de las 04:17 es la del modo automatico, y la red de seguridad
+#  si una aprobacion no llego a aplicarse. ADR 0037.
+#  Este bloque decia "una vez al dia" y listaba solo la segunda: se quedo viejo
+#  el mismo dia que nacio la primera, y nadie lo noto hasta la revision final
+#  de la rama. Es el sexto descuadre de esta cabecera; por eso `E73` la vigila
+#  por los DOS extremos y por eso este aviso se escribe aqui y no en un commit.
 #  El candado lo toma el propio script (`flock -n` sobre
 #  /var/lock/space-os-update.lock), asi que tambien protege a la corrida que
 #  alguien lance a mano mientras el cron esta dentro. Mismo criterio que
@@ -2214,7 +2224,18 @@ if [ "$AI_MODO" = 'sin-tabla' ]; then
   fi
   if [ "$CORRIDA" = comprobar ]; then
     # UNA BASE ILEGIBLE NO SALE EN VERDE. Decision del dueno, 2026-09-22, con
-    # el coste delante: hasta 96 correos al dia mientras el problema dure.
+    # el coste delante: hasta 96 salidas con error al dia mientras el problema
+    # dure.
+    #
+    # OJO CON COMO SE DESCRIBIO ESE COSTE, corregido en la revision final del
+    # 22/09: el dueno lo acepto como "hasta 96 correos al dia", y por correo NO
+    # llega ninguno. Cron manda correo por la SALIDA, no por el codigo de
+    # salida, y las dos lineas de /etc/cron.d/space-os-update redirigen stdout
+    # y stderr a cron.log; tampoco hay MAILTO. El aviso llega igual y por la
+    # via que este proyecto ya mira: `reportar_a_flota` (FLOTA_CODIGO, mas
+    # arriba en este mismo archivo) corre en CADA `salir()` y entrega el codigo
+    # al panel del padre. El comportamiento no cambia; lo que cambia es donde
+    # hay que ir a mirarlo.
     # Hasta esta ronda salia con `EX_OK`, y eso es lo que estaba mal: con un
     # cron cada 15 minutos, una base que no responde daba 96 VERDES al dia y
     # el unico proceso que lo sabia cada cuarto de hora era justo el que se
