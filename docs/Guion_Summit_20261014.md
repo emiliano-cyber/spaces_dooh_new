@@ -8,6 +8,45 @@
 
 Poliforum Siqueiros. Quedan **26 días** al abrir este archivo.
 
+> [!danger] 2026-09-22 · **Ya se decidió desde dónde se presenta, y eso deja casi todo lo medido de este documento por rehacer**
+> El dueño decidió el **2026-09-22**: **se presenta desde los servidores reales**,
+> no desde el portátil con la base local. Es mucho más que tachar una fila de la
+> tabla del §6.
+>
+> **Lo que SIGUE valiendo — el contenido del recorrido:**
+> - Qué se enseña y en qué orden (§1 y §3): el caso de las dos pantallas
+>   comparables, los cinco pasos, las frases de guion.
+> - La estructura de los datos que sostienen el caso: las mismas campañas
+>   encima de las dos pantallas, la diferencia puesta en la operación, los 40
+>   recibos de luz con sus huecos a propósito, las razones sociales.
+> - La lógica de las decisiones ya tomadas (D1 a D5 de `docs/Supervision/ABIERTOS.md`)
+>   que este guion da por hecho: convención de m², apertura en trimestre vivo con
+>   aviso ámbar, etiquetas fijas de los cinco papeles.
+>
+> **Lo que HAY que rehacer — todo lo que está medido:**
+> - **El arranque del §2** habla de `npx next start` en un puerto local
+>   (`localhost:3399`) y de un build local con `npm run build`. Una instancia
+>   real no se levanta así — la arranca `update.sh` / systemd, y el dominio, el
+>   certificado y el puerto son otros.
+> - **El cronómetro del §7**, con todo por debajo de 0.72 s: son tiempos de
+>   `Navigation Timing` contra un servidor **en la misma máquina**, sin la
+>   latencia de una red real ni de un servidor compartido. Un servidor real
+>   puede tardar más, igual o distinto — no está medido.
+> - **El guion de reinicio del cuestionario (§4)** —
+>   `node scripts/reiniciar-razones-sociales.mjs --base=spaces_ver2 …` — apunta
+>   por nombre a la base local. Contra una base remota hay que decidir cómo se
+>   corre (¿desde dónde? ¿con qué acceso?) y volver a ensayar el ciclo completo.
+> - **Los enlaces de marcadores del §2** llevan `localhost:3399` quemado; hay
+>   que rehacerlos con el dominio real antes de ponerlos en marcadores.
+>
+> **Lo que sigue sin decidir y NO tiene plan:** llevar los **datos** de este
+> guion — las dos pantallas comparables, las campañas, los 40 recibos, las
+> razones sociales, exactamente como están sembrados en `spaces_ver2` — a la
+> base de un servidor real es trabajo **sin planear**. No hay decidido a qué
+> instancia (¿DEMO? ¿una nueva?), ni cómo se siembra ahí, ni si `semilla-demo.mjs`
+> corre igual contra una base remota. **Quedan 22 días.** Este aviso no propone
+> ese plan — solo deja dicho, con precisión, qué dejó de ser cierto.
+
 ---
 
 ## 1 · Lo que se va a contar, en una frase
@@ -414,9 +453,9 @@ Esta lista es el trabajo que queda, y se vacía o se convierte en «no se enseñ
 | ~~**Consumo de luz**~~ | ✅ **HECHO** | 40 recibos sembrados, con 8 huecos a propósito |
 | ~~**Guion de reinicio** del cuestionario~~ | ✅ **ENSAYADO** | Ciclo entero corrido el 18/09: borra, enseña y resiembra en **&lt; 2 s**, y la huella de la base vuelve idéntica (§4) |
 | ~~**El recorrido entero, cronometrado**~~ | ✅ **HECHO** | Los cinco pasos y el extra, medidos uno por uno. Todo bajo **0.72 s** (§7) |
-| **Tres papeles sin acentos** | **Defecto abierto** | `Tramites`, `Operacion y nomina` y `Licencias` se pintan sin acento en el cuestionario. Están **sembrados en una migración ya aplicada** (`20260917_entidades_fiscales.sql:78-80`), así que se arregla con una migración nueva, no editando ésa |
+| ~~**Tres papeles sin acentos**~~ | ✅ **CERRADO** | `db/migrations/20260921_corrige_acentos_catalogo_roles_entidad.sql` se aplicó a `spaces_ver2` (local) el 21/09 y llegó a la instancia DEMO del servidor el 22/09, dentro de las 7 migraciones de `v0.6.0`. Medido en la base: `Trámites y licencias con gobierno` y `Operación y nómina`, los dos con acentos |
 | **Lectura a tres metros** | **Sin verificar** | Una pasada con el proyector, la víspera. **Es lo único del guion que sigue sin medir** |
-| **Dónde se presenta** | **Sin decidir** | ¿Portátil con la base local, o una instancia de verdad servida? No es lo mismo y cambia el ensayo |
+| ~~**Dónde se presenta**~~ | ✅ **DECIDIDO (2026-09-22)** | **Desde los servidores reales**, no desde el portátil con la base local. Ver el aviso al principio del documento — la decisión cambia casi todo lo demás de este guion |
 
 > [!success] Lo que este ensayo cerró, y lo que dejó abierto
 > **Cerró tres cosas**: los cinco pasos dan **exactamente** las cifras escritas en
@@ -432,7 +471,12 @@ Esta lista es el trabajo que queda, y se vacía o se convierte en «no se enseñ
 > Queda **una sola cosa sin medir en todo el documento**, y no es de software:
 > cómo se lee esto a tres metros.
 
-### Y la pregunta que nadie ha hecho todavía
+### ~~Y la pregunta que nadie ha hecho todavía~~
+
+> ✅ **CONTESTADA el 2026-09-22.** El dueño decidió: **se presenta desde los
+> servidores reales**, no desde el portátil con la base local. Ya no es una
+> pregunta sin hacer — es una decisión sin ensayar. Ver el aviso al principio
+> del documento para el detalle de qué queda por rehacer.
 
 **¿Desde dónde se presenta?** Todo lo de este guion está medido contra un
 servidor local en un portátil. Si el 14 de octubre se enseña desde una instancia

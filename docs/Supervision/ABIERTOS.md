@@ -382,7 +382,21 @@ archivo dentro de la pregunta.
 
 ---
 
-### D8 · Tres de los cinco papeles se pintan SIN ACENTO en la primera pantalla de la demo. ¿Se corrigen con una migración nueva antes del 14/10?
+### ~~D8 · Tres de los cinco papeles se pintan SIN ACENTO en la primera pantalla de la demo. ¿Se corrigen con una migración nueva antes del 14/10?~~
+
+> ✅ **CERRADA el 2026-09-22.** Se aplicó la opción (a): migración nueva.
+> **Con qué se midió:** `db/migrations/20260921_corrige_acentos_catalogo_roles_entidad.sql`
+> se aplicó a `spaces_ver2` (la base local del guion) el 21/09, y llegó a la
+> instancia DEMO del servidor el **22/09**, dentro de las 7 migraciones que trajo
+> `v0.6.0` (`docs/evidencias/adr0037-demo-20260922.md`). Leído en la base: las
+> tres etiquetas ya dicen `Trámites y licencias con gobierno` y `Operación y
+> nómina`, con acentos.
+>
+> **Y queda el recordatorio que la propia decisión anotaba:** el coste real no
+> era escribir la migración, era acordarse de correrla en la base desde la que
+> se presenta (ver **B35**, que encontró exactamente ese olvido el 21/09). Con
+> DEMO ya en `v0.6.0`, esa base está al día; `g500` sigue en `estable` y no lleva
+> esta migración, pero no es la base desde la que se presenta el SUMMIT.
 
 - **Encontrada:** 2026-09-18, recorriendo el guion del Summit en el navegador. No la
   vio ninguna prueba: son datos, no código.
