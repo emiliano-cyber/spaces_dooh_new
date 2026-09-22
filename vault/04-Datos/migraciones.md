@@ -36,7 +36,8 @@ archivos:
 > por lo que explica el propio ADR): una sola fila posible (`check (id)` sobre
 > una pk booleana) donde la aplicación escribe la preferencia del dueño y el
 > actualizador escribe lo que hay disponible. Ver
-> [[docs/adr/0037-cada-instancia-elige-si-toma-la-version-nueva|ADR 0037]].
+> [ADR 0037](../../docs/adr/0037-cada-instancia-elige-si-toma-la-version-nueva.md).
+> Mapa completo en [[actualizaciones-instancia]].
 >
 > **Medido, no copiado:** `node scripts/recuentos.mjs` sobre este árbol da
 > **87 migraciones** y **45 tablas** tras aplicarlas todas. Verde en

@@ -43,6 +43,7 @@ No hay servicio aparte.
 | [[cuestionario-bienvenida]] | El cuestionario que crea las razones sociales del owner al entrar |
 | [[integraciones-externas]] | DOOHmain, Space Eye, S3, Resend, Google, cron |
 | [[infraestructura-servidor]] | Pool, errores, folios, rate limit, subidas |
+| [[actualizaciones-instancia]] | ADR 0037: cada instancia elige si toma la versión nueva — el mapa de las cuatro piezas |
 
 ## Las tres capas
 

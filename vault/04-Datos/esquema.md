@@ -17,8 +17,9 @@ archivos:
 > INSTANCIA (sin `tenant_id`, sin RLS, una sola fila con `check (id)` sobre una
 > pk booleana) que hace de buzón entre la aplicación y el actualizador: cada
 > droplet elige si toma la versión nueva cuando se publica una. Ver
-> [[docs/adr/0037-cada-instancia-elige-si-toma-la-version-nueva|ADR 0037]] y
-> [[migraciones]].
+> [ADR 0037](../../docs/adr/0037-cada-instancia-elige-si-toma-la-version-nueva.md) y
+> [[migraciones]]. Mapa completo de las cuatro piezas en
+> [[actualizaciones-instancia]].
 >
 > **Tablas: 44 → 45**, medido con `node scripts/recuentos.mjs` sobre este árbol.
 >

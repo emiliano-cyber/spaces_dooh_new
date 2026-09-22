@@ -730,6 +730,9 @@ el digest y respaldar: `update.sh` **consulta `actualizaciones_instancia` y
 obedece**. Antes el canal mandaba y la actualización era forzosa; ahora el dueño
 de la instancia puede pedir que su copia espere su aprobación.
 
+**Mapa completo de las cuatro piezas —el buzón, el digest, el grant por
+columna y por qué son dos corridas— en [[actualizaciones-instancia]].**
+
 Son **dos corridas con trabajos distintos**, y esa separación es la que sostiene
 la promesa de que los cortes de servicio son de madrugada:
 

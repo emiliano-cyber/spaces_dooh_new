@@ -673,8 +673,10 @@ nueva** cuando se publica, en vez de que `CANAL=estable` se la imponga en la
 siguiente corrida del cron de las 04:17. Decisión completa, con las cuatro
 piezas del diseño (tabla de una fila sin RLS, aprobación atada al DIGEST y no al
 nombre de versión, comprobar separado de actualizar, y `aprobacion` por
-omisión) en [[docs/adr/0037-cada-instancia-elige-si-toma-la-version-nueva]].
-Plan de siete tareas en `docs/Plan_Actualizacion_Elegida_Por_Instancia.md`.
+omisión) en [ADR 0037](../../docs/adr/0037-cada-instancia-elige-si-toma-la-version-nueva.md).
+Plan de siete tareas en `docs/Plan_Actualizacion_Elegida_Por_Instancia.md`. Mapa
+de las siete piezas de código, con el porqué de cada una, en
+[[actualizaciones-instancia]].
 
 **Tarea 1 — hecha (2026-09-21).** La decisión no se escribe en bash: nace como
 función pura, `decidirActualizacion({ modo, corrida, digestInstalado,
