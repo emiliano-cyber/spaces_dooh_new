@@ -6,6 +6,24 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!important] 2026-09-22 · **Z2, Z9 y Z12 RECLAMADAS — tickets de soporte (ADR 0038)**
+> El cliente escribe una incidencia desde su instancia y AS OOH la ve en el PADRE,
+> agrupada por instancia, en una pantalla hermana de `/flota/`. Diseño aprobado por
+> el dueño el 22/09.
+>
+> Se reclaman **Z2 · Tenant** (`components/demo/admin/`, y la RLS de la tabla nueva),
+> **Z9 · Datos** (la migración) y **Z12 · Docs** (ADR, plan, bóveda y bitácora).
+>
+> ⚠️ **Y `apps/flota/` sigue sin estar en la tabla de zonas** — el mismo hueco que se
+> anotó ayer para `infra/scripts/`. Las doce zonas de [[07-Agentes/AGENTES]] reparten
+> `apps/web/` y `db/`, y el panel de flota no cae en ninguna. Se reclama aquí **por su
+> nombre**, no por analogía, para que quien lea el tablero lo vea aunque la tabla no lo
+> liste. **Dos huecos en dos días es un patrón: la tabla se quedó en el monorepo de
+> agosto y el repositorio creció fuera de ella.**
+>
+> **`/api/version` NO se toca.** Su prueba afirma las claves exactas a propósito; los
+> tickets van en ruta aparte. Y **`update.sh` tampoco** entra en este trabajo.
+
 > [!important] 2026-09-22 · **ola de arreglo de la revision FINAL del ADR 0037** — CERRADA, zonas LIBRES
 > La revision de las siete tareas juntas encontro lo que ninguna revision por
 > tarea podia ver. Se arregla **en un solo pase**, no una cosa por commit.
