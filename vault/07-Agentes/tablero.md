@@ -655,7 +655,7 @@ Claim aparte, aunque estés en otra zona. Lista completa en [[AGENTES]].
 | Archivo | Estado | Agente | Desde |
 |---|---|---|---|
 | `infra/scripts/update.sh`, `Dockerfile` | LIBRE | — | **Liberada el 2026-09-21** al cerrar la Tarea 5 del ADR 0037 (`update.sh --comprobar` obedece `actualizaciones_instancia`). Se quedan en esta lista, aunque [[AGENTES]] no los nombre: tocarlos bloquea a toda la flota de instancias. |
-| `infra/scripts/instalar-hijo.sh`, `infra/scripts/provision-instancia.sh`, `infra/scripts/pruebas-instalar-hijo.sh`, `infra/scripts/pruebas-provision.sh` | TOMADA | agente-tarea6-adr0037 | **2026-09-22: Tarea 6 del ADR 0037** — el cron frecuente (`--comprobar`, cada 15 min) que se suma al de las 4:17 en los dos caminos de alta, con la misma linea en ambos y tolerando el candado (75) de `update.sh` para no mandar correo por algo que funciona bien. No mapea a ninguna de las 12 zonas de [[AGENTES]]; se reclama por el mismo criterio que la fila de arriba. |
+| `infra/scripts/instalar-hijo.sh`, `infra/scripts/provision-instancia.sh`, `infra/scripts/pruebas-instalar-hijo.sh`, `infra/scripts/pruebas-provision.sh` | LIBRE | — | **Liberada el 2026-09-22** al cerrar la Tarea 6 del ADR 0037 — el cron frecuente (`--comprobar`, cada 15 min) que se suma al de las 4:17 en los dos caminos de alta (`instalar-hijo.sh:874`, `provision-instancia.sh:841`), misma linea en ambos, tolerando el candado (75) de `update.sh` en la propia linea de cron para no mandar correo por algo que funciona bien. Verde en los dos arneses. |
 | `apps/web/middleware.ts` | LIBRE | — | — |
 | `apps/web/next.config.mjs` | LIBRE | — | — |
 | `apps/web/lib/server/db.ts` | LIBRE | — | — |
