@@ -25,6 +25,22 @@ index 0000000..2b8a211
 +  }
 +  return <FichaEquipo id={id} />
 +}
+diff --git a/apps/web/app/(app)/(shell)/space-eyes/nuevo/page.tsx b/apps/web/app/(app)/(shell)/space-eyes/nuevo/page.tsx
+new file mode 100644
+index 0000000..8c24889
+--- /dev/null
++++ b/apps/web/app/(app)/(shell)/space-eyes/nuevo/page.tsx
+@@ -0,0 +1,10 @@
++'use client'
++
++import { AltaDispositivo } from '@/components/demo/space-eyes/AltaDispositivo'
++
++// Alta de un equipo Space Eyes. No hay formulario que "cree" el equipo: el
++// agente se registra solo al arrancar, así que esta pantalla entrega el
++// instalador de cada tipo y el testigo con el que nace asignado a la empresa.
++export default function NuevoDispositivoPage() {
++  return <AltaDispositivo />
++}
 diff --git a/apps/web/app/(app)/(shell)/space-eyes/page.tsx b/apps/web/app/(app)/(shell)/space-eyes/page.tsx
 new file mode 100644
 index 0000000..eddf649
@@ -227,6 +243,54 @@ index 0000000..88e704e
 +    return respuestaError(e)
 +  }
 +}
+diff --git a/apps/web/app/api/space-eyes/alta/route.ts b/apps/web/app/api/space-eyes/alta/route.ts
+new file mode 100644
+index 0000000..c09a5f7
+--- /dev/null
++++ b/apps/web/app/api/space-eyes/alta/route.ts
+@@ -0,0 +1,42 @@
++import { NextResponse } from 'next/server'
++import { exigir } from '@/lib/server/auth'
++import { infoDeAlta, testigoCompleto, spaceEyeHabilitado } from '@/lib/server/space-eye'
++import { respuestaError } from '@/lib/server/errores'
++
++export const runtime = 'nodejs'
++export const dynamic = 'force-dynamic'
++
++// ============================================================================
++//  GET /api/space-eyes/alta — lo que hace falta para dar de alta un equipo.
++// ----------------------------------------------------------------------------
++//  Devuelve de dónde se baja el instalador de cada tipo de equipo, con su
++//  versión y su huella, y si esta instancia tiene testigo de alta configurado.
++//
++//  EL TESTIGO COMPLETO SOLO CON `?testigo=1`, y solo para quien puede dar de
++//  alta (`inventario.crear`). Por omisión viaja únicamente el prefijo, que es
++//  lo que se puede enseñar en una pantalla sin repartir la credencial: pintarlo
++//  entero al cargar la página lo dejaría en el historial del navegador, en
++//  cualquier captura de pantalla y en la consola de red de quien pase por ahí.
++//  Se pide a propósito, con un clic, y el registro de esa petición queda.
++// ============================================================================
++
++export async function GET(req: Request) {
++  const quiereTestigo = new URL(req.url).searchParams.get('testigo') === '1'
++
++  // Ver los instaladores es parte de consultar el inventario; llevarse la
++  // credencial que asigna un equipo a la empresa, no.
++  const g = await exigir('inventario', quiereTestigo ? 'crear' : 'ver')
++  if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
++
++  if (!spaceEyeHabilitado()) {
++    return NextResponse.json({ error: 'La integración con Space Eye no está configurada' }, { status: 503 })
++  }
++
++  try {
++    const info = await infoDeAlta()
++    if (!quiereTestigo) return NextResponse.json(info)
++    return NextResponse.json({ ...info, testigoCompleto: testigoCompleto() })
++  } catch (e) {
++    return respuestaError(e)
++  }
++}
 diff --git a/apps/web/app/api/space-eyes/route.ts b/apps/web/app/api/space-eyes/route.ts
 new file mode 100644
 index 0000000..e81a23e
@@ -343,12 +407,417 @@ index 089e775..d9c049f 100644
    // ─── Vender ──────────────────────────────────────────────────────────────
    // En el orden en que se hace: a quién le vendes, qué le enseñas, si está
    // libre en esas fechas, y la propuesta que sale de ahí.
+diff --git a/apps/web/components/demo/space-eyes/AltaDispositivo.tsx b/apps/web/components/demo/space-eyes/AltaDispositivo.tsx
+new file mode 100644
+index 0000000..182f006
+--- /dev/null
++++ b/apps/web/components/demo/space-eyes/AltaDispositivo.tsx
+@@ -0,0 +1,399 @@
++'use client'
++
++import { useCallback, useEffect, useState } from 'react'
++import Link from 'next/link'
++import {
++  AlertTriangle,
++  Check,
++  ChevronLeft,
++  Copy,
++  Cpu,
++  Download,
++  Eye,
++  Loader2,
++  MonitorSmartphone,
++  Smartphone,
++} from 'lucide-react'
++import { cn } from '@/lib/cn'
++import { Button } from '@/components/demo/ui/Button'
++import { infoAltaApi, testigoDeAltaApi, type Descarga, type InfoAlta } from '@/lib/data/space-eyes-api'
++
++// ============================================================================
++//  Agregar un dispositivo a Space Eyes.
++//
++//  UN EQUIPO SE DA DE ALTA SOLO: se instala el agente, arranca, se registra y
++//  aparece en la lista. Esta pantalla no «crea» nada — no hay un formulario que
++//  invente un equipo que todavía no existe, porque un equipo inventado es una
++//  fila que nunca reporta y que nadie sabe si está mal instalada o no existe.
++//
++//  Lo que sí resuelve son las dos cosas que no se resuelven solas: de dónde se
++//  baja el instalador de cada tipo, y con qué credencial nace el equipo ya
++//  asignado a esta empresa.
++//
++//  CADA TIPO DICE LA VERDAD DE SU FLUJO. Hoy el agente de PC y el de Raspberry
++//  llevan testigo de alta y nacen con dueño; la APK de Android todavía no, así
++//  que nace sin asignar y hay que asignarla. Enseñar los tres iguales sería más
++//  bonito y mandaría a alguien a buscar un campo que no existe.
++// ============================================================================
++
++type Tipo = 'android' | 'pc' | 'pi'
++
++const TIPOS: { id: Tipo; etiqueta: string; icono: typeof Smartphone }[] = [
++  { id: 'android', etiqueta: 'Celular Android', icono: Smartphone },
++  { id: 'pc', etiqueta: 'PC + cámara IP', icono: MonitorSmartphone },
++  { id: 'pi', etiqueta: 'Raspberry Pi', icono: Cpu },
++]
++
++export function AltaDispositivo() {
++  const [tipo, setTipo] = useState<Tipo>('android')
++  const [info, setInfo] = useState<InfoAlta | null>(null)
++  const [cargando, setCargando] = useState(true)
++  const [error, setError] = useState<string | null>(null)
++
++  useEffect(() => {
++    void (async () => {
++      try {
++        setInfo(await infoAltaApi())
++      } catch (e) {
++        setError(e instanceof Error ? e.message : 'No se pudo consultar Space Eyes')
++      }
++      setCargando(false)
++    })()
++  }, [])
++
++  return (
++    <div className="w-full space-y-4 p-6">
++      <Link href="/space-eyes" className="inline-flex items-center gap-1.5 text-[12px] text-muted hover:text-ink">
++        <ChevronLeft className="h-3.5 w-3.5" /> Space Eyes
++      </Link>
++
++      <div className="flex items-center gap-3">
++        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-2 text-ink">
++          <Eye className="h-5 w-5" strokeWidth={1.75} />
++        </span>
++        <div className="min-w-0 flex-1">
++          <h1 className="text-lg font-semibold text-ink">Agregar dispositivo</h1>
++          <p className="text-[13px] text-muted">
++            Instala el agente en el equipo y aparecerá solo en la lista. Elige de qué tipo es.
++          </p>
++        </div>
++      </div>
++
++      {/* El mismo selector de vía de Inventario */}
++      <div className="inline-flex rounded-md border border-border bg-surface p-0.5 text-[13px]">
++        {TIPOS.map((t) => {
++          const Icono = t.icono
++          return (
++            <button
++              key={t.id}
++              type="button"
++              onClick={() => setTipo(t.id)}
++              className={cn(
++                'inline-flex items-center gap-1.5 rounded px-3 py-1.5 transition-colors duration-150',
++                tipo === t.id ? 'bg-surface-2 font-medium text-ink' : 'text-muted hover:text-ink',
++              )}
++            >
++              <Icono className="h-3.5 w-3.5" /> {t.etiqueta}
++            </button>
++          )
++        })}
++      </div>
++
++      {cargando ? (
++        <div className="h-64 animate-pulse rounded-md bg-surface-2" />
++      ) : error ? (
++        <div className="flex items-start gap-2 rounded-md border border-[#dc262640] bg-error-soft p-3 text-[12px]">
++          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-error" />
++          <div>
++            <div className="font-medium text-ink">No se pudo preparar el alta</div>
++            <div className="text-muted">{error}</div>
++          </div>
++        </div>
++      ) : (
++        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
++          <div className="rounded-md border border-border bg-surface">
++            {tipo === 'android' && <Android info={info!} />}
++            {tipo === 'pc' && <Pc info={info!} />}
++            {tipo === 'pi' && <Pi info={info!} />}
++          </div>
++
++          <div className="space-y-3">
++            <TestigoDeAlta info={info!} />
++            <div className="rounded-md border border-border bg-surface p-3">
++              <div className="text-[11px] uppercase tracking-wide text-muted">¿Falta quién lo instale?</div>
++              <p className="mt-2 text-[12px] text-muted">
++                Las cuentas de quienes entran a SPACE OS se dan de alta en Administración. Para instalar un equipo en
++                sitio no hace falta cuenta: el agente se registra solo.
++              </p>
++              <Link
++                href="/administracion"
++                className="mt-2 inline-flex text-[12px] font-medium text-accent hover:underline"
++              >
++                Ir a Administración →
++              </Link>
++            </div>
++          </div>
++        </div>
++      )}
++    </div>
++  )
++}
++
++// ─── El testigo: la credencial que hace que el equipo nazca con dueño ───────
++function TestigoDeAlta({ info }: { info: InfoAlta }) {
++  const [completo, setCompleto] = useState<string | null>(null)
++  const [pidiendo, setPidiendo] = useState(false)
++  const [copiado, setCopiado] = useState(false)
++
++  const revelar = useCallback(async () => {
++    setPidiendo(true)
++    try {
++      const d = await testigoDeAltaApi()
++      setCompleto(d.testigoCompleto ?? '')
++    } catch {
++      setCompleto('')
++    }
++    setPidiendo(false)
++  }, [])
++
++  async function copiar() {
++    if (!completo) return
++    try {
++      await navigator.clipboard.writeText(completo)
++      setCopiado(true)
++      setTimeout(() => setCopiado(false), 2500)
++    } catch {
++      /* si el navegador no deja, queda a la vista para copiar a mano */
++    }
++  }
++
++  if (!info.testigo.hay) {
++    return (
++      <div className="rounded-md border border-[#f59e0b40] bg-warning-soft p-3">
++        <div className="text-[11px] uppercase tracking-wide text-ink">Sin testigo de alta</div>
++        <p className="mt-2 text-[12px] text-ink">
++          Esta instancia no tiene testigo configurado, así que los equipos nuevos van a nacer <b>sin empresa
++          asignada</b> y habrá que asignarlos a mano. No es un error: los equipos funcionan igual.
++        </p>
++        <p className="mt-2 text-[12px] text-muted">
++          Para cerrarlo hace falta un testigo de alta de Space Eye en la variable{' '}
++          <code className="rounded bg-surface-2 px-1 py-0.5">SPACE_EYE_PROVISION_TOKEN</code>.
++        </p>
++      </div>
++    )
++  }
++
++  return (
++    <div className="rounded-md border border-border bg-surface p-3">
++      <div className="text-[11px] uppercase tracking-wide text-muted">Testigo de alta</div>
++      <p className="mt-2 text-[12px] text-muted">
++        Es lo que hace que el equipo nazca ya asignado{info.empresa ? ` a ${info.empresa}` : ''}. No sirve para leer
++        nada: solo para que un equipo nuevo diga de quién es.
++      </p>
++
++      <div className="mt-2 flex items-center gap-2">
++        <code className="flex-1 truncate rounded bg-surface-2 px-2 py-1.5 text-[12px] text-ink">
++          {completo ? completo : `${info.testigo.prefijo}…`}
++        </code>
++        {completo ? (
++          <Button variant="secondary" size="sm" onClick={copiar} aria-label="Copiar el testigo">
++            {copiado ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
++          </Button>
++        ) : (
++          <Button variant="secondary" size="sm" onClick={revelar} disabled={pidiendo}>
++            {pidiendo ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
++            Ver
++          </Button>
++        )}
++      </div>
++      <p className="mt-2 text-[11px] text-muted">
++        Trátalo como una contraseña: viaja dentro del instalador y se revoca desde Space Eye si se filtra.
++      </p>
++    </div>
++  )
++}
++
++// ─── Los tres flujos ────────────────────────────────────────────────────────
++function Android({ info }: { info: InfoAlta }) {
++  return (
++    <>
++      <Cabecera
++        titulo="Celular Android"
++        pie="Un teléfono con la APK de Space Eyes. Es el equipo más común de la flota."
++      />
++      <ol className="divide-y divide-border">
++        <Paso n={1} titulo="Descarga la APK en el teléfono">
++          <p>
++            Abre esta dirección desde el navegador del propio teléfono, o pásala por un cable. Android va a pedir
++            permiso para instalar de un origen desconocido; es normal.
++          </p>
++          <Bajar d={info.apk} nombre="space-eye.apk" />
++        </Paso>
++        <Paso n={2} titulo="Instálala y ábrela una vez">
++          <p>
++            La aplicación ya trae dentro la dirección del servidor, así que <b>no pregunta nada</b>: al abrirla se
++            registra sola y se queda trabajando en segundo plano. Conviene dejar el teléfono conectado a la corriente y
++            quitarle el ahorro de energía.
++          </p>
++        </Paso>
++        <Paso n={3} titulo="Asígnalo a la empresa">
++          <div className="flex items-start gap-2 rounded-md border border-[#f59e0b40] bg-warning-soft p-2.5 text-ink">
++            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" strokeWidth={1.9} />
++            <div>
++              <b>Este paso todavía es a mano para los teléfonos.</b> La APK{' '}
++              {info.apk?.version ? `(v${info.apk.version})` : ''} aún no lleva el testigo de alta, así que el equipo
++              aparece <b>sin empresa</b> y hay que asignarlo desde el panel de Space Eye. Los agentes de PC y de
++              Raspberry sí lo llevan y nacen asignados.
++            </div>
++          </div>
++        </Paso>
++        <Paso n={4} titulo="Compruébalo aquí">
++          <p>
++            En menos de un minuto debe aparecer en la lista de Space Eyes, en línea y con su primera foto.
++          </p>
++          <Link href="/space-eyes" className="inline-flex text-[12px] font-medium text-accent hover:underline">
++            Volver a la lista →
++          </Link>
++        </Paso>
++      </ol>
++    </>
++  )
++}
++
++function Pc({ info }: { info: InfoAlta }) {
++  return (
++    <>
++      <Cabecera
++        titulo="PC + cámara IP"
++        pie="Para sitios donde en lugar de un teléfono hay una cámara fija (HiLook / Hikvision) y una PC encendida."
++      />
++      <ol className="divide-y divide-border">
++        <Paso n={1} titulo="Copia los tres archivos a la PC, en la misma carpeta">
++          <p>
++            El programa, <code>ffmpeg.exe</code> —solo lo necesita la vista en vivo— y un archivo de texto llamado{' '}
++            <code>testigo.txt</code> con el testigo de alta dentro, en una sola línea.
++          </p>
++          <Bajar d={info.agentePc} nombre="SpaceEyeAgente.exe" />
++          <a
++            href={`${info.servidor}/ffmpeg.exe`}
++            className="inline-flex items-center gap-1.5 text-[12px] font-medium text-accent hover:underline"
++          >
++            <Download className="h-3.5 w-3.5" /> ffmpeg.exe
++          </a>
++        </Paso>
++        <Paso n={2} titulo="Clic derecho → Ejecutar como administrador">
++          <p>
++            Se abre solo un formulario en el navegador: IP de la cámara, usuario y clave. El botón «Probar cámara»
++            enseña la foto ahí mismo, para confirmar el encuadre sin ir a buscar ningún archivo.
++          </p>
++        </Paso>
++        <Paso n={3} titulo="Instalar">
++          <p>
++            El instalador recoge el testigo solo y lo dice en pantalla antes de instalar. Al terminar deja el arranque
++            automático puesto: si se reinicia la PC, el agente vuelve solo.
++          </p>
++        </Paso>
++        <Paso n={4} titulo="Compruébalo aquí">
++          <p>El equipo aparece en la lista ya asignado{info.empresa ? ` a ${info.empresa}` : ''}.</p>
++          <Link href="/space-eyes" className="inline-flex text-[12px] font-medium text-accent hover:underline">
++            Volver a la lista →
++          </Link>
++        </Paso>
++      </ol>
++    </>
++  )
++}
++
++function Pi({ info }: { info: InfoAlta }) {
++  return (
++    <>
++      <Cabecera
++        titulo="Raspberry Pi + cámara"
++        pie="Para espectaculares sin teléfono ni PC: una Pi con su cámara, pensada para estar a la intemperie."
++      />
++      <ol className="divide-y divide-border">
++        <Paso n={1} titulo="Copia el agente a la Pi">
++          <Bajar d={info.agentePi} nombre="space-eye-pi-agent.tar.gz" />
++          <pre className="mt-1 overflow-x-auto rounded bg-surface-2 px-2.5 py-2 text-[11px] text-ink">
++            {`scp space-eye-pi-agent.tar.gz pi@<la-pi>:~/\nssh pi@<la-pi>\ntar xzf space-eye-pi-agent.tar.gz && cd pi-agent && npm install`}
++          </pre>
++        </Paso>
++        <Paso n={2} titulo="Escribe su configuración">
++          <p>
++            Copia <code>config.example.json</code> a <code>config.json</code> y pega el testigo en{' '}
++            <code>testigo_de_alta</code>. Si el sitio sale a internet por un módem con SIM, pon también{' '}
++            <code>&quot;enlace&quot;: &quot;lte&quot;</code> para que su consumo se cuente como datos móviles.
++          </p>
++          <pre className="mt-1 overflow-x-auto rounded bg-surface-2 px-2.5 py-2 text-[11px] text-ink">
++            {`{\n  "server_url": "${info.servidor}",\n  "testigo_de_alta": "${info.testigo.prefijo || 'se_'}…"\n}`}
++          </pre>
++        </Paso>
++        <Paso n={3} titulo="Arráncalo y déjalo como servicio">
++          <pre className="mt-1 overflow-x-auto rounded bg-surface-2 px-2.5 py-2 text-[11px] text-ink">
++            {`npm run probar-camara   # dice qué cámara encontró\nnpm start               # arranca el agente`}
++          </pre>
++          <p>
++            Si la Pi reporta falta de voltaje al arrancar, cámbiale la fuente antes de dejarla: es la causa más común
++            de que se comporte raro.
++          </p>
++        </Paso>
++        <Paso n={4} titulo="Compruébalo aquí">
++          <p>El equipo aparece en la lista ya asignado{info.empresa ? ` a ${info.empresa}` : ''}.</p>
++          <Link href="/space-eyes" className="inline-flex text-[12px] font-medium text-accent hover:underline">
++            Volver a la lista →
++          </Link>
++        </Paso>
++      </ol>
++    </>
++  )
++}
++
++// ─── Piezas ─────────────────────────────────────────────────────────────────
++function Cabecera({ titulo, pie }: { titulo: string; pie: string }) {
++  return (
++    <div className="border-b border-border px-3 py-2.5">
++      <div className="text-[13px] font-medium text-ink">{titulo}</div>
++      <p className="text-[12px] text-muted">{pie}</p>
++    </div>
++  )
++}
++
++function Paso({ n, titulo, children }: { n: number; titulo: string; children: React.ReactNode }) {
++  return (
++    <li className="flex gap-3 px-3 py-3">
++      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-surface-2 text-[11px] font-medium text-ink">
++        {n}
++      </span>
++      <div className="min-w-0 flex-1">
++        <div className="text-[13px] font-medium text-ink">{titulo}</div>
++        <div className="mt-1 flex flex-col items-start gap-2 text-[12px] text-muted [&_code]:rounded [&_code]:bg-surface-2 [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-[11px] [&_code]:text-ink">
++          {children}
++        </div>
++      </div>
++    </li>
++  )
++}
++
++function Bajar({ d, nombre }: { d: Descarga | null; nombre: string }) {
++  if (!d) {
++    return (
++      <span className="text-[12px] text-muted">
++        {nombre}: no está publicado en este servidor todavía.
++      </span>
++    )
++  }
++  const mb = d.bytes != null ? `${(d.bytes / 1024 ** 2).toFixed(1)} MB` : null
++  return (
++    <a
++      href={d.url}
++      className="inline-flex items-center gap-1.5 rounded border border-border-strong bg-surface px-2.5 py-1.5 text-[12px] font-medium text-ink hover:bg-surface-2"
++    >
++      <Download className="h-3.5 w-3.5 text-accent" />
++      {nombre}
++      <span className="font-normal text-muted">
++        {d.version ? `v${d.version}` : ''}
++        {mb ? ` · ${mb}` : ''}
++      </span>
++    </a>
++  )
++}
 diff --git a/apps/web/components/demo/space-eyes/FichaEquipo.tsx b/apps/web/components/demo/space-eyes/FichaEquipo.tsx
 new file mode 100644
-index 0000000..d636a20
+index 0000000..7f6f66b
 --- /dev/null
 +++ b/apps/web/components/demo/space-eyes/FichaEquipo.tsx
-@@ -0,0 +1,728 @@
+@@ -0,0 +1,736 @@
 +'use client'
 +
 +import { useCallback, useEffect, useRef, useState } from 'react'
@@ -360,6 +829,7 @@ index 0000000..d636a20
 +  CheckCircle2,
 +  ChevronLeft,
 +  CircleHelp,
++  Eye,
 +  Columns2,
 +  Download,
 +  Loader2,
@@ -561,10 +1031,10 @@ index 0000000..d636a20
 +  if (error || !equipo) {
 +    return (
 +      <div className="w-full p-5 lg:p-6">
-+        <Link href="/space-eyes" className="inline-flex items-center gap-1.5 text-[12.5px] text-muted hover:text-ink">
++        <Link href="/space-eyes" className="inline-flex items-center gap-1.5 text-[12px] text-muted hover:text-ink">
 +          <ChevronLeft className="h-3.5 w-3.5" /> Space Eyes
 +        </Link>
-+        <div className="mt-4 flex items-start gap-2 rounded-md border border-[#dc262640] bg-error-soft p-3 text-[12.5px]">
++        <div className="mt-4 flex items-start gap-2 rounded-md border border-[#dc262640] bg-error-soft p-3 text-[12px]">
 +          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-error" />
 +          <div>
 +            <div className="font-medium text-ink">No se pudo abrir el equipo</div>
@@ -578,22 +1048,27 @@ index 0000000..d636a20
 +  const senal = calidadSenal(equipo.senalDbm)
 +
 +  return (
-+    <div className="w-full p-5 lg:p-6">
++    <div className="w-full space-y-4 p-6">
 +      {/* Migas */}
-+      <Link href="/space-eyes" className="inline-flex items-center gap-1.5 text-[12.5px] text-muted hover:text-ink">
++      <Link href="/space-eyes" className="inline-flex items-center gap-1.5 text-[12px] text-muted hover:text-ink">
 +        <ChevronLeft className="h-3.5 w-3.5" /> Space Eyes
 +      </Link>
 +
-+      {/* Encabezado */}
-+      <div className="mt-2 flex flex-wrap items-start gap-4">
++      {/* El encabezado de Inventario, exacto: icono en cuadro de 40, titulo de
++          18 px y subtitulo de 13. El nombre de un equipo no manda mas que el de
++          un modulo; antes era un serif de 24 px y se veia de otra casa. */}
++      <div className="flex flex-wrap items-center gap-3">
++        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-2 text-ink">
++          <Eye className="h-5 w-5" strokeWidth={1.75} />
++        </span>
 +        <div className="min-w-0 flex-1">
-+          <div className="flex flex-wrap items-center gap-2.5">
-+            <h1 className="font-display text-[24px] font-semibold tracking-tight text-ink">{equipo.nombre}</h1>
++          <div className="flex flex-wrap items-center gap-2">
++            <h1 className="truncate text-lg font-semibold text-ink">{equipo.nombre}</h1>
 +            <PildoraConexion online={enLinea} />
 +          </div>
-+          <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12.5px] text-muted">
++          <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-muted">
 +            {equipo.empresa && (
-+              <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[11px] font-semibold text-ink">{equipo.empresa}</span>
++              <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[11px] font-medium text-ink">{equipo.empresa}</span>
 +            )}
 +            {pantalla ? (
 +              <Link href={`/comercial?sitio=${pantalla.id}`} className="inline-flex items-center gap-1.5 hover:text-ink">
@@ -655,7 +1130,7 @@ index 0000000..d636a20
 +      {avisoCaptura && (
 +        <div
 +          className={cn(
-+            'mt-3 rounded-md border p-2.5 text-[12.5px]',
++            'rounded-md border p-2.5 text-[12px]',
 +            captura === 'encolada'
 +              ? 'border-[#f59e0b40] bg-warning-soft text-ink'
 +              : captura === 'llegó'
@@ -667,11 +1142,12 @@ index 0000000..d636a20
 +        </div>
 +      )}
 +
-+      <div className="mt-4 flex flex-col gap-4 xl:flex-row">
++      <div className="flex flex-col gap-4 xl:flex-row">
 +        {/* ── La fotografía ── */}
-+        <div className="min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-surface">
++        <div className="min-w-0 flex-1 overflow-hidden rounded-md border border-border bg-surface">
 +          {/* Selector de origen */}
-+          <div className="flex flex-wrap items-center gap-1.5 border-b border-border p-2.5">
++          <div className="flex flex-wrap items-center gap-2 border-b border-border p-2.5">
++            <div className="inline-flex rounded-md border border-border bg-surface p-0.5 text-[13px]">
 +            <Pestana activa={vista === 'equipo'} onClick={() => setVista('equipo')} icono={<Camera className="h-3.5 w-3.5" />}>
 +              Captura Space Eyes
 +            </Pestana>
@@ -686,6 +1162,7 @@ index 0000000..d636a20
 +            >
 +              Comparar
 +            </Pestana>
++            </div>
 +          </div>
 +
 +          {/* Imagen + barra de estado encima */}
@@ -795,7 +1272,7 @@ index 0000000..d636a20
 +                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/70">
 +                  <Loader2 className="h-9 w-9 animate-spin text-white" strokeWidth={1.5} />
 +                  <div className="text-[14px] font-medium text-white">Pidiéndole la foto al equipo…</div>
-+                  <div className="text-[12.5px] text-white/70">Suele tardar entre 5 y 20 segundos</div>
++                  <div className="text-[12px] text-white/70">Suele tardar entre 5 y 20 segundos</div>
 +                </div>
 +              )}
 +            </div>
@@ -803,7 +1280,7 @@ index 0000000..d636a20
 +
 +          {/* Veredicto de IA + capturas recientes */}
 +          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-border p-3">
-+            {fotoEquipo ? <Veredicto foto={fotoEquipo} /> : <span className="text-[12.5px] text-muted">Sin capturas</span>}
++            {fotoEquipo ? <Veredicto foto={fotoEquipo} /> : <span className="text-[12px] text-muted">Sin capturas</span>}
 +            {fotoEquipo?.ancho && (
 +              <>
 +                <span className="h-4 w-px bg-border" />
@@ -821,7 +1298,7 @@ index 0000000..d636a20
 +
 +            {fotos.length > 1 && (
 +              <div className="ml-auto flex items-center gap-1.5">
-+                <span className="text-[11.5px] text-muted">Recientes</span>
++                <span className="text-[11px] text-muted">Recientes</span>
 +                {fotos.slice(0, 5).map((f, i) => (
 +                  <button
 +                    key={`${f.url}-${i}`}
@@ -849,11 +1326,11 @@ index 0000000..d636a20
 +        <div className="flex w-full shrink-0 flex-col gap-3 xl:w-[340px]">
 +          <Tarjeta titulo="Energía">
 +            <div className="flex items-baseline gap-2">
-+              <span className="font-display text-[28px] font-semibold leading-none text-ink">
++              <span className="text-lg font-semibold leading-none text-ink">
 +                {equipo.bateriaPct != null ? `${equipo.bateriaPct}%` : '—'}
 +              </span>
 +              {equipo.cargando != null && (
-+                <span className={cn('text-[12.5px]', equipo.cargando ? 'text-success' : 'text-muted')}>
++                <span className={cn('text-[12px]', equipo.cargando ? 'text-success' : 'text-muted')}>
 +                  {equipo.cargando ? 'cargando' : 'sin cargar'}
 +                </span>
 +              )}
@@ -877,7 +1354,7 @@ index 0000000..d636a20
 +
 +          <Tarjeta titulo="Conexión">
 +            <div className="flex items-center gap-2.5">
-+              <Senal dbm={equipo.senalDbm} tipo={equipo.redTipo} operador={equipo.redOperador} className="text-[13.5px]" />
++              <Senal dbm={equipo.senalDbm} tipo={equipo.redTipo} operador={equipo.redOperador} className="text-[13px]" />
 +              <span className="text-[12px] text-muted">
 +                {senal.texto}
 +                {equipo.senalDbm != null ? ` · ${equipo.senalDbm} dBm` : ''}
@@ -885,13 +1362,13 @@ index 0000000..d636a20
 +            </div>
 +            {equipo.datos && (equipo.datos.movilMes != null || equipo.datos.wifiMes != null) && (
 +              <div className="mt-3 border-t border-border pt-3">
-+                <div className="flex items-baseline justify-between text-[11.5px]">
++                <div className="flex items-baseline justify-between text-[11px]">
 +                  <span className="text-muted">Datos de este mes</span>
 +                  <span className="tabular-nums text-ink">
 +                    {gigas((equipo.datos.movilMes ?? 0) + (equipo.datos.wifiMes ?? 0))}
 +                  </span>
 +                </div>
-+                <div className="mt-2 flex gap-4 text-[11.5px] text-muted">
++                <div className="mt-2 flex gap-4 text-[11px] text-muted">
 +                  <span>Móvil {gigas(equipo.datos.movilMes)}</span>
 +                  <span>WiFi {gigas(equipo.datos.wifiMes)}</span>
 +                </div>
@@ -910,14 +1387,14 @@ index 0000000..d636a20
 +                </div>
 +                <div className="min-w-0">
 +                  <div className="truncate text-[13px] font-medium text-ink">{pantalla.nombre}</div>
-+                  <div className="text-[11.5px] tabular-nums text-muted">{equipo.codigoPantalla}</div>
++                  <div className="text-[11px] tabular-nums text-muted">{equipo.codigoPantalla}</div>
 +                  <Link href={`/comercial?sitio=${pantalla.id}`} className="text-[12px] font-medium text-accent hover:underline">
 +                    Abrir la ficha →
 +                  </Link>
 +                </div>
 +              </div>
 +            ) : (
-+              <p className="text-[12.5px] text-muted">
++              <p className="text-[12px] text-muted">
 +                Ningún sitio de tu inventario tiene el código{' '}
 +                <span className="tabular-nums text-ink">{equipo.codigoPantalla ?? '—'}</span>, así que este equipo no está
 +                enlazado a una pantalla.
@@ -969,7 +1446,7 @@ index 0000000..d636a20
 +      onClick={onClick}
 +      disabled={disabled}
 +      className={cn(
-+        'inline-flex h-8 items-center gap-1.5 rounded-md border px-3 text-[12.5px] font-medium transition-colors',
++        'inline-flex h-8 items-center gap-1.5 rounded-md border px-3 text-[12px] font-medium transition-colors',
 +        activa
 +          ? 'border-accent bg-accent-soft text-accent'
 +          : 'border-border-strong bg-surface text-ink hover:bg-surface-2',
@@ -1001,7 +1478,7 @@ index 0000000..d636a20
 +    <div className="bg-surface">
 +      <div className="flex items-center gap-2 p-2.5">
 +        <span className={cn('rounded px-2 py-0.5 text-[10px] font-bold tracking-[0.07em] text-white', selloClase)}>{sello}</span>
-+        <span className="truncate text-[11.5px] text-muted">{pie}</span>
++        <span className="truncate text-[11px] text-muted">{pie}</span>
 +      </div>
 +      <div className="relative aspect-[4/3] bg-[#12100e]">
 +        {url ? (
@@ -1021,16 +1498,16 @@ index 0000000..d636a20
 +  return (
 +    <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
 +      <CameraOff className="h-7 w-7 text-white/35" strokeWidth={1.4} />
-+      <span className="text-[12.5px] text-white/60">{texto}</span>
++      <span className="text-[12px] text-white/60">{texto}</span>
 +    </div>
 +  )
 +}
 +
 +function Tarjeta({ titulo, children }: { titulo: string; children: React.ReactNode }) {
 +  return (
-+    <div className="rounded-lg border border-border bg-surface p-3.5">
-+      <div className="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted">{titulo}</div>
-+      <div className="mt-2.5">{children}</div>
++    <div className="rounded-md border border-border bg-surface p-3">
++      <div className="text-[11px] uppercase tracking-wide text-muted">{titulo}</div>
++      <div className="mt-2">{children}</div>
 +    </div>
 +  )
 +}
@@ -1038,7 +1515,7 @@ index 0000000..d636a20
 +function Dato({ etiqueta, valor }: { etiqueta: string; valor: string | null }) {
 +  return (
 +    <div>
-+      <div className="text-[11.5px] text-muted">{etiqueta}</div>
++      <div className="text-[11px] text-muted">{etiqueta}</div>
 +      <div className={cn('text-[13px] tabular-nums', valor ? 'text-ink' : 'text-muted')}>{valor ?? 'sin dato'}</div>
 +    </div>
 +  )
@@ -1046,7 +1523,7 @@ index 0000000..d636a20
 +
 +function Fila({ etiqueta, valor }: { etiqueta: string; valor: string | null }) {
 +  return (
-+    <div className="flex items-baseline justify-between gap-3 text-[12.5px]">
++    <div className="flex items-baseline justify-between gap-3 text-[12px]">
 +      <dt className="text-muted">{etiqueta}</dt>
 +      <dd className={cn('text-right', valor ? 'text-ink' : 'text-muted')}>{valor ?? 'sin dato'}</dd>
 +    </div>
@@ -1059,27 +1536,27 @@ index 0000000..d636a20
 +  const pct = foto.score != null ? `${Math.round(foto.score * 100)}%` : null
 +  if (foto.esCorrecta === true) {
 +    return (
-+      <span className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-[#0f7a55]">
++      <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[#0f7a55]">
 +        <CheckCircle2 className="h-4 w-4" strokeWidth={1.8} /> Anuncio correcto{pct ? ` · confianza ${pct}` : ''}
 +      </span>
 +    )
 +  }
 +  if (foto.esCorrecta === false) {
 +    return (
-+      <span className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-error">
++      <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-error">
 +        <XCircle className="h-4 w-4" strokeWidth={1.8} /> No coincide con la creatividad{pct ? ` · ${pct}` : ''}
 +      </span>
 +    )
 +  }
 +  return (
-+    <span className="inline-flex items-center gap-1.5 text-[12.5px] text-muted">
++    <span className="inline-flex items-center gap-1.5 text-[12px] text-muted">
 +      <CircleHelp className="h-4 w-4" strokeWidth={1.8} /> Verificación de IA pendiente
 +    </span>
 +  )
 +}
 diff --git a/apps/web/components/demo/space-eyes/Historial.tsx b/apps/web/components/demo/space-eyes/Historial.tsx
 new file mode 100644
-index 0000000..3af9039
+index 0000000..6dbcc7e
 --- /dev/null
 +++ b/apps/web/components/demo/space-eyes/Historial.tsx
 @@ -0,0 +1,332 @@
@@ -1148,14 +1625,14 @@ index 0000000..3af9039
 +  const hayDatos = serie.some((p) => p.battery_pct != null || p.signal_dbm != null)
 +
 +  return (
-+    <div className="rounded-lg border border-border bg-surface">
++    <div className="rounded-md border border-border bg-surface">
 +      <button
 +        type="button"
 +        onClick={() => setAbierto((v) => !v)}
 +        aria-expanded={abierto}
-+        className="flex w-full items-center gap-2 p-3.5 text-left"
++        className="flex w-full items-center gap-2 p-3 text-left"
 +      >
-+        <span className="flex-1 text-[11px] font-semibold uppercase tracking-[0.07em] text-muted">
++        <span className="flex-1 text-[11px] uppercase tracking-wide text-muted">
 +          Histórico del equipo
 +        </span>
 +        {cargando && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted" />}
@@ -1163,7 +1640,7 @@ index 0000000..3af9039
 +      </button>
 +
 +      {abierto && (
-+        <div className="border-t border-border p-3.5">
++        <div className="border-t border-border p-3">
 +          {/* Los filtros, en una fila sobre las gráficas */}
 +          <div className="flex items-center gap-1.5">
 +            {RANGOS.map((r) => (
@@ -1182,16 +1659,16 @@ index 0000000..3af9039
 +              </button>
 +            ))}
 +            {datos?.muestras != null && (
-+              <span className="ml-auto text-[11.5px] text-muted">{datos.muestras} reportes</span>
++              <span className="ml-auto text-[11px] text-muted">{datos.muestras} reportes</span>
 +            )}
 +          </div>
 +
 +          {error ? (
-+            <p className="mt-3 text-[12.5px] text-muted">{error}</p>
++            <p className="mt-3 text-[12px] text-muted">{error}</p>
 +          ) : !datos && cargando ? (
 +            <div className="mt-3 h-40 animate-pulse rounded-md bg-surface-2" />
 +          ) : !hayDatos ? (
-+            <p className="mt-3 text-[12.5px] text-muted">
++            <p className="mt-3 text-[12px] text-muted">
 +              Este equipo no reportó nada en el rango elegido, así que no hay nada que dibujar. Prueba con un rango más
 +              amplio.
 +            </p>
@@ -1223,7 +1700,7 @@ index 0000000..3af9039
 +              {datos?.alertas && datos.alertas.length > 0 && (
 +                <ul className="mt-4 flex flex-col gap-1.5 border-t border-border pt-3">
 +                  {datos.alertas.map((a, i) => (
-+                    <li key={`${a.type}-${i}`} className="flex items-start gap-2 text-[12.5px]">
++                    <li key={`${a.type}-${i}`} className="flex items-start gap-2 text-[12px]">
 +                      {a.level === 'critical' ? (
 +                        <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-error" strokeWidth={1.9} />
 +                      ) : (
@@ -1239,7 +1716,7 @@ index 0000000..3af9039
 +              <details className="mt-3">
 +                <summary className="cursor-pointer text-[12px] text-muted hover:text-ink">Ver los datos</summary>
 +                <div className="mt-2 max-h-52 overflow-auto">
-+                  <table className="w-full text-[11.5px]">
++                  <table className="w-full text-[11px]">
 +                    <caption className="sr-only">Batería y señal por hora</caption>
 +                    <thead className="sticky top-0 bg-surface text-left text-muted">
 +                      <tr>
@@ -1335,12 +1812,12 @@ index 0000000..3af9039
 +  return (
 +    <figure className={cn('m-0', className)}>
 +      <figcaption className="flex items-baseline gap-2">
-+        <span className="text-[12.5px] font-medium text-ink">{titulo}</span>
-+        <span className="text-[11.5px] text-muted">
++        <span className="text-[12px] font-medium text-ink">{titulo}</span>
++        <span className="text-[11px] text-muted">
 +          {peor != null ? `peor ${peor}${unidad === '%' ? '%' : ` ${unidad}`}` : 'sin dato'}
 +        </span>
 +        {ultimo != null && (
-+          <span className="ml-auto text-[12.5px] tabular-nums text-ink">
++          <span className="ml-auto text-[12px] tabular-nums text-ink">
 +            {ultimo}
 +            {unidad === '%' ? '%' : ` ${unidad}`}
 +          </span>
@@ -1392,7 +1869,7 @@ index 0000000..3af9039
 +
 +        {activoPunto && activoValor != null && (
 +          <div
-+            className="pointer-events-none absolute -top-1 z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-md border border-border bg-surface px-2 py-1 text-[11.5px] shadow-[0_2px_8px_rgba(28,22,18,.12)]"
++            className="pointer-events-none absolute -top-1 z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-md border border-border bg-surface px-2 py-1 text-[11px] shadow-[0_2px_8px_rgba(28,22,18,.12)]"
 +            style={{ left: `${(x(activo!) / W) * 100}%` }}
 +          >
 +            <span className="tabular-nums text-ink">
@@ -1417,10 +1894,10 @@ index 0000000..3af9039
 +}
 diff --git a/apps/web/components/demo/space-eyes/ListaEquipos.tsx b/apps/web/components/demo/space-eyes/ListaEquipos.tsx
 new file mode 100644
-index 0000000..ab5ee6d
+index 0000000..4b358ed
 --- /dev/null
 +++ b/apps/web/components/demo/space-eyes/ListaEquipos.tsx
-@@ -0,0 +1,330 @@
+@@ -0,0 +1,354 @@
 +'use client'
 +
 +import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -1433,6 +1910,7 @@ index 0000000..ab5ee6d
 +  Clock,
 +  Eye,
 +  Loader2,
++  Plus,
 +  RefreshCw,
 +  Search,
 +} from 'lucide-react'
@@ -1442,12 +1920,19 @@ index 0000000..ab5ee6d
 +import { Bateria, PildoraConexion, Senal, estaEnLinea, hace, tonoBateria } from './piezas'
 +
 +// ============================================================================
-+//  Space Eyes — el listado: un centro de monitoreo, no una tabla.
++//  Space Eyes — el listado.
 +//
 +//  La pregunta que contesta esta pantalla no es «qué equipos tengo» sino «hay
 +//  algo que atender ahora mismo». Por eso lo primero son los cuatro números de
 +//  arriba, y por eso cada equipo enseña SU ÚLTIMA FOTO: un equipo que reporta
 +//  bien pero lleva una semana viendo una lona caída solo se nota mirando.
++//
++//  VISTE COMO INVENTARIO, no como un módulo invitado. El encabezado es el mismo
++//  patrón —icono en cuadro de 40, título de 18 px, subtítulo de 13—, el selector
++//  de filtros es el mismo segmentado con el que Inventario elige entre lista,
++//  contrato y carga masiva, y los bordes, radios y tamaños salen de ahí. Lo
++//  único que NO se copia es la tabla: aquí cada fila tiene una fotografía que
++//  vale más que cualquier columna.
 +// ============================================================================
 +
 +type Filtro = 'todos' | 'linea' | 'atencion'
@@ -1520,27 +2005,42 @@ index 0000000..ab5ee6d
 +    .pop()
 +
 +  return (
-+    <div className="w-full p-5 lg:p-6">
-+      {/* Encabezado */}
-+      <div className="flex flex-wrap items-end gap-4">
++    <div className="w-full space-y-4 p-6">
++      {/* El encabezado de Inventario, exacto */}
++      <div className="flex items-center gap-3">
++        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-2 text-ink">
++          <Eye className="h-5 w-5" strokeWidth={1.75} />
++        </span>
 +        <div className="min-w-0 flex-1">
-+          <h1 className="font-display text-[26px] font-semibold tracking-tight text-ink">Space Eyes</h1>
-+          <p className="mt-0.5 text-[13px] text-muted">
++          <h1 className="text-lg font-semibold text-ink">Space Eyes</h1>
++          <p className="text-[13px] text-muted">
 +            Los equipos que vigilan tus pantallas: qué están viendo y cómo están.
 +          </p>
 +        </div>
-+        <Button variant="secondary" size="sm" onClick={() => void sincronizar()} disabled={cargando}>
-+          {cargando ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-2 h-3.5 w-3.5" />}
-+          Actualizar
-+        </Button>
++        <div className="flex items-center gap-2">
++          <Button variant="secondary" size="sm" onClick={() => void sincronizar()} disabled={cargando}>
++            {cargando ? (
++              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
++            ) : (
++              <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
++            )}
++            Actualizar
++          </Button>
++          <Link href="/space-eyes/nuevo">
++            <Button variant="primary" size="sm">
++              <Plus className="mr-1.5 h-3.5 w-3.5" />
++              Agregar dispositivo
++            </Button>
++          </Link>
++        </div>
 +      </div>
 +
 +      {noConfigurado ? (
-+        <div className="mt-5 rounded-md border border-border bg-surface-2 p-4 text-[13px] text-muted">
++        <div className="rounded-md border border-border bg-surface-2 p-4 text-[13px] text-muted">
 +          La integración con Space Eyes no está configurada en este entorno.
 +        </div>
 +      ) : error ? (
-+        <div className="mt-5 flex items-start gap-2 rounded-md border border-[#dc262640] bg-error-soft p-3 text-[12.5px]">
++        <div className="flex items-start gap-2 rounded-md border border-[#dc262640] bg-error-soft p-3 text-[12px]">
 +          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-error" />
 +          <div>
 +            <div className="font-medium text-ink">No se pudo consultar Space Eyes</div>
@@ -1550,7 +2050,7 @@ index 0000000..ab5ee6d
 +      ) : (
 +        <>
 +          {/* Los cuatro números que deciden si hay que hacer algo hoy */}
-+          <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
++          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
 +            <Indicador titulo="En línea" valor={enLinea} pie={`de ${conEstado.length} equipos`} punto="bg-success" />
 +            <Indicador titulo="Sin reportar" valor={caidos} pie="más de 10 min" punto="bg-error" />
 +            <Indicador
@@ -1567,21 +2067,22 @@ index 0000000..ab5ee6d
 +            />
 +          </div>
 +
-+          {/* Filtros */}
-+          <div className="mt-4 flex flex-wrap items-center gap-2">
-+            <Chip activo={filtro === 'todos'} onClick={() => setFiltro('todos')}>
-+              Todos · {conEstado.length}
-+            </Chip>
-+            <Chip activo={filtro === 'linea'} onClick={() => setFiltro('linea')}>
-+              En línea · {enLinea}
-+            </Chip>
-+            <Chip activo={filtro === 'atencion'} onClick={() => setFiltro('atencion')}>
-+              Con atención · {conEstado.filter(necesitaAtencion).length}
-+            </Chip>
++          {/* Filtros: el mismo segmentado de Inventario */}
++          <div className="flex flex-wrap items-center gap-2">
++            <div className="inline-flex rounded-md border border-border bg-surface p-0.5 text-[13px]">
++              <Pestana activa={filtro === 'todos'} onClick={() => setFiltro('todos')}>
++                Todos · {conEstado.length}
++              </Pestana>
++              <Pestana activa={filtro === 'linea'} onClick={() => setFiltro('linea')}>
++                En línea · {enLinea}
++              </Pestana>
++              <Pestana activa={filtro === 'atencion'} onClick={() => setFiltro('atencion')}>
++                Con atención · {conEstado.filter(necesitaAtencion).length}
++              </Pestana>
++            </div>
 +
 +            {empresas.length > 1 && (
 +              <>
-+                <span className="mx-1 h-5 w-px bg-border" />
 +                <label className="sr-only" htmlFor="se-empresa">
 +                  Empresa
 +                </label>
@@ -1589,7 +2090,7 @@ index 0000000..ab5ee6d
 +                  id="se-empresa"
 +                  value={empresa}
 +                  onChange={(e) => setEmpresa(e.target.value)}
-+                  className="h-8 rounded-md border border-border-strong bg-surface px-2 text-[12.5px] text-ink"
++                  className="h-8 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
 +                >
 +                  <option value="todas">Todas las empresas</option>
 +                  {empresas.map((x) => (
@@ -1601,8 +2102,11 @@ index 0000000..ab5ee6d
 +              </>
 +            )}
 +
-+            <div className="ml-auto flex h-8 w-full items-center gap-2 rounded-md border border-border-strong bg-surface px-2.5 sm:w-64">
-+              <Search className="h-3.5 w-3.5 shrink-0 text-muted" strokeWidth={1.8} />
++            <div className="relative ml-auto w-full sm:w-64">
++              <Search
++                className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted"
++                strokeWidth={1.8}
++              />
 +              <label className="sr-only" htmlFor="se-buscar">
 +                Buscar equipo o pantalla
 +              </label>
@@ -1611,26 +2115,26 @@ index 0000000..ab5ee6d
 +                value={busqueda}
 +                onChange={(e) => setBusqueda(e.target.value)}
 +                placeholder="Buscar equipo o pantalla"
-+                className="w-full bg-transparent text-[12.5px] text-ink outline-none placeholder:text-muted"
++                className="h-9 w-full rounded border border-border-strong bg-surface pl-8 pr-3 text-[13px] text-ink outline-none placeholder:text-muted focus-visible:ring-2 focus-visible:ring-accent"
 +              />
 +            </div>
 +          </div>
 +
 +          {/* Rejilla */}
 +          {cargando && !equipos ? (
-+            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
++            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
 +              {[0, 1, 2].map((i) => (
-+                <div key={i} className="h-64 animate-pulse rounded-lg bg-surface-2" />
++                <div key={i} className="h-60 animate-pulse rounded-md bg-surface-2" />
 +              ))}
 +            </div>
 +          ) : visibles.length === 0 ? (
-+            <div className="mt-4 rounded-md border border-border bg-surface-2 p-6 text-center text-[13px] text-muted">
++            <div className="rounded-md border border-border bg-surface-2 px-3 py-10 text-center text-[13px] text-muted">
 +              {conEstado.length === 0
 +                ? 'Todavía no hay equipos Space Eyes dados de alta para esta cuenta.'
 +                : 'Ningún equipo coincide con el filtro.'}
 +            </div>
 +          ) : (
-+            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
++            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
 +              {visibles.map((e) => (
 +                <TarjetaEquipo key={e.id} equipo={e} enLinea={e.enLinea} />
 +              ))}
@@ -1656,25 +2160,27 @@ index 0000000..ab5ee6d
 +  icono?: React.ReactNode
 +}) {
 +  return (
-+    <div className="rounded-lg border border-border bg-surface p-3.5">
-+      <div className="flex items-center gap-1.5 text-[11.5px] text-muted">
++    <div className="rounded-md border border-border bg-surface p-3">
++      <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted">
 +        {punto ? <span className={cn('h-1.5 w-1.5 rounded-full', punto)} /> : icono}
 +        {titulo}
 +      </div>
-+      <div className="mt-1 flex items-baseline gap-1.5">
-+        <span className="font-display text-[26px] font-semibold leading-none text-ink">{valor}</span>
++      <div className="mt-1.5 flex items-baseline gap-1.5">
++        <span className="text-lg font-semibold leading-none text-ink">{valor}</span>
 +        <span className="text-[12px] text-muted">{pie}</span>
 +      </div>
 +    </div>
 +  )
 +}
 +
-+function Chip({
-+  activo,
++// El mismo selector de vía que usa Inventario. Antes eran pastillas negras, que
++// en esta casa no existen en ningún otro módulo.
++function Pestana({
++  activa,
 +  onClick,
 +  children,
 +}: {
-+  activo: boolean
++  activa: boolean
 +  onClick: () => void
 +  children: React.ReactNode
 +}) {
@@ -1683,10 +2189,8 @@ index 0000000..ab5ee6d
 +      type="button"
 +      onClick={onClick}
 +      className={cn(
-+        'h-8 rounded-full border px-3 text-[12.5px] transition-colors',
-+        activo
-+          ? 'border-ink bg-ink text-bg'
-+          : 'border-border-strong bg-surface text-ink hover:bg-surface-2',
++        'inline-flex items-center gap-1.5 rounded px-3 py-1.5 transition-colors duration-150',
++        activa ? 'bg-surface-2 font-medium text-ink' : 'text-muted hover:text-ink',
 +      )}
 +    >
 +      {children}
@@ -1698,7 +2202,7 @@ index 0000000..ab5ee6d
 +  return (
 +    <Link
 +      href={`/space-eyes/${e.id}`}
-+      className="group block overflow-hidden rounded-lg border border-border bg-surface transition-shadow hover:border-border-strong hover:shadow-[0_2px_12px_rgba(28,22,18,.07)]"
++      className="group block overflow-hidden rounded-md border border-border bg-surface transition-colors duration-150 hover:border-border-strong"
 +    >
 +      {/* La última captura manda: es lo que se viene a ver */}
 +      <div className="relative aspect-[16/9] overflow-hidden bg-surface-2">
@@ -1707,45 +2211,42 @@ index 0000000..ab5ee6d
 +          <img
 +            src={e.ultimaFoto.url}
 +            alt={`Última captura de ${e.nombre}`}
-+            className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
++            className="h-full w-full object-cover"
 +          />
 +        ) : (
 +          <div className="flex h-full flex-col items-center justify-center gap-1.5 text-muted">
-+            <CameraOff className="h-6 w-6" strokeWidth={1.4} />
-+            <span className="text-[11.5px]">Sin capturas todavía</span>
++            <CameraOff className="h-5 w-5" strokeWidth={1.4} />
++            <span className="text-[12px]">Sin capturas todavía</span>
 +          </div>
 +        )}
-+        <PildoraConexion online={enLinea} sobreFoto className="absolute left-2.5 top-2.5" />
++        <PildoraConexion online={enLinea} sobreFoto className="absolute left-2 top-2" />
 +        {e.ultimaFoto?.tomadaEn && (
-+          <span className="absolute bottom-2.5 right-2.5 inline-flex items-center gap-1.5 rounded-full bg-black/60 px-2.5 py-1 text-[10.5px] text-white backdrop-blur-sm">
++          <span className="absolute bottom-2 right-2 inline-flex items-center gap-1.5 rounded-full bg-black/60 px-2 py-0.5 text-[10.5px] text-white backdrop-blur-sm">
 +            <Clock className="h-3 w-3" strokeWidth={2} />
 +            {hace(e.ultimaFoto.tomadaEn)}
 +          </span>
 +        )}
 +      </div>
 +
-+      <div className="p-3.5">
-+        <div className="truncate text-[13.5px] font-semibold text-ink">{e.nombre}</div>
-+        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11.5px] text-muted">
-+          {e.empresa && (
-+            <span className="rounded bg-surface-2 px-1.5 py-0.5 font-semibold text-ink">{e.empresa}</span>
-+          )}
++      <div className="p-3">
++        <div className="truncate text-[13px] font-medium text-ink">{e.nombre}</div>
++        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-muted">
++          {e.empresa && <span className="rounded bg-surface-2 px-1.5 py-0.5 font-medium text-ink">{e.empresa}</span>}
 +          {e.pantalla ? (
 +            <span className="truncate">{e.pantalla.nombre}</span>
 +          ) : e.codigoPantalla ? (
-+            <span className="tabular-nums">{e.codigoPantalla}</span>
++            <span className="demo-num">{e.codigoPantalla}</span>
 +          ) : (
 +            <span className="italic">sin pantalla asignada</span>
 +          )}
 +        </div>
 +
-+        <div className="mt-3 flex items-center gap-3 border-t border-border pt-2.5">
++        <div className="mt-2.5 flex items-center gap-3 border-t border-border pt-2.5">
 +          <Bateria pct={e.bateriaPct} />
 +          <Senal dbm={e.senalDbm} tipo={e.redTipo} />
 +          <span className={cn('ml-auto text-[12px]', enLinea ? 'text-muted' : 'font-medium text-error')}>
 +            {hace(e.ultimaConexion)}
 +          </span>
-+          <Eye className="h-4 w-4 shrink-0 text-accent opacity-0 transition-opacity group-hover:opacity-100" strokeWidth={1.8} />
 +        </div>
 +      </div>
 +    </Link>
@@ -1753,7 +2254,7 @@ index 0000000..ab5ee6d
 +}
 diff --git a/apps/web/components/demo/space-eyes/piezas.tsx b/apps/web/components/demo/space-eyes/piezas.tsx
 new file mode 100644
-index 0000000..95c8d23
+index 0000000..cc069f2
 --- /dev/null
 +++ b/apps/web/components/demo/space-eyes/piezas.tsx
 @@ -0,0 +1,158 @@
@@ -1817,7 +2318,7 @@ index 0000000..95c8d23
 +  const tono = tonoBateria(pct)
 +  const Icono = tono === 'rojo' ? BatteryLow : Battery
 +  return (
-+    <span className={cn('inline-flex items-center gap-1.5 text-[12.5px] text-ink', className)}>
++    <span className={cn('inline-flex items-center gap-1.5 text-[12px] text-ink', className)}>
 +      <Icono className={cn('h-4 w-4', TINTA[tono])} strokeWidth={1.8} />
 +      {pct == null ? <span className="text-muted">sin dato</span> : `${pct}%`}
 +    </span>
@@ -1850,7 +2351,7 @@ index 0000000..95c8d23
 +  const Icono = esWifi ? Wifi : tono === 'rojo' ? SignalLow : tono === 'ambar' ? SignalMedium : SignalHigh
 +  const etiqueta = esWifi ? 'WiFi' : (tipo ?? '').toUpperCase() === 'CELLULAR' ? 'Móvil' : (tipo ?? 'sin dato')
 +  return (
-+    <span className={cn('inline-flex items-center gap-1.5 text-[12.5px] text-ink', className)}>
++    <span className={cn('inline-flex items-center gap-1.5 text-[12px] text-ink', className)}>
 +      <Icono className={cn('h-4 w-4', TINTA[tono])} strokeWidth={1.8} />
 +      {etiqueta}
 +      {operador ? <span className="text-muted">· {operador}</span> : null}
@@ -1958,10 +2459,10 @@ index f125d98..bf24b52 100644
  ] as const
 diff --git a/apps/web/lib/data/space-eyes-api.ts b/apps/web/lib/data/space-eyes-api.ts
 new file mode 100644
-index 0000000..c0531d6
+index 0000000..e5733dd
 --- /dev/null
 +++ b/apps/web/lib/data/space-eyes-api.ts
-@@ -0,0 +1,113 @@
+@@ -0,0 +1,144 @@
 +'use client'
 +
 +// ============================================================================
@@ -2075,8 +2576,39 @@ index 0000000..c0531d6
 +export function telemetriaApi(id: number, horas: 24 | 168 | 720 = 24): Promise<Telemetria> {
 +  return leer(`${API}/${id}/telemetria/?horas=${horas}`, { cache: 'no-store' })
 +}
++
++export interface Descarga {
++  url: string
++  version: string | null
++  bytes: number | null
++  publicado: string | null
++  sha256: string | null
++}
++export interface InfoAlta {
++  testigo: { hay: boolean; prefijo: string }
++  empresa: string | null
++  servidor: string
++  apk: Descarga | null
++  agentePc: Descarga | null
++  agentePi: Descarga | null
++  testigoCompleto?: string
++}
++
++/** Lo que hace falta para dar de alta un equipo: instaladores y testigo. */
++export function infoAltaApi(): Promise<InfoAlta> {
++  return leer(`${API}/alta/`, { cache: 'no-store' })
++}
++
++/**
++ * El testigo COMPLETO. Va en una llamada aparte y con un clic de por medio: si
++ * viajara al cargar la pantalla quedaría en el historial, en cualquier captura
++ * y en la consola de red de quien pase por ahí.
++ */
++export function testigoDeAltaApi(): Promise<InfoAlta> {
++  return leer(`${API}/alta/?testigo=1`, { cache: 'no-store' })
++}
 diff --git a/apps/web/lib/server/space-eye.ts b/apps/web/lib/server/space-eye.ts
-index 4963aaa..04ea49f 100644
+index 4963aaa..415ce36 100644
 --- a/apps/web/lib/server/space-eye.ts
 +++ b/apps/web/lib/server/space-eye.ts
 @@ -15,45 +15,26 @@ import 'server-only'
@@ -2157,7 +2689,7 @@ index 4963aaa..04ea49f 100644
      foto = photos.filter((p) => p.device_id === dev.id)[0]
    } catch {
      /* si falla la foto, igual devolvemos el estado del dispositivo */
-@@ -156,3 +139,258 @@ export async function visionDeCodigo(codigoProveedor: string | null | undefined)
+@@ -156,3 +139,347 @@ export async function visionDeCodigo(codigoProveedor: string | null | undefined)
        : null,
    }
  }
@@ -2416,12 +2948,101 @@ index 4963aaa..04ea49f 100644
 +    return null
 +  }
 +}
++
++// ════════════════════════════════════════════════════════════════════════════
++//  ALTA DE UN EQUIPO NUEVO, desde aquí
++// ----------------------------------------------------------------------------
++//  Un equipo se da de alta SOLO: se instala el agente, arranca, se registra y
++//  aparece en la lista. Lo que esta pantalla tiene que resolver son las dos
++//  cosas que no se resuelven solas: de dónde se baja el instalador de cada tipo
++//  de equipo, y con qué credencial nace asignado a esta empresa.
++//
++//  EL TESTIGO DE ALTA VIENE DEL ENTORNO, no se pide al vuelo. Es una credencial
++//  de despliegue, igual que `SPACE_EYE_KEY`: se crea una vez en Space Eye para
++//  esta instancia y se pone aquí. La alternativa —que la instancia pudiera
++//  FABRICAR testigos por su cuenta— convertiría una llave de solo lectura en
++//  una fábrica de credenciales, que es exactamente lo que la separación entre
++//  «llave de lectura» y «testigo de alta» existe para impedir.
++//
++//  Un testigo NO lee nada: solo sirve para que un equipo nuevo diga de quién es.
++// ════════════════════════════════════════════════════════════════════════════
++
++const TESTIGO = process.env.SPACE_EYE_PROVISION_TOKEN ?? ''
++
++export interface SEDescarga {
++  url: string
++  version: string | null
++  bytes: number | null
++  publicado: string | null
++  sha256: string | null
++}
++export interface SEInfoAlta {
++  // Solo el prefijo del testigo viaja por omisión: es lo que se puede enseñar
++  // en pantalla sin repartir la credencial.
++  testigo: { hay: boolean; prefijo: string }
++  empresa: string | null
++  servidor: string
++  apk: SEDescarga | null
++  agentePc: SEDescarga | null
++  agentePi: SEDescarga | null
++}
++
++/** Los manifiestos son públicos (los sirve el mismo servidor, sin sesión). */
++async function manifiesto(archivo: string, descarga: string): Promise<SEDescarga | null> {
++  try {
++    const r = await fetch(`${BASE}/${archivo}`, { cache: 'no-store' })
++    if (!r.ok) return null
++    const d = (await r.json()) as Record<string, unknown>
++    return {
++      url: `${BASE}/${descarga}`,
++      version: d.version != null ? String(d.version) : null,
++      bytes: d.bytes != null ? Number(d.bytes) : null,
++      publicado: d.publicado != null ? String(d.publicado) : null,
++      sha256: d.sha256 != null ? String(d.sha256) : null,
++    }
++  } catch {
++    return null
++  }
++}
++
++export async function infoDeAlta(): Promise<SEInfoAlta> {
++  // De quién son los equipos de esta instancia. Se saca de los que ya hay en
++  // vez de escribirlo en otra variable de entorno: una segunda fuente para el
++  // mismo dato es una segunda fuente que se puede contradecir.
++  let empresa: string | null = null
++  try {
++    const { devices } = await api<{ devices: { owner?: string | null }[] }>('/api/devices')
++    empresa = devices.find((d) => d.owner)?.owner ?? null
++  } catch {
++    empresa = null
++  }
++
++  const [apk, agentePc, agentePi] = await Promise.all([
++    manifiesto('space-eye.json', 'space-eye.apk'),
++    manifiesto('space-eye-agente.json', 'SpaceEyeAgente.exe'),
++    manifiesto('space-eye-pi-agent.json', 'space-eye-pi-agent.tar.gz'),
++  ])
++
++  return {
++    testigo: { hay: Boolean(TESTIGO), prefijo: TESTIGO ? TESTIGO.slice(0, 15) : '' },
++    empresa,
++    servidor: BASE,
++    apk,
++    agentePc,
++    agentePi,
++  }
++}
++
++/** El testigo completo. Se entrega aparte y solo a quien puede dar de alta. */
++export function testigoCompleto(): string {
++  return TESTIGO
++}
 diff --git a/apps/web/lib/test/space-eyes.e2e.test.ts b/apps/web/lib/test/space-eyes.e2e.test.ts
 new file mode 100644
-index 0000000..3ae0173
+index 0000000..f4d84cb
 --- /dev/null
 +++ b/apps/web/lib/test/space-eyes.e2e.test.ts
-@@ -0,0 +1,189 @@
+@@ -0,0 +1,216 @@
 +import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 +import { recrearEsquema, cerrarPool, poolTest } from './db-e2e'
 +import { sembrarTenant, asegurarPermisos, PASSWORD_DEMO } from './semillas-e2e'
@@ -2591,6 +3212,33 @@ index 0000000..3ae0173
 +    )
 +    expect(r.rows.length).toBe(1)
 +    expect(String(r.rows[0].entidad).length).toBeGreaterThan(0)
++  })
++
++  it('el alta enseña los instaladores a quien solo consulta', async () => {
++    const c = new Cliente()
++    await c.entrar(comercial.usuarioEmail, PASSWORD_DEMO)
++    const r = await c.pedir('/api/space-eyes/alta/')
++    expect(r.status).toBe(200)
++    expect(typeof r.datos.servidor).toBe('string')
++    // El prefijo sí, la credencial no: sin pedirla, no viaja.
++    expect(r.datos.testigoCompleto).toBeUndefined()
++  })
++
++  it('el testigo COMPLETO no se le entrega a quien solo consulta', async () => {
++    const c = new Cliente()
++    await c.entrar(comercial.usuarioEmail, PASSWORD_DEMO)
++    const r = await c.pedir('/api/space-eyes/alta/?testigo=1')
++    expect(r.status).toBe(403)
++    expect(JSON.stringify(r.datos)).not.toContain('se_')
++  })
++
++  it('y sí a quien puede dar de alta', async () => {
++    if (!process.env.SPACE_EYE_PROVISION_TOKEN) return
++    const c = new Cliente()
++    await c.entrar(a.usuarioEmail, PASSWORD_DEMO)
++    const r = await c.pedir('/api/space-eyes/alta/?testigo=1')
++    expect(r.status).toBe(200)
++    expect(r.datos.testigoCompleto).toBe(process.env.SPACE_EYE_PROVISION_TOKEN)
 +  })
 +
 +  it('un equipo inventado da 404, no 500', async () => {

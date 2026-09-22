@@ -56,12 +56,13 @@ módulo funciona completo en modo consulta.
 
 ## 3. Lo que hay que aplicar del lado de SPACE OS
 
-**Modificados** (tres archivos):
+**Modificados** (cuatro archivos):
 
 | Archivo | Cambio |
 |---|---|
 | `lib/server/space-eye.ts` | `SPACE_EYE_KEY` en vez de usuario/contraseña (ver §5), y `listarEquipos`, `equipoDetalle`, `pedirCaptura`, `telemetriaDeEquipo` |
 | `components/demo/shell/nav.ts` | grupo `ojos` con la entrada **Space Eyes**, entre Inventario y Comercial |
+| `lib/atajos-404.ts` | un atajo por fase: su prueba exige uno por grupo del menú y total múltiplo de 3 |
 | `app/api/sitios/[id]/space-eye/route.ts` | sin cambios (queda como está) |
 
 **Nuevos:**
@@ -71,19 +72,22 @@ app/api/space-eyes/route.ts                      lista
 app/api/space-eyes/[id]/route.ts                 ficha (equipo + pantalla + galería)
 app/api/space-eyes/[id]/captura/route.ts         pedir foto
 app/api/space-eyes/[id]/telemetria/route.ts      histórico
+app/api/space-eyes/alta/route.ts                 instaladores y testigo de alta
 lib/data/space-eyes-api.ts                       cliente
 components/demo/space-eyes/piezas.tsx            umbrales y pastillas compartidas
 components/demo/space-eyes/ListaEquipos.tsx      listado
 components/demo/space-eyes/FichaEquipo.tsx       ficha
 components/demo/space-eyes/Historial.tsx         gráficas de batería y señal
+components/demo/space-eyes/AltaDispositivo.tsx   alta de un equipo nuevo
 app/(app)/(shell)/space-eyes/page.tsx            pantalla
 app/(app)/(shell)/space-eyes/[id]/page.tsx       ficha
-lib/test/space-eyes.e2e.test.ts                  11 casos e2e (ver §6)
+app/(app)/(shell)/space-eyes/nuevo/page.tsx      alta
+lib/test/space-eyes.e2e.test.ts                  14 casos e2e (ver §6)
 ```
 
 **No hace falta ninguna migración.** Es deliberado, ver §4.
 
-Los quince archivos van juntos en **`docs/space-eyes-modulo.patch`**, al lado de
+Los dieciocho archivos van juntos en **`docs/space-eyes-modulo.patch`**, al lado de
 este documento. Se aplica desde la raíz de `spaces_dooh_new`:
 
 ```bash
@@ -188,3 +192,35 @@ process.env.NODE_ENV === 'production'
 
 Es un arreglo de su lado y lo decide su equipo; aquí queda dicho porque cuesta
 una hora la primera vez que pasa.
+
+## 8. Variables de entorno de la instancia
+
+```
+SPACE_EYE_BASE_URL=https://<space-eye>
+SPACE_EYE_KEY=se_...                 # llave de servicio de ESTA instancia
+SPACE_EYE_PROVISION_TOKEN=se_...     # OPCIONAL: testigo de alta (uso: "alta")
+```
+
+`SPACE_EYE_PROVISION_TOKEN` es lo que hace que un equipo nuevo nazca ya asignado
+a la empresa. Es **opcional**: sin él la pantalla de alta funciona igual y lo
+dice —los equipos nacen sin empresa y se asignan a mano—. Se crea así, y **exige
+dueño**:
+
+```bash
+curl -X POST https://<space-eye>/api/llaves   -H "Authorization: Bearer <token admin>" -H 'Content-Type: application/json'   -d '{"nombre":"testigo de alta g500","uso":"alta","owner":"g500"}'
+```
+
+Un testigo de alta **no lee nada**: solo sirve para que un equipo nuevo diga de
+quién es. Por eso es una credencial distinta de la llave de lectura, y por eso el
+servidor impide usar una en lugar de la otra.
+
+## 9. Lo que la pantalla de alta NO puede prometer todavía
+
+La APK de Android (hoy v0.14.0) **no lleva testigo de alta**: `SetupActivity` se
+registra con la dirección del servidor compilada dentro y no pregunta nada. O sea
+que un teléfono nace **sin empresa** y hay que asignarlo desde el panel de Space
+Eye. Los agentes de PC y de Raspberry sí lo llevan y nacen asignados.
+
+La pantalla lo dice tal cual en su paso 3, en vez de mandar a alguien a buscar un
+campo que no existe. Cerrarlo es trabajo del lado de la APK (Kotlin + versión
+nueva firmada), no de esta integración.
