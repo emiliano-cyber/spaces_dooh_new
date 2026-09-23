@@ -481,3 +481,58 @@ repositorio ha tenido las mismas seis cifras mal tres veces.
   septiembre.
 - **Nadie se entera de un ticket nuevo** si no abre la pantalla. El ADR lo deja
   fuera a propósito.
+
+---
+
+## Tarea 11 · El PATCH del panel — responder y mover el estado
+
+> **Añadida el 2026-09-23, a media ejecución.** El ADR 0038 promete en su tabla
+> «`PATCH` con `x-flota-token` → responder y cambiar el estado», y la tabla de
+> archivos de este plan dice `route.ts` → `GET/POST/PATCH`. **Ninguna de las diez
+> tareas lo implementaba**: las cuatro pruebas de la Tarea 6 son todas del `GET`, y
+> `responderTicket` (`tickets-repo.ts:135`) solo escribe `respuesta`. Lo encontró
+> el implementador de la Tarea 4 y tenía razón.
+>
+> **Va aparte de la Tarea 6 a propósito.** La 6 es la que puede filtrar datos entre
+> organizaciones; engordarla con una segunda responsabilidad diluye justo la
+> revisión que más importa. Leer y escribir son dos riesgos distintos.
+
+**Depende de:** Tarea 6. **Antes de:** Tarea 10.
+
+**Archivos:**
+- Modificar: `apps/web/lib/server/tickets-repo.ts`
+- Modificar: `apps/web/lib/server/tickets-controller.ts`
+- Modificar: `apps/web/app/api/tickets/route.ts`
+- Prueba: `apps/web/lib/server/tickets-repo.test.ts`,
+  `tickets-controller.test.ts` y `tickets.e2e.test.ts`
+
+- [ ] **Paso 1 · Las pruebas en rojo**
+
+```ts
+// repo
+it('escribe solo lo que llega: con estado y sin respuesta, no toca respondido_en', …)
+it('con respuesta, fija respondido_en', …)
+// controlador
+it('rechaza un PATCH sin respuesta NI estado', …)        // 400, no un update vacio
+it('rechaza un estado fuera del enum', …)
+it('rechaza una clave de mas', …)                        // .strict()
+// e2e
+it('PATCH sin x-flota-token NO cambia nada', …)
+it('PATCH con x-flota-token mueve el estado a RESUELTO', …)
+```
+
+- [ ] **Paso 2 · Verlas fallar**, por comportamiento.
+
+- [ ] **Paso 3 · Implementar.** `responderTicket` se convierte en
+  `actualizarTicketDesdePanel(id, { respuesta?, estado? })`, que **escribe solo
+  los campos que llegan** y fija `respondido_en` **únicamente cuando llega
+  `respuesta`**.
+
+> **Y sigue valiendo la decisión de la Tarea 3: responder NO es resolver.** El
+> `PATCH` puede traer las dos cosas, pero mandar una respuesta **no** mueve el
+> estado por su cuenta — quien contesta puede estar pidiendo más datos. Si algún
+> día alguien «mejora» esto haciéndolo automático, esta línea explica por qué no.
+
+- [ ] **Paso 4 · Verlas pasar.**
+- [ ] **Paso 5 · Demostrar por mutación** que muerden, y pegar las dos salidas.
+- [ ] **Paso 6 · Commit** — `feat(tickets): el PATCH del panel, que responde y mueve el estado`
