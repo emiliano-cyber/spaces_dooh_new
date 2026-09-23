@@ -209,7 +209,13 @@ describe('actualizarTicketDesdePanel · escribe solo lo que llega', () => {
     expect(upd.sql, 'una respuesta no fijo respondido_en').toMatch(/respondido_en\s*=\s*now\(\)/)
     // Y responder NO mueve el estado por su cuenta (ruling de la Tarea 3):
     // ninguna columna `estado` en el `set` cuando solo llego `respuesta`.
-    expect(upd.sql, 'responder movio el estado sin que nadie lo pidiera').not.toMatch(/\bestado\s*=\s*\$\d/)
+    //
+    // OJO CON ESTA REGEX, que ya se colo una vez. Decia `estado\s*=\s*\$\d`, o
+    // sea que solo cazaba la asignacion POR PARAMETRO. Un mutante que ponia
+    // `estado = 'RESUELTO'` LITERAL pasaba las 31 unitarias Y las 16 e2e:
+    // medido el 23/09. La regla mas repetida del ADR estaba escrita en tres
+    // sitios y vigilada en ninguno. Se compara contra CUALQUIER asignacion.
+    expect(upd.sql, 'responder movio el estado sin que nadie lo pidiera').not.toMatch(/\bestado\s*=/)
   })
 
   it('con las dos cosas, escribe las dos -- pero cada una en su propio set', async () => {
