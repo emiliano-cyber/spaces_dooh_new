@@ -1,0 +1,95 @@
+# ============================================================================
+#  SPACE EYE V2 — la version nueva, EN PARALELO a la que la gente ya usa.
+# ----------------------------------------------------------------------------
+#  Se levanta con nombre de proyecto propio, asi que sus contenedores, su red y
+#  sus volumenes son OTROS. Producción no se toca ni se reinicia:
+#
+#    docker compose -p space-eye-v2 -f docker-compose.v2.yml --env-file .env.v2 up -d
+#
+#  QUE QUEDA DONDE, AL TERMINAR
+#
+#    http://<ip>:4000               -> V1, la de siempre. Los equipos en campo
+#                                      siguen entrando por aqui, sin enterarse.
+#    https://eyes.g500.space-os.io  -> V2, por el vhost de Apache.
+#
+#  NINGUN PUERTO SE COMPARTE. Producción tiene 4000, 8554, 8889 y 8189/udp; aqui
+#  todo va corrido: 4100, 8654, 8989 y 8289/udp. Si dos pilas pelean un puerto,
+#  la segunda no levanta -y la primera, que es la que usa la gente, tampoco
+#  vuelve si alguien la reinicia-.
+#
+#  MySQL y Redis NO se publican al anfitrion: solo los usa esta pila, por su red
+#  interna. Un puerto que no se abre es un puerto que nadie puede tocar.
+#
+#  COTURN NO SE DUPLICA. El de producción (3478) sirve igual a las dos: es un
+#  relevo de STUN/TURN, no guarda nada de nadie. Levantar otro obligaria a
+#  moverlo de puerto y a tocar el firewall, que es justo lo que no queremos.
+# ============================================================================
+
+services:
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME:-space_eye}
+    # OJO: aqui NO se montan las migraciones en /docker-entrypoint-initdb.d,
+    # al reves que en producción. Esta base nace VACIA a proposito: el script de
+    # despliegue le carga el respaldo de producción y DESPUES corre las
+    # migraciones nuevas sobre esa copia. Asi se ensaya la migracion de verdad
+    # -con los datos de verdad- sin que producción se entere.
+    volumes:
+      - mysql_data_v2:/var/lib/mysql
+    command: >
+      --default-authentication-plugin=mysql_native_password
+      --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+      --innodb-buffer-pool-size=256M
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy noeviction
+    volumes:
+      - redis_data_v2:/data
+
+  backend:
+    build:
+      context: ../../../backend
+    restart: unless-stopped
+    env_file: .env.v2
+    environment:
+      DB_HOST: mysql
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: production
+    ports:
+      - "4100:4000"
+    volumes:
+      - ../../../frontend:/frontend:ro
+      - storage_data_v2:/app/storage
+    depends_on: [mysql, redis]
+
+  ai-worker:
+    build:
+      context: ../../../ai-worker
+    restart: unless-stopped
+    environment:
+      REDIS_URL: redis://redis:6379
+      API_BASE: http://backend:4000
+      WORKER_SECRET: ${WORKER_SECRET}
+    depends_on: [backend, redis]
+
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    restart: unless-stopped
+    environment:
+      MTX_AUTHINTERNALUSERS_1_PASS: ${MEDIAMTX_PASS}
+    volumes:
+      - ../../mediamtx/mediamtx.yml:/mediamtx.yml:ro
+    ports:
+      - "8654:8554"       # RTSP: por donde publicarian los agentes de V2
+      - "8989:8889"       # WHEP: lo consume Apache y lo sirve por el dominio
+      - "8289:8189/udp"   # medios WebRTC
+
+volumes:
+  mysql_data_v2:
+  redis_data_v2:
+  storage_data_v2:
