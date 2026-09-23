@@ -18,6 +18,8 @@ import { verificarAcceso } from './acceso.mjs'
 import { validarSolicitud, CAMPOS, dominioDeAlta, zonaPorOmision } from './solicitudes.mjs'
 import { crearSolicitud as crearEnCola, listar as listarCola } from './cola.mjs'
 import { cargarInventario, consultar, leerReportes, fusionar, resumen, tokenDe, tokensDeArchivo, COLUMNAS } from './estado.mjs'
+import { clasificarFallo } from './diagnostico.mjs'
+import { filasDeTickets, OK as TICKET_OK, SIN_RESPUESTA as TICKET_SIN_RESPUESTA } from './tickets.mjs'
 
 /**
  * Las zonas que gestionamos, para SUGERIR un dominio cuando se deja en blanco.
@@ -46,6 +48,9 @@ export const RUTAS = ['/flota/', '/flota', '/']
 
 /** La pantalla de altas (ADR 0027), con las mismas variantes de prefijo. */
 export const RUTAS_ALTAS = ['/flota/altas/', '/flota/altas', '/altas/', '/altas']
+
+/** La pantalla de tickets (T9, ADR 0038), con las mismas variantes de prefijo. */
+export const RUTAS_TICKETS = ['/flota/tickets/', '/flota/tickets']
 
 /**
  * El panel pone SU PROPIA cookie CSRF.
@@ -84,7 +89,11 @@ const ESTILO = `
   td.sin-respuesta { color: #b00; font-weight: 600 }
   td.rezagada { color: #b60 }
   td.al-dia { color: #070 }
+  td.ok { color: #070; font-weight: 600 }
   tr.motivo td { border-top: 0; padding-top: 0; color: #b60; font-size: 12px }
+  tr.cuerpo-ticket td { border-top: 0; padding-top: 0; font-size: 12px; color: #444 }
+  .sin-dato { color: #b00; font-style: italic }
+  h2 { font-size: .95rem; margin: 1.5rem 0 .5rem }
   footer { margin-top: 2rem; color: #666; font-size: 12px }
 `
 
@@ -133,6 +142,93 @@ responde sale como <b>sin-respuesta</b> y no rompe la tabla.</footer>
 </body></html>`
 }
 
+/**
+ * La pantalla de tickets (T9, ADR 0038).
+ *
+ * `respuestas` es lo que dejó `respuestasDeTickets()` (T9, red): una por
+ * instancia, `{ nombre, dominio, tickets }` si contestó o
+ * `{ nombre, dominio, motivo }` si no. El resumen —pendientes, total,
+ * estado— sale de `filasDeTickets()` (T8, lógica ya probada): **no se
+ * recuenta aquí**.
+ *
+ * ─── El texto del ticket lo escribe un TERCERO ────────────────────────────
+ * Folio, tenant, asunto, cuerpo y el motivo de un fallo de red son texto que
+ * puso el dueño de la instancia, no SPACE OS. Pasan TODOS por `escapar()`,
+ * igual que en `pagina()`: pintarlos crudos es XSS en el panel de AS OOH con
+ * un cliente como atacante.
+ *
+ * ─── La distinción que el ADR marca por escrito ───────────────────────────
+ * Una instancia `sin-respuesta` trae `pendientes`/`total` en `null` — nunca
+ * en `0`, que es lo que también traería una instancia `ok` sin tickets.
+ * Confundir esas dos filas es el mismo error que este proyecto ya penalizó
+ * con el panel de versiones ("Sale SIEMPRE con 0", `estado.mjs`): aquí la
+ * muda pinta "sin dato" con su propia clase, nunca un cero.
+ */
+export function paginaTickets(respuestas, usuario) {
+  const filas = filasDeTickets(respuestas)
+  const porNombre = new Map(respuestas.map((r) => [r.nombre, r]))
+
+  const resumen = filas
+    .map((f) => {
+      const sinDato = f.estado === TICKET_SIN_RESPUESTA
+      const pendientes = sinDato ? '<span class="sin-dato">sin dato</span>' : escapar(f.pendientes)
+      const total = sinDato ? '<span class="sin-dato">sin dato</span>' : escapar(f.total)
+      const fila = `<tr>
+    <td>${escapar(f.nombre)}</td><td>${escapar(f.dominio)}</td>
+    <td class="${escapar(f.estado)}">${pendientes}</td>
+    <td class="${escapar(f.estado)}">${total}</td>
+    <td class="${escapar(f.estado)}">${escapar(f.estado)}</td>
+  </tr>`
+      // Igual que en pagina(): sin motivo no se pinta nada, el silencio es la
+      // señal de que esa instancia está bien.
+      if (!f.motivo) return fila
+      return fila + `\n<tr class="motivo"><td colspan="5">${escapar(f.motivo)}</td></tr>`
+    })
+    .join('\n')
+
+  // El detalle por ticket solo existe para quien SÍ contestó: una instancia
+  // sin-respuesta no tiene tickets que enseñar, tiene un motivo, y ese ya
+  // salió en la sub-fila de arriba.
+  const detalle = filas
+    .filter((f) => f.estado === TICKET_OK && (porNombre.get(f.nombre)?.tickets?.length ?? 0) > 0)
+    .map((f) => {
+      const filasTicket = porNombre
+        .get(f.nombre)
+        .tickets.map(
+          (t) => `<tr>
+    <td>${escapar(t.folio)}</td><td>${escapar(t.tenant_id)}</td><td>${escapar(t.asunto)}</td>
+    <td>${escapar(t.estado)}</td><td>${escapar(t.prioridad)}</td><td>${escapar(t.creado_en)}</td>
+  </tr>
+  <tr class="cuerpo-ticket"><td colspan="6">${escapar(t.cuerpo)}</td></tr>`,
+        )
+        .join('\n')
+      return `<h2>${escapar(f.nombre)}</h2>
+<table><thead><tr><th>folio</th><th>tenant</th><th>asunto</th><th>estado</th><th>prioridad</th><th>creado</th></tr></thead>
+<tbody>
+${filasTicket}
+</tbody></table>`
+    })
+    .join('\n')
+
+  return `<!doctype html>
+<html lang="es"><head><meta charset="utf-8">
+<title>Tickets — SPACE OS</title>
+<meta name="robots" content="noindex,nofollow">
+<style>${ESTILO}</style></head>
+<body>
+<h1>Tickets</h1>
+<p class="sub"><a href="/flota/">← la flota</a> · ${escapar(filas.length)} instancia(s) · ${escapar(usuario?.email ?? '')}</p>
+<table><thead><tr><th>instancia</th><th>dominio</th><th>pendientes</th><th>total</th><th>estado</th></tr></thead>
+<tbody>
+${resumen}
+</tbody></table>
+${detalle}
+<footer>Se consulta a cada instancia al cargar la página. Una instancia que NO
+CONTESTA sale <b>sin-respuesta</b> con "sin dato" en pendientes y total — nunca
+0, que también diría una instancia al día sin tickets.</footer>
+</body></html>`
+}
+
 const SIN_CACHE = {
   'content-type': 'text/html; charset=utf-8',
   // Un panel de estado cacheado dice que todo va bien cuando ya no va bien.
@@ -163,11 +259,20 @@ function noAutorizado() {
  */
 export async function manejar(peticion, deps) {
   const { metodo = 'GET', ruta = '/', cookie, origen, csrf, cuerpo } = peticion
-  const { verificar, obtenerFilas, registrar = () => {}, listarSolicitudes, crearSolicitud, origenEsperado } = deps
+  const {
+    verificar,
+    obtenerFilas,
+    obtenerRespuestasTickets,
+    registrar = () => {},
+    listarSolicitudes,
+    crearSolicitud,
+    origenEsperado,
+  } = deps
 
   const esFlota = RUTAS.includes(ruta)
   const esAltas = RUTAS_ALTAS.includes(ruta)
-  if (!esFlota && !esAltas) {
+  const esTickets = RUTAS_TICKETS.includes(ruta)
+  if (!esFlota && !esAltas && !esTickets) {
     return { status: 404, cabeceras: SIN_CACHE, cuerpo: '<!doctype html><meta charset="utf-8"><title>404</title><p>No existe.' }
   }
   const esAltaNueva = esAltas && metodo === 'POST'
@@ -200,6 +305,11 @@ export async function manejar(peticion, deps) {
       'set-cookie': `${COOKIE_CSRF}=${token}; Path=/; HttpOnly; Secure; SameSite=Lax`,
     }
     return { status: 200, cabeceras, cuerpo: paginaAltas(solicitudes, acceso.usuario, token, zonasDelEntorno()) }
+  }
+
+  if (esTickets) {
+    const respuestas = await obtenerRespuestasTickets()
+    return { status: 200, cabeceras: SIN_CACHE, cuerpo: paginaTickets(respuestas, acceso.usuario) }
   }
 
   const filas = await obtenerFilas()
@@ -451,6 +561,70 @@ export async function filasDeLaFlota(opciones = {}) {
   return resumen(fusionar(consultas, reportes), inventario.canales)
 }
 
+/**
+ * Bajo el `basePath` de Next; mismo criterio que `RUTA_VERSION` en `estado.mjs`.
+ * `/api/tickets` con `x-flota-token` es el contrato que fija T6 (ADR 0038).
+ */
+const RUTA_TICKETS = '/spaces-dooh/api/tickets/'
+
+/**
+ * Los tickets de UNA instancia, con su token de flota. NUNCA lanza: el fallo
+ * es una entrada sin `tickets`, con `motivo`, que `filasDeTickets()` (T8)
+ * convierte en la fila `sin-respuesta` — nunca en `pendientes: 0`, que es el
+ * punto que el ADR 0038 marca por escrito.
+ *
+ * Mismo motivo que `consultarConToken()` arriba para no llamar a `consultar()`
+ * pelado: sin token la ruta del panel no atraviesa tenants (es `esElPanel()`,
+ * el mismo guard de `/api/version`), así que la instancia saldría
+ * `sin-respuesta` — indistinguible de una caída — por una cabecera que falta,
+ * no porque la instancia esté mal.
+ */
+export async function consultarTickets(instancia, opciones = {}) {
+  const { tokensExtra = {}, esperaMs = 5000, pedir = fetch } = opciones
+  const token = tokenDe(instancia.nombre, process.env, tokensExtra)
+  const base = { nombre: instancia.nombre, dominio: instancia.dominio }
+  const url = 'https://' + instancia.dominio + RUTA_TICKETS
+  try {
+    const respuesta = await pedir(url, {
+      method: 'GET',
+      headers: token ? { 'x-flota-token': token } : {},
+      signal: AbortSignal.timeout(esperaMs),
+      redirect: 'manual',
+    })
+    if (!respuesta.ok) return { ...base, motivo: clasificarFallo({ status: respuesta.status }) }
+    const cuerpo = await respuesta.json()
+    if (!Array.isArray(cuerpo?.tickets)) {
+      // Mismo caso que `cuerpoSinVersion` en /api/version: un 200 sin la
+      // forma esperada significa que el token no se reconoció como panel.
+      return {
+        ...base,
+        motivo: clasificarFallo({ cuerpoSinVersion: true, token, nombre: instancia.nombre }),
+      }
+    }
+    return { ...base, tickets: cuerpo.tickets }
+  } catch (error) {
+    return { ...base, motivo: clasificarFallo({ error }) }
+  }
+}
+
+/**
+ * El recorrido de tickets: inventario -> consulta a cada instancia, cruda.
+ * Misma costura, y los mismos riesgos, que `filasDeLaFlota()` arriba — ver sus
+ * comentarios sobre los tres fallos del 2026-09-04 y el del 2026-09-08.
+ *
+ * Devuelve la respuesta CRUDA de cada instancia — `{nombre, dominio, tickets}`
+ * o `{nombre, dominio, motivo}` — y no la fila resumida: `paginaTickets()`
+ * necesita el detalle (asunto, folio…) que `filasDeTickets()` (T8) descarta a
+ * propósito al agregar, y el resumen mismo lo saca llamando a esa función
+ * sobre este mismo arreglo — no se recuenta aquí ni ahí.
+ */
+export async function respuestasDeTickets(opciones = {}) {
+  const { cargar = cargarInventario, consultarUna = consultarTickets, leerTokens = tokensDeArchivo } = opciones
+  const inventario = await cargar()
+  const tokensExtra = await leerTokens()
+  return Promise.all(inventario.instancias.map((i) => consultarUna(i, { tokensExtra })))
+}
+
 /** El cuerpo de un formulario. Nada de JSON: es un `<form>` de toda la vida. */
 function leerCuerpo(req, limite = 8 * 1024) {
   return new Promise((resolver, rechazar) => {
@@ -495,6 +669,7 @@ export function crearServidorPanel(opciones = {}) {
         {
           verificar: (c) => verificarAcceso(c, { urlPadre }),
           obtenerFilas: () => filasDeLaFlota({ dirEstado }),
+          obtenerRespuestasTickets: () => respuestasDeTickets(),
           listarSolicitudes: () => listarCola(dirSolicitudes),
           crearSolicitud: (datos, quien) => crearEnCola(dirSolicitudes, datos, quien),
           origenEsperado,

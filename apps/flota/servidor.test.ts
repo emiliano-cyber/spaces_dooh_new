@@ -338,6 +338,167 @@ import { pagina } from './servidor.mjs'
 //  solo el terminal lo imprimia (aparte, debajo de la tabla). Estas pruebas
 //  fijan las tres decisiones de la sub-fila.
 // ============================================================================
+// ============================================================================
+//  La pantalla de tickets (T9, ADR 0038): la red y el HTML. La logica de
+//  conteo (`filasDeTickets`, T8) ya esta probada en tickets.test.ts y no se
+//  recuenta aqui.
+//
+//  Dos cosas manda comprobar el ADR y el encargo:
+//   1. El texto del ticket lo escribe un TERCERO -- el dueño de la instancia --
+//      y se pinta en el panel de AS OOH: es XSS con un cliente como atacante.
+//   2. Una instancia MUDA (sin-respuesta) no puede verse igual que una sana sin
+//      tickets: la primera trae pendientes/total en `null`, la segunda en `0`,
+//      y la pantalla tiene que pintarlas distinto.
+// ============================================================================
+import { paginaTickets, RUTAS_TICKETS } from './servidor.mjs'
+import { OK, SIN_RESPUESTA } from './tickets.mjs'
+
+function ticket(over: Partial<Record<string, unknown>> = {}) {
+  return {
+    id: 'id-1',
+    folio: 'TK-2026-0001',
+    tenant_id: 'a1b2c3d4-0000-0000-0000-000000000001',
+    asunto: 'la pantalla de reportes no carga',
+    cuerpo: 'al abrir /reportes se queda en blanco',
+    estado: 'ABIERTO',
+    prioridad: 'NORMAL',
+    creado_en: '2026-09-20T10:00:00.000Z',
+    respuesta: null,
+    respondido_en: null,
+    ...over,
+  }
+}
+
+/** Dependencias de mentira para la ruta de tickets; apuntan si se las llamo. */
+function depsTickets(opciones: any = {}) {
+  const registro: any[] = []
+  let consultas = 0
+  return {
+    registro,
+    get consultas() {
+      return consultas
+    },
+    d: {
+      verificar: async () => opciones.acceso ?? { permitido: true, usuario: { email: 'jefa@asnetwork.io' } },
+      obtenerRespuestasTickets: async () => {
+        consultas++
+        return opciones.respuestas ?? []
+      },
+      registrar: (e: any) => registro.push(e),
+    },
+  }
+}
+
+describe('la pantalla de tickets exige sesion, igual que /flota/', () => {
+  it('sin cookie responde 401 y no consulta a ninguna instancia', async () => {
+    const dd = depsTickets({ acceso: { permitido: false, motivo: 'sin cookie de sesion' } })
+    const r = await manejar({ metodo: 'GET', ruta: '/flota/tickets', cookie: undefined }, dd.d)
+    expect(r.status).toBe(401)
+    expect(dd.consultas).toBe(0)
+  })
+
+  it('sirve tanto /flota/tickets como /flota/tickets/', async () => {
+    for (const ruta of RUTAS_TICKETS) {
+      const dd = depsTickets()
+      const r = await manejar({ metodo: 'GET', ruta, cookie: 'spaces_sesion=x' }, dd.d)
+      expect(r.status, ruta).toBe(200)
+    }
+  })
+
+  it('solo GET; POST da 405', async () => {
+    const dd = depsTickets()
+    const r = await manejar({ metodo: 'POST', ruta: '/flota/tickets', cookie: 'spaces_sesion=x' }, dd.d)
+    expect(r.status).toBe(405)
+  })
+
+  it('no se cachea', async () => {
+    const dd = depsTickets()
+    const r = await manejar({ metodo: 'GET', ruta: '/flota/tickets', cookie: 'spaces_sesion=x' }, dd.d)
+    expect(r.cabeceras['cache-control']).toMatch(/no-store/)
+  })
+})
+
+describe('paginaTickets · el texto del ticket es de un TERCERO', () => {
+  it('un asunto con <script> sale escapado, no crudo', () => {
+    const html = paginaTickets(
+      [{ nombre: 'g500', dominio: 'g500.ejemplo.invalid', tickets: [ticket({ asunto: '<script>alert(1)</script>' })] }],
+      null,
+    )
+    expect(html).not.toContain('<script>alert(1)</script>')
+    expect(html).toContain('&lt;script&gt;')
+  })
+
+  it('el cuerpo del ticket tambien va escapado', () => {
+    const html = paginaTickets(
+      [{ nombre: 'g500', dominio: 'g500.ejemplo.invalid', tickets: [ticket({ cuerpo: '<img src=x onerror=alert(1)>' })] }],
+      null,
+    )
+    expect(html).not.toContain('<img src=x onerror=alert(1)>')
+    expect(html).toContain('&lt;img')
+  })
+
+  it('el folio va escapado', () => {
+    const html = paginaTickets(
+      [{ nombre: 'g500', dominio: 'g500.ejemplo.invalid', tickets: [ticket({ folio: '"><script>x</script>' })] }],
+      null,
+    )
+    expect(html).not.toContain('"><script>x</script>')
+    expect(html).toContain('&lt;script&gt;')
+  })
+
+  it('el motivo de una instancia caida va escapado, como en pagina()', () => {
+    const html = paginaTickets(
+      [{ nombre: 'g500', dominio: 'g500.ejemplo.invalid', motivo: '<script>alert(2)</script>' }],
+      null,
+    )
+    expect(html).not.toContain('<script>alert(2)</script>')
+    expect(html).toContain('&lt;script&gt;')
+  })
+
+  it('el dominio y el nombre de instancia tambien se escapan', () => {
+    const html = paginaTickets(
+      [{ nombre: '<b>g500</b>', dominio: 'a"b\'c<d>', tickets: [] }],
+      null,
+    )
+    expect(html).not.toContain('<b>g500</b>')
+    expect(html).toContain('&lt;b&gt;')
+  })
+})
+
+describe('paginaTickets · una instancia MUDA no se ve como una sana sin tickets', () => {
+  // Es la consecuencia que el ADR 0038 marca por escrito, y el error que este
+  // proyecto ya penalizo con el panel de versiones ("Sale SIEMPRE con 0"):
+  // sin-respuesta trae pendientes/total en null, una instancia ok sin tickets
+  // los trae en 0 -- y la pantalla tiene que decirlo distinto.
+  const muda = { nombre: 'muda', dominio: 'muda.ejemplo.invalid', motivo: 'el dominio no resuelve (ENOTFOUND)' }
+  const sanaSinTickets = { nombre: 'sana', dominio: 'sana.ejemplo.invalid', tickets: [] }
+
+  it('la muda sale con estado sin-respuesta y SIN un "0" en pendientes/total', () => {
+    const html = paginaTickets([muda], null)
+    expect(html).toContain(SIN_RESPUESTA)
+    // La fila entera de esta instancia no puede contener un 0: ni pendientes
+    // ni total lo son, y si apareciera seria indistinguible de "cero tickets".
+    const filaDeMuda = html.slice(html.indexOf('muda.ejemplo.invalid'))
+    expect(filaDeMuda.slice(0, 400)).not.toMatch(/<td[^>]*>0<\/td>/)
+  })
+
+  it('la sana sin tickets sale con estado ok y CON 0 explicito', () => {
+    const html = paginaTickets([sanaSinTickets], null)
+    expect(html).toContain(OK)
+    expect(html).toMatch(/<td[^>]*>0<\/td>/)
+  })
+
+  it('las dos filas, una al lado de otra, no son iguales', () => {
+    const html = paginaTickets([muda, sanaSinTickets], null)
+    const filaMuda = html.slice(html.indexOf('>muda<'), html.indexOf('sana.ejemplo.invalid'))
+    const filaSana = html.slice(html.indexOf('>sana<'))
+    expect(filaMuda).not.toBe(filaSana)
+    // La pista visible: la clase de estado de cada <td> tiene que ser distinta.
+    expect(filaMuda).toContain(SIN_RESPUESTA)
+    expect(filaSana).toContain(OK)
+  })
+})
+
 describe('pagina · el motivo se ve', () => {
   const sana = {
     nombre: 'g500',
