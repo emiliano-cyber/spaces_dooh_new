@@ -338,6 +338,29 @@ describe('versionMinimaDeMigracion()', () => {
     expect(versionMinimaDeMigracion(sql)).toBe(null)
   })
 
+  it('y tampoco cuenta una anotacion LITERAL enterrada en el cuerpo', () => {
+    // El caso de arriba es suave: la mencion va dentro de una frase y ni siquiera
+    // empieza la linea. Este es el que muerde, y no es rebuscado — las
+    // migraciones de este repositorio escriben su ROLLBACK como un bloque de
+    // comentarios para copiar y pegar (`20260812_schema_migrations.sql:234`), asi
+    // que una linea que empieza exactamente por `-- @pg-min:` puede acabar
+    // enterrada en cualquier sitio. Si se leyera el archivo entero en vez de la
+    // cabecera, esa linea declararia por todo el archivo y el guard bloquearia
+    // una actualizacion que si podia correr.
+    const sql = [
+      '-- ============================================================',
+      '--  Migracion que corre en cualquier version.',
+      '-- ============================================================',
+      'alter table x add column y int;',
+      '',
+      '-- Rollback, para copiar y pegar:',
+      '--   alter table x drop column y;',
+      '-- (la variante compuesta de esta clave, que si lo exigiria, llevaria:)',
+      '-- @pg-min: 15',
+    ].join('\n')
+    expect(versionMinimaDeMigracion(sql)).toBe(null)
+  })
+
   it('acepta espacios, mayusculas y un BOM delante, como `@tipo`', () => {
     // El BOM por el mismo motivo que `tipoDeMigracion()`: desplaza la marca un
     // caracter y el ancla `^` deja de verla, sin dar el menor error.
