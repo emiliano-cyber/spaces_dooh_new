@@ -31,6 +31,7 @@ create index        if not exists idx_tickets_tenant   on tickets (tenant_id);
 create index        if not exists idx_tickets_estado   on tickets (estado);
 
 alter table tickets enable row level security;
+alter table tickets force row level security;
 
 drop policy if exists tenant_isolation on tickets;
 create policy tenant_isolation on tickets for all
