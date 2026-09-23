@@ -25,11 +25,12 @@ const VARIANTES = [
 ] as const
 
 // La clase que el navegador acabaría viendo, ya pasada por `cn`/tailwind-merge.
-async function clasesDe(props: Record<string, unknown> = {}): Promise<string[]> {
+// Va TIPADO a proposito: si alguien quita una variante del union, `npm run
+// typecheck` cae en `VARIANTES` antes de que corra una sola prueba.
+type Props = Partial<import('./Button').ButtonProps>
+async function clasesDe(props: Props = {}): Promise<string[]> {
   const { Button } = await import('./Button')
-  const html = renderToStaticMarkup(
-    React.createElement(Button as never, props as never, 'Etiqueta'),
-  )
+  const html = renderToStaticMarkup(React.createElement(Button, props, 'Etiqueta'))
   const m = html.match(/class="([^"]*)"/)
   if (!m) throw new Error('el boton salio sin atributo class: ' + html)
   return m[1].split(/\s+/).filter(Boolean)
@@ -39,11 +40,19 @@ describe('1 · las siete variantes existen y rinden lo suyo', () => {
   it('ninguna de las siete rinde vacia ni repite la clase de otra', async () => {
     const vistas = new Map<string, string>()
     for (const v of VARIANTES) {
-      const clases = (await clasesDe({ variant: v })).join(' ')
-      expect(clases, `la variante ${v} no rindio clases`).not.toBe('')
-      const gemela = [...vistas.entries()].find(([, c]) => c === clases)
+      const clases = await clasesDe({ variant: v })
+      // Una variante que se borrase del mapa no daria error: `variants[v]`
+      // seria `undefined`, `cn` lo ignoraria y el boton saldria con las clases
+      // base mas las del tamano — distinto de las demas, asi que el control de
+      // duplicados de abajo no lo veria. Estas dos lineas son las que lo cazan:
+      // ni la base ni los tamanos traen fondo ni borde, solo las variantes.
+      expect(clases.some((c) => c.startsWith('bg-')), `${v} no rinde fondo: ¿existe en el mapa?`).toBe(true)
+      expect(clases.some((c) => c.startsWith('border')), `${v} no rinde borde: ¿existe en el mapa?`).toBe(true)
+
+      const unidas = clases.join(' ')
+      const gemela = [...vistas.entries()].find(([, c]) => c === unidas)
       expect(gemela?.[0], `${v} rinde exactamente lo mismo que ${gemela?.[0]}`).toBeUndefined()
-      vistas.set(v, clases)
+      vistas.set(v, unidas)
     }
     expect(vistas.size).toBe(7)
   })
