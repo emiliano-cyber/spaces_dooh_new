@@ -104,10 +104,10 @@ export async function folioCampana(prefijoTenant: string, client?: PoolClient): 
  * a todas para que un folio se lea igual en cualquier módulo.
  */
 export async function folioDocumento(
-  ambito: Exclude<AmbitoFolio, 'campana' | 'ticket'>,
+  ambito: Exclude<AmbitoFolio, 'campana'>,
   client?: PoolClient,
 ): Promise<string> {
-  const sigla = { propuesta: 'PR', ot: 'OT', oc: 'ODC', oi: 'OI' }[ambito]
+  const sigla = { propuesta: 'PR', ot: 'OT', oc: 'ODC', oi: 'OI', ticket: 'TK' }[ambito]
   const { n, periodo } = await siguienteConsecutivo({ ambito, periodo: 'anio', client })
   return `${sigla}-${periodo}-${String(n).padStart(4, '0')}`
 }
