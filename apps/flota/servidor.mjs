@@ -629,10 +629,16 @@ async function contestarTicketDesdePanel(entrada, ctx) {
   }
   if (estadoNuevo.trim() !== '') cambios.estado = estadoNuevo
 
+  // El guard mira el NOMBRE, no el dominio. `contestarTicketDeConfianza()`
+  // ignora a proposito el `dominio` del formulario --- resuelve el real por
+  // `nombre` contra el inventario, que es lo que cierra la fuga de token---,
+  // asi que exigir aqui un campo que despues no decide nada ataba el camino
+  // feliz a un input oculto: quitarlo por limpieza habria puesto toda la
+  // pantalla en 502 sin que nada lo delatara.
   const resultado =
-    id && instancia.dominio
+    id && instancia.nombre
       ? await contestarTicket(instancia, cambios)
-      : { ok: false, motivo: 'falta el id o el dominio de la instancia' }
+      : { ok: false, motivo: 'falta el id del ticket o el nombre de la instancia' }
 
   if (resultado.ok) {
     return { status: 303, cabeceras: { ...SIN_CACHE, location: '/flota/tickets/' }, cuerpo: '' }

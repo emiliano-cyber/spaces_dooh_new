@@ -989,6 +989,45 @@ describe('mover el estado NO puede falsificar la fecha de respuesta', () => {
   })
 })
 
+// ============================================================================
+//  Hallazgo de la revision final: el guard miraba un campo del que se decidio
+//  NO fiarse. `contestarTicketDeConfianza()` ignora el `dominio` del
+//  formulario a proposito y resuelve el real por `nombre` contra el
+//  inventario, asi que exigir `dominio` para dejar pasar el POST ataba el
+//  camino feliz a un dato que ya no decide nada: quitar ese input oculto por
+//  limpieza habria puesto toda la pantalla en 502.
+// ============================================================================
+describe('el guard del POST mira el NOMBRE, que es lo que de verdad se usa', () => {
+  it('sin `dominio` en el formulario, el PATCH sale igual', async () => {
+    const dd = depsTickets()
+    const r = await manejar(
+      postTicket({ id: 'id-1', instancia: 'g500', respuesta: 'Ya se reviso.' }),
+      dd.d,
+    )
+    expect(r.status).toBe(303)
+    expect(dd.llamadasContestar).toHaveLength(1)
+    expect(dd.llamadasContestar[0].instancia.nombre).toBe('g500')
+  })
+
+  it('sin `instancia` no se manda nada: no hay nombre que resolver', async () => {
+    const dd = depsTickets()
+    const r = await manejar(
+      postTicket({ id: 'id-1', dominio: 'g500.ejemplo.invalid', respuesta: 'x' }),
+      dd.d,
+    )
+    expect(r.status).toBe(502)
+    expect(dd.llamadasContestar).toHaveLength(0)
+    expect(r.cuerpo).toMatch(/nombre de la instancia/i)
+  })
+
+  it('sin `id` tampoco', async () => {
+    const dd = depsTickets()
+    const r = await manejar(postTicket({ instancia: 'g500', respuesta: 'x' }), dd.d)
+    expect(r.status).toBe(502)
+    expect(dd.llamadasContestar).toHaveLength(0)
+  })
+})
+
 describe('el POST contesta a la instancia, con su token (T9, el mismo camino que el GET)', () => {
   it('el POST emite el PATCH a la instancia con x-flota-token', async () => {
     process.env.FLOTA_TOKEN_G500 = 'tok-de-g500'
