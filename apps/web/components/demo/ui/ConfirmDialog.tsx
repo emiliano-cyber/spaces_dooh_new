@@ -54,7 +54,17 @@ export function ConfirmDialog({
           <Button size="sm" variant="secondary" disabled={busy} onClick={() => onOpenChange(false)}>
             {cancelLabel}
           </Button>
-          <Button size="sm" variant={variant} disabled={busy || !coincide} onClick={onConfirm}>
+          {/* `dangerFill` y no `danger`: desde el rediseño de botones el
+              destructivo normal es de CONTORNO, y el de relleno se reserva para
+              el momento de confirmar algo irreversible — que es exactamente
+              este. La prop pública del diálogo no cambia: quien lo usa sigue
+              pidiendo `danger`. */}
+          <Button
+            size="sm"
+            variant={variant === 'danger' ? 'dangerFill' : variant}
+            disabled={busy || !coincide}
+            onClick={onConfirm}
+          >
             {busy ? 'Procesando…' : confirmLabel}
           </Button>
         </div>
