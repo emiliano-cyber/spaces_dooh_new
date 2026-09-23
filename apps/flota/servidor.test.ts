@@ -851,8 +851,141 @@ describe('el formulario de tickets, para contestar desde el navegador (T12)', ()
     )
     expect(html).not.toContain('<script>alert(1)</script>')
     expect(html).toContain(
-      '<textarea name="respuesta" rows="2">&lt;script&gt;alert(1)&lt;/script&gt;</textarea>',
+      '<textarea name="respuesta" rows="2">\n&lt;script&gt;alert(1)&lt;/script&gt;</textarea>',
     )
+  })
+})
+
+// ============================================================================
+//  Hallazgo de la revision final: mover el estado FALSIFICABA la fecha de
+//  respuesta.
+//
+//  El <textarea> viene precargado con la respuesta que ya habia y el <select>
+//  manda valor SIEMPRE, asi que abrir un ticket ya contestado, cambiar solo el
+//  estado y pulsar Guardar reenviaba la respuesta vieja --- `cambios.respuesta`
+//  se rellenaba y `tickets-repo.ts:157-160` escribia `respondido_en = now()`.
+//  El cliente veia «Respuesta de AS OOH · 25/09» de algo escrito el 22. Es
+//  justo el dato que el ADR 0038 vende como valor.
+//
+//  Se arregla EN EL PANEL, no en el repo: el repo escribe solo lo que llega, y
+//  eso esta bien. Lo que estaba mal es lo que el panel le mandaba.
+// ============================================================================
+describe('mover el estado NO puede falsificar la fecha de respuesta', () => {
+  const contestado = { ...ticket(), respuesta: 'Ya se reviso.', respondido_en: '2026-09-22T12:30:00.000Z' }
+
+  it('el formulario lleva la respuesta que YA habia, para poder saber si cambio', () => {
+    const html = paginaTickets(
+      [{ nombre: 'g500', dominio: 'g500.ejemplo.invalid', tickets: [contestado] }],
+      null,
+      CSRF_TICKETS,
+    )
+    expect(html).toContain('name="respuesta_previa" value="Ya se reviso."')
+  })
+
+  it('reenviar la MISMA respuesta con otro estado no la manda como cambio', async () => {
+    const dd = depsTickets()
+    const r = await manejar(
+      postTicket({
+        id: 'id-1',
+        instancia: 'g500',
+        dominio: 'g500.ejemplo.invalid',
+        respuesta: 'Ya se reviso.',
+        respuesta_previa: 'Ya se reviso.',
+        estado: 'CERRADO',
+      }),
+      dd.d,
+    )
+    expect(r.status).toBe(303)
+    // Y esto es el PATCH de UN SOLO CAMPO que hasta hoy el panel no emitia
+    // nunca: los dos caminos de un campo de `actualizarTicketDesdePanel()`
+    // solo eran alcanzables con `curl`.
+    expect(dd.llamadasContestar[0].cambios).toEqual({ id: 'id-1', estado: 'CERRADO' })
+  })
+
+  it('si la respuesta CAMBIO de verdad, si viaja', async () => {
+    const dd = depsTickets()
+    const r = await manejar(
+      postTicket({
+        id: 'id-1',
+        instancia: 'g500',
+        dominio: 'g500.ejemplo.invalid',
+        respuesta: 'Ya se reviso, y ademas se reinicio el servicio.',
+        respuesta_previa: 'Ya se reviso.',
+        estado: 'CERRADO',
+      }),
+      dd.d,
+    )
+    expect(r.status).toBe(303)
+    expect(dd.llamadasContestar[0].cambios).toEqual({
+      id: 'id-1',
+      respuesta: 'Ya se reviso, y ademas se reinicio el servicio.',
+      estado: 'CERRADO',
+    })
+  })
+
+  it('la PRIMERA respuesta de un ticket sin contestar viaja igual que siempre', async () => {
+    const dd = depsTickets()
+    await manejar(
+      postTicket({
+        id: 'id-1',
+        instancia: 'g500',
+        dominio: 'g500.ejemplo.invalid',
+        respuesta: 'Ya se reviso.',
+        respuesta_previa: '',
+        estado: 'ABIERTO',
+      }),
+      dd.d,
+    )
+    expect(dd.llamadasContestar[0].cambios).toMatchObject({ respuesta: 'Ya se reviso.' })
+  })
+
+  it('un cambio SOLO de finales de linea no cuenta como cambio', async () => {
+    // El navegador manda el contenido de un <textarea> con CRLF
+    // (`application/x-www-form-urlencoded` lo normaliza asi), y lo que hay en
+    // la base lleva LF. Comparando crudo, CUALQUIER respuesta de dos lineas
+    // se veria siempre como cambiada y el defecto volveria intacto para justo
+    // los tickets con mas texto.
+    const dd = depsTickets()
+    await manejar(
+      postTicket({
+        id: 'id-1',
+        instancia: 'g500',
+        dominio: 'g500.ejemplo.invalid',
+        respuesta: 'primera linea\r\nsegunda linea',
+        respuesta_previa: 'primera linea\nsegunda linea',
+        estado: 'CERRADO',
+      }),
+      dd.d,
+    )
+    expect(dd.llamadasContestar[0].cambios).toEqual({ id: 'id-1', estado: 'CERRADO' })
+  })
+
+  it('y lo que SI viaja va con finales de linea normalizados, no con CRLF', async () => {
+    const dd = depsTickets()
+    await manejar(
+      postTicket({
+        id: 'id-1',
+        instancia: 'g500',
+        dominio: 'g500.ejemplo.invalid',
+        respuesta: 'uno\r\ndos',
+        respuesta_previa: '',
+        estado: 'ABIERTO',
+      }),
+      dd.d,
+    )
+    expect(dd.llamadasContestar[0].cambios.respuesta).toBe('uno\ndos')
+  })
+
+  it('sin `respuesta_previa` (un POST a mano) se comporta como antes: la manda', async () => {
+    // El campo oculto decide si un dato YA autorizado se incluye, nada mas.
+    // Manipularlo o quitarlo no puede escribir texto que nadie tecleo: en el
+    // peor caso se vuelve al comportamiento de hoy.
+    const dd = depsTickets()
+    await manejar(
+      postTicket({ id: 'id-1', instancia: 'g500', dominio: 'g500.ejemplo.invalid', respuesta: 'a mano' }),
+      dd.d,
+    )
+    expect(dd.llamadasContestar[0].cambios).toMatchObject({ respuesta: 'a mano' })
   })
 })
 

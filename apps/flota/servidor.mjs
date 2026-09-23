@@ -285,6 +285,20 @@ export function paginaTickets(respuestas, usuario, csrf, aviso) {
           // del correo de un cliente, el origen deja de ser de confianza sin
           // que nadie lo note. Mismo criterio que la sub-fila de solo lectura
           // de arriba.
+          //
+          // ─── `respuesta_previa`, y el salto de linea pegado al <textarea> ──
+          // El campo oculto lleva la respuesta TAL COMO ESTABA al pintar la
+          // pantalla, y es lo unico que permite a `contestarTicketDesdePanel()`
+          // saber si quien pulsa Guardar la cambio o solo movio el estado.
+          // Sin el, mover el estado reenviaba la respuesta vieja y la instancia
+          // sellaba `respondido_en = now()`: el cliente veia una fecha de
+          // respuesta falsa.
+          //
+          // Y el salto de linea justo despues de `<textarea ...>` NO es
+          // formato: el parser de HTML se come el primero, asi que una
+          // respuesta que EMPIECE por salto de linea volveria recortada y se
+          // veria como «cambiada» sin que nadie tocara nada. Se pone uno de
+          // sobra para que lo que vuelve sea exactamente lo que se pinto.
           const opcionesEstado = ESTADOS_TICKET.map(
             (e) => `<option value="${e}"${e === t.estado ? ' selected' : ''}>${e}</option>`,
           ).join('')
@@ -294,7 +308,9 @@ export function paginaTickets(respuestas, usuario, csrf, aviso) {
     <input type="hidden" name="id" value="${escapar(t.id)}">
     <input type="hidden" name="instancia" value="${escapar(f.nombre)}">
     <input type="hidden" name="dominio" value="${escapar(f.dominio)}">
-    <label>Respuesta<textarea name="respuesta" rows="2">${escapar(t.respuesta)}</textarea></label>
+    <input type="hidden" name="respuesta_previa" value="${escapar(t.respuesta)}">
+    <label>Respuesta<textarea name="respuesta" rows="2">
+${escapar(t.respuesta)}</textarea></label>
     <label>Estado<select name="estado">${opcionesEstado}</select></label>
     <button type="submit">Guardar</button>
   </form></td></tr>`
@@ -457,6 +473,20 @@ export async function manejar(peticion, deps) {
   return { status: 200, cabeceras: SIN_CACHE, cuerpo: pagina(filas, acceso.usuario) }
 }
 
+/**
+ * Finales de linea a `\n`, y nada mas.
+ *
+ * Un `<textarea>` se envia con **CRLF**: lo manda el navegador asi por el
+ * formato de los formularios, no por lo que se tecleo. Lo que hay guardado en
+ * la instancia lleva `\n`. Comparando en crudo, CUALQUIER respuesta de dos
+ * lineas se veria siempre como cambiada --- y con eso el arreglo de
+ * `respuesta_previa` no serviria de nada justo en los tickets con mas texto,
+ * que son los que mas importan.
+ */
+export function normalizarSaltos(texto) {
+  return String(texto).replace(/\r\n/g, '\n')
+}
+
 /** El valor de una cookie por nombre exacto. Mismo criterio que `acceso.mjs`. */
 export function tokenDeCookie(cabecera, nombre) {
   if (!cabecera) return ''
@@ -571,12 +601,32 @@ async function contestarTicketDesdePanel(entrada, ctx) {
   // ver su comentario. Aqui viaja solo para que un doble de pruebas pueda
   // afirmar que el formulario se leyo bien.
   const instancia = { nombre: String(cuerpo?.instancia ?? ''), dominio: String(cuerpo?.dominio ?? '') }
-  const respuestaTexto = String(cuerpo?.respuesta ?? '')
+  const respuestaTexto = normalizarSaltos(String(cuerpo?.respuesta ?? ''))
+  const respuestaPrevia = normalizarSaltos(String(cuerpo?.respuesta_previa ?? ''))
   const estadoNuevo = String(cuerpo?.estado ?? '')
   // Lista blanca de claves, igual que `paraElPanel()` en `route.ts`: el
   // cuerpo NO se reenvia tal cual, se reconstruye campo a campo.
+  //
+  // ─── `respuesta` viaja SOLO si cambio de verdad ──────────────────────────
+  // El <textarea> viene precargado y el <select> manda valor siempre, asi que
+  // abrir un ticket YA contestado, cambiar solo el estado y pulsar Guardar
+  // reenviaba la respuesta vieja tal cual. La instancia no puede distinguir
+  // eso de una respuesta nueva --- `tickets-repo.ts` escribe
+  // `respondido_en = now()` en cuanto llega el campo, y hace bien: escribe lo
+  // que le mandan--- asi que el cliente acababa viendo «Respuesta de AS OOH»
+  // con la fecha de hoy para algo escrito tres dias antes. El arreglo va
+  // AQUI, que es donde esta la mentira.
+  //
+  // `respuesta_previa` es un campo del NAVEGADOR, y se le concede exactamente
+  // una cosa: decir que habia en la pantalla al abrirla, que es lo unico que
+  // puede saber. Manipularlo o quitarlo no escribe texto que nadie tecleo ni
+  // cambia a donde va el PATCH (eso lo decide el inventario, en
+  // `contestarTicketDeConfianza()`): en el peor caso se vuelve al
+  // comportamiento anterior, mandar la respuesta siempre.
   const cambios = { id }
-  if (respuestaTexto.trim() !== '') cambios.respuesta = respuestaTexto
+  if (respuestaTexto.trim() !== '' && respuestaTexto !== respuestaPrevia) {
+    cambios.respuesta = respuestaTexto
+  }
   if (estadoNuevo.trim() !== '') cambios.estado = estadoNuevo
 
   const resultado =
