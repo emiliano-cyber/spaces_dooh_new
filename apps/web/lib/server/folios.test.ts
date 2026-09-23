@@ -104,6 +104,11 @@ describe('folioDocumento', () => {
       ['propuesta', 'PR-2026-0009'],
       ['oc', 'ODC-2026-0009'],
       ['oi', 'OI-2026-0009'],
+      // ADR 0038. El ticket de soporte entra AQUI y no se acuña su folio por su
+      // cuenta: esta función existe, según su propio comentario, «para que un
+      // folio se lea igual en cualquier módulo». Dejar los tickets fuera los
+      // convertiría en el único documento del producto con otra forma.
+      ['ticket', 'TK-2026-0009'],
     ] as const) {
       const { client } = fakeClient([9])
       await expect(folioDocumento(ambito, client)).resolves.toBe(esperado)
