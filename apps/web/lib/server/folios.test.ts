@@ -53,6 +53,13 @@ describe('siguienteConsecutivo', () => {
     expect(queries[0].params).toEqual(['ot', '2026'])
   })
 
+  it('acuña folios de ticket por año', async () => {
+    const { client, queries } = fakeClient([4])
+    const r = await siguienteConsecutivo({ ambito: 'ticket', periodo: 'anio', client, ahora: DIA })
+    expect(r).toEqual({ n: 4, periodo: '2026' })
+    expect(queries[0].params).toEqual(['ticket', '2026'])
+  })
+
   it('usa el client de la transacción cuando se le pasa: si la tx se revierte, el folio no se emite a medias', async () => {
     const { client, queries } = fakeClient([1])
     await siguienteConsecutivo({ ambito: 'campana', periodo: 'dia', client, ahora: DIA })
