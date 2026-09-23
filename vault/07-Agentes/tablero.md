@@ -1,10 +1,26 @@
 ---
 tipo: tablero
 estado: verificado
-actualizado: 2026-09-22
+actualizado: 2026-09-23
 tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
+
+> [!success] 2026-09-23 · **Z2, Z9, Z12 y `apps/flota` LIBERADAS — tickets de soporte (ADR 0038) CERRADO**
+> Las diez tareas del plan (`.superpowers/sdd/Plan_Tickets_De_Soporte/`)
+> terminaron con la Tarea 10 (bóveda y bitácora), y con eso se libera todo lo
+> reclamado el 22/09 abajo: **Z2 · Tenant**, **Z9 · Datos**, **Z12 · Docs** y
+> `apps/flota/` por su nombre.
+>
+> Medido en este árbol (`feat/tickets-de-soporte`, `378f788` + este commit):
+> `apps/web` **1785** unitarias y **485** e2e (1 skip) en verde, `apps/flota`
+> **329** en verde, typecheck limpio, `node scripts/recuentos.mjs` → **100**
+> endpoints y **46** tablas.
+>
+> **Lo que NO quedó hecho, y no se calla:** nadie miró la pantalla del cliente
+> (`TicketsPanel.tsx`) con un navegador — solo pasó por pruebas. Y esto no
+> llega a ninguna instancia hasta que haya una versión publicada y promovida a
+> `estable`: `g500` sigue en `v0.5.1`.
 
 > [!important] 2026-09-22 · **Z2, Z9 y Z12 RECLAMADAS — tickets de soporte (ADR 0038)**
 > El cliente escribe una incidencia desde su instancia y AS OOH la ve en el PADRE,

@@ -1,7 +1,7 @@
 ---
 tipo: referencia
 estado: verificado
-actualizado: 2026-09-21
+actualizado: 2026-09-23
 tags: [backend, api, endpoints]
 archivos:
   - apps/web/app/api/
@@ -9,17 +9,22 @@ archivos:
   - apps/web/lib/server/auth.ts
   - apps/web/lib/server/cambios.ts
   - apps/web/lib/server/actualizaciones-repo.ts
+  - apps/web/app/api/tickets/route.ts
+  - apps/web/lib/server/tickets-controller.ts
+  - apps/web/lib/server/tickets-repo.ts
+  - apps/web/lib/server/flota.ts
 ---
 
-# API — los 99 endpoints
+# API — los 100 endpoints
 
 Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo el
 `basePath` `/spaces-dooh` (`apps/web/next.config.mjs:93`).
 
-> [!tip] 99 medidos el 2026-09-21 con `node scripts/recuentos.mjs`, no copiados
-> Decía 94 (17/09) y **el título seguía en 98** —una cifra que ni el propio
-> archivo se creía—. El script mide sobre el árbol donde se corre; hazlo tú si
-> lo necesitas exacto, no confíes en este número pasado un commit.
+> [!tip] 100 medidos el 2026-09-23 con `node scripts/recuentos.mjs`, no copiados
+> Decía 99 (21/09). La única ruta nueva es `/api/tickets` (ADR 0038, tickets de
+> soporte) — un solo `route.ts` que cuenta como uno aunque exponga tres verbos.
+> El script mide sobre el árbol donde se corre; hazlo tú si lo necesitas exacto,
+> no confíes en este número pasado un commit.
 
 > [!warning] El host **no** es parte de la API — no lo cablees
 > Esta nota decía `https://demo.space-os.io/spaces-dooh/api/...` como si hubiera
@@ -226,6 +231,54 @@ Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo el
 > esa promesa se erosiona sin que nadie lo note. La prueba afirma **las claves
 > exactas** del cuerpo, así que una clave nueva la rompe en vez de colarse
 > (`apps/web/app/api/version/route.ts:26-34`).
+
+> [!note] `esElPanel()` y `tokenCoincide()` se mudaron a `lib/server/flota.ts`
+> Nacieron dentro de `app/api/version/route.ts` (F6.1), cuando solo había una
+> ruta que el panel consumía. Con `/api/tickets` (ADR 0038, abajo) llegó una
+> segunda, y la alternativa era copiar una comparación en tiempo constante —la
+> copia que diverge es justo la que nadie mira—. `version/route.ts` **no
+> cambió de comportamiento**, solo de dónde importa la función; su prueba de
+> claves exactas sigue intacta.
+
+## Tickets de soporte (ADR 0038)
+
+El dueño de una instancia escribe una incidencia desde Administración, y AS OOH
+la ve y la contesta desde `/flota/tickets` en el PADRE. Toda la ruta vive en un
+solo `route.ts` sin segmento `[id]`: el panel manda el `id` en el cuerpo del
+`PATCH`.
+
+| Método | Path | Guard | Notas |
+|---|---|---|---|
+| GET | `/api/tickets` | **Dos caminos** — ver el aviso de abajo | Con `x-flota-token` válido: PÚBLICO, y devuelve los tickets de **toda la instancia**. Sin él, o con uno inválido: `administracion:ver`, y devuelve solo los del tenant en sesión |
+| POST | `/api/tickets` | `administracion:crear` | Abre un ticket para el tenant en sesión. Folio `TK-AAAA-NNNN` (ámbito `ticket` de `folios.ts`). `estado` no es un campo aceptado por el `.strict()` del controlador — nace `ABIERTO` siempre, nunca lo manda el cliente |
+| PATCH | `/api/tickets` | PÚBLICO por `x-flota-token`, **sin camino de sesión** | Solo el panel. Responde (`respuesta`), mueve el `estado`, o las dos cosas — nunca una porque llegó la otra (ADR 0038: responder no es resolver). Sin token válido: 401 y nada se toca |
+
+> [!danger] El `GET` atraviesa TODOS los tenants a propósito cuando lo pide el panel — zona roja R2
+> No es un descuido: es el diseño. `listarTicketsDeLaInstancia()` usa `qRaw`
+> (`apps/web/lib/server/tickets-repo.ts:125-128`) — sin `app.tenant_id`, así que
+> la RLS de `tickets` no corta— porque el panel de AS OOH pregunta por su
+> bandeja de soporte completa, de cualquier organización. El orden en el `GET`
+> importa: primero se comprueba `esElPanel(req)` y solo si es falso se pide
+> sesión, porque el panel no tiene cookie que mandar
+> (`apps/web/app/api/tickets/route.ts:65-87`). `esElPanel()` es fail-closed —sin
+> `FLOTA_TOKEN` configurado nadie es el panel—, así que la cabecera no puede
+> saltarse el guard de sesión: solo identifica a quien ya conocía el secreto.
+> Está probado EN PAREJA a propósito: que el lado del cliente aísla y que el
+> lado del panel atraviesa. Una sola de las dos pruebas no demuestra nada — un
+> guard roto pasaría la primera. Si alguien "arregla" esto filtrando por tenant,
+> rompe el panel de flota, no un bug.
+
+> [!warning] Solo quien puede abrir Administración puede escribir un ticket
+> `POST /api/tickets` exige `administracion:crear`. Un operario que encuentra un
+> fallo montando una lona **no puede reportarlo** desde ahí: tendría que
+> pedírselo a alguien con acceso a Administración. Es una limitación real de
+> esta versión, no un permiso que falte configurar — el ADR 0038 la deja fuera
+> a propósito.
+
+> [!note] Nadie ha mirado la pantalla del cliente con un navegador
+> `TicketsPanel.tsx` (`apps/web/components/demo/admin/`) pasa las pruebas
+> unitarias y las e2e de la ruta, pero **no se verificó visualmente**. No se
+> sabe si se ve bien, solo que la API que consume responde lo que promete.
 
 ## Públicos por token (sin sesión)
 

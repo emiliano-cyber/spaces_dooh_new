@@ -1,16 +1,46 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-09-22
+actualizado: 2026-09-23
 tags: [datos, esquema, er, postgres]
 archivos:
   - db/schema.sql
   - db/semilla-desarrollo.sql
   - db/migrations/
   - db/migrations/20260921_actualizaciones_instancia.sql
+  - db/migrations/20260923_tickets.sql
 ---
 
 # Esquema de datos
+
+> [!note] 2026-09-23 · tabla nueva, `tickets` — ADR 0038
+> `db/migrations/20260923_tickets.sql` — tickets de soporte: el dueño de una
+> instancia escribe una incidencia desde Administración y AS OOH la ve y la
+> contesta desde `/flota/tickets` en el PADRE. Es una tabla de negocio normal:
+> lleva `tenant_id`, RLS **y FORCE** (`:33-34`), y la segunda capa
+> `and tenant_id = $n` en el lado del cliente (`apps/web/lib/server/tickets-repo.ts:87`).
+>
+> **Tablas: 45 → 46**, medido con `node scripts/recuentos.mjs` sobre este árbol.
+>
+> Reutiliza el enum `prioridad` que ya existía (`db/schema.sql:52`) y crea uno
+> nuevo, `est_ticket` (`ABIERTO`, `EN_PROCESO`, `RESUELTO`, `CERRADO`) — ver
+> [[#Enums]] abajo. El folio sale del ámbito `ticket` de
+> `apps/web/lib/server/folios.ts:46` (sigla `TK`, `folioDocumento`).
+
+> [!danger] El lado del PANEL lee y escribe con `qRaw`, sin `tenant_id`, a propósito
+> `listarTicketsDeLaInstancia()` y `actualizarTicketDesdePanel()`
+> (`apps/web/lib/server/tickets-repo.ts:125-185`) no fijan `app.tenant_id`: es
+> AS OOH preguntando por su bandeja de soporte completa, de cualquier
+> organización — zona roja R2, y documentado en el propio archivo porque su modo
+> de fallo normal (usar `qRaw` donde tocaba `q`) es silencioso. Está probado EN
+> PAREJA: que el lado del cliente aísla (`q`, con `tenant_id`) y que el lado del
+> panel atraviesa (`qRaw`, sin él). Ver [[02-Backend/api-endpoints]] para las
+> rutas.
+>
+> Limitación real de esta versión, no un olvido: **solo quien puede abrir
+> Administración puede escribir un ticket** (`POST /api/tickets` exige
+> `administracion:crear`). Un operario en campo no tiene forma de reportar un
+> fallo desde ahí.
 
 > [!note] 2026-09-21 · tabla nueva, `actualizaciones_instancia` — ADR 0037
 > `db/migrations/20260921_actualizaciones_instancia.sql` — la tabla de LA
@@ -84,8 +114,8 @@ archivos:
 > archivos **sí** los aplica una actualización normal, sin `--con-datos`.
 > Comprobar por qué perdieron la marca es una tarea propia, no se hizo aquí.
 
-**PostgreSQL, un solo schema (`public`), ~~44~~ 45 tablas (ver la nota del
-21/09 arriba), sin ORM.** `db/schema.sql`
+**PostgreSQL, un solo schema (`public`), ~~45~~ 46 tablas (ver la nota del
+23/09 arriba), sin ORM.** `db/schema.sql`
 (679 líneas) + **74** migraciones aditivas — **70 de esquema y 4 de datos**
 (medido el 27/08, y ya caducado — ver los avisos de arriba).
 
@@ -251,12 +281,30 @@ erDiagram
 
 ## Enums
 
-**31 tipos enumerados**, medidos el 27/08: **27 en `db/schema.sql`** —25 en el
-bloque `:31-57` y dos declarados junto a su tabla, `est_propuesta` (`:345`) y
-`est_odc` (`:376`)— y **4 más que crean las migraciones**: `estado_predio`
-(`20260715_arr_m2_tablas.sql:11`), `periodicidad_pago`
-(`20260715_arr_m3_periodicidad.sql:14`), `est_activo` y `tipo_mov_almacen`
-(`20260723_almacen.sql:15` y `:19`). Los que más importan:
+**30 tipos enumerados**, remedidos el 2026-09-23 con `grep -n "as enum"` sobre
+`db/schema.sql` y `db/migrations/*.sql` (no hay recuento de enums en
+`scripts/recuentos.mjs`): **27 en `db/schema.sql`** —25 en el bloque `:31-57` y
+dos declarados junto a su tabla, `est_propuesta` (`:345`) y `est_odc`
+(`:376`)— y **3 que solo crean las migraciones**: `est_activo` y
+`tipo_mov_almacen` (`20260723_almacen.sql:15` y `:19`) y, nuevo hoy,
+`est_ticket` (`20260923_tickets.sql:11`, ADR 0038).
+
+> [!warning] Esta nota decía 31, con `estado_predio` y `periodicidad_pago` como
+> "creados por migración" — y ya no lo son
+> Hasta hoy contaba `estado_predio` (`20260715_arr_m2_tablas.sql`) y
+> `periodicidad_pago` (`20260715_arr_m3_periodicidad.sql`) como los dos primeros
+> de "los que crean las migraciones". **Los dos viven HOY dentro del bloque
+> `:31-57` de `db/schema.sql`** (líneas `:41` y `:44`): en algún punto entre el
+> 27/08 y hoy, `schema.sql` se puso al día con lo que esas migraciones ya
+> habían aplicado. Las migraciones siguen en el repo y siguen creando el tipo,
+> pero **idempotentes** —`if not exists (select 1 from pg_type where typname
+> = …)`— así que en una instalación nueva no hacen nada: `schema.sql` ya se
+> adelantó. Contarlos dos veces (en el bloque **y** en la lista de
+> migraciones) es lo que infló 27+4 a 31 cuando la cuenta real de tipos
+> **distintos** es 27+3=30. Nadie mintió a propósito: la nota simplemente no se
+> remidió cuando `schema.sql` cambió por debajo.
+
+Los que más importan:
 
 | Enum | Valores |
 |---|---|
@@ -265,6 +313,7 @@ bloque `:31-57` y dos declarados junto a su tabla, `est_propuesta` (`:345`) y
 | `est_comercial_campana` | `DRAFT`, `COTIZACION`, `CONFIRMADA`, `ACTIVA`, `COMPLETADA`, `CANCELADA`, `LISTA_FACTURAR` |
 | `est_ot` | `PENDIENTE`, `ASIGNADA`, `EN_PROCESO`, `BLOQUEADA`, `EN_REVISION`, `COMPLETADA`, `RECHAZADA`, `CANCELADA` |
 | `periodicidad_pago` | `SEMANAL`…`ANUAL` + `DIARIA`† (ADR 0004) |
+| `est_ticket` | `ABIERTO`, `EN_PROCESO`, `RESUELTO`, `CERRADO` (ADR 0038, nuevo 23/09) |
 
 \* `CLIENTE` retirado por ADR 0010 pero **sigue en el enum**.
 † Añadido por migración.
@@ -286,7 +335,7 @@ bloque `:31-57` y dos declarados junto a su tabla, `est_propuesta` (`:345`) y
 Restricciones **UNIQUE globales** (sin tenant): `sitios.clave_interna`,
 `sitios.codigo_proveedor`, `propuestas.folio`, `campanas.folio`,
 `ordenes_compra.folio`, `facturas.folio`, `campanas.portal_token`,
-`propuestas.token_publico`.
+`propuestas.token_publico`, `tickets.folio` (nuevo, ADR 0038).
 
 ## Borrados en cascada
 

@@ -5,6 +5,26 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-09-23
+
+- **Ahora puedes escribirnos desde la aplicación, y ver nuestra respuesta ahí
+  mismo.** Hay una pantalla nueva en Administración para abrir un ticket de
+  soporte: un asunto, una descripción y una prioridad. Nosotros (AS OOH) lo
+  vemos desde nuestro propio panel, y cuando lo contestamos, la respuesta
+  aparece en tu misma pantalla, con la fecha en que se contestó. Cada ticket
+  recibe un folio propio (`TK-2026-0001`, por ejemplo), igual que una
+  propuesta o una orden de compra.
+
+  **Dos cosas que conviene saber de esta primera versión:** solo quien puede
+  entrar a Administración puede abrir un ticket — alguien que solo tiene
+  acceso a Operaciones o Comercial, por ejemplo, no ve esa pantalla ni puede
+  reportar un problema por ahí, y tendría que pedírselo a quien sí entra. Y
+  nadie recibe un aviso cuando escribes uno: nosotros tenemos que abrir
+  nuestro panel para enterarnos, no hay notificación automática todavía.
+
+  Esto no llega a ninguna instancia de cliente hasta que se publique una
+  versión nueva y una persona decida instalarla — no pasa solo.
+
 ## 2026-09-22
 
 - **La demostración ya corre la versión nueva, y por primera vez decide si la
