@@ -22,7 +22,7 @@ Confundirlos es el error más común al llegar.
 | **Formato** | Notas enlazadas entre sí, con frontmatter | Archivos sueltos: ADR, planes, runbooks, bitácora |
 | **Se lee** | Antes de tocar código | Cuando necesitas el porqué de una decisión |
 
-En `docs/` viven: los **ADR** (`docs/adr/`, van por la **0037**), los **planes**
+En `docs/` viven: los **ADR** (`docs/adr/`, van por la **0038**), los **planes**
 (`docs/Plan_*.md`), los **runbooks**, las **correcciones de datos en producción**
 (`docs/datos/`, cada una con su rollback capturado antes) y la **bitácora**
 (`docs/Registro_Cambios.md`), que está escrita para quien no programa.
@@ -39,7 +39,7 @@ no se versiona configuración de la herramienta. Consecuencia práctica: la bóv
 Markdown puro y **se lee igual desde un editor, desde `cat` o desde un agente**. No
 necesitas instalar nada.
 
-Al 2026-09-22 tiene **1145 enlaces internos** sobre **86 notas**, con **2
+Al 2026-09-23 tiene **1148 enlaces internos** sobre **86 notas**, con **2
 wikilinks rotos** —los dos apuntan a ADR, que viven en `docs/` y no en la
 bóveda, así que es un choque de convención más que un enlace muerto— y
 **0 notas huérfanas**. Las
@@ -97,11 +97,11 @@ código, no de memoria:
 | Framework | Next.js 14.2.29, App Router | `apps/web/package.json:17` |
 | Base de datos | PostgreSQL, `pg` directo (sin ORM) | `apps/web/lib/server/db.ts:2` |
 | Aislamiento | RLS de Postgres por `app.tenant_id` | `apps/web/lib/server/db.ts:60` y `:79` |
-| Endpoints | **99** route handlers | `apps/web/app/api/**/route.ts` |
-| Tablas | **45** | `vault/04-Datos/esquema.md` |
-| Migraciones | **87** | `vault/04-Datos/migraciones.md` |
+| Endpoints | **100** route handlers | `apps/web/app/api/**/route.ts` |
+| Tablas | **46** | `vault/04-Datos/esquema.md` |
+| Migraciones | **88** | `vault/04-Datos/migraciones.md` |
 
-> Esos recuentos llevan fecha de validación **2026-09-22**, medidos con
+> Esos recuentos llevan fecha de validación **2026-09-23**, medidos con
 > `node scripts/recuentos.mjs` sobre este árbol. Trátalos como una
 > afirmación con fecha, no como una verdad permanente — §5 explica cómo
 > reverificarlos.
@@ -118,6 +118,17 @@ código, no de memoria:
 > las volvió a caducar dos commits después, al añadir cuatro `route.ts` y dos
 > migraciones. El problema no es que nadie se acuerde: es que **una cifra que se
 > mantiene a mano en un repositorio que crece caduca en el commit siguiente.**
+>
+> **Y van CUATRO — 2026-09-23, con el ADR 0038.** Esta vez el mecanismo fue
+> nuevo y conviene que quede escrito: el plan de implementación tenía una tarea
+> dedicada a poner la bóveda al día, **y esa tarea no listaba este archivo ni el
+> MOC**. Se ejecutó entera y en verde, y las cifras se quedaron viejas *por
+> seguir el plan*, no por saltárselo.
+>
+> La lección práctica: **una tarea de «actualizar la documentación» que no
+> nombra `CLAUDE.md` y `vault/00-Indice/MOC-Proyecto.md` no está actualizando la
+> documentación** — está actualizando otra cosa. Los dos son lo primero que lee
+> un agente, y son los que caducan sin que nadie lo note.
 
 > **Este archivo ya los tuvo mal TRES VECES, y por eso conviene decirlo aquí:**
 > entre el 10/08 y el 28/08 arrastró seis cifras desfasadas —endpoints, tablas,
