@@ -536,3 +536,46 @@ it('PATCH con x-flota-token mueve el estado a RESUELTO', …)
 - [ ] **Paso 4 · Verlas pasar.**
 - [ ] **Paso 5 · Demostrar por mutación** que muerden, y pegar las dos salidas.
 - [ ] **Paso 6 · Commit** — `feat(tickets): el PATCH del panel, que responde y mueve el estado`
+
+---
+
+## Tarea 12 · El formulario del panel — contestar desde el navegador
+
+> **Añadida el 2026-09-23, decidida por el dueño.** La Tarea 11 dejó el `PATCH`
+> funcionando y la pantalla enseñando si un ticket ya se contestó, pero **no hay
+> forma de contestarlo desde el navegador**: el `PATCH` solo se puede emitir con
+> `curl`. El ADR 0038 dice que el panel responde y cambia el estado, así que la
+> pantalla estaba a medias respecto al diseño aprobado.
+
+**Depende de:** Tarea 11. **Antes de:** Tarea 10.
+
+**Archivos:**
+- Modificar: `apps/flota/servidor.mjs`
+- Prueba: `apps/flota/servidor.test.ts`
+
+- [ ] **Paso 1 · Las pruebas en rojo**
+
+```js
+it('cada ticket trae su formulario, con el token CSRF del panel', …)
+it('un POST sin el token CSRF no manda nada a la instancia y da 403', …)
+it('el POST emite el PATCH a la instancia con x-flota-token', …)
+it('si la instancia NO contesta, se dice — no se finge que se guardo', …)
+it('la respuesta ya escrita vuelve escapada dentro del formulario', …)
+```
+
+> **La cuarta es la que importa y es la de siempre en este proyecto.** Si la
+> instancia no contesta y la pantalla vuelve a pintarse como si nada, quien
+> escribió creerá que contestó. Un fallo silencioso en el sitio donde alguien
+> acaba de escribir es peor que un error feo.
+
+> **Y la quinta:** el texto que vuelve al `textarea` pasa por `escapar()` igual,
+> aunque lo escribiera AS OOH. El día que alguien pegue ahí un fragmento del
+> correo del cliente, el origen deja de ser de confianza sin que nadie lo note.
+
+- [ ] **Paso 2 · Verlas fallar**, por comportamiento.
+- [ ] **Paso 3 · Implementar**, reusando `COOKIE_CSRF` y el patrón de
+  `paginaAltas()`/`pedirAlta()`, y la consulta con token que ya escribió la
+  Tarea 9. **Nada de red nueva inventada.**
+- [ ] **Paso 4 · Verlas pasar.**
+- [ ] **Paso 5 · Demostrar por mutación** que muerden, y pegar las salidas.
+- [ ] **Paso 6 · Commit** — `feat(flota): contestar un ticket desde el panel`
