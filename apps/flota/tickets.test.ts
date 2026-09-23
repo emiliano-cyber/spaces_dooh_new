@@ -35,7 +35,7 @@ function ticket(estado: string, over: Partial<Record<string, unknown>> = {}) {
 }
 
 describe('filasDeTickets', () => {
-  it('agrupa por instancia y cuenta los abiertos', () => {
+  it('agrupa por instancia y cuenta los pendientes', () => {
     const filas = filasDeTickets([
       {
         nombre: 'g500',
@@ -52,10 +52,13 @@ describe('filasDeTickets', () => {
     expect(filas).toHaveLength(2)
 
     const porNombre = Object.fromEntries(filas.map((f) => [f.nombre, f]))
-    expect(porNombre.g500.abiertos).toBe(2)
+    expect(porNombre.g500.pendientes).toBe(2)
     expect(porNombre.g500.total).toBe(4)
     expect(porNombre.g500.estado).toBe('ok')
-    expect(porNombre.pixeled.abiertos).toBe(0)
+    // Esta linea decia `toBe(0)` con un unico ticket EN_PROCESO, y era el
+    // defecto escrito como aserto: una instancia con trabajo empezado y sin
+    // cerrar figuraba como que no tenia NADA pendiente.
+    expect(porNombre.pixeled.pendientes).toBe(1)
     expect(porNombre.pixeled.total).toBe(1)
   })
 
@@ -63,7 +66,7 @@ describe('filasDeTickets', () => {
     const [fila] = filasDeTickets([
       { nombre: 'g500', dominio: 'g500.ejemplo.invalid', tickets: [] },
     ])
-    expect(fila.abiertos).toBe(0)
+    expect(fila.pendientes).toBe(0)
     expect(fila.total).toBe(0)
     expect(fila.estado).toBe('ok')
   })
@@ -77,11 +80,11 @@ describe('filasDeTickets', () => {
       },
     ])
     expect(fila.estado).toBe(SIN_RESPUESTA)
-    // El punto del ADR: nunca 0. Ni abiertos ni total pueden confundirse con
+    // El punto del ADR: nunca 0. Ni pendientes ni total pueden confundirse con
     // «esta instancia no tiene tickets».
-    expect(fila.abiertos).not.toBe(0)
+    expect(fila.pendientes).not.toBe(0)
     expect(fila.total).not.toBe(0)
-    expect(fila.abiertos).toBeNull()
+    expect(fila.pendientes).toBeNull()
     expect(fila.total).toBeNull()
     expect(fila.motivo).toBe('el dominio no resuelve (ENOTFOUND)')
   })
@@ -104,8 +107,8 @@ describe('filasDeTickets', () => {
 //  mismo error que esta pantalla viene a evitar -- leer un silencio como una
 //  buena noticia -- aplicado al numero que mas se mira.
 //
-//  Por eso el campo se llama `pendientes` y no `abiertos`: si contara dos
-//  estados llamandose `abiertos`, el nombre mentiria.
+//  Por eso el campo se llama `pendientes` y no `pendientes`: si contara dos
+//  estados llamandose `pendientes`, el nombre mentiria.
 // ============================================================================
 describe('lo pendiente incluye lo que ya se empezo', () => {
   it('cuenta ABIERTO y EN_PROCESO, y deja fuera RESUELTO y CERRADO', () => {

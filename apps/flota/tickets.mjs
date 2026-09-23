@@ -17,7 +17,7 @@
 //  El ADR 0038, en sus consecuencias, lo dice con estas palabras: «la pantalla
 //  tiene que distinguir "no tiene tickets" de "no me contesta", o repite el
 //  error de leer un silencio como una buena noticia». Por eso una instancia sin
-//  respuesta sale con `estado: SIN_RESPUESTA` y `abiertos`/`total` en `null` --
+//  respuesta sale con `estado: SIN_RESPUESTA` y `pendientes`/`total` en `null` --
 //  nunca en `0`, que es el valor que tambien tendria una instancia sana sin
 //  tickets. Confundir esos dos casos es exactamente el error que este proyecto
 //  ya penalizo con el panel de versiones (ver el comentario de cabecera de
@@ -40,10 +40,16 @@ export const SIN_RESPUESTA = 'sin-respuesta'
  * cuerpo mal formado para pintar la pantalla -- el motivo, si lo hay, viaja
  * intacto para quien quiera leerlo.
  *
- * `abiertos` cuenta los tickets con `estado === 'ABIERTO'` exactamente: es la
- * cuenta que el brief pide ("cuenta los abiertos"), no una suma de estados
- * pendientes. `total` es el tamano del arreglo, para que la pantalla pueda
- * mostrar "2 de 4" en vez de solo el numero que mas urge.
+ * `pendientes` cuenta `ABIERTO` **y** `EN_PROCESO`, y se llama asi justamente
+ * por eso: un ticket empezado y no cerrado sigue siendo trabajo. Contar solo
+ * `ABIERTO` haria que mover un ticket a «en proceso» lo BORRARA de la cuenta y
+ * la pantalla dijera que no queda nada -- el mismo error de leer un silencio
+ * como buena noticia que esta pantalla viene a evitar, aplicado al numero que
+ * mas se mira. Y llamarlo `abiertos` contando dos estados seria un nombre que
+ * miente.
+ *
+ * `total` es el tamano del arreglo, para que la pantalla pueda mostrar "2 de 4"
+ * en vez de solo el numero que mas urge.
  */
 export function filasDeTickets(respuestas) {
   return respuestas.map((r) => {
@@ -52,7 +58,7 @@ export function filasDeTickets(respuestas) {
         nombre: r.nombre,
         dominio: r.dominio,
         estado: SIN_RESPUESTA,
-        abiertos: null,
+        pendientes: null,
         total: null,
         motivo: r.motivo ?? null,
       }
@@ -61,7 +67,7 @@ export function filasDeTickets(respuestas) {
       nombre: r.nombre,
       dominio: r.dominio,
       estado: OK,
-      abiertos: r.tickets.filter((t) => t.estado === 'ABIERTO').length,
+      pendientes: r.tickets.filter((t) => t.estado === 'ABIERTO' || t.estado === 'EN_PROCESO').length,
       total: r.tickets.length,
       motivo: null,
     }
