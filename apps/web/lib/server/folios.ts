@@ -43,7 +43,7 @@ import { q } from './db'
 //  que NO pasa por aquí a propósito.
 // ============================================================================
 
-export type AmbitoFolio = 'campana' | 'propuesta' | 'ot' | 'oc' | 'oi'
+export type AmbitoFolio = 'campana' | 'propuesta' | 'ot' | 'oc' | 'oi' | 'ticket'
 
 // Periodo del contador: dentro de él la numeración es consecutiva y al cambiar
 // vuelve a empezar. Día para campañas (su folio ya lleva la fecha), año para el
@@ -104,7 +104,7 @@ export async function folioCampana(prefijoTenant: string, client?: PoolClient): 
  * a todas para que un folio se lea igual en cualquier módulo.
  */
 export async function folioDocumento(
-  ambito: Exclude<AmbitoFolio, 'campana'>,
+  ambito: Exclude<AmbitoFolio, 'campana' | 'ticket'>,
   client?: PoolClient,
 ): Promise<string> {
   const sigla = { propuesta: 'PR', ot: 'OT', oc: 'ODC', oi: 'OI' }[ambito]
