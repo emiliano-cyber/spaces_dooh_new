@@ -37,10 +37,41 @@ const RED = {
 const HTTP = {
   401: 'el token no vale',
   403: 'el token no vale',
-  404: 'no existe /api/version: corre una version anterior a F6.1',
   502: 'nginx contesta pero la aplicacion no',
   503: 'nginx contesta pero la aplicacion no',
   504: 'nginx contesta pero la aplicacion no',
+}
+
+// ─── El 404 es el UNICO estado cuya frase depende de que se pidio ──────────
+//
+//  Los demas hablan del transporte y valen para cualquier ruta. El 404 no: es
+//  «eso que pediste no existe», y sin decir QUE se pidio la frase miente en
+//  cuanto la usa otro llamador.
+//
+//  Y eso paso. Esta tabla se escribio para `/api/version` con la ruta quemada
+//  dentro, y la pantalla de tickets (ADR 0038) la reutilizo tal cual. Como HOY
+//  ninguna instancia de la flota tiene `/api/tickets` --- g500 va por
+//  `v0.5.1`---, en cuanto la pantalla fuera alcanzable TODA la flota habria
+//  dicho que le falta `/api/version`: una ruta que existe y funciona. El coste
+//  no es la frase fea, es la media hora de alguien investigando una regresion
+//  que no existe --- exactamente lo que este archivo vino a ahorrar.
+//
+//  El `recurso` entra por parametro y vale `version` si no se dice nada, asi
+//  que los llamadores de antes no cambian ni una letra.
+
+/** El recurso que se estaba pidiendo, para que el 404 diga la verdad. */
+export const RECURSO_VERSION = 'version'
+export const RECURSO_TICKETS = 'tickets'
+
+const NO_EXISTE = {
+  [RECURSO_VERSION]: 'no existe /api/version: corre una version anterior a F6.1',
+  // Las DOS lecturas del mismo codigo, porque las dos son posibles y no se
+  // distinguen desde aqui: la instancia corre una version sin la ruta, o el
+  // ticket concreto ya no esta (su organizacion se borro y la cascada se lo
+  // llevo). Afirmar solo una mandaria a mirar al sitio equivocado la mitad de
+  // las veces.
+  [RECURSO_TICKETS]:
+    'no existe /api/tickets, o ese ticket ya no esta: la instancia puede correr una version anterior a los tickets (ADR 0038)',
 }
 
 /**
@@ -61,7 +92,14 @@ const HTTP = {
  * >>> desconocido», que es volver al punto de partida. Feo y util le gana a
  * >>> bonito y ciego.
  */
-export function clasificarFallo({ error, status, cuerpoSinVersion, token, nombre } = {}) {
+export function clasificarFallo({
+  error,
+  status,
+  cuerpoSinVersion,
+  token,
+  nombre,
+  recurso = RECURSO_VERSION,
+} = {}) {
   if (error) {
     const code = error?.cause?.code
     if (code) {
@@ -72,7 +110,10 @@ export function clasificarFallo({ error, status, cuerpoSinVersion, token, nombre
   }
 
   if (typeof status === 'number') {
-    const frase = HTTP[status]
+    // Un `recurso` que esta tabla no conozca cae al `'HTTP 404'` pelado, por lo
+    // mismo que un codigo de red desconocido sale tal cual: antes un numero sin
+    // frase que una frase que nombra la ruta equivocada.
+    const frase = status === 404 ? NO_EXISTE[recurso] : HTTP[status]
     return frase ? frase + ' (HTTP ' + status + ')' : 'HTTP ' + status
   }
 

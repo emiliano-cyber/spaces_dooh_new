@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { clasificarFallo, fraseDeActualizacion, CODIGOS_UPDATE } from './diagnostico.mjs'
+import { clasificarFallo, fraseDeActualizacion, CODIGOS_UPDATE, RECURSO_TICKETS } from './diagnostico.mjs'
 
 // ============================================================================
 //  Pruebas del clasificador de fallos (fase 1 de
@@ -76,6 +76,34 @@ describe('clasificarFallo · HTTP', () => {
     expect(clasificarFallo({ status: 404 })).toBe(
       'no existe /api/version: corre una version anterior a F6.1 (HTTP 404)',
     )
+  })
+
+  // ── El 404 depende del RECURSO que se pidio ───────────────────────────────
+  //
+  // Esta tabla se escribio para `/api/version` y solo para ella, con la ruta
+  // QUEMADA en el texto. Cuando la pantalla de tickets empezo a usarla, un 404
+  // de `/api/tickets` --- que hoy es lo que contesta TODA la flota, porque
+  // ninguna instancia tiene esa ruta todavia--- decia que falta
+  // `/api/version`, que existe y funciona. Alguien se iria a investigar una
+  // regresion que no existe.
+  it('404 de la ruta de tickets NO acusa a /api/version', () => {
+    const frase = clasificarFallo({ status: 404, recurso: RECURSO_TICKETS })
+    expect(frase).toContain('/api/tickets')
+    expect(frase).not.toContain('/api/version')
+    expect(frase).toContain('(HTTP 404)')
+  })
+
+  it('y contempla la otra lectura del mismo 404: que el ticket ya no este', () => {
+    // Un PATCH a un ticket borrado en cascada (su tenant se fue) contesta 404
+    // igual que una instancia vieja. La frase no puede afirmar solo una de las
+    // dos: las dos caben en el mismo codigo.
+    expect(clasificarFallo({ status: 404, recurso: RECURSO_TICKETS })).toMatch(/ticket ya no/i)
+  })
+
+  it('un recurso que esta tabla no conoce NO inventa una frase', () => {
+    // Mismo criterio que el codigo de red desconocido: feo y util le gana a
+    // bonito y ciego. Lo que no se sabe traducir sale con su numero.
+    expect(clasificarFallo({ status: 404, recurso: 'lo-que-sea' })).toBe('HTTP 404')
   })
 
   it('403 dice que el token no vale', () => {

@@ -18,7 +18,7 @@ import { verificarAcceso } from './acceso.mjs'
 import { validarSolicitud, CAMPOS, dominioDeAlta, zonaPorOmision } from './solicitudes.mjs'
 import { crearSolicitud as crearEnCola, listar as listarCola } from './cola.mjs'
 import { cargarInventario, consultar, leerReportes, fusionar, resumen, tokenDe, tokensDeArchivo, COLUMNAS } from './estado.mjs'
-import { clasificarFallo } from './diagnostico.mjs'
+import { clasificarFallo, RECURSO_TICKETS } from './diagnostico.mjs'
 import { filasDeTickets, OK as TICKET_OK, SIN_RESPUESTA as TICKET_SIN_RESPUESTA } from './tickets.mjs'
 
 /**
@@ -862,7 +862,9 @@ export async function consultarTickets(instancia, opciones = {}) {
       signal: AbortSignal.timeout(esperaMs),
       redirect: 'manual',
     })
-    if (!respuesta.ok) return { ...base, motivo: clasificarFallo({ status: respuesta.status }) }
+    if (!respuesta.ok) {
+      return { ...base, motivo: clasificarFallo({ status: respuesta.status, recurso: RECURSO_TICKETS }) }
+    }
     const cuerpo = await respuesta.json()
     if (!Array.isArray(cuerpo?.tickets)) {
       // Mismo caso que `cuerpoSinVersion` en /api/version: un 200 sin la
@@ -909,7 +911,9 @@ export async function contestarTicket(instancia, cambios, opciones = {}) {
       signal: AbortSignal.timeout(esperaMs),
       redirect: 'manual',
     })
-    if (!respuesta.ok) return { ok: false, motivo: clasificarFallo({ status: respuesta.status }) }
+    if (!respuesta.ok) {
+      return { ok: false, motivo: clasificarFallo({ status: respuesta.status, recurso: RECURSO_TICKETS }) }
+    }
     return { ok: true }
   } catch (error) {
     return { ok: false, motivo: clasificarFallo({ error }) }

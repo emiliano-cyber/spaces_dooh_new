@@ -1142,3 +1142,47 @@ describe('el PATCH no confia en el dominio del formulario (fuga de token / SSRF)
     expect(llamado, 'con la instancia sin resolver no puede salir ni un fetch').toBe(false)
   })
 })
+
+// ============================================================================
+//  Hallazgo de la revision final: el diagnostico mentia para TODA la flota.
+//
+//  `consultarTickets()` y `contestarTicket()` reutilizan `clasificarFallo()`,
+//  que se escribio SOLO para `/api/version` y lleva esa ruta quemada en el
+//  texto del 404. Y hoy NINGUNA instancia tiene `/api/tickets` --- g500 va por
+//  `v0.5.1`---, asi que en cuanto la pantalla fuera alcanzable toda la flota
+//  habria dicho que le falta `/api/version`, que existe y funciona.
+// ============================================================================
+// @ts-expect-error — módulo .mjs sin tipos
+import { consultarTickets } from './servidor.mjs'
+
+describe('un 404 de la ruta de tickets no acusa a /api/version', () => {
+  it('en el GET de tickets, el motivo nombra /api/tickets', async () => {
+    const r = await consultarTickets(
+      { nombre: 'g500', dominio: 'g500.ejemplo.invalid' },
+      { pedir: async () => ({ ok: false, status: 404 }) },
+    )
+    expect(r.motivo).toContain('/api/tickets')
+    expect(r.motivo, 'mandaria a investigar una regresion que no existe').not.toContain(
+      '/api/version',
+    )
+  })
+
+  it('y en el PATCH tambien --- ahi el 404 puede ser el ticket, no la ruta', async () => {
+    const r = await contestarTicket(
+      { nombre: 'g500', dominio: 'g500.ejemplo.invalid' },
+      { id: 'id-1', estado: 'CERRADO' },
+      { leerTokens: async () => ({}), pedir: async () => ({ ok: false, status: 404 }) },
+    )
+    expect(r.ok).toBe(false)
+    expect(r.motivo).toContain('/api/tickets')
+    expect(r.motivo).not.toContain('/api/version')
+  })
+
+  it('los demas estados siguen diciendo lo de siempre: esto no toca el resto', async () => {
+    const r = await consultarTickets(
+      { nombre: 'g500', dominio: 'g500.ejemplo.invalid' },
+      { pedir: async () => ({ ok: false, status: 502 }) },
+    )
+    expect(r.motivo).toBe('nginx contesta pero la aplicacion no (HTTP 502)')
+  })
+})
