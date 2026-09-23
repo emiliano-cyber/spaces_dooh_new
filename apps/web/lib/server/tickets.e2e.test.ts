@@ -3,6 +3,39 @@ import { recrearEsquema, poolTest, cerrarPool } from '@/lib/test/db-e2e'
 import { sembrarTenant, asegurarPermisos, PASSWORD_DEMO } from '@/lib/test/semillas-e2e'
 import { arrancarServidor, pararServidor, Cliente, BASE } from '@/lib/test/servidor-e2e'
 
+// ============================================================================
+//  ANTES DE AÑADIR OTRO `arrancarServidor()` AQUI: LEE ESTO.
+// ----------------------------------------------------------------------------
+//  Este archivo hace TRES ciclos de servidor. Los otros 32 archivos e2e hacen
+//  uno (y `bootstrap.e2e.test.ts`, tres). Cada ciclo de mas no cuesta tiempo:
+//  cuesta una CARRERA, y la carrera ya se cobro un CI en rojo sobre `main`.
+//
+//  Como es la carrera, medida el 2026-09-23 sobre el runner de CI:
+//
+//    1. `arrancarServidor()` (servidor-e2e.ts:30) sondea `/login/` y vuelve en
+//       cuanto ALGO contesta con un status > 0. No comprueba QUIEN contesta.
+//    2. `pararServidor()` (servidor-e2e.ts:119) manda la senal al grupo y
+//       espera a que muera el ENVOLTORIO `npx`, con techo de 5 s
+//       (proceso-e2e.ts:esperarMuerte, que al agotarse devuelve 'timeout' y
+//       sigue). El `next start` de dentro puede seguir escuchando un instante.
+//    3. Resultado de encadenar 2 y 3: el sondeo del arranque nuevo saluda al
+//       servidor VIEJO que todavia agoniza y vuelve sin error; el `next start`
+//       nuevo no consigue el puerto y muere; el viejo termina de morir; y
+//       entonces no escucha NADIE. El `beforeAll` ya habia vuelto en verde, asi
+//       que el fallo sale mucho despues y disfrazado:
+//
+//         TypeError: fetch failed  ...  connect ECONNREFUSED 127.0.0.1:3311
+//
+//  Por eso lo que se arreglo NO fue el arnes —`servidor-e2e.ts` es el
+//  invariante 7 y no se toca— sino el NUMERO DE REINICIOS: de cuatro ciclos a
+//  tres, y de tres transiciones parar→arrancar a UNA SOLA, la del ultimo
+//  bloque, que cambia de entorno y por eso no se puede evitar.
+//
+//  Los dos bloques del panel (GET y PATCH) COMPARTEN servidor: mismo entorno,
+//  cada uno siembra lo suyo. Si necesitas otro escenario, siembralo dentro de
+//  un bloque que ya exista antes que arrancar un cuarto servidor.
+// ============================================================================
+
 describe('tabla tickets', () => {
   beforeAll(async () => { await recrearEsquema() })
 
@@ -189,9 +222,9 @@ describe('GET /api/tickets — la ruta del panel', () => {
     }
   }, 180_000)
 
-  afterAll(async () => {
-    await pararServidor()
-  })
+  // A PROPOSITO no hay `afterAll` con `pararServidor()`: el bloque del PATCH
+  // que viene justo debajo corre sobre ESTE MISMO servidor y lo apaga el. Ver
+  // el recuadro de los ciclos al principio del archivo.
 
   it('con x-flota-token correcto, devuelve tickets de TODOS los tenants', async () => {
     const r = await pedirAlPanel({ token: TOKEN_FLOTA })
@@ -308,34 +341,6 @@ describe('GET /api/tickets — la ruta del panel', () => {
   })
 })
 
-describe('GET /api/tickets — sin FLOTA_TOKEN configurado', () => {
-  beforeAll(async () => {
-    // El servidor se reinicia SIN la variable: es la única forma de probar
-    // «ausente = cerrado», porque el proceso la lee de su propio entorno.
-    await pararServidor()
-    delete process.env.FLOTA_TOKEN
-    await arrancarServidor()
-  }, 180_000)
-
-  afterAll(async () => {
-    await pararServidor()
-    await cerrarPool()
-  })
-
-  it('sin FLOTA_TOKEN configurado, el token no abre nada', async () => {
-    // Se manda el MISMO token que arriba abría la puerta. Sin la variable en el
-    // servidor no abre ninguna: un `.env` que se quedó corto no puede dejar la
-    // bandeja de la instancia al alcance de cualquiera que adivine una cadena.
-    const r = await pedirAlPanel({ token: TOKEN_FLOTA })
-
-    expect(r.status).toBe(401)
-    expect(r.datos).not.toHaveProperty('tickets')
-    expect(r.texto).not.toContain(ASUNTO_PRIMERA)
-    expect(r.texto).not.toContain(ASUNTO_SEGUNDA)
-  })
-
-})
-
 // ============================================================================
 //  Tarea 11 · PATCH /api/tickets — la ruta del panel: responder y mover el
 //  estado, ADR 0038.
@@ -345,18 +350,23 @@ describe('GET /api/tickets — sin FLOTA_TOKEN configurado', () => {
 //  explícitamente llevan su nombre citado; las demás cierran huecos vecinos
 //  que el propio encargo señala — sobre todo el punto 3: responder NO mueve
 //  el estado por su cuenta, y viceversa.
+//
+//  COMPARTE EL SERVIDOR con el bloque del GET de arriba, y no es por ahorrar
+//  segundos: es el mismo entorno (`FLOTA_TOKEN` puesto) y cada reinicio de más
+//  es una carrera de menos — ver el recuadro de los ciclos al principio del
+//  archivo. Por eso aquí no hay `recrearEsquema()` ni `arrancarServidor()`:
+//  `tkpatch` se siembra SOBRE el esquema que el bloque de arriba dejó montado.
 // ============================================================================
 describe('PATCH /api/tickets — la ruta del panel (Tarea 11)', () => {
   let tenant: Awaited<ReturnType<typeof sembrarTenant>>
   let idTicket: string
 
   beforeAll(async () => {
-    await recrearEsquema()
-    await asegurarPermisos()
+    // Sin `recrearEsquema()`: borraría los tickets de `tkpa`/`tkpb` y, sobre
+    // todo, obligaría a reiniciar el servidor. `sembrarTenant` crea una
+    // organización nueva con su propio slug, así que convive con las de arriba
+    // sin pisarlas; el PATCH siempre apunta a `idTicket`, nunca a una lista.
     tenant = await sembrarTenant('tkpatch')
-
-    process.env.FLOTA_TOKEN = TOKEN_FLOTA
-    await arrancarServidor()
 
     // El ticket nace por la puerta del CLIENTE, con sesión, como en la vida
     // real: sembrarlo con SQL directo probaría un PATCH contra una fila que
@@ -372,9 +382,10 @@ describe('PATCH /api/tickets — la ruta del panel (Tarea 11)', () => {
     idTicket = (alta.datos as { id: string }).id
   }, 180_000)
 
+  // El `pararServidor()` de los DOS bloques del panel vive aquí, en el último.
+  // El pool NO se cierra: lo usa el bloque que viene detrás.
   afterAll(async () => {
     await pararServidor()
-    await cerrarPool()
   })
 
   async function patchAlPanel(cuerpo: unknown, opts: { token?: string } = {}) {
@@ -472,4 +483,38 @@ describe('PATCH /api/tickets — la ruta del panel (Tarea 11)', () => {
     expect(r.status, r.texto).toBe(200)
     expect(Object.keys(r.datos).sort()).toEqual([...CLAVES_DEL_CONTRATO].sort())
   })
+})
+
+// ============================================================================
+//  EL ÚLTIMO DEL ARCHIVO, y no por orden de lectura: es el único bloque que
+//  necesita un entorno distinto, así que dejándolo al final el archivo entero
+//  tiene UN SOLO parar→arrancar, y ocurre cuando ya no queda nada detrás.
+//  Si alguien lo sube en el archivo, vuelve a meter reinicios en medio.
+// ============================================================================
+describe('GET /api/tickets — sin FLOTA_TOKEN configurado', () => {
+  beforeAll(async () => {
+    // El servidor se reinicia SIN la variable: es la única forma de probar
+    // «ausente = cerrado», porque el proceso la lee de su propio entorno.
+    await pararServidor()
+    delete process.env.FLOTA_TOKEN
+    await arrancarServidor()
+  }, 180_000)
+
+  afterAll(async () => {
+    await pararServidor()
+    await cerrarPool()
+  })
+
+  it('sin FLOTA_TOKEN configurado, el token no abre nada', async () => {
+    // Se manda el MISMO token que arriba abría la puerta. Sin la variable en el
+    // servidor no abre ninguna: un `.env` que se quedó corto no puede dejar la
+    // bandeja de la instancia al alcance de cualquiera que adivine una cadena.
+    const r = await pedirAlPanel({ token: TOKEN_FLOTA })
+
+    expect(r.status).toBe(401)
+    expect(r.datos).not.toHaveProperty('tickets')
+    expect(r.texto).not.toContain(ASUNTO_PRIMERA)
+    expect(r.texto).not.toContain(ASUNTO_SEGUNDA)
+  })
+
 })
