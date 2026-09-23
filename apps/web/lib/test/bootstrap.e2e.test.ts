@@ -108,24 +108,52 @@ afterAll(async () => {
   await cerrarPool()
 })
 
-// ─── 1 · Sin BOOTSTRAP_TOKEN en el entorno: la ruta NACE APAGADA ────────────
-describe('F5.2 · sin token configurado, la ruta no existe', () => {
-  beforeAll(async () => {
-    await pararServidor()
-    delete process.env.BOOTSTRAP_TOKEN
-    await arrancarServidor()
-  }, 120_000)
+// ============================================================================
+//  ANTES DE AÑADIR OTRO `arrancarServidor()`/`pararServidor()` AQUÍ: LEE ESTO.
+// ----------------------------------------------------------------------------
+//  Este archivo llama `arrancarServidor()` en TRES sitios — uno por cada
+//  entorno que necesita el servidor compartido: con token, sin token, y el
+//  aparte de B4, que levanta su PROPIO `next start` en otro puerto. Pero sobre
+//  el servidor COMPARTIDO de `servidor-e2e.ts` hay UNA SOLA transición real
+//  parar→arrancar, no tres: la primera `pararServidor()` del archivo (más
+//  abajo, en el bloque «con token») encuentra el servidor todavía sin
+//  arrancar y no hace nada, y el `arrancarServidor()` de B4 encuentra el
+//  servidor ya vivo y tampoco hace nada (`servidor-e2e.ts:31`,
+//  `if (proceso) return`). B4 no cuenta en absoluto: su servidor es OTRO
+//  proceso, en OTRO puerto, y nunca toca el `proceso` compartido.
+//
+//  La carrera que esa transición abre —medida el 2026-09-23 sobre el runner
+//  de CI, y documentada con el mismo detalle en `tickets.e2e.test.ts`, que
+//  tuvo el fallo real— es esta:
+//
+//    1. `arrancarServidor()` sondea `/login/` y vuelve en cuanto ALGO
+//       contesta con un status > 0. No comprueba QUIÉN contesta.
+//    2. `pararServidor()` manda la señal y espera la muerte con techo de 5 s
+//       (`proceso-e2e.ts:esperarMuerte`); al agotarse, sigue igual.
+//    3. Si el servidor viejo sigue agonizando cuando el nuevo sondea, el
+//       sondeo saluda al viejo y vuelve; el `next start` nuevo no consigue el
+//       puerto y muere; el viejo termina de morir; y entonces NO ESCUCHA
+//       NADIE — el fallo sale después, disfrazado de `ECONNREFUSED`.
+//
+//  Esa transición es OBLIGATORIA una sola vez, y no se puede evitar sin tocar
+//  `servidor-e2e.ts` (invariante 7, NO SE TOCA): alternar `BOOTSTRAP_TOKEN`
+//  entre presente y ausente exige un proceso NUEVO, porque el hijo recibe su
+//  entorno en el `spawn()` (`servidor-e2e.ts:32-41`, `env: {...process.env}`)
+//  una sola vez — cambiar `process.env` en ESTE proceso después de arrancado
+//  no le llega al hijo. Que la ruta lea el token por petición
+//  (`app/api/bootstrap/route.ts:69`) no ayuda si el proceso que la sirve
+//  nunca vio el valor nuevo.
+//
+//  Por eso el bloque «sin token» va AL FINAL del archivo, y no primero como
+//  parecería natural por su número de caso: es el ÚNICO bloque que fuerza un
+//  reinicio del servidor compartido, y dejándolo al final, si la carrera
+//  alguna vez se manifiesta, falla ÉL SOLO — nada corre después que dependa de
+//  que ese reinicio haya salido bien. Subirlo de posición vuelve a meter la
+//  transición en medio del archivo, con pruebas detrás que dependerían de que
+//  saliera bien.
+// ============================================================================
 
-  it('devuelve 404 aunque la base esté vacía y se mande un token', async () => {
-    await vaciarTenants()
-    const r = await llamarBootstrap({ token: TOKEN })
-
-    expect(r.status).toBe(404)
-    expect(await cuantosTenants()).toBe(0)
-  })
-})
-
-// ─── 2 · Con el token configurado ───────────────────────────────────────────
+// ─── 1 · Con el token configurado ───────────────────────────────────────────
 describe('F5.2 · con token configurado', () => {
   beforeAll(async () => {
     await pararServidor()
@@ -268,7 +296,7 @@ describe('F5.2 · con token configurado', () => {
   })
 })
 
-// ─── 3 · La exención de CSRF, acotada ───────────────────────────────────────
+// ─── 2 · La exención de CSRF, acotada ───────────────────────────────────────
 //
 // F5.2 añade `/api/bootstrap` a la cadena de exentos de CSRF en
 // `middleware.ts`. Esa cadena protege TODAS las mutaciones autenticadas de la
@@ -353,7 +381,7 @@ describe('F5.2 · la exencion de CSRF no se derrama', () => {
   })
 })
 
-// ─── 4 · Google es obligatorio: B4 del Plan_Acceso_Duenos (ADR 0028) ────────
+// ─── 3 · Google es obligatorio: B4 del Plan_Acceso_Duenos (ADR 0028) ────────
 //
 //  El ADR 0028 decide que el Dueno de una instancia entra SOLO con Google. Si
 //  una instancia naciera sin Google configurado, su Dueno **no podria entrar
@@ -534,5 +562,30 @@ describe('B4 · sin Google configurado, el bootstrap NO crea nada', () => {
     const r = await llamarBootstrap({ token: TOKEN })
     expect(r.status).toBe(201)
     expect(await cuantosTenants()).toBe(1)
+  })
+})
+
+// ─── 4 · Sin BOOTSTRAP_TOKEN en el entorno: la ruta NACE APAGADA ────────────
+//
+// AL FINAL del archivo a propósito, y no por el orden del caso: es el único
+// bloque que reinicia el servidor compartido (BOOTSTRAP_TOKEN pasa de
+// presente a ausente), así que es la ÚNICA transición parar→arrancar de todo
+// el archivo. Dejarlo aquí, sin nada detrás, es lo que evita que esa
+// transición se lleve por delante los bloques que siguen si la carrera se
+// manifiesta. Ver la cabecera del archivo (antes del bloque «1 · Con el
+// token configurado») para el mecanismo completo.
+describe('F5.2 · sin token configurado, la ruta no existe', () => {
+  beforeAll(async () => {
+    await pararServidor()
+    delete process.env.BOOTSTRAP_TOKEN
+    await arrancarServidor()
+  }, 120_000)
+
+  it('devuelve 404 aunque la base esté vacía y se mande un token', async () => {
+    await vaciarTenants()
+    const r = await llamarBootstrap({ token: TOKEN })
+
+    expect(r.status).toBe(404)
+    expect(await cuantosTenants()).toBe(0)
   })
 })
