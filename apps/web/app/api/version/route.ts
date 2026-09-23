@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server'
-import { createHash, timingSafeEqual } from 'node:crypto'
 import { qRaw1 } from '@/lib/server/db'
+// `esElPanel` vivía aquí dentro hasta que el ADR 0038 añadió la segunda ruta
+// que el panel consume. Se mudó a `lib/server/flota.ts` ENTERA, sin cambiarle
+// una línea, en vez de copiarla: dos comparaciones en tiempo constante
+// divergen, y la que divergiría es la que nadie mira. Lo que esta ruta
+// contesta —y lo que calla— no cambia.
+import { esElPanel } from '@/lib/server/flota'
 
 export const runtime = 'nodejs'
 // EN TIEMPO DE PETICIÓN, no de build. Una versión horneada mentiría en cuanto
@@ -49,23 +54,6 @@ export const dynamic = 'force-dynamic'
 
 interface FilaMigracion {
   archivo: string
-}
-
-/** Igual que en `/api/bootstrap`: SHA-256 para que los buffers midan siempre lo mismo. */
-function tokenCoincide(recibido: string, esperado: string): boolean {
-  const a = createHash('sha256').update(recibido).digest()
-  const b = createHash('sha256').update(esperado).digest()
-  return timingSafeEqual(a, b)
-}
-
-function esElPanel(req: Request): boolean {
-  const esperado = process.env.FLOTA_TOKEN
-  // Sin token configurado, NADIE es el panel. Ausente = cerrado, igual que el
-  // autoregistro y que el arranque: un `.env` que se quedó corto no abre nada.
-  if (!esperado) return false
-  const recibido = req.headers.get('x-flota-token')
-  if (!recibido) return false
-  return tokenCoincide(recibido, esperado)
 }
 
 const SIN_CACHE = { 'cache-control': 'no-store' }
