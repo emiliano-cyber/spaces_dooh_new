@@ -67,10 +67,39 @@
 }
 
 /* Reset scoped equivalente a preflight (desactivado globalmente).
-   Sólo afecta a descendientes de .demo-root → cero bleed a producción. */
-.demo-root *,
-.demo-root *::before,
-.demo-root *::after {
+   Sólo afecta a descendientes de .demo-root → cero bleed a producción.
+
+   ── El `:where()` NO es decorativo: sin él este bloque anulaba TODA utilidad
+   de borde de la aplicación. ────────────────────────────────────────────────
+   `.demo-root *` tiene especificidad (0,1,0), exactamente la misma que
+   `.border`, `.border-border-strong` o `.border-error`. Con empate manda el
+   orden del archivo, y Tailwind se emite ARRIBA (líneas 15-17) mientras que
+   este bloque está aquí: mismo archivo, después. Ganaba siempre el reset.
+   Reordenar imports no habría cambiado nada.
+
+   Consecuencia medida el 2026-09-23 sobre el CSS compilado (`tailwindcss -i
+   demo.css`): las utilidades de borde caían en el índice 13424 y este bloque
+   en el 27575, sin `@layer` y sin `!important` de por medio. O sea que
+   `border-width: 0` ganaba en todas partes y **ninguna** de las 1075 clases
+   `border-*` escritas en `app/` y `components/` pintaba un solo píxel. Lo
+   único que se veía eran `divide-x`/`divide-y` —(0,3,0), le ganan— y el CSS de
+   autor de `.doc-*`.
+
+   `:where()` aporta especificidad 0, así que el reset sigue acotado a la demo
+   —el ancla `.demo-root` sigue ahí, no hay bleed a producción— pero deja de
+   competir: ahora cualquier utilidad le gana, esté donde esté en el archivo.
+
+   [!warning] Esto hace VISIBLES bordes que llevaban desde siempre apagados.
+   No es que cambien de color: es que aparecen. Quien toque esto tiene que
+   mirar las pantallas, no solo las pruebas. `components/demo/ui/reset-bordes.test.ts`
+   fija la especificidad, que es aritmética; de píxeles no dice nada.
+
+   Y ojo con el comentario de B1 más abajo (el de `--border-input`): decía que
+   la regla «recolorea; no dibuja» porque el preflight dejaba `border-width: 0`
+   en todo. Eso era cierto ANTES de esta línea y ya no lo es. */
+:where(.demo-root) *,
+:where(.demo-root) *::before,
+:where(.demo-root) *::after {
   box-sizing: border-box;
   border-width: 0;
   border-style: solid;
@@ -141,10 +170,19 @@
    Al enfocar NO se toca: el anillo de foco (`focus-visible:ring-accent`) ya
    marca el campo activo y pisar su color aquí lo apagaría.
 
-   Es seguro barrer así de ancho porque solo se toca `border-color`, y el
-   preflight de Tailwind deja `border-width: 0` en todo: un control que hoy no
-   tiene contorno NO gana uno, solo cambia de color el que ya tenía. La regla
-   recolorea; no dibuja.
+   Es seguro barrer así de ancho porque solo se toca `border-color`: un control
+   sin `border-width` propio no gana contorno por esto, solo cambia de color el
+   que ya pidiera.
+
+   > [!warning] Este párrafo decía otra cosa hasta el 2026-09-23, y era la mitad
+   > del defecto. Decía que «el preflight de Tailwind deja `border-width: 0` en
+   > todo», y por eso daba por hecho que la regla «recolorea; no dibuja». Lo
+   > primero era cierto —y mucho más de lo que se creía: el reset anulaba
+   > también los `border-width` de las 1075 utilidades de la app, no solo su
+   > color—, pero dejó de serlo al envolver ese reset en `:where()`. Desde
+   > entonces un `border` de Tailwind SÍ dibuja, y este recoloreado se aplica
+   > encima de un contorno que ahora existe de verdad. Que es, por fin, lo que
+   > B1 quería: hasta esa fecha cambiar este color no movía un solo píxel.
    ========================================================================== */
 .demo-root input:not(:focus),
 .demo-root select:not(:focus),
