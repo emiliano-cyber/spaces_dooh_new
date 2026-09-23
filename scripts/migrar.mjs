@@ -32,6 +32,10 @@
 //    3  el registro y la imagen NO cuentan la misma historia: una migración ya
 //       aplicada tiene otro contenido en disco. Se nombra el archivo con los dos
 //       checksums y no se aplica nada. Escape: `--forzar-checksum=<archivo>`
+//    4  el MOTOR de esta base es más viejo de lo que exige alguna migración
+//       pendiente (`-- @pg-min: N`). Se nombra el archivo, lo que pide y lo que
+//       hay, y NO se aplica ninguna — ni las que sí podrían. Nació el 2026-09-23,
+//       cuando g500 (PostgreSQL 14.24) aplicó tres y murió en la cuarta
 // ============================================================================
 import pg from 'pg'
 import { readFileSync, readdirSync } from 'node:fs'
@@ -104,6 +108,156 @@ export function tipoDeMigracion(contenido) {
   // `\uFEFF?` porque un BOM al principio del archivo desplazaría la marca un
   // carácter y el ancla `^` no vería nada, sin dar el menor error.
   return /^\uFEFF?--\s*@tipo:\s*datos/i.test(primera) ? 'datos' : 'esquema'
+}
+
+// ─── La version de PostgreSQL que una migracion EXIGE ──────────────────────
+//
+// `-- @pg-min: 15` en la CABECERA del archivo. Sigue la convencion que ya
+// existe (`-- @tipo: datos`, arriba) en vez de inventar una segunda forma de
+// anotar: dos convenciones para lo mismo divergen, y aqui divergir significa
+// que un archivo declare algo que nadie lee.
+//
+// ── Por que existe, medido ────────────────────────────────────────────────
+// El 2026-09-23, actualizando `g500` —la unica instancia con datos reales— de
+// `v0.5.1` a `v0.7.0`, el runner aplico TRES migraciones y murio en la cuarta:
+//
+//     ERROR migrar: fallo la migracion 20260918_entidad_tenant_compuesto.sql:
+//                   syntax error at or near "("
+//       3 aplicadas antes del fallo. Abortado sin registrar esta.
+//
+// Ese parentesis es la LISTA DE COLUMNAS de `on delete set null (entidad_id)`
+// (`:138` y `:170`), que es PostgreSQL 15 o superior. `g500` corre 14.24; el
+// PADRE y DEMO corren 16.15, asi que la migracion paso las dos suites, paso por
+// DEMO y llego a la unica maquina donde no podia correr. La lista de columnas
+// NO se puede quitar: sin ella el `set null` anularia tambien `tenant_id`, que
+// es NOT NULL (lo explica la propia cabecera de esa migracion, `:40-46`).
+//
+// El dano no fue el fallo —un fallo se arregla— sino el MOMENTO del fallo:
+// tres migraciones aplicadas y la base a medio migrar, sobre datos de cliente.
+// Por eso esto se comprueba ANTES de aplicar la primera y no se aplica NINGUNA.
+//
+// ── Donde vive la anotacion, y por que ahi ────────────────────────────────
+// En la CABECERA DE ANOTACIONES: el bloque de lineas `-- @clave: valor` con el
+// que empieza el archivo. Se lee hasta la primera linea que NO lo sea, y eso no
+// es cosmetico: es lo que impide que una mencion en prosa cuente como
+// declaracion. Esa trampa ya cobro una vez en este repositorio —
+// `20260812_schema_migrations.sql` MENCIONA `-- @tipo: datos` en su prosa
+// (`:44` y `:168`)— y con `@pg-min` el fallo seria por el otro lado y peor:
+// bloquearia una actualizacion que si podia correr.
+//
+// El bloque admite varias anotaciones, asi que `@tipo` y `@pg-min` conviven sin
+// que haya que elegir cual se queda con la primera linea.
+export const RE_ANOTACION = /^﻿?--\s*@([\w-]+):\s*(.*?)\s*$/i
+
+/**
+ * La version MAYOR de PostgreSQL que la migracion declara necesitar, o `null`
+ * si no declara ninguna.
+ *
+ * `null` significa «no exige nada», NO «exige lo ultimo». Es la decision que
+ * mantiene util el guard: 87 de las 88 migraciones del repositorio no llevan
+ * anotacion, y si la ausencia bloqueara, este candado pararia la flota entera
+ * el dia que alguien corriera un motor antiguo.
+ *
+ * @param {string} contenido
+ * @returns {number | null}
+ */
+export function versionMinimaDeMigracion(contenido) {
+  for (const cruda of contenido.split('\n')) {
+    // El `\r` se quita a mano: el arbol de trabajo de esta maquina tiene
+    // migraciones en CRLF (30 de 86 el 21/09, en un arbol que `git status` daba
+    // por limpio). Una anotacion que solo se leyera con LF seria invisible justo
+    // en las maquinas donde ese problema ya muerde.
+    const linea = cruda.replace(/\r$/, '')
+    const m = RE_ANOTACION.exec(linea)
+    if (!m) return null // aqui acaba la cabecera de anotaciones
+    if (m[1].toLowerCase() !== 'pg-min') continue
+    const n = Number.parseInt(m[2], 10)
+    return Number.isFinite(n) ? n : null
+  }
+  return null
+}
+
+/**
+ * La version MAYOR que dice `server_version_num` (140024 -> 14).
+ *
+ * Se compara ese entero y no el texto de `version()` a proposito: `version()`
+ * devuelve una frase («PostgreSQL 14.24 on x86_64-pc-linux-musl…») que hay que
+ * parsear, y decidir si se ejecuta DDL parseando una frase es como se cuelan los
+ * fallos que nadie ve.
+ * @param {number|string} num
+ */
+export function versionMayor(num) {
+  return Math.floor(Number(num) / 10000)
+}
+
+/** `140024` -> `'14.24'`: lo que una persona reconoce. */
+export function versionLegible(num) {
+  const n = Number(num)
+  return `${Math.floor(n / 10000)}.${n % 10000}`
+}
+
+/**
+ * De las migraciones que se iban a aplicar, las que exigen mas motor del que
+ * hay. Lista vacia = se puede seguir.
+ *
+ * @param {{archivo: string, contenido: string}[]} migraciones
+ * @param {number|string} serverVersionNum
+ * @returns {{archivo: string, exige: number}[]}
+ */
+export function migracionesQueExigenMas(migraciones, serverVersionNum) {
+  const hay = versionMayor(serverVersionNum)
+  const fuera = []
+  for (const m of migraciones) {
+    const exige = versionMinimaDeMigracion(m.contenido)
+    if (exige === null || exige <= hay) continue
+    fuera.push({ archivo: m.archivo, exige })
+  }
+  return fuera
+}
+
+/**
+ * El mensaje que lee el operador. El liston es explicito: tiene que servirle a
+ * alguien a las tres de la manana, y se compara con el que salio de verdad en
+ * g500 —`syntax error at or near "("`—, que no decia ni que migracion, ni que
+ * version pedia, ni cual habia, ni si la base habia quedado tocada.
+ *
+ * No enseña la URL: en este proyecto un fragmento de credencial en un log es
+ * criterio invalidante (M2), el mismo motivo por el que existe `destinoSeguro()`.
+ *
+ * @param {{archivo: string, exige: number}[]} bloqueantes
+ * @param {number|string} serverVersionNum
+ */
+export function mensajeVersionInsuficiente(bloqueantes, serverVersionNum) {
+  const hay = versionLegible(serverVersionNum)
+  return (
+    `ERROR migrar: esta base corre PostgreSQL ${hay} y hay migraciones pendientes que\n` +
+    'exigen un motor mas nuevo. NO se aplico NINGUNA — ni siquiera las que si podrian\n' +
+    'correr aqui, y eso es deliberado: aplicar unas cuantas y morir en la siguiente deja\n' +
+    'la base A MEDIO MIGRAR, que es exactamente lo que le paso a g500 el 2026-09-23.\n' +
+    bloqueantes
+      .map(
+        (b) =>
+          `  · ${b.archivo}\n` +
+          `      exige:  PostgreSQL ${b.exige} o superior   (lo declara su cabecera: -- @pg-min: ${b.exige})\n` +
+          `      hay:    PostgreSQL ${hay}`,
+      )
+      .join('\n') +
+    '\nQue hacer (ninguna de las dos la decide este script):\n' +
+    `  · subir el motor de ESTA base a PostgreSQL ${Math.max(...bloqueantes.map((b) => b.exige))} o superior y repetir el comando; o\n` +
+    '  · quedarse en la version de imagen ANTERIOR a esas migraciones.\n' +
+    'Cada archivo explica en su cabecera POR QUE necesita esa version, y en el caso del\n' +
+    '18/09 la sintaxis no se puede sustituir sin cambiar el comportamiento del borrado:\n' +
+    'leela antes de decidir. La base NO se toco.'
+  )
+}
+
+/**
+ * `server_version_num` de la base conectada, como entero (140024, 160015).
+ * Es un parametro de solo lectura del servidor: lo ve cualquier rol.
+ */
+export async function versionDelServidor(cli) {
+  const { rows } = await cli.query("select current_setting('server_version_num') as n")
+  return Number(rows[0].n)
 }
 
 // ─── La señal que VERIFICA `--instalacion-nueva` ───────────────────────────
@@ -703,6 +857,49 @@ export async function main(argv = process.argv) {
     const pendientes = todas.filter((m) => !aplicadas.has(m.archivo))
     const deDatos = pendientes.filter((m) => m.tipo === 'datos')
     const aAplicar = conDatos ? pendientes : pendientes.filter((m) => m.tipo === 'esquema')
+
+    // ─── El MOTOR de esta base puede con lo que va a aplicarse ───────────
+    //
+    // Va antes de aplicar el primer archivo, y también antes de que
+    // `--pendientes` devuelva su listado. Lo segundo es una decisión y tiene
+    // precedente en este mismo archivo: el guard de integridad de checksums ya
+    // corre antes de `--pendientes` a propósito, porque `--pendientes` es la
+    // orden que se teclea JUSTO ANTES de actualizar y ahí es donde hay que
+    // enterarse de que la actualización no va a poder correr. Un listado limpio
+    // seguido de un despliegue abortado a mitad es el peor orden posible.
+    //
+    // Se mira `aAplicar` y no `pendientes`: una migración de datos que exigiera
+    // un motor nuevo no debe bloquear un despliegue normal, que no la aplica.
+    //
+    // Fail-closed también aquí. Si no se puede saber qué versión corre, no se
+    // aplica: la pregunta que este guard existe para hacer se quedó sin
+    // responder, y seguir adelante sería exactamente la conducta que costó el
+    // incidente.
+    let versionServidor
+    try {
+      versionServidor = await versionDelServidor(cli)
+    } catch (e) {
+      console.error(
+        `ERROR migrar: no se pudo leer la version de PostgreSQL de esta base: ${e.message}\n` +
+          'Sin ese dato no se puede comprobar si las migraciones pendientes caben en este\n' +
+          'motor, y aplicar a ciegas es lo que dejo a g500 a medio migrar el 2026-09-23.\n' +
+          'No se aplico nada.',
+      )
+      return 4
+    }
+    if (!Number.isFinite(versionServidor) || versionServidor <= 0) {
+      console.error(
+        "ERROR migrar: current_setting('server_version_num') devolvio algo que no es un\n" +
+          'numero de version. No se puede comprobar si las migraciones pendientes caben en\n' +
+          'este motor, asi que no se aplico nada.',
+      )
+      return 4
+    }
+    const exigentes = migracionesQueExigenMas(aAplicar, versionServidor)
+    if (exigentes.length) {
+      console.error(mensajeVersionInsuficiente(exigentes, versionServidor))
+      return 4
+    }
 
     if (soloListar) {
       for (const m of pendientes) console.log(`  pendiente [${m.tipo}]  ${m.archivo}`)
