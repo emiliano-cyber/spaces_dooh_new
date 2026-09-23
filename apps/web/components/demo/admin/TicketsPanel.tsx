@@ -75,9 +75,11 @@ export function TicketsPanel({ onToast }: { onToast: (m: string) => void }) {
 
   async function cargar() {
     try {
-      // Fetch crudo, no `listarTicketsApi()`: aquí hace falta EL STATUS, no
-      // solo el cuerpo, para distinguir "sin permiso" de un fallo real --
-      // mismo criterio que `ActualizacionesPanel.tsx:cargar()`.
+      // Fetch crudo y no una función de `lib/data/tickets-api.ts`: aquí hace
+      // falta EL STATUS, no solo el cuerpo, para distinguir "sin permiso" de un
+      // fallo real -- mismo criterio que `ActualizacionesPanel.tsx:cargar()`.
+      // Allí hubo un `listarTicketsApi()` que nadie llegó a llamar por esto
+      // mismo, y se retiró el 23/09.
       const r = await fetch('/spaces-dooh/api/tickets/', { cache: 'no-store' })
       if (r.status === 401 || r.status === 403) { setStatus('sin-permiso'); return }
       if (!r.ok) { setStatus('error'); return }

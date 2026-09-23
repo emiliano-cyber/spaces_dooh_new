@@ -35,11 +35,16 @@ async function jsonOk(r: Response) {
   return d
 }
 
-// GET /api/tickets devuelve Ticket[] crudo, no envuelto en `{ tickets: [...] }`
-// (route.ts:31, `NextResponse.json(await listarTicketsDelTenant())`).
-export async function listarTicketsApi(): Promise<Ticket[]> {
-  return jsonOk(await fetch(`${API}/tickets/`, { cache: 'no-store' }))
-}
+// Aqui vivia `listarTicketsApi()`, y se retiro el 2026-09-23 sin llegar a
+// usarse nunca: `TicketsPanel.tsx` lee la lista con un fetch crudo A PROPOSITO,
+// porque necesita EL STATUS para distinguir «sin permiso» (403) de un fallo
+// real, y esta capa solo devuelve el cuerpo. Una funcion exportada que nadie
+// llama se lee como la forma buena de hacerlo y arrastra a quien venga detras
+// hacia el camino que el panel ya descarto por escrito.
+//
+// Si algun dia hace falta, el GET devuelve `Ticket[]` crudo y no envuelto en
+// `{ tickets: [...] }` (`app/api/tickets/route.ts`, el `NextResponse.json` de
+// `listarTicketsDelTenant()`); la version envuelta es la del PANEL, otra ruta.
 
 export interface AltaTicket {
   asunto: string
