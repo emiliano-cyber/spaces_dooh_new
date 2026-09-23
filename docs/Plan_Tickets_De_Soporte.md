@@ -49,7 +49,7 @@ Aplican a **todas** las tareas. No se repiten en cada una.
 
 | Archivo | Qué |
 |---|---|
-| `db/migrations/20260922_tickets.sql` | **crear** — enum, tabla, RLS, índices |
+| `db/migrations/20260923_tickets.sql` | **crear** — enum, tabla, RLS, índices |
 | `apps/web/lib/server/folios.ts` | **modificar** — añadir `'ticket'` a `AmbitoFolio` |
 | `apps/web/lib/server/tickets-repo.ts` | **crear** — el SQL, los dos lados separados |
 | `apps/web/lib/server/tickets-controller.ts` | **crear** — validación y reglas |
@@ -65,7 +65,7 @@ Aplican a **todas** las tareas. No se repiten en cada una.
 ## Tarea 1 · La migración
 
 **Archivos:**
-- Crear: `db/migrations/20260922_tickets.sql`
+- Crear: `db/migrations/20260923_tickets.sql`
 - Prueba: `apps/web/lib/server/tickets.e2e.test.ts` (nuevo)
 
 **Produce:** tabla `tickets` con las columnas que consumen las tareas 2 a 8.
@@ -170,7 +170,7 @@ node scripts/migrar.mjs
 node scripts/migrar.mjs        # segunda vez: tiene que decir "sin cambios"
 ```
 
-Esperado: la primera lista `20260922_tickets.sql`; la segunda la aplica; la
+Esperado: la primera lista `20260923_tickets.sql`; la segunda la aplica; la
 tercera **no vuelve a aplicarla** (idempotencia).
 
 - [ ] **Paso 6 · Commit**
@@ -372,7 +372,12 @@ it('la respuesta del panel no trae el nombre de ninguna organizacion', …)
 
 **Archivos:**
 - Crear: `apps/web/components/demo/admin/tickets-ui.ts` (lógica pura, con test)
-- Modificar: la pantalla de Administración para colgar la sección
+- Crear: `apps/web/components/demo/admin/TicketsPanel.tsx`
+- Modificar: `apps/web/app/(app)/(shell)/administracion/page.tsx` — montar
+  `<TicketsPanel onToast={onToast} />` junto a `<ActualizacionesPanel>` (`:681`)
+
+> Es el mismo montaje exacto que el ADR 0037: lógica pura en `tickets-ui.ts` con
+> su test, presentación en `TicketsPanel.tsx`, y una sola línea en la página.
 
 **Consume:** T5.
 
