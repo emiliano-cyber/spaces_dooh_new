@@ -420,11 +420,40 @@ describe('la pantalla de tickets exige sesion, igual que /flota/', () => {
     expect(dd.consultas).toBe(0)
   })
 
-  it('sirve tanto /flota/tickets como /flota/tickets/', async () => {
-    for (const ruta of RUTAS_TICKETS) {
+  // ── Las CUATRO variantes, ESCRITAS A MANO ────────────────────────────────
+  //
+  // La version anterior de esta prueba iteraba `RUTAS_TICKETS`, o sea la MISMA
+  // constante que venia a comprobar: era tautologica y no podia ponerse roja
+  // por una variante que faltara --- con `RUTAS_TICKETS = []` habria pasado con
+  // cero iteraciones. Y faltaban dos: el `proxy_pass` de
+  // `infra/nginx/snippets/flota-panel.conf:16` lleva BARRA FINAL, que RECORTA
+  // el prefijo, asi que detras del nginx de verdad el panel recibe `/tickets/`
+  // --- que no estaba en la lista y daba 404. Por eso `RUTAS_ALTAS` tiene
+  // cuatro desde siempre.
+  const VARIANTES_TICKETS = ['/flota/tickets/', '/flota/tickets', '/tickets/', '/tickets']
+
+  it('la constante lista EXACTAMENTE las cuatro variantes de prefijo', () => {
+    expect([...RUTAS_TICKETS].sort()).toEqual([...VARIANTES_TICKETS].sort())
+  })
+
+  it('el GET sirve las cuatro variantes, incluidas las que deja nginx al recortar', async () => {
+    for (const ruta of VARIANTES_TICKETS) {
       const dd = depsTickets()
       const r = await manejar({ metodo: 'GET', ruta, cookie: 'spaces_sesion=x' }, dd.d)
       expect(r.status, ruta).toBe(200)
+    }
+  })
+
+  it('el POST del formulario tambien llega por las cuatro', async () => {
+    // El `action` del formulario es `/flota/tickets/` --- la direccion que ve
+    // el NAVEGADOR --- y nginx se la entrega al panel recortada a `/tickets/`.
+    // Si el GET se arreglara y el POST no, contestar un ticket daria 404
+    // despues de escribir la respuesta: el fallo mas caro de los dos.
+    for (const ruta of VARIANTES_TICKETS) {
+      const dd = depsTickets()
+      const r = await manejar(postTicket({ id: 'id-1', instancia: 'g500', dominio: 'g500.ejemplo.invalid', respuesta: 'ya va', estado: 'ABIERTO' }, { ruta }), dd.d)
+      expect(r.status, ruta).toBe(303)
+      expect(dd.llamadasContestar.length, ruta).toBe(1)
     }
   })
 

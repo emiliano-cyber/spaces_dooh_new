@@ -49,8 +49,24 @@ export const RUTAS = ['/flota/', '/flota', '/']
 /** La pantalla de altas (ADR 0027), con las mismas variantes de prefijo. */
 export const RUTAS_ALTAS = ['/flota/altas/', '/flota/altas', '/altas/', '/altas']
 
-/** La pantalla de tickets (T9, ADR 0038), con las mismas variantes de prefijo. */
-export const RUTAS_TICKETS = ['/flota/tickets/', '/flota/tickets']
+/**
+ * La pantalla de tickets (T9, ADR 0038), con las mismas CUATRO variantes de
+ * prefijo que `RUTAS_ALTAS`.
+ *
+ * Y son cuatro por una razon medida, no por simetria: el `proxy_pass` de
+ * `infra/nginx/snippets/flota-panel.conf:16` lleva **barra final**, que RECORTA
+ * el prefijo, asi que detras del nginx de verdad el panel recibe `/tickets/` y
+ * no `/flota/tickets/`. Hasta el 2026-09-23 aqui solo estaban las dos con
+ * prefijo --- y el comentario ya afirmaba «con las mismas variantes», que era
+ * falso---: la pantalla habria dado **404 en produccion** y en el panel local
+ * no, que es la peor forma de descubrirlo.
+ *
+ * El POST entra por el mismo sitio: el `action` del formulario es
+ * `/flota/tickets/` --- la direccion que ve el NAVEGADOR, igual que en
+ * `paginaAltas()` --- y nginx se la entrega recortada. Sin las dos variantes
+ * sueltas, contestar un ticket daba 404 DESPUES de escribir la respuesta.
+ */
+export const RUTAS_TICKETS = ['/flota/tickets/', '/flota/tickets', '/tickets/', '/tickets']
 
 /**
  * El panel pone SU PROPIA cookie CSRF.
