@@ -8,6 +8,11 @@ import {
   tablasQueCrea,
   testigosDeHistoria,
   destinoSeguro,
+  versionMinimaDeMigracion,
+  versionMayor,
+  versionLegible,
+  migracionesQueExigenMas,
+  mensajeVersionInsuficiente,
 } from './migrar.mjs'
 
 // ============================================================================
@@ -267,5 +272,229 @@ describe('destinoSeguro()', () => {
     expect(d).not.toMatch(/secreto/)
     expect(d).not.toMatch(/spaces_prod/)
     expect(d).not.toMatch(/var\/run/)
+  })
+})
+
+// ============================================================================
+//  La version de PostgreSQL que una migracion EXIGE — `-- @pg-min: N`.
+// ----------------------------------------------------------------------------
+//  El incidente que la motiva, medido el 2026-09-23 en `g500` —la unica
+//  instancia con datos reales—: al subirla de `v0.5.1` a `v0.7.0` el runner
+//  aplico TRES migraciones y murio en la cuarta con
+//
+//      syntax error at or near "("
+//
+//  Ese parentesis es la LISTA DE COLUMNAS de
+//  `20260918_entidad_tenant_compuesto.sql:138` y `:170`
+//  (`on delete set null (entidad_id)`), que existe desde PostgreSQL 15. `g500`
+//  corre 14.24; el PADRE y DEMO corren 16.15, asi que ahi nunca fallo y nadie
+//  lo vio venir.
+//
+//  El dano NO fue el fallo: fue el MOMENTO del fallo. Tres migraciones ya
+//  aplicadas, la base a medio migrar y el despliegue abortado. Con este guard
+//  no se habria aplicado ninguna, que es la unica diferencia que importa.
+//
+//  La anotacion sigue la convencion que ya existe (`-- @tipo: datos`,
+//  `migrar.mjs:7`) en vez de inventar otra, y vive en la CABECERA de
+//  anotaciones: el bloque de lineas `-- @clave: valor` con las que empieza el
+//  archivo. Se para en la primera linea que no lo es, y eso no es un detalle —
+//  es lo que impide que una mencion en prosa cuente como declaracion, que es el
+//  fallo exacto que `tipoDeMigracion()` documenta en su cabecera.
+// ============================================================================
+
+describe('versionMinimaDeMigracion()', () => {
+  it('lee la anotacion cuando es la primera linea', () => {
+    expect(versionMinimaDeMigracion('-- @pg-min: 15\nalter table x add column y int;\n')).toBe(15)
+  })
+
+  it('convive con `@tipo: datos`: las dos anotaciones caben en la misma cabecera', () => {
+    // No son excluyentes y nada garantiza que no coincidan manana: una
+    // migracion de datos puede usar sintaxis nueva igual que una de esquema.
+    // Si la convencion fuera «solo la primera linea» habria que elegir una.
+    const sql = '-- @tipo: datos\n-- @pg-min: 15\nupdate x set y = 1;\n'
+    expect(tipoDeMigracion(sql)).toBe('datos')
+    expect(versionMinimaDeMigracion(sql)).toBe(15)
+  })
+
+  it('una migracion SIN anotacion no exige nada', () => {
+    expect(versionMinimaDeMigracion('alter table sitios add column if not exists x int;\n')).toBe(
+      null,
+    )
+  })
+
+  it('una mencion en PROSA no cuenta: la cabecera acaba en la primera linea que no es anotacion', () => {
+    // La trampa real del repositorio, y ya cobro una vez con `@tipo`:
+    // `20260812_schema_migrations.sql` MENCIONA `-- @tipo: datos` en su prosa
+    // (`:44` y `:168`). Aqui pasaria lo mismo al reves y seria peor: una
+    // migracion que solo HABLA de la version minima quedaria declarada como si
+    // la exigiera, y el guard bloquearia una actualizacion que si podia correr.
+    const sql = [
+      '-- ============================================================',
+      '--  Prosa larga explicando la migracion.',
+      '--  Aqui se menciona `-- @pg-min: 15` para explicar por que NO se usa.',
+      '-- ============================================================',
+      'alter table x add column y int;',
+    ].join('\n')
+    expect(versionMinimaDeMigracion(sql)).toBe(null)
+  })
+
+  it('acepta espacios, mayusculas y un BOM delante, como `@tipo`', () => {
+    // El BOM por el mismo motivo que `tipoDeMigracion()`: desplaza la marca un
+    // caracter y el ancla `^` deja de verla, sin dar el menor error.
+    expect(versionMinimaDeMigracion('﻿--   @PG-MIN:  16\nselect 1;\n')).toBe(16)
+  })
+
+  it('tolera CRLF — el arbol de esta maquina lo tiene', () => {
+    // 30 de 86 migraciones estaban en CRLF el 21/09 en un arbol que `git
+    // status` daba por limpio. Una anotacion que solo se leyera con LF seria
+    // invisible justo en las maquinas donde ese problema ya muerde.
+    expect(versionMinimaDeMigracion('-- @pg-min: 15\r\nselect 1;\r\n')).toBe(15)
+  })
+})
+
+describe('versionMayor() y versionLegible()', () => {
+  it('traducen `server_version_num` a lo que dice una persona', () => {
+    // Se compara el entero y no el texto de `version()` a proposito: `version()`
+    // devuelve una frase entera («PostgreSQL 14.24 on x86_64-pc-linux-musl…»)
+    // que hay que parsear, y parsear una frase para decidir si se aplica DDL es
+    // como se cuelan los fallos que nadie ve.
+    expect(versionMayor(140024)).toBe(14) // g500, medido el 2026-09-23
+    expect(versionMayor(160015)).toBe(16) // PADRE y DEMO
+    expect(versionLegible(140024)).toBe('14.24')
+    expect(versionLegible(160015)).toBe('16.15')
+  })
+})
+
+describe('migracionesQueExigenMas()', () => {
+  const pendientes = [
+    { archivo: '20260917_entidades_fiscales.sql', contenido: 'alter table x add column y int;\n' },
+    { archivo: '20260918_consumos_energia.sql', contenido: 'create table z (a int);\n' },
+    {
+      archivo: '20260918_entidad_tenant_compuesto.sql',
+      contenido: '-- @pg-min: 15\nalter table x add constraint c foreign key (a) references b (a);\n',
+    },
+  ]
+
+  it('con PostgreSQL 14 senala la que exige mas, y solo esa', () => {
+    const bloqueantes = migracionesQueExigenMas(pendientes, 140024)
+    expect(bloqueantes).toEqual([{ archivo: '20260918_entidad_tenant_compuesto.sql', exige: 15 }])
+  })
+
+  it('con version SUFICIENTE no bloquea nada — el guard no cambia lo que hoy funciona', () => {
+    // Es la prueba que de verdad importa. El PADRE, DEMO, el 5433 y el arnes de
+    // integracion corren 15 o mas: si este guard alterara su comportamiento,
+    // habria cambiado la flota entera para arreglar una sola maquina.
+    expect(migracionesQueExigenMas(pendientes, 160015)).toEqual([])
+    expect(migracionesQueExigenMas(pendientes, 150000)).toEqual([])
+  })
+
+  it('una migracion sin anotacion NUNCA bloquea, ni contra un motor antiguo', () => {
+    // 87 de las 88 migraciones del repositorio no llevan anotacion. Si la
+    // ausencia significara «exige lo ultimo», este guard pararia la flota
+    // entera el dia que alguien corriera un motor viejo.
+    const sinAnotar = pendientes.slice(0, 2)
+    expect(migracionesQueExigenMas(sinAnotar, 90604)).toEqual([])
+  })
+
+  it('sobre una lista vacia no inventa nada', () => {
+    expect(migracionesQueExigenMas([], 140024)).toEqual([])
+  })
+})
+
+describe('mensajeVersionInsuficiente()', () => {
+  // El liston es explicito: tiene que servirle a alguien a las tres de la
+  // manana. El mensaje que salio hoy en g500 fue `syntax error at or near "("`,
+  // que no dice ni que migracion, ni que version pide, ni cual hay, ni si la
+  // base quedo tocada.
+  // Se construye DENTRO de cada prueba y no en el cuerpo del `describe`: ahi
+  // arriba, el dia que la funcion no exista o reviente, se cae la recoleccion
+  // del archivo entero y las otras veinte pruebas desaparecen del informe en
+  // vez de fallar una.
+  const texto = () =>
+    mensajeVersionInsuficiente([{ archivo: '20260918_entidad_tenant_compuesto.sql', exige: 15 }], 140024)
+
+  it('nombra la migracion, lo que pide y lo que hay', () => {
+    expect(texto()).toContain('20260918_entidad_tenant_compuesto.sql')
+    expect(texto()).toMatch(/PostgreSQL 15/)
+    expect(texto()).toContain('14.24')
+  })
+
+  it('dice en voz alta que NO se aplico ninguna', () => {
+    // Lo primero que necesita saber quien lee esto de madrugada no es que
+    // migracion fallo: es si tiene que ir a mirar la base.
+    expect(texto()).toMatch(/ninguna/i)
+  })
+
+  it('no filtra la URL ni credenciales', () => {
+    expect(texto()).not.toMatch(/postgresql:\/\//)
+  })
+})
+
+// ============================================================================
+//  El canario: sintaxis de PostgreSQL 15+ sin declarar.
+// ----------------------------------------------------------------------------
+//  Esta es la prueba que habria cazado el incidente del 2026-09-23 antes de
+//  salir del repositorio. Recorre TODAS las migraciones —no una lista escrita
+//  aqui, que caduca— y exige que la que usa sintaxis nueva lo declare.
+//
+//  Se comparan los archivos SIN comentarios a proposito:
+//  `20260918_consumos_energia.sql:121` menciona `nulls not distinct` en su prosa
+//  justo para explicar por que NO lo usa. Contar esa mencion obligaria a anotar
+//  una migracion que corre perfectamente en PostgreSQL 14.
+//
+//  Limite dicho en voz alta: quitar comentarios con una expresion regular no
+//  entiende de literales de cadena, asi que un `--` dentro de una cadena
+//  cortaria la linea antes de tiempo. Hoy no ocurre en ninguna de las 88; si un
+//  dia ocurre, el efecto es un falso NEGATIVO (deja pasar), no un falso
+//  positivo que pararia la flota.
+// ============================================================================
+
+const SINTAXIS_PG15 = [
+  // `on delete set null (columna)` — la lista de columnas en la accion
+  // referencial. PostgreSQL 15. Es la que rompio g500.
+  {
+    patron: /on\s+delete\s+set\s+(?:null|default)\s*\(/i,
+    desde: 15,
+    nombre: 'on delete set null/default (columnas)',
+  },
+  { patron: /nulls\s+not\s+distinct/i, desde: 15, nombre: 'nulls not distinct' },
+  { patron: /^\s*merge\s+into\b/im, desde: 15, nombre: 'merge into' },
+  { patron: /security_invoker/i, desde: 15, nombre: 'security_invoker' },
+]
+
+function sinComentarios(sql: string): string {
+  return sql
+    .split('\n')
+    .map((l) => l.replace(/--.*$/, ''))
+    .join('\n')
+}
+
+describe('canario: toda migracion con sintaxis de PostgreSQL 15+ la DECLARA', () => {
+  it('ninguna usa sintaxis nueva sin `-- @pg-min`', () => {
+    const sinDeclarar: string[] = []
+    for (const archivo of readdirSync(DIR_MIGRACIONES).filter((f) => f.endsWith('.sql'))) {
+      const contenido = readFileSync(join(DIR_MIGRACIONES, archivo), 'utf8')
+      const codigo = sinComentarios(contenido)
+      for (const s of SINTAXIS_PG15) {
+        if (!s.patron.test(codigo)) continue
+        const exige = versionMinimaDeMigracion(contenido)
+        if (exige === null || exige < s.desde) {
+          sinDeclarar.push(
+            `${archivo} usa «${s.nombre}» (PostgreSQL ${s.desde}+) y declara ${exige}`,
+          )
+        }
+      }
+    }
+    expect(sinDeclarar).toEqual([])
+  })
+
+  it('y la del 18/09 sigue siendo la unica que lo necesita hoy', () => {
+    // Si manana entra otra, esta prueba cae y obliga a mirarla, no a borrarla.
+    const declaradas = readdirSync(DIR_MIGRACIONES)
+      .filter((f) => f.endsWith('.sql'))
+      .filter(
+        (f) => versionMinimaDeMigracion(readFileSync(join(DIR_MIGRACIONES, f), 'utf8')) !== null,
+      )
+    expect(declaradas).toEqual(['20260918_entidad_tenant_compuesto.sql'])
   })
 })
