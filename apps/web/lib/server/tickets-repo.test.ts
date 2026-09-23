@@ -152,30 +152,77 @@ describe('el lado del cliente aisla — q/client, con tenant explicito', () => {
 describe('el lado del panel atraviesa — qRaw, sin tenant, a proposito', () => {
   it('el lado del panel usa qRaw a proposito y NO filtra por tenant', async () => {
     await repo.listarTicketsDeLaInstancia()
-    await repo.responderTicket(TICKET, 'Ya se reviso, era el fusible.')
+    await repo.actualizarTicketDesdePanel(TICKET, { respuesta: 'Ya se reviso, era el fusible.' })
 
     const panel = delPanel()
-    expect(panel.length, 'listarTicketsDeLaInstancia y responderTicket no dispararon ninguna consulta').toBeGreaterThan(0)
+    expect(panel.length, 'listarTicketsDeLaInstancia y actualizarTicketDesdePanel no dispararon ninguna consulta').toBeGreaterThan(0)
     expect(delCliente().length, 'una operacion del panel uso q/withTenantTx').toBe(0)
     for (const c of panel) {
       expect(c.sql, `consulta del panel filtrando por tenant_id:\n${c.sql}`).not.toMatch(/tenant_id\s*=\s*\$/)
       expect(c.params, 'el tenant de la sesion se colo en una consulta del panel').not.toContain(TENANT)
     }
-    // Y la de responder SI es por id — es la excepcion documentada, no un
+    // Y la de actualizar SI es por id — es la excepcion documentada, no un
     // descuido: el panel identifica el ticket por su id y cruza cualquier
     // organizacion a proposito.
     const upd = sqlDe(/update tickets/)!
-    expect(upd, 'responderTicket no actualizo tickets').toBeDefined()
+    expect(upd, 'actualizarTicketDesdePanel no actualizo tickets').toBeDefined()
     expect(upd.sql).toMatch(/\bid\s*=\s*\$\d/)
   })
 
   it('el lado del panel NO selecciona tenants.nombre', async () => {
     await repo.listarTicketsDeLaInstancia()
-    await repo.responderTicket(TICKET, 'Ya se reviso, era el fusible.')
+    await repo.actualizarTicketDesdePanel(TICKET, { respuesta: 'Ya se reviso, era el fusible.' })
 
     for (const c of delPanel()) {
       expect(c.sql, `el panel selecciona tenants.nombre:\n${c.sql}`).not.toMatch(/tenants\s*\.\s*nombre/i)
       expect(c.sql, `el panel hace join contra tenants:\n${c.sql}`).not.toMatch(/join\s+tenants\b/i)
     }
+  })
+})
+
+// ============================================================================
+//  Tarea 11 · actualizarTicketDesdePanel — escribe SOLO lo que llega.
+// ----------------------------------------------------------------------------
+//  El modo de fallo que esto evita no es de aislamiento (eso ya lo cubre el
+//  bloque de arriba): es que un PATCH que solo mueve el estado deje creer, en
+//  la pantalla, que AS OOH ya contesto sin haber escrito una palabra. Por eso
+//  estas pruebas miran el TEXTO del SQL generado -- que columna entro al
+//  `set` y cual no -- y no solo la fila que el mock devuelve.
+// ============================================================================
+describe('actualizarTicketDesdePanel · escribe solo lo que llega', () => {
+  it('con estado y sin respuesta, no toca respondido_en', async () => {
+    await repo.actualizarTicketDesdePanel(TICKET, { estado: 'RESUELTO' })
+
+    const upd = sqlDe(/update tickets/)!
+    expect(upd, 'actualizarTicketDesdePanel no actualizo tickets').toBeDefined()
+    expect(upd.sql, `un PATCH solo de estado toco respondido_en:\n${upd.sql}`).not.toMatch(/respondido_en/)
+    expect(upd.sql).toMatch(/\bestado\s*=\s*\$\d/)
+    expect(upd.sql, 'un PATCH solo de estado escribio la columna respuesta').not.toMatch(/\brespuesta\s*=\s*\$\d/)
+  })
+
+  it('con respuesta, fija respondido_en', async () => {
+    await repo.actualizarTicketDesdePanel(TICKET, { respuesta: 'Ya se reviso, era el fusible.' })
+
+    const upd = sqlDe(/update tickets/)!
+    expect(upd, 'actualizarTicketDesdePanel no actualizo tickets').toBeDefined()
+    expect(upd.sql).toMatch(/\brespuesta\s*=\s*\$\d/)
+    expect(upd.sql, 'una respuesta no fijo respondido_en').toMatch(/respondido_en\s*=\s*now\(\)/)
+    // Y responder NO mueve el estado por su cuenta (ruling de la Tarea 3):
+    // ninguna columna `estado` en el `set` cuando solo llego `respuesta`.
+    expect(upd.sql, 'responder movio el estado sin que nadie lo pidiera').not.toMatch(/\bestado\s*=\s*\$\d/)
+  })
+
+  it('con las dos cosas, escribe las dos -- pero cada una en su propio set', async () => {
+    await repo.actualizarTicketDesdePanel(TICKET, { respuesta: 'Se cambio el driver.', estado: 'RESUELTO' })
+
+    const upd = sqlDe(/update tickets/)!
+    expect(upd.sql).toMatch(/\brespuesta\s*=\s*\$\d/)
+    expect(upd.sql).toMatch(/respondido_en\s*=\s*now\(\)/)
+    expect(upd.sql).toMatch(/\bestado\s*=\s*\$\d/)
+  })
+
+  it('sin ningun campo, no arma un update vacio: revienta antes de tocar la base', async () => {
+    await expect(repo.actualizarTicketDesdePanel(TICKET, {})).rejects.toThrow()
+    expect(delPanel().length, 'un PATCH vacio disparo una consulta contra la base').toBe(0)
   })
 })

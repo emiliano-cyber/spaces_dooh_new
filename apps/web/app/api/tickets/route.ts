@@ -3,8 +3,8 @@ import { exigir } from '@/lib/server/auth'
 import { esElPanel } from '@/lib/server/flota'
 import { listarTicketsDelTenant, listarTicketsDeLaInstancia } from '@/lib/server/tickets-repo'
 import type { TicketDeInstancia } from '@/lib/server/tickets-repo'
-import { crearTicketCtrl } from '@/lib/server/tickets-controller'
-import { respuestaError } from '@/lib/server/errores'
+import { crearTicketCtrl, actualizarTicketDesdePanelCtrl } from '@/lib/server/tickets-controller'
+import { AppError, respuestaError } from '@/lib/server/errores'
 import { registrarAccion } from '@/lib/server/acciones-repo'
 
 export const runtime = 'nodejs'
@@ -94,6 +94,36 @@ export async function POST(req: Request) {
     const ticket = await crearTicketCtrl(await req.json().catch(() => ({})), g.usuario.id)
     await registrarAccion(g.usuario, 'Abrió ticket de soporte', ticket.folio)
     return NextResponse.json(ticket, { status: 201 })
+  } catch (e) {
+    return respuestaError(e)
+  }
+}
+
+// PATCH /api/tickets → el panel (con `x-flota-token`, ADR 0038, Tarea 11)
+// responde un ticket, mueve su estado, o las dos cosas — de CUALQUIER tenant
+// de la instancia, a propósito, igual que el `GET` del panel de arriba.
+//
+// El `id` viaja en el CUERPO y no en la URL: esta ruta no tiene un segmento
+// `[id]` (la Tarea 11 la puso a propósito en el mismo `route.ts` que el resto
+// del panel, no en un archivo nuevo), así que el guard, la puerta y la carga
+// quedan en el mismo sitio que el `GET`/`POST` de arriba en vez de repartirse
+// entre dos archivos que tendrían que mantenerse sincronizados.
+//
+// Sin `x-flota-token` válido, 401 y NADA se toca: no hay camino de sesión de
+// respaldo como en el `GET` — un cliente no tiene forma legítima de mandar
+// este verbo, así que no hace falta un segundo camino al que caer.
+export async function PATCH(req: Request) {
+  if (!esElPanel(req)) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  }
+  try {
+    const body = (await req.json().catch(() => ({}))) as { id?: unknown; [k: string]: unknown }
+    const { id, ...cambios } = body
+    if (typeof id !== 'string' || id.trim() === '') {
+      throw new AppError('Falta el id del ticket', 400)
+    }
+    const ticket = await actualizarTicketDesdePanelCtrl(id, cambios)
+    return NextResponse.json(paraElPanel(ticket), { headers: { 'cache-control': 'no-store' } })
   } catch (e) {
     return respuestaError(e)
   }

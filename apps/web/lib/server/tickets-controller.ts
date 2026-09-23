@@ -1,8 +1,8 @@
 import 'server-only'
 import { z } from 'zod'
 import { AppError, validar } from './errores'
-import { crearTicket, responderTicket } from './tickets-repo'
-import type { Ticket, TicketDeInstancia } from './tickets-repo'
+import { crearTicket, actualizarTicketDesdePanel } from './tickets-repo'
+import type { Ticket, TicketDeInstancia, EstadoTicket } from './tickets-repo'
 
 // ============================================================================
 //  lib/server/tickets-controller.ts — ADR 0038.
@@ -11,6 +11,7 @@ import type { Ticket, TicketDeInstancia } from './tickets-repo'
 // ============================================================================
 
 const PRIORIDADES = ['BAJA', 'NORMAL', 'ALTA', 'URGENTE'] as const
+const ESTADOS = ['ABIERTO', 'EN_PROCESO', 'RESUELTO', 'CERRADO'] as const
 
 // `.strict()`: un campo de mas da 400, no se descarta en silencio -- mismo
 // criterio que `usuarios-controller.ts` usa con `password` en el update.
@@ -27,19 +28,29 @@ const crearSchema = z
   })
   .strict()
 
-// Igual de estricta: lo unico que el panel manda al responder es el texto. El
-// estado del ticket NO se mueve aqui -- responder no es resolver, quien
-// contesta puede estar pidiendo mas datos (ADR 0038; ruling de T3 en
-// progress.md) -- asi que ni siquiera se acepta un campo `estado` que luego
-// se ignoraria: `responderTicket` (tickets-repo.ts:135-144) solo toca
-// `respuesta`, `respondido_en` y `actualizado_en`, nunca `estado`. Cuando el
-// producto pida mover el estado sera una funcion aparte y explicita, no un
-// campo colado en este cuerpo.
-const responderSchema = z
+// El PATCH del panel (Tarea 11, ADR 0038): responde, mueve el estado, o las
+// dos cosas -- pero NUNCA una porque llego la otra. `.strict()` para que una
+// clave de mas (p. ej. `tenantId`) de 400 en vez de ignorarse, mismo criterio
+// que `crearSchema`. Y el `.refine` de abajo es lo que evita el PATCH vacio:
+// sin el, un cuerpo `{}` pasaria la validacion de campos (ninguno es
+// requerido por separado) y llegaria al repo sin nada que actualizar -- un
+// `update` sin `set` es un error de sintaxis o, peor, un no-op silencioso que
+// devuelve 200 (Tarea 11, revision #2).
+//
+// Y sigue valiendo la decision de la Tarea 3: responder NO es resolver. Que
+// el `PATCH` pueda traer las dos cosas a la vez no significa que una mueva a
+// la otra -- mandar solo `respuesta` deja `estado` intacto, y al reves. Si
+// algun dia alguien "mejora" esto haciendolo automatico, esta linea explica
+// por que no: quien contesta puede estar pidiendo mas datos, no resolviendo.
+const actualizarPanelSchema = z
   .object({
-    respuesta: z.string().trim().min(1, 'La respuesta es requerida'),
+    respuesta: z.string().trim().min(1, 'La respuesta es requerida').optional(),
+    estado: z.enum(ESTADOS).optional(),
   })
   .strict()
+  .refine((d) => d.respuesta !== undefined || d.estado !== undefined, {
+    message: 'Manda al menos respuesta o estado',
+  })
 
 export async function crearTicketCtrl(body: unknown, usuarioId: string | null): Promise<Ticket> {
   const d = validar(crearSchema, body)
@@ -51,9 +62,9 @@ export async function crearTicketCtrl(body: unknown, usuarioId: string | null): 
   })
 }
 
-export async function responderTicketCtrl(id: string, body: unknown): Promise<TicketDeInstancia> {
-  const d = validar(responderSchema, body)
-  const t = await responderTicket(id, d.respuesta)
+export async function actualizarTicketDesdePanelCtrl(id: string, body: unknown): Promise<TicketDeInstancia> {
+  const d = validar(actualizarPanelSchema, body)
+  const t = await actualizarTicketDesdePanel(id, { respuesta: d.respuesta, estado: d.estado as EstadoTicket | undefined })
   // 404 y no un 200 silencioso: el mismo criterio que borrarUsuarioCtrl / la
   // edicion de usuarios, para no confundir "no existe" con "no paso nada".
   if (!t) throw new AppError('No encontrado', 404)

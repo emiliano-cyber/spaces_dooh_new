@@ -12,27 +12,31 @@ const repo = {
     respondidoEn: null,
     ...(i as object),
   })),
-  responderTicket: vi.fn(async (id: string, respuesta: string) => ({
+  actualizarTicketDesdePanel: vi.fn(async (id: string, cambios: { respuesta?: string; estado?: string }) => ({
     id,
     folio: 'TK-2026-0001',
     tenantId: 'TEN-1',
     asunto: 'Un asunto',
     cuerpo: 'Un cuerpo',
-    estado: 'ABIERTO',
+    // El repo (tickets-repo.ts) es quien decide de verdad si el estado se
+    // mueve; aqui se simula ese contrato para comprobar que el controller le
+    // pasa (o no le pasa) `estado` tal cual, sin inventarlo ni perderlo.
+    estado: cambios.estado ?? 'ABIERTO',
     prioridad: 'NORMAL',
     creadoPorUsuario: null,
     creadoEn: '2026-09-23T00:00:00.000Z',
     actualizadoEn: '2026-09-23T00:00:00.000Z',
-    respuesta,
-    // El repo (tickets-repo.ts:135-144) es quien fija `respondido_en = now()`
-    // en el UPDATE; aqui se simula ese contrato para comprobar que el
-    // controller lo DEVUELVE tal cual, sin recortarlo ni perderlo en el paso.
-    respondidoEn: '2026-09-23T12:00:00.000Z',
+    respuesta: cambios.respuesta ?? null,
+    // El repo es quien fija `respondido_en = now()` UNICAMENTE cuando llega
+    // `respuesta` (tickets-repo.ts, actualizarTicketDesdePanel); aqui se
+    // simula ese contrato para comprobar que el controller lo DEVUELVE tal
+    // cual, sin recortarlo ni perderlo en el paso.
+    respondidoEn: cambios.respuesta !== undefined ? '2026-09-23T12:00:00.000Z' : null,
   })),
 }
 vi.mock('./tickets-repo', () => repo)
 
-const { crearTicketCtrl, responderTicketCtrl } = await import('./tickets-controller')
+const { crearTicketCtrl, actualizarTicketDesdePanelCtrl } = await import('./tickets-controller')
 
 beforeEach(() => vi.clearAllMocks())
 
@@ -119,58 +123,79 @@ describe('crearTicketCtrl · recorta espacios del asunto antes de guardar', () =
   })
 })
 
-describe('responderTicketCtrl · al responder, fija respondido_en', () => {
+describe('actualizarTicketDesdePanelCtrl · al responder, fija respondido_en', () => {
   it('la respuesta del repo trae respondidoEn y el controller la devuelve tal cual', async () => {
-    const t = await responderTicketCtrl('T1', { respuesta: 'Ya se reviso el sitio' })
-    expect(repo.responderTicket).toHaveBeenCalledWith('T1', 'Ya se reviso el sitio')
+    const t = await actualizarTicketDesdePanelCtrl('T1', { respuesta: 'Ya se reviso el sitio' })
+    expect(repo.actualizarTicketDesdePanel).toHaveBeenCalledWith('T1', { respuesta: 'Ya se reviso el sitio', estado: undefined })
     expect(t).toMatchObject({ respuesta: 'Ya se reviso el sitio', respondidoEn: '2026-09-23T12:00:00.000Z' })
   })
 
-  it('NO mueve el estado a RESUELTO -- responder no es resolver (ADR 0038)', async () => {
-    // El repo (T3) no toca `estado` en el UPDATE; aqui se comprueba que el
-    // controller tampoco intenta forzarlo: el mock de arriba devuelve
-    // `estado: 'ABIERTO'` sin que el controller lo haya pedido cambiar, y
-    // nadie en este archivo pasa un `estado` a `responderTicket`.
-    const t = await responderTicketCtrl('T1', { respuesta: 'Necesito mas datos' })
-    expect(repo.responderTicket.mock.calls[0]).toEqual(['T1', 'Necesito mas datos'])
+  it('NO mueve el estado a RESUELTO -- responder no es resolver (ADR 0038, Tarea 3)', async () => {
+    // El repo es quien de verdad decide si `estado` se mueve; aqui se
+    // comprueba que el controller no lo fuerza cuando solo llega `respuesta`:
+    // el mock devuelve `estado: 'ABIERTO'` (su default cuando no le pasan
+    // `estado`), y el controller no pasa ningun `estado` en este caso.
+    const t = await actualizarTicketDesdePanelCtrl('T1', { respuesta: 'Necesito mas datos' })
+    expect(repo.actualizarTicketDesdePanel.mock.calls[0]).toEqual(['T1', { respuesta: 'Necesito mas datos', estado: undefined }])
     expect(t).toMatchObject({ estado: 'ABIERTO' })
   })
 
   it('un id inexistente es 404 y no un 200 silencioso', async () => {
-    repo.responderTicket.mockResolvedValueOnce(null as never)
-    await expect(responderTicketCtrl('NOPE', { respuesta: 'x' })).rejects.toMatchObject({ status: 404 })
+    repo.actualizarTicketDesdePanel.mockResolvedValueOnce(null as never)
+    await expect(actualizarTicketDesdePanelCtrl('NOPE', { respuesta: 'x' })).rejects.toMatchObject({ status: 404 })
   })
 })
 
-describe('responderTicketCtrl · casos negativos', () => {
+describe('actualizarTicketDesdePanelCtrl · mover el estado sin responder', () => {
+  it('un PATCH solo de estado mueve el estado a RESUELTO', async () => {
+    const t = await actualizarTicketDesdePanelCtrl('T1', { estado: 'RESUELTO' })
+    expect(repo.actualizarTicketDesdePanel).toHaveBeenCalledWith('T1', { respuesta: undefined, estado: 'RESUELTO' })
+    expect(t).toMatchObject({ estado: 'RESUELTO' })
+  })
+
+  it('un PATCH solo de estado NO trae respuesta ni respondidoEn', async () => {
+    const t = await actualizarTicketDesdePanelCtrl('T1', { estado: 'EN_PROCESO' })
+    expect(t).toMatchObject({ respuesta: null, respondidoEn: null })
+  })
+
+  it('con las dos cosas a la vez, las dos viajan al repo', async () => {
+    await actualizarTicketDesdePanelCtrl('T1', { respuesta: 'Se cambio el driver', estado: 'RESUELTO' })
+    expect(repo.actualizarTicketDesdePanel).toHaveBeenCalledWith('T1', { respuesta: 'Se cambio el driver', estado: 'RESUELTO' })
+  })
+})
+
+describe('actualizarTicketDesdePanelCtrl · casos negativos', () => {
+  it('rechaza un PATCH sin respuesta NI estado -- 400, no un update vacio', async () => {
+    await expect(actualizarTicketDesdePanelCtrl('T1', {})).rejects.toMatchObject({ status: 400 })
+    expect(repo.actualizarTicketDesdePanel).not.toHaveBeenCalled()
+  })
+
   it('rechaza respuesta vacia', async () => {
-    await expect(responderTicketCtrl('T1', { respuesta: '' })).rejects.toThrow()
-    expect(repo.responderTicket).not.toHaveBeenCalled()
+    await expect(actualizarTicketDesdePanelCtrl('T1', { respuesta: '' })).rejects.toThrow()
+    expect(repo.actualizarTicketDesdePanel).not.toHaveBeenCalled()
   })
 
   it('rechaza respuesta de solo espacios', async () => {
-    await expect(responderTicketCtrl('T1', { respuesta: '   ' })).rejects.toThrow()
-    expect(repo.responderTicket).not.toHaveBeenCalled()
+    await expect(actualizarTicketDesdePanelCtrl('T1', { respuesta: '   ' })).rejects.toThrow()
+    expect(repo.actualizarTicketDesdePanel).not.toHaveBeenCalled()
   })
 
-  it('rechaza un estado en el cuerpo de la respuesta (.strict())', async () => {
-    // El estado se mueve aparte y explicitamente (progress.md, ruling T3 #3):
-    // responder NUNCA acarrea un cambio de estado colado en el mismo cuerpo.
+  it('rechaza un estado fuera del enum', async () => {
     await expect(
-      responderTicketCtrl('T1', { respuesta: 'Texto valido', estado: 'RESUELTO' }),
+      actualizarTicketDesdePanelCtrl('T1', { estado: 'NO_EXISTE' }),
     ).rejects.toThrow()
-    expect(repo.responderTicket).not.toHaveBeenCalled()
+    expect(repo.actualizarTicketDesdePanel).not.toHaveBeenCalled()
   })
 
   it('rechaza cualquier campo de mas (.strict())', async () => {
     await expect(
-      responderTicketCtrl('T1', { respuesta: 'Texto valido', prioridad: 'ALTA' }),
+      actualizarTicketDesdePanelCtrl('T1', { respuesta: 'Texto valido', prioridad: 'ALTA' }),
     ).rejects.toThrow()
-    expect(repo.responderTicket).not.toHaveBeenCalled()
+    expect(repo.actualizarTicketDesdePanel).not.toHaveBeenCalled()
   })
 
   it('recorta espacios de la respuesta antes de guardar', async () => {
-    await responderTicketCtrl('T1', { respuesta: '  Texto con espacios  ' })
-    expect(repo.responderTicket).toHaveBeenCalledWith('T1', 'Texto con espacios')
+    await actualizarTicketDesdePanelCtrl('T1', { respuesta: '  Texto con espacios  ' })
+    expect(repo.actualizarTicketDesdePanel).toHaveBeenCalledWith('T1', { respuesta: 'Texto con espacios', estado: undefined })
   })
 })

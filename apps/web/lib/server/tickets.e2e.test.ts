@@ -335,3 +335,141 @@ describe('GET /api/tickets — sin FLOTA_TOKEN configurado', () => {
   })
 
 })
+
+// ============================================================================
+//  Tarea 11 · PATCH /api/tickets — la ruta del panel: responder y mover el
+//  estado, ADR 0038.
+// ----------------------------------------------------------------------------
+//  Mismo patrón que el GET de arriba: `fetch` crudo, porque el panel no tiene
+//  sesión y su credencial es la cabecera. Las dos pruebas que el encargo pide
+//  explícitamente llevan su nombre citado; las demás cierran huecos vecinos
+//  que el propio encargo señala — sobre todo el punto 3: responder NO mueve
+//  el estado por su cuenta, y viceversa.
+// ============================================================================
+describe('PATCH /api/tickets — la ruta del panel (Tarea 11)', () => {
+  let tenant: Awaited<ReturnType<typeof sembrarTenant>>
+  let idTicket: string
+
+  beforeAll(async () => {
+    await recrearEsquema()
+    await asegurarPermisos()
+    tenant = await sembrarTenant('tkpatch')
+
+    process.env.FLOTA_TOKEN = TOKEN_FLOTA
+    await arrancarServidor()
+
+    // El ticket nace por la puerta del CLIENTE, con sesión, como en la vida
+    // real: sembrarlo con SQL directo probaría un PATCH contra una fila que
+    // la aplicación nunca escribió.
+    const cliente = new Cliente()
+    await cliente.entrar(tenant.usuarioEmail, PASSWORD_DEMO)
+    const alta = await cliente.pedir('/api/tickets/', {
+      cuerpo: { asunto: 'No prende la pantalla del lobby', cuerpo: 'Se apagó anoche y no volvió.' },
+    })
+    if (alta.status !== 201) {
+      throw new Error(`No se pudo sembrar el ticket para el PATCH: ${alta.status} ${JSON.stringify(alta.datos)}`)
+    }
+    idTicket = (alta.datos as { id: string }).id
+  }, 180_000)
+
+  afterAll(async () => {
+    await pararServidor()
+    await cerrarPool()
+  })
+
+  async function patchAlPanel(cuerpo: unknown, opts: { token?: string } = {}) {
+    const cabeceras: Record<string, string> = {
+      'content-type': 'application/json',
+      'x-forwarded-for': `10.9.8.${contadorIpPanel++}`,
+    }
+    if (opts.token !== undefined) cabeceras['x-flota-token'] = opts.token
+    const r = await fetch(`${BASE}/api/tickets/`, {
+      method: 'PATCH',
+      headers: cabeceras,
+      body: JSON.stringify(cuerpo),
+      redirect: 'manual',
+    })
+    const texto = await r.text()
+    let datos: any = null
+    try { datos = texto ? JSON.parse(texto) : null } catch { datos = texto }
+    return { status: r.status, datos, texto }
+  }
+
+  async function filaDelTicket() {
+    const { rows } = await poolTest().query(
+      'select estado, respuesta, respondido_en, actualizado_en from tickets where id = $1',
+      [idTicket],
+    )
+    return rows[0]
+  }
+
+  it('PATCH sin x-flota-token NO cambia nada', async () => {
+    const antes = await filaDelTicket()
+    expect(antes.estado).toBe('ABIERTO')
+    expect(antes.respuesta).toBeNull()
+
+    const r = await patchAlPanel({ id: idTicket, estado: 'RESUELTO' })
+    // Cae al camino de sesión de la ruta (`esElPanel` es fail-closed sin
+    // token), y un PATCH sin sesión tampoco tiene camino: 401.
+    expect(r.status, r.texto).toBe(401)
+
+    const despues = await filaDelTicket()
+    expect(despues.estado, 'un PATCH sin token movió el estado').toBe('ABIERTO')
+    expect(despues.respuesta, 'un PATCH sin token escribió una respuesta').toBeNull()
+  })
+
+  it('PATCH con x-flota-token mueve el estado a RESUELTO', async () => {
+    const r = await patchAlPanel({ id: idTicket, estado: 'RESUELTO' }, { token: TOKEN_FLOTA })
+
+    expect(r.status, r.texto).toBe(200)
+    expect(r.datos.estado).toBe('RESUELTO')
+    // Mover el estado no responde por su cuenta: sin `respuesta` en el
+    // cuerpo, `respuesta`/`respondido_en` se quedan intactos.
+    expect(r.datos.respuesta).toBeNull()
+    expect(r.datos.respondido_en).toBeNull()
+
+    const fila = await filaDelTicket()
+    expect(fila.estado).toBe('RESUELTO')
+    expect(fila.respuesta).toBeNull()
+    expect(fila.respondido_en).toBeNull()
+  })
+
+  it('PATCH con respuesta fija respondido_en y NO mueve el estado por su cuenta', async () => {
+    // Parte de RESUELTO (lo dejó la prueba anterior) a propósito: si
+    // responder moviera el estado, aquí se vería un valor distinto de
+    // RESUELTO sin que nadie lo haya pedido.
+    const r = await patchAlPanel({ id: idTicket, respuesta: 'Se cambió el driver de video.' }, { token: TOKEN_FLOTA })
+
+    expect(r.status, r.texto).toBe(200)
+    expect(r.datos.respuesta).toBe('Se cambió el driver de video.')
+    expect(r.datos.respondido_en).not.toBeNull()
+    expect(r.datos.estado, 'responder movió el estado sin que nadie lo pidiera').toBe('RESUELTO')
+
+    const fila = await filaDelTicket()
+    expect(fila.respuesta).toBe('Se cambió el driver de video.')
+    expect(fila.respondido_en).not.toBeNull()
+    expect(fila.estado).toBe('RESUELTO')
+  })
+
+  it('PATCH vacío (sin respuesta ni estado) da 400 y no toca el ticket', async () => {
+    const antes = await filaDelTicket()
+    const r = await patchAlPanel({ id: idTicket }, { token: TOKEN_FLOTA })
+    expect(r.status, r.texto).toBe(400)
+    const despues = await filaDelTicket()
+    expect(despues.actualizado_en).toEqual(antes.actualizado_en)
+  })
+
+  it('PATCH a un id inexistente da 404', async () => {
+    const r = await patchAlPanel(
+      { id: '00000000-0000-0000-0000-000000000000', estado: 'CERRADO' },
+      { token: TOKEN_FLOTA },
+    )
+    expect(r.status, r.texto).toBe(404)
+  })
+
+  it('la respuesta del PATCH lleva las mismas claves EXACTAS que el contrato del GET', async () => {
+    const r = await patchAlPanel({ id: idTicket, estado: 'CERRADO' }, { token: TOKEN_FLOTA })
+    expect(r.status, r.texto).toBe(200)
+    expect(Object.keys(r.datos).sort()).toEqual([...CLAVES_DEL_CONTRATO].sort())
+  })
+})

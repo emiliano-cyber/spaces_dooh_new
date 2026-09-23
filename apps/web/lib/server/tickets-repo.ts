@@ -127,18 +127,59 @@ export async function listarTicketsDeLaInstancia(): Promise<TicketDeInstancia[]>
   return filas.map(filaATicketDeInstancia)
 }
 
-// Responde un ticket POR SU ID, sin filtrar por tenant: es el panel
+// Lo que el panel puede tocar en un PATCH. Los dos campos son opcionales
+// porque el panel puede mandar uno solo -- responder sin mover el estado es
+// el caso normal (T11, ADR 0038 y el ruling de T3: responder no es resolver).
+export interface CambiosDePanel {
+  respuesta?: string
+  estado?: EstadoTicket
+}
+
+// Actualiza un ticket POR SU ID, sin filtrar por tenant: es el panel
 // atravesando fronteras de organizacion a proposito (ADR 0038). La RLS de
 // `tickets` no corta aqui porque `qRaw` no fija `app.tenant_id` — esa
 // ausencia de filtro es la caracteristica, no el bug R2 (que es la MISMA
 // ausencia pero del lado del cliente, donde `q` SI fija el tenant).
-export async function responderTicket(id: string, respuesta: string): Promise<TicketDeInstancia | null> {
+//
+// ESCRIBE SOLO LO QUE LLEGA. El `set` se arma campo a campo con lo que trae
+// `cambios`, nunca con una plantilla fija de las dos columnas: si se fijara
+// siempre `respondido_en = now()`, un PATCH que solo mueve el estado
+// mentiria en la pantalla que AS OOH ya contesto sin haber escrito una
+// palabra (Tarea 11, revision #1). Y `estado` NUNCA se mueve por escribir
+// `respuesta`: son dos `set` independientes, cada uno atado a su propio
+// campo de entrada -- la decision de la Tarea 3 (responder no es resolver)
+// sigue valiendo aqui exactamente igual que en el POST original.
+export async function actualizarTicketDesdePanel(
+  id: string,
+  cambios: CambiosDePanel,
+): Promise<TicketDeInstancia | null> {
+  const sets: string[] = []
+  const params: unknown[] = [id]
+
+  if (cambios.respuesta !== undefined) {
+    params.push(cambios.respuesta)
+    sets.push(`respuesta = $${params.length}`)
+    sets.push('respondido_en = now()')
+  }
+  if (cambios.estado !== undefined) {
+    params.push(cambios.estado)
+    sets.push(`estado = $${params.length}`)
+  }
+
+  // Un `update` sin `set` es un error de sintaxis o, peor, un no-op
+  // silencioso -- el controller ya lo rechaza con 400 antes de llegar aqui
+  // (`.strict().refine(...)` en tickets-controller.ts), pero esta funcion no
+  // depende de que su unico llamador lo haga bien: si algun dia otro camino
+  // la invoca sin validar, revienta aqui y no con un UPDATE vacio contra la
+  // base.
+  if (sets.length === 0) {
+    throw new Error('actualizarTicketDesdePanel: sin campos que actualizar')
+  }
+  sets.push('actualizado_en = now()')
+
   const filas = await qRaw<any>(
-    `update tickets
-        set respuesta = $2, respondido_en = now(), actualizado_en = now()
-      where id = $1
-      returning *`,
-    [id, respuesta],
+    `update tickets set ${sets.join(', ')} where id = $1 returning *`,
+    params,
   )
   return filas[0] ? filaATicketDeInstancia(filas[0]) : null
 }
