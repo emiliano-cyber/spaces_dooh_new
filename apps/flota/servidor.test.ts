@@ -350,7 +350,7 @@ import { pagina } from './servidor.mjs'
 //      tickets: la primera trae pendientes/total en `null`, la segunda en `0`,
 //      y la pantalla tiene que pintarlas distinto.
 // ============================================================================
-import { paginaTickets, RUTAS_TICKETS } from './servidor.mjs'
+import { paginaTickets, fechaLegible, RUTAS_TICKETS } from './servidor.mjs'
 import { OK, SIN_RESPUESTA } from './tickets.mjs'
 
 function ticket(over: Partial<Record<string, unknown>> = {}) {
@@ -580,5 +580,107 @@ describe('paginaTickets · lo que tiene pendientes se ve distinto de lo que no',
     const muda = paginaTickets([{ nombre: 'g500', dominio: 'g.invalid', motivo: 'ECONNREFUSED' }], { email: 'a@b.c' })
     expect(muda).toContain('sin-respuesta')
     expect(muda).not.toContain('class="hay-pendientes"')
+  })
+})
+
+// ============================================================================
+//  Tarea 11 · lo que dejo pendiente la pasada visual del 23/09.
+// ----------------------------------------------------------------------------
+//  Hasta esta tarea `/flota/tickets` no pintaba `respuesta` ni `respondido_en`
+//  porque no habia forma de contestar. Con el PATCH del panel ya existe, y sin
+//  esta distincion quien mira la pantalla no sabe si ya respondio -- y
+//  contesta dos veces. La columna `creado` en ISO crudo es el mismo defecto,
+//  de otra forma: obliga a descifrar la cadena en vez de leerla.
+//
+//  NO se toca `hay-pendientes` ni la distincion de tres estados de la columna
+//  de pendientes (bloque de arriba): eso ya tiene su prueba y se arreglo el
+//  23/09.
+// ============================================================================
+describe('paginaTickets · un ticket contestado se ve distinto de uno sin contestar', () => {
+  const base = {
+    id: 'x', folio: 'TK-2026-0001', tenant_id: 't', asunto: 'la pantalla no prende',
+    cuerpo: 'el detalle', estado: 'ABIERTO', prioridad: 'NORMAL',
+    creado_en: '2026-09-22T10:00:00.000Z',
+  }
+  const sinContestar = { ...base, respuesta: null, respondido_en: null }
+  const contestado = { ...base, respuesta: 'Ya se reviso, era el fusible.', respondido_en: '2026-09-22T12:30:00.000Z' }
+
+  it('un ticket sin respuesta sale marcado "Sin responder"', () => {
+    const html = paginaTickets([{ nombre: 'g500', dominio: 'g500.ejemplo.invalid', tickets: [sinContestar] }], null)
+    expect(html).toContain('Sin responder')
+    expect(html).toContain('class="sin-contestar"')
+    expect(html).not.toContain('class="contestado"')
+  })
+
+  it('un ticket YA contestado se ve distinto -- clase distinta y el texto de la respuesta visible', () => {
+    const html = paginaTickets([{ nombre: 'g500', dominio: 'g500.ejemplo.invalid', tickets: [contestado] }], null)
+    expect(html).toContain('class="contestado"')
+    expect(html).not.toContain('class="sin-contestar"')
+    expect(html).toContain('Ya se reviso, era el fusible.')
+    expect(html).not.toContain('Sin responder')
+  })
+
+  it('las dos filas, una al lado de otra, no son iguales', () => {
+    const html = paginaTickets(
+      [{ nombre: 'g500', dominio: 'g500.ejemplo.invalid', tickets: [sinContestar, contestado] }],
+      null,
+    )
+    // Dos clases distintas presentes a la vez: no es que una pantalla sin
+    // contestados se vea "bien" de casualidad, las dos conviven aqui.
+    expect(html).toContain('class="sin-contestar"')
+    expect(html).toContain('class="contestado"')
+  })
+
+  it('el texto de la respuesta pasa por escapar() igual que el resto -- lo escribe AS OOH, pero el origen puede dejar de ser de confianza', () => {
+    const conScript = { ...base, respuesta: '<script>alert(1)</script>', respondido_en: '2026-09-22T12:30:00.000Z' }
+    const html = paginaTickets([{ nombre: 'g500', dominio: 'g500.ejemplo.invalid', tickets: [conScript] }], null)
+    expect(html).not.toContain('<script>alert(1)</script>')
+    expect(html).toContain('&lt;script&gt;')
+  })
+
+  it('una instancia SIN tickets contestados no pinta ninguna sub-fila de respuesta', () => {
+    const html = paginaTickets([{ nombre: 'g500', dominio: 'g500.ejemplo.invalid', tickets: [sinContestar] }], null)
+    expect(html).not.toContain('class="respuesta-ticket"')
+  })
+})
+
+describe('paginaTickets · la columna "creado" se pinta legible, no en ISO crudo', () => {
+  const t = {
+    id: 'x', folio: 'TK-2026-0001', tenant_id: 't', asunto: 'a', cuerpo: 'b',
+    estado: 'ABIERTO', prioridad: 'NORMAL', creado_en: '2026-09-22T10:00:00.000Z',
+    respuesta: null, respondido_en: null,
+  }
+
+  it('el ISO crudo no aparece en la pagina', () => {
+    const html = paginaTickets([{ nombre: 'g500', dominio: 'g500.ejemplo.invalid', tickets: [t] }], null)
+    expect(html).not.toContain('2026-09-22T10:00:00.000Z')
+  })
+
+  it('en su lugar sale la fecha formateada por fechaLegible()', () => {
+    const html = paginaTickets([{ nombre: 'g500', dominio: 'g500.ejemplo.invalid', tickets: [t] }], null)
+    expect(html).toContain(fechaLegible(t.creado_en))
+  })
+})
+
+describe('fechaLegible · fecha corta, en es-MX, con dia y hora', () => {
+  it('formatea un ISO a dia/mes/año y hora:minuto', () => {
+    const f = fechaLegible('2026-09-22T10:00:00.000Z')
+    // No se afirma la cadena exacta (depende de la zona horaria del proceso
+    // que corre la prueba): se afirma que trae los tres numeros de la fecha Y
+    // que YA NO es el ISO crudo.
+    expect(f).not.toBe('2026-09-22T10:00:00.000Z')
+    expect(f).toMatch(/22/)
+    expect(f).toMatch(/2026/)
+    expect(f).not.toContain('T')
+  })
+
+  it('un valor vacio o nulo da una cadena vacia, no "Invalid Date"', () => {
+    expect(fechaLegible(null)).toBe('')
+    expect(fechaLegible(undefined)).toBe('')
+    expect(fechaLegible('')).toBe('')
+  })
+
+  it('un valor que no es fecha se devuelve TAL CUAL -- no se esconde el dato en silencio', () => {
+    expect(fechaLegible('no-es-una-fecha')).toBe('no-es-una-fecha')
   })
 })

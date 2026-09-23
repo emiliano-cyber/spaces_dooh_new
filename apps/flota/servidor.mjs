@@ -91,12 +91,39 @@ const ESTILO = `
   td.al-dia { color: #070 }
   td.ok { color: #070; font-weight: 600 }
   td.hay-pendientes { color: #b60; font-weight: 700 }
+  td.sin-contestar { color: #b00; font-weight: 600 }
+  td.contestado { color: #070 }
   tr.motivo td { border-top: 0; padding-top: 0; color: #b60; font-size: 12px }
   tr.cuerpo-ticket td { border-top: 0; padding-top: 0; font-size: 12px; color: #444 }
+  tr.respuesta-ticket td { border-top: 0; padding-top: 0; font-size: 12px; color: #070 }
   .sin-dato { color: #b00; font-style: italic }
   h2 { font-size: .95rem; margin: 1.5rem 0 .5rem }
   footer { margin-top: 2rem; color: #666; font-size: 12px }
 `
+
+/**
+ * Fecha corta y legible en es-MX, para no obligar a quien mira el panel a
+ * descifrar un ISO crudo (`2026-09-22T10:00:00.000Z`). Es un panel que lee
+ * una PERSONA para decidir a quien atender (pasada visual del 23/09); esa
+ * cadena obliga a descifrarla en la cabeza.
+ *
+ * Si el valor no es una fecha valida se devuelve TAL CUAL, sin fallar en
+ * silencio a una cadena vacia: la instancia mando lo que mando, y esconder el
+ * dato es peor que enseñarlo crudo. Quien lo llame sigue pasandolo por
+ * `escapar()`, igual que cualquier otro texto que venga de una instancia.
+ */
+export function fechaLegible(iso) {
+  if (iso === null || iso === undefined || iso === '') return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return String(iso)
+  return d.toLocaleString('es-MX', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
 
 /** La página. Todo lo que viene de una instancia pasa por `escapar()`. */
 export function pagina(filas, usuario) {
@@ -202,16 +229,33 @@ export function paginaTickets(respuestas, usuario) {
     .map((f) => {
       const filasTicket = porNombre
         .get(f.nombre)
-        .tickets.map(
-          (t) => `<tr>
+        .tickets.map((t) => {
+          // La distincion que la pasada visual del 23/09 encontro que faltaba:
+          // sin esto, quien mira la pantalla no sabe si ya contesto y
+          // responde dos veces. `respuesta` la escribe AS OOH, no el cliente,
+          // pero pasa por `escapar()` igual -- el dia que alguien pegue ahi un
+          // fragmento del correo del cliente, el origen deja de ser de
+          // confianza sin que nadie lo note.
+          const contestado = t.respuesta !== null && t.respuesta !== undefined && t.respuesta !== ''
+          const celdaRespuesta = contestado
+            ? `Contestado · ${escapar(fechaLegible(t.respondido_en))}`
+            : 'Sin responder'
+          // Una sub-fila aparte para el texto de la respuesta, igual que
+          // `cuerpo-ticket`: es un párrafo, no una celda estrecha, y solo
+          // existe si de verdad hay respuesta que enseñar.
+          const filaRespuesta = contestado
+            ? `\n  <tr class="respuesta-ticket"><td colspan="7">${escapar(t.respuesta)}</td></tr>`
+            : ''
+          return `<tr>
     <td>${escapar(t.folio)}</td><td>${escapar(t.tenant_id)}</td><td>${escapar(t.asunto)}</td>
-    <td>${escapar(t.estado)}</td><td>${escapar(t.prioridad)}</td><td>${escapar(t.creado_en)}</td>
+    <td>${escapar(t.estado)}</td><td>${escapar(t.prioridad)}</td><td>${escapar(fechaLegible(t.creado_en))}</td>
+    <td class="${contestado ? 'contestado' : 'sin-contestar'}">${celdaRespuesta}</td>
   </tr>
-  <tr class="cuerpo-ticket"><td colspan="6">${escapar(t.cuerpo)}</td></tr>`,
-        )
+  <tr class="cuerpo-ticket"><td colspan="7">${escapar(t.cuerpo)}</td></tr>${filaRespuesta}`
+        })
         .join('\n')
       return `<h2>${escapar(f.nombre)}</h2>
-<table><thead><tr><th>folio</th><th>tenant</th><th>asunto</th><th>estado</th><th>prioridad</th><th>creado</th></tr></thead>
+<table><thead><tr><th>folio</th><th>tenant</th><th>asunto</th><th>estado</th><th>prioridad</th><th>creado</th><th>respuesta</th></tr></thead>
 <tbody>
 ${filasTicket}
 </tbody></table>`
