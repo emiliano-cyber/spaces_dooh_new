@@ -176,7 +176,7 @@ export function pagina(filas, usuario) {
 <style>${ESTILO}</style></head>
 <body>
 <h1>Flota</h1>
-<p class="sub">${escapar(filas.length)} instancia(s) · consultado ahora · ${escapar(usuario?.email ?? '')}</p>
+<p class="sub"><a href="/flota/tickets/">tickets</a> · <a href="/flota/altas/">altas</a> · ${escapar(filas.length)} instancia(s) · consultado ahora · ${escapar(usuario?.email ?? '')}</p>
 <table><thead><tr>${encabezados}</tr></thead>
 <tbody>
 ${cuerpo}
@@ -758,7 +758,7 @@ export function paginaAltas(solicitudes, usuario, csrf, zonas = {}) {
 </style></head>
 <body>
 <h1>Altas de instancia</h1>
-<p class="sub"><a href="/flota/">← la flota</a> · ${escapar(usuario?.email ?? '')}</p>
+<p class="sub"><a href="/flota/">← la flota</a> · <a href="/flota/tickets/">tickets</a> · ${escapar(usuario?.email ?? '')}</p>
 
 <form method="POST" action="/flota/altas/">
   <input type="hidden" name="csrf" value="${escapar(csrf)}">

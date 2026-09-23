@@ -1186,3 +1186,32 @@ describe('un 404 de la ruta de tickets no acusa a /api/version', () => {
     expect(r.motivo).toBe('nginx contesta pero la aplicacion no (HTTP 502)')
   })
 })
+
+// ============================================================================
+//  Hallazgo de la revision final: la pantalla de tickets no tenia entrada
+//  desde ningun sitio. `paginaTickets()` enlaza «← la flota», pero ni la flota
+//  ni las altas enlazaban hacia ella: habia que saberse la URL de memoria.
+// ============================================================================
+// @ts-expect-error — módulo .mjs sin tipos
+import { paginaAltas } from './servidor.mjs'
+
+describe('se puede LLEGAR a la pantalla de tickets sin saberse la URL', () => {
+  it('la flota enlaza a los tickets', async () => {
+    const { d } = deps()
+    const r = await manejar({ metodo: 'GET', ruta: '/flota/', cookie: 'spaces_sesion=x' }, d)
+    expect(r.cuerpo).toContain('href="/flota/tickets/"')
+  })
+
+  it('y la pantalla de altas tambien', () => {
+    expect(paginaAltas([], null, 'csrf-1')).toContain('href="/flota/tickets/"')
+  })
+
+  it('el enlace apunta a una ruta que el panel SIRVE de verdad', async () => {
+    // Un enlace a una ruta que da 404 es peor que no tener enlace: promete una
+    // pantalla y entrega un error. Se comprueba contra `manejar()`, no contra
+    // la lista de rutas.
+    const dd = depsTickets()
+    const r = await manejar({ metodo: 'GET', ruta: '/flota/tickets/', cookie: 'spaces_sesion=x' }, dd.d)
+    expect(r.status).toBe(200)
+  })
+})
