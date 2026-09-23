@@ -39,4 +39,34 @@ create policy tenant_isolation on tickets for all
          or nullif(current_setting('app.tenant_id', true),'') is null)
   with check (true);
 
+-- ─── GRANTs al rol de la app ───────────────────────────────────────────────
+-- Anadido el 2026-09-23, en la revision final de la rama: esta era la UNICA de
+-- las seis migraciones que crean tabla sin un solo GRANT. El motivo por el que
+-- las otras cinco lo llevan esta escrito en
+-- `20260917_entidades_fiscales.sql:193`: «En produccion las tablas las posee
+-- otro rol, asi que el GRANT es explicito».
+--
+-- ─── Y por que ninguna prueba lo veia ──────────────────────────────────────
+-- El arnes de integracion crea todo con el rol PROPIETARIO y aplica antes
+-- `20260824_grants_tablas_futuras.sql`, que fija privilegios POR OMISION para
+-- las tablas que cree ese mismo rol: `tickets` nacia con permisos aunque aqui
+-- no se concediera ninguno. En una instancia de verdad la tabla se crea, la
+-- migracion sale 0, y despues `spaces_app` no puede leerla --- y ningun error
+-- apunta a permisos. Medido en rojo en
+-- `apps/web/lib/test/grants-tickets.e2e.test.ts`, que reproduce el caso de
+-- produccion y no el del arnes.
+--
+-- Por rol EXISTENTE porque los entornos difieren (`spaces_user` en el droplet
+-- viejo, `spaces_app` desde `20260820_grants_rol_app.sql`). Sin secuencias: la
+-- clave la pone `gen_random_uuid()`, aqui no hay ninguna.
+do $$
+declare r text;
+begin
+  foreach r in array array['spaces_user','spaces_app'] loop
+    if exists (select 1 from pg_roles where rolname = r) then
+      execute format('grant select, insert, update, delete on tickets to %I', r);
+    end if;
+  end loop;
+end $$;
+
 commit;
