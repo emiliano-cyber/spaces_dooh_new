@@ -35,11 +35,11 @@ Es el hallazgo que decide el diseño entero, y no había que construirlo:
   tiempo constante contra `FLOTA_TOKEN`. **Sin token configurado, nadie es el
   panel**: ausente significa cerrado.
 
-> **Nota del 2026-09-23, al implementarlo.**  vivia dentro de
->  y se **mudo entera** a  al aparecer la
-> segunda ruta que el panel consume. Se mudo en vez de copiarse a proposito: dos
-> comparaciones en tiempo constante divergen, y la que divergiria es la que nadie
-> mira. Lo que  contesta -y lo que calla- no cambio, y su prueba de
+> **Nota del 2026-09-23, al implementarlo.** `esElPanel()` vivía dentro de
+> `version/route.ts` y se **mudó entera** a `lib/server/flota.ts` al aparecer la
+> segunda ruta que el panel consume. Se mudó en vez de copiarse a propósito: dos
+> comparaciones en tiempo constante divergen, y la que divergiría es la que nadie
+> mira. Lo que `/api/version` contesta —y lo que calla— no cambió, y su prueba de
 > claves exactas lo sostiene.
 
 O sea que ya hay un canal autenticado, probado y desplegado, del PADRE hacia cada
