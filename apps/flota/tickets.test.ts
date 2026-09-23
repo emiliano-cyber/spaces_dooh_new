@@ -94,3 +94,40 @@ describe('filasDeTickets', () => {
     expect(filas.every((f) => f.estado === SIN_RESPUESTA)).toBe(true)
   })
 })
+
+// ============================================================================
+//  Lo que la pantalla tiene que ENSEÑAR es lo que hay que atender, y un ticket
+//  EN_PROCESO hay que atenderlo: alguien lo empezo y no lo ha cerrado.
+//
+//  Contarlo solo como `ABIERTO` haria que mover un ticket a «en proceso» lo
+//  BORRARA de la cuenta, y la pantalla diria que no queda nada por hacer. Es el
+//  mismo error que esta pantalla viene a evitar -- leer un silencio como una
+//  buena noticia -- aplicado al numero que mas se mira.
+//
+//  Por eso el campo se llama `pendientes` y no `abiertos`: si contara dos
+//  estados llamandose `abiertos`, el nombre mentiria.
+// ============================================================================
+describe('lo pendiente incluye lo que ya se empezo', () => {
+  it('cuenta ABIERTO y EN_PROCESO, y deja fuera RESUELTO y CERRADO', () => {
+    const [fila] = filasDeTickets([
+      {
+        nombre: 'g500',
+        dominio: 'g500.example.invalid',
+        tickets: [
+          ticket('ABIERTO'),
+          ticket('EN_PROCESO'),
+          ticket('RESUELTO'),
+          ticket('CERRADO'),
+        ],
+      },
+    ])
+    expect(fila.pendientes).toBe(2)
+    expect(fila.total).toBe(4)
+  })
+
+  it('una instancia muda sigue sin decir cero', () => {
+    const [fila] = filasDeTickets([{ nombre: 'g500', dominio: 'g500.example.invalid' }])
+    expect(fila.estado).toBe(SIN_RESPUESTA)
+    expect(fila.pendientes).toBeNull()
+  })
+})
