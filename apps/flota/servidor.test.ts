@@ -571,14 +571,14 @@ describe('paginaTickets · lo que tiene pendientes se ve distinto de lo que no',
     const sinPendientes = paginaTickets([conTickets(0)], { email: 'a@b.c' })
 
     const claseDe = (html) => (html.match(/<td class="([^"]+)">2?0?<\/td>/) ?? [])[1]
-    expect(conPendientes).toContain('hay-pendientes')
-    expect(sinPendientes).not.toContain('hay-pendientes')
+    expect(conPendientes).toContain('class="hay-pendientes"')
+    expect(sinPendientes).not.toContain('class="hay-pendientes"')
     expect(claseDe(conPendientes)).not.toBe(claseDe(sinPendientes))
   })
 
   it('la instancia muda sigue sin confundirse con ninguna de las dos', () => {
     const muda = paginaTickets([{ nombre: 'g500', dominio: 'g.invalid', motivo: 'ECONNREFUSED' }], { email: 'a@b.c' })
     expect(muda).toContain('sin-respuesta')
-    expect(muda).not.toContain('hay-pendientes')
+    expect(muda).not.toContain('class="hay-pendientes"')
   })
 })

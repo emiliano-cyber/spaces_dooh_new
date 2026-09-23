@@ -90,6 +90,7 @@ const ESTILO = `
   td.rezagada { color: #b60 }
   td.al-dia { color: #070 }
   td.ok { color: #070; font-weight: 600 }
+  td.hay-pendientes { color: #b60; font-weight: 700 }
   tr.motivo td { border-top: 0; padding-top: 0; color: #b60; font-size: 12px }
   tr.cuerpo-ticket td { border-top: 0; padding-top: 0; font-size: 12px; color: #444 }
   .sin-dato { color: #b00; font-style: italic }
@@ -173,9 +174,16 @@ export function paginaTickets(respuestas, usuario) {
       const sinDato = f.estado === TICKET_SIN_RESPUESTA
       const pendientes = sinDato ? '<span class="sin-dato">sin dato</span>' : escapar(f.pendientes)
       const total = sinDato ? '<span class="sin-dato">sin dato</span>' : escapar(f.total)
+      // La clase de la columna de pendientes NO es la del estado de conexion.
+      // Son dos preguntas distintas: `estado` dice si la instancia contesto,
+      // `hay-pendientes` dice si hay trabajo esperando. Pintarlas con la misma
+      // clase hacia que un cliente con 2 tickets abiertos se viera igual de
+      // verde que uno sin ninguno -- en la pantalla cuyo proposito, segun el
+      // ADR 0038, es ensenar lo que hay que atender.
+      const claseAtencion = sinDato ? escapar(f.estado) : f.pendientes > 0 ? 'hay-pendientes' : 'ok'
       const fila = `<tr>
     <td>${escapar(f.nombre)}</td><td>${escapar(f.dominio)}</td>
-    <td class="${escapar(f.estado)}">${pendientes}</td>
+    <td class="${claseAtencion}">${pendientes}</td>
     <td class="${escapar(f.estado)}">${total}</td>
     <td class="${escapar(f.estado)}">${escapar(f.estado)}</td>
   </tr>`
