@@ -24,6 +24,7 @@ import { payloadCostosOt } from '@/lib/costos-ot-payload'
 import { OrganizacionesPanel } from '@/components/demo/admin/OrganizacionesPanel'
 import { ControlCambiosPanel } from '@/components/demo/admin/ControlCambiosPanel'
 import { ActualizacionesPanel } from '@/components/demo/admin/ActualizacionesPanel'
+import { TicketsPanel } from '@/components/demo/admin/TicketsPanel'
 import {
   listarUsuariosApi,
   invitarUsuarioApi,
@@ -679,6 +680,10 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
           config de la INSTANCIA (el droplet), no del negocio del tenant, y
           por eso va aparte de `ConfigNegocio` — no viaja en `guardar()`. */}
       <ActualizacionesPanel onToast={onToast} />
+
+      {/* ADR 0038: el dueño escribe una incidencia a AS OOH y ve si ya se la
+          contestaron. Consume /api/tickets (T5), no ConfigNegocio. */}
+      <TicketsPanel onToast={onToast} />
 
       <Card>
         <CardHeader className="flex flex-row items-center gap-2"><Building2 className="h-4 w-4 text-muted" /><CardTitle>Identidad de la empresa</CardTitle></CardHeader>
