@@ -1,0 +1,231 @@
+===============================================================================
+ RELEASE v0.7.0 — los tickets de soporte llegan a la flota
+ SPACE OS · 2026-09-23 · quedan 21 dias para el OOH SUMMIT
+===============================================================================
+
+ Que entra: ADR 0038 (tickets de soporte) y todo lo que ya estaba en main sin
+ publicar desde v0.6.1.
+
+ ORDEN:  A · tu maquina -> B · el PADRE -> C · DEMO -> D · g500 -> E · promover
+
+ Los comandos de TU MAQUINA son PowerShell: una instruccion por linea, sin &&.
+ Los de las CONSOLAS DE LOS DROPLETS son bash y si aceptan && y saltos.
+
+
+###############################################################################
+ LEE ESTO ANTES QUE NADA — EL ORDEN NO ES DECORATIVO
+###############################################################################
+
+ EL BLOQUE D VA ANTES QUE EL E. SIEMPRE.
+
+ g500 corre v0.5.1 y NO tiene la tabla `actualizaciones_instancia`: la crea la
+ migracion del 21/09, que viaja dentro de esta version. Y `marcar_instalado`
+ -lo que anota que ya se instalo- vive en `update.sh`, que esta en el
+ ANFITRION y NO viaja en la imagen.
+
+ Si promueves (E) antes de instalarle el update.sh nuevo (D):
+
+   · g500 toma v0.7.0 con su update.sh del 9 de septiembre
+   · aplica las migraciones y la tabla NACE
+   · pero el script viejo no sabe anotar lo instalado
+   · `version_instalada` queda en NULL
+   · la pantalla anuncia para siempre una version nueva teniendo esa corriendo
+   · y si la apruebas, la aprobacion NO SE CONSUME NUNCA
+
+ Resultado: g500 DEJA DE RECIBIR VERSIONES y no da ningun error. Es la unica
+ instancia con datos de cliente real.
+
+
+###############################################################################
+ BLOQUE A · TU MAQUINA — etiquetar y publicar a `beta`
+###############################################################################
+
+ A1 · Comprueba que estas en main y al dia:
+
+   cd C:\Users\Server\spaces_doohmain_nueva
+   git checkout main
+   git pull emiliano main
+   git log --oneline -1
+
+ A2 · LA ETIQUETA TIENE QUE CAER SOBRE main. Esto ya salio mal el 22/09 con
+      v0.6.1, que quedo apuntando fuera de main y hubo que rescatarla
+      fusionando despues.
+
+   git tag v0.7.0
+   git push emiliano v0.7.0
+
+ A3 · Eso dispara solo el workflow "Release" (se dispara con el tag, no a mano).
+      Velo en GitHub -> Actions -> Release.
+
+      Construye, corre typecheck + unitarias + e2e ENTERAS, y solo si todo pasa
+      publica la imagen al canal `beta`. Un tag con la suite en rojo NO publica
+      nada, asi que si sale rojo no hay nada que deshacer.
+
+      Tarda ~8 minutos. ESPERA A QUE TERMINE EN VERDE antes de seguir.
+
+      Si sale rojo: para y avisa. No borres el tag sin decirlo.
+
+
+###############################################################################
+ BLOQUE B · EL PADRE — consola web del droplet
+###############################################################################
+
+ Esto trae el arreglo `d9f1aee` que HOY NO ESTA EN NINGUNA MAQUINA, y es el
+ que hace que el marcado funcione. Sin esto, el bloque D no sirve de nada.
+
+ B1 · cd /var/www/Spaces && git pull
+
+ B2 · COMPRUEBA que llego. Esta es la que separa hacerlo de creerlo:
+
+   git log --oneline -3 -- infra/scripts/update.sh
+
+   Tiene que aparecer `d9f1aee` (o el merge `11b4225`). Si no, PARA.
+
+ B3 · Guarda el que hay y copia el nuevo:
+
+   cp -a /opt/space-os/update.sh /root/update.sh.antes-v070
+   install -o root -g root -m 750 /var/www/Spaces/infra/scripts/update.sh /opt/space-os/update.sh
+
+ B4 · COMPRUEBA QUE ES EL ARREGLADO, no solo que es nuevo:
+
+   grep -c 'sin-tabla' /opt/space-os/update.sh
+
+   Numero MAYOR QUE 0. Si da 0 copiaste el viejo: vuelve a B3.
+
+
+###############################################################################
+ BLOQUE C · DEMO — validar antes de tocar al cliente real
+###############################################################################
+
+ DEMO corre dentro del PADRE y sigue el canal `beta`, asi que ya puede tomar
+ v0.7.0. Ojo: DEMO NO usa la configuracion por omision.
+
+ C1 · Que no rompiste nada:
+
+   SPACE_OS_CONF=/etc/space-os/demo-instancia.env /opt/space-os/update.sh --dry-run
+
+   Tiene que terminar en:
+     "--dry-run terminado. Ni base, ni contenedor, ni respaldo: nada cambio."
+
+   Si no, vuelve atras y NO SIGAS:
+     cp -a /root/update.sh.antes-v070 /opt/space-os/update.sh
+
+ C2 · Que vea la version nueva:
+
+   SPACE_OS_CONF=/etc/space-os/demo-instancia.env /opt/space-os/update.sh --comprobar
+
+ C3 · DEMO esta en modo `aprobacion`, asi que NO se actualiza sola.
+      Entra a la aplicacion de DEMO -> Administracion y APRUEBA la version.
+
+ C4 · La corrida que la instala (o espera al cron):
+
+   SPACE_OS_CONF=/etc/space-os/demo-instancia.env /opt/space-os/update.sh
+
+ C5 · COMPRUEBA LAS TRES COSAS, y la tercera es la que este release aporta:
+
+   sudo -u postgres psql -d spaces_demo -c "select version_instalada, digest_instalado is not null as tiene_digest from actualizaciones_instancia;"
+
+     version_instalada = v0.7.0  y  tiene_digest = t
+     Si sale NULL, el update.sh que corrio era el viejo. PARA.
+
+   sudo -u postgres psql -d spaces_demo -c "select count(*) from tickets;"
+
+     Tiene que contestar 0, no "relation does not exist".
+
+   Y abre la pantalla: Administracion -> Soporte. Escribe un ticket de prueba.
+   Luego entra a  https://space-os.io/flota/tickets/  y compruebalo ahi.
+
+   ESTA ES LA PRIMERA VEZ QUE UN HUMANO MIRA ESAS DOS PANTALLAS. Si algo se ve
+   mal -maquetado, texto cortado, un boton que no hace nada- avisa: las pruebas
+   cubren la logica, no el aspecto.
+
+
+###############################################################################
+ BLOQUE D · g500 — LA UNICA CON DATOS REALES.  VA ANTES DEL BLOQUE E.
+###############################################################################
+
+ Estado medido el 22/09:
+   update.sh    el del 9 de septiembre. El nuevo NO esta.
+   canal        estable        version   v0.5.1
+   base         spaces         montaje   ESTANDAR (sin SPACE_OS_CONF)
+   acceso       ssh -i C:\Users\Server\.ssh\spaces_deploy   (el PADRE no tiene llave a g500)
+
+ D1 · Llevarle el archivo DESDE TU MAQUINA (PowerShell, una linea):
+
+   scp -i C:\Users\Server\.ssh\spaces_deploy C:\Users\Server\spaces_doohmain_nueva\infra\scripts\update.sh root@<IP-de-g500>:/opt/space-os/update.sh
+
+   Antes comprueba que estas en main:  git branch --show-current
+
+ D2 · EN LA CONSOLA DE g500, en este orden:
+
+   cp -a /opt/space-os/update.sh /root/update.sh.antes-v070
+   chown root:root /opt/space-os/update.sh
+   chmod 750 /opt/space-os/update.sh
+
+   grep -c 'sin-tabla' /opt/space-os/update.sh        # > 0 o PARAS
+   /opt/space-os/update.sh --help | grep -c comprobar # > 0 o PARAS
+
+   /opt/space-os/update.sh --dry-run                  # "nada cambio"
+
+ D3 · El cron de comprobacion. Montaje estandar, SIN SPACE_OS_CONF:
+
+   printf '%s\n' '*/15 * * * * root /opt/space-os/update.sh --comprobar >> /var/log/space-os/cron.log 2>&1 || [ $? -eq 75 ]' >> /etc/cron.d/space-os-update
+
+   grep -cE '^\*/15 |^17 4 ' /etc/cron.d/space-os-update    # debe dar 2
+
+
+###############################################################################
+ BLOQUE E · PROMOVER A `estable` — solo con D COMPLETO
+###############################################################################
+
+ E1 · GitHub -> Actions -> "Promover a estable" -> Run workflow.
+
+      Version:  v0.7.0
+      Motivo:   (opcional, queda escrito en el resumen del run)
+
+      ESCRIBE LA VERSION SIN ESPACIOS DELANTE NI PUNTO DETRAS. Los guards la
+      imprimen entre comillas justo para que veas si se colo alguno: los tres
+      primeros intentos del 02/09 murieron por eso y ninguno toco el registro.
+
+ E2 · El workflow tiene TRES PUERTAS y ninguna es decorativa:
+        1. que v0.7.0 sea la que lleva `beta` HOY
+        2. que DEMO conteste
+        3. que tras reetiquetar el digest NO haya cambiado
+
+      No construye nada: reetiqueta la imagen que ya se probo. Si reconstruyera
+      seria otro binario que el que se valido.
+
+ E3 · g500 tomara v0.7.0 en su proxima corrida (17 4 * * *, o lanzala a mano).
+      Como esta en modo `aprobacion`, PIDE APROBACION y no se actualiza sola.
+
+ E4 · COMPRUEBA en g500 lo mismo que en DEMO:
+
+   sudo -u postgres psql -d spaces -c "select version_instalada, digest_instalado is not null as tiene_digest from actualizaciones_instancia;"
+
+      v0.7.0 y t. Si salen NULL, el update.sh que corrio era el viejo: avisa.
+
+
+###############################################################################
+ SI HAY QUE VOLVER ATRAS
+###############################################################################
+
+ La vuelta atras de una promocion es reetiquetar `estable` a la version
+ anterior, y el resumen del run de E deja ESCRITO ese comando con el digest
+ exacto. Guardalo antes de cerrar la pestana.
+
+ PERO: las instancias que YA jalaron no vuelven solas. Necesitan su rollback
+ local, que es F3.4 y hoy NO EXISTE. Por eso el orden de esta hoja importa y
+ por eso DEMO va antes que g500.
+
+
+###############################################################################
+ LO QUE ESTA HOJA NO CUBRE
+###############################################################################
+
+ · El respaldo diario (rama `feat/respaldo-diario`, 10 commits sin fusionar).
+   g500 sigue respaldando SOLO cuando se despliega una version. Su ultima copia
+   en el bucket es del 17/09.
+ · El 403 del bucket `space-os-logs`, que se arregla en el panel de DigitalOcean
+   y no con un comando.
+ · La pasada visual de las dos pantallas: esta dentro del bloque C5, pero no es
+   un comando — es mirarlas.
