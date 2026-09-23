@@ -25,6 +25,29 @@ La entrada más reciente va arriba.
   Esto no llega a ninguna instancia de cliente hasta que se publique una
   versión nueva y una persona decida instalarla — no pasa solo.
 
+- **Y se corrigieron cuatro fallos de esa misma pantalla, antes de que llegara
+  a nadie.** La revisión final los encontró, y ninguno se veía usando la
+  aplicación en esta máquina:
+
+  - **La pantalla desde la que te contestamos no habría abierto en el servidor
+    de verdad.** Funcionaba aquí y habría dado «no existe» allá, que es la peor
+    forma de descubrirlo: el día que alguien nos escribiera, no habríamos
+    podido ni leerlo.
+  - **La fecha de nuestra respuesta podía salir falsa.** Si después de
+    contestarte marcábamos el ticket como resuelto, la fecha de la respuesta se
+    volvía a poner al día de hoy: habrías visto «respondido el 25» para algo
+    escrito el 22. La respuesta y la fecha ahora solo cambian si de verdad
+    escribimos algo nuevo.
+  - **Los tickets podrían no haberse podido leer en una instancia recién
+    instalada**, por un permiso que faltaba en la base de datos. No daba ningún
+    error que apuntara a la causa.
+  - **Y cuando algo fallara, el aviso decía otra cosa.** El panel habría
+    culpado a una parte del sistema que funciona bien, y alguien habría perdido
+    la tarde buscando una avería que no existe.
+
+  También se añadió el enlace que faltaba: hasta hoy había que saberse la
+  dirección de memoria para llegar a esa pantalla.
+
 ## 2026-09-22
 
 - **La demostración ya corre la versión nueva, y por primera vez decide si la

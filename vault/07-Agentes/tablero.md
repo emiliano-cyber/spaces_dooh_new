@@ -6,9 +6,48 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!danger] 2026-09-23 (tarde) · **la revisión final encontró SEIS defectos, y los cuatro primeros eran de verdad**
+> Se arreglaron sobre esta misma rama, con su prueba cada uno y el rojo
+> demostrado por mutación. Lo que enseñan, que es más que los arreglos:
+>
+> 1. **`/flota/tickets` habría dado 404 detrás del nginx de verdad.** El
+>    `proxy_pass` de `infra/nginx/snippets/flota-panel.conf:16` lleva barra
+>    final, que **recorta el prefijo**, así que la lista de rutas necesitaba las
+>    mismas CUATRO variantes que `RUTAS_ALTAS` y tenía dos. **Y su prueba no
+>    podía verlo: iteraba la constante que venía a comprobar** — con la lista
+>    vacía habría pasado con cero iteraciones. Ahora las cuatro se escriben
+>    literales.
+> 2. **Mover el estado falsificaba la fecha de respuesta.** El `<textarea>` va
+>    precargado y el `<select>` manda siempre, así que cerrar un ticket ya
+>    contestado reenviaba la respuesta vieja y la instancia sellaba
+>    `respondido_en = now()`. Se arregló en el PANEL, no en el repo: el repo
+>    escribe lo que le mandan y hace bien.
+> 3. **El diagnóstico mentía para toda la flota:** `clasificarFallo()` lleva
+>    `/api/version` quemada en el 404 y hoy **ninguna instancia tiene
+>    `/api/tickets`**, así que toda la flota habría acusado a una ruta que
+>    funciona.
+> 4. **La migración era la ÚNICA de seis que crea tabla sin `GRANT`**, y las
+>    e2e no pueden verlo por construcción — `recrearEsquema()` crea con el rol
+>    propietario y aplica antes los privilegios por omisión. Detalle y **qué se
+>    hizo con el checksum** en [[04-Datos/migraciones]].
+>
+> Y dos menores: la pantalla **no tenía enlace desde ningún sitio**, y el guard
+> del POST miraba `instancia.dominio` — el campo del que `contestarTicketDeConfianza()`
+> decidió **no fiarse** — en vez de `instancia.nombre`.
+>
+> **Medido al cerrar, en este árbol:** `apps/web` **1785** unitarias (138
+> archivos) y **490 + 1 skip** e2e (44 archivos), `apps/flota` **350** (16
+> archivos), typecheck limpio, `node scripts/recuentos.mjs` → **100** endpoints,
+> **46** tablas, **88** migraciones.
+>
+> **Lo que sigue sin hacerse, y no se calla:** nadie ha mirado ninguna de las dos
+> pantallas con un navegador — ni la del cliente ni la del panel.
+
 > [!success] 2026-09-23 · **Z2, Z9, Z12 y `apps/flota` LIBERADAS — tickets de soporte (ADR 0038) CERRADO**
-> Las diez tareas del plan (`.superpowers/sdd/Plan_Tickets_De_Soporte/`)
-> terminaron con la Tarea 10 (bóveda y bitácora), y con eso se libera todo lo
+> Las **doce** tareas del plan —el versionado es
+> [`docs/Plan_Tickets_De_Soporte.md`](../../docs/Plan_Tickets_De_Soporte.md), no
+> el borrador de `.superpowers/sdd/`, que no viaja en el repositorio— terminaron
+> con la Tarea 12 (el formulario del panel), y con eso se libera todo lo
 > reclamado el 22/09 abajo: **Z2 · Tenant**, **Z9 · Datos**, **Z12 · Docs** y
 > `apps/flota/` por su nombre.
 >

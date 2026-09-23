@@ -27,13 +27,19 @@ No tiene nada que ver con lo que este ADR decide. **El concepto nuevo se llama
 
 Es el hallazgo que decide el diseño entero, y no había que construirlo:
 
-- `apps/flota/servidor.mjs:437` — `filasDeLaFlota()` recorre el inventario y
+- `apps/flota/servidor.mjs:818` — `filasDeLaFlota()` recorre el inventario y
   consulta a **cada instancia**.
-- `apps/flota/servidor.mjs:417` — `consultarConToken()` resuelve el token de esa
+- `apps/flota/servidor.mjs:798` — `consultarConToken()` resuelve el token de esa
   instancia, del entorno o de `/etc/space-os/flota-tokens.env`.
 - `apps/web/lib/server/flota.ts` — `esElPanel()` compara ese token en
   tiempo constante contra `FLOTA_TOKEN`. **Sin token configurado, nadie es el
   panel**: ausente significa cerrado.
+
+> **Las dos líneas se remidieron el 2026-09-23** (decían `:437` y `:417`, que es
+> donde estaban al escribir este ADR). Las movió el trabajo de esta misma rama:
+> un archivo que crece invalida todas sus citas de golpe y ninguna da error —
+> solo mandan al sitio equivocado. Si no cuadran, mídelas antes de leerlas:
+> `grep -n 'function filasDeLaFlota\|function consultarConToken' apps/flota/servidor.mjs`.
 
 > **Nota del 2026-09-23, al implementarlo.** `esElPanel()` vivía dentro de
 > `version/route.ts` y se **mudó entera** a `lib/server/flota.ts` al aparecer la

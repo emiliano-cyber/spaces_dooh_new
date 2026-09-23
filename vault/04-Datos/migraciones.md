@@ -1,7 +1,7 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-09-21
+actualizado: 2026-09-23
 tags: [datos, migraciones, despliegue, rojo]
 archivos:
   - db/migrations/
@@ -26,9 +26,60 @@ archivos:
   - db/migrations/20260917_entidades_fiscales.sql
   - db/migrations/20260921_corrige_acentos_catalogo_roles_entidad.sql
   - db/migrations/20260921_actualizaciones_instancia.sql
+  - db/migrations/20260923_tickets.sql
 ---
 
 # Migraciones
+
+> [!note] 2026-09-23 · `tickets` — ADR 0038, el buzón de soporte del cliente
+> `20260923_tickets.sql` — tabla nueva **de negocio**: lleva `tenant_id`, RLS y
+> FORCE como cualquier otra, porque el ticket es dato del owner. Lo que la
+> distingue es quién la lee por el otro lado: la ruta del PANEL la atraviesa a
+> propósito con `qRaw`, y eso está documentado en `tickets-repo.ts` y probado en
+> pareja (aísla al cliente / atraviesa el panel). Ver
+> [ADR 0038](../../docs/adr/0038-los-tickets-de-soporte-viven-en-la-instancia.md).
+>
+> **Medido, no copiado:** `node scripts/recuentos.mjs` sobre este árbol
+> (`feat/tickets-de-soporte`) da **88 migraciones** y **46 tablas** tras
+> aplicarlas todas. Los recuentos del recuadro de abajo —87 y 45— eran los
+> del **21/09** y se quedan ahí como lo que son: una afirmación con fecha.
+>
+> [!danger] Y el defecto que costó una revisión entera: **nació SIN GRANT**
+> Era la **única** de las seis migraciones que crean tabla sin conceder un solo
+> permiso al rol de la app. Contadas una por una: tracking **5**, códigos **3**,
+> entidades **6**, energía **5**, actualizaciones **16**, tickets **0**. El
+> motivo por el que las otras cinco lo llevan está escrito en
+> `20260917_entidades_fiscales.sql:193`: «En producción las tablas las posee otro
+> rol, así que el GRANT es explícito».
+>
+> **Y ninguna prueba podía verlo, por construcción.** `recrearEsquema()` crea
+> todo con el rol PROPIETARIO y aplica antes
+> `20260824_grants_tablas_futuras.sql`, que fija privilegios POR OMISIÓN para las
+> tablas que cree ese mismo rol: `tickets` nacía con permisos aunque su migración
+> no concediera ninguno. En una instancia real la tabla se crea, la migración
+> sale **0**, y después `spaces_app` no puede leerla — **y ningún error apunta a
+> permisos**. Lo mismo pasa en el 5433: al reaplicarla a mano el 23/09 los GRANT
+> ya estaban, puestos por los privilegios por omisión y no por ella.
+>
+> Lo cierra `apps/web/lib/test/grants-tickets.e2e.test.ts`, que reproduce el caso
+> de PRODUCCIÓN y no el del arnés — base desechable con `schema.sql` y la
+> migración, sin privilegios por omisión de por medio — y en rojo daba
+> `permission denied for table tickets` en la lectura **y** en la escritura.
+>
+> **Qué se hizo con el registro, que es la parte que este repositorio ya ha
+> pagado cara:** la migración estaba aplicada en el 5433 y en `spaces_e2e`, así
+> que al cambiar el archivo cambió su sha256 y `scripts/migrar.mjs` salía con
+> **código 3**. `spaces_e2e` se recrea de cero en cada corrida, así que no
+> necesita nada. Sobre el 5433 se hicieron los dos pasos **en este orden**:
+> primero **reaplicar el archivo entero** con `psql` (es idempotente: `create
+> table if not exists`, `create index if not exists`, `drop policy if exists`,
+> y el `grant` lo es por naturaleza), para que la base tuviera de verdad lo que
+> el archivo nuevo describe; y **después**
+> `node scripts/migrar.mjs --forzar-checksum=20260923_tickets.sql`, que pone al
+> día lo que el registro AFIRMA y **no reaplica nada**. Al revés habría grabado
+> una mentira. Comprobado al cerrar: el sha256 del archivo en disco coincide con
+> `git show HEAD:db/migrations/20260923_tickets.sql | sha256sum`, que es el
+> canónico, y `--pendientes` vuelve a salir limpio.
 
 > [!note] 2026-09-21 (tarde) · `actualizaciones_instancia` — ADR 0037, el buzón de la instancia
 > `20260921_actualizaciones_instancia.sql` — tabla nueva, de LA INSTANCIA (sin
@@ -39,7 +90,8 @@ archivos:
 > [ADR 0037](../../docs/adr/0037-cada-instancia-elige-si-toma-la-version-nueva.md).
 > Mapa completo en [[actualizaciones-instancia]].
 >
-> **Medido, no copiado:** `node scripts/recuentos.mjs` sobre este árbol da
+> **Medido, no copiado (al 21/09; hoy son 88 y 46 — ver el recuadro del
+> 23/09 arriba):** `node scripts/recuentos.mjs` sobre este árbol daba
 > **87 migraciones** y **45 tablas** tras aplicarlas todas. Verde en
 > `cd apps/web && npm run test:e2e -- migraciones` (34/34) y en la suite e2e
 > completa (463 pasadas, 1 skip, igual que antes de este cambio). Idempotente,
