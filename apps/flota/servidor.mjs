@@ -171,7 +171,13 @@ responde sale como <b>sin-respuesta</b> y no rompe la tabla.</footer>
 }
 
 /**
- * La pantalla de tickets (T9, ADR 0038).
+ * Los estados de un ticket que el PATCH del panel puede fijar. Lista cerrada
+ * y en el mismo orden que el contrato del ADR 0038 (T6/T11).
+ */
+const ESTADOS_TICKET = ['ABIERTO', 'EN_PROCESO', 'RESUELTO', 'CERRADO']
+
+/**
+ * La pantalla de tickets (T9, ADR 0038; el formulario de contestar es T12).
  *
  * `respuestas` es lo que dejó `respuestasDeTickets()` (T9, red): una por
  * instancia, `{ nombre, dominio, tickets }` si contestó o
@@ -191,8 +197,16 @@ responde sale como <b>sin-respuesta</b> y no rompe la tabla.</footer>
  * Confundir esas dos filas es el mismo error que este proyecto ya penalizó
  * con el panel de versiones ("Sale SIEMPRE con 0", `estado.mjs`): aquí la
  * muda pinta "sin dato" con su propia clase, nunca un cero.
+ *
+ * ─── `csrf` y `aviso` (T12) ────────────────────────────────────────────────
+ * `csrf` es el valor de la cookie `flota_csrf` (ver `COOKIE_CSRF`), el mismo
+ * patrón que `paginaAltas()`: viaja en un campo oculto de CADA formulario de
+ * ticket, no uno solo, porque cada ticket contestable es su propio `<form>`.
+ * `aviso`, si llega, es un mensaje para pintar arriba de todo -- lo usa
+ * `contestarTicketDesdePanel()` cuando la instancia NO contestó al PATCH, y
+ * es lo que impide que un fallo se repinte como si se hubiera guardado.
  */
-export function paginaTickets(respuestas, usuario) {
+export function paginaTickets(respuestas, usuario, csrf, aviso) {
   const filas = filasDeTickets(respuestas)
   const porNombre = new Map(respuestas.map((r) => [r.nombre, r]))
 
@@ -246,12 +260,34 @@ export function paginaTickets(respuestas, usuario) {
           const filaRespuesta = contestado
             ? `\n  <tr class="respuesta-ticket"><td colspan="7">${escapar(t.respuesta)}</td></tr>`
             : ''
+          // El formulario para contestar (T12). Va con el resto del detalle
+          // porque solo existe para tickets de una instancia que SÍ contestó
+          // -- una instancia muda no tiene a quién mandarle el PATCH.
+          //
+          // `respuesta` vuelve ESCAPADA dentro del `<textarea>` aunque ya la
+          // haya escrito AS OOH: el día que alguien pegue ahí un fragmento
+          // del correo de un cliente, el origen deja de ser de confianza sin
+          // que nadie lo note. Mismo criterio que la sub-fila de solo lectura
+          // de arriba.
+          const opcionesEstado = ESTADOS_TICKET.map(
+            (e) => `<option value="${e}"${e === t.estado ? ' selected' : ''}>${e}</option>`,
+          ).join('')
+          const formulario = `
+  <tr class="formulario-ticket"><td colspan="7"><form class="formulario-ticket" method="POST" action="/flota/tickets/">
+    <input type="hidden" name="csrf" value="${escapar(csrf)}">
+    <input type="hidden" name="id" value="${escapar(t.id)}">
+    <input type="hidden" name="instancia" value="${escapar(f.nombre)}">
+    <input type="hidden" name="dominio" value="${escapar(f.dominio)}">
+    <label>Respuesta<textarea name="respuesta" rows="2">${escapar(t.respuesta)}</textarea></label>
+    <label>Estado<select name="estado">${opcionesEstado}</select></label>
+    <button type="submit">Guardar</button>
+  </form></td></tr>`
           return `<tr>
     <td>${escapar(t.folio)}</td><td>${escapar(t.tenant_id)}</td><td>${escapar(t.asunto)}</td>
     <td>${escapar(t.estado)}</td><td>${escapar(t.prioridad)}</td><td>${escapar(fechaLegible(t.creado_en))}</td>
     <td class="${contestado ? 'contestado' : 'sin-contestar'}">${celdaRespuesta}</td>
   </tr>
-  <tr class="cuerpo-ticket"><td colspan="7">${escapar(t.cuerpo)}</td></tr>${filaRespuesta}`
+  <tr class="cuerpo-ticket"><td colspan="7">${escapar(t.cuerpo)}</td></tr>${filaRespuesta}${formulario}`
         })
         .join('\n')
       return `<h2>${escapar(f.nombre)}</h2>
@@ -266,9 +302,23 @@ ${filasTicket}
 <html lang="es"><head><meta charset="utf-8">
 <title>Tickets — SPACE OS</title>
 <meta name="robots" content="noindex,nofollow">
-<style>${ESTILO}</style></head>
+<style>${ESTILO}
+  form.formulario-ticket { margin: .5rem 0 1rem; display: grid; gap: .4rem; max-width: 32rem }
+  form.formulario-ticket label { display: grid; gap: .2rem; font-size: 12px; color: #666 }
+  form.formulario-ticket textarea, form.formulario-ticket select {
+    font: inherit; padding: .4rem .5rem; border: 1px solid #8886; border-radius: 4px;
+    background: transparent; color: inherit;
+  }
+  form.formulario-ticket textarea { resize: vertical }
+  form.formulario-ticket button {
+    font: inherit; padding: .4rem .9rem; border: 0; border-radius: 4px;
+    background: #2563eb; color: #fff; cursor: pointer; justify-self: start;
+  }
+  .aviso-error { color: #b00; background: #fee2e2; padding: .6rem .9rem; border-radius: 4px; margin: 0 0 1rem; font-weight: 600 }
+</style></head>
 <body>
 <h1>Tickets</h1>
+${aviso ? `<p class="aviso-error">${escapar(aviso)}</p>` : ''}
 <p class="sub"><a href="/flota/">← la flota</a> · ${escapar(filas.length)} instancia(s) · ${escapar(usuario?.email ?? '')}</p>
 <table><thead><tr><th>instancia</th><th>dominio</th><th>pendientes</th><th>total</th><th>estado</th></tr></thead>
 <tbody>
@@ -315,6 +365,7 @@ export async function manejar(peticion, deps) {
     verificar,
     obtenerFilas,
     obtenerRespuestasTickets,
+    contestarTicket,
     registrar = () => {},
     listarSolicitudes,
     crearSolicitud,
@@ -328,7 +379,13 @@ export async function manejar(peticion, deps) {
     return { status: 404, cabeceras: SIN_CACHE, cuerpo: '<!doctype html><meta charset="utf-8"><title>404</title><p>No existe.' }
   }
   const esAltaNueva = esAltas && metodo === 'POST'
-  if (metodo !== 'GET' && !esAltaNueva) {
+  // El formulario de la T12: un POST aqui contesta UN ticket (o mueve su
+  // estado) en la instancia del cliente. Mismo criterio que `esAltaNueva`:
+  // el metodo se admite ANTES de saber si trae CSRF valido, porque el
+  // rechazo por CSRF es un 403 -- lo decide `contestarTicketDesdePanel()`,
+  // no este guard de metodo.
+  const esTicketContestar = esTickets && metodo === 'POST'
+  if (metodo !== 'GET' && !esAltaNueva && !esTicketContestar) {
     return { status: 405, cabeceras: { ...SIN_CACHE, allow: 'GET' }, cuerpo: '<!doctype html><meta charset="utf-8"><title>405</title><p>Solo GET.' }
   }
 
@@ -359,9 +416,25 @@ export async function manejar(peticion, deps) {
     return { status: 200, cabeceras, cuerpo: paginaAltas(solicitudes, acceso.usuario, token, zonasDelEntorno()) }
   }
 
+  if (esTicketContestar) {
+    return await contestarTicketDesdePanel(
+      { origen, csrf, cookie, cuerpo },
+      { contestarTicket, origenEsperado, acceso, registrar, obtenerRespuestasTickets },
+    )
+  }
+
   if (esTickets) {
     const respuestas = await obtenerRespuestasTickets()
-    return { status: 200, cabeceras: SIN_CACHE, cuerpo: paginaTickets(respuestas, acceso.usuario) }
+    // Mismo patron que `esAltas` arriba: se reutiliza la cookie si ya la
+    // trae, y si no se crea -- es la MISMA cookie `flota_csrf` de toda la
+    // pagina, no una nueva por ruta, asi que un formulario abierto en
+    // `/flota/altas/` y otro en `/flota/tickets/` no se invalidan entre si.
+    const token = tokenDeCookie(cookie, COOKIE_CSRF) || randomUUID()
+    const cabeceras = {
+      ...SIN_CACHE,
+      'set-cookie': `${COOKIE_CSRF}=${token}; Path=/; HttpOnly; Secure; SameSite=Lax`,
+    }
+    return { status: 200, cabeceras, cuerpo: paginaTickets(respuestas, acceso.usuario, token) }
   }
 
   const filas = await obtenerFilas()
@@ -435,6 +508,80 @@ async function pedirAlta(entrada, ctx) {
   // 303 y no 200: recargar la pagina despues de un POST no puede pedir OTRA
   // maquina.
   return { status: 303, cabeceras: { ...SIN_CACHE, location: '/flota/altas/' }, cuerpo: '' }
+}
+
+/**
+ * Un POST aqui contesta UN ticket (y/o mueve su estado) en la instancia del
+ * cliente. Mismos dos cerrojos que `pedirAlta()`, copiados a proposito y por
+ * la misma razon (Origin, y CSRF de doble envio contra la MISMA cookie
+ * `flota_csrf`): quien ya tiene sesion en el panel puede mandar este POST, y
+ * otra pagina no puede hacerlo hablar en su nombre.
+ *
+ * ─── Lo que distingue esto de `pedirAlta()`, y es lo que mas importa aqui ──
+ * Un alta que falla es una solicitud que se queda en la cola -- nada se
+ * pierde. Un PATCH que falla es una respuesta que alguien ACABA DE ESCRIBIR.
+ * Por eso el exito y el fallo NO pueden compartir el mismo camino:
+ *
+ *   - exito: 303 a `/flota/tickets/` -- recargar no puede reenviar el mismo
+ *     PATCH, igual que en `pedirAlta()`.
+ *   - fallo: se queda EN ESTA peticion (no redirige), con `aviso` puesto en
+ *     `paginaTickets()`. Si esto redirigiera igual que el exito, quien
+ *     escribio la respuesta veria la pantalla de siempre y creeria que se
+ *     guardo -- el fallo silencioso que este proyecto ya penalizo.
+ */
+async function contestarTicketDesdePanel(entrada, ctx) {
+  const { origen, csrf, cookie, cuerpo } = entrada
+  const { contestarTicket, origenEsperado, acceso, registrar, obtenerRespuestasTickets } = ctx
+
+  // Mismo criterio que `pedirAlta()`: «si VIENE y no coincide, rechaza», no
+  // «si no coincide» -- ver el comentario de alli, mismo cerrojo.
+  const origenDice = origen && origen !== 'null' ? origen : null
+  if (origenEsperado && origenDice && origenDice !== origenEsperado) {
+    registrar({ cuando: new Date().toISOString(), permitido: false, motivo: `origen ajeno: ${origenDice}`, ruta: '/flota/tickets/' })
+    return { status: 403, cabeceras: SIN_CACHE, cuerpo: '<!doctype html><meta charset="utf-8"><title>403</title><p>Peticion rechazada.' }
+  }
+
+  const esperado = tokenDeCookie(cookie, COOKIE_CSRF)
+  if (!csrf || !esperado || csrf !== esperado) {
+    registrar({ cuando: new Date().toISOString(), permitido: false, motivo: 'csrf', ruta: '/flota/tickets/' })
+    return { status: 403, cabeceras: SIN_CACHE, cuerpo: '<!doctype html><meta charset="utf-8"><title>403</title><p>Peticion rechazada.' }
+  }
+
+  const id = String(cuerpo?.id ?? '').trim()
+  // `instancia.dominio` sale del formulario y es dato del NAVEGADOR: NO es la
+  // frontera de confianza. El `contestarTicket` de verdad, cableado en
+  // `crearServidorPanel()`, es `contestarTicketDeConfianza()`, que ignora
+  // este campo y resuelve el dominio real desde el inventario por `nombre` --
+  // ver su comentario. Aqui viaja solo para que un doble de pruebas pueda
+  // afirmar que el formulario se leyo bien.
+  const instancia = { nombre: String(cuerpo?.instancia ?? ''), dominio: String(cuerpo?.dominio ?? '') }
+  const respuestaTexto = String(cuerpo?.respuesta ?? '')
+  const estadoNuevo = String(cuerpo?.estado ?? '')
+  // Lista blanca de claves, igual que `paraElPanel()` en `route.ts`: el
+  // cuerpo NO se reenvia tal cual, se reconstruye campo a campo.
+  const cambios = { id }
+  if (respuestaTexto.trim() !== '') cambios.respuesta = respuestaTexto
+  if (estadoNuevo.trim() !== '') cambios.estado = estadoNuevo
+
+  const resultado =
+    id && instancia.dominio
+      ? await contestarTicket(instancia, cambios)
+      : { ok: false, motivo: 'falta el id o el dominio de la instancia' }
+
+  if (resultado.ok) {
+    return { status: 303, cabeceras: { ...SIN_CACHE, location: '/flota/tickets/' }, cuerpo: '' }
+  }
+
+  // El fallo SI se anota: al registro, no al visitante a secas -- aqui el
+  // visitante tambien lo ve, porque es quien tiene que saber que reintentar.
+  registrar({ cuando: new Date().toISOString(), permitido: true, motivo: `PATCH no llego: ${resultado.motivo}`, ruta: '/flota/tickets/' })
+
+  const respuestas = await obtenerRespuestasTickets()
+  return {
+    status: 502,
+    cabeceras: SIN_CACHE,
+    cuerpo: paginaTickets(respuestas, acceso.usuario, esperado, `No se guardo: ${resultado.motivo}`),
+  }
 }
 
 /**
@@ -660,6 +807,69 @@ export async function consultarTickets(instancia, opciones = {}) {
 }
 
 /**
+ * El PATCH de UN ticket a UNA instancia (T12) -- la escritura equivalente de
+ * `consultarTickets()`, con el MISMO resolutor de token, la MISMA URL base y
+ * el MISMO `clasificarFallo()`. No es una segunda forma de hablar con las
+ * instancias, es la de siempre con otro verbo.
+ *
+ * NUNCA lanza: el llamador es `contestarTicketDesdePanel()`, que acaba de
+ * recibir el POST de alguien que escribio una respuesta a mano, y si esto
+ * lanzara en vez de devolver `{ok:false}` esa persona veria un 500 generico
+ * en vez de un motivo que le diga que paso.
+ *
+ * `cambios` viaja TAL CUAL como cuerpo del PATCH -- `{id, respuesta?,
+ * estado?}` -- porque quien arma esa lista blanca es `contestarTicketDesdePanel()`,
+ * no aqui: esta funcion es solo la costura de red, igual que `consultarTickets()`.
+ */
+export async function contestarTicket(instancia, cambios, opciones = {}) {
+  const { tokensExtra, leerTokens = tokensDeArchivo, esperaMs = 5000, pedir = fetch } = opciones
+  const tokens = tokensExtra ?? (await leerTokens())
+  const token = tokenDe(instancia.nombre, process.env, tokens)
+  const url = 'https://' + instancia.dominio + RUTA_TICKETS
+  try {
+    const respuesta = await pedir(url, {
+      method: 'PATCH',
+      headers: {
+        'content-type': 'application/json',
+        ...(token ? { 'x-flota-token': token } : {}),
+      },
+      body: JSON.stringify(cambios),
+      signal: AbortSignal.timeout(esperaMs),
+      redirect: 'manual',
+    })
+    if (!respuesta.ok) return { ok: false, motivo: clasificarFallo({ status: respuesta.status }) }
+    return { ok: true }
+  } catch (error) {
+    return { ok: false, motivo: clasificarFallo({ error }) }
+  }
+}
+
+/**
+ * El PATCH de verdad, pero SIN CONFIAR en el dominio que trae el formulario
+ * (T12, hallazgo de la revision de codigo antes de cerrar la tarea).
+ *
+ * El formulario manda `{nombre, dominio}` en campos ocultos, y un campo
+ * oculto de un POST es un dato que pone el NAVEGADOR, no el servidor: quien
+ * ya tiene sesion en el panel podria editarlo a mano y mandar el
+ * `x-flota-token` de una instancia real a un host que controla -- fuga de
+ * credencial, no XSS ni CSRF, pero el mismo principio de fondo: no confiar en
+ * lo que trae el cliente para decidir A DONDE viaja un secreto.
+ *
+ * Por eso el dominio de verdad sale de `cargarInventario()` -- la MISMA
+ * fuente que ya usan `consultarTickets()`/`filasDeLaFlota()` para el GET, que
+ * NUNCA lo toman del cliente -- y se busca por `nombre`. Si ese nombre no
+ * esta en el inventario no hay a donde mandar el PATCH, y se rechaza: ni con
+ * el dominio del formulario ni con ningun otro.
+ */
+export async function contestarTicketDeConfianza(instanciaFormulario, cambios, opciones = {}) {
+  const { cargar = cargarInventario, ...resto } = opciones
+  const inventario = await cargar()
+  const real = inventario.instancias.find((i) => i.nombre === instanciaFormulario?.nombre)
+  if (!real) return { ok: false, motivo: 'instancia desconocida' }
+  return contestarTicket({ nombre: real.nombre, dominio: real.dominio }, cambios, resto)
+}
+
+/**
  * El recorrido de tickets: inventario -> consulta a cada instancia, cruda.
  * Misma costura, y los mismos riesgos, que `filasDeLaFlota()` arriba — ver sus
  * comentarios sobre los tres fallos del 2026-09-04 y el del 2026-09-08.
@@ -722,6 +932,10 @@ export function crearServidorPanel(opciones = {}) {
           verificar: (c) => verificarAcceso(c, { urlPadre }),
           obtenerFilas: () => filasDeLaFlota({ dirEstado }),
           obtenerRespuestasTickets: () => respuestasDeTickets(),
+          // `contestarTicketDeConfianza()`, NO `contestarTicket()` pelado: el
+          // dominio del PATCH tiene que salir del inventario, no del
+          // formulario. Ver su comentario de cabecera.
+          contestarTicket: (instancia, cambios) => contestarTicketDeConfianza(instancia, cambios),
           listarSolicitudes: () => listarCola(dirSolicitudes),
           crearSolicitud: (datos, quien) => crearEnCola(dirSolicitudes, datos, quien),
           origenEsperado,

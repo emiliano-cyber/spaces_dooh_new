@@ -373,8 +373,10 @@ function ticket(over: Partial<Record<string, unknown>> = {}) {
 function depsTickets(opciones: any = {}) {
   const registro: any[] = []
   let consultas = 0
+  const llamadasContestar: any[] = []
   return {
     registro,
+    llamadasContestar,
     get consultas() {
       return consultas
     },
@@ -385,9 +387,30 @@ function depsTickets(opciones: any = {}) {
         return opciones.respuestas ?? []
       },
       registrar: (e: any) => registro.push(e),
+      // El PATCH de verdad (con `x-flota-token`) se prueba aparte, contra
+      // `contestarTicket()` real -- ver «el POST contesta a la instancia».
+      // Aqui es un doble para probar el CABLEADO del formulario del panel.
+      contestarTicket: async (instancia: any, cambios: any) => {
+        llamadasContestar.push({ instancia, cambios })
+        return opciones.resultadoContestar ?? { ok: true }
+      },
+      origenEsperado: opciones.origenEsperado ?? ORIGEN_TICKETS,
     },
   }
 }
+
+const ORIGEN_TICKETS = 'https://space-os.io'
+const CSRF_TICKETS = 'csrf-tickets-1'
+
+const postTicket = (cuerpo: any, extra: any = {}) => ({
+  metodo: 'POST',
+  ruta: '/flota/tickets/',
+  cookie: `spaces_sesion=s; flota_csrf=${CSRF_TICKETS}`,
+  origen: ORIGEN_TICKETS,
+  csrf: CSRF_TICKETS,
+  cuerpo,
+  ...extra,
+})
 
 describe('la pantalla de tickets exige sesion, igual que /flota/', () => {
   it('sin cookie responde 401 y no consulta a ninguna instancia', async () => {
@@ -405,10 +428,13 @@ describe('la pantalla de tickets exige sesion, igual que /flota/', () => {
     }
   })
 
-  it('solo GET; POST da 405', async () => {
+  it('POST ya no es 405 (T12: contesta un ticket) -- sin csrf, 403', async () => {
+    // Hasta la T12 esta ruta solo aceptaba GET. Con el formulario del panel un
+    // POST es legitimo, asi que dejo de ser 405 -- pero SIN el token CSRF del
+    // formulario sigue rechazado, igual que en `/flota/altas/`.
     const dd = depsTickets()
     const r = await manejar({ metodo: 'POST', ruta: '/flota/tickets', cookie: 'spaces_sesion=x' }, dd.d)
-    expect(r.status).toBe(405)
+    expect(r.status).toBe(403)
   })
 
   it('no se cachea', async () => {
@@ -682,5 +708,236 @@ describe('fechaLegible · fecha corta, en es-MX, con dia y hora', () => {
 
   it('un valor que no es fecha se devuelve TAL CUAL -- no se esconde el dato en silencio', () => {
     expect(fechaLegible('no-es-una-fecha')).toBe('no-es-una-fecha')
+  })
+})
+
+// ============================================================================
+//  Tarea 12 · el formulario del panel -- contestar desde el navegador.
+// ----------------------------------------------------------------------------
+//  La T11 dejo el PATCH funcionando y la pantalla enseñando si un ticket ya se
+//  contesto, pero emitirlo solo se podia con `curl`. Aqui se cierra eso, con el
+//  MISMO patron de `pedirAlta()`/`paginaAltas()`: la cookie `flota_csrf` propia
+//  del panel, Origin como segundo cerrojo, y la consulta con token de la T9
+//  (`contestarTicket()`, el PATCH equivalente de `consultarTickets()`).
+//
+//  Lo que mas importa, y es la prueba que da nombre a este bloque: si la
+//  instancia NO contesta, la pantalla lo DICE -- no puede repintarse como si
+//  se hubiera guardado. Quien acaba de escribir una respuesta se quedaria
+//  creyendo que se guardo.
+// ============================================================================
+import { contestarTicket, contestarTicketDeConfianza } from './servidor.mjs'
+
+describe('el formulario de tickets, para contestar desde el navegador (T12)', () => {
+  it('cada ticket trae su formulario, con el token CSRF del panel', async () => {
+    const dd = depsTickets({
+      respuestas: [{ nombre: 'g500', dominio: 'g500.ejemplo.invalid', tickets: [ticket()] }],
+    })
+    const r = await manejar(
+      { metodo: 'GET', ruta: '/flota/tickets/', cookie: `spaces_sesion=s; flota_csrf=${CSRF_TICKETS}` },
+      dd.d,
+    )
+    expect(r.status).toBe(200)
+    expect(r.cuerpo).toContain('<form')
+    expect(r.cuerpo).toContain(`name="csrf" value="${CSRF_TICKETS}"`)
+    expect(r.cuerpo).toContain('name="respuesta"')
+    expect(r.cuerpo).toContain('name="estado"')
+    // El formulario tiene que poder decir A QUE instancia y A QUE ticket
+    // corresponde: sin esto el POST no sabria a donde mandar el PATCH.
+    expect(r.cuerpo).toContain('name="id" value="id-1"')
+    expect(r.cuerpo).toContain('name="dominio" value="g500.ejemplo.invalid"')
+  })
+
+  it('un POST sin el token CSRF no manda nada a la instancia y da 403', async () => {
+    const dd = depsTickets()
+    const r = await manejar(
+      postTicket({ id: 'id-1', instancia: 'g500', dominio: 'g500.ejemplo.invalid', respuesta: 'Ya se reviso.' }, { csrf: undefined }),
+      dd.d,
+    )
+    expect(r.status).toBe(403)
+    expect(dd.llamadasContestar).toHaveLength(0)
+  })
+
+  it('con un token que no coincide con la cookie, tampoco', async () => {
+    const dd = depsTickets()
+    const r = await manejar(
+      postTicket({ id: 'id-1', instancia: 'g500', dominio: 'g500.ejemplo.invalid', respuesta: 'x' }, { csrf: 'otro-token' }),
+      dd.d,
+    )
+    expect(r.status).toBe(403)
+    expect(dd.llamadasContestar).toHaveLength(0)
+  })
+
+  it('y si el Origin es de otro sitio, tampoco', async () => {
+    const dd = depsTickets()
+    const r = await manejar(
+      postTicket(
+        { id: 'id-1', instancia: 'g500', dominio: 'g500.ejemplo.invalid', respuesta: 'x' },
+        { origen: 'https://malo.example' },
+      ),
+      dd.d,
+    )
+    expect(r.status).toBe(403)
+    expect(dd.llamadasContestar).toHaveLength(0)
+  })
+
+  it('con sesion valida y CSRF correcto, llega al resolutor de la T9 con lo que trae el formulario', async () => {
+    const dd = depsTickets()
+    const r = await manejar(
+      postTicket({ id: 'id-1', instancia: 'g500', dominio: 'g500.ejemplo.invalid', respuesta: 'Ya se reviso.', estado: 'RESUELTO' }),
+      dd.d,
+    )
+    expect(r.status).toBe(303)
+    expect(dd.llamadasContestar).toHaveLength(1)
+    expect(dd.llamadasContestar[0].instancia).toMatchObject({ nombre: 'g500', dominio: 'g500.ejemplo.invalid' })
+    expect(dd.llamadasContestar[0].cambios).toMatchObject({ id: 'id-1', respuesta: 'Ya se reviso.', estado: 'RESUELTO' })
+  })
+
+  it('si la instancia NO contesta, se dice — no se finge que se guardo', async () => {
+    const dd = depsTickets({
+      resultadoContestar: { ok: false, motivo: 'no contesto en 5 s (ETIMEDOUT)' },
+      respuestas: [{ nombre: 'g500', dominio: 'g500.ejemplo.invalid', tickets: [ticket()] }],
+    })
+    const r = await manejar(
+      postTicket({ id: 'id-1', instancia: 'g500', dominio: 'g500.ejemplo.invalid', respuesta: 'Ya se reviso.' }),
+      dd.d,
+    )
+    // NI 303 (redirigir como si hubiera ido bien) NI un 200 silencioso: el
+    // fallo tiene que verse EN ESTA respuesta, con su motivo.
+    expect(r.status).not.toBe(303)
+    expect(r.status).toBe(502)
+    expect(r.cuerpo).toMatch(/no se guard/i)
+    expect(r.cuerpo).toContain('no contesto en 5 s (ETIMEDOUT)')
+  })
+
+  it('la respuesta ya escrita vuelve escapada dentro del formulario', () => {
+    // Aunque la escriba AS OOH: el dia que alguien pegue ahi un fragmento del
+    // correo de un cliente, el origen deja de ser de confianza sin que nadie
+    // lo note. Se afirma DENTRO del <textarea>, no en cualquier parte de la
+    // pagina -- la sub-fila de solo-lectura ya escapaba esto antes de la T12.
+    const conScript = { ...ticket(), respuesta: '<script>alert(1)</script>', respondido_en: '2026-09-22T12:30:00.000Z' }
+    const html = paginaTickets(
+      [{ nombre: 'g500', dominio: 'g500.ejemplo.invalid', tickets: [conScript] }],
+      null,
+      CSRF_TICKETS,
+    )
+    expect(html).not.toContain('<script>alert(1)</script>')
+    expect(html).toContain(
+      '<textarea name="respuesta" rows="2">&lt;script&gt;alert(1)&lt;/script&gt;</textarea>',
+    )
+  })
+})
+
+describe('el POST contesta a la instancia, con su token (T9, el mismo camino que el GET)', () => {
+  it('el POST emite el PATCH a la instancia con x-flota-token', async () => {
+    process.env.FLOTA_TOKEN_G500 = 'tok-de-g500'
+    let vistos: any = null
+    const resultado = await contestarTicket(
+      { nombre: 'g500', dominio: 'g500.ejemplo.invalid' },
+      { id: 'id-1', respuesta: 'Ya se reviso.', estado: 'RESUELTO' },
+      {
+        leerTokens: async () => ({}),
+        pedir: async (url: string, o: any) => {
+          vistos = { url, metodo: o.method, headers: o.headers, cuerpo: JSON.parse(String(o.body)) }
+          return { ok: true, status: 200 }
+        },
+      },
+    )
+    expect(vistos?.url).toContain('g500.ejemplo.invalid')
+    expect(vistos?.metodo).toBe('PATCH')
+    expect(vistos?.headers?.['x-flota-token']).toBe('tok-de-g500')
+    expect(vistos?.cuerpo).toMatchObject({ id: 'id-1', respuesta: 'Ya se reviso.', estado: 'RESUELTO' })
+    expect(resultado).toEqual({ ok: true })
+    delete process.env.FLOTA_TOKEN_G500
+  })
+
+  it('y lo lee del ARCHIVO, no solo del entorno -- mismo defecto que costo el 2026-09-08 en el GET', async () => {
+    let cabeceras: any = null
+    const resultado = await contestarTicket(
+      { nombre: 'g500', dominio: 'g500.ejemplo.invalid' },
+      { id: 'id-1', estado: 'CERRADO' },
+      {
+        leerTokens: async () => ({ FLOTA_TOKEN_G500: 'del-archivo' }),
+        pedir: async (_u: string, o: any) => {
+          cabeceras = o.headers
+          return { ok: true, status: 200 }
+        },
+      },
+    )
+    expect(cabeceras?.['x-flota-token'], 'el PATCH no leyo el archivo de tokens').toBe('del-archivo')
+    expect(resultado).toEqual({ ok: true })
+  })
+
+  it('si la instancia contesta con un error HTTP, se traduce con clasificarFallo() -- no un ok:true a medias', async () => {
+    const resultado = await contestarTicket(
+      { nombre: 'g500', dominio: 'g500.ejemplo.invalid' },
+      { id: 'id-1', respuesta: 'x' },
+      {
+        leerTokens: async () => ({}),
+        pedir: async () => ({ ok: false, status: 401 }),
+      },
+    )
+    expect(resultado.ok).toBe(false)
+    expect(resultado.motivo).toMatch(/token/i)
+  })
+
+  it('si la red falla (timeout, DNS...), tampoco se finge exito', async () => {
+    const resultado = await contestarTicket(
+      { nombre: 'g500', dominio: 'g500.ejemplo.invalid' },
+      { id: 'id-1', respuesta: 'x' },
+      {
+        leerTokens: async () => ({}),
+        pedir: async () => {
+          throw new Error('fetch failed')
+        },
+      },
+    )
+    expect(resultado.ok).toBe(false)
+    expect(typeof resultado.motivo).toBe('string')
+  })
+})
+
+// ============================================================================
+//  Hallazgo de la revision de codigo antes de cerrar la T12: el formulario
+//  manda `{nombre, dominio}` en campos ocultos, y un campo oculto de un POST
+//  lo pone el NAVEGADOR -- quien ya tiene sesion en el panel podria editarlo a
+//  mano y mandar el `x-flota-token` de una instancia real a un host que
+//  controla. `contestarTicketDeConfianza()` es lo que cierra eso: resuelve el
+//  dominio de VERDAD desde el inventario, nunca desde lo que trae el cliente.
+// ============================================================================
+describe('el PATCH no confia en el dominio del formulario (fuga de token / SSRF)', () => {
+  it('usa el dominio del INVENTARIO, no el que venga en el formulario', async () => {
+    let vistaUrl: any = null
+    const resultado = await contestarTicketDeConfianza(
+      { nombre: 'g500', dominio: 'atacante.example' },
+      { id: 'id-1', respuesta: 'x' },
+      {
+        cargar: async () => ({ instancias: [{ nombre: 'g500', dominio: 'g500.real.invalid' }] }),
+        leerTokens: async () => ({}),
+        pedir: async (url: string) => {
+          vistaUrl = url
+          return { ok: true, status: 200 }
+        },
+      },
+    )
+    expect(vistaUrl).toContain('g500.real.invalid')
+    expect(vistaUrl).not.toContain('atacante.example')
+    expect(resultado.ok).toBe(true)
+  })
+
+  it('una instancia que no esta en el inventario se rechaza y no se manda a ningun lado', async () => {
+    let llamado = false
+    const resultado = await contestarTicketDeConfianza(
+      { nombre: 'fantasma', dominio: 'lo-que-sea.example' },
+      { id: 'id-1', respuesta: 'x' },
+      {
+        cargar: async () => ({ instancias: [{ nombre: 'g500', dominio: 'g500.real.invalid' }] }),
+        pedir: async () => {
+          llamado = true
+          return { ok: true, status: 200 }
+        },
+      },
+    )
+    expect(resultado.ok).toBe(false)
+    expect(llamado, 'con la instancia sin resolver no puede salir ni un fetch').toBe(false)
   })
 })
