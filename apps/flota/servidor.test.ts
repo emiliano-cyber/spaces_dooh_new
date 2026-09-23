@@ -544,3 +544,41 @@ describe('pagina · el motivo se ve', () => {
     expect(html).not.toContain('ultima vez bien')
   })
 })
+
+// ============================================================================
+//  Encontrado MIRANDO la pagina entera renderizada, no leyendo el codigo: una
+//  instancia con 2 pendientes salia con la MISMA clase verde (`ok`) que una con
+//  0. La clase pintaba el estado de CONEXION, no el de ATENCION -- y esta
+//  pantalla existe, segun el ADR 0038, para ensenar lo que hay que atender.
+//
+//  El resultado practico era que un cliente esperando respuesta se veia igual
+//  de "bien" que uno sin ninguna incidencia. Ninguna prueba lo veia porque
+//  todas afirmaban fragmentos, y el fragmento era correcto por separado.
+// ============================================================================
+describe('paginaTickets · lo que tiene pendientes se ve distinto de lo que no', () => {
+  const conTickets = (n) => ({
+    nombre: 'g500',
+    dominio: 'g500.ejemplo.invalid',
+    tickets: Array.from({ length: n }, () => ({
+      id: 'x', folio: 'TK-2026-0001', tenant_id: 't', asunto: 'a', cuerpo: 'b',
+      estado: 'ABIERTO', prioridad: 'NORMAL', creado_en: '2026-09-22T10:00:00.000Z',
+      respuesta: null, respondido_en: null,
+    })),
+  })
+
+  it('una instancia CON pendientes no se pinta igual que una sin ninguno', () => {
+    const conPendientes = paginaTickets([conTickets(2)], { email: 'a@b.c' })
+    const sinPendientes = paginaTickets([conTickets(0)], { email: 'a@b.c' })
+
+    const claseDe = (html) => (html.match(/<td class="([^"]+)">2?0?<\/td>/) ?? [])[1]
+    expect(conPendientes).toContain('hay-pendientes')
+    expect(sinPendientes).not.toContain('hay-pendientes')
+    expect(claseDe(conPendientes)).not.toBe(claseDe(sinPendientes))
+  })
+
+  it('la instancia muda sigue sin confundirse con ninguna de las dos', () => {
+    const muda = paginaTickets([{ nombre: 'g500', dominio: 'g.invalid', motivo: 'ECONNREFUSED' }], { email: 'a@b.c' })
+    expect(muda).toContain('sin-respuesta')
+    expect(muda).not.toContain('hay-pendientes')
+  })
+})
