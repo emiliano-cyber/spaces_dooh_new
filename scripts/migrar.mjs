@@ -126,11 +126,11 @@ export function tipoDeMigracion(contenido) {
 //       3 aplicadas antes del fallo. Abortado sin registrar esta.
 //
 // Ese parentesis es la LISTA DE COLUMNAS de `on delete set null (entidad_id)`
-// (`:138` y `:170`), que es PostgreSQL 15 o superior. `g500` corre 14.24; el
+// (`:139` y `:171`), que es PostgreSQL 15 o superior. `g500` corre 14.24; el
 // PADRE y DEMO corren 16.15, asi que la migracion paso las dos suites, paso por
 // DEMO y llego a la unica maquina donde no podia correr. La lista de columnas
 // NO se puede quitar: sin ella el `set null` anularia tambien `tenant_id`, que
-// es NOT NULL (lo explica la propia cabecera de esa migracion, `:40-46`).
+// es NOT NULL (lo explica la propia cabecera de esa migracion, `:41-47`).
 //
 // El dano no fue el fallo —un fallo se arregla— sino el MOMENTO del fallo:
 // tres migraciones aplicadas y la base a medio migrar, sobre datos de cliente.

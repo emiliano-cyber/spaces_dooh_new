@@ -1,3 +1,4 @@
+-- @pg-min: 15
 -- ============================================================================
 -- Las tres claves ajenas hacia `entidades_fiscales`, repuntadas a la pareja
 -- `(id, tenant_id)`.

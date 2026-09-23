@@ -22,7 +22,7 @@ import { vigilarPool } from './pool-e2e'
 //      ABORTADO (2): LA BASE CAMBIO.
 //
 //  `g500` corre PostgreSQL 14.24 y esa migracion usa `on delete set null
-//  (entidad_id)` (`:138` y `:170`), que es PostgreSQL 15+. El PADRE y DEMO
+//  (entidad_id)` (`:139` y `:171`), que es PostgreSQL 15+. El PADRE y DEMO
 //  corren 16.15, asi que la migracion paso por todas las pruebas y por DEMO sin
 //  una sola senal.
 //

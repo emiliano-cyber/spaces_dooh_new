@@ -285,7 +285,7 @@ describe('destinoSeguro()', () => {
 //      syntax error at or near "("
 //
 //  Ese parentesis es la LISTA DE COLUMNAS de
-//  `20260918_entidad_tenant_compuesto.sql:138` y `:170`
+//  `20260918_entidad_tenant_compuesto.sql:139` y `:171`
 //  (`on delete set null (entidad_id)`), que existe desde PostgreSQL 15. `g500`
 //  corre 14.24; el PADRE y DEMO corren 16.15, asi que ahi nunca fallo y nadie
 //  lo vio venir.
