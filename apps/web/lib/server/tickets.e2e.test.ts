@@ -254,6 +254,58 @@ describe('GET /api/tickets — la ruta del panel', () => {
       expect(r.texto).not.toContain(o.nombre)
     }
   })
+  // ────────────────────────────────────────────────────────────────────────
+  //  EL HUECO QUE LA TAREA 6 DECLARO SIN MEDIR, y era el que mas importaba de
+  //  los que quedaban: un usuario con SESION VALIDA que ademas manda un token
+  //  de flota inventado.
+  //
+  //  Por que importa: si `esElPanel()` mirara la sesion ademas del token -o si
+  //  alguien lo "mejorara" asi algun dia-, cualquier usuario de la instancia
+  //  veria los tickets de TODAS las organizaciones. Que hoy no pase era
+  //  LECTURA DEL CODIGO; esto lo convierte en medicion.
+  //
+  //  Se hace con `fetch` crudo porque `Cliente` no sabe mandar cabeceras extra
+  //  y `servidor-e2e.ts` no se toca (invariante 7). No hacia falta tocarlo:
+  //  `BASE` esta exportado y el login es un POST normal.
+  it('sesion valida MAS un token inventado sigue viendo solo lo suyo', async () => {
+    const login = await fetch(`${BASE}/api/auth/login/`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-forwarded-for': `10.9.7.${contadorIpPanel++}`,
+      },
+      body: JSON.stringify({ email: primera.usuarioEmail, password: PASSWORD_DEMO }),
+      redirect: 'manual',
+    })
+    expect(login.status, await login.clone().text()).toBe(200)
+
+    const cookie = [...login.headers]
+      .filter(([n]) => n.toLowerCase() === 'set-cookie')
+      .flatMap(([, v]) => v.split(/,(?=\s*[^;=]+=)/))
+      .map((t) => t.trim().split(';')[0])
+      .join('; ')
+    expect(cookie).not.toBe('')
+
+    const r = await fetch(`${BASE}/api/tickets/`, {
+      headers: {
+        cookie,
+        'x-flota-token': 'este-token-no-vale-nada',
+        'x-forwarded-for': `10.9.7.${contadorIpPanel++}`,
+      },
+      redirect: 'manual',
+    })
+    const texto = await r.text()
+    expect(r.status, texto).toBe(200)
+
+    // Cae al camino de SESION: lista cruda, no el `{tickets:[...]}` del panel.
+    const datos = JSON.parse(texto)
+    expect(Array.isArray(datos), texto).toBe(true)
+    const asuntos = (datos as Array<Record<string, any>>).map((t) => t.asunto)
+    expect(asuntos).toContain(ASUNTO_PRIMERA)
+    expect(asuntos, 'un token inventado le abrio los tickets de la otra organizacion').not.toContain(
+      ASUNTO_SEGUNDA,
+    )
+  })
 })
 
 describe('GET /api/tickets — sin FLOTA_TOKEN configurado', () => {
@@ -281,4 +333,5 @@ describe('GET /api/tickets — sin FLOTA_TOKEN configurado', () => {
     expect(r.texto).not.toContain(ASUNTO_PRIMERA)
     expect(r.texto).not.toContain(ASUNTO_SEGUNDA)
   })
+
 })
