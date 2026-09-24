@@ -34,14 +34,19 @@ Efecto: **L** solo lectura · **W** escribe en la base propia (y solo en ella) �
 | 03-02-01-razones-sociales-avisos | 3.2 | Los dos avisos | Baja + un papel compartido; se restaura al final | W |
 | 04-01-02-contrato-la-paga | 4.1 · 2 | La ficha del contrato con «La paga: Sin asignar» y «Cambiar» | «Arrendadores» → contrato de Mural DEMO Viaducto | L |
 | 04-01-04-contrato-elegir-razon-social | 4.1 · 3-4 | El cuadro «Con cuál de tus razones sociales se paga» con una elegida | «Cambiar» | L |
-| 04-01-05-contrato-pide-contrasena | 4.1 · 5 | El candado de contraseña al guardar | «Guardar» | L |
+| 04-01-05-contrato-pide-contrasena | 4.1 · 5 | El cuadro solo avisa de la contraseña, sin campo | «Guardar» con los cambios bloqueados | L |
+| 04-01-05-contrato-desbloquear-cambios | 4.1 · 7 | «Desbloquear cambios» con la contraseña | «Cambios bloqueados», barra superior | W |
 | 04-01-06-contrato-la-paga-asignada | 4.1 · Salió bien | «La paga» con el nombre elegido | Teclear la contraseña | W |
-| — | 4.2 · 1-4 | El cuadro «Generar factura» | No hay ninguna campaña lista para facturar en la semilla | **P** |
-| 04-02-05-comprobante-emite | 4.2 · Salió bien | «Emite:» bajo el folio en la cobranza | «Finanzas» | L |
+| 04-02-01-finanzas-listas-para-facturar | 4.2 · 1 | «Listas para facturar» con dos campañas | «Finanzas» (el botón NO está en la campaña) | L |
+| 04-02-03-generar-factura-emisora | 4.2 · 2-3 | «Generar factura» con la emisora propuesta | «Generar factura» | L |
+| 04-02-05-comprobante-emite | 4.2 · Salió bien | El comprobante nuevo con «Emite:» | «Emitir factura» | W |
 | 05-00-01-contrato-sin-asignar | 5 | «La paga: Sin asignar», recortado | Misma ficha del 4.1 antes de asignar | L |
 | 06-01-01-actualizaciones-tarjeta | 6.1 | La tarjeta «Actualizaciones» con su frase y los cuatro datos | «Administración» → «Configuración» | L |
-| 06-02-02-actualizaciones-modo-automatica | 6.2 · 2 | El aviso «Modo cambiado a automatica» y el botón marcado | «Automatica»; se vuelve a «Con aprobacion» | W |
-| — | 6.3 · 1-3 | «Instalar» y su confirmación | En local nadie publica una versión disponible | **P** |
+| 06-01-02-actualizaciones-version-esperando | 6.1 | Versión nueva esperando aprobación, con «Instalar» | `--version-disponible` (preparado a mano en local) | W |
+| 06-02-01-actualizaciones-modo-con-aprobacion | 6.2 · 1 | «Con aprobación» marcado, con «Instalar» | «Con aprobación» | W |
+| 06-02-02-actualizaciones-modo-automatica | 6.2 · 2 | «Automática» marcado, sin «Instalar» | «Automática» | W |
+| 06-03-02-actualizaciones-confirmar-instalar | 6.3 · 1-2 | El cuadro de confirmación | «Instalar v0.8.0» | L |
+| 06-03-03-actualizaciones-aprobada | 6.3 · Salió bien | «Aprobaste v0.8.0…» | «Instalar» en la confirmación (solo guarda la aprobación) | W |
 | 07-01-04-soporte-formulario | 7.1 · 1-4 | El formulario de ticket lleno | Tarjeta «Soporte» → «Nuevo ticket» | L |
 | 07-01-05-soporte-ticket-abierto | 7.1 · 5 | El aviso «Ticket abierto» y el ticket «Abierto», esperando respuesta | «Abrir ticket» | W |
 | 07-02-00-soporte-respuesta | 7.2 | El recuadro «Respuesta de AS OOH» | La respuesta entra por el `PATCH /api/tickets` del panel, en local | W |
@@ -49,8 +54,9 @@ Efecto: **L** solo lectura · **W** escribe en la base propia (y solo en ella) �
 | 08-01-05-consumo-luz-formulario | 8.1 · 1-5 | El formulario lleno | Misma pantalla | L |
 | 08-01-06-consumo-luz-guardado | 8.1 · Salió bien | La celda capturada y el contador en uno menos | «Guardar recibo» | W |
 | 08-02-00-consumo-luz-dos-medidores | 8.2 | Una celda con dos recibos, uno por medidor | Otro recibo del mismo mes con otro medidor | W |
-| 08-03-02-consumo-luz-tras-borrar | 8.3 · 2 | La rejilla tras borrar, con una cuenta que puede | Dueño → papelera | W |
-| 08-03-02-operaciones-borrar-403 | 8.3 · 2 (hallazgo) | Operaciones pulsa la papelera: la rejilla desaparece | Operaciones → papelera | L |
+| 08-03-02-consumo-luz-confirmar-borrado | 8.3 · 2 | El cuadro «Borrar este recibo» | Dueño → papelera | L |
+| 08-03-03-consumo-luz-tras-borrar | 8.3 · 2 | La rejilla tras borrar | «Borrar el recibo» | W |
+| 08-03-03-operaciones-borrar-403 | 8.3 | Operaciones: «No tienes permiso para esta acción» sobre la rejilla | Operaciones → papelera → confirmar | L |
 | 09-00-01-operaciones-intenta-reportes | 9 | Operaciones termina en su tablero | Operaciones → `/reportes/` | L |
 | 09-01-01-reportes-periodo-en-curso | 9.1 / 9.2 | El reporte recién abierto, con el aviso ámbar | Dueño → «Reportes» | L |
 | 09-02-01-reportes-trimestre-cerrado | 9.2 | T2 2026: el aviso ámbar ya no está | «Desde»/«Hasta» | L |

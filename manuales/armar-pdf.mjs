@@ -241,8 +241,14 @@ function convertir(md) {
     }
 
     // Texto sangrado bajo un paso abierto: se queda dentro del paso.
+    // Las líneas seguidas forman UN párrafo: partirlas dejaba sin cerrar una
+    // cursiva que cruzaba de una línea a otra, y salían los asteriscos.
     if (itemAbierto && /^\s{2,}\S/.test(l)) {
-      out.push(`<p>${enLinea(l.trim())}</p>`)
+      const trozos = [l.trim()]
+      while (i + 1 < L.length && /^\s{2,}\S/.test(L[i + 1]) && !/^\s*!\[/.test(L[i + 1]) && !/^\s*\*Captura/.test(L[i + 1])) {
+        trozos.push(L[++i].trim())
+      }
+      out.push(`<p>${enLinea(trozos.join(' '))}</p>`)
       continue
     }
 
@@ -276,10 +282,13 @@ function portada(img) {
   </div>
 
   <div class="aviso aviso-warning">
-    <p><strong>Tres pasos no tienen imagen</strong> porque no se pueden reproducir en una
-    instalación local: la primera entrada con Google (1.1), emitir un comprobante (4.2,
-    pasos 1-4) e instalar una versión nueva (6.3). El motivo de cada uno está en
-    <code>manuales/capturas-pendientes.md</code>.</p>
+    <p><strong>Dos estados se prepararon a mano en la instalación local.</strong> La
+    <strong>versión nueva disponible</strong> del apartado 6 (en una instalación real la escribe
+    el actualizador del servidor al encontrarla en el registro; las versiones v0.7.0 y v0.8.0
+    son de ejemplo, y aprobarla no instaló nada) y las <strong>dos campañas listas para
+    facturar</strong> del apartado 4.2. Cada captura afectada lo dice en su pie.</p>
+    <p><strong>Un paso no tiene imagen:</strong> la primera entrada con Google (1.1), que no se
+    puede reproducir en local. El motivo está en <code>manuales/capturas-pendientes.md</code>.</p>
   </div>
 
   <p class="nota">

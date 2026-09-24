@@ -1,5 +1,6 @@
 import { test, expect, request as pwRequest, type Browser, type Page, type Locator } from '@playwright/test'
 import { mkdirSync, existsSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 
 // ============================================================================
 //  Capturas del manual de usuario de septiembre — los DIEZ apartados.
@@ -25,6 +26,10 @@ import { mkdirSync, existsSync } from 'node:fs'
 //     respuesta del ticket (7.2) entra por la misma puerta que usa el panel
 //     de flota del PADRE, `PATCH /api/tickets` con `x-flota-token`, contra el
 //     servidor LOCAL. Sin él, esa captura se salta con su motivo.
+//   · `CAPTURAS_BASE_DATOS` con el nombre de esa base propia: antes del 6.3 el
+//     guion llama a `preparar-base-2026-09-18.mjs --version-disponible`, que
+//     escribe en la base LOCAL lo que dejaría el actualizador del servidor.
+//     Sin ella, el 6.3 se salta con su motivo.
 //
 //  Correr (bash):
 //    CAPTURAS_BASE_URL=http://localhost:3470/spaces-dooh \
@@ -157,7 +162,12 @@ async function quieta(page: Page) {
   })
 }
 
-/** Espera a que se vayan los avisos flotantes, para que no se amontonen en la siguiente foto. */
+/**
+ * Espera a que se vayan los avisos flotantes de sonner, para que no se
+ * amontonen en la siguiente foto. OJO: solo ve los de sonner. Las pantallas que
+ * pintan su propio aviso (Administración, con `onToast`) no llevan ese
+ * atributo, y ahí esto pasa sin esperar nada: se espera al texto concreto.
+ */
 async function sinAvisos(page: Page) {
   await expect(page.locator('[data-sonner-toast]')).toHaveCount(0, { timeout: 15_000 })
 }
@@ -420,18 +430,44 @@ test.describe('manual 2026-09-18', () => {
     await page.context().close()
   })
 
-  test('4.2 · «Emite» bajo el folio del comprobante', async ({ browser }) => {
+  test('4.2 · emitir un comprobante y elegir la razón social que emite', async ({ browser }) => {
+    // Las dos campañas «… lista» las siembra `preparar-base-2026-09-18.mjs`
+    // con el candado completo y sin comprobante.
+    const NOMBRE = 'Campana DEMO Bebidas del Valle 2026-T3 lista'
     const page = await abrir(browser, 'dueno')
+
+    // El manual decía «Empiezas en: la campaña». Se comprueba DÓNDE está el botón.
+    await page.goto(url('campanas'))
+    await page.getByText(NOMBRE).first().click()
+    await expect(page.getByText('Candado de facturación').or(page.getByText('Lista para facturar')).first()).toBeVisible()
+    const enCampana = await page.getByRole('button', { name: /Generar factura/ }).count()
+    console.log(`MEDIDO-GENERAR-FACTURA-EN-CAMPANA: ${enCampana}`)
+    if (enCampana === 0) hallazgo('4.2: «Generar factura» no está en la ficha de la campaña; vive en Finanzas → «Listas para facturar»')
+
     await page.goto(url('finanzas'))
     await expect(page.getByRole('heading', { name: 'Finanzas', level: 1 })).toBeVisible()
-    // Pasos 1-4: la semilla no deja ninguna campaña lista para facturar (las
-    // ocho ya tienen comprobante). Queda en capturas-pendientes.md.
-    const vacia = page.getByText('Nada por facturar ahora')
-    if (await vacia.isVisible()) console.log('PENDIENTE-4.2: «Listas para facturar» está vacía')
-    const emite = page.getByText(/^Emite:/).first()
+    const listas = page.locator('div', { has: page.getByText('Listas para facturar', { exact: true }) })
+      .filter({ has: page.getByRole('button', { name: /Generar factura/ }) }).last()
+    const fila = listas.locator('li', { hasText: NOMBRE })
+    await expect(fila).toBeVisible()
+    await foto(page, '04-02-01-finanzas-listas-para-facturar', { region: listas })
+
+    await fila.getByRole('button', { name: /Generar factura/ }).click()
+    const cuadro = page.getByRole('dialog', { name: 'Generar factura' })
+    await expect(cuadro).toBeVisible()
+    const emisora = cuadro.getByLabel('Con cuál de tus razones sociales se emite')
+    const propuesta = await emisora.locator('option:checked').textContent()
+    console.log(`MEDIDO-EMISORA-PROPUESTA: "${propuesta}"`)
+    await foto(page, '04-02-03-generar-factura-emisora')
+
+    await cuadro.getByRole('button', { name: 'Emitir factura' }).click()
+    await expect(cuadro).toBeHidden({ timeout: 20_000 })
+    await sinAvisos(page)
+    const emite = page.locator('tr, li', { hasText: 'Cliente DEMO Bebidas del Valle' })
+      .filter({ hasText: /Emite:/ }).filter({ hasText: /Por vencer|Al corriente/ }).first()
     await expect(emite).toBeVisible()
     await emite.scrollIntoViewIfNeeded()
-    await foto(page, '04-02-05-comprobante-emite', { region: emite.locator('xpath=ancestor::*[self::li or self::tr][1]') })
+    await foto(page, '04-02-05-comprobante-emite', { region: emite })
     await page.context().close()
   })
 
@@ -442,24 +478,55 @@ test.describe('manual 2026-09-18', () => {
     await page.goto(url('administracion'))
     await page.getByRole('tab', { name: 'Configuración' }).click()
     const tarjeta = page.locator('div', { has: page.getByText('Actualizaciones', { exact: true }) })
-      .filter({ has: page.getByRole('button', { name: 'Automatica' }) }).last()
+      .filter({ has: page.getByRole('button', { name: 'Automática' }) }).last()
     await expect(tarjeta).toBeVisible()
     console.log(`MEDIDO-FRASE-ACTUALIZACIONES: "${(await tarjeta.locator('span').first().textContent())?.trim()}"`)
+    // 6.1, el estado REAL de una instalación local: nadie la ha comprobado.
     await foto(page, '06-01-01-actualizaciones-tarjeta', { region: tarjeta })
 
-    await tarjeta.getByRole('button', { name: 'Automatica' }).click()
-    await expect(page.getByText('Modo cambiado a automatica')).toBeVisible()
-    // Los dos botones se deshabilitan mientras se guarda: la foto, cuando vuelven.
-    await expect(tarjeta.getByRole('button', { name: 'Automatica' })).toBeEnabled()
-    await expect(tarjeta.getByRole('button', { name: 'Con aprobacion' })).toBeEnabled()
-    await foto(page, '06-02-02-actualizaciones-modo-automatica')
-
-    // Se devuelve al modo por omisión.
-    await tarjeta.getByRole('button', { name: 'Con aprobacion' }).click()
-    await expect(page.getByText('Modo cambiado a con aprobacion')).toBeVisible()
-    if (await tarjeta.getByRole('button', { name: /^Instalar/ }).count()) {
-      console.log('INESPERADO: hay un botón «Instalar» en local')
+    // Desde aquí, «hay una versión nueva»: se escribe en la base LOCAL lo que
+    // dejaría el actualizador del servidor (ver `--version-disponible` en
+    // preparar-base-2026-09-18.mjs). Sin el nombre de la base, se salta.
+    const baseDatos = process.env.CAPTURAS_BASE_DATOS
+    if (!baseDatos) {
+      console.log('PENDIENTE-6.3: sin CAPTURAS_BASE_DATOS no se prepara la versión disponible')
+      await page.context().close()
+      return
     }
+    execFileSync(process.execPath, ['manuales/preparar-base-2026-09-18.mjs', `--base=${baseDatos}`, '--version-disponible'], { stdio: 'inherit' })
+    await page.reload()
+    await page.getByRole('tab', { name: 'Configuración' }).click()
+    const instalar = tarjeta.getByRole('button', { name: /^Instalar v0\.8\.0/ })
+    await expect(instalar).toBeVisible()
+    await foto(page, '06-01-02-actualizaciones-version-esperando', { region: tarjeta })
+
+    // 6.2: un modo y otro. «Automática» esconde el botón de instalar y lo dice.
+    await tarjeta.getByRole('button', { name: 'Automática' }).click()
+    await expect(page.getByText('Modo cambiado a automática')).toBeVisible()
+    await expect(tarjeta.getByText(/Se instalará sola/)).toBeVisible()
+    // Los dos botones se deshabilitan mientras se guarda: la foto, cuando vuelven.
+    await expect(tarjeta.getByRole('button', { name: 'Con aprobación' })).toBeEnabled()
+    await foto(page, '06-02-02-actualizaciones-modo-automatica')
+    await expect(page.getByText('Modo cambiado a automática')).toBeHidden({ timeout: 15_000 })
+
+    await tarjeta.getByRole('button', { name: 'Con aprobación' }).click()
+    await expect(page.getByText('Modo cambiado a con aprobación')).toBeVisible()
+    await expect(instalar).toBeVisible()
+    await expect(tarjeta.getByRole('button', { name: 'Automática' })).toBeEnabled()
+    await foto(page, '06-02-01-actualizaciones-modo-con-aprobacion')
+    await expect(page.getByText('Modo cambiado a con aprobación')).toBeHidden({ timeout: 15_000 })
+
+    // 6.3: la confirmación, y aprobar. Aprobar solo escribe `aprobado_digest` en
+    // la base local: aquí no hay actualizador que instale nada.
+    await instalar.click()
+    const confirmar = page.getByRole('dialog', { name: /Instalar v0\.8\.0/ })
+    await expect(confirmar).toBeVisible()
+    console.log(`MEDIDO-CONFIRMACION-INSTALAR: "${(await confirmar.textContent())?.trim()}"`)
+    await foto(page, '06-03-02-actualizaciones-confirmar-instalar')
+    await confirmar.getByRole('button', { name: 'Instalar', exact: true }).click()
+    await expect(page.getByText('Instalación aprobada: se instalará en los próximos minutos')).toBeVisible()
+    await expect(tarjeta.getByText(/Aprobaste v0\.8\.0/)).toBeVisible()
+    await foto(page, '06-03-03-actualizaciones-aprobada')
     await page.context().close()
   })
 
