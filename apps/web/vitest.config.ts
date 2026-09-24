@@ -9,6 +9,17 @@ import path from 'node:path'
 //    importar los controllers (su validación corre antes de tocar la BD).
 // ============================================================================
 export default defineConfig({
+  // JSX para los `.tsx` que IMPORTA una prueba (23/09). No abre la puerta a
+  // pruebas `.tsx`: el glob de abajo sigue siendo solo `.ts`. Lo que habilita es
+  // poder importar un componente real —`components/demo/ui/Button.tsx`— desde
+  // una prueba `.ts` y rendirlo con `react-dom/server`.
+  //
+  // El comentario de abajo decía que un `.tsx` «necesitaría jsdom y
+  // dependencias que este repo no tiene». Medido el 23/09: es cierto para
+  // simular clics o leer el DOM, y FALSO para rendir a markup.
+  // `renderToStaticMarkup` corre en `node` a pelo, y `react-dom` ya es
+  // dependencia de producción. Cero paquetes nuevos.
+  oxc: { jsx: { runtime: 'automatic' } },
   resolve: {
     alias: {
       'server-only': path.resolve(__dirname, 'lib/test/server-only-stub.ts'),
@@ -22,9 +33,11 @@ export default defineConfig({
     // así que se prueba en `node` sin montar React. Con el patrón anterior el
     // fichero existía y no lo corría nadie, que es peor que no tenerlo.
     //
-    // Sigue siendo solo `.ts`: un `.tsx` necesitaría jsdom y dependencias que
-    // este repo no tiene, y añadirlas por la puerta de atrás con un glob es
-    // como se acaba con un arnés que nadie entiende.
+    // Sigue siendo solo `.ts`, y a propósito: añadir `.tsx` al glob por la
+    // puerta de atrás es como se acaba con un arnés que nadie entiende. Una
+    // prueba que necesite un componente lo IMPORTA y lo rinde con
+    // `react-dom/server` (ver `oxc` arriba); lo que no se puede hacer sin DOM
+    // —clics, foco, hidratación— no se finge aquí: se dice y se deja fuera.
     // `../../scripts/**` entra desde el 17/08 (F3.2): el runner de migraciones
     // vive en la RAÍZ del repo —lo invoca `update.sh` en el droplet, donde no
     // hay `apps/web` montado— pero su parte pura (el orden y el tipo) se prueba
