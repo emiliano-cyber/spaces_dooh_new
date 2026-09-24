@@ -6,6 +6,13 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!important] 2026-09-24 · **Z12 · Docs RECLAMADA — manual de usuario ilustrado**
+> Rama `docs/manual-ilustrado-2026-09-24`. Capturas de cada paso del manual
+> `vault/08-Manuales/manual-usuario-2026-09-18.md` (incluidos los apartados 1, 6 y
+> 7, que no tenían ninguna) y su PDF. Toca solo `vault/08-Manuales/`, `manuales/` y
+> este tablero. **No toca código de la aplicación.** Se capturó contra un
+> `next start` local, nunca contra un servidor.
+
 > [!danger] 2026-09-23 (tarde) · **la revisión final encontró SEIS defectos, y los cuatro primeros eran de verdad**
 > Se arreglaron sobre esta misma rama, con su prueba cada uno y el rojo
 > demostrado por mutación. Lo que enseñan, que es más que los arreglos:
