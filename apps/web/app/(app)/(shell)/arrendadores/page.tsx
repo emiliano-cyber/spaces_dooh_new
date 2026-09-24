@@ -8,6 +8,7 @@ import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { ContratoSheet } from '@/components/demo/arrendadores/ContratoSheet'
+import { contratoSeleccionado } from '@/components/demo/arrendadores/seleccion'
 import { GestionRazonesSociales } from '@/components/demo/arrendadores/GestionRazonesSociales'
 import { PagosRentaCard } from '@/components/demo/arrendadores/PagosRentaCard'
 import { ContratoWizard } from '@/components/demo/inventario/ContratoWizard'
@@ -88,7 +89,11 @@ export default function ArrendadoresPage() {
     }
   }
 
-  const [sel, setSel] = useState<ContratoArrendamiento | null>(null)
+  // Solo el ID: la ficha se resuelve contra la lista vigente en cada render
+  // (`contratoSeleccionado`). Guardar el objeto dejaba la ficha con una copia
+  // vieja tras editar «La paga», ver `components/demo/arrendadores/seleccion.ts`.
+  const [selId, setSelId] = useState<string | null>(null)
+  const sel = contratoSeleccionado(contratos, selId)
   const [open, setOpen] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const [nuevoOpen, setNuevoOpen] = useState(false)
@@ -361,7 +366,7 @@ export default function ArrendadoresPage() {
                       <tr
                         key={c.id}
                         onClick={() => {
-                          setSel(c)
+                          setSelId(c.id)
                           setOpen(true)
                         }}
                         className="cursor-pointer border-b border-border last:border-0 hover:bg-surface-2"
@@ -410,7 +415,7 @@ export default function ArrendadoresPage() {
                                   // La fila también abre el sheet; sin esto se
                                   // dispararían los dos manejadores.
                                   e.stopPropagation()
-                                  setSel(c)
+                                  setSelId(c.id)
                                   setOpen(true)
                                 }}
                               >
