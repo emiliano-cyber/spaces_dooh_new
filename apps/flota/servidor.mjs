@@ -299,10 +299,30 @@ export function paginaTickets(respuestas, usuario, csrf, aviso) {
           // respuesta que EMPIECE por salto de linea volveria recortada y se
           // veria como «cambiada» sin que nadie tocara nada. Se pone uno de
           // sobra para que lo que vuelve sea exactamente lo que se pinto.
+          //
+          // ─── Y un ticket CERRADO no pinta formulario ──────────────────────
+          // El guard de verdad esta en la instancia (`tickets-repo.ts`: el
+          // `where` del update refuse tocar un CERRADO). Esto NO es una
+          // segunda cerradura --- una pantalla no puede serlo--- es no
+          // invitar a nadie a escribir una respuesta que la instancia va a
+          // rechazar con un 409 y que se pierde al pulsar Guardar.
+          //
+          // Y se DICE que esta cerrado en vez de dejar el hueco: un espacio
+          // en blanco donde los demas tickets tienen su recuadro se lee como
+          // un fallo de la pantalla, que es justo la confusion que este
+          // repositorio ya pago tres veces con entornos que "se ven rotos"
+          // sin estarlo. Aqui es una decision, y tiene que verse como tal.
+          //
+          // Solo CERRADO: RESUELTO sigue siendo editable a proposito --- es
+          // una hipotesis de AS OOH, y el cliente puede volver con un «pues
+          // sigue pasando».
           const opcionesEstado = ESTADOS_TICKET.map(
             (e) => `<option value="${e}"${e === t.estado ? ' selected' : ''}>${e}</option>`,
           ).join('')
-          const formulario = `
+          const formulario = t.estado === 'CERRADO'
+            ? `
+  <tr class="ticket-cerrado"><td colspan="7">Cerrado: ya no admite respuesta ni cambio de estado.</td></tr>`
+            : `
   <tr class="formulario-ticket"><td colspan="7"><form class="formulario-ticket" method="POST" action="/flota/tickets/">
     <input type="hidden" name="csrf" value="${escapar(csrf)}">
     <input type="hidden" name="id" value="${escapar(t.id)}">
@@ -347,6 +367,7 @@ ${filasTicket}
     background: #2563eb; color: #fff; cursor: pointer; justify-self: start;
   }
   .aviso-error { color: #b00; background: #fee2e2; padding: .6rem .9rem; border-radius: 4px; margin: 0 0 1rem; font-weight: 600 }
+  tr.ticket-cerrado td { border-top: 0; padding-top: 0; font-size: 12px; color: #666; font-style: italic }
 </style></head>
 <body>
 <h1>Tickets</h1>

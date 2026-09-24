@@ -48,15 +48,35 @@ function filaTicket(extra: Record<string, unknown> = {}) {
   }
 }
 
+// El ticket que "hay en la base" para esta prueba. `null` = no existe.
+//
+// NO es decorado: sin el, el doble devolvia una fila para CUALQUIER `update`,
+// asi que una prueba de «un ticket CERRADO no se puede tocar» habria pasado
+// igual con el guard puesto y sin el -- no demostraria nada. Con esto, el
+// doble evalua el `where` como lo evaluaria Postgres: la fila solo se toca si
+// la sentencia la SELECCIONA de verdad.
+let ticketEnBase: any = filaTicket()
+
 // Responde con datos plausibles segun la tabla que toque la consulta — el
 // mock no es una base de datos, solo necesita devolver una forma valida para
 // que el repo pueda mapear la fila.
 function responder(sql: string): { rows: any[]; rowCount: number } {
   if (/insert into tickets/.test(sql)) return { rows: [filaTicket()], rowCount: 1 }
   if (/update tickets/.test(sql)) {
-    return { rows: [filaTicket({ respuesta: 'Ya se reviso, era el fusible.', respondido_en: new Date() })], rowCount: 1 }
+    if (!ticketEnBase) return { rows: [], rowCount: 0 }
+    // El guard del ticket cerrado, evaluado como lo haria la base: si la
+    // sentencia lo trae y la fila esta CERRADA, no se actualiza nada.
+    if (/estado\s*<>\s*'CERRADO'/.test(sql) && ticketEnBase.estado === 'CERRADO') {
+      return { rows: [], rowCount: 0 }
+    }
+    return {
+      rows: [{ ...ticketEnBase, respuesta: 'Ya se reviso, era el fusible.', respondido_en: new Date() }],
+      rowCount: 1,
+    }
   }
-  if (/from tickets/.test(sql)) return { rows: [filaTicket()], rowCount: 1 }
+  if (/from tickets/.test(sql)) {
+    return ticketEnBase ? { rows: [ticketEnBase], rowCount: 1 } : { rows: [], rowCount: 0 }
+  }
   return { rows: [], rowCount: 0 }
 }
 
@@ -100,6 +120,7 @@ const delPanel = () => deTickets().filter((c) => c.via === 'qRaw')
 
 beforeEach(() => {
   consultas = []
+  ticketEnBase = filaTicket()
 })
 
 describe('el lado del cliente aisla — q/client, con tenant explicito', () => {
@@ -230,5 +251,66 @@ describe('actualizarTicketDesdePanel · escribe solo lo que llega', () => {
   it('sin ningun campo, no arma un update vacio: revienta antes de tocar la base', async () => {
     await expect(repo.actualizarTicketDesdePanel(TICKET, {})).rejects.toThrow()
     expect(delPanel().length, 'un PATCH vacio disparo una consulta contra la base').toBe(0)
+  })
+})
+
+// ============================================================================
+//  Un ticket CERRADO no se puede tocar.
+// ----------------------------------------------------------------------------
+//  Hasta hoy el panel escribia `update tickets ... where id = $1` y nada mas:
+//  un ticket cerrado admitia respuesta nueva y cambio de estado igual que uno
+//  abierto. CERRADO es el unico estado terminal --- «esta conversacion se
+//  acabo»--- y si se puede seguir escribiendo en el no significa nada.
+//
+//  El guard va en el `where` DEL PROPIO UPDATE y no en un lee-y-luego-escribe:
+//  una sola sentencia, sin ventana entre la comprobacion y la escritura. Lo que
+//  si hace falta es distinguir «no existe» (404) de «esta cerrado» (409), y eso
+//  se resuelve con UNA lectura que solo ocurre cuando el update no toco nada
+//  --- el camino feliz sigue costando una sola ida a la base.
+//
+//  RESUELTO NO se bloquea, y es una decision, no un olvido: «resuelto» es una
+//  hipotesis de AS OOH, y el cliente puede volver con un «pues sigue pasando».
+//  Bloquearlo dejaria el panel sin forma de corregir una resolucion prematura.
+// ============================================================================
+describe('actualizarTicketDesdePanel · un ticket CERRADO no se toca', () => {
+  it('mover el estado de uno CERRADO no escribe nada, y no se finge que si', async () => {
+    ticketEnBase = filaTicket({ estado: 'CERRADO' })
+    await expect(
+      repo.actualizarTicketDesdePanel(TICKET, { estado: 'ABIERTO' }),
+    ).rejects.toMatchObject({ status: 409 })
+  })
+
+  it('responder uno CERRADO tampoco', async () => {
+    ticketEnBase = filaTicket({ estado: 'CERRADO' })
+    await expect(
+      repo.actualizarTicketDesdePanel(TICKET, { respuesta: 'Una respuesta mas' }),
+    ).rejects.toMatchObject({ status: 409 })
+  })
+
+  it('el guard va en el WHERE del propio update, no en un lee-y-luego-escribe', async () => {
+    ticketEnBase = filaTicket({ estado: 'CERRADO' })
+    await expect(repo.actualizarTicketDesdePanel(TICKET, { estado: 'ABIERTO' })).rejects.toThrow()
+
+    const upd = sqlDe(/update tickets/)!
+    expect(upd, 'actualizarTicketDesdePanel no llego a emitir el update').toBeDefined()
+    expect(upd.sql, `el guard no esta en el where:\n${upd.sql}`).toMatch(
+      /where[\s\S]*estado\s*<>\s*'CERRADO'/,
+    )
+  })
+
+  it('el camino feliz sigue costando UNA sola sentencia contra la base', async () => {
+    await repo.actualizarTicketDesdePanel(TICKET, { estado: 'RESUELTO' })
+    expect(delPanel().length, 'el guard metio una lectura extra en el camino feliz').toBe(1)
+  })
+
+  it('un ticket RESUELTO SI admite cambios: se bloquea CERRADO y solo CERRADO', async () => {
+    ticketEnBase = filaTicket({ estado: 'RESUELTO' })
+    const t = await repo.actualizarTicketDesdePanel(TICKET, { respuesta: 'Sigue pasando, lo reabrimos' })
+    expect(t, 'un RESUELTO se bloqueo como si fuera CERRADO').not.toBeNull()
+  })
+
+  it('un id que no existe sigue siendo null (404), no el 409 del cerrado', async () => {
+    ticketEnBase = null
+    expect(await repo.actualizarTicketDesdePanel(TICKET, { estado: 'RESUELTO' })).toBeNull()
   })
 })

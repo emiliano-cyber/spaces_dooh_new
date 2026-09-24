@@ -1215,3 +1215,56 @@ describe('se puede LLEGAR a la pantalla de tickets sin saberse la URL', () => {
     expect(r.status).toBe(200)
   })
 })
+
+// ============================================================================
+//  Un ticket CERRADO no se puede tocar --- tampoco desde la pantalla.
+// ----------------------------------------------------------------------------
+//  El guard de verdad esta en la instancia (`tickets-repo.ts`: el `where` del
+//  update), y ahi se queda: esta pantalla no es una frontera de seguridad, es
+//  la que decide que se le ENSENA a una persona. Pintarle un formulario que la
+//  instancia va a rechazar con un 409 es invitarla a escribir una respuesta
+//  para tirarla a la basura.
+//
+//  Y por eso no basta con quitar el formulario: hay que DECIR que esta cerrado.
+//  Un hueco donde los demas tickets tienen un recuadro se lee como un fallo de
+//  la pantalla, que es justo la confusion que este repositorio ya pago tres
+//  veces con los entornos que "se ven rotos" sin estarlo.
+//
+//  RESUELTO no se bloquea: es una hipotesis de AS OOH, y el cliente puede
+//  volver con un «pues sigue pasando». Se bloquea CERRADO, y solo CERRADO.
+// ============================================================================
+describe('paginaTickets · un ticket CERRADO no pinta formulario', () => {
+  const base = {
+    id: 'x', folio: 'TK-2026-0001', tenant_id: 't', asunto: 'la pantalla no prende',
+    cuerpo: 'el detalle', prioridad: 'NORMAL', creado_en: '2026-09-22T10:00:00.000Z',
+    respuesta: 'Se cambio el driver.', respondido_en: '2026-09-22T12:30:00.000Z',
+  }
+  const cerrado = { ...base, estado: 'CERRADO' }
+  const resuelto = { ...base, id: 'y', estado: 'RESUELTO' }
+  const conTickets = (tickets) => [{ nombre: 'g500', dominio: 'g500.ejemplo.invalid', tickets }]
+
+  it('no hay formulario para un ticket CERRADO', () => {
+    const html = paginaTickets(conTickets([cerrado]), null, 'csrf-1')
+    expect(html, 'un ticket cerrado pinta un formulario que la instancia va a rechazar').not.toContain('<form')
+    expect(html).not.toContain('name="respuesta_previa"')
+  })
+
+  it('en su lugar dice que esta cerrado: es una decision, no un fallo de la pantalla', () => {
+    const html = paginaTickets(conTickets([cerrado]), null, 'csrf-1')
+    expect(html).toContain('class="ticket-cerrado"')
+    expect(html).toMatch(/no admite respuesta ni cambio de estado/i)
+  })
+
+  it('uno RESUELTO SI lo pinta: se bloquea CERRADO y solo CERRADO', () => {
+    const html = paginaTickets(conTickets([resuelto]), null, 'csrf-1')
+    expect(html, 'un RESUELTO se trato como si fuera CERRADO').toContain('<form')
+    expect(html).not.toContain('class="ticket-cerrado"')
+  })
+
+  it('con uno cerrado y otro abierto, solo el abierto trae formulario', () => {
+    const abierto = { ...base, id: 'z', estado: 'ABIERTO' }
+    const html = paginaTickets(conTickets([cerrado, abierto]), null, 'csrf-1')
+    expect((html.match(/<form/g) ?? []).length, 'se pinto un formulario de mas').toBe(1)
+    expect(html).toContain('class="ticket-cerrado"')
+  })
+})

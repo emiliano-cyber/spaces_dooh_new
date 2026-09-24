@@ -5,6 +5,23 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-09-24
+
+- **Un ticket cerrado ya no se puede volver a tocar.** Hasta hoy, un ticket
+  marcado como `CERRADO` seguía admitiendo respuesta nueva y cambio de estado
+  desde nuestro panel, igual que uno abierto — y si se puede seguir escribiendo
+  en algo cerrado, estar cerrado no significa nada. Ahora la instancia lo
+  rechaza, y nuestro panel ni siquiera ofrece el recuadro para escribir: en su
+  lugar dice que está cerrado, para que se vea que es una decisión y no un
+  fallo de la pantalla.
+
+  **`RESUELTO` sí se sigue pudiendo tocar, a propósito.** «Resuelto» es lo que
+  nosotros creemos; si vuelves con un «pues sigue pasando», tenemos que poder
+  contestarte otra vez. El único estado que cierra la conversación es
+  `CERRADO`. Reabrir uno cerrado no se puede hoy por ninguna vía.
+
+---
+
 ## 2026-09-23
 
 - **Ahora puedes escribirnos desde la aplicación, y ver nuestra respuesta ahí

@@ -1,7 +1,7 @@
 ---
 tipo: referencia
 estado: verificado
-actualizado: 2026-09-23
+actualizado: 2026-09-24
 tags: [backend, api, endpoints]
 archivos:
   - apps/web/app/api/
@@ -251,7 +251,32 @@ solo `route.ts` sin segmento `[id]`: el panel manda el `id` en el cuerpo del
 |---|---|---|---|
 | GET | `/api/tickets` | **Dos caminos** — ver el aviso de abajo | Con `x-flota-token` válido: PÚBLICO, y devuelve los tickets de **toda la instancia**. Sin él, o con uno inválido: `administracion:ver`, y devuelve solo los del tenant en sesión |
 | POST | `/api/tickets` | `administracion:crear` | Abre un ticket para el tenant en sesión. Folio `TK-AAAA-NNNN` (ámbito `ticket` de `folios.ts`). `estado` no es un campo aceptado por el `.strict()` del controlador — nace `ABIERTO` siempre, nunca lo manda el cliente |
-| PATCH | `/api/tickets` | PÚBLICO por `x-flota-token`, **sin camino de sesión** | Solo el panel. Responde (`respuesta`), mueve el `estado`, o las dos cosas — nunca una porque llegó la otra (ADR 0038: responder no es resolver). Sin token válido: 401 y nada se toca |
+| PATCH | `/api/tickets` | PÚBLICO por `x-flota-token`, **sin camino de sesión** | Solo el panel. Responde (`respuesta`), mueve el `estado`, o las dos cosas — nunca una porque llegó la otra (ADR 0038: responder no es resolver). Sin token válido: 401 y nada se toca. **Un ticket `CERRADO` no se toca: 409** — ver el aviso de abajo |
+
+> [!warning] Un ticket `CERRADO` ya no admite respuesta ni cambio de estado (409)
+> El guard está en el `where` del propio `update`
+> (`apps/web/lib/server/tickets-repo.ts`, `actualizarTicketDesdePanel`):
+> `where id = $1 and estado <> 'CERRADO'`. Va ahí, y no en un `select` previo,
+> porque una sola sentencia no deja ventana entre comprobar y escribir — el
+> mismo criterio que `estatus <> 'PAGADO'` en `arrendadores-repo.ts`.
+>
+> **Cero filas dice dos cosas a la vez**, y no son la misma: si el ticket no
+> existe, sigue siendo `404`; si existe y está cerrado, es `409` con su motivo.
+> Para distinguirlas hay una lectura de diagnóstico que ocurre **después** y
+> **solo** cuando el `update` no tocó nada: el camino feliz sigue costando una
+> sola ida a la base.
+>
+> **`RESUELTO` no se bloquea, y es una decisión tomada.** «Resuelto» es una
+> hipótesis de AS OOH, y el cliente puede volver con un «pues sigue pasando»;
+> bloquearlo dejaría el panel sin forma de corregir una resolución prematura.
+> `CERRADO` es el único de los cuatro que significa «esta conversación se
+> acabó».
+>
+> El panel (`apps/flota/servidor.mjs`, `paginaTickets()`) **no pinta
+> formulario** para un ticket cerrado y dice por qué. Eso no es una segunda
+> cerradura —una pantalla no puede serlo—: es no invitar a nadie a escribir una
+> respuesta que se va a perder. **Reabrir un ticket cerrado no existe hoy**: si
+> hiciera falta, necesita un camino explícito, no quitar este guard.
 
 > [!danger] El `GET` atraviesa TODOS los tenants a propósito cuando lo pide el panel — zona roja R2
 > No es un descuido: es el diseño. `listarTicketsDeLaInstancia()` usa `qRaw`

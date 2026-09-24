@@ -199,3 +199,22 @@ describe('actualizarTicketDesdePanelCtrl · casos negativos', () => {
     expect(repo.actualizarTicketDesdePanel).toHaveBeenCalledWith('T1', { respuesta: 'Texto con espacios', estado: undefined })
   })
 })
+
+// ============================================================================
+//  El 409 del ticket CERRADO atraviesa el controller sin disfrazarse.
+// ----------------------------------------------------------------------------
+//  El guard vive en el repo (una sola sentencia, el `where` del update). Lo
+//  unico que este archivo tiene que garantizar es que ese 409 NO se convierta
+//  en el 404 generico de «no encontrado»: el panel tiene que poder decirle a
+//  quien escribio la respuesta POR QUE no se guardo, y «no existe» seria
+//  mentira --- el ticket existe, lo que pasa es que esta cerrado.
+// ============================================================================
+describe('actualizarTicketDesdePanelCtrl · el ticket CERRADO', () => {
+  it('el 409 del repo llega como 409, no como el 404 de "no encontrado"', async () => {
+    const cerrado = Object.assign(new Error('El ticket esta CERRADO'), { status: 409 })
+    repo.actualizarTicketDesdePanel.mockRejectedValueOnce(cerrado as never)
+    await expect(
+      actualizarTicketDesdePanelCtrl('T1', { respuesta: 'Una respuesta mas' }),
+    ).rejects.toMatchObject({ status: 409 })
+  })
+})

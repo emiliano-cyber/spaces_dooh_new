@@ -221,3 +221,15 @@ describe('fraseDeActualizacion', () => {
     expect(CODIGOS_UPDATE).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 75])
   })
 })
+
+describe('el 409 del ticket CERRADO', () => {
+  // Con el formulario ya escondido (`paginaTickets`), esto solo se alcanza si
+  // el ticket se cierra entre que la pantalla se pinto y que alguien pulsa
+  // Guardar --- o con un POST hecho a mano. Un «HTTP 409» pelado obligaria a
+  // buscar el codigo; la frase dice lo que paso.
+  it('dice que la instancia rechazo el cambio, Y trae el codigo', () => {
+    expect(clasificarFallo({ status: 409, recurso: RECURSO_TICKETS })).toBe(
+      'la instancia lo rechazo: el ticket ya no admite cambios (HTTP 409)',
+    )
+  })
+})

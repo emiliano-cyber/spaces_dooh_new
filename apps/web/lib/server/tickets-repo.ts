@@ -3,6 +3,7 @@ import type { PoolClient } from 'pg'
 import { q, qRaw, withTenantTx } from './db'
 import { tenantActual } from './tenant'
 import { folioDocumento } from './folios'
+import { AppError } from './errores'
 
 // ============================================================================
 //  lib/server/tickets-repo.ts — ADR 0038.
@@ -177,9 +178,37 @@ export async function actualizarTicketDesdePanel(
   }
   sets.push('actualizado_en = now()')
 
+  // ─── El guard del ticket CERRADO va AQUI, en el `where` ───────────────────
+  // CERRADO es el unico estado terminal de los cuatro: significa «esta
+  // conversacion se acabo». Si aun asi admite respuesta nueva y cambio de
+  // estado, no significa nada. RESUELTO NO se bloquea, y es una decision
+  // tomada, no un olvido: «resuelto» es una hipotesis de AS OOH y el cliente
+  // puede volver con un «pues sigue pasando»; bloquearlo dejaria el panel sin
+  // forma de corregir una resolucion prematura.
+  //
+  // En el `where` y no en un lee-y-luego-escribe: una sola sentencia, y la
+  // base evalua la condicion y la escritura en el mismo instante. Un
+  // `select` previo dejaria una ventana entre comprobar y escribir en la que
+  // otro PATCH puede cerrar el ticket, y ese es exactamente el fallo que
+  // `arrendadores-repo.ts:685` documenta como «carrera» sobre un pago PAGADO.
+  // Literal en el SQL y no parametro: es una constante del enum, no un valor
+  // de entrada — mismo estilo que `estatus <> 'PAGADO'` en ese archivo.
   const filas = await qRaw<any>(
-    `update tickets set ${sets.join(', ')} where id = $1 returning *`,
+    `update tickets set ${sets.join(', ')} where id = $1 and estado <> 'CERRADO' returning *`,
     params,
   )
-  return filas[0] ? filaATicketDeInstancia(filas[0]) : null
+  if (filas[0]) return filaATicketDeInstancia(filas[0])
+
+  // Cero filas dice DOS cosas a la vez —«no existe» y «esta cerrado»— y no son
+  // la misma: quien acaba de escribir una respuesta en el panel merece saber
+  // cual de las dos, y un 404 sobre un ticket que existe es mentira. Esta
+  // lectura es SOLO para poder decirlo: no es la que decide (eso ya lo decidio
+  // el `where` de arriba, y de forma atomica), y por eso ocurre DESPUES y solo
+  // cuando el update no toco nada — el camino feliz sigue costando una sola
+  // ida a la base.
+  const existe = await qRaw<any>('select estado from tickets where id = $1', [id])
+  if (existe[0]) {
+    throw new AppError('El ticket esta CERRADO: ya no admite respuesta ni cambio de estado', 409)
+  }
+  return null
 }

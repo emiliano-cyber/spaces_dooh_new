@@ -37,6 +37,11 @@ const RED = {
 const HTTP = {
   401: 'el token no vale',
   403: 'el token no vale',
+  // Lo unico que contesta 409 hoy es el PATCH de un ticket CERRADO
+  // (`tickets-repo.ts`). Con el formulario ya escondido solo se alcanza si el
+  // ticket se cierra entre que la pantalla se pinto y que alguien pulsa
+  // Guardar; la frase existe para que ese caso raro no salga como un numero.
+  409: 'la instancia lo rechazo: el ticket ya no admite cambios',
   502: 'nginx contesta pero la aplicacion no',
   503: 'nginx contesta pero la aplicacion no',
   504: 'nginx contesta pero la aplicacion no',
