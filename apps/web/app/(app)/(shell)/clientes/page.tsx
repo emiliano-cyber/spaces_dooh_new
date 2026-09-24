@@ -89,9 +89,11 @@ export default function ClientesPage() {
                             <button
                               type="button"
                               onClick={() => setEditar(c)}
-                              className="inline-flex items-center gap-1 rounded border border-border-strong px-2 py-1 text-[12px] text-ink hover:bg-surface-2"
+                              aria-label={`Editar ${c.nombre}`}
+                              title="Editar cliente"
+                              className="inline-flex items-center rounded border border-border-strong px-2 py-1 text-[12px] text-ink hover:bg-surface-2"
                             >
-                              <Pencil className="h-3.5 w-3.5" /> Editar
+                              <Pencil className="h-3.5 w-3.5" />
                             </button>
                           )}
                           {puedeBorrar && (
