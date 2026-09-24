@@ -6,6 +6,16 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!success] 2026-09-24 · **Z12 · Docs LIBERADA — manual de usuario ilustrado**
+> Hecho en `docs/manual-ilustrado-2026-09-24` (`0e10710`), sin fusionar: **39 capturas**
+> incrustadas en el manual, 3 grupos de pasos sin foto con su motivo en
+> `manuales/capturas-pendientes.md`, y seis cosas que el texto dice mal, anotadas en su
+> `## PENDIENTES` sin tocar los pasos. El PDF no se versiona (regla de `.gitignore`).
+>
+> ⚠️ **Para quien toque `manuales/`**: el `.git/info/exclude` de esta máquina ignora
+> `manuales/` ENTERO. Un archivo nuevo del arnés no sale en `git status` y hay que
+> añadirlo con `git add -f`, o se pierde sin avisar.
+
 > [!important] 2026-09-24 · **Z12 · Docs RECLAMADA — manual de usuario ilustrado**
 > Rama `docs/manual-ilustrado-2026-09-24`. Capturas de cada paso del manual
 > `vault/08-Manuales/manual-usuario-2026-09-18.md` (incluidos los apartados 1, 6 y
