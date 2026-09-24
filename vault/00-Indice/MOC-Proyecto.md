@@ -147,16 +147,18 @@ cobranza.
 - [[2026-08-07]] — creación de la bóveda y la tarde de Google
 
 ### 08 · Manuales
-Los dos salen del [[inventario-2026-08-11]] y llevan fecha en el nombre: cada corrida
-escribe uno nuevo en vez de pisar el anterior.
-- [[manual-tecnico-2026-08-11]] — entrada para un dev nuevo: arquitectura, datos, API,
+Llevan fecha en el nombre: cada corrida escribe uno nuevo en vez de pisar el
+anterior. **Queda SOLO el último de cada clase** — los cuatro anteriores se
+retiraron el 24/09, y siguen en el historial de git para quien los necesite.
+- [[manual-tecnico-2026-09-15]] — entrada para un dev nuevo: arquitectura, datos, API,
   entornos, despliegue y operación. 31 pendientes al cierre
-- [[manual-usuario-2026-08-25]] — **el vigente**. Para quien usa la aplicación sin saber
-  programar, ordenado por tarea y con los controles nombrados por su rótulo real. Cubre
-  las 18 áreas, las pantallas públicas y el diccionario de estados. 8 pendientes: siete
-  de negocio y **un ajuste que no gobierna nada** («Plazos de cobranza»)
-- [[manual-usuario-2026-08-11]] — el borrador anterior, escrito desde el inventario.
-  **Superado**: se conserva como historia
+- [[manual-usuario-2026-09-18]] — **el vigente**. Para quien usa la aplicación sin saber
+  programar, ordenado por tarea y con los controles nombrados por su rótulo real.
+
+> [!warning] Esta lista decía que el vigente era el del **25/08**
+> Y era falso: existían el del 15/09 y el del 18/09 cuando se escribió eso. Un
+> índice que nombra «el vigente» y se queda corto es peor que no nombrarlo, porque
+> quien lo lee deja de comprobar. Corregido el 24/09 al retirar los antiguos.
 
 > [!tip] Esta bóveda caduca
 > Última validación contra el código: **31/08/2026**. El procedimiento para
@@ -184,7 +186,7 @@ escribe uno nuevo en vez de pisar el anterior.
 > [[integraciones-externas]] · [[finanzas-y-cobranza]] · [[operaciones-y-ot]] ·
 > [[03-Frontend/_indice|Índice de Frontend]] · [[paginas-publicas]] ·
 > [[estado-y-data-fetching]] · [[migraciones]] · [[flujo-login]] ·
-> [[flujo-acceso-con-google]] · [[AGENTES]] · [[manual-tecnico-2026-08-11]] (con aviso).
+> [[flujo-acceso-con-google]] · [[AGENTES]] · [[manual-tecnico-2026-09-15]] (con aviso).
 >
 > **Solo con los cuatro chequeos mecánicos, sin releer su contenido contra el
 > código (8):** [[inventario-y-sitios]] · [[arrendadores-y-contratos]] ·

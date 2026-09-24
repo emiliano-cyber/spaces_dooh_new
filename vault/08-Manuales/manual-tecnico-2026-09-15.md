@@ -25,7 +25,7 @@ archivos:
 
 > [!info] Qué es este documento y de dónde sale
 > Se escribe sobre el inventario [[00-Inventario/inventario-2026-09-15]], levantado y
-> medido hoy sobre el repositorio. **Sustituye a [[08-Manuales/manual-tecnico-2026-08-11]]**,
+> medido hoy sobre el repositorio. **Sustituye al manual tecnico del 2026-08-11**, retirado el 24/09,
 > que es anterior al modelo de instancias soberanas, al alta en droplet propio del
 > cliente, a las licencias y al panel de flota.
 >
@@ -1096,7 +1096,7 @@ revisa al cerrar una tarea concreta.
 
 ## Relacionadas
 
-[[00-Inventario/inventario-2026-09-15]] · [[08-Manuales/manual-tecnico-2026-08-11]] ·
+[[00-Inventario/inventario-2026-09-15]] · (el manual tecnico del 11/08, retirado el 24/09) ·
 [[00-Indice/MOC-Proyecto]] · [[01-Arquitectura/modelo-instancias-soberanas]] ·
 [[01-Arquitectura/entorno-y-despliegue]] · [[02-Backend/api-endpoints]] ·
 [[02-Backend/multi-tenancy-y-rls]] · [[04-Datos/esquema]] · [[04-Datos/migraciones]] ·

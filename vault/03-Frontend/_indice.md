@@ -64,7 +64,7 @@ Su historia sigue en git y el backend al que servía, en `_archive/api`.
 `/reportes`, `/razones-sociales`, `/energia` y `/bienvenida` —las cuatro nacidas el 17 y
 el 18/09— están escritas para el usuario final en
 [[08-Manuales/manual-usuario-2026-09-18]]. El resto de las pantallas, en
-[[08-Manuales/manual-usuario-2026-09-15]].
+[[08-Manuales/manual-usuario-2026-09-18]].
 
 ## Relacionadas
 [[MOC-Proyecto]] · [[02-Backend/_indice|Índice de Backend]] ·
