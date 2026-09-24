@@ -94,28 +94,198 @@ export function escapar(v) {
     .replace(/'/g, '&#39;')
 }
 
+/**
+ * La hoja de estilo de las TRES pantallas, entera y en este archivo.
+ *
+ * ─── Por que aqui dentro y no en un archivo aparte ────────────────────────
+ * `apps/flota` no tiene NI UNA dependencia y no se sirve nada estatico: el
+ * panel es un `createServer` que devuelve cadenas. Un `<link>` a una hoja
+ * externa obligaria a una ruta mas, a un tipo MIME y a pensar en su cache; una
+ * fuente o un framework de CDN meterian una red de terceros en la pantalla
+ * desde la que AS OOH mira a sus clientes. No hay nada aqui que necesite eso.
+ *
+ * ─── Lo que la pantalla tiene que conseguir ───────────────────────────────
+ * Esto lo lee UNA PERSONA para decidir a quien atender, casi siempre de pie y
+ * a un metro del monitor. La regla que ordena todo lo de abajo es una sola:
+ * **solo se pinta de color lo que pide atencion**. Lo que esta bien se queda
+ * en gris o en verde discreto, sin fondo y sin negrita. Si todo destacara,
+ * nada destacaria --- y esa es exactamente la pantalla que habia.
+ *
+ * Las tres pantallas comparten cabecera, navegacion y tabla para que se
+ * reconozcan como la misma herramienta: ver `cabecera()` y `documento()`.
+ *
+ * Los colores van por variables y con su juego oscuro: el panel se abre a
+ * cualquier hora y `color-scheme: light dark` ya estaba declarado, pero los
+ * colores quemados de antes (#b00, #666) no lo acompanaban --- en oscuro el
+ * rojo sobre fondo negro se leia peor que el texto normal.
+ */
 const ESTILO = `
-  :root { color-scheme: light dark }
-  body { font: 14px/1.5 system-ui, sans-serif; margin: 2rem; }
-  h1 { font-size: 1.1rem; margin: 0 0 .25rem }
-  p.sub { color: #666; margin: 0 0 1.5rem; font-size: 12px }
-  table { border-collapse: collapse; width: 100%; }
-  th, td { text-align: left; padding: .45rem .7rem; border-bottom: 1px solid #8883; }
-  th { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: #666 }
-  td.sin-respuesta { color: #b00; font-weight: 600 }
-  td.rezagada { color: #b60 }
-  td.al-dia { color: #070 }
-  td.ok { color: #070; font-weight: 600 }
-  td.hay-pendientes { color: #b60; font-weight: 700 }
-  td.sin-contestar { color: #b00; font-weight: 600 }
-  td.contestado { color: #070 }
-  tr.motivo td { border-top: 0; padding-top: 0; color: #b60; font-size: 12px }
-  tr.cuerpo-ticket td { border-top: 0; padding-top: 0; font-size: 12px; color: #444 }
-  tr.respuesta-ticket td { border-top: 0; padding-top: 0; font-size: 12px; color: #070 }
-  .sin-dato { color: #b00; font-style: italic }
-  h2 { font-size: .95rem; margin: 1.5rem 0 .5rem }
-  footer { margin-top: 2rem; color: #666; font-size: 12px }
+  :root {
+    color-scheme: light dark;
+    --fondo: #ffffff; --marco: #f8f9fa; --texto: #16191d; --tenue: #667085;
+    --linea: #e3e6ea; --fila: #f4f6f8;
+    --rojo: #b42318; --rojo-fondo: #fef3f2;
+    --ambar: #b54708; --ambar-fondo: #fffaeb;
+    --verde: #067647; --azul: #175cd3;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fondo: #15181c; --marco: #1b1f24; --texto: #e7eaee; --tenue: #98a2b3;
+      --linea: #2a2f36; --fila: #1b1f24;
+      --rojo: #fda29b; --rojo-fondo: #2b1514;
+      --ambar: #fec84b; --ambar-fondo: #2a2113;
+      --verde: #75e0a7; --azul: #84adff;
+    }
+  }
+  * { box-sizing: border-box }
+  body {
+    font: 14px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    margin: 0 auto; padding: 1.4rem 1.1rem 3rem; max-width: 1180px;
+    background: var(--fondo); color: var(--texto);
+  }
+
+  /* ─── Cabecera y navegacion, iguales en las tres ───────────────────────── */
+  header.barra {
+    display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem;
+    border-bottom: 2px solid var(--linea); padding-bottom: .55rem;
+  }
+  h1 { font-size: 1.15rem; margin: 0; letter-spacing: -.01em }
+  nav.paginas { display: flex; gap: .25rem; margin-left: auto }
+  nav.paginas a {
+    text-decoration: none; color: var(--tenue); font-size: 12px;
+    padding: .2rem .65rem; border-radius: 999px;
+  }
+  nav.paginas a:hover { background: var(--fila); color: var(--texto) }
+  nav.paginas a[aria-current] { background: var(--texto); color: var(--fondo) }
+  p.sub { color: var(--tenue); margin: .5rem 0 1.3rem; font-size: 12px }
+  p.sub a { color: var(--azul) }
+  .cifra { color: var(--texto); font-weight: 600 }
+  /* Los dos contadores que SI piden algo: no se leen igual que el resto. */
+  .cifra-roja { color: var(--rojo); font-weight: 700 }
+  .cifra-ambar { color: var(--ambar); font-weight: 700 }
+
+  /* ─── Tablas ───────────────────────────────────────────────────────────── */
+  /* El marco es lo que evita que una tabla ancha desborde la pagina entera:
+     desborda ELLA, con su propia barra, y el resto de la pantalla no se mueve. */
+  .marco { overflow-x: auto; border: 1px solid var(--linea); border-radius: 6px; background: var(--marco) }
+  table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums }
+  th, td { text-align: left; padding: .5rem .7rem; border-bottom: 1px solid var(--linea) }
+  th {
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--tenue); font-weight: 600; white-space: nowrap;
+    background: var(--marco); position: sticky; top: 0;
+  }
+  tbody tr:last-child td { border-bottom: 0 }
+  tbody tr:hover td { background: var(--fila) }
+  /* El carril rojo de la izquierda: la fila entera pide atencion, no una celda
+     suelta. Es lo que se ve de un vistazo sin leer una sola palabra. */
+  tr.atencion td:first-child { box-shadow: inset 3px 0 0 var(--rojo) }
+
+  /* ─── Estados: SOLO lo que pide atencion lleva fondo ───────────────────── */
+  td.sin-respuesta { color: var(--rojo); background: var(--rojo-fondo); font-weight: 600 }
+  td.hay-pendientes { color: var(--ambar); background: var(--ambar-fondo); font-weight: 700 }
+  td.sin-contestar { color: var(--rojo); font-weight: 600 }
+  td.rezagada { color: var(--ambar); font-weight: 600 }
+  td.al-dia { color: var(--verde) }
+  td.ok { color: var(--verde); font-weight: 600 }
+  td.contestado { color: var(--verde) }
+  .sin-dato { color: var(--rojo); font-style: italic }
+  /* Estados de un ALTA (ADR 0029). Mismo criterio: rojo lo que no se arregla
+     solo, ambar lo que esta en marcha, verde lo que llego. */
+  td.fallida, td.cert-agotado { color: var(--rojo); background: var(--rojo-fondo); font-weight: 600 }
+  td.esperando-dns, td.emitiendo-cert, td.en-curso { color: var(--ambar); font-weight: 600 }
+  td.lista { color: var(--verde); font-weight: 600 }
+  td.pendiente { color: var(--tenue) }
+  /* La prioridad de un ticket es lo unico que ordena la cola de trabajo. */
+  td.prio-URGENTE { color: var(--rojo); font-weight: 700 }
+  td.prio-ALTA { color: var(--ambar); font-weight: 600 }
+  td.estado-CERRADO, td.estado-RESUELTO { color: var(--tenue) }
+
+  /* ─── Sub-filas: cuelgan de su fila, no son filas nuevas ───────────────── */
+  tr.motivo td, tr.cuerpo-ticket td, tr.respuesta-ticket td,
+  tr.ticket-cerrado td, tr.formulario-ticket td, tr.registro td, td.resumen {
+    border-top: 0; padding-top: .15rem; font-size: 12px;
+  }
+  tr.motivo td { color: var(--ambar) }
+  tr.cuerpo-ticket td { color: var(--tenue) }
+  tr.respuesta-ticket td {
+    color: var(--verde); padding-left: 1.1rem;
+    border-left: 2px solid var(--verde); margin-left: .7rem;
+  }
+  td.resumen { color: var(--tenue) }
+
+  /* ─── Jerarquia entre el resumen y el detalle ──────────────────────────── */
+  h2 {
+    font-size: .95rem; margin: 1.8rem 0 .5rem; padding-left: .5rem;
+    border-left: 3px solid var(--azul); display: flex; flex-wrap: wrap;
+    align-items: baseline; gap: .5rem;
+  }
+  h2 .sub { font-weight: 400 }
+  .sub { color: var(--tenue); font-size: 12px }
+  footer {
+    margin-top: 2rem; padding-top: .8rem; border-top: 1px solid var(--linea);
+    color: var(--tenue); font-size: 11.5px; max-width: 60ch;
+  }
+  time { white-space: nowrap }
 `
+
+/**
+ * Una fecha para una celda: la persona lee la version corta y el valor exacto
+ * se queda en el atributo `datetime`, que es justo para lo que existe `<time>`.
+ * Ese valor no se pierde --- ver `fechaLegible()`: esconder el dato es peor que
+ * ensenarlo crudo --- pero deja de ser lo que hay que descifrar a simple vista.
+ *
+ * Lo que no es una fecha sale TAL CUAL y sin `<time>`: la tabla de la flota
+ * escribe un guion largo cuando la instancia no contesto, y envolverlo en un
+ * `datetime` invalido seria mentir en el marcado.
+ */
+function celdaFecha(valor) {
+  if (valor === null || valor === undefined || valor === '') return ''
+  const d = new Date(valor)
+  if (Number.isNaN(d.getTime())) return escapar(valor)
+  return `<time datetime="${escapar(valor)}">${escapar(fechaLegible(valor))}</time>`
+}
+
+/**
+ * La cabecera comun de las tres pantallas. Existe para que se reconozcan como
+ * la MISMA herramienta: el titulo a la izquierda, las tres pantallas siempre en
+ * el mismo sitio, y la de arriba marcada con `aria-current` --- que ademas lo
+ * dice en voz alta, no solo con color.
+ *
+ * `sub` llega como HTML ya compuesto por quien llama, porque cada pantalla
+ * resume cosas distintas; lo que venga de una instancia ya paso por `escapar()`
+ * alli, igual que antes.
+ */
+function cabecera(titulo, actual, sub) {
+  const enlaces = [
+    ['/flota/', 'flota'],
+    ['/flota/tickets/', 'tickets'],
+    ['/flota/altas/', 'altas'],
+  ]
+    .map(([href, nombre]) => {
+      const aqui = nombre === actual ? ' aria-current="page"' : ''
+      return `<a href="${href}"${aqui}>${nombre}</a>`
+    })
+    .join('')
+  return `<header class="barra">
+<h1>${escapar(titulo)}</h1>
+<nav class="paginas">${enlaces}</nav>
+</header>
+<p class="sub">${sub}</p>`
+}
+
+/** El envoltorio HTML comun. `estiloExtra` es lo propio de cada pantalla. */
+function documento(titulo, estiloExtra, cuerpo) {
+  return `<!doctype html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${escapar(titulo)} — SPACE OS</title>
+<meta name="robots" content="noindex,nofollow">
+<style>${ESTILO}${estiloExtra}</style></head>
+<body>
+${cuerpo}
+</body></html>`
+}
 
 /**
  * Fecha corta y legible en es-MX, para no obligar a quien mira el panel a
@@ -150,9 +320,14 @@ export function pagina(filas, usuario) {
         // La clase sale del estado, que es un valor NUESTRO (`clasificar()`),
         // no del texto que mande la instancia.
         const clase = c === 'estado' ? ` class="${escapar(f.estado)}"` : ''
-        return `<td${clase}>${escapar(f[c])}</td>`
+        // La fecha es lo unico que no se pinta crudo: `celdaFecha()` deja el
+        // valor exacto en el `datetime` y ensena la version corta.
+        const valor = c === 'fecha' ? celdaFecha(f[c]) : escapar(f[c])
+        return `<td${clase}>${valor}</td>`
       }).join('')
-      const fila = `<tr>${celdas}</tr>`
+      // Una instancia que no contesta se marca en la FILA, no solo en su celda
+      // de estado: es lo que se ve sin leer, que es el trabajo de esta tabla.
+      const fila = `<tr${f.estado === 'sin-respuesta' ? ' class="atencion"' : ''}>${celdas}</tr>`
 
       // El motivo va en una sub-fila a ancho completo y NO en una celda: es una
       // frase, y en una celda estrecha se lee mal. Mismo criterio que el
@@ -161,7 +336,7 @@ export function pagina(filas, usuario) {
       // Una instancia al día no trae motivo, así que no pinta nada: el silencio
       // es la señal de que está bien.
       if (!f.motivo) return fila
-      const visto = f.ultimaVezBien ? ' · ultima vez bien ' + escapar(f.ultimaVezBien) : ''
+      const visto = f.ultimaVezBien ? ' · ultima vez bien ' + celdaFecha(f.ultimaVezBien) : ''
       return (
         fila +
         `\n<tr class="motivo"><td colspan="${COLUMNAS.length}">${escapar(f.motivo)}${visto}</td></tr>`
@@ -169,21 +344,34 @@ export function pagina(filas, usuario) {
     })
     .join('\n')
 
-  return `<!doctype html>
-<html lang="es"><head><meta charset="utf-8">
-<title>Flota — SPACE OS</title>
-<meta name="robots" content="noindex,nofollow">
-<style>${ESTILO}</style></head>
-<body>
-<h1>Flota</h1>
-<p class="sub"><a href="/flota/tickets/">tickets</a> · <a href="/flota/altas/">altas</a> · ${escapar(filas.length)} instancia(s) · consultado ahora · ${escapar(usuario?.email ?? '')}</p>
-<table><thead><tr>${encabezados}</tr></thead>
+  // Lo que hay que atender, contado y arriba del todo: entrar y tener que
+  // recorrer la tabla con el dedo para saber si hay algo roto es el trabajo
+  // que esta linea ahorra. Y si no hay nada, no se pinta de rojo --- el
+  // silencio tambien es una respuesta.
+  const sinRespuesta = filas.filter((f) => f.estado === 'sin-respuesta').length
+  const rezagadas = filas.filter((f) => f.estado === 'rezagada').length
+  const alarma =
+    sinRespuesta > 0
+      ? `<span class="cifra-roja">${escapar(sinRespuesta)} sin responder</span>`
+      : '<span class="cifra">todas responden</span>'
+  const atrasadas =
+    rezagadas > 0 ? ` · <span class="cifra-ambar">${escapar(rezagadas)} rezagada(s)</span>` : ''
+
+  return documento(
+    'Flota',
+    '',
+    `${cabecera(
+      'Flota',
+      'flota',
+      `<span class="cifra">${escapar(filas.length)}</span> instancia(s) · ${alarma}${atrasadas} · consultado ahora · ${escapar(usuario?.email ?? '')}`,
+    )}
+<div class="marco"><table><thead><tr>${encabezados}</tr></thead>
 <tbody>
 ${cuerpo}
-</tbody></table>
+</tbody></table></div>
 <footer>Se consulta a cada instancia al cargar la página. Una instancia que no
-responde sale como <b>sin-respuesta</b> y no rompe la tabla.</footer>
-</body></html>`
+responde sale como <b>sin-respuesta</b> y no rompe la tabla.</footer>`,
+  )
 }
 
 /**
@@ -238,7 +426,10 @@ export function paginaTickets(respuestas, usuario, csrf, aviso) {
       // verde que uno sin ninguno -- en la pantalla cuyo proposito, segun el
       // ADR 0038, es ensenar lo que hay que atender.
       const claseAtencion = sinDato ? escapar(f.estado) : f.pendientes > 0 ? 'hay-pendientes' : 'ok'
-      const fila = `<tr>
+      // El carril rojo de la fila es para lo que NO CONTESTA, no para lo que
+      // tiene trabajo: son las dos preguntas distintas de siempre. Una
+      // instancia con dos tickets abiertos esta sana; una muda, no.
+      const fila = `<tr${sinDato ? ' class="atencion"' : ''}>
     <td>${escapar(f.nombre)}</td><td>${escapar(f.dominio)}</td>
     <td class="${claseAtencion}">${pendientes}</td>
     <td class="${escapar(f.estado)}">${total}</td>
@@ -323,7 +514,7 @@ export function paginaTickets(respuestas, usuario, csrf, aviso) {
             ? `
   <tr class="ticket-cerrado"><td colspan="7">Cerrado: ya no admite respuesta ni cambio de estado.</td></tr>`
             : `
-  <tr class="formulario-ticket"><td colspan="7"><form class="formulario-ticket" method="POST" action="/flota/tickets/">
+  <tr class="formulario-ticket"><td colspan="7"><form class="contestar" method="POST" action="/flota/tickets/">
     <input type="hidden" name="csrf" value="${escapar(csrf)}">
     <input type="hidden" name="id" value="${escapar(t.id)}">
     <input type="hidden" name="instancia" value="${escapar(f.nombre)}">
@@ -334,54 +525,89 @@ ${escapar(t.respuesta)}</textarea></label>
     <label>Estado<select name="estado">${opcionesEstado}</select></label>
     <button type="submit">Guardar</button>
   </form></td></tr>`
+          // `estado` y `prioridad` los escribe la instancia, asi que la clase
+          // se compone con `escapar()` igual que el texto: no puede salirse
+          // del atributo. Si trae un valor raro, el nombre de clase no existe
+          // en la hoja y la celda sale sin adorno --- que es lo correcto: no
+          // se inventa un color para un estado que no conocemos.
           return `<tr>
     <td>${escapar(t.folio)}</td><td>${escapar(t.tenant_id)}</td><td>${escapar(t.asunto)}</td>
-    <td>${escapar(t.estado)}</td><td>${escapar(t.prioridad)}</td><td>${escapar(fechaLegible(t.creado_en))}</td>
+    <td class="estado-${escapar(t.estado)}">${escapar(t.estado)}</td><td class="prio-${escapar(t.prioridad)}">${escapar(t.prioridad)}</td><td>${escapar(fechaLegible(t.creado_en))}</td>
     <td class="${contestado ? 'contestado' : 'sin-contestar'}">${celdaRespuesta}</td>
   </tr>
   <tr class="cuerpo-ticket"><td colspan="7">${escapar(t.cuerpo)}</td></tr>${filaRespuesta}${formulario}`
         })
         .join('\n')
-      return `<h2>${escapar(f.nombre)}</h2>
-<table><thead><tr><th>folio</th><th>tenant</th><th>asunto</th><th>estado</th><th>prioridad</th><th>creado</th><th>respuesta</th></tr></thead>
+      // El titulo de cada instancia lleva SU cuenta: al bajar al detalle, la
+      // pantalla sigue diciendo cuanto falta por atender ahi sin tener que
+      // volver arriba a la tabla de resumen.
+      const cuenta =
+        f.pendientes > 0
+          ? `<span class="sub">${escapar(f.pendientes)} de ${escapar(f.total)} sin resolver</span>`
+          : `<span class="sub">${escapar(f.total)} ticket(s), ninguno pendiente</span>`
+      return `<h2>${escapar(f.nombre)} ${cuenta}</h2>
+<div class="marco"><table><thead><tr><th>folio</th><th>tenant</th><th>asunto</th><th>estado</th><th>prioridad</th><th>creado</th><th>respuesta</th></tr></thead>
 <tbody>
 ${filasTicket}
-</tbody></table>`
+</tbody></table></div>`
     })
     .join('\n')
 
-  return `<!doctype html>
-<html lang="es"><head><meta charset="utf-8">
-<title>Tickets — SPACE OS</title>
-<meta name="robots" content="noindex,nofollow">
-<style>${ESTILO}
-  form.formulario-ticket { margin: .5rem 0 1rem; display: grid; gap: .4rem; max-width: 32rem }
-  form.formulario-ticket label { display: grid; gap: .2rem; font-size: 12px; color: #666 }
-  form.formulario-ticket textarea, form.formulario-ticket select {
-    font: inherit; padding: .4rem .5rem; border: 1px solid #8886; border-radius: 4px;
-    background: transparent; color: inherit;
+  // La suma de lo que hay que atender, arriba del todo. Se calcula sobre las
+  // filas que SI trajeron cuenta: una instancia muda aporta `null`, no 0, y
+  // sumarla como cero es exactamente la confusion que el ADR 0038 prohibe.
+  const pendientesTotales = filas
+    .filter((f) => f.estado !== TICKET_SIN_RESPUESTA)
+    .reduce((n, f) => n + (Number(f.pendientes) || 0), 0)
+  const mudas = filas.filter((f) => f.estado === TICKET_SIN_RESPUESTA).length
+  const porAtender =
+    pendientesTotales > 0
+      ? `<span class="cifra-ambar">${escapar(pendientesTotales)} sin resolver</span>`
+      : '<span class="cifra">nada pendiente</span>'
+  const sinDatoDe =
+    mudas > 0 ? ` · <span class="cifra-roja">${escapar(mudas)} sin responder</span>` : ''
+
+  const estiloTickets = `
+  form.contestar { margin: .45rem 0 .9rem; display: grid; gap: .45rem; max-width: 34rem }
+  form.contestar label { display: grid; gap: .2rem; font-size: 11px; text-transform: uppercase;
+    letter-spacing: .05em; color: var(--tenue); font-weight: 600 }
+  form.contestar textarea, form.contestar select {
+    font: inherit; text-transform: none; letter-spacing: normal; font-weight: 400;
+    padding: .45rem .55rem; border: 1px solid var(--linea); border-radius: 5px;
+    background: var(--fondo); color: var(--texto);
   }
-  form.formulario-ticket textarea { resize: vertical }
-  form.formulario-ticket button {
-    font: inherit; padding: .4rem .9rem; border: 0; border-radius: 4px;
-    background: #2563eb; color: #fff; cursor: pointer; justify-self: start;
+  form.contestar textarea { resize: vertical; min-height: 3.4rem }
+  form.contestar select { justify-self: start; min-width: 11rem }
+  form.contestar button {
+    font: inherit; font-weight: 600; padding: .45rem 1.1rem; border: 0; border-radius: 5px;
+    background: var(--azul); color: #fff; cursor: pointer; justify-self: start;
   }
-  .aviso-error { color: #b00; background: #fee2e2; padding: .6rem .9rem; border-radius: 4px; margin: 0 0 1rem; font-weight: 600 }
-  tr.ticket-cerrado td { border-top: 0; padding-top: 0; font-size: 12px; color: #666; font-style: italic }
-</style></head>
-<body>
-<h1>Tickets</h1>
+  form.contestar button:hover { filter: brightness(1.1) }
+  .aviso-error {
+    color: var(--rojo); background: var(--rojo-fondo); border: 1px solid var(--rojo);
+    padding: .6rem .9rem; border-radius: 6px; margin: 0 0 1.2rem; font-weight: 600;
+  }
+  tr.ticket-cerrado td { color: var(--tenue); font-style: italic }
+`
+
+  return documento(
+    'Tickets',
+    estiloTickets,
+    `${cabecera(
+      'Tickets',
+      'tickets',
+      `<span class="cifra">${escapar(filas.length)}</span> instancia(s) · ${porAtender}${sinDatoDe} · ${escapar(usuario?.email ?? '')}`,
+    )}
 ${aviso ? `<p class="aviso-error">${escapar(aviso)}</p>` : ''}
-<p class="sub"><a href="/flota/">← la flota</a> · ${escapar(filas.length)} instancia(s) · ${escapar(usuario?.email ?? '')}</p>
-<table><thead><tr><th>instancia</th><th>dominio</th><th>pendientes</th><th>total</th><th>estado</th></tr></thead>
+<div class="marco"><table><thead><tr><th>instancia</th><th>dominio</th><th>pendientes</th><th>total</th><th>estado</th></tr></thead>
 <tbody>
 ${resumen}
-</tbody></table>
+</tbody></table></div>
 ${detalle}
 <footer>Se consulta a cada instancia al cargar la página. Una instancia que NO
 CONTESTA sale <b>sin-respuesta</b> con "sin dato" en pendientes y total — nunca
-0, que también diría una instancia al día sin tickets.</footer>
-</body></html>`
+0, que también diría una instancia al día sin tickets.</footer>`,
+  )
 }
 
 const SIN_CACHE = {
@@ -754,34 +980,73 @@ export function paginaAltas(solicitudes, usuario, csrf, zonas = {}) {
   const sufijo = zona ? `.${zona}` : ""
   const ejemploDominio = sufijo ? `pixeled${sufijo}` : "space-os.pixeled.com.mx"
   const SALTO = String.fromCharCode(10)
+  // Las dos que no se arreglan solas y piden a una persona (ADR 0029): son las
+  // unicas que llevan el carril rojo de la fila. «esperando-dns» NO lo lleva
+  // --- esperar es lo normal ahi--- salvo cuando el DNS apunta a otra maquina,
+  // que es el caso que no avanza nunca, y ese ya lo dice `resumenDeAlta()`.
+  const atascada = (s) => s.estado === 'fallida' || s.estado === 'cert-agotado' || Boolean(s.dnsOtraIp)
   const filas = solicitudes
-    .map(
-      (s) => `<tr>
+    .map((s) => {
+      // El registro solo se pinta si LO HAY. Una sub-fila con un `<pre>` vacio
+      // dejaba un hueco por cada alta recien pedida --- el mismo criterio que
+      // el motivo en `pagina()`: lo que no tiene nada que decir no ocupa sitio.
+      const lineas = (s.registro ?? []).map((l) => escapar(l)).join(SALTO)
+      const registro = lineas
+        ? `${SALTO}  <tr class="registro"><td colspan="5"><pre>${lineas}</pre></td></tr>`
+        : ''
+      return `<tr${atascada(s) ? ' class="atencion"' : ''}>
     <td>${escapar(s.instancia)}</td><td>${escapar(s.dominio)}</td>
     <td class="${escapar(s.estado)}">${escapar(s.estado)}</td>
-    <td>${escapar(s.pedidaPor)}</td><td>${escapar(s.cuando)}</td>
+    <td>${escapar(s.pedidaPor)}</td><td>${celdaFecha(s.cuando)}</td>
   </tr>
-  <tr><td colspan="5" class="resumen">${escapar(resumenDeAlta(s))}</td></tr>
-  <tr><td colspan="5"><pre>${(s.registro ?? []).map((l) => escapar(l)).join(SALTO)}</pre></td></tr>`,
-    )
+  <tr><td colspan="5" class="resumen">${escapar(resumenDeAlta(s))}</td></tr>${registro}`
+    })
     .join(SALTO)
 
-  return `<!doctype html>
-<html lang="es"><head><meta charset="utf-8">
-<title>Altas — SPACE OS</title>
-<meta name="robots" content="noindex,nofollow">
-<style>${ESTILO}
-  form { margin: 0 0 2rem; display: grid; gap: .6rem; max-width: 28rem }
-  label { display: grid; gap: .2rem; font-size: 12px; color: #666 }
-  input { font: inherit; padding: .4rem .5rem; border: 1px solid #8886; border-radius: 4px; background: transparent; color: inherit }
-  button { font: inherit; padding: .5rem .9rem; border: 0; border-radius: 4px; background: #2563eb; color: #fff; cursor: pointer }
-  pre { margin: 0; font-size: 11px; color: #666; white-space: pre-wrap }
-</style></head>
-<body>
-<h1>Altas de instancia</h1>
-<p class="sub"><a href="/flota/">← la flota</a> · <a href="/flota/tickets/">tickets</a> · ${escapar(usuario?.email ?? '')}</p>
+  const pendientesDeAlguien = solicitudes.filter(atascada).length
+  const enMarcha = solicitudes.filter((s) => !atascada(s) && s.estado !== 'lista').length
+  const atascadas =
+    pendientesDeAlguien > 0
+      ? `<span class="cifra-roja">${escapar(pendientesDeAlguien)} atascada(s)</span>`
+      : '<span class="cifra">ninguna atascada</span>'
 
-<form method="POST" action="/flota/altas/">
+  const estiloAltas = `
+  form.alta {
+    margin: 0 0 1.6rem; display: grid; gap: .6rem; max-width: 30rem;
+    background: var(--marco); border: 1px solid var(--linea); border-radius: 8px; padding: 1rem 1.1rem;
+  }
+  form.alta label { display: grid; gap: .2rem; font-size: 11px; text-transform: uppercase;
+    letter-spacing: .05em; color: var(--tenue); font-weight: 600 }
+  form.alta input {
+    font: inherit; text-transform: none; letter-spacing: normal; font-weight: 400;
+    padding: .45rem .55rem; border: 1px solid var(--linea); border-radius: 5px;
+    background: var(--fondo); color: var(--texto);
+  }
+  form.alta button {
+    font: inherit; font-weight: 600; padding: .5rem 1.1rem; border: 0; border-radius: 5px;
+    background: var(--azul); color: #fff; cursor: pointer; justify-self: start;
+  }
+  form.alta button:hover { filter: brightness(1.1) }
+  form.alta .sub { text-transform: none; letter-spacing: normal }
+  .notas { max-width: 62ch }
+  .notas code { font-size: 11.5px; background: var(--fila); padding: .05rem .3rem; border-radius: 3px }
+  pre {
+    margin: 0; font-size: 11px; color: var(--tenue); white-space: pre-wrap;
+    background: var(--fila); border-radius: 5px; padding: .4rem .6rem;
+    max-height: 13rem; overflow: auto;
+  }
+  pre:empty { display: none }
+`
+
+  return documento(
+    'Altas',
+    estiloAltas,
+    `${cabecera(
+      'Altas de instancia',
+      'altas',
+      `<span class="cifra">${escapar(solicitudes.length)}</span> solicitud(es) · ${atascadas} · ${escapar(enMarcha)} en marcha · ${escapar(usuario?.email ?? '')}`,
+    )}
+<form class="alta" method="POST" action="/flota/altas/">
   <input type="hidden" name="csrf" value="${escapar(csrf)}">
   <label>Nombre de la instancia<input name="instancia" required placeholder="pixeled"></label>
   <label>Dominio${sufijo ? ' <span class="sub">(en blanco = ' + escapar(sufijo) + ')</span>' : ''}<input name="dominio"${sufijo ? '' : ' required'} placeholder="${escapar(ejemploDominio)}"></label>
@@ -789,6 +1054,7 @@ export function paginaAltas(solicitudes, usuario, csrf, zonas = {}) {
   <button type="submit">Dar de alta</button>
 </form>
 
+<div class="notas">
 <p class="sub">La region es Nueva York y el canal es <b>estable</b>: no se eligen.</p>
 
 ${
@@ -803,12 +1069,18 @@ nadie. Es como nacio <code>ensayo4</code>.</p>`
 verdad: registrado y con sus nameservers puestos. El alta <b>no crea la maquina</b>
 mientras ningun DNS reconozca una zona para ese nombre, y despues espera a que el
 owner apunte su registro A. Un dominio sin registrar no avanza nunca.</p>
+</div>
 
-<table><thead><tr><th>instancia</th><th>dominio</th><th>estado</th><th>pedida por</th><th>cuando</th></tr></thead>
+<h2>Lo que ya se pidio</h2>
+<div class="marco"><table><thead><tr><th>instancia</th><th>dominio</th><th>estado</th><th>pedida por</th><th>cuando</th></tr></thead>
 <tbody>
 ${filas}
-</tbody></table>
-</body></html>`
+</tbody></table></div>
+<footer>Una alta tarda unos seis minutos en llegar a <b>lista</b>, y despues
+espera un paso a mano: la primera empresa. Las que salen en rojo <b>no avanzan
+solas</b> — <b>fallida</b>, <b>cert-agotado</b> o un DNS apuntando a otra
+maquina piden a una persona.</footer>`,
+  )
 }
 
 /**

@@ -1268,3 +1268,111 @@ describe('paginaTickets · un ticket CERRADO no pinta formulario', () => {
     expect(html).toContain('class="ticket-cerrado"')
   })
 })
+
+// ============================================================================
+//  El rediseno de las tres pantallas (2026-09-24).
+// ----------------------------------------------------------------------------
+//  El dueno dijo que flota, altas y tickets «se ven asi»: tres tablas HTML con
+//  un bloque de estilo minimo. Lo que se arreglo no es el gusto, son cuatro
+//  cosas que se pueden afirmar:
+//
+//   1. Las tres se reconocen como la MISMA herramienta --- misma cabecera,
+//      misma navegacion, y la actual marcada.
+//   2. Lo que pide atencion se distingue SIN leer: la fila entera lleva marca,
+//      no una celda suelta. Lo que esta bien no lleva nada.
+//   3. Las fechas no se leen en ISO.
+//   4. Y `apps/flota` sigue SIN una sola dependencia, que es la regla del sitio:
+//      ni fuentes, ni CDN, ni un `<script>`. Esa es la que mas facil se rompe
+//      «un momentito» y la unica que no se nota al mirar la pantalla.
+// ============================================================================
+describe('las tres pantallas del panel son la misma herramienta', () => {
+  const FLOTA = [{ nombre: 'g500', dominio: 'g500.ejemplo.invalid', canal: 'estable', version: 'v0.5.1', estado: 'al-dia', fecha: '2026-09-24T11:00:00Z', origen: 'consulta', motivo: null, ultimaVezBien: '2026-09-24T11:00:00Z' }]
+  const TICKETS = [{ nombre: 'g500', dominio: 'g500.ejemplo.invalid', tickets: [] }]
+  const ALTAS = [{ id: 'a1', estado: 'en-curso', instancia: 'g500', dominio: 'g500.ejemplo.invalid', pedidaPor: 'jefa@asnetwork.io', cuando: '2026-09-24T09:00:00Z', registro: ['aprovisionando'] }]
+  const todas = () => [
+    ['flota', pagina(FLOTA, null)],
+    ['tickets', paginaTickets(TICKETS, null, 'csrf-1')],
+    ['altas', paginaAltas(ALTAS, null, 'csrf-1')],
+  ]
+
+  it('las tres llevan la misma navegacion, con las tres pantallas', () => {
+    for (const [cual, html] of todas()) {
+      for (const destino of ['/flota/', '/flota/tickets/', '/flota/altas/']) {
+        expect(html, `${cual} no enlaza a ${destino}`).toContain(`href="${destino}"`)
+      }
+    }
+  })
+
+  it('y cada una marca DONDE estas, no solo con color', () => {
+    // `aria-current` y no una clase a secas: quien navega con lector de
+    // pantalla o con el contraste subido tambien tiene que saber donde esta.
+    expect(pagina(FLOTA, null)).toContain('href="/flota/" aria-current="page"')
+    expect(paginaTickets(TICKETS, null, 'csrf-1')).toContain('href="/flota/tickets/" aria-current="page"')
+    expect(paginaAltas(ALTAS, null, 'csrf-1')).toContain('href="/flota/altas/" aria-current="page"')
+  })
+
+  it('NINGUNA carga nada de fuera: ni script, ni hoja externa, ni fuente', () => {
+    // `apps/flota` no tiene una sola dependencia y asi se queda. Una fuente de
+    // Google o un CSS de CDN meteria una red de terceros --- y un tercero que
+    // se cae--- en la pantalla desde la que AS OOH mira a sus clientes.
+    for (const [cual, html] of todas()) {
+      expect(html, `${cual} carga un script`).not.toMatch(/<script/i)
+      expect(html, `${cual} enlaza una hoja o fuente externa`).not.toMatch(/<link/i)
+      expect(html, `${cual} pide algo por la red`).not.toMatch(/https?:\/\//i)
+      expect(html, `${cual} importa un CSS de fuera`).not.toMatch(/@import/i)
+    }
+  })
+})
+
+describe('se distingue SIN leer lo que necesita atencion', () => {
+  const sana = { nombre: 'g500', dominio: 'g500.ejemplo.invalid', canal: 'estable', version: 'v0.5.1', estado: 'al-dia', fecha: '2026-09-24T11:00:00Z', origen: 'consulta', motivo: null, ultimaVezBien: '2026-09-24T11:00:00Z' }
+  const muda = { ...sana, nombre: 'otra', version: '—', estado: 'sin-respuesta', fecha: '—', motivo: 'el dominio no resuelve (ENOTFOUND)' }
+
+  it('la instancia que no contesta se marca en la FILA, no en una celda suelta', () => {
+    expect(pagina([muda], null)).toContain('<tr class="atencion">')
+    expect(pagina([sana], null), 'una instancia sana se pinto como si pasara algo').not.toContain('class="atencion"')
+  })
+
+  it('un alta ATASCADA tambien, y una que va avanzando no', () => {
+    const base = { instancia: 'g500', dominio: 'g500.ejemplo.invalid', pedidaPor: 'a@b.c', cuando: '2026-09-24T09:00:00Z', registro: [] }
+    // `fallida` y `cert-agotado` no se arreglan solas: piden a una persona.
+    expect(paginaAltas([{ ...base, estado: 'fallida' }], null, 'c')).toContain('class="atencion"')
+    expect(paginaAltas([{ ...base, estado: 'cert-agotado' }], null, 'c')).toContain('class="atencion"')
+    // Esperar el DNS es lo normal; apuntarlo a OTRA maquina no se arregla solo.
+    expect(paginaAltas([{ ...base, estado: 'esperando-dns' }], null, 'c')).not.toContain('class="atencion"')
+    expect(paginaAltas([{ ...base, estado: 'esperando-dns', dnsOtraIp: '1.2.3.4' }], null, 'c')).toContain('class="atencion"')
+  })
+
+  it('la cuenta de lo que hay que atender va arriba, antes de la tabla', () => {
+    const html = pagina([sana, muda], null)
+    expect(html).toContain('1 sin responder')
+    expect(html.indexOf('1 sin responder'), 'el resumen salio DESPUES de la tabla').toBeLessThan(html.indexOf('<table'))
+    // Y cuando no hay nada que atender, no se pinta una alarma que no existe.
+    expect(pagina([sana], null)).toContain('todas responden')
+  })
+})
+
+describe('las fechas de la flota y de las altas ya no se leen en ISO', () => {
+  const sana = { nombre: 'g500', dominio: 'g500.ejemplo.invalid', canal: 'estable', version: 'v0.5.1', estado: 'al-dia', fecha: '2026-09-24T11:00:00Z', origen: 'consulta', motivo: null, ultimaVezBien: null }
+
+  it('la columna "fecha" sale corta, y el valor exacto queda en el datetime', () => {
+    const html = pagina([sana], null)
+    expect(html).toContain(`<time datetime="2026-09-24T11:00:00Z">${fechaLegible(sana.fecha)}</time>`)
+  })
+
+  it('lo que NO es una fecha sale tal cual y sin <time>', () => {
+    // La flota escribe un guion largo cuando la instancia no contesto.
+    const html = pagina([{ ...sana, estado: 'sin-respuesta', fecha: '—' }], null)
+    expect(html).toContain('<td>—</td>')
+    expect(html).not.toContain('datetime="—"')
+  })
+
+  it('y el "cuando" de un alta, igual', () => {
+    const html = paginaAltas(
+      [{ instancia: 'g500', dominio: 'g500.ejemplo.invalid', estado: 'en-curso', pedidaPor: 'a@b.c', cuando: '2026-09-24T09:00:00Z', registro: [] }],
+      null,
+      'c',
+    )
+    expect(html).toContain(`<time datetime="2026-09-24T09:00:00Z">${fechaLegible('2026-09-24T09:00:00Z')}</time>`)
+  })
+})

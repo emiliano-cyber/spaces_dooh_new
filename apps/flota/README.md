@@ -167,6 +167,53 @@ mire por qué.
 
 ---
 
+## Las tres pantallas, y las reglas que no se rompen
+
+`pagina()` (flota), `paginaTickets()` y `paginaAltas()` viven las tres en
+`servidor.mjs` y comparten `ESTILO`, `cabecera()` y `documento()`. Comparten
+esas tres cosas **a proposito**: son la misma herramienta, y hasta el 24/09 no
+lo parecian --- cada una tenia su cabecera, y a la de tickets solo se llegaba
+sabiendose la URL.
+
+Quien toque una de las tres tiene cuatro reglas encima:
+
+1. **Ni una dependencia, y eso incluye la pantalla.** Ni Tailwind, ni una
+   fuente de Google, ni un CSS de CDN, ni un `<script>`. Todo el estilo esta en
+   la constante `ESTILO` de `servidor.mjs`. Una fuente externa mete una red de
+   terceros --- y un tercero que se cae--- en la pantalla desde la que AS OOH
+   mira a sus clientes. **Hay una prueba que lo afirma** para las tres paginas a
+   la vez, y no es decoracion: es la regla que mas facil se rompe «un momentito».
+
+2. **Todo lo que venga de una instancia pasa por `escapar()`.** Folio, tenant,
+   asunto, cuerpo, dominio, el motivo de un fallo y hasta el registro de un
+   alta son texto que escribio un tercero. Pintar uno crudo es XSS en el panel
+   de AS OOH con un cliente como atacante.
+
+3. **Solo se pinta de color lo que pide atencion.** Rojo lo que no contesta o no
+   avanza solo, ambar lo que espera trabajo, y lo que esta bien se queda en
+   verde discreto o en gris, sin fondo. Si todo destacara, nada destacaria. La
+   fila entera lleva el carril rojo (`tr.atencion`), porque lo que se ve de un
+   vistazo es la fila, no una celda suelta.
+
+4. **La distincion de tres estados de la columna de pendientes no se toca.**
+   `hay-pendientes` (ambar, hay trabajo), `ok` (verde, nada) y `sin-respuesta`
+   (rojo, no contesta) son **tres** preguntas y no dos: una instancia muda trae
+   `null`, nunca `0`, y confundirla con una sana sin tickets es el fallo que
+   este panel ya pago una vez. Tiene su prueba desde el 23/09.
+
+Y dos detalles que se ven poco y cuestan caro:
+
+- **Las fechas van en `<time datetime="...">`**: la persona lee la version corta
+  (`fechaLegible()`) y el valor exacto se queda en el atributo. Esconder el dato
+  seria peor que ensenarlo crudo; obligar a descifrar un ISO a simple vista,
+  tambien.
+- **Un ticket `CERRADO` no pinta formulario.** El guard de verdad esta en la
+  instancia (`apps/web/lib/server/tickets-repo.ts`), no aqui: una pantalla no es
+  una frontera de seguridad. Lo que hace la pantalla es no invitar a nadie a
+  escribir una respuesta que la instancia va a rechazar.
+
+---
+
 ## Notas de montaje
 
 - **`vitest` no está declarado aquí como dependencia**: se resuelve desde la raíz del
