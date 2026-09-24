@@ -6,6 +6,14 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!success] 2026-09-24, segunda pasada · **Z12, los trozos de Z2 y Z4 y la bitácora, LIBERADOS**
+> En `docs/manual-ilustrado-2026-09-24`, sin fusionar: `7d0a87b` (acentos de la tarjeta de
+> actualizaciones), `59d104a` (la ficha del contrato ya no se queda con una copia vieja) y
+> `e0fab25` (manual con 45 capturas). `cd apps/web && npm run typecheck` limpio y
+> `npm test` 1820 en verde (141 archivos). **Queda abierto, y es R1:** el cuadro «Con cuál
+> de tus razones sociales se paga» no pide la contraseña
+> (`components/demo/arrendadores/ContratoSheet.tsx:400`). Espera aprobación humana.
+
 > [!important] 2026-09-24, segunda pasada · **Z12 RECLAMADA otra vez, y dos trozos de interfaz**
 > Misma rama `docs/manual-ilustrado-2026-09-24`. Además de Z12 y de
 > `docs/Registro_Cambios.md` (alto contacto), se reclaman **solo cadenas y estado de
