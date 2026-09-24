@@ -1,0 +1,615 @@
+===============================================================================
+ LISTO PARA EL VIERNES 2026-09-25 -- que hay que hacer para comprobarlo
+ SPACE OS - auditado el 2026-09-23 sobre `main` en 5cf924b (recien fusionada)
+===============================================================================
+
+ ESTA ES LA COPIA VERSIONADA: los dominios y las IPs van como <marcador>,
+ que es la regla del repositorio. La copia con los valores reales, lista para
+ pegar en una consola, esta en
+ C:\Users\Server\Downloads\LISTO-PARA-EL-VIERNES-20260925.txt
+
+ La demostracion del viernes es DENTRO DE DOS DIAS. El OOH SUMMIT es el 14 de
+ octubre, dentro de 21. Esta hoja es solo del viernes.
+
+ COMO ESTA ORDENADA: por lo que BLOQUEA. El bloque 0 decide los demas. Si el
+ bloque 0 no se contesta, ningun bloque de abajo sirve.
+
+ QUE ES CADA COSA:
+
+   [OJOS]    lo miras tu en el navegador. Es el trabajo principal de esta hoja:
+             hay tres pantallas que NADIE ha abierto nunca con un navegador.
+   [CMD-PS]  comando en TU MAQUINA, PowerShell. UNA INSTRUCCION POR LINEA.
+             NO uses `&&`: es PowerShell 5.1 y da error de sintaxis. Ya fallo
+             dos veces por eso.
+   [CMD-PADRE] comando en la CONSOLA WEB DEL PADRE (bash). Acepta `&&`.
+   [CMD-g500]  comando en la consola de g500 (bash).
+
+ LO QUE ESTA HOJA MIDIO DE VERDAD (corrido hoy, en este arbol):
+
+   cd apps/web ; npm test            -> 140 archivos, 1817 pruebas, exit 0
+   cd apps/web ; npm run typecheck   -> limpio, exit 0
+   cd apps/flota ; npm test          -> 16 archivos, 350 pruebas, exit 0
+   cd apps/web ; npm run build       -> exit 0
+   cd apps/web ; npm run test:e2e    -> 45 archivos, 496 pruebas + 1 omitida,
+                                        227 s, exit 0  (con el build hecho antes)
+   node scripts/recuentos.mjs        -> 100 endpoints, 46 tablas, 88 migraciones
+   git rev-list --count emiliano/main...main -> 0  12   (main va 12 POR DELANTE)
+   psql spaces_ver2 (local, 5433)    -> las 7 cifras del guion, exactas
+
+ LO QUE NO MIDIO: nada de ningun servidor. No se corrio ssh, ni curl contra
+ produccion, ni psql remoto. Todo lo de servidores va escrito como comando
+ para que lo corras tu, y marcado NO VERIFICADO.
+
+
+###############################################################################
+ BLOQUE 0 - LA PRIMERA COSA, Y NO ES UN COMANDO
+ NO EXISTE NINGUN GUION DEL VIERNES
+###############################################################################
+
+ MEDIDO, no supuesto:
+
+   grep -rn "2026-09-25|20260925|25 de septiembre|viernes" docs/ vault/
+
+ Cero resultados que hablen de una demostracion del 25. El unico guion que
+ existe es `docs/Guion_Summit_20261014.md`, y es del 14 DE OCTUBRE.
+
+ Y ese guion describe un montaje QUE YA NO ES EL ACORDADO. Su seccion 2 dice,
+ literalmente:
+
+   Base      spaces_ver2 en el 5433
+   Acceso    duena@demo.invalid / Demo-Verificacion-2026
+   Direccion http://localhost:3399/spaces-dooh/login/
+
+ El 2026-09-22 el dueno decidio que se presenta DESDE LOS SERVIDORES REALES.
+ El propio guion lo dice en su primer recuadro, y dice tambien que con esa
+ decision "todo lo que esta medido en este documento queda por rehacer".
+
+ O SEA: hay un recorrido escrito y ensayado (los 5 pasos, las frases, las
+ cifras), y hay un sitio decidido donde presentarlo, Y NO SON EL MISMO SITIO.
+ Nadie ha unido las dos cosas.
+
+ ---------------------------------------------------------------------------
+ LA DECISION QUE TIENES QUE TOMAR HOY, Y NADIE MAS PUEDE
+ ---------------------------------------------------------------------------
+
+ CAMINO A - desde tu portatil, base `spaces_ver2` en el 5433.
+   A favor: ESTA MEDIDO Y FUNCIONA. Las 7 cifras del guion estan en esa base
+            hoy (comprobadas abajo, bloque 1). El recorrido entero se ensayo
+            el 18/09 y dio los numeros escritos, celda por celda.
+   En contra: contradice la decision del 22/09. Y es lo unico que hay.
+   Tiempo para dejarlo listo: ~15 minutos (bloque 1).
+
+ CAMINO B - desde DEMO (<dominio-de-DEMO> / <dominio-alterno-de-DEMO>).
+   A favor: es lo decidido para el 14/10, y ensayarlo el viernes es justo lo
+            que falta por hacer antes del SUMMIT.
+   En contra: LOS DATOS DEL GUION NUNCA SE HAN LLEVADO A ESA BASE, no hay
+            ningun script ni runbook que lo haga, y el usuario del guion
+            (`duena@demo.invalid`) NO LO CREA NINGUN SCRIPT DEL REPOSITORIO
+            -- comprobado con grep: esa cadena solo aparece en documentacion.
+   Tiempo para dejarlo listo: desconocido. Empieza por medir (bloque 2).
+
+ CAMINO C - el viernes NO se enseña el caso de rentabilidad, y se enseña otra
+   cosa: las pantallas nuevas (actualizaciones, tickets) y el panel de flota
+   sobre DEMO tal como esta. Eso SI esta en el servidor hoy.
+
+ >>> ESTA HOJA NO ELIGE. Los bloques 1 y 2 estan escritos para que midas los
+ >>> dos caminos en media hora y decidas con datos.
+
+
+###############################################################################
+ BLOQUE 1 - CAMINO A: dejar el portatil listo.  MEDIDO HOY, FUNCIONA.
+###############################################################################
+
+ 1.1 [CMD-PS] Que la base local este viva:
+
+   docker ps --format "{{.Names}}`t{{.Status}}"
+
+   ESPERADO: una linea `spaces_db   Up ... (healthy)`.
+   SI NO SALE: la levantas con
+     cd C:\Users\Server\spaces_doohmain_nueva\db
+     docker compose up -d
+
+ 1.2 [CMD-PS] Que los datos del guion sigan ahi. Esto YA LO MEDI HOY y dio
+     exactamente lo que el guion promete; lo repites el viernes por la manana
+     porque una base local se toca sin querer:
+
+   $env:PGPASSWORD="spaces"
+   psql -h localhost -p 5433 -U spaces -d spaces_ver2 -c "select (select count(*) from sitios s join tenants t on t.id=s.tenant_id where t.slug='demo-rentabilidad') as sitios, (select count(*) from ordenes_trabajo o join tenants t on t.id=o.tenant_id where t.slug='demo-rentabilidad') as ot, (select count(*) from consumos_energia c join tenants t on t.id=c.tenant_id where t.slug='demo-rentabilidad') as luz, (select count(*) from entidades_fiscales e join tenants t on t.id=e.tenant_id where t.slug='demo-rentabilidad') as razones;"
+
+   ESPERADO, EXACTO (medido el 2026-09-23):
+     sitios = 6    ot = 114    luz = 40    razones = 3
+   Y ademas: 5 papeles, 3 de 4 contratos con razon social, 8 de 8 comprobantes
+   con emisora, 8 campanas, 40 reservas.
+
+   SI SALE OTRA COSA: se resiembra, y es determinista --
+     cd C:\Users\Server\spaces_doohmain_nueva
+     $env:DATABASE_URL="postgresql://spaces:spaces@localhost:5433/spaces_ver2"
+     node scripts/semilla-demo.mjs --org=demo-rentabilidad --trimestres=4 --verificar
+   ESPERADO: exit 0, y que reafirme 82581 vs 156906.
+
+ 1.3 [CMD-PS] Build PRIMERO, servidor DESPUES. El orden no es opcional.
+
+   cd C:\Users\Server\spaces_doohmain_nueva\apps\web
+   npm run build
+
+   (Hoy dio exit 0 en este mismo arbol.)
+
+   $env:DATABASE_URL="postgresql://spaces:spaces@localhost:5433/spaces_ver2"
+   npx next start -p 3399
+
+ 1.4 [CMD-PS] LA COMPROBACION QUE NO ES MIRAR LA PANTALLA. Dos cadenas:
+
+   cat C:\Users\Server\spaces_doohmain_nueva\apps\web\.next\BUILD_ID
+   (Invoke-WebRequest http://localhost:3399/spaces-dooh/login/).Content -match 'buildId[":\]+([A-Za-z0-9_-]{15,})'
+   $Matches[1]
+
+   ESPERADO: las dos cadenas IGUALES.
+   SI NO COINCIDEN: el proceso sirve un build que ya no existe. Matas al DUENO
+   DEL PUERTO (no a la ventana de npx) y arrancas de nuevo:
+     Get-NetTCPConnection -LocalPort 3399
+     Stop-Process -Id <OwningProcess>
+   No hace falta reconstruir si el disco ya esta al dia: arranca en ~0.4 s.
+
+   >>> Y OJO: "se ve bien" NO PRUEBA NADA. El 18/09 un servidor sirvio codigo
+   >>> de hacia seis horas y la aplicacion se veia perfecta. Compara las dos
+   >>> cadenas o reinicia; no mires la pantalla para decidir esto.
+
+ 1.5 [OJOS] Los seis enlaces en marcadores, ANTES. El enlace lleva los filtros,
+     asi que no tocas ni un selector delante de nadie:
+
+   http://localhost:3399/spaces-dooh/inventario/
+   http://localhost:3399/spaces-dooh/reportes/?dimension=sitio&desde=2025-07-01&hasta=2026-06-30&granularidad=trimestre
+   http://localhost:3399/spaces-dooh/reportes/?dimension=operacion&desde=2025-07-01&hasta=2026-06-30&granularidad=trimestre
+   http://localhost:3399/spaces-dooh/reportes/?dimension=trimestre&desde=2025-07-01&hasta=2026-06-30&granularidad=trimestre
+   http://localhost:3399/spaces-dooh/reportes/?dimension=m2&desde=2025-07-01&hasta=2026-06-30&granularidad=trimestre
+   http://localhost:3399/spaces-dooh/reportes/?dimension=luz&desde=2025-07-01&hasta=2026-06-30&granularidad=trimestre
+
+   EL ENLACE NO TRAE EL ORDEN, y el orden es la historia. Un clic en la
+   cabecera, gratis, sin volver a pedir nada al servidor:
+     paso 2 -> clic en INGRESO        deja Tlalpan y Santa Monica en filas 1 y 2
+     paso 3 -> clic en INGRESO        las mismas dos, juntas
+     paso 4 -> ningun clic
+     paso 5 -> clic en MARGEN / M2
+     extra  -> ningun clic
+
+
+###############################################################################
+ BLOQUE 2 - CAMINO B: MEDIR SI HAY ALGO QUE ENSEÑAR EN DEMO
+ Esto va PRIMERO que cualquier otra cosa del camino B.
+###############################################################################
+
+ NO VERIFICADO POR MI: no toco servidores. Lo de abajo son los comandos y lo
+ que espero encontrar, no lo que se.
+
+ DONDE: consola web del droplet PADRE (<IP-del-PADRE>). Postgres corre NATIVO
+ en el PADRE (no en contenedor); la app de DEMO es el contenedor del 3001 y le
+ habla por 127.0.0.1. Evidencia: `docs/evidencias/TH-DEMO_convertir-en-instancia.txt`
+ y `infra/scripts/update.sh` (funcion `correr_pg`, corre psql en el anfitrion).
+
+ 2.1 [CMD-PADRE] LA PREGUNTA QUE LO DECIDE TODO. Si esto sale vacio, el camino
+     B no es "unas horas": es trabajo sin planear.
+
+   sudo -u postgres psql -d spaces_demo -c "select id, slug, nombre from tenants where slug = 'demo-rentabilidad';"
+
+   ESPERADO SI ALGUIEN LO SEMBRO: una fila.
+   LO QUE YO ESPERO DE VERDAD: CERO FILAS. No hay ningun script, runbook ni
+   documento en el repositorio que lleve estos datos a `spaces_demo` --
+   buscado por "spaces_demo", "sembrar", "semilla" y "demo-rentabilidad".
+   SI SALE CERO FILAS: ve a 2.4. No sigas con 2.2 ni 2.3.
+
+ 2.2 [CMD-PADRE] Si SI hay organizacion, las siete cifras del guion, una a una:
+
+   sudo -u postgres psql -d spaces_demo -c "select count(*) from sitios s join tenants t on t.id = s.tenant_id where t.slug = 'demo-rentabilidad';"
+   sudo -u postgres psql -d spaces_demo -c "select count(*) from ordenes_trabajo o join tenants t on t.id = o.tenant_id where t.slug = 'demo-rentabilidad';"
+   sudo -u postgres psql -d spaces_demo -c "select count(*) from consumos_energia c join tenants t on t.id = c.tenant_id where t.slug = 'demo-rentabilidad';"
+   sudo -u postgres psql -d spaces_demo -c "select count(*) from entidades_fiscales e join tenants t on t.id = e.tenant_id where t.slug = 'demo-rentabilidad';"
+   sudo -u postgres psql -d spaces_demo -c "select count(*) from entidad_roles r join tenants t on t.id = r.tenant_id where t.slug = 'demo-rentabilidad';"
+   sudo -u postgres psql -d spaces_demo -c "select count(*) filter (where c.entidad_id is not null) as asignados, count(*) as total from contratos_arrendamiento c join tenants t on t.id = c.tenant_id where t.slug = 'demo-rentabilidad';"
+   sudo -u postgres psql -d spaces_demo -c "select count(*) filter (where f.entidad_emisora_id is not null) as con_emisora, count(*) as total from facturas f join tenants t on t.id = f.tenant_id where t.slug = 'demo-rentabilidad';"
+
+   ESPERADO, y son los numeros que el guion necesita para dar sus cifras:
+     6 sitios · 114 ordenes · 40 recibos de luz · 3 razones · 5 papeles ·
+     3 de 4 contratos asignados · 8 de 8 comprobantes con emisora
+
+   CUALQUIER NUMERO DISTINTO significa que las tablas de la seccion 3 del
+   guion NO van a salir. No las improvises delante de nadie.
+
+ 2.3 [CMD-PADRE] El usuario con el que el guion entra:
+
+   sudo -u postgres psql -d spaces_demo -c "select email, activo, password_hash is not null as tiene_clave from usuarios where lower(email) = 'duena@demo.invalid';"
+
+   ESPERADO: CERO FILAS, casi con seguridad. MEDIDO: la cadena
+   `duena@demo.invalid` NO aparece en ningun `.mjs`, `.ts` ni `.sql` del
+   repositorio -- solo en el guion y en una nota de la boveda. Ningun script
+   crea ese usuario, y `bootstrap-auth.mjs` genera una contraseña TEMPORAL
+   aleatoria, nunca `Demo-Verificacion-2026`. Esa contraseña se fijo a mano en
+   el portatil en algun momento.
+   SI SALE CERO FILAS: entras a DEMO con la cuenta que ya uses ahi, y el
+   apartado "Acceso" del guion NO APLICA en el camino B.
+
+ 2.4 [CMD-PADRE] SI NO HAY DATOS Y AUN ASI QUIERES EL CAMINO B.
+     NO VERIFICADO -- nadie ha corrido esto nunca contra una base remota.
+
+   La semilla elige base SOLO por `DATABASE_URL` (`scripts/semilla-demo.mjs:1699`).
+   No hay nombre quemado y solo se niega sobre `spaces_e2e`. O sea que TECNICAMENTE
+   se puede apuntar a `spaces_demo`. Postgres del PADRE escucha en 127.0.0.1, asi
+   que hay que correrla DENTRO del PADRE, no desde tu portatil:
+
+   cd /var/www/Spaces
+   git pull
+   DATABASE_URL="postgresql://<usuario>:<clave>@127.0.0.1:5432/spaces_demo" node scripts/semilla-demo.mjs --org=demo-rentabilidad --trimestres=4 --guion
+
+   `--guion` IMPRIME EL PLAN Y NO TOCA NADA. Empieza SIEMPRE por ahi.
+
+   ESPERADO: imprime que sembraria y sale 0.
+   SI DICE `Cannot find package 'pg'`: le falta node_modules en ese arbol.
+   PARA y avisa -- no lo arregles a las prisas en el PADRE.
+   SOLO SI `--guion` sale limpio, la de verdad es la misma linea sin `--guion`
+   y con `--verificar` al final.
+
+   >>> ANTES DE ESO, RESPALDA. `spaces_demo` es datos de prueba, pero perder
+   >>> DEMO el miercoles antes de la demostracion cuesta el mismo tiempo que si
+   >>> fueran reales.
+   >>> Y ojo con el otro efecto: la semilla es ADITIVA, no borra. Si `spaces_demo`
+   >>> ya tiene inventario de otra cosa, el guion se mezcla con el y las tablas
+   >>> de la seccion 3 salen con filas de mas.
+
+
+###############################################################################
+ BLOQUE 3 - LA PASADA VISUAL.  [OJOS]  ES EL TRABAJO PRINCIPAL DE ESTA HOJA.
+###############################################################################
+
+ TRES PANTALLAS NUEVAS Y NADIE HA ABIERTO NINGUNA CON UN NAVEGADOR. No es una
+ sospecha: lo dice el tablero del 23/09 con estas palabras -- "nadie ha mirado
+ ninguna de las dos pantallas con un navegador, ni la del cliente ni la del
+ panel" -- y la tarjeta del release v0.7.0 lo dice en su bloque C5: "ESTA ES LA
+ PRIMERA VEZ QUE UN HUMANO MIRA ESAS DOS PANTALLAS".
+
+ Las pruebas cubren la logica. NO cubren el aspecto: no hay una sola prueba
+ visual ni de pixeles en todo el repositorio (buscado playwright/percy/
+ chromatic/screenshot: nada).
+
+ DONDE ESTAN, exacto (medido en el codigo, no de memoria):
+   Administracion es UNA sola pagina con TRES pestañas: Usuarios ·
+   Roles y permisos · CONFIGURACION. Las dos tarjetas nuevas son las DOS
+   PRIMERAS de la pestaña Configuracion, en este orden:
+     1. Actualizaciones   (ADR 0037)
+     2. Soporte / Tickets (ADR 0038)
+   `apps/web/app/(app)/(shell)/administracion/page.tsx:682` y `:686`.
+   El menu solo enseña "Administracion" al rol DUENO (`nav.ts:158`). Si entras
+   con otro rol, NO VES NADA DE ESTO y parece que no existe.
+
+ --- 3.1 [OJOS] ACTUALIZACIONES -------------------------------------------
+
+   https://<dominio-de-DEMO>/spaces-dooh/administracion/  -> pestaña Configuracion
+
+   QUE TIENE QUE DECIR: que corre `v0.7.0`, con que digest, cuantas migraciones
+   traeria la siguiente y desde cuando se comprobo. Y el modo: DEMO esta en
+   "con aprobacion", asi que NO se instala nada solo.
+
+   QUE MIRAR, Y QUE HACER SI SALE OTRA COSA:
+   · Si dice "Al dia" EN VERDE -> bien.
+   · Si dice que hay una version NUEVA disponible teniendo v0.7.0 corriendo ->
+     es el defecto conocido de estreno (version_instalada en NULL). Se
+     corrigio en codigo el 22/09 pero SOLO aplica si corrio el update.sh
+     arreglado. Comprueba con el comando 5.2 antes de tocar nada.
+   · Si dice "Esta instancia todavia no se ha comprobado contra el registro" ->
+     el cron de */15 no esta corriendo. Es texto literal del codigo
+     (`actualizaciones-ui.ts:42-47`), no un error.
+   · Si sale un mensaje AMBAR sobre no poder leer la version de la imagen ->
+     tambien es texto previsto. No es una averia de la pantalla.
+
+   >>> NO PULSES "INSTALAR" ESTA SEMANA. Instalar corta el servicio y migra la
+   >>> base, y el bloque 6 explica por que ahora mismo esa migracion ABORTA.
+
+ --- 3.2 [OJOS] SOPORTE / TICKETS, la del cliente ---------------------------
+
+   La tarjeta justo debajo de Actualizaciones, misma pestaña.
+
+   QUE TIENE QUE DECIR CON LA BASE VACIA (texto literal del codigo):
+     resumen: "Todavia no has abierto ningun ticket de soporte."
+     lista:   "Aqui veras tus tickets en cuanto abras el primero."
+
+   QUE HACER: escribe UN ticket de prueba -- asunto, descripcion, prioridad.
+   ESPERADO: aparece con folio `TK-2026-0001`.
+   SI EL FOLIO SALE RARO O VACIO -> avisa, es el ambito de folio nuevo.
+   SI EL BOTON NO HACE NADA -> mira si entraste como DUENO; el POST exige
+   `administracion.crear`.
+
+ --- 3.3 [OJOS] EL PANEL DE FLOTA -------------------------------------------
+
+   https://<dominio-del-PADRE>/flota/         (el resumen de la flota)
+   https://<dominio-del-PADRE>/flota/tickets/ (la pantalla nueva)
+
+   >>> ANTES DE ABRIRLA: esta pantalla NO viaja en la imagen. Vive en el
+   >>> checkout del PADRE (`/var/www/Spaces/apps/flota`, lo arranca
+   >>> `flota-panel.service`). Si el PADRE no hizo `git pull` despues del
+   >>> 23/09, la ruta NO EXISTE todavia. Ver 5.3.
+
+   QUE TIENE QUE PASAR: ves el ticket que escribiste en 3.2, agrupado bajo
+   DEMO, con "Sin responder". Contestalo desde ahi y vuelve a 3.2: la
+   respuesta tiene que aparecer en la pantalla del cliente con su fecha.
+
+   >>> LO QUE VAS A VER SOBRE g500, Y ES CORRECTO AUNQUE PAREZCA UNA AVERIA:
+   >>> g500 corre v0.5.1 y NO TIENE la ruta `/api/tickets`. Asi que en la tabla
+   >>> saldra con "sin dato" en las dos columnas y una sub-fila con este texto,
+   >>> literal del codigo (`apps/flota/diagnostico.mjs:73-74`):
+   >>>
+   >>>   "no existe /api/tickets, o ese ticket ya no esta: la instancia puede
+   >>>    correr una version anterior a los tickets (ADR 0038) (HTTP 404)"
+   >>>
+   >>> NO ES UN FALLO. Es la unica instancia de cliente y esta rezagada a
+   >>> proposito (bloque 7). PERO SE VE EN PANTALLA, asi que decide ANTES si
+   >>> esta pantalla se enseña el viernes o no.
+
+
+###############################################################################
+ BLOQUE 4 - EL REDISENO DE BOTONES Y BORDES: DONDE ESTA, Y DONDE NO
+###############################################################################
+
+ LO PRIMERO, PORQUE CAMBIA TODO LO DEMAS:
+
+   ESTE CAMBIO NO ESTA EN NINGUN SERVIDOR. MEDIDO:
+
+     git rev-list --left-right --count emiliano/main...main   ->   0   12
+
+   `main` local va DOCE COMMITS POR DELANTE del remoto, y los cuatro del
+   redisenyo (2da1768, 6366864, afee2cf, 8987051) estan entre esos doce.
+   La etiqueta `v0.7.0` apunta a `8b3ef66`, que es ANTERIOR.
+
+   CONSECUENCIA, y es la que importa:
+     · CAMINO A (portatil)  -> SI ves los bordes nuevos. La pasada visual de
+                               este bloque es OBLIGATORIA antes del viernes.
+     · CAMINO B (DEMO)      -> NO los ves. DEMO sirve v0.7.0, con el aspecto
+                               de antes. Este bloque no aplica.
+
+ QUE CAMBIO, exacto: `apps/web/app/(app)/demo.css` envolvio el reset en
+ `:where(.demo-root) *`, y con eso dejo de anular las utilidades de borde. El
+ reset ponia `border-width: 0` en TODO y ganaba por orden de archivo.
+
+ CUANTO, MEDIDO HOY (y aqui hay una discrepancia que conviene no tapar):
+
+   rg -o '\bborder(-[a-zA-Z0-9\[\]/.,%_-]*)?\b' apps/web/app apps/web/components -g'*.ts' -g'*.tsx' -g'!*.test.ts' | wc -l
+     -> 1162 ocurrencias en 90 archivos
+
+   Los 90 ARCHIVOS cuadran con lo que dice el commit. Las 1075 OCURRENCIAS
+   NO SE REPRODUCEN: ninguna forma de contarlas da 1075. Tomalo como "del
+   orden de mil", no como una cifra.
+
+ LOS SEIS COMPONENTES COMPARTIDOS, confirmados uno por uno, y por eso el
+ cambio se ve EN TODAS LAS PANTALLAS A LA VEZ:
+
+   Sidebar  (Sidebar.tsx:36,87,175,223,244,265) borde derecho de la barra,
+            separadores entre secciones, linea sobre el pie, borde del tooltip
+   Topbar   (Topbar.tsx:35,43,65,79,99,140,151,160) linea bajo la barra, los
+            botones de icono con contorno, los desplegables con marco
+   Card     (Card.tsx:8) CADA tarjeta pasa de flotar sin borde a tener marco
+   Modal    (Modal.tsx:41,44,58) marco completo + linea bajo cabecera y sobre pie
+   Sheet    (Sheet.tsx:26,27,41) borde izquierdo del panel + dos separadores
+   StatusBadge (StatusBadge.tsx:29-34,50) CADA pastilla de estado gana un
+            anillo de 1px de su propio tono, en los cinco colores
+
+ [OJOS] LAS CUATRO PANTALLAS QUE HAY QUE MIRAR, EN ESTE ORDEN:
+
+   1. CUALQUIERA, para ver el shell. Sidebar + Topbar salen siempre, asi que
+      esto lo juzgas en el primer segundo. Mira: el borde derecho de la barra
+      lateral, la linea bajo la barra de arriba, y los botones de icono de la
+      esquina -- antes no tenian contorno.
+   2. /spaces-dooh/inventario/   (tabla 32 + dialogo de importar 48 = 80)
+      ES EL CAMBIO MAS DRAMATICO: la tabla pasa de "sin rejilla" a "rejilla
+      completa". Abre tambien el dialogo de Importar inventario.
+   3. /spaces-dooh/propuestas/   (64 ocurrencias, la mas cargada del repo)
+   4. /spaces-dooh/administracion/ (57) y /spaces-dooh/arrendadores/ (51),
+      esta ultima abriendo el Sheet de contrato.
+
+   QUE ESPERAS VER: lineas de 1px finas y del color del tema, coherentes.
+   QUE SERIA MALO: dobles lineas pegadas, marcos dentro de marcos, una rejilla
+   que parta una celda por la mitad, o pastillas de estado con el anillo mas
+   fuerte que el relleno.
+   SI SALE MALO: no hay arreglo rapido que sea seguro. Presenta por el camino B
+   (DEMO, sin el cambio) o vuelve a `v0.7.0` en el portatil:
+     git stash list        (que no tengas nada sin guardar)
+     git checkout v0.7.0
+     npm run build
+
+ UN DEFECTO CONOCIDO Y SIN ARREGLAR, verificado hoy:
+   `NuevaPantallaForm.tsx:300` pide `border-error` (rojo) en un campo invalido.
+   La regla B1 de `demo.css:187-190` -- `.demo-root input:not(:focus) {
+   border-color: var(--border-input) }` -- tiene mas especificidad y LE SIGUE
+   GANANDO tras el cambio. El campo ahora SI dibuja un borde, pero en gris, no
+   en rojo, mientras no tenga el foco.
+   EFECTO EN LA DEMOSTRACION: si enseñas dar de alta una pantalla y metes un
+   dato malo a proposito, el campo NO se pone rojo. No lo improvises.
+
+
+###############################################################################
+ BLOQUE 5 - LO QUE COMPRUEBA UNA MAQUINA (no los ojos)
+###############################################################################
+
+ 5.1 [CMD-PS] Que el arbol del portatil esta sano. Corrido hoy, estos son los
+     numeros reales de este arbol:
+
+   cd C:\Users\Server\spaces_doohmain_nueva\apps\web
+   npm run typecheck
+   npm test
+
+   ESPERADO: typecheck sin salida y exit 0; `140 passed (140)` archivos y
+   `1817 passed (1817)` pruebas.
+   SI BAJA EL NUMERO: alguien toco algo. No presentes sin mirar que.
+
+   Y las de integracion, que SI necesitan el build hecho antes (sin el mueren
+   las 45 en falso tras 10 minutos, y el rojo no dice nada del codigo):
+
+   cd C:\Users\Server\spaces_doohmain_nueva\apps\web
+   npm run build
+   npm run test:e2e
+
+   ESPERADO: `45 passed (45)` archivos, `496 passed | 1 skipped`, ~227 s.
+   Corridas hoy en este arbol, en verde.
+
+   >>> Y lo que estas pruebas NO PUEDEN VER, por construccion: el arnes recrea
+   >>> `spaces_e2e` de cero en cada corrida, asi que su registro se escribe
+   >>> siempre desde el disco de hoy. El problema de checksum del bloque 6 NO
+   >>> SALE AQUI NI PUEDE SALIR. Verde en e2e no dice nada sobre eso.
+
+ 5.2 [CMD-PADRE] Que version sirve DEMO DE VERDAD, y si quedo bien anotada:
+
+   sudo -u postgres psql -d spaces_demo -c "select version_instalada, version_disponible, digest_instalado is not null as tiene_digest, comprobado_en from actualizaciones_instancia;"
+
+   ESPERADO: version_instalada = v0.7.0 y tiene_digest = t.
+   SI version_instalada SALE NULL: el `update.sh` que corrio era el viejo. Es
+   el defecto de estreno del ADR 0037. NO instales nada y avisa: si apruebas
+   esa novedad falsa, la aprobacion no se consume nunca.
+
+   Y el contenedor, para no creerle solo a la tabla:
+   docker ps --format '{{.Names}}\t{{.Image}}\t{{.Status}}'
+
+ 5.3 [CMD-PADRE] Que el panel de flota tenga la pantalla de tickets:
+
+   cd /var/www/Spaces && git log --oneline -1
+   grep -c "RUTAS_TICKETS" /var/www/Spaces/apps/flota/servidor.mjs
+
+   ESPERADO: el grep MAYOR QUE 0.
+   SI DA 0: falta `git pull` y reiniciar el panel:
+     cd /var/www/Spaces && git pull
+     systemctl restart flota-panel
+     systemctl status flota-panel --no-pager | head -12
+   SIN ESTO, https://<dominio-del-PADRE>/flota/tickets/ DA 404 y el bloque 3.3 no se
+   puede hacer.
+
+ 5.4 [CMD-g500] Solo si vas a enseñar el panel de flota y quieres saber que
+     estado va a pintar. NO TOQUES NADA MAS EN g500 esta semana.
+
+   ssh -i C:\Users\Server\.ssh\spaces_deploy root@<IP-de-g500>
+   /opt/space-os/update.sh --dry-run
+
+   ESPERADO: termina sin cambiar nada.
+   SI MENCIONA "BACKUP VACIO": PARA y avisa.
+
+
+###############################################################################
+ BLOQUE 6 - LA MINA. SI PUBLICAS UNA VERSION NUEVA ANTES DEL VIERNES, DEMO
+            SE NIEGA A ACTUALIZARSE.  ESTA MEDIDO Y ESCRITO EN EL COMMIT.
+###############################################################################
+
+ El commit `ebb86aa` de hoy añade una linea (`-- @pg-min: 15`) a una migracion
+ YA APLICADA: `db/migrations/20260918_entidad_tenant_compuesto.sql`. Eso cambia
+ su checksum:
+
+   registrado: 308a0ae71d1c4651b0ae8128b7cd31b9b58e90927f0bd2e2f57962f9e1274cf8
+   en disco:   b9eda18dce2e5f6d963c6b7a130968207a1579ca029ac1aa936b136167f69a6a
+
+ TODA base que ya la tenga registrada -- `spaces_demo`, el 5433 local, el PADRE
+ -- saldra con CODIGO 3 ("una migracion YA APLICADA tiene otro contenido en
+ disco") y NO APLICARA NADA.
+
+ Y `update.sh` NO SABE PERDONARLO: no tiene ninguna ruta para
+ `--forzar-checksum` (comprobado: cero coincidencias en el archivo). El codigo 3
+ es abortar.
+
+ LA RECOMENDACION, Y ES DE UNA LINEA:
+
+   >>> NO PUBLIQUES NINGUNA VERSION NUEVA ANTES DEL VIERNES.
+
+ No hace falta: lo unico que aporta una v0.8.0 es el redisenyo de botones, y
+ eso es precisamente lo que nadie ha mirado todavia con un navegador.
+
+ SI AUN ASI HAY QUE PUBLICARLA, el paso extra es aceptar el contenido nuevo a
+ proposito en cada base antes de que llegue la imagen, y NO es un paso del
+ update automatico. Aqui la bandera SI es la correcta -- el archivo se
+ reescribio a conciencia, el cambio es un comentario que no altera una sola
+ sentencia SQL, y la base ya tiene aplicado exactamente lo que el archivo
+ describe:
+
+   node scripts/migrar.mjs --forzar-checksum=20260918_entidad_tenant_compuesto.sql
+
+ g500 es el unico caso que NO necesita nada: alli esa migracion abortó sin
+ llegar a registrarse.
+
+
+###############################################################################
+ BLOQUE 7 - LO QUE NO VA A ESTAR LISTO EL VIERNES
+            Hay que decidir si se enseña o se esquiva. Sin adornos.
+###############################################################################
+
+ 1. g500 ESTA BLOQUEADA, Y ES UN HECHO, NO UN DETALLE.
+    La unica instancia con datos reales de cliente corre PostgreSQL 14.24. La
+    migracion `20260918_entidad_tenant_compuesto.sql` usa `on delete set null
+    (columna)`, sintaxis que introdujo PostgreSQL 15. Anoche el runner aplico
+    3 migraciones y murio en la 4.ª. La base quedo en un punto intermedio que
+    nadie eligio.
+    HOY: la aplicacion SIRVE, salud 200, contenedor `Up 6 days`, corriendo
+    v0.5.1. El trafico NUNCA se conmuto. Hay respaldo en el bucket de 13,8 MB.
+    El cron de instalacion de las 4:17 esta DESACTIVADO a proposito.
+    LO QUE NO SE PUEDE HACER EL VIERNES: enseñar nada nuevo desde g500, ni
+    tickets, ni actualizaciones. Y no se arregla en dos dias: las dos salidas
+    (subir g500 a PG16, o reescribir la migracion para PG14) son decision del
+    dueño y las dos cuestan servicio caido sobre datos de cliente.
+    QUE HACER EL VIERNES: no la toques. Si enseñas el panel de flota, di en voz
+    alta que esa instancia esta rezagada a proposito -- es mejor eso que la
+    sub-fila roja sin explicacion (bloque 3.3).
+    Expediente: `docs/evidencias/16-g500-postgres-14-20260923.md`.
+
+ 2. EL GUION DEL SUMMIT NO ESTA PORTADO AL SERVIDOR. Es el bloque 0. La
+    decision del 22/09 dejo el recorrido medido contra una base que no es
+    la de ningun servidor, y nadie ha escrito como llevarlo. Quedan 21 dias
+    para el SUMMIT y esto sigue sin plan.
+
+ 3. NO HAY REPORTE "POR RAZON SOCIAL" en las cinco dimensiones del guion. El
+    dato existe, la vista no. Es la pregunta natural de la sala. La respuesta
+    honesta: el dato ya esta capturado y la vista es el siguiente reporte. NO
+    SE DAN FECHAS de lo que no esta construido.
+
+ 4. EL MANUAL NO TIENE UNA SOLA CAPTURA (D7, abierta en
+    `docs/Supervision/ABIERTOS.md`). Si el viernes alguien espera llevarse algo
+    en la mano, hoy no lo hay. Caduca el 2026-10-06.
+
+ 5. LA LECTURA A TRES METROS SIGUE SIN VERIFICAR. Es lo unico del guion del
+    Summit que nunca se midio, y no es de software: es una pasada con el
+    proyector encendido. El viernes es la ocasion de hacerla.
+
+ 6. `main` LOCAL NO ESTA EMPUJADO: 12 commits, incluido todo el redisenyo. Por
+    lo tanto `ci.yml` NO HA VERIFICADO NADA de esto en una maquina limpia. Las
+    suites pasan aqui (bloque 5.1), que no es lo mismo.
+
+ 7. EL RESPALDO DIARIO SIGUE SIN FUSIONAR (rama `feat/respaldo-diario`, 10
+    commits). g500 solo respalda cuando se despliega una version, asi que su
+    copia mas reciente en el bucket es la de anoche. No bloquea el viernes.
+
+ 8. NO HAY NINGUNA PRUEBA VISUAL EN EL REPOSITORIO. Las 1817 unitarias, las
+    350 de flota y las e2e cubren logica. El aspecto de una pantalla no lo
+    comprueba nada automatico. Por eso el bloque 3 y el bloque 4 son de ojos.
+
+
+###############################################################################
+ BLOQUE 8 - LO QUE NO PUDE COMPROBAR DESDE AQUI
+###############################################################################
+
+ Todo lo de abajo esta SIN MEDIR. No lo des por bueno ni por malo.
+
+ · QUE HAY DENTRO DE `spaces_demo`. No se si existe la organizacion del guion,
+   ni si existe el usuario `duena@demo.invalid`. Comandos en el bloque 2.
+ · QUE VERSION SIRVE DEMO DE VERDAD. Lo se por lo que me contaron (v0.7.0),
+   no por haberlo leido. `GET /api/version` sin token solo devuelve `{ok}` --
+   la version va detras del token de flota a proposito. Comando en 5.2.
+ · SI `estable` ES YA v0.7.0 en el registro. El bloque E de la tarjeta de
+   release exigia hacer g500 ANTES de promover, y g500 se bloqueo. No se en
+   que quedo.
+ · SI EL PADRE HIZO `git pull` despues del 23/09. De eso depende que
+   /flota/tickets/ exista. Comando en 5.3.
+ · SI `flota-panel` ESTA CORRIENDO y con que version del archivo.
+ · SI POSTGRES DEL PADRE ACEPTA CONEXIONES DE FUERA. No hay evidencia en el
+   repositorio de un puerto expuesto; por eso el 2.4 se corre DENTRO del PADRE.
+ · LA VERSION DE POSTGRES DE CUALQUIER OTRA INSTANCIA. Hoy solo hay g500, pero
+   el censo no se hizo, y el guard nuevo NO SE HA PROBADO contra un
+   PostgreSQL 14 de verdad -- solo contra el 16 local simulando la comparacion.
+ · SI `v0.5.1` FUNCIONA BIEN en g500 con las 3 migraciones de mas que su base
+   tiene ahora. Son aditivas y la salud da 200, pero nadie ha recorrido esa
+   aplicacion.
+ · COMO SE VE CUALQUIERA DE ESTAS PANTALLAS. No abri un navegador. Todo el
+   bloque 3 y el bloque 4 son trabajo tuyo, y son la razon de ser de esta hoja.
+
+===============================================================================
+ Auditado el 2026-09-23 sobre `main` en 5cf924b. Las cifras de esta hoja salen
+ de comandos corridos ese dia en este arbol; las de servidores, de ninguno.
+===============================================================================
