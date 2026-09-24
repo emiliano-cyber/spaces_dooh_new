@@ -42,50 +42,50 @@ export function textoDeEstado(e: EstadoActualizacion): { tono: TonoEstado; texto
   if (!e.comprobadoEn) {
     return {
       tono: 'info',
-      texto: 'Esta instancia todavia no se ha comprobado contra el registro: no se sabe si hay una version nueva.',
+      texto: 'Esta instancia todavía no se ha comprobado contra el registro: no se sabe si hay una versión nueva.',
     }
   }
 
   if (!e.digestDisponible) {
     return {
       tono: 'alerta',
-      texto: 'Se comprobo contra el registro, pero el actualizador no pudo leer el digest de la imagen: no hay nada que aprobar y esta instancia no puede instalar una version nueva hasta que se revise. Avisa a quien opera el servidor.',
+      texto: 'Se comprobó contra el registro, pero el actualizador no pudo leer el digest de la imagen: no hay nada que aprobar y esta instancia no puede instalar una versión nueva hasta que se revise. Avisa a quien opera el servidor.',
     }
   }
 
   if (!e.hayNovedad) {
     return {
       tono: 'ok',
-      texto: `Al dia: corre ${e.versionInstalada ?? 'la version instalada'}, la misma que hay disponible.`,
+      texto: `Al día: corre ${e.versionInstalada ?? 'la versión instalada'}, la misma que hay disponible.`,
     }
   }
 
-  const version = e.versionDisponible ?? 'una version nueva'
+  const version = e.versionDisponible ?? 'una versión nueva'
 
   if (e.modo === 'automatica') {
     return {
       tono: 'info',
-      texto: `Hay ${version} disponible. Se instalara sola en la proxima ventana automatica, de madrugada (${HORA_VENTANA_AUTOMATICA}).`,
+      texto: `Hay ${version} disponible. Se instalará sola en la próxima ventana automática, de madrugada (${HORA_VENTANA_AUTOMATICA}).`,
     }
   }
 
   if (e.aprobadoDigest && e.aprobadoDigest !== e.digestDisponible) {
     return {
       tono: 'alerta',
-      texto: `Lo que aprobaste ya no es lo disponible: salio una version mas nueva, ${version}. Aprueba de nuevo para instalarla.`,
+      texto: `Lo que aprobaste ya no es lo disponible: salió una versión más nueva, ${version}. Aprueba de nuevo para instalarla.`,
     }
   }
 
   if (e.aprobadoDigest && e.aprobadoDigest === e.digestDisponible) {
     return {
       tono: 'info',
-      texto: `Aprobaste ${version}: se instalara en los proximos minutos, o de madrugada (${HORA_VENTANA_AUTOMATICA}) a mas tardar.`,
+      texto: `Aprobaste ${version}: se instalará en los próximos minutos, o de madrugada (${HORA_VENTANA_AUTOMATICA}) a más tardar.`,
     }
   }
 
   return {
     tono: 'alerta',
-    texto: `Hay una version nueva disponible: ${version}. Esperando tu aprobacion para instalarla.`,
+    texto: `Hay una versión nueva disponible: ${version}. Esperando tu aprobación para instalarla.`,
   }
 }
 
@@ -100,13 +100,13 @@ export function textoDeEstado(e: EstadoActualizacion): { tono: TonoEstado; texto
 // llego a escribir `migraciones_pendientes`). Decir que no hay ninguna es
 // exactamente lo que hace que alguien pulse sin pensarlo.
 export function textoConfirmarInstalar(e: EstadoActualizacion): string {
-  const version = e.versionDisponible ?? 'la version disponible'
+  const version = e.versionDisponible ?? 'la versión disponible'
   const n = e.migracionesPendientes
   const migraciones =
     n == null
-      ? 'No se pudo contar cuantas migraciones trae'
+      ? 'No se pudo contar cuántas migraciones trae'
       : n === 0
         ? 'No trae migraciones pendientes'
-        : `Trae ${conteo(n, 'migracion', 'migraciones')} pendiente${n === 1 ? '' : 's'}`
-  return `Vas a instalar ${version}. ${migraciones}. El servicio se corta mientras dura la instalacion.`
+        : `Trae ${conteo(n, 'migración', 'migraciones')} pendiente${n === 1 ? '' : 's'}`
+  return `Vas a instalar ${version}. ${migraciones}. El servicio se corta mientras dura la instalación.`
 }

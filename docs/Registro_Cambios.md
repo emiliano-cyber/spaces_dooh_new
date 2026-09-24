@@ -5,6 +5,15 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-09-24
+
+- **La tarjeta «Actualizaciones» ya escribe con acentos.** Decía «todavia»,
+  «version», «Con aprobacion», «Automatica», «Instalacion aprobada»… Era la única
+  pantalla del sistema escrita así. No cambia nada de lo que hace la tarjeta: solo
+  cómo se lee. Se vio al fotografiar el manual de usuario.
+
+---
+
 ## 2026-09-23
 
 - **Ahora puedes escribirnos desde la aplicación, y ver nuestra respuesta ahí
