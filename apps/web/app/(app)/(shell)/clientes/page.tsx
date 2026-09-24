@@ -63,7 +63,14 @@ export default function ClientesPage() {
       ) : (
         <Card>
           <CardContent className="p-0">
-            <table className="w-full text-[13px]">
+            {/* `overflow-x-auto` es el patrón de TODAS las demás tablas de la
+                aplicación (arrendadores, almacén, campañas, finanzas…): sin él,
+                una tabla de seis columnas en una pantalla estrecha no cabe, se
+                sale de la tarjeta y lo primero que asoma fuera del marco blanco
+                es la última columna — la de los botones. Esta era la única que
+                no lo tenía. */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-[13px]">
               <thead>
                 <tr className="border-b border-border text-left text-[11px] uppercase tracking-wide text-muted">
                   <th className="px-4 py-2.5">Cliente</th>
@@ -112,8 +119,9 @@ export default function ClientesPage() {
                     )}
                   </tr>
                 ))}
-              </tbody>
-            </table>
+                </tbody>
+              </table>
+            </div>
           </CardContent>
         </Card>
       )}
