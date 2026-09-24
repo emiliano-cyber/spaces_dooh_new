@@ -1572,3 +1572,52 @@ cifra escrita y la fecha de medición. **No es** el archivo protegido:
 `apps/web/lib/test/aislamiento.e2e.test.ts` **no está en el diff**, ni
 `servidor-e2e.ts`, ni `db/schema.sql`. Comprobado con
 `git diff --name-only main...HEAD`.
+
+---
+
+### D9 · No existe el cambio de correo, y el dueño dice que debe existir. ¿Cuándo entra y con qué cerrojo?
+
+- **Abierta el 2026-09-24**, al medir qué hace de verdad el código de recuperación.
+  **El dueño ya decidió dos cosas:** que la función debe existir, y que **no entra
+  antes de la demostración** — en ella solo se enseña lo ya terminado.
+- **Bloquea:** nada. Hoy nadie puede corregir un correo mal capturado ni el de
+  alguien que cambió de empresa, pero el producto funciona.
+- **Lo que hay hoy, medido el 24/09 y no supuesto:** cero. `usuarios-repo.ts` no
+  tiene ningún `update` del correo, `/api/perfil` ni lo menciona, y la única ruta
+  del API que toca la palabra es `auth/forgot`, que **pide** un enlace de
+  recuperación en vez de cambiar la dirección.
+
+**Tres hechos que quien lo construya tiene que saber antes de empezar, los tres
+medidos:**
+
+1. **El correo ES la identidad de login.** `usuarios_email_lower_uidx`
+   (`db/schema.sql:72`) es único sobre `lower(email)` y el login resuelve por ahí.
+   Cambiarlo no es editar un dato de contacto: es **mover la cerradura**.
+2. **Y sin embargo NO rompe la cuenta de Google.** `identidades_externas` ata por
+   `sub` —el identificador opaco y estable de Google—, no por correo; el correo
+   que guarda es «rastro de auditoría» y su propio comentario dice que **no se usa
+   para resolver** (`20260806_identidades_externas.sql:48-54`). Eso hace la
+   función mucho más simple de lo que parece.
+3. **Es un camino de secuestro de cuenta.** Quien cambia el correo de otro se
+   queda con su acceso. El candado de cambios (`cambios.ts`, ADR 0009 + 0036)
+   existe exactamente para esta clase de acción y hoy cubre propietarios,
+   clientes, pantallas y el restablecimiento de contraseñas — **pero no el
+   perfil**: `/api/perfil` no llama a `exigirDesbloqueo()`, comprobado.
+
+**Lo que hay que decidir, y no es sólo «hacerlo»:**
+
+- **¿Quién puede cambiar el correo de quién?** ¿Cada uno el suyo, o sólo un
+  administrador el de los demás? Las dos tienen modos de fallo distintos.
+- **¿Va detrás del candado de cambios?** Debería, y eso arrastra una pregunta
+  mayor: **hoy `/api/perfil` tampoco lo exige para cambiar la contraseña propia.**
+  Alguien que se deje la sesión abierta puede cambiarla sin volver a
+  identificarse. Si el candado se extiende al perfil, **entran las dos a la vez**.
+- **¿Se avisa a la dirección ANTERIOR?** Es la defensa estándar contra el
+  secuestro y hoy no hay ningún envío de correo atado a esto.
+- **¿Se cortan las demás sesiones?** El mecanismo existe —se usa al exigir
+  reautenticación— pero nadie lo ha atado aquí.
+
+> **Lo que NO se verificó al abrir esta entrada:** si algún cliente ha pedido ya
+> corregir un correo, ni cuántas filas de `usuarios` tienen hoy una dirección
+> equivocada. Tampoco se ha mirado qué pasa con los enlaces de recuperación
+> pendientes cuando la dirección cambia.
