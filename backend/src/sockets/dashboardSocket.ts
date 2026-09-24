@@ -88,6 +88,14 @@ export function setupDashboardNamespace(io: Server) {
       });
     });
 
+    // Falla de pantalla abierta o cerrada: a todos los dashboards (la pagina de
+    // alertas) y a quien este mirando ese equipo.
+    sub.subscribe('pantalla:falla', (msg) => {
+      const data = JSON.parse(msg);
+      ns.to('dashboard').emit('pantalla:falla', data);
+      ns.to(`watching:${data.device_id}`).emit('pantalla:falla', data);
+    });
+
     sub.subscribe('device:online', (msg) => {
       const data = JSON.parse(msg);
       ns.to('dashboard').emit('device:online', data);

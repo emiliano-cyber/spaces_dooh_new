@@ -415,3 +415,41 @@ docker compose -f infra/docker-compose.ip.yml --env-file backend/.env up -d --bu
    transmision viaja en claro.
 6. El equipo **TLALPAN 985** no reporta desde el 29-jul (anterior a estos
    cambios).
+
+---
+
+## 24-sep-2026 — Monitoreo de la pantalla en el equipo (APK 0.15.0, SIN DESPLEGAR)
+
+El celular vigila su pantalla por si mismo: reconoce creativos y busca fallas
+SIN mandar imagenes; solo avisa cuando algo cambia de estado. Todo en la rama
+`feature/playlog-logs`, sin commitear ni desplegar. SPACE OS no se toco.
+
+**Que detecta** (ver `android/.../pantalla/SaludAnalisis.kt`): pantalla apagada
+en horario, pantalla congelada, gabinete apagado, gabinete congelado, camara
+movida, sin imagen. La idea: una falla NO cambia cuando cambia el anuncio; se
+juzga una vuelta completa del loop (~4 min), nunca una foto. No detecta pixeles
+sueltos, brillo desparejo leve ni parpadeo.
+
+**Contra falsas alarmas** (`Seguimiento.kt`): 2 vueltas seguidas separadas 25+
+min, umbral de confianza, una alerta por falla, recuperacion tras 2 vueltas
+sanas, 24 h de aprendizaje (excluye solas las zonas que nunca cambian, p. ej. la
+barda de TLALPAN), lo descartado a mano calla 7 dias, tope diario.
+
+**Medido con fotos reales** (MANUEL DUBLAN, vuelta de 4 min; TLALPAN, 12 fotos) y
+fallas simuladas: 0 falsas alarmas; gabinete apagado detectado con 0.87-0.89.
+Pruebas: `cd android && ./gradlew testDebugUnitTest` (30) y
+`cd backend && npm run prueba:monitoreo` (22, contra el backend local).
+
+**Datos**: ~600 bytes de configuracion por vuelta + resumen en el latido; una
+foto de evidencia (~200-400 KB) solo al abrir o cerrar una falla.
+
+**Dashboard**: tarjeta "Pantalla y fallas" en la ficha (4 esquinas, gabinetes,
+zonas tapadas, horario de 6 a 24 por omision, historial) y pagina `/fallas.html`
+con el numero de abiertas en el menu.
+
+**Para desplegar**: migracion `018_monitoreo_pantalla.sql`; backend; frontend;
+APK 0.15.0 (solo arm64: 43.7 MB). No probado todavia en un telefono real.
+
+**Pendiente**: el mismo analisis en la Raspberry y el PC + Hikvision (Python con
+las mismas pruebas); integracion con SPACE OS; la vigilancia de creativos de la
+Raspberry sigue encendida en produccion y subiendo fotos basura.

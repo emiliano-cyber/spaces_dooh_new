@@ -26,12 +26,14 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.resume
 import org.json.JSONObject
+import com.spaceeye.agent.pantalla.CamaraParaVigilar
+import java.util.concurrent.atomic.AtomicInteger
 
 class CommandHandler(
     private val ctx: Context,
     private val scope: CoroutineScope,
     private val socketManager: SocketManager
-) {
+) : CamaraParaVigilar {
     companion object {
         private const val TAG = "CommandHandler"
     }
@@ -39,6 +41,41 @@ class CommandHandler(
     private val photoCapture = PhotoCapture(ctx)
     private val webrtc = WebRTCClient(ctx)
     private val apiClient = ApiClient(ctx)
+
+    // Fotos pedidas en curso. La vigilancia de creativos se aparta mientras haya
+    // alguna: con un solo sensor, la evidencia pedida manda.
+    private val fotosEnCurso = AtomicInteger(0)
+
+    // Hay un recorrido de vigilancia con la camara abierta. Mientras dure, una
+    // foto que termina NO debe quitarle al servicio el tipo "camara": el
+    // vigilante la va a reabrir en cuanto quede libre, y Android se la negaria.
+    @Volatile private var vigilando = false
+
+    // --- CamaraParaVigilar ----------------------------------------------------
+
+    override fun ocupada(): Boolean = fotosEnCurso.get() > 0 || webrtc.isStreaming()
+
+    override suspend fun abrir(lente: String, zoom: Float): Boolean {
+        if (ocupada()) return false
+        vigilando = true
+        MonitorService.setCameraActive(true)
+        webrtc.setEncuadre(lente, zoom)
+        return suspendCancellableCoroutine { cont ->
+            webrtc.abrirVigilancia { ok -> if (cont.isActive) cont.resume(ok) }
+        }
+    }
+
+    override suspend fun tomar(): ByteArray? = suspendCancellableCoroutine { cont ->
+        webrtc.vistazo { bytes -> if (cont.isActive) cont.resume(bytes) }
+    }
+
+    override fun enderezar(jpeg: ByteArray, grados: Int): ByteArray = webrtc.enderezar(jpeg, grados)
+
+    override fun cerrar() {
+        webrtc.cerrarVigilancia()
+        vigilando = false
+        if (!ocupada()) MonitorService.setCameraActive(false)
+    }
 
     init {
         socketManager.onWebRTCAnswer = { data ->
@@ -204,6 +241,7 @@ class CommandHandler(
                         // usandola, servicio caido- llegaba como "capture_failed",
                         // que no dice a nadie que hacer.
                         var motivoFallo: String? = null
+                        fotosEnCurso.incrementAndGet()
                         val photo: ByteArray? = try {
                             val porCameraX = suspendCancellableCoroutine<ByteArray?> { cont ->
                                 webrtc.capturarFoto(rotation) { bytes -> if (cont.isActive) cont.resume(bytes) }
@@ -233,9 +271,10 @@ class CommandHandler(
                             motivoFallo = e.message ?: e.javaClass.simpleName
                             null
                         } finally {
+                            fotosEnCurso.decrementAndGet()
                             // Si la camara se abrio solo para esta foto, se libera
                             // el tipo camera del servicio al terminar.
-                            if (!estabaTransmitiendo && !webrtc.isStreaming()) {
+                            if (!estabaTransmitiendo && !webrtc.isStreaming() && !vigilando) {
                                 MonitorService.setCameraActive(false)
                             }
                         }
@@ -336,8 +375,9 @@ class CommandHandler(
                     }
                     "STOP_STREAM" -> {
                         webrtc.stopStreaming()
-                        // Libera el tipo FGS camera al terminar el stream.
-                        MonitorService.setCameraActive(false)
+                        // Libera el tipo FGS camera al terminar el stream, salvo
+                        // que un recorrido de vigilancia vaya a retomar la camara.
+                        if (!vigilando) MonitorService.setCameraActive(false)
                         if (id > 0) {
                             withContext(Dispatchers.IO) {
                                 apiClient.reportCommandResult(id, true)

@@ -41,7 +41,10 @@ class ApiClient(ctx: Context) {
         gpsLat: Double? = null,
         gpsLng: Double? = null,
         source: String = "on_demand",
-        watermarkBaked: Boolean = true
+        watermarkBaked: Boolean = true,
+        // Solo con source=creative_change: la huella del creativo que disparo la
+        // foto, para que el dashboard muestre la imagen junto a su creativo.
+        phash: String? = null
     ): Boolean {
         val token = tokenStore.getDeviceToken() ?: return false
 
@@ -63,6 +66,7 @@ class ApiClient(ctx: Context) {
         campaignId?.let { builder.addFormDataPart("campaign_id", it.toString()) }
         gpsLat?.let { builder.addFormDataPart("gps_lat", it.toString()) }
         gpsLng?.let { builder.addFormDataPart("gps_lng", it.toString()) }
+        phash?.let { builder.addFormDataPart("phash", it) }
         builder.addFormDataPart("watermark_baked", watermarkBaked.toString())
 
         val request = Request.Builder()
@@ -124,7 +128,61 @@ class ApiClient(ctx: Context) {
         }
     }
 
-    fun reportStatus(status: DeviceStatus): Boolean {
+    /**
+     * Todo lo que el equipo necesita para vigilar su pantalla: donde esta en la
+     * foto, su horario, la configuracion de creativos y de fallas, y las fallas
+     * que el servidor tiene abiertas. Se pide antes de cada vuelta; son unos
+     * cientos de bytes. null si el servidor no contesto.
+     */
+    fun monitoreo(): JSONObject? {
+        val token = tokenStore.getDeviceToken() ?: return null
+        val request = Request.Builder()
+            .url("$baseUrl/api/device/monitoreo")
+            .header("Authorization", "Bearer $token")
+            .get()
+            .build()
+        return try {
+            http.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) null else JSONObject(response.body!!.string())
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "monitoreo error: ${e.message}")
+            null
+        }
+    }
+
+    /**
+     * Abre o cierra una falla de la pantalla, con su foto de evidencia. Es lo
+     * unico del monitoreo que pesa, y solo sale cuando algo cambia de estado.
+     * Devuelve el numero de falla que asigno el servidor, o null si no salio.
+     */
+    fun reportarFalla(campos: Map<String, String>, evidencia: ByteArray?): Long? {
+        val token = tokenStore.getDeviceToken() ?: return null
+        val b = MultipartBody.Builder().setType(MultipartBody.FORM)
+        for ((k, v) in campos) b.addFormDataPart(k, v)
+        evidencia?.let { b.addFormDataPart("photo", "evidencia.jpg", it.toRequestBody("image/jpeg".toMediaType())) }
+        val request = Request.Builder()
+            .url("$baseUrl/api/device/fallas")
+            .header("Authorization", "Bearer $token")
+            .post(b.build())
+            .build()
+        return try {
+            http.newCall(request).execute().use { r ->
+                if (!r.isSuccessful) { Log.e(TAG, "reportarFalla: ${r.code}"); null }
+                else JSONObject(r.body!!.string()).optLong("id").takeIf { it > 0 }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "reportarFalla error: ${e.message}")
+            null
+        }
+    }
+
+    /**
+     * @param extra resultado de la ultima vuelta de vigilancia ({creativos, salud}).
+     *   Viaja pegado a este reporte, que sale igual cada minuto, para que vigilar
+     *   la pantalla no agregue peticiones propias.
+     */
+    fun reportStatus(status: DeviceStatus, extra: JSONObject? = null): Boolean {
         val token = tokenStore.getDeviceToken() ?: return false
 
         val json = JSONObject().apply {
@@ -156,6 +214,7 @@ class ApiClient(ctx: Context) {
                 du.wifiMonth?.let { put("data_wifi_month", it) }
                 du.wifiTotal?.let { put("data_wifi_total", it) }
             }
+            extra?.let { e -> e.keys().forEach { k -> val key = k as String; put(key, e.get(key)) } }
         }
 
         val request = Request.Builder()

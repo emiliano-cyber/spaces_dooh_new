@@ -12,6 +12,7 @@ import * as verification from '../controllers/verification.controller';
 import * as telemetry from '../controllers/telemetry.controller';
 import * as users from '../controllers/users.controller';
 import * as creativos from '../controllers/creativos.controller';
+import * as monitoreo from '../controllers/monitoreo.controller';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 
@@ -43,6 +44,10 @@ export function createRoutes() {
   // Configuracion de vigilancia y catalogo de huellas del sitio. El equipo lo
   // pide antes de cada recorrido; el resultado vuelve pegado a /device/status.
   router.get('/api/device/creativos', requireDevice, creativos.paraElEquipo);
+  // Monitoreo de la pantalla (APK 0.15.0+): configuracion antes de cada vuelta,
+  // y alertas de falla solo cuando algo cambia de estado.
+  router.get('/api/device/monitoreo', requireDevice, monitoreo.paraElEquipo);
+  router.post('/api/device/fallas', requireDevice, upload.single('photo'), monitoreo.reportarFalla);
 
   // --- Dashboard endpoints (user JWT) ---
   // Devices
@@ -70,6 +75,12 @@ export function createRoutes() {
   // Posicion de la marca de informacion (overlay) del dispositivo (solo admin).
   router.put('/api/devices/:id/overlay', requireUser, requireRole('admin'), dashboard.setOverlay);
 
+  // Pantalla: esquinas, gabinetes, horario, y el monitoreo de fallas.
+  router.get('/api/devices/:id/pantalla', requireUser, monitoreo.deEquipo);
+  router.put('/api/devices/:id/pantalla', requireUser, requireRole('admin', 'operator'), monitoreo.configurarPantalla);
+  router.put('/api/devices/:id/salud', requireUser, requireRole('admin', 'operator'), monitoreo.configurarSalud);
+  router.get('/api/fallas', requireUser, monitoreo.listar);
+  router.put('/api/fallas/:id', requireUser, requireRole('admin', 'operator'), monitoreo.actualizar);
   // Creativos detectados en la pantalla
   router.get('/api/devices/:id/creativos', requireUser, creativos.listarDeEquipo);
   router.put('/api/devices/:id/creativos', requireUser, requireRole('admin', 'operator'), creativos.configurar);

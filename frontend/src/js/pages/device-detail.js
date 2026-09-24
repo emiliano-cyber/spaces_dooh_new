@@ -114,6 +114,8 @@ function deviceDetail() {
 
       await this.loadDevice();
       await this.loadPhotos();
+      this.loadCreativos();
+      this.loadPantalla();
       await this.loadLogs();
       await this.loadTelemetry();
       this.loadAppVersion();
@@ -126,6 +128,11 @@ function deviceDetail() {
         if (data.device_id === Number(this.deviceId)) {
           this.status = { ...this.status, ...data };
         }
+      });
+      // Una falla de la pantalla se abrio o se cerro: se ve sin recargar.
+      dashboardSocket.on('pantalla:falla', (data) => {
+        if (data.device_id === Number(this.deviceId)) { this.loadPantalla(); this.loadPhotos(); }
+        window.contarFallas?.();
       });
       dashboardSocket.on('device:online', (data) => {
         if (data.device_id === Number(this.deviceId)) {
@@ -196,6 +203,251 @@ function deviceDetail() {
       } catch (err) {
         console.error('Failed to load photos:', err);
       }
+    },
+
+    // --- Creativos detectados en la pantalla ---------------------------------
+    //
+    // El equipo mira su pantalla cada tantas horas SIN subir nada, reconoce cada
+    // anuncio por su huella y solo manda foto de lo que no habia visto. Aqui se
+    // enciende por equipo y se ve lo que va encontrando.
+    creativos: null,         // { config, fotos_hoy, creativos: [...] }
+    guardandoCreativos: false,
+
+    // Que agentes saben vigilar. La APK desde la 0.15.0 y la Raspberry; el agente
+    // de PC no. Encenderlo en un equipo que no sabe hacerlo no hace nada, y eso
+    // hay que decirlo en vez de dejar un interruptor que miente.
+    sabeVigilar() {
+      const v = String(this.device?.app_version || '');
+      if (v.startsWith('pi-agent')) return true;
+      if (v.startsWith('pc-agent')) return false;
+      const [a, b] = v.split('.').map(Number);
+      return a > 0 || (a === 0 && b >= 15);
+    },
+
+    // Solo la APK (0.15.0+) usa la pantalla marcada y busca fallas; la Raspberry
+    // sigue mirando la foto entera para los creativos (ver migracion 018).
+    usaPantalla() {
+      const v = String(this.device?.app_version || '');
+      return this.sabeVigilar() && !v.startsWith('pi-agent');
+    },
+
+    async loadCreativos() {
+      try {
+        this.creativos = await API.get(`/api/devices/${this.deviceId}/creativos`);
+      } catch (err) {
+        console.error('Failed to load creativos:', err);
+      }
+    },
+
+    // Los que tienen foto son los hallazgos; los demas son el loop que se
+    // aprendio (o huellas sin foto por el tope diario).
+    creativosConFoto() {
+      return (this.creativos?.creativos || []).filter((c) => c.photo_id && !c.descartado);
+    },
+
+    async guardarCreativos(cambios) {
+      this.guardandoCreativos = true;
+      try {
+        await API.put(`/api/devices/${this.deviceId}/creativos`, cambios);
+        await this.loadCreativos();
+      } catch (err) {
+        alert('No se pudo guardar: ' + (err.message || err));
+      } finally {
+        this.guardandoCreativos = false;
+      }
+    },
+
+    async descartarCreativo(c) {
+      try {
+        await API.put(`/api/creativos/${c.id}`, { descartado: true });
+        await this.loadCreativos();
+      } catch (err) {
+        alert('No se pudo descartar: ' + (err.message || err));
+      }
+    },
+
+    async reaprenderCreativos() {
+      if (!confirm('Se borra todo lo que el equipo aprendió de esta pantalla y vuelve a aprender 24 horas sin tomar fotos. ¿Seguir?')) return;
+      try {
+        await API.post(`/api/devices/${this.deviceId}/creativos/reaprender`, {});
+        await this.loadCreativos();
+      } catch (err) {
+        alert('No se pudo reiniciar: ' + (err.message || err));
+      }
+    },
+
+    // --- Pantalla y fallas ---------------------------------------------------
+    //
+    // Donde esta la pantalla en la foto (4 esquinas), cuantos gabinetes tiene y
+    // su horario. Con eso el equipo vigila por si mismo: reconoce creativos y
+    // busca fallas SIN mandar imagenes, y solo avisa cuando algo cambia de estado.
+    pant: null,              // { pantalla, salud, ultimo, fallas }
+    editPant: null,          // copia en edicion { esquinas, filas, columnas, excluir, horario }
+    modoPant: 'esquinas',    // 'esquinas' | 'excluir'
+    _arrastre: null,         // indice de la esquina que se arrastra
+    guardandoPant: false,
+
+    async loadPantalla() {
+      try {
+        this.pant = await API.get(`/api/devices/${this.deviceId}/pantalla`);
+      } catch (err) {
+        console.error('Failed to load pantalla:', err);
+      }
+    },
+
+    // La foto sobre la que se marca: la mas reciente que NO sea una evidencia
+    // (esas traen dibujos encima).
+    fotoReferencia() {
+      const p = this.recentPhotos && this.recentPhotos.find((x) => x.source !== 'falla');
+      return p ? (p.storage_path || p.thumbnail_path) : null;
+    },
+
+    empezarPantalla() {
+      const p = this.pant?.pantalla;
+      this.editPant = p
+        ? JSON.parse(JSON.stringify({ ...p, excluir: p.excluir || [], horario: p.horario || { inicio: '06:00', fin: '24:00' } }))
+        : { esquinas: [], filas: 1, columnas: 1, excluir: [], horario: { inicio: '06:00', fin: '24:00' } };
+      this.modoPant = 'esquinas';
+    },
+
+    _puntoFoto(e) {
+      const caja = this.$refs.fotoPant.getBoundingClientRect();
+      return [
+        Math.min(1, Math.max(0, (e.clientX - caja.left) / caja.width)),
+        Math.min(1, Math.max(0, (e.clientY - caja.top) / caja.height)),
+      ];
+    },
+
+    pantAbajo(e) {
+      if (!this.editPant || !this.puedeAjustar) return;
+      e.preventDefault();
+      const [x, y] = this._puntoFoto(e);
+      const q = this.editPant.esquinas;
+      if (this.modoPant === 'excluir' && q.length === 4) {
+        const celda = Pantalla.celdaEn({ ...this.editPant, filas: Number(this.editPant.filas), columnas: Number(this.editPant.columnas) }, x, y);
+        if (!celda) return;
+        const k = this.editPant.excluir.findIndex(([f, c]) => f === celda[0] && c === celda[1]);
+        if (k >= 0) this.editPant.excluir.splice(k, 1); else this.editPant.excluir.push(celda);
+        return;
+      }
+      // Cerca de una esquina: se arrastra. Si faltan esquinas: se agrega.
+      const caja = this.$refs.fotoPant.getBoundingClientRect();
+      const cerca = q.findIndex(([qx, qy]) => Math.hypot((qx - x) * caja.width, (qy - y) * caja.height) < 18);
+      if (cerca >= 0) this._arrastre = cerca;
+      else if (q.length < 4) { q.push([x, y]); this._arrastre = q.length - 1; }
+      e.currentTarget.setPointerCapture?.(e.pointerId);
+    },
+
+    pantMueve(e) {
+      if (this._arrastre == null) return;
+      this.editPant.esquinas.splice(this._arrastre, 1, this._puntoFoto(e));
+    },
+
+    pantArriba() { this._arrastre = null; },
+
+    // Lo que se dibuja encima de la foto (en fracciones: el SVG usa viewBox 0 0 1 1).
+    pantPoligono() {
+      const q = this.editPant?.esquinas || [];
+      return q.map((p) => p.join(',')).join(' ');
+    },
+    _pantNum() {
+      const p = this.editPant;
+      return { ...p, filas: Math.max(1, Number(p.filas) || 1), columnas: Math.max(1, Number(p.columnas) || 1) };
+    },
+    pantLineas() {
+      if (!this.editPant || this.editPant.esquinas.length !== 4) return [];
+      return Pantalla.lineas(this._pantNum());
+    },
+    pantExcluidas() {
+      if (!this.editPant || this.editPant.esquinas.length !== 4) return [];
+      const p = this._pantNum();
+      return p.excluir.filter(([f, c]) => f < p.filas && c < p.columnas).map(([f, c]) => Pantalla.contorno(p, f, c));
+    },
+
+    async guardarPantalla() {
+      const p = this.editPant;
+      if (!p || p.esquinas.length !== 4) return;
+      const antes = this.pant?.pantalla;
+      const filas = Number(p.filas), columnas = Number(p.columnas);
+      const cambiaImagen = antes && (JSON.stringify(antes.esquinas) !== JSON.stringify(p.esquinas)
+        || antes.filas !== filas || antes.columnas !== columnas);
+      if (cambiaImagen && !confirm('Cambiaron las esquinas o los gabinetes: el equipo olvida lo que aprendió de esta pantalla y vuelve a aprender 24 horas. ¿Seguir?')) return;
+      const redondea = (v) => Math.round(v * 1000) / 1000;
+      this.guardandoPant = true;
+      try {
+        await API.put(`/api/devices/${this.deviceId}/pantalla`, {
+          esquinas: p.esquinas.map(([x, y]) => [redondea(x), redondea(y)]),
+          filas, columnas,
+          excluir: p.excluir.filter(([f, c]) => f < filas && c < columnas),
+          horario: { inicio: p.horario.inicio || '06:00', fin: p.horario.fin || '24:00' },
+        });
+        this.editPant = null;
+        await this.loadPantalla();
+        await this.loadCreativos();
+      } catch (err) {
+        alert('No se pudo guardar: ' + (err.message || err));
+      } finally {
+        this.guardandoPant = false;
+      }
+    },
+
+    async guardarSalud(cambios) {
+      try {
+        await API.put(`/api/devices/${this.deviceId}/salud`, cambios);
+        await this.loadPantalla();
+      } catch (err) {
+        alert('No se pudo guardar: ' + (err.message || err));
+      }
+    },
+
+    async cerrarFalla(f, estado) {
+      const texto = estado === 'descartada'
+        ? 'Marcar como "no es falla". El equipo no volverá a avisar de esta zona en 7 días.'
+        : 'Marcar como resuelta sin esperar a que el equipo lo compruebe.';
+      const nota = prompt(texto + '\n\nNota (opcional):', '');
+      if (nota === null) return;
+      try {
+        await API.put(`/api/fallas/${f.id}`, { estado, nota: nota || undefined });
+        await this.loadPantalla();
+        window.contarFallas?.();
+      } catch (err) {
+        alert('No se pudo cerrar: ' + (err.message || err));
+      }
+    },
+
+    fallasAbiertas() { return (this.pant?.fallas || []).filter((f) => f.estado === 'abierta'); },
+    nombreFalla(f) { return f.nombre || Pantalla.NOMBRES[f.tipo] || f.tipo; },
+    dondeFalla(f) { return Pantalla.donde(f); },
+    fechaCorta(v) { return v ? new Date(v).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : '—'; },
+
+    // Resumen de la ultima vuelta, en una linea.
+    ultimaRevision() {
+      const u = this.pant?.ultimo;
+      if (!u) return 'El equipo todavía no ha hecho ninguna revisión.';
+      const cuando = this.fechaCorta(u.ts || u.recibido);
+      const pantalla = { OK: 'se ve bien', APAGADA: 'apagada', CONGELADA: 'congelada', INCONCLUSO: 'no se pudo juzgar' }[u.pantalla] || u.pantalla;
+      const camara = { MOVIDA: ' · la cámara se movió', SIN_IMAGEN: ' · sin imagen' }[u.camara] || '';
+      return `Última revisión ${cuando}: pantalla ${pantalla}${camara} (${u.vistazos} vistazos, ${u.cambios} cambios de anuncio).`;
+    },
+
+    // Zonas que el equipo aprendio que NUNCA cambian: tapadas... o ya muertas al instalar.
+    zonasQuietas() {
+      const ex = this.pant?.ultimo?.excluidas || [];
+      const p = this.pant?.pantalla;
+      if (!ex.length || !p) return '';
+      return ex.map(([f, c]) => f * p.columnas + c + 1).join(', ');
+    },
+
+    finAprendizajeSalud() {
+      const d = this.pant?.salud?.desde;
+      return d ? new Date(new Date(d).getTime() + 24 * 3600 * 1000).toLocaleString() : '';
+    },
+
+    // Hasta cuando aprende (24 h desde que se encendio), como texto.
+    finAprendizaje() {
+      const desde = this.creativos?.config?.desde || null;
+      if (!desde) return '';
+      return new Date(new Date(desde).getTime() + 24 * 3600 * 1000).toLocaleString();
     },
 
     async loadLogs() {

@@ -12,14 +12,24 @@ android {
         applicationId = "com.spaceeye.agent"
         minSdk = 26
         targetSdk = 34
-        versionCode = 15
-        versionName = "0.14.0"
+        versionCode = 16
+        versionName = "0.15.0"
 
         // URL del backend. Default = IP LAN de la PC (Wi-Fi) para celular real.
         // Override sin tocar codigo:  ./gradlew assembleDebug -PserverUrl=http://192.168.1.80:4000
         // Para el emulador usa:       -PserverUrl=http://10.0.2.2:4000
         val serverUrl = (project.findProperty("serverUrl") as String?) ?: "http://192.168.100.135:4000"
         buildConfigField("String", "SERVER_URL", "\"$serverUrl\"")
+
+        // Solo ARM de 64 bits. Toda la flota lo es (Samsung A14, A24, A26 y A70
+        // al 23-sep-2026). Cada arquitectura extra son ~15 MB de bibliotecas
+        // nativas (WebRTC + OpenCV) que cada equipo baja por datos en cada
+        // actualizacion. Si algun dia entra un telefono de 32 bits, la
+        // actualizacion le fallara con "no compatible" (se ve en el dashboard):
+        // agregar "armeabi-v7a" aqui. Para el emulador, usar una imagen ARM64.
+        ndk {
+            abiFilters += listOf("arm64-v8a")
+        }
     }
 
     buildFeatures {
@@ -74,4 +84,13 @@ dependencies {
 
     // Location
     implementation("com.google.android.gms:play-services-location:21.3.0")
+
+    // Vision (ORB): reconocer el creativo de la pantalla DENTRO del telefono,
+    // aunque el sol lo deslave o sea de noche. Ver creativos/Reconocedor.kt.
+    implementation("org.opencv:opencv:4.10.0")
+
+    // Pruebas locales (JVM, sin telefono): ./gradlew testDebugUnitTest
+    testImplementation("junit:junit:4.13.2")
+    // org.json de verdad: el de android.jar en las pruebas locales es un cascaron vacio.
+    testImplementation("org.json:json:20240303")
 }

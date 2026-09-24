@@ -6,6 +6,7 @@ import { deviceJwt } from '../utils/jwt';
 import { z } from 'zod';
 import { uploadPhoto } from '../services/photoStorage.service';
 import { configDe, registrarRecorrido, ligarFoto } from './creativos.controller';
+import { registrarResumen } from './monitoreo.controller';
 import { apkInfo } from '../utils/apkInfo';
 import { redis } from '../config/redis';
 import { comprobar, pareceLlave } from '../utils/llaveServicio';
@@ -120,6 +121,11 @@ const statusSchema = z.object({
     vistas: z.array(z.string()).optional(),
     nuevas: z.array(z.string()).optional(),
   }).optional(),
+  // Resumen de la ultima vuelta del monitoreo de la pantalla (APK 0.15.0+).
+  // Unos cientos de bytes; solo sirve para que el dashboard diga "ultima
+  // revision: todo bien a las 18:42". Las alertas van por /api/device/fallas.
+  // Laxo a proposito: un resumen mal formado no puede tumbar el latido entero.
+  salud: z.record(z.any()).optional(),
 });
 
 // IP publica desde la que el equipo habla con el backend. Si algun dia se pone
@@ -199,6 +205,14 @@ export async function reportStatus(req: Request, res: Response) {
        d.data_wifi_today ?? null, d.data_wifi_week ?? null,
        d.data_wifi_month ?? null, d.data_wifi_total ?? null]
     );
+  }
+
+  if (d.salud) {
+    try {
+      await registrarResumen(did, d.salud);
+    } catch (err) {
+      console.error('[monitoreo] no se pudo guardar el resumen:', (err as any)?.message);
+    }
   }
 
   // Catalogo de creativos del sitio. Un fallo aqui no puede tumbar el reporte de

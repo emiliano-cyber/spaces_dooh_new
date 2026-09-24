@@ -15,6 +15,7 @@
     { key: 'programacion', label: 'Programación', href: '/scheduler.html' },
     { key: 'campanas', label: 'Campañas', href: '/campaigns.html' },
     { key: 'verificacion', label: 'Verificación', href: '/verification.html' },
+    { key: 'fallas', label: 'Fallas', href: '/fallas.html' },
   ];
 
   function activeKey() {
@@ -25,6 +26,7 @@
     if (p.includes('scheduler')) return 'programacion';
     if (p.includes('campaigns')) return 'campanas';
     if (p.includes('verification')) return 'verificacion';
+    if (p.includes('fallas')) return 'fallas';
     return 'devices'; // dashboard y device-detail
   }
 
@@ -37,7 +39,9 @@
       const cls = mobile
         ? `block px-4 py-2.5 text-sm ${on ? 'text-blue-600 font-medium bg-blue-50' : 'text-neutral-600 hover:bg-neutral-50'}`
         : `${on ? 'text-blue-600 font-medium' : 'text-neutral-500 hover:text-neutral-900'}`;
-      return `<a href="${n.href}" class="${cls}">${n.label}</a>`;
+      // Las fallas abiertas se cuentan en el menu: es lo primero que hay que ver.
+      const globo = n.key === 'fallas' ? ' <span data-fallas-abiertas class="hidden ml-1 px-1.5 rounded-full bg-red-600 text-white text-[10px] font-semibold align-middle"></span>' : '';
+      return `<a href="${n.href}" class="${cls}">${n.label}${globo}</a>`;
     }).join('');
   }
 
@@ -336,6 +340,20 @@
     window.location.replace('/index.html');
   }
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', render);
-  else render();
+  // Cuantas fallas de pantalla hay abiertas, en el menu. Una peticion por pagina;
+  // las paginas que escuchan el socket lo refrescan con window.contarFallas().
+  async function contarFallas() {
+    try {
+      const r = await API.get('/api/fallas?estado=abierta&limit=1');
+      document.querySelectorAll('[data-fallas-abiertas]').forEach((b) => {
+        b.textContent = r.abiertas;
+        b.classList.toggle('hidden', !r.abiertas);
+      });
+    } catch (e) { /* sin sesion o sin red: el menu sigue sin numero */ }
+  }
+  window.contarFallas = contarFallas;
+
+  function arrancar() { render(); contarFallas(); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arrancar);
+  else arrancar();
 })();

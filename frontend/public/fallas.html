@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SPACE EYE — Fallas</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <link rel="stylesheet" href="/src/css/styles.css">
+</head>
+<body class="bg-neutral-50 text-neutral-900 font-sans antialiased">
+  <div x-data="fallasPage()" x-init="init()" class="min-h-screen">
+
+    <div id="app-header"></div>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      <div class="flex flex-wrap items-end justify-between gap-3 mb-4">
+        <div>
+          <h2 class="text-xl font-semibold">Fallas de pantalla</h2>
+          <p class="text-sm text-neutral-500">Lo que cada equipo detectó por sí mismo al revisar su pantalla. Se actualiza solo.</p>
+        </div>
+        <div class="flex flex-wrap gap-2 text-sm">
+          <select x-model="estado" @change="load()" class="px-3 py-2 border border-neutral-300 rounded">
+            <option value="">Todas</option>
+            <option value="abierta">Abiertas</option>
+            <option value="recuperada">Recuperadas</option>
+            <option value="descartada">No eran falla</option>
+          </select>
+          <select x-model="deviceId" @change="load()" class="px-3 py-2 border border-neutral-300 rounded">
+            <option value="">Todos los equipos</option>
+            <template x-for="d in devices" :key="d.id">
+              <option :value="d.id" x-text="d.name"></option>
+            </template>
+          </select>
+        </div>
+      </div>
+
+      <!-- Abiertas: tarjetas grandes, es lo que hay que atender -->
+      <div x-show="abiertas().length" class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
+        <template x-for="f in abiertas()" :key="f.id">
+          <div class="flex gap-3 bg-white border border-red-200 rounded-lg p-3">
+            <button @click="verFoto = f.evidencia" x-show="f.evidencia_mini" class="shrink-0 w-40 aspect-[4/3] bg-neutral-100 rounded overflow-hidden">
+              <img :src="f.evidencia_mini" class="w-full h-full object-cover" alt="Evidencia">
+            </button>
+            <div class="text-sm flex-1 min-w-0">
+              <p class="font-semibold text-red-700">🔴 Falla detectada</p>
+              <p><span class="text-neutral-500">Dispositivo:</span> <a :href="'/device-detail.html?id=' + f.device_id" class="text-blue-600 hover:underline" x-text="f.equipo"></a></p>
+              <p><span class="text-neutral-500">Zona:</span> <span x-text="Pantalla.donde(f)"></span></p>
+              <p><span class="text-neutral-500">Detectado:</span> <span x-text="fecha(f.detectada_en)"></span></p>
+              <p><span class="text-neutral-500">Estado:</span> <span x-text="f.nombre"></span> <span class="text-neutral-400" x-text="'(' + Math.round(f.confianza * 100) + '%)'"></span></p>
+              <div x-show="puedeCerrar" class="flex gap-3 mt-1 text-xs">
+                <button @click="cerrar(f, 'recuperada')" class="text-blue-600 hover:underline">Ya se arregló</button>
+                <button @click="cerrar(f, 'descartada')" class="text-neutral-600 hover:underline">No es falla</button>
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <!-- Historial -->
+      <div class="bg-white border border-neutral-200 rounded-lg overflow-x-auto">
+        <table class="w-full text-sm min-w-[760px]">
+          <thead class="bg-neutral-50 border-b border-neutral-200 text-left text-neutral-700">
+            <tr>
+              <th class="px-4 py-2 font-medium">Detectada</th>
+              <th class="px-4 py-2 font-medium">Dispositivo</th>
+              <th class="px-4 py-2 font-medium">Falla</th>
+              <th class="px-4 py-2 font-medium">Zona</th>
+              <th class="px-4 py-2 font-medium">Estado</th>
+              <th class="px-4 py-2 font-medium">Recuperación</th>
+              <th class="px-4 py-2 font-medium">Evidencia</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-neutral-100">
+            <template x-for="f in fallas" :key="f.id">
+              <tr>
+                <td class="px-4 py-2 whitespace-nowrap" x-text="fecha(f.detectada_en)"></td>
+                <td class="px-4 py-2"><a :href="'/device-detail.html?id=' + f.device_id" class="text-blue-600 hover:underline" x-text="f.equipo"></a></td>
+                <td class="px-4 py-2" x-text="f.nombre"></td>
+                <td class="px-4 py-2" x-text="Pantalla.donde(f)"></td>
+                <td class="px-4 py-2">
+                  <span :class="{ 'text-red-700 font-medium': f.estado === 'abierta', 'text-green-700': f.estado === 'recuperada', 'text-neutral-500': f.estado === 'descartada' }"
+                    x-text="{ abierta: 'Abierta', recuperada: 'Recuperada', descartada: 'No era falla' }[f.estado]"></span>
+                  <span x-show="f.nota" class="block text-xs text-neutral-400" x-text="f.nota"></span>
+                </td>
+                <td class="px-4 py-2 whitespace-nowrap" x-text="f.recuperada_en ? fecha(f.recuperada_en) + (f.cerrada_por === 'usuario' ? ' (a mano)' : '') : '—'"></td>
+                <td class="px-4 py-2 whitespace-nowrap">
+                  <button x-show="f.evidencia" @click="verFoto = f.evidencia" class="text-blue-600 hover:underline">al detectar</button>
+                  <button x-show="f.evidencia_recuperacion" @click="verFoto = f.evidencia_recuperacion" class="text-blue-600 hover:underline ml-2">al recuperar</button>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+        <p x-show="cargado && !fallas.length" class="text-center text-neutral-500 text-sm py-10">Sin fallas con este filtro.</p>
+      </div>
+    </main>
+
+    <!-- Evidencia en grande -->
+    <div x-show="verFoto" class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" @keydown.escape.window="verFoto = null">
+      <div class="relative max-w-6xl w-full">
+        <img :src="verFoto" class="max-h-[85vh] mx-auto rounded" alt="Evidencia">
+        <div class="flex justify-center gap-4 mt-3 text-sm">
+          <a :href="verFoto" target="_blank" class="text-white underline">Abrir en otra pestaña</a>
+          <button @click="verFoto = null" class="text-white underline">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/src/js/api.js"></script>
+  <script src="/src/js/shell.js"></script>
+  <script src="/src/js/socket.js"></script>
+  <script src="/src/js/pantalla.js"></script>
+  <script src="/src/js/pages/fallas.js"></script>
+</body>
+</html>

@@ -33,6 +33,11 @@ class DashboardSocket {
     this.socket.on('device:online', (data) => {
       this._emit('device:online', data);
     });
+
+    // Una falla de pantalla se abrio o se cerro (monitoreo del equipo).
+    this.socket.on('pantalla:falla', (data) => {
+      this._emit('pantalla:falla', data);
+    });
   }
 
   watchDevice(deviceId) {

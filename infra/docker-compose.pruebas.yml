@@ -1,0 +1,62 @@
+# SPACE EYE — instancia de PRUEBAS en el mismo droplet que produccion.
+#
+# Para probar cambios con equipos de prueba SIN tocar la instancia que usa la
+# gente (puerto 4000, carpeta /var/www/Marketplace/space-eye). Esta vive en
+# /var/www/Marketplace/space-eye-pruebas, con su propia base, sus propios
+# volumenes y su propio nombre de proyecto:
+#
+#   docker compose -p seprueba -f infra/docker-compose.pruebas.yml --env-file backend/.env up -d --build
+#
+# LIGERA A PROPOSITO: el droplet tiene 2 GB y produccion va primero. Solo base,
+# redis y backend (~300 MB); sin ai-worker, sin mediamtx y sin coturn propio (la
+# vista en vivo usa el TURN de produccion: backend/.env lleva su mismo secreto,
+# que solo sirve para pedir credenciales temporales).
+#
+# El dashboard queda en http://159.203.188.58:4100. Un telefono solo habla con
+# esta instancia si su APK se compilo con -PserverUrl=http://159.203.188.58:4100:
+# NUNCA instalar esa APK en un equipo de produccion.
+
+services:
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME:-space_eye}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ../backend/migrations:/docker-entrypoint-initdb.d
+    command: >
+      --default-authentication-plugin=mysql_native_password
+      --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+      --innodb-buffer-pool-size=64M --performance-schema=OFF
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 32mb --maxmemory-policy noeviction
+    volumes:
+      - redis_data:/data
+
+  backend:
+    build:
+      context: ../backend
+    restart: unless-stopped
+    env_file: ../backend/.env
+    environment:
+      DB_HOST: mysql
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: production
+    ports:
+      - "4100:4000"
+    volumes:
+      - ../frontend:/frontend:ro
+      - storage_data:/app/storage
+    depends_on: [mysql, redis]
+    # Tope de memoria: si algo se desboca aqui, que no arrastre a produccion.
+    mem_limit: 400m
+
+volumes:
+  mysql_data:
+  redis_data:
+  storage_data:

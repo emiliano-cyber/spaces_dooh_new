@@ -11,6 +11,7 @@ import { Request, Response } from 'express';
 import { pool } from '../config/database';
 import { z } from 'zod';
 import { firmarFilas } from '../utils/firmaArchivos';
+import { encuadreDe } from './dashboard.controller';
 
 /** Bits distintos entre dos huellas de 256 bits en hexadecimal. */
 export function distancia(a: string, b: string): number {
@@ -46,6 +47,8 @@ export async function configDe(deviceId: number) {
   return {
     vigilar: !!d.creative_watch,
     aprendiendo,
+    // Desde cuando vigila: el dashboard lo usa para decir hasta cuando aprende.
+    desde: d.creative_desde,
     max_dia: d.creative_max_dia,
     cada_min: d.creative_cada_min,
     recorrido_seg: d.creative_recorrido_seg,
@@ -55,7 +58,7 @@ export async function configDe(deviceId: number) {
 }
 
 /** Cuantas fotos de creativo nuevo lleva hoy el equipo (para el tope diario). */
-async function fotosDeHoy(deviceId: number): Promise<number> {
+export async function fotosDeHoy(deviceId: number): Promise<number> {
   const [filas] = await pool.query<any[]>(
     `SELECT COUNT(*) n FROM photos
      WHERE device_id = ? AND source = 'creative_change' AND taken_at >= CURDATE()`,
@@ -82,10 +85,18 @@ export async function paraElEquipo(req: Request, res: Response) {
     [did]
   );
 
+  // El encuadre del sitio, el mismo que viaja en cada orden de foto. La APK no
+  // tiene otra forma de saberlo: sin esto, la vigilancia miraria con el lente y
+  // el zoom por defecto y fotografiaria otra cosa que las fotos programadas.
+  // La Raspberry lo ignora.
+  const [giro] = await pool.query<any[]>(`SELECT stream_rotation FROM devices WHERE id = ?`, [did]);
+  const rotation = Number((giro as any[])[0]?.stream_rotation) || 0;
+
   res.json({
     config,
     restantes_hoy: Math.max(0, config.max_dia - (await fotosDeHoy(did))),
     conocidas: (filas as any[]).map((f: any) => f.phash),
+    encuadre: { ...(await encuadreDe(did)), rotation },
   });
 }
 
@@ -106,20 +117,9 @@ export async function registrarRecorrido(
     [...new Set((lista || []).filter((h) => HUELLA.test(h)).map((h) => h.toLowerCase()))].slice(0, 60);
 
   const yaVistas = limpias(vistas);
-  if (yaVistas.length) {
-    await pool.query(
-      `UPDATE device_creatives SET vistas = vistas + 1, ultima_vez = NOW()
-       WHERE device_id = ? AND phash IN (?)`,
-      [deviceId, yaVistas]
-    );
-  }
-
   const candidatas = limpias(nuevas);
-  if (!candidatas.length) return;
+  if (!yaVistas.length && !candidatas.length) return;
 
-  // Segundo filtro: el equipo pudo perder su catalogo local (reinstalacion) o
-  // reportar como nueva una huella que solo difiere en unos bits de otra que ya
-  // teniamos. Sin esto, cada reinstalacion volveria a "descubrir" el loop entero.
   const [conocidas] = await pool.query<any[]>(
     `SELECT phash FROM device_creatives WHERE device_id = ?`,
     [deviceId]
@@ -127,6 +127,29 @@ export async function registrarRecorrido(
   const catalogo = (conocidas as any[]).map((f: any) => f.phash);
   const cfg = await configDe(deviceId);
   const tolerancia = cfg?.tolerancia ?? 24;
+
+  // Las vistas se buscan por PARECIDO, no por igualdad. El equipo reconoce con
+  // tolerancia y reporta la huella de su vistazo, que casi nunca coincide bit a
+  // bit con la del catalogo; con un `IN (...)` exacto el creativo nunca se
+  // marcaba como visto, y en la Raspberry 234 de 239 se quedaron en 1 vista.
+  const refrescar = new Set<string>();
+  for (const h of yaVistas) {
+    const c = catalogo.find((x) => distancia(x, h) <= tolerancia);
+    if (c) refrescar.add(c);
+  }
+  if (refrescar.size) {
+    await pool.query(
+      `UPDATE device_creatives SET vistas = vistas + 1, ultima_vez = NOW()
+       WHERE device_id = ? AND phash IN (?)`,
+      [deviceId, [...refrescar]]
+    );
+  }
+
+  if (!candidatas.length) return;
+
+  // Segundo filtro: el equipo pudo perder su catalogo local (reinstalacion) o
+  // reportar como nueva una huella que solo difiere en unos bits de otra que ya
+  // teniamos. Sin esto, cada reinstalacion volveria a "descubrir" el loop entero.
 
   for (const h of candidatas) {
     const parecida = catalogo.find((c) => distancia(c, h) <= tolerancia);
@@ -147,13 +170,22 @@ export async function registrarRecorrido(
   }
 }
 
-/** Liga la foto de evidencia con el creativo que la disparo. */
+/**
+ * Liga la foto de evidencia con el creativo que la disparo.
+ *
+ * La foto llega ANTES que el creativo: el equipo la sube en el momento de
+ * detectarlo, y la huella viaja despues, pegada al siguiente reporte de estado.
+ * Antes esto era un UPDATE a secas, que en ese orden no encontraba la fila, y
+ * ninguna de las ~200 fotos de creativo nuevo de la Raspberry quedo ligada. Por
+ * eso aqui se crea la fila si no existe; cuando llegue el recorrido, la vera
+ * como ya conocida.
+ */
 export async function ligarFoto(deviceId: number, phash: string, photoId: number) {
   if (!HUELLA.test(phash || '')) return;
   await pool.query(
-    `UPDATE device_creatives SET photo_id = ?, ultima_vez = NOW()
-     WHERE device_id = ? AND phash = ? AND photo_id IS NULL`,
-    [photoId, deviceId, phash.toLowerCase()]
+    `INSERT INTO device_creatives (device_id, phash, photo_id) VALUES (?, ?, ?)
+     ON DUPLICATE KEY UPDATE photo_id = IFNULL(photo_id, VALUES(photo_id)), ultima_vez = NOW()`,
+    [deviceId, phash.toLowerCase(), photoId]
   );
 }
 

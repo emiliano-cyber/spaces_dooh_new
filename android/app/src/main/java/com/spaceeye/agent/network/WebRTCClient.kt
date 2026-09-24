@@ -336,6 +336,8 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
         .build()
 
     private fun bindCameraX() {
+        // La vista en vivo manda: si habia una sesion de vigilancia, se pierde.
+        capturaVigilancia = null
         lifecycleRegistry.currentState = Lifecycle.State.RESUMED
         val future = ProcessCameraProvider.getInstance(ctx)
         future.addListener({
@@ -496,6 +498,8 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
     }
 
     private fun abrirSoloParaFoto(extraDegrees: Int, onResult: (ByteArray?) -> Unit) {
+        // Esta foto hace unbindAll: la vigilancia, si estaba abierta, se pierde.
+        capturaVigilancia = null
         lifecycleRegistry.currentState = Lifecycle.State.RESUMED
         val future = ProcessCameraProvider.getInstance(ctx)
         future.addListener({
@@ -556,6 +560,88 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
             }
         }, mainExecutor)
     }
+
+    // ---- Vigilancia de creativos -------------------------------------------
+    //
+    // Durante un recorrido la camara se queda ABIERTA (solo el use case de foto,
+    // sin vista previa ni video) y se toman fotos cada pocos segundos. Abrir y
+    // cerrar en cada vistazo costaria segundo y medio de enfoque cada vez y
+    // calentaria mas el telefono.
+    //
+    // Cualquier otra cosa que use la camara (la vista en vivo, una foto pedida)
+    // hace unbindAll y se lleva esta sesion por delante. Por eso se anula alli, y
+    // el vigilante, al ver que no hay sesion, la vuelve a abrir cuando la camara
+    // quede libre.
+
+    @Volatile private var capturaVigilancia: ImageCapture? = null
+
+    /** Abre la sesion de vigilancia con el encuadre del sitio. false si no pudo. */
+    fun abrirVigilancia(onListo: (Boolean) -> Unit) {
+        if (isStreaming()) return onListo(false)
+        lifecycleRegistry.currentState = Lifecycle.State.RESUMED
+        val future = ProcessCameraProvider.getInstance(ctx)
+        future.addListener({
+            try {
+                val provider = future.get()
+                cameraProvider = provider
+                val imgCap = construirImageCapture()
+                provider.unbindAll()
+                val cam = provider.bindToLifecycle(this, selectorDeLente(), imgCap)
+                if (zoomInicial > 0f) cam.cameraControl.setLinearZoom(zoomInicial.coerceIn(0f, 1f))
+                capturaVigilancia = imgCap
+                // El mismo tiempo de enfoque y medicion de luz que una foto suelta.
+                Handler(Looper.getMainLooper()).postDelayed({ onListo(capturaVigilancia === imgCap) }, ESPERA_ENFOQUE_MS)
+            } catch (e: Exception) {
+                Log.e(TAG, "no se pudo abrir la camara para vigilar: ${e.message}")
+                capturaVigilancia = null
+                lifecycleRegistry.currentState = Lifecycle.State.CREATED
+                onListo(false)
+            }
+        }, mainExecutor)
+    }
+
+    /** Una foto de la sesion de vigilancia, SIN girar (la huella no lo necesita). */
+    fun vistazo(onResult: (ByteArray?) -> Unit) {
+        val ic = capturaVigilancia ?: return onResult(null)
+        mainExecutor.execute {
+            try {
+                ic.takePicture(mainExecutor, object : ImageCapture.OnImageCapturedCallback() {
+                    override fun onCaptureSuccess(image: ImageProxy) {
+                        try {
+                            val buffer = image.planes[0].buffer
+                            val bytes = ByteArray(buffer.remaining())
+                            buffer.get(bytes)
+                            onResult(bytes)
+                        } catch (e: Exception) {
+                            onResult(null)
+                        } finally {
+                            image.close()
+                        }
+                    }
+                    override fun onError(exc: ImageCaptureException) {
+                        Log.w(TAG, "vistazo fallido: ${exc.message}")
+                        onResult(null)
+                    }
+                })
+            } catch (e: Exception) {
+                onResult(null)
+            }
+        }
+    }
+
+    /** Cierra la sesion de vigilancia, si sigue siendo la que esta abierta. */
+    fun cerrarVigilancia() {
+        mainExecutor.execute {
+            if (capturaVigilancia == null) return@execute
+            capturaVigilancia = null
+            if (isStreaming()) return@execute
+            try { cameraProvider?.unbindAll() } catch (_: Exception) {}
+            lifecycleRegistry.currentState = Lifecycle.State.CREATED
+        }
+    }
+
+    /** Gira el JPEG igual que cualquier otra foto del sitio. */
+    fun enderezar(jpeg: ByteArray, grados: Int): ByteArray = bakeRotation(jpeg, grados)
 
     /**
      * Toma una foto desde la sesion CameraX activa (no abre otra camara → sin

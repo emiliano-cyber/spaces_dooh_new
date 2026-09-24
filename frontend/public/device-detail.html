@@ -681,6 +681,245 @@
         </div>
       </div>
 
+      <!-- Pantalla y fallas: donde esta la pantalla en la foto, sus gabinetes y su
+           horario; y el monitoreo que el equipo hace por si mismo. -->
+      <div class="mt-8 bg-white border border-neutral-200 rounded-lg p-4" x-show="pant">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div>
+            <h3 class="font-medium">Pantalla y fallas</h3>
+            <p class="text-xs text-neutral-500 mt-0.5">
+              El equipo revisa su pantalla por sí mismo y solo avisa cuando detecta una falla confirmada (o cuando se arregla). No manda video ni fotos mientras todo está bien.
+            </p>
+          </div>
+          <label class="flex items-center gap-2 text-sm" :class="(!puedeAjustar || !usaPantalla() || !pant?.pantalla) && 'opacity-50'">
+            <input type="checkbox" :checked="pant?.salud?.vigilar"
+              :disabled="!puedeAjustar || !usaPantalla() || !pant?.pantalla"
+              @change="guardarSalud({ vigilar: $event.target.checked })">
+            Vigilar fallas
+          </label>
+        </div>
+
+        <p x-show="!usaPantalla()" class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2 mb-3">
+          La vigilancia de fallas necesita la app 0.15.0 o posterior en el celular. La Raspberry y el agente de PC todavía no la tienen.
+        </p>
+
+        <!-- Estado de la pantalla marcada -->
+        <div class="flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-neutral-600 mb-3">
+          <span x-show="!pant?.pantalla" class="text-amber-700">
+            Falta marcar dónde está la pantalla en la foto: sin eso el equipo no vigila fallas ni creativos.
+          </span>
+          <template x-if="pant?.pantalla">
+            <span>
+              <b x-text="pant.pantalla.filas * pant.pantalla.columnas"></b> gabinetes
+              (<span x-text="pant.pantalla.filas"></span> × <span x-text="pant.pantalla.columnas"></span>) ·
+              encendida de <b x-text="pant.pantalla.horario?.inicio || '06:00'"></b> a <b x-text="pant.pantalla.horario?.fin || '24:00'"></b>
+            </span>
+          </template>
+          <button x-show="puedeAjustar && !editPant" @click="empezarPantalla()" class="text-blue-600 hover:underline"
+            x-text="pant?.pantalla ? 'Cambiar pantalla' : 'Marcar la pantalla'"></button>
+          <label x-show="pant?.salud?.vigilar" class="flex items-center gap-1">
+            Revisar cada
+            <select :value="pant?.salud?.cada_min" :disabled="!puedeAjustar"
+              @change="guardarSalud({ cada_min: Number($event.target.value) })" class="px-1 py-0.5 border border-neutral-300 rounded">
+              <option value="30">30 min</option>
+              <option value="60">1 h</option>
+              <option value="120">2 h</option>
+              <option value="180">3 h</option>
+            </select>
+          </label>
+        </div>
+
+        <!-- Editor: 4 esquinas + gabinetes + zonas excluidas + horario -->
+        <template x-if="editPant">
+          <div class="mb-4 border border-neutral-200 rounded p-3 bg-neutral-50">
+            <div class="flex flex-wrap items-center gap-4 text-sm mb-2">
+              <div class="flex rounded border border-neutral-300 overflow-hidden text-xs">
+                <button @click="modoPant = 'esquinas'" :class="modoPant === 'esquinas' ? 'bg-neutral-900 text-white' : 'bg-white'" class="px-2 py-1">Esquinas</button>
+                <button @click="modoPant = 'excluir'" :disabled="editPant.esquinas.length !== 4"
+                  :class="modoPant === 'excluir' ? 'bg-neutral-900 text-white' : 'bg-white'" class="px-2 py-1 disabled:opacity-40">Zonas tapadas</button>
+              </div>
+              <label class="flex items-center gap-1 text-xs">Filas
+                <input type="number" min="1" max="20" x-model.number="editPant.filas" class="w-14 px-1 py-0.5 border border-neutral-300 rounded"></label>
+              <label class="flex items-center gap-1 text-xs">Columnas
+                <input type="number" min="1" max="40" x-model.number="editPant.columnas" class="w-14 px-1 py-0.5 border border-neutral-300 rounded"></label>
+              <label class="flex items-center gap-1 text-xs">Encendida de
+                <input type="time" x-model="editPant.horario.inicio" class="px-1 py-0.5 border border-neutral-300 rounded"></label>
+              <label class="flex items-center gap-1 text-xs">a
+                <input type="text" x-model="editPant.horario.fin" placeholder="24:00" pattern="([01]\d|2[0-4]):[0-5]\d"
+                  class="w-16 px-1 py-0.5 border border-neutral-300 rounded"></label>
+            </div>
+            <p class="text-xs text-neutral-500 mb-2" x-show="modoPant === 'esquinas'">
+              Toca las 4 esquinas de la pantalla en orden: <b>arriba izquierda, arriba derecha, abajo derecha, abajo izquierda</b>. Después puedes arrastrarlas.
+              Pon filas y columnas de gabinetes para que las líneas coincidan con las uniones. Si cambias el zoom o el lente del equipo, hay que volver a marcarla.
+            </p>
+            <p class="text-xs text-neutral-500 mb-2" x-show="modoPant === 'excluir'">
+              Toca los gabinetes que algo tapa siempre (una barda, un árbol, un poste): no se revisan. El equipo también las aprende solo en sus primeras 24 horas.
+            </p>
+            <div x-show="!fotoReferencia()" class="text-xs text-neutral-500 py-4">Toma primero una foto del equipo para poder marcar la pantalla.</div>
+            <div x-show="fotoReferencia()" class="relative inline-block max-w-full select-none touch-none cursor-crosshair"
+                 @pointerdown="pantAbajo($event)" @pointermove="pantMueve($event)" @pointerup="pantArriba()" @pointercancel="pantArriba()">
+              <img x-ref="fotoPant" :src="fotoReferencia()" class="block max-w-full max-h-[65vh]" draggable="false" alt="Foto del equipo">
+              <svg class="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 1 1" preserveAspectRatio="none">
+                <template x-for="(poli, k) in pantExcluidas()" :key="'x' + k">
+                  <polygon :points="poli" fill="rgba(0,0,0,0.45)"></polygon>
+                </template>
+                <polygon x-show="editPant.esquinas.length >= 2" :points="pantPoligono()" fill="rgba(10,102,255,0.08)"
+                  stroke="#0A66FF" stroke-width="2" vector-effect="non-scaling-stroke"></polygon>
+                <template x-for="(l, k) in pantLineas()" :key="'l' + k">
+                  <line :x1="l[0]" :y1="l[1]" :x2="l[2]" :y2="l[3]" stroke="#0A66FF" stroke-width="1" stroke-dasharray="4 3" vector-effect="non-scaling-stroke"></line>
+                </template>
+              </svg>
+              <template x-for="(q, k) in editPant.esquinas" :key="'e' + k">
+                <div class="absolute w-4 h-4 -ml-2 -mt-2 rounded-full bg-white border-2 border-blue-600 pointer-events-none flex items-center justify-center text-[9px] font-bold text-blue-700"
+                  :style="`left:${q[0] * 100}%;top:${q[1] * 100}%`" x-text="k + 1"></div>
+              </template>
+            </div>
+            <div class="flex items-center gap-3 mt-2 text-sm">
+              <button @click="guardarPantalla()" :disabled="editPant.esquinas.length !== 4 || guardandoPant"
+                class="px-3 py-1.5 bg-neutral-900 text-white rounded disabled:opacity-40">Guardar pantalla</button>
+              <button @click="editPant.esquinas = []; editPant.excluir = []; modoPant = 'esquinas'" class="text-neutral-600 hover:underline">Volver a empezar</button>
+              <button @click="editPant = null" class="text-neutral-600 hover:underline">Cancelar</button>
+            </div>
+          </div>
+        </template>
+
+        <!-- Estado de la vigilancia -->
+        <template x-if="pant?.salud?.vigilar">
+          <div class="text-xs text-neutral-600 space-y-1 mb-3">
+            <p x-show="pant.salud.aprendiendo" class="text-blue-700">
+              Aprendiendo la pantalla hasta <b x-text="finAprendizajeSalud()"></b>: en este plazo no avisa de fallas.
+            </p>
+            <p x-text="ultimaRevision()"></p>
+            <p x-show="zonasQuietas()" class="text-amber-700">
+              Gabinetes que nunca cambian (no se revisan): <b x-text="zonasQuietas()"></b>. Suelen estar tapados por algo, pero si no hay nada delante, revísalos: podrían llevar tiempo apagados.
+            </p>
+          </div>
+        </template>
+
+        <!-- Fallas abiertas -->
+        <div x-show="fallasAbiertas().length" class="space-y-2 mb-4">
+          <template x-for="f in fallasAbiertas()" :key="f.id">
+            <div class="flex gap-3 border border-red-200 bg-red-50 rounded p-2">
+              <a :href="f.evidencia" target="_blank" class="shrink-0 w-32 aspect-[4/3] bg-neutral-200 rounded overflow-hidden" x-show="f.evidencia_mini">
+                <img :src="f.evidencia_mini" class="w-full h-full object-cover" alt="Evidencia">
+              </a>
+              <div class="text-sm flex-1">
+                <p class="font-medium text-red-800">🔴 <span x-text="nombreFalla(f)"></span></p>
+                <p class="text-xs text-neutral-700" x-text="dondeFalla(f)"></p>
+                <p class="text-xs text-neutral-500">Detectada <span x-text="fechaCorta(f.detectada_en)"></span> · confianza <span x-text="Math.round(f.confianza * 100) + '%'"></span></p>
+                <div x-show="puedeAjustar" class="flex gap-3 mt-1 text-xs">
+                  <button @click="cerrarFalla(f, 'recuperada')" class="text-blue-600 hover:underline">Ya se arregló</button>
+                  <button @click="cerrarFalla(f, 'descartada')" class="text-neutral-600 hover:underline">No es falla</button>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+
+        <!-- Historial -->
+        <div x-show="(pant?.fallas || []).length" class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead class="text-neutral-500 text-left">
+              <tr><th class="py-1 pr-3">Detectada</th><th class="pr-3">Falla</th><th class="pr-3">Dónde</th><th class="pr-3">Estado</th><th class="pr-3">Cerrada</th><th>Evidencia</th></tr>
+            </thead>
+            <tbody class="divide-y divide-neutral-100">
+              <template x-for="f in pant?.fallas || []" :key="'h' + f.id">
+                <tr>
+                  <td class="py-1 pr-3 whitespace-nowrap" x-text="fechaCorta(f.detectada_en)"></td>
+                  <td class="pr-3" x-text="nombreFalla(f)"></td>
+                  <td class="pr-3" x-text="dondeFalla(f)"></td>
+                  <td class="pr-3">
+                    <span :class="{ 'text-red-700 font-medium': f.estado === 'abierta', 'text-green-700': f.estado === 'recuperada', 'text-neutral-500': f.estado === 'descartada' }"
+                      x-text="{ abierta: 'Abierta', recuperada: 'Recuperada', descartada: 'No era falla' }[f.estado]"></span>
+                  </td>
+                  <td class="pr-3 whitespace-nowrap" x-text="f.recuperada_en ? fechaCorta(f.recuperada_en) + (f.cerrada_por === 'usuario' ? ' (a mano)' : '') : '—'"></td>
+                  <td class="whitespace-nowrap">
+                    <a x-show="f.evidencia" :href="f.evidencia" target="_blank" class="text-blue-600 hover:underline">al detectar</a>
+                    <a x-show="f.evidencia_recuperacion" :href="f.evidencia_recuperacion" target="_blank" class="text-blue-600 hover:underline ml-2">al recuperar</a>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+        <p x-show="pant?.salud?.vigilar && !(pant?.fallas || []).length" class="text-center text-neutral-500 text-sm py-4">Sin fallas registradas.</p>
+      </div>
+
+      <!-- Creativos detectados: el equipo reconoce la pantalla sin subir fotos y
+           solo manda la de lo que no habia visto. -->
+      <div class="mt-8 bg-white border border-neutral-200 rounded-lg p-4" x-show="creativos">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div>
+            <h3 class="font-medium">Creativos detectados</h3>
+            <p class="text-xs text-neutral-500 mt-0.5">
+              El equipo mira su pantalla cada tantas horas sin gastar datos y solo sube foto cuando aparece un creativo que no conocía.
+            </p>
+          </div>
+          <label class="flex items-center gap-2 text-sm" :class="(!puedeAjustar || !sabeVigilar()) && 'opacity-50'">
+            <input type="checkbox" :checked="creativos?.config?.vigilar"
+              :disabled="!puedeAjustar || !sabeVigilar() || guardandoCreativos"
+              @change="guardarCreativos({ vigilar: $event.target.checked })">
+            Vigilar la pantalla
+          </label>
+        </div>
+
+        <p x-show="!sabeVigilar()" class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2 mb-3">
+          Este equipo no sabe vigilar su pantalla todavía: los celulares necesitan la app 0.15.0 o posterior, y el agente de PC no lo tiene.
+        </p>
+
+        <p x-show="usaPantalla() && !pant?.pantalla" class="text-xs text-amber-700 mb-3">
+          Falta marcar la pantalla (en «Pantalla y fallas»): sin eso el equipo no reconoce creativos, porque el fondo los confunde entre sí.
+        </p>
+
+        <template x-if="creativos?.config?.vigilar">
+          <div>
+            <div class="flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-neutral-600 mb-3">
+              <span x-show="creativos.config.aprendiendo" class="text-blue-700">
+                Aprendiendo el loop hasta <b x-text="finAprendizaje()"></b>: no toma fotos en este plazo.
+              </span>
+              <span>Fotos hoy: <b x-text="creativos.fotos_hoy"></b> de <b x-text="creativos.config.max_dia"></b></span>
+              <span>Creativos en el catálogo: <b x-text="creativos.creativos.length"></b></span>
+              <label class="flex items-center gap-1">
+                Revisar cada
+                <select :value="creativos.config.cada_min" :disabled="!puedeAjustar || guardandoCreativos"
+                  @change="guardarCreativos({ cada_min: Number($event.target.value) })"
+                  class="px-1 py-0.5 border border-neutral-300 rounded">
+                  <option value="60">1 h</option>
+                  <option value="120">2 h</option>
+                  <option value="180">3 h</option>
+                  <option value="360">6 h</option>
+                  <option value="720">12 h</option>
+                </select>
+              </label>
+              <button x-show="isAdmin" @click="reaprenderCreativos()" class="text-blue-600 hover:underline">Volver a aprender</button>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              <template x-for="c in creativosConFoto()" :key="c.id">
+                <div class="relative group">
+                  <div class="aspect-[4/3] bg-neutral-100 rounded overflow-hidden">
+                    <img :src="c.thumbnail_path" class="w-full h-full object-contain" alt="Creativo detectado">
+                  </div>
+                  <p class="text-[11px] text-neutral-500 mt-1">
+                    Apareció <span x-text="new Date(c.primera_vez).toLocaleString()"></span>
+                  </p>
+                  <p class="text-[11px] text-neutral-400">
+                    Visto <span x-text="c.vistas"></span> veces · último <span x-text="new Date(c.ultima_vez).toLocaleDateString()"></span>
+                  </p>
+                  <button x-show="puedeAjustar" @click="descartarCreativo(c)" title="No era un creativo nuevo (reflejo, pantalla apagada...)"
+                    class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 bg-white/90 border border-neutral-300 text-neutral-700 text-[11px] rounded px-1.5 py-0.5">
+                    No es nuevo
+                  </button>
+                </div>
+              </template>
+              <p x-show="creativosConFoto().length === 0" class="col-span-full text-center text-neutral-500 text-sm py-6">
+                Todavía no ha detectado creativos nuevos.
+              </p>
+            </div>
+          </div>
+        </template>
+      </div>
+
       <!-- Registros remotos (diagnostico del equipo en campo) -->
       <div class="mt-8 bg-white border border-neutral-200 rounded-lg p-4">
         <div class="flex items-center justify-between mb-3">
@@ -919,6 +1158,7 @@
   <script src="/src/js/webrtc.js"></script>
   <script src="/src/js/whep.js"></script>
   <script src="/src/js/photo-utils.js"></script>
+  <script src="/src/js/pantalla.js"></script>
   <script src="/src/js/pages/device-detail.js"></script>
 </body>
 </html>

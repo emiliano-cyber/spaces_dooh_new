@@ -12,6 +12,7 @@ import com.spaceeye.agent.network.RemoteLog
 import com.spaceeye.agent.network.SocketManager
 import com.spaceeye.agent.telemetry.DeviceStatusCollector
 import com.spaceeye.agent.commands.CommandHandler
+import com.spaceeye.agent.pantalla.Monitor
 import kotlinx.coroutines.*
 
 class MonitorService : Service() {
@@ -63,6 +64,7 @@ class MonitorService : Service() {
     private lateinit var statusCollector: DeviceStatusCollector
     private lateinit var commandHandler: CommandHandler
     private lateinit var apiClient: ApiClient
+    private lateinit var vigilante: Monitor
 
     override fun onCreate() {
         super.onCreate()
@@ -96,6 +98,12 @@ class MonitorService : Service() {
         socketManager.onCameraControl = { control -> commandHandler.handleCameraControl(control) }
         socketManager.connect()
 
+        // Vigilancia de la pantalla (creativos y fallas): en su propio bucle,
+        // porque una vuelta dura minutos y no puede frenar el latido. Si esta
+        // apagada en el dashboard solo pregunta una vez por hora.
+        vigilante = Monitor(applicationContext, apiClient, commandHandler)
+        scope.launch { vigilante.correr() }
+
         // Heartbeat loop: collect status and report to backend every 60s
         scope.launch {
             while (isActive) {
@@ -103,10 +111,14 @@ class MonitorService : Service() {
                     val status = statusCollector.collect()
                     updateNotification("Online · Bateria ${status.batteryPct}%")
 
-                    // Report status via HTTP to backend
-                    withContext(Dispatchers.IO) {
-                        apiClient.reportStatus(status)
+                    // Report status via HTTP to backend. El resumen de la ultima
+                    // vuelta de vigilancia viaja pegado aqui; si el reporte no
+                    // sale, se guarda para el siguiente en vez de perderse.
+                    val resumen = vigilante.tomarPendiente()
+                    val ok = withContext(Dispatchers.IO) {
+                        apiClient.reportStatus(status, resumen)
                     }
+                    if (!ok && resumen != null) vigilante.devolver(resumen)
                 } catch (e: Exception) {
                     Log.e(TAG, "Heartbeat error: ${e.message}")
                     updateNotification("Reintentando...")
