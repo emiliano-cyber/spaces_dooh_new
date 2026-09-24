@@ -6,6 +6,19 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!important] 2026-09-24, segunda pasada · **Z12 RECLAMADA otra vez, y dos trozos de interfaz**
+> Misma rama `docs/manual-ilustrado-2026-09-24`. Además de Z12 y de
+> `docs/Registro_Cambios.md` (alto contacto), se reclaman **solo cadenas y estado de
+> pantalla**, nada de API, sesión, tenant ni dinero:
+>
+> - **Z2**, únicamente `components/demo/admin/ActualizacionesPanel.tsx` y
+>   `actualizaciones-ui.ts`: los textos de la tarjeta van sin acentos.
+> - **Z4**, únicamente `app/(app)/(shell)/arrendadores/page.tsx` y un módulo puro nuevo en
+>   `components/demo/arrendadores/`: la ficha del contrato se queda con una copia vieja
+>   tras guardar.
+>
+> El candado de contraseña del 4.1 es R1 y **no se toca**: solo se documenta.
+
 > [!success] 2026-09-24 · **Z12 · Docs LIBERADA — manual de usuario ilustrado**
 > Hecho en `docs/manual-ilustrado-2026-09-24` (`0e10710`), sin fusionar: **39 capturas**
 > incrustadas en el manual, 3 grupos de pasos sin foto con su motivo en
