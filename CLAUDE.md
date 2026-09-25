@@ -33,18 +33,25 @@ En `docs/` viven: los **ADR** (`docs/adr/`, van por la **0038**), los **planes**
 
 ### Qué es, técnicamente
 
-**86 notas Markdown** en `vault/`, enlazadas entre sí con wikilinks. Está pensada
+**82 notas Markdown** en `vault/`, enlazadas entre sí con wikilinks. Está pensada
 para abrirse con Obsidian, pero **no hay carpeta `.obsidian/` en el repositorio**:
 no se versiona configuración de la herramienta. Consecuencia práctica: la bóveda es
 Markdown puro y **se lee igual desde un editor, desde `cat` o desde un agente**. No
 necesitas instalar nada.
 
-Al 2026-09-23 tiene **1148 enlaces internos** sobre **86 notas**, con **2
+Al 2026-09-24 tiene **1045 enlaces internos** sobre **82 notas**, con **2
 wikilinks rotos** —los dos apuntan a ADR, que viven en `docs/` y no en la
 bóveda, así que es un choque de convención más que un enlace muerto— y
 **0 notas huérfanas**. Las
-mediciones previas daban 1101 sobre 85 (18/09), 753 sobre 57 (28/08), 606
-sobre 48 (17/08) y 395 sobre 43 (10/08).
+mediciones previas daban 1148 sobre 86 (23/09), 1101 sobre 85 (18/09), 753
+sobre 57 (28/08), 606 sobre 48 (17/08) y 395 sobre 43 (10/08).
+
+> **Y ojo, esta vez la cifra BAJÓ**, que es la primera vez que pasa y conviene
+> decir por qué: el 23/09 se retiraron cinco manuales de usuario caducados de
+> `vault/08-Manuales/`, y con ellos se fueron sus enlaces. No falta nada — se
+> quitó lo que sobraba. Pero el bloque se quedó con la cifra de ANTES del
+> borrado **el mismo día en que se borró**, y así estuvo hasta medirlo. Van
+> cinco. El único remedio que ha funcionado nunca es correr el script.
 
 > **Y ojo con lo que este párrafo afirmaba hasta hoy:** decía «0 rotos y 0
 > notas huérfanas» con fecha del 28/08, y **las dos afirmaciones eran falsas**

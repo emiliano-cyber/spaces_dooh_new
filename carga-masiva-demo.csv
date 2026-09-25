@@ -1,0 +1,11 @@
+codigo_proveedor,nombre,tipo_medio,exhibicion,unidad,es_rotativo,plaza_ciudad,direccion,latitud,longitud,ancho_m,alto_m,caras,iluminacion,tipo_estructura,vista,tramo,tarifa_publicada,renta_arrendador,spots_por_hora
+ESP-001,Periferico Sur km 14,espectacular,fijo,mensual,no,Ciudad de Mexico,"Periferico Sur 4690, Jardines del Pedregal",19.3089,-99.2018,12.9,7.2,1,si,Unipolar,natural,Sur a Norte,185000,62000,
+ESP-002,Viaducto Rio Becerra,espectacular,fijo,mensual,no,Ciudad de Mexico,"Viaducto Miguel Aleman 234, Napoles",19.3944,-99.1782,12.9,7.2,2,si,Bipolar,cruzada,Oriente a Poniente,164000,55000,
+DIG-001,Insurgentes Reforma Digital,espectacular,digital,spot,si,Ciudad de Mexico,"Av Insurgentes Sur 300, Roma Norte",19.4189,-99.1622,9.6,5.4,1,si,Pantalla LED,natural,Norte a Sur,240000,88000,60
+DIG-002,Santa Fe Torre Digital,espectacular,digital,spot,si,Ciudad de Mexico,"Av Santa Fe 495, Santa Fe",19.3617,-99.2735,10.5,6.0,1,si,Pantalla LED,cruzada,Poniente a Oriente,268000,94000,60
+MUP-001,Mupi Condesa Amsterdam,mupi,fijo,mensual,no,Ciudad de Mexico,"Av Amsterdam 240, Hipodromo Condesa",19.4102,-99.1721,1.2,1.8,2,si,Mupi,natural,,28000,9500,
+PAR-001,Parabus Reforma Angel,parabus,fijo,mensual,no,Ciudad de Mexico,"Paseo de la Reforma 400, Juarez",19.4270,-99.1677,1.8,1.2,1,si,Parabus,natural,,34000,12000,
+MUR-001,Muro Guadalajara Lopez Mateos,muro,fijo,mensual,no,Guadalajara,"Av Lopez Mateos Sur 2077, Chapalita",20.6668,-103.4034,18.0,9.0,1,no,Muro ciego,natural,Sur a Norte,96000,31000,
+VAL-001,Valla Monterrey Constitucion,valla,fijo,mensual,no,Monterrey,"Av Constitucion 1050, Centro",25.6706,-100.3161,8.0,4.0,1,si,Valla,cruzada,Oriente a Poniente,72000,24000,
+ESP-003,Tlalpan sin coordenadas,espectacular,fijo,mensual,no,Ciudad de Mexico,"Calzada de Tlalpan 1924, Country Club",,,12.9,7.2,1,si,Unipolar,natural,Norte a Sur,148000,49000,
+ESP-004,Ecatepec renta mal capturada,espectacular,fijo,mensual,no,Estado de Mexico,"Av Central 120, Ecatepec",19.6011,-99.0602,12.9,7.2,1,no,Unipolar,natural,Poniente a Oriente,88000,por definir,

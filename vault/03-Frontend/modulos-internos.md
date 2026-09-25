@@ -114,6 +114,9 @@ pero nadie la enciende, y en la flota no puede encenderse por instancia
 > La semilla además coloca los dos pares que comparten predio a ~60 m, dentro de
 > `RADIO_PREDIO_M` (250 m): si no, generaría justo el dato que
 > `pantallasFueraDelGrupo` marca como sospechoso. Lo fija una prueba.
+>
+> **Expediente completo —medición, qué se hizo en cada máquina y qué queda—:**
+> `docs/evidencias/19-mapa-sin-puntos-20260924.md`.
 
 > [!warning] Arreglar el encuadre NO hace aparecer puntos
 > Es el otro lado de lo mismo y conviene no confundirlo: el código deja de
