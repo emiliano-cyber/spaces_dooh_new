@@ -10,7 +10,7 @@ Corrida del **2026-09-24** (segunda pasada, tarde), entorno **LOCAL**
 | Capturas del 21/09, no versionadas y con la numeración corrida | 10 |
 | Tomadas en la primera pasada del 24/09 | 39 |
 | **Tomadas en la segunda pasada** (todas de nuevo, 6 más) | **45** |
-| Pasos que quedan sin imagen | **1** (el 1.1) |
+| Pasos que quedan sin imagen | **2** (el 1.1, y el 4.1 desde el 25/09) |
 
 Ninguna captura se retocó. Lo único que se altera antes de disparar es lo que manda la
 regla de datos: los códigos de recuperación salen difuminados, y `enmascarar()` no
@@ -32,6 +32,28 @@ La **pantalla de lista** de los pasos 2-5 es la misma que sale al regenerar (1.2
 y está fotografiada ahí (`01-02-04-codigos-lista-nueva`). Falta solo el texto del paso 1.
 
 **Para tomarla:** una cuenta de pruebas con Google en un entorno donde el OAuth funcione.
+
+---
+
+## Pendiente · 4.1 «Asignar la razón social que paga», paso 5 — **nueva, 2026-09-25**
+
+**Motivo: la pantalla cambió después de fotografiarla.** El cuadro «Con cuál de tus razones
+sociales se paga» pedía la contraseña y no pintaba dónde teclearla; se corrigió el 25/09 en
+`fix/contrasena-contrato-sin-campo` y ahora el campo sale dentro del propio cuadro.
+
+Con eso **dos capturas quedaron retratando una pantalla que ya no existe**, y se retiraron
+del manual en vez de dejarlas pasar por el estado de hoy:
+
+- `04-01-05-contrato-pide-contrasena.png` — el aviso en rojo **sin** campo.
+- `04-01-05-contrato-desbloquear-cambios.png` — el desbloqueo desde la barra superior, que
+  era el paso 7 del rodeo. El camino sigue existiendo, pero ya no es parte del apartado.
+
+**Falta tomar:** el cuadro tras pulsar «Guardar» con los cambios bloqueados, ya con el
+campo «Tu contraseña» debajo del selector y el botón diciendo «Confirmar y guardar».
+
+**Para tomarla:** el guion del 4.1 con el tenant en control de cambios encendido y la
+sesión SIN desbloquear. Los archivos viejos siguen en la carpeta de capturas; no se
+borraron por si hace falta comparar.
 
 ---
 

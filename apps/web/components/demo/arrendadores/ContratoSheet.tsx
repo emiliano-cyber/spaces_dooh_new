@@ -38,6 +38,9 @@ import {
   editarContratoApi,
 } from '@/lib/data/estado-api'
 import { PERIODICIDADES, periodicidadLabel } from '@/lib/renta-periodicidad'
+import { desbloquearApi } from '@/lib/data/cambios-api'
+import { confirmarConCandado } from '@/lib/cambios-candado'
+import { CampoContrasena } from '@/components/demo/ui/CampoContrasena'
 import type { EntidadUI } from '@/components/demo/razones-sociales/gestion'
 import {
   ROL_CONTRATO,
@@ -350,6 +353,22 @@ export function ContratoSheet({
 //
 // NO toca ningún importe. El PATCH lleva solo `entidadId`, y el resto del
 // contrato viaja como `undefined`, que el servidor entiende como «no lo toques».
+//
+// ─── El candado, y el defecto del 2026-09-25 ────────────────────────────────
+// El PATCH de contratos pasa por `exigirCambioSensible` (ADR 0009), así que con
+// el control de cambios encendido el servidor contesta 403 con
+// `requiereDesbloqueo`. Hasta hoy este cuadro pintaba ese mensaje —«Este cambio
+// necesita que vuelvas a teclear tu contraseña»— como un error rojo Y NO PINTABA
+// DÓNDE ESCRIBIRLA: la palabra `password` no aparecía ni una vez en el archivo.
+// El camino directo estaba muerto y el único que funcionaba era el rodeo que
+// describe el manual: cerrar la ficha, ir a «Cambios bloqueados», desbloquear y
+// volver. Lo encontró la sesión que fotografió el paso 4.1 del manual.
+//
+// El arreglo copia el patrón de `BajaPropietarioDialog`
+// (`app/(app)/(shell)/arrendadores/page.tsx`): el 403 NO es un error, es un
+// paso. La secuencia vive en `lib/cambios-candado.ts` en vez de copiarse a mano
+// una cuarta vez —cada copia es otra ocasión de olvidarse del input— y el campo
+// es un componente, `ui/CampoContrasena`, por lo mismo.
 function RazonSocialQuePagaModal({
   open,
   onOpenChange,
@@ -368,48 +387,82 @@ function RazonSocialQuePagaModal({
   )
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // `reautenticando` es «el servidor ya dijo que hace falta la contraseña». No se
+  // pregunta de entrada: el control de cambios está apagado por defecto en los
+  // tenants, así que pedirla siempre sería fricción inventada.
+  const [reautenticando, setReautenticando] = useState(false)
+  const [pass, setPass] = useState('')
+
+  // Cerrar OLVIDA la contraseña. Este modal no se desmonta al cerrarse —lo rinde
+  // siempre `ContratoSheet` con `open={pagadoraOpen}`—, así que sin esto lo
+  // tecleado se quedaría vivo en memoria hasta salir de la ficha. Los diálogos
+  // que sí se desmontan (`BajaPropietarioDialog`) se lo ahorran por construcción.
+  function cerrar() {
+    setPass('')
+    setReautenticando(false)
+    setError(null)
+    onOpenChange(false)
+  }
+
+  async function guardar() {
+    setEnviando(true)
+    setError(null)
+    const r = await confirmarConCandado({
+      reautenticando,
+      contrasena: pass,
+      desbloquear: desbloquearApi,
+      // Cadena vacía = «sin asignar», y viaja como `null` explícito: es lo que
+      // el PATCH entiende por DESASIGNAR.
+      guardar: () => editarContratoApi(contrato.id, { entidadId: elegida || null }),
+      mensajeSiFalla: 'No se pudo guardar',
+    })
+    if (r.estado === 'hecho') {
+      onHecho(
+        elegida
+          ? 'Razón social asignada al contrato'
+          : 'El contrato quedó sin razón social asignada',
+      )
+      cerrar()
+    } else if (r.estado === 'falta-contrasena') {
+      setError('Escribe tu contraseña para confirmar.')
+    } else if (r.estado === 'pedir-contrasena') {
+      // Se entra (o se sigue) en el paso de la contraseña. Lo elegido en el
+      // selector se conserva: volver atrás obligaría a repetirlo.
+      setReautenticando(true)
+      setError(r.error)
+    } else {
+      setError(r.error)
+    }
+    setEnviando(false)
+  }
 
   return (
     <Modal
       open={open}
-      onOpenChange={onOpenChange}
+      // Cerrar por la X o por Escape pasa por el mismo sitio que «Cancelar»: si
+      // no, esos dos caminos dejarían la contraseña puesta.
+      onOpenChange={(v) => (v ? onOpenChange(true) : cerrar())}
       title="Con cuál de tus razones sociales se paga"
       subtitle="Solo cambia a nombre de quién sale esta renta. No toca el importe."
       footer={
         <div className="flex justify-end gap-2">
-          <Button variant="secondary" size="sm" onClick={() => onOpenChange(false)} disabled={enviando}>
+          <Button variant="secondary" size="sm" onClick={cerrar} disabled={enviando}>
             Cancelar
           </Button>
-          <Button
-            size="sm"
-            disabled={enviando}
-            onClick={async () => {
-              setEnviando(true)
-              setError(null)
-              try {
-                // Cadena vacía = «sin asignar», y viaja como `null` explícito:
-                // es lo que el PATCH entiende por DESASIGNAR.
-                await editarContratoApi(contrato.id, { entidadId: elegida || null })
-                onHecho(
-                  elegida
-                    ? 'Razón social asignada al contrato'
-                    : 'El contrato quedó sin razón social asignada',
-                )
-                onOpenChange(false)
-              } catch (e) {
-                setError(e instanceof Error ? e.message : 'No se pudo guardar')
-              }
-              setEnviando(false)
-            }}
-          >
+          <Button size="sm" disabled={enviando || (reautenticando && !pass)} onClick={guardar}>
             {enviando && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-            Guardar
+            {reautenticando ? 'Confirmar y guardar' : 'Guardar'}
           </Button>
         </div>
       }
     >
       <div className="space-y-2">
-        <select className={inputCls} value={elegida} onChange={(e) => setElegida(e.target.value)}>
+        <select
+          className={inputCls}
+          value={elegida}
+          onChange={(e) => setElegida(e.target.value)}
+          disabled={enviando}
+        >
           {opcionesDeAsignacion(entidades, ROL_CONTRATO, contrato.entidadId).map((o) => (
             <option key={o.valor || 'sin-asignar'} value={o.valor}>
               {o.etiqueta}
@@ -427,6 +480,21 @@ function RazonSocialQuePagaModal({
             Dejarlo sin asignar es legítimo: el contrato es un acuerdo real aunque todavía no se
             haya decidido con qué sociedad se paga.
           </p>
+        )}
+        {reautenticando && (
+          <div className="space-y-2 border-t border-border pt-2">
+            <p className="text-[12px] text-muted">
+              Tu organización pide la contraseña para confirmar los cambios sensibles.
+            </p>
+            <CampoContrasena
+              valor={pass}
+              onChange={setPass}
+              onEnter={() => {
+                if (!enviando && pass) void guardar()
+              }}
+              deshabilitado={enviando}
+            />
+          </div>
         )}
         {error && <p className="text-[12px] text-error">{error}</p>}
       </div>

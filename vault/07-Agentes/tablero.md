@@ -6,8 +6,48 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!note] 2026-09-25 · las dos de abajo ATERRIZARON el mismo dia
+> Se escribieron cada una en su rama y diciendo «sin fusionar», que era cierto
+> al escribirlas y dejo de serlo al aterrizar. Corregido aqui en vez de dejar
+> dos recuadros afirmando algo falso — es el vicio que `CLAUDE.md` persigue.
+>
+> Medido sobre el arbol fusionado, no copiado de ninguna de las dos ramas:
+> `npx tsc --noEmit` limpio y **1864 pruebas en 145 archivos** en verde.
+>
+> Y la cuenta cuadra sin residuo, que es lo que prueba que estan las dos:
+> 1838/142 en `main` + 7/1 de las etiquetas OCI + 19/2 del R1 = **1864/145**.
+> Cada rama por separado medio 1845 y 1857 — ninguna de esas dos cifras vale
+> aqui, porque ninguna vio el trabajo de la otra.
+
+> [!success] 2026-09-25 · **Z1 · Auth RECLAMADA Y LIBERADA — el R1 del 4.1, cerrado**
+> Rama `fix/contrasena-contrato-sin-campo`, **aterrizada** en `main`. El recuadro de más
+> abajo dice «lo R1 sigue abierto y no se tocó»: **eso caducó hoy**, con la
+> aprobación explícita de Jochelo («si arregla el R1»).
+>
+> El cuadro «Con cuál de tus razones sociales se paga» ya pide la contraseña
+> **dentro del propio cuadro**, como los dos borrados de catálogo. La causa era
+> más simple de lo que parecía y conviene dejarla escrita: **no era CSS ni una
+> condición que no se cumpliera — el campo no existía.** `password` no aparecía
+> ni una vez en las 1012 líneas de `ContratoSheet.tsx`; el `catch` pintaba el 403
+> del servidor como error rojo y ahí acababa el camino.
+>
+> **Se reclamó Z1 y solo dos archivos de Z4** (`ContratoSheet.tsx` y
+> `lib/data/cambios-api.ts`, este último para reexportar `esErrorDeDesbloqueo` y
+> no dejar dos copias). Piezas nuevas: `lib/cambios-candado.ts` y
+> `components/demo/ui/CampoContrasena.tsx`, las dos con pruebas.
+>
+> Medido en este árbol, no copiado: `npx tsc --noEmit` limpio y **1857 pruebas en
+> 144 archivos** (+19, +2 frente a las 1838/142 de `main`). Las 19 nuevas se
+> comprobaron por mutación: quitar el guard de la contraseña vacía, tragarse el
+> fallo del desbloqueo y quitar el campo del modal tumban una prueba cada uno.
+>
+> **Lo que NO cubre, dicho aquí para que nadie lo dé por hecho:** el arnés no
+> tiene DOM, así que nadie prueba que al pulsar «Guardar» el campo aparezca en el
+> navegador. Y **quedan dos diálogos del mismo archivo con el mismo defecto** —
+> `CompletarContratoModal` y `PagoModal`—: fuera de la aprobación, sin tocar.
+
 > [!success] 2026-09-25 · **B36 parte (1) — Z12 y `release.yml` RECLAMADOS y LIBERADOS**
-> Rama `chore/etiquetas-oci-release`, **sin fusionar**: el entregable es la rama.
+> Rama `chore/etiquetas-oci-release`, **aterrizada** en `main` (merge `c7629a8`).
 > `release.yml` escribe cuatro etiquetas OCI en el `docker build` —`revision` con
 > `${{ github.sha }}`, más `version`, `source` y `created`— y relee `revision` con
 > `docker inspect` **antes** del push. Es justo la advertencia que se rescató de
@@ -26,7 +66,6 @@ archivos: []
 > **La parte (2) de B36 NO entró** —impedir el push a `estable` fuera de
 > `promover.yml`—: sigue sin decidirse y la aprobación del dueño fue solo para las
 > etiquetas.
-
 > [!note] 2026-09-25 · **Triaje de las tres ramas paradas — las tres SIN OBJETO**
 > Dictaminadas sin fusionar ninguna, para que nadie repita el trabajo dentro de
 > un mes (que es justo lo que pasó con F5.3 y F5.4, `docs/evidencias/auditoria-f5-31-agosto.md`).

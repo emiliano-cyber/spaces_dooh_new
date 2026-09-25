@@ -85,6 +85,8 @@ export async function bloquearApi(): Promise<void> {
 // en vez del modal, sin forma de continuar.
 export { MENSAJE_DESBLOQUEO }
 
-export function esErrorDeDesbloqueo(e: unknown): boolean {
-  return e instanceof Error && e.message === MENSAJE_DESBLOQUEO
-}
+// El predicado vive en `@/lib/cambios-candado` —módulo PURO, sin `fetch`— para
+// que la secuencia completa se pueda probar sin DOM ni servidor. Aquí se
+// reexporta y no se reescribe: dos copias de esta comparación es exactamente
+// como se rompió antes (ver la cabecera de `lib/cambios-mensajes.ts`).
+export { esErrorDeDesbloqueo } from '@/lib/cambios-candado'

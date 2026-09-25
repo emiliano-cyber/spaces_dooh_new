@@ -7,6 +7,27 @@ La entrada más reciente va arriba.
 
 ## 2026-09-25
 
+- **Ya puedes decir con qué sociedad se paga una renta sin dar tres vueltas.** En la
+  ficha de un contrato de arrendamiento, el cuadro **«Con cuál de tus razones sociales
+  se paga»** te avisaba de que hacía falta tu contraseña para confirmar el cambio… y no
+  te ponía ningún lugar donde escribirla. El botón de guardar no llevaba a ninguna
+  parte.
+
+  Para salir del paso había que cerrar la ficha, ir a **«Cambios bloqueados»** arriba a
+  la derecha, desbloquear ahí, volver a abrir el contrato y elegir la razón social otra
+  vez. El manual llegó a describir esa vuelta como si fuera lo normal.
+
+  Ahora el cuadro **te pide la contraseña en el sitio**: la tecleas debajo del selector,
+  pulsas «Confirmar y guardar» y listo, sin perder lo que ya habías elegido. **El camino
+  de antes sigue funcionando** — si vas a asignar varias seguidas, desbloquear desde la
+  barra superior te ahorra teclearla cada vez.
+
+  Esto **no cambia quién puede hacer el cambio ni cuándo se pide la contraseña**: eso lo
+  decide el servidor y sigue igual. Lo único que faltaba era la casilla donde escribirla.
+
+  Dos cuadros de esa misma ficha siguen con el mismo problema —«Completar información» y
+  el de registrar un pago de renta— y quedan pendientes.
+
 - **El manual de usuario ya lleva una foto de cada paso.** Son 45 capturas
   tomadas siguiendo el manual paso a paso contra la aplicación de verdad, y
   van debajo del paso que ilustran, no en un anexo al final.

@@ -361,22 +361,12 @@ sugerirte una razón social donde antes te la sugería.
    Si ya desbloqueaste los cambios en los últimos minutos (el botón de la barra superior
    dice **«Desbloqueado … min»**), se guarda y pasas directo a «Salió bien si».
 
-   Si no, el cuadro se queda abierto y muestra en rojo *«Este cambio necesita que vuelvas a
-   teclear tu contraseña.»*, **sin ningún campo donde teclearla**. Sigue con el paso 6.
+   Si no, el cuadro se queda abierto, avisa de que tu organización pide la contraseña para
+   confirmar los cambios sensibles y **aparece el campo donde teclearla**, debajo del
+   selector. Sigue con el paso 6.
 
-   ![El cuadro tras pulsar «Guardar» con los cambios bloqueados: en rojo, «Este cambio necesita que vuelvas a teclear tu contraseña.», sin ningún campo donde teclearla](capturas-2026-09-18/04-01-05-contrato-pide-contrasena.png)
-   *Captura — apartado 4.1, paso 5, con los cambios bloqueados.*
-
-6. Cierra el cuadro con **«Cancelar»** y cierra también la ficha del contrato.
-7. Pulsa **«Cambios bloqueados»**, arriba a la derecha. Se abre **«Desbloquear cambios»**:
-   teclea tu contraseña y pulsa **«Desbloquear»**. El botón pasa a decir **«Desbloqueado
-   15 min»**.
-
-   ![El cuadro «Desbloquear cambios», abierto desde «Cambios bloqueados» en la barra superior, con el campo «Contraseña» escrito y los botones «Cancelar» y «Desbloquear»](capturas-2026-09-18/04-01-05-contrato-desbloquear-cambios.png)
-   *Captura — apartado 4.1, paso 7.*
-
-8. Vuelve a abrir el contrato, pulsa **«Cambiar»**, elige otra vez la razón social y pulsa
-   **«Guardar»**.
+6. Teclea tu contraseña en ese campo y pulsa **«Confirmar y guardar»**. No hace falta
+   volver a elegir la razón social: la que elegiste sigue puesta.
 
 **Salió bien si:** aparece el aviso **«Razón social asignada al contrato»** y, en la misma
 ficha, **«La paga»** deja de decir «Sin asignar» y muestra el nombre de la razón social que
@@ -385,14 +375,28 @@ elegiste.
 ![La ficha del mismo contrato, sin cerrarla, con «La paga: Inmuebles DEMO del Centro, S.A. de C.V.» y abajo el aviso «Razón social asignada al contrato»](capturas-2026-09-18/04-01-06-contrato-la-paga-asignada.png)
 *Captura — apartado 4.1, «Salió bien si».*
 
-> [!warning] Los pasos 6 a 8 son un rodeo, y es un defecto conocido
+> [!success] 2026-09-25 · **corregido: el cuadro ya te pide la contraseña**
+> Hasta el 24/09 este apartado tenía tres pasos más —cerrar la ficha, ir a «Cambios
+> bloqueados» arriba a la derecha, desbloquear y volver a empezar— porque el cuadro
+> avisaba de que hacía falta la contraseña **y no pintaba dónde teclearla**. Ya la pide
+> en el sitio, así que ese rodeo desapareció del texto.
+>
+> **El camino viejo sigue funcionando** si lo prefieres: desbloquear desde la barra
+> superior antes de empezar te ahorra el paso 6, y es lo cómodo si vas a asignar varias
+> razones sociales seguidas. No es obligatorio para ninguna.
+>
 > Asignar la razón social que paga viaja por el mismo camino que el importe de la renta, y
 > ese camino pide tu contraseña antes de guardar: es el mismo candado de facturar y de
-> registrar un pago. Lo que falla hoy es que este cuadro, en vez de pedírtela, solo avisa.
-> Mientras no se corrija, desbloquea **antes** de empezar (paso 7) y te ahorras la vuelta.
+> registrar un pago.
 >
 > Si entraste con Google y nunca te pusieron contraseña, pídesela a quien administra tu
 > cuenta **antes** de sentarte a asignar razones sociales.
+
+> [!warning] Las dos capturas del rodeo se retiraron, y falta una nueva
+> Las fotos de los antiguos pasos 5 y 7 enseñaban el cuadro **sin** el campo y el
+> desbloqueo desde la barra superior. Retratan una pantalla que ya no existe, así que no
+> se dejan como si fueran el estado de hoy. **Falta la captura del cuadro con el campo de
+> la contraseña dentro** — anotado en `manuales/capturas-pendientes.md`.
 
 Si el contrato está incompleto, el selector también aparece dentro de **«Completar
 información»**, junto con el resto de los datos que faltan.
@@ -1265,17 +1269,20 @@ Pídeselo a quien administra tu organización.
 
 ### Lo que quedó abierto el 2026-09-24
 
-- **DEFECTO — espera aprobación humana (zona roja R1, sesión).** El cuadro «Con cuál de tus
-  razones sociales se paga» no abre el candado cuando el servidor pide la contraseña: al
-  fallar el guardado pinta el mensaje del error y ya
-  (`apps/web/components/demo/arrendadores/ContratoSheet.tsx:400`, dentro de
-  `RazonSocialQuePagaModal`, que empieza en la `:376`). Otros cuadros de la misma pantalla
-  sí reconocen ese error y piden la contraseña en el sitio
-  (`apps/web/app/(app)/(shell)/arrendadores/page.tsx:1121`, con `esErrorDeDesbloqueo`,
-  `apps/web/lib/data/cambios-api.ts:88`). Hoy el usuario tiene que dar el rodeo del 4.1,
-  pasos 6-8. **No se tocó**: afecta al candado de cambios, que es sesión.
-  Y un detalle relacionado: el comentario de `components/demo/shell/DesbloqueoCambios.tsx`
-  dice que al Dueño el botón «no le sale nunca», y en esta pasada **le salió**.
+- ~~**DEFECTO — espera aprobación humana (zona roja R1, sesión).** El cuadro «Con cuál de
+  tus razones sociales se paga» no abre el candado cuando el servidor pide la
+  contraseña.~~ **CORREGIDO el 2026-09-25** con aprobación explícita del dueño, en
+  `fix/contrasena-contrato-sin-campo`. Ya pide la contraseña dentro del propio cuadro, y
+  el apartado 4.1 quedó sin el rodeo. La causa era que **el campo no existía**: `password`
+  no aparecía ni una vez en `ContratoSheet.tsx`. La secuencia dejó de copiarse a mano y
+  vive en `apps/web/lib/cambios-candado.ts`, con el campo en
+  `apps/web/components/demo/ui/CampoContrasena.tsx`.
+  **Siguen con el defecto, y no entraban en la aprobación:** «Completar información»
+  (`CompletarContratoModal`) y el cuadro de registrar un pago de renta (`PagoModal`), los
+  dos en el mismo archivo.
+  Y un detalle relacionado, que sigue abierto: el comentario de
+  `components/demo/shell/DesbloqueoCambios.tsx` dice que al Dueño el botón «no le sale
+  nunca», y en la pasada del 24/09 **le salió**.
 - **La tarjeta «Soporte» también escribe sin acentos** («Todavia no has abierto ningun
   ticket», «Todos tus tickets estan contestados», `components/demo/admin/tickets-ui.ts`), y
   «Razon social no disponible» igual (`components/demo/razones-sociales/asignacion.ts:130`).
