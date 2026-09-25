@@ -352,6 +352,37 @@ archivo dentro de la pregunta.
 
 ### D7 · El manual de usuario está escrito pero sin ilustrar, y le faltan cinco frases que solo se ven provocando un error. ¿Se termina antes del 14 de octubre, o se enseña el producto sin manual?
 
+> [!success] 2026-09-25 · **SE HIZO LA (a), antes de lo recomendado — y la
+> advertencia que traía esta misma ficha se cumplió el mismo día**
+>
+> El manual se ilustró el **24/09** con **45 capturas** (hoy 43: se retiraron dos
+> de una pantalla que ya no existe), una debajo de cada paso, y fotografiarlo
+> cerró **siete** discrepancias entre lo que el manual decía y lo que la
+> aplicación hacía — dos de ellas eran defectos de código y se arreglaron.
+>
+> **Pero esta ficha recomendaba «(b) ahora y (a) la semana del 6 de octubre»
+> por un motivo concreto**, escrito aquí arriba:
+>
+> > *«hay que hacerlo después de que no vaya a cambiar nada más de pantalla, o
+> > las capturas nacen viejas»*
+>
+> **El 25/09 cambiaron cuatro de esas pantallas** —los cuadros del candado— y
+> parte de las capturas envejecieron **al día siguiente de tomarse**. No fue mala
+> suerte: fue exactamente lo que la recomendación anticipaba, y se hizo igual.
+>
+> **Lo que queda, y por eso la ficha NO se cierra:**
+>
+> - **Refotografiar** el 4.1 y los flujos de dinero que cambiaron el 25/09.
+> - **El paso 1.1 sigue sin foto** desde el principio: exige sesión con Google y
+>   falsearla habría sido fingir la captura (`manuales/capturas-pendientes.md`).
+> - **El PDF sigue enseñando la pantalla rota** del 4.1: no se regeneró.
+>
+> **La lección, que vale más que el manual:** la recomendación era buena y se
+> saltó. La segunda pasada de fotos tiene que hacerse cuando de verdad no vaya a
+> cambiar nada — y hoy **quedan ocho puntos de B38 en curso**, así que ese
+> momento todavía no ha llegado.
+
+
 - **Bloquea:** nada del producto. Bloquea **poder dejarle algo en la mano** a quien
   vea la demostración. Todo lo de la lista B avanza sin esta respuesta.
 - **Por qué importa:** el manual ya cubre las tres áreas nuevas y **ocho de sus
