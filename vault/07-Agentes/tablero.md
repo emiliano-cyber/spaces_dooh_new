@@ -84,7 +84,60 @@ archivos: []
 > —el botón «Renovar», `ContratoSheet.tsx:114-117`— **no tiene ni `try/catch`**,
 > así que el 403 no se ve por ningún lado. Están en el informe de la rama, con
 > ruta y línea, y **no se tocaron**: la aprobación era para dos cuadros, no para
-> reformar el candado.
+> reformar el candado. → **Cuatro de esos doce, cerrados** en el recuadro de abajo.
+
+> [!success] 2026-09-25, tarde · **Z1 · Auth + Z4 + Z5 RECLAMADAS — B38, los TRES de dinero y «Renovar»**
+> Rama `fix/candado-dinero-y-renovar`, salida de `main` (`c1520b8`) y **sin
+> fusionar**. Cierra cuatro de los doce puntos que dejó el barrido de arriba.
+>
+> **APROBACIÓN HUMANA, y hace falta decir por qué:** Jochelo la dio explícitamente
+> el 2026-09-25 — «si arregla el 1 y el 2», por los puntos 1 y 2 de B38 en
+> `docs/Supervision/ABIERTOS.md`. **Tres de los cuatro son zona ROJA R4**: sellar
+> el pago de una renta, emitir una factura y registrar un cobro son dinero.
+> Consta también en el cuerpo del commit.
+>
+> | Pantalla | Ruta protegida |
+> |---|---|
+> | `arrendadores/PagosRentaCard.tsx` | `POST /api/pagos-renta/:id/pagar` |
+> | `finanzas/page.tsx` · `GenerarFacturaDialog` | `POST /api/campanas/:id/facturar` |
+> | `finanzas/page.tsx` · `PagoModal` | `POST /api/cobranzas/:id/pagar` |
+> | `arrendadores/ContratoSheet.tsx` · «Renovar» | `POST /api/contratos/:id/renovar` |
+>
+> **Ni una línea de servidor.** Los endpoints ya exigían lo que tenían que
+> exigir. Tampoco se tocaron `lib/cambios-candado.ts` ni `ui/CampoContrasena.tsx`
+> —dan servicio a los tres cuadros de la mañana—: se **usan**. Sus pruebas siguen
+> en verde sin abrirlas.
+>
+> **La decisión que costó, y la que hay que leer:** dos de los cuatro son
+> **botones de un clic**, sin cuadro donde meter el campo. La regla adoptada es
+> una sola: *la contraseña se pide dentro del cuadro donde se confirma la acción;
+> si no hay cuadro, el 403 abre uno atado a esa acción exacta.* La pieza es
+> `components/demo/ui/candado.tsx` (`useCandado` + `PasoContrasena` +
+> `DialogoCandado`). El porqué de no mandar a la Topbar está en
+> [[03-Frontend/modulos-internos]].
+>
+> **«Renovar» tenía DOS defectos y se cerraron los dos:** no pedía la clave, y
+> **cualquier** fallo de esa ruta era invisible por no tener `try/catch`.
+>
+> Medido en este árbol, no copiado: `npx tsc --noEmit` limpio y **1913 pruebas en
+> 146 archivos** (main: 1878/145). Las **35 nuevas** muerden — **ocho mutantes**,
+> todos muertos y deshechos, uno de ellos **sobrevivió** a la primera versión de
+> una afirmación y obligó a estrecharla. Las **e2e en verde**: 45 archivos, 496
+> pruebas y 1 omitida, 355 s, con el build hecho ANTES y sin retocar código
+> después.
+>
+> **OJO con el Postgres del 5433:** `docker compose up -d` desde este worktree
+> **recreó el contenedor** `spaces_db` (los bind-mounts apuntan a otra ruta). El
+> volumen `db_spaces_pgdata` NO se borró y los datos están intactos —comprobado:
+> `spaces` sigue con sus 2 tenants y las once bases siguen ahí—, pero el
+> contenedor ahora monta los `.sql` de ESTE árbol.
+>
+> **QUEDAN OCHO de los doce, y fuera de esta aprobación:** cinco en
+> `inventario/InventarioTabla.tsx` (cuatro **se tragan** el mensaje), uno en
+> `inventario/ContratoWizard.tsx` y dos en `comercial/SiteFicha.tsx`.
+>
+> **Lo que NO cubre:** no hay DOM, así que nadie prueba que el cuadro aparezca en
+> el navegador al pulsar el botón.
 
 > [!success] 2026-09-25 · **B36 parte (1) — Z12 y `release.yml` RECLAMADOS y LIBERADOS**
 > Rama `chore/etiquetas-oci-release`, **aterrizada** en `main` (merge `c7629a8`).

@@ -1092,9 +1092,9 @@ nadie.
 | **«Razon social no disponible»** | El documento **sí** tiene razón social, pero la pantalla no acabó de cargar su nombre | Recarga la pantalla |
 | El reporte dice que **no hubo movimiento** en el periodo | Ninguna pantalla tuvo ingreso, ni renta, ni visitas en ese rango | Comprueba primero las fechas. Si son correctas, es que ese periodo está realmente vacío |
 | El reporte dice que **no se pudo calcular** | La pantalla no recibió respuesta, o la respuesta vino con error | Vuelve a intentar. Si se repite, avisa a quien administra tu instalación |
-| El sistema te pide **tu contraseña** al asignar la razón social de un contrato, al completarlo o al registrar el pago de una renta | Es el candado de los cambios sensibles | Tecléala en el campo que sale en el mismo cuadro. Si no tienes contraseña porque entras con Google, pídesela a tu administrador |
-| Te dice que **hace falta tu contraseña** y no hay ningún campo donde escribirla | Estás en una de las pantallas que todavía no lo pide en el sitio (facturar, cobrar, el botón de pago de un clic, la tabla de Inventario, el alta de contrato) | Cierra el cuadro, desbloquea en **«Cambios bloqueados»** arriba a la derecha y vuelve a intentarlo |
-| Pulsas **«Renovar»** en un contrato y **no pasa absolutamente nada** | Ese botón no avisa cuando el candado lo frena: no da ni error | Desbloquea en **«Cambios bloqueados»** y vuelve a pulsarlo |
+| El sistema te pide **tu contraseña** al asignar la razón social de un contrato, al completarlo, al registrar el pago de una renta, al **emitir una factura**, al **registrar un cobro** o al **renovar un contrato** | Es el candado de los cambios sensibles | Tecléala en el campo que sale en el mismo cuadro. Si no tienes contraseña porque entras con Google, pídesela a tu administrador |
+| Pulsas **«Registrar pago»** en la lista de rentas, o **«Renovar»** en un contrato, y se abre un cuadro pidiéndote la contraseña | Esas dos acciones son de un solo clic: no tienen cuadro propio, así que el cuadro **aparece** solo cuando hace falta la clave | Tecléala ahí y pulsa «Confirmar». Cancelar no hace nada: el pago o la renovación no se llegan a mandar |
+| Te dice que **hace falta tu contraseña** y no hay ningún campo donde escribirla | Estás en una de las pantallas que **todavía** no lo pide en el sitio: la tabla de **Inventario**, el **alta de contrato** y **editar o eliminar una pantalla** desde Comercial | Cierra el cuadro, desbloquea en **«Cambios bloqueados»** arriba a la derecha y vuelve a intentarlo |
 | Te dice que **ya contestaste** el cuestionario de bienvenida | Ya existe al menos una razón social | Ve a **«Razones sociales»** a cambiar lo que haga falta |
 | **«Esta cuenta entra con Google…»** al intentar entrar | A esa cuenta se le cerró la entrada por contraseña | Entra con **«Continuar con Google»** (apartado 1.3) |
 | **«Ver y decidir la actualización … está reservado a quien tenga el permiso de Administración → ver»** | Tu cuenta no tiene permiso de Administración | Pídeselo a quien administra los roles de tu organización |
@@ -1300,26 +1300,40 @@ Pídeselo a quien administra tu organización.
 - **DEFECTO — otras pantallas que piden la contraseña y tampoco la pintan. NUEVO el
   2026-09-25 por la tarde, y medido, no supuesto.** Al arreglar los tres cuadros de la
   ficha del contrato se barrió la aplicación entera por los dos extremos: qué rutas
-  llevan candado en el servidor, y qué pantalla consume cada una. **Quedan 12 puntos de
-  llamada en 6 archivos** que reciben el mismo 403 y no ofrecen dónde teclear. Para el
-  usuario, el rodeo por «Cambios bloqueados» **sigue siendo obligatorio** en todos ellos.
-  Los que más se notan:
-  - **Registrar el pago de una renta desde la lista**, el botón de un solo clic sin abrir
-    el cuadro (`components/demo/arrendadores/PagosRentaCard.tsx:156`). **Es dinero.**
-  - **Emitir una factura** (`app/(app)/(shell)/finanzas/page.tsx:430`) y **registrar el
-    cobro de una factura** (`:631`). **Las dos son dinero.**
-  - **El botón «Renovar»** de la ficha del contrato
-    (`components/demo/arrendadores/ContratoSheet.tsx:114-117`) **no tiene ni `try/catch`**:
-    el 403 no se ve por ningún lado. Pulsas y no pasa nada, sin un solo mensaje. Es el
-    peor de todos porque no se distingue de un botón que no funciona.
+  llevan candado en el servidor, y qué pantalla consume cada una. Salieron **12 puntos de
+  llamada en 6 archivos** que reciben el mismo 403 y no ofrecen dónde teclear.
+
+  **CUATRO CERRADOS el 2026-09-25 por la tarde**, con aprobación explícita del dueño («si
+  arregla el 1 y el 2»), en `fix/candado-dinero-y-renovar` — los tres de dinero y el que
+  no decía nada:
+  - ~~**Registrar el pago de una renta desde la lista**, el botón de un solo clic
+    (`components/demo/arrendadores/PagosRentaCard.tsx`). **Es dinero.**~~ Ahora el 403
+    **abre un cuadro** con el campo dentro. Es el camino más transitado de los dos que
+    llevan a esa misma operación.
+  - ~~**Emitir una factura** y **registrar el cobro de una factura**
+    (`app/(app)/(shell)/finanzas/page.tsx`). **Las dos son dinero.**~~ Las dos ya tenían
+    cuadro propio, así que el campo va **dentro**, debajo de lo que se va a confirmar, y
+    los datos capturados se conservan.
+  - ~~**El botón «Renovar»** de la ficha del contrato **no tiene ni `try/catch`**~~
+    **Corregidos sus DOS defectos:** ahora pide la contraseña en un cuadro que aparece, y
+    —lo que no era del candado— **cualquier** fallo de esa ruta se ve. Antes un 500 o la
+    red caída eran tan invisibles como el 403.
+
+  **La regla que se adoptó, y vale para lo que venga:** la contraseña se pide **dentro del
+  cuadro donde se confirma la acción**; si la acción no tiene cuadro, el 403 **abre uno**
+  atado a esa acción exacta. Ya no se manda a nadie a «Cambios bloqueados» por estos
+  cuatro caminos.
+
+  **SIGUEN ABIERTOS los otros ocho**, y ahí el rodeo por «Cambios bloqueados» es
+  obligatorio:
   - **Editar la renta, la tarifa o el arrendador desde la tabla de Inventario**
-    (`components/demo/inventario/InventarioTabla.tsx`, cuatro sitios) — tres de ellos
+    (`components/demo/inventario/InventarioTabla.tsx`, cinco sitios) — cuatro de ellos
     **se tragan el mensaje del servidor** y enseñan un «No se pudo actualizar» genérico,
     que es peor que el aviso: ni siquiera dice que falta la contraseña.
-  - **Alta de contrato** (`components/demo/inventario/ContratoWizard.tsx:292`) y **editar
-    o eliminar una pantalla** (`components/demo/comercial/SiteFicha.tsx:806` y `:174`).
+  - **Alta de contrato** (`components/demo/inventario/ContratoWizard.tsx`) y **editar
+    o eliminar una pantalla** (`components/demo/comercial/SiteFicha.tsx`, dos sitios).
 
-  **No se tocaron a propósito:** la aprobación del dueño era para dos cuadros concretos.
+  **No se tocaron a propósito:** la aprobación del dueño era para los cuatro de arriba.
   Cada uno es una decisión aparte, y la lista está para que se tome con los números
   delante y no de memoria.
 

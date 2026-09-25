@@ -1110,42 +1110,98 @@ el PADRE no corre su propio `update.sh` por cron para sí mismo.
 
 ---
 
-#### B38 · 🔴 Doce sitios piden permiso al servidor y NO saben pedir la contraseña — tres son dinero, y uno no dice nada en absoluto
+#### B38 · 🟠 Quedan OCHO sitios que piden permiso al servidor y NO saben pedir la contraseña — los tres de dinero y «Renovar» ya están cerrados
 
 **Abierta el 2026-09-25**, al barrer la aplicación tras cerrar el mismo defecto
 tres veces en el mismo archivo. Que un solo archivo escondiera tres instancias
 hizo sospechar que había más. **Había nueve más.**
+
+> [!success] 2026-09-25, tarde · **CUATRO CERRADOS, y baja de 🔴 a 🟠**
+> Jochelo aprobó los puntos **1 y 2** de la lista de abajo — «si arregla el 1 y
+> el 2» —, o sea **los tres de dinero y el botón «Renovar»**. Hechos en
+> `fix/candado-dinero-y-renovar` (sin fusionar), con la aprobación en el cuerpo
+> del commit porque tres de los cuatro son **zona ROJA R4**.
+>
+> | # | Ruta | Cómo quedó |
+> |---|---|---|
+> | 1 | `POST /api/pagos-renta/[id]/pagar` | el 403 **abre un cuadro** con el campo |
+> | 2 | `POST /api/campanas/[id]/facturar` | campo **dentro** del cuadro que ya había |
+> | 3 | `POST /api/cobranzas/[id]/pagar` | campo **dentro** del cuadro que ya había |
+> | 4 | `POST /api/contratos/[id]/renovar` | **los dos** defectos, ver abajo |
+>
+> **La decisión que costó, porque no era copiar lo de la mañana:** los puntos 1 y
+> 4 son **botones de un clic**, sin cuadro donde meter el campo. La regla
+> adoptada es **una sola para los cuatro**, y queda escrita para lo que venga:
+>
+> > La contraseña se pide **dentro del cuadro donde se confirma la acción**.
+> > Si la acción **no tiene cuadro**, el 403 **abre uno**, atado a esa acción exacta.
+>
+> **No se manda a la Topbar** (`shell/DesbloqueoCambios`): además del rodeo y de
+> que nada conecta el 403 con el botón que falló, ese camino **abre TODO durante
+> 15 minutos** para poder hacer UNA cosa. Pedirla en el sitio gasta el desbloqueo
+> en la acción que se confirma — menor privilegio, también en el tiempo.
+>
+> La pieza nueva es `apps/web/components/demo/ui/candado.tsx` (`useCandado` +
+> `PasoContrasena` + `DialogoCandado`). **No se reescribieron**
+> `lib/cambios-candado.ts` ni `ui/CampoContrasena.tsx`: se usan tal cual y sus
+> pruebas siguen en verde sin tocarse. **Ni una línea de servidor.**
+>
+> **Confirmar REPITE la acción pendiente, no arma una nueva.** Importa en
+> «Registrar pago» de una cobranza, donde hay dos botones —liquidar todo el saldo
+> y abonar una parte—: confirmar el que no era movería otro dinero del que se
+> pidió. Por eso los campos de esos cuadros quedan en solo lectura durante el
+> paso.
+>
+> **«Renovar» tenía DOS defectos y se cerraron los dos.** El segundo no era del
+> candado: **cualquier** fallo de esa ruta era invisible. Ahora
+> `confirmarConCandado` devuelve el fallo como valor y se enseña.
+>
+> **Medido:** `npx tsc --noEmit` limpio, **1913 pruebas en 146 archivos**
+> (main: 1878/145), **e2e en verde** (45 archivos, 496 + 1 omitida, 355 s) con el
+> build hecho antes. **Ocho mutantes**, todos muertos y deshechos — y uno
+> **sobrevivió** a la primera versión de una afirmación, que se estrechó al botón
+> en vez de dar el mutante por bueno.
+>
+> **Sigue sin probarse** que el cuadro aparezca en el navegador al pulsar el
+> botón: el arnés no tiene DOM.
 
 **El patrón:** el servidor responde `403 requiereDesbloqueo` pidiendo la
 contraseña; la pantalla lo pinta como un error cualquiera —o se lo traga— y
 **no ofrece ningún campo donde teclearla**. El camino queda muerto y no parece
 un permiso: parece una avería.
 
-**El recuento: 14 combinaciones ruta+método protegidas. Seis saben pedirla. Doce
-puntos de llamada, en 6 archivos, no.**
+**El recuento al abrirla: 14 combinaciones ruta+método protegidas. Seis sabían
+pedirla. Doce puntos de llamada, en 6 archivos, no.** Al 25/09 por la tarde,
+**cuatro cerrados y ocho abiertos** — las filas tachadas son las cerradas.
 
 | # | Ruta protegida | Pantalla | Qué hace con el 403 | Dinero |
 |---|---|---|---|---|
-| 1 | `POST /api/pagos-renta/[id]/pagar` | `PagosRentaCard.tsx:156` | toast | **SÍ** |
-| 2 | `POST /api/campanas/[id]/facturar` | `finanzas/page.tsx:430` | toast | **SÍ** |
-| 3 | `POST /api/cobranzas/[id]/pagar` | `finanzas/page.tsx:631` | error en modal | **SÍ** |
-| 4 | `POST /api/contratos/[id]/renovar` | `ContratoSheet.tsx:114` | **NADA** | no |
+| ~~1~~ | ~~`POST /api/pagos-renta/[id]/pagar`~~ | ~~`PagosRentaCard.tsx`~~ | **CERRADO** · abre cuadro | **SÍ** |
+| ~~2~~ | ~~`POST /api/campanas/[id]/facturar`~~ | ~~`finanzas/page.tsx`~~ | **CERRADO** · campo dentro | **SÍ** |
+| ~~3~~ | ~~`POST /api/cobranzas/[id]/pagar`~~ | ~~`finanzas/page.tsx`~~ | **CERRADO** · campo dentro | **SÍ** |
+| ~~4~~ | ~~`POST /api/contratos/[id]/renovar`~~ | ~~`ContratoSheet.tsx`~~ | **CERRADO** · y ya no se come los fallos | no |
 | 5 | `PATCH /api/contratos/[id]` | `InventarioTabla.tsx:569` | muestra el mensaje | no |
 | 6 | `PATCH /api/contratos/[id]` ×N | `InventarioTabla.tsx:251` | **se lo traga** | no |
 | 7-9 | `PATCH /api/sitios/[id]` | `InventarioTabla.tsx:666`, `:755`, `:179` | **se lo tragan** | no |
 | 10 | `POST /api/contratos` | `ContratoWizard.tsx:292` | error en modal | no |
 | 11-12 | `PATCH`/`DELETE /api/sitios/[id]` | `SiteFicha.tsx:806`, `:174` | toast | no |
 
-### El peor de los doce, y no es de dinero
+### ~~El peor de los doce, y no es de dinero~~ — CERRADO el 2026-09-25
 
-**`ContratoSheet.tsx:114-117` — «Renovar» no tiene `try/catch` ninguno.**
-Verificado el 25/09 leyendo el archivo: es `await iniciarRenovacionApi(...)`
-seguido de `onToast('Renovación iniciada')`. Un 403 rechaza la promesa, el toast
-nunca llega, y **no pasa absolutamente nada**: ni aviso, ni error, ni traza.
+**`ContratoSheet.tsx` — «Renovar» no tenía `try/catch` ninguno.**
+Verificado el 25/09 leyendo el archivo: era `await iniciarRenovacionApi(...)`
+seguido de `onToast('Renovación iniciada')`. Un 403 rechazaba la promesa, el
+toast nunca llegaba, y **no pasaba absolutamente nada**: ni aviso, ni error, ni
+traza.
 
-Es el peor porque **no se distingue de un botón roto**, y porque no es solo el
-candado: **cualquier** fallo de esa ruta es invisible. Son cuatro líneas de
-arreglo.
+Era el peor porque **no se distinguía de un botón roto**, y porque no era solo el
+candado: **cualquier** fallo de esa ruta era invisible.
+
+> **Cerrado con los DOS defectos, que es lo que se pidió.** El botón pasa por
+> `confirmarConCandado`, que devuelve el fallo como **valor** en vez de rechazar
+> la promesa: el 403 abre el cuadro con el campo, y un 500 o la red caída salen
+> por el toast. Probado ejecutando la secuencia real con `fetch` espiado
+> (`candado-dinero-y-renovar.test.ts` §8), no leyendo el `catch`.
 
 ### Y un guard que ninguna pantalla puede disparar
 
@@ -1165,19 +1221,27 @@ día: es literalmente a dónde se manda el dinero.
 
 **Lo que hay que decidir:**
 
-- **¿Los tres de dinero entran ya?** El patrón existe y está probado por
-  mutación; el coste marginal es casi cero. `PagosRentaCard` es el más urgente
-  de los tres: es el botón que la gente usa a diario desde la lista, o sea que
-  el cuadro que se arregló el 25/09 es el camino **menos** transitado.
+- ~~**¿Los tres de dinero entran ya?**~~ **DECIDIDO que sí el 2026-09-25** («si
+  arregla el 1 y el 2»), junto con «Renovar». Hechos y medidos; ver el recuadro
+  de arriba.
 - **¿Los cuatro de `InventarioTabla` al menos dejan de tragarse el mensaje?**
   `catch {}` → `catch (e)` es barato y convierte cuatro callejones sin salida en
-  algo accionable, aunque no se añada el campo.
-- **¿La pantalla de la cuenta bancaria es una feature con su tarjeta?**
+  algo accionable, aunque no se añada el campo. **Sigue abierta**, y ahora es más
+  barata: la pieza que falta ya existe (`ui/candado.tsx`), así que ponerles el
+  campo cuesta lo mismo que ponerles el mensaje.
+- **¿La pantalla de la cuenta bancaria es una feature con su tarjeta?** Sigue
+  abierta.
 
 > **Lo que NO se verificó al abrir esta entrada:** los doce puntos se
 > clasificaron **leyendo el `catch` de cada uno**, no viéndolos fallar. Y
 > `PagosRentaCard.tsx` solo se leyó la función `registrar`: si hay otro camino de
 > pago en ese archivo, no se vio.
+>
+> **Comprobado el 25/09 por la tarde, al cerrar los cuatro:** `PagosRentaCard.tsx`
+> tiene **un solo** camino de pago —`registrar()`, y `registrarPagoRentaApi` no
+> aparece en ninguna otra parte del archivo—, así que esa duda queda resuelta.
+> Las otras **siguen en pie para los ocho que quedan**: se clasificaron leyendo,
+> no viéndolos fallar.
 
 ---
 

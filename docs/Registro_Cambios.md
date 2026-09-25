@@ -7,6 +7,37 @@ La entrada más reciente va arriba.
 
 ## 2026-09-25
 
+- **Facturar, cobrar, pagar una renta desde la lista y renovar un contrato ya te piden
+  la contraseña donde estás.** Eran los cuatro sitios que quedaban con el problema de
+  arriba y más se notan: tres de ellos mueven dinero.
+
+  **Lo nuevo aquí, y es lo que costó decidir:** los cuadros que se arreglaron esta
+  mañana tenían un sitio evidente donde poner la casilla de la contraseña. **«Registrar
+  pago» de la lista de rentas y «Renovar» no son cuadros: son botones de un solo clic.**
+  La solución es que, cuando hace falta la contraseña, **se abre un cuadro pequeño para
+  teclearla**, y lo que confirmas ahí es exactamente la acción que habías pulsado — ni
+  otra, ni una parecida. Si lo cancelas, no se manda nada.
+
+  **«Emitir factura» y «Registrar pago» de una cobranza** sí tenían cuadro, así que la
+  casilla va **dentro**, debajo de lo que estás a punto de confirmar, y **no pierdes
+  nada de lo que ya elegiste** (el plazo, la sociedad que emite, las parcialidades, el
+  importe del abono). Mientras tecleas la contraseña esos datos quedan en solo lectura,
+  a propósito: lo que se confirma tiene que ser lo mismo que se pidió.
+
+  **Y «Renovar» tenía un segundo problema, peor que el del candado: no decía nada de
+  nada.** Pulsabas y no pasaba absolutamente nada — ni aviso, ni error. No era solo con
+  el candado: **cualquier** fallo de ese botón era invisible. Ahora se ve siempre.
+
+  Como siempre: esto **no cambia quién puede hacer cada cosa ni cuándo se pide la
+  contraseña** —eso lo decide el servidor y sigue igual—, y **el camino de antes sigue
+  funcionando**: desbloquear desde «Cambios bloqueados» antes de empezar te ahorra
+  teclearla cada vez.
+
+  **Lo que sigue pendiente:** la tabla de **Inventario** (editar renta, tarifa o
+  arrendador), el **alta de contrato** y **editar o eliminar una pantalla** desde
+  Comercial. Ahí sigue haciendo falta desbloquear antes desde la barra superior. Están
+  anotadas y se decidirán aparte.
+
 - **Y los otros dos cuadros de esa misma ficha: completar un contrato y registrar el
   pago de una renta.** Tenían el mismo problema que el de arriba —te pedían la
   contraseña y no te daban dónde escribirla— y ya la piden en el sitio.
