@@ -305,6 +305,109 @@ cambios sensibles. **No es decorativo**: es la salida de un `403
 > **Sigue sin probarse** que el cuadro aparezca en el navegador al pulsar el
 > botón. Ese salto no lo da este arnés.
 
+> [!success] 2026-09-25, noche · B38 · **los OCHO restantes, y B38 CERRADA**
+> Inventario y las fichas de pantalla. Ninguno mueve dinero —la tabla de B38 lo
+> dice—, aunque **sí tocan campos que el servidor llama sensibles**: tarifa,
+> renta y arrendador. Ver el aviso del final, que es una pregunta abierta.
+>
+> | # | Pantalla | Ruta | Dónde va el campo |
+> |---|---|---|---|
+> | 5 | `InventarioTabla` · `CeldaRenta` | `PATCH /api/contratos/:id` | el 403 **abre cuadro** |
+> | 6 | `InventarioTabla` · lote de rentas | `PATCH /api/contratos/:id` **×N** | el 403 **abre cuadro** |
+> | 7 | `InventarioTabla` · `CeldaTarifa` | `PATCH /api/sitios/:id` | el 403 **abre cuadro** |
+> | 8 | `InventarioTabla` · `CeldaPropietario` | `PATCH /api/sitios/:id` | el 403 **abre cuadro** |
+> | 9 | `InventarioTabla` · lote de tarifas | `PATCH /api/sitios/:id` **×N** | el 403 **abre cuadro** |
+> | 10 | `ContratoWizard` | `POST /api/contratos` | **dentro** del asistente |
+> | 11 | `SiteFicha` · `EditarSitioDialog` | `PATCH /api/sitios/:id` | **dentro** del modal |
+> | 12 | `SiteFicha` · eliminar | `DELETE /api/sitios/:id` | **dentro** del `ConfirmDialog` |
+>
+> ### Lo primero, porque la tabla de B38 se quedaba corta en cuatro
+>
+> Decía «se lo traga» y «toast», o sea que el mensaje se perdía. **No era eso.**
+> `actualizarSitioApi` y `borrarSitioApi` (`lib/data/sitios-api.ts`) **no miraban
+> `r.ok`**: un 403 se **resolvía como éxito**. La celda de tarifa cantaba
+> «Tarifa de "X" actualizada» con la tarifa intacta, y «Eliminar pantalla»
+> cerraba el cuadro dejando la pantalla donde estaba. **El `toast.error` escrito
+> en la ficha no se disparaba nunca.** Callarse es malo; **mentir es peor**,
+> porque nadie comprueba lo que la pantalla acaba de dar por hecho.
+>
+> Los doce puntos se habían clasificado **leyendo el `catch`**, y estos cuatro no
+> tenían el defecto en el `catch`: lo tenían en el cliente de la API, una capa más
+> abajo. Es la limitación que la propia entrada de B38 declaraba.
+>
+> ### El problema nuevo: **dos de los ocho son LOTES**
+>
+> «Aplicar tarifa a las seleccionadas» y «aplicar renta» mandan **N `PATCH` en
+> paralelo** (`Promise.allSettled`), así que «una acción, un cuadro» no les vale
+> tal cual. La política vive en **`lib/cambios-lote.ts`** (módulo puro, sin React
+> ni `fetch`) y es ésta:
+>
+> 1. **La contraseña NO se pide de entrada.** El candado está apagado por defecto
+>    en los tenants; preguntar siempre sería fricción inventada, y enseña a
+>    teclearla sin que nadie la pida. Se manda el lote y decide el servidor. Como
+>    las N salen contra la **misma sesión**, el candado las rechaza **todas
+>    juntas**: no se aplica ninguna.
+> 2. **Lo que el servidor rechazó no se aplicó; lo que pasó SE QUEDA.** No hay
+>    vuelta atrás del lado del cliente y fabricarla sería tocar el servidor.
+> 3. **El reintento manda SOLO las pendientes**, nunca el lote entero. Hoy los
+>    valores que viajan son absolutos, así que repetirlo saldría igual — pero
+>    cada reescritura deja su fila en `registrarAccion`, y el registro diría que
+>    la pantalla se editó dos veces cuando se editó una. Y el día que el ajuste
+>    porcentual se calcule en el servidor, repetir **compondría** el porcentaje.
+> 4. **Si el lote quedó a medias, SE DICE CUÁNTAS.** `lote.frase()` produce
+>    «Se aplicó en 2 de 3 pantallas; 1 sin cambiar.», y el **subtítulo** del
+>    cuadro la enseña antes de pedir la clave, junto con que confirmar aplica solo
+>    las que faltan. **Un lote a medias y en silencio es peor que no haber hecho
+>    nada**, y era exactamente lo que hacía el `catch {}` de antes.
+>
+> Para que eso sea posible, `actualizarTarifasApi` y `actualizarRentasApi`
+> devuelven ahora `ResultadoLote`: además de `ok`/`fallidas`, **`pendientes`** —los
+> elementos que no se aplicaron— y **`requiereDesbloqueo`**. Antes cada fallo era
+> un `Error('patch falló')` idéntico para todos: imposible distinguir el candado
+> de un 500, e imposible saber cuáles reintentar.
+>
+> ### Lo demás, sin sorpresas
+>
+> Las **tres celdas en línea** montan `DialogoCandado` **en todas sus ramas de
+> `return`**, no solo en la de edición: cuando vuelve el 403 la celda ya cerró su
+> campo y se pinta como botón, así que un cuadro montado solo en la otra rama se
+> desmontaría justo cuando hace falta. El **asistente** y el **modal de editar**
+> llevan `PasoContrasena` dentro, y **confirmar repite la acción pendiente** en
+> vez de releer el formulario. En **eliminar**, el campo va dentro del
+> `ConfirmDialog` —que estrenó una prop opcional `confirmDeshabilitado`, porque
+> `busy` además bloquea «Cancelar» y escribe «Procesando…»— y el cuadro **no se
+> cierra** mientras el servidor pide la clave.
+>
+> ### Cómo se prueba
+>
+> `components/demo/candado-inventario-y-fichas.test.ts`, **37 afirmaciones**. Las
+> **cuatro primeras secciones (20 pruebas) no leen el fuente**: corren la
+> secuencia real con los clientes de `data/*-api` y `fetch` espiado y **cuentan
+> peticiones** — que el reintento manda dos y no tres, que `s1` no vuelve a
+> salir, que sin contraseña no sale ni una. **Trece mutantes, todos muertos**, y
+> uno **sobrevivió**: cambiar `{dialogo}` por `{null}` en `CeldaTarifa` dejaba las
+> 37 en verde porque el `toContain('<DialogoCandado')` casaba con la línea que lo
+> **declara**. La afirmación se estrechó a contar los `{dialogo}` rendidos, uno
+> por rama. Es el mismo vicio que el mutante de la mañana, en otro archivo.
+>
+> **Ni una línea de servidor.** `lib/cambios-candado.ts`, `ui/CampoContrasena.tsx`
+> y `ui/candado.tsx` se usan tal cual; sus pruebas siguen en verde sin abrirse.
+>
+> **Sigue sin probarse** que el cuadro aparezca en el navegador al pulsar. Y
+> tampoco se probó que un lote quede a medias **en Postgres de verdad**: el
+> parcial se simula con el `fetch` espiado.
+>
+> > [!warning] Lo que conviene que decida una persona
+> > Los ocho se cerraron con la clasificación de B38 («Dinero: no»), y es
+> > defendible: ninguno mueve dinero, emite documento ni altera saldos. Pero
+> > `app/api/sitios/[id]/route.ts:15-19` llama **sensibles** a `tarifaMensual`,
+> > `tarifaPublicada`, `costoCompra`, `precioM2`, `tarifaImpresion`,
+> > `arrendadorId` y `predioId`, y `app/api/contratos/**` está en la lista de
+> > archivos de **R4** en [[06-Operacion/zonas-de-riesgo]]. O sea: **la zona roja
+> > y la tabla de B38 no dicen lo mismo sobre estas rutas.** Aquí no se tocó el
+> > servidor ni se debilitó ningún guard, así que el riesgo real es nulo; lo que
+> > queda es la discrepancia escrita, y merece una frase del dueño.
+
 ## Dónde hay lógica de negocio en el cliente
 
 En general está bien separada: los cálculos puros viven en `apps/web/lib/*.ts`

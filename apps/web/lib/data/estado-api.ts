@@ -2,6 +2,8 @@
 
 import { useDemoStore } from './store'
 import type { Campana } from './types'
+import { esErrorDeDesbloqueo } from '@/lib/cambios-candado'
+import type { ResultadoLote } from '@/lib/cambios-lote'
 
 // ============================================================================
 //  lib/data/estado-api.ts — Estado persistido (BD) → store, y mutaciones de
@@ -493,23 +495,36 @@ export async function iniciarRenovacionApi(contratoId: string): Promise<void> {
 // bitácora, que para un cambio de dinero es lo que se quiere. Si alguno falla
 // (p. ej. expiró el desbloqueo a media tanda) el resto sí se aplica: se devuelve
 // la cuenta para poder decirlo.
+// B38 · devuelve además QUÉ contratos quedaron sin aplicar y SI fue por el
+// candado. `PATCH /api/contratos/:id` pasa entero por `exigirCambioSensible`
+// (`app/api/contratos/[id]/route.ts:25`), así que con el control de cambios
+// encendido este lote se rechaza ENTERO — y hasta hoy eso se resumía en un
+// «0 actualizadas» que no decía por qué ni ofrecía dónde teclear la clave.
+// Ver `lib/cambios-lote.ts` para la política de reintento.
 export async function actualizarRentasApi(
   items: { contratoId: string; montoRenta: number }[],
-): Promise<{ ok: number; fallidas: number }> {
+): Promise<ResultadoLote<{ contratoId: string; montoRenta: number }>> {
   const res = await Promise.allSettled(
     items.map((it) =>
       fetch(`${API}/contratos/${it.contratoId}/`, {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ montoRenta: it.montoRenta }),
-      }).then((r) => {
-        if (!r.ok) throw new Error('patch falló')
+      }).then(async (r) => {
+        if (r.ok) return
+        const d = await r.json().catch(() => ({}))
+        throw new Error((d as { error?: string }).error ?? 'No se pudo guardar la renta')
       }),
     ),
   )
   const ok = res.filter((r) => r.status === 'fulfilled').length
   await refrescarEstado()
-  return { ok, fallidas: items.length - ok }
+  return {
+    ok,
+    fallidas: items.length - ok,
+    pendientes: items.filter((_, i) => res[i].status === 'rejected'),
+    requiereDesbloqueo: res.some((r) => r.status === 'rejected' && esErrorDeDesbloqueo(r.reason)),
+  }
 }
 
 export async function editarContratoApi(

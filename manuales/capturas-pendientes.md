@@ -115,6 +115,36 @@ mintiendo** con este arreglo y se corrigieron.
 desbloquear**; un pago de renta pendiente, un contrato a menos de 60 días de vencer, una
 campaña sin comprobante y una cobranza con saldo.
 
+## Sin foto · el candado en Inventario y en las fichas — **nueva, 2026-09-25 (noche)**
+
+Los ocho que cerraron B38. Siete son variaciones del cuadro que ya se describió arriba,
+pero **la octava enseña algo que no existe en ningún otro sitio de la aplicación**:
+
+- **El cuadro de un CAMBIO MASIVO a medias. Es la que más falta.** Con una selección de
+  tres pantallas y el servidor aceptando dos y frenando una, el cuadro sale con un
+  subtítulo que dice literalmente: *«Se aplicó en 2 de 3 pantallas; 1 sin cambiar.
+  Confirmar aplica SOLO la que falta; las 2 que ya cambiaron no se vuelven a
+  tocar.»* Es el único sitio donde la aplicación **confiesa un trabajo a medias con
+  números**, y es exactamente lo que este arreglo existe para que pase.
+  > **Ojo al prepararla**, porque no es trivial: si el control de cambios está
+  > encendido, las N peticiones salen contra la misma sesión y el servidor las frena
+  > **todas**, así que el caso normal es «0 de 3» y el subtítulo sale genérico. El
+  > parcial necesita que unas pasen y otras no por otro motivo (por ejemplo una
+  > pantalla borrada entre medias). **Hoy solo se ha visto con `fetch` espiado en las
+  > pruebas, nunca contra Postgres.**
+- **La celda de tarifa / renta / arrendador** del Inventario con el cuadro «Confirma con
+  tu contraseña» encima de la tabla, y el subtítulo nombrando la pantalla concreta.
+- **El asistente de contrato** con el campo «Tu contraseña» **entre el resumen del paso 3
+  y la fila de botones**, y el botón diciendo **«Confirmar y crear»**. Lo que hay que
+  enseñar es que **el formulario entero sigue lleno detrás**: ése era el coste del rodeo.
+- **«Eliminar pantalla»** con las **dos** cosas a la vez en el mismo cuadro: el nombre
+  tecleado para confirmar **y** el campo de la contraseña debajo.
+
+**El manual no describe paso a paso ninguno de estos flujos**, así que **no hay ninguna
+captura que retirar**. Lo que sí cambió es el apartado 10.1, cuya fila «hace falta tu
+contraseña y no hay ningún campo donde escribirla» **pasó a estar mintiendo** y se
+sustituyó por dos filas nuevas.
+
 ---
 
 ## Estados preparados a mano, y por qué se aceptan

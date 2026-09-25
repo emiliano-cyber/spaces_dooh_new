@@ -9,6 +9,8 @@ import { StatusBadge, SITIO_TONO, SITIO_LABEL, disponibilidadInventario } from '
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { actualizarSitioApi, actualizarTarifasApi } from '@/lib/data/sitios-api'
 import { editarContratoApi, actualizarRentasApi } from '@/lib/data/estado-api'
+import { useCandado, DialogoCandado } from '@/components/demo/ui/candado'
+import { crearLote, type Lote } from '@/lib/cambios-lote'
 import { periodicidadLabel } from '@/lib/renta-periodicidad'
 import { planearRentaMasiva } from '@/lib/renta-masiva'
 import { descargarInventario } from '@/lib/inventario-export'
@@ -24,6 +26,26 @@ import {
 } from '@/lib/data/client'
 
 // Etiquetas de periodicidad: lib/renta-periodicidad.ts, junto al enum.
+
+/**
+ * Lo que dice el cuadro de la contraseña de un cambio masivo, ANTES de pedirla.
+ *
+ * Existe porque un lote no es una acción: es N. Si el servidor rechazó el lote
+ * entero —lo normal, porque las N salen contra la misma sesión y el candado las
+ * para todas— no hay nada que confesar. Pero si alguna llegó a aplicarse, callar
+ * el número sería exactamente el defecto que B38 vino a cerrar, movido de sitio:
+ * el usuario teclearía la contraseña creyendo que no ha cambiado nada.
+ */
+function avisoDeLote(lote: Lote | null): string {
+  const base = 'Este cambio es sensible: tu organización pide que vuelvas a identificarte.'
+  if (!lote || lote.aplicadas() === 0) return base
+  const faltan = lote.pendientes()
+  const ya = lote.aplicadas()
+  return (
+    `${lote.frase()} Confirmar aplica SOLO ${faltan === 1 ? 'la que falta' : `las ${faltan} que faltan`}; ` +
+    `${ya === 1 ? 'la que ya cambió no se vuelve' : `las ${ya} que ya cambiaron no se vuelven`} a tocar. ${base}`
+  )
+}
 
 // Tabla del inventario completo con columnas (incluye propietario, renta y
 // periodicidad de pago tomados del contrato vigente de cada sitio).
@@ -53,6 +75,15 @@ export function InventarioTabla() {
   const [campoMasivo, setCampoMasivo] = useState<'tarifa' | 'renta'>('tarifa')
   const [valorTarifa, setValorTarifa] = useState('')
   const [aplicando, setAplicando] = useState(false)
+  // B38 · los DOS cambios masivos mandan N peticiones a rutas con candado
+  // (`PATCH /api/sitios/:id` ×N y `PATCH /api/contratos/:id` ×N) y hasta hoy se
+  // tragaban el 403 en un `catch {}`. Un solo candado para los dos: solo hay un
+  // cambio masivo en vuelo a la vez, porque el botón se bloquea con `aplicando`.
+  const candado = useCandado()
+  // El lote EN CURSO. Vive en una ref porque `reintentar()` vuelve a ejecutar el
+  // mismo cierre y tiene que ver la lista YA RECORTADA: lo que se aplicó en el
+  // primer intento no se vuelve a mandar. Ver `lib/cambios-lote.ts`.
+  const loteRef = useRef<Lote | null>(null)
 
   // Generar el archivo es trabajo sincrono en el navegador y puede fallar (un
   // inventario enorme agota memoria). Sin este catch el error moria en la
@@ -175,17 +206,29 @@ export function InventarioTabla() {
         : `ajustar la tarifa ${num >= 0 ? '+' : ''}${num}%`
     if (!window.confirm(`¿Aplicar «${resumen}» a ${objetivos.length} pantalla${objetivos.length === 1 ? '' : 's'}?`)) return
     setAplicando(true)
-    try {
-      const { ok, fallidas } = await actualizarTarifasApi(items)
-      notify(
-        fallidas === 0
-          ? `Tarifa actualizada en ${ok} pantalla${ok === 1 ? '' : 's'}`
-          : `Tarifa actualizada en ${ok}; ${fallidas} fallaron`,
-      )
-      limpiarSel()
-    } catch {
-      notify('No se pudo aplicar el cambio masivo')
-    }
+    // B38 · antes esto era un `try/catch {}` que decía «No se pudo aplicar el
+    // cambio masivo» y se comía el motivo. Con el control de cambios encendido
+    // el motivo era el 403 del candado, y no había ningún sitio donde teclear la
+    // contraseña: el camino quedaba muerto y parecía una avería.
+    const lote = crearLote({
+      items,
+      aplicar: actualizarTarifasApi,
+      unidad: 'pantalla',
+      unidadPlural: 'pantallas',
+    })
+    loteRef.current = lote
+    await candado.ejecutar({
+      guardar: lote.paso,
+      alLograr: () => {
+        notify(`Tarifa actualizada en ${lote.aplicadas()} pantalla${lote.aplicadas() === 1 ? '' : 's'}`)
+        limpiarSel()
+      },
+      // Sin el cuadro a la vista este aviso es la ÚNICA salida que tiene el
+      // fallo, y ya lleva la cuenta de cuántas sí se aplicaron: `lote.paso()`
+      // lanza esa frase, no un texto genérico.
+      alFallar: (m) => notify(m),
+      mensajeSiFalla: 'No se pudo aplicar el cambio masivo',
+    })
     setAplicando(false)
   }
 
@@ -240,17 +283,25 @@ export function InventarioTabla() {
     if (!window.confirm(aviso)) return
 
     setAplicando(true)
-    try {
-      const { ok, fallidas } = await actualizarRentasApi(plan.cambios)
-      notify(
-        fallidas === 0
-          ? `Renta actualizada en ${ok} contrato${ok === 1 ? '' : 's'}`
-          : `Renta actualizada en ${ok}; ${fallidas} fallaron`,
-      )
-      limpiarSel()
-    } catch {
-      notify('No se pudo aplicar el cambio masivo de renta')
-    }
+    // B38 · mismo trato que el lote de tarifas, y aquí importa más: son los
+    // contratos, o sea lo que se le paga al arrendador. Que la mitad cambiara y
+    // la otra mitad no, en silencio, era el peor final posible.
+    const lote = crearLote({
+      items: plan.cambios,
+      aplicar: actualizarRentasApi,
+      unidad: 'contrato',
+      unidadPlural: 'contratos',
+    })
+    loteRef.current = lote
+    await candado.ejecutar({
+      guardar: lote.paso,
+      alLograr: () => {
+        notify(`Renta actualizada en ${lote.aplicadas()} contrato${lote.aplicadas() === 1 ? '' : 's'}`)
+        limpiarSel()
+      },
+      alFallar: (m) => notify(m),
+      mensajeSiFalla: 'No se pudo aplicar el cambio masivo de renta',
+    })
     setAplicando(false)
   }
 
@@ -356,7 +407,15 @@ export function InventarioTabla() {
             />
             {modoTarifa === 'ajustar' && <span className="text-muted">%</span>}
           </div>
-          <Button size="sm" onClick={aplicarMasivo} disabled={aplicando || !valorTarifa.trim()}>
+          {/* `candado.reautenticando` entra en el `disabled` a propósito: mientras
+              el cuadro de la contraseña está abierto hay un lote A MEDIO APLICAR,
+              y empezar otro encima dejaría dos listas de pendientes compitiendo
+              por el mismo desbloqueo. */}
+          <Button
+            size="sm"
+            onClick={aplicarMasivo}
+            disabled={aplicando || candado.reautenticando || !valorTarifa.trim()}
+          >
             {aplicando ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
             {aplicando ? 'Aplicando…' : 'Aplicar'}
           </Button>
@@ -489,6 +548,21 @@ export function InventarioTabla() {
 
     <SiteFicha sitio={activo} open={fichaOpen} onOpenChange={setFichaOpen} />
 
+    {/* B38 · el cuadro que le faltaba a los DOS cambios masivos. No hay un
+        diálogo donde meter el campo —el aviso previo es un `window.confirm`,
+        que es del navegador y no admite nada dentro—, así que el 403 abre uno.
+        Es la misma regla de `ui/candado.tsx`, con el envase que toca.
+
+        El subtítulo NO es fijo, y esa es la parte que importa: si el lote quedó
+        a medias, quien va a teclear la contraseña tiene que saber cuántas se
+        aplicaron YA y cuántas faltan. Reintentar manda solo las que faltan. */}
+    <DialogoCandado
+      candado={candado}
+      titulo="Confirma con tu contraseña"
+      subtitulo={avisoDeLote(loteRef.current)}
+      etiquetaConfirmar="Confirmar y aplicar"
+    />
+
     {toast && (
       <div className="fixed bottom-5 left-1/2 z-[70] -translate-x-1/2 rounded-md border border-border bg-ink px-4 py-2.5 text-[13px] text-white">
         <span className="inline-flex items-center gap-2">
@@ -532,6 +606,12 @@ function CeldaRenta({
   const [val, setVal] = useState('')
   const [saving, setSaving] = useState(false)
   const resueltoRef = useRef(false)
+  // B38 · `PATCH /api/contratos/:id` pasa entero por `exigirCambioSensible`
+  // (`app/api/contratos/[id]/route.ts:25`). Esta celda SÍ enseñaba el mensaje
+  // del servidor —era la mejor de las cinco de este archivo— pero lo enseñaba
+  // como un aviso que se desvanece, y sin ningún sitio donde teclear la clave:
+  // el camino directo quedaba muerto igual. El 403 abre un cuadro.
+  const candado = useCandado()
 
   const renta = info?.renta ?? 0
   const texto = info && info.renta > 0 ? formatMonto(info.renta) : '—'
@@ -565,19 +645,20 @@ function CeldaRenta({
       return
     }
     setSaving(true)
-    try {
-      await editarContratoApi(info.contratoId, { montoRenta: num })
-      onSaved(
-        compartido
-          ? `Renta del predio actualizada (${hermanas} pantallas)`
-          : `Renta de "${sitioNombre}" actualizada`,
-      )
-    } catch (e) {
-      // El mensaje del servidor importa: puede ser el del control de cambios
-      // ("desbloquea la sesión"), y tragárselo dejaría al usuario sin saber qué
-      // hacer.
-      onSaved(e instanceof Error ? e.message : 'No se pudo actualizar la renta')
-    }
+    // El mensaje del servidor importa, y el del control de cambios ADEMÁS abre
+    // el cuadro con el campo: enseñarlo y no ofrecer dónde teclearlo era dejar
+    // al usuario sabiendo qué falta y sin poder hacerlo.
+    await candado.ejecutar({
+      guardar: () => editarContratoApi(info.contratoId, { montoRenta: num }),
+      alLograr: () =>
+        onSaved(
+          compartido
+            ? `Renta del predio actualizada (${hermanas} pantallas)`
+            : `Renta de "${sitioNombre}" actualizada`,
+        ),
+      alFallar: (m) => onSaved(m),
+      mensajeSiFalla: 'No se pudo actualizar la renta',
+    })
     setSaving(false)
     setEditando(false)
   }
@@ -590,22 +671,38 @@ function CeldaRenta({
   // Sin contrato no hay dónde guardar la renta. Se da de alta en Arrendadores.
   if (!editable || !info) return <span className="demo-num text-ink">{texto}</span>
 
+  // El cuadro va en las DOS ramas de abajo, no solo en la de edición: al llegar
+  // el 403 la celda ya cerró su campo (`setEditando(false)`) y se pinta como
+  // botón. Si el cuadro viviera solo en la otra rama se desmontaría justo en el
+  // momento en que hace falta, y el 403 volvería a no verse.
+  const dialogo = (
+    <DialogoCandado
+      candado={candado}
+      titulo="Confirma con tu contraseña"
+      subtitulo={`Cambiar la renta de "${sitioNombre}" es un cambio sensible: tu organización pide que vuelvas a identificarte.`}
+      etiquetaConfirmar="Confirmar y guardar"
+    />
+  )
+
   if (!editando) {
     return (
-      <button
-        type="button"
-        onClick={abrir}
-        title={
-          compartido
-            ? `Renta del contrato del predio — la comparten ${hermanas} pantallas`
-            : 'Editar la renta que se le paga al arrendador'
-        }
-        className="group/ren demo-num ml-auto inline-flex items-center gap-1.5 rounded px-1.5 py-0.5 text-ink transition-colors hover:ring-1 hover:ring-border-strong"
-      >
-        {texto}
-        {compartido && <Building2 className="h-3 w-3 shrink-0 text-muted" />}
-        <Pencil className="h-3 w-3 text-muted opacity-40 transition-opacity group-hover/ren:opacity-100" />
-      </button>
+      <>
+        <button
+          type="button"
+          onClick={abrir}
+          title={
+            compartido
+              ? `Renta del contrato del predio — la comparten ${hermanas} pantallas`
+              : 'Editar la renta que se le paga al arrendador'
+          }
+          className="group/ren demo-num ml-auto inline-flex items-center gap-1.5 rounded px-1.5 py-0.5 text-ink transition-colors hover:ring-1 hover:ring-border-strong"
+        >
+          {texto}
+          {compartido && <Building2 className="h-3 w-3 shrink-0 text-muted" />}
+          <Pencil className="h-3 w-3 text-muted opacity-40 transition-opacity group-hover/ren:opacity-100" />
+        </button>
+        {dialogo}
+      </>
     )
   }
 
@@ -625,6 +722,7 @@ function CeldaRenta({
         onBlur={() => void guardar()}
         className="h-7 w-24 rounded border border-border-strong bg-surface px-2 text-right text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
       />
+      {dialogo}
     </span>
   )
 }
@@ -643,6 +741,11 @@ function CeldaTarifa({
   const [saving, setSaving] = useState(false)
   // Evita doble guardado cuando Enter/Escape ya resolvieron y el blur dispara otra vez.
   const resueltoRef = useRef(false)
+  // B38 · la tarifa es uno de los campos que `PATCH /api/sitios/:id` declara
+  // sensibles (`app/api/sitios/[id]/route.ts:15-19`), así que el servidor pide
+  // la contraseña. Esta celda tenía el defecto en su forma más cara: un
+  // `catch {}` que ponía un texto propio y tiraba el del servidor.
+  const candado = useCandado()
 
   function abrir(e: React.MouseEvent) {
     e.stopPropagation()
@@ -660,12 +763,12 @@ function CeldaTarifa({
       return
     }
     setSaving(true)
-    try {
-      await actualizarSitioApi(sitio.id, { tarifaMensual: num })
-      onSaved(`Tarifa de "${sitio.nombre}" actualizada`)
-    } catch {
-      onSaved('No se pudo actualizar la tarifa')
-    }
+    await candado.ejecutar({
+      guardar: () => actualizarSitioApi(sitio.id, { tarifaMensual: num }),
+      alLograr: () => onSaved(`Tarifa de "${sitio.nombre}" actualizada`),
+      alFallar: (m) => onSaved(m),
+      mensajeSiFalla: 'No se pudo actualizar la tarifa',
+    })
     setSaving(false)
     setEditando(false)
   }
@@ -679,17 +782,31 @@ function CeldaTarifa({
     return <span className="demo-num text-ink">{formatMonto(sitio.tarifaMensual)}</span>
   }
 
+  // En las dos ramas, por lo mismo que en `CeldaRenta`: cuando llega el 403 la
+  // celda ya volvió a su forma de botón.
+  const dialogo = (
+    <DialogoCandado
+      candado={candado}
+      titulo="Confirma con tu contraseña"
+      subtitulo={`Cambiar la tarifa de "${sitio.nombre}" es un cambio sensible: tu organización pide que vuelvas a identificarte.`}
+      etiquetaConfirmar="Confirmar y guardar"
+    />
+  )
+
   if (!editando) {
     return (
-      <button
-        type="button"
-        onClick={abrir}
-        title="Editar tarifa"
-        className="group/tar demo-num ml-auto inline-flex items-center gap-1.5 rounded px-1.5 py-0.5 text-ink transition-colors hover:ring-1 hover:ring-border-strong"
-      >
-        {formatMonto(sitio.tarifaMensual)}
-        <Pencil className="h-3 w-3 text-muted opacity-40 transition-opacity group-hover/tar:opacity-100" />
-      </button>
+      <>
+        <button
+          type="button"
+          onClick={abrir}
+          title="Editar tarifa"
+          className="group/tar demo-num ml-auto inline-flex items-center gap-1.5 rounded px-1.5 py-0.5 text-ink transition-colors hover:ring-1 hover:ring-border-strong"
+        >
+          {formatMonto(sitio.tarifaMensual)}
+          <Pencil className="h-3 w-3 text-muted opacity-40 transition-opacity group-hover/tar:opacity-100" />
+        </button>
+        {dialogo}
+      </>
     )
   }
 
@@ -715,6 +832,7 @@ function CeldaTarifa({
         className="demo-num h-7 w-28 rounded border border-border-strong bg-surface px-2 text-right text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
       />
       {saving && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted" />}
+      {dialogo}
     </span>
   )
 }
@@ -740,6 +858,12 @@ function CeldaPropietario({
 }) {
   const [editando, setEditando] = useState(false)
   const [saving, setSaving] = useState(false)
+  // B38 · `arrendadorId` también está en los campos sensibles de
+  // `PATCH /api/sitios/:id`, y con razón: es a quién se le va a pagar la renta.
+  // Esta celda se tragaba el 403 con un `catch {}` — y el cliente ni siquiera
+  // levantaba el error, así que decía «Arrendador actualizado» sin haberlo
+  // cambiado. Ver el comentario de `actualizarSitioApi`.
+  const candado = useCandado()
 
   const nombreDirecto = sitio.arrendadorId ? arrById.get(sitio.arrendadorId) ?? null : null
   const display = nombreDirecto ?? propietarioContrato
@@ -749,12 +873,13 @@ function CeldaPropietario({
     setEditando(false)
     if ((nuevo ?? null) === (sitio.arrendadorId ?? null)) return
     setSaving(true)
-    try {
-      await actualizarSitioApi(sitio.id, { arrendadorId: nuevo })
-      onSaved(nuevo ? `Arrendador actualizado en "${sitio.nombre}"` : `Arrendador quitado de "${sitio.nombre}"`)
-    } catch {
-      onSaved('No se pudo actualizar el arrendador')
-    }
+    await candado.ejecutar({
+      guardar: () => actualizarSitioApi(sitio.id, { arrendadorId: nuevo }),
+      alLograr: () =>
+        onSaved(nuevo ? `Arrendador actualizado en "${sitio.nombre}"` : `Arrendador quitado de "${sitio.nombre}"`),
+      alFallar: (m) => onSaved(m),
+      mensajeSiFalla: 'No se pudo actualizar el arrendador',
+    })
     setSaving(false)
   }
 
@@ -766,50 +891,70 @@ function CeldaPropietario({
     )
   }
 
+  // En las TRES ramas de abajo. Aquí importa más que en las otras dos celdas:
+  // el selector se cierra en cuanto se elige (`setEditando(false)` es la primera
+  // línea de `elegir`), así que para cuando vuelve el 403 esta celda es siempre
+  // la rama del botón.
+  const dialogo = (
+    <DialogoCandado
+      candado={candado}
+      titulo="Confirma con tu contraseña"
+      subtitulo={`Cambiar el arrendador de "${sitio.nombre}" es un cambio sensible: decide a quién se le paga la renta, así que tu organización pide que vuelvas a identificarte.`}
+      etiquetaConfirmar="Confirmar y guardar"
+    />
+  )
+
   if (saving) {
     return (
       <span className="inline-flex items-center gap-1.5 text-muted">
         <Loader2 className="h-3.5 w-3.5 animate-spin" /> Guardando…
+        {dialogo}
       </span>
     )
   }
 
   if (!editando) {
     return (
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation()
-          setEditando(true)
-        }}
-        title="Asignar arrendatario"
-        className="group/prop inline-flex max-w-full items-center gap-1.5 rounded px-1.5 py-0.5 text-left transition-colors hover:ring-1 hover:ring-border-strong"
-      >
-        <span className={`truncate ${display ? 'text-ink' : 'text-muted'}`}>{display ?? 'Sin arrendatario'}</span>
-        {display ? (
-          <Pencil className="h-3 w-3 shrink-0 text-muted opacity-40 transition-opacity group-hover/prop:opacity-100" />
-        ) : (
-          <UserPlus className="h-3 w-3 shrink-0 text-muted opacity-60 transition-opacity group-hover/prop:opacity-100" />
-        )}
-      </button>
+      <>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            setEditando(true)
+          }}
+          title="Asignar arrendatario"
+          className="group/prop inline-flex max-w-full items-center gap-1.5 rounded px-1.5 py-0.5 text-left transition-colors hover:ring-1 hover:ring-border-strong"
+        >
+          <span className={`truncate ${display ? 'text-ink' : 'text-muted'}`}>{display ?? 'Sin arrendatario'}</span>
+          {display ? (
+            <Pencil className="h-3 w-3 shrink-0 text-muted opacity-40 transition-opacity group-hover/prop:opacity-100" />
+          ) : (
+            <UserPlus className="h-3 w-3 shrink-0 text-muted opacity-60 transition-opacity group-hover/prop:opacity-100" />
+          )}
+        </button>
+        {dialogo}
+      </>
     )
   }
 
   return (
-    <select
-      autoFocus
-      defaultValue={sitio.arrendadorId ?? ''}
-      onClick={(e) => e.stopPropagation()}
-      onChange={elegir}
-      onBlur={() => setEditando(false)}
-      className="h-7 max-w-[190px] rounded border border-border-strong bg-surface px-1.5 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
-    >
-      <option value="">— Sin arrendatario —</option>
-      {arrendadores.map((a) => (
-        <option key={a.id} value={a.id}>
-          {a.nombre}
-        </option>
-      ))}
-    </select>
+    <>
+      <select
+        autoFocus
+        defaultValue={sitio.arrendadorId ?? ''}
+        onClick={(e) => e.stopPropagation()}
+        onChange={elegir}
+        onBlur={() => setEditando(false)}
+        className="h-7 max-w-[190px] rounded border border-border-strong bg-surface px-1.5 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+      >
+        <option value="">— Sin arrendatario —</option>
+        {arrendadores.map((a) => (
+          <option key={a.id} value={a.id}>
+            {a.nombre}
+          </option>
+        ))}
+      </select>
+      {dialogo}
+    </>
   )
 }

@@ -135,9 +135,67 @@ archivos: []
 > **QUEDAN OCHO de los doce, y fuera de esta aprobación:** cinco en
 > `inventario/InventarioTabla.tsx` (cuatro **se tragan** el mensaje), uno en
 > `inventario/ContratoWizard.tsx` y dos en `comercial/SiteFicha.tsx`.
+> → **Cerrados esa misma noche**, en el recuadro de abajo.
 >
 > **Lo que NO cubre:** no hay DOM, así que nadie prueba que el cuadro aparezca en
 > el navegador al pulsar el botón.
+
+> [!success] 2026-09-25, noche · **Z4 + Z5 RECLAMADAS — B38 CERRADA ENTERA (los ocho que quedaban)**
+> Rama `fix/candado-inventario-y-fichas`, salida de `main` (`ad349a7`) y **sin
+> fusionar**. Cierra los ocho puntos restantes de los doce del barrido.
+>
+> **Sin aprobación aparte, y aquí está el matiz:** la tabla de B38 marca los ocho
+> como «Dinero: no» y ninguno mueve dinero, emite documento ni altera saldos. Pero
+> **sí tocan campos que el servidor llama sensibles** (`tarifaMensual`,
+> `arrendadorId`, `montoRenta`) y `app/api/contratos/**` figura en los archivos de
+> **R4** en [[06-Operacion/zonas-de-riesgo]]. No se tocó el servidor ni se
+> debilitó ningún guard, así que el riesgo es nulo — pero la discrepancia entre la
+> zona roja y la tabla de B38 **queda escrita como pregunta para el dueño**, en
+> `docs/Supervision/ABIERTOS.md`.
+>
+> | Pantalla | Ruta protegida | Envase |
+> |---|---|---|
+> | `inventario/InventarioTabla.tsx` · `CeldaRenta` | `PATCH /api/contratos/:id` | cuadro que aparece |
+> | `inventario/InventarioTabla.tsx` · lote de rentas | `PATCH /api/contratos/:id` **×N** | cuadro que aparece |
+> | `inventario/InventarioTabla.tsx` · `CeldaTarifa` | `PATCH /api/sitios/:id` | cuadro que aparece |
+> | `inventario/InventarioTabla.tsx` · `CeldaPropietario` | `PATCH /api/sitios/:id` | cuadro que aparece |
+> | `inventario/InventarioTabla.tsx` · lote de tarifas | `PATCH /api/sitios/:id` **×N** | cuadro que aparece |
+> | `inventario/ContratoWizard.tsx` | `POST /api/contratos` | campo dentro |
+> | `comercial/SiteFicha.tsx` · `EditarSitioDialog` | `PATCH /api/sitios/:id` | campo dentro |
+> | `comercial/SiteFicha.tsx` · eliminar | `DELETE /api/sitios/:id` | campo dentro |
+>
+> **LO PRIMERO, porque cambia el diagnóstico de B38:** `actualizarSitioApi` y
+> `borrarSitioApi` (`lib/data/sitios-api.ts`) **no miraban `r.ok`**. Un 403 se
+> **resolvía como éxito**: la celda decía «Tarifa actualizada» con la tarifa
+> intacta. No se tragaban el mensaje — **mentían**. La tabla los clasificó leyendo
+> el `catch` de cada pantalla y el defecto estaba una capa más abajo.
+>
+> **EL TRABAJO DE VERDAD FUERON LOS DOS LOTES**, que son N peticiones y rompen
+> «una acción, un cuadro». La política vive en **`lib/cambios-lote.ts`** (módulo
+> puro): no se pide la clave de entrada · lo rechazado no se aplicó y lo que pasó
+> se queda · **el reintento manda solo las pendientes** · y **un lote a medias se
+> dice con número** en el subtítulo del cuadro. Detalle en
+> [[03-Frontend/modulos-internos]].
+>
+> **Ni una línea de servidor.** `lib/cambios-candado.ts`, `ui/CampoContrasena.tsx`
+> y `ui/candado.tsx` se usan tal cual. Lo único que creció fue `ui/ConfirmDialog`,
+> con una prop opcional (`confirmDeshabilitado`) que no cambia a sus seis usuarios.
+>
+> Medido en este árbol: `npx tsc --noEmit` limpio y **1950 pruebas en 147
+> archivos** (main: 1913/146). **Trece mutantes**, todos muertos y deshechos, y
+> **uno sobrevivió**: `{dialogo}` → `{null}` en `CeldaTarifa` no tumbaba nada
+> porque `toContain('<DialogoCandado')` casaba con la línea que lo **declara**. Se
+> estrechó a contar los rendidos, uno por rama. **Van dos ramas seguidas con un
+> mutante vivo por una aserción de cadena sobre el fuente.**
+>
+> **Veinte de las 37 nuevas miran la RED** y cuentan peticiones, en vez de leer el
+> fuente. Los lotes se prestan: se afirma que el reintento manda dos y no tres.
+>
+> **El Postgres del 5433 NO se recreó**: ya estaba levantado y sano, y se dejó como
+> estaba. Sigue montando los `.sql` del árbol de la tarde.
+>
+> **Lo que NO cubre:** sigue sin haber DOM. Y el lote a medias se simula con
+> `fetch` espiado: nadie ha visto medio lote aplicado contra Postgres de verdad.
 
 > [!success] 2026-09-25 · **B36 parte (1) — Z12 y `release.yml` RECLAMADOS y LIBERADOS**
 > Rama `chore/etiquetas-oci-release`, **aterrizada** en `main` (merge `c7629a8`).
