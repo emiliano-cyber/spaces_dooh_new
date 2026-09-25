@@ -30,9 +30,10 @@ import org.json.JSONObject
  */
 class Seguimiento(
     private val confirmaciones: Int = 2,
-    // 25 y no 30 min: con vueltas cada 30 min (el minimo) el reloj las separa
-    // 29 y pico, y no deben contar como la misma.
-    private val separacionMs: Long = 25 * 60_000L,
+    // 25 y no 30 min: con vueltas cada 30 min el reloj las separa 29 y pico, y
+    // no deben contar como la misma. Con los intervalos cortos de pruebas (5 o
+    // 15 min) el Monitor la baja al 80% del intervalo.
+    var separacionMs: Long = 25 * 60_000L,
     private val umbral: Double = 0.6,
     private val recuperacion: Int = 2,
 ) {

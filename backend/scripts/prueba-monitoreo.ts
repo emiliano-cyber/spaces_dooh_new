@@ -49,7 +49,7 @@ async function main() {
   const usuario = userJwt.sign({ uid: 1, role: 'admin' }, 'access');
   const equipo = deviceJwt.sign({ did: DID, device_uid: 'prueba-monitoreo' });
 
-  const [antes] = await pool.query<any[]>(`SELECT pantalla, salud_watch, salud_desde, salud_ultimo, aprendizaje_min, creative_cada_min FROM devices WHERE id = ?`, [DID]);
+  const [antes] = await pool.query<any[]>(`SELECT pantalla, salud_watch, salud_desde, salud_ultimo, aprendizaje_min, creative_cada_min, salud_cada_min FROM devices WHERE id = ?`, [DID]);
   const original = (antes as any[])[0];
   const creadas: number[] = [];
 
@@ -67,6 +67,10 @@ async function main() {
     afirmar(r.j.salud.aprendizaje_min === 120, 'por omision aprende 2 horas', String(r.j.salud.aprendizaje_min));
     r = await pedir('PUT', `/api/devices/${DID}/salud`, usuario, { aprendizaje_min: 0 });
     afirmar(r.status === 200 && r.j.salud.aprendizaje_min === 0 && !r.j.salud.aprendiendo, 'con 0 el servidor ya no marca aprendizaje');
+    r = await pedir('PUT', `/api/devices/${DID}/salud`, usuario, { cada_min: 5 });
+    afirmar(r.status === 200 && r.j.salud.cada_min === 5, 'fallas: se acepta revisar cada 5 min (pruebas)');
+    r = await pedir('PUT', `/api/devices/${DID}/salud`, usuario, { cada_min: 2 });
+    afirmar(r.status === 400, 'fallas: menos de 5 min se rechaza');
 
     r = await pedir('PUT', `/api/devices/${DID}/creativos`, usuario, { cada_min: 10 });
     afirmar(r.status === 400, 'creativos: cada 10 min se rechaza (el minimo es 30, o continuo)');
@@ -134,7 +138,7 @@ async function main() {
     await pool.query(`UPDATE devices SET pantalla = ?, salud_watch = ?, salud_desde = ?, salud_ultimo = ?, aprendizaje_min = ? WHERE id = ?`,
       [original.pantalla ? JSON.stringify(original.pantalla) : null, original.salud_watch, original.salud_desde,
        original.salud_ultimo ? JSON.stringify(original.salud_ultimo) : null, original.aprendizaje_min, DID]);
-    await pool.query(`UPDATE devices SET creative_cada_min = ? WHERE id = ?`, [original.creative_cada_min, DID]);
+    await pool.query(`UPDATE devices SET creative_cada_min = ?, salud_cada_min = ? WHERE id = ?`, [original.creative_cada_min, original.salud_cada_min, DID]);
     await pool.end();
   }
   console.log(fallos ? `\n${fallos} FALLAS` : '\nTodo en orden');

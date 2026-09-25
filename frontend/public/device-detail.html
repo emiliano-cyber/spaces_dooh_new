@@ -734,6 +734,8 @@
             Revisar cada
             <select :value="pant?.salud?.cada_min" :disabled="!puedeAjustar"
               @change="guardarSalud({ cada_min: Number($event.target.value) })" class="px-1 py-0.5 border border-neutral-300 rounded">
+              <option value="5">5 min (pruebas)</option>
+              <option value="15">15 min (pruebas)</option>
               <option value="30">30 min</option>
               <option value="60">1 h</option>
               <option value="120">2 h</option>

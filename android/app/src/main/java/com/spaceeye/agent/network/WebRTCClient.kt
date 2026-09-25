@@ -335,9 +335,29 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
         .setTargetRotation(Surface.ROTATION_0)  // pixeles crudos = igual al stream
         .build()
 
-    private fun bindCameraX() {
-        // La vista en vivo manda: si habia una sesion de vigilancia, se pierde.
-        capturaVigilancia = null
+    /**
+     * Abre la camara EXACTAMENTE como la vista en vivo: mismo lente, mismo zoom,
+     * vista previa + foto en la misma sesion, las dos en 4:3. La usan los TRES
+     * caminos -la vista en vivo, la foto sin vista en vivo y la vigilancia de la
+     * pantalla- para que una foto salga igual la tome quien la tome.
+     *
+     * La vista previa va a un SurfaceTextureHelper. En la vista en vivo es el que
+     * alimenta a WebRTC; en los otros dos casos es uno propio que descarta los
+     * cuadros: no se transmite nada, pero la camara corre igual que en la vista en
+     * vivo, y con ella el enfoque, la exposicion y el balance de blancos.
+     *
+     * TIENE que llamarse en el hilo principal: CameraX y el ciclo de vida lo
+     * exigen. Antes la foto sin vista en vivo y la vigilancia cambiaban el ciclo de
+     * vida desde un hilo de fondo, y Android lo rechazaba con "setCurrentState
+     * must be called on the main thread": la foto sin vista en vivo nunca funciono
+     * y la vigilancia se caia en cada vuelta (visto el 25-sep en el telefono de
+     * pruebas).
+     */
+    private fun vincular(
+        helper: SurfaceTextureHelper,
+        listo: (Camera, ImageCapture) -> Unit,
+        fallo: (Exception) -> Unit,
+    ) {
         lifecycleRegistry.currentState = Lifecycle.State.RESUMED
         val future = ProcessCameraProvider.getInstance(ctx)
         future.addListener({
@@ -348,51 +368,109 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
                 // 4:3 en AMBOS use cases: asi el stream muestra exactamente el
                 // mismo encuadre que la foto capturada (antes el preview era 16:9
                 // y la foto 4:3, por lo que no coincidian).
-                val res43 = resolucion43()
-
                 val preview = Preview.Builder()
-                    .setResolutionSelector(res43)
+                    .setResolutionSelector(resolucion43())
                     .build()
 
                 // Use case de foto en la MISMA sesion: permite tomar foto durante
                 // el stream (sin el conflicto camera_disconnected) y hereda los
                 // ajustes en vivo (zoom/exposicion/WB/enfoque).
-                // El sensor trasero suele estar a 90°, por lo que la foto salia
-                // girada respecto al stream. Compensamos para que la foto guardada
-                // coincida con lo que se ve en la vista en vivo (landscape).
                 val imgCap = construirImageCapture()
-                imageCapture = imgCap
 
                 preview.setSurfaceProvider(mainExecutor) { request ->
                     val res = request.resolution
                     // Imprescindible: el SurfaceTextureHelper descarta frames si no
                     // se le fija su tamaño de textura (no basta setDefaultBufferSize).
-                    surfaceTextureHelper!!.setTextureSize(res.width, res.height)
-                    val surface = Surface(surfaceTextureHelper!!.surfaceTexture)
-                    previewSurface = surface
+                    helper.setTextureSize(res.width, res.height)
+                    val surface = Surface(helper.surfaceTexture)
+                    if (helper === surfaceTextureHelper) previewSurface = surface
                     request.provideSurface(surface, mainExecutor) { surface.release() }
                 }
 
                 provider.unbindAll()
                 val cam = provider.bindToLifecycle(this, selectorDeLente(), preview, imgCap)
-                camera = cam
-                cameraControl = cam.cameraControl
-                cameraInfo = cam.cameraInfo
                 // Arranca con el encuadre configurado para el sitio, para que lo
                 // primero que se vea sea ya el encuadre bueno.
-                if (zoomInicial > 0f) cam.cameraControl.setLinearZoom(zoomInicial)
-
-                val rango = cam.cameraInfo.zoomState.value
-                Log.d(TAG, "CameraX bound; lente=$lente zoom range=${rango?.minZoomRatio}-${rango?.maxZoomRatio}")
-                // El rango va al log remoto: sin esto no habia forma de saber desde
-                // el dashboard si un equipo tiene gran angular o hasta donde abre.
-                RemoteLog.info(ctx, "camera",
-                    "Cámara abierta (stream) lente=$lente zoom=${rango?.minZoomRatio}x-${rango?.maxZoomRatio}x")
+                if (zoomInicial > 0f) cam.cameraControl.setLinearZoom(zoomInicial.coerceIn(0f, 1f))
+                listo(cam, imgCap)
             } catch (e: Exception) {
-                Log.e(TAG, "CameraX bind failed: ${e.message}", e)
-                RemoteLog.error(ctx, "camera", "Fallo al abrir cámara: ${e.message}")
+                fallo(e)
             }
         }, mainExecutor)
+    }
+
+    private fun bindCameraX() {
+        // La vista en vivo manda: si habia una foto suelta o una vuelta de
+        // vigilancia con la camara abierta, se la lleva por delante.
+        capturaVigilancia = null
+        soltarAuxiliar()
+        vincular(surfaceTextureHelper!!, { cam, imgCap ->
+            imageCapture = imgCap
+            camera = cam
+            cameraControl = cam.cameraControl
+            cameraInfo = cam.cameraInfo
+            val rango = cam.cameraInfo.zoomState.value
+            Log.d(TAG, "CameraX bound; lente=$lente zoom range=${rango?.minZoomRatio}-${rango?.maxZoomRatio}")
+            // El rango va al log remoto: sin esto no habia forma de saber desde
+            // el dashboard si un equipo tiene gran angular o hasta donde abre.
+            RemoteLog.info(ctx, "camera",
+                "Cámara abierta (stream) lente=$lente zoom=${rango?.minZoomRatio}x-${rango?.maxZoomRatio}x")
+        }, { e ->
+            Log.e(TAG, "CameraX bind failed: ${e.message}", e)
+            RemoteLog.error(ctx, "camera", "Fallo al abrir cámara: ${e.message}")
+        })
+    }
+
+    // Vista previa "de mentiras" para abrir la camara sin vista en vivo.
+    private var auxiliar: SurfaceTextureHelper? = null
+
+    private fun soltarAuxiliar() {
+        auxiliar?.let { try { it.stopListening(); it.dispose() } catch (_: Exception) {} }
+        auxiliar = null
+    }
+
+    /**
+     * Abre la camara sin vista en vivo, igual que la vista en vivo, y avisa cuando
+     * ya enfoco y midio la luz. null si no se pudo (o si mientras tanto alguien
+     * abrio la vista en vivo, que manda).
+     */
+    private fun abrirSinVistaEnVivo(listo: (ImageCapture?) -> Unit) {
+        mainExecutor.execute {
+            if (isStreaming()) { listo(null); return@execute }
+            try {
+                if (eglBase == null) eglBase = EglBase.create()
+                soltarAuxiliar()
+                val h = SurfaceTextureHelper.create("CamaraSinVivo", eglBase!!.eglBaseContext)
+                // Los cuadros se descartan: solo mantienen la camara corriendo como
+                // en la vista en vivo. No se codifican ni se transmiten.
+                h.startListening { _ -> }
+                auxiliar = h
+                vincular(h, { _, ic ->
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        listo(if (auxiliar === h && !isStreaming()) ic else null)
+                    }, ESPERA_ENFOQUE_MS)
+                }, { e ->
+                    Log.e(TAG, "no se pudo abrir la camara sin vista en vivo: ${e.message}", e)
+                    RemoteLog.error(ctx, "camera", "No se pudo abrir la cámara: ${e.message}")
+                    cerrarSinVistaEnVivo()
+                    listo(null)
+                })
+            } catch (e: Exception) {
+                Log.e(TAG, "no se pudo preparar la camara: ${e.message}", e)
+                cerrarSinVistaEnVivo()
+                listo(null)
+            }
+        }
+    }
+
+    /** Cierra la camara abierta sin vista en vivo. Si hay vista en vivo, no la toca. */
+    private fun cerrarSinVistaEnVivo() {
+        mainExecutor.execute {
+            soltarAuxiliar()
+            if (isStreaming()) return@execute
+            try { cameraProvider?.unbindAll() } catch (_: Exception) {}
+            lifecycleRegistry.currentState = Lifecycle.State.CREATED
+        }
     }
 
     // ---- Control manual de camara ----------------------------------------
@@ -412,7 +490,9 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
         lente = if (nuevoLente == "wide") "wide" else "main"
         zoomInicial = zoom.coerceIn(0f, 1f)
         if (isStreaming()) {
-            if (cambioDeLente) bindCameraX() else setZoom(zoomInicial)
+            // Reabrir la camara va en el hilo principal (setEncuadre llega desde
+            // el hilo de las ordenes).
+            if (cambioDeLente) mainExecutor.execute { bindCameraX() } else setZoom(zoomInicial)
         }
     }
 
@@ -498,73 +578,47 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
     }
 
     private fun abrirSoloParaFoto(extraDegrees: Int, onResult: (ByteArray?) -> Unit) {
-        // Esta foto hace unbindAll: la vigilancia, si estaba abierta, se pierde.
+        // Esta foto cierra la vigilancia si estaba abierta; el vigilante la
+        // reabre cuando la camara quede libre.
         capturaVigilancia = null
-        lifecycleRegistry.currentState = Lifecycle.State.RESUMED
-        val future = ProcessCameraProvider.getInstance(ctx)
-        future.addListener({
-            var provider: ProcessCameraProvider? = null
+        abrirSinVistaEnVivo { imgCap ->
+            if (imgCap == null) { onResult(null); return@abrirSinVistaEnVivo }
+            Log.d(TAG, "foto sin stream: lente=$lente zoom=$zoomInicial")
             try {
-                provider = future.get()
-                val imgCap = construirImageCapture()
-
-                provider.unbindAll()
-                val cam = provider.bindToLifecycle(this, selectorDeLente(), imgCap)
-                // El encuadre del sitio, igual que lo aplica el stream.
-                if (zoomInicial > 0f) cam.cameraControl.setLinearZoom(zoomInicial.coerceIn(0f, 1f))
-
-                Log.d(TAG, "foto sin stream: lente=$lente zoom=$zoomInicial")
-
-                val cerrar = {
-                    try { provider?.unbindAll() } catch (_: Exception) {}
-                    lifecycleRegistry.currentState = Lifecycle.State.CREATED
-                }
-
-                // Se le da tiempo a enfocar y medir la luz antes de disparar.
-                Handler(Looper.getMainLooper()).postDelayed({
-                    try {
-                        imgCap.takePicture(mainExecutor, object : ImageCapture.OnImageCapturedCallback() {
-                            override fun onCaptureSuccess(image: ImageProxy) {
-                                try {
-                                    val buffer = image.planes[0].buffer
-                                    val bytes = ByteArray(buffer.remaining())
-                                    buffer.get(bytes)
-                                    image.close()
-                                    cerrar()
-                                    onResult(bakeRotation(bytes, extraDegrees))
-                                } catch (e: Exception) {
-                                    Log.e(TAG, "foto sin stream, fallo al leer: ${e.message}")
-                                    cerrar()
-                                    onResult(null)
-                                }
-                            }
-                            override fun onError(exc: ImageCaptureException) {
-                                Log.e(TAG, "foto sin stream, error: ${exc.message}")
-                                RemoteLog.error(ctx, "photo", "No se pudo capturar: ${exc.message}")
-                                cerrar()
-                                onResult(null)
-                            }
-                        })
-                    } catch (e: Exception) {
-                        Log.e(TAG, "foto sin stream, fallo al disparar: ${e.message}")
-                        cerrar()
+                imgCap.takePicture(mainExecutor, object : ImageCapture.OnImageCapturedCallback() {
+                    override fun onCaptureSuccess(image: ImageProxy) {
+                        try {
+                            val buffer = image.planes[0].buffer
+                            val bytes = ByteArray(buffer.remaining())
+                            buffer.get(bytes)
+                            image.close()
+                            cerrarSinVistaEnVivo()
+                            onResult(bakeRotation(bytes, extraDegrees))
+                        } catch (e: Exception) {
+                            Log.e(TAG, "foto sin stream, fallo al leer: ${e.message}")
+                            cerrarSinVistaEnVivo()
+                            onResult(null)
+                        }
+                    }
+                    override fun onError(exc: ImageCaptureException) {
+                        Log.e(TAG, "foto sin stream, error: ${exc.message}")
+                        RemoteLog.error(ctx, "photo", "No se pudo capturar: ${exc.message}")
+                        cerrarSinVistaEnVivo()
                         onResult(null)
                     }
-                }, ESPERA_ENFOQUE_MS)
+                })
             } catch (e: Exception) {
-                Log.e(TAG, "foto sin stream, no se pudo abrir la camara: ${e.message}", e)
-                RemoteLog.error(ctx, "camera", "No se pudo abrir la cámara para la foto: ${e.message}")
-                try { provider?.unbindAll() } catch (_: Exception) {}
-                lifecycleRegistry.currentState = Lifecycle.State.CREATED
+                Log.e(TAG, "foto sin stream, fallo al disparar: ${e.message}")
+                cerrarSinVistaEnVivo()
                 onResult(null)
             }
-        }, mainExecutor)
+        }
     }
 
     // ---- Vigilancia de creativos -------------------------------------------
     //
-    // Durante un recorrido la camara se queda ABIERTA (solo el use case de foto,
-    // sin vista previa ni video) y se toman fotos cada pocos segundos. Abrir y
+    // Durante un recorrido la camara se queda ABIERTA (igual que en la vista en
+    // vivo, pero sin transmitir) y se toman fotos cada pocos segundos. Abrir y
     // cerrar en cada vistazo costaria segundo y medio de enfoque cada vez y
     // calentaria mas el telefono.
     //
@@ -575,29 +629,12 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
 
     @Volatile private var capturaVigilancia: ImageCapture? = null
 
-    /** Abre la sesion de vigilancia con el encuadre del sitio. false si no pudo. */
+    /** Abre la sesion de vigilancia, igual que la vista en vivo. false si no pudo. */
     fun abrirVigilancia(onListo: (Boolean) -> Unit) {
-        if (isStreaming()) return onListo(false)
-        lifecycleRegistry.currentState = Lifecycle.State.RESUMED
-        val future = ProcessCameraProvider.getInstance(ctx)
-        future.addListener({
-            try {
-                val provider = future.get()
-                cameraProvider = provider
-                val imgCap = construirImageCapture()
-                provider.unbindAll()
-                val cam = provider.bindToLifecycle(this, selectorDeLente(), imgCap)
-                if (zoomInicial > 0f) cam.cameraControl.setLinearZoom(zoomInicial.coerceIn(0f, 1f))
-                capturaVigilancia = imgCap
-                // El mismo tiempo de enfoque y medicion de luz que una foto suelta.
-                Handler(Looper.getMainLooper()).postDelayed({ onListo(capturaVigilancia === imgCap) }, ESPERA_ENFOQUE_MS)
-            } catch (e: Exception) {
-                Log.e(TAG, "no se pudo abrir la camara para vigilar: ${e.message}")
-                capturaVigilancia = null
-                lifecycleRegistry.currentState = Lifecycle.State.CREATED
-                onListo(false)
-            }
-        }, mainExecutor)
+        abrirSinVistaEnVivo { imgCap ->
+            capturaVigilancia = imgCap
+            onListo(imgCap != null)
+        }
     }
 
     /** Una foto de la sesion de vigilancia, SIN girar (la huella no lo necesita). */
@@ -634,9 +671,7 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
         mainExecutor.execute {
             if (capturaVigilancia == null) return@execute
             capturaVigilancia = null
-            if (isStreaming()) return@execute
-            try { cameraProvider?.unbindAll() } catch (_: Exception) {}
-            lifecycleRegistry.currentState = Lifecycle.State.CREATED
+            cerrarSinVistaEnVivo()
         }
     }
 

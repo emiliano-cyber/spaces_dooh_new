@@ -38,6 +38,15 @@ class SeguimientoTest {
     }
 
     @Test
+    fun conElIntervaloDePruebasDe5MinutosAlarmaALaSegundaVuelta() {
+        val s = Seguimiento()
+        s.separacionMs = 4 * 60_000L          // lo que pone el Monitor con 5 min
+        val cinco = 5 * 60_000L
+        assertTrue(s.registrar(0, vuelta(gabinete), false).isEmpty())
+        assertEquals(1, s.registrar(cinco, vuelta(gabinete), false).size)
+    }
+
+    @Test
     fun unaVueltaSanaEnMedioReiniciaLaCuenta() {
         val s = Seguimiento()
         s.registrar(0, vuelta(gabinete), false)

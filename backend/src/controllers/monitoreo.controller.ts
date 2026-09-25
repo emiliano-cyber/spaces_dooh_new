@@ -303,7 +303,8 @@ export async function configurarPantalla(req: Request, res: Response) {
 export async function configurarSalud(req: Request, res: Response) {
   const schema = z.object({
     vigilar: z.boolean().optional(),
-    cada_min: z.number().int().min(30).max(720).optional(),
+    // 5 y 15 min son para PRUEBAS (probar una falla sin esperar una hora).
+    cada_min: z.number().int().min(5).max(720).optional(),
     confirmaciones: z.number().int().min(1).max(6).optional(),
     umbral: z.number().min(0.3).max(0.95).optional(),
     max_dia: z.number().int().min(1).max(50).optional(),

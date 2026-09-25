@@ -166,7 +166,7 @@ class Monitor(
         val ahora = System.currentTimeMillis()
         val continuo = c?.optJSONObject("creativos")?.let { it.optBoolean("vigilar") && it.optLong("cada_min", 360L) == 0L } == true
         val saludPronto = c?.optJSONObject("salud")?.let { s ->
-            s.optBoolean("vigilar") && ahora - ultimaSalud >= s.optLong("cada_min", 60L).coerceAtLeast(30L) * 60_000L - 60_000L
+            s.optBoolean("vigilar") && ahora - ultimaSalud >= s.optLong("cada_min", 60L).coerceAtLeast(5L) * 60_000L - 30_000L
         } == true
         if (c != null && continuo && !saludPronto && ahora - configEn < CONFIG_CONTINUO_MS) return c
         val nueva = api.monitoreo() ?: return null
@@ -187,7 +187,9 @@ class Monitor(
         // cada_min = 0 en creativos es el modo continuo.
         val continuo = quiereCreativos && cCfg!!.optLong("cada_min", 360L) == 0L
         val cadaC = if (continuo) 0L else (cCfg?.optLong("cada_min", 360L) ?: 360L).coerceAtLeast(30L)
-        val cadaS = (sCfg?.optLong("cada_min", 60L) ?: 60L).coerceAtLeast(30L)
+        // 5 y 15 min son intervalos de PRUEBAS; en produccion, 30 min o mas.
+        val cadaS = (sCfg?.optLong("cada_min", 60L) ?: 60L).coerceAtLeast(5L)
+        seguimiento.separacionMs = minOf(25 * 60_000L, cadaS * 60_000L * 8 / 10)
         val espera = if (continuo) PAUSA_CONTINUO_MS
             else minOf(if (quiereCreativos) cadaC else Long.MAX_VALUE, if (quiereSalud) cadaS else Long.MAX_VALUE) * 60_000L
 
@@ -210,7 +212,7 @@ class Monitor(
 
         val ahora = System.currentTimeMillis()
         val tocaC = quiereCreativos && (continuo || ahora - ultimaCreativos >= cadaC * 60_000L - 60_000L)
-        val tocaS = quiereSalud && ahora - ultimaSalud >= cadaS * 60_000L - 60_000L
+        val tocaS = quiereSalud && ahora - ultimaSalud >= cadaS * 60_000L - 30_000L
         if (!tocaC && !tocaS) {
             // Se duerme justo hasta la proxima que toque. NO cada minuto: cada
             // despertar pide la configuracion, y eso si serian datos en balde.
