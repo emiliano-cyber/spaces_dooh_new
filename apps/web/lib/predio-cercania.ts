@@ -89,6 +89,11 @@ export type Cercania =
   // como fallo bloquearía cargas correctas cuyo Excel no trae coordenadas.
   | { estado: 'INDETERMINADO'; metros: null }
 
+// La misma regla vive en `lib/coordenadas.ts` (`puntoUtil`), que es de donde la
+// toma el mapa desde el 24/09. Esta copia NO se unifica a la ligera: de aquí
+// cuelga el reparto de la renta entre las pantallas de un predio, y `puntoUtil`
+// descarta además las coordenadas fuera de rango. Unificarlas es correcto, pero
+// es un cambio que toca dinero y se hace con las e2e delante.
 function puntoDe(u: Ubicacion): { lat: number; lng: number } | null {
   const lat = coord(u.lat)
   const lng = coord(u.lng)

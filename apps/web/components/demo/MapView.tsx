@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
+import { puntoUtil } from '@/lib/coordenadas'
 import type { Tono } from './StatusBadge'
 
 // ============================================================================
@@ -88,7 +89,7 @@ const R_DENSIDAD = 0.05 // ~5 km: radio para puntuar densidad
 const R_CUMULO = 0.25 // ~25 km: radio del cúmulo a encuadrar (área metropolitana)
 
 function focoDensidad(points: MapPoint[]) {
-  const validos = points.filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng))
+  const validos = points.filter((p) => puntoUtil(p.lat, p.lng) != null)
   if (!validos.length) return null
   let mejor = validos[0]
   let mejorScore = -1
@@ -213,7 +214,12 @@ export function MapView({
       // throw ocurre DENTRO del efecto de React: revienta el árbol entero y la
       // tarjeta del mapa desaparece de la página, no solo el pin. Descartamos
       // aquí los puntos inservibles para que un dato sucio nunca tumbe el mapa.
-      if (!Number.isFinite(p.lat) || !Number.isFinite(p.lng)) continue
+      //
+      // `puntoUtil` descarta ADEMÁS el (0,0). No es quisquillosería: una
+      // pantalla sin capturar llega aquí como 0 —finito, así que la
+      // comprobación anterior la dejaba pasar— y se plantaba en el golfo de
+      // Guinea, arrastrando el auto-enfoque al océano. Ver lib/coordenadas.ts.
+      if (puntoUtil(p.lat, p.lng) == null) continue
       vistos.add(p.id)
       const hex = TONO_HEX[p.tono]
       let marker = existing.get(p.id)
@@ -367,9 +373,21 @@ export function MapView({
   const btnCls =
     'rounded-md border border-border-strong bg-surface px-2 py-1 text-[11px] font-medium text-ink shadow-sm transition-colors hover:bg-surface-2 disabled:opacity-50'
 
+  // Cuántas pantallas quedaron fuera del mapa por no tener ubicación. Se DICE,
+  // no se esconde: un hueco que no se ve nunca se rellena, y durante meses el
+  // mapa se tragó en silencio todo el inventario sin coordenadas.
+  const sinUbicacion = points.filter((p) => puntoUtil(p.lat, p.lng) == null).length
+
   return (
     <div className="relative h-full w-full">
       <div ref={containerRef} className={className} style={{ width: '100%', height: '100%' }} />
+      {sinUbicacion > 0 && (
+        <div className="pointer-events-none absolute bottom-2 left-2 z-10 rounded-md border border-border-strong bg-surface/95 px-2 py-1 text-[11px] font-medium text-ink-2 shadow-sm">
+          {sinUbicacion === 1
+            ? '1 pantalla sin ubicación capturada'
+            : `${sinUbicacion} pantallas sin ubicación capturada`}
+        </div>
+      )}
       {permitirDibujo && (
         <div className="pointer-events-none absolute left-2 top-2 z-10 flex flex-col items-start gap-1">
           <div className="pointer-events-auto flex gap-1">

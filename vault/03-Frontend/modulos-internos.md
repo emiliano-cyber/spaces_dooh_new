@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-09-21
+actualizado: 2026-09-24
 tags: [frontend, modulos, pantallas, verde]
 archivos:
   - apps/web/app/(app)/(shell)/
@@ -70,6 +70,34 @@ cinco pantallas con mapa, incluida la propuesta pública `app/(app)/p/[id]`. Su
 basemap es **OpenFreeMap `positron`, sin clave** — la rama de MapTiler existe
 pero nadie la enciende, y en la flota no puede encenderse por instancia
 ([ADR 0030](../../docs/adr/0030-el-basemap-de-la-flota-no-lleva-clave.md)).
+
+> [!danger] El `(0,0)` se llevaba el mapa al océano — en TODA la flota
+> Diagnosticado el **2026-09-24**, y llevaba tiempo. Una pantalla sin
+> coordenadas sale de la base como `NULL`, y `rowToSitio` la entregaba como
+> **`0`** (`apps/web/lib/server/sitios-repo.ts:44-45`). Cero es finito, así que
+> pasaba el filtro `Number.isFinite` de `MapView` y **se dibujaba en el (0,0)**,
+> mar abierto en el golfo de Guinea.
+>
+> Lo caro no era el pin perdido: el auto-enfoque (`focoDensidad`) busca el
+> cúmulo más denso, lo encontraba en el Atlántico y **encuadraba el mapa ahí**.
+> Un inventario sin coordenadas no daba un mapa vacío — daba un mapa que parecía
+> roto, idéntico en el PADRE y en cada instancia, porque es el mismo binario.
+>
+> La regla de descartar el `(0,0)` **ya existía** en
+> `lib/predio-cercania.ts:92-98` y nunca había llegado al mapa. Ahora vive una
+> sola vez en **`lib/coordenadas.ts`** (`puntoUtil`), con 7 pruebas, y `MapView`
+> la usa en el filtro de pines y en el auto-enfoque.
+>
+> **Y el mapa ahora DICE lo que descarta**: una etiqueta abajo a la izquierda
+> cuenta las pantallas sin ubicación. El hueco se ve; antes se lo tragaba.
+>
+> [!warning] Arreglar el encuadre NO hace aparecer puntos
+> Es el otro lado de lo mismo y conviene no confundirlo: el código deja de
+> mentir sobre dónde está una pantalla, pero una pantalla sin coordenadas
+> sigue sin tener dónde pintarse. Que se vean pines es un arreglo de **datos**,
+> uno por instancia. `lib/server/sitios-repo.ts:44-45` sigue devolviendo `0` en
+> vez de `null` — el arreglo de raíz arrastra el tipo `Sitio.lat` a
+> `number | null` en ~16 sitios y está anotado en `docs/Supervision/ABIERTOS.md`.
 
 > [!warning] `components/maps/SitiosMap.tsx` no lo monta ninguna pantalla
 > Sigue en el árbol y pide mosaicos a `tile.openstreetmap.org` por su cuenta, sin

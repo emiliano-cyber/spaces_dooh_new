@@ -7,6 +7,23 @@ La entrada más reciente va arriba.
 
 ## 2026-09-24
 
+- **El mapa se iba al océano cuando faltaban coordenadas.** Una pantalla a la
+  que nadie le capturó la ubicación no se quedaba fuera del mapa: se dibujaba
+  en el punto cero del planeta, que está en el mar frente a África. Y como el
+  mapa se acomoda solo para enseñar la zona donde tienes más pantallas, se
+  llevaba el encuadre al Atlántico. El resultado era un mapa que parecía
+  averiado, cuando lo que faltaba era un dato.
+
+  Pasaba igual en todas las instalaciones, porque todas corren el mismo
+  programa. Ahora una pantalla sin ubicación simplemente no se pinta, y el mapa
+  **lo dice**: abajo a la izquierda aparece cuántas pantallas se quedaron fuera
+  por no tener ubicación capturada. Así se ve el hueco y se puede rellenar.
+
+  **Ojo con lo que esto NO arregla:** que aparezcan los puntos depende de
+  capturar las coordenadas, y eso es trabajo de datos en cada instalación. Lo
+  que se arregló es que el programa deje de inventarse una ubicación que nadie
+  dio.
+
 - **Un ticket cerrado ya no se puede volver a tocar.** Hasta hoy, un ticket
   marcado como `CERRADO` seguía admitiendo respuesta nueva y cambio de estado
   desde nuestro panel, igual que uno abierto — y si se puede seguir escribiendo

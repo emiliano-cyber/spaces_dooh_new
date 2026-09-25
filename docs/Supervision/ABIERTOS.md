@@ -1621,3 +1621,41 @@ medidos:**
 > corregir un correo, ni cuántas filas de `usuarios` tienen hoy una dirección
 > equivocada. Tampoco se ha mirado qué pasa con los enlaces de recuperación
 > pendientes cuando la dirección cambia.
+
+---
+
+### D10 · `rowToSitio` convierte «no sé dónde está» en el punto (0,0). ¿Se arregla de raíz o se deja el guard del mapa?
+
+**Abierto el 2026-09-24**, al diagnosticar por qué el mapa no mostraba puntos ni
+en el PADRE ni en las instancias.
+
+`apps/web/lib/server/sitios-repo.ts:44-45` hace `lat: n(r.lat) ?? 0`. Una
+pantalla sin coordenadas sale de la base como `NULL` y llega a la interfaz como
+**`0`** — un número finito, indistinguible de una ubicación real para cualquier
+comprobación que pregunte si es un número. Ese es el dato que miente: no dice
+«falta», dice «está aquí», y «aquí» es el golfo de Guinea.
+
+**Lo que ya se hizo hoy (y por qué NO cierra esto):** `lib/coordenadas.ts`
+(`puntoUtil`) descarta el `(0,0)` y `MapView` lo usa, así que el mapa dejó de
+irse al océano y ahora cuenta las pantallas que deja fuera. Es un **guard en la
+frontera**, no la corrección: el dato falso se sigue produciendo y cualquier
+consumidor nuevo que lea `sitio.lat` volverá a creérselo.
+
+**La corrección de raíz** es que `lat`/`lng` sean `number | null` desde
+`lib/data/types.ts:191` y quitar el `?? 0`. Arrastra ~16 sitios que hoy hacen
+aritmética con `s.lat` dándolo por número — medido con
+`grep -rn "lat: number" apps/web packages`.
+
+**Lo que hay que decidir:**
+
+- **¿Entra antes o después del 14 de octubre?** No es urgente para la
+  demostración: el guard ya evita el síntoma visible. Pero es deuda que crece
+  con cada pantalla nueva que lea coordenadas.
+- **¿Se unifica `predio-cercania.ts:92-98` con `puntoUtil`?** Tiene la misma
+  regla duplicada. **Toca dinero** —de ahí cuelga el reparto de la renta entre
+  las pantallas de un predio— así que va con las e2e delante, no de paso.
+
+> **Lo que NO se verificó al abrir esta entrada:** cuántas filas de `sitios`
+> tienen hoy `lat = 0 and lng = 0` grabado en cada base de la flota. Se mide con
+> la consulta del párrafo de arriba, una por instancia, y nadie la ha corrido
+> más allá del PADRE y `spaces_demo`.
