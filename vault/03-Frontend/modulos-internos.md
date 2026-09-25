@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-09-24
+actualizado: 2026-09-25
 tags: [frontend, modulos, pantallas, verde]
 archivos:
   - apps/web/app/(app)/(shell)/
@@ -163,6 +163,44 @@ cambios sensibles. **No es decorativo**: es la salida de un `403
 > la contraseña **dentro de su propio diálogo** y reintentan ahí mismo. No es
 > duplicación por descuido: es el único camino que funciona con el interruptor
 > apagado. Ver [[02-Backend/api-endpoints]].
+
+### El diálogo que se olvidó de pedirla — y lo que se hizo con eso
+
+> [!danger] 2026-09-25 · «Con cuál de tus razones sociales se paga» pedía la
+> contraseña y NO pintaba dónde escribirla
+> `RazonSocialQuePagaModal` (`components/demo/arrendadores/ContratoSheet.tsx`)
+> llamaba a `editarContratoApi`, el PATCH de contratos pasa por
+> `exigirCambioSensible` y su `catch` pintaba el 403 del servidor como un error
+> rojo. **La palabra `password` no aparecía ni una vez en las 1012 líneas del
+> archivo**: no era CSS ni una condición que no se cumpliera, el campo no
+> existía. El camino directo estaba muerto y el único vivo era el rodeo —cerrar
+> la ficha, «Cambios bloqueados», desbloquear, volver— que el manual de
+> septiembre llegó a documentar como paso normal.
+>
+> Lo encontró la sesión que fotografió el manual, no una prueba: **ninguna lo
+> veía**, porque el arnés no tiene DOM y el bailoteo estaba copiado a mano en
+> cada diálogo.
+>
+> **Lo que cambió, y es lo que impide que vuelva.** La secuencia dejó de
+> copiarse: vive en `lib/cambios-candado.ts` (`confirmarConCandado`, módulo puro
+> con las dos acciones inyectadas) y el campo es un componente,
+> `components/demo/ui/CampoContrasena.tsx`. `esErrorDeDesbloqueo` se movió al
+> módulo puro y `lib/data/cambios-api.ts` lo **reexporta**, para que no haya dos
+> copias de esa comparación.
+>
+> Se prueba en dos piezas, porque no hay DOM: `lib/cambios-candado.test.ts` (sin
+> contraseña NO se guarda, y el orden desbloquear-antes-de-guardar) y
+> `components/demo/arrendadores/candado-contrato.test.ts`, que RINDE el campo
+> con `react-dom/server` y lee el fuente de `ContratoSheet.tsx` para comprobar
+> que lo usa —el modal va dentro de un `Dialog.Portal` de Radix y en servidor no
+> rinde nada—.
+>
+> **Lo que sigue sin probarse, dicho con todas las letras:** que al pulsar
+> «Guardar» el campo aparezca de verdad en el navegador. Eso no lo alcanza este
+> arnés. Y **los otros dos diálogos del mismo archivo siguen con el defecto**:
+> `CompletarContratoModal` y `PagoModal` (`ContratoSheet.tsx`, las llamadas a
+> `editarContratoApi` y `registrarPagoRentaApi`) tampoco pintan el campo. No se
+> tocaron: la aprobación del dueño era para este.
 
 ## Dónde hay lógica de negocio en el cliente
 

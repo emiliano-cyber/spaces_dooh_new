@@ -68,7 +68,14 @@ describe('1 · CampoContrasena rinde un input de contrasena de verdad', () => {
   it('le dice al gestor de contrasenas que es la ACTUAL, no una nueva', async () => {
     // `current-password`: sin esto el navegador ofrece generar una nueva, que es
     // justo lo contrario de reautenticarse.
-    expect(await html()).toContain('autocomplete="current-password"')
+    //
+    // Sin distinguir mayusculas a proposito, y MEDIDO el 2026-09-25:
+    // `react-dom/server` 18.3.1 serializa este atributo como `autoComplete`, en
+    // camelCase —`autofocus`, en cambio, si lo baja—. No es un defecto del
+    // componente: los nombres de atributo de HTML no distinguen mayusculas, asi
+    // que el navegador lo lee igual. Afirmarlo en minuscula daria un rojo que
+    // no dice nada del codigo.
+    expect(await html()).toMatch(/autocomplete="current-password"/i)
   })
 
   it('rinde el valor que le dan, para poder ser controlado', async () => {

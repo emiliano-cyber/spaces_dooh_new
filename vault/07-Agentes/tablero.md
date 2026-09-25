@@ -6,6 +6,33 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!success] 2026-09-25 · **Z1 · Auth RECLAMADA Y LIBERADA — el R1 del 4.1, cerrado**
+> Rama `fix/contrasena-contrato-sin-campo`, **sin fusionar**. El recuadro de más
+> abajo dice «lo R1 sigue abierto y no se tocó»: **eso caducó hoy**, con la
+> aprobación explícita de Jochelo («si arregla el R1»).
+>
+> El cuadro «Con cuál de tus razones sociales se paga» ya pide la contraseña
+> **dentro del propio cuadro**, como los dos borrados de catálogo. La causa era
+> más simple de lo que parecía y conviene dejarla escrita: **no era CSS ni una
+> condición que no se cumpliera — el campo no existía.** `password` no aparecía
+> ni una vez en las 1012 líneas de `ContratoSheet.tsx`; el `catch` pintaba el 403
+> del servidor como error rojo y ahí acababa el camino.
+>
+> **Se reclamó Z1 y solo dos archivos de Z4** (`ContratoSheet.tsx` y
+> `lib/data/cambios-api.ts`, este último para reexportar `esErrorDeDesbloqueo` y
+> no dejar dos copias). Piezas nuevas: `lib/cambios-candado.ts` y
+> `components/demo/ui/CampoContrasena.tsx`, las dos con pruebas.
+>
+> Medido en este árbol, no copiado: `npx tsc --noEmit` limpio y **1857 pruebas en
+> 144 archivos** (+19, +2 frente a las 1838/142 de `main`). Las 19 nuevas se
+> comprobaron por mutación: quitar el guard de la contraseña vacía, tragarse el
+> fallo del desbloqueo y quitar el campo del modal tumban una prueba cada uno.
+>
+> **Lo que NO cubre, dicho aquí para que nadie lo dé por hecho:** el arnés no
+> tiene DOM, así que nadie prueba que al pulsar «Guardar» el campo aparezca en el
+> navegador. Y **quedan dos diálogos del mismo archivo con el mismo defecto** —
+> `CompletarContratoModal` y `PagoModal`—: fuera de la aprobación, sin tocar.
+
 > [!note] 2026-09-25 · **Triaje de las tres ramas paradas — las tres SIN OBJETO**
 > Dictaminadas sin fusionar ninguna, para que nadie repita el trabajo dentro de
 > un mes (que es justo lo que pasó con F5.3 y F5.4, `docs/evidencias/auditoria-f5-31-agosto.md`).
