@@ -23,6 +23,37 @@ name: Release
 #  configuración del repositorio (tarjeta TH-P4); este archivo no las sabe y no
 #  debe saberlas. Así el día que cambie el registry no se reescribe el workflow.
 #
+#  LA IMAGEN DICE DE QUÉ COMMIT SALIÓ, y eso no es un adorno de metadatos: es la
+#  causa de que el incidente del 2026-09-14 costara DOS DÍAS. Aquel día el
+#  registry tenía dos imágenes distintas con la misma etiqueta `v0.5.0`
+#  (`d46c3aed…` y `60c7b194…`) y no había forma de preguntarle a ninguna de qué
+#  código venía: hubo que deducirlo. Desde el 2026-09-25 cada imagen lleva
+#  encima las etiquetas OCI estándar (B36, parte 1), así que la misma pregunta se
+#  responde con un mandato:
+#
+#    docker buildx imagetools inspect <registry>/space-os:estable --format '{{json .Image}}'
+#    docker inspect --format '{{json .Config.Labels}}' <imagen>     # si ya se bajó
+#
+#  Se ponen con `--label` en ESTA orden de build y NO como `LABEL` en el
+#  `Dockerfile`, a propósito y por tres motivos:
+#
+#   · Los cuatro valores son hechos del CI (el SHA, el tag, el repositorio, el
+#     instante), no entradas que el `Dockerfile` necesite para construir. Por el
+#     camino del `Dockerfile` habría que añadir un `ARG` y un `LABEL` por cada
+#     uno Y pasar igualmente un `--build-arg` por cada uno desde aquí: el mismo
+#     cambio en el workflow, más un cambio en el `Dockerfile`.
+#   · Un `ARG` con valor por omisión publicaría `revision=desconocida` en
+#     cualquier build local. Una etiqueta que existe y no dice nada es peor que
+#     una ausente: la ausencia significa «esta imagen NO salió del pipeline», que
+#     es exactamente lo que interesa distinguir.
+#   · `--label` escribe en la configuración de la imagen final y no crea ni
+#     invalida ninguna capa, así que no toca la caché escalonada que el
+#     `Dockerfile` cuida en `deps`.
+#
+#  `VERSION` sigue por `--build-arg` porque es lo ÚNICO que la aplicación lee en
+#  ejecución (`SPACE_OS_VERSION` → `/api/version`). Una etiqueta OCI no se puede
+#  leer desde dentro del contenedor; un `ENV`, sí. No son sustitutos.
+#
 #  SEGURIDAD — las mismas dos reglas que documenta `ci.yml:17-30`, más una:
 #
 #   · El disparador es `push` de tags, o sea código ya en el repositorio. Nunca
@@ -260,14 +291,77 @@ jobs:
       # versión son dos nombres de un solo digest, no dos construcciones. Dos
       # `docker build` producirían binarios distintos y `beta` dejaría de
       # corresponder a la versión que se probó.
+      #
+      # LAS CUATRO ETIQUETAS OCI, y por qué exactamente estas cuatro (B36):
+      #
+      #  · `revision`  — EL SHA DEL COMMIT. Es la que resuelve el incidente del
+      #    14/09 y la única imprescindible: con ella, `git show <sha>` responde
+      #    en un minuto lo que aquel día costó dos días deducir.
+      #  · `version`   — el nombre del tag, SELLADO DENTRO de la imagen. No es
+      #    redundante con la etiqueta del registry: la del registry se puede
+      #    mover y de hecho se movió (la vieja `v0.5.0` acabó renombrada
+      #    `v0.5.0-09sep`); esta viaja con el digest y delata el renombrado.
+      #  · `source`    — la URL del repositorio, derivada del contexto. Un SHA
+      #    suelto no basta cuando el proyecto tiene DOS remotos y uno está
+      #    muerto (`CLAUDE.md` §6): sin esto, `revision` no dice dónde buscar.
+      #  · `created`   — el instante del build en RFC 3339. Lo que el registry
+      #    guarda es la hora del PUSH, que no es la misma, y ordenar dos
+      #    candidatas en el tiempo fue justo el primer paso del 14/09.
+      #
+      # DESCARTADAS a propósito, para que esto no sea una colección: `title`,
+      # `description`, `documentation` y `authors` son prosa fija que no ayuda a
+      # diagnosticar nada; `vendor` y `url` obligarían a quemar un dominio real
+      # en un archivo versionado, que `CLAUDE.md` prohíbe; `licenses` sería una
+      # afirmación legal que nadie ha decidido; `base.name`/`base.digest`
+      # servirían a la cadena de suministro pero exigen plomería aparte y no
+      # tienen que ver con B36.
+      #
+      # Los valores viajan como VARIABLES DE ENTORNO, igual que el resto del
+      # archivo y por el motivo de la cabecera: un `${{ ... }}` dentro del texto
+      # de un script se sustituye antes de que exista el shell.
       - name: Construir la imagen
+        env:
+          REVISION: ${{ github.sha }}
+          FUENTE: ${{ github.server_url }}/${{ github.repository }}
         run: |
           set -euo pipefail
+          # UTC y con `Z` explícita: RFC 3339, que es lo que pide la
+          # especificación OCI para `created`. La hora local del runner no
+          # significa nada para quien lee la imagen tres semanas después.
+          CREADA=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
           docker build \
             --build-arg VERSION="$VERSION" \
+            --label "org.opencontainers.image.revision=$REVISION" \
+            --label "org.opencontainers.image.version=$VERSION" \
+            --label "org.opencontainers.image.source=$FUENTE" \
+            --label "org.opencontainers.image.created=$CREADA" \
             --tag "$REGISTRY/space-os:$VERSION" \
             --tag "$REGISTRY/space-os:beta" \
             .
+
+      # Se LEE lo que se acaba de escribir, antes de publicar nada. El repositorio
+      # ya pagó caro afirmar como hecho algo que nadie midió (el cierre en falso de
+      # F2.4 el 01/09), así que aquí la etiqueta no se da por puesta: se pregunta.
+      #
+      # Fail-closed y ANTES del push, que es lo que lo hace barato: si esto se
+      # pone rojo no hay nada publicado a medias, solo una imagen local que muere
+      # con el runner. Compárese con la lectura del digest del paso siguiente, que
+      # SÍ lleva `|| echo` porque ocurre DESPUÉS del push y un rojo allí diría «no
+      # se publicó» y sería mentira.
+      - name: Comprobar que la imagen sabe de que commit salio
+        env:
+          REVISION: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          LEIDA=$(docker inspect \
+            --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' \
+            "$REGISTRY/space-os:$VERSION")
+          if [ "$LEIDA" != "$REVISION" ]; then
+            echo "::error::La imagen no lleva el commit encima: se esperaba '$REVISION' y se leyó '$LEIDA'."
+            echo "Sin esa etiqueta, una imagen del registry no puede decir de qué código salió (B36)."
+            exit 1
+          fi
+          echo "org.opencontainers.image.revision = $LEIDA"
 
       # El ÚLTIMO paso del último job. Todo lo anterior es el gate.
       #
@@ -276,6 +370,8 @@ jobs:
       # Si el primer push falla, `beta` se queda donde estaba, apuntando al
       # release anterior que sí está entero.
       - name: Publicar en el canal beta
+        env:
+          REVISION: ${{ github.sha }}
         run: |
           set -euo pipefail
           docker push "$REGISTRY/space-os:$VERSION"
@@ -296,8 +392,15 @@ jobs:
             echo "| Versión | \`$VERSION\` |"
             echo "| Etiquetas | \`$VERSION\` y \`beta\` |"
             echo "| Digest | \`$DIGEST\` |"
+            echo "| Commit (\`org.opencontainers.image.revision\`) | \`$REVISION\` |"
             echo ""
             echo "Pasó typecheck, unitarias y e2e. \`estable\` no se toca aquí: eso es \`promover.yml\`."
+            echo ""
+            echo "El commit va DENTRO de la imagen, no solo en este resumen — que es el punto de B36:"
+            echo ""
+            echo '```bash'
+            echo "docker buildx imagetools inspect \"\$REGISTRY/space-os:$VERSION\" --format '{{json .Image}}'"
+            echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
       # Que no quede el token en `~/.docker/config.json` del runner. El runner

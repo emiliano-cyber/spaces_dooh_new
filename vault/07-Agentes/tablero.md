@@ -6,6 +6,27 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!success] 2026-09-25 · **B36 parte (1) — Z12 y `release.yml` RECLAMADOS y LIBERADOS**
+> Rama `chore/etiquetas-oci-release`, **sin fusionar**: el entregable es la rama.
+> `release.yml` escribe cuatro etiquetas OCI en el `docker build` —`revision` con
+> `${{ github.sha }}`, más `version`, `source` y `created`— y relee `revision` con
+> `docker inspect` **antes** del push. Es justo la advertencia que se rescató de
+> `docs/hallazgos-14-septiembre` en el recuadro de abajo, cerrada en su mitad
+> barata el mismo día.
+>
+> **Zona VERDE:** no toca sesión, tenant, migración ni dinero — ni una línea de
+> `apps/web` salvo una prueba nueva. Por eso no se corrieron las e2e.
+>
+> Medido en este árbol: `typecheck` limpio, **1845 pruebas en 143 archivos** en
+> verde, un `docker build` real de este `Dockerfile` con las cuatro banderas, y
+> `crane copy` sobre un `registry:2` desechable en local demostrando que las
+> etiquetas **sobreviven a la promoción**. Detalle y fuerza de cada comprobación,
+> en B36.
+>
+> **La parte (2) de B36 NO entró** —impedir el push a `estable` fuera de
+> `promover.yml`—: sigue sin decidirse y la aprobación del dueño fue solo para las
+> etiquetas.
+
 > [!note] 2026-09-25 · **Triaje de las tres ramas paradas — las tres SIN OBJETO**
 > Dictaminadas sin fusionar ninguna, para que nadie repita el trabajo dentro de
 > un mes (que es justo lo que pasó con F5.3 y F5.4, `docs/evidencias/auditoria-f5-31-agosto.md`).

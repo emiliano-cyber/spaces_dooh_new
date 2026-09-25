@@ -940,6 +940,80 @@ calendario.
 
 #### B36 · 🟠 Una imagen de la flota NO puede decir de qué commit salió, y por eso el 14/09 hubo DOS imágenes selladas `v0.5.0`
 
+> [!success] 2026-09-25 · **LA PARTE (1) ESTÁ HECHA.** La (2) sigue abierta y sin decidir
+> El dueño aprobó ese mismo día «mete lo de las etiquetas OCI», y solo eso:
+> `release.yml` escribe ahora cuatro etiquetas OCI en el `docker build`, la
+> primera de ellas `org.opencontainers.image.revision` con `${{ github.sha }}`.
+> Rama `chore/etiquetas-oci-release`.
+>
+> **Dónde y por qué ahí:** como `--label` en la orden de build del workflow, **no**
+> como `LABEL` en el `Dockerfile`. Los cuatro valores son hechos del CI, no
+> entradas del build; por el camino del `Dockerfile` habría que añadir un `ARG` y
+> un `LABEL` por cada uno **y pasar igualmente un `--build-arg` por cada uno**; y
+> un `ARG` con valor por omisión publicaría `revision=desconocida` en cualquier
+> build local — una etiqueta que existe y no dice nada es peor que una ausente,
+> porque la ausencia significa «esta imagen no salió del pipeline». `VERSION`
+> sigue por `--build-arg` porque es lo único que se lee **en ejecución**
+> (`SPACE_OS_VERSION` → `/api/version`); una etiqueta OCI no se puede leer desde
+> dentro del contenedor. De paso, `--label` no crea ni invalida ninguna capa, así
+> que no toca la caché escalonada que el `Dockerfile` cuida en `deps`.
+>
+> **Las cuatro, y las descartadas:** `revision` (el SHA, la imprescindible),
+> `version` (el tag sellado dentro: la etiqueta del registry se movió de verdad
+> —la vieja `v0.5.0` acabó `v0.5.0-09sep`— y esta viaja con el digest),
+> `source` (un SHA suelto no dice dónde buscarlo, y hay **dos** remotos con uno
+> muerto) y `created` (el registry guarda la hora del **push**, no la del build).
+> Descartadas a propósito: `title`, `description`, `documentation` y `authors`
+> —prosa fija que no diagnostica nada—, `vendor` y `url` —obligarían a quemar un
+> dominio real en un archivo versionado, que `CLAUDE.md` prohíbe—, `licenses`
+> —afirmación legal que nadie ha decidido— y `base.name`/`base.digest` —útiles
+> para la cadena de suministro, pero es otro asunto—.
+>
+> **¿SOBREVIVEN A `promover.yml`? SÍ, Y ESTÁ MEDIDO** — no deducido, que es lo que
+> decide si esto sirve para el canal que consume la flota. Las etiquetas viven en
+> el **blob de configuración** de la imagen, al que apunta el manifiesto.
+> `promover.yml:367` promueve con `crane copy` **desde el digest**, y ese mandato
+> reescribe los mismos bytes del manifiesto bajo el nombre nuevo — por eso la
+> puerta 3 (`:372-398`) puede exigir que el digest **no cambie**, y desde el 02/09
+> pasa en verde. Lo que *sí* las habría perdido es el `docker buildx imagetools
+> create` que hubo ahí hasta el 02/09: envolvía el manifiesto en un índice nuevo.
+>
+> Comprobado el 25/09 **sin tocar el registro de producción ni ningún servidor**:
+> un `registry:2` desechable en `localhost`, el mismo `crane copy <repo>@<digest>
+> <repo>:estable` que corre `promover.yml`, y después `crane config` sobre el tag
+> `estable`:
+>
+> ```
+> v0.0.0-ensayo-oci  -> sha256:4a1320037d6f313072d5440d79187d0188902967f2f397e1e5ce8302ab8aa809
+> crane copy ...     -> sha256:4a1320037d6f313072d5440d79187d0188902967f2f397e1e5ce8302ab8aa809   (mismo)
+> crane config estable -> "Labels":{"org.opencontainers.image.created":…,"…revision":"a46fb5f3…",
+>                          "…source":…,"…version":"v0.0.0-ensayo-oci"}
+> ```
+>
+> **Cómo se comprobó, y cuánto vale cada cosa — sin adornos:**
+>
+> | Comprobación | Fuerza |
+> |---|---|
+> | `docker build` **real de este `Dockerfile`** con las cuatro banderas, y las etiquetas leídas con `docker inspect` sobre la imagen resultante | **Fuerte.** Es el mecanismo de verdad, sobre el archivo de verdad. Y `SPACE_OS_VERSION=v0.0.0-ensayo-oci` sigue sellada: `--label` no desplazó a `--build-arg` |
+> | `crane copy` sobre un registro local desechable, digest y etiquetas leídos después | **Fuerte** para el mecanismo. Lo que no prueba es DOCR en concreto — aunque el digest sí está medido contra DOCR desde el 02/09 por la puerta 3 |
+> | El paso nuevo de `release.yml` relee la etiqueta con `docker inspect` **antes** del push y se pone rojo si no cuadra | **Fuerte, pero solo en el runner** — no protege hasta que haya un release. El caso de control se probó: sobre una imagen sin la etiqueta, el mismo `--format` devuelve vacío, así que el guard dispara |
+> | `apps/web/lib/etiquetas-oci.test.ts`: lee el YAML y comprueba las banderas | **DÉBIL, y se dice en el propio archivo.** No construye nada: solo atrapa que alguien las borre al editar el workflow. Se demostró en rojo antes: **5 de 7 fallando** contra el `release.yml` de `main` |
+> | YAML parseado y los **12** bloques `run:` pasados por `bash -n` | Débil: sintaxis, no comportamiento |
+
+> [!warning] Hueco histórico: las imágenes YA PUBLICADAS no llevan nada y no se pueden retroarreglar
+> Todo lo que hay hoy en el registro —incluida la que sirve el canal `estable` y
+> por tanto **la que corre la flota**— se construyó sin etiquetas. Y **no tiene
+> arreglo**: reconstruir desde el mismo commit daría otro digest (fechas, capas
+> base, `npm ci`), así que dejaría de ser el artefacto que se probó, que es justo
+> lo que prohíbe el invariante 3 del plan. Poner la etiqueta a mano sobre el
+> manifiesto existente cambiaría el digest por la misma razón.
+>
+> **Consecuencia práctica:** si el incidente del 14/09 se repitiera **con las
+> imágenes de hoy**, volvería a costar lo mismo. La cobertura empieza en la
+> **próxima** versión publicada, no antes. Quien diagnostique una imagen y no
+> encuentre `org.opencontainers.image.revision` no ha dado con un defecto: ha dado
+> con una imagen anterior al 2026-09-25.
+
 **Abierta el 2026-09-25**, rescatada de la rama `docs/hallazgos-14-septiembre`
 **justo antes de borrarla** — y ese detalle es la mitad del asunto: era el único
 documento del repositorio que nombraba esta carencia, y este expediente se
@@ -962,18 +1036,28 @@ hizo caro sigue igual**.
 
 **Los dos remedios, y solo el primero es barato:**
 
-1. Que `release.yml` escriba **etiquetas OCI** —
+1. ~~Que `release.yml` escriba **etiquetas OCI** —
    `org.opencontainers.image.revision=$GITHUB_SHA`— para que cualquier imagen
-   diga siempre de qué commit salió. Es **una línea**, zona VERDE, no toca la
-   aplicación. Hace el incidente *diagnosticable en un minuto*.
+   diga siempre de qué commit salió.~~ ✅ **HECHO el 2026-09-25**, aprobado por el
+   dueño el mismo día. Ver el recuadro del principio de esta entrada. No era «una
+   línea»: son cuatro etiquetas y un paso que las relee antes de publicar, porque
+   una etiqueta que nadie comprueba es una afirmación.
 2. Que **empujar a `estable` fuera de `promover.yml` sea imposible**, no solo
    desaconsejado. Es el que lo habría **impedido**, no solo diagnosticado. Nadie
    ha mirado si el registry de DigitalOcean permite restringir el push por tag.
+   **SIGUE ABIERTO Y SIN DECIDIR** — no entró con el (1), a propósito: la
+   aprobación del dueño fue solo para las etiquetas.
 
 **Lo que hay que decidir:**
 
-- **¿Entra el (1) antes del SUMMIT?** Toca `release.yml`, o sea el pipeline de
-  lanzamiento, a 19 días de una fecha dura. El cambio es trivial; el momento no.
+- ~~**¿Entra el (1) antes del SUMMIT?** Toca `release.yml`, o sea el pipeline de
+  lanzamiento, a 19 días de una fecha dura. El cambio es trivial; el momento no.~~
+  **CONTESTADA el 2026-09-25: sí.** Queda una pregunta derivada, y es la única
+  que importa ahora: **si conviene quemar un tag de ensayo (`vX.Y.Z-rcN`) para
+  que el primer `release.yml` con esto dentro NO sea el del lanzamiento.** El
+  cambio se comprobó con un `docker build` real, pero **nadie ha corrido
+  `release.yml` con él dentro**, y un `-rcN` cuesta unos minutos de runner y
+  ~6 % del registry; descubrir un problema el 14/10 cuesta el día.
 - **¿El (2) se investiga o se acepta el riesgo?** Hoy solo el dueño tiene las
   claves del registry, así que el riesgo es una equivocación propia, no un
   tercero. Es la misma familia de «no confiar en que nadie se equivoque» que ya
