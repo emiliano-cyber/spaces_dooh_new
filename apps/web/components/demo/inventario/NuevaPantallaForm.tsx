@@ -10,6 +10,7 @@ import { Button } from '@/components/demo/ui/Button'
 import { cn } from '@/lib/cn'
 import { altaSitioApi } from '@/lib/data/sitios-api'
 import { useArrendadores, type Sitio, type TipoMedio } from '@/lib/data/client'
+import { puntoUtil } from '@/lib/coordenadas'
 
 // Formulario manual de "Nueva pantalla" con 5 tabs (Básico, Especificaciones,
 // IA/Vision, Precios, Imágenes). Crea la pantalla vía data.altaSitio.
@@ -83,8 +84,20 @@ export function NuevaPantallaForm({
   const [enviando, setEnviando] = useState(false)
 
   const cvInvalido = cv && !admobilizeId.trim()
-  // Para el alta de UNA sola pantalla, la imagen promocional es obligatoria.
-  const valido = !!nombre.trim() && !cvInvalido && !!imagen && !!arrendadorId
+  // La ubicación es obligatoria en el alta manual, y esto ANTES no era así.
+  //
+  // El formulario hacía `Number(lat) || 19.4326`: una pantalla sin coordenadas
+  // no quedaba vacía, quedaba EN EL ZÓCALO — y sin marca de pendiente, así que
+  // nadie volvía a mirarla nunca. Un dato inventado que parece real es peor que
+  // un hueco: el hueco se ve y se rellena, el dato falso se cree.
+  //
+  // Aquí se exige y en la carga masiva NO, y la diferencia es deliberada: un
+  // Excel de cien filas rara vez trae coordenadas y bloquearlo sería fricción
+  // sin motivo, por eso el importador pone el default pero MARCA la fila como
+  // pendiente de verificación (`lib/inventario-import.ts:211-218`). Dando de
+  // alta UNA pantalla tienes la dirección delante.
+  const ubicacion = puntoUtil(lat, lng)
+  const valido = !!nombre.trim() && !cvInvalido && !!imagen && !!arrendadorId && !!ubicacion
 
   function toggleModalidad(m: string) {
     setModalidades((prev) => (prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m]))
@@ -123,8 +136,10 @@ export function NuevaPantallaForm({
       direccionPredio: direccion.trim(),
       direccionComercial: direccion.trim(),
       distrito: '',
-      lat: Number(lat) || 19.4326,
-      lng: Number(lng) || -99.1332,
+      // `ubicacion` no puede ser null aquí: `valido` lo exige y el botón está
+      // deshabilitado sin él. El `??` es para el compilador, no una ruta viva.
+      lat: ubicacion?.lat ?? 0,
+      lng: ubicacion?.lng ?? 0,
       ancho: 12.9,
       alto: 7.2,
       iluminado: true,
@@ -160,6 +175,10 @@ export function NuevaPantallaForm({
         <span className="text-[12px] text-error">ID AdMobilize requerido</span>
       ) : !imagen ? (
         <span className="text-[12px] text-error">Imagen obligatoria (pestaña Imágenes)</span>
+      ) : !ubicacion ? (
+        <span className="text-[12px] text-error">
+          Latitud y longitud obligatorias (pestaña Ubicación)
+        </span>
       ) : (
         <span />
       )}
@@ -234,8 +253,8 @@ export function NuevaPantallaForm({
               </span>
             </Campo>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Campo label="Latitud"><input className={inputCls} inputMode="decimal" value={lat} onChange={(e) => setLat(e.target.value)} placeholder="Ej. 19.4326" /></Campo>
-              <Campo label="Longitud"><input className={inputCls} inputMode="decimal" value={lng} onChange={(e) => setLng(e.target.value)} placeholder="Ej. -99.1332" /></Campo>
+              <Campo label="Latitud *"><input className={inputCls} inputMode="decimal" value={lat} onChange={(e) => setLat(e.target.value)} placeholder="Ej. 19.4326" /></Campo>
+              <Campo label="Longitud *"><input className={inputCls} inputMode="decimal" value={lng} onChange={(e) => setLng(e.target.value)} placeholder="Ej. -99.1332" /></Campo>
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Campo label="Tipo de pantalla">

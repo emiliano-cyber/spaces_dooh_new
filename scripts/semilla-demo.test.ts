@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest'
+import { puntoUtil } from '@/lib/coordenadas'
+import { distanciaMetros, RADIO_PREDIO_M } from '@/lib/predio-cercania'
 import {
   planSemilla,
   datosDeRentabilidad,
@@ -616,5 +618,80 @@ describe('el eje del tiempo: el ingreso es plano y el margen CAE', () => {
     const max = Math.max(...porTrimestre)
     const min = Math.min(...porTrimestre)
     expect(max - min, `huecos por trimestre: ${porTrimestre.join(' · ')}`).toBeLessThanOrEqual(2)
+  })
+})
+
+// ============================================================================
+//  Las pantallas sembradas SABEN DONDE ESTAN
+// ----------------------------------------------------------------------------
+//  La semilla no sembraba coordenadas. Ninguna. Sus seis pantallas nacían con
+//  `lat`/`lng` en NULL, y `rowToSitio` las entregaba como 0
+//  (`lib/server/sitios-repo.ts:44-45`), así que se dibujaban en el (0,0) —mar
+//  abierto— y arrastraban el auto-enfoque del mapa al Atlántico. Medido el
+//  2026-09-24 en `spaces_demo`: seis pantallas, cero puntos visibles.
+//
+//  No se arregla capturándolas a mano en cada base: la semilla se corre en
+//  cada instancia nueva y volvería a dejar el hueco. Se arregla aquí.
+// ============================================================================
+describe('las pantallas de la semilla tienen ubicación', () => {
+  const TENANT = '00000000-0000-4000-8000-000000000001'
+
+  it('las seis traen coordenadas utilizables', () => {
+    for (const s of plan().sitios) {
+      expect(puntoUtil(s.lat, s.lng), `${s.clave} sin coordenadas utilizables`).not.toBeNull()
+    }
+  })
+
+  it('el INSERT de sitios las escribe de verdad', () => {
+    const sentencias = sentenciasDelPlan(plan(), TENANT)
+    const inserts = sentencias.filter((s) => /insert into sitios/.test(s.sql))
+    expect(inserts.length).toBe(plan().sitios.length)
+    for (const ins of inserts) {
+      expect(ins.sql, `${ins.etiqueta}: el INSERT no nombra lat/lng`).toMatch(/\blat\b/)
+      expect(ins.sql).toMatch(/\blng\b/)
+    }
+    // Que la columna aparezca en el SQL no basta, y «viaja algun numero» TAMPOCO:
+    // con esa asercion floja, cambiar `s.lat, s.lng` por dos constantes pasaba
+    // la prueba (comprobado por mutacion el 24/09). Tiene que viajar LA
+    // coordenada DE ESA pantalla.
+    for (const sitio of plan().sitios) {
+      const ins = inserts.find((x) => x.etiqueta.includes(sitio.clave))
+      if (!ins) throw new Error(`sin INSERT para ${sitio.clave}`)
+      expect(ins.valores, `${sitio.clave}: su latitud no viaja`).toContain(sitio.lat)
+      expect(ins.valores, `${sitio.clave}: su longitud no viaja`).toContain(sitio.lng)
+    }
+  })
+
+  // Dos pares comparten predio (PRE-VIA y PRE-INS). Un predio es UN inmueble,
+  // así que sus pantallas tienen que caer dentro del radio que el propio
+  // producto exige al importar — si no, la semilla genera justo el dato que
+  // `pantallasFueraDelGrupo` marca como sospechoso.
+  it('las pantallas de un mismo predio están dentro del radio del predio', () => {
+    const porPredio = new Map()
+    for (const s of plan().sitios) {
+      if (!porPredio.has(s.predioClave)) porPredio.set(s.predioClave, [])
+      porPredio.get(s.predioClave).push(s)
+    }
+    for (const [clave, sitios] of porPredio) {
+      if (sitios.length < 2) continue
+      const [a, ...resto] = sitios
+      for (const b of resto) {
+        const m = distanciaMetros(a.lat, a.lng, b.lat, b.lng)
+        expect(m, `${clave}: ${a.clave} y ${b.clave} a ${Math.round(m)} m`).toBeLessThanOrEqual(
+          RADIO_PREDIO_M,
+        )
+      }
+    }
+  })
+
+  // Un guion de demostración que enseña México tiene que caer en México. Una
+  // coordenada válida pero en otro continente pasaría las pruebas de arriba.
+  it('caen dentro de México', () => {
+    for (const s of plan().sitios) {
+      expect(s.lat, `${s.clave}`).toBeGreaterThan(14)
+      expect(s.lat, `${s.clave}`).toBeLessThan(33)
+      expect(s.lng, `${s.clave}`).toBeGreaterThan(-118)
+      expect(s.lng, `${s.clave}`).toBeLessThan(-86)
+    }
   })
 })

@@ -369,6 +369,9 @@ const SITIOS = [
     ciudad: 'Ciudad de Mexico',
     estado: 'Ciudad de Mexico',
     pais: 'MX',
+    // Calzada de Tlalpan a la altura de Huipulco.
+    lat: 19.2947,
+    lng: -99.1624,
     ancho: 12.9,
     alto: 7.2,
     caras: 1,
@@ -392,6 +395,9 @@ const SITIOS = [
     ciudad: 'Tlalnepantla',
     estado: 'Estado de Mexico',
     pais: 'MX',
+    // Av. Santa Monica, Tlalnepantla.
+    lat: 19.5391,
+    lng: -99.1954,
     // Mismas medidas que Tlalpan: son comparables o el guion no vale.
     ancho: 12.9,
     alto: 7.2,
@@ -424,6 +430,9 @@ const SITIOS = [
     ciudad: 'Ciudad de Mexico',
     estado: 'Ciudad de Mexico',
     pais: 'MX',
+    // Viaducto, lado NORTE. Comparte predio PRE-VIA con DEMO-SM-02: ~60 m.
+    lat: 19.3951,
+    lng: -99.0904,
     ancho: null,
     alto: null,
     caras: 1,
@@ -447,6 +456,9 @@ const SITIOS = [
     ciudad: 'Ciudad de Mexico',
     estado: 'Ciudad de Mexico',
     pais: 'MX',
+    // Viaducto, lado SUR. El par de arriba; los separa el ancho de la via.
+    lat: 19.3946,
+    lng: -99.0904,
     ancho: null,
     alto: null,
     caras: 1,
@@ -490,6 +502,9 @@ const SITIOS = [
     ciudad: 'Ciudad de Mexico',
     estado: 'Ciudad de Mexico',
     pais: 'MX',
+    // Insurgentes Sur, Benito Juarez. Comparte predio PRE-INS con DEMO-UC-01.
+    lat: 19.3892,
+    lng: -99.1745,
     ancho: 10,
     alto: 4,
     caras: 2,
@@ -513,6 +528,9 @@ const SITIOS = [
     ciudad: 'Ciudad de Mexico',
     estado: 'Ciudad de Mexico',
     pais: 'MX',
+    // El par de arriba, misma esquina y otra vista.
+    lat: 19.3887,
+    lng: -99.1745,
     // La MISMA superficie física que la de dos caras, a propósito: lo único que
     // las separa en el ranking por m² es el número de caras.
     ancho: 10,
@@ -1209,13 +1227,14 @@ export function sentenciasDelPlan(plan, tenantId) {
       sql: `insert into sitios (
               tenant_id, clave_interna, codigo_proveedor, nombre, tipo_medio,
               direccion, direccion_predio, direccion_comercial,
-              alcaldia, plaza_ciudad, ciudad, estado, pais,
+              alcaldia, plaza_ciudad, ciudad, estado, pais, lat, lng,
               ancho, alto, caras, iluminado, exhibicion, unidad,
               tarifa_mensual, tarifa_publicada, predio_id, arrendador_id,
               estatus_comercial, estatus_legal, estatus_operativo, notas)
             select $1::uuid, $2::text, $3::text, $4::text, $5::tipo_medio,
                    $6::text, $6::text, $6::text,
                    $7::text, $8::text, $9::text, $10::text, $11::text,
+                   $21::numeric, $22::numeric,
                    $12::numeric, $13::numeric, $14::integer, $15::boolean, $16::text, $17::text,
                    $18::numeric, $18::numeric, p.id, p.arrendador_id,
                    'OCUPADO'::est_comercial, 'EN_ORDEN'::est_legal, 'ACTIVO'::est_operativo,
@@ -1228,6 +1247,9 @@ export function sentenciasDelPlan(plan, tenantId) {
         s.direccion, s.alcaldia, s.plazaCiudad, s.ciudad, s.estado, s.pais,
         s.ancho, s.alto, s.caras, s.iluminado, s.exhibicion, s.unidad,
         s.tarifa, s.notas, predio.nombre,
+        // Sin esto las seis pantallas nacen sin ubicacion y el mapa las manda
+        // al (0,0). Ver `lib/coordenadas.ts` y la prueba de este archivo.
+        s.lat, s.lng,
       ],
     })
   }

@@ -91,6 +91,30 @@ pero nadie la enciende, y en la flota no puede encenderse por instancia
 > **Y el mapa ahora DICE lo que descarta**: una etiqueta abajo a la izquierda
 > cuenta las pantallas sin ubicación. El hueco se ve; antes se lo tragaba.
 >
+> [!success] 2026-09-24 · y se taparon las DOS fuentes del hueco
+> Quedarse en el guard habría dejado el mapa honesto y el hueco intacto. Las
+> pantallas nacen por tres caminos y cada uno hacía algo distinto:
+>
+> | Camino | Antes | Ahora |
+> |---|---|---|
+> | Carga masiva CSV | default + **marca de pendiente** + aviso | igual — ya era correcto |
+> | Alta manual | default al Zócalo **en silencio** | **exige latitud y longitud** |
+> | `scripts/semilla-demo.mjs` | **no sembraba coordenadas** | las seis las traen |
+>
+> El del alta manual era el peor de los tres: `Number(lat) || 19.4326` no dejaba
+> un hueco, dejaba **una pantalla en el Zócalo sin marca de pendiente**. Un dato
+> inventado que parece real no lo detecta nadie nunca.
+>
+> **La carga masiva sigue SIN exigirlas, a propósito.** Un Excel de cien filas
+> rara vez las trae y bloquearlo sería fricción sin motivo; por eso ahí el
+> default se acompaña de `pendienteVerificacion`
+> (`lib/inventario-import.ts:211-218`). Dando de alta UNA pantalla tienes la
+> dirección delante, así que ahí sí se exige.
+>
+> La semilla además coloca los dos pares que comparten predio a ~60 m, dentro de
+> `RADIO_PREDIO_M` (250 m): si no, generaría justo el dato que
+> `pantallasFueraDelGrupo` marca como sospechoso. Lo fija una prueba.
+
 > [!warning] Arreglar el encuadre NO hace aparecer puntos
 > Es el otro lado de lo mismo y conviene no confundirlo: el código deja de
 > mentir sobre dónde está una pantalla, pero una pantalla sin coordenadas

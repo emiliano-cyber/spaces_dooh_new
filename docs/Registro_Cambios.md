@@ -7,6 +7,23 @@ La entrada más reciente va arriba.
 
 ## 2026-09-24
 
+- **Dar de alta una pantalla ahora exige decir dónde está.** Hasta hoy, si
+  dejabas la latitud y la longitud en blanco en el alta manual, la pantalla no
+  se quedaba sin ubicación: se guardaba **en el Zócalo**, sin avisar y sin
+  quedar marcada como pendiente. Después era imposible distinguirla de una
+  pantalla que de verdad está ahí. Ahora los dos campos son obligatorios y el
+  botón de guardar lo dice.
+
+  **La carga masiva por Excel/CSV no cambia**, y es a propósito: esos archivos
+  casi nunca traen coordenadas, así que se sigue poniendo una por omisión pero
+  la fila queda **marcada como pendiente de verificación**, que es lo que
+  permite encontrarla después. Dando de alta una sola pantalla tienes la
+  dirección delante; cargando cien, no.
+
+  También se corrigieron los datos de ejemplo que se usan en las
+  demostraciones: sus seis pantallas no tenían ubicación y por eso no salían en
+  el mapa.
+
 - **El mapa se iba al océano cuando faltaban coordenadas.** Una pantalla a la
   que nadie le capturó la ubicación no se quedaba fuera del mapa: se dibujaba
   en el punto cero del planeta, que está en el mar frente a África. Y como el
