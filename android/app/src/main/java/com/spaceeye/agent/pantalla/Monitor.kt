@@ -60,6 +60,16 @@ class Monitor(
         private const val TOMAS = 3
         /** Segunda mirada a un creativo desconocido (dura ~20 s en pantalla). */
         private const val CONFIRMAR_MS = 4_000L
+        /**
+         * Modo CONTINUO (creativos cada_min = 0): las vueltas se encadenan todo el
+         * dia dentro del horario. La configuracion se vuelve a pedir cada tanto y
+         * no en cada vuelta, y el resumen al registro remoto se agrupa: asi mirar
+         * sin parar NO cuesta mas datos que mirar cada 6 horas. Lo unico que
+         * viaja sigue siendo la foto de un creativo nuevo.
+         */
+        private const val CONFIG_CONTINUO_MS = 15 * 60_000L
+        private const val LOG_CONTINUO_MS = 60 * 60_000L
+        private const val PAUSA_CONTINUO_MS = 5_000L
 
         val NOMBRES = mapOf(
             "zona_apagada" to "Posible gabinete apagado",
@@ -86,6 +96,14 @@ class Monitor(
 
     private var ultimaCreativos = 0L
     private var ultimaSalud = 0L
+
+    // Modo continuo: ultima configuracion recibida, y el resumen acumulado que se
+    // manda al registro remoto una vez por hora (o en cuanto aparece algo nuevo).
+    private var config: JSONObject? = null
+    private var configEn = 0L
+    private var acumVistazos = 0
+    private val acumConocidos = mutableSetOf<String>()
+    private var ultimoLogCreativos = 0L
     private var avisoSinPantalla = false
 
     /** Resumen de la ultima vuelta, a la espera del proximo reporte de estado. */
@@ -127,29 +145,51 @@ class Monitor(
         } } catch (_: Exception) {}
 
         while (isActive) {
-            var esperaMin = REINTENTO_MIN
+            var esperaMs = REINTENTO_MIN * 60_000L
             try {
-                esperaMin = vuelta()
+                esperaMs = vuelta()
             } catch (e: Exception) {
                 Log.e(TAG, "vuelta fallo: ${e.message}", e)
                 RemoteLog.warn(ctx, "monitor", "La vigilancia de la pantalla fallo: ${e.message}")
             }
-            delay(esperaMin * 60_000L)
+            delay(esperaMs)
         }
     }
 
-    /** Una vuelta si toca. Devuelve cuantos minutos esperar a la siguiente. */
+    /**
+     * La configuracion del servidor. En modo continuo se reutiliza la ultima si es
+     * reciente, salvo que toque revisar fallas (esas necesitan saber que alertas
+     * estan abiertas).
+     */
+    private fun configuracion(): JSONObject? {
+        val c = config
+        val ahora = System.currentTimeMillis()
+        val continuo = c?.optJSONObject("creativos")?.let { it.optBoolean("vigilar") && it.optLong("cada_min", 360L) == 0L } == true
+        val saludPronto = c?.optJSONObject("salud")?.let { s ->
+            s.optBoolean("vigilar") && ahora - ultimaSalud >= s.optLong("cada_min", 60L).coerceAtLeast(30L) * 60_000L - 60_000L
+        } == true
+        if (c != null && continuo && !saludPronto && ahora - configEn < CONFIG_CONTINUO_MS) return c
+        val nueva = api.monitoreo() ?: return null
+        config = nueva
+        configEn = ahora
+        return nueva
+    }
+
+    /** Una vuelta si toca. Devuelve cuanto esperar a la siguiente (ms). */
     private suspend fun vuelta(): Long {
-        val r = api.monitoreo() ?: return REINTENTO_MIN
+        val r = configuracion() ?: return REINTENTO_MIN * 60_000L
         val cCfg = r.optJSONObject("creativos")
         val sCfg = r.optJSONObject("salud")
         val quiereCreativos = cCfg?.optBoolean("vigilar") == true
         val quiereSalud = sCfg?.optBoolean("vigilar") == true
-        if (!quiereCreativos && !quiereSalud) return APAGADO_MIN
+        if (!quiereCreativos && !quiereSalud) return APAGADO_MIN * 60_000L
 
-        val cadaC = (cCfg?.optLong("cada_min", 360L) ?: 360L).coerceAtLeast(30L)
+        // cada_min = 0 en creativos es el modo continuo.
+        val continuo = quiereCreativos && cCfg!!.optLong("cada_min", 360L) == 0L
+        val cadaC = if (continuo) 0L else (cCfg?.optLong("cada_min", 360L) ?: 360L).coerceAtLeast(30L)
         val cadaS = (sCfg?.optLong("cada_min", 60L) ?: 60L).coerceAtLeast(30L)
-        val espera = minOf(if (quiereCreativos) cadaC else Long.MAX_VALUE, if (quiereSalud) cadaS else Long.MAX_VALUE)
+        val espera = if (continuo) PAUSA_CONTINUO_MS
+            else minOf(if (quiereCreativos) cadaC else Long.MAX_VALUE, if (quiereSalud) cadaS else Long.MAX_VALUE) * 60_000L
 
         val geo = Geometria.deJson(r.optJSONObject("pantalla"))
         if (geo == null) {
@@ -158,28 +198,35 @@ class Monitor(
             if (!avisoSinPantalla) RemoteLog.warn(ctx, "monitor",
                 "La vigilancia esta encendida pero falta marcar la pantalla en el dashboard; no se vigila hasta entonces")
             avisoSinPantalla = true
-            return espera
+            return maxOf(espera, REINTENTO_MIN * 60_000L)
         }
         avisoSinPantalla = false
-        if (!geo.enHorario(LocalTime.now())) return minOf(espera, 30L)
+        // Fuera de horario: se vuelve a mirar el reloj cada 10 minutos.
+        if (!geo.enHorario(LocalTime.now())) return 10 * 60_000L
         if (!Vision.cargar()) {
             RemoteLog.error(ctx, "monitor", "No se pudo cargar el reconocimiento de imagen (OpenCV); no se vigila")
-            return APAGADO_MIN
+            return APAGADO_MIN * 60_000L
         }
 
         val ahora = System.currentTimeMillis()
-        val tocaC = quiereCreativos && ahora - ultimaCreativos >= cadaC * 60_000L - 60_000L
+        val tocaC = quiereCreativos && (continuo || ahora - ultimaCreativos >= cadaC * 60_000L - 60_000L)
         val tocaS = quiereSalud && ahora - ultimaSalud >= cadaS * 60_000L - 60_000L
-        if (!tocaC && !tocaS) return espera
+        if (!tocaC && !tocaS) {
+            // Se duerme justo hasta la proxima que toque. NO cada minuto: cada
+            // despertar pide la configuracion, y eso si serian datos en balde.
+            val faltaC = if (quiereCreativos) ultimaCreativos + cadaC * 60_000L - ahora else Long.MAX_VALUE
+            val faltaS = if (quiereSalud) ultimaSalud + cadaS * 60_000L - ahora else Long.MAX_VALUE
+            return minOf(faltaC, faltaS).coerceIn(60_000L, maxOf(espera, 60_000L))
+        }
 
         enviarPendientes()
-        recorrido(r, geo, if (tocaC) cCfg else null, if (tocaS) sCfg else null)
+        recorrido(r, geo, if (tocaC) cCfg else null, if (tocaS) sCfg else null, continuo)
         if (tocaC) ultimaCreativos = ahora
         if (tocaS) ultimaSalud = ahora
         return espera
     }
 
-    private suspend fun recorrido(r: JSONObject, geo: Geometria, cCfg: JSONObject?, sCfg: JSONObject?) {
+    private suspend fun recorrido(r: JSONObject, geo: Geometria, cCfg: JSONObject?, sCfg: JSONObject?, continuo: Boolean = false) {
         val base = cCfg ?: sCfg!!
         val totalMs = base.optLong("recorrido_seg", 270L) * 1000L
         val pasoMs = (base.optLong("paso_seg", 15L) * 1000L).coerceAtLeast(5_000L)
@@ -267,10 +314,26 @@ class Monitor(
             if (vistas.isNotEmpty() || nuevas.isNotEmpty()) {
                 devolver(JSONObject().put("creativos", JSONObject().put("vistas", JSONArray(vistas.toList())).put("nuevas", JSONArray(nuevas))))
             }
-            RemoteLog.info(ctx, "creative", "Recorrido de creativos: ${vistazos.size} vistazos, ${vistas.size} conocidos, " +
-                "${nuevas.size} nuevos, $fotos fotos; catalogo de ${reconocedor.tamaño()}" +
-                (if (aprendiendoC) " (aprendiendo: no se fotografia)" else "") +
-                (if (saltados > 0) ", $saltados saltados por camara ocupada" else ""))
+            // Lo que queda del tope del dia, para las vueltas que reutilizan la
+            // configuracion sin volver a pedirla.
+            cCfg.put("restantes_hoy", restantesC)
+            if (!continuo) {
+                RemoteLog.info(ctx, "creative", "Recorrido de creativos: ${vistazos.size} vistazos, ${vistas.size} conocidos, " +
+                    "${nuevas.size} nuevos, $fotos fotos; catalogo de ${reconocedor.tamaño()}" +
+                    (if (aprendiendoC) " (aprendiendo: no se fotografia)" else "") +
+                    (if (saltados > 0) ", $saltados saltados por camara ocupada" else ""))
+            } else {
+                // En continuo se agrupa: un aviso por hora, o en cuanto hay algo nuevo.
+                acumVistazos += vistazos.size
+                acumConocidos.addAll(vistas)
+                val ahoraLog = System.currentTimeMillis()
+                if (nuevas.isNotEmpty() || ahoraLog - ultimoLogCreativos >= LOG_CONTINUO_MS) {
+                    RemoteLog.info(ctx, "creative", "Vigilancia continua: $acumVistazos vistazos desde el ultimo aviso, " +
+                        "${acumConocidos.size} creativos conocidos en rotacion, ${nuevas.size} nuevos ahora ($fotos fotos); " +
+                        "catalogo de ${reconocedor.tamaño()}" + (if (aprendiendoC) " (aprendiendo: no se fotografia)" else ""))
+                    acumVistazos = 0; acumConocidos.clear(); ultimoLogCreativos = ahoraLog
+                }
+            }
         }
 
         if (sCfg != null) salud(r, sCfg, geo, firmaEncuadre, giro, vistazos)

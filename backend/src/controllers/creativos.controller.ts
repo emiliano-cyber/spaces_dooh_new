@@ -219,7 +219,8 @@ export async function configurar(req: Request, res: Response) {
   const schema = z.object({
     vigilar: z.boolean().optional(),
     max_dia: z.number().int().min(0).max(100).optional(),
-    cada_min: z.number().int().min(30).max(1440).optional(),
+    // 0 = continuo: el equipo mira todo el dia dentro del horario (APK 0.15.2+).
+    cada_min: z.union([z.literal(0), z.number().int().min(30).max(1440)]).optional(),
     recorrido_seg: z.number().int().min(60).max(900).optional(),
     paso_seg: z.number().int().min(5).max(60).optional(),
     tolerancia: z.number().int().min(0).max(128).optional(),

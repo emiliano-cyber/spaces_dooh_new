@@ -895,16 +895,19 @@
               </span>
               <span>Fotos hoy: <b x-text="creativos.fotos_hoy"></b> de <b x-text="creativos.config.max_dia"></b></span>
               <span>Creativos en el catálogo: <b x-text="creativos.creativos.length"></b></span>
-              <label class="flex items-center gap-1">
-                Revisar cada
+              <label class="flex items-center gap-1"
+                title="Continuo: el equipo mira su pantalla todo el día dentro del horario y avisa en menos de un minuto cuando sale un creativo nuevo. Sigue sin gastar datos: solo manda la foto de lo nuevo.">
+                Revisar
                 <select :value="creativos.config.cada_min" :disabled="!puedeAjustar || guardandoCreativos"
                   @change="guardarCreativos({ cada_min: Number($event.target.value) })"
                   class="px-1 py-0.5 border border-neutral-300 rounded">
-                  <option value="60">1 h</option>
-                  <option value="120">2 h</option>
-                  <option value="180">3 h</option>
-                  <option value="360">6 h</option>
-                  <option value="720">12 h</option>
+                  <option value="0">continuo</option>
+                  <option value="30">cada 30 min</option>
+                  <option value="60">cada 1 h</option>
+                  <option value="120">cada 2 h</option>
+                  <option value="180">cada 3 h</option>
+                  <option value="360">cada 6 h</option>
+                  <option value="720">cada 12 h</option>
                 </select>
               </label>
               <button x-show="isAdmin" @click="reaprenderCreativos()" class="text-blue-600 hover:underline">Volver a aprender</button>
