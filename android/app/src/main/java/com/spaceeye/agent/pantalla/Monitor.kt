@@ -379,17 +379,29 @@ class Monitor(
 
         val ultimo = vistazos.lastOrNull()
         for (e in eventos) {
-            val zonas = if (e.fila != null && e.columna != null) listOf(e.fila to e.columna) else emptyList()
-            val nombre = NOMBRES[e.tipo] ?: e.tipo
-            val donde = if (e.fila != null && e.columna != null)
-                " · Gabinete ${geo.numero(e.fila, e.columna)} (fila ${e.fila + 1}, columna ${e.columna + 1})" else ""
+            val zonas = if (e.fila != null && e.columna != null) listOf(e.fila to e.columna) else e.zonas
+            val grupo = e.zonas.isNotEmpty() || e.clave.endsWith(":varias")
+            val nombre = if (grupo) (if (e.tipo == "zona_apagada") "Varios gabinetes apagados" else "Varios gabinetes congelados")
+                else NOMBRES[e.tipo] ?: e.tipo
+            val gabinetes = e.zonas.map { (f, c) -> geo.numero(f, c) }.sorted()
+            val donde = when {
+                e.fila != null && e.columna != null ->
+                    " · Gabinete ${geo.numero(e.fila, e.columna)} (fila ${e.fila + 1}, columna ${e.columna + 1})"
+                gabinetes.isNotEmpty() -> " · Gabinetes ${gabinetes.joinToString(", ")} (${gabinetes.size} de ${geo.filas * geo.columnas})"
+                else -> ""
+            }
             val texto = (if (e.accion == "recuperar") "Recuperado: " else "") + nombre + donde
             val foto = ultimo?.let { evidencia.preparar(camara.enderezar(it.jpeg, giro), geo, zonas, texto) }
             val campos = mutableMapOf(
                 "evento" to e.accion, "tipo" to e.tipo, "confianza" to e.confianza.toString(),
                 "detectada_en" to java.time.Instant.now().toString(),
                 "detalle" to JSONObject().put("texto", texto).put("vistazos", vistazos.size)
-                    .put("cambios", resultado?.cambios ?: 0).put("camara", camaraEstado.name).toString(),
+                    .put("cambios", resultado?.cambios ?: 0).put("camara", camaraEstado.name)
+                    .apply { if (gabinetes.isNotEmpty()) {
+                        put("gabinetes", JSONArray(gabinetes))
+                        put("zonas", JSONArray(e.zonas.map { JSONArray(listOf(it.first, it.second)) }))
+                        put("total", geo.filas * geo.columnas)
+                    } }.toString(),
             )
             e.fila?.let { campos["fila"] = it.toString() }
             e.columna?.let { campos["columna"] = it.toString() }

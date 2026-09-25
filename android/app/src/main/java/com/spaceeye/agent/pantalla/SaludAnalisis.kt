@@ -14,9 +14,19 @@ import kotlin.math.sqrt
  * una vuelta completa (~4 min, una toma cada 15 s) y pregunta, zona por zona,
  * que no cambio cuando todo lo demas si.
  *
- * Todo es RELATIVO al resto de la pantalla en esa misma vuelta (la mediana de
- * las zonas). Asi el sol de mediodia, que deslava la pantalla entera, no
- * dispara nada: baja a todas las zonas por igual.
+ * Todo es RELATIVO a como se porta una zona SANA en esa misma vuelta (el
+ * percentil 75 de las zonas). Asi el sol de mediodia, que deslava la pantalla
+ * entera, no dispara nada: baja a todas las zonas por igual.
+ *
+ * Percentil 75 y no mediana: con la mediana, si se apaga MAS DE LA MITAD de la
+ * pantalla la referencia cae en lo apagado, lo apagado parece "normal" y no se
+ * detecta nada. Lo destapo una prueba real el 25-sep-2026 (media pantalla
+ * tapada en una cuadricula de 5x3): 0 de 8 zonas detectadas. Con el percentil
+ * 75 se detecta hasta 2/3 de la pantalla apagada, sin falsas alarmas en las
+ * fotos reales. Para lo que pase de ahi hay una regla absoluta: una zona casi
+ * negra que no cambia en toda la vuelta esta apagada, sin comparar con nada
+ * (las zonas sanas de las fotos reales nunca bajaron de brillo 86 ni de
+ * actividad 5.2; una apagada queda en 6 y 0).
  *
  * Medido el 24-sep-2026 sobre vueltas reales (MANUEL DUBLAN, 7 tomas en 4 min;
  * TLALPAN, 12 fotos de dias distintos) con fallas simuladas encima: 0 falsas
@@ -35,7 +45,12 @@ object SaludAnalisis {
 
     enum class Pantalla { OK, APAGADA, CONGELADA, INCONCLUSO }
 
-    data class Zona(val tipo: String, val fila: Int, val columna: Int, val confianza: Double)
+    /**
+     * @param grupo si varios gabinetes fallan igual, UNA sola zona los agrupa
+     *   (fila y columna valen -1): media pantalla apagada es una falla, no ocho.
+     */
+    data class Zona(val tipo: String, val fila: Int, val columna: Int, val confianza: Double,
+                    val grupo: List<Pair<Int, Int>> = emptyList())
 
     class Resultado(
         val pantalla: Pantalla,
@@ -70,6 +85,11 @@ object SaludAnalisis {
     const val CONGELADA_TEXTURA = 3.0
     /** Margen de cada zona que no se mira (el marco del gabinete vecino). */
     private const val MARGEN = 0.15
+    /** Regla absoluta de zona apagada: casi negra y sin ningun cambio. */
+    const val NEGRO_BRILLO = 40.0
+    const val NEGRO_ACTIVIDAD = 2.5
+    /** Desde cuantos gabinetes con la misma falla se agrupan en una. */
+    const val AGRUPAR_DESDE = 3
 
     /**
      * @param excluir zonas que no se juzgan: tapadas (una barda, un arbol) o que
@@ -80,7 +100,7 @@ object SaludAnalisis {
         if (n < 2) return Resultado(Pantalla.INCONCLUSO, n, 0, emptyList())
 
         var cambios = 0
-        for (k in 1 until n) if (diferencia(tomas[k], tomas[k - 1]) > CAMBIO_MINIMO) cambios++
+        for (k in 1 until n) if (diferencia(tomas[k], tomas[k - 1], filas, columnas) > CAMBIO_MINIMO) cambios++
         val uniformes = tomas.count { it.desviacion() < UNIFORME }.toDouble() / n
 
         if (uniformes >= FRACCION_APAGADA) return Resultado(Pantalla.APAGADA, n, cambios, emptyList())
@@ -103,8 +123,8 @@ object SaludAnalisis {
         val validas = mutableListOf<Pair<Int, Int>>()
         for (f in 0 until filas) for (c in 0 until columnas) if ((f to c) !in excluir) validas.add(f to c)
         if (validas.size < 2) return Resultado(Pantalla.INCONCLUSO, n, cambios, emptyList())
-        val refMax = mediana(validas.map { maximo[it.first][it.second] })
-        val refAct = maxOf(mediana(validas.map { actividad[it.first][it.second] }), 1e-6)
+        val refMax = percentil(validas.map { maximo[it.first][it.second] }, 0.75)
+        val refAct = maxOf(percentil(validas.map { actividad[it.first][it.second] }, 0.75), 1e-6)
 
         val relAct = Array(filas) { f -> DoubleArray(columnas) { c -> actividad[f][c] / refAct } }
         val relMax = Array(filas) { f -> DoubleArray(columnas) { c -> if (refMax > 0) maximo[f][c] / refMax else 0.0 } }
@@ -115,11 +135,34 @@ object SaludAnalisis {
             val rAct = relAct[f][c]
             if (rMax < APAGADA_BRILLO && rAct < APAGADA_ACTIVIDAD) {
                 zonas.add(Zona("zona_apagada", f, c, redondea(1 - maxOf(rMax / APAGADA_BRILLO, rAct / APAGADA_ACTIVIDAD))))
+            } else if (maximo[f][c] < NEGRO_BRILLO && actividad[f][c] < NEGRO_ACTIVIDAD) {
+                zonas.add(Zona("zona_apagada", f, c, 0.9))
             } else if (rAct < CONGELADA_ACTIVIDAD && textura[f][c] > CONGELADA_TEXTURA) {
                 zonas.add(Zona("zona_congelada", f, c, redondea(1 - rAct / CONGELADA_ACTIVIDAD)))
             }
         }
-        return Resultado(Pantalla.OK, n, cambios, zonas, relAct, relMax)
+        return Resultado(Pantalla.OK, n, cambios, agrupar(zonas), relAct, relMax)
+    }
+
+    /** Tres o mas gabinetes con la misma falla son UNA falla con su lista. */
+    private fun agrupar(zonas: List<Zona>): List<Zona> {
+        val out = mutableListOf<Zona>()
+        for ((tipo, del) in zonas.groupBy { it.tipo }) {
+            if (del.size >= AGRUPAR_DESDE) {
+                out.add(Zona(tipo, -1, -1, redondea(del.map { it.confianza }.average()), del.map { it.fila to it.columna }))
+            } else out.addAll(del)
+        }
+        return out
+    }
+
+    /** Percentil con interpolacion lineal (igual que numpy.percentile). */
+    fun percentil(v: List<Double>, p: Double): Double {
+        val s = v.sorted()
+        if (s.size == 1) return s[0]
+        val pos = p * (s.size - 1)
+        val k = pos.toInt()
+        val frac = pos - k
+        return if (k + 1 < s.size) s[k] + (s[k + 1] - s[k]) * frac else s[k]
     }
 
     private fun zona(t: Imagen, f: Int, c: Int, filas: Int, columnas: Int): Pair<Double, Double> {
@@ -138,11 +181,25 @@ object SaludAnalisis {
         return m to sqrt(maxOf(0.0, suma2 / n - m * m))
     }
 
-    private fun diferencia(a: Imagen, b: Imagen): Double {
+    /**
+     * Cuanto cambio el contenido entre dos tomas: la diferencia media de la ZONA
+     * que mas cambio. No de la imagen entera: con media pantalla (o mas) apagada,
+     * el cambio de anuncio solo se ve en lo que sigue vivo, y el promedio de toda
+     * la imagen apenas se mueve; la vuelta quedaba "sin juzgar" justo cuando mas
+     * falta hacia juzgarla.
+     */
+    private fun diferencia(a: Imagen, b: Imagen, filas: Int, columnas: Int): Double {
         if (a.px.size != b.px.size) return Double.MAX_VALUE
-        var s = 0.0
-        for (i in a.px.indices) s += abs(a.px[i] - b.px[i])
-        return s / a.px.size
+        var mayor = 0.0
+        for (f in 0 until filas) for (c in 0 until columnas) {
+            val y0 = f * a.alto / filas; val y1 = maxOf(y0 + 1, (f + 1) * a.alto / filas)
+            val x0 = c * a.ancho / columnas; val x1 = maxOf(x0 + 1, (c + 1) * a.ancho / columnas)
+            var s = 0.0
+            var n = 0
+            for (y in y0 until y1) for (x in x0 until x1) { val i = y * a.ancho + x; s += abs(a.px[i] - b.px[i]); n++ }
+            if (n > 0 && s / n > mayor) mayor = s / n
+        }
+        return mayor
     }
 
     fun std(v: DoubleArray): Double {

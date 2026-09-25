@@ -71,13 +71,27 @@
     sin_imagen: 'Sin imagen',
   };
 
+  /**
+   * Acomoda las esquinas como arriba-izq, arriba-der, abajo-der, abajo-izq, se
+   * hayan tocado en el orden que sea. Igual que ordenarEsquinas del servidor.
+   */
+  function ordenar(q) {
+    const cx = q.reduce((s, p) => s + p[0], 0) / q.length;
+    const cy = q.reduce((s, p) => s + p[1], 0) / q.length;
+    const orden = [...q].sort((a, b) => Math.atan2(a[1] - cy, a[0] - cx) - Math.atan2(b[1] - cy, b[0] - cx));
+    const inicio = orden.reduce((m, p, i) => (p[0] + p[1] < orden[m][0] + orden[m][1] ? i : m), 0);
+    return [...orden.slice(inicio), ...orden.slice(0, inicio)];
+  }
+
   /** Donde fallo, como lo diria una persona. */
   function donde(f) {
     if (f.gabinete) return `Gabinete ${f.gabinete} (fila ${f.fila + 1}, columna ${f.columna + 1})`;
+    const g = f.detalle && f.detalle.gabinetes;
+    if (g && g.length) return `Gabinetes ${g.join(', ')}` + (f.detalle.total ? ` (${g.length} de ${f.detalle.total})` : '');
     if (f.tipo === 'camara_movida') return 'Cámara (hay que volver a marcar la pantalla)';
     if (f.tipo === 'sin_imagen') return 'Lente tapada, o pantalla apagada de noche';
     return 'Toda la pantalla';
   }
 
-  window.Pantalla = { homografia, aplicar, celdaEn, contorno, lineas, NOMBRES, donde };
+  window.Pantalla = { homografia, aplicar, celdaEn, contorno, lineas, ordenar, NOMBRES, donde };
 })();

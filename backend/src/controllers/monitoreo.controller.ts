@@ -36,9 +36,24 @@ export const NOMBRES: Record<string, string> = {
 };
 
 const HORA = /^([01]\d|2[0-4]):[0-5]\d$/;
+
+/**
+ * Acomoda las 4 esquinas como las espera el equipo (arriba-izq, arriba-der,
+ * abajo-der, abajo-izq), sin importar en que orden se marcaron. En la primera
+ * prueba real (25-sep) se marcaron empezando por abajo: la pantalla quedaba de
+ * cabeza para el analisis y los gabinetes se numeraban al reves.
+ */
+export function ordenarEsquinas(q: [number, number][]): [number, number][] {
+  const cx = q.reduce((s, p) => s + p[0], 0) / q.length;
+  const cy = q.reduce((s, p) => s + p[1], 0) / q.length;
+  // Angulo alrededor del centro; con la y hacia abajo, creciente = sentido del reloj.
+  const orden = [...q].sort((a, b) => Math.atan2(a[1] - cy, a[0] - cx) - Math.atan2(b[1] - cy, b[0] - cx));
+  const inicio = orden.reduce((m, p, i) => (p[0] + p[1] < orden[m][0] + orden[m][1] ? i : m), 0);
+  return [...orden.slice(inicio), ...orden.slice(0, inicio)];
+}
 const punto = z.tuple([z.number().min(0).max(1), z.number().min(0).max(1)]);
 export const pantallaSchema = z.object({
-  esquinas: z.tuple([punto, punto, punto, punto]),
+  esquinas: z.tuple([punto, punto, punto, punto]).transform((q) => ordenarEsquinas(q) as [[number, number], [number, number], [number, number], [number, number]]),
   filas: z.number().int().min(1).max(20),
   columnas: z.number().int().min(1).max(40),
   excluir: z.array(z.tuple([z.number().int().min(0), z.number().int().min(0)])).max(400).default([]),
@@ -225,7 +240,7 @@ async function avisar(deviceId: number, fallaId: number, estado: string) {
       `SELECT f.*, d.name AS equipo FROM pantalla_fallas f JOIN devices d ON d.id = f.device_id WHERE f.id = ?`, [fallaId]);
     const falla = (f as any[])[0];
     await redis.publish('pantalla:falla', JSON.stringify({
-      device_id: deviceId, id: fallaId, estado, tipo: falla?.tipo, nombre: NOMBRES[falla?.tipo] ?? falla?.tipo,
+      device_id: deviceId, id: fallaId, estado, tipo: falla?.tipo, nombre: nombreDe(falla?.tipo, falla?.fila),
       equipo: falla?.equipo, gabinete: falla?.gabinete,
     }));
   } catch (err) {
@@ -245,10 +260,17 @@ const SELECT_FALLAS = `
   LEFT JOIN photos p ON p.id = f.photo_id
   LEFT JOIN photos pr ON pr.id = f.photo_recuperacion_id`;
 
+/** El nombre de una falla; si abarca varios gabinetes, dice "varios". */
+export function nombreDe(tipo: string, fila: number | null) {
+  if (fila == null && tipo === 'zona_apagada') return 'Varios gabinetes apagados';
+  if (fila == null && tipo === 'zona_congelada') return 'Varios gabinetes congelados';
+  return NOMBRES[tipo] ?? tipo;
+}
+
 function presentar(filas: any[]) {
   return filas.map((f) => ({
     ...f,
-    nombre: NOMBRES[f.tipo] ?? f.tipo,
+    nombre: nombreDe(f.tipo, f.fila),
     detalle: json(f.detalle),
     evidencia: f.evidencia ? firmar(f.evidencia) : null,
     evidencia_mini: f.evidencia_mini ? firmar(f.evidencia_mini) : null,

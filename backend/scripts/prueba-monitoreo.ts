@@ -57,11 +57,20 @@ async function main() {
     console.log('Dashboard');
     let r = await pedir('PUT', `/api/devices/${DID}/pantalla`, usuario, { esquinas: [[0.2, 0.2], [0.8, 0.2], [0.8, 0.8]], filas: 4, columnas: 6 });
     afirmar(r.status === 400, 'tres esquinas se rechazan');
+    // Esquinas tocadas en desorden (como en la primera prueba real): el servidor
+    // las acomoda arriba-izq, arriba-der, abajo-der, abajo-izq.
     r = await pedir('PUT', `/api/devices/${DID}/pantalla`, usuario, {
-      esquinas: [[0.258, 0.244], [0.928, 0.193], [0.875, 0.687], [0.298, 0.957]],
+      esquinas: [[0.298, 0.957], [0.875, 0.687], [0.928, 0.193], [0.258, 0.244]],
       filas: 4, columnas: 6, excluir: [[3, 5]], horario: { inicio: '06:00', fin: '24:00' },
     });
     afirmar(r.status === 200, 'marcar la pantalla', JSON.stringify(r.j));
+    {
+      const [g] = await pool.query<any[]>(`SELECT pantalla FROM devices WHERE id = ?`, [DID]);
+      const guardada = (g as any[])[0].pantalla;
+      const q = (typeof guardada === 'string' ? JSON.parse(guardada) : guardada).esquinas;
+      afirmar(JSON.stringify(q) === JSON.stringify([[0.258, 0.244], [0.928, 0.193], [0.875, 0.687], [0.298, 0.957]]),
+        'las esquinas en desorden se guardan en orden', JSON.stringify(q));
+    }
     r = await pedir('PUT', `/api/devices/${DID}/salud`, usuario, { vigilar: true });
     afirmar(r.status === 200 && r.j.salud.vigilar && r.j.salud.aprendiendo, 'encender la vigilancia: arranca aprendiendo');
     afirmar(r.j.salud.aprendizaje_min === 120, 'por omision aprende 2 horas', String(r.j.salud.aprendizaje_min));
@@ -120,6 +129,17 @@ async function main() {
     afirmar(fr.estado === 'recuperada' && fr.recuperada_en && fr.cerrada_por === 'equipo' && fr.photo_recuperacion_id, 'queda la hora y la foto de la recuperacion');
     r = await pedir('POST', '/api/device/fallas', equipo, falla({ evento: 'recuperar', tipo: 'zona_apagada', fila: '1', columna: '2', falla_id: String(id) }, false));
     afirmar(r.status === 200 && r.j.ya_cerrada, 'recuperar dos veces no es un error');
+
+    // Media pantalla apagada: UNA alerta con la lista de gabinetes.
+    r = await pedir('POST', '/api/device/fallas', equipo, falla({ evento: 'abrir', tipo: 'zona_apagada', confianza: '0.9',
+      detalle: JSON.stringify({ texto: 'Varios gabinetes apagados', gabinetes: [1, 2, 3, 4, 5, 6, 7, 8], total: 15 }) }));
+    const grupo = r.j.id; creadas.push(grupo);
+    r = await pedir('GET', `/api/devices/${DID}/pantalla`, usuario);
+    const fg = r.j.fallas.find((x: any) => x.id === grupo);
+    afirmar(fg?.nombre === 'Varios gabinetes apagados' && fg?.detalle?.gabinetes?.length === 8 && fg.gabinete === null,
+      'varios gabinetes apagados llegan como una sola falla con su lista', JSON.stringify(fg && { n: fg.nombre, g: fg.detalle?.gabinetes }));
+    r = await pedir('POST', '/api/device/fallas', equipo, falla({ evento: 'abrir', tipo: 'zona_apagada', confianza: '0.9' }, false));
+    afirmar(r.j.id === grupo && r.j.repetida, 'el grupo tampoco se duplica');
 
     r = await pedir('POST', '/api/device/fallas', equipo, falla({ evento: 'abrir', tipo: 'zona_congelada', fila: '0', columna: '0', confianza: '0.7' }));
     const otra = r.j.id; creadas.push(otra);

@@ -55,6 +55,8 @@ class Seguimiento(
         val columna: Int?,
         val confianza: Double,
         val fallaId: Long? = null,
+        /** Los gabinetes de una falla agrupada ("varios gabinetes apagados"). */
+        val zonas: List<Pair<Int, Int>> = emptyList(),
     )
 
     private class Candidato(val tipo: String, val fila: Int?, val columna: Int?, var cuenta: Int, val confianzas: MutableList<Double>)
@@ -70,8 +72,15 @@ class Seguimiento(
         fun clave(tipo: String, fila: Int?, columna: Int?) =
             if (fila == null || columna == null) tipo else "$tipo:$fila:$columna"
 
-        /** Una zona que en una vuelta normal casi no se movio o casi no se encendio. */
-        private const val QUIETA_ACTIVIDAD = 0.3
+        /** Clave de una falla agrupada: varios gabinetes con la misma falla. */
+        fun claveGrupo(tipo: String) = "$tipo:varias"
+
+        /**
+         * Una zona que en una vuelta normal casi no se movio o casi no se encendio.
+         * 0.2 y no 0.3: contra el percentil 75 una zona SANA de las fotos reales
+         * baja hasta 0.26; una tapada por una barda queda cerca de 0.05.
+         */
+        private const val QUIETA_ACTIVIDAD = 0.2
         private const val QUIETA_BRILLO = 0.5
         /** Fraccion de vueltas de aprendizaje en que tiene que estar quieta. */
         private const val FRACCION_EXCLUIR = 0.7
@@ -117,6 +126,7 @@ class Seguimiento(
         if (ultimaVuelta != NUNCA && ahora - ultimaVuelta < separacionMs) return emptyList()
 
         val anomalias = mutableMapOf<String, Triple<String, Pair<Int?, Int?>, Double>>()
+        val grupos = mutableMapOf<String, List<Pair<Int, Int>>>()
         // Que se pudo juzgar en esta vuelta (para saber que esta sano).
         val juzgable: (String) -> Boolean
         val s = o.salud
@@ -136,11 +146,17 @@ class Seguimiento(
                 juzgable = { !it.startsWith("zona_") }
             }
             else -> {
-                for (z in s.zonas) anomalias[clave(z.tipo, z.fila, z.columna)] = Triple(z.tipo, z.fila to z.columna, z.confianza)
+                for (z in s.zonas) {
+                    if (z.grupo.isNotEmpty()) {
+                        val k = claveGrupo(z.tipo)
+                        anomalias[k] = Triple(z.tipo, null to null, z.confianza)
+                        grupos[k] = z.grupo
+                    } else anomalias[clave(z.tipo, z.fila, z.columna)] = Triple(z.tipo, z.fila to z.columna, z.confianza)
+                }
                 val fuera = excluidas()
                 juzgable = { k ->
                     if (!k.startsWith("zona_")) true
-                    else k.split(":").let { p -> (p[1].toInt() to p[2].toInt()) !in fuera }
+                    else k.split(":").let { p -> p[1] == "varias" || (p[1].toInt() to p[2].toInt()) !in fuera }
                 }
                 if (aprendiendo) aprender(s, o.filas, o.columnas)
             }
@@ -159,7 +175,8 @@ class Seguimiento(
             if (aprendiendo || k in silenciadas) continue
             val confianza = c.confianzas.takeLast(confirmaciones).average()
             if (c.cuenta >= confirmaciones && confianza >= umbral && cupo > 0) {
-                eventos.add(Evento("abrir", k, c.tipo, c.fila, c.columna, Math.round(confianza * 100) / 100.0))
+                eventos.add(Evento("abrir", k, c.tipo, c.fila, c.columna, Math.round(confianza * 100) / 100.0,
+                    zonas = grupos[k] ?: emptyList()))
                 abiertas[k] = Abierta(null, 0)
                 candidatos.remove(k)
                 cupo--
@@ -176,7 +193,7 @@ class Seguimiento(
             a.sanas++
             if (a.sanas >= recuperacion && a.id != null) {
                 val p = k.split(":")
-                eventos.add(Evento("recuperar", k, p[0], p.getOrNull(1)?.toInt(), p.getOrNull(2)?.toInt(), 1.0, a.id))
+                eventos.add(Evento("recuperar", k, p[0], p.getOrNull(1)?.toIntOrNull(), p.getOrNull(2)?.toIntOrNull(), 1.0, a.id))
                 it.remove()
             }
         }

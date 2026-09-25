@@ -367,6 +367,8 @@ function deviceDetail() {
     async guardarPantalla() {
       const p = this.editPant;
       if (!p || p.esquinas.length !== 4) return;
+      // Da igual en que orden se tocaron: se acomodan como las espera el equipo.
+      p.esquinas = Pantalla.ordenar(p.esquinas);
       const antes = this.pant?.pantalla;
       const filas = Number(p.filas), columnas = Number(p.columnas);
       const cambiaImagen = antes && (JSON.stringify(antes.esquinas) !== JSON.stringify(p.esquinas)

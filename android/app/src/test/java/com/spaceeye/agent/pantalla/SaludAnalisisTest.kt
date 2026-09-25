@@ -92,6 +92,53 @@ class SaludAnalisisTest {
         assertEquals(Pantalla.CONGELADA, SaludAnalisis.analizar(fija, 4, 6).pantalla)
     }
 
+    /** Apaga varias zonas de una cuadricula filas x columnas. */
+    private fun apagar(base: List<Imagen>, filas: Int, columnas: Int, zonas: List<Pair<Int, Int>>): List<Imagen> =
+        base.map { t ->
+            val px = t.px.copyOf()
+            for ((f, c) in zonas)
+                for (y in (f * t.alto / filas) until ((f + 1) * t.alto / filas))
+                    for (x in (c * t.ancho / columnas) until ((c + 1) * t.ancho / columnas)) px[y * t.ancho + x] = 6.0
+            Imagen(px, t.ancho, t.alto)
+        }
+
+    private val todas5x3 = (0 until 5).flatMap { f -> (0 until 3).map { c -> f to c } }
+
+    @Test
+    fun mediaPantallaApagadaSeDetectaComoUnaSolaFalla() {
+        // El caso real del 25-sep: media pantalla tapada en una cuadricula de 5x3.
+        // Con la mediana como referencia daba 0 de 8.
+        for (base in listOf(dublan, tlalpan)) {
+            val mitad = todas5x3.take(8)
+            val r = SaludAnalisis.analizar(apagar(base, 5, 3, mitad), 5, 3)
+            assertEquals(1, r.zonas.size)
+            val z = r.zonas[0]
+            assertEquals("zona_apagada", z.tipo)
+            assertEquals(mitad.toSet(), z.grupo.toSet())
+        }
+    }
+
+    @Test
+    fun dosTerciosYCasiTodaLaPantallaApagada() {
+        for (base in listOf(dublan, tlalpan)) for (k in listOf(10, 12)) {
+            val muertas = todas5x3.take(k)
+            val r = SaludAnalisis.analizar(apagar(base, 5, 3, muertas), 5, 3)
+            assertEquals("con $k de 15 apagadas", muertas.toSet(), r.zonas.single().grupo.toSet())
+        }
+    }
+
+    @Test
+    fun dosGabinetesApagadosSonDosFallas() {
+        val r = SaludAnalisis.analizar(apagar(tlalpan, 5, 3, listOf(0 to 0, 4 to 2)), 5, 3)
+        assertEquals(setOf(0 to 0, 4 to 2), r.zonas.map { it.fila to it.columna }.toSet())
+        assertTrue(r.zonas.all { it.grupo.isEmpty() })
+    }
+
+    @Test
+    fun enCuadricula5x3SinFallaNoAlarma() {
+        for (base in listOf(dublan, tlalpan)) assertTrue(SaludAnalisis.analizar(base, 5, 3).zonas.isEmpty())
+    }
+
     @Test
     fun pocasTomasEsInconcluso() {
         assertEquals(Pantalla.INCONCLUSO, SaludAnalisis.analizar(dublan.take(3), 4, 6).pantalla)

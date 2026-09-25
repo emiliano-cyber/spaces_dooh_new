@@ -47,6 +47,22 @@ class SeguimientoTest {
     }
 
     @Test
+    fun variosGabinetesSonUnaAlertaYSeRecuperanJuntos() {
+        val s = Seguimiento()
+        val mitad = Zona("zona_apagada", -1, -1, 0.9, listOf(0 to 0, 0 to 1, 1 to 0, 1 to 1))
+        s.registrar(0, vuelta(mitad), false)
+        val e = s.registrar(HORA, vuelta(mitad), false).single()
+        assertEquals("zona_apagada:varias", e.clave)
+        assertEquals(4, e.zonas.size)
+        assertEquals(null, e.fila)
+        s.confirmada(e.clave, 9)
+        s.registrar(2 * HORA, vuelta(), false)
+        val r = s.registrar(3 * HORA, vuelta(), false).single()
+        assertEquals("recuperar", r.accion)
+        assertEquals(9L, r.fallaId)
+    }
+
+    @Test
     fun unaVueltaSanaEnMedioReiniciaLaCuenta() {
         val s = Seguimiento()
         s.registrar(0, vuelta(gabinete), false)
