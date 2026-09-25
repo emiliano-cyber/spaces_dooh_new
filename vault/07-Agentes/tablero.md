@@ -6,6 +6,24 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!note] 2026-09-25 · **Triaje de las tres ramas paradas — las tres SIN OBJETO**
+> Dictaminadas sin fusionar ninguna, para que nadie repita el trabajo dentro de
+> un mes (que es justo lo que pasó con F5.3 y F5.4, `docs/evidencias/auditoria-f5-31-agosto.md`).
+>
+> | Rama | Qué contenía **de verdad** | Veredicto |
+> |---|---|---|
+> | `fix/rotulos-menu-comercial-operaciones` | los rótulos del menú | ya lo hizo `44cd1a5` (08/09) **y mejor**: con tabla y un aviso que la rama no tenía. Publicado en v0.5.0 |
+> | `feat/bootstrap-sin-password` | **cero código** — solo la tarjeta de v0.4.0 | el bootstrap entró por los PR #68/#69 (`1a4fcd0`). La tarjeta la sustituye por escrito `TH-PROMOVER_v0.5.0.txt:1-4` |
+> | `docs/hallazgos-14-septiembre` | 5 hallazgos del 14/09 | 4 absorbidos al día siguiente; el Traspaso está superado dos veces y **ordena no promover algo ya promovido** |
+>
+> **Lo que sí se rescató, porque era la ÚNICA copia:** la advertencia de las
+> etiquetas OCI, ahora **B36** en `docs/Supervision/ABIERTOS.md`, y el gotcha de
+> `node estado.mjs`, ahora en `apps/flota/README.md`. Sin ese rescate se habrían
+> ido con la rama.
+>
+> **Ninguna se ha borrado todavía.** `feat/bootstrap-sin-password` necesitará dos
+> órdenes (local **y** remoto); las otras dos solo la local.
+
 > [!success] 2026-09-25 · **ATERRIZADA en `main`** — merge `3b9fb60`
 > Los tres commits de abajo ya están en `main`, así que **el recuadro siguiente
 > dice «sin fusionar» y eso caducó**: se conserva como historia del momento en

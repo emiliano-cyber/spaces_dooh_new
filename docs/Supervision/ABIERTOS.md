@@ -938,6 +938,55 @@ calendario.
 > Una advertencia se cierra con la causa entendida, no solo con el síntoma
 > apagado — porque el síntoma vuelve y el expediente ya dice que no puede.
 
+#### B36 · 🟠 Una imagen de la flota NO puede decir de qué commit salió, y por eso el 14/09 hubo DOS imágenes selladas `v0.5.0`
+
+**Abierta el 2026-09-25**, rescatada de la rama `docs/hallazgos-14-septiembre`
+**justo antes de borrarla** — y ese detalle es la mitad del asunto: era el único
+documento del repositorio que nombraba esta carencia, y este expediente se
+declaraba «🟢 VERDE, 0 advertencias abiertas» sin contarla.
+
+**El incidente.** El 14/09 el registro tenía dos imágenes distintas con la misma
+etiqueta `v0.5.0` (`d46c3aed…` y `60c7b194…`). El diagnóstico costó dos días
+**porque una imagen no lleva encima de qué commit salió**, así que no había forma
+de preguntárselo: hubo que deducirlo. El incidente se resolvió —la vieja quedó
+como `v0.5.0-09sep` y la promoción se ejecutó el 17/09— pero **la causa que lo
+hizo caro sigue igual**.
+
+**Medido el 2026-09-25, no citado:**
+
+- `grep -n "LABEL\|label" .github/workflows/release.yml` → **cero**. Solo
+  `--build-arg VERSION` (`:267`) y los dos tags (`:268`).
+- `grep -n "revision\|commit" Dockerfile` → **cero**.
+- `grep -rn "opencontainers" docs/ vault/ Dockerfile .github/` → **cero en todo
+  el repositorio**.
+
+**Los dos remedios, y solo el primero es barato:**
+
+1. Que `release.yml` escriba **etiquetas OCI** —
+   `org.opencontainers.image.revision=$GITHUB_SHA`— para que cualquier imagen
+   diga siempre de qué commit salió. Es **una línea**, zona VERDE, no toca la
+   aplicación. Hace el incidente *diagnosticable en un minuto*.
+2. Que **empujar a `estable` fuera de `promover.yml` sea imposible**, no solo
+   desaconsejado. Es el que lo habría **impedido**, no solo diagnosticado. Nadie
+   ha mirado si el registry de DigitalOcean permite restringir el push por tag.
+
+**Lo que hay que decidir:**
+
+- **¿Entra el (1) antes del SUMMIT?** Toca `release.yml`, o sea el pipeline de
+  lanzamiento, a 19 días de una fecha dura. El cambio es trivial; el momento no.
+- **¿El (2) se investiga o se acepta el riesgo?** Hoy solo el dueño tiene las
+  claves del registry, así que el riesgo es una equivocación propia, no un
+  tercero. Es la misma familia de «no confiar en que nadie se equivoque» que ya
+  se aplicó en la R7 con `validar_valor_seguro()`.
+
+> **Lo que NO se verificó al abrir esta entrada:** si el registry de
+> DigitalOcean permite restringir el push por etiqueta, y si alguna imagen
+> publicada hoy lleva ya metadatos que sirvan para lo mismo por otra vía. Las
+> dos cosas exigen mirar el registro, y esto se escribió sin tocar ningún
+> servidor.
+
+---
+
 ### B · ii — Críticas por CALENDARIO (no hay fallo silencioso; aprieta la fecha)
 
 #### ~~B23 · 🟠 **El arreglo de los checksums funcionó, y por eso la base de demostración del SUMMIT dejó de aceptar migraciones.** Pasó de 0 divergencias a 80~~

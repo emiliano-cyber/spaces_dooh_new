@@ -65,6 +65,24 @@ Para montarlo en el padre:
 cp flota.example.json flota.json    # y se rellena con las instancias de verdad
 ```
 
+## `node estado.mjs` a mano dice «falta FLOTA_TOKEN_PADRE» y NO es una avería
+
+Cuarta de la familia que `CLAUDE.md` ya documenta tres veces: **un entorno que
+se ve roto y no lo está.**
+
+`estado.mjs` lee `process.env` a pelo (`:329`, `:579`) y **no carga
+`/etc/space-os/flota.env` por su cuenta** — se lo suministra la unidad de
+systemd. Corrido a mano en una consola, el token no está, y el mensaje que
+suelta parece un token perdido o mal escrito. No lo es: es que falta el entorno.
+
+```bash
+set -a; . /etc/space-os/flota.env; set +a
+node estado.mjs
+```
+
+Diagnosticado la noche del 14/09 y rescatado el **2026-09-25** de una rama que
+se iba a borrar, donde era la única copia.
+
 ## Los tokens van por entorno o por archivo, nunca en el inventario
 
 Uno por instancia: **`FLOTA_TOKEN_<NOMBRE>`** — el nombre en mayúsculas y con `-`
