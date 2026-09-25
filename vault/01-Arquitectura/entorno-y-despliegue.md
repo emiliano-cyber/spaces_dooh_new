@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: verificado
-actualizado: 2026-09-22
+actualizado: 2026-09-25
 tags: [despliegue, entorno, ci, env, instancias]
 archivos:
   - infra/scripts/pruebas-update.sh
@@ -9,6 +9,7 @@ archivos:
   - .env.example
   - .env.production.example
   - apps/web/lib/entorno.test.ts
+  - apps/web/lib/etiquetas-oci.test.ts
   - apps/web/package.json
   - apps/web/next.config.mjs
   - Dockerfile
@@ -565,6 +566,42 @@ Dos jobs, y el orden **es** el mecanismo de seguridad:
   hay que correr escrito en el error.
 - **`estable` no se toca aquí.** Promover es decisión humana y vive en
   `promover.yml` (F2.4): reetiqueta **sin** reconstruir, así el digest no cambia.
+- **La imagen dice de qué commit salió** (desde el 2026-09-25, B36). El
+  `docker build` lleva cuatro `--label` OCI: `revision` con `${{ github.sha }}`,
+  `version` con el tag, `source` derivada de `github.server_url`/`github.repository`
+  y `created` en RFC 3339. Se leen sin bajar la imagen:
+  ```bash
+  docker buildx imagetools inspect "$REGISTRY/space-os:estable" --format '{{json .Image}}'
+  ```
+  Y el workflow **relee** `revision` con `docker inspect` **antes** del push: si no
+  cuadra, se para en rojo sin haber publicado nada.
+
+> [!warning] Van con `--label` en el workflow, NO con `LABEL` en el `Dockerfile`, y el motivo importa
+> Los cuatro valores son hechos del CI, no entradas del build. Por el camino del
+> `Dockerfile` haría falta un `ARG` y un `LABEL` por cada uno **y pasar igualmente
+> un `--build-arg` por cada uno**; y un `ARG` con valor por omisión publicaría
+> `revision=desconocida` en cualquier build local — **una etiqueta que existe y no
+> dice nada es peor que una ausente**, porque la ausencia significa «esta imagen no
+> salió del pipeline». `--label` tampoco crea ni invalida capas, así que no toca la
+> caché escalonada de `deps`.
+>
+> `VERSION` sigue por `--build-arg` y eso **no** es una incoherencia: es lo único
+> que se lee **en ejecución** (`SPACE_OS_VERSION` → `/api/version`). Una etiqueta
+> OCI no se puede leer desde dentro del contenedor; un `ENV`, sí.
+>
+> **Sobreviven a `promover.yml`, y está medido** (25/09, sobre un `registry:2`
+> desechable en local, no contra el registro de producción): las etiquetas viven en
+> el blob de configuración al que apunta el manifiesto, y `crane copy` desde el
+> digest reescribe los mismos bytes — mismo digest antes y después, mismas cuatro
+> etiquetas en `estable`. El `imagetools create` que hubo ahí hasta el 02/09 sí las
+> habría perdido: envolvía el manifiesto en un índice nuevo.
+>
+> **Hueco histórico, y no tiene arreglo:** todo lo publicado antes del 25/09 —
+> incluida la imagen que hoy sirve `estable`, o sea **la que corre la flota**— no
+> lleva etiquetas, y reconstruirla desde el mismo commit daría otro digest, así que
+> dejaría de ser el artefacto que se probó. La cobertura empieza en la **próxima**
+> versión publicada. Una imagen sin `revision` no es un defecto: es anterior a esta
+> fecha.
 - `concurrency` **sin** cancelación, al revés que `ci.yml`: cada corrida publica un
   artefacto, y cortarla a medias podría dejar la etiqueta de versión subida y `beta`
   apuntando a otra cosa.
