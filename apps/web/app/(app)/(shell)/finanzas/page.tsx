@@ -16,6 +16,7 @@ import {
 import { cn } from '@/lib/cn'
 import { generarFacturaApi, recordarCobranzaApi, pagarCobranzaApi } from '@/lib/data/estado-api'
 import { usePuede } from '@/components/demo/shell/SesionContext'
+import { useCandado, PasoContrasena } from '@/components/demo/ui/candado'
 import { PagosRentaCard } from '@/components/demo/arrendadores/PagosRentaCard'
 import { CompromisoRentaCard } from '@/components/demo/arrendadores/CompromisoRentaCard'
 import {
@@ -387,7 +388,13 @@ function GenerarFacturaDialog({
       : plazos.includes(90)
         ? 90
         : Math.min(...plazos)
-  const [enviando, setEnviando] = useState(false)
+  // B38 · `POST /api/campanas/:id/facturar` pasa por `exigirCambioSensible`
+  // (`app/api/campanas/[id]/facturar/route.ts:15`) y este cuadro pintaba el 403
+  // como un `toast.error` cualquiera, sin ningún sitio donde teclear la clave.
+  // Aquí SÍ había cuadro, así que el campo va DENTRO —no se abre otro encima—:
+  // es la misma regla que en «Renovar», con distinto envase. Ver el encabezado
+  // de `components/demo/ui/candado.tsx`.
+  const candado = useCandado()
   // QUIÉN EMITE el comprobante. La preselección sale de `entidadPreseleccionada`
   // con el papel de VENTAS: si una sola sociedad vende, ésa; si venden dos,
   // NINGUNA — adivinar sería emitir a nombre de la sociedad equivocada, y un
@@ -410,6 +417,38 @@ function GenerarFacturaDialog({
   const nCuotas = opciones.find((o) => o.periodicidad === periodicidad)?.cuotas ?? 0
 
   if (!campana) return null
+
+  // El primer intento va SIN contraseña: el candado está apagado por defecto en
+  // los tenants y preguntar siempre sería fricción inventada. Si el servidor la
+  // pide, el paso aparece abajo con lo ya elegido intacto — plazo, emisora y
+  // parcialidades se conservan, que es lo que hacía caro el rodeo viejo.
+  function emitir() {
+    return candado.ejecutar({
+      guardar: () =>
+        generarFacturaApi(
+          campana!.id,
+          // El cast es de tipos, no de valor: `generarFacturaApi` aún declara
+          // la unión `60 | 90 | 120` heredada de cuando la lista estaba a
+          // fuego, y ensancharla toca `estado-api.ts` y `lib/data/types.ts`,
+          // que no son de este cambio. El plazo que viaja ya salió de la
+          // configuración del tenant y el servidor lo vuelve a validar.
+          plazo as 60 | 90 | 120,
+          enCuotas && periodicidad ? { periodicidad, primerVencimiento: primerVenc } : null,
+          // Cadena vacía = «sin asignar», y viaja como `null`: el servidor NO
+          // adivina cuál de mis sociedades emite.
+          emisoraId || null,
+        ),
+      alLograr: () => {
+        onDone('generada')
+        onClose()
+      },
+      // Un fallo que NO es el candado sigue yéndose por el toast de siempre: el
+      // cuadro se queda abierto y el error no compite con el campo.
+      alFallar: (m) => toast.error(m),
+      mensajeSiFalla: 'No se pudo generar la factura',
+    })
+  }
+
   return (
     <Modal
       open={!!campana}
@@ -423,33 +462,21 @@ function GenerarFacturaDialog({
           </Button>
           <Button
             size="sm"
-            disabled={enviando}
-            onClick={async () => {
-              setEnviando(true)
-              try {
-                await generarFacturaApi(
-                  campana.id,
-                  // El cast es de tipos, no de valor: `generarFacturaApi` aún
-                  // declara la unión `60 | 90 | 120` heredada de cuando la
-                  // lista estaba a fuego, y ensancharla toca `estado-api.ts` y
-                  // `lib/data/types.ts`, que no son de este cambio. El plazo
-                  // que viaja ya salió de la configuración del tenant y el
-                  // servidor lo vuelve a validar contra ella.
-                  plazo as 60 | 90 | 120,
-                  enCuotas && periodicidad ? { periodicidad, primerVencimiento: primerVenc } : null,
-                  // Cadena vacía = «sin asignar», y viaja como `null`: el
-                  // servidor NO adivina cuál de mis sociedades emite.
-                  emisoraId || null,
-                )
-                onDone('generada')
-                onClose()
-              } catch (e) {
-                toast.error(e instanceof Error ? e.message : 'No se pudo generar la factura')
-              }
-              setEnviando(false)
-            }}
+            // Segunda barrera, la visible. La primera —y la que de verdad
+            // corta— es `confirmarConCandado`, que con la clave en blanco
+            // devuelve «falta-contrasena» sin llamar a nada.
+            disabled={candado.enviando || (candado.reautenticando && !candado.pass)}
+            // Confirmar REPITE la emisión que el servidor rechazó, no una
+            // nueva: un comprobante emitido no se deshace, así que lo que se
+            // confirma tiene que ser exactamente lo que se pidió. Por eso los
+            // campos de arriba quedan en solo lectura durante este paso.
+            onClick={() => void (candado.reautenticando ? candado.reintentar() : emitir())}
           >
-            {enviando ? 'Generando…' : 'Emitir factura'}
+            {candado.reautenticando
+              ? 'Confirmar y emitir'
+              : candado.enviando
+                ? 'Generando…'
+                : 'Emitir factura'}
           </Button>
         </div>
       }
@@ -495,6 +522,9 @@ function GenerarFacturaDialog({
             className="h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
             value={emisoraId}
             onChange={(e) => setEmisoraId(e.target.value)}
+            // En solo lectura mientras se teclea la contraseña: lo que se va a
+            // confirmar es la emisión que el servidor rechazó, no otra.
+            disabled={candado.reautenticando}
           >
             {opcionesDeAsignacion(entidades, ROL_COMPROBANTE).map((o) => (
               <option key={o.valor || 'sin-asignar'} value={o.valor}>
@@ -532,6 +562,7 @@ function GenerarFacturaDialog({
                 <input
                   type="checkbox"
                   checked={enCuotas}
+                  disabled={candado.reautenticando}
                   onChange={(e) => {
                     setEnCuotas(e.target.checked)
                     if (e.target.checked && !periodicidad) setPeriodicidad(opciones[0].periodicidad)
@@ -545,6 +576,7 @@ function GenerarFacturaDialog({
                   <div className="flex flex-wrap items-center gap-2">
                     <select
                       value={periodicidad}
+                      disabled={candado.reautenticando}
                       onChange={(e) => setPeriodicidad(e.target.value as PeriodicidadCuota)}
                       className="h-9 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink"
                     >
@@ -557,6 +589,7 @@ function GenerarFacturaDialog({
                     <span className="text-[12px] text-muted">desde</span>
                     <input
                       type="date" value={primerVenc}
+                      disabled={candado.reautenticando}
                       onChange={(e) => setPrimerVenc(e.target.value)}
                       className="h-9 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink"
                     />
@@ -589,9 +622,10 @@ function GenerarFacturaDialog({
               <button
                 key={p}
                 type="button"
+                disabled={candado.reautenticando}
                 onClick={() => setPlazoElegido(p)}
                 className={cn(
-                  'min-w-[5rem] flex-1 rounded border px-3 py-2 text-[13px] font-medium transition-colors duration-150',
+                  'min-w-[5rem] flex-1 rounded border px-3 py-2 text-[13px] font-medium transition-colors duration-150 disabled:opacity-60',
                   plazo === p
                     ? 'border-accent bg-[#f59e0b1a] text-ink'
                     : 'border-border-strong text-muted hover:bg-surface-2',
@@ -602,6 +636,10 @@ function GenerarFacturaDialog({
             ))}
           </div>
         </div>
+
+        {/* B38 · el paso de la contraseña, DENTRO del cuadro y debajo de lo que
+            se va a confirmar. No pinta nada mientras el servidor no la pida. */}
+        <PasoContrasena candado={candado} onEnter={() => void candado.reintentar()} />
       </div>
     </Modal>
   )
@@ -618,22 +656,25 @@ function PagoModal({
   onDone: (msg: string) => void
 }) {
   const [monto, setMonto] = useState(String(Math.round(cob.saldo * 100) / 100))
-  const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // B38 · `POST /api/cobranzas/:id/pagar` pasa por `exigirCambioSensible`
+  // (`app/api/cobranzas/[id]/pagar/route.ts:15`). Este cuadro pintaba el 403 en
+  // el hueco de error de abajo, que decía «vuelve a teclear tu contraseña» sin
+  // ningún sitio donde hacerlo. El campo va DENTRO, como en los tres cuadros
+  // arreglados el 25/09 por la mañana.
+  const candado = useCandado()
   const num = Number(monto)
   const excede = num > cob.saldo + 0.005
 
-  async function pagar(total: boolean) {
-    setGuardando(true)
+  function pagar(total: boolean) {
     setError(null)
-    try {
+    return candado.ejecutar({
       // total → liquida el saldo; parcial → el monto ingresado (el backend lo acota al saldo)
-      await pagarCobranzaApi(cob.id, total ? undefined : num)
-      onDone(total || num >= cob.saldo ? 'Cobranza liquidada' : 'Abono registrado')
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo registrar el pago')
-      setGuardando(false)
-    }
+      guardar: () => pagarCobranzaApi(cob.id, total ? undefined : num),
+      alLograr: () => onDone(total || num >= cob.saldo ? 'Cobranza liquidada' : 'Abono registrado'),
+      alFallar: setError,
+      mensajeSiFalla: 'No se pudo registrar el pago',
+    })
   }
 
   return (
@@ -645,15 +686,44 @@ function PagoModal({
       footer={
         <div className="flex items-center justify-between">
           {error ? <span className="text-[12px] text-error">{error}</span> : <span />}
-          <div className="flex gap-2">
-            <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
-            <Button variant="secondary" size="sm" disabled={guardando} onClick={() => pagar(true)}>
-              Liquidar total
-            </Button>
-            <Button size="sm" disabled={guardando || !num || num <= 0} onClick={() => pagar(false)}>
-              {guardando ? 'Guardando…' : 'Registrar abono'}
-            </Button>
-          </div>
+          {/* Durante el paso de la contraseña los dos botones de acción se
+              retiran y queda UNO solo, que repite la acción pendiente.
+              «Liquidar total» y «Registrar abono» NO son lo mismo: si el paso
+              dejara elegir otra vez, se podría confirmar un movimiento de
+              dinero distinto del que el servidor rechazó. */}
+          {candado.reautenticando ? (
+            <div className="flex gap-2">
+              <Button variant="secondary" size="sm" onClick={onClose} disabled={candado.enviando}>
+                Cancelar
+              </Button>
+              <Button
+                size="sm"
+                disabled={candado.enviando || (candado.reautenticando && !candado.pass)}
+                onClick={() => void candado.reintentar()}
+              >
+                Confirmar y registrar
+              </Button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={candado.enviando}
+                onClick={() => void pagar(true)}
+              >
+                Liquidar total
+              </Button>
+              <Button
+                size="sm"
+                disabled={candado.enviando || !num || num <= 0}
+                onClick={() => void pagar(false)}
+              >
+                {candado.enviando ? 'Guardando…' : 'Registrar abono'}
+              </Button>
+            </div>
+          )}
         </div>
       }
     >
@@ -665,8 +735,11 @@ function PagoModal({
             min={0}
             step="0.01"
             value={monto}
+            // En solo lectura mientras se teclea la contraseña: lo que se
+            // confirma es el importe que el servidor rechazó, no otro.
+            disabled={candado.reautenticando}
             onChange={(e) => setMonto(e.target.value)}
-            className="h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            className="h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-60"
           />
         </label>
         {excede && (
@@ -677,6 +750,10 @@ function PagoModal({
         <p className="text-[11px] text-muted">
           Al cubrir el saldo total, la cobranza pasa a <b>Pagada</b> y se detienen los recordatorios.
         </p>
+
+        {/* B38 · el paso de la contraseña, DENTRO del cuadro. No pinta nada
+            mientras el servidor no la pida. */}
+        <PasoContrasena candado={candado} onEnter={() => void candado.reintentar()} />
       </div>
     </Modal>
   )

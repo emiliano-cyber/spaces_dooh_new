@@ -86,6 +86,37 @@ pendiente para el segundo.
 
 ---
 
+## Sin foto · el cuadro que APARECE, y los dos de finanzas — **nueva, 2026-09-25 (tarde)**
+
+Cuatro más de la misma familia (B38), y la primera es distinta de todo lo anterior:
+**hay un cuadro que antes no existía**.
+
+- **El cuadro que aparece.** «Registrar pago» en la **lista de rentas** y **«Renovar»**
+  en la ficha del contrato son botones de un solo clic. Cuando el servidor pide la
+  contraseña, ahora **se abre un cuadro** —«Confirma con tu contraseña»— con el campo
+  dentro y un botón «Confirmar y registrar el pago» / «Confirmar y renovar». **Es la
+  foto que más falta**, porque es el único sitio de la aplicación donde el candado
+  *crea* una pantalla en vez de añadir un campo a una que ya estaba.
+- **«Generar factura»** con el campo «Tu contraseña» debajo del plazo, el botón diciendo
+  **«Confirmar y emitir»** y —el detalle que importa— **el plazo, la sociedad emisora y
+  las parcialidades en gris**: durante ese paso quedan en solo lectura a propósito, para
+  que lo que se confirme sea lo mismo que se pidió.
+- **«Registrar pago» de una cobranza** en el mismo estado, y aquí lo que hay que enseñar
+  es que **los botones «Liquidar total» y «Registrar abono» desaparecen** y queda uno
+  solo, «Confirmar y registrar». Es lo que impide confirmar un movimiento de dinero
+  distinto del que se pidió.
+
+**El manual no tiene apartado paso a paso de ninguno de los cuatro**, así que **no hay
+ninguna captura que retirar**. Lo que sí cambió es el apartado 10.1: dos de sus filas
+—«no hay ningún campo donde escribirla» y «pulsas Renovar y no pasa nada»— **estaban
+mintiendo** con este arreglo y se corrigieron.
+
+**Para tomarlas:** el tenant con el control de cambios **encendido** y la sesión **sin
+desbloquear**; un pago de renta pendiente, un contrato a menos de 60 días de vencer, una
+campaña sin comprobante y una cobranza con saldo.
+
+---
+
 ## Estados preparados a mano, y por qué se aceptan
 
 El encargo del 24/09 por la tarde pidió estas dos cosas de forma expresa. Las dos se

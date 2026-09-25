@@ -41,6 +41,7 @@ import { PERIODICIDADES, periodicidadLabel } from '@/lib/renta-periodicidad'
 import { desbloquearApi } from '@/lib/data/cambios-api'
 import { confirmarConCandado } from '@/lib/cambios-candado'
 import { CampoContrasena } from '@/components/demo/ui/CampoContrasena'
+import { useCandado, DialogoCandado } from '@/components/demo/ui/candado'
 import type { EntidadUI } from '@/components/demo/razones-sociales/gestion'
 import {
   ROL_CONTRATO,
@@ -84,6 +85,10 @@ export function ContratoSheet({
   const [pagadoraOpen, setPagadoraOpen] = useState(false)
   // Pago cuyo modal está abierto (registrar el pago o adjuntar sus documentos).
   const [pagoActivo, setPagoActivo] = useState<PagoRenta | null>(null)
+  // B38 · «Renovar». El hook va AQUÍ, antes del `return null` de abajo: los
+  // hooks tienen que ejecutarse en el mismo orden en todos los renders y este
+  // componente se rinde también sin contrato.
+  const candado = useCandado()
 
   if (!contrato) return null
   const arrendador = arrendadores?.find((a) => a.id === contrato.arrendadorId)
@@ -107,14 +112,32 @@ export function ContratoSheet({
                 que extender). Además su `dias` es 0 por no tener fecha de fin,
                 así que `dias <= 60` lo colaba aquí y el servidor respondía con
                 un error de base de datos. */}
+            {/* B38 · el botón «Renovar» tenía DOS defectos, y el segundo es el
+                peor: era un `await` suelto a `iniciarRenovacionApi` seguido de
+                `onToast(...)` SIN `try/catch` ninguno. Cualquier fallo —el 403
+                del candado, un 500, la red caída— rechazaba la promesa, el
+                toast nunca llegaba y no pasaba absolutamente nada. No se
+                distinguía de un botón roto, y no dejaba ni traza.
+
+                Ahora `confirmarConCandado` DEVUELVE el fallo en vez de
+                lanzarlo, y `alFallar` lo enseña. `POST
+                /api/contratos/:id/renovar` pasa por `exigirCambioSensible`
+                (`app/api/contratos/[id]/renovar/route.ts:14`), así que el 403
+                no es un error: abre el cuadro con el campo (`DialogoCandado`,
+                abajo). */}
             {contrato.estatus !== 'INCOMPLETO' &&
               (contrato.estatus === 'POR_VENCER' || dias <= 60) && contrato.estatus !== 'RENOVADO' && (
               <Button
                 className="flex-1"
-                onClick={async () => {
-                  await iniciarRenovacionApi(contrato.id)
-                  onToast('Renovación iniciada')
-                }}
+                disabled={candado.enviando}
+                onClick={() =>
+                  void candado.ejecutar({
+                    guardar: () => iniciarRenovacionApi(contrato.id),
+                    alLograr: () => onToast('Renovación iniciada'),
+                    alFallar: (m) => onToast(m),
+                    mensajeSiFalla: 'No se pudo iniciar la renovación',
+                  })
+                }
               >
                 <RefreshCw className="h-4 w-4" /> Renovar
               </Button>
@@ -337,6 +360,17 @@ export function ContratoSheet({
         contrato={contrato}
         entidades={entidades ?? []}
         onHecho={onToast}
+      />
+
+      {/* El cuadro que le faltaba a «Renovar». Los tres modales de arriba piden
+          la contraseña DENTRO de sí mismos porque ya eran cuadros; «Renovar» es
+          un botón de un clic, así que el cuadro aparece solo cuando el servidor
+          la pide. Es la misma regla, con distinto envase. */}
+      <DialogoCandado
+        candado={candado}
+        titulo="Confirma con tu contraseña"
+        subtitulo="Renovar un contrato es un cambio sensible: tu organización pide que vuelvas a identificarte."
+        etiquetaConfirmar="Confirmar y renovar"
       />
     </>
   )

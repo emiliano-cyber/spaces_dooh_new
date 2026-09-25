@@ -8,6 +8,7 @@ import { StatusBadge, type Tono } from '@/components/demo/StatusBadge'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { usePagosRenta, useContratos, formatMonto, formatFecha, diasHasta } from '@/lib/data/client'
 import { registrarPagoRentaApi } from '@/lib/data/estado-api'
+import { useCandado, DialogoCandado } from '@/components/demo/ui/candado'
 import { Paginacion, usePaginacion } from '@/components/demo/ui/Paginacion'
 import {
   clasificarVencimiento, textoVencimiento, periodicidadLabel,
@@ -76,6 +77,12 @@ export function PagosRentaCard({
   // Completar un contrato es una acción de Arrendadores, no de Finanzas.
   const puedeCompletar = usePuede('arrendadores', 'ver')
   const [busy, setBusy] = useState<string | null>(null)
+  // B38 · `POST /api/pagos-renta/:id/pagar` pasa por `exigirCambioSensible`
+  // (`app/api/pagos-renta/[id]/pagar/route.ts:14`), así que con el control de
+  // cambios encendido contesta 403 pidiendo la contraseña. Esto es un BOTÓN DE
+  // UN CLIC: no hay cuadro donde meter el campo, así que el 403 abre uno.
+  // Ver el encabezado de `ui/candado.tsx` para el porqué de esa forma.
+  const candado = useCandado()
 
   // El `return` de carga NO puede ir aquí: `usePaginacion` se llama más abajo y
   // los hooks tienen que ejecutarse en el mismo orden en todos los renders.
@@ -152,16 +159,20 @@ export function PagosRentaCard({
 
   async function registrar(id: string) {
     setBusy(id)
-    try {
-      await registrarPagoRentaApi(id)
-      onToast?.('Pago registrado')
-    } catch (e) {
-      onToast?.(e instanceof Error ? e.message : 'No se pudo registrar el pago')
-    }
+    // Sin contraseña de entrada: el candado está apagado por defecto en los
+    // tenants y preguntar siempre sería fricción inventada. Si el servidor la
+    // pide, `DialogoCandado` se abre solo con esta misma acción dentro.
+    await candado.ejecutar({
+      guardar: () => registrarPagoRentaApi(id),
+      alLograr: () => onToast?.('Pago registrado'),
+      alFallar: (m) => onToast?.(m),
+      mensajeSiFalla: 'No se pudo registrar el pago',
+    })
     setBusy(null)
   }
 
   return (
+    <>
     <CardColapsable
       titulo={titulo}
       contentClassName="px-0 pb-0"
@@ -289,5 +300,15 @@ export function PagosRentaCard({
           bajo un encabezado cerrado. */}
       <Paginacion {...pag} etiqueta="pagos" />
     </CardColapsable>
+    {/* FUERA de la tarjeta, no dentro: `CardColapsable` desmonta su contenido al
+        plegarse, y el cuadro se iría con él dejando el pago a medias y sin
+        forma de confirmarlo. */}
+    <DialogoCandado
+      candado={candado}
+      titulo="Confirma con tu contraseña"
+      subtitulo="Dar por pagada una renta es un cambio sensible: tu organización pide que vuelvas a identificarte."
+      etiquetaConfirmar="Confirmar y registrar el pago"
+    />
+    </>
   )
 }

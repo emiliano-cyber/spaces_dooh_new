@@ -238,6 +238,73 @@ cambios sensibles. **No es decorativo**: es la salida de un `403
 > **Sigue sin probarse** que el campo aparezca en el navegador al pulsar el
 > botón. Ese salto no lo da este arnés.
 
+### El problema difícil: pedir la contraseña donde NO hay cuadro
+
+> [!success] 2026-09-25, tarde · B38 · los TRES caminos de dinero y «Renovar»
+> El barrido que dejó el arreglo anterior encontró **12 puntos de llamada en 6
+> archivos** que consumen rutas con candado y no ofrecían dónde teclear. Jochelo
+> aprobó cerrar **cuatro** —«si arregla el 1 y el 2»—: los tres de dinero y el
+> que no decía nada.
+>
+> | Pantalla | Ruta | Zona |
+> |---|---|---|
+> | `arrendadores/PagosRentaCard.tsx` | `POST /api/pagos-renta/:id/pagar` | **R4 · dinero** |
+> | `finanzas/page.tsx` · `GenerarFacturaDialog` | `POST /api/campanas/:id/facturar` | **R4 · dinero** |
+> | `finanzas/page.tsx` · `PagoModal` | `POST /api/cobranzas/:id/pagar` | **R4 · dinero** |
+> | `arrendadores/ContratoSheet.tsx` · «Renovar» | `POST /api/contratos/:id/renovar` | — |
+>
+> **Lo que hace distinto este lote, y es la decisión de diseño que documenta esta
+> nota:** los tres cuadros de la mañana eran MODALES —había un sitio evidente
+> donde meter el campo—. **«Registrar pago» de la tabla de rentas y «Renovar» son
+> botones de UN CLIC**, sin diálogo ninguno. La regla adoptada es **una sola**:
+>
+> > La contraseña se pide **dentro del cuadro donde se confirma la acción**.
+> > Si la acción **no tiene cuadro**, el 403 **abre uno**, atado a esa acción exacta.
+>
+> **Por qué no se manda a la Topbar**, que era la otra salida obvia: además del
+> rodeo (salir, desbloquear, volver a buscar la fila) y de que nada conecta el
+> 403 con ese botón, `DesbloqueoCambios` **abre TODO durante 15 minutos** para
+> poder hacer UNA cosa. Pedirla en el sitio gasta el desbloqueo en la acción que
+> se confirma y no en las otras trece rutas protegidas — menor privilegio,
+> también en el tiempo.
+>
+> **La pieza nueva es `components/demo/ui/candado.tsx`**, y expone las dos caras
+> de lo mismo para que no haya dos mecanismos:
+> - `useCandado()` — el estado y la **acción pendiente**. Confirmar la REPITE
+>   (`reintentar()`) en vez de armar una nueva: en «Registrar pago» de una
+>   cobranza hay dos botones —liquidar todo el saldo y abonar una parte— y
+>   confirmar el que no era movería otro dinero del que se pidió. Por eso, además,
+>   los campos de esos dos cuadros quedan en **solo lectura** mientras se teclea.
+> - `PasoContrasena` — el bloque, para un cuadro que ya existe.
+> - `DialogoCandado` — ese mismo bloque dentro de un `Modal` que aparece.
+>
+> **NO se reescribieron `lib/cambios-candado.ts` ni `ui/CampoContrasena.tsx`**:
+> dan servicio a los tres cuadros de la mañana y se usan tal cual. Sus pruebas
+> siguen en verde sin tocarse.
+>
+> **«Renovar» tenía DOS defectos y se cerraron los dos.** Era un `await` suelto a
+> `iniciarRenovacionApi` seguido de `onToast(...)`, **sin `try/catch` ninguno**:
+> el 403 rechazaba la promesa, el toast nunca llegaba y no pasaba absolutamente
+> nada. Lo segundo es lo que no era del candado: **cualquier** fallo de esa ruta
+> —un 500, la red caída— era igual de invisible. Ahora `confirmarConCandado`
+> devuelve el fallo como VALOR y `alFallar` lo enseña.
+>
+> **Se prueba en `components/demo/candado-dinero-y-renovar.test.ts`** (35
+> afirmaciones). §7 y §8 **no leen el fuente**: corren la secuencia real con los
+> clientes de `estado-api` y `fetch` espiado, y comprueban que sin contraseña —o
+> con la equivocada— **no sale ni una petición** a ninguna de las tres rutas de
+> dinero, y que un 500 de la renovación vuelve como valor en vez de perderse.
+> Ocho mutantes, todos muertos y deshechos; uno **sobrevivió** a la primera
+> versión de §6 —un `toContain('candado.reintentar()')` que se tragaba el
+> `onEnter` del campo— y la afirmación se estrechó al botón.
+>
+> **QUEDAN OCHO, y fuera de esta aprobación:** cinco en
+> `inventario/InventarioTabla.tsx` (cuatro **se tragan** el mensaje), uno en
+> `inventario/ContratoWizard.tsx` y dos en `comercial/SiteFicha.tsx`.
+>
+> **Sigue sin probarse** que el cuadro aparezca en el navegador al pulsar el
+> botón. Ese salto no lo da este arnés.
+
 ## Dónde hay lógica de negocio en el cliente
 
 En general está bien separada: los cálculos puros viven en `apps/web/lib/*.ts`
