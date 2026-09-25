@@ -1071,6 +1071,45 @@ hizo caro sigue igual**.
 
 ---
 
+#### B37 · 🟠 `version-anterior` y `version-actual` colisionan entre DEMO y el PADRE — y son los archivos que deciden A QUÉ VERSIÓN SE VUELVE
+
+**Abierta el 2026-09-25**, al aterrizar el respaldo diario (`c5345d1`). Es **el
+mismo defecto que se acaba de cerrar para los respaldos, un nivel más arriba y
+sin cerrar.**
+
+**El patrón, que ya mordió una vez.** `SPACE_OS_CONF` dice *qué* base toca, pero
+**no dónde se deja el estado**. Eso sale de `$SPACE_OS_DIR_ESTADO`, que **nada
+fija en producción** —solo aparece en los arneses—, así que DEMO y el PADRE
+comparten `/var/lib/space-os/`. Para los respaldos eso hacía que DEMO se comiera
+los del PADRE en tres días, incluido el que `update.sh` toma **antes de migrar**.
+Se cerró con una línea en `demo-instancia.env` (`DIR_RESPALDOS=`).
+
+**Lo que sigue abierto:** `update.sh:2379` (`version-anterior`) y `:2580`
+(`version-actual`) derivan de `$DIR_ESTADO` **igual que derivaban los
+respaldos**, y no los cubre esa línea. Son los archivos que deciden a qué
+versión se vuelve en una marcha atrás.
+
+**Por qué importa más que los respaldos:** un respaldo pisado se nota al
+restaurar. Una versión anterior pisada **se nota al volver atrás**, que es el
+peor momento posible — cuando ya hay un despliegue malo encima y prisa.
+
+**La salida natural** sería `SPACE_OS_DIR_ESTADO` en la línea de cron de DEMO,
+que movería las tres cosas de golpe en vez de una por una. Pero ojo, y es lo que
+lo hace no-trivial: `SPACE_OS_DIR_ESTADO` **se lee ANTES de sourcear la
+configuración** (`update.sh:116` y `:431`), así que ponerla en `instancia.env`
+no haría nada — tiene que ir en la línea de cron, y habría que repetirla en cada
+línea de cada guion.
+
+**No bloquea la instalación del respaldo diario**, y por eso es 🟠 y no 🔴: hoy
+el PADRE no corre su propio `update.sh` por cron para sí mismo.
+
+> **Lo que NO se verificó al abrir esta entrada:** si el PADRE tiene hoy alguna
+> línea de cron que corra su propio `update.sh`, y qué hay ahora mismo en
+> `/var/lib/space-os/` de la máquina. Las dos exigen entrar al servidor, y esto
+> se escribió sin tocar ninguno.
+
+---
+
 ### B · ii — Críticas por CALENDARIO (no hay fallo silencioso; aprieta la fecha)
 
 #### ~~B23 · 🟠 **El arreglo de los checksums funcionó, y por eso la base de demostración del SUMMIT dejó de aceptar migraciones.** Pasó de 0 divergencias a 80~~
