@@ -1110,6 +1110,77 @@ el PADRE no corre su propio `update.sh` por cron para sí mismo.
 
 ---
 
+#### B38 · 🔴 Doce sitios piden permiso al servidor y NO saben pedir la contraseña — tres son dinero, y uno no dice nada en absoluto
+
+**Abierta el 2026-09-25**, al barrer la aplicación tras cerrar el mismo defecto
+tres veces en el mismo archivo. Que un solo archivo escondiera tres instancias
+hizo sospechar que había más. **Había nueve más.**
+
+**El patrón:** el servidor responde `403 requiereDesbloqueo` pidiendo la
+contraseña; la pantalla lo pinta como un error cualquiera —o se lo traga— y
+**no ofrece ningún campo donde teclearla**. El camino queda muerto y no parece
+un permiso: parece una avería.
+
+**El recuento: 14 combinaciones ruta+método protegidas. Seis saben pedirla. Doce
+puntos de llamada, en 6 archivos, no.**
+
+| # | Ruta protegida | Pantalla | Qué hace con el 403 | Dinero |
+|---|---|---|---|---|
+| 1 | `POST /api/pagos-renta/[id]/pagar` | `PagosRentaCard.tsx:156` | toast | **SÍ** |
+| 2 | `POST /api/campanas/[id]/facturar` | `finanzas/page.tsx:430` | toast | **SÍ** |
+| 3 | `POST /api/cobranzas/[id]/pagar` | `finanzas/page.tsx:631` | error en modal | **SÍ** |
+| 4 | `POST /api/contratos/[id]/renovar` | `ContratoSheet.tsx:114` | **NADA** | no |
+| 5 | `PATCH /api/contratos/[id]` | `InventarioTabla.tsx:569` | muestra el mensaje | no |
+| 6 | `PATCH /api/contratos/[id]` ×N | `InventarioTabla.tsx:251` | **se lo traga** | no |
+| 7-9 | `PATCH /api/sitios/[id]` | `InventarioTabla.tsx:666`, `:755`, `:179` | **se lo tragan** | no |
+| 10 | `POST /api/contratos` | `ContratoWizard.tsx:292` | error en modal | no |
+| 11-12 | `PATCH`/`DELETE /api/sitios/[id]` | `SiteFicha.tsx:806`, `:174` | toast | no |
+
+### El peor de los doce, y no es de dinero
+
+**`ContratoSheet.tsx:114-117` — «Renovar» no tiene `try/catch` ninguno.**
+Verificado el 25/09 leyendo el archivo: es `await iniciarRenovacionApi(...)`
+seguido de `onToast('Renovación iniciada')`. Un 403 rechaza la promesa, el toast
+nunca llega, y **no pasa absolutamente nada**: ni aviso, ni error, ni traza.
+
+Es el peor porque **no se distingue de un botón roto**, y porque no es solo el
+candado: **cualquier** fallo de esa ruta es invisible. Son cuatro líneas de
+arreglo.
+
+### Y un guard que ninguna pantalla puede disparar
+
+`apps/web/app/api/arrendadores/[id]/route.ts:23-39` exige reautenticación **solo
+si el cuerpo trae `cuentaBancaria` o `formaPago`** — por diseño, y bien pensado:
+es el cambio de dinero más sensible que hay, *a dónde* se paga la renta. Lleva
+incluso captura del valor anterior para el audit inmutable.
+
+**Medido el 25/09:** `grep -rn "cuentaBancaria\|formaPago"` sobre
+`apps/web/components` y `apps/web/app`, excluyendo pruebas, devuelve **cero**.
+Ninguna pantalla manda esos campos.
+
+**Consecuencia, y conviene leerla dos veces: hoy la cuenta bancaria de un
+arrendador NO se puede cambiar desde la aplicación.** El guard no sobra —falta
+la pantalla—. Y cuando se haga, nace con campo de contraseña desde el primer
+día: es literalmente a dónde se manda el dinero.
+
+**Lo que hay que decidir:**
+
+- **¿Los tres de dinero entran ya?** El patrón existe y está probado por
+  mutación; el coste marginal es casi cero. `PagosRentaCard` es el más urgente
+  de los tres: es el botón que la gente usa a diario desde la lista, o sea que
+  el cuadro que se arregló el 25/09 es el camino **menos** transitado.
+- **¿Los cuatro de `InventarioTabla` al menos dejan de tragarse el mensaje?**
+  `catch {}` → `catch (e)` es barato y convierte cuatro callejones sin salida en
+  algo accionable, aunque no se añada el campo.
+- **¿La pantalla de la cuenta bancaria es una feature con su tarjeta?**
+
+> **Lo que NO se verificó al abrir esta entrada:** los doce puntos se
+> clasificaron **leyendo el `catch` de cada uno**, no viéndolos fallar. Y
+> `PagosRentaCard.tsx` solo se leyó la función `registrar`: si hay otro camino de
+> pago en ese archivo, no se vio.
+
+---
+
 ### B · ii — Críticas por CALENDARIO (no hay fallo silencioso; aprieta la fecha)
 
 #### ~~B23 · 🟠 **El arreglo de los checksums funcionó, y por eso la base de demostración del SUMMIT dejó de aceptar migraciones.** Pasó de 0 divergencias a 80~~
