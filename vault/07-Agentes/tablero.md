@@ -1,10 +1,26 @@
 ---
 tipo: tablero
 estado: verificado
-actualizado: 2026-09-23
+actualizado: 2026-09-25
 tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
+
+> [!success] 2026-09-25 · **ATERRIZADA en `main`** — merge `3b9fb60`
+> Los tres commits de abajo ya están en `main`, así que **el recuadro siguiente
+> dice «sin fusionar» y eso caducó**: se conserva como historia del momento en
+> que se escribió, no como estado.
+>
+> Medido sobre el árbol fusionado, no copiado: `npx tsc --noEmit` limpio y
+> **1838 pruebas en 142 archivos** en verde. El recuadro de abajo decía 1820 en
+> 141, que era la cifra de la rama antes de fusionar. Sube porque entra
+> `components/demo/arrendadores/seleccion.test.ts` con sus 3 casos.
+>
+> **Lo R1 sigue abierto y no se tocó**, que es lo correcto: el cuadro «Con cuál
+> de tus razones sociales se paga» no pinta el campo de la contraseña
+> (`components/demo/arrendadores/ContratoSheet.tsx:400`). Espera aprobación
+> humana. Anotado también en `manuales/capturas-pendientes.md`, y el manual
+> describe entretanto el rodeo que sí funciona.
 
 > [!success] 2026-09-24, segunda pasada · **Z12, los trozos de Z2 y Z4 y la bitácora, LIBERADOS**
 > En `docs/manual-ilustrado-2026-09-24`, sin fusionar: `7d0a87b` (acentos de la tarjeta de

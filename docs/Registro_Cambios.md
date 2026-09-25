@@ -5,6 +5,22 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-09-25
+
+- **El manual de usuario ya lleva una foto de cada paso.** Son 45 capturas
+  tomadas siguiendo el manual paso a paso contra la aplicación de verdad, y
+  van debajo del paso que ilustran, no en un anexo al final.
+
+  Fotografiarlo sirvió para algo más que ilustrarlo: **aparecieron siete cosas
+  que el manual decía mal** y que nadie había notado leyéndolo — dónde te deja
+  el cuestionario de bienvenida, cómo se llama de verdad el botón de emitir una
+  factura y dónde vive, y cuatro más. Cinco se corrigieron en el texto y dos
+  eran defectos de la aplicación, que se arreglaron.
+
+  Queda **un paso sin foto** (guardar los códigos de recuperación la primera
+  vez): exige una sesión iniciada con Google y falsearla habría sido fingir la
+  captura. Está dicho en el propio manual.
+
 ## 2026-09-24
 
 - **Dar de alta una pantalla ahora exige decir dónde está.** Hasta hoy, si
