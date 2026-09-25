@@ -12,6 +12,12 @@ Corrida del **2026-09-24** (segunda pasada, tarde), entorno **LOCAL**
 | **Tomadas en la segunda pasada** (todas de nuevo, 6 más) | **45** |
 | Pasos que quedan sin imagen | **2** (el 1.1, y el 4.1 desde el 25/09) |
 
+> **Y ojo con esa última fila:** cuenta *pasos del manual*, no *pantallas cambiadas*. El
+> 25/09 por la tarde cambiaron dos cuadros más —«Completar contrato de arrendamiento» y
+> «Registrar pago»— que **el manual no describe paso a paso**, así que no suman a la
+> cuenta y aun así **no hay foto de ellos con el campo de la contraseña**. Si un día el
+> manual crece hasta cubrirlos, esa foto hay que tomarla: ver el apartado nuevo de abajo.
+
 Ninguna captura se retocó. Lo único que se altera antes de disparar es lo que manda la
 regla de datos: los códigos de recuperación salen difuminados, y `enmascarar()` no
 encontró ningún otro dato real que tapar (la semilla usa correos `.invalid` y RFC `DMO…`).
@@ -54,6 +60,29 @@ campo «Tu contraseña» debajo del selector y el botón diciendo «Confirmar y 
 **Para tomarla:** el guion del 4.1 con el tenant en control de cambios encendido y la
 sesión SIN desbloquear. Los archivos viejos siguen en la carpeta de capturas; no se
 borraron por si hace falta comparar.
+
+---
+
+## Sin foto · los otros dos cuadros del contrato — **nueva, 2026-09-25 (tarde)**
+
+Misma causa que el apartado de arriba, y por partida doble: **la pantalla cambió después
+de fotografiarse**. «Completar contrato de arrendamiento» (`CompletarContratoModal`) y
+«Registrar pago» (`PagoModal`), los dos en `ContratoSheet.tsx`, ya piden la contraseña
+dentro del propio cuadro.
+
+**Aquí no hay ninguna captura que retirar**, porque el manual no tiene un apartado paso a
+paso de esos dos flujos: solo los menciona. Lo que falta, si algún día lo tiene:
+
+- El formulario **«Completar contrato de arrendamiento»** con los cuatro datos ya
+  capturados y el campo «Tu contraseña» debajo, con el botón diciendo «Confirmar y
+  guardar». Lo que hay que enseñar es justo eso: **que lo capturado no se pierde**.
+- El cuadro **«Registrar pago»** en el mismo estado. Y aquí el detalle que importa es que
+  el mensaje **está dentro del cuadro** y no en una notificación flotante: antes salía
+  como toast y se desvanecía solo, que es lo que hacía el defecto tan difícil de contar.
+
+**Para tomarlas:** el tenant con el control de cambios **encendido** y la sesión **sin
+desbloquear**, un contrato en estado INCOMPLETO para el primero y un pago de renta
+pendiente para el segundo.
 
 ---
 

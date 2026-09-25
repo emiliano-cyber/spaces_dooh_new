@@ -197,10 +197,46 @@ cambios sensibles. **No es decorativo**: es la salida de un `403
 >
 > **Lo que sigue sin probarse, dicho con todas las letras:** que al pulsar
 > «Guardar» el campo aparezca de verdad en el navegador. Eso no lo alcanza este
-> arnés. Y **los otros dos diálogos del mismo archivo siguen con el defecto**:
-> `CompletarContratoModal` y `PagoModal` (`ContratoSheet.tsx`, las llamadas a
-> `editarContratoApi` y `registrarPagoRentaApi`) tampoco pintan el campo. No se
-> tocaron: la aprobación del dueño era para este.
+> arnés. ~~Y **los otros dos diálogos del mismo archivo siguen con el
+> defecto**.~~ **Cerrados esa misma tarde** — ver el recuadro de abajo.
+
+> [!success] 2026-09-25, tarde · los otros DOS cuadros del mismo archivo, cerrados
+> `CompletarContratoModal` y `PagoModal` (`ContratoSheet.tsx`) tenían el mismo
+> defecto y quedaron fuera de la aprobación de la mañana. Jochelo la amplió el
+> mismo día —«si arregla los dos diálogos que faltan»—, y **uno de los dos es
+> zona ROJA R4: registrar un pago de renta es dinero**.
+>
+> Los dos usan ahora las mismas dos piezas, sin tocarlas:
+> `confirmarConCandado` y `CampoContrasena`.
+>
+> - **«Completar contrato de arrendamiento»** guarda por `editarContratoApi` →
+>   `PATCH /api/contratos/:id`, con `exigirCambioSensible`. El campo sale debajo
+>   del formulario y **los cuatro datos capturados se conservan**, que era lo
+>   caro del rodeo viejo: había que volver a teclearlos.
+> - **«Registrar pago»** sella la renta por `registrarPagoRentaApi` →
+>   `POST /api/pagos-renta/:id/pagar`, también con `exigirCambioSensible`.
+>
+> **El de pagos tenía un agravante que no se ve leyendo el mensaje:** el 403
+> salía por `onError()`, o sea **por un toast que se desvanece**. El usuario
+> perdía de vista la única frase que le decía qué hacer y el cuadro se quedaba
+> abierto sin explicación. Por eso **`onError` se retiró del componente**: lo
+> que este cuadro tenga que decir sobre por qué no se guardó vive dentro del
+> modal, junto al campo, mientras el cuadro siga abierto. El toast se reserva
+> para el «Pago registrado» del final, que sí es efímero.
+>
+> **Lo que NO cambió, y conviene no confundirlo:** los adjuntos de un pago ya
+> sellado van por `PATCH /api/pagos-renta/:id` (`adjuntarAPagoApi`), que **no
+> lleva guard**. La secuencia es la misma para los dos a propósito: si mañana se
+> le pone candado a esa ruta, el cuadro ya sabe pedir la contraseña.
+>
+> **La prueba que importa es la negativa**, y esa sí se ejecuta de verdad:
+> `candado-contrato.test.ts` §5 corre `confirmarConCandado` con el cliente real
+> de `estado-api` y `fetch` espiado, y comprueba que **sin contraseña, o con la
+> equivocada, no sale ni un POST a `/pagos-renta/:id/pagar`**. Lo demás de ese
+> archivo lee el fuente, por la misma razón de siempre: no hay DOM.
+>
+> **Sigue sin probarse** que el campo aparezca en el navegador al pulsar el
+> botón. Ese salto no lo da este arnés.
 
 ## Dónde hay lógica de negocio en el cliente
 

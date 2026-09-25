@@ -317,8 +317,10 @@ export function ContratoSheet({
           onOpenChange={(v) => !v && setPagoActivo(null)}
           // Se relee del estado para que los adjuntos recién guardados se reflejen.
           pago={(pagos ?? []).find((p) => p.id === pagoActivo.id) ?? pagoActivo}
+          // Sin `onError`: desde el 2026-09-25 los fallos de este cuadro —el
+          // candado entre ellos— se quedan DENTRO del modal. Un toast que se
+          // desvanece no puede ser el sitio donde se pide una contraseña.
           onHecho={(msg) => onToast(msg)}
-          onError={(msg) => onToast(msg)}
         />
       )}
 
@@ -515,6 +517,19 @@ function RazonSocialQuePagaModal({
 // se editan en otro sitio. Mezclarlo todo aquí convertiría "completa lo que
 // falta" en "revisa doce campos", que es justo la fricción por la que estos
 // contratos se quedaban sin completar.
+//
+// ─── El candado, y el defecto del 2026-09-25 ────────────────────────────────
+// Segundo de los TRES cuadros de este archivo con el mismo defecto. Guarda por
+// `editarContratoApi` → `PATCH /api/contratos/:id`, que pasa por
+// `exigirCambioSensible` (`app/api/contratos/[id]/route.ts:25`), así que con el
+// control de cambios encendido el servidor contestaba 403 con
+// `requiereDesbloqueo` y este formulario pintaba «Este cambio necesita que
+// vuelvas a teclear tu contraseña» EN ROJO, sin ningún sitio donde teclearla.
+// Quien capturaba los cuatro datos los perdía si cerraba para ir a desbloquear.
+//
+// Se arregla con las mismas dos piezas que el cuadro de arriba —
+// `lib/cambios-candado.ts` y `ui/CampoContrasena`—: el 403 NO es un error, es
+// un paso más, y se resuelve DENTRO del propio formulario.
 function CompletarContratoModal({
   open,
   onOpenChange,
@@ -548,6 +563,11 @@ function CompletarContratoModal({
   )
   const [error, setError] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
+  // `reautenticando` es «el servidor ya dijo que hace falta la contraseña». No se
+  // pregunta de entrada: el control de cambios está apagado por defecto en los
+  // tenants, así que pedirla siempre sería fricción inventada.
+  const [reautenticando, setReautenticando] = useState(false)
+  const [pass, setPass] = useState('')
 
   // Datos del arrendador ELEGIDO. El selector solo mostraba su nombre, y el
   // nombre no dice si se le va a poder pagar: la renta se factura contra una
@@ -580,28 +600,53 @@ function CompletarContratoModal({
     : fechaFin < inicio ? `La fecha de fin no puede ser anterior al inicio (${formatFecha(inicio)}).`
     : null
 
+  // Cerrar OLVIDA la contraseña. Este modal NO se desmonta al cerrarse —lo rinde
+  // siempre `ContratoSheet` con `open={completarOpen}`—, así que sin esto lo
+  // tecleado se quedaría vivo en memoria hasta salir de la ficha.
+  function cerrar() {
+    setPass('')
+    setReautenticando(false)
+    setError(null)
+    onOpenChange(false)
+  }
+
   async function guardar() {
     if (faltante) return
     setEnviando(true)
     setError(null)
-    try {
-      await editarContratoApi(contrato.id, {
-        arrendadorId,
-        montoRenta: montoNum,
-        periodicidad,
-        fechaFin,
-        // Cadena vacía = «sin asignar», y viaja como `null` explícito: es lo que
-        // el PATCH entiende por DESASIGNAR. `undefined` sería «no la toques», y
-        // entonces no se podría quitar una vez puesta.
-        entidadId: entidadId || null,
-      })
+    const r = await confirmarConCandado({
+      reautenticando,
+      contrasena: pass,
+      desbloquear: desbloquearApi,
+      guardar: () =>
+        editarContratoApi(contrato.id, {
+          arrendadorId,
+          montoRenta: montoNum,
+          periodicidad,
+          fechaFin,
+          // Cadena vacía = «sin asignar», y viaja como `null` explícito: es lo que
+          // el PATCH entiende por DESASIGNAR. `undefined` sería «no la toques», y
+          // entonces no se podría quitar una vez puesta.
+          entidadId: entidadId || null,
+        }),
+      mensajeSiFalla: 'No se pudo guardar el contrato',
+    })
+    if (r.estado === 'hecho') {
       // Al quedar completo el servidor recalcula el estatus por fechas y genera
       // el calendario de pagos, así que conviene decirlo: es la consecuencia
       // visible que el usuario va a buscar después.
       onHecho('Contrato completado · se generó su calendario de pagos')
-      onOpenChange(false)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo guardar el contrato')
+      cerrar()
+    } else if (r.estado === 'falta-contrasena') {
+      setError('Escribe tu contraseña para confirmar.')
+    } else if (r.estado === 'pedir-contrasena') {
+      // Se entra (o se sigue) en el paso de la contraseña. Los cuatro datos ya
+      // capturados se conservan: volver atrás obligaría a repetirlos, que es
+      // justo lo que hacía el rodeo viejo por «Cambios bloqueados».
+      setReautenticando(true)
+      setError(r.error)
+    } else {
+      setError(r.error)
     }
     setEnviando(false)
   }
@@ -609,17 +654,23 @@ function CompletarContratoModal({
   return (
     <Modal
       open={open}
-      onOpenChange={onOpenChange}
+      // Cerrar por la X o por Escape pasa por el mismo sitio que «Cancelar»: si
+      // no, esos dos caminos dejarían la contraseña puesta.
+      onOpenChange={(v) => (v ? onOpenChange(true) : cerrar())}
       title="Completar contrato de arrendamiento"
       subtitle="Los cuatro datos que faltan para que cuente como acuerdo real"
       footer={
         <div className="flex justify-end gap-2">
-          <Button variant="secondary" size="sm" onClick={() => onOpenChange(false)} disabled={enviando}>
+          <Button variant="secondary" size="sm" onClick={cerrar} disabled={enviando}>
             Cancelar
           </Button>
-          <Button size="sm" onClick={guardar} disabled={enviando || !!faltante}>
+          <Button
+            size="sm"
+            onClick={guardar}
+            disabled={enviando || !!faltante || (reautenticando && !pass)}
+          >
             {enviando && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-            Guardar contrato
+            {reautenticando ? 'Confirmar y guardar' : 'Guardar contrato'}
           </Button>
         </div>
       }
@@ -758,6 +809,25 @@ function CompletarContratoModal({
           {periodicidad ? ` ${periodicidadLabel(periodicidad).toLowerCase()}` : ''}.
         </p>
 
+        {/* El paso de la contraseña. Solo aparece cuando el servidor lo ha
+            pedido, y va DEBAJO del formulario para que se lea como el último
+            paso de lo que ya se capturó, no como un cuadro nuevo. */}
+        {reautenticando && (
+          <div className="space-y-2 border-t border-border pt-2">
+            <p className="text-[12px] text-muted">
+              Tu organización pide la contraseña para confirmar los cambios sensibles.
+            </p>
+            <CampoContrasena
+              valor={pass}
+              onChange={setPass}
+              onEnter={() => {
+                if (!enviando && pass && !faltante) void guardar()
+              }}
+              deshabilitado={enviando}
+            />
+          </div>
+        )}
+
         {/* El aviso de lo que falta es informativo mientras se captura; el error
             del servidor (p. ej. sesión bloqueada por control de cambios) manda. */}
         {error ? (
@@ -863,18 +933,37 @@ function AdjuntoInput({
 
 // Registra un pago (fecha, método y adjuntos) o edita solo los adjuntos de uno
 // ya pagado: la factura del arrendador suele llegar días después del pago.
+//
+// ─── El candado, y el defecto del 2026-09-25 ────────────────────────────────
+// Tercero y ÚLTIMO de los tres cuadros de este archivo con el mismo defecto, y
+// el único que toca DINERO: registrar el pago sella la renta, y su ruta
+// —`POST /api/pagos-renta/:id/pagar`— pasa por `exigirCambioSensible`
+// (`app/api/pagos-renta/[id]/pagar/route.ts:14`).
+//
+// Aquí el defecto era PEOR que en los otros dos, y por un motivo que no se ve
+// leyendo el mensaje: el 403 salía por `onError()`, o sea por un TOAST. Un toast
+// se desvanece solo, así que el usuario perdía de vista la única frase que le
+// decía qué hacer, y el cuadro se quedaba abierto sin explicación ninguna.
+//
+// Por eso el arreglo NO es solo añadir el campo: `onError` se retiró. Todo lo
+// que este cuadro tenga que decir sobre por qué no se guardó se queda DENTRO
+// del modal, junto al campo donde se teclea, mientras el cuadro siga abierto.
+// El toast se reserva para lo que sí es efímero: el «Pago registrado» del final.
+//
+// OJO con lo que NO cambió: el candado solo está en `pagar`. Los adjuntos de un
+// pago ya sellado van por `PATCH /api/pagos-renta/:id` (`adjuntarAPagoApi`), que
+// NO lleva guard. La secuencia es la misma para los dos a propósito: si mañana
+// se le pone candado a esa ruta, este cuadro ya sabe pedir la contraseña.
 function PagoModal({
   open,
   onOpenChange,
   pago,
   onHecho,
-  onError,
 }: {
   open: boolean
   onOpenChange: (v: boolean) => void
   pago: PagoRenta
   onHecho: (msg: string) => void
-  onError: (msg: string) => void
 }) {
   const yaPagado = pago.estatus === 'PAGADO'
   const hoy = new Date().toISOString().slice(0, 10)
@@ -886,35 +975,66 @@ function PagoModal({
   // Borrado explícito de un adjunto ya guardado (null en el PATCH).
   const [borrar, setBorrar] = useState<{ factura?: boolean; comprobante?: boolean }>({})
   const [enviando, setEnviando] = useState(false)
+  // El error vive AQUÍ desde el 2026-09-25, no en un toast. Ver la cabecera.
+  const [error, setError] = useState<string | null>(null)
+  // `reautenticando` es «el servidor ya dijo que hace falta la contraseña». No se
+  // pregunta de entrada: el control de cambios está apagado por defecto en los
+  // tenants, así que pedirla siempre sería fricción inventada.
+  const [reautenticando, setReautenticando] = useState(false)
+  const [pass, setPass] = useState('')
 
   const facturaGuardada = pago.tieneFactura && !borrar.factura ? urlAdjuntoPago(pago.id, 'factura') : null
   const comprobanteGuardado =
     pago.tieneComprobante && !borrar.comprobante ? urlAdjuntoPago(pago.id, 'comprobante') : null
 
+  // Cerrar OLVIDA la contraseña. Hoy `ContratoSheet` desmonta este modal al
+  // cerrarlo (lo rinde con `{pagoActivo && …}`), así que esto es redundante por
+  // construcción — y se pone igual, porque esa condición es de OTRO componente
+  // y quitarla un día dejaría la clave viva en memoria sin que nadie lo note.
+  function cerrar() {
+    setPass('')
+    setReautenticando(false)
+    setError(null)
+    onOpenChange(false)
+  }
+
   async function guardar() {
     setEnviando(true)
-    try {
-      if (yaPagado) {
-        await adjuntarAPagoApi(pago.id, {
-          // undefined = no tocar; null = borrar.
-          facturaUrl: factura ? factura.url : borrar.factura ? null : undefined,
-          comprobanteUrl: comprobante ? comprobante.url : borrar.comprobante ? null : undefined,
-          observaciones: observaciones.trim() || null,
-        })
-        onHecho('Adjuntos guardados')
-      } else {
-        await registrarPagoRentaApi(pago.id, {
-          fechaPago,
-          metodoPago,
-          facturaUrl: factura?.url ?? null,
-          comprobanteUrl: comprobante?.url ?? null,
-          observaciones: observaciones.trim() || null,
-        })
-        onHecho('Pago registrado')
-      }
-      onOpenChange(false)
-    } catch (e) {
-      onError(e instanceof Error ? e.message : 'No se pudo guardar')
+    setError(null)
+    const r = await confirmarConCandado({
+      reautenticando,
+      contrasena: pass,
+      desbloquear: desbloquearApi,
+      guardar: () =>
+        yaPagado
+          ? adjuntarAPagoApi(pago.id, {
+              // undefined = no tocar; null = borrar.
+              facturaUrl: factura ? factura.url : borrar.factura ? null : undefined,
+              comprobanteUrl: comprobante ? comprobante.url : borrar.comprobante ? null : undefined,
+              observaciones: observaciones.trim() || null,
+            })
+          : registrarPagoRentaApi(pago.id, {
+              fechaPago,
+              metodoPago,
+              facturaUrl: factura?.url ?? null,
+              comprobanteUrl: comprobante?.url ?? null,
+              observaciones: observaciones.trim() || null,
+            }),
+      mensajeSiFalla: 'No se pudo guardar',
+    })
+    if (r.estado === 'hecho') {
+      onHecho(yaPagado ? 'Adjuntos guardados' : 'Pago registrado')
+      cerrar()
+    } else if (r.estado === 'falta-contrasena') {
+      setError('Escribe tu contraseña para confirmar.')
+    } else if (r.estado === 'pedir-contrasena') {
+      // Se entra (o se sigue) en el paso de la contraseña. La fecha, el método y
+      // los adjuntos ya elegidos se conservan: perderlos obligaría a volver a
+      // subir los archivos.
+      setReautenticando(true)
+      setError(r.error)
+    } else {
+      setError(r.error)
     }
     setEnviando(false)
   }
@@ -922,17 +1042,23 @@ function PagoModal({
   return (
     <Modal
       open={open}
-      onOpenChange={onOpenChange}
+      // Cerrar por la X o por Escape pasa por el mismo sitio que «Cancelar»: si
+      // no, esos dos caminos dejarían la contraseña puesta.
+      onOpenChange={(v) => (v ? onOpenChange(true) : cerrar())}
       title={yaPagado ? 'Adjuntos del pago' : 'Registrar pago'}
       subtitle={`${formatFecha(pago.periodo)} · ${formatMonto(pago.monto)}`}
       footer={
         <div className="flex justify-end gap-2">
-          <Button variant="secondary" size="sm" onClick={() => onOpenChange(false)} disabled={enviando}>
+          <Button variant="secondary" size="sm" onClick={cerrar} disabled={enviando}>
             Cancelar
           </Button>
-          <Button size="sm" onClick={guardar} disabled={enviando}>
+          <Button size="sm" onClick={guardar} disabled={enviando || (reautenticando && !pass)}>
             {enviando && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-            {yaPagado ? 'Guardar adjuntos' : 'Registrar pago'}
+            {reautenticando
+              ? 'Confirmar y guardar'
+              : yaPagado
+                ? 'Guardar adjuntos'
+                : 'Registrar pago'}
           </Button>
         </div>
       }
@@ -989,6 +1115,28 @@ function PagoModal({
           />
         </label>
         <p className="text-[12px] text-muted">PDF o imagen, hasta {MAX_ADJUNTO_MB} MB por archivo.</p>
+
+        {/* El paso de la contraseña. Solo aparece cuando el servidor lo ha
+            pedido — con el control de cambios apagado no se ve nunca. */}
+        {reautenticando && (
+          <div className="space-y-2 border-t border-border pt-2">
+            <p className="text-[12px] text-muted">
+              Tu organización pide la contraseña para confirmar los cambios sensibles.
+            </p>
+            <CampoContrasena
+              valor={pass}
+              onChange={setPass}
+              onEnter={() => {
+                if (!enviando && pass) void guardar()
+              }}
+              deshabilitado={enviando}
+            />
+          </div>
+        )}
+
+        {/* Aquí, y no en un toast: el mensaje se queda mientras el cuadro esté
+            abierto, que es lo que hace falta para poder actuar sobre él. */}
+        {error && <p className="text-[12px] text-error">{error}</p>}
       </div>
     </Modal>
   )

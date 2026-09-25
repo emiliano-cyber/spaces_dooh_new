@@ -43,8 +43,48 @@ archivos: []
 >
 > **Lo que NO cubre, dicho aquí para que nadie lo dé por hecho:** el arnés no
 > tiene DOM, así que nadie prueba que al pulsar «Guardar» el campo aparezca en el
-> navegador. Y **quedan dos diálogos del mismo archivo con el mismo defecto** —
-> `CompletarContratoModal` y `PagoModal`—: fuera de la aprobación, sin tocar.
+> navegador. ~~Y **quedan dos diálogos del mismo archivo con el mismo defecto** —
+> `CompletarContratoModal` y `PagoModal`—: fuera de la aprobación, sin tocar.~~
+> **Cerrados la misma tarde** — recuadro de abajo.
+
+> [!success] 2026-09-25, tarde · **Z1 · Auth + Z4 RECLAMADAS — los DOS cuadros que faltaban**
+> Rama `fix/candado-completar-y-pago`, **sin fusionar**. Cierra lo que el recuadro
+> de arriba dejaba abierto: `CompletarContratoModal` y `PagoModal`, los dos en
+> `components/demo/arrendadores/ContratoSheet.tsx`.
+>
+> **APROBACIÓN HUMANA, y hace falta decir por qué:** Jochelo la dio explícitamente
+> el 2026-09-25 — «si arregla los dos diálogos que faltan». **`PagoModal` es zona
+> ROJA R4**: registrar un pago de renta es dinero, y la regla de oro de
+> `CLAUDE.md` pide aprobación para eso. Consta también en el cuerpo del commit.
+>
+> **Ni una línea de servidor.** El arreglo es de pantalla: los endpoints ya
+> exigían lo que tenían que exigir. No se tocó `lib/cambios-candado.ts` ni
+> `ui/CampoContrasena.tsx` —dan servicio al cuadro de la mañana y tocarlos sería
+> tocar lo que funciona—: se usan tal cual.
+>
+> **El hallazgo del día, y es el que más duele:** `PagoModal` mandaba el 403 a
+> `onError()`, o sea **a un toast que se desvanece**. Un toast no puede ser el
+> sitio donde se pide una contraseña. `onError` se retiró del componente y el
+> mensaje vive dentro del modal.
+>
+> Medido en este árbol, no copiado: `npx tsc --noEmit` limpio y **1878 pruebas en
+> 145 archivos** (+14 frente a las 1864/145 de `main` — mismo número de archivos
+> porque las 14 entran en `candado-contrato.test.ts`, que ya existía).
+> Comprobadas por **cinco mutantes**, uno por afirmación: borrar el campo de
+> «Completar», habilitar el botón de «Registrar pago» con la clave en blanco,
+> colar un `await registrarPagoRentaApi` fuera del candado, devolver el error al
+> toast, y —el importante— tragarse la contraseña vacía en
+> `confirmarConCandado`. Los cinco tumban una prueba cada uno; todos deshechos.
+>
+> **Lo que NO cubre:** lo mismo que el de la mañana —no hay DOM, nadie prueba que
+> el campo aparezca en el navegador— más lo que salió del barrido de esta tarde,
+> que es la parte que hay que leer: **quedan 12 puntos de llamada en 6 archivos**
+> que consumen rutas con candado y **no saben pedir la contraseña**. Tres tocan
+> dinero (`PagosRentaCard.tsx:156`, `finanzas/page.tsx:430` y `:631`) y uno
+> —el botón «Renovar», `ContratoSheet.tsx:114-117`— **no tiene ni `try/catch`**,
+> así que el 403 no se ve por ningún lado. Están en el informe de la rama, con
+> ruta y línea, y **no se tocaron**: la aprobación era para dos cuadros, no para
+> reformar el candado.
 
 > [!success] 2026-09-25 · **B36 parte (1) — Z12 y `release.yml` RECLAMADOS y LIBERADOS**
 > Rama `chore/etiquetas-oci-release`, **aterrizada** en `main` (merge `c7629a8`).

@@ -1,7 +1,7 @@
 ---
 tipo: manual
 estado: en-curso
-actualizado: 2026-09-24
+actualizado: 2026-09-25
 tags: [manual, usuario-final, negocio, entidades, fiscal, energia, reportes, rentabilidad, acceso, actualizaciones, soporte, ilustrado]
 archivos:
   - vault/02-Backend/entidades-fiscales.md
@@ -399,7 +399,15 @@ elegiste.
 > la contraseña dentro** — anotado en `manuales/capturas-pendientes.md`.
 
 Si el contrato está incompleto, el selector también aparece dentro de **«Completar
-información»**, junto con el resto de los datos que faltan.
+información»**, junto con el resto de los datos que faltan. Ese formulario se comporta
+igual desde el 25/09: si los cambios están bloqueados, el campo de la contraseña sale
+debajo y **los cuatro datos que ya capturaste se quedan puestos** — antes había que
+salir a desbloquear y volver a teclearlos todos.
+
+Y lo mismo el cuadro de **registrar el pago de una renta**, en la misma ficha: teclea la
+contraseña ahí y pulsa «Confirmar y guardar». Ojo, porque **el botón de registrar el
+pago que sale en la lista —el de un solo clic— todavía no la pide**: para ese sigue
+haciendo falta desbloquear antes desde la barra superior.
 
 > [!note] Captura: la ficha de un contrato mostrando «La paga» con su botón «Cambiar», y el
 > cuadro de un solo campo que se abre al pulsarlo
@@ -1084,7 +1092,9 @@ nadie.
 | **«Razon social no disponible»** | El documento **sí** tiene razón social, pero la pantalla no acabó de cargar su nombre | Recarga la pantalla |
 | El reporte dice que **no hubo movimiento** en el periodo | Ninguna pantalla tuvo ingreso, ni renta, ni visitas en ese rango | Comprueba primero las fechas. Si son correctas, es que ese periodo está realmente vacío |
 | El reporte dice que **no se pudo calcular** | La pantalla no recibió respuesta, o la respuesta vino con error | Vuelve a intentar. Si se repite, avisa a quien administra tu instalación |
-| El sistema te pide **tu contraseña** al asignar la razón social de un contrato | Es el candado de los cambios sensibles | Tecléala. Si no tienes contraseña porque entras con Google, pídesela a tu administrador |
+| El sistema te pide **tu contraseña** al asignar la razón social de un contrato, al completarlo o al registrar el pago de una renta | Es el candado de los cambios sensibles | Tecléala en el campo que sale en el mismo cuadro. Si no tienes contraseña porque entras con Google, pídesela a tu administrador |
+| Te dice que **hace falta tu contraseña** y no hay ningún campo donde escribirla | Estás en una de las pantallas que todavía no lo pide en el sitio (facturar, cobrar, el botón de pago de un clic, la tabla de Inventario, el alta de contrato) | Cierra el cuadro, desbloquea en **«Cambios bloqueados»** arriba a la derecha y vuelve a intentarlo |
+| Pulsas **«Renovar»** en un contrato y **no pasa absolutamente nada** | Ese botón no avisa cuando el candado lo frena: no da ni error | Desbloquea en **«Cambios bloqueados»** y vuelve a pulsarlo |
 | Te dice que **ya contestaste** el cuestionario de bienvenida | Ya existe al menos una razón social | Ve a **«Razones sociales»** a cambiar lo que haga falta |
 | **«Esta cuenta entra con Google…»** al intentar entrar | A esa cuenta se le cerró la entrada por contraseña | Entra con **«Continuar con Google»** (apartado 1.3) |
 | **«Ver y decidir la actualización … está reservado a quien tenga el permiso de Administración → ver»** | Tu cuenta no tiene permiso de Administración | Pídeselo a quien administra los roles de tu organización |
@@ -1277,12 +1287,49 @@ Pídeselo a quien administra tu organización.
   no aparecía ni una vez en `ContratoSheet.tsx`. La secuencia dejó de copiarse a mano y
   vive en `apps/web/lib/cambios-candado.ts`, con el campo en
   `apps/web/components/demo/ui/CampoContrasena.tsx`.
-  **Siguen con el defecto, y no entraban en la aprobación:** «Completar información»
+  ~~**Siguen con el defecto, y no entraban en la aprobación:** «Completar información»
   (`CompletarContratoModal`) y el cuadro de registrar un pago de renta (`PagoModal`), los
-  dos en el mismo archivo.
+  dos en el mismo archivo.~~ **CORREGIDOS la misma tarde**, en
+  `fix/candado-completar-y-pago`, con la aprobación ampliada del dueño («si arregla los
+  dos diálogos que faltan»). El de pagos **toca dinero (zona roja R4)**, y además tenía
+  un agravante: mandaba el aviso a una **notificación flotante que se desvanece**, así
+  que el usuario perdía de vista la instrucción. Ahora el mensaje vive dentro del cuadro.
   Y un detalle relacionado, que sigue abierto: el comentario de
   `components/demo/shell/DesbloqueoCambios.tsx` dice que al Dueño el botón «no le sale
   nunca», y en la pasada del 24/09 **le salió**.
+- **DEFECTO — otras pantallas que piden la contraseña y tampoco la pintan. NUEVO el
+  2026-09-25 por la tarde, y medido, no supuesto.** Al arreglar los tres cuadros de la
+  ficha del contrato se barrió la aplicación entera por los dos extremos: qué rutas
+  llevan candado en el servidor, y qué pantalla consume cada una. **Quedan 12 puntos de
+  llamada en 6 archivos** que reciben el mismo 403 y no ofrecen dónde teclear. Para el
+  usuario, el rodeo por «Cambios bloqueados» **sigue siendo obligatorio** en todos ellos.
+  Los que más se notan:
+  - **Registrar el pago de una renta desde la lista**, el botón de un solo clic sin abrir
+    el cuadro (`components/demo/arrendadores/PagosRentaCard.tsx:156`). **Es dinero.**
+  - **Emitir una factura** (`app/(app)/(shell)/finanzas/page.tsx:430`) y **registrar el
+    cobro de una factura** (`:631`). **Las dos son dinero.**
+  - **El botón «Renovar»** de la ficha del contrato
+    (`components/demo/arrendadores/ContratoSheet.tsx:114-117`) **no tiene ni `try/catch`**:
+    el 403 no se ve por ningún lado. Pulsas y no pasa nada, sin un solo mensaje. Es el
+    peor de todos porque no se distingue de un botón que no funciona.
+  - **Editar la renta, la tarifa o el arrendador desde la tabla de Inventario**
+    (`components/demo/inventario/InventarioTabla.tsx`, cuatro sitios) — tres de ellos
+    **se tragan el mensaje del servidor** y enseñan un «No se pudo actualizar» genérico,
+    que es peor que el aviso: ni siquiera dice que falta la contraseña.
+  - **Alta de contrato** (`components/demo/inventario/ContratoWizard.tsx:292`) y **editar
+    o eliminar una pantalla** (`components/demo/comercial/SiteFicha.tsx:806` y `:174`).
+
+  **No se tocaron a propósito:** la aprobación del dueño era para dos cuadros concretos.
+  Cada uno es una decisión aparte, y la lista está para que se tome con los números
+  delante y no de memoria.
+
+- **Un guard que ninguna pantalla puede disparar.** `PATCH /api/arrendadores/:id` pide
+  reautenticación **solo si el cambio toca la cuenta bancaria o la forma de pago**
+  (`app/api/arrendadores/[id]/route.ts:23-39`) — es, por diseño, el cambio de dinero más
+  sensible que hay: a dónde se paga la renta. Medido el 25/09: **ninguna pantalla manda
+  esos dos campos**, así que hoy la cuenta bancaria de un arrendador no se puede cambiar
+  desde la aplicación. El guard está bien; lo que falta es la pantalla.
+
 - **La tarjeta «Soporte» también escribe sin acentos** («Todavia no has abierto ningun
   ticket», «Todos tus tickets estan contestados», `components/demo/admin/tickets-ui.ts`), y
   «Razon social no disponible» igual (`components/demo/razones-sociales/asignacion.ts:130`).

@@ -7,6 +7,34 @@ La entrada más reciente va arriba.
 
 ## 2026-09-25
 
+- **Y los otros dos cuadros de esa misma ficha: completar un contrato y registrar el
+  pago de una renta.** Tenían el mismo problema que el de arriba —te pedían la
+  contraseña y no te daban dónde escribirla— y ya la piden en el sitio.
+
+  **«Completar información»**, el formulario de un contrato al que le faltan datos, se
+  quedaba con los cuatro campos capturados y un aviso en rojo. Si ibas a desbloquear por
+  la barra superior, al volver había que **teclearlo todo otra vez**. Ahora el campo de
+  la contraseña sale debajo del formulario y lo que ya escribiste se queda donde está.
+
+  **«Registrar pago»**, el cuadro con el que se sella el pago de una renta al
+  arrendador, era el peor de los tres, y por un motivo que no tiene que ver con la
+  contraseña: el aviso salía como una **notificación flotante de las que se desvanecen
+  solas**. O sea que la única frase que te explicaba qué hacer se iba de la pantalla en
+  unos segundos y el cuadro se quedaba abierto sin decir nada. Ahora el mensaje **se
+  queda dentro del cuadro**, junto al campo, mientras el cuadro siga abierto.
+
+  Como antes: esto **no cambia quién puede registrar un pago ni cuándo se pide la
+  contraseña** —eso lo decide el servidor y sigue exactamente igual—, y **el camino de
+  siempre sigue funcionando**: si desbloqueas desde «Cambios bloqueados» antes de
+  empezar, no te la vuelve a pedir en un rato.
+
+  **Lo que sigue pendiente, y conviene saberlo:** hay otras pantallas que cambian cosas
+  con candado y todavía no saben pedirte la contraseña. Las tres que más importan son el
+  botón de **registrar un pago de renta desde la lista** (el de un solo clic, sin abrir
+  el cuadro), **emitir una factura** y **registrar el cobro de una factura**. Ahí sigue
+  haciendo falta desbloquear antes desde la barra superior. Están anotadas y se
+  decidirán aparte.
+
 - **Ya puedes decir con qué sociedad se paga una renta sin dar tres vueltas.** En la
   ficha de un contrato de arrendamiento, el cuadro **«Con cuál de tus razones sociales
   se paga»** te avisaba de que hacía falta tu contraseña para confirmar el cambio… y no
