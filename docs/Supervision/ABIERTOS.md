@@ -1141,7 +1141,81 @@ el PADRE no corre su propio `update.sh` por cron para sí mismo.
 
 ---
 
-#### B38 · 🟠 Quedan OCHO sitios que piden permiso al servidor y NO saben pedir la contraseña — los tres de dinero y «Renovar» ya están cerrados
+#### ~~B38 · 🟠 Quedan OCHO sitios que piden permiso al servidor y NO saben pedir la contraseña~~ — **CERRADA el 2026-09-25 por la noche**
+
+> [!success] 2026-09-25, noche · **LOS DOCE CERRADOS. B38 queda cerrada.**
+> Los ocho que faltaban, en `fix/candado-inventario-y-fichas` (sin fusionar).
+> Ninguno mueve dinero, así que no hizo falta aprobación aparte — pero ver el
+> aviso del final, que es justamente sobre eso.
+>
+> | # | Ruta | Cómo quedó |
+> |---|---|---|
+> | 5 | `PATCH /api/contratos/[id]` · `CeldaRenta` | el 403 **abre un cuadro** |
+> | 6 | `PATCH /api/contratos/[id]` **×N** · lote de rentas | **abre cuadro**, con la cuenta de lo ya aplicado |
+> | 7 | `PATCH /api/sitios/[id]` · `CeldaTarifa` | el 403 **abre un cuadro** |
+> | 8 | `PATCH /api/sitios/[id]` · `CeldaPropietario` | el 403 **abre un cuadro** |
+> | 9 | `PATCH /api/sitios/[id]` **×N** · lote de tarifas | **abre cuadro**, con la cuenta de lo ya aplicado |
+> | 10 | `POST /api/contratos` · `ContratoWizard` | campo **dentro** del asistente |
+> | 11 | `PATCH /api/sitios/[id]` · `EditarSitioDialog` | campo **dentro** del modal |
+> | 12 | `DELETE /api/sitios/[id]` · eliminar | campo **dentro** del `ConfirmDialog` |
+>
+> **LA TABLA DE ABAJO SE QUEDABA CORTA EN CUATRO, y conviene leerlo dos veces.**
+> Decía «se lo traga» y «toast»: el mensaje se pierde. **No era eso.**
+> `actualizarSitioApi` y `borrarSitioApi` (`lib/data/sitios-api.ts`) **no miraban
+> `r.ok`**, así que un 403 **se resolvía como éxito**. La celda cantaba «Tarifa de
+> "X" actualizada» con la tarifa intacta; «Eliminar pantalla» cerraba el cuadro
+> con la pantalla todavía ahí, y el `toast.error` escrito en la ficha **no se
+> disparaba nunca**. No enseñaban un mensaje malo: enseñaban uno **falso**.
+> Es exactamente la limitación que esta entrada declaraba al abrirse —«se
+> clasificaron leyendo el `catch`»— y el defecto estaba una capa más abajo.
+>
+> **EL PROBLEMA DIFÍCIL ERAN LOS DOS LOTES** (6 y 9): N `PATCH` en paralelo, así
+> que «una acción, un cuadro» no vale tal cual. La política vive en
+> **`lib/cambios-lote.ts`**, módulo puro:
+>
+> 1. **La contraseña no se pide de entrada.** El candado está apagado por defecto
+>    en los tenants. Las N salen contra la MISMA sesión, así que el candado las
+>    rechaza **todas juntas**: no se aplica ninguna y no se pierde nada por
+>    enterarse tarde.
+> 2. **Lo rechazado no se aplicó; lo que pasó se queda.** No hay vuelta atrás del
+>    lado del cliente y fabricarla sería tocar el servidor.
+> 3. **El reintento manda SOLO las pendientes.** Hoy los valores son absolutos y
+>    repetir saldría igual, pero cada reescritura deja su fila en
+>    `registrarAccion` —el registro diría que se editó dos veces lo que se editó
+>    una— y el día que el ajuste porcentual se calcule en el servidor, repetir
+>    **compondría** el porcentaje.
+> 4. **Un lote a medias SE DICE, con número**: «Se aplicó en 2 de 3 pantallas; 1
+>    sin cambiar», en el **subtítulo del cuadro**, antes de teclear, junto con que
+>    confirmar aplica solo las que faltan. Un lote a medias y en silencio es peor
+>    que no haber hecho nada.
+>
+> **Medido:** `npx tsc --noEmit` limpio y **1950 pruebas en 147 archivos** (main:
+> 1913/146 — las 37 nuevas en un archivo nuevo). **Trece mutantes**, todos
+> muertos y deshechos, y **uno sobrevivió** a la primera versión de una
+> afirmación: `{dialogo}` → `{null}` en `CeldaTarifa` dejaba las 37 en verde
+> porque `toContain('<DialogoCandado')` casaba con la línea que lo **declara**. Se
+> estrechó a contar los `{dialogo}` rendidos, uno por rama. **Es el mismo vicio
+> que ya había contado la tanda de la mañana, y van dos.**
+>
+> **Veinte de las 37 miran la RED**, no el fuente: corren la secuencia real con
+> los clientes de `data/*-api` y `fetch` espiado, y cuentan peticiones.
+>
+> **Ni una línea de servidor.**
+>
+> > [!warning] Una pregunta para el dueño, y no es retórica
+> > Estos ocho se cerraron con la clasificación de esta misma entrada («Dinero:
+> > no»). Es defendible —ninguno mueve dinero, emite documento ni altera saldos—
+> > pero `app/api/sitios/[id]/route.ts:15-19` llama **sensibles** a
+> > `tarifaMensual`, `tarifaPublicada`, `costoCompra`, `precioM2`,
+> > `tarifaImpresion`, `arrendadorId` y `predioId`, y `app/api/contratos/**`
+> > está en la lista de archivos de **R4** en `vault/06-Operacion/zonas-de-riesgo.md`.
+> > **La zona roja y esta tabla no dicen lo mismo sobre estas rutas.** Aquí no se
+> > tocó el servidor ni se debilitó ningún guard, así que el riesgo es nulo; lo
+> > que queda es una discrepancia escrita que conviene resolver antes de que
+> > alguien la use como precedente.
+
+*Lo de abajo se conserva como estaba al abrirse la entrada, con los cuatro de la
+tarde tachados. La tabla de los doce sigue siendo el mejor censo que hay.*
 
 **Abierta el 2026-09-25**, al barrer la aplicación tras cerrar el mismo defecto
 tres veces en el mismo archivo. Que un solo archivo escondiera tres instancias

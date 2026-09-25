@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { UserRound, FileText, Monitor, Check, ChevronLeft, ChevronRight, Loader2, Paperclip, X } from 'lucide-react'
 import { Button } from '@/components/demo/ui/Button'
+import { useCandado, PasoContrasena } from '@/components/demo/ui/candado'
 import { cn } from '@/lib/cn'
 import { crearContratoConSitioApi, agregarPantallaAPredioApi } from '@/lib/data/estado-api'
 import { useArrendadores, usePredios, useContratos, useSitios, formatMonto, formatFecha, medioLabel, type TipoMedio, type Sitio } from '@/lib/data/client'
@@ -55,6 +56,16 @@ export function ContratoWizard({
   const [paso, setPaso] = useState(1)
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // B38 · `POST /api/contratos` pasa por `exigirCambioSensible`
+  // (`app/api/contratos/route.ts:17`), así que con el control de cambios
+  // encendido contesta 403 pidiendo la contraseña. El asistente lo pintaba en su
+  // hueco de error, en rojo y sin campo: el usuario leía qué le faltaba y no
+  // tenía dónde hacerlo, con tres pasos de formulario ya llenos detrás.
+  //
+  // El campo va DENTRO del asistente, que YA es el cuadro donde se confirma —la
+  // misma forma que los dos de finanzas—, y no en un diálogo aparte: abrir uno
+  // encima taparía el resumen del paso 3, que es lo que se está confirmando.
+  const candado = useCandado()
 
   // Paso 1 — arrendatario
   const [modoArr, setModoArr] = useState<'existente' | 'nuevo'>('existente')
@@ -225,7 +236,11 @@ export function ContratoWizard({
       )
     }
     setEnviando(true)
-    try {
+    // Bloque sin `try`: era uno, y el `catch` se retiró porque `candado.ejecutar`
+    // DEVUELVE el fallo en vez de lanzarlo. Se conserva como bloque a secas para
+    // que el diff siga siendo legible y las constantes de abajo sigan acotadas a
+    // este envío. Nada de lo que hay dentro puede lanzar por su cuenta.
+    {
       const arrendador =
         modoArr === 'existente'
           ? { id: arrId }
@@ -276,38 +291,51 @@ export function ContratoWizard({
         totalSpots: digital ? Number(totalSpots) || 12 : null,
         duracionSpotSeg: digital ? Number(duracionSpot) || 20 : null,
       }
-      if (soloPantalla) {
-        // El predio ya tiene contrato activo: se cuelga la pantalla y comparte
-        // esa renta con las demás del predio. NO se firma un segundo contrato.
-        // Esta ruta identifica la pantalla existente por `sitioId`.
-        await agregarPantallaAPredioApi(
-          predioId,
-          delInventario ? { sitioId: sitioSelId } : datosSitioNuevo,
-        )
-        toast.success('Pantalla agregada al predio')
-        onCreado?.({ nombre: nombrePantalla })
-        reiniciar()
-        return
-      }
-      await crearContratoConSitioApi({
-        arrendador,
-        predio,
-        contrato: {
-          fechaInicio,
-          fechaFin,
-          montoRenta: Number(renta) || 0,
-          periodicidad,
-          moneda,
-          autoRenovable,
-          documentoUrl: documento,
+      // B38 · la llamada va DENTRO del candado. La acción se arma aquí, UNA vez,
+      // y `useCandado` se la queda: confirmar con la contraseña REPITE esta
+      // misma, no vuelve a leer el formulario. Importa porque entre el 403 y el
+      // «Confirmar» el usuario puede haber tocado un campo, y lo que se guarde
+      // tiene que ser lo que se pidió.
+      await candado.ejecutar({
+        guardar: () =>
+          soloPantalla
+            ? // El predio ya tiene contrato activo: se cuelga la pantalla y
+              // comparte esa renta con las demás del predio. NO se firma un
+              // segundo contrato. Esta ruta identifica la pantalla por `sitioId`.
+              agregarPantallaAPredioApi(
+                predioId,
+                delInventario ? { sitioId: sitioSelId } : datosSitioNuevo,
+              )
+            : crearContratoConSitioApi({
+                arrendador,
+                predio,
+                contrato: {
+                  fechaInicio,
+                  fechaFin,
+                  montoRenta: Number(renta) || 0,
+                  periodicidad,
+                  moneda,
+                  autoRenovable,
+                  documentoUrl: documento,
+                },
+                sitio: delInventario ? { id: sitioSelId } : datosSitioNuevo,
+              }),
+        alLograr: () => {
+          toast.success(
+            soloPantalla
+              ? 'Pantalla agregada al predio'
+              : delInventario
+                ? 'Contrato creado y pantalla asignada'
+                : 'Contrato y pantalla creados',
+          )
+          onCreado?.({ nombre: nombrePantalla })
+          reiniciar()
         },
-        sitio: delInventario ? { id: sitioSelId } : datosSitioNuevo,
+        // Con el paso de la contraseña a la vista el error se pinta ahí, junto
+        // al campo; esto es para lo demás (un 409 de vigencias, la red caída).
+        alFallar: (m) => setError(m),
+        mensajeSiFalla: 'No se pudo crear el contrato',
       })
-      toast.success(delInventario ? 'Contrato creado y pantalla asignada' : 'Contrato y pantalla creados')
-      onCreado?.({ nombre: nombrePantalla })
-      reiniciar()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo crear el contrato')
     }
     setEnviando(false)
   }
@@ -617,9 +645,29 @@ export function ContratoWizard({
 
         {error && <p className="mt-3 text-[12px] text-error">{error}</p>}
 
+        {/* B38 · el campo de la contraseña, DENTRO del asistente. No pinta nada
+            mientras el servidor no la haya pedido: el control de cambios está
+            apagado por defecto en los tenants y preguntar de entrada sería
+            fricción inventada. Va justo encima de la navegación, donde está el
+            botón que falló. */}
+        <div className="mt-3">
+          <PasoContrasena
+            candado={candado}
+            onEnter={() => void candado.reintentar()}
+          />
+        </div>
+
         {/* Navegación */}
         <div className="mt-4 flex items-center justify-between">
-          <Button variant="secondary" size="sm" onClick={atras} disabled={paso === 1 || enviando}>
+          {/* «Atrás» se cierra durante el paso de la contraseña: retroceder
+              dejaría el asistente en el paso 2 con una creación a medio
+              confirmar y el cuadro pidiendo una clave para algo que ya no se ve. */}
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={atras}
+            disabled={paso === 1 || enviando || candado.reautenticando}
+          >
             <ChevronLeft className="h-4 w-4" /> Atrás
           </Button>
           {paso < 3 ? (
@@ -627,8 +675,24 @@ export function ContratoWizard({
               Siguiente <ChevronRight className="h-4 w-4" />
             </Button>
           ) : (
-            <Button size="sm" onClick={crear} disabled={enviando || !paso3Ok}>
-              {enviando ? <><Loader2 className="h-4 w-4 animate-spin" /> Creando…</> : <><Check className="h-4 w-4" /> Crear contrato y pantalla</>}
+            // Confirmar REPITE la acción pendiente en vez de armar otra con lo
+            // que diga el formulario ahora. `crear()` vuelve a leerlo entero, así
+            // que llamarlo otra vez guardaría algo distinto de lo que se pidió.
+            <Button
+              size="sm"
+              onClick={candado.reautenticando ? () => void candado.reintentar() : crear}
+              disabled={
+                enviando ||
+                candado.enviando ||
+                !paso3Ok ||
+                (candado.reautenticando && !candado.pass)
+              }
+            >
+              {enviando || candado.enviando ? (
+                <><Loader2 className="h-4 w-4 animate-spin" /> Creando…</>
+              ) : (
+                <><Check className="h-4 w-4" /> {candado.reautenticando ? 'Confirmar y crear' : 'Crear contrato y pantalla'}</>
+              )}
             </Button>
           )}
         </div>

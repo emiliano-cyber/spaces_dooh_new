@@ -405,9 +405,11 @@ debajo y **los cuatro datos que ya capturaste se quedan puestos** — antes hab�
 salir a desbloquear y volver a teclearlos todos.
 
 Y lo mismo el cuadro de **registrar el pago de una renta**, en la misma ficha: teclea la
-contraseña ahí y pulsa «Confirmar y guardar». Ojo, porque **el botón de registrar el
+contraseña ahí y pulsa «Confirmar y guardar». ~~Ojo, porque **el botón de registrar el
 pago que sale en la lista —el de un solo clic— todavía no la pide**: para ese sigue
-haciendo falta desbloquear antes desde la barra superior.
+haciendo falta desbloquear antes desde la barra superior.~~ **Corregido el 2026-09-25
+por la tarde**, en el mismo arreglo que el resto: ese botón **abre un cuadro** con el
+campo. Esta frase se quedó atrás un par de horas — se corrige al cerrar B38.
 
 > [!note] Captura: la ficha de un contrato mostrando «La paga» con su botón «Cambiar», y el
 > cuadro de un solo campo que se abre al pulsarlo
@@ -1094,7 +1096,9 @@ nadie.
 | El reporte dice que **no se pudo calcular** | La pantalla no recibió respuesta, o la respuesta vino con error | Vuelve a intentar. Si se repite, avisa a quien administra tu instalación |
 | El sistema te pide **tu contraseña** al asignar la razón social de un contrato, al completarlo, al registrar el pago de una renta, al **emitir una factura**, al **registrar un cobro** o al **renovar un contrato** | Es el candado de los cambios sensibles | Tecléala en el campo que sale en el mismo cuadro. Si no tienes contraseña porque entras con Google, pídesela a tu administrador |
 | Pulsas **«Registrar pago»** en la lista de rentas, o **«Renovar»** en un contrato, y se abre un cuadro pidiéndote la contraseña | Esas dos acciones son de un solo clic: no tienen cuadro propio, así que el cuadro **aparece** solo cuando hace falta la clave | Tecléala ahí y pulsa «Confirmar». Cancelar no hace nada: el pago o la renovación no se llegan a mandar |
-| Te dice que **hace falta tu contraseña** y no hay ningún campo donde escribirla | Estás en una de las pantallas que **todavía** no lo pide en el sitio: la tabla de **Inventario**, el **alta de contrato** y **editar o eliminar una pantalla** desde Comercial | Cierra el cuadro, desbloquea en **«Cambios bloqueados»** arriba a la derecha y vuelve a intentarlo |
+| Cambias una **tarifa**, una **renta** o el **arrendador** de una fila del Inventario, o **editas** o **eliminas** una pantalla, y se abre un cuadro pidiendo la contraseña | Son cambios sensibles y tu organización tiene el control de cambios encendido | Tecléala ahí y confirma. Si cancelas, **no se guarda nada** |
+| Aplicas una **tarifa o una renta a varias pantallas** y el cuadro te dice «Se aplicó en 2 de 3…» | El servidor aceptó unas y frenó otras | Teclea la contraseña y confirma: **solo se aplican las que faltan**. Las que ya cambiaron no se vuelven a tocar |
+| ~~Te dice que **hace falta tu contraseña** y no hay ningún campo donde escribirla~~ | **Ya no pasa en ninguna pantalla**, desde el 2026-09-25 por la noche | Si te llegara a pasar, es un defecto: avísalo. El rodeo mientras tanto es desbloquear en **«Cambios bloqueados»** arriba a la derecha |
 | Te dice que **ya contestaste** el cuestionario de bienvenida | Ya existe al menos una razón social | Ve a **«Razones sociales»** a cambiar lo que haga falta |
 | **«Esta cuenta entra con Google…»** al intentar entrar | A esa cuenta se le cerró la entrada por contraseña | Entra con **«Continuar con Google»** (apartado 1.3) |
 | **«Ver y decidir la actualización … está reservado a quien tenga el permiso de Administración → ver»** | Tu cuenta no tiene permiso de Administración | Pídeselo a quien administra los roles de tu organización |
@@ -1324,18 +1328,32 @@ Pídeselo a quien administra tu organización.
   atado a esa acción exacta. Ya no se manda a nadie a «Cambios bloqueados» por estos
   cuatro caminos.
 
-  **SIGUEN ABIERTOS los otros ocho**, y ahí el rodeo por «Cambios bloqueados» es
-  obligatorio:
-  - **Editar la renta, la tarifa o el arrendador desde la tabla de Inventario**
-    (`components/demo/inventario/InventarioTabla.tsx`, cinco sitios) — cuatro de ellos
-    **se tragan el mensaje del servidor** y enseñan un «No se pudo actualizar» genérico,
-    que es peor que el aviso: ni siquiera dice que falta la contraseña.
-  - **Alta de contrato** (`components/demo/inventario/ContratoWizard.tsx`) y **editar
-    o eliminar una pantalla** (`components/demo/comercial/SiteFicha.tsx`, dos sitios).
+  ~~**SIGUEN ABIERTOS los otros ocho**, y ahí el rodeo por «Cambios bloqueados» es
+  obligatorio~~ — **CERRADOS el 2026-09-25 por la noche**, en
+  `fix/candado-inventario-y-fichas`. Con eso **B38 queda cerrada entera**: ya no hay
+  ninguna pantalla que pida la contraseña sin dar dónde escribirla.
+  - ~~**Editar la renta, la tarifa o el arrendador desde la tabla de Inventario**
+    (`components/demo/inventario/InventarioTabla.tsx`, cinco sitios)~~ — las tres
+    celdas y los **dos cambios masivos**. El 403 abre un cuadro atado a esa fila.
+  - ~~**Alta de contrato** (`components/demo/inventario/ContratoWizard.tsx`) y **editar
+    o eliminar una pantalla** (`components/demo/comercial/SiteFicha.tsx`, dos sitios).~~
+    Los tres ya eran cuadros, así que el campo va **dentro**.
 
-  **No se tocaron a propósito:** la aprobación del dueño era para los cuatro de arriba.
-  Cada uno es una decisión aparte, y la lista está para que se tome con los números
-  delante y no de memoria.
+  > **Y aquí hay que corregir lo que decía esta misma entrada.** Afirmaba que cuatro
+  > de ellos «se tragan el mensaje del servidor y enseñan un “No se pudo actualizar”
+  > genérico». **Era peor.** En cuatro puntos el cliente de la API ni siquiera miraba
+  > la respuesta, así que el 403 **se resolvía como éxito**: la celda decía «Tarifa
+  > actualizada» con la tarifa intacta, y «Eliminar pantalla» cerraba el cuadro
+  > dejando la pantalla donde estaba. **No enseñaban un mensaje malo: enseñaban uno
+  > falso.** La clasificación se hizo leyendo el `catch` de cada pantalla, y el defecto
+  > estaba una capa más abajo.
+
+  **Los dos cambios masivos merecen párrafo propio**, porque son N peticiones y no
+  una. Lo que verás: no se te pide la contraseña por adelantado; si el servidor la
+  pide, **no se aplicó ninguna** (salen todas a la vez y las frena juntas); y si por lo
+  que sea unas pasaron y otras no, **el cuadro te dice cuántas** —«Se aplicó en 2 de 3
+  pantallas; 1 sin cambiar»— y te avisa de que **confirmar aplica solo las que
+  faltan**. Las que ya cambiaron no se vuelven a tocar.
 
 - **Un guard que ninguna pantalla puede disparar.** `PATCH /api/arrendadores/:id` pide
   reautenticación **solo si el cambio toca la cuenta bancaria o la forma de pago**

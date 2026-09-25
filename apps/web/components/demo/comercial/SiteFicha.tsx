@@ -44,6 +44,7 @@ import {
 } from '@/components/demo/StatusBadge'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { actualizarSitioApi, borrarSitioApi, pausarSitioLegalApi, reanudarSitioLegalApi, reubicarSitioApi } from '@/lib/data/sitios-api'
+import { useCandado, PasoContrasena } from '@/components/demo/ui/candado'
 import {
   useReservas,
   useIncidencias,
@@ -127,6 +128,14 @@ export function SiteFicha({
   const [reubicarOpen, setReubicarOpen] = useState(false)
   const [predioDestino, setPredioDestino] = useState('')
   const [reubicando, setReubicando] = useState(false)
+  // B38 · `DELETE /api/sitios/:id` exige desbloqueo SIEMPRE
+  // (`app/api/sitios/[id]/route.ts:47-48`). Y era peor de lo que parecía: el
+  // `toast.error` que hay escrito abajo NO se disparaba nunca, porque
+  // `borrarSitioApi` ni miraba `r.ok` y el 403 no llegaba al `catch`. El
+  // resultado era un botón «Eliminar» que cerraba el cuadro y dejaba la pantalla
+  // donde estaba, sin decir nada. La contraseña se pide DENTRO del
+  // `ConfirmDialog`, que ya es el cuadro donde se confirma.
+  const candado = useCandado()
 
   async function reubicar() {
     if (!sitio || !predioDestino) return
@@ -170,14 +179,17 @@ export function SiteFicha({
   async function eliminar() {
     if (!sitio) return
     setBorrando(true)
-    try {
-      await borrarSitioApi(sitio.id)
-      onOpenChange(false)
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'No se pudo eliminar la pantalla')
-    }
+    const r = await candado.ejecutar({
+      guardar: () => borrarSitioApi(sitio.id),
+      alLograr: () => onOpenChange(false),
+      alFallar: (m) => toast.error(m),
+      mensajeSiFalla: 'No se pudo eliminar la pantalla',
+    })
     setBorrando(false)
-    setBorrarOpen(false)
+    // El cuadro de confirmar se queda ABIERTO si el servidor pidió la
+    // contraseña: es donde vive el campo. Cerrarlo dejaría la clave pedida y
+    // ningún sitio donde teclearla, que es el defecto de B38 otra vez.
+    if (r?.estado !== 'pedir-contrasena') setBorrarOpen(false)
   }
 
   // La galería se PIDE al abrir la ficha; ya no viene en el store. Las fotos
@@ -628,15 +640,28 @@ export function SiteFicha({
           justo lo que un clic reflejo sobre un botón rojo no hace. */}
       <ConfirmDialog
         open={borrarOpen}
-        onOpenChange={setBorrarOpen}
+        onOpenChange={(v) => {
+          // Cerrarlo OLVIDA lo tecleado. Si no, reabrirlo para otra pantalla
+          // llegaría con la contraseña puesta de la vez anterior.
+          if (!v) candado.olvidar()
+          setBorrarOpen(v)
+        }}
         title={`Eliminar ${sitio.nombre}`}
-        confirmLabel="Eliminar pantalla"
-        busy={borrando}
-        onConfirm={eliminar}
+        confirmLabel={candado.reautenticando ? 'Confirmar y eliminar' : 'Eliminar pantalla'}
+        busy={borrando || candado.enviando}
+        // Confirmar REPITE el borrado pendiente en vez de armar otro: `eliminar`
+        // volvería a entrar sin contraseña y chocaría otra vez con el candado.
+        onConfirm={candado.reautenticando ? () => void candado.reintentar() : eliminar}
+        confirmDeshabilitado={candado.reautenticando && !candado.pass}
         confirmarEscribiendo={sitio.nombre}
       >
         Se elimina la pantalla y deja de poder reservarse. Sus reservas y su historial
         quedan como estén: <span className="text-ink">esta acción no se puede deshacer</span>.
+        {/* B38 · el campo va AQUÍ, dentro del cuadro que ya existía, y no en uno
+            nuevo encima: lo que se confirma —el nombre tecleado y el aviso de que
+            no se puede deshacer— tiene que seguir a la vista mientras se teclea
+            la contraseña. */}
+        <PasoContrasena candado={candado} onEnter={() => void candado.reintentar()} />
       </ConfirmDialog>
     </Sheet>
   )
@@ -696,6 +721,13 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
   const [horario, setHorario] = useState(sitio.horario ?? '')
   const [cms, setCms] = useState<string>(sitio.cms ?? '')
   const [enviando, setEnviando] = useState(false)
+  // B38 · el `guardar` de abajo manda un DIFF, así que solo dispara el candado
+  // cuando el diff toca tarifa, costo o arrendador (`CAMPOS_SENSIBLES` en
+  // `app/api/sitios/[id]/route.ts:15-19`). Cuando lo disparaba, el 403 salía por
+  // un `toast.error` —efímero— y el cuadro se quedaba abierto con todo el
+  // formulario lleno y ningún sitio donde teclear la clave. El campo va DENTRO,
+  // que es la regla, y el toast se queda para lo demás.
+  const candado = useCandado()
 
   // Reinicia el formulario al abrir o cambiar de sitio.
   useEffect(() => {
@@ -726,7 +758,10 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
 
   async function guardar() {
     setEnviando(true)
-    try {
+    // Bloque sin `try`: era uno, y el `catch` se retiró porque `candado.ejecutar`
+    // DEVUELVE el fallo en vez de lanzarlo (lo enseña `alFallar`). Se conserva
+    // como bloque a secas para no reindentar cien líneas de diff.
+    {
       // Se manda SOLO lo que cambió (diff). Así, editar un detalle no financiero
       // no arrastra los campos de dinero y no dispara el candado del Dueño (que
       // solo aplica a tarifa/costo/arrendador). Restricciones intactas.
@@ -801,12 +836,17 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
 
       if (Object.keys(cambios).length === 0) {
         onClose()
+        setEnviando(false)
         return
       }
-      await actualizarSitioApi(sitio.id, cambios)
-      onClose()
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'No se pudo guardar')
+      // El diff se arma UNA vez y `useCandado` se lo queda: confirmar con la
+      // contraseña repite ESTE cambio, no vuelve a leer el formulario.
+      await candado.ejecutar({
+        guardar: () => actualizarSitioApi(sitio.id, cambios),
+        alLograr: onClose,
+        alFallar: (m) => toast.error(m),
+        mensajeSiFalla: 'No se pudo guardar',
+      })
     }
     setEnviando(false)
   }
@@ -814,19 +854,45 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
   return (
     <Modal
       open={open}
-      onOpenChange={(v) => !v && onClose()}
+      onOpenChange={(v) => {
+        if (!v) {
+          // Cerrar OLVIDA lo tecleado: reabrir la ficha no debe traer la
+          // contraseña puesta de la vez anterior.
+          candado.olvidar()
+          onClose()
+        }
+      }}
       title="Editar pantalla"
       subtitle={sitio.codigoProveedor}
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
-          <Button size="sm" disabled={enviando || !nombre.trim()} onClick={guardar}>
-            {enviando ? 'Guardando…' : 'Guardar cambios'}
+          {/* Confirmar REPITE el diff pendiente en vez de recalcularlo: `guardar`
+              volvería a leer el formulario, que el usuario pudo tocar mientras
+              tecleaba la contraseña. */}
+          <Button
+            size="sm"
+            disabled={
+              enviando ||
+              candado.enviando ||
+              !nombre.trim() ||
+              (candado.reautenticando && !candado.pass)
+            }
+            onClick={candado.reautenticando ? () => void candado.reintentar() : guardar}
+          >
+            {enviando || candado.enviando
+              ? 'Guardando…'
+              : candado.reautenticando
+                ? 'Confirmar y guardar'
+                : 'Guardar cambios'}
           </Button>
         </div>
       }
     >
       <div className="space-y-3">
+        {/* B38 · el campo, dentro del cuadro que ya existía. Arriba del todo a
+            propósito: el formulario es largo y el pie está lejos. */}
+        <PasoContrasena candado={candado} onEnter={() => void candado.reintentar()} />
         <CampoEdit label="Nombre">
           <input value={nombre} onChange={(e) => setNombre(e.target.value)} className={inputCls} />
         </CampoEdit>

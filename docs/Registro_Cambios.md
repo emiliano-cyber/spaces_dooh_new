@@ -7,6 +7,36 @@ La entrada más reciente va arriba.
 
 ## 2026-09-25
 
+- **Y con esto ya no queda ningún sitio de la aplicación que te pida la contraseña
+  sin darte dónde escribirla.** Entran los ocho que faltaban: en **Inventario**,
+  editar la renta, la tarifa o el arrendador de una fila, y los dos **cambios
+  masivos** (aplicar una tarifa o una renta a varias pantallas de golpe); el **alta
+  de contrato**; y desde **Comercial**, **editar** o **eliminar** una pantalla.
+
+  **Antes de eso hay algo que conviene saber, porque era peor de lo que creíamos.**
+  En cuatro de esos sitios el problema no era que el aviso se perdiera: es que **la
+  pantalla decía que había guardado cuando no había guardado nada**. Cambiabas una
+  tarifa, salía «Tarifa actualizada», y la tarifa seguía igual. Eliminabas una
+  pantalla, el cuadro se cerraba, y la pantalla seguía ahí. **Eso ya no puede
+  pasar:** si el servidor no lo aceptó, lo dice.
+
+  **Lo nuevo y lo que más costó decidir: los cambios masivos.** Aplicar una tarifa a
+  doce pantallas no es una acción, son doce. Así quedó:
+
+  - **No se te pide la contraseña por adelantado.** Se intenta el cambio y solo si el
+    servidor la pide, se abre el cuadro. Como las doce salen a la vez, el servidor las
+    frena **todas juntas**: no se cambia ninguna a medias.
+  - **Si por lo que sea unas sí pasaron y otras no, se te dice con número** —«Se
+    aplicó en 2 de 3 pantallas; 1 sin cambiar»— y el cuadro te avisa de que
+    **confirmar aplica solo las que faltan**. Las que ya cambiaron **no se vuelven a
+    tocar**. Lo que no puede pasar, y era lo que pasaba, es que media lista cambie y
+    nadie diga nada.
+  - Si cancelas, no se manda nada más.
+
+  Como siempre: esto **no cambia quién puede hacer cada cosa ni cuándo se pide la
+  contraseña** —eso lo decide el servidor y sigue igual— y **el camino de antes sigue
+  funcionando**: desbloquear desde «Cambios bloqueados» te ahorra teclearla cada vez.
+
 - **Facturar, cobrar, pagar una renta desde la lista y renovar un contrato ya te piden
   la contraseña donde estás.** Eran los cuatro sitios que quedaban con el problema de
   arriba y más se notan: tres de ellos mueven dinero.
@@ -33,10 +63,11 @@ La entrada más reciente va arriba.
   funcionando**: desbloquear desde «Cambios bloqueados» antes de empezar te ahorra
   teclearla cada vez.
 
-  **Lo que sigue pendiente:** la tabla de **Inventario** (editar renta, tarifa o
+  ~~**Lo que sigue pendiente:** la tabla de **Inventario** (editar renta, tarifa o
   arrendador), el **alta de contrato** y **editar o eliminar una pantalla** desde
   Comercial. Ahí sigue haciendo falta desbloquear antes desde la barra superior. Están
-  anotadas y se decidirán aparte.
+  anotadas y se decidirán aparte.~~ — **ya no queda pendiente: se cerraron esa misma
+  noche.** Ver la entrada de arriba.
 
 - **Y los otros dos cuadros de esa misma ficha: completar un contrato y registrar el
   pago de una renta.** Tenían el mismo problema que el de arriba —te pedían la

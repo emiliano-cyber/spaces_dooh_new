@@ -19,6 +19,7 @@ export function ConfirmDialog({
   busy = false,
   onConfirm,
   confirmarEscribiendo,
+  confirmDeshabilitado = false,
 }: {
   open: boolean
   onOpenChange: (v: boolean) => void
@@ -34,6 +35,13 @@ export function ConfirmDialog({
   // leer QUÉ se está borrando, que es justo lo que un clic reflejo no hace.
   // Sin esta prop, el diálogo se comporta como siempre.
   confirmarEscribiendo?: string
+  // B38 · una razón MÁS para no poder confirmar, que decide quien usa el
+  // diálogo. Nace porque «Eliminar pantalla» pide la contraseña DENTRO de este
+  // cuadro (`comercial/SiteFicha.tsx`) y con el campo en blanco el botón no debe
+  // poder pulsarse. No se usó `busy` para eso: `busy` además bloquea «Cancelar»
+  // y escribe «Procesando…», que sería mentira mientras se espera a que tecleen.
+  // Ausente = el diálogo se comporta exactamente como siempre.
+  confirmDeshabilitado?: boolean
 }) {
   const [tecleado, setTecleado] = useState('')
   // Al cerrarlo se limpia: si no, reabrirlo para OTRA pantalla llegaría con el
@@ -62,7 +70,7 @@ export function ConfirmDialog({
           <Button
             size="sm"
             variant={variant === 'danger' ? 'dangerFill' : variant}
-            disabled={busy || !coincide}
+            disabled={busy || !coincide || confirmDeshabilitado}
             onClick={onConfirm}
           >
             {busy ? 'Procesando…' : confirmLabel}
