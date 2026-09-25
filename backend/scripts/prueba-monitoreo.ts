@@ -49,7 +49,7 @@ async function main() {
   const usuario = userJwt.sign({ uid: 1, role: 'admin' }, 'access');
   const equipo = deviceJwt.sign({ did: DID, device_uid: 'prueba-monitoreo' });
 
-  const [antes] = await pool.query<any[]>(`SELECT pantalla, salud_watch, salud_desde, salud_ultimo FROM devices WHERE id = ?`, [DID]);
+  const [antes] = await pool.query<any[]>(`SELECT pantalla, salud_watch, salud_desde, salud_ultimo, aprendizaje_min FROM devices WHERE id = ?`, [DID]);
   const original = (antes as any[])[0];
   const creadas: number[] = [];
 
@@ -64,11 +64,15 @@ async function main() {
     afirmar(r.status === 200, 'marcar la pantalla', JSON.stringify(r.j));
     r = await pedir('PUT', `/api/devices/${DID}/salud`, usuario, { vigilar: true });
     afirmar(r.status === 200 && r.j.salud.vigilar && r.j.salud.aprendiendo, 'encender la vigilancia: arranca aprendiendo');
+    afirmar(r.j.salud.aprendizaje_min === 120, 'por omision aprende 2 horas', String(r.j.salud.aprendizaje_min));
+    r = await pedir('PUT', `/api/devices/${DID}/salud`, usuario, { aprendizaje_min: 0 });
+    afirmar(r.status === 200 && r.j.salud.aprendizaje_min === 0 && !r.j.salud.aprendiendo, 'con 0 el servidor ya no marca aprendizaje');
 
     console.log('Equipo');
     r = await pedir('GET', '/api/device/monitoreo', equipo);
     afirmar(r.status === 200 && r.j.pantalla?.columnas === 6 && r.j.pantalla.horario.fin === '24:00', 'recibe la pantalla y su horario');
     afirmar(r.j.salud?.vigilar === true && Array.isArray(r.j.salud.abiertas), 'recibe la configuracion de fallas');
+    afirmar(r.j.salud.aprendizaje_min === 0 && r.j.creativos?.aprendizaje_min === 0, 'el equipo recibe el aprendizaje (fallas y creativos)');
     afirmar(r.j.encuadre && 'camera_zoom' in r.j.encuadre, 'recibe el encuadre');
     const bytes = Buffer.byteLength(JSON.stringify(r.j));
     afirmar(bytes < 2000, `la configuracion pesa poco (${bytes} bytes)`);
@@ -121,9 +125,9 @@ async function main() {
       await pool.query(`DELETE FROM pantalla_fallas WHERE id IN (?)`, [creadas]);
       if (ids.length) await pool.query(`DELETE FROM photos WHERE id IN (?)`, [ids]);
     }
-    await pool.query(`UPDATE devices SET pantalla = ?, salud_watch = ?, salud_desde = ?, salud_ultimo = ? WHERE id = ?`,
+    await pool.query(`UPDATE devices SET pantalla = ?, salud_watch = ?, salud_desde = ?, salud_ultimo = ?, aprendizaje_min = ? WHERE id = ?`,
       [original.pantalla ? JSON.stringify(original.pantalla) : null, original.salud_watch, original.salud_desde,
-       original.salud_ultimo ? JSON.stringify(original.salud_ultimo) : null, DID]);
+       original.salud_ultimo ? JSON.stringify(original.salud_ultimo) : null, original.aprendizaje_min, DID]);
     await pool.end();
   }
   console.log(fallos ? `\n${fallos} FALLAS` : '\nTodo en orden');

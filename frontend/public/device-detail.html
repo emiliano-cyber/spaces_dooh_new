@@ -717,6 +717,19 @@
           </template>
           <button x-show="puedeAjustar && !editPant" @click="empezarPantalla()" class="text-blue-600 hover:underline"
             x-text="pant?.pantalla ? 'Cambiar pantalla' : 'Marcar la pantalla'"></button>
+          <label x-show="pant?.salud?.vigilar || creativos?.config?.vigilar" class="flex items-center gap-1"
+            title="Antes de avisar, el equipo aprende cómo se ve la pantalla normalmente. Siempre aprende al menos su primera vuelta con la pantalla funcionando.">
+            Aprender durante
+            <select :value="pant?.salud?.aprendizaje_min" :disabled="!puedeAjustar"
+              @change="guardarSalud({ aprendizaje_min: Number($event.target.value) }).then(() => loadCreativos())"
+              class="px-1 py-0.5 border border-neutral-300 rounded">
+              <option value="0">Solo la primera vuelta (pruebas)</option>
+              <option value="30">30 min</option>
+              <option value="120">2 h</option>
+              <option value="360">6 h</option>
+              <option value="1440">24 h</option>
+            </select>
+          </label>
           <label x-show="pant?.salud?.vigilar" class="flex items-center gap-1">
             Revisar cada
             <select :value="pant?.salud?.cada_min" :disabled="!puedeAjustar"
@@ -788,6 +801,9 @@
           <div class="text-xs text-neutral-600 space-y-1 mb-3">
             <p x-show="pant.salud.aprendiendo" class="text-blue-700">
               Aprendiendo la pantalla hasta <b x-text="finAprendizajeSalud()"></b>: en este plazo no avisa de fallas.
+            </p>
+            <p x-show="!pant.salud.aprendiendo && pant.ultimo?.aprendiendo" class="text-blue-700">
+              Aprendiendo con su primera vuelta: la siguiente ya vigila.
             </p>
             <p x-text="ultimaRevision()"></p>
             <p x-show="zonasQuietas()" class="text-amber-700">

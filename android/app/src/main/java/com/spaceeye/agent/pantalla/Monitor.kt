@@ -60,7 +60,6 @@ class Monitor(
         private const val TOMAS = 3
         /** Segunda mirada a un creativo desconocido (dura ~20 s en pantalla). */
         private const val CONFIRMAR_MS = 4_000L
-        private const val APRENDIZAJE_MS = 24L * 3600 * 1000
 
         val NOMBRES = mapOf(
             "zona_apagada" to "Posible gabinete apagado",
@@ -81,6 +80,9 @@ class Monitor(
     private val pendientesArchivo = File(dir, "pendientes.json")
     private var firmaSeguimiento = ""
     private var desdeSeguimiento = 0L
+    // Vueltas en que la pantalla se vio funcionando desde que se empezo a
+    // aprender. La primera siempre es de aprendizaje.
+    private var vueltasSalud = 0
 
     private var ultimaCreativos = 0L
     private var ultimaSalud = 0L
@@ -120,6 +122,7 @@ class Monitor(
     suspend fun correr() = coroutineScope {
         try { if (estadoArchivo.exists()) JSONObject(estadoArchivo.readText()).let {
             firmaSeguimiento = it.optString("firma"); desdeSeguimiento = it.optLong("desde")
+            vueltasSalud = it.optInt("vueltas")
             it.optJSONObject("estado")?.let { e -> seguimiento.deJson(e) }
         } } catch (_: Exception) {}
 
@@ -192,12 +195,13 @@ class Monitor(
         val aprendiendoC: Boolean
         if (cCfg != null) {
             reconocedor.abrir(firmaEncuadre + "|" + cCfg.optString("desde"))
-            aprendiendoC = cCfg.optBoolean("aprendiendo") || reconocedor.aprendiendo()
+            aprendiendoC = cCfg.optBoolean("aprendiendo") || reconocedor.aprendiendo(cCfg.optLong("aprendizaje_min", 120L))
         } else aprendiendoC = true
         val vistas = linkedSetOf<String>()
         val nuevas = mutableListOf<String>()
         var candidata: Pair<String, Vision.Rasgos>? = null
         var fotos = 0
+        var reconocibles = 0
 
         val vistazos = mutableListOf<Vistazo>()
         var saltados = 0
@@ -226,6 +230,7 @@ class Monitor(
                     if (huella == null) {
                         candidata = null   // sin contraste: pantalla apagada o lente tapada
                     } else {
+                        reconocibles++
                         val rasgos = Vision.rasgos(v.pantalla)
                         val (id, puntos) = reconocedor.reconocer(rasgos)
                         val previa = candidata
@@ -257,6 +262,7 @@ class Monitor(
         }
 
         if (cCfg != null) {
+            if (reconocibles > 0) reconocedor.terminoVuelta()
             vistas.removeAll(nuevas.toSet())
             if (vistas.isNotEmpty() || nuevas.isNotEmpty()) {
                 devolver(JSONObject().put("creativos", JSONObject().put("vistas", JSONArray(vistas.toList())).put("nuevas", JSONArray(nuevas))))
@@ -278,9 +284,14 @@ class Monitor(
             seguimiento.reiniciar()
             firmaSeguimiento = firmaEncuadre + "|" + desdeServidor
             desdeSeguimiento = System.currentTimeMillis()
+            vueltasSalud = 0
         }
         revision.abrir(firmaEncuadre)
-        val aprendiendo = cfg.optBoolean("aprendiendo") || System.currentTimeMillis() - desdeSeguimiento < APRENDIZAJE_MS
+        // Aprende la primera vuelta en que vea la pantalla funcionando, y ademas
+        // los minutos configurados (0 = solo esa vuelta).
+        val aprendizajeMs = cfg.optLong("aprendizaje_min", 120L) * 60_000L
+        val aprendiendo = cfg.optBoolean("aprendiendo") || vueltasSalud == 0 ||
+            System.currentTimeMillis() - desdeSeguimiento < aprendizajeMs
 
         val camaraEstado = revision.revisar(vistazos, geo)
         val excluir = geo.excluir + seguimiento.excluidas()
@@ -298,6 +309,8 @@ class Monitor(
         val eventos = seguimiento.registrar(System.currentTimeMillis(),
             Seguimiento.Observacion(resultado, camaraEstado, geo.filas, geo.columnas),
             aprendiendo, silenciadas, cfg.optInt("restantes_hoy", 6))
+
+        if (resultado?.pantalla == SaludAnalisis.Pantalla.OK) vueltasSalud++
 
         val ultimo = vistazos.lastOrNull()
         for (e in eventos) {
@@ -346,7 +359,7 @@ class Monitor(
     private fun guardarEstado() {
         try {
             estadoArchivo.writeText(JSONObject().put("firma", firmaSeguimiento).put("desde", desdeSeguimiento)
-                .put("estado", seguimiento.aJson()).toString())
+                .put("vueltas", vueltasSalud).put("estado", seguimiento.aJson()).toString())
         } catch (_: Exception) {}
     }
 

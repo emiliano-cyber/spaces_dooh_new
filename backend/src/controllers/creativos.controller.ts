@@ -31,22 +31,26 @@ const HUELLA = /^[0-9a-f]{64}$/i;
 export async function configDe(deviceId: number) {
   const [filas] = await pool.query<any[]>(
     `SELECT creative_watch, creative_desde, creative_max_dia, creative_cada_min,
-            creative_recorrido_seg, creative_paso_seg, creative_tolerancia
+            creative_recorrido_seg, creative_paso_seg, creative_tolerancia, aprendizaje_min
      FROM devices WHERE id = ?`,
     [deviceId]
   );
   const d = (filas as any[])[0];
   if (!d) return null;
 
-  // Las primeras 24 horas solo aprende: registra el loop de dia y de noche sin
-  // fotografiar nada. Si no, el primer recorrido subiria 12 fotos de golpe de
-  // creativos que llevaban ahi semanas.
+  // Al principio solo aprende: registra el loop sin fotografiar nada. Si no, el
+  // primer recorrido subiria 12 fotos de golpe de creativos que llevaban ahi
+  // semanas. Cuanto, lo dice aprendizaje_min (migracion 019; antes, 24 h fijas).
+  // Con 0 el servidor no marca aprendizaje: el equipo igual aprende su primera
+  // vuelta por su cuenta antes de fotografiar.
   const desde = d.creative_desde ? new Date(d.creative_desde).getTime() : null;
-  const aprendiendo = !!desde && (Date.now() - desde) < 24 * 3600 * 1000;
+  const aprendizajeMin = Number(d.aprendizaje_min ?? 120);
+  const aprendiendo = aprendizajeMin > 0 && !!desde && (Date.now() - desde) < aprendizajeMin * 60_000;
 
   return {
     vigilar: !!d.creative_watch,
     aprendiendo,
+    aprendizaje_min: aprendizajeMin,
     // Desde cuando vigila: el dashboard lo usa para decir hasta cuando aprende.
     desde: d.creative_desde,
     max_dia: d.creative_max_dia,

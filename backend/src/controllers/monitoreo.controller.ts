@@ -21,7 +21,6 @@ import { firmar } from '../utils/firmaArchivos';
 import { configDe as configCreativos, fotosDeHoy as fotosCreativosDeHoy } from './creativos.controller';
 import { encuadreDe } from './dashboard.controller';
 
-const APRENDIZAJE_MS = 24 * 3600 * 1000;
 /** Una falla descartada a mano no vuelve a sonar en este plazo. */
 const SILENCIO_DIAS = 7;
 
@@ -62,15 +61,19 @@ function clave(tipo: string, fila: number | null, columna: number | null) {
 async function saludDe(deviceId: number) {
   const [filas] = await pool.query<any[]>(
     `SELECT salud_watch, salud_desde, salud_cada_min, salud_confirmaciones, salud_umbral, salud_max_dia,
-            creative_recorrido_seg, creative_paso_seg
+            creative_recorrido_seg, creative_paso_seg, aprendizaje_min
      FROM devices WHERE id = ?`, [deviceId]);
   const d = (filas as any[])[0];
   if (!d) return null;
   const desde = d.salud_desde ? new Date(d.salud_desde).getTime() : null;
+  // Cuanto aprende antes de avisar (migracion 019). Con 0 el equipo aprende solo
+  // su primera vuelta.
+  const aprendizajeMin = Number(d.aprendizaje_min ?? 120);
   return {
     vigilar: !!d.salud_watch,
     desde: d.salud_desde,
-    aprendiendo: !!desde && Date.now() - desde < APRENDIZAJE_MS,
+    aprendizaje_min: aprendizajeMin,
+    aprendiendo: aprendizajeMin > 0 && !!desde && Date.now() - desde < aprendizajeMin * 60_000,
     cada_min: d.salud_cada_min,
     confirmaciones: d.salud_confirmaciones,
     umbral: Number(d.salud_umbral),
@@ -304,6 +307,8 @@ export async function configurarSalud(req: Request, res: Response) {
     confirmaciones: z.number().int().min(1).max(6).optional(),
     umbral: z.number().min(0.3).max(0.95).optional(),
     max_dia: z.number().int().min(1).max(50).optional(),
+    // Minutos de aprendizaje, para creativos y fallas: 0 = solo la primera vuelta.
+    aprendizaje_min: z.number().int().min(0).max(1440).optional(),
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'invalid_input' });
@@ -318,6 +323,7 @@ export async function configurarSalud(req: Request, res: Response) {
   if (d.confirmaciones !== undefined) { campos.push('salud_confirmaciones = ?'); valores.push(d.confirmaciones); }
   if (d.umbral !== undefined) { campos.push('salud_umbral = ?'); valores.push(d.umbral); }
   if (d.max_dia !== undefined) { campos.push('salud_max_dia = ?'); valores.push(d.max_dia); }
+  if (d.aprendizaje_min !== undefined) { campos.push('aprendizaje_min = ?'); valores.push(d.aprendizaje_min); }
   if (!campos.length) return res.status(400).json({ error: 'no_fields' });
   await pool.query(`UPDATE devices SET ${campos.join(', ')} WHERE id = ?`, [...valores, req.params.id]);
   res.json({ ok: true, salud: await saludDe(Number(req.params.id)) });

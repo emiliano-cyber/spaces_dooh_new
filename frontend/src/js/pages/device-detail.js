@@ -440,14 +440,16 @@ function deviceDetail() {
 
     finAprendizajeSalud() {
       const d = this.pant?.salud?.desde;
-      return d ? new Date(new Date(d).getTime() + 24 * 3600 * 1000).toLocaleString() : '';
+      const min = Number(this.pant?.salud?.aprendizaje_min ?? 120);
+      return d ? new Date(new Date(d).getTime() + min * 60000).toLocaleString() : '';
     },
 
     // Hasta cuando aprende (24 h desde que se encendio), como texto.
     finAprendizaje() {
       const desde = this.creativos?.config?.desde || null;
       if (!desde) return '';
-      return new Date(new Date(desde).getTime() + 24 * 3600 * 1000).toLocaleString();
+      const min = Number(this.creativos?.config?.aprendizaje_min ?? 120);
+      return new Date(new Date(desde).getTime() + min * 60000).toLocaleString();
     },
 
     async loadLogs() {

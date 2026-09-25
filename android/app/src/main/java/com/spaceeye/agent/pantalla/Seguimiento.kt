@@ -19,7 +19,8 @@ import org.json.JSONObject
  *      tomas, camara ocupada) ni confirma ni desmiente nada.
  *   6. SILENCIO: lo que alguien descarto en el dashboard ("no es falla") no
  *      vuelve a sonar mientras el servidor lo mantenga silenciado.
- *   7. APRENDIZAJE: las primeras 24 h no se avisa nada; se aprende que zonas NO
+ *   7. APRENDIZAJE: al principio no se avisa nada (la primera vuelta, y los
+ *      minutos configurados; 2 h por omision); se aprende que zonas NO
  *      cambian nunca (tapadas por una barda o un arbol, como en TLALPAN) para no
  *      juzgarlas despues. Esas zonas se informan al dashboard: un gabinete que ya
  *      estaba muerto al instalar tambien "nunca cambia", y no debe pasar callado.
@@ -73,7 +74,8 @@ class Seguimiento(
         private const val QUIETA_BRILLO = 0.5
         /** Fraccion de vueltas de aprendizaje en que tiene que estar quieta. */
         private const val FRACCION_EXCLUIR = 0.7
-        private const val VUELTAS_MINIMAS = 3
+        // 2 y no mas: con 2 h de aprendizaje y vueltas cada hora no caben mas.
+        private const val VUELTAS_MINIMAS = 2
         private const val NUNCA = Long.MIN_VALUE
     }
 

@@ -49,8 +49,6 @@ class Reconocedor(ctx: Context) {
          */
         private const val VARIANTE_HASTA = 40
         private const val VARIANTES_MAX = 6
-        /** Tras (re)empezar el catalogo, cuanto solo aprende sin fotografiar. */
-        private const val APRENDIZAJE_MS = 24L * 3600 * 1000
     }
 
     private class Creativo(val id: String, val variantes: MutableList<Rasgos>)
@@ -60,6 +58,9 @@ class Reconocedor(ctx: Context) {
     private val catalogo = mutableListOf<Creativo>()
     private var creado = 0L
     private var firma = ""
+    // Vueltas en que ya vio la pantalla con algo reconocible. La primera siempre
+    // es de aprendizaje, aunque el tiempo configurado sea 0.
+    private var vueltas = 0
 
     /**
      * Abre el catalogo guardado si fue aprendido con este mismo encuadre; si no,
@@ -77,6 +78,7 @@ class Reconocedor(ctx: Context) {
                 val j = JSONObject(indice.readText())
                 if (j.optString("firma") == firmaNueva) {
                     creado = j.optLong("creado")
+                    vueltas = j.optInt("vueltas")
                     val arr = j.getJSONArray("creativos")
                     for (i in 0 until arr.length()) {
                         val c = arr.getJSONObject(i)
@@ -96,12 +98,20 @@ class Reconocedor(ctx: Context) {
         if (creado == 0L) {
             dir.listFiles()?.forEach { if (it.name.endsWith(".orb")) it.delete() }
             creado = System.currentTimeMillis()
+            vueltas = 0
             guardar()
         }
     }
 
-    /** Las primeras 24 h de un catalogo solo se aprende. */
-    fun aprendiendo(): Boolean = System.currentTimeMillis() - creado < APRENDIZAJE_MS
+    /**
+     * Un catalogo nuevo solo aprende: su primera vuelta con la pantalla a la vista,
+     * y ademas `aprendizajeMin` minutos desde que se empezo (0 = solo esa vuelta).
+     */
+    fun aprendiendo(aprendizajeMin: Long): Boolean =
+        vueltas == 0 || System.currentTimeMillis() - creado < aprendizajeMin * 60_000L
+
+    /** Se termino una vuelta en la que se vio la pantalla. */
+    fun terminoVuelta() { vueltas++; guardar() }
 
     fun tamaño(): Int = catalogo.size
 
@@ -114,7 +124,8 @@ class Reconocedor(ctx: Context) {
             c.variantes.indices.forEach { k -> fs.put(archivo(c.id, k)) }
             arr.put(JSONObject().put("id", c.id).put("variantes", fs))
         }
-        indice.writeText(JSONObject().put("firma", firma).put("creado", creado).put("creativos", arr).toString())
+        indice.writeText(JSONObject().put("firma", firma).put("creado", creado).put("vueltas", vueltas)
+            .put("creativos", arr).toString())
     }
 
     /** El creativo conocido que mejor coincide, y con cuantos puntos. */
