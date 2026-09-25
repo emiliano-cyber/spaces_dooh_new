@@ -106,6 +106,46 @@ archivos: []
 > **La parte (2) de B36 NO entró** —impedir el push a `estable` fuera de
 > `promover.yml`—: sigue sin decidirse y la aprobación del dueño fue solo para las
 > etiquetas.
+> [!success] 2026-09-25 · **LIMPIEZA: 57 ramas y 21 worktrees retirados**
+> El arbol tenia **60 ramas y 22 worktrees**. Solo **4 ramas** no estaban en
+> `main`, asi que el resto era etiqueta muerta de trabajos aterrizados hace
+> semanas — y hacia falta un rato para distinguir lo vivo de lo muerto cada vez
+> que alguien miraba.
+>
+> **Queda: `main` y la rama del agente que estaba trabajando.**
+>
+> **Las 54 ya contenidas en `main`** salieron con `git branch -d`, que se niega
+> solo si algo no esta fusionado. Ese guard es el motivo de usarlo: no se forzo
+> ninguna.
+>
+> **Las 3 sin objeto** (dictamen en el recuadro de abajo) necesitaron `-D`.
+> Sus puntas quedan aqui por si alguna vez hicieran falta:
+>
+> | Rama | Punta |
+> |---|---|
+> | `docs/hallazgos-14-septiembre` | `823855c` |
+> | `feat/bootstrap-sin-password` | `1f5f762` |
+> | `fix/rotulos-menu-comercial-operaciones` | `d06354e` |
+>
+> **Dos cosas aparecieron al auditar, y borrar a ciegas se las habria llevado:**
+>
+> 1. Un worktree tenia **11 capturas del 21/09 SIN COMMITEAR**, de una sesion de
+>    fotos anterior a la que aterrizo. `main` tiene las 45 del 24/09 cubriendo las
+>    mismas pantallas con mejor nomenclatura, asi que estan superadas — pero se
+>    copiaron fuera antes de tocar nada, no se tiraron a la basura.
+> 2. **Dos capturas huerfanas** en `main`: el arreglo del R1 quito sus referencias
+>    del manual y dejo los archivos. Retiradas en `666b456`. Una foto huerfana de
+>    una pantalla que ya no existe es peor que ninguna — le ensena el defecto,
+>    como comportamiento de hoy, a quien la encuentre buscando.
+>
+> **`red2` NO estaba huerfano**, aunque una primera comprobacion lo dijera: esta
+> en `detached HEAD` y la prueba fallo contra un nombre de rama vacio, no contra
+> su contenido. Su commit si esta en `main`.
+>
+> **Lo que NO se toco:** `emiliano/feat/bootstrap-sin-password` sigue en el
+> remoto. El dictamen dice que esta 100 % fusionada, pero borrar una rama de un
+> remoto compartido es una accion hacia fuera y la decide el dueno.
+
 > [!note] 2026-09-25 · **Triaje de las tres ramas paradas — las tres SIN OBJETO**
 > Dictaminadas sin fusionar ninguna, para que nadie repita el trabajo dentro de
 > un mes (que es justo lo que pasó con F5.3 y F5.4, `docs/evidencias/auditoria-f5-31-agosto.md`).
