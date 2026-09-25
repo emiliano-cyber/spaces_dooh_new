@@ -1,0 +1,568 @@
+##############################################################
+#  12 · INSTALAR EL RESPALDO DIARIO EN UNA INSTANCIA
+#  Levantada el 2026-09-22. NO EJECUTADA todavia.
+#  La corre UNA PERSONA. Claude no entra a ningun servidor.
+##############################################################
+#
+#  QUE PASA HOY
+#  ------------
+#  g500 -la unica instancia con datos reales de cliente- saca
+#  sus datos del droplet UNICAMENTE cuando se despliega una
+#  version nueva. No es un olvido de configuracion: es donde
+#  vive el dump. `update.sh` respalda en su paso 3 y a ese paso
+#  solo se llega si hay imagen nueva; las corridas "sin cambios"
+#  salen antes.
+#
+#  Como `estable` no se mueve desde el 17/09, la copia remota
+#  mas reciente tiene CINCO DIAS y la subio una persona a mano.
+#  Medido en docs/evidencias/11-g500-sin-respaldo-programado.md
+#
+#  La regla real era "la frecuencia de tus respaldos la decide
+#  el ritmo de los releases". Esta tarjeta la rompe.
+#
+#  QUE INSTALA
+#  -----------
+#  `respaldo-diario.sh` + `conexion-pg.sh` en /opt/space-os/, y
+#  una linea de cron. NO toca `update.sh`, NO toca la base y NO
+#  reinicia nada. Si algo sale mal, la vuelta atras es borrar la
+#  linea de cron: la instancia queda EXACTAMENTE como hoy.
+#
+#  DECISION DEL DUENO (22/09): el respaldo diario es de TODAS
+#  las instancias, no solo de las que tienen datos reales.
+#  Por eso hay DOS bloques: los montajes no son iguales.
+#
+##############################################################
+#  LA HORA, Y POR QUE ESA
+##############################################################
+#
+#    03:41  respaldo diario   <- esta tarjeta
+#    04:17  update.sh         <- ya existente, no se toca
+#
+#  Va ANTES del update, y con 36 minutos de margen, por tres
+#  motivos:
+#
+#   1) Si el update de las 4:17 sale malo, hay un respaldo
+#      independiente de hace media hora. (El propio update hace
+#      el suyo, pero ese es justo el que no existe si el update
+#      no llega a correr.)
+#   2) No se solapan. El dump de una base de ~6 MB tarda
+#      segundos, pero el margen es gratis.
+#   3) El minuto 41 no es redondo a proposito: los minutos 00,
+#      15, 30 y 45 son donde se amontonan los cron de todo el
+#      mundo, y el `--comprobar` de `update.sh` ya corre cada
+#      15 minutos en punto.
+#
+##############################################################
+#  ⚠️  ANTES DE EMPEZAR, LOS DOS ERRORES QUE YA COSTARON TIEMPO
+##############################################################
+#
+#  1) LA REGION NO ES `nyc3`. `respaldo.sh:95` la trae como
+#     valor por omision y ESTA CUENTA USA `sfo3`. Si la
+#     instancia ya tiene SPACES_REGION en su instancia.env,
+#     no hay nada que hacer: este guion lee el mismo archivo.
+#     (Aprendido en la tarjeta 10.)
+#
+#  2) `respaldo-diario.sh` NECESITA `conexion-pg.sh` AL LADO.
+#     Sin el sale con 1 y no respalda nada. Son DOS archivos,
+#     no uno. `update.sh` tiene la misma relacion con
+#     `respaldo.sh` y ya mordio una vez.
+#
+##############################################################
+
+
+##############################################################
+#  BLOQUE A · g500  (MONTAJE ESTANDAR)
+#  Configuracion en /etc/space-os/instancia.env · base `spaces`
+##############################################################
+
+# --- A0 · Copiar los dos guiones desde el portatil -----------
+#     Se corre EN EL PORTATIL, desde la raiz del repositorio.
+#     g500 no se toca desde el PADRE: el PADRE no tiene llave
+#     hacia g500 (medido el 22/09), se entra desde el portatil.
+
+scp -i ~/.ssh/spaces_deploy \
+  infra/scripts/respaldo-diario.sh \
+  infra/scripts/conexion-pg.sh \
+  root@<IP-DE-G500>:/tmp/
+
+# --- A1 · Ponerlos en su sitio, con sus permisos ------------
+#     750 y de root, igual que update.sh y respaldo.sh.
+
+ssh -i ~/.ssh/spaces_deploy root@<IP-DE-G500> '
+  install -o root -g root -m 750 /tmp/respaldo-diario.sh /opt/space-os/respaldo-diario.sh &&
+  install -o root -g root -m 750 /tmp/conexion-pg.sh     /opt/space-os/conexion-pg.sh &&
+  rm -f /tmp/respaldo-diario.sh /tmp/conexion-pg.sh &&
+  ls -l /opt/space-os/'
+
+#     SE ESPERA ver los cuatro archivos:
+#       update.sh  respaldo.sh  respaldo-diario.sh  conexion-pg.sh
+
+# --- A2 · LA PRUEBA DE VERDAD, A MANO Y ANTES DEL CRON ------
+#     >>> ESTE PASO NO SE SALTA. <<<
+#     Correrlo a mano es lo unico que demuestra que en ESTA
+#     maquina funciona. Instalar el cron primero significa
+#     enterarse del fallo dentro de 24 horas, o nunca.
+
+ssh -i ~/.ssh/spaces_deploy root@<IP-DE-G500> '/opt/space-os/respaldo-diario.sh; echo "CODIGO: $?"'
+
+#     SE ESPERA, en este orden:
+#       1 · respaldo diario -> /var/lib/space-os/respaldos/spaces_AAAAMMDD_HHMMSS.dump · base=127.0.0.1:5432/spaces
+#          respaldo de NNNNNNN bytes          <- NO cero. Si dice 0 algo va mal.
+#          respaldo remoto -> s3://space-os-respaldos/g500/AAAA-MM-DD-HHMM.dump (por s3cmd)
+#          respaldo remoto OK: s3://...
+#          respaldo diario OK: la copia de hoy salio del droplet.
+#       CODIGO: 0
+#
+#     SI DA CODIGO 4 ("BACKUP VACIO"): no se subio nada y no se
+#       toco nada. Mira el `base=` de la primera linea: si esa
+#       no es la base de g500, lo que fallo fue interpretar
+#       DATABASE_URL, no el respaldo.
+#     SI DA CODIGO 5 ("RESPALDO REMOTO FALLIDO"): el dump esta
+#       bien y SIGUE en el droplet. Si el motivo es un 403, es
+#       permiso de la llave sobre ese bucket y se arregla en el
+#       panel de DigitalOcean, no aqui.
+#     SI DA CODIGO 1: falta un archivo o DATABASE_URL. El
+#       mensaje dice cual. No se toco nada.
+
+# --- A2b · LOS PERMISOS DEL DUMP ----------------------------
+#     >>> ESTA COMPROBACION SOLO SE PUEDE HACER AQUI. <<<
+#     En la maquina de desarrollo (Git Bash sobre Windows)
+#     `umask` y `chmod` NO se reflejan: una prueba de permisos
+#     alli da verde pase lo que pase. Medido el 22/09. Asi que
+#     el arnes solo comprueba que las lineas existen, y la
+#     comprobacion de verdad es esta.
+#
+#     Por que importa: un dump es la base ENTERA -- sin RLS,
+#     sin tenant y sin sesion. Con el umask 022 de root nacia
+#     en 0644, legible por CUALQUIER usuario local del droplet,
+#     incluido el que corre la aplicacion.
+
+ssh -i ~/.ssh/spaces_deploy root@<IP-DE-G500> '
+  ls -ld /var/lib/space-os/respaldos
+  ls -l  /var/lib/space-os/respaldos | tail -4'
+
+#     SE ESPERA:
+#       drwx------  ... /var/lib/space-os/respaldos      <- 700
+#       -rw-------  ... spaces_AAAAMMDD_HHMMSS.dump      <- 600
+#
+#     SI SALE `drwxr-xr-x` EN EL DIRECTORIO, O EL DUMP DE HOY
+#     SALE `-rw-r--r--`:  >>> PARA. <<<
+#       El `chmod` no corrio. No sigas al cron: cada noche
+#       dejaria la base entera de un cliente legible por
+#       cualquier usuario local del droplet, y encima con la
+#       tarjeta diciendo que estaba arreglado.
+#       Mira el log de la corrida: el guion escribe
+#       "AVISO: no se pudo dejar ... en 0700" o "... en 0600"
+#       cuando el chmod falla. Si NO hay AVISO y los permisos
+#       igualmente estan mal, es que se instalo un
+#       respaldo-diario.sh viejo -- comprueba el A1.
+#
+#     >>> Y NO TE FIES DEL ARNES PARA ESTO. <<<
+#     Su escenario R10 son tres `grep` de literales anclados a
+#     principio de linea mas una comparacion de numeros de
+#     linea: comprueba que las lineas ESTAN ESCRITAS y EN EL
+#     ORDEN correcto, no que el `chmod` llegara a correr ni que
+#     surtiera efecto. Sobrevive a un renombrado de variable. NO
+#     sustituye a este paso: la unica comprobacion real de
+#     permisos es esta, contra el droplet.
+
+# --- A2c · ARREGLAR LOS DUMPS QUE YA EXISTEN ----------------
+#     >>> ESTE PASO NO ES OPCIONAL. <<<
+#     Este guion arregla el directorio y LOS DUMPS QUE EL CREA.
+#     Los que ya estan ahi los dejo `update.sh`, que no se toca
+#     en esta tarjeta y sigue creandolos 0644. En g500 esos
+#     archivos son LA BASE ENTERA DE UN CLIENTE en -rw-r--r--,
+#     y seguiran asi hasta que alguien corra esta linea.
+
+ssh -i ~/.ssh/spaces_deploy root@<IP-DE-G500> '
+  chmod 600 /var/lib/space-os/respaldos/*.dump
+  ls -l /var/lib/space-os/respaldos/'
+
+#     SE ESPERA: TODOS en -rw-------, no solo el de hoy.
+#
+#     Y SI EL DIRECTORIO AUN NO TIENE DUMPS, el `chmod` dice
+#       chmod: cannot access '...*.dump': No such file or directory
+#     y sale con 1. ESO ES NORMAL en una instancia recien
+#     instalada y no hay nada que arreglar: significa que no
+#     habia dumps viejos que corregir. El `ls` de al lado te lo
+#     confirma.
+
+# --- A3 · Comprobar que el objeto EXISTE en el bucket -------
+#     El log diciendo OK no es la prueba; el objeto lo es.
+
+ssh -i ~/.ssh/spaces_deploy root@<IP-DE-G500> '
+  set -a; . /etc/space-os/instancia.env; set +a
+  # SIN valor por omision, a proposito. La primera version de esta
+  # tarjeta ponia "${SPACES_REGION:-nyc3}" y se contradecia con su
+  # PROPIO aviso de arriba: ESTA CUENTA USA sfo3. Con nyc3 la
+  # consulta va al endpoint equivocado y contesta 404 NoSuchBucket
+  # -- que se lee como "el bucket no existe" y manda a crear uno
+  # que YA EXISTE. Si la variable falta, mejor que se queje a que
+  # mienta.
+  : "${SPACES_REGION:?falta SPACES_REGION: mira abajo}"
+  conf=$(mktemp); chmod 600 "$conf"
+  printf "[default]\naccess_key = %s\nsecret_key = %s\nhost_base = %s.digitaloceanspaces.com\nhost_bucket = %%(bucket)s.%s.digitaloceanspaces.com\nuse_https = True\nsignature_v2 = False\n" \
+    "$SPACES_KEY" "$SPACES_SECRET" "$SPACES_REGION" "$SPACES_REGION" >"$conf"
+  s3cmd --config="$conf" ls s3://${SPACES_BUCKET:-space-os-respaldos}/${INSTANCIA:-g500}/ | tail -5
+  rm -f "$conf"'
+
+#     SI SE PARA DICIENDO `falta SPACES_REGION`: leela en el
+#     panel de DigitalOcean, en la URL del bucket --
+#     https://space-os-respaldos.sfo3.digitaloceanspaces.com
+#                                ^^^^  esta-- y ESCRIBELA en la
+#     configuracion, que es donde le hace falta al respaldo de
+#     cada noche, no solo a esta comprobacion:
+#
+#       echo 'SPACES_REGION=sfo3' >> /etc/space-os/instancia.env
+#
+#     (sustituye `sfo3` por lo que diga la URL). Luego repite el
+#     A2: sin region, la subida de cada noche falla con 404
+#     NoSuchBucket.
+#
+#     SE ESPERA: una linea NUEVA, con la fecha y hora de hoy y
+#     un tamano de varios MB. Si el tamano es 0, PARA: el guard
+#     deberia haberlo impedido y hay algo que entender.
+
+# --- A4 · Instalar el cron ----------------------------------
+#     Archivo APARTE de /etc/cron.d/space-os-update, que NO se
+#     toca: asi la vuelta atras es borrar un archivo y el
+#     actualizador no se entera de nada.
+
+ssh -i ~/.ssh/spaces_deploy root@<IP-DE-G500> 'cat >/etc/cron.d/space-os-respaldo <<CRON
+# El respaldo sale del droplet TODOS LOS DIAS, haya o no version nueva.
+# Ver vault/06-Operacion/respaldo-diario.md
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+41 3 * * * root /opt/space-os/respaldo-diario.sh >> /var/log/space-os/cron.log 2>&1
+CRON
+chmod 644 /etc/cron.d/space-os-respaldo
+cat /etc/cron.d/space-os-respaldo'
+
+#     OJO: el archivo TIENE que acabar en salto de linea y NO
+#     puede tener punto en el nombre -- cron ignora en silencio
+#     los archivos de /etc/cron.d con un punto en el nombre.
+#     Por eso se llama `space-os-respaldo` y no `space-os-respaldo.cron`.
+
+# --- A5 · Comprobar al dia siguiente ------------------------
+ssh -i ~/.ssh/spaces_deploy root@<IP-DE-G500> '
+  tail -n 20 /var/log/space-os/respaldo-diario.log
+  echo "--- veces que salio del droplet ---"
+  grep -c "respaldo remoto OK" /var/log/space-os/respaldo-diario.log'
+
+#     SE ESPERA: al menos 1, y una linea de las 03:41.
+#     Hoy ese mismo grep sobre update.log en g500 devuelve 0.
+
+# --- A6 · VUELTA ATRAS --------------------------------------
+#     Deja la instancia exactamente como estaba. No hay estado
+#     que deshacer: los dumps que haya creado son archivos de
+#     mas, y la poda los retira sola.
+
+ssh -i ~/.ssh/spaces_deploy root@<IP-DE-G500> '
+  rm -f /etc/cron.d/space-os-respaldo
+  rm -f /opt/space-os/respaldo-diario.sh /opt/space-os/conexion-pg.sh
+  ls /opt/space-os/'
+
+
+##############################################################
+#  BLOQUE B · DEMO  (DENTRO DEL PADRE)
+#  SPACE_OS_CONF=/etc/space-os/demo-instancia.env · base `spaces_demo`
+##############################################################
+#
+#  >>> LA DIFERENCIA QUE IMPORTA, Y ES LA QUE COSTO MEDIA HORA:
+#  >>> DEMO vive DENTRO del PADRE, y en esa maquina hay MAS DE
+#  >>> UNA configuracion de instancia. Sin `SPACE_OS_CONF`
+#  >>> delante, el guion lee /etc/space-os/instancia.env y
+#  >>> respaldaria LA BASE EQUIVOCADA -- sin dar ningun error,
+#  >>> porque las dos existen ahi.
+#
+#  Y una segunda diferencia: DEMO hoy NO tiene credenciales de
+#  Spaces. Eso NO es un fallo y el guion no lo trata como tal:
+#  hace el dump local, poda, lo dice y sale con 0. Si se decide
+#  darle credenciales, se anaden a demo-instancia.env y este
+#  mismo cron empieza a subir sin tocar nada mas.
+#
+##############################################################
+#  !!!!!  Y UNA TERCERA, QUE BORRA DATOS SI SE PASA POR ALTO
+##############################################################
+#
+#  `SPACE_OS_CONF` dice QUE BASE respaldar. NO dice DONDE
+#  dejar los respaldos. El directorio sale de OTRA variable:
+#
+#    DIR_RESPALDOS  <- $SPACE_OS_DIR_ESTADO/respaldos
+#    SPACE_OS_DIR_ESTADO  <- /var/lib/space-os   (por omision)
+#
+#  Y NADA fija SPACE_OS_DIR_ESTADO en produccion: solo aparece
+#  en los arneses. O sea que en el PADRE, si no se dice otra
+#  cosa, DEMO Y EL PROPIO PADRE COMPARTEN
+#  /var/lib/space-os/respaldos.
+#
+#  Que pasa entonces, y no es hipotetico:
+#
+#    · la poda deja los 3 mas recientes POR FECHA DE ARCHIVO,
+#      mire de que base sea cada uno;
+#    · un respaldo diario de DEMO se come ese directorio EN
+#      TRES DIAS, incluido el respaldo que `update.sh` del
+#      PADRE hizo ANTES DE MIGRAR -- que es justo el que da la
+#      vuelta atras de un release malo;
+#    · y como DEMO no tiene respaldo remoto, lo que se poda
+#      NO ESTA EN NINGUNA OTRA PARTE.
+#
+#  Agravante: los dos escriben `spaces_<fecha>.dump`, asi que
+#  MIRANDO EL NOMBRE NO SE DISTINGUE de que base es cada uno.
+#  No hay forma de darse cuenta despues.
+#
+#  >>> Y NO HAY UN ESCRITOR, HAY DOS. <<<
+#  El `update.sh` DE DEMO escribe y poda en ese MISMO
+#  directorio: su cron es /etc/cron.d/space-os-demo, 04:31, y
+#  lleva SPACE_OS_CONF pero NADA que mueva el directorio
+#  (`update.sh:431` y `:911` lo derivan igual que el respaldo
+#  diario). Es mas raro --solo cuando hay imagen nueva-- y es
+#  ANTERIOR a este trabajo, pero cuenta igual.
+#
+##############################################################
+#  LA SALIDA, Y POR QUE ES UNA SOLA LINEA EN LA CONFIGURACION
+##############################################################
+#
+#  Lo que cierra LOS DOS de golpe es poner el directorio DENTRO
+#  de /etc/space-os/demo-instancia.env (paso B1b):
+#
+#    DIR_RESPALDOS=/var/lib/space-os/demo/respaldos
+#
+#  Funciona porque los dos guiones derivan ese valor DESPUES de
+#  sourcear la configuracion:
+#
+#    respaldo-diario.sh · source :150 -> DIR_RESPALDOS :187
+#    update.sh          · source :841 -> DIR_RESPALDOS :911
+#
+#  o sea que los dos respetan lo que diga el archivo.
+#
+#  `SPACE_OS_DIR_ESTADO` NO vale para esto: se lee ANTES del
+#  source (`:116` y `:431`), asi que en la configuracion no
+#  hace nada -- solo funciona como variable de entorno, y
+#  entonces hay que acordarse de repetirla en CADA linea de
+#  cron de CADA guion. Eso es dos variables acopladas que hay
+#  que copiar juntas en dos sitios, y lo unico que las une es
+#  esta prosa: es dejar el pie en la trampa.
+#
+#  Con DIR_RESPALDOS en el archivo, el directorio queda atado a
+#  SPACE_OS_CONF, que es la unica variable que ya no se puede
+#  olvidar: sin ella la base es la equivocada y se nota en la
+#  primera linea del log.
+#
+##############################################################
+
+# --- B0 · Copiar los guiones al PADRE -----------------------
+#     Al PADRE se entra como el usuario `padre`, no como root.
+
+scp infra/scripts/respaldo-diario.sh infra/scripts/conexion-pg.sh padre@<IP-DEL-PADRE>:/tmp/
+
+# --- B1 · Ponerlos en su sitio ------------------------------
+ssh padre@<IP-DEL-PADRE> '
+  sudo install -o root -g root -m 750 /tmp/respaldo-diario.sh /opt/space-os/respaldo-diario.sh &&
+  sudo install -o root -g root -m 750 /tmp/conexion-pg.sh     /opt/space-os/conexion-pg.sh &&
+  rm -f /tmp/respaldo-diario.sh /tmp/conexion-pg.sh &&
+  ls -l /opt/space-os/'
+
+# --- B1b · EL DIRECTORIO DE RESPALDOS DE DEMO ---------------
+#     >>> ESTE PASO ES EL QUE EVITA QUE DEMO SE COMA LOS
+#     >>> RESPALDOS DEL PADRE. No lo saltes.
+#     Una sola linea, en la configuracion de DEMO. Cierra a la
+#     vez el respaldo diario Y el `update.sh` de DEMO (el cron
+#     de las 04:31), porque los dos leen ese archivo.
+
+ssh padre@<IP-DEL-PADRE> '
+  sudo grep -q "^DIR_RESPALDOS=" /etc/space-os/demo-instancia.env ||
+    echo "DIR_RESPALDOS=/var/lib/space-os/demo/respaldos" | sudo tee -a /etc/space-os/demo-instancia.env
+  sudo grep -n "^DIR_RESPALDOS=" /etc/space-os/demo-instancia.env'
+
+#     >>> EL `sudo` DEL PRIMER `grep` NO SOBRA. <<<
+#     Este bloque entra como el usuario `padre` y
+#     demo-instancia.env es 0600 DE ROOT: sin `sudo`, ese grep
+#     no puede leerlo, sale con 2 y "Permission denied", y
+#     entonces el `||` DISPARA SIEMPRE. Con eso, correr el paso
+#     dos veces deja DOS lineas, y si ya habia una con otro
+#     valor se le anade la nueva detras -- y al sourcear GANA LA
+#     ULTIMA, que es justo lo contrario de lo que promete la
+#     linea de abajo. Se escribio sin `sudo` en la primera
+#     version y las dos promesas eran falsas.
+#
+#     SE ESPERA: una sola linea
+#       DIR_RESPALDOS=/var/lib/space-os/demo/respaldos
+#
+#     El `sudo grep -q ... ||` lo hace idempotente: correrlo dos
+#     veces no deja dos lineas. Si ya habia una con otro valor,
+#     NO se toca -- revisala a mano antes de seguir.
+#
+#     OJO: el archivo se SOURCEA. Sin comillas y sin espacios
+#     alrededor del `=`, o bash ejecuta la segunda palabra.
+
+# --- B1c · DE QUE BASE ES CADA DUMP VIEJO DEL PADRE ---------
+#     Los dumps que YA estan en /var/lib/space-os/respaldos del
+#     PADRE **no hay que moverlos ni borrarlos**: la poda los
+#     limpia sola en tres updates. Pero conviene MIRARLOS una
+#     vez, y es gratis.
+#
+#     El motivo: como dice el aviso de arriba, POR EL NOMBRE NO
+#     SE DISTINGUE de que base es cada uno -- todos se llaman
+#     `spaces_<fecha>.dump`. O sea que ahi puede haber dumps de
+#     `spaces_demo` con pinta de dumps del PADRE, y el dia que
+#     alguien restaure el PADRE eligiendo "el mas reciente"
+#     podria estar restaurando la base equivocada. Ese es el
+#     peor momento posible para enterarse.
+#
+#     El NOMBRE no distingue, pero el ARCHIVO si: un dump en
+#     formato custom lleva dentro el nombre de la base.
+
+ssh padre@<IP-DEL-PADRE> '
+  for f in /var/lib/space-os/respaldos/*.dump; do
+    printf "%s -> %s\n" "$f" "$(sudo pg_restore -l "$f" | sed -n "s/^; *dbname: //p")"
+  done'
+
+#     SE ESPERA: una linea por dump, con su base al lado.
+#
+#     Y lee el resultado, que es un dato que hoy NO TENEMOS:
+#       · si salen TODOS de `spaces` -> el dano era cero y el
+#         "DEMO se come los respaldos del PADRE" seguia siendo
+#         una deduccion, no algo que hubiera pasado ya;
+#       · si sale ALGUNO de `spaces_demo` -> ya habia ocurrido,
+#         y ese archivo NO es un respaldo del PADRE por mucho
+#         que lo parezca. Anotalo antes de que la poda lo
+#         retire.
+#
+#     Si el directorio esta vacio, el `for` imprime la ruta con
+#     el asterisco sin expandir. Es normal y no hay nada que
+#     hacer.
+
+# --- B2 · LA PRUEBA A MANO, CON `SPACE_OS_CONF` DELANTE -----
+#     >>> Si te saltas SPACE_OS_CONF, esto respalda la instancia
+#     >>> equivocada Y PARECERA QUE FUNCIONO. Comprueba el
+#     >>> `base=` de la primera linea antes de seguir.
+#
+#     Y OJO CON `sudo env`, que no es adorno: `sudo VAR=... cmd`
+#     depende de que `setenv` este permitido en el sudoers, y NO
+#     es el valor por omision de Ubuntu. Este repositorio ya lo
+#     tiene escrito dos veces --`padre-flota-y-rfc-20260827.md:68-70`
+#     («se usa `env` y no `sudo -u ... VAR=...` porque lo segundo
+#     depende de que `setenv` este permitido; `env` es un binario
+#     y funciona siempre») y `alta-droplet-propio.txt:383-398`--.
+#     Falla ruidosamente, no en silencio, pero es un tropiezo que
+#     ya esta documentado como evitar.
+
+ssh padre@<IP-DEL-PADRE> 'sudo env SPACE_OS_CONF=/etc/space-os/demo-instancia.env /opt/space-os/respaldo-diario.sh; echo "CODIGO: $?"'
+
+#     SE ESPERA (dos cosas que mirar, no una):
+#       1 · respaldo diario -> /var/lib/space-os/demo/respaldos/spaces_AAAAMMDD_HHMMSS.dump · base=...:5432/spaces_demo
+#                                              ^^^^^                                                        ^^^^^^^^^^^
+#                                    LA RUTA lleva /demo/.                        ESTA PALABRA es la base.
+#                                    Si no lo lleva, PARA:                        Si dice `spaces` a secas,
+#                                    el B1b no se aplico y esto                   PARA: falto SPACE_OS_CONF.
+#                                    va a podar los respaldos
+#                                    del PADRE.
+#          respaldo de NNNNNNN bytes
+#          respaldo remoto NO CONFIGURADO: faltan SPACES_KEY/SPACES_SECRET...
+#          respaldo diario terminado en local. Esta instancia NO tiene respaldo fuera...
+#       CODIGO: 0
+#
+#     El "NO CONFIGURADO" con codigo 0 es el comportamiento
+#     CORRECTO para DEMO hoy. No es un fallo que haya que
+#     arreglar antes de instalar el cron.
+
+# --- B3 · Instalar el cron de DEMO --------------------------
+#     La variable va EN LA LINEA, no como `SPACE_OS_CONF=` de
+#     cabecera: en /etc/cron.d una asignacion de cabecera vale
+#     para TODAS las lineas del archivo, y este archivo podria
+#     llevar mañana una segunda instancia del PADRE.
+#     La hora es 03:47 y no 03:41 para no solapar con g500 si
+#     algun dia comparten maquina o ancho de banda de subida.
+#
+#     UNA sola variable en la linea, y es la de siempre. El
+#     directorio NO va aqui: va en la configuracion (paso B1b),
+#     que es lo que hace que el `update.sh` de DEMO --otra linea
+#     de cron, otro guion-- quede arreglado tambien sin tocarlo.
+#
+#     (En cron no hay sudoers de por medio: la linea ya corre
+#     como root, asi que aqui `VAR=... comando` si funciona. El
+#     `sudo env` del B2 es solo para la prueba a mano.)
+
+ssh padre@<IP-DEL-PADRE> 'sudo tee /etc/cron.d/space-os-respaldo-demo >/dev/null <<CRON
+# Respaldo diario de DEMO. DEMO vive dentro del PADRE, asi que la
+# configuracion se indica explicitamente. Ver vault/06-Operacion/respaldo-diario.md
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+47 3 * * * root SPACE_OS_CONF=/etc/space-os/demo-instancia.env /opt/space-os/respaldo-diario.sh >> /var/log/space-os/cron.log 2>&1
+CRON
+sudo chmod 644 /etc/cron.d/space-os-respaldo-demo
+cat /etc/cron.d/space-os-respaldo-demo'
+
+# --- B4 · Comprobar al dia siguiente ------------------------
+ssh padre@<IP-DEL-PADRE> '
+  sudo tail -n 20 /var/log/space-os/respaldo-diario.log
+  echo "--- los de DEMO ---"
+  sudo ls -l /var/lib/space-os/demo/respaldos/ | tail -5
+  echo "--- los del PADRE, que NO se tienen que haber movido ---"
+  sudo ls -l /var/lib/space-os/respaldos/ | tail -5'
+
+#     SE ESPERA: una linea de las 03:47 con `base=...spaces_demo`,
+#     y como mucho 3 dumps en el directorio DE DEMO.
+#
+#     >>> Y el directorio del PADRE con los suyos INTACTOS. Si
+#     >>> ahi han aparecido dumps nuevos o han desaparecido los
+#     >>> viejos, el B1b no se aplico.
+#
+#     Esta comprobacion vale tambien para el `update.sh` de
+#     DEMO: la proxima vez que salga una imagen nueva, su
+#     respaldo previo tiene que caer en el directorio de DEMO.
+#     Merece la pena volver a mirar aqui ese dia.
+
+# --- B5 · VUELTA ATRAS --------------------------------------
+ssh padre@<IP-DEL-PADRE> '
+  sudo rm -f /etc/cron.d/space-os-respaldo-demo
+  sudo rm -f /opt/space-os/respaldo-diario.sh /opt/space-os/conexion-pg.sh'
+
+
+##############################################################
+#  LO QUE ESTA TARJETA **NO** CIERRA
+##############################################################
+#
+#  1) EL 403 DEL BUCKET DE LOGS. La llave de g500 funciona en
+#     `space-os-respaldos` y NO en `space-os-logs` (medido el
+#     22/09). O sea: el log de esta corrida se queda en el
+#     droplet, y para saber si el respaldo diario va bien hay
+#     que entrar al servidor -- que es justo lo que este modelo
+#     evita. SE ARREGLA EN EL PANEL DE DigitalOcean dando a esa
+#     llave acceso al bucket de logs. NO ES CODIGO y no lo
+#     arregla esta tarjeta.
+#
+#  2) LA ALERTA. Con el 403 de arriba puesto, sigue sin haber
+#     nada que avise si el respaldo diario deja de correr. El
+#     canal que existe es `reportar_a_flota` de `update.sh`, y
+#     este guion NO reporta al panel de flota. Decision
+#     pendiente: si el respaldo diario debe reportar, y a donde.
+#
+#  3) `version-anterior` Y `version-actual` SIGUEN COLISIONANDO
+#     EN EL PADRE. `DIR_RESPALDOS` mueve SOLO los respaldos.
+#     `update.sh` deriva otras dos cosas de `$DIR_ESTADO`, que
+#     el cron de DEMO no cambia:
+#
+#       update.sh:2379  ARCHIVO_ANTERIOR="$DIR_ESTADO/version-anterior"
+#       update.sh:2580  ... >"$DIR_ESTADO/version-actual"
+#
+#     Si el PADRE corre su propio `update.sh`, ese par colisiona
+#     EXACTAMENTE IGUAL que los respaldos, un nivel mas arriba
+#     -- y es el archivo que decide A QUE VERSION SE VUELVE en
+#     una vuelta atras.
+#
+#     NO lo cierra esta tarjeta y NO la bloquea. Queda escrito
+#     para que no se redescubra dentro de tres meses. La salida
+#     natural es la misma de siempre: `SPACE_OS_DIR_ESTADO` en
+#     la linea de cron de DEMO, que eso si se lee antes del
+#     source y mueve las tres cosas de golpe.
+#
+#  4) LAS DEMAS INSTANCIAS. Hoy son g500 y DEMO. La proxima que
+#     nazca deberia llevar esto desde el alta
+#     (`provision-instancia.sh` / `instalar-hijo.sh` escriben
+#     /etc/cron.d/space-os-update y NO este). Mientras no se
+#     haga, cada instancia nueva nace SIN respaldo diario y hay
+#     que acordarse de correr esta tarjeta.
+#
+##############################################################

@@ -115,6 +115,29 @@ jobs:
       - name: Mutantes del instalador del cliente
         run: bash infra/scripts/pruebas-instalar-hijo.sh --mutantes
 
+      # El arnés del respaldo diario. Está aquí por una razón que NO es «un
+      # arnés más»: uno de sus escenarios, el **R7**, es un guard de deriva.
+      #
+      # `infra/scripts/conexion-pg.sh` duplica letra por letra seis funciones
+      # que viven también dentro de `update.sh` — la lógica que separa la
+      # contraseña de `DATABASE_URL` para que no acabe en `argv`, visible con
+      # `ps`. Se duplicó a propósito (sourcear `update.sh` ejecuta un update
+      # entero: no tiene guarda `BASH_SOURCE`), y el riesgo de esa copia, dicho
+      # en `conexion-pg.sh:54`, es **que se pudra sin que nadie lo vea**:
+      # alguien arregla un ciclo de percent-encoding en `update.sh` —ya van
+      # tres— y la copia del respaldo se queda con el fallo, cada noche, en la
+      # única instancia con datos de cliente.
+      #
+      # R7 convierte esa deriva en un rojo. Pero **un guard que solo corre
+      # cuando alguien se acuerda defiende justo contra lo que no puede
+      # defender**, así que corre aquí.
+      #
+      # Y el coste no es el de `pruebas-update.sh`: **16 segundos**, medido el
+      # 2026-09-22 (16 escenarios). No sale a la red, no toca ninguna base y no
+      # toca ningún servidor: dobla `pg_dump`, `s3cmd` y `hostname`.
+      - name: Pruebas del respaldo diario
+        run: bash infra/scripts/pruebas-respaldo-diario.sh
+
       # ─── PREGUNTA ABIERTA: `pruebas-update.sh` NO está aquí, y es una
       #     decisión de Emiliano, no del autor de este workflow ──────────────
       #  El coste, MEDIDO el 2026-09-11 y no copiado: **144 escenarios y ~7
