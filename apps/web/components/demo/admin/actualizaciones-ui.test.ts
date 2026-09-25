@@ -42,7 +42,7 @@ describe('textoDeEstado', () => {
     // para impedir: se quedaria esperando algo que no va a pasar nunca.
     const r = textoDeEstado({ ...CON_NOVEDAD, aprobadoDigest: 'sha256:viejo' })
     expect(r.tono).toBe('alerta')
-    expect(r.texto).toMatch(/mas nueva|otra version/i)
+    expect(r.texto).toMatch(/más nueva|otra versión/i)
   })
 
   it('si nunca se ha comprobado, se dice: no se finge que esta al dia', () => {
@@ -59,7 +59,7 @@ describe('textoDeEstado', () => {
     expect(r.tono).toBe('info')
     expect(r.texto).toContain('v0.4.2')
     expect(r.texto).toMatch(/aprobaste/i)
-    expect(r.texto).not.toMatch(/esperando tu aprobacion/i)
+    expect(r.texto).not.toMatch(/esperando tu aprobación/i)
   })
 
   it('NEGATIVO: comprobado y SIN digest disponible no se pinta en verde', () => {
@@ -73,7 +73,7 @@ describe('textoDeEstado', () => {
     expect(r.tono).toBe('alerta')
     expect(r.tono).not.toBe('ok')
     expect(r.texto).toMatch(/digest/i)
-    expect(r.texto).not.toMatch(/al dia/i)
+    expect(r.texto).not.toMatch(/al día/i)
   })
 })
 
@@ -89,7 +89,7 @@ describe('textoConfirmarInstalar', () => {
 
   it('con una sola migracion, en singular', () => {
     const t = textoConfirmarInstalar({ ...CON_NOVEDAD, migracionesPendientes: 1 })
-    expect(t).toMatch(/1 migracion\b/)
+    expect(t).toMatch(/1 migración\b/)
     expect(t).not.toMatch(/1 migraciones/)
   })
 

@@ -6,6 +6,44 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!success] 2026-09-24, segunda pasada · **Z12, los trozos de Z2 y Z4 y la bitácora, LIBERADOS**
+> En `docs/manual-ilustrado-2026-09-24`, sin fusionar: `7d0a87b` (acentos de la tarjeta de
+> actualizaciones), `59d104a` (la ficha del contrato ya no se queda con una copia vieja) y
+> `e0fab25` (manual con 45 capturas). `cd apps/web && npm run typecheck` limpio y
+> `npm test` 1820 en verde (141 archivos). **Queda abierto, y es R1:** el cuadro «Con cuál
+> de tus razones sociales se paga» no pide la contraseña
+> (`components/demo/arrendadores/ContratoSheet.tsx:400`). Espera aprobación humana.
+
+> [!important] 2026-09-24, segunda pasada · **Z12 RECLAMADA otra vez, y dos trozos de interfaz**
+> Misma rama `docs/manual-ilustrado-2026-09-24`. Además de Z12 y de
+> `docs/Registro_Cambios.md` (alto contacto), se reclaman **solo cadenas y estado de
+> pantalla**, nada de API, sesión, tenant ni dinero:
+>
+> - **Z2**, únicamente `components/demo/admin/ActualizacionesPanel.tsx` y
+>   `actualizaciones-ui.ts`: los textos de la tarjeta van sin acentos.
+> - **Z4**, únicamente `app/(app)/(shell)/arrendadores/page.tsx` y un módulo puro nuevo en
+>   `components/demo/arrendadores/`: la ficha del contrato se queda con una copia vieja
+>   tras guardar.
+>
+> El candado de contraseña del 4.1 es R1 y **no se toca**: solo se documenta.
+
+> [!success] 2026-09-24 · **Z12 · Docs LIBERADA — manual de usuario ilustrado**
+> Hecho en `docs/manual-ilustrado-2026-09-24` (`0e10710`), sin fusionar: **39 capturas**
+> incrustadas en el manual, 3 grupos de pasos sin foto con su motivo en
+> `manuales/capturas-pendientes.md`, y seis cosas que el texto dice mal, anotadas en su
+> `## PENDIENTES` sin tocar los pasos. El PDF no se versiona (regla de `.gitignore`).
+>
+> ⚠️ **Para quien toque `manuales/`**: el `.git/info/exclude` de esta máquina ignora
+> `manuales/` ENTERO. Un archivo nuevo del arnés no sale en `git status` y hay que
+> añadirlo con `git add -f`, o se pierde sin avisar.
+
+> [!important] 2026-09-24 · **Z12 · Docs RECLAMADA — manual de usuario ilustrado**
+> Rama `docs/manual-ilustrado-2026-09-24`. Capturas de cada paso del manual
+> `vault/08-Manuales/manual-usuario-2026-09-18.md` (incluidos los apartados 1, 6 y
+> 7, que no tenían ninguna) y su PDF. Toca solo `vault/08-Manuales/`, `manuales/` y
+> este tablero. **No toca código de la aplicación.** Se capturó contra un
+> `next start` local, nunca contra un servidor.
+
 > [!danger] 2026-09-23 (tarde) · **la revisión final encontró SEIS defectos, y los cuatro primeros eran de verdad**
 > Se arreglaron sobre esta misma rama, con su prueba cada uno y el rojo
 > demostrado por mutación. Lo que enseñan, que es más que los arreglos:

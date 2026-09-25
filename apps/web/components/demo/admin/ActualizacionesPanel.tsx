@@ -74,7 +74,7 @@ export function ActualizacionesPanel({ onToast }: { onToast: (m: string) => void
     setCambiandoModo(true)
     try {
       setEstado(await fijarModoActualizacionApi(modo))
-      onToast(modo === 'automatica' ? 'Modo cambiado a automatica' : 'Modo cambiado a con aprobacion')
+      onToast(modo === 'automatica' ? 'Modo cambiado a automática' : 'Modo cambiado a con aprobación')
     } catch (e) {
       onToast(e instanceof Error ? e.message : 'No se pudo cambiar el modo')
     }
@@ -86,10 +86,10 @@ export function ActualizacionesPanel({ onToast }: { onToast: (m: string) => void
     setInstalando(true)
     try {
       setEstado(await aprobarActualizacionApi(estado.digestDisponible))
-      onToast('Instalacion aprobada: se instalara en los proximos minutos')
+      onToast('Instalación aprobada: se instalará en los próximos minutos')
       setConfirmOpen(false)
     } catch (e) {
-      onToast(e instanceof Error ? e.message : 'No se pudo aprobar la instalacion')
+      onToast(e instanceof Error ? e.message : 'No se pudo aprobar la instalación')
     }
     setInstalando(false)
   }
@@ -133,7 +133,7 @@ export function ActualizacionesPanel({ onToast }: { onToast: (m: string) => void
         {status === 'cargando' ? (
           <div className="h-24 animate-pulse rounded bg-surface-2" />
         ) : status === 'error' || !estado ? (
-          <p className="text-[13px] text-error">No se pudo cargar el estado de la actualizacion.</p>
+          <p className="text-[13px] text-error">No se pudo cargar el estado de la actualización.</p>
         ) : (
           <>
             {(() => {
@@ -176,7 +176,7 @@ export function ActualizacionesPanel({ onToast }: { onToast: (m: string) => void
                   onClick={() => void cambiarModo('aprobacion')}
                 >
                   {cambiandoModo && estado.modo !== 'aprobacion' && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                  Con aprobacion
+                  Con aprobación
                 </Button>
                 <Button
                   size="sm"
@@ -185,11 +185,11 @@ export function ActualizacionesPanel({ onToast }: { onToast: (m: string) => void
                   onClick={() => void cambiarModo('automatica')}
                 >
                   {cambiandoModo && estado.modo !== 'automatica' && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                  Automatica
+                  Automática
                 </Button>
               </div>
               <p className="text-[11px] text-muted">
-                Con aprobacion, tú decides cuándo instalar. Automatica la instala sola en la ventana de
+                Con aprobación, tú decides cuándo instalar. Automática la instala sola en la ventana de
                 madrugada en cuanto se publica.
               </p>
             </div>

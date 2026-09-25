@@ -54,6 +54,16 @@ La entrada más reciente va arriba.
   contestarte otra vez. El único estado que cierra la conversación es
   `CERRADO`. Reabrir uno cerrado no se puede hoy por ninguna vía.
 
+- **La tarjeta «Actualizaciones» ya escribe con acentos.** Decía «todavia»,
+  «version», «Con aprobacion», «Automatica», «Instalacion aprobada»… Era la única
+  pantalla del sistema escrita así. No cambia nada de lo que hace la tarjeta: solo
+  cómo se lee. Se vio al fotografiar el manual de usuario.
+
+- **Al cambiar quién paga un contrato, la ficha lo enseña en el momento.** Antes
+  salía «Razón social asignada al contrato» y la ficha seguía diciendo «Sin
+  asignar» hasta que la cerrabas y la volvías a abrir. El cambio sí se guardaba:
+  lo que no se refrescaba era la ficha abierta.
+
 ---
 
 ## 2026-09-23

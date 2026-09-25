@@ -3,8 +3,9 @@ import { defineConfig, devices } from '@playwright/test'
 // Arnés de capturas del manual de septiembre (razones sociales, consumo de
 // luz, reportes de rentabilidad). Hermano de `playwright.config.ts` (el del
 // manual de agosto): mismo criterio, config aparte porque este recorrido usa
-// TRES sesiones (Dueño, Operaciones) y una base que se muta a propósito a
-// mitad de la corrida (ver capturas-2026-09-18.spec.ts, prueba 8).
+// CUATRO sesiones (Dueño, Operaciones, un Dueño solo-Google y el Dueño de una
+// organización vacía) y una base PROPIA que se muta a propósito a
+// mitad de la corrida (ver la cabecera de capturas-2026-09-18.spec.ts).
 //
 // Correr:
 //   npx playwright test --config manuales/playwright.2026-09-18.config.ts
@@ -32,7 +33,7 @@ export default defineConfig({
     baseURL: BASE,
     ...devices['Desktop Chrome'],
     viewport: { width: 1440, height: 900 },
-    deviceScaleFactor: 2,
+    deviceScaleFactor: 1,
     navigationTimeout: 90_000,
     actionTimeout: 20_000,
     ignoreHTTPSErrors: true,

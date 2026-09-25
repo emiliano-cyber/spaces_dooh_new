@@ -12,6 +12,7 @@ archivos:
   - vault/02-Backend/reportes-dimensiones.md
   - vault/03-Frontend/pantalla-reportes.md
   - manuales/capturas-2026-09-18.spec.ts
+  - manuales/preparar-base-2026-09-18.mjs
   - docs/adr/0028-google-obligatorio-y-la-contrasena-para-los-cambios.md
   - docs/adr/0037-cada-instancia-elige-si-toma-la-version-nueva.md
   - docs/adr/0038-los-tickets-de-soporte-viven-en-la-instancia.md
@@ -65,11 +66,15 @@ pantalla.
 > instalación, manda lo que ves en tu instalación — esto se verificó contra
 > UNA base de demostración, no contra la tuya.
 
-> [!warning] 2026-09-24 · tres apartados que ese recorrido NO cubrió
-> Los apartados **1**, **6** y **7** se añadieron el 24 de septiembre y no entraron en la
-> pasada del 21: se escribieron leyendo el código, sin abrir la aplicación y sin capturas.
-> Los textos entre comillas y los permisos están medidos; lo que falta es verlos en
-> pantalla. El detalle, con las citas, está en `## PENDIENTES`.
+> [!success] 2026-09-24 · los diez apartados, recorridos con la aplicación delante
+> Los apartados **1**, **6** y **7** se añadieron el 24 de septiembre leyendo el código, y
+> esa misma tarde se recorrió el manual entero delante de la aplicación, con una foto por
+> paso. Solo el 1.1 se queda sin imagen: exige entrar con Google.
+>
+> **Dos estados se prepararon a mano en la instalación local**, y sus pies de foto lo
+> dicen: la versión nueva disponible del apartado 6 (en una instalación real la escribe el
+> actualizador del servidor) y las dos campañas listas para facturar del 4.2. El detalle
+> está en `## PENDIENTES`.
 
 ---
 
@@ -113,9 +118,22 @@ propósito, para que no gastes el último sin enterarte.
 quieras.
 
 1. Pulsa **«Generar códigos nuevos»**.
+
+   ![La pantalla «Códigos de recuperación» de una cuenta que ya guardó un lote: «Ya tienes tus códigos guardados…» y, debajo, «Generar códigos nuevos» y «Volver»](capturas-2026-09-18/01-02-01-codigos-generar-nuevos.png)
+   *Captura — apartado 1.2, paso 1.*
+
 2. Teclea tu contraseña cuando el sistema te la pida.
+
+   ![La misma pantalla pidiendo la contraseña: «Teclea tu contraseña para confirmar. Los códigos que tengas guardados dejarán de funcionar…», el campo con la contraseña escrita, «Confirmar y generar» y «Cancelar»](capturas-2026-09-18/01-02-02-codigos-pide-contrasena.png)
+   *Captura — apartado 1.2, pasos 2-3.*
+
 3. Pulsa **«Confirmar y generar»**.
 4. Copia y guarda los nuevos, igual que la primera vez.
+
+   ![«Guarda tus códigos de recuperación»: el aviso «Se muestran una sola vez», la lista de diez códigos (difuminados en esta imagen a propósito), «Copiar», la casilla «Ya los guardé en un lugar seguro» y «Continuar»](capturas-2026-09-18/01-02-04-codigos-lista-nueva.png)
+   *Captura — apartado 1.2, paso 4. Es la misma pantalla de lista que describe el 1.1,
+   pasos 2-5. Los códigos se difuminaron antes de tomarla: son un secreto aunque sean de
+   una cuenta de pruebas.*
 
 **Salió bien si:** aparece una lista nueva de códigos.
 
@@ -131,6 +149,9 @@ Google, o un código de recuperación si perdiste el acceso a esa cuenta.»*
 
 No es una contraseña mal tecleada: a esa cuenta se le cerró la entrada por contraseña a
 propósito, porque es la de más privilegio. Entra con **«Continuar con Google»**.
+
+![La pantalla «Iniciar sesión» tras intentar entrar con contraseña: en rojo, «Esta cuenta entra con Google. Usa el botón de Google, o un código de recuperación si perdiste el acceso a esa cuenta.», y abajo el botón «Continuar con Google»](capturas-2026-09-18/01-03-00-acceso-cuenta-google.png)
+*Captura — apartado 1.3.*
 
 > [!info] Tu contraseña sigue sirviendo, pero para otra cosa
 > Aunque no te deje entrar con ella, la contraseña se sigue pidiendo para los cambios
@@ -172,6 +193,10 @@ instalación recién estrenada.
    social que comercializa o factura las ventas?»**. Responde sí o no.
 3. Escribe el nombre de la razón social que corresponde a cada papel. El sistema te enseña
    solo los campos que hacen falta según lo que contestaste antes.
+
+   ![El cuestionario «Antes de empezar» contestado con varias razones sociales y la operación separada de las ventas: los cinco campos llenos —la misma empresa repetida en dos papeles— y el resumen «Se crearán 3 razones sociales» antes de «Guardar y continuar»](capturas-2026-09-18/02-01-03-bienvenida-cinco-campos.png)
+   *Captura — apartado 2.1, pasos 1-3.*
+
 4. Pulsa **«Guardar y continuar»**.
 
 Las dos primeras preguntas existen para **ahorrarte la tercera**. Esto es lo que cambia:
@@ -182,8 +207,13 @@ Las dos primeras preguntas existen para **ahorrarte la tercera**. Esto es lo que
 | Varias | operación y ventas coinciden | **cuatro nombres** |
 | Varias | operación y ventas separadas | **cinco nombres** |
 
-**Salió bien si:** la pantalla deja de ofrecerte el cuestionario y te lleva a la pantalla
-**«Razones sociales»**, donde ves las que acabas de crear.
+**Salió bien si:** la pantalla deja de ofrecerte el cuestionario y te lleva al
+**Dashboard**. Las razones sociales que acabas de crear están en la entrada **«Razones
+sociales»** del menú lateral.
+
+![La pantalla «Razones sociales», abierta desde el menú, con las tres que creó el cuestionario, cada una con sus papeles y «sin RFC»](capturas-2026-09-18/02-01-04-bienvenida-resultado.png)
+*Captura — apartado 2.1, «Salió bien si»: lo que ves al abrir «Razones sociales» después
+de contestar.*
 
 > [!info] Puedes escribir la misma empresa en varios campos
 > Es el caso normal, no la excepción. Si la misma sociedad paga rentas y compra activos,
@@ -205,17 +235,18 @@ Las dos primeras preguntas existen para **ahorrarte la tercera**. Esto es lo que
 > [!note] Captura: el cuestionario de bienvenida con las tres preguntas, en el caso de
 > «varias razones sociales» con operación y ventas separadas (cinco campos)
 
-![El cuestionario de bienvenida con las tres preguntas contestadas — varias razones sociales, operación y ventas separadas — y los cinco campos de razón social debajo](capturas-2026-09-18/01-01-bienvenida-cuestionario-cinco-campos.png)
-*Captura — apartado 2.1, pasos 1-3. Tomada el 2026-09-21 contra una organización sin
-ninguna razón social (`scripts/reiniciar-razones-sociales.mjs` deja ese estado exacto;
-aquí se hizo el borrado equivalente a mano porque el guion se niega a tocar la base
-`spaces` del 5433 por nombre — ver `## PENDIENTES`).*
+*La captura de esta nota está en el paso 3, arriba. Se tomó el 2026-09-24 con una
+organización recién creada y sin ninguna razón social (`demo-bienvenida`, que prepara
+`manuales/preparar-base-2026-09-18.mjs`).*
 
 ### 2.2 · Saltarte el cuestionario y contestarlo después
 
 **Empiezas en:** la pantalla de bienvenida.
 
 1. Pulsa **«Lo hago más tarde»**.
+
+   ![El pie del cuestionario: «Guardar y continuar» y, a su derecha, «Lo hago más tarde»](capturas-2026-09-18/02-02-01-bienvenida-lo-hago-mas-tarde.png)
+   *Captura — apartado 2.2, paso 1.*
 
 **Salió bien si:** entras a trabajar con normalidad. La aplicación funciona igual sin
 razones sociales capturadas.
@@ -241,7 +272,7 @@ el papel, las das de baja y las vuelves a activar.
 > [!note] Captura: la pantalla «Razones sociales» con el listado, los papeles de cada una y
 > los avisos de papel sin dueño y papel compartido
 
-![La pantalla «Razones sociales» con las tres razones sociales de la organización de demostración, cada una con su papel, y sin avisos: es el caso sano, con una sola dueña por papel](capturas-2026-09-18/02-01-razones-sociales-sano.png)
+![La pantalla «Razones sociales» con las tres razones sociales de la organización de demostración, cada una con su papel, y sin avisos: es el caso sano, con una sola dueña por papel](capturas-2026-09-18/03-00-01-razones-sociales-sano.png)
 *Captura — apartado 3, estado sano. En la base de demostración, cada papel tiene
 exactamente una dueña, así que los dos avisos de 3.2 no aparecen aquí; se muestran
 provocados más abajo.*
@@ -251,6 +282,9 @@ provocados más abajo.*
 1. Abre **«Razones sociales»**.
 2. Localiza la razón social en el listado.
 3. Dala de baja.
+
+   ![«Servicios DEMO Operativos» recién dada de baja: sale atenuada con la marca «Dada de baja», su botón pasa a «Reactivar» y arriba aparece el aviso de papel sin dueño](capturas-2026-09-18/03-01-03-razones-sociales-tras-baja.png)
+   *Captura — apartado 3.1, paso 3. La baja es directa, sin cuadro de confirmación.*
 
 **Salió bien si:** desaparece del listado normal y deja de ofrecerse al asignar contratos y
 comprobantes nuevos.
@@ -296,7 +330,7 @@ sugerirte una razón social donde antes te la sugería.
 > (D8 de `docs/Supervision/ABIERTOS.md`) **ya estaba aplicada** en el entorno donde se
 > hizo esta pasada.
 
-![La pantalla «Razones sociales» con los dos avisos en ámbar: «Papel sin dueño» sobre Trámites y licencias con gobierno y Operación y nómina, y «Papel compartido» sobre Paga las rentas a los arrendadores](capturas-2026-09-18/02-02-razones-sociales-avisos.png)
+![La pantalla «Razones sociales» con los dos avisos en ámbar: «Papel sin dueño» sobre Trámites y licencias con gobierno y Operación y nómina, y «Papel compartido» sobre Paga las rentas a los arrendadores](capturas-2026-09-18/03-02-01-razones-sociales-avisos.png)
 *Captura — apartado 3.2, avisos provocados a propósito para esta pasada.*
 
 ---
@@ -311,17 +345,51 @@ sugerirte una razón social donde antes te la sugería.
 
 1. Abre el contrato.
 2. Busca el dato **«La paga»**.
+
+   ![La ficha del contrato de «Mural DEMO Viaducto» abierta a la derecha, con «La paga: Sin asignar» y el enlace «Cambiar»](capturas-2026-09-18/04-01-02-contrato-la-paga.png)
+   *Captura — apartado 4.1, pasos 1-2.*
+
 3. Pulsa **«Cambiar»**.
 4. Elige la razón social en el selector.
-5. Guarda.
 
-**Salió bien si:** **«La paga»** deja de decir «sin asignar» y muestra el nombre de la razón
-social que elegiste.
+   ![El cuadro «Con cuál de tus razones sociales se paga», de un solo campo, con «Inmuebles DEMO del Centro, S.A. de C.V. — la que arrienda» elegida](capturas-2026-09-18/04-01-04-contrato-elegir-razon-social.png)
+   *Captura — apartado 4.1, pasos 3-4. El selector marca con «— la que arrienda» la que
+   tiene el papel.*
 
-> [!warning] El sistema te va a pedir tu contraseña otra vez
+5. Pulsa **«Guardar»**.
+
+   Si ya desbloqueaste los cambios en los últimos minutos (el botón de la barra superior
+   dice **«Desbloqueado … min»**), se guarda y pasas directo a «Salió bien si».
+
+   Si no, el cuadro se queda abierto y muestra en rojo *«Este cambio necesita que vuelvas a
+   teclear tu contraseña.»*, **sin ningún campo donde teclearla**. Sigue con el paso 6.
+
+   ![El cuadro tras pulsar «Guardar» con los cambios bloqueados: en rojo, «Este cambio necesita que vuelvas a teclear tu contraseña.», sin ningún campo donde teclearla](capturas-2026-09-18/04-01-05-contrato-pide-contrasena.png)
+   *Captura — apartado 4.1, paso 5, con los cambios bloqueados.*
+
+6. Cierra el cuadro con **«Cancelar»** y cierra también la ficha del contrato.
+7. Pulsa **«Cambios bloqueados»**, arriba a la derecha. Se abre **«Desbloquear cambios»**:
+   teclea tu contraseña y pulsa **«Desbloquear»**. El botón pasa a decir **«Desbloqueado
+   15 min»**.
+
+   ![El cuadro «Desbloquear cambios», abierto desde «Cambios bloqueados» en la barra superior, con el campo «Contraseña» escrito y los botones «Cancelar» y «Desbloquear»](capturas-2026-09-18/04-01-05-contrato-desbloquear-cambios.png)
+   *Captura — apartado 4.1, paso 7.*
+
+8. Vuelve a abrir el contrato, pulsa **«Cambiar»**, elige otra vez la razón social y pulsa
+   **«Guardar»**.
+
+**Salió bien si:** aparece el aviso **«Razón social asignada al contrato»** y, en la misma
+ficha, **«La paga»** deja de decir «Sin asignar» y muestra el nombre de la razón social que
+elegiste.
+
+![La ficha del mismo contrato, sin cerrarla, con «La paga: Inmuebles DEMO del Centro, S.A. de C.V.» y abajo el aviso «Razón social asignada al contrato»](capturas-2026-09-18/04-01-06-contrato-la-paga-asignada.png)
+*Captura — apartado 4.1, «Salió bien si».*
+
+> [!warning] Los pasos 6 a 8 son un rodeo, y es un defecto conocido
 > Asignar la razón social que paga viaja por el mismo camino que el importe de la renta, y
-> ese camino pide volver a teclear tu contraseña antes de guardar. Es el mismo candado que
-> ya conoces de facturar y de registrar un pago.
+> ese camino pide tu contraseña antes de guardar: es el mismo candado de facturar y de
+> registrar un pago. Lo que falla hoy es que este cuadro, en vez de pedírtela, solo avisa.
+> Mientras no se corrija, desbloquea **antes** de empezar (paso 7) y te ahorras la vuelta.
 >
 > Si entraste con Google y nunca te pusieron contraseña, pídesela a quien administra tu
 > cuenta **antes** de sentarte a asignar razones sociales.
@@ -332,23 +400,35 @@ información»**, junto con el resto de los datos que faltan.
 > [!note] Captura: la ficha de un contrato mostrando «La paga» con su botón «Cambiar», y el
 > cuadro de un solo campo que se abre al pulsarlo
 
-![La ficha del contrato de «Tlalpan G500», con «La paga: Inmuebles DEMO del Centro, S.A. de C.V.» y el enlace «Cambiar» a la derecha](capturas-2026-09-18/03-01-contrato-la-paga.png)
-*Captura — apartado 4.1, paso 2.*
-
-![El cuadro «Con cuál de tus razones sociales se paga», de un solo campo, abierto sobre la ficha del contrato tras pulsar «Cambiar»](capturas-2026-09-18/03-02-contrato-la-paga-editar.png)
-*Captura — apartado 4.1, pasos 3-4.*
+*Las capturas de esta nota están en los pasos 2 a 5, arriba.*
 
 ### 4.2 · Asignar la razón social que emite un comprobante
 
-**Empiezas en:** la campaña que vas a facturar.
+**Empiezas en:** el menú lateral, entrada **«Finanzas»**. El botón de facturar **no está
+en la ficha de la campaña**: la campaña solo te dice si su candado está completo.
 
-1. Abre la campaña.
-2. Pulsa **«Generar factura»**.
-3. Revisa la razón social emisora que trae propuesta y cámbiala si no es la correcta.
-4. Confirma.
+1. Abre **«Finanzas»** y busca la tarjeta **«Listas para facturar»**. Ahí salen las
+   campañas con el candado completo (orden de compra y evidencias) y sin comprobante.
 
-**Salió bien si:** bajo el folio del comprobante aparece **«Emite»** con el nombre de la
-razón social.
+   ![La tarjeta «Listas para facturar» con dos campañas, cada una con su cliente, su importe con IVA y el botón «Generar factura»](capturas-2026-09-18/04-02-01-finanzas-listas-para-facturar.png)
+   *Captura — apartado 4.2, paso 1.*
+
+2. Pulsa **«Generar factura»** en la campaña que toca.
+3. En el cuadro, revisa **«Con cuál de tus razones sociales se emite»**: trae propuesta la
+   que tiene el papel de ventas, marcada «— la que vende». Cámbiala si no es la correcta.
+
+   ![El cuadro «Generar factura» con el subtotal, el IVA y el total, el selector «Con cuál de tus razones sociales se emite» en «Publicidad DEMO Exterior, S.A. de C.V. — la que vende», la opción de cobrar en parcialidades, el plazo de cobranza y los botones «Cancelar» y «Emitir factura»](capturas-2026-09-18/04-02-03-generar-factura-emisora.png)
+   *Captura — apartado 4.2, pasos 2-3.*
+
+4. Pulsa **«Emitir factura»**.
+
+**Salió bien si:** la campaña sale de «Listas para facturar» y su comprobante aparece en
+**«Cobranza»**, con **«Emite»** y el nombre de la razón social bajo el folio.
+
+![El renglón del comprobante recién emitido en «Cobranza»: el folio, «Emite: Publicidad DEMO Exterior, S.A. de C.V.», el cliente, el importe, 90 días de plazo y «Al corriente»](capturas-2026-09-18/04-02-05-comprobante-emite.png)
+*Captura — apartado 4.2, «Salió bien si». Las dos campañas listas para facturar las siembra
+`manuales/preparar-base-2026-09-18.mjs`: la base de demostración deja facturadas todas las
+suyas.*
 
 > [!danger] La emisora se decide al emitir, y después no se cambia
 > No existe forma de reasignar la razón social de un comprobante ya emitido. Si te
@@ -385,20 +465,23 @@ papel. El papel decide la sugerencia, no lo que está permitido.
 ## 5 · «Sin asignar» no es un error
 
 Los contratos y los comprobantes creados **antes del 17 de septiembre de 2026** no tienen
-razón social, y se muestran así: **«sin asignar»**.
+razón social, y se muestran así: **«Sin asignar»**.
 
 Es deliberado. Nadie sabe a nombre de qué sociedad se hicieron, y el sistema **no se lo
 inventa**. Una razón social puesta a la ligera en un documento fiscal viejo es peor que un
 hueco declarado.
 
+![Detalle de la ficha de un contrato: «La paga: Sin asignar» junto al enlace «Cambiar»](capturas-2026-09-18/05-00-01-contrato-sin-asignar.png)
+*Captura — apartado 5. En pantalla se lee «Sin asignar», con mayúscula.*
+
 Qué hacer con ellos:
 
 - **Los contratos de renta sí se pueden asignar hacia atrás**, con el procedimiento del
   apartado 4.1. Ve haciéndolo a medida que los toques.
-- **Los comprobantes ya emitidos no.** Se quedan «sin asignar» y así se muestran.
+- **Los comprobantes ya emitidos no.** Se quedan «Sin asignar» y así se muestran.
 
 > [!info] «Razon social no disponible» es otra cosa
-> Si en lugar de «sin asignar» lees **«Razon social no disponible»**, el documento **sí**
+> Si en lugar de «Sin asignar» lees **«Razon social no disponible»**, el documento **sí**
 > tiene una razón social asignada: lo que pasa es que la pantalla todavía no acabó de
 > cargar su nombre. Recarga la pantalla. No es lo mismo que un documento sin asignar, y por
 > eso el sistema lo dice distinto.
@@ -434,18 +517,37 @@ Debajo de la frase hay cuatro datos: la versión **instalada**, la **disponible*
 **migraciones** trae —los cambios que hay que aplicarle a la base de datos— y cuándo se
 **comprobó** por última vez.
 
+![La tarjeta «Actualizaciones» de una instalación que todavía no se ha comprobado: la frase «Esta instancia todavía no se ha comprobado contra el registro: no se sabe si hay una versión nueva.», los cuatro datos en guion («Comprobado: nunca») y los dos botones de modo](capturas-2026-09-18/06-01-01-actualizaciones-tarjeta.png)
+*Captura — apartado 6.1, «Esta instancia todavía no se ha comprobado», tal como la dejó la
+instalación local sin tocar nada.*
+
+![La misma tarjeta con una versión nueva: «Hay una versión nueva disponible: v0.8.0. Esperando tu aprobación para instalarla.», Instalada v0.7.0, Disponible v0.8.0, Migraciones 2, la fecha de la comprobación, el modo «Con aprobación» marcado y el botón «Instalar v0.8.0»](capturas-2026-09-18/06-01-02-actualizaciones-version-esperando.png)
+*Captura — apartado 6.1, «Hay una versión nueva disponible … Esperando tu aprobación».
+**Este estado se preparó a mano en la instalación local**: en una instalación real lo
+escribe el actualizador del servidor al encontrar una versión nueva en el registro, y en
+local no hay actualizador. Las versiones (v0.7.0, v0.8.0) son de ejemplo. Lo mismo vale para
+las capturas del 6.2 y el 6.3.*
+
 > [!warning] Un guion en «Migraciones» no quiere decir cero
 > Significa que **no se pudieron contar**, no que no haya ninguna. Es justo la diferencia
 > que conviene mirar antes de pulsar un botón que corta el servicio.
 
 ### 6.2 · Elegir el modo
 
-1. Pulsa **«Con aprobacion»** si quieres decidir tú cuándo entra cada versión.
-2. Pulsa **«Automatica»** si prefieres que se instale sola, de madrugada, en cuanto se
-   publique.
+1. Pulsa **«Con aprobación»** si quieres decidir tú cuándo entra cada versión. Con una
+   versión esperando, debajo aparece el botón **«Instalar»**.
 
-**Salió bien si:** aparece el aviso **«Modo cambiado a con aprobacion»** o **«Modo cambiado
-a automatica»**, y el botón que elegiste queda marcado.
+   ![La pestaña «Configuración» de «Administración» tras pulsar «Con aprobación»: ese botón queda marcado, la frase dice «Esperando tu aprobación para instalarla», aparece «Instalar v0.8.0» y abajo el aviso «Modo cambiado a con aprobación»](capturas-2026-09-18/06-02-01-actualizaciones-modo-con-aprobacion.png)
+   *Captura — apartado 6.2, paso 1. Versión disponible preparada a mano en local (ver 6.1).*
+
+2. Pulsa **«Automática»** si prefieres que se instale sola, de madrugada, en cuanto se
+   publique. En este modo **no hay botón «Instalar»**: la frase te dice cuándo entrará.
+
+   ![La misma tarjeta tras pulsar «Automática»: ese botón queda marcado, la frase dice «Hay v0.8.0 disponible. Se instalará sola en la próxima ventana automática, de madrugada (04:17).», no hay botón «Instalar», y abajo el aviso «Modo cambiado a automática»](capturas-2026-09-18/06-02-02-actualizaciones-modo-automatica.png)
+   *Captura — apartado 6.2, paso 2. Versión disponible preparada a mano en local (ver 6.1).*
+
+**Salió bien si:** aparece el aviso **«Modo cambiado a con aprobación»** o **«Modo cambiado
+a automática»**, y el botón que elegiste queda marcado.
 
 > [!info] «Con aprobación» no es «más adelante»: es «hasta que alguien entre»
 > En ese modo la versión nueva espera indefinidamente. Si nadie abre esta pantalla, la
@@ -456,13 +558,22 @@ a automatica»**, y el botón que elegiste queda marcado.
 
 **Empiezas en:** la misma tarjeta, con una versión esperando aprobación.
 
-1. Pulsa **«Instalar»**, que lleva escrito el número de la versión disponible.
+1. Pulsa **«Instalar»**, que lleva escrito el número de la versión disponible (en la
+   captura del 6.1, **«Instalar v0.8.0»**).
 2. Lee la confirmación. Dice qué versión vas a instalar, cuántas migraciones trae y que el
    servicio se corta mientras dura.
+
+   ![El cuadro «Instalar v0.8.0»: «Vas a instalar v0.8.0. Trae 2 migraciones pendientes. El servicio se corta mientras dura la instalación.», con «Cancelar» e «Instalar»](capturas-2026-09-18/06-03-02-actualizaciones-confirmar-instalar.png)
+   *Captura — apartado 6.3, pasos 1-2. Versión disponible preparada a mano en local (ver 6.1).*
+
 3. Pulsa **«Instalar»** en la confirmación.
 
-**Salió bien si:** aparece el aviso **«Instalacion aprobada: se instalara en los proximos
+**Salió bien si:** aparece el aviso **«Instalación aprobada: se instalará en los próximos
 minutos»** y la frase de arriba pasa a decir que aprobaste esa versión.
+
+![La tarjeta tras confirmar: «Aprobaste v0.8.0: se instalará en los próximos minutos, o de madrugada (04:17) a más tardar.», sin botón «Instalar», y abajo el aviso «Instalación aprobada: se instalará en los próximos minutos»](capturas-2026-09-18/06-03-03-actualizaciones-aprobada.png)
+*Captura — apartado 6.3, «Salió bien si». En la instalación local esto solo guardó la
+aprobación: no hay actualizador que instale nada, así que no se instaló ninguna versión.*
 
 > [!danger] Instalar corta el servicio y cambia la base de datos
 > Mientras dura la instalación nadie de tu empresa puede usar la aplicación. Elige una hora
@@ -511,10 +622,17 @@ aplicación.
 3. En **«Cuéntanos qué pasa»**, describe el problema: qué estabas haciendo, qué esperabas y
    qué pasó. Caben hasta 4 000 caracteres.
 4. Elige la **«Prioridad»**: «Baja», «Normal», «Alta» o «Urgente».
+
+   ![La tarjeta «Soporte» con el formulario de ticket lleno: «Asunto», «Cuéntanos qué pasa» con qué se hacía, qué se esperaba y qué pasó, «Prioridad: Alta», y los botones «Cancelar» y «Abrir ticket»](capturas-2026-09-18/07-01-04-soporte-formulario.png)
+   *Captura — apartado 7.1, pasos 1-4.*
+
 5. Pulsa **«Abrir ticket»**.
 
 **Salió bien si:** aparece el aviso **«Ticket abierto»** con su folio, y el ticket encabeza
 la lista marcado como **«Abierto»**.
+
+![La tarjeta «Soporte» tras abrirlo: «Tienes 1 ticket esperando respuesta.», el ticket TK-2026-0001 marcado «Abierto» y «Alta» con «Esperando respuesta de AS OOH.», y abajo el aviso «Ticket abierto: TK-2026-0001»](capturas-2026-09-18/07-01-05-soporte-ticket-abierto.png)
+*Captura — apartado 7.1, «Salió bien si».*
 
 > [!info] El asunto y el texto son obligatorios
 > El botón no se activa hasta que los dos tienen algo escrito. No es un capricho del
@@ -534,6 +652,11 @@ Cada ticket muestra su folio, su estado —**«Abierto»**, **«En proceso»**, 
 - el recuadro **«Respuesta de AS OOH»** con la fecha y lo que te contestaron.
 
 **Salió bien si:** el ticket que te importaba muestra su recuadro de respuesta.
+
+![La tarjeta «Soporte» con «Todos tus tickets estan contestados.» y el ticket, todavía «Abierto», con su recuadro «Respuesta de AS OOH · 24 sep 2026» y el texto de la respuesta](capturas-2026-09-18/07-02-00-soporte-respuesta.png)
+*Captura — apartado 7.2. La respuesta entró por la misma puerta que usa el panel de AS
+OOH (`PATCH /api/tickets`), llamada contra la instalación local; el panel en sí no sale
+en la imagen. Fíjate en que el ticket sigue «Abierto»: contestar no lo resuelve (7.3).*
 
 > [!warning] Nadie te avisa cuando te contestan
 > No llega correo ni notificación. Si estás esperando una respuesta, entra a mirar.
@@ -570,15 +693,25 @@ pantallas de ese predio **igual que reparte la renta**.
 
 **Empiezas en:** la pantalla de consumo de luz.
 
+![La pantalla «Consumo de luz» de un perfil de Operaciones: arriba el formulario de captura, y debajo la rejilla «Qué está capturado y qué falta» con celdas capturadas, celdas con una raya ámbar y el aviso «Faltan 14 de 24 recibos del periodo…»](capturas-2026-09-18/08-01-01-consumo-luz-rejilla.png)
+*Captura — apartados 8.1 y 8.4.*
+
 1. Elige el predio.
 2. Elige el mes al que corresponde el recibo.
 3. Escribe el número de medidor, si lo tienes anotado.
 4. Escribe los kilovatios-hora del recibo.
 5. Escribe el importe.
+
+   ![El formulario lleno: «Predio DEMO Tlalpan · 1 pantalla», «agosto de 2026», medidor DEMO-MED-TLP-001, 640 kWh, importe 3968, y el botón «Guardar recibo»](capturas-2026-09-18/08-01-05-consumo-luz-formulario.png)
+   *Captura — apartado 8.1, pasos 1-5.*
+
 6. Guarda.
 
 **Salió bien si:** la celda de ese predio y ese mes deja de estar en ámbar y muestra el
 importe, el consumo y el medidor. El contador de recibos que faltan baja en uno.
+
+![La rejilla tras guardar: la celda de Predio DEMO Tlalpan en agosto de 2026 muestra $3,968.00, 640 kWh y el medidor; el aviso pasa a «Faltan 13 de 24», y en el formulario siguen puestos el predio y el mes con las cifras en blanco](capturas-2026-09-18/08-01-06-consumo-luz-guardado.png)
+*Captura — apartado 8.1, «Salió bien si».*
 
 Al guardar, **el predio y el mes se quedan puestos** y las cifras se limpian. Está pensado
 para capturar un lote de recibos seguidos sin volver a elegir el predio cada vez.
@@ -591,8 +724,7 @@ para capturar un lote de recibos seguidos sin volver a elegir el predio cada vez
 > [!note] Captura: la rejilla de predios por meses, con celdas capturadas y celdas en ámbar,
 > y el aviso de cuántos recibos faltan
 
-![La rejilla de predios por meses: celdas con importe y kWh capturados, celdas en ámbar con una raya para los meses sin recibo, y el aviso «Faltan 14 de 24 recibos del periodo…» sobre la tabla](capturas-2026-09-18/05-01-consumo-luz-rejilla.png)
-*Captura — apartado 8.1/8.4.*
+*Las capturas de esta nota están al principio del apartado 8.1 y en el paso 5.*
 
 ### 8.2 · Un predio con dos medidores
 
@@ -602,50 +734,38 @@ medidor anotado. El sistema los suma.
 No los sumes tú en una sola línea. El total quedaría bien, pero perderías el detalle de qué
 consume cada medidor.
 
+![El renglón de Predio DEMO Tlalpan con dos recibos en agosto de 2026: la celda suma $4,495.00 y 725 kWh y lista debajo los dos medidores, DEMO-MED-TLP-001 y DEMO-MED-TLP-002](capturas-2026-09-18/08-02-00-consumo-luz-dos-medidores.png)
+*Captura — apartado 8.2.*
+
 ### 8.3 · Corregir un recibo mal capturado
 
 **No hay edición.** Si te equivocaste, borra el recibo y captúralo de nuevo.
 
 1. Localiza el recibo en la pantalla. Cada uno se identifica por su número de medidor (o
    «sin número» si no lo tiene), debajo de la cifra, con un icono de papelera.
-2. Bórralo.
+2. Pulsa el icono de papelera. Se abre el cuadro **«Borrar este recibo»**, que dice de qué
+   medidor, qué mes y qué importe es. Confírmalo con **«Borrar el recibo»**.
+
+   ![El cuadro «Borrar este recibo» sobre la rejilla: «Se borra el recibo del medidor DEMO-MED-TLP-002, de ago 2026, por $527.00. No se puede deshacer…», con «Cancelar» y «Borrar el recibo»](capturas-2026-09-18/08-03-02-consumo-luz-confirmar-borrado.png)
+   *Captura — apartado 8.3, paso 2.*
+
+   ![La rejilla después de borrar los dos recibos de agosto de Predio DEMO Tlalpan, con una cuenta que sí tiene el permiso: la celda vuelve a la raya ámbar y el aviso sube a «Faltan 14 de 24»](capturas-2026-09-18/08-03-03-consumo-luz-tras-borrar.png)
+   *Captura — apartado 8.3, tras el paso 2.*
+
 3. Captúralo otra vez con las cifras correctas.
 
 > [!warning] El borrado existe precisamente porque no puedes capturarlo dos veces
 > El sistema rechaza el mismo recibo repetido, así que un importe con un cero de más se
 > quedaría inflando el costo de ese mes para siempre si no pudieras borrarlo.
 
-> [!danger] 2026-09-21 · El paso 2 dice mal las cosas: NO hay confirmación
-> Verificado mirando la pantalla: al pulsar el icono de papelera, el recibo se borra **de
-> inmediato**, sin ningún cuadro de diálogo que pedir aceptar. No hay «¿Seguro que quieres
-> borrar…?», ni nativo del navegador ni de la aplicación. El botón, además, **no lleva un
-> texto visible que diga «Borrar»**: es solo el icono y el número de medidor, con un
-> `title="Borrar este recibo"` que solo se lee al pasar el mouse por encima.
->
-> Esto es lo contrario de lo que dice el paso 2 arriba, y es la respuesta a la pregunta que
-> este manual tenía pendiente. Se deja la corrección aquí, sin tocar el paso, porque
-> corregir el cuerpo del manual es decisión de quien lo revise.
->
-> Cita: `apps/web/components/demo/energia/RejillaCaptura.tsx:84-95` (el botón, sin
-> `confirm()` alguno) y `apps/web/app/(app)/(shell)/energia/page.tsx:127-138` (`borrar()`,
-> que llama al DELETE sin preguntar antes).
->
-> **Y hay un segundo hallazgo, más grave, de permisos:** el botón de borrar se pinta igual
-> para cualquier rol, pero borrar exige `exigir('operaciones', 'aprobar')`
-> (`app/api/energia/consumos/[id]/route.ts:24`) y el rol OPERACIONES —el mismo al que este
-> apartado dice que le toca esta pantalla— solo tiene `ver` y `crear` sobre `operaciones`,
-> no `aprobar`. Un perfil de Operaciones que pulsa la papelera para corregir SU PROPIO
-> error no puede: recibe 403 («No tienes permiso para esta acción») y, como ese mensaje
-> comparte el mismo estado que el de «no cargó la pantalla», **la rejilla entera
-> desaparece** y se sustituye por «No se pudo cargar la captura» — no un aviso junto al
-> botón, sino la pantalla completa. Verificado en vivo con una cuenta OPERACIONES real.
+> [!warning] Un perfil de Operaciones puede capturar un recibo, pero no borrarlo
+> La papelera se le pinta igual, pero borrar exige el permiso de **aprobar** en
+> Operaciones, que ese perfil no tiene. Al confirmar sale en rojo **«No tienes permiso para
+> esta acción»**, encima de la rejilla, y el recibo se queda. Pídele el borrado a quien
+> tenga ese permiso (en la práctica, el Dueño).
 
-![Con la cuenta Dueño (que sí tiene el permiso), la misma rejilla justo después de borrar un recibo: la celda de ese mes vuelve a ámbar y el contador de faltantes sube en uno, sin ningún diálogo de por medio](capturas-2026-09-18/05-02-consumo-luz-tras-borrar.png)
-*Captura — apartado 8.3, tras el paso 2, con una cuenta que sí puede borrar.*
-
-![Un perfil de Operaciones, tras pulsar «Borrar este recibo»: la rejilla entera desaparece y la pantalla muestra «No se pudo cargar la captura · No tienes permiso para esta acción»](capturas-2026-09-18/05-03-operaciones-borrar-recibo-403.png)
-*Captura — hallazgo de producto, no pedida por el manual. El contador «Faltan 14 de 24»
-no cambió: el borrado sí se rechazó en el servidor, pero la pantalla no lo dice así.*
+![Un perfil de Operaciones tras confirmar el borrado de un recibo: sobre la rejilla, que sigue en su sitio, aparece el aviso rojo «No tienes permiso para esta acción»](capturas-2026-09-18/08-03-03-operaciones-borrar-403.png)
+*Captura — apartado 8.3, con un perfil de Operaciones.*
 
 ### 8.4 · Ver qué recibos te faltan
 
@@ -688,14 +808,19 @@ mirarla de cinco formas. **No son cinco reportes**: es una pantalla con un selec
 > (`components/demo/shell/compuerta.ts:59-66` y `AuthGate.tsx:73`, que redirige a
 > `landingDeRol(rol)` en cuanto detecta que el rol no alcanza el módulo de la ruta).
 
-![Un perfil de Operaciones tras intentar abrir /reportes/: termina en su propio tablero «Vista de Operaciones», con el menú lateral mostrando solo Operaciones, Almacén y Consumo de luz — sin Reportes y sin ningún mensaje de error](capturas-2026-09-18/07-01-operaciones-intenta-reportes.png)
-*Captura — respuesta al pendiente 6, apartado 9.*
+![Un perfil de Operaciones tras intentar abrir /reportes/: termina en su propio tablero «Vista de Operaciones», con el menú lateral mostrando solo Operaciones, Almacén y Consumo de luz — sin Reportes y sin ningún mensaje de error](capturas-2026-09-18/09-00-01-operaciones-intenta-reportes.png)
+*Captura — apartado 9. Retomada el 2026-09-24: el mismo comportamiento que el 21/09.*
 
 ### 9.1 · Sacar el reporte
 
 **Empiezas en:** el menú lateral, en la entrada de reportes.
 
 1. Abre la pantalla de reportes.
+
+   ![La pantalla «Reportes de rentabilidad» recién abierta: «Agrupar: Por pantalla», el rango 01/07/2026-30/09/2026, «Periodos: Mensual», los cuatro indicadores de arriba, el aviso ámbar de periodo en curso y la tabla con sus seis pantallas](capturas-2026-09-18/09-01-01-reportes-periodo-en-curso.png)
+   *Captura — apartados 9.1 y 9.2. Tomada el 2026-09-24, dentro del trimestre jul-sep
+   2026: el reporte abrió ahí solo, sin tocar las fechas.*
+
 2. Elige cómo quieres mirar: por pantalla, por trimestre, por operación, por metro cuadrado
    o por consumo de luz.
 3. Ajusta las fechas de **«desde»** y **«hasta»** si el periodo que trae no es el que
@@ -712,9 +837,7 @@ obligatorias. Si pones un rango al revés, el sistema te lo dice y no calcula.
 > [!note] Captura: la pantalla de reportes abierta, con el selector de las cinco miradas, el
 > rango de fechas, los indicadores de arriba y la tabla
 
-![La pantalla «Reportes de rentabilidad» recién abierta: el selector «Agrupar» en «Por pantalla», el rango 01/07/2026-30/09/2026, los cuatro indicadores de arriba, el aviso ámbar de periodo en curso y la tabla con sus seis pantallas](capturas-2026-09-18/06-01-reportes-periodo-en-curso.png)
-*Captura — apartado 9.1/9.2. Tomada el 2026-09-21, que cae en el trimestre jul-sep 2026:
-el reporte abrió ahí solo, sin tocar las fechas.*
+*La captura de esta nota está en el paso 1, arriba.*
 
 > [!warning] 2026-09-21 · La pantalla ya no ofrece cinco miradas: ofrece SEIS
 > El selector «Agrupar» trae hoy: «Por pantalla» · «Por trimestre» · «Por operación» ·
@@ -752,6 +875,9 @@ Encima de la tabla sale un **aviso en ámbar**, el primero de todos, que dice tr
 **Para ver cifras definitivas**, mueve el rango a un trimestre que ya cerró. Cuando lo
 hagas, **el aviso ámbar desaparece**, y esa desaparición es información: te está diciendo
 que lo que estás viendo ya no va a cambiar.
+
+![El mismo reporte con el rango 01/04/2026-30/06/2026, un trimestre ya cerrado: el aviso ámbar ya no está y los indicadores traen ingreso y margen](capturas-2026-09-18/09-02-01-reportes-trimestre-cerrado.png)
+*Captura — apartado 9.2, con T2 2026.*
 
 > [!warning] Basta un solo día de solape para que el aviso vuelva
 > Si estiras el rango un día dentro del trimestre en curso, el aviso reaparece. Y con razón:
@@ -792,6 +918,10 @@ Un trimestre sin movimiento **sí aparece, en cero**. Un hueco en una serie se l
 > En esta mirada, cada fila es un trimestre entero con todas tus pantallas dentro. Los
 > avisos que hablan de pantallas no salen aquí, precisamente porque dirían algo falso.
 
+![«Agrupar: Por trimestre» sobre julio de 2025 a junio de 2026: cuatro filas, de T3 2025 a T2 2026, en orden cronológico](capturas-2026-09-18/09-03-02-reportes-por-trimestre.png)
+*Captura — apartado 9.3, «Por trimestre». Las miradas de este apartado se tomaron todas
+con el mismo rango, los cuatro trimestres cerrados de la base de demostración.*
+
 #### Por operación
 
 Una fila por pantalla, con **cuántas visitas** recibió, **qué proporción de su ingreso se
@@ -805,12 +935,18 @@ peor margen saldría primera tapando justo a las que sí lo son.
 Ésta es la mirada que contesta «tienen las mismas campañas, pero a una van a cada rato a
 arreglarla».
 
+![«Agrupar: Por operación»: Tlalpan G500 sale primera, con 30 visitas, 20.1 % del ingreso en operación, 109.5 horas en sitio y, bajo el nombre, su desglose por tipo de visita](capturas-2026-09-18/09-03-03-reportes-por-operacion.png)
+*Captura — apartado 9.3, «Por operación».*
+
 #### Por metro cuadrado
 
 Una fila por pantalla estática, con su **superficie**, su **ingreso por metro** y su
 **margen por metro**. Salen primero las de peor margen por metro.
 
 Lee el apartado 9.4 antes de usar esta mirada: deja pantallas fuera, y te dice cuáles.
+
+![«Agrupar: Por metro cuadrado»: cuatro pantallas estáticas con su superficie, su ingreso por m² y su margen por m², y encima los avisos de la convención y de las dos que quedaron fuera](capturas-2026-09-18/09-03-04-reportes-por-metro-cuadrado.png)
+*Captura — apartado 9.3, «Por metro cuadrado».*
 
 #### Por consumo de luz
 
@@ -821,6 +957,9 @@ mirada por operación.
 Si una pantalla no tiene consumo, su costo por kilovatio-hora sale como **«—»** y no como
 «$0.00». Un cero se leería como «aquí la luz es gratis», que es lo contrario de «no hay
 consumo con el que calcularlo».
+
+![«Agrupar: Por consumo de luz»: cada pantalla con los kilovatios-hora que le tocaron y su costo por kilovatio-hora, ordenadas por costo de energía](capturas-2026-09-18/09-03-05-reportes-por-consumo-de-luz.png)
+*Captura — apartado 9.3, «Por consumo de luz».*
 
 > [!info] La luz cuenta en TODAS las miradas, no solo en ésta
 > El costo de la energía entra en el costo total y en el margen de las cinco. Si no fuera
@@ -842,6 +981,9 @@ Son cinco avisos. El primero va en ámbar; los demás en gris.
 | **Sin ingreso** | Costaron y no vendieron. Son justo las que este reporte existe para encontrar |
 | **Exclusiones por metro cuadrado** | Cuántas pantallas quedaron fuera del ranking por metro, y por qué |
 | **Convención del metro cuadrado** | Qué cuenta como metro cuadrado. Ver el apartado 9.5 |
+
+![El recuadro gris de avisos de la mirada por metro cuadrado: «La superficie suma TODAS las caras de cada pantalla…» y «Quedaron fuera del ranking: 2 estáticas sin ancho o sin alto capturados.»](capturas-2026-09-18/09-04-01-reportes-avisos.png)
+*Captura — apartados 9.4 y 9.5, recortada de la mirada por metro cuadrado.*
 
 #### Qué deja fuera la mirada por metro cuadrado
 
@@ -912,6 +1054,10 @@ costo del espacio, el costo de operación, el margen y las visitas de cada uno.
 El desglose solo se ofrece **cuando hay más de un periodo** en el rango. Con uno solo
 repetiría la fila de arriba.
 
+![La tabla por pantalla con «Periodos: Trimestral» y la primera fila desplegada: debajo de Mural DEMO Viaducto, un renglón por trimestre de T3 2025 a T2 2026 con ingreso, espacio, operación, luz, margen y visitas](capturas-2026-09-18/09-06-01-reportes-desglose.png)
+*Captura — apartado 9.6. Se despliega con la flecha a la izquierda del nombre («Ver el
+desglose por periodo»).*
+
 ### 9.7 · Cómo leer los totales del pie
 
 El pie **no totaliza todas las columnas**, y las que deja en blanco las deja a propósito.
@@ -930,7 +1076,7 @@ nadie.
 | Lo que ves | Qué pasó | Qué hacer |
 |---|---|---|
 | **«El registro ya existe»** al guardar un recibo de luz | Ya hay un recibo de ese predio, ese mes y ese medidor | Comprueba si ya lo capturaste. Si es un segundo medidor, anota su número y vuelve a intentar |
-| **«sin asignar»** en un contrato o comprobante | Ese documento no tiene razón social. Normal en todo lo anterior al 17 de septiembre | En contratos, asígnala (apartado 4.1). En comprobantes emitidos, se queda así |
+| **«Sin asignar»** en un contrato o comprobante | Ese documento no tiene razón social. Normal en todo lo anterior al 17 de septiembre | En contratos, asígnala (apartado 4.1). En comprobantes emitidos, se queda así |
 | **«Razon social no disponible»** | El documento **sí** tiene razón social, pero la pantalla no acabó de cargar su nombre | Recarga la pantalla |
 | El reporte dice que **no hubo movimiento** en el periodo | Ninguna pantalla tuvo ingreso, ni renta, ni visitas en ese rango | Comprueba primero las fechas. Si son correctas, es que ese periodo está realmente vacío |
 | El reporte dice que **no se pudo calcular** | La pantalla no recibió respuesta, o la respuesta vino con error | Vuelve a intentar. Si se repite, avisa a quien administra tu instalación |
@@ -939,8 +1085,11 @@ nadie.
 | **«Esta cuenta entra con Google…»** al intentar entrar | A esa cuenta se le cerró la entrada por contraseña | Entra con **«Continuar con Google»** (apartado 1.3) |
 | **«Ver y decidir la actualización … está reservado a quien tenga el permiso de Administración → ver»** | Tu cuenta no tiene permiso de Administración | Pídeselo a quien administra los roles de tu organización |
 | **«Ver y abrir tickets de soporte está reservado a quien tenga el permiso de Administración → ver»** | Lo mismo, en la tarjeta de soporte | Pídele a esa persona que abra el ticket por ti (apartado 7) |
-| **«No se pudo cargar el estado de la actualizacion»** o **«No se pudieron cargar tus tickets de soporte»** | La tarjeta no recibió respuesta | Recarga. Si se repite, es de quien opera el servidor, no de tu organización |
+| **«No se pudo cargar el estado de la actualización»** o **«No se pudieron cargar tus tickets de soporte»** | La tarjeta no recibió respuesta | Recarga. Si se repite, es de quien opera el servidor, no de tu organización |
 | **«…el actualizador no pudo leer el digest de la imagen…»** | Esta instalación no puede instalar nada hasta que alguien lo revise | Avisa a quien opera el servidor. No es algo que se arregle desde la pantalla |
+
+![El formulario de recibo de luz con el mismo predio, mes y medidor de un recibo ya capturado, y junto a «Guardar recibo» el texto rojo «El registro ya existe»](capturas-2026-09-18/10-01-01-consumo-luz-registro-ya-existe.png)
+*Captura — apartado 10.1, «El registro ya existe».*
 
 ### 10.2 · A quién avisar
 
@@ -1035,13 +1184,9 @@ Pídeselo a quien administra tu organización.
 > por palabra en el apartado 3.2, provocado a propósito porque en la demostración cada
 > papel tiene una sola dueña.
 >
-> **5. El botón de borrar un recibo NO tiene texto visible** (es un icono de papelera con
-> `title="Borrar este recibo"`) **y NO hay ninguna confirmación**: el borrado es inmediato.
-> Contradice lo que dice el paso 2 del apartado 8.3, que queda anotado ahí con la cita del
-> código. Y de paso se encontró que un perfil de Operaciones —al que este manual le asigna
-> la pantalla— no puede borrar su propio recibo mal capturado: el borrado exige el permiso
-> `aprobar`, que Operaciones no tiene, y el 403 resultante le borra la rejilla entera de la
-> pantalla. Ver el apartado 8.3.
+> **5.** *(Retirado el 2026-09-24: lo que decía del borrado de recibos —que no pedía
+> confirmación y que el 403 de Operaciones se llevaba la rejilla— ya no es cierto. El
+> apartado 8.3 describe lo que hace hoy la aplicación.)*
 >
 > **6. Un perfil de Operaciones que intenta `/reportes/` no ve ni un 403 ni un mensaje**:
 > el sistema lo redirige de inmediato a su propio tablero (`/operaciones/`), y la entrada
@@ -1074,16 +1219,75 @@ Pídeselo a quien administra tu organización.
 > botones se llaman así en una instalación real y que los tres flujos se recorren de
 > principio a fin.
 
+> [!important] 2026-09-24, tarde · el manual completo, con fotos, y SEIS cosas que el texto dice mal
+> Se recorrieron los diez apartados delante de la aplicación —`next build && next start`
+> en local, contra una base propia y desechable (`spaces_manual_0924`, que prepara
+> `manuales/preparar-base-2026-09-18.mjs`), con `manuales/capturas-2026-09-18.spec.ts`—.
+> Salieron **39 capturas**, todas en `capturas-2026-09-18/`, y **se renumeraron por
+> apartado**: `NN-MM-PP` es apartado, subapartado y paso, así que el nombre ya vuelve a
+> coincidir con el sitio donde está. Con eso se cierran dos puntos de la lista de abajo:
+> los apartados 1, 6 y 7 ya tienen fotos (salvo lo que no se puede ver en local), y los
+> nombres ya no están corridos. El cambio de bordes que se esperaba ya estaba en `main`.
+>
+> **Lo que no se pudo fotografiar**, con su motivo, está en
+> `manuales/capturas-pendientes.md`. Tras la segunda pasada de la tarde queda **solo el
+> 1.1** (exige entrar con Google). El 4.2 ya tiene sus pasos, con dos campañas listas para
+> facturar que siembra el preparador de la base, y el 6.3 también, con la versión
+> disponible **preparada a mano** en la base local: en una instalación real ese dato lo
+> escribe el actualizador, y los pies de foto lo dicen.
+>
+> **Lo que el texto decía y la pantalla no, y cómo quedó** (segunda pasada, misma tarde):
+>
+> 1. **2.1, «Salió bien si»**: «Guardar y continuar» lleva al **Dashboard**, no a «Razones
+>    sociales» (`app/(app)/bienvenida/page.tsx`, `alTerminar`). **Corregido el manual.**
+> 2. **4.1, el cuadro no pide la contraseña.** Ver el defecto abierto de abajo. **Corregido
+>    el manual** con el rodeo que funciona hoy (pasos 5-8), y el código **no se tocó**.
+> 3. **4.1, la ficha se quedaba en «Sin asignar» al guardar.** Era la página, que guardaba
+>    una copia del contrato. **Corregido el código** (`fix(arrendadores)`, solo interfaz,
+>    con su prueba): la ficha se actualiza sola.
+> 4. **8.3**: borrar un recibo **sí pide confirmación** y el 403 de Operaciones **ya no se
+>    lleva la rejilla**. **Corregido el manual** y retirado el aviso viejo del 21/09.
+> 5. **«Sin asignar»** va con mayúscula en pantalla. **Corregido el manual.**
+> 6. **6.1, la tarjeta de actualizaciones escribía sin acentos.** Era un defecto de la
+>    aplicación, no del manual. **Corregido el código** (`fix(ui)`); los textos que cita el
+>    apartado 6 ya coinciden con la pantalla.
+>
+> **Y dos cosas de la pantalla que el manual no menciona:** en «Códigos de recuperación»
+> los botones y el campo de contraseña **no tienen aspecto de botón ni de campo** (salen
+> como texto suelto, ver 01-02-01 y 01-02-02), y los campos del formulario de ticket no
+> están asociados a su etiqueta (`<label>` sin `htmlFor`), lo que los deja mudos para un
+> lector de pantalla.
+>
+> **Medido, para el punto abierto de abajo:** un lote trae **10 códigos**, en dos
+> columnas, con la forma `XXXXX-XXXXX-XXXXX`. Y el segundo lote solo pide contraseña si
+> el primero se **confirmó** con «Ya los guardé» y «Continuar»: la regla del servidor mira
+> esa confirmación, no si existe un lote.
+
 ### Lo que quedó abierto el 2026-09-24
 
+- **DEFECTO — espera aprobación humana (zona roja R1, sesión).** El cuadro «Con cuál de tus
+  razones sociales se paga» no abre el candado cuando el servidor pide la contraseña: al
+  fallar el guardado pinta el mensaje del error y ya
+  (`apps/web/components/demo/arrendadores/ContratoSheet.tsx:400`, dentro de
+  `RazonSocialQuePagaModal`, que empieza en la `:376`). Otros cuadros de la misma pantalla
+  sí reconocen ese error y piden la contraseña en el sitio
+  (`apps/web/app/(app)/(shell)/arrendadores/page.tsx:1121`, con `esErrorDeDesbloqueo`,
+  `apps/web/lib/data/cambios-api.ts:88`). Hoy el usuario tiene que dar el rodeo del 4.1,
+  pasos 6-8. **No se tocó**: afecta al candado de cambios, que es sesión.
+  Y un detalle relacionado: el comentario de `components/demo/shell/DesbloqueoCambios.tsx`
+  dice que al Dueño el botón «no le sale nunca», y en esta pasada **le salió**.
+- **La tarjeta «Soporte» también escribe sin acentos** («Todavia no has abierto ningun
+  ticket», «Todos tus tickets estan contestados», `components/demo/admin/tickets-ui.ts`), y
+  «Razon social no disponible» igual (`components/demo/razones-sociales/asignacion.ts:130`).
+  Es el mismo defecto que se corrigió en «Actualizaciones»; no entraba en el encargo de esta
+  pasada.
 - **No hay por dónde entrar con un código de recuperación.** El servidor los acepta, pero
   ninguna pantalla los pide: la de acceso no tiene campo ni enlace para teclearlos. Medido
   buscando quién llama a esa puerta en toda la aplicación: solo la llaman las pruebas.
   Mientras siga así, un Dueño que pierda su cuenta de Google no tiene salida por su cuenta.
   **Es una decisión de producto, no de este manual.**
-- **Cuántos códigos trae un lote, y qué forma tienen.** El manual no lo dice porque no se
-  midió. Conviene saberlo antes de capacitar: cambia si caben en una tarjeta o hacen falta
-  dos.
+- ~~**Cuántos códigos trae un lote, y qué forma tienen.**~~ **Cerrado el 24/09, tarde:**
+  diez, con la forma `XXXXX-XXXXX-XXXXX`, en dos columnas.
 - **Cómo se vuelve a la pantalla de códigos.** Existe —y desde ella se generan otros— pero
   **no aparece en el menú lateral**. Hoy solo se llega escribiendo la dirección. Si el
   apartado 1.2 va a ser utilizable, hace falta una entrada desde el perfil del usuario.
@@ -1094,15 +1298,11 @@ Pídeselo a quien administra tu organización.
 - **Nadie avisa de que un ticket fue contestado.** Está dicho en el apartado 7.2 porque es
   el comportamiento real, pero conviene decidir si se acepta o se cierra: hoy la respuesta
   solo se descubre entrando a mirar.
-- **Faltan cuatro capturas**, marcadas en el texto con `[!note]`: la pantalla de códigos de
-  recuperación, la tarjeta «Actualizaciones» con una versión esperando, su cuadro de
-  confirmación, y la tarjeta «Soporte» con un ticket contestado. **No se toman hasta que
-  entre el cambio de bordes**, o nacen viejas.
-- **Los nombres de los archivos de captura ya no coinciden con el número de apartado.** Al
-   entrar tres secciones nuevas, los apartados se corrieron: `01-01-bienvenida…` ilustra hoy
-  el 2.1, `05-01-consumo-luz…` el 8.1 y `06-01-reportes…` el 9.1. Los pies de foto sí están
-  actualizados. Renombrar los archivos y el guion que los genera
-  (`manuales/capturas-2026-09-18.spec.ts`) es trabajo aparte.
+- ~~**Faltan cuatro capturas.**~~ **Cerrado el 24/09, tarde:** las cuatro están tomadas (la
+  de «Actualizaciones» con la versión preparada a mano en local). El cambio de bordes ya
+  estaba en `main`.
+- ~~**Los nombres de los archivos de captura no coinciden con el número de apartado.**~~
+  **Cerrado el 24/09, tarde:** renumerados `NN-MM-PP` por apartado, subapartado y paso.
 
 ### El que sigue abierto — es una decisión de negocio, no técnica
 

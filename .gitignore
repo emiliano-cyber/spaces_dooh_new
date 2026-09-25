@@ -146,7 +146,11 @@ apps/flota/publico/
 # Si algún día las capturas pasan a ser un entregable que viaja con el
 # repositorio, se quita esa línea y se revisa antes qué se ve en cada imagen.
 manuales/.auth/
-manuales/.playwright-artifacts/
+# Con asterisco: el arnés de septiembre escribe en `.playwright-artifacts-2026-09-18/`
+# (su config lo pide así), y la regla a secas no la cubría. Importa más de lo que
+# parece: el `error-context.md` de una corrida fallida copia el árbol de la página,
+# y en la pantalla de códigos de recuperación eso son los códigos EN CLARO.
+manuales/.playwright-artifacts*/
 manuales/capturas/
 
 # ─── Los mutantes del arnes de aprovisionamiento ──────────────────────────
