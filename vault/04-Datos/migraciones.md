@@ -32,6 +32,51 @@ archivos:
 
 # Migraciones
 
+> [!note] 2026-09-28 · TRES TABLAS NUEVAS — la rejilla de precios (ADR 0039, Fase 1)
+> `20260928_rejilla_franja_temporada.sql` — `franjas_horarias`, `temporadas` y
+> `sitio_tarifas`, más dos columnas: `propuesta_items.franja_id` y
+> `reservas.franja_id`. Aditiva entera, transaccional e idempotente: **no toca
+> una sola fila existente**, ni ninguna restricción anterior, ni `db/schema.sql`.
+> No mueve ni un importe — la rejilla **nace vacía**, y por eso todo se sigue
+> vendiendo exactamente como el día antes.
+>
+> **La trampa de PostgreSQL 14 que esquiva, y es la razón de su forma.** El único
+> de `sitio_tarifas` NO puede ser un `unique (sitio_id, unidad, franja_id,
+> temporada_id)`: en el estándar dos NULL no son iguales, así que admitiría **dos
+> filas «sin franja»** de la misma pantalla y unidad, o sea dos precios para la
+> misma venta, ganando el que quisiera el `order by`. `nulls not distinct` lo
+> arregla en la **15** y **g500 corre 14.24** — un `@pg-min: 15` pararía la cola
+> entera de la única instancia con datos de cliente. Se resuelve con un índice de
+> EXPRESIÓN, `coalesce(franja_id, '00000000-…'::uuid)`, que funciona en 14. El
+> `on conflict` de `rejilla-repo.ts` tiene que repetir esas expresiones letra por
+> letra, y una prueba lo fija.
+>
+> **Las FK a franja y temporada SÍ son compuestas `(id, tenant_id)`**, al revés
+> que `usuario_id` del mismo día, y el motivo es que aquí el agujero **sí es
+> alcanzable**: `franja_id` entra por el CUERPO de la petición —la elige el
+> vendedor en un selector—, no de la sesión. Y se puede en 14: lo que exigía la 15
+> en `20260918_entidad_tenant_compuesto.sql` era `on delete set null (columna)`,
+> no la FK compuesta.
+>
+> `propuesta_items.franja_id` y `reservas.franja_id` van con **`on delete
+> restrict`**: una franja contratada es un hecho. Por eso el repositorio **no
+> ofrece borrado** — la baja es lógica (`activo`). Consecuencia que conviene tener
+> escrita: **borrar un TENANT con franjas contratadas fallaría por ese restrict.**
+> Hoy solo borra tenants el arnés de integración, sobre bases sin franjas.
+>
+> **Lo que NO hace:** no prohíbe el solape en la base. Una franja que cruza la
+> medianoche son dos tramos y una restricción de exclusión necesitaría
+> `btree_gist`, que no está garantizada en la flota. El guardián es
+> `apps/web/lib/rejilla.ts`. Ver [[02-Backend/rejilla-franja-y-temporada]].
+>
+> **Medido, no copiado:** `node scripts/recuentos.mjs` sobre este árbol
+> (`feat/rejilla-franja-temporada`) da **91 migraciones** y **49 tablas**. Runner
+> corrido **dos veces** sobre una base creada para eso (`spaces_rejilla_mig`,
+> `schema.sql` de base): la primera aplica 90 y sale 0, la segunda dice
+> `0 aplicadas` y sale 0. Y comprobado contra la base, no deducido del DDL: la FK
+> compuesta **rechaza** una tarifa de una organización colgada de la franja de
+> otra, y el índice **rechaza** la segunda fila «sin franja».
+
 > [!note] 2026-09-28 · `propuestas.usuario_id` — el VENDEDOR (VEND-01)
 > `20260928_vendedor_en_propuesta.sql` — **columna**, no tabla. Aditiva e
 > idempotente: `uuid` **nullable, sin DEFAULT**, FK a `usuarios(id)`

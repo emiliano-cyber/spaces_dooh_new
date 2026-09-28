@@ -4,6 +4,7 @@ import { AppError, validar } from './errores'
 import { crearPropuesta, aprobarItem, PropuestaError, type PropuestaInput } from './propuestas-repo'
 import { cantidadEfectiva, precioItem, UNIDADES, type Unidad } from '@/lib/periodos'
 import { PERIODICIDAD_VALUES } from '@/lib/renta-periodicidad'
+import { listarFranjas } from './rejilla-repo'
 
 // ============================================================================
 //  lib/server/propuestas-controller.ts — Alta de propuestas y aprobación de sus
@@ -41,6 +42,14 @@ const itemSchema = z.object({
   rentaMonto: z.coerce.number().nonnegative().nullish(),
   rentaPeriodicidad: z.enum(PERIODICIDADES_RENTA).nullish(),
   rentaArrendadorId: z.string().uuid().nullish(),
+  // REJILLA-01 · la FRANJA contratada (ADR 0039, Fase 1). Al revés que el
+  // vendedor del mismo día, ésta SÍ entra por el cuerpo: la elige quien vende y
+  // no hay de dónde deducirla. Por eso se valida contra el catálogo de la
+  // organización antes de escribir —abajo— y por eso la FK de la base es
+  // COMPUESTA con el tenant. Opcional: casi ninguna venta la usa.
+  // Acotado: el rechazo NOMBRA el identificador para poder diagnosticarlo, y
+  // sin tope alguien haría que el servidor le devolviera lo que él mandó.
+  franjaId: z.string().trim().min(1).max(64).nullish(),
 })
 
 const crearSchema = z
@@ -62,6 +71,34 @@ const crearSchema = z
 export async function crearPropuestaCtrl(body: unknown) {
   const d = validar(crearSchema, body)
 
+  // REJILLA-01 · la franja contratada se comprueba contra el catálogo ACTIVO de
+  // esta organización, y solo si alguien la usa.
+  //
+  // `listarFranjas()` lee bajo RLS y sin argumentos devuelve solo las activas,
+  // así que esta única llamada cierra los dos casos de golpe: una franja de otra
+  // organización no aparece en la lista, y una desactivada tampoco. Poder
+  // vender una franja apagada haría que apagarla no significara nada.
+  //
+  // La FK compuesta `(franja_id, tenant_id)` de la base ya rechazaría la ajena
+  // —y es la que de verdad cierra el agujero R2, porque una validación es algo
+  // que alguien puede olvidar en la siguiente ruta—. Esto es para que quien lo
+  // lea vea una frase y no un error de restricción.
+  //
+  // El `if` no es micro-optimización: toda la base instalada vende sin franja, y
+  // sin él cada alta de propuesta pagaría un viaje a la base por un catálogo que
+  // no va a usar.
+  const franjasPedidas = d.items.map((it) => it.franjaId ?? null).filter((f): f is string => !!f)
+  if (franjasPedidas.length) {
+    const validas = new Set((await listarFranjas()).map((f) => f.id))
+    const mala = franjasPedidas.find((f) => !validas.has(f))
+    if (mala) {
+      throw new AppError(
+        `La franja horaria "${mala}" no existe en esta organización o está desactivada.`,
+        400,
+      )
+    }
+  }
+
   // Normaliza cada ítem a la forma persistida, calculando cantidad y precio en
   // el servidor a partir de la unidad y la tarifa por unidad.
   const items = d.items.map((it) => {
@@ -80,6 +117,10 @@ export async function crearPropuestaCtrl(body: unknown) {
         rentaMonto: it.rentaMonto ?? null,
         rentaPeriodicidad: it.rentaPeriodicidad ?? null,
         rentaArrendadorId: it.rentaArrendadorId ?? null,
+        // Explícito a `null` y no dejado en `undefined`: el contrato hacia el
+        // repo dice «sin franja», que es un hecho, y no «no me acordé». Un
+        // `?? laPrimera` futuro no podría colarse sin tocar esta línea.
+        franjaId: it.franjaId ?? null,
       }
     }
     const cantidad = cantidadEfectiva(it.unidad, d.fechaInicio, d.fechaFin, it.cantidad)
@@ -95,6 +136,7 @@ export async function crearPropuestaCtrl(body: unknown) {
       rentaMonto: it.rentaMonto ?? null,
       rentaPeriodicidad: it.rentaPeriodicidad ?? null,
       rentaArrendadorId: it.rentaArrendadorId ?? null,
+      franjaId: it.franjaId ?? null,
     }
   })
 

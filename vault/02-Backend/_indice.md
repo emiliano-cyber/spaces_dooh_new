@@ -42,6 +42,7 @@ No hay servicio aparte.
 | [[reportes-dimensiones]] | Las cuatro dimensiones y la atribución **consciente del periodo** |
 | [[reportes-por-razon-social]] | La sexta dimensión: cuánto pasa por cada razón social, y por qué no pinta margen |
 | [[tarifa-publicada-vs-neta]] | La séptima: qué tarifa se **publicó** y qué entró de ella. Las dos convenciones de precio y el guard que las sobrevive |
+| [[rejilla-franja-y-temporada]] | **ADR 0039, Fase 1**: el precio deja de ser un número y pasa a ser `f(pantalla, unidad, franja, fecha)`. Las dos decisiones de diseño, el congelado, y por qué la franja NO viaja al CMS |
 | [[vendedor-en-propuesta]] | La octava: quién vendió y cuánto descuento concedió. El dato que faltaba, y el histórico que no se puede recuperar |
 | [[cuestionario-bienvenida]] | El cuestionario que crea las razones sociales del owner al entrar |
 | [[integraciones-externas]] | DOOHmain, Space Eye, S3, Resend, Google, cron |

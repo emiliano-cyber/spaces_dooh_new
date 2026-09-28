@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { conteo } from '@/lib/plural'
 import { Radio, CalendarDays, Wallet, Coins, Receipt, Building2, MapPin, CircleHelp, CheckCircle2, ExternalLink } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
+import { AvisoFranjaCMS } from '@/components/demo/rejilla/AvisoFranjaCMS'
 import { Button } from '@/components/demo/ui/Button'
 import { MapView, type MapPoint } from '@/components/demo/MapView'
 import { formatMonto, formatFecha, formatFechaHora } from '@/lib/data/client'
@@ -12,6 +13,11 @@ import { ubicacion } from '@/lib/ubicacion'
 const API = '/spaces-dooh/api'
 
 interface ItemPub {
+  // REJILLA-01 · la franja contratada (ADR 0039, Fase 1). `null` en casi todo:
+  // solo la llevan las ventas que la usan.
+  franjaId?: string | null
+  franjaNombre?: string | null
+  franjaHorario?: string | null
   sitioNombre: string
   alcaldia: string | null
   tipoMedio: string | null
@@ -216,6 +222,16 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
                   <li key={i} className="flex items-start justify-between gap-3 py-2.5">
                     <div className="min-w-0">
                       <div className="truncate text-[13px] text-ink">{it.sitioNombre}</div>
+                      {/* REJILLA-01 · la franja CONTRATADA, con su horario. Un
+                          importe sin las horas que compró deja al cliente sin
+                          saber qué aceptó — y esta pantalla es exactamente donde
+                          lo acepta. */}
+                      {it.franjaId && (
+                        <div className="text-[11px] font-medium text-amber-800">
+                          {it.franjaNombre ?? it.franjaId}
+                          {it.franjaHorario ? ` · ${it.franjaHorario}` : ''}
+                        </div>
+                      )}
                       {/* Ubicación completa: dirección + zona. Redundante con el
                           mapa a propósito — el cliente que abre la liga debe poder
                           situar la pantalla aunque los tiles no carguen. */}
@@ -246,6 +262,15 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
                   </li>
                 ))}
               </ul>
+            )}
+            {/* REJILLA-01 · y el aviso, en la superficie que MÁS importa: ésta
+                es la que ve el cliente y donde acepta. Enseñarle «Prime
+                06:00–10:00» y no decirle que la programación no viaja sola al
+                CMS sería mentirle por omisión justo al firmar. */}
+            {p.items.some((it) => it.franjaId) && (
+              <div className="mt-3">
+                <AvisoFranjaCMS />
+              </div>
             )}
           </CardContent>
         </Card>

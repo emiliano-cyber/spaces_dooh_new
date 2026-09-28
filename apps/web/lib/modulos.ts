@@ -36,6 +36,13 @@ export const AREAS: AreaProducto[] = [
   { clave: 'creativos', label: 'Creativos', modulo: 'comercial', apiPropia: false },
   { clave: 'comisiones', label: 'Comisiones', modulo: 'comercial', apiPropia: false },
   { clave: 'inventario', label: 'Inventario', modulo: 'inventario', apiPropia: true },
+  // REJILLA-01 · franjas y temporadas (ADR 0039, Fase 1). Bajo `inventario` y no
+  // bajo `administracion`: son dimensiones del PRECIO DE VENTA de las pantallas.
+  // El guard de sus endpoints ya exige `inventario` (`app/api/rejilla/franjas/
+  // route.ts`), así que declararla en otro módulo sería declarar una mentira, y
+  // quien marcara esa casilla en la matriz de permisos creería estar concediendo
+  // acceso a otra cosa. Mismo razonamiento que el de `reportes` bajo `finanzas`.
+  { clave: 'franjas-y-temporadas', label: 'Franjas y temporadas', modulo: 'inventario', apiPropia: true },
   { clave: 'arrendadores', label: 'Arrendadores', modulo: 'arrendadores', apiPropia: true },
   { clave: 'operaciones', label: 'Operaciones', modulo: 'operaciones', apiPropia: true },
   { clave: 'almacen', label: 'Almacén', modulo: 'operaciones', apiPropia: true },

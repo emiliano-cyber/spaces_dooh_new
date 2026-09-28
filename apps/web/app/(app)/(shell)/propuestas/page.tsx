@@ -6,6 +6,9 @@ import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { Plus, FileText, Send, Check, X, ChevronDown, ChevronRight, Monitor, Square, List, Map as MapIcon } from 'lucide-react'
 import { Card, CardContent } from '@/components/demo/ui/Card'
+import { AvisoFranjaCMS } from '@/components/demo/rejilla/AvisoFranjaCMS'
+import { catalogoRejillaApi, type FranjaUI, type TemporadaUI } from '@/lib/data/rejilla-api'
+import { resolverTarifa, temporadaDeFecha } from '@/lib/rejilla'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
 import { MapView } from '@/components/demo/MapView'
@@ -376,8 +379,36 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
   type CfgSitio = {
     unidad: Unidad; cantidadManual: number; spotsPorDia: string
     rentaMonto: string; rentaPeriodicidad: string; rentaArrendadorId: string
+    // REJILLA-01 · la franja CONTRATADA (ADR 0039, Fase 1). Cadena vacía = sin
+    // franja, que es como se ha vendido todo hasta hoy y como se sigue
+    // vendiendo por omisión.
+    franjaId: string
   }
   const [cfg, setCfg] = useState<Record<string, CfgSitio>>({})
+
+  // REJILLA-01 · el catálogo de la organización. Se pide UNA vez al abrir el
+  // cuadro, no por pantalla: es el mismo para todo el inventario.
+  //
+  // Si la petición falla o el dueño no ha capturado ninguna franja, esto se
+  // queda vacío y el selector NO SE PINTA — vender sigue funcionando igual.
+  // Es el invariante 1: la rejilla no puede ser un requisito para vender.
+  const [franjas, setFranjas] = useState<FranjaUI[]>([])
+  const [temporadas, setTemporadas] = useState<TemporadaUI[]>([])
+  useEffect(() => {
+    let vivo = true
+    catalogoRejillaApi()
+      .then((d) => {
+        if (!vivo) return
+        setFranjas(d.franjas)
+        setTemporadas(d.temporadas)
+      })
+      .catch(() => {
+        /* Sin catálogo se vende como siempre: no es un error que deba verse. */
+      })
+    return () => {
+      vivo = false
+    }
+  }, [])
 
   // Modalidades publicadas de un sitio: [{unidad, tarifa}]. Si no tiene, ofrece
   // una mensual sintética con su tarifa publicada, para no bloquear.
@@ -394,12 +425,41 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
     unidad: modalidadesDe(s)[0].unidad,
     cantidadManual: 1,
     spotsPorDia: '',
+    // Sin franja POR OMISIÓN, y es deliberado: preseleccionar «la primera»
+    // haría que toda venta saliera con una franja que nadie eligió, y encima
+    // con la advertencia del CMS encima.
+    franjaId: '',
     ...(({ monto, per, arr }) => ({
       rentaMonto: monto, rentaPeriodicidad: per, rentaArrendadorId: arr,
     }))(rentaPrevia(s)),
   }
-  const tarifaDe = (s: any, unidad: Unidad): number =>
-    modalidadesDe(s).find((m) => m.unidad === unidad)?.tarifa ?? modalidadesDe(s)[0].tarifa
+
+  // REJILLA-01 · la temporada se DEDUCE de la fecha de inicio de la propuesta,
+  // no se elige. Es una propiedad del calendario, no del trato.
+  const temporadaId = temporadaDeFecha(temporadas, fechaInicio)
+
+  /**
+   * La tarifa de una pantalla para una unidad, ya resuelta por la rejilla.
+   *
+   * La MISMA función que usa el servidor (`lib/rejilla.ts`), y ahí está el
+   * punto: si el precio se resolviera aquí con una regla escrita a mano y allí
+   * con otra, la pantalla enseñaría un número y se guardaría otro — sin ningún
+   * error, que es el modo de fallo que este repositorio persigue.
+   *
+   * Sin rejilla capturada devuelve la tarifa base, o sea lo de siempre.
+   */
+  const tarifaDe = (s: any, unidad: Unidad, franjaId?: string): number => {
+    const base = modalidadesDe(s).find((m) => m.unidad === unidad)?.tarifa ?? modalidadesDe(s)[0].tarifa
+    const filas = ((s.rejilla ?? []) as { unidad: string; franjaId: string | null; temporadaId: string | null; tarifa: number }[])
+      .filter((f) => f.unidad === unidad)
+    if (!filas.length) return base
+    return resolverTarifa({
+      tarifaBase: base,
+      rejilla: filas,
+      franjaId: franjaId || null,
+      temporadaId,
+    }).tarifa
+  }
 
   // Cantidad efectiva (periodos del rango para unidades de tiempo; manual para
   // spot/hora) y precio (tarifa × cantidad) de un sitio con su configuración.
@@ -409,7 +469,7 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
   }
   const precioDe = (s: any): number => {
     const c = cfgDe(s)
-    return precioItem(tarifaDe(s, c.unidad), cantidadDe(s))
+    return precioItem(tarifaDe(s, c.unidad, c.franjaId), cantidadDe(s))
   }
   // Contrato REAL que ya cubre esa pantalla. Ojo: la renta se pacta por INMUEBLE
   // y se reparte entre las pantallas del predio (derive.ts ·
@@ -547,7 +607,11 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
           return {
             sitioId: s.id,
             unidad: c.unidad,
-            tarifaUnitaria: tarifaDe(s, c.unidad),
+            tarifaUnitaria: tarifaDe(s, c.unidad, c.franjaId),
+            // REJILLA-01 · la franja CONTRATADA. `null` y no cadena vacía: el
+            // servidor la valida contra el catálogo activo de la organización y
+            // una cadena vacía no es un identificador, es «no hay».
+            franjaId: c.franjaId || null,
             // Solo relevante para spot/hora; el servidor la ignora en unidades de tiempo.
             cantidad: c.cantidadManual,
             spotsPorDia: Number.isFinite(spots) && spots > 0 ? spots : null,
@@ -768,6 +832,14 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
         {seleccionados.length > 0 && (
           <div>
             <span className="mb-1 block text-[12px] font-medium text-ink">Contratación por sitio</span>
+            {/* REJILLA-01 · el aviso va PEGADO al selector y solo cuando alguien
+                ya eligió una franja: es el momento en que sirve. Puesto siempre,
+                se convertiría en decorado y dejaría de leerse. */}
+            {seleccionados.some((s) => cfgDe(s).franjaId) && (
+              <div className="mb-2">
+                <AvisoFranjaCMS compacto />
+              </div>
+            )}
             <div className="space-y-2 rounded-md border border-border p-2">
               {seleccionados.map((s) => {
                 const c = cfgDe(s)
@@ -794,6 +866,26 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                         </option>
                       ))}
                     </select>
+                    {/* REJILLA-01 · la FRANJA contratada. El selector SOLO se
+                        pinta si el dueño capturó franjas: sin catálogo, vender
+                        tiene exactamente la misma forma que antes de que esto
+                        existiera (invariante 1). «Todo el día» es la opción por
+                        omisión y no un hueco: es lo que se ha vendido siempre. */}
+                    {franjas.length > 0 && (
+                      <select
+                        className="h-8 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink"
+                        value={c.franjaId}
+                        onChange={(e) => setCfgSitio(s.id, { franjaId: e.target.value })}
+                        title="Franja horaria contratada. Es un compromiso comercial: no se envía al CMS."
+                      >
+                        <option value="">Todo el día</option>
+                        {franjas.map((f) => (
+                          <option key={f.id} value={f.id}>
+                            {f.nombre} · {f.horaInicio}–{f.horaFin}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                     {/* Cantidad: auto (periodos del rango) o manual (spot/hora) */}
                     {esManual ? (
                       <input

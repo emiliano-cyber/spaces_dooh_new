@@ -14,6 +14,37 @@ archivos:
 
 # Esquema de datos
 
+> [!note] 2026-09-28 · TRES TABLAS NUEVAS, `franjas_horarias` · `temporadas` · `sitio_tarifas` — ADR 0039
+> `db/migrations/20260928_rejilla_franja_temporada.sql`. **Las tablas pasan de 46
+> a 49**, medido con `node scripts/recuentos.mjs` sobre este árbol
+> (`feat/rejilla-franja-temporada`): **91 migraciones, 49 tablas**.
+>
+> El precio de venta deja de ser un número por `(pantalla, unidad)` y pasa a ser
+> `f(pantalla, unidad, franja, fecha)`:
+>
+> - **`franjas_horarias`** — el catálogo de franjas de la organización.
+>   `hora_inicio`/`hora_fin` son `text` con CHECK `HH:MM` y no `time`, a
+>   propósito: el módulo que valida y resuelve trabaja con `'06:00'` exacto y el
+>   driver devuelve un `time` como `'06:00:00'`. El **fin es EXCLUSIVO**.
+> - **`temporadas`** — fechas concretas con año, ambos extremos **inclusivos**.
+> - **`sitio_tarifas`** — la rejilla, **dispersa**: solo las combinaciones que el
+>   dueño capture. NO lleva `costo_compra`: el costo de una pantalla es la renta
+>   al arrendador y no cambia con la hora.
+>
+> Más `propuesta_items.franja_id` y `reservas.franja_id` (uuid, **nullable, sin
+> DEFAULT**, FK compuesta con el tenant y `on delete restrict`).
+>
+> Las tres con **RLS `enable` + `force`** y política estricta —sin el
+> `or ... is null` que llevan `tickets`—, igual que `sitio_modalidades`,
+> `propuesta_items` y `reservas`: son precios de venta. Y con **GRANT explícito**
+> al rol de la app, por el motivo que `20260923_tickets.sql` dejó medido en rojo.
+>
+> Ver [[02-Backend/rejilla-franja-y-temporada]] y el recuadro de
+> [[04-Datos/migraciones]] para la trampa de PostgreSQL 14 del índice único.
+>
+> ⚠️ **Lo que se comprobó hoy contra el código es SOLO esto.** El resto del
+> archivo conserva la fecha de su propio recuadro.
+
 > [!note] 2026-09-28 · columna nueva, `config_negocio.tope_descuento_pct`
 > `db/migrations/20260928_tope_descuento_propuestas.sql` — el descuento máximo
 > que una organización autoriza en una propuesta.

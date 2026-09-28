@@ -34,7 +34,7 @@ const n = (v: unknown): number | null => (v == null || v === '' ? null : Number(
 // tráfico Postgres→Node, que no lo ve el usuario.
 //
 // Quien necesite las fotos las pide a `GET /api/sitios/:id/media`.
-export function rowToSitio(r: any, modalidades: any[] = [], conMedia = true): any {
+export function rowToSitio(r: any, modalidades: any[] = [], conMedia = true, rejilla: any[] = []): any {
   return {
     id: r.id,
     claveInterna: r.clave_interna,
@@ -110,6 +110,22 @@ export function rowToSitio(r: any, modalidades: any[] = [], conMedia = true): an
       unidad: m.unidad,
       tarifaPublicada: n(m.tarifa_publicada) ?? 0,
       costoCompra: n(m.costo_compra) ?? 0,
+    })),
+    // REJILLA-01 · las tarifas por franja y temporada (ADR 0039, Fase 1).
+    //
+    // Viajan CON la pantalla y no por una llamada aparte, por el mismo motivo
+    // por el que ya viajan las modalidades: quien cotiza tiene delante veinte
+    // pantallas y necesita el precio de todas para pintar una tabla. Pedir la
+    // rejilla de cada una serían veinte peticiones para una pantalla de
+    // propuesta. La consulta que las trae es UNA para todas, igual que `mods`.
+    //
+    // VACÍA es el caso normal y no significa «error»: significa que esa
+    // pantalla se vende con su tarifa base, o sea exactamente como hoy.
+    rejilla: rejilla.map((t) => ({
+      unidad: t.unidad,
+      franjaId: t.franja_id ?? null,
+      temporadaId: t.temporada_id ?? null,
+      tarifa: n(t.tarifa_publicada) ?? 0,
     })),
     creadoEn: r.creado_en,
   }
@@ -231,8 +247,14 @@ export async function listarSitios(): Promise<any[]> {
   const mods = await q('select sitio_id, unidad, tarifa_publicada, costo_compra from sitio_modalidades')
   const porSitio = new Map<string, any[]>()
   for (const m of mods) (porSitio.get(m.sitio_id) ?? porSitio.set(m.sitio_id, []).get(m.sitio_id)!).push(m)
+  // REJILLA-01 · UNA consulta para todas las pantallas, igual que `mods`. Sin
+  // `where` porque la RLS ya la acota a esta organización, que es el mismo
+  // criterio que la línea de arriba lleva desde siempre.
+  const rej = await q('select sitio_id, unidad, franja_id, temporada_id, tarifa_publicada from sitio_tarifas')
+  const rejPorSitio = new Map<string, any[]>()
+  for (const t of rej) (rejPorSitio.get(t.sitio_id) ?? rejPorSitio.set(t.sitio_id, []).get(t.sitio_id)!).push(t)
   return sitios.map((r) => {
-    const base = rowToSitio(r, porSitio.get(r.id) ?? [], false)
+    const base = rowToSitio(r, porSitio.get(r.id) ?? [], false, rejPorSitio.get(r.id) ?? [])
     // Slots de digitales: 1 slot = 1 campaña. Disponibles = total − nº de campañas
     // con reserva activa. Se calcula por conteo (no del contador almacenado, que
     // se desincroniza si una reserva no traía cantidad de spots).
@@ -283,7 +305,8 @@ export async function getSitio(id: string): Promise<any | null> {
   const r = await q1('select * from sitios where id = $1', [id])
   if (!r) return null
   const mods = await q('select unidad, tarifa_publicada, costo_compra from sitio_modalidades where sitio_id=$1', [id])
-  return rowToSitio(r, mods)
+  const rej = await q('select unidad, franja_id, temporada_id, tarifa_publicada from sitio_tarifas where sitio_id=$1', [id])
+  return rowToSitio(r, mods, true, rej)
 }
 
 // ─── Escritura ──────────────────────────────────────────────────────────────

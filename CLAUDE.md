@@ -33,18 +33,18 @@ En `docs/` viven: los **ADR** (`docs/adr/`, van por la **0038**), los **planes**
 
 ### Qué es, técnicamente
 
-**85 notas Markdown** en `vault/`, enlazadas entre sí con wikilinks. Está pensada
+**86 notas Markdown** en `vault/`, enlazadas entre sí con wikilinks. Está pensada
 para abrirse con Obsidian, pero **no hay carpeta `.obsidian/` en el repositorio**:
 no se versiona configuración de la herramienta. Consecuencia práctica: la bóveda es
 Markdown puro y **se lee igual desde un editor, desde `cat` o desde un agente**. No
 necesitas instalar nada.
 
-Al 2026-09-28 tiene **1096 enlaces internos** sobre **85 notas**, con **2
+Al 2026-09-28 tiene **1109 enlaces internos** sobre **86 notas**, con **2
 wikilinks rotos** —los dos apuntan a ADR, que viven en `docs/` y no en la
 bóveda, así que es un choque de convención más que un enlace muerto— y
 **0 notas huérfanas**. Medido con `node scripts/recuentos.mjs` **en este
 árbol**, al cerrar el trabajo y no antes. Las
-mediciones previas daban 1072 sobre 84 (28/09), 1056 sobre 83 (25/09), 1045
+mediciones previas daban 1096 sobre 85 (28/09, VEND-01), 1072 sobre 84 (28/09), 1056 sobre 83 (25/09), 1045
 sobre 82 (24/09), 1148
 sobre 86 (23/09), 1101 sobre 85 (18/09), 753 sobre 57 (28/08), 606 sobre 48
 (17/08) y 395 sobre 43 (10/08).
@@ -122,9 +122,9 @@ código, no de memoria:
 | Framework | Next.js 14.2.29, App Router | `apps/web/package.json:17` |
 | Base de datos | PostgreSQL, `pg` directo (sin ORM) | `apps/web/lib/server/db.ts:2` |
 | Aislamiento | RLS de Postgres por `app.tenant_id` | `apps/web/lib/server/db.ts:60` y `:79` |
-| Endpoints | **101** route handlers | `apps/web/app/api/**/route.ts` |
-| Tablas | **46** | `vault/04-Datos/esquema.md` |
-| Migraciones | **90** | `vault/04-Datos/migraciones.md` |
+| Endpoints | **106** route handlers | `apps/web/app/api/**/route.ts` |
+| Tablas | **49** | `vault/04-Datos/esquema.md` |
+| Migraciones | **91** | `vault/04-Datos/migraciones.md` |
 
 > Esos recuentos llevan fecha de validación **2026-09-28**, medidos con
 > `node scripts/recuentos.mjs` sobre este árbol. Trátalos como una

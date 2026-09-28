@@ -168,7 +168,13 @@ describe('el esquema base no trae la organización de nadie', () => {
     //     los tickets de soporte que el cliente escribe desde su instancia y
     //     que el panel del PADRE jala. Sexta vez que esta prueba delata la
     //     tabla nueva antes que nadie.
-    expect(trasMigrar.tablas).toBe(46)
+    //   · 49 el 2026-09-28: `20260928_rejilla_franja_temporada.sql` añade TRES
+    //     —`franjas_horarias`, `temporadas` y `sitio_tarifas`—, la rejilla de
+    //     precios del ADR 0039 (Fase 1). Séptima vez que esta prueba delata las
+    //     tablas nuevas antes que nadie, y la primera en la que el aviso llegó
+    //     de la corrida completa y no de leer el diff: las unitarias y las 14
+    //     e2e propias de la tarea estaban todas en verde.
+    expect(trasMigrar.tablas).toBe(49)
     // Lo que de verdad importa: ni las migraciones resucitan al owner.
     expect(trasMigrar.tenants).toBe(0)
   })

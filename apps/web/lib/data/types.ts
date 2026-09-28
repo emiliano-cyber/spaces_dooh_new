@@ -244,6 +244,11 @@ export interface Sitio {
   modalidades: string[] // modalidades de contratación
   // Detalle por modalidad (una por fila del Excel agrupada por codigo_proveedor)
   modalidadesDetalle?: { unidad: string; tarifaPublicada: number; costoCompra: number }[]
+  // REJILLA-01 · las tarifas por FRANJA y TEMPORADA (ADR 0039, Fase 1). Es una
+  // rejilla DISPERSA: solo trae las combinaciones que el dueño capturó. Vacía
+  // o ausente = esta pantalla se vende con su tarifa base, o sea como siempre.
+  // `franjaId`/`temporadaId` en `null` significan «cualquiera», no «falta».
+  rejilla?: { unidad: string; franjaId: string | null; temporadaId: string | null; tarifa: number }[]
   totalSpots: number | null // total de spots por pantalla (DOOH)
   spotsDisponibles: number | null // spots disponibles
   // ADR 0008 · cupo de clientes. `maxClientes` = cuántos anunciantes distintos
@@ -478,6 +483,21 @@ export interface PropuestaItem {
   // ⚠️ NO es `cantidad`: cuántas veces al día se muestra la pieza. Es
   // PROGRAMACIÓN, no precio. Fundirlos fue DATA-02 (auditoría del 26/08).
   spotsPorDia: number | null
+  // ─── REJILLA-01 · qué FRANJA se contrató (ADR 0039, Fase 1) ────────────────
+  // `null` en todo lo vendido hasta el 2026-09-28 y en toda venta que no use
+  // franja — que es el caso normal, no una laguna.
+  //
+  // ⚠️ La franja NO viaja al CMS: el SDK de DOOHmain no acepta `--hora` ni
+  // `--dias` (`doohmain_sdk/__main__.py:66-75`). Es un compromiso COMERCIAL que
+  // alguien programa a mano. Toda pantalla que enseñe estos campos tiene que
+  // enseñar también `<AvisoFranjaCMS />`.
+  franjaId?: string | null
+  // El nombre y el horario solo vienen de las lecturas que hacen el join
+  // (`listarPropuestas`, el congelado del snapshot). Donde no vengan quedan en
+  // `null` y la pantalla enseña el identificador, en vez de inventar una
+  // etiqueta que podría no ser la que se vendió.
+  franjaNombre?: string | null
+  franjaHorario?: string | null
 }
 export interface Propuesta {
   id: string

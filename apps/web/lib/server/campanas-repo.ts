@@ -723,8 +723,8 @@ export async function generarCampanaDesdePropuesta(
       await client.query(
         `insert into reservas
            (campana_id, sitio_id, fecha_inicio, fecha_fin, precio, tipo_venta, estatus,
-            spots_reservados, unidad, cantidad, tarifa_unitaria, spots_por_dia, tenant_id)
-         values ($1,$2,$3,$4,$5,'FIXED_PKG','CONFIRMADA',$6,$7,$8,$9,$10,$11)`,
+            spots_reservados, unidad, cantidad, tarifa_unitaria, spots_por_dia, tenant_id, franja_id)
+         values ($1,$2,$3,$4,$5,'FIXED_PKG','CONFIRMADA',$6,$7,$8,$9,$10,$11,$12)`,
         [
           campanaId, it.sitio_id, iso(it.fecha_inicio), iso(it.fecha_fin), netoSitio,
           // SLOTS que la reserva retiene — NO `spots_por_dia`, que es la
@@ -740,6 +740,12 @@ export async function generarCampanaDesdePropuesta(
           }),
           it.unidad ?? 'mensual', it.cantidad ?? 1,
           it.tarifa_unitaria ?? null, it.spots_por_dia ?? null, await tenantActual(),
+          // REJILLA-01 · la reserva HEREDA la franja del ítem de la propuesta.
+          // No entra por ningún cuerpo de petición y no se elige aquí: si se
+          // pudiera, una propuesta se convertiría en una campaña con OTRA franja
+          // que la vendida, y el snapshot congelado y la reserva contarían dos
+          // historias distintas del mismo trato — sin dar ningún error.
+          it.franja_id ?? null,
         ],
       )
       // sitios RESERVADO hasta la OC (no OCUPADO todavía)

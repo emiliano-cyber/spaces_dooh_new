@@ -7,6 +7,7 @@ import { tenantActual } from './tenant'
 import { usuarioActual } from './auth'
 import { folioDocumento } from './folios'
 import { divisorDeComision } from '@/lib/data/derive'
+import { AVISO_FRANJA_NO_VIAJA_AL_CMS, temporadaDeFecha } from '@/lib/rejilla'
 import { rutaLogo } from '@/lib/medios-url'
 
 // Error de regla de negocio (propuesta inmutable) → el route lo mapea a 409.
@@ -53,6 +54,17 @@ function rowToItem(r: any) {
     cantidad: r.cantidad != null ? Number(r.cantidad) : 1,
     tarifaUnitaria: r.tarifa_unitaria != null ? Number(r.tarifa_unitaria) : Number(r.precio),
     spotsPorDia: r.spots_por_dia != null ? Number(r.spots_por_dia) : null,
+    // REJILLA-01 · la franja CONTRATADA. `null` en todo lo vendido hasta el
+    // 2026-09-28 y en toda venta que no la use, que es el caso normal. El
+    // NOMBRE solo viene cuando la consulta lo trajo por el join —lectura del
+    // detalle y congelado del snapshot—; donde no viene queda `null` y la
+    // pantalla pinta el identificador en vez de inventarse una etiqueta.
+    franjaId: r.franja_id ?? null,
+    franjaNombre: r.franja_nombre ?? null,
+    franjaHorario:
+      r.franja_hora_inicio && r.franja_hora_fin
+        ? `${r.franja_hora_inicio}–${r.franja_hora_fin}`
+        : null,
     aprobado: !!r.aprobado,
   }
 }
@@ -138,13 +150,57 @@ export async function congelarSnapshotEconomico(propuestaId: string, tenantId?: 
   if (!prop) return null
   if (prop.snapshot_economico) return prop.snapshot_economico // inmutable
 
+  // REJILLA-01 · el nombre y el horario de la franja viajan CON el ítem.
+  //
+  // El `left join` es lo que permite congelar el NOMBRE y no solo el id, y esa
+  // es la decisión que hace auditable el snapshot: dentro de seis meses «1 800»
+  // sin decir que era el prime del Buen Fin no se puede explicar. Es lo
+  // contrario de lo que se decidió el mismo día con el vendedor —ahí NO se
+  // denormaliza el nombre porque una propuesta es un registro VIVO—, y no es
+  // una incoherencia: un snapshot ES una línea de bitácora congelada, como
+  // `acciones.usuario_nombre`. Si el dueño renombra «Prime» o lo desactiva, la
+  // propuesta firmada tiene que seguir imprimiendo lo que se vendió.
+  //
+  // `and f.tenant_id = i.tenant_id` es la segunda capa sobre la RLS que exigen
+  // las convenciones. La RLS ya lo impediría; esto es lo que queda en pie el
+  // día que alguien conecte con un rol que la salte, y sin él una franja de
+  // otra organización podría prestarle su nombre a esta propuesta (R2).
+  //
+  // `left` y no `join` a secas: la inmensa mayoría de los ítems NO tiene franja
+  // —toda la base instalada—, y un `join` interno los dejaría fuera del
+  // snapshot. Ese fallo no daría error: la propuesta se aprobaría con un bruto
+  // de cero.
+  const SEL_ITEMS = `select i.*,
+            f.nombre      as franja_nombre,
+            f.hora_inicio as franja_hora_inicio,
+            f.hora_fin    as franja_hora_fin
+       from propuesta_items i
+       left join franjas_horarias f
+              on f.id = i.franja_id and f.tenant_id = i.tenant_id`
   const aprob = await qS<any>(
-    'select * from propuesta_items where propuesta_id=$1 and aprobado=true order by creado_en asc',
+    `${SEL_ITEMS} where i.propuesta_id=$1 and i.aprobado=true order by i.creado_en asc`,
     [propuestaId],
   )
   const usar = aprob.length
     ? aprob
-    : await qS<any>('select * from propuesta_items where propuesta_id=$1', [propuestaId])
+    : await qS<any>(`${SEL_ITEMS} where i.propuesta_id=$1`, [propuestaId])
+
+  // Las temporadas VIGENTES de la organización, para deducir cuál cubría la
+  // fecha de cada ítem. Se leen todas —son pocas por construcción, una decena
+  // al año— y la resolución la hace `lib/rejilla.ts`, que es el único sitio
+  // donde vive esa regla. Ordenadas por `desde` porque `temporadaDeFecha`
+  // devuelve la primera que cubre: con el solape prohibido no puede haber dos,
+  // pero si datos viejos las trajeran, que gane siempre la misma.
+  const temporadas = await qS<any>(
+    `select id, nombre, to_char(desde,'YYYY-MM-DD') as desde, to_char(hasta,'YYYY-MM-DD') as hasta
+       from temporadas where activo = true order by desde asc, id asc`,
+  )
+  const temporadasRej = temporadas.map((t) => ({
+    id: String(t.id),
+    nombre: String(t.nombre),
+    desde: String(t.desde),
+    hasta: String(t.hasta),
+  }))
 
   const comisionPct = Number(prop.comision_pct)
   const descuentoPct = prop.descuento_pct != null ? Number(prop.descuento_pct) : 0
@@ -159,13 +215,49 @@ export async function congelarSnapshotEconomico(propuestaId: string, tenantId?: 
   const neto = Math.round(base * divisor)
   const iva = Math.round(base * (ivaPct / 100))
   const total = base + iva
-  const porSitio = usar.map((it) => ({
-    sitioId: it.sitio_id,
-    lista: Number(it.precio),
-    neto: Math.round(Number(it.precio) * factorDesc * divisor),
-  }))
+  const porSitio = usar.map((it) => {
+    // La temporada se DEDUCE de la fecha de inicio del ítem y no se guarda en
+    // `propuesta_items`: ahí sería una segunda verdad que envejece. Aquí sí se
+    // guarda, porque aquí deja de ser un dato vivo y pasa a ser un hecho.
+    const tempId = temporadaDeFecha(temporadasRej, String(iso(it.fecha_inicio) ?? '').slice(0, 10))
+    const temp = tempId ? temporadasRej.find((t) => t.id === tempId) : null
+    return {
+      sitioId: it.sitio_id,
+      lista: Number(it.precio),
+      neto: Math.round(Number(it.precio) * factorDesc * divisor),
+      // La tarifa UNITARIA aparte del importe de la línea: `lista` ya lleva la
+      // cantidad dentro (50 spots × 1 200), y comparar publicada contra neta
+      // exige el precio por unidad. Si no constara, el reporte tendría que
+      // dividir —y una división por una cantidad que pudo no guardarse es
+      // exactamente el `?? 0` que este repositorio persigue.
+      tarifaUnitaria: it.tarifa_unitaria != null ? Number(it.tarifa_unitaria) : Number(it.precio),
+      franja: it.franja_id
+        ? {
+            id: String(it.franja_id),
+            nombre: it.franja_nombre ?? null,
+            horaInicio: it.franja_hora_inicio ?? null,
+            horaFin: it.franja_hora_fin ?? null,
+          }
+        : null,
+      temporada: temp ? { id: temp.id, nombre: temp.nombre } : null,
+    }
+  })
 
-  const snap = { version, bruto, descuentoPct, descuentoMonto, base, comisionPct, neto, ivaPct, iva, total, porSitio }
+  // El aviso viaja DENTRO del congelado, y no es adorno. El snapshot es lo que
+  // se imprime y lo que alguien audita seis meses después; si la advertencia
+  // viviera solo en una pantalla, el documento que queda del trato afirmaría
+  // una franja que el sistema nunca programó. Es la misma familia que el `?? 0`
+  // del mapa: convertir «no sé» en una afirmación concreta.
+  //
+  // Se guarda SOLO cuando alguna línea lleva franja: un snapshot sin franjas no
+  // tiene nada que advertir, y llenarlo de avisos vacíos haría que se dejaran
+  // de leer.
+  const hayFranja = porSitio.some((s) => s.franja != null)
+
+  const snap = {
+    version, bruto, descuentoPct, descuentoMonto, base, comisionPct, neto, ivaPct, iva, total, porSitio,
+    ...(hayFranja ? { avisoFranja: AVISO_FRANJA_NO_VIAJA_AL_CMS } : {}),
+  }
   await qS('update propuestas set snapshot_economico=$2, snapshot_en=now() where id=$1', [
     propuestaId,
     JSON.stringify(snap),
@@ -205,7 +297,23 @@ export async function obtenerPropuestaPublica(codigo: string) {
   )
   if (!p) return null
   const id = p.id
-  const items = await qPub('select * from propuesta_items where propuesta_id=$1 order by creado_en asc', [id])
+  // REJILLA-01 · la franja contratada, con su nombre, también en la LIGA
+  // PÚBLICA. Es la superficie que ve el CLIENTE, así que es donde más caro
+  // cuesta callarse que la programación no viaja al CMS.
+  //
+  // El `left join` corre bajo `qPub`, o sea con el tenant que resolvió el token:
+  // la franja no puede venir de otra organización ni aunque el join se olvidara
+  // del `and`. Aun así lleva el `and f.tenant_id = i.tenant_id`, igual que los
+  // otros dos, porque la regla de este repositorio no admite excepciones «por
+  // aquí no llega».
+  const items = await qPub(
+    `select i.*, f.nombre as franja_nombre, f.hora_inicio as franja_hora_inicio,
+            f.hora_fin as franja_hora_fin
+       from propuesta_items i
+       left join franjas_horarias f on f.id = i.franja_id and f.tenant_id = i.tenant_id
+      where i.propuesta_id=$1 order by i.creado_en asc`,
+    [id],
+  )
   const armado = armarPropuesta(p, items)
 
   const cliente = p.cliente_id ? await qPub1<any>('select nombre from clientes where id=$1', [p.cliente_id]) : null
@@ -268,6 +376,11 @@ export async function obtenerPropuestaPublica(codigo: string) {
         fechaFin: it.fechaFin,
         precio: it.precio,
         aprobado: it.aprobado,
+        // REJILLA-01 · qué franja se le vendió. Si no viajara, el cliente
+        // leería un importe sin saber a qué horas compró.
+        franjaId: it.franjaId,
+        franjaNombre: it.franjaNombre,
+        franjaHorario: it.franjaHorario,
       }
     }),
   }
@@ -399,7 +512,17 @@ export async function listarPropuestas() {
     [await tenantActual()],
   )
   if (!props.length) return []
-  const items = await q('select * from propuesta_items order by creado_en asc')
+  // REJILLA-01 · el nombre y el horario de la franja viajan con el ítem, para
+  // que el detalle de la propuesta pueda decir «Prime · 06:00–10:00» en vez de
+  // un identificador. `left join` porque la inmensa mayoría no tiene franja, y
+  // `and f.tenant_id = i.tenant_id` como segunda capa sobre la RLS.
+  const items = await q(
+    `select i.*, f.nombre as franja_nombre, f.hora_inicio as franja_hora_inicio,
+            f.hora_fin as franja_hora_fin
+       from propuesta_items i
+       left join franjas_horarias f on f.id = i.franja_id and f.tenant_id = i.tenant_id
+      order by i.creado_en asc`,
+  )
   const porProp = new Map<string, any[]>()
   for (const it of items) {
     const arr = porProp.get(it.propuesta_id) ?? []
@@ -430,6 +553,11 @@ export interface PropuestaInput {
     rentaMonto?: number | null
     rentaPeriodicidad?: string | null
     rentaArrendadorId?: string | null
+    // REJILLA-01 · la franja horaria contratada, si la venta usa una. NO lleva
+    // temporada: ésa se deduce de las fechas del ítem, y copiarla aquí sería
+    // una segunda verdad que envejece. La que se aplicó queda congelada en el
+    // snapshot al aprobar, que es donde deja de ser un dato vivo.
+    franjaId?: string | null
   }[]
   notas?: string | null
 }
@@ -494,8 +622,8 @@ export async function crearPropuesta(input: PropuestaInput) {
       await client.query(
         `insert into propuesta_items
            (propuesta_id, sitio_id, fecha_inicio, fecha_fin, precio, unidad, cantidad, tarifa_unitaria, spots_por_dia, tenant_id,
-            renta_monto, renta_periodicidad, renta_arrendador_id)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::periodicidad_pago,$13)`,
+            renta_monto, renta_periodicidad, renta_arrendador_id, franja_id)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::periodicidad_pago,$13,$14)`,
         [
           prop.id, it.sitioId, input.fechaInicio, input.fechaFin, it.precio ?? 0,
           it.unidad ?? 'mensual', it.cantidad ?? 1, it.tarifaUnitaria ?? (it.precio ?? 0),
@@ -506,6 +634,11 @@ export async function crearPropuesta(input: PropuestaInput) {
           it.rentaMonto != null && it.rentaPeriodicidad ? it.rentaMonto : null,
           it.rentaMonto != null && it.rentaPeriodicidad ? it.rentaPeriodicidad : null,
           it.rentaArrendadorId ?? null,
+          // REJILLA-01 · la franja CONTRATADA. Ya validada contra el catálogo
+          // activo de esta organización en el controller; aquí la red de
+          // seguridad es `propuesta_items_franja_fkey`, que es COMPUESTA con el
+          // tenant y por tanto no se puede eludir olvidándose de validar.
+          it.franjaId ?? null,
         ],
       )
     }

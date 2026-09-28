@@ -7,6 +7,60 @@ La entrada más reciente va arriba.
 
 ## 2026-09-28
 
+- **Ahora una pantalla puede costar distinto según la hora del día y la época del
+  año.** Hasta hoy cada pantalla tenía **un solo precio** por forma de venderla:
+  un spot costaba lo mismo a las siete de la mañana que a las tres de la
+  madrugada, y lo mismo en febrero que en el Buen Fin. Desde hoy puedes decir que
+  el prime cuesta 4 200 y la madrugada 900, y que en diciembre suben las dos.
+
+  **Se declara una sola vez y vale para todo tu inventario.** En el menú, dentro
+  de *Inventario*, hay una entrada nueva: **«Franjas y temporadas»**. Ahí escribes
+  las franjas de tu día —«Prime, de 06:00 a 10:00»— y las temporadas de tu año
+  —«Buen Fin 2026, del 13 al 16 de noviembre»—. No las inventamos nosotros: las
+  defines tú, porque el prime de una pantalla en un centro comercial no es el de
+  una en carretera.
+
+  **Y después, el precio de cada combinación en la ficha de cada pantalla.** En la
+  ficha hay un cuadro nuevo, «Tarifas por franja», al lado del de siempre. Pide la
+  contraseña para guardar, exactamente igual que las tarifas de toda la vida: es
+  el mismo dinero.
+
+  **Lo más importante: si no capturas nada, NADA CAMBIA.** Todo tu inventario
+  sigue vendiéndose hoy igual que ayer, con sus tarifas de siempre. No hay que
+  rellenar una tabla enorme para poder seguir cotizando: solo se capturan las
+  combinaciones que de verdad cuestan distinto, y lo que no esté escrito se cobra
+  con la tarifa de siempre. Si no creas ninguna franja, el selector ni siquiera
+  aparece en las propuestas.
+
+  **Al cotizar, cada pantalla lleva su franja.** En el cuadro de nueva propuesta,
+  junto a la unidad de venta, hay un selector con «Todo el día» puesto por
+  omisión. Si eliges una franja, el precio se ajusta solo y queda anotado qué
+  franja se vendió.
+
+  **Y hay un aviso que conviene leer entero, porque es una limitación real.** La
+  franja que vendes **es un compromiso comercial: no se envía al reproductor de la
+  pantalla.** Quien opere la pantalla tiene que programarla a mano en el CMS. El
+  sistema no lo hace, y por eso lo dice en los cuatro sitios donde aparece una
+  franja: al configurarlas, al cotizar, en el detalle de la propuesta y dentro de
+  la propuesta congelada. Preferimos decirlo cuatro veces que dejar que alguien
+  suponga que se programa solo.
+
+  **Una propuesta aprobada no cambia de precio nunca.** Si mañana subes el prime
+  de 1 800 a 2 500, las propuestas que ya se aprobaron siguen diciendo 1 800 — y
+  siguen diciendo el nombre y el horario que tenía la franja el día que se vendió,
+  aunque la renombres o la apagues después. Lo que el cliente aceptó no se
+  reescribe.
+
+  **Dos reglas que la pantalla no te deja saltarte, y por qué:** dos franjas no
+  pueden pisarse (si «Prime» va de 06:00 a 10:00, no puedes crear otra de 09:00 a
+  12:00), y dos temporadas tampoco. No es una manía: si dos precios distintos
+  cubrieran las 09:30, el sistema tendría que elegir uno por su cuenta, y eso es
+  una decisión tuya, no suya. Dos franjas que *se tocan* —de 06:00 a 10:00 y de
+  10:00 a 14:00— sí valen: el final no entra.
+
+  **Una franja que ya se vendió no se borra, se da de baja.** Deja de ofrecerse al
+  cotizar y todo lo contratado con ella sigue en pie.
+
 - **Ya puedes ver cuánto vendió cada persona de tu equipo, y cuánto descuento
   concedió.** En Reportes hay una vista nueva, **«Por vendedor»**: una fila por
   persona, con lo que vendió en el periodo, qué parte de tu facturación es eso,

@@ -39,6 +39,17 @@ vi.mock('./propuestas-repo', () => ({
   validarRangoFechas: vi.fn(),
 }))
 
+// `rejilla-repo` se sustituye por el MISMO motivo que `propuestas-repo` arriba,
+// y no porque esta prueba tenga nada que ver con las franjas: desde REJILLA-01
+// el controller lo importa para validar la franja contratada, y el módulo real
+// arrastra `tenant.ts`, que llama a `cache()` de React y no existe fuera de una
+// request. Sin esto el archivo entero deja de cargar con `cache is not a
+// function`, que no dice nada de lo que aquí se mide.
+vi.mock('./rejilla-repo', () => ({
+  listarFranjas: vi.fn(async () => []),
+  listarTemporadas: vi.fn(async () => []),
+}))
+
 import { crearPropuestaCtrl } from './propuestas-controller'
 
 // Lo mínimo que `crearSchema` acepta.

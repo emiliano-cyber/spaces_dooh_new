@@ -4,6 +4,7 @@
 import { toast } from 'sonner'
 import { conteo } from '@/lib/plural'
 import { resumenContratacion, etiquetaFrecuencia } from '@/lib/periodos'
+import { AvisoFranjaCMS } from '@/components/demo/rejilla/AvisoFranjaCMS'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -445,6 +446,19 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                           {etiquetaFrecuencia(it.spotsPorDia) && (
                             <div className="text-[11px] text-muted">{etiquetaFrecuencia(it.spotsPorDia)}</div>
                           )}
+                          {/* REJILLA-01 · la franja CONTRATADA. Se pinta el
+                              nombre CON su horario a propósito: «Prime» a secas
+                              obliga a ir a buscar qué horas son, y el día que
+                              alguien mueva esa franja el documento diría otra
+                              cosa de lo que se vendió. Si el nombre no viajó
+                              —consulta sin el join—, se enseña el identificador
+                              antes que inventar una etiqueta. */}
+                          {it.franjaId && (
+                            <div className="text-[11px] font-medium text-amber-800">
+                              {it.franjaNombre ?? it.franjaId}
+                              {it.franjaHorario ? ` · ${it.franjaHorario}` : ''}
+                            </div>
+                          )}
                         </td>
                         <td className="demo-num py-2.5 pr-3 text-right text-ink">{formatMonto(it.precio)}</td>
                         <td className="py-2.5 pl-3 text-right">
@@ -466,6 +480,18 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                   })}
                 </tbody>
               </table>
+              {/* REJILLA-01 · el aviso solo aparece si esta propuesta vendió
+                  alguna franja, y entonces no se puede pasar por alto: va
+                  debajo de la tabla que la enseña. Una propuesta sin franjas no
+                  tiene nada que advertir, y un aviso puesto siempre se vuelve
+                  decorado. El mismo texto queda CONGELADO dentro del
+                  `snapshot_economico` al aprobar (`avisoFranja`), que es lo que
+                  sobrevive cuando esta pantalla haya cambiado. */}
+              {p.items.some((it: any) => it.franjaId) && (
+                <div className="mt-3">
+                  <AvisoFranjaCMS />
+                </div>
+              )}
             </div>
           )}
         </CardContent>

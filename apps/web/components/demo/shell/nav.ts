@@ -20,6 +20,7 @@ import {
   Warehouse,
   Zap,
   TrendingUp,
+  Clock,
 } from 'lucide-react'
 import type { RolDemo } from '@/lib/data/types'
 
@@ -99,6 +100,12 @@ export const NAV: NavItem[] = [
   // carga masiva, exportación—, no solo el alta. El nombre prometía menos de lo
   // que hay y escondía la consulta a quien no entraba a curiosear.
   { key: 'inventario', label: 'Inventario', href: '/inventario', icon: PackagePlus, roles: ['DUENO'], grupo: 'patrimonio' },
+  // REJILLA-01 · las dos dimensiones de la tarifa (ADR 0039, Fase 1). Va pegada
+  // a Inventario y en «patrimonio», no en «sistema»: son PRECIOS DE VENTA de las
+  // pantallas, no configuración administrativa. Y por eso su módulo es
+  // `inventario` (`lib/modulos.ts`), igual que el guard de sus endpoints —
+  // declararla en otro sería declarar una mentira en la matriz de permisos.
+  { key: 'franjas-y-temporadas', label: 'Franjas y temporadas', href: '/franjas-y-temporadas', icon: Clock, roles: ['DUENO'], grupo: 'patrimonio' },
   // Arrendadores va pegado a Inventario y no suelto en medio del ciclo
   // comercial: una pantalla no es tuya, es de alguien que te la renta, y el
   // contrato con ese alguien es lo que te deja venderla (ADR 0003).

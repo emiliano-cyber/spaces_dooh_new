@@ -45,6 +45,7 @@ import {
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { actualizarSitioApi, actualizarModalidadesApi, borrarSitioApi, pausarSitioLegalApi, reanudarSitioLegalApi, reubicarSitioApi } from '@/lib/data/sitios-api'
 import { useCandado, PasoContrasena } from '@/components/demo/ui/candado'
+import { RejillaDialog } from '@/components/demo/rejilla/RejillaDialog'
 // Las mismas reglas que aplica el importador y que impone el servidor: qué
 // unidades existen y cuáles admite esta pantalla. Se importan en vez de
 // repetirse — dos copias de la misma regla divergen (ver `lib/modalidades.ts`).
@@ -133,6 +134,11 @@ export function SiteFicha({
   const [fotos, setFotos] = useState<FotoMeta[]>([])
   const [editOpen, setEditOpen] = useState(false)
   const [modalidadesOpen, setModalidadesOpen] = useState(false)
+  // REJILLA-01 · el cuadro de tarifas por franja y temporada (ADR 0039, Fase 1).
+  const [rejillaOpen, setRejillaOpen] = useState(false)
+  // Cuántas combinaciones tiene capturadas esta pantalla. Vacía es lo normal, y
+  // la tarjeta lo dice con esas palabras para que no parezca un dato que falta.
+  const rejillaFilas = (sitio?.rejilla ?? []).length
   const [borrando, setBorrando] = useState(false)
   const [borrarOpen, setBorrarOpen] = useState(false)
   const [pausaOpen, setPausaOpen] = useState(false)
@@ -527,6 +533,35 @@ export function SiteFicha({
               )}
             </div>
           )}
+
+          {/* REJILLA-01 · tarifas por FRANJA y TEMPORADA (ADR 0039, Fase 1).
+              Solo se ofrece a quien puede tocar inventario, igual que el cuadro
+              de arriba, y el texto de cuando está vacía dice que eso es NORMAL:
+              «sin capturar» aquí no es un dato que falte, es la pantalla
+              vendiéndose como se ha vendido siempre. */}
+          {puedeTocarInventario && (
+            <div className="mt-3">
+              <div className="mb-1.5 flex items-center justify-between">
+                <span className="text-[12px] font-medium text-ink">
+                  Tarifas por franja {rejillaFilas > 0 && `(${rejillaFilas})`}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setRejillaOpen(true)}
+                  className="inline-flex items-center gap-1 text-[12px] font-medium text-info hover:underline"
+                >
+                  <Pencil className="h-3 w-3" /> Editar
+                </button>
+              </div>
+              {rejillaFilas === 0 && (
+                <div className="rounded-md border border-border bg-surface-2 px-3 py-2 text-[12px] text-muted">
+                  Sin rejilla: esta pantalla se vende con las tarifas de arriba a
+                  cualquier hora y en cualquier época. Añade una solo si el prime
+                  o una temporada cuestan distinto.
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Propietario y renta (cada cuándo se le paga) */}
@@ -615,6 +650,17 @@ export function SiteFicha({
         sitio={sitio}
         open={modalidadesOpen}
         onClose={() => setModalidadesOpen(false)}
+      />
+
+      {/* REJILLA-01 · las tarifas por franja y temporada, en su propio cuadro y
+          con su propio candado. Aparte del de arriba a propósito: `sitio_
+          modalidades` se PISA al reimportar y `sitio_tarifas` NUNCA se pisa en
+          bloque, y un solo formulario obligaría a que un botón sirviera para las
+          dos semánticas. Ver la cabecera de `RejillaDialog`. */}
+      <RejillaDialog
+        sitio={sitio}
+        open={rejillaOpen}
+        onClose={() => setRejillaOpen(false)}
       />
 
       <Modal
