@@ -5,6 +5,8 @@ import { crearPropuesta, aprobarItem, PropuestaError, type PropuestaInput } from
 import { cantidadEfectiva, precioItem, UNIDADES, type Unidad } from '@/lib/periodos'
 import { PERIODICIDAD_VALUES } from '@/lib/renta-periodicidad'
 import { listarFranjas } from './rejilla-repo'
+import { listarEscalasVolumen } from './volumen-repo'
+import { resolverVolumen, SIN_VOLUMEN } from '@/lib/volumen'
 
 // ============================================================================
 //  lib/server/propuestas-controller.ts — Alta de propuestas y aprobación de sus
@@ -15,6 +17,21 @@ import { listarFranjas } from './rejilla-repo'
 //  su tarifa por unidad y —opcional— la programación de spots (spots/día). El
 //  PRECIO se calcula AQUÍ en el servidor (tarifa × cantidad), no se confía en el
 //  que manda el cliente, para que la UI no pueda inflar/bajar el precio de lista.
+//
+//  ─── VOL-01 · EL DESCUENTO POR VOLUMEN LO DECIDE EL SERVIDOR ──────────────
+//  El cliente manda la CANTIDAD; el porcentaje sale de `escalas_volumen`, leída
+//  bajo RLS con el tenant de la sesión. Nunca entra por el cuerpo, y el
+//  `itemSchema` no lo declara: ése es el candado, igual que con el vendedor.
+//
+//  Y conviene decir por qué se insiste, porque el archivo de al lado hace lo
+//  contrario: la `tarifaUnitaria` de la Fase 1 SÍ se copia tal cual de lo que
+//  manda el navegador (hallazgo B40), así que hoy se puede cerrar una venta de
+//  prime a 1 peso con un `curl`. Esta fase no arregla aquello —mover la cadena
+//  entera al servidor cambia el comportamiento de cada venta y es una decisión
+//  abierta del dueño— pero **no lo amplía**: el escalón nuevo nace del lado
+//  correcto. Sobre una cadena que vive en el cliente no se puede construir la
+//  Fase 3, porque el contador de usos de un cupón lo tiene que llevar el
+//  servidor.
 // ============================================================================
 
 const UNIDADES_VALIDAS = UNIDADES.map((u) => u.unidad) as [Unidad, ...Unidad[]]
@@ -99,6 +116,32 @@ export async function crearPropuestaCtrl(body: unknown) {
     }
   }
 
+  // VOL-01 · la escala de volumen de ESTA organización, leída UNA vez.
+  //
+  // Una sola consulta por propuesta y no una por línea: son pocas filas —un
+  // puñado de tramos por unidad— y el índice único las sirve enteras. Aquí no
+  // hay un `if` que la evite como con las franjas, y es a propósito: saber si
+  // aplica exige haber leído la escala, y un atajo que la salte cuando «parece»
+  // que no hay volumen es exactamente la clase de optimización que acaba
+  // vendiendo sin el descuento que el dueño capturó.
+  //
+  // Sin tramos, `resolverVolumen` devuelve 0 para todo y la propuesta sale
+  // idéntica a como salía antes de esta fase (invariante 3).
+  const escala = await listarEscalasVolumen()
+  const tramosDe = (unidad: string) => escala.filter((t) => t.unidad === unidad)
+
+  /**
+   * El volumen de una línea, resuelto aquí y no en ninguna otra parte.
+   *
+   * Devuelve las dos columnas juntas para que no se puedan escribir por
+   * separado: un porcentaje sin su umbral es un descuento que no se puede
+   * auditar, y un umbral sin porcentaje no es nada.
+   */
+  const volumenDelItem = (unidad: string, cantidad: number) => {
+    const v = resolverVolumen(tramosDe(unidad), cantidad) ?? SIN_VOLUMEN
+    return { descuentoVolumenPct: v.descuentoPct, volumenDesde: v.desdeCantidad }
+  }
+
   // Normaliza cada ítem a la forma persistida, calculando cantidad y precio en
   // el servidor a partir de la unidad y la tarifa por unidad.
   const items = d.items.map((it) => {
@@ -121,6 +164,11 @@ export async function crearPropuestaCtrl(body: unknown) {
         // repo dice «sin franja», que es un hecho, y no «no me acordé». Un
         // `?? laPrimera` futuro no podría colarse sin tocar esta línea.
         franjaId: it.franjaId ?? null,
+        // Modo compatible: `cantidad` es 1, así que no puede alcanzar ningún
+        // umbral (el mínimo es 2). Se resuelve igual y no se escribe un 0 a
+        // mano: el día que este camino aprenda a contar, el volumen viajará
+        // solo, sin que nadie tenga que acordarse de tocar esta rama.
+        ...volumenDelItem(it.unidad ?? 'mensual', 1),
       }
     }
     const cantidad = cantidadEfectiva(it.unidad, d.fechaInicio, d.fechaFin, it.cantidad)
@@ -137,6 +185,11 @@ export async function crearPropuestaCtrl(body: unknown) {
       rentaPeriodicidad: it.rentaPeriodicidad ?? null,
       rentaArrendadorId: it.rentaArrendadorId ?? null,
       franjaId: it.franjaId ?? null,
+      // La cantidad que cuenta para el volumen es la EFECTIVA, la misma que
+      // multiplica la tarifa — no la que llegó en el cuerpo. En unidades de
+      // tiempo sale del rango de fechas, así que una `cantidad: 999` inflada a
+      // mano no regala ningún tramo: pagaría 999 meses o no cuenta.
+      ...volumenDelItem(it.unidad, cantidad),
     }
   })
 

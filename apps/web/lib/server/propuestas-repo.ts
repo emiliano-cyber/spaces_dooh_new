@@ -8,6 +8,7 @@ import { usuarioActual } from './auth'
 import { folioDocumento } from './folios'
 import { divisorDeComision } from '@/lib/data/derive'
 import { AVISO_FRANJA_NO_VIAJA_AL_CMS, temporadaDeFecha } from '@/lib/rejilla'
+import { volumenDeLineas } from '@/lib/volumen'
 import { rutaLogo } from '@/lib/medios-url'
 
 // Error de regla de negocio (propuesta inmutable) → el route lo mapea a 409.
@@ -60,6 +61,13 @@ function rowToItem(r: any) {
     // detalle y congelado del snapshot—; donde no viene queda `null` y la
     // pantalla pinta el identificador en vez de inventarse una etiqueta.
     franjaId: r.franja_id ?? null,
+    // VOL-01 · el descuento por volumen que le tocó a esta línea, CONGELADO el
+    // día de la captura. `precio` sigue siendo el importe de LISTA: el volumen
+    // se aplica como una capa explícita sobre el bruto, para que el documento
+    // pueda enseñar «subtotal − volumen − comercial» en vez de un número más
+    // bajo sin explicación.
+    descuentoVolumenPct: Number(r.descuento_volumen_pct ?? 0) || 0,
+    volumenDesde: r.volumen_desde != null ? Number(r.volumen_desde) : null,
     franjaNombre: r.franja_nombre ?? null,
     franjaHorario:
       r.franja_hora_inicio && r.franja_hora_fin
@@ -85,16 +93,27 @@ function armarPropuesta(p: any, items: any[]) {
   // IVA configurado en el cliente (clientes.iva_pct); si no viene, 16.
   const ivaP = p.cliente_iva != null ? Number(p.cliente_iva) : IVA_PCT
 
-  // base = tarifa de lista (bruto) − descuento comercial. El neto (para el
+  // base = bruto de lista − volumen − descuento comercial. El neto (para el
   // medio) y el IVA se calculan sobre la base; el total es lo que paga el cliente.
-  const descuentoMonto = Math.round(bruto * (descuentoPct / 100))
-  const base = bruto - descuentoMonto
+  // VOL-01 · el volumen entra AQUÍ, entre el bruto de lista y el descuento
+  // comercial, que es exactamente donde lo pone la cadena del ADR 0039. Por eso
+  // el comercial se calcula sobre `brutoConVolumen` y no sobre `bruto`: ahí es
+  // donde «se compone, no se suma» deja de ser una frase y pasa a ser la
+  // aritmética. Con cero volumen, `brutoConVolumen === bruto` y todo lo de
+  // abajo da el mismo número que antes de esta fase, dígito por dígito.
+  const vol = volumenDeLineas(its)
+  const descuentoVolumenMonto = vol.descuentoVolumenMonto
+  const brutoConVolumen = vol.brutoConVolumen
+  const descuentoMonto = Math.round(brutoConVolumen * (descuentoPct / 100))
+  const base = brutoConVolumen - descuentoMonto
   const neto = Math.round(base * divisor)
   const iva = Math.round(base * (ivaP / 100))
   // Aprobación granular: presupuesto sobre los items aprobados (modelo "menú").
   const aprob = its.filter((i) => i.aprobado)
   const brutoAprobado = aprob.reduce((s, i) => s + i.precio, 0)
-  const baseAprobado = brutoAprobado - Math.round(brutoAprobado * (descuentoPct / 100))
+  const volAprobado = volumenDeLineas(aprob)
+  const baseAprobado =
+    volAprobado.brutoConVolumen - Math.round(volAprobado.brutoConVolumen * (descuentoPct / 100))
   const netoAprobado = Math.round(baseAprobado * divisor)
   const ivaAprobado = Math.round(baseAprobado * (ivaP / 100))
   return {
@@ -113,6 +132,12 @@ function armarPropuesta(p: any, items: any[]) {
     creadoEn: iso(p.creado_en),
     items: its,
     bruto,
+    // VOL-01. Van los tres: lo regalado por volumen, lo que queda después, y el
+    // porcentaje ponderado de la propuesta entera — que es el que se compara
+    // contra el tope de la organización.
+    descuentoVolumenMonto,
+    brutoConVolumen,
+    descuentoVolumenPct: vol.volumenPctEfectivo,
     descuentoMonto,
     base,
     divisor,
@@ -121,6 +146,7 @@ function armarPropuesta(p: any, items: any[]) {
     total: base + iva,
     itemsAprobados: aprob.length,
     brutoAprobado,
+    descuentoVolumenMontoAprobado: volAprobado.descuentoVolumenMonto,
     baseAprobado,
     netoAprobado,
     ivaAprobado,
@@ -210,8 +236,21 @@ export async function congelarSnapshotEconomico(propuestaId: string, tenantId?: 
   const factorDesc = 1 - descuentoPct / 100
 
   const bruto = usar.reduce((s, it) => s + Number(it.precio), 0)
-  const descuentoMonto = Math.round(bruto * (descuentoPct / 100))
-  const base = bruto - descuentoMonto
+  // VOL-01 · el volumen se congela desde el PROPIO ÍTEM y no se vuelve a
+  // consultar `escalas_volumen`. Es una diferencia real con la franja, que sí
+  // se relee de su catálogo para poder congelar su nombre: aquí el porcentaje y
+  // el umbral ya están copiados en la línea desde la captura, así que mover la
+  // escala no puede alcanzar a una propuesta ni antes ni después de aprobarla.
+  // Dos redes, no una.
+  const vol = volumenDeLineas(
+    usar.map((it) => ({
+      precio: Number(it.precio),
+      descuentoVolumenPct: Number(it.descuento_volumen_pct ?? 0),
+    })),
+  )
+  const brutoConVolumen = vol.brutoConVolumen
+  const descuentoMonto = Math.round(brutoConVolumen * (descuentoPct / 100))
+  const base = brutoConVolumen - descuentoMonto
   const neto = Math.round(base * divisor)
   const iva = Math.round(base * (ivaPct / 100))
   const total = base + iva
@@ -221,10 +260,18 @@ export async function congelarSnapshotEconomico(propuestaId: string, tenantId?: 
     // guarda, porque aquí deja de ser un dato vivo y pasa a ser un hecho.
     const tempId = temporadaDeFecha(temporadasRej, String(iso(it.fecha_inicio) ?? '').slice(0, 10))
     const temp = tempId ? temporadasRej.find((t) => t.id === tempId) : null
+    // El volumen de ESTA línea. Se lee con guarda porque `numeric` de Postgres
+    // admite NaN: sin ella, una fila corrupta dejaría el neto de la propuesta
+    // en NaN y la aprobación contestaría 200 OK.
+    const volPct = Number(it.descuento_volumen_pct ?? 0)
+    const factorVol = Number.isFinite(volPct) && volPct > 0 ? 1 - Math.min(volPct, 100) / 100 : 1
     return {
       sitioId: it.sitio_id,
+      // `lista` sigue siendo el importe DE LISTA, sin el volumen. Si bajara, el
+      // reporte de publicada contra neta compararía la neta con una «publicada»
+      // que nadie publicó nunca.
       lista: Number(it.precio),
-      neto: Math.round(Number(it.precio) * factorDesc * divisor),
+      neto: Math.round(Number(it.precio) * factorVol * factorDesc * divisor),
       // La tarifa UNITARIA aparte del importe de la línea: `lista` ya lleva la
       // cantidad dentro (50 spots × 1 200), y comparar publicada contra neta
       // exige el precio por unidad. Si no constara, el reporte tendría que
@@ -240,6 +287,17 @@ export async function congelarSnapshotEconomico(propuestaId: string, tenantId?: 
           }
         : null,
       temporada: temp ? { id: temp.id, nombre: temp.nombre } : null,
+      // VOL-01 · SOLO cuando hay volumen. Un snapshot que engorda con ceros en
+      // toda la base instalada es ruido que se acaba dejando de leer, y encima
+      // cambiaría el JSON de propuestas que no cambiaron de precio. Mismo
+      // criterio que el `avisoFranja` de la Fase 1.
+      //
+      // Va el UMBRAL además del porcentaje: un «10 %» sin decir «por llegar a
+      // 50» no se puede auditar seis meses después — nadie sabrá si salió de la
+      // escala o de un dedazo.
+      ...(factorVol !== 1
+        ? { descuentoVolumenPct: volPct, volumenDesde: it.volumen_desde != null ? Number(it.volumen_desde) : null }
+        : {}),
     }
   })
 
@@ -254,8 +312,21 @@ export async function congelarSnapshotEconomico(propuestaId: string, tenantId?: 
   // de leer.
   const hayFranja = porSitio.some((s) => s.franja != null)
 
+  // Igual que con la franja: los totales de volumen se guardan SOLO cuando hay
+  // volumen. Así el snapshot de una venta sin tramos es byte por byte el mismo
+  // JSON que producía esta función antes de la Fase 2.
+  const hayVolumen = vol.descuentoVolumenMonto !== 0
+
   const snap = {
-    version, bruto, descuentoPct, descuentoMonto, base, comisionPct, neto, ivaPct, iva, total, porSitio,
+    version, bruto,
+    ...(hayVolumen
+      ? {
+          descuentoVolumenPct: vol.volumenPctEfectivo,
+          descuentoVolumenMonto: vol.descuentoVolumenMonto,
+          brutoConVolumen,
+        }
+      : {}),
+    descuentoPct, descuentoMonto, base, comisionPct, neto, ivaPct, iva, total, porSitio,
     ...(hayFranja ? { avisoFranja: AVISO_FRANJA_NO_VIAJA_AL_CMS } : {}),
   }
   await qS('update propuestas set snapshot_economico=$2, snapshot_en=now() where id=$1', [
@@ -352,6 +423,15 @@ export async function obtenerPropuestaPublica(codigo: string) {
     comisionPct: armado.comisionPct,
     descuentoPct: armado.descuentoPct,
     descuentoMonto: armado.descuentoMonto,
+    // VOL-01 · el volumen viaja a la LIGA PÚBLICA, que es el documento que el
+    // cliente lee y acepta. Si no viajara, la cotización enseñaría un bruto y un
+    // total que no cuadran entre sí — y la pantalla no puede inventarse la
+    // diferencia. Este objeto se arma A MANO, campo por campo: añadir un dato a
+    // `armarPropuesta` no basta para que llegue aquí, y ése es exactamente el
+    // olvido que esta línea evita.
+    descuentoVolumenPct: armado.descuentoVolumenPct,
+    descuentoVolumenMonto: armado.descuentoVolumenMonto,
+    brutoConVolumen: armado.brutoConVolumen,
     divisor: armado.divisor,
     bruto: armado.bruto,
     base: armado.base,
@@ -558,6 +638,13 @@ export interface PropuestaInput {
     // una segunda verdad que envejece. La que se aplicó queda congelada en el
     // snapshot al aprobar, que es donde deja de ser un dato vivo.
     franjaId?: string | null
+    // VOL-01 · el descuento por volumen que le tocó y el umbral que lo ganó.
+    // Los calcula el CONTROLLER leyendo `escalas_volumen` bajo RLS; NUNCA
+    // llegan del cuerpo de la petición (ver la cabecera de
+    // `propuestas-controller.ts`). Aquí están porque el repo los persiste, no
+    // porque sean un dato de entrada del cliente.
+    descuentoVolumenPct?: number
+    volumenDesde?: number | null
   }[]
   notas?: string | null
 }
@@ -622,8 +709,9 @@ export async function crearPropuesta(input: PropuestaInput) {
       await client.query(
         `insert into propuesta_items
            (propuesta_id, sitio_id, fecha_inicio, fecha_fin, precio, unidad, cantidad, tarifa_unitaria, spots_por_dia, tenant_id,
-            renta_monto, renta_periodicidad, renta_arrendador_id, franja_id)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::periodicidad_pago,$13,$14)`,
+            renta_monto, renta_periodicidad, renta_arrendador_id, franja_id,
+            descuento_volumen_pct, volumen_desde)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::periodicidad_pago,$13,$14,$15,$16)`,
         [
           prop.id, it.sitioId, input.fechaInicio, input.fechaFin, it.precio ?? 0,
           it.unidad ?? 'mensual', it.cantidad ?? 1, it.tarifaUnitaria ?? (it.precio ?? 0),
@@ -639,6 +727,12 @@ export async function crearPropuesta(input: PropuestaInput) {
           // seguridad es `propuesta_items_franja_fkey`, que es COMPUESTA con el
           // tenant y por tanto no se puede eludir olvidándose de validar.
           it.franjaId ?? null,
+          // VOL-01 · el porcentaje y el umbral se guardan JUNTOS y con un
+          // respaldo explícito. Un porcentaje sin su umbral es un descuento que
+          // nadie puede auditar; el `?? 0` de aquí es el único legítimo de la
+          // pareja, porque 0 SÍ significa «sin volumen» en esta columna.
+          it.descuentoVolumenPct ?? 0,
+          it.volumenDesde ?? null,
         ],
       )
     }
@@ -716,7 +810,30 @@ export async function actualizarPropuesta(
     // organización. `topeDescuentoDelTenant()` lo lee con contexto de tenant —
     // el techo de una empresa no puede decidirlo la configuración de otra—, y
     // por encima del tope **no se guarda nada**: revienta antes del `update`.
-    const d = descuentoDentroDelTope(input.descuentoPct, await topeDescuentoDelTenant())
+    //
+    // VOL-02: y el techo se compara contra el descuento EFECTIVO, o sea el
+    // comercial COMPUESTO con el volumen que esta propuesta ya lleva. Es la
+    // pregunta de negocio de la Fase 2 y está abierta con el dueño; la
+    // respuesta implementada vive entera en `descuentoContraTope`
+    // (`lib/descuento.ts`), no aquí.
+    //
+    // El volumen se lee de las líneas y no se recalcula desde `escalas_volumen`:
+    // lo que cuenta es lo que se capturó, no lo que la escala diga hoy.
+    const lineas = await q<any>(
+      'select precio, descuento_volumen_pct from propuesta_items where propuesta_id=$1',
+      [id],
+    )
+    const volumenPct = volumenDeLineas(
+      lineas.map((l) => ({
+        precio: Number(l.precio),
+        descuentoVolumenPct: Number(l.descuento_volumen_pct ?? 0),
+      })),
+    ).volumenPctEfectivo
+    const d = descuentoDentroDelTope(
+      input.descuentoPct,
+      await topeDescuentoDelTenant(),
+      volumenPct,
+    )
     sets.push(`descuento_pct=$${i++}`)
     vals.push(d)
     // El «cambió de verdad» es UNO y se calcula una sola vez: lo usan la subida
@@ -761,7 +878,12 @@ export async function cambiarEstatusPropuesta(
     }
     // S1-2: guardarraíl contra aprobar/facturar en $0 sin confirmación.
     const tot = await q1<{ base: string }>(
-      `select coalesce(sum(precio),0) * (1 - coalesce((select descuento_pct from propuestas where id=$1),0)/100.0) as base
+      // VOL-01 · el volumen entra en la cuenta del guard. Sin esto, una escala
+      // al 100 % dejaría la base en cero de verdad y el guard vería el bruto de
+      // lista, o sea aprobaría en silencio una propuesta que no cobra nada —
+      // que es exactamente lo que este guard existe para impedir.
+      `select coalesce(sum(precio * (1 - least(greatest(coalesce(descuento_volumen_pct,0),0),100)/100.0)),0)
+                * (1 - coalesce((select descuento_pct from propuestas where id=$1),0)/100.0) as base
          from propuesta_items where propuesta_id=$1`,
       [id],
     )

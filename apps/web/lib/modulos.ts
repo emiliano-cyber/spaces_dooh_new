@@ -43,6 +43,11 @@ export const AREAS: AreaProducto[] = [
   // quien marcara esa casilla en la matriz de permisos creería estar concediendo
   // acceso a otra cosa. Mismo razonamiento que el de `reportes` bajo `finanzas`.
   { clave: 'franjas-y-temporadas', label: 'Franjas y temporadas', modulo: 'inventario', apiPropia: true },
+  // VOL-01 · descuentos por volumen (ADR 0039, Fase 2). Bajo `inventario` por el
+  // mismo motivo que la de arriba: su endpoint exige `inventario`
+  // (`app/api/volumen/escalas/route.ts`), y declararla en otro módulo sería
+  // declarar una mentira en la matriz de permisos.
+  { clave: 'descuentos-por-volumen', label: 'Descuentos por volumen', modulo: 'inventario', apiPropia: true },
   { clave: 'arrendadores', label: 'Arrendadores', modulo: 'arrendadores', apiPropia: true },
   { clave: 'operaciones', label: 'Operaciones', modulo: 'operaciones', apiPropia: true },
   { clave: 'almacen', label: 'Almacén', modulo: 'operaciones', apiPropia: true },

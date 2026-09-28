@@ -498,6 +498,14 @@ export interface PropuestaItem {
   // etiqueta que podría no ser la que se vendió.
   franjaNombre?: string | null
   franjaHorario?: string | null
+  // ─── VOL-01 · qué descuento por VOLUMEN le tocó (ADR 0039, Fase 2) ────────
+  // 0 en todo lo vendido hasta el 2026-09-28 y en toda venta sin escala. El
+  // `precio` de la línea sigue siendo el de LISTA: el volumen se aplica sobre
+  // el bruto de la propuesta, no dentro del importe del renglón.
+  descuentoVolumenPct?: number
+  // El umbral que lo ganó («a partir de 50»). Va aparte del porcentaje porque
+  // un 10 % sin decir de dónde salió no se puede auditar.
+  volumenDesde?: number | null
 }
 export interface Propuesta {
   id: string
@@ -516,8 +524,14 @@ export interface Propuesta {
   items: PropuestaItem[]
   // Calculados con el método del divisor (server-side):
   bruto: number         // Σ precio de los items (tarifa de lista)
-  descuentoMonto: number // bruto × descuento/100
-  base: number          // bruto − descuento (base de cálculo)
+  // VOL-01 (ADR 0039, Fase 2) · el escalón de VOLUMEN, que va ANTES del
+  // comercial. `bruto` NO cambia de significado: sigue siendo la lista. Con la
+  // escala vacía estos dos son 0 y todo lo de abajo da lo mismo que antes.
+  descuentoVolumenPct: number    // el ponderado de la propuesta entera
+  descuentoVolumenMonto: number  // Σ redondeado línea a línea
+  brutoConVolumen: number        // bruto − descuentoVolumenMonto
+  descuentoMonto: number // brutoConVolumen × descuento/100 (se COMPONE, no se suma)
+  base: number          // brutoConVolumen − descuento (base de cálculo)
   divisor: number       // 1 − comisión/100
   neto: number          // base × divisor (lo que recibe el medio)
   iva: number           // base × 16%
@@ -525,6 +539,7 @@ export interface Propuesta {
   // Aprobación granular (sitio por sitio): presupuesto sobre lo aprobado.
   itemsAprobados: number
   brutoAprobado: number
+  descuentoVolumenMontoAprobado: number
   baseAprobado: number
   netoAprobado: number
   ivaAprobado: number

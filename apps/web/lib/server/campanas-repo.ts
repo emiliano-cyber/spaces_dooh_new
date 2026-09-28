@@ -715,16 +715,24 @@ export async function generarCampanaDesdePropuesta(
     for (const it of items) {
       // Precio por sitio = NETO del snapshot congelado (o, sin snapshot, el
       // cálculo lista × (1−descuento) × (1−comisión) como respaldo).
+      // VOL-01 · el respaldo (sin snapshot) tiene que llevar el volumen dentro,
+      // o la campaña cobraría MÁS que la propuesta que le dio origen y nadie lo
+      // vería: el número es plausible, solo que es el de antes del descuento.
+      // El camino normal —el snapshot— ya lo trae congelado.
+      const volPct = Number(it.descuento_volumen_pct ?? 0)
+      const factorVol = Number.isFinite(volPct) && volPct > 0 ? 1 - Math.min(volPct, 100) / 100 : 1
       const netoSitio =
-        netoDeSnap.get(it.sitio_id) ?? Math.round(Number(it.precio) * factorDesc * divisor)
+        netoDeSnap.get(it.sitio_id) ??
+        Math.round(Number(it.precio) * factorVol * factorDesc * divisor)
       // La reserva hereda la contratación por tiempo del ítem (unidad, cantidad
       // de periodos y programación de spots), para que la campaña conserve cómo
       // se contrató y no solo el precio.
       await client.query(
         `insert into reservas
            (campana_id, sitio_id, fecha_inicio, fecha_fin, precio, tipo_venta, estatus,
-            spots_reservados, unidad, cantidad, tarifa_unitaria, spots_por_dia, tenant_id, franja_id)
-         values ($1,$2,$3,$4,$5,'FIXED_PKG','CONFIRMADA',$6,$7,$8,$9,$10,$11,$12)`,
+            spots_reservados, unidad, cantidad, tarifa_unitaria, spots_por_dia, tenant_id, franja_id,
+            descuento_volumen_pct)
+         values ($1,$2,$3,$4,$5,'FIXED_PKG','CONFIRMADA',$6,$7,$8,$9,$10,$11,$12,$13)`,
         [
           campanaId, it.sitio_id, iso(it.fecha_inicio), iso(it.fecha_fin), netoSitio,
           // SLOTS que la reserva retiene — NO `spots_por_dia`, que es la
@@ -746,6 +754,13 @@ export async function generarCampanaDesdePropuesta(
           // que la vendida, y el snapshot congelado y la reserva contarían dos
           // historias distintas del mismo trato — sin dar ningún error.
           it.franja_id ?? null,
+          // VOL-01 · igual que la franja: se HEREDA, no se recalcula. El
+          // `precio` de arriba es el NETO, que ya lleva el volumen dentro; esta
+          // columna es lo único que explica por qué ese neto no cuadra con
+          // `tarifa_unitaria × cantidad × (1−descuento) × (1−comisión)`. Sin
+          // ella, la ficha de la campaña enseñaría una cuenta que no da y se
+          // leería como un defecto del sistema.
+          Number.isFinite(volPct) && volPct > 0 ? Math.min(volPct, 100) : 0,
         ],
       )
       // sitios RESERVADO hasta la OC (no OCUPADO todavía)

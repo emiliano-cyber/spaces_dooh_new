@@ -21,6 +21,7 @@ import {
   Zap,
   TrendingUp,
   Clock,
+  Layers,
 } from 'lucide-react'
 import type { RolDemo } from '@/lib/data/types'
 
@@ -106,6 +107,11 @@ export const NAV: NavItem[] = [
   // `inventario` (`lib/modulos.ts`), igual que el guard de sus endpoints —
   // declararla en otro sería declarar una mentira en la matriz de permisos.
   { key: 'franjas-y-temporadas', label: 'Franjas y temporadas', href: '/franjas-y-temporadas', icon: Clock, roles: ['DUENO'], grupo: 'patrimonio' },
+  // VOL-01 · la escala de volumen (ADR 0039, Fase 2). Pantalla PROPIA y no una
+  // sección de la de arriba: aquélla declara de dónde sale el precio, ésta un
+  // descuento que se aplica encima. Mismo grupo y mismo módulo —`inventario`,
+  // como su endpoint— por el mismo razonamiento.
+  { key: 'descuentos-por-volumen', label: 'Descuentos por volumen', href: '/descuentos-por-volumen', icon: Layers, roles: ['DUENO'], grupo: 'patrimonio' },
   // Arrendadores va pegado a Inventario y no suelto en medio del ciclo
   // comercial: una pantalla no es tuya, es de alguien que te la renta, y el
   // contrato con ese alguien es lo que te deja venderla (ADR 0003).

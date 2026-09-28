@@ -308,6 +308,17 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
           <div className="mt-4 grid gap-4 border-t border-border pt-4 lg:grid-cols-2">
             <dl className="space-y-1.5 text-[13px]">
               <Fila label="Bruto (tarifa de lista)" valor={formatMonto(p.bruto)} />
+              {/* VOL-01 · el renglón aparece SOLO cuando hay volumen, y tiene que
+                  aparecer: sin él la escalera no cuadra en pantalla —bruto menos
+                  descuento comercial no daría la base— y una cuenta que no da se
+                  lee como un defecto del sistema. */}
+              {p.descuentoVolumenMonto > 0 && (
+                <Fila
+                  label={`Descuento por volumen (${Math.round(p.descuentoVolumenPct * 10) / 10}%)`}
+                  valor={`− ${formatMonto(p.descuentoVolumenMonto)}`}
+                  tono="text-error"
+                />
+              )}
               <Fila label={`Descuento comercial (${p.descuentoPct}%)`} valor={p.descuentoMonto ? `− ${formatMonto(p.descuentoMonto)}` : '—'} tono={p.descuentoMonto ? 'text-error' : undefined} />
               <Fila label="Base con descuento" valor={formatMonto(p.base)} />
               <Fila label={`Comisión de agencia (${comisionPct}%)`} valor={`− ${formatMonto(p.base - p.neto)}`} />
@@ -533,7 +544,23 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
             {/* Desglose */}
             <dl className="space-y-2 text-[13px]">
               <Fila label="Bruto (tarifa de lista)" valor={formatMonto(p.bruto)} />
-              <Fila label={`Comisión de agencia (${comisionPct}%) · divisor ×${p.divisor.toFixed(2)}`} valor={`− ${formatMonto(p.bruto - p.neto)}`} />
+              {/* VOL-01 · el renglón aparece SOLO cuando hay volumen, y tiene que
+                  aparecer: sin él la escalera no cuadra en pantalla —bruto menos
+                  descuento comercial no daría la base— y una cuenta que no da se
+                  lee como un defecto del sistema. */}
+              {p.descuentoVolumenMonto > 0 && (
+                <Fila
+                  label={`Descuento por volumen (${Math.round(p.descuentoVolumenPct * 10) / 10}%)`}
+                  valor={`− ${formatMonto(p.descuentoVolumenMonto)}`}
+                  tono="text-error"
+                />
+              )}
+              {/* La comisión se mide desde el bruto YA con el volumen quitado.
+                  Con `p.bruto` a secas, el descuento por volumen se contaría dos
+                  veces en esta columna: una en el renglón de arriba y otra
+                  dentro de éste. (Este bloque tampoco desglosa el descuento
+                  comercial — eso viene de antes y no se toca aquí.) */}
+              <Fila label={`Comisión de agencia (${comisionPct}%) · divisor ×${p.divisor.toFixed(2)}`} valor={`− ${formatMonto(p.brutoConVolumen - p.neto)}`} />
               <Fila label="Neto (lo que recibe el medio)" valor={formatMonto(p.neto)} />
               <Fila label={`IVA ${ivaPct}%`} valor={formatMonto(p.iva)} />
               <div className="mt-1 border-t border-border pt-2">
