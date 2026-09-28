@@ -21,6 +21,7 @@ import { restablecerPasswordApi, desbloquearApi, esErrorDeDesbloqueo } from '@/l
 import { areasDeModulo } from '@/lib/modulos'
 import { TIPO_OT_LABEL, TIPO_OT_SOLO_FIJA, TIPO_OT_OBSOLETO, TODOS_TIPOS_OT, tiposOtPara } from '@/lib/tipos-ot'
 import { payloadCostosOt } from '@/lib/costos-ot-payload'
+import { useCandado, DialogoCandado } from '@/components/demo/ui/candado'
 import { OrganizacionesPanel } from '@/components/demo/admin/OrganizacionesPanel'
 import { ControlCambiosPanel } from '@/components/demo/admin/ControlCambiosPanel'
 import { ActualizacionesPanel } from '@/components/demo/admin/ActualizacionesPanel'
@@ -599,6 +600,41 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
   const sincronizarConfig = useActualizarConfig()
   useEffect(() => { getConfigApi().then(setConfig) }, [])
 
+  // ─── TOPE-01 · el tope de descuento pide la contraseña ────────────────────
+  //
+  // Es el único campo de esta pantalla con candado, porque es el único que es
+  // un CONTROL y no un ajuste: quien lo sube puede a continuación regalar la
+  // venta. El servidor lo exige (`app/api/config/route.ts`), así que este
+  // cuadro no protege nada — lo que hace es que el camino EXISTA. Sin él, el
+  // 403 dejaría el campo mudo y la única salida sería el rodeo por «Cambios
+  // bloqueados» (ver `components/demo/ui/candado.tsx`).
+  const candadoTope = useCandado()
+  const [topeInput, setTopeInput] = useState('')
+  // Resincroniza con lo GUARDADO cada vez que el cuadro se cierra —lo confirmes
+  // o lo canceles— y cada vez que el servidor devuelve una config nueva. Sin
+  // esto, cancelar dejaría en pantalla un número que no está guardado, que es
+  // la peor forma de enseñar un tope: la que se cree.
+  useEffect(() => {
+    if (!candadoTope.reautenticando) setTopeInput(String(config?.topeDescuentoPct ?? 100))
+  }, [candadoTope.reautenticando, config?.topeDescuentoPct])
+
+  function guardarTope() {
+    const txt = topeInput.trim()
+    const v = Number(txt)
+    if (txt === '' || !Number.isFinite(v) || v < 0 || v > 100) {
+      onToast('El tope de descuento tiene que ser un número entre 0 y 100')
+      setTopeInput(String(config?.topeDescuentoPct ?? 100))
+      return
+    }
+    if (v === config?.topeDescuentoPct) return
+    void candadoTope.ejecutar({
+      guardar: async () => { setConfig(await actualizarConfigApi({ topeDescuentoPct: v })) },
+      alLograr: () => onToast(v >= 100 ? 'Sin tope de descuento' : `Tope de descuento: ${v} %`),
+      alFallar: (m) => onToast(m),
+      mensajeSiFalla: 'No se pudo guardar el tope de descuento',
+    })
+  }
+
   // Devuelve si se guardó. El error del servidor (422 de subida, permisos…) se
   // muestra tal cual: antes se perdía en una promesa sin capturar y el usuario
   // no sabía por qué no cambiaba nada.
@@ -890,6 +926,53 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
           </p>
         </CardContent>
       </Card>
+
+      {/* TOPE-01 · techo de descuento comercial de esta organización.
+          100 % = sin tope, que es como nace: desplegar esto no invalida
+          ninguna propuesta viva. Es el ÚNICO campo de esta pantalla que pide
+          la contraseña, porque es el único que es un control y no un ajuste. */}
+      <Card>
+        <CardHeader className="flex flex-row items-center gap-2"><Percent className="h-4 w-4 text-muted" /><CardTitle>Tope de descuento comercial</CardTitle></CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap items-end gap-3">
+            <Campo label="Descuento máximo (%)">
+              <input
+                type="number"
+                min={0}
+                max={100}
+                className={`demo-num ${inputCls}`}
+                value={topeInput}
+                onChange={(e) => setTopeInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') guardarTope() }}
+              />
+            </Campo>
+            <Button
+              size="sm"
+              onClick={guardarTope}
+              disabled={candadoTope.enviando || Number(topeInput) === config.topeDescuentoPct}
+            >
+              {candadoTope.enviando && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Guardar tope
+            </Button>
+          </div>
+          <p className="mt-2 text-[11px] text-muted">
+            El descuento más alto que se puede aplicar a una propuesta. Por encima de este número la
+            propuesta <b>no se guarda</b> y quien vende ve cuál es el tope. Déjalo en <b>100</b> para no
+            limitar nada, que es como nace la organización. Lo que ya está pactado no cambia:
+            bajar el tope no toca las propuestas que ya lo superan, solo impide volver a teclear
+            ese descuento.
+          </p>
+          <p className="mt-1.5 text-[11px] text-muted">
+            Cambiarlo pide tu contraseña: es el control que limita cuánto dinero se puede regalar en
+            una venta, no un ajuste más.
+          </p>
+        </CardContent>
+      </Card>
+      <DialogoCandado
+        candado={candadoTope}
+        titulo="Confirma el tope de descuento"
+        subtitulo="Estás cambiando cuánto descuento puede aplicar tu equipo en una propuesta."
+        etiquetaConfirmar="Guardar tope"
+      />
 
       <Card>
         <CardHeader><CardTitle>Plazos de cobranza (días)</CardTitle></CardHeader>

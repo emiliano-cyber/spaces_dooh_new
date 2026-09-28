@@ -1,7 +1,7 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-09-23
+actualizado: 2026-09-28
 tags: [datos, esquema, er, postgres]
 archivos:
   - db/schema.sql
@@ -9,9 +9,28 @@ archivos:
   - db/migrations/
   - db/migrations/20260921_actualizaciones_instancia.sql
   - db/migrations/20260923_tickets.sql
+  - db/migrations/20260928_tope_descuento_propuestas.sql
 ---
 
 # Esquema de datos
+
+> [!note] 2026-09-28 · columna nueva, `config_negocio.tope_descuento_pct`
+> `db/migrations/20260928_tope_descuento_propuestas.sql` — el descuento máximo
+> que una organización autoriza en una propuesta.
+> `numeric(5,2) not null default 100`, con `check (>= 0 and <= 100)`. **Las
+> tablas NO se mueven**: sigue en 46, porque esto es una columna. Medido con
+> `node scripts/recuentos.mjs` sobre este árbol (`feat/tope-descuento`): **89
+> migraciones, 46 tablas**.
+>
+> `100` = sin tope, y es el DEFAULT a propósito: es exactamente lo que hacía el
+> código antes, así que la migración **no invalida ninguna propuesta viva**. Ver
+> [[02-Backend/comercial-propuestas-campanas]] para el porqué y para el modo de
+> fallo de leer el tope sin contexto de tenant.
+>
+> ⚠️ **Lo que se comprobó hoy contra el código es SOLO esto.** El `actualizado:`
+> de arriba dice 28/09 porque es cuando se tocó la nota, no porque se haya
+> revalidado entera: los recuentos y las citas del resto del archivo siguen
+> teniendo la fecha que traen en su propio recuadro.
 
 > [!note] 2026-09-23 · tabla nueva, `tickets` — ADR 0038
 > `db/migrations/20260923_tickets.sql` — tickets de soporte: el dueño de una
@@ -251,7 +270,7 @@ erDiagram
 | `identidades_externas` | fail-closed + FORCE | ADR 0012 |
 | `password_resets` | fail-closed (desde 07/08) | Token único, 60 min |
 | `rol_permisos` | **Sin tenant_id** | RBAC global a la instalación |
-| `config_negocio` | fail-closed + FORCE | Una fila **por tenant**, sin DEFAULT. La crea quien da de alta la organización, o la app al primer acceso (`lib/server/config-repo.ts:59-61`). Desde el 17/09 lleva `costos_ot jsonb` —costo de mano de obra por tipo de OT, `{}` = sin configurar— con CHECK de forma; ver [[02-Backend/operaciones-y-ot]] |
+| `config_negocio` | fail-closed + FORCE | Una fila **por tenant**, sin DEFAULT. La crea quien da de alta la organización, o la app al primer acceso (`lib/server/config-repo.ts:59-61`). Desde el 17/09 lleva `costos_ot jsonb` —costo de mano de obra por tipo de OT, `{}` = sin configurar— con CHECK de forma; ver [[02-Backend/operaciones-y-ot]]. Desde el **28/09** lleva `tope_descuento_pct numeric(5,2) not null default 100` —el descuento máximo que esa organización autoriza en una propuesta, `100` = sin tope, que es como nace— con `check (>= 0 and <= 100)`; ver [[02-Backend/comercial-propuestas-campanas]] |
 | `folios_consecutivos` | Sin tenant_id | Contador global |
 | `schema_migrations` | Sin tenant_id | Qué migraciones corrió **esta instancia**. Ver [[migraciones]] |
 | `acciones` | fail-closed | Bitácora append-only |

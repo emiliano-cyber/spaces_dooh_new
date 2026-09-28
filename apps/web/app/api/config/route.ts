@@ -6,6 +6,7 @@ import { tenantActual } from '@/lib/server/tenant'
 import { registrarAccion } from '@/lib/server/acciones-repo'
 import { obtenerConfigRow, obtenerConfigAdmin } from '@/lib/server/config-repo'
 import { respuestaError, validar } from '@/lib/server/errores'
+import { exigirDesbloqueo, respuestaDesbloqueo } from '@/lib/server/cambios'
 import { LIMITES, uploadZod } from '@/lib/server/uploads'
 import { rfcTenant, textoTenant } from '@/lib/server/config-fiscal'
 import { esEmailValido, EMAIL_INVALIDO } from '@/lib/validacion'
@@ -45,6 +46,18 @@ const configSchema = z
       .min(1, 'El cupo de clientes debe ser al menos 1')
       .max(999, 'El cupo de clientes no puede pasar de 999')
       .nullable(),
+    // TOPE-01: descuento comercial máximo que esta organización autoriza en una
+    // propuesta. NO es nullable —al revés que el cupo de clientes— porque aquí
+    // el 100 YA significa «sin tope»: `descuentoValido` nunca deja pasar más de
+    // 100, así que un `null` sería una segunda forma de decir lo mismo y una
+    // segunda forma de que la lectura se equivoque.
+    //
+    // El 0 SÍ es capturable: significa «en esta organización no se descuenta»,
+    // que es una política comercial legítima y por eso el mínimo es 0 y no 1.
+    topeDescuentoPct: z.coerce
+      .number()
+      .min(0, 'El tope de descuento no puede ser negativo')
+      .max(100, 'El tope de descuento no puede pasar de 100 %'),
     // Correo de la organización para los avisos de OPERACIÓN (Reply-To).
     // `null` = quitarlo, igual que el logo. La cadena vacía se normaliza a null
     // más abajo: un input que se vacía manda '', y guardar '' haría que el
@@ -106,6 +119,30 @@ export async function PATCH(req: Request) {
   try {
   const b = validar(configSchema, await req.json().catch(() => ({}))) as Record<string, unknown>
 
+  // ─── TOPE-01 · subir el techo de descuento PIDE LA CONTRASEÑA ─────────────
+  //
+  // El tope es el CONTROL, no el dato. Sin esto, quien puede administrar la
+  // organización desactiva el límite con un clic y a continuación regala la
+  // venta: el candado sobre el descuento no serviría de nada, porque bastaría
+  // con quitarlo primero. Es el mismo criterio del ADR 0009, que ya exige
+  // contraseña para tocar la renta de una pantalla o registrar un pago — y
+  // proteger la renta mientras se deja abierto el techo de descuento era
+  // justamente la asimetría que motivó esta tarea.
+  //
+  // Va DESPUÉS de `validar()` y AQUÍ DENTRO, no en la puerta de la ruta, y eso
+  // es deliberado: el candado alcanza solo a este campo. Ponerlo a toda la
+  // pantalla de Administración pediría la contraseña para cambiar el tamaño del
+  // loop o añadir una tasa de IVA — veinte campos que nadie pidió proteger— y
+  // convertiría esta tarea en otra mucho mayor.
+  //
+  // `exigeReautenticacion` es del TENANT y nace en `true`
+  // (`20260828_reautenticacion_por_defecto.sql`), así que en una organización
+  // que lo haya apagado esto no añade fricción ninguna.
+  if (b.topeDescuentoPct !== undefined) {
+    const d = await exigirDesbloqueo()
+    if (!d.ok) return respuestaDesbloqueo(d)
+  }
+
   // Ajustes de negocio → la fila de config_negocio de ESTE tenant.
   //
   // `nombreTenant` ya no está aquí: el nombre de la organización es
@@ -117,6 +154,7 @@ export async function PATCH(req: Request) {
     plazosCobranza: 'plazos_cobranza',
     logoUrl: 'logo_url', ivaTasas: 'iva_tasas', loopSeg: 'loop_seg', spotSeg: 'spot_seg',
     maxClientesPantalla: 'max_clientes_pantalla',
+    topeDescuentoPct: 'tope_descuento_pct',
     emailRemitente: 'email_remitente',
     costosOt: 'costos_ot',
   }

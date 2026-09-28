@@ -39,11 +39,18 @@ no se versiona configuración de la herramienta. Consecuencia práctica: la bóv
 Markdown puro y **se lee igual desde un editor, desde `cat` o desde un agente**. No
 necesitas instalar nada.
 
-Al 2026-09-28 tiene **1069 enlaces internos** sobre **84 notas**, con **2
+<<<<<<< HEAD
+Al 2026-09-28 tiene **1072 enlaces internos** sobre **84 notas**, con **2
 wikilinks rotos** —los dos apuntan a ADR, que viven en `docs/` y no en la
 bóveda, así que es un choque de convención más que un enlace muerto— y
 **0 notas huérfanas**. Medido con `node scripts/recuentos.mjs` **en este
 árbol**, al cerrar el trabajo y no antes. Las
+=======
+Al 2026-09-28 tiene **1059 enlaces internos** sobre **83 notas**, con **2
+wikilinks rotos** —los dos apuntan a ADR, que viven en `docs/` y no en la
+bóveda, así que es un choque de convención más que un enlace muerto— y
+**0 notas huérfanas**. Las
+>>>>>>> feat/tope-descuento
 mediciones previas daban 1056 sobre 83 (25/09), 1045 sobre 82 (24/09), 1148
 sobre 86 (23/09), 1101 sobre 85 (18/09), 753 sobre 57 (28/08), 606 sobre 48
 (17/08) y 395 sobre 43 (10/08).
@@ -106,11 +113,11 @@ código, no de memoria:
 | Framework | Next.js 14.2.29, App Router | `apps/web/package.json:17` |
 | Base de datos | PostgreSQL, `pg` directo (sin ORM) | `apps/web/lib/server/db.ts:2` |
 | Aislamiento | RLS de Postgres por `app.tenant_id` | `apps/web/lib/server/db.ts:60` y `:79` |
-| Endpoints | **100** route handlers | `apps/web/app/api/**/route.ts` |
+| Endpoints | **101** route handlers | `apps/web/app/api/**/route.ts` |
 | Tablas | **46** | `vault/04-Datos/esquema.md` |
-| Migraciones | **88** | `vault/04-Datos/migraciones.md` |
+| Migraciones | **89** | `vault/04-Datos/migraciones.md` |
 
-> Esos recuentos llevan fecha de validación **2026-09-23**, medidos con
+> Esos recuentos llevan fecha de validación **2026-09-28**, medidos con
 > `node scripts/recuentos.mjs` sobre este árbol. Trátalos como una
 > afirmación con fecha, no como una verdad permanente — §5 explica cómo
 > reverificarlos.

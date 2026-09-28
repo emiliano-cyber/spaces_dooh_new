@@ -1,7 +1,7 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-09-23
+actualizado: 2026-09-28
 tags: [datos, migraciones, despliegue, rojo]
 archivos:
   - db/migrations/
@@ -27,9 +27,32 @@ archivos:
   - db/migrations/20260921_corrige_acentos_catalogo_roles_entidad.sql
   - db/migrations/20260921_actualizaciones_instancia.sql
   - db/migrations/20260923_tickets.sql
+  - db/migrations/20260928_tope_descuento_propuestas.sql
 ---
 
 # Migraciones
+
+> [!note] 2026-09-28 · `tope_descuento_pct` — el techo de descuento por organización
+> `20260928_tope_descuento_propuestas.sql` — **columna**, no tabla: una más en
+> `config_negocio`, que es una fila por tenant desde el ADR 0011. Aditiva e
+> idempotente, `numeric(5,2) not null default 100` con
+> `check (>= 0 and <= 100)`.
+>
+> **Lo que hay que entender del DEFAULT, porque es la decisión y no el detalle:**
+> 100 % es exactamente lo que hacía el código antes de existir el tope
+> (`descuentoValido` nunca dejó pasar más de 100), así que **desplegarla no
+> invalida ninguna propuesta viva**. Un default «prudente» —20, 30— habría
+> convertido de golpe en inválidas las propuestas que ya lo superan, y eso lo
+> decide cada dueño, no una migración. Mismo criterio que el ADR 0008 con
+> `max_clientes_pantalla`: la regla **nace apagada**.
+>
+> **Medido, no copiado:** `node scripts/recuentos.mjs` sobre este árbol
+> (`feat/tope-descuento`) da **89 migraciones** y **46 tablas** — las tablas no
+> se mueven porque esto es una columna. Y el runner corrido **dos veces
+> seguidas** sobre una base creada para eso: la primera aplica 88 y sale 0, la
+> segunda dice `0 aplicadas` y sale 0. Los recuentos de los recuadros de abajo
+> —88 y 46, 87 y 45— son los del 23/09 y el 21/09 y se quedan ahí como lo que
+> son: afirmaciones con fecha.
 
 > [!note] 2026-09-23 · `tickets` — ADR 0038, el buzón de soporte del cliente
 > `20260923_tickets.sql` — tabla nueva **de negocio**: lleva `tenant_id`, RLS y

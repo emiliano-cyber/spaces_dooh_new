@@ -1,5 +1,6 @@
 import 'server-only'
-import { descuentoValido } from '@/lib/descuento'
+import { descuentoDentroDelTope } from '@/lib/descuento'
+import { topeDescuentoDelTenant } from './config-repo'
 import { randomBytes } from 'crypto'
 import { q, q1, pool, fijarTenant, fijarTenantExplicito, qConTenant, qRaw1 } from './db'
 import { tenantActual } from './tenant'
@@ -524,13 +525,26 @@ export async function aprobarItem(itemId: string, aprobado: boolean) {
   return armarPropuesta(p, items)
 }
 
+/** Lo que devuelve `actualizarPropuesta`: la propuesta y qué pasó con el descuento. */
+export interface PropuestaActualizada {
+  propuesta: Awaited<ReturnType<typeof armarPropuesta>>
+  /**
+   * TOPE-02 · el descuento que quedó, **solo si cambió de verdad**. `null` = este
+   * guardado no lo tocó (se editó el nombre o las notas), y entonces la bitácora
+   * no lo menciona. Viaja aparte de la propuesta a propósito: es un dato del
+   * CAMBIO, no del documento, y meterlo dentro lo publicaría en la respuesta de
+   * la API a todos los clientes.
+   */
+  descuentoAplicado: number | null
+}
+
 // Actualiza campos editables de la propuesta (descuento comercial, nombre,
 // notas). Regla de negocio: una propuesta APROBADA es inmutable. Si se cambia
 // el descuento de una propuesta ya ENVIADA, sube la versión (renegociación).
 export async function actualizarPropuesta(
   id: string,
   input: { descuentoPct?: number; nombre?: string; notas?: string | null },
-) {
+): Promise<PropuestaActualizada | null> {
   const cur = await q1<any>('select estatus, descuento_pct from propuestas where id=$1', [id])
   if (!cur) return null
   if (cur.estatus === 'APROBADA') {
@@ -540,14 +554,25 @@ export async function actualizarPropuesta(
   const vals: any[] = [id]
   let i = 2
   let subeVersion = false
+  let descuentoAplicado: number | null = null
   if (input.descuentoPct != null) {
     // `descuentoValido` reemplaza a un recorte que NO recortaba: con un valor
     // que no era número, `Math.max(0, Math.min(100, NaN))` daba `NaN`, y
     // `numeric` de Postgres lo ADMITE y lo propaga. Ver `lib/descuento.ts`.
-    const d = descuentoValido(input.descuentoPct)
+    //
+    // TOPE-01: y además tiene que caber bajo el techo que autoriza ESTA
+    // organización. `topeDescuentoDelTenant()` lo lee con contexto de tenant —
+    // el techo de una empresa no puede decidirlo la configuración de otra—, y
+    // por encima del tope **no se guarda nada**: revienta antes del `update`.
+    const d = descuentoDentroDelTope(input.descuentoPct, await topeDescuentoDelTenant())
     sets.push(`descuento_pct=$${i++}`)
     vals.push(d)
-    if (cur.estatus === 'ENVIADA' && d !== Number(cur.descuento_pct)) subeVersion = true
+    // El «cambió de verdad» es UNO y se calcula una sola vez: lo usan la subida
+    // de versión (solo si está ENVIADA) y la bitácora (siempre). Tenerlo dos
+    // veces sería tener dos definiciones de lo mismo, que es como divergen.
+    const cambio = d !== Number(cur.descuento_pct)
+    if (cambio) descuentoAplicado = d
+    if (cur.estatus === 'ENVIADA' && cambio) subeVersion = true
   }
   if (input.nombre != null) { sets.push(`nombre=$${i++}`); vals.push(input.nombre) }
   if (input.notas !== undefined) { sets.push(`notas=$${i++}`); vals.push(input.notas) }
@@ -559,7 +584,7 @@ export async function actualizarPropuesta(
     [id],
   )
   const items = await q('select * from propuesta_items where propuesta_id=$1', [id])
-  return armarPropuesta(p, items)
+  return { propuesta: armarPropuesta(p, items), descuentoAplicado }
 }
 
 // S1-2: aprobar una propuesta con Total $0 (p. ej. descuento 100%) exige
