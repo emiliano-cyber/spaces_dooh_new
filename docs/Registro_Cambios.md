@@ -47,6 +47,58 @@ La entrada más reciente va arriba.
   **No cambia quién puede entrar** (los mismos de siempre: Dueño y Comercial) ni
   lo que hace la pantalla. Solo cambia dónde está el enlace. Desde la ficha de una
   campaña se sigue llegando igual que antes.
+- **En Reportes hay una vista nueva: «Publicada vs neta».** Contesta de una vez
+  la pregunta de cuánto separa la tarifa que publicas de lo que de verdad entra.
+  Por pantalla, en el periodo que elijas, y con cuatro columnas: **Tarifa
+  publicada**, **Neto comparable**, **Descuento y comisión** y **% sobre
+  publicada**.
+
+  **Nada de esto se captura: ya estaba escrito.** Cuando un cliente acepta una
+  propuesta, el sistema congela la economía exacta de ese día —la tarifa de lista
+  y el neto de cada pantalla— y no se puede reescribir. Eso llevaba desde julio
+  guardado y no había dónde mirarlo.
+
+  **Dos cosas que conviene saber antes de enseñarla, porque son las que evitan
+  leerla mal:**
+
+  - **Se llama «Descuento y comisión», no «Descuento».** Lo que separa la tarifa
+    publicada de lo que entra son **dos** cosas: la rebaja que concediste **y** la
+    comisión de la agencia. El dato las guarda juntas por pantalla, así que la
+    columna las nombra juntas. Llamarla «descuento» a secas haría parecer regalo
+    lo que es comisión.
+  - **Lo vendido desde Comercial sale con una raya, no con un cero.** Una venta
+    hecha directamente desde Comercial no pasó por una propuesta, así que nunca
+    tuvo tarifa publicada que congelar: no hay con qué compararla. Un cero ahí se
+    leería como «se regaló la tarifa entera», y eso sería falso. **Encima de la
+    tabla se dice cuántas ventas están en ese caso y cuánto dinero suman**, para
+    que la raya se entienda a la primera.
+
+  Los cuatro indicadores grandes de arriba **no cambian** al elegir esta vista:
+  son el mismo periodo y el mismo dinero, se agrupe como se agrupe.
+
+- **Y ahora se ve QUÉ se vendió, no solo cuánto.** Si vendes **50 spots**, el 50
+  se ve.
+
+  Hasta hoy el dato existía y no aparecía en ninguna pantalla posterior: el
+  detalle de la propuesta enseñaba sitio, renta y precio, y la ficha de campaña
+  ponía «/mes» debajo de **toda** reserva —también de las vendidas por spot—.
+
+  - En el **detalle de la propuesta** hay una columna **Contratación** que dice la
+    cuenta completa: «**50 spots × $ 1,200.00**» al lado del importe.
+  - En la **ficha de la campaña**, cada pantalla dice «**50 spots · $ 54,000.00**»
+    en vez de un importe con «/mes» pegado.
+  - Y si se capturó la frecuencia, debajo sale «**12 pases al día**».
+
+  **Se dice «pases al día» a propósito, y no «spots».** Son dos números
+  distintos: los **50 spots** son lo que se cobra, y los **12 pases** son cuántas
+  veces al día sale la pieza. Llamarlos igual ya causó un problema real en
+  agosto, y con dos nombres distintos no se pueden volver a confundir.
+
+  Lo que **no** cambia: **la factura sigue siendo un importe único sin
+  conceptos**. Eso es otro trabajo.
+
+  Y para que conste: **ningún precio se calcula ni se guarda distinto que ayer**.
+  Todo esto es leer y enseñar lo que ya estaba.
 
 ---
 

@@ -10,6 +10,8 @@
 //  (nº de spots u horas contratadas).
 // ============================================================================
 
+import { formatMonto } from '@/lib/data/derive'
+
 export type Unidad = 'mensual' | 'catorcenal' | 'semanal' | 'diaria' | 'spot' | 'hora'
 
 // `plural` es explícito y no `corta + 's'`: en español una palabra terminada en
@@ -44,6 +46,93 @@ const UNIDAD_PLURAL: Record<string, string> = Object.fromEntries(
 export function unidadCorta(unidad: string, cantidad: number): string {
   const tabla = Math.abs(cantidad) === 1 ? UNIDAD_CORTA : UNIDAD_PLURAL
   return tabla[unidad] ?? unidad
+}
+
+// ─── Cómo se CUENTA lo que se vendió ────────────────────────────────────────
+//
+// Se pueden vender 50 spots —«Por spot», cantidad 50, precio = tarifa × 50— y
+// hasta hoy el 50 moría en la base: el detalle de la propuesta enseñaba sitio,
+// renta y precio, y la reserva ni siquiera exponía los campos. Un importe sin su
+// unidad no dice nada: «$60,000» puede ser un mes o cincuenta spots.
+//
+// ⚠️ LOS DOS NÚMEROS QUE NO SE PUEDEN MEZCLAR, y ya costó un defecto:
+//
+//   · `cantidad`      → cuántas unidades se contratan. Es lo que multiplica la
+//                       tarifa. Es PRECIO.
+//   · `spots_por_dia` → cuántas veces al día se muestra la pieza. Es
+//                       PROGRAMACIÓN, y no entra en ningún precio.
+//
+// Confundirlos fue DATA-02 (auditoría del 26/08): se escribía el mismo valor en
+// las dos columnas y `reparto-creativos.ts:51-68` acababa repartiendo una
+// pantalla digital como si fuera una lona. El arreglo de la escritura vive en
+// `campanas-repo.ts:712-718`; lo que hay aquí es el arreglo de la LECTURA.
+//
+// Por eso son DOS funciones con DOS vocabularios que no se parecen: una dice
+// «spots» y la otra «pases al día». «50 spots · 12 pases al día» no se puede
+// leer mal; «50 spots · 12 spots» sí.
+
+/** `50 spots` · `1 mes` · `3 meses`. El QUÉ, sin el precio. */
+export function etiquetaCantidad(unidad: string, cantidad: number): string {
+  const n = Number(cantidad) || 0
+  return `${n.toLocaleString('es-MX', { maximumFractionDigits: 2 })} ${unidadCorta(unidad, n)}`
+}
+
+/**
+ * `50 spots × $ 1,200.00`. La multiplicación que produjo el importe, escrita.
+ *
+ * Sin `tarifaUnitaria` devuelve SOLO la cantidad, nunca «× $ 0.00»: ese cero
+ * afirmaría que la unidad es gratis, y existe en datos reales —el backfill de
+ * `20260721_propuesta_unidad_spots.sql` solo rellenó los ítems que ya tenían
+ * precio, así que los demás quedaron en 0.
+ *
+ * NO acepta `spotsPorDia`, y eso es la mitad del guard: la programación no entra
+ * en el precio, y un parámetro que no existe no se puede colar por error.
+ */
+export function resumenContratacion(c: {
+  unidad: string
+  cantidad: number
+  tarifaUnitaria?: number | null
+}): string {
+  const etiqueta = etiquetaCantidad(c.unidad, c.cantidad)
+  const tarifa = Number(c.tarifaUnitaria ?? 0)
+  if (!Number.isFinite(tarifa) || tarifa <= 0) return etiqueta
+  return `${etiqueta} × ${formatMonto(tarifa)}`
+}
+
+/**
+ * `50 spots · $ 54,000.00`. Lo mismo que `resumenContratacion` pero SIN la
+ * multiplicación, y la diferencia no es de estilo.
+ *
+ * En `propuesta_items` el precio ES `tarifa_unitaria × cantidad` (`precioItem`),
+ * así que escribir la multiplicación cuadra con el importe de al lado. En
+ * `reservas` NO: la reserva nacida de una propuesta guarda el **neto** —`lista ×
+ * (1−descuento) × (1−comisión)`, ver la inserción desde propuesta en
+ * `campanas-repo.ts`— mientras `tarifa_unitaria` se copió tal cual de la
+ * propuesta, que es la de **lista**. Un «50 spots × $ 1,200.00» junto a
+ * «$ 54,000.00» enseñaría una cuenta que no da, y se leería como un defecto del
+ * sistema cuando es el descuento haciendo su trabajo.
+ *
+ * Sustituye al `{precio}/mes` que la ficha de campaña pintaba para TODA reserva,
+ * incluidas las vendidas por spot: un sufijo fijo sobre un campo variable.
+ */
+export function resumenReserva(r: { unidad: string; cantidad: number; precio: number }): string {
+  return `${etiquetaCantidad(r.unidad, r.cantidad)} · ${formatMonto(Number(r.precio) || 0)}`
+}
+
+/**
+ * `12 pases al día`, o `null` cuando no se capturó.
+ *
+ * Dice «pases» y no «spots» a propósito: es lo único que impide que «50 spots» y
+ * «12 spots» convivan en la misma ficha significando cosas distintas.
+ *
+ * El cero devuelve `null` igual que el nulo: `spots_por_dia` está en NULL en
+ * toda la producción de hoy, y un «0 pases al día» afirmaría que la pieza no
+ * sale nunca, que es lo contrario de «no se capturó».
+ */
+export function etiquetaFrecuencia(spotsPorDia: number | null | undefined): string | null {
+  const n = Number(spotsPorDia ?? 0)
+  if (!Number.isFinite(n) || n <= 0) return null
+  return `${n} ${n === 1 ? 'pase' : 'pases'} al día`
 }
 
 // Días inclusivos entre dos fechas 'YYYY-MM-DD' (14→20 son 7 días).

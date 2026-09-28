@@ -3,6 +3,7 @@
 
 import { toast } from 'sonner'
 import { conteo } from '@/lib/plural'
+import { resumenContratacion, etiquetaFrecuencia } from '@/lib/periodos'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -347,6 +348,12 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                   <tr className="border-b border-border text-left text-[11px] uppercase tracking-wide text-muted">
                     <th className="py-2 pr-3 font-medium">Sitio</th>
                     <th className="py-2 pr-3 font-medium">Arrendador · renta</th>
+                    {/* QUÉ se vendió, no solo cuánto. Se podían vender 50 spots
+                        y el 50 no aparecía en ninguna pantalla posterior: esta
+                        tabla enseñaba sitio, renta y precio, y un importe sin su
+                        unidad no dice nada — «$60,000» puede ser un mes o
+                        cincuenta spots. */}
+                    <th className="py-2 pr-3 font-medium">Contratación</th>
                     <th className="py-2 pr-3 text-right font-medium">Precio propuesta</th>
                     <th className="py-2 pl-3 text-right font-medium">Aprobado</th>
                   </tr>
@@ -393,6 +400,25 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                             </>
                           ) : (
                             <span className="text-muted">Sin contrato de renta</span>
+                          )}
+                        </td>
+                        {/* La multiplicación que produjo el importe de al lado,
+                            escrita: «50 spots × $ 1,200.00». Y debajo, la
+                            frecuencia — con OTRO vocabulario («pases al día»)
+                            porque `cantidad` y `spotsPorDia` son dos números
+                            distintos y confundirlos fue DATA-02. Los textos los
+                            arma `lib/periodos.ts`, que sí se prueba: sin jsdom,
+                            una decisión escrita aquí dentro no la ve nadie. */}
+                        <td className="py-2.5 pr-3">
+                          <div className="demo-num text-ink">
+                            {resumenContratacion({
+                              unidad: it.unidad,
+                              cantidad: it.cantidad,
+                              tarifaUnitaria: it.tarifaUnitaria,
+                            })}
+                          </div>
+                          {etiquetaFrecuencia(it.spotsPorDia) && (
+                            <div className="text-[11px] text-muted">{etiquetaFrecuencia(it.spotsPorDia)}</div>
                           )}
                         </td>
                         <td className="demo-num py-2.5 pr-3 text-right text-ink">{formatMonto(it.precio)}</td>

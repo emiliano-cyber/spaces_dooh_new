@@ -40,6 +40,8 @@ No hay servicio aparte.
 | [[finanzas-y-cobranza]] | Facturación, candado, parcialidades |
 | [[reportes-rentabilidad]] | El límite `/api/reportes/*` y el prorrateo por periodo |
 | [[reportes-dimensiones]] | Las cuatro dimensiones y la atribución **consciente del periodo** |
+| [[reportes-por-razon-social]] | La sexta dimensión: cuánto pasa por cada razón social, y por qué no pinta margen |
+| [[tarifa-publicada-vs-neta]] | La séptima: qué tarifa se **publicó** y qué entró de ella. Las dos convenciones de precio y el guard que las sobrevive |
 | [[cuestionario-bienvenida]] | El cuestionario que crea las razones sociales del owner al entrar |
 | [[integraciones-externas]] | DOOHmain, Space Eye, S3, Resend, Google, cron |
 | [[infraestructura-servidor]] | Pool, errores, folios, rate limit, subidas |

@@ -48,6 +48,10 @@ function fila(p: Partial<FilaOrdenable> & { clave: string }): FilaDePrueba {
     papeles: [],
     saldoAtribuido: 0,
     pctDelIngreso: null,
+    ingresoLista: null,
+    ingresoComparable: null,
+    descuentoYComision: null,
+    descuentoYComisionPct: null,
     ...p,
   }
 }

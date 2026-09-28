@@ -15,6 +15,13 @@ archivos:
 
 # Las cuatro dimensiones de rentabilidad
 
+> [!important] Ya no son cuatro: son SIETE, y esta nota cubre las de COSTO
+> Al 2026-09-28 el enum trae `sitio · trimestre · operacion · m2 · luz ·
+> entidad · tarifa`. Las dos últimas no son preguntas de costo y tienen nota
+> propia: [[reportes-por-razon-social]] (¿cuánto pasa por cada razón social?) y
+> [[tarifa-publicada-vs-neta]] (¿qué se publicó y qué entró de ello?). El título
+> de esta nota se conserva porque describe exactamente lo que cubre.
+
 Complementa a [[02-Backend/reportes-rentabilidad]], que describe el **límite** —
 el endpoint, sus capas, el prorrateo y el aislamiento. Esta nota cubre lo que
 pasó el **2026-09-18**: el cierre de las **tres dimensiones que devolvían 501**

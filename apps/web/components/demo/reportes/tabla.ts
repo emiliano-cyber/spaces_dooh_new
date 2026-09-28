@@ -3,6 +3,7 @@ import { TIPO_OT_LABEL } from '@/lib/tipos-ot'
 import type {
   AtribucionEntidad,
   CoberturaEnergia,
+  CoberturaTarifa,
   ConvencionM2,
   ExclusionesM2,
   FilaRentabilidad,
@@ -71,6 +72,10 @@ export type FilaOrdenable = Pick<
       | 'papeles'
       | 'saldoAtribuido'
       | 'pctDelIngreso'
+      | 'ingresoLista'
+      | 'ingresoComparable'
+      | 'descuentoYComision'
+      | 'descuentoYComisionPct'
     >
   >
 
@@ -93,6 +98,10 @@ export type ColumnaReporte =
   | 'costoPorKwh'
   | 'saldoAtribuido'
   | 'pctDelIngreso'
+  | 'ingresoLista'
+  | 'ingresoComparable'
+  | 'descuentoYComision'
+  | 'descuentoYComisionPct'
 
 export type Direccion = 'asc' | 'desc'
 
@@ -196,6 +205,19 @@ export const COLUMNAS: DefinicionColumna[] = [
   // lo haría leer como el margen de esa sociedad — siempre mejor que el real.
   def('saldoAtribuido', 'Saldo atribuido', 'dinero', 'desc'),
   def('pctDelIngreso', '% de la facturación', 'porcentaje', 'desc'),
+  // ─── Solo en `tarifa` ───────────────────────────────────────────────────
+  // «Descuento y comisión» y NO «Descuento» a secas, y el nombre es la mitad
+  // del trabajo de la columna: `neto = lista × (1−descuento) × (1−comisión)`, y
+  // el snapshot no las separa por pantalla. Llamarla «Descuento» haría leer la
+  // comisión de la agencia como una rebaja que alguien concedió. Es el mismo
+  // criterio que `saldoAtribuido` en `entidad`.
+  //
+  // Y arrancan por MÁS, no por menos: la pregunta es «¿dónde se va más dinero
+  // entre lo que publico y lo que entra?».
+  def('ingresoLista', 'Tarifa publicada', 'dinero', 'desc'),
+  def('ingresoComparable', 'Neto comparable', 'dinero', 'desc'),
+  def('descuentoYComision', 'Descuento y comisión', 'dinero', 'desc'),
+  def('descuentoYComisionPct', '% sobre publicada', 'porcentaje', 'desc'),
 ]
 
 const CATALOGO = new Map(COLUMNAS.map((c) => [c.clave, c]))
@@ -261,6 +283,30 @@ const COLUMNAS_POR_DIMENSION: Record<DimensionUI, ColumnaReporte[]> = {
   // resta con un nombre que no se pueda confundir, y qué parte del negocio
   // emite. Lo que falta lo dice el aviso ámbar, con su importe.
   entidad: ['etiqueta', 'ingreso', 'costoEspacio', 'saldoAtribuido', 'pctDelIngreso'],
+  // La OTRA que no parte de `COMUNES`, y por un motivo distinto del de
+  // `entidad`: aquí el dato SÍ existe: lo que no encaja es la pregunta. Esta
+  // dimensión no habla de costo, habla de PRECIO, así que ni el espacio, ni la
+  // operación, ni la luz, ni el margen dicen nada de lo que se está mirando.
+  // Añadirlos daría once columnas de cifras a 13 px —que «a tres metros
+  // (proyector)» no se leen— y ninguna contestaría la pregunta del dueño.
+  //
+  // De izquierda a derecha se lee la historia: qué entró en total, qué se
+  // publicó, cuánto de lo que entró es comparable con eso, cuánto se fue por el
+  // camino y qué proporción es.
+  //
+  // `ingreso` se queda, y es deliberado: es la ÚNICA señal en pantalla de que
+  // una fila está comparada solo A MEDIAS. Cuando `Ingreso` es mayor que `Neto
+  // comparable`, esa pantalla tuvo además ventas sin tarifa publicada — y sin
+  // esa columna el usuario compararía la publicada contra el total de la fila,
+  // que es justo la resta que el motor se niega a hacer.
+  tarifa: [
+    'etiqueta',
+    'ingreso',
+    'ingresoLista',
+    'ingresoComparable',
+    'descuentoYComision',
+    'descuentoYComisionPct',
+  ],
 }
 
 // El encabezado de la primera columna dice QUÉ son las filas. Decía «PANTALLA»
@@ -278,6 +324,7 @@ const PRIMERA_COLUMNA: Record<DimensionUI, { label: string; campoOrden?: keyof F
   m2: { label: 'Pantalla' },
   luz: { label: 'Pantalla' },
   entidad: { label: 'Razón social' },
+  tarifa: { label: 'Pantalla' },
 }
 
 export function columnasDeDimension(d: DimensionUI): DefinicionColumna[] {
@@ -318,6 +365,11 @@ const ORDEN_POR_DIMENSION: Record<DimensionUI, Orden> = {
   // Por quien FACTURA más. No hay margen que ordenar aquí, y la pregunta del
   // dueño es «¿cuánto pasa por cada una de mis sociedades?».
   entidad: { columna: 'ingreso', direccion: 'desc' },
+  // Por el DINERO que separa la publicada del neto, no por el porcentaje: un
+  // 50 % sobre una pantalla de 2 000 no es el problema del negocio y 80 000
+  // regalados en una grande sí. Mismo criterio que `luz` y `operacion`, que
+  // abren por el costo que explican y no por el margen.
+  tarifa: { columna: 'descuentoYComision', direccion: 'desc' },
 }
 
 export function ordenInicialDe(d: DimensionUI): Orden {
@@ -534,6 +586,7 @@ export interface AvisoReporte {
     | 'm2-excluidas'
     | 'sin-contrato'
     | 'sin-ingreso'
+    | 'tarifa-sin-publicada'
   texto: string
   /**
    * Con qué peso se pinta. `alerta` es ámbar y con triángulo; `info` es gris y
@@ -576,6 +629,8 @@ export interface ReporteParaAvisos {
   convencionM2?: ConvencionM2 | null
   /** Solo en `luz`: de cuántos recibos del periodo no se tiene el dato. */
   cobertura?: CoberturaEnergia | null
+  /** Solo en `tarifa`: qué parte del periodo se pudo comparar. Nota verbatim. */
+  tarifas?: CoberturaTarifa | null
 }
 
 // La frase que dice QUÉ cuenta como metro cuadrado en las cifras de la tabla.
@@ -691,6 +746,30 @@ export function avisosDelReporte(r: ReporteParaAvisos): AvisoReporte[] {
       clave: 'luz-sin-recibo',
       tono: r.cobertura.faltantes > 0 || r.cobertura.recibosSinDestino > 0 ? 'alerta' : 'info',
       texto: r.cobertura.nota,
+    })
+  }
+
+  // ─── LO QUE NO TIENE TARIFA PUBLICADA CON LA QUE COMPARAR ─────────────────
+  // Va con los otros dos avisos estructurales y por el mismo motivo: cambia cómo
+  // se lee cada raya de la tabla. Sin él, una columna «Tarifa publicada» llena
+  // de rayas se lee como un fallo del sistema, cuando es el dato diciendo la
+  // verdad — esa venta nació en Comercial y nunca tuvo tarifa publicada que
+  // congelar.
+  //
+  // La nota la redacta el MOTOR (`notaDeTarifas`) y se pinta verbatim, por lo
+  // mismo que las del m², la luz y la atribución: volver a escribirla aquí sería
+  // la segunda implementación de la misma frase, y divergir significaría decirle
+  // al usuario que falta otra cosa de la que falta.
+  //
+  // Se pinta TAMBIÉN cuando no falta nada —en gris—, porque «todo comparado» y
+  // «no te lo digo» se ven igual sin texto, y porque la primera frase de la nota
+  // (que la brecha lleva dentro la comisión de la agencia) hace falta SIEMPRE
+  // para no leer mal la columna.
+  if (r.tarifas) {
+    avisos.push({
+      clave: 'tarifa-sin-publicada',
+      tono: r.tarifas.reservasSinTarifa > 0 ? 'alerta' : 'info',
+      texto: r.tarifas.nota,
     })
   }
 

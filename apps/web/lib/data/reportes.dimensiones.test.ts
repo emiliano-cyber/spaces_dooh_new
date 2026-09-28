@@ -604,6 +604,12 @@ describe('las dimensiones se declaran UNA sola vez', () => {
       // ADR 0034 —el dueno quiere ver sus razones sociales JUNTAS— y la
       // pregunta siguiente de esa frase es cuanto pasa por cada una.
       'entidad',
+      // La SEPTIMA, del 2026-09-28, y la unica que no es una pregunta de COSTO
+      // sino de PRECIO. Tambien literal de un dueno: «¿puedo comparar tarifa
+      // publicada contra tarifa neta?». Las dos cifras ya estaban congeladas por
+      // pantalla en `propuestas.snapshot_economico` desde el 08/07; lo que
+      // faltaba era mirarlas.
+      'tarifa',
     ])
   })
 })

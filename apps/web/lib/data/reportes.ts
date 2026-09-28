@@ -65,7 +65,7 @@ import { costoDeOt } from '../costos-ot'
 // y el controller valida con zod contra esta misma lista: dos declaraciones
 // —una en el motor y otra en el validador— dejarían un enum que acepta una
 // dimensión sin motor, o un motor que nadie puede pedir.
-export const DIMENSIONES_REPORTE = ['sitio', 'trimestre', 'operacion', 'm2', 'luz', 'entidad'] as const
+export const DIMENSIONES_REPORTE = ['sitio', 'trimestre', 'operacion', 'm2', 'luz', 'entidad', 'tarifa'] as const
 export type DimensionReporte = (typeof DIMENSIONES_REPORTE)[number]
 
 // Las dos granularidades que admite un reporte de dinero. Son un subconjunto de
@@ -175,6 +175,39 @@ export interface FilaRentabilidad {
    * «no hay consumo con el que calcularlo». Mismo criterio que `margenPct`.
    */
   costoPorKwh?: number | null
+
+  // ─── Solo en `tarifa` ───────────────────────────────────────────────────
+  //
+  // Los cuatro son `number | null`, y el `null` es la mitad del trabajo: es «no
+  // hay tarifa publicada congelada para esto», y se pinta con una RAYA. Un cero
+  // en «Tarifa publicada» se leería como que la tarifa de lista era cero, o
+  // —peor— que se regaló entera. Mismo criterio que `margenPct` y `costoPorKwh`.
+  /**
+   * La tarifa PUBLICADA (de lista) del periodo, prorrateada por días igual que
+   * el ingreso. Solo de las reservas COMPARABLES: ver `ingresoComparable`.
+   */
+  ingresoLista?: number | null
+  /**
+   * El neto de ESAS MISMAS reservas, y por eso existe como campo aparte en vez
+   * de reusar `ingreso`.
+   *
+   * Una pantalla puede tener en el mismo periodo una reserva nacida de propuesta
+   * (con tarifa publicada congelada) y otra nacida en Comercial (sin ninguna).
+   * `ingreso` las trae las dos; `ingresoComparable` solo la primera. Restar la
+   * lista al `ingreso` daría un descuento hasta NEGATIVO —que se leería como
+   * haber cobrado por encima de la tarifa— sin dar ningún error.
+   */
+  ingresoComparable?: number | null
+  /**
+   * `ingresoLista − ingresoComparable`. Es el descuento comercial MÁS la
+   * comisión de agencia, y se llama así a propósito: `neto = lista × (1−desc) ×
+   * (1−comisión)` y el snapshot no las separa por pantalla. Llamarlo «descuento»
+   * a secas haría leer la comisión de la agencia como una rebaja concedida —
+   * mismo criterio que `saldoAtribuido` en `entidad`.
+   */
+  descuentoYComision?: number | null
+  /** Qué proporción de la tarifa publicada no llega. `null` sin publicada. */
+  descuentoYComisionPct?: number | null
 }
 
 export interface Totales {
@@ -215,6 +248,64 @@ export interface ReporteRentabilidad {
   cobertura?: CoberturaEnergia
   /** Solo en `entidad`: qué se pudo atribuir y qué no. */
   atribucion?: AtribucionEntidad
+  /** Solo en `tarifa`: cuánto del periodo se pudo comparar y cuánto no. */
+  tarifas?: CoberturaTarifa
+}
+
+/**
+ * Qué parte del periodo tiene tarifa PUBLICADA con la que comparar, y qué parte
+ * no.
+ *
+ * Existe por la misma razón que `ExclusionesM2`, `CoberturaEnergia` y
+ * `AtribucionEntidad`: un reporte que compara solo lo que sabe comparar y
+ * presenta el resultado como el negocio entero MIENTE SIN DAR ERROR.
+ *
+ * Aquí el hueco tiene DOS causas y las dos se dicen:
+ *
+ *  1. Una campaña creada desde **Comercial** no tiene `propuesta_id`, así que no
+ *     hay snapshot económico y no existe tarifa de lista congelada. Y su
+ *     `reservas.precio` **ya es la tarifa de lista** (`campanas-repo.ts:443`,
+ *     `tarifa_mensual`), no el neto: compararla daría un descuento del 0 % que
+ *     nadie concedió, una cifra contra sí misma.
+ *
+ *  2. Una reserva cuyo precio NO coincide con el neto congelado para esa
+ *     pantalla. Es el caso mixto —campaña de propuesta a la que luego se le
+ *     añadieron pantallas desde Comercial— y el que no se ve leyendo.
+ *
+ * Las dos convenciones de precio conviviendo en `reservas.precio` son un defecto
+ * conocido que este reporte **no arregla**: arreglarlo toca cómo se ESCRIBE un
+ * precio. Lo que hace es negarse a comparar lo que no sabe que es comparable.
+ */
+export interface CoberturaTarifa {
+  /** Reservas del rango cuya tarifa publicada se pudo leer del snapshot. */
+  reservasConTarifa: number
+  /** Reservas del rango sin tarifa publicada con la que comparar. */
+  reservasSinTarifa: number
+  /** Suma de la tarifa publicada del periodo, prorrateada. */
+  ingresoLista: number
+  /** El neto de esas mismas reservas. La otra mitad de la comparación. */
+  ingresoComparable: number
+  /** Ingreso del periodo que quedó FUERA de la comparación. */
+  ingresoSinTarifa: number
+  /** Frase lista para pintar: el número no debe aparecer sin su porqué. */
+  nota: string
+}
+
+/**
+ * La economía CONGELADA de una campaña que nació de una propuesta.
+ *
+ * Sale de `propuestas.snapshot_economico` (`20260708_snapshot_economico.sql`),
+ * que es INMUTABLE: se escribe una vez al aceptar y renegociar genera otro
+ * versionado. Por eso es la única fuente honesta de «qué se publicó»: la tarifa
+ * de `sitio_modalidades` de hoy puede no ser la que se cotizó entonces.
+ *
+ * Una campaña sin propuesta no aparece aquí, y eso NO es un hueco de captura:
+ * es que esa venta nunca tuvo tarifa publicada que congelar.
+ */
+export interface TarifaPublicada {
+  campanaId: string
+  /** `lista` y `neto` por pantalla, tal como se congelaron. */
+  porSitio: { sitioId: string; lista: number; neto: number }[]
 }
 
 /**
@@ -340,6 +431,12 @@ export interface DatosRentabilidad extends DatosAtribucion {
   entidades?: EntidadReporte[]
   /** Ausente = ninguna campaña tiene emisora conocida. */
   facturas?: FacturaEmisora[]
+  /**
+   * Las economías congeladas de las campañas que nacieron de una propuesta.
+   * Ausente o vacío = no hay ninguna tarifa publicada con la que comparar, y la
+   * dimensión `tarifa` lo DECLARA en vez de salir vacía.
+   */
+  tarifasPublicadas?: TarifaPublicada[]
   reservas: ReservaReporte[]
   ordenesTrabajo: OtReporte[]
   /** Costo por tipo de OT de ESTE tenant. Vacío = manda `COSTOS_OT_RESPALDO`. */
@@ -648,6 +745,22 @@ function atribucionDeSegmento(
 
 interface Celda {
   ingreso: number
+  /**
+   * La tarifa PUBLICADA de las reservas comparables, prorrateada igual que el
+   * ingreso, y el NETO de esas mismas reservas.
+   *
+   * Se acumulan AQUÍ, en el mismo recorrido que el ingreso, por el mismo motivo
+   * que `porEntidad`: el prorrateo por días es una aritmética delicada, y
+   * repetirla en otra función daría dos cifras distintas del mismo periodo el
+   * día que una de las dos cambie. Compartiendo el bucle no hay dos copias que
+   * puedan divergir: hay una.
+   *
+   * Son dos números por celda y no un `Map`: `porTipo` ya enseñó que la matriz
+   * de un reporte largo son decenas de miles de celdas, así que lo que se añade
+   * aquí tiene que ser barato.
+   */
+  ingresoLista: number
+  ingresoComparable: number
   costoEspacio: number
   costoOperacion: number
   costoEnergia: number
@@ -669,6 +782,8 @@ interface Celda {
 function celdaVacia(): Celda {
   return {
     ingreso: 0,
+    ingresoLista: 0,
+    ingresoComparable: 0,
     costoEspacio: 0,
     costoOperacion: 0,
     costoEnergia: 0,
@@ -727,10 +842,24 @@ interface PorEntidad {
   contratosSinEntidad: number
 }
 
+/**
+ * Cuántas reservas del rango tienen tarifa publicada con la que comparar.
+ *
+ * Se cuentan RESERVAS y no periodos: una campaña anual toca doce buckets y sigue
+ * siendo una sola reserva sin tarifa. Es el mismo cuidado que ya se tuvo con
+ * `reservasSinEmisora`, que se cuenta fuera del bucle por esto mismo.
+ */
+interface PorTarifa {
+  conTarifa: number
+  sinTarifa: number
+}
+
 interface Matriz {
   buckets: Bucket[]
   /** Los mismos importes, pivotados por razón social. Ver `PorEntidad`. */
   porEntidad: PorEntidad
+  /** Cuántas reservas del rango se pudieron comparar. Ver `PorTarifa`. */
+  porTarifa: PorTarifa
   /** Una fila por pantalla, alineada con `buckets`. */
   porSitio: Map<string, Celda[]>
   /** El contrato que gobernó cada pantalla en el rango (el más reciente). */
@@ -834,6 +963,52 @@ function matriz(datos: DatosRentabilidad, opts: OpcionesReporte): Matriz {
     return e && idsDeEntidad.has(e) ? e : ''
   }
 
+  // ─── La TARIFA PUBLICADA de cada reserva, decidida UNA sola vez ──────────
+  //
+  // El índice es (campaña → pantalla → {lista, neto}) y se construye con un
+  // centinela de AMBIGÜEDAD: una propuesta puede traer DOS ítems de la misma
+  // pantalla (dos periodos), y entonces `porSitio` la lleva dos veces con dos
+  // tarifas de lista distintas. Cuál corresponde a cuál reserva no lo dice el
+  // dato, así que no se elige ninguna — elegir una inventaría el descuento de la
+  // otra. Se declara y punto.
+  const AMBIGUA = null
+  const tarifaDeCampana = new Map<string, Map<string, { lista: number; neto: number } | null>>()
+  for (const t of datos.tarifasPublicadas ?? []) {
+    const porSitioTarifa = new Map<string, { lista: number; neto: number } | null>()
+    for (const e of t.porSitio ?? []) {
+      porSitioTarifa.set(e.sitioId, porSitioTarifa.has(e.sitioId) ? AMBIGUA : { lista: e.lista, neto: e.neto })
+    }
+    tarifaDeCampana.set(t.campanaId, porSitioTarifa)
+  }
+
+  // ⚠️ EL GUARD DE LAS DOS CONVENCIONES, y es la línea que impide comparar una
+  // cifra contra sí misma.
+  //
+  // `reservas.precio` guarda DOS cosas distintas según por dónde se vendió:
+  // desde Comercial guarda la TARIFA DE LISTA (`campanas-repo.ts:443`) y desde
+  // una propuesta guarda el NETO (`campanas-repo.ts:701`). Es un defecto
+  // conocido que NO se arregla aquí —tocaría cómo se ESCRIBE un precio— y que
+  // este reporte tiene que sobrevivir.
+  //
+  // La forma de sobrevivirlo es exacta y medible: una reserva solo entra en la
+  // comparación si su precio ES el neto que el snapshot congeló para esa
+  // pantalla. Si no lo es, no se sabe qué convención lleva y se declara. Eso
+  // cubre de paso el caso que no se ve leyendo: la campaña que SÍ nació de una
+  // propuesta y a la que luego se le añadieron pantallas desde Comercial, a
+  // tarifa de lista.
+  const listaDeReserva = new Map<ReservaReporte, number>()
+  const porTarifa: PorTarifa = { conTarifa: 0, sinTarifa: 0 }
+  for (const r of datos.reservas) {
+    if (r.estatus === 'CANCELADA') continue
+    const e = r.campanaId ? tarifaDeCampana.get(r.campanaId)?.get(r.sitioId) : undefined
+    if (e && e.neto === r.precio) {
+      listaDeReserva.set(r, e.lista)
+      porTarifa.conTarifa += 1
+    } else {
+      porTarifa.sinTarifa += 1
+    }
+  }
+
   // Se cuentan las reservas SIN emisora una sola vez, fuera del bucle de
   // buckets: dentro se contarían una vez por periodo que la reserva toca, y una
   // campaña anual saldría como doce reservas sin emisora.
@@ -873,6 +1048,19 @@ function matriz(datos: DatosRentabilidad, opts: OpcionesReporte): Matriz {
         // La MISMA parte, pivotada por quien emite. Sumar aquí y no en otra
         // pasada es lo que garantiza que las dos vistas no puedan diferir.
         suma(porEntidad.ingreso, entidadDeReserva(r.campanaId), parte)
+        // Y la tarifa PUBLICADA, prorrateada con LA MISMA fracción de días. Si
+        // entrara entera en cada bucket, un reporte de dos meses enseñaría el
+        // doble de tarifa publicada que de ingreso y el descuento saldría
+        // disparado sin dar ningún error.
+        //
+        // `ingresoComparable` lleva la parte NETA de esta misma reserva, y por
+        // eso se suma aquí dentro y no se toma de `celda.ingreso`: el ingreso de
+        // la celda puede traer además reservas sin tarifa publicada.
+        const lista = listaDeReserva.get(r)
+        if (lista != null) {
+          celda.ingresoLista += lista * (dentroDelBucket / diasTotales)
+          celda.ingresoComparable += parte
+        }
       }
 
       // La ENERGÍA no se calcula aquí: un recibo se reparte entre VARIAS
@@ -999,6 +1187,8 @@ function matriz(datos: DatosRentabilidad, opts: OpcionesReporte): Matriz {
   for (const celdas of porSitio.values()) {
     for (const c of celdas) {
       c.ingreso = centavos(c.ingreso)
+      c.ingresoLista = centavos(c.ingresoLista)
+      c.ingresoComparable = centavos(c.ingresoComparable)
       c.costoEspacio = centavos(c.costoEspacio)
       c.costoOperacion = centavos(c.costoOperacion)
       c.costoEnergia = centavos(c.costoEnergia)
@@ -1011,7 +1201,7 @@ function matriz(datos: DatosRentabilidad, opts: OpcionesReporte): Matriz {
     for (const [k, v] of m) m.set(k, centavos(v))
   }
 
-  return { buckets, porSitio, porEntidad, contratoDelPeriodo, energiaSinDestino }
+  return { buckets, porSitio, porEntidad, porTarifa, contratoDelPeriodo, energiaSinDestino }
 }
 
 // ─── De celdas a filas ──────────────────────────────────────────────────────
@@ -1105,6 +1295,8 @@ function acumularCeldas(celdas: Celda[][], buckets: number): Celda[] {
   for (const fila of celdas) {
     for (let i = 0; i < fila.length; i++) {
       out[i].ingreso += fila[i].ingreso
+      out[i].ingresoLista += fila[i].ingresoLista
+      out[i].ingresoComparable += fila[i].ingresoComparable
       out[i].costoEspacio += fila[i].costoEspacio
       out[i].costoOperacion += fila[i].costoOperacion
       out[i].costoEnergia += fila[i].costoEnergia
@@ -1120,6 +1312,8 @@ function acumularCeldas(celdas: Celda[][], buckets: number): Celda[] {
   }
   for (const c of out) {
     c.ingreso = centavos(c.ingreso)
+    c.ingresoLista = centavos(c.ingresoLista)
+    c.ingresoComparable = centavos(c.ingresoComparable)
     c.costoEspacio = centavos(c.costoEspacio)
     c.costoOperacion = centavos(c.costoOperacion)
     c.costoEnergia = centavos(c.costoEnergia)
@@ -1703,6 +1897,159 @@ export function rentabilidadPorEntidad(
     filas,
     totales,
     atribucion: { ...sinNota, nota: notaDeAtribucion(sinNota) },
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  7 · `tarifa` — ¿cuánto separa la tarifa PUBLICADA de lo que entra?
+// ════════════════════════════════════════════════════════════════════════════
+
+function notaDeTarifas(c: Omit<CoberturaTarifa, 'nota'>): string {
+  const pesos = (v: number) =>
+    v.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 })
+
+  // Primero QUÉ ES la brecha, porque sin eso la columna se lee mal entera: el
+  // hueco entre la publicada y el neto lleva dentro la comisión de la agencia,
+  // que no es una rebaja que nadie concediera.
+  const partes = [
+    'La diferencia entre la tarifa publicada y el neto es el descuento comercial MÁS ' +
+      'la comisión de agencia: las dos se congelan juntas en la propuesta y el dato no ' +
+      'las separa por pantalla.',
+  ]
+  const total = c.reservasConTarifa + c.reservasSinTarifa
+  if (c.reservasSinTarifa > 0) {
+    partes.push(
+      `${c.reservasSinTarifa} de las ${total} ` +
+        (total === 1 ? 'reserva' : 'reservas') +
+        ` del periodo no tienen tarifa publicada con la que comparar (${pesos(c.ingresoSinTarifa)} de ingreso): ` +
+        'o nacieron en Comercial —donde el precio que se guarda YA ES la tarifa de lista— ' +
+        'o su precio no coincide con el neto que congeló su propuesta. Esas filas salen ' +
+        'con una raya y no con un cero: un cero diría que se regaló la tarifa entera.',
+    )
+  }
+  return partes.join(' ')
+}
+
+/**
+ * Una fila por pantalla: **qué se publicó y qué entró de eso.**
+ *
+ * La séptima dimensión, y la pregunta es literal de un dueño. Las dos cifras ya
+ * estaban escritas —congeladas y por pantalla, en `propuestas.snapshot_economico`
+ * desde el 08/07— y el reporte de rentabilidad no las miraba: leía de `reservas`
+ * seis columnas y ninguna era la tarifa de lista. La migración del snapshot
+ * afirmaba en su cabecera que «rentabilidad lee de este snapshot»; hasta hoy no
+ * era verdad.
+ *
+ * ─── Las TRES decisiones que la definen ───────────────────────────────────
+ *
+ *  1. NO PINTA MARGEN NI COSTOS. No es una pregunta de costo: es de precio.
+ *     Meter aquí las cuatro columnas de dinero de `sitio` daría una tabla de
+ *     once columnas que a tres metros no se lee, y ninguna contestaría la
+ *     pregunta. Por eso es una dimensión propia y no tres columnas más en
+ *     `sitio` — mismo criterio que `entidad`, la otra que no parte de `COMUNES`.
+ *
+ *  2. LO QUE NO SE PUEDE COMPARAR SALE CON UNA RAYA, NUNCA CON UN CERO. Una
+ *     campaña de Comercial no tiene tarifa publicada congelada, y un 0 en esa
+ *     columna afirmaría que la tarifa de lista era cero o que se regaló entera.
+ *     `null` en los cuatro campos, y el importe de lo que quedó fuera encima de
+ *     la tabla, con su motivo.
+ *
+ *  3. LA FILA SIGUE SALIENDO AUNQUE NO SE PUEDA COMPARAR. Un hueco se ve y se
+ *     rellena; una fila que desaparece hace creer que esa pantalla no vendió.
+ *     Y la comparación de al lado —`Ingreso` contra `Neto comparable`— deja ver
+ *     de un vistazo cuándo la pantalla solo está comparada A MEDIAS.
+ *
+ * Los TOTALES son los del negocio completo, idénticos a los de `sitio`: cambiar
+ * de agrupador no puede cambiar las cifras grandes de arriba.
+ */
+export function rentabilidadPorTarifa(
+  datos: DatosRentabilidad,
+  opts: OpcionesReporte,
+): ReporteRentabilidad {
+  const m = matriz(datos, opts)
+  const arrendadorDe = nombreArrendadorDe(datos)
+  const filas: FilaRentabilidad[] = []
+
+  for (const s of datos.sitios) {
+    const celdas = m.porSitio.get(s.id)!
+    const periodos = periodosDe(m.buckets, celdas)
+    const t = sumar(periodos)
+    const ingresoLista = centavos(celdas.reduce((a, c) => a + c.ingresoLista, 0))
+    const ingresoComparable = centavos(celdas.reduce((a, c) => a + c.ingresoComparable, 0))
+
+    // La pregunta de esta dimensión es sobre VENTA, así que la fila entra si
+    // hubo ingreso o si hubo tarifa publicada. Una pantalla que en el periodo
+    // solo tuvo renta y órdenes de trabajo no tiene nada que comparar aquí, y su
+    // fila en blanco solo estorbaría — al contrario que en `sitio`, donde
+    // justamente esa es la pantalla que importa.
+    if (t.ingreso === 0 && ingresoLista === 0) continue
+
+    // `null` cuando no hay NADA comparable en esta pantalla. Ver la decisión 2.
+    const hayComparacion = ingresoLista > 0
+    const contrato = m.contratoDelPeriodo.get(s.id)
+    const brecha = hayComparacion ? centavos(ingresoLista - ingresoComparable) : null
+    filas.push({
+      clave: s.id,
+      etiqueta: s.nombre,
+      detalle: s.claveInterna || s.codigoProveedor || '',
+      ...t,
+      tieneContrato: !!contrato,
+      arrendador: arrendadorDe(contrato),
+      periodos,
+      visitas: periodos.reduce((a, p) => a + p.visitas, 0),
+      ingresoLista: hayComparacion ? ingresoLista : null,
+      ingresoComparable: hayComparacion ? ingresoComparable : null,
+      descuentoYComision: brecha,
+      // El denominador es la tarifa PUBLICADA, que es sobre lo que se concede un
+      // descuento. Sobre el neto daría un número mayor —80 de 100 rebajados es
+      // un 20 % de la publicada y un 25 % del neto— y sería el porcentaje de
+      // otra pregunta.
+      descuentoYComisionPct:
+        hayComparacion && brecha != null ? centavos((brecha / ingresoLista) * 100) : null,
+    })
+  }
+
+  // Por el DINERO que separa la publicada del neto, no por el porcentaje: un
+  // 50 % sobre una pantalla de 2 000 no es el problema del negocio, 80 000
+  // regalados en una grande sí. Mismo criterio que `luz` y `operacion`, que
+  // abren por el costo que explican y no por el margen.
+  //
+  // Las filas sin comparación quedan al final SOLAS, sin regla aparte: su
+  // `descuentoYComision` es `null`, y `ordenarFilas` ya manda los nulos al final
+  // en las dos direcciones. No son competidoras del ranking.
+  filas.sort((a, b) => {
+    const va = a.descuentoYComision
+    const vb = b.descuentoYComision
+    if (va == null && vb == null) return b.ingreso - a.ingreso
+    if (va == null) return 1
+    if (vb == null) return -1
+    return vb - va
+  })
+
+  const totalPorBucket = acumularCeldas([...m.porSitio.values()], m.buckets.length)
+  const totales = sumar(periodosDe(m.buckets, totalPorBucket))
+  const ingresoLista = centavos(totalPorBucket.reduce((a, c) => a + c.ingresoLista, 0))
+  const ingresoComparable = centavos(totalPorBucket.reduce((a, c) => a + c.ingresoComparable, 0))
+
+  const sinNota: Omit<CoberturaTarifa, 'nota'> = {
+    reservasConTarifa: m.porTarifa.conTarifa,
+    reservasSinTarifa: m.porTarifa.sinTarifa,
+    ingresoLista,
+    ingresoComparable,
+    // Lo que quedó FUERA de la comparación se DERIVA del total del periodo en vez
+    // de acumularse aparte: así no puede haber dos cifras del mismo hueco.
+    ingresoSinTarifa: centavos(totales.ingreso - ingresoComparable),
+  }
+
+  return {
+    dimension: 'tarifa',
+    granularidad: opts.granularidad,
+    desde: opts.desde,
+    hasta: opts.hasta,
+    periodos: m.buckets,
+    filas,
+    totales,
+    tarifas: { ...sinNota, nota: notaDeTarifas(sinNota) },
   }
 }
 

@@ -23,7 +23,7 @@ import { diaComparable, esFechaValida, ordenInvertido } from '@/lib/server/fecha
 //  El contrato del endpoint está en `vault/02-Backend/reportes-rentabilidad.md`.
 // ============================================================================
 
-export type DimensionUI = 'sitio' | 'trimestre' | 'operacion' | 'm2' | 'luz' | 'entidad'
+export type DimensionUI = 'sitio' | 'trimestre' | 'operacion' | 'm2' | 'luz' | 'entidad' | 'tarifa'
 export type GranularidadUI = 'mes' | 'trimestre'
 
 export interface FiltrosReporte {
@@ -92,6 +92,16 @@ export const DIMENSIONES_UI: { valor: DimensionUI; label: string; ayuda: string 
     ayuda:
       'Cuánto factura y cuánta renta paga cada una de tus razones sociales. La operación y la luz no se reparten: no hay dato que diga de quién son.',
   },
+  // La SÉPTIMA, y la única que no es una pregunta de COSTO sino de PRECIO. Sale
+  // literal de un dueño: «¿puedo comparar tarifa publicada contra tarifa neta?».
+  // Las dos cifras ya estaban congeladas por pantalla en el snapshot de la
+  // propuesta desde el 08/07; lo que faltaba era mirarlas.
+  {
+    valor: 'tarifa',
+    label: 'Publicada vs neta',
+    ayuda:
+      'Qué tarifa se publicó y qué entró de ella. Lo vendido desde Comercial no tiene tarifa publicada congelada y sale con una raya, no con un cero.',
+  },
 ]
 
 // `dia` y `semana` existen en `Granularidad` para la gráfica de ocupación y NO
@@ -118,6 +128,7 @@ const SUSTANTIVO_FILA: Record<DimensionUI, { singular: string; plural: string }>
   operacion: { singular: 'pantalla', plural: 'pantallas' },
   m2: { singular: 'pantalla', plural: 'pantallas' },
   luz: { singular: 'pantalla', plural: 'pantallas' },
+  tarifa: { singular: 'pantalla', plural: 'pantallas' },
 }
 
 export function sustantivoFila(d: DimensionUI): { singular: string; plural: string } {

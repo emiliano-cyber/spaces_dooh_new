@@ -10,6 +10,7 @@ import {
   rentabilidadPorM2,
   rentabilidadPorLuz,
   rentabilidadPorEntidad,
+  rentabilidadPorTarifa,
   DIMENSIONES_REPORTE,
   type DatosRentabilidad,
   type GranularidadReporte,
@@ -65,7 +66,7 @@ const consultaSchema = z
   .object({
     dimension: z.enum(DIMENSIONES, {
       errorMap: () => ({
-        message: 'Selecciona una dimensión válida: sitio, trimestre, operacion, m2 o luz',
+        message: 'Selecciona una dimensión válida: sitio, trimestre, operacion, m2, luz, entidad o tarifa',
       }),
     }),
     granularidad: z.enum(GRANULARIDADES, {
@@ -125,6 +126,7 @@ const MOTORES: Record<DimensionRentabilidad, MotorRentabilidad> = {
   m2: rentabilidadPorM2,
   luz: rentabilidadPorLuz,
   entidad: rentabilidadPorEntidad,
+  tarifa: rentabilidadPorTarifa,
 }
 
 export async function rentabilidadCtrl(params: unknown): Promise<ReporteRentabilidad> {

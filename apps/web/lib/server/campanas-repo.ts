@@ -104,6 +104,24 @@ export function rowToReserva(r: any) {
     fechaInicio: iso(r.fecha_inicio), fechaFin: iso(r.fecha_fin),
     precio: n(r.precio) ?? 0, tipoVenta: r.tipo_venta, estatus: r.estatus,
     spotsReservados: n(r.spots_reservados),
+    // ─── CÓMO se contrató, no solo cuánto costó ──────────────────────────
+    // Estas cuatro columnas existen desde `20260721_propuesta_unidad_spots.sql`
+    // y la campaña las hereda de la propuesta (ver la inserción desde propuesta,
+    // más abajo). No salían de aquí, así que ninguna pantalla podía enseñarlas:
+    // se vendían 50 spots y el 50 moría en la base.
+    //
+    // ⚠️ `cantidad` y `spotsPorDia` son DOS NÚMEROS DISTINTOS y salen por
+    // separado: `cantidad` es lo que multiplica la tarifa (precio) y
+    // `spotsPorDia` cuántas veces al día se muestra la pieza (programación).
+    // Fundirlos fue DATA-02. Ver `lib/periodos.ts` para cómo se etiquetan.
+    unidad: r.unidad ?? 'mensual',
+    cantidad: n(r.cantidad) ?? 1,
+    // `null` y no 0: un «× $ 0.00» afirma que la unidad es gratis. Las filas
+    // anteriores al backfill pueden traerla en 0, que es «no se sabe».
+    tarifaUnitaria: n(r.tarifa_unitaria) || null,
+    // `null` y no 0: está en NULL en toda la producción de hoy, y «0 pases al
+    // día» diría que la pieza no sale nunca.
+    spotsPorDia: n(r.spots_por_dia) || null,
     expiraEn: r.expira_en ? iso(r.expira_en) : null,
     creativos: Array.isArray(r.creativos) ? r.creativos : [],
     creadoEn: iso(r.creado_en),
