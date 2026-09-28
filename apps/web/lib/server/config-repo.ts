@@ -2,6 +2,7 @@ import 'server-only'
 import { q, q1 } from './db'
 import { tenantActual } from './tenant'
 import { sanearCostosOt } from '../costos-ot'
+import { topeDescuentoValido, TOPE_DESCUENTO_RESPALDO } from '../descuento'
 
 // ============================================================================
 //  lib/server/config-repo.ts — Configuración del negocio. UNA FILA POR TENANT
@@ -45,6 +46,13 @@ export function rowToConfig(r: any) {
     spotSeg: r.spot_seg != null ? Number(r.spot_seg) : 10,
     // ADR 0008: cupo de clientes por defecto. null = sin límite (regla apagada).
     maxClientesPantalla: r.max_clientes_pantalla != null ? Number(r.max_clientes_pantalla) : null,
+    // TOPE-01: descuento comercial máximo que autoriza esta organización. Se
+    // SANEA al leer, igual que `costosOt` y por el mismo motivo: `numeric`
+    // llega como texto, la columna la puede tocar una corrección a mano, y una
+    // base sin la migración aplicada todavía devuelve `undefined`. En los tres
+    // casos manda el respaldo del 100 %, que es el comportamiento de siempre —
+    // NUNCA 0, que apagaría los descuentos de esa organización en silencio.
+    topeDescuentoPct: topeDescuentoValido(r.tope_descuento_pct),
     // Costo de mano de obra por TIPO de OT. Se SANEA al leer, no solo al
     // escribir: la columna es jsonb y puede traer lo que le dejaran antes de
     // que existiera el saneo (o lo que meta una corrección a mano en la base).
@@ -145,6 +153,30 @@ export function plazoPorDefecto(plazos: number[]): number {
 export async function costosOtDelTenant() {
   return sanearCostosOt((await obtenerConfigRow()).costos_ot)
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+//  Tope de descuento comercial (TOPE-01)
+// ────────────────────────────────────────────────────────────────────────────
+//
+// El techo que ESTA organización autoriza en una propuesta. Lo aplica
+// `actualizarPropuesta()` a través de `descuentoDentroDelTope`.
+//
+// Va por `obtenerConfigRow()` —y no por una consulta propia— para heredar su
+// filtro por `tenant_id`: quien lee `config_negocio` usa la consulta CON
+// tenant. Un `qRaw` aquí devolvería la fila de otra empresa, o cero filas EN
+// SILENCIO, y entonces el descuento máximo de una organización lo acabaría
+// decidiendo la configuración de otra. Sobre dinero, sin dar ningún error, y
+// sin que ninguna unitaria lo viera: es exactamente R2. Lo prueban las dos
+// direcciones de `lib/test/tope-descuento.e2e.test.ts`.
+//
+// Lo ilegible cae al respaldo del 100 % (ver `TOPE_DESCUENTO_RESPALDO`), nunca
+// a 0: apagar la venta de alguien por un dato que no se pudo leer sería un
+// fallo peor que el que se está corrigiendo.
+export async function topeDescuentoDelTenant(): Promise<number> {
+  return topeDescuentoValido((await obtenerConfigRow()).tope_descuento_pct)
+}
+
+export { TOPE_DESCUENTO_RESPALDO }
 
 export async function obtenerConfig() {
   const cfg = rowToConfig(await obtenerConfigRow())

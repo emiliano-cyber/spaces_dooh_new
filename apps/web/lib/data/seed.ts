@@ -485,6 +485,11 @@ export function buildSeed(): DemoState {
       // ADR 0008: sin cupo de clientes hasta que se capture uno. El seed no
       // inventa una política comercial que nadie decidió.
       maxClientesPantalla: null,
+      // TOPE-01: sin tope de descuento hasta que se capture uno. 100 es el
+      // mismo DEFAULT de la columna y el mismo respaldo de `lib/descuento.ts`:
+      // si los tres divergieran, la pantalla enseñaría un techo distinto del
+      // que aplica el servidor.
+      topeDescuentoPct: 100,
     },
     sitios: [],
     sitiosRed: [],

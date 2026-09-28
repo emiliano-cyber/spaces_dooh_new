@@ -4,6 +4,7 @@ import { cambiarEstatusPropuesta, actualizarPropuesta, PropuestaError, Propuesta
 import { generarCampanaDesdePropuesta, PropuestaCampanaError } from '@/lib/server/campanas-repo'
 import { registrarAccion } from '@/lib/server/acciones-repo'
 import { notificar } from '@/lib/server/notificaciones-repo'
+import { textoBitacoraPropuesta } from '@/lib/descuento'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -18,13 +19,29 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   // sin cambio de estatus. Sube versión si renegocia una propuesta ya enviada.
   if (body.estatus == null && (body.descuentoPct != null || body.nombre != null || body.notas !== undefined)) {
     try {
-      const prop = await actualizarPropuesta(params.id, {
+      const res = await actualizarPropuesta(params.id, {
         descuentoPct: body.descuentoPct,
         nombre: body.nombre,
         notas: body.notas,
       })
-      if (!prop) return NextResponse.json({ error: 'Propuesta no encontrada' }, { status: 404 })
-      await registrarAccion(g.usuario, `Actualizó propuesta (v${prop.version})`, prop.nombre)
+      if (!res) return NextResponse.json({ error: 'Propuesta no encontrada' }, { status: 404 })
+      const prop = res.propuesta
+      // TOPE-02 · la bitácora dice CUÁNTO descuento se puso, no solo que alguien
+      // «actualizó». Con esta línea, Actividad filtrada por persona enseña
+      // «Fulana puso 22 % de descuento en la propuesta X», que es un dato de
+      // dinero y hasta hoy no quedaba en ninguna parte: al APROBAR sí queda el
+      // importe (abajo, :62-63), pero para entonces el descuento ya está puesto
+      // y no se sabe quién lo puso.
+      //
+      // `descuentoAplicado` es null cuando el guardado NO tocó el descuento, y
+      // entonces el texto es el de siempre. No es un detalle: anotarlo en cada
+      // guardado llenaría la pantalla de descuentos que nadie cambió y haría
+      // inútil el filtro que se quiere poder enseñar.
+      await registrarAccion(
+        g.usuario,
+        textoBitacoraPropuesta(prop.version, res.descuentoAplicado),
+        prop.nombre,
+      )
       return NextResponse.json(prop)
     } catch (e) {
       const status = e instanceof PropuestaError ? 409 : 400

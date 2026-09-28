@@ -5,6 +5,52 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-09-28
+
+- **Ya se puede poner un tope al descuento que tu equipo aplica en una propuesta.**
+  Hasta hoy no había ninguno: cualquiera con permiso de Comercial podía teclear un
+  **90 %** y guardarlo sin que nada lo frenara y **sin que la aplicación le pidiera
+  la contraseña**. Visto de cerca era raro: cambiar la renta de una pantalla sí la
+  pedía; regalar el 80 % de una venta, no.
+
+  **Cómo funciona.** En **Administración → Configuración** hay una tarjeta nueva,
+  *Tope de descuento comercial*, con un número. Por encima de ese número **la
+  propuesta no se guarda**, y quien vende ve un aviso que dice cuál es el tope —no
+  un «valor inválido» que no ayuda a nadie—. El tope es **de tu organización**: el
+  de una empresa no afecta a ninguna otra.
+
+  **Nada cambia hasta que tú lo cambies.** El tope nace en **100 %**, que es lo
+  mismo que no tener tope, o sea exactamente como funcionaba ayer. **Ninguna
+  propuesta existente se vuelve inválida**, tenga el descuento que tenga.
+
+  **Y lo que ya está pactado no se toca.** Si mañana bajas el tope al 10 %, las
+  propuestas que ya tienen un 40 % **conservan su 40 %** y se pueden seguir
+  editando; lo que ya no se puede es volver a teclear ese 40 en una propuesta
+  nueva. El tope manda sobre lo que se escribe de hoy en adelante, no sobre lo que
+  alguien ya negoció.
+
+  **Quién puede cambiarlo.** Solo quien administra la organización —un vendedor
+  **no** puede subirse su propio techo—, y **pidiendo la contraseña**, igual que
+  ya se pide para tocar una renta o registrar un pago. Es el único campo de esa
+  pantalla que la pide: el resto (loop, IVA, plazos…) se guarda como siempre. El
+  motivo es simple: si el tope se pudiera quitar con un clic, no sería un tope.
+
+- **Actividad ya dice cuánto descuento se puso, y quién.** Antes, al guardar una
+  propuesta la bitácora anotaba «Actualizó propuesta (v2)» y ahí se acababa: el
+  descuento no aparecía por ningún lado. Ahora dice **«Fulana puso 22 % de
+  descuento en la propuesta X»**, así que filtrando Actividad por persona se ve de
+  un vistazo quién está descontando y cuánto.
+
+  Solo lo anota **cuando el descuento cambió de verdad**: si guardas un cambio de
+  nombre o de notas, la línea es la de siempre. Y bajar el descuento a cero se lee
+  como lo que es, «Quitó el descuento».
+
+  **No es un reporte por vendedor** —ese dato no existe todavía en el sistema—,
+  pero es el registro de quién movió el precio, que hasta hoy no quedaba en
+  ninguna parte.
+
+---
+
 ## 2026-09-25
 
 - **Y con esto ya no queda ningún sitio de la aplicación que te pida la contraseña

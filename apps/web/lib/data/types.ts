@@ -748,6 +748,11 @@ export interface ConfigNegocio {
   // ADR 0008: cupo de clientes por defecto para las pantallas sin uno propio.
   // null = sin límite; la regla se enciende capturando un número.
   maxClientesPantalla: number | null
+  // TOPE-01: descuento comercial máximo que esta organización autoriza en una
+  // propuesta, en por ciento. 100 = sin tope, que es como nace. Lo reparte
+  // /api/estado a TODOS los roles a propósito: quien vende necesita saber su
+  // techo para que el formulario lo diga antes de mandar, no después.
+  topeDescuentoPct: number
   // Costo de mano de obra por TIPO de orden de trabajo. Objeto VACÍO = esta
   // organización no ha configurado ninguno, y entonces manda el respaldo de
   // `lib/costos-ot.ts`. Un tipo ausente cae al respaldo, nunca a 0.

@@ -44,6 +44,7 @@ import {
   useSitios,
   useContratos,
   useArrendadores,
+  useConfigNegocio,
   formatMonto,
   formatFecha,
   type EstPropuesta,
@@ -69,6 +70,14 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
   const sitios = useSitios()
   const contratos = useContratos()
   const arrendadores = useArrendadores()
+  const config = useConfigNegocio()
+  // TOPE-01 · el techo que autoriza la organización. Mientras el estado no ha
+  // hidratado se usa 100, que es el valor con el que nace toda organización: el
+  // formulario NO puede empezar más restrictivo de lo que manda el servidor, o
+  // bloquearía descuentos legítimos durante el primer segundo de la pantalla.
+  // Quien decide de verdad es el servidor (`descuentoDentroDelTope`); esto solo
+  // adelanta el aviso.
+  const topeDescuento = config?.topeDescuentoPct ?? 100
   const puedeEditar = usePuede('comercial', 'crear')
   const router = useRouter()
   const [generando, setGenerando] = useState(false)
@@ -84,7 +93,17 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
 
   async function aplicarDescuento() {
     const d = Number(descInput)
-    if (isNaN(d) || d < 0 || d > 100) { toast.error('Descuento inválido (0–100)'); return }
+    if (descInput.trim() === '' || isNaN(d) || d < 0) {
+      toast.error('Descuento inválido (0–100)')
+      return
+    }
+    // TOPE-01 · el mensaje DICE EL TOPE, no «valor inválido». Quien vende tiene
+    // que saber qué número sí puede teclear sin preguntarle a nadie. El servidor
+    // lo rechaza igualmente (`descuentoDentroDelTope`): esto solo evita el viaje.
+    if (d > topeDescuento) {
+      toast.error(`El descuento máximo que autoriza tu organización es ${topeDescuento} %`)
+      return
+    }
     setGuardandoDesc(true)
     try {
       await actualizarPropuestaApi(id, { descuentoPct: d })
@@ -303,12 +322,18 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                 <p className="mt-0.5 text-[11px] text-muted">
                   Rebaja sobre la tarifa de lista (distinta de la comisión de agencia).
                   {' '}Cambiarlo en una propuesta ya <b>Enviada</b> sube la versión (renegociación).
+                  {/* TOPE-01 · el techo solo se anuncia cuando de verdad limita
+                      algo. Escribir «máximo 100 %» en una organización sin tope
+                      sería ruido, y peor: enseñaría un límite donde no lo hay. */}
+                  {topeDescuento < 100 && (
+                    <> Tu organización autoriza hasta <b>{topeDescuento} %</b>; para más, Administración tiene que subir el tope.</>
+                  )}
                 </p>
                 {editable ? (
                   <div className="mt-2 flex items-center gap-2">
                     <div className="relative">
                       <input
-                        type="number" min={0} max={100} step={1}
+                        type="number" min={0} max={topeDescuento} step={1}
                         value={descInput}
                         onChange={(e) => setDescInput(e.target.value)}
                         className="h-9 w-24 rounded border border-border-strong bg-surface pl-3 pr-6 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
