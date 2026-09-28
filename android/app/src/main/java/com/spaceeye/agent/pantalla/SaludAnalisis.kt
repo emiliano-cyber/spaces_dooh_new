@@ -141,7 +141,12 @@ object SaludAnalisis {
             val rMax = relMax[f][c]
             val rAct = relAct[f][c]
             if (rMax < APAGADA_BRILLO && rAct < APAGADA_ACTIVIDAD) {
-                zonas.add(Zona("zona_apagada", f, c, redondea(1 - maxOf(rMax / APAGADA_BRILLO, rAct / APAGADA_ACTIVIDAD))))
+                // La confianza sale de que NO cambie, que es lo que distingue una
+                // falla. Antes tambien restaba cuanto le faltaba para ser negra, y
+                // una zona gris oscuro totalmente quieta (actividad 0.03, brillo
+                // 0.22, prueba del 28-sep) quedaba en 0.35 y no alcanzaba el
+                // umbral de 0.6 para avisar.
+                zonas.add(Zona("zona_apagada", f, c, redondea(1 - rAct / APAGADA_ACTIVIDAD)))
             } else if (maximo[f][c] < NEGRO_BRILLO && actividad[f][c] < NEGRO_ACTIVIDAD) {
                 zonas.add(Zona("zona_apagada", f, c, 0.9))
             } else if (rAct < CONGELADA_ACTIVIDAD) {

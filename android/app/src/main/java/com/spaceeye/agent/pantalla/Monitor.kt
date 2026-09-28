@@ -190,6 +190,10 @@ class Monitor(
         // 5 y 15 min son intervalos de PRUEBAS; en produccion, 30 min o mas.
         val cadaS = (sCfg?.optLong("cada_min", 60L) ?: 60L).coerceAtLeast(5L)
         seguimiento.separacionMs = minOf(25 * 60_000L, cadaS * 60_000L * 8 / 10)
+        sCfg?.let { s ->
+            seguimiento.confirmaciones = s.optInt("confirmaciones", 2).coerceIn(1, 6)
+            seguimiento.umbral = s.optDouble("umbral", 0.6).coerceIn(0.3, 0.95)
+        }
         val espera = if (continuo) PAUSA_CONTINUO_MS
             else minOf(if (quiereCreativos) cadaC else Long.MAX_VALUE, if (quiereSalud) cadaS else Long.MAX_VALUE) * 60_000L
 

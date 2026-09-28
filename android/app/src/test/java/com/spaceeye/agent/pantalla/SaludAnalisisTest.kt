@@ -166,6 +166,25 @@ class SaludAnalisisTest {
     }
 
     @Test
+    fun unaZonaGrisOscuraQuietaTieneConfianzaAlta() {
+        // Lo que se vio el 28-sep: la ventana del Bloc de notas, gris oscuro y
+        // quieta, sobre la columna derecha. Debe pasar el umbral de 0.6.
+        for (base in listOf(dublan, tlalpan)) {
+            val derecha = (0 until 5).map { it to 2 }
+            val gris = base.map { t ->
+                val px = t.px.copyOf()
+                for ((f, c) in derecha)
+                    for (y in (f * t.alto / 5) until ((f + 1) * t.alto / 5))
+                        for (x in (c * t.ancho / 3) until ((c + 1) * t.ancho / 3)) px[y * t.ancho + x] = 45.0
+                Imagen(px, t.ancho, t.alto)
+            }
+            val z = SaludAnalisis.analizar(gris, 5, 3).zonas.single()
+            assertEquals(derecha.toSet(), z.grupo.toSet())
+            assertTrue("confianza ${z.confianza}", z.confianza >= 0.6)
+        }
+    }
+
+    @Test
     fun enCuadricula5x3SinFallaNoAlarma() {
         for (base in listOf(dublan, tlalpan)) assertTrue(SaludAnalisis.analizar(base, 5, 3).zonas.isEmpty())
     }

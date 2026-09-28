@@ -29,12 +29,15 @@ import org.json.JSONObject
  * telefono, que en campo pasa.
  */
 class Seguimiento(
-    private val confirmaciones: Int = 2,
+    // Los tres vienen del servidor (salud_confirmaciones, salud_umbral): el
+    // Monitor los pone en cada vuelta. Antes se quedaban en estos valores y lo
+    // configurado en el servidor no llegaba nunca.
+    var confirmaciones: Int = 2,
     // 25 y no 30 min: con vueltas cada 30 min el reloj las separa 29 y pico, y
     // no deben contar como la misma. Con los intervalos cortos de pruebas (5 o
     // 15 min) el Monitor la baja al 80% del intervalo.
     var separacionMs: Long = 25 * 60_000L,
-    private val umbral: Double = 0.6,
+    var umbral: Double = 0.6,
     private val recuperacion: Int = 2,
 ) {
     /** El resultado de una vuelta, ya con lo de la camara. */
