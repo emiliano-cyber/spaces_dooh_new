@@ -355,7 +355,9 @@ class Monitor(
             desdeSeguimiento = System.currentTimeMillis()
             vueltasSalud = 0
         }
-        revision.abrir(firmaEncuadre)
+        // "|fuera": las referencias viejas se tomaron con la pantalla incluida;
+        // con este sufijo se vuelven a tomar solo con lo de alrededor.
+        revision.abrir(firmaEncuadre + "|fuera")
         // Aprende la primera vuelta en que vea la pantalla funcionando, y ademas
         // los minutos configurados (0 = solo esa vuelta).
         val aprendizajeMs = cfg.optLong("aprendizaje_min", 120L) * 60_000L

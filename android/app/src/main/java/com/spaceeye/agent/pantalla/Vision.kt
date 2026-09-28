@@ -45,12 +45,13 @@ object Vision {
     private val emparejador by lazy { BFMatcher.create(Core.NORM_HAMMING) }
     private val clahe by lazy { Imgproc.createCLAHE(3.0, Size(4.0, 4.0)) }
 
-    fun rasgos(gris: Mat): Rasgos {
+    /** @param mascara si se da, solo se buscan puntos donde vale 255. */
+    fun rasgos(gris: Mat, mascara: Mat? = null): Rasgos {
         val ecualizada = Mat()
         clahe.apply(gris, ecualizada)
         val kp = MatOfKeyPoint()
         val desc = Mat()
-        orb.detectAndCompute(ecualizada, Mat(), kp, desc)
+        orb.detectAndCompute(ecualizada, mascara ?: Mat(), kp, desc)
         ecualizada.release()
         val pts = kp.toArray()
         kp.release()

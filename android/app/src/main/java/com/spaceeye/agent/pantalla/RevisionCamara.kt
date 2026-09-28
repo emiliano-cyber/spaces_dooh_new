@@ -71,7 +71,7 @@ class RevisionCamara(ctx: Context) {
             return Seguimiento.Camara.SIN_IMAGEN
         }
         val marco = vistazos[vistazos.size / 2].marco
-        val actual = Vision.rasgos(marco)
+        val actual = Vision.rasgos(marco, fueraDeLaPantalla(marco, geo))
         if (refs.isEmpty()) {
             guardar(actual)
             return Seguimiento.Camara.OK
@@ -86,6 +86,36 @@ class RevisionCamara(ctx: Context) {
         if (mejor < PUNTOS_CONFIABLES) return Seguimiento.Camara.INCONCLUSO
         if (mejor < VARIANTE_HASTA && refs.size < VARIANTES) guardar(actual)
         return Seguimiento.Camara.OK
+    }
+
+    /**
+     * Mascara de lo que esta FUERA de la pantalla (un poco agrandada, para dejar
+     * fuera tambien el brillo del borde). La camara se juzga solo con lo fijo de
+     * alrededor -el marco, el escritorio, los edificios-: dentro de la pantalla el
+     * contenido cambia por definicion. El 28-sep, al arrastrar a un lado una
+     * ventana con texto que tapaba parte del video, sus puntos se desplazaron
+     * juntos y parecio que la camara entera se habia movido.
+     *
+     * Si la pantalla llena casi toda la foto (TLALPAN), afuera no queda con que
+     * comparar: entonces se usa la foto entera, como antes.
+     */
+    private fun fueraDeLaPantalla(marco: Mat, geo: Geometria): Mat? {
+        val w = marco.cols().toDouble()
+        val h = marco.rows().toDouble()
+        val cx = geo.esquinas.sumOf { it.first } / 4
+        val cy = geo.esquinas.sumOf { it.second } / 4
+        val puntos = geo.esquinas.map { (x, y) ->
+            org.opencv.core.Point((cx + (x - cx) * 1.08) * w, (cy + (y - cy) * 1.08) * h)
+        }
+        // Area de la pantalla (formula del cordon) sobre el area de la foto.
+        val area = Math.abs((0 until 4).sumOf { i ->
+            val (x1, y1) = geo.esquinas[i]; val (x2, y2) = geo.esquinas[(i + 1) % 4]
+            x1 * y2 - x2 * y1
+        }) / 2
+        if (area > 0.8) return null
+        val m = Mat(marco.rows(), marco.cols(), org.opencv.core.CvType.CV_8UC1, org.opencv.core.Scalar(255.0))
+        org.opencv.imgproc.Imgproc.fillConvexPoly(m, org.opencv.core.MatOfPoint(*puntos.toTypedArray()), org.opencv.core.Scalar(0.0))
+        return m
     }
 
     private fun guardar(r: Vision.Rasgos) {
