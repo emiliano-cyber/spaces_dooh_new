@@ -87,6 +87,42 @@ export async function actualizarSitioApi(id: string, cambios: Record<string, unk
   await refrescarSitios()
 }
 
+/**
+ * Tarifas por UNIDAD DE VENTA de una pantalla (`sitio_modalidades`).
+ *
+ * Ruta aparte del PATCH general a propósito: es dinero, y `/modalidades` pide
+ * la contraseña SIEMPRE, sin lista de campos que mantener. El porqué completo
+ * está en `app/api/sitios/[id]/modalidades/route.ts`.
+ *
+ * `quitar` viaja EXPLÍCITO en vez de deducirse de lo que falta en `guardar`: el
+ * servidor no borra lo que no viene (ver `actualizarModalidades` en
+ * `sitios-repo.ts`), así que una baja hay que pedirla.
+ *
+ * Y el `r.ok`, igual que en `actualizarSitioApi`, NO SE BORRA: sin él un 403 del
+ * candado se resolvería como éxito y la ficha cantaría «tarifas guardadas» con
+ * las tarifas intactas. El mensaje se devuelve TAL CUAL lo manda el servidor
+ * porque `esErrorDeDesbloqueo` lo reconoce por texto; sustituirlo por uno propio
+ * dejaría el 403 como error rojo, sin cuadro donde teclear.
+ */
+export async function actualizarModalidadesApi(
+  id: string,
+  cambios: {
+    guardar?: { unidad: string; tarifaPublicada: number }[]
+    quitar?: string[]
+  },
+): Promise<void> {
+  const r = await fetch(`${BASE}/${id}/modalidades/`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(cambios),
+  })
+  if (!r.ok) {
+    const d = await r.json().catch(() => ({}))
+    throw new Error((d as { error?: string }).error ?? 'No se pudieron guardar las tarifas')
+  }
+  await refrescarSitios()
+}
+
 // Cambio MASIVO de tarifa: aplica una tarifa nueva a varios sitios a la vez
 // (mantiene sincronizadas mensual y publicada, igual que la ficha). Hace los
 // PATCH en paralelo y refresca el estado UNA sola vez al final (no por sitio).

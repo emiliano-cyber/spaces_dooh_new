@@ -1,6 +1,6 @@
 import 'server-only'
 import { randomBytes } from 'crypto'
-import { pool, q, q1, fijarTenant } from './db'
+import { pool, q, q1, fijarTenant, withTenantTx } from './db'
 import { tenantActual } from './tenant'
 import {
   exigirArrendador,
@@ -442,6 +442,70 @@ export async function actualizarSitio(id: string, cambios: Record<string, unknow
   vals.push(id)
   await q(`update sitios set ${sets.join(', ')} where id = $${vals.length}`, vals)
   return getSitio(id)
+}
+
+// ─── Modalidades por unidad de venta, DESDE LA FICHA ────────────────────────
+//
+// La otra escritura de `sitio_modalidades` es `actualizarSitioCompleto`, que
+// hace `delete from sitio_modalidades where sitio_id = $1` y reinserta lo que
+// trae el archivo. Para una re-importación es lo correcto: el archivo ES la
+// verdad completa de esa pantalla.
+//
+// AQUÍ NO SE PUEDE PISAR ASÍ, y es la diferencia que justifica una función
+// aparte en vez de reutilizar aquélla. Este camino recibe una EDICIÓN, no un
+// archivo: lo que no viene en la petición no es «hay que borrarlo», es «no se
+// tocó». Con la semántica de borrar-y-reinsertar, un cliente que mandara solo
+// la tarifa de spot se llevaría por delante las otras seis sin que nada fallara
+// —y dejar de vender por mensual no da error, solo deja de aparecer—. Por eso
+// las bajas viajan EXPLÍCITAS en `quitar`.
+//
+// `on conflict (sitio_id, unidad) do update` se apoya en el índice único de
+// `db/schema.sql:211`: añadir una unidad que ya existe es cambiarle la tarifa,
+// que es exactamente lo que quiere decir el usuario.
+export async function actualizarModalidades(
+  sitioId: string,
+  cambios: {
+    guardar: { unidad: string; tarifaPublicada: number; costoCompra: number }[]
+    quitar: string[]
+  },
+): Promise<any | null> {
+  // El tenant se toma de la FILA DEL SITIO, no de la sesión. Es el mismo
+  // invariante que `insertarSitio` documenta: una modalidad no puede acabar en
+  // otro tenant que su pantalla. Y la lectura pasa por `q` (con RLS), así que
+  // una pantalla de otra organización simplemente no aparece.
+  const sitio = await q1<{ id: string; tenant_id: string }>(
+    'select id, tenant_id from sitios where id = $1',
+    [sitioId],
+  )
+  if (!sitio) return null
+
+  // Todo o nada: un alta de unidad aplicada con su baja hermana sin aplicar
+  // dejaría la pantalla con un juego de tarifas que nadie decidió. `withTenantTx`
+  // abre la transacción Y fija el GUC dentro de ella —`set_config(..., true)` es
+  // transaction-local, así que fijarlo fuera no serviría de nada.
+  await withTenantTx(async (cliente) => {
+    for (const m of cambios.guardar) {
+      await cliente.query(
+        `insert into sitio_modalidades (sitio_id, unidad, tarifa_publicada, costo_compra, tenant_id)
+         values ($1,$2,$3,$4,$5)
+         on conflict (sitio_id, unidad)
+           do update set tarifa_publicada = excluded.tarifa_publicada,
+                         costo_compra     = excluded.costo_compra`,
+        [sitioId, m.unidad, m.tarifaPublicada, m.costoCompra, sitio.tenant_id],
+      )
+    }
+    if (cambios.quitar.length) {
+      // `and tenant_id = $3` es la segunda capa sobre la RLS que exigen las
+      // convenciones para toda operación por id. La RLS ya lo impediría; esto
+      // es lo que queda en pie el día que alguien conecte con un rol que la
+      // salte.
+      await cliente.query(
+        'delete from sitio_modalidades where sitio_id = $1 and unidad = any($2::text[]) and tenant_id = $3',
+        [sitioId, cambios.quitar, sitio.tenant_id],
+      )
+    }
+  })
+  return getSitio(sitioId)
 }
 
 export async function borrarSitio(id: string): Promise<void> {

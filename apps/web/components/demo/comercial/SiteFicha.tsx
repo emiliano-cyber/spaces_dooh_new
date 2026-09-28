@@ -43,8 +43,12 @@ import {
   PAGO_LABEL,
 } from '@/components/demo/StatusBadge'
 import { usePuede } from '@/components/demo/shell/SesionContext'
-import { actualizarSitioApi, borrarSitioApi, pausarSitioLegalApi, reanudarSitioLegalApi, reubicarSitioApi } from '@/lib/data/sitios-api'
+import { actualizarSitioApi, actualizarModalidadesApi, borrarSitioApi, pausarSitioLegalApi, reanudarSitioLegalApi, reubicarSitioApi } from '@/lib/data/sitios-api'
 import { useCandado, PasoContrasena } from '@/components/demo/ui/candado'
+// Las mismas reglas que aplica el importador y que impone el servidor: qué
+// unidades existen y cuáles admite esta pantalla. Se importan en vez de
+// repetirse — dos copias de la misma regla divergen (ver `lib/modalidades.ts`).
+import { UNIDADES_VENTA, motivoModalidadInvalida } from '@/lib/modalidades'
 import {
   useReservas,
   useIncidencias,
@@ -115,10 +119,20 @@ export function SiteFicha({
   const margenSitio = sitio ? margenes?.find((m) => m.sitioId === sitio.id) : undefined
   const rentaMensual = margenSitio?.rentaMensual ?? 0
   const puedeEditar = usePuede('comercial', 'crear')
+  // Las tarifas por unidad se guardan con `inventario.crear`, NO con
+  // `comercial.crear` — es el permiso que exige `PATCH
+  // /api/sitios/:id/modalidades`, igual que el resto de la escritura de
+  // inventario desde el ADR 0010 («vender no debería implicar poder
+  // reestructurar el activo que se vende»). Se pregunta por el permiso REAL del
+  // endpoint y no por el de la ficha: enseñar el botón a quien va a comerse un
+  // 403 es el encierro que este repositorio ya documentó dos veces.
+  const puedeTocarInventario = usePuede('inventario', 'crear')
   // Pausa legal: acción del dominio Arrendadores (situaciones legales).
   const puedePausar = usePuede('arrendadores', 'crear')
+  const modalidades = sitio?.modalidadesDetalle ?? []
   const [fotos, setFotos] = useState<FotoMeta[]>([])
   const [editOpen, setEditOpen] = useState(false)
+  const [modalidadesOpen, setModalidadesOpen] = useState(false)
   const [borrando, setBorrando] = useState(false)
   const [borrarOpen, setBorrarOpen] = useState(false)
   const [pausaOpen, setPausaOpen] = useState(false)
@@ -473,20 +487,44 @@ export function SiteFicha({
             })()}
           </div>
 
-          {/* Modalidades por fila (importadas agrupadas por código) */}
-          {sitio.modalidadesDetalle && sitio.modalidadesDetalle.length > 0 && (
+          {/* Tarifas por unidad de venta (`sitio_modalidades`).
+              Hasta el 2026-09-28 esto era SOLO lectura y la única forma de poner
+              una tarifa de spoteo era importar un CSV. Ahora se editan aquí.
+              La sección se pinta aunque no haya ninguna, para que una pantalla
+              sin modalidades tenga por dónde empezar: si solo apareciera cuando
+              ya hay alguna, el caso de la primera no tendría puerta. */}
+          {(modalidades.length > 0 || puedeTocarInventario) && (
             <div className="mt-3">
-              <div className="mb-1.5 text-[12px] font-medium text-ink">
-                Modalidades ({sitio.modalidadesDetalle.length})
+              <div className="mb-1.5 flex items-center justify-between">
+                <span className="text-[12px] font-medium text-ink">
+                  Tarifas por unidad {modalidades.length > 0 && `(${modalidades.length})`}
+                </span>
+                {puedeTocarInventario && (
+                  <button
+                    type="button"
+                    onClick={() => setModalidadesOpen(true)}
+                    className="inline-flex items-center gap-1 text-[12px] font-medium text-info hover:underline"
+                  >
+                    <Pencil className="h-3 w-3" /> Editar
+                  </button>
+                )}
               </div>
-              <ul className="divide-y divide-border rounded-md border border-border">
-                {sitio.modalidadesDetalle.map((m, i) => (
-                  <li key={i} className="flex items-center justify-between px-3 py-1.5 text-[12px]">
-                    <span className="capitalize text-ink">{m.unidad}</span>
-                    <span className="demo-num text-muted">{formatMonto(m.tarifaPublicada)}</span>
-                  </li>
-                ))}
-              </ul>
+              {modalidades.length > 0 ? (
+                <ul className="divide-y divide-border rounded-md border border-border">
+                  {modalidades.map((m, i) => (
+                    <li key={i} className="flex items-center justify-between px-3 py-1.5 text-[12px]">
+                      <span className="capitalize text-ink">{m.unidad}</span>
+                      <span className="demo-num text-muted">{formatMonto(m.tarifaPublicada)}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="rounded-md border border-border bg-surface-2 px-3 py-2 text-[12px] text-muted">
+                  Sin tarifas por unidad. Se vende solo con la tarifa publicada de
+                  arriba; para cotizar por spot, hora o programático hay que
+                  añadirlas aquí.
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -572,6 +610,12 @@ export function SiteFicha({
       </div>
 
       <EditarSitioDialog sitio={sitio} open={editOpen} onClose={() => setEditOpen(false)} />
+
+      <ModalidadesDialog
+        sitio={sitio}
+        open={modalidadesOpen}
+        onClose={() => setModalidadesOpen(false)}
+      />
 
       <Modal
         open={pausaOpen}
@@ -683,6 +727,256 @@ const VISTAS_CARDINALES = [
 ]
 const inputCls =
   'w-full rounded border border-border-strong bg-surface px-2.5 py-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
+
+// ============================================================================
+//  Las tarifas por UNIDAD DE VENTA de una pantalla, editables desde la ficha.
+// ----------------------------------------------------------------------------
+//  Hasta el 2026-09-28 `sitio_modalidades` solo se escribía importando un
+//  archivo: la ficha las ENSEÑABA y ningún formulario las mandaba. Para poner
+//  una tarifa de spoteo había que preparar un CSV, que es una respuesta que no
+//  se le puede dar a un dueño que pregunta «¿puedo vender por spot?».
+//
+//  TRES DECISIONES QUE NO SON DE ADORNO:
+//
+//  1 · Se manda un DIFF (`guardar` + `quitar`), no la lista entera. El servidor
+//      no borra lo que no viene (`actualizarModalidades`, `sitios-repo.ts`), así
+//      que mandar solo lo tocado evita que dos personas editando la misma
+//      pantalla se pisen las tarifas que ninguna de las dos cambió.
+//  2 · Quitar viaja como BAJA, no como tarifa en cero. Un 0 no es «ya no se
+//      vende así»: es «se regala», y la pantalla seguiría ofreciéndose.
+//  3 · El selector de «añadir» solo ofrece lo que esta pantalla ADMITE y no
+//      tiene todavía. La regla de la pantalla fija la impone el servidor
+//      (`lib/modalidades.ts`, la misma que el importador); aquí solo se evita
+//      ofrecer algo que va a ser rechazado.
+//
+//  La contraseña va DENTRO del cuadro, que es la regla de `ui/candado.tsx`: la
+//  acción tiene cuadro propio, así que no hace falta que el 403 abra otro.
+// ============================================================================
+function ModalidadesDialog({ sitio, open, onClose }: { sitio: Sitio; open: boolean; onClose: () => void }) {
+  const previas = sitio.modalidadesDetalle ?? []
+  // Las tarifas se editan como TEXTO y no como número: un `<input type=number>`
+  // controlado con `Number('')` convierte un campo vacío en 0, y un 0 aquí es un
+  // precio. Se convierte al construir el diff.
+  const [tarifas, setTarifas] = useState<Record<string, string>>({})
+  const [quitadas, setQuitadas] = useState<string[]>([])
+  const [nuevas, setNuevas] = useState<{ unidad: string; tarifa: string }[]>([])
+  const [porAnadir, setPorAnadir] = useState('')
+  const [enviando, setEnviando] = useState(false)
+  const candado = useCandado()
+
+  // Las que esta pantalla admite: el mismo criterio que el servidor, importado
+  // del módulo compartido para que no puedan divergir.
+  const admitidas = (UNIDADES_VENTA as readonly string[]).filter(
+    (u) => !motivoModalidadInvalida(u, sitio.exhibicion),
+  )
+
+  // Reinicia al abrir o al cambiar de pantalla: reabrir no debe traer puesto lo
+  // que se tecleó y no se guardó la vez anterior.
+  useEffect(() => {
+    const t: Record<string, string> = {}
+    for (const m of sitio.modalidadesDetalle ?? []) t[m.unidad] = String(m.tarifaPublicada ?? 0)
+    setTarifas(t)
+    setQuitadas([])
+    setNuevas([])
+    setPorAnadir('')
+    candado.olvidar()
+    // `candado` se recrea en cada render; meterlo en las dependencias volvería a
+    // limpiar el formulario en cada tecla.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sitio.id, open])
+
+  // Lo que ya está puesto (o a punto de estarlo) no se vuelve a ofrecer: el
+  // índice `unique (sitio_id, unidad)` lo impediría y el servidor rechaza la
+  // unidad repetida, pero ofrecerla sería invitar a un error evitable.
+  const yaPuestas = new Set([...previas.map((m) => m.unidad), ...nuevas.map((n) => n.unidad)])
+  const disponibles = admitidas.filter((u) => !yaPuestas.has(u))
+
+  function anadir() {
+    if (!porAnadir) return
+    setNuevas((n) => [...n, { unidad: porAnadir, tarifa: '' }])
+    setPorAnadir('')
+  }
+
+  async function guardar() {
+    setEnviando(true)
+    // Bloque sin `try`: `candado.ejecutar` DEVUELVE el fallo en vez de lanzarlo
+    // (lo entrega por `alFallar`). Mismo criterio que `EditarSitioDialog`.
+    {
+      const guardarLista: { unidad: string; tarifaPublicada: number }[] = []
+      // Solo las que de verdad cambiaron: reescribir una tarifa con su mismo
+      // valor deja su fila en `registrarAccion` y el historial pasaría a decir
+      // que se tocó algo que nadie tocó.
+      for (const m of previas) {
+        if (quitadas.includes(m.unidad)) continue
+        const texto = (tarifas[m.unidad] ?? '').trim()
+        if (texto === '') continue
+        const valor = Number(texto)
+        if (!Number.isFinite(valor)) continue
+        if (valor !== m.tarifaPublicada) guardarLista.push({ unidad: m.unidad, tarifaPublicada: valor })
+      }
+      for (const n of nuevas) {
+        const valor = Number(n.tarifa.trim())
+        if (!n.unidad || n.tarifa.trim() === '' || !Number.isFinite(valor)) continue
+        guardarLista.push({ unidad: n.unidad, tarifaPublicada: valor })
+      }
+
+      if (!guardarLista.length && !quitadas.length) {
+        onClose()
+        setEnviando(false)
+        return
+      }
+      // El diff se arma UNA vez y `useCandado` se lo queda: confirmar con la
+      // contraseña repite ESTE cambio en vez de releer el formulario, que el
+      // usuario pudo tocar mientras tecleaba.
+      await candado.ejecutar({
+        guardar: () => actualizarModalidadesApi(sitio.id, { guardar: guardarLista, quitar: quitadas }),
+        alLograr: () => {
+          toast.success('Tarifas por unidad guardadas')
+          onClose()
+        },
+        alFallar: (m) => toast.error(m),
+        mensajeSiFalla: 'No se pudieron guardar las tarifas',
+      })
+    }
+    setEnviando(false)
+  }
+
+  const nuevaSinTarifa = nuevas.some((n) => n.tarifa.trim() === '' || !Number.isFinite(Number(n.tarifa)))
+
+  return (
+    <Modal
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) {
+          candado.olvidar()
+          onClose()
+        }
+      }}
+      title="Tarifas por unidad de venta"
+      subtitle={sitio.nombre}
+      footer={
+        <div className="flex justify-end gap-2">
+          <Button variant="secondary" size="sm" onClick={onClose} disabled={candado.enviando}>
+            Cancelar
+          </Button>
+          <Button
+            size="sm"
+            disabled={
+              enviando ||
+              candado.enviando ||
+              nuevaSinTarifa ||
+              (candado.reautenticando && !candado.pass)
+            }
+            onClick={candado.reautenticando ? () => void candado.reintentar() : guardar}
+          >
+            {enviando || candado.enviando
+              ? 'Guardando…'
+              : candado.reautenticando
+                ? 'Confirmar y guardar'
+                : 'Guardar tarifas'}
+          </Button>
+        </div>
+      }
+    >
+      <div className="space-y-3">
+        <PasoContrasena candado={candado} onEnter={() => void candado.reintentar()} />
+
+        <p className="text-[12px] text-muted">
+          Una tarifa por cada forma de vender esta pantalla. Es lo que usa el
+          cotizador de Propuestas: sin una tarifa de «spot» no se puede cotizar
+          por spot.
+          {!admitidas.includes('spot') && (
+            <>
+              {' '}
+              Esta pantalla es <b className="text-ink">fija</b>, así que solo se
+              vende por mensual o catorcenal.
+            </>
+          )}
+        </p>
+
+        {previas.length === 0 && nuevas.length === 0 && (
+          <div className="rounded-md border border-border bg-surface-2 px-3 py-2 text-[12px] text-muted">
+            Todavía no hay ninguna. Añade la primera abajo.
+          </div>
+        )}
+
+        {previas.map((m) => {
+          const quitada = quitadas.includes(m.unidad)
+          return (
+            <div key={m.unidad} className="flex items-center gap-2">
+              <span className={`w-28 shrink-0 text-[13px] capitalize ${quitada ? 'text-muted line-through' : 'text-ink'}`}>
+                {m.unidad}
+              </span>
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                value={tarifas[m.unidad] ?? ''}
+                disabled={quitada}
+                onChange={(e) => setTarifas((t) => ({ ...t, [m.unidad]: e.target.value }))}
+                className={`${inputCls} flex-1 disabled:opacity-50`}
+              />
+              <button
+                type="button"
+                title={quitada ? 'Conservar esta unidad' : 'Dejar de vender por esta unidad'}
+                onClick={() =>
+                  setQuitadas((q) => (q.includes(m.unidad) ? q.filter((u) => u !== m.unidad) : [...q, m.unidad]))
+                }
+                className="shrink-0 rounded p-1.5 text-muted hover:bg-surface-2 hover:text-ink"
+              >
+                {quitada ? <Undo2 className="h-4 w-4" /> : <Trash2 className="h-4 w-4" />}
+              </button>
+            </div>
+          )
+        })}
+
+        {nuevas.map((n, i) => (
+          <div key={`nueva-${n.unidad}`} className="flex items-center gap-2">
+            <span className="w-28 shrink-0 text-[13px] capitalize text-ink">{n.unidad}</span>
+            <input
+              type="number"
+              min={0}
+              step="0.01"
+              autoFocus
+              placeholder="Tarifa"
+              value={n.tarifa}
+              onChange={(e) =>
+                setNuevas((prev) => prev.map((x, j) => (j === i ? { ...x, tarifa: e.target.value } : x)))
+              }
+              className={`${inputCls} flex-1`}
+            />
+            <button
+              type="button"
+              title="Quitar"
+              onClick={() => setNuevas((prev) => prev.filter((_, j) => j !== i))}
+              className="shrink-0 rounded p-1.5 text-muted hover:bg-surface-2 hover:text-ink"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+        ))}
+
+        {disponibles.length > 0 && (
+          <div className="flex items-center gap-2 border-t border-border pt-3">
+            <select
+              value={porAnadir}
+              onChange={(e) => setPorAnadir(e.target.value)}
+              className={`${inputCls} flex-1`}
+            >
+              <option value="">Añadir unidad…</option>
+              {disponibles.map((u) => (
+                <option key={u} value={u} className="capitalize">{u}</option>
+              ))}
+            </select>
+            <Button variant="secondary" size="sm" onClick={anadir} disabled={!porAnadir}>
+              Añadir
+            </Button>
+          </div>
+        )}
+      </div>
+    </Modal>
+  )
+}
 
 function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boolean; onClose: () => void }) {
   // Una pantalla digital tiene inventario de slots editable.

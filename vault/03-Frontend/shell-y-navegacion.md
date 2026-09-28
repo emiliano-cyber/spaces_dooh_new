@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-09-08
+actualizado: 2026-09-28
 tags: [frontend, shell, navegacion, rbac]
 archivos:
   - apps/web/lib/host.ts
@@ -63,17 +63,38 @@ Comportamiento:
 
 ### Los grupos del menú, y la trampa de buscarlos por su rótulo
 
-El menú va por **fases del proceso**, declaradas en `GRUPOS` (`nav.ts:79`), y el
-orden de ese arreglo **es** el orden en pantalla. Al 2026-09-08:
+El menú va por **fases del proceso**, declaradas en `GRUPOS` (`nav.ts:85`), y el
+orden de ese arreglo **es** el orden en pantalla. Al 2026-09-28:
 
 | Clave (código) | Rótulo (pantalla) | Entradas |
 |---|---|---|
 | `inicio` | *sin título* | Dashboard |
 | `patrimonio` | **Inventario** | Inventario · Arrendadores · Network |
-| `vender` | **Comercial** | Clientes · Comercial · Disponibilidad · Propuestas |
-| `entregar` | **Operaciones** | Campañas · Creativos · Imprenta · Operaciones · Almacén |
-| `cobrar` | **Finanzas** | Finanzas · Comisiones |
-| `sistema` | **Sistema** | Integraciones · Actividad · Administración |
+| `vender` | **Comercial** | Clientes · Comercial · Disponibilidad · Propuestas · **Creativos** |
+| `entregar` | **Operaciones** | Campañas · Imprenta · Operaciones · Almacén · Consumo de luz |
+| `cobrar` | **Finanzas** | Finanzas · Reportes · Comisiones |
+| `sistema` | **Sistema** | Integraciones · Razones sociales · Actividad · Administración |
+
+> [!important] Creativos se movió a **Comercial** el 2026-09-28
+> Estaba en `entregar` y ahora cuelga de `vender`, justo después de Propuestas.
+> Lo pidió un dueño con una pregunta literal —«¿puedo programar las pautas desde
+> el módulo de ventas?»— y la respuesta era **no**: la pantalla existía,
+> funcionaba y la abrían DUEÑO y COMERCIAL, pero colgaba de un encabezado de
+> otra área y **no la enlazaba ni Propuestas ni Comercial**. Solo se llegaba
+> desde la ficha de una campaña (`campanas/[id]/page.tsx:395-401`, que sigue).
+>
+> **Se movió en vez de duplicarse, y duplicar no era una opción cara: era
+> imposible.** `nav.test.ts` exige claves **y rutas** únicas, y `AuthGate`
+> empareja por `href` (`path === n.href || path.startsWith(n.href + '/')`), así
+> que dos entradas con la misma ruta se encenderían las dos a la vez.
+>
+> Encaja además con quién la autoriza: `lib/modulos.ts:36` la pone bajo el módulo
+> **`comercial`**, no `operaciones` — un rol OPERACIONES nunca la vio.
+>
+> **Lo que cuesta, dicho:** el tramo «Operaciones» pierde el paso donde se sube
+> el arte, y el relato del menú —vender primero, entregar después— se estira,
+> porque una pauta se arma sobre algo ya vendido. Se aceptó a propósito.
+> Fijado por `nav.test.ts` §«3 bis».
 
 > [!warning] La clave NO es el rótulo, y buscar por el rótulo no encuentra nada
 > `vender` se pinta **Comercial** y `entregar` se pinta **Operaciones**. Las

@@ -7,6 +7,7 @@
 // ============================================================================
 
 import * as XLSX from 'xlsx'
+import { UNIDADES_VENTA, UNIDADES_FIJO } from './modalidades'
 
 // Datos crudos mapeados de una fila (antes de convertir a Sitio).
 export interface SitioImport {
@@ -61,9 +62,13 @@ const LNG_DEFAULT = -99.1332
 // Valores válidos según el libro "Listas validadas" de la plantilla.
 const TIPO_MEDIO_OK = ['espectacular', 'muro', 'valla', 'parabus', 'mupi', 'publitienda', 'puente', 'otro']
 const EXHIBICION_OK = ['fijo', 'digital']
-const UNIDAD_OK = ['mensual', 'catorcenal', 'semanal', 'diaria', 'spot', 'hora', 'programatico']
-// Una pantalla FIJA solo se comercializa por periodo: mensual o catorcenal.
-const UNIDAD_FIJO_OK = ['mensual', 'catorcenal']
+// Las unidades y la regla de la pantalla fija NO se escriben aquí: vienen de
+// `lib/modalidades.ts`. Hasta el 2026-09-28 este archivo era el único camino que
+// escribía `sitio_modalidades`, así que tenerlas aquí bastaba. Desde que la
+// ficha también las captura hay DOS caminos, y dos copias de la misma regla
+// divergen — por eso se declaran una sola vez y las dos las importan.
+const UNIDAD_OK: readonly string[] = UNIDADES_VENTA
+const UNIDAD_FIJO_OK: readonly string[] = UNIDADES_FIJO
 const SI_NO_OK = ['si', 'sí', 'no']
 
 // Limpia un encabezado: minúsculas, sin acentos, espacios/especiales → '_'.

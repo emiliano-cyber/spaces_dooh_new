@@ -79,11 +79,24 @@ describe('3 · la regla NO está copiada: el importador usa ESTA', () => {
     expect(fuenteImport).toMatch(/import\s*\{[^}]*UNIDADES_VENTA[^}]*\}\s*from\s*'\.\/modalidades'/)
   })
 
-  it('y NO vuelve a escribir las siete unidades a mano', () => {
-    // Se cuenta la aparición del literal más raro de la lista: si 'programatico'
-    // vuelve a aparecer como cadena en el importador, es que alguien recreó la
-    // lista. Se acota a la comparación para no casar con un comentario.
-    expect(fuenteImport).not.toMatch(/'programatico'/)
+  it('y sus dos listas SE ASIGNAN de las compartidas, sin intermediario', () => {
+    // Ésta es la aserción que muerde, y la primera versión NO mordía: decía
+    // `not.toMatch(/'programatico'/)` —con comillas SIMPLES— y el mutante que
+    // recreaba la lista a mano con comillas DOBLES SOBREVIVIÓ. Van tres ramas
+    // seguidas con un mutante vivo por una aserción de cadena mal acotada; es el
+    // modo de fallo de esta familia de pruebas.
+    //
+    // La forma que aguanta es afirmar la ASIGNACIÓN, que no depende de cómo se
+    // escriban las comillas: si `UNIDAD_OK` deja de venir de `UNIDADES_VENTA`,
+    // esto cae venga de donde venga.
+    expect(fuenteImport).toMatch(/const\s+UNIDAD_OK\s*:[^=]*=\s*UNIDADES_VENTA\b/)
+    expect(fuenteImport).toMatch(/const\s+UNIDAD_FIJO_OK\s*:[^=]*=\s*UNIDADES_FIJO\b/)
+  })
+
+  it('y NO vuelve a escribir las siete unidades a mano, con NINGÚN tipo de comilla', () => {
+    // El literal más raro de la lista, en las tres formas en que se puede
+    // escribir una cadena en TypeScript.
+    expect(fuenteImport).not.toMatch(/['"`]programatico['"`]/)
   })
 
   it('el importador sigue rechazando una FIJA con spot — el comportamiento, no el fuente', () => {

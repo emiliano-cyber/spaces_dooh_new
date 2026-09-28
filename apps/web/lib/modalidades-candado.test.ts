@@ -41,6 +41,20 @@ import { MENSAJE_DESBLOQUEO } from '@/lib/cambios-mensajes'
 const RAIZ = join(__dirname, '..')
 const fuente = (ruta: string) => readFileSync(join(RAIZ, ruta), 'utf8')
 
+/**
+ * El fuente SIN comentarios.
+ *
+ * Hace falta y no es cosmética: la cabecera de la ruta EXPLICA por qué no se usó
+ * `CAMPOS_SENSIBLES`, así que un `not.toMatch(/CAMPOS_SENSIBLES/)` sobre el
+ * archivo entero casa con la explicación y falla teniendo razón el código. Es la
+ * misma trampa que el 25/09 dejó vivo un mutante (`not.toMatch(/catch\s*\{/)`
+ * casando con el comentario que describía el defecto): una aserción de cadena
+ * sobre el fuente tiene que mirar el CÓDIGO.
+ */
+function sinComentarios(src: string): string {
+  return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+}
+
 const RUTA_MODALIDADES = fuente('app/api/sitios/[id]/modalidades/route.ts')
 const RUTA_SITIO = fuente('app/api/sitios/[id]/route.ts')
 const CONTROLLER = fuente('lib/server/sitios-controller.ts')
@@ -57,9 +71,14 @@ describe('1 · la ruta de modalidades pide la contraseña siempre', () => {
 
   it('y NO tiene ninguna lista de campos que decida si hace falta o no', () => {
     // El modo de fallo que se evita: una lista blanca protege lo que alguien
-    // recordó escribir. Aquí no hay nada que recordar.
-    expect(RUTA_MODALIDADES).not.toMatch(/CAMPOS_SENSIBLES/)
-    expect(RUTA_MODALIDADES).not.toMatch(/tocaDinero/)
+    // recordó escribir. Aquí no hay nada que recordar. Se mira el CÓDIGO: la
+    // cabecera del archivo nombra `CAMPOS_SENSIBLES` justamente para explicar
+    // por qué no se usa.
+    const codigo = sinComentarios(RUTA_MODALIDADES)
+    expect(codigo).not.toMatch(/CAMPOS_SENSIBLES/)
+    expect(codigo).not.toMatch(/tocaDinero/)
+    // Y el guard no está envuelto en ningún `if`: se llama siempre.
+    expect(codigo).toMatch(/^\s*const g = await exigirCambioSensible\(/m)
   })
 
   it('el guard va ANTES de llamar al controller', () => {

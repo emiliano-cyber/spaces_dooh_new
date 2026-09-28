@@ -5,6 +5,51 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-09-28
+
+- **Ya puedes poner las tarifas de spoteo desde la ficha de la pantalla. Hasta hoy
+  había que subir un archivo.** Abres una pantalla en Comercial, y en el bloque
+  «Tarifas por unidad» tienes un **Editar**: ahí añades una unidad con su precio
+  —mensual, catorcenal, semanal, diaria, **spot**, hora o programático—, le cambias
+  el precio a una que ya tengas, o dejas de venderla por esa unidad.
+
+  **Por qué importa:** para cotizar «50 spots» en una propuesta, la pantalla
+  necesita tener una tarifa de spot. Poner esa tarifa era, literalmente, preparar
+  un CSV e importarlo. Ahora es abrir la ficha.
+
+  **Lo que el sistema no te deja hacer, y es a propósito:**
+
+  - Una pantalla **fija** (una lona, un espectacular) solo se puede vender por
+    **mensual o catorcenal**. No tiene loop, así que no hay spot ni hora que
+    vender. Es la misma regla que ya aplicaba el archivo de carga: si el archivo
+    lo rechaza, la ficha también.
+  - No puedes poner **dos precios a la misma unidad**. Si lo intentas, te lo dice
+    y no guarda nada.
+  - **Quitar una unidad no es ponerle cero.** Un cero significa «se regala» y la
+    pantalla se seguiría ofreciendo así; para dejar de venderla por esa unidad,
+    se quita.
+
+  **Y pide la contraseña, como cualquier otro precio.** Una tarifa por unidad es
+  dinero igual que la tarifa publicada, así que pasa por el mismo control de
+  cambios — y el campo para escribirla está **dentro del mismo cuadro**, sin
+  rodeos. (Si tu organización tiene el control de cambios apagado, no te pedirá
+  nada, igual que hoy.)
+
+  **Y solo te toca lo que cambiaste**: si otra persona está editando otra unidad
+  de la misma pantalla, no se pisan.
+
+- **Creativos ya está en el menú de Comercial, no en el de Operaciones.** Un dueño
+  preguntó si se podían programar las pautas desde el módulo de ventas y la
+  respuesta era «no» — no porque faltara la pantalla, que existía y funcionaba,
+  sino porque colgaba del encabezado equivocado y nadie enlazaba a ella desde
+  Propuestas ni desde Comercial.
+
+  **No cambia quién puede entrar** (los mismos de siempre: Dueño y Comercial) ni
+  lo que hace la pantalla. Solo cambia dónde está el enlace. Desde la ficha de una
+  campaña se sigue llegando igual que antes.
+
+---
+
 ## 2026-09-25
 
 - **Y con esto ya no queda ningún sitio de la aplicación que te pida la contraseña

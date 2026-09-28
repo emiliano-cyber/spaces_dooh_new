@@ -112,13 +112,36 @@ export const NAV: NavItem[] = [
   { key: 'comercial', label: 'Comercial', href: '/comercial', icon: Map, roles: ['DUENO', 'COMERCIAL'], grupo: 'vender' },
   { key: 'disponibilidad', label: 'Disponibilidad', href: '/disponibilidad', icon: CalendarRange, roles: ['DUENO', 'COMERCIAL'], grupo: 'vender' },
   { key: 'propuestas', label: 'Propuestas', href: '/propuestas', icon: FileText, roles: ['DUENO', 'COMERCIAL'], grupo: 'vender' },
+  // Creativos cierra el tramo comercial desde el 2026-09-28, y venía de
+  // «Operaciones». El cambio lo pidió un dueño con una pregunta literal:
+  // «¿puedo programar las pautas desde el módulo de ventas?». La respuesta era
+  // NO, y no por falta de función — la pantalla existe, funciona y la abren
+  // DUEÑO y COMERCIAL— sino porque no había puerta: colgaba de un encabezado de
+  // otra área y no la enlazaba ni Propuestas ni Comercial. Solo se llegaba desde
+  // la ficha de una campaña.
+  //
+  // Se MOVIÓ en vez de duplicarse. Duplicar la entrada no es una opción cara,
+  // es imposible: `nav.test.ts` exige claves y rutas únicas, y `AuthGate`
+  // empareja por `href` (`path === n.href || path.startsWith(n.href + '/')`),
+  // así que dos entradas con la misma ruta se encenderían las dos a la vez.
+  //
+  // Y encaja con quién la usa: `lib/modulos.ts:36` la autoriza con el módulo
+  // `comercial`, no con `operaciones`. Un rol OPERACIONES nunca la vio.
+  //
+  // Lo que cuesta, dicho: el tramo «Operaciones» pierde el paso donde se sube
+  // el arte, y el relato del menú —vender primero, entregar después— se estira
+  // un poco, porque una pauta se arma sobre algo ya vendido. Se acepta: la
+  // pauta se decide AL VENDER, y quien la arma es quien vende.
+  { key: 'creativos', label: 'Creativos', href: '/creativos', icon: Images, roles: ['DUENO', 'COMERCIAL'], grupo: 'vender' },
 
   // ─── Entregar ────────────────────────────────────────────────────────────
   // Campañas ABRE el tramo: es lo que nace al aprobar una propuesta. Antes
   // estaba tercera en el menú, tres puestos por ENCIMA de Propuestas, que es de
   // donde sale.
   { key: 'campanas', label: 'Campañas', href: '/campanas', icon: GitBranch, roles: ['DUENO', 'COMERCIAL'], grupo: 'entregar' },
-  { key: 'creativos', label: 'Creativos', href: '/creativos', icon: Images, roles: ['DUENO', 'COMERCIAL'], grupo: 'entregar' },
+  // Creativos vivía AQUÍ hasta el 2026-09-28; se movió al grupo «Comercial»
+  // (ver el porqué allí). La ficha de campaña sigue enlazándolo, que es el otro
+  // camino y el más natural cuando ya hay campaña.
   { key: 'imprenta', label: 'Imprenta', href: '/imprenta', icon: Printer, roles: ['DUENO', 'IMPRENTA'], grupo: 'entregar' },
   { key: 'operaciones', label: 'Operaciones', href: '/operaciones', icon: ClipboardList, roles: ['DUENO', 'OPERACIONES'], grupo: 'entregar' },
   { key: 'almacen', label: 'Almacén', href: '/almacen', icon: Warehouse, roles: ['DUENO', 'OPERACIONES'], grupo: 'entregar' },
