@@ -4,6 +4,7 @@ import type {
   AtribucionEntidad,
   CoberturaEnergia,
   CoberturaTarifa,
+  CoberturaVendedor,
   ConvencionM2,
   ExclusionesM2,
   FilaRentabilidad,
@@ -307,6 +308,33 @@ const COLUMNAS_POR_DIMENSION: Record<DimensionUI, ColumnaReporte[]> = {
     'descuentoYComision',
     'descuentoYComisionPct',
   ],
+  // La TERCERA que no parte de `COMUNES`, y por un motivo propio: aquí las
+  // filas son PERSONAS. La renta que se le paga al arrendador y las visitas a
+  // la pantalla no las decide el vendedor, así que `costoEspacio`,
+  // `costoOperacion` y `margen` medirían a alguien por un contrato que no
+  // negoció. «El margen de Ana» no existe, y pintarlo invitaría a usarlo.
+  //
+  // Las cuatro columnas de la comparación son LAS MISMAS que las de `tarifa`,
+  // con el mismo nombre y el mismo significado, y eso es deliberado: dos
+  // columnas que se llamaran igual y midieran distinto harían que las dos
+  // pantallas no se pudieran conciliar. Lo único que cambia es el agrupador.
+  //
+  // De izquierda a derecha: quién es, cuánto vendió, qué parte del negocio es
+  // eso, qué se publicó de lo suyo, cuánto de lo que entró es comparable con
+  // eso, cuánto se fue por el camino y en qué proporción.
+  //
+  // `ingreso` y `Neto comparable` van los dos, por lo mismo que en `tarifa`: la
+  // distancia entre ellos es la ÚNICA señal en pantalla de que a esa persona se
+  // le está midiendo el descuento solo sobre una parte de lo que vendió.
+  vendedor: [
+    'etiqueta',
+    'ingreso',
+    'pctDelIngreso',
+    'ingresoLista',
+    'ingresoComparable',
+    'descuentoYComision',
+    'descuentoYComisionPct',
+  ],
 }
 
 // El encabezado de la primera columna dice QUÉ son las filas. Decía «PANTALLA»
@@ -325,6 +353,7 @@ const PRIMERA_COLUMNA: Record<DimensionUI, { label: string; campoOrden?: keyof F
   luz: { label: 'Pantalla' },
   entidad: { label: 'Razón social' },
   tarifa: { label: 'Pantalla' },
+  vendedor: { label: 'Vendedor' },
 }
 
 export function columnasDeDimension(d: DimensionUI): DefinicionColumna[] {
@@ -370,6 +399,12 @@ const ORDEN_POR_DIMENSION: Record<DimensionUI, Orden> = {
   // regalados en una grande sí. Mismo criterio que `luz` y `operacion`, que
   // abren por el costo que explican y no por el margen.
   tarifa: { columna: 'descuentoYComision', direccion: 'desc' },
+  // Por quién VENDIÓ más. La pregunta del dueño tiene dos mitades —cuánto
+  // vendió y cuánto descontó— y esta es la que da el marco: un 40 % de
+  // descuento sobre una venta de 2 000 no dice nada del negocio. El descuento
+  // se lee CONTRA el volumen, y quien quiera el otro orden tiene la columna
+  // ordenable al lado.
+  vendedor: { columna: 'ingreso', direccion: 'desc' },
 }
 
 export function ordenInicialDe(d: DimensionUI): Orden {
@@ -587,6 +622,7 @@ export interface AvisoReporte {
     | 'sin-contrato'
     | 'sin-ingreso'
     | 'tarifa-sin-publicada'
+    | 'vendedor-sin-atribuir'
   texto: string
   /**
    * Con qué peso se pinta. `alerta` es ámbar y con triángulo; `info` es gris y
@@ -631,6 +667,8 @@ export interface ReporteParaAvisos {
   cobertura?: CoberturaEnergia | null
   /** Solo en `tarifa`: qué parte del periodo se pudo comparar. Nota verbatim. */
   tarifas?: CoberturaTarifa | null
+  /** Solo en `vendedor`: qué parte del periodo tiene vendedor. Nota verbatim. */
+  vendedores?: CoberturaVendedor | null
 }
 
 // La frase que dice QUÉ cuenta como metro cuadrado en las cifras de la tabla.
@@ -770,6 +808,28 @@ export function avisosDelReporte(r: ReporteParaAvisos): AvisoReporte[] {
       clave: 'tarifa-sin-publicada',
       tono: r.tarifas.reservasSinTarifa > 0 ? 'alerta' : 'info',
       texto: r.tarifas.nota,
+    })
+  }
+
+  // ─── LO QUE NO SE PUEDE PONER A NOMBRE DE NADIE ──────────────────────────
+  // El más importante de los cuatro avisos estructurales el día del
+  // despliegue, porque el día del despliegue «Sin vendedor» va a ser la fila
+  // MÁS GRANDE de la tabla: todo lo capturado antes del 2026-09-28 cae ahí y no
+  // hay de dónde deducirlo. Sin este texto, un dueño abre el reporte, ve una
+  // tabla casi vacía de nombres y concluye que el reporte no funciona.
+  //
+  // La nota la redacta el MOTOR (`notaDeVendedores`) y se pinta verbatim, por
+  // lo mismo que las del m², la luz, la atribución y la tarifa: reescribirla
+  // aquí sería la segunda implementación de la misma frase.
+  //
+  // Se pinta TAMBIÉN cuando no falta nada —en gris—, porque su primera frase
+  // hace falta SIEMPRE: la brecha lleva dentro la comisión de agencia, y sin
+  // decirlo la columna se lee como si el vendedor hubiera regalado todo eso.
+  if (r.vendedores) {
+    avisos.push({
+      clave: 'vendedor-sin-atribuir',
+      tono: r.vendedores.reservasSinVendedor > 0 ? 'alerta' : 'info',
+      texto: r.vendedores.nota,
     })
   }
 

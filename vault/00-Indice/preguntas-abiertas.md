@@ -1,7 +1,7 @@
 ---
 tipo: preguntas
 estado: verificado
-actualizado: 2026-08-31
+actualizado: 2026-09-28
 tags: [preguntas, pendientes, riesgo]
 archivos:
   - apps/web/lib/server/
@@ -420,6 +420,44 @@ coincidir. **¿Se extrae a una constante compartida?**
 
 Habla de `apps/api` (Fastify+Prisma), `/var/www/spaces-dooh` y despliegue
 automático en cada push. **¿Se reescribe o se marca como histórico?**
+
+### P19 · El vendedor que se va, ¿se lleva su atribución? (VEND-01, 2026-09-28)
+
+`propuestas.usuario_id` es **`on delete set null`** —el criterio de las otras
+cinco FK hacia `usuarios`, y lo único que deja que `borrarUsuario()` siga
+funcionando—. Consecuencia: **borrar a un vendedor convierte sus propuestas en
+«Sin vendedor»**, indistinguibles del histórico.
+
+En la práctica la baja es **lógica** (`usuarios.activo`) y esa **no toca nada**:
+el reporte lee también a los dados de baja, a propósito, porque filtrarlos
+reescribiría la historia según el estado de hoy.
+
+**Pregunta:** ¿hace falta conservar el nombre del vendedor cuando la fila se
+borra de verdad, como hace `acciones.usuario_nombre`? Cuesta una columna
+denormalizada —una segunda verdad que envejece cuando alguien corrige un
+nombre—, así que no se hizo sin preguntarlo. Ver [[02-Backend/vendedor-en-propuesta]].
+
+### P20 · ¿Tiene que salir el vendedor que NO vendió nada en el periodo?
+
+La dimensión `vendedor` lista **solo a quien tuvo movimiento**. Es lo contrario
+de `entidad`, donde salen todas las razones sociales aunque estén en cero,
+porque son un puñado y usuarios puede haber decenas —la mitad de operaciones y
+finanzas—.
+
+**Pregunta:** ¿quiere el dueño ver también, en cero, a los comerciales sin
+ventas en el periodo? Si la respuesta es sí, hace falta además decidir **qué
+usuario cuenta como vendedor** (¿por rol `COMERCIAL`? ¿el que tenga alguna
+propuesta alguna vez?), y esa segunda pregunta es la cara.
+
+### P21 · La FK de `usuario_id` es PLANA, y debería ser compuesta
+
+`propuestas_usuario_id_fkey` apunta a `usuarios(id)` y no a la pareja
+`(id, tenant_id)` que el **ADR del 18/09** (`20260918_entidad_tenant_compuesto.sql`)
+estableció como la forma correcta. **No es un olvido:** esa sintaxis exige
+**PostgreSQL 15** y **g500 corre 14.24**, así que el guard del runner pararía su
+cola entera. Se documenta en la cabecera de la migración con las tres razones.
+
+**Acción, no pregunta:** cuando toda la flota esté en 15, repuntarla.
 
 ## Cómo usar esta lista
 

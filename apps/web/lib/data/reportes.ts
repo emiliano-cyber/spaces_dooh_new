@@ -65,7 +65,7 @@ import { costoDeOt } from '../costos-ot'
 // y el controller valida con zod contra esta misma lista: dos declaraciones
 // —una en el motor y otra en el validador— dejarían un enum que acepta una
 // dimensión sin motor, o un motor que nadie puede pedir.
-export const DIMENSIONES_REPORTE = ['sitio', 'trimestre', 'operacion', 'm2', 'luz', 'entidad', 'tarifa'] as const
+export const DIMENSIONES_REPORTE = ['sitio', 'trimestre', 'operacion', 'm2', 'luz', 'entidad', 'tarifa', 'vendedor'] as const
 export type DimensionReporte = (typeof DIMENSIONES_REPORTE)[number]
 
 // Las dos granularidades que admite un reporte de dinero. Son un subconjunto de
@@ -163,7 +163,14 @@ export interface FilaRentabilidad {
    * entero existe para no tener números que mienten sin dar error.
    */
   saldoAtribuido?: number
-  /** Qué parte de la facturación del periodo emitió esta razón social. */
+  /**
+   * Qué parte de la facturación del periodo trajo esta fila.
+   *
+   * Lo comparten `entidad` («qué parte emitió esta razón social») y `vendedor`
+   * («qué parte vendió esta persona»). Es el mismo cociente sobre el mismo
+   * total, así que es el mismo campo: dos campos con la misma cuenta acabarían
+   * dando dos porcentajes del mismo periodo.
+   */
   pctDelIngreso?: number | null
 
   // ─── Solo en `luz` ──────────────────────────────────────────────────────
@@ -250,6 +257,72 @@ export interface ReporteRentabilidad {
   atribucion?: AtribucionEntidad
   /** Solo en `tarifa`: cuánto del periodo se pudo comparar y cuánto no. */
   tarifas?: CoberturaTarifa
+  /** Solo en `vendedor`: cuánto del periodo tiene vendedor y cuánto no. */
+  vendedores?: CoberturaVendedor
+}
+
+/**
+ * Qué parte del periodo se puede poner a nombre de un VENDEDOR, y qué parte no.
+ *
+ * Hermana de `ExclusionesM2`, `CoberturaEnergia`, `AtribucionEntidad` y
+ * `CoberturaTarifa`, y por el mismo motivo: un reporte que mide solo lo que sabe
+ * medir y lo presenta como el negocio entero MIENTE SIN DAR ERROR. Aquí además
+ * mide a PERSONAS, y por eso el hueco tiene que verse con su importe.
+ *
+ * El hueco tiene DOS causas, y NO se funden en un número porque una se arregla
+ * y la otra no:
+ *
+ *  1. **La campaña nació en Comercial**, sin propuesta. No hay a quién
+ *     atribuirla, y la columna no existe en `campanas` a propósito: estampar
+ *     ahí a quien la tecleó le acreditaría una venta a un operador. Se arregla
+ *     vendiendo por propuesta, y por eso se cuenta aparte.
+ *
+ *  2. **La propuesta es HISTÓRICA**: existe, pero su `usuario_id` es nulo
+ *     porque se capturó antes del 2026-09-28. Eso **no se puede recuperar**: la
+ *     bitácora `acciones` guarda el NOMBRE de la propuesta como texto libre, no
+ *     su id, así que ni un backfill a mano podría casarlos sin inventar. Decir
+ *     solo «sin vendedor» invitaría a buscar en los papeles un dato que no
+ *     existe en ninguna parte.
+ *
+ * (Y una tercera que cuenta como la segunda: el vendedor se borró. La FK es
+ * `on delete set null`, así que su propuesta queda indistinguible de una
+ * histórica — ver `20260928_vendedor_en_propuesta.sql`.)
+ */
+export interface CoberturaVendedor {
+  /** Reservas del rango que se pueden poner a nombre de alguien. */
+  reservasConVendedor: number
+  /** Las que no. Es la suma de las dos causas de abajo. */
+  reservasSinVendedor: number
+  /** Causa 1: su campaña nació en Comercial y nunca tuvo propuesta. */
+  reservasSinPropuesta: number
+  /** Causa 2: su propuesta existe y no sabe de quién. NO se puede recuperar. */
+  reservasDePropuestaSinVendedor: number
+  /** Ingreso del periodo que no se puede poner a nombre de nadie. */
+  ingresoSinVendedor: number
+  /** Frase lista para pintar: el número no debe aparecer sin su porqué. */
+  nota: string
+}
+
+/**
+ * Un VENDEDOR: un usuario de ESTA organización al que se le puede atribuir una
+ * propuesta.
+ *
+ * La lista sale de `usuarios` filtrada por tenant. Un `usuario_id` que no esté
+ * aquí —porque apunta a otra organización, o porque la fila se borró— cae en
+ * «Sin vendedor» y NI SU ID SE PINTA: un identificador crudo en una tabla de
+ * dinero es peor que decir que falta. Mismo criterio que `entidadDeReserva`.
+ */
+export interface VendedorReporte {
+  id: string
+  nombre: string
+  /** Lo que la persona es en la organización. Se pinta como detalle de la fila. */
+  cargo: string | null
+}
+
+/** El puente campaña → vendedor. `usuarioId` nulo = propuesta histórica. */
+export interface VendedorDeCampana {
+  campanaId: string
+  usuarioId: string | null
 }
 
 /**
@@ -437,6 +510,17 @@ export interface DatosRentabilidad extends DatosAtribucion {
    * dimensión `tarifa` lo DECLARA en vez de salir vacía.
    */
   tarifasPublicadas?: TarifaPublicada[]
+  /** Los usuarios de ESTA organización. Ausente = todo cae en «Sin vendedor». */
+  vendedores?: VendedorReporte[]
+  /**
+   * Una entrada por campaña NACIDA DE PROPUESTA, con el vendedor de esa
+   * propuesta o `null` si es histórica.
+   *
+   * Que una campaña NO esté en esta lista significa otra cosa que estar con
+   * `usuarioId: null`: la primera nació en Comercial y nunca tuvo propuesta; la
+   * segunda la tuvo y no sabe de quién. La cobertura las cuenta por separado.
+   */
+  vendedorDeCampana?: VendedorDeCampana[]
   reservas: ReservaReporte[]
   ordenesTrabajo: OtReporte[]
   /** Costo por tipo de OT de ESTE tenant. Vacío = manda `COSTOS_OT_RESPALDO`. */
@@ -854,12 +938,39 @@ interface PorTarifa {
   sinTarifa: number
 }
 
+/**
+ * Lo que la matriz acumula por VENDEDOR, en el mismo recorrido que por pantalla
+ * y por razón social. Clave `''` = sin vendedor.
+ *
+ * Los tres importes viajan juntos y no en una sola suma porque la pregunta son
+ * dos: cuánto vendió (`ingreso`, TODO lo suyo) y cuánto descuento concedió
+ * (`ingresoLista − ingresoComparable`, solo de lo que se puede comparar). Y son
+ * distintos: una parte de lo que vendió puede no tener tarifa publicada
+ * congelada, y restarla contra `ingreso` daría un descuento hasta NEGATIVO
+ * —que se leería como haber cobrado por encima de la tarifa— sin dar error. Es
+ * el mismo cuidado que `ingresoComparable` en `tarifa`.
+ *
+ * Los recuentos son de RESERVAS y se hacen fuera del bucle de buckets: dentro se
+ * contarían una vez por periodo que la reserva toca, y una campaña anual saldría
+ * como doce ventas sin vendedor. Mismo cuidado que `reservasSinEmisora`.
+ */
+interface PorVendedor {
+  ingreso: Map<string, number>
+  ingresoLista: Map<string, number>
+  ingresoComparable: Map<string, number>
+  conVendedor: number
+  sinPropuesta: number
+  dePropuestaSinVendedor: number
+}
+
 interface Matriz {
   buckets: Bucket[]
   /** Los mismos importes, pivotados por razón social. Ver `PorEntidad`. */
   porEntidad: PorEntidad
   /** Cuántas reservas del rango se pudieron comparar. Ver `PorTarifa`. */
   porTarifa: PorTarifa
+  /** Los mismos importes, pivotados por quién vendió. Ver `PorVendedor`. */
+  porVendedor: PorVendedor
   /** Una fila por pantalla, alineada con `buckets`. */
   porSitio: Map<string, Celda[]>
   /** El contrato que gobernó cada pantalla en el rango (el más reciente). */
@@ -1009,6 +1120,54 @@ function matriz(datos: DatosRentabilidad, opts: OpcionesReporte): Matriz {
     }
   }
 
+  // ─── El VENDEDOR de cada reserva, decidido UNA sola vez ──────────────────
+  //
+  // El puente es `reserva → campaña → propuesta → usuario`, ya resuelto por el
+  // repo. Hay TRES estados y los tres significan cosas distintas:
+  //
+  //   · la campaña NO está en el mapa  → nació en Comercial, nunca tuvo
+  //     propuesta. Se arregla vendiendo por propuesta.
+  //   · está, con `usuarioId` nulo     → propuesta HISTÓRICA (o vendedor
+  //     borrado). NO se puede recuperar: la bitácora guarda el nombre de la
+  //     propuesta, no su id.
+  //   · está, con un id que no es de   → se trata como el anterior. Pintar un
+  //     esta organización                id crudo en una tabla de dinero es
+  //                                      peor que decir que falta, y sería
+  //                                      filtrar un identificador ajeno.
+  //
+  // Los dos primeros se cuentan por separado porque el aviso de cobertura los
+  // dice por separado: fundirlos invitaría a buscar en los papeles un dato que
+  // en la mitad de los casos no existe en ninguna parte.
+  const vendedorDeCampana = new Map<string, string | null>()
+  for (const v of datos.vendedorDeCampana ?? []) vendedorDeCampana.set(v.campanaId, v.usuarioId)
+  const idsDeVendedor = new Set((datos.vendedores ?? []).map((v) => v.id))
+
+  const vendedorDeReserva = new Map<ReservaReporte, string>()
+  const porVendedor: PorVendedor = {
+    ingreso: new Map(),
+    ingresoLista: new Map(),
+    ingresoComparable: new Map(),
+    conVendedor: 0,
+    sinPropuesta: 0,
+    dePropuestaSinVendedor: 0,
+  }
+  for (const r of datos.reservas) {
+    if (r.estatus === 'CANCELADA') continue
+    if (!r.campanaId || !vendedorDeCampana.has(r.campanaId)) {
+      vendedorDeReserva.set(r, CLAVE_SIN_ASIGNAR)
+      porVendedor.sinPropuesta += 1
+      continue
+    }
+    const u = vendedorDeCampana.get(r.campanaId)
+    if (u && idsDeVendedor.has(u)) {
+      vendedorDeReserva.set(r, u)
+      porVendedor.conVendedor += 1
+    } else {
+      vendedorDeReserva.set(r, CLAVE_SIN_ASIGNAR)
+      porVendedor.dePropuestaSinVendedor += 1
+    }
+  }
+
   // Se cuentan las reservas SIN emisora una sola vez, fuera del bucle de
   // buckets: dentro se contarían una vez por periodo que la reserva toca, y una
   // campaña anual saldría como doce reservas sin emisora.
@@ -1060,6 +1219,18 @@ function matriz(datos: DatosRentabilidad, opts: OpcionesReporte): Matriz {
         if (lista != null) {
           celda.ingresoLista += lista * (dentroDelBucket / diasTotales)
           celda.ingresoComparable += parte
+        }
+
+        // Y LA MISMA parte, pivotada por quien la vendió. Aquí dentro y no en
+        // otra pasada, por lo mismo que `porEntidad`: el prorrateo por días es
+        // una aritmética delicada y dos copias divergen el día que una cambie.
+        // Aquí divergir significaría que el reporte por pantalla y el reporte
+        // por vendedor dieran dos ventas distintas del mismo mes.
+        const v = vendedorDeReserva.get(r) ?? CLAVE_SIN_ASIGNAR
+        suma(porVendedor.ingreso, v, parte)
+        if (lista != null) {
+          suma(porVendedor.ingresoLista, v, lista * (dentroDelBucket / diasTotales))
+          suma(porVendedor.ingresoComparable, v, parte)
         }
       }
 
@@ -1197,11 +1368,25 @@ function matriz(datos: DatosRentabilidad, opts: OpcionesReporte): Matriz {
   }
 
   // Se redondea al salir, igual que las celdas: los segmentos se suman en crudo.
-  for (const m of [porEntidad.ingreso, porEntidad.espacio]) {
+  for (const m of [
+    porEntidad.ingreso,
+    porEntidad.espacio,
+    porVendedor.ingreso,
+    porVendedor.ingresoLista,
+    porVendedor.ingresoComparable,
+  ]) {
     for (const [k, v] of m) m.set(k, centavos(v))
   }
 
-  return { buckets, porSitio, porEntidad, porTarifa, contratoDelPeriodo, energiaSinDestino }
+  return {
+    buckets,
+    porSitio,
+    porEntidad,
+    porTarifa,
+    porVendedor,
+    contratoDelPeriodo,
+    energiaSinDestino,
+  }
 }
 
 // ─── De celdas a filas ──────────────────────────────────────────────────────
@@ -2050,6 +2235,215 @@ export function rentabilidadPorTarifa(
     filas,
     totales,
     tarifas: { ...sinNota, nota: notaDeTarifas(sinNota) },
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  8 · `vendedor` — ¿cuánto vendió cada quien, y cuánto descuento concedió?
+// ════════════════════════════════════════════════════════════════════════════
+//
+//  La OCTAVA dimensión, y nació de una pregunta de un dueño: «¿puedo medir los
+//  descuentos que hace cada vendedor?». La auditoría midió la respuesta y no era
+//  que faltara un reporte: FALTABA EL DATO. `propuestas` tenía dieciséis
+//  columnas y ninguna apuntaba a `usuarios`; `campanas` veintitrés y tampoco.
+//  El `usuario_id` de todo el esquema vivía en `sesiones` y en la bitácora.
+//
+//  La columna la añade `20260928_vendedor_en_propuesta.sql` y la estampa
+//  `propuestas-repo.ts` DESDE LA SESIÓN, nunca desde el cuerpo de la petición.
+//  Aquí eso llega ya resuelto: este motor no sabe de cookies.
+// ════════════════════════════════════════════════════════════════════════════
+
+function notaDeVendedores(c: Omit<CoberturaVendedor, 'nota'>): string {
+  const pesos = (v: number) =>
+    v.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 })
+
+  // Primero QUÉ ES la brecha, y hace falta SIEMPRE —aunque no falte ni una
+  // atribución—: sin esa frase la columna «Descuento y comisión» se lee como si
+  // el vendedor hubiera regalado toda la diferencia, cuando dentro va la
+  // comisión de agencia, que no la concede él. Mismo criterio que
+  // `saldoAtribuido` en `entidad` y que la nota de `tarifa`.
+  const partes = [
+    'La diferencia entre la tarifa publicada y el neto es el descuento comercial MÁS ' +
+      'la comisión de agencia: las dos se congelan juntas en la propuesta y el dato no ' +
+      'las separa. No es todo rebaja que el vendedor concediera.',
+  ]
+
+  // Y después el hueco, con sus DOS causas separadas: una se arregla y la otra
+  // no, y confundirlas manda a alguien a buscar en los papeles un dato que no
+  // existe en ninguna parte.
+  const total = c.reservasConVendedor + c.reservasSinVendedor
+  if (c.reservasSinVendedor > 0) {
+    const causas: string[] = []
+    if (c.reservasSinPropuesta > 0) {
+      causas.push(
+        `${c.reservasSinPropuesta} de campañas creadas directamente en Comercial, que nunca ` +
+          'tuvieron propuesta y por tanto no tienen a quién atribuirse',
+      )
+    }
+    if (c.reservasDePropuestaSinVendedor > 0) {
+      causas.push(
+        `${c.reservasDePropuestaSinVendedor} de propuestas anteriores al 2026-09-28, cuando ` +
+          'todavía no se guardaba quién las hacía: ese dato NO SE PUEDE RECUPERAR —la bitácora ' +
+          'guarda el nombre de la propuesta, no su identificador— así que esas ventas se quedan ' +
+          'sin vendedor para siempre',
+      )
+    }
+    partes.push(
+      `${c.reservasSinVendedor} de las ${total} ` +
+        (total === 1 ? 'reserva' : 'reservas') +
+        ` del periodo salen en «Sin vendedor» (${pesos(c.ingresoSinVendedor)} de ingreso): ` +
+        causas.join('; ') +
+        '.',
+    )
+    partes.push(
+      'Esas filas salen con una raya y no con un cero: un cero en «Descuento y comisión» ' +
+        'afirmaría que no se concedió ninguno.',
+    )
+  }
+  return partes.join(' ')
+}
+
+/**
+ * Una fila por vendedor: **cuánto vendió y cuánto descuento concedió.**
+ *
+ * Pivota la matriz por QUIÉN vendió, igual que `entidad` la pivota por a nombre
+ * de quién se emite. El reparto lo hace `matriz()` en el mismo recorrido que las
+ * celdas y con la misma aritmética, así que esta función solo ordena y etiqueta:
+ * no calcula dinero. Ver `PorVendedor`.
+ *
+ * ─── Las CUATRO decisiones que la definen ────────────────────────────────
+ *
+ *  1. NO PINTA COSTO NI MARGEN, y es la tercera que no parte de `COMUNES`,
+ *     junto a `entidad` y `tarifa`. La renta que se le paga al arrendador y las
+ *     visitas a la pantalla no las decide el vendedor: un «margen de Ana» sería
+ *     un número que mide a una persona por el precio de un contrato de
+ *     arrendamiento que ella no negoció. Lo que se pinta es lo que sí es suyo:
+ *     lo que vendió, y la distancia entre lo publicado y lo que entró.
+ *
+ *  2. LO QUE NO SE PUEDE COMPARAR SALE CON RAYA, NUNCA CON CERO. Un cero en
+ *     «Descuento y comisión» afirma que esa persona no concedió ninguno. Una
+ *     raya dice que no se sabe. En un reporte que mide a personas la diferencia
+ *     entre las dos cosas es el bono de alguien.
+ *
+ *  3. «SIN VENDEDOR» VA SIEMPRE AL FINAL Y CON SU IMPORTE. Es el histórico —y
+ *     lo nacido en Comercial—, no un competidor del ranking: con el arrastre de
+ *     antes del 2026-09-28 dentro puede ser la fila más grande de la tabla, y
+ *     ordenada por ingreso saldría la primera leyéndose como el mejor vendedor.
+ *     El aviso de cobertura dice cuánto es, por qué, y que una de las dos causas
+ *     no se puede arreglar.
+ *
+ *  4. SOLO SALEN LOS QUE VENDIERON EN EL PERIODO. No se lista la plantilla: la
+ *     pregunta es «cuánto vendió cada quien», no «quién trabaja aquí», y la
+ *     mitad de los usuarios de una organización son operaciones y finanzas. Es
+ *     lo contrario de `entidad`, donde las razones sociales son un puñado y la
+ *     que no mueve dinero tiene que verse.
+ *
+ * Los TOTALES son los del negocio completo, idénticos a los de `sitio`: cambiar
+ * de agrupador no puede cambiar las cifras grandes de arriba.
+ */
+export function rentabilidadPorVendedor(
+  datos: DatosRentabilidad,
+  opts: OpcionesReporte,
+): ReporteRentabilidad {
+  const m = matriz(datos, opts)
+
+  // Los totales del NEGOCIO, las mismas celdas que `sitio`.
+  const totalPorBucket = acumularCeldas([...m.porSitio.values()], m.buckets.length)
+  const totales = sumar(periodosDe(m.buckets, totalPorBucket))
+
+  const {
+    ingreso: ingresoDe,
+    ingresoLista: listaDe,
+    ingresoComparable: comparableDe,
+  } = m.porVendedor
+
+  const fila = (clave: string, etiqueta: string, detalle: string): FilaRentabilidad => {
+    const ingreso = ingresoDe.get(clave) ?? 0
+    const ingresoLista = listaDe.get(clave) ?? 0
+    const ingresoComparable = comparableDe.get(clave) ?? 0
+    // `null` cuando NO hay nada comparable en esta fila. Ver la decisión 2.
+    const hayComparacion = ingresoLista > 0
+    const brecha = hayComparacion ? centavos(ingresoLista - ingresoComparable) : null
+    return {
+      clave,
+      etiqueta,
+      detalle,
+      ingreso,
+      // Los costos van en CERO y NO se pintan: en esta dimensión no se
+      // atribuyen, y ponerlos aquí los repartiría a ojo entre personas. Mismo
+      // criterio que `entidad`, y por eso `margenPct` es `null` SIEMPRE.
+      costoEspacio: 0,
+      costoOperacion: 0,
+      costoEnergia: 0,
+      costoTotal: 0,
+      margen: ingreso,
+      margenPct: null,
+      tieneContrato: false,
+      arrendador: null,
+      periodos: [],
+      visitas: 0,
+      pctDelIngreso: totales.ingreso > 0 ? centavos((ingreso / totales.ingreso) * 100) : null,
+      ingresoLista: hayComparacion ? ingresoLista : null,
+      ingresoComparable: hayComparacion ? ingresoComparable : null,
+      descuentoYComision: brecha,
+      // El denominador es la tarifa PUBLICADA, que es sobre lo que se concede un
+      // descuento. Sobre el neto daría un número mayor —80 de 100 rebajados es
+      // un 20 % de la publicada y un 25 % del neto— y sería el porcentaje de
+      // otra pregunta. Idéntico a `tarifa`, a propósito: las dos columnas se
+      // llaman igual y tienen que significar lo mismo.
+      descuentoYComisionPct:
+        hayComparacion && brecha != null ? centavos((brecha / ingresoLista) * 100) : null,
+    }
+  }
+
+  const filas: FilaRentabilidad[] = []
+  for (const v of datos.vendedores ?? []) {
+    // Decisión 4: solo quien tuvo movimiento. Una persona sin ventas en el
+    // periodo no ensucia el ranking con una fila en blanco.
+    if (!ingresoDe.has(v.id) && !listaDe.has(v.id)) continue
+    filas.push(fila(v.id, v.nombre, v.cargo ?? ''))
+  }
+
+  // Quién vendió más, primero: es la pregunta. A igualdad, quién concedió más
+  // descuento —que es la segunda mitad de la misma pregunta— y después el
+  // nombre, para que el orden sea estable y dos corridas del mismo reporte no
+  // intercambien dos filas empatadas.
+  filas.sort(
+    (a, b) =>
+      b.ingreso - a.ingreso ||
+      (b.descuentoYComision ?? 0) - (a.descuentoYComision ?? 0) ||
+      a.etiqueta.localeCompare(b.etiqueta),
+  )
+
+  // Al final, DESPUÉS del `sort`: no entra en el ranking. Ver la decisión 3.
+  const sinVendedor = ingresoDe.get(CLAVE_SIN_ASIGNAR) ?? 0
+  if (sinVendedor !== 0 || listaDe.has(CLAVE_SIN_ASIGNAR)) {
+    filas.push(
+      fila(
+        CLAVE_SIN_ASIGNAR,
+        'Sin vendedor',
+        'Campañas de Comercial y propuestas anteriores al 2026-09-28',
+      ),
+    )
+  }
+
+  const sinNota: Omit<CoberturaVendedor, 'nota'> = {
+    reservasConVendedor: m.porVendedor.conVendedor,
+    reservasSinVendedor: m.porVendedor.sinPropuesta + m.porVendedor.dePropuestaSinVendedor,
+    reservasSinPropuesta: m.porVendedor.sinPropuesta,
+    reservasDePropuestaSinVendedor: m.porVendedor.dePropuestaSinVendedor,
+    ingresoSinVendedor: centavos(sinVendedor),
+  }
+
+  return {
+    dimension: 'vendedor',
+    granularidad: opts.granularidad,
+    desde: opts.desde,
+    hasta: opts.hasta,
+    periodos: m.buckets,
+    filas,
+    totales,
+    vendedores: { ...sinNota, nota: notaDeVendedores(sinNota) },
   }
 }
 

@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-09-18
+actualizado: 2026-09-28
 tags: [backend, reportes, rentabilidad, finanzas, dinero, contratos, m2, operaciones, rojo]
 archivos:
   - apps/web/lib/data/reportes.ts
@@ -15,12 +15,19 @@ archivos:
 
 # Las cuatro dimensiones de rentabilidad
 
-> [!important] Ya no son cuatro: son SIETE, y esta nota cubre las de COSTO
+> [!important] Ya no son cuatro: son OCHO, y esta nota cubre las de COSTO
 > Al 2026-09-28 el enum trae `sitio · trimestre · operacion · m2 · luz ·
-> entidad · tarifa`. Las dos últimas no son preguntas de costo y tienen nota
-> propia: [[reportes-por-razon-social]] (¿cuánto pasa por cada razón social?) y
-> [[tarifa-publicada-vs-neta]] (¿qué se publicó y qué entró de ello?). El título
-> de esta nota se conserva porque describe exactamente lo que cubre.
+> entidad · tarifa · vendedor`. Las TRES últimas no son preguntas de costo y
+> tienen nota propia: [[reportes-por-razon-social]] (¿cuánto pasa por cada razón
+> social?), [[tarifa-publicada-vs-neta]] (¿qué se publicó y qué entró de ello?) y
+> [[vendedor-en-propuesta]] (¿cuánto vendió cada quien y cuánto descontó?). El
+> título de esta nota se conserva porque describe exactamente lo que cubre.
+>
+> Y las tres comparten una propiedad que conviene ver junta: **ninguna parte de
+> `COMUNES`**. `entidad` porque el costo no se puede atribuir a una razón social,
+> `tarifa` porque la pregunta es de PRECIO y no de costo, y `vendedor` porque las
+> filas son PERSONAS y la renta del arrendador no la decide quien vende.
+> `tabla.luz.test.ts` comprueba que las tres exenciones sean **exactas**.
 
 Complementa a [[02-Backend/reportes-rentabilidad]], que describe el **límite** —
 el endpoint, sus capas, el prorrateo y el aislamiento. Esta nota cubre lo que

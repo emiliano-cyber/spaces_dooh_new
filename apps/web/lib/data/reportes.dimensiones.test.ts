@@ -610,6 +610,12 @@ describe('las dimensiones se declaran UNA sola vez', () => {
       // pantalla en `propuestas.snapshot_economico` desde el 08/07; lo que
       // faltaba era mirarlas.
       'tarifa',
+      // La OCTAVA, del 2026-09-28, y la unica que agrupa por PERSONAS. Tambien
+      // de un dueno: «¿puedo medir los descuentos que hace cada vendedor?». La
+      // auditoria midio la respuesta y no faltaba un reporte, faltaba EL DATO:
+      // `propuestas` tenia 16 columnas y ninguna apuntaba a `usuarios`. La
+      // anade `20260928_vendedor_en_propuesta.sql`.
+      'vendedor',
     ])
   })
 })

@@ -32,6 +32,36 @@ archivos:
 
 # Migraciones
 
+> [!note] 2026-09-28 · `propuestas.usuario_id` — el VENDEDOR (VEND-01)
+> `20260928_vendedor_en_propuesta.sql` — **columna**, no tabla. Aditiva e
+> idempotente: `uuid` **nullable, sin DEFAULT**, FK a `usuarios(id)`
+> **`on delete set null`**, e índice `(usuario_id, tenant_id)`.
+>
+> **Lo que hay que entender de que sea NULLABLE, porque es la decisión:** todo
+> lo capturado antes de hoy queda **sin vendedor para siempre** y no hay de
+> dónde deducirlo —la bitácora `acciones` guarda el NOMBRE de la propuesta como
+> texto libre, no su id—. Rellenarlo con «alguien» convertiría una laguna en una
+> afirmación falsa **sobre dinero**: le acreditaría a una persona las ventas y
+> los descuentos de todos los demás. El reporte sabe pintar el hueco («Sin
+> vendedor», con su importe y su aviso). Mismo criterio que el DEFAULT de tenant
+> que retiró `20260812_sin_default_tenant.sql`.
+>
+> **Y la FK es PLANA a propósito**, contra el criterio del 18/09: la sintaxis
+> compuesta con `on delete set null (columna)` exige **PostgreSQL 15** y la
+> flota no está toda ahí (**g500 corre 14.24**), así que un `@pg-min: 15` más
+> pararía su cola entera. El agujero que cerraría no es alcanzable —`usuario_id`
+> sale de `usuarioActual()`, la misma sesión que da el tenant— y la lectura está
+> filtrada por `tenant_id`. Anotado para repuntarla cuando la flota suba. Ver
+> [[02-Backend/vendedor-en-propuesta]].
+>
+> **Medido, no copiado:** `node scripts/recuentos.mjs` sobre este árbol
+> (`feat/vendedor-en-propuesta`) da **90 migraciones** y **46 tablas** — las
+> tablas no se mueven porque esto es una columna. Y el runner corrido **dos
+> veces seguidas** sobre una base creada para eso (`spaces_vend_mig`,
+> `schema.sql` de base): la primera aplica 89 y sale 0, la segunda dice
+> `0 aplicadas` y sale 0. Verificado además en la base que el DDL prometía:
+> `is_nullable = YES`, `column_default` nulo y `confdeltype = 'n'`.
+
 > [!note] 2026-09-28 · `tope_descuento_pct` — el techo de descuento por organización
 > `20260928_tope_descuento_propuestas.sql` — **columna**, no tabla: una más en
 > `config_negocio`, que es una fila por tenant desde el ADR 0011. Aditiva e

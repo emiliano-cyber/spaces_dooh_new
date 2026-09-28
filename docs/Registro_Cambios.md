@@ -7,6 +7,42 @@ La entrada más reciente va arriba.
 
 ## 2026-09-28
 
+- **Ya puedes ver cuánto vendió cada persona de tu equipo, y cuánto descuento
+  concedió.** En Reportes hay una vista nueva, **«Por vendedor»**: una fila por
+  persona, con lo que vendió en el periodo, qué parte de tu facturación es eso,
+  la tarifa que se publicó, y la diferencia entre las dos.
+
+  **No hay nada que capturar.** Desde hoy, cuando alguien crea una propuesta, el
+  sistema anota que fue esa persona. Se toma de su sesión: no hay una casilla que
+  rellenar, no se puede elegir a otro y no se puede cambiar después. Una venta no
+  se le puede poner a nombre de quien no la hizo.
+
+  **Lo de antes no se puede recuperar, y la pantalla te lo dice.** Hasta hoy el
+  sistema no guardaba quién hacía cada propuesta, así que **todas las propuestas
+  anteriores a hoy salen en una fila llamada «Sin vendedor»**, con su importe.
+  No es un error ni algo que se pueda arreglar capturando: ese dato nunca se
+  escribió en ninguna parte. Encima de la tabla hay un aviso que dice cuánto
+  dinero es y por qué.
+
+  **A partir de hoy esa fila deja de crecer** por ese motivo. Lo que sí seguirá
+  cayendo ahí son las campañas que creas directamente en Comercial, sin pasar por
+  una propuesta: ésas no tienen a quién atribuirse, y el aviso las cuenta aparte
+  precisamente porque **ésas sí** se arreglan, vendiendo por propuesta.
+
+  **Dónde no verás un cero cuando debería haber una raya.** Si de una venta no se
+  puede saber el descuento —porque nació en Comercial, o porque su precio no
+  cuadra con lo que se congeló en la propuesta—, la columna sale con **un guion**,
+  no con un cero. Un cero diría que esa persona no concedió ningún descuento, y
+  eso es una afirmación muy distinta de «no se sabe».
+
+  **Lo que esta vista NO enseña, a propósito:** no hay margen ni costos. La renta
+  que le pagas al arrendador y las visitas de mantenimiento no las decide el
+  vendedor, así que un «margen de fulano» mediría a una persona por el precio de
+  un contrato que no negoció. Para eso está la vista «Por pantalla».
+
+  **Y quien pueda crear propuestas no pasa a poder ver esto.** Sigue siendo un
+  reporte de dinero: hace falta permiso de finanzas, igual que los demás.
+
 - **Ya puedes poner las tarifas de spoteo desde la ficha de la pantalla. Hasta hoy
   había que subir un archivo.** Abres una pantalla en Comercial, y en el bloque
   «Tarifas por unidad» tienes un **Editar**: ahí añades una unidad con su precio

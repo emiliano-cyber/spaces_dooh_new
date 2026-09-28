@@ -79,6 +79,8 @@ export async function datosRentabilidad(rango: RangoReporte): Promise<DatosRenta
     entidades,
     facturas,
     tarifasPublicadas,
+    vendedores,
+    vendedorDeCampana,
     costosOt,
   ] =
     await Promise.all([
@@ -264,6 +266,58 @@ export async function datosRentabilidad(rango: RangoReporte): Promise<DatosRenta
           and p.snapshot_economico is not null`,
       [tenantId],
     ),
+    // Los VENDEDORES: los usuarios de ESTA organización (VEND-01).
+    //
+    // `and tenant_id = $1` es aquí la mitad del aislamiento, y la otra mitad la
+    // pone el motor: un `usuario_id` que apunte fuera NO llega a esta lista, así
+    // que su venta cae en «Sin vendedor» y ni su identificador se pinta. Sin el
+    // filtro, un nombre y un cargo de otra empresa saldrían en una tabla de
+    // dinero — y un reporte con una persona de más se lee perfectamente bien.
+    //
+    // Se leen TAMBIÉN los dados de baja (`activo = false`), por lo mismo que las
+    // razones sociales y los contratos vencidos: un reporte de un periodo pasado
+    // puede tener ventas de alguien que ya no trabaja aquí, y filtrarlo movería
+    // su dinero a «Sin vendedor» — o sea, reescribiría la historia según el
+    // estado de HOY. Ese error ya se pagó dos veces en este módulo.
+    //
+    // NO se filtra por rol. Quién puede crear una propuesta lo decide
+    // `exigir('comercial','crear')` en el route, y repetir esa regla aquí
+    // dejaría fuera del reporte al Dueño que cerró una venta él mismo — dos
+    // implementaciones de la misma regla divergiendo, que es el error de raíz
+    // que este repo documenta en `lib/server/tenant.ts:87-89`.
+    q<any>(
+      `select id, nombre, cargo
+         from usuarios
+        where tenant_id = $1`,
+      [tenantId],
+    ),
+    // El puente campaña → vendedor: `campanas.propuesta_id → propuestas.usuario_id`
+    // (`db/schema.sql:392`, índice `idx_campanas_propuesta` en `:407`, y
+    // `idx_propuestas_usuario` desde `20260928_vendedor_en_propuesta.sql`).
+    //
+    // Es un JOIN y NO una columna en `campanas`, y es la decisión que esta
+    // consulta encarna: copiar el vendedor a la campaña daría DOS verdades sobre
+    // el mismo hecho, y divergirían el día que alguien reasigne una propuesta.
+    // Y para la campaña nacida en Comercial no habría a quién copiar: estampar
+    // ahí a quien la tecleó le acreditaría una venta a un operador.
+    //
+    // La fila SALE aunque `usuario_id` sea nulo, y eso es deliberado: que una
+    // campaña ESTÉ en esta lista con vendedor nulo significa «propuesta
+    // histórica» y que NO esté significa «nació en Comercial». Son dos huecos
+    // distintos —uno se arregla y el otro no— y la cobertura los cuenta aparte.
+    //
+    // El `join` lleva su propio `and p.tenant_id = c.tenant_id` además del
+    // `where`: la RLS ya corta, pero un join sin filtro es la forma en que una
+    // consulta se salta la segunda capa sin que nada falle.
+    q<any>(
+      `select c.id as campana_id, p.usuario_id
+         from campanas c
+         join propuestas p
+           on p.id = c.propuesta_id
+          and p.tenant_id = c.tenant_id
+        where c.tenant_id = $1`,
+      [tenantId],
+    ),
     // El costo por tipo de OT sale de `config_negocio` (una fila por tenant,
     // ADR 0011) por su función de siempre, no por una consulta propia: el
     // invariante dice que quien lee esa tabla usa la consulta CON tenant.
@@ -340,6 +394,19 @@ export async function datosRentabilidad(rango: RangoReporte): Promise<DatosRenta
         }
       })
       .filter((t) => t.porSitio.length > 0),
+    vendedores: vendedores.map((r) => ({
+      id: r.id,
+      nombre: r.nombre,
+      cargo: r.cargo ?? null,
+    })),
+    vendedorDeCampana: vendedorDeCampana.map((r) => ({
+      campanaId: r.campana_id,
+      // `?? null` y no el valor crudo: el driver entrega `null` para una columna
+      // vacía, pero un `undefined` haría que `usuarioId` desapareciera del
+      // objeto y `vendedorDeCampana.has()` seguiría diciendo que sí — que es
+      // justo la distinción que separa el histórico de lo nacido en Comercial.
+      usuarioId: r.usuario_id ?? null,
+    })),
     reservas: reservas.map((r) => ({
       sitioId: r.sitio_id,
       campanaId: r.campana_id ?? null,
