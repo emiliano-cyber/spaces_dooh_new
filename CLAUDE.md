@@ -39,18 +39,11 @@ no se versiona configuración de la herramienta. Consecuencia práctica: la bóv
 Markdown puro y **se lee igual desde un editor, desde `cat` o desde un agente**. No
 necesitas instalar nada.
 
-<<<<<<< HEAD
 Al 2026-09-28 tiene **1072 enlaces internos** sobre **84 notas**, con **2
 wikilinks rotos** —los dos apuntan a ADR, que viven en `docs/` y no en la
 bóveda, así que es un choque de convención más que un enlace muerto— y
 **0 notas huérfanas**. Medido con `node scripts/recuentos.mjs` **en este
 árbol**, al cerrar el trabajo y no antes. Las
-=======
-Al 2026-09-28 tiene **1059 enlaces internos** sobre **83 notas**, con **2
-wikilinks rotos** —los dos apuntan a ADR, que viven en `docs/` y no en la
-bóveda, así que es un choque de convención más que un enlace muerto— y
-**0 notas huérfanas**. Las
->>>>>>> feat/tope-descuento
 mediciones previas daban 1056 sobre 83 (25/09), 1045 sobre 82 (24/09), 1148
 sobre 86 (23/09), 1101 sobre 85 (18/09), 753 sobre 57 (28/08), 606 sobre 48
 (17/08) y 395 sobre 43 (10/08).
@@ -122,6 +115,29 @@ código, no de memoria:
 > afirmación con fecha, no como una verdad permanente — §5 explica cómo
 > reverificarlos.
 >
+> [!danger] Y el 2026-09-28 este bloque llego a tener MARCADORES DE CONFLICTO
+> commitados, con DOS cifras incompatibles a la vez
+> Un merge dejo `<<<<<<< HEAD` / `=======` / `>>>>>>>` dentro de este mismo
+> parrafo, afirmando 1072/84 y 1059/83 al mismo tiempo. Estuvo asi en `main`
+> durante dos commits.
+>
+> **Por que no lo vio nadie, que es lo que hay que aprender:**
+>
+> - `git merge` SI lo reporto — pero la salida se miro con `| tail -6` y el
+>   conflicto de este archivo quedo **fuera de la ventana**. Truncar la salida de
+>   un mandato que reporta problemas es como se pierden los problemas.
+> - **`git status` salia limpio**, porque ya estaba commiteado.
+> - **Ninguna prueba mira este archivo.** Las 2120 seguian en verde.
+> - Y encima se edito una cifra **dentro** de la region en conflicto sin ver los
+>   marcadores, lo que dejo el lado de arriba correcto y el de abajo viejo.
+>
+> Lo caza un agente que **lee** este bloque en vez de copiarlo — que es justo lo
+> que este recuadro lleva cinco versiones pidiendo. Y se comprueba en un segundo:
+>
+> ```
+> git grep -l "^<<<<<<< HEAD$"
+> ```
+
 > [!danger] NO LOS ACTUALICES A MANO. Córrelos.
 > ```
 > node scripts/recuentos.mjs
