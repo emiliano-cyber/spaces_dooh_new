@@ -6,6 +6,27 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!important] 2026-09-28 · **Dos decisiones del dueno, para que no se vuelvan a preguntar**
+>
+> **1 · El precio del contrato firmado manda.** Si se edita la tarifa del
+> catalogo y ya hay un contrato firmado, se respeta el del contrato **para ese
+> cliente**. El producto YA lo cumple —el precio viaja congelado de
+> `propuesta_items.precio` a `reservas.precio` y a `facturas.monto`, y ninguna
+> consulta del servidor relee `tarifa_publicada` despues—, y queda medido en
+> **B39** de `docs/Supervision/ABIERTOS.md`.
+>
+> Consecuencia: **editar una tarifa de catalogo no es R4**. Pero la lista de
+> archivos de R4 en `zonas-de-riesgo.md:155` **no se recorta**: `contratos/**`
+> hace mas cosas que editar un precio.
+>
+> **2 · En un lote, se reintenta SOLO lo pendiente**, no el lote entero. Es lo
+> que ya estaba implementado (`lib/cambios-lote.ts`). Hoy los dos caminos darian
+> el mismo resultado porque los valores que viajan son absolutos; la diferencia
+> es que el registro de acciones no dice que una pantalla se edito dos veces
+> cuando se edito una, y que la regla aguanta el dia que el ajuste porcentual se
+> calcule en el servidor.
+
+
 > [!note] 2026-09-25 · las dos de abajo ATERRIZARON el mismo dia
 > Se escribieron cada una en su rama y diciendo «sin fusionar», que era cierto
 > al escribirlas y dejo de serlo al aterrizar. Corregido aqui en vez de dejar

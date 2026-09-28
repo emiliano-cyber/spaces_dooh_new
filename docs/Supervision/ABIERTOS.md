@@ -1350,6 +1350,56 @@ día: es literalmente a dónde se manda el dinero.
 
 ---
 
+#### ~~B39 · ¿Editar la tarifa del catálogo puede cambiar lo que se le cobra a un cliente que ya firmó?~~ — **NO, y queda MEDIDO**
+
+**Abierta y cerrada el 2026-09-28.** Salió al cerrar B38: dos de los ocho puntos
+pegan a `PATCH /api/contratos/[id]`, y `vault/06-Operacion/zonas-de-riesgo.md:155`
+lista `app/api/contratos/**` entre los archivos de **R4 · dinero irreversible**,
+mientras la tabla de B38 los marcaba como «no dinero». La discrepancia estaba
+escrita y nadie la había resuelto.
+
+**La regla, dictada por el dueño el 2026-09-28:**
+
+> Si se edita el precio pero **ya existe un contrato firmado**, se respeta el
+> precio del contrato firmado **para ese cliente**.
+
+**Y el producto ya la cumple.** El precio no se lee en vivo: se **copia** en cada
+escalón y viaja congelado.
+
+| Escalón | Dónde vive | Evidencia |
+|---|---|---|
+| Catálogo | `sitios.tarifa_publicada` | — |
+| Propuesta | `propuesta_items.precio` | columna propia, copiada al armarla |
+| Congelado | *snapshot* | `apps/web/lib/server/campanas-repo.ts:700` |
+| Campaña | `reservas.precio` | `campanas-repo.ts:707` |
+| Factura | `campanas.presupuesto_neto` → `facturas.monto` | `finanzas-repo.ts:189` |
+
+**Medido, no deducido:** `grep -rn "tarifa_publicada\|tarifaPublicada"` sobre
+`apps/web/lib/server/*.ts`, excluyendo `sitios-repo.ts`, devuelve **cero**.
+Ninguna consulta del servidor relee el precio del catálogo después de contratar.
+
+Y el propio código lo dice, en `campanas-repo.ts:701`:
+
+> *«La reserva hereda la contratación por tiempo del ítem […] para que la
+> campaña conserve cómo se contrató y no solo el precio.»*
+
+**Consecuencia para la clasificación:** editar una tarifa de catálogo **no es
+mover dinero** — no toca ningún importe ya contratado. Por eso la lectura de B38
+era correcta y los ocho arreglos no necesitaban aprobación de R4.
+
+> [!warning] Lo que NO se hace con esto: recortar la lista de archivos de R4
+> `zonas-de-riesgo.md:155` sigue listando `app/api/contratos/**` entero, y **se
+> queda como está**. Esa ruta hace más cosas que editar un precio —renovar,
+> cancelar, firmar— y **ensanchar una protección es barato mientras que
+> estrecharla no lo es**. Que este caso concreto no sea R4 no convierte en
+> seguros a sus vecinos.
+>
+> **Lo que NO se verificó:** si alguna pantalla recalcula el precio en el
+> navegador al pintar una propuesta ya guardada. La cadena del servidor está
+> medida; el cliente no se auditó entero.
+
+---
+
 ### B · ii — Críticas por CALENDARIO (no hay fallo silencioso; aprieta la fecha)
 
 #### ~~B23 · 🟠 **El arreglo de los checksums funcionó, y por eso la base de demostración del SUMMIT dejó de aceptar migraciones.** Pasó de 0 divergencias a 80~~
