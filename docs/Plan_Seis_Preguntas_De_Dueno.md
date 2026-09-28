@@ -125,14 +125,32 @@ hoy no habría por dónde entregarlo. **Fuera de alcance para el 14/10.**
 **Lo bueno, y es real:** `sitio_modalidades` permite **una tarifa distinta por
 unidad para cada pantalla**, con `unique (sitio_id, unidad)`. El camino completo
 funciona: en Propuestas eliges «Por spot», aparece un input de cantidad, tecleas
-**50**, y el precio sale `tarifa_spot × 50`, recalculado en el servidor sin fiarse
-del cliente.
+**50**, y el precio sale `tarifa_spot × 50`.
+
+> [!danger] CORRECCIÓN del 2026-09-28 · lo de «sin fiarse del cliente» era medio
+> falso, y lo escribí yo
+> Este párrafo afirmaba que el precio se recalcula en el servidor **sin fiarse del
+> cliente**. Al construir la captura de modalidades se midió el código de cerca y
+> **es medio cierto**: `apps/web/lib/server/propuestas-controller.ts:85-89`
+> recalcula la **cantidad** y la **multiplicación**, pero toma la
+> **`tarifaUnitaria` tal como la manda el cliente**.
+>
+> Consecuencia: **un `curl` puede cotizar un spot a $1.** No lo revalida nada
+> contra `sitio_modalidades`.
+>
+> Es el mismo tipo de agujero que el tope de descuento —confiar en lo que llega de
+> la pantalla para algo que es dinero— y cuesta parecido: **media jornada**.
+> Debería entrar antes del 14/10 junto con el tope.
 
 **Tres límites que hay que decir:**
 
-1. **Las modalidades solo se capturan por archivo.** Ningún formulario las manda;
-   la ficha solo las **muestra**. Para poner tus tarifas de spoteo hoy hay que
-   importar un CSV.
+1. ~~**Las modalidades solo se capturan por archivo.**~~ **RESUELTO el
+   2026-09-28** (`b3322aa`): se editan desde la ficha, por una ruta propia
+   —`PATCH /api/sitios/:id/modalidades`— que es **sensible entera** y pide
+   contraseña. Se eligió ruta propia en vez de añadirla a la lista blanca de
+   campos sensibles, y el motivo aguanta releerlo: **una lista blanca protege lo
+   que alguien se acordó de escribir**, y la próxima tarifa por unidad que alguien
+   añada no daría ningún error al quedarse fuera.
 2. **El 50 no se ve después.** El detalle de la propuesta no tiene columna de
    unidad ni cantidad, la lectura de la reserva no expone esos campos, y **la
    factura es un importe único sin conceptos**.
