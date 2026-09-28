@@ -429,6 +429,13 @@ class Monitor(
             // Si Android le niega la camara en segundo plano, la vuelta no ve nada
             // y hay que decirlo: si no, el dashboard solo muestra "no se pudo juzgar".
             .put("camara_permitida", com.spaceeye.agent.service.MonitorService.camaraDeclarada())
+            // Lo que midio cada gabinete, relativo a uno sano (fila por fila). Son
+            // unos 200 bytes; sirven para ajustar los umbrales con lo que ve la
+            // camara real y no con fotos de prueba.
+            .apply {
+                resultado?.actividad?.let { a -> put("actividad", JSONArray(a.map { f -> JSONArray(f.map { Math.round(it * 100) / 100.0 }) })) }
+                resultado?.brillo?.let { b -> put("brillo", JSONArray(b.map { f -> JSONArray(f.map { Math.round(it * 100) / 100.0 }) })) }
+            }
             .put("zonas", JSONArray(resultado?.zonas?.map { JSONArray(listOf(it.tipo, it.fila, it.columna, it.confianza)) } ?: emptyList<JSONArray>()))
             .put("excluidas", JSONArray(seguimiento.excluidas().map { JSONArray(listOf(it.first, it.second)) })))
 

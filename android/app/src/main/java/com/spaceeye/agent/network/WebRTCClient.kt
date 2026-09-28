@@ -434,7 +434,19 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
      * ya enfoco y midio la luz. null si no se pudo (o si mientras tanto alguien
      * abrio la vista en vivo, que manda).
      */
-    private fun abrirSinVistaEnVivo(listo: (ImageCapture?) -> Unit) {
+    private fun abrirSinVistaEnVivo(listo: (ImageCapture?) -> Unit) = abrirSinVistaEnVivo(false, listo)
+
+    /**
+     * @param fijarExposicion al terminar de enfocar y medir la luz, fija la
+     *   exposicion y el balance de blancos (solo la vigilancia). Si no, la camara
+     *   reajusta el brillo de TODA la foto cada vez que el anuncio pasa de oscuro a
+     *   claro, y una zona que no cambia (un gabinete congelado, algo delante)
+     *   parece cambiar con ella: en la prueba del 28-sep la ventana que tapaba un
+     *   tercio de la pantalla no alarmaba por eso. En 4 minutos la luz del sitio
+     *   casi no cambia; cada vuelta vuelve a medir desde cero.
+     */
+    @OptIn(markerClass = [ExperimentalCamera2Interop::class])
+    private fun abrirSinVistaEnVivo(fijarExposicion: Boolean, listo: (ImageCapture?) -> Unit) {
         mainExecutor.execute {
             if (isStreaming()) { listo(null); return@execute }
             try {
@@ -445,8 +457,19 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
                 // en la vista en vivo. No se codifican ni se transmiten.
                 h.startListening { _ -> }
                 auxiliar = h
-                vincular(h, { _, ic ->
+                vincular(h, { cam, ic ->
                     Handler(Looper.getMainLooper()).postDelayed({
+                        if (fijarExposicion && auxiliar === h) {
+                            try {
+                                Camera2CameraControl.from(cam.cameraControl).captureRequestOptions =
+                                    CaptureRequestOptions.Builder()
+                                        .setCaptureRequestOption(CaptureRequest.CONTROL_AE_LOCK, true)
+                                        .setCaptureRequestOption(CaptureRequest.CONTROL_AWB_LOCK, true)
+                                        .build()
+                            } catch (e: Exception) {
+                                Log.w(TAG, "no se pudo fijar la exposicion: ${e.message}")
+                            }
+                        }
                         listo(if (auxiliar === h && !isStreaming()) ic else null)
                     }, ESPERA_ENFOQUE_MS)
                 }, { e ->
@@ -631,7 +654,7 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
 
     /** Abre la sesion de vigilancia, igual que la vista en vivo. false si no pudo. */
     fun abrirVigilancia(onListo: (Boolean) -> Unit) {
-        abrirSinVistaEnVivo { imgCap ->
+        abrirSinVistaEnVivo(fijarExposicion = true) { imgCap ->
             capturaVigilancia = imgCap
             onListo(imgCap != null)
         }
