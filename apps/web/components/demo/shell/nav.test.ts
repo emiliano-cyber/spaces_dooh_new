@@ -99,6 +99,42 @@ describe('3 · los grupos son coherentes', () => {
   })
 })
 
+describe('3 bis · Creativos se alcanza DESDE COMERCIAL (2026-09-28)', () => {
+  // La pregunta literal de un dueño fue «¿puedo programar las pautas desde el
+  // módulo de ventas?», y hasta hoy la respuesta era NO: la pantalla existía,
+  // funcionaba y la abrían DUEÑO y COMERCIAL — pero colgaba del encabezado
+  // «Operaciones», y no había ningún enlace desde Propuestas ni desde Comercial.
+  // No faltaba función: faltaba puerta.
+  //
+  // Se movió de grupo en vez de duplicar la entrada. Duplicarla es IMPOSIBLE sin
+  // romper el producto, no solo esta prueba: §4 exige claves y rutas únicas, y
+  // `AuthGate` empareja por `href`, así que dos entradas con la misma ruta se
+  // encenderían las dos a la vez.
+  const creativos = NAV.find((n) => n.key === 'creativos')
+
+  it('la entrada existe y la ven Dueño y Comercial', () => {
+    expect(creativos).toBeDefined()
+    expect(creativos?.roles).toEqual(['DUENO', 'COMERCIAL'])
+  })
+
+  it('cuelga del grupo «Comercial», que es el que rotula «vender»', () => {
+    expect(creativos?.grupo).toBe('vender')
+    expect(GRUPOS.find((g) => g.key === 'vender')?.titulo).toBe('Comercial')
+  })
+
+  it('va DESPUÉS de Propuestas: la pauta se arma sobre lo vendido', () => {
+    const posicion = (key: string) => NAV.findIndex((n) => n.key === key)
+    expect(posicion('propuestas')).toBeLessThan(posicion('creativos'))
+  })
+
+  it('un COMERCIAL lo ve sin pasar por ningún encabezado de otra área', () => {
+    // Lo que de verdad se pidió: que aparezca bajo «Comercial» para quien
+    // vende. Se mira lo que se pinta, no el arreglo entero.
+    const suyos = paraRol('COMERCIAL').filter((n) => n.grupo === 'vender').map((n) => n.key)
+    expect(suyos).toContain('creativos')
+  })
+})
+
 describe('4 · lo que ya se cumplía y no debe romperse al reordenar', () => {
   it('no hay claves ni rutas repetidas', () => {
     expect(new Set(NAV.map((n) => n.key)).size).toBe(NAV.length)
