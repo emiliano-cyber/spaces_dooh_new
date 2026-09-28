@@ -23,7 +23,15 @@ import { diaComparable, esFechaValida, ordenInvertido } from '@/lib/server/fecha
 //  El contrato del endpoint está en `vault/02-Backend/reportes-rentabilidad.md`.
 // ============================================================================
 
-export type DimensionUI = 'sitio' | 'trimestre' | 'operacion' | 'm2' | 'luz' | 'entidad' | 'tarifa'
+export type DimensionUI =
+  | 'sitio'
+  | 'trimestre'
+  | 'operacion'
+  | 'm2'
+  | 'luz'
+  | 'entidad'
+  | 'tarifa'
+  | 'vendedor'
 export type GranularidadUI = 'mes' | 'trimestre'
 
 export interface FiltrosReporte {
@@ -102,6 +110,20 @@ export const DIMENSIONES_UI: { valor: DimensionUI; label: string; ayuda: string 
     ayuda:
       'Qué tarifa se publicó y qué entró de ella. Lo vendido desde Comercial no tiene tarifa publicada congelada y sale con una raya, no con un cero.',
   },
+  // La OCTAVA, y la única que agrupa por PERSONAS. Sale de la pregunta de un
+  // dueño —«¿puedo medir los descuentos que hace cada vendedor?»— cuya respuesta
+  // no era un reporte que faltaba sino un dato que nadie capturaba: hasta el
+  // 2026-09-28 `propuestas` no apuntaba a `usuarios`.
+  //
+  // La ayuda nombra el histórico DE ENTRADA, antes de que nadie abra la tabla:
+  // es lo primero que va a ver quien la pida hoy, y sin avisar se lee como que
+  // el reporte está roto.
+  {
+    valor: 'vendedor',
+    label: 'Por vendedor',
+    ayuda:
+      'Cuánto vendió cada persona y cuánto descuento concedió. El vendedor es quien crea la propuesta, y se guarda desde el 2026-09-28: lo anterior sale en «Sin vendedor» y no se puede recuperar.',
+  },
 ]
 
 // `dia` y `semana` existen en `Granularidad` para la gráfica de ocupación y NO
@@ -129,6 +151,7 @@ const SUSTANTIVO_FILA: Record<DimensionUI, { singular: string; plural: string }>
   m2: { singular: 'pantalla', plural: 'pantallas' },
   luz: { singular: 'pantalla', plural: 'pantallas' },
   tarifa: { singular: 'pantalla', plural: 'pantallas' },
+  vendedor: { singular: 'vendedor', plural: 'vendedores' },
 }
 
 export function sustantivoFila(d: DimensionUI): { singular: string; plural: string } {

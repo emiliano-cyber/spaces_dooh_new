@@ -77,7 +77,7 @@ describe('1 · la pantalla pide sus numeros al endpoint, no al store', () => {
 })
 
 describe('2 · las dimensiones del contrato estan declaradas', () => {
-  it('declara las SIETE, en el mismo orden del contrato', () => {
+  it('declara las OCHO, en el mismo orden del contrato', () => {
     // `luz` entra el 2026-09-18 con el consumo electrico, y es la quinta.
     expect(DIMENSIONES_UI.map((d) => d.valor)).toEqual([
       'sitio',
@@ -95,6 +95,12 @@ describe('2 · las dimensiones del contrato estan declaradas', () => {
       // pantalla en `propuestas.snapshot_economico` desde el 08/07; lo que
       // faltaba era mirarlas.
       'tarifa',
+      // La OCTAVA, del 2026-09-28, y la unica que agrupa por PERSONAS. Tambien
+      // de un dueno: «¿puedo medir los descuentos que hace cada vendedor?». La
+      // auditoria midio la respuesta y no faltaba un reporte, faltaba EL DATO:
+      // `propuestas` tenia 16 columnas y ninguna apuntaba a `usuarios`. La
+      // anade `20260928_vendedor_en_propuesta.sql`.
+      'vendedor',
     ])
   })
 

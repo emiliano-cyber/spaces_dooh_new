@@ -33,27 +33,35 @@ En `docs/` viven: los **ADR** (`docs/adr/`, van por la **0038**), los **planes**
 
 ### Qué es, técnicamente
 
-**84 notas Markdown** en `vault/`, enlazadas entre sí con wikilinks. Está pensada
+**85 notas Markdown** en `vault/`, enlazadas entre sí con wikilinks. Está pensada
 para abrirse con Obsidian, pero **no hay carpeta `.obsidian/` en el repositorio**:
 no se versiona configuración de la herramienta. Consecuencia práctica: la bóveda es
 Markdown puro y **se lee igual desde un editor, desde `cat` o desde un agente**. No
 necesitas instalar nada.
 
-<<<<<<< HEAD
-Al 2026-09-28 tiene **1072 enlaces internos** sobre **84 notas**, con **2
+Al 2026-09-28 tiene **1095 enlaces internos** sobre **85 notas**, con **2
 wikilinks rotos** —los dos apuntan a ADR, que viven en `docs/` y no en la
 bóveda, así que es un choque de convención más que un enlace muerto— y
 **0 notas huérfanas**. Medido con `node scripts/recuentos.mjs` **en este
 árbol**, al cerrar el trabajo y no antes. Las
-=======
-Al 2026-09-28 tiene **1059 enlaces internos** sobre **83 notas**, con **2
-wikilinks rotos** —los dos apuntan a ADR, que viven en `docs/` y no en la
-bóveda, así que es un choque de convención más que un enlace muerto— y
-**0 notas huérfanas**. Las
->>>>>>> feat/tope-descuento
-mediciones previas daban 1056 sobre 83 (25/09), 1045 sobre 82 (24/09), 1148
+mediciones previas daban 1072 sobre 84 y 1059 sobre 83 (28/09), 1056 sobre 83 (25/09), 1045 sobre 82 (24/09), 1148
 sobre 86 (23/09), 1101 sobre 85 (18/09), 753 sobre 57 (28/08), 606 sobre 48
 (17/08) y 395 sobre 43 (10/08).
+
+> [!danger] 2026-09-28 · este bloque llegó a `main` CON LOS MARCADORES DE CONFLICTO DENTRO
+> El merge `a9ec0cc` (`feat/tope-descuento`) dejó commitados en este archivo un
+> `<<<<<<< HEAD`, un `=======` y un `>>>>>>> feat/tope-descuento` **alrededor
+> justo de este párrafo**, con dos recuentos incompatibles a la vez —1072 sobre
+> 84 y 1059 sobre 83—. Estuvo así en `main` hasta que lo encontró la tarea
+> VEND-01, que venía a tocar este mismo bloque.
+>
+> **Y es la lección de siempre, con una vuelta de tuerca:** ningún mandato de
+> git lo delata —el merge se commiteó y `git status` salía limpio—, ninguna
+> prueba mira este archivo, y **es lo primero que lee un agente**. La única
+> razón por la que se vio es que alguien tenía que cambiar estas cifras y las
+> leyó de verdad en vez de copiarlas. Resuelto midiendo con
+> `node scripts/recuentos.mjs`, que es lo que este mismo recuadro manda hacer:
+> **ninguno de los dos lados del conflicto era correcto.**
 
 > **Y ojo, esta vez la cifra BAJÓ**, que es la primera vez que pasa y conviene
 > decir por qué: el 23/09 se retiraron cinco manuales de usuario caducados de
@@ -115,7 +123,7 @@ código, no de memoria:
 | Aislamiento | RLS de Postgres por `app.tenant_id` | `apps/web/lib/server/db.ts:60` y `:79` |
 | Endpoints | **101** route handlers | `apps/web/app/api/**/route.ts` |
 | Tablas | **46** | `vault/04-Datos/esquema.md` |
-| Migraciones | **89** | `vault/04-Datos/migraciones.md` |
+| Migraciones | **90** | `vault/04-Datos/migraciones.md` |
 
 > Esos recuentos llevan fecha de validación **2026-09-28**, medidos con
 > `node scripts/recuentos.mjs` sobre este árbol. Trátalos como una

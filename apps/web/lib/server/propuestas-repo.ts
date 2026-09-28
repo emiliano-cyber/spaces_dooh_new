@@ -4,6 +4,7 @@ import { topeDescuentoDelTenant } from './config-repo'
 import { randomBytes } from 'crypto'
 import { q, q1, pool, fijarTenant, fijarTenantExplicito, qConTenant, qRaw1 } from './db'
 import { tenantActual } from './tenant'
+import { usuarioActual } from './auth'
 import { folioDocumento } from './folios'
 import { divisorDeComision } from '@/lib/data/derive'
 import { rutaLogo } from '@/lib/medios-url'
@@ -454,11 +455,29 @@ export async function crearPropuesta(input: PropuestaInput) {
   try {
     await client.query('begin')
     await fijarTenant(client)
+    // ⚠️ EL VENDEDOR SALE DE LA SESIÓN, Y NO DE `input`. (VEND-01, 2026-09-28)
+    //
+    // Es el mismo camino que `tenantActual()` —`usuarioActual()` lee la cookie
+    // httpOnly y resuelve la fila por `auth_usuario_por_sesion`—, y por la misma
+    // razón: lo que decide QUIÉN eres no puede entrar por el cuerpo de la
+    // petición. Si `usuario_id` viajara en el JSON, cualquiera con permiso de
+    // `comercial.crear` se atribuiría una venta ajena —o le cargaría a otro un
+    // descuento del 80 %— con un `curl`, y NO daría ningún error: la propuesta
+    // se crearía igual y solo cambiaría el nombre en la tabla del reporte.
+    //
+    // Por eso `PropuestaInput` no declara ningún campo de usuario: no es un
+    // olvido, es el candado. Añadírselo volvería a abrir el agujero, y
+    // `propuestas-vendedor.test.ts` lo vigila en el tipo y en el zod.
+    //
+    // `null` cuando no hay sesión —hoy imposible por `exigir()` en el route,
+    // pero un alta futura por un trabajo programado no tendría cookie— y eso es
+    // exactamente lo que el reporte sabe pintar: «Sin vendedor», nunca un cero.
+    const vendedorId = (await usuarioActual())?.id ?? null
     const prop = (
       await client.query(
-        `insert into propuestas (folio, cliente_id, agencia_id, nombre, comision_pct, notas, token_publico, tenant_id)
-         values ($1,$2,$3,$4,$5,$6,$7,$8) returning *`,
-        [await folio(), input.clienteId ?? null, input.agenciaId ?? null, input.nombre, input.comisionPct ?? 0, input.notas ?? null, tokenPublico(), await tenantActual()],
+        `insert into propuestas (folio, cliente_id, agencia_id, nombre, comision_pct, notas, token_publico, usuario_id, tenant_id)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9) returning *`,
+        [await folio(), input.clienteId ?? null, input.agenciaId ?? null, input.nombre, input.comisionPct ?? 0, input.notas ?? null, tokenPublico(), vendedorId, await tenantActual()],
       )
     ).rows[0]
     // Siempre asociar la agencia con el cliente: si la propuesta lleva cliente y

@@ -98,7 +98,14 @@ describe('1 · `luz` esta en el selector y sus filas son pantallas', () => {
 // una pregunta de COSTO sino de PRECIO —que tarifa se publico y que entro de
 // ella— y no tiene ninguna columna de costo, asi que tampoco tiene un
 // `costoTotal` con el que no cuadrar, que es el defecto que este guard impide.
-const SIN_COLUMNAS_DE_COSTO_NO_ATRIBUIBLE = ['entidad', 'tarifa']
+//
+// Y `vendedor` se suma el 2026-09-28 con un tercer motivo, que tampoco es
+// ninguno de los dos anteriores: ahi el costo SI se podria atribuir a la
+// pantalla, pero las filas son PERSONAS. La renta que se le paga al arrendador
+// y las visitas a la pantalla no las decide el vendedor, asi que una columna de
+// costo mediria a alguien por un contrato que no negocio. «El margen de Ana» no
+// existe, y el guard de abajo impide que aparezca por descuido.
+const SIN_COLUMNAS_DE_COSTO_NO_ATRIBUIBLE = ['entidad', 'tarifa', 'vendedor']
 
 describe('2 · el costo de la ENERGIA se pinta en TODAS las dimensiones', () => {
   it('`costoEnergia` es una columna comun, no propia de `luz`', () => {
@@ -117,6 +124,18 @@ describe('2 · el costo de la ENERGIA se pinta en TODAS las dimensiones', () => 
     // `entidad`: si algun dia `tarifa` gana una columna de costo, este guard se
     // pone rojo y obliga a decidirlo a proposito.
     const claves = columnasDeDimension('tarifa').map((c) => c.clave)
+    for (const c of ['costoEnergia', 'costoEspacio', 'costoOperacion', 'costoTotal', 'margen', 'margenPct']) {
+      expect(claves, c).not.toContain(c)
+    }
+  })
+
+  it('y la exencion de `vendedor` es EXACTA: ni costo alguno, ni margen', () => {
+    // La mas importante de las tres, porque aqui la fila es una PERSONA: un
+    // «margen de Ana» seria una cifra que la mide por el precio de un contrato
+    // de arrendamiento que ella no negocio, y que ademas cambiaria sin que ella
+    // hiciera nada. Si algun dia aparece una columna de costo aqui, este guard
+    // se pone rojo y obliga a decidirlo a proposito.
+    const claves = columnasDeDimension('vendedor').map((c) => c.clave)
     for (const c of ['costoEnergia', 'costoEspacio', 'costoOperacion', 'costoTotal', 'margen', 'margenPct']) {
       expect(claves, c).not.toContain(c)
     }

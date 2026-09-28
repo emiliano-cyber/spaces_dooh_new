@@ -1,10 +1,39 @@
 ---
 tipo: tablero
 estado: verificado
-actualizado: 2026-09-25
+actualizado: 2026-09-28
 tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
+
+> [!success] 2026-09-28 · **VEND-01 · el vendedor en la propuesta — RECLAMADO Y LIBERADO**
+> Rama `feat/vendedor-en-propuesta`, salida de `main` (`a9ec0cc`). Aprobado por
+> Jochelo ese mismo dia, y **es ROJO por tres lados a la vez**: lleva migracion
+> (R3), toca dinero por la atribucion de descuentos (R4) y lee `usuarios` por
+> tenant (R2).
+>
+> **Zonas tomadas y liberadas:** **Z5 · Comercial** (solo el INSERT de
+> `propuestas-repo.ts`), **Z9 · Datos** (`20260928_vendedor_en_propuesta.sql`),
+> **Z12 · Docs** (bóveda, bitacora, `CLAUDE.md`, MOC) y el modulo de reportes
+> (`lib/data/reportes.ts`, `reportes-repo.ts`, `reportes-controller.ts`,
+> `components/demo/reportes/`). **NO se toco** `db/schema.sql`,
+> `aislamiento.e2e.test.ts` ni `servidor-e2e.ts`, ni ninguna migracion anterior.
+>
+> **Medido en este arbol, no copiado:** `npx tsc --noEmit` limpio y **2120
+> pruebas en 159 archivos** (`main` daba 2081 en 156). El runner de migraciones
+> corrido **dos veces** sobre una base creada para eso: la 1.ª aplica 89 y sale
+> 0, la 2.ª dice `0 aplicadas` y sale 0. E2E en una base propia
+> (`spaces_vend_e2e`, puerto 3421) para no pisar a nadie en el 5433, y borrada al
+> terminar. **20 mutantes aplicados uno a uno: los 20 mueren** — dos sobrevivian
+> en la primera vuelta y la causa era una sola, anotada en
+> [[02-Backend/vendedor-en-propuesta]].
+>
+> [!danger] Y de paso: `main` tenia MARCADORES DE CONFLICTO commitados en `CLAUDE.md`
+> El merge `a9ec0cc` dejo un `<<<<<<< HEAD` / `=======` / `>>>>>>>` dentro del
+> bloque de recuentos de la bóveda, con dos cifras incompatibles a la vez.
+> `git status` salia limpio y ninguna prueba mira ese archivo. Resuelto aqui
+> **midiendo** con `node scripts/recuentos.mjs`: ninguno de los dos lados era
+> correcto.
 
 > [!important] 2026-09-28 · **Dos decisiones del dueno, para que no se vuelvan a preguntar**
 >

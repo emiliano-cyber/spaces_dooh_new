@@ -185,6 +185,13 @@ export default function ReportesPage() {
             // verdad. Y su primera frase hace falta siempre: la brecha lleva
             // dentro la comisión de la agencia, no solo el descuento.
             tarifas: reporte.tarifas,
+            // Solo llega en `vendedor`. Es el aviso que dice cuánto del periodo
+            // NO se puede poner a nombre de nadie y por qué. El día del
+            // despliegue es el aviso que más importa de los cuatro: TODO lo
+            // capturado antes del 2026-09-28 cae en «Sin vendedor», y sin este
+            // texto la tabla se lee como un reporte roto en vez de como el dato
+            // diciendo la verdad.
+            vendedores: reporte.vendedores,
           })
         : [],
     [reporte],
