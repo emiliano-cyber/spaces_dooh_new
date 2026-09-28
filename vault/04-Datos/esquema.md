@@ -14,6 +14,43 @@ archivos:
 
 # Esquema de datos
 
+> [!danger] 2026-09-28 · `escalas_volumen` SIN FUSIONAR — espera la aprobación del dueño
+> Desde el 2026-09-28 ningún cambio de esquema aterriza sin que el dueño lo
+> apruebe antes. La migración de abajo está escrita y probada contra bases
+> desechables; lo detenido es la fusión. **Si la lees en `main`, es que ya se
+> aprobó** — y entonces las tablas son 50.
+
+> [!note] 2026-09-28 · UNA TABLA NUEVA, `escalas_volumen` — ADR 0039, Fase 2
+> `db/migrations/20260928_descuento_por_volumen.sql`. **Las tablas pasan de 49 a
+> 50**, medido con `node scripts/recuentos.mjs` sobre este árbol
+> (`feat/descuento-por-volumen`): **92 migraciones, 50 tablas**.
+>
+> - **`escalas_volumen`** — los tramos de descuento por volumen de la
+>   organización, **por unidad de venta**: «a partir de `desde_cantidad` unidades
+>   de `unidad`, baja `descuento_pct` %». El umbral es **inclusivo** y la escala
+>   es **PLANA**: al alcanzarlo, TODAS las unidades bajan.
+>
+> **El `unique (tenant_id, unidad, desde_cantidad)` ES la prohibición de solape**,
+> y solo puede serlo porque la escala es plana: dos tramos «desde 50» de la misma
+> unidad son dos precios para la misma compra. Escalonado serían rangos y haría
+> falta lógica de aplicación, como con las franjas. Las tres columnas son `NOT
+> NULL`, así que **la trampa de los NULL de PostgreSQL 14 que la Fase 1 esquivó
+> con `COALESCE` aquí no aplica** — y por eso esta migración no lleva `@pg-min`.
+>
+> Dos CHECK que valen la pena: `desde_cantidad >= 2` (un tramo «desde 1» sería
+> bajar el tarifario entero sin que se note) y `descuento_pct > 0` (un tramo al
+> 0 % es una regla que no hace nada y hace creer que sí).
+>
+> Más tres columnas: `propuesta_items.descuento_volumen_pct` (numeric(5,2), **NOT
+> NULL DEFAULT 0**), `propuesta_items.volumen_desde` (integer, nullable) y
+> `reservas.descuento_volumen_pct`. **Guardan números, no una FK**, al revés que
+> `franja_id`: un tramo no se elige, se deduce — así que lo que importa de él son
+> sus números, borrarlo nunca puede quedar bloqueado por una venta, y no hace
+> falta baja lógica.
+>
+> Con **RLS `enable` + `force`** estricta y GRANT explícito, igual que las tres de
+> la Fase 1. Ver [[02-Backend/descuento-por-volumen]].
+
 > [!note] 2026-09-28 · TRES TABLAS NUEVAS, `franjas_horarias` · `temporadas` · `sitio_tarifas` — ADR 0039
 > `db/migrations/20260928_rejilla_franja_temporada.sql`. **Las tablas pasan de 46
 > a 49**, medido con `node scripts/recuentos.mjs` sobre este árbol

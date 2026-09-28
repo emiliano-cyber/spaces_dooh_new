@@ -27,9 +27,9 @@ cobranza.
 | Base de datos | PostgreSQL, `pg` directo (sin ORM) | `apps/web/lib/server/db.ts:2` |
 | Aislamiento | RLS de Postgres por `app.tenant_id` | `apps/web/lib/server/db.ts:60` y `:79` |
 | Producción | **El PADRE `137.184.107.53` sirve `space-os.io`**, certificado propio hasta el **2026-11-23** con renovación automática. DEMO vive dentro de él (proceso `3001`, base `spaces_demo`) y desde el **31/08 se llama `pruebas.space-os.io`** — nombre nuevo, no `demo.space-os.io`, que es solo la demostración ORIGINAL, la sirve la máquina vieja y **se eliminará** ([ADR 0024](../../docs/adr/0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md), que sustituye al 0021) | `infra/nginx/space-os.io.conf:124` y `:188` · [ADR 0017](../../docs/adr/0017-todo-se-concentra-en-el-padre.md) · [ADR 0024](../../docs/adr/0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md) · [ADR 0022](../../docs/adr/0022-instancia-dedicada-por-owner.md) |
-| Endpoints | **106** route handlers | `apps/web/app/api/**/route.ts` |
-| Tablas | **49** | [[esquema]] |
-| Migraciones | **91** | [[migraciones]] |
+| Endpoints | **108** route handlers | `apps/web/app/api/**/route.ts` |
+| Tablas | **50** | [[esquema]] |
+| Migraciones | **92** | [[migraciones]] |
 | ADR | **39** (`0001`–`0039`) | `docs/adr/` · [[decisiones]] |
 
 > [!success] `demo.space-os.io` SE ELIMINARÁ — cerrado el 27/08 por el ADR 0024
@@ -83,6 +83,7 @@ cobranza.
 - [[arrendadores-y-contratos]] — predios, contratos, rentas, firmas
 - [[comercial-propuestas-campanas]] — propuestas, reservas, campañas
 - [[02-Backend/rejilla-franja-y-temporada]] — ADR 0039 Fase 1: el precio pasa a ser `f(pantalla, unidad, franja, fecha)`; el congelado, y por qué la franja NO viaja al CMS
+- [[02-Backend/descuento-por-volumen]] — ADR 0039 Fase 2: «compra 50 spots y pagas 40». La escala cuelga de la organización y los tramos son PLANOS; el volumen cuenta contra el tope (decisión abierta); el servidor resuelve el porcentaje, no el navegador
 - [[operaciones-y-ot]] — órdenes de trabajo, evidencias, imprenta
 - [[finanzas-y-cobranza]] — facturación, candado, parcialidades
 - [[integraciones-externas]] — DOOHmain, Space Eye, Spaces S3, Resend, Google

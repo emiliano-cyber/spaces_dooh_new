@@ -48,6 +48,11 @@ interface PropuestaPub {
   comisionPct: number
   descuentoPct: number
   descuentoMonto: number
+  // VOL-01 · opcionales porque una liga guardada de antes de esta fase, o una
+  // respuesta de un servidor más viejo, no los trae. Con la escala vacía llegan
+  // en 0 y el renglón no se pinta.
+  descuentoVolumenMonto?: number
+  descuentoVolumenPct?: number
   divisor: number
   bruto: number
   base: number
@@ -307,6 +312,15 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
           <CardContent>
             <dl className="space-y-2 text-[13px]">
               <Fila label="Bruto (tarifa de lista)" valor={formatMonto(p.bruto)} />
+              {/* VOL-01 · en la liga PÚBLICA es donde más importa: es el
+                  documento que el cliente lee y acepta, y si el descuento por
+                  volumen no figura, la cuenta de la cotización no da. */}
+              {(p.descuentoVolumenMonto ?? 0) > 0 && (
+                <Fila
+                  label={`Descuento por volumen (${Math.round((p.descuentoVolumenPct ?? 0) * 10) / 10}%)`}
+                  valor={`− ${formatMonto(p.descuentoVolumenMonto ?? 0)}`}
+                />
+              )}
               {p.descuentoMonto > 0 && (
                 <Fila label={`Descuento (${p.descuentoPct}%)`} valor={`− ${formatMonto(p.descuentoMonto)}`} />
               )}

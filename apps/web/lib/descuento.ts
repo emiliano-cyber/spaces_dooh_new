@@ -87,15 +87,30 @@ export const TOPE_DESCUENTO_RESPALDO = 100
 export class DescuentoSobreTope extends Error {
   readonly pedido: number
   readonly tope: number
-  constructor(pedido: number, tope: number) {
+  /** VOL-02 · el volumen de la propuesta que entró en la cuenta. 0 = no había. */
+  readonly volumenPct: number
+  constructor(pedido: number, tope: number, volumenPct = 0) {
     // El mensaje DICE EL TOPE. Un «valor inválido» genérico deja a quien vende
     // sin saber qué número sí puede teclear, y la única salida es preguntar.
-    super(
+    //
+    // Y cuando hay volumen DICE TAMBIÉN EL VOLUMEN Y LA CUENTA. Sin eso, a
+    // alguien le rechazan un 10 % contra un tope del 20 % y lo único que puede
+    // concluir es que el sistema está roto — el número que sobra no está en
+    // ninguna de las dos cifras que él ve.
+    const base =
       `El descuento máximo que autoriza tu organización es ${pct(tope)} %, y se pidió ` +
-      `${pct(pedido)} %. Pídele a Administración que lo suba si hace falta.`,
-    )
+      `${pct(pedido)} %.`
+    const conVolumen =
+      volumenPct > 0
+        ? `El descuento máximo que autoriza tu organización es ${pct(tope)} %. ` +
+          `Esta propuesta ya lleva ${pct(volumenPct)} % por volumen, así que un ` +
+          `${pct(pedido)} % comercial deja un ${pct(descuentoContraTope(pedido, volumenPct))} % ` +
+          `en total (los descuentos se componen, no se suman).`
+        : base
+    super(`${conVolumen} Pídele a Administración que lo suba si hace falta.`)
     this.pedido = pedido
     this.tope = tope
+    this.volumenPct = volumenPct
   }
 }
 
@@ -120,19 +135,93 @@ export function topeDescuentoValido(valor: unknown): number {
   return Math.max(0, Math.min(100, n))
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+//  VOL-02 · ¿el descuento por VOLUMEN cuenta contra este tope?
+// ────────────────────────────────────────────────────────────────────────────
+//
+// ⚠️ ESTA ES LA PREGUNTA DE NEGOCIO DE LA FASE 2, Y NO LA DECIDE EL CÓDIGO.
+// Está preguntada al dueño. Mientras no conteste, la respuesta implementada es
+// **SÍ cuenta**, y vive ENTERA en la función de abajo: cambiarla a «no cuenta»
+// es cambiar su cuerpo por `return descuentoValido(comercialPct)` y ajustar
+// `descuento.volumen.test.ts`. Ningún otro archivo se entera.
+//
+// ─── Por qué SÍ, mientras nadie diga lo contrario ─────────────────────────
+// El tope nació el 2026-09-28 porque cualquier comercial podía regalar el 90 %.
+// Si el volumen no contara, un 15 % de volumen más el tope entero volvería a
+// dejar el techo real por encima de lo que alguien autorizó — y el tope dejaría
+// de ser el techo, que es justo el agujero que vino a cerrar. Es el criterio
+// del ADR 0039 §2: **la regla nace cerrada y se abre a propósito.**
+//
+// ─── Por qué COMPUESTO y no sumado ────────────────────────────────────────
+// Porque compuesto es lo que de verdad se regaló. Un 20 % de volumen y un 20 %
+// comercial dejan al cliente pagando el 64 %, o sea un **36 %** regalado, no un
+// 40 %. Comparar contra el tope una suma que nadie dejó de cobrar cerraría
+// ventas por un margen que no se perdió.
+//
+// ─── Lo que cuesta, dicho con todas las letras ────────────────────────────
+// El volumen se come margen de negociación del vendedor: con una escala del
+// 15 % y un tope del 20 %, al comercial le quedan ~5,9 puntos, no 5 ni 20. Y si
+// el dueño deja el tope POR DEBAJO de su propia escala, ninguna propuesta con
+// volumen podrá tocar su descuento hasta que arregle una de las dos cosas. Eso
+// es visible y se explica; lo contrario —un techo que no es techo— no se ve.
+
+/**
+ * El número que se compara contra el tope de la organización.
+ *
+ * `comercialPct` y `volumenPct` en por ciento. Devuelve el descuento EFECTIVO
+ * compuesto, también en por ciento: `100 × (1 − (1−v)(1−c))`.
+ *
+ * Con `volumenPct = 0` devuelve el comercial tal cual, y ése es el detalle que
+ * hace que toda la base instalada se comporte exactamente igual que antes de
+ * esta fase.
+ */
+export function descuentoContraTope(comercialPct: unknown, volumenPct: unknown): number {
+  const c = descuentoValido(comercialPct)
+  // El volumen NO usa `descuentoValido`: lo ilegible aquí no es culpa de quien
+  // teclea —sale de la base— y reventar dejaría la propuesta imposible de
+  // editar. Cae a 0, que es «no hay volumen», y entonces el tope se comporta
+  // como el de siempre. Nunca a NaN: `NaN > tope` es false y desactivaría el
+  // tope en silencio, que es el fallo del que nació este archivo.
+  const vBruto = typeof volumenPct === 'number' || typeof volumenPct === 'string'
+    ? Number(volumenPct)
+    : NaN
+  const v = Number.isFinite(vBruto) ? Math.max(0, Math.min(100, vBruto)) : 0
+  return 100 * (1 - (1 - v / 100) * (1 - c / 100))
+}
+
 /**
  * El descuento validado **y por debajo del techo de la organización**.
  *
  * Revienta con `DescuentoSobreTope` si lo pasa: por encima del tope **no se
  * guarda nada**. El límite es INCLUSIVO —un tope del 40 % significa «hasta
  * 40», no «menos de 40»—: quien configura 40 espera poder cerrar al 40.
+ *
+ * `volumenPct` (VOL-02) es el volumen ya aplicado a esta propuesta. Omitirlo es
+ * decir «no hay volumen», y entonces esto hace exactamente lo de siempre — por
+ * eso los llamantes anteriores a la Fase 2 no cambian.
  */
-export function descuentoDentroDelTope(valor: unknown, tope: unknown): number {
+export function descuentoDentroDelTope(
+  valor: unknown,
+  tope: unknown,
+  volumenPct: unknown = 0,
+): number {
   // Primero la guarda de siempre: `NaN` no puede colarse por «NaN > tope es
   // false», que es exactamente el modo de fallo que documenta este archivo.
   const d = descuentoValido(valor)
   const techo = topeDescuentoValido(tope)
-  if (d > techo) throw new DescuentoSobreTope(d, techo)
+  const efectivo = descuentoContraTope(d, volumenPct)
+  // La comparación lleva una tolerancia de `1e-9` puntos porcentuales, o sea
+  // una milmillonésima: el compuesto sale de multiplicar flotantes, y
+  // `100 × (1 − 0.8 × 0.75)` da 19.999999999999996 — que sin la tolerancia
+  // rechazaría un caso que vale exactamente 20 contra un tope de 20. Un tope es
+  // un número que alguien tecleó, no una cota de precisión. El margen es lo
+  // bastante pequeño como para no dejar pasar nada que importe: el descuento
+  // más fino que se puede teclear es de centésimas de punto.
+  if (efectivo - techo > 1e-9) {
+    // El error NOMBRA el comercial pedido, no el efectivo: es el número que la
+    // persona tecleó y el único que puede cambiar. El efectivo va en el texto.
+    throw new DescuentoSobreTope(d, techo, descuentoContraTope(0, volumenPct))
+  }
   return d
 }
 

@@ -174,7 +174,7 @@ describe('el esquema base no trae la organización de nadie', () => {
     //     tablas nuevas antes que nadie, y la primera en la que el aviso llegó
     //     de la corrida completa y no de leer el diff: las unitarias y las 14
     //     e2e propias de la tarea estaban todas en verde.
-    expect(trasMigrar.tablas).toBe(49)
+    expect(trasMigrar.tablas).toBe(50)
     // Lo que de verdad importa: ni las migraciones resucitan al owner.
     expect(trasMigrar.tenants).toBe(0)
   })

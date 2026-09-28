@@ -7,6 +7,51 @@ La entrada más reciente va arriba.
 
 ## 2026-09-28
 
+- **Compra 50 spots y paga 40: ya se puede dar descuento por volumen.**
+  *(ADR 0039, Fase 2. **Pendiente de tu aprobación**: lleva un cambio de base de
+  datos y desde hoy ésos no se aplican sin que tú digas que sí.)*
+
+  Hasta hoy, quien te compraba 500 spots pagaba exactamente lo mismo por spot que
+  quien te compraba 10. La única forma de premiarle era que el vendedor le metiera
+  un descuento a mano, propuesta por propuesta — y ahí ya no era una política
+  tuya, era el criterio de cada quien.
+
+  **Cómo se captura.** En el menú, dentro de *Inventario*, hay una entrada nueva:
+  **«Descuentos por volumen»**. Ahí escribes tu escalera, por forma de venta:
+  «a partir de 50 spots, 10 %»; «a partir de 200, 15 %». Y cada forma de venta
+  tiene la suya, porque **50 spots y 50 meses no son la misma compra**.
+
+  **Lo que hay que entender antes de capturar, y la pantalla lo dice:**
+
+  - **El descuento se aplica a TODO, no solo a lo que pasa del número.** «A partir
+    de 50 spots, 10 %» quiere decir que quien compra 50 paga los 50 con el 10 %
+    menos. La consecuencia es que **quien compra 49 paga más que quien compra
+    50**. Es como funciona cualquier tarifario por volumen, pero conviene saberlo
+    al poner los números.
+  - **Los descuentos se multiplican, no se suman.** Un 20 % por volumen y un 20 %
+    del vendedor dejan al cliente pagando el **64 %**, no el 60 %. Son cuatro
+    puntos de diferencia en cada venta.
+
+  **El descuento lo pone el sistema, no el vendedor.** Se calcula solo, a partir
+  de la cantidad y de la escalera que tú capturaste. Nadie puede teclearlo ni
+  cambiarlo desde la pantalla de la propuesta.
+
+  **Y una decisión que necesito que confirmes** (está abajo, en *Preguntas*): hoy
+  el descuento por volumen **cuenta** contra el tope de descuento que pusiste esta
+  misma semana. O sea que si tu escalera da 15 % y tu tope es 20 %, al vendedor le
+  quedan unos 6 puntos para negociar, no 20. Se hizo así para que el tope siga
+  siendo un techo de verdad; si prefieres lo contrario, se cambia en un minuto.
+
+  **Lo más importante: si no capturas nada, NADA CAMBIA.** Todo tu inventario
+  sigue vendiéndose exactamente como ayer. Y una propuesta ya aprobada **no se
+  mueve nunca**, aunque mañana subas, bajes o borres la escalera entera: el precio
+  que aceptó el cliente queda congelado el día que la aprueba.
+
+  **Dónde se ve el descuento.** En el cotizador, mientras armas la propuesta; en
+  el detalle de la propuesta; y en la **liga pública** —la que ve el cliente y
+  donde la acepta—, como un renglón propio entre el subtotal y el descuento
+  comercial, para que la cuenta se pueda seguir con el dedo.
+
 - **Ahora una pantalla puede costar distinto según la hora del día y la época del
   año.** Hasta hoy cada pantalla tenía **un solo precio** por forma de venderla:
   un spot costaba lo mismo a las siete de la mañana que a las tres de la

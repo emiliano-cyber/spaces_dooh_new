@@ -41,6 +41,15 @@ vi.mock('./rejilla-repo', () => ({
   listarFranjas: () => listarFranjasMock(),
   listarTemporadas: vi.fn(async () => []),
 }))
+vi.mock('./volumen-repo', () => ({
+  // VOL-01 (ADR 0039, Fase 2): el controller resuelve el descuento por volumen
+  // en el SERVIDOR, así que ahora importa este módulo — y con él, `./tenant`,
+  // que usa `cache()` de React y revienta fuera de Next. Se mockea vacío: sin
+  // tramos, el volumen es 0 y esta prueba mide exactamente lo que medía antes.
+  listarEscalasVolumen: vi.fn(async () => []),
+  guardarTramoVolumen: vi.fn(),
+  borrarTramoVolumen: vi.fn(),
+}))
 
 import { crearPropuestaCtrl } from './propuestas-controller'
 

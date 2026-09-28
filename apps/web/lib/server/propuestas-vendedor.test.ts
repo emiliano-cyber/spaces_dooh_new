@@ -38,6 +38,15 @@ vi.mock('./propuestas-repo', () => ({
   PropuestaError: class PropuestaError extends Error {},
   validarRangoFechas: vi.fn(),
 }))
+vi.mock('./volumen-repo', () => ({
+  // VOL-01 (ADR 0039, Fase 2): el controller resuelve el descuento por volumen
+  // en el SERVIDOR, así que ahora importa este módulo — y con él, `./tenant`,
+  // que usa `cache()` de React y revienta fuera de Next. Se mockea vacío: sin
+  // tramos, el volumen es 0 y esta prueba mide exactamente lo que medía antes.
+  listarEscalasVolumen: vi.fn(async () => []),
+  guardarTramoVolumen: vi.fn(),
+  borrarTramoVolumen: vi.fn(),
+}))
 
 // `rejilla-repo` se sustituye por el MISMO motivo que `propuestas-repo` arriba,
 // y no porque esta prueba tenga nada que ver con las franjas: desde REJILLA-01

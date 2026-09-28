@@ -28,9 +28,39 @@ archivos:
   - db/migrations/20260921_actualizaciones_instancia.sql
   - db/migrations/20260923_tickets.sql
   - db/migrations/20260928_tope_descuento_propuestas.sql
+  - db/migrations/20260928_descuento_por_volumen.sql
 ---
 
 # Migraciones
+
+> [!note] 2026-09-28 · `20260928_descuento_por_volumen.sql` — ADR 0039, Fase 2
+> Una tabla, `escalas_volumen`, más tres columnas:
+> `propuesta_items.descuento_volumen_pct`, `propuesta_items.volumen_desde` y
+> `reservas.descuento_volumen_pct`. Aditiva entera, transaccional e idempotente:
+> **no toca una sola fila existente**, ni ninguna restricción anterior, ni
+> `db/schema.sql`. No mueve ni un importe — la escala **nace vacía** y las tres
+> columnas nacen en 0.
+>
+> **SIN FUSIONAR al 2026-09-28**: espera la aprobación del dueño, que desde ese
+> día es requisito para todo cambio de base de datos. El motivo es concreto: cada
+> migración que entra a `main` acaba corriendo en **g500**, la única instancia con
+> datos de cliente reales, y su runner se para en seco si algo no cuadra.
+>
+> **Ordena ANTES que la de la rejilla** (`d` < `r` en el mismo día) y eso es
+> correcto y comprobado: no depende de ella en nada — solo toca `propuesta_items`,
+> `reservas` y `tenants`, que ya existen en `db/schema.sql`. Se aplicó en ese
+> orden sobre una base creada de cero y salió 0.
+>
+> **No lleva `@pg-min`, y esta vez sin rodeos**: las tres columnas de su índice
+> único son `NOT NULL`, así que la trampa de los NULL que obligó a la Fase 1 a
+> usar `COALESCE` aquí no existe. Nada de lo que usa es posterior a PostgreSQL 14.
+>
+> Verificado: runner **dos veces** sobre `spaces_vol_mig2` (base creada para eso)
+> — la primera aplica **91** y sale 0, la segunda dice `0 aplicadas` y sale 0, con
+> **50 tablas** al final. El archivo en disco no tiene CRLF: su sha256 no cambia
+> al quitar los ``.
+>
+> Ver [[02-Backend/descuento-por-volumen]].
 
 > [!note] 2026-09-28 · TRES TABLAS NUEVAS — la rejilla de precios (ADR 0039, Fase 1)
 > `20260928_rejilla_franja_temporada.sql` — `franjas_horarias`, `temporadas` y

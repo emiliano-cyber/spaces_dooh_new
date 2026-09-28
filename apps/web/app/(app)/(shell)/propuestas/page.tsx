@@ -9,6 +9,8 @@ import { Card, CardContent } from '@/components/demo/ui/Card'
 import { AvisoFranjaCMS } from '@/components/demo/rejilla/AvisoFranjaCMS'
 import { catalogoRejillaApi, type FranjaUI, type TemporadaUI } from '@/lib/data/rejilla-api'
 import { resolverTarifa, temporadaDeFecha } from '@/lib/rejilla'
+import { resolverVolumen } from '@/lib/volumen'
+import { escalasVolumenApi, type TramoVolumenUI } from '@/lib/data/volumen-api'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
 import { MapView } from '@/components/demo/MapView'
@@ -410,6 +412,32 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
     }
   }, [])
 
+  // VOL-01 · la escala de volumen, SOLO para PREVISTA (ADR 0039, Fase 2).
+  //
+  // Quien decide el descuento que se guarda es el SERVIDOR: lo resuelve al
+  // crear la propuesta leyendo `escalas_volumen` bajo RLS, y nada de lo que
+  // salga de esta pantalla puede cambiarlo. Esto está aquí para que quien vende
+  // vea el número ANTES de cerrar — cotizar de viva voz un total y guardar otro
+  // es la peor manera de enterarse de que hay un descuento.
+  //
+  // Se usa la MISMA función que el servidor (`resolverVolumen`), así que las
+  // dos no pueden divergir salvo por los datos; y si divergieran, manda lo que
+  // se guardó.
+  const [escalaVolumen, setEscalaVolumen] = useState<TramoVolumenUI[]>([])
+  useEffect(() => {
+    let vivo = true
+    escalasVolumenApi()
+      .then((t) => {
+        if (vivo) setEscalaVolumen(t)
+      })
+      .catch(() => {
+        /* Sin escala se vende como siempre: no es un error que deba verse. */
+      })
+    return () => {
+      vivo = false
+    }
+  }, [])
+
   // Modalidades publicadas de un sitio: [{unidad, tarifa}]. Si no tiene, ofrece
   // una mensual sintética con su tarifa publicada, para no bloquear.
   const modalidadesDe = (s: any): { unidad: Unidad; tarifa: number }[] => {
@@ -546,11 +574,23 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
 
   const seleccionados = (sitios ?? []).filter((s) => sel.has(s.id))
   const bruto = seleccionados.reduce((acc, s) => acc + precioDe(s), 0)
+  // VOL-01 · la PREVISTA del volumen, línea a línea y con el mismo redondeo que
+  // el servidor (`volumenDeLineas`). Con la escala vacía da 0 y el total de
+  // abajo es exactamente el de antes de esta fase.
+  const volumenMonto = seleccionados.reduce((acc, s) => {
+    const c = cfgDe(s)
+    const v = resolverVolumen(
+      escalaVolumen.filter((t) => t.unidad === c.unidad),
+      cantidadDe(s),
+    )
+    return acc + (v.descuentoPct > 0 ? Math.round(precioDe(s) * (v.descuentoPct / 100)) : 0)
+  }, 0)
+  const brutoConVolumen = bruto - volumenMonto
   const divisor = divisorDeComision(Number(comision))
-  const neto = Math.round(bruto * divisor)
+  const neto = Math.round(brutoConVolumen * divisor)
   const ivaPctSel = clientes?.find((c) => c.id === clienteId)?.ivaPct ?? 16
-  const iva = Math.round(bruto * (ivaPctSel / 100))
-  const total = bruto + iva
+  const iva = Math.round(brutoConVolumen * (ivaPctSel / 100))
+  const total = brutoConVolumen + iva
   // Gate de negociación: si la agencia tiene negociación sin validar, se bloquea.
   const agenciaSel = clientes?.find((c) => c.id === agenciaId)
   const negociacionPendiente = !!agenciaSel?.tieneNegociacion && !agenciaSel?.negociacionValidada
@@ -647,7 +687,18 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
           {error ? <span className="text-[12px] text-error">{error}</span> : errFormulario ? (
             <span className="text-[12px] text-error">{errFormulario}</span>
           ) : (
-            <span className="text-[12px] text-muted">Total c/IVA: <b className="demo-num text-ink">{formatMonto(total)}</b></span>
+            <span className="text-[12px] text-muted">
+              {/* El renglón del volumen aparece SOLO cuando lo hay, y tiene que
+                  aparecer: sin él, el total no cuadra con la suma de los
+                  renglones de arriba y se lee como un defecto. */}
+              {volumenMonto > 0 && (
+                <>
+                  Volumen: <b className="demo-num text-ink">− {formatMonto(volumenMonto)}</b>
+                  {' · '}
+                </>
+              )}
+              Total c/IVA: <b className="demo-num text-ink">{formatMonto(total)}</b>
+            </span>
           )}
           <div className="flex gap-2">
             <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
