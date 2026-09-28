@@ -27,8 +27,16 @@ import kotlin.math.hypot
  */
 class RevisionCamara(ctx: Context) {
     companion object {
-        /** Puntos coincidentes para confiar en la comparacion con la referencia. */
+        /** Puntos coincidentes para confiar en que la camara sigue en su lugar. */
         private const val PUNTOS_CONFIABLES = 25
+        /**
+         * Puntos que bastan para decir "se movio" si TODOS coinciden en un
+         * desplazamiento grande. Con el movimiento real del 28-sep la escena
+         * cambio tanto que solo coincidieron 14, todos corridos un 21%: con el
+         * minimo de 25 quedaba "sin juzgar" para siempre en vez de avisar.
+         * Coincidencias al azar no se ponen de acuerdo en un mismo corrimiento.
+         */
+        private const val PUNTOS_MOVIDA = 12
         /** Desplazamiento medio de las esquinas, en fraccion del ancho, para decir "se movio". */
         private const val MOVIDA = 0.04
         /** Por debajo de esto, la escena ya se parece poco: se guarda como otra variante. */
@@ -71,15 +79,11 @@ class RevisionCamara(ctx: Context) {
         var mejor = 0
         var desplazamiento = 0.0
         for (r in refs) {
-            val (h, n) = Vision.transformacion(r, actual)
-            if (h != null && n > mejor) {
-                mejor = n
-                desplazamiento = desplazamientoDeEsquinas(h, geo, marco.cols().toDouble(), marco.rows().toDouble())
-            }
-            h?.release()
+            val (n, d) = Vision.desplazamiento(r, actual)
+            if (n > mejor) { mejor = n; desplazamiento = d / marco.cols() }
         }
+        if (mejor >= PUNTOS_MOVIDA && desplazamiento > MOVIDA) return Seguimiento.Camara.MOVIDA
         if (mejor < PUNTOS_CONFIABLES) return Seguimiento.Camara.INCONCLUSO
-        if (desplazamiento > MOVIDA) return Seguimiento.Camara.MOVIDA
         if (mejor < VARIANTE_HASTA && refs.size < VARIANTES) guardar(actual)
         return Seguimiento.Camara.OK
     }
@@ -87,16 +91,5 @@ class RevisionCamara(ctx: Context) {
     private fun guardar(r: Vision.Rasgos) {
         Vision.escribir(File(dir, "marco_${refs.size}.orb"), r)
         refs.add(r)
-    }
-
-    /** Cuanto se corrieron las esquinas de la pantalla, en fraccion del ancho. */
-    private fun desplazamientoDeEsquinas(h: Mat, geo: Geometria, w: Double, alto: Double): Double {
-        val antes = geo.esquinas.map { (x, y) -> Point(x * w, y * alto) }
-        val src = MatOfPoint2f(*antes.toTypedArray())
-        val dst = MatOfPoint2f()
-        Core.perspectiveTransform(src, dst, h)
-        val despues = dst.toArray()
-        src.release(); dst.release()
-        return antes.indices.sumOf { hypot(despues[it].x - antes[it].x, despues[it].y - antes[it].y) } / antes.size / w
     }
 }
