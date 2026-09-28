@@ -35,13 +35,28 @@ class MonitorService : Service() {
         }
 
         /**
-         * Activa/desactiva el tipo de FGS "camera". El servicio persistente corre
-         * como dataSync|location (reiniciable desde background en Android 14). El
-         * tipo camera SOLO se agrega mientras se transmite/captura, porque Android
-         * 14 prohibe arrancar un FGS camera desde background (causaba crash-loop).
+         * Pide el tipo de FGS "camera". UNA VEZ OBTENIDO YA NO SE SUELTA.
+         *
+         * Android 14 solo concede la camara a un servicio si la pide mientras la app
+         * esta EN PANTALLA; desde segundo plano la niega ("the app must be in the
+         * eligible state"). Antes se soltaba tras cada foto y se volvia a pedir en
+         * la siguiente: la primera vez salia (alguien tenia la app abierta) y
+         * despues, ya en segundo plano, Android la negaba y la camara quedaba
+         * "disabled by policy". En el telefono de pruebas eso dejo la vigilancia
+         * ciega del 25 al 28-sep, sin que el dashboard lo dijera.
+         *
+         * Por eso: se pide al abrir la app (MainActivity.onResume) y en cada uso, y
+         * `false` ya no la suelta. Tenerla declarada sin usarla no enciende la
+         * camara ni el indicador verde: eso solo pasa cuando de verdad se abre.
+         *
+         * El servicio persistente arranca sin ella (dataSync), porque Android 14
+         * prohibe arrancar un FGS camera desde segundo plano (causaba crash-loop).
+         * Tras un reinicio del telefono hay que abrir la app una vez, salvo que sea
+         * dueña del dispositivo (device owner), que esta exenta.
          */
         fun setCameraActive(active: Boolean) {
-            instance?.updateForegroundType(active)
+            if (!active) return
+            instance?.updateForegroundType(true)
         }
 
         /**
@@ -60,6 +75,7 @@ class MonitorService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
     private var notifText = "Iniciando..."
     private var cameraTypeActive = false
+    private var ultimoAvisoCamara = 0L
     private lateinit var socketManager: SocketManager
     private lateinit var statusCollector: DeviceStatusCollector
     private lateinit var commandHandler: CommandHandler
@@ -174,10 +190,13 @@ class MonitorService : Service() {
                 // despues y sin este aviso el motivo era invisible a distancia.
                 if (camera) {
                     cameraTypeActive = false
-                    RemoteLog.warn(
+                    // Una vez por hora: en modo continuo se reintenta en cada vuelta y
+                    // repetir el aviso cada 4 minutos solo gastaria datos.
+                    val ahora = System.currentTimeMillis()
+                    if (ahora - ultimoAvisoCamara > 60 * 60_000L) RemoteLog.warn(
                         applicationContext, "camera",
-                        "El servicio no pudo declararse en uso de camara (${e.message}); Android va a negar las capturas en segundo plano"
-                    )
+                        "El servicio no pudo declararse en uso de camara (${e.message}); Android va a negar las capturas en segundo plano. Abre la app en el celular una vez para concederla"
+                    ).also { ultimoAvisoCamara = ahora }
                 }
                 try {
                     startForeground(NOTIF_ID, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)

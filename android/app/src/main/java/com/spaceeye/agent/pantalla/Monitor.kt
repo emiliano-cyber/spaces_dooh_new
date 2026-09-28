@@ -426,6 +426,9 @@ class Monitor(
             .put("vistazos", vistazos.size)
             .put("cambios", resultado?.cambios ?: 0)
             .put("aprendiendo", aprendiendo)
+            // Si Android le niega la camara en segundo plano, la vuelta no ve nada
+            // y hay que decirlo: si no, el dashboard solo muestra "no se pudo juzgar".
+            .put("camara_permitida", com.spaceeye.agent.service.MonitorService.camaraDeclarada())
             .put("zonas", JSONArray(resultado?.zonas?.map { JSONArray(listOf(it.tipo, it.fila, it.columna, it.confianza)) } ?: emptyList<JSONArray>()))
             .put("excluidas", JSONArray(seguimiento.excluidas().map { JSONArray(listOf(it.first, it.second)) })))
 

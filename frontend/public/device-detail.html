@@ -808,6 +808,11 @@
               Aprendiendo con su primera vuelta: la siguiente ya vigila.
             </p>
             <p x-text="ultimaRevision()"></p>
+            <p x-show="pant.ultimo?.camara_permitida === false" class="text-red-700 bg-red-50 border border-red-200 rounded px-2 py-1">
+              ⚠ Android no le deja usar la cámara en segundo plano, así que no está revisando la pantalla.
+              Abre la app Space Eye en el celular una vez (se arregla sola desde ahí). Pasa tras reiniciar el celular,
+              salvo que la app sea dueña del dispositivo.
+            </p>
             <p x-show="zonasQuietas()" class="text-amber-700">
               Gabinetes que nunca cambian (no se revisan): <b x-text="zonasQuietas()"></b>. Suelen estar tapados por algo, pero si no hay nada delante, revísalos: podrían llevar tiempo apagados.
             </p>

@@ -71,6 +71,13 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         enableKioskIfProvisioned()
+        // Con la app en pantalla es el UNICO momento en que Android 14 concede la
+        // camara al servicio para usarla despues en segundo plano. Ver
+        // MonitorService.setCameraActive.
+        MonitorService.setCameraActive(true)
+        // Si el servicio apenas esta arrancando, todavia no existe: se repite en
+        // un momento, con la app aun en pantalla.
+        window.decorView.postDelayed({ MonitorService.setCameraActive(true) }, 2000)
     }
 
     private fun checkAndStart() {
