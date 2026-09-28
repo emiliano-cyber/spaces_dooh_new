@@ -134,6 +134,37 @@ class SaludAnalisisTest {
         assertTrue(r.zonas.all { it.grupo.isEmpty() })
     }
 
+    /** Tapa zonas con algo claro y liso (como el bloc de notas de la prueba real). */
+    private fun tapar(base: List<Imagen>, filas: Int, columnas: Int, zonas: List<Pair<Int, Int>>): List<Imagen> {
+        val rnd = Random(4)
+        return base.map { t ->
+            val px = t.px.copyOf()
+            for ((f, c) in zonas)
+                for (y in (f * t.alto / filas) until ((f + 1) * t.alto / filas))
+                    for (x in (c * t.ancho / columnas) until ((c + 1) * t.ancho / columnas))
+                        px[y * t.ancho + x] = 190 + rnd.nextGaussian() * 1.5 - (if (y % 9 == 0) 6 else 0)
+            Imagen(px, t.ancho, t.alto)
+        }
+    }
+
+    @Test
+    fun mediaPantallaTapadaConAlgoClaroSeDetecta() {
+        // El caso real del 28-sep: un bloc de notas delante de la mitad de arriba.
+        for (base in listOf(dublan, tlalpan)) {
+            val arriba = todas5x3.take(6)
+            val r = SaludAnalisis.analizar(tapar(base, 5, 3, arriba), 5, 3)
+            val z = r.zonas.single()
+            assertEquals("zona_congelada", z.tipo)
+            assertEquals(arriba.toSet(), z.grupo.toSet())
+        }
+    }
+
+    @Test
+    fun unGabinetePegadoEnUnColorFijoSeDetecta() {
+        val r = SaludAnalisis.analizar(tapar(tlalpan, 5, 3, listOf(2 to 1)), 5, 3)
+        assertEquals(listOf("zona_congelada" to (2 to 1)), r.zonas.map { it.tipo to (it.fila to it.columna) })
+    }
+
     @Test
     fun enCuadricula5x3SinFallaNoAlarma() {
         for (base in listOf(dublan, tlalpan)) assertTrue(SaludAnalisis.analizar(base, 5, 3).zonas.isEmpty())

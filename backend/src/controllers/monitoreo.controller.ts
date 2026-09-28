@@ -28,7 +28,7 @@ export const TIPOS = ['zona_apagada', 'zona_congelada', 'pantalla_apagada', 'pan
 
 export const NOMBRES: Record<string, string> = {
   zona_apagada: 'Posible gabinete apagado',
-  zona_congelada: 'Posible gabinete congelado',
+  zona_congelada: 'Posible gabinete congelado o tapado',
   pantalla_apagada: 'Pantalla apagada en horario',
   pantalla_congelada: 'Pantalla congelada',
   camara_movida: 'Cámara movida',
@@ -263,7 +263,7 @@ const SELECT_FALLAS = `
 /** El nombre de una falla; si abarca varios gabinetes, dice "varios". */
 export function nombreDe(tipo: string, fila: number | null) {
   if (fila == null && tipo === 'zona_apagada') return 'Varios gabinetes apagados';
-  if (fila == null && tipo === 'zona_congelada') return 'Varios gabinetes congelados';
+  if (fila == null && tipo === 'zona_congelada') return 'Varios gabinetes congelados o tapados';
   return NOMBRES[tipo] ?? tipo;
 }
 

@@ -73,7 +73,7 @@ class Monitor(
 
         val NOMBRES = mapOf(
             "zona_apagada" to "Posible gabinete apagado",
-            "zona_congelada" to "Posible gabinete congelado",
+            "zona_congelada" to "Posible gabinete congelado o tapado",
             "pantalla_apagada" to "Pantalla apagada en horario",
             "pantalla_congelada" to "Pantalla congelada (no cambia el contenido)",
             "camara_movida" to "La cámara se movió: hay que volver a marcar la pantalla",
@@ -381,7 +381,7 @@ class Monitor(
         for (e in eventos) {
             val zonas = if (e.fila != null && e.columna != null) listOf(e.fila to e.columna) else e.zonas
             val grupo = e.zonas.isNotEmpty() || e.clave.endsWith(":varias")
-            val nombre = if (grupo) (if (e.tipo == "zona_apagada") "Varios gabinetes apagados" else "Varios gabinetes congelados")
+            val nombre = if (grupo) (if (e.tipo == "zona_apagada") "Varios gabinetes apagados" else "Varios gabinetes congelados o tapados")
                 else NOMBRES[e.tipo] ?: e.tipo
             val gabinetes = e.zonas.map { (f, c) -> geo.numero(f, c) }.sorted()
             val donde = when {

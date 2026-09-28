@@ -80,9 +80,16 @@ object SaludAnalisis {
     /** Zona apagada: brillo maximo y actividad muy por debajo del resto. */
     const val APAGADA_BRILLO = 0.35
     const val APAGADA_ACTIVIDAD = 0.25
-    /** Zona congelada: tiene imagen pero casi no cambia. */
+    /**
+     * Zona congelada o tapada: no esta oscura, pero casi no cambia mientras el
+     * resto si. Antes ademas se le pedia textura, y eso dejaba fuera el caso mas
+     * claro: algo liso delante (un bloc de notas en la prueba del 28-sep) o un
+     * gabinete pegado en un color fijo. Esas zonas quedaban con actividad 0 y
+     * textura 2.4, bajo el minimo de 3, y no alarmaban. Desde la camara no se
+     * puede distinguir un gabinete congelado en blanco de algo puesto enfrente,
+     * y las dos cosas hay que verlas. Las zonas sanas reales no bajan de 0.26.
+     */
     const val CONGELADA_ACTIVIDAD = 0.15
-    const val CONGELADA_TEXTURA = 3.0
     /** Margen de cada zona que no se mira (el marco del gabinete vecino). */
     private const val MARGEN = 0.15
     /** Regla absoluta de zona apagada: casi negra y sin ningun cambio. */
@@ -137,7 +144,7 @@ object SaludAnalisis {
                 zonas.add(Zona("zona_apagada", f, c, redondea(1 - maxOf(rMax / APAGADA_BRILLO, rAct / APAGADA_ACTIVIDAD))))
             } else if (maximo[f][c] < NEGRO_BRILLO && actividad[f][c] < NEGRO_ACTIVIDAD) {
                 zonas.add(Zona("zona_apagada", f, c, 0.9))
-            } else if (rAct < CONGELADA_ACTIVIDAD && textura[f][c] > CONGELADA_TEXTURA) {
+            } else if (rAct < CONGELADA_ACTIVIDAD) {
                 zonas.add(Zona("zona_congelada", f, c, redondea(1 - rAct / CONGELADA_ACTIVIDAD)))
             }
         }
