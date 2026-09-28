@@ -63,6 +63,26 @@ class SeguimientoTest {
     }
 
     @Test
+    fun unaAlertaAgrupadaAbiertaEnElServidorNoTumbaLaVueltaYSeCierraSola() {
+        // El caso real del 28-sep: el servidor tiene abierto "varios gabinetes
+        // apagados" (sin fila ni columna) y el equipo lo recibe en su configuracion.
+        val s = Seguimiento()
+        s.sincronizar(mapOf(Seguimiento.claveDelServidor("zona_apagada", null, null) to 12L))
+        s.registrar(0, vuelta(), false)
+        val r = s.registrar(HORA, vuelta(), false).single()
+        assertEquals("recuperar", r.accion)
+        assertEquals(12L, r.fallaId)
+    }
+
+    @Test
+    fun unaClaveRaraNoTumbaLaVuelta() {
+        val s = Seguimiento()
+        s.sincronizar(mapOf("zona_apagada" to 3L, "zona_congelada:x" to 4L))
+        s.registrar(0, vuelta(), false)
+        s.registrar(HORA, vuelta(), false)
+    }
+
+    @Test
     fun unaVueltaSanaEnMedioReiniciaLaCuenta() {
         val s = Seguimiento()
         s.registrar(0, vuelta(gabinete), false)

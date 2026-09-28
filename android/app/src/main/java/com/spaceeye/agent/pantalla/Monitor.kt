@@ -371,7 +371,7 @@ class Monitor(
 
         val abiertas = mutableMapOf<String, Long>()
         cfg.optJSONArray("abiertas")?.let { a -> for (i in 0 until a.length()) a.getJSONObject(i).let { o ->
-            abiertas[Seguimiento.clave(o.getString("tipo"), o.optInt("fila", -1).takeIf { it >= 0 }, o.optInt("columna", -1).takeIf { it >= 0 })] = o.getLong("id")
+            abiertas[Seguimiento.claveDelServidor(o.getString("tipo"), o.optInt("fila", -1).takeIf { it >= 0 }, o.optInt("columna", -1).takeIf { it >= 0 })] = o.getLong("id")
         } }
         seguimiento.sincronizar(abiertas)
         val silenciadas = mutableSetOf<String>()

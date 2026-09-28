@@ -79,6 +79,16 @@ class Seguimiento(
         fun claveGrupo(tipo: String) = "$tipo:varias"
 
         /**
+         * La clave de una falla que tiene abierta el SERVIDOR. Una de gabinete sin
+         * fila ni columna es un grupo ("varios gabinetes"), y tiene que llamarse
+         * igual que la que arma el equipo: si no, el equipo no la reconocia, no
+         * podia cerrarla sola y la vuelta se caia al leerle la fila ("Index: 1,
+         * Size: 1", 28-sep, telefono de pruebas).
+         */
+        fun claveDelServidor(tipo: String, fila: Int?, columna: Int?) =
+            if (tipo.startsWith("zona_") && (fila == null || columna == null)) claveGrupo(tipo) else clave(tipo, fila, columna)
+
+        /**
          * Una zona que en una vuelta normal casi no se movio o casi no se encendio.
          * 0.2 y no 0.3: contra el percentil 75 una zona SANA de las fotos reales
          * baja hasta 0.26; una tapada por una barda queda cerca de 0.05.
@@ -159,7 +169,13 @@ class Seguimiento(
                 val fuera = excluidas()
                 juzgable = { k ->
                     if (!k.startsWith("zona_")) true
-                    else k.split(":").let { p -> p[1] == "varias" || (p[1].toInt() to p[2].toInt()) !in fuera }
+                    else k.split(":").let { p ->
+                        // Una clave rara nunca debe tumbar la vuelta: se juzga.
+                        if (p.size < 3) true
+                        else p[1] == "varias" || (p[1].toIntOrNull() to p[2].toIntOrNull()).let { (f, c) ->
+                            f == null || c == null || (f to c) !in fuera
+                        }
+                    }
                 }
                 if (aprendiendo) aprender(s, o.filas, o.columnas)
             }
