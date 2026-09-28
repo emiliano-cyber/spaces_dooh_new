@@ -88,7 +88,26 @@ explícitamente, y **nace apagada**.
 Mismo criterio que el tope de descuento del 2026-09-28: **la regla nace cerrada y
 se abre a propósito**, no al revés.
 
-### 3 · Todo se CONGELA al aprobar
+### 3 · Cada empresa pone las suyas — y eso vale para las CUATRO
+
+**Dictado por el dueño el 2026-09-28:** *«las promociones las debe de poner cada
+empresa, ya que cada empresa debe de manejar esto de manera independiente»*.
+
+No es una preferencia de configuración: es el modelo de negocio. Esto es un
+producto de **instancias soberanas**, y una promoción es una decisión comercial
+del dueño, no una regla del producto.
+
+**Consecuencia obligatoria para las fases 2, 3 y 4:** toda tabla de promoción
+nace con `tenant_id`, con **RLS `enable` + `force`**, y con la política cerrada
+por los **dos** lados (`using` para leer, `with check` para escribir). Nada de
+catálogos de la flota, y nada de valores por omisión sembrados desde una
+migración.
+
+Lo cumple ya la Fase 2 (`escalas_volumen`). **Las fases 3 y 4 se rechazan si no
+lo cumplen**, por bien que calculen: una promoción que se filtra entre
+organizaciones es el fallo R2 aplicado a dinero.
+
+### 4 · Todo se CONGELA al aprobar
 
 `propuestas.snapshot_economico` ya congela la escalera de hoy —bruto, descuento,
 comisión, neto, IVA, total, y `porSitio: [{sitioId, lista, neto}]`— y es lo que

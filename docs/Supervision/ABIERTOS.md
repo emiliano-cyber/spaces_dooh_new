@@ -60,6 +60,54 @@ reporte, no bloquea el 14/10).
 
 ---
 
+## 2026-09-28 · Auditoría del ADR 0039 Fase 1 (la rejilla) — `main` @ `30425cf`
+
+**Veredicto: 🟠 ÁMBAR.** Se puede construir encima, con **una deuda que hay que
+cerrar ANTES de la Fase 3** y que ya está identificada.
+
+**Lo medido en el árbol fusionado** (`main`, `30425cf`, no en la rama suelta):
+
+| Qué | Resultado |
+|---|---|
+| `cd apps/web && npx tsc --noEmit` | limpio, exit 0 |
+| `cd apps/web && npm test` | **2217 pruebas en 166 archivos**, todas en verde, 14,47 s |
+| `node scripts/recuentos.mjs` | 106 endpoints · 49 tablas · 91 migraciones · ADR 0039 · 86 notas · 1109 enlaces · 2 rotos (los dos ADR, convención conocida) · 0 huérfanas — **cuadra con lo que afirman `CLAUDE.md` y el MOC** |
+| `sha256` de `20260928_rejilla_franja_temporada.sql` disco vs `git show HEAD:` | `09f2aacc51fb…` en los dos — **sin trampa CRLF en la migración** |
+| `aislamiento.e2e.test.ts` · `servidor-e2e.ts` · `db/schema.sql` | **no aparecen en el diff** |
+| `qRaw` nuevo | **ninguno**; `rejilla-repo.ts:2` importa `q, q1, withTenantTx` |
+| e2e (`npm run test:e2e`) | **NO se corrió** — ver el apartado de lo no verificado |
+
+**Y la afirmación más frágil del ejecutor —la migración en PostgreSQL 14— dejó de
+ser un razonamiento: se EJECUTÓ.** Contenedor desechable `postgres:14-alpine`,
+`server_version_num = 140024` → `PostgreSQL 14.24`, **la misma versión exacta que
+corre g500**. La migración aplica con exit 0 y sus cinco filas de verificación
+salen correctas (3 tablas · 3 con RLS forzada · 4 FK compuestas · 0 filas de
+rejilla · 0 ítems con franja). Segunda corrida: exit 0, idempotente. Además se
+midieron en esa misma 14.24 los siete comportamientos que la cabecera afirma:
+
+- la segunda fila «sin franja ni temporada» del mismo `(sitio, unidad)` la rechaza
+  `idx_sitio_tarifas_rejilla` — la trampa de los NULL que `nulls not distinct`
+  arreglaría en la 15 **queda cerrada por el índice de expresión con `coalesce`**;
+- el `on conflict ( … coalesce(franja_id, …), coalesce(temporada_id, …) )` de
+  `rejilla-repo.ts:300` **infiere el índice en la 14** y hace UPDATE, no duplica —
+  era el riesgo real y no se materializa;
+- las FK compuestas rechazan colgar una tarifa de alfa de la franja de beta, y un
+  `propuesta_items.franja_id` ajeno;
+- el `on delete restrict` impide borrar una franja ya contratada;
+- el `delete … is not distinct from` borra la fila «todo el día»;
+- con RLS **forzada** y el rol `spaces_app`: sin `app.tenant_id` se ven **0 filas**,
+  con cada tenant se ve **solo la suya**, el `with check` rechaza escribir con
+  tenant ajeno, y la FK compuesta **sigue funcionando para la franja propia** —que
+  es lo que podía haber roto en silencio y no rompe.
+
+Contenedor eliminado al terminar. Ningún archivo del repositorio se tocó para medir
+esto.
+
+**Lo que abre esta auditoría:** decisiones **D11** y **D12**; advertencias **B40** a
+**B45**. La que de verdad importa de las seis es **B40**.
+
+---
+
 ## A · Decisiones del dueño
 
 Ordenadas por **cuánto trabajo bloquea cada una**, que es el orden en que conviene
@@ -71,6 +119,75 @@ archivo dentro de la pregunta.
 > distinto de lo que yo recomendaba**, que es como debe ser. **Quedan vivas: D6** y
 > la nueva **D7**. Las contestadas se conservan tachadas, con la elección y con qué
 > se comprobó que está aplicada y no solo escrita.
+
+---
+
+### D11 · La rejilla de precios deja que el precio se decida en el navegador del vendedor. Antes de meter descuentos por volumen y códigos promocionales, ¿se pasa el cálculo al servidor?
+
+- **Bloquea:** el **código promocional con vencimiento y tope de usos** (la fase 3) no
+  se puede construir honestamente hasta que esto se decida: un cupón cuyo descuento y
+  cuyo contador de usos se calculan en el navegador del vendedor no es un cupón, es
+  una sugerencia. **Lo que SÍ se puede hacer mientras:** el descuento por volumen (la
+  fase 2), que es una regla interna y no un compromiso con un tercero, y toda la
+  captura de franjas, temporadas y tarifas.
+- **Por qué importa:** hoy el vendedor manda el precio y el servidor lo acepta tal
+  cual. Con la rejilla ya existe una tabla de precios que dice «el prime cuesta
+  2 500», y el sistema **no comprueba** que lo que se guardó sea eso: se puede cerrar
+  una venta de prime a 1 peso y el documento firmado quedará congelado diciendo
+  «Prime · 06:00–10:00 · 1 peso», con toda la apariencia de ser correcto. No es un
+  agujero que abriera esta fase —el precio siempre vino del navegador— pero hasta hoy
+  no había nada con qué contradecirlo.
+- **Opciones:**
+  - **(a) El servidor recalcula el precio y el del navegador solo se enseña.** Cuesta
+    entre dos y tres días y hay que decidir qué pasa cuando no coinciden (rechazar la
+    venta, o aceptarla y anotar quién la autorizó). Consecuencia: el precio de un
+    contrato pasa a ser una afirmación del sistema y no del vendedor, y las fases 3 y
+    4 se pueden construir encima sin rehacer nada.
+  - **(b) El servidor solo avisa cuando no coinciden y deja pasar.** Medio día.
+    Consecuencia: se detecta el error honesto y no se impide el deliberado; sirve
+    para la fase 2, no para la 3.
+  - **(c) No se toca y la fase 3 se construye igual.** Cero días ahora.
+    Consecuencia: el cupón se puede gastar más veces que su tope y después de
+    vencido, y no habrá forma de saber cuántas veces pasó.
+- **Recomendación:** la **(a)**, y **antes** de empezar la fase 3, no después. El
+  motivo no es teórico: la fase 3 es la única de las cuatro que promete algo a alguien
+  de fuera de la casa, y una promesa que solo se guarda en el navegador de quien la
+  hace no se puede cobrar ni auditar. Hacerlo después obliga a repasar las ventas ya
+  cerradas con el cupón.
+- **Si nadie contesta:** por omisión se construye la fase 2 (que no lo necesita) y la
+  fase 3 queda sin empezar. Eso **es aceptable** hasta que alguien prometa un código
+  promocional a un cliente; a partir de ahí deja de serlo.
+- **Caduca:** el día que se arranque la fase 3. Contestarla después ya no sirve: el
+  trabajo estará hecho sobre el supuesto contrario.
+
+### D12 · La única instancia con clientes de verdad lleva desde el 23 de septiembre sin poder recibir ninguna actualización. ¿Se le sube el motor de la base antes del 14 de octubre?
+
+- **Bloquea:** que **nada** de lo construido desde el 18 de septiembre llegue a esa
+  instancia — incluida esta rejilla de precios y todo lo que se construya encima.
+  **Lo que SÍ se puede hacer mientras:** seguir construyendo y seguir demostrando
+  sobre la máquina de demostración, que sí está al día.
+- **Por qué importa:** es una decisión de operación, no de programación, y no la
+  abrió esta fase — está abierta desde el 23/09 y ya tiene su expediente. Pero cada
+  semana que pasa añade trabajo a la cola que esa instancia tendrá que tragarse de
+  golpe el día que se destrabe, y tragarse once migraciones seguidas sobre datos de
+  clientes es más arriesgado que tragarse dos.
+- **Opciones:**
+  - **(a) Subir el motor de esa base y aplicar la cola entera.** Es trabajo de
+    servidor con el servicio caído un rato, y hay que ensayarlo antes contra una copia.
+    Consecuencia: esa instancia vuelve a la flota y deja de acumular deuda.
+  - **(b) Dejarla congelada en la versión que tiene hasta después del 14/10.**
+    Cero trabajo ahora. Consecuencia: el cliente que ya paga no ve nada de lo nuevo, y
+    la cola sigue creciendo.
+  - **(c) Reescribir la migración del 18/09 para que no necesite el motor nuevo.**
+    Consecuencia descartable: su propia cabecera explica que la sintaxis no se puede
+    sustituir sin cambiar el comportamiento del borrado.
+- **Recomendación:** la **(a)**, y ensayada contra una copia antes. Es la única que no
+  deja a un cliente que paga fuera del producto.
+- **Si nadie contesta:** por omisión ocurre la **(b)**. Es aceptable para el SUMMIT
+  —la demostración no se hace ahí— y deja de serlo en cuanto se le prometa a ese
+  cliente cualquier cosa de lo construido este mes.
+- **Caduca:** el 2026-10-14. Después del SUMMIT sigue siendo necesaria pero deja de
+  competir por el calendario.
 
 ---
 
@@ -473,6 +590,172 @@ cosa es un fallo silencioso o un dato que miente, y otra es algo que solo apriet
 calendario.
 
 ### B · i — Críticas por SEVERIDAD (fallo silencioso · dato que miente)
+
+#### B40 · 🔴 El servidor NO comprueba que el precio vendido salga de la rejilla · **es la que importa de las seis**
+
+- **Qué es:** la cadena de resolución de precio de la Fase 1 vive **entera en el
+  navegador**. El servidor recibe el importe y lo acepta.
+- **Evidencia:**
+  - `resolverTarifa` está declarada en `apps/web/lib/rejilla.ts:251` y se invoca
+    desde **un solo sitio de producción**:
+    `apps/web/app/(app)/(shell)/propuestas/page.tsx:456` — un componente `'use
+    client'`. `grep -rn "resolverTarifa" apps/web` no devuelve ni una llamada de
+    servidor; el resto de apariciones son `lib/rejilla.test.ts`.
+  - El servidor toma la tarifa del cuerpo sin contrastarla:
+    `apps/web/lib/server/propuestas-controller.ts:32` la declara
+    (`tarifaUnitaria: z.coerce.number().nonnegative().nullish()`), `:130` la copia
+    tal cual y `:133` calcula `precio: precioItem(it.tarifaUnitaria, cantidad)`.
+  - Lo único que el servidor sí valida de esta fase es **de qué catálogo es la
+    franja** (`propuestas-controller.ts:86-96`), no cuánto cuesta.
+  - La propia e2e del congelado lo enseña sin querer: manda
+    `tarifaUnitaria: 1800` en el cuerpo
+    (`apps/web/lib/test/rejilla-franja-temporada.e2e.test.ts:328`) y el 1 800 casa
+    con la rejilla **porque lo escribió quien redactó la prueba**, no porque nadie
+    lo comprobara.
+- **Por qué es la peor de las seis:** el agujero es anterior a esta fase, pero la
+  rejilla le cambia el significado. Antes, «el precio lo pone el vendedor» era
+  coherente con que no hubiera tabla de precios. Ahora hay una tabla de precios, y
+  el snapshot congelado **afirma** la franja con su nombre y su horario junto a un
+  importe que el sistema nunca verificó: un documento con toda la apariencia de ser
+  auditable y que no lo es. Es la familia del `?? 0` del mapa, aplicada a dinero.
+- **Cómo se cierra:** que el servidor resuelva la tarifa con la MISMA
+  `resolverTarifa` —el módulo ya es puro y no importa nada de React ni de la base,
+  así que se puede llamar desde `propuestas-controller.ts` sin moverlo— leyendo la
+  rejilla del sitio y el catálogo de temporadas, y decidiendo qué hacer si no
+  coincide con lo que mandó el cliente.
+- **Quién puede cerrarla:** técnica, pero **la política de qué hacer al no
+  coincidir es del dueño → D11.**
+- **Si no se cierra antes del 14/10:** no pasa nada el 14/10 —la demostración no
+  toca este camino— pero **la Fase 3 no se puede construir bien encima**, y ése es
+  todo el motivo de esta auditoría.
+
+#### B41 · 🟠 La pantalla donde se configuran las franjas se queda sin salida cuando el candado de cambios está encendido
+
+- **Qué es:** `/franjas-y-temporadas` escribe contra rutas marcadas como cambio
+  sensible, pero **no monta el cuadro de contraseña**. Su hermana de la ficha de
+  pantalla sí lo monta.
+- **Evidencia:**
+  - Las cuatro rutas que usa exigen desbloqueo:
+    `app/api/rejilla/franjas/route.ts:53`, `app/api/rejilla/franjas/[id]/route.ts:25`
+    y `:38`, `app/api/rejilla/temporadas/route.ts:29`,
+    `app/api/rejilla/temporadas/[id]/route.ts:16` y `:29` — todas
+    `exigirCambioSensible(...)`.
+  - `components/demo/rejilla/RejillaDialog.tsx:65` tiene `useCandado()` y `:186`
+    pinta `<PasoContrasena …>`. **`components/demo/rejilla/GestionRejilla.tsx` no
+    tiene ninguno de los dos**: sus tres manejadores (`:72`, `:82`, `:95`) hacen
+    `setError(e.message)` y nada más.
+  - El cliente HTTP lo deja escrito como advertencia:
+    `lib/data/rejilla-api.ts:8-12` — «sustituirlo por uno propio dejaría el 403 como
+    error rojo, **sin cuadro donde teclear la contraseña**». Es exactamente lo que
+    va a pasar aquí, solo que por no consumirlo en vez de por sustituirlo.
+  - **Alcance real, medido en el código:** `lib/server/cambios.ts:278` deja pasar sin
+    pedir nada cuando `tenants.exigir_reautenticacion = false`, y `:290-291` afirma
+    que está apagado «en los cinco tenants de producción». Así que **hoy la pantalla
+    funciona**; se rompe para el dueño que encienda el candado.
+- **Cómo se cierra:** montar `useCandado` + `PasoContrasena` en `GestionRejilla`,
+  copiando el patrón de `RejillaDialog`. Es media hora.
+- **Quién puede cerrarla:** técnica, sin decisión de negocio.
+- **Si no se cierra antes del 14/10:** riesgo bajo **si y solo si** nadie enciende
+  `exigir_reautenticacion` en la organización con la que se demuestra. Si alguien lo
+  enciende, la pantalla nueva de la Fase 1 es la única del producto donde el dueño
+  no puede dar de alta nada y no se le dice por qué.
+
+#### B42 · 🟠 Vender dos franjas de la misma pantalla en una propuesta saca esa pantalla del reporte de tarifas
+
+- **Qué es:** la dimensión «tarifa publicada vs neta» del reporte se declara
+  incapaz cuando la misma pantalla aparece dos veces en el congelado. La rejilla
+  hace que eso pase a menudo, porque vender el prime y la madrugada de la misma
+  pantalla es su caso de uso central.
+- **Evidencia:** `apps/web/lib/data/reportes.ts:1085-1092` — `const AMBIGUA = null`
+  y `porSitioTarifa.set(e.sitioId, porSitioTarifa.has(e.sitioId) ? AMBIGUA : …)`. El
+  comentario de `:1079-1084` explica que el motivo original eran «dos periodos»; con
+  la Fase 1 el motivo nuevo son **dos franjas**. Cuando sale `AMBIGUA`, la reserva
+  cae a `porTarifa.sinTarifa` (`:1109-1120`).
+  **El dato que lo desambiguaría ya está congelado y no se usa:**
+  `propuestas-repo.ts:236-243` guarda `franja: {id, nombre, horaInicio, horaFin}`
+  dentro de cada `porSitio[]`, pero el tipo que lee el reporte sigue siendo
+  `porSitio: { sitioId: string; lista: number; neto: number }[]`
+  (`reportes.ts:381`), sin franja.
+- **Gravedad, dicha con precisión:** el reporte **no miente** — se declara, que es lo
+  correcto. Lo que pasa es que **cubre menos**, y cubre menos justo en las ventas
+  que la Fase 1 existe para hacer posibles.
+- **Cómo se cierra:** desempatar por `(sitioId, franjaId)` en vez de por `sitioId` en
+  `reportes.ts:1088-1092`, y añadir `franja` al tipo de `:381`.
+- **Quién puede cerrarla:** técnica.
+- **Si no se cierra antes del 14/10:** invisible mientras nadie venda dos franjas de
+  la misma pantalla en una propuesta. Es justo lo que alguien intentará al enseñar la
+  rejilla en una demostración.
+- **Declarado:** esto está **deducido leyendo el código, no medido**. No se construyó
+  una propuesta de dos franjas para verlo salir del reporte.
+
+#### B43 · 🟠 El snapshot afirma una temporada aunque esa temporada no haya puesto el precio
+
+- **Qué es:** el congelado guarda `temporada: {id, nombre}` calculándola con la
+  temporada que **cubre la fecha de inicio del ítem**, no con la que **ganó la
+  resolución de la tarifa**. Son dos cosas distintas y el documento no las
+  distingue.
+- **Evidencia:**
+  - `propuestas-repo.ts:219-221` deduce `tempId = temporadaDeFecha(temporadasRej,
+    …it.fecha_inicio…)` y `:244` guarda `temporada: temp ? {id, nombre} : null`.
+  - `lib/rejilla.ts:61-68` declara que la salida correcta es la de la **fila
+    ganadora** (`/** La temporada de la fila GANADORA. */`), y `resolverTarifa`
+    devuelve `temporadaId: null` cuando gana una fila sin temporada
+    (`rejilla.ts:277`, `:292-299`, `:300`). **El congelado no llama a
+    `resolverTarifa`.**
+  - Consecuencia concreta: una venta del 14 de noviembre a tarifa base, sin una sola
+    fila de rejilla, queda congelada diciendo `temporada: {nombre: "Buen Fin 2026"}`.
+    Seis meses después eso se lee como «se cobró el precio del Buen Fin», y no se
+    cobró.
+  - Y una segunda, del mismo sitio: la temporada se recalcula **al aprobar** con las
+    temporadas de ese momento; si el dueño movió las fechas entre cotizar y aprobar,
+    el snapshot nombra una temporada distinta de la que el navegador usó para poner
+    el precio. Nada da error.
+- **Cómo se cierra:** o se guarda la temporada que devuelve `resolverTarifa` (y
+  entonces hay que resolver en el servidor → depende de **B40**), o se renombra el
+  campo a algo que diga lo que es (`temporadaDeLaFecha`) y se deja de sugerir que
+  puso el precio.
+- **Quién puede cerrarla:** técnica, pero el arreglo bueno depende de B40.
+- **Si no se cierra antes del 14/10:** solo muerde en organizaciones que hayan
+  capturado temporadas. Si el 14/10 se enseña una temporada, muerde ese día.
+
+#### B44 · 🟡 Dos consultas nuevas por `id` no llevan el `and tenant_id` que la cabecera de su propio archivo promete
+
+- **Qué es:** la convención del repositorio —y la cabecera de `rejilla-repo.ts`—
+  exigen `and tenant_id = $n` como segunda capa sobre la RLS en toda operación por
+  `id`. Dos consultas nuevas no la llevan.
+- **Evidencia:** `apps/web/lib/server/rejilla-repo.ts:10-11` afirma «toda operación
+  por `id` lleva `and tenant_id = $n` como segunda capa sobre la RLS». Pero
+  `:228` es `where t.sitio_id = $1` a secas, y `:284-287` es
+  `select id, tenant_id from sitios where id = $1` a secas. También
+  `sitios-repo.ts:309` (`from sitio_tarifas where sitio_id=$1`) y el
+  `select … from temporadas where activo = true` de `propuestas-repo.ts:194-196`.
+- **Gravedad real:** las cuatro pasan por `q`/`qS`, o sea bajo RLS, y se midió en
+  PostgreSQL 14.24 que la política corta (0 filas sin `app.tenant_id`, solo las
+  propias con él). **No hay fuga hoy.** Lo que hay es un archivo que afirma de sí
+  mismo una disciplina que no cumple, y esta segunda capa existe precisamente para
+  el día que la primera falle.
+- **Cómo se cierra:** añadir el filtro, o corregir la cabecera para que no afirme lo
+  que no hace. Lo primero cuesta menos.
+- **Quién puede cerrarla:** técnica.
+- **Si no se cierra antes del 14/10:** no pasa nada el 14/10.
+
+#### B45 · 🟡 La ruta de la rejilla acepta cualquier «unidad de venta»; la de las modalidades no
+
+- **Qué es:** asimetría de validación entre las dos rutas que escriben precios de la
+  misma pantalla.
+- **Evidencia:** `sitios-controller.ts:139-140` valida cada unidad con
+  `motivoModalidadInvalida(unidad, sitio.exhibicion)`. El controlador nuevo no:
+  `rejilla-controller.ts:160` solo pide
+  `unidad: z.string().trim().min(1, …).max(40)`, y la tabla tampoco tiene CHECK
+  (`db/migrations/20260928_rejilla_franja_temporada.sql:253`, `unidad text not
+  null`). El cuadro de captura sí filtra
+  (`RejillaDialog.tsx:70`, `admitidas`), pero un `curl` no pasa por el cuadro.
+- **Gravedad real:** inerte hoy. Una fila con una unidad inventada no gana nunca la
+  resolución, porque las unidades que se ofrecen salen de `sitio_modalidades`.
+  Es basura escribible, no dinero mal cobrado.
+- **Cómo se cierra:** importar `motivoModalidadInvalida` en `rejilla-controller.ts`,
+  igual que hace el cuadro. Diez minutos.
+- **Si no se cierra antes del 14/10:** nada.
 
 #### ~~B1 · La pantalla de reportes abre afirmando una pérdida de $184,500 que no ocurrió~~
 
@@ -1951,6 +2234,84 @@ era correcta y los ocho arreglos no necesitaban aprobación de R4.
 ---
 
 ## C · Cerradas
+
+#### ✅ C12 · «La migración de la rejilla en PostgreSQL 14 está razonada, no ejecutada» — **CERRADA el 2026-09-28, y ejecutada**
+
+El propio commit `6b1637a` la declaró como su afirmación más frágil: «la migración
+contra PostgreSQL 14 REAL — el 5433 corre 16, así que la compatibilidad con la 14
+está razonada y evitada por construcción, **no ejecutada**». Y el expediente
+`docs/evidencias/16-g500-postgres-14-20260923.md:127` decía lo mismo del guard del
+runner: «no se ha probado contra un PostgreSQL 14 de verdad».
+
+**Con qué se midió:** contenedor desechable `postgres:14-alpine`, `select
+current_setting('server_version_num')` → `140024`, `version()` → `PostgreSQL 14.24
+on x86_64-pc-linux-musl` — **la misma versión exacta que corre g500**. Sobre un
+esquema mínimo con las cuatro tablas que la migración referencia:
+
+- `psql -v ON_ERROR_STOP=1 -f 20260928_rejilla_franja_temporada.sql` → **exit 0**,
+  y sus cinco filas de verificación: `3 · 3 · 4 · 0 · 0`.
+- Segunda corrida del mismo archivo → **exit 0**: idempotente en la 14.
+- La segunda fila «sin franja ni temporada» del mismo `(sitio, unidad)` →
+  `ERROR: duplicate key value violates unique constraint
+  "idx_sitio_tarifas_rejilla"`. **El `coalesce` al uuid centinela hace en la 14 el
+  trabajo que `nulls not distinct` haría en la 15.**
+- El `on conflict ( sitio_id, unidad, coalesce(franja_id, …), coalesce(temporada_id,
+  …) )` de `rejilla-repo.ts:300` **infiere el índice de expresión en la 14** y hace
+  UPDATE: queda 1 fila con la tarifa nueva. Era el riesgo real y no se materializa.
+- FK compuesta `sitio_tarifas → franjas_horarias`: colgar una tarifa de alfa de la
+  franja de beta → `violates foreign key constraint "sitio_tarifas_franja_fkey"`.
+  Lo mismo para `propuesta_items_franja_fkey`.
+- `on delete restrict`: borrar una franja ya contratada → rechazado.
+- `delete … franja_id is not distinct from null::uuid` → `DELETE 1`.
+- El disparador `set_actualizado_en()` sobre `sitio_tarifas` mueve
+  `actualizado_en` → `t`.
+- Bajo el rol `spaces_app` con RLS **enable + force**: sin `app.tenant_id` se ven
+  **0 filas**; con cada tenant, **solo 1** (la suya); escribir con `tenant_id` ajeno
+  → `new row violates row-level security policy`; y —lo que podía romper en
+  silencio— la FK compuesta **sigue aceptando la franja propia** con la RLS forzada
+  puesta, y **sigue rechazando la ajena**.
+
+**Búsqueda adicional de sintaxis de 15/16 en todo el SQL nuevo** (migración + los
+repositorios): las únicas menciones de `nulls not distinct` están en comentarios
+(4 ocurrencias, todas en prosa explicativa), no hay `on delete set null (columna)`,
+ni `any_value`, ni `merge`, ni `security_invoker`, ni `regexp_count/instr/like/substr`,
+ni constructores `json_array`/`json_object`, ni `is json`, ni `create or replace
+trigger` —evitado a propósito y documentado en
+`20260928_rejilla_franja_temporada.sql:311-313`—. **No encontré ninguna diferencia
+14↔16 más allá de las dos que ya habían sido revisadas.**
+
+**Y el contexto que sigue abierto y no lo cierra esto:** g500 **no puede recibir
+esta migración de todos modos**, porque
+`db/migrations/20260918_entidad_tenant_compuesto.sql:1` declara `-- @pg-min: 15` y
+el runner para la cola **entera** (`scripts/migrar.mjs:205-215`,
+`mensajeVersionInsuficiente`). Es la **D12** de este expediente.
+
+#### ✅ C13 · «El guard del aviso del CMS solo protege una lista escrita a mano: ¿sirve de algo?» — **MUERDE. Medido el 2026-09-28**
+
+**Con qué se midió:** se reprodujo la función `sinComentarios` de
+`apps/web/lib/rejilla-aviso.test.ts:40-48` en un proceso aparte y se aplicó su misma
+aserción a las cinco superficies, primero tal cual y después con el JSX
+`<AvisoFranjaCMS` sustituido **en memoria** (ningún archivo del repositorio se
+tocó). Resultado: las cinco pasan hoy y **las cinco caen con el mutante**. No es un
+`for` sobre una lista vacía: `SUPERFICIES` (`rejilla-aviso.test.ts:55-62`) tiene
+**cinco entradas** y el bucle está fuera del `it`, así que produce cinco pruebas
+nombradas.
+
+**Las seis superficies existen y se contaron una por una:**
+`GestionRejilla.tsx:105` · `RejillaDialog.tsx:187` ·
+`app/(app)/(shell)/propuestas/page.tsx:840` ·
+`app/(app)/(shell)/propuestas/[id]/page.tsx:492` ·
+`app/(app)/p/[id]/page.tsx:272` (la liga pública) · y la sexta, que no es pantalla,
+`propuestas-repo.ts:259` (`avisoFranja` dentro del congelado). El texto está
+declarado una sola vez en `lib/rejilla.ts:83`.
+
+**Y la premisa del aviso también se comprobó, no se copió:**
+`doohmain_sdk/__main__.py:66-75` son exactamente las nueve banderas que la cabecera
+cita (`--version --anunciante --campana --fecha-inicio --fecha-fin --filepath
+--screen --list --cant-dia`) y **no hay `--hora` ni `--dias`**.
+
+**Lo que el propio guard declara y sigue siendo cierto** (`rejilla-aviso.test.ts:24-25`):
+vigila lo que hay, no lo que llegue. Una séptima superficie sin aviso no rompe nada.
 
 #### ✅ C6 · «Las e2e no se han corrido» — **CERRADA el 2026-09-18, tarde**
 
