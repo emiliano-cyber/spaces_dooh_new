@@ -77,7 +77,7 @@ describe('1 · la pantalla pide sus numeros al endpoint, no al store', () => {
 })
 
 describe('2 · las dimensiones del contrato estan declaradas', () => {
-  it('declara las SEIS, en el mismo orden del contrato', () => {
+  it('declara las SIETE, en el mismo orden del contrato', () => {
     // `luz` entra el 2026-09-18 con el consumo electrico, y es la quinta.
     expect(DIMENSIONES_UI.map((d) => d.valor)).toEqual([
       'sitio',
@@ -89,6 +89,12 @@ describe('2 · las dimensiones del contrato estan declaradas', () => {
       // ADR 0034 —el dueno quiere ver sus razones sociales JUNTAS— y la
       // pregunta siguiente de esa frase es cuanto pasa por cada una.
       'entidad',
+      // La SEPTIMA, del 2026-09-28, y la unica que no es una pregunta de COSTO
+      // sino de PRECIO. Tambien literal de un dueno: «¿puedo comparar tarifa
+      // publicada contra tarifa neta?». Las dos cifras ya estaban congeladas por
+      // pantalla en `propuestas.snapshot_economico` desde el 08/07; lo que
+      // faltaba era mirarlas.
+      'tarifa',
     ])
   })
 

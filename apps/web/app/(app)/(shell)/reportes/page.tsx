@@ -178,6 +178,13 @@ export default function ReportesPage() {
             // no tiene columna de margen: sin él, quien venga de «Por pantalla»
             // buscaría el margen y supondría que se le olvidó a alguien.
             atribucion: reporte.atribucion,
+            // Solo llega en `tarifa`. Es el aviso que dice qué parte del
+            // periodo NO tiene tarifa publicada con la que comparar, y por qué
+            // esa columna sale con rayas: sin él, una tabla llena de rayas se
+            // lee como un fallo del sistema en vez de como el dato diciendo la
+            // verdad. Y su primera frase hace falta siempre: la brecha lleva
+            // dentro la comisión de la agencia, no solo el descuento.
+            tarifas: reporte.tarifas,
           })
         : [],
     [reporte],

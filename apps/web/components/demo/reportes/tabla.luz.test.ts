@@ -91,7 +91,14 @@ describe('1 · `luz` esta en el selector y sus filas son pantallas', () => {
 // Se escribe como una lista con nombre y no como un `filter` en el bucle a
 // proposito: una exencion con su porque al lado es revisable; una condicion
 // dentro del bucle se copia sin pensarla a la siguiente dimension.
-const SIN_COLUMNAS_DE_COSTO_NO_ATRIBUIBLE = ['entidad']
+//
+// Y `tarifa` se suma a la lista el 2026-09-28 por un motivo DISTINTO, que
+// conviene no confundir: en `entidad` el costo de la luz no se puede atribuir;
+// en `tarifa` sí se podria, pero no viene a cuento. Esa dimension no contesta
+// una pregunta de COSTO sino de PRECIO —que tarifa se publico y que entro de
+// ella— y no tiene ninguna columna de costo, asi que tampoco tiene un
+// `costoTotal` con el que no cuadrar, que es el defecto que este guard impide.
+const SIN_COLUMNAS_DE_COSTO_NO_ATRIBUIBLE = ['entidad', 'tarifa']
 
 describe('2 · el costo de la ENERGIA se pinta en TODAS las dimensiones', () => {
   it('`costoEnergia` es una columna comun, no propia de `luz`', () => {
@@ -102,6 +109,16 @@ describe('2 · el costo de la ENERGIA se pinta en TODAS las dimensiones', () => 
     for (const d of DIMENSIONES_UI) {
       if (SIN_COLUMNAS_DE_COSTO_NO_ATRIBUIBLE.includes(d.valor)) continue
       expect(columnasDeDimension(d.valor).map((c) => c.clave), d.valor).toContain('costoEnergia')
+    }
+  })
+
+  it('y la exencion de `tarifa` es EXACTA: ni costo alguno, ni margen', () => {
+    // Que la exencion no se convierta en una puerta abierta, igual que la de
+    // `entidad`: si algun dia `tarifa` gana una columna de costo, este guard se
+    // pone rojo y obliga a decidirlo a proposito.
+    const claves = columnasDeDimension('tarifa').map((c) => c.clave)
+    for (const c of ['costoEnergia', 'costoEspacio', 'costoOperacion', 'costoTotal', 'margen', 'margenPct']) {
+      expect(claves, c).not.toContain(c)
     }
   })
 

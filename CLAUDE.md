@@ -33,19 +33,20 @@ En `docs/` viven: los **ADR** (`docs/adr/`, van por la **0038**), los **planes**
 
 ### Qué es, técnicamente
 
-**83 notas Markdown** en `vault/`, enlazadas entre sí con wikilinks. Está pensada
+**84 notas Markdown** en `vault/`, enlazadas entre sí con wikilinks. Está pensada
 para abrirse con Obsidian, pero **no hay carpeta `.obsidian/` en el repositorio**:
 no se versiona configuración de la herramienta. Consecuencia práctica: la bóveda es
 Markdown puro y **se lee igual desde un editor, desde `cat` o desde un agente**. No
 necesitas instalar nada.
 
-Al 2026-09-25 tiene **1056 enlaces internos** sobre **83 notas**, con **2
+Al 2026-09-28 tiene **1069 enlaces internos** sobre **84 notas**, con **2
 wikilinks rotos** —los dos apuntan a ADR, que viven en `docs/` y no en la
 bóveda, así que es un choque de convención más que un enlace muerto— y
-**0 notas huérfanas**. Las
-mediciones previas daban 1045 sobre 82 (24/09), 1148 sobre 86 (23/09), 1101
-sobre 85 (18/09), 753 sobre 57 (28/08), 606 sobre 48 (17/08) y 395 sobre 43
-(10/08).
+**0 notas huérfanas**. Medido con `node scripts/recuentos.mjs` **en este
+árbol**, al cerrar el trabajo y no antes. Las
+mediciones previas daban 1056 sobre 83 (25/09), 1045 sobre 82 (24/09), 1148
+sobre 86 (23/09), 1101 sobre 85 (18/09), 753 sobre 57 (28/08), 606 sobre 48
+(17/08) y 395 sobre 43 (10/08).
 
 > **Y ojo, esta vez la cifra BAJÓ**, que es la primera vez que pasa y conviene
 > decir por qué: el 23/09 se retiraron cinco manuales de usuario caducados de

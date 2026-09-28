@@ -5,6 +5,39 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-09-28
+
+- **En Reportes hay una vista nueva: «Publicada vs neta».** Contesta de una vez
+  la pregunta de cuánto separa la tarifa que publicas de lo que de verdad entra.
+  Por pantalla, en el periodo que elijas, y con cuatro columnas: **Tarifa
+  publicada**, **Neto comparable**, **Descuento y comisión** y **% sobre
+  publicada**.
+
+  **Nada de esto se captura: ya estaba escrito.** Cuando un cliente acepta una
+  propuesta, el sistema congela la economía exacta de ese día —la tarifa de lista
+  y el neto de cada pantalla— y no se puede reescribir. Eso llevaba desde julio
+  guardado y no había dónde mirarlo.
+
+  **Dos cosas que conviene saber antes de enseñarla, porque son las que evitan
+  leerla mal:**
+
+  - **Se llama «Descuento y comisión», no «Descuento».** Lo que separa la tarifa
+    publicada de lo que entra son **dos** cosas: la rebaja que concediste **y** la
+    comisión de la agencia. El dato las guarda juntas por pantalla, así que la
+    columna las nombra juntas. Llamarla «descuento» a secas haría parecer regalo
+    lo que es comisión.
+  - **Lo vendido desde Comercial sale con una raya, no con un cero.** Una venta
+    hecha directamente desde Comercial no pasó por una propuesta, así que nunca
+    tuvo tarifa publicada que congelar: no hay con qué compararla. Un cero ahí se
+    leería como «se regaló la tarifa entera», y eso sería falso. **Encima de la
+    tabla se dice cuántas ventas están en ese caso y cuánto dinero suman**, para
+    que la raya se entienda a la primera.
+
+  Los cuatro indicadores grandes de arriba **no cambian** al elegir esta vista:
+  son el mismo periodo y el mismo dinero, se agrupe como se agrupe.
+
+---
+
 ## 2026-09-25
 
 - **Y con esto ya no queda ningún sitio de la aplicación que te pida la contraseña

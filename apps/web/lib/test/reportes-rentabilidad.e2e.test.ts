@@ -199,8 +199,14 @@ describe('R2 · dos organizaciones con reservas en el mismo periodo', () => {
     }
   })
 
-  it('las CUATRO dimensiones aislan, no solo la que ya existia', async () => {
-    for (const dimension of ['sitio', 'trimestre', 'operacion', 'm2']) {
+  it('las dimensiones aislan, no solo la que ya existia', async () => {
+    // `tarifa` entra el 2026-09-28 y NO es una mas de la lista: es la unica que
+    // lee una tabla que ninguna otra toca —`propuestas`, por el
+    // `join` de `campanas.propuesta_id`—. Una consulta nueva es exactamente
+    // donde se cuela un `and tenant_id` que falta, y el guard que lee el fuente
+    // (`reportes-repo.aislamiento.test.ts`) comprueba que este ESCRITO, no que
+    // la RLS corte de verdad con el rol de la aplicacion. Eso solo se ve aqui.
+    for (const dimension of ['sitio', 'trimestre', 'operacion', 'm2', 'tarifa']) {
       const d = await reporte(ca, { ...AHORA(), dimension, granularidad: 'trimestre' })
       expect(d.dimension, dimension).toBe(dimension)
       const texto = JSON.stringify(d)

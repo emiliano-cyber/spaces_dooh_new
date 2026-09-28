@@ -35,6 +35,19 @@ import type { DatosRentabilidad, RangoReporte } from '@/lib/data/reportes'
 
 const num = (v: unknown): number => (v == null || v === '' ? 0 : Number(v))
 
+// `jsonb` llega ya como objeto por el driver, pero la columna es de texto libre
+// para Postgres y una fila vieja podría llegar como cadena. Un `JSON.parse` que
+// reviente aquí tumbaría el reporte ENTERO por una campaña con el snapshot
+// malformado, así que se devuelve `null` y esa campaña se queda sin tarifa
+// publicada — que es exactamente lo que la dimensión sabe declarar.
+function seguroJson(s: string): any {
+  try {
+    return JSON.parse(s)
+  } catch {
+    return null
+  }
+}
+
 /**
  * Lo que el motor de rentabilidad necesita de la base para un rango.
  *
@@ -65,6 +78,7 @@ export async function datosRentabilidad(rango: RangoReporte): Promise<DatosRenta
     consumosEnergia,
     entidades,
     facturas,
+    tarifasPublicadas,
     costosOt,
   ] =
     await Promise.all([
@@ -219,6 +233,37 @@ export async function datosRentabilidad(rango: RangoReporte): Promise<DatosRenta
         where tenant_id = $1`,
       [tenantId],
     ),
+    // La TARIFA PUBLICADA, congelada. El puente es
+    // `reservas → campanas.propuesta_id → propuestas.snapshot_economico`
+    // (`db/schema.sql:392`, índice `idx_campanas_propuesta` en `:407`).
+    //
+    // Se lee del SNAPSHOT y no de `sitio_modalidades` ni de `propuesta_items`, y
+    // es la decisión que hace honesta esta dimensión: el snapshot es INMUTABLE
+    // (`20260708_snapshot_economico.sql`) y guarda lo que el cliente aceptó
+    // aquel día. La tarifa de la modalidad de HOY puede ser otra, y compararla
+    // con un ingreso de hace seis meses daría un descuento que nadie concedió.
+    // La cabecera de esa migración ya afirmaba que «rentabilidad lee de este
+    // snapshot»; hasta hoy no era verdad.
+    //
+    // NO se acota por rango, por lo mismo que `facturas`: lo que hace falta es
+    // el mapa de las campañas que tocan el periodo, y son dos columnas por
+    // campaña nacida de propuesta — el orden de magnitud de las campañas, no el
+    // de las reservas. Del JSON solo se usa `porSitio`; el resto de la escalera
+    // económica (bruto, IVA, total) no interviene en esta comparación.
+    //
+    // El `join` lleva su propio `and p.tenant_id = c.tenant_id` además del
+    // `where`: la RLS ya corta, pero un join sin filtro es la forma en que una
+    // consulta se salta la segunda capa sin que nada falle.
+    q<any>(
+      `select c.id as campana_id, p.snapshot_economico as snapshot
+         from campanas c
+         join propuestas p
+           on p.id = c.propuesta_id
+          and p.tenant_id = c.tenant_id
+        where c.tenant_id = $1
+          and p.snapshot_economico is not null`,
+      [tenantId],
+    ),
     // El costo por tipo de OT sale de `config_negocio` (una fila por tenant,
     // ADR 0011) por su función de siempre, no por una consulta propia: el
     // invariante dice que quien lee esa tabla usa la consulta CON tenant.
@@ -270,6 +315,31 @@ export async function datosRentabilidad(rango: RangoReporte): Promise<DatosRenta
       campanaId: r.campana_id,
       entidadEmisoraId: r.entidad_emisora_id ?? null,
     })),
+    // El snapshot es `jsonb`: el driver ya lo entrega como objeto de JS, pero es
+    // una columna sin esquema y las filas del 08/07 en adelante no tienen por qué
+    // traer la misma forma. Se normaliza AQUÍ, en el borde, y una entrada sin
+    // `sitioId` o con importes que no son números se DESCARTA en vez de llegar al
+    // motor: un `NaN` en la tarifa publicada se propagaría a la brecha y al
+    // porcentaje sin dar ningún error, que es el modo de fallo que este módulo
+    // entero existe para no tener.
+    tarifasPublicadas: tarifasPublicadas
+      .map((r) => {
+        const snap = typeof r.snapshot === 'string' ? seguroJson(r.snapshot) : r.snapshot
+        const porSitio = Array.isArray(snap?.porSitio) ? snap.porSitio : []
+        return {
+          campanaId: r.campana_id,
+          porSitio: porSitio
+            .map((e: any) => ({ sitioId: e?.sitioId, lista: Number(e?.lista), neto: Number(e?.neto) }))
+            .filter(
+              (e: any) =>
+                typeof e.sitioId === 'string' &&
+                e.sitioId !== '' &&
+                Number.isFinite(e.lista) &&
+                Number.isFinite(e.neto),
+            ),
+        }
+      })
+      .filter((t) => t.porSitio.length > 0),
     reservas: reservas.map((r) => ({
       sitioId: r.sitio_id,
       campanaId: r.campana_id ?? null,

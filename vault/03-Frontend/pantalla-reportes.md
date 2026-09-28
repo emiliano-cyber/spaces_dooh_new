@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-09-18
+actualizado: 2026-09-28
 tags: [frontend, reportes, rentabilidad, finanzas, dinero]
 archivos:
   - apps/web/app/(app)/(shell)/reportes/page.tsx
@@ -198,6 +198,22 @@ Cuatro decisiones del diseño que no son de estilo:
   tiene otra superficie. Sería una cifra que no es de nadie.
 - **El orden de cada dimensión es EL MISMO que el de su motor.** Si la tabla
   reordenara al recibir, discutiría con el servidor sobre la misma pregunta.
+
+> [!important] Desde el 2026-09-28 el selector ofrece SIETE, no cinco ni seis
+> Esta nota es del 18/09 y por debajo sigue hablando de «las cuatro» y «las
+> cinco» dimensiones: esas frases describen el estado de aquel día. Las que
+> faltan son **`entidad`** (18/09) y **`tarifa`** (28/09).
+>
+> `tarifa` —«Publicada vs neta»— es la segunda que **no parte de `COMUNES`**,
+> junto a `entidad`, y por un motivo distinto: no contesta una pregunta de costo
+> sino de **precio**, así que no trae ninguna columna de costo ni de margen. Sus
+> filas SÍ son pantallas. El contrato completo está en
+> [[02-Backend/tarifa-publicada-vs-neta]].
+>
+> Lo suyo que toca esta pantalla: la fila sin tarifa publicada se pinta con una
+> **raya** —`null` en los cuatro campos, no cero— y el aviso `tarifa-sin-publicada`
+> dice encima de la tabla cuánto quedó fuera y por qué, **en ámbar solo si falta
+> algo**.
   `trimestre` es la única que no va «peor primero», y es deliberado: sus filas
   son una serie de tiempo, no un ranking.
 
@@ -486,6 +502,7 @@ necesitas el número, córrelo.
 
 ## Relacionadas
 [[02-Backend/reportes-rentabilidad]] · [[02-Backend/reportes-dimensiones]] ·
+[[02-Backend/tarifa-publicada-vs-neta]] ·
 [[03-Frontend/_indice]] · [[shell-y-navegacion]] · [[modulos-internos]] ·
 [[estado-y-data-fetching]] · [[02-Backend/finanzas-y-cobranza]] ·
 [[02-Backend/operaciones-y-ot]] · [[convenciones]] · [[MOC-Proyecto]]
