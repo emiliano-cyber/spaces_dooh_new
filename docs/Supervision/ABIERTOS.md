@@ -1683,6 +1683,42 @@ era correcta y los ocho arreglos no necesitaban aprobación de R4.
 
 ---
 
+#### B46 · 🔵 Una prueba falla SIEMPRE en la primera corrida tras un merge, y nadie sabe cuál
+
+**Observado tres veces** — 2026-09-25, 2026-09-28 (×2). Siempre el mismo patrón:
+
+1. `git merge` acaba.
+2. La primera `npx vitest run` da **exactamente 1 fallo**.
+3. Las **tres corridas siguientes salen verdes** sin tocar nada.
+
+**Nunca se ha capturado cuál es.** Las dos primeras veces se miró la salida con
+`| tail`, que solo enseña el resumen; la tercera se filtró con `grep` y **la
+corrida ya salió verde**, así que no hubo nada que capturar.
+
+**Por qué no es «ruido» y merece estar escrito:** una prueba intermitente es
+indistinguible de un defecto real que aparece una de cada cuatro veces. Y este
+repositorio tiene precedente de fallos que solo se ven a veces —el servidor que
+sirve chunks viejos «solo cuando el nombre cambia»— y que por eso costaron más
+caros que los constantes.
+
+**Hipótesis no comprobadas:** la primera corrida tras un merge transforma todo en
+frío (los tiempos de `transform` suben de ~15 s a ~28 s en esa corrida), así que
+podría ser una prueba sensible a tiempos. O contención con otro `vitest` de un
+worktree, que esta semana ya causó tres síntomas distintos.
+
+**Cómo cazarla la próxima vez**, escrito aquí porque el momento dura una sola
+corrida:
+
+```
+npx vitest run --reporter=verbose > /tmp/vitest-post-merge.txt 2>&1 ; grep -n " × \|FAIL" /tmp/vitest-post-merge.txt
+```
+
+Redirigir a archivo **antes** de filtrar. Ese es el punto: las dos primeras veces
+se perdió por mirar la salida con `| tail`, que es el mismo error que ocultó un
+build fallido a un agente y un conflicto de merge dentro de `CLAUDE.md`.
+
+---
+
 ### B · ii — Críticas por CALENDARIO (no hay fallo silencioso; aprieta la fecha)
 
 #### ~~B23 · 🟠 **El arreglo de los checksums funcionó, y por eso la base de demostración del SUMMIT dejó de aceptar migraciones.** Pasó de 0 divergencias a 80~~
