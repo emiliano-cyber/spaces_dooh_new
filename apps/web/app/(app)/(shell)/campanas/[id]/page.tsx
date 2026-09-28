@@ -6,6 +6,7 @@ import { ArrowLeft, ExternalLink, Camera, Printer, ClipboardList, Cpu, MonitorPl
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
 import { Breadcrumbs, type Crumb } from '@/components/demo/ui/Breadcrumbs'
 import { withTrail, trailFromLocation } from '@/lib/nav-trail'
+import { resumenReserva, etiquetaFrecuencia } from '@/lib/periodos'
 import { PipelineView } from '@/components/demo/campanas/PipelineView'
 import { CampanasNav } from '@/components/demo/campanas/CampanasNav'
 import { CandadoPanel } from '@/components/demo/campanas/CandadoPanel'
@@ -324,9 +325,30 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
                 <li key={reserva.id} className="flex items-center justify-between py-2">
                   <div className="min-w-0">
                     <div className="truncate text-[13px] text-ink">{sitio!.nombre}</div>
+                    {/* QUÉ se vendió, no solo cuánto. Decía `{precio}/mes` para
+                        TODA reserva, incluidas las vendidas por spot: un sufijo
+                        fijo sobre un campo variable. Ahora la unidad la pone el
+                        dato.
+                        `resumenReserva` NO escribe la multiplicación, y eso es
+                        deliberado: aquí `precio` es el NETO y `tarifaUnitaria`
+                        la de LISTA, así que la cuenta no daría. El porqué está
+                        escrito —y probado— en `lib/periodos.ts`. */}
                     <div className="demo-num text-[11px] text-muted">
-                      {sitio!.alcaldia} · {formatMonto(reserva.precio)}/mes
+                      {sitio!.alcaldia} ·{' '}
+                      {resumenReserva({
+                        unidad: reserva.unidad,
+                        cantidad: reserva.cantidad,
+                        precio: reserva.precio,
+                      })}
                     </div>
+                    {/* La programación, con OTRO vocabulario: «pases al día», no
+                        «spots». `cantidad` y `spotsPorDia` son dos números
+                        distintos y fundirlos fue DATA-02. */}
+                    {etiquetaFrecuencia(reserva.spotsPorDia) && (
+                      <div className="text-[11px] text-muted">
+                        {etiquetaFrecuencia(reserva.spotsPorDia)}
+                      </div>
+                    )}
                   </div>
                   <StatusBadge tono={RESERVA_TONO[reserva.estatus]}>
                     {RESERVA_LABEL[reserva.estatus]}

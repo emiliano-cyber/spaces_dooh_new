@@ -468,6 +468,16 @@ export interface PropuestaItem {
   fechaFin: string
   precio: number // tarifa bruta de lista
   aprobado: boolean // aprobación granular (sitio por sitio)
+  // ─── CÓMO se contrató en el tiempo (`20260721_propuesta_unidad_spots.sql`) ──
+  // `rowToItem` los devuelve desde el 21/07 y el tipo no los declaraba, así que
+  // ninguna pantalla podía leerlos sin pelearse con el typecheck: se vendían 50
+  // spots y el 50 no se veía en ningún lado.
+  unidad: string // mensual | catorcenal | semanal | diaria | spot | hora
+  cantidad: number // nº de unidades contratadas. Es lo que MULTIPLICA la tarifa.
+  tarifaUnitaria: number // precio de UNA unidad (snapshot de sitio_modalidades)
+  // ⚠️ NO es `cantidad`: cuántas veces al día se muestra la pieza. Es
+  // PROGRAMACIÓN, no precio. Fundirlos fue DATA-02 (auditoría del 26/08).
+  spotsPorDia: number | null
 }
 export interface Propuesta {
   id: string
@@ -637,6 +647,15 @@ export interface Reserva {
   tipoVenta: TipoVenta
   estatus: EstReserva
   spotsReservados: number | null // spots reservados (DOOH); null en estáticas
+  // ─── CÓMO se contrató, heredado de la propuesta ────────────────────────────
+  unidad: string // mensual | catorcenal | semanal | diaria | spot | hora
+  cantidad: number // nº de unidades contratadas. Es lo que MULTIPLICA la tarifa.
+  tarifaUnitaria: number | null // precio de UNA unidad; null = no se capturó
+  // ⚠️ NO es `cantidad` ni `spotsReservados`. `cantidad` es el precio (los 50
+  // spots vendidos), `spotsReservados` son los SLOTS que la reserva retiene, y
+  // esto es cuántas veces al día se muestra la pieza. Los tres son distintos, y
+  // mezclar los dos últimos fue DATA-02.
+  spotsPorDia: number | null
   expiraEn: string | null // TTL: fecha en que una TENTATIVA caduca sola (null = no caduca)
   creativos: SpotCreativo[] // creativos exhibidos en este spot + cuántas veces cada uno
   creadoEn: string

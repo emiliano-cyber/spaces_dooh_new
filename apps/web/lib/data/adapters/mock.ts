@@ -568,6 +568,13 @@ export const mockAdapter = {
           tipoVenta: 'FIXED_PKG',
           estatus: 'TENTATIVA',
           spotsReservados: null,
+          // Una reserva creada desde Comercial se contrata por MES y su precio
+          // es la tarifa de lista, igual que en `campanas-repo`. `spotsPorDia`
+          // es programación y aquí no se pauta nada: null, no 0.
+          unidad: 'mensual',
+          cantidad: 1,
+          tarifaUnitaria: precio,
+          spotsPorDia: null,
           expiraEn: offsetISO(7),
           creativos: [],
           creadoEn: nowISO(),

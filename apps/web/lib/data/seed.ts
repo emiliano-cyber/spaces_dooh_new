@@ -369,6 +369,9 @@ function r(
     id, campanaId, sitioId,
     fechaInicio: offsetISO(inicioOffset), fechaFin: offsetISO(finOffset),
     precio, tipoVenta: 'FIXED_PKG', estatus, spotsReservados: null,
+    // Contratación mensual, que es lo que describe esta semilla. `spotsPorDia`
+    // en null: no es 0, es que aquí no se pauta nada.
+    unidad: 'mensual', cantidad: 1, tarifaUnitaria: precio, spotsPorDia: null,
     expiraEn: estatus === 'TENTATIVA' ? offsetISO(7) : null,
     creativos: [], creadoEn: offsetISO(inicioOffset - 3),
   }

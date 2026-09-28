@@ -36,6 +36,30 @@ La entrada más reciente va arriba.
   Los cuatro indicadores grandes de arriba **no cambian** al elegir esta vista:
   son el mismo periodo y el mismo dinero, se agrupe como se agrupe.
 
+- **Y ahora se ve QUÉ se vendió, no solo cuánto.** Si vendes **50 spots**, el 50
+  se ve.
+
+  Hasta hoy el dato existía y no aparecía en ninguna pantalla posterior: el
+  detalle de la propuesta enseñaba sitio, renta y precio, y la ficha de campaña
+  ponía «/mes» debajo de **toda** reserva —también de las vendidas por spot—.
+
+  - En el **detalle de la propuesta** hay una columna **Contratación** que dice la
+    cuenta completa: «**50 spots × $ 1,200.00**» al lado del importe.
+  - En la **ficha de la campaña**, cada pantalla dice «**50 spots · $ 54,000.00**»
+    en vez de un importe con «/mes» pegado.
+  - Y si se capturó la frecuencia, debajo sale «**12 pases al día**».
+
+  **Se dice «pases al día» a propósito, y no «spots».** Son dos números
+  distintos: los **50 spots** son lo que se cobra, y los **12 pases** son cuántas
+  veces al día sale la pieza. Llamarlos igual ya causó un problema real en
+  agosto, y con dos nombres distintos no se pueden volver a confundir.
+
+  Lo que **no** cambia: **la factura sigue siendo un importe único sin
+  conceptos**. Eso es otro trabajo.
+
+  Y para que conste: **ningún precio se calcula ni se guarda distinto que ayer**.
+  Todo esto es leer y enseñar lo que ya estaba.
+
 ---
 
 ## 2026-09-25

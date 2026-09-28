@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-08-13
+actualizado: 2026-09-28
 tags: [backend, comercial, propuestas, campanas, amarillo]
 archivos:
   - apps/web/lib/server/propuestas-repo.ts
@@ -11,6 +11,10 @@ archivos:
   - apps/web/lib/server/creativos-repo.ts
   - apps/web/lib/server/reservas-controller.ts
   - apps/web/lib/reparto-creativos.ts
+  - apps/web/lib/periodos.ts
+  - apps/web/lib/data/types.ts
+  - apps/web/app/(app)/(shell)/propuestas/[id]/page.tsx
+  - apps/web/app/(app)/(shell)/campanas/[id]/page.tsx
 ---
 
 # Comercial: propuestas, reservas y campañas
@@ -95,6 +99,71 @@ Un creativo puede ser **imagen** o **código HTML** (`creatividades.codigo`).
 El **reparto** a todas las pantallas está en `lib/reparto-creativos.ts` (puro,
 con tests) y se invoca desde `POST /api/campanas/[id]/creativos/repartir`.
 
+## Qué se vendió, no solo cuánto — `unidad`, `cantidad` y `spots_por_dia`
+
+`propuesta_items` y `reservas` guardan CÓMO se contrató desde
+`20260721_propuesta_unidad_spots.sql`: `unidad` (mensual · catorcenal · semanal ·
+diaria · spot · hora), `cantidad`, `tarifa_unitaria` y `spots_por_dia`.
+
+Se pueden vender **50 spots** —en Propuestas eliges «Por spot», tecleas 50 y el
+precio sale `tarifa_spot × 50`, recalculado en el servidor— y hasta el
+**2026-09-28** ese 50 **moría en la base**: el detalle de la propuesta enseñaba
+sitio, renta y precio, `rowToReserva` no exponía los cuatro campos y la ficha de
+campaña pintaba `{precio}/mes` para TODA reserva, incluidas las vendidas por
+spot. Un importe sin su unidad no dice nada: «$60,000» puede ser un mes o
+cincuenta spots.
+
+> [!danger] `cantidad` y `spots_por_dia` son DOS NÚMEROS DISTINTOS
+> - **`cantidad`** → cuántas unidades se contratan. Es lo que MULTIPLICA la
+>   tarifa. Es **precio**.
+> - **`spots_por_dia`** → cuántas veces al día se muestra la pieza. Es
+>   **programación**, y no entra en ningún precio.
+>
+> Confundirlos fue **DATA-02** (auditoría del 26/08): se escribía el mismo valor
+> en las dos columnas, así que una propuesta mensual normal dejaba
+> `spots_reservados` en `null` y `reparto-creativos.ts:51-68` leía ese null como
+> «es una lona» — una pantalla digital repartida como si fuera impresa. El
+> arreglo de la ESCRITURA vive en `campanas-repo.ts` (inserción desde propuesta);
+> el de la LECTURA es de hoy.
+
+Y hay un **tercero** que se confunde con los dos: **`spots_reservados`** son los
+SLOTS que la reserva retiene, que tampoco es ninguno de los otros.
+
+### Cómo se etiquetan, y por qué con vocabularios distintos
+
+Los textos los arma `lib/periodos.ts`, que es puro y **sí se prueba** — sin jsdom,
+una decisión escrita dentro de un `.tsx` no la ve nadie:
+
+| Función | Da | Dónde |
+|---|---|---|
+| `etiquetaCantidad(unidad, cantidad)` | `50 spots` · `1 mes` | el QUÉ, sin precio |
+| `resumenContratacion({unidad, cantidad, tarifaUnitaria})` | `50 spots × $ 1,200.00` | detalle de propuesta |
+| `resumenReserva({unidad, cantidad, precio})` | `50 spots · $ 54,000.00` | ficha de campaña |
+| `etiquetaFrecuencia(spotsPorDia)` | `12 pases al día`, o `null` | debajo, en las dos |
+
+**«Pases al día» y no «spots»**, deliberadamente: es lo único que impide que
+«50 spots» y «12 spots» convivan en la misma ficha significando cosas distintas.
+
+> [!warning] En la CAMPAÑA la multiplicación ya no cuadra, y por eso hay dos funciones
+> En `propuesta_items` el precio **es** `tarifa_unitaria × cantidad`
+> (`periodos.ts` → `precioItem`), así que escribir la multiplicación cuadra con
+> el importe de al lado.
+>
+> En `reservas` **no**: la reserva nacida de una propuesta guarda el **neto**
+> —`lista × (1−descuento) × (1−comisión)`— mientras `tarifa_unitaria` se copió
+> tal cual de la propuesta, que es la de **lista**. Un «50 spots × $ 1,200.00»
+> junto a «$ 54,000.00» enseñaría una cuenta que no da, y se leería como un
+> defecto del sistema cuando es el descuento haciendo su trabajo. `resumenReserva`
+> pone un `·` y no un `×`, y hay una prueba que lo vigila.
+
+**Sin capturar no se pinta**: `tarifaUnitaria` en 0 y `spotsPorDia` en `null` o 0
+se omiten. Un «× $ 0.00» afirma que la unidad es gratis; un «0 pases al día»
+afirma que la pieza no sale nunca. Y `spots_por_dia` está en NULL en toda la
+producción de hoy.
+
+**Fuera de alcance:** los conceptos en la factura. Sigue siendo **un importe
+único sin desglose**; darle conceptos es tabla nueva, migración y dinero.
+
 ## Portal del cliente
 
 `campanas.portal_token` + `portal_activo` habilitan `/portal/[token]`.
@@ -103,4 +172,5 @@ clientes ni datos financieros.
 
 ## Relacionadas
 [[flujo-propuesta-a-campana]] · [[finanzas-y-cobranza]] · [[operaciones-y-ot]] ·
-[[inventario-y-sitios]] · [[paginas-publicas]] · [[esquema]] · [[MOC-Proyecto]]
+[[inventario-y-sitios]] · [[paginas-publicas]] · [[esquema]] · [[MOC-Proyecto]] ·
+[[tarifa-publicada-vs-neta]]
