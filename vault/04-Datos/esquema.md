@@ -10,9 +10,55 @@ archivos:
   - db/migrations/20260921_actualizaciones_instancia.sql
   - db/migrations/20260923_tickets.sql
   - db/migrations/20260928_tope_descuento_propuestas.sql
+  - db/migrations/20260928_codigo_promocional.sql
 ---
 
 # Esquema de datos
+
+> [!danger] 2026-09-28 · `codigos_promocionales` y `canjes_codigo` SIN FUSIONAR
+> Mismo caso que `escalas_volumen`, abajo: escritas y probadas contra bases
+> desechables, y **detenidas en la fusión** a la espera de la aprobación del
+> dueño. **Si las lees en `main`, es que ya se aprobó** — y entonces las tablas
+> son **52**.
+
+> [!note] 2026-09-28 · DOS TABLAS NUEVAS, `codigos_promocionales` y `canjes_codigo` — ADR 0039, Fase 3
+> `db/migrations/20260928_codigo_promocional.sql`. **Las tablas pasan de 50 a
+> 52**, medido con `node scripts/recuentos.mjs` sobre este árbol
+> (`feat/codigo-promocional`).
+>
+> - **`codigos_promocionales`** — el catálogo de cupones de la organización, con
+>   `descuento_pct`, `vigente_desde`/`vigente_hasta` (**los dos inclusivos**) y
+>   `usos_maximos` (**`NULL` = sin tope**; nunca 0).
+> - **`canjes_codigo`** — quién canjeó qué, cuándo y en qué propuesta. **ES EL
+>   CONTADOR DE USOS**: no existe ninguna columna `usos_consumidos`, y es a
+>   propósito — un contador *además* del registro serían dos respuestas a la
+>   misma pregunta, y un `on delete cascade` desde `propuestas` desincronizaría
+>   la columna sin que nadie lo viera.
+>
+> **El `unique (tenant_id, upper(codigo))` es un ÍNDICE DE EXPRESIÓN**, el mismo
+> recurso que `usuarios_email_lower_uidx`, y es lo que hace que un cupón sea *una
+> palabra y no dos*: si `verano20` y `VERANO20` pudieran ser dos filas con dos
+> porcentajes, el descuento dependería de cómo lo tecleó el cliente. Nada de lo
+> que usa es posterior a PostgreSQL 14, así que **no lleva `@pg-min`**.
+>
+> `canjes_codigo` lleva `unique (propuesta_id)` —**un solo código por propuesta**,
+> y es lo único que sirve contra un doble clic— y sus **dos FK son compuestas con
+> el tenant**, como las de la Fase 1.
+>
+> Más cuatro columnas: `propuestas.codigo_texto`,
+> `propuestas.codigo_descuento_pct` (**NOT NULL DEFAULT 0**),
+> `propuestas.codigo_canjeado_en` y `reservas.codigo_descuento_pct`. Las tres de
+> `propuestas` viajan juntas o ninguna (`propuestas_codigo_pareja_ck`): un
+> porcentaje sin su código no se puede auditar, y un código al 0 % es una promesa
+> aceptada y no cumplida.
+>
+> **`codigo_canjeado_en` vive en `propuestas` y no solo en `canjes_codigo`** a
+> propósito: los canjes se borran en cascada con el cupón, y lo que el ADR exige
+> es que borrar el cupón **no mueva nada** de la venta. Esa fecha es parte del
+> precio congelado, no del presupuesto del cupón.
+>
+> Con **RLS `enable` + `force`** estricta en las dos y GRANT explícito. Ver
+> [[02-Backend/codigo-promocional]].
 
 > [!danger] 2026-09-28 · `escalas_volumen` SIN FUSIONAR — espera la aprobación del dueño
 > Desde el 2026-09-28 ningún cambio de esquema aterriza sin que el dueño lo

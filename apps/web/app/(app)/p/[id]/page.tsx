@@ -53,6 +53,12 @@ interface PropuestaPub {
   // en 0 y el renglón no se pinta.
   descuentoVolumenMonto?: number
   descuentoVolumenPct?: number
+  // COD-01 · el CÓDIGO PROMOCIONAL (ADR 0039, Fase 3). Opcionales por lo
+  // mismo: una liga guardada de antes de esta fase no los trae. Sin cupón
+  // llegan en null/0 y el renglón no se pinta.
+  codigoTexto?: string | null
+  codigoDescuentoMonto?: number
+  codigoDescuentoPct?: number
   divisor: number
   bruto: number
   base: number
@@ -323,6 +329,20 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
               )}
               {p.descuentoMonto > 0 && (
                 <Fila label={`Descuento (${p.descuentoPct}%)`} valor={`− ${formatMonto(p.descuentoMonto)}`} />
+              )}
+              {/* COD-01 · y el código, CON SU NOMBRE. Es la superficie que ve el
+                  cliente y el documento que acepta: si el cupón que se le
+                  prometió no figura aquí, la cotización enseña un total más
+                  bajo que su propia cuenta y sin decir por qué. Este objeto se
+                  arma A MANO en `obtenerPropuestaPublica`, campo por campo:
+                  añadirlo a `armarPropuesta` NO basta para que llegue hasta
+                  aquí — es el defecto que la Fase 2 encontró en este mismo
+                  sitio revisando el diff, no corriendo pruebas. */}
+              {(p.codigoDescuentoMonto ?? 0) > 0 && (
+                <Fila
+                  label={`Código ${p.codigoTexto ?? ''} (${p.codigoDescuentoPct ?? 0}%)`}
+                  valor={`− ${formatMonto(p.codigoDescuentoMonto ?? 0)}`}
+                />
               )}
               <Fila label={`Comisión de agencia (${comisionPct}%)`} valor={`− ${formatMonto(p.base - p.neto)}`} />
               <Fila label="Neto" valor={formatMonto(p.neto)} />

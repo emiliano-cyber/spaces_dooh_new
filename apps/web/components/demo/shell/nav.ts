@@ -22,6 +22,7 @@ import {
   TrendingUp,
   Clock,
   Layers,
+  Ticket,
 } from 'lucide-react'
 import type { RolDemo } from '@/lib/data/types'
 
@@ -112,6 +113,12 @@ export const NAV: NavItem[] = [
   // descuento que se aplica encima. Mismo grupo y mismo módulo —`inventario`,
   // como su endpoint— por el mismo razonamiento.
   { key: 'descuentos-por-volumen', label: 'Descuentos por volumen', href: '/descuentos-por-volumen', icon: Layers, roles: ['DUENO'], grupo: 'patrimonio' },
+  // COD-01 · los codigos promocionales (ADR 0039, Fase 3). Pantalla PROPIA y no
+  // una seccion de la de arriba: el volumen es una regla interna que se aplica
+  // sola, y un codigo es una CAMPANA que se le promete a un cliente por su
+  // nombre, con fecha de caducidad y cupo. Mismo grupo y mismo modulo
+  // --`inventario`, como su endpoint-- por el mismo razonamiento.
+  { key: 'codigos-promocionales', label: 'Codigos promocionales', href: '/codigos-promocionales', icon: Ticket, roles: ['DUENO'], grupo: 'patrimonio' },
   // Arrendadores va pegado a Inventario y no suelto en medio del ciclo
   // comercial: una pantalla no es tuya, es de alguien que te la renta, y el
   // contrato con ese alguien es lo que te deja venderla (ADR 0003).

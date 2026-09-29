@@ -7,6 +7,57 @@ La entrada más reciente va arriba.
 
 ## 2026-09-28
 
+- **Codigos promocionales: «usa VERANO20 y llevate un 20 % adicional».**
+  *(ADR 0039, Fase 3. **Pendiente de tu aprobacion**: lleva un cambio de base de
+  datos y desde hoy esos no se aplican sin que tu digas que si.)*
+
+  Hasta hoy no habia forma de hacer una promocion con nombre. Si querias correr
+  una campana de fin de ano, lo unico posible era decirle de palabra a cada
+  vendedor que diera un 20 % mas — y a partir de ahi nadie sabia cuantas veces se
+  habia dado, ni hasta cuando, ni a quien.
+
+  **Como se captura.** En el menu, dentro de *Inventario*, hay una entrada nueva:
+  **«Codigos promocionales»**. Cada codigo lleva su descuento, **desde cuando y
+  hasta cuando vale**, y **cuantas veces se puede usar en total** (o «sin tope»,
+  si prefieres que el unico freno sea la fecha). Son tuyos: no se comparten con
+  ninguna otra empresa.
+
+  **Como se usa.** El vendedor abre la cotizacion y **teclea el codigo**. Nada
+  mas. El sistema comprueba solo que exista, que este vigente y que le queden
+  usos, y decide el el descuento. El vendedor **no puede escribir el porcentaje**,
+  ni cambiarlo, ni saltarse la fecha.
+
+  **Lo que hay que entender, y la pantalla lo dice:**
+
+  - **El uso se cuenta cuando se aplica el codigo a una cotizacion, no cuando se
+    cierra la venta.** Es lo que permite decirle al cliente «si, tu codigo vale»
+    en el momento en que lo teclea, en vez de descubrir al firmar que ya se habia
+    acabado. A cambio, una cotizacion abandonada con el codigo puesto retiene un
+    uso: quitarle el codigo, o borrarla, lo devuelve.
+  - **Se multiplica con los demas descuentos, no se suma.** Un 20 % por volumen,
+    un 20 % del vendedor y un 20 % de codigo dejan al cliente pagando el
+    **51,2 %**, no el 40 %.
+  - **Dos personas no pueden gastar el mismo ultimo uso.** Si dos vendedores
+    aplican a la vez el ultimo uso que quedaba, uno entra y al otro le dice que ya
+    se acabo. Esta probado con dos peticiones simultaneas de verdad.
+
+  **Lo que queda escrito para siempre.** Al aprobar la cotizacion, el codigo
+  usado, su porcentaje y el momento en que se aplico quedan **congelados** en el
+  documento. Si manana cambias ese codigo o lo borras, **una venta ya aprobada no
+  se mueve ni un peso**. Y un codigo aplicado antes de vencer **sigue valiendo**
+  aunque la cotizacion se firme tres dias despues de la fecha limite: lo que
+  prometiste, prometido.
+
+  **Y una decision que necesito que confirmes** (esta abajo, en *Preguntas*): hoy
+  el codigo promocional **NO cuenta** contra el tope de descuento del vendedor —
+  al reves que el descuento por volumen. El motivo es que el codigo **lo creaste
+  tu**, desde una pantalla que pide contrasena, mientras que el tope existe para
+  acotar lo que el vendedor decide por su cuenta. La consecuencia hay que saberla:
+  el descuento total de una venta con codigo **puede pasar de tu tope**.
+
+  **Lo mas importante: si no capturas ningun codigo, NADA CAMBIA.** Todo se sigue
+  vendiendo exactamente igual que ayer.
+
 - **Compra 50 spots y paga 40: ya se puede dar descuento por volumen.**
   *(ADR 0039, Fase 2. **Pendiente de tu aprobación**: lleva un cambio de base de
   datos y desde hoy ésos no se aplican sin que tú digas que sí.)*

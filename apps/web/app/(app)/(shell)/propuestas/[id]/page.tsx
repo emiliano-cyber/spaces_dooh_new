@@ -38,8 +38,10 @@ import {
   aprobarItemPropuestaApi,
   generarCampanaDesdePropuestaApi,
   actualizarPropuestaApi,
+  refrescarEstado,
   ConfirmacionCeroError,
 } from '@/lib/data/estado-api'
+import { aplicarCodigoApi, quitarCodigoApi } from '@/lib/data/codigos-api'
 import {
   usePropuestas,
   useClientes,
@@ -86,6 +88,10 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
   const [copiado, setCopiado] = useState(false)
   const [descInput, setDescInput] = useState('')
   const [guardandoDesc, setGuardandoDesc] = useState(false)
+  // COD-01 · el código promocional. SOLO se guarda lo TECLEADO: el porcentaje
+  // no existe en este componente, y no es un olvido — lo decide el servidor.
+  const [codInput, setCodInput] = useState('')
+  const [guardandoCod, setGuardandoCod] = useState(false)
 
   const pActual = propuestas?.find((x) => x.id === id)
   // Sincroniza el input de descuento con el valor actual al cargar/cambiar.
@@ -114,6 +120,48 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
       toast.error(e instanceof Error ? e.message : 'Error')
     } finally {
       setGuardandoDesc(false)
+    }
+  }
+
+  /**
+   * COD-01 · aplica el código. **Aquí no se valida nada del cupón.**
+   *
+   * No se comprueba la vigencia ni los usos, y es deliberado: las dos cosas son
+   * un reloj y un contador, y ninguno puede vivir en el navegador de quien
+   * vende (hallazgo B40). Lo único que se mira es que el campo no esté vacío,
+   * para ahorrar un viaje. El mensaje del servidor se enseña TAL CUAL porque
+   * distingue «no existe» de «venció» de «se agotó», y las tres se arreglan
+   * de forma distinta.
+   */
+  async function aplicarCodigo() {
+    if (codInput.trim() === '') {
+      toast.error('Teclea el código promocional')
+      return
+    }
+    setGuardandoCod(true)
+    try {
+      const r = await aplicarCodigoApi(id, codInput)
+      toast.success(`Código ${r.codigo} aplicado: ${r.descuentoPct} %`)
+      setCodInput('')
+      await refrescarEstado()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Error')
+    } finally {
+      setGuardandoCod(false)
+    }
+  }
+
+  /** Quita el código y DEVUELVE EL USO al cupón. */
+  async function quitarCodigo() {
+    setGuardandoCod(true)
+    try {
+      await quitarCodigoApi(id)
+      toast.success('Código quitado; su uso vuelve al cupón')
+      await refrescarEstado()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Error')
+    } finally {
+      setGuardandoCod(false)
     }
   }
 
@@ -320,6 +368,17 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                 />
               )}
               <Fila label={`Descuento comercial (${p.descuentoPct}%)`} valor={p.descuentoMonto ? `− ${formatMonto(p.descuentoMonto)}` : '—'} tono={p.descuentoMonto ? 'text-error' : undefined} />
+              {/* COD-01 · el renglón aparece SOLO cuando hay código, y tiene que
+                  aparecer con SU NOMBRE: un descuento sin decir de qué cupón salió
+                  no se puede explicar seis meses después, y sin él la escalera no
+                  cuadra en pantalla. */}
+              {p.codigoDescuentoMonto > 0 && (
+                <Fila
+                  label={`Código ${p.codigoTexto ?? ''} (${p.codigoDescuentoPct}%)`}
+                  valor={`− ${formatMonto(p.codigoDescuentoMonto)}`}
+                  tono="text-error"
+                />
+              )}
               <Fila label="Base con descuento" valor={formatMonto(p.base)} />
               <Fila label={`Comisión de agencia (${comisionPct}%)`} valor={`− ${formatMonto(p.base - p.neto)}`} />
               <Fila label="Neto (para el medio)" valor={formatMonto(p.neto)} />
@@ -360,6 +419,67 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                   </div>
                 ) : (
                   <p className="mt-2 text-[12px] text-muted">La propuesta ya está {est.label.toLowerCase()}; el descuento quedó fijo.</p>
+                )}
+              </div>
+            )}
+
+            {/* COD-01 · EL CÓDIGO PROMOCIONAL (ADR 0039, Fase 3).
+                Bloque aparte del descuento comercial, y no es estética: son dos
+                cosas que autoriza gente distinta. El comercial lo pone quien
+                vende, bajo el tope de la organización; el código lo crea
+                Administración y aquí solo se TECLEA. Por eso este bloque no
+                tiene ningún campo de porcentaje. */}
+            {puedeEditar && (
+              <div className="rounded-md border border-border bg-surface-2/40 p-3">
+                <div className="text-[12px] font-medium text-ink">Código promocional</div>
+                {p.codigoTexto ? (
+                  <>
+                    <p className="mt-0.5 text-[11px] text-muted">
+                      Esta propuesta lleva el código <b className="font-mono">{p.codigoTexto}</b>{' '}
+                      con un <b>{p.codigoDescuentoPct} %</b>, que ya está congelado: si el código
+                      cambia o se borra, este precio no se mueve.
+                    </p>
+                    {editable ? (
+                      <div className="mt-2 flex items-center gap-2">
+                        <Button size="sm" variant="ghost" onClick={quitarCodigo} disabled={guardandoCod}>
+                          {guardandoCod ? 'Quitando…' : 'Quitar código'}
+                        </Button>
+                        <span className="text-[11px] text-muted">
+                          Quitarlo devuelve su uso al cupón.
+                        </span>
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-[12px] text-muted">
+                        La propuesta ya está {est.label.toLowerCase()}; el código quedó fijo.
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <p className="mt-0.5 text-[11px] text-muted">
+                      Se aplica <b>después</b> del descuento comercial y se <b>compone</b> con él:
+                      un 20 % y un 20 % dejan al cliente pagando el 64 %, no el 60 %. Al aplicarlo
+                      se consume uno de sus usos — quitarlo lo devuelve.
+                    </p>
+                    {editable ? (
+                      <div className="mt-2 flex items-center gap-2">
+                        <input
+                          aria-label="Código promocional"
+                          value={codInput}
+                          onChange={(e) => setCodInput(e.target.value)}
+                          placeholder="VERANO20"
+                          className="h-9 w-36 rounded border border-border-strong bg-surface px-3 font-mono text-[13px] uppercase text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                        />
+                        <Button size="sm" onClick={aplicarCodigo} disabled={guardandoCod || codInput.trim() === ''}>
+                          {guardandoCod ? 'Aplicando…' : 'Aplicar'}
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-[12px] text-muted">
+                        La propuesta ya está {est.label.toLowerCase()}; no admite código.
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
             )}
@@ -560,7 +680,19 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                   veces en esta columna: una en el renglón de arriba y otra
                   dentro de éste. (Este bloque tampoco desglosa el descuento
                   comercial — eso viene de antes y no se toca aquí.) */}
-              <Fila label={`Comisión de agencia (${comisionPct}%) · divisor ×${p.divisor.toFixed(2)}`} valor={`− ${formatMonto(p.brutoConVolumen - p.neto)}`} />
+              {p.codigoDescuentoMonto > 0 && (
+                <Fila
+                  label={`Código ${p.codigoTexto ?? ''} (${p.codigoDescuentoPct}%)`}
+                  valor={`− ${formatMonto(p.codigoDescuentoMonto)}`}
+                  tono="text-error"
+                />
+              )}
+              {/* Y la comisión se mide QUITANDO también el código, por el mismo
+                  motivo por el que la Fase 2 cambió `p.bruto` por
+                  `p.brutoConVolumen`: con el bruto a secas, el descuento del
+                  cupón se contaría DOS VECES en esta columna — una en el renglón
+                  de arriba y otra dentro de éste. */}
+              <Fila label={`Comisión de agencia (${comisionPct}%) · divisor ×${p.divisor.toFixed(2)}`} valor={`− ${formatMonto(p.brutoConVolumen - p.codigoDescuentoMonto - p.neto)}`} />
               <Fila label="Neto (lo que recibe el medio)" valor={formatMonto(p.neto)} />
               <Fila label={`IVA ${ivaPct}%`} valor={formatMonto(p.iva)} />
               <div className="mt-1 border-t border-border pt-2">

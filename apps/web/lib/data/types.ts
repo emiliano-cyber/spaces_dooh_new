@@ -531,7 +531,19 @@ export interface Propuesta {
   descuentoVolumenMonto: number  // Σ redondeado línea a línea
   brutoConVolumen: number        // bruto − descuentoVolumenMonto
   descuentoMonto: number // brutoConVolumen × descuento/100 (se COMPONE, no se suma)
-  base: number          // brutoConVolumen − descuento (base de cálculo)
+  // COD-01 (ADR 0039, Fase 3) · el CÓDIGO PROMOCIONAL, que va DESPUÉS del
+  // comercial y ANTES de la comisión. Sin cupón, `codigoTexto` es null,
+  // `codigoDescuentoPct` es 0 y `base === baseComercial`: todo lo de abajo da
+  // el mismo número que antes de esta fase.
+  //
+  // Va el TEXTO además del porcentaje porque un «20 %» sin decir de qué código
+  // salió no se puede auditar. Los dos están CONGELADOS desde el canje: borrar
+  // o cambiar el cupón mañana no los mueve.
+  codigoTexto: string | null
+  codigoDescuentoPct: number
+  codigoDescuentoMonto: number
+  baseComercial: number // brutoConVolumen − descuento, ANTES del código
+  base: number          // baseComercial − código (base de cálculo)
   divisor: number       // 1 − comisión/100
   neto: number          // base × divisor (lo que recibe el medio)
   iva: number           // base × 16%
@@ -540,6 +552,7 @@ export interface Propuesta {
   itemsAprobados: number
   brutoAprobado: number
   descuentoVolumenMontoAprobado: number
+  codigoDescuentoMontoAprobado: number
   baseAprobado: number
   netoAprobado: number
   ivaAprobado: number

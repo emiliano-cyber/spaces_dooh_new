@@ -165,28 +165,102 @@ export function topeDescuentoValido(valor: unknown): number {
 // volumen podrá tocar su descuento hasta que arregle una de las dos cosas. Eso
 // es visible y se explica; lo contrario —un techo que no es techo— no se ve.
 
+// ────────────────────────────────────────────────────────────────────────────
+//  COD-02 · ¿el CÓDIGO PROMOCIONAL cuenta contra este tope?
+// ────────────────────────────────────────────────────────────────────────────
+//
+// ⚠️ ESTA ES LA PREGUNTA DE NEGOCIO DE LA FASE 3, Y NO LA DECIDE EL CÓDIGO.
+// Está preguntada al dueño. Mientras no conteste, la respuesta implementada es
+// **NO cuenta**, y vive entera en la constante de abajo: cambiarla a `true`
+// hace que `descuentoContraTope` componga también el cupón, y ningún otro
+// archivo se entera. La aritmética de las tres capas ya está escrita y probada
+// (`componerDescuentos`), así que el cambio es una línea.
+//
+// ─── Por qué NO, mientras nadie diga lo contrario ─────────────────────────
+// Porque el tope y el cupón **acotan a personas distintas**. El tope nació el
+// 2026-09-28 para que ningún COMERCIAL regalara el 90 % por su cuenta: acota la
+// DISCRECIÓN DE QUIEN VENDE. El volumen cuenta contra él (VOL-02) precisamente
+// porque se apila debajo del vendedor sin que él lo elija — si no contara, el
+// techo real volvería a quedar por encima de lo autorizado.
+//
+// Un cupón es lo contrario: **lo creó el dueño**. Alguien de Administración
+// decidió «VERANO20 vale un 20 %, hasta el 31 de octubre, cien usos», y lo hizo
+// desde una pantalla que pide `exigirCambioSensible`. Esa decisión ES la
+// autorización. Hacer que compita contra el tope significaría que la promoción
+// del dueño queda bloqueada por el tope del dueño, y con una escala del 15 % y
+// un tope del 20 % ni siquiera cabría con cero descuento comercial.
+//
+// ─── Y hay un motivo de oportunidad, que es el que decide ─────────────────
+// El cupón se canjea al APLICARLO, y el tope se comprueba al guardar el
+// descuento comercial. Si el cupón contara, un vendedor podría aplicar el
+// código, prometérselo al cliente, y descubrir después —al teclear su
+// descuento— que ya no cabe. **Un cupón es lo único de esta cadena que se le
+// promete a alguien de fuera de la casa**, y un «sí» que se convierte en «no»
+// no se arregla con una nota de crédito.
+//
+// ─── Lo que cuesta, dicho con todas las letras ────────────────────────────
+// El descuento total de una venta puede pasar del tope. Con volumen 15 %,
+// comercial 20 % y cupón 20 %, se regaló el 45,6 % y el tope decía 20. Eso es
+// visible —las tres capas se imprimen por separado en el documento— y cada una
+// la autorizó alguien; pero quien lea «tope de descuento: 20 %» en la pantalla
+// de configuración no está viendo el techo real de una venta con cupón.
+export const CODIGO_CUENTA_CONTRA_TOPE: boolean = false
+
 /**
  * El número que se compara contra el tope de la organización.
  *
- * `comercialPct` y `volumenPct` en por ciento. Devuelve el descuento EFECTIVO
- * compuesto, también en por ciento: `100 × (1 − (1−v)(1−c))`.
+ * `comercialPct`, `volumenPct` y `codigoPct` en por ciento. Devuelve el
+ * descuento EFECTIVO compuesto, también en por ciento.
  *
  * Con `volumenPct = 0` devuelve el comercial tal cual, y ése es el detalle que
  * hace que toda la base instalada se comporte exactamente igual que antes de
- * esta fase.
+ * la Fase 2. Y `codigoPct` hoy **no se usa** (ver COD-02 arriba), así que
+ * omitirlo o pasarlo da el mismo número.
  */
-export function descuentoContraTope(comercialPct: unknown, volumenPct: unknown): number {
+export function descuentoContraTope(
+  comercialPct: unknown,
+  volumenPct: unknown,
+  codigoPct: unknown = 0,
+): number {
   const c = descuentoValido(comercialPct)
-  // El volumen NO usa `descuentoValido`: lo ilegible aquí no es culpa de quien
-  // teclea —sale de la base— y reventar dejaría la propuesta imposible de
-  // editar. Cae a 0, que es «no hay volumen», y entonces el tope se comporta
-  // como el de siempre. Nunca a NaN: `NaN > tope` es false y desactivaría el
-  // tope en silencio, que es el fallo del que nació este archivo.
-  const vBruto = typeof volumenPct === 'number' || typeof volumenPct === 'string'
-    ? Number(volumenPct)
-    : NaN
-  const v = Number.isFinite(vBruto) ? Math.max(0, Math.min(100, vBruto)) : 0
-  return 100 * (1 - (1 - v / 100) * (1 - c / 100))
+  // COD-02 · el cupón entra en la cuenta SOLO si la constante lo dice. Hoy no
+  // lo dice, así que este argumento se anula aquí y la aritmética de abajo
+  // recibe un 0 — que es exactamente lo que hacía esta función antes de la
+  // Fase 3, dígito por dígito.
+  return componerDescuentos(volumenPct, c, CODIGO_CUENTA_CONTRA_TOPE ? codigoPct : 0)
+}
+
+/**
+ * Un porcentaje legible y acotado a [0, 100]. Lo ilegible es **0**, nunca NaN.
+ *
+ * El volumen y el cupón NO usan `descuentoValido`: lo ilegible aquí no es culpa
+ * de quien teclea —sale de la base— y reventar dejaría la propuesta imposible
+ * de editar. Cae a 0, que es «no hay esa capa». Nunca a NaN: `NaN > tope` es
+ * false y desactivaría el tope en silencio, que es el fallo del que nació este
+ * archivo y el mutante M10 de la Fase 2.
+ */
+function pctSeguro(valor: unknown): number {
+  const bruto =
+    typeof valor === 'number' || typeof valor === 'string' ? Number(valor) : NaN
+  return Number.isFinite(bruto) ? Math.max(0, Math.min(100, bruto)) : 0
+}
+
+/**
+ * Compone porcentajes de descuento. **Se componen, no se suman** (ADR 0039 §1).
+ *
+ * `componerDescuentos(20, 20)` es 36, no 40: el cliente paga 0,8 × 0,8 = 64 %.
+ * Con tres capas del 20 % es 48,8 %, no 60 — que es el ejemplo con el que el
+ * ADR 0039 explica la regla.
+ *
+ * Vive aparte de `descuentoContraTope` porque son dos cosas distintas: esto es
+ * la ARITMÉTICA, que vale siempre; aquélla es la POLÍTICA de qué capas entran
+ * en la cuenta del tope, que es una decisión de negocio. Separarlas es lo que
+ * permite que cambiar la política sea cambiar una constante.
+ */
+export function componerDescuentos(...pcts: unknown[]): number {
+  let factor = 1
+  for (const p of pcts) factor *= 1 - pctSeguro(p) / 100
+  return 100 * (1 - factor)
 }
 
 /**
@@ -204,12 +278,13 @@ export function descuentoDentroDelTope(
   valor: unknown,
   tope: unknown,
   volumenPct: unknown = 0,
+  codigoPct: unknown = 0,
 ): number {
   // Primero la guarda de siempre: `NaN` no puede colarse por «NaN > tope es
   // false», que es exactamente el modo de fallo que documenta este archivo.
   const d = descuentoValido(valor)
   const techo = topeDescuentoValido(tope)
-  const efectivo = descuentoContraTope(d, volumenPct)
+  const efectivo = descuentoContraTope(d, volumenPct, codigoPct)
   // La comparación lleva una tolerancia de `1e-9` puntos porcentuales, o sea
   // una milmillonésima: el compuesto sale de multiplicar flotantes, y
   // `100 × (1 − 0.8 × 0.75)` da 19.999999999999996 — que sin la tolerancia

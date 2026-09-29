@@ -44,6 +44,7 @@ No hay servicio aparte.
 | [[tarifa-publicada-vs-neta]] | La séptima: qué tarifa se **publicó** y qué entró de ella. Las dos convenciones de precio y el guard que las sobrevive |
 | [[rejilla-franja-y-temporada]] | **ADR 0039, Fase 1**: el precio deja de ser un número y pasa a ser `f(pantalla, unidad, franja, fecha)`. Las dos decisiones de diseño, el congelado, y por qué la franja NO viaja al CMS |
 | [[descuento-por-volumen]] | **ADR 0039, Fase 2**: «compra 50 spots y pagas 40». Por qué la escala cuelga de la organización y por qué los tramos son planos; si el volumen cuenta contra el tope; y cómo se congela |
+| [[codigo-promocional]] | **ADR 0039, Fase 3**: «usa este código y ten un 20 % adicional». Cómo se resuelve **la carrera del último uso** con un `for update`; por qué el canje se cuenta al APLICAR y no al aprobar; por qué el cupón **no** cuenta contra el tope; y cómo se congela |
 | [[vendedor-en-propuesta]] | La octava: quién vendió y cuánto descuento concedió. El dato que faltaba, y el histórico que no se puede recuperar |
 | [[cuestionario-bienvenida]] | El cuestionario que crea las razones sociales del owner al entrar |
 | [[integraciones-externas]] | DOOHmain, Space Eye, S3, Resend, Google, cron |

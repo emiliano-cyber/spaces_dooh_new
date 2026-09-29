@@ -9,6 +9,7 @@ import { folioDocumento } from './folios'
 import { divisorDeComision } from '@/lib/data/derive'
 import { AVISO_FRANJA_NO_VIAJA_AL_CMS, temporadaDeFecha } from '@/lib/rejilla'
 import { volumenDeLineas } from '@/lib/volumen'
+import { montoDescuentoCodigo } from '@/lib/codigo-promocional'
 import { rutaLogo } from '@/lib/medios-url'
 
 // Error de regla de negocio (propuesta inmutable) → el route lo mapea a 409.
@@ -105,15 +106,38 @@ function armarPropuesta(p: any, items: any[]) {
   const descuentoVolumenMonto = vol.descuentoVolumenMonto
   const brutoConVolumen = vol.brutoConVolumen
   const descuentoMonto = Math.round(brutoConVolumen * (descuentoPct / 100))
-  const base = brutoConVolumen - descuentoMonto
+  // COD-01 · el CÓDIGO PROMOCIONAL entra AQUÍ, entre el descuento comercial y
+  // la comisión de agencia, que es exactamente donde lo pone la cadena del ADR
+  // 0039. Por eso se calcula sobre `baseComercial` y no sobre `bruto`: ahí es
+  // donde «se compone, no se suma» deja de ser una frase y pasa a ser la
+  // aritmética — un 20 % de volumen, un 20 % comercial y un 20 % de cupón dejan
+  // al cliente pagando el 51,2 %, no el 40 %.
+  //
+  // La lectura se protege igual que la del descuento comercial, y por el mismo
+  // motivo: `numeric` de Postgres ADMITE `NaN` y lo propaga, así que una fila
+  // corrupta contaminaría el neto entero y la petición contestaría 200 OK.
+  const leidoCod = p.codigo_descuento_pct != null ? Number(p.codigo_descuento_pct) : 0
+  const codigoDescuentoPct = Number.isFinite(leidoCod) ? Math.max(0, Math.min(100, leidoCod)) : 0
+  const codigoTexto = p.codigo_texto ?? null
+  const baseComercial = brutoConVolumen - descuentoMonto
+  const codigoDescuentoMonto = montoDescuentoCodigo(baseComercial, codigoDescuentoPct)
+  // Con cero cupón, `base === baseComercial` y todo lo de abajo da el mismo
+  // número que antes de esta fase, dígito por dígito. Ése es el invariante que
+  // hace que la Fase 3 no mueva una sola venta de la base instalada.
+  const base = baseComercial - codigoDescuentoMonto
   const neto = Math.round(base * divisor)
   const iva = Math.round(base * (ivaP / 100))
   // Aprobación granular: presupuesto sobre los items aprobados (modelo "menú").
   const aprob = its.filter((i) => i.aprobado)
   const brutoAprobado = aprob.reduce((s, i) => s + i.precio, 0)
   const volAprobado = volumenDeLineas(aprob)
-  const baseAprobado =
+  const baseComercialAprobado =
     volAprobado.brutoConVolumen - Math.round(volAprobado.brutoConVolumen * (descuentoPct / 100))
+  const codigoDescuentoMontoAprobado = montoDescuentoCodigo(
+    baseComercialAprobado,
+    codigoDescuentoPct,
+  )
+  const baseAprobado = baseComercialAprobado - codigoDescuentoMontoAprobado
   const netoAprobado = Math.round(baseAprobado * divisor)
   const ivaAprobado = Math.round(baseAprobado * (ivaP / 100))
   return {
@@ -139,6 +163,15 @@ function armarPropuesta(p: any, items: any[]) {
     brutoConVolumen,
     descuentoVolumenPct: vol.volumenPctEfectivo,
     descuentoMonto,
+    // COD-01. Van los tres, igual que con el volumen: qué código fue, cuánto
+    // descuenta y cuánto se regaló con él. El documento tiene que poder enseñar
+    // «subtotal − volumen − comercial − CÓDIGO» en vez de un número más bajo sin
+    // explicación; un importe que no cuadra con su propia cuenta se lee como un
+    // defecto del sistema.
+    codigoTexto,
+    codigoDescuentoPct,
+    codigoDescuentoMonto,
+    baseComercial,
     base,
     divisor,
     neto,
@@ -147,6 +180,7 @@ function armarPropuesta(p: any, items: any[]) {
     itemsAprobados: aprob.length,
     brutoAprobado,
     descuentoVolumenMontoAprobado: volAprobado.descuentoVolumenMonto,
+    codigoDescuentoMontoAprobado,
     baseAprobado,
     netoAprobado,
     ivaAprobado,
@@ -250,7 +284,24 @@ export async function congelarSnapshotEconomico(propuestaId: string, tenantId?: 
   )
   const brutoConVolumen = vol.brutoConVolumen
   const descuentoMonto = Math.round(brutoConVolumen * (descuentoPct / 100))
-  const base = brutoConVolumen - descuentoMonto
+  // COD-01 · el código se congela desde la PROPIA PROPUESTA y no se vuelve a
+  // consultar `codigos_promocionales`. Es la misma decisión que con el volumen
+  // y la diferencia real con la franja, que sí se relee de su catálogo para
+  // poder congelar su nombre: aquí el texto y el porcentaje ya están copiados
+  // en la propuesta desde el canje, así que **borrar o cambiar el cupón no
+  // puede alcanzar a una venta ni antes ni después de aprobarla**. Dos redes,
+  // no una — y es el invariante 3 del ADR 0039, el que decide si esta fase está
+  // bien hecha.
+  const leidoCod = prop.codigo_descuento_pct != null ? Number(prop.codigo_descuento_pct) : 0
+  const codigoPct = Number.isFinite(leidoCod) ? Math.max(0, Math.min(100, leidoCod)) : 0
+  const codigoTexto = prop.codigo_texto ?? null
+  const baseComercial = brutoConVolumen - descuentoMonto
+  const codigoMonto = montoDescuentoCodigo(baseComercial, codigoPct)
+  // Mismo molde que `factorVol` de la Fase 2, y con su misma guarda: se mira el
+  // PORCENTAJE y no el monto, porque un monto 0 sobre una base 0 no significa
+  // «sin cupón». `codigoPct` ya viene acotado y finito de arriba.
+  const factorCodigo = codigoPct > 0 ? 1 - Math.min(codigoPct, 100) / 100 : 1
+  const base = baseComercial - codigoMonto
   const neto = Math.round(base * divisor)
   const iva = Math.round(base * (ivaPct / 100))
   const total = base + iva
@@ -271,7 +322,12 @@ export async function congelarSnapshotEconomico(propuestaId: string, tenantId?: 
       // reporte de publicada contra neta compararía la neta con una «publicada»
       // que nadie publicó nunca.
       lista: Number(it.precio),
-      neto: Math.round(Number(it.precio) * factorVol * factorDesc * divisor),
+      // COD-01 · `factorCodigo` entra aquí, entre el descuento comercial y la
+      // comisión. Es el número que `campanas-repo` copia a `reservas.precio`, o
+      // sea el que se factura: si el cupón no entrara aquí, la campaña cobraría
+      // MÁS que la propuesta que la originó y nadie lo vería — el importe es
+      // plausible, solo que es el de antes del cupón.
+      neto: Math.round(Number(it.precio) * factorVol * factorDesc * factorCodigo * divisor),
       // La tarifa UNITARIA aparte del importe de la línea: `lista` ya lleva la
       // cantidad dentro (50 spots × 1 200), y comparar publicada contra neta
       // exige el precio por unidad. Si no constara, el reporte tendría que
@@ -317,6 +373,19 @@ export async function congelarSnapshotEconomico(propuestaId: string, tenantId?: 
   // JSON que producía esta función antes de la Fase 2.
   const hayVolumen = vol.descuentoVolumenMonto !== 0
 
+  // COD-01 · EL CONGELADO DEL CÓDIGO, que es lo que decide si esta fase está
+  // bien hecha. Se guarda SOLO cuando hay código, igual que la franja y el
+  // volumen: así el snapshot de una venta sin cupón es byte por byte el mismo
+  // JSON que producía esta función antes de la Fase 3.
+  //
+  // Va el TEXTO además del porcentaje, y por el mismo motivo por el que el
+  // volumen guarda su umbral: un «20 %» sin decir de qué código salió no se
+  // puede auditar seis meses después — nadie sabrá si vino de una promoción o
+  // de un dedazo. Y va `codigoCanjeadoEn` porque el momento es la mitad de la
+  // respuesta a la tercera pregunta con trampa: **un cupón aplicado antes de
+  // vencer sigue valiendo al aprobar**, y esa fecha es lo que lo demuestra.
+  const hayCodigo = codigoTexto != null && codigoPct > 0
+
   const snap = {
     version, bruto,
     ...(hayVolumen
@@ -326,7 +395,17 @@ export async function congelarSnapshotEconomico(propuestaId: string, tenantId?: 
           brutoConVolumen,
         }
       : {}),
-    descuentoPct, descuentoMonto, base, comisionPct, neto, ivaPct, iva, total, porSitio,
+    descuentoPct, descuentoMonto,
+    ...(hayCodigo
+      ? {
+          codigoTexto: String(codigoTexto),
+          codigoDescuentoPct: codigoPct,
+          codigoDescuentoMonto: codigoMonto,
+          baseComercial,
+          codigoCanjeadoEn: iso(prop.codigo_canjeado_en) ?? null,
+        }
+      : {}),
+    base, comisionPct, neto, ivaPct, iva, total, porSitio,
     ...(hayFranja ? { avisoFranja: AVISO_FRANJA_NO_VIAJA_AL_CMS } : {}),
   }
   await qS('update propuestas set snapshot_economico=$2, snapshot_en=now() where id=$1', [
@@ -432,6 +511,16 @@ export async function obtenerPropuestaPublica(codigo: string) {
     descuentoVolumenPct: armado.descuentoVolumenPct,
     descuentoVolumenMonto: armado.descuentoVolumenMonto,
     brutoConVolumen: armado.brutoConVolumen,
+    // COD-01 · y el CÓDIGO PROMOCIONAL, por el mismo motivo y con más razón: es
+    // lo único de la cadena que se le prometió al cliente por su nombre. Si el
+    // documento que firma no dijera «VERANO20 −20 %», enseñaría un total más
+    // bajo que su propia cuenta y sin decir por qué — que es exactamente el
+    // defecto que la Fase 2 encontró aquí revisando el diff, no corriendo
+    // pruebas.
+    codigoTexto: armado.codigoTexto,
+    codigoDescuentoPct: armado.codigoDescuentoPct,
+    codigoDescuentoMonto: armado.codigoDescuentoMonto,
+    baseComercial: armado.baseComercial,
     divisor: armado.divisor,
     bruto: armado.bruto,
     base: armado.base,
@@ -791,7 +880,10 @@ export async function actualizarPropuesta(
   id: string,
   input: { descuentoPct?: number; nombre?: string; notas?: string | null },
 ): Promise<PropuestaActualizada | null> {
-  const cur = await q1<any>('select estatus, descuento_pct from propuestas where id=$1', [id])
+  const cur = await q1<any>(
+    'select estatus, descuento_pct, codigo_descuento_pct from propuestas where id=$1',
+    [id],
+  )
   if (!cur) return null
   if (cur.estatus === 'APROBADA') {
     throw new PropuestaError('La propuesta ya está aprobada y es inmutable; un cambio va como adenda')
@@ -829,10 +921,17 @@ export async function actualizarPropuesta(
         descuentoVolumenPct: Number(l.descuento_volumen_pct ?? 0),
       })),
     ).volumenPctEfectivo
+    // COD-02 · el cupón entra como ARGUMENTO aunque hoy no cuente. La decisión
+    // de si cuenta o no vive ENTERA en `CODIGO_CUENTA_CONTRA_TOPE`
+    // (`lib/descuento.ts`), y está preguntada al dueño; pasarlo desde aquí es lo
+    // que hace que cambiar la respuesta sea una constante y no una cacería por
+    // los llamantes. Se lee de la propuesta, no de `codigos_promocionales`: lo
+    // que cuenta es lo que se canjeó, no lo que el cupón diga hoy.
     const d = descuentoDentroDelTope(
       input.descuentoPct,
       await topeDescuentoDelTenant(),
       volumenPct,
+      Number(cur.codigo_descuento_pct ?? 0),
     )
     sets.push(`descuento_pct=$${i++}`)
     vals.push(d)
@@ -882,8 +981,14 @@ export async function cambiarEstatusPropuesta(
       // al 100 % dejaría la base en cero de verdad y el guard vería el bruto de
       // lista, o sea aprobaría en silencio una propuesta que no cobra nada —
       // que es exactamente lo que este guard existe para impedir.
+      // COD-01 · el código entra en la cuenta del guard, igual que el volumen.
+      // Sin esto, un cupón al 100 % dejaría la base en cero de verdad y el
+      // guard vería el importe de antes del cupón: aprobaría en silencio una
+      // propuesta que no cobra nada, que es exactamente lo que existe para
+      // impedir.
       `select coalesce(sum(precio * (1 - least(greatest(coalesce(descuento_volumen_pct,0),0),100)/100.0)),0)
-                * (1 - coalesce((select descuento_pct from propuestas where id=$1),0)/100.0) as base
+                * (1 - coalesce((select descuento_pct from propuestas where id=$1),0)/100.0)
+                * (1 - least(greatest(coalesce((select codigo_descuento_pct from propuestas where id=$1),0),0),100)/100.0) as base
          from propuesta_items where propuesta_id=$1`,
       [id],
     )

@@ -29,9 +29,42 @@ archivos:
   - db/migrations/20260923_tickets.sql
   - db/migrations/20260928_tope_descuento_propuestas.sql
   - db/migrations/20260928_descuento_por_volumen.sql
+  - db/migrations/20260928_codigo_promocional.sql
 ---
 
 # Migraciones
+
+> [!note] 2026-09-28 · `20260928_codigo_promocional.sql` — ADR 0039, Fase 3
+> Dos tablas —`codigos_promocionales` y `canjes_codigo`— más cuatro columnas:
+> `propuestas.codigo_texto`, `propuestas.codigo_descuento_pct`,
+> `propuestas.codigo_canjeado_en` y `reservas.codigo_descuento_pct`. Aditiva
+> entera, transaccional e idempotente: **no toca una sola fila existente**, ni
+> ninguna restricción anterior, ni `db/schema.sql`. No mueve ni un importe — las
+> dos tablas **nacen vacías** y las columnas en 0 / NULL.
+>
+> **SIN FUSIONAR al 2026-09-28**: espera la aprobación del dueño, requisito desde
+> ese día para todo cambio de base de datos.
+>
+> **Añade `propuestas_id_tenant_uq`** sobre una tabla existente, y es lo único que
+> toca de lo anterior: hace falta para que la FK de `canjes_codigo` a `propuestas`
+> pueda ser **compuesta con el tenant**. Es un único sobre la clave primaria más
+> el tenant, así que no puede fallar por datos.
+>
+> **Orden**: se aplica ANTES que `20260928_descuento_por_volumen.sql` por orden
+> lexicográfico (`codigo` < `descuento`), y es correcto y comprobado: no depende
+> de ella en nada — solo toca `propuestas`, `reservas` y `tenants`, que ya existen
+> en `db/schema.sql`.
+>
+> **No lleva `@pg-min`**: el único índice de expresión es `upper(codigo)`, que
+> existe desde siempre y que este repositorio ya usa en
+> `usuarios_email_lower_uidx`. Nada posterior a PostgreSQL 14.
+>
+> Verificado: runner **dos veces** sobre `spaces_cod_mig` (base creada para eso) —
+> la primera aplica **92** y sale 0, la segunda dice `0 aplicadas` y sale 0, con
+> **52 tablas** al final. El archivo en disco no tiene CRLF: su sha256 no cambia
+> al quitar los retornos de carro.
+>
+> Ver [[02-Backend/codigo-promocional]].
 
 > [!note] 2026-09-28 · `20260928_descuento_por_volumen.sql` — ADR 0039, Fase 2
 > Una tabla, `escalas_volumen`, más tres columnas:

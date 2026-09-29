@@ -174,7 +174,11 @@ describe('el esquema base no trae la organización de nadie', () => {
     //     tablas nuevas antes que nadie, y la primera en la que el aviso llegó
     //     de la corrida completa y no de leer el diff: las unitarias y las 14
     //     e2e propias de la tarea estaban todas en verde.
-    expect(trasMigrar.tablas).toBe(50)
+    //   · 52 el 2026-09-28: `20260928_codigo_promocional.sql` anade DOS
+    //     --`codigos_promocionales` y `canjes_codigo`--, el codigo promocional
+    //     del ADR 0039 (Fase 3). Octava vez que esta prueba delata las tablas
+    //     nuevas antes que nadie.
+    expect(trasMigrar.tablas).toBe(52)
     // Lo que de verdad importa: ni las migraciones resucitan al owner.
     expect(trasMigrar.tenants).toBe(0)
   })

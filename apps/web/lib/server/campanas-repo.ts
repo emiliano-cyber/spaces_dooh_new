@@ -660,6 +660,15 @@ export async function generarCampanaDesdePropuesta(
 
   const divisor = divisorDeComision(prop.comision_pct)
   const factorDesc = 1 - Number(prop.descuento_pct ?? 0) / 100
+  // COD-01 · el código promocional de la propuesta, con la misma guarda que el
+  // volumen: `numeric` de Postgres admite NaN, y un NaN aquí envenenaría el
+  // importe que se factura dejando la propuesta impecable al lado (el mutante
+  // M15 de la Fase 2). Se lee de la PROPUESTA —donde quedó congelado al
+  // canjear— y no de `codigos_promocionales`: borrar el cupón no puede cambiar
+  // lo que se cobra.
+  const codPct = Number(prop.codigo_descuento_pct ?? 0)
+  const factorCodigo =
+    Number.isFinite(codPct) && codPct > 0 ? 1 - Math.min(codPct, 100) / 100 : 1
   // S0-1: economía congelada en la aceptación. Si existe, la campaña/factura la
   // heredan literalmente (nadie recalcula desde tarifas de lista).
   const snap = (prop.snapshot_economico ?? null) as any
@@ -721,9 +730,11 @@ export async function generarCampanaDesdePropuesta(
       // El camino normal —el snapshot— ya lo trae congelado.
       const volPct = Number(it.descuento_volumen_pct ?? 0)
       const factorVol = Number.isFinite(volPct) && volPct > 0 ? 1 - Math.min(volPct, 100) / 100 : 1
+      // COD-01 · y el codigo, en su sitio de la cadena: despues del comercial y
+      // antes de la comision. Mismo razonamiento que el volumen.
       const netoSitio =
         netoDeSnap.get(it.sitio_id) ??
-        Math.round(Number(it.precio) * factorVol * factorDesc * divisor)
+        Math.round(Number(it.precio) * factorVol * factorDesc * factorCodigo * divisor)
       // La reserva hereda la contratación por tiempo del ítem (unidad, cantidad
       // de periodos y programación de spots), para que la campaña conserve cómo
       // se contrató y no solo el precio.
@@ -731,8 +742,8 @@ export async function generarCampanaDesdePropuesta(
         `insert into reservas
            (campana_id, sitio_id, fecha_inicio, fecha_fin, precio, tipo_venta, estatus,
             spots_reservados, unidad, cantidad, tarifa_unitaria, spots_por_dia, tenant_id, franja_id,
-            descuento_volumen_pct)
-         values ($1,$2,$3,$4,$5,'FIXED_PKG','CONFIRMADA',$6,$7,$8,$9,$10,$11,$12,$13)`,
+            descuento_volumen_pct, codigo_descuento_pct)
+         values ($1,$2,$3,$4,$5,'FIXED_PKG','CONFIRMADA',$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
         [
           campanaId, it.sitio_id, iso(it.fecha_inicio), iso(it.fecha_fin), netoSitio,
           // SLOTS que la reserva retiene — NO `spots_por_dia`, que es la
@@ -761,6 +772,11 @@ export async function generarCampanaDesdePropuesta(
           // ella, la ficha de la campaña enseñaría una cuenta que no da y se
           // leería como un defecto del sistema.
           Number.isFinite(volPct) && volPct > 0 ? Math.min(volPct, 100) : 0,
+          // COD-01 · igual que el volumen: se HEREDA de la propuesta, no se
+          // recalcula ni se relee del cupon. Es lo unico que explica por que el
+          // neto de esta reserva no cuadra con la multiplicacion de sus partes,
+          // y sobrevive a que el cupon se borre.
+          Number.isFinite(codPct) && codPct > 0 ? Math.min(codPct, 100) : 0,
         ],
       )
       // sitios RESERVADO hasta la OC (no OCUPADO todavía)
