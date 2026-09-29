@@ -38,7 +38,7 @@ export const dynamic = 'force-dynamic'
 // propuesta. Ojo: eso es una PREVISTA. Quien decide el descuento que se guarda
 // es el servidor, en `propuestas-controller.ts`; ver el comentario de allí.
 export async function GET() {
-  const g = await exigir('inventario', 'ver')
+  const g = await exigir('comercial', 'ver')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
   try {
     return NextResponse.json(await listarEscalasCtrl())
@@ -50,7 +50,7 @@ export async function GET() {
 // POST → alta de un tramo. El umbral repetido y la escala no monótona se
 // rechazan en el controller, con el tramo con el que chocan nombrado.
 export async function POST(req: Request) {
-  const g = await exigirCambioSensible('inventario', 'crear')
+  const g = await exigirCambioSensible('comercial', 'crear')
   if (!g.ok) return g.res
   try {
     const tramo = await guardarTramoCtrl(await req.json().catch(() => ({})))

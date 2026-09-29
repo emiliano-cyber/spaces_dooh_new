@@ -26,7 +26,7 @@ export const dynamic = 'force-dynamic'
 //  un precio inexplicable.
 // ============================================================================
 export async function POST(req: Request) {
-  const g = await exigirCambioSensible('inventario', 'crear')
+  const g = await exigirCambioSensible('comercial', 'crear')
   if (!g.ok) return g.res
   try {
     const t = await guardarTemporadaCtrl(await req.json().catch(() => ({})))

@@ -31,7 +31,7 @@ export const dynamic = 'force-dynamic'
 // ============================================================================
 
 export async function GET() {
-  const g = await exigir('inventario', 'ver')
+  const g = await exigir('comercial', 'ver')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
   try {
     return NextResponse.json(await listarPaquetesCtrl())
@@ -41,7 +41,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const g = await exigirCambioSensible('inventario', 'crear')
+  const g = await exigirCambioSensible('comercial', 'crear')
   if (!g.ok) return g.res
   try {
     const paq = await guardarPaqueteCtrl(await req.json().catch(() => ({})))

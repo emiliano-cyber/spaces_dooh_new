@@ -36,30 +36,46 @@ export const AREAS: AreaProducto[] = [
   { clave: 'creativos', label: 'Creativos', modulo: 'comercial', apiPropia: false },
   { clave: 'comisiones', label: 'Comisiones', modulo: 'comercial', apiPropia: false },
   { clave: 'inventario', label: 'Inventario', modulo: 'inventario', apiPropia: true },
+// ─── Las cuatro de la cadena de precio: modulo `comercial` ───────────────────
+//
+// Estuvieron bajo `inventario` hasta el 2026-09-29, y el argumento escrito era
+// circular: «bajo `inventario` porque el guard de sus endpoints ya exige
+// `inventario`». Eso no dice de quien es el trabajo, solo repite quien puede
+// tocarlo hoy.
+//
+// Al pasarlas al menu de Comercial, el modulo las siguio -- y con el, los diez
+// route.ts del catalogo, que ahora exigen `comercial`. La captura de tarifas
+// DESDE LA FICHA de una pantalla (`/api/sitios/:id/rejilla`) NO se movio: esa
+// se hace sobre una pantalla concreta y sigue siendo inventario.
+//
+// Consecuencia aceptada por el dueno el 2026-09-29: un COMERCIAL puede crear un
+// cupon, y por tanto conceder un descuento que NO pasa por el tope. Lo que si
+// sigue aplicando es `exigirCambioSensible`, asi que con el candado encendido le
+// pide la contrasena.
   // REJILLA-01 · franjas y temporadas (ADR 0039, Fase 1). Bajo `inventario` y no
   // bajo `administracion`: son dimensiones del PRECIO DE VENTA de las pantallas.
   // El guard de sus endpoints ya exige `inventario` (`app/api/rejilla/franjas/
   // route.ts`), así que declararla en otro módulo sería declarar una mentira, y
   // quien marcara esa casilla en la matriz de permisos creería estar concediendo
   // acceso a otra cosa. Mismo razonamiento que el de `reportes` bajo `finanzas`.
-  { clave: 'franjas-y-temporadas', label: 'Franjas y temporadas', modulo: 'inventario', apiPropia: true },
+  { clave: 'franjas-y-temporadas', label: 'Franjas y temporadas', modulo: 'comercial', apiPropia: true },
   // VOL-01 · descuentos por volumen (ADR 0039, Fase 2). Bajo `inventario` por el
   // mismo motivo que la de arriba: su endpoint exige `inventario`
   // (`app/api/volumen/escalas/route.ts`), y declararla en otro módulo sería
   // declarar una mentira en la matriz de permisos.
-  { clave: 'descuentos-por-volumen', label: 'Descuentos por volumen', modulo: 'inventario', apiPropia: true },
+  { clave: 'descuentos-por-volumen', label: 'Descuentos por volumen', modulo: 'comercial', apiPropia: true },
   // COD-01 · codigos promocionales (ADR 0039, Fase 3). Bajo `inventario` por el
   // mismo motivo que las dos de arriba: su endpoint exige `inventario`
   // (`app/api/codigos-promocionales/route.ts`), y declararla en otro modulo
   // seria declarar una mentira en la matriz de permisos.
-  { clave: 'codigos-promocionales', label: 'Codigos promocionales', modulo: 'inventario', apiPropia: true },
+  { clave: 'codigos-promocionales', label: 'Codigos promocionales', modulo: 'comercial', apiPropia: true },
   // PAQ-01 · paquetes cerrados (ADR 0039, Fase 4). Bajo `inventario` por el
   // mismo motivo que las dos de arriba: su endpoint exige `inventario`
   // (`app/api/paquetes/route.ts`), y declararla en otro modulo seria declarar
   // una mentira en la matriz de permisos. Y aqui importa mas que en ninguna:
   // quien pueda escribir aqui fija el precio de una venta entera saltandose la
   // rejilla y el tope de descuento.
-  { clave: 'paquetes', label: 'Paquetes cerrados', modulo: 'inventario', apiPropia: true },
+  { clave: 'paquetes', label: 'Paquetes cerrados', modulo: 'comercial', apiPropia: true },
   { clave: 'arrendadores', label: 'Arrendadores', modulo: 'arrendadores', apiPropia: true },
   { clave: 'operaciones', label: 'Operaciones', modulo: 'operaciones', apiPropia: true },
   { clave: 'almacen', label: 'Almacén', modulo: 'operaciones', apiPropia: true },

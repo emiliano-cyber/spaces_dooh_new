@@ -37,7 +37,7 @@ export const dynamic = 'force-dynamic'
 // por separado son dos viajes. `?inactivas=1` incluye las apagadas: esa pantalla
 // es la única que las necesita, para poder reactivarlas.
 export async function GET(req: Request) {
-  const g = await exigir('inventario', 'ver')
+  const g = await exigir('comercial', 'ver')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
   try {
     const incluirInactivas = new URL(req.url).searchParams.get('inactivas') === '1'
@@ -50,7 +50,7 @@ export async function GET(req: Request) {
 // POST → alta de una franja. El solape se rechaza en el controller con el
 // nombre de la franja con la que choca.
 export async function POST(req: Request) {
-  const g = await exigirCambioSensible('inventario', 'crear')
+  const g = await exigirCambioSensible('comercial', 'crear')
   if (!g.ok) return g.res
   try {
     const franja = await guardarFranjaCtrl(await req.json().catch(() => ({})))
