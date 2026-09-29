@@ -9,20 +9,31 @@ export const dynamic = 'force-dynamic'
 
 // PATCH /api/organizacion → renombra la organización (empresa) del CRM actual.
 // Se refleja en el sidebar (el nombre que se muestra a la izquierda).
-// Renombrar la organización es EXCLUSIVO del Dueño. El permiso
-// `administracion.crear` no basta: vive en la tabla `rol_permisos`, así que
-// concedérselo a otro rol —algo que se hace sin tocar código— le daría también
-// la capacidad de renombrar la empresa. El nombre identifica al negocio en toda
-// la aplicación, así que el guard va contra el ROL, que no es configurable.
-const ROL_DUENO = 'DUENO'
+//
+// Renombrar la organización NO basta con `administracion.crear`: ese permiso
+// vive en `rol_permisos`, así que concedérselo a otro rol —algo que se hace sin
+// tocar código— le daría también la capacidad de renombrar la empresa. El nombre
+// identifica al negocio en toda la aplicación, así que el guard va contra el
+// ROL, que no es configurable.
+//
+// ADR 0040 · desde el 2026-09-29 son DOS roles, no uno. «El administrador puede
+// hacer las mismas cosas que el dueño», y editar los datos de la empresa entra;
+// lo que NO entra es cambiar de organización (`lib/server/tenant.ts`), que es
+// de flota y sigue siendo exclusivo del Dueño.
+//
+// Se abre AQUÍ y en `configuracion/page.tsx` en el mismo commit, a propósito:
+// abrir solo la pantalla dejaría al administrador con un formulario que
+// contesta 403 al guardar — el «encierro» que este repositorio ya documentó dos
+// veces.
+const ROLES_EMPRESA = ['DUENO', 'ADMINISTRADOR']
 const LARGO_MAX = 80
 
 export async function PATCH(req: Request) {
   const g = await exigir('administracion', 'crear')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
-  if (g.usuario.rol !== ROL_DUENO) {
+  if (!ROLES_EMPRESA.includes(g.usuario.rol)) {
     return NextResponse.json(
-      { error: 'Solo el Dueño puede cambiar el nombre de la organización.' },
+      { error: 'Solo el Dueño o un administrador pueden cambiar el nombre de la organización.' },
       { status: 403 },
     )
   }

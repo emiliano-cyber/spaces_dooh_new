@@ -39,6 +39,80 @@ La entrada más reciente va arriba.
 
   **Y si mezclas mensuales y bimestrales en la misma tanda, muchos saldran
   marcados.** Eso no es un fallo: subelos por separado y la pantalla queda limpia.
+- **Cuatro perfiles nuevos para el equipo de ventas, y dos candados que protegen
+  al Dueno.**
+  *(ADR 0040, primer tramo. **Pendiente de tu aprobacion**: lleva un cambio de
+  base de datos y desde el 28/09 esos no se aplican sin que tu digas que si.)*
+
+  Hasta hoy, quien vendia entraba como «Comercial» y ese perfil era uno solo para
+  todos: el jefe de ventas y el vendedor recien entrado veian y podian
+  exactamente lo mismo. Desde hoy hay **cuatro perfiles**:
+
+  - **Administrador** — hace lo mismo que tu: da de alta gente, toca inventario,
+    finanzas, operaciones y los datos de la empresa. **Con dos excepciones, y son
+    a proposito:** no puede cambiar de organizacion, y **no puede dar de baja ni
+    degradar a ningun Dueno** (ver abajo).
+  - **Director comercial** — vende, aprueba lo vendido y **define el catalogo de
+    precio**: franjas, temporadas, descuentos por volumen, cupones y paquetes.
+  - **Gerente de ventas** — hoy puede lo mismo que el director. Las diferencias
+    que hablamos —el techo de descuento de cada quien y quien firma lo que se
+    pasa de ese techo— **son el tramo siguiente**, no estan construidas todavia.
+  - **Vendedor** — cotiza, **aplica** cupones y paquetes, y **NO los crea**. Ni
+    siquiera ve esas pantallas. Es la linea que pediste, y esta puesta en el
+    servidor: no es que le escondamos el boton, es que el sistema se lo niega
+    aunque lo intente por otro camino.
+
+  **El perfil «Comercial» desaparece.** Quien lo tenga **pasa automaticamente a
+  Vendedor** —lo decidiste el 29/09— y cualquier usuario nuevo al que no se le
+  ponga perfil **nace como Vendedor**. Antes nacia como Comercial; si no lo
+  hubieramos cambiado, esa persona habria entrado y **no habria visto ni una sola
+  pantalla**, sin que nada le dijera por que.
+
+  **Los dos candados, y el segundo no lo pediste:**
+
+  1. **Un administrador no puede desactivar, cambiar de perfil ni eliminar a un
+     Dueno.** Ni por la pantalla ni por ningun otro camino.
+  2. **La empresa no puede quedarse sin ningun Dueno activo.** Esto aplica a
+     todos, tu incluido: si eres el ultimo Dueno, nadie te puede desactivar hasta
+     que nombres a otro. Sin este candado, dos Duenos podian desactivarse el uno
+     al otro **a la vez** y dejar la empresa sin nadie que pudiera repartir
+     permisos ni cambiar la configuracion — y de ahi no se sale desde la
+     aplicacion.
+
+  **Lo que NO entra en este cambio, dicho con todas las letras:** el techo de
+  descuento por perfil, la autorizacion al aprobar una propuesta con descuento, y
+  los descuentos preaprobados. Son los tramos siguientes.
+
+- **Finanzas ya puede capturar lo que costo cada visita, y nadie mas puede
+  nombrar Duenos.**
+  *(Mismo dia, tus respuestas de la tarde. **Lleva cambios de base de datos** y
+  van con los de arriba.)*
+
+  **Finanzas captura el costo de la orden de trabajo.** La factura de la cuadrilla
+  te llega a Finanzas, asi que son ellos quienes saben lo que costo la visita — y
+  hasta hoy el sistema les contestaba «no tienes permiso». Ahora pueden **abrir la
+  orden y teclear el importe**, y nada mas: **no pueden crear ni cerrar ordenes de
+  trabajo**. Eso sigue siendo de Operaciones.
+
+  Lo que si alcanzan de paso, y conviene que lo sepas: con el permiso de ver
+  ordenes tambien pueden **consultar** el almacen y los recibos de luz de tu
+  empresa. No les aparece en el menu, pero el dato esta a su alcance. Se acepto
+  porque separar eso cuesta bastante mas y son consultas de la misma empresa.
+
+  **Nadie puede nombrar a un Dueno salvo un Dueno.** Lo pediste asi: ni cambiandole
+  el perfil a alguien ni dandolo de alta ya como Dueno. Aplica a **todos los
+  perfiles**, administrador incluido — sin esto, un administrador al que le
+  prohibimos tocar a un Dueno podria simplemente **fabricarse uno de confianza** y
+  el candado no serviria de nada.
+
+  El alta de una empresa nueva sigue funcionando igual: cuando se instala el
+  sistema todavia no hay ningun Dueno que pueda autorizar al primero, asi que ese
+  camino esta dejado pasar **a proposito**.
+
+  **El director comercial ya ve Finanzas y los reportes.** Solo VER: no cobra ni
+  factura. Es lo que contestaste cuando preguntamos si debia ver el margen —
+  aprobar un descuento sin saber cuanto margen queda es firmar a ciegas. El
+  gerente de ventas **no** lo ve, y esa es hoy la unica diferencia entre los dos.
 
 - **Ahora puedes capturar lo que de verdad costó cada visita, y el reporte deja
   de estimarlo.**

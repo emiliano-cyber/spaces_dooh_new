@@ -20,11 +20,27 @@ export const USUARIOS_DEMO: UsuarioDemo[] = [
 ]
 
 // A dónde aterriza cada rol tras iniciar sesión.
+//
+// El `switch` NO lleva `default` a propósito: así el compilador obliga a
+// contestar por cada valor nuevo de `RolDemo`. Sin eso, un rol añadido al tipo y
+// olvidado aquí devolvería `undefined` y el usuario acabaría en una URL
+// literalmente llamada «undefined» — el ADR 0040 lo anotó como riesgo antes de
+// añadir cuatro valores de golpe.
 export function landingDeRol(rol: RolDemo): string {
   switch (rol) {
     case 'DUENO':
+    // ADR 0040 · el administrador hace lo mismo que el Dueño, así que empieza
+    // donde él: en el tablero, no en una pantalla de trabajo.
+    case 'ADMINISTRADOR':
       return '/inicio'
+    // Los tres roles de venta aterrizan en el ciclo comercial. 'COMERCIAL' se
+    // retiró de uso (ADR 0040) pero conserva su destino: si una instancia vieja
+    // todavía tiene uno, es mejor que llegue a una pantalla que le contestará
+    // 403 con una frase, a que se quede en un bucle de redirección.
     case 'COMERCIAL':
+    case 'DIRECTOR_COMERCIAL':
+    case 'GERENTE_VENTAS':
+    case 'VENDEDOR':
       return '/comercial'
     case 'OPERACIONES':
       return '/operaciones'

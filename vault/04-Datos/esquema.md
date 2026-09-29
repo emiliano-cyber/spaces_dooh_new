@@ -432,7 +432,7 @@ erDiagram
 | `sesiones` | **Exenta** | + `desbloqueo_expira_en` + `desbloqueo_es_propio` (ADR 0036: si el desbloqueo vigente fue con la contraseña propia o la compartida) |
 | `identidades_externas` | fail-closed + FORCE | ADR 0012 |
 | `password_resets` | fail-closed (desde 07/08) | Token único, 60 min |
-| `rol_permisos` | **Sin tenant_id** | RBAC global a la instalación |
+| `rol_permisos` | **Sin tenant_id** | RBAC global a la instalación. Desde el **29/09** (ADR 0040) son **86 filas · 10 módulos · 8 roles**: entran los cuatro roles de venta y el módulo `precios`, y `COMERCIAL` se queda **a cero** — el valor sigue en el enum porque no se puede quitar, pero sin filas no autoriza nada. Ver [[02-Backend/roles-de-venta]] |
 | `config_negocio` | fail-closed + FORCE | Una fila **por tenant**, sin DEFAULT. La crea quien da de alta la organización, o la app al primer acceso (`lib/server/config-repo.ts:59-61`). Desde el 17/09 lleva `costos_ot jsonb` —costo de mano de obra por tipo de OT, `{}` = sin configurar— con CHECK de forma; ver [[02-Backend/operaciones-y-ot]]. Desde el **28/09** lleva `tope_descuento_pct numeric(5,2) not null default 100` —el descuento máximo que esa organización autoriza en una propuesta, `100` = sin tope, que es como nace— con `check (>= 0 and <= 100)`; ver [[02-Backend/comercial-propuestas-campanas]] |
 | `folios_consecutivos` | Sin tenant_id | Contador global |
 | `schema_migrations` | Sin tenant_id | Qué migraciones corrió **esta instancia**. Ver [[migraciones]] |
@@ -501,14 +501,16 @@ Los que más importan:
 
 | Enum | Valores |
 |---|---|
-| `rol_demo` | `DUENO`, `COMERCIAL`, `OPERACIONES`, `IMPRENTA`, `FINANZAS`, `CLIENTE`* |
+| `rol_demo` | `DUENO`, `ADMINISTRADOR`‡, `DIRECTOR_COMERCIAL`‡, `GERENTE_VENTAS`‡, `VENDEDOR`‡, `COMERCIAL`*, `OPERACIONES`, `IMPRENTA`, `FINANZAS`, `CLIENTE`* |
 | `est_contrato` | `VIGENTE`, `POR_VENCER`, `VENCIDO`, `RENOVADO`, `CANCELADO`, `INCOMPLETO`† |
 | `est_comercial_campana` | `DRAFT`, `COTIZACION`, `CONFIRMADA`, `ACTIVA`, `COMPLETADA`, `CANCELADA`, `LISTA_FACTURAR` |
 | `est_ot` | `PENDIENTE`, `ASIGNADA`, `EN_PROCESO`, `BLOQUEADA`, `EN_REVISION`, `COMPLETADA`, `RECHAZADA`, `CANCELADA` |
 | `periodicidad_pago` | `SEMANAL`…`ANUAL` + `DIARIA`† (ADR 0004) |
 | `est_ticket` | `ABIERTO`, `EN_PROCESO`, `RESUELTO`, `CERRADO` (ADR 0038, nuevo 23/09) |
 
-\* `CLIENTE` retirado por ADR 0010 pero **sigue en el enum**.
+\* `CLIENTE` retirado por ADR 0010 y `COMERCIAL` por ADR 0040, pero los dos **siguen en el enum**: quitar un valor exige recrear el tipo entero. Se retiran **de uso** — sin filas en `rol_permisos` no autorizan nada.
+
+‡ Añadidos el 2026-09-29 por `20260929_roles_de_venta_enum.sql`, que **solo los añade**: usarlos en la misma transacción da «*unsafe use of new value*». Ver [[02-Backend/roles-de-venta]].
 † Añadido por migración.
 
 > [!danger] Quitar un valor de un enum de Postgres no es trivial

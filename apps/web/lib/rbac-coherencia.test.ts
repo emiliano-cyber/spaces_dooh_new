@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { AREAS, MODULOS, areasDeModulo } from './modulos'
+import { CAPACIDADES } from '@/components/demo/admin/permisos'
 
 // ============================================================================
 //  ADR 0010 · Coherencia entre lo que la API EXIGE y lo que el producto declara.
@@ -60,6 +61,40 @@ describe('coherencia RBAC', () => {
     expect(huerfanos).toEqual([])
   })
 
+  it('toda ACCIÓN que la API exige se puede ver en la matriz de Administración', () => {
+    // ⚠️ El agujero que este caso cierra, y apareció al añadir `costear` el
+    // 2026-09-29: la pantalla de Administración pinta las celdas con
+    // `CAPACIDADES.filter(...)` (`administracion/page.tsx`). Una acción que la
+    // API exija y que NO esté en esa lista **no aparece en ningún sitio**: el
+    // Dueño ve `operaciones: V C A`, no hay rastro de la quinta, y no tiene
+    // forma de saber que la está concediendo ni de quitarla.
+    //
+    // Es la trampa del ADR 0010 con el signo cambiado —allí el rol existía y no
+    // tenía permisos; aquí el permiso existe y no se puede administrar— y las
+    // dos se descubren igual de tarde: cuando alguien pregunta por qué.
+    const conocidas = new Set<string>(CAPACIDADES)
+    const invisibles = [...new Set(paresExigidos().map((p) => p.accion))]
+      .filter((a) => !conocidas.has(a))
+    expect(invisibles).toEqual([])
+  })
+
+  it('y al revés: la matriz no ofrece acciones que nadie exige', () => {
+    // Una capacidad de más es una casilla que se puede marcar y no hace nada.
+    // `facturar` la exige `campanas/[id]/facturar`; si alguna dejara de usarse,
+    // esto lo dice en vez de que la matriz siga ofreciéndola para siempre.
+    const exigidas = new Set(paresExigidos().map((p) => p.accion))
+    expect(CAPACIDADES.filter((c) => !exigidas.has(c))).toEqual([])
+  })
+
+  it('`operaciones.costear` NO es `operaciones.crear` (2026-09-29)', () => {
+    // La ruta del costo de una OT tiene que exigir la acción acotada. Si alguien
+    // la devolviera a `crear`, Finanzas dejaría de poder capturar el costo —y la
+    // salida fácil sería darles `operaciones.crear`, que es crear y CERRAR
+    // órdenes de trabajo. Esta línea es lo que impide ese camino.
+    const costo = paresExigidos().filter((p) => p.archivo.includes('costo'))
+    expect(costo.map((p) => `${p.modulo}.${p.accion}`)).toEqual(['operaciones.costear'])
+  })
+
   it('todo módulo del catálogo gobierna al menos un área', () => {
     const sinArea = MODULOS.filter((m) => areasDeModulo(m).length === 0)
     expect(sinArea).toEqual([])
@@ -73,6 +108,58 @@ describe('coherencia RBAC', () => {
       const hermanasConApi = areasDeModulo(area.modulo).filter((a) => a.apiPropia)
       expect(hermanasConApi.length, `${area.clave} (${area.modulo})`).toBeGreaterThan(0)
     }
+  })
+
+  it('el catálogo de PRECIO va bajo `precios`, y no bajo `comercial` (ADR 0040)', () => {
+    // La separación que introdujo el ADR 0040, y el motivo por el que existe:
+    // con estas cuatro bajo `comercial`, crear una propuesta y crear un cupón
+    // eran el MISMO permiso (`comercial.crear`). El ADR pide que el VENDEDOR
+    // haga lo primero y NO lo segundo, y eso era literalmente inexpresable.
+    //
+    // Se comprueba área por área y no «que exista el módulo `precios`»: el
+    // mutante que devolvió UNA sola de las cuatro a `comercial` sobrevivió a
+    // todo lo demás de este archivo, porque las otras tres mantenían el módulo
+    // vivo. Una sola bastaría para que el vendedor pudiera crear cupones.
+    const DEL_CATALOGO_DE_PRECIO = [
+      'franjas-y-temporadas',
+      'descuentos-por-volumen',
+      'codigos-promocionales',
+      'paquetes',
+    ]
+    const mal = AREAS.filter((a) => DEL_CATALOGO_DE_PRECIO.includes(a.clave) && a.modulo !== 'precios')
+      .map((a) => `${a.clave} declara «${a.modulo}»`)
+    expect(mal).toEqual([])
+    // Y al revés: `precios` no gobierna nada más. Si alguien colgara de aquí una
+    // pantalla que no es del catálogo de precio, se la estaría abriendo a los
+    // dos jefes de venta sin decírselo a nadie.
+    expect(areasDeModulo('precios').map((a) => a.clave).sort()).toEqual(
+      [...DEL_CATALOGO_DE_PRECIO].sort(),
+    )
+  })
+
+  it('los guards de esas rutas exigen `precios`, no `comercial`', () => {
+    // La otra mitad: `lib/modulos.ts` puede decir `precios` y el `route.ts`
+    // seguir exigiendo `comercial`. Entonces la matriz de permisos diría una
+    // cosa y el servidor haría otra — «declarar una mentira», que es la frase
+    // con la que este repositorio lleva tres ADR justificando dónde va cada
+    // módulo. Se lee de los `exigir(...)` REALES.
+    //
+    // `/api/sitios/:id/rejilla` queda FUERA a propósito, y no es una excepción
+    // cómoda: esa es la captura de tarifas DESDE LA FICHA de una pantalla, se
+    // hace sobre una pantalla concreta y sigue siendo inventario. Las dos
+    // superficies estaban bien separadas de origen y ni el 0039 ni el 0040 las
+    // juntaron.
+    const RUTAS = ['codigos-promocionales', 'paquetes', 'rejilla', 'volumen']
+    const desalineados = paresExigidos()
+      .filter((p) => !p.archivo.includes('sitios'))
+      .filter((p) => RUTAS.some((r) => p.archivo.includes(r)) && p.modulo !== 'precios')
+      .map((p) => `${p.archivo} exige ${p.modulo}.${p.accion}`)
+    expect(desalineados).toEqual([])
+    // Y que el regex siga encontrando algo: sin esto, un cambio de forma en las
+    // llamadas volvería esta prueba trivialmente verde sobre una lista vacía.
+    expect(
+      paresExigidos().filter((p) => !p.archivo.includes('sitios') && p.modulo === 'precios').length,
+    ).toBe(19)
   })
 
   it('el catálogo de pantallas NO va bajo comercial (ADR 0010)', () => {

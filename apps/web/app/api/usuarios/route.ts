@@ -23,7 +23,7 @@ export async function POST(req: Request) {
   const g = await exigir('administracion', 'crear')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
   try {
-    const u = await crearUsuarioCtrl(await req.json().catch(() => ({})))
+    const u = await crearUsuarioCtrl(await req.json().catch(() => ({})), { id: g.usuario.id, rol: g.usuario.rol })
     await registrarAccion(g.usuario, 'Invitó usuario', u.nombre)
     return NextResponse.json(u, { status: 201 })
   } catch (e) {

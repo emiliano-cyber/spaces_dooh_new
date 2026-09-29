@@ -34,7 +34,15 @@ let orgA: Awaited<ReturnType<typeof sembrarTenant>>
 let orgB: Awaited<ReturnType<typeof sembrarTenant>>
 let a: Cliente
 let b: Cliente
-let comercial: Cliente
+// El rol de ejemplo SIN `operaciones`. Era COMERCIAL hasta el 2026-09-29; el
+// ADR 0040 lo retiro de uso --se quedo sin ni una fila de `rol_permisos`-- asi
+// que seguir usandolo aqui daria el 403 correcto por el motivo equivocado: no
+// por faltarle `operaciones`, sino por no tener NADA. VENDEDOR es el rol que
+// hoy hace ese trabajo y tiene permisos de sobra en lo suyo.
+let vendedor: Cliente
+// FINANZAS: el rol del encargo del 29/09. Recibe la factura de la cuadrilla, y
+// desde hoy puede capturar el costo con `operaciones.costear`.
+let finanzas: Cliente
 let otA: string
 let otB: string
 
@@ -82,17 +90,24 @@ beforeAll(async () => {
   // serían dos causas distintas dando el mismo número.
   await poolTest().query(
     `insert into usuarios (nombre, email, rol, password_hash, activo, tenant_id)
-     values ($1,$2,'COMERCIAL',$3,true,$4)`,
-    ['Comercial OT', 'comercial@otca.test', await bcrypt.hash(PASSWORD_DEMO, 4), orgA.id],
+     values ($1,$2,'VENDEDOR',$3,true,$4)`,
+    ['Vendedor OT', 'vendedor@otca.test', await bcrypt.hash(PASSWORD_DEMO, 4), orgA.id],
+  )
+  await poolTest().query(
+    `insert into usuarios (nombre, email, rol, password_hash, activo, tenant_id)
+     values ($1,$2,'FINANZAS',$3,true,$4)`,
+    ['Finanzas OT', 'finanzas@otca.test', await bcrypt.hash(PASSWORD_DEMO, 4), orgA.id],
   )
 
   await arrancarServidor()
   a = new Cliente()
   b = new Cliente()
-  comercial = new Cliente()
+  vendedor = new Cliente()
+  finanzas = new Cliente()
   await a.entrar(orgA.usuarioEmail, PASSWORD_DEMO)
   await b.entrar(orgB.usuarioEmail, PASSWORD_DEMO)
-  await comercial.entrar('comercial@otca.test', PASSWORD_DEMO)
+  await vendedor.entrar('vendedor@otca.test', PASSWORD_DEMO)
+  await finanzas.entrar('finanzas@otca.test', PASSWORD_DEMO)
 }, 180_000)
 
 afterAll(async () => {
@@ -263,8 +278,39 @@ describe('5 · NEGATIVO · lo que la ruta y la tabla rechazan', () => {
   })
 
   it('un rol SIN `operaciones` no puede capturar el costo (403)', async () => {
-    const r = await fijarCosto(comercial, otA, 500)
+    const r = await fijarCosto(vendedor, otA, 500)
     expect(r.status).toBe(403)
+  })
+
+  it('FINANZAS SI puede capturar el costo — es quien recibe la factura', async () => {
+    // El encargo del 2026-09-29. Hasta hoy FINANZAS tenia CUATRO filas y ni una
+    // de `operaciones`, asi que esta ruta le contestaba 403 a quien de verdad
+    // sabe lo que costo la visita.
+    await desbloquear(finanzas)
+    const r = await fijarCosto(finanzas, otA, 7777)
+    expect(r.status).toBe(200)
+    expect(Number(r.datos?.costoReal)).toBe(7777)
+    // Se deja como estaba: las pruebas del reporte cuentan con COSTO_REAL.
+    await fijarCosto(a, otA, COSTO_REAL)
+  })
+
+  it('pero FINANZAS NO puede crear ni cerrar una orden de trabajo', async () => {
+    // La razon entera por la que `costear` existe en vez de darles
+    // `operaciones.crear`. Si esto devolviera 200, el atajo se habria colado y
+    // Finanzas estaria cerrando ordenes de campo.
+    const crear = await finanzas.pedir('/api/ot/', {
+      cuerpo: { tipo: 'HERRERIA', sitioId: orgA.sitioId, descripcion: 'No deberia' },
+    })
+    expect(crear.status).toBe(403)
+    const cerrar = await finanzas.pedir(`/api/ot/${otA}/cerrar/`, { cuerpo: {} })
+    expect(cerrar.status).toBe(403)
+  })
+
+  it('y tampoco puede capturar el costo de la OT de OTRA organizacion', async () => {
+    // El permiso nuevo no toca el aislamiento, y eso hay que medirlo: un rol
+    // nuevo en una ruta de dinero es justo donde se cuela un IDOR.
+    const r = await fijarCosto(finanzas, otB, 999)
+    expect(r.status).toBe(404)
   })
 
   it('sin sesión no se puede capturar el costo (401)', async () => {

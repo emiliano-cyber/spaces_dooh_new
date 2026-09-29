@@ -64,6 +64,39 @@ describe('ordenar()', () => {
     }
   })
 
+  it('el enum de los roles se aplica ANTES que la matriz que lo usa (ADR 0040)', () => {
+    // ── La trampa que puede reventar esta migración ────────────────────────
+    // `ALTER TYPE … ADD VALUE` deja el valor nuevo INUTILIZABLE hasta que su
+    // transacción confirma («unsafe use of new value», medido en PostgreSQL
+    // 14.24, que es lo que corre g500). Las migraciones de este repositorio son
+    // transaccionales, así que añadir 'VENDEDOR' y usarlo en el mismo archivo
+    // falla — y fallaría en la única instancia con datos de cliente.
+    //
+    // Por eso son DOS archivos: el runner aplica cada uno con su propia
+    // `cli.query()` y cada uno trae su `begin; … commit;`, o sea DOS
+    // transacciones. Hoy el orden sale del lexicográfico ('e' < 'm'), y esta
+    // prueba es lo que convierte esa coincidencia en un contrato: si alguien
+    // renombra uno de los dos, se entera aquí y no en el droplet.
+    const archivos = readdirSync(DIR_MIGRACIONES).filter((f) => f.endsWith('.sql'))
+    const ordenados = ordenar(archivos)
+    const enumRoles = '20260929_roles_de_venta_enum.sql'
+    const matriz = '20260929_roles_de_venta_matriz.sql'
+    expect(ordenados).toContain(enumRoles)
+    expect(ordenados).toContain(matriz)
+    expect(ordenados.indexOf(enumRoles)).toBeLessThan(ordenados.indexOf(matriz))
+
+    // Y la tercera del mismo día: `operaciones.costear` inserta filas para
+    // ADMINISTRADOR, que es uno de los valores que añade la del enum. Su nombre
+    // empieza por `roles_` A PROPÓSITO y no por `ot_` ni `costear_`: con
+    // cualquiera de ésos ordenaría ANTES y moriría con «invalid input value for
+    // enum». Se renombró en vez de tocar `ANTES_DE` porque ninguna de las tres
+    // está aplicada todavía en ningún sitio — renombrar solo confunde cuando ya
+    // se desplegó, que es lo que dice la cabecera de ese mapa.
+    const costear = '20260929_roles_operaciones_costear.sql'
+    expect(ordenados).toContain(costear)
+    expect(ordenados.indexOf(enumRoles)).toBeLessThan(ordenados.indexOf(costear))
+  })
+
   it('no muta el array que recibe', () => {
     // `ordenar()` la llaman el runner y el arnés de e2e sobre listas que luego
     // reusan. Un `sort()` in situ ahí es de los fallos que aparecen lejos.

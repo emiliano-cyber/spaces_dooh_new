@@ -52,13 +52,22 @@ export default function AgregarInventarioPage() {
   const [resetKey, setResetKey] = useState(0)
   const [toast, setToast] = useState<string | null>(null)
 
-  // Solo el Dueño. La nav ya lo oculta para otros roles; esto cubre el acceso
-  // por URL directa.
-  if (sesion && sesion.usuario.rol !== 'DUENO') {
+  // Solo quien administra la instancia: el Dueño y, desde el ADR 0040
+  // (2026-09-29), también el ADMINISTRADOR. La nav ya lo oculta para los demás;
+  // esto cubre el acceso por URL directa.
+  //
+  // Ojo con lo que esto NO es: una regla de seguridad. El dato lo protegen los
+  // guards de `/api/sitios/**`, que exigen `inventario.crear`. Esto es lo que
+  // evita que un rol sin ese permiso llegue a una pantalla que le contestará 403
+  // sin decirle por qué.
+  const rol = sesion?.usuario.rol
+  if (sesion && rol !== 'DUENO' && rol !== 'ADMINISTRADOR') {
     return (
       <div className="w-full p-6">
         <h1 className="text-lg font-semibold text-ink">Inventario</h1>
-        <p className="mt-2 text-[13px] text-muted">Esta sección es exclusiva del Dueño.</p>
+        <p className="mt-2 text-[13px] text-muted">
+          Esta sección es exclusiva del Dueño y del administrador.
+        </p>
       </div>
     )
   }

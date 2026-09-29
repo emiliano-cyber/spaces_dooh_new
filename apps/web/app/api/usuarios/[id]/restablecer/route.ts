@@ -39,7 +39,7 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
   if (!d.ok) return respuestaDesbloqueo(d)
 
   try {
-    const { usuario, temporal } = await restablecerPasswordCtrl(params.id, g.usuario.id)
+    const { usuario, temporal } = await restablecerPasswordCtrl(params.id, { id: g.usuario.id, rol: g.usuario.rol })
     await registrarAccion(
       g.usuario,
       'Restableció la contraseña de',

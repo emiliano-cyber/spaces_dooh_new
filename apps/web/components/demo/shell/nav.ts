@@ -25,6 +25,7 @@ import {
   Ticket,
   Package,
 } from 'lucide-react'
+import { ROLES_ASIGNABLES, rolLabel } from '@/lib/roles'
 import type { RolDemo } from '@/lib/data/types'
 
 // Módulos del shell (sección 5). `roles` controla qué se RENDERIZA por rol:
@@ -95,33 +96,54 @@ export const GRUPOS: { key: GrupoNav; titulo: string | null }[] = [
   { key: 'sistema', titulo: 'Sistema' },
 ]
 
+// --- Los tres repartos que se repiten (ADR 0040, 2026-09-29) ----------------
+//
+// No son azucar sintactico: la lista literal repetida veinticinco veces es
+// exactamente como un rol se queda fuera de una pantalla sin que nadie lo note
+// -- y con cuatro roles entrando de golpe, veinticinco oportunidades.
+//
+//   MANDO ....... quien administra la instancia. El ADR 0040 dice que el
+//                 administrador «puede hacer las mismas cosas» que el Dueno, y
+//                 en el menu eso es literal: no hay una sola entrada que vea uno
+//                 y no vea el otro. Lo que NO copia son los cuatro sitios donde
+//                 'DUENO' esta escrito a mano fuera de `rol_permisos`.
+//   VENTA ....... los tres roles de venta. Ven el ciclo comercial entero.
+//   JEFES_VENTA . los dos que ademas DEFINEN el catalogo de precio. El vendedor
+//                 aplica codigos y paquetes; no los crea, asi que no ve sus
+//                 pantallas de gestion. Ensenarselas seria el «encierro» que
+//                 este repositorio ya documento dos veces: el servidor niega lo
+//                 que la pantalla ofrece.
+const MANDO: RolDemo[] = ['DUENO', 'ADMINISTRADOR']
+const VENTA: RolDemo[] = ['DIRECTOR_COMERCIAL', 'GERENTE_VENTAS', 'VENDEDOR']
+const JEFES_VENTA: RolDemo[] = ['DIRECTOR_COMERCIAL', 'GERENTE_VENTAS']
+
 export const NAV: NavItem[] = [
-  { key: 'dashboard', label: 'Dashboard', href: '/inicio', icon: LayoutDashboard, roles: ['DUENO'], grupo: 'inicio' },
+  { key: 'dashboard', label: 'Dashboard', href: '/inicio', icon: LayoutDashboard, roles: [...MANDO, ...VENTA], grupo: 'inicio' },
 
   // ─── Inventario ──────────────────────────────────────────────────────────
   // B3: se llamaba «Agregar inventario» pero abre el módulo entero —consulta,
   // carga masiva, exportación—, no solo el alta. El nombre prometía menos de lo
   // que hay y escondía la consulta a quien no entraba a curiosear.
-  { key: 'inventario', label: 'Inventario', href: '/inventario', icon: PackagePlus, roles: ['DUENO'], grupo: 'patrimonio' },
+  { key: 'inventario', label: 'Inventario', href: '/inventario', icon: PackagePlus, roles: [...MANDO], grupo: 'patrimonio' },
   // Arrendadores va pegado a Inventario y no suelto en medio del ciclo
   // comercial: una pantalla no es tuya, es de alguien que te la renta, y el
   // contrato con ese alguien es lo que te deja venderla (ADR 0003).
-  { key: 'arrendadores', label: 'Arrendadores', href: '/arrendadores', icon: Building2, roles: ['DUENO'], grupo: 'patrimonio' },
-  { key: 'network', label: 'Network', href: '/network', icon: Network, roles: ['DUENO', 'COMERCIAL'], grupo: 'patrimonio' },
+  { key: 'arrendadores', label: 'Arrendadores', href: '/arrendadores', icon: Building2, roles: [...MANDO], grupo: 'patrimonio' },
+  { key: 'network', label: 'Network', href: '/network', icon: Network, roles: [...MANDO, ...VENTA], grupo: 'patrimonio' },
   // ALMACEN va en Inventario y no en Operaciones (decidido el 2026-09-29):
   // lo que guarda son BIENES -- lonas, herrajes, material--, y un inventario de
   // cosas propias pertenece al mismo sitio que el inventario de pantallas. Que
   // lo MUEVA operaciones no lo convierte en una tarea de operaciones, igual que
   // el almacen de una tienda no es del repartidor.
-  { key: 'almacen', label: 'Almacén', href: '/almacen', icon: Warehouse, roles: ['DUENO', 'OPERACIONES'], grupo: 'patrimonio' },
+  { key: 'almacen', label: 'Almacén', href: '/almacen', icon: Warehouse, roles: [...MANDO, 'OPERACIONES'], grupo: 'patrimonio' },
 
   // ─── Vender ──────────────────────────────────────────────────────────────
   // En el orden en que se hace: a quién le vendes, qué le enseñas, si está
   // libre en esas fechas, y la propuesta que sale de ahí.
-  { key: 'clientes', label: 'Clientes', href: '/clientes', icon: Users, roles: ['DUENO', 'COMERCIAL'], grupo: 'vender' },
-  { key: 'comercial', label: 'Comercial', href: '/comercial', icon: Map, roles: ['DUENO', 'COMERCIAL'], grupo: 'vender' },
-  { key: 'disponibilidad', label: 'Disponibilidad', href: '/disponibilidad', icon: CalendarRange, roles: ['DUENO', 'COMERCIAL'], grupo: 'vender' },
-  { key: 'propuestas', label: 'Propuestas', href: '/propuestas', icon: FileText, roles: ['DUENO', 'COMERCIAL'], grupo: 'vender' },
+  { key: 'clientes', label: 'Clientes', href: '/clientes', icon: Users, roles: [...MANDO, ...VENTA], grupo: 'vender' },
+  { key: 'comercial', label: 'Comercial', href: '/comercial', icon: Map, roles: [...MANDO, ...VENTA], grupo: 'vender' },
+  { key: 'disponibilidad', label: 'Disponibilidad', href: '/disponibilidad', icon: CalendarRange, roles: [...MANDO, ...VENTA], grupo: 'vender' },
+  { key: 'propuestas', label: 'Propuestas', href: '/propuestas', icon: FileText, roles: [...MANDO, ...VENTA], grupo: 'vender' },
   // ─── Las cuatro de la CADENA DE PRECIO, en Comercial ──────────────────────
   //
   // Van en este orden a proposito: primero de donde sale la tarifa, y luego lo
@@ -134,7 +156,7 @@ export const NAV: NavItem[] = [
   // aunque cuelgue de una pantalla. Su modulo sigue siendo `inventario`, que es
   // el de sus endpoints -- el permiso dice quien puede tocarla, no de quien es
   // el trabajo, que fue justo el error que puso aqui a las otras tres.
-  { key: 'franjas-y-temporadas', label: 'Franjas y temporadas', href: '/franjas-y-temporadas', icon: Clock, roles: ['DUENO', 'COMERCIAL'], grupo: 'vender' },
+  { key: 'franjas-y-temporadas', label: 'Franjas y temporadas', href: '/franjas-y-temporadas', icon: Clock, roles: [...MANDO, ...JEFES_VENTA], grupo: 'vender' },
   // ─── Las tres de abajo van en COMERCIAL, no en Inventario ──────────────────
   //
   // Decidido por el dueno el 2026-09-29: «todo lo de descuentos por volumen,
@@ -153,20 +175,20 @@ export const NAV: NavItem[] = [
   // sección de la de arriba: aquélla declara de dónde sale el precio, ésta un
   // descuento que se aplica encima. Mismo grupo y mismo módulo —`inventario`,
   // como su endpoint— por el mismo razonamiento.
-  { key: 'descuentos-por-volumen', label: 'Descuentos por volumen', href: '/descuentos-por-volumen', icon: Layers, roles: ['DUENO', 'COMERCIAL'], grupo: 'vender' },
+  { key: 'descuentos-por-volumen', label: 'Descuentos por volumen', href: '/descuentos-por-volumen', icon: Layers, roles: [...MANDO, ...JEFES_VENTA], grupo: 'vender' },
   // COD-01 · los codigos promocionales (ADR 0039, Fase 3). Pantalla PROPIA y no
   // una seccion de la de arriba: el volumen es una regla interna que se aplica
   // sola, y un codigo es una CAMPANA que se le promete a un cliente por su
   // nombre, con fecha de caducidad y cupo. Mismo grupo y mismo modulo
   // --`inventario`, como su endpoint-- por el mismo razonamiento.
-  { key: 'codigos-promocionales', label: 'Codigos promocionales', href: '/codigos-promocionales', icon: Ticket, roles: ['DUENO', 'COMERCIAL'], grupo: 'vender' },
+  { key: 'codigos-promocionales', label: 'Codigos promocionales', href: '/codigos-promocionales', icon: Ticket, roles: [...MANDO, ...JEFES_VENTA], grupo: 'vender' },
   // PAQ-01 · los paquetes cerrados (ADR 0039, Fase 4). Pantalla PROPIA, y aqui
   // el motivo es mas fuerte que en las dos de arriba: aquellas son DESCUENTOS
   // sobre un precio, y un paquete SUSTITUYE el precio. Ponerlo con ellas haria
   // creer que es una rebaja mas, y esa confusion se paga al leer un reporte de
   // descuentos donde el paquete no aparece. Mismo grupo y mismo modulo
   // --`inventario`, como su endpoint-- por el mismo razonamiento.
-  { key: 'paquetes', label: 'Paquetes cerrados', href: '/paquetes', icon: Package, roles: ['DUENO', 'COMERCIAL'], grupo: 'vender' },
+  { key: 'paquetes', label: 'Paquetes cerrados', href: '/paquetes', icon: Package, roles: [...MANDO, ...JEFES_VENTA], grupo: 'vender' },
   // Creativos cierra el tramo comercial desde el 2026-09-28, y venía de
   // «Operaciones». El cambio lo pidió un dueño con una pregunta literal:
   // «¿puedo programar las pautas desde el módulo de ventas?». La respuesta era
@@ -187,38 +209,38 @@ export const NAV: NavItem[] = [
   // el arte, y el relato del menú —vender primero, entregar después— se estira
   // un poco, porque una pauta se arma sobre algo ya vendido. Se acepta: la
   // pauta se decide AL VENDER, y quien la arma es quien vende.
-  { key: 'creativos', label: 'Creativos', href: '/creativos', icon: Images, roles: ['DUENO', 'COMERCIAL'], grupo: 'vender' },
+  { key: 'creativos', label: 'Creativos', href: '/creativos', icon: Images, roles: [...MANDO, ...VENTA], grupo: 'vender' },
 
   // ─── Entregar ────────────────────────────────────────────────────────────
   // Campañas ABRE el tramo: es lo que nace al aprobar una propuesta. Antes
   // estaba tercera en el menú, tres puestos por ENCIMA de Propuestas, que es de
   // donde sale.
-  { key: 'campanas', label: 'Campañas', href: '/campanas', icon: GitBranch, roles: ['DUENO', 'COMERCIAL'], grupo: 'entregar' },
+  { key: 'campanas', label: 'Campañas', href: '/campanas', icon: GitBranch, roles: [...MANDO, ...VENTA], grupo: 'entregar' },
   // Creativos vivía AQUÍ hasta el 2026-09-28; se movió al grupo «Comercial»
   // (ver el porqué allí). La ficha de campaña sigue enlazándolo, que es el otro
   // camino y el más natural cuando ya hay campaña.
-  { key: 'imprenta', label: 'Imprenta', href: '/imprenta', icon: Printer, roles: ['DUENO', 'IMPRENTA'], grupo: 'entregar' },
-  { key: 'operaciones', label: 'Operaciones', href: '/operaciones', icon: ClipboardList, roles: ['DUENO', 'OPERACIONES'], grupo: 'entregar' },
+  { key: 'imprenta', label: 'Imprenta', href: '/imprenta', icon: Printer, roles: [...MANDO, 'IMPRENTA'], grupo: 'entregar' },
+  { key: 'operaciones', label: 'Operaciones', href: '/operaciones', icon: ClipboardList, roles: [...MANDO, 'OPERACIONES', 'FINANZAS'], grupo: 'entregar' },
   // Sin esta entrada la ruta NO TIENE PUERTA: `moduloDe()` devuelve null para
   // lo que el NAV no conoce, y `AuthGate` deja pasar a cualquier rol interno.
   // El dato sigue protegido —el endpoint exige `operaciones`— pero el rol
   // equivocado veria la pantalla y se comeria un 403 sin saber por que, que es
   // el encierro que este repo ya documento dos veces. No es cosmetica.
-  { key: 'energia', label: 'Consumo de luz', href: '/energia', icon: Zap, roles: ['DUENO', 'OPERACIONES'], grupo: 'entregar' },
+  { key: 'energia', label: 'Consumo de luz', href: '/energia', icon: Zap, roles: [...MANDO, 'OPERACIONES'], grupo: 'entregar' },
 
   // ─── Finanzas ────────────────────────────────────────────────────────────
-  { key: 'finanzas', label: 'Finanzas', href: '/finanzas', icon: Receipt, roles: ['DUENO', 'FINANZAS'], grupo: 'cobrar' },
+  { key: 'finanzas', label: 'Finanzas', href: '/finanzas', icon: Receipt, roles: [...MANDO, 'FINANZAS', 'DIRECTOR_COMERCIAL'], grupo: 'cobrar' },
   // Reportes va PEGADO a Finanzas y con sus MISMOS roles, porque la autoriza el
   // mismo módulo (`finanzas`, ver `lib/modulos.ts`). Si los roles divergieran,
   // un rol vería la entrada y se comería el 403 de `exigir('finanzas','ver')`
   // sin saber por qué — el encierro que este repo ya documentó dos veces.
-  { key: 'reportes', label: 'Reportes', href: '/reportes', icon: TrendingUp, roles: ['DUENO', 'FINANZAS'], grupo: 'cobrar' },
-  { key: 'comisiones', label: 'Comisiones', href: '/comisiones', icon: Percent, roles: ['DUENO', 'COMERCIAL'], grupo: 'cobrar' },
+  { key: 'reportes', label: 'Reportes', href: '/reportes', icon: TrendingUp, roles: [...MANDO, 'FINANZAS', 'DIRECTOR_COMERCIAL'], grupo: 'cobrar' },
+  { key: 'comisiones', label: 'Comisiones', href: '/comisiones', icon: Percent, roles: [...MANDO, ...VENTA], grupo: 'cobrar' },
 
   // ─── Sistema ─────────────────────────────────────────────────────────────
   // Actividad y Administración cierran el menú SIEMPRE: son el historial y los
   // ajustes, no un paso del proceso.
-  { key: 'integraciones', label: 'Integraciones', href: '/integraciones', icon: Plug, roles: ['DUENO'], grupo: 'sistema' },
+  { key: 'integraciones', label: 'Integraciones', href: '/integraciones', icon: Plug, roles: [...MANDO], grupo: 'sistema' },
   // Las razones sociales del propio owner. Sin esta entrada nadie llega solo:
   // la pantalla existe y solo se alcanza por URL.
   //
@@ -227,32 +249,22 @@ export const NAV: NavItem[] = [
   // 409 y solo enseña lo que se contestó, así que un menú que lleve ahí manda a
   // una pantalla que ya no hace nada. El propio cuestionario enlaza aquí, y esta
   // pantalla enlaza al cuestionario mientras no haya ninguna razón social.
-  { key: 'razones-sociales', label: 'Razones sociales', href: '/razones-sociales', icon: Building2, roles: ['DUENO'], grupo: 'sistema' },
+  { key: 'razones-sociales', label: 'Razones sociales', href: '/razones-sociales', icon: Building2, roles: [...MANDO], grupo: 'sistema' },
   // Va aqui y no junto a Administracion: `nav.test.ts` exige que Actividad y
   // Administracion sean SIEMPRE los dos ultimos, en ese orden. La prueba lo
   // cazo al primer intento.
-  { key: 'actividad', label: 'Actividad', href: '/actividad', icon: History, roles: ['DUENO'], grupo: 'sistema' },
-  { key: 'administracion', label: 'Administración', href: '/administracion', icon: Settings, roles: ['DUENO'], grupo: 'sistema' },
+  { key: 'actividad', label: 'Actividad', href: '/actividad', icon: History, roles: [...MANDO], grupo: 'sistema' },
+  { key: 'administracion', label: 'Administración', href: '/administracion', icon: Settings, roles: [...MANDO], grupo: 'sistema' },
 ]
 
-export const ROLES: { value: RolDemo; label: string }[] = [
-  { value: 'DUENO', label: 'Dueño' },
-  { value: 'COMERCIAL', label: 'Comercial' },
-  { value: 'OPERACIONES', label: 'Operaciones' },
-  { value: 'IMPRENTA', label: 'Imprenta' },
-  { value: 'FINANZAS', label: 'Finanzas' },
-  // 'CLIENTE' se retiró de esta lista (ADR 0010): `rol_permisos` no tiene NI UNA
-  // fila para ese rol y `tienePermiso` es fail-closed, así que crear uno producía
-  // un usuario que entraba y recibía 403 en todo. El cliente externo no necesita
-  // cuenta: su portal va por token público.
-  //
-  // El tipo `RolDemo` y el manejo de 'CLIENTE' en AuthGate/landingDeRol SÍ se
-  // conservan a propósito: el enum `rol_demo` de la base todavía admite el valor,
-  // y si algún tenant tuviera un usuario así de antes, esa rama lo lleva a su
-  // portal en vez de dejarlo en un bucle. Lo que se cierra es la puerta de
-  // creación, no el manejo de lo que ya exista.
-]
-
-export function rolLabel(rol: RolDemo): string {
-  return ROLES.find((r) => r.value === rol)?.label ?? rol
-}
+// --- El catalogo de roles se MUDO a `lib/roles.ts` (ADR 0040) ---------------
+//
+// Vivia aqui, y aqui tenia un problema: `nav.ts` importa iconos de lucide, o sea
+// que un modulo de servidor no puede leer esta lista sin arrastrarse media
+// libreria de iconos. Por eso `usuarios-controller.ts` tenia su PROPIA copia en
+// un `z.enum`, y las dos podian divergir -- que es justo lo que el ADR 0010 ya
+// habia pagado con 'CLIENTE': el desplegable lo ofrecia y la matriz de permisos
+// no tenia ni una fila suya.
+//
+// Se reexportan para no tocar a quien ya los importaba de aqui.
+export { ROLES_ASIGNABLES as ROLES, rolLabel }
