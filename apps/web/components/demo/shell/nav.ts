@@ -103,17 +103,17 @@ export const NAV: NavItem[] = [
   // carga masiva, exportación—, no solo el alta. El nombre prometía menos de lo
   // que hay y escondía la consulta a quien no entraba a curiosear.
   { key: 'inventario', label: 'Inventario', href: '/inventario', icon: PackagePlus, roles: ['DUENO'], grupo: 'patrimonio' },
-  // REJILLA-01 · las dos dimensiones de la tarifa (ADR 0039, Fase 1). Va pegada
-  // a Inventario y en «patrimonio», no en «sistema»: son PRECIOS DE VENTA de las
-  // pantallas, no configuración administrativa. Y por eso su módulo es
-  // `inventario` (`lib/modulos.ts`), igual que el guard de sus endpoints —
-  // declararla en otro sería declarar una mentira en la matriz de permisos.
-  { key: 'franjas-y-temporadas', label: 'Franjas y temporadas', href: '/franjas-y-temporadas', icon: Clock, roles: ['DUENO'], grupo: 'patrimonio' },
   // Arrendadores va pegado a Inventario y no suelto en medio del ciclo
   // comercial: una pantalla no es tuya, es de alguien que te la renta, y el
   // contrato con ese alguien es lo que te deja venderla (ADR 0003).
   { key: 'arrendadores', label: 'Arrendadores', href: '/arrendadores', icon: Building2, roles: ['DUENO'], grupo: 'patrimonio' },
   { key: 'network', label: 'Network', href: '/network', icon: Network, roles: ['DUENO', 'COMERCIAL'], grupo: 'patrimonio' },
+  // ALMACEN va en Inventario y no en Operaciones (decidido el 2026-09-29):
+  // lo que guarda son BIENES -- lonas, herrajes, material--, y un inventario de
+  // cosas propias pertenece al mismo sitio que el inventario de pantallas. Que
+  // lo MUEVA operaciones no lo convierte en una tarea de operaciones, igual que
+  // el almacen de una tienda no es del repartidor.
+  { key: 'almacen', label: 'Almacén', href: '/almacen', icon: Warehouse, roles: ['DUENO', 'OPERACIONES'], grupo: 'patrimonio' },
 
   // ─── Vender ──────────────────────────────────────────────────────────────
   // En el orden en que se hace: a quién le vendes, qué le enseñas, si está
@@ -122,6 +122,19 @@ export const NAV: NavItem[] = [
   { key: 'comercial', label: 'Comercial', href: '/comercial', icon: Map, roles: ['DUENO', 'COMERCIAL'], grupo: 'vender' },
   { key: 'disponibilidad', label: 'Disponibilidad', href: '/disponibilidad', icon: CalendarRange, roles: ['DUENO', 'COMERCIAL'], grupo: 'vender' },
   { key: 'propuestas', label: 'Propuestas', href: '/propuestas', icon: FileText, roles: ['DUENO', 'COMERCIAL'], grupo: 'vender' },
+  // ─── Las cuatro de la CADENA DE PRECIO, en Comercial ──────────────────────
+  //
+  // Van en este orden a proposito: primero de donde sale la tarifa, y luego lo
+  // que se le aplica encima. Es la cadena del ADR 0039 leida de arriba abajo.
+  //
+  // REJILLA-01 · las dos dimensiones de la tarifa (ADR 0039, Fase 1).
+  // Estuvo en «patrimonio» hasta el 2026-09-29 con este argumento: son precios
+  // DE LAS PANTALLAS, asi que viven con la pantalla. El dueno decidio lo
+  // contrario y tiene mejor razon: un precio de venta es del oficio de vender,
+  // aunque cuelgue de una pantalla. Su modulo sigue siendo `inventario`, que es
+  // el de sus endpoints -- el permiso dice quien puede tocarla, no de quien es
+  // el trabajo, que fue justo el error que puso aqui a las otras tres.
+  { key: 'franjas-y-temporadas', label: 'Franjas y temporadas', href: '/franjas-y-temporadas', icon: Clock, roles: ['DUENO'], grupo: 'vender' },
   // ─── Las tres de abajo van en COMERCIAL, no en Inventario ──────────────────
   //
   // Decidido por el dueno el 2026-09-29: «todo lo de descuentos por volumen,
@@ -186,7 +199,6 @@ export const NAV: NavItem[] = [
   // camino y el más natural cuando ya hay campaña.
   { key: 'imprenta', label: 'Imprenta', href: '/imprenta', icon: Printer, roles: ['DUENO', 'IMPRENTA'], grupo: 'entregar' },
   { key: 'operaciones', label: 'Operaciones', href: '/operaciones', icon: ClipboardList, roles: ['DUENO', 'OPERACIONES'], grupo: 'entregar' },
-  { key: 'almacen', label: 'Almacén', href: '/almacen', icon: Warehouse, roles: ['DUENO', 'OPERACIONES'], grupo: 'entregar' },
   // Sin esta entrada la ruta NO TIENE PUERTA: `moduloDe()` devuelve null para
   // lo que el NAV no conoce, y `AuthGate` deja pasar a cualquier rol interno.
   // El dato sigue protegido —el endpoint exige `operaciones`— pero el rol
