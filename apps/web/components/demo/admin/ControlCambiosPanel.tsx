@@ -1,5 +1,6 @@
 'use client'
 
+import { puedeVerControlCambios } from '@/lib/roles'
 import { useEffect, useState } from 'react'
 import { Lock, Unlock, Loader2, ShieldCheck, KeyRound } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
@@ -30,7 +31,9 @@ const inputCls =
 
 export function ControlCambiosPanel({ onToast }: { onToast: (m: string) => void }) {
   const { sesion } = useSesionCtx()
-  const esDueno = sesion?.usuario?.rol === 'DUENO'
+  // El Dueño y el ADMINISTRADOR (29/09). La regla vive en `lib/roles.ts` con su
+  // prueba: dentro de este `.tsx` no la comprobaría nada.
+  const puedeVerlo = puedeVerControlCambios(sesion?.usuario?.rol)
   const [activo, setActivo] = useState<boolean | null>(null)
   const [minutos, setMinutos] = useState(15)
   const [tieneContrasena, setTieneContrasena] = useState(false)
@@ -68,7 +71,7 @@ export function ControlCambiosPanel({ onToast }: { onToast: (m: string) => void 
   }
 
   // Solo el Dueño lo administra: para los demás el panel no aplica.
-  if (!esDueno) return null
+  if (!puedeVerlo) return null
 
   async function cambiar(siguiente: boolean) {
     if (

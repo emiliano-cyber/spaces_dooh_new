@@ -87,3 +87,26 @@ export const ROL_POR_OMISION: RolDemo = 'VENDEDOR'
 export function rolLabel(rol: RolDemo): string {
   return ROLES_ASIGNABLES.find((r) => r.value === rol)?.label ?? rol
 }
+
+/**
+ * Quién ve el panel del control de cambios (Administración → Roles y permisos).
+ *
+ * El Dueño y el ADMINISTRADOR. Decidido por el dueño el 2026-09-29, y cierra
+ * una incoherencia que ya existía: la ruta que enciende y apaga el candado
+ * exige `administracion.aprobar` (`app/api/cambios/route.ts:32`), permiso que
+ * el administrador YA tiene con el ADR 0040. O sea que por API podía apagarlo
+ * mientras la pantalla se lo escondía — y un permiso que el servidor concede y
+ * la interfaz niega no es una regla, es un botón escondido.
+ *
+ * Vive aquí y NO dentro de `ControlCambiosPanel.tsx` porque una condición
+ * escrita dentro de un `.tsx` no la comprueba nada: el arnés no monta DOM. Esta
+ * semana tres mutantes que borraban avisos del reporte sobrevivieron por
+ * exactamente eso.
+ *
+ * Ojo con lo que este panel hace, que es lo que lo pone en el límite de las dos
+ * excepciones del administrador: APAGA la segunda barrera sobre el dinero. No
+ * se amplía a más roles sin decidirlo a propósito.
+ */
+export function puedeVerControlCambios(rol: RolDemo | null | undefined): boolean {
+  return rol === 'DUENO' || rol === 'ADMINISTRADOR'
+}

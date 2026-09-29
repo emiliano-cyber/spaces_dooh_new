@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { ROLES_ASIGNABLES, rolLabel, VALORES_ROL } from './roles'
+import { ROLES_ASIGNABLES, puedeVerControlCambios, rolLabel, VALORES_ROL } from './roles'
 import { landingDeRol } from './data/usuarios'
 import type { RolDemo } from './data/types'
 
@@ -97,5 +97,44 @@ describe('3 · cada rol aterriza en una pantalla que puede abrir', () => {
     for (const rol of ['DIRECTOR_COMERCIAL', 'GERENTE_VENTAS', 'VENDEDOR']) {
       expect(landingDeRol(rol as RolDemo), rol).toBe('/comercial')
     }
+  })
+})
+
+// ============================================================================
+//  Quién ve el panel del control de cambios.
+// ----------------------------------------------------------------------------
+//  Decidido por el dueño el 2026-09-29: el ADMINISTRADOR también. Cierra una
+//  incoherencia que ya existía y que nadie había visto: la ruta que enciende y
+//  apaga el candado exige `administracion.aprobar` (`app/api/cambios/route.ts`)
+//  —permiso que el administrador YA tiene con el ADR 0040—, así que por API
+//  podía apagarlo mientras la pantalla se lo escondía. Un permiso concedido por
+//  el servidor y negado por la interfaz no es una regla: es un botón escondido.
+//
+//  La regla vive AQUÍ y no dentro de `ControlCambiosPanel.tsx` porque este
+//  repositorio ya pagó ese error tres veces esta semana: el aviso de cobertura
+//  del reporte, su tono y el de «margen bruto» estaban probados en el motor y
+//  NO en la pantalla, y los tres mutantes que los borraban sobrevivieron. Una
+//  condición escrita dentro de un `.tsx` no la comprueba nada: el arnés no
+//  monta DOM.
+// ============================================================================
+describe('puedeVerControlCambios', () => {
+  it('el Dueño lo ve, como siempre', () => {
+    expect(puedeVerControlCambios('DUENO')).toBe(true)
+  })
+
+  it('y el ADMINISTRADOR también — decidido el 29/09', () => {
+    expect(puedeVerControlCambios('ADMINISTRADOR')).toBe(true)
+  })
+
+  it('NINGÚN otro rol lo ve, ni siquiera los de venta o finanzas', () => {
+    for (const rol of VALORES_ROL) {
+      if (rol === 'DUENO' || rol === 'ADMINISTRADOR') continue
+      expect(puedeVerControlCambios(rol), rol).toBe(false)
+    }
+  })
+
+  it('no lo ve quien no tiene sesión', () => {
+    expect(puedeVerControlCambios(undefined)).toBe(false)
+    expect(puedeVerControlCambios(null)).toBe(false)
   })
 })

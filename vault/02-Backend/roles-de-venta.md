@@ -309,12 +309,14 @@ código 3 y la frase que dice qué hacer.
 - **¿Un vendedor puede aprobar una propuesta sin descuento?** El ADR lo deja como
   pregunta 8. Aquí el vendedor **no** tiene `comercial.aprobar` — fail-closed.
   Cerrada hasta que exista la regla de «con descuento solo el gerente».
-- **`ControlCambiosPanel.tsx`** sigue comprobando `rol === 'DUENO'` a mano: el
-  administrador **no** ve el panel del candado de cambios. No estaba en la lista
-  de cuatro del ADR, y **está devuelta al dueño** en vez de decidida aquí: ese
-  panel apaga el candado de los cambios sensibles, o sea **la segunda barrera
-  sobre el dinero**, y eso se parece más a las dos excepciones del administrador
-  que a «hace lo mismo que el dueño».
+- ~~**¿El administrador ve el panel del control de cambios?**~~ **CERRADA el
+  2026-09-29: SÍ.** Y al construirla apareció que **la pregunta llegaba tarde**:
+  la ruta que enciende y apaga el candado exige `administracion.aprobar`
+  (`app/api/cambios/route.ts:32`), permiso que el administrador ya tiene, así
+  que **por API podía apagarlo mientras la pantalla se lo escondía**. Un permiso
+  que el servidor concede y la interfaz niega no es una regla: es un botón
+  escondido. La condición salió del `.tsx` a `puedeVerControlCambios()`
+  (`lib/roles.ts`), con prueba — dentro de un `.tsx` no la comprueba nada.
 - **¿El gerente de ventas debería ver `finanzas` también?** Hoy no: es la única
   diferencia con el director, y el dueño la decidió así el 29/09.
 

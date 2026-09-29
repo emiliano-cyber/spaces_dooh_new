@@ -7,6 +7,23 @@ La entrada más reciente va arriba.
 
 ## 2026-09-29
 
+- **El administrador ya ve el panel del control de cambios.** *(Decision tuya
+  del 29/09.)*
+
+  Hasta hoy ese panel —Administracion → Roles y permisos, el que enciende y
+  apaga la contrasena para los cambios que mueven dinero— **solo se le ensenaba
+  al Dueno**.
+
+  Y al abrirlo aparecio algo que conviene contar, porque no era lo que
+  parecia: **el administrador YA podia apagarlo**. El servidor pedia el permiso
+  de «aprobar» sobre Administracion, que el administrador tiene, asi que la
+  puerta estaba abierta y lo unico que faltaba era el boton. Una pantalla que
+  esconde algo que el servidor permite no lo esta impidiendo: solo hace que no
+  se vea quien puede hacerlo.
+
+  Ahora coinciden las dos cosas. **Nadie mas lo ve**: ni finanzas, ni los tres
+  perfiles de ventas, ni operaciones.
+
 - **Antes de subir los recibos ahora eliges cuantos meses esperas, y el sistema
   comprueba si el PDF coincide.** *(Decision tuya del 29/09.)*
 
