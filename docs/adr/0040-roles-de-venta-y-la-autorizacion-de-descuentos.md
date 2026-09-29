@@ -170,6 +170,90 @@ para saltarse el techo que se temía.
 > **Comprobarlo no es opcional.** Si una condición no se puede comprobar con lo
 > que hay en la propuesta, ese preaprobado no debería existir todavía.
 
+## Las tres decisiones del 2026-09-29, y lo que arrastran
+
+### 1 · El administrador NO cambia de organización y NO da de baja a ningún Dueño
+
+Dictado: *«no puede cambiar de organización ni dar de baja al dueño, y tampoco
+puede dar de baja ningún dueño»*.
+
+Lo primero sale solo: `puedeCambiarCrm` (`lib/server/tenant.ts:61`) exige
+`rol === 'DUENO'` y no se toca.
+
+Lo segundo **no existe hoy en ninguna forma** y hay que construirlo: la regla es
+**«un administrador no puede desactivar ni degradar a un usuario con rol DUENO»**,
+y va **en el servidor**, no en la pantalla — esconder el botón no es una regla.
+
+> **Y conviene extenderla una línea más, aunque no se pidió:** que **nadie pueda
+> quedarse sin ningún Dueño**. Sin eso, dos Dueños pueden desactivarse el uno al
+> otro y dejar la organización sin nadie que pueda cambiar la configuración de la
+> empresa ni repartir permisos. Hoy nada lo impide. → **Pregunta 9**.
+
+### 2 · El rol COMERCIAL se retira — pero un enum de Postgres NO se puede borrar
+
+Dictado: *«con el rol comercial lo eliminamos ya que estos lo cubren»*. De
+acuerdo con el fondo, y hay que ser exacto con la forma:
+
+**`rol_demo` es un enum, y quitarle un valor exige recrear el tipo entero** —
+soltar el default, reescribir cada columna que lo usa, volver a crearlo—. Sobre
+una tabla con datos, en una flota donde **g500 tiene clientes reales y su cola de
+migraciones lleva parada desde el 23/09**, eso es un riesgo que no compra nada.
+
+**Así que se retira DE USO, no del esquema**, y son tres cosas:
+
+1. **Se le quitan sus filas de `rol_permisos`.** Sin permisos, el valor existe y
+   no autoriza nada.
+2. **Se cambia el DEFAULT de la columna.** `usuarios.rol` es
+   `rol_demo not null default 'COMERCIAL'` (`db/schema.sql:65`). Si no se cambia,
+   **cada usuario nuevo sin rol explícito nace con un rol que no puede hacer
+   nada** — y el síntoma sería «entro y no veo ninguna pantalla», que no señala
+   la causa. El default natural pasa a ser `VENDEDOR`.
+3. **Se migran los usuarios que lo tengan.** → **Pregunta 10: ¿a qué rol?**
+   `VENDEDOR` es lo natural por lo que hace hoy un COMERCIAL, pero es una
+   decisión de personas, no de código: al que hoy es COMERCIAL se le está
+   asignando un puesto.
+
+### 3 · El preaprobado admite TODAS las condiciones — y ahí hay una consecuencia cara
+
+Dictado: *«el preaprobado todo lo que comentas»*, o sea arrendador, volumen,
+cliente, franja, temporada y tipo de medio.
+
+**Las seis no cuestan lo mismo, y la diferencia no es de cantidad sino de
+naturaleza.** Medido: `propuesta_items` **no tiene ninguna columna de descuento**
+— el `descuento_pct` vive en `propuestas` (`db/schema.sql:355`), o sea **uno solo
+para toda la cotización**.
+
+| Condición | Se comprueba contra | Coste |
+|---|---|---|
+| **Arrendador** | la propuesta entera («¿todas sus pantallas son de X?») | barato |
+| **Volumen** | la cantidad total | barato |
+| **Cliente** | el cliente de la propuesta | barato |
+| **Franja** | **cada línea** | **caro ↓** |
+| **Temporada** | **cada línea** | **caro ↓** |
+| **Tipo de medio** | **cada línea** | **caro ↓** |
+
+**Las tres últimas describen una PARTE de la cotización, no toda.** Si una
+propuesta mezcla prime y madrugada, un «15 % en prime» no puede aplicarse al
+total — y aplicarlo sería regalar descuento de prime a la madrugada, en silencio
+y en dinero.
+
+**Hacerlo bien exige descuento POR LÍNEA**, que es columna nueva en
+`propuesta_items` y rehacer la escalera económica en tres sitios
+(`propuestas-repo`, y `campanas-repo` en sus dos caminos), más el congelado. La
+auditoría del 28/09 ya lo estimó: **2–3 días y zona ROJA**.
+
+**Las dos salidas, y hay que elegir:**
+
+- **(a) Solo las condiciones de propuesta entera** —arrendador, volumen,
+  cliente—. Entra rápido y no miente: un preaprobado se aplica o no se aplica.
+- **(b) Las seis, con descuento por línea.** Es lo que se pidió y es lo correcto a
+  la larga, pero **suma 2–3 días de zona roja** y no cabe antes del 14/10.
+
+→ **Pregunta 11.** Mi recomendación: **(a) ahora y (b) después del Summit**,
+porque (a) es un subconjunto honesto de (b) y no hay que deshacer nada.
+
+---
+
 ## Lo que NO cabe antes del 14 de octubre
 
 Quedan **15 días**. Con el calendario delante:
@@ -218,6 +302,11 @@ firma su jefe»— y es verdad, no una promesa.
    las dos nombradas. Por cliente, por franja, por temporada o por tipo de medio
    son posibles y **cada una encarece**. Y la regla que no se negocia: **una
    condición que no se pueda comprobar no se admite**.
+9. **¿Se impide quedarse sin ningún Dueño?** Hoy nada lo impide.
+10. **Los usuarios que hoy son COMERCIAL, ¿a qué rol pasan?** `VENDEDOR` es lo
+    natural, pero es una decisión de personas.
+11. **¿Preaprobados de propuesta entera ahora, o las seis condiciones con
+    descuento por línea?** Lo segundo suma 2–3 días de zona roja.
 8. **¿Un vendedor puede aprobar una propuesta SIN descuento?** «Sin descuento,
    cualquiera» — conviene confirmar que incluye al propio vendedor que la hizo.
    Es lo natural, pero significa que una venta a tarifa de lista se cierra sola.
