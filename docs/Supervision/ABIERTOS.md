@@ -1719,6 +1719,50 @@ build fallido a un agente y un conflicto de merge dentro de `CLAUDE.md`.
 
 ---
 
+#### B47 · 🟠 `sitios.clave_interna` es única GLOBAL, no por organización — y la semilla lo descubre en silencio
+
+**Medido el 2026-09-29** al preparar la base local para una demostración.
+
+```
+CREATE UNIQUE INDEX sitios_clave_interna_key ON public.sitios USING btree (clave_interna)
+```
+
+**Sin `tenant_id`.** O sea: dos organizaciones **no pueden tener una pantalla con
+la misma clave interna**, aunque sean empresas distintas que no se conocen.
+
+**Cómo se manifestó, y es lo peor del asunto.** Con `demo-rentabilidad` ya
+sembrada, correr `node scripts/semilla-demo.mjs --org=rgb`:
+
+- El `insert into sitios … on conflict (clave_interna) do nothing`
+  (`scripts/semilla-demo.mjs:~1226`) **se traga las seis pantallas**.
+- La semilla informa **«filas nuevas: 58»** y termina con éxito.
+- `rgb` queda con **4 arrendadores, 2 clientes y CERO pantallas**.
+- Su tabla de verificación sale **vacía**, que es la única señal — y se lee como
+  «no hay datos todavía», no como «tu siembra no sembró lo principal».
+
+**Por qué importa más allá de la semilla:** este producto es de **instancias
+soberanas**, pero varias organizaciones conviven en una misma base —el PADRE
+tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
+(`ESP-001`, `MUP-001`… que es exactamente lo que trae la plantilla de importación)
+**colisionan**, y el importador los descartaría con la misma callada.
+
+**Lo que hay que decidir:**
+
+- **¿La clave es única por organización?** Sería `unique (tenant_id, clave_interna)`,
+  y es lo coherente con el resto del esquema. **Es una migración sobre una tabla
+  con datos**, así que no es gratis.
+- **¿Y mientras tanto, la semilla debería avisar?** Un `on conflict do nothing`
+  que se come el 100 % de lo principal y reporta éxito es el patrón que este
+  expediente persigue en otros seis sitios. Cambiarlo a contar y decir «0 de 6
+  pantallas: ya existen con esa clave» cuesta poco.
+
+> **Lo que NO se verificó:** si el importador de CSV se comporta igual al chocar
+> (se leyó el código el 24/09 y agrupa por `codigo_proveedor`, pero **no se probó
+> el choque entre dos organizaciones**). Ni si alguna instancia de cliente tiene
+> hoy claves que colisionarían al fusionarse con otra.
+
+---
+
 ### B · ii — Críticas por CALENDARIO (no hay fallo silencioso; aprieta la fecha)
 
 #### ~~B23 · 🟠 **El arreglo de los checksums funcionó, y por eso la base de demostración del SUMMIT dejó de aceptar migraciones.** Pasó de 0 divergencias a 80~~
