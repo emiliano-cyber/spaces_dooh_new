@@ -713,7 +713,14 @@ export async function capturarAhora(req: Request, res: Response) {
 // --- PHOTOS ---
 export async function listPhotos(req: Request, res: Response) {
   const { device_id, campaign_id, from, to, source, page = '1', limit = '20' } = req.query;
-  let sql = `SELECT p.*, d.name as device_name,
+  // `taken_at` sale corregido con el desfase del reloj del equipo (migracion
+  // 018). Se corrige AL LEER y no al guardar: asi el crudo sigue en la tabla
+  // -es el unico testigo de que ese reloj esta mal- y poner el desfase en 0
+  // deshace la correccion sin restaurar nada.
+  let sql = `SELECT p.*,
+                    DATE_ADD(p.taken_at, INTERVAL d.clock_offset_s SECOND) AS taken_at,
+                    p.taken_at AS taken_at_equipo, d.clock_offset_s,
+                    d.name as device_name,
                     d.overlay_x, d.overlay_y, d.overlay_enabled, d.overlay_style
              FROM photos p JOIN devices d ON p.device_id = d.id WHERE 1=1`;
   const params: any[] = [];
@@ -1057,7 +1064,9 @@ export async function getCampaign(req: Request, res: Response) {
 // --- VERIFICATIONS ---
 export async function listVerifications(req: Request, res: Response) {
   const { campaign_id, is_correct, page = '1', limit = '20' } = req.query;
-  let sql = `SELECT v.*, p.storage_path, p.thumbnail_path, p.taken_at, d.name as device_name
+  let sql = `SELECT v.*, p.storage_path, p.thumbnail_path,
+                    DATE_ADD(p.taken_at, INTERVAL d.clock_offset_s SECOND) AS taken_at,
+                    d.name as device_name
              FROM verifications v
              JOIN photos p ON v.photo_id = p.id
              JOIN devices d ON p.device_id = d.id

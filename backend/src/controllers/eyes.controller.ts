@@ -81,7 +81,11 @@ export async function cambios(req: Request, res: Response) {
   );
 
   const [fotos] = await pool.query<any[]>(
-    `SELECT p.id, p.device_id, p.storage_path, p.thumbnail_path, p.taken_at,
+    // Enderezada con el desfase del reloj del equipo (migracion 018): la
+    // instancia tiene que ver la misma hora que el dashboard, o la evidencia
+    // diria una cosa aqui y otra alla.
+    `SELECT p.id, p.device_id, p.storage_path, p.thumbnail_path,
+            DATE_ADD(p.taken_at, INTERVAL d.clock_offset_s SECOND) AS taken_at,
             p.uploaded_at, p.source, p.width, p.height,
             p.verification_status, p.is_correct, p.verification_score
        FROM photos p
