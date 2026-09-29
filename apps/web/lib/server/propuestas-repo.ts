@@ -12,6 +12,14 @@ import { volumenDeLineas } from '@/lib/volumen'
 import { montoDescuentoCodigo } from '@/lib/codigo-promocional'
 import { rutaLogo } from '@/lib/medios-url'
 
+/**
+ * Forma del JSON de `snapshot_economico`. Ausente en los congelados hasta el
+ * 2026-09-28 (forma 1). La 2 lleva franja, temporada, volumen y codigo.
+ * Se sube SOLO cuando un lector tenga que distinguir formas, no en cada cambio.
+ */
+const ESQUEMA_SNAPSHOT = 2
+
+
 // Error de regla de negocio (propuesta inmutable) → el route lo mapea a 409.
 export class PropuestaError extends Error {}
 
@@ -387,6 +395,20 @@ export async function congelarSnapshotEconomico(propuestaId: string, tenantId?: 
   const hayCodigo = codigoTexto != null && codigoPct > 0
 
   const snap = {
+    // `esquema` dice de QUE FORMA es este JSON; `version` es la revision de la
+    // PROPUESTA y sube al renegociar con el cliente. Son dos cosas distintas y
+    // no se mezclan: reutilizar `version` para las dos pegaria dos significados
+    // que despues ya no se pueden separar.
+    //
+    // Ausente = forma 1, todo lo congelado antes del 2026-09-28. La forma 2
+    // lleva franja y temporada (Fase 1), volumen (Fase 2) y codigo promocional
+    // (Fase 3) del ADR 0039.
+    //
+    // Se anade AHORA y no cuando haga falta, por una razon aritmetica: un
+    // snapshot congelado no se reescribe nunca (`:211`), asi que el dia que un
+    // lector necesite distinguir viejo de nuevo ya no habra forma de marcarlo
+    // hacia atras.
+    esquema: ESQUEMA_SNAPSHOT,
     version, bruto,
     ...(hayVolumen
       ? {
