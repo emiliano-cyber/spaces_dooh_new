@@ -353,6 +353,7 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
      * y la vigilancia se caia en cada vuelta (visto el 25-sep en el telefono de
      * pruebas).
      */
+    @OptIn(markerClass = [ExperimentalCamera2Interop::class])
     private fun vincular(
         helper: SurfaceTextureHelper,
         listo: (Camera, ImageCapture) -> Unit,
@@ -389,6 +390,18 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
 
                 provider.unbindAll()
                 val cam = provider.bindToLifecycle(this, selectorDeLente(), preview, imgCap)
+                // Exposicion y balance de blancos en AUTOMATICO al abrir. Los ajustes
+                // de Camera2 se quedan en la camara aunque se reabra (CameraX reusa la
+                // misma), y la vigilancia la deja con la exposicion FIJA: sin esto la
+                // vista en vivo y las fotos heredaban la exposicion de la ultima
+                // vuelta y salian muy oscuras (29-sep, telefono de pruebas). La
+                // vigilancia la vuelve a fijar despues, solo durante su vuelta.
+                try {
+                    Camera2CameraControl.from(cam.cameraControl).clearCaptureRequestOptions()
+                    cam.cameraControl.setExposureCompensationIndex(0)
+                } catch (e: Exception) {
+                    Log.w(TAG, "no se pudieron restablecer los ajustes de la camara: ${e.message}")
+                }
                 // Arranca con el encuadre configurado para el sitio, para que lo
                 // primero que se vea sea ya el encuadre bueno.
                 if (zoomInicial > 0f) cam.cameraControl.setLinearZoom(zoomInicial.coerceIn(0f, 1f))
