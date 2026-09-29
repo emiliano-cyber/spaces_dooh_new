@@ -188,10 +188,45 @@ Tarda menos de un minuto. Verás avisos de `deprecated`, un `EBADENGINE` de
 
 ## 3 · Postgres
 
+> ### ⛔ LA VERSIÓN SE FIJA. No instales `postgresql` a secas
+>
+> **Corregido el 2026-09-29, y lo pagó g500.** Este paso decía
+> `apt-get install -y postgresql postgresql-contrib` **sin fijar versión**, y el
+> paquete por omisión de **Ubuntu 22.04 es PostgreSQL 14**. Así nació g500.
+>
+> **Lo que eso cuesta no se ve el primer día.** La instancia se aprovisiona
+> bien, funciona, y **meses después no puede recibir ninguna actualización**:
+> `db/migrations/20260918_entidad_tenant_compuesto.sql` declara
+> `-- @pg-min: 15`, y el runner **rechaza la cola entera** en cuanto la
+> encuentra —a propósito, para no dejar la base a medio migrar—. g500 lleva
+> **congelado desde el 2026-09-23** por esto, y es la única máquina con datos de
+> clientes.
+>
+> Subir el motor después, con datos dentro, es una actualización mayor con
+> volcado y restauración. Fijarlo ahora son dos líneas.
+
 ```bash
-apt-get install -y postgresql postgresql-contrib
+# El repositorio oficial de PostgreSQL, para no depender de qué trae la imagen.
+# Sin esto la versión la elige el sistema operativo, y en 22.04 elige 14.
+install -d /usr/share/postgresql-common/pgdg
+curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+  -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
+echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] \
+https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+  > /etc/apt/sources.list.d/pgdg.list
+apt-get update
+
+apt-get install -y postgresql-16 postgresql-contrib-16
 systemctl enable --now postgresql
 sudo -u postgres psql -Atc "select version()"
+```
+
+**Comprueba la salida antes de seguir.** Tiene que decir **16** (o al menos 15).
+Si dice 14, párate aquí: todo lo que montes encima quedará congelado.
+
+```bash
+# Tiene que imprimir 15 o mas. Si imprime 14, no sigas.
+sudo -u postgres psql -Atc "select current_setting('server_version_num')::int / 10000"
 ```
 
 Crear la base y el **rol de aplicación**, con contraseña propia de esta

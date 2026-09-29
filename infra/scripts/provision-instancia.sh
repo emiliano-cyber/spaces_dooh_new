@@ -711,6 +711,68 @@ URL_MIGRADOR="$(url_migrador "$CLAVE_MIGRADOR")"
 aplicar_sql_superusuario() {
   remoto "sudo -u postgres psql -v ON_ERROR_STOP=1 -c \"$1\""
 }
+
+# ─── El motor tiene que ser PostgreSQL 15 o superior. Se MIDE, no se supone ──
+#
+# Puesto el 2026-09-29, y lo paga g500: su cola de migraciones lleva PARADA
+# desde el 23/09 porque corre 14.24 y `20260918_entidad_tenant_compuesto.sql`
+# declara `-- @pg-min: 15`. El runner se niega a aplicar LA COLA ENTERA --a
+# proposito, para no dejar la base a medio migrar-- asi que una instancia que
+# nazca en 14 no puede recibir NINGUNA actualizacion futura. No es que le falte
+# una funcion: es que se queda congelada en la version con la que nacio.
+#
+# Y nacia en 14 por omision: `Runbook_Padre_Droplet_Nuevo.md` decia
+# `apt-get install -y postgresql` SIN fijar version sobre una imagen de Ubuntu
+# 22.04, cuyo paquete por omision es PostgreSQL 14. El runbook ya no lo hace,
+# pero un runbook es prosa y esto es una medicion: quien se salte el paso, o
+# reutilice un droplet viejo, choca aqui y no tres semanas despues.
+#
+# Se comprueba ANTES de crear roles y base, que es lo unico util: descubrirlo
+# despues significa haber creado media instancia que hay que deshacer a mano.
+VERSION_MINIMA_PG=15
+version_pg="$(remoto "sudo -u postgres psql -Atc \"select current_setting('server_version_num')\"" | tr -d '\r')"
+# Si la consulta no devolvio un numero, el problema NO es la version: es que no
+# se pudo preguntar --no hay Postgres, o `sudo -u postgres` fallo--. Decir
+# «corre PostgreSQL 0» mandaria a actualizar un motor que quiza ni existe.
+if ! [[ "$version_pg" =~ ^[0-9]+$ ]]; then
+  {
+    echo "ERROR provision: no se pudo leer la version de PostgreSQL en la maquina."
+    echo ""
+    echo "  devolvio: '${version_pg}'"
+    echo ""
+    echo "Esto NO dice que la version sea vieja: dice que no se pudo preguntar."
+    echo "Comprueba que PostgreSQL este instalado y arrancado antes de seguir:"
+    echo "  systemctl status postgresql"
+    echo "  sudo -u postgres psql -Atc 'select version()'"
+    echo ""
+    echo "NO se creo ni el rol ni la base."
+  } >&2
+  exit "$EX_REMOTO"
+fi
+mayor_pg=$((version_pg / 10000))
+if [ "$mayor_pg" -lt "$VERSION_MINIMA_PG" ]; then
+  {
+    echo "ERROR provision: esta maquina corre PostgreSQL ${mayor_pg} y hace falta ${VERSION_MINIMA_PG} o superior."
+    echo ""
+    echo "  hay:   PostgreSQL ${mayor_pg}  (server_version_num=${version_pg})"
+    echo "  exige: PostgreSQL ${VERSION_MINIMA_PG}  (lo declara db/migrations/20260918_entidad_tenant_compuesto.sql)"
+    echo ""
+    echo "NO se creo ni el rol ni la base: la instancia no existe a medias."
+    echo ""
+    echo "Por que se para aqui en vez de dejarte seguir: con 14 la instancia se"
+    echo "aprovisiona bien HOY y despues NO puede recibir ninguna actualizacion,"
+    echo "porque el runner rechaza la cola completa en cuanto encuentra esa"
+    echo "migracion. Es lo que le pasa a g500 desde el 2026-09-23."
+    echo ""
+    echo "Que hacer: instalar PostgreSQL ${VERSION_MINIMA_PG} o superior ANTES de"
+    echo "aprovisionar. Ubuntu 22.04 trae 14 por omision, asi que hay que fijar la"
+    echo "version a proposito --el repositorio PGDG-- o usar una imagen cuyo"
+    echo "paquete por omision ya sea 16. El paso 3 de"
+    echo "docs/Runbook_Padre_Droplet_Nuevo.md lo explica."
+  } >&2
+  exit "$EX_REMOTO"
+fi
+
 aplicar_sql_superusuario "$(sql_crear_rol_app "$CLAVE_APP")"
 aplicar_sql_superusuario "$(sql_crear_rol_migrador "$CLAVE_MIGRADOR")"
 aplicar_sql_superusuario "$(sql_crear_base)"
