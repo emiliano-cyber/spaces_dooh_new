@@ -41,16 +41,16 @@ const tonoMargen = (n: number) => (n < 0 ? 'text-error' : n > 0 ? 'text-success'
 // Solo las columnas de margen se colorean. Pintar de rojo un costo alto diría
 // que gastar es un fallo, y el ingreso ya se lee por su magnitud.
 const COLOREADAS: ReadonlySet<ColumnaReporte> = new Set<ColumnaReporte>([
-  'margen',
-  'margenPct',
-  'margenPorM2',
+  'margenBruto',
+  'margenBrutoPct',
+  'margenBrutoPorM2',
 ])
 
 // El porqué de la raya, en el título de la celda: sin él, una celda con «—» se
 // lee como un dato que falta por un fallo. Son los dos `null` con significado
 // que devuelve el motor.
 const MOTIVO_RAYA: Partial<Record<ColumnaReporte, string>> = {
-  margenPct: 'Sin ingreso en el rango: no hay porcentaje que calcular',
+  margenBrutoPct: 'Sin ingreso en el rango: no hay porcentaje que calcular',
   costoOperacionPct: 'Sin ingreso en el rango: no hay proporción que calcular',
   horasEnSitio: 'Ninguna visita del rango tiene registradas sus dos marcas de tiempo',
 }
@@ -239,7 +239,7 @@ function FilaTabla({
               key={c.clave}
               className={cn(
                 'demo-num whitespace-nowrap text-right',
-                c.clave === 'margen' && 'font-medium',
+                c.clave === 'margenBruto' && 'font-medium',
                 v == null && 'text-muted',
                 v != null && COLOREADAS.has(c.clave) && tonoMargen(Number(v)),
               )}
@@ -285,7 +285,7 @@ function FilaTabla({
                         className={cn(
                           'px-2 py-1',
                           c.formato === 'texto' ? 'text-ink' : 'demo-num whitespace-nowrap text-right',
-                          c.clave === 'margen' && tonoMargen(p.margen),
+                          c.clave === 'margenBruto' && tonoMargen(p.margenBruto),
                         )}
                         title={c.clave === 'etiqueta' ? `Del ${p.desde} al ${p.hasta}` : undefined}
                       >

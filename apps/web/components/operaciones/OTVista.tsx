@@ -22,7 +22,9 @@ import {
 } from '@/components/demo/StatusBadge'
 import { cn } from '@/lib/cn'
 import { trailFromLocation } from '@/lib/nav-trail'
-import { getOTApi, cerrarOTApi } from '@/lib/data/estado-api'
+import { getOTApi, cerrarOTApi, fijarCostoOTApi } from '@/lib/data/estado-api'
+import { useCandado, DialogoCandado } from '@/components/demo/ui/candado'
+import { leerCostoOt, hayQueGuardarCosto, textoDeCosto } from '@/lib/costo-ot-captura'
 import type { FotoMeta, EstOT, ChecklistItem } from '@/lib/data/types'
 
 // blob: URL → data URL (base64) para que la foto persista en la BD.
@@ -68,6 +70,17 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
   const [fotos, setFotos] = useState<FotoMeta[]>([])
   const [geo, setGeo] = useState<{ lat: number; lng: number } | null>(null)
   const [cerrando, setCerrando] = useState(false)
+  // OT-COSTO-01 · el costo REAL de la visita. `costoTexto` es lo tecleado tal
+  // cual (string y no number: el campo tiene que poder estar vacío, y un
+  // `number | null` no distingue «vacío» de «todavía no escribo nada»).
+  const [costoTexto, setCostoTexto] = useState('')
+  const [costoError, setCostoError] = useState<string | null>(null)
+  const [costoAviso, setCostoAviso] = useState<string | null>(null)
+  const [guardandoCosto, setGuardandoCosto] = useState(false)
+  // Sin contraseña de entrada: el candado está apagado por defecto en los
+  // tenants y preguntarla siempre sería fricción inventada. Si el servidor la
+  // pide, `DialogoCandado` se abre solo con esta misma acción dentro.
+  const candado = useCandado()
   // Rastro de navegación ("cómo llegué aquí"). Por defecto, Operaciones.
   const [trail, setTrail] = useState<Crumb[]>([])
   useEffect(() => {
@@ -79,7 +92,12 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
   const recargar = useCallback(async () => {
     const d = await getOTApi(id)
     setData(d ?? null)
-    if (d?.ot) setChecks(d.ot.checklist.map((c: any) => !!c.hecho))
+    if (d?.ot) {
+      setChecks(d.ot.checklist.map((c: any) => !!c.hecho))
+      // El campo se precarga con lo que hay guardado. `null` deja la caja
+      // VACÍA y no en cero: un cero afirmaría que la visita fue gratis.
+      setCostoTexto(textoDeCosto(d.ot.costoReal ?? null))
+    }
   }, [id])
   useEffect(() => {
     recargar()
@@ -123,6 +141,98 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
     }
     setCerrando(false)
   }
+
+  // OT-COSTO-01 · guardar lo que de verdad costó la visita.
+  //
+  // Tres pasos, y cada uno existe por un modo de fallo distinto:
+  //  1. Leer el texto — el vacío es BORRAR, no cero (`leerCostoOt`).
+  //  2. No mandar lo que no cambió — si no, abrir y cerrar la ficha escribiría
+  //     en la bitácora un movimiento de dinero que nadie hizo y pediría la
+  //     contraseña del candado por nada.
+  //  3. Pasar por el candado — es dinero, y la ruta lo exige.
+  async function guardarCosto() {
+    setCostoError(null)
+    setCostoAviso(null)
+    const leido = leerCostoOt(costoTexto)
+    if (!leido.ok) {
+      setCostoError(leido.error)
+      return
+    }
+    const original: number | null = ot.costoReal ?? null
+    if (!hayQueGuardarCosto(original, leido.valor)) {
+      setCostoAviso('No hay ningún cambio que guardar.')
+      return
+    }
+    setGuardandoCosto(true)
+    await candado.ejecutar({
+      guardar: () => fijarCostoOTApi(ot.id, leido.valor),
+      alLograr: () => {
+        setCostoAviso(
+          leido.valor == null
+            ? 'Costo borrado: esta visita vuelve a entrar al reporte con la estimación por tipo.'
+            : 'Costo guardado. El reporte de rentabilidad usará este importe en vez de la estimación.',
+        )
+        recargar()
+      },
+      alFallar: (m) => setCostoError(m),
+      mensajeSiFalla: 'No se pudo guardar el costo',
+    })
+    setGuardandoCosto(false)
+  }
+
+  // La tarjeta del costo real. Se pinta SOLO en la vista de escritorio
+  // (`embedded`), y eso es deliberado: la vista móvil la usa la cuadrilla en la
+  // calle para cerrar con la foto, y este campo pasa por el candado de cambios
+  // —puede pedir una contraseña—. Teclear una contraseña en un teléfono a mitad
+  // de un montaje es justo la fricción que la ruta separada evita.
+  const costoSection = (
+    <div className="space-y-2 rounded-md border border-border bg-surface p-3">
+      <div className="text-[13px] font-semibold text-ink">Costo real de esta visita</div>
+      <p className="text-[12px] text-muted">
+        Lo que de verdad costó. <strong>Sustituye</strong> a la estimación por tipo de tarea que
+        usa el reporte de rentabilidad, no se suma a ella. Déjalo vacío si no lo sabes: entonces
+        el reporte sigue usando la estimación y te lo dice.
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative">
+          <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[13px] text-muted">
+            $
+          </span>
+          <input
+            type="text"
+            inputMode="decimal"
+            value={costoTexto}
+            onChange={(e) => {
+              setCostoTexto(e.target.value)
+              setCostoError(null)
+              setCostoAviso(null)
+            }}
+            placeholder="Sin capturar"
+            aria-label="Costo real de esta visita"
+            className="demo-num w-40 rounded-md border border-border bg-surface py-1.5 pl-5 pr-2 text-[13px] text-ink"
+          />
+        </div>
+        <Button onClick={guardarCosto} disabled={guardandoCosto || candado.enviando}>
+          {guardandoCosto ? 'Guardando…' : 'Guardar costo'}
+        </Button>
+      </div>
+      {/* El importe guardado se dice con todas las letras, incluido el CERO:
+          una caja con un 0 dentro y nada más se lee como «no he escrito nada». */}
+      {ot.costoReal != null && (
+        <p className="text-[12px] text-muted">
+          Guardado: <span className="demo-num">${Number(ot.costoReal).toLocaleString('es-MX')}</span>
+          {Number(ot.costoReal) === 0 && ' — esta visita está capturada como que no costó nada.'}
+        </p>
+      )}
+      {ot.costoReal == null && (
+        <p className="text-[12px] text-muted">
+          Sin capturar: el reporte usa la estimación por tipo de tarea.
+        </p>
+      )}
+      {costoError && <p className="text-[12px] text-error">{costoError}</p>}
+      {costoAviso && <p className="text-[12px] text-success">{costoAviso}</p>}
+    </div>
+  )
 
   // ─── Piezas de contenido (reutilizadas por la vista móvil y la de escritorio) ─
   const cabecera = (
@@ -248,6 +358,7 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
   // ─── Embebida en el shell (escritorio): ancho completo y responsive ─────────
   if (embedded) {
     return (
+      <>
       <div className="w-full space-y-4">
         {/* Migas: sigues en Operaciones; muestra cómo llegaste */}
         <div className="flex flex-wrap items-center gap-2">
@@ -291,8 +402,20 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
               </div>
             </div>
           )}
+          {/* Va SIEMPRE, cerrada o no. El costo se sabe muchas veces días
+              después del cierre —la cuadrilla pasa su factura cuando pasa— y
+              las OT que ya estaban cerradas el día del despliegue no tendrían
+              forma de capturarlo nunca. */}
+          {costoSection}
         </div>
       </div>
+      <DialogoCandado
+        candado={candado}
+        titulo="Confirma con tu contraseña"
+        subtitulo="Capturar el costo de una orden de trabajo cambia el margen del reporte de rentabilidad: tu organización pide que vuelvas a identificarte."
+        etiquetaConfirmar="Confirmar y guardar el costo"
+      />
+      </>
     )
   }
 

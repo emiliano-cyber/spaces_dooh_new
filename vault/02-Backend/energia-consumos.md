@@ -198,7 +198,7 @@ tapando justo a las que sí lo son.
 | `costoPorKwh` | `costoEnergia / kwh`. **`null` con cero kWh, no 0** |
 
 Un «$0.00 por kWh» se lee como «aquí la luz es gratis», que es lo contrario de
-«no hay consumo con el que calcularlo». Mismo criterio que `margenPct`.
+«no hay consumo con el que calcularlo». Mismo criterio que `margenBrutoPct`.
 
 El **501 no volvió**: `MOTORES` es un `Record` exhaustivo, así que fue el tipo el
 que obligó a escribir el motor al añadir la dimensión al enum. El `route.ts`

@@ -25,6 +25,11 @@ export function rowToOT(r: any) {
     fechaProgramada: iso(r.fecha_programada), fechaInicio: iso(r.fecha_inicio),
     fechaCompletada: iso(r.fecha_completada), estatus: r.estatus,
     requiereRevision: !!r.requiere_revision, notas: r.notas, creadoEn: iso(r.creado_en),
+    // OT-COSTO-01. `numeric` llega de `pg` como STRING, así que sin `n()` el
+    // costo viajaría como '12000.00' y el reporte lo sumaría concatenando.
+    // `null` = sin capturar, y se conserva como null: es lo que distingue «no se
+    // sabe» de «costó cero».
+    costoReal: n(r.costo_real),
   }
 }
 function rowToEvidencia(r: any) {
@@ -92,6 +97,30 @@ export async function notificarOTsVencidas(): Promise<number> {
 }
 export async function listarEvidencias() {
   return resolverEvidencias(await q('select * from evidencias_ot where tenant_id = $1 order by timestamp asc', [await tenantActual()]))
+}
+
+// ─── OT-COSTO-01 · fijar (o borrar) el costo REAL de una orden de trabajo ───
+//
+// `costo` en `null` BORRA el costo capturado: la OT vuelve a entrar al reporte
+// con la estimación por tipo. No es lo mismo que 0 —que es «costó cero»— y por
+// eso la columna es nullable y no tiene DEFAULT.
+//
+// El `and tenant_id = $2` va ADEMÁS de la RLS, que es la convención de este
+// repositorio para toda operación por `id` (`vault/06-Operacion/convenciones.md`).
+// Aquí importa más que de costumbre: sin él, una RLS mal fijada dejaría escribir
+// un costo sobre la orden de OTRA organización, y el fallo saldría como un
+// margen cambiado en el reporte ajeno, sin ningún error.
+//
+// Se devuelve la fila con `returning *` y se comprueba que exista en vez de leer
+// antes: un `select` + `update` deja una carrera entre los dos, y aquí el
+// resultado de esa carrera es un 404 en una escritura que sí ocurrió.
+export async function fijarCostoOT(id: string, costo: number | null) {
+  const r = await q1(
+    'update ordenes_trabajo set costo_real = $3 where id = $1 and tenant_id = $2 returning *',
+    [id, await tenantActual(), costo],
+  )
+  if (!r) throw new AppError('No encontramos esa orden de trabajo', 404)
+  return rowToOT(r)
 }
 
 // OT con su sitio, campaña y evidencias (para la vista móvil standalone).

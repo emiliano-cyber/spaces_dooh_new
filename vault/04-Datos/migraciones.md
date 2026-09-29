@@ -1,7 +1,7 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-09-28
+actualizado: 2026-09-29
 tags: [datos, migraciones, despliegue, rojo]
 archivos:
   - db/migrations/
@@ -1147,3 +1147,33 @@ necesitas, no sumes a mano.
 párrafo ha tenido la cifra mal dos veces seguidas: traía 76 (del 10/09) y la
 rama de reportes la corrigió a 81 y 42 sin poder ver las tres tablas que la rama
 de entidades añadía en paralelo. Si la necesitas, cuéntala, no la copies.
+
+> **`20260929_costo_real_ot.sql`** — **OT-COSTO-01.** Añade
+> `ordenes_trabajo.costo_real numeric(14,2)`, **nullable y sin DEFAULT**, con un
+> `check` de no negativo. Aditiva e idempotente, y **no mueve ni un importe** el
+> día que se aplica: todas las órdenes existentes quedan en `NULL` y siguen
+> entrando al reporte con la estimación por tipo.
+>
+> Tres cosas que conviene no repetir mal:
+>
+> · **Sin DEFAULT 0**, y es la decisión que más importa. Un cero por omisión
+>   convertiría «no se sabe» en la afirmación «no costó nada» sobre todas las
+>   filas a la vez, desplomando el costo de operación del reporte y disparando el
+>   margen, sin un solo error. Mismo criterio que
+>   `20260812_sin_default_tenant.sql` y que el `usuario_id` de
+>   `20260928_vendedor_en_propuesta.sql`.
+>
+> · **Sin `@pg-min`**, a propósito. Usa `add column if not exists` + `check` por
+>   `do $$`, que son de siempre. **Ensayada en PostgreSQL 14.24** —el motor que
+>   corre g500— y en el 16: las dos pasadas en verde, la segunda idempotente.
+>   Cualquier sintaxis de 15 habría hecho que el guard del runner (salida 4)
+>   parara la cola entera de esa base.
+>
+> · **El `check` se comprobó MORDIENDO**, no leyendo: un
+>   `update … set costo_real = -1` contra la base real falla con
+>   `ordenes_trabajo_costo_real_no_negativo`, y un `= 0` pasa. Un costo negativo
+>   SUBE el margen porque entra restando, así que esta es la capa que protege a
+>   la tabla de un `psql` o de una corrección de datos a mano.
+>
+> Runner ×2 contra base desechable: **94 aplicadas** en la primera pasada, **0**
+> en la segunda, sin divergencia de checksum. Ver [[02-Backend/costo-real-de-ot]].

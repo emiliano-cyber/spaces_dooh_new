@@ -136,13 +136,13 @@ describe('el costo de la energia ENTRA EN EL MARGEN, y las cifras cuadran', () =
     expect(s1.costoEspacio).toBe(6000)
     expect(s1.costoEnergia).toBe(2000)
     expect(s1.costoTotal).toBe(8000)
-    expect(s1.margen).toBe(22000) // 30 000 − 8 000
+    expect(s1.margenBruto).toBe(22000) // 30 000 − 8 000
 
     // S2: sin ingreso, espacio 3 000 + energía 1 000 = 4 000
     expect(s2.costoEspacio).toBe(3000)
     expect(s2.costoEnergia).toBe(1000)
     expect(s2.costoTotal).toBe(4000)
-    expect(s2.margen).toBe(-4000)
+    expect(s2.margenBruto).toBe(-4000)
   })
 
   it('los TOTALES del reporte traen la energia y siguen cuadrando', () => {
@@ -152,8 +152,8 @@ describe('el costo de la energia ENTRA EN EL MARGEN, y las cifras cuadran', () =
     expect(r.totales.costoEspacio).toBe(9000)
     expect(r.totales.costoEnergia).toBe(3000)
     expect(r.totales.costoTotal).toBe(12000)
-    expect(r.totales.margen).toBe(18000)
-    expect(r.totales.margenPct).toBe(60)
+    expect(r.totales.margenBruto).toBe(18000)
+    expect(r.totales.margenBrutoPct).toBe(60)
   })
 
   it('el reparto NO INVENTA NI PIERDE dinero: las fracciones suman el recibo', () => {
@@ -232,7 +232,7 @@ describe('el recibo es MENSUAL y el bucket puede ser medio mes', () => {
     const r = rentabilidadPorSitio(datos, FEBRERO)
     expect(r.filas).toHaveLength(1)
     expect(r.filas[0].costoEnergia).toBe(3000)
-    expect(r.filas[0].margen).toBe(-3000)
+    expect(r.filas[0].margenBruto).toBe(-3000)
   })
 })
 
@@ -260,7 +260,7 @@ describe('dimension luz — sus columnas y su orden', () => {
     expect(r.dimension).toBe('luz')
     expect(r.filas.map((f) => f.clave)).toEqual(['P1S', 'P2S'])
     // La de peor margen es la OTRA: −120 100 contra −5 000.
-    expect(r.filas[1].margen).toBeLessThan(r.filas[0].margen)
+    expect(r.filas[1].margenBruto).toBeLessThan(r.filas[0].margenBruto)
     // 5 000 / 2 500 kWh = 2.00 por kWh
     expect(r.filas[0].kwh).toBe(2500)
     expect(r.filas[0].costoPorKwh).toBe(2)
@@ -268,7 +268,7 @@ describe('dimension luz — sus columnas y su orden', () => {
 
   it('costoPorKwh es NULL con cero kWh, no cero', () => {
     // Un «0.00 por kWh» se lee como «la luz es gratis aquí». Sin kWh no hay
-    // cociente que calcular, igual que `margenPct` sin ingreso.
+    // cociente que calcular, igual que `margenBrutoPct` sin ingreso.
     const datos = baseDatos({
       sitios: [{ id: 'S1', predioId: null, caras: 1, nombre: 'Uno', claveInterna: 'K1' }],
       contratos: [

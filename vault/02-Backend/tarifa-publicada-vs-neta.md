@@ -70,7 +70,7 @@ snapshot. Para esas no existe tarifa de lista congelada.
 los pinta como `—`. Un 0 en «Tarifa publicada» afirmaría que la tarifa de lista
 era cero o —peor— que se regaló entera.
 
-Es la misma regla que ya obliga a `margenPct` y a `costoPorKwh` a ser `null` y no
+Es la misma regla que ya obliga a `margenBrutoPct` y a `costoPorKwh` a ser `null` y no
 cero. Y la fila **sigue saliendo**: un hueco se ve y se rellena; una fila que
 desaparece hace creer que esa pantalla no vendió.
 

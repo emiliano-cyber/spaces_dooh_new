@@ -175,7 +175,7 @@ export default function ReportesPage() {
             cobertura: reporte.cobertura,
             // Solo llega en `entidad`. Es el aviso que dice que la operación y
             // la luz NO se reparten entre razones sociales, y por eso la tabla
-            // no tiene columna de margen: sin él, quien venga de «Por pantalla»
+            // no tiene columna de margenBruto: sin él, quien venga de «Por pantalla»
             // buscaría el margen y supondría que se le olvidó a alguien.
             atribucion: reporte.atribucion,
             // Solo llega en `tarifa`. Es el aviso que dice qué parte del
@@ -192,6 +192,12 @@ export default function ReportesPage() {
             // texto la tabla se lee como un reporte roto en vez de como el dato
             // diciendo la verdad.
             vendedores: reporte.vendedores,
+            // Solo llega en `operacion`. Es el aviso que dice cuántas visitas
+            // entran con su costo REAL capturado y cuántas con la estimación
+            // por tipo. Es el único de los cinco cuyo hueco no se ve en la
+            // tabla: una visita sin costo capturado no sale con una raya ni con
+            // un cero, sale con una cifra creíble.
+            costosReales: reporte.costosReales,
           })
         : [],
     [reporte],
@@ -247,12 +253,12 @@ export default function ReportesPage() {
             />
             <KPICard
               label="Margen"
-              value={formatMonto(reporte.totales.margen)}
-              tono={reporte.totales.margen < 0 ? 'rojo' : 'verde'}
+              value={formatMonto(reporte.totales.margenBruto)}
+              tono={reporte.totales.margenBruto < 0 ? 'rojo' : 'verde'}
             />
             <KPICard
               label="Margen sobre ingreso"
-              value={formatoPorcentaje(reporte.totales.margenPct)}
+              value={formatoPorcentaje(reporte.totales.margenBrutoPct)}
               /* La frase la decide `subtituloDeConteo`, en `tabla.ts`, y no este
                  archivo: aquí dentro no la probaba nadie —vitest no monta jsdom—
                  y por eso llegó a decir «4 razones sociales con movimiento» con
@@ -260,7 +266,7 @@ export default function ReportesPage() {
                  sociedad más del cliente. */
               sub={subtituloDeConteo(reporte.dimension, reporte.filas)}
               tono={
-                reporte.totales.margenPct == null ? 'neutro' : reporte.totales.margenPct < 0 ? 'rojo' : 'verde'
+                reporte.totales.margenBrutoPct == null ? 'neutro' : reporte.totales.margenBrutoPct < 0 ? 'rojo' : 'verde'
               }
             />
           </>

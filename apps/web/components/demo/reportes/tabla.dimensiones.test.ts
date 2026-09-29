@@ -46,8 +46,8 @@ function fila(p: Partial<FilaOrdenable> & { clave: string }): FilaOrdenable {
     costoOperacion: 0,
     costoEnergia: 0,
     costoTotal: 0,
-    margen: 0,
-    margenPct: null,
+    margenBruto: 0,
+    margenBrutoPct: null,
     tieneContrato: true,
     visitas: 0,
     ...p,
@@ -79,7 +79,7 @@ describe('1 · cada dimension trae SUS columnas, y las trae de verdad', () => {
     const claves = columnasDeDimension('m2').map((c) => c.clave)
     expect(claves).toContain('m2')
     expect(claves).toContain('ingresoPorM2')
-    expect(claves).toContain('margenPorM2')
+    expect(claves).toContain('margenBrutoPorM2')
   })
 
   it('NEGATIVO: `sitio` NO trae las columnas de otra dimension', () => {
@@ -88,7 +88,7 @@ describe('1 · cada dimension trae SUS columnas, y las trae de verdad', () => {
     // una columna de esas saldria vacia en todas las filas —y una columna en
     // blanco se lee como un dato que falta, no como uno que no aplica—.
     const claves = columnasDeDimension('sitio').map((c) => c.clave)
-    for (const ajena of ['visitas', 'costoOperacionPct', 'horasEnSitio', 'm2', 'ingresoPorM2', 'margenPorM2']) {
+    for (const ajena of ['visitas', 'costoOperacionPct', 'horasEnSitio', 'm2', 'ingresoPorM2', 'margenBrutoPorM2']) {
       expect(claves, ajena).not.toContain(ajena)
     }
   })
@@ -134,9 +134,9 @@ describe('2 · el encabezado de la primera columna dice QUE son las filas', () =
 
 describe('3 · en `trimestre` el orden es CRONOLOGICO, no por margen', () => {
   const trimestres = [
-    fila({ clave: '2026-T1', etiqueta: 'T1 2026', margen: 10_000 }),
-    fila({ clave: '2026-T2', etiqueta: 'T2 2026', margen: 90_000 }),
-    fila({ clave: '2025-T4', etiqueta: 'T4 2025', margen: 50_000 }),
+    fila({ clave: '2026-T1', etiqueta: 'T1 2026', margenBruto: 10_000 }),
+    fila({ clave: '2026-T2', etiqueta: 'T2 2026', margenBruto: 90_000 }),
+    fila({ clave: '2025-T4', etiqueta: 'T4 2025', margenBruto: 50_000 }),
   ]
 
   it('el orden inicial de `trimestre` no es por margen', () => {
@@ -145,7 +145,7 @@ describe('3 · en `trimestre` el orden es CRONOLOGICO, no por margen', () => {
     // abajo otras, segun como fuera el negocio. El motor ya los devuelve en
     // orden (`rentabilidadPorTrimestre`): la tabla no tiene que discutirlo.
     const o = ordenInicialDe('trimestre')
-    expect(o.columna).not.toBe('margen')
+    expect(o.columna).not.toBe('margenBruto')
     expect(ordenarFilas(trimestres, o, 'trimestre').map((f) => f.clave)).toEqual([
       '2025-T4',
       '2026-T1',
@@ -168,9 +168,9 @@ describe('3 · en `trimestre` el orden es CRONOLOGICO, no por margen', () => {
     // que su motor: `sitio` por peor margen, `operacion` por mas costo de
     // operacion, `m2` por peor margen por metro. Si la tabla reordenara al
     // recibir, discutiria con el servidor sobre la misma pregunta.
-    expect(ordenInicialDe('sitio')).toEqual({ columna: 'margen', direccion: 'asc' })
+    expect(ordenInicialDe('sitio')).toEqual({ columna: 'margenBruto', direccion: 'asc' })
     expect(ordenInicialDe('operacion')).toEqual({ columna: 'costoOperacion', direccion: 'desc' })
-    expect(ordenInicialDe('m2')).toEqual({ columna: 'margenPorM2', direccion: 'asc' })
+    expect(ordenInicialDe('m2')).toEqual({ columna: 'margenBrutoPorM2', direccion: 'asc' })
   })
 
   it('el orden inicial de cada dimension apunta a una columna QUE SE VE', () => {
@@ -186,7 +186,7 @@ describe('3 · en `trimestre` el orden es CRONOLOGICO, no por margen', () => {
 })
 
 describe('4 · las exclusiones del m2 se ENSEÑAN, y la convencion se declara', () => {
-  const filasM2 = [fila({ clave: 's1', ingreso: 100, m2: 18, margenPorM2: 2 })]
+  const filasM2 = [fila({ clave: 's1', ingreso: 100, m2: 18, margenBrutoPorM2: 2 })]
 
   it('la nota del servidor se pinta VERBATIM, no se vuelve a redactar', () => {
     // El motor ya la trae redactada (`notaDeExclusiones`, reportes.ts). Volver
@@ -319,10 +319,19 @@ describe('5 · los avisos de contrato y de ingreso hablan de lo que ES la fila',
     expect(texto).not.toMatch(/pantalla/i)
   })
 
-  it('sin nada que advertir, la lista viene vacia y no se pinta la caja', () => {
+  it('sin nada que advertir, solo queda lo que la COLUMNA significa', () => {
+    // Antes esto esperaba una lista vacia. Desde OT-COSTO-01 queda un aviso, y
+    // no es una advertencia sobre los datos: dice que el margen de la tabla es
+    // BRUTO y que el neto no se calcula restandole nada de lo que hay aqui.
+    // Misma categoria que `m2-convencion`, que tampoco avisa de nada — declara
+    // que cuenta como metro cuadrado. Va siempre porque la columna va siempre.
     expect(
-      avisosDelReporte({ ...CERRADO, dimension: 'sitio', filas: [fila({ clave: 'a', ingreso: 1 })] }),
-    ).toEqual([])
+      avisosDelReporte({
+        ...CERRADO,
+        dimension: 'sitio',
+        filas: [fila({ clave: 'a', ingreso: 1 })],
+      }).map((a) => a.clave),
+    ).toEqual(['margen-bruto-no-neto'])
   })
 })
 
@@ -335,11 +344,11 @@ describe('6 · el pie NO inventa totales que el servidor no manda', () => {
   it('solo las columnas de dinero de `Totales` son totalizables', () => {
     // `reporte.totales` trae SIETE campos y ninguno mas — el septimo es
     // `costoEnergia`, que entro el 2026-09-18 con la dimension `luz`. Sumar
-    // aqui las visitas —o peor, promediar `margenPorM2`— daria un pie que no
+    // aqui las visitas —o peor, promediar `margenBrutoPorM2`— daria un pie que no
     // cuadra con nada: el promedio de los margenes por metro NO es el margen por
     // metro del total, porque cada fila tiene una superficie distinta.
     expect(totalizables('sitio').sort()).toEqual(
-      ['costoEnergia', 'costoEspacio', 'costoOperacion', 'costoTotal', 'ingreso', 'margen', 'margenPct'].sort(),
+      ['costoEnergia', 'costoEspacio', 'costoOperacion', 'costoTotal', 'ingreso', 'margenBruto', 'margenBrutoPct'].sort(),
     )
   })
 
@@ -347,7 +356,7 @@ describe('6 · el pie NO inventa totales que el servidor no manda', () => {
     for (const ajena of ['visitas', 'horasEnSitio', 'costoOperacionPct']) {
       expect(totalizables('operacion'), ajena).not.toContain(ajena)
     }
-    for (const ajena of ['m2', 'ingresoPorM2', 'margenPorM2']) {
+    for (const ajena of ['m2', 'ingresoPorM2', 'margenBrutoPorM2']) {
       expect(totalizables('m2'), ajena).not.toContain(ajena)
     }
   })
@@ -411,9 +420,9 @@ describe('8 · `visitasPorTipo` se lee, no se cuenta dos veces', () => {
 
 describe('9 · el desglose por periodo se pinta en el orden del SERVIDOR', () => {
   const periodos = [
-    { clave: '2026-01', etiqueta: 'ene', desde: '2026-01-01', hasta: '2026-01-31', ingreso: 10, costoEspacio: 1, costoOperacion: 0, costoEnergia: 0, costoTotal: 1, margen: 9, visitas: 0 },
-    { clave: '2026-02', etiqueta: 'feb', desde: '2026-02-01', hasta: '2026-02-28', ingreso: 90, costoEspacio: 1, costoOperacion: 0, costoEnergia: 0, costoTotal: 1, margen: 89, visitas: 2 },
-    { clave: '2026-03', etiqueta: 'mar', desde: '2026-03-01', hasta: '2026-03-31', ingreso: 50, costoEspacio: 1, costoOperacion: 0, costoEnergia: 0, costoTotal: 1, margen: 49, visitas: 1 },
+    { clave: '2026-01', etiqueta: 'ene', desde: '2026-01-01', hasta: '2026-01-31', ingreso: 10, costoEspacio: 1, costoOperacion: 0, costoEnergia: 0, costoTotal: 1, margenBruto: 9, visitas: 0 },
+    { clave: '2026-02', etiqueta: 'feb', desde: '2026-02-01', hasta: '2026-02-28', ingreso: 90, costoEspacio: 1, costoOperacion: 0, costoEnergia: 0, costoTotal: 1, margenBruto: 89, visitas: 2 },
+    { clave: '2026-03', etiqueta: 'mar', desde: '2026-03-01', hasta: '2026-03-31', ingreso: 50, costoEspacio: 1, costoOperacion: 0, costoEnergia: 0, costoTotal: 1, margenBruto: 49, visitas: 1 },
   ]
 
   it('no se reordena por importe: es una serie de tiempo', () => {
@@ -454,7 +463,7 @@ describe('10 · `valorDeColumna` lee el campo que la columna declara', () => {
     // fija la prueba 1—, pero si pasara, `undefined` en el JSX se pinta como
     // nada y la columna sale en blanco sin decir por que.
     const f = fila({ clave: 'a' })
-    const col = columnasDeDimension('m2').find((c) => c.clave === 'margenPorM2')!
+    const col = columnasDeDimension('m2').find((c) => c.clave === 'margenBrutoPorM2')!
     expect(valorDeColumna(f, col)).toBeNull()
   })
 })
@@ -467,7 +476,7 @@ describe('11 · el aviso de PERIODO EN CURSO, que es el precio de abrir en el tr
   // desde el primer dia del trimestre y lo vendido se cobra al cerrar.
   //
   // El arreglo acordado no es cambiar el rango: es DECIRLO en pantalla.
-  const filas = [fila({ clave: 's1', ingreso: 0, costoEspacio: 184_500, costoTotal: 184_500, margen: -184_500 })]
+  const filas = [fila({ clave: 's1', ingreso: 0, costoEspacio: 184_500, costoTotal: 184_500, margenBruto: -184_500 })]
 
   it('sale cuando el rango toca el trimestre vivo, y va PRIMERO', () => {
     // Primero porque cambia como se lee TODO lo demas que hay en pantalla. Un
@@ -512,7 +521,7 @@ describe('11 · el aviso de PERIODO EN CURSO, que es el precio de abrir en el tr
     // codigo: este repo ya tiene la leccion escrita sobre mensajes de error que
     // mandan al usuario a leer codigo.
     const t = avisosDelReporte({ ...EN_CURSO, dimension: 'sitio', filas })[0].texto
-    for (const jerga of ['costoEspacio', 'margenPct', 'null', 'endpoint', 'query', 'bucket', 'NaN']) {
+    for (const jerga of ['costoEspacio', 'margenBrutoPct', 'null', 'endpoint', 'query', 'bucket', 'NaN']) {
       expect(t, jerga).not.toContain(jerga)
     }
   })
@@ -538,6 +547,9 @@ describe('11 · el aviso de PERIODO EN CURSO, que es el precio de abrir en el tr
     })
     expect(avisos.map((a) => a.clave)).toEqual([
       'periodo-en-curso',
+      // Va ANTES de los de `m2` y despues del periodo en curso: el periodo a
+      // medias cambia si las cifras son definitivas, y esto cambia que SON.
+      'margen-bruto-no-neto',
       'm2-convencion',
       'm2-excluidas',
       'sin-contrato',

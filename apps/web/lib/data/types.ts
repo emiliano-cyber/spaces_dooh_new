@@ -711,6 +711,18 @@ export interface OrdenTrabajo {
   requiereRevision: boolean
   notas: string | null
   creadoEn: string
+  /**
+   * OT-COSTO-01 · lo que de VERDAD costó esta visita, capturado a mano.
+   *
+   * SUSTITUYE la tarifa por tipo de `config_negocio.costos_ot` en el reporte de
+   * rentabilidad: las dos miden el costo de la orden entera, así que sumarlas
+   * cobraría dos veces la misma visita.
+   *
+   * `null` = nadie lo ha capturado, y entonces vale la estimación por tipo.
+   * **No es 0**: un 0 es un costo real y válido. Se captura por
+   * `PATCH /api/ot/:id/costo`, que pasa por el candado de cambios.
+   */
+  costoReal: number | null
 }
 
 export interface EvidenciaOT {

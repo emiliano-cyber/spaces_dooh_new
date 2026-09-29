@@ -77,8 +77,8 @@ describe('dimension trimestre — una fila por trimestre, sumando todas las pant
   // ─── Cuenta a mano, primer semestre de 2026 ───────────────────────────────
   //  Renta de las dos pantallas = 12 000 + 3 000 = 15 000 al mes
   //  T1 = 15 000 × 3 = 45 000 de costo de espacio; ingreso 50 000 (febrero)
-  //      margen = 50 000 − 45 000 = 5 000 → margenPct = 5 000/50 000 = 10 %
-  //  T2 = 45 000 de costo, 0 de ingreso → margen = −45 000, margenPct = null
+  //      margen = 50 000 − 45 000 = 5 000 → margenBrutoPct = 5 000/50 000 = 10 %
+  //  T2 = 45 000 de costo, 0 de ingreso → margen = −45 000, margenBrutoPct = null
   it('agrega TODAS las pantallas dentro de cada trimestre', () => {
     const r = rentabilidadPorTrimestre(SERIE, { ...SEMESTRE, granularidad: 'trimestre' })
     expect(r.dimension).toBe('trimestre')
@@ -86,11 +86,11 @@ describe('dimension trimestre — una fila por trimestre, sumando todas las pant
     const [t1, t2] = r.filas
     expect(t1.ingreso).toBe(50000)
     expect(t1.costoEspacio).toBe(45000)
-    expect(t1.margen).toBe(5000)
-    expect(t1.margenPct).toBe(10)
+    expect(t1.margenBruto).toBe(5000)
+    expect(t1.margenBrutoPct).toBe(10)
     expect(t2.ingreso).toBe(0)
     expect(t2.costoEspacio).toBe(45000)
-    expect(t2.margenPct).toBeNull()
+    expect(t2.margenBrutoPct).toBeNull()
   })
 
   // Una serie de tiempo ORDENADA POR MARGEN es ilegible: la pregunta de esta
@@ -101,7 +101,7 @@ describe('dimension trimestre — una fila por trimestre, sumando todas las pant
   it('las filas van en orden CRONOLOGICO, no por peor margen', () => {
     const r = rentabilidadPorTrimestre(SERIE, { ...SEMESTRE, granularidad: 'trimestre' })
     expect(r.filas.map((f) => f.clave)).toEqual(['2026-T1', '2026-T2'])
-    expect(r.filas[0].margen).toBeGreaterThan(r.filas[1].margen)
+    expect(r.filas[0].margenBruto).toBeGreaterThan(r.filas[1].margenBruto)
   })
 
   it('la etiqueta es la MISMA que pinta la grafica de ocupacion', () => {
@@ -125,7 +125,7 @@ describe('dimension trimestre — una fila por trimestre, sumando todas las pant
     const r = rentabilidadPorTrimestre(SERIE, { ...SEMESTRE, granularidad: 'trimestre' })
     expect(r.totales.ingreso).toBe(50000)
     expect(r.totales.costoEspacio).toBe(90000)
-    expect(r.totales.margen).toBe(-40000)
+    expect(r.totales.margenBruto).toBe(-40000)
   })
 
   // NEGATIVO: un trimestre sin movimiento SÍ sale en una serie de tiempo, al
@@ -189,7 +189,7 @@ describe('dimension operacion — el reporte del ejemplo del dueno', () => {
   //  Las dos: ingreso 30 000, costo de espacio 5 000 × 3 = 15 000
   //  TLA: 4 OT × 1 500 (respaldo) = 6 000 → margen = 30 000 − 15 000 − 6 000 = 9 000
   //  SMO: 1 OT × 1 500          = 1 500 → margen = 30 000 − 15 000 − 1 500 = 13 500
-  //  margenPct TLA = 9 000/30 000 = 30 % · SMO = 13 500/30 000 = 45 %
+  //  margenBrutoPct TLA = 9 000/30 000 = 30 % · SMO = 13 500/30 000 = 45 %
   it('con las MISMAS campanas, la que se visita mas es menos rentable', () => {
     const r = rentabilidadPorOperacion(OPERACION, { ...Q1, granularidad: 'trimestre' })
     const tla = r.filas.find((f) => f.clave === 'TLA')!
@@ -199,15 +199,15 @@ describe('dimension operacion — el reporte del ejemplo del dueno', () => {
     expect(smo.visitas).toBe(1)
     expect(tla.costoOperacion).toBe(4 * COSTOS_OT_RESPALDO.MANTENIMIENTO_CORRECTIVO)
     expect(smo.costoOperacion).toBe(COSTOS_OT_RESPALDO.INSPECCION)
-    expect(tla.margen).toBe(9000)
-    expect(smo.margen).toBe(13500)
+    expect(tla.margenBruto).toBe(9000)
+    expect(smo.margenBruto).toBe(13500)
     // La frase del dueño, en una aserción.
-    expect(tla.margenPct!).toBeLessThan(smo.margenPct!)
+    expect(tla.margenBrutoPct!).toBeLessThan(smo.margenBrutoPct!)
   })
 
   // La pregunta de esta dimensión no es «¿qué pantalla gana menos?» sino «¿en
   // qué pantallas se nos va el dinero en visitas?». Por eso ordena por costo de
-  // operación descendente y no por peor margen: una pantalla con margen
+  // operación descendente y no por peor margenBruto: una pantalla con margen
   // horrible por renta cara no es un problema de operación.
   it('ordena por costo de operacion DESCENDENTE, no por peor margen', () => {
     const r = rentabilidadPorOperacion(OPERACION, { ...Q1, granularidad: 'trimestre' })
@@ -216,7 +216,7 @@ describe('dimension operacion — el reporte del ejemplo del dueno', () => {
     // contra 50 000 × 3 = 150 000 de renta → −120 000. Por peor margen iría
     // primera, y no tiene una sola visita que explicar.
     const car = r.filas.find((f) => f.clave === 'CAR')!
-    expect(car.margen).toBe(-120000)
+    expect(car.margenBruto).toBe(-120000)
     expect(car.visitas).toBe(0)
     expect(r.filas[r.filas.length - 1].clave).toBe('CAR')
   })
@@ -357,10 +357,10 @@ describe('dimension m2 — solo estaticas, y diciendo a quien dejo fuera', () =>
     const se2 = r.filas.find((f) => f.clave === 'SE2')!
     expect(se1.m2).toBe(36)
     expect(se1.ingresoPorM2).toBe(1000)
-    expect(se1.margenPorM2).toBe(500)
+    expect(se1.margenBrutoPorM2).toBe(500)
     expect(se2.m2).toBe(8)
     expect(se2.ingresoPorM2).toBe(1000)
-    expect(se2.margenPorM2).toBe(625)
+    expect(se2.margenBrutoPorM2).toBe(625)
   })
 
   // ─── DECISIÓN DEL DUEÑO, 2026-09-18 — esta prueba la FIJA ─────────────────
@@ -432,7 +432,7 @@ describe('dimension m2 — solo estaticas, y diciendo a quien dejo fuera', () =>
     // la decisión del 18/09, igual que antes de ella.
     const r = rentabilidadPorM2(SUPERFICIE, { ...Q1, granularidad: 'trimestre' })
     expect(r.filas.map((f) => f.clave)).toEqual(['SE1', 'SE2'])
-    expect(r.filas[0].margen).toBeGreaterThan(r.filas[1].margen)
+    expect(r.filas[0].margenBruto).toBeGreaterThan(r.filas[1].margenBruto)
   })
 
   describe('las exclusiones, que son la mitad del reporte', () => {
@@ -488,7 +488,7 @@ describe('dimension m2 — solo estaticas, y diciendo a quien dejo fuera', () =>
     const r = rentabilidadPorM2(SUPERFICIE, { ...Q1, granularidad: 'trimestre' })
     expect(r.totales.ingreso).toBe(44000)
     expect(r.totales.costoEspacio).toBe(21000)
-    expect(r.totales.margen).toBe(23000)
+    expect(r.totales.margenBruto).toBe(23000)
   })
 })
 

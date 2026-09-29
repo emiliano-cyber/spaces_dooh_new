@@ -286,7 +286,7 @@ Dicho aquí para que no sorprenda a quien lea los números:
    cuestan sin vender— tienen costo, así que salen igual. De ahí que un rango sin
    movimiento dé **cero filas y no un error**.
 
-El `margenPct` es **`null`** cuando no hubo ingreso, no 0: un «0 %» sobre una
+El `margenBrutoPct` es **`null`** cuando no hubo ingreso, no 0: un «0 %» sobre una
 pantalla con 15 000 de renta y cero ventas se lee como «no gana ni pierde», que
 es lo contrario de lo que pasó.
 

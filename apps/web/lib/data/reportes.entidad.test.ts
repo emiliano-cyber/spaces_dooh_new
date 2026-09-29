@@ -202,10 +202,10 @@ describe('DECLARA lo que no puede atribuir — y por eso no pinta margen', () =>
     expect(r.atribucion?.costoOperacionSinRepartir).toBeGreaterThan(0)
   })
 
-  it('ninguna fila trae margen: seria un numero mejor que el real', () => {
+  it('ninguna fila trae margenBruto: seria un numero mejor que el real', () => {
     const r = rentabilidadPorEntidad(BASE, FEBRERO)
     for (const f of r.filas) {
-      expect(f.margenPct).toBeNull()
+      expect(f.margenBrutoPct).toBeNull()
     }
   })
 
