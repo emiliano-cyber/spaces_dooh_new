@@ -6,7 +6,7 @@ import {
   etiquetaBucket,
   type DatosAtribucion,
 } from './derive'
-import { costoDeOt } from '../costos-ot'
+import { costoEfectivoDeOt, tieneCostoReal } from '../costos-ot'
 
 // ============================================================================
 //  lib/data/reportes.ts — Rentabilidad por periodo. LÓGICA PURA.
@@ -99,7 +99,7 @@ export interface PeriodoFila extends Bucket {
   /** Parte del recibo de luz que corresponde a este periodo. Ver `luz`. */
   costoEnergia: number
   costoTotal: number
-  margen: number
+  margenBruto: number
   /** Órdenes de trabajo que cayeron en este periodo. */
   visitas: number
 }
@@ -122,13 +122,13 @@ export interface FilaRentabilidad {
    */
   costoEnergia: number
   costoTotal: number
-  margen: number
+  margenBruto: number
   /**
    * Porcentaje sobre el ingreso, o `null` cuando no hubo ingreso. NO es 0:
    * un «0 %» sobre una pantalla con 15 000 de renta y cero ventas se lee como
    * «no gana ni pierde», que es exactamente lo contrario de lo que pasó.
    */
-  margenPct: number | null
+  margenBrutoPct: number | null
   tieneContrato: boolean
   arrendador: string | null
   periodos: PeriodoFila[]
@@ -149,7 +149,7 @@ export interface FilaRentabilidad {
   /** Superficie considerada, en metros cuadrados. Ver `CONVENCION_M2`. */
   m2?: number
   ingresoPorM2?: number
-  margenPorM2?: number
+  margenBrutoPorM2?: number
 
   // ─── Solo en `entidad` ──────────────────────────────────────────────────
   /** Los papeles de esta razón social. Son el porqué de lo que se le atribuye. */
@@ -158,7 +158,7 @@ export interface FilaRentabilidad {
    * `ingreso − costoEspacio`, y se llama ASÍ y no «margen» a propósito.
    *
    * No es el margen: le faltan la operación y la luz, que en esta dimensión no
-   * se pueden repartir entre sociedades. Un campo llamado `margen` con dos de
+   * se pueden repartir entre sociedades. Un campo llamado `margenBruto` con dos de
    * las cuatro fuentes de costo dentro saldría MEJOR QUE EL REAL, y este módulo
    * entero existe para no tener números que mienten sin dar error.
    */
@@ -179,7 +179,7 @@ export interface FilaRentabilidad {
   /**
    * Lo que cuesta cada kWh en esta pantalla. `null` con cero kWh, NO 0: un
    * «$0.00 por kWh» se lee como «aquí la luz es gratis», que es lo contrario de
-   * «no hay consumo con el que calcularlo». Mismo criterio que `margenPct`.
+   * «no hay consumo con el que calcularlo». Mismo criterio que `margenBrutoPct`.
    */
   costoPorKwh?: number | null
 
@@ -188,7 +188,7 @@ export interface FilaRentabilidad {
   // Los cuatro son `number | null`, y el `null` es la mitad del trabajo: es «no
   // hay tarifa publicada congelada para esto», y se pinta con una RAYA. Un cero
   // en «Tarifa publicada» se leería como que la tarifa de lista era cero, o
-  // —peor— que se regaló entera. Mismo criterio que `margenPct` y `costoPorKwh`.
+  // —peor— que se regaló entera. Mismo criterio que `margenBrutoPct` y `costoPorKwh`.
   /**
    * La tarifa PUBLICADA (de lista) del periodo, prorrateada por días igual que
    * el ingreso. Solo de las reservas COMPARABLES: ver `ingresoComparable`.
@@ -223,8 +223,8 @@ export interface Totales {
   costoOperacion: number
   costoEnergia: number
   costoTotal: number
-  margen: number
-  margenPct: number | null
+  margenBruto: number
+  margenBrutoPct: number | null
 }
 
 /** Qué se dejó fuera del reporte por m² y por qué. Ver `rentabilidadPorM2`. */
@@ -259,6 +259,43 @@ export interface ReporteRentabilidad {
   tarifas?: CoberturaTarifa
   /** Solo en `vendedor`: cuánto del periodo tiene vendedor y cuánto no. */
   vendedores?: CoberturaVendedor
+  /** Solo en `operacion`: cuántas visitas van con costo real y cuántas con la estimación. */
+  costosReales?: CoberturaCostoOt
+}
+
+/**
+ * OT-COSTO-01 · con qué se cobró el costo de operación del periodo: con lo que
+ * de verdad costó cada visita, o con una ESTIMACIÓN por tipo de orden.
+ *
+ * Hermana de `ExclusionesM2`, `CoberturaEnergia`, `AtribucionEntidad`,
+ * `CoberturaTarifa` y `CoberturaVendedor`, y por el mismo motivo: un reporte
+ * que presenta como un hecho algo que es en parte una estimación MIENTE SIN DAR
+ * ERROR. Aquí es peor que en las otras cinco, porque **el hueco no se ve**: una
+ * visita sin costo capturado no sale en cero ni con una raya —sale con 1 500,
+ * una cifra perfectamente creíble— y no hay nada en la tabla que la distinga de
+ * una que costó 1 500 de verdad.
+ *
+ * Por eso los dos importes viajan SEPARADOS y no en una sola suma: «$13,500 de
+ * operación» no dice nada, y «$12,000 reales + $1,500 estimados» sí.
+ *
+ * Vive en `operacion` y no en las cinco dimensiones que pintan margen, aunque
+ * el costo de operación entre en el margen de todas. Es el MISMO criterio que
+ * `CoberturaEnergia`, que solo viaja en `luz` aunque la luz entre en el margen
+ * de todas: el aviso pertenece a la dimensión que existe para contestar esa
+ * pregunta. Lo que sí va en todas es que el margen es BRUTO — ver el aviso
+ * `margen-bruto-no-neto` en `components/demo/reportes/tabla.ts`.
+ */
+export interface CoberturaCostoOt {
+  /** Visitas del periodo cuyo costo se capturó a mano. */
+  visitasConCostoReal: number
+  /** Visitas del periodo que entran con la tarifa por tipo. Es una estimación. */
+  visitasConEstimacion: number
+  /** Suma de los costos REALES capturados. */
+  costoRealCapturado: number
+  /** Suma de las estimaciones por tipo. La otra mitad del costo de operación. */
+  costoEstimado: number
+  /** Frase lista para pintar: el número no debe aparecer sin su porqué. */
+  nota: string
 }
 
 /**
@@ -489,6 +526,22 @@ interface OtReporte {
    * cero.
    */
   duracionSeg?: number | null
+  /**
+   * OT-COSTO-01 · lo que de VERDAD costó esta visita, capturado a mano.
+   *
+   * SUSTITUYE la tarifa por tipo de `config_negocio.costos_ot`, no se suma a
+   * ella: las dos miden el costo de la orden ENTERA —`costos-ot.ts` lo dice de
+   * su propio valor— así que sumarlas cobraría dos veces la misma visita, y el
+   * error saldría como un margen MENOR, que es la dirección en la que nadie
+   * sospecha de una cifra.
+   *
+   * `null` = nadie lo ha capturado, y entonces vale la estimación por tipo.
+   * **No es 0**: un 0 es un costo real y válido —una inspección que hace el
+   * propio dueño no paga cuadrilla—, el mismo criterio que `importeValido()`
+   * en `lib/costos-ot.ts`. Por eso se compara con `!= null` y nunca con `||`,
+   * que trataría el cero como ausencia y lo mandaría a la estimación.
+   */
+  costoReal?: number | null
 }
 
 /** Una de MIS razones sociales, con los papeles que lleva. */
@@ -1001,6 +1054,23 @@ interface Matriz {
    * capturado que no aparece en ninguna fila — `luz` los DECLARA.
    */
   energiaSinDestino: { recibos: number; importe: number }
+  /**
+   * Cuántas de las visitas que la matriz COBRÓ llevan costo real capturado y
+   * cuántas la estimación por tipo, con sus dos importes por separado.
+   *
+   * Se acumula aquí dentro, en el mismo bucle que suma `costoOperacion`, y no
+   * en una segunda pasada sobre `datos.ordenesTrabajo`: una segunda pasada
+   * tendría que repetir los tres filtros que deciden qué OT cuenta —cancelada,
+   * sin pantalla, fuera de bucket— y el día que uno cambiara, el aviso
+   * explicaría un total distinto del que la tabla enseña. Aquí, por
+   * construcción, `importeReal + importeEstimado` ES el costo de operación.
+   */
+  costosOt: {
+    conReal: number
+    conEstimacion: number
+    importeReal: number
+    importeEstimado: number
+  }
 }
 
 /**
@@ -1050,6 +1120,11 @@ function matriz(datos: DatosRentabilidad, opts: OpcionesReporte): Matriz {
   // reparto simplemente no le da nada a nadie y el dinero desaparece del reporte
   // sin dar ningún error. Es el caso del predio dado de alta y todavía sin
   // pantallas, que es normal mientras se captura inventario.
+  // OT-COSTO-01 · con qué se cobró cada visita. Se llena en el bucle de OT, que
+  // es el único sitio donde se sabe qué órdenes sobrevivieron a los tres
+  // filtros. Ver `Matriz.costosOt`.
+  const costosOt = { conReal: 0, conEstimacion: 0, importeReal: 0, importeEstimado: 0 }
+
   const energiaSinDestino = { recibos: 0, importe: 0 }
   for (const c of consumos) {
     const llega = c.predioId
@@ -1274,12 +1349,43 @@ function matriz(datos: DatosRentabilidad, opts: OpcionesReporte): Matriz {
 
       // ─── COSTO DE OPERACIÓN: las OT que caen en el bucket ──────────────
       // NO se prorratea: una orden de trabajo es un evento, no un periodo. Su
-      // costo entra completo en el mes en que se trabaja, y el importe sale por
-      // TIPO desde `config_negocio.costos_ot` (ADR 0011), con respaldo.
+      // costo entra completo en el mes en que se trabaja.
+      //
+      // El importe sale de UNA de dos fuentes, y cuál se usó se CUENTA (ver
+      // `Matriz.costosOt`), porque un total que mezcla las dos sin decirlo no
+      // se puede interpretar: no se sabe si «costó eso» o «se estima que costó
+      // eso».
+      //
+      //  1. `costoReal` — lo que de verdad costó, capturado a mano. Manda.
+      //  2. La tarifa por TIPO de `config_negocio.costos_ot` (ADR 0011), con
+      //     respaldo. Es una ESTIMACIÓN: todas las órdenes del mismo tipo
+      //     cuestan lo mismo, tenga la visita el coste que tenga.
+      //
+      // La 1 SUSTITUYE a la 2, no se le suma: las dos miden el costo de la
+      // orden entera, así que sumarlas cobraría dos veces la misma visita.
+      //
+      // ⚠️ `!= null` y NUNCA `||` ni `??` sobre un falsy: `costoReal === 0` es
+      // un costo real y válido —una inspección que hace el propio dueño no paga
+      // cuadrilla— y con `||` caería a la estimación, cobrando 1 500 por una
+      // visita que costó cero. Mismo criterio que `importeValido()` en
+      // `lib/costos-ot.ts`, que acepta el 0 a propósito.
       for (const o of otsDe.get(s.id) ?? []) {
         const f = fechaDeOt(o)
         if (!f || !dentro(f, b.desde, b.hasta)) continue
-        celda.costoOperacion += costoDeOt(o.tipo, datos.costosOt ?? null)
+        // La regla vive en `lib/costos-ot.ts` y se usa desde aquí, desde el
+        // dashboard y desde el P&L por campaña. Escrita tres veces divergiría, y
+        // divergir significa que este reporte diga 12 000 y el dashboard 1 500
+        // por la misma visita. Aquí solo se añade el RECUENTO, que es lo único
+        // que el reporte necesita de más.
+        const importe = costoEfectivoDeOt(o, datos.costosOt ?? null)
+        celda.costoOperacion += importe
+        if (tieneCostoReal(o)) {
+          costosOt.conReal += 1
+          costosOt.importeReal += importe
+        } else {
+          costosOt.conEstimacion += 1
+          costosOt.importeEstimado += importe
+        }
         celda.visitas += 1
         const porTipo = (celda.porTipo ??= new Map())
         porTipo.set(o.tipo, (porTipo.get(o.tipo) ?? 0) + 1)
@@ -1421,6 +1527,15 @@ function matriz(datos: DatosRentabilidad, opts: OpcionesReporte): Matriz {
     porVendedor,
     contratoDelPeriodo,
     energiaSinDestino,
+    // Los dos importes se redondean AL SALIR, igual que las celdas: se suman en
+    // crudo y se redondea una vez. Si se redondeara por OT, su suma podría
+    // separarse del `costoOperacion` de la tabla por unos centavos y el aviso
+    // explicaría un total que no es el que se ve.
+    costosOt: {
+      ...costosOt,
+      importeReal: centavos(costosOt.importeReal),
+      importeEstimado: centavos(costosOt.importeEstimado),
+    },
   }
 }
 
@@ -1440,7 +1555,7 @@ function periodosDe(buckets: Bucket[], celdas: Celda[]): PeriodoFila[] {
       // `costoTotal` que se quedara con dos de las tres daría un margen
       // optimista y un desglose que no suma su propia fila, sin dar error.
       costoTotal: centavos(c.costoEspacio + c.costoOperacion + c.costoEnergia),
-      margen: centavos(c.ingreso - c.costoEspacio - c.costoOperacion - c.costoEnergia),
+      margenBruto: centavos(c.ingreso - c.costoEspacio - c.costoOperacion - c.costoEnergia),
       visitas: c.visitas,
     }
   })
@@ -1455,15 +1570,15 @@ function sumar(periodos: PeriodoFila[]): Totales {
   const costoOperacion = centavos(periodos.reduce((a, p) => a + p.costoOperacion, 0))
   const costoEnergia = centavos(periodos.reduce((a, p) => a + p.costoEnergia, 0))
   const costoTotal = centavos(costoEspacio + costoOperacion + costoEnergia)
-  const margen = centavos(ingreso - costoTotal)
+  const margenBruto = centavos(ingreso - costoTotal)
   return {
     ingreso,
     costoEspacio,
     costoOperacion,
     costoEnergia,
     costoTotal,
-    margen,
-    margenPct: ingreso > 0 ? centavos((margen / ingreso) * 100) : null,
+    margenBruto,
+    margenBrutoPct: ingreso > 0 ? centavos((margenBruto / ingreso) * 100) : null,
   }
 }
 
@@ -1473,15 +1588,15 @@ function totalesDeFilas(filas: FilaRentabilidad[]): Totales {
   const costoOperacion = centavos(filas.reduce((a, f) => a + f.costoOperacion, 0))
   const costoEnergia = centavos(filas.reduce((a, f) => a + f.costoEnergia, 0))
   const costoTotal = centavos(costoEspacio + costoOperacion + costoEnergia)
-  const margen = centavos(ingreso - costoTotal)
+  const margenBruto = centavos(ingreso - costoTotal)
   return {
     ingreso,
     costoEspacio,
     costoOperacion,
     costoEnergia,
     costoTotal,
-    margen,
-    margenPct: ingreso > 0 ? centavos((margen / ingreso) * 100) : null,
+    margenBruto,
+    margenBrutoPct: ingreso > 0 ? centavos((margenBruto / ingreso) * 100) : null,
   }
 }
 
@@ -1580,7 +1695,7 @@ export function rentabilidadPorSitio(
 
   // Peor margen primero: la pregunta que contesta este reporte es «¿qué
   // pantallas están perdiendo dinero?», no «¿cómo se llaman?».
-  filas.sort((a, b) => a.margen - b.margen)
+  filas.sort((a, b) => a.margenBruto - b.margenBruto)
 
   return {
     dimension: 'sitio',
@@ -1689,6 +1804,53 @@ export function rentabilidadPorTrimestre(
  * por una renta cara no es un problema de operación, y saldría arriba tapando
  * las que sí lo son.
  */
+/**
+ * OT-COSTO-01 · la frase que dice con qué se cobró la operación del periodo.
+ *
+ * La PRIMERA parte va SIEMPRE, aunque todas las visitas tengan su costo real:
+ * sin ella la columna «Operación» se lee como un hecho medido, y hasta hoy
+ * nunca lo fue. Mismo criterio que `notaDeTarifas` y `notaDeVendedores`, cuya
+ * primera frase también hace falta con o sin hueco.
+ */
+function notaDeCostosOt(c: Omit<CoberturaCostoOt, 'nota'>): string {
+  const pesos = (v: number) =>
+    v.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 })
+
+  const total = c.visitasConCostoReal + c.visitasConEstimacion
+
+  // Sin visitas no hay nada que explicar, pero se dice igual: «ninguna visita»
+  // y «no te lo digo» se ven idénticos sin texto. Es el hallazgo C1 de la
+  // auditoría QA otra vez, el silencio indistinguible de la ausencia.
+  if (total === 0) {
+    return 'No hubo ninguna visita en este periodo, así que el costo de operación es cero porque no se fue a ninguna pantalla, no porque falte capturarlo.'
+  }
+
+  const partes = [
+    'El costo de operación se arma de dos fuentes y NO son lo mismo: lo que de verdad costó cada ' +
+      'visita, cuando alguien lo capturó en su orden de trabajo, y una ESTIMACIÓN por tipo de ' +
+      'orden —la de Configuración— cuando no. La estimación cobra igual una herrería de $12,000 ' +
+      'que una de $800.',
+  ]
+
+  if (c.visitasConEstimacion > 0) {
+    partes.push(
+      `${c.visitasConEstimacion} de las ${total} ` +
+        (total === 1 ? 'visita' : 'visitas') +
+        ` del periodo ${c.visitasConEstimacion === 1 ? 'entra' : 'entran'} con la estimación por tipo ` +
+        `(${pesos(c.costoEstimado)}) y ${c.visitasConCostoReal} con su costo real ` +
+        `(${pesos(c.costoRealCapturado)}). Esa parte del costo —y el margen que sale de ella— es ` +
+        'una estimación, no una medición: capturar el costo en la orden de trabajo la sustituye.',
+    )
+  } else {
+    partes.push(
+      `Las ${total} ${total === 1 ? 'visita' : 'visitas'} del periodo van con su costo REAL ` +
+        `capturado (${pesos(c.costoRealCapturado)}): aquí no hay ninguna estimación, el costo de ` +
+        'operación que ves es lo que se pagó.',
+    )
+  }
+  return partes.join(' ')
+}
+
 export function rentabilidadPorOperacion(
   datos: DatosRentabilidad,
   opts: OpcionesReporte,
@@ -1741,6 +1903,13 @@ export function rentabilidadPorOperacion(
       a.etiqueta.localeCompare(b.etiqueta),
   )
 
+  const cobertura: Omit<CoberturaCostoOt, 'nota'> = {
+    visitasConCostoReal: m.costosOt.conReal,
+    visitasConEstimacion: m.costosOt.conEstimacion,
+    costoRealCapturado: m.costosOt.importeReal,
+    costoEstimado: m.costosOt.importeEstimado,
+  }
+
   return {
     dimension: 'operacion',
     granularidad: opts.granularidad,
@@ -1749,6 +1918,7 @@ export function rentabilidadPorOperacion(
     periodos: m.buckets,
     filas,
     totales: totalesDeFilas(filas),
+    costosReales: { ...cobertura, nota: notaDeCostosOt(cobertura) },
   }
 }
 
@@ -1790,8 +1960,8 @@ export function rentabilidadPorOperacion(
 //  caras el m² sube y los cocientes bajan, pero **el ingreso y el costo no se
 //  mueven**. Dos corridas del mismo rango, una con cada valor, dan cifras
 //  idénticas en `ingreso`, `costoEspacio`, `costoOperacion`, `costoTotal`,
-//  `margen`, `margenPct` y `visitas` —y en los dos totales del reporte—, y solo
-//  cambian `m2`, `ingresoPorM2` y `margenPorM2`. Si alguna cifra de dinero se
+//  `margenBruto`, `margenBrutoPct` y `visitas` —y en los dos totales del reporte—, y solo
+//  cambian `m2`, `ingresoPorM2` y `margenBrutoPorM2`. Si alguna cifra de dinero se
 //  moviera habría un acoplamiento que no debe existir.
 const MULTIPLICAR_M2_POR_CARAS: boolean = true
 
@@ -1911,7 +2081,7 @@ export function rentabilidadPorM2(
       visitas,
       m2: centavos(m2),
       ingresoPorM2: centavos(t.ingreso / m2),
-      margenPorM2: centavos(t.margen / m2),
+      margenBrutoPorM2: centavos(t.margenBruto / m2),
     })
   }
 
@@ -1919,7 +2089,7 @@ export function rentabilidadPorM2(
   // absoluto, y esa es justamente la pregunta de esta dimensión — una valla
   // pequeña que rinde poco por metro es peor negocio que un espectacular grande
   // con el mismo margen total.
-  filas.sort((a, b) => a.margenPorM2! - b.margenPorM2! || a.etiqueta.localeCompare(b.etiqueta))
+  filas.sort((a, b) => a.margenBrutoPorM2! - b.margenBrutoPorM2! || a.etiqueta.localeCompare(b.etiqueta))
 
   return {
     dimension: 'm2',
@@ -2061,12 +2231,12 @@ export function rentabilidadPorEntidad(
       costoOperacion: 0,
       costoEnergia: 0,
       costoTotal: costoEspacio,
-      // `margen` existe en el tipo y se usa para ordenar en otras dimensiones,
-      // así que lleva el saldo; lo que NO se pinta es la columna. Y `margenPct`
+      // `margenBruto` existe en el tipo y se usa para ordenar en otras dimensiones,
+      // así que lleva el saldo; lo que NO se pinta es la columna. Y `margenBrutoPct`
       // es `null` SIEMPRE —no 0—: un porcentaje de margen incompleto es
       // exactamente el número que miente que esta dimensión evita.
-      margen: centavos(ingreso - costoEspacio),
-      margenPct: null,
+      margenBruto: centavos(ingreso - costoEspacio),
+      margenBrutoPct: null,
       tieneContrato: costoEspacio > 0,
       arrendador: null,
       periodos: [],
@@ -2406,13 +2576,13 @@ export function rentabilidadPorVendedor(
       ingreso,
       // Los costos van en CERO y NO se pintan: en esta dimensión no se
       // atribuyen, y ponerlos aquí los repartiría a ojo entre personas. Mismo
-      // criterio que `entidad`, y por eso `margenPct` es `null` SIEMPRE.
+      // criterio que `entidad`, y por eso `margenBrutoPct` es `null` SIEMPRE.
       costoEspacio: 0,
       costoOperacion: 0,
       costoEnergia: 0,
       costoTotal: 0,
-      margen: ingreso,
-      margenPct: null,
+      margenBruto: ingreso,
+      margenBrutoPct: null,
       tieneContrato: false,
       arrendador: null,
       periodos: [],
@@ -2643,7 +2813,7 @@ export function rentabilidadPorLuz(
       kwh,
       // `null` con cero kWh, NO 0: un «$0.00 por kWh» se lee como «aquí la luz
       // es gratis», que es lo contrario de «no hay consumo con el que
-      // calcularlo». Mismo criterio que `margenPct` sin ingreso.
+      // calcularlo». Mismo criterio que `margenBrutoPct` sin ingreso.
       costoPorKwh: kwh > 0 ? centavos(t.costoEnergia / kwh) : null,
     })
   }

@@ -51,7 +51,7 @@ describe('tabla — dimensión `tarifa`', () => {
 
   it('NEGATIVA · no pinta margen ni costos: no es una pregunta de costo', () => {
     const claves = columnasDeDimension('tarifa').map((c) => c.clave)
-    for (const prohibida of ['margen', 'margenPct', 'costoEspacio', 'costoOperacion', 'costoEnergia', 'costoTotal']) {
+    for (const prohibida of ['margenBruto', 'margenBrutoPct', 'costoEspacio', 'costoOperacion', 'costoEnergia', 'costoTotal']) {
       expect(claves).not.toContain(prohibida)
     }
   })

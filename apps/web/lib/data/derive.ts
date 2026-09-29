@@ -23,7 +23,7 @@ import type {
   ContratoArrendamiento,
 } from './types'
 import { factorMensual, diasAvisoPago, diasCriticoPago } from '../renta-periodicidad'
-import { costoDeOt } from '../costos-ot'
+import { costoEfectivoDeOt } from '../costos-ot'
 
 // Orden canónico de las 10 etapas del pipeline (sección 7.4).
 export const ETAPAS_PIPELINE: EtapaPipeline[] = [
@@ -629,7 +629,7 @@ export function dashboardMetrics(state: DemoState): DashboardMetrics {
   //    `otsOperativas.length * 1500`: ese producto cobraba lo mismo por montar
   //    una lona que por una inspección.
   const costosOt = state.configNegocio?.costosOt
-  const costoOperacionMes = otsOperativas.reduce((sum, o) => sum + costoDeOt(o.tipo, costosOt), 0)
+  const costoOperacionMes = otsOperativas.reduce((sum, o) => sum + costoEfectivoDeOt(o, costosOt), 0)
 
   const costoTotalMes = costoEspaciosMes + costoImpresionMes + costoOperacionMes
 
@@ -749,7 +749,7 @@ export function margenCampana(c: Campana, state: DemoState): MargenCampana {
   // La MISMA tabla que el dashboard (`dashboardMetrics`, arriba). Si aquí se
   // quedara la constante, el margen de una campaña y el del mes dejarían de
   // cuadrar entre sí sin que nada fallara.
-  const costoOperacion = ots.reduce((s, o) => s + costoDeOt(o.tipo, state.configNegocio?.costosOt), 0)
+  const costoOperacion = ots.reduce((s, o) => s + costoEfectivoDeOt(o, state.configNegocio?.costosOt), 0)
   const costoTotal = costoEspacios + costoImpresion + costoOperacion
   const margen = ingreso - costoTotal
   const margenPct = ingreso > 0 ? (margen / ingreso) * 100 : 0

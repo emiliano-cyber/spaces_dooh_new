@@ -5,6 +5,7 @@ import type {
   CoberturaEnergia,
   CoberturaTarifa,
   CoberturaVendedor,
+  CoberturaCostoOt,
   ConvencionM2,
   ExclusionesM2,
   FilaRentabilidad,
@@ -53,8 +54,8 @@ export type FilaOrdenable = Pick<
   | 'costoOperacion'
   | 'costoEnergia'
   | 'costoTotal'
-  | 'margen'
-  | 'margenPct'
+  | 'margenBruto'
+  | 'margenBrutoPct'
   | 'tieneContrato'
   | 'visitas'
 > &
@@ -67,7 +68,7 @@ export type FilaOrdenable = Pick<
       | 'visitasConDuracion'
       | 'm2'
       | 'ingresoPorM2'
-      | 'margenPorM2'
+      | 'margenBrutoPorM2'
       | 'kwh'
       | 'costoPorKwh'
       | 'papeles'
@@ -87,14 +88,14 @@ export type ColumnaReporte =
   | 'costoOperacion'
   | 'costoEnergia'
   | 'costoTotal'
-  | 'margen'
-  | 'margenPct'
+  | 'margenBruto'
+  | 'margenBrutoPct'
   | 'visitas'
   | 'costoOperacionPct'
   | 'horasEnSitio'
   | 'm2'
   | 'ingresoPorM2'
-  | 'margenPorM2'
+  | 'margenBrutoPorM2'
   | 'kwh'
   | 'costoPorKwh'
   | 'saldoAtribuido'
@@ -142,7 +143,7 @@ export interface DefinicionColumna {
 // ninguna más. Lo que no está aquí no lleva total en el pie, y eso es una
 // decisión, no un olvido: los totales vienen del SERVIDOR porque dos sumas de
 // lo mismo divergen. Y con las columnas por dimensión hay un caso peor que
-// divergir: `margenPorM2` es un COCIENTE, y el promedio de los cocientes de las
+// divergir: `margenBrutoPorM2` es un COCIENTE, y el promedio de los cocientes de las
 // filas NO es el cociente del total —cada pantalla tiene otra superficie—, así
 // que un pie «calculado» ahí daría una cifra que no es de nadie.
 const TOTALIZABLES: ReadonlySet<ColumnaReporte> = new Set<ColumnaReporte>([
@@ -155,8 +156,8 @@ const TOTALIZABLES: ReadonlySet<ColumnaReporte> = new Set<ColumnaReporte>([
   // `Costo total` del pie y no habría nada que explicara la diferencia.
   'costoEnergia',
   'costoTotal',
-  'margen',
-  'margenPct',
+  'margenBruto',
+  'margenBrutoPct',
 ])
 
 const def = (
@@ -187,8 +188,8 @@ export const COLUMNAS: DefinicionColumna[] = [
   def('costoTotal', 'Costo total', 'dinero', 'desc'),
   // Margen y margen % arrancan por el PEOR, igual que el reporte: la pregunta
   // que contesta es «¿qué pantallas están perdiendo dinero?».
-  def('margen', 'Margen', 'dinero', 'asc'),
-  def('margenPct', 'Margen %', 'porcentaje', 'asc'),
+  def('margenBruto', 'Margen bruto', 'dinero', 'asc'),
+  def('margenBrutoPct', 'Margen bruto %', 'porcentaje', 'asc'),
   // ─── Solo en `operacion` ────────────────────────────────────────────────
   def('visitas', 'Visitas', 'entero', 'desc'),
   def('costoOperacionPct', 'Operación / ingreso', 'porcentaje', 'desc'),
@@ -196,7 +197,7 @@ export const COLUMNAS: DefinicionColumna[] = [
   // ─── Solo en `m2` ───────────────────────────────────────────────────────
   def('m2', 'Superficie', 'superficie', 'desc'),
   def('ingresoPorM2', 'Ingreso / m²', 'dinero', 'desc'),
-  def('margenPorM2', 'Margen / m²', 'dinero', 'asc'),
+  def('margenBrutoPorM2', 'Margen bruto / m²', 'dinero', 'asc'),
   // ─── Solo en `luz` ──────────────────────────────────────────────────────
   def('kwh', 'Consumo', 'kwh', 'desc'),
   def('costoPorKwh', 'Costo / kWh', 'dinero', 'desc'),
@@ -238,8 +239,8 @@ const COMUNES: ColumnaReporte[] = [
   // su suma — una resta que no cuadra, y sin nada en pantalla que la explique.
   'costoEnergia',
   'costoTotal',
-  'margen',
-  'margenPct',
+  'margenBruto',
+  'margenBrutoPct',
 ]
 
 // Cuando una dimensión trae columnas propias, la que cede el sitio es
@@ -260,13 +261,13 @@ const COLUMNAS_POR_DIMENSION: Record<DimensionUI, ColumnaReporte[]> = {
   // Las tres que la hacen «por operación», pegadas al costo de operación que
   // explican: cuántas veces se fue, qué proporción del ingreso se comió y
   // cuántas horas se estuvo. Sin ellas el reporte calcula y no contesta.
-  operacion: inserta(COMUNES_SIN_TOTAL, 'margen', ['visitas', 'costoOperacionPct', 'horasEnSitio']),
+  operacion: inserta(COMUNES_SIN_TOTAL, 'margenBruto', ['visitas', 'costoOperacionPct', 'horasEnSitio']),
   // La superficie va junto a la etiqueta —es lo que define la fila— y los dos
   // cocientes junto al margen, que es con lo que se comparan.
   m2: inserta(
     inserta(COMUNES_SIN_TOTAL, 'ingreso', ['m2']),
-    'margenPct',
-    ['ingresoPorM2', 'margenPorM2'],
+    'margenBrutoPct',
+    ['ingresoPorM2', 'margenBrutoPorM2'],
   ),
   // Los kWh y el costo por kWh van pegados al costo de la luz que explican,
   // igual que las visitas van pegadas al costo de operación: cuánta energía se
@@ -374,7 +375,7 @@ export function columnasDeDimension(d: DimensionUI): DefinicionColumna[] {
 // el negocio, y una serie así no se puede leer. El motor ya los devuelve en
 // orden cronológico.
 const ORDEN_POR_DIMENSION: Record<DimensionUI, Orden> = {
-  sitio: { columna: 'margen', direccion: 'asc' },
+  sitio: { columna: 'margenBruto', direccion: 'asc' },
   trimestre: { columna: 'etiqueta', direccion: 'asc' },
   // Por MÁS COSTO DE OPERACIÓN, no por peor margen. El caso que lo demuestra
   // está en el motor: una pantalla con −120 000 de margen por una renta
@@ -385,7 +386,7 @@ const ORDEN_POR_DIMENSION: Record<DimensionUI, Orden> = {
   // Peor margen POR METRO, que no es el mismo orden que por margen absoluto:
   // una valla pequeña que rinde poco por metro es peor negocio que un
   // espectacular grande con el mismo margen total.
-  m2: { columna: 'margenPorM2', direccion: 'asc' },
+  m2: { columna: 'margenBrutoPorM2', direccion: 'asc' },
   // Por MÁS COSTO DE LUZ, no por peor margen, y por el mismo motivo que
   // `operacion`: una pantalla con margen horrible por una renta cara no es un
   // problema de consumo, y por peor margen saldría primera tapando justo a las
@@ -474,7 +475,7 @@ function definicionPara(orden: Orden, dimension: DimensionUI): DefinicionColumna
   return (
     columnasDeDimension(dimension).find((c) => c.clave === orden.columna) ??
     CATALOGO.get(orden.columna) ??
-    CATALOGO.get('margen')!
+    CATALOGO.get('margenBruto')!
   )
 }
 
@@ -508,7 +509,7 @@ export function ordenarFilas<T extends FilaOrdenable>(
     const va = a[campo] as number | null | undefined
     const vb = b[campo] as number | null | undefined
     // El `null` va al final en las DOS direcciones, y aquí hay dos columnas que
-    // lo usan con el mismo significado: `margenPct` («no hubo ingreso, no hay
+    // lo usan con el mismo significado: `margenBrutoPct` («no hubo ingreso, no hay
     // porcentaje que calcular») y `horasEnSitio` («ninguna visita las tiene
     // medidas»). No es un empate ni un cero, así que no entra en la escala: si
     // se invirtiera con la dirección, esa fila saltaría del final al principio
@@ -601,7 +602,7 @@ export const COLUMNAS_DESGLOSE: { clave: keyof PeriodoFila; label: string; forma
   { clave: 'costoEspacio', label: 'Espacio', formato: 'dinero' },
   { clave: 'costoOperacion', label: 'Operación', formato: 'dinero' },
   { clave: 'costoEnergia', label: 'Luz', formato: 'dinero' },
-  { clave: 'margen', label: 'Margen', formato: 'dinero' },
+  { clave: 'margenBruto', label: 'Margen bruto', formato: 'dinero' },
   { clave: 'visitas', label: 'Visitas', formato: 'entero' },
 ]
 
@@ -623,6 +624,8 @@ export interface AvisoReporte {
     | 'sin-ingreso'
     | 'tarifa-sin-publicada'
     | 'vendedor-sin-atribuir'
+    | 'ot-costo-real'
+    | 'margen-bruto-no-neto'
   texto: string
   /**
    * Con qué peso se pinta. `alerta` es ámbar y con triángulo; `info` es gris y
@@ -669,7 +672,29 @@ export interface ReporteParaAvisos {
   tarifas?: CoberturaTarifa | null
   /** Solo en `vendedor`: qué parte del periodo tiene vendedor. Nota verbatim. */
   vendedores?: CoberturaVendedor | null
+  /** Solo en `operacion`: cuántas visitas van con costo real. Nota verbatim. */
+  costosReales?: CoberturaCostoOt | null
 }
+
+// El texto que dice que el margen de este reporte es BRUTO, y —lo que de verdad
+// importa— QUÉ NO ES.
+//
+// Va aquí, en la pantalla, y no solo en un comentario del motor, porque la
+// confusión la invita la COLUMNA: quien lee «Margen bruto» y conoce la palabra
+// «neto» va a suponer que el neto es este número menos algo pequeño. No lo es:
+// **este sistema no modela un solo costo indirecto**, así que el neto no se
+// puede calcular restando nada de lo que hay en pantalla.
+//
+// Y por eso la frase no se queda en «es bruto»: dice qué faltaría y que no está
+// capturado. Si alguien pide «el neto» después de ver esta columna, la respuesta
+// no es renombrarla otra vez —es que faltan datos que nadie captura—, y esa
+// respuesta tiene que estar donde se hace la pregunta.
+const TEXTO_MARGEN_BRUTO =
+  'El margen de este reporte es BRUTO: es el ingreso menos los costos DIRECTOS de la pantalla ' +
+  '—el espacio, la operación y la luz—. NO es el margen neto, y no se llega a él restando nada ' +
+  'de lo que hay en esta tabla: al neto le faltarían los costos indirectos (nómina, oficina, ' +
+  'estructura) y este sistema no captura ninguno. Mientras no se capturen, el margen neto del ' +
+  'negocio no se puede calcular aquí y no es que esté escondido en otra pantalla.'
 
 // La frase que dice QUÉ cuenta como metro cuadrado en las cifras de la tabla.
 // Va siempre, porque un número por metro cuadrado sin esto no se puede
@@ -833,6 +858,45 @@ export function avisosDelReporte(r: ReporteParaAvisos): AvisoReporte[] {
     })
   }
 
+  // ─── CON QUÉ SE COBRÓ LA OPERACIÓN: MEDIDO O ESTIMADO ────────────────────
+  // OT-COSTO-01. Va con los otros avisos estructurales y por un motivo propio:
+  // aquí el hueco NO SE VE. Una pantalla sin recibo de luz sale con un cero que
+  // llama la atención, y una venta sin tarifa publicada sale con una raya. Pero
+  // una visita sin costo capturado sale con **$1,500** —una cifra perfectamente
+  // creíble— y nada en la tabla la distingue de una que costó 1 500 de verdad.
+  // Sin este texto, un total mezclado se lee como una medición.
+  //
+  // La nota la redacta el MOTOR (`notaDeCostosOt`) y se pinta verbatim, por lo
+  // mismo que las otras cuatro: volver a escribirla aquí sería la segunda
+  // implementación de la misma frase, y divergir significaría explicar un total
+  // distinto del que la tabla enseña.
+  //
+  // Se pinta TAMBIÉN cuando todas las visitas tienen su costo real —en gris—,
+  // porque su primera frase hace falta SIEMPRE: que la columna «Operación»
+  // puede ser una estimación no se deduce de ningún número de la pantalla.
+  if (r.costosReales) {
+    avisos.push({
+      clave: 'ot-costo-real',
+      tono: r.costosReales.visitasConEstimacion > 0 ? 'alerta' : 'info',
+      texto: r.costosReales.nota,
+    })
+  }
+
+  // ─── EL MARGEN DE ESTA TABLA ES BRUTO ────────────────────────────────────
+  // Sale en TODA dimensión que pinte una columna de margen, y la condición se
+  // DERIVA del catálogo de columnas en vez de escribir aquí la lista de
+  // dimensiones. No es elegancia: una lista escrita a mano se queda vieja el día
+  // que alguien añada el margen a otra dimensión, y ese día la tabla enseñaría
+  // un margen bruto sin decir que lo es —que es exactamente el defecto que este
+  // aviso viene a cerrar—. Derivándolo, el aviso sigue a la columna solo.
+  //
+  // `entidad`, `tarifa` y `vendedor` NO lo llevan, y no por omisión: ninguna de
+  // las tres pinta margen (`COLUMNAS_POR_DIMENSION`), así que el aviso hablaría
+  // de una columna que no está. `entidad` ya dice lo suyo con `saldoAtribuido`.
+  if (COLUMNAS_POR_DIMENSION[r.dimension].includes('margenBruto')) {
+    avisos.push({ clave: 'margen-bruto-no-neto', tono: 'info', texto: TEXTO_MARGEN_BRUTO })
+  }
+
   if (r.convencionM2) {
     avisos.push({ clave: 'm2-convencion', tono: 'info', texto: TEXTO_CONVENCION[r.convencionM2] })
   }
@@ -882,7 +946,7 @@ export function avisosDelReporte(r: ReporteParaAvisos): AvisoReporte[] {
             // como «no pasó nada», que es la verdad.
             `${cuenta(n, r.dimension)} sin ingreso en el rango. ${n === 1 ? 'Aparece' : 'Aparecen'} en cero a propósito: en una serie de tiempo un hueco se lee como «faltan datos» y un cero se lee como «no pasó nada».`
           : // Son justo las que este reporte existe para encontrar, y su
-            // `margenPct` es `null`, así que en la columna del porcentaje no se
+            // `margenBrutoPct` es `null`, así que en la columna del porcentaje no se
             // ven.
             `${cuenta(n, r.dimension)} ${n === 1 ? 'costó' : 'costaron'} sin vender nada en el periodo, así que no ${n === 1 ? 'tiene' : 'tienen'} margen porcentual (la columna sale con «—»).`,
     })

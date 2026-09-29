@@ -5,6 +5,74 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-09-29
+
+- **Ahora puedes capturar lo que de verdad costó cada visita, y el reporte deja
+  de estimarlo.**
+  *(**Pendiente de tu aprobacion**: lleva un cambio de base de datos y esos no se
+  aplican sin que tu digas que si.)*
+
+  **El problema, dicho claro.** Lo que el reporte de rentabilidad llamaba «costo
+  de operacion» **no era un costo**: era una **tarifa por tipo de tarea** que tu
+  capturas una vez en Configuracion. O sea que **todas las herrerias costaban lo
+  mismo**: una de $12,000 y una de $800 entraban al reporte las dos por el mismo
+  importe. El margen salia falso en las dos direcciones y nada en la pantalla lo
+  decia.
+
+  **Que cambia.** Cada orden de trabajo tiene ahora un campo **«Costo real de
+  esta visita»**. Lo capturas cuando lo sepas —muchas veces dias despues, cuando
+  la cuadrilla pasa su factura— y **no hace falta esperar a cerrar la orden ni
+  volver a abrirla**: tambien se puede capturar en ordenes ya cerradas.
+
+  **Lo mas importante de entender, y la pantalla lo dice:**
+
+  - **El costo que capturas SUSTITUYE a la estimacion por tipo; no se suma a
+    ella.** Si la estimacion de una herreria es $1,500 y capturas $12,000, esa
+    visita cuesta $12,000 — no $13,500. Las dos cosas miden lo mismo, asi que
+    sumarlas seria cobrar dos veces la misma visita.
+  - **Dejar el campo vacio NO es cero.** Vacio significa «no lo se todavia», y
+    entonces el reporte sigue usando la estimacion. Si de verdad una visita no
+    costo nada, escribe **0**: eso es un dato, y el reporte lo respeta.
+  - **Puedes borrar un costo capturado** (vaciando el campo) y la visita vuelve a
+    la estimacion.
+  - **Capturar un costo te pedira tu contraseña** si tienes activado el control
+    de cambios, igual que facturar o registrar un pago. Es dinero que cambia el
+    margen. **Cerrar una orden con su foto sigue sin pedirla** — eso lo hace la
+    cuadrilla en la calle y no se toco.
+
+  **El reporte ahora te dice de donde sale cada peso.** En «Por operacion», encima
+  de la tabla, hay un aviso que dice **cuantas visitas van con su costo real y
+  cuantas con la estimacion**, con los dos importes por separado. Sin el, un
+  total de «$13,500 de operacion» no se puede interpretar: no se sabe si costo
+  eso o si se estima que costo eso. **Y este hueco es el unico del reporte que no
+  se ve mirando la tabla**: una visita sin capturar no sale con una raya ni con
+  un cero, sale con una cifra creible.
+
+  El aviso **sale siempre**, tambien cuando todas las visitas estan capturadas —
+  en gris—, porque su primera frase hace falta igual.
+
+  **Y el costo capturado se usa en los TRES sitios donde se ve un margen**, no
+  solo en el reporte: tambien en el **tablero de inicio** y en el **margen de
+  cada campaña**. Esto importa mas de lo que parece: si el reporte usara el costo
+  real y el tablero siguiera con la estimacion, **el mismo mes tendria dos
+  margenes distintos** segun donde lo miraras, y ninguno de los dos daria error.
+
+- **La columna «Margen» del reporte pasa a llamarse «Margen bruto».**
+
+  **La cuenta no cambia ni un peso.** Sigue siendo ingreso menos el espacio,
+  menos la operacion, menos la luz. Lo que cambia es que ahora se llama por su
+  nombre: eso **es** un margen bruto.
+
+  **Y el reporte dice lo que NO es, porque es la confusion que invita.** Margen
+  bruto no es margen neto. Al neto le faltarian los **costos indirectos**
+  —nomina, oficina, estructura— y **el sistema no captura ninguno**. O sea que el
+  neto **no se calcula restandole nada a lo que ves en la tabla**: si algun dia
+  lo necesitas, lo que falta son datos que hoy nadie captura, no una columna que
+  este escondida en otra pantalla. Esa frase esta escrita en el propio reporte,
+  encima de la tabla.
+
+---
+
 ## 2026-09-28
 
 - **Paquetes cerrados: «estas cinco pantallas, un mes: $180,000».**

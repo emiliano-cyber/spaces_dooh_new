@@ -130,7 +130,7 @@ describe('el guion: Tlalpan sale menos rentable, y por la OPERACIÓN', () => {
     const rep = rentabilidadPorSitio(datosDeRentabilidad(p) as any, rangoDelPlan(p))
     const tlalpan = filaDe(rep, SITIO_TLALPAN)
     const santaMonica = filaDe(rep, SITIO_SANTA_MONICA)
-    expect(tlalpan.margen).toBeLessThan(santaMonica.margen)
+    expect(tlalpan.margenBruto).toBeLessThan(santaMonica.margenBruto)
   })
 
   it('la diferencia NO viene de las ventas: el ingreso de las dos es el mismo', () => {
@@ -151,7 +151,7 @@ describe('el guion: Tlalpan sale menos rentable, y por la OPERACIÓN', () => {
     const t = filaDe(rep, SITIO_TLALPAN)
     const s = filaDe(rep, SITIO_SANTA_MONICA)
 
-    const brecha = s.margen - t.margen
+    const brecha = s.margenBruto - t.margenBruto
     const porOperacion = t.costoOperacion - s.costoOperacion
     const porEspacio = t.costoEspacio - s.costoEspacio
 
@@ -197,8 +197,8 @@ describe('el guion: Tlalpan sale menos rentable, y por la OPERACIÓN', () => {
     const p = plan()
     const rep = rentabilidadPorSitio(datosDeRentabilidad(p) as any, rangoDelPlan(p))
     const t = filaDe(rep, SITIO_TLALPAN)
-    const primero = t.periodos[0].margen
-    const ultimo = t.periodos[t.periodos.length - 1].margen
+    const primero = t.periodos[0].margenBruto
+    const ultimo = t.periodos[t.periodos.length - 1].margenBruto
     expect(ultimo).toBeLessThan(primero)
   })
 
@@ -431,7 +431,7 @@ describe('recibos de luz: los cuatro trimestres, con huecos a propósito', () =>
     const rep = rentabilidadPorSitio(datosDeRentabilidad(p) as any, rangoDelPlan(p))
     const t = filaDe(rep, SITIO_TLALPAN)
     const s = filaDe(rep, SITIO_SANTA_MONICA)
-    const brecha = s.margen - t.margen
+    const brecha = s.margenBruto - t.margenBruto
     expect(t.costoOperacion - s.costoOperacion).toBeGreaterThan(brecha * 0.75)
     expect(Math.abs(t.costoEnergia - s.costoEnergia)).toBeLessThan(brecha * 0.25)
   })
@@ -504,7 +504,7 @@ describe('caras: la decisión del m² deja de ser invisible', () => {
       const d = filaDe(despues, clave)
       expect(d.costoEspacio, `${clave} costoEspacio`).toBe(a.costoEspacio)
       expect(d.costoEnergia, `${clave} costoEnergia`).toBe(a.costoEnergia)
-      expect(d.margen, `${clave} margen`).toBe(a.margen)
+      expect(d.margenBruto, `${clave} margen`).toBe(a.margenBruto)
     }
   })
 })
@@ -595,7 +595,7 @@ describe('el eje del tiempo: el ingreso es plano y el margen CAE', () => {
   it('el margen del reporte por trimestre CAE, y sin repuntes', () => {
     const p = plan()
     const rep = rentabilidadPorTrimestre(datosDeRentabilidad(p) as any, rangoDelPlan(p))
-    const margenes = rep.filas.map((f: any) => f.margen)
+    const margenes = rep.filas.map((f: any) => f.margenBruto)
     expect(margenes.length).toBe(p.trimestres.length)
     for (let i = 1; i < margenes.length; i++) {
       expect(

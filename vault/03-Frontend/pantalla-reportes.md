@@ -87,7 +87,7 @@ primera corrección: es el error de raíz que este repositorio documenta en
 
 ## Lo que encontraron las PRUEBAS el día uno
 
-- **El `null` de `margenPct` va al final en las DOS direcciones.** Es el único
+- **El `null` de `margenBrutoPct` va al final en las DOS direcciones.** Es el único
   sitio de la pantalla donde el ordenamiento puede **mentir sin dar error**:
   `null` significa «no hubo ingreso», no «0 %», y tratado como cero coloca la
   pantalla que costó 15 000 y no vendió nada entre las que quedaron a la par.
@@ -179,7 +179,7 @@ Lo que hay ahora, todo en `tabla.ts` y todo probado:
 | `sitio` | — | Pantalla | peor **margen** |
 | `trimestre` | — | **Trimestre** | **cronológico** (por `clave`) |
 | `operacion` | `visitas` · `costoOperacionPct` · `horasEnSitio` | Pantalla | más **costo de operación** |
-| `m2` | `m2` · `ingresoPorM2` · `margenPorM2` | Pantalla | peor **margen / m²** |
+| `m2` | `m2` · `ingresoPorM2` · `margenBrutoPorM2` | Pantalla | peor **margen / m²** |
 
 Cuatro decisiones del diseño que no son de estilo:
 
@@ -193,7 +193,7 @@ Cuatro decisiones del diseño que no son de estilo:
   como cadenas que este repo ya pagó dos veces.
 - **El pie solo totaliza las seis columnas que trae `Totales`.** Las demás salen
   en blanco a propósito: sumar aquí divergiría del servidor, y con
-  `margenPorM2` sería peor que divergir — es un **cociente**, y el promedio de
+  `margenBrutoPorM2` sería peor que divergir — es un **cociente**, y el promedio de
   los cocientes de las filas no es el cociente del total porque cada pantalla
   tiene otra superficie. Sería una cifra que no es de nadie.
 - **El orden de cada dimensión es EL MISMO que el de su motor.** Si la tabla

@@ -19,7 +19,7 @@ import { rentabilidadPorSitio, rentabilidadPorTarifa, DIMENSIONES_REPORTE } from
 //     tiene snapshot y no hay tarifa de lista congelada que enseñar. Esa fila
 //     sale con `null` —una RAYA en pantalla—, nunca con un cero: un cero en la
 //     columna «Tarifa publicada» se lee como «se regaló la tarifa entera», que
-//     es lo contrario de «no se sabe». Misma regla que `margenPct` y que
+//     es lo contrario de «no se sabe». Misma regla que `margenBrutoPct` y que
 //     `costoPorKwh`.
 //
 //  2 · SOLO SE COMPARA LO QUE ES COMPARABLE, Y SE COMPARA CONTRA SÍ MISMO.

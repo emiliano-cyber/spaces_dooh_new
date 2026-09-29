@@ -36,8 +36,8 @@ const fila = (over: Partial<FilaOrdenable> & { clave: string }): FilaOrdenable =
     costoOperacion: 0,
     costoEnergia: 0,
     costoTotal: 0,
-    margen: 0,
-    margenPct: null,
+    margenBruto: 0,
+    margenBrutoPct: null,
     tieneContrato: false,
     visitas: 0,
     ...over,
@@ -72,8 +72,8 @@ describe('las columnas: lo que se pinta y lo que NO', () => {
   })
 
   it('NO pinta margen ni margen %: le faltarian dos fuentes de costo', () => {
-    expect(claves()).not.toContain('margen')
-    expect(claves()).not.toContain('margenPct')
+    expect(claves()).not.toContain('margenBruto')
+    expect(claves()).not.toContain('margenBrutoPct')
   })
 
   it('NO pinta operacion, luz ni costo total: en esta dimension no se atribuyen', () => {

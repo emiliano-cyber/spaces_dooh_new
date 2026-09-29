@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-09-21
+actualizado: 2026-09-29
 tags: [backend, operaciones, ot, imprenta, amarillo]
 archivos:
   - apps/web/lib/server/ot-repo.ts
@@ -14,6 +14,7 @@ archivos:
   - apps/web/lib/costos-ot-payload.ts
   - apps/web/app/(app)/(shell)/administracion/page.tsx
   - db/migrations/20260917_costos_ot_por_tipo.sql
+  - db/migrations/20260929_costo_real_ot.sql
 ---
 
 # Operaciones, OT e imprenta
@@ -32,8 +33,13 @@ mantenimiento, herrería, eléctrico, inspección (`tipo_ot`, `db/schema.sql:53`
 | `almacen-repo.ts` | 96 | Activos y traslados |
 
 > [!warning] No existe forma de reasignar una OT ya creada
-> Las rutas son `GET·POST /api/ot`, `GET /api/ot/[id]` y `POST /api/ot/[id]/cerrar`.
-> **No hay `PATCH`.** `asignado_a` solo se escribe en dos momentos: al **crear**
+> Las rutas son `GET·POST /api/ot`, `GET /api/ot/[id]`,
+> `POST /api/ot/[id]/cerrar` y —desde el **2026-09-29**—
+> `PATCH /api/ot/[id]/costo` ([[02-Backend/costo-real-de-ot]]).
+>
+> **Ese `PATCH` es SOLO del costo**, y no abre la puerta a editar lo demás: es
+> una ruta de un solo campo, con el candado de dinero, no un editor general de
+> la OT. `asignado_a` sigue sin poder cambiarse. Se escribe en dos momentos: al **crear**
 > la OT (`crearOTCtrl`, campo `asignadoA`) y al **cerrarla**, donde
 > `ot-repo.ts:193` hace `asignado_a = coalesce(asignado_a, $3)` para estampar a
 > quien cierra. Cambiar el responsable de una OT existente exige un script de
@@ -84,6 +90,18 @@ pantalla fija → OT de montaje. Nacen `PENDIENTE` con nota de origen y son a
 mejor esfuerzo.
 
 ## Cuánto cuesta una OT — por TIPO y desde Configuración
+
+> [!important] Desde el 2026-09-29 esto es el RESPALDO, no la única fuente
+> `ordenes_trabajo.costo_real` permite capturar **lo que de verdad costó** cada
+> visita, y ese importe **SUSTITUYE** a la tarifa por tipo de aquí abajo — no se
+> le suma, porque las dos miden el costo de la orden entera. La tarifa por tipo
+> pasa a ser lo que siempre fue de hecho: una **estimación** para cuando el
+> costo real no se ha capturado, y el reporte ahora **declara cuántas visitas
+> van con cada cosa**.
+>
+> Todo el porqué —incluido que `0` no es lo mismo que «sin capturar», y por qué
+> la captura es una ruta propia con candado de dinero— está en
+> [[02-Backend/costo-real-de-ot]].
 
 Desde el **2026-09-17** el costo de mano de obra de una orden de trabajo sale de
 `config_negocio.costos_ot` (jsonb, una fila por tenant — ADR 0011) y se resuelve

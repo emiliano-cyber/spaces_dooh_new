@@ -724,6 +724,25 @@ export async function cerrarOTApi(
   if (!r.ok) throw new Error(d.error ?? 'No se pudo cerrar la OT')
 }
 
+// OT-COSTO-01 · fija o borra el costo real de una OT. `null` lo borra y la
+// visita vuelve a entrar al reporte con la estimación por tipo.
+//
+// La ruta pasa por el candado de cambios (es dinero), así que esto puede
+// devolver el 403 de «falta desbloquear». NO se trata aquí: se deja subir tal
+// cual para que la pantalla lo reconozca con `esErrorDeDesbloqueo()` y abra el
+// cuadro de la contraseña, que es como lo hacen las demás pantallas de dinero
+// (`lib/cambios-candado.ts`).
+export async function fijarCostoOTApi(id: string, costoReal: number | null) {
+  const r = await fetch(`${API}/ot/${id}/costo/`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ costoReal }),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo guardar el costo')
+  return d
+}
+
 // ─── Creativos ──────────────────────────────────────────────────────────────
 export async function crearCreatividadApi(input: {
   campanaId: string

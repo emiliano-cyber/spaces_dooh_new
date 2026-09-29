@@ -151,7 +151,12 @@ export async function datosRentabilidad(rango: RangoReporte): Promise<DatosRenta
               to_char(creado_en,        'YYYY-MM-DD') as creado_en,
               case when fecha_inicio is not null and fecha_completada is not null
                    then extract(epoch from (fecha_completada - fecha_inicio))
-              end as duracion_seg
+              end as duracion_seg,
+              -- OT-COSTO-01. Lo que de VERDAD costo la visita. Sustituye a la
+              -- tarifa por tipo en el motor; nulo = sin capturar, y entonces
+              -- vale la estimacion. Viaja como texto (numeric) y se convierte
+              -- abajo con Number, igual que duracion_seg.
+              costo_real
          from ordenes_trabajo
         where tenant_id = $1
           and coalesce(fecha_completada, fecha_programada, creado_en)::date
@@ -439,6 +444,12 @@ export async function datosRentabilidad(rango: RangoReporte): Promise<DatosRenta
       fechaProgramada: r.fecha_programada ?? null,
       creadoEn: r.creado_en ?? null,
       duracionSeg: r.duracion_seg == null ? null : Number(r.duracion_seg),
+      // OT-COSTO-01. `numeric` llega de `pg` como TEXTO: sin el `Number()` el
+      // motor sumaría CONCATENANDO y el costo de operación saldría como una
+      // cadena — que no da error, da una cifra absurda. Y el `== null` conserva
+      // el nulo, que es lo que distingue «no se capturó» de «costó cero»: de eso
+      // depende que entre la estimación por tipo o no.
+      costoReal: r.costo_real == null ? null : Number(r.costo_real),
     })),
     // `numeric` llega del driver como TEXTO. Sin el `Number()`, sumar kWh
     // concatenaría cadenas y el reparto multiplicaría texto por fracción: a

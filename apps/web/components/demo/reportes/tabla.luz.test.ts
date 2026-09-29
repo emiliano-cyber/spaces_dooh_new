@@ -38,8 +38,8 @@ function fila(p: Partial<FilaOrdenable> & { clave: string }): FilaOrdenable {
     costoOperacion: 0,
     costoEnergia: 0,
     costoTotal: 0,
-    margen: 0,
-    margenPct: null,
+    margenBruto: 0,
+    margenBrutoPct: null,
     tieneContrato: true,
     visitas: 0,
     ...p,
@@ -124,7 +124,7 @@ describe('2 · el costo de la ENERGIA se pinta en TODAS las dimensiones', () => 
     // `entidad`: si algun dia `tarifa` gana una columna de costo, este guard se
     // pone rojo y obliga a decidirlo a proposito.
     const claves = columnasDeDimension('tarifa').map((c) => c.clave)
-    for (const c of ['costoEnergia', 'costoEspacio', 'costoOperacion', 'costoTotal', 'margen', 'margenPct']) {
+    for (const c of ['costoEnergia', 'costoEspacio', 'costoOperacion', 'costoTotal', 'margenBruto', 'margenBrutoPct']) {
       expect(claves, c).not.toContain(c)
     }
   })
@@ -136,7 +136,7 @@ describe('2 · el costo de la ENERGIA se pinta en TODAS las dimensiones', () => 
     // hiciera nada. Si algun dia aparece una columna de costo aqui, este guard
     // se pone rojo y obliga a decidirlo a proposito.
     const claves = columnasDeDimension('vendedor').map((c) => c.clave)
-    for (const c of ['costoEnergia', 'costoEspacio', 'costoOperacion', 'costoTotal', 'margen', 'margenPct']) {
+    for (const c of ['costoEnergia', 'costoEspacio', 'costoOperacion', 'costoTotal', 'margenBruto', 'margenBrutoPct']) {
       expect(claves, c).not.toContain(c)
     }
   })
@@ -145,7 +145,7 @@ describe('2 · el costo de la ENERGIA se pinta en TODAS las dimensiones', () => 
     // Que la exencion no se convierta en una puerta abierta: si algun dia
     // `entidad` gana una columna de margen, este guard se pone rojo.
     const claves = columnasDeDimension('entidad').map((c) => c.clave)
-    for (const c of ['costoEnergia', 'costoOperacion', 'costoTotal', 'margen', 'margenPct']) {
+    for (const c of ['costoEnergia', 'costoOperacion', 'costoTotal', 'margenBruto', 'margenBrutoPct']) {
       expect(claves, c).not.toContain(c)
     }
   })
@@ -195,7 +195,7 @@ describe('3 · las columnas PROPIAS de `luz`', () => {
 
   it('NEGATIVO: `luz` no trae las columnas de otra dimension', () => {
     const claves = columnasDeDimension('luz').map((c) => c.clave)
-    for (const ajena of ['visitas', 'costoOperacionPct', 'horasEnSitio', 'm2', 'ingresoPorM2', 'margenPorM2']) {
+    for (const ajena of ['visitas', 'costoOperacionPct', 'horasEnSitio', 'm2', 'ingresoPorM2', 'margenBrutoPorM2']) {
       expect(claves, ajena).not.toContain(ajena)
     }
   })
@@ -231,7 +231,7 @@ describe('3 · las columnas PROPIAS de `luz`', () => {
 })
 
 describe('4 · LO QUE FALTA se dice ENCIMA de la tabla', () => {
-  const filasLuz = [fila({ clave: 's1', costoEnergia: 3000, costoTotal: 3000, margen: -3000 })]
+  const filasLuz = [fila({ clave: 's1', costoEnergia: 3000, costoTotal: 3000, margenBruto: -3000 })]
 
   function avisos(cobertura: unknown) {
     return avisosDelReporte({

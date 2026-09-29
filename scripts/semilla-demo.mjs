@@ -1573,6 +1573,14 @@ select sd.clave_interna                                          as clave,
        coalesce(i.monto, 0)
          - round(coalesce(re.mensual, 0) * $4::numeric, 2)
          - coalesce(op.monto, 0)
+         -- OT-COSTO-01 · esto ES el margen bruto, y en el reporte la columna se
+         -- llama asi desde el 2026-09-29 (margenBruto). Aqui el alias se queda en
+         -- margen A PROPOSITO: es el nombre de una columna de ESTA consulta, que
+         -- este script escribe y lee el solo, no un campo del motor de reportes.
+         -- Renombrar el lado de JavaScript sin tocar este alias deja undefined,
+         -- el --verificar compara NaN < NaN y sale SIEMPRE con codigo 2. Paso al
+         -- hacer el renombrado, y no lo cazo ninguna prueba porque
+         -- semilla-demo.test.ts no ejerce este camino.
          - round(coalesce(en.monto, 0), 2)                        as margen
   from sitios_demo sd
   left join renta re     on re.id = sd.id

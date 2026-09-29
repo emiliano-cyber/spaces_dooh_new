@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-09-28
+actualizado: 2026-09-29
 tags: [backend, reportes, rentabilidad, finanzas, dinero, contratos, m2, operaciones, rojo]
 archivos:
   - apps/web/lib/data/reportes.ts
@@ -192,6 +192,20 @@ tipo** de `config_negocio.costos_ot` (ADR 0011) con respaldo — ver
 [[02-Backend/operaciones-y-ot]]: montar una lona y hacer una inspección no
 cuestan lo mismo, y hasta el 17/09 sí.
 
+> [!important] 2026-09-29 · esa tarifa por tipo es una ESTIMACIÓN, y ahora se dice
+> `ordenes_trabajo.costo_real` permite capturar lo que de verdad costó cada
+> visita, y **SUSTITUYE** a la tarifa de su tipo (no se le suma: las dos miden el
+> costo de la orden entera). Esta dimensión gana una quinta nota de cobertura,
+> **`costosReales`** (`CoberturaCostoOt`), que dice **cuántas visitas van medidas
+> y cuántas estimadas**, con sus dos importes por separado.
+>
+> **Es el hueco que peor se ve de los cinco**: una pantalla sin recibo de luz
+> sale con un cero y una venta sin tarifa publicada sale con una raya, pero una
+> visita sin costo capturado sale con **$1,500** —una cifra creíble— y nada en la
+> tabla la distingue de una que costó eso de verdad.
+>
+> Todo el porqué en [[02-Backend/costo-real-de-ot]].
+
 Columnas propias de esta dimensión:
 
 | Campo | Qué es |
@@ -306,12 +320,12 @@ aparecen en el código. **Normaliza los finales de línea antes de mirar** — �
 > |---|---|---|
 > | `m2` de la de 2 caras | 18 | **36** |
 > | `ingresoPorM2` | 2 000 | **1 000** |
-> | `margenPorM2` | 916.67 | **458.33** |
-> | `ingreso` · `costoEspacio` · `costoOperacion` · `costoTotal` · `margen` · `margenPct` · `visitas` | — | **idénticos** |
+> | `margenBrutoPorM2` | 916.67 | **458.33** |
+> | `ingreso` · `costoEspacio` · `costoOperacion` · `costoTotal` · `margenBruto` · `margenBrutoPct` · `visitas` | — | **idénticos** |
 > | `totales` del reporte (m² y sitio) | — | **idénticos** |
 > | orden de la dimensión `sitio` | — | **idéntico** |
 >
-> Solo se movieron `m2`, `ingresoPorM2` y `margenPorM2`. **El ranking por m² sí
+> Solo se movieron `m2`, `ingresoPorM2` y `margenBrutoPorM2`. **El ranking por m² sí
 > cambia**, y eso es la decisión, no un defecto: la de tres caras pasó de 300 a
 > 100 de margen/m² y la de dos de 916.67 a 458.33, así que el orden entre ellas
 > se invierte. Si alguna cifra de dinero se hubiera movido habría un

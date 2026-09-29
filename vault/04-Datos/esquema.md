@@ -1,7 +1,7 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-09-28
+actualizado: 2026-09-29
 tags: [datos, esquema, er, postgres]
 archivos:
   - db/schema.sql
@@ -453,6 +453,17 @@ erDiagram
 
 ### Operaciones
 `ordenes_trabajo`, `evidencias_ot`, `ordenes_impresion`.
+
+> [!important] `ordenes_trabajo.costo_real` (2026-09-29) — nullable y SIN DEFAULT
+> `numeric(14,2)`, con `check (costo_real is null or costo_real >= 0)`. Es lo que
+> de verdad costó la visita, y **SUSTITUYE** a la tarifa por tipo de
+> `config_negocio.costos_ot` en el reporte de rentabilidad.
+>
+> **`NULL` no es `0`.** `NULL` = nadie lo capturó, y entonces vale la estimación
+> por tipo; `0` = costó cero, que es un dato real. Un `DEFAULT 0` habría
+> convertido «no se sabe» en «no costó nada» sobre **todas** las órdenes
+> existentes de golpe, desplomando el costo de operación del reporte sin un solo
+> error. Ver [[02-Backend/costo-real-de-ot]].
 
 ### Finanzas
 `facturas`, `cobranzas`.

@@ -111,7 +111,7 @@ describe('rentabilidadPorSitio — prorrateo de la reserva que cruza el borde', 
     const s1 = r.filas.find((f) => f.clave === 'S1')!
     expect(s1.ingreso).toBe(16468.75)
     expect(s1.costoEspacio).toBe(15000)
-    expect(s1.margen).toBe(1468.75)
+    expect(s1.margenBruto).toBe(1468.75)
   })
 
   it('los 15 dias de abril NO se cuentan en el trimestre 1', () => {
@@ -150,10 +150,10 @@ describe('rentabilidadPorSitio — prorrateo de la reserva que cruza el borde', 
     const s2 = r.filas.find((f) => f.clave === 'S2')!
     expect(s2.ingreso).toBe(0)
     expect(s2.costoEspacio).toBe(15000)
-    expect(s2.margen).toBe(-15000)
-    // Sin ingreso no hay porcentaje de margen: un «0 %» sobre 15 000 de costo
+    expect(s2.margenBruto).toBe(-15000)
+    // Sin ingreso no hay porcentaje de margenBruto: un «0 %» sobre 15 000 de costo
     // se lee como «no gana ni pierde», que es justo lo contrario.
-    expect(s2.margenPct).toBeNull()
+    expect(s2.margenBrutoPct).toBeNull()
   })
 
   it('un rango de medio mes cobra la fraccion de renta, no el mes entero', () => {

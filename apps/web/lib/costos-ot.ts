@@ -72,6 +72,52 @@ export function costoDeOt(tipo: string, costos?: Record<string, number> | null):
   return COSTOS_OT_RESPALDO[tipo as TipoOT] ?? COSTOS_OT_RESPALDO.OTRO
 }
 
+// ─── OT-COSTO-01 · el costo REAL sustituye a la estimación por tipo ─────────
+//
+//  `costoDeOt` de arriba sigue contestando «cuánto SE ESTIMA que cuesta una OT
+//  de este tipo». Lo que viene ahora contesta la pregunta que de verdad usan los
+//  tres que calculan margen: «cuánto costó ESTA orden».
+//
+//  ⚠️ LA REGLA SE DECLARA AQUÍ Y SOLO AQUÍ, y no es preferencia de estilo.
+//  La usan el motor de reportes (`lib/data/reportes.ts`), el dashboard del dueño
+//  y el P&L por campaña (`lib/data/derive.ts`). Escrita tres veces, divergiría —
+//  y divergir aquí significa que **el reporte diga 12 000 y el dashboard 1 500
+//  por la misma visita**, sin ningún error. Es el fallo que la cabecera de este
+//  archivo dice que viene a evitar, y el que el comentario de `derive.ts` ya
+//  había escrito sobre la constante vieja.
+//
+//  De hecho ya pasó, durante este mismo cambio: al meter `costo_real` solo en el
+//  motor de reportes, los otros dos se quedaron cobrando la tarifa por tipo.
+
+/** La forma mínima que hace falta para cobrar una OT. */
+export interface OtConCosto {
+  tipo: string
+  costoReal?: number | null
+}
+
+// ¿Esta orden trae su costo REAL capturado?
+//
+// `!= null` y NUNCA un truthy: `costoReal === 0` es un costo capturado y válido
+// —una inspección que hace el propio dueño no paga cuadrilla— y con `!!` o con
+// `||` caería a la estimación, cobrando 1 500 por una visita que costó nada.
+// Mismo criterio que `importeValido()`, que acepta el 0 a propósito.
+export function tieneCostoReal(ot: OtConCosto): boolean {
+  return ot.costoReal != null
+}
+
+// Lo que cuesta ESTA orden de trabajo: su costo real si alguien lo capturó, y
+// si no, la estimación por tipo.
+//
+// SUSTITUYE, no suma: las dos cifras miden el costo de la orden ENTERA, así que
+// sumarlas cobraría dos veces la misma visita — y el error saldría como un
+// margen MENOR, que es la dirección en la que nadie sospecha de una cifra.
+export function costoEfectivoDeOt(
+  ot: OtConCosto,
+  costos?: Record<string, number> | null,
+): number {
+  return tieneCostoReal(ot) ? (ot.costoReal as number) : costoDeOt(ot.tipo, costos)
+}
+
 // Lo que se puede GUARDAR en `config_negocio.costos_ot`: solo claves del enum y
 // solo importes utilizables. Todo lo demás se descarta en silencio en vez de
 // rechazar la petición entera, porque una clave desconocida no es un error del

@@ -205,12 +205,12 @@ por donde ya se leía. Ver [[tarifa-publicada-vs-neta]].
 > Junto a `entidad` y `tarifa`, y por un motivo **propio de esta**: aquí las
 > filas son **personas**. La renta que se le paga al arrendador y las visitas a
 > la pantalla **no las decide el vendedor**, así que `costoEspacio`,
-> `costoOperacion` y `margen` medirían a alguien por un contrato de arrendamiento
+> `costoOperacion` y `margenBruto` medirían a alguien por un contrato de arrendamiento
 > que no negoció — y que además cambiaría sin que él hiciera nada.
 >
 > **«El margen de Ana» no existe**, y pintarlo invitaría a usarlo. Hay guard:
 > `tabla.luz.test.ts` comprueba que la exención sea **exacta** (ni costo alguno,
-> ni margen, ni `margenPct`), así que el día que aparezca una columna de costo
+> ni margen, ni `margenBrutoPct`), así que el día que aparezca una columna de costo
 > aquí se pone rojo y obliga a decidirlo a propósito.
 
 Las cuatro columnas de la comparación son **las mismas** que las de `tarifa`, con

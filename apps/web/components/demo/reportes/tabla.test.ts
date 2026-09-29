@@ -12,7 +12,7 @@ import {
 // ============================================================================
 //  El ordenamiento de la tabla y el formato de sus dos columnas raras.
 // ----------------------------------------------------------------------------
-//  `margenPct` es `number | null`, y ese `null` significa «no hubo ingreso»,
+//  `margenBrutoPct` es `number | null`, y ese `null` significa «no hubo ingreso»,
 //  NO «0 %». Si se ordena o se pinta como un cero, una pantalla con 15 000 de
 //  renta y cero ventas se lee como «no gana ni pierde», que es lo contrario de
 //  lo que paso. Es el unico sitio donde el ordenamiento puede MENTIR, y por eso
@@ -32,8 +32,8 @@ function fila(p: Partial<FilaOrdenable> & { clave: string }): FilaDePrueba {
     costoOperacion: 0,
     costoEnergia: 0,
     costoTotal: 0,
-    margen: 0,
-    margenPct: null,
+    margenBruto: 0,
+    margenBrutoPct: null,
     tieneContrato: true,
     visitas: 0,
     visitasPorTipo: {},
@@ -42,7 +42,7 @@ function fila(p: Partial<FilaOrdenable> & { clave: string }): FilaDePrueba {
     visitasConDuracion: 0,
     m2: 0,
     ingresoPorM2: 0,
-    margenPorM2: 0,
+    margenBrutoPorM2: 0,
     kwh: 0,
     costoPorKwh: null,
     papeles: [],
@@ -57,10 +57,10 @@ function fila(p: Partial<FilaOrdenable> & { clave: string }): FilaDePrueba {
 }
 
 const filas: FilaDePrueba[] = [
-  fila({ clave: 'a', etiqueta: 'Periferico Sur', ingreso: 100_000, margen: 40_000, margenPct: 40, costoTotal: 60_000 }),
-  fila({ clave: 'b', etiqueta: 'Andes', ingreso: 50_000, margen: -10_000, margenPct: -20, costoTotal: 60_000 }),
-  fila({ clave: 'c', etiqueta: 'Ángeles', ingreso: 0, margen: -15_000, margenPct: null, costoTotal: 15_000, tieneContrato: true }),
-  fila({ clave: 'd', etiqueta: 'Bosques', ingreso: 20_000, margen: 20_000, margenPct: 100, costoTotal: 0, tieneContrato: false }),
+  fila({ clave: 'a', etiqueta: 'Periferico Sur', ingreso: 100_000, margenBruto: 40_000, margenBrutoPct: 40, costoTotal: 60_000 }),
+  fila({ clave: 'b', etiqueta: 'Andes', ingreso: 50_000, margenBruto: -10_000, margenBrutoPct: -20, costoTotal: 60_000 }),
+  fila({ clave: 'c', etiqueta: 'Ángeles', ingreso: 0, margenBruto: -15_000, margenBrutoPct: null, costoTotal: 15_000, tieneContrato: true }),
+  fila({ clave: 'd', etiqueta: 'Bosques', ingreso: 20_000, margenBruto: 20_000, margenBrutoPct: 100, costoTotal: 0, tieneContrato: false }),
 ]
 
 describe('1 · el orden por omision es el del servidor: peor margen primero', () => {
@@ -69,7 +69,7 @@ describe('1 · el orden por omision es el del servidor: peor margen primero', ()
     // dinero?». Si la pantalla reordenara al recibir, discutiria con el
     // servidor sobre la misma pregunta. El orden de las otras tres dimensiones
     // —y el CRONOLOGICO de `trimestre`— esta en `tabla.dimensiones.test.ts`.
-    expect(ordenInicialDe('sitio')).toEqual({ columna: 'margen', direccion: 'asc' })
+    expect(ordenInicialDe('sitio')).toEqual({ columna: 'margenBruto', direccion: 'asc' })
     expect(ordenarFilas(filas, ordenInicialDe('sitio'), 'sitio').map((f) => f.etiqueta)).toEqual([
       'Ángeles',
       'Andes',
@@ -79,18 +79,18 @@ describe('1 · el orden por omision es el del servidor: peor margen primero', ()
   })
 })
 
-describe('2 · el null de margenPct no se ordena como un cero', () => {
+describe('2 · el null de margenBrutoPct no se ordena como un cero', () => {
   it('va al final ordenando ascendente', () => {
-    const r = ordenarFilas(filas, { columna: 'margenPct', direccion: 'asc' }, 'sitio')
-    expect(r.map((f) => f.margenPct)).toEqual([-20, 40, 100, null])
+    const r = ordenarFilas(filas, { columna: 'margenBrutoPct', direccion: 'asc' }, 'sitio')
+    expect(r.map((f) => f.margenBrutoPct)).toEqual([-20, 40, 100, null])
   })
 
   it('y TAMBIEN al final ordenando descendente', () => {
     // Un `null` tratado como 0 se colaria entre -20 y 40 en una direccion y al
     // principio en la otra: la fila sin ingreso saltaria de sitio y parecia que
     // «no gana ni pierde».
-    const r = ordenarFilas(filas, { columna: 'margenPct', direccion: 'desc' }, 'sitio')
-    expect(r.map((f) => f.margenPct)).toEqual([100, 40, -20, null])
+    const r = ordenarFilas(filas, { columna: 'margenBrutoPct', direccion: 'desc' }, 'sitio')
+    expect(r.map((f) => f.margenBrutoPct)).toEqual([100, 40, -20, null])
   })
 })
 
@@ -126,7 +126,7 @@ describe('4 · el clic en la cabecera', () => {
   it('una columna nueva arranca en SU direccion util, no en la que quedara', () => {
     // Al pasar de «margen ascendente» a «ingreso», lo util es el ingreso mayor
     // primero; heredar el `asc` pondria arriba las pantallas que no vendieron.
-    expect(siguienteOrden({ columna: 'margen', direccion: 'asc' }, 'ingreso')).toEqual({
+    expect(siguienteOrden({ columna: 'margenBruto', direccion: 'asc' }, 'ingreso')).toEqual({
       columna: 'ingreso',
       direccion: 'desc',
     })
@@ -136,9 +136,9 @@ describe('4 · el clic en la cabecera', () => {
     })
   })
 
-  it('margen y margenPct arrancan por el PEOR, igual que el reporte', () => {
-    expect(siguienteOrden({ columna: 'etiqueta', direccion: 'asc' }, 'margen').direccion).toBe('asc')
-    expect(siguienteOrden({ columna: 'etiqueta', direccion: 'asc' }, 'margenPct').direccion).toBe('asc')
+  it('margen y margenBrutoPct arrancan por el PEOR, igual que el reporte', () => {
+    expect(siguienteOrden({ columna: 'etiqueta', direccion: 'asc' }, 'margenBruto').direccion).toBe('asc')
+    expect(siguienteOrden({ columna: 'etiqueta', direccion: 'asc' }, 'margenBrutoPct').direccion).toBe('asc')
   })
 
   it('hay una columna por cada campo ordenable de la fila, y ninguna repetida', () => {
@@ -213,7 +213,13 @@ describe('6 · lo que el reporte deja fuera se ensena, no se esconde', () => {
     expect(a.find((x) => x.clave === 'sin-ingreso')?.texto).toMatch(/^1 pantalla /)
   })
 
-  it('sobre cero filas no inventa advertencias', () => {
-    expect(avisosDelReporte({ ...CERRADO, dimension: 'sitio', filas: [] })).toEqual([])
+  it('sobre cero filas no inventa advertencias SOBRE LOS DATOS', () => {
+    // Lo unico que queda es la nota de que el margen es BRUTO, y esa no es una
+    // advertencia sobre los datos: es lo que significa una COLUMNA de la tabla,
+    // igual que `m2-convencion` en la dimension `m2`. Sale con filas y sin
+    // ellas porque la cabecera dice «Margen bruto» en los dos casos.
+    expect(
+      avisosDelReporte({ ...CERRADO, dimension: 'sitio', filas: [] }).map((a) => a.clave),
+    ).toEqual(['margen-bruto-no-neto'])
   })
 })

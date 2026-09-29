@@ -79,7 +79,7 @@ describe('el contrato de un periodo PASADO cuenta aunque hoy este VENCIDO', () =
   it('un trimestre de 2025 cobra la renta que se pagaba en 2025', () => {
     const f = fila(RELEVO, T1_2025)!
     expect(f.costoEspacio).toBe(24000)
-    expect(f.margen).toBe(-24000)
+    expect(f.margenBruto).toBe(-24000)
   })
 
   it('y el arrendador de la fila es el de ESE periodo, no el de hoy', () => {

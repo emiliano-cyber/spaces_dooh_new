@@ -262,8 +262,8 @@ describe('la atribucion del costo es del PERIODO, contra la base real', () => {
     expect(fila.costoEspacio).toBeGreaterThan(0)
     expect(fila.tieneContrato).toBe(true)
     // Sin ingreso en ese rango, el margen es todo negativo y sin porcentaje.
-    expect(fila.margen).toBeLessThan(0)
-    expect(fila.margenPct).toBeNull()
+    expect(fila.margenBruto).toBeLessThan(0)
+    expect(fila.margenBrutoPct).toBeNull()
   })
 
   it('y ese rango sigue aislado: ni una fila de beta', async () => {
