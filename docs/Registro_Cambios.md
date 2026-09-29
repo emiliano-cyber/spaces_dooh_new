@@ -7,6 +7,39 @@ La entrada más reciente va arriba.
 
 ## 2026-09-29
 
+- **Antes de subir los recibos ahora eliges cuantos meses esperas, y el sistema
+  comprueba si el PDF coincide.** *(Decision tuya del 29/09.)*
+
+  En **Consumo de luz**, arriba del boton de subir, hay un selector nuevo:
+  **«¿Cuantos meses de calendario cubre cada recibo de esta tanda?»**. El boton de
+  subir **no se activa hasta que eliges uno** — y ese orden es el punto: una
+  expectativa escrita despues de ver la respuesta no comprueba nada.
+
+  Al subir, cada recibo que **no** coincida con lo que declaraste sale **marcado**,
+  con los dos numeros a la vista: «declaraste 2 y este cubre 3». Y el resumen de
+  arriba te dice la causa cuando la hay — «los 12 cubren 2 meses de calendario» se
+  arregla cambiando el selector, sin mirar doce recibos uno por uno.
+
+  **Manda SIEMPRE el PDF, no lo que declaraste.** Si no coinciden, el recibo se
+  reparte igual segun el periodo que dice el papel y **se puede guardar**: lo
+  declarado es una expectativa, no una orden. Si mandara lo declarado, un error de
+  dedo meteria un recibo bimestral dentro de un solo mes — triplicando el costo de
+  ese mes y dejando los otros dos como «falta recibo», sin dar ningun error.
+
+  **Ojo con lo que significa «cuantos meses», porque es lo que mas confunde:** se
+  cuentan los meses de calendario que el periodo **toca**, no lo que dura. Medido
+  sobre tus 72 recibos:
+
+  - Un recibo **mensual** dura ~31 dias pero empieza a mitad de mes, asi que toca
+    **DOS** meses de calendario. **Los 15 mensuales de tu lote, los 15.**
+  - Un recibo **bimestral** toca normalmente **TRES**. De los 57 tuyos, 49 tocan 3.
+
+  O sea que quien piense «es mensual, pues 1» veria el aviso en los 15. La pantalla
+  lo dice en cada opcion del selector para que no pase.
+
+  **Y si mezclas mensuales y bimestrales en la misma tanda, muchos saldran
+  marcados.** Eso no es un fallo: subelos por separado y la pantalla queda limpia.
+
 - **Ahora puedes capturar lo que de verdad costó cada visita, y el reporte deja
   de estimarlo.**
   *(**Pendiente de tu aprobacion**: lleva un cambio de base de datos y esos no se

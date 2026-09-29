@@ -2,7 +2,11 @@ import { NextResponse } from 'next/server'
 import { exigir } from '@/lib/server/auth'
 import { respuestaError } from '@/lib/server/errores'
 import { AppError } from '@/lib/server/errores'
-import { MAXIMO_ARCHIVOS, interpretarRecibosCtrl } from '@/lib/server/recibos-cfe/controller'
+import {
+  MAXIMO_ARCHIVOS,
+  MESES_ESPERADOS_VALIDOS,
+  interpretarRecibosCtrl,
+} from '@/lib/server/recibos-cfe/controller'
 import { MAXIMO_BYTES } from '@/lib/server/recibos-cfe/lector-pdf'
 
 export const runtime = 'nodejs'
@@ -46,6 +50,33 @@ export async function POST(req: Request) {
       throw new AppError('Manda los PDF como formulario, en el campo `archivos`.', 400)
     })
 
+    // Los meses que la persona DECLARO antes de elegir los archivos. Es una
+    // expectativa, no una instruccion: el reparto sale del PDF pase lo que pase
+    // (ver `recibos-cfe/propuesta.ts`). Opcional: sin el, no se compara nada.
+    const crudoMeses = formulario.get('mesesEsperados')
+    let mesesEsperados: number | null = null
+    if (typeof crudoMeses === 'string' && crudoMeses.trim() !== '') {
+      const n = Number(crudoMeses)
+      // Dos comprobaciones y cada una tapa una cosa distinta:
+      //
+      //  · `Number.isInteger` y NO un `parseInt`: `parseInt('3 meses')` daria 3
+      //    y aceptaria en silencio un valor que nadie escribio a proposito.
+      //  · El rango, AQUI y antes de leer un solo archivo a memoria: con 40
+      //    adjuntos de hasta 20 MB, rechazar despues de bufearlos es regalar el
+      //    trabajo.
+      //
+      // El controller lo vuelve a comprobar por su cuenta. No es duplicacion:
+      // es defensa en profundidad, porque a el se le puede llamar desde otro
+      // sitio que no pase por esta ruta.
+      if (!Number.isInteger(n) || !MESES_ESPERADOS_VALIDOS.includes(n as 1)) {
+        throw new AppError(
+          `Los meses esperados tienen que ser ${MESES_ESPERADOS_VALIDOS.join(', ')}.`,
+          400,
+        )
+      }
+      mesesEsperados = n
+    }
+
     const partes = formulario.getAll('archivos')
     if (partes.length === 0) throw new AppError('No llego ningun archivo.', 400)
     if (partes.length > MAXIMO_ARCHIVOS) {
@@ -78,7 +109,7 @@ export async function POST(req: Request) {
       })
     }
 
-    return NextResponse.json(await interpretarRecibosCtrl(archivos))
+    return NextResponse.json(await interpretarRecibosCtrl(archivos, mesesEsperados))
   } catch (e) {
     return respuestaError(e)
   }

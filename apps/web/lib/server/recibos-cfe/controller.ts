@@ -31,6 +31,18 @@ import { construirPropuesta, type ConsumoYaCapturado, type PropuestaDeRecibo } f
 /** Cuantos PDF se admiten en una tanda. */
 export const MAXIMO_ARCHIVOS = 40
 
+/**
+ * Los valores que se admiten como «cuantos meses de calendario cubre cada
+ * recibo de esta tanda».
+ *
+ * El tope son 4 y no un numero redondo: es el maximo MEDIDO sobre los 72
+ * recibos del cliente (`09 MAY 25 - 22 AGO 25`, tres meses y medio de periodo
+ * que toca cuatro meses de calendario). Un valor mayor no describe ningun
+ * recibo de CFE conocido, asi que es casi seguro un error de dedo — y aqui un
+ * error de dedo no rompe nada, pero apagaria la comprobacion entera.
+ */
+export const MESES_ESPERADOS_VALIDOS = [1, 2, 3, 4] as const
+
 export interface ArchivoSubido {
   nombre: string
   datos: Uint8Array
@@ -41,12 +53,24 @@ export interface RespuestaRecibos {
   /** Cuantos se leyeron como recibo de CFE, de cuantos se subieron. */
   leidos: number
   total: number
+  /** Lo que se declaro antes de subir. Vuelve para que la pantalla lo enseñe. */
+  mesesEsperados: number | null
 }
 
 export async function interpretarRecibosCtrl(
   archivos: ArchivoSubido[],
+  mesesEsperados: number | null = null,
 ): Promise<RespuestaRecibos> {
   if (archivos.length === 0) throw new AppError('No llego ningun archivo.', 400)
+  if (mesesEsperados != null && !MESES_ESPERADOS_VALIDOS.includes(mesesEsperados as 1)) {
+    // Se valida aqui y no solo en la pantalla porque el <select> es comodidad:
+    // a esta ruta se le puede hablar directamente. Un valor fuera de rango no
+    // es un aviso mas suave — es una comprobacion que no compara nada.
+    throw new AppError(
+      `Los meses esperados tienen que ser ${MESES_ESPERADOS_VALIDOS.join(', ')}.`,
+      400,
+    )
+  }
   if (archivos.length > MAXIMO_ARCHIVOS) {
     throw new AppError(
       `Son ${archivos.length} archivos y el maximo por tanda es ${MAXIMO_ARCHIVOS}. ` +
@@ -105,6 +129,7 @@ export async function interpretarRecibosCtrl(
       l.nombre,
       l.recibo,
       l.recibo.numeroServicio ? (porServicio.get(l.recibo.numeroServicio) ?? []) : [],
+      mesesEsperados,
     ),
   )
 
@@ -112,5 +137,6 @@ export async function interpretarRecibosCtrl(
     propuestas,
     leidos: propuestas.filter((p) => p.esRecibo).length,
     total: propuestas.length,
+    mesesEsperados,
   }
 }

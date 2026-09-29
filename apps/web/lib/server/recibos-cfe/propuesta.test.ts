@@ -132,3 +132,120 @@ describe('construirPropuesta — el periodo que cubre varios meses', () => {
     expect(suma).toBe(centavos(lectura.importe))
   })
 })
+
+// ============================================================================
+//  Los meses DECLARADOS antes de subir, contra los que dice el PDF.
+// ----------------------------------------------------------------------------
+//  Requisito del dueño, 2026-09-29: «los recibos deben permitir que ANTES de
+//  subir el archivo se elija cuantos meses, y al subir el PDF se valide si
+//  coincide la cantidad de meses».
+//
+//  Lo que añade sobre lo que ya había: antes el sistema DEDUCÍA cuántos meses
+//  cubre el recibo y repartía. Ahora la persona **declara lo que espera antes
+//  de ver el resultado** y el sistema comprueba si coinciden. Es una
+//  expectativa declarada contra una medición, que es lo único que convierte
+//  «el sistema dedujo algo» en «el sistema y yo estamos de acuerdo».
+//
+//  ─── LA REGLA QUE NO SE NEGOCIA AQUÍ: MANDA EL PDF ───────────────────────
+//  Lo declarado es una EXPECTATIVA, no una instrucción. Si no coinciden, se
+//  marca y se enseñan los dos números; el reparto sigue saliendo del periodo
+//  que dice el papel. Si lo declarado mandara, un error de dedo repartiría un
+//  recibo bimestral dentro de un solo mes — y eso no daría ningún error.
+//
+//  «Cuántos meses» significa **cuántos meses de CALENDARIO toca el periodo**,
+//  no cuánto dura. Un recibo de 31 días que empieza el 14 toca DOS.
+// ============================================================================
+
+describe('construirPropuesta — los meses declarados contra los del PDF', () => {
+  it('sin declarar nada, no hay nada que comparar y no se inventa un aviso', () => {
+    const p = construirPropuesta('recibo.pdf', lectura, [])
+    expect(p.mesesEsperados).toBeNull()
+    expect(p.mesesDelPdf).toBe(3)
+    expect(p.coincideMeses).toBeNull()
+    expect(p.avisos.join(' ')).not.toMatch(/declaraste/i)
+  })
+
+  it('declarando 3 y cubriendo 3, pasa limpio', () => {
+    const p = construirPropuesta('recibo.pdf', lectura, [], 3)
+    expect(p.mesesEsperados).toBe(3)
+    expect(p.mesesDelPdf).toBe(3)
+    expect(p.coincideMeses).toBe(true)
+    expect(p.avisos.join(' ')).not.toMatch(/declaraste/i)
+  })
+
+  it('declarando 1 y cubriendo 3, lo MARCA con los dos numeros y el periodo real', () => {
+    const p = construirPropuesta('recibo.pdf', lectura, [], 1)
+    expect(p.coincideMeses).toBe(false)
+    const aviso = p.avisos.join(' ')
+    expect(aviso).toMatch(/declaraste 1/i)
+    expect(aviso).toMatch(/3 meses/i)
+    // El periodo del papel, para poder comprobarlo sin abrir el PDF.
+    expect(aviso).toContain('2025-11-03')
+    expect(aviso).toContain('2026-01-05')
+  })
+
+  it('NO se reparte segun lo declarado: manda el PDF', () => {
+    // Es el corazon del requisito. Si lo declarado mandara, declarar 1 meteria
+    // un recibo de tres meses dentro de uno solo — triplicando el costo de ese
+    // mes y dejando los otros dos como «falta recibo». Y no daria ningun error.
+    const conUno = construirPropuesta('recibo.pdf', lectura, [], 1)
+    const conTres = construirPropuesta('recibo.pdf', lectura, [], 3)
+    const sinNada = construirPropuesta('recibo.pdf', lectura, [])
+    expect(conUno.renglones).toHaveLength(3)
+    expect(conUno.renglones.map((r) => r.periodo)).toEqual(
+      sinNada.renglones.map((r) => r.periodo),
+    )
+    expect(conUno.renglones.map((r) => r.importe)).toEqual(
+      conTres.renglones.map((r) => r.importe),
+    )
+  })
+
+  it('el borde de los NUEVE DIAS dentro de un solo mes se mide como 1, no como 0', () => {
+    // `12 NOV 25 - 21 NOV 25` existe entre los 72 recibos del cliente. Dura
+    // nueve dias y toca UN mes de calendario: quien declare «1» acierta, y
+    // quien cuente meses de duracion se confundiria.
+    const corto = interpretarRecibo(
+      pdbtBimestralConDsap.map((l) =>
+        l.startsWith('PERIODO FACTURADO')
+          ? 'PERIODO FACTURADO: 12 NOV 25-21 NOV 25'
+          : l,
+      ),
+    )
+    const p = construirPropuesta('corto.pdf', corto, [], 1)
+    expect(p.mesesDelPdf).toBe(1)
+    expect(p.coincideMeses).toBe(true)
+    expect(p.renglones).toHaveLength(1)
+  })
+
+  it('un recibo MENSUAL que empieza a mitad de mes toca DOS, y declarar 1 lo marca', () => {
+    // Medido sobre los 72: los 15 recibos de tarifa mensual (GDMTO y GDMTH)
+    // tocan DOS meses de calendario, los 15. Es la confusion mas facil de esta
+    // pantalla y la que haria saltar el aviso siempre.
+    const mensual = interpretarRecibo(
+      pdbtBimestralConDsap.map((l) =>
+        l.startsWith('PERIODO FACTURADO')
+          ? 'PERIODO FACTURADO: 14 NOV 25-16 DIC 25'
+          : l,
+      ),
+    )
+    expect(construirPropuesta('m.pdf', mensual, [], 1).coincideMeses).toBe(false)
+    expect(construirPropuesta('m.pdf', mensual, [], 2).coincideMeses).toBe(true)
+  })
+
+  it('un archivo que no es recibo no se compara: no hay periodo que medir', () => {
+    const noEs = interpretarRecibo(['CONTRATO DE ARRENDAMIENTO', 'Total 12,500.00'])
+    const p = construirPropuesta('contrato.pdf', noEs, [], 3)
+    expect(p.mesesDelPdf).toBeNull()
+    expect(p.coincideMeses).toBeNull()
+    expect(p.avisos.join(' ')).not.toMatch(/declaraste/i)
+  })
+
+  it('sin fechas legibles no se compara: no hay nada que medir contra lo declarado', () => {
+    const sinPeriodo = interpretarRecibo(
+      pdbtBimestralConDsap.filter((l) => !l.startsWith('PERIODO FACTURADO')),
+    )
+    const p = construirPropuesta('roto.pdf', sinPeriodo, [], 3)
+    expect(p.mesesDelPdf).toBeNull()
+    expect(p.coincideMeses).toBeNull()
+  })
+})

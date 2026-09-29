@@ -187,9 +187,100 @@ nivel antes, al recibo entero.
 **El último renglón absorbe el redondeo** y por eso se calcula restando: sin eso,
 repartir 100 entre 1/28/1 días deja 99.99 y el centavo no lo busca nadie.
 
-> [!warning] Esto es una PROPUESTA y está abierto a decisión del dueño
-> La alternativa es meterlo todo en el mes dominante. Está en las preguntas
-> abiertas del informe del 29/09.
+> [!success] 2026-09-29 · el reparto ya no se DEDUCE: se CONFIRMA
+> Era una propuesta abierta y el dueño la cerró el mismo día, endureciéndola:
+> «los recibos deben permitir que **ANTES** de subir el archivo se elija cuántos
+> meses, y al subir el PDF se valide si coincide la cantidad de meses».
+>
+> El reparto se queda tal cual —un renglón por mes, prorrateado por días—, pero
+> deja de ser algo que el sistema dedujo solo: ahora es **una expectativa
+> declarada contra una medición**. Ver §5-bis.
+
+---
+
+## 5-bis · Los meses DECLARADOS antes de subir
+
+Requisito del dueño, **2026-09-29**. Antes, el sistema deducía solo cuántos meses
+cubre el recibo y repartía. Ahora **la persona declara lo que espera antes de ver
+el resultado** y el sistema comprueba si coinciden.
+
+Es lo único que convierte «el sistema dedujo algo» en «el sistema y yo estamos de
+acuerdo»: quien sube 40 recibos sabe que son bimestrales, el sistema sabe qué
+dicen, y **si coinciden no hay nada que mirar**. Si no, hay algo que mirar y se
+sabe cuál.
+
+### El orden de la pantalla ES el requisito
+
+El `<input type="file">` está **deshabilitado hasta que hay un valor elegido**, y
+no al revés. Una expectativa que se escribe después de ver la respuesta no
+comprueba nada, así que el selector va arriba y numerado: *1 · ¿cuántos meses…?*,
+*2 · Subir PDF*.
+
+### MANDA EL PDF
+
+> [!danger] Lo declarado es una EXPECTATIVA, no una instrucción
+> Si no coinciden, se **marca** y se enseñan los dos números — pero el reparto
+> sale del periodo que dice el papel. Si lo declarado mandara, un error de dedo
+> repartiría un recibo bimestral **dentro de un solo mes**: triplicaría el costo
+> de ese mes, dejaría los otros dos como «falta recibo», y **no daría ningún
+> error**.
+>
+> Y **no bloquea**: un recibo que no coincide se guarda igual si quien mira el
+> papel lo decide. Bloquear convertiría un error de dedo en el selector en
+> trabajo perdido de toda una tanda.
+
+Lo comprueba la mutación `N3` («el reparto obedece lo declarado»), que mata tres
+pruebas.
+
+### «Cuántos meses» = los que TOCA, no lo que dura
+
+Es la confusión que haría saltar el aviso **siempre**, y está medida sobre los 72:
+
+| | Duración | Meses de calendario que toca |
+|---|---|---|
+| **Mensuales** (GDMTO + GDMTH, 15) | ~31 días | **DOS. Los 15.** Ninguno cabe en uno solo: el periodo empieza a mitad de mes |
+| **Bimestrales** (PDBT, 57) | ~62 días | **49 tocan TRES**, 4 tocan dos, 3 tocan cuatro, 1 toca uno |
+
+Así que **declarar «1» para una tanda mensual falla 15 de 15**, y declarar «2»
+para una bimestral **falla 53 de 57**. Con la guía puesta —2 para mensuales, 3
+para bimestrales— aciertan **15/15 y 49/57**.
+
+Por eso las etiquetas del selector no son «1 mes» a secas: nombran el tipo de
+recibo y repiten «de calendario». Tres mutantes comprueban ese texto (`N8`, `N8b`,
+`N8c`), porque **un aviso que salta siempre deja de ser un aviso** y esa guía es
+lo único que lo evita.
+
+### Un valor para la tanda, y el desajuste marcado archivo por archivo
+
+Se eligió **una sola declaración por tanda**, no una por archivo. Los motivos:
+
+- Un selector por archivo **antes** de subir 40 PDF es inusable.
+- Un selector por archivo **después** de ver el resultado es circular: se estaría
+  escribiendo la expectativa a la vista de la respuesta, que es justo lo que este
+  mecanismo existe para impedir.
+
+El desajuste se marca **por recibo** (no por renglón: un bimestral daría tres
+marcas para un solo hecho) y viaja hasta el renglón, que es donde se mira.
+
+Y el resumen **explica la causa cuando la hay**: si todos los que fallan cubren el
+mismo número, lo dice —«los 12 cubren 2 meses de calendario»—, que es una frase que
+se arregla cambiando el selector en vez de mirando doce recibos. Si están
+repartidos, **no inventa una explicación**: una tanda mezclada no tiene una sola
+causa.
+
+> [!tip] Súbelos por separado
+> La pantalla lo dice: mezclar mensuales y bimestrales en la misma tanda hace que
+> muchos salgan marcados **por construcción**. Los 72 del cliente son 57
+> bimestrales + 15 mensuales.
+
+### El rango admitido, y por qué es 1–4
+
+`MESES_ESPERADOS_VALIDOS = [1, 2, 3, 4]`. El 4 es el **máximo medido**
+(`09 MAY 25 – 22 AGO 25`). Un valor mayor no describe ningún recibo de CFE
+conocido. Se valida **en el `route.ts` antes de leer un solo archivo a memoria**
+—con 40 adjuntos de hasta 20 MB, rechazar después es regalar el trabajo— y otra
+vez en el controller, que es defensa en profundidad y no duplicación: a él se le
+puede llamar desde otro sitio.
 
 ---
 
@@ -301,9 +392,12 @@ de prueba, con las dos codificaciones dentro.
 
 ### Lo que NO se verificó
 
-- **Nadie ha abierto la pantalla en un navegador.** `vitest.config.ts` no monta
-  jsdom, así que `SubirRecibos.tsx` no lo prueba nadie: lo que está probado es la
-  lógica de `components/demo/energia/recibos.ts`.
+- **Nadie ha abierto la pantalla en un navegador, y con el selector de meses
+  sigue sin verse.** `vitest.config.ts` no monta jsdom, así que
+  `SubirRecibos.tsx` no lo prueba nadie: lo que está probado es la lógica de
+  `components/demo/energia/recibos.ts`. En concreto, **que el botón de subir
+  esté deshabilitado hasta elegir los meses no lo comprueba ninguna prueba** —
+  es una línea de `disabled` dentro del `.tsx`.
 - **No se ha subido ninguno de los 72 PDF reales por la ruta HTTP.** El
   interpretador se midió contra los 72 fuera del repositorio; la ruta se midió
   con PDF sintéticos.

@@ -48,6 +48,38 @@ import { repartirEnMeses, type ReciboCfe } from './interprete'
 //  La alternativa era una tabla nueva de servicios por predio. Se descarto
 //  porque cuesta una migracion y un mantenimiento —alta, baja, quien lo
 //  teclea— para dar exactamente lo mismo que ya da la primera captura.
+//
+//  ─── LOS MESES DECLARADOS: una expectativa contra una medicion ──────────
+//  Requisito del dueño del 2026-09-29. Antes, el sistema deducia solo cuantos
+//  meses cubre el recibo y repartia. Ahora la persona **declara lo que espera
+//  ANTES de ver el resultado** y el sistema comprueba si coinciden. Eso es lo
+//  unico que convierte «el sistema dedujo algo» en «el sistema y yo estamos de
+//  acuerdo»: quien sube 40 recibos sabe que son bimestrales, el sistema sabe
+//  que dicen, y si coinciden no hay nada que mirar.
+//
+//  **MANDA EL PDF.** Lo declarado es una expectativa, no una instruccion: si no
+//  coinciden se MARCA y se enseñan los dos numeros, pero el reparto sale del
+//  periodo del papel. Si lo declarado mandara, un error de dedo repartiria un
+//  recibo bimestral dentro de un solo mes —triplicando el costo de ese mes y
+//  dejando los otros dos como «falta recibo»— sin dar ningun error.
+//
+//  Y **no bloquea**: un recibo que no coincide se puede guardar igual. Quien
+//  decide es quien mira el papel, no este archivo.
+//
+//  ─── «CUANTOS MESES» = meses de CALENDARIO que TOCA, no cuanto dura ─────
+//  Es la confusion que haria saltar el aviso siempre, y esta medida sobre los
+//  72 recibos del cliente:
+//
+//   · Los **15** recibos de tarifa mensual (GDMTO y GDMTH) duran ~31 dias y
+//     tocan **DOS** meses de calendario. **Los 15.** Ninguno cabe en uno solo,
+//     porque el periodo empieza a mitad de mes.
+//   · De los **57** bimestrales (PDBT), **49 tocan TRES**, 4 tocan dos, 3 tocan
+//     cuatro y 1 toca uno.
+//
+//  O sea que declarar «1» para una tanda mensual falla 15 de 15, y declarar «2»
+//  para una bimestral falla 53 de 57. **Declarar 2 y 3 respectivamente acierta
+//  15/15 y 49/57.** Esa guia va escrita en la pantalla: sin ella el aviso
+//  saltaria casi siempre, y un aviso que salta siempre deja de ser un aviso.
 // ============================================================================
 
 /** Un recibo que YA esta capturado para ese servicio. */
@@ -95,6 +127,21 @@ export interface PropuestaDeRecibo {
   /** Lo que iria en `consumos_energia.notas`. */
   notas: string | null
   renglones: RenglonPropuesto[]
+  /**
+   * Los meses de calendario que la persona DECLARO esperar antes de subir.
+   * `null` si no declaro nada.
+   */
+  mesesEsperados: number | null
+  /**
+   * Los meses de calendario que el PDF dice de verdad. `null` si no se pudo
+   * leer el periodo o el archivo no es un recibo.
+   */
+  mesesDelPdf: number | null
+  /**
+   * `true` si lo declarado y lo medido coinciden, `false` si no, `null` si no
+   * hay nada que comparar. **No bloquea**: es una marca, no una puerta.
+   */
+  coincideMeses: boolean | null
   /** Lo que hay que mirar antes de confirmar. Se enseña, no se esconde. */
   avisos: string[]
 }
@@ -105,11 +152,16 @@ export interface PropuestaDeRecibo {
  * `yaCapturados` son los recibos que la base ya tiene para ESTE numero de
  * servicio, en este tenant. Se pasan ya consultados a proposito: asi esta
  * funcion no toca la base y se prueba entera sin montar nada.
+ *
+ * `mesesEsperados` es lo que la persona declaro ANTES de subir: cuantos meses
+ * de CALENDARIO espera que cubra cada recibo de la tanda. Ver el bloque de
+ * arriba sobre por que es una expectativa y no una instruccion.
  */
 export function construirPropuesta(
   archivo: string,
   lectura: ReciboCfe,
   yaCapturados: ConsumoYaCapturado[],
+  mesesEsperados: number | null = null,
 ): PropuestaDeRecibo {
   const avisos = [...lectura.avisos]
 
@@ -124,6 +176,9 @@ export function construirPropuesta(
       medidor: null,
       notas: null,
       renglones: [],
+      mesesEsperados,
+      mesesDelPdf: null,
+      coincideMeses: null,
       avisos,
     }
   }
@@ -167,6 +222,31 @@ export function construirPropuesta(
     )
   }
 
+  // ─── Lo DECLARADO contra lo MEDIDO ─────────────────────────────────────
+  //
+  // `mesesDelPdf` sale de `renglones.length` y no de una cuenta aparte: asi lo
+  // que se compara es EXACTAMENTE lo que se va a guardar. Con dos cuentas
+  // distintas, el aviso podria decir «coinciden» sobre un reparto que produjo
+  // otra cosa — un guard que mira a otro sitio no es un guard.
+  //
+  // Sin periodo legible no hay nada que medir: `repartirEnMeses` devuelve vacio
+  // y comparar contra cero diria «no coincide» por un motivo que no es el suyo.
+  const mesesDelPdf = renglones.length > 0 ? renglones.length : null
+  const coincideMeses =
+    mesesEsperados == null || mesesDelPdf == null ? null : mesesDelPdf === mesesEsperados
+
+  if (coincideMeses === false) {
+    // Los DOS numeros y el periodo del papel, para poder comprobarlo sin abrir
+    // el PDF. Y se dice que manda el PDF, porque lo contrario —repartir segun
+    // lo declarado— es justo lo que no se hace.
+    avisos.push(
+      `Declaraste ${mesesEsperados} ${mesesEsperados === 1 ? 'mes' : 'meses'} y este recibo ` +
+        `cubre ${mesesDelPdf} meses de calendario (${lectura.desde} a ${lectura.hasta}). ` +
+        'Se reparte segun lo que dice el PDF, no segun lo declarado: revisa que sea el ' +
+        'recibo que esperabas.',
+    )
+  }
+
   return {
     archivo,
     esRecibo: true,
@@ -177,6 +257,9 @@ export function construirPropuesta(
     medidor: lectura.numeroServicio,
     notas: notasDelRecibo(lectura),
     renglones,
+    mesesEsperados,
+    mesesDelPdf,
+    coincideMeses,
     avisos,
   }
 }

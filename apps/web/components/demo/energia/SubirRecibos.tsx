@@ -6,6 +6,7 @@ import { cn } from '@/lib/cn'
 import { Button } from '@/components/demo/ui/Button'
 import type { PuntoDeMedicion } from '@/lib/server/energia-repo'
 import {
+  OPCIONES_MESES,
   RUTA_RECIBOS,
   cuerpoDeAlta,
   filasDeConfirmacion,
@@ -33,11 +34,24 @@ import {
 //  Nada se guarda al subir. El alta es renglon a renglon, por el MISMO endpoint
 //  que la captura a mano — con su validacion, su indice unico y su bitacora.
 //
+//  ─── LOS MESES SE DECLARAN ANTES DE ELEGIR EL ARCHIVO ────────────────────
+//  Requisito del dueño del 2026-09-29, y el orden importa: **primero se declara
+//  lo que se espera, y despues se ve el resultado**. Al reves no vale — una
+//  expectativa que se escribe despues de ver la respuesta no comprueba nada.
+//  Por eso el `<input type="file">` esta DESHABILITADO hasta que hay un valor
+//  elegido, y no al contrario.
+//
+//  Lo declarado es una expectativa: **manda el PDF**. Si no coinciden, el
+//  renglon se marca con los dos numeros y se puede guardar igual.
+//
 //  Lo que puede equivocarse vive en `recibos.ts`, con pruebas: `vitest.config`
 //  no monta jsdom y lo que se escribe aqui dentro no lo prueba nadie.
 // ============================================================================
 
 type Estado = 'quieto' | 'leyendo'
+
+/** Sin elegir. No es 0 ni 1: es «todavia no ha declarado nada». */
+const SIN_ELEGIR = ''
 
 export function SubirRecibos({
   puntos,
@@ -47,18 +61,22 @@ export function SubirRecibos({
   onGuardado: () => void
 }) {
   const [estado, setEstado] = useState<Estado>('quieto')
+  const [mesesEsperados, setMesesEsperados] = useState<string>(SIN_ELEGIR)
   const [respuesta, setRespuesta] = useState<RespuestaRecibosUI | null>(null)
   const [filas, setFilas] = useState<FilaDeConfirmacion[]>([])
   const [error, setError] = useState<string | null>(null)
   const [guardadas, setGuardadas] = useState<Record<string, 'guardando' | 'ok' | string>>({})
 
-  const leer = useCallback(async (lista: FileList | null) => {
+  const leer = useCallback(async (lista: FileList | null, meses: string) => {
     if (!lista || lista.length === 0) return
     setEstado('leyendo')
     setError(null)
     setGuardadas({})
     try {
       const cuerpo = new FormData()
+      // Va PRIMERO en el formulario, que es el orden en que se decidio: lo que
+      // se espera antes que lo que se sube.
+      if (meses !== SIN_ELEGIR) cuerpo.append('mesesEsperados', meses)
       for (const f of Array.from(lista)) cuerpo.append('archivos', f)
       const r = await fetch(RUTA_RECIBOS, { method: 'POST', body: cuerpo })
       // Cuerpo con `catch` propio: un 500 detras de nginx devuelve HTML y
@@ -127,22 +145,65 @@ export function SubirRecibos({
 
   return (
     <div className="space-y-3">
+      {/* PRIMERO lo que se espera. El selector va ARRIBA del boton de subir y no
+          al lado: el orden de la pantalla es el orden de la decision, y una
+          expectativa escrita despues de ver la respuesta no comprueba nada. */}
+      <div>
+        <label
+          className="mb-1 block text-[11px] uppercase tracking-wide text-muted"
+          htmlFor="recibos-meses"
+        >
+          1 · ¿Cuántos meses de calendario cubre cada recibo de esta tanda?
+        </label>
+        <select
+          id="recibos-meses"
+          className="h-9 w-full rounded-md border border-border bg-surface px-2 text-[13px] text-ink outline-none focus:border-ink/40 lg:w-[34rem]"
+          value={mesesEsperados}
+          onChange={(e) => setMesesEsperados(e.target.value)}
+        >
+          <option value={SIN_ELEGIR}>— elige antes de subir —</option>
+          {OPCIONES_MESES.map((o) => (
+            <option key={o.meses} value={String(o.meses)}>
+              {o.etiqueta}
+            </option>
+          ))}
+        </select>
+        <p className="mt-1 text-[11px] leading-snug text-muted">
+          Se cuentan los meses de calendario que <strong>toca</strong> el periodo, no lo que
+          dura. Un recibo mensual empieza a mitad de mes, así que casi siempre toca{' '}
+          <strong>dos</strong>; uno bimestral, <strong>tres</strong>. Si mezclas mensuales y
+          bimestrales en la misma tanda, muchos saldrán marcados: súbelos por separado.
+        </p>
+      </div>
+
       <div className="flex flex-wrap items-center gap-3">
-        <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-border bg-surface px-3 py-2 text-[13px] text-ink hover:border-ink/40">
+        <label
+          className={cn(
+            'inline-flex items-center gap-2 rounded-md border border-border bg-surface px-3 py-2 text-[13px] text-ink',
+            mesesEsperados === SIN_ELEGIR
+              ? 'cursor-not-allowed opacity-50'
+              : 'cursor-pointer hover:border-ink/40',
+          )}
+        >
           {estado === 'leyendo' ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <FileUp className="h-4 w-4" />
           )}
-          <span>{estado === 'leyendo' ? 'Leyendo…' : 'Subir PDF del recibo'}</span>
+          <span>
+            {estado === 'leyendo' ? 'Leyendo…' : '2 · Subir PDF del recibo'}
+          </span>
           <input
             type="file"
             accept="application/pdf,.pdf"
             multiple
             className="hidden"
-            disabled={estado === 'leyendo'}
+            // Deshabilitado hasta que hay expectativa declarada. Es el requisito
+            // literal —«ANTES de subir el archivo se elija cuantos meses»— y es
+            // lo unico que impide que la comprobacion se salte por inercia.
+            disabled={estado === 'leyendo' || mesesEsperados === SIN_ELEGIR}
             onChange={(e) => {
-              void leer(e.target.files)
+              void leer(e.target.files, mesesEsperados)
               // Se limpia el input para que subir el MISMO archivo otra vez
               // vuelva a disparar el `change`. Sin esto, corregir un PDF y
               // volver a subirlo no hace nada y parece que la pantalla se colgo.
@@ -151,8 +212,9 @@ export function SubirRecibos({
           />
         </label>
         <p className="text-[12px] text-muted">
-          Se leen en el servidor y <strong>no se guarda nada</strong>: revisa cada renglón contra el
-          recibo y confírmalo.
+          {mesesEsperados === SIN_ELEGIR
+            ? 'Elige arriba cuántos meses esperas antes de subir los archivos.'
+            : 'Se leen en el servidor y no se guarda nada: revisa cada renglón contra el recibo y confírmalo.'}
         </p>
       </div>
 
@@ -280,6 +342,17 @@ export function SubirRecibos({
                       {/* El duplicado se enseña con SUS CIFRAS, no con un aviso
                           suelto: lo que hay que comparar es si el que ya esta es
                           el mismo recibo o uno distinto. */}
+                      {/* El desajuste con lo declarado se enseña CON LOS DOS
+                          numeros, aqui donde se mira el renglon. No bloquea: el
+                          reparto ya salio del PDF, y quien decide es quien
+                          tiene el papel delante. */}
+                      {f.coincideMeses === false ? (
+                        <p className="mt-1 max-w-[16rem] text-[11px] leading-snug text-warning">
+                          Declaraste {f.mesesEsperados}{' '}
+                          {f.mesesEsperados === 1 ? 'mes' : 'meses'} y este recibo cubre{' '}
+                          {f.mesesDelPdf}. Se repartió según el PDF.
+                        </p>
+                      ) : null}
                       {f.yaCapturado ? (
                         <p className="mt-1 max-w-[16rem] text-[11px] leading-snug text-warning">
                           Ya hay uno capturado en {f.yaCapturado.periodo.slice(0, 7)}:{' '}

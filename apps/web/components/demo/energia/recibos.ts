@@ -13,6 +13,35 @@
 
 export const RUTA_RECIBOS = '/api/energia/recibos'
 
+/**
+ * Las opciones de «cuantos meses de calendario cubre cada recibo de esta
+ * tanda», que se eligen ANTES de subir.
+ *
+ * ─── POR QUE CADA ETIQUETA DICE LO QUE DICE ────────────────────────────────
+ * Es la parte que decide si esta comprobacion sirve de algo o se convierte en
+ * ruido, y esta MEDIDA sobre los 72 recibos del cliente:
+ *
+ *  · Los **15** recibos de tarifa mensual (GDMTO y GDMTH) duran ~31 dias y
+ *    tocan **DOS** meses de calendario. **Los 15.** Ninguno cabe en uno solo,
+ *    porque el periodo empieza a mitad de mes.
+ *  · De los **57** bimestrales (PDBT), **49 tocan TRES**, 4 tocan dos, 3 tocan
+ *    cuatro y 1 toca uno.
+ *
+ * O sea que quien piense «es mensual, pues 1» falla en 15 de 15, y quien piense
+ * «es bimestral, pues 2» falla en 53 de 57. Con la guia puesta —2 para
+ * mensuales, 3 para bimestrales— aciertan 15/15 y 49/57.
+ *
+ * **Un aviso que salta siempre deja de ser un aviso.** Por eso la etiqueta no
+ * es «1 mes» a secas: nombra el tipo de recibo y repite «de calendario», que es
+ * lo que se cuenta.
+ */
+export const OPCIONES_MESES: { meses: number; etiqueta: string }[] = [
+  { meses: 1, etiqueta: '1 mes de calendario — un periodo corto, dentro de un solo mes' },
+  { meses: 2, etiqueta: '2 meses de calendario — lo normal en un recibo MENSUAL' },
+  { meses: 3, etiqueta: '3 meses de calendario — lo normal en un recibo BIMESTRAL' },
+  { meses: 4, etiqueta: '4 meses de calendario — un periodo largo o atrasado' },
+]
+
 /** Espejo de `lib/server/recibos-cfe/interprete.ts`. */
 export interface LecturaRecibo {
   esRecibo: boolean
@@ -58,6 +87,12 @@ export interface PropuestaUI {
   medidor: string | null
   notas: string | null
   renglones: RenglonPropuestoUI[]
+  /** Los meses de calendario que se DECLARARON antes de subir. */
+  mesesEsperados: number | null
+  /** Los que el PDF dice de verdad. */
+  mesesDelPdf: number | null
+  /** `null` si no hay nada que comparar. **No bloquea nada.** */
+  coincideMeses: boolean | null
   avisos: string[]
 }
 
@@ -65,6 +100,7 @@ export interface RespuestaRecibosUI {
   propuestas: PropuestaUI[]
   leidos: number
   total: number
+  mesesEsperados: number | null
 }
 
 /**
@@ -91,6 +127,14 @@ export interface FilaDeConfirmacion {
   notas: string | null
   lectura: LecturaRecibo
   yaCapturado: ConsumoYaCapturadoUI | null
+  /**
+   * Si el recibo del que sale este renglon coincidio con lo declarado. Viaja
+   * hasta el renglon para poder marcarlo donde se mira, no solo en el resumen.
+   * `null` = no habia nada que comparar.
+   */
+  coincideMeses: boolean | null
+  mesesEsperados: number | null
+  mesesDelPdf: number | null
 }
 
 /** `''` cuando no hay cifra. VACIO, nunca `'0'`: un cero afirma que no hubo consumo. */
@@ -113,6 +157,9 @@ export function filasDeConfirmacion(propuestas: PropuestaUI[]): FilaDeConfirmaci
         notas: p.notas,
         lectura: p.lectura,
         yaCapturado: r.yaCapturado,
+        coincideMeses: p.coincideMeses,
+        mesesEsperados: p.mesesEsperados,
+        mesesDelPdf: p.mesesDelPdf,
       })
     }
   }
@@ -180,10 +227,16 @@ export function resumenDeLectura(r: RespuestaRecibosUI): ResumenDeLectura {
   const repetidos = filas.filter((f) => f.yaCapturado).length
   const sinCifra = filas.filter((f) => !f.kwh || !f.importe).length
 
+  // Los recibos —no los renglones— cuyo periodo NO coincide con lo declarado.
+  // Se cuentan por RECIBO porque lo declarado es una propiedad del recibo: si
+  // se contaran renglones, un solo desajuste de un bimestral saldria como tres.
+  const desajustados = r.propuestas.filter((p) => p.coincideMeses === false)
+
   const pegas: string[] = []
   if (noLeidos > 0) {
     pegas.push(`${noLeidos} ${noLeidos === 1 ? 'archivo no es' : 'archivos no son'} un recibo de CFE`)
   }
+  if (desajustados.length > 0) pegas.push(explicarDesajuste(desajustados, r.mesesEsperados))
   if (sinPunto > 0) pegas.push(`${sinPunto} sin predio: eligelo tú`)
   if (sinCifra > 0) pegas.push(`${sinCifra} con una cifra que no se pudo leer`)
   if (repetidos > 0) pegas.push(`${repetidos} ya capturados: volver a guardarlos DUPLICA el costo`)
@@ -206,6 +259,29 @@ export function resumenDeLectura(r: RespuestaRecibosUI): ResumenDeLectura {
       `${filas.length} ${filas.length === 1 ? 'renglón' : 'renglones'}. ` +
       'Míralos contra el recibo y confírmalos: nada se guarda hasta que le des a guardar.',
   }
+}
+
+/**
+ * La frase de los que no coinciden con lo declarado.
+ *
+ * Cuando **todos** los que fallan cubren el MISMO numero de meses, lo dice: eso
+ * convierte el aviso en algo accionable —«declaraste 1 y los 12 cubren 2» se
+ * arregla cambiando el selector— en vez de doce marcas que hay que mirar una
+ * por una.
+ *
+ * Y cuando estan repartidos NO inventa una explicacion, porque una tanda
+ * mezclada no tiene una sola causa y afirmar que la tiene seria peor que
+ * callarse.
+ */
+function explicarDesajuste(desajustados: PropuestaUI[], esperados: number | null): string {
+  const n = desajustados.length
+  const base = `${n} no ${n === 1 ? 'coincide' : 'coinciden'} con los ${esperados} meses que declaraste`
+  const distintos = new Set(desajustados.map((p) => p.mesesDelPdf))
+  if (distintos.size === 1) {
+    const [unico] = [...distintos]
+    return `${base}: ${n === 1 ? 'cubre' : `los ${n} cubren`} ${unico} meses de calendario`
+  }
+  return base
 }
 
 /**

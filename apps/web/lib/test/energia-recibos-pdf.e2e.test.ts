@@ -57,13 +57,17 @@ CMapName currentdict /CMap defineresource pop
 end
 end`
 
-/** Un recibo de CFE sintetico: PDBT, periodo de dos meses, 2748 kWh. */
-function pdfRecibo(servicio: string): Buffer {
+/**
+ * Un recibo de CFE sintetico: PDBT, 2748 kWh. El periodo es parametrizable
+ * para poder reproducir los bordes MEDIDOS en los 72 del cliente — el de nueve
+ * dias dentro de un solo mes, y el mensual que empieza a mitad de mes.
+ */
+function pdfRecibo(servicio: string, periodo = '03 NOV 25-05 ENE 26'): Buffer {
   const renglones: [number, 'ansi' | 'cid', string][] = [
     [760, 'ansi', 'Comision Federal de Electricidad'],
     [740, 'cid', `NO. DE SERVICIO: ${servicio}`],
     [720, 'cid', 'TARIFA: PDBT NO. MEDIDOR: A000AA'],
-    [700, 'cid', 'PERIODO FACTURADO: 03 NOV 25-05 ENE 26'],
+    [700, 'cid', `PERIODO FACTURADO: ${periodo}`],
     [680, 'ansi', 'Energia (kWh) 74,978 72,230 2,748'],
     [660, 'ansi', 'Energia 0.00 0.00 1,846.66 1,846.66 Fac. del Periodo 7,838.61'],
     [640, 'ansi', 'Capacidad 0.00 0.00 2,791.97 2,791.97 DSAP 101.83'],
@@ -125,8 +129,9 @@ class SubidorDeArchivos {
     private ip: string,
   ) {}
 
-  async subir(archivos: { nombre: string; datos: Buffer }[]) {
+  async subir(archivos: { nombre: string; datos: Buffer }[], mesesEsperados?: number | string) {
     const cuerpo = new FormData()
+    if (mesesEsperados !== undefined) cuerpo.append('mesesEsperados', String(mesesEsperados))
     for (const a of archivos) {
       cuerpo.append('archivos', new Blob([new Uint8Array(a.datos)], { type: 'application/pdf' }), a.nombre)
     }
@@ -368,6 +373,86 @@ describe('4 · el mismo recibo subido dos veces', () => {
       },
     })
     expect(otra.status, JSON.stringify(otra.datos)).toBe(409)
+  })
+})
+
+// ─── 4-bis · los meses DECLARADOS antes de subir ──────────────────────────
+describe('4-bis · lo declarado contra lo que dice el PDF', () => {
+  // Requisito del dueño del 2026-09-29. Lo que se comprueba aqui y no en una
+  // unitaria es que el numero **viaja por el multipart** y llega entero hasta la
+  // propuesta: es el unico trozo del camino que una funcion pura no ve.
+
+  it('declarando 3 y cubriendo 3, pasa limpio', async () => {
+    const r = await subidorA.subir([{ nombre: 'ok.pdf', datos: pdfRecibo(SERVICIO_A) }], 3)
+    expect(r.status, JSON.stringify(r.datos)).toBe(200)
+    expect(r.datos.mesesEsperados).toBe(3)
+    const p = r.datos.propuestas[0]
+    expect(p.mesesDelPdf).toBe(3)
+    expect(p.coincideMeses).toBe(true)
+    expect(p.avisos.join(' ')).not.toMatch(/declaraste/i)
+  })
+
+  it('declarando 1 y cubriendo 3: se MARCA y NO se reparte en silencio', async () => {
+    // El caso que da sentido a todo esto. Si lo declarado mandara, este recibo
+    // entraria entero en un solo mes: triplicaria el costo de ese mes y dejaria
+    // los otros dos como «falta recibo», sin un solo error.
+    const r = await subidorA.subir([{ nombre: 'uno.pdf', datos: pdfRecibo(SERVICIO_A) }], 1)
+    expect(r.status).toBe(200)
+    const p = r.datos.propuestas[0]
+    expect(p.coincideMeses).toBe(false)
+    expect(p.mesesEsperados).toBe(1)
+    expect(p.mesesDelPdf).toBe(3)
+    // MANDA EL PDF: siguen siendo tres renglones, los mismos tres.
+    expect(p.renglones.map((x: any) => x.periodo)).toEqual([
+      '2025-11-01',
+      '2025-12-01',
+      '2026-01-01',
+    ])
+    expect(p.avisos.join(' ')).toMatch(/Declaraste 1 mes/i)
+  })
+
+  it('el borde de NUEVE DIAS dentro de un solo mes cuenta como 1', async () => {
+    // `12 NOV 25 - 21 NOV 25` existe entre los 72. Dura nueve dias y toca UN
+    // mes: quien cuente meses de DURACION se confundiria aqui.
+    const corto = pdfRecibo(SERVICIO_A, '12 NOV 25-21 NOV 25')
+    const r = await subidorA.subir([{ nombre: 'corto.pdf', datos: corto }], 1)
+    const p = r.datos.propuestas[0]
+    expect(p.mesesDelPdf).toBe(1)
+    expect(p.coincideMeses).toBe(true)
+    expect(p.renglones).toHaveLength(1)
+  })
+
+  it('un recibo MENSUAL toca DOS meses, y declarar 1 lo marca', async () => {
+    // Medido: los 15 recibos de tarifa mensual de los 72 tocan dos meses. Es la
+    // confusion que haria saltar el aviso siempre si la pantalla no lo dijera.
+    const mensual = pdfRecibo(SERVICIO_A, '14 NOV 25-16 DIC 25')
+    const uno = await subidorA.subir([{ nombre: 'm.pdf', datos: mensual }], 1)
+    expect(uno.datos.propuestas[0].coincideMeses).toBe(false)
+    const dos = await subidorA.subir([{ nombre: 'm.pdf', datos: mensual }], 2)
+    expect(dos.datos.propuestas[0].coincideMeses).toBe(true)
+  })
+
+  it('sin declarar nada no se compara, y el reparto es EL MISMO', async () => {
+    const r = await subidorA.subir([{ nombre: 'sin.pdf', datos: pdfRecibo(SERVICIO_A) }])
+    const p = r.datos.propuestas[0]
+    expect(p.mesesEsperados).toBeNull()
+    expect(p.coincideMeses).toBeNull()
+    expect(p.renglones).toHaveLength(3)
+  })
+
+  it('un valor fuera de rango da 400 en vez de apagar la comprobacion', async () => {
+    // El <select> es comodidad: a esta ruta se le puede hablar directamente, y
+    // un 13 que se acepte en silencio es una comprobacion que no compara nada.
+    expect((await subidorA.subir([{ nombre: 'a.pdf', datos: pdfRecibo(SERVICIO_A) }], 13)).status).toBe(400)
+    expect((await subidorA.subir([{ nombre: 'a.pdf', datos: pdfRecibo(SERVICIO_A) }], 0)).status).toBe(400)
+    expect((await subidorA.subir([{ nombre: 'a.pdf', datos: pdfRecibo(SERVICIO_A) }], '2.5')).status).toBe(400)
+    expect((await subidorA.subir([{ nombre: 'a.pdf', datos: pdfRecibo(SERVICIO_A) }], 'tres')).status).toBe(400)
+  })
+
+  it('y un valor invalido NO lee ningun archivo: se corta antes', async () => {
+    const r = await subidorA.subir([{ nombre: 'a.pdf', datos: pdfRecibo(SERVICIO_A) }], 99)
+    expect(r.status).toBe(400)
+    expect(r.datos.propuestas).toBeUndefined()
   })
 })
 
