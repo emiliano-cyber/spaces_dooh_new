@@ -14,6 +14,7 @@ import {
   COBRANZA_LABEL,
 } from '@/components/demo/StatusBadge'
 import { cn } from '@/lib/cn'
+import { armarListaFacturas, cuentaPorEstatus } from '@/components/demo/finanzas/facturas-lista'
 import { generarFacturaApi, recordarCobranzaApi, pagarCobranzaApi } from '@/lib/data/estado-api'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { useCandado, PasoContrasena } from '@/components/demo/ui/candado'
@@ -124,6 +125,26 @@ export default function FinanzasPage() {
       .sort((a, b) => (a.proxima ?? '9999').localeCompare(b.proxima ?? '9999'))
   }, [cobranzas, facturas])
 
+  // ─── Facturas emitidas ──────────────────────────────────────────────────────
+  // Hasta el 2026-09-29 una factura emitida solo se veia dentro de «Cobranza»,
+  // que se lee como cuentas por cobrar: quien acababa de emitir una y buscaba
+  // «Facturas» concluia que no se habia guardado. El armado vive en
+  // `components/demo/finanzas/facturas-lista.ts` para poder probarlo sin DOM.
+  const filasFactura = useMemo(
+    () =>
+      armarListaFacturas(
+        facturas,
+        clientes,
+        (resumen ?? []).map((r) => r.campana),
+        // `EntidadFiscal` guarda el nombre en `razonSocial`, no en `nombre`:
+        // lo delato el typecheck al enchufarlo. Se traduce aqui y no se
+        // ensancha el tipo del modulo, que asi sirve para cualquier catalogo.
+        (entidades ?? []).map((e) => ({ id: e.id, nombre: e.razonSocial })),
+      ),
+    [facturas, clientes, resumen, entidades],
+  )
+  const cuentaFactura = useMemo(() => cuentaPorEstatus(facturas), [facturas])
+
 
   // Listas para facturar: candado encendido y sin factura todavía.
   const listas =
@@ -181,6 +202,73 @@ export default function FinanzasPage() {
                 </li>
               ))}
             </ul>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Facturas emitidas */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Facturas</CardTitle>
+          <div className="flex gap-3 text-[11px]">
+            <Conteo color="#0a66ff" label="Emitidas" n={cuentaFactura.EMITIDA} />
+            <Conteo color="#10b981" label="Pagadas" n={cuentaFactura.PAGADA} />
+            <Conteo color="#71717a" label="Anuladas" n={cuentaFactura.ANULADA} />
+          </div>
+        </CardHeader>
+        <CardContent className="px-0 pb-0">
+          {!facturas ? (
+            <p className="px-4 pb-4 text-[13px] text-muted">Cargando…</p>
+          ) : filasFactura.length === 0 ? (
+            <div className="px-4 pb-4">
+              <EmptyState
+                icon={FileText}
+                titulo="Todavía no hay facturas"
+                detalle="Aquí aparecerán en cuanto emitas la primera desde «Listas para facturar»."
+              />
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-[13px]">
+                <thead>
+                  <tr className="border-b border-border text-left text-muted">
+                    <th className="px-4 py-2 font-medium">Folio</th>
+                    <th className="px-4 py-2 font-medium">Folio fiscal</th>
+                    <th className="px-4 py-2 font-medium">Emitida</th>
+                    <th className="px-4 py-2 font-medium">Cliente</th>
+                    <th className="px-4 py-2 font-medium">Campaña</th>
+                    <th className="px-4 py-2 font-medium">La emite</th>
+                    <th className="px-4 py-2 text-right font-medium">Monto</th>
+                    <th className="px-4 py-2 font-medium">Estatus</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filasFactura.map((f) => (
+                    <tr key={f.id} className="border-b border-border last:border-0">
+                      <td className="demo-num px-4 py-2.5 font-medium text-ink">{f.folio}</td>
+                      <td className="demo-num px-4 py-2.5 text-[11px] text-muted">{f.folioFiscal}</td>
+                      <td className="demo-num px-4 py-2.5 text-muted">{f.fechaEmision}</td>
+                      <td className="px-4 py-2.5 text-muted">{f.cliente}</td>
+                      <td className="px-4 py-2.5 text-muted">{f.campana}</td>
+                      <td className="px-4 py-2.5 text-muted">{f.emisora}</td>
+                      <td className="demo-num px-4 py-2.5 text-right text-ink">{formatMonto(f.monto)}</td>
+                      <td className="px-4 py-2.5">
+                        <span
+                          className={cn(
+                            'rounded-full px-2 py-0.5 text-[11px] font-medium',
+                            f.estatus === 'PAGADA' && 'bg-[#10b98122] text-[#047857]',
+                            f.estatus === 'EMITIDA' && 'bg-[#0a66ff22] text-[#0a66ff]',
+                            f.estatus === 'ANULADA' && 'bg-surface-2 text-muted line-through',
+                          )}
+                        >
+                          {f.estatus === 'PAGADA' ? 'Pagada' : f.estatus === 'ANULADA' ? 'Anulada' : 'Emitida'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </CardContent>
       </Card>

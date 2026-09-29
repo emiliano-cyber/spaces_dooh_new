@@ -153,10 +153,32 @@ const COLS = [
 // El insert las deja en su default de BD (pausa_legal = false) y el update no las
 // toca, que es justo lo que se quiere.
 
+// Una pantalla digital se guarda con `tipo_medio = 'PANTALLA_DIGITAL'`, aunque el
+// archivo diga que la estructura es un espectacular o un mupi.
+//
+// > [!danger] Por que, y por que esto NO es unificar las dos reglas de «digital»
+// > `derive.ts:1412-1415` avisa de que la regla de PRESENTACION es mas amplia que
+// > la de BOOKING (S0-3: «el TIPO DE MEDIO gobierna las reglas de booking»), que
+// > las dos difieren a proposito, y que **no se unifiquen sin decidir cual gana**.
+// > Eso sigue intacto: aqui no se toca ninguna de las dos.
+// >
+// > Lo que se arregla es que el IMPORTADOR PERDIA EL DATO. Calculaba bien que la
+// > pantalla es digital -lo escribia en `exhibicion`- y luego ponia en
+// > `tipo_medio` solo la estructura fisica, via `MAPEO_TIPO` (`:544`). El
+// > resultado: la pantalla se MOSTRABA como digital y se RESERVABA como fija.
+// >
+// > Medido el 2026-09-29 con una reproduccion en vivo: elegir pantallas digitales
+// > del CSV generaba una campana OOH y pedia IMPRENTA. En la base local habia
+// > DIEZ pantallas digitales y CERO con `tipo_medio = 'PANTALLA_DIGITAL'`, que es
+// > lo unico que el booking mira.
+// >
+// > La estructura fisica no se pierde: vive en `tipo_estructura` («Pantalla LED»),
+// > que es donde el propio CSV la trae.
 function valoresDe(s: any): unknown[] {
   const digital = s.tipoMedio === 'PANTALLA_DIGITAL' || s.exhibicion === 'digital' || s.exhibicion === 'rotativo'
+  const tipoMedio = digital ? 'PANTALLA_DIGITAL' : (s.tipoMedio ?? 'OTRO')
   return [
-    s.codigoProveedor ?? null, s.claveInterna ?? null, s.nombre, s.tipoMedio ?? 'OTRO',
+    s.codigoProveedor ?? null, s.claveInterna ?? null, s.nombre, tipoMedio,
     digital ? 'rotativo' : (s.exhibicion ?? 'fijo'), s.unidad ?? (digital ? 'mensual' : 'catorcenal'),
     // ciudad y estado van NULL cuando no se capturan (auditoría del 26/08).
     // Caían a 'Lima' por herencia del origen peruano del producto, y el alta

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { exigir } from '@/lib/server/auth'
 import { generarCampanaDesdePropuesta, PropuestaCampanaError } from '@/lib/server/campanas-repo'
+import { respuestaError } from '@/lib/server/errores'
 import { registrarAccion } from '@/lib/server/acciones-repo'
 import { notificar } from '@/lib/server/notificaciones-repo'
 
@@ -28,6 +29,18 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
     return NextResponse.json(campana, { status: yaExistia ? 200 : 201 })
   } catch (e) {
     if (e instanceof PropuestaCampanaError) return NextResponse.json({ error: e.message }, { status: 409 })
-    throw e
+    // El `throw e` que habia aqui convertia en 500 CUALQUIER otro error de
+    // dominio, y el mas comun es un AppError con su propio status: el guard del
+    // ADR 0003 -«esta pantalla no se puede vender: su contrato de arrendamiento
+    // esta incompleto»- lanza AppError con status 409, no PropuestaCampanaError.
+    //
+    // Consecuencia medida el 2026-09-29: el mensaje, que es bueno y dice
+    // exactamente que hacer y donde, NUNCA llegaba al usuario. Veia
+    // «500 Internal Server Error» y el motivo se quedaba en el log del servidor.
+    //
+    // `respuestaError` es el mapeador unico que la cabecera de errores.ts manda
+    // usar: «los controllers lanzan AppError; las rutas solo llaman
+    // respuestaError() en el catch». Esta ruta no lo hacia.
+    return respuestaError(e)
   }
 }

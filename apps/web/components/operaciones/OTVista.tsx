@@ -26,7 +26,19 @@ import { getOTApi, cerrarOTApi } from '@/lib/data/estado-api'
 import type { FotoMeta, EstOT, ChecklistItem } from '@/lib/data/types'
 
 // blob: URL → data URL (base64) para que la foto persista en la BD.
-async function blobADataUrl(blobUrl: string): Promise<string> {
+//
+// > [!danger] Si YA es un data: URL, se devuelve tal cual. NO se pasa por fetch.
+// > `FotoUploaderMock` entrega la foto con `readAsDataURL` (`:55`, `:65`), o sea
+// > **ya en base64**. Pasarla por `fetch` no solo era trabajo de balde: la CSP
+// > tiene `connect-src 'self' …` sin `data:`, asi que el navegador lo RECHAZA
+// > y subir la evidencia fotografica fallaba con
+// > «Refused to connect because it violates the document's Content Security Policy».
+// >
+// > Medido el 2026-09-29 con el error en la consola del navegador. El arreglo
+// > es este `if`, NO relajar la CSP: `connect-src data:` abriria la puerta a
+// > exfiltrar datos por una URL que el navegador nunca ve salir.
+export async function blobADataUrl(blobUrl: string): Promise<string> {
+  if (blobUrl.startsWith('data:')) return blobUrl
   const blob = await (await fetch(blobUrl)).blob()
   return new Promise((resolve, reject) => {
     const fr = new FileReader()

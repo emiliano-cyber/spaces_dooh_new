@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { AppError } from '@/lib/server/errores'
 import { exigir } from '@/lib/server/auth'
 import { cambiarEstatusPropuesta, actualizarPropuesta, PropuestaError, PropuestaCeroError } from '@/lib/server/propuestas-repo'
 import { generarCampanaDesdePropuesta, PropuestaCampanaError } from '@/lib/server/campanas-repo'
@@ -92,10 +93,22 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         }
       } catch (e) {
         // No bloquea la aprobación (p. ej. falta cliente); se puede generar luego.
-        if (!(e instanceof PropuestaCampanaError)) throw e
+        //
+        // Y el `if (!(e instanceof PropuestaCampanaError)) throw e` que habia
+        // aqui SI la bloqueaba, con un 500, en el caso mas comun de todos: el
+        // guard del ADR 0003 -«esta pantalla no se puede vender: su contrato de
+        // arrendamiento esta incompleto»- lanza AppError, no
+        // PropuestaCampanaError. O sea que aprobar una propuesta con UNA
+        // pantalla de contrato incompleto reventaba la aprobacion ENTERA,
+        // cuando el proposito declarado de este catch es justamente que no la
+        // bloquee.
+        //
+        // Medido el 2026-09-29 con una reproduccion en vivo. Ahora los dos
+        // errores de dominio se avisan igual y la aprobacion sigue.
+        if (!(e instanceof PropuestaCampanaError) && !(e instanceof AppError)) throw e
         await notificar({
           tipo: 'CAMPANA', nivel: 'warn', titulo: 'No se pudo generar la campaña',
-          detalle: e.message, link: '/propuestas',
+          detalle: (e as Error).message, link: '/propuestas',
         })
       }
     }
