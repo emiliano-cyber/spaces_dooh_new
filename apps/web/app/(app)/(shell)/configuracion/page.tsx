@@ -18,11 +18,18 @@ const inputCls =
 export default function ConfiguracionPage() {
   const config = useConfigNegocio()
   const { sesion } = useSesionCtx()
-  // Mismo criterio que el servidor (`/api/organizacion`): renombrar la empresa
-  // es exclusivo del Dueño, por ROL y no por permiso. Si aquí se usara solo
-  // `usePuede`, un rol con `administracion.crear` concedido vería el formulario
-  // y recibiría un 403 al guardar.
-  const puedeEmpresa = usePuede('administracion', 'crear') && sesion?.usuario.rol === 'DUENO'
+  // Mismo criterio que el servidor (`/api/organizacion`): editar los datos de la
+  // empresa va por ROL y no solo por permiso. Si aquí se usara solo `usePuede`,
+  // un rol con `administracion.crear` concedido vería el formulario y recibiría
+  // un 403 al guardar.
+  //
+  // ADR 0040 · el ADMINISTRADOR entra en la lista desde el 2026-09-29. La lista
+  // tiene que ser LA MISMA que la de `app/api/organizacion/route.ts`: si
+  // divergieran, una de las dos mentiría — o la pantalla esconde algo que el
+  // servidor permite, o enseña algo que el servidor niega.
+  const rol = sesion?.usuario.rol
+  const puedeEmpresa =
+    usePuede('administracion', 'crear') && (rol === 'DUENO' || rol === 'ADMINISTRADOR')
 
   return (
     <div className="w-full max-w-2xl space-y-4">

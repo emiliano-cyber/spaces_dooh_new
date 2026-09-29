@@ -75,6 +75,58 @@ describe('coherencia RBAC', () => {
     }
   })
 
+  it('el catálogo de PRECIO va bajo `precios`, y no bajo `comercial` (ADR 0040)', () => {
+    // La separación que introdujo el ADR 0040, y el motivo por el que existe:
+    // con estas cuatro bajo `comercial`, crear una propuesta y crear un cupón
+    // eran el MISMO permiso (`comercial.crear`). El ADR pide que el VENDEDOR
+    // haga lo primero y NO lo segundo, y eso era literalmente inexpresable.
+    //
+    // Se comprueba área por área y no «que exista el módulo `precios`»: el
+    // mutante que devolvió UNA sola de las cuatro a `comercial` sobrevivió a
+    // todo lo demás de este archivo, porque las otras tres mantenían el módulo
+    // vivo. Una sola bastaría para que el vendedor pudiera crear cupones.
+    const DEL_CATALOGO_DE_PRECIO = [
+      'franjas-y-temporadas',
+      'descuentos-por-volumen',
+      'codigos-promocionales',
+      'paquetes',
+    ]
+    const mal = AREAS.filter((a) => DEL_CATALOGO_DE_PRECIO.includes(a.clave) && a.modulo !== 'precios')
+      .map((a) => `${a.clave} declara «${a.modulo}»`)
+    expect(mal).toEqual([])
+    // Y al revés: `precios` no gobierna nada más. Si alguien colgara de aquí una
+    // pantalla que no es del catálogo de precio, se la estaría abriendo a los
+    // dos jefes de venta sin decírselo a nadie.
+    expect(areasDeModulo('precios').map((a) => a.clave).sort()).toEqual(
+      [...DEL_CATALOGO_DE_PRECIO].sort(),
+    )
+  })
+
+  it('los guards de esas rutas exigen `precios`, no `comercial`', () => {
+    // La otra mitad: `lib/modulos.ts` puede decir `precios` y el `route.ts`
+    // seguir exigiendo `comercial`. Entonces la matriz de permisos diría una
+    // cosa y el servidor haría otra — «declarar una mentira», que es la frase
+    // con la que este repositorio lleva tres ADR justificando dónde va cada
+    // módulo. Se lee de los `exigir(...)` REALES.
+    //
+    // `/api/sitios/:id/rejilla` queda FUERA a propósito, y no es una excepción
+    // cómoda: esa es la captura de tarifas DESDE LA FICHA de una pantalla, se
+    // hace sobre una pantalla concreta y sigue siendo inventario. Las dos
+    // superficies estaban bien separadas de origen y ni el 0039 ni el 0040 las
+    // juntaron.
+    const RUTAS = ['codigos-promocionales', 'paquetes', 'rejilla', 'volumen']
+    const desalineados = paresExigidos()
+      .filter((p) => !p.archivo.includes('sitios'))
+      .filter((p) => RUTAS.some((r) => p.archivo.includes(r)) && p.modulo !== 'precios')
+      .map((p) => `${p.archivo} exige ${p.modulo}.${p.accion}`)
+    expect(desalineados).toEqual([])
+    // Y que el regex siga encontrando algo: sin esto, un cambio de forma en las
+    // llamadas volvería esta prueba trivialmente verde sobre una lista vacía.
+    expect(
+      paresExigidos().filter((p) => !p.archivo.includes('sitios') && p.modulo === 'precios').length,
+    ).toBe(19)
+  })
+
   it('el catálogo de pantallas NO va bajo comercial (ADR 0010)', () => {
     // La separación que introdujo el ADR: si alguien devolviera las rutas de
     // sitios a `comercial.crear`, un vendedor volvería a poder reestructurar el

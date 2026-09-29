@@ -22,7 +22,7 @@ Confundirlos es el error más común al llegar.
 | **Formato** | Notas enlazadas entre sí, con frontmatter | Archivos sueltos: ADR, planes, runbooks, bitácora |
 | **Se lee** | Antes de tocar código | Cuando necesitas el porqué de una decisión |
 
-En `docs/` viven: los **ADR** (`docs/adr/`, van por la **0039**), los **planes**
+En `docs/` viven: los **ADR** (`docs/adr/`, van por la **0040**), los **planes**
 (`docs/Plan_*.md`), los **runbooks**, las **correcciones de datos en producción**
 (`docs/datos/`, cada una con su rollback capturado antes) y la **bitácora**
 (`docs/Registro_Cambios.md`), que está escrita para quien no programa.
@@ -33,18 +33,18 @@ En `docs/` viven: los **ADR** (`docs/adr/`, van por la **0039**), los **planes**
 
 ### Qué es, técnicamente
 
-**89 notas Markdown** en `vault/`, enlazadas entre sí con wikilinks. Está pensada
+**90 notas Markdown** en `vault/`, enlazadas entre sí con wikilinks. Está pensada
 para abrirse con Obsidian, pero **no hay carpeta `.obsidian/` en el repositorio**:
 no se versiona configuración de la herramienta. Consecuencia práctica: la bóveda es
 Markdown puro y **se lee igual desde un editor, desde `cat` o desde un agente**. No
 necesitas instalar nada.
 
-Al 2026-09-28 tiene **1144 enlaces internos** sobre **89 notas**, con **2
+Al 2026-09-29 tiene **1155 enlaces internos** sobre **90 notas**, con **2
 wikilinks rotos** —los dos apuntan a ADR, que viven en `docs/` y no en la
 bóveda, así que es un choque de convención más que un enlace muerto— y
 **0 notas huérfanas**. Medido con `node scripts/recuentos.mjs` **en este
 árbol**, al cerrar el trabajo y no antes. Las
-mediciones previas daban 1131 sobre 88 (28/09, el codigo promocional), 1121 sobre 87 (28/09, el volumen), 1109 sobre 86 (28/09, la rejilla), 1096 sobre 85 (28/09, VEND-01), 1072 sobre 84 (28/09), 1056 sobre 83 (25/09), 1045
+mediciones previas daban 1144 sobre 89 (28/09), 1131 sobre 88 (28/09, el codigo promocional), 1121 sobre 87 (28/09, el volumen), 1109 sobre 86 (28/09, la rejilla), 1096 sobre 85 (28/09, VEND-01), 1072 sobre 84 (28/09), 1056 sobre 83 (25/09), 1045
 sobre 82 (24/09), 1148
 sobre 86 (23/09), 1101 sobre 85 (18/09), 753 sobre 57 (28/08), 606 sobre 48
 (17/08) y 395 sobre 43 (10/08).
@@ -86,16 +86,16 @@ vault/
 ├── 01-Arquitectura/  vision-general · stack-y-dependencias ·
 │                     entorno-y-despliegue · decisiones ·
 │                     modelo-instancias-soberanas
-├── 02-Backend/       _indice + 24 notas (`ls vault/02-Backend`, medido el 28/09;
+├── 02-Backend/       _indice + 25 notas (`ls vault/02-Backend`, medido el 29/09;
 │                     el «10» que decia aqui llevaba semanas mal). Las de
 │                     siempre: api-endpoints, autenticacion-y-sesion,
 │                     multi-tenancy-y-rls, inventario-y-sitios,
 │                     arrendadores-y-contratos, comercial-propuestas-campanas,
 │                     operaciones-y-ot, finanzas-y-cobranza,
 │                     integraciones-externas, infraestructura-servidor. Y la
-│                     cadena de precio del ADR 0039:
+│                     cadena de precio del ADR 0039 y los roles del 0040:
 │                     rejilla-franja-y-temporada + descuento-por-volumen +
-│                     codigo-promocional + paquete-cerrado
+│                     codigo-promocional + paquete-cerrado + roles-de-venta
 ├── 03-Frontend/      _indice + shell-y-navegacion · acceso-y-sesion-ui ·
 │                     modulos-internos · paginas-publicas ·
 │                     estado-y-data-fetching
@@ -129,9 +129,9 @@ código, no de memoria:
 | Aislamiento | RLS de Postgres por `app.tenant_id` | `apps/web/lib/server/db.ts:60` y `:79` |
 | Endpoints | **114** route handlers | `apps/web/app/api/**/route.ts` |
 | Tablas | **55** | `vault/04-Datos/esquema.md` |
-| Migraciones | **94** | `vault/04-Datos/migraciones.md` |
+| Migraciones | **96** | `vault/04-Datos/migraciones.md` |
 
-> Esos recuentos llevan fecha de validación **2026-09-28**, medidos con
+> Esos recuentos llevan fecha de validación **2026-09-29**, medidos con
 > `node scripts/recuentos.mjs` sobre este árbol. Trátalos como una
 > afirmación con fecha, no como una verdad permanente — §5 explica cómo
 > reverificarlos.

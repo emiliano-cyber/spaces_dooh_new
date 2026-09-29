@@ -1,7 +1,7 @@
 ---
 tipo: moc
 estado: verificado
-actualizado: 2026-09-28
+actualizado: 2026-09-29
 tags: [indice, entrada]
 archivos:
   - package.json
@@ -29,8 +29,8 @@ cobranza.
 | Producción | **El PADRE `137.184.107.53` sirve `space-os.io`**, certificado propio hasta el **2026-11-23** con renovación automática. DEMO vive dentro de él (proceso `3001`, base `spaces_demo`) y desde el **31/08 se llama `pruebas.space-os.io`** — nombre nuevo, no `demo.space-os.io`, que es solo la demostración ORIGINAL, la sirve la máquina vieja y **se eliminará** ([ADR 0024](../../docs/adr/0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md), que sustituye al 0021) | `infra/nginx/space-os.io.conf:124` y `:188` · [ADR 0017](../../docs/adr/0017-todo-se-concentra-en-el-padre.md) · [ADR 0024](../../docs/adr/0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md) · [ADR 0022](../../docs/adr/0022-instancia-dedicada-por-owner.md) |
 | Endpoints | **114** route handlers | `apps/web/app/api/**/route.ts` |
 | Tablas | **55** | [[esquema]] |
-| Migraciones | **94** | [[migraciones]] |
-| ADR | **39** (`0001`–`0039`) | `docs/adr/` · [[decisiones]] |
+| Migraciones | **96** | [[migraciones]] |
+| ADR | **40** (`0001`–`0040`) | `docs/adr/` · [[decisiones]] |
 
 > [!success] `demo.space-os.io` SE ELIMINARÁ — cerrado el 27/08 por el ADR 0024
 > Ese nombre **no sirve más que para la demostración original** —la anterior al
@@ -86,6 +86,7 @@ cobranza.
 - [[02-Backend/descuento-por-volumen]] — ADR 0039 Fase 2: «compra 50 spots y pagas 40». La escala cuelga de la organización y los tramos son PLANOS; el volumen cuenta contra el tope (decisión abierta); el servidor resuelve el porcentaje, no el navegador
 - [[02-Backend/codigo-promocional]] — ADR 0039 Fase 3: «usa este código y ten un 20 % adicional». La carrera del último uso la resuelve un `for update` sobre la fila del cupón; el canje se cuenta al APLICAR, no al aprobar; el cupón NO cuenta contra el tope (decisión abierta); y borrar el cupón no mueve una propuesta aprobada
 - [[02-Backend/paquete-cerrado]] — ADR 0039 Fase 4: «estas cinco pantallas, prime, un mes: 180 000». El único escalón que SUSTITUYE el precio en vez de modificarlo; el reparto a prorrata cuadra al peso por el método del mayor resto; el paquete es precio final (ni volumen ni cupón salvo bandera, que nace apagada); sale con RAYA del reporte publicada vs neta; y borrar el paquete no mueve una propuesta aprobada
+- [[02-Backend/roles-de-venta]] — ADR 0040: los CUATRO roles de venta y su matriz (**86 filas · 10 módulos · 8 roles**); `COMERCIAL` se retira DE USO y no del esquema —un valor de enum no se puede quitar—; **son DOS migraciones** porque un valor recién añadido no se puede usar en la transacción que lo añadió (medido en PostgreSQL 14.24); el módulo `precios`, que existe porque «cotizar» y «crear un cupón» eran el mismo permiso; y **los dos guards del Dueño**, con la carrera resuelta por un `for update` en UNA sola sentencia
 - [[operaciones-y-ot]] — órdenes de trabajo, evidencias, imprenta
 - [[finanzas-y-cobranza]] — facturación, candado, parcialidades
 - [[integraciones-externas]] — DOOHmain, Space Eye, Spaces S3, Resend, Google

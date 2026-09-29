@@ -64,6 +64,28 @@ describe('ordenar()', () => {
     }
   })
 
+  it('el enum de los roles se aplica ANTES que la matriz que lo usa (ADR 0040)', () => {
+    // ── La trampa que puede reventar esta migración ────────────────────────
+    // `ALTER TYPE … ADD VALUE` deja el valor nuevo INUTILIZABLE hasta que su
+    // transacción confirma («unsafe use of new value», medido en PostgreSQL
+    // 14.24, que es lo que corre g500). Las migraciones de este repositorio son
+    // transaccionales, así que añadir 'VENDEDOR' y usarlo en el mismo archivo
+    // falla — y fallaría en la única instancia con datos de cliente.
+    //
+    // Por eso son DOS archivos: el runner aplica cada uno con su propia
+    // `cli.query()` y cada uno trae su `begin; … commit;`, o sea DOS
+    // transacciones. Hoy el orden sale del lexicográfico ('e' < 'm'), y esta
+    // prueba es lo que convierte esa coincidencia en un contrato: si alguien
+    // renombra uno de los dos, se entera aquí y no en el droplet.
+    const archivos = readdirSync(DIR_MIGRACIONES).filter((f) => f.endsWith('.sql'))
+    const ordenados = ordenar(archivos)
+    const enumRoles = '20260929_roles_de_venta_enum.sql'
+    const matriz = '20260929_roles_de_venta_matriz.sql'
+    expect(ordenados).toContain(enumRoles)
+    expect(ordenados).toContain(matriz)
+    expect(ordenados.indexOf(enumRoles)).toBeLessThan(ordenados.indexOf(matriz))
+  })
+
   it('no muta el array que recibe', () => {
     // `ordenar()` la llaman el runner y el arnés de e2e sobre listas que luego
     // reusan. Un `sort()` in situ ahí es de los fallos que aparecen lejos.

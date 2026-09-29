@@ -25,7 +25,7 @@ export const dynamic = 'force-dynamic'
 //  porque el candado protege la ruta, no el JSON.
 // ============================================================================
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
-  const g = await exigirCambioSensible('comercial', 'crear')
+  const g = await exigirCambioSensible('precios', 'crear')
   if (!g.ok) return g.res
   try {
     const body = await req.json().catch(() => ({}))
@@ -42,7 +42,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 }
 
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
-  const g = await exigirCambioSensible('comercial', 'crear')
+  const g = await exigirCambioSensible('precios', 'crear')
   if (!g.ok) return g.res
   try {
     const r = await borrarTramoCtrl(params.id)

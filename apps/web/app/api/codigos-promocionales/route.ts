@@ -37,7 +37,7 @@ export const dynamic = 'force-dynamic'
 
 // GET → los cupones de la organización, con su cuenta de canjes.
 export async function GET() {
-  const g = await exigir('comercial', 'ver')
+  const g = await exigir('precios', 'ver')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
   try {
     return NextResponse.json(await listarCodigosCtrl())
@@ -49,7 +49,7 @@ export async function GET() {
 // POST → alta de un cupón. El código repetido y el formato inválido se rechazan
 // en el controller, con la frase que dice qué hacer.
 export async function POST(req: Request) {
-  const g = await exigirCambioSensible('comercial', 'crear')
+  const g = await exigirCambioSensible('precios', 'crear')
   if (!g.ok) return g.res
   try {
     const cod = await guardarCodigoCtrl(await req.json().catch(() => ({})))

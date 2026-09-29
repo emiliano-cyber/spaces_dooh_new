@@ -158,9 +158,18 @@ export type EtapaPipeline =
   // bandera nueva: la relación `facturas.campanaId` ya existía.
   | 'facturada'
 
-// Rol de la demo. No es auth real.
+// Los valores del enum `rol_demo` de Postgres (`db/schema.sql`), TODOS, incluidos
+// los retirados de uso. El catálogo de lo que se puede ASIGNAR vive en
+// `lib/roles.ts`, que es una lista más corta: 'COMERCIAL' (ADR 0040) y 'CLIENTE'
+// (ADR 0010) siguen en la base porque un valor de enum no se puede quitar sin
+// recrear el tipo, y una fila vieja puede traerlos.
 export type RolDemo =
   | 'DUENO'
+  // ADR 0040, 2026-09-29 · los cuatro roles nuevos.
+  | 'ADMINISTRADOR'
+  | 'DIRECTOR_COMERCIAL'
+  | 'GERENTE_VENTAS'
+  | 'VENDEDOR'
   | 'COMERCIAL'
   | 'OPERACIONES'
   | 'IMPRENTA'

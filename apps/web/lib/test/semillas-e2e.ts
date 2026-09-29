@@ -114,6 +114,18 @@ export async function sembrarTenant(slug: string, opts?: { rol?: string }): Prom
 // Permisos: el esquema los siembra para los roles estándar, pero `inventario`
 // llegó con el ADR 0010 y schema.sql lo trae; esto es la red por si una
 // instalación quedara sin ellos. Idempotente.
+//
+// ⚠️ SIGUE SEMBRANDO 'COMERCIAL' aunque el ADR 0040 lo retirara el 2026-09-29, y
+// es a propósito. `aislamiento.e2e.test.ts` —que es invariante y no se toca—
+// siembra un tenant con ese rol para comprobar que un comercial NO reestructura
+// el catálogo (ADR 0010), y sin estas cinco filas ese usuario se quedaría sin
+// NINGÚN permiso: el 403 seguiría saliendo, pero por el motivo equivocado, y la
+// prueba dejaría de medir lo que dice medir.
+//
+// Esto NO contradice la migración: aquí se siembra a mano, después de ella, en
+// una base de pruebas. Una instancia de verdad no pasa por este archivo. Quien
+// comprueba que COMERCIAL nace sin permisos es `roles-de-venta.e2e.test.ts`, que
+// NO llama a este ayudante, justamente por esto.
 export async function asegurarPermisos(): Promise<void> {
   await poolTest().query(
     `insert into rol_permisos (rol, modulo, accion) values

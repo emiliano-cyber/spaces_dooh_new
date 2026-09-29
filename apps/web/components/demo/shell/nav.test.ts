@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { NAV, GRUPOS, type GrupoNav } from './nav'
+import { ROLES_ASIGNABLES } from '@/lib/roles'
 import type { RolDemo } from '@/lib/data/types'
 
 // ============================================================================
@@ -11,7 +12,11 @@ import type { RolDemo } from '@/lib/data/types'
 //  descubrirse mirando una captura.
 // ============================================================================
 
-const ROLES: RolDemo[] = ['DUENO', 'COMERCIAL', 'OPERACIONES', 'IMPRENTA', 'FINANZAS']
+// Los roles que el producto ofrece al dar de alta a alguien. Sale de la lista
+// canónica (`lib/roles.ts`) y no de una copia escrita aquí: una copia haría que
+// un rol nuevo entrara al producto sin que ninguna de estas pruebas lo mirara,
+// que es justo lo que pasó con COMERCIAL hasta el ADR 0040.
+const ROLES: RolDemo[] = ROLES_ASIGNABLES.map((r) => r.value)
 const paraRol = (rol: RolDemo) => NAV.filter((n) => n.roles.includes(rol))
 
 describe('1 · lo que se pidió expresamente', () => {
@@ -112,9 +117,18 @@ describe('3 bis · Creativos se alcanza DESDE COMERCIAL (2026-09-28)', () => {
   // encenderían las dos a la vez.
   const creativos = NAV.find((n) => n.key === 'creativos')
 
-  it('la entrada existe y la ven Dueño y Comercial', () => {
+  it('la entrada existe y la ve quien vende', () => {
+    // Decía `['DUENO', 'COMERCIAL']` hasta el 2026-09-29. El rol COMERCIAL se
+    // retiró con el ADR 0040 y lo sustituyen los tres de venta; lo que la prueba
+    // fija sigue siendo lo mismo: la pauta la arma quien vende, no operaciones.
     expect(creativos).toBeDefined()
-    expect(creativos?.roles).toEqual(['DUENO', 'COMERCIAL'])
+    expect(creativos?.roles).toEqual([
+      'DUENO',
+      'ADMINISTRADOR',
+      'DIRECTOR_COMERCIAL',
+      'GERENTE_VENTAS',
+      'VENDEDOR',
+    ])
   })
 
   it('cuelga del grupo «Comercial», que es el que rotula «vender»', () => {
@@ -127,11 +141,96 @@ describe('3 bis · Creativos se alcanza DESDE COMERCIAL (2026-09-28)', () => {
     expect(posicion('propuestas')).toBeLessThan(posicion('creativos'))
   })
 
-  it('un COMERCIAL lo ve sin pasar por ningún encabezado de otra área', () => {
+  it('un VENDEDOR lo ve sin pasar por ningún encabezado de otra área', () => {
     // Lo que de verdad se pidió: que aparezca bajo «Comercial» para quien
-    // vende. Se mira lo que se pinta, no el arreglo entero.
-    const suyos = paraRol('COMERCIAL').filter((n) => n.grupo === 'vender').map((n) => n.key)
+    // vende. Se mira lo que se pinta, no el arreglo entero. Era 'COMERCIAL'
+    // hasta el ADR 0040; el rol que hoy hace ese trabajo es 'VENDEDOR'.
+    const suyos = paraRol('VENDEDOR').filter((n) => n.grupo === 'vender').map((n) => n.key)
     expect(suyos).toContain('creativos')
+  })
+})
+
+describe('3 ter · los cuatro roles del ADR 0040 (2026-09-29)', () => {
+  const claves = (rol: string) => paraRol(rol as RolDemo).map((n) => n.key)
+
+  it('el ADMINISTRADOR ve EXACTAMENTE lo mismo que el Dueño', () => {
+    // «puede hacer las mismas cosas que él» (dictado del 29/09). En el menú eso
+    // es literal; lo que NO copia son los cuatro sitios donde 'DUENO' está
+    // escrito a mano, y ésos se prueban aparte.
+    expect(claves('ADMINISTRADOR')).toEqual(claves('DUENO'))
+  })
+
+  it('COMERCIAL ya no ve nada: el rol se retiró de uso', () => {
+    // El valor sigue en el enum de Postgres —no se puede quitar— pero deja de
+    // tener puerta. Si alguien le devolviera una entrada del menú, vería la
+    // pantalla y se comería un 403: la migración le quitó sus permisos.
+    expect(claves('COMERCIAL')).toEqual([])
+  })
+
+  it('los tres roles de venta ven el ciclo comercial entero', () => {
+    for (const rol of ['DIRECTOR_COMERCIAL', 'GERENTE_VENTAS', 'VENDEDOR']) {
+      const suyas = claves(rol)
+      for (const pantalla of ['clientes', 'comercial', 'disponibilidad', 'propuestas', 'campanas']) {
+        expect(suyas, `${rol} no ve ${pantalla}`).toContain(pantalla)
+      }
+    }
+  })
+
+  it('el VENDEDOR NO ve las cuatro pantallas del catálogo de precio', () => {
+    // El vendedor APLICA códigos y paquetes; no los crea. Enseñarle la pantalla
+    // de gestión sería el «encierro» que este repositorio ya documentó dos
+    // veces: el servidor niega lo que la pantalla ofrece.
+    const suyas = claves('VENDEDOR')
+    for (const pantalla of [
+      'franjas-y-temporadas',
+      'descuentos-por-volumen',
+      'codigos-promocionales',
+      'paquetes',
+    ]) {
+      expect(suyas, `el vendedor NO debería ver ${pantalla}`).not.toContain(pantalla)
+    }
+  })
+
+  it('el director comercial y el gerente de ventas SÍ las ven', () => {
+    for (const rol of ['DIRECTOR_COMERCIAL', 'GERENTE_VENTAS']) {
+      const suyas = claves(rol)
+      for (const pantalla of [
+        'franjas-y-temporadas',
+        'descuentos-por-volumen',
+        'codigos-promocionales',
+        'paquetes',
+      ]) {
+        expect(suyas, `${rol} no ve ${pantalla}`).toContain(pantalla)
+      }
+    }
+  })
+
+  it('ningún rol de venta ve Administración ni Inventario', () => {
+    // Dar de alta usuarios y reestructurar el patrimonio no son trabajo de
+    // vender. El Inventario es «exclusivo del Dueño» y desde hoy también del
+    // administrador — de nadie más.
+    for (const rol of ['DIRECTOR_COMERCIAL', 'GERENTE_VENTAS', 'VENDEDOR']) {
+      expect(claves(rol), rol).not.toContain('administracion')
+      expect(claves(rol), rol).not.toContain('inventario')
+      expect(claves(rol), rol).not.toContain('arrendadores')
+    }
+  })
+
+  it('los grupos siguen SEGUIDOS para cada rol nuevo', () => {
+    // El reparto de roles no reordena nada, pero esta prueba lo fija: si
+    // alguien mueve una entrada para «agrupar lo del vendedor», el menú pinta
+    // el mismo título dos veces con otra fase en medio.
+    for (const rol of ROLES) {
+      const orden = paraRol(rol).map((n) => n.grupo)
+      const vistos = new Set<GrupoNav>()
+      let anterior: GrupoNav | null = null
+      for (const g of orden) {
+        if (g === anterior) continue
+        expect(vistos.has(g), `${rol}: el grupo «${g}» aparece en dos tramos`).toBe(false)
+        vistos.add(g)
+        anterior = g
+      }
+    }
   })
 })
 

@@ -108,7 +108,13 @@ describe('el alta ya no siembra el catálogo de permisos', () => {
 
   it('el escenario parte del catálogo completo', () => {
     // Si esto fallara, lo de abajo mediría que el alta no toca una tabla vacía.
-    expect(antes).toHaveLength(41)
+    //
+    // Eran 41 hasta el 2026-09-29. El ADR 0040 las deja en 86: entran cuatro
+    // roles nuevos y el módulo `precios`, y COMERCIAL se queda a cero. El número
+    // se pone al día aquí a propósito y NO se sustituye por «> 0»: lo que esta
+    // línea compra es que el escenario parta del catálogo que de verdad siembra
+    // la cadena, y un `> 0` lo dejaría de comprar.
+    expect(antes).toHaveLength(86)
   })
 
   it('el alta corre y crea la identidad de la instancia', async () => {

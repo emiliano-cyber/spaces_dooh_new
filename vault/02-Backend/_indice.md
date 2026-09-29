@@ -31,6 +31,7 @@ No hay servicio aparte.
 |---|---|
 | [[api-endpoints]] | Los 96 endpoints con método, guard y módulo |
 | [[autenticacion-y-sesion]] | Cookie, sesión, CSRF, RBAC, reautenticación |
+| [[roles-de-venta]] | **ADR 0040**: los cuatro roles nuevos y su matriz (86 filas · 10 módulos · 8 roles), el retiro de `COMERCIAL` **de uso y no del esquema**, por qué son DOS migraciones (un valor de enum no se usa en la transacción que lo añade), el módulo `precios`, y **los dos guards del Dueño** con su carrera resuelta por `for update` |
 | [[multi-tenancy-y-rls]] | Aislamiento entre organizaciones |
 | [[inventario-y-sitios]] | Pantallas, predios, modalidades, importación |
 | [[arrendadores-y-contratos]] | Arrendadores, contratos, rentas, firma — la razón social de quien me **COBRA** |

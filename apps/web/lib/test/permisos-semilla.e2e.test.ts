@@ -22,10 +22,17 @@ import { AREAS, MODULOS } from '../modulos'
 //  Dueño entra y ve la aplicación entera vacía — falla cerrado, no es una fuga,
 //  pero deja la instancia inservible desde el minuto uno.
 //
-//  Lo que estas pruebas fijan es el catálogo decidido el 2026-08-20 al cerrar
-//  ROJO-2 —41 filas · 9 módulos · 5 perfiles—, que adopta ENTERO el contenido
-//  que llevaba el alta, el más completo de los dos catálogos que convivían. La
-//  expectativa se escribe literal a propósito: si saliera de la propia
+//  Lo que estas pruebas fijan es el catálogo con el que nace una instancia HOY.
+//  Se ha movido dos veces y las dos quedan escritas, porque el recorrido es
+//  parte de la explicación:
+//
+//    · 2026-08-20 (ROJO-2) · 41 filas · 9 módulos · 5 perfiles. Adoptó ENTERO el
+//      contenido que llevaba el alta, el más completo de los dos catálogos que
+//      convivían.
+//    · 2026-09-29 (ADR 0040) · 86 filas · 10 módulos · 8 roles. Entran los
+//      cuatro roles nuevos y el módulo `precios`, y COMERCIAL se queda a cero.
+//
+//  La expectativa se escribe literal a propósito: si saliera de la propia
 //  migración, la prueba no diría nada.
 //
 //  Hasta ese día había DOS catálogos que podían divergir y de hecho divergían
@@ -77,12 +84,15 @@ const CATALOGO = [
 
 const MIGRACION = '20260819_semilla_rol_permisos.sql'
 const MIGRACION_COMPLETA = '20260820_catalogo_permisos_completo.sql'
+// ADR 0040. Son DOS archivos y no uno porque un valor de enum recién añadido no
+// se puede usar en la transacción que lo añadió — ver la cabecera del primero.
+const MIGRACION_ROLES_ENUM = '20260929_roles_de_venta_enum.sql'
+const MIGRACION_ROLES_MATRIZ = '20260929_roles_de_venta_matriz.sql'
 
-// El catálogo OBJETIVO, decidido el 2026-08-20 al cerrar ROJO-2: 41 filas · 9
-// módulos · 5 perfiles. Sale del contenido del alta (`bootstrap-auth.mjs`), que
-// era el más completo de los dos catálogos que convivían, adoptado ENTERO y no
-// solo en sus dos perfiles nuevos. Se escribe literal aquí a propósito: si
-// saliera de la propia migración, la prueba no diría nada.
+// El catálogo del 2026-08-20 (ROJO-2): 41 filas · 9 módulos · 5 perfiles. Sale
+// del contenido del alta (`bootstrap-auth.mjs`), que era el más completo de los
+// dos catálogos que convivían, adoptado ENTERO y no solo en sus dos perfiles
+// nuevos.
 //
 //   · IMPRENTA ve y crea sus trabajos y mira operaciones, para saber qué se
 //     instala. NO tiene `aprobar`: no cierra nada por su cuenta.
@@ -90,6 +100,12 @@ const MIGRACION_COMPLETA = '20260820_catalogo_permisos_completo.sql'
 //     dinero irreversible (R4) y va por decisión expresa: un Finanzas que no
 //     puede facturar obliga al Dueño a hacer el trabajo diario, y eso acaba con
 //     todo el mundo entrando como Dueño, que es peor.
+//
+// ⚠️ Ya NO es el estado final de una instancia nueva: el ADR 0040 le quita a
+// COMERCIAL sus cinco filas y le añade cuatro roles. Se conserva porque sigue
+// siendo lo que dejan las DOS migraciones de agosto, y porque es lo que hay que
+// volver a aplicar para comprobar que reaplicar la cadena no resucita a un rol
+// retirado — cosa que SÍ pasa si se para ahí, ver la prueba de idempotencia.
 const CATALOGO_COMPLETO = [
   'COMERCIAL|comercial|crear',
   'COMERCIAL|comercial|ver',
@@ -132,6 +148,108 @@ const CATALOGO_COMPLETO = [
   'OPERACIONES|inventario|ver',
   'OPERACIONES|operaciones|crear',
   'OPERACIONES|operaciones|ver',
+]
+
+// --- Y el estado FINAL, tras el ADR 0040 (2026-09-29) ---------------------
+//
+// 86 filas · 10 modulos · 8 roles. Se escribe literal a proposito, igual que el
+// de arriba: si saliera de la propia migracion, la prueba no diria nada. Los
+// tres cambios respecto a las 41 de agosto:
+//
+//   · COMERCIAL se queda a CERO. El valor sigue en el enum -- no se puede
+//     quitar-- pero sin filas no autoriza nada.
+//   · Entran ADMINISTRADOR (las 26 del Dueno, una por una), DIRECTOR_COMERCIAL,
+//     GERENTE_VENTAS y VENDEDOR.
+//   · Aparece el modulo `precios`, que se separo de `comercial` para poder decir
+//     que el vendedor cotiza y NO crea codigos. Con los dos en el mismo modulo
+//     eso era literalmente inexpresable.
+const CATALOGO_FINAL = [
+  'ADMINISTRADOR|administracion|aprobar',
+  'ADMINISTRADOR|administracion|crear',
+  'ADMINISTRADOR|administracion|ver',
+  'ADMINISTRADOR|arrendadores|aprobar',
+  'ADMINISTRADOR|arrendadores|crear',
+  'ADMINISTRADOR|arrendadores|ver',
+  'ADMINISTRADOR|comercial|aprobar',
+  'ADMINISTRADOR|comercial|crear',
+  'ADMINISTRADOR|comercial|ver',
+  'ADMINISTRADOR|dashboard|ver',
+  'ADMINISTRADOR|finanzas|crear',
+  'ADMINISTRADOR|finanzas|facturar',
+  'ADMINISTRADOR|finanzas|ver',
+  'ADMINISTRADOR|imprenta|aprobar',
+  'ADMINISTRADOR|imprenta|crear',
+  'ADMINISTRADOR|imprenta|ver',
+  'ADMINISTRADOR|inventario|aprobar',
+  'ADMINISTRADOR|inventario|crear',
+  'ADMINISTRADOR|inventario|ver',
+  'ADMINISTRADOR|network|crear',
+  'ADMINISTRADOR|network|ver',
+  'ADMINISTRADOR|operaciones|aprobar',
+  'ADMINISTRADOR|operaciones|crear',
+  'ADMINISTRADOR|operaciones|ver',
+  'ADMINISTRADOR|precios|crear',
+  'ADMINISTRADOR|precios|ver',
+  'DIRECTOR_COMERCIAL|comercial|aprobar',
+  'DIRECTOR_COMERCIAL|comercial|crear',
+  'DIRECTOR_COMERCIAL|comercial|ver',
+  'DIRECTOR_COMERCIAL|dashboard|ver',
+  'DIRECTOR_COMERCIAL|inventario|ver',
+  'DIRECTOR_COMERCIAL|network|ver',
+  'DIRECTOR_COMERCIAL|precios|crear',
+  'DIRECTOR_COMERCIAL|precios|ver',
+  'DUENO|administracion|aprobar',
+  'DUENO|administracion|crear',
+  'DUENO|administracion|ver',
+  'DUENO|arrendadores|aprobar',
+  'DUENO|arrendadores|crear',
+  'DUENO|arrendadores|ver',
+  'DUENO|comercial|aprobar',
+  'DUENO|comercial|crear',
+  'DUENO|comercial|ver',
+  'DUENO|dashboard|ver',
+  'DUENO|finanzas|crear',
+  'DUENO|finanzas|facturar',
+  'DUENO|finanzas|ver',
+  'DUENO|imprenta|aprobar',
+  'DUENO|imprenta|crear',
+  'DUENO|imprenta|ver',
+  'DUENO|inventario|aprobar',
+  'DUENO|inventario|crear',
+  'DUENO|inventario|ver',
+  'DUENO|network|crear',
+  'DUENO|network|ver',
+  'DUENO|operaciones|aprobar',
+  'DUENO|operaciones|crear',
+  'DUENO|operaciones|ver',
+  'DUENO|precios|crear',
+  'DUENO|precios|ver',
+  'FINANZAS|dashboard|ver',
+  'FINANZAS|finanzas|crear',
+  'FINANZAS|finanzas|facturar',
+  'FINANZAS|finanzas|ver',
+  'GERENTE_VENTAS|comercial|aprobar',
+  'GERENTE_VENTAS|comercial|crear',
+  'GERENTE_VENTAS|comercial|ver',
+  'GERENTE_VENTAS|dashboard|ver',
+  'GERENTE_VENTAS|inventario|ver',
+  'GERENTE_VENTAS|network|ver',
+  'GERENTE_VENTAS|precios|crear',
+  'GERENTE_VENTAS|precios|ver',
+  'IMPRENTA|imprenta|crear',
+  'IMPRENTA|imprenta|ver',
+  'IMPRENTA|operaciones|ver',
+  'OPERACIONES|comercial|ver',
+  'OPERACIONES|imprenta|ver',
+  'OPERACIONES|inventario|ver',
+  'OPERACIONES|operaciones|crear',
+  'OPERACIONES|operaciones|ver',
+  'VENDEDOR|comercial|crear',
+  'VENDEDOR|comercial|ver',
+  'VENDEDOR|dashboard|ver',
+  'VENDEDOR|inventario|ver',
+  'VENDEDOR|network|ver',
+  'VENDEDOR|precios|ver',
 ]
 
 function urlDe(base: string): string {
@@ -213,17 +331,17 @@ describe('el catálogo de permisos de una instancia nueva', () => {
     expect(runner.status).toBe(0)
   })
 
-  it('nace con las 41 filas: 9 módulos y 5 roles, ni una más', async () => {
+  it('nace con las 86 filas: 10 módulos y 8 roles, ni una más', async () => {
     // El «ni una más» importa tanto como el «ni una menos»: las dos migraciones
     // corren DESPUÉS de `20260804_modulo_inventario.sql`, que ya sembró 5 de
     // estas filas, y la segunda repite las 25 de la primera. Un `insert` sin
     // `on conflict` dejaría 46 o abortaría.
-    expect(await catalogoDe(pool)).toEqual(CATALOGO_COMPLETO)
+    expect(await catalogoDe(pool)).toEqual(CATALOGO_FINAL)
 
     const { rows } = await pool.query(
       'select count(*)::int filas, count(distinct modulo)::int modulos, count(distinct rol)::int roles from rol_permisos',
     )
-    expect(rows[0]).toEqual({ filas: 41, modulos: 9, roles: 5 })
+    expect(rows[0]).toEqual({ filas: 86, modulos: 10, roles: 8 })
   })
 
   it('los dos perfiles que no existían ya pueden entrar a algo', async () => {
@@ -235,12 +353,19 @@ describe('el catálogo de permisos de una instancia nueva', () => {
       "select rol::text rol, count(*)::int n from rol_permisos group by 1 order by 1",
     )
     expect(rows).toEqual([
-      { rol: 'COMERCIAL', n: 5 },
-      { rol: 'DUENO', n: 24 },
+      { rol: 'ADMINISTRADOR', n: 26 },
+      { rol: 'DIRECTOR_COMERCIAL', n: 8 },
+      { rol: 'DUENO', n: 26 },
       { rol: 'FINANZAS', n: 4 },
+      { rol: 'GERENTE_VENTAS', n: 8 },
       { rol: 'IMPRENTA', n: 3 },
       { rol: 'OPERACIONES', n: 5 },
+      { rol: 'VENDEDOR', n: 6 },
     ])
+    // Y COMERCIAL NO aparece en esta lista, que es la mitad que importa del ADR
+    // 0040: el `group by` solo saca los roles CON filas. Si volviera a salir,
+    // alguien le devolvio permisos a un rol retirado.
+    expect(rows.map((r: any) => r.rol)).not.toContain('COMERCIAL')
   })
 
   it('reaplicar la migración no duplica ni cambia nada (idempotente)', async () => {
@@ -249,11 +374,28 @@ describe('el catálogo de permisos de una instancia nueva', () => {
     // (F3.6) y `scripts/migrar.mjs` aplica una vez, así que **dejó de ser el
     // caso normal**. El caso se conserva porque la propiedad sigue siendo
     // barata y su pérdida no daría error: ver el aviso de `reaplicacion`.
+    //
+    // ⚠️ Y APARECIÓ AQUÍ, midiendo: reaplicar SOLO las dos de agosto **resucita
+    // al rol COMERCIAL**. Sus cinco filas las siembran aquellas migraciones con
+    // `on conflict do nothing`, y el `delete` que se las quita está en la de
+    // septiembre. O sea que reaplicar la cadena a medias deja la base con un rol
+    // retirado que vuelve a autorizar cosas, y sin un solo error.
+    //
+    // No es un defecto de estas migraciones: es lo que significa reaplicar una
+    // cadena, y por eso se reaplica ENTERA y en orden. `scripts/migrar.mjs`
+    // aplica cada una una sola vez, así que en una instancia de verdad no pasa;
+    // lo que esta prueba fija es que el estado final no dependa de dónde pares.
     const antes = await catalogoDe(pool)
     await pool.query(readFileSync(join(RAIZ, 'db', 'migrations', MIGRACION), 'utf8'))
     await pool.query(readFileSync(join(RAIZ, 'db', 'migrations', MIGRACION_COMPLETA), 'utf8'))
+    // El estado intermedio: COMERCIAL ha vuelto. Se afirma en voz alta en vez de
+    // saltárselo, porque es la razón por la que las dos líneas de abajo existen.
+    expect(await catalogoDe(pool)).toContain('COMERCIAL|comercial|ver')
+
+    await pool.query(readFileSync(join(RAIZ, 'db', 'migrations', MIGRACION_ROLES_ENUM), 'utf8'))
+    await pool.query(readFileSync(join(RAIZ, 'db', 'migrations', MIGRACION_ROLES_MATRIZ), 'utf8'))
     expect(await catalogoDe(pool)).toEqual(antes)
-    expect(antes).toHaveLength(41)
+    expect(antes).toHaveLength(86)
   })
 
   it('un Dueño recién creado ve sus módulos', async () => {
@@ -293,6 +435,9 @@ describe('el catálogo de permisos de una instancia nueva', () => {
       'inventario',
       'network',
       'operaciones',
+      // ADR 0040 · el módulo del catálogo de precio. Sin esta línea el Dueño
+      // tendría el permiso y la prueba no lo miraría.
+      'precios',
     ])
     // La puerta concreta que hoy se le cierra: sin catálogo, Administración —de
     // donde da de alta al resto de su equipo— contesta 403.

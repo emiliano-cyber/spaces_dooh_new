@@ -35,6 +35,35 @@ archivos:
 
 # Migraciones
 
+> [!danger] 2026-09-29 · `20260929_roles_de_venta_*.sql` — ADR 0040, y son **DOS**
+> `..._enum.sql` añade los cuatro valores nuevos de `rol_demo`
+> (`ADMINISTRADOR`, `DIRECTOR_COMERCIAL`, `GERENTE_VENTAS`, `VENDEDOR`) **y nada
+> más**. `..._matriz.sql` los usa: siembra las 50 filas nuevas de `rol_permisos`,
+> **borra las cinco de `COMERCIAL`**, pasa a `VENDEDOR` a quien lo tuviera y
+> cambia el DEFAULT de `usuarios.rol`.
+>
+> **Son dos archivos por una regla de Postgres, no por gusto:** un valor de enum
+> recién añadido **no se puede usar en la transacción que lo añadió**
+> —«*unsafe use of new value*»—, y las migraciones de este repositorio son
+> transaccionales. Medido contra **PostgreSQL 14.24**, que es lo que corre g500.
+> La partición funciona porque el runner aplica **cada archivo con su propia
+> `cli.query()`**: dos archivos, dos transacciones, misma conexión.
+>
+> El orden sale del lexicográfico (`e` < `m`) y **no** se añadió a `ANTES_DE`:
+> se fija con una prueba en `scripts/migrar.test.ts` y con un **guard dentro de
+> la segunda**, que se niega a correr si los valores no existen ya.
+>
+> La segunda trae además **un guard de zona R2**: `usuarios` es fail-closed +
+> FORCE, así que se niega a empezar si `current_user` no es `rolsuper` ni
+> `rolbypassrls` — sin él, el `update` afectaría a **cero filas en silencio**.
+> Comprobado como `spaces_app`: sale con código 3 y lo dice.
+>
+> Estado final medido: **86 filas · 10 módulos · 8 roles**, default
+> `'VENDEDOR'::rol_demo`, 10 valores en el enum. Detalle en [[roles-de-venta]].
+>
+> **`COMERCIAL` NO se quita del enum** y no se puede: exigiría recrear el tipo
+> entero. Se retira **de uso**.
+
 > [!note] 2026-09-28 · `20260928_paquete_cerrado.sql` — ADR 0039, Fase 4
 > Tres tablas —`paquetes`, `paquete_sitios` y `paquete_aplicaciones`— más cinco
 > columnas en `propuestas` (`paquete_nombre`, `paquete_precio`,

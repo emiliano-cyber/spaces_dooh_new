@@ -13,7 +13,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
   try {
     const body = await req.json().catch(() => ({}))
-    const u = await actualizarUsuarioCtrl(params.id, g.usuario.id, body)
+    const u = await actualizarUsuarioCtrl(params.id, { id: g.usuario.id, rol: g.usuario.rol }, body)
     const accion =
       body?.password !== undefined ? 'Cambió la contraseña de'
       : body?.rol !== undefined ? 'Cambió rol'
@@ -31,7 +31,7 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
   const g = await exigir('administracion', 'crear')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
   try {
-    await borrarUsuarioCtrl(params.id, g.usuario.id)
+    await borrarUsuarioCtrl(params.id, { id: g.usuario.id, rol: g.usuario.rol })
     await registrarAccion(g.usuario, 'Eliminó usuario', params.id)
     return NextResponse.json({ ok: true })
   } catch (e) {
