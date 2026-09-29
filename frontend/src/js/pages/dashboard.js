@@ -11,6 +11,9 @@ function dashboard() {
     _toastT: null,
     capturando: null,        // id del equipo al que se le esta pidiendo la foto
     capturandoTodos: false,
+    // Fallas de pantalla abiertas, por equipo (para la tarjeta) y en total.
+    fallasPorEquipo: {},
+    fallasTotal: 0,
 
     get onlineCount() {
       return this.devices.filter(d => d.online).length;
@@ -42,6 +45,16 @@ function dashboard() {
           (a.id - b.id));
     },
 
+    async loadFallas() {
+      try {
+        const r = await API.get('/api/fallas?estado=abierta&limit=500');
+        const por = {};
+        for (const f of r.fallas || []) por[f.device_id] = (por[f.device_id] || 0) + 1;
+        this.fallasPorEquipo = por;
+        this.fallasTotal = r.abiertas || 0;
+      } catch (_) { /* sin permiso o sin red: la tarjeta simplemente no lo muestra */ }
+    },
+
     async init() {
       // Sin sesion ya estamos navegando al login: no arrancar sockets ni
       // peticiones condenadas al 401.
@@ -51,6 +64,8 @@ function dashboard() {
       this.userName = user.name || '';
 
       await this.loadDevices();
+      this.loadFallas();
+      setInterval(() => this.loadFallas(), 60000);
       // Refresca la lista (aparecen equipos nuevos, se actualizan estados).
       setInterval(() => this.loadDevices(), 30000);
 

@@ -1,31 +1,220 @@
-/* SPACE EYE — Custom styles */
+/* SPACE EYES — estilos del sistema.
+ *
+ * Brand Book V2 de AS Network, reglas de SPACE OS: flat absoluto (cero sombras,
+ * cero gradientes, bordes de 1px), tinta calida sobre blanco/crema, azul
+ * electrico como unico color de producto, verde solo para "verificado".
+ * La paleta y las fuentes se definen en src/js/tema.js; aqui van los
+ * componentes que se repiten en todas las pantallas.
+ */
+:root {
+  --se-tinta: #1C1612;
+  --se-secundario: #7F7262;
+  --se-borde: #EAE4D8;
+  --se-crema: #F4EDDE;
+  --se-fondo: #FBF9F4;
+  --se-azul: #0A66FF;
+  --se-verde: #1DA850;
+  --se-ambar: #F59E0B;
+  --se-rojo: #D93025;
+}
+
 [x-cloak] { display: none !important; }
 
-/* Scrollbar styling */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: #f5f5f5; }
-::-webkit-scrollbar-thumb { background: #d4d4d4; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #a3a3a3; }
+body {
+  font-family: "General Sans", system-ui, sans-serif;
+  color: var(--se-tinta);
+  -webkit-font-smoothing: antialiased;
+}
+/* Cifras que se comparan entre si: todas del mismo ancho. */
+.font-mono, .tabular-nums { font-variant-numeric: tabular-nums; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--se-fondo); }
+::-webkit-scrollbar-thumb { background: #D9D0C1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #B3A794; }
 
 /* Loading spinner */
 .spinner {
-  border: 2px solid #e5e7eb;
-  border-top-color: #0A66FF;
+  border: 2px solid var(--se-borde);
+  border-top-color: var(--se-azul);
   border-radius: 50%;
   width: 24px;
   height: 24px;
   animation: spin 0.6s linear infinite;
 }
+@keyframes spin { to { transform: rotate(360deg); } }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
+/* Tarjeta con hover: solo cambia el borde (sin sombras). */
+.card-hover { transition: border-color 0.15s ease; }
+.card-hover:hover { border-color: #B3A794; }
+
+/* ---- Titulos ------------------------------------------------------------- */
+.se-titulo {
+  font-family: "Cabinet Grotesk", "General Sans", system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+}
+/* Etiqueta tecnica encima de un bloque: "PANTALLA · 15 GABINETES". */
+.se-eyebrow {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--se-secundario);
 }
 
-/* Card hover effect */
-.card-hover {
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+/* ---- Tarjetas y secciones --------------------------------------------------- */
+.se-card {
+  background: #fff;
+  border: 1px solid var(--se-borde);
+  border-radius: 8px;
 }
-.card-hover:hover {
-  border-color: #a3a3a3;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+.se-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--se-borde);
+}
+.se-card-title { font-weight: 600; font-size: 15px; }
+.se-card-sub { font-size: 12.5px; color: var(--se-secundario); margin-top: 2px; }
+.se-card-body { padding: 16px 18px; }
+/* Subseccion dentro de una tarjeta, separada por una linea. */
+.se-divisor { border-top: 1px solid var(--se-borde); }
+
+/* Filas etiqueta / valor ("Bateria ........ 100%"). */
+.se-dato {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+  font-size: 13.5px;
+}
+.se-dato + .se-dato { border-top: 1px solid #F3EFE6; }
+.se-dato > :first-child { color: var(--se-secundario); }
+.se-dato > :last-child { font-weight: 500; text-align: right; }
+
+/* Indicador clave: etiqueta pequeña + cifra grande en mono. */
+.se-kpi {
+  background: #fff;
+  border: 1px solid var(--se-borde);
+  border-radius: 8px;
+  padding: 12px 14px;
+  min-width: 0;
+}
+.se-kpi-label { font-size: 12px; color: var(--se-secundario); }
+.se-kpi-valor {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 20px;
+  font-weight: 500;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.se-kpi-nota { font-size: 12px; color: var(--se-secundario); margin-top: 1px; }
+
+/* ---- Estados ------------------------------------------------------------------ */
+.se-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--se-borde);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  background: #fff;
+  color: var(--se-secundario);
+}
+.se-badge::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.se-badge-ok { color: #178A42; border-color: #CDEFD9; background: #F3FBF6; }
+.se-badge-alerta { color: #B06F04; border-color: #FDE9C4; background: #FFFAF0; }
+.se-badge-falla { color: #B3261E; border-color: #F6D3CF; background: #FDF4F3; }
+.se-badge-info { color: #0852CC; border-color: #D6E5FF; background: #F5F8FF; }
+.se-badge-sin-punto::before { display: none; }
+
+/* Aviso dentro de una seccion. */
+.se-aviso {
+  border: 1px solid var(--se-borde);
+  border-left-width: 3px;
+  border-radius: 6px;
+  padding: 9px 12px;
+  font-size: 13px;
+  background: #fff;
+}
+.se-aviso-alerta { border-left-color: var(--se-ambar); background: #FFFAF0; }
+.se-aviso-falla { border-left-color: var(--se-rojo); background: #FDF4F3; }
+.se-aviso-info { border-left-color: var(--se-azul); background: #F5F8FF; }
+
+/* ---- Botones: primario, secundario, discreto y peligroso ----------------------- */
+.se-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.se-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.se-btn-primario { background: var(--se-azul); color: #fff; }
+.se-btn-primario:hover:not(:disabled) { background: #0852CC; }
+.se-btn-secundario { background: #fff; color: var(--se-tinta); border-color: #D9D0C1; }
+.se-btn-secundario:hover:not(:disabled) { border-color: var(--se-tinta); }
+.se-btn-discreto { background: transparent; color: #0852CC; padding-left: 6px; padding-right: 6px; }
+.se-btn-discreto:hover:not(:disabled) { background: #F5F8FF; }
+.se-btn-peligro { background: #fff; color: #B3261E; border-color: #F0C4BF; }
+.se-btn-peligro:hover:not(:disabled) { border-color: #B3261E; }
+.se-btn-chico { padding: 5px 10px; font-size: 12.5px; }
+
+/* ---- Pestañas ---------------------------------------------------------------------- */
+.se-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--se-borde);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.se-tabs::-webkit-scrollbar { display: none; }
+.se-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 12px;
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--se-secundario);
+  white-space: nowrap;
+}
+.se-tab:hover { color: var(--se-tinta); }
+.se-tab-activa { color: var(--se-tinta); border-bottom-color: var(--se-azul); }
+.se-tab-contador {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 11px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #B3261E;
+  color: #fff;
 }

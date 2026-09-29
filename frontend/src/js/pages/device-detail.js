@@ -4,6 +4,9 @@ requireAuth();
 function deviceDetail() {
   return {
     deviceId: null,
+    // Pestaña visible. Va en la URL (#fallas, #fotos...) para poder compartir un
+    // enlace directo y para que recargar no devuelva a la primera.
+    tab: (['vivo', 'fotos', 'fallas', 'creativos', 'telemetria', 'equipo'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'vivo'),
     device: null,
     status: null,
     dataUsage: null,   // consumo de datos (movil/wifi) del dispositivo
@@ -96,6 +99,25 @@ function deviceDetail() {
     tlSummary: {},
     tlSeries: [],
     _charts: {},
+
+    pestanas() {
+      return [
+        { id: 'vivo', nombre: 'En vivo' },
+        { id: 'fotos', nombre: 'Fotos' },
+        { id: 'fallas', nombre: 'Pantalla y fallas', contador: this.fallasAbiertas().length },
+        { id: 'creativos', nombre: 'Creativos' },
+        { id: 'telemetria', nombre: 'Telemetría' },
+        { id: 'equipo', nombre: 'Equipo' },
+      ];
+    },
+
+    setTab(t) {
+      this.tab = t;
+      history.replaceState(null, '', '#' + t);
+      // Las graficas se dibujan con la pestaña escondida (ancho 0): al mostrarla
+      // se les avisa que midan de nuevo.
+      setTimeout(() => window.dispatchEvent(new Event('resize')), 30);
+    },
 
     async init() {
       const params = new URLSearchParams(window.location.search);
@@ -433,7 +455,7 @@ function deviceDetail() {
       // solo se juzgo con el tramo mas largo: se dice, para que no sorprenda.
       const corte = u.interrumpida && u.vistazos_usados != null
         ? ` La vuelta se interrumpió (vista en vivo o una foto): se usaron ${u.vistazos_usados} de ${u.vistazos} vistazos.` : '';
-      return `Última revisión ${cuando}: pantalla ${pantalla}${camara} (${u.vistazos} vistazos, ${u.cambios} cambios de anuncio).${corte}`;
+      return `${cuando} · pantalla ${pantalla}${camara} (${u.vistazos} vistazos, ${u.cambios} cambios de anuncio).${corte}`;
     },
 
     // Zonas que el equipo aprendio que NUNCA cambian: tapadas... o ya muertas al instalar.

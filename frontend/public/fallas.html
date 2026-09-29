@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SPACE EYE — Fallas</title>
+  <title>SPACE EYES — Fallas</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/src/js/tema.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <script src="/socket.io/socket.io.js"></script>
   <link rel="stylesheet" href="/src/css/styles.css">
@@ -14,87 +15,115 @@
 
     <div id="app-header"></div>
 
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-      <div class="flex flex-wrap items-end justify-between gap-3 mb-4">
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+      <!-- Encabezado de pagina -->
+      <div class="flex flex-wrap items-end justify-between gap-4 mb-6">
         <div>
-          <h2 class="text-xl font-semibold">Fallas de pantalla</h2>
-          <p class="text-sm text-neutral-500">Lo que cada equipo detectó por sí mismo al revisar su pantalla. Se actualiza solo.</p>
+          <p class="se-eyebrow">Monitoreo</p>
+          <h1 class="se-titulo text-[28px] mt-1">Fallas de pantalla</h1>
+          <p class="text-sm text-neutral-500 mt-1">Lo que cada equipo detectó por sí mismo al revisar su pantalla. Se actualiza solo.</p>
         </div>
-        <div class="flex flex-wrap gap-2 text-sm">
-          <select x-model="estado" @change="load()" class="px-3 py-2 border border-neutral-300 rounded">
-            <option value="">Todas</option>
-            <option value="abierta">Abiertas</option>
-            <option value="recuperada">Recuperadas</option>
-            <option value="descartada">No eran falla</option>
-          </select>
-          <select x-model="deviceId" @change="load()" class="px-3 py-2 border border-neutral-300 rounded">
-            <option value="">Todos los equipos</option>
-            <template x-for="d in devices" :key="d.id">
-              <option :value="d.id" x-text="d.name"></option>
-            </template>
-          </select>
+        <select x-model="deviceId" @change="load()" class="px-3 py-2 border border-neutral-300 rounded-md text-sm bg-white min-w-[260px]">
+          <option value="">Todos los equipos</option>
+          <template x-for="d in devices" :key="d.id">
+            <option :value="d.id" x-text="d.name"></option>
+          </template>
+        </select>
+      </div>
+
+      <!-- Indicadores -->
+      <div class="grid grid-cols-3 gap-3 mb-6">
+        <div class="se-kpi">
+          <div class="se-kpi-label">Abiertas</div>
+          <div class="se-kpi-valor" :class="cuenta('abierta') ? 'text-red-700' : 'text-neutral-400'" x-text="cuenta('abierta')"></div>
+        </div>
+        <div class="se-kpi">
+          <div class="se-kpi-label">Recuperadas</div>
+          <div class="se-kpi-valor" x-text="cuenta('recuperada')"></div>
+        </div>
+        <div class="se-kpi">
+          <div class="se-kpi-label">No eran falla</div>
+          <div class="se-kpi-valor text-neutral-500" x-text="cuenta('descartada')"></div>
         </div>
       </div>
 
-      <!-- Abiertas: tarjetas grandes, es lo que hay que atender -->
-      <div x-show="abiertas().length" class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
-        <template x-for="f in abiertas()" :key="f.id">
-          <div class="flex gap-3 bg-white border border-red-200 rounded-lg p-3">
-            <button @click="verFoto = f.evidencia" x-show="f.evidencia_mini" class="shrink-0 w-40 aspect-[4/3] bg-neutral-100 rounded overflow-hidden">
-              <img :src="f.evidencia_mini" class="w-full h-full object-cover" alt="Evidencia">
-            </button>
-            <div class="text-sm flex-1 min-w-0">
-              <p class="font-semibold text-red-700">🔴 Falla detectada</p>
-              <p><span class="text-neutral-500">Dispositivo:</span> <a :href="'/device-detail.html?id=' + f.device_id" class="text-blue-600 hover:underline" x-text="f.equipo"></a></p>
-              <p><span class="text-neutral-500">Zona:</span> <span x-text="Pantalla.donde(f)"></span></p>
-              <p><span class="text-neutral-500">Detectado:</span> <span x-text="fecha(f.detectada_en)"></span></p>
-              <p><span class="text-neutral-500">Estado:</span> <span x-text="f.nombre"></span> <span class="text-neutral-400" x-text="'(' + Math.round(f.confianza * 100) + '%)'"></span></p>
-              <div x-show="puedeCerrar" class="flex gap-3 mt-1 text-xs">
-                <button @click="cerrar(f, 'recuperada')" class="text-blue-600 hover:underline">Ya se arregló</button>
-                <button @click="cerrar(f, 'descartada')" class="text-neutral-600 hover:underline">No es falla</button>
+      <!-- Abiertas: es lo que hay que atender -->
+      <section x-show="abiertas().length" class="mb-8">
+        <p class="se-eyebrow mb-3">Requieren atención · <span x-text="abiertas().length"></span></p>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <template x-for="f in abiertas()" :key="f.id">
+            <div class="se-card flex gap-4 p-4 !border-l-[3px] !border-l-red-600">
+              <button @click="verFoto = f.evidencia" x-show="f.evidencia_mini" class="shrink-0 w-40 aspect-[4/3] bg-neutral-100 rounded overflow-hidden">
+                <img :src="f.evidencia_mini" class="w-full h-full object-cover" alt="Evidencia">
+              </button>
+              <div class="text-sm flex-1 min-w-0">
+                <span class="se-badge se-badge-falla">Falla detectada</span>
+                <p class="font-semibold mt-2" x-text="f.nombre"></p>
+                <dl class="mt-1.5 space-y-0.5 text-[13px]">
+                  <div class="flex gap-2"><dt class="text-neutral-500 w-20 shrink-0">Equipo</dt>
+                    <dd class="min-w-0"><a :href="'/device-detail.html?id=' + f.device_id + '#fallas'" class="text-blue-700 hover:underline" x-text="f.equipo"></a></dd></div>
+                  <div class="flex gap-2"><dt class="text-neutral-500 w-20 shrink-0">Zona</dt><dd x-text="Pantalla.donde(f)"></dd></div>
+                  <div class="flex gap-2"><dt class="text-neutral-500 w-20 shrink-0">Detectada</dt><dd class="font-mono text-xs pt-0.5" x-text="fecha(f.detectada_en)"></dd></div>
+                  <div class="flex gap-2"><dt class="text-neutral-500 w-20 shrink-0">Confianza</dt><dd class="font-mono text-xs pt-0.5" x-text="Math.round(f.confianza * 100) + '%'"></dd></div>
+                </dl>
+                <div x-show="puedeCerrar" class="flex flex-wrap gap-2 mt-3">
+                  <button @click="cerrar(f, 'recuperada')" class="se-btn se-btn-secundario se-btn-chico">Ya se arregló</button>
+                  <button @click="cerrar(f, 'descartada')" class="se-btn se-btn-discreto se-btn-chico">No es falla</button>
+                </div>
               </div>
             </div>
-          </div>
-        </template>
-      </div>
+          </template>
+        </div>
+      </section>
 
       <!-- Historial -->
-      <div class="bg-white border border-neutral-200 rounded-lg overflow-x-auto">
-        <table class="w-full text-sm min-w-[760px]">
-          <thead class="bg-neutral-50 border-b border-neutral-200 text-left text-neutral-700">
-            <tr>
-              <th class="px-4 py-2 font-medium">Detectada</th>
-              <th class="px-4 py-2 font-medium">Dispositivo</th>
-              <th class="px-4 py-2 font-medium">Falla</th>
-              <th class="px-4 py-2 font-medium">Zona</th>
-              <th class="px-4 py-2 font-medium">Estado</th>
-              <th class="px-4 py-2 font-medium">Recuperación</th>
-              <th class="px-4 py-2 font-medium">Evidencia</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-neutral-100">
-            <template x-for="f in fallas" :key="f.id">
-              <tr>
-                <td class="px-4 py-2 whitespace-nowrap" x-text="fecha(f.detectada_en)"></td>
-                <td class="px-4 py-2"><a :href="'/device-detail.html?id=' + f.device_id" class="text-blue-600 hover:underline" x-text="f.equipo"></a></td>
-                <td class="px-4 py-2" x-text="f.nombre"></td>
-                <td class="px-4 py-2" x-text="Pantalla.donde(f)"></td>
-                <td class="px-4 py-2">
-                  <span :class="{ 'text-red-700 font-medium': f.estado === 'abierta', 'text-green-700': f.estado === 'recuperada', 'text-neutral-500': f.estado === 'descartada' }"
-                    x-text="{ abierta: 'Abierta', recuperada: 'Recuperada', descartada: 'No era falla' }[f.estado]"></span>
-                  <span x-show="f.nota" class="block text-xs text-neutral-400" x-text="f.nota"></span>
-                </td>
-                <td class="px-4 py-2 whitespace-nowrap" x-text="f.recuperada_en ? fecha(f.recuperada_en) + (f.cerrada_por === 'usuario' ? ' (a mano)' : '') : '—'"></td>
-                <td class="px-4 py-2 whitespace-nowrap">
-                  <button x-show="f.evidencia" @click="verFoto = f.evidencia" class="text-blue-600 hover:underline">al detectar</button>
-                  <button x-show="f.evidencia_recuperacion" @click="verFoto = f.evidencia_recuperacion" class="text-blue-600 hover:underline ml-2">al recuperar</button>
-                </td>
-              </tr>
+      <section class="se-card">
+        <div class="se-card-head">
+          <div class="se-card-title">Historial</div>
+          <div class="flex rounded-md border border-neutral-300 overflow-hidden text-sm">
+            <template x-for="op in [['','Todas'],['abierta','Abiertas'],['recuperada','Recuperadas'],['descartada','No eran falla']]" :key="op[0]">
+              <button @click="estado = op[0]" class="px-3 py-1.5 border-r last:border-r-0 border-neutral-200"
+                :class="estado === op[0] ? 'bg-neutral-900 text-white' : 'text-neutral-600 hover:bg-neutral-50'" x-text="op[1]"></button>
             </template>
-          </tbody>
-        </table>
-        <p x-show="cargado && !fallas.length" class="text-center text-neutral-500 text-sm py-10">Sin fallas con este filtro.</p>
-      </div>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm min-w-[820px]">
+            <thead class="text-left text-xs text-neutral-500 border-b border-neutral-200">
+              <tr>
+                <th class="px-4 py-2.5 font-medium">Detectada</th>
+                <th class="px-4 py-2.5 font-medium">Equipo</th>
+                <th class="px-4 py-2.5 font-medium">Falla</th>
+                <th class="px-4 py-2.5 font-medium">Zona</th>
+                <th class="px-4 py-2.5 font-medium">Estado</th>
+                <th class="px-4 py-2.5 font-medium">Recuperación</th>
+                <th class="px-4 py-2.5 font-medium">Evidencia</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-neutral-200">
+              <template x-for="f in lista()" :key="f.id">
+                <tr class="hover:bg-neutral-50">
+                  <td class="px-4 py-2.5 whitespace-nowrap font-mono text-xs" x-text="fecha(f.detectada_en)"></td>
+                  <td class="px-4 py-2.5"><a :href="'/device-detail.html?id=' + f.device_id + '#fallas'" class="text-blue-700 hover:underline" x-text="f.equipo"></a></td>
+                  <td class="px-4 py-2.5" x-text="f.nombre"></td>
+                  <td class="px-4 py-2.5 text-neutral-600" x-text="Pantalla.donde(f)"></td>
+                  <td class="px-4 py-2.5">
+                    <span class="se-badge" :class="{ 'se-badge-falla': f.estado === 'abierta', 'se-badge-ok': f.estado === 'recuperada' }"
+                      x-text="{ abierta: 'Abierta', recuperada: 'Recuperada', descartada: 'No era falla' }[f.estado]"></span>
+                    <span x-show="f.nota" class="block text-xs text-neutral-500 mt-1" x-text="f.nota"></span>
+                  </td>
+                  <td class="px-4 py-2.5 whitespace-nowrap font-mono text-xs" x-text="f.recuperada_en ? fecha(f.recuperada_en) + (f.cerrada_por === 'usuario' ? ' · a mano' : '') : '—'"></td>
+                  <td class="px-4 py-2.5 whitespace-nowrap text-xs">
+                    <button x-show="f.evidencia" @click="verFoto = f.evidencia" class="text-blue-700 hover:underline">al detectar</button>
+                    <button x-show="f.evidencia_recuperacion" @click="verFoto = f.evidencia_recuperacion" class="text-blue-700 hover:underline ml-2">al recuperar</button>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+        <p x-show="cargado && !lista().length" class="text-center text-neutral-500 text-sm py-10">Sin fallas con este filtro.</p>
+      </section>
     </main>
 
     <!-- Evidencia en grande -->

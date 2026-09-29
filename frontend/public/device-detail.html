@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SPACE EYE — Device</title>
+  <title>SPACE EYES — Equipo</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/src/js/tema.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <script src="/socket.io/socket.io.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
@@ -15,22 +16,104 @@
 
     <div id="app-header"></div>
 
-    <!-- Sub-encabezado de contexto del dispositivo -->
+
+    <!-- Encabezado del equipo: quien es, como esta y que se puede hacer -->
     <div class="bg-white border-b border-neutral-200">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-3">
-        <a href="/dashboard.html" class="text-neutral-500 hover:text-neutral-900 text-sm shrink-0">&larr; Dashboard</a>
-        <span class="text-neutral-300">/</span>
-        <h1 class="text-base sm:text-lg font-medium truncate" x-text="device?.name || 'Cargando...'"></h1>
-        <span :class="device?.online ? 'bg-green-100 text-green-700' : 'bg-neutral-100 text-neutral-500'"
-              class="text-xs px-2 py-0.5 rounded-full shrink-0" x-text="device?.online ? 'online' : 'offline'"></span>
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 pt-4">
+        <a href="/dashboard.html" class="text-sm text-neutral-500 hover:text-neutral-900 inline-flex items-center gap-1">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+          Equipos
+        </a>
+        <div class="flex flex-wrap items-start justify-between gap-4 mt-2">
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-center gap-3">
+              <h1 class="se-titulo text-[26px] text-neutral-900" x-text="device?.name || 'Cargando…'"></h1>
+              <span class="se-badge" :class="device?.online ? 'se-badge-ok' : ''" x-text="device?.online ? 'En línea' : 'Sin conexión'"></span>
+            </div>
+            <p class="text-sm text-neutral-500 mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span x-show="device?.address" x-text="device?.address"></span>
+              <span x-show="device?.billboard_code" class="font-mono text-xs" x-text="device?.billboard_code"></span>
+              <span x-show="device?.app_version" class="font-mono text-xs" x-text="'app ' + device?.app_version"></span>
+              <span x-show="appAtrasada()" class="se-badge se-badge-alerta se-badge-sin-punto" x-text="'hay ' + (publicadoParaEsteEquipo()?.version || 'versión nueva')"></span>
+            </p>
+          </div>
+          <!-- Acciones: una principal, una secundaria y el resto en "Más" -->
+          <div class="flex items-center gap-2 shrink-0">
+            <button @click="takePhoto()" :disabled="takingPhoto" class="se-btn se-btn-primario">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3"/></svg>
+              <span x-text="takingPhoto ? 'Capturando…' : 'Tomar foto'"></span>
+            </button>
+            <button @click="setTab('vivo')" class="se-btn se-btn-secundario">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+              Ver en vivo
+            </button>
+            <div class="relative" x-data="{ abierto: false }" @click.outside="abierto = false">
+              <button @click="abierto = !abierto" class="se-btn se-btn-secundario" title="Más acciones">
+                Más
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+              </button>
+              <div x-show="abierto" style="display:none" class="absolute right-0 mt-1 w-60 bg-white border border-neutral-200 rounded-lg py-1 z-30">
+                <button @click="abierto = false; openEdit()" class="w-full text-left px-4 py-2 text-sm hover:bg-neutral-50">Editar nombre y sitio</button>
+                <button x-show="isAdmin && appAtrasada()" @click="abierto = false; updateApp()" :disabled="updating"
+                        class="w-full text-left px-4 py-2 text-sm hover:bg-neutral-50">
+                  <span x-text="updating ? 'Enviando actualización…' : 'Actualizar app del equipo'"></span>
+                  <span class="block text-xs text-neutral-500" x-text="puedeActualizarSolo() ? 'Se instala sola' : 'Pedirá confirmación en el equipo'"></span>
+                </button>
+                <div class="border-t border-neutral-200 my-1"></div>
+                <button @click="abierto = false; rebootApp()" class="w-full text-left px-4 py-2 text-sm text-red-700 hover:bg-red-50">Reiniciar app</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Indicadores clave -->
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mt-5">
+          <div class="se-kpi">
+            <div class="se-kpi-label">Último contacto</div>
+            <div class="se-kpi-valor text-[16px]" x-text="device?.last_seen_at ? fechaCorta(device.last_seen_at) : '—'"></div>
+          </div>
+          <div class="se-kpi">
+            <div class="se-kpi-label">Batería</div>
+            <div class="se-kpi-valor" x-text="status?.battery_pct != null ? status.battery_pct + '%' : '—'"></div>
+            <div class="se-kpi-nota" x-text="(status?.battery_temp || status?.battery_temp === 0) ? status.battery_temp + ' °C' + (status?.battery_charging ? ' · cargando' : '') : ''"></div>
+          </div>
+          <div class="se-kpi">
+            <div class="se-kpi-label">Señal</div>
+            <div class="se-kpi-valor" x-text="status?.signal_dbm ? status.signal_dbm + ' dBm' : '—'"></div>
+            <div class="se-kpi-nota" x-text="[status?.network_type, status?.network_operator].filter(Boolean).join(' · ')"></div>
+          </div>
+          <div class="se-kpi">
+            <div class="se-kpi-label">Datos móviles del mes</div>
+            <div class="se-kpi-valor" x-text="dataUsage ? fmtBytes(dataUsage.mobile_month) : 'n/d'"></div>
+            <div class="se-kpi-nota">Tope de 4 GB</div>
+          </div>
+          <button @click="setTab('fallas')" class="se-kpi card-hover text-left">
+            <div class="se-kpi-label">Fallas abiertas</div>
+            <div class="se-kpi-valor" :class="fallasAbiertas().length ? 'text-red-700' : 'text-neutral-400'" x-text="fallasAbiertas().length"></div>
+            <div class="se-kpi-nota" x-text="pant?.salud?.vigilar ? 'Vigilancia encendida' : 'Vigilancia apagada'"></div>
+          </button>
+        </div>
+
+        <!-- Pestañas -->
+        <nav class="se-tabs mt-5">
+          <template x-for="t in pestanas()" :key="t.id">
+            <button @click="setTab(t.id)" class="se-tab" :class="tab === t.id && 'se-tab-activa'">
+              <span x-text="t.nombre"></span>
+              <span x-show="t.contador" class="se-tab-contador" x-text="t.contador"></span>
+            </button>
+          </template>
+        </nav>
       </div>
     </div>
 
-    <main class="max-w-7xl mx-auto px-6 py-8">
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+
+      <!-- ═══ En vivo ═══ -->
+      <div x-show="tab === 'vivo'" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2">
         <!-- Live View -->
-        <div class="lg:col-span-2 bg-white border border-neutral-200 rounded-lg overflow-hidden">
+        <div class="se-card overflow-hidden">
           <div class="p-4 border-b border-neutral-200 flex items-center justify-between">
             <h2 class="font-medium">Vista en vivo</h2>
             <div class="flex gap-2 items-center">
@@ -42,15 +125,15 @@
               </span>
               <button @click="startStream()" :disabled="streaming || streamStarting || sinVistaEnVivo()"
                 :title="sinVistaEnVivo() ? 'Esta PC tiene el agente v1.0.0, anterior a la vista en vivo: actualízala con el botón de actualizar' : ''"
-                class="px-3 py-1.5 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1.5">
+                class="se-btn se-btn-primario se-btn-chico">
                 <svg x-show="streamStarting" style="display:none" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle>
                   <path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v3a5 5 0 00-5 5H4z"></path>
                 </svg>
-                <span x-text="streamStarting ? 'Conectando…' : 'Iniciar stream'">Iniciar stream</span>
+                <span x-text="streamStarting ? 'Conectando…' : 'Iniciar'">Iniciar</span>
               </button>
               <button @click="stopStream()" :disabled="!streaming"
-                class="px-3 py-1.5 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50">
+                class="se-btn se-btn-peligro se-btn-chico">
                 Detener
               </button>
             </div>
@@ -88,7 +171,7 @@
                 <p class="text-neutral-300 text-sm">No se pudo iniciar la transmisión</p>
                 <p class="text-neutral-500 text-xs mt-1 max-w-sm mx-auto" x-text="streamError"></p>
                 <button @click="startStream()" :disabled="streamStarting"
-                        class="mt-4 px-3 py-1.5 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                        class="mt-4 se-btn se-btn-primario se-btn-chico">
                   Reintentar
                 </button>
               </div>
@@ -97,13 +180,13 @@
                    pesa visualmente: es lo unico encendido sobre el recuadro
                    negro y se lee de un vistazo desde el otro lado del cuarto. -->
               <div x-show="!streamStarting && !streamError">
-                <p class="text-neutral-400 text-sm">Stream no activo</p>
+                <p class="text-neutral-400 text-sm">Vista en vivo apagada</p>
                 <button @click="startStream()" :disabled="streamStarting"
-                        class="mt-4 inline-flex items-center gap-2.5 px-5 py-3 bg-green-600 text-white text-sm font-medium rounded-lg shadow-lg shadow-black/40 ring-1 ring-green-500/50 hover:bg-green-500 focus:outline-none focus:ring-2 focus:ring-green-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        class="mt-4 se-btn se-btn-primario !px-5 !py-3">
                   <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.14v13.72a1 1 0 0 0 1.54.84l10.29-6.86a1 1 0 0 0 0-1.68L9.54 4.3A1 1 0 0 0 8 5.14z"/></svg>
-                  Iniciar stream
+                  Iniciar vista en vivo
                 </button>
-                <p class="text-neutral-500 text-xs mt-3">La transmisión se detiene sola a los 3 minutos.</p>
+                <p class="text-neutral-500 text-xs mt-3">Se detiene sola a los 3 minutos para no gastar datos del equipo.</p>
               </div>
             </div>
             <!-- PC con el agente anterior a la vista en vivo: se dice que hacer -->
@@ -319,81 +402,32 @@
 
           </div>
         </div>
-
-        <!-- Device Info & Actions -->
+        </div>
         <div class="space-y-4">
-          <!-- Quick Actions -->
-          <div class="bg-white border border-neutral-200 rounded-lg p-4">
-            <h3 class="font-medium mb-3">Acciones</h3>
-            <div class="space-y-2">
-              <button @click="takePhoto()" :disabled="takingPhoto"
-                class="w-full py-2.5 text-sm font-medium bg-[#0A66FF] text-white rounded-lg hover:bg-blue-700 disabled:opacity-60 flex items-center justify-center gap-2 transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
-                  <circle cx="12" cy="13" r="3"/>
-                </svg>
-                <span x-text="takingPhoto ? 'Capturando…' : 'Tomar fotografía'"></span>
-              </button>
-              <button @click="openEdit()" class="w-full py-2 text-sm bg-neutral-100 text-neutral-700 rounded hover:bg-neutral-200">
-                Editar nombre / sitio
-              </button>
-              <button @click="rebootApp()" class="w-full py-2 text-sm bg-neutral-100 text-neutral-700 rounded hover:bg-neutral-200">
-                Reiniciar app
-              </button>
+
+            <!-- La foto mas reciente, para comparar con lo que se ve en vivo -->
+            <div class="se-card">
+              <div class="se-card-head">
+                <div class="se-card-title">Última foto</div>
+                <button @click="setTab('fotos')" class="se-btn se-btn-discreto se-btn-chico">Ver todas</button>
+              </div>
+              <div class="p-3">
+                <template x-if="recentPhotos[0]">
+                  <div>
+                    <div class="aspect-[4/3] bg-neutral-100 rounded overflow-hidden cursor-pointer" @click="openLightbox(recentPhotos[0])">
+                      <img :src="recentPhotos[0].thumbnail_path" class="w-full h-full object-contain"
+                           :style="giroDeFoto(recentPhotos[0]) ? `transform: rotate(${giroDeFoto(recentPhotos[0])}deg)` : ''" alt="Última foto">
+                    </div>
+                    <p class="font-mono text-xs text-neutral-500 mt-2" x-text="fechaCorta(recentPhotos[0].taken_at)"></p>
+                  </div>
+                </template>
+                <p x-show="!recentPhotos[0]" class="text-sm text-neutral-500 py-6 text-center">Sin fotos todavía.</p>
+              </div>
             </div>
-          </div>
-
-          <!-- Status -->
-          <div class="bg-white border border-neutral-200 rounded-lg p-4">
-            <h3 class="font-medium mb-3">Estado del dispositivo</h3>
-            <div class="space-y-2 text-sm">
-              <div class="flex justify-between">
-                <span class="text-neutral-500">Bateria</span>
-                <span x-text="(status?.battery_pct ?? '—') + '%'" class="font-medium"></span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-neutral-500">Senal</span>
-                <span x-text="status?.signal_dbm ? status.signal_dbm + ' dBm' : '—'" class="font-medium"></span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-neutral-500">Red</span>
-                <span x-text="status?.network_type || '—'" class="font-medium"></span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-neutral-500">Operador</span>
-                <span x-text="status?.network_operator || '—'" class="font-medium"></span>
-              </div>
-              <!-- Version de la app y actualizacion remota -->
-              <div class="flex justify-between items-center">
-                <span class="text-neutral-500">Versión app</span>
-                <span class="flex items-center gap-2">
-                  <span class="font-medium" x-text="device?.app_version || '—'"></span>
-                  <span x-show="appAtrasada()" style="display:none"
-                        class="text-xs bg-amber-100 text-amber-700 rounded px-1.5 py-0.5"
-                        x-text="'hay ' + (publicadoParaEsteEquipo()?.version || 'nueva')"></span>
-                </span>
-              </div>
-              <div x-show="isAdmin && appAtrasada()" style="display:none" class="pt-1">
-                <button @click="updateApp()" :disabled="updating"
-                  class="w-full flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs rounded px-3 py-2">
-                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                  <span x-text="updating ? 'Enviando…' : 'Actualizar app del equipo'"></span>
-                </button>
-                <p class="text-xs mt-1" :class="puedeActualizarSolo() ? 'text-neutral-500' : 'text-amber-600'"
-                   x-text="puedeActualizarSolo()
-                     ? 'Se instala sola, sin tocar el equipo.'
-                     : 'Este equipo pedirá confirmación en su pantalla (no es device owner).'"></p>
-              </div>
-
-              <div class="flex justify-between">
-                <span class="text-neutral-500">IP pública</span>
-                <span x-text="status?.source_ip || '—'" class="font-medium tabular-nums text-xs"
-                      title="Desde donde el equipo habla con el servidor. Si el operador traduce (NAT64), aquí se ve IPv4 aunque el equipo esté en IPv6."></span>
-              </div>
 
               <!-- Diagnostico del ultimo intento de transmision -->
               <template x-if="iceDiag()">
-                <div class="mt-3 pt-3 border-t border-neutral-100">
+                <div class="se-card se-card-body text-sm">
                   <div class="flex justify-between items-start gap-2">
                     <span class="text-neutral-500 shrink-0">Vista en vivo</span>
                     <span class="text-right">
@@ -405,28 +439,419 @@
                   <p class="text-xs text-neutral-400 mt-1" x-text="'Último intento: ' + iceDiag().cuando"></p>
                 </div>
               </template>
-              <div class="flex justify-between">
-                <span class="text-neutral-500">Storage libre</span>
-                <span x-text="status?.storage_free_mb ? status.storage_free_mb + ' MB' : '—'" class="font-medium"></span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-neutral-500">Temp CPU</span>
-                <span x-text="status?.cpu_temp ? status.cpu_temp + ' °C' : 'n/d'" class="font-medium"></span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-neutral-500">Temp bateria</span>
-                <span x-text="(status?.battery_temp || status?.battery_temp === 0) ? status.battery_temp + ' °C' : '—'" class="font-medium"></span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-neutral-500">Ultima conexion</span>
-                <span x-text="device?.last_seen_at ? new Date(device.last_seen_at).toLocaleString() : '—'" class="font-medium"></span>
-              </div>
+        </div>
+      </div>
+
+      <!-- ═══ Fotos ═══ -->
+      <div x-show="tab === 'fotos'" style="display:none">
+      <!-- Recent Photos -->
+      <div class="se-card p-4">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-medium">Fotos recientes</h3>
+          <div class="flex items-center gap-3 text-sm">
+            <button @click="downloadAlbum()" :disabled="albumDownloading"
+              class="text-blue-600 hover:underline disabled:opacity-50">
+              <span x-text="albumDownloading ? ('Descargando ' + albumProgress) : 'Descargar álbum'"></span>
+            </button>
+            <a :href="'/gallery.html?device_id=' + deviceId" class="text-neutral-500 hover:underline">Ver todas</a>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+          <template x-for="photo in recentPhotos" :key="photo.id">
+            <div class="relative group aspect-[4/3] bg-neutral-100 rounded overflow-hidden">
+              <img :src="photo.thumbnail_path" @click="openLightbox(photo)"
+                   :style="giroDeFoto(photo) ? `transform: rotate(${giroDeFoto(photo)}deg)` : ''"
+                   class="w-full h-full object-contain cursor-pointer hover:opacity-90" :alt="'Photo ' + photo.id">
+              <button @click.stop="deletePhoto(photo.id)" title="Eliminar fotografía"
+                class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 bg-red-600/90 hover:bg-red-700 text-white rounded p-1 transition-opacity">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 7h12M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m-7 0v11a2 2 0 002 2h4a2 2 0 002-2V7"/></svg>
+              </button>
+            </div>
+          </template>
+          <p x-show="recentPhotos.length === 0" class="col-span-full text-center text-neutral-500 text-sm py-8">
+            Sin fotos todavia
+          </p>
+        </div>
+      </div>
+      </div>
+
+      <!-- ═══ Pantalla y fallas ═══ -->
+      <div x-show="tab === 'fallas'" style="display:none">
+      <!-- Pantalla y fallas: donde esta la pantalla en la foto, sus gabinetes y su
+           horario; y el monitoreo que el equipo hace por si mismo. -->
+      <div class="se-card" x-show="pant">
+        <div class="se-card-head">
+          <div class="min-w-0">
+            <div class="se-card-title">Pantalla y fallas</div>
+            <div class="se-card-sub">El equipo revisa su pantalla por sí mismo y solo avisa cuando confirma una falla o cuando se arregla. No manda video ni fotos mientras todo está bien.</div>
+          </div>
+          <div class="flex items-center gap-3 shrink-0">
+            <span class="se-badge" :class="pant?.salud?.vigilar ? (pant?.salud?.aprendiendo || pant?.ultimo?.aprendiendo ? 'se-badge-info' : 'se-badge-ok') : ''"
+              x-text="!pant?.salud?.vigilar ? 'Vigilancia apagada' : (pant?.salud?.aprendiendo || pant?.ultimo?.aprendiendo ? 'Aprendiendo' : 'Vigilando')"></span>
+            <label class="inline-flex items-center gap-2 text-sm cursor-pointer" :class="(!puedeAjustar || !usaPantalla() || !pant?.pantalla) && 'opacity-50 cursor-not-allowed'">
+              <input type="checkbox" class="w-4 h-4 accent-blue-600" :checked="pant?.salud?.vigilar"
+                :disabled="!puedeAjustar || !usaPantalla() || !pant?.pantalla"
+                @change="guardarSalud({ vigilar: $event.target.checked })">
+              Vigilar fallas
+            </label>
+          </div>
+        </div>
+
+        <div class="se-card-body space-y-4">
+          <div x-show="!usaPantalla()" class="se-aviso se-aviso-alerta">
+            La vigilancia de fallas necesita la app 0.15.0 o posterior en el celular. La Raspberry y el agente de PC todavía no la tienen.
+          </div>
+          <div x-show="usaPantalla() && !pant?.pantalla" class="se-aviso se-aviso-alerta">
+            Falta marcar dónde está la pantalla en la foto: sin eso el equipo no vigila fallas ni creativos.
+          </div>
+
+          <!-- Configuracion: tres decisiones, cada una en su recuadro -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div class="border border-neutral-200 rounded-md p-3">
+              <p class="se-eyebrow">Pantalla</p>
+              <template x-if="pant?.pantalla">
+                <div class="mt-1.5">
+                  <p class="text-sm"><b class="font-mono" x-text="pant.pantalla.filas * pant.pantalla.columnas"></b> gabinetes
+                    <span class="text-neutral-500">(<span class="font-mono" x-text="pant.pantalla.filas + ' × ' + pant.pantalla.columnas"></span>)</span></p>
+                  <p class="text-xs text-neutral-500 mt-0.5">Encendida de <span class="font-mono" x-text="pant.pantalla.horario?.inicio || '06:00'"></span> a <span class="font-mono" x-text="pant.pantalla.horario?.fin || '24:00'"></span></p>
+                </div>
+              </template>
+              <p x-show="!pant?.pantalla" class="text-sm text-neutral-500 mt-1.5">Sin marcar</p>
+              <button x-show="puedeAjustar && !editPant" @click="empezarPantalla()" class="se-btn se-btn-secundario se-btn-chico mt-3"
+                x-text="pant?.pantalla ? 'Cambiar pantalla' : 'Marcar la pantalla'"></button>
+            </div>
+            <div class="border border-neutral-200 rounded-md p-3"
+                 title="Antes de avisar, el equipo aprende cómo se ve la pantalla normalmente. Siempre aprende al menos su primera vuelta con la pantalla funcionando.">
+              <p class="se-eyebrow">Aprendizaje</p>
+              <p class="text-xs text-neutral-500 mt-1.5 mb-2">Cuánto observa antes de empezar a avisar.</p>
+              <select :value="pant?.salud?.aprendizaje_min" :disabled="!puedeAjustar"
+                @change="guardarSalud({ aprendizaje_min: Number($event.target.value) }).then(() => loadCreativos())"
+                class="w-full px-2 py-1.5 border border-neutral-300 rounded-md text-sm bg-white">
+                <option value="0">Solo la primera vuelta (pruebas)</option>
+                <option value="30">30 minutos</option>
+                <option value="120">2 horas</option>
+                <option value="360">6 horas</option>
+                <option value="1440">24 horas</option>
+              </select>
+            </div>
+            <div class="border border-neutral-200 rounded-md p-3">
+              <p class="se-eyebrow">Frecuencia</p>
+              <p class="text-xs text-neutral-500 mt-1.5 mb-2">Cada cuánto revisa la pantalla (dentro del horario).</p>
+              <select :value="pant?.salud?.cada_min" :disabled="!puedeAjustar || !pant?.salud?.vigilar"
+                @change="guardarSalud({ cada_min: Number($event.target.value) })"
+                class="w-full px-2 py-1.5 border border-neutral-300 rounded-md text-sm bg-white">
+                <option value="5">Cada 5 min (pruebas)</option>
+                <option value="15">Cada 15 min (pruebas)</option>
+                <option value="30">Cada 30 min</option>
+                <option value="60">Cada hora</option>
+                <option value="120">Cada 2 horas</option>
+                <option value="180">Cada 3 horas</option>
+              </select>
             </div>
           </div>
 
+
+          <!-- Editor: 4 esquinas + gabinetes + zonas excluidas + horario -->
+        <template x-if="editPant">
+          <div class="mb-4 border border-neutral-200 rounded p-3 bg-neutral-50">
+            <div class="flex flex-wrap items-center gap-4 text-sm mb-2">
+              <div class="flex rounded border border-neutral-300 overflow-hidden text-xs">
+                <button @click="modoPant = 'esquinas'" :class="modoPant === 'esquinas' ? 'bg-neutral-900 text-white' : 'bg-white'" class="px-2 py-1">Esquinas</button>
+                <button @click="modoPant = 'excluir'" :disabled="editPant.esquinas.length !== 4"
+                  :class="modoPant === 'excluir' ? 'bg-neutral-900 text-white' : 'bg-white'" class="px-2 py-1 disabled:opacity-40">Zonas tapadas</button>
+              </div>
+              <label class="flex items-center gap-1 text-xs">Filas
+                <input type="number" min="1" max="20" x-model.number="editPant.filas" class="w-14 px-1 py-0.5 border border-neutral-300 rounded"></label>
+              <label class="flex items-center gap-1 text-xs">Columnas
+                <input type="number" min="1" max="40" x-model.number="editPant.columnas" class="w-14 px-1 py-0.5 border border-neutral-300 rounded"></label>
+              <label class="flex items-center gap-1 text-xs">Encendida de
+                <input type="time" x-model="editPant.horario.inicio" class="px-1 py-0.5 border border-neutral-300 rounded"></label>
+              <label class="flex items-center gap-1 text-xs">a
+                <input type="text" x-model="editPant.horario.fin" placeholder="24:00" pattern="([01]\d|2[0-4]):[0-5]\d"
+                  class="w-16 px-1 py-0.5 border border-neutral-300 rounded"></label>
+            </div>
+            <p class="text-xs text-neutral-500 mb-2" x-show="modoPant === 'esquinas'">
+              Toca las 4 esquinas de la pantalla en orden: <b>arriba izquierda, arriba derecha, abajo derecha, abajo izquierda</b>. Después puedes arrastrarlas.
+              Pon filas y columnas de gabinetes para que las líneas coincidan con las uniones. Si cambias el zoom o el lente del equipo, hay que volver a marcarla.
+            </p>
+            <p class="text-xs text-neutral-500 mb-2" x-show="modoPant === 'excluir'">
+              Toca los gabinetes que algo tapa siempre (una barda, un árbol, un poste): no se revisan. El equipo también las aprende solo en sus primeras 24 horas.
+            </p>
+            <div x-show="!fotoReferencia()" class="text-xs text-neutral-500 py-4">Toma primero una foto del equipo para poder marcar la pantalla.</div>
+            <div x-show="fotoReferencia()" class="relative inline-block max-w-full select-none touch-none cursor-crosshair"
+                 @pointerdown="pantAbajo($event)" @pointermove="pantMueve($event)" @pointerup="pantArriba()" @pointercancel="pantArriba()">
+              <img x-ref="fotoPant" :src="fotoReferencia()" class="block max-w-full max-h-[65vh]" draggable="false" alt="Foto del equipo">
+              <svg class="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 1 1" preserveAspectRatio="none">
+                <template x-for="(poli, k) in pantExcluidas()" :key="'x' + k">
+                  <polygon :points="poli" fill="rgba(0,0,0,0.45)"></polygon>
+                </template>
+                <polygon x-show="editPant.esquinas.length >= 2" :points="pantPoligono()" fill="rgba(10,102,255,0.08)"
+                  stroke="#0A66FF" stroke-width="2" vector-effect="non-scaling-stroke"></polygon>
+                <template x-for="(l, k) in pantLineas()" :key="'l' + k">
+                  <line :x1="l[0]" :y1="l[1]" :x2="l[2]" :y2="l[3]" stroke="#0A66FF" stroke-width="1" stroke-dasharray="4 3" vector-effect="non-scaling-stroke"></line>
+                </template>
+              </svg>
+              <template x-for="(q, k) in editPant.esquinas" :key="'e' + k">
+                <div class="absolute w-4 h-4 -ml-2 -mt-2 rounded-full bg-white border-2 border-blue-600 pointer-events-none flex items-center justify-center text-[9px] font-bold text-blue-700"
+                  :style="`left:${q[0] * 100}%;top:${q[1] * 100}%`" x-text="k + 1"></div>
+              </template>
+            </div>
+            <div class="flex items-center gap-3 mt-2 text-sm">
+              <button @click="guardarPantalla()" :disabled="editPant.esquinas.length !== 4 || guardandoPant"
+                class="px-3 py-1.5 bg-neutral-900 text-white rounded disabled:opacity-40">Guardar pantalla</button>
+              <button @click="editPant.esquinas = []; editPant.excluir = []; modoPant = 'esquinas'" class="text-neutral-600 hover:underline">Volver a empezar</button>
+              <button @click="editPant = null" class="text-neutral-600 hover:underline">Cancelar</button>
+            </div>
+          </div>
+        </template>
+
+          <!-- Ultima revision y avisos -->
+          <template x-if="pant?.salud?.vigilar">
+            <div class="space-y-2">
+              <p class="se-eyebrow">Última revisión</p>
+              <p class="text-sm text-neutral-700" x-text="ultimaRevision()"></p>
+              <div x-show="pant.salud.aprendiendo" class="se-aviso se-aviso-info">
+                Aprendiendo la pantalla hasta <b x-text="finAprendizajeSalud()"></b>: en este plazo no avisa de fallas.
+              </div>
+              <div x-show="!pant.salud.aprendiendo && pant.ultimo?.aprendiendo" class="se-aviso se-aviso-info">
+                Aprendiendo con su primera vuelta: la siguiente ya vigila.
+              </div>
+              <div x-show="pant.ultimo?.camara_permitida === false" class="se-aviso se-aviso-falla">
+                Android no le deja usar la cámara en segundo plano, así que no está revisando la pantalla.
+                Abre la app Space Eye en el celular una vez y se arregla sola. Pasa tras reiniciar el celular, salvo que la app sea dueña del dispositivo.
+              </div>
+              <div x-show="zonasQuietas()" class="se-aviso se-aviso-alerta">
+                Gabinetes que nunca cambian (no se revisan): <b class="font-mono" x-text="zonasQuietas()"></b>. Suelen estar tapados por algo; si no hay nada delante, revísalos: podrían llevar tiempo apagados.
+              </div>
+            </div>
+          </template>
+        </div>
+
+        <!-- Fallas abiertas -->
+        <div x-show="fallasAbiertas().length" class="se-divisor se-card-body">
+          <p class="se-eyebrow mb-3">Fallas abiertas · <span x-text="fallasAbiertas().length"></span></p>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <template x-for="f in fallasAbiertas()" :key="f.id">
+              <div class="flex gap-3 border border-neutral-200 border-l-[3px] border-l-red-600 rounded-md p-3">
+                <a :href="f.evidencia" target="_blank" class="shrink-0 w-32 aspect-[4/3] bg-neutral-100 rounded overflow-hidden" x-show="f.evidencia_mini">
+                  <img :src="f.evidencia_mini" class="w-full h-full object-cover" alt="Evidencia">
+                </a>
+                <div class="text-sm flex-1 min-w-0">
+                  <p class="font-semibold text-red-800" x-text="nombreFalla(f)"></p>
+                  <p class="text-xs text-neutral-700 mt-0.5" x-text="dondeFalla(f)"></p>
+                  <p class="text-xs text-neutral-500 mt-1">
+                    Detectada <span class="font-mono" x-text="fechaCorta(f.detectada_en)"></span> · confianza <span class="font-mono" x-text="Math.round(f.confianza * 100) + '%'"></span>
+                  </p>
+                  <div x-show="puedeAjustar" class="flex flex-wrap gap-2 mt-2">
+                    <button @click="cerrarFalla(f, 'recuperada')" class="se-btn se-btn-secundario se-btn-chico">Ya se arregló</button>
+                    <button @click="cerrarFalla(f, 'descartada')" class="se-btn se-btn-discreto se-btn-chico">No es falla</button>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <!-- Historial -->
+        <div x-show="(pant?.fallas || []).length" class="se-divisor se-card-body">
+          <p class="se-eyebrow mb-3">Historial</p>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="text-left text-xs text-neutral-500 border-b border-neutral-200">
+                <tr><th class="py-2 pr-4 font-medium">Detectada</th><th class="pr-4 font-medium">Falla</th><th class="pr-4 font-medium">Dónde</th><th class="pr-4 font-medium">Estado</th><th class="pr-4 font-medium">Cerrada</th><th class="font-medium">Evidencia</th></tr>
+              </thead>
+              <tbody class="divide-y divide-neutral-200">
+                <template x-for="f in pant?.fallas || []" :key="'h' + f.id">
+                  <tr>
+                    <td class="py-2 pr-4 whitespace-nowrap font-mono text-xs" x-text="fechaCorta(f.detectada_en)"></td>
+                    <td class="pr-4" x-text="nombreFalla(f)"></td>
+                    <td class="pr-4 text-neutral-600" x-text="dondeFalla(f)"></td>
+                    <td class="pr-4">
+                      <span class="se-badge" :class="{ 'se-badge-falla': f.estado === 'abierta', 'se-badge-ok': f.estado === 'recuperada' }"
+                        x-text="{ abierta: 'Abierta', recuperada: 'Recuperada', descartada: 'No era falla' }[f.estado]"></span>
+                    </td>
+                    <td class="pr-4 whitespace-nowrap font-mono text-xs" x-text="f.recuperada_en ? fechaCorta(f.recuperada_en) + (f.cerrada_por === 'usuario' ? ' · a mano' : '') : '—'"></td>
+                    <td class="whitespace-nowrap text-xs">
+                      <a x-show="f.evidencia" :href="f.evidencia" target="_blank" class="text-blue-700 hover:underline">al detectar</a>
+                      <a x-show="f.evidencia_recuperacion" :href="f.evidencia_recuperacion" target="_blank" class="text-blue-700 hover:underline ml-2">al recuperar</a>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <p x-show="pant?.salud?.vigilar && !(pant?.fallas || []).length" class="se-divisor text-center text-neutral-500 text-sm py-6">Sin fallas registradas.</p>
+      </div>
+      </div>
+
+      <!-- ═══ Creativos ═══ -->
+      <div x-show="tab === 'creativos'" style="display:none">
+      <!-- Creativos detectados: el equipo reconoce la pantalla sin subir fotos y
+           solo manda la de lo que no habia visto. -->
+      <div class="se-card" x-show="creativos">
+        <div class="se-card-head">
+          <div class="min-w-0">
+            <div class="se-card-title">Creativos detectados</div>
+            <div class="se-card-sub">El equipo reconoce los anuncios de su pantalla sin gastar datos y solo sube foto cuando aparece uno que no conocía.</div>
+          </div>
+          <div class="flex items-center gap-3 shrink-0">
+            <span class="se-badge" :class="creativos?.config?.vigilar ? (creativos?.config?.aprendiendo ? 'se-badge-info' : 'se-badge-ok') : ''"
+              x-text="!creativos?.config?.vigilar ? 'Apagado' : (creativos?.config?.aprendiendo ? 'Aprendiendo' : (creativos?.config?.cada_min === 0 ? 'Vigilando en continuo' : 'Vigilando'))"></span>
+            <label class="inline-flex items-center gap-2 text-sm cursor-pointer" :class="(!puedeAjustar || !sabeVigilar()) && 'opacity-50 cursor-not-allowed'">
+              <input type="checkbox" class="w-4 h-4 accent-blue-600" :checked="creativos?.config?.vigilar"
+                :disabled="!puedeAjustar || !sabeVigilar() || guardandoCreativos"
+                @change="guardarCreativos({ vigilar: $event.target.checked })">
+              Vigilar la pantalla
+            </label>
+          </div>
+        </div>
+
+        <div class="se-card-body space-y-4">
+          <div x-show="!sabeVigilar()" class="se-aviso se-aviso-alerta">
+            Este equipo no sabe vigilar su pantalla todavía: los celulares necesitan la app 0.15.0 o posterior, y el agente de PC no lo tiene.
+          </div>
+          <div x-show="usaPantalla() && !pant?.pantalla" class="se-aviso se-aviso-alerta">
+            Falta marcar la pantalla (en «Pantalla y fallas»): sin eso el equipo no reconoce creativos, porque el fondo los confunde entre sí.
+          </div>
+
+          <template x-if="creativos?.config?.vigilar">
+            <div class="space-y-4">
+              <div x-show="creativos.config.aprendiendo" class="se-aviso se-aviso-info">
+                Aprendiendo el loop hasta <b x-text="finAprendizaje()"></b>: en este plazo no toma fotos.
+              </div>
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div class="border border-neutral-200 rounded-md p-3">
+                  <p class="se-eyebrow">Fotos hoy</p>
+                  <p class="font-mono text-lg mt-1"><span x-text="creativos.fotos_hoy"></span><span class="text-neutral-400"> / <span x-text="creativos.config.max_dia"></span></span></p>
+                </div>
+                <div class="border border-neutral-200 rounded-md p-3">
+                  <p class="se-eyebrow">En el catálogo</p>
+                  <p class="font-mono text-lg mt-1" x-text="creativos.creativos.length"></p>
+                </div>
+                <div class="border border-neutral-200 rounded-md p-3 col-span-2"
+                     title="Continuo: el equipo mira su pantalla todo el día dentro del horario y avisa en menos de un minuto cuando sale un creativo nuevo. Sigue sin gastar datos: solo manda la foto de lo nuevo.">
+                  <p class="se-eyebrow">Frecuencia</p>
+                  <div class="flex flex-wrap items-center gap-2 mt-1.5">
+                    <select :value="creativos.config.cada_min" :disabled="!puedeAjustar || guardandoCreativos"
+                      @change="guardarCreativos({ cada_min: Number($event.target.value) })"
+                      class="px-2 py-1.5 border border-neutral-300 rounded-md text-sm bg-white">
+                      <option value="0">Continuo (avisa al minuto)</option>
+                      <option value="30">Cada 30 min</option>
+                      <option value="60">Cada hora</option>
+                      <option value="120">Cada 2 horas</option>
+                      <option value="180">Cada 3 horas</option>
+                      <option value="360">Cada 6 horas</option>
+                      <option value="720">Cada 12 horas</option>
+                    </select>
+                    <button x-show="isAdmin" @click="reaprenderCreativos()" class="se-btn se-btn-discreto se-btn-chico">Volver a aprender</button>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <p class="se-eyebrow mb-3">Creativos nuevos detectados</p>
+                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                  <template x-for="c in creativosConFoto()" :key="c.id">
+                    <div class="relative group border border-neutral-200 rounded-md overflow-hidden">
+                      <div class="aspect-[4/3] bg-neutral-100">
+                        <img :src="c.thumbnail_path" class="w-full h-full object-contain" alt="Creativo detectado">
+                      </div>
+                      <div class="px-2.5 py-2 border-t border-neutral-200">
+                        <p class="text-xs">Apareció <span class="font-mono" x-text="fechaCorta(c.primera_vez)"></span></p>
+                        <p class="text-[11px] text-neutral-500">Visto <span class="font-mono" x-text="c.vistas"></span> veces · último <span class="font-mono" x-text="new Date(c.ultima_vez).toLocaleDateString()"></span></p>
+                      </div>
+                      <button x-show="puedeAjustar" @click="descartarCreativo(c)" title="No era un creativo nuevo (reflejo, pantalla apagada...)"
+                        class="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 se-btn se-btn-secundario se-btn-chico">
+                        No es nuevo
+                      </button>
+                    </div>
+                  </template>
+                  <p x-show="creativosConFoto().length === 0" class="col-span-full text-center text-neutral-500 text-sm py-8 border border-dashed border-neutral-300 rounded-md">
+                    Todavía no ha detectado creativos nuevos.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+      </div>
+
+      <!-- ═══ Telemetría ═══ -->
+      <div x-show="tab === 'telemetria'" style="display:none" class="space-y-6">
+      <!-- PlayLog / Historico de telemetria -->
+      <div class="se-card p-4">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <h3 class="font-medium">PlayLog — Histórico de telemetría</h3>
+          <div class="flex flex-wrap items-center gap-2 text-sm">
+            <select x-model="tlRange" @change="onRangePreset()" class="px-2 py-1.5 border border-neutral-300 rounded">
+              <option value="24h">Últimas 24 h</option>
+              <option value="7d">7 días</option>
+              <option value="30d">30 días</option>
+              <option value="custom">Personalizado</option>
+            </select>
+            <template x-if="tlRange === 'custom'">
+              <span class="flex items-center gap-1">
+                <input type="datetime-local" x-model="tlFrom" class="px-2 py-1 border border-neutral-300 rounded">
+                <span class="text-neutral-400">→</span>
+                <input type="datetime-local" x-model="tlTo" class="px-2 py-1 border border-neutral-300 rounded">
+              </span>
+            </template>
+            <button @click="loadTelemetry()" class="px-3 py-1.5 bg-[#0A66FF] text-white rounded hover:bg-blue-700">Aplicar</button>
+            <button @click="exportTelemetry()" class="px-3 py-1.5 bg-neutral-100 text-neutral-700 rounded hover:bg-neutral-200">Exportar CSV</button>
+          </div>
+        </div>
+
+        <!-- Alertas -->
+        <div x-show="tlAlerts.length > 0" class="mb-4 space-y-1.5">
+          <template x-for="a in tlAlerts" :key="a.type">
+            <div class="flex items-center gap-2 text-sm px-3 py-2 rounded"
+                 :class="a.level === 'critical' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'">
+              <span class="font-bold" x-text="a.level === 'critical' ? '⚠' : '!'"></span>
+              <span x-text="a.message"></span>
+            </div>
+          </template>
+        </div>
+        <p x-show="tlLoaded && tlAlerts.length === 0" class="mb-4 text-sm text-green-700 bg-green-50 px-3 py-2 rounded">
+          ✓ Sin alertas en el rango seleccionado
+        </p>
+
+        <!-- Resumen -->
+        <div x-show="tlLoaded" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4 text-sm">
+          <div class="border border-neutral-100 rounded p-2">
+            <div class="text-neutral-400 text-xs">Temp CPU máx</div>
+            <div class="font-medium tabular-nums" x-text="tlSummary.cpu_temp_max != null ? Number(tlSummary.cpu_temp_max).toFixed(1) + ' °C' : 'n/d'"></div>
+          </div>
+          <div class="border border-neutral-100 rounded p-2">
+            <div class="text-neutral-400 text-xs">Temp batería máx</div>
+            <div class="font-medium tabular-nums" x-text="tlSummary.battery_temp_max != null ? Number(tlSummary.battery_temp_max).toFixed(1) + ' °C' : 'n/d'"></div>
+          </div>
+          <div class="border border-neutral-100 rounded p-2">
+            <div class="text-neutral-400 text-xs">Batería mín</div>
+            <div class="font-medium tabular-nums" x-text="tlSummary.battery_pct_min != null ? tlSummary.battery_pct_min + ' %' : 'n/d'"></div>
+          </div>
+          <div class="border border-neutral-100 rounded p-2">
+            <div class="text-neutral-400 text-xs">Muestras</div>
+            <div class="font-medium tabular-nums" x-text="tlSummary.samples ?? 0"></div>
+          </div>
+        </div>
+
+        <!-- Graficas -->
+        <div x-show="tlLoaded && tlSummary.samples > 0" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div class="border border-neutral-100 rounded p-3"><canvas id="chartTemp" height="140"></canvas></div>
+          <div class="border border-neutral-100 rounded p-3"><canvas id="chartBattery" height="140"></canvas></div>
+          <div class="border border-neutral-100 rounded p-3"><canvas id="chartSignal" height="140"></canvas></div>
+          <div class="border border-neutral-100 rounded p-3"><canvas id="chartStorage" height="140"></canvas></div>
+        </div>
+        <p x-show="tlLoaded && (!tlSummary.samples || tlSummary.samples === 0)" class="text-center text-neutral-400 text-sm py-8">
+          Sin telemetría en el rango seleccionado
+        </p>
+      </div>
           <!-- Consumo de datos (chip Telcel / WiFi) -->
-          <div class="bg-white border border-neutral-200 rounded-lg p-4">
-            <h3 class="font-medium mb-3">Consumo de datos</h3>
+          <div class="se-card">
+            <div class="se-card-head"><div><div class="se-card-title">Consumo de datos</div><div class="se-card-sub">Móvil = el chip del equipo, con tope de 4 GB al mes.</div></div></div>
+            <div class="se-card-body">
             <template x-if="!dataUsage">
               <p class="text-sm text-neutral-400">Sin datos (requiere la app v0.7.0 o superior en el equipo).</p>
             </template>
@@ -459,36 +884,48 @@
               </div>
             </template>
           </div>
+          </div>
+      </div>
 
-          <!-- Device Config -->
-          <div class="bg-white border border-neutral-200 rounded-lg p-4">
-            <h3 class="font-medium mb-3">Configuracion</h3>
-            <div class="space-y-2 text-sm">
-              <div class="flex justify-between">
-                <span class="text-neutral-500">Modelo</span>
-                <span x-text="device?.manufacturer + ' ' + device?.model || '—'" class="font-medium"></span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-neutral-500">Android</span>
-                <span x-text="device?.android_version || '—'" class="font-medium"></span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-neutral-500">App version</span>
-                <span x-text="device?.app_version || '—'" class="font-medium"></span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-neutral-500">Billboard</span>
-                <span x-text="device?.billboard_code || '—'" class="font-medium"></span>
+      <!-- ═══ Equipo ═══ -->
+      <div x-show="tab === 'equipo'" style="display:none" class="space-y-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+
+          <!-- Ficha tecnica del equipo -->
+          <div class="se-card">
+            <div class="se-card-head"><div class="se-card-title">Ficha del equipo</div></div>
+            <div class="se-card-body">
+              <p class="se-eyebrow mb-1">Aparato</p>
+              <div class="se-dato"><span>Modelo</span><span x-text="[device?.manufacturer, device?.model].filter(Boolean).join(' ') || '—'"></span></div>
+              <div class="se-dato"><span>Android</span><span class="font-mono" x-text="device?.android_version || '—'"></span></div>
+              <div class="se-dato"><span>Versión de la app</span><span class="font-mono" x-text="device?.app_version || '—'"></span></div>
+              <div class="se-dato"><span>Código del espectacular</span><span class="font-mono" x-text="device?.billboard_code || '—'"></span></div>
+              <p class="se-eyebrow mt-4 mb-1">Conexión</p>
+              <div class="se-dato"><span>Red</span><span x-text="status?.network_type || '—'"></span></div>
+              <div class="se-dato"><span>Operador</span><span x-text="status?.network_operator || '—'"></span></div>
+              <div class="se-dato"><span>IP pública</span><span class="font-mono text-xs" x-text="status?.source_ip || '—'"
+                title="Desde donde el equipo habla con el servidor. Si el operador traduce (NAT64), aquí se ve IPv4 aunque el equipo esté en IPv6."></span></div>
+              <div class="se-dato"><span>Última conexión</span><span class="font-mono text-xs" x-text="device?.last_seen_at ? new Date(device.last_seen_at).toLocaleString() : '—'"></span></div>
+              <p class="se-eyebrow mt-4 mb-1">Salud del aparato</p>
+              <div class="se-dato"><span>Almacenamiento libre</span><span class="font-mono" x-text="status?.storage_free_mb ? status.storage_free_mb + ' MB' : '—'"></span></div>
+              <div class="se-dato"><span>Temperatura CPU</span><span class="font-mono" x-text="status?.cpu_temp ? status.cpu_temp + ' °C' : 'n/d'"></span></div>
+              <div class="se-dato"><span>Temperatura batería</span><span class="font-mono" x-text="(status?.battery_temp || status?.battery_temp === 0) ? status.battery_temp + ' °C' : '—'"></span></div>
+              <!-- Actualizacion remota: el mismo boton que en "Mas", aqui con su explicacion -->
+              <div x-show="isAdmin && appAtrasada()" style="display:none" class="se-aviso se-aviso-alerta mt-4">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <span>Hay una versión nueva: <b class="font-mono" x-text="publicadoParaEsteEquipo()?.version"></b></span>
+                  <button @click="updateApp()" :disabled="updating" class="se-btn se-btn-secundario se-btn-chico" x-text="updating ? 'Enviando…' : 'Actualizar'"></button>
+                </div>
+                <p class="text-xs text-neutral-500 mt-1" x-text="puedeActualizarSolo() ? 'Se instala sola, sin tocar el equipo.' : 'Este equipo pedirá confirmación en su pantalla (no es device owner).'"></p>
               </div>
             </div>
           </div>
-        </div>
-      </div>
 
+          <div>
       <!-- Ajustes de imagen: encuadre fino y color.
            Nacio para la Raspberry, que ignoraba hasta el zoom, y para corregir el
            tinte morado de la camara sin filtro infrarrojo. -->
-      <div class="mt-8 bg-white border border-neutral-200 rounded-lg p-4">
+      <div class="se-card p-4">
         <div class="flex items-center justify-between mb-1">
           <h3 class="font-medium">Ajustes de imagen</h3>
           <button @click="ajustesAbiertos = !ajustesAbiertos" class="text-sm text-[#0A66FF] hover:underline"
@@ -650,304 +1087,10 @@
           </div>
         </div>
       </div>
-
-      <!-- Recent Photos -->
-      <div class="mt-8 bg-white border border-neutral-200 rounded-lg p-4">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="font-medium">Fotos recientes</h3>
-          <div class="flex items-center gap-3 text-sm">
-            <button @click="downloadAlbum()" :disabled="albumDownloading"
-              class="text-blue-600 hover:underline disabled:opacity-50">
-              <span x-text="albumDownloading ? ('Descargando ' + albumProgress) : 'Descargar álbum'"></span>
-            </button>
-            <a :href="'/gallery.html?device_id=' + deviceId" class="text-neutral-500 hover:underline">Ver todas</a>
           </div>
         </div>
-        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-          <template x-for="photo in recentPhotos" :key="photo.id">
-            <div class="relative group aspect-[4/3] bg-neutral-100 rounded overflow-hidden">
-              <img :src="photo.thumbnail_path" @click="openLightbox(photo)"
-                   :style="giroDeFoto(photo) ? `transform: rotate(${giroDeFoto(photo)}deg)` : ''"
-                   class="w-full h-full object-contain cursor-pointer hover:opacity-90" :alt="'Photo ' + photo.id">
-              <button @click.stop="deletePhoto(photo.id)" title="Eliminar fotografía"
-                class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 bg-red-600/90 hover:bg-red-700 text-white rounded p-1 transition-opacity">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 7h12M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m-7 0v11a2 2 0 002 2h4a2 2 0 002-2V7"/></svg>
-              </button>
-            </div>
-          </template>
-          <p x-show="recentPhotos.length === 0" class="col-span-full text-center text-neutral-500 text-sm py-8">
-            Sin fotos todavia
-          </p>
-        </div>
-      </div>
-
-      <!-- Pantalla y fallas: donde esta la pantalla en la foto, sus gabinetes y su
-           horario; y el monitoreo que el equipo hace por si mismo. -->
-      <div class="mt-8 bg-white border border-neutral-200 rounded-lg p-4" x-show="pant">
-        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
-          <div>
-            <h3 class="font-medium">Pantalla y fallas</h3>
-            <p class="text-xs text-neutral-500 mt-0.5">
-              El equipo revisa su pantalla por sí mismo y solo avisa cuando detecta una falla confirmada (o cuando se arregla). No manda video ni fotos mientras todo está bien.
-            </p>
-          </div>
-          <label class="flex items-center gap-2 text-sm" :class="(!puedeAjustar || !usaPantalla() || !pant?.pantalla) && 'opacity-50'">
-            <input type="checkbox" :checked="pant?.salud?.vigilar"
-              :disabled="!puedeAjustar || !usaPantalla() || !pant?.pantalla"
-              @change="guardarSalud({ vigilar: $event.target.checked })">
-            Vigilar fallas
-          </label>
-        </div>
-
-        <p x-show="!usaPantalla()" class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2 mb-3">
-          La vigilancia de fallas necesita la app 0.15.0 o posterior en el celular. La Raspberry y el agente de PC todavía no la tienen.
-        </p>
-
-        <!-- Estado de la pantalla marcada -->
-        <div class="flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-neutral-600 mb-3">
-          <span x-show="!pant?.pantalla" class="text-amber-700">
-            Falta marcar dónde está la pantalla en la foto: sin eso el equipo no vigila fallas ni creativos.
-          </span>
-          <template x-if="pant?.pantalla">
-            <span>
-              <b x-text="pant.pantalla.filas * pant.pantalla.columnas"></b> gabinetes
-              (<span x-text="pant.pantalla.filas"></span> × <span x-text="pant.pantalla.columnas"></span>) ·
-              encendida de <b x-text="pant.pantalla.horario?.inicio || '06:00'"></b> a <b x-text="pant.pantalla.horario?.fin || '24:00'"></b>
-            </span>
-          </template>
-          <button x-show="puedeAjustar && !editPant" @click="empezarPantalla()" class="text-blue-600 hover:underline"
-            x-text="pant?.pantalla ? 'Cambiar pantalla' : 'Marcar la pantalla'"></button>
-          <label x-show="pant?.salud?.vigilar || creativos?.config?.vigilar" class="flex items-center gap-1"
-            title="Antes de avisar, el equipo aprende cómo se ve la pantalla normalmente. Siempre aprende al menos su primera vuelta con la pantalla funcionando.">
-            Aprender durante
-            <select :value="pant?.salud?.aprendizaje_min" :disabled="!puedeAjustar"
-              @change="guardarSalud({ aprendizaje_min: Number($event.target.value) }).then(() => loadCreativos())"
-              class="px-1 py-0.5 border border-neutral-300 rounded">
-              <option value="0">Solo la primera vuelta (pruebas)</option>
-              <option value="30">30 min</option>
-              <option value="120">2 h</option>
-              <option value="360">6 h</option>
-              <option value="1440">24 h</option>
-            </select>
-          </label>
-          <label x-show="pant?.salud?.vigilar" class="flex items-center gap-1">
-            Revisar cada
-            <select :value="pant?.salud?.cada_min" :disabled="!puedeAjustar"
-              @change="guardarSalud({ cada_min: Number($event.target.value) })" class="px-1 py-0.5 border border-neutral-300 rounded">
-              <option value="5">5 min (pruebas)</option>
-              <option value="15">15 min (pruebas)</option>
-              <option value="30">30 min</option>
-              <option value="60">1 h</option>
-              <option value="120">2 h</option>
-              <option value="180">3 h</option>
-            </select>
-          </label>
-        </div>
-
-        <!-- Editor: 4 esquinas + gabinetes + zonas excluidas + horario -->
-        <template x-if="editPant">
-          <div class="mb-4 border border-neutral-200 rounded p-3 bg-neutral-50">
-            <div class="flex flex-wrap items-center gap-4 text-sm mb-2">
-              <div class="flex rounded border border-neutral-300 overflow-hidden text-xs">
-                <button @click="modoPant = 'esquinas'" :class="modoPant === 'esquinas' ? 'bg-neutral-900 text-white' : 'bg-white'" class="px-2 py-1">Esquinas</button>
-                <button @click="modoPant = 'excluir'" :disabled="editPant.esquinas.length !== 4"
-                  :class="modoPant === 'excluir' ? 'bg-neutral-900 text-white' : 'bg-white'" class="px-2 py-1 disabled:opacity-40">Zonas tapadas</button>
-              </div>
-              <label class="flex items-center gap-1 text-xs">Filas
-                <input type="number" min="1" max="20" x-model.number="editPant.filas" class="w-14 px-1 py-0.5 border border-neutral-300 rounded"></label>
-              <label class="flex items-center gap-1 text-xs">Columnas
-                <input type="number" min="1" max="40" x-model.number="editPant.columnas" class="w-14 px-1 py-0.5 border border-neutral-300 rounded"></label>
-              <label class="flex items-center gap-1 text-xs">Encendida de
-                <input type="time" x-model="editPant.horario.inicio" class="px-1 py-0.5 border border-neutral-300 rounded"></label>
-              <label class="flex items-center gap-1 text-xs">a
-                <input type="text" x-model="editPant.horario.fin" placeholder="24:00" pattern="([01]\d|2[0-4]):[0-5]\d"
-                  class="w-16 px-1 py-0.5 border border-neutral-300 rounded"></label>
-            </div>
-            <p class="text-xs text-neutral-500 mb-2" x-show="modoPant === 'esquinas'">
-              Toca las 4 esquinas de la pantalla en orden: <b>arriba izquierda, arriba derecha, abajo derecha, abajo izquierda</b>. Después puedes arrastrarlas.
-              Pon filas y columnas de gabinetes para que las líneas coincidan con las uniones. Si cambias el zoom o el lente del equipo, hay que volver a marcarla.
-            </p>
-            <p class="text-xs text-neutral-500 mb-2" x-show="modoPant === 'excluir'">
-              Toca los gabinetes que algo tapa siempre (una barda, un árbol, un poste): no se revisan. El equipo también las aprende solo en sus primeras 24 horas.
-            </p>
-            <div x-show="!fotoReferencia()" class="text-xs text-neutral-500 py-4">Toma primero una foto del equipo para poder marcar la pantalla.</div>
-            <div x-show="fotoReferencia()" class="relative inline-block max-w-full select-none touch-none cursor-crosshair"
-                 @pointerdown="pantAbajo($event)" @pointermove="pantMueve($event)" @pointerup="pantArriba()" @pointercancel="pantArriba()">
-              <img x-ref="fotoPant" :src="fotoReferencia()" class="block max-w-full max-h-[65vh]" draggable="false" alt="Foto del equipo">
-              <svg class="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 1 1" preserveAspectRatio="none">
-                <template x-for="(poli, k) in pantExcluidas()" :key="'x' + k">
-                  <polygon :points="poli" fill="rgba(0,0,0,0.45)"></polygon>
-                </template>
-                <polygon x-show="editPant.esquinas.length >= 2" :points="pantPoligono()" fill="rgba(10,102,255,0.08)"
-                  stroke="#0A66FF" stroke-width="2" vector-effect="non-scaling-stroke"></polygon>
-                <template x-for="(l, k) in pantLineas()" :key="'l' + k">
-                  <line :x1="l[0]" :y1="l[1]" :x2="l[2]" :y2="l[3]" stroke="#0A66FF" stroke-width="1" stroke-dasharray="4 3" vector-effect="non-scaling-stroke"></line>
-                </template>
-              </svg>
-              <template x-for="(q, k) in editPant.esquinas" :key="'e' + k">
-                <div class="absolute w-4 h-4 -ml-2 -mt-2 rounded-full bg-white border-2 border-blue-600 pointer-events-none flex items-center justify-center text-[9px] font-bold text-blue-700"
-                  :style="`left:${q[0] * 100}%;top:${q[1] * 100}%`" x-text="k + 1"></div>
-              </template>
-            </div>
-            <div class="flex items-center gap-3 mt-2 text-sm">
-              <button @click="guardarPantalla()" :disabled="editPant.esquinas.length !== 4 || guardandoPant"
-                class="px-3 py-1.5 bg-neutral-900 text-white rounded disabled:opacity-40">Guardar pantalla</button>
-              <button @click="editPant.esquinas = []; editPant.excluir = []; modoPant = 'esquinas'" class="text-neutral-600 hover:underline">Volver a empezar</button>
-              <button @click="editPant = null" class="text-neutral-600 hover:underline">Cancelar</button>
-            </div>
-          </div>
-        </template>
-
-        <!-- Estado de la vigilancia -->
-        <template x-if="pant?.salud?.vigilar">
-          <div class="text-xs text-neutral-600 space-y-1 mb-3">
-            <p x-show="pant.salud.aprendiendo" class="text-blue-700">
-              Aprendiendo la pantalla hasta <b x-text="finAprendizajeSalud()"></b>: en este plazo no avisa de fallas.
-            </p>
-            <p x-show="!pant.salud.aprendiendo && pant.ultimo?.aprendiendo" class="text-blue-700">
-              Aprendiendo con su primera vuelta: la siguiente ya vigila.
-            </p>
-            <p x-text="ultimaRevision()"></p>
-            <p x-show="pant.ultimo?.camara_permitida === false" class="text-red-700 bg-red-50 border border-red-200 rounded px-2 py-1">
-              ⚠ Android no le deja usar la cámara en segundo plano, así que no está revisando la pantalla.
-              Abre la app Space Eye en el celular una vez (se arregla sola desde ahí). Pasa tras reiniciar el celular,
-              salvo que la app sea dueña del dispositivo.
-            </p>
-            <p x-show="zonasQuietas()" class="text-amber-700">
-              Gabinetes que nunca cambian (no se revisan): <b x-text="zonasQuietas()"></b>. Suelen estar tapados por algo, pero si no hay nada delante, revísalos: podrían llevar tiempo apagados.
-            </p>
-          </div>
-        </template>
-
-        <!-- Fallas abiertas -->
-        <div x-show="fallasAbiertas().length" class="space-y-2 mb-4">
-          <template x-for="f in fallasAbiertas()" :key="f.id">
-            <div class="flex gap-3 border border-red-200 bg-red-50 rounded p-2">
-              <a :href="f.evidencia" target="_blank" class="shrink-0 w-32 aspect-[4/3] bg-neutral-200 rounded overflow-hidden" x-show="f.evidencia_mini">
-                <img :src="f.evidencia_mini" class="w-full h-full object-cover" alt="Evidencia">
-              </a>
-              <div class="text-sm flex-1">
-                <p class="font-medium text-red-800">🔴 <span x-text="nombreFalla(f)"></span></p>
-                <p class="text-xs text-neutral-700" x-text="dondeFalla(f)"></p>
-                <p class="text-xs text-neutral-500">Detectada <span x-text="fechaCorta(f.detectada_en)"></span> · confianza <span x-text="Math.round(f.confianza * 100) + '%'"></span></p>
-                <div x-show="puedeAjustar" class="flex gap-3 mt-1 text-xs">
-                  <button @click="cerrarFalla(f, 'recuperada')" class="text-blue-600 hover:underline">Ya se arregló</button>
-                  <button @click="cerrarFalla(f, 'descartada')" class="text-neutral-600 hover:underline">No es falla</button>
-                </div>
-              </div>
-            </div>
-          </template>
-        </div>
-
-        <!-- Historial -->
-        <div x-show="(pant?.fallas || []).length" class="overflow-x-auto">
-          <table class="w-full text-xs">
-            <thead class="text-neutral-500 text-left">
-              <tr><th class="py-1 pr-3">Detectada</th><th class="pr-3">Falla</th><th class="pr-3">Dónde</th><th class="pr-3">Estado</th><th class="pr-3">Cerrada</th><th>Evidencia</th></tr>
-            </thead>
-            <tbody class="divide-y divide-neutral-100">
-              <template x-for="f in pant?.fallas || []" :key="'h' + f.id">
-                <tr>
-                  <td class="py-1 pr-3 whitespace-nowrap" x-text="fechaCorta(f.detectada_en)"></td>
-                  <td class="pr-3" x-text="nombreFalla(f)"></td>
-                  <td class="pr-3" x-text="dondeFalla(f)"></td>
-                  <td class="pr-3">
-                    <span :class="{ 'text-red-700 font-medium': f.estado === 'abierta', 'text-green-700': f.estado === 'recuperada', 'text-neutral-500': f.estado === 'descartada' }"
-                      x-text="{ abierta: 'Abierta', recuperada: 'Recuperada', descartada: 'No era falla' }[f.estado]"></span>
-                  </td>
-                  <td class="pr-3 whitespace-nowrap" x-text="f.recuperada_en ? fechaCorta(f.recuperada_en) + (f.cerrada_por === 'usuario' ? ' (a mano)' : '') : '—'"></td>
-                  <td class="whitespace-nowrap">
-                    <a x-show="f.evidencia" :href="f.evidencia" target="_blank" class="text-blue-600 hover:underline">al detectar</a>
-                    <a x-show="f.evidencia_recuperacion" :href="f.evidencia_recuperacion" target="_blank" class="text-blue-600 hover:underline ml-2">al recuperar</a>
-                  </td>
-                </tr>
-              </template>
-            </tbody>
-          </table>
-        </div>
-        <p x-show="pant?.salud?.vigilar && !(pant?.fallas || []).length" class="text-center text-neutral-500 text-sm py-4">Sin fallas registradas.</p>
-      </div>
-
-      <!-- Creativos detectados: el equipo reconoce la pantalla sin subir fotos y
-           solo manda la de lo que no habia visto. -->
-      <div class="mt-8 bg-white border border-neutral-200 rounded-lg p-4" x-show="creativos">
-        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
-          <div>
-            <h3 class="font-medium">Creativos detectados</h3>
-            <p class="text-xs text-neutral-500 mt-0.5">
-              El equipo mira su pantalla cada tantas horas sin gastar datos y solo sube foto cuando aparece un creativo que no conocía.
-            </p>
-          </div>
-          <label class="flex items-center gap-2 text-sm" :class="(!puedeAjustar || !sabeVigilar()) && 'opacity-50'">
-            <input type="checkbox" :checked="creativos?.config?.vigilar"
-              :disabled="!puedeAjustar || !sabeVigilar() || guardandoCreativos"
-              @change="guardarCreativos({ vigilar: $event.target.checked })">
-            Vigilar la pantalla
-          </label>
-        </div>
-
-        <p x-show="!sabeVigilar()" class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2 mb-3">
-          Este equipo no sabe vigilar su pantalla todavía: los celulares necesitan la app 0.15.0 o posterior, y el agente de PC no lo tiene.
-        </p>
-
-        <p x-show="usaPantalla() && !pant?.pantalla" class="text-xs text-amber-700 mb-3">
-          Falta marcar la pantalla (en «Pantalla y fallas»): sin eso el equipo no reconoce creativos, porque el fondo los confunde entre sí.
-        </p>
-
-        <template x-if="creativos?.config?.vigilar">
-          <div>
-            <div class="flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-neutral-600 mb-3">
-              <span x-show="creativos.config.aprendiendo" class="text-blue-700">
-                Aprendiendo el loop hasta <b x-text="finAprendizaje()"></b>: no toma fotos en este plazo.
-              </span>
-              <span>Fotos hoy: <b x-text="creativos.fotos_hoy"></b> de <b x-text="creativos.config.max_dia"></b></span>
-              <span>Creativos en el catálogo: <b x-text="creativos.creativos.length"></b></span>
-              <label class="flex items-center gap-1"
-                title="Continuo: el equipo mira su pantalla todo el día dentro del horario y avisa en menos de un minuto cuando sale un creativo nuevo. Sigue sin gastar datos: solo manda la foto de lo nuevo.">
-                Revisar
-                <select :value="creativos.config.cada_min" :disabled="!puedeAjustar || guardandoCreativos"
-                  @change="guardarCreativos({ cada_min: Number($event.target.value) })"
-                  class="px-1 py-0.5 border border-neutral-300 rounded">
-                  <option value="0">continuo</option>
-                  <option value="30">cada 30 min</option>
-                  <option value="60">cada 1 h</option>
-                  <option value="120">cada 2 h</option>
-                  <option value="180">cada 3 h</option>
-                  <option value="360">cada 6 h</option>
-                  <option value="720">cada 12 h</option>
-                </select>
-              </label>
-              <button x-show="isAdmin" @click="reaprenderCreativos()" class="text-blue-600 hover:underline">Volver a aprender</button>
-            </div>
-
-            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-              <template x-for="c in creativosConFoto()" :key="c.id">
-                <div class="relative group">
-                  <div class="aspect-[4/3] bg-neutral-100 rounded overflow-hidden">
-                    <img :src="c.thumbnail_path" class="w-full h-full object-contain" alt="Creativo detectado">
-                  </div>
-                  <p class="text-[11px] text-neutral-500 mt-1">
-                    Apareció <span x-text="new Date(c.primera_vez).toLocaleString()"></span>
-                  </p>
-                  <p class="text-[11px] text-neutral-400">
-                    Visto <span x-text="c.vistas"></span> veces · último <span x-text="new Date(c.ultima_vez).toLocaleDateString()"></span>
-                  </p>
-                  <button x-show="puedeAjustar" @click="descartarCreativo(c)" title="No era un creativo nuevo (reflejo, pantalla apagada...)"
-                    class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 bg-white/90 border border-neutral-300 text-neutral-700 text-[11px] rounded px-1.5 py-0.5">
-                    No es nuevo
-                  </button>
-                </div>
-              </template>
-              <p x-show="creativosConFoto().length === 0" class="col-span-full text-center text-neutral-500 text-sm py-6">
-                Todavía no ha detectado creativos nuevos.
-              </p>
-            </div>
-          </div>
-        </template>
-      </div>
-
       <!-- Registros remotos (diagnostico del equipo en campo) -->
-      <div class="mt-8 bg-white border border-neutral-200 rounded-lg p-4">
+      <div class="se-card p-4">
         <div class="flex items-center justify-between mb-3">
           <h3 class="font-medium">Registros del dispositivo</h3>
           <button @click="loadLogs()" class="text-sm text-blue-600 hover:underline">Actualizar</button>
@@ -971,74 +1114,6 @@
           </p>
         </div>
       </div>
-
-      <!-- PlayLog / Historico de telemetria -->
-      <div class="mt-8 bg-white border border-neutral-200 rounded-lg p-4">
-        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
-          <h3 class="font-medium">PlayLog — Histórico de telemetría</h3>
-          <div class="flex flex-wrap items-center gap-2 text-sm">
-            <select x-model="tlRange" @change="onRangePreset()" class="px-2 py-1.5 border border-neutral-300 rounded">
-              <option value="24h">Últimas 24 h</option>
-              <option value="7d">7 días</option>
-              <option value="30d">30 días</option>
-              <option value="custom">Personalizado</option>
-            </select>
-            <template x-if="tlRange === 'custom'">
-              <span class="flex items-center gap-1">
-                <input type="datetime-local" x-model="tlFrom" class="px-2 py-1 border border-neutral-300 rounded">
-                <span class="text-neutral-400">→</span>
-                <input type="datetime-local" x-model="tlTo" class="px-2 py-1 border border-neutral-300 rounded">
-              </span>
-            </template>
-            <button @click="loadTelemetry()" class="px-3 py-1.5 bg-[#0A66FF] text-white rounded hover:bg-blue-700">Aplicar</button>
-            <button @click="exportTelemetry()" class="px-3 py-1.5 bg-neutral-100 text-neutral-700 rounded hover:bg-neutral-200">Exportar CSV</button>
-          </div>
-        </div>
-
-        <!-- Alertas -->
-        <div x-show="tlAlerts.length > 0" class="mb-4 space-y-1.5">
-          <template x-for="a in tlAlerts" :key="a.type">
-            <div class="flex items-center gap-2 text-sm px-3 py-2 rounded"
-                 :class="a.level === 'critical' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'">
-              <span class="font-bold" x-text="a.level === 'critical' ? '⚠' : '!'"></span>
-              <span x-text="a.message"></span>
-            </div>
-          </template>
-        </div>
-        <p x-show="tlLoaded && tlAlerts.length === 0" class="mb-4 text-sm text-green-700 bg-green-50 px-3 py-2 rounded">
-          ✓ Sin alertas en el rango seleccionado
-        </p>
-
-        <!-- Resumen -->
-        <div x-show="tlLoaded" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4 text-sm">
-          <div class="border border-neutral-100 rounded p-2">
-            <div class="text-neutral-400 text-xs">Temp CPU máx</div>
-            <div class="font-medium tabular-nums" x-text="tlSummary.cpu_temp_max != null ? Number(tlSummary.cpu_temp_max).toFixed(1) + ' °C' : 'n/d'"></div>
-          </div>
-          <div class="border border-neutral-100 rounded p-2">
-            <div class="text-neutral-400 text-xs">Temp batería máx</div>
-            <div class="font-medium tabular-nums" x-text="tlSummary.battery_temp_max != null ? Number(tlSummary.battery_temp_max).toFixed(1) + ' °C' : 'n/d'"></div>
-          </div>
-          <div class="border border-neutral-100 rounded p-2">
-            <div class="text-neutral-400 text-xs">Batería mín</div>
-            <div class="font-medium tabular-nums" x-text="tlSummary.battery_pct_min != null ? tlSummary.battery_pct_min + ' %' : 'n/d'"></div>
-          </div>
-          <div class="border border-neutral-100 rounded p-2">
-            <div class="text-neutral-400 text-xs">Muestras</div>
-            <div class="font-medium tabular-nums" x-text="tlSummary.samples ?? 0"></div>
-          </div>
-        </div>
-
-        <!-- Graficas -->
-        <div x-show="tlLoaded && tlSummary.samples > 0" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div class="border border-neutral-100 rounded p-3"><canvas id="chartTemp" height="140"></canvas></div>
-          <div class="border border-neutral-100 rounded p-3"><canvas id="chartBattery" height="140"></canvas></div>
-          <div class="border border-neutral-100 rounded p-3"><canvas id="chartSignal" height="140"></canvas></div>
-          <div class="border border-neutral-100 rounded p-3"><canvas id="chartStorage" height="140"></canvas></div>
-        </div>
-        <p x-show="tlLoaded && (!tlSummary.samples || tlSummary.samples === 0)" class="text-center text-neutral-400 text-sm py-8">
-          Sin telemetría en el rango seleccionado
-        </p>
       </div>
     </main>
 
@@ -1066,7 +1141,7 @@
           Rotar
         </button>
         <button @click.stop="downloadCurrentPhoto()"
-                class="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded">
+                class="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded">
           <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/></svg>
           Descargar
         </button>

@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SPACE EYE — Galeria</title>
+  <title>SPACE EYES — Galería</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/src/js/tema.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <link rel="stylesheet" href="/src/css/styles.css">
 </head>
@@ -13,7 +14,12 @@
 
     <div id="app-header"></div>
 
-    <main class="max-w-7xl mx-auto px-6 py-8">
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+      <div class="mb-6">
+        <p class="se-eyebrow">Evidencia</p>
+        <h1 class="se-titulo text-[28px] mt-1">Galería de fotos</h1>
+        <p class="text-sm text-neutral-500 mt-1">Todas las fotos de los equipos: programadas, pedidas a mano, de creativos nuevos y de fallas.</p>
+      </div>
       <div class="flex gap-3 mb-6 flex-wrap">
         <input x-model="filters.from" type="date" class="px-3 py-2 border border-neutral-300 rounded text-sm">
         <input x-model="filters.to" type="date" class="px-3 py-2 border border-neutral-300 rounded text-sm">
@@ -23,9 +29,9 @@
           <option value="scheduled">Programada</option>
           <option value="on_demand">On demand</option>
         </select>
-        <button @click="loadPhotos()" class="px-4 py-2 bg-[#0A66FF] text-white text-sm rounded hover:bg-blue-700">Filtrar</button>
+        <button @click="loadPhotos()" class="se-btn se-btn-primario">Filtrar</button>
         <button @click="downloadAlbum()" :disabled="albumDownloading"
-          class="px-4 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700 disabled:opacity-50">
+          class="se-btn se-btn-secundario">
           <span x-text="albumDownloading ? ('Descargando ' + albumProgress) : 'Descargar álbum'"></span>
         </button>
       </div>
@@ -93,7 +99,7 @@
           Rotar
         </button>
         <button @click.stop="downloadCurrentPhoto()"
-                class="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded">
+                class="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded">
           <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/></svg>
           Descargar
         </button>

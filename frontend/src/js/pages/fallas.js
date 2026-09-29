@@ -31,7 +31,8 @@ function fallasPage() {
 
     async load() {
       const q = new URLSearchParams();
-      if (this.estado) q.set('estado', this.estado);
+      // Se traen todas: el filtro de estado es solo de la tabla, y los
+      // indicadores de arriba tienen que contar siempre el total.
       if (this.deviceId) q.set('device_id', this.deviceId);
       try {
         const r = await API.get('/api/fallas?' + q.toString());
@@ -43,6 +44,8 @@ function fallasPage() {
     },
 
     abiertas() { return this.fallas.filter((f) => f.estado === 'abierta'); },
+    lista() { return this.estado ? this.fallas.filter((f) => f.estado === this.estado) : this.fallas; },
+    cuenta(estado) { return this.fallas.filter((f) => f.estado === estado).length; },
 
     fecha(v) { return v ? new Date(v).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : '—'; },
 

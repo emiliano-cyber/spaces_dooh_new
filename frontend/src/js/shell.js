@@ -8,7 +8,7 @@
 // Requiere que api.js este cargado antes (usa el objeto global API).
 (function () {
   const NAV = [
-    { key: 'devices', label: 'Devices', href: '/dashboard.html' },
+    { key: 'devices', label: 'Equipos', href: '/dashboard.html' },
     { key: 'galeria', label: 'Galería', href: '/gallery.html' },
     { key: 'graficas', label: 'Gráficas', href: '/graficas.html' },
     { key: 'ajustar-texto', label: 'Ajustar texto', href: '/ajustar-texto.html' },
@@ -36,9 +36,10 @@
   function navLinks(active, mobile) {
     return NAV.map((n) => {
       const on = n.key === active;
+      // Activa: tinta con subrayado azul (el azul es el unico color de producto).
       const cls = mobile
-        ? `block px-4 py-2.5 text-sm ${on ? 'text-blue-600 font-medium bg-blue-50' : 'text-neutral-600 hover:bg-neutral-50'}`
-        : `${on ? 'text-blue-600 font-medium' : 'text-neutral-500 hover:text-neutral-900'}`;
+        ? `block px-4 py-2.5 text-sm ${on ? 'text-neutral-900 font-medium bg-blue-50 border-l-2 border-blue-600' : 'text-neutral-600 hover:bg-neutral-50'}`
+        : `py-5 -mb-px border-b-2 ${on ? 'text-neutral-900 font-medium border-blue-600' : 'text-neutral-500 border-transparent hover:text-neutral-900'}`;
       // Las fallas abiertas se cuentan en el menu: es lo primero que hay que ver.
       const globo = n.key === 'fallas' ? ' <span data-fallas-abiertas class="hidden ml-1 px-1.5 rounded-full bg-red-600 text-white text-[10px] font-semibold align-middle"></span>' : '';
       return `<a href="${n.href}" class="${cls}">${n.label}${globo}</a>`;
@@ -52,24 +53,25 @@
 
     mount.innerHTML = `
     <header class="bg-white border-b border-neutral-200 sticky top-0 z-30">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
-        <!-- Logo -->
-        <a href="/dashboard.html" class="flex items-center gap-2 shrink-0">
-          <div class="w-8 h-8 bg-[#0A66FF] rounded flex items-center justify-center text-white font-bold">E</div>
-          <h1 class="text-base sm:text-lg font-medium whitespace-nowrap">SPACE EYE</h1>
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
+        <!-- Marca: wordmark + endoso en mono (Brand Book: endosar sin fusionar) -->
+        <a href="/dashboard.html" class="flex items-baseline gap-2 shrink-0">
+          <span class="se-titulo text-[19px] tracking-[0.02em] text-neutral-900">SPACE EYES</span>
+          <span class="hidden sm:inline font-mono text-[10.5px] text-neutral-500">by AS Network</span>
         </a>
         <!-- Nav desktop -->
-        <nav class="hidden lg:flex items-center gap-5 text-sm">${navLinks(active, false)}</nav>
+        <nav class="hidden lg:flex items-center gap-5 text-sm self-stretch">${navLinks(active, false)}</nav>
         <!-- Derecha -->
         <div class="flex items-center gap-3 sm:gap-4">
-          <span class="hidden sm:inline text-xs sm:text-sm text-neutral-500 whitespace-nowrap">
-            <span id="hdr-online" class="font-medium text-green-600">–</span> online ·
-            <span id="hdr-total" class="font-medium">–</span> total
+          <span class="hidden xl:inline-flex items-center gap-1.5 text-xs text-neutral-500 whitespace-nowrap border border-neutral-200 rounded-full px-2.5 py-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-green-600"></span>
+            <span id="hdr-online" class="font-mono text-neutral-900">–</span> en línea de
+            <span id="hdr-total" class="font-mono text-neutral-900">–</span>
           </span>
           <!-- Usuario -->
           <div class="relative">
             <button id="hdr-user-btn" class="flex items-center gap-2 rounded-full hover:bg-neutral-100 pl-1 pr-2 py-1">
-              <span id="hdr-avatar" class="w-8 h-8 rounded-full bg-neutral-800 text-white text-sm font-medium flex items-center justify-center">?</span>
+              <span id="hdr-avatar" class="w-8 h-8 rounded-full bg-neutral-900 text-white text-sm font-medium flex items-center justify-center">?</span>
               <span id="hdr-username" class="hidden sm:inline text-sm text-neutral-700 max-w-[120px] truncate">…</span>
               <svg class="w-4 h-4 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
             </button>
@@ -95,7 +97,7 @@
       <nav id="hdr-mobile-nav" class="hidden lg:hidden border-t border-neutral-100 bg-white">
         ${navLinks(active, true)}
         <div class="px-4 py-2 text-xs text-neutral-500 border-t border-neutral-100 mt-1">
-          <span id="hdr-online-m" class="font-medium text-green-600">–</span> online · <span id="hdr-total-m" class="font-medium">–</span> total
+          <span id="hdr-online-m" class="font-mono text-neutral-900">–</span> en línea de <span id="hdr-total-m" class="font-mono text-neutral-900">–</span>
         </div>
       </nav>
     </header>
