@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { AppError, validar } from './errores'
 import { fechaZod, diaComparable } from './fechas'
 import { mesesDelRango, puntoDeMedicion } from '@/lib/data/reportes'
+import { cifraDeRecibo } from './recibos-cfe/cifras'
 import {
   crearConsumo,
   eliminarConsumo,
@@ -151,18 +152,19 @@ function primerDiaDelMes(iso: string): string {
 
 // ─── Alta ───────────────────────────────────────────────────────────────────
 
-// El importe y los kWh se aceptan como número o como texto: el formulario manda
-// lo que hay en un `<input>`, y un `z.number()` a secas rechazaría "3000" con un
-// mensaje que habla de tipos y no de recibos.
-const cifra = (mensaje: string) =>
-  z.coerce
-    .number({ invalid_type_error: mensaje })
-    .finite(mensaje)
-    // No negativos, igual que el CHECK de la base. Un importe negativo es una
-    // nota de crédito, no un consumo: entrarlo aquí RESTARÍA costo y mejoraría
-    // el margen sin que nada lo dijera.
-    .min(0, 'No puede ser negativo')
-
+// El importe y los kWh se aceptan como número o como texto —el formulario manda
+// lo que hay en un `<input>`— y tienen que ser MAYORES QUE CERO.
+//
+// La regla vive en `recibos-cfe/cifras.ts` y no aquí porque este archivo no se
+// puede importar desde una prueba: arrastra el repo, que arrastra `tenant.ts`,
+// que usa `cache()` de React. Allí se prueba sola, y un guard comprueba que
+// este archivo la use.
+//
+// Hasta el 2026-09-29 esto era `.min(0)`, o sea que el CERO entraba. Lo cambió
+// el dueño, y el motivo merece quedarse escrito: **un cero no dice «no sé»,
+// dice «no consumió luz»**, y dentro del reporte de rentabilidad los dos hechos
+// son el mismo número. Una vez guardado no hay forma de separarlos: el margen
+// sale mejor de lo que es y nada da error.
 const consumoSchema = z
   .object({
     predioId: z.string().uuid().nullish(),
@@ -182,8 +184,8 @@ const consumoSchema = z
       .max(60, 'El número de medidor es demasiado largo')
       .nullish()
       .transform((v) => (v ? v : null)),
-    kwh: cifra('Captura los kWh del recibo'),
-    importe: cifra('Captura el importe del recibo'),
+    kwh: cifraDeRecibo('Captura los kWh del recibo'),
+    importe: cifraDeRecibo('Captura el importe del recibo'),
     notas: z.string().trim().max(500).nullish().transform((v) => (v ? v : null)),
   })
   .strict()

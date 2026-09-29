@@ -1,7 +1,7 @@
 ---
 tipo: indice
 estado: verificado
-actualizado: 2026-09-21
+actualizado: 2026-09-29
 tags: [backend, indice]
 archivos:
   - apps/web/app/api/
@@ -47,6 +47,8 @@ No hay servicio aparte.
 | [[descuento-por-volumen]] | **ADR 0039, Fase 2**: «compra 50 spots y pagas 40». Por qué la escala cuelga de la organización y por qué los tramos son planos; si el volumen cuenta contra el tope; y cómo se congela |
 | [[codigo-promocional]] | **ADR 0039, Fase 3**: «usa este código y ten un 20 % adicional». Cómo se resuelve **la carrera del último uso** con un `for update`; por qué el canje se cuenta al APLICAR y no al aprobar; por qué el cupón **no** cuenta contra el tope; y cómo se congela |
 | [[paquete-cerrado]] | **ADR 0039, Fase 4**: «estas cinco pantallas, prime, un mes: 180 000». El único escalón que **sustituye** el precio en vez de modificarlo. Cómo se **reparte** entre las pantallas cuadrando al peso (mayor resto); por qué un paquete **no admite volumen** y solo admite cupón con su bandera; por qué sale con **raya** del reporte publicada vs neta; y cómo se congela |
+| [[energia-consumos]] | La quinta dimensión: el recibo de luz, su captura mensual y el reparto por caras |
+| [[recibos-cfe-pdf]] | **Subir el PDF de CFE**: las dos codificaciones del recibo, por qué el `Total` impreso NO es el costo del periodo, el reparto de un recibo bimestral en meses de calendario, y el emparejamiento con el predio **sin tocar el esquema** |
 | [[vendedor-en-propuesta]] | La octava: quién vendió y cuánto descuento concedió. El dato que faltaba, y el histórico que no se puede recuperar |
 | [[costo-real-de-ot]] | **OT-COSTO-01**: lo que de verdad costó cada visita, y que **SUSTITUYE** a la tarifa por tipo en vez de sumarse. Por qué la columna es nullable y sin DEFAULT; por qué el `0` no es el vacío; por qué la captura es una ruta propia con candado de dinero y no un campo de `cerrar`; y el aviso que dice **cuántas van medidas y cuántas estimadas** — el único hueco del reporte que no se ve. Trae el renombrado a **margen bruto**, y dónde queda escrito que **bruto no es neto** |
 | [[cuestionario-bienvenida]] | El cuestionario que crea las razones sociales del owner al entrar |

@@ -113,6 +113,59 @@ La entrada más reciente va arriba.
   lo necesitas, lo que falta son datos que hoy nadie captura, no una columna que
   este escondida en otra pantalla. Esa frase esta escrita en el propio reporte,
   encima de la tabla.
+- **Ya se puede SUBIR el PDF del recibo de CFE, y la pantalla propone los datos.**
+
+  Hasta hoy el recibo de luz se tecleaba a mano: predio, mes, medidor, kWh e
+  importe. En la pantalla **Consumo de luz**, debajo del formulario de siempre,
+  hay ahora un boton **«Subir PDF del recibo»** que admite **varios archivos a la
+  vez** (hasta 40 por tanda). El sistema los lee y **te ensena lo que entendio,
+  con lo que dice el recibo al lado**, para que lo confirmes renglon por renglon.
+
+  **Nada se guarda al subir.** Es lo mas importante de esta pantalla y es
+  deliberado: un recibo mal leido que se guardara solo meteria un costo falso en
+  el reporte de rentabilidad, y ahi ya no se distingue de uno bueno. Se guarda
+  cuando tu le das a **Guardar** en ese renglon.
+
+  **Tres cosas que conviene saber, porque cambian lo que veias antes:**
+
+  - **Un recibo de CFE casi nunca es de un mes.** De los 72 recibos que nos
+    pasaste, **solo UNO** cabe dentro de un mes de calendario: 19 cubren dos
+    meses, 49 cubren tres y 3 cubren cuatro. Por eso un recibo puede producir
+    **varios renglones**, uno por mes, con el consumo y el importe repartidos por
+    los dias que le tocan a cada uno. La suma de los renglones es exactamente el
+    recibo, al centavo.
+
+  - **Lo que se captura NO es el «TOTAL A PAGAR» del recibo.** Ese numero lleva
+    dentro lo que debias del mes pasado, lo que pagaste y, en 8 de los 72, un
+    **deposito en garantia**. En uno de ellos la luz del periodo son $994.64 y el
+    total a pagar son $4,309.64: capturar el total multiplicaria por **4.3** el
+    costo de ese predio sin que nada diera error. Se captura la **facturacion del
+    periodo mas el alumbrado publico**, y el total impreso se te ensena al lado
+    marcado como lo que es.
+
+  - **La primera vez de cada servicio eliges tu el predio.** El sistema aprende:
+    a partir del segundo recibo de ese mismo numero de servicio, lo empareja solo.
+    Con tus 72 recibos eso son 29 elecciones a mano y 43 automaticas. Y si subes
+    dos veces el mismo recibo, **te avisa antes de guardar**, con las cifras que
+    ya hay capturadas, porque guardarlo otra vez duplicaria el costo de ese mes.
+
+- **El CERO deja de valer como consumo o como importe.** *(Decision tuya del
+  29/09.)*
+
+  Antes se podia guardar un recibo con 0 kWh o con importe 0. Ya no: si el dato
+  no se puede leer —o si se lee como cero o negativo— **el campo se queda vacio y
+  marcado**, y hay que escribirlo a mano. Vale tanto para la subida de PDF como
+  para el formulario de siempre.
+
+  El motivo: **un cero no dice «no se», dice «no consumio luz»**, y en el reporte
+  de rentabilidad esos dos hechos son el mismo numero. Una vez guardado ya no hay
+  forma de distinguirlos.
+
+  **Lo que esto te cuesta, medido:** **10 de los 72 recibos traen los kWh
+  impresos en cero** —con importe que no lo es, porque el cargo fijo se cobra
+  igual—, en 5 numeros de servicio (TJN Via Rapida Oriente, GDL Plaza Galerias,
+  CDMX Cuchilla, CDMX VDQ 2008 y CDMX Rio Consulado 2334). Esos hay que teclearlos
+  a mano.
 
 ---
 

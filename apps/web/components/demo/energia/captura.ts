@@ -255,10 +255,21 @@ const numeroInvalido = (v: string, etiqueta: string): string | null => {
   if (!t) return `Captura ${etiqueta} del recibo`
   const n = Number(t)
   if (!Number.isFinite(n)) return `${etiqueta} tiene que ser un número`
-  // El CERO vale: un medidor que no giró es un hecho, y rechazarlo obligaría a
-  // inventar un número. Lo que no vale es negativo — eso es una nota de crédito,
-  // no un consumo, y RESTARÍA costo mejorando el margen sin que nada lo dijera.
-  if (n < 0) return `${etiqueta} no puede ser negativo`
+  // El CERO NO vale, y desde el 2026-09-29 tampoco en la pantalla. Hasta esa
+  // fecha aquí ponía «el cero vale: un medidor que no giró es un hecho».
+  // El dueño lo cambió, y el motivo es el que manda en todo este módulo: **un
+  // cero no dice «no sé», dice «no consumió luz»**, y dentro del reporte de
+  // rentabilidad los dos hechos son exactamente el mismo número. Una vez
+  // guardado no hay forma de separarlos: el margen sale mejor de lo que es y
+  // nada da error.
+  //
+  // El negativo tampoco, por lo de siempre: eso es una nota de crédito, no un
+  // consumo, y RESTARÍA costo mejorando el margen sin que nada lo dijera.
+  //
+  // Esto es comodidad, no la puerta: la puerta es `cifraDeRecibo` en el
+  // servidor (`lib/server/recibos-cfe/cifras.ts`), porque a `POST
+  // /api/energia/consumos` se le puede llamar sin pasar por aquí.
+  if (n <= 0) return `${etiqueta} tiene que ser mayor que cero`
   return null
 }
 
