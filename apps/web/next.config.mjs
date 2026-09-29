@@ -122,6 +122,25 @@ const nextConfig = {
     // npm workspaces (`apps/*`, `packages/*`) las dependencias quedan hoisted en
     // el node_modules de la raiz, y sin esto el artefacto sale incompleto.
     outputFileTracingRoot: path.join(__dirname, '../../'),
+
+    // `pdfjs-dist` NO se empaqueta: se deja como paquete de node y el trazado lo
+    // copia entero al artefacto.
+    //
+    // No es una preferencia — sin esta linea la subida de recibos de CFE falla
+    // SOLO EN EL ARTEFACTO, y con un mensaje que no apunta a nada:
+    //
+    //   Setting up fake worker failed: Cannot find module
+    //   '.../.next/server/chunks/pdf.worker.mjs'
+    //
+    // pdf.js carga su worker con un `import()` que resuelve RELATIVO al modulo
+    // que se esta ejecutando. Webpack empaqueta `pdf.mjs` dentro de un chunk del
+    // servidor y NO arrastra `pdf.worker.mjs`, asi que el worker se busca al
+    // lado del chunk y no esta. En desarrollo y en `vitest` funciona —ahi la
+    // libreria se carga de `node_modules` y el hermano existe—, de modo que el
+    // fallo aparece por primera vez en la instancia de un cliente, la primera
+    // vez que alguien sube un PDF. Medido el 2026-09-29 en las e2e contra el
+    // servidor construido; lo caza `lib/test/energia-recibos-pdf.e2e.test.ts`.
+    serverComponentsExternalPackages: ['pdfjs-dist'],
   },
   basePath: '/spaces-dooh',
   trailingSlash: true,

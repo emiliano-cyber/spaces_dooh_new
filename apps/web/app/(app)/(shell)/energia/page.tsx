@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/demo/ui/C
 import { EmptyState } from '@/components/demo/EmptyState'
 import { FormularioRecibo } from '@/components/demo/energia/FormularioRecibo'
 import { RejillaCaptura } from '@/components/demo/energia/RejillaCaptura'
+import { SubirRecibos } from '@/components/demo/energia/SubirRecibos'
 import {
   RANGO_DE_APERTURA,
   RUTA_CONSUMOS,
@@ -200,6 +201,15 @@ export default function EnergiaPage() {
               mesInicial={(tablero.meses[tablero.meses.length - 1] ?? '').slice(0, 7)}
               onGuardar={guardar}
             />
+          ) : null}
+
+          {/* Subir el PDF va DEBAJO del formulario y no encima: quien tiene un
+              recibo en la mano sigue teniendo el camino de teclearlo, que es el
+              rapido para uno. La subida gana cuando son muchos — y son 72. */}
+          {tablero && tablero.puntos.length > 0 ? (
+            <div className="mt-4 border-t border-dashed border-border pt-4">
+              <SubirRecibos puntos={tablero.puntos} onGuardado={recargar} />
+            </div>
           ) : null}
         </CardContent>
       </Card>

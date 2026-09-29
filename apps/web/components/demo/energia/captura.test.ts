@@ -250,13 +250,20 @@ describe('6 · lo que se rechaza ANTES de mandar', () => {
     expect(motivoInvalidoDelRecibo({ ...base, punto: '' }, new Date(2026, 8, 18))).toBeTruthy()
   })
 
-  it('el importe y los kWh son OBLIGATORIOS, y el cero vale', () => {
-    // NOT NULL los dos en la base: un recibo trae siempre las dos cifras. Pero
-    // el CERO es un dato válido —un medidor que no giró— y rechazarlo obligaría
-    // a inventar un número.
+  it('el importe y los kWh son OBLIGATORIOS', () => {
+    // NOT NULL los dos en la base: un recibo trae siempre las dos cifras.
     expect(motivoInvalidoDelRecibo({ ...base, importe: '' }, new Date(2026, 8, 18))).toBeTruthy()
     expect(motivoInvalidoDelRecibo({ ...base, kwh: '' }, new Date(2026, 8, 18))).toBeTruthy()
-    expect(motivoInvalidoDelRecibo({ ...base, kwh: '0', importe: '0' }, new Date(2026, 8, 18))).toBeNull()
+  })
+
+  it('CERO: ni importe ni kWh en cero — regla del dueño del 2026-09-29', () => {
+    // Hasta esa fecha esta prueba decía lo CONTRARIO («el cero vale: un medidor
+    // que no giró es un hecho»). El dueño lo cambió: **un cero no dice «no sé»,
+    // dice «no consumió luz»**, y en el reporte de rentabilidad esos dos hechos
+    // son el mismo número, indistinguibles una vez guardados.
+    expect(motivoInvalidoDelRecibo({ ...base, kwh: '0' }, new Date(2026, 8, 18))).toBeTruthy()
+    expect(motivoInvalidoDelRecibo({ ...base, importe: '0' }, new Date(2026, 8, 18))).toBeTruthy()
+    expect(motivoInvalidoDelRecibo({ ...base, kwh: '0.00' }, new Date(2026, 8, 18))).toBeTruthy()
   })
 
   it('NEGATIVO: ni importe ni kWh negativos', () => {
