@@ -15,6 +15,7 @@ import {
 } from '@/components/demo/StatusBadge'
 import { cn } from '@/lib/cn'
 import { armarListaFacturas, cuentaPorEstatus } from '@/components/demo/finanzas/facturas-lista'
+import { ComprobanteDialog } from '@/components/demo/finanzas/ComprobanteDialog'
 import { generarFacturaApi, recordarCobranzaApi, pagarCobranzaApi } from '@/lib/data/estado-api'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { useCandado, PasoContrasena } from '@/components/demo/ui/candado'
@@ -144,6 +145,7 @@ export default function FinanzasPage() {
     [facturas, clientes, resumen, entidades],
   )
   const cuentaFactura = useMemo(() => cuentaPorEstatus(facturas), [facturas])
+  const [verFactura, setVerFactura] = useState<string | null>(null)
 
 
   // Listas para facturar: candado encendido y sin factura todavía.
@@ -244,7 +246,12 @@ export default function FinanzasPage() {
                 </thead>
                 <tbody>
                   {filasFactura.map((f) => (
-                    <tr key={f.id} className="border-b border-border last:border-0">
+                    <tr
+                      key={f.id}
+                      onClick={() => setVerFactura(f.id)}
+                      className="cursor-pointer border-b border-border last:border-0 hover:bg-surface-2"
+                      title="Ver el comprobante"
+                    >
                       <td className="demo-num px-4 py-2.5 font-medium text-ink">{f.folio}</td>
                       <td className="demo-num px-4 py-2.5 text-[11px] text-muted">{f.folioFiscal}</td>
                       <td className="demo-num px-4 py-2.5 text-muted">{f.fechaEmision}</td>
@@ -272,6 +279,14 @@ export default function FinanzasPage() {
           )}
         </CardContent>
       </Card>
+
+      <ComprobanteDialog
+        factura={(facturas ?? []).find((f) => f.id === verFactura) ?? null}
+        campanas={(resumen ?? []).map((r) => r.campana)}
+        entidades={entidades ?? []}
+        onOpenChange={(v) => !v && setVerFactura(null)}
+        formatMonto={formatMonto}
+      />
 
       {/* Cobranza */}
       <Card>
