@@ -59,6 +59,23 @@ interface PropuestaPub {
   codigoTexto?: string | null
   codigoDescuentoMonto?: number
   codigoDescuentoPct?: number
+  // PAQ-01 · el PAQUETE CERRADO (ADR 0039, Fase 4). Opcional por lo mismo, y
+  // `null` en toda venta que no lo use, que es el caso normal.
+  //
+  // Es la capa que MÁS falta hace en este documento: las otras tres son
+  // descuentos que se pueden intuir mirando la resta; un precio de conjunto no
+  // se intuye. Sin él, el cliente leería «Bruto 250 000» junto a un total de
+  // 208 800 y la diferencia no cuadraría con ningún renglón.
+  paquete?: {
+    nombre: string
+    precio: number
+    admiteCodigo: boolean
+    aplicadoEn: string | null
+    composicion: string[] | null
+    sitios: { sitioId: string; parte: number }[]
+    aviso: string
+    avisoComposicion?: string | null
+  } | null
   divisor: number
   bruto: number
   base: number
@@ -318,6 +335,28 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
           <CardContent>
             <dl className="space-y-2 text-[13px]">
               <Fila label="Bruto (tarifa de lista)" valor={formatMonto(p.bruto)} />
+              {/* PAQ-01 · EL PAQUETE VA PRIMERO, y no es cosmético: es lo único
+                  de la cadena que no descuenta sino que SUSTITUYE, así que
+                  tiene que leerse antes que cualquier resta. Pintado como
+                  «Precio del paquete» y no como un descuento, porque llamarlo
+                  descuento haría creer que el bruto de arriba sigue mandando.
+
+                  Este objeto se arma A MANO en `obtenerPropuestaPublica`, campo
+                  por campo: añadirlo a `armarPropuesta` NO basta para que
+                  llegue hasta aquí — es el defecto que la Fase 2 encontró en
+                  este mismo sitio revisando el diff y que la Fase 3 volvió a
+                  encontrar. Esta vez tiene prueba propia. */}
+              {p.paquete && (
+                <>
+                  <Fila
+                    label={`Paquete "${p.paquete.nombre}" — precio del conjunto`}
+                    valor={formatMonto(p.paquete.precio)}
+                  />
+                  <p className="text-[11px] leading-snug text-muted-foreground">
+                    {p.paquete.aviso}
+                  </p>
+                </>
+              )}
               {/* VOL-01 · en la liga PÚBLICA es donde más importa: es el
                   documento que el cliente lee y acepta, y si el descuento por
                   volumen no figura, la cuenta de la cotización no da. */}

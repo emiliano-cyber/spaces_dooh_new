@@ -506,6 +506,40 @@ export interface PropuestaItem {
   // El umbral que lo ganó («a partir de 50»). Va aparte del porcentaje porque
   // un 10 % sin decir de dónde salió no se puede auditar.
   volumenDesde?: number | null
+  // ─── PAQ-01 · qué parte del PAQUETE le tocó (ADR 0039, Fase 4) ───────────
+  // `null` en toda venta sin paquete, que es el caso normal. Con paquete, el
+  // `precio` de arriba sigue siendo el de LISTA y ESTE es el importe del que
+  // sale el neto de la línea: la suma de las partes es el precio del paquete,
+  // al peso. Sin él, la pantalla enseñaría renglones de lista junto a un total
+  // que no los suma.
+  parteDelPaquete?: number | null
+}
+
+/**
+ * PAQ-01 · el PAQUETE CERRADO aplicado a una propuesta (ADR 0039, Fase 4).
+ *
+ * Congelado desde que se aplicó: cambiar, desactivar o borrar el paquete del
+ * catálogo no mueve nada de aquí.
+ */
+export interface PaqueteDePropuesta {
+  nombre: string
+  /** El precio del CONJUNTO. SUSTITUYE la suma de las listas, no la descuenta. */
+  precio: number
+  /** Regla 2 del ADR 0039: nace apagada. Con `false`, el cupón no descuenta. */
+  admiteCodigo: boolean
+  aplicadoEn: string | null
+  /** Las pantallas que lo formaban EL DÍA en que se aplicó. */
+  composicion: string[] | null
+  /** El reparto de HOY: qué le toca a cada línea. Σ partes === `precio`. */
+  sitios: { sitioId: string; parte: number }[]
+  /** «El precio es cerrado…». Va también dentro del snapshot congelado. */
+  aviso: string
+  /**
+   * La frase que avisa de que la propuesta ya no tiene las pantallas con las
+   * que se cotizó. `null` mientras cuadre. **El precio NO baja**: el reparto se
+   * recalcula entre las que quedan y esto lo dice con todas las letras.
+   */
+  avisoComposicion: string | null
 }
 export interface Propuesta {
   id: string
@@ -529,7 +563,18 @@ export interface Propuesta {
   // escala vacía estos dos son 0 y todo lo de abajo da lo mismo que antes.
   descuentoVolumenPct: number    // el ponderado de la propuesta entera
   descuentoVolumenMonto: number  // Σ redondeado línea a línea
-  brutoConVolumen: number        // bruto − descuentoVolumenMonto
+  // PAQ-01 (ADR 0039, Fase 4) · el PAQUETE CERRADO, y es la capa RARA: las
+  // otras tres modifican un precio ya resuelto; ésta lo SUSTITUYE.
+  //
+  // Con paquete, `brutoConVolumen` deja de salir de las líneas y ES el precio
+  // del conjunto, y el volumen NO se aplica encima (su precio ya lo lleva
+  // dentro). `bruto` NO cambia de significado: sigue siendo la suma de las
+  // listas, para que el documento pueda enseñar las dos cifras.
+  //
+  // `null` en toda venta sin paquete, y entonces todo lo de abajo da el mismo
+  // número que antes de esta fase, dígito por dígito.
+  paquete: PaqueteDePropuesta | null
+  brutoConVolumen: number        // bruto − descuentoVolumenMonto, o el precio del paquete
   descuentoMonto: number // brutoConVolumen × descuento/100 (se COMPONE, no se suma)
   // COD-01 (ADR 0039, Fase 3) · el CÓDIGO PROMOCIONAL, que va DESPUÉS del
   // comercial y ANTES de la comisión. Sin cupón, `codigoTexto` es null,

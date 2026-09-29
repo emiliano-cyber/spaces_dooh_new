@@ -11,9 +11,58 @@ archivos:
   - db/migrations/20260923_tickets.sql
   - db/migrations/20260928_tope_descuento_propuestas.sql
   - db/migrations/20260928_codigo_promocional.sql
+  - db/migrations/20260928_paquete_cerrado.sql
 ---
 
 # Esquema de datos
+
+> [!danger] 2026-09-28 · `paquetes`, `paquete_sitios` y `paquete_aplicaciones` SIN FUSIONAR
+> Mismo caso que `escalas_volumen` y `codigos_promocionales`, abajo: escritas y
+> probadas contra bases desechables, y **detenidas en la fusión** a la espera de
+> la aprobación del dueño. **Si las lees en `main`, es que ya se aprobó** — y
+> entonces las tablas son **55**.
+
+> [!note] 2026-09-28 · TRES TABLAS NUEVAS, el PAQUETE CERRADO — ADR 0039, Fase 4
+> `db/migrations/20260928_paquete_cerrado.sql`. **Las tablas pasan de 52 a 55**,
+> medido con `node scripts/recuentos.mjs` sobre este árbol
+> (`feat/paquete-cerrado`).
+>
+> - **`paquetes`** — el catálogo de la organización: `nombre`, `precio_cerrado`,
+>   `admite_codigo` y `activo`. El precio es **un entero de pesos**, y lo exige
+>   la base (`precio_cerrado = trunc(precio_cerrado)`): se reparte entre las
+>   pantallas y un centavo repartido entre cinco no se puede explicar.
+> - **`paquete_sitios`** — de qué pantallas se compone. Sin ella un paquete sería
+>   «un nombre y un precio», y aplicar «Periférico» a 180 000 sobre una sola
+>   pantalla sería legal.
+> - **`paquete_aplicaciones`** — el **enlace vivo** propuesta ↔ paquete. Vive
+>   aparte del precio a propósito, exactamente como `canjes_codigo` de la Fase 3:
+>   **borrar un paquete se lleva el enlace y no mueve un peso de ninguna venta**.
+>
+> **El `unique (tenant_id, lower(btrim(nombre)))` es un ÍNDICE DE EXPRESIÓN**, el
+> mismo recurso que `usuarios_email_lower_uidx` y que el `upper(codigo)` de la
+> Fase 3: «Periférico» y «PERIFERICO» serían dos precios para lo que quien vende
+> lee como una sola cosa, y al elegirlo de una lista no se ve la diferencia. Nada
+> de lo que usa es posterior a PostgreSQL 14, así que **no lleva `@pg-min`**.
+>
+> `paquete_aplicaciones` lleva `unique (propuesta_id)` —**un solo paquete por
+> propuesta**, y es lo único que sirve contra un doble clic— y sus FK son
+> **compuestas con el tenant**, como las de las fases 1 y 3. Para eso se añade
+> además **`sitios_id_tenant_uq`**, que no existía.
+>
+> Más **cinco columnas en `propuestas`** —`paquete_nombre`, `paquete_precio`,
+> `paquete_admite_codigo` (**NOT NULL DEFAULT false**), `paquete_aplicado_en` y
+> `paquete_composicion` (`jsonb`)— y una en `reservas`: `paquete_parte`. Las
+> cuatro primeras de `propuestas` viajan juntas o ninguna
+> (`propuestas_paquete_pareja_ck`): un precio sin nombre es un importe que nadie
+> puede auditar.
+>
+> **`paquete_composicion` guarda con QUÉ PANTALLAS se cotizó**, congelado el día
+> de la aplicación. Es lo que permite avisar —sin mover el precio— cuando la
+> propuesta deja de tener esas pantallas, y lo exige el invariante 4 del ADR 0039
+> con todas las letras.
+>
+> Con **RLS `enable` + `force`** estricta en las tres y GRANT explícito. Ver
+> [[02-Backend/paquete-cerrado]].
 
 > [!danger] 2026-09-28 · `codigos_promocionales` y `canjes_codigo` SIN FUSIONAR
 > Mismo caso que `escalas_volumen`, abajo: escritas y probadas contra bases

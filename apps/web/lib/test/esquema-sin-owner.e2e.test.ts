@@ -178,7 +178,10 @@ describe('el esquema base no trae la organización de nadie', () => {
     //     --`codigos_promocionales` y `canjes_codigo`--, el codigo promocional
     //     del ADR 0039 (Fase 3). Octava vez que esta prueba delata las tablas
     //     nuevas antes que nadie.
-    expect(trasMigrar.tablas).toBe(52)
+    //   · 55 el 2026-09-28: `20260928_paquete_cerrado.sql` anade TRES
+    //     --`paquetes`, `paquete_sitios` y `paquete_aplicaciones`--, el paquete
+    //     cerrado del ADR 0039 (Fase 4). Novena vez.
+    expect(trasMigrar.tablas).toBe(55)
     // Lo que de verdad importa: ni las migraciones resucitan al owner.
     expect(trasMigrar.tenants).toBe(0)
   })

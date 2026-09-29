@@ -7,6 +7,66 @@ La entrada más reciente va arriba.
 
 ## 2026-09-28
 
+- **Paquetes cerrados: «estas cinco pantallas, un mes: $180,000».**
+  *(ADR 0039, Fase 4. **Pendiente de tu aprobacion**: lleva un cambio de base de
+  datos y desde hoy esos no se aplican sin que tu digas que si.)*
+
+  Hasta hoy el precio de una cotizacion era siempre la suma de sus pantallas, con
+  descuentos encima. Si querias vender un conjunto por un precio redondo, lo unico
+  posible era calcular a mano que porcentaje de descuento daba ese numero — y el
+  documento acababa diciendo «descuento del 28 %», que no es lo que vendiste.
+
+  **Como se captura.** En el menu, dentro de *Inventario*, hay una entrada nueva:
+  **«Paquetes cerrados»**. Cada paquete lleva su nombre, **que pantallas lo
+  forman** y **cuanto cuesta el conjunto**. Son tuyos: no se comparten con ninguna
+  otra empresa. Al capturarlo, la pantalla te ensena **como se repartira ese
+  precio entre las pantallas**, antes de guardarlo.
+
+  **Como se usa.** El vendedor abre la cotizacion —con esas mismas pantallas— y
+  **elige el paquete de una lista**. Nada mas. El precio sale de lo que tu
+  capturaste; el vendedor **no puede escribirlo ni cambiarlo**.
+
+  **Lo que hay que entender, y la pantalla lo dice:**
+
+  - **El precio del paquete SUSTITUYE la suma de las tarifas: no la descuenta, la
+    reemplaza.** Si las cinco pantallas suman $250,000 de tarifa y el paquete vale
+    $180,000, se cobran $180,000. Y si algun dia vendes un conjunto por MAS de lo
+    que suman sus partes, tambien funciona.
+  - **Un paquete no admite descuento por volumen**, porque su precio ya lo lleva
+    dentro. **Ni codigo promocional**, salvo que marques esa casilla al crearlo —
+    nace apagada a proposito. El descuento del vendedor si se sigue aplicando
+    encima, con su tope de siempre.
+  - **Quitar una pantalla de una cotizacion con paquete NO baja el precio.** Eso
+    es lo que «precio cerrado» significa. El sistema **te lo avisa** en la
+    cotizacion, con el numero de pantallas de antes y el de ahora, para que
+    decidas tu: o ajustas las pantallas, o quitas el paquete, o lo dejas asi.
+  - **El precio se reparte entre las pantallas** para que el reporte de
+    rentabilidad sepa cuanto ingreso le toca a cada una. El reparto es
+    proporcional a su tarifa de lista y **suma exactamente el precio del paquete,
+    al peso**.
+
+  **En el reporte de rentabilidad hay un cambio que conviene saber.** La columna
+  que compara «tarifa publicada contra lo que de verdad entro» **deja fuera las
+  ventas de paquete**, y las cuenta aparte con su explicacion. El motivo: en un
+  paquete el precio de cada pantalla no sale de descontar su tarifa, asi que
+  compararlos inventaria un descuento que nadie concedio — y en un paquete
+  premium daria un descuento negativo, que se leeria como haber cobrado de mas.
+
+  **Lo que queda escrito para siempre.** Al aprobar la cotizacion, el nombre del
+  paquete, su precio, **con que pantallas se cotizo** y cuanto le toco a cada una
+  quedan **congelados** en el documento. Si manana cambias ese paquete o **lo
+  borras**, una venta ya aprobada **no se mueve ni un peso**. Esta probado
+  borrandolo de verdad.
+
+  **Y dos decisiones que necesito que confirmes** (estan abajo, en *Preguntas*):
+  si el descuento del vendedor debe seguir aplicandose encima de un paquete, y si
+  hace falta poder vender «el paquete mas una pantalla suelta» en un mismo
+  documento — hoy eso se hace con dos cotizaciones.
+
+  **Lo mas importante: si no capturas ningun paquete, NADA CAMBIA.** Todo se sigue
+  vendiendo exactamente igual que ayer.
+
+
 - **Codigos promocionales: «usa VERANO20 y llevate un 20 % adicional».**
   *(ADR 0039, Fase 3. **Pendiente de tu aprobacion**: lleva un cambio de base de
   datos y desde hoy esos no se aplican sin que tu digas que si.)*

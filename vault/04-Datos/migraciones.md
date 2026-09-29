@@ -30,9 +30,40 @@ archivos:
   - db/migrations/20260928_tope_descuento_propuestas.sql
   - db/migrations/20260928_descuento_por_volumen.sql
   - db/migrations/20260928_codigo_promocional.sql
+  - db/migrations/20260928_paquete_cerrado.sql
 ---
 
 # Migraciones
+
+> [!note] 2026-09-28 · `20260928_paquete_cerrado.sql` — ADR 0039, Fase 4
+> Tres tablas —`paquetes`, `paquete_sitios` y `paquete_aplicaciones`— más cinco
+> columnas en `propuestas` (`paquete_nombre`, `paquete_precio`,
+> `paquete_admite_codigo`, `paquete_aplicado_en`, `paquete_composicion`) y una en
+> `reservas` (`paquete_parte`). Aditiva entera, transaccional e idempotente: **no
+> toca una sola fila existente**, ni ninguna restricción anterior, ni
+> `db/schema.sql`. No mueve ni un importe — las tres tablas **nacen vacías** y las
+> columnas en NULL / false.
+>
+> **SIN FUSIONAR al 2026-09-28**: espera la aprobación del dueño, requisito desde
+> ese día para todo cambio de base de datos.
+>
+> **Añade `sitios_id_tenant_uq`** sobre una tabla existente, y es lo único que
+> toca de lo anterior: hace falta para que la FK de `paquete_sitios` a `sitios`
+> pueda ser **compuesta con el tenant** — sin ella un paquete podría declararse
+> con la pantalla de otra organización. Es un único sobre la clave primaria más el
+> tenant, así que no puede fallar por datos. Repite además con guarda
+> `propuestas_id_tenant_uq`, que ya añade la Fase 3 (que corre antes por orden
+> lexicográfico, `c` < `p`): una migración que depende de otra sin decirlo es como
+> se rompe una base nueva.
+>
+> **Verificada DOS veces sobre una base creada para eso** (`spaces_paq_mig2`): la
+> primera aplica 93 y sale 0, la segunda dice «0 aplicadas» y sale 0, con **55
+> tablas** al final. El archivo **no tiene CRLF**: su sha256 no cambia al quitar
+> los retornos de carro.
+>
+> Nada de lo que usa es posterior a **PostgreSQL 14** —índice de expresión,
+> `trunc()`, `jsonb`, FK compuestas—, así que **no lleva `@pg-min`**. Ver
+> [[02-Backend/paquete-cerrado]].
 
 > [!note] 2026-09-28 · `20260928_codigo_promocional.sql` — ADR 0039, Fase 3
 > Dos tablas —`codigos_promocionales` y `canjes_codigo`— más cuatro columnas:

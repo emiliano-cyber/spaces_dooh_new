@@ -383,7 +383,23 @@ export async function datosRentabilidad(rango: RangoReporte): Promise<DatosRenta
         return {
           campanaId: r.campana_id,
           porSitio: porSitio
-            .map((e: any) => ({ sitioId: e?.sitioId, lista: Number(e?.lista), neto: Number(e?.neto) }))
+            .map((e: any) => ({
+              sitioId: e?.sitioId,
+              lista: Number(e?.lista),
+              neto: Number(e?.neto),
+              // PAQ-01 (ADR 0039, Fase 4) · esta pantalla se vendió dentro de un
+              // PAQUETE CERRADO, así que su `neto` NO deriva de su `lista`: es
+              // la parte de un precio de conjunto repartida a prorrata. El
+              // motor lo deja FUERA de la comparación publicada vs neta, porque
+              // compararlos afirmaría un descuento que nadie concedió — y en un
+              // paquete premium, uno NEGATIVO.
+              //
+              // `=== true` y no `!!`: esto sale de una columna `jsonb` sin
+              // esquema, y la cadena `'false'` es `true` para `!!`. Aquí un
+              // falso positivo saca de la comparación una venta que sí era
+              // comparable, y eso baja la cobertura sin que nadie sepa por qué.
+              dePaquete: e?.paquete === true,
+            }))
             .filter(
               (e: any) =>
                 typeof e.sitioId === 'string' &&

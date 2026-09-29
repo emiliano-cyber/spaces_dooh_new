@@ -53,6 +53,13 @@ export const AREAS: AreaProducto[] = [
   // (`app/api/codigos-promocionales/route.ts`), y declararla en otro modulo
   // seria declarar una mentira en la matriz de permisos.
   { clave: 'codigos-promocionales', label: 'Codigos promocionales', modulo: 'inventario', apiPropia: true },
+  // PAQ-01 · paquetes cerrados (ADR 0039, Fase 4). Bajo `inventario` por el
+  // mismo motivo que las dos de arriba: su endpoint exige `inventario`
+  // (`app/api/paquetes/route.ts`), y declararla en otro modulo seria declarar
+  // una mentira en la matriz de permisos. Y aqui importa mas que en ninguna:
+  // quien pueda escribir aqui fija el precio de una venta entera saltandose la
+  // rejilla y el tope de descuento.
+  { clave: 'paquetes', label: 'Paquetes cerrados', modulo: 'inventario', apiPropia: true },
   { clave: 'arrendadores', label: 'Arrendadores', modulo: 'arrendadores', apiPropia: true },
   { clave: 'operaciones', label: 'Operaciones', modulo: 'operaciones', apiPropia: true },
   { clave: 'almacen', label: 'Almacén', modulo: 'operaciones', apiPropia: true },

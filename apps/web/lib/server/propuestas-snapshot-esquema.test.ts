@@ -6,7 +6,8 @@ import { join } from 'node:path'
 //  El snapshot dice DE QUÉ FORMA es
 // ----------------------------------------------------------------------------
 //  `snapshot_economico` es JSON libre y se le han ido añadiendo capas: franja y
-//  temporada (Fase 1), volumen (Fase 2), código promocional (Fase 3). Y hasta
+//  temporada (Fase 1), volumen (Fase 2), código promocional (Fase 3) y el
+//  PAQUETE CERRADO (Fase 4, que es la que sube la forma a 3). Y hasta
 //  hoy **nada en el dato decía qué forma tenía**: un snapshot de julio y uno de
 //  hoy solo se distinguen por qué campos les faltan, que es adivinar.
 //
@@ -22,6 +23,15 @@ import { join } from 'node:path'
 //  La convención, y es la que hace que esto sirva de algo:
 //      `esquema` ausente  →  forma 1 (todo lo congelado antes del 2026-09-28)
 //      `esquema: 2`       →  lleva franja, temporada, volumen y código
+//      `esquema: 3`       →  y además PUEDE llevar paquete cerrado — y con él,
+//                            `porSitio[].neto` YA NO deriva de `porSitio[].lista`
+//
+//  Ese último renglón es el que obligó a subirla, y no el hecho de añadir
+//  campos: las formas 1 y 2 garantizaban que el neto de una pantalla salía de
+//  multiplicar su lista por factores, y `lib/data/reportes.ts` vive de esa
+//  garantía. Un paquete la rompe, así que un lector escrito para la forma 2 no
+//  calcularía de menos: calcularía MAL. Cambiar una invariante ES cambiar la
+//  forma, aunque todos los campos nuevos sean opcionales.
 // ============================================================================
 
 const repo = readFileSync(
@@ -41,8 +51,8 @@ describe('el snapshot declara su forma', () => {
     expect(codigo).toMatch(/esquema:\s*ESQUEMA_SNAPSHOT/)
   })
 
-  it('la constante existe y vale 2', () => {
-    expect(codigo).toMatch(/const ESQUEMA_SNAPSHOT\s*=\s*2\b/)
+  it('la constante existe y vale 3 — la subió el paquete cerrado', () => {
+    expect(codigo).toMatch(/const ESQUEMA_SNAPSHOT\s*=\s*3\b/)
   })
 
   // NEGATIVA, y es la que importa: `version` es la revisión de la propuesta.

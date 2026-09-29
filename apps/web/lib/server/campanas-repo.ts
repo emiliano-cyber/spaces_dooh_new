@@ -9,6 +9,7 @@ import { folioCampana } from './folios'
 import { esPantallaDigitalSql } from './pantalla-digital-sql'
 import { rutaArteCreativo } from '@/lib/medios-url'
 import { divisorDeComision } from '@/lib/data/derive'
+import { paqueteDeFila, repartirPaquete } from '@/lib/paquete'
 import { AppError } from './errores'
 import { ordenInvertido } from './fechas'
 
@@ -666,9 +667,26 @@ export async function generarCampanaDesdePropuesta(
   // M15 de la Fase 2). Se lee de la PROPUESTA —donde quedó congelado al
   // canjear— y no de `codigos_promocionales`: borrar el cupón no puede cambiar
   // lo que se cobra.
+  // PAQ-01 · el PAQUETE CERRADO de la propuesta, leído del congelado y no de
+  // `paquetes`: borrar el paquete no puede cambiar lo que se cobra.
+  const paquete = paqueteDeFila(prop)
   const codPct = Number(prop.codigo_descuento_pct ?? 0)
   const factorCodigo =
-    Number.isFinite(codPct) && codPct > 0 ? 1 - Math.min(codPct, 100) / 100 : 1
+    // PAQ-01, regla 2 · un paquete que no admite código anula el cupón también
+    // aquí. Sin esta línea, la campaña cobraría MENOS que la propuesta que la
+    // originó y nadie lo vería: el importe es plausible, solo que lleva un
+    // descuento que la cotización no aplicó.
+    paquete && !paquete.admiteCodigo
+      ? 1
+      : Number.isFinite(codPct) && codPct > 0
+        ? 1 - Math.min(codPct, 100) / 100
+        : 1
+  // EL REPARTO del precio cerrado entre las pantallas APROBADAS, con la misma
+  // función pura que usó el snapshot. Es el respaldo para cuando no hay
+  // snapshot; el camino normal lee `netoDeSnap`, que ya lo trae congelado.
+  const partesPaquete = paquete
+    ? repartirPaquete(items.map((it: any) => Number(it.precio)), paquete.precio)
+    : []
   // S0-1: economía congelada en la aceptación. Si existe, la campaña/factura la
   // heredan literalmente (nadie recalcula desde tarifas de lista).
   const snap = (prop.snapshot_economico ?? null) as any
@@ -721,7 +739,7 @@ export async function generarCampanaDesdePropuesta(
       )
     ).rows[0].id
 
-    for (const it of items) {
+    for (const [idxItem, it] of items.entries()) {
       // Precio por sitio = NETO del snapshot congelado (o, sin snapshot, el
       // cálculo lista × (1−descuento) × (1−comisión) como respaldo).
       // VOL-01 · el respaldo (sin snapshot) tiene que llevar el volumen dentro,
@@ -732,9 +750,22 @@ export async function generarCampanaDesdePropuesta(
       const factorVol = Number.isFinite(volPct) && volPct > 0 ? 1 - Math.min(volPct, 100) / 100 : 1
       // COD-01 · y el codigo, en su sitio de la cadena: despues del comercial y
       // antes de la comision. Mismo razonamiento que el volumen.
+      // PAQ-01 · CON PAQUETE, EL RESPALDO PARTE DEL REPARTO Y NO DE LA LISTA.
+      //
+      // Sin esto, una campaña generada sin snapshot cobraría la suma de las
+      // tarifas de lista donde el cliente aceptó un precio de conjunto —250 000
+      // donde se vendieron 180 000— y nadie lo vería, porque el importe es
+      // plausible. Es la misma clase de defecto que las Fases 2 y 3 cerraron
+      // aquí, pero de otro tamaño: aquéllas se equivocaban por un porcentaje,
+      // ésta por un número entero distinto.
+      //
+      // Y el volumen desaparece de la multiplicación (regla 2 del ADR): la
+      // parte YA es el precio final del conjunto repartido.
+      const baseSitio = paquete ? (partesPaquete[idxItem] ?? 0) : Number(it.precio)
+      const volSitio = paquete ? 1 : factorVol
       const netoSitio =
         netoDeSnap.get(it.sitio_id) ??
-        Math.round(Number(it.precio) * factorVol * factorDesc * factorCodigo * divisor)
+        Math.round(baseSitio * volSitio * factorDesc * factorCodigo * divisor)
       // La reserva hereda la contratación por tiempo del ítem (unidad, cantidad
       // de periodos y programación de spots), para que la campaña conserve cómo
       // se contrató y no solo el precio.
@@ -742,8 +773,8 @@ export async function generarCampanaDesdePropuesta(
         `insert into reservas
            (campana_id, sitio_id, fecha_inicio, fecha_fin, precio, tipo_venta, estatus,
             spots_reservados, unidad, cantidad, tarifa_unitaria, spots_por_dia, tenant_id, franja_id,
-            descuento_volumen_pct, codigo_descuento_pct)
-         values ($1,$2,$3,$4,$5,'FIXED_PKG','CONFIRMADA',$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+            descuento_volumen_pct, codigo_descuento_pct, paquete_parte)
+         values ($1,$2,$3,$4,$5,'FIXED_PKG','CONFIRMADA',$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
         [
           campanaId, it.sitio_id, iso(it.fecha_inicio), iso(it.fecha_fin), netoSitio,
           // SLOTS que la reserva retiene — NO `spots_por_dia`, que es la
@@ -777,6 +808,17 @@ export async function generarCampanaDesdePropuesta(
           // neto de esta reserva no cuadra con la multiplicacion de sus partes,
           // y sobrevive a que el cupon se borre.
           Number.isFinite(codPct) && codPct > 0 ? Math.min(codPct, 100) : 0,
+          // PAQ-01 · LA PARTE DEL PRECIO CERRADO que le tocó a esta pantalla,
+          // antes del descuento comercial y de la comisión. `null` cuando la
+          // venta no vino de un paquete.
+          //
+          // Es lo único que explica por qué el `precio` de esta reserva no tiene
+          // NADA que ver con `tarifa_unitaria × cantidad`: con un paquete, el
+          // importe no sale de la tarifa de la pantalla sino de repartir el
+          // precio del conjunto. Sin esta columna, la ficha de la campaña
+          // enseñaría dos números que no se pueden reconciliar de ninguna
+          // manera, y eso se lee como un defecto del sistema.
+          paquete ? (partesPaquete[idxItem] ?? 0) : null,
         ],
       )
       // sitios RESERVADO hasta la OC (no OCUPADO todavía)
@@ -907,7 +949,31 @@ export async function generarCampanaDesdePropuesta(
       base = Number(snap.base)
       bruto = Number(snap.total)
     } else {
-      base = Math.round(items.reduce((s, it) => s + Number(it.precio) * factorDesc, 0) * 100) / 100
+      // ⚠️ ESTE RESPALDO YA IGNORABA EL VOLUMEN ANTES DE ESTA FASE, y sigue
+      // ignorándolo: es un defecto preexistente que la Fase 3 dejó señalado y
+      // que NO se arregla aquí, porque corregirlo cambia el presupuesto de
+      // campañas sin snapshot y eso es una decisión del dueño. Queda escrito
+      // para que se vea: con una escala del 15 %, una campaña generada por este
+      // camino nace con el presupuesto un 15 % por encima de lo vendido. El
+      // arreglo es una línea —usar `volumenDeLineas(items)` en vez de la suma—
+      // y está esperando aprobación.
+      //
+      // PAQ-01 · EL PAQUETE SÍ ENTRA, Y NO ES OPCIONAL. Sin esto, este camino
+      // pondría como presupuesto la SUMA DE LAS TARIFAS DE LISTA donde el
+      // cliente aceptó un precio de conjunto —250 000 donde se vendieron
+      // 180 000—, o sea un error de otro orden de magnitud que el del volumen:
+      // no un porcentaje de desviación, un número entero distinto. Dejarlo
+      // fuera habría hecho el defecto preexistente cualitativamente peor, que
+      // es exactamente lo que había que comprobar antes de escribir esta fase.
+      // El camino SIN paquete se deja byte por byte como estaba —incluido el
+      // defecto del volumen y el del cupón, que son de otras fases y de otro
+      // dueño—: esta fase no arregla lo ajeno de tapadillo. El camino CON
+      // paquete es nuevo, así que nace bien: lleva el precio cerrado y el
+      // cupón, que sobre un paquete solo puede entrar si la bandera lo admite
+      // (`factorCodigo` ya lo anula arriba si no).
+      base = paquete
+        ? Math.round(paquete.precio * factorDesc * factorCodigo * 100) / 100
+        : Math.round(items.reduce((s, it) => s + Number(it.precio) * factorDesc, 0) * 100) / 100
       const ivaPct = Number(
         (await client.query('select coalesce(iva_pct, 16) as iva from clientes where id=$1', [prop.cliente_id])).rows[0]?.iva ?? 16,
       )

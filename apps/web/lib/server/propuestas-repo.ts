@@ -10,14 +10,45 @@ import { divisorDeComision } from '@/lib/data/derive'
 import { AVISO_FRANJA_NO_VIAJA_AL_CMS, temporadaDeFecha } from '@/lib/rejilla'
 import { volumenDeLineas } from '@/lib/volumen'
 import { montoDescuentoCodigo } from '@/lib/codigo-promocional'
+import {
+  AVISO_PAQUETE_PRECIO_CERRADO,
+  avisoPaqueteIncompleto,
+  paqueteDeFila,
+  repartirPaquete,
+} from '@/lib/paquete'
 import { rutaLogo } from '@/lib/medios-url'
 
 /**
  * Forma del JSON de `snapshot_economico`. Ausente en los congelados hasta el
  * 2026-09-28 (forma 1). La 2 lleva franja, temporada, volumen y codigo.
  * Se sube SOLO cuando un lector tenga que distinguir formas, no en cada cambio.
+ *
+ * ─── POR QUE LA 3, y no «son campos opcionales, se queda en 2» ────────────
+ * PAQ-01 (Fase 4). La regla escrita al crear esta constante es «subela si un
+ * lector tiene que distinguir la forma». Aqui lo tiene que hacer, y no es una
+ * opinion: `lib/data/reportes.ts` COMPARA `porSitio[].lista` contra
+ * `porSitio[].neto` y llama a la diferencia «descuento comercial mas comision».
+ *
+ * En las formas 1 y 2 esa lectura siempre valia, porque `neto` SIEMPRE derivaba
+ * de `lista` multiplicandola por factores. **En la 3 puede no derivar de ella**:
+ * con un paquete, el neto sale del reparto de un precio cerrado que no tiene
+ * nada que ver con la lista de esa pantalla. Un lector escrito para la forma 2
+ * que se encuentre un snapshot de paquete no calcula de menos: calcula MAL, e
+ * inventa un descuento que nadie concedio -- o uno NEGATIVO si el paquete se
+ * vendio por encima de la suma de las listas.
+ *
+ * Es exactamente la diferencia con las fases 2 y 3: el volumen y el cupon
+ * anadieron capas, pero `neto` seguia derivando de `lista`. El paquete rompe
+ * esa invariante, y romper una invariante ES cambiar la forma aunque todos los
+ * campos nuevos sean opcionales.
+ *
+ * LO QUE CUESTA: un snapshot SIN paquete producido hoy lleva `esquema: 3` y es,
+ * por lo demas, byte por byte el mismo JSON que producia la forma 2. O sea que
+ * el numero dice «puede haber paquete», no «hay paquete». Se acepta: el numero
+ * describe el CONTRATO del que salio el JSON, no su contenido, que es para lo
+ * que sirve un numero de forma.
  */
-const ESQUEMA_SNAPSHOT = 2
+const ESQUEMA_SNAPSHOT = 3
 
 
 // Error de regla de negocio (propuesta inmutable) → el route lo mapea a 409.
@@ -111,8 +142,35 @@ function armarPropuesta(p: any, items: any[]) {
   // aritmética. Con cero volumen, `brutoConVolumen === bruto` y todo lo de
   // abajo da el mismo número que antes de esta fase, dígito por dígito.
   const vol = volumenDeLineas(its)
-  const descuentoVolumenMonto = vol.descuentoVolumenMonto
-  const brutoConVolumen = vol.brutoConVolumen
+  // PAQ-01 · EL PAQUETE CERRADO ENTRA AQUÍ, Y NO COMO UN FACTOR MÁS.
+  //
+  // Es la diferencia de esta capa con las tres anteriores y la razón por la que
+  // el ADR 0039 la puso la última: la franja cambia la TARIFA, el volumen y el
+  // cupón MULTIPLICAN un precio ya resuelto, y el paquete lo **sustituye**. Por
+  // eso no hay un `factorPaquete` en ninguna parte: hay un `brutoConVolumen`
+  // que deja de salir de las líneas y pasa a ser el precio del conjunto.
+  //
+  // Y por eso el volumen desaparece de la cuenta cuando hay paquete (regla 2
+  // del ADR): su precio ya lo lleva dentro, así que aplicarlo encima sería
+  // descontar dos veces lo mismo. Las líneas CONSERVAN su
+  // `descuento_volumen_pct` —no se borra nada— para que quitar el paquete
+  // devuelva los precios de línea exactamente como estaban.
+  const paquete = paqueteDeFila(p)
+  const descuentoVolumenMonto = paquete ? 0 : vol.descuentoVolumenMonto
+  const brutoConVolumen = paquete ? paquete.precio : vol.brutoConVolumen
+  const descuentoVolumenPctEfectivo = paquete ? 0 : vol.volumenPctEfectivo
+  // El REPARTO del precio cerrado entre las pantallas, a prorrata de su lista y
+  // sumando exactamente el precio del paquete (ver `lib/paquete.ts`). Hace
+  // falta aquí —y no solo al congelar— porque el documento vivo tiene que poder
+  // enseñar cuánto le toca a cada pantalla mientras todavía se negocia.
+  const partes = paquete ? repartirPaquete(its.map((i) => i.precio), paquete.precio) : []
+  // El aviso de que la propuesta dejó de cuadrar con el paquete que se le
+  // aplicó. Se calcula sobre las líneas de HOY contra la composición
+  // CONGELADA: es la tercera pregunta de la fase y la respuesta es «se avisa y
+  // el precio no se mueve».
+  const paqueteAviso = paquete
+    ? avisoPaqueteIncompleto(paquete.composicion, its.map((i) => i.sitioId), paquete.nombre, paquete.precio)
+    : null
   const descuentoMonto = Math.round(brutoConVolumen * (descuentoPct / 100))
   // COD-01 · el CÓDIGO PROMOCIONAL entra AQUÍ, entre el descuento comercial y
   // la comisión de agencia, que es exactamente donde lo pone la cadena del ADR
@@ -125,7 +183,15 @@ function armarPropuesta(p: any, items: any[]) {
   // motivo: `numeric` de Postgres ADMITE `NaN` y lo propaga, así que una fila
   // corrupta contaminaría el neto entero y la petición contestaría 200 OK.
   const leidoCod = p.codigo_descuento_pct != null ? Number(p.codigo_descuento_pct) : 0
-  const codigoDescuentoPct = Number.isFinite(leidoCod) ? Math.max(0, Math.min(100, leidoCod)) : 0
+  const codigoLeido = Number.isFinite(leidoCod) ? Math.max(0, Math.min(100, leidoCod)) : 0
+  // PAQ-01, regla 2 del ADR 0039 · un paquete es PRECIO FINAL y por omisión no
+  // admite el cupón encima. La bandera se lee del CONGELADO de la propuesta, no
+  // del catálogo: encenderla mañana no puede cambiar el total de una venta que
+  // ya se cotizó. Nace apagada, y esto es la segunda red — la primera es que
+  // aplicar un paquete que no lo admite sobre una propuesta con cupón se
+  // rechaza con una frase (`paquetes-repo.ts`).
+  const codigoAnulaPaquete = !!paquete && !paquete.admiteCodigo
+  const codigoDescuentoPct = codigoAnulaPaquete ? 0 : codigoLeido
   const codigoTexto = p.codigo_texto ?? null
   const baseComercial = brutoConVolumen - descuentoMonto
   const codigoDescuentoMonto = montoDescuentoCodigo(baseComercial, codigoDescuentoPct)
@@ -139,8 +205,16 @@ function armarPropuesta(p: any, items: any[]) {
   const aprob = its.filter((i) => i.aprobado)
   const brutoAprobado = aprob.reduce((s, i) => s + i.precio, 0)
   const volAprobado = volumenDeLineas(aprob)
+  // PAQ-01 · el presupuesto aprobado de un paquete ES EL PRECIO DEL PAQUETE,
+  // aunque el cliente acepte solo tres de las cinco pantallas.
+  //
+  // Es lo mismo que decide `avisoPaqueteIncompleto` y es lo que «precio
+  // cerrado» significa. Prorratearlo sobre las aprobadas sería convertir el
+  // paquete en un precio unitario disfrazado, y además dejaría al cliente
+  // eligiendo su propio descuento: bastaría desmarcar la pantalla más cara.
+  const brutoConVolumenAprobado = paquete ? paquete.precio : volAprobado.brutoConVolumen
   const baseComercialAprobado =
-    volAprobado.brutoConVolumen - Math.round(volAprobado.brutoConVolumen * (descuentoPct / 100))
+    brutoConVolumenAprobado - Math.round(brutoConVolumenAprobado * (descuentoPct / 100))
   const codigoDescuentoMontoAprobado = montoDescuentoCodigo(
     baseComercialAprobado,
     codigoDescuentoPct,
@@ -162,14 +236,39 @@ function armarPropuesta(p: any, items: any[]) {
     version,
     notas: p.notas ?? null,
     creadoEn: iso(p.creado_en),
-    items: its,
+    // PAQ-01 · la parte del precio cerrado que le tocó a cada línea viaja CON
+    // la línea. Sin ella la pantalla enseñaría el importe de lista junto a un
+    // total que no lo suma, y eso se lee como un defecto del sistema.
+    items: its.map((it, i) => ({ ...it, parteDelPaquete: paquete ? (partes[i] ?? 0) : null })),
     bruto,
     // VOL-01. Van los tres: lo regalado por volumen, lo que queda después, y el
     // porcentaje ponderado de la propuesta entera — que es el que se compara
     // contra el tope de la organización.
     descuentoVolumenMonto,
     brutoConVolumen,
-    descuentoVolumenPct: vol.volumenPctEfectivo,
+    descuentoVolumenPct: descuentoVolumenPctEfectivo,
+    // PAQ-01 · el paquete aplicado, con todo lo que hace falta para explicar el
+    // importe: cómo se llama, cuánto cuesta, si admite cupón, cuándo se aplicó,
+    // con qué pantallas se cotizó y qué le tocó a cada una hoy.
+    //
+    // `null` cuando no hay paquete, que es el caso de TODA la base instalada —
+    // y con `null` todo lo de arriba da el mismo número que antes de esta fase,
+    // dígito por dígito. Ése es el invariante que hace que la Fase 4 no mueva
+    // una sola venta de las que ya existen.
+    paquete: paquete
+      ? {
+          nombre: paquete.nombre,
+          precio: paquete.precio,
+          admiteCodigo: paquete.admiteCodigo,
+          aplicadoEn: paquete.aplicadoEn,
+          composicion: paquete.composicion,
+          sitios: its.map((it, i) => ({ sitioId: it.sitioId, parte: partes[i] ?? 0 })),
+          aviso: AVISO_PAQUETE_PRECIO_CERRADO,
+          // La frase que dice que la propuesta dejó de cuadrar con el paquete.
+          // `null` mientras cuadre, que es lo normal.
+          avisoComposicion: paqueteAviso,
+        }
+      : null,
     descuentoMonto,
     // COD-01. Van los tres, igual que con el volumen: qué código fue, cuánto
     // descuenta y cuánto se regaló con él. El documento tiene que poder enseñar
@@ -290,7 +389,25 @@ export async function congelarSnapshotEconomico(propuestaId: string, tenantId?: 
       descuentoVolumenPct: Number(it.descuento_volumen_pct ?? 0),
     })),
   )
-  const brutoConVolumen = vol.brutoConVolumen
+  // PAQ-01 · EL PAQUETE SE CONGELA DESDE LA PROPIA PROPUESTA y no se vuelve a
+  // consultar `paquetes`. Misma decisión que el cupón de la Fase 3 y misma
+  // diferencia con la franja de la Fase 1, que sí relee su catálogo para poder
+  // congelar el nombre: aquí el nombre, el precio, la bandera y la composición
+  // ya están copiados en `propuestas` desde que se aplicó, así que **cambiar,
+  // desactivar o borrar el paquete no puede alcanzar a una venta ni antes ni
+  // después de aprobarla**. Dos redes, no una — es el invariante 4 del ADR 0039
+  // y aquí pesa más que en ninguna de las cuatro fases, porque el paquete no
+  // modifica un porcentaje: sustituye el importe entero.
+  const paquete = paqueteDeFila(prop)
+  // El precio del conjunto SUSTITUYE la suma de las listas y, con él, el
+  // volumen deja de existir en la cuenta (regla 2 del ADR): su precio ya lo
+  // lleva dentro.
+  const brutoConVolumen = paquete ? paquete.precio : vol.brutoConVolumen
+  // EL REPARTO, y es lo que decide si esta fase está bien hecha. A prorrata de
+  // la lista de cada línea y sumando EXACTAMENTE el precio del paquete: es de
+  // aquí de donde sale `reservas.precio`, o sea el ingreso por pantalla del
+  // reporte de rentabilidad y lo que se compara contra la renta del arrendador.
+  const partes = paquete ? repartirPaquete(usar.map((it) => Number(it.precio)), paquete.precio) : []
   const descuentoMonto = Math.round(brutoConVolumen * (descuentoPct / 100))
   // COD-01 · el código se congela desde la PROPIA PROPUESTA y no se vuelve a
   // consultar `codigos_promocionales`. Es la misma decisión que con el volumen
@@ -301,7 +418,10 @@ export async function congelarSnapshotEconomico(propuestaId: string, tenantId?: 
   // no una — y es el invariante 3 del ADR 0039, el que decide si esta fase está
   // bien hecha.
   const leidoCod = prop.codigo_descuento_pct != null ? Number(prop.codigo_descuento_pct) : 0
-  const codigoPct = Number.isFinite(leidoCod) ? Math.max(0, Math.min(100, leidoCod)) : 0
+  const codigoLeido = Number.isFinite(leidoCod) ? Math.max(0, Math.min(100, leidoCod)) : 0
+  // PAQ-01, regla 2 · el cupón NO entra sobre un paquete salvo que ese paquete
+  // lo admita, y la bandera se lee del congelado de la propuesta.
+  const codigoPct = paquete && !paquete.admiteCodigo ? 0 : codigoLeido
   const codigoTexto = prop.codigo_texto ?? null
   const baseComercial = brutoConVolumen - descuentoMonto
   const codigoMonto = montoDescuentoCodigo(baseComercial, codigoPct)
@@ -313,7 +433,7 @@ export async function congelarSnapshotEconomico(propuestaId: string, tenantId?: 
   const neto = Math.round(base * divisor)
   const iva = Math.round(base * (ivaPct / 100))
   const total = base + iva
-  const porSitio = usar.map((it) => {
+  const porSitio = usar.map((it, idx) => {
     // La temporada se DEDUCE de la fecha de inicio del ítem y no se guarda en
     // `propuesta_items`: ahí sería una segunda verdad que envejece. Aquí sí se
     // guarda, porque aquí deja de ser un dato vivo y pasa a ser un hecho.
@@ -335,7 +455,17 @@ export async function congelarSnapshotEconomico(propuestaId: string, tenantId?: 
       // sea el que se factura: si el cupón no entrara aquí, la campaña cobraría
       // MÁS que la propuesta que la originó y nadie lo vería — el importe es
       // plausible, solo que es el de antes del cupón.
-      neto: Math.round(Number(it.precio) * factorVol * factorDesc * factorCodigo * divisor),
+      // PAQ-01 · CON PAQUETE, EL NETO SALE DEL REPARTO Y NO DE LA LISTA. Es la
+      // única capa de las cuatro que cambia de dónde sale este número, y por
+      // eso `porSitio[]` lleva la marca `paquete` justo debajo: el reporte de
+      // publicada contra neta tiene que poder saber que aquí la lista y el neto
+      // ya no están emparentados.
+      //
+      // El volumen desaparece de la multiplicación (regla 2 del ADR): la parte
+      // ya es el precio final del conjunto repartido.
+      neto: paquete
+        ? Math.round((partes[idx] ?? 0) * factorDesc * factorCodigo * divisor)
+        : Math.round(Number(it.precio) * factorVol * factorDesc * factorCodigo * divisor),
       // La tarifa UNITARIA aparte del importe de la línea: `lista` ya lleva la
       // cantidad dentro (50 spots × 1 200), y comparar publicada contra neta
       // exige el precio por unidad. Si no constara, el reporte tendría que
@@ -359,9 +489,28 @@ export async function congelarSnapshotEconomico(propuestaId: string, tenantId?: 
       // Va el UMBRAL además del porcentaje: un «10 %» sin decir «por llegar a
       // 50» no se puede auditar seis meses después — nadie sabrá si salió de la
       // escala o de un dedazo.
-      ...(factorVol !== 1
+      ...(!paquete && factorVol !== 1
         ? { descuentoVolumenPct: volPct, volumenDesde: it.volumen_desde != null ? Number(it.volumen_desde) : null }
         : {}),
+      // PAQ-01 · LA MARCA, y es lo único que impide que el reporte «publicada
+      // vs neta» mienta.
+      //
+      // Ese reporte compara `lista` contra `neto` y llama a la diferencia
+      // «descuento comercial más comisión de agencia». Con un paquete esa frase
+      // es falsa: el neto salió de repartir un precio cerrado, no de descontar
+      // la lista. Peor aún, un paquete vendido POR ENCIMA de la suma de las
+      // listas —que es un paquete legítimo: se venden conjuntos premium— daría
+      // un descuento NEGATIVO, que se leería como haber cobrado por encima de
+      // la tarifa publicada.
+      //
+      // Con la marca, `lib/data/reportes.ts` deja esas reservas FUERA de la
+      // comparación y las cuenta en la cobertura, con su frase. Es la misma
+      // decisión que ese módulo ya toma con el centinela de ambigüedad: se
+      // niega a comparar lo que no sabe que es comparable.
+      //
+      // Solo cuando hay paquete, igual que la franja y el volumen: así el
+      // snapshot de una venta sin paquete es byte por byte el mismo JSON.
+      ...(paquete ? { paquete: true } : {}),
     }
   })
 
@@ -379,7 +528,22 @@ export async function congelarSnapshotEconomico(propuestaId: string, tenantId?: 
   // Igual que con la franja: los totales de volumen se guardan SOLO cuando hay
   // volumen. Así el snapshot de una venta sin tramos es byte por byte el mismo
   // JSON que producía esta función antes de la Fase 2.
-  const hayVolumen = vol.descuentoVolumenMonto !== 0
+  // PAQ-01 · y con paquete NO HAY VOLUMEN QUE CONGELAR, por bien que las líneas
+  // lo lleven capturado: el precio del conjunto ya lo lleva dentro (regla 2).
+  // Congelarlo igualmente dejaría en el documento un «−20 % por volumen» que no
+  // se restó de ningún importe.
+  const hayVolumen = !paquete && vol.descuentoVolumenMonto !== 0
+
+  // PAQ-01 · ¿las pantallas que se aprueban siguen siendo las que formaban el
+  // paquete? Se calcula UNA vez, sobre las mismas líneas que se congelan.
+  const avisoComposicion = paquete
+    ? avisoPaqueteIncompleto(
+        paquete.composicion,
+        usar.map((it) => String(it.sitio_id)),
+        paquete.nombre,
+        paquete.precio,
+      )
+    : null
 
   // COD-01 · EL CONGELADO DEL CÓDIGO, que es lo que decide si esta fase está
   // bien hecha. Se guarda SOLO cuando hay código, igual que la franja y el
@@ -410,6 +574,48 @@ export async function congelarSnapshotEconomico(propuestaId: string, tenantId?: 
     // hacia atras.
     esquema: ESQUEMA_SNAPSHOT,
     version, bruto,
+    // PAQ-01 · EL CONGELADO DEL PAQUETE. Va ARRIBA de todo lo demás porque es
+    // lo que explica por qué `base` no sale de `bruto`, y quien lea este JSON
+    // tiene que encontrarse con eso antes que con las cuentas.
+    //
+    // Van las SEIS cosas y ninguna sobra:
+    //  · `nombre`, porque un «180 000» sin decir de qué paquete salió no se
+    //    puede auditar seis meses después — nadie sabrá si fue una promoción o
+    //    un dedazo. Mismo motivo por el que el cupón congela su texto;
+    //  · `precio`, porque ES la venta: no un porcentaje sobre ella;
+    //  · `admiteCodigo`, porque decide si el cupón de al lado descontó o no, y
+    //    sin ella el JSON no se puede recalcular;
+    //  · `aplicadoEn`, el momento;
+    //  · `composicion`, **con qué pantallas se cotizó**, que es lo que el
+    //    encargo de esta fase pide con todas las letras;
+    //  · y `sitios`, el REPARTO — qué le tocó a cada pantalla. Sin él, dentro
+    //    de seis meses nadie podrá reconstruir por qué esa pantalla facturó eso,
+    //    porque su importe no sale de ninguna multiplicación de su tarifa.
+    //
+    // Solo cuando hay paquete: así el snapshot de una venta sin paquete es byte
+    // por byte el mismo JSON que producía la Fase 3 (salvo `esquema`).
+    ...(paquete
+      ? {
+          paquete: {
+            nombre: paquete.nombre,
+            precio: paquete.precio,
+            admiteCodigo: paquete.admiteCodigo,
+            aplicadoEn: paquete.aplicadoEn,
+            composicion: paquete.composicion,
+            sitios: usar.map((it, i) => ({
+              sitioId: String(it.sitio_id),
+              parte: partes[i] ?? 0,
+            })),
+            aviso: AVISO_PAQUETE_PRECIO_CERRADO,
+            // Y si al aprobar las pantallas ya no eran las que formaban el
+            // paquete, eso queda ESCRITO en el documento congelado. Callarlo
+            // dejaría un precio de cinco pantallas cobrado por cuatro sin que
+            // el papel dijera nada, que es la misma familia de fallo que el
+            // `?? 0` del mapa.
+            ...(avisoComposicion ? { avisoComposicion } : {}),
+          },
+        }
+      : {}),
     ...(hayVolumen
       ? {
           descuentoVolumenPct: vol.volumenPctEfectivo,
@@ -542,6 +748,19 @@ export async function obtenerPropuestaPublica(codigo: string) {
     codigoTexto: armado.codigoTexto,
     codigoDescuentoPct: armado.codigoDescuentoPct,
     codigoDescuentoMonto: armado.codigoDescuentoMonto,
+    // PAQ-01 · Y EL PAQUETE, que de las cuatro capas es la que MÁS falta hace
+    // aquí: es la única que no modifica el importe sino que lo sustituye.
+    //
+    // Sin esta línea, el documento que el cliente firma enseñaría «subtotal
+    // 250 000» junto a un total de 208 800 y ni una palabra que explicara los
+    // 70 000 de diferencia. Las otras capas al menos se pueden intuir como un
+    // descuento; un precio de conjunto no se intuye, se dice.
+    //
+    // Este objeto se arma A MANO, campo por campo: añadir un dato a
+    // `armarPropuesta` NO basta para que llegue aquí. Es el mismo olvido que la
+    // Fase 2 encontró revisando el diff y la Fase 3 volvió a encontrar, y por
+    // eso esta vez tiene prueba propia (`propuestas-repo-paquete.test.ts`).
+    paquete: armado.paquete,
     baseComercial: armado.baseComercial,
     divisor: armado.divisor,
     bruto: armado.bruto,
@@ -566,6 +785,11 @@ export async function obtenerPropuestaPublica(codigo: string) {
         fechaInicio: it.fechaInicio,
         fechaFin: it.fechaFin,
         precio: it.precio,
+        // PAQ-01 · qué parte del precio del paquete le tocó a ESTA pantalla.
+        // `null` sin paquete. Si no viajara, el cliente vería el importe de
+        // lista de cada renglón y un total que no los suma — y la resta que le
+        // saldría no sería ninguno de los descuentos que el documento nombra.
+        parteDelPaquete: it.parteDelPaquete,
         aprobado: it.aprobado,
         // REJILLA-01 · qué franja se le vendió. Si no viajara, el cliente
         // leería un importe sin saber a qué horas compró.
@@ -903,7 +1127,12 @@ export async function actualizarPropuesta(
   input: { descuentoPct?: number; nombre?: string; notas?: string | null },
 ): Promise<PropuestaActualizada | null> {
   const cur = await q1<any>(
-    'select estatus, descuento_pct, codigo_descuento_pct from propuestas where id=$1',
+    // PAQ-01 · las columnas del paquete entran en esta lectura porque deciden
+    // DOS cosas del tope: si el volumen de las líneas cuenta (no cuenta, porque
+    // no se aplicó) y si el cupón descuenta (solo si el paquete lo admite).
+    `select estatus, descuento_pct, codigo_descuento_pct,
+            paquete_nombre, paquete_precio, paquete_admite_codigo
+       from propuestas where id=$1`,
     [id],
   )
   if (!cur) return null
@@ -937,12 +1166,21 @@ export async function actualizarPropuesta(
       'select precio, descuento_volumen_pct from propuesta_items where propuesta_id=$1',
       [id],
     )
-    const volumenPct = volumenDeLineas(
-      lineas.map((l) => ({
-        precio: Number(l.precio),
-        descuentoVolumenPct: Number(l.descuento_volumen_pct ?? 0),
-      })),
-    ).volumenPctEfectivo
+    //
+    // PAQ-01 · Y CON PAQUETE, EL VOLUMEN NO CUENTA CONTRA EL TOPE, porque no se
+    // aplicó: el precio del conjunto lo sustituyó entero (regla 2 del ADR). Si
+    // contara, a un vendedor le rechazarían un descuento comercial por un
+    // volumen que el cliente nunca recibió, y el mensaje de error le nombraría
+    // un porcentaje que no aparece en ninguna parte de su cotización.
+    const paqueteVivo = paqueteDeFila(cur)
+    const volumenPct = paqueteVivo
+      ? 0
+      : volumenDeLineas(
+          lineas.map((l) => ({
+            precio: Number(l.precio),
+            descuentoVolumenPct: Number(l.descuento_volumen_pct ?? 0),
+          })),
+        ).volumenPctEfectivo
     // COD-02 · el cupón entra como ARGUMENTO aunque hoy no cuente. La decisión
     // de si cuenta o no vive ENTERA en `CODIGO_CUENTA_CONTRA_TOPE`
     // (`lib/descuento.ts`), y está preguntada al dueño; pasarlo desde aquí es lo
@@ -953,7 +1191,12 @@ export async function actualizarPropuesta(
       input.descuentoPct,
       await topeDescuentoDelTenant(),
       volumenPct,
-      Number(cur.codigo_descuento_pct ?? 0),
+      // PAQ-01 · y el cupón tampoco cuenta si el paquete no lo admite, por la
+      // misma razón: no descontó nada. (Hoy `CODIGO_CUENTA_CONTRA_TOPE` es
+      // `false`, así que este argumento se anula después de todas formas; se
+      // pasa bien igualmente para que el día que el dueño cambie esa constante
+      // no haya que volver a buscar los llamantes.)
+      paqueteVivo && !paqueteVivo.admiteCodigo ? 0 : Number(cur.codigo_descuento_pct ?? 0),
     )
     sets.push(`descuento_pct=$${i++}`)
     vals.push(d)
@@ -1008,9 +1251,26 @@ export async function cambiarEstatusPropuesta(
       // guard vería el importe de antes del cupón: aprobaría en silencio una
       // propuesta que no cobra nada, que es exactamente lo que existe para
       // impedir.
-      `select coalesce(sum(precio * (1 - least(greatest(coalesce(descuento_volumen_pct,0),0),100)/100.0)),0)
+      // PAQ-01 · el paquete entra en el guard SUSTITUYENDO la suma, que es lo
+      // que hace en todas partes. Sin esto el guard miraría la suma de las
+      // listas, y eso falla por los DOS lados: dejaría aprobar en silencio un
+      // paquete de precio 0 con listas altas —justo lo que existe para impedir—
+      // y bloquearía una venta legítima de un paquete de 180 000 cuyas líneas
+      // se capturaron todas a tarifa 0.
+      //
+      // Y el cupón solo cuenta si el paquete lo admite (regla 2 del ADR): con
+      // un paquete de precio final, un cupón al 100 % no deja la base en cero
+      // porque no se aplica.
+      `select coalesce(
+                (select paquete_precio from propuestas where id=$1),
+                coalesce(sum(precio * (1 - least(greatest(coalesce(descuento_volumen_pct,0),0),100)/100.0)),0)
+              )
                 * (1 - coalesce((select descuento_pct from propuestas where id=$1),0)/100.0)
-                * (1 - least(greatest(coalesce((select codigo_descuento_pct from propuestas where id=$1),0),0),100)/100.0) as base
+                * (1 - case when (select paquete_precio from propuestas where id=$1) is not null
+                             and not (select paquete_admite_codigo from propuestas where id=$1)
+                        then 0
+                        else least(greatest(coalesce((select codigo_descuento_pct from propuestas where id=$1),0),0),100)
+                        end / 100.0) as base
          from propuesta_items where propuesta_id=$1`,
       [id],
     )

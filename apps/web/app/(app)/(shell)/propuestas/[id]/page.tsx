@@ -43,6 +43,12 @@ import {
 } from '@/lib/data/estado-api'
 import { aplicarCodigoApi, quitarCodigoApi } from '@/lib/data/codigos-api'
 import {
+  paquetesApi,
+  aplicarPaqueteApi,
+  quitarPaqueteApi,
+  type PaqueteUI,
+} from '@/lib/data/paquetes-api'
+import {
   usePropuestas,
   useClientes,
   useSitios,
@@ -92,12 +98,30 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
   // no existe en este componente, y no es un olvido — lo decide el servidor.
   const [codInput, setCodInput] = useState('')
   const [guardandoCod, setGuardandoCod] = useState(false)
+  // PAQ-01 (ADR 0039, Fase 4) · el paquete que se está por aplicar. Solo el ID
+  // viaja al servidor: el precio sale del catálogo bajo RLS y NUNCA del
+  // navegador. Ver la cabecera de `app/api/propuestas/[id]/paquete/route.ts`.
+  const [paqSel, setPaqSel] = useState('')
+  const [guardandoPaq, setGuardandoPaq] = useState(false)
+  const [catalogoPaq, setCatalogoPaq] = useState<PaqueteUI[]>([])
 
   const pActual = propuestas?.find((x) => x.id === id)
   // Sincroniza el input de descuento con el valor actual al cargar/cambiar.
   useEffect(() => {
     if (pActual) setDescInput(String(pActual.descuentoPct))
   }, [pActual?.id, pActual?.descuentoPct])
+
+  // PAQ-01 · el catálogo de paquetes, para el selector. Se lee UNA vez y con el
+  // fallo TRAGADO a propósito: un rol COMERCIAL puede no tener `inventario.ver`,
+  // y en ese caso la lista sale vacía y el bloque no se pinta. Reventar aquí
+  // dejaría la propuesta entera sin abrir por un catálogo que quizá no se use.
+  useEffect(() => {
+    let vivo = true
+    void paquetesApi()
+      .then((ps) => { if (vivo) setCatalogoPaq(ps.filter((x) => x.activo)) })
+      .catch(() => { if (vivo) setCatalogoPaq([]) })
+    return () => { vivo = false }
+  }, [])
 
   async function aplicarDescuento() {
     const d = Number(descInput)
@@ -148,6 +172,55 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
       toast.error(e instanceof Error ? e.message : 'Error')
     } finally {
       setGuardandoCod(false)
+    }
+  }
+
+  /**
+   * PAQ-01 · aplica un paquete cerrado. **Aquí no se manda ningún precio.**
+   *
+   * Lo único que viaja es el ID. El precio, el nombre y la bandera de si admite
+   * códigos salen de `paquetes` bajo RLS. Si el precio saliera de aquí, cerrar
+   * cinco pantallas en un peso sería editar un JSON en las herramientas del
+   * navegador — y la propuesta quedaría coherente consigo misma, sin ningún
+   * error que lo delatara.
+   *
+   * Tampoco se valida nada: que el paquete esté activo, que sea de esta
+   * organización, que la propuesta no esté aprobada y que sus pantallas sean
+   * exactamente las del paquete lo comprueba el servidor dentro de la
+   * transacción. El mensaje se enseña TAL CUAL porque distingue los cinco
+   * motivos, y cada uno se arregla de forma distinta.
+   */
+  async function aplicarPaquete() {
+    if (!paqSel) {
+      toast.error('Elige un paquete')
+      return
+    }
+    setGuardandoPaq(true)
+    try {
+      const r = await aplicarPaqueteApi(id, paqSel)
+      toast.success(
+        `Paquete ${r.nombre} aplicado: ${formatMonto(r.precio)} por el conjunto`,
+      )
+      setPaqSel('')
+      await refrescarEstado()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Error')
+    } finally {
+      setGuardandoPaq(false)
+    }
+  }
+
+  /** Quita el paquete y devuelve la propuesta a los precios de línea. */
+  async function quitarPaquete() {
+    setGuardandoPaq(true)
+    try {
+      await quitarPaqueteApi(id)
+      toast.success('Paquete quitado; vuelven los precios de lista de cada pantalla')
+      await refrescarEstado()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Error')
+    } finally {
+      setGuardandoPaq(false)
     }
   }
 
@@ -356,6 +429,20 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
           <div className="mt-4 grid gap-4 border-t border-border pt-4 lg:grid-cols-2">
             <dl className="space-y-1.5 text-[13px]">
               <Fila label="Bruto (tarifa de lista)" valor={formatMonto(p.bruto)} />
+              {/* PAQ-01 · EL PAQUETE VA PRIMERO Y NO ES UN DESCUENTO. Se pinta
+                  como «precio del conjunto» y con el importe en positivo, no
+                  como una resta: llamarlo descuento haría creer que el bruto de
+                  arriba sigue mandando, y lo que pasa es que deja de mandar.
+                  Sin este renglón la escalera no cuadra en pantalla, y una
+                  cuenta que no da se lee como un defecto del sistema.
+                  Va en LOS DOS desgloses de esta página: el de «Resumen
+                  económico» y el de «Costo · método del divisor». */}
+              {p.paquete && (
+                <Fila
+                  label={`Paquete "${p.paquete.nombre}" — precio del conjunto`}
+                  valor={formatMonto(p.paquete.precio)}
+                />
+              )}
               {/* VOL-01 · el renglón aparece SOLO cuando hay volumen, y tiene que
                   aparecer: sin él la escalera no cuadra en pantalla —bruto menos
                   descuento comercial no daría la base— y una cuenta que no da se
@@ -419,6 +506,98 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                   </div>
                 ) : (
                   <p className="mt-2 text-[12px] text-muted">La propuesta ya está {est.label.toLowerCase()}; el descuento quedó fijo.</p>
+                )}
+              </div>
+            )}
+
+            {/* PAQ-01 · EL PAQUETE CERRADO (ADR 0039, Fase 4).
+                Bloque aparte, y el motivo es más fuerte que en los otros dos:
+                un paquete NO es un descuento. El comercial y el código
+                multiplican un precio ya resuelto; el paquete lo SUSTITUYE. Por
+                eso este bloque no tiene ningún campo de porcentaje ni de
+                importe: solo se ELIGE uno del catálogo, y el precio sale de
+                ahí, del servidor y bajo RLS. */}
+            {puedeEditar && (
+              <div className="rounded-md border border-border bg-surface-2/40 p-3">
+                <div className="text-[12px] font-medium text-ink">Paquete cerrado</div>
+                {p.paquete ? (
+                  <>
+                    <p className="mt-0.5 text-[11px] text-muted">
+                      Esta propuesta se vende como el paquete{' '}
+                      <b>{p.paquete.nombre}</b> por <b>{formatMonto(p.paquete.precio)}</b>, que ya
+                      está congelado: si el paquete cambia o se borra, este precio no se mueve.
+                      {' '}
+                      {p.paquete.admiteCodigo
+                        ? 'Admite código promocional encima.'
+                        : 'Es precio final: no admite descuento por volumen ni código promocional.'}
+                    </p>
+                    {/* La frase que responde a «¿y si alguien quita una
+                        pantalla?». Se enseña en cuanto la propuesta deja de
+                        cuadrar con lo que se cotizó, porque el precio NO baja y
+                        eso es sorprendente. Callarlo sería mentir por omisión. */}
+                    {p.paquete.avisoComposicion && (
+                      <p className="mt-1 rounded border border-warning/40 bg-warning/10 px-2 py-1 text-[11px] text-ink">
+                        {p.paquete.avisoComposicion}
+                      </p>
+                    )}
+                    <ul className="mt-1 text-[11px] text-muted">
+                      {p.paquete.sitios.map((s) => (
+                        <li key={s.sitioId}>
+                          {sitios?.find((x) => x.id === s.sitioId)?.nombre ?? s.sitioId}:{' '}
+                          {formatMonto(s.parte)}
+                        </li>
+                      ))}
+                    </ul>
+                    {editable ? (
+                      <div className="mt-2 flex items-center gap-2">
+                        <Button size="sm" variant="ghost" onClick={quitarPaquete} disabled={guardandoPaq}>
+                          {guardandoPaq ? 'Quitando…' : 'Quitar paquete'}
+                        </Button>
+                        <span className="text-[11px] text-muted">
+                          Quitarlo devuelve los precios de lista de cada pantalla.
+                        </span>
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-[12px] text-muted">
+                        La propuesta ya está {est.label.toLowerCase()}; el paquete quedó fijo.
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <p className="mt-0.5 text-[11px] text-muted">
+                      El precio del paquete <b>sustituye</b> la suma de las tarifas de lista: no la
+                      descuenta, la reemplaza. Y se reparte entre sus pantallas a prorrata, que es
+                      el ingreso que el reporte le atribuye a cada una. Solo se puede aplicar si
+                      esta propuesta tiene <b>exactamente</b> las pantallas del paquete.
+                    </p>
+                    {editable && catalogoPaq.length > 0 ? (
+                      <div className="mt-2 flex items-center gap-2">
+                        <select
+                          aria-label="Paquete cerrado"
+                          value={paqSel}
+                          onChange={(e) => setPaqSel(e.target.value)}
+                          className="h-9 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                        >
+                          <option value="">Elige un paquete…</option>
+                          {catalogoPaq.map((x) => (
+                            <option key={x.id} value={x.id}>
+                              {x.nombre} — {formatMonto(x.precioCerrado)} · {x.sitios.length} pantallas
+                            </option>
+                          ))}
+                        </select>
+                        <Button size="sm" onClick={aplicarPaquete} disabled={guardandoPaq || !paqSel}>
+                          {guardandoPaq ? 'Aplicando…' : 'Aplicar'}
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-[12px] text-muted">
+                        {!editable
+                          ? `La propuesta ya está ${est.label.toLowerCase()}; no admite paquete.`
+                          : 'No hay paquetes activos en el catálogo.'}
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
             )}
@@ -664,6 +843,20 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
             {/* Desglose */}
             <dl className="space-y-2 text-[13px]">
               <Fila label="Bruto (tarifa de lista)" valor={formatMonto(p.bruto)} />
+              {/* PAQ-01 · EL PAQUETE VA PRIMERO Y NO ES UN DESCUENTO. Se pinta
+                  como «precio del conjunto» y con el importe en positivo, no
+                  como una resta: llamarlo descuento haría creer que el bruto de
+                  arriba sigue mandando, y lo que pasa es que deja de mandar.
+                  Sin este renglón la escalera no cuadra en pantalla, y una
+                  cuenta que no da se lee como un defecto del sistema.
+                  Va en LOS DOS desgloses de esta página: el de «Resumen
+                  económico» y el de «Costo · método del divisor». */}
+              {p.paquete && (
+                <Fila
+                  label={`Paquete "${p.paquete.nombre}" — precio del conjunto`}
+                  valor={formatMonto(p.paquete.precio)}
+                />
+              )}
               {/* VOL-01 · el renglón aparece SOLO cuando hay volumen, y tiene que
                   aparecer: sin él la escalera no cuadra en pantalla —bruto menos
                   descuento comercial no daría la base— y una cuenta que no da se

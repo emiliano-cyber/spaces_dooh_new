@@ -23,6 +23,7 @@ import {
   Clock,
   Layers,
   Ticket,
+  Package,
 } from 'lucide-react'
 import type { RolDemo } from '@/lib/data/types'
 
@@ -119,6 +120,13 @@ export const NAV: NavItem[] = [
   // nombre, con fecha de caducidad y cupo. Mismo grupo y mismo modulo
   // --`inventario`, como su endpoint-- por el mismo razonamiento.
   { key: 'codigos-promocionales', label: 'Codigos promocionales', href: '/codigos-promocionales', icon: Ticket, roles: ['DUENO'], grupo: 'patrimonio' },
+  // PAQ-01 · los paquetes cerrados (ADR 0039, Fase 4). Pantalla PROPIA, y aqui
+  // el motivo es mas fuerte que en las dos de arriba: aquellas son DESCUENTOS
+  // sobre un precio, y un paquete SUSTITUYE el precio. Ponerlo con ellas haria
+  // creer que es una rebaja mas, y esa confusion se paga al leer un reporte de
+  // descuentos donde el paquete no aparece. Mismo grupo y mismo modulo
+  // --`inventario`, como su endpoint-- por el mismo razonamiento.
+  { key: 'paquetes', label: 'Paquetes cerrados', href: '/paquetes', icon: Package, roles: ['DUENO'], grupo: 'patrimonio' },
   // Arrendadores va pegado a Inventario y no suelto en medio del ciclo
   // comercial: una pantalla no es tuya, es de alguien que te la renta, y el
   // contrato con ese alguien es lo que te deja venderla (ADR 0003).

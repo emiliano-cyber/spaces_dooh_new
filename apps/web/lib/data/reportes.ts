@@ -378,7 +378,26 @@ export interface CoberturaTarifa {
 export interface TarifaPublicada {
   campanaId: string
   /** `lista` y `neto` por pantalla, tal como se congelaron. */
-  porSitio: { sitioId: string; lista: number; neto: number }[]
+  porSitio: {
+    sitioId: string
+    lista: number
+    neto: number
+    /**
+     * PAQ-01 (ADR 0039, Fase 4) · esta pantalla se vendió dentro de un PAQUETE
+     * CERRADO, así que su `neto` **NO deriva de su `lista`**.
+     *
+     * Es la única forma del snapshot en la que esos dos números dejan de estar
+     * emparentados: el neto es la parte de un precio de conjunto repartida a
+     * prorrata, y ese precio lo puso una persona mirando el trato entero. Sale
+     * del campo `paquete: true` que congela `propuestas-repo.ts`, y es el
+     * motivo por el que el snapshot subió a la forma 3.
+     *
+     * Con esta marca la reserva NO entra en la comparación publicada vs neta.
+     * Ver el guard, que explica por qué sacarla es lo correcto y no una
+     * rendición.
+     */
+    dePaquete?: boolean
+  }[]
 }
 
 /**
@@ -1083,11 +1102,27 @@ function matriz(datos: DatosRentabilidad, opts: OpcionesReporte): Matriz {
   // dato, así que no se elige ninguna — elegir una inventaría el descuento de la
   // otra. Se declara y punto.
   const AMBIGUA = null
+  // PAQ-01 · Y EL SEGUNDO CENTINELA, por el mismo motivo que el primero: una
+  // pantalla vendida dentro de un PAQUETE CERRADO no tiene tarifa publicada con
+  // la que comparar, aunque su `lista` esté ahí escrita.
+  //
+  // El neto de un paquete es la parte de un precio de conjunto repartida a
+  // prorrata; no sale de descontar la lista de esa pantalla. Compararlos
+  // afirmaría un «descuento comercial» que nadie concedió — y el caso que lo
+  // cierra sin discusión es el paquete PREMIUM, vendido por encima de la suma
+  // de sus listas: ahí `neto > lista` y la diferencia saldría NEGATIVA, que se
+  // lee como haber cobrado por encima de la tarifa publicada.
+  //
+  // Se reutiliza el mismo `null` que la ambigüedad y no se inventa un tercer
+  // estado: para este reporte los dos casos son la misma cosa —no se sabe con
+  // qué comparar—, y la cobertura ya cuenta y explica el hueco.
+  const DE_PAQUETE = null
   const tarifaDeCampana = new Map<string, Map<string, { lista: number; neto: number } | null>>()
   for (const t of datos.tarifasPublicadas ?? []) {
     const porSitioTarifa = new Map<string, { lista: number; neto: number } | null>()
     for (const e of t.porSitio ?? []) {
-      porSitioTarifa.set(e.sitioId, porSitioTarifa.has(e.sitioId) ? AMBIGUA : { lista: e.lista, neto: e.neto })
+      const entrada = e.dePaquete === true ? DE_PAQUETE : { lista: e.lista, neto: e.neto }
+      porSitioTarifa.set(e.sitioId, porSitioTarifa.has(e.sitioId) ? AMBIGUA : entrada)
     }
     tarifaDeCampana.set(t.campanaId, porSitioTarifa)
   }
