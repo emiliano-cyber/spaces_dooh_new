@@ -31,10 +31,10 @@ después) y una **bitácora del vendedor** para prospectos, citas y seguimiento.
 | Los permisos | **Tabla** `rol_permisos` (rol, módulo, acción). DUENO 24 filas, COMERCIAL 5 | Definir qué puede cada rol es **datos**, no código. Esto abarata mucho la parte de roles |
 | Autorizar a alguien | **NO EXISTE** | Hoy hay dos frenos: la contraseña (`exigirCambioSensible`) y el tope de descuento. **Ninguno es «pedirle permiso a otra persona»** |
 
-> **La consecuencia que manda sobre todo lo demás:** «con autorización del
-> director comercial» **no es un ajuste de permisos, es un subsistema nuevo**.
-> Decidido por el dueño el 29/09: es **solicitud y aprobación** de verdad, no un
-> techo ni una contraseña en el momento.
+> **Y aquí es donde este ADR se corrigió el mismo día.** La primera lectura fue
+> que «con autorización» era un **subsistema nuevo** de solicitudes. El dueño lo
+> precisó y resultó ser mucho más simple: **la solicitud ES la propuesta**. Ver
+> la sección del flujo, más abajo — pasó de semanas a días.
 
 ---
 
@@ -44,12 +44,13 @@ después) y una **bitácora del vendedor** para prospectos, citas y seguimiento.
 |---|---|---|---|
 | Cotizar (propuestas) | sí | sí | **sí** |
 | Descuento **dentro de su techo** | sí | sí | **sí** |
-| Descuento **por encima de su techo** | — (él es quien aprueba) | **pide autorización** | **pide autorización** |
+| Descuento **por encima de su techo** | — | su propuesta **la aprueba otro** | su propuesta **la aprueba otro** |
 | Aplicar un **código existente** | sí | sí | **sí** |
 | **Crear** códigos promocionales | sí | **pide autorización** | no |
 | **Crear** paquetes cerrados | sí | **sí, SIN autorización** | no |
 | **Crear** escalas de volumen | sí | **pide autorización** | no |
-| **Aprobar** solicitudes | **sí** | no | no |
+| **Aprobar una propuesta CON descuento** | **sí** | **sí** | no |
+| Aprobar una propuesta **sin** descuento | sí | sí | **sí** (→ pregunta 8) |
 | Fijar los techos de cada rol | sí | no | no |
 
 **El gerente crea paquetes sin pedir permiso y códigos pidiéndolo, y eso no es
@@ -71,60 +72,77 @@ preguntas distintas:
    el director define. El vendedor elige de ahí sin teclear a mano.
 3. **Códigos existentes.** No los crea: los aplica.
 
-**Cómo conviven, y hay que decidirlo antes de escribir:** un descuento de la
-lista **¿cuenta contra su techo?** Si no cuenta, la lista es una puerta para
-saltárselo. → **Pregunta 1**.
+**Y la pregunta que tenía este apartado quedó contestada el mismo día:** un
+descuento de la lista **NO cuenta contra el techo, y puede superarlo** — porque
+ya se autorizó antes, para un caso concreto. Eso lo convierte en otra cosa
+distinta de un catálogo de porcentajes; ver el apartado del preaprobado.
 
 ---
 
-## El flujo de autorización
+## El flujo de autorización — CORREGIDO el 2026-09-29
 
-Es lo único de este ADR que es un subsistema, y lo que lo hace difícil no es el
-estado «pendiente»: son las cinco preguntas de abajo.
+> **La primera versión de este ADR diseñó un subsistema de solicitudes con su
+> propia entidad, sus estados y una bandeja del director. Estaba de más.** El
+> dueño lo precisó el mismo día y la regla real es mucho más simple:
+>
+> > **Una propuesta SIN descuento la aprueba cualquiera. Una propuesta CON
+> > descuento solo la aprueban el gerente de ventas y el administrador.**
+>
+> Con eso, **la solicitud ES la propuesta**. No hace falta inventar nada: el
+> vendedor la arma con su descuento y **no puede aprobarla él**. Quien la aprueba
+> es quien autoriza.
 
-```
-  el vendedor pide 30 %          su techo es 20 %
-            │
-            ▼
-   ┌──────────────────┐   el director la ve en su bandeja
-   │   PENDIENTE      │──────────────────────────────────┐
-   └──────────────────┘                                  │
-            │                                            ▼
-            │                                  ┌───────────────────┐
-            │                                  │ APROBADA (con %)  │
-            │                                  │  o RECHAZADA      │
-            ▼                                  └───────────────────┘
-   LA PROPUESTA NO SE PUEDE ENVIAR NI APROBAR MIENTRAS TANTO
-```
+**Por qué esto lo cambia todo de tamaño.** El producto ya tiene la máquina de
+estados de una propuesta, ya congela el `snapshot_economico` al aprobarla, y ya
+sube la `version` al renegociarla. La autorización deja de ser un flujo nuevo y
+pasa a ser **una comprobación de rol en el momento de aprobar**.
 
-### Las cinco decisiones duras
+De **2–3 semanas** a **2–3 días**.
 
-**1 · ¿Qué queda bloqueado mientras espera?**
-Propuesto: **la propuesta no se puede enviar al cliente ni aprobar** con una
-solicitud pendiente. Si se pudiera enviar, el cliente recibiría un precio que
-nadie autorizó — y retirarlo después es peor que hacerle esperar.
+### Lo que sigue en pie de las cinco preguntas
 
-**2 · ¿Quién aprueba si el director no está?**
-Propuesto: **el Dueño siempre puede**. Sin eso, un director de vacaciones para la
-venta de toda la empresa. Y queda registrado **quién** aprobó, no solo que se
-aprobó.
+Tres se responden solas con este modelo, y dos siguen siendo decisiones:
 
-**3 · ¿La aprobación caduca?**
-Propuesto: **muere si la propuesta cambia**. El producto ya sube la `version` de
-una propuesta al renegociarla; una aprobación atada a la versión anterior deja de
-valer sola. Un 40 % aprobado para una venta de tres pantallas no puede sobrevivir
-a que esa venta pase a ser de doce.
+| | |
+|---|---|
+| ¿Qué queda bloqueado mientras espera? | **Se responde sola**: sin aprobar no hay campaña ni factura. No hay que bloquear nada aparte |
+| ¿La aprobación caduca? | **Se responde sola**: renegociar sube la `version` y hay que volver a aprobar |
+| ¿Qué se congela? | **Ya se congela**: el snapshot guarda la escalera al aprobar. Solo falta añadirle **quién aprobó** |
+| ¿Quién aprueba si el gerente no está? | **Sigue abierta.** Propuesto: el Dueño siempre puede |
+| ¿Se puede aprobar MENOS de lo pedido? | **Sigue abierta**, y ahora significa que el aprobador **edita el descuento y aprueba**. Editarlo sube la versión, así que el rastro queda |
 
-**4 · ¿El director puede aprobar MENOS de lo pedido?**
-Propuesto: **sí**. «Pediste 30, te doy 25» es la conversación real, y obligar a
-rechazar y volver a pedir la convierte en dos.
-
-**5 · ¿Qué se congela?**
-Quién pidió, cuánto pidió, quién aprobó, cuánto concedió y cuándo — **dentro del
-`snapshot_economico`**, como todo lo demás del ADR 0039. Si esto no se congela,
-seis meses después nadie sabe quién autorizó ese margen.
+**¿Quién es «el administrador»?** En este producto el rol de más arriba es
+**DUENO**. Si «administrador» es el Dueño, la regla queda cerrada; si es otra
+figura, falta un rol que nadie ha nombrado. → **Pregunta 6**.
 
 ---
+
+## El descuento preaprobado — NO es un número, es un número con condiciones
+
+Corrección del mismo día, y cambia el modelo: **un preaprobado PUEDE superar el
+techo del vendedor**, porque *«ya fue aprobado anteriormente para ciertas compras
+o ciertos arrendadores»*.
+
+O sea que no es una entrada de catálogo con un porcentaje: es un porcentaje
+**atado a un supuesto**. «15 % en las pantallas de este arrendador», «20 % a
+partir de tal volumen». Sin ese supuesto, la lista sería exactamente la puerta
+para saltarse el techo que se temía.
+
+| | Techo por rol | Descuento preaprobado |
+|---|---|---|
+| Qué acota | **la discreción** de quien vende | nada: ya se decidió antes |
+| Lo puede superar | no | **sí, ése es su sentido** |
+| Cuándo se autorizó | nunca: es el límite | **antes**, y para un caso concreto |
+| Qué hay que guardar | un porcentaje | **el porcentaje Y a qué aplica** |
+
+> [!danger] El riesgo que hay que cerrar en el diseño
+> Si el sistema guarda la condición pero **no la comprueba**, el preaprobado se
+> convierte en un descuento libre con una etiqueta bonita: el vendedor elige el
+> «15 % del arrendador X» en una venta que no lleva ni una pantalla de X, y nada
+> se lo impide.
+>
+> **Comprobarlo no es opcional.** Si una condición no se puede comprobar con lo
+> que hay en la propuesta, ese preaprobado no debería existir todavía.
 
 ## Lo que NO cabe antes del 14 de octubre
 
@@ -134,21 +152,23 @@ Quedan **15 días**. Con el calendario delante:
 |---|---|---|
 | **Los tres roles + su matriz de permisos** | 2–3 días | **SÍ** — y es lo que se ve |
 | Techos de descuento **por rol** | 1–2 días | **Sí, si hay hueco** |
-| La lista de descuentos preaprobados | 1–2 días | No |
-| **El flujo de solicitud y aprobación** | **2–3 semanas** | **NO. Y prometerlo sería mentir** |
+| **La autorización al aprobar** (regla de rol) | **2–3 días** | **SÍ** — dejó de ser un subsistema |
+| Descuentos preaprobados **con su condición** | 3–5 días | Según la pregunta 7 |
 | La calculadora de precio de spot | ? | **Bloqueada: falta la lógica** |
 | La bitácora del vendedor | 1–2 semanas | **No** — decidido: después del Summit |
 
-**Lo honesto para el 14/10** es enseñar **los roles y qué puede cada uno**, con
-los techos funcionando. Eso ya cuenta una historia completa —«cada quien vende
-hasta donde puede»— sin prometer un flujo de aprobación que no estará.
+**Con el flujo corregido, el 14/10 cabe bastante más de lo que parecía esta
+mañana:** los tres roles, los techos por rol **y la autorización al aprobar**. Es
+la historia entera —«cada quien vende hasta donde puede, y lo que se sale lo
+firma su jefe»— y es verdad, no una promesa.
 
 ---
 
 ## Lo que hay que decidir antes de escribir código
 
-1. **¿Un descuento de la lista preaprobada cuenta contra el techo del vendedor?**
-   Si no cuenta, la lista es la puerta para saltarse el techo.
+1. ~~¿Un descuento de la lista preaprobada cuenta contra el techo?~~
+   **CONTESTADA el 29/09: no cuenta y puede superarlo**, porque se autorizó antes
+   para un caso concreto. De ahí que el preaprobado lleve condición.
 2. **¿Qué pasa con el rol `COMERCIAL` que ya existe?** Con estos tres, se solapa.
    Y ojo: **un valor de enum de Postgres no se puede quitar**, así que si se
    retira, se retira *de uso*, no del esquema. ¿Se conserva, se reparte su gente
@@ -161,6 +181,15 @@ hasta donde puede»— sin prometer un flujo de aprobación que no estará.
    encima. **Dos niveles cuestan poco más que uno si se diseñan juntos, y mucho
    más si se añaden después.**
 5. **La calculadora: ¿qué calcula?** Sin la lógica no se puede ni dimensionar.
+6. **¿Quién es «el administrador»?** Si es el Dueño, la regla queda cerrada. Si es
+   otra figura, falta un rol que nadie ha nombrado.
+7. **¿Qué condiciones admite un preaprobado?** Por arrendador y por volumen son
+   las dos nombradas. Por cliente, por franja, por temporada o por tipo de medio
+   son posibles y **cada una encarece**. Y la regla que no se negocia: **una
+   condición que no se pueda comprobar no se admite**.
+8. **¿Un vendedor puede aprobar una propuesta SIN descuento?** «Sin descuento,
+   cualquiera» — conviene confirmar que incluye al propio vendedor que la hizo.
+   Es lo natural, pero significa que una venta a tarifa de lista se cierra sola.
 
 ---
 
