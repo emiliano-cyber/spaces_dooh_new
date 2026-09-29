@@ -33,15 +33,27 @@ export const dynamic = 'force-dynamic'
 //  Es dinero, y del que no se ve: entra al costo de operación del reporte de
 //  rentabilidad restando del margen, sin comprobante ni contraparte que lo
 //  cuadre. Mismo trato que facturar una campaña, registrar un pago de renta o
-//  cobrar una cobranza. El permiso sigue siendo `operaciones.crear` —los mismos
-//  que ya trabajan las OT, hoy DUENO y OPERACIONES—: esto NO cambia quién entra
-//  al módulo, añade la segunda puerta sobre un campo de dinero.
+//  cobrar una cobranza.
+//
+//  ─── EL PERMISO ES `operaciones.costear`, Y NO `crear` (2026-09-29) ───────
+//  Nació exigiendo `operaciones.crear`, y eso dejaba fuera a FINANZAS — que es
+//  justo quien recibe la factura de la cuadrilla y por tanto quien sabe lo que
+//  costó la visita. La salida fácil era darles `operaciones.crear`, y NO se
+//  hizo: ese permiso no es «capturar un costo», es **crear y CERRAR órdenes de
+//  trabajo** (`POST /api/ot` y `POST /api/ot/:id/cerrar`). Se les habría
+//  entregado el trabajo de campo entero para que tecleen un importe.
+//
+//  `costear` es una acción nueva que autoriza exactamente esto y nada más. La
+//  tienen DUENO, ADMINISTRADOR, OPERACIONES y FINANZAS
+//  (`db/migrations/20260929_roles_operaciones_costear.sql`). Y el DUEÑO lleva su
+//  fila explícita porque **no hay bypass**: `tienePermiso` consulta la tabla sin
+//  excepción para nadie.
 //
 //  La bitácora guarda el importe en el texto, como hacen las rutas de pago: sin
 //  él, «Capturó el costo de OT-2026-0001» no permite reconstruir qué se cambió.
 // ============================================================================
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
-  const gc = await exigirCambioSensible('operaciones', 'crear')
+  const gc = await exigirCambioSensible('operaciones', 'costear')
   if (!gc.ok) return gc.res
   try {
     const ot = await fijarCostoOTCtrl(params.id, await req.json().catch(() => ({})))

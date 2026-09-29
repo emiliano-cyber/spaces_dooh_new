@@ -220,7 +220,7 @@ export const NAV: NavItem[] = [
   // (ver el porqué allí). La ficha de campaña sigue enlazándolo, que es el otro
   // camino y el más natural cuando ya hay campaña.
   { key: 'imprenta', label: 'Imprenta', href: '/imprenta', icon: Printer, roles: [...MANDO, 'IMPRENTA'], grupo: 'entregar' },
-  { key: 'operaciones', label: 'Operaciones', href: '/operaciones', icon: ClipboardList, roles: [...MANDO, 'OPERACIONES'], grupo: 'entregar' },
+  { key: 'operaciones', label: 'Operaciones', href: '/operaciones', icon: ClipboardList, roles: [...MANDO, 'OPERACIONES', 'FINANZAS'], grupo: 'entregar' },
   // Sin esta entrada la ruta NO TIENE PUERTA: `moduloDe()` devuelve null para
   // lo que el NAV no conoce, y `AuthGate` deja pasar a cualquier rol interno.
   // El dato sigue protegido —el endpoint exige `operaciones`— pero el rol
@@ -229,12 +229,12 @@ export const NAV: NavItem[] = [
   { key: 'energia', label: 'Consumo de luz', href: '/energia', icon: Zap, roles: [...MANDO, 'OPERACIONES'], grupo: 'entregar' },
 
   // ─── Finanzas ────────────────────────────────────────────────────────────
-  { key: 'finanzas', label: 'Finanzas', href: '/finanzas', icon: Receipt, roles: [...MANDO, 'FINANZAS'], grupo: 'cobrar' },
+  { key: 'finanzas', label: 'Finanzas', href: '/finanzas', icon: Receipt, roles: [...MANDO, 'FINANZAS', 'DIRECTOR_COMERCIAL'], grupo: 'cobrar' },
   // Reportes va PEGADO a Finanzas y con sus MISMOS roles, porque la autoriza el
   // mismo módulo (`finanzas`, ver `lib/modulos.ts`). Si los roles divergieran,
   // un rol vería la entrada y se comería el 403 de `exigir('finanzas','ver')`
   // sin saber por qué — el encierro que este repo ya documentó dos veces.
-  { key: 'reportes', label: 'Reportes', href: '/reportes', icon: TrendingUp, roles: [...MANDO, 'FINANZAS'], grupo: 'cobrar' },
+  { key: 'reportes', label: 'Reportes', href: '/reportes', icon: TrendingUp, roles: [...MANDO, 'FINANZAS', 'DIRECTOR_COMERCIAL'], grupo: 'cobrar' },
   { key: 'comisiones', label: 'Comisiones', href: '/comisiones', icon: Percent, roles: [...MANDO, ...VENTA], grupo: 'cobrar' },
 
   // ─── Sistema ─────────────────────────────────────────────────────────────

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { rechazoDelCambio } from './guardas-usuarios'
+import { rechazoDelCambio, rechazoDeNombrarDueno } from './guardas-usuarios'
 
 // ============================================================================
 //  ADR 0040 · Los dos guards que protegen al Dueño.
@@ -187,6 +187,71 @@ describe('2 · nadie deja la organización sin ningún Dueño activo', () => {
         actorRol: 'DUENO',
         objetivo: vendedor,
         cambio: { activo: false },
+        duenosActivos: 1,
+      }),
+    ).toBeNull()
+  })
+})
+
+describe('4 · NADIE nombra a un Dueño salvo un Dueño (dictado del 29/09)', () => {
+  // «nadie puede promover a nadie a dueno, solo el dueno». No es solo el
+  // administrador: es TODO rol. Y cubre las DOS puertas —cambiar el rol de
+  // alguien y darlo de alta ya como Dueño—, porque prohibir una y dejar la otra
+  // es la misma puerta con otro nombre.
+
+  it('un ADMINISTRADOR no puede nombrar Dueño a nadie', () => {
+    const r = rechazoDeNombrarDueno('ADMINISTRADOR', 'DUENO')
+    expect(r?.mensaje).toMatch(/due[ñn]o/i)
+    expect(r?.status).toBe(403)
+  })
+
+  it('tampoco un DIRECTOR_COMERCIAL al que le hayan dado `administracion`', () => {
+    // `rol_permisos` es DATOS: un Dueño puede conceder `administracion.crear` a
+    // cualquier rol sin tocar código. Si el guard mirara el permiso en vez del
+    // ROL, esta puerta quedaría abierta sin que nadie lo decidiera.
+    expect(rechazoDeNombrarDueno('DIRECTOR_COMERCIAL', 'DUENO')?.status).toBe(403)
+  })
+
+  it('un DUENO sí puede', () => {
+    expect(rechazoDeNombrarDueno('DUENO', 'DUENO')).toBeNull()
+  })
+
+  it('y pedir cualquier otro rol no lo mira nadie', () => {
+    for (const rol of ['ADMINISTRADOR', 'VENDEDOR', 'FINANZAS', undefined]) {
+      expect(rechazoDeNombrarDueno('ADMINISTRADOR', rol), String(rol)).toBeNull()
+    }
+  })
+
+  it('el PATCH pasa por el mismo guard: promover a Dueño se rechaza', () => {
+    const r = rechazoDelCambio({
+      actorRol: 'ADMINISTRADOR',
+      objetivo: { rol: 'VENDEDOR', activo: true },
+      cambio: { rol: 'DUENO' },
+      duenosActivos: 3,
+    })
+    expect(r?.status).toBe(403)
+    expect(r?.mensaje).toMatch(/due[ñn]o/i)
+  })
+
+  it('pero dejar a un Dueño como Dueño NO es promover, y no se rechaza', () => {
+    // Un PATCH que no cambia nada no es una promoción. Rechazarlo haría que
+    // editarle el cargo a un Dueño fallara por un guard que no viene al caso.
+    expect(
+      rechazoDelCambio({
+        actorRol: 'ADMINISTRADOR',
+        objetivo: { rol: 'DUENO', activo: true },
+        cambio: { rol: 'DUENO' },
+        duenosActivos: 3,
+      }),
+    ).toBeNull()
+  })
+
+  it('un DUENO promoviendo por PATCH sí pasa', () => {
+    expect(
+      rechazoDelCambio({
+        actorRol: 'DUENO',
+        objetivo: { rol: 'VENDEDOR', activo: true },
+        cambio: { rol: 'DUENO' },
         duenosActivos: 1,
       }),
     ).toBeNull()

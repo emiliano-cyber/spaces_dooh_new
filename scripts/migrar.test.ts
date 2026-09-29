@@ -84,6 +84,17 @@ describe('ordenar()', () => {
     expect(ordenados).toContain(enumRoles)
     expect(ordenados).toContain(matriz)
     expect(ordenados.indexOf(enumRoles)).toBeLessThan(ordenados.indexOf(matriz))
+
+    // Y la tercera del mismo día: `operaciones.costear` inserta filas para
+    // ADMINISTRADOR, que es uno de los valores que añade la del enum. Su nombre
+    // empieza por `roles_` A PROPÓSITO y no por `ot_` ni `costear_`: con
+    // cualquiera de ésos ordenaría ANTES y moriría con «invalid input value for
+    // enum». Se renombró en vez de tocar `ANTES_DE` porque ninguna de las tres
+    // está aplicada todavía en ningún sitio — renombrar solo confunde cuando ya
+    // se desplegó, que es lo que dice la cabecera de ese mapa.
+    const costear = '20260929_roles_operaciones_costear.sql'
+    expect(ordenados).toContain(costear)
+    expect(ordenados.indexOf(enumRoles)).toBeLessThan(ordenados.indexOf(costear))
   })
 
   it('no muta el array que recibe', () => {

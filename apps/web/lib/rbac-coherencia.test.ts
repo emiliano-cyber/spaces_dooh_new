@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { AREAS, MODULOS, areasDeModulo } from './modulos'
+import { CAPACIDADES } from '@/components/demo/admin/permisos'
 
 // ============================================================================
 //  ADR 0010 · Coherencia entre lo que la API EXIGE y lo que el producto declara.
@@ -58,6 +59,40 @@ describe('coherencia RBAC', () => {
     // Un módulo no declarado es fail-closed: nadie podría usar esa ruta y el
     // síntoma sería un 403 inexplicable en producción.
     expect(huerfanos).toEqual([])
+  })
+
+  it('toda ACCIÓN que la API exige se puede ver en la matriz de Administración', () => {
+    // ⚠️ El agujero que este caso cierra, y apareció al añadir `costear` el
+    // 2026-09-29: la pantalla de Administración pinta las celdas con
+    // `CAPACIDADES.filter(...)` (`administracion/page.tsx`). Una acción que la
+    // API exija y que NO esté en esa lista **no aparece en ningún sitio**: el
+    // Dueño ve `operaciones: V C A`, no hay rastro de la quinta, y no tiene
+    // forma de saber que la está concediendo ni de quitarla.
+    //
+    // Es la trampa del ADR 0010 con el signo cambiado —allí el rol existía y no
+    // tenía permisos; aquí el permiso existe y no se puede administrar— y las
+    // dos se descubren igual de tarde: cuando alguien pregunta por qué.
+    const conocidas = new Set<string>(CAPACIDADES)
+    const invisibles = [...new Set(paresExigidos().map((p) => p.accion))]
+      .filter((a) => !conocidas.has(a))
+    expect(invisibles).toEqual([])
+  })
+
+  it('y al revés: la matriz no ofrece acciones que nadie exige', () => {
+    // Una capacidad de más es una casilla que se puede marcar y no hace nada.
+    // `facturar` la exige `campanas/[id]/facturar`; si alguna dejara de usarse,
+    // esto lo dice en vez de que la matriz siga ofreciéndola para siempre.
+    const exigidas = new Set(paresExigidos().map((p) => p.accion))
+    expect(CAPACIDADES.filter((c) => !exigidas.has(c))).toEqual([])
+  })
+
+  it('`operaciones.costear` NO es `operaciones.crear` (2026-09-29)', () => {
+    // La ruta del costo de una OT tiene que exigir la acción acotada. Si alguien
+    // la devolviera a `crear`, Finanzas dejaría de poder capturar el costo —y la
+    // salida fácil sería darles `operaciones.crear`, que es crear y CERRAR
+    // órdenes de trabajo. Esta línea es lo que impide ese camino.
+    const costo = paresExigidos().filter((p) => p.archivo.includes('costo'))
+    expect(costo.map((p) => `${p.modulo}.${p.accion}`)).toEqual(['operaciones.costear'])
   })
 
   it('todo módulo del catálogo gobierna al menos un área', () => {

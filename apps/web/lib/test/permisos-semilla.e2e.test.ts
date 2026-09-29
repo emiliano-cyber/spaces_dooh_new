@@ -152,7 +152,7 @@ const CATALOGO_COMPLETO = [
 
 // --- Y el estado FINAL, tras el ADR 0040 (2026-09-29) ---------------------
 //
-// 86 filas · 10 modulos · 8 roles. Se escribe literal a proposito, igual que el
+// 92 filas · 10 modulos · 8 roles · 5 ACCIONES. Se escribe literal a proposito,
 // de arriba: si saliera de la propia migracion, la prueba no diria nada. Los
 // tres cambios respecto a las 41 de agosto:
 //
@@ -186,6 +186,7 @@ const CATALOGO_FINAL = [
   'ADMINISTRADOR|network|crear',
   'ADMINISTRADOR|network|ver',
   'ADMINISTRADOR|operaciones|aprobar',
+  'ADMINISTRADOR|operaciones|costear',
   'ADMINISTRADOR|operaciones|crear',
   'ADMINISTRADOR|operaciones|ver',
   'ADMINISTRADOR|precios|crear',
@@ -194,6 +195,7 @@ const CATALOGO_FINAL = [
   'DIRECTOR_COMERCIAL|comercial|crear',
   'DIRECTOR_COMERCIAL|comercial|ver',
   'DIRECTOR_COMERCIAL|dashboard|ver',
+  'DIRECTOR_COMERCIAL|finanzas|ver',
   'DIRECTOR_COMERCIAL|inventario|ver',
   'DIRECTOR_COMERCIAL|network|ver',
   'DIRECTOR_COMERCIAL|precios|crear',
@@ -220,6 +222,7 @@ const CATALOGO_FINAL = [
   'DUENO|network|crear',
   'DUENO|network|ver',
   'DUENO|operaciones|aprobar',
+  'DUENO|operaciones|costear',
   'DUENO|operaciones|crear',
   'DUENO|operaciones|ver',
   'DUENO|precios|crear',
@@ -228,6 +231,8 @@ const CATALOGO_FINAL = [
   'FINANZAS|finanzas|crear',
   'FINANZAS|finanzas|facturar',
   'FINANZAS|finanzas|ver',
+  'FINANZAS|operaciones|costear',
+  'FINANZAS|operaciones|ver',
   'GERENTE_VENTAS|comercial|aprobar',
   'GERENTE_VENTAS|comercial|crear',
   'GERENTE_VENTAS|comercial|ver',
@@ -242,6 +247,7 @@ const CATALOGO_FINAL = [
   'OPERACIONES|comercial|ver',
   'OPERACIONES|imprenta|ver',
   'OPERACIONES|inventario|ver',
+  'OPERACIONES|operaciones|costear',
   'OPERACIONES|operaciones|crear',
   'OPERACIONES|operaciones|ver',
   'VENDEDOR|comercial|crear',
@@ -331,7 +337,7 @@ describe('el catálogo de permisos de una instancia nueva', () => {
     expect(runner.status).toBe(0)
   })
 
-  it('nace con las 86 filas: 10 módulos y 8 roles, ni una más', async () => {
+  it('nace con las 92 filas: 10 módulos y 8 roles, ni una más', async () => {
     // El «ni una más» importa tanto como el «ni una menos»: las dos migraciones
     // corren DESPUÉS de `20260804_modulo_inventario.sql`, que ya sembró 5 de
     // estas filas, y la segunda repite las 25 de la primera. Un `insert` sin
@@ -341,7 +347,7 @@ describe('el catálogo de permisos de una instancia nueva', () => {
     const { rows } = await pool.query(
       'select count(*)::int filas, count(distinct modulo)::int modulos, count(distinct rol)::int roles from rol_permisos',
     )
-    expect(rows[0]).toEqual({ filas: 86, modulos: 10, roles: 8 })
+    expect(rows[0]).toEqual({ filas: 92, modulos: 10, roles: 8 })
   })
 
   it('los dos perfiles que no existían ya pueden entrar a algo', async () => {
@@ -353,13 +359,13 @@ describe('el catálogo de permisos de una instancia nueva', () => {
       "select rol::text rol, count(*)::int n from rol_permisos group by 1 order by 1",
     )
     expect(rows).toEqual([
-      { rol: 'ADMINISTRADOR', n: 26 },
-      { rol: 'DIRECTOR_COMERCIAL', n: 8 },
-      { rol: 'DUENO', n: 26 },
-      { rol: 'FINANZAS', n: 4 },
+      { rol: 'ADMINISTRADOR', n: 27 },
+      { rol: 'DIRECTOR_COMERCIAL', n: 9 },
+      { rol: 'DUENO', n: 27 },
+      { rol: 'FINANZAS', n: 6 },
       { rol: 'GERENTE_VENTAS', n: 8 },
       { rol: 'IMPRENTA', n: 3 },
-      { rol: 'OPERACIONES', n: 5 },
+      { rol: 'OPERACIONES', n: 6 },
       { rol: 'VENDEDOR', n: 6 },
     ])
     // Y COMERCIAL NO aparece en esta lista, que es la mitad que importa del ADR
@@ -395,7 +401,7 @@ describe('el catálogo de permisos de una instancia nueva', () => {
     await pool.query(readFileSync(join(RAIZ, 'db', 'migrations', MIGRACION_ROLES_ENUM), 'utf8'))
     await pool.query(readFileSync(join(RAIZ, 'db', 'migrations', MIGRACION_ROLES_MATRIZ), 'utf8'))
     expect(await catalogoDe(pool)).toEqual(antes)
-    expect(antes).toHaveLength(86)
+    expect(antes).toHaveLength(92)
   })
 
   it('un Dueño recién creado ve sus módulos', async () => {

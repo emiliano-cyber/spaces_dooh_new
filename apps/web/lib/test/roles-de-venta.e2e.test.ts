@@ -169,14 +169,60 @@ describe('1 · las dos migraciones dejaron el enum y la matriz como manda el ADR
       'select rol::text as rol, count(*)::int n from rol_permisos group by 1 order by 1',
     )
     expect(r.rows).toEqual([
-      { rol: 'ADMINISTRADOR', n: 26 },
-      { rol: 'DIRECTOR_COMERCIAL', n: 8 },
-      { rol: 'DUENO', n: 26 },
-      { rol: 'FINANZAS', n: 4 },
+      { rol: 'ADMINISTRADOR', n: 27 },
+      { rol: 'DIRECTOR_COMERCIAL', n: 9 },
+      { rol: 'DUENO', n: 27 },
+      { rol: 'FINANZAS', n: 6 },
       { rol: 'GERENTE_VENTAS', n: 8 },
       { rol: 'IMPRENTA', n: 3 },
-      { rol: 'OPERACIONES', n: 5 },
+      { rol: 'OPERACIONES', n: 6 },
       { rol: 'VENDEDOR', n: 6 },
+    ])
+  })
+
+  it('el DIRECTOR COMERCIAL LEE finanzas, y solo lee (respuesta del 29/09)', async () => {
+    // «Aprobar un descuento sin ver cuánto margen deja es firmar a ciegas» — el
+    // dueño contestó que sí a la pregunta 3 del ADR. Lo que se le dio es la
+    // LECTURA: ni `crear` (registrar pagos) ni `facturar` (dinero irreversible,
+    // zona R4). Dar el módulo entero habría sido conceder tres cosas por una.
+    const r = await poolTest().query(
+      `select accion from rol_permisos
+        where rol = 'DIRECTOR_COMERCIAL' and modulo = 'finanzas' order by 1`,
+    )
+    expect(r.rows.map((x: any) => x.accion)).toEqual(['ver'])
+  })
+
+  it('y el GERENTE de ventas NO — es la única diferencia entre los dos', async () => {
+    const r = await poolTest().query(
+      "select count(*)::int n from rol_permisos where rol = 'GERENTE_VENTAS' and modulo = 'finanzas'",
+    )
+    expect(r.rows[0].n).toBe(0)
+  })
+
+  it('FINANZAS puede COSTEAR una OT y no puede crearlas', async () => {
+    // El encargo del 29/09: la factura de la cuadrilla le llega a Finanzas. La
+    // acción es `costear` y NO `crear`, que es crear y CERRAR órdenes. Aquí se
+    // fija la matriz; que la ruta lo respete se mide en `costo-real-ot.e2e`.
+    const r = await poolTest().query(
+      `select accion from rol_permisos
+        where rol = 'FINANZAS' and modulo = 'operaciones' order by 1`,
+    )
+    expect(r.rows.map((x: any) => x.accion)).toEqual(['costear', 'ver'])
+  })
+
+  it('y el DUEÑO tiene su fila de `costear`: no hay bypass para nadie', async () => {
+    // `tienePermiso` consulta la tabla sin excepción para ningún rol. Una acción
+    // nueva sin la fila del Dueño lo deja fuera de su propia instancia, y el
+    // síntoma —«yo, que soy el dueño, no puedo»— no señala la causa.
+    const r = await poolTest().query(
+      `select rol::text as rol from rol_permisos
+        where modulo = 'operaciones' and accion = 'costear' order by 1`,
+    )
+    expect(r.rows.map((x: any) => x.rol)).toEqual([
+      'ADMINISTRADOR',
+      'DUENO',
+      'FINANZAS',
+      'OPERACIONES',
     ])
   })
 
@@ -393,6 +439,104 @@ describe('6 · GUARD 2 — la organización nunca se queda sin Dueño activo', (
     expect(r.status).toBe(200)
     expect(await duenosActivos()).toBe(1)
   })
+})
+
+// ───────────────────────────────────────────────────────────────────────────
+describe('6 bis · GUARD 3 — nadie nombra a un Dueño salvo un Dueño', () => {
+  // Dictado del 2026-09-29: «nadie puede promover a nadie a dueno, solo el
+  // dueno». Se prueban LAS DOS puertas por la red: el PATCH que cambia el rol y
+  // el POST que da de alta. Cerrar una y dejar la otra sería la misma puerta con
+  // otro nombre.
+
+  it('un ADMINISTRADOR no puede PROMOVER a un vendedor a Dueño', async () => {
+    const c = await entrar('admin')
+    const r = await c.pedir(`/api/usuarios/${vendedorId}/`, {
+      metodo: 'PATCH',
+      cuerpo: { rol: 'DUENO' },
+    })
+    expect(r.status).toBe(403)
+    expect((await estadoDe(vendedorId)).rol).toBe('VENDEDOR')
+  })
+
+  it('ni puede DAR DE ALTA a alguien ya como Dueño', async () => {
+    const c = await entrar('admin')
+    const r = await c.pedir('/api/usuarios/', {
+      cuerpo: {
+        nombre: 'Dueno por la puerta de atras',
+        email: 'puertatras@roles.test',
+        password: 'Prueba1234',
+        rol: 'DUENO',
+      },
+    })
+    expect(r.status).toBe(403)
+    const q = await poolTest().query(
+      "select count(*)::int n from usuarios where email = 'puertatras@roles.test'",
+    )
+    expect(q.rows[0].n).toBe(0)
+  })
+
+  it('tampoco un DIRECTOR con `administracion` concedido a mano', async () => {
+    // El caso que demuestra que el guard mira el ROL y no el permiso: al
+    // director se le concedió `administracion` en la prueba 6, así que pasa el
+    // `exigir()` de la ruta y se estrella contra el guard.
+    const c = await entrar('director')
+    const r = await c.pedir('/api/usuarios/', {
+      cuerpo: {
+        nombre: 'Otro dueno',
+        email: 'otrodueno@roles.test',
+        password: 'Prueba1234',
+        rol: 'DUENO',
+      },
+    })
+    expect(r.status).toBe(403)
+  })
+
+  it('pero un DUEÑO sí puede dar de alta a otro Dueño', async () => {
+    // Control positivo. Sin esto, los tres 403 de arriba podrían venir de que
+    // la ruta rechaza 'DUENO' a todo el mundo, y la organización se quedaría sin
+    // forma de nombrar un segundo Dueño — que es lo contrario de lo que pide el
+    // guard 2.
+    //
+    // El actor es `d1` y NO `d2`, y esto ya costó un rojo: para cuando este
+    // bloque corre, el describe 6 ha dejado a `d2` DESACTIVADO, y un usuario
+    // inactivo ni siquiera puede entrar. El fallo salía como «Correo o
+    // contraseña inválidos», que no dice nada del guard que se está probando.
+    const c = new Cliente()
+    await c.entrar(org.usuarioEmail, PASSWORD_DEMO)
+    const r = await c.pedir('/api/usuarios/', {
+      cuerpo: {
+        nombre: 'Dueno nombrado por un dueno',
+        email: 'duenonuevo@roles.test',
+        password: 'Prueba1234',
+        rol: 'DUENO',
+      },
+    })
+    expect(r.status).toBe(201)
+    expect(r.datos?.rol).toBe('DUENO')
+    // Se deshace: las pruebas de la carrera cuentan Dueños activos.
+    await poolTest().query("delete from usuarios where email = 'duenonuevo@roles.test'")
+    expect(await duenosActivos()).toBe(1)
+  })
+
+  // ⚠️ EL ARRANQUE DE UNA ORGANIZACIÓN NO SE PRUEBA AQUÍ, y conviene decir por
+  // qué en vez de dejar el hueco callado.
+  //
+  // Cuando nace la primera organización **no hay ningún Dueño que pueda
+  // autorizar nada**, así que el guard 3 tiene que dejarla pasar o el producto
+  // no se puede instalar. Pasa **por construcción y no por una excepción**: el
+  // guard vive en `crearUsuarioCtrl` —el camino que TIENE sesión— y
+  // `crearOrgConDueno` (`lib/server/cuentas-controller.ts`) llama al repo
+  // directamente, sin pasar por él.
+  //
+  // Las dos puertas del arranque están cerradas en el arnés a propósito
+  // —`/api/signup` contesta 503 con el autorregistro apagado, y `/api/bootstrap`
+  // es de un solo uso por instancia y esta base ya tiene organización—, así que
+  // medirlo desde aquí sería medir otra cosa.
+  //
+  // Quien lo mide son `alta-organizacion.e2e.test.ts` y `bootstrap.e2e.test.ts`,
+  // que recorren ese camino entero y **tienen que seguir en verde**. Y quien
+  // impide que alguien recable `crearOrgConDueno` a través del controller sin
+  // enterarse es `lib/arranque-sin-guard.test.ts`, que lee el código.
 })
 
 // ───────────────────────────────────────────────────────────────────────────

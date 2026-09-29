@@ -50,6 +50,38 @@ La entrada más reciente va arriba.
   **Lo que NO entra en este cambio, dicho con todas las letras:** el techo de
   descuento por perfil, la autorizacion al aprobar una propuesta con descuento, y
   los descuentos preaprobados. Son los tramos siguientes.
+
+- **Finanzas ya puede capturar lo que costo cada visita, y nadie mas puede
+  nombrar Duenos.**
+  *(Mismo dia, tus respuestas de la tarde. **Lleva cambios de base de datos** y
+  van con los de arriba.)*
+
+  **Finanzas captura el costo de la orden de trabajo.** La factura de la cuadrilla
+  te llega a Finanzas, asi que son ellos quienes saben lo que costo la visita — y
+  hasta hoy el sistema les contestaba «no tienes permiso». Ahora pueden **abrir la
+  orden y teclear el importe**, y nada mas: **no pueden crear ni cerrar ordenes de
+  trabajo**. Eso sigue siendo de Operaciones.
+
+  Lo que si alcanzan de paso, y conviene que lo sepas: con el permiso de ver
+  ordenes tambien pueden **consultar** el almacen y los recibos de luz de tu
+  empresa. No les aparece en el menu, pero el dato esta a su alcance. Se acepto
+  porque separar eso cuesta bastante mas y son consultas de la misma empresa.
+
+  **Nadie puede nombrar a un Dueno salvo un Dueno.** Lo pediste asi: ni cambiandole
+  el perfil a alguien ni dandolo de alta ya como Dueno. Aplica a **todos los
+  perfiles**, administrador incluido — sin esto, un administrador al que le
+  prohibimos tocar a un Dueno podria simplemente **fabricarse uno de confianza** y
+  el candado no serviria de nada.
+
+  El alta de una empresa nueva sigue funcionando igual: cuando se instala el
+  sistema todavia no hay ningun Dueno que pueda autorizar al primero, asi que ese
+  camino esta dejado pasar **a proposito**.
+
+  **El director comercial ya ve Finanzas y los reportes.** Solo VER: no cobra ni
+  factura. Es lo que contestaste cuando preguntamos si debia ver el margen —
+  aprobar un descuento sin saber cuanto margen queda es firmar a ciegas. El
+  gerente de ventas **no** lo ve, y esa es hoy la unica diferencia entre los dos.
+
 - **Ahora puedes capturar lo que de verdad costó cada visita, y el reporte deja
   de estimarlo.**
   *(**Pendiente de tu aprobacion**: lleva un cambio de base de datos y esos no se

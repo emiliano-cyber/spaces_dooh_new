@@ -9,6 +9,7 @@ import { validarPassword, hashPassword, passwordDeAlta } from './auth'
 import { googleHabilitado } from './google-oauth'
 import { esEmailValido } from '@/lib/validacion'
 import { ROLES_ASIGNABLES } from '@/lib/roles'
+import { rechazoDeNombrarDueno } from '@/lib/guardas-usuarios'
 import {
   listarUsuarios,
   crearUsuario,
@@ -79,8 +80,21 @@ export function listarUsuariosCtrl() {
   return listarUsuarios()
 }
 
-export async function crearUsuarioCtrl(body: unknown) {
+// El ALTA recibe el actor por lo mismo que el PATCH: el guard 3 del ADR 0040
+// —«nadie nombra a un Dueño salvo un Dueño»— tiene que cubrir las DOS puertas.
+// Prohibir el cambio de rol y dejar que se pueda dar de alta a alguien ya como
+// Dueño sería la misma puerta con otro nombre.
+//
+// ⚠️ EL ARRANQUE NO PASA POR AQUÍ, y es deliberado: `crearOrgConDueno`
+// (`cuentas-controller.ts`) llama al repo directamente, porque cuando nace la
+// primera organización no hay ningún Dueño que pueda autorizar nada. La exención
+// es una separación de caminos y no una bandera, y la fija
+// `lib/arranque-sin-guard.test.ts`.
+export async function crearUsuarioCtrl(body: unknown, actor: Actor) {
   const d = validar(crearSchema, body)
+
+  const nombrar = rechazoDeNombrarDueno(actor.rol, d.rol)
+  if (nombrar) throw new AppError(nombrar.mensaje, nombrar.status)
 
   const r = passwordDeAlta({
     entraConGoogle: d.entraConGoogle,

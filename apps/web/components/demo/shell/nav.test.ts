@@ -205,6 +205,37 @@ describe('3 ter · los cuatro roles del ADR 0040 (2026-09-29)', () => {
     }
   })
 
+  it('FINANZAS ve Operaciones — sin esa entrada no llega a costear la OT', () => {
+    // No es cosmética. `AuthGate` empareja la ruta con el NAV y rebota al rol
+    // que no está en `roles`, así que darle `operaciones.ver` en la base y no
+    // ponerlo aquí sería el «encierro» al revés: el servidor le deja leer la OT
+    // y la pantalla no le deja llegar. La tarjeta donde se captura el costo vive
+    // dentro de esa vista.
+    expect(claves('FINANZAS')).toContain('operaciones')
+  })
+
+  it('pero NO ve Almacén ni Consumo de luz', () => {
+    // Las dos cuelgan del mismo módulo `operaciones`, así que su permiso las
+    // abre por API. Lo que no se le abre es la PUERTA: Finanzas entra a la OT
+    // porque tiene que costearla, no a gestionar el almacén. La ampliación por
+    // API está dicha con todas las letras en la migración.
+    expect(claves('FINANZAS')).not.toContain('almacen')
+    expect(claves('FINANZAS')).not.toContain('energia')
+  })
+
+  it('el DIRECTOR COMERCIAL ve Finanzas y Reportes, y el gerente NO', () => {
+    // Decisión del dueño del 29/09 (pregunta 3 del ADR): aprobar un descuento
+    // sin ver el margen es firmar a ciegas. Es la ÚNICA diferencia entre el
+    // director y el gerente hoy, así que se fija por los dos lados: si alguien
+    // se la da también al gerente, la decisión se habría diluido sin que nadie
+    // la tomara.
+    expect(claves('DIRECTOR_COMERCIAL')).toContain('finanzas')
+    expect(claves('DIRECTOR_COMERCIAL')).toContain('reportes')
+    expect(claves('GERENTE_VENTAS')).not.toContain('finanzas')
+    expect(claves('GERENTE_VENTAS')).not.toContain('reportes')
+    expect(claves('VENDEDOR')).not.toContain('finanzas')
+  })
+
   it('ningún rol de venta ve Administración ni Inventario', () => {
     // Dar de alta usuarios y reestructurar el patrimonio no son trabajo de
     // vender. El Inventario es «exclusivo del Dueño» y desde hoy también del

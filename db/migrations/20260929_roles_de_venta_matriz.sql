@@ -52,6 +52,15 @@
 --
 --  Idempotente: `on conflict do nothing` en el insert, y el `delete`, el
 --  `update` y el `set default` son todos convergentes.
+--
+--  --- ANTES DE APLICARLA, EN CADA INSTANCIA --------------------------------
+--
+--  Hay que capturar la lista de quien es COMERCIAL. El mandato exacto esta al
+--  PIE de este archivo, en el bloque ROLLBACK, y no se repite aqui para que no
+--  haya dos copias que puedan divergir. El motivo, en una linea: **despues de
+--  aplicarla no hay forma de distinguir un convertido de un vendedor de
+--  nacimiento**, asi que sin esa lista la vuelta atras es incompleta. Es el
+--  unico paso de este cambio que NO se puede hacer despues.
 -- ============================================================================
 
 begin;
@@ -161,16 +170,29 @@ values
   ('DIRECTOR_COMERCIAL', 'comercial',      'crear'),
   ('DIRECTOR_COMERCIAL', 'comercial',      'aprobar'),
   ('DIRECTOR_COMERCIAL', 'dashboard',      'ver'),
+  -- `finanzas.ver` y NADA MAS de ese modulo. Contestado por el dueno el
+  -- 2026-09-29 a la pregunta 3 del ADR: si, el director ve finanzas.
+  --
+  -- El motivo es el que el propio ADR escribio: «aprobar un descuento sin ver
+  -- cuanto margen deja es firmar a ciegas». Lo que necesita es LEER --el reporte
+  -- de rentabilidad vive bajo este modulo--, no cobrar ni facturar. Por eso no
+  -- lleva `crear` (registrar pagos y cobranzas) ni `facturar`, que es dinero
+  -- irreversible (zona R4). Dar el modulo entero porque «ve finanzas» habria
+  -- sido conceder tres cosas cuando se pidio una.
+  ('DIRECTOR_COMERCIAL', 'finanzas',       'ver'),
   ('DIRECTOR_COMERCIAL', 'inventario',     'ver'),
   ('DIRECTOR_COMERCIAL', 'network',        'ver'),
   ('DIRECTOR_COMERCIAL', 'precios',        'ver'),
   ('DIRECTOR_COMERCIAL', 'precios',        'crear'),
 
-  -- GERENTE_VENTAS · HOY identico al director, y eso se dice en voz alta en vez
-  -- de disimularlo. Las TRES diferencias que el ADR les pone --el techo de
-  -- descuento por rol, quien autoriza al aprobar y los preaprobados-- son
-  -- justo lo que este tramo NO construye. Cuando lleguen, se separan ahi, que
-  -- es donde viven: ninguna de las tres es un par (modulo, accion).
+  -- GERENTE_VENTAS · el director menos `finanzas.ver`. Es la UNICA diferencia
+  -- entre los dos hoy, y es la que el dueno decidio el 29/09: quien aprueba un
+  -- descuento grande necesita ver el margen, y eso se lo dio al director.
+  --
+  -- Las OTRAS tres diferencias que el ADR les pone --el techo de descuento por
+  -- rol, quien autoriza al aprobar y los preaprobados-- son justo lo que este
+  -- tramo NO construye, y ninguna de las tres es un par (modulo, accion): no
+  -- caben en esta tabla. Cuando lleguen, se separan donde vivan.
   ('GERENTE_VENTAS',     'comercial',      'ver'),
   ('GERENTE_VENTAS',     'comercial',      'crear'),
   ('GERENTE_VENTAS',     'comercial',      'aprobar'),
@@ -246,6 +268,7 @@ begin
       ('ADMINISTRADOR','precios','ver'),('ADMINISTRADOR','precios','crear'),
       ('DIRECTOR_COMERCIAL','comercial','ver'),('DIRECTOR_COMERCIAL','comercial','crear'),
       ('DIRECTOR_COMERCIAL','comercial','aprobar'),('DIRECTOR_COMERCIAL','dashboard','ver'),
+      ('DIRECTOR_COMERCIAL','finanzas','ver'),
       ('DIRECTOR_COMERCIAL','inventario','ver'),('DIRECTOR_COMERCIAL','network','ver'),
       ('DIRECTOR_COMERCIAL','precios','ver'),('DIRECTOR_COMERCIAL','precios','crear'),
       ('GERENTE_VENTAS','comercial','ver'),('GERENTE_VENTAS','comercial','crear'),
@@ -266,6 +289,16 @@ begin
 
   -- El vendedor NO escribe el catalogo de precio. Si esta fila apareciera, la
   -- linea entera del ADR se cae sin que nada de err.
+  -- Y el director NO cobra ni factura: se le dio `finanzas.ver` y solo eso.
+  -- Si apareciera `crear` o `facturar`, alguien habria concedido el modulo
+  -- entero por comodidad y el dueno habria pedido una cosa y recibido tres.
+  if exists (
+    select 1 from rol_permisos
+     where rol::text = 'DIRECTOR_COMERCIAL' and modulo = 'finanzas' and accion <> 'ver'
+  ) then
+    raise exception 'DIRECTOR_COMERCIAL tiene escritura sobre `finanzas`: el dueno concedio solo la lectura.';
+  end if;
+
   if exists (
     select 1 from rol_permisos
      where rol::text = 'VENDEDOR' and modulo = 'precios' and accion <> 'ver'

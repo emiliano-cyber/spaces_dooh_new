@@ -35,6 +35,29 @@ archivos:
 
 # Migraciones
 
+> [!note] 2026-09-29 · `20260929_roles_operaciones_costear.sql` — FINANZAS costea una OT
+> La **quinta acción** del RBAC: `operaciones.costear`. Cinco filas —`costear`
+> para DUENO, ADMINISTRADOR, OPERACIONES y FINANZAS, más `operaciones.ver` para
+> FINANZAS— y ni un cambio de esquema.
+>
+> **Existe para no dar `operaciones.crear`.** Ese permiso no es «capturar un
+> costo»: es **crear y CERRAR órdenes de trabajo**. La factura de la cuadrilla le
+> llega a Finanzas, así que son ellos quienes saben el importe — pero el trabajo
+> de campo no es suyo.
+>
+> **El DUEÑO lleva su fila explícita: no hay bypass.** `tienePermiso` consulta la
+> tabla sin excepción para ningún rol, así que una acción nueva sin la fila del
+> Dueño lo deja fuera de su propia instancia.
+>
+> **El nombre empieza por `roles_` por el ORDEN**: inserta filas para
+> `ADMINISTRADOR`, que añade la del enum, y `roles_de_venta_*` < `roles_operaciones_*`
+> ('d' < 'o'). Con `ot_` o `costear_` correría antes y moriría con «invalid input
+> value for enum». Lo fija `scripts/migrar.test.ts`.
+>
+> Y **esto es de TODA LA FLOTA**: `rol_permisos` no tiene `tenant_id`. Detalle en
+> [[roles-de-venta]].
+
+
 > [!danger] 2026-09-29 · `20260929_roles_de_venta_*.sql` — ADR 0040, y son **DOS**
 > `..._enum.sql` añade los cuatro valores nuevos de `rol_demo`
 > (`ADMINISTRADOR`, `DIRECTOR_COMERCIAL`, `GERENTE_VENTAS`, `VENDEDOR`) **y nada
@@ -63,6 +86,14 @@ archivos:
 >
 > **`COMERCIAL` NO se quita del enum** y no se puede: exigiría recrear el tipo
 > entero. Se retira **de uso**.
+>
+> [!danger] ANTES de aplicarla, en CADA instancia, captura la lista
+> ```sql
+> select id, email from usuarios where rol = 'COMERCIAL';
+> ```
+> Después de aplicarla **no hay forma de distinguir un convertido de un vendedor
+> de nacimiento**, así que sin esa lista la vuelta atrás queda incompleta. Es el
+> único paso de este cambio que NO se puede hacer después.
 
 > [!note] 2026-09-28 · `20260928_paquete_cerrado.sql` — ADR 0039, Fase 4
 > Tres tablas —`paquetes`, `paquete_sitios` y `paquete_aplicaciones`— más cinco

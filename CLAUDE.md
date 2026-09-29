@@ -39,7 +39,7 @@ no se versiona configuración de la herramienta. Consecuencia práctica: la bóv
 Markdown puro y **se lee igual desde un editor, desde `cat` o desde un agente**. No
 necesitas instalar nada.
 
-Al 2026-09-29 tiene **1178 enlaces internos** sobre **92 notas**, con **2
+Al 2026-09-29 tiene **1179 enlaces internos** sobre **92 notas**, con **2
 wikilinks rotos** —los dos apuntan a ADR, que viven en `docs/` y no en la
 bóveda, así que es un choque de convención más que un enlace muerto— y
 **0 notas huérfanas**. Medido con `node scripts/recuentos.mjs` **en este
@@ -129,7 +129,7 @@ código, no de memoria:
 | Aislamiento | RLS de Postgres por `app.tenant_id` | `apps/web/lib/server/db.ts:60` y `:79` |
 | Endpoints | **116** route handlers | `apps/web/app/api/**/route.ts` |
 | Tablas | **55** | `vault/04-Datos/esquema.md` |
-| Migraciones | **97** | `vault/04-Datos/migraciones.md` |
+| Migraciones | **98** | `vault/04-Datos/migraciones.md` |
 
 > Esos recuentos llevan fecha de validación **2026-09-29**, medidos con
 > `node scripts/recuentos.mjs` sobre este árbol. Trátalos como una

@@ -6,6 +6,9 @@ tags: [backend, roles, permisos, rbac, enum, migraciones, dueno, guards, carrera
 archivos:
   - db/migrations/20260929_roles_de_venta_enum.sql
   - db/migrations/20260929_roles_de_venta_matriz.sql
+  - db/migrations/20260929_roles_operaciones_costear.sql
+  - apps/web/app/api/ot/[id]/costo/route.ts
+  - apps/web/components/demo/admin/permisos.ts
   - apps/web/lib/roles.ts
   - apps/web/lib/guardas-usuarios.ts
   - apps/web/lib/server/usuarios-repo.ts
@@ -16,10 +19,10 @@ archivos:
   - apps/web/components/demo/shell/nav.ts
 ---
 
-# Los cuatro roles de venta, y los dos guards del Dueño
+# Los cuatro roles de venta, y los TRES guards del Dueño
 
-**ADR 0040**, primer tramo. Lo que hay aquí son **los roles, su matriz y los dos
-guards**. Los techos de descuento por rol, la autorización al aprobar y los
+**ADR 0040**, primer tramo, más las respuestas del dueño del mismo 2026-09-29.
+Lo que hay aquí son **los roles, su matriz y los TRES guards**. Los techos de descuento por rol, la autorización al aprobar y los
 descuentos preaprobados **no están construidos**: son los tramos siguientes.
 
 ## Qué entró
@@ -28,9 +31,10 @@ descuentos preaprobados **no están construidos**: son los tramos siguientes.
 |---|---|---|
 | Valores de `rol_demo` | 6 | **10** |
 | Roles CON permisos | 5 | **8** |
-| Filas de `rol_permisos` | 41 | **86** |
+| Filas de `rol_permisos` | 41 | **92** |
 | Módulos | 9 | **10** (entra `precios`) |
-| `DUENO` | 24 filas | **26** |
+| **Acciones** | 4 | **5** (entra `costear`) |
+| `DUENO` | 24 filas | **27** |
 | `COMERCIAL` | 5 filas | **0** |
 | `usuarios.rol` default | `'COMERCIAL'` | **`'VENDEDOR'`** |
 
@@ -108,20 +112,28 @@ de una pantalla, y sigue siendo inventario.
 
 | | administracion | arrendadores | comercial | dashboard | finanzas | imprenta | inventario | network | operaciones | precios |
 |---|---|---|---|---|---|---|---|---|---|---|
-| **DUENO** | v c a | v c a | v c a | v | v c f | v c a | v c a | v c | v c a | v c |
-| **ADMINISTRADOR** | v c a | v c a | v c a | v | v c f | v c a | v c a | v c | v c a | v c |
-| **DIRECTOR_COMERCIAL** | — | — | v c a | v | — | — | v | v | — | v c |
+| **DUENO** | v c a | v c a | v c a | v | v c f | v c a | v c a | v c | v c a **$** | v c |
+| **ADMINISTRADOR** | v c a | v c a | v c a | v | v c f | v c a | v c a | v c | v c a **$** | v c |
+| **DIRECTOR_COMERCIAL** | — | — | v c a | v | **v** | — | v | v | — | v c |
 | **GERENTE_VENTAS** | — | — | v c a | v | — | — | v | v | — | v c |
 | **VENDEDOR** | — | — | v c | v | — | — | v | v | — | **v** |
+| **OPERACIONES** | — | — | v | — | — | v | v | — | v c **$** | — |
+| **IMPRENTA** | — | — | — | — | — | v c | — | — | v | — |
+| **FINANZAS** | — | — | — | v | v c f | — | — | — | **v $** | — |
 | **COMERCIAL** | — | — | — | — | — | — | — | — | — | — |
 
-`v` = ver · `c` = crear · `a` = aprobar · `f` = facturar.
+`v` = ver · `c` = crear · `a` = aprobar · `f` = facturar · **`$` = costear**.
 
-> [!note] Hoy el director y el gerente tienen la MISMA matriz, y se dice en voz alta
-> Las tres diferencias que el ADR les pone —el techo por rol, quién autoriza al
-> aprobar y los preaprobados— son justo lo que este tramo no construye, y
-> **ninguna de las tres es un par (módulo, acción)**. Cuando lleguen, se separan
-> ahí.
+> [!note] El director y el gerente se diferencian en UNA fila: `finanzas.ver`
+> Contestado por el dueño el 2026-09-29 (pregunta 3 del ADR). El motivo es el
+> que el propio ADR escribió: **«aprobar un descuento sin ver cuánto margen deja
+> es firmar a ciegas»**. Se le dio la LECTURA y solo eso — ni `crear`
+> (registrar pagos) ni `facturar`, que es dinero irreversible (zona R4).
+>
+> Las OTRAS tres diferencias que el ADR les pone —el techo por rol, quién
+> autoriza al aprobar y los preaprobados— son justo lo que este tramo no
+> construye, y **ninguna de las tres es un par (módulo, acción)**: no caben en
+> esta tabla. Cuando lleguen, se separan donde vivan.
 
 > [!warning] Lo que la matriz NO puede decir, y queda como pregunta
 > El ADR quiere que el gerente cree **paquetes sin autorización** y **códigos
@@ -199,6 +211,90 @@ El `actorRol` es **obligatorio y sin valor por omisión**, a propósito: viene d
 sesión del servidor, nunca del cuerpo, y que el compilador lo pida es lo único que
 obliga a pensarlo a quien añada un tercer camino.
 
+## GUARD 3 · nadie nombra a un Dueño salvo un Dueño
+
+Dictado el 2026-09-29: *«nadie puede promover a nadie a dueño, solo el dueño»*.
+No es solo el administrador — es **todo rol**.
+
+**Cierra la salida del guard 1.** Sin él, un administrador al que se le prohíbe
+tocar a un Dueño podría **fabricarse uno aliado** y el guard 1 quedaría en nada.
+
+**Cubre LAS DOS puertas**, y ésa es la mitad que se escapa:
+
+| Puerta | Dónde | Qué pasa |
+|---|---|---|
+| `PATCH /api/usuarios/:id` con `rol: 'DUENO'` | `rechazoDelCambio` | 403 |
+| `POST /api/usuarios` con `rol: 'DUENO'` | `crearUsuarioCtrl` | 403 |
+
+Prohibir una y dejar la otra es la misma puerta con otro nombre.
+
+**Mira el ROL y no el permiso**, y eso es deliberado: `rol_permisos` son DATOS.
+Un Dueño puede conceder `administracion.crear` a cualquier rol sin tocar código
+—para que alguien dé de alta vendedores— y si el guard mirara el permiso, esa
+concesión abriría además la puerta de fabricar Dueños sin que nadie lo decidiera.
+Mismo razonamiento que el de renombrar la empresa.
+
+> [!danger] EL ARRANQUE NO PASA POR EL GUARD, y es a propósito
+> Cuando nace la **primera** organización de una instancia no hay ningún Dueño
+> que pueda autorizar nada: exigirlo dejaría el producto **imposible de
+> instalar**.
+>
+> La exención **no es una bandera ni un `if`** —eso sería frágil— sino una
+> separación de caminos: el guard vive en `crearUsuarioCtrl`, el alta **con
+> sesión**; y `crearOrgConDueno` (`lib/server/cuentas-controller.ts`) llama al
+> repo directamente porque no tiene actor.
+>
+> Lo fija `lib/arranque-sin-guard.test.ts`, que lee el código y se pone rojo si
+> alguien recablea `crearOrgConDueno` a través del controller «para no duplicar
+> el alta». Es un refactor que parece limpio y que en una instancia real se
+> manifiesta como «el alta no funciona» el día de la instalación.
+
+## `operaciones.costear` · Finanzas captura el costo de una OT
+
+Encargo del 2026-09-29, encima del ADR. El motivo es de oficio: **la factura de
+la cuadrilla le llega a Finanzas**, así que son ellos quienes saben lo que costó
+la visita. Hasta ese día FINANZAS tenía **cuatro filas** y ni una de
+`operaciones`, así que `PATCH /api/ot/:id/costo` les contestaba 403.
+
+**Por qué una acción nueva y no `operaciones.crear`:** porque `crear` en ese
+módulo **no es capturar un costo**, es **crear y CERRAR órdenes de trabajo**
+(`POST /api/ot` y `POST /api/ot/:id/cerrar`). Dárselo para que tecleen un importe
+les habría entregado el trabajo de campo entero.
+
+Quién la tiene: **DUENO, ADMINISTRADOR, OPERACIONES y FINANZAS**. Y a FINANZAS
+además `operaciones.ver`, porque la tarjeta de captura vive dentro de la vista de
+la OT: **no se puede costear lo que no se puede abrir**.
+
+> [!danger] Lo que `operaciones.ver` le abre de más a FINANZAS
+> Ese permiso gobierna **tres endpoints**, no solo la OT: `GET /api/ot`,
+> `GET /api/almacen` y `GET /api/energia/consumos`. Con la fila, Finanzas puede
+> **leer** el almacén y los recibos de luz de su propia organización. Las
+> pantallas no se les abren —el menú no les da entrada— pero el dato es
+> alcanzable por la API.
+>
+> Se acepta porque son lecturas operativas de la MISMA empresa (la RLS sigue
+> acotando por tenant) y porque partir `operaciones` en dos módulos es mucho más
+> caro. **Es una ampliación real** y está escrita, no descubierta después.
+
+> [!danger] Y había un CUARTO sitio con la lista de acciones escrita a mano
+> `components/demo/admin/permisos.ts` tenía `CAPACIDADES` con cuatro valores, y
+> la pantalla de Administración pinta las celdas con `CAPACIDADES.filter(...)`.
+> Una acción que la API exija y que falte ahí **no se ve en la matriz**: el Dueño
+> miraría `operaciones: V C A`, sin rastro de la quinta, y sin forma de saber que
+> la está concediendo ni de quitarla.
+>
+> Es la trampa del ADR 0010 con el signo cambiado. Ahora lo caza
+> `lib/rbac-coherencia.test.ts` comparando esa lista contra los `exigir(...)`
+> reales de los `route.ts`, en las dos direcciones.
+
+> [!warning] Y esto es de TODA LA FLOTA, no por empresa
+> `rol_permisos` **no tiene `tenant_id`** (primaria `(rol, modulo, accion)`). Lo
+> que se decide aquí aplica a g500 y a cualquier instancia futura, y **no hay
+> forma de que una empresa lo tenga distinto**. Es lo contrario de las
+> promociones del ADR 0039, que sí cuelgan de la organización. Si mañana una
+> empresa quiere que Finanzas NO costee, la única salida es borrar esa fila **en
+> su base**, a mano.
+
 ## El guard de RLS de la migración
 
 `usuarios` es fail-closed + FORCE. Si el rol que aplica la migración no saltara la
@@ -212,11 +308,23 @@ código 3 y la frase que dice qué hacer.
 
 - **¿Un vendedor puede aprobar una propuesta sin descuento?** El ADR lo deja como
   pregunta 8. Aquí el vendedor **no** tiene `comercial.aprobar` — fail-closed.
-- **¿El administrador puede PROMOVER a alguien a Dueño?** Hoy sí, con
-  `administracion.crear`. No se prohibió porque no se pidió.
+  Cerrada hasta que exista la regla de «con descuento solo el gerente».
 - **`ControlCambiosPanel.tsx`** sigue comprobando `rol === 'DUENO'` a mano: el
   administrador **no** ve el panel del candado de cambios. No estaba en la lista
-  de cuatro del ADR.
+  de cuatro del ADR, y **está devuelta al dueño** en vez de decidida aquí: ese
+  panel apaga el candado de los cambios sensibles, o sea **la segunda barrera
+  sobre el dinero**, y eso se parece más a las dos excepciones del administrador
+  que a «hace lo mismo que el dueño».
+- **¿El gerente de ventas debería ver `finanzas` también?** Hoy no: es la única
+  diferencia con el director, y el dueño la decidió así el 29/09.
+
+### Cerradas el 2026-09-29
+
+- ~~¿Se parte `precios` en paquetes y códigos?~~ **No.** El gerente conserva
+  `precios` entero, o sea que también crea cupones. Decisión consciente.
+- ~~¿El administrador puede promover a alguien a Dueño?~~ **No, y NADIE salvo un
+  Dueño.** Es el guard 3.
+- ~~¿El director comercial ve finanzas?~~ **Sí**, la lectura.
 
 ## Enlaces
 
