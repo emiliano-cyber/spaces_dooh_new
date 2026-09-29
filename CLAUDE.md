@@ -327,6 +327,32 @@ Están completas en `vault/06-Operacion/convenciones.md`. Lo mínimo:
 > Comprobado el 2026-08-13, y otra vez el 28/08 al abrir un worktree nuevo
 > desde `main`: el síntoma es idéntico y sigue sin decir nada del código.
 
+> [!danger] Y la tercera de la familia: MUTAR CONTRA LAS e2e SIN RECONSTRUIR
+> da «sobrevive» en FALSO — y es la peor, porque miente a favor
+> Encontrada el **2026-09-28** midiendo la Fase 3 del ADR 0039. Tres mutantes
+> dieron **SOBREVIVE**, incluido el que quitaba el `for update` que resuelve una
+> carrera por el último uso de un cupón. **Ninguno era un fallo de la prueba:**
+> `servidor-e2e.ts:31` arranca con `npx next start`, que **reutiliza el build y no
+> compila nada**, así que las e2e estaban ejerciendo **el código de antes de
+> mutar**.
+>
+> **Por qué es la peor de las tres.** Las otras dos de esta familia fallan hacia
+> el rojo: una página en blanco o doce e2e muertas se ven y se investigan. Ésta
+> falla **hacia el verde**: te dice que tu prueba no protege nada cuando en
+> realidad sí protege, y la reacción natural —reescribir la prueba para «que
+> muerda»— te deja peor de lo que estabas.
+>
+> **La regla, y no admite atajo:**
+>
+> ```
+> mutar → npm run build → npm run test:e2e → restaurar → npm run build
+> ```
+>
+> Un `npm run build` **por cada mutante**, antes de medirlo. Si eso es demasiado
+> caro para tu lote, **muta contra las unitarias y di en el informe que las e2e no
+> se mutaron** — que es lo que hizo la Fase 1, y es honesto. Lo que no vale es
+> mutar contra e2e sin reconstruir y apuntar el resultado.
+
 > [!danger] Y su hermana: reconstruir `.next` con un `next start` YA CORRIENDO
 > deja la página EN BLANCO, sin un solo error
 > Pasó el **2026-09-18** y costó un diagnóstico entero. El servidor arrancó con
