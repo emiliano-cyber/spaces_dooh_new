@@ -167,6 +167,30 @@ object SaludAnalisis {
         return out
     }
 
+    /**
+     * El tramo seguido mas largo de una vuelta: las posiciones de los vistazos
+     * tomados en la MISMA sesion de camara. Si empatan, el ultimo.
+     *
+     * Hace falta porque la vigilancia fija la exposicion al abrir la camara, y si
+     * a mitad de la vuelta alguien abre la vista en vivo o pide una foto, la
+     * camara se cierra y al reabrirse fija la exposicion a OTRO nivel. Una zona
+     * tapada que no cambia salta de brillo de un tramo al otro y parece "activa"
+     * (28-sep 16:42: la columna tapada subio de 0.03 a 0.18 y casi no se vio).
+     * Solo se juzga con el tramo mas largo; nunca se mezclan dos exposiciones.
+     */
+    fun tramoMasLargo(sesiones: List<Int>): IntRange {
+        if (sesiones.isEmpty()) return IntRange.EMPTY
+        var mejor = 0..0
+        var inicio = 0
+        for (i in 1..sesiones.size) {
+            if (i == sesiones.size || sesiones[i] != sesiones[i - 1]) {
+                if (i - inicio >= mejor.last - mejor.first + 1) mejor = inicio until i
+                inicio = i
+            }
+        }
+        return mejor
+    }
+
     /** Percentil con interpolacion lineal (igual que numpy.percentile). */
     fun percentil(v: List<Double>, p: Double): Double {
         val s = v.sorted()

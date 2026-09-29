@@ -257,6 +257,10 @@ class Monitor(
         var reconocibles = 0
 
         val vistazos = mutableListOf<Vistazo>()
+        // En que sesion de camara se tomo cada vistazo: cada vez que la camara se
+        // reabre a mitad de vuelta la exposicion se fija a otro nivel.
+        val sesiones = mutableListOf<Int>()
+        var sesion = 0
         var saltados = 0
         var abierta = false
         try {
@@ -269,6 +273,7 @@ class Monitor(
                 if (!abierta) {
                     abierta = camara.abrir(lente, zoom)
                     if (!abierta) { saltados++; delay(pasoMs); continue }
+                    sesion++
                 }
                 val tomas = mutableListOf<ByteArray>()
                 repeat(TOMAS) { camara.tomar()?.let { tomas.add(it) } }
@@ -305,6 +310,7 @@ class Monitor(
                 }
                 v.pantalla.release()
                 vistazos.add(v)
+                sesiones.add(sesion)
 
                 val queda = fin - System.currentTimeMillis()
                 if (queda <= 0) break
@@ -342,11 +348,16 @@ class Monitor(
             }
         }
 
-        if (sCfg != null) salud(r, sCfg, geo, firmaEncuadre, giro, vistazos)
+        if (sCfg != null) salud(r, sCfg, geo, firmaEncuadre, giro, vistazos, sesiones)
         vistazos.forEach { it.marco.release() }
     }
 
-    private fun salud(r: JSONObject, cfg: JSONObject, geo: Geometria, firmaEncuadre: String, giro: Int, vistazos: List<Vistazo>) {
+    private fun salud(r: JSONObject, cfg: JSONObject, geo: Geometria, firmaEncuadre: String, giro: Int,
+                      todos: List<Vistazo>, sesiones: List<Int>) {
+        // Solo el tramo mas largo con la misma exposicion (ver tramoMasLargo).
+        val tramo = SaludAnalisis.tramoMasLargo(sesiones)
+        val vistazos = if (tramo.isEmpty()) emptyList() else todos.slice(tramo)
+        val interrumpida = sesiones.distinct().size > 1
         // Lo aprendido vale para UN encuadre y UNA cuadricula.
         val desdeServidor = cfg.optString("desde")
         if (firmaSeguimiento != firmaEncuadre + "|" + desdeServidor) {
@@ -429,7 +440,9 @@ class Monitor(
             .put("ts", System.currentTimeMillis())
             .put("pantalla", resultado?.pantalla?.name ?: "INCONCLUSO")
             .put("camara", camaraEstado.name)
-            .put("vistazos", vistazos.size)
+            .put("vistazos", todos.size)
+            .put("vistazos_usados", vistazos.size)
+            .put("interrumpida", interrumpida)
             .put("cambios", resultado?.cambios ?: 0)
             .put("aprendiendo", aprendiendo)
             // Si Android le niega la camara en segundo plano, la vuelta no ve nada

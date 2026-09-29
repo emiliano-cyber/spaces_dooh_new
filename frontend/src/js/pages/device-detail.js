@@ -429,7 +429,11 @@ function deviceDetail() {
       const cuando = this.fechaCorta(u.ts || u.recibido);
       const pantalla = { OK: 'se ve bien', APAGADA: 'apagada', CONGELADA: 'congelada', INCONCLUSO: 'no se pudo juzgar' }[u.pantalla] || u.pantalla;
       const camara = { MOVIDA: ' · la cámara se movió', SIN_IMAGEN: ' · sin imagen' }[u.camara] || '';
-      return `Última revisión ${cuando}: pantalla ${pantalla}${camara} (${u.vistazos} vistazos, ${u.cambios} cambios de anuncio).`;
+      // Si alguien abrio la vista en vivo o pidio una foto a mitad de la vuelta,
+      // solo se juzgo con el tramo mas largo: se dice, para que no sorprenda.
+      const corte = u.interrumpida && u.vistazos_usados != null
+        ? ` La vuelta se interrumpió (vista en vivo o una foto): se usaron ${u.vistazos_usados} de ${u.vistazos} vistazos.` : '';
+      return `Última revisión ${cuando}: pantalla ${pantalla}${camara} (${u.vistazos} vistazos, ${u.cambios} cambios de anuncio).${corte}`;
     },
 
     // Zonas que el equipo aprendio que NUNCA cambian: tapadas... o ya muertas al instalar.

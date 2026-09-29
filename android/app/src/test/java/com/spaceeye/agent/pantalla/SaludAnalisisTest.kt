@@ -185,6 +185,35 @@ class SaludAnalisisTest {
     }
 
     @Test
+    fun elTramoMasLargo() {
+        assertEquals(3..6, SaludAnalisis.tramoMasLargo(listOf(1, 1, 1, 2, 2, 2, 2, 3)))
+        assertEquals(0..3, SaludAnalisis.tramoMasLargo(listOf(1, 1, 1, 1)))
+        assertEquals(2..3, SaludAnalisis.tramoMasLargo(listOf(1, 1, 2, 2)))   // empate: el ultimo
+        assertTrue(SaludAnalisis.tramoMasLargo(emptyList()).isEmpty())
+    }
+
+    @Test
+    fun unaVueltaInterrumpidaSeJuzgaConSuTramoMasLargo() {
+        // Lo que paso el 28-sep a las 16:42: a mitad de la vuelta se abrio la vista
+        // en vivo; al volver, la camara fijo la exposicion un 35% mas alta. La
+        // columna tapada (gris quieto) salta de brillo entre los dos tramos.
+        val derecha = (0 until 5).map { it to 2 }
+        val sesiones = List(tlalpan.size) { if (it < 5) 1 else 2 }
+        val vuelta = tlalpan.mapIndexed { k, t ->
+            val g = if (sesiones[k] == 2) 1.35 else 1.0
+            val px = DoubleArray(t.px.size) { i -> minOf(255.0, t.px[i] * g) }
+            for ((f, c) in derecha)
+                for (y in (f * t.alto / 5) until ((f + 1) * t.alto / 5))
+                    for (x in (c * t.ancho / 3) until ((c + 1) * t.ancho / 3)) px[y * t.ancho + x] = 45.0 * g
+            Imagen(px, t.ancho, t.alto)
+        }
+        val tramo = SaludAnalisis.tramoMasLargo(sesiones)
+        val z = SaludAnalisis.analizar(vuelta.slice(tramo), 5, 3).zonas.single()
+        assertEquals(derecha.toSet(), z.grupo.toSet())
+        assertTrue("confianza ${z.confianza}", z.confianza >= 0.6)
+    }
+
+    @Test
     fun enCuadricula5x3SinFallaNoAlarma() {
         for (base in listOf(dublan, tlalpan)) assertTrue(SaludAnalisis.analizar(base, 5, 3).zonas.isEmpty())
     }
