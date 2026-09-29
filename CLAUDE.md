@@ -33,13 +33,13 @@ En `docs/` viven: los **ADR** (`docs/adr/`, van por la **0040**), los **planes**
 
 ### Qué es, técnicamente
 
-**90 notas Markdown** en `vault/`, enlazadas entre sí con wikilinks. Está pensada
+**91 notas Markdown** en `vault/`, enlazadas entre sí con wikilinks. Está pensada
 para abrirse con Obsidian, pero **no hay carpeta `.obsidian/` en el repositorio**:
 no se versiona configuración de la herramienta. Consecuencia práctica: la bóveda es
 Markdown puro y **se lee igual desde un editor, desde `cat` o desde un agente**. No
 necesitas instalar nada.
 
-Al 2026-09-29 tiene **1161 enlaces internos** sobre **90 notas**, con **2
+Al 2026-09-29 tiene **1166 enlaces internos** sobre **91 notas**, con **2
 wikilinks rotos** —los dos apuntan a ADR, que viven en `docs/` y no en la
 bóveda, así que es un choque de convención más que un enlace muerto— y
 **0 notas huérfanas**. Medido con `node scripts/recuentos.mjs` **en este
@@ -127,7 +127,7 @@ código, no de memoria:
 | Framework | Next.js 14.2.29, App Router | `apps/web/package.json:17` |
 | Base de datos | PostgreSQL, `pg` directo (sin ORM) | `apps/web/lib/server/db.ts:2` |
 | Aislamiento | RLS de Postgres por `app.tenant_id` | `apps/web/lib/server/db.ts:60` y `:79` |
-| Endpoints | **115** route handlers | `apps/web/app/api/**/route.ts` |
+| Endpoints | **116** route handlers | `apps/web/app/api/**/route.ts` |
 | Tablas | **55** | `vault/04-Datos/esquema.md` |
 | Migraciones | **95** | `vault/04-Datos/migraciones.md` |
 

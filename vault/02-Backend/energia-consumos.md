@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-09-21
+actualizado: 2026-09-29
 tags: [backend, energia, luz, reportes, rentabilidad, captura, operaciones, dinero, rojo]
 archivos:
   - db/migrations/20260918_consumos_energia.sql
@@ -16,6 +16,8 @@ archivos:
   - apps/web/lib/data/reportes.ts
   - apps/web/lib/data/derive.ts
   - apps/web/lib/test/energia-consumos.e2e.test.ts
+  - apps/web/lib/server/recibos-cfe/cifras.ts
+  - apps/web/components/demo/energia/SubirRecibos.tsx
 ---
 
 # Consumo de luz — la captura y la quinta dimensión
@@ -259,6 +261,37 @@ afirmaría que ese mes no se gastó luz y una celda en blanco no diría nada.
 recibo, así que sin borrado un importe con un cero de más **infla el costo de un
 mes para siempre**. Pide `aprobar`, igual que el borrado de licencias.
 
+> [!success] 2026-09-29 · Y ahora se puede SUBIR EL PDF del recibo
+> Debajo del formulario, no encima: quien tiene un recibo en la mano sigue
+> teniendo el camino de teclearlo, que es el rápido para uno. La subida gana
+> cuando son muchos — y en el lote del cliente son 72.
+>
+> **No guarda nada**: lee los PDF en el servidor y **propone** los renglones,
+> con lo leído al lado, para que una persona los confirme por el mismo
+> `POST /api/energia/consumos` de siempre. Todo el detalle —las dos
+> codificaciones del PDF, por qué el `Total` del recibo NO es el costo del
+> periodo, el reparto en meses y el emparejamiento sin tocar el esquema— está en
+> [[02-Backend/recibos-cfe-pdf]].
+
+> [!danger] 2026-09-29 · El CERO dejó de valer, y esto CAMBIA lo de antes
+> Hasta esa fecha esta nota y el código decían que **el cero era un dato
+> válido** —«un medidor que no giró es un hecho»— y `motivoInvalidoDelRecibo`
+> solo rechazaba los negativos. **El dueño lo cambió**: ni los kWh ni el importe
+> se aceptan en **cero ni en negativo**, vengan de donde vengan.
+>
+> El motivo es el mismo que sostiene toda esta pantalla: **un cero no dice «no
+> sé», dice «no consumió luz»**, y dentro del reporte de rentabilidad esos dos
+> hechos son exactamente el mismo número. Una vez guardado no hay forma de
+> separarlos.
+>
+> La regla vive en `lib/server/recibos-cfe/cifras.ts` (`cifraDeRecibo`) y la usa
+> el schema de `energia-controller.ts`, así que **corta también por la ruta
+> directa** y no solo desde la pantalla. `captura.ts` la repite para que el
+> botón no deje intentarlo.
+>
+> **La base sigue admitiendo el cero**: `consumo_energia_cifras_ck` es
+> `kwh >= 0`, y apretarlo pide una migración nueva. Hoy corta la aplicación.
+
 > [!danger] 2026-09-21 · Ese `aprobar` tenía un modo de fallo que MENTÍA, y una
 > puerta sin confirmación. Las dos corregidas
 > Las encontró el recorrido del manual del 18/09 (**B32** y **B33** de
@@ -490,7 +523,7 @@ dos mundos.
 ---
 
 ## Relacionadas
-[[02-Backend/reportes-rentabilidad]] · [[02-Backend/reportes-dimensiones]] ·
+[[02-Backend/recibos-cfe-pdf]] · [[02-Backend/reportes-rentabilidad]] · [[02-Backend/reportes-dimensiones]] ·
 [[03-Frontend/pantalla-reportes]] · [[02-Backend/arrendadores-y-contratos]] ·
 [[02-Backend/inventario-y-sitios]] · [[multi-tenancy-y-rls]] ·
 [[zonas-de-riesgo]] · [[convenciones]] · [[MOC-Proyecto]]

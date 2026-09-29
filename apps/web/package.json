@@ -35,6 +35,7 @@
     "@radix-ui/react-tooltip": "^1.1.6",
     "xlsx": "^0.18.5",
     "pg": "^8.13.1",
+    "pdfjs-dist": "^4.10.38",
     "bcryptjs": "^2.4.3",
     "sonner": "^2.0.7",
     "@aws-sdk/client-s3": "^3.1026.0",

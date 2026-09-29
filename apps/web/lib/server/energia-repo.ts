@@ -131,6 +131,56 @@ export async function puntosDeMedicion(): Promise<PuntoDeMedicion[]> {
   }))
 }
 
+/**
+ * Los recibos ya capturados de UNOS NUMEROS DE SERVICIO, los mas recientes
+ * primero.
+ *
+ * Es lo que sostiene la subida de PDF sin tocar el esquema, y hace dos trabajos
+ * con una sola consulta:
+ *
+ *  1. **Emparejar.** Nada en la base guarda el numero de servicio de un predio.
+ *     Pero `consumos_energia.medidor` SI lo guarda en cuanto se captura el
+ *     primer recibo de ese servicio, asi que el predio se hereda del historial.
+ *     La primera vez de cada servicio la elige una persona; las siguientes
+ *     salen solas.
+ *  2. **Detectar el duplicado ANTES de guardar.** El indice unico lo corta
+ *     igual, pero a toro pasado: devuelve un 409 despues de darle a guardar. Con
+ *     esto la pantalla enseña «este mes ya esta capturado, con estas cifras»
+ *     mientras la persona todavia esta mirando el recibo.
+ *
+ * El orden es `periodo desc` a proposito: el primero de la lista es el mas
+ * reciente, y es de ese del que se hereda el anclaje — si la pantalla cambio de
+ * predio, lo ultimo capturado es lo que vale.
+ *
+ * Con la lista vacia devuelve vacio sin consultar: `= any('{}')` no devolveria
+ * filas, pero tampoco hay por que ir a la base a preguntarlo.
+ */
+export async function consumosPorServicios(numeros: string[]): Promise<ConsumoEnergia[]> {
+  if (numeros.length === 0) return []
+  const tenantId = await tenantActual()
+  const filas = await q<any>(
+    `select id, predio_id, sitio_id, medidor, kwh, importe, notas,
+            to_char(periodo,   'YYYY-MM-DD') as periodo,
+            to_char(creado_en, 'YYYY-MM-DD') as creado_en
+       from consumos_energia
+      where tenant_id = $1
+        and medidor = any($2::text[])
+      order by periodo desc, creado_en desc`,
+    [tenantId, numeros],
+  )
+  return filas.map((r) => ({
+    id: r.id,
+    predioId: r.predio_id ?? null,
+    sitioId: r.sitio_id ?? null,
+    periodo: r.periodo,
+    medidor: r.medidor ?? null,
+    kwh: num(r.kwh),
+    importe: num(r.importe),
+    notas: r.notas ?? null,
+    creadoEn: r.creado_en,
+  }))
+}
+
 export interface NuevoConsumo {
   predioId: string | null
   sitioId: string | null
