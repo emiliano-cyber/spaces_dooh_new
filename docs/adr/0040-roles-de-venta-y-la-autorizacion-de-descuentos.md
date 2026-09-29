@@ -9,8 +9,8 @@
 
 ## Lo que se pidió
 
-Tres roles nuevos —**director comercial**, **gerente de ventas** y **vendedor**—
-con estas reglas:
+**Cuatro** roles nuevos —**administrador**, **director comercial**, **gerente de
+ventas** y **vendedor**— con estas reglas:
 
 - Generar **descuentos**, **códigos promocionales** y **crear paquetes** va **con
   autorización del director comercial**.
@@ -40,18 +40,18 @@ después) y una **bitácora del vendedor** para prospectos, citas y seguimiento.
 
 ## El reparto entre los cuatro roles
 
-| | **Director comercial** | **Gerente de ventas** | **Vendedor** |
-|---|---|---|---|
-| Cotizar (propuestas) | sí | sí | **sí** |
-| Descuento **dentro de su techo** | sí | sí | **sí** |
-| Descuento **por encima de su techo** | — | su propuesta **la aprueba otro** | su propuesta **la aprueba otro** |
-| Aplicar un **código existente** | sí | sí | **sí** |
-| **Crear** códigos promocionales | sí | **pide autorización** | no |
-| **Crear** paquetes cerrados | sí | **sí, SIN autorización** | no |
-| **Crear** escalas de volumen | sí | **pide autorización** | no |
-| **Aprobar una propuesta CON descuento** | **sí** | **sí** | no |
-| Aprobar una propuesta **sin** descuento | sí | sí | **sí** (→ pregunta 8) |
-| Fijar los techos de cada rol | sí | no | no |
+| | **Administrador** | **Director comercial** | **Gerente de ventas** | **Vendedor** |
+|---|---|---|---|---|
+| Cotizar (propuestas) | sí | sí | sí | **sí** |
+| Descuento **dentro de su techo** | sí | sí | sí | **sí** |
+| Descuento **por encima de su techo** | sí | — | su propuesta **la aprueba otro** | su propuesta **la aprueba otro** |
+| Aplicar un **código existente** | sí | sí | sí | **sí** |
+| **Crear** códigos promocionales | sí | sí | **pide autorización** | no |
+| **Crear** paquetes cerrados | sí | sí | **sí, SIN autorización** | no |
+| **Crear** escalas de volumen | sí | sí | **pide autorización** | no |
+| **Aprobar una propuesta CON descuento** | sí | **sí** | **sí** | no |
+| Aprobar una propuesta **sin** descuento | sí | sí | sí | **sí** (→ pregunta 8) |
+| Fijar los techos de cada rol | sí | sí | no | no |
 
 **El gerente crea paquetes sin pedir permiso y códigos pidiéndolo, y eso no es
 una incoherencia:** un paquete es un precio cerrado para una venta concreta, y un
@@ -111,9 +111,35 @@ Tres se responden solas con este modelo, y dos siguen siendo decisiones:
 | ¿Quién aprueba si el gerente no está? | **Sigue abierta.** Propuesto: el Dueño siempre puede |
 | ¿Se puede aprobar MENOS de lo pedido? | **Sigue abierta**, y ahora significa que el aprobador **edita el descuento y aprueba**. Editarlo sube la versión, así que el rastro queda |
 
-**¿Quién es «el administrador»?** En este producto el rol de más arriba es
-**DUENO**. Si «administrador» es el Dueño, la regla queda cerrada; si es otra
-figura, falta un rol que nadie ha nombrado. → **Pregunta 6**.
+### «El administrador» es un CUARTO rol, no el Dueño
+
+Precisado el 2026-09-29: *«el administrador no es el dueño, pero puede hacer las
+mismas cosas que él»*. Son **cuatro** roles nuevos, no tres.
+
+**Y «las mismas cosas» no se puede dar por sentado, porque medido hoy hay CUATRO
+sitios donde `DUENO` está escrito a mano, FUERA de la matriz de permisos.**
+Copiarle al administrador las 24 filas de `rol_permisos` **no le daría ninguno**:
+
+| Dónde | Qué guarda | ¿El administrador? |
+|---|---|---|
+| `lib/server/tenant.ts:61` (`puedeCambiarCrm`) | **Cambiar de organización** — el super-admin de la plataforma | **Yo diría que NO.** Es de flota, no de empresa |
+| `lib/server/tenant.ts:37` | El mismo salto, por otra vía | idem |
+| `configuracion/page.tsx:25` | Editar **los datos de la empresa** | Probablemente sí |
+| `inventario/page.tsx:57` | La pantalla de Inventario entera, *«exclusiva del Dueño»* | Probablemente sí |
+
+> [!danger] Y la pregunta de gobierno que hay que contestar antes de crear el rol
+> `administracion: crear` incluye **dar de alta y de baja usuarios**. Si el
+> administrador la tiene, **puede quitarle el acceso al Dueño**.
+>
+> Eso puede ser exactamente lo que se quiere —un administrador de verdad— o un
+> disparo en el pie. Lo que no vale es descubrirlo el día que pasa: **un rol de
+> enum no se puede quitar de Postgres**, así que el reparto con el que nazca es
+> el que se arrastra.
+>
+> Lo mínimo razonable: **que nadie pueda quitarse a sí mismo ni al último Dueño**.
+> Hoy eso no existe y no se ha comprobado si `borrarUsuario` lo impide.
+
+→ **Preguntas 6a a 6c.**
 
 ---
 
@@ -181,8 +207,13 @@ firma su jefe»— y es verdad, no una promesa.
    encima. **Dos niveles cuestan poco más que uno si se diseñan juntos, y mucho
    más si se añaden después.**
 5. **La calculadora: ¿qué calcula?** Sin la lógica no se puede ni dimensionar.
-6. **¿Quién es «el administrador»?** Si es el Dueño, la regla queda cerrada. Si es
-   otra figura, falta un rol que nadie ha nombrado.
+6. **El administrador**, ahora en tres partes:
+   - **6a** · ¿Puede **cambiar de organización** (el salto de plataforma)? Yo diría
+     que no: eso es de flota, no de empresa.
+   - **6b** · ¿Puede **dar de baja usuarios**, incluido el Dueño? Con
+     `administracion: crear` puede. ¿Es lo que se quiere?
+   - **6c** · ¿Debería impedirse **quedarse sin ningún Dueño**? Hoy nada lo
+     impide y no se ha comprobado.
 7. **¿Qué condiciones admite un preaprobado?** Por arrendador y por volumen son
    las dos nombradas. Por cliente, por franja, por temporada o por tipo de medio
    son posibles y **cada una encarece**. Y la regla que no se negocia: **una
