@@ -9,6 +9,7 @@
     "migrate": "tsx scripts/migrate.ts",
     "prueba:horarios": "tsx scripts/prueba-horarios.ts",
     "prueba:captura-instancia": "tsx scripts/prueba-captura-instancia.ts",
+    "revisar:relojes": "tsx scripts/revisar-relojes.ts",
     "prueba:monitoreo": "tsx scripts/prueba-monitoreo.ts",
     "script:create-admin": "tsx scripts/create-admin.ts"
   },
