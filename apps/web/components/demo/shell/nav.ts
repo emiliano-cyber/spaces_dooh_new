@@ -109,24 +109,6 @@ export const NAV: NavItem[] = [
   // `inventario` (`lib/modulos.ts`), igual que el guard de sus endpoints —
   // declararla en otro sería declarar una mentira en la matriz de permisos.
   { key: 'franjas-y-temporadas', label: 'Franjas y temporadas', href: '/franjas-y-temporadas', icon: Clock, roles: ['DUENO'], grupo: 'patrimonio' },
-  // VOL-01 · la escala de volumen (ADR 0039, Fase 2). Pantalla PROPIA y no una
-  // sección de la de arriba: aquélla declara de dónde sale el precio, ésta un
-  // descuento que se aplica encima. Mismo grupo y mismo módulo —`inventario`,
-  // como su endpoint— por el mismo razonamiento.
-  { key: 'descuentos-por-volumen', label: 'Descuentos por volumen', href: '/descuentos-por-volumen', icon: Layers, roles: ['DUENO'], grupo: 'patrimonio' },
-  // COD-01 · los codigos promocionales (ADR 0039, Fase 3). Pantalla PROPIA y no
-  // una seccion de la de arriba: el volumen es una regla interna que se aplica
-  // sola, y un codigo es una CAMPANA que se le promete a un cliente por su
-  // nombre, con fecha de caducidad y cupo. Mismo grupo y mismo modulo
-  // --`inventario`, como su endpoint-- por el mismo razonamiento.
-  { key: 'codigos-promocionales', label: 'Codigos promocionales', href: '/codigos-promocionales', icon: Ticket, roles: ['DUENO'], grupo: 'patrimonio' },
-  // PAQ-01 · los paquetes cerrados (ADR 0039, Fase 4). Pantalla PROPIA, y aqui
-  // el motivo es mas fuerte que en las dos de arriba: aquellas son DESCUENTOS
-  // sobre un precio, y un paquete SUSTITUYE el precio. Ponerlo con ellas haria
-  // creer que es una rebaja mas, y esa confusion se paga al leer un reporte de
-  // descuentos donde el paquete no aparece. Mismo grupo y mismo modulo
-  // --`inventario`, como su endpoint-- por el mismo razonamiento.
-  { key: 'paquetes', label: 'Paquetes cerrados', href: '/paquetes', icon: Package, roles: ['DUENO'], grupo: 'patrimonio' },
   // Arrendadores va pegado a Inventario y no suelto en medio del ciclo
   // comercial: una pantalla no es tuya, es de alguien que te la renta, y el
   // contrato con ese alguien es lo que te deja venderla (ADR 0003).
@@ -140,6 +122,38 @@ export const NAV: NavItem[] = [
   { key: 'comercial', label: 'Comercial', href: '/comercial', icon: Map, roles: ['DUENO', 'COMERCIAL'], grupo: 'vender' },
   { key: 'disponibilidad', label: 'Disponibilidad', href: '/disponibilidad', icon: CalendarRange, roles: ['DUENO', 'COMERCIAL'], grupo: 'vender' },
   { key: 'propuestas', label: 'Propuestas', href: '/propuestas', icon: FileText, roles: ['DUENO', 'COMERCIAL'], grupo: 'vender' },
+  // ─── Las tres de abajo van en COMERCIAL, no en Inventario ──────────────────
+  //
+  // Decidido por el dueno el 2026-09-29: «todo lo de descuentos por volumen,
+  // paquetes y codigos van en comercial, no inventario».
+  //
+  // Nacieron en `patrimonio` porque su endpoint pide el modulo `inventario`, y
+  // ese fue el error de razonamiento: el PERMISO dice quien puede tocarlas, no
+  // de quien es el trabajo. Un descuento por volumen, un cupon y un paquete son
+  // decisiones de VENTA -- las usa quien cotiza, no quien da de alta pantallas.
+  //
+  // Lo que NO se movio es «Franjas y temporadas»: eso define de donde sale la
+  // TARIFA de una pantalla, y una tarifa vive con la pantalla. Si tambien se
+  // quiere en Comercial, es una linea.
+  //
+  // VOL-01 · la escala de volumen (ADR 0039, Fase 2). Pantalla PROPIA y no una
+  // sección de la de arriba: aquélla declara de dónde sale el precio, ésta un
+  // descuento que se aplica encima. Mismo grupo y mismo módulo —`inventario`,
+  // como su endpoint— por el mismo razonamiento.
+  { key: 'descuentos-por-volumen', label: 'Descuentos por volumen', href: '/descuentos-por-volumen', icon: Layers, roles: ['DUENO'], grupo: 'vender' },
+  // COD-01 · los codigos promocionales (ADR 0039, Fase 3). Pantalla PROPIA y no
+  // una seccion de la de arriba: el volumen es una regla interna que se aplica
+  // sola, y un codigo es una CAMPANA que se le promete a un cliente por su
+  // nombre, con fecha de caducidad y cupo. Mismo grupo y mismo modulo
+  // --`inventario`, como su endpoint-- por el mismo razonamiento.
+  { key: 'codigos-promocionales', label: 'Codigos promocionales', href: '/codigos-promocionales', icon: Ticket, roles: ['DUENO'], grupo: 'vender' },
+  // PAQ-01 · los paquetes cerrados (ADR 0039, Fase 4). Pantalla PROPIA, y aqui
+  // el motivo es mas fuerte que en las dos de arriba: aquellas son DESCUENTOS
+  // sobre un precio, y un paquete SUSTITUYE el precio. Ponerlo con ellas haria
+  // creer que es una rebaja mas, y esa confusion se paga al leer un reporte de
+  // descuentos donde el paquete no aparece. Mismo grupo y mismo modulo
+  // --`inventario`, como su endpoint-- por el mismo razonamiento.
+  { key: 'paquetes', label: 'Paquetes cerrados', href: '/paquetes', icon: Package, roles: ['DUENO'], grupo: 'vender' },
   // Creativos cierra el tramo comercial desde el 2026-09-28, y venía de
   // «Operaciones». El cambio lo pidió un dueño con una pregunta literal:
   // «¿puedo programar las pautas desde el módulo de ventas?». La respuesta era
