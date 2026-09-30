@@ -2,7 +2,21 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Lock, LockOpen, ArrowRight, ShieldCheck, Search, Megaphone } from 'lucide-react'
+import {
+  Lock,
+  LockOpen,
+  ArrowRight,
+  ShieldCheck,
+  Search,
+  Megaphone,
+  ChevronDown,
+  ChevronUp,
+  EyeOff,
+  Eye,
+  Minimize2,
+  Maximize2,
+} from 'lucide-react'
+import { useVistaCampanas } from '@/lib/campanas-vista'
 import { Card } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
 import { EmptyState } from '@/components/demo/EmptyState'
@@ -36,6 +50,10 @@ export default function CampanasPage() {
   // Filtro: texto (nombre / folio / cliente) + estado comercial.
   const [q, setQ] = useState('')
   const [estado, setEstado] = useState('')
+  // Vista compacta, tarjetas minimizadas y campañas ocultas: preferencia de
+  // ESTE navegador (lib/campanas-vista.ts). Ocultar no archiva nada.
+  const { vista, alternarCompacta, alternarMinimizada, alternarOculta, mostrarTodas } =
+    useVistaCampanas()
   const term = q.trim().toLowerCase()
   const hayFiltro = term !== '' || estado !== ''
   const filtradas = (campanas ?? [])
@@ -58,6 +76,18 @@ export default function CampanasPage() {
       b.campana.creadoEn.localeCompare(a.campana.creadoEn) ||
       b.campana.folio.localeCompare(a.campana.folio),
     )
+  // Las ocultas se quitan DESPUÉS del filtro, y se cuentan sobre lo filtrado:
+  // «Mostrar ocultas (3)» tiene que hablar de las que esta búsqueda escondería.
+  const visibles = filtradas.filter(({ campana }) => !vista.ocultas.includes(campana.id))
+  const ocultasAqui = filtradas.length - visibles.length
+
+  // La tarjeta entera es un enlace al detalle: un botón dentro tiene que
+  // impedir la navegación, o minimizar abriría la campaña.
+  const sinNavegar = (fn: () => void) => (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    fn()
+  }
 
   return (
     <div className="w-full space-y-4">
@@ -129,9 +159,27 @@ export default function CampanasPage() {
             </option>
           ))}
         </select>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={alternarCompacta}
+          aria-pressed={vista.compacta}
+          title={vista.compacta ? 'Volver a mostrar el pipeline de cada campaña' : 'Esconder los pipelines: una fila por campaña'}
+        >
+          {vista.compacta ? (
+            <><Maximize2 className="mr-1 h-3.5 w-3.5" /> Mostrar pipelines</>
+          ) : (
+            <><Minimize2 className="mr-1 h-3.5 w-3.5" /> Vista compacta</>
+          )}
+        </Button>
+        {ocultasAqui > 0 && (
+          <Button variant="secondary" size="sm" onClick={mostrarTodas}>
+            <Eye className="mr-1 h-3.5 w-3.5" /> Mostrar ocultas ({ocultasAqui})
+          </Button>
+        )}
         {campanas && (
           <span className="demo-num ml-auto text-[12px] text-muted">
-            {filtradas.length} de {campanas.length}
+            {visibles.length} de {campanas.length}
           </span>
         )}
       </div>
@@ -183,16 +231,28 @@ export default function CampanasPage() {
             }
           />
         )
+      ) : visibles.length === 0 ? (
+        /* Tercer vacío: hay campañas, pero todas las que coinciden están
+           ocultas. Sin esto la pantalla diría «no hay nada» con campañas
+           escondidas por uno mismo. */
+        <EmptyState
+          icon={EyeOff}
+          titulo="Ocultaste todas las campañas de esta vista"
+          detalle="Ocultar solo las quita de tu lista en este navegador: siguen activas para todos."
+          accion={<Button onClick={mostrarTodas}>Mostrar ocultas ({ocultasAqui})</Button>}
+        />
       ) : (
-        <ul className="space-y-3">
-          {filtradas.map(({ campana: c, clienteNombre, etapa, index, totalPasos, candado }) => {
+        <ul className={cn(vista.compacta ? 'space-y-1.5' : 'space-y-3')}>
+          {visibles.map(({ campana: c, clienteNombre, etapa, index, totalPasos, candado }) => {
             const hilo = c.id === 'camp-telco'
+            const minimizada = vista.compacta || vista.minimizadas.includes(c.id)
             return (
               <li key={c.id}>
                 <Link href={`/campanas/${c.id}`}>
                   <Card
                     className={cn(
-                      'p-4 transition-colors duration-150 hover:border-border-strong',
+                      minimizada ? 'px-4 py-2.5' : 'p-4',
+                      'transition-colors duration-150 hover:border-border-strong',
                       hilo && 'border-accent/60 bg-[#f59e0b08]',
                     )}
                   >
@@ -244,10 +304,39 @@ export default function CampanasPage() {
                         ) : (
                           <Lock className="h-4 w-4 text-muted" strokeWidth={1.75} />
                         )}
+                        {minimizada && (
+                          <span className="demo-num text-[12px] text-muted">
+                            {ETAPA_LABEL[etapa]} · {index + 1}/{totalPasos}
+                          </span>
+                        )}
+                        {/* En vista compacta minimizar una sola no tiene
+                            sentido: ya están todas. */}
+                        {!vista.compacta && (
+                          <button
+                            type="button"
+                            onClick={sinNavegar(() => alternarMinimizada(c.id))}
+                            aria-label={minimizada ? 'Mostrar el pipeline' : 'Minimizar'}
+                            title={minimizada ? 'Mostrar el pipeline' : 'Minimizar esta campaña'}
+                            className="rounded p-1 text-muted hover:bg-surface-2 hover:text-ink"
+                          >
+                            {minimizada ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={sinNavegar(() => alternarOculta(c.id))}
+                          aria-label="Ocultar de mi lista"
+                          title="Ocultar de mi lista (solo en este navegador; la campaña sigue igual para todos)"
+                          className="rounded p-1 text-muted hover:bg-surface-2 hover:text-ink"
+                        >
+                          <EyeOff className="h-4 w-4" />
+                        </button>
                       </div>
                     </div>
 
-                    {/* Progreso del pipeline: TODAS las etapas y cómo van */}
+                    {/* Progreso del pipeline: TODAS las etapas y cómo van.
+                        Minimizada, la etapa actual ya va en la cabecera. */}
+                    {!minimizada && (<>
                     <div className="mt-3">
                       <div className="mb-2 flex items-center justify-between text-[12px]">
                         <span className="text-muted">
@@ -300,6 +389,7 @@ export default function CampanasPage() {
                         Ver pipeline <ArrowRight className="h-3.5 w-3.5" />
                       </span>
                     </div>
+                    </>)}
                   </Card>
                 </Link>
               </li>

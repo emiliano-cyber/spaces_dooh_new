@@ -75,6 +75,24 @@ La entrada más reciente va arriba.
   Operaciones). **Finanzas e Imprenta** ven la OT y su avance, pero el checklist
   les aparece **de solo lectura**.
 
+- **En Campañas ya se puede achicar la lista.** *(Pedido tuyo del 30/09.)*
+
+  Cada campaña enseñaba su pipeline completo, y con muchas la pantalla se hacía
+  larguísima. Ahora hay tres formas de verla más corta:
+
+  - **«Vista compacta»**, arriba junto al buscador: esconde el pipeline de todas
+    y deja cada campaña en una sola fila, con su etapa actual al lado del estado.
+    El mismo botón dice «Mostrar pipelines» para volver.
+  - **La flecha de cada tarjeta** minimiza solo esa campaña.
+  - **El ojo tachado** oculta una campaña de tu lista. Aparece un botón
+    **«Mostrar ocultas (N)»** para traerlas de vuelta.
+
+  **Es solo tu vista, en tu navegador.** Ocultar una campaña no la archiva, no la
+  cancela y no le cambia nada a nadie más: tus compañeros la siguen viendo igual.
+  Y el sistema lo recuerda la próxima vez que entres desde el mismo navegador.
+
+---
+
 ## 2026-09-29
 
 - **Nueva pantalla «Captación»: la bitácora de cómo va cada venta.** *(Pedido tuyo
