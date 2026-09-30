@@ -5,6 +5,26 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-09-30
+
+- **En el detalle de una campaña, el menú de la izquierda ya se puede esconder.**
+  *(Pedido tuyo del 30/09.)*
+
+  Cuando abres una campaña, a la izquierda sale la lista de tus demás campañas
+  para saltar de una a otra. Esa lista **no se podía quitar**: en el celular y la
+  tableta salía encima del pipeline y había que bajar mucho para verlo, y en la
+  computadora ocupaba siempre una franja del lado.
+
+  Ahora tiene un botón **«Ocultar»** (en la computadora, un icono pequeño arriba
+  del menú). Al pulsarlo el menú se recoge y **el pipeline usa todo el ancho**. El
+  mismo botón, **«Mostrar»**, lo trae de vuelta. Funciona igual en celular,
+  tableta y computadora.
+
+  **Tu navegador lo recuerda**: si lo dejas escondido, la próxima campaña que abras
+  ya sale con el menú escondido. Es solo tu vista; no le cambia nada a nadie más.
+
+---
+
 ## 2026-09-29
 
 - **Nueva pantalla «Captación»: la bitácora de cómo va cada venta.** *(Pedido tuyo
