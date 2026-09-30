@@ -5,6 +5,28 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-09-30
+
+- **El almacén ya guarda de todo: camionetas, herramientas, pantallas, cámaras…**
+  *(Pedido tuyo del 30/09.)*
+
+  Hasta hoy el almacén era solo para equipo de pantallas (pantalla, estructura,
+  lona u «otro»). Desde hoy, al **registrar un artículo** eliges entre:
+  **vehículo / camioneta, herramienta, pantalla, equipo electrónico, cámara,
+  estructura, lona u otro**.
+
+  Arriba de la lista aparecen unas **pastillas por tipo**, cada una con cuántos
+  artículos hay («Vehículo / camioneta 3», «Herramienta 12»…). Tocas una y la
+  lista enseña solo esos; «Todos» la devuelve completa. Solo aparecen los tipos
+  de los que tienes algo.
+
+  Lo de siempre sigue igual: dar de alta, instalar en una pantalla, marcar en
+  traslado, regresar a almacén y dar de baja.
+
+  **Lo que todavía no hace:** guardar placas, marca, modelo, número de serie o
+  en qué bodega está cada artículo. Eso necesita **columnas nuevas en la base**
+  y está preparado aparte, **esperando tu aprobación** antes de entrar.
+
 ## 2026-09-29
 
 - **Nueva pantalla «Captación»: la bitácora de cómo va cada venta.** *(Pedido tuyo
