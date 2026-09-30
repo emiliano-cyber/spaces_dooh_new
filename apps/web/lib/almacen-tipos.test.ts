@@ -7,6 +7,7 @@ import {
   contarPorTipo,
   filtrarPorTipo,
   tiposConocidosSalvoOtro,
+  camposDelTipo,
 } from './almacen-tipos'
 
 // ============================================================================
@@ -96,5 +97,31 @@ describe('contarPorTipo y filtrarPorTipo', () => {
     expect(filtrarPorTipo(filas, 'VEHICULO').map((f) => f.id)).toEqual(['1', '2'])
     expect(filtrarPorTipo(filas, 'OTRO').map((f) => f.id)).toEqual(['4', '5'])
     expect(filtrarPorTipo(filas, 'HERRAMIENTA')).toEqual([])
+  })
+})
+
+// ─── Los datos propios de cada tipo (migración 20261001, pendiente de aprobación) ──
+describe('camposDelTipo — qué datos se piden según el tipo', () => {
+  it('un vehículo pide placas, además de marca, modelo y serie (VIN)', () => {
+    expect(camposDelTipo('VEHICULO')).toEqual(['marca', 'modelo', 'numeroSerie', 'placas'])
+  })
+
+  it('las placas son SOLO de vehículos', () => {
+    for (const t of TIPOS_ACTIVO) {
+      if (t === 'VEHICULO') continue
+      expect(camposDelTipo(t)).not.toContain('placas')
+    }
+  })
+
+  it('herramienta, pantalla, equipo y cámara piden marca, modelo y serie', () => {
+    for (const t of ['HERRAMIENTA', 'PANTALLA', 'EQUIPO', 'CAMARA'] as const) {
+      expect(camposDelTipo(t)).toEqual(['marca', 'modelo', 'numeroSerie'])
+    }
+  })
+
+  it('estructura y lona no piden nada propio; otro, todo menos placas', () => {
+    for (const t of ['ESTRUCTURA', 'LONA'] as const) expect(camposDelTipo(t)).toEqual([])
+    // OTRO es el cajón: se le ofrece todo menos placas, porque no sabemos qué es.
+    expect(camposDelTipo('OTRO')).toEqual(['marca', 'modelo', 'numeroSerie'])
   })
 })

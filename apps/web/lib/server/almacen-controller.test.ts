@@ -91,3 +91,59 @@ describe('listado filtrado por tipo', () => {
     expect(repo.listarActivos).not.toHaveBeenCalled()
   })
 })
+
+// ─── Los datos propios de cada tipo (migración 20261001, PENDIENTE DE APROBACIÓN) ──
+describe('datos por tipo: marca, modelo, serie, placas y ubicación', () => {
+  it('una camioneta llega al repo con sus placas, en mayúsculas y sin espacios', async () => {
+    await crearActivoCtrl({
+      ...base,
+      tipoActivo: 'VEHICULO',
+      marca: ' Nissan ',
+      modelo: 'NP300',
+      numeroSerie: '3N6AD33A1KK123456',
+      placas: ' abc-12 34 ',
+      ubicacion: 'Bodega norte',
+    })
+    expect(repo.crearActivo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        marca: 'Nissan',
+        modelo: 'NP300',
+        numeroSerie: '3N6AD33A1KK123456',
+        placas: 'ABC-1234',
+        ubicacion: 'Bodega norte',
+      }),
+    )
+  })
+
+  it('una cámara llega con marca, modelo, serie y ubicación, y placas null', async () => {
+    await crearActivoCtrl({ ...base, tipoActivo: 'CAMARA', marca: 'Hikvision', numeroSerie: 'DS-1', ubicacion: '' })
+    expect(repo.crearActivo).toHaveBeenCalledWith(
+      expect.objectContaining({ marca: 'Hikvision', numeroSerie: 'DS-1', placas: null, ubicacion: null, modelo: null }),
+    )
+  })
+
+  it('NEGATIVO · placas en algo que no es vehículo da 400', async () => {
+    // Unas placas en una cámara son un error de captura, y guardarlas haría que
+    // una búsqueda por placa encontrara una cámara.
+    // Con el MENSAJE, no solo el 400: antes de existir los campos esto ya daba
+    // 400 por `.strict()` (clave desconocida), que es el motivo equivocado.
+    await expect(crearActivoCtrl({ ...base, tipoActivo: 'CAMARA', placas: 'ABC1234' })).rejects.toMatchObject({
+      status: 400,
+      message: expect.stringMatching(/no lleva placas/),
+    })
+    expect(repo.crearActivo).not.toHaveBeenCalled()
+  })
+
+  it('NEGATIVO · un campo que el tipo no pide da 400 (una lona con marca)', async () => {
+    await expect(crearActivoCtrl({ ...base, tipoActivo: 'LONA', marca: 'X' })).rejects.toMatchObject({
+      status: 400,
+      message: expect.stringMatching(/no lleva marca/),
+    })
+  })
+
+  it('NEGATIVO · textos desmedidos se rechazan', async () => {
+    await expect(crearActivoCtrl({ ...base, tipoActivo: 'HERRAMIENTA', marca: 'x'.repeat(121) })).rejects.toMatchObject({ status: 400 })
+    await expect(crearActivoCtrl({ ...base, tipoActivo: 'VEHICULO', placas: 'x'.repeat(21) })).rejects.toMatchObject({ status: 400 })
+    await expect(crearActivoCtrl({ ...base, ubicacion: 'x'.repeat(201) })).rejects.toMatchObject({ status: 400 })
+  })
+})

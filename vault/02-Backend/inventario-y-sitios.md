@@ -104,7 +104,7 @@ tomara de la petición, la regla de la pantalla fija se saltaría con una línea
 | `lib/server/sitios-controller.ts` (209) | Validación zod, mapeo de errores FK→HTTP |
 | `lib/modalidades.ts` | Las siete unidades y la regla de la pantalla fija (puro) |
 | `lib/server/contratos-sitio.ts` (336) | Contrato al **alta** (ADR 0002) |
-| `lib/server/almacen-repo.ts` (116) | Activos físicos y traslados (Fase 3); por tipo desde el 30/09 ([[operaciones-y-ot]]) |
+| `lib/server/almacen-repo.ts` (141) | Activos físicos y traslados (Fase 3); por tipo desde el 30/09 ([[operaciones-y-ot]]) |
 | `lib/inventario-import.ts` | Parseo del Excel de carga masiva |
 | `lib/predio-cercania.ts` | Agrupa pantallas en predios por distancia |
 

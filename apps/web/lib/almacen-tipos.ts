@@ -43,6 +43,42 @@ export const ETIQUETA_TIPO_ACTIVO: Record<TipoActivo, string> = {
   OTRO: 'Otro',
 }
 
+// ─── Los datos propios de cada tipo ─────────────────────────────────────────
+// Columnas de `20261001_almacen_datos_por_tipo.sql` (PENDIENTE DE APROBACIÓN
+// DEL DUEÑO al escribirse). La `ubicacion` no está aquí porque vale para
+// TODOS: dónde está guardado algo no depende de qué es.
+//
+// Las placas son SOLO de vehículos, y la base lo repite con un CHECK: unas
+// placas en una cámara son un error de captura, y guardarlas haría que buscar
+// por placa encontrara una cámara. Estructura y lona no piden nada propio
+// —bastan etiqueta y notas—; OTRO ofrece todo menos placas porque no sabemos
+// qué es.
+export const CAMPOS_TIPO = ['marca', 'modelo', 'numeroSerie', 'placas'] as const
+export type CampoTipo = (typeof CAMPOS_TIPO)[number]
+
+export const ETIQUETA_CAMPO: Record<CampoTipo, string> = {
+  marca: 'Marca',
+  modelo: 'Modelo',
+  numeroSerie: 'Número de serie',
+  placas: 'Placas',
+}
+
+const EQUIPO_BASICO: CampoTipo[] = ['marca', 'modelo', 'numeroSerie']
+const CAMPOS_POR_TIPO: Record<TipoActivo, CampoTipo[]> = {
+  VEHICULO: ['marca', 'modelo', 'numeroSerie', 'placas'],
+  HERRAMIENTA: EQUIPO_BASICO,
+  PANTALLA: EQUIPO_BASICO,
+  EQUIPO: EQUIPO_BASICO,
+  CAMARA: EQUIPO_BASICO,
+  ESTRUCTURA: [],
+  LONA: [],
+  OTRO: EQUIPO_BASICO,
+}
+
+export function camposDelTipo(tipo: TipoActivo): CampoTipo[] {
+  return [...CAMPOS_POR_TIPO[tipo]]
+}
+
 const CONOCIDOS = new Set<string>(TIPOS_ACTIVO)
 
 export function esTipoActivo(v: unknown): v is TipoActivo {

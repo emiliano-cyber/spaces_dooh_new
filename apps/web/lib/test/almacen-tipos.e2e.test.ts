@@ -130,3 +130,81 @@ describe('3 · lo que el almacén hacía antes sigue igual', () => {
     expect(r.datos.estado).toBe('BAJA')
   })
 })
+
+// ─── 4 · los datos propios de cada tipo: 20261001_almacen_datos_por_tipo.sql ──
+//  PENDIENTE DE APROBACIÓN DEL DUEÑO al escribirse. Lo que esto mide y las
+//  unitarias no: que el runner creó las columnas, que los CHECK de la base
+//  muerden aunque alguien entre sin pasar por la ruta, y que las placas de una
+//  organización no se ven desde la otra.
+describe('4 · placas, marca, modelo, serie y ubicación', () => {
+  it('las cinco columnas existen, text y nullable', async () => {
+    const { rows } = await poolTest().query(
+      `select column_name, data_type, is_nullable from information_schema.columns
+        where table_name = 'almacen_activos'
+          and column_name in ('marca','modelo','numero_serie','placas','ubicacion')
+        order by column_name`,
+    )
+    expect(rows).toEqual(
+      ['marca', 'modelo', 'numero_serie', 'placas', 'ubicacion'].map((c) => ({
+        column_name: c,
+        data_type: 'text',
+        is_nullable: 'YES',
+      })),
+    )
+  })
+
+  it('una camioneta se guarda con sus placas normalizadas y vuelve en el listado', async () => {
+    const r = await alta(a, {
+      etiqueta: 'VEH-02',
+      descripcion: 'Camioneta de la cuadrilla sur',
+      tipoActivo: 'VEHICULO',
+      marca: 'Nissan',
+      modelo: 'NP300',
+      numeroSerie: '3N6AD33A1KK123456',
+      placas: 'abc 12 34',
+      ubicacion: 'Bodega sur',
+    })
+    expect(r.status).toBe(201)
+    expect(r.datos).toMatchObject({ placas: 'ABC1234', marca: 'Nissan', ubicacion: 'Bodega sur' })
+    const l = await lista(a, 'VEHICULO')
+    const v = l.datos.activos.find((x: { etiqueta: string }) => x.etiqueta === 'VEH-02')
+    expect(v).toMatchObject({ placas: 'ABC1234', numeroSerie: '3N6AD33A1KK123456', modelo: 'NP300' })
+  })
+
+  it('AISLAMIENTO · la otra organización no ve esas placas por ningún lado', async () => {
+    const l = await lista(b)
+    expect(JSON.stringify(l.datos)).not.toContain('ABC1234')
+  })
+
+  it('NEGATIVO · placas en una cámara: 400 por la ruta', async () => {
+    const r = await alta(a, { etiqueta: 'CAM-02', descripcion: 'x', tipoActivo: 'CAMARA', placas: 'ZZZ999' })
+    expect(r.status).toBe(400)
+  })
+
+  it('NEGATIVO · y la BASE lo para igual si alguien entra sin la ruta', async () => {
+    await expect(
+      poolTest().query(
+        `insert into almacen_activos (etiqueta, descripcion, tipo_activo, placas, tenant_id)
+         values ('CAM-03','x','CAMARA','ZZZ999',$1)`,
+        [orgA.id],
+      ),
+    ).rejects.toThrow(/almacen_activos_placas_solo_vehiculo/)
+  })
+
+  it('NEGATIVO · la base limita el largo de los textos', async () => {
+    await expect(
+      poolTest().query(
+        `insert into almacen_activos (etiqueta, descripcion, tipo_activo, marca, tenant_id)
+         values ('HER-09','x','HERRAMIENTA',repeat('x', 121),$1)`,
+        [orgA.id],
+      ),
+    ).rejects.toThrow(/almacen_activos_datos_largo/)
+  })
+
+  it('las filas de antes siguen intactas: la fila con texto libre no se tocó', async () => {
+    const { rows } = await poolTest().query(
+      `select tipo_activo, marca, placas from almacen_activos where etiqueta = 'LEG-1'`,
+    )
+    expect(rows[0]).toEqual({ tipo_activo: 'Pantalla LED', marca: null, placas: null })
+  })
+})

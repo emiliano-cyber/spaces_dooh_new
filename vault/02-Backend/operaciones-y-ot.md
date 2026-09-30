@@ -33,8 +33,8 @@ mantenimiento, herrería, eléctrico, inspección (`tipo_ot`, `db/schema.sql:53`
 | `ot-controller.ts` | 39 | Validación |
 | `impresion-repo.ts` | 121 | Órdenes de impresión y OC |
 | `operaciones-eventos.ts` | 86 | OT automáticas desde Arrendadores |
-| `almacen-repo.ts` | 116 | Activos y traslados; filtro por tipo |
-| `almacen-controller.ts` | 50 | Validación zod del alta y del `?tipo=` (desde el 30/09) |
+| `almacen-repo.ts` | 141 | Activos y traslados; filtro por tipo |
+| `almacen-controller.ts` | 100 | Validación zod del alta y del `?tipo=` (desde el 30/09) |
 
 > [!warning] No existe forma de reasignar una OT ya creada
 > Las rutas son `GET·POST /api/ot`, `GET /api/ot/[id]`,
@@ -194,11 +194,23 @@ pantalla**: la ruta guardaba cualquier texto que le llegara.
 - `registrarMovimiento` gana `and tenant_id = $4` como segunda capa sobre la
   RLS: era la única operación por id del archivo sin ella.
 
-> [!warning] Lo que NO hace todavía: los datos propios de cada tipo
+> [!warning] Los datos propios de cada tipo — migración **PENDIENTE DE APROBACIÓN DEL DUEÑO**
 > Placas, marca, modelo, número de serie y ubicación en bodega **necesitan
-> columnas nuevas**. Van en su propia migración, **pendiente de aprobación del
-> dueño** (regla del 29/09: ningún cambio de base aterriza sin que él vea la
-> forma). Mientras no se apruebe, esos datos van en `notas`.
+> columnas nuevas**: `20261001_almacen_datos_por_tipo.sql` ([[migraciones]],
+> [[esquema]]), en su **propio commit** de `feat/almacen-tipos` para que el
+> catálogo pueda aterrizar sin ella (regla del 29/09: ningún cambio de base
+> entra sin que él vea la forma).
+>
+> Qué pide cada tipo lo decide `camposDelTipo()` en `lib/almacen-tipos.ts`:
+> vehículo → marca, modelo, serie (VIN) y **placas**; herramienta, pantalla,
+> equipo, cámara y otro → marca, modelo y serie; estructura y lona → nada
+> propio. `ubicacion` vale para todos. Un dato que el tipo no pide da 400 en
+> el controller (`superRefine`), y las placas fuera de un vehículo las para
+> además la base (`almacen_activos_placas_solo_vehiculo`). Las placas se
+> guardan sin espacios y en mayúsculas.
+>
+> La columna «Ubicación» de la pantalla enseña la pantalla si está
+> INSTALADO, y si no, `ubicacion` (la bodega).
 
 Probado en `lib/almacen-tipos.test.ts`, `lib/server/almacen-controller.test.ts`
 y, contra Postgres real y con dos organizaciones, en

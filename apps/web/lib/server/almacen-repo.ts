@@ -20,6 +20,14 @@ function rowToActivo(r: any) {
     estado: r.estado as 'EN_ALMACEN' | 'INSTALADO' | 'EN_TRASLADO' | 'BAJA',
     sitioId: r.sitio_id ?? null,
     notas: r.notas ?? null,
+    // 20261001_almacen_datos_por_tipo.sql. `?? null` también cubre una base
+    // que aún no tiene la migración: `select *` no trae la columna y la
+    // pantalla enseña «—» en vez de romperse.
+    marca: r.marca ?? null,
+    modelo: r.modelo ?? null,
+    numeroSerie: r.numero_serie ?? null,
+    placas: r.placas ?? null,
+    ubicacion: r.ubicacion ?? null,
     creadoEn: new Date(r.creado_en).toISOString(),
   }
 }
@@ -66,12 +74,29 @@ export async function crearActivo(input: {
   descripcion: string
   tipoActivo?: string
   notas?: string | null
+  marca?: string | null
+  modelo?: string | null
+  numeroSerie?: string | null
+  placas?: string | null
+  ubicacion?: string | null
 }) {
   const tenantId = await tenantActual()
   const rows = await q(
-    `insert into almacen_activos (etiqueta, descripcion, tipo_activo, estado, notas, tenant_id)
-     values ($1,$2,$3,'EN_ALMACEN',$4,$5) returning *`,
-    [input.etiqueta, input.descripcion, input.tipoActivo ?? 'PANTALLA', input.notas ?? null, tenantId],
+    `insert into almacen_activos
+       (etiqueta, descripcion, tipo_activo, estado, notas, marca, modelo, numero_serie, placas, ubicacion, tenant_id)
+     values ($1,$2,$3,'EN_ALMACEN',$4,$5,$6,$7,$8,$9,$10) returning *`,
+    [
+      input.etiqueta,
+      input.descripcion,
+      input.tipoActivo ?? 'PANTALLA',
+      input.notas ?? null,
+      input.marca ?? null,
+      input.modelo ?? null,
+      input.numeroSerie ?? null,
+      input.placas ?? null,
+      input.ubicacion ?? null,
+      tenantId,
+    ],
   )
   // Movimiento de entrada inicial.
   await q(

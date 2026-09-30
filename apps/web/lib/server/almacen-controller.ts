@@ -2,7 +2,14 @@ import 'server-only'
 import { z } from 'zod'
 import { validar } from './errores'
 import { crearActivo, listarActivos, listarMovimientos } from './almacen-repo'
-import { TIPOS_ACTIVO, type TipoActivo } from '@/lib/almacen-tipos'
+import {
+  CAMPOS_TIPO,
+  ETIQUETA_CAMPO,
+  ETIQUETA_TIPO_ACTIVO,
+  TIPOS_ACTIVO,
+  camposDelTipo,
+  type TipoActivo,
+} from '@/lib/almacen-tipos'
 
 // ============================================================================
 //  lib/server/almacen-controller.ts — Validación del almacén.
@@ -14,6 +21,11 @@ import { TIPOS_ACTIVO, type TipoActivo } from '@/lib/almacen-tipos'
 // ============================================================================
 
 const texto = (max: number) => z.string().trim().max(max, `Máximo ${max} caracteres`)
+// Opcional: vacío o ausente se guarda como NULL, no como ''.
+const opcional = (max: number) =>
+  texto(max)
+    .nullish()
+    .transform((v) => (v ? v : null))
 
 const altaSchema = z
   .object({
@@ -23,15 +35,53 @@ const altaSchema = z
     // hacía la ruta antes de hoy, así que ningún cliente viejo cambia de
     // comportamiento.
     tipoActivo: z.enum(TIPOS_ACTIVO, { errorMap: () => ({ message: 'Tipo de artículo inválido' }) }).default('PANTALLA'),
-    notas: texto(2000).nullish().transform((v) => (v ? v : null)),
+    notas: opcional(2000),
+    // Los datos propios de cada tipo (20261001_almacen_datos_por_tipo.sql).
+    marca: opcional(120),
+    modelo: opcional(120),
+    numeroSerie: opcional(120),
+    // Placas sin espacios y en mayúsculas: «abc 12 34» y «ABC1234» son la
+    // misma camioneta, y guardarlas distinto haría que buscarla fallara.
+    placas: z
+      .string()
+      .transform((v) => v.replace(/\s+/g, '').toUpperCase())
+      .pipe(z.string().max(20, 'Máximo 20 caracteres'))
+      .nullish()
+      .transform((v) => (v ? v : null)),
+    ubicacion: opcional(200),
   })
   // `.strict()`: un `tenantId` de más da 400 en vez de ignorarse. El tenant
   // sale SIEMPRE de la sesión (`tenantActual()` en el repo).
   .strict()
+  // Un dato que el tipo no pide es un error de captura: rechazarlo aquí es lo
+  // que evita unas placas en una cámara. Para las placas la base lo repite
+  // con un CHECK (`almacen_activos_placas_solo_vehiculo`).
+  .superRefine((v, ctx) => {
+    const permitidos = new Set<string>(camposDelTipo(v.tipoActivo))
+    for (const c of CAMPOS_TIPO) {
+      if (v[c] != null && !permitidos.has(c)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [c],
+          message: `Un artículo de tipo «${ETIQUETA_TIPO_ACTIVO[v.tipoActivo]}» no lleva ${ETIQUETA_CAMPO[c].toLowerCase()}`,
+        })
+      }
+    }
+  })
 
 export async function crearActivoCtrl(body: unknown) {
   const d = validar(altaSchema, body) as z.output<typeof altaSchema>
-  return crearActivo({ etiqueta: d.etiqueta, descripcion: d.descripcion, tipoActivo: d.tipoActivo, notas: d.notas })
+  return crearActivo({
+    etiqueta: d.etiqueta,
+    descripcion: d.descripcion,
+    tipoActivo: d.tipoActivo,
+    notas: d.notas,
+    marca: d.marca,
+    modelo: d.modelo,
+    numeroSerie: d.numeroSerie,
+    placas: d.placas,
+    ubicacion: d.ubicacion,
+  })
 }
 
 const filtroSchema = z

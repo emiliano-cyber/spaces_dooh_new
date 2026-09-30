@@ -23,9 +23,14 @@ La entrada más reciente va arriba.
   Lo de siempre sigue igual: dar de alta, instalar en una pantalla, marcar en
   traslado, regresar a almacén y dar de baja.
 
-  **Lo que todavía no hace:** guardar placas, marca, modelo, número de serie o
-  en qué bodega está cada artículo. Eso necesita **columnas nuevas en la base**
-  y está preparado aparte, **esperando tu aprobación** antes de entrar.
+  **Preparado y esperando tu aprobación** (necesita columnas nuevas en la base,
+  así que no entra sin que la veas): al registrar un artículo, el sistema te
+  pide lo que tiene sentido para ese tipo —**placas** solo en vehículos;
+  **marca, modelo y número de serie** en herramientas, pantallas, equipo y
+  cámaras— y, para todos, **dónde se guarda** («Bodega norte, anaquel 3»). La
+  lista enseña esos datos en una columna, y la ubicación cuando el artículo no
+  está instalado. Las placas se guardan en mayúsculas y sin espacios, para que
+  «abc 12 34» y «ABC1234» sean la misma camioneta.
 
 ## 2026-09-29
 
