@@ -29,6 +29,8 @@ import { AREAS, MODULOS } from '../modulos'
 //    · 2026-08-20 (ROJO-2) · 41 filas · 9 módulos · 5 perfiles. Adoptó ENTERO el
 //      contenido que llevaba el alta, el más completo de los dos catálogos que
 //      convivían.
+//    · 2026-09-29 (CAP-01) · 106 filas · 11 módulos. Entra `captacion`: 14
+//      filas, y el VENDEDOR sin `aprobar` — nadie se aprueba solo.
 //    · 2026-09-29 (ADR 0040) · 86 filas · 10 módulos · 8 roles. Entran los
 //      cuatro roles nuevos y el módulo `precios`, y COMERCIAL se queda a cero.
 //
@@ -170,6 +172,9 @@ const CATALOGO_FINAL = [
   'ADMINISTRADOR|arrendadores|aprobar',
   'ADMINISTRADOR|arrendadores|crear',
   'ADMINISTRADOR|arrendadores|ver',
+  'ADMINISTRADOR|captacion|aprobar',
+  'ADMINISTRADOR|captacion|crear',
+  'ADMINISTRADOR|captacion|ver',
   'ADMINISTRADOR|comercial|aprobar',
   'ADMINISTRADOR|comercial|crear',
   'ADMINISTRADOR|comercial|ver',
@@ -191,6 +196,9 @@ const CATALOGO_FINAL = [
   'ADMINISTRADOR|operaciones|ver',
   'ADMINISTRADOR|precios|crear',
   'ADMINISTRADOR|precios|ver',
+  'DIRECTOR_COMERCIAL|captacion|aprobar',
+  'DIRECTOR_COMERCIAL|captacion|crear',
+  'DIRECTOR_COMERCIAL|captacion|ver',
   'DIRECTOR_COMERCIAL|comercial|aprobar',
   'DIRECTOR_COMERCIAL|comercial|crear',
   'DIRECTOR_COMERCIAL|comercial|ver',
@@ -206,6 +214,9 @@ const CATALOGO_FINAL = [
   'DUENO|arrendadores|aprobar',
   'DUENO|arrendadores|crear',
   'DUENO|arrendadores|ver',
+  'DUENO|captacion|aprobar',
+  'DUENO|captacion|crear',
+  'DUENO|captacion|ver',
   'DUENO|comercial|aprobar',
   'DUENO|comercial|crear',
   'DUENO|comercial|ver',
@@ -233,6 +244,9 @@ const CATALOGO_FINAL = [
   'FINANZAS|finanzas|ver',
   'FINANZAS|operaciones|costear',
   'FINANZAS|operaciones|ver',
+  'GERENTE_VENTAS|captacion|aprobar',
+  'GERENTE_VENTAS|captacion|crear',
+  'GERENTE_VENTAS|captacion|ver',
   'GERENTE_VENTAS|comercial|aprobar',
   'GERENTE_VENTAS|comercial|crear',
   'GERENTE_VENTAS|comercial|ver',
@@ -250,6 +264,8 @@ const CATALOGO_FINAL = [
   'OPERACIONES|operaciones|costear',
   'OPERACIONES|operaciones|crear',
   'OPERACIONES|operaciones|ver',
+  'VENDEDOR|captacion|crear',
+  'VENDEDOR|captacion|ver',
   'VENDEDOR|comercial|crear',
   'VENDEDOR|comercial|ver',
   'VENDEDOR|dashboard|ver',
@@ -337,7 +353,7 @@ describe('el catálogo de permisos de una instancia nueva', () => {
     expect(runner.status).toBe(0)
   })
 
-  it('nace con las 92 filas: 10 módulos y 8 roles, ni una más', async () => {
+  it('nace con las 106 filas: 11 módulos y 8 roles, ni una más', async () => {
     // El «ni una más» importa tanto como el «ni una menos»: las dos migraciones
     // corren DESPUÉS de `20260804_modulo_inventario.sql`, que ya sembró 5 de
     // estas filas, y la segunda repite las 25 de la primera. Un `insert` sin
@@ -347,7 +363,7 @@ describe('el catálogo de permisos de una instancia nueva', () => {
     const { rows } = await pool.query(
       'select count(*)::int filas, count(distinct modulo)::int modulos, count(distinct rol)::int roles from rol_permisos',
     )
-    expect(rows[0]).toEqual({ filas: 92, modulos: 10, roles: 8 })
+    expect(rows[0]).toEqual({ filas: 106, modulos: 11, roles: 8 })
   })
 
   it('los dos perfiles que no existían ya pueden entrar a algo', async () => {
@@ -359,14 +375,14 @@ describe('el catálogo de permisos de una instancia nueva', () => {
       "select rol::text rol, count(*)::int n from rol_permisos group by 1 order by 1",
     )
     expect(rows).toEqual([
-      { rol: 'ADMINISTRADOR', n: 27 },
-      { rol: 'DIRECTOR_COMERCIAL', n: 9 },
-      { rol: 'DUENO', n: 27 },
+      { rol: 'ADMINISTRADOR', n: 30 },
+      { rol: 'DIRECTOR_COMERCIAL', n: 12 },
+      { rol: 'DUENO', n: 30 },
       { rol: 'FINANZAS', n: 6 },
-      { rol: 'GERENTE_VENTAS', n: 8 },
+      { rol: 'GERENTE_VENTAS', n: 11 },
       { rol: 'IMPRENTA', n: 3 },
       { rol: 'OPERACIONES', n: 6 },
-      { rol: 'VENDEDOR', n: 6 },
+      { rol: 'VENDEDOR', n: 8 },
     ])
     // Y COMERCIAL NO aparece en esta lista, que es la mitad que importa del ADR
     // 0040: el `group by` solo saca los roles CON filas. Si volviera a salir,
@@ -401,7 +417,7 @@ describe('el catálogo de permisos de una instancia nueva', () => {
     await pool.query(readFileSync(join(RAIZ, 'db', 'migrations', MIGRACION_ROLES_ENUM), 'utf8'))
     await pool.query(readFileSync(join(RAIZ, 'db', 'migrations', MIGRACION_ROLES_MATRIZ), 'utf8'))
     expect(await catalogoDe(pool)).toEqual(antes)
-    expect(antes).toHaveLength(92)
+    expect(antes).toHaveLength(106)
   })
 
   it('un Dueño recién creado ve sus módulos', async () => {
@@ -434,6 +450,8 @@ describe('el catálogo de permisos de una instancia nueva', () => {
     expect(Object.keys(permisos).sort()).toEqual([
       'administracion',
       'arrendadores',
+      // CAP-01 · la bitácora de captación (2026-09-29).
+      'captacion',
       'comercial',
       'dashboard',
       'finanzas',

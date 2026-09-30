@@ -115,7 +115,9 @@ describe('el alta ya no siembra el catálogo de permisos', () => {
     // se pone al día aquí a propósito y NO se sustituye por «> 0»: lo que esta
     // línea compra es que el escenario parta del catálogo que de verdad siembra
     // la cadena, y un `> 0` lo dejaría de comprar.
-    expect(antes).toHaveLength(92)
+    //
+    // Y 106 desde CAP-01 (2026-09-29): las 14 filas del módulo `captacion`.
+    expect(antes).toHaveLength(106)
   })
 
   it('el alta corre y crea la identidad de la instancia', async () => {

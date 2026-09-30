@@ -35,6 +35,11 @@ export const AREAS: AreaProducto[] = [
   { clave: 'disponibilidad', label: 'Disponibilidad', modulo: 'comercial', apiPropia: false },
   { clave: 'creativos', label: 'Creativos', modulo: 'comercial', apiPropia: false },
   { clave: 'comisiones', label: 'Comisiones', modulo: 'comercial', apiPropia: false },
+  // CAP-01 · modulo PROPIO y no `comercial`: aprobar un prospecto da de alta un
+  // cliente, un arrendador o un predio, y eso no lo decide quien cotiza. Con
+  // `comercial.aprobar` el permiso de aprobar propuestas y el de aprobar
+  // captaciones serian el mismo, y la matriz no podria separarlos.
+  { clave: 'captacion', label: 'Captación', modulo: 'captacion', apiPropia: true },
   { clave: 'inventario', label: 'Inventario', modulo: 'inventario', apiPropia: true },
   // ─── Las cuatro de la cadena de precio: modulo `precios` ──────────────────
   //

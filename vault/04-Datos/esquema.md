@@ -64,6 +64,18 @@ archivos:
 > Con **RLS `enable` + `force`** estricta en las tres y GRANT explícito. Ver
 > [[02-Backend/paquete-cerrado]].
 
+> [!note] 2026-09-29 · DOS TABLAS NUEVAS, `prospectos` y `prospecto_avances` — CAP-01
+> `db/migrations/20260930_captacion.sql`. La bitácora de captación.
+>
+> - **`prospectos`** — lo que se intenta captar (`tipo` CLIENTE · ARRENDADOR ·
+>   PREDIO · PANTALLA), su `etapa` (`text` + CHECK, **no enum**), contacto y
+>   datos en `jsonb`, el vendedor en `usuario_id` y el registro creado al aprobar
+>   en `registro_id` (**sin FK**: apunta a tres tablas). La app no tiene `delete`.
+> - **`prospecto_avances`** — la bitácora, con FK compuesta `(prospecto_id,
+>   tenant_id)`. **Solo se añade**: la app tiene `select, insert` y nada más.
+>
+> RLS `enable` + `force` en las dos. Ver [[02-Backend/captacion]].
+
 > [!danger] 2026-09-28 · `codigos_promocionales` y `canjes_codigo` SIN FUSIONAR
 > Mismo caso que `escalas_volumen`, abajo: escritas y probadas contra bases
 > desechables, y **detenidas en la fusión** a la espera de la aprobación del

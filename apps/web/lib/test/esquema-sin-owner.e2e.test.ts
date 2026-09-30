@@ -181,7 +181,11 @@ describe('el esquema base no trae la organización de nadie', () => {
     //   · 55 el 2026-09-28: `20260928_paquete_cerrado.sql` anade TRES
     //     --`paquetes`, `paquete_sitios` y `paquete_aplicaciones`--, el paquete
     //     cerrado del ADR 0039 (Fase 4). Novena vez.
-    expect(trasMigrar.tablas).toBe(55)
+    //   · 57 el 2026-09-29: `20260930_captacion.sql` anade DOS --`prospectos` y
+    //     `prospecto_avances`--, la bitacora de captacion (CAP-01). Decima vez, y
+    //     otra vez desde la corrida completa: las 33 e2e propias de la tarea y
+    //     las 2791 unitarias estaban en verde.
+    expect(trasMigrar.tablas).toBe(57)
     // Lo que de verdad importa: ni las migraciones resucitan al owner.
     expect(trasMigrar.tenants).toBe(0)
   })

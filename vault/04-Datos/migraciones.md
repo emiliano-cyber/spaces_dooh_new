@@ -125,6 +125,15 @@ archivos:
 > `trunc()`, `jsonb`, FK compuestas—, así que **no lleva `@pg-min`**. Ver
 > [[02-Backend/paquete-cerrado]].
 
+> [!note] 2026-09-29 · `20260930_captacion.sql` — CAP-01
+> Dos tablas —`prospectos` y `prospecto_avances`— y **14 filas** de
+> `rol_permisos` para el módulo `captacion` (el VENDEDOR sin `aprobar`). Lleva la
+> fecha del **30** aunque se escribió el 29 a propósito: así ordena **después** de
+> todas las del 29, que ya pueden estar aplicadas en alguna base.
+>
+> Probada en **PostgreSQL 16** (copia de g500, dos corridas: 1 y 0) y en
+> **PostgreSQL 14.24**. Sin `@pg-min`. Ver [[02-Backend/captacion]].
+
 > [!note] 2026-09-28 · `20260928_codigo_promocional.sql` — ADR 0039, Fase 3
 > Dos tablas —`codigos_promocionales` y `canjes_codigo`— más cuatro columnas:
 > `propuestas.codigo_texto`, `propuestas.codigo_descuento_pct`,
