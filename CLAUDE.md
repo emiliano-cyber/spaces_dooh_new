@@ -39,12 +39,12 @@ no se versiona configuración de la herramienta. Consecuencia práctica: la bóv
 Markdown puro y **se lee igual desde un editor, desde `cat` o desde un agente**. No
 necesitas instalar nada.
 
-Al 2026-09-29 tiene **1188 enlaces internos** sobre **93 notas**, con **2
+Al 2026-09-30 tiene **1189 enlaces internos** sobre **93 notas**, con **2
 wikilinks rotos** —los dos apuntan a ADR, que viven en `docs/` y no en la
 bóveda, así que es un choque de convención más que un enlace muerto— y
 **0 notas huérfanas**. Medido con `node scripts/recuentos.mjs` **en este
 árbol**, al cerrar el trabajo y no antes. Las
-mediciones previas daban 1179 sobre 92 (29/09, antes de la captacion), 1173 sobre 91 (29/09, al integrar el costo de OT), 1155 sobre 90 (29/09, los roles), 1144 sobre 89 (28/09), 1131 sobre 88 (28/09, el codigo promocional), 1121 sobre 87 (28/09, el volumen), 1109 sobre 86 (28/09, la rejilla), 1096 sobre 85 (28/09, VEND-01), 1072 sobre 84 (28/09), 1056 sobre 83 (25/09), 1045
+mediciones previas daban 1188 sobre 93 (29/09, con la captacion), 1179 sobre 92 (29/09, antes de la captacion), 1173 sobre 91 (29/09, al integrar el costo de OT), 1155 sobre 90 (29/09, los roles), 1144 sobre 89 (28/09), 1131 sobre 88 (28/09, el codigo promocional), 1121 sobre 87 (28/09, el volumen), 1109 sobre 86 (28/09, la rejilla), 1096 sobre 85 (28/09, VEND-01), 1072 sobre 84 (28/09), 1056 sobre 83 (25/09), 1045
 sobre 82 (24/09), 1148
 sobre 86 (23/09), 1101 sobre 85 (18/09), 753 sobre 57 (28/08), 606 sobre 48
 (17/08) y 395 sobre 43 (10/08).
