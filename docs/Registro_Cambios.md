@@ -5,6 +5,28 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-09-30
+
+- **Si la base de datos se cae, el login ya lo dice con palabras.** *(Aprobado por
+  ti el 30/09.)*
+
+  Hasta hoy, si la base de datos no respondía, al pulsar «Entrar» salía un
+  mensaje técnico en inglés —«Failed to execute 'json' on 'Response':
+  Unexpected end of JSON input»— que no decía qué pasaba ni qué hacer. Ahora la
+  pantalla dice: **«El servicio no está disponible en este momento. Intenta de
+  nuevo en unos minutos.»** Y si lo que falla es la conexión a internet, lo dice
+  también en español.
+
+  Lo mismo se arregló en las otras puertas de acceso que consultan la base:
+  entrar con un código de recuperación, comprobar la sesión al abrir la app,
+  cerrar sesión y el enlace para restablecer la contraseña. Ninguna devuelve ya
+  una respuesta vacía; todas avisan de que el servicio no está disponible, sin
+  enseñar detalles internos del servidor.
+
+  **Lo que no cambia:** una contraseña equivocada sigue diciendo «Correo o
+  contraseña inválidos», el límite de intentos sigue igual y nadie entra sin
+  credenciales válidas.
+
 ## 2026-09-29
 
 - **Nueva pantalla «Captación»: la bitácora de cómo va cada venta.** *(Pedido tuyo

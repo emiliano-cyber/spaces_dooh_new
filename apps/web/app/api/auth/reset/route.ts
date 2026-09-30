@@ -26,7 +26,13 @@ export async function GET(req: Request) {
   const off = recuperarDeshabilitado()
   if (off) return off
   const token = new URL(req.url).searchParams.get('token') ?? ''
-  return NextResponse.json({ valido: await tokenResetValido(token) })
+  // Dentro del try: con la base caída la consulta lanzaba y Next contestaba un
+  // 500 con el cuerpo vacío (2026-09-30). El POST de abajo ya lo tenía.
+  try {
+    return NextResponse.json({ valido: await tokenResetValido(token) })
+  } catch (e) {
+    return respuestaError(e)
+  }
 }
 
 // POST /api/auth/reset  { token, password } → fija la nueva contraseña.

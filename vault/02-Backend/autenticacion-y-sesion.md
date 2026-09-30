@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-09-21
+actualizado: 2026-09-30
 tags: [backend, auth, seguridad, rojo]
 archivos:
   - apps/web/lib/server/auth.ts
@@ -35,6 +35,16 @@ archivos:
   - db/migrations/20260907_solo_google.sql
   - db/migrations/20260828_reautenticacion_por_defecto.sql
   - apps/web/components/demo/shell/Topbar.tsx
+  - apps/web/lib/server/errores.ts
+  - apps/web/app/api/auth/login/route.ts
+  - apps/web/app/api/auth/me/route.ts
+  - apps/web/app/api/auth/logout/route.ts
+  - apps/web/app/api/auth/reset/route.ts
+  - apps/web/lib/auth-real.ts
+  - apps/web/lib/server/auth-base-caida.test.ts
+  - apps/web/lib/server/errores-base-caida.test.ts
+  - apps/web/lib/auth-real.login.test.ts
+  - apps/web/lib/test/login-sin-base.e2e.test.ts
 ---
 
 # Autenticación y sesión
@@ -547,6 +557,54 @@ algún día se escala a varias, deja de valer.
 | google/inicio | 10 / 5 min por IP |
 | desbloquear | 5 / 5 min por usuario+IP |
 | bootstrap | 10 / h por IP (`app/api/bootstrap/route.ts:63`) — **pasarse contesta 404**, no 429 |
+
+## Con la base caída: 503 con JSON, nunca un 500 vacío
+
+> [!danger] 2026-09-30 · el login contestaba un 500 SIN CUERPO con Postgres apagado
+> La consulta de `auth_usuario_por_email` estaba fuera de cualquier try: la
+> excepción de `pg` escapaba del handler y Next devolvía su 500 vacío. La
+> pantalla lo convertía en «Failed to execute 'json' on 'Response': Unexpected
+> end of JSON input». `/api/auth/metodos` (no toca la base) daba 200 y
+> `/api/auth/me` sin cookie daba 401, así que **desde fuera parecía un fallo del
+> login y no de la base**.
+
+**El contrato:** toda ruta de `app/api/auth/**` que toca la base pasa sus
+excepciones por `respuestaError()`, y `respuestaError()` reconoce una base que no
+responde (`esBaseNoDisponible()`, en `lib/server/errores.ts`) y contesta **503**
+con `{ error: MENSAJE_BASE_NO_DISPONIBLE }` —«El servicio no está disponible en
+este momento. Intenta de nuevo en unos minutos.»—. El host, el puerto y el código
+van al log y **solo** al log.
+
+`esBaseNoDisponible()` mira el `code` y los hijos de un `AggregateError`, no el
+texto: con `localhost`, `pg` en Node 24 lanza un `AggregateError` con
+`code: 'ECONNREFUSED'` y **`message` vacío** (medido el 30/09). Reconoce los
+códigos de red (`ECONNREFUSED`, `ETIMEDOUT`, `ENOTFOUND`…), los SQLSTATE de
+«ahora no» (clase `08`, `57P01-03`, `53300`) y los dos textos de `pg` sin código
+(timeout del pool, conexión terminada). Como vive en `respuestaError`, **todas**
+las rutas que ya lo usaban pasan de 500 a 503 ante una caída; los 4xx de la
+petición (`ERRORES_PG`) no cambian.
+
+| Ruta | Antes, con la base caída | Ahora |
+|---|---|---|
+| `POST login` | 500 vacío | 503 JSON |
+| `POST codigo` | 500 vacío | 503 JSON |
+| `GET me` (con cookie) | 500 vacío | 503 JSON — sin cookie sigue 401, no toca la base |
+| `POST logout` (con cookie) | 500 vacío | 503 JSON — **no** limpia las cookies: la sesión sigue viva en la base |
+| `GET reset` | 500 vacío | 503 JSON |
+| `POST reset` | 500 JSON («Error interno») | 503 JSON |
+| `POST forgot` | 200 genérico | sin cambios: se lo traga a propósito (anti-enumeración) |
+| `GET google/callback` | redirección `?google=invalido` | sin cambios: ya tenía try |
+| `GET google/inicio`, `GET metodos` | — | no tocan la base |
+
+El cliente (`apiLogin` en `lib/auth-real.ts`) ya no hace `res.json()` a ciegas:
+si el cuerpo no es JSON dice «no disponible» en un 5xx y el genérico en un 4xx,
+y un fallo de red sale en español. Los mensajes del servidor se enseñan tal cual.
+
+Pruebas: `lib/server/auth-base-caida.test.ts` (las seis rutas con la base
+simulada), `lib/server/errores-base-caida.test.ts` (la clasificación),
+`lib/auth-real.login.test.ts` (el cliente) y `lib/test/login-sin-base.e2e.test.ts`
+(un `next start` real apuntado a un puerto cerrado; puerto propio,
+`PUERTO_E2E_SIN_BASE`, 3314 por omisión).
 
 ## Deuda conocida
 
