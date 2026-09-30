@@ -58,17 +58,28 @@ function fallasPage() {
     fecha(v) { return v ? new Date(v).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : '—'; },
 
     async cerrar(f, estado) {
-      const texto = estado === 'descartada'
-        ? 'Marcar como "no es falla". El equipo no volverá a avisar de esta zona en 7 días.'
-        : 'Marcar como resuelta sin esperar a que el equipo lo compruebe.';
-      const nota = prompt(texto + '\n\nNota (opcional):', '');
+      const descartar = estado === 'descartada';
+      // Con `prompt()` la ventana la pintaba el NAVEGADOR, y Chrome la encabeza
+      // con la direccion del servidor —«159.203.188.58:4100 dice»—: al operador
+      // se le ensenaba una IP con un puerto justo cuando se le preguntaba algo.
+      // Ahora es el dialogo de la casa, con las mismas formas que el resto.
+      const nota = await window.pedirTexto({
+        titulo: descartar ? 'No es una falla' : 'Marcar como arreglada',
+        mensaje: descartar
+          ? 'El equipo no volverá a avisar de esta zona durante 7 días.'
+          : 'Se cierra sin esperar a que el equipo lo compruebe en su próxima foto.',
+        etiqueta: 'Qué se hizo',
+        marcador: descartar ? 'Por ejemplo: es un reflejo del sol' : 'Por ejemplo: se cambió la fuente',
+        textoBoton: descartar ? 'Descartar' : 'Marcar arreglada',
+      });
       if (nota === null) return;
       try {
         await API.put(`/api/fallas/${f.id}`, { estado, nota: nota || undefined });
         await this.load();
         window.contarFallas?.();
+        window.toast?.(descartar ? 'Falla descartada' : 'Falla marcada como arreglada', 'success');
       } catch (err) {
-        alert('No se pudo cerrar: ' + (err.message || err));
+        window.toast?.('No se pudo cerrar: ' + (err.message || err), 'error');
       }
     },
   };

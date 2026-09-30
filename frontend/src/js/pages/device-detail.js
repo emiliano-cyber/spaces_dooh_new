@@ -111,6 +111,25 @@ function deviceDetail() {
       ];
     },
 
+    // El boton "Ver en vivo" de la barra de arriba: ademas de llevar a la
+    // pestaña, ENCIENDE la vista.
+    //
+    // Antes solo cambiaba de pestaña y subia la pagina, asi que quien lo
+    // apretaba se quedaba mirando el recuadro negro esperando a que algo
+    // pasara, y tenia que buscar el "Iniciar" dentro. El boton promete "ver en
+    // vivo": tiene que ver en vivo.
+    //
+    // No se arranca dos veces ni se estorba a lo que ya esta andando: si ya
+    // transmite -o esta conectando- solo lleva a la pestaña, y si el equipo no
+    // puede transmitir (agente viejo) tampoco lo intenta, que ahi el boton de
+    // dentro sale deshabilitado con su motivo.
+    async verEnVivo() {
+      this.setTab('vivo');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (this.streaming || this.streamStarting || this.sinVistaEnVivo()) return;
+      await this.startStream();
+    },
+
     setTab(t) {
       // Salir de "En vivo" cierra la vista: escondida seguia transmitiendo (y
       // gastando datos del equipo) sin el boton de detener a la vista. Si hay
@@ -292,7 +311,7 @@ function deviceDetail() {
         await API.put(`/api/devices/${this.deviceId}/creativos`, cambios);
         await this.loadCreativos();
       } catch (err) {
-        alert('No se pudo guardar: ' + (err.message || err));
+        window.toast?.('No se pudo guardar: ' + (err.message || err), 'error');
       } finally {
         this.guardandoCreativos = false;
       }
@@ -303,17 +322,23 @@ function deviceDetail() {
         await API.put(`/api/creativos/${c.id}`, { descartado: true });
         await this.loadCreativos();
       } catch (err) {
-        alert('No se pudo descartar: ' + (err.message || err));
+        window.toast?.('No se pudo descartar: ' + (err.message || err), 'error');
       }
     },
 
     async reaprenderCreativos() {
-      if (!confirm('Se borra todo lo que el equipo aprendió de esta pantalla y vuelve a aprender 24 horas sin tomar fotos. ¿Seguir?')) return;
+      if (!(await window.confirmar({
+        titulo: 'Volver a aprender la pantalla',
+        mensaje: 'Se borra todo lo que el equipo aprendió de esta pantalla.',
+        detalle: 'Vuelve a aprender durante 24 horas, y en ese tiempo no toma fotos.',
+        textoBoton: 'Volver a aprender',
+        peligro: true,
+      }))) return;
       try {
         await API.post(`/api/devices/${this.deviceId}/creativos/reaprender`, {});
         await this.loadCreativos();
       } catch (err) {
-        alert('No se pudo reiniciar: ' + (err.message || err));
+        window.toast?.('No se pudo reiniciar: ' + (err.message || err), 'error');
       }
     },
 
@@ -414,7 +439,13 @@ function deviceDetail() {
       const filas = Number(p.filas), columnas = Number(p.columnas);
       const cambiaImagen = antes && (JSON.stringify(antes.esquinas) !== JSON.stringify(p.esquinas)
         || antes.filas !== filas || antes.columnas !== columnas);
-      if (cambiaImagen && !confirm('Cambiaron las esquinas o los gabinetes: el equipo olvida lo que aprendió de esta pantalla y vuelve a aprender 24 horas. ¿Seguir?')) return;
+      if (cambiaImagen && !(await window.confirmar({
+        titulo: 'Cambió el encuadre de la pantalla',
+        mensaje: 'Cambiaron las esquinas o los gabinetes, así que el equipo olvida lo que había aprendido.',
+        detalle: 'Vuelve a aprender durante 24 horas antes de poder avisar de fallas.',
+        textoBoton: 'Guardar de todos modos',
+        peligro: true,
+      }))) return;
       const redondea = (v) => Math.round(v * 1000) / 1000;
       this.guardandoPant = true;
       try {
@@ -428,7 +459,7 @@ function deviceDetail() {
         await this.loadPantalla();
         await this.loadCreativos();
       } catch (err) {
-        alert('No se pudo guardar: ' + (err.message || err));
+        window.toast?.('No se pudo guardar: ' + (err.message || err), 'error');
       } finally {
         this.guardandoPant = false;
       }
@@ -439,22 +470,30 @@ function deviceDetail() {
         await API.put(`/api/devices/${this.deviceId}/salud`, cambios);
         await this.loadPantalla();
       } catch (err) {
-        alert('No se pudo guardar: ' + (err.message || err));
+        window.toast?.('No se pudo guardar: ' + (err.message || err), 'error');
       }
     },
 
     async cerrarFalla(f, estado) {
-      const texto = estado === 'descartada'
-        ? 'Marcar como "no es falla". El equipo no volverá a avisar de esta zona en 7 días.'
-        : 'Marcar como resuelta sin esperar a que el equipo lo compruebe.';
-      const nota = prompt(texto + '\n\nNota (opcional):', '');
+      const descartar = estado === 'descartada';
+      // Mismo diálogo que en la pantalla de Fallas: el `prompt()` del navegador
+      // encabezaba la ventana con la dirección del servidor.
+      const nota = await window.pedirTexto({
+        titulo: descartar ? 'No es una falla' : 'Marcar como arreglada',
+        mensaje: descartar
+          ? 'El equipo no volverá a avisar de esta zona durante 7 días.'
+          : 'Se cierra sin esperar a que el equipo lo compruebe en su próxima foto.',
+        etiqueta: 'Qué se hizo',
+        marcador: descartar ? 'Por ejemplo: es un reflejo del sol' : 'Por ejemplo: se cambió la fuente',
+        textoBoton: descartar ? 'Descartar' : 'Marcar arreglada',
+      });
       if (nota === null) return;
       try {
         await API.put(`/api/fallas/${f.id}`, { estado, nota: nota || undefined });
         await this.loadPantalla();
         window.contarFallas?.();
       } catch (err) {
-        alert('No se pudo cerrar: ' + (err.message || err));
+        window.toast?.('No se pudo cerrar: ' + (err.message || err), 'error');
       }
     },
 
@@ -906,7 +945,13 @@ function deviceDetail() {
     },
 
     async deletePhoto(id) {
-      if (!confirm('¿Eliminar esta fotografía? Esta acción no se puede deshacer.')) return;
+      if (!(await window.confirmar({
+        titulo: 'Eliminar fotografía',
+        mensaje: '¿Eliminar esta fotografía?',
+        detalle: 'No se puede deshacer.',
+        textoBoton: 'Eliminar',
+        peligro: true,
+      }))) return;
       try {
         await API.delete(`/api/photos/${id}`);
         this.recentPhotos = this.recentPhotos.filter((p) => p.id !== id);
@@ -1433,7 +1478,11 @@ function deviceDetail() {
           : this.puedeActualizarSolo()
             ? `Se instalará la versión ${this.apkLatest?.version || 'publicada'} en este equipo. Tardará un par de minutos y la app se reiniciará sola.`
             : `Este equipo NO puede instalar solo: alguien tendrá que confirmar la instalación EN LA PANTALLA del teléfono. ¿Enviar de todos modos?`;
-      if (!confirm(aviso)) return;
+      if (!(await window.confirmar({
+        titulo: 'Actualizar el programa del equipo',
+        mensaje: aviso,
+        textoBoton: 'Actualizar',
+      }))) return;
       this.updating = true;
       try {
         await API.post(`/api/devices/${this.deviceId}/command`, { command_type: 'UPDATE_APP' });
@@ -1575,14 +1624,20 @@ function deviceDetail() {
     },
 
     async rebootApp() {
-      if (!confirm('Reiniciar la app en el device?')) return;
+      if (!(await window.confirmar({
+        titulo: 'Reiniciar la aplicación',
+        mensaje: 'Se reinicia la aplicación en el equipo.',
+        detalle: 'Deja de reportar unos segundos y vuelve sola.',
+        textoBoton: 'Reiniciar',
+        peligro: true,
+      }))) return;
       try {
         await API.post(`/api/devices/${this.deviceId}/command`, {
           command_type: 'REBOOT_APP',
         });
-        alert('Comando enviado');
+        window.toast?.('Comando enviado', 'success');
       } catch (err) {
-        alert('Error al enviar comando');
+        window.toast?.('Error al enviar comando', 'error');
       }
     },
   };

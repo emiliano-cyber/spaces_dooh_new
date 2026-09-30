@@ -147,7 +147,7 @@ function graficas() {
           document.body.appendChild(a); a.click(); a.remove();
           setTimeout(() => URL.revokeObjectURL(a.href), 4000);
         })
-        .catch(() => alert('No se pudo exportar el CSV'));
+        .catch(() => window.toast?.('No se pudo exportar el CSV', 'error'));
     },
   };
 }

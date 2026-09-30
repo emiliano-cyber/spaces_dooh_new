@@ -43,7 +43,13 @@ function gallery() {
     },
 
     async deletePhoto(id) {
-      if (!confirm('¿Eliminar esta fotografía? Esta acción no se puede deshacer.')) return;
+      if (!(await window.confirmar({
+        titulo: 'Eliminar fotografía',
+        mensaje: '¿Eliminar esta fotografía?',
+        detalle: 'No se puede deshacer.',
+        textoBoton: 'Eliminar',
+        peligro: true,
+      }))) return;
       try {
         await API.delete(`/api/photos/${id}`);
         this.photos = this.photos.filter((p) => p.id !== id);

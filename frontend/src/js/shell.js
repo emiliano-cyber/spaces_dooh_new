@@ -205,6 +205,96 @@
     });
   }
   window.confirmarEscribiendo = confirmarEscribiendo;
+
+  // ─── Confirmar, y pedir un texto, sin diálogos del navegador ──────────────
+  //
+  // `confirm()` y `prompt()` son del navegador, no nuestros, y eso se ve: Chrome
+  // los encabeza con «159.203.188.58:4100 dice», o sea que al usuario le
+  // enseñamos una IP con un puerto justo cuando le estamos preguntando algo. Se
+  // ve de un sistema a medio hacer, y encima congelan la pestaña entera.
+  //
+  // Estos dos hacen lo mismo con la cara de la casa. Devuelven el MISMO
+  // contrato que los nativos —`confirmar` resuelve a true/false y `pedirTexto`
+  // al texto o a null si se cancela— para que migrar una llamada sea ponerle un
+  // `await` delante y nada más.
+  function confirmar({ titulo = 'Confirmar', mensaje, detalle, textoBoton = 'Aceptar', peligro = false }) {
+    return new Promise((resolve) => {
+      const colorOk = peligro ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700';
+      openModal(titulo, `
+        <div class="space-y-4 text-sm">
+          <div>
+            <div class="text-neutral-800">${esc(mensaje)}</div>
+            ${detalle ? `<div class="text-neutral-500 mt-1.5">${esc(detalle)}</div>` : ''}
+          </div>
+          <div class="flex justify-end gap-2 pt-1">
+            <button id="hdr-cf-cancel" class="px-4 py-2 bg-neutral-100 rounded hover:bg-neutral-200">Cancelar</button>
+            <button id="hdr-cf-ok" class="px-4 py-2 rounded text-white ${colorOk}">${esc(textoBoton)}</button>
+          </div>
+        </div>
+      `);
+      const cerrarX = document.getElementById('hdr-modal-close');
+      let listo = false;
+      const alCerrar = () => terminar(false);
+      function terminar(valor) {
+        if (listo) return;
+        listo = true;
+        cerrarX.removeEventListener('click', alCerrar);
+        closeModal();
+        resolve(valor);
+      }
+      document.getElementById('hdr-cf-ok').addEventListener('click', () => terminar(true));
+      document.getElementById('hdr-cf-cancel').addEventListener('click', () => terminar(false));
+      cerrarX.addEventListener('click', alCerrar);
+      setTimeout(() => document.getElementById('hdr-cf-ok').focus(), 50);
+    });
+  }
+
+  function pedirTexto({ titulo = 'Anotar', mensaje, etiqueta = 'Nota', valor = '', marcador = '', opcional = true, textoBoton = 'Guardar' }) {
+    return new Promise((resolve) => {
+      openModal(titulo, `
+        <div class="space-y-4 text-sm">
+          ${mensaje ? `<div class="text-neutral-700">${esc(mensaje)}</div>` : ''}
+          <div>
+            <label class="block text-neutral-600 mb-1">${esc(etiqueta)}${opcional ? ' <span class="text-neutral-400">(opcional)</span>' : ''}</label>
+            <input id="hdr-txt-input" autocomplete="off" value="${esc(valor)}" placeholder="${esc(marcador)}"
+                   class="w-full px-3 py-2 border border-neutral-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div class="flex justify-end gap-2 pt-1">
+            <button id="hdr-txt-cancel" class="px-4 py-2 bg-neutral-100 rounded hover:bg-neutral-200">Cancelar</button>
+            <button id="hdr-txt-ok" class="px-4 py-2 rounded text-white bg-blue-600 hover:bg-blue-700">${esc(textoBoton)}</button>
+          </div>
+        </div>
+      `);
+      const input = document.getElementById('hdr-txt-input');
+      const ok = document.getElementById('hdr-txt-ok');
+      const cerrarX = document.getElementById('hdr-modal-close');
+      let listo = false;
+      const alCerrar = () => terminar(null);
+      function terminar(v) {
+        if (listo) return;
+        listo = true;
+        cerrarX.removeEventListener('click', alCerrar);
+        closeModal();
+        resolve(v);
+      }
+      const aceptar = () => {
+        const v = input.value.trim();
+        // Cancelar devuelve null y aceptar sin escribir devuelve cadena vacia:
+        // son cosas distintas y quien llama necesita distinguirlas, igual que
+        // con el prompt del navegador.
+        if (!opcional && !v) { input.focus(); return; }
+        terminar(v);
+      };
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter') aceptar(); });
+      ok.addEventListener('click', aceptar);
+      document.getElementById('hdr-txt-cancel').addEventListener('click', () => terminar(null));
+      cerrarX.addEventListener('click', alCerrar);
+      setTimeout(() => { input.focus(); input.select(); }, 50);
+    });
+  }
+
+  window.confirmar = confirmar;
+  window.pedirTexto = pedirTexto;
   // El aviso flotante tambien queda disponible para las paginas: antes cada una
   // resolvia sus mensajes con alert(), que corta la pagina y se ve de 1998.
   window.toast = toast;
