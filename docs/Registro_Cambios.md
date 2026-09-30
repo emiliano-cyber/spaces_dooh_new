@@ -7,6 +7,28 @@ La entrada más reciente va arriba.
 
 ## 2026-09-30
 
+- **Nueva pantalla «Comercial OPEX»: la prospeccion de arrendadores.** *(Tu
+  peticion del 30/09, a partir de un prototipo tuyo: «por ahora solo sera html
+  sin funciones» y «el mapa ese no lo anadas».)*
+
+  Esta en **Comercial**, y ensena los espacios que se estan persiguiendo: donde
+  esta cada uno, en que etapa va la **busqueda de quien manda** --desde «sin
+  contacto» hasta «responsable legal confirmado»--, con quien se ha hablado y
+  cuando, que se le ha ofrecido de renta y quien mas anda detras del mismo
+  espacio.
+
+  **Es una MAQUETA y la propia pantalla lo dice arriba.** Los datos son de
+  ejemplo, no hay formularios y no se guarda nada: sirve para acordar la forma
+  antes de construirla.
+
+  **Y hay algo que conviene decir ahora y no despues:** se parece mucho a
+  **Captacion**, que ya funciona de verdad y esta justo encima en el menu. No son
+  dos cosas distintas: son la misma con distinto alcance. Esta maqueta anade
+  VARIOS contactos por espacio --el dueno, su apoderada, la vecina, el portero--,
+  la competencia y el historial de ofertas de renta, que Captacion no tiene.
+  Cuando esto se construya de verdad hay que decidir si se hace **encima** de
+  Captacion o aparte; aparte significaria llevar la misma bitacora dos veces.
+
 - **Ahora puedes decir en qué horario SE TRANSMITE cada campaña.** *(Tu decisión
   del 30/09: «es para horario transmisión ya que el precio ya debe de estar en la
   campaña después de la propuesta».)* Añade un dato nuevo a las campañas, que

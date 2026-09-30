@@ -40,6 +40,11 @@ export const AREAS: AreaProducto[] = [
   // `comercial.aprobar` el permiso de aprobar propuestas y el de aprobar
   // captaciones serian el mismo, y la matriz no podria separarlos.
   { clave: 'captacion', label: 'Captación', modulo: 'captacion', apiPropia: true },
+  // Maqueta del 2026-09-30: prospección de arrendadores. `apiPropia: false`
+  // porque HOY NO TIENE API NI BASE -- se pidió «solo html sin funciones». El
+  // día que la tenga, esto pasa a `true` y hay que decidir si su módulo sigue
+  // siendo `comercial` o se va con `captacion`, con la que se solapa.
+  { clave: 'comercial-opex', label: 'Comercial OPEX', modulo: 'comercial', apiPropia: false },
   { clave: 'inventario', label: 'Inventario', modulo: 'inventario', apiPropia: true },
   // ─── Las cuatro de la cadena de precio: modulo `precios` ──────────────────
   //

@@ -28,6 +28,7 @@ Router en uso**.
 | [[acceso-y-sesion-ui]] | Login, recuperar contraseña, autoregistro |
 | [[modulos-internos]] | Las 22 pantallas dentro del shell |
 | [[pantalla-reportes]] | El tablero de rentabilidad: el límite con el endpoint, el 501 y los vacíos |
+| [[comercial-opex]] | Prospección de arrendadores. **MAQUETA sin base**, y se solapa con Captación |
 | [[paginas-publicas]] | Portal, firma, propuesta compartible, OT móvil |
 | [[estado-y-data-fetching]] | React Query, zustand, el parche de `fetch` |
 

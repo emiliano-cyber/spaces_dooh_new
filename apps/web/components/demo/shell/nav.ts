@@ -24,6 +24,7 @@ import {
   Layers,
   Ticket,
   Package,
+  Handshake,
   Target,
 } from 'lucide-react'
 import { ROLES_ASIGNABLES, rolLabel } from '@/lib/roles'
@@ -148,6 +149,10 @@ export const NAV: NavItem[] = [
   // CAP-01 · la bitacora de captacion. La ven los tres de venta: el vendedor, lo
   // suyo; quien tiene `captacion.aprobar`, todo (lo filtra el servidor).
   { key: 'captacion', label: 'Captación', href: '/captacion', icon: Target, roles: [...MANDO, ...VENTA], grupo: 'vender' },
+  // Maqueta pedida el 2026-09-30: la prospección de arrendadores. Sin base y
+  // sin formularios todavía. SE SOLAPA con Captación —que sí tiene base— y la
+  // decisión de si se construye encima de `prospectos` o aparte está abierta.
+  { key: 'comercial-opex', label: 'Comercial OPEX', href: '/comercial-opex', icon: Handshake, roles: [...MANDO, ...VENTA], grupo: 'vender' },
   // ─── Las cuatro de la CADENA DE PRECIO, en Comercial ──────────────────────
   //
   // Van en este orden a proposito: primero de donde sale la tarifa, y luego lo
