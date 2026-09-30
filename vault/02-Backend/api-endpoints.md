@@ -191,6 +191,8 @@ Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo el
 | GET·POST | `/api/ot` | exigir |
 | GET | `/api/ot/[id]` | exigir |
 | POST | `/api/ot/[id]/cerrar` | exigir |
+| PATCH | `/api/ot/[id]/costo` | exigirCambioSensible (`operaciones.costear`) |
+| PATCH | `/api/ot/[id]/checklist` | exigir (`operaciones.crear`) — un punto por petición, 2026-09-30 |
 | GET·POST | `/api/impresion` · PATCH `/api/impresion/[id]` | exigir |
 | PATCH | `/api/impresion/[id]/prueba-color` | exigir |
 

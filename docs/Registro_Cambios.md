@@ -52,6 +52,29 @@ La entrada más reciente va arriba.
   está instalado. Las placas se guardan en mayúsculas y sin espacios, para que
   «abc 12 34» y «ABC1234» sean la misma camioneta.
 
+- **El checklist de una orden de trabajo se guarda solo, cada vez que tachas un
+  punto.** *(Pedido tuyo del 30/09.)*
+
+  Hasta hoy, lo que se tachaba en el checklist de una OT **solo vivía en la
+  pantalla**: no se guardaba nada hasta pulsar «Cerrar OT». Si la cuadrilla
+  recargaba la página, se quedaba sin batería o cerraba el navegador a medio
+  trabajo, **perdía todo lo tachado** sin ningún aviso.
+
+  Ahora cada punto se guarda **en el momento** de marcarlo o desmarcarlo. Junto al
+  título «Checklist» se ve **«Guardando…»** y luego **«Guardado»**. Si algo falla
+  (por ejemplo, sin señal), sale un aviso en rojo que dice que lo tachado **todavía
+  no está guardado**, con un botón **«Reintentar»**; y si intentas cerrar la
+  pestaña con algo sin guardar, el navegador te pregunta antes. Al volver a abrir
+  la OT, ves el avance tal como lo dejaste.
+
+  Lo que **no** cambia: tachar el último punto **no cierra la OT** ni cambia su
+  estado. Para cerrarla sigue haciendo falta la foto y la ubicación, como hasta
+  ahora. Tampoco toca el costo real de la visita.
+
+  Y solo puede tachar quien puede cerrar órdenes de trabajo (Dueño, Administrador,
+  Operaciones). **Finanzas e Imprenta** ven la OT y su avance, pero el checklist
+  les aparece **de solo lectura**.
+
 ## 2026-09-29
 
 - **Nueva pantalla «Captación»: la bitácora de cómo va cada venta.** *(Pedido tuyo

@@ -2,7 +2,7 @@
 tipo: modulo
 estado: verificado
 actualizado: 2026-09-30
-tags: [backend, operaciones, ot, imprenta, amarillo]
+tags: [backend, operaciones, ot, imprenta, amarillo, almacen, checklist]
 archivos:
   - apps/web/lib/server/ot-repo.ts
   - apps/web/lib/server/ot-controller.ts
@@ -18,6 +18,9 @@ archivos:
   - apps/web/app/(app)/(shell)/administracion/page.tsx
   - db/migrations/20260917_costos_ot_por_tipo.sql
   - db/migrations/20260929_costo_real_ot.sql
+  - apps/web/app/api/ot/[id]/checklist/route.ts
+  - apps/web/lib/checklist-autoguardado.ts
+  - apps/web/components/operaciones/OTVista.tsx
 ---
 
 # Operaciones, OT e imprenta
@@ -29,8 +32,8 @@ mantenimiento, herrería, eléctrico, inspección (`tipo_ot`, `db/schema.sql:53`
 
 | Archivo | Líneas | Responsabilidad |
 |---|---|---|
-| `ot-repo.ts` | 269 | OT + evidencias, cierre, notificaciones |
-| `ot-controller.ts` | 39 | Validación |
+| `ot-repo.ts` | 353 | OT + evidencias, cierre, checklist punto a punto, costo real, notificaciones |
+| `ot-controller.ts` | 99 | Validación (alta, costo, punto del checklist) |
 | `impresion-repo.ts` | 121 | Órdenes de impresión y OC |
 | `operaciones-eventos.ts` | 86 | OT automáticas desde Arrendadores |
 | `almacen-repo.ts` | 141 | Activos y traslados; filtro por tipo |
@@ -38,16 +41,57 @@ mantenimiento, herrería, eléctrico, inspección (`tipo_ot`, `db/schema.sql:53`
 
 > [!warning] No existe forma de reasignar una OT ya creada
 > Las rutas son `GET·POST /api/ot`, `GET /api/ot/[id]`,
-> `POST /api/ot/[id]/cerrar` y —desde el **2026-09-29**—
-> `PATCH /api/ot/[id]/costo` ([[02-Backend/costo-real-de-ot]]).
+> `POST /api/ot/[id]/cerrar`, —desde el **2026-09-29**—
+> `PATCH /api/ot/[id]/costo` ([[02-Backend/costo-real-de-ot]]) y —desde el
+> **2026-09-30**— `PATCH /api/ot/[id]/checklist` (ver abajo).
 >
-> **Ese `PATCH` es SOLO del costo**, y no abre la puerta a editar lo demás: es
-> una ruta de un solo campo, con el candado de dinero, no un editor general de
-> la OT. `asignado_a` sigue sin poder cambiarse. Se escribe en dos momentos: al **crear**
+> **Esos `PATCH` son de un solo campo cada uno**, y no abren la puerta a editar
+> lo demás: el de costo lleva el candado de dinero y el del checklist solo
+> cambia `checklist[i].hecho`. Ninguno es un editor general de la OT. `asignado_a` sigue sin poder cambiarse. Se escribe en dos momentos: al **crear**
 > la OT (`crearOTCtrl`, campo `asignadoA`) y al **cerrarla**, donde
 > `ot-repo.ts:193` hace `asignado_a = coalesce(asignado_a, $3)` para estampar a
 > quien cierra. Cambiar el responsable de una OT existente exige un script de
 > datos — o un endpoint nuevo.
+
+## El checklist se guarda punto a punto (OT-CHECK-01, 2026-09-30)
+
+**Antes del 30/09** el checklist (`ordenes_trabajo.checklist`, `jsonb` de
+`{label, hecho}`, `db/schema.sql:481`) **solo se escribía dos veces**: al crear
+la OT (`crearOT`) y al cerrarla, cuando `cerrarOT` lo ponía **todo** en
+`hecho: true`. Lo que la cuadrilla tachaba vivía en un `useState` de
+`OTVista.tsx` (`setChecks` en el `onClick`) y **se perdía al recargar** o al
+cerrar la pestaña. Pedido del dueño: «que se guarde cada vez que se tacha algo».
+
+**Hoy**, cada clic manda `PATCH /api/ot/[id]/checklist` con
+`{ indice, label, hecho }` → `marcarPuntoChecklistCtrl` (zod estricto,
+`ot-controller.ts:96`) → `marcarPuntoChecklist` (`ot-repo.ts:153`). Sin
+migración: la columna ya existía.
+
+| Decisión | Por qué |
+|---|---|
+| **Un punto por petición, no el checklist entero** | Con el estado completo, dos clics casi simultáneos llegan cada uno con su foto y el segundo deshace el primero. Un punto es idempotente |
+| **Un solo `update … jsonb_set(checklist, …)`**, sin `select` previo | El `update` bloquea la fila y cambia solo `checklist[i].hecho`: no hay carrera de «leer, cambiar, escribir». La e2e lanza dos marcas a la vez y comprueba que sobreviven las dos |
+| **`and tenant_id = $2`** además de la RLS | Convención; guard de fuente en `ot-repo.checklist-aislamiento.test.ts` |
+| **El `label` tiene que cuadrar** con el del punto guardado | Un índice viejo no tacha otra tarea si el checklist cambió → **409** |
+| **OT `COMPLETADA`/`CANCELADA` → 409** | El cierre ya la dejó toda en hecho |
+| **No toca `estatus`, fechas, `asignado_a` ni `costo_real`** | Tachar el último punto **no cierra la OT**: el cierre sigue exigiendo foto + ubicación en `cerrarOT`, que es lo que destraba la facturación. Guard de fuente + e2e |
+| **Permiso `operaciones.crear`**, el mismo que cerrar | FINANZAS e IMPRENTA tienen `ver` y no marcan (403). `GET /api/ot/[id]` devuelve `puedeEditar` con ese mismo permiso para pintarlo de solo lectura — va en la respuesta y no en `usePuede` porque `/m/ot/[id]` vive fuera del shell y no tiene `SesionProvider` |
+| **Sin candado de cambios ni bitácora por clic** | No es dinero; y una fila de `acciones` por casilla sería ruido. El cierre sigue registrándose |
+
+**En la pantalla**, los clics no van directo a `fetch`: pasan por la cola de
+`lib/checklist-autoguardado.ts`, que manda **una petición a la vez**, fusiona
+los clics repetidos sobre el mismo punto y, si una falla, **se para y conserva
+el cambio** (probado en `checklist-autoguardado.test.ts`). `OTVista` muestra
+«Guardando… / Guardado», un aviso rojo con **Reintentar** si falla, avisa con
+`beforeunload` mientras hay algo sin confirmar, y deshabilita «Cerrar OT»
+mientras un punto viaja. Al recargar, lo que la cola no ha confirmado se
+superpone a lo que trae el servidor, para no repintar un punto con su valor
+viejo.
+
+> [!warning] Lo que NO se verificó
+> El recorrido en navegador (clics reales, pérdida de red, `beforeunload`) no
+> se ha hecho: `vitest.config.ts` no monta jsdom y el `.tsx` no tiene prueba.
+> La lógica de la cola y la ruta sí están cubiertas.
 
 ## El cierre de OT es lo que destraba la facturación
 
