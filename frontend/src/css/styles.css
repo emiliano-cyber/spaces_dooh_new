@@ -245,3 +245,61 @@ body {
   }
   .se-kpis > * { min-width: 0; }
 }
+
+/* ---- El visor de la vista en vivo ------------------------------------------
+ *
+ * TIENE QUE CABER EN LA VENTANA, SIEMPRE. Antes el recuadro era `aspect-[4/3]`
+ * a secas: la altura salia del ancho, y el ancho sale de la columna. En una
+ * pantalla grande eso da un visor de 800 px de alto que, sumado a la cabecera y
+ * a las pestanas, empuja los mandos fuera de la ventana — justo los mandos que
+ * se usan MIENTRAS se mira el video, que es cuando menos ganas hay de andar
+ * buscandolos con la rueda del raton.
+ *
+ * Asi que manda la altura disponible, no el ancho: el visor no crece mas alla
+ * de lo que queda de ventana, y para no deformarse tampoco crece de ancho mas
+ * de lo que esa altura permite con su proporcion. Cuando la ventana es baja se
+ * encoge y queda centrado; cuando es angosta se comporta como siempre.
+ *
+ * `--se-visor-reserva` es lo que ocupa todo lo demas. La cuenta esta MEDIDA
+ * sobre la pagina, no puesta a ojo:
+ *   barra superior            64px  (h-16)
+ *   barra fija de acciones    52px  (sm:top-16, py-2.5)
+ *   margen de la columna      24px  (pt-6)
+ *   cabecera de la tarjeta    57px  (p-4 + borde)
+ *   margen inferior           32px  (pb-8)
+ *                            ─────
+ *                            229px  ≈ 14.5rem
+ *
+ * Si algun dia cambia el encabezado se ajusta AQUI, no en cinco reglas sueltas.
+ */
+:root { --se-visor-reserva: 14.5rem; }
+
+.se-visor {
+  aspect-ratio: 4 / 3;
+  /* `dvh` y no `vh`: en el movil la barra del navegador aparece y desaparece, y
+   * con `vh` el visor se pasa de largo justo cuando la barra esta a la vista. */
+  max-height: calc(100dvh - var(--se-visor-reserva));
+  width: min(100%, calc((100dvh - var(--se-visor-reserva)) * 4 / 3));
+  /* Por debajo de esto el video ya no se ve: es preferible que la pagina
+   * desplace a dejar una rendija negra. */
+  min-height: 220px;
+  margin-inline: auto;
+}
+
+/* En movil la tarjeta va a todo lo ancho y hay una barra de acciones abajo, asi
+ * que hay que reservar mas y dejar que el ancho mande. */
+@media (max-width: 1023px) {
+  /* En movil la barra de acciones se va ABAJO (bottom-0, ~72px) y la columna
+   * ya no comparte fila, asi que la cuenta cambia: 64 + 24 + 57 + 72 + respiro. */
+  :root { --se-visor-reserva: 15rem; }
+  .se-visor { width: 100%; }
+}
+
+/* Navegadores sin `dvh` (Safari viejo): se cae a `vh`, que es casi lo mismo en
+ * escritorio y solo se equivoca por la barra del movil. */
+@supports not (height: 100dvh) {
+  .se-visor {
+    max-height: calc(100vh - var(--se-visor-reserva));
+    width: min(100%, calc((100vh - var(--se-visor-reserva)) * 4 / 3));
+  }
+}
