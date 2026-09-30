@@ -8,6 +8,8 @@ archivos:
   - apps/web/components/demo/
   - apps/web/lib/modulos.ts
   - apps/web/lib/campanas-vista.ts
+  - apps/web/lib/campanas-menu.ts
+  - apps/web/components/demo/campanas/CampanasNav.tsx
 ---
 
 # Módulos internos (dentro del shell)
@@ -74,6 +76,29 @@ con su cuenta de Google»**: no se teclea contraseña y el servidor genera una q
 nadie ve. Ver [[flujo-acceso-con-google]].
 | `/configuracion` | Config del negocio | `/api/config`, `/api/organizacion` | — |
 | `/integraciones` | Estado de conectores | `/api/integraciones` | — |
+
+> [!note] 2026-09-30 · el menú lateral del detalle de campaña se pliega en TODOS los anchos
+> Pedido del dueño. En `/campanas/[id]` el menú con las demás campañas
+> (`components/demo/campanas/CampanasNav.tsx`) **no tenía botón**: por debajo de
+> `lg` se apilaba ENCIMA del pipeline con hasta `max-h-[60vh]`, y desde `lg` se
+> quedaba a la izquierda con `lg:w-64` fijo. Ahora lleva un botón que se ve en
+> cualquier ancho (`aria-expanded`, `aria-controls` hacia la lista, etiqueta
+> «Ocultar/Mostrar el menú de campañas»). Plegado, en escritorio queda una tira
+> `lg:w-9` y el pipeline (`flex-1` en la página) se lleva el resto; en móvil y
+> tableta queda una sola fila «Campañas (N) · Mostrar».
+>
+> La lista se esconde con el atributo `hidden`, **no se desmonta**, para que
+> `aria-controls` apunte a algo que existe. La preferencia vive en
+> `localStorage` (`spaces:campanas-menu`, `apps/web/lib/campanas-menu.ts`), con
+> el patrón de `lib/alertas-visibles.ts`: arranca desplegado en servidor y
+> cliente y se aplica en un `useEffect`, y **solo el valor exacto `'1'`
+> pliega** — cualquier basura deja el menú a la vista. Va en archivo y clave
+> propios, separado de `lib/campanas-vista.ts` (la vista de la LISTA).
+>
+> Probado: `lib/campanas-menu.test.ts` (la lectura validada) y
+> `components/demo/campanas/CampanasNav.test.ts`, que rinde `CampanasNavVista`
+> —la parte sin estado— con `react-dom/server`. El clic y la hidratación no
+> los ve ninguna prueba (no hay jsdom, ver `vitest.config.ts`).
 
 ## Componentes compartidos
 

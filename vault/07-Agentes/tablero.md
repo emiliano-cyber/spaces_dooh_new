@@ -6,6 +6,18 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!success] 2026-09-30 · **El menú lateral del detalle de campaña se pliega — RECLAMADO Y LIBERADO**
+> Rama `feat/campanas-menu-plegable`, salida de `main` (`17dfef67`). VERDE: ni
+> sesión, ni tenant, ni migración, ni dinero; es una preferencia de pantalla en
+> `localStorage`.
+>
+> **Zonas tomadas y liberadas:** **Z5 · Comercial**, solo
+> `components/demo/campanas/CampanasNav.tsx` y el archivo NUEVO
+> `lib/campanas-menu.ts`, y **Z12 · Docs**. **NO se tocó**
+> `app/(app)/(shell)/campanas/page.tsx` ni `lib/campanas-vista.ts`, que son de la
+> rama paralela `feat/campanas-pipeline-compacto`. Detalle en
+> [[03-Frontend/modulos-internos]].
+
 > [!success] 2026-09-29 · **CAP-01 · la bitácora de captación — RECLAMADO Y LIBERADO**
 > Rama `feat/captacion`, salida de `main` (`d212d6a4`). Diseño aprobado por el
 > dueño ese día («si aprobado, fotos y documentos después»). **ROJO por dos
