@@ -293,7 +293,7 @@ de que esto existiera.
 | `GET /api/sitios/[id]/rejilla` | `inventario.ver` |
 | `PATCH /api/sitios/[id]/rejilla` | Sensible **entera** (`inventario.crear`), sin lista blanca de campos |
 | `GET /api/campanas/franja-programada` | `comercial.ver` — la franja en que **se transmite** cada campaña (PROG-01, abajo) |
-| `PUT /api/campanas/franja-programada` | `comercial.crear` — en bloque y atómico. **No** es cambio sensible: no mueve precio |
+| `PUT /api/campanas/franja-programada` | `comercial.aprobar` (gerente, director, administrador y Dueño; decision del 30/09) — en bloque y atómico. **No** es cambio sensible: no mueve precio |
 
 > [!warning] Corregido el 2026-09-30: esta tabla decía `inventario.ver`
 > Desde el ADR 0040 (29/09) el catálogo de franjas va bajo el módulo **`precios`**
@@ -373,7 +373,7 @@ La FK compuesta `(franja_programada_id, tenant_id)` es la capa que cierra R2 en
 la base: `franja_programada_id` entra por el cuerpo. La validación del repo
 existe además porque la FK **deja pasar una franja dada de baja**.
 
-### Avisar, no bloquear — y es una DECISIÓN PENDIENTE
+### Avisar, no bloquear — decidido por el dueño el 2026-09-30
 
 Si la programada difiere de la contratada, `avisosDeProgramacion`
 (`lib/franja-programada.ts`, pura) produce *«Se vendió como «Prime» (2
@@ -384,17 +384,24 @@ pantallas solo lo pintan. Tres reglas:
 - lo vendido **sin franja** («todo el día») **no** es una discrepancia;
 - las reservas **canceladas** no cuentan.
 
-**Hoy se avisa y se guarda igual.** Si debería bloquearse lo decide el dueño;
-el cambio sería en esa función y en el controller, no en las pantallas.
+**Se avisa y se guarda igual**, y así lo decidió el dueño el 30/09 («avisar»).
+Si algún día se quisiera bloquear, el cambio sería en esa función y en el
+controller, no en las pantallas.
 
 ### Permiso
 
-Programar pide **`comercial.crear`** —lo mismo que confirmar, extender, repartir
-creativos o enviar al dominio— y leer, **`comercial.ver`**. No es cambio
-sensible: no mueve dinero. La lectura devuelve nombre y horario de las franjas a
-quien no tiene `precios.ver`, porque un nombre no es un precio. **Pendiente del
-dueño:** si programar horario debería ser un permiso propio (p. ej. para
-Operaciones sin poder vender).
+Programar pide **`comercial.aprobar`** y leer, **`comercial.ver`**. Decisión del
+dueño del 2026-09-30: *«como la franja es después de la creación de la campaña,
+puede solo gerente comercial, directivo y dueño»*. `comercial.crear` —lo que
+piden confirmar, extender o repartir creativos— lo tiene también el VENDEDOR;
+`comercial.aprobar` lo tienen DUENO, ADMINISTRADOR (el ADR 0040 le da lo mismo
+que al Dueño), DIRECTOR_COMERCIAL y GERENTE_VENTAS. Se reutiliza el permiso que
+ya existía, sin migración. El GET devuelve `puedeProgramar` con la misma regla,
+y las dos pantallas esconden los controles sin él (un botón que el servidor
+niega es el «encierro»). La e2e §5 fija los cinco roles.
+
+No es cambio sensible: no mueve dinero. La lectura devuelve nombre y horario de
+las franjas a quien no tiene `precios.ver`, porque un nombre no es un precio.
 
 ---
 

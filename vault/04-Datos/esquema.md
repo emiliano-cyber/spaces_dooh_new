@@ -18,8 +18,8 @@ archivos:
 
 # Esquema de datos
 
-> [!danger] 2026-09-30 · `campanas.franja_programada_id` — PROG-01, SIN FUSIONAR
-> **Pendiente de aprobación del dueño.** Columna nueva, **no tabla**: el
+> [!success] 2026-09-30 · `campanas.franja_programada_id` — PROG-01
+> **Aprobada por el dueño el 2026-09-30.** Columna nueva, **no tabla**: el
 > recuento de tablas no cambia. `uuid`, nullable, sin default, FK compuesta
 > `(franja_programada_id, tenant_id) → franjas_horarias (id, tenant_id)` con
 > `on delete restrict`, índice parcial `idx_campanas_franja_programada`.

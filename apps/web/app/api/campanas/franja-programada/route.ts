@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { exigir } from '@/lib/server/auth'
+import { exigir, tienePermiso } from '@/lib/server/auth'
 import { respuestaError } from '@/lib/server/errores'
 import { registrarAccion } from '@/lib/server/acciones-repo'
 import {
@@ -17,13 +17,16 @@ export const dynamic = 'force-dynamic'
 //  NO ES UNA RUTA DE PRECIO, y por eso no va bajo `precios` ni pide
 //  `exigirCambioSensible` como las de la rejilla. Programar no mueve un peso:
 //  lo contratado vive en `reservas.franja_id` y en el snapshot, y esta ruta no
-//  los toca. Es gestión de la campaña, y pide EXACTAMENTE lo que piden hoy las
-//  demás rutas que gestionan una campaña (confirmar, extender, repartir
-//  creativos, enviar al dominio): `comercial.crear`. Leer pide `comercial.ver`.
+//  los toca. Leer pide `comercial.ver`.
 //
-//  ⚠️ Decisión pendiente del dueño: si programar el horario debería ser un
-//  permiso propio (p. ej. para que Operaciones programe sin poder vender). Hoy
-//  no existe uno, y inventarlo aquí sería decidir por él.
+//  ESCRIBIR pide `comercial.aprobar`, y no `comercial.crear` como el resto de
+//  la gestión de una campaña. Decisión del dueño del 2026-09-30: «como la
+//  franja es después de la creación de la campaña, puede solo gerente
+//  comercial, directivo y dueño». `comercial.crear` lo tiene también el
+//  VENDEDOR; `comercial.aprobar` lo tienen DUENO, ADMINISTRADOR (el ADR 0040
+//  le da lo mismo que al Dueño), DIRECTOR_COMERCIAL y GERENTE_VENTAS. Se usa el
+//  permiso que ya existe en vez de inventar uno: la matriz de Administración
+//  sigue mandando, y no hace falta migración. La e2e §5 fija los cinco roles.
 //
 //  El nombre de la ruta NO lleva «rejilla» a propósito:
 //  `rbac-coherencia.test.ts` exige `precios` a todo lo que la lleve, y esto no
@@ -42,7 +45,10 @@ export async function GET(req: Request) {
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
   try {
     const campanaId = new URL(req.url).searchParams.get('campanaId')
-    return NextResponse.json(await programacionCtrl({ campanaId }))
+    // La pantalla lo necesita para no ofrecerle al VENDEDOR un botón que el PUT
+    // le va a negar: se calcula aquí, con la MISMA regla que el PUT.
+    const puedeProgramar = await tienePermiso(g.usuario.rol, 'comercial', 'aprobar')
+    return NextResponse.json({ ...(await programacionCtrl({ campanaId })), puedeProgramar })
   } catch (e) {
     return respuestaError(e)
   }
@@ -51,7 +57,7 @@ export async function GET(req: Request) {
 // PUT → programa (o quita, con `franjaId: null`) UNA franja en VARIAS campañas,
 // todo o nada. PUT y no POST: repetir la misma petición deja el mismo estado.
 export async function PUT(req: Request) {
-  const g = await exigir('comercial', 'crear')
+  const g = await exigir('comercial', 'aprobar')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
   try {
     const r = await asignarFranjaProgramadaCtrl(await req.json().catch(() => ({})))

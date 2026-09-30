@@ -34,6 +34,9 @@ export function FranjaProgramadaCampana({ campanaId }: { campanaId: string }) {
   const [error, setError] = useState<string | null>(null)
   const [ocupado, setOcupado] = useState(false)
   const [cargando, setCargando] = useState(true)
+  // `comercial.aprobar`, decidido por el servidor: sin él se ve el horario pero
+  // no se ofrece el selector (decisión del dueño del 30/09).
+  const [puede, setPuede] = useState(false)
 
   const cargar = useCallback(async () => {
     try {
@@ -42,6 +45,7 @@ export function FranjaProgramadaCampana({ campanaId }: { campanaId: string }) {
       const c = d.campanas[0] ?? null
       setCampana(c)
       setEleccion(c?.franjaProgramadaId ?? '')
+      setPuede(d.puedeProgramar === true)
       setError(null)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo leer el horario de transmisión')
@@ -110,6 +114,12 @@ export function FranjaProgramadaCampana({ campanaId }: { campanaId: string }) {
               </div>
             </dl>
 
+            {!puede ? (
+              <p className="text-[12px] text-muted">
+                Solo el gerente de ventas, el director comercial y la dirección pueden cambiar el
+                horario de transmisión.
+              </p>
+            ) : (
             <div className="flex flex-wrap items-center gap-2">
               <select
                 aria-label="Franja de transmisión"
@@ -133,6 +143,7 @@ export function FranjaProgramadaCampana({ campanaId }: { campanaId: string }) {
                 Guardar
               </button>
             </div>
+            )}
 
             {campana.avisos.map((a) => (
               <p

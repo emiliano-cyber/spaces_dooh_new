@@ -29,6 +29,9 @@ let beta: Awaited<ReturnType<typeof sembrarTenant>>
 let ca: Cliente
 let cb: Cliente
 let cop: Cliente
+let cvend: Cliente
+let cger: Cliente
+let cdir: Cliente
 
 const franja: Record<string, string> = {}
 const campana: Record<string, string> = {}
@@ -106,6 +109,12 @@ beforeAll(async () => {
   // OPERACIONES tiene `comercial.ver` pero NO `comercial.crear`: lee la
   // programación y no puede cambiarla.
   const op = await sembrarTenant('progop', { rol: 'OPERACIONES' })
+  // Decisión del dueño del 2026-09-30: «como la franja es después de la
+  // creación de la campaña, puede solo gerente comercial, directivo y dueño».
+  // El VENDEDOR tiene `comercial.crear` —vende— y NO programa.
+  const vend = await sembrarTenant('progvend', { rol: 'VENDEDOR' })
+  const ger = await sembrarTenant('progger', { rol: 'GERENTE_VENTAS' })
+  const dir = await sembrarTenant('progdir', { rol: 'DIRECTOR_COMERCIAL' })
 
   franja.alfaPrime = await sembrarFranja(alfa.id, 'Prime', '06:00', '10:00', 1)
   franja.alfaNoche = await sembrarFranja(alfa.id, 'Noche', '20:00', '23:00', 2)
@@ -117,6 +126,11 @@ beforeAll(async () => {
   campana.alfa2 = await sembrarCampana(alfa, 'dos', null)
   campana.beta1 = await sembrarCampana(beta, 'uno', franja.betaPrime)
   campana.op1 = await sembrarCampana(op, 'uno', null)
+  campana.vend1 = await sembrarCampana(vend, 'uno', null)
+  campana.ger1 = await sembrarCampana(ger, 'uno', null)
+  campana.dir1 = await sembrarCampana(dir, 'uno', null)
+  franja.ger = await sembrarFranja(ger.id, 'Prime', '06:00', '10:00', 1)
+  franja.dir = await sembrarFranja(dir.id, 'Prime', '06:00', '10:00', 1)
 
   await arrancarServidor()
   ca = new Cliente()
@@ -125,6 +139,12 @@ beforeAll(async () => {
   await ca.entrar(alfa.usuarioEmail, PASSWORD_DEMO)
   await cb.entrar(beta.usuarioEmail, PASSWORD_DEMO)
   await cop.entrar(op.usuarioEmail, PASSWORD_DEMO)
+  cvend = new Cliente()
+  cger = new Cliente()
+  cdir = new Cliente()
+  await cvend.entrar(vend.usuarioEmail, PASSWORD_DEMO)
+  await cger.entrar(ger.usuarioEmail, PASSWORD_DEMO)
+  await cdir.entrar(dir.usuarioEmail, PASSWORD_DEMO)
 }, 180_000)
 
 afterAll(async () => {
@@ -313,12 +333,36 @@ describe('4 · lo de otra organización no existe para ésta', () => {
 
 // ─── 5 · PERMISO ────────────────────────────────────────────────────────────
 
-describe('5 · programar exige `comercial.crear`', () => {
+describe('5 · programar exige `comercial.aprobar` (decisión del dueño, 30/09)', () => {
   it('OPERACIONES lee (comercial.ver) pero NO programa: 403 y nada escrito', async () => {
     const lee = await cop.pedir(RUTA)
     expect(lee.status, JSON.stringify(lee.datos)).toBe(200)
     const r = await cop.pedir(RUTA, { metodo: 'PUT', cuerpo: { franjaId: null, campanaIds: [campana.op1] } })
     expect(r.status, JSON.stringify(r.datos)).toBe(403)
+  })
+
+  it('el VENDEDOR vende pero NO programa: 403, y la campaña sigue sin programar', async () => {
+    const lee = await cvend.pedir(RUTA)
+    expect(lee.status, JSON.stringify(lee.datos)).toBe(200)
+    // La pantalla esconde los controles con esto: tiene que decir lo mismo
+    // que el PUT, o el vendedor vería un botón que da 403.
+    expect(lee.datos.puedeProgramar).toBe(false)
+    const r = await cvend.pedir(RUTA, { metodo: 'PUT', cuerpo: { franjaId: null, campanaIds: [campana.vend1] } })
+    expect(r.status, JSON.stringify(r.datos)).toBe(403)
+    expect(await programadaDe(campana.vend1)).toBeNull()
+  })
+
+  it('el GERENTE de ventas SÍ programa', async () => {
+    expect((await cger.pedir(RUTA)).datos.puedeProgramar).toBe(true)
+    const r = await cger.pedir(RUTA, { metodo: 'PUT', cuerpo: { franjaId: franja.ger, campanaIds: [campana.ger1] } })
+    expect(r.status, JSON.stringify(r.datos)).toBe(200)
+    expect(await programadaDe(campana.ger1)).toBe(franja.ger)
+  })
+
+  it('el DIRECTOR comercial SÍ programa', async () => {
+    const r = await cdir.pedir(RUTA, { metodo: 'PUT', cuerpo: { franjaId: franja.dir, campanaIds: [campana.dir1] } })
+    expect(r.status, JSON.stringify(r.datos)).toBe(200)
+    expect(await programadaDe(campana.dir1)).toBe(franja.dir)
   })
 
   it('sin sesión: 401', async () => {

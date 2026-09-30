@@ -234,7 +234,7 @@ producción de hoy.
 `reservas.franja_id` es lo **vendido**: se hereda del ítem al generar la
 campaña y **no se elige aquí**. `campanas.franja_programada_id` es en qué
 horario **se transmite**, y la escribe solo
-`PUT /api/campanas/franja-programada` (`comercial.crear`, en bloque y atómico).
+`PUT /api/campanas/franja-programada` (`comercial.aprobar`, en bloque y atómico).
 Programar no toca precio, snapshot ni reservas; si difiere de lo contratado,
 se **avisa** y no se bloquea (decisión pendiente del dueño). En la ficha lo
 enseña `FranjaProgramadaCampana`, montado con una línea bajo el Pipeline.

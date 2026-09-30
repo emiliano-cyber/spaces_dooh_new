@@ -43,12 +43,17 @@ export function ProgramacionPorFranja() {
   const [error, setError] = useState<string | null>(null)
   const [ocupado, setOcupado] = useState(false)
   const [cargando, setCargando] = useState(true)
+  // Lo decide el servidor (`comercial.aprobar`, decisión del dueño del 30/09).
+  // Sin él se VE la programación, pero no se ofrecen los controles: ofrecerle
+  // al vendedor un botón que el servidor le niega sería el «encierro».
+  const [puede, setPuede] = useState(false)
 
   const cargar = useCallback(async () => {
     try {
       const d = await programacionApi()
       setFranjas(d.franjas)
       setCampanas(d.campanas)
+      setPuede(d.puedeProgramar === true)
       setError(null)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo leer la programación')
@@ -96,6 +101,13 @@ export function ProgramacionPorFranja() {
 
       <AvisoFranjaCMS />
 
+      {!puede && (
+        <p className="text-xs text-neutral-500">
+          Solo el gerente de ventas, el director comercial y la dirección pueden programar el
+          horario. Aquí ves cómo está.
+        </p>
+      )}
+
       {error && (
         <p role="alert" className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800">
           {error}
@@ -129,16 +141,18 @@ export function ProgramacionPorFranja() {
                       className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs"
                     >
                       {nombreCampana(c)}
-                      <button
-                        type="button"
-                        disabled={ocupado}
-                        onClick={() => void operar(null, [c.id])}
-                        aria-label={`Quitar ${nombreCampana(c)} de ${f.nombre}`}
-                        title="Quitar de esta franja (no toca lo vendido)"
-                        className="text-neutral-500 hover:text-red-700 disabled:opacity-50"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
+                      {puede && (
+                        <button
+                          type="button"
+                          disabled={ocupado}
+                          onClick={() => void operar(null, [c.id])}
+                          aria-label={`Quitar ${nombreCampana(c)} de ${f.nombre}`}
+                          title="Quitar de esta franja (no toca lo vendido)"
+                          className="text-neutral-500 hover:text-red-700 disabled:opacity-50"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -155,7 +169,7 @@ export function ProgramacionPorFranja() {
                 )),
               )}
 
-              {ofrecibles.length > 0 && (
+              {puede && ofrecibles.length > 0 && (
                 <details className="text-xs">
                   <summary className="cursor-pointer select-none text-neutral-600">
                     Programar campañas en {f.nombre}

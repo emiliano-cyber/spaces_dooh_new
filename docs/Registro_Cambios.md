@@ -9,8 +9,8 @@ La entrada más reciente va arriba.
 
 - **Ahora puedes decir en qué horario SE TRANSMITE cada campaña.** *(Tu decisión
   del 30/09: «es para horario transmisión ya que el precio ya debe de estar en la
-  campaña después de la propuesta».)* **Pendiente de tu aprobación**: añade un
-  dato nuevo a las campañas, y por eso todavía no está en la versión principal.
+  campaña después de la propuesta».)* Añade un dato nuevo a las campañas, que
+  **aprobaste el 30/09**.
 
   En **Franjas y temporadas**, debajo del catálogo, aparece **«Horario de
   transmisión»**: junto a cada franja (Prime, Noche…) ves qué campañas salen en
@@ -24,12 +24,14 @@ La entrada más reciente va arriba.
     cotizó en la propuesta— se queda exactamente como se aceptó. Esto solo dice
     en qué horario tiene que salir.
   - **Si se vendió en una franja y se programa en otra**, el sistema te **avisa**
-    («se vendió como Prime y se programa en Noche») pero **te deja guardarlo**.
-    Si prefieres que lo impida, dínoslo: es una decisión tuya.
+    («se vendió como Prime y se programa en Noche») pero **te deja guardarlo**,
+    como decidiste el 30/09.
   - **O se programan todas o ninguna.** Si en un lote va una campaña que no se
     puede (por ejemplo, de otra organización), no se toca ninguna y te lo dice.
-  - Lo puede hacer quien hoy gestiona campañas (el mismo permiso que confirmar o
-    extender una campaña). Queda registrado en **Actividad**.
+  - **Solo lo pueden hacer el gerente de ventas, el director comercial y la
+    dirección** (Dueño y administrador), como decidiste: la franja se fija
+    después de crear la campaña. El **vendedor** ve el horario pero no lo
+    cambia. Queda registrado en **Actividad**.
   - **Sigue sin llegar sola a la pantalla**: el CMS no recibe horarios, así que
     quien opera la pantalla lo tiene que programar a mano. Se avisa siempre.
 

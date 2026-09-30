@@ -39,7 +39,12 @@ async function fallar(r: Response, porOmision: string): Promise<never> {
 
 export async function programacionApi(
   campanaId?: string,
-): Promise<{ franjas: FranjaProgramacionUI[]; campanas: CampanaProgramacionUI[] }> {
+): Promise<{
+  franjas: FranjaProgramacionUI[]
+  campanas: CampanaProgramacionUI[]
+  /** Lo decide el servidor con la misma regla que el PUT (`comercial.aprobar`). */
+  puedeProgramar: boolean
+}> {
   const r = await fetch(campanaId ? `${RUTA}?campanaId=${encodeURIComponent(campanaId)}` : RUTA)
   if (!r.ok) return fallar(r, 'No se pudo leer la programación de las campañas')
   return r.json()

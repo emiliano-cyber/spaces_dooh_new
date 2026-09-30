@@ -37,9 +37,9 @@ archivos:
 
 # Migraciones
 
-> [!danger] 2026-09-30 · `20261002_franja_programada_campana.sql` — PROG-01, **SIN FUSIONAR**
-> **Pendiente de aprobación del dueño** (toda forma de base se aprueba antes de
-> aterrizar en `main`). Si la lees en `main`, ya se aprobó.
+> [!success] 2026-09-30 · `20261002_franja_programada_campana.sql` — PROG-01
+> **Aprobada por el dueño el 2026-09-30** (toda forma de base se aprueba antes de
+> aterrizar en `main`).
 >
 > Una columna: **`campanas.franja_programada_id uuid`**, nullable y sin default,
 > con FK **compuesta** `(franja_programada_id, tenant_id) → franjas_horarias (id,
