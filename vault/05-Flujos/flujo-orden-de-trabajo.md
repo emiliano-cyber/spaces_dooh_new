@@ -1,7 +1,7 @@
 ---
 tipo: flujo
 estado: verificado
-actualizado: 2026-08-07
+actualizado: 2026-09-30
 tags: [flujo, operaciones, ot, evidencias]
 archivos:
   - apps/web/lib/server/ot-repo.ts
@@ -9,6 +9,8 @@ archivos:
   - apps/web/lib/server/storage.ts
   - apps/web/lib/exif.ts
   - apps/web/app/(app)/m/ot/[id]/
+  - apps/web/app/api/ot/[id]/checklist/route.ts
+  - apps/web/lib/checklist-autoguardado.ts
 ---
 
 # Flujo: orden de trabajo en campo
@@ -37,8 +39,13 @@ sequenceDiagram
     OT->>PG: insert ordenes_trabajo (folio consecutivo, PENDIENTE)
     OT->>PG: notificar()
 
-    OP->>OT: PATCH /api/ot/[id] — asignar, programar
+    Note over OP,OT: no hay ruta para reasignar ni reprogramar una OT ya creada (ver operaciones-y-ot)
     CU->>CU: abre /m/ot/[id] (sin chrome)
+    loop cada punto tachado o destachado (desde el 2026-09-30)
+        CU->>OT: PATCH /api/ot/[id]/checklist {indice, label, hecho}
+        OT->>PG: update … jsonb_set(checklist[i].hecho) — sin tocar estatus
+        Note over CU: la cola manda UNA a la vez · «Guardando… / Guardado / Reintentar»
+    end
     CU->>OT: POST /api/ot/[id]/cerrar + fotos
     OT->>OT: valida magic bytes (uploads.ts) — 422 si no es imagen
     OT->>OT: extrae fecha EXIF → tomada_en
@@ -73,6 +80,15 @@ stateDiagram-v2
     PENDIENTE --> CANCELADA
     ASIGNADA --> CANCELADA
 ```
+
+## El avance del checklist no se pierde (2026-09-30)
+
+Hasta el 30/09, lo tachado vivía solo en la pantalla y se perdía al recargar:
+lo único que escribía el checklist era el cierre, que lo pone todo en hecho.
+Hoy cada clic se guarda al momento, **sin cambiar el estado de la OT**: marcar
+el último punto no la cierra, y cerrar sigue pidiendo foto y ubicación. Quien
+solo tiene `operaciones.ver` (Finanzas, Imprenta) lo ve de solo lectura.
+Detalle de las decisiones y sus pruebas en [[operaciones-y-ot]].
 
 ## Las dos fechas de la evidencia
 

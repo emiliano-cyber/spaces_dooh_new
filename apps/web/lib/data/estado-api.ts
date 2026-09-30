@@ -743,6 +743,30 @@ export async function fijarCostoOTApi(id: string, costoReal: number | null) {
   return d
 }
 
+// OT-CHECK-01 · marca o desmarca UN punto del checklist en el momento del clic.
+// Lo llama la cola de `lib/checklist-autoguardado.ts`, nunca directo desde el
+// clic: la cola es la que impide dos peticiones cruzadas.
+export async function marcarPuntoChecklistApi(
+  id: string,
+  punto: { indice: number; label: string; hecho: boolean },
+) {
+  let r: Response
+  try {
+    r = await fetch(`${API}/ot/${id}/checklist/`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(punto),
+    })
+  } catch {
+    // Sin red, `fetch` lanza un TypeError en inglés («Failed to fetch») que no
+    // le dice nada a una cuadrilla en la calle.
+    throw new Error('Sin conexión: el cambio no se guardó todavía')
+  }
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo guardar el checklist')
+  return d
+}
+
 // ─── Creativos ──────────────────────────────────────────────────────────────
 export async function crearCreatividadApi(input: {
   campanaId: string

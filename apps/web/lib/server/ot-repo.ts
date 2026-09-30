@@ -123,6 +123,61 @@ export async function fijarCostoOT(id: string, costo: number | null) {
   return rowToOT(r)
 }
 
+// ─── OT-CHECK-01 · marcar o desmarcar UN punto del checklist ────────────────
+//
+// Pedido del dueño (2026-09-30): el avance se guarda en cada clic. Hasta ese día
+// el checklist solo vivía en la pantalla y la única escritura era `cerrarOT`.
+//
+// Por qué así y no de otra forma, en orden de lo caro que sería equivocarse:
+//
+//  1. **Un solo `update` con `jsonb_set`**, sin leer antes. Un `select` y un
+//     `update` en dos viajes dejan una carrera: dos clics rápidos sobre puntos
+//     distintos leen el mismo checklist y el segundo PISA al primero, sin error.
+//     Aquí el `update` bloquea la fila y cambia solo `checklist[i].hecho`.
+//  2. **`and tenant_id = $2`** además de la RLS (convención del repo; guard en
+//     `ot-repo.checklist-aislamiento.test.ts`).
+//  3. **La etiqueta tiene que cuadrar** (`->> 'label' = $4`): si el checklist
+//     cambió desde que se abrió la pantalla, un índice viejo tacharía otra tarea.
+//  4. **Una OT cerrada o cancelada no se toca.** El cierre ya la dejó TODA en
+//     hecho; desmarcar después dejaría una OT completada con tareas pendientes.
+//  5. **NO cambia `estatus`, fechas, responsable ni `costo_real`.** Marcar el
+//     último punto no cierra la OT —hoy no lo hacía y el pedido lo excluye—: el
+//     cierre sigue exigiendo foto y ubicación en `cerrarOT`, que es lo que
+//     destraba la facturación. Y el costo es dinero con su propia ruta y candado.
+//
+// Si el `update` no toca ninguna fila, se averigua por qué para contestar bien:
+// 404 si la OT no existe PARA ESTE TENANT (un 403 confirmaría que existe en otra
+// organización), 409 si está cerrada o el punto no cuadra.
+const OT_TERMINADAS = ['COMPLETADA', 'CANCELADA']
+
+export async function marcarPuntoChecklist(
+  id: string,
+  p: { indice: number; label: string; hecho: boolean },
+) {
+  const tenantId = await tenantActual()
+  const r = await q1(
+    `update ordenes_trabajo
+        set checklist = jsonb_set(checklist, array[$3::int::text, 'hecho'], to_jsonb($5::boolean))
+      where id = $1 and tenant_id = $2
+        and not (estatus::text = any($6::text[]))
+        and jsonb_typeof(checklist) = 'array'
+        and checklist -> ($3::int) ->> 'label' = $4
+      returning *`,
+    [id, tenantId, p.indice, p.label, p.hecho, OT_TERMINADAS],
+  )
+  if (r) return rowToOT(r)
+
+  const ot = await q1<{ estatus: string }>(
+    'select estatus from ordenes_trabajo where id = $1 and tenant_id = $2',
+    [id, tenantId],
+  )
+  if (!ot) throw new AppError('No encontramos esa orden de trabajo', 404)
+  if (OT_TERMINADAS.includes(ot.estatus)) {
+    throw new AppError('Esta orden de trabajo ya está cerrada: su checklist ya no se puede cambiar', 409)
+  }
+  throw new AppError('El checklist de esta orden de trabajo cambió. Recarga la página y vuelve a marcarlo', 409)
+}
+
 // OT con su sitio, campaña y evidencias (para la vista móvil standalone).
 export async function getOTcompleta(id: string) {
   const r = await q1('select * from ordenes_trabajo where id=$1', [id])
