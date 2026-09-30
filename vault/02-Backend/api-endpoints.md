@@ -139,7 +139,7 @@ Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo el
 | POST | `/api/sitios/import` | exigir |
 | POST | `/api/predios` · PATCH `/api/predios/[id]` · POST `/api/predios/[id]/pantallas` | exigir |
 | POST | `/api/incidencias` | exigir |
-| GET·POST | `/api/almacen` · POST `/api/almacen/[id]/movimiento` | exigir |
+| GET·POST | `/api/almacen` (GET acepta `?tipo=`, catálogo de `lib/almacen-tipos.ts`; desde 30/09) · POST `/api/almacen/[id]/movimiento` | exigir |
 | POST | `/api/licencias` · PATCH·DELETE `/api/licencias/[id]` | exigir |
 
 ## Arrendadores y contratos
@@ -192,6 +192,8 @@ Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo el
 | GET·POST | `/api/ot` | exigir |
 | GET | `/api/ot/[id]` | exigir |
 | POST | `/api/ot/[id]/cerrar` | exigir |
+| PATCH | `/api/ot/[id]/costo` | exigirCambioSensible (`operaciones.costear`) |
+| PATCH | `/api/ot/[id]/checklist` | exigir (`operaciones.crear`) — un punto por petición, 2026-09-30 |
 | GET·POST | `/api/impresion` · PATCH `/api/impresion/[id]` | exigir |
 | PATCH | `/api/impresion/[id]/prueba-color` | exigir |
 

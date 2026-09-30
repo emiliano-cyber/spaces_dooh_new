@@ -12,6 +12,7 @@ archivos:
   - db/migrations/20260928_tope_descuento_propuestas.sql
   - db/migrations/20260928_codigo_promocional.sql
   - db/migrations/20260928_paquete_cerrado.sql
+  - db/migrations/20261001_almacen_datos_por_tipo.sql
   - db/migrations/20261002_franja_programada_campana.sql
 ---
 
@@ -469,6 +470,16 @@ erDiagram
 ### Inventario
 `sitios`, `sitio_modalidades`, `predios`, `incidencias`, `licencias`,
 `almacen_activos`, `almacen_movimientos`.
+
+> [!success] `almacen_activos` por tipo (2026-09-30) — la migración está **APROBADA por el dueño el 2026-09-30** (antes: pendiente de aprobación)
+> `tipo_activo` es `text` **sin CHECK** (`20260723_almacen.sql:26`); el
+> catálogo (`VEHICULO`, `HERRAMIENTA`, `PANTALLA`, `EQUIPO`, `CAMARA`,
+> `ESTRUCTURA`, `LONA`, `OTRO`) lo aplica el servidor desde
+> `apps/web/lib/almacen-tipos.ts`. `20261001_almacen_datos_por_tipo.sql` añade
+> `marca`, `modelo`, `numero_serie`, `placas` y `ubicacion` (`text`, NULL),
+> con `almacen_activos_placas_solo_vehiculo` y `almacen_activos_datos_largo`.
+> `ubicacion` **no es** `sitio_id`: una dice en qué bodega se guarda, la otra
+> en qué pantalla está instalado. Ver [[operaciones-y-ot]].
 
 ### Arrendadores
 `arrendadores`, `arrendador_razon_social`, `contratos_arrendamiento`,

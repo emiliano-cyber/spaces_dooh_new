@@ -7,6 +7,9 @@ archivos:
   - apps/web/app/(app)/(shell)/
   - apps/web/components/demo/
   - apps/web/lib/modulos.ts
+  - apps/web/lib/campanas-vista.ts
+  - apps/web/lib/campanas-menu.ts
+  - apps/web/components/demo/campanas/CampanasNav.tsx
 ---
 
 # Módulos internos (dentro del shell)
@@ -25,8 +28,25 @@ archivos:
 | `/arrendadores` | Arrendadores, predios, contratos | `/api/arrendadores`, `/api/contratos` | `ContratoSheet`, `PagosRentaCard`, `CompromisoRentaCard`, `ConciliacionCard`, `PanelFirmas`, `ConstanciaFirmas`, `LicenciasCard`, `GestionRazonesSociales`, `BarraDocumento`, `BajaPropietarioDialog` |
 | `/clientes` | Clientes | `/api/clientes` | `ClientesBadge`, `BorrarClienteDialog` |
 | `/propuestas`, `/propuestas/[id]` | Propuestas | `/api/propuestas` | `Stepper` |
+| `/captacion` | Captación (CAP-01) | `/api/captacion/*` | `Captacion` — ver [[02-Backend/captacion]] |
 | `/campanas`, `/campanas/[id]` | Campañas | `/api/campanas/*` | `PipelineView`, `CandadoPanel`, `ValidacionPanel`, `PlaylogsPanel`, `DatosFacturacion`, `EvidenciaGaleria`, `AgregarCreativo`, `FranjaProgramadaCampana` (horario de transmisión, PROG-01) |
 | `/franjas-y-temporadas` | Catálogo de franjas y temporadas, y **horario de transmisión** | `/api/rejilla/*`, `/api/campanas/franja-programada` | `GestionRejilla`, `ProgramacionPorFranja` (PROG-01) |
+
+> [!note] 2026-09-30 · la lista de Campañas se puede compactar, minimizar y ocultar
+> Pedido del dueño: cada tarjeta dibujaba el pipeline entero y con muchas
+> campañas la pantalla era una tira interminable. **Vista compacta** (ningún
+> pipeline, una fila por campaña), **minimizar** una tarjeta y **ocultar** una
+> campaña de la lista, con «Mostrar ocultas (N)».
+>
+> Es preferencia **de pantalla y de cada navegador**: vive en `localStorage`
+> (`spaces:campanas-vista`, `apps/web/lib/campanas-vista.ts`) con el patrón de
+> `lib/alertas-visibles.ts`, y **no toca el servidor**. Ocultar no archiva ni
+> cancela nada. Lo que se lee de `localStorage` se valida campo a campo: una
+> preferencia rota vuelve a la vista vacía en vez de tirar la pantalla
+> (`lib/campanas-vista.test.ts`).
+>
+> Los botones viven DENTRO del enlace de la tarjeta, así que llaman a
+> `preventDefault` + `stopPropagation`: sin eso, minimizar abriría la campaña.
 | `/creativos` | Creativos | `/api/creatividades` | — |
 | `/operaciones`, `/operaciones/ot/[id]` | Órdenes de trabajo | `/api/ot` | `OTVista` |
 | `/imprenta` | Imprenta | `/api/impresion` | — |
@@ -57,6 +77,29 @@ con su cuenta de Google»**: no se teclea contraseña y el servidor genera una q
 nadie ve. Ver [[flujo-acceso-con-google]].
 | `/configuracion` | Config del negocio | `/api/config`, `/api/organizacion` | — |
 | `/integraciones` | Estado de conectores | `/api/integraciones` | — |
+
+> [!note] 2026-09-30 · el menú lateral del detalle de campaña se pliega en TODOS los anchos
+> Pedido del dueño. En `/campanas/[id]` el menú con las demás campañas
+> (`components/demo/campanas/CampanasNav.tsx`) **no tenía botón**: por debajo de
+> `lg` se apilaba ENCIMA del pipeline con hasta `max-h-[60vh]`, y desde `lg` se
+> quedaba a la izquierda con `lg:w-64` fijo. Ahora lleva un botón que se ve en
+> cualquier ancho (`aria-expanded`, `aria-controls` hacia la lista, etiqueta
+> «Ocultar/Mostrar el menú de campañas»). Plegado, en escritorio queda una tira
+> `lg:w-9` y el pipeline (`flex-1` en la página) se lleva el resto; en móvil y
+> tableta queda una sola fila «Campañas (N) · Mostrar».
+>
+> La lista se esconde con el atributo `hidden`, **no se desmonta**, para que
+> `aria-controls` apunte a algo que existe. La preferencia vive en
+> `localStorage` (`spaces:campanas-menu`, `apps/web/lib/campanas-menu.ts`), con
+> el patrón de `lib/alertas-visibles.ts`: arranca desplegado en servidor y
+> cliente y se aplica en un `useEffect`, y **solo el valor exacto `'1'`
+> pliega** — cualquier basura deja el menú a la vista. Va en archivo y clave
+> propios, separado de `lib/campanas-vista.ts` (la vista de la LISTA).
+>
+> Probado: `lib/campanas-menu.test.ts` (la lectura validada) y
+> `components/demo/campanas/CampanasNav.test.ts`, que rinde `CampanasNavVista`
+> —la parte sin estado— con `react-dom/server`. El clic y la hidratación no
+> los ve ninguna prueba (no hay jsdom, ver `vitest.config.ts`).
 
 ## Componentes compartidos
 

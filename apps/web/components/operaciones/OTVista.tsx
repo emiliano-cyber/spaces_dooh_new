@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import {
   Radio,
@@ -10,6 +10,7 @@ import {
   Loader2,
   LockOpen,
   ArrowLeft,
+  AlertCircle,
 } from 'lucide-react'
 import { candadoDeSegmentos } from '@/lib/data/derive'
 import { FotoUploaderMock } from '@/components/demo/FotoUploaderMock'
@@ -22,7 +23,8 @@ import {
 } from '@/components/demo/StatusBadge'
 import { cn } from '@/lib/cn'
 import { trailFromLocation } from '@/lib/nav-trail'
-import { getOTApi, cerrarOTApi, fijarCostoOTApi } from '@/lib/data/estado-api'
+import { getOTApi, cerrarOTApi, fijarCostoOTApi, marcarPuntoChecklistApi } from '@/lib/data/estado-api'
+import { crearColaChecklist, type ColaChecklist, type InfoGuardado } from '@/lib/checklist-autoguardado'
 import { useCandado, DialogoCandado } from '@/components/demo/ui/candado'
 import { leerCostoOt, hayQueGuardarCosto, textoDeCosto } from '@/lib/costo-ot-captura'
 import type { FotoMeta, EstOT, ChecklistItem } from '@/lib/data/types'
@@ -58,6 +60,10 @@ interface OTData {
     ocRecibida: boolean; fotosComprobatorias: boolean; reportePublicacion: boolean
   } | null
   evidencias: any[]
+  // OT-CHECK-01 · si este usuario puede tachar el checklist (mismo permiso que
+  // la ruta: `operaciones.crear`). Ausente = servidor viejo → se asume que sí y
+  // decide la ruta.
+  puedeEditar?: boolean
 }
 
 // Vista de una orden de trabajo. `embedded` controla el chrome:
@@ -89,11 +95,52 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
   }, [])
   const volver = trail.length ? trail[trail.length - 1] : { label: 'Operaciones', href: '/operaciones' }
 
+  // OT-CHECK-01 · autoguardado del checklist. Hasta el 30/09 `checks` vivía
+  // SOLO aquí: se tachaba en memoria, lo único que escribía era «Cerrar OT» y
+  // recargar perdía el avance. Ahora cada clic pasa por esta cola, que manda
+  // UNA petición a la vez (ver `lib/checklist-autoguardado.ts`). Se crea una
+  // vez por pantalla: una cola nueva por render perdería lo que espera.
+  const [guardado, setGuardado] = useState<InfoGuardado>({ estado: 'inactivo', error: null, pendientes: 0 })
+  // Atada al `id`: si el componente se reutilizara para OTRA orden, una cola
+  // vieja mandaría sus puntos a la OT anterior (o, peor, a la nueva con índices
+  // de la anterior). Con otro `id`, cola nueva.
+  const colaRef = useRef<{ id: string; cola: ColaChecklist } | null>(null)
+  if (!colaRef.current || colaRef.current.id !== id) {
+    const otId = id
+    colaRef.current = {
+      id: otId,
+      cola: crearColaChecklist({
+        enviar: (c) => marcarPuntoChecklistApi(otId, c),
+        alCambiar: setGuardado,
+      }),
+    }
+  }
+  const cola = colaRef.current.cola
+
+  // Cerrar la pestaña con un cambio sin confirmar lo perdería: el navegador
+  // pregunta antes. Solo mientras HAY algo pendiente, para no molestar siempre.
+  useEffect(() => {
+    if (guardado.pendientes === 0) return
+    const aviso = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', aviso)
+    return () => window.removeEventListener('beforeunload', aviso)
+  }, [guardado.pendientes])
+
   const recargar = useCallback(async () => {
     const d = await getOTApi(id)
     setData(d ?? null)
     if (d?.ot) {
-      setChecks(d.ot.checklist.map((c: any) => !!c.hecho))
+      // Lo del servidor, MÁS lo que la cola aún no confirmó: recargar a mitad
+      // de un guardado (p. ej. al guardar el costo) no debe repintar un punto
+      // con su valor viejo.
+      const base: boolean[] = d.ot.checklist.map((c: any) => !!c.hecho)
+      colaRef.current?.cola.locales().forEach((hecho, i) => {
+        if (i < base.length) base[i] = hecho
+      })
+      setChecks(base)
       // El campo se precarga con lo que hay guardado. `null` deja la caja
       // VACÍA y no en cero: un cero afirmaría que la visita fue gratis.
       setCostoTexto(textoDeCosto(d.ot.costoReal ?? null))
@@ -124,7 +171,15 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
   const { ot, sitio, campana, evidencias } = data
   const completada = ot.estatus === 'COMPLETADA'
   const puedeChecklist = ot.checklist.length > 0
+  const puedeEditar = data.puedeEditar !== false
   const todoListo = checks.every(Boolean) && fotos.length > 0 && !!geo
+
+  function alternarPunto(i: number, label: string) {
+    if (!puedeEditar) return
+    const hecho = !checks[i]
+    setChecks((prev) => prev.map((v, idx) => (idx === i ? hecho : v)))
+    cola.marcar({ indice: i, label, hecho })
+  }
 
   function capturarUbicacion() {
     if (sitio && sitio.lat != null && sitio.lng != null) setGeo({ lat: sitio.lat, lng: sitio.lng })
@@ -264,18 +319,60 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
     />
   )
 
+  // El estado del guardado se dice SIEMPRE con palabras, junto al título: la
+  // cuadrilla tiene que saber si puede cerrar la app sin perder lo tachado.
+  const indicadorGuardado = (
+    <span aria-live="polite" className="text-[11px]">
+      {guardado.estado === 'guardando' && (
+        <span className="inline-flex items-center gap-1 text-muted">
+          <Loader2 className="h-3 w-3 animate-spin" /> Guardando…
+        </span>
+      )}
+      {guardado.estado === 'guardado' && (
+        <span className="inline-flex items-center gap-1 text-success">
+          <Check className="h-3 w-3" strokeWidth={3} /> Guardado
+        </span>
+      )}
+    </span>
+  )
+
   const checklistSection = puedeChecklist ? (
     <section>
-      <h2 className="mb-2 text-[13px] font-medium text-ink">Checklist</h2>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <h2 className="text-[13px] font-medium text-ink">Checklist</h2>
+        {indicadorGuardado}
+      </div>
+      {guardado.estado === 'error' && (
+        <div
+          role="alert"
+          className="mb-2 flex flex-wrap items-center gap-2 rounded-md border border-error/40 bg-surface px-3 py-2 text-[12px] text-error"
+        >
+          <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+          <span className="min-w-0 flex-1">
+            Error al guardar: {guardado.error}. Lo tachado se ve aquí pero aún NO está guardado.
+          </span>
+          <Button variant="secondary" onClick={() => cola.reintentar()}>
+            Reintentar
+          </Button>
+        </div>
+      )}
+      {!puedeEditar && (
+        <p className="mb-2 text-[12px] text-muted">
+          Solo lectura: tu rol puede ver esta orden de trabajo, pero no marcar su checklist.
+        </p>
+      )}
       <ul className="space-y-1.5">
         {ot.checklist.map((c: ChecklistItem, i: number) => (
           <li key={i}>
             <button
               type="button"
-              onClick={() => setChecks((prev) => prev.map((v, idx) => (idx === i ? !v : v)))}
+              disabled={!puedeEditar}
+              aria-pressed={!!checks[i]}
+              onClick={() => alternarPunto(i, c.label)}
               className={cn(
                 'flex w-full items-center gap-3 rounded-md border px-3 py-2.5 text-left transition-colors duration-150',
                 checks[i] ? 'border-success/40 bg-[#10b9810d]' : 'border-border bg-surface',
+                !puedeEditar && 'cursor-not-allowed opacity-70',
               )}
             >
               <span
@@ -320,7 +417,9 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
 
   const cerrarBtn = !completada ? (
     <>
-      <Button className="w-full" disabled={!todoListo || cerrando} onClick={cerrar}>
+      {/* Mientras un punto viaja, cerrar esperaría a nada y la petición del
+          punto llegaría DESPUÉS del cierre, con un 409 que parecería un fallo. */}
+      <Button className="w-full" disabled={!todoListo || cerrando || guardado.estado === 'guardando'} onClick={cerrar}>
         {cerrando ? (
           <><Loader2 className="h-4 w-4 animate-spin" /> Cerrando…</>
         ) : (

@@ -39,17 +39,39 @@ export interface UsuarioAuth {
 }
 export type Permisos = Record<string, string[]>
 
+// ─── Por qué el cuerpo se lee con cuidado ────────────────────────────────────
+// El 2026-09-30 la pantalla de login enseñó, literal, «Failed to execute 'json'
+// on 'Response': Unexpected end of JSON input»: la base estaba caída, el
+// servidor contestó un 500 vacío y aquí se hacía `res.json()` sin mirar. El
+// servidor ya contesta 503 con JSON, pero delante puede haber un nginx con un
+// 502 en HTML o un corte de red: el cliente tiene que decir algo legible pase
+// lo que pase. Los mensajes del servidor (credenciales inválidas, «entra con
+// Google», límite de intentos) se enseñan tal cual, sin tocarlos.
+const NO_DISPONIBLE =
+  'El servicio no está disponible en este momento. Intenta de nuevo en unos minutos.'
+
 export async function apiLogin(
   email: string,
   password: string,
 ): Promise<{ usuario: UsuarioAuth; permisos: Permisos }> {
-  const res = await fetch(`${API}/login/`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
-  })
-  const data = await res.json()
-  if (!res.ok) throw new Error(data.error ?? 'No se pudo iniciar sesión')
+  let res: Response
+  try {
+    res = await fetch(`${API}/login/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    })
+  } catch {
+    throw new Error('No se pudo conectar con el servidor. Revisa tu conexión e intenta de nuevo.')
+  }
+  const data = (await res.json().catch(() => null)) as
+    | ({ usuario: UsuarioAuth; permisos: Permisos } & { error?: unknown })
+    | null
+  if (!res.ok) {
+    if (data && typeof data.error === 'string') throw new Error(data.error)
+    throw new Error(res.status >= 500 ? NO_DISPONIBLE : 'No se pudo iniciar sesión')
+  }
+  if (!data) throw new Error(NO_DISPONIBLE)
   return data
 }
 

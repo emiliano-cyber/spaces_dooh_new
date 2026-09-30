@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { qRaw1 as q1, qConTenant } from '@/lib/server/db'
 import { verifyPassword, crearSesion, cookieSesion, cookieCsrf, nuevoCsrfToken, permisosDeRol } from '@/lib/server/auth'
 import { limitar, ipDe } from '@/lib/server/rate-limit'
+import { respuestaError } from '@/lib/server/errores'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -27,6 +28,23 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Correo y contraseña requeridos' }, { status: 400 })
   }
 
+  // TODO lo que toca la base va dentro del try. El 2026-09-30, con Postgres
+  // apagado, la consulta de abajo lanzaba fuera de cualquier try, la excepción
+  // escapaba del handler y Next contestaba un 500 CON EL CUERPO VACÍO — que la
+  // pantalla convertía en «Unexpected end of JSON input». `respuestaError` lo
+  // traduce a un 503 con mensaje legible y sin detalles de la conexión.
+  //
+  // No cambia NADA de lo que se decide: credenciales inválidas siguen siendo
+  // 401 con el mismo texto, `solo_google` sigue siendo 403, y un fallo que no
+  // sea de disponibilidad sigue siendo 500 (ahora con cuerpo): no entra nadie.
+  try {
+    return await entrar(email, password)
+  } catch (e) {
+    return respuestaError(e)
+  }
+}
+
+async function entrar(email: string, password: string): Promise<NextResponse> {
   // Pre-sesión y pre-tenant: `usuarios` es fail-closed + FORCE, así que la
   // lectura va por la función SECURITY DEFINER acotada (una fila por correo).
   const u = await q1<{

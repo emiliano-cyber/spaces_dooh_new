@@ -1,7 +1,7 @@
 import 'server-only'
 import { z } from 'zod'
 import { validar } from './errores'
-import { crearOT, fijarCostoOT } from './ot-repo'
+import { crearOT, fijarCostoOT, marcarPuntoChecklist } from './ot-repo'
 
 // ============================================================================
 //  lib/server/ot-controller.ts — Alta de órdenes de trabajo.
@@ -73,4 +73,27 @@ const costoSchema = z.object({
 export async function fijarCostoOTCtrl(id: string, body: unknown) {
   const d = validar(costoSchema, body)
   return fijarCostoOT(id, d.costoReal)
+}
+
+// ─── OT-CHECK-01 · marcar o desmarcar UN punto del checklist ────────────────
+//
+// Se manda un punto y no el checklist entero, a propósito: con el estado
+// completo, dos clics casi simultáneos sobre puntos distintos llegarían cada
+// uno con SU foto del checklist y el segundo desharía el primero. Un punto es
+// idempotente y conmutativo con los demás.
+//
+//  - `indice` entero ≥ 0 sin coerción: un `'1'` se rechaza en vez de adivinarse.
+//  - `label` obligatorio: el repo lo compara con el del punto guardado, y así un
+//    índice viejo no tacha OTRA tarea si el checklist cambió.
+//  - `hecho` booleano ESTRICTO: con coerción, `'false'` sería verdadero y
+//    marcaría lo que el usuario quiso desmarcar.
+const checklistSchema = z.object({
+  indice: z.number({ invalid_type_error: 'El índice debe ser un número' }).int().nonnegative().max(999),
+  label: z.string({ required_error: 'Falta la etiqueta del punto' }).min(1, 'Falta la etiqueta del punto').max(500),
+  hecho: z.boolean({ invalid_type_error: 'hecho debe ser verdadero o falso', required_error: 'Falta hecho' }),
+})
+
+export async function marcarPuntoChecklistCtrl(id: string, body: unknown) {
+  const d = validar(checklistSchema, body)
+  return marcarPuntoChecklist(id, { indice: d.indice, label: d.label, hecho: d.hecho })
 }

@@ -36,6 +36,108 @@ La entrada más reciente va arriba.
   *De paso se corrigió la documentación interna*, que decía que leer las franjas
   pedía el permiso de inventario: desde el 29/09 pide el de **precios**.
 
+- **Si la base de datos se cae, el login ya lo dice con palabras.** *(Aprobado por
+  ti el 30/09.)*
+
+  Hasta hoy, si la base de datos no respondía, al pulsar «Entrar» salía un
+  mensaje técnico en inglés —«Failed to execute 'json' on 'Response':
+  Unexpected end of JSON input»— que no decía qué pasaba ni qué hacer. Ahora la
+  pantalla dice: **«El servicio no está disponible en este momento. Intenta de
+  nuevo en unos minutos.»** Y si lo que falla es la conexión a internet, lo dice
+  también en español.
+
+  Lo mismo se arregló en las otras puertas de acceso que consultan la base:
+  entrar con un código de recuperación, comprobar la sesión al abrir la app,
+  cerrar sesión y el enlace para restablecer la contraseña. Ninguna devuelve ya
+  una respuesta vacía; todas avisan de que el servicio no está disponible, sin
+  enseñar detalles internos del servidor.
+
+  **Lo que no cambia:** una contraseña equivocada sigue diciendo «Correo o
+  contraseña inválidos», el límite de intentos sigue igual y nadie entra sin
+  credenciales válidas.
+
+- **El almacén ya guarda de todo: camionetas, herramientas, pantallas, cámaras…**
+  *(Pedido tuyo del 30/09.)*
+
+  Hasta hoy el almacén era solo para equipo de pantallas (pantalla, estructura,
+  lona u «otro»). Desde hoy, al **registrar un artículo** eliges entre:
+  **vehículo / camioneta, herramienta, pantalla, equipo electrónico, cámara,
+  estructura, lona u otro**.
+
+  Arriba de la lista aparecen unas **pastillas por tipo**, cada una con cuántos
+  artículos hay («Vehículo / camioneta 3», «Herramienta 12»…). Tocas una y la
+  lista enseña solo esos; «Todos» la devuelve completa. Solo aparecen los tipos
+  de los que tienes algo.
+
+  Lo de siempre sigue igual: dar de alta, instalar en una pantalla, marcar en
+  traslado, regresar a almacén y dar de baja.
+
+  **Y con los datos de cada tipo** (columnas nuevas en la base, aprobadas por ti
+  el 30/09): al registrar un artículo, el sistema te
+  pide lo que tiene sentido para ese tipo —**placas** solo en vehículos;
+  **marca, modelo y número de serie** en herramientas, pantallas, equipo y
+  cámaras— y, para todos, **dónde se guarda** («Bodega norte, anaquel 3»). La
+  lista enseña esos datos en una columna, y la ubicación cuando el artículo no
+  está instalado. Las placas se guardan en mayúsculas y sin espacios, para que
+  «abc 12 34» y «ABC1234» sean la misma camioneta.
+
+- **El checklist de una orden de trabajo se guarda solo, cada vez que tachas un
+  punto.** *(Pedido tuyo del 30/09.)*
+
+  Hasta hoy, lo que se tachaba en el checklist de una OT **solo vivía en la
+  pantalla**: no se guardaba nada hasta pulsar «Cerrar OT». Si la cuadrilla
+  recargaba la página, se quedaba sin batería o cerraba el navegador a medio
+  trabajo, **perdía todo lo tachado** sin ningún aviso.
+
+  Ahora cada punto se guarda **en el momento** de marcarlo o desmarcarlo. Junto al
+  título «Checklist» se ve **«Guardando…»** y luego **«Guardado»**. Si algo falla
+  (por ejemplo, sin señal), sale un aviso en rojo que dice que lo tachado **todavía
+  no está guardado**, con un botón **«Reintentar»**; y si intentas cerrar la
+  pestaña con algo sin guardar, el navegador te pregunta antes. Al volver a abrir
+  la OT, ves el avance tal como lo dejaste.
+
+  Lo que **no** cambia: tachar el último punto **no cierra la OT** ni cambia su
+  estado. Para cerrarla sigue haciendo falta la foto y la ubicación, como hasta
+  ahora. Tampoco toca el costo real de la visita.
+
+  Y solo puede tachar quien puede cerrar órdenes de trabajo (Dueño, Administrador,
+  Operaciones). **Finanzas e Imprenta** ven la OT y su avance, pero el checklist
+  les aparece **de solo lectura**.
+
+- **En Campañas ya se puede achicar la lista.** *(Pedido tuyo del 30/09.)*
+
+  Cada campaña enseñaba su pipeline completo, y con muchas la pantalla se hacía
+  larguísima. Ahora hay tres formas de verla más corta:
+
+  - **«Vista compacta»**, arriba junto al buscador: esconde el pipeline de todas
+    y deja cada campaña en una sola fila, con su etapa actual al lado del estado.
+    El mismo botón dice «Mostrar pipelines» para volver.
+  - **La flecha de cada tarjeta** minimiza solo esa campaña.
+  - **El ojo tachado** oculta una campaña de tu lista. Aparece un botón
+    **«Mostrar ocultas (N)»** para traerlas de vuelta.
+
+  **Es solo tu vista, en tu navegador.** Ocultar una campaña no la archiva, no la
+  cancela y no le cambia nada a nadie más: tus compañeros la siguen viendo igual.
+  Y el sistema lo recuerda la próxima vez que entres desde el mismo navegador.
+
+- **En el detalle de una campaña, el menú de la izquierda ya se puede esconder.**
+  *(Pedido tuyo del 30/09.)*
+
+  Cuando abres una campaña, a la izquierda sale la lista de tus demás campañas
+  para saltar de una a otra. Esa lista **no se podía quitar**: en el celular y la
+  tableta salía encima del pipeline y había que bajar mucho para verlo, y en la
+  computadora ocupaba siempre una franja del lado.
+
+  Ahora tiene un botón **«Ocultar»** (en la computadora, un icono pequeño arriba
+  del menú). Al pulsarlo el menú se recoge y **el pipeline usa todo el ancho**. El
+  mismo botón, **«Mostrar»**, lo trae de vuelta. Funciona igual en celular,
+  tableta y computadora.
+
+  **Tu navegador lo recuerda**: si lo dejas escondido, la próxima campaña que abras
+  ya sale con el menú escondido. Es solo tu vista; no le cambia nada a nadie más.
+
+---
+
 ## 2026-09-29
 
 - **Nueva pantalla «Captación»: la bitácora de cómo va cada venta.** *(Pedido tuyo

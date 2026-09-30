@@ -3,6 +3,7 @@ import { crearSesion, cookieSesion, cookieCsrf, nuevoCsrfToken, permisosDeRol } 
 import { qConTenant } from '@/lib/server/db'
 import { usarCodigo } from '@/lib/server/codigos-recuperacion-repo'
 import { limitar, ipDe } from '@/lib/server/rate-limit'
+import { respuestaError } from '@/lib/server/errores'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -52,7 +53,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Falta el código' }, { status: 400 })
   }
 
-  const r = await usarCodigo(body.codigo)
+  // Lo que toca la base, dentro del try: sin él, con Postgres caído la
+  // excepción escapaba y Next contestaba un 500 con el cuerpo vacío (el mismo
+  // defecto que el login, 2026-09-30). `respuestaError` lo da como 503 legible.
+  try {
+    return await entrarConCodigo(body.codigo)
+  } catch (e) {
+    return respuestaError(e)
+  }
+}
+
+async function entrarConCodigo(codigo: string): Promise<NextResponse> {
+  const r = await usarCodigo(codigo)
   if (!r.ok) {
     // Mismo mensaje para «no existe» y «ya usado», y es deliberado: distinguirlos
     // le diría a quien prueba códigos a ciegas cuándo ha acertado uno gastado, y
