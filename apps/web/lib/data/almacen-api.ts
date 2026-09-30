@@ -18,6 +18,12 @@ export interface Activo {
   estado: EstadoActivo
   sitioId: string | null
   notas: string | null
+  // Desde 20261001_almacen_datos_por_tipo.sql. NULL = no se capturó.
+  marca: string | null
+  modelo: string | null
+  numeroSerie: string | null
+  placas: string | null
+  ubicacion: string | null
   creadoEn: string
 }
 export interface MovimientoAlmacen {
@@ -40,6 +46,11 @@ export async function crearActivoApi(input: {
   descripcion: string
   tipoActivo?: string
   notas?: string | null
+  marca?: string | null
+  modelo?: string | null
+  numeroSerie?: string | null
+  placas?: string | null
+  ubicacion?: string | null
 }): Promise<Activo> {
   const r = await fetch(`${API}/almacen/`, {
     method: 'POST',

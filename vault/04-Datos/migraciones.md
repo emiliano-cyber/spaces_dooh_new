@@ -1,7 +1,7 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-09-29
+actualizado: 2026-09-30
 tags: [datos, migraciones, despliegue, rojo]
 archivos:
   - db/migrations/
@@ -28,6 +28,7 @@ archivos:
   - db/migrations/20260921_actualizaciones_instancia.sql
   - db/migrations/20260923_tickets.sql
   - db/migrations/20260928_tope_descuento_propuestas.sql
+  - db/migrations/20261001_almacen_datos_por_tipo.sql
   - db/migrations/20260928_descuento_por_volumen.sql
   - db/migrations/20260928_codigo_promocional.sql
   - db/migrations/20260928_paquete_cerrado.sql
@@ -125,6 +126,24 @@ archivos:
 > `trunc()`, `jsonb`, FK compuestas—, así que **no lleva `@pg-min`**. Ver
 > [[02-Backend/paquete-cerrado]].
 
+> [!success] 2026-09-30 · `20261001_almacen_datos_por_tipo.sql` — ALM-01 · **APROBADA por el dueño el 2026-09-30**
+> Cinco columnas `text` nullable y sin default en `almacen_activos` —`marca`,
+> `modelo`, `numero_serie`, `placas`, `ubicacion`— y dos CHECK:
+> `almacen_activos_placas_solo_vehiculo` (`placas is null or tipo_activo =
+> 'VEHICULO'`) y `almacen_activos_datos_largo` (120/120/120/20/200). No crea
+> tabla, no toca una fila existente ni la RLS/GRANT de la tabla, que cubren las
+> columnas nuevas solas. Fecha del **01/10** para ordenar después de
+> `20260930_captacion.sql`.
+>
+> **No pone CHECK sobre `tipo_activo` a propósito:** la ruta aceptaba texto
+> libre hasta el 30/09, y un CHECK `not valid` haría fallar el UPDATE de
+> estado de esas filas al moverlas. La última fila de su verificación cuenta
+> cuántas hay fuera del catálogo.
+>
+> Probada en **PostgreSQL 14.24** (`postgres:14-alpine` desechable: dos pasadas
+> idénticas, los dos CHECK muerden, una fila vieja con texto libre se sigue
+> moviendo) y en el 16 del arnés e2e. Sin `@pg-min`. Ver [[operaciones-y-ot]].
+
 > [!note] 2026-09-29 · `20260930_captacion.sql` — CAP-01
 > Dos tablas —`prospectos` y `prospecto_avances`— y **14 filas** de
 > `rol_permisos` para el módulo `captacion` (el VENDEDOR sin `aprobar`). Lleva la
@@ -191,7 +210,8 @@ archivos:
 > Verificado: runner **dos veces** sobre `spaces_vol_mig2` (base creada para eso)
 > — la primera aplica **91** y sale 0, la segunda dice `0 aplicadas` y sale 0, con
 > **50 tablas** al final. El archivo en disco no tiene CRLF: su sha256 no cambia
-> al quitar los ``.
+> al quitar los `
+`.
 >
 > Ver [[02-Backend/descuento-por-volumen]].
 

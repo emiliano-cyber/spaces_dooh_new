@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-09-29
+actualizado: 2026-09-30
 tags: [backend, operaciones, ot, imprenta, amarillo]
 archivos:
   - apps/web/lib/server/ot-repo.ts
@@ -9,6 +9,9 @@ archivos:
   - apps/web/lib/server/impresion-repo.ts
   - apps/web/lib/server/operaciones-eventos.ts
   - apps/web/lib/server/almacen-repo.ts
+  - apps/web/lib/server/almacen-controller.ts
+  - apps/web/lib/almacen-tipos.ts
+  - apps/web/app/(app)/(shell)/almacen/page.tsx
   - apps/web/lib/tipos-ot.ts
   - apps/web/lib/costos-ot.ts
   - apps/web/lib/costos-ot-payload.ts
@@ -30,7 +33,8 @@ mantenimiento, herrería, eléctrico, inspección (`tipo_ot`, `db/schema.sql:53`
 | `ot-controller.ts` | 39 | Validación |
 | `impresion-repo.ts` | 121 | Órdenes de impresión y OC |
 | `operaciones-eventos.ts` | 86 | OT automáticas desde Arrendadores |
-| `almacen-repo.ts` | 96 | Activos y traslados |
+| `almacen-repo.ts` | 141 | Activos y traslados; filtro por tipo |
+| `almacen-controller.ts` | 100 | Validación zod del alta y del `?tipo=` (desde el 30/09) |
 
 > [!warning] No existe forma de reasignar una OT ya creada
 > Las rutas son `GET·POST /api/ot`, `GET /api/ot/[id]`,
@@ -159,6 +163,58 @@ respaldo.
 > no viaja. Vive en `lib/costos-ot-payload.ts` (`payloadCostosOt`), con su
 > propia prueba — `.tsx` no se prueba con unitarias porque `vitest.config.ts`
 > no monta jsdom.
+
+## Almacén — artículos por TIPO (desde el 2026-09-30)
+
+Pedido del dueño el 30/09: «en almacén se debe de poder añadir más elementos,
+camionetas, herramientas, pantallas, cámaras, etc.».
+
+**Lo que había antes**, medido en `main` (`17dfef6`): una tabla
+`almacen_activos` (`db/migrations/20260723_almacen.sql:22-32`) con `etiqueta`,
+`descripcion`, `tipo_activo text` **sin CHECK** y con default `'PANTALLA'`
+(`:26`), `estado` enum `est_activo` (`:15`), `sitio_id` y `notas`; y
+`almacen_movimientos` con el enum `tipo_mov_almacen` (`:19`). El catálogo de
+tipos —PANTALLA / ESTRUCTURA / LONA / OTRO— vivía **solo en el `<select>` de la
+pantalla**: la ruta guardaba cualquier texto que le llegara.
+
+**Lo que cambia sin tocar la base** (el `text` sin CHECK lo permite):
+
+- El catálogo vive en `lib/almacen-tipos.ts` (puro, lo usan servidor y
+  pantalla): `VEHICULO`, `HERRAMIENTA`, `PANTALLA`, `EQUIPO`, `CAMARA`,
+  `ESTRUCTURA`, `LONA`, `OTRO`.
+- `almacen-controller.ts` lo **aplica en el servidor** con zod, `.strict()`:
+  un tipo fuera del catálogo, o un `tenantId` en el cuerpo, da 400.
+- `GET /api/almacen?tipo=X` filtra. **`OTRO` no es `= 'OTRO'`**: es «todo lo
+  que no es de los demás» (`tipo_activo <> all($1::text[])`), porque las filas
+  de antes pueden tener texto libre y tienen que caer en algún filtro. La
+  pantalla cuenta con la MISMA regla (`tipoDeFiltro`), así que la pastilla y el
+  filtro no pueden discrepar. Un `?tipo=` mal escrito da 400, no lista vacía.
+- La pantalla enseña pastillas por tipo con su cuenta, y el texto libre de las
+  filas viejas **tal cual** (no «Otro»): es lo único que dice qué son.
+- `registrarMovimiento` gana `and tenant_id = $4` como segunda capa sobre la
+  RLS: era la única operación por id del archivo sin ella.
+
+> [!success] Los datos propios de cada tipo — migración **APROBADA por el dueño el 2026-09-30** (antes: pendiente de aprobación)
+> Placas, marca, modelo, número de serie y ubicación en bodega **necesitan
+> columnas nuevas**: `20261001_almacen_datos_por_tipo.sql` ([[migraciones]],
+> [[esquema]]), en su **propio commit** de `feat/almacen-tipos` para que el
+> catálogo pueda aterrizar sin ella (regla del 29/09: ningún cambio de base
+> entra sin que él vea la forma).
+>
+> Qué pide cada tipo lo decide `camposDelTipo()` en `lib/almacen-tipos.ts`:
+> vehículo → marca, modelo, serie (VIN) y **placas**; herramienta, pantalla,
+> equipo, cámara y otro → marca, modelo y serie; estructura y lona → nada
+> propio. `ubicacion` vale para todos. Un dato que el tipo no pide da 400 en
+> el controller (`superRefine`), y las placas fuera de un vehículo las para
+> además la base (`almacen_activos_placas_solo_vehiculo`). Las placas se
+> guardan sin espacios y en mayúsculas.
+>
+> La columna «Ubicación» de la pantalla enseña la pantalla si está
+> INSTALADO, y si no, `ubicacion` (la bodega).
+
+Probado en `lib/almacen-tipos.test.ts`, `lib/server/almacen-controller.test.ts`
+y, contra Postgres real y con dos organizaciones, en
+`lib/test/almacen-tipos.e2e.test.ts`.
 
 ## Módulo móvil
 
