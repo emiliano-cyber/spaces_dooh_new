@@ -24,6 +24,7 @@ import {
   Layers,
   Ticket,
   Package,
+  Target,
 } from 'lucide-react'
 import { ROLES_ASIGNABLES, rolLabel } from '@/lib/roles'
 import type { RolDemo } from '@/lib/data/types'
@@ -144,6 +145,9 @@ export const NAV: NavItem[] = [
   { key: 'comercial', label: 'Comercial', href: '/comercial', icon: Map, roles: [...MANDO, ...VENTA], grupo: 'vender' },
   { key: 'disponibilidad', label: 'Disponibilidad', href: '/disponibilidad', icon: CalendarRange, roles: [...MANDO, ...VENTA], grupo: 'vender' },
   { key: 'propuestas', label: 'Propuestas', href: '/propuestas', icon: FileText, roles: [...MANDO, ...VENTA], grupo: 'vender' },
+  // CAP-01 · la bitacora de captacion. La ven los tres de venta: el vendedor, lo
+  // suyo; quien tiene `captacion.aprobar`, todo (lo filtra el servidor).
+  { key: 'captacion', label: 'Captación', href: '/captacion', icon: Target, roles: [...MANDO, ...VENTA], grupo: 'vender' },
   // ─── Las cuatro de la CADENA DE PRECIO, en Comercial ──────────────────────
   //
   // Van en este orden a proposito: primero de donde sale la tarifa, y luego lo

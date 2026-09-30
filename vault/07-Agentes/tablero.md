@@ -6,6 +6,24 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!success] 2026-09-29 · **CAP-01 · la bitácora de captación — RECLAMADO Y LIBERADO**
+> Rama `feat/captacion`, salida de `main` (`d212d6a4`). Diseño aprobado por el
+> dueño ese día («si aprobado, fotos y documentos después»). **ROJO por dos
+> lados**: migración nueva (R3) y lectura por tenant con filtro por vendedor (R2).
+>
+> **Zonas tomadas y liberadas:** **Z5 · Comercial** (solo archivos NUEVOS de
+> captación: no se tocó ningún archivo de propuestas ni campañas), **Z9 · Datos**
+> (`20260930_captacion.sql`), **Z12 · Docs**, y dos de alto contacto:
+> `lib/modulos.ts` y `components/demo/shell/nav.ts`, una entrada cada uno. **NO se
+> tocó** `db/schema.sql`, `aislamiento.e2e.test.ts` ni `servidor-e2e.ts`.
+>
+> **Medido en este árbol:** `npx tsc --noEmit` limpio, **2791 unitarias en 205
+> archivos**, y la **suite e2e COMPLETA: 740 en 55 archivos** (1 omitida), en una
+> base propia (`spaces_capt_e2e`, puerto 3431). La primera corrida completa dio
+> **2 rojos que las 33 propias no veían**: los recuentos literales de
+> `esquema-sin-owner` (55 → 57 tablas) y `alta-instancia` (92 → 106 permisos).
+> Detalle y mutantes en [[02-Backend/captacion]].
+
 > [!success] 2026-09-28 · **VEND-01 · el vendedor en la propuesta — RECLAMADO Y LIBERADO**
 > Rama `feat/vendedor-en-propuesta`, salida de `main` (`a9ec0cc`). Aprobado por
 > Jochelo ese mismo dia, y **es ROJO por tres lados a la vez**: lleva migracion

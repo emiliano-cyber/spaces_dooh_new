@@ -169,14 +169,15 @@ describe('1 · las dos migraciones dejaron el enum y la matriz como manda el ADR
       'select rol::text as rol, count(*)::int n from rol_permisos group by 1 order by 1',
     )
     expect(r.rows).toEqual([
-      { rol: 'ADMINISTRADOR', n: 27 },
-      { rol: 'DIRECTOR_COMERCIAL', n: 9 },
-      { rol: 'DUENO', n: 27 },
+      // +3, +3, +3, +3 y +2: el módulo `captacion` (CAP-01, 2026-09-29).
+      { rol: 'ADMINISTRADOR', n: 30 },
+      { rol: 'DIRECTOR_COMERCIAL', n: 12 },
+      { rol: 'DUENO', n: 30 },
       { rol: 'FINANZAS', n: 6 },
-      { rol: 'GERENTE_VENTAS', n: 8 },
+      { rol: 'GERENTE_VENTAS', n: 11 },
       { rol: 'IMPRENTA', n: 3 },
       { rol: 'OPERACIONES', n: 6 },
-      { rol: 'VENDEDOR', n: 6 },
+      { rol: 'VENDEDOR', n: 8 },
     ])
   })
 

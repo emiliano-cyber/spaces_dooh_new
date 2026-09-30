@@ -7,6 +7,33 @@ La entrada más reciente va arriba.
 
 ## 2026-09-29
 
+- **Nueva pantalla «Captación»: la bitácora de cómo va cada venta.** *(Pedido tuyo
+  del 29/09, diseño aprobado ese día.)*
+
+  En **Comercial → Captación**, cualquier persona de ventas da de alta lo que está
+  intentando traer: un **cliente**, un **arrendador**, un **predio** o una **pantalla**.
+  Cada vez que avanza, anota qué pasó, en qué etapa va (Prospecto, Contactado,
+  Visita, Negociación) y cuál es el siguiente paso y para cuándo. Todo queda en la
+  bitácora del prospecto, con fecha y quién lo escribió, **y no se puede borrar ni
+  reescribir**.
+
+  Cuando está listo, el vendedor lo **envía a revisión**. El sistema le dice si le
+  falta algo (por ejemplo, la dirección de un predio). Un **gerente, director,
+  administrador o el Dueño** lo ve en «Por aprobar» y:
+
+  - **lo aprueba**, y entonces el cliente, el arrendador o el predio **se da de alta
+    solo** en el sistema, sin volver a capturarlo. Si ya hay uno con el mismo
+    nombre, te avisa y te deja confirmar que es otro;
+  - o **lo rechaza con un motivo**, que el vendedor lee para corregir y reenviarlo.
+
+  **Cada vendedor ve solo lo suyo**; quien aprueba ve a todo el equipo. Y **nadie
+  se aprueba solo**: el vendedor no tiene ese permiso.
+
+  **Lo que todavía no hace** (queda para después del 14/10): subir fotos y
+  documentos, convertir una pantalla aprobada en pantalla del inventario —hoy
+  queda aprobada y se da de alta desde Inventario—, y el tablero y el reporte por
+  vendedor.
+
 - **El administrador ya ve el panel del control de cambios.** *(Decision tuya
   del 29/09.)*
 
