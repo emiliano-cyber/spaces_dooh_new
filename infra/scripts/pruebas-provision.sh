@@ -175,6 +175,15 @@ case "$todo" in
     echo "  update: doble"
     [ "${D_UPDATE_FALLA:-0}" = "1" ] && exit 1
     ;;
+# 7 · La VERSION del motor, que `provision` comprueba antes de crear nada.
+#
+#     Por omision contesta 16 --un motor bueno-- para que los otros 28
+#     escenarios sigan llegando a lo suyo. `D_VERSION_PG` lo cambia, y admite
+#     un valor NO numerico a proposito: el guion distingue «el motor es viejo»
+#     de «no se pudo preguntar», y son dos mensajes distintos.
+  *server_version_num*)
+    printf '%s\n' "${D_VERSION_PG-160014}"
+    ;;
 esac
 exit 0
 FIN
@@ -881,6 +890,57 @@ if grep -qF 'NEEDRESTART_MODE' "$SETUP"; then bien; else
   mal "sin NEEDRESTART_MODE el upgrade abre el menu y se cuelga sin dar error"; fi
 if grep -qF 'DEBIAN_FRONTEND=noninteractive' "$SETUP"; then bien; else
   mal "sin DEBIAN_FRONTEND=noninteractive un dialogo de apt cuelga el alta"; fi
+
+# ============================================================================
+#  38 · El motor tiene que ser PostgreSQL 15 o superior, y se MIDE
+# ----------------------------------------------------------------------------
+#  Puesto el 2026-09-29. Lo paga g500: nacio en 14 porque el runbook decia
+#  `apt-get install -y postgresql` sin fijar version sobre Ubuntu 22.04, cuyo
+#  paquete por omision es PostgreSQL 14. Desde el 23/09 su cola de migraciones
+#  esta PARADA --`20260918_entidad_tenant_compuesto.sql` declara `-- @pg-min:
+#  15` y el runner rechaza la cola ENTERA-- y es la unica maquina con datos de
+#  clientes.
+#
+#  Lo que hace caro este defecto es que NO SE VE EL PRIMER DIA: la instancia se
+#  aprovisiona bien y solo meses despues descubres que no puede actualizarse.
+#  Por eso el guard va ANTES de crear nada, y por eso lo que estos escenarios
+#  comprueban no es el mensaje: es que NO SE CREO NI EL ROL NI LA BASE.
+# ============================================================================
+escenario '38 · un motor en PostgreSQL 14 PARA el alta antes de crear nada'
+preparar
+correr D_VERSION_PG=140024 REGISTRY=registro.ejemplo/x REGISTRY_TOKEN=t -- \
+  --host "$IP" --dominio "$DOM" --instancia p --confirmar
+codigo_es 2
+dice 'corre PostgreSQL 14'
+dice 'hace falta 15 o superior'
+# Lo que de verdad importa: la instancia NO existe a medias. Si esto se cayera,
+# el alta dejaria un rol y una base creados en una maquina que hay que rehacer.
+no_hubo 'create role'
+no_hubo 'create database'
+limpiar
+
+escenario '38 · y PostgreSQL 15 SI pasa: el limite es 15, no 16'
+preparar
+correr D_VERSION_PG=150008 REGISTRY=registro.ejemplo/x REGISTRY_TOKEN=t -- \
+  --host "$IP" --dominio "$DOM" --instancia p --confirmar
+# No se mira el codigo final --el alta sigue su curso-- sino que el guard DEJO
+# PASAR. Un guard puesto con `-le` en vez de `-lt` bloquearia justo el 15.
+hubo 'create database'
+limpiar
+
+escenario '38 · «no se pudo preguntar» NO se confunde con «el motor es viejo»'
+preparar
+# Un ssh que contesta cualquier cosa menos un numero: no hay Postgres, o
+# `sudo -u postgres` fallo. Decir «corre PostgreSQL 0» mandaria a actualizar un
+# motor que quiza ni existe, y esa es una hora perdida por un mensaje.
+correr D_VERSION_PG='psql: error: connection refused' REGISTRY=registro.ejemplo/x REGISTRY_TOKEN=t -- \
+  --host "$IP" --dominio "$DOM" --instancia p --confirmar
+codigo_es 2
+dice 'no se pudo leer la version'
+calla 'PostgreSQL 0'
+no_hubo 'create role'
+no_hubo 'create database'
+limpiar
 
 printf '\n%s escenarios · %s comprobaciones · %s fallos\n' "$ESCENARIOS" "$COMPROBACIONES" "$FALLOS"
 [ "$FALLOS" -eq 0 ] || exit 1
