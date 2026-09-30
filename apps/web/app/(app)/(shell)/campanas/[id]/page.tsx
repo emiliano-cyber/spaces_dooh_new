@@ -15,6 +15,7 @@ import { ValidacionPanel } from '@/components/demo/campanas/ValidacionPanel'
 import { EvidenciaGaleria } from '@/components/demo/campanas/EvidenciaGaleria'
 import { PlaylogsPanel } from '@/components/demo/campanas/PlaylogsPanel'
 import { AgregarCreativo } from '@/components/demo/campanas/AgregarCreativo'
+import { FranjaProgramadaCampana } from '@/components/demo/campanas/FranjaProgramadaCampana'
 import {
   StatusBadge,
   CAMPANA_TONO,
@@ -189,6 +190,9 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
           <PipelineView campanaId={id} />
         </CardContent>
       </Card>
+
+      {/* PROG-01 · en qué franja se TRANSMITE (no toca lo vendido) */}
+      <FranjaProgramadaCampana campanaId={id} />
 
       {/* Secciones plegables. Flex + `order` para subir las pendientes. */}
       <div className="flex flex-col gap-4">

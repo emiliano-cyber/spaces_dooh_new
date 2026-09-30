@@ -1,7 +1,7 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-09-29
+actualizado: 2026-09-30
 tags: [datos, migraciones, despliegue, rojo]
 archivos:
   - db/migrations/
@@ -31,9 +31,32 @@ archivos:
   - db/migrations/20260928_descuento_por_volumen.sql
   - db/migrations/20260928_codigo_promocional.sql
   - db/migrations/20260928_paquete_cerrado.sql
+  - db/migrations/20261002_franja_programada_campana.sql
 ---
 
 # Migraciones
+
+> [!danger] 2026-09-30 · `20261002_franja_programada_campana.sql` — PROG-01, **SIN FUSIONAR**
+> **Pendiente de aprobación del dueño** (toda forma de base se aprueba antes de
+> aterrizar en `main`). Si la lees en `main`, ya se aprobó.
+>
+> Una columna: **`campanas.franja_programada_id uuid`**, nullable y sin default,
+> con FK **compuesta** `(franja_programada_id, tenant_id) → franjas_horarias (id,
+> tenant_id) on delete restrict` y un índice parcial. Es la franja en la que la
+> campaña **se transmite**, aparte de la **contratada** (`reservas.franja_id`),
+> que no se toca. No es tabla nueva: `campanas` ya tiene `tenant_isolation` con
+> ENABLE+FORCE, y la migración **lo comprueba y aborta** si faltara en vez de
+> recrear la política de una tabla viva.
+>
+> Lleva la fecha del **02/10** aunque se escribió el 30/09 para ordenar después
+> de `20261001_almacen_datos_por_tipo.sql` (otra rama). `restrict` y no
+> `set null` porque `on delete set null (col)` es sintaxis de la 15.
+>
+> Probada en **PostgreSQL 14.24** (`postgres:14-alpine` desechable: esquema + 98
+> migraciones —se omiten la `@pg-min: 15` del 18/09 y la `@tipo: datos`—, 0
+> fallos, segunda pasada idempotente) y en **16.14** con el runner real
+> (`--instalacion-nueva`: «99 aplicadas», segunda pasada idempotente). Sin
+> `@pg-min`. LF en disco. Ver [[02-Backend/rejilla-franja-y-temporada]].
 
 > [!note] 2026-09-29 · `20260929_roles_operaciones_costear.sql` — FINANZAS costea una OT
 > La **quinta acción** del RBAC: `operaciones.costear`. Cinco filas —`costear`

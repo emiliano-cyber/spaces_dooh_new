@@ -3,6 +3,7 @@
 import { Clock } from 'lucide-react'
 import { Card, CardContent } from '@/components/demo/ui/Card'
 import { GestionRejilla } from '@/components/demo/rejilla/GestionRejilla'
+import { ProgramacionPorFranja } from '@/components/demo/rejilla/ProgramacionPorFranja'
 
 // ============================================================================
 //  /franjas-y-temporadas — las dos dimensiones de la tarifa base.
@@ -38,6 +39,15 @@ export default function FranjasYTemporadasPage() {
       <Card>
         <CardContent className="pt-6">
           <GestionRejilla />
+        </CardContent>
+      </Card>
+      {/* PROG-01 (2026-09-30) · junto a cada franja, qué campañas se TRANSMITEN
+          en ella. Tarjeta aparte y no dentro de la tabla de precios: programar
+          no cambia ningún precio, y mezclarlo con el catálogo haría creer que
+          sí. Lee con `comercial.ver` y escribe con `comercial.crear`. */}
+      <Card>
+        <CardContent className="pt-6">
+          <ProgramacionPorFranja />
         </CardContent>
       </Card>
     </div>

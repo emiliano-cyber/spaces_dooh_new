@@ -1,7 +1,7 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-09-29
+actualizado: 2026-09-30
 tags: [datos, esquema, er, postgres]
 archivos:
   - db/schema.sql
@@ -12,9 +12,24 @@ archivos:
   - db/migrations/20260928_tope_descuento_propuestas.sql
   - db/migrations/20260928_codigo_promocional.sql
   - db/migrations/20260928_paquete_cerrado.sql
+  - db/migrations/20261002_franja_programada_campana.sql
 ---
 
 # Esquema de datos
+
+> [!danger] 2026-09-30 · `campanas.franja_programada_id` — PROG-01, SIN FUSIONAR
+> **Pendiente de aprobación del dueño.** Columna nueva, **no tabla**: el
+> recuento de tablas no cambia. `uuid`, nullable, sin default, FK compuesta
+> `(franja_programada_id, tenant_id) → franjas_horarias (id, tenant_id)` con
+> `on delete restrict`, índice parcial `idx_campanas_franja_programada`.
+>
+> Es **en qué franja se transmite** la campaña (decisión del dueño del 30/09:
+> «es para horario transmisión ya que el precio ya debe de estar en la campaña
+> después de la propuesta»). **No** es la contratada: esa sigue siendo
+> `reservas.franja_id`, heredada de la propuesta y congelada con su precio en
+> el snapshot. Por campaña y no por reserva porque así lo pidió el dueño; si
+> hiciera falta una pantalla distinta de su campaña, se añadiría una excepción
+> por reserva sobre esta. Ver [[02-Backend/rejilla-franja-y-temporada]].
 
 > [!danger] 2026-09-28 · `paquetes`, `paquete_sitios` y `paquete_aplicaciones` SIN FUSIONAR
 > Mismo caso que `escalas_volumen` y `codigos_promocionales`, abajo: escritas y

@@ -59,6 +59,12 @@ const SUPERFICIES: [string, string][] = [
   ['donde se capturan las tarifas por franja', 'components/demo/rejilla/RejillaDialog.tsx'],
   // La que MÁS importa: la liga pública es la que ve el CLIENTE y donde acepta.
   ['la LIGA PÚBLICA que ve el cliente', 'app/(app)/p/[id]/page.tsx'],
+  // PROG-01 (2026-09-30) · la franja PROGRAMADA —en qué horario se transmite—
+  // tampoco viaja al CMS, y estas dos pantallas la enseñan y la cambian. Son
+  // componentes y no páginas porque así se montan con UNA línea en páginas que
+  // otras ramas tocan; que la página los MONTE se vigila en el bloque 5.
+  ['donde se PROGRAMAN campañas por franja', 'components/demo/rejilla/ProgramacionPorFranja.tsx'],
+  ['donde se PROGRAMA la franja de una campaña', 'components/demo/campanas/FranjaProgramadaCampana.tsx'],
 ]
 
 describe('1 · el texto vive en UN solo sitio', () => {
@@ -78,7 +84,9 @@ describe('1 · el texto vive en UN solo sitio', () => {
   })
 })
 
-describe('2 · las cinco superficies lo llevan', () => {
+// Eran cinco hasta el 2026-09-30; PROG-01 añadió las dos de la franja
+// programada y son siete. El título no las cuenta para no volver a caducar.
+describe('2 · las superficies lo llevan', () => {
   for (const [donde, ruta] of SUPERFICIES) {
     it(`${donde} usa <AvisoFranjaCMS />`, () => {
       const c = sinComentarios(ruta)
@@ -95,6 +103,34 @@ describe('3 · y la SEXTA superficie es el congelado, que es la que dura', () =>
     const c = sinComentarios('lib/server/propuestas-repo.ts')
     expect(c).toMatch(/AVISO_FRANJA_NO_VIAJA_AL_CMS/)
     expect(c).toMatch(/avisoFranja/)
+  })
+})
+
+describe('5 · las pantallas de la franja PROGRAMADA montan su componente (PROG-01)', () => {
+  // Un componente con el aviso que ninguna página monta protege una pantalla
+  // que no existe. Se comprueba el JSX, no el import.
+  const MONTAJES: [string, string, RegExp][] = [
+    ['Franjas y temporadas', 'app/(app)/(shell)/franjas-y-temporadas/page.tsx', /<ProgramacionPorFranja\b/],
+    ['el detalle de campaña', 'app/(app)/(shell)/campanas/[id]/page.tsx', /<FranjaProgramadaCampana\b/],
+  ]
+  for (const [donde, ruta, jsx] of MONTAJES) {
+    it(`${donde} lo pinta`, () => {
+      expect(sinComentarios(ruta)).toMatch(jsx)
+    })
+  }
+
+  it('los dos AVISAN de la discrepancia con la regla pura, no con una copia', () => {
+    // «Se vendió como X y se programa en Y» lo calcula `avisosDeProgramacion`
+    // en el servidor y las pantallas lo PINTAN. Si una pantalla lo recalculara
+    // a mano, un día avisaría una y la otra no.
+    for (const ruta of [
+      'components/demo/rejilla/ProgramacionPorFranja.tsx',
+      'components/demo/campanas/FranjaProgramadaCampana.tsx',
+    ]) {
+      const c = sinComentarios(ruta)
+      expect(c, ruta).toMatch(/\.avisos\b/)
+      expect(c, ruta).not.toMatch(/Se vendió como/)
+    }
   })
 })
 

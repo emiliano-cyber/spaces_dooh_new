@@ -1,7 +1,7 @@
 ---
 tipo: referencia
 estado: verificado
-actualizado: 2026-09-24
+actualizado: 2026-09-30
 tags: [backend, api, endpoints]
 archivos:
   - apps/web/app/api/
@@ -182,6 +182,7 @@ Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo el
 | POST | `/api/campanas/[id]/enviar-dominio` | exigir |
 | GET·POST | `/api/campanas/[id]/playlogs` | exigir |
 | POST | `/api/campanas/[id]/facturar` | **SENSIBLE** |
+| GET · PUT | `/api/campanas/franja-programada` | `comercial:ver` · `comercial:crear` — la franja en que **se transmite** (PROG-01, 30/09), en bloque y atómico; ver [[rejilla-franja-y-temporada]] |
 | POST | `/api/ordenes-compra` | exigir |
 
 ## Operaciones e imprenta

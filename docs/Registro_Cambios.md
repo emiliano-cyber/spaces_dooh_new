@@ -5,6 +5,37 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-09-30
+
+- **Ahora puedes decir en qué horario SE TRANSMITE cada campaña.** *(Tu decisión
+  del 30/09: «es para horario transmisión ya que el precio ya debe de estar en la
+  campaña después de la propuesta».)* **Pendiente de tu aprobación**: añade un
+  dato nuevo a las campañas, y por eso todavía no está en la versión principal.
+
+  En **Franjas y temporadas**, debajo del catálogo, aparece **«Horario de
+  transmisión»**: junto a cada franja (Prime, Noche…) ves qué campañas salen en
+  ella, puedes **marcar varias y programarlas de una vez**, o quitar una con la ×.
+  Y en el **detalle de cada campaña** hay un cuadro con el mismo nombre para
+  verlo y cambiarlo ahí.
+
+  Lo importante:
+
+  - **No cambia ningún precio.** Lo que se vendió —incluida la franja que se
+    cotizó en la propuesta— se queda exactamente como se aceptó. Esto solo dice
+    en qué horario tiene que salir.
+  - **Si se vendió en una franja y se programa en otra**, el sistema te **avisa**
+    («se vendió como Prime y se programa en Noche») pero **te deja guardarlo**.
+    Si prefieres que lo impida, dínoslo: es una decisión tuya.
+  - **O se programan todas o ninguna.** Si en un lote va una campaña que no se
+    puede (por ejemplo, de otra organización), no se toca ninguna y te lo dice.
+  - Lo puede hacer quien hoy gestiona campañas (el mismo permiso que confirmar o
+    extender una campaña). Queda registrado en **Actividad**.
+  - **Sigue sin llegar sola a la pantalla**: el CMS no recibe horarios, así que
+    quien opera la pantalla lo tiene que programar a mano. Se avisa siempre.
+
+  *De paso se corrigió la documentación interna*, que decía que leer las franjas
+  pedía el permiso de inventario: desde el 29/09 pide el de **precios**.
+
 ## 2026-09-29
 
 - **Nueva pantalla «Captación»: la bitácora de cómo va cada venta.** *(Pedido tuyo

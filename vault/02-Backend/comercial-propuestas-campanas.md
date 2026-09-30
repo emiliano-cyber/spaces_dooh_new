@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-09-28
+actualizado: 2026-09-30
 tags: [backend, comercial, propuestas, campanas, amarillo]
 archivos:
   - apps/web/lib/server/propuestas-repo.ts
@@ -19,6 +19,8 @@ archivos:
   - apps/web/lib/data/types.ts
   - apps/web/app/(app)/(shell)/propuestas/[id]/page.tsx
   - apps/web/app/(app)/(shell)/campanas/[id]/page.tsx
+  - apps/web/components/demo/campanas/FranjaProgramadaCampana.tsx
+  - apps/web/lib/server/programacion-repo.ts
 ---
 
 # Comercial: propuestas, reservas y campañas
@@ -226,6 +228,18 @@ producción de hoy.
 
 **Fuera de alcance:** los conceptos en la factura. Sigue siendo **un importe
 único sin desglose**; darle conceptos es tabla nueva, migración y dinero.
+
+## La franja CONTRATADA y la PROGRAMADA no son la misma (PROG-01, 30/09)
+
+`reservas.franja_id` es lo **vendido**: se hereda del ítem al generar la
+campaña y **no se elige aquí**. `campanas.franja_programada_id` es en qué
+horario **se transmite**, y la escribe solo
+`PUT /api/campanas/franja-programada` (`comercial.crear`, en bloque y atómico).
+Programar no toca precio, snapshot ni reservas; si difiere de lo contratado,
+se **avisa** y no se bloquea (decisión pendiente del dueño). En la ficha lo
+enseña `FranjaProgramadaCampana`, montado con una línea bajo el Pipeline.
+**Sin fusionar**: la columna espera la aprobación del dueño. Detalle completo en
+[[rejilla-franja-y-temporada]].
 
 ## Portal del cliente
 

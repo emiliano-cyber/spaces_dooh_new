@@ -1,8 +1,8 @@
 ---
 tipo: contrato
 estado: verificado
-actualizado: 2026-09-28
-tags: [backend, precios, tarifas, franjas, temporadas, propuestas, dinero, snapshot, rls]
+actualizado: 2026-09-30
+tags: [backend, precios, tarifas, franjas, temporadas, propuestas, dinero, snapshot, rls, programacion]
 archivos:
   - db/migrations/20260928_rejilla_franja_temporada.sql
   - apps/web/lib/rejilla.ts
@@ -16,6 +16,15 @@ archivos:
   - apps/web/components/demo/rejilla/AvisoFranjaCMS.tsx
   - apps/web/components/demo/rejilla/GestionRejilla.tsx
   - apps/web/components/demo/rejilla/RejillaDialog.tsx
+  - db/migrations/20261002_franja_programada_campana.sql
+  - apps/web/lib/franja-programada.ts
+  - apps/web/lib/server/programacion-repo.ts
+  - apps/web/lib/server/programacion-controller.ts
+  - apps/web/app/api/campanas/franja-programada/route.ts
+  - apps/web/lib/data/programacion-api.ts
+  - apps/web/components/demo/rejilla/ProgramacionPorFranja.tsx
+  - apps/web/components/demo/campanas/FranjaProgramadaCampana.tsx
+  - apps/web/lib/test/franja-programada.e2e.test.ts
 ---
 
 # La rejilla de precios: franja horaria y temporada
@@ -231,7 +240,8 @@ Decisión del dueño (2026-09-28): se construye igual, como **capa comercial**. 
 vende y se cobra por franja, y **alguien la programa a mano en el CMS**.
 
 El texto vive **una sola vez** en `AVISO_FRANJA_NO_VIAJA_AL_CMS` (`lib/rejilla.ts`)
-y lo pinta **un solo componente**, `AvisoFranjaCMS`. Aparece en **seis sitios**:
+y lo pinta **un solo componente**, `AvisoFranjaCMS`. Aparece en **ocho sitios**
+(seis hasta el 30/09):
 
 1. La pantalla donde se **configuran** las franjas — antes de montar la tabla de
    precios sobre algo que el sistema no agenda.
@@ -243,9 +253,14 @@ y lo pinta **un solo componente**, `AvisoFranjaCMS`. Aparece en **seis sitios**:
    Es la que más importa de todas.
 6. **Dentro del `snapshot_economico` congelado** — el que dura cuando las cinco
    pantallas hayan cambiado.
+7. **Horario de transmisión** en Franjas y temporadas (`ProgramacionPorFranja`,
+   PROG-01, 30/09).
+8. **Horario de transmisión** en el detalle de campaña
+   (`FranjaProgramadaCampana`, PROG-01).
 
 `lib/rejilla-aviso.test.ts` nombra las superficies y cae si a una le quitan el
-aviso.
+aviso — y desde el 30/09 también si la página deja de **montar** el componente
+de la 7 o de la 8.
 
 > [!warning] Lo que esa prueba NO puede hacer
 > Vigila una **lista escrita a mano**. Protege las cinco pantallas que hay hoy;
@@ -271,12 +286,21 @@ de que esto existiera.
 
 | Ruta | Guard |
 |---|---|
-| `GET /api/rejilla/franjas` | `inventario.ver` — devuelve franjas **y** temporadas |
-| `POST /api/rejilla/franjas` | **Cambio sensible** (`exigirCambioSensible`) |
-| `PATCH · DELETE /api/rejilla/franjas/[id]` | Sensible. `DELETE` es **baja lógica** |
-| `POST /api/rejilla/temporadas` · `PATCH · DELETE /api/rejilla/temporadas/[id]` | Sensible |
+| `GET /api/rejilla/franjas` | **`precios.ver`** — devuelve franjas **y** temporadas |
+| `POST /api/rejilla/franjas` | **Cambio sensible** (`exigirCambioSensible('precios','crear')`) |
+| `PATCH · DELETE /api/rejilla/franjas/[id]` | Sensible, `precios.crear`. `DELETE` es **baja lógica** |
+| `POST /api/rejilla/temporadas` · `PATCH · DELETE /api/rejilla/temporadas/[id]` | Sensible, `precios.crear` |
 | `GET /api/sitios/[id]/rejilla` | `inventario.ver` |
-| `PATCH /api/sitios/[id]/rejilla` | Sensible **entera**, sin lista blanca de campos |
+| `PATCH /api/sitios/[id]/rejilla` | Sensible **entera** (`inventario.crear`), sin lista blanca de campos |
+| `GET /api/campanas/franja-programada` | `comercial.ver` — la franja en que **se transmite** cada campaña (PROG-01, abajo) |
+| `PUT /api/campanas/franja-programada` | `comercial.crear` — en bloque y atómico. **No** es cambio sensible: no mueve precio |
+
+> [!warning] Corregido el 2026-09-30: esta tabla decía `inventario.ver`
+> Desde el ADR 0040 (29/09) el catálogo de franjas va bajo el módulo **`precios`**
+> (`app/api/rejilla/franjas/route.ts:40`, y `rbac-coherencia.test.ts` lo exige).
+> La tabla se quedó con el módulo de antes; lo vio la tarea PROG-01 al leerla.
+> La captura desde la ficha (`/api/sitios/[id]/rejilla`) sí sigue en
+> `inventario`, a propósito: ver el comentario de esa prueba.
 
 El candado es **exactamente** el de `PATCH /api/sitios/:id/modalidades` —
 `exigirCambioSensible` y no `exigirReautenticacionSiempre`— porque es el mismo
@@ -291,8 +315,12 @@ llegó, y va por **ruta propia**, no por una cadena más en una lista blanca.
 
 ## Dónde se ve en la aplicación
 
-- **Franjas y temporadas** (`/franjas-y-temporadas`, grupo *patrimonio*, módulo
-  `inventario`): el catálogo de la organización.
+- **Franjas y temporadas** (`/franjas-y-temporadas`, módulo **`precios`** desde
+  el ADR 0040 —`lib/modulos.ts`—, menú para mando y jefes de venta): el catálogo
+  de la organización, y debajo, desde el 30/09, el **horario de transmisión**
+  (`ProgramacionPorFranja`).
+- **Detalle de campaña** (`/campanas/[id]`): cuadro «Horario de transmisión»
+  (`FranjaProgramadaCampana`), montado con una línea bajo el Pipeline.
 - **Ficha de la pantalla**: cuadro «Tarifas por franja», aparte del de «Tarifas
   por unidad» — dos tablas con dos semánticas, y un solo formulario obligaría a
   que un botón sirviera para las dos.
@@ -300,6 +328,73 @@ llegó, y va por **ruta propia**, no por una cadena más en una lista blanca.
   por omisión. El precio se resuelve **en el cliente** con la misma
   `resolverTarifa` del servidor, sobre `sitio.rejilla`, que viaja con la pantalla
   en una sola consulta para todas.
+
+---
+
+## La franja PROGRAMADA — en qué horario se transmite (PROG-01, 2026-09-30)
+
+> [!danger] SIN FUSIONAR — la forma de la base espera la aprobación del dueño
+> Rama `feat/franja-programada`. Si lees esto en `main`, ya se aprobó.
+
+**Decisión del dueño**, textual: *«es para horario transmisión ya que el precio
+ya debe de estar en la campaña después de la propuesta»*. Desde Franjas y
+temporadas —o desde la propia campaña— se eligen **una o varias campañas** y se
+les dice en qué franja **salen al aire**.
+
+Hay por tanto **dos franjas** en la vida de una campaña, y no se mezclan:
+
+| | Dónde vive | Quién la escribe | ¿Mueve precio? |
+|---|---|---|---|
+| **Contratada** | `reservas.franja_id` (y congelada en el snapshot) | Se hereda del ítem al generar la campaña. **Prohibido elegirla** en la campaña (`campanas-repo.ts`, inserción desde propuesta) | Sí: es lo vendido |
+| **Programada** | `campanas.franja_programada_id` | `PUT /api/campanas/franja-programada` | **No** |
+
+Nada de PROG-01 escribe en `reservas.franja_id`, `propuesta_items`, precios ni
+`snapshot_economico`. Lo prueba `franja-programada.e2e.test.ts` §6: programa y
+desprograma, y lo contratado sale **idéntico**.
+
+### Por qué por campaña y no por reserva
+
+El dueño lo pidió por campaña. Una columna por reserva daría granularidad por
+pantalla a costa de que un lote de diez campañas escriba cientos de filas y de
+que la pantalla tenga que repartir la misma franja N veces. Si mañana hace
+falta que una pantalla salga en otro horario que su campaña, se añade **esa**
+columna como excepción y la de la campaña sigue siendo la regla.
+
+### La operación en bloque es TODO O NADA
+
+`asignarFranjaProgramada` (`lib/server/programacion-repo.ts`) comprueba, dentro
+de una sola `withTenantTx`, que la franja es **de la organización y está
+activa**, y que **todas** las campañas del lote lo son (`for update`). Si falta
+una, **no escribe ninguna** y el 404 lo dice: *«no se programó ninguna»*. Por
+eso la pantalla tiene dos gestos atómicos —«Programar N en Prime» y la × de cada
+campaña— y no un «guardar» con altas y bajas, que serían dos peticiones.
+
+La FK compuesta `(franja_programada_id, tenant_id)` es la capa que cierra R2 en
+la base: `franja_programada_id` entra por el cuerpo. La validación del repo
+existe además porque la FK **deja pasar una franja dada de baja**.
+
+### Avisar, no bloquear — y es una DECISIÓN PENDIENTE
+
+Si la programada difiere de la contratada, `avisosDeProgramacion`
+(`lib/franja-programada.ts`, pura) produce *«Se vendió como «Prime» (2
+pantallas) y se programa en «Noche»…»*. Se calcula en el **servidor** y las dos
+pantallas solo lo pintan. Tres reglas:
+
+- sin franja programada **no se avisa** (no hay contraste);
+- lo vendido **sin franja** («todo el día») **no** es una discrepancia;
+- las reservas **canceladas** no cuentan.
+
+**Hoy se avisa y se guarda igual.** Si debería bloquearse lo decide el dueño;
+el cambio sería en esa función y en el controller, no en las pantallas.
+
+### Permiso
+
+Programar pide **`comercial.crear`** —lo mismo que confirmar, extender, repartir
+creativos o enviar al dominio— y leer, **`comercial.ver`**. No es cambio
+sensible: no mueve dinero. La lectura devuelve nombre y horario de las franjas a
+quien no tiene `precios.ver`, porque un nombre no es un precio. **Pendiente del
+dueño:** si programar horario debería ser un permiso propio (p. ej. para
+Operaciones sin poder vender).
 
 ---
 
