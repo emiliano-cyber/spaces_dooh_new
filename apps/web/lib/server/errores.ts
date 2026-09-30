@@ -119,9 +119,56 @@ function codigoPg(e: unknown): string | null {
   return typeof c === 'string' && /^[0-9A-Z]{5}$/.test(c) ? c : null
 }
 
+// ─── La base NO RESPONDE ────────────────────────────────────────────────────
+// Una base caída no es un fallo del programa ni de la petición: es una avería
+// pasajera del servicio. Se contesta 503 —«vuelve a intentarlo»— y no 500, para
+// que el cliente (y quien mire los logs de nginx) pueda distinguirla.
+//
+// El fallo que lo motiva (2026-09-30): con Postgres apagado, el login devolvía
+// un 500 CON EL CUERPO VACÍO y la pantalla enseñaba «Unexpected end of JSON
+// input». La excepción de `pg` escapaba del handler; ahora pasa por aquí.
+//
+// Las formas reconocidas son las que produce `pg` de verdad, MEDIDAS el 30/09
+// contra un puerto cerrado en Node 24: con `localhost` llega un
+// `AggregateError` con `code: 'ECONNREFUSED'` y el `message` VACÍO (un intento
+// por familia, ::1 y 127.0.0.1, en `errors[]`); con una IP literal, un `Error`
+// normal con el mismo `code`. Por eso se mira el `code` y los hijos, nunca solo
+// el texto.
+export const MENSAJE_BASE_NO_DISPONIBLE =
+  'El servicio no está disponible en este momento. Intenta de nuevo en unos minutos.'
+
+// Errores de red del socket hacia Postgres.
+const CODIGOS_RED = new Set([
+  'ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND', 'EAI_AGAIN',
+  'EHOSTUNREACH', 'ENETUNREACH', 'EPIPE',
+])
+// SQLSTATE de Postgres que significan «no puedo atenderte ahora»: clase 08
+// (connection_exception), 57P01-57P03 (apagándose / arrancando) y 53300
+// (too_many_connections). NO entran los de la petición (22xxx, 23xxx, 42501):
+// esos siguen en ERRORES_PG.
+const SQLSTATE_NO_DISPONIBLE = /^(08[0-9A-Z]{3}|57P0[123]|53300)$/
+// Los que `pg` lanza sin `code`: el pool al agotar `connectionTimeoutMillis` y
+// el cliente cuando el servidor corta la conexión a media consulta.
+const MENSAJES_PG_NO_DISPONIBLE = [
+  'timeout exceeded when trying to connect',
+  'Connection terminated unexpectedly',
+  'Connection terminated due to connection timeout',
+]
+
+export function esBaseNoDisponible(e: unknown): boolean {
+  if (!e || typeof e !== 'object') return false
+  const code = (e as { code?: unknown }).code
+  if (typeof code === 'string' && (CODIGOS_RED.has(code) || SQLSTATE_NO_DISPONIBLE.test(code))) return true
+  const message = (e as { message?: unknown }).message
+  if (typeof message === 'string' && MENSAJES_PG_NO_DISPONIBLE.some((m) => message.includes(m))) return true
+  const hijos = (e as { errors?: unknown }).errors
+  return Array.isArray(hijos) && hijos.some((h) => esBaseNoDisponible(h))
+}
+
 // Mapea cualquier error a una respuesta HTTP. AppError/ZodError → 4xx con
-// mensaje; errores de Postgres atribuibles a la petición → 4xx genérico; lo
-// demás → 500 sin filtrar internals (el detalle va al log del servidor).
+// mensaje; base que no responde → 503; errores de Postgres atribuibles a la
+// petición → 4xx genérico; lo demás → 500 sin filtrar internals (el detalle va
+// al log del servidor).
 export function respuestaError(e: unknown): NextResponse {
   if (e instanceof AppError) {
     return NextResponse.json({ error: e.message }, { status: e.status })
@@ -133,6 +180,11 @@ export function respuestaError(e: unknown): NextResponse {
     // Un issue custom puede pedir otro status (las subidas usan 422); ver validar().
     const status = (i as { params?: { status?: number } })?.params?.status ?? 400
     return NextResponse.json({ error: `${campo}${i?.message ?? 'Datos inválidos'}` }, { status })
+  }
+  if (esBaseNoDisponible(e)) {
+    // El detalle (host, puerto, código) va al log y SOLO al log.
+    console.error('[api] La base de datos no responde:', e)
+    return NextResponse.json({ error: MENSAJE_BASE_NO_DISPONIBLE }, { status: 503 })
   }
   const pg = codigoPg(e)
   if (pg && ERRORES_PG[pg]) {
