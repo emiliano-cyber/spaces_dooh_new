@@ -1,10 +1,25 @@
 ---
 tipo: tablero
 estado: verificado
-actualizado: 2026-09-28
+actualizado: 2026-09-30
 tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
+
+> [!important] 2026-09-30 · **Seis funciones en `main` (`8063181c`) — SIN EMPUJAR**
+> Captación (CAP-01), login 503 con la base caída, almacén por tipo (ALM-01),
+> checklist de la OT con autoguardado, Campañas compacta + menú plegable, y la
+> franja programada (PROG-01). Tres migraciones, las tres aprobadas por el dueño
+> y compatibles con PostgreSQL 14. **Todas las zonas quedan LIBERADAS.**
+>
+> Medido sobre `main` antes del último avance: typecheck limpio, **2940
+> unitarias**, **e2e completa 801 en 59 archivos**. `main` va **103 commits por
+> delante de `emiliano`**: empujar, etiquetar y promover lo hace una persona con
+> `docs/evidencias/21-publicar-y-mover-g500-20260930.md`, que incluye también
+> mover g500 a PostgreSQL 16. Detalle en [[07-Agentes/diario/2026-09-30]].
+>
+> **Nadie ha recorrido las pantallas nuevas en un navegador.** La primera vez
+> será DEMO (paso A4 de la guía).
 
 > [!success] 2026-09-30 · **El menú lateral del detalle de campaña se pliega — RECLAMADO Y LIBERADO**
 > Rama `feat/campanas-menu-plegable`, salida de `main` (`17dfef67`). VERDE: ni

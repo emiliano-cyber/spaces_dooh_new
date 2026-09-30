@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: verificado
-actualizado: 2026-09-25
+actualizado: 2026-09-30
 tags: [despliegue, entorno, ci, env, instancias]
 archivos:
   - infra/scripts/pruebas-update.sh
@@ -110,6 +110,25 @@ archivos:
 
 ---
 # Entorno y despliegue
+
+> [!important] 2026-09-30 · La versión del 30/09 y el traslado de g500 a PostgreSQL 16
+> Guía paso a paso para una persona: `docs/evidencias/21-publicar-y-mover-g500-20260930.md`
+> (copia con las IPs rellenas en `Downloads`). **A**: empujar `main`, etiquetar,
+> PADRE y DEMO. **B**: g500 a un droplet **nuevo** con Ubuntu 24.04 (Postgres 16
+> por omisión), restaurando su respaldo en una base VACÍA. **C**: promover a
+> `estable`.
+>
+> Lo que la hace distinta de un alta normal, y por qué va a mano:
+> - **Ningún script cubre «base vacía + restaurar»**: `provision-instancia.sh`
+>   aplica siempre `schema.sql` + `--instalacion-nueva` (`:788-797`), e
+>   `instalar-hijo.sh` aborta fuera de Ubuntu 22.04 (`:482-488`), cuyo Postgres es 14.
+> - **Los roles se crean idénticos a `base-instancia.sh:96-139`** y con las
+>   MISMAS contraseñas del g500 viejo, leídas de sus `.env`. Ensayado el 29/09
+>   con el respaldo real: con `spaces_migrador` sin `bypassrls` el runner aplica
+>   13 y muere, dejando la base a medio migrar.
+> - **El viejo queda intacto como vuelta atrás** (DNS de vuelta + `docker start`).
+>
+> Detalle del día en [[07-Agentes/diario/2026-09-30]].
 
 > [!important] 2026-08-28 · Cómo se despliega el PADRE, y ya no es con pm2
 > La aplicación del 3000 la arranca **systemd** (`spaces-web.service`) como el
