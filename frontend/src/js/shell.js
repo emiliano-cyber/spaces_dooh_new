@@ -49,18 +49,22 @@
   function render() {
     const mount = document.getElementById('app-header');
     if (!mount) return;
+    // Lo fijo es el contenedor, no el <header>: un sticky solo se pega dentro de
+    // su padre, y este mide lo mismo que el menu, asi que el menu se iba con el
+    // scroll y el boton de foto quedaba lejos.
+    mount.classList.add('sticky', 'top-0', 'z-30');
     const active = activeKey();
 
     mount.innerHTML = `
-    <header class="bg-white border-b border-neutral-200 sticky top-0 z-30">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
+    <header class="bg-white border-b border-neutral-200">
+      <div class="max-w-7xl 2xl:max-w-[1600px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
         <!-- Marca: wordmark + endoso en mono (Brand Book: endosar sin fusionar) -->
         <a href="/dashboard.html" class="flex items-baseline gap-2 shrink-0">
           <span class="se-titulo text-[19px] tracking-[0.02em] text-neutral-900">SPACE EYES</span>
           <span class="hidden sm:inline font-mono text-[10.5px] text-neutral-500">by AS Network</span>
         </a>
         <!-- Nav desktop -->
-        <nav class="hidden lg:flex items-center gap-5 text-sm self-stretch">${navLinks(active, false)}</nav>
+        <nav class="hidden lg:flex items-center gap-4 xl:gap-5 text-sm self-stretch">${navLinks(active, false)}</nav>
         <!-- Derecha -->
         <div class="flex items-center gap-3 sm:gap-4">
           <span class="hidden xl:inline-flex items-center gap-1.5 text-xs text-neutral-500 whitespace-nowrap border border-neutral-200 rounded-full px-2.5 py-1">
@@ -72,7 +76,7 @@
           <div class="relative">
             <button id="hdr-user-btn" class="flex items-center gap-2 rounded-full hover:bg-neutral-100 pl-1 pr-2 py-1">
               <span id="hdr-avatar" class="w-8 h-8 rounded-full bg-neutral-900 text-white text-sm font-medium flex items-center justify-center">?</span>
-              <span id="hdr-username" class="hidden sm:inline text-sm text-neutral-700 max-w-[120px] truncate">…</span>
+              <span id="hdr-username" class="hidden sm:inline lg:hidden xl:inline text-sm text-neutral-700 max-w-[120px] truncate">…</span>
               <svg class="w-4 h-4 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
             </button>
             <div id="hdr-user-menu" class="hidden absolute right-0 mt-2 w-56 bg-white border border-neutral-200 rounded-lg shadow-lg py-1 z-40">

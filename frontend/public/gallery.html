@@ -14,7 +14,7 @@
 
     <div id="app-header"></div>
 
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+    <main class="max-w-7xl 2xl:max-w-[1600px] mx-auto px-4 sm:px-6 py-8">
       <div class="mb-6">
         <p class="se-eyebrow">Evidencia</p>
         <h1 class="se-titulo text-[28px] mt-1">Galería de fotos</h1>
@@ -36,7 +36,7 @@
         </button>
       </div>
 
-      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
         <template x-for="photo in photos" :key="photo.id">
           <div class="bg-white border border-neutral-200 rounded-lg overflow-hidden">
             <div class="relative group aspect-[4/3] bg-neutral-100">

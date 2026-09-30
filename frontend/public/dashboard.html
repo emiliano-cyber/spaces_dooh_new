@@ -16,7 +16,7 @@
     <!-- NAV -->
     <div id="app-header"></div>
 
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+    <main class="max-w-7xl 2xl:max-w-[1600px] mx-auto px-4 sm:px-6 py-8">
       <!-- Encabezado de pagina -->
       <div class="flex flex-wrap items-end justify-between gap-4 mb-6">
         <div>
@@ -56,14 +56,15 @@
 
       <!-- Filtros -->
       <div class="flex flex-wrap items-center gap-2 mb-4">
-        <div class="relative">
+        <div class="relative w-full sm:w-auto">
           <svg class="w-4 h-4 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z"/></svg>
           <input x-model="search" type="text" placeholder="Buscar por nombre, código o dirección"
-            class="pl-9 pr-3 py-2 border border-neutral-300 rounded-md text-sm w-72 bg-white focus:outline-none focus:border-blue-600">
+            class="pl-9 pr-3 py-2 border border-neutral-300 rounded-md text-sm w-full sm:w-72 bg-white focus:outline-none focus:border-blue-600">
         </div>
-        <div class="flex flex-wrap rounded-md border border-neutral-300 bg-white overflow-hidden text-sm">
+        <!-- En el celular se desliza de lado en vez de partirse en dos renglones -->
+        <div class="flex max-w-full overflow-x-auto rounded-md border border-neutral-300 bg-white text-sm" style="scrollbar-width:none">
           <template x-for="op in [['all','Todos'],['online','En línea'],['offline','Sin conexión'],['maintenance','Mantenimiento']]" :key="op[0]">
-            <button @click="filter = op[0]" class="px-3 py-2 border-r last:border-r-0 border-neutral-200"
+            <button @click="filter = op[0]" class="px-3 py-2 border-r last:border-r-0 border-neutral-200 whitespace-nowrap shrink-0"
               :class="filter === op[0] ? 'bg-neutral-900 text-white' : 'text-neutral-600 hover:bg-neutral-50'" x-text="op[1]"></button>
           </template>
         </div>
@@ -73,7 +74,7 @@
       </div>
 
       <!-- Tarjetas de equipo -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
         <template x-for="d in filtered" :key="d.id">
           <div @click="openDevice(d.id)"
                class="group se-card card-hover cursor-pointer flex flex-col"

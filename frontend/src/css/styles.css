@@ -218,3 +218,30 @@ body {
   background: #B3261E;
   color: #fff;
 }
+
+/* Indicadores de la ficha: tira que se desliza en pantallas chicas, rejilla en
+   las grandes. Asi el celular ve el video sin bajar media pagina. */
+.se-kpis {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  margin-inline: -16px;
+  padding-inline: 16px;
+}
+.se-kpis::-webkit-scrollbar { display: none; }
+.se-kpis > * { flex: 0 0 auto; min-width: 148px; scroll-snap-align: start; }
+@media (min-width: 640px) {
+  .se-kpis { margin-inline: -24px; padding-inline: 24px; }
+}
+@media (min-width: 1024px) {
+  .se-kpis {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    overflow: visible;
+    margin-inline: 0;
+    padding-inline: 0;
+  }
+  .se-kpis > * { min-width: 0; }
+}

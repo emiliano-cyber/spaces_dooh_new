@@ -19,7 +19,7 @@
 
     <div id="app-header"></div>
 
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+    <main class="max-w-7xl 2xl:max-w-[1600px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
       <p class="se-eyebrow">Fotos</p>
       <h1 class="se-titulo text-[28px] mt-1 mb-1">Ajustar texto de las fotos</h1>
       <p class="text-sm text-neutral-500 mb-4">Toma una fotografía de prueba y configura cómo se verá <b>nombre · fecha · hora</b>. Se aplica a todas las fotos del dispositivo.</p>
@@ -27,9 +27,9 @@
       <!-- Selector + captura -->
       <div class="bg-white border border-neutral-200 rounded-lg p-4 mb-6">
         <div class="flex flex-wrap items-end gap-3 text-sm">
-          <label class="block">
+          <label class="block w-full sm:w-auto min-w-0">
             <span class="text-neutral-500 text-xs">Dispositivo</span>
-            <select x-model="deviceId" @change="onDeviceChange()" class="mt-1 px-3 py-2 border border-neutral-300 rounded min-w-[220px]">
+            <select x-model="deviceId" @change="onDeviceChange()" class="mt-1 px-3 py-2 border border-neutral-300 rounded w-full sm:w-auto sm:min-w-[220px] max-w-full">
               <template x-for="d in devices" :key="d.id"><option :value="d.id" x-text="d.name"></option></template>
             </select>
           </label>

@@ -125,7 +125,20 @@ function deviceDetail() {
       setTimeout(() => window.dispatchEvent(new Event('resize')), 30);
     },
 
+    accionesFuera: false,
+
     async init() {
+      // Las acciones del encabezado: si ya no se ven, se muestra la barra fija
+      // con "Tomar foto" (no hay que volver a subir para encontrarla).
+      this.$nextTick(() => {
+        const el = this.$refs.acciones;
+        if (!el || !('IntersectionObserver' in window)) return;
+        new IntersectionObserver(([e]) => { this.accionesFuera = !e.isIntersecting; }, {
+          // El menu del sitio mide 64 px y esta fijo arriba: lo que queda debajo
+          // de el ya no se ve aunque siga "en la pantalla".
+          rootMargin: '-64px 0px 0px 0px',
+        }).observe(el);
+      });
       const params = new URLSearchParams(window.location.search);
       this.deviceId = params.get('id');
       if (!this.deviceId) {
