@@ -6,7 +6,11 @@ import { z } from 'zod';
 import { deleteStored, storeBuffer } from '../services/photoStorage.service';
 import sharp from 'sharp';
 import { getIceServers } from '../utils/turn';
-import { armStreamWatchdog, disarmStreamWatchdog, registrarSesion, sesionDeVista, stopStream } from '../utils/streamWatchdog';
+import {
+  armStreamWatchdog, disarmStreamWatchdog, quitarEspectador, registrarSesion, sesionDeVista, stopStream,
+  unirEspectador, SesionDeVista,
+} from '../utils/streamWatchdog';
+import { whipDe } from '../utils/relayTelefono';
 import { agentePcInfo, agentePiInfo, apkInfo } from '../utils/apkInfo';
 import { proximoDisparo, ventanasValidas } from '../utils/horarios';
 import { env } from '../config/env';
@@ -20,6 +24,15 @@ import { firmarFilas, firmar } from '../utils/firmaArchivos';
 // nosotros ("pi-agent 0.1.0", "pc-agent 1.0.0").
 export function usaServidorDeMedios(appVersion?: string | null) {
   return !!appVersion && /^(pi|pc)-agent/i.test(String(appVersion));
+}
+
+/**
+ * Si la vista en vivo de este telefono se reparte por el servidor de medios
+ * (varios espectadores, el telefono transmite una sola vez). Sin servidor de
+ * medios configurado, o con el interruptor apagado, sigue punto a punto.
+ */
+export function telefonoPorServidor(appVersion?: string | null) {
+  return env.VIVO_TELEFONOS_POR_SERVIDOR && !usaServidorDeMedios(appVersion) && !!servidorDeMedios();
 }
 
 // Estado de una transmision en el servidor de medios. Sin esto el dashboard
@@ -146,7 +159,12 @@ export async function getDevice(req: Request, res: Response) {
   );
 
   res.json({
-    device,
+    // Con que visor se abre la vista en vivo: el del servidor de medios o el
+    // punto a punto. Lo decide el servidor, que es quien sabe si esta configurado.
+    device: {
+      ...device,
+      vivo_por_servidor: usaServidorDeMedios(device.app_version) || telefonoPorServidor(device.app_version),
+    },
     latest_status: (statusRows as any[])[0] || null,
     data_usage: (usageRows as any[])[0] || null,
   });
@@ -449,22 +467,36 @@ export async function sendCommand(req: Request, res: Response) {
   // y de un solo uso. El equipo recibe a donde publicar y el dashboard de donde
   // ver; la ruta deja de existir en cuanto se corta la transmision.
   let stream: { modo: string; whep: string } | null = null;
-  let compartida = false;
+  let sesionNueva: Partial<SesionDeVista> | null = null;
+  // Cada pestaña se identifica sola: casi todos entran con la misma cuenta, asi
+  // que el usuario no sirve para saber quien se fue.
+  const visor = typeof payload?.visor === 'string' ? payload.visor.slice(0, 64) : '';
+
+  // Alguien deja de mirar. Si quedan otros viendo, la transmision sigue: antes
+  // el primero que cerraba le cortaba el video a todos. `forzar` es para cuando
+  // hay que reabrir de verdad (cambio de lente: es otra camara fisica).
+  if (command_type === 'STOP_STREAM' && visor && !payload?.forzar) {
+    const quedan = quitarEspectador(Number(deviceId), visor);
+    if (quedan > 0) return res.json({ command_id: null, siguen_mirando: quedan });
+  }
 
   if (command_type === 'START_STREAM') {
     const [filas] = await pool.query<any[]>(`SELECT app_version FROM devices WHERE id = ?`, [deviceId]);
-    const porServidorDeMedios = usaServidorDeMedios((filas as any[])[0]?.app_version);
+    const version = (filas as any[])[0]?.app_version;
+    const porServidorDeMedios = usaServidorDeMedios(version);
+    const telefonoRepartido = telefonoPorServidor(version);
     const abierta = sesionDeVista(Number(deviceId));
 
     // Ya hay alguien viendo este equipo. Antes esto no se comprobaba y la segunda
     // persona se llevaba la camara: el primero se quedaba con la imagen congelada
     // (telefonos) o en negro (relay), sin ningun aviso para ninguno de los dos.
     if (abierta) {
-      if (porServidorDeMedios && abierta.modo === 'relay' && abierta.whep) {
+      if (abierta.modo === 'relay' && abierta.whep) {
         // El servidor de medios reparte el MISMO video a cuantos quieran verlo, y
         // al equipo no le cuesta un byte de mas: publica una sola vez. Asi que se
         // le devuelve la transmision que ya esta corriendo, sin molestar al
-        // equipo con otra orden.
+        // equipo con otra orden. Vale para la Raspberry, las PCs y los telefonos.
+        if (visor) unirEspectador(Number(deviceId), visor);
         return res.json({
           command_id: null,
           compartida: true,
@@ -474,9 +506,10 @@ export async function sendCommand(req: Request, res: Response) {
         });
       }
 
-      // Punto a punto (telefonos): cada espectador es OTRA conexion de video
-      // saliendo del telefono, o sea el doble de datos moviles. No se comparte a
-      // proposito; se avisa quien la tiene.
+      // Punto a punto (telefonos sin servidor de medios, o una foto que el
+      // servidor esta tomando por la vista): cada espectador seria OTRA conexion
+      // de video saliendo del telefono, o sea el doble de datos moviles. No se
+      // comparte a proposito; se avisa quien la tiene.
       return res.status(409).json({
         error: 'vista_ocupada',
         con: abierta.nombre,
@@ -501,7 +534,38 @@ export async function sendCommand(req: Request, res: Response) {
           ? `${medios.whepBase}/${clave}/whep`
           : `http://${medios.host}:${medios.webrtc}/${clave}/whep`,
       };
+    } else if (telefonoRepartido) {
+      // El telefono no cambia nada: manda su oferta por el socket como siempre.
+      // Quien la contesta es el backend, entregandosela al servidor de medios
+      // (deviceSocket.ts). Los navegadores ven desde ahi.
+      const medios = servidorDeMedios()!;
+      const clave = crypto.randomBytes(12).toString('hex');
+      stream = {
+        modo: 'relay',
+        whep: medios.whepBase
+          ? `${medios.whepBase}/${clave}/whep`
+          : `http://${medios.host}:${medios.webrtc}/${clave}/whep`,
+      };
+      sesionNueva = { whip: whipDe(clave) };
     }
+
+    // La sesion se anota ANTES de mandarle la orden al equipo: su oferta de
+    // video puede volver en menos de lo que tarda el resto de esta funcion, y
+    // tiene que encontrar ya a donde entregarse.
+    const [u] = await pool.query<any[]>(`SELECT full_name FROM users WHERE id = ?`, [req.user!.uid]);
+    // Red de seguridad: ninguna transmision queda viva mas de 3 minutos aunque
+    // el navegador nunca mande el STOP_STREAM (pestaña cerrada, red caida...).
+    armStreamWatchdog(Number(deviceId));
+    // Se anota quien abrio la vista, para poder decirselo al siguiente que llegue.
+    registrarSesion(Number(deviceId), {
+      ...(sesionNueva ?? {}),
+      userId: req.user!.uid,
+      nombre: (u as any[])[0]?.full_name || 'otro usuario',
+      desde: Date.now(),
+      modo: stream ? 'relay' : 'p2p',
+      whep: stream?.whep,
+    });
+    if (visor) unirEspectador(Number(deviceId), visor);
   }
 
   const [result] = await pool.query<any>(
@@ -521,20 +585,7 @@ export async function sendCommand(req: Request, res: Response) {
     command,
   }));
 
-  // Red de seguridad: ninguna transmision queda viva mas de 3 minutos aunque
-  // el navegador nunca mande el STOP_STREAM (pestaña cerrada, red caida...).
-  if (command_type === 'START_STREAM') {
-    armStreamWatchdog(Number(deviceId));
-    // Se anota quien abrio la vista, para poder decirselo al siguiente que llegue.
-    const [u] = await pool.query<any[]>(`SELECT full_name FROM users WHERE id = ?`, [req.user!.uid]);
-    registrarSesion(Number(deviceId), {
-      userId: req.user!.uid,
-      nombre: (u as any[])[0]?.full_name || 'otro usuario',
-      desde: Date.now(),
-      modo: stream ? 'relay' : 'p2p',
-      whep: stream?.whep,
-    });
-  } else if (command_type === 'STOP_STREAM') {
+  if (command_type === 'STOP_STREAM') {
     disarmStreamWatchdog(Number(deviceId));
   }
 

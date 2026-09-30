@@ -67,6 +67,16 @@ const schema = z.object({
   // Vacio = se sigue armando como siempre (http://<host>:8889/...), que es lo
   // correcto mientras el servidor vaya por IP y sin TLS.
   MEDIAMTX_WHEP_PUBLIC: z.string().default(''),
+  // Donde el BACKEND le entrega al servidor de medios la oferta de video de un
+  // telefono (WHIP). Es la red interna de docker, no la publica.
+  MEDIAMTX_WEBRTC_INTERNAL: z.string().default('http://mediamtx:8889'),
+  // Los telefonos tambien transmiten por el servidor de medios: mandan su video
+  // UNA vez y el servidor lo reparte a cuantos lo miren. Apagado, vuelven al
+  // punto a punto de siempre (un solo espectador por equipo).
+  VIVO_TELEFONOS_POR_SERVIDOR: z
+    .string()
+    .default('true')
+    .transform((v) => !/^(0|false|no|off)$/i.test(v.trim())),
 
   MEDIASOUP_LISTEN_IP: z.string().default('0.0.0.0'),
   MEDIASOUP_ANNOUNCED_IP: z.string().default('127.0.0.1'),

@@ -1,7 +1,9 @@
 // frontend/src/js/whep.js
-// Visor de vista en vivo para los equipos que NO son telefonos (Raspberry y PCs
-// con camara IP). Esos equipos no hacen WebRTC punto a punto: empujan el video
-// al servidor de medios y aqui se consume de ahi por WebRTC (protocolo WHEP).
+// Visor de vista en vivo por el servidor de medios. Lo usan la Raspberry y las
+// PCs con camara IP (empujan el video al servidor) y tambien los telefonos
+// cuando el servidor lo reparte: el telefono manda su video una sola vez y aqui
+// se consume de ahi por WebRTC (protocolo WHEP). Asi pueden mirar varias
+// personas a la vez sin que al equipo le cueste un byte de mas.
 //
 // Expone la MISMA interfaz que LiveStreamClient (start/stop/sendCameraControl y
 // las devoluciones onTick/onAutoStop/onError), asi la ficha del equipo elige uno
@@ -37,6 +39,13 @@ class WhepStreamClient {
     this._timers = [];
     this._stopped = false;
     this._onUnload = () => this._beaconStop();
+    // Quien es esta pestaña para el servidor: la transmision se corta cuando se
+    // va la ULTIMA que mira, no cuando se va la primera.
+    this.visor = (window.crypto && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+    // Para los controles de camara de los telefonos (zoom, enfoque...).
+    this.socket = null;
   }
 
   _timer(fn, ms, repeat) {
@@ -63,7 +72,7 @@ class WhepStreamClient {
           'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ command_type: 'STOP_STREAM' }),
+        body: JSON.stringify({ command_type: 'STOP_STREAM', payload: { visor: this.visor } }),
       });
     } catch (e) { /* la pestaña ya se esta cerrando */ }
   }
@@ -73,7 +82,7 @@ class WhepStreamClient {
     // donde publicar y a nosotros de donde ver.
     const res = await API.post(`/api/devices/${this.deviceId}/command`, {
       command_type: 'START_STREAM',
-      payload: { session_id: Date.now().toString() },
+      payload: { session_id: Date.now().toString(), visor: this.visor },
     });
     if (!res || !res.stream || !res.stream.whep) {
       throw new Error('el servidor no entrego la direccion de la transmision');
@@ -213,12 +222,25 @@ class WhepStreamClient {
     }
   }
 
-  // El control manual de camara todavia no existe en estos equipos (la Raspberry
-  // lo tendra con los controles de libcamera). Se ignora en silencio para no
-  // romper la ficha, que lo llama al abrir el stream.
-  sendCameraControl() {}
+  // Control manual de camara (zoom, enfoque, exposicion, balance). Solo lo
+  // entienden los telefonos, y les llega por el socket igual que en el punto a
+  // punto: el video va por el servidor de medios pero la orden va directo. En
+  // la Raspberry y las PCs el backend lo reenvia y el agente lo ignora.
+  sendCameraControl(control) {
+    try {
+      if (!this.socket && typeof io === 'function') {
+        this.socket = io('/dashboard', {
+          auth: { token: localStorage.getItem('access_token') },
+          transports: ['websocket', 'polling'],
+        });
+      }
+      this.socket?.emit('camera_control', { device_id: this.deviceId, control });
+    } catch (e) { /* sin socket no hay control, la imagen sigue */ }
+  }
 
-  async stop() {
+  // `forzar`: cortar aunque haya otros mirando (cambio de lente, que es otra
+  // camara fisica y obliga a reabrir para todos).
+  async stop(opciones = {}) {
     this._clearTimers();
     window.removeEventListener('pagehide', this._onUnload);
     window.removeEventListener('beforeunload', this._onUnload);
@@ -226,9 +248,14 @@ class WhepStreamClient {
     if (!this._stopped) {
       this._stopped = true;
       try {
-        await API.post(`/api/devices/${this.deviceId}/command`, { command_type: 'STOP_STREAM' });
+        await API.post(`/api/devices/${this.deviceId}/command`, {
+          command_type: 'STOP_STREAM',
+          payload: { visor: this.visor, ...(opciones.forzar ? { forzar: true } : {}) },
+        });
       } catch (e) { /* ignore */ }
     }
+    try { this.socket?.disconnect(); } catch (e) { /* ignore */ }
+    this.socket = null;
 
     // Cerrar tambien la sesion en el servidor de medios.
     if (this.recurso) {

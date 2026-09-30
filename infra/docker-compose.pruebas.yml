@@ -8,9 +8,15 @@
 #   docker compose -p seprueba -f infra/docker-compose.pruebas.yml --env-file backend/.env up -d --build
 #
 # LIGERA A PROPOSITO: el droplet tiene 2 GB y produccion va primero. Solo base,
-# redis y backend (~300 MB); sin ai-worker, sin mediamtx y sin coturn propio (la
-# vista en vivo usa el TURN de produccion: backend/.env lleva su mismo secreto,
-# que solo sirve para pedir credenciales temporales).
+# redis, backend y un servidor de medios chico (~330 MB); sin ai-worker y sin
+# coturn propio (la vista en vivo usa el TURN de produccion: backend/.env lleva
+# su mismo secreto, que solo sirve para pedir credenciales temporales).
+#
+# Servidor de medios PROPIO, en otros puertos que el de produccion (8899/tcp y
+# 8199/udp en vez de 8889 y 8189): la vista en vivo de los telefonos de prueba
+# se reparte por aqui sin tocar el de produccion. backend/.env de esta carpeta
+# necesita MEDIAMTX_HOST=159.203.188.58, MEDIAMTX_WEBRTC_PORT=8899 y su propia
+# MEDIAMTX_PASS.
 #
 # El dashboard queda en http://159.203.188.58:4100. Un telefono solo habla con
 # esta instancia si su APK se compilo con -PserverUrl=http://159.203.188.58:4100:
@@ -55,6 +61,18 @@ services:
     depends_on: [mysql, redis]
     # Tope de memoria: si algo se desboca aqui, que no arrastre a produccion.
     mem_limit: 400m
+
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    restart: unless-stopped
+    environment:
+      MTX_AUTHINTERNALUSERS_1_PASS: ${MEDIAMTX_PASS}
+    volumes:
+      - ./mediamtx/mediamtx.pruebas.yml:/mediamtx.yml:ro
+    ports:
+      - "8899:8889"       # WebRTC/WHEP: salida al dashboard
+      - "8199:8199/udp"   # medios WebRTC (mismo numero dentro y fuera: va en las candidatas)
+    mem_limit: 64m
 
 volumes:
   mysql_data:

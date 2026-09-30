@@ -4,6 +4,8 @@ import { deviceJwt } from '../utils/jwt';
 import { pool } from '../config/database';
 import { redis } from '../config/redis';
 import { registrarCandidato } from '../utils/iceDiag';
+import { sesionDeVista } from '../utils/streamWatchdog';
+import { entregarCandidato, entregarOferta, cerrarSesion } from '../utils/relayTelefono';
 
 export function setupDeviceNamespace(io: Server) {
   const ns = io.of('/devices');
@@ -36,6 +38,36 @@ export function setupDeviceNamespace(io: Server) {
     });
 
     socket.on('webrtc_offer', async (payload) => {
+      // Vista repartida por el servidor de medios: la oferta no va a ningun
+      // navegador, se le entrega al servidor y su respuesta vuelve al telefono.
+      const sesion = sesionDeVista(did);
+      if (sesion?.whip) {
+        const sdp = payload?.sdp?.sdp ?? (typeof payload?.sdp === 'string' ? payload.sdp : '');
+        if (!sdp) return;
+        try {
+          // Una oferta nueva en la misma sesion (el telefono reintento):
+          // la anterior ya no sirve.
+          if (sesion.recurso) cerrarSesion(sesion.recurso).catch(() => {});
+          sesion.oferta = sdp;
+          sesion.recurso = null;
+          const { respuesta, recurso } = await entregarOferta(sesion.whip, sdp);
+          // Si mientras tanto se corto la transmision, no se le contesta.
+          if (sesionDeVista(did) !== sesion) {
+            if (recurso) cerrarSesion(recurso).catch(() => {});
+            return;
+          }
+          sesion.recurso = recurso;
+          socket.emit('webrtc_answer', { sdp: { type: 'answer', sdp: respuesta } });
+          const pendientes = sesion.candidatosPendientes ?? [];
+          sesion.candidatosPendientes = [];
+          if (recurso) {
+            for (const c of pendientes) entregarCandidato(recurso, sdp, c).catch(() => {});
+          }
+        } catch (err: any) {
+          console.error(`[DeviceSocket] device ${did}: el servidor de medios no acepto su video:`, err.message);
+        }
+        return;
+      }
       await redis.publish('webrtc:device_offer', JSON.stringify({ device_id: did, ...payload }));
     });
 
@@ -44,6 +76,18 @@ export function setupDeviceNamespace(io: Server) {
       // red IPv6 pura no produce candidatos IPv4 y la vista en vivo no conecta,
       // aunque fotos y telemetria sigan funcionando.
       registrarCandidato(did, payload?.candidate?.candidate);
+      const sesion = sesionDeVista(did);
+      if (sesion?.whip) {
+        const c = payload?.candidate;
+        if (!c?.candidate) return;
+        if (sesion.recurso && sesion.oferta) {
+          entregarCandidato(sesion.recurso, sesion.oferta, c).catch(() => {});
+        } else {
+          // Llega antes que la respuesta del servidor de medios: se guarda.
+          (sesion.candidatosPendientes ??= []).push(c);
+        }
+        return;
+      }
       await redis.publish('webrtc:device_ice', JSON.stringify({ device_id: did, ...payload }));
     });
 
