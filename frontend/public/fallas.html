@@ -53,7 +53,7 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
           <template x-for="f in abiertas()" :key="f.id">
             <div class="se-card flex gap-4 p-4 !border-l-[3px] !border-l-red-600">
-              <button @click="verFoto = f.evidencia" x-show="f.evidencia_mini" class="shrink-0 w-40 aspect-[4/3] bg-neutral-100 rounded overflow-hidden">
+              <button @click="verFoto = f.evidencia" x-show="f.evidencia_mini" class="shrink-0 w-24 sm:w-40 aspect-[4/3] bg-neutral-100 rounded overflow-hidden">
                 <img :src="f.evidencia_mini" class="w-full h-full object-cover" alt="Evidencia">
               </button>
               <div class="text-sm flex-1 min-w-0">
@@ -62,7 +62,7 @@
                 <dl class="mt-1.5 space-y-0.5 text-[13px]">
                   <div class="flex gap-2"><dt class="text-neutral-500 w-20 shrink-0">Equipo</dt>
                     <dd class="min-w-0"><a :href="'/device-detail.html?id=' + f.device_id + '#fallas'" class="text-blue-700 hover:underline" x-text="f.equipo"></a></dd></div>
-                  <div class="flex gap-2"><dt class="text-neutral-500 w-20 shrink-0">Zona</dt><dd x-text="Pantalla.donde(f)"></dd></div>
+                  <div class="flex gap-2"><dt class="text-neutral-500 w-20 shrink-0">Zona</dt><dd class="min-w-0 break-words" x-text="Pantalla.donde(f)"></dd></div>
                   <div class="flex gap-2"><dt class="text-neutral-500 w-20 shrink-0">Detectada</dt><dd class="font-mono text-xs pt-0.5" x-text="fecha(f.detectada_en)"></dd></div>
                   <div class="flex gap-2"><dt class="text-neutral-500 w-20 shrink-0">Confianza</dt><dd class="font-mono text-xs pt-0.5" x-text="Math.round(f.confianza * 100) + '%'"></dd></div>
                 </dl>
@@ -127,7 +127,7 @@
     </main>
 
     <!-- Evidencia en grande -->
-    <div x-show="verFoto" class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" @keydown.escape.window="verFoto = null">
+    <div x-show="verFoto" style="display:none" class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" @keydown.escape.window="verFoto = null">
       <div class="relative max-w-6xl w-full">
         <img :src="verFoto" class="max-h-[85vh] mx-auto rounded" alt="Evidencia">
         <div class="flex justify-center gap-4 mt-3 text-sm">

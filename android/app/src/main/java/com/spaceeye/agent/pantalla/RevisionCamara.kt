@@ -71,7 +71,9 @@ class RevisionCamara(ctx: Context) {
             return Seguimiento.Camara.SIN_IMAGEN
         }
         val marco = vistazos[vistazos.size / 2].marco
-        val actual = Vision.rasgos(marco, fueraDeLaPantalla(marco, geo))
+        val mascara = fueraDeLaPantalla(marco, geo)
+        val actual = Vision.rasgos(marco, mascara)
+        mascara?.release()
         if (refs.isEmpty()) {
             guardar(actual)
             return Seguimiento.Camara.OK
@@ -114,7 +116,9 @@ class RevisionCamara(ctx: Context) {
         }) / 2
         if (area > 0.8) return null
         val m = Mat(marco.rows(), marco.cols(), org.opencv.core.CvType.CV_8UC1, org.opencv.core.Scalar(255.0))
-        org.opencv.imgproc.Imgproc.fillConvexPoly(m, org.opencv.core.MatOfPoint(*puntos.toTypedArray()), org.opencv.core.Scalar(0.0))
+        val contorno = org.opencv.core.MatOfPoint(*puntos.toTypedArray())
+        org.opencv.imgproc.Imgproc.fillConvexPoly(m, contorno, org.opencv.core.Scalar(0.0))
+        contorno.release()
         return m
     }
 

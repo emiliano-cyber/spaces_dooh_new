@@ -39,7 +39,7 @@
       // Activa: tinta con subrayado azul (el azul es el unico color de producto).
       const cls = mobile
         ? `block px-4 py-2.5 text-sm ${on ? 'text-neutral-900 font-medium bg-blue-50 border-l-2 border-blue-600' : 'text-neutral-600 hover:bg-neutral-50'}`
-        : `py-5 -mb-px border-b-2 ${on ? 'text-neutral-900 font-medium border-blue-600' : 'text-neutral-500 border-transparent hover:text-neutral-900'}`;
+        : `py-5 -mb-px border-b-2 whitespace-nowrap ${on ? 'text-neutral-900 font-medium border-blue-600' : 'text-neutral-500 border-transparent hover:text-neutral-900'}`;
       // Las fallas abiertas se cuentan en el menu: es lo primero que hay que ver.
       const globo = n.key === 'fallas' ? ' <span data-fallas-abiertas class="hidden ml-1 px-1.5 rounded-full bg-red-600 text-white text-[10px] font-semibold align-middle"></span>' : '';
       return `<a href="${n.href}" class="${cls}">${n.label}${globo}</a>`;

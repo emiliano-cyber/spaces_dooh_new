@@ -91,6 +91,9 @@ export async function cambios(req: Request, res: Response) {
        FROM photos p
        JOIN devices d ON d.id = p.device_id
       WHERE p.uploaded_at > ? AND p.uploaded_at <= ?${filtroDueno}
+        -- La evidencia de una falla de pantalla es interna (lleva el aviso
+        -- pintado encima): no es una foto de prueba de la campaña del cliente.
+        AND (p.source IS NULL OR p.source <> 'falla')
       ORDER BY p.uploaded_at ASC
       LIMIT ?`,
     [piso, hasta, ...parDueno, TOPE]

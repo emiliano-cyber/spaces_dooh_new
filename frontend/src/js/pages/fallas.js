@@ -6,6 +6,9 @@ requireAuth();
 function fallasPage() {
   return {
     fallas: [],
+    // Cuantas hay de cada estado en TOTAL (las cuenta el servidor): la lista
+    // trae como mucho 500 y los indicadores no pueden contar solo esas.
+    cuentas: null,
     devices: [],
     estado: '',
     deviceId: '',
@@ -34,9 +37,11 @@ function fallasPage() {
       // Se traen todas: el filtro de estado es solo de la tabla, y los
       // indicadores de arriba tienen que contar siempre el total.
       if (this.deviceId) q.set('device_id', this.deviceId);
+      q.set('limit', '500');
       try {
         const r = await API.get('/api/fallas?' + q.toString());
         this.fallas = r.fallas || [];
+        this.cuentas = r.cuentas || null;
       } catch (err) {
         console.error('Failed to load fallas:', err);
       }
@@ -45,7 +50,10 @@ function fallasPage() {
 
     abiertas() { return this.fallas.filter((f) => f.estado === 'abierta'); },
     lista() { return this.estado ? this.fallas.filter((f) => f.estado === this.estado) : this.fallas; },
-    cuenta(estado) { return this.fallas.filter((f) => f.estado === estado).length; },
+    cuenta(estado) {
+      if (this.cuentas && this.cuentas[estado] != null) return this.cuentas[estado];
+      return this.fallas.filter((f) => f.estado === estado).length;
+    },
 
     fecha(v) { return v ? new Date(v).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : '—'; },
 

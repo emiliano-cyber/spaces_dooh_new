@@ -299,7 +299,7 @@ class Monitor(
                             reconocedor.agregar(previa.first, previa.second, rasgos)
                             nuevas.add(previa.first)
                             if (!aprendiendoC && fotos < restantesC) {
-                                if (subirCreativo(camara.enderezar(v.jpeg, giro), previa.first)) { fotos++; restantesC-- }
+                                if (subirCreativo(evidencia.reducir(camara.enderezar(v.jpeg, giro)), previa.first)) { fotos++; restantesC-- }
                             }
                             candidata = null
                         } else {
@@ -309,6 +309,11 @@ class Monitor(
                     }
                 }
                 v.pantalla.release()
+                // Solo el ultimo vistazo de cada tramo de camara conserva su foto
+                // completa (la evidencia sale del ultimo del tramo que se juzga).
+                // Cada JPEG pesa 3-5 MB y una vuelta en continuo junta mas de 50:
+                // guardarlos todos podia agotar la memoria de la app.
+                if (sesiones.lastOrNull() == sesion) vistazos[vistazos.size - 1] = vistazos.last().sinFoto()
                 vistazos.add(v)
                 sesiones.add(sesion)
 
@@ -386,7 +391,14 @@ class Monitor(
         } }
         seguimiento.sincronizar(abiertas)
         val silenciadas = mutableSetOf<String>()
-        cfg.optJSONArray("silenciadas")?.let { a -> for (i in 0 until a.length()) silenciadas.add(a.getString(i)) }
+        // El servidor nombra "zona_apagada" a secas a una agrupada; el equipo la
+        // llama "zona_apagada:varias". Sin traducirla, descartar una alerta de
+        // varios gabinetes no la silenciaba y volvia a abrirse con otra foto.
+        cfg.optJSONArray("silenciadas")?.let { a -> for (i in 0 until a.length()) {
+            val k = a.getString(i)
+            silenciadas.add(k)
+            if (k.startsWith("zona_") && !k.contains(':')) silenciadas.add(Seguimiento.claveGrupo(k))
+        } }
 
         val eventos = seguimiento.registrar(System.currentTimeMillis(),
             Seguimiento.Observacion(resultado, camaraEstado, geo.filas, geo.columnas),
@@ -428,7 +440,11 @@ class Monitor(
             evidencia.anotar(JSONObject(campos as Map<*, *>))
 
             val id = api.reportarFalla(campos, foto)
-            if (id != null) {
+            if (id == com.spaceeye.agent.network.FALLA_RECHAZADA) {
+                // El servidor no la quiere (tope del dia...): se olvida aqui tambien,
+                // o el equipo la creeria abierta para siempre.
+                if (e.accion == "abrir") seguimiento.olvidar(e.clave)
+            } else if (id != null) {
                 if (e.accion == "abrir") seguimiento.confirmada(e.clave, id)
                 RemoteLog.warn(ctx, "monitor", texto)
             } else {
@@ -493,6 +509,9 @@ class Monitor(
             val foto = if (nombre.isNotEmpty()) File(dir, "evidencia/$nombre.jpg").takeIf { it.exists() }?.readBytes() else null
             val id = api.reportarFalla(campos, foto)
             if (id == null) quedan.put(o)
+            else if (id == com.spaceeye.agent.network.FALLA_RECHAZADA) {
+                if (campos["evento"] == "abrir") seguimiento.olvidar(o.getString("clave"))
+            }
             else if (campos["evento"] == "abrir") seguimiento.confirmada(o.getString("clave"), id)
         }
         if (quedan.length() == 0) pendientesArchivo.delete() else pendientesArchivo.writeText(quedan.toString())

@@ -100,7 +100,9 @@ async function saludDe(deviceId: number) {
 
 async function alertasDeHoy(deviceId: number) {
   const [f] = await pool.query<any[]>(
-    `SELECT COUNT(*) n FROM pantalla_fallas WHERE device_id = ? AND detectada_en >= CURDATE()`, [deviceId]);
+    // Por cuando LLEGO, no por la hora que dice el equipo: un aviso encolado
+    // de ayer (o un reloj corrido) se saltaba el tope del dia.
+    `SELECT COUNT(*) n FROM pantalla_fallas WHERE device_id = ? AND created_at >= CURDATE()`, [deviceId]);
   return Number((f as any[])[0]?.n || 0);
 }
 
@@ -167,7 +169,12 @@ export async function reportarFalla(req: Request, res: Response) {
     confianza: z.preprocess(opcional, z.coerce.number().min(0).max(1).default(0)),
     detectada_en: z.preprocess(opcional, z.coerce.date().optional()),
     falla_id: z.preprocess(opcional, z.coerce.number().int().optional()),
-    detalle: z.string().max(4000).optional(),
+    // 20000 y no 4000: "media pantalla apagada" en una cuadricula grande manda
+    // cientos de gabinetes, y el rechazo dejaba esa alerta sin registrar.
+    detalle: z.string().max(20000).optional().refine((v) => {
+      if (v == null) return true;
+      try { JSON.parse(v); return true; } catch { return false; }
+    }, 'detalle_no_es_json'),
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'invalid_input', detalle: parsed.error.issues });
@@ -191,8 +198,13 @@ export async function reportarFalla(req: Request, res: Response) {
     }
   };
 
-  const [geo] = await pool.query<any[]>(`SELECT name, pantalla FROM devices WHERE id = ?`, [did]);
+  const [geo] = await pool.query<any[]>(`SELECT name, pantalla, clock_offset_s FROM devices WHERE id = ?`, [did]);
   const pantalla = json((geo as any[])[0]?.pantalla);
+  // La hora viene del reloj del equipo; se endereza con lo que se le midio de
+  // desfase, igual que las fotos. Si no, en un equipo corrido 2 h la falla
+  // decia una hora y su foto de evidencia otra.
+  const desfase = Number((geo as any[])[0]?.clock_offset_s) || 0;
+  const detectadaEn = e.detectada_en ? new Date(e.detectada_en.getTime() + desfase * 1000) : new Date();
   const gabinete = fila != null && columna != null && pantalla?.columnas ? fila * pantalla.columnas + columna + 1 : null;
 
   if (e.evento === 'abrir') {
@@ -210,7 +222,7 @@ export async function reportarFalla(req: Request, res: Response) {
     const [r] = await pool.query<any>(
       `INSERT INTO pantalla_fallas (device_id, tipo, fila, columna, gabinete, confianza, detectada_en, photo_id, detalle)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [did, e.tipo, fila, columna, gabinete, e.confianza, e.detectada_en ?? new Date(), photoId, e.detalle ?? null]);
+      [did, e.tipo, fila, columna, gabinete, e.confianza, detectadaEn, photoId, e.detalle ?? null]);
     const id = (r as any).insertId;
     await avisar(did, id, 'abierta');
     return res.json({ id });
@@ -305,12 +317,15 @@ export async function configurarPantalla(req: Request, res: Response) {
   const nueva = parsed.data;
   const did = Number(req.params.id);
 
-  const [filas] = await pool.query<any[]>(`SELECT pantalla FROM devices WHERE id = ?`, [did]);
+  const [filas] = await pool.query<any[]>(`SELECT pantalla, app_version FROM devices WHERE id = ?`, [did]);
   if (!(filas as any[]).length) return res.status(404).json({ error: 'not_found' });
   const antes = json((filas as any[])[0].pantalla);
-  const cambioImagen = !antes
+  // La Raspberry y las PCs no usan la pantalla marcada para reconocer
+  // creativos: marcarla no invalida nada suyo y NO debe borrarles el historial.
+  const usaLaPantalla = !/^(pi|pc)-agent/i.test(String((filas as any[])[0].app_version || ''));
+  const cambioImagen = usaLaPantalla && (!antes
     || JSON.stringify(antes.esquinas) !== JSON.stringify(nueva.esquinas)
-    || antes.filas !== nueva.filas || antes.columnas !== nueva.columnas;
+    || antes.filas !== nueva.filas || antes.columnas !== nueva.columnas);
 
   await pool.query(`UPDATE devices SET pantalla = ? WHERE id = ?`, [JSON.stringify(nueva), did]);
   if (cambioImagen) {
@@ -339,8 +354,10 @@ export async function configurarSalud(req: Request, res: Response) {
   const campos: string[] = [];
   const valores: any[] = [];
   if (d.vigilar !== undefined) {
-    campos.push('salud_watch = ?', 'salud_desde = ?');
-    valores.push(d.vigilar, d.vigilar ? new Date() : null);
+    // Solo al ENCENDERLA empieza el aprendizaje; volver a guardar "encendida"
+    // lo reiniciaba sin motivo.
+    campos.push('salud_desde = IF(? AND salud_watch, salud_desde, ?)', 'salud_watch = ?');
+    valores.push(d.vigilar, d.vigilar ? new Date() : null, d.vigilar);
   }
   if (d.cada_min !== undefined) { campos.push('salud_cada_min = ?'); valores.push(d.cada_min); }
   if (d.confirmaciones !== undefined) { campos.push('salud_confirmaciones = ?'); valores.push(d.confirmaciones); }
@@ -359,7 +376,9 @@ export async function listar(req: Request, res: Response) {
     device_id: z.coerce.number().int().optional(),
     limit: z.coerce.number().int().min(1).max(500).default(200),
   });
-  const q = schema.parse(req.query);
+  const parsed = schema.safeParse(req.query);
+  if (!parsed.success) return res.status(400).json({ error: 'invalid_input' });
+  const q = parsed.data;
   const where: string[] = [];
   const vals: any[] = [];
   if (q.estado) { where.push('f.estado = ?'); vals.push(q.estado); }
@@ -368,7 +387,14 @@ export async function listar(req: Request, res: Response) {
     `${SELECT_FALLAS} ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY f.estado = 'abierta' DESC, f.detectada_en DESC LIMIT ?`,
     [...vals, q.limit]);
   const [cuenta] = await pool.query<any[]>(`SELECT COUNT(*) n FROM pantalla_fallas WHERE estado = 'abierta'`);
-  res.json({ abiertas: Number((cuenta as any[])[0]?.n || 0), fallas: presentar(filas as any[]) });
+  // Los indicadores de la pagina cuentan TODO, no solo las filas que caben en
+  // la lista (antes contaban las 200 que llegaban).
+  const [porEstado] = await pool.query<any[]>(
+    `SELECT estado, COUNT(*) n FROM pantalla_fallas ${q.device_id ? 'WHERE device_id = ?' : ''} GROUP BY estado`,
+    q.device_id ? [q.device_id] : []);
+  const cuentas: Record<string, number> = { abierta: 0, recuperada: 0, descartada: 0 };
+  for (const r of porEstado as any[]) cuentas[r.estado] = Number(r.n);
+  res.json({ abiertas: Number((cuenta as any[])[0]?.n || 0), cuentas, fallas: presentar(filas as any[]) });
 }
 
 /**

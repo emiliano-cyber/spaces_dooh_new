@@ -63,7 +63,10 @@ class Seguimiento(
     )
 
     private class Candidato(val tipo: String, val fila: Int?, val columna: Int?, var cuenta: Int, val confianzas: MutableList<Double>)
-    private class Abierta(var id: Long?, var sanas: Int)
+    // `desde`: cuando la abrio el equipo. Una que nunca recibio numero del
+    // servidor (el aviso se perdio) caduca, en vez de quedar abierta para siempre
+    // sin volver a avisar ni recuperarse.
+    private class Abierta(var id: Long?, var sanas: Int, val desde: Long = System.currentTimeMillis())
     private class Celda(var vueltas: Int = 0, var quietas: Int = 0)
 
     private val candidatos = mutableMapOf<String, Candidato>()
@@ -100,6 +103,8 @@ class Seguimiento(
         // 2 y no mas: con 2 h de aprendizaje y vueltas cada hora no caben mas.
         private const val VUELTAS_MINIMAS = 2
         private const val NUNCA = Long.MIN_VALUE
+        /** Lo que espera una alerta a que el servidor le de numero. */
+        private const val SIN_NUMERO_MAX_MS = 12 * 60 * 60 * 1000L
     }
 
     /**
@@ -107,7 +112,11 @@ class Seguimiento(
      * si alguien cerro o descarto una a mano, aqui se olvida.
      */
     fun sincronizar(abiertasServidor: Map<String, Long>) {
-        abiertas.keys.retainAll { it in abiertasServidor || abiertas[it]?.id == null }
+        val ahora = System.currentTimeMillis()
+        abiertas.keys.retainAll {
+            it in abiertasServidor ||
+                abiertas[it]?.let { a -> a.id == null && ahora - a.desde in 0 until SIN_NUMERO_MAX_MS } == true
+        }
         for ((k, id) in abiertasServidor) {
             val a = abiertas[k]
             if (a == null) abiertas[k] = Abierta(id, 0) else a.id = id
@@ -116,6 +125,9 @@ class Seguimiento(
 
     /** El servidor confirmo una alerta nueva: se anota su numero. */
     fun confirmada(clave: String, id: Long) { abiertas[clave]?.id = id }
+
+    /** El servidor rechazo la alerta: aqui tampoco queda abierta. */
+    fun olvidar(clave: String) { abiertas.remove(clave) }
 
     /** Zonas aprendidas como "nunca cambian". Solo cuentan tras VUELTAS_MINIMAS. */
     fun excluidas(): Set<Pair<Int, Int>> = celdas.filter { (_, c) ->
@@ -136,6 +148,9 @@ class Seguimiento(
      */
     fun registrar(ahora: Long, o: Observacion, aprendiendo: Boolean, silenciadas: Set<String> = emptySet(), puedeAbrir: Int = Int.MAX_VALUE): List<Evento> {
         // Dos vueltas muy juntas no son dos confirmaciones independientes.
+        // Un reloj que se atraso (el equipo lo corrigio hacia atras) dejaba la
+        // ultima vuelta "en el futuro" y no se revisaba nada hasta alcanzarla.
+        if (ultimaVuelta != NUNCA && ultimaVuelta > ahora + 60_000L) ultimaVuelta = NUNCA
         if (ultimaVuelta != NUNCA && ahora - ultimaVuelta < separacionMs) return emptyList()
 
         val anomalias = mutableMapOf<String, Triple<String, Pair<Int?, Int?>, Double>>()

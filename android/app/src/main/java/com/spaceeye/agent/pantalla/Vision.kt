@@ -51,7 +51,9 @@ object Vision {
         clahe.apply(gris, ecualizada)
         val kp = MatOfKeyPoint()
         val desc = Mat()
-        orb.detectAndCompute(ecualizada, mascara ?: Mat(), kp, desc)
+        val sinMascara = if (mascara == null) Mat() else null
+        orb.detectAndCompute(ecualizada, mascara ?: sinMascara, kp, desc)
+        sinMascara?.release()
         ecualizada.release()
         val pts = kp.toArray()
         kp.release()

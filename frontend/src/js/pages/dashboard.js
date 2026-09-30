@@ -70,6 +70,8 @@ function dashboard() {
       setInterval(() => this.loadDevices(), 30000);
 
       dashboardSocket.connect();
+      // Una falla abierta o cerrada se ve al momento, no al siguiente minuto.
+      dashboardSocket.on('pantalla:falla', () => this.loadFallas());
       dashboardSocket.on('device:online', (data) => {
         const dev = this.devices.find(d => d.id === data.device_id);
         if (dev) dev.online = data.online;

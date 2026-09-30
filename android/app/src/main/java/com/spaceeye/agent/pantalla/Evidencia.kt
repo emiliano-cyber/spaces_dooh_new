@@ -38,6 +38,29 @@ class Evidencia(ctx: Context) {
      * @param jpeg la foto ya girada como se sube.
      * @param zonas gabinetes a marcar (fila, columna); vacio = toda la pantalla.
      */
+    /**
+     * La misma reduccion que la evidencia, sin dibujar nada: para la foto de un
+     * creativo nuevo, que antes subia a resolucion completa (3-5 MB cada una).
+     */
+    fun reducir(jpeg: ByteArray): ByteArray {
+        return try {
+            val medidas = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeByteArray(jpeg, 0, jpeg.size, medidas)
+            if (medidas.outWidth <= ANCHO_MAX) return jpeg
+            var muestreo = 1
+            while (medidas.outWidth / (muestreo * 2) >= ANCHO_MAX) muestreo *= 2
+            val base = BitmapFactory.decodeByteArray(jpeg, 0, jpeg.size,
+                BitmapFactory.Options().apply { inSampleSize = muestreo }) ?: return jpeg
+            val bmp = if (base.width > ANCHO_MAX) {
+                Bitmap.createScaledBitmap(base, ANCHO_MAX, base.height * ANCHO_MAX / base.width, true).also { base.recycle() }
+            } else base
+            val out = ByteArrayOutputStream()
+            bmp.compress(Bitmap.CompressFormat.JPEG, 85, out)
+            bmp.recycle()
+            out.toByteArray()
+        } catch (_: Throwable) { jpeg }
+    }
+
     fun preparar(jpeg: ByteArray, geo: Geometria, zonas: List<Pair<Int, Int>>, texto: String): ByteArray {
         val medidas = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeByteArray(jpeg, 0, jpeg.size, medidas)

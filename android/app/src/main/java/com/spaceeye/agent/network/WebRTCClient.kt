@@ -209,7 +209,17 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
         Log.d(TAG, "PeerConnectionFactory initialized")
     }
 
+    // Se pidio la vista en vivo y la camara todavia se esta abriendo. isStreaming()
+    // solo se vuelve cierto al terminar de abrir; en ese hueco una vuelta de
+    // vigilancia podia quedarse la camara y dejar la vista en negro.
+    // Caduca sola: si el STOP_STREAM se perdiera, la vigilancia no puede quedarse
+    // sin camara para siempre (el servidor corta toda vista a los 3 minutos).
+    @Volatile private var vivoPedidoEn = 0L
+    fun vivoPedido(): Boolean =
+        vivoPedidoEn != 0L && android.os.SystemClock.elapsedRealtime() - vivoPedidoEn < 4 * 60_000L
+
     fun startStreaming(sessionId: String, emitter: (String, JSONObject) -> Unit) {
+        vivoPedidoEn = android.os.SystemClock.elapsedRealtime()
         if (factory == null) initialize()
 
         currentSessionId = sessionId
@@ -271,6 +281,7 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
             Log.e(TAG, "Failed to create PeerConnection")
             RemoteLog.error(ctx, "stream",
                 "No se pudo crear la conexión de video en el equipo (WebRTC rechazó la configuración).")
+            vivoPedidoEn = 0L
             return
         }
 
@@ -379,13 +390,20 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
                 val imgCap = construirImageCapture()
 
                 preview.setSurfaceProvider(mainExecutor) { request ->
-                    val res = request.resolution
-                    // Imprescindible: el SurfaceTextureHelper descarta frames si no
-                    // se le fija su tamaño de textura (no basta setDefaultBufferSize).
-                    helper.setTextureSize(res.width, res.height)
-                    val surface = Surface(helper.surfaceTexture)
-                    if (helper === surfaceTextureHelper) previewSurface = surface
-                    request.provideSurface(surface, mainExecutor) { surface.release() }
+                    // Puede llegar tarde, cuando ese helper ya se solto (otra apertura
+                    // lo reemplazo): sin el try, tumbaba la app en el hilo principal.
+                    try {
+                        val res = request.resolution
+                        // Imprescindible: el SurfaceTextureHelper descarta frames si no
+                        // se le fija su tamaño de textura (no basta setDefaultBufferSize).
+                        helper.setTextureSize(res.width, res.height)
+                        val surface = Surface(helper.surfaceTexture)
+                        if (helper === surfaceTextureHelper) previewSurface = surface
+                        request.provideSurface(surface, mainExecutor) { surface.release() }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "superficie de la camara ya no disponible: ${e.message}")
+                        request.willNotProvideSurface()
+                    }
                 }
 
                 provider.unbindAll()
@@ -461,7 +479,8 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
     @OptIn(markerClass = [ExperimentalCamera2Interop::class])
     private fun abrirSinVistaEnVivo(fijarExposicion: Boolean, listo: (ImageCapture?) -> Unit) {
         mainExecutor.execute {
-            if (isStreaming()) { listo(null); return@execute }
+            // La vigilancia (fija exposicion) cede ante una vista pedida; una foto no.
+            if (isStreaming() || (fijarExposicion && vivoPedido())) { listo(null); return@execute }
             try {
                 if (eglBase == null) eglBase = EglBase.create()
                 soltarAuxiliar()
@@ -624,10 +643,10 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
                 imgCap.takePicture(mainExecutor, object : ImageCapture.OnImageCapturedCallback() {
                     override fun onCaptureSuccess(image: ImageProxy) {
                         try {
-                            val buffer = image.planes[0].buffer
-                            val bytes = ByteArray(buffer.remaining())
-                            buffer.get(bytes)
-                            image.close()
+                            val bytes = try {
+                                val buffer = image.planes[0].buffer
+                                ByteArray(buffer.remaining()).also { buffer.get(it) }
+                            } finally { image.close() }
                             cerrarSinVistaEnVivo()
                             onResult(bakeRotation(bytes, extraDegrees))
                         } catch (e: Exception) {
@@ -724,10 +743,10 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
         ic.takePicture(mainExecutor, object : ImageCapture.OnImageCapturedCallback() {
             override fun onCaptureSuccess(image: ImageProxy) {
                 try {
-                    val buffer = image.planes[0].buffer
-                    val bytes = ByteArray(buffer.remaining())
-                    buffer.get(bytes)
-                    image.close()
+                    val bytes = try {
+                        val buffer = image.planes[0].buffer
+                        ByteArray(buffer.remaining()).also { buffer.get(it) }
+                    } finally { image.close() }
                     // Hornea la orientacion en los pixeles (ver bakeRotation) para
                     // que la foto guardada coincida con lo que se veia en el stream.
                     onResult(bakeRotation(bytes, extraDegrees))
@@ -849,6 +868,7 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
 
     fun stopStreaming() {
         Log.d(TAG, "Stopping stream")
+        vivoPedidoEn = 0L
         // Lo PRIMERO, antes de destruir nada: si el parte llegara a ejecutarse
         // mientras se libera la conexion, leeria un objeto nativo ya liberado.
         cancelarVigilancia()

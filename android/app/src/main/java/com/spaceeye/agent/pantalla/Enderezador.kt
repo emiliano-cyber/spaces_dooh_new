@@ -26,6 +26,8 @@ import kotlin.math.hypot
  */
 class Vistazo(val pantalla: Mat, val salud: SaludAnalisis.Imagen, val marco: Mat, val marcoContraste: Double, val jpeg: ByteArray) {
     fun liberar() { pantalla.release(); marco.release() }
+    /** El mismo vistazo sin la foto completa (lo demas ya esta medido). */
+    fun sinFoto() = Vistazo(pantalla, salud, marco, marcoContraste, ByteArray(0))
 }
 
 object Enderezador {

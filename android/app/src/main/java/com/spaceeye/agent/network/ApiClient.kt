@@ -18,6 +18,10 @@ import java.util.Locale
 import java.util.TimeZone
 import java.util.concurrent.TimeUnit
 
+
+/** Ver [ApiClient.reportarFalla]. */
+const val FALLA_RECHAZADA = -1L
+
 class ApiClient(ctx: Context) {
 
     companion object {
@@ -156,6 +160,13 @@ class ApiClient(ctx: Context) {
      * unico del monitoreo que pesa, y solo sale cuando algo cambia de estado.
      * Devuelve el numero de falla que asigno el servidor, o null si no salio.
      */
+    /**
+     * Devuelve el numero de la falla, null si hay que reintentar (sin red, el
+     * servidor caido) o [FALLA_RECHAZADA] si el servidor la rechazo y reenviarla
+     * no la va a arreglar (tope del dia, datos invalidos). Antes todo lo que no
+     * fuera 2xx se reintentaba cada vuelta CON SU FOTO: un rechazo permanente
+     * podia gastar cientos de MB al dia.
+     */
     fun reportarFalla(campos: Map<String, String>, evidencia: ByteArray?): Long? {
         val token = tokenStore.getDeviceToken() ?: return null
         val b = MultipartBody.Builder().setType(MultipartBody.FORM)
@@ -168,8 +179,14 @@ class ApiClient(ctx: Context) {
             .build()
         return try {
             http.newCall(request).execute().use { r ->
-                if (!r.isSuccessful) { Log.e(TAG, "reportarFalla: ${r.code}"); null }
-                else JSONObject(r.body!!.string()).optLong("id").takeIf { it > 0 }
+                when {
+                    r.isSuccessful -> JSONObject(r.body!!.string()).optLong("id").takeIf { it > 0 }
+                    r.code in 400..499 && r.code != 408 -> {
+                        Log.w(TAG, "reportarFalla: el servidor la rechazo (${r.code}), no se reintenta")
+                        FALLA_RECHAZADA
+                    }
+                    else -> { Log.e(TAG, "reportarFalla: ${r.code}"); null }
+                }
             }
         } catch (e: Exception) {
             Log.e(TAG, "reportarFalla error: ${e.message}")

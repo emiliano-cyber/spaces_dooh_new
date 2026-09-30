@@ -112,6 +112,12 @@ function deviceDetail() {
     },
 
     setTab(t) {
+      // Salir de "En vivo" cierra la vista: escondida seguia transmitiendo (y
+      // gastando datos del equipo) sin el boton de detener a la vista. Si hay
+      // otras personas mirando, a ellas no se les corta.
+      if (this.tab === 'vivo' && t !== 'vivo' && (this.streaming || this.streamStarting)) {
+        this.stopStream();
+      }
       this.tab = t;
       history.replaceState(null, '', '#' + t);
       // Las graficas se dibujan con la pestaña escondida (ancho 0): al mostrarla
@@ -687,7 +693,9 @@ function deviceDetail() {
         // despues cuando arranca el nuevo: en ese hueco su aviso de muerte
         // llegaba a tiempo de tumbar una vista que seguia en pantalla.
         this.streamTurno++;
-        await this.streamClient?.stop();
+        // Forzado: aunque haya otras personas mirando, el lente nuevo es otra
+        // camara fisica y hay que reabrir la transmision para todos.
+        await this.streamClient?.stop({ forzar: true });
         this.streamClient = null;
         // La camara del equipo necesita un respiro para soltarse antes de que la
         // reclame la transmision nueva.
@@ -1010,10 +1018,12 @@ function deviceDetail() {
       this.streamLeft = 180;
       // Este visor es el vigente hasta que alguien abra otro o lo detenga.
       const miTurno = ++this.streamTurno;
-      // Los telefonos transmiten punto a punto; la Raspberry y las PCs con
-      // camara IP pasan por el servidor de medios. Se distingue por la version
-      // del agente, que la ponemos nosotros ("pi-agent", "pc-agent").
-      const porServidor = /^(pi|pc)-agent/i.test(this.device?.app_version || '');
+      // La Raspberry y las PCs con camara IP pasan por el servidor de medios, y
+      // los telefonos tambien cuando el servidor lo reparte (varias personas
+      // mirando sin gastarle mas datos al equipo). Lo dice el backend; si es un
+      // backend viejo que no lo dice, se distingue por la version del agente.
+      const porServidor = this.device?.vivo_por_servidor === true
+        || /^(pi|pc)-agent/i.test(this.device?.app_version || '');
       const Cliente = porServidor ? WhepStreamClient : LiveStreamClient;
       // Se guarda en una variable propia para poder reconocerlo despues: las
       // devoluciones de abajo tienen que saber si siguen siendo del visor vivo.

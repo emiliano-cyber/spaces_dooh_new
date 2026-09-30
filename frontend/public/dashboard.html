@@ -61,7 +61,7 @@
           <input x-model="search" type="text" placeholder="Buscar por nombre, código o dirección"
             class="pl-9 pr-3 py-2 border border-neutral-300 rounded-md text-sm w-72 bg-white focus:outline-none focus:border-blue-600">
         </div>
-        <div class="flex rounded-md border border-neutral-300 bg-white overflow-hidden text-sm">
+        <div class="flex flex-wrap rounded-md border border-neutral-300 bg-white overflow-hidden text-sm">
           <template x-for="op in [['all','Todos'],['online','En línea'],['offline','Sin conexión'],['maintenance','Mantenimiento']]" :key="op[0]">
             <button @click="filter = op[0]" class="px-3 py-2 border-r last:border-r-0 border-neutral-200"
               :class="filter === op[0] ? 'bg-neutral-900 text-white' : 'text-neutral-600 hover:bg-neutral-50'" x-text="op[1]"></button>

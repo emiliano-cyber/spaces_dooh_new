@@ -49,6 +49,13 @@ class Reconocedor(ctx: Context) {
          */
         private const val VARIANTE_HASTA = 40
         private const val VARIANTES_MAX = 6
+        /**
+         * Tope del catalogo. Cada creativo que el reconocedor no logra ubicar
+         * entra como nuevo y nada lo sacaba: con las semanas cada vistazo se
+         * comparaba contra cientos (mas CPU, mas calor, vueltas mas lentas). Al
+         * llenarse se va el que lleva mas tiempo sin verse.
+         */
+        private const val CREATIVOS_MAX = 80
     }
 
     private class Creativo(val id: String, val variantes: MutableList<Rasgos>)
@@ -136,6 +143,12 @@ class Reconocedor(ctx: Context) {
             val p = Vision.coincidencias(r, v)
             if (p > puntos) { puntos = p; mejor = c.id }
         }
+        // El reconocido pasa al final: el primero de la lista es el que lleva mas
+        // tiempo sin verse, que es el que sale si el catalogo se llena.
+        if (mejor != null && puntos >= UMBRAL) {
+            val i = catalogo.indexOfFirst { it.id == mejor }
+            if (i in 0 until catalogo.size - 1) catalogo.add(catalogo.removeAt(i))
+        }
         return mejor to puntos
     }
 
@@ -151,6 +164,10 @@ class Reconocedor(ctx: Context) {
 
     fun agregar(id: String, vararg rs: Rasgos) {
         if (catalogo.any { it.id == id }) return
+        while (catalogo.size >= CREATIVOS_MAX) {
+            val viejo = catalogo.removeAt(0)
+            viejo.variantes.forEachIndexed { k, r -> r.desc.release(); File(dir, archivo(viejo.id, k)).delete() }
+        }
         val c = Creativo(id, rs.toMutableList())
         catalogo.add(c)
         c.variantes.forEachIndexed { k, r -> Vision.escribir(File(dir, archivo(id, k)), r) }

@@ -23,6 +23,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.resume
 import org.json.JSONObject
@@ -53,20 +54,26 @@ class CommandHandler(
 
     // --- CamaraParaVigilar ----------------------------------------------------
 
-    override fun ocupada(): Boolean = fotosEnCurso.get() > 0 || webrtc.isStreaming()
+    override fun ocupada(): Boolean = fotosEnCurso.get() > 0 || webrtc.isStreaming() || webrtc.vivoPedido()
 
     override suspend fun abrir(lente: String, zoom: Float): Boolean {
         if (ocupada()) return false
         vigilando = true
         MonitorService.setCameraActive(true)
         webrtc.setEncuadre(lente, zoom)
-        return suspendCancellableCoroutine { cont ->
-            webrtc.abrirVigilancia { ok -> if (cont.isActive) cont.resume(ok) }
-        }
+        // Con tope: si CameraX nunca contestara, la vigilancia se quedaba colgada
+        // para siempre con la camara abierta.
+        return withTimeoutOrNull(15_000L) {
+            suspendCancellableCoroutine<Boolean> { cont ->
+                webrtc.abrirVigilancia { ok -> if (cont.isActive) cont.resume(ok) }
+            }
+        } ?: false
     }
 
-    override suspend fun tomar(): ByteArray? = suspendCancellableCoroutine { cont ->
-        webrtc.vistazo { bytes -> if (cont.isActive) cont.resume(bytes) }
+    override suspend fun tomar(): ByteArray? = withTimeoutOrNull(15_000L) {
+        suspendCancellableCoroutine<ByteArray?> { cont ->
+            webrtc.vistazo { bytes -> if (cont.isActive) cont.resume(bytes) }
+        }
     }
 
     override fun enderezar(jpeg: ByteArray, grados: Int): ByteArray = webrtc.enderezar(jpeg, grados)

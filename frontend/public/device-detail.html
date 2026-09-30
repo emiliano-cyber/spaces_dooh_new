@@ -27,7 +27,7 @@
         <div class="flex flex-wrap items-start justify-between gap-4 mt-2">
           <div class="min-w-0">
             <div class="flex flex-wrap items-center gap-3">
-              <h1 class="se-titulo text-[26px] text-neutral-900" x-text="device?.name || 'Cargando…'"></h1>
+              <h1 class="se-titulo text-[26px] text-neutral-900 break-words min-w-0" x-text="device?.name || 'Cargando…'"></h1>
               <span class="se-badge" :class="device?.online ? 'se-badge-ok' : ''" x-text="device?.online ? 'En línea' : 'Sin conexión'"></span>
             </div>
             <p class="text-sm text-neutral-500 mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -38,7 +38,7 @@
             </p>
           </div>
           <!-- Acciones: una principal, una secundaria y el resto en "Más" -->
-          <div class="flex items-center gap-2 shrink-0">
+          <div class="flex flex-wrap items-center gap-2">
             <button @click="takePhoto()" :disabled="takingPhoto" class="se-btn se-btn-primario">
               <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3"/></svg>
               <span x-text="takingPhoto ? 'Capturando…' : 'Tomar foto'"></span>
@@ -110,7 +110,7 @@
     <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
 
       <!-- ═══ En vivo ═══ -->
-      <div x-show="tab === 'vivo'" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div x-show="tab === 'vivo'" style="display:none" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2">
         <!-- Live View -->
         <div class="se-card overflow-hidden">
@@ -354,8 +354,8 @@
               <p x-show="esRelay" style="display:none" class="text-[10px] text-white/60 mt-2">
                 Muévelos con confianza: lo que ves es una vista previa y el equipo no se toca hasta que pulses
                 <strong>Fijar encuadre</strong> (ahí la vista se reabre un segundo para traer la imagen nítida).
-                La orientación fija (solo admin) es la que todos ven al recargar. El color se ajusta abajo, en
-                <strong>Ajustes de imagen</strong>.
+                La orientación fija (solo admin) es la que todos ven al recargar. El color se ajusta en la pestaña
+                <strong>Equipo › Ajustes de imagen</strong>.
               </p>
               <p x-show="!esRelay" style="display:none" class="text-[10px] text-white/60 mt-2">Toca el video para enfocar. El zoom, exposición y balance son temporales hasta que pulses <strong>Fijar encuadre</strong>; la orientación fija (solo admin) es la que todos ven al recargar.</p>
             </div>

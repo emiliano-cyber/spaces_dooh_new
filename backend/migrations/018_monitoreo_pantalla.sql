@@ -96,7 +96,11 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='photos'
                    AND column_name='source' AND COLUMN_TYPE LIKE '%falla%') THEN
     ALTER TABLE photos MODIFY COLUMN source
-      ENUM('manual','scheduled','on_demand','boot','creative_change','falla') DEFAULT 'manual';
+      ENUM('manual','scheduled','on_demand','boot','creative_change','falla') DEFAULT 'manual',
+      -- Agregar un valor al final es instantaneo; si la columna de produccion
+      -- difiriera en algo, MySQL copiaria TODA la tabla de fotos bloqueando a la
+      -- flota. Asi falla al instante en vez de copiar.
+      ALGORITHM=INSTANT;
   END IF;
 END$$
 DELIMITER ;
