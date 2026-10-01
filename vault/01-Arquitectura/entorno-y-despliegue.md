@@ -111,6 +111,15 @@ archivos:
 ---
 # Entorno y despliegue
 
+> [!success] 2026-10-01 · g500 en PostgreSQL 16, EN SU MISMO DROPLET, y en v0.9.1
+> Se descartó el droplet nuevo de la parte B de la guía: el dueño eligió subir
+> el motor en sitio (opción A del 23/09). PGDG + `pg_upgradecluster -v 16 -m dump
+> 14 main`: el 16 quedó en el 5432 y **el 14 parado en el 5433 como vuelta
+> atrás**, más una instantánea del droplet y un respaldo previo. Conteos
+> idénticos antes y después, y `update.sh` aplicó las 21 migraciones pendientes.
+> **g500 vuelve a tomar versiones solo**, que no hacía desde el 23/09. Detalle
+> fase por fase en [[07-Agentes/diario/2026-10-01]].
+
 > [!important] 2026-10-01 · `spaceos.space-os.io` — otro nombre para el PADRE
 > Pedido del dueño. Registro A a la IP del PADRE y bloque 6 de
 > `infra/nginx/space-os.io.conf`: proxy a `spaces_padre` (el 3000), la MISMA app
