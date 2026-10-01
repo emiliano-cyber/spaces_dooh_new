@@ -665,6 +665,20 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                               tarifaUnitaria: it.tarifaUnitaria,
                             })}
                           </div>
+                          {/* PRECIO-01 · la tarifa se apartó de la calculada.
+                              Solo en esta pantalla INTERNA: la liga del
+                              cliente enseña el precio final y nada más. Las
+                              dos cifras y el nombre, porque «ajustada» a secas
+                              no deja saber cuánto se movió ni quién lo movió. */}
+                          {it.precioAjustadoPor && (
+                            <div className="text-[11px] font-medium text-[#9a6700]">
+                              {it.tarifaCalculada != null
+                                ? `Tarifa calculada ${formatMonto(it.tarifaCalculada)}`
+                                : 'Sin tarifa calculada'}
+                              {' · ajustada por '}
+                              {it.precioAjustadoPorNombre ?? 'un usuario dado de baja'}
+                            </div>
+                          )}
                           {etiquetaFrecuencia(it.spotsPorDia) && (
                             <div className="text-[11px] text-muted">{etiquetaFrecuencia(it.spotsPorDia)}</div>
                           )}

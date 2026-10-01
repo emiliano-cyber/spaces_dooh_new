@@ -8,7 +8,7 @@ import { Plus, FileText, Send, Check, X, ChevronDown, ChevronRight, Monitor, Squ
 import { Card, CardContent } from '@/components/demo/ui/Card'
 import { AvisoFranjaCMS } from '@/components/demo/rejilla/AvisoFranjaCMS'
 import { catalogoRejillaApi, type FranjaUI, type TemporadaUI } from '@/lib/data/rejilla-api'
-import { resolverTarifa, temporadaDeFecha } from '@/lib/rejilla'
+import { modalidadesDeSitio, tarifaCalculada } from '@/lib/tarifa-calculada'
 import { resolverVolumen } from '@/lib/volumen'
 import { escalasVolumenApi, type TramoVolumenUI } from '@/lib/data/volumen-api'
 import { Button } from '@/components/demo/ui/Button'
@@ -398,6 +398,10 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
     // franja, que es como se ha vendido todo hasta hoy y como se sigue
     // vendiendo por omisión.
     franjaId: string
+    // PRECIO-01 · el precio por unidad que pone A MANO un gerente o superior.
+    // Cadena vacía = a la tarifa calculada, que es el caso normal y el ÚNICO
+    // posible para un vendedor.
+    tarifaManual: string
   }
   const [cfg, setCfg] = useState<Record<string, CfgSitio>>({})
 
@@ -452,15 +456,15 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
   }, [])
 
   // Modalidades publicadas de un sitio: [{unidad, tarifa}]. Si no tiene, ofrece
-  // una mensual sintética con su tarifa publicada, para no bloquear.
-  const modalidadesDe = (s: any): { unidad: Unidad; tarifa: number }[] => {
-    const det = (s.modalidadesDetalle ?? []) as { unidad: string; tarifaPublicada: number }[]
-    const validas = det
-      .filter((m) => UNIDADES.some((u) => u.unidad === m.unidad))
-      .map((m) => ({ unidad: m.unidad as Unidad, tarifa: Number(m.tarifaPublicada) || 0 }))
-    if (validas.length) return validas
-    return [{ unidad: 'mensual', tarifa: Number(s.tarifaPublicada || s.tarifaMensual || 0) }]
-  }
+  // una mensual sintética con su tarifa publicada, para no bloquear. Vive en
+  // `lib/tarifa-calculada.ts` desde PRECIO-01: el servidor usa la misma.
+  const modalidadesDe = (s: any) => modalidadesDeSitio(s)
+
+  // PRECIO-01 · solo `comercial.aprobar` (gerente de ventas y superiores) puede
+  // poner un precio distinto de la tarifa calculada. El servidor lo exige igual
+  // (`propuestas-controller.ts`) y es quien manda; esto solo evita ofrecerle a
+  // un vendedor un campo cuyo valor el servidor le iba a rechazar.
+  const puedeAjustarTarifa = usePuede('comercial', 'aprobar')
 
   const cfgDe = (s: any): CfgSitio => cfg[s.id] ?? {
     unidad: modalidadesDe(s)[0].unidad,
@@ -470,36 +474,42 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
     // haría que toda venta saliera con una franja que nadie eligió, y encima
     // con la advertencia del CMS encima.
     franjaId: '',
+    tarifaManual: '',
     ...(({ monto, per, arr }) => ({
       rentaMonto: monto, rentaPeriodicidad: per, rentaArrendadorId: arr,
     }))(rentaPrevia(s)),
   }
 
-  // REJILLA-01 · la temporada se DEDUCE de la fecha de inicio de la propuesta,
-  // no se elige. Es una propiedad del calendario, no del trato.
-  const temporadaId = temporadaDeFecha(temporadas, fechaInicio)
-
   /**
-   * La tarifa de una pantalla para una unidad, ya resuelta por la rejilla.
+   * La tarifa CALCULADA de una pantalla para una unidad, ya resuelta por la
+   * rejilla. La temporada se DEDUCE de la fecha de inicio de la propuesta, no
+   * se elige: es una propiedad del calendario, no del trato.
    *
-   * La MISMA función que usa el servidor (`lib/rejilla.ts`), y ahí está el
-   * punto: si el precio se resolviera aquí con una regla escrita a mano y allí
-   * con otra, la pantalla enseñaría un número y se guardaría otro — sin ningún
-   * error, que es el modo de fallo que este repositorio persigue.
+   * PRECIO-01 · es `tarifaCalculada()` de `lib/tarifa-calculada.ts`, la MISMA
+   * función con la que el servidor comprueba el precio. Antes la regla estaba
+   * escrita aquí dentro y el servidor no la conocía; si ahora se escribiera
+   * aquí con una regla y allí con otra, el vendedor vería un número, lo
+   * mandaría, y recibiría «solo un gerente puede cambiar la tarifa» sin haber
+   * tocado nada. `tarifa-calculada.test.ts` fija que da lo mismo que daba esto.
    *
    * Sin rejilla capturada devuelve la tarifa base, o sea lo de siempre.
    */
-  const tarifaDe = (s: any, unidad: Unidad, franjaId?: string): number => {
-    const base = modalidadesDe(s).find((m) => m.unidad === unidad)?.tarifa ?? modalidadesDe(s)[0].tarifa
-    const filas = ((s.rejilla ?? []) as { unidad: string; franjaId: string | null; temporadaId: string | null; tarifa: number }[])
-      .filter((f) => f.unidad === unidad)
-    if (!filas.length) return base
-    return resolverTarifa({
-      tarifaBase: base,
-      rejilla: filas,
-      franjaId: franjaId || null,
-      temporadaId,
-    }).tarifa
+  const tarifaCalculadaDe = (s: any, unidad: Unidad, franjaId?: string) =>
+    tarifaCalculada({ sitio: s, unidad, franjaId: franjaId || null, temporadas, fechaInicio })
+  const tarifaDe = (s: any, unidad: Unidad, franjaId?: string): number =>
+    tarifaCalculadaDe(s, unidad, franjaId).tarifa
+
+  // PRECIO-01 · la tarifa que de verdad se COTIZA: la manual del gerente si la
+  // puso, la calculada en cualquier otro caso. Un vendedor no tiene campo, así
+  // que para él es siempre la calculada.
+  const tarifaManualDe = (c: CfgSitio): number | null => {
+    if (!puedeAjustarTarifa || c.tarifaManual.trim() === '') return null
+    const n = Number(c.tarifaManual)
+    return Number.isFinite(n) && n >= 0 ? n : null
+  }
+  const tarifaCotizadaDe = (s: any): number => {
+    const c = cfgDe(s)
+    return tarifaManualDe(c) ?? tarifaDe(s, c.unidad, c.franjaId)
   }
 
   // Cantidad efectiva (periodos del rango para unidades de tiempo; manual para
@@ -509,8 +519,7 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
     return cantidadEfectiva(c.unidad, fechaInicio, fechaFin, c.cantidadManual)
   }
   const precioDe = (s: any): number => {
-    const c = cfgDe(s)
-    return precioItem(tarifaDe(s, c.unidad, c.franjaId), cantidadDe(s))
+    return precioItem(tarifaCotizadaDe(s), cantidadDe(s))
   }
   // Contrato REAL que ya cubre esa pantalla. Ojo: la renta se pacta por INMUEBLE
   // y se reparte entre las pantallas del predio (derive.ts ·
@@ -581,7 +590,7 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
 
   const setCfgSitio = (id: string, patch: Partial<CfgSitio>) => {
     const s = (sitios ?? []).find((x) => x.id === id)
-    const base = s ? cfgDe(s) : { unidad: 'mensual' as Unidad, cantidadManual: 1, spotsPorDia: '', rentaMonto: '', rentaPeriodicidad: 'MENSUAL', rentaArrendadorId: '' }
+    const base = s ? cfgDe(s) : { unidad: 'mensual' as Unidad, cantidadManual: 1, spotsPorDia: '', rentaMonto: '', rentaPeriodicidad: 'MENSUAL', rentaArrendadorId: '', franjaId: '', tarifaManual: '' }
     setCfg((prev) => ({ ...prev, [id]: { ...base, ...prev[id], ...patch } }))
   }
 
@@ -660,7 +669,9 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
           return {
             sitioId: s.id,
             unidad: c.unidad,
-            tarifaUnitaria: tarifaDe(s, c.unidad, c.franjaId),
+            // PRECIO-01 · la calculada, o la del gerente. El servidor la vuelve
+            // a calcular y rechaza una distinta si quien la manda no puede.
+            tarifaUnitaria: tarifaCotizadaDe(s),
             // REJILLA-01 · la franja CONTRATADA. `null` y no cadena vacía: el
             // servidor la valida contra el catálogo activo de la organización y
             // una cadena vacía no es un identificador, es «no hay».
@@ -922,7 +933,9 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                     <select
                       className="h-8 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink"
                       value={c.unidad}
-                      onChange={(e) => setCfgSitio(s.id, { unidad: e.target.value as Unidad })}
+                      // Cambiar la unidad cambia la tarifa calculada: un precio
+                      // manual puesto para «mensual» no vale para «spot».
+                      onChange={(e) => setCfgSitio(s.id, { unidad: e.target.value as Unidad, tarifaManual: '' })}
                     >
                       {mods.map((m) => (
                         <option key={m.unidad} value={m.unidad}>
@@ -939,7 +952,7 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                       <select
                         className="h-8 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink"
                         value={c.franjaId}
-                        onChange={(e) => setCfgSitio(s.id, { franjaId: e.target.value })}
+                        onChange={(e) => setCfgSitio(s.id, { franjaId: e.target.value, tarifaManual: '' })}
                         title="Franja horaria contratada. Es un compromiso comercial: no se envía al CMS."
                       >
                         <option value="">Todo el día</option>
@@ -979,6 +992,46 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                     ) : (
                       <span className="w-24 text-center text-[11px] text-muted" title="Las pantallas fijas no manejan spots">Fija · sin spots</span>
                     )}
+                    {/* PRECIO-01 · la TARIFA por unidad. Calculada por el
+                        sistema; solo un gerente o superior la puede cambiar.
+                        Para el vendedor es un texto, no un campo: el servidor
+                        rechazaría cualquier otro número que mandara. */}
+                    {(() => {
+                      const calc = tarifaCalculadaDe(s, c.unidad, c.franjaId)
+                      const manual = tarifaManualDe(c)
+                      const ajustada = manual != null && Math.round(manual * 100) !== Math.round(calc.tarifa * 100)
+                      return puedeAjustarTarifa ? (
+                        <span className="flex items-center gap-1" title="Tarifa por unidad. Déjala vacía para usar la calculada.">
+                          <span className="text-[11px] text-muted">Tarifa</span>
+                          <input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            aria-label={`Tarifa por unidad de ${s.nombre}`}
+                            placeholder={calc.calculable ? String(calc.tarifa) : 'sin tarifa'}
+                            className={`h-8 w-24 rounded border bg-surface px-2 text-[12px] text-ink ${
+                              ajustada ? 'border-[#f59e0b]' : 'border-border-strong'
+                            }`}
+                            value={c.tarifaManual}
+                            onChange={(e) => setCfgSitio(s.id, { tarifaManual: e.target.value })}
+                          />
+                          {ajustada && (
+                            <span className="text-[10px] font-medium text-[#9a6700]">
+                              calculada {calc.calculable ? formatMonto(calc.tarifa) : '—'}
+                            </span>
+                          )}
+                        </span>
+                      ) : (
+                        <span
+                          className="whitespace-nowrap text-[11px] text-muted"
+                          title="Tarifa calculada por el sistema. Solo un gerente o superior puede cambiarla."
+                        >
+                          {calc.calculable
+                            ? `Tarifa ${formatMonto(calc.tarifa)}`
+                            : 'Sin tarifa · pide a un gerente'}
+                        </span>
+                      )
+                    })()}
                     <span className="demo-num w-24 text-right font-medium text-ink">{formatMonto(precioDe(s))}</span>
 
                     {/* Renta al propietario (el COSTO). Solo se pide para las

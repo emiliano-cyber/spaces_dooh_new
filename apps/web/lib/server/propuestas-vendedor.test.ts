@@ -59,6 +59,20 @@ vi.mock('./rejilla-repo', () => ({
   listarTemporadas: vi.fn(async () => []),
 }))
 
+// PRECIO-01 · desde el 2026-10-01 el controller calcula la tarifa de cada línea
+// (`tarifas-repo`) y, si el precio se aparta, pregunta el permiso de la SESIÓN
+// (`auth`). Los dos arrastran `tenant.ts` y `cache()`, así que se sustituyen
+// por el mismo motivo que los de arriba. Sesión de DUEÑO y sin tarifas: toda
+// línea pasa como ajuste de alguien con permiso, que es neutro para lo que aquí
+// se mide. La regla del precio tiene su propio archivo: `propuestas-precio.test.ts`.
+vi.mock('./tarifas-repo', () => ({
+  datosParaTarifar: vi.fn(async () => ({ sitios: new Map(), temporadas: [] })),
+}))
+vi.mock('./auth', () => ({
+  usuarioActual: vi.fn(async () => ({ id: 'U-DUENO', rol: 'DUENO' })),
+  tienePermiso: vi.fn(async () => true),
+}))
+
 import { crearPropuestaCtrl } from './propuestas-controller'
 
 // Lo mínimo que `crearSchema` acepta.

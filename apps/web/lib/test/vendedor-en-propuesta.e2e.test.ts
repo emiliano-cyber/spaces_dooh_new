@@ -78,6 +78,16 @@ async function sembrarVentas(org: Awaited<ReturnType<typeof sembrarTenant>>): Pr
     ],
   )
   const sitioId = sitio.rows[0].id as string
+  // PRECIO-01 (2026-10-01) · desde que el servidor calcula la tarifa, una
+  // pantalla SIN tarifa no la puede cotizar quien no tiene `comercial.aprobar`
+  // —y la vendedora de esta prueba no lo tiene—. Se le da su tarifa mensual de
+  // 10 000, que es lo que las pruebas de abajo mandan: así siguen midiendo la
+  // atribución del vendedor y no la regla del precio.
+  await p.query(
+    `insert into sitio_modalidades (sitio_id, unidad, tarifa_publicada, costo_compra, tenant_id)
+     values ($1,'mensual',10000,0,$2)`,
+    [sitioId, org.id],
+  )
 
   // Una venta con vendedor y su snapshot: lista 100 000, neto 72 000 (20 % de
   // descuento y 10 % de comisión: 100 000 × 0.8 × 0.9 = 72 000).
@@ -284,7 +294,8 @@ describe('el vendedor NO se puede falsear desde el cliente', () => {
         nombre: 'Propuesta limpia',
         fechaInicio: enDias(1),
         fechaFin: enDias(30),
-        items: [{ sitioId: datosAlfa.sitioId, precio: 5_000 }],
+        // A la tarifa (PRECIO-01): la vendedora no puede mandar otra.
+        items: [{ sitioId: datosAlfa.sitioId, precio: 10_000 }],
       },
     })
     expect(r.status, JSON.stringify(r.datos)).toBe(201)

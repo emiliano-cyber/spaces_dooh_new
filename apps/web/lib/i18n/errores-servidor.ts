@@ -276,9 +276,15 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   // 1 sitio · lib/server/google-oauth.ts:206
   'Google no devolvió una identidad utilizable.':
     'Google did not return a usable identity.',
-  // 1 sitio · lib/server/propuestas-controller.ts:210
+  // 1 sitio · lib/server/propuestas-controller.ts
   'Ítem no encontrado':
     'Item not found',
+  // 1 sitio · lib/server/propuestas-controller.ts (PRECIO-01, 2026-10-01)
+  'Solo un gerente o superior puede cambiar la tarifa de una pantalla.':
+    "Only a manager or above can change a screen's rate.",
+  // 1 sitio · lib/server/propuestas-controller.ts (PRECIO-01, 2026-10-01)
+  'Esta pantalla no tiene una tarifa calculada para esa unidad. Pide a un gerente o superior que le ponga precio.':
+    'This screen has no calculated rate for that unit. Ask a manager or above to set its price.',
   // 1 sitio · lib/server/impresion-controller.ts:14
   'La campaña es requerida':
     'The campaign is required',

@@ -148,6 +148,13 @@ contrario —un techo que no es techo— no se ve.
 
 ## 4 · El servidor decide el descuento (hallazgo B40)
 
+> [!success] 2026-10-01 · PRECIO-01: la TARIFA BASE ya también la comprueba el servidor
+> El aviso de abajo describe el estado hasta el 01/10. Desde
+> `feat/precio-ajustado-por-gerente`, `crearPropuestaCtrl` recalcula la tarifa
+> de cada línea con `lib/tarifa-calculada.ts` (la misma función que la
+> pantalla) y rechaza con 403 un precio distinto si la sesión no tiene
+> `comercial.aprobar`. Ver [[comercial-propuestas-campanas]].
+
 > [!danger] La cadena de la Fase 1 vive ENTERA en el navegador — y esto no lo arregla
 > `resolverTarifa` solo se llama desde `app/(app)/(shell)/propuestas/page.tsx`,
 > que es `'use client'`, y el controller copia la `tarifaUnitaria` que manda el

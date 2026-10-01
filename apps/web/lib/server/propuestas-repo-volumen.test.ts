@@ -177,7 +177,13 @@ describe('2 · lo resuelto por el controller SE GUARDA', () => {
     })
     const ins = consultas.find((c) => /insert into propuesta_items/.test(c.sql))!
     const p = ins.params as unknown[]
-    expect(p[p.length - 2]).toBe(0)
+    // PRECIO-01 (2026-10-01) añadió DOS parámetros al final —`tarifa_calculada`
+    // y `precio_ajustado_por`—, así que la pareja del volumen va antes. Los dos
+    // nuevos también tienen que ser `null` explícito: una línea creada sin el
+    // controller no tiene tarifa calculada ni ajuste que atribuir.
+    expect(p[p.length - 4]).toBe(0)
+    expect(p[p.length - 3]).toBeNull()
+    expect(p[p.length - 2]).toBeNull()
     expect(p[p.length - 1]).toBeNull()
   })
 })

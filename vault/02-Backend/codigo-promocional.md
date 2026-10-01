@@ -217,7 +217,10 @@ venta sin cupón es byte por byte el mismo JSON que producía la Fase 2.
 
 ## 6 · Qué NO hace
 
-- **No arregla B40.** La `tarifa_unitaria` sigue llegando del navegador.
+- **No arregla B40.** La `tarifa_unitaria` seguía llegando del navegador.
+  *(Cerrado para la tarifa base el 2026-10-01 por PRECIO-01: el servidor la
+  recalcula y solo `comercial.aprobar` puede apartarse — ver
+  [[comercial-propuestas-campanas]].)*
 - **No admite más de un código por propuesta** (`unique (propuesta_id)`).
 - **No limita** cuántos cupones tiene una organización.
 - **No prohíbe** crear un cupón ya vencido — es legítimo capturar en octubre la

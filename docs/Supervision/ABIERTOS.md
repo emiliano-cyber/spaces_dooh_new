@@ -593,6 +593,15 @@ calendario.
 
 #### B40 · 🔴 El servidor NO comprueba que el precio vendido salga de la rejilla · **es la que importa de las seis**
 
+> **2026-10-01 · cerrada para la TARIFA BASE (PRECIO-01, rama
+> `feat/precio-ajustado-por-gerente`, sin fusionar).** El dueño decidió la
+> política (D11 para la tarifa): el precio se calcula; solo `comercial.aprobar`
+> puede poner otro. `crearPropuestaCtrl` recalcula con `lib/tarifa-calculada.ts`
+> —la misma función que la pantalla— y devuelve 403 sin escribir nada si un
+> vendedor manda otro precio. La prueba de la e2e del congelado que se cita
+> abajo ahora SÍ se comprueba: un 1 800 que no casara con la rejilla se
+> rechazaría a un vendedor. Lo de abajo se conserva como historia.
+
 - **Qué es:** la cadena de resolución de precio de la Fase 1 vive **entera en el
   navegador**. El servidor recibe el importe y lo acepta.
 - **Evidencia:**

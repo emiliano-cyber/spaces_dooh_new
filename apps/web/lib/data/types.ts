@@ -522,6 +522,14 @@ export interface PropuestaItem {
   // al peso. Sin él, la pantalla enseñaría renglones de lista junto a un total
   // que no los suma.
   parteDelPaquete?: number | null
+  // ─── PRECIO-01 · la TARIFA CALCULADA y quién se apartó de ella (2026-10-01) ─
+  // INTERNOS: no viajan a la liga pública, que arma su objeto campo por campo.
+  // `tarifaCalculada` null = línea anterior al 2026-10-01, o pantalla sin tarifa
+  // a la que un gerente le puso precio. `precioAjustadoPor` null = el precio ES
+  // la tarifa (o línea anterior): no hay nada que atribuir.
+  tarifaCalculada?: number | null
+  precioAjustadoPor?: string | null
+  precioAjustadoPorNombre?: string | null
 }
 
 /**

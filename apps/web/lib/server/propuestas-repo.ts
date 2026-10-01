@@ -122,6 +122,13 @@ function rowToItem(r: any) {
         ? `${r.franja_hora_inicio}–${r.franja_hora_fin}`
         : null,
     aprobado: !!r.aprobado,
+    // PRECIO-01 · la tarifa que calculó el servidor y quién se apartó de ella.
+    // INTERNOS: `obtenerPropuestaPublica` arma su objeto campo por campo y no
+    // los copia, así que el cliente ve solo el precio final. `null` en todo lo
+    // capturado antes del 2026-10-01 — no se sabe, y no se inventa.
+    tarifaCalculada: r.tarifa_calculada != null ? Number(r.tarifa_calculada) : null,
+    precioAjustadoPor: r.precio_ajustado_por ?? null,
+    precioAjustadoPorNombre: r.precio_ajustado_por_nombre ?? null,
   }
 }
 
@@ -1006,9 +1013,15 @@ export async function listarPropuestas() {
   // que el detalle de la propuesta pueda decir «Prime · 06:00–10:00» en vez de
   // un identificador. `left join` porque la inmensa mayoría no tiene franja, y
   // `and f.tenant_id = i.tenant_id` como segunda capa sobre la RLS.
+  //
+  // PRECIO-01 · y el NOMBRE de quien ajustó la tarifa, para que el detalle
+  // diga «ajustada por X». Misma segunda capa que el cupón de arriba: un id de
+  // usuario de otra organización no le pone nombre a un ajuste de ésta.
   const items = await q(
     `select i.*, f.nombre as franja_nombre, f.hora_inicio as franja_hora_inicio,
-            f.hora_fin as franja_hora_fin
+            f.hora_fin as franja_hora_fin,
+            (select u.nombre from usuarios u
+              where u.id = i.precio_ajustado_por and u.tenant_id = i.tenant_id) as precio_ajustado_por_nombre
        from propuesta_items i
        left join franjas_horarias f on f.id = i.franja_id and f.tenant_id = i.tenant_id
       order by i.creado_en asc`,
@@ -1055,6 +1068,12 @@ export interface PropuestaInput {
     // porque sean un dato de entrada del cliente.
     descuentoVolumenPct?: number
     volumenDesde?: number | null
+    // PRECIO-01 · la tarifa que CALCULÓ el servidor y si el precio se apartó de
+    // ella. Los dos los pone el CONTROLLER; nunca llegan del cuerpo. Quién la
+    // ajustó NO viaja aquí —sería abrir el mismo agujero que el vendedor—: el
+    // repo lo estampa de la sesión, igual que `propuestas.usuario_id`.
+    tarifaCalculada?: number | null
+    precioAjustado?: boolean
   }[]
   notas?: string | null
 }
@@ -1120,8 +1139,8 @@ export async function crearPropuesta(input: PropuestaInput) {
         `insert into propuesta_items
            (propuesta_id, sitio_id, fecha_inicio, fecha_fin, precio, unidad, cantidad, tarifa_unitaria, spots_por_dia, tenant_id,
             renta_monto, renta_periodicidad, renta_arrendador_id, franja_id,
-            descuento_volumen_pct, volumen_desde)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::periodicidad_pago,$13,$14,$15,$16)`,
+            descuento_volumen_pct, volumen_desde, tarifa_calculada, precio_ajustado_por)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::periodicidad_pago,$13,$14,$15,$16,$17,$18)`,
         [
           prop.id, it.sitioId, input.fechaInicio, input.fechaFin, it.precio ?? 0,
           it.unidad ?? 'mensual', it.cantidad ?? 1, it.tarifaUnitaria ?? (it.precio ?? 0),
@@ -1143,6 +1162,12 @@ export async function crearPropuesta(input: PropuestaInput) {
           // pareja, porque 0 SÍ significa «sin volumen» en esta columna.
           it.descuentoVolumenPct ?? 0,
           it.volumenDesde ?? null,
+          // PRECIO-01 · la tarifa calculada por el servidor, y QUIÉN se apartó
+          // de ella: el usuario de la SESIÓN (`vendedorId`, la misma cookie),
+          // y solo cuando el controller lo marcó como ajuste. A la tarifa
+          // queda `null`: no hay nada que atribuir.
+          it.tarifaCalculada ?? null,
+          it.precioAjustado ? vendedorId : null,
         ],
       )
     }

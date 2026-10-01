@@ -7,6 +7,37 @@ La entrada más reciente va arriba.
 
 ## 2026-10-01
 
+- **La tarifa de cada pantalla en una propuesta la pone el sistema, y solo un
+  gerente o superior puede cambiarla.** *(Pedido tuyo del 01/10: «aparte de ser
+  calculado, el gerente será el único que podrá poner otro precio diferente al
+  de la tarifa, e igual usuarios superiores».)*
+  - Al armar una propuesta, cada pantalla sale con su **tarifa calculada**: la
+    de su tarifario, la de su franja horaria y la de la temporada de la fecha de
+    inicio, igual que hasta hoy.
+  - El **vendedor** ve esa tarifa pero **no la puede cambiar**. Si alguien
+    intentara mandar otro precio por fuera de la pantalla, el sistema lo
+    rechaza con «Solo un gerente o superior puede cambiar la tarifa de una
+    pantalla» y **no guarda nada**. Antes eso sí se podía, y era el hueco más
+    serio de la auditoría de precios.
+  - Si una pantalla **no tiene tarifa** capturada, el vendedor no la puede
+    cotizar: el aviso le dice que pida a un gerente que le ponga precio.
+  - El **gerente de ventas, el director comercial, el administrador y el
+    dueño** sí pueden escribir otra tarifa. Queda guardada la tarifa que había
+    calculado el sistema y **quién la cambió**, y en **Actividad** aparece una
+    línea como «Cambió la tarifa de «Pantalla Reforma» (mensual) de $45,000 a
+    $30,000». En el detalle de la propuesta se ve «Tarifa calculada $45,000 ·
+    ajustada por Gael».
+  - **El cliente solo ve el precio final.** En la liga de la propuesta no
+    aparece ni la tarifa calculada ni quién la ajustó.
+  - Nada cambia en los descuentos por volumen, el descuento comercial, los
+    cupones ni los paquetes: se siguen aplicando encima, igual que antes.
+  - Las propuestas que ya existían se quedan como están; en ellas no consta la
+    tarifa calculada (no se puede saber cuál era aquel día).
+
+  **Lleva el cambio de base que aprobaste:** dos columnas nuevas en las líneas
+  de propuesta (la tarifa calculada y quién la ajustó). Está en su rama, **sin
+  fusionar a `main`**.
+
 - **Cada versión nueva trae sus notas.** *(Pedido tuyo del 01/10.)* A partir de
   la versión v0.9.2, cada vez que se instala una versión nueva:
   - **Todas las personas** que entran ven, **una sola vez**, una ventana «Qué

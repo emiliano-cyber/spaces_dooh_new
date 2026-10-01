@@ -1,7 +1,7 @@
 ---
 tipo: contrato
 estado: verificado
-actualizado: 2026-09-29
+actualizado: 2026-10-01
 tags: [backend, roles, permisos, rbac, enum, migraciones, dueno, guards, carrera]
 archivos:
   - db/migrations/20260929_roles_de_venta_enum.sql
@@ -303,6 +303,25 @@ COMERCIAL se quedarían sin permisos y sin rol nuevo. Es el modo de fallo de la
 zona **R2**. Por eso la migración empieza comprobando `rolsuper or rolbypassrls` y
 **se niega a empezar** si no. Comprobado: corrida como `spaces_app` sale con
 código 3 y la frase que dice qué hacer.
+
+## `comercial.aprobar` también decide quién cambia la TARIFA (PRECIO-01, 01/10)
+
+Decisión del dueño del 2026-10-01: la tarifa de cada pantalla de una propuesta
+la **calcula el sistema**, y solo el gerente «e igual usuarios superiores» puede
+poner otra. Se implementa con el permiso que ya existía, **sin filas nuevas en
+`rol_permisos`**: `comercial.aprobar` lo tienen exactamente GERENTE_VENTAS,
+DIRECTOR_COMERCIAL, ADMINISTRADOR y DUENO (`20260929_roles_de_venta_matriz.sql`),
+y el VENDEDOR no.
+
+- Servidor: `crearPropuestaCtrl` llama a `tienePermiso(rol, 'comercial',
+  'aprobar')` con el rol de la **sesión** (`usuarioActual()`), y solo si alguna
+  línea se aparta de la tarifa. Sin el permiso → 403 y no se guarda nada.
+- Pantalla: el campo de tarifa de «Nueva propuesta» solo es editable con
+  `usePuede('comercial', 'aprobar')`.
+- Es el mismo permiso que aprueba un cupón (COD-03): las dos decisiones de
+  dinero que el vendedor propone y el gerente autoriza viven en la misma fila.
+
+Detalle en [[comercial-propuestas-campanas]].
 
 ## Lo que sigue abierto
 

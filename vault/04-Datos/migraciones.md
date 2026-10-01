@@ -36,9 +36,30 @@ archivos:
   - db/migrations/20261003_codigo_aprobacion.sql
   - db/migrations/20261004_pantallas_digitales_importadas.sql
   - db/migrations/20261005_notas_de_version.sql
+  - db/migrations/20261006_precio_ajustado_por_gerente.sql
 ---
 
 # Migraciones
+
+> [!warning] 2026-10-01 · `20261006_precio_ajustado_por_gerente.sql` — forma **aprobada** por el dueño, rama **sin fusionar**
+> Rama `feat/precio-ajustado-por-gerente` (PRECIO-01, hallazgo B40). Dos columnas
+> en `propuesta_items`, **ninguna tabla** (el recuento de tablas no cambia):
+>
+> | Columna | Tipo | Quién escribe |
+> |---|---|---|
+> | `tarifa_calculada` | `numeric(14,2)`, NULL | Solo `crearPropuesta()`, con la tarifa que calculó el controller (`lib/tarifa-calculada.ts`). NULL = línea anterior al 01/10, o pantalla sin tarifa a la que un gerente le puso precio |
+> | `precio_ajustado_por` | `uuid` → `usuarios(id)` **on delete set null**, NULL | Solo `crearPropuesta()`, con el usuario de la SESIÓN, y solo si el precio se apartó de la tarifa. NULL = a la tarifa |
+>
+> FK de **una** columna con `on delete set null` simple (nada de `set null (col)`,
+> que es de PG15): mismo criterio que `propuestas.usuario_id` y
+> `codigo_aprobado_por`, porque el id sale de la sesión y no del cuerpo. La FK
+> va en un `do $$` contra `pg_constraint`: idempotente también a medias. Aborta
+> si `propuesta_items` no tiene RLS ENABLE+FORCE y `tenant_isolation`. GRANT de
+> tabla repetido (`select, insert, update`) aunque los de tabla ya cubren
+> columnas nuevas. **Sin backfill**: la tarifa de HOY no es la de entonces.
+> Lo fija `precio-ajustado.e2e.test.ts` §1 (tipos, FK `confdeltype = 'n'`, y que
+> el rol de la app escribe las dos). Detalle en
+> [[02-Backend/comercial-propuestas-campanas]].
 
 > [!warning] 2026-10-01 · `20261005_notas_de_version.sql` — **PENDIENTE de aprobación del dueño**
 > Rama `feat/notas-de-version`, **sin fusionar**: ninguna migración aterriza en

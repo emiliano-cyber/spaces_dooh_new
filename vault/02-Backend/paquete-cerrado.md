@@ -272,7 +272,9 @@ un descuento.
 
 - **No arregla B40** (la cadena de precio que vive en el navegador): es la
   decisión D11, del dueño. Pero **tampoco lo amplía** — aquí solo viaja el
-  `paqueteId`.
+  `paqueteId`. *(El 2026-10-01 PRECIO-01 lo cerró para la tarifa BASE de cada
+  línea. El paquete no cambia: sigue sustituyendo la suma de las listas, y
+  aplicarlo no reescribe ninguna línea — ver [[comercial-propuestas-campanas]].)*
 - **No arregla el defecto del volumen en el respaldo de presupuesto** de
   `campanas-repo` (el camino sin snapshot), que viene de la Fase 2 y sigue
   señalado. El **paquete sí entra** en ese respaldo, porque dejarlo fuera habría

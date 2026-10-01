@@ -7,6 +7,9 @@ import { PERIODICIDAD_VALUES } from '@/lib/renta-periodicidad'
 import { listarFranjas } from './rejilla-repo'
 import { listarEscalasVolumen } from './volumen-repo'
 import { resolverVolumen, SIN_VOLUMEN } from '@/lib/volumen'
+import { decidirPrecioItem, tarifaCalculada } from '@/lib/tarifa-calculada'
+import { datosParaTarifar } from './tarifas-repo'
+import { usuarioActual, tienePermiso } from './auth'
 
 // ============================================================================
 //  lib/server/propuestas-controller.ts — Alta de propuestas y aprobación de sus
@@ -23,15 +26,31 @@ import { resolverVolumen, SIN_VOLUMEN } from '@/lib/volumen'
 //  bajo RLS con el tenant de la sesión. Nunca entra por el cuerpo, y el
 //  `itemSchema` no lo declara: ése es el candado, igual que con el vendedor.
 //
-//  Y conviene decir por qué se insiste, porque el archivo de al lado hace lo
-//  contrario: la `tarifaUnitaria` de la Fase 1 SÍ se copia tal cual de lo que
-//  manda el navegador (hallazgo B40), así que hoy se puede cerrar una venta de
-//  prime a 1 peso con un `curl`. Esta fase no arregla aquello —mover la cadena
-//  entera al servidor cambia el comportamiento de cada venta y es una decisión
-//  abierta del dueño— pero **no lo amplía**: el escalón nuevo nace del lado
-//  correcto. Sobre una cadena que vive en el cliente no se puede construir la
-//  Fase 3, porque el contador de usos de un cupón lo tiene que llevar el
-//  servidor.
+//  Y conviene decir por qué se insiste: hasta el 2026-10-01 la `tarifaUnitaria`
+//  de la Fase 1 se copiaba tal cual de lo que mandaba el navegador (hallazgo
+//  B40), así que se podía cerrar una venta de prime a 1 peso con un `curl`.
+//
+//  ─── PRECIO-01 · LA TARIFA BASE TAMBIÉN LA DECIDE EL SERVIDOR (2026-10-01) ─
+//  Decisión del dueño: «en propuestas aparte de ser calculado el gerente será
+//  el único que podrá poner otro precio diferente al de la tarifa e igual
+//  usuarios superiores». El servidor calcula la tarifa de cada línea con la
+//  MISMA función que la pantalla (`lib/tarifa-calculada.ts`) sobre los datos de
+//  ESTA organización (`tarifas-repo.ts`, bajo RLS y con `and tenant_id`):
+//
+//    · precio = tarifa (al centavo) → se guarda, sin ajuste;
+//    · precio ≠ tarifa y la sesión NO tiene `comercial.aprobar` → 403 y no se
+//      guarda NADA, ni las líneas buenas de la misma propuesta;
+//    · precio ≠ tarifa con `comercial.aprobar` → se guarda con la tarifa
+//      calculada al lado y el repo anota quién la ajustó (de la SESIÓN).
+//
+//  403 y no 409: no es un conflicto con el estado del recurso —reintentar lo
+//  mismo daría lo mismo—, es que a ESA persona no le toca esa acción. Es el
+//  mismo código que devuelve decidir un cupón sin `comercial.aprobar`
+//  (`/api/propuestas/:id/codigo/decision`), que es la misma pareja de roles.
+//
+//  Lo que NO cambia: el volumen, el descuento comercial, el cupón, el paquete y
+//  el snapshot se componen ENCIMA del precio de la línea exactamente igual que
+//  antes. La tarifa es el escalón base, y es el único que esto vigila.
 // ============================================================================
 
 const UNIDADES_VALIDAS = UNIDADES.map((u) => u.unidad) as [Unidad, ...Unidad[]]
@@ -84,6 +103,20 @@ const crearSchema = z
     message: 'La fecha fin no puede ser anterior a la de inicio',
     path: ['fechaFin'],
   })
+
+/**
+ * PRECIO-01 · una línea cuyo precio se apartó de la tarifa calculada (o que no
+ * tenía tarifa), puesta por alguien con `comercial.aprobar`. El route la anota
+ * en Actividad; viaja APARTE de la propuesta para no publicarla en la
+ * respuesta de la API.
+ */
+export type AjusteTarifa = {
+  sitioId: string
+  sitioNombre: string
+  unidad: string
+  tarifaCalculada: number | null
+  tarifa: number
+}
 
 export async function crearPropuestaCtrl(body: unknown) {
   const d = validar(crearSchema, body)
@@ -144,7 +177,7 @@ export async function crearPropuestaCtrl(body: unknown) {
 
   // Normaliza cada ítem a la forma persistida, calculando cantidad y precio en
   // el servidor a partir de la unidad y la tarifa por unidad.
-  const items = d.items.map((it) => {
+  const normalizados = d.items.map((it) => {
     // Sin unidad → modo compatible: precio directo, unidad mensual, cantidad 1.
     if (!it.unidad || it.tarifaUnitaria == null) {
       const precio = it.precio ?? 0
@@ -193,8 +226,67 @@ export async function crearPropuestaCtrl(body: unknown) {
     }
   })
 
+  // PRECIO-01 · la tarifa de cada línea, calculada AQUÍ. UNA lectura por
+  // propuesta, no una por línea.
+  const datos = await datosParaTarifar(d.items.map((it) => it.sitioId))
+  // El permiso se resuelve UNA vez y SOLO si alguna línea se aparta de la
+  // tarifa: toda venta a tarifa —el caso normal— no paga el viaje a la base.
+  // Sale de la SESIÓN (`usuarioActual()`, la misma cookie que el tenant), nunca
+  // del cuerpo: un `rol` en el JSON no lo lee nadie. Sin sesión, sin permiso.
+  let permiso: boolean | null = null
+  const puedeAjustar = async (): Promise<boolean> => {
+    if (permiso == null) {
+      const u = await usuarioActual()
+      permiso = !!u && (await tienePermiso(u.rol, 'comercial', 'aprobar'))
+    }
+    return permiso
+  }
+  // La temporada se deduce del DÍA de inicio, igual que en el congelado del
+  // snapshot (`String(...).slice(0, 10)`): una fecha con hora no puede cambiar
+  // de temporada según quién la mande.
+  const fechaTarifa = String(d.fechaInicio).slice(0, 10)
+  const items: ((typeof normalizados)[number] & { tarifaCalculada: number | null; precioAjustado: boolean })[] = []
+  const ajustes: AjusteTarifa[] = []
+  for (const it of normalizados) {
+    const sitio = datos.sitios.get(it.sitioId)
+    const calc = tarifaCalculada({
+      sitio: sitio ?? {},
+      unidad: it.unidad,
+      franjaId: it.franjaId,
+      temporadas: datos.temporadas,
+      fechaInicio: fechaTarifa,
+    })
+    let dec = decidirPrecioItem({ enviada: it.tarifaUnitaria, calculada: calc, puedeAjustar: false })
+    if (!dec.ok) {
+      dec = decidirPrecioItem({ enviada: it.tarifaUnitaria, calculada: calc, puedeAjustar: await puedeAjustar() })
+    }
+    if (!dec.ok) {
+      // Se rechaza ANTES de llamar al repo: no se escribe ni la propuesta ni
+      // ninguna de sus líneas. Una propuesta a medias, con la línea mala
+      // quitada, sería un precio que nadie cotizó.
+      if (dec.motivo === 'sin-tarifa') {
+        throw new AppError(
+          'Esta pantalla no tiene una tarifa calculada para esa unidad. Pide a un gerente o superior que le ponga precio.',
+          403,
+        )
+      }
+      throw new AppError('Solo un gerente o superior puede cambiar la tarifa de una pantalla.', 403)
+    }
+    items.push({ ...it, tarifaCalculada: dec.tarifaCalculada, precioAjustado: dec.ajustado })
+    if (dec.ajustado) {
+      ajustes.push({
+        sitioId: it.sitioId,
+        sitioNombre: sitio?.nombre ?? it.sitioId,
+        unidad: it.unidad,
+        tarifaCalculada: dec.tarifaCalculada,
+        tarifa: it.tarifaUnitaria,
+      })
+    }
+  }
+
   try {
-    return await crearPropuesta({ ...d, items } as PropuestaInput)
+    const propuesta = await crearPropuesta({ ...d, items } as PropuestaInput)
+    return { propuesta, ajustes }
   } catch (e) {
     if (e instanceof PropuestaError) throw new AppError(e.message, 400)
     throw e

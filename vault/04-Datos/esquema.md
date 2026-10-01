@@ -1,7 +1,7 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-09-30
+actualizado: 2026-10-01
 tags: [datos, esquema, er, postgres]
 archivos:
   - db/schema.sql
@@ -10,6 +10,7 @@ archivos:
   - db/migrations/20260921_actualizaciones_instancia.sql
   - db/migrations/20260923_tickets.sql
   - db/migrations/20260928_tope_descuento_propuestas.sql
+  - db/migrations/20261006_precio_ajustado_por_gerente.sql
   - db/migrations/20260928_codigo_promocional.sql
   - db/migrations/20260928_paquete_cerrado.sql
   - db/migrations/20261001_almacen_datos_por_tipo.sql
@@ -198,6 +199,13 @@ archivos:
 > Dos CHECK que valen la pena: `desde_cantidad >= 2` (un tramo «desde 1» sería
 > bajar el tarifario entero sin que se note) y `descuento_pct > 0` (un tramo al
 > 0 % es una regla que no hace nada y hace creer que sí).
+>
+> **PRECIO-01 (2026-10-01)** · y dos más en `propuesta_items`, de
+> `20261006_precio_ajustado_por_gerente.sql`: `tarifa_calculada` (numeric(14,2),
+> nullable) — la tarifa por unidad que calculó el servidor— y
+> `precio_ajustado_por` (uuid → `usuarios(id)` **on delete set null**, nullable)
+> —quién se apartó de ella, de la sesión—. Internas: no viajan a la liga
+> pública. Ver [[02-Backend/comercial-propuestas-campanas]].
 >
 > Más tres columnas: `propuesta_items.descuento_volumen_pct` (numeric(5,2), **NOT
 > NULL DEFAULT 0**), `propuesta_items.volumen_desde` (integer, nullable) y

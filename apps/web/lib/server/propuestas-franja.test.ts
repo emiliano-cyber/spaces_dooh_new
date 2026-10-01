@@ -18,8 +18,10 @@ import { join } from 'node:path'
 //      restricción. Una FK que salta es un error de programa; el mensaje que
 //      lee una persona es trabajo del controller.
 //
-//  Y lo que NO se hace: el precio NO se recalcula desde la rejilla al crear.
-//  Lo que se guarda es lo que se cotizó.
+//  Y lo que NO se hace aquí: el precio no se SUSTITUYE por el de la rejilla al
+//  crear; se guarda lo que se cotizó. Desde PRECIO-01 (2026-10-01) sí se
+//  COMPRUEBA contra ella, y solo `comercial.aprobar` puede apartarse — eso lo
+//  mide `propuestas-precio.test.ts`, no este archivo.
 // ============================================================================
 
 const { crearPropuestaMock } = vi.hoisted(() => ({
@@ -49,6 +51,19 @@ vi.mock('./volumen-repo', () => ({
   listarEscalasVolumen: vi.fn(async () => []),
   guardarTramoVolumen: vi.fn(),
   borrarTramoVolumen: vi.fn(),
+}))
+
+// PRECIO-01 · desde el 2026-10-01 el controller calcula la tarifa de cada línea
+// (`tarifas-repo`) y, si el precio se aparta, pregunta el permiso de la SESIÓN
+// (`auth`). Se sustituyen por el mismo motivo que los de arriba. Sesión de
+// DUEÑO y sin tarifas: toda línea pasa como ajuste de alguien con permiso, que
+// es neutro para la franja. La regla del precio vive en `propuestas-precio.test.ts`.
+vi.mock('./tarifas-repo', () => ({
+  datosParaTarifar: vi.fn(async () => ({ sitios: new Map(), temporadas: [] })),
+}))
+vi.mock('./auth', () => ({
+  usuarioActual: vi.fn(async () => ({ id: 'U-DUENO', rol: 'DUENO' })),
+  tienePermiso: vi.fn(async () => true),
 }))
 
 import { crearPropuestaCtrl } from './propuestas-controller'

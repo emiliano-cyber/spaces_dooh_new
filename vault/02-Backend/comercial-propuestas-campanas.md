@@ -1,11 +1,16 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-09-30
-tags: [backend, comercial, propuestas, campanas, amarillo]
+actualizado: 2026-10-01
+tags: [backend, comercial, propuestas, campanas, amarillo, precio]
 archivos:
   - apps/web/lib/server/propuestas-repo.ts
   - apps/web/lib/server/propuestas-controller.ts
+  - apps/web/lib/tarifa-calculada.ts
+  - apps/web/lib/server/tarifas-repo.ts
+  - apps/web/app/api/propuestas/route.ts
+  - apps/web/app/(app)/(shell)/propuestas/page.tsx
+  - db/migrations/20261006_precio_ajustado_por_gerente.sql
   - apps/web/lib/descuento.ts
   - apps/web/lib/server/config-repo.ts
   - apps/web/app/api/propuestas/[id]/route.ts
@@ -286,6 +291,57 @@ Lo decide `POST /api/propuestas/[id]/codigo/decision` con `comercial.aprobar`
 (los cuatro roles de mando, no el VENDEDOR). Y aplicar un cupón a una
 **RECHAZADA** la devuelve a **BORRADOR**. Decisiones y reglas derivadas en
 [[codigo-promocional]] §8.
+
+## La tarifa la calcula el servidor; solo un gerente la cambia (PRECIO-01, 01/10)
+
+Decisión del dueño del 2026-10-01: «en propuestas aparte de ser calculado el
+gerente será el único que podrá poner otro precio diferente al de la tarifa e
+igual usuarios superiores». **Cierra el hallazgo B40 para la tarifa BASE**:
+hasta ese día `propuestas-controller.ts` copiaba la `tarifaUnitaria` que
+mandaba el navegador y se podía cerrar un prime a 1 peso con un `curl`.
+
+- **Una sola cuenta para los dos lados.** `lib/tarifa-calculada.ts`
+  (`modalidadesDeSitio`, `tarifaCalculada`) es la regla que vivía en
+  `propuestas/page.tsx` (`tarifaDe`), movida sin tocar una coma. La pantalla y
+  el servidor la llaman igual; `tarifa-calculada.test.ts` la compara contra una
+  copia literal de la regla vieja en una matriz unidad × franja × fecha.
+- **El servidor la recalcula** en `crearPropuestaCtrl` con los datos de ESTA
+  organización (`lib/server/tarifas-repo.ts`: pantallas, `sitio_modalidades`,
+  `sitio_tarifas` y temporadas activas, bajo RLS **y** con `and tenant_id`).
+  Compara **al centavo** (`centavos`) y decide con `decidirPrecioItem`:
+
+| Precio enviado | Sin `comercial.aprobar` (VENDEDOR) | Con `comercial.aprobar` (GERENTE_VENTAS y superiores) |
+|---|---|---|
+| = tarifa calculada | 201, `precio_ajustado_por` null | 201, `precio_ajustado_por` null |
+| ≠ tarifa calculada | **403** «Solo un gerente o superior puede cambiar la tarifa de una pantalla.» — no se guarda NADA | 201, `tarifa_calculada` + `precio_ajustado_por` = la sesión, y una línea en Actividad |
+| pantalla sin tarifa (0, unidad que no ofrece, pantalla de otra organización) | **403** «…Pide a un gerente o superior que le ponga precio.» | 201, `tarifa_calculada` null, ajuste anotado |
+
+- **403 y no 409**: reintentar lo mismo daría lo mismo; no es un conflicto de
+  estado sino una acción que a esa persona no le toca. Mismo código que decidir
+  un cupón sin el permiso.
+- **El único camino que escribe precios de línea es `POST /api/propuestas`**
+  (`crearPropuesta`). Ni `PATCH /api/propuestas/[id]` (descuento, nombre,
+  notas), ni `PATCH /api/propuestas/items/[id]` (solo `aprobado`), ni la
+  renegociación (sube versión por el descuento), ni el paquete (sustituye el
+  bruto, no toca líneas) reescriben `precio` ni `tarifa_unitaria`.
+- **Quién ajustó sale de la sesión**, nunca del cuerpo: el controller marca
+  `precioAjustado: true` y el repo estampa `usuarioActual().id`, el mismo
+  candado que el vendedor de VEND-01 (`PropuestaInput` sigue sin campo de
+  usuario).
+- **El cliente ve solo el precio final.** `obtenerPropuestaPublica` arma su
+  objeto campo por campo y no copia `tarifaCalculada` ni
+  `precioAjustadoPor*`; la e2e lo comprueba sobre el JSON crudo.
+- **El detalle interno** (`/propuestas/[id]`) enseña «Tarifa calculada $X ·
+  ajustada por {nombre}» en la línea ajustada. En la alta, el campo de tarifa
+  solo es editable con `usePuede('comercial','aprobar')`; para el vendedor es
+  texto.
+- **Lo que no cambia**: volumen, descuento comercial, cupón, paquete y snapshot
+  se componen encima del precio de la línea igual que antes.
+- **Lo histórico** queda con las dos columnas en `null`: no se rellena, porque
+  la tarifa de HOY no es la de entonces.
+
+Columnas en [[esquema]] · migración `20261006_precio_ajustado_por_gerente.sql`
+en [[migraciones]] · roles en [[roles-de-venta]].
 
 ## Portal del cliente
 
