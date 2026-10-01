@@ -222,3 +222,25 @@ export function FotoGirada({
     </div>
   )
 }
+
+// ─── La foto en grande (ampliar, evidencia de una falla) ───────────────────
+// Entera siempre (contain: una falla en una esquina no se puede recortar) pero
+// cabiendo en la pantalla: en un teléfono una vertical de 3264 px de alto ya
+// no obliga a desplazarse para verla. Para el detalle, el tamaño completo.
+export function VisorFoto({ src, alt }: { src: string; alt: string }) {
+  return (
+    <div className="space-y-2">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt={alt}
+        className="mx-auto block h-auto max-h-[60vh] w-auto max-w-full rounded border border-border object-contain sm:max-h-[65vh]"
+      />
+      <div className="text-center text-[12px]">
+        <a href={src} target="_blank" rel="noreferrer" className="text-accent hover:underline">
+          Abrir en tamaño completo
+        </a>
+      </div>
+    </div>
+  )
+}

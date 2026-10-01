@@ -7,7 +7,7 @@ import { cn } from '@/lib/cn'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
 import { seApi, fotoSE, ErrorSE } from '@/lib/data/space-eyes-se'
-import { fechaHora } from './piezas'
+import { VisorFoto, fechaHora } from './piezas'
 
 // ============================================================================
 //  Space Eyes — fallas de pantalla de TODA la flota.
@@ -388,18 +388,8 @@ export function FallasFlota() {
       </section>
 
       {/* Evidencia en grande */}
-      <Modal open={!!verFoto} onOpenChange={(v) => !v && setVerFoto(null)} size="xl" title="Evidencia">
-        {verFoto && (
-          <div className="space-y-2">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={verFoto} alt="Evidencia de la falla" className="mx-auto max-h-[70vh] rounded border border-border object-contain" />
-            <div className="text-center text-[12px]">
-              <a href={verFoto} target="_blank" rel="noreferrer" className="text-accent hover:underline">
-                Abrir en otra pestaña
-              </a>
-            </div>
-          </div>
-        )}
+      <Modal open={!!verFoto} onOpenChange={(v) => !v && setVerFoto(null)} size="lg" title="Evidencia">
+        {verFoto && <VisorFoto src={verFoto} alt="Evidencia de la falla" />}
       </Modal>
 
       <DialogoCierre cierre={cerrando} onCancelar={() => setCerrando(null)} onConfirmar={confirmarCierre} />

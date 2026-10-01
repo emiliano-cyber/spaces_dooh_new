@@ -32,7 +32,7 @@ import {
   type FichaEquipoDatos,
   type FotoEquipo,
 } from '@/lib/data/space-eyes-api'
-import { Bateria, FotoGirada, PildoraConexion, Senal, calidadSenal, estaEnLinea, fechaHora, gigas, hace } from './piezas'
+import { Bateria, FotoGirada, PildoraConexion, VisorFoto, Senal, calidadSenal, estaEnLinea, fechaHora, gigas, hace } from './piezas'
 import { Historial } from './Historial'
 import { PantallaYCreativos } from './PantallaYCreativos'
 import { VistaEnVivo } from './VistaEnVivo'
@@ -648,11 +648,8 @@ export function FichaEquipo({ id }: { id: number }) {
       </Tabs>
 
       {/* Lightbox */}
-      <Modal open={!!ampliada} onOpenChange={(v) => !v && setAmpliada(null)} size="xl" title={equipo.nombre}>
-        {ampliada && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={ampliada} alt={`Fotografía de ${equipo.nombre}`} className="w-full rounded border border-border object-contain" />
-        )}
+      <Modal open={!!ampliada} onOpenChange={(v) => !v && setAmpliada(null)} size="lg" title={equipo.nombre}>
+        {ampliada && <VisorFoto src={ampliada} alt={`Fotografía de ${equipo.nombre}`} />}
       </Modal>
     </div>
   )
