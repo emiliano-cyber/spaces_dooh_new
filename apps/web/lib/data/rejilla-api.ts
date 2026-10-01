@@ -50,13 +50,13 @@ async function fallar(r: Response, porOmision: string): Promise<never> {
 export async function catalogoRejillaApi(
   inactivas = false,
 ): Promise<{ franjas: FranjaUI[]; temporadas: TemporadaUI[] }> {
-  const r = await fetch(`/api/rejilla/franjas/${inactivas ? '?inactivas=1' : ''}`)
+  const r = await fetch(`/spaces-dooh/api/rejilla/franjas/${inactivas ? '?inactivas=1' : ''}`)
   if (!r.ok) return fallar(r, 'No se pudo leer el catálogo de franjas')
   return r.json()
 }
 
 export async function guardarFranjaApi(f: Partial<FranjaUI>): Promise<FranjaUI> {
-  const r = await fetch(f.id ? `/api/rejilla/franjas/${f.id}/` : '/api/rejilla/franjas/', {
+  const r = await fetch(f.id ? `/spaces-dooh/api/rejilla/franjas/${f.id}/` : '/spaces-dooh/api/rejilla/franjas/', {
     method: f.id ? 'PATCH' : 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(f),
@@ -66,12 +66,12 @@ export async function guardarFranjaApi(f: Partial<FranjaUI>): Promise<FranjaUI> 
 }
 
 export async function bajaFranjaApi(id: string): Promise<void> {
-  const r = await fetch(`/api/rejilla/franjas/${id}/`, { method: 'DELETE' })
+  const r = await fetch(`/spaces-dooh/api/rejilla/franjas/${id}/`, { method: 'DELETE' })
   if (!r.ok) await fallar(r, 'No se pudo dar de baja la franja')
 }
 
 export async function guardarTemporadaApi(t: Partial<TemporadaUI>): Promise<TemporadaUI> {
-  const r = await fetch(t.id ? `/api/rejilla/temporadas/${t.id}/` : '/api/rejilla/temporadas/', {
+  const r = await fetch(t.id ? `/spaces-dooh/api/rejilla/temporadas/${t.id}/` : '/spaces-dooh/api/rejilla/temporadas/', {
     method: t.id ? 'PATCH' : 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(t),
@@ -81,12 +81,12 @@ export async function guardarTemporadaApi(t: Partial<TemporadaUI>): Promise<Temp
 }
 
 export async function bajaTemporadaApi(id: string): Promise<void> {
-  const r = await fetch(`/api/rejilla/temporadas/${id}/`, { method: 'DELETE' })
+  const r = await fetch(`/spaces-dooh/api/rejilla/temporadas/${id}/`, { method: 'DELETE' })
   if (!r.ok) await fallar(r, 'No se pudo dar de baja la temporada')
 }
 
 export async function rejillaDeSitioApi(sitioId: string): Promise<FilaRejillaUI[]> {
-  const r = await fetch(`/api/sitios/${sitioId}/rejilla/`)
+  const r = await fetch(`/spaces-dooh/api/sitios/${sitioId}/rejilla/`)
   if (!r.ok) return fallar(r, 'No se pudo leer la rejilla de tarifas')
   return (await r.json()).rejilla ?? []
 }
@@ -104,7 +104,7 @@ export async function actualizarRejillaApi(
     quitar?: { unidad: string; franjaId: string | null; temporadaId: string | null }[]
   },
 ): Promise<FilaRejillaUI[]> {
-  const r = await fetch(`/api/sitios/${sitioId}/rejilla/`, {
+  const r = await fetch(`/spaces-dooh/api/sitios/${sitioId}/rejilla/`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(cambios),

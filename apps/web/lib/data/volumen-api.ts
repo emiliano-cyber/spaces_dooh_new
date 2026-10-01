@@ -30,7 +30,7 @@ async function fallar(r: Response, porOmision: string): Promise<never> {
 
 /** Los tramos de la organización, ordenados por unidad y umbral. */
 export async function escalasVolumenApi(): Promise<TramoVolumenUI[]> {
-  const r = await fetch('/api/volumen/escalas/')
+  const r = await fetch('/spaces-dooh/api/volumen/escalas/')
   if (!r.ok) return fallar(r, 'No se pudo leer la escala de volumen')
   const d = (await r.json()) as { tramos: TramoVolumenUI[] }
   return d.tramos ?? []
@@ -39,7 +39,7 @@ export async function escalasVolumenApi(): Promise<TramoVolumenUI[]> {
 export async function guardarTramoVolumenApi(
   t: Partial<TramoVolumenUI>,
 ): Promise<TramoVolumenUI> {
-  const r = await fetch(t.id ? `/api/volumen/escalas/${t.id}/` : '/api/volumen/escalas/', {
+  const r = await fetch(t.id ? `/spaces-dooh/api/volumen/escalas/${t.id}/` : '/spaces-dooh/api/volumen/escalas/', {
     method: t.id ? 'PATCH' : 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
@@ -60,6 +60,6 @@ export async function guardarTramoVolumenApi(
  * apunta a la fila.
  */
 export async function borrarTramoVolumenApi(id: string): Promise<void> {
-  const r = await fetch(`/api/volumen/escalas/${id}/`, { method: 'DELETE' })
+  const r = await fetch(`/spaces-dooh/api/volumen/escalas/${id}/`, { method: 'DELETE' })
   if (!r.ok) await fallar(r, 'No se pudo eliminar el tramo')
 }

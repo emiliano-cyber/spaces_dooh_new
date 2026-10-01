@@ -35,7 +35,7 @@ async function fallar(r: Response, porOmision: string): Promise<never> {
 
 /** Los cupones de la organización, con su cuenta de canjes. */
 export async function codigosApi(): Promise<CodigoPromocionalUI[]> {
-  const r = await fetch('/api/codigos-promocionales/')
+  const r = await fetch('/spaces-dooh/api/codigos-promocionales/')
   if (!r.ok) return fallar(r, 'No se pudieron leer los códigos promocionales')
   const d = (await r.json()) as { codigos: CodigoPromocionalUI[] }
   return d.codigos ?? []
@@ -45,7 +45,7 @@ export async function guardarCodigoApi(
   c: Partial<CodigoPromocionalUI>,
 ): Promise<CodigoPromocionalUI> {
   const r = await fetch(
-    c.id ? `/api/codigos-promocionales/${c.id}/` : '/api/codigos-promocionales/',
+    c.id ? `/spaces-dooh/api/codigos-promocionales/${c.id}/` : '/spaces-dooh/api/codigos-promocionales/',
     {
       method: c.id ? 'PATCH' : 'POST',
       headers: { 'content-type': 'application/json' },
@@ -71,7 +71,7 @@ export async function guardarCodigoApi(
  * dice, porque es la única consecuencia que no se ve.
  */
 export async function borrarCodigoApi(id: string): Promise<void> {
-  const r = await fetch(`/api/codigos-promocionales/${id}/`, { method: 'DELETE' })
+  const r = await fetch(`/spaces-dooh/api/codigos-promocionales/${id}/`, { method: 'DELETE' })
   if (!r.ok) await fallar(r, 'No se pudo eliminar el código')
 }
 
@@ -88,7 +88,7 @@ export async function aplicarCodigoApi(
   propuestaId: string,
   codigo: string,
 ): Promise<{ codigo: string; descuentoPct: number }> {
-  const r = await fetch(`/api/propuestas/${propuestaId}/codigo/`, {
+  const r = await fetch(`/spaces-dooh/api/propuestas/${propuestaId}/codigo/`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ codigo }),
@@ -101,6 +101,6 @@ export async function aplicarCodigoApi(
 
 /** Quita el código de la propuesta y DEVUELVE EL USO al cupón. */
 export async function quitarCodigoApi(propuestaId: string): Promise<void> {
-  const r = await fetch(`/api/propuestas/${propuestaId}/codigo/`, { method: 'DELETE' })
+  const r = await fetch(`/spaces-dooh/api/propuestas/${propuestaId}/codigo/`, { method: 'DELETE' })
   if (!r.ok) await fallar(r, 'No se pudo quitar el código')
 }

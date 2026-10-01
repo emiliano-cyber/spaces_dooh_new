@@ -7,6 +7,20 @@ La entrada más reciente va arriba.
 
 ## 2026-09-30
 
+- **Arregladas seis pantallas que no cargaban nada.** *(Lo encontraste tú: «franjas
+  y temporadas no funciona».)*
+
+  **Franjas y temporadas**, **Códigos promocionales**, **Paquetes cerrados**,
+  **Descuentos por volumen**, las **tarifas por franja de cada pantalla**, el
+  **horario de transmisión** y la **subida de recibos de luz** se abrían pero no
+  traían ni guardaban nada. Pedían sus datos a una dirección equivocada (sin el
+  `/spaces-dooh` de la aplicación) y el servidor contestaba «no encontrado».
+  Lo que había por detrás funcionaba; lo que fallaba era el camino desde la
+  pantalla.
+
+  Ya cargan y guardan. Y ahora hay una revisión automática que avisa si alguna
+  pantalla nueva vuelve a pedir datos por el camino equivocado.
+
 - **Comercial OPEX, mejor acomodado; y Captación sale del menú por ahora.**
   *(Pedido tuyo del 30/09.)*
 
