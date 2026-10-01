@@ -1,7 +1,7 @@
 ---
 tipo: tablero
 estado: verificado
-actualizado: 2026-09-30
+actualizado: 2026-10-01
 tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
@@ -21,6 +21,14 @@ archivos: []
 > contacto `docs/Registro_Cambios.md`. **NO se tocó** `lib/data/codigos-api.ts`
 > (lo arregla `fix/api-prefijo`), `db/schema.sql`, `aislamiento.e2e.test.ts` ni
 > `servidor-e2e.ts`. Detalle en [[02-Backend/codigo-promocional]] §8.
+
+> [!success] 2026-10-01 · **v0.9.0 en `estable`; PADRE y DEMO actualizados. g500 sigue pendiente**
+> El dueño empujó `main`, etiquetó y promovió `v0.9.0`, y corrió PADRE y DEMO con
+> los comandos de la sesión. Dos minas en el PADRE (migrar con `spaces_app` y
+> tipos `enum` de `postgres`) y un defecto en DEMO (pantallas digitales del CSV
+> que se reservaban fijas), arreglado con `20261004_pantallas_digitales_importadas.sql`
+> y **comprobado por el dueño en DEMO**. Zonas: todas LIBRES. Siguiente: etiquetar
+> `v0.9.1` y mover g500 a PostgreSQL 16. Detalle en [[07-Agentes/diario/2026-10-01]].
 
 > [!important] 2026-09-30 · **Seis funciones en `main` (`8063181c`) — SIN EMPUJAR**
 > Captación (CAP-01), login 503 con la base caída, almacén por tipo (ALM-01),

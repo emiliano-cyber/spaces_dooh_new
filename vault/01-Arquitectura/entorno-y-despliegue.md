@@ -111,6 +111,17 @@ archivos:
 ---
 # Entorno y despliegue
 
+> [!danger] 2026-10-01 · El PADRE se migra con `spaces_migrador`, NO con `padre.env`
+> `padre.env` es la configuración de la app y entra como `spaces_app`, que **no
+> puede crear tablas** (`permission denied for schema public`). Las tablas de
+> `spaces_prod` son de `spaces_migrador`, y su URL está en `demo-instancia.env`
+> (los roles son de todo el servidor): se usa cambiando solo el nombre de la base.
+> Y los **29 tipos `enum`** de `spaces_prod` y `spaces_demo` eran de `postgres`
+> —`alter type … add value` moría con `must be owner of type rol_demo`—: el
+> 01/10 se pasaron a `spaces_migrador`. **g500 puede tener lo mismo**; la guía
+> lo comprueba en su paso B5-bis. Comandos exactos y lo que se dejó sin tocar en
+> [[07-Agentes/diario/2026-10-01]].
+
 > [!important] 2026-09-30 · La versión del 30/09 y el traslado de g500 a PostgreSQL 16
 > Guía paso a paso para una persona: `docs/evidencias/21-publicar-y-mover-g500-20260930.md`
 > (copia con las IPs rellenas en `Downloads`). **A**: empujar `main`, etiquetar,

@@ -96,17 +96,32 @@ construye la imagen y la publica como `v0.9.0` y como `beta`. **No toca
 
 La consola web **se come el primer carácter** de cada pegado: antepón `echo ok;`.
 
+> [!danger] 2026-10-01 · ESTE PASO NO MIGRABA, y el código nuevo necesita las columnas nuevas
+> Corrido de verdad el 01/10, con dos minas que esta guía no tenía. Detalle en
+> `vault/07-Agentes/diario/2026-10-01.md`:
+> 1. **`padre.env` entra como `spaces_app`**, que no puede crear tablas
+>    (`permission denied for schema public`). Se migra con **`spaces_migrador`**,
+>    cuya URL está en `demo-instancia.env`, cambiando solo el nombre de la base.
+> 2. **Los 29 tipos `enum` eran de `postgres`** (`must be owner of type
+>    rol_demo`). Se movieron a `spaces_migrador` en `spaces_prod` y `spaces_demo`
+>    el 01/10: **en el PADRE ya no hace falta repetirlo**.
+
 ```bash
-echo ok; cd /var/www/Spaces && git pull
-npm install
-git checkout -- package-lock.json
-npm run build
+echo ok; cd /var/www/Spaces && git pull && git log --oneline -1
+U=$(grep '^DATABASE_URL=' /etc/space-os/demo-instancia.env | cut -d= -f2- | sed 's#/spaces_demo#/spaces_prod#')
+DATABASE_URL="$U" node scripts/migrar.mjs --pendientes; echo "codigo=$?"
+DATABASE_URL="$U" node scripts/migrar.mjs; echo "codigo=$?"
+npm install && git checkout -- package-lock.json && npm run build && echo BUILD_OK
 chown -R padre:padre apps/web/.next
 systemctl daemon-reload
 systemctl restart spaces-web
 install -m 750 /var/www/Spaces/infra/scripts/update.sh /opt/space-os/update.sh
 install -m 750 /var/www/Spaces/infra/scripts/respaldo.sh /opt/space-os/respaldo.sh
 ```
+
+**Migrar ANTES del build y del reinicio**: si reinicias primero, el código nuevo
+busca columnas que la base todavía no tiene. Y si el build no dice `BUILD_OK`,
+no reinicies: el PADRE sigue sirviendo la versión anterior sin problema.
 
 Las dos últimas líneas importan: **`update.sh` no se actualiza solo** — solo lo
 escriben los scripts de alta. Sin ellas DEMO y g500 correrían el de antes.
@@ -144,6 +159,14 @@ primera vez con el build de la imagen.**
 ---
 
 ## B · Mover g500 a un droplet nuevo con PostgreSQL 16
+
+> [!important] 2026-10-01 · g500 se muda con `v0.9.1`, NO con `v0.9.0`
+> La corrección de las pantallas digitales importadas
+> (`20261004_pantallas_digitales_importadas.sql`) está en `main` desde
+> `5c18e59a` pero **no dentro de la imagen `v0.9.0`**. g500 tiene datos reales
+> y pudo cargar pantallas con el CSV antes del 29/09. Antes de B6: etiqueta
+> `v0.9.1` sobre `main` (A2 con ese número) y espera a que `release.yml` la
+> publique en `beta`.
 
 **Por qué hace falta.** g500 corre PostgreSQL 14.24 y
 `20260918_entidad_tenant_compuesto.sql` exige 15 (`on delete set null (col)`).
@@ -296,6 +319,39 @@ echo "restore=$?"
 
 `restore=0`. Si sale otra cosa, **no sigas**: pega la salida.
 
+### B5-bis · Los dueños, ANTES de migrar (droplet NUEVO)
+
+El 01/10 el PADRE topó con que sus 29 tipos `enum` eran de `postgres`, y la
+migración `20260929_roles_de_venta_enum.sql` murió con `must be owner of type
+rol_demo`. La base de g500 nació igual, así que **puede tener lo mismo**. Mira
+primero (solo lee):
+
+```bash
+sudo -u postgres psql -d spaces -P pager=off -Atc "select 'tipo'::text, t.typname::text, pg_get_userbyid(t.typowner)::text from pg_type t join pg_namespace n on n.oid=t.typnamespace where n.nspname='public' and t.typtype in ('e','d') and pg_get_userbyid(t.typowner)<>'spaces_migrador' union all select 'tabla'::text, c.relname::text, pg_get_userbyid(c.relowner)::text from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind in ('r','v','S') and pg_get_userbyid(c.relowner)<>'spaces_migrador' order by 1,2"
+```
+
+- **No sale nada:** bien, sigue a B6.
+- **Salen tipos de `postgres`:** muévelos, igual que en el PADRE:
+
+```bash
+sudo -u postgres psql -P pager=off -v ON_ERROR_STOP=1 -d spaces <<'SQL'
+do $$
+declare r record; n int := 0;
+begin
+  for r in select t.typname from pg_type t join pg_namespace ns on ns.oid = t.typnamespace
+           where ns.nspname = 'public' and t.typtype in ('e','d') and pg_get_userbyid(t.typowner) = 'postgres'
+  loop
+    execute format('alter type public.%I owner to spaces_migrador', r.typname);
+    n := n + 1;
+  end loop;
+  raise notice 'tipos movidos: %', n;
+end $$;
+SQL
+```
+
+- **Salen TABLAS de otro dueño:** **para y pega la salida**. Eso no pasó en el
+  PADRE y no se arregla a ciegas.
+
 ### B6 · Migraciones, en seco y luego de verdad (droplet NUEVO)
 
 Usa el runner **de la imagen**, que es el mismo que usará `update.sh`. Sigue en
@@ -304,7 +360,7 @@ registry con su token de solo lectura:
 
 ```bash
 set -a; . /etc/space-os/instancia.env; set +a
-IMG="$REGISTRY/${IMAGEN_NOMBRE:-space-os}:v0.9.0"; echo "$IMG"
+IMG="$REGISTRY/${IMAGEN_NOMBRE:-space-os}:v0.9.1"; echo "$IMG"
 echo "$REGISTRY_TOKEN" | docker login "${REGISTRY%%/*}" -u "$REGISTRY_TOKEN" --password-stdin
 docker run --rm --network host -e DATABASE_URL="postgresql://spaces_migrador:$MIG_PASS@127.0.0.1:5432/spaces" "$IMG" node scripts/migrar.mjs --pendientes
 echo "codigo=$?"
