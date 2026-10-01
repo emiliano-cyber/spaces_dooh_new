@@ -99,6 +99,7 @@ cobranza.
 - [[03-Frontend/_indice|Índice de Frontend]] — mapa de la capa cliente
 - [[shell-y-navegacion]] — layouts, sidebar, topbar, guards de UI
 - [[acceso-y-sesion-ui]] — login, recuperar, autoregistro
+- [[idiomas-es-en]] — la aplicación en español e inglés: cómo se detecta, cómo se cambia, y por qué el dinero no se mueve
 - [[modulos-internos]] — las 22 pantallas del shell
 - [[paginas-publicas]] — portal, firma, propuesta compartible, OT móvil
 - [[estado-y-data-fetching]] — React Query, zustand, el parche de `fetch`

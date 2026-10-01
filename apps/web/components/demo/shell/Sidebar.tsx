@@ -7,6 +7,8 @@ import { ExternalLink, Menu, X } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { SpaceOsMark } from '@/components/demo/ui/SpaceOsMark'
 import { TOKEN_TELCO, useConfigNegocio } from '@/lib/data/client'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { DICCIONARIOS as DIC, type ClaveTexto } from '@/lib/i18n/diccionario'
 import { useSesionCtx } from './SesionContext'
 import { NAV, GRUPOS } from './nav'
 import { useMenuMovil } from './MenuMovilContext'
@@ -57,6 +59,19 @@ function SidebarContent({
   const pathname = usePathname()
   const { sesion } = useSesionCtx()
   const config = useConfigNegocio()
+  // I18N-01. El menú se traduce POR LA CLAVE QUE CADA ENTRADA YA TIENE
+  // (`n.key`, `g.key`), no por su rótulo. Es lo que permite que
+  // `components/demo/shell/nav.ts` —ARCHIVO DE ALTO CONTACTO— no cambie ni una
+  // línea: el `label` sigue siendo la verdad en español y el diccionario cuelga
+  // de la misma clave estable que ya usaban `AuthGate` y `nav.test.ts`.
+  //
+  // El respaldo a `n.label` no debería dispararse —`diccionario.test.ts` exige
+  // que las 26 entradas y los 5 grupos existan en los dos idiomas— pero está
+  // porque añadir una entrada al menú y olvidar su texto no puede dejar un
+  // hueco en blanco en la barra de todo el mundo.
+  const { t, idioma } = useIdioma()
+  const rotulo = (clave: string, respaldo: string) =>
+    clave in DIC[idioma] ? t(clave as ClaveTexto) : respaldo
   const rol = sesion?.usuario.rol ?? 'DUENO'
 
   // Cliente externo: no ve módulos internos, sólo su portal.
@@ -101,7 +116,7 @@ function SidebarContent({
         {!colapsado && (
           config?.logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={config.logoUrl} alt="logo" className="h-10 w-10 shrink-0 rounded object-contain" />
+            <img src={config.logoUrl} alt={t('sidebar.logo-alt')} className="h-10 w-10 shrink-0 rounded object-contain" />
           ) : (
             <SpaceOsMark className="h-10 w-10 shrink-0" />
           )
@@ -117,11 +132,11 @@ function SidebarContent({
           </div>
         )}
         {onAlternarColapso && (
-          <Globo activo texto={colapsado ? 'Expandir menú' : 'Colapsar menú'}>
+          <Globo activo texto={colapsado ? t('sidebar.expandir') : t('sidebar.colapsar')}>
             <button
               type="button"
               onClick={onAlternarColapso}
-              aria-label={colapsado ? 'Expandir menú' : 'Colapsar menú'}
+              aria-label={colapsado ? t('sidebar.expandir') : t('sidebar.colapsar')}
               aria-expanded={!colapsado}
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded text-muted transition-colors duration-150 hover:bg-surface-2 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
             >
@@ -139,27 +154,27 @@ function SidebarContent({
       <nav className={cn('min-h-0 flex-1 overflow-y-auto', colapsado ? 'px-1.5 py-1.5' : 'px-2 py-1.5')}>
         {items.length === 0 ? (
           colapsado ? (
-            <Globo activo texto="Abrir portal">
+            <Globo activo texto={t('sidebar.abrir-portal')}>
               <Link
                 href={`/portal/${TOKEN_TELCO}`}
                 onClick={onNavegar}
                 className="flex h-10 items-center justify-center rounded text-info hover:bg-surface-2"
               >
                 <ExternalLink className="h-4 w-4" />
-                <span className="sr-only">Abrir portal</span>
+                <span className="sr-only">{t('sidebar.abrir-portal')}</span>
               </Link>
             </Globo>
           ) : (
             <div className="px-2 py-4">
               <p className="text-[13px] text-muted">
-                Como cliente externo sólo tienes acceso a tu portal.
+                {t('sidebar.solo-portal')}
               </p>
               <Link
                 href={`/portal/${TOKEN_TELCO}`}
                 onClick={onNavegar}
                 className="mt-3 inline-flex items-center gap-1.5 text-[13px] font-medium text-info hover:underline"
               >
-                Abrir portal <ExternalLink className="h-3.5 w-3.5" />
+                {t('sidebar.abrir-portal')} <ExternalLink className="h-3.5 w-3.5" />
               </Link>
             </div>
           )
@@ -176,7 +191,7 @@ function SidebarContent({
                 ) : (
                   <li key={`tit-${seccion.key}`}>
                     <h2 className="px-2.5 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wider text-muted">
-                      {seccion.titulo}
+                      {rotulo(`nav.grupo.${seccion.key}`, seccion.titulo)}
                     </h2>
                   </li>
                 )
@@ -186,7 +201,7 @@ function SidebarContent({
               const Icon = n.icon
               return (
                 <li key={n.key}>
-                  <Globo activo={colapsado} texto={n.label}>
+                  <Globo activo={colapsado} texto={rotulo(`nav.${n.key}`, n.label)}>
                   <Link
                     href={n.href}
                     onClick={onNavegar}
@@ -206,7 +221,7 @@ function SidebarContent({
                       className={cn('h-4 w-4 shrink-0', active ? 'text-accent' : '')}
                       strokeWidth={1.75}
                     />
-                    <span className={cn(colapsado && 'sr-only')}>{n.label}</span>
+                    <span className={cn(colapsado && 'sr-only')}>{rotulo(`nav.${n.key}`, n.label)}</span>
                   </Link>
                   </Globo>
                 </li>
@@ -223,7 +238,7 @@ function SidebarContent({
       <div className="mt-auto shrink-0 border-t border-border">
         {!colapsado && (
           <p className="px-2.5 py-1.5 text-[10px] leading-none text-muted">
-            Derechos reservados
+            {t('sidebar.derechos')}
           </p>
         )}
       </div>

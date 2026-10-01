@@ -31,6 +31,7 @@ Router en uso**.
 | [[comercial-opex]] | Prospección de arrendadores. **MAQUETA sin base**, y se solapa con Captación |
 | [[paginas-publicas]] | Portal, firma, propuesta compartible, OT móvil |
 | [[estado-y-data-fetching]] | React Query, zustand, el parche de `fetch` |
+| [[idiomas-es-en]] | La aplicacion en espanol e ingles: deteccion, cambio manual, el dinero |
 
 ## Los tres niveles de layout
 

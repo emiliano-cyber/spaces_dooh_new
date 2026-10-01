@@ -28,6 +28,62 @@ La entrada más reciente va arriba.
   la competencia y el historial de ofertas de renta, que Captacion no tiene.
   Cuando esto se construya de verdad hay que decidir si se hace **encima** de
   Captacion o aparte; aparte significaria llevar la misma bitacora dos veces.
+- **La aplicación ya existe en INGLÉS, y se elige sola.** *(Lo pediste el
+  30/09: «que la aplicación exista en dos idiomas y que el idioma se elija solo,
+  según el del navegador de quien entra».)*
+
+  Quien entre con el navegador en inglés **ve la aplicación en inglés desde el
+  primer instante**. No parpadea: no se pinta español y luego salta — sale ya
+  en su idioma.
+
+  Y si alguien prefiere el otro, **hay un selector al pie de la pantalla de
+  entrar**. En cuanto lo toca, **manda su elección y no la del navegador**, para
+  siempre.
+
+  Lo que **ya está traducido de verdad**:
+
+  - **La pantalla de entrar**, entera: los tres modos (entrar, crear cuenta y
+    recuperar contraseña), todos los campos, los botones, los avisos y los seis
+    mensajes del acceso con Google.
+  - **El menú lateral**, que sale en todas las pantallas: las **26 entradas** y
+    los **5 encabezados** de grupo.
+
+  Lo que **todavía NO**, dicho de frente para que nadie se lleve una sorpresa:
+
+  - **El resto de las pantallas siguen en español.** Son unas cien, con ~1261
+    textos: traducirlas de una sentada no era realista y no se fingió. Queda un
+    inventario contado, por áreas, para repartirlo en lotes.
+  - **Los mensajes de error que manda el servidor siguen en español.** O sea
+    que alguien con la aplicación en inglés verá el formulario en inglés y, si
+    algo falla, el aviso en español — justo en el peor momento. Es un trabajo
+    aparte y grande (253 mensajes repartidos por 42 archivos), y se hace en su
+    propio lote.
+
+  **El dinero no se movió, y se probó que no.** *(Tu confirmación del 30/09: «el
+  sistema se rige 100 % en pesos mexicanos por ahora, después lo moveremos».)*
+  Cambiar de idioma **solo cambia cómo se escribe un importe**, nunca cuánto
+  vale ni en qué moneda está. En inglés, de hecho, queda **más claro**: donde
+  en español se lee `$1,234.50` —que un lector en inglés podría tomar por
+  dólares— en inglés se lee `MX$1,234.50`, que dice pesos con todas las letras.
+  La moneda está escrita **en un solo sitio** del programa, para que el día que
+  se mueva sea un cambio y no veinte.
+
+  **Una cosa que hay que decidir, y que apareció al medir:** el programa de hoy
+  **no está al 100 % en pesos**. Al capturar un contrato con un arrendador se
+  puede elegir **dólares**, y los totales del panel ya saben sumar por moneda
+  separada. No se tocó nada de eso, pero o sobra esa opción o hay que
+  contemplarla — conviene decidirlo antes de traducir cuarenta pantallas.
+
+  **Dos preguntas más para ti**: si el inglés debe ser **de Estados Unidos o
+  británico** (hoy es de EE. UU., por suponer), y si el idioma debe recordarse
+  **por persona o por dispositivo** (hoy es por dispositivo: quien elija inglés
+  en su computadora seguirá viendo español en su teléfono). Hacerlo por persona
+  pide un cambio en la base de datos, y ésos no se hacen sin que los apruebes.
+
+  **Lo que nadie comprobó:** *no se abrió un navegador*. Todo está verificado
+  con las pruebas automáticas y con el build, pero **el selector no se pulsó
+  nunca en una pantalla real**.
+
 
 - **Ahora puedes decir en qué horario SE TRANSMITE cada campaña.** *(Tu decisión
   del 30/09: «es para horario transmisión ya que el precio ya debe de estar en la

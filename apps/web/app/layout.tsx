@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import { Inter, Source_Serif_4 } from 'next/font/google'
 import './globals.css'
 import { Providers } from './providers'
+import { idiomaDeLaPeticion } from '@/lib/i18n/servidor'
+import { ProveedorIdioma } from '@/lib/i18n/contexto'
 
 export const metadata: Metadata = {
   title: 'Spaces DOOH',
@@ -39,11 +41,32 @@ const inter = Inter({
   display: 'swap',
 })
 
+// ── El idioma se decide AQUI, en el servidor, antes del primer byte ─────────
+//
+// I18N-01 (2026-09-30). Este layout lo monta TODO —incluidas las paginas
+// publicas, que no cuelgan de `(app)`—, asi que es el unico sitio desde el que
+// una sola decision alcanza a la aplicacion entera.
+//
+// Que se gana haciendolo aqui y no en el cliente: el HTML sale ya en el idioma
+// correcto y la hidratacion coincide, asi que NO HAY PARPADEO. Leer
+// `navigator.language` en el navegador obligaria a pintar espanol primero y
+// corregirlo despues, y ese salto se ve — en una demostracion, fatal.
+//
+// Y que se evita: `middleware.ts` no se toca. Es archivo de alto contacto, ahi
+// viven la sesion y el CSRF, y no hace falta para esto porque no se desvia
+// ninguna peticion: la misma URL responde en los dos idiomas.
+//
+// `lang` en el `<html>` no es decoracion: es lo que usan los lectores de
+// pantalla para elegir voz y el navegador para ofrecer la traduccion. Hasta hoy
+// decia `es` fijo, y para un usuario en ingles eso era una afirmacion falsa.
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const idioma = idiomaDeLaPeticion()
   return (
-    <html lang="es" className={`${serif.variable} ${inter.variable}`}>
+    <html lang={idioma} className={`${serif.variable} ${inter.variable}`}>
       <body>
-        <Providers>{children}</Providers>
+        <ProveedorIdioma idioma={idioma}>
+          <Providers>{children}</Providers>
+        </ProveedorIdioma>
       </body>
     </html>
   )

@@ -21,15 +21,47 @@
 //  sustituye la comprobación.
 // ============================================================================
 
+// ─── El MOTIVO, aparte del mensaje (I18N-01, 2026-09-30) ────────────────────
+//
+// `validarPassword` devuelve una frase en español, y esa frase se enseña tal
+// cual. Con la interfaz en dos idiomas eso deja de bastar: el formulario de
+// acceso tiene que poder decir lo mismo en inglés sin que el servidor cambie.
+//
+// La salida es doble a propósito, y en este orden:
+//
+//   · `motivoPassword` devuelve un CÓDIGO — el dato, estable, traducible;
+//   · `validarPassword` lo convierte en la frase en español de siempre.
+//
+// `validarPassword` NO cambia de firma ni de texto: la usan el servidor
+// (`lib/server/auth.ts` la reexporta para sus doce llamadores) y otros tres
+// formularios, y ninguno se entera de esto. Lo nuevo es aditivo.
+export type MotivoPassword = 'corta' | 'sin-letra' | 'sin-numero' | 'con-espacios'
+
+export function motivoPassword(plano: unknown): MotivoPassword | null {
+  const p = typeof plano === 'string' ? plano : ''
+  if (p.length < 8) return 'corta'
+  if (!/[a-zA-Z]/.test(p)) return 'sin-letra'
+  if (!/[0-9]/.test(p)) return 'sin-numero'
+  if (/\s/.test(p)) return 'con-espacios'
+  return null
+}
+
+// Los mismos textos que había antes, palabra por palabra. Siguen viviendo aquí
+// y no en el diccionario de i18n porque este módulo lo importa el SERVIDOR, que
+// no tiene idioma de usuario: el servidor contesta en español (ver el informe
+// I18N-01), y el navegador traduce por su cuenta a partir del código de arriba.
+const MENSAJE_ES: Record<MotivoPassword, string> = {
+  corta: 'La contraseña debe tener al menos 8 caracteres',
+  'sin-letra': 'La contraseña debe incluir al menos una letra',
+  'sin-numero': 'La contraseña debe incluir al menos un número',
+  'con-espacios': 'La contraseña no puede contener espacios',
+}
+
 // Devuelve el motivo por el que NO vale, o null si vale. Los mensajes van en
 // español y en segunda persona porque se enseñan tal cual al usuario.
 export function validarPassword(plano: unknown): string | null {
-  const p = typeof plano === 'string' ? plano : ''
-  if (p.length < 8) return 'La contraseña debe tener al menos 8 caracteres'
-  if (!/[a-zA-Z]/.test(p)) return 'La contraseña debe incluir al menos una letra'
-  if (!/[0-9]/.test(p)) return 'La contraseña debe incluir al menos un número'
-  if (/\s/.test(p)) return 'La contraseña no puede contener espacios'
-  return null
+  const motivo = motivoPassword(plano)
+  return motivo ? MENSAJE_ES[motivo] : null
 }
 
 // Lo que se le promete al usuario ANTES de teclear. Se deriva de la función de
