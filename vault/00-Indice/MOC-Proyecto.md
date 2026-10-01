@@ -27,9 +27,9 @@ cobranza.
 | Base de datos | PostgreSQL, `pg` directo (sin ORM) | `apps/web/lib/server/db.ts:2` |
 | Aislamiento | RLS de Postgres por `app.tenant_id` | `apps/web/lib/server/db.ts:60` y `:79` |
 | Producción | **El PADRE `137.184.107.53` sirve `space-os.io`**, certificado propio hasta el **2026-11-23** con renovación automática. DEMO vive dentro de él (proceso `3001`, base `spaces_demo`) y desde el **31/08 se llama `pruebas.space-os.io`** — nombre nuevo, no `demo.space-os.io`, que es solo la demostración ORIGINAL, la sirve la máquina vieja y **se eliminará** ([ADR 0024](../../docs/adr/0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md), que sustituye al 0021) | `infra/nginx/space-os.io.conf:124` y `:188` · [ADR 0017](../../docs/adr/0017-todo-se-concentra-en-el-padre.md) · [ADR 0024](../../docs/adr/0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md) · [ADR 0022](../../docs/adr/0022-instancia-dedicada-por-owner.md) |
-| Endpoints | **123** route handlers | `apps/web/app/api/**/route.ts` |
+| Endpoints | **124** route handlers | `apps/web/app/api/**/route.ts` |
 | Tablas | **57** | [[esquema]] |
-| Migraciones | **103** | [[migraciones]] |
+| Migraciones | **104** | [[migraciones]] |
 | ADR | **40** (`0001`–`0040`) | `docs/adr/` · [[decisiones]] |
 
 > [!success] `demo.space-os.io` SE ELIMINARÁ — cerrado el 27/08 por el ADR 0024
@@ -94,6 +94,7 @@ cobranza.
 - [[integraciones-externas]] — DOOHmain, Space Eye, Spaces S3, Resend, Google
 - [[infraestructura-servidor]] — pool, errores, folios, rate limit, subidas
 - [[actualizaciones-instancia]] — ADR 0037: cada instancia elige si toma la versión nueva; el mapa de las cuatro piezas
+- [[notas-de-version]] — las notas de cada versión (`apps/web/novedades.json`): se escriben en el mismo PR, `release.yml` no publica sin ellas, el Dueño las ve antes de instalar y todos una vez después
 
 ### 03 · Frontend
 - [[03-Frontend/_indice|Índice de Frontend]] — mapa de la capa cliente
