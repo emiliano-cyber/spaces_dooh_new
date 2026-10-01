@@ -65,6 +65,27 @@ async function primerAdministrador() {
   console.log(`[Instancia] primer administrador creado: ${env.ADMIN_EMAIL}`);
 }
 
+/**
+ * La llave de ESTA instancia (INSTANCIA_LLAVE): la de la propia empresa, con la
+ * que su SPACE OS opera todo. Se reconoce por su prefijo, no por el dueño: otra
+ * llave del mismo dueño (una de solo lectura para un tercero) no hereda esto.
+ */
+export function esLlaveDeLaInstancia(llave: { prefijo: string; owner: string | null; escritura: boolean; uso: string }) {
+  if (!enModoInstancia() || !env.INSTANCIA_LLAVE) return false;
+  const m = FORMATO.exec(env.INSTANCIA_LLAVE);
+  return !!m && llave.prefijo === m[1] && llave.owner === env.INSTANCIA_OWNER && llave.escritura && llave.uso === 'lectura';
+}
+
+let operador: number | null = null;
+/** El usuario con el que actua SPACE OS: el primer administrador activo. */
+export async function operadorDeLaInstancia(): Promise<number | null> {
+  if (operador) return operador;
+  const [f] = await pool.query<any[]>(
+    `SELECT u.id FROM users u JOIN roles r ON r.id = u.role_id WHERE r.name = 'admin' AND u.active = TRUE ORDER BY u.id LIMIT 1`);
+  operador = (f as any[])[0]?.id ?? null;
+  return operador;
+}
+
 /** Se llama al arrancar. Idempotente: correrlo en cada arranque no duplica nada. */
 export async function prepararInstancia() {
   if (!enModoInstancia()) return;

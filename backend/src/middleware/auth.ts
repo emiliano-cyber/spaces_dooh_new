@@ -3,6 +3,7 @@ import { Request, Response, NextFunction } from 'express';
 import { userJwt, deviceJwt, UserTokenPayload, DeviceTokenPayload } from '../utils/jwt';
 import { env } from '../config/env';
 import { comprobar, pareceLlave, LlaveServicio } from '../utils/llaveServicio';
+import { esLlaveDeLaInstancia, operadorDeLaInstancia } from '../utils/instancia';
 
 declare global {
   namespace Express {
@@ -76,6 +77,23 @@ export async function requireUser(req: Request, res: Response, next: NextFunctio
     // no ir diciendo que clase de credencial es cada una.
     if (llave.uso !== 'lectura') {
       return res.status(401).json({ error: 'llave_invalida' });
+    }
+    // MODO INSTANCIA: la llave de la empresa, la que el alta dejo en app.env de
+    // SU SPACE OS (mismo droplet), opera todo el Space Eye: este Space Eye es
+    // solo de esa empresa, y SPACE OS es ahora su unico panel. Actua como el
+    // operador de la instancia (el primer administrador), asi el historial de
+    // ordenes sigue teniendo autor. Solo se le cierran la gestion de usuarios y
+    // de llaves, que es de operacion nuestra. En el Space Eye central esto no
+    // aplica y las llaves siguen con su lista blanca.
+    if (esLlaveDeLaInstancia(llave)) {
+      if (/^\/api\/(llaves|users)(\/|$)/.test(req.path)) {
+        return res.status(403).json({ error: 'ruta_no_permitida_para_llave' });
+      }
+      const uid = await operadorDeLaInstancia();
+      if (!uid) return res.status(503).json({ error: 'instancia_sin_operador' });
+      req.servicio = llave;
+      req.user = { uid, role: 'admin', type: 'access' };
+      return next();
     }
     // La escritura de una llave alcanza SOLO la captura: en cualquier otra ruta
     // de la lista, una llave solo lee aunque tenga la marca.
