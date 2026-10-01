@@ -15,45 +15,26 @@ import 'server-only'
 // ============================================================================
 
 const BASE = process.env.SPACE_EYE_BASE_URL ?? ''
-const USER = process.env.SPACE_EYE_USER ?? ''
-const PASS = process.env.SPACE_EYE_PASS ?? ''
 
-// La integración está activa solo si hay URL y credenciales configuradas.
+// Llave de servicio de ESTA instancia. Sustituye al usuario/contraseña con el
+// que se entraba antes, y no es un detalle de forma: esa cuenta era la de
+// administración de Space Eye y veía la flota COMPLETA, o sea las cámaras de
+// todos los clientes. La llave solo alcanza los equipos de su dueño, así que el
+// aislamiento entre instancias lo hace el servidor y no la suerte de que los
+// códigos de sitio no se repitan.
+//
+// No caduca, es de solo lectura y se revoca desde Space Eye. Por eso se fue
+// tambien todo el manejo de token: no hay login, ni caché, ni reintento por 401.
+const KEY = process.env.SPACE_EYE_KEY ?? ''
+
+// La integración está activa solo si hay URL y llave configuradas.
 export function spaceEyeHabilitado(): boolean {
-  return !!(BASE && USER && PASS)
+  return !!(BASE && KEY)
 }
 
-// El access token de Space Eye dura 15 min; lo cacheamos en memoria del proceso
-// con un margen para renovarlo antes de que expire.
-let tokenCache: { access: string; expira: number } | null = null
-
-async function login(): Promise<string> {
-  const r = await fetch(`${BASE}/api/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: USER, password: PASS }),
-  })
-  if (!r.ok) throw new Error(`Space Eye: login falló (${r.status})`)
-  const d = (await r.json()) as { access_token?: string }
-  if (!d.access_token) throw new Error('Space Eye: login sin token')
-  tokenCache = { access: d.access_token, expira: Date.now() + 12 * 60_000 }
-  return d.access_token
-}
-
-async function token(): Promise<string> {
-  if (tokenCache && tokenCache.expira > Date.now()) return tokenCache.access
-  return login()
-}
-
-// GET autenticado. Si el token caducó (401), reintenta una vez tras re-login.
+// GET autenticado con la llave de la instancia.
 async function api<T>(path: string): Promise<T> {
-  let t = await token()
-  let r = await fetch(`${BASE}${path}`, { headers: { Authorization: `Bearer ${t}` } })
-  if (r.status === 401) {
-    tokenCache = null
-    t = await login()
-    r = await fetch(`${BASE}${path}`, { headers: { Authorization: `Bearer ${t}` } })
-  }
+  const r = await fetch(`${BASE}${path}`, { headers: { Authorization: `Bearer ${KEY}` } })
   if (!r.ok) throw new Error(`Space Eye: ${path} → ${r.status}`)
   return (await r.json()) as T
 }
@@ -121,11 +102,13 @@ export async function visionDeCodigo(codigoProveedor: string | null | undefined)
   const dev = devices.find((d) => (d.billboard_code ?? '').trim().toLowerCase() === codigo)
   if (!dev) return { disponible: false, motivo: 'sin_camara' }
 
-  // Última foto de ese dispositivo (la más reciente). Filtramos por device por si
-  // el backend ignora el query param.
+  // Última foto de ese dispositivo (la más reciente). El parámetro es
+  // `device_id`: con `device` el backend lo ignoraba y devolvía las fotos de la
+  // flota entera, y lo único que salvaba la situación era el filtro de abajo.
+  // Se deja el filtro igual, como red.
   let foto: SEPhoto | undefined
   try {
-    const { photos } = await api<{ photos: SEPhoto[] }>(`/api/photos?device=${dev.id}&limit=5`)
+    const { photos } = await api<{ photos: SEPhoto[] }>(`/api/photos?device_id=${dev.id}&limit=5`)
     foto = photos.filter((p) => p.device_id === dev.id)[0]
   } catch {
     /* si falla la foto, igual devolvemos el estado del dispositivo */
@@ -144,7 +127,11 @@ export async function visionDeCodigo(codigoProveedor: string | null | undefined)
     },
     foto: foto
       ? {
-          url: `${BASE}${foto.storage_path}`,
+          // Por el proxy, igual que el módulo: esta sección ya existía y tenía
+          // el mismo fallo esperando en producción —una página HTTPS no carga
+          // una imagen HTTP—, solo que nadie lo había visto porque nunca se
+          // desplegó.
+          url: urlDeFoto(foto.storage_path),
           tomadaEn: foto.taken_at,
           ancho: foto.width,
           alto: foto.height,
@@ -155,4 +142,367 @@ export async function visionDeCodigo(codigoProveedor: string | null | undefined)
         }
       : null,
   }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  EL MÓDULO Space Eyes — la flota, no una pantalla
+// ----------------------------------------------------------------------------
+//  Lo de arriba responde una pregunta concreta: «de esta pantalla, ¿qué ve su
+//  cámara?». Lo de abajo es el módulo del menú, que empieza por la otra punta:
+//  todos los equipos de la instancia, y de ahí a uno.
+//
+//  Todo sale de la MISMA llave de servicio, así que el alcance no se decide
+//  aquí: el servidor de Space Eye solo entrega los equipos de su dueño. Esta
+//  parte no puede ampliar lo que se ve, solo presentarlo.
+// ════════════════════════════════════════════════════════════════════════════
+
+export interface SEEquipoResumen {
+  id: number
+  nombre: string
+  codigoPantalla: string | null
+  empresa: string | null
+  modelo: string | null
+  online: boolean
+  bateriaPct: number | null
+  senalDbm: number | null
+  redTipo: string | null
+  ultimaConexion: string | null
+  estatus: string | null
+  ultimaFoto: { url: string; tomadaEn: string | null } | null
+}
+
+export interface SEEquipoDetalle extends SEEquipoResumen {
+  uid: string | null
+  versionApp: string | null
+  fabricante: string | null
+  direccion: string | null
+  bateriaTemp: number | null
+  equipoTemp: number | null
+  redOperador: string | null
+  cargando: boolean | null
+  almacenamientoLibreMb: number | null
+  datos: { movilMes: number | null; wifiMes: number | null } | null
+  fotos: SEFotoModulo[]
+}
+
+export interface SEFotoModulo {
+  url: string
+  tomadaEn: string | null
+  ancho: number | null
+  alto: number | null
+  origen: string | null
+  verificacionEstatus: string | null
+  esCorrecta: boolean | null
+  score: number | null
+  gps: { lat: number; lng: number } | null
+}
+
+interface SEDeviceFila extends SEDevice {
+  owner?: string | null
+  device_uid?: string | null
+  app_version?: string | null
+  manufacturer?: string | null
+  address?: string | null
+  network_type?: string | null
+}
+
+// ─── Las fotos se sirven POR NOSOTROS, no por Space Eye ────────────────────
+//
+// Esta aplicación va por HTTPS y Space Eye puede ir por HTTP: un navegador NO
+// carga una imagen http dentro de una página https, la bloquea sin avisar. Así
+// que lo que viaja al cliente es SIEMPRE una ruta nuestra, y el proxy
+// (`/api/space-eyes/foto`) trae los bytes por detrás. Ver el comentario de esa
+// ruta para el porqué completo.
+//
+// Se guarda solo el camino (`/storage/...` con su firma), nunca la dirección de
+// Space Eye: el navegador no tiene por qué aprenderla.
+export function urlDeFoto(storagePath: string): string {
+  return `/spaces-dooh/api/space-eyes/foto/?p=${encodeURIComponent(storagePath)}`
+}
+
+/** La dirección real, que solo se usa del lado del servidor. */
+export function urlAbsolutaDeFoto(storagePath: string): string {
+  return `${BASE}${storagePath}`
+}
+
+function resumen(d: SEDeviceFila, foto?: SEPhoto): SEEquipoResumen {
+  return {
+    id: d.id,
+    nombre: d.name,
+    codigoPantalla: d.billboard_code ?? null,
+    empresa: d.owner ?? null,
+    modelo: d.model ?? null,
+    online: !!d.online,
+    bateriaPct: d.battery_pct ?? null,
+    senalDbm: d.signal_dbm ?? null,
+    redTipo: d.network_type ?? null,
+    ultimaConexion: d.last_seen_at ?? null,
+    estatus: d.status ?? null,
+    ultimaFoto: foto ? { url: urlDeFoto(foto.storage_path), tomadaEn: foto.taken_at } : null,
+  }
+}
+
+/**
+ * Los equipos de la instancia, con su última captura.
+ *
+ * Dos llamadas y no una por equipo: `/api/photos` devuelve las últimas fotos de
+ * la flota YA ordenadas, así que se agrupan por equipo y cada uno se queda con
+ * la primera. Con una llamada por equipo, veinte cámaras serían veintiún viajes
+ * al tercero cada vez que alguien abre el menú.
+ */
+export async function listarEquipos(): Promise<SEEquipoResumen[]> {
+  if (!spaceEyeHabilitado()) return []
+  const { devices } = await api<{ devices: SEDeviceFila[] }>('/api/devices')
+
+  // Si falla, la lista se pinta igual: sin miniatura, pero con el estado de cada
+  // equipo, que es lo que de verdad se viene a ver.
+  let ultimas = new Map<number, SEPhoto>()
+  try {
+    const { photos } = await api<{ photos: SEPhoto[] }>('/api/photos?limit=60')
+    for (const p of photos) if (!ultimas.has(p.device_id)) ultimas.set(p.device_id, p)
+  } catch {
+    ultimas = new Map()
+  }
+
+  return devices.map((d) => resumen(d, ultimas.get(d.id)))
+}
+
+/** Un equipo con todo lo que la ficha enseña, incluidas sus últimas fotos. */
+export async function equipoDetalle(id: number): Promise<SEEquipoDetalle | null> {
+  if (!spaceEyeHabilitado()) return null
+
+  let d: { device: SEDeviceFila; latest_status: any; data_usage: any }
+  try {
+    d = await api<{ device: SEDeviceFila; latest_status: any; data_usage: any }>(`/api/devices/${id}`)
+  } catch {
+    // Un equipo de otro dueño contesta 404 igual que uno que no existe, y así se
+    // trata aquí: la ficha dice «no encontrado», nunca «no es tuyo».
+    return null
+  }
+
+  let fotos: SEPhoto[] = []
+  try {
+    const r = await api<{ photos: SEPhoto[] }>(`/api/photos?device_id=${id}&limit=24`)
+    fotos = r.photos.filter((p) => p.device_id === id)
+  } catch {
+    fotos = []
+  }
+
+  const s = d.latest_status ?? {}
+  const u = d.data_usage ?? null
+  return {
+    ...resumen(d.device, fotos[0]),
+    // El estado más reciente es más fresco que el resumen de la lista.
+    bateriaPct: s.battery_pct ?? d.device.battery_pct ?? null,
+    senalDbm: s.signal_dbm ?? d.device.signal_dbm ?? null,
+    redTipo: s.network_type ?? d.device.network_type ?? null,
+    uid: d.device.device_uid ?? null,
+    versionApp: d.device.app_version ?? null,
+    fabricante: d.device.manufacturer ?? null,
+    direccion: d.device.address ?? null,
+    bateriaTemp: s.battery_temp ?? null,
+    equipoTemp: s.cpu_temp ?? null,
+    redOperador: s.network_operator ?? null,
+    cargando: s.battery_charging == null ? null : !!s.battery_charging,
+    almacenamientoLibreMb: s.storage_free_mb ?? null,
+    datos: u ? { movilMes: u.data_mobile_month ?? null, wifiMes: u.data_wifi_month ?? null } : null,
+    fotos: fotos.map((p) => ({
+      url: urlDeFoto(p.storage_path),
+      tomadaEn: p.taken_at,
+      ancho: p.width,
+      alto: p.height,
+      origen: (p as any).source ?? null,
+      verificacionEstatus: p.verification_status,
+      esCorrecta: p.is_correct,
+      score: p.verification_score != null ? Number(p.verification_score) : null,
+      gps: p.gps_lat != null && p.gps_lng != null ? { lat: p.gps_lat, lng: p.gps_lng } : null,
+    })),
+  }
+}
+
+/**
+ * Pedirle una foto AHORA a un equipo.
+ *
+ * Es lo ÚNICO que esta integración escribe, y va por una ruta propia de Space
+ * Eye (`/api/eyes/devices/:id/captura`) que solo sabe hacer eso: el tipo de
+ * orden no es un parámetro, así que desde aquí no se puede reiniciar un equipo,
+ * abrirle la transmisión ni cambiarle la configuración aunque alguien lo
+ * intente. La llave necesita la marca de escritura, y esa marca no alcanza
+ * ninguna otra ruta.
+ *
+ * `en_linea: false` no es un error: la orden queda encolada y el equipo la
+ * recoge cuando vuelva. La interfaz lo dice en vez de fingir que viene en
+ * camino.
+ */
+export async function pedirCaptura(id: number): Promise<{ orden: number; enLinea: boolean }> {
+  if (!spaceEyeHabilitado()) throw new Error('Space Eye no está configurado')
+  const r = await fetch(`${BASE}/api/eyes/devices/${id}/captura`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${KEY}` },
+  })
+  if (!r.ok) throw new Error(`Space Eye: no se pudo pedir la foto (${r.status})`)
+  const d = (await r.json()) as { orden: number; en_linea: boolean }
+  return { orden: d.orden, enLinea: !!d.en_linea }
+}
+
+export interface SEPuntoTelemetria {
+  bucket: string
+  samples: number
+  battery_pct: number | null
+  signal_dbm: number | null
+  battery_temp: number | null
+  cpu_temp: number | null
+}
+export interface SEAlertaTelemetria {
+  level: 'critical' | 'warning' | string
+  type: string
+  message: string
+  value: number | null
+}
+export interface SETelemetria {
+  desde: string
+  hasta: string
+  muestras: number
+  bateriaMin: number | null
+  senalMin: number | null
+  alertas: SEAlertaTelemetria[]
+  serie: SEPuntoTelemetria[]
+}
+
+/**
+ * Histórico del equipo, por hora: batería, señal y temperaturas.
+ *
+ * Por hora y no crudo a propósito: el equipo reporta cada ~60 s, así que una
+ * semana cruda son diez mil puntos para dibujar una línea de 300 píxeles. El
+ * servidor ya sabe promediar por hora, y de paso el mínimo de cada hora —que es
+ * el dato que importa: una batería que TOCÓ el 8% a las 4 de la mañana no se ve
+ * en un promedio.
+ */
+export async function telemetriaDeEquipo(id: number, horas = 24): Promise<SETelemetria | null> {
+  if (!spaceEyeHabilitado()) return null
+  const desde = new Date(Date.now() - horas * 3600_000).toISOString()
+  const q = new URLSearchParams({ granularity: 'hour', from: desde })
+  try {
+    const d = await api<{
+      range: { from: string; to: string }
+      summary: Record<string, unknown>
+      alerts: SEAlertaTelemetria[]
+      series: Record<string, unknown>[]
+    }>(`/api/devices/${id}/telemetry?${q.toString()}`)
+
+    const num = (v: unknown) => (v == null ? null : Number(v))
+    return {
+      desde: d.range.from,
+      hasta: d.range.to,
+      muestras: Number(d.summary?.samples ?? 0),
+      // El PEOR valor del rango, no el promedio: es lo que decide si hay que ir
+      // al sitio.
+      bateriaMin: num(d.summary?.battery_pct_min),
+      senalMin: num(d.summary?.signal_dbm_min),
+      alertas: d.alerts ?? [],
+      serie: (d.series ?? []).map((p) => ({
+        bucket: String(p.bucket ?? ''),
+        samples: Number(p.samples ?? 0),
+        // En las series por hora se toma el MÍNIMO de batería y señal por el
+        // mismo motivo, y si el servidor no lo manda se cae al promedio.
+        battery_pct: num(p.battery_pct_min ?? p.battery_pct),
+        signal_dbm: num(p.signal_dbm_min ?? p.signal_dbm),
+        battery_temp: num(p.battery_temp_max ?? p.battery_temp),
+        cpu_temp: num(p.cpu_temp_max ?? p.cpu_temp),
+      })),
+    }
+  } catch {
+    // El histórico es información secundaria: si no llega, la ficha se pinta
+    // igual y la tarjeta lo dice. No puede tumbar la pantalla.
+    return null
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  ALTA DE UN EQUIPO NUEVO, desde aquí
+// ----------------------------------------------------------------------------
+//  Un equipo se da de alta SOLO: se instala el agente, arranca, se registra y
+//  aparece en la lista. Lo que esta pantalla tiene que resolver son las dos
+//  cosas que no se resuelven solas: de dónde se baja el instalador de cada tipo
+//  de equipo, y con qué credencial nace asignado a esta empresa.
+//
+//  EL TESTIGO DE ALTA VIENE DEL ENTORNO, no se pide al vuelo. Es una credencial
+//  de despliegue, igual que `SPACE_EYE_KEY`: se crea una vez en Space Eye para
+//  esta instancia y se pone aquí. La alternativa —que la instancia pudiera
+//  FABRICAR testigos por su cuenta— convertiría una llave de solo lectura en
+//  una fábrica de credenciales, que es exactamente lo que la separación entre
+//  «llave de lectura» y «testigo de alta» existe para impedir.
+//
+//  Un testigo NO lee nada: solo sirve para que un equipo nuevo diga de quién es.
+// ════════════════════════════════════════════════════════════════════════════
+
+const TESTIGO = process.env.SPACE_EYE_PROVISION_TOKEN ?? ''
+
+export interface SEDescarga {
+  url: string
+  version: string | null
+  bytes: number | null
+  publicado: string | null
+  sha256: string | null
+}
+export interface SEInfoAlta {
+  // Solo el prefijo del testigo viaja por omisión: es lo que se puede enseñar
+  // en pantalla sin repartir la credencial.
+  testigo: { hay: boolean; prefijo: string }
+  empresa: string | null
+  servidor: string
+  apk: SEDescarga | null
+  agentePc: SEDescarga | null
+  agentePi: SEDescarga | null
+}
+
+/** Los manifiestos son públicos (los sirve el mismo servidor, sin sesión). */
+async function manifiesto(archivo: string, descarga: string): Promise<SEDescarga | null> {
+  try {
+    const r = await fetch(`${BASE}/${archivo}`, { cache: 'no-store' })
+    if (!r.ok) return null
+    const d = (await r.json()) as Record<string, unknown>
+    return {
+      url: `${BASE}/${descarga}`,
+      version: d.version != null ? String(d.version) : null,
+      bytes: d.bytes != null ? Number(d.bytes) : null,
+      publicado: d.publicado != null ? String(d.publicado) : null,
+      sha256: d.sha256 != null ? String(d.sha256) : null,
+    }
+  } catch {
+    return null
+  }
+}
+
+export async function infoDeAlta(): Promise<SEInfoAlta> {
+  // De quién son los equipos de esta instancia. Se saca de los que ya hay en
+  // vez de escribirlo en otra variable de entorno: una segunda fuente para el
+  // mismo dato es una segunda fuente que se puede contradecir.
+  let empresa: string | null = null
+  try {
+    const { devices } = await api<{ devices: { owner?: string | null }[] }>('/api/devices')
+    empresa = devices.find((d) => d.owner)?.owner ?? null
+  } catch {
+    empresa = null
+  }
+
+  const [apk, agentePc, agentePi] = await Promise.all([
+    manifiesto('space-eye.json', 'space-eye.apk'),
+    manifiesto('space-eye-agente.json', 'SpaceEyeAgente.exe'),
+    manifiesto('space-eye-pi-agent.json', 'space-eye-pi-agent.tar.gz'),
+  ])
+
+  return {
+    testigo: { hay: Boolean(TESTIGO), prefijo: TESTIGO ? TESTIGO.slice(0, 15) : '' },
+    empresa,
+    servidor: BASE,
+    apk,
+    agentePc,
+    agentePi,
+  }
+}
+
+/** El testigo completo. Se entrega aparte y solo a quien puede dar de alta. */
+export function testigoCompleto(): string {
+  return TESTIGO
 }

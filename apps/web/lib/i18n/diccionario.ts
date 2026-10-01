@@ -162,6 +162,7 @@ const ES = {
   // `nav.ts` documenta: la clave `vender` rotula «Comercial» y `entregar`
   // rotula «Operaciones». Las claves son internas y los rotulos cambian.
   'nav.grupo.patrimonio': 'Inventario',
+  'nav.grupo.ojos': 'Space Eyes',
   'nav.grupo.vender': 'Comercial',
   'nav.grupo.entregar': 'Operaciones',
   'nav.grupo.cobrar': 'Finanzas',
@@ -175,6 +176,7 @@ const ES = {
   'nav.arrendadores': 'Arrendadores',
   'nav.network': 'Network',
   'nav.almacen': 'Almacén',
+  'nav.space-eyes': 'Space Eyes',
   'nav.clientes': 'Clientes',
   'nav.comercial': 'Comercial',
   'nav.disponibilidad': 'Disponibilidad',
@@ -296,6 +298,7 @@ const EN: Record<ClaveTexto, string> = {
   'sidebar.derechos': 'All rights reserved',
 
   'nav.grupo.patrimonio': 'Inventory',
+  'nav.grupo.ojos': 'Space Eyes',
   'nav.grupo.vender': 'Sales',
   'nav.grupo.entregar': 'Operations',
   'nav.grupo.cobrar': 'Finance',
@@ -308,6 +311,7 @@ const EN: Record<ClaveTexto, string> = {
   // traduce a «Red», que en este dominio significaria otra cosa.
   'nav.network': 'Network',
   'nav.almacen': 'Warehouse',
+  'nav.space-eyes': 'Space Eyes',
   'nav.clientes': 'Clients',
   'nav.comercial': 'Sales',
   'nav.disponibilidad': 'Availability',

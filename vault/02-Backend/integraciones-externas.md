@@ -6,6 +6,8 @@ tags: [backend, integraciones, terceros, cron]
 archivos:
   - apps/web/lib/server/doohmain.ts
   - apps/web/lib/server/space-eye.ts
+  - apps/web/app/api/space-eyes/
+  - apps/web/components/demo/space-eyes/
   - apps/web/lib/server/storage.ts
   - apps/web/lib/server/email.ts
   - apps/web/lib/server/integraciones.ts
@@ -52,6 +54,17 @@ flowchart LR
 hemos visto una respuesta con datos, así que no se interpreta nada todavía»*.
 
 ## Space Eye — verificación por cámara
+
+> [!success] 2026-10-01 · **Módulo Space Eyes en el menú** (rama `feat/space-eyes-con-mejoras`)
+> Grupo propio **Space Eyes** entre Inventario y Comercial (lo ven `MANDO` y
+> `VENTA`, con `inventario.ver`; pedir foto o subirla, `inventario.crear`):
+> listado de la flota, ficha del equipo, historial, captura a demanda y alta de
+> equipos. Habla con Space Eye **con una llave de servicio** (`SPACE_EYE_KEY`) y
+> ya no con usuario y contraseña: con la cuenta admin cualquier instancia veía
+> la flota entera, y la RLS de aquí no puede proteger datos que no están en esta
+> base. Las fotos se sirven por `/api/space-eyes/foto` (sin contenido mixto,
+> sin SSRF). `SPACE_EYE_*` ya está en `infra/env/instancia.env.example`, que era
+> el hueco de abajo.
 
 `lib/server/space-eye.ts`. Cada espectacular tiene un teléfono Android que
 captura fotos y las verifica contra la creatividad con IA. El enlace

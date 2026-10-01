@@ -19,19 +19,32 @@ import { NAV, type NavItem } from '@/components/demo/shell/nav'
 //  `vitest.config.ts`). Sacando la lista a un dato puro, la parte que se puede
 //  romper en silencio queda cubierta y el `.tsx` solo pinta.
 //
-//  Nueve y no dieciocho: la rejilla es una salida de emergencia, no una copia
-//  del menú. Se escoge uno por fase del proceso (ver `GRUPOS` en `nav.ts`) y las
-//  dos fases con más tráfico —vender y entregar— llevan dos.
+//  Doce y no diecinueve: la rejilla es una salida de emergencia, no una copia
+//  del menú. La regla es DOS POR FASE (ver `GRUPOS` en `nav.ts`), salvo las dos
+//  fases que tienen una sola entrada en todo el menú —inicio y Space Eyes—, que
+//  aportan la suya.
+//
+//  Antes eran nueve con otra regla («una por fase, y dos en las de más
+//  tráfico»). Cambió al agregar la fase de Space Eyes: con seis fases, nueve
+//  obligaba a elegir a dedo qué tres fases llevaban la segunda, y doce cabe
+//  exacto en la rejilla de tres columnas sin dejar la última fila coja.
+//
+//  Las dos cuentas las vigila `atajos-404.test.ts` —un atajo por fase, y el
+//  total múltiplo de tres—, así que agregar un grupo al menú sin pasar por aquí
+//  pone la prueba en rojo. Es justo lo que pasó.
 // ============================================================================
 
 export const CLAVES_ATAJOS_404 = [
-  'dashboard',      // inicio
+  'dashboard',      // inicio      (fase de una sola entrada)
   'inventario',     // patrimonio
+  'network',        // patrimonio
+  'space-eyes',     // ojos        (fase de una sola entrada)
   'clientes',       // vender
   'propuestas',     // vender
   'campanas',       // entregar
   'operaciones',    // entregar
   'finanzas',       // cobrar
+  'comisiones',     // cobrar
   'actividad',      // sistema
   'administracion', // sistema
 ] as const

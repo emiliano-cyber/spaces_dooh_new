@@ -25,6 +25,7 @@ import {
   Ticket,
   Package,
   Handshake,
+  Eye,
 } from 'lucide-react'
 import { ROLES_ASIGNABLES, rolLabel } from '@/lib/roles'
 import type { RolDemo } from '@/lib/data/types'
@@ -74,7 +75,7 @@ import type { RolDemo } from '@/lib/data/types'
 //
 // Un grupo sin ítems visibles no pinta su título (lo resuelve el Sidebar): un
 // rol de Operaciones ve dos entradas, no seis encabezados vacíos.
-export type GrupoNav = 'inicio' | 'patrimonio' | 'vender' | 'entregar' | 'cobrar' | 'sistema'
+export type GrupoNav = 'inicio' | 'patrimonio' | 'ojos' | 'vender' | 'entregar' | 'cobrar' | 'sistema'
 
 export interface NavItem {
   key: string
@@ -91,6 +92,7 @@ export interface NavItem {
 export const GRUPOS: { key: GrupoNav; titulo: string | null }[] = [
   { key: 'inicio', titulo: null },
   { key: 'patrimonio', titulo: 'Inventario' },
+  { key: 'ojos', titulo: 'Space Eyes' },
   { key: 'vender', titulo: 'Comercial' },
   { key: 'entregar', titulo: 'Operaciones' },
   { key: 'cobrar', titulo: 'Finanzas' },
@@ -137,6 +139,19 @@ export const NAV: NavItem[] = [
   // lo MUEVA operaciones no lo convierte en una tarea de operaciones, igual que
   // el almacen de una tienda no es del repartidor.
   { key: 'almacen', label: 'Almacén', href: '/almacen', icon: Warehouse, roles: [...MANDO, 'OPERACIONES'], grupo: 'patrimonio' },
+
+  // ─── Space Eyes ──────────────────────────────────────────────────────────
+  // Va DESPUES de Inventario y ANTES de Comercial, y con grupo propio, por la
+  // misma regla con la que esta ordenado el resto del menu: el encabezado
+  // nombra la fase y la entrada es su pantalla principal. Colgarlo de
+  // Inventario lo haria parecer un accesorio de la ficha de una pantalla, que
+  // es justo lo que dejo de ser: aqui se entra a mirar la flota de equipos,
+  // no una pantalla.
+  //
+  // Lo ven mando y venta (los mismos que Comercial): quien ensena una pantalla
+  // a un cliente es quien primero necesita saber si la camara de ese sitio esta
+  // viva y que enseno ayer.
+  { key: 'space-eyes', label: 'Space Eyes', href: '/space-eyes', icon: Eye, roles: [...MANDO, ...VENTA], grupo: 'ojos' },
 
   // ─── Vender ──────────────────────────────────────────────────────────────
   // En el orden en que se hace: a quién le vendes, qué le enseñas, si está
