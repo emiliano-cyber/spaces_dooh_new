@@ -7,6 +7,14 @@ La entrada más reciente va arriba.
 
 ## 2026-09-30
 
+- **Al subir recibos de luz, la pregunta de cuántos meses cubre cada recibo ya
+  viene en «bimestral».** *(Pedido tuyo del 30/09.)* Arranca en **3 meses de
+  calendario**, que es lo normal en un recibo bimestral: casi todos empiezan a
+  mitad de mes y tocan tres meses del calendario. Ya puedes subir los PDF sin
+  elegir nada primero. Si la tanda es de recibos **mensuales**, cámbialo a 2
+  meses. Si no lo cambias, casi todos saldrán marcados como «no coincide», y
+  así te darás cuenta.
+
 - **La pantalla de Códigos promocionales tiene un diseño nuevo, igual al de
   Paquetes cerrados.** *(Pedido tuyo del 30/09.)* Cada código lleva una etiqueta
   de color con su estado (**Vigente**, **Próximo**, **Vencido** o **Agotado**) y

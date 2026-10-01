@@ -42,6 +42,23 @@ export const OPCIONES_MESES: { meses: number; etiqueta: string }[] = [
   { meses: 4, etiqueta: '4 meses de calendario — un periodo largo o atrasado' },
 ]
 
+/**
+ * Con qué opción arranca el selector: **bimestral**, o sea 3 meses de
+ * calendario. Pedido del dueño el 2026-09-30: «por default debe estar
+ * seleccionado bimestral».
+ *
+ * 3 y no 2, por lo medido arriba: 49 de los 57 recibos bimestrales del cliente
+ * tocan TRES meses de calendario, porque el periodo empieza a mitad de mes.
+ *
+ * Esto cambia el requisito del 2026-09-29 —que el selector naciera vacío y
+ * obligara a declarar antes de subir—, y el cambio lo decidió el mismo dueño.
+ * La comprobación NO se pierde: sigue comparando lo declarado con el PDF y
+ * marcando el renglón que no cuadre. Lo que se pierde es que haya que pensarlo
+ * cada vez. A cambio, con mensuales hay que acordarse de cambiarlo a 2, y si
+ * no, salen marcados todos: el aviso lo delata en la primera tanda.
+ */
+export const MESES_POR_OMISION = 3
+
 /** Espejo de `lib/server/recibos-cfe/interprete.ts`. */
 export interface LecturaRecibo {
   esRecibo: boolean

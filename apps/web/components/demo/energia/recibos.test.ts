@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   OPCIONES_MESES,
+  MESES_POR_OMISION,
   cuerpoDeAlta,
   filasDeConfirmacion,
   motivoNoConfirmable,
@@ -370,5 +371,16 @@ describe('filasDeConfirmacion — el desajuste viaja hasta el renglon', () => {
       propuesta({ mesesEsperados: 1, mesesDelPdf: 3, coincideMeses: false }),
     ])[0]
     expect(motivoNoConfirmable(f)).toBeNull()
+  })
+})
+
+describe('MESES_POR_OMISION — arranca en bimestral (pedido del dueño, 30/09)', () => {
+  it('es la opción que la guía marca como lo normal en un recibo BIMESTRAL', () => {
+    const opcion = OPCIONES_MESES.find((o) => o.meses === MESES_POR_OMISION)
+    expect(opcion?.etiqueta).toMatch(/BIMESTRAL/)
+  })
+
+  it('son 3 meses de calendario, no 2: un bimestral empieza a mitad de mes', () => {
+    expect(MESES_POR_OMISION).toBe(3)
   })
 })

@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-09-29
+actualizado: 2026-09-30
 tags: [backend, energia, luz, cfe, pdf, captura, operaciones, dinero]
 archivos:
   - apps/web/lib/server/recibos-cfe/interprete.ts
@@ -208,6 +208,21 @@ Es lo único que convierte «el sistema dedujo algo» en «el sistema y yo estam
 acuerdo»: quien sube 40 recibos sabe que son bimestrales, el sistema sabe qué
 dicen, y **si coinciden no hay nada que mirar**. Si no, hay algo que mirar y se
 sabe cuál.
+
+> [!important] 2026-09-30 · el selector ARRANCA en bimestral
+> Pedido del dueño: «por default debe estar seleccionado bimestral». El selector
+> nace en **3 meses de calendario** (`MESES_POR_OMISION` en
+> `components/demo/energia/recibos.ts`), que es lo normal en un recibo
+> bimestral: 49 de los 57 del cliente tocan tres meses porque empiezan a mitad
+> de mes. Por eso **3 y no 2**.
+>
+> **Esto relaja el requisito del 29/09**, y lo decidió el mismo dueño: el
+> archivo ya no nace deshabilitado, porque ya hay un valor elegido. La
+> comprobación sigue entera —se compara lo declarado con el PDF y se marca lo
+> que no cuadre—; lo que se pierde es tener que pensarlo en cada tanda. El
+> riesgo, dicho: quien suba **mensuales** sin cambiarlo a 2 verá marcados casi
+> todos, y es el propio aviso el que lo delata. La opción «— elige antes de
+> subir —» sigue en la lista y, si se escoge, deshabilita el archivo como antes.
 
 ### El orden de la pantalla ES el requisito
 
