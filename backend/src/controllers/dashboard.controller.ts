@@ -171,6 +171,33 @@ export async function getDevice(req: Request, res: Response) {
   });
 }
 
+/**
+ * Control de camara EN VIVO (zoom, exposicion, balance, enfoque) por HTTP.
+ *
+ * El dashboard de Space Eye lo manda por su socket; SPACE OS no tiene ese socket
+ * (habla con Space Eye por su puerta, con la llave de la instancia), asi que
+ * necesita esta ruta para mover la camara mientras mira el vivo. Mismo efecto:
+ * se publica 'camera:control' y el equipo lo aplica si esta transmitiendo.
+ */
+export async function controlDeCamara(req: Request, res: Response) {
+  // El mismo formato que el telefono ya entiende (CommandHandler.handleCameraControl):
+  // { action, value?, x?, y? }.
+  const schema = z.object({
+    action: z.enum(['zoom', 'focus', 'lock_focus', 'unlock_focus', 'exposure', 'wb']),
+    value: z.union([z.number(), z.string().max(20)]).optional(),
+    x: z.number().min(0).max(1).optional(),
+    y: z.number().min(0).max(1).optional(),
+  }).strict();
+  const parsed = schema.safeParse(req.body ?? {});
+  if (!parsed.success) return res.status(400).json({ error: 'invalid_input' });
+  const id = Number(req.params.id);
+  const [f] = await pool.query<any[]>(`SELECT owner FROM devices WHERE id = ?`, [id]);
+  const d = (f as any[])[0];
+  if (!d || (req.servicio?.owner && d.owner !== req.servicio.owner)) return res.status(404).json({ error: 'not_found' });
+  await publicarAEquipos('camera:control', { device_id: id, control: parsed.data });
+  res.json({ ok: true });
+}
+
 // Fija la orientacion por defecto del stream (0/90/180/270) para este dispositivo.
 // Solo admin (ver ruta). Todos la ven al abrir/recargar la vista en vivo.
 export async function setStreamRotation(req: Request, res: Response) {

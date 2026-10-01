@@ -69,6 +69,7 @@ export function createRoutes() {
   // marca de datos SI siguen siendo de admin: se definen al instalar y cambian
   // lo que ve todo el mundo.
   router.put('/api/devices/:id/camera', requireUser, requireRole('admin', 'operator'), copiarEdicionAV1, dashboard.setCamera);
+  router.post('/api/devices/:id/camera-control', requireUser, requireRole('admin', 'operator'), dashboard.controlDeCamara);
   // Si el equipo ya empezo a transmitir (equipos que pasan por el servidor de medios).
   router.get('/api/devices/:id/stream-status', requireUser, dashboard.streamStatus);
   // Version del APK publicado, para saber que equipos estan atrasados.
