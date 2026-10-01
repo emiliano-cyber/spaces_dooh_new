@@ -214,39 +214,11 @@ function valoresDe(s: any): unknown[] {
   ]
 }
 
-// Convierte una hora suelta a número de horas (0–24). Acepta "06:00", "24:00",
-// "6:00 am", "12:00 pm", "6", etc.
-function parseHora(s: string): number | null {
-  const ap = s.match(/(\d{1,2})(?::(\d{2}))?\s*([ap])\.?\s*m\.?/i)
-  const simple = s.match(/(\d{1,2})(?::(\d{2}))?/)
-  const m = ap ?? simple
-  if (!m) return null
-  let h = Number(m[1])
-  const min = m[2] ? Number(m[2]) / 60 : 0
-  const meridiano = ap?.[3]?.toLowerCase()
-  if (meridiano === 'p' && h < 12) h += 12
-  if (meridiano === 'a' && h === 12) h = 0
-  return h + min
-}
-
-// Horas de operación a partir del campo `horario`. Acepta rangos como
-// "06:00-24:00", "6:00 am a 12:00 pm", "6 a 24". Si no se puede parsear, asume
-// 18 h (jornada DOOH típica 6am–medianoche).
-function horasOperacion(horario?: string | null): number {
-  if (!horario) return 18
-  const partes = String(horario).split(/\s+a\s+|\s*[-–—]\s*/i).filter((x) => /\d/.test(x))
-  if (partes.length >= 2) {
-    const start = parseHora(partes[0])
-    const fin = parseHora(partes[1])
-    if (start != null && fin != null) {
-      let end = fin
-      if (end <= start) end += 24 // cruza medianoche
-      const h = end - start
-      if (h > 0 && h <= 24) return h
-    }
-  }
-  return 18
-}
+// Las horas de operación a partir de `horario` viven en `lib/calculadora-spots.ts`
+// (`horasDeHorario`) desde el ADR 0042. Aquí había una copia privada
+// (`horasOperacion`) que NADIE llamaba; se retiró al mover la regla a un módulo
+// puro que usan la pantalla y el servidor, para que no hubiera dos lecturas del
+// mismo texto libre que pudieran divergir.
 
 // ─── Lectura ────────────────────────────────────────────────────────────────
 export async function listarSitios(): Promise<any[]> {
