@@ -373,6 +373,36 @@ export function decidirPrecioCalculadora(e: {
 }
 
 /**
+ * Los espacios LIBRES de una pantalla, para el servidor.
+ *
+ * Hoy hay DOS números de «libres» y no dicen lo mismo, así que se toma el
+ * MENOR de los dos:
+ *
+ *  · `total − campañas vigentes` — el que enseña el inventario (`listarSitios`,
+ *    «1 slot = 1 campaña», contando `fecha_fin >= current_date`). Es el que ve
+ *    el vendedor en la pantalla de propuestas.
+ *  · `sitios.spots_disponibles` guardado — el contador con el que la campaña
+ *    ACOTA los slots que retiene (`spotsDeLaReserva` en `campanas-repo.ts`).
+ *
+ * Con el menor, ninguno de los dos puede morder después: lo cotizado cabe en
+ * lo que el inventario dice Y en lo que la campaña va a retener. `null` cuando
+ * no se sabe ninguno — y entonces no se acota, igual que `spotsDeLaReserva`.
+ */
+export function espaciosLibres(e: {
+  totalSpots: number | null | undefined
+  guardados: number | null | undefined
+  campanasActivas: number
+}): number | null {
+  const candidatos: number[] = []
+  if (e.totalSpots != null && Number.isFinite(Number(e.totalSpots))) {
+    candidatos.push(Number(e.totalSpots) - (Number(e.campanasActivas) || 0))
+  }
+  if (e.guardados != null && Number.isFinite(Number(e.guardados))) candidatos.push(Number(e.guardados))
+  if (!candidatos.length) return null
+  return Math.max(0, Math.min(...candidatos))
+}
+
+/**
  * «Equivale a $X por spot frente a la tarifa mensual»: la tarifa mensual de la
  * pantalla entre los spots que un cliente de UN espacio recibe en 30 días.
  *

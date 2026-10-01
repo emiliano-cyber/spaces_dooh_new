@@ -129,6 +129,13 @@ function rowToItem(r: any) {
     tarifaCalculada: r.tarifa_calculada != null ? Number(r.tarifa_calculada) : null,
     precioAjustadoPor: r.precio_ajustado_por ?? null,
     precioAjustadoPorNombre: r.precio_ajustado_por_nombre ?? null,
+    // ADR 0042 · los parámetros de la calculadora de spots. INTERNOS, igual que
+    // la tarifa calculada: `obtenerPropuestaPublica` no los copia. `null`/false
+    // en toda línea que no usó la calculadora, que es todo lo anterior.
+    espaciosComprados: r.espacios_comprados != null ? Number(r.espacios_comprados) : null,
+    horasDia: r.horas_dia != null ? Number(r.horas_dia) : null,
+    roadblock: !!r.roadblock,
+    primaRoadblockPct: r.prima_roadblock_pct != null ? Number(r.prima_roadblock_pct) : null,
   }
 }
 
@@ -1074,6 +1081,13 @@ export interface PropuestaInput {
     // repo lo estampa de la sesión, igual que `propuestas.usuario_id`.
     tarifaCalculada?: number | null
     precioAjustado?: boolean
+    // ADR 0042 · los parámetros de la calculadora de spots, YA validados y con
+    // la cantidad recalculada por el controller (`resolverCalculadora`). Sin
+    // calculadora llegan en null/false y la línea es la de siempre.
+    espaciosComprados?: number | null
+    horasDia?: number | null
+    roadblock?: boolean
+    primaRoadblockPct?: number | null
   }[]
   notas?: string | null
 }
@@ -1139,8 +1153,9 @@ export async function crearPropuesta(input: PropuestaInput) {
         `insert into propuesta_items
            (propuesta_id, sitio_id, fecha_inicio, fecha_fin, precio, unidad, cantidad, tarifa_unitaria, spots_por_dia, tenant_id,
             renta_monto, renta_periodicidad, renta_arrendador_id, franja_id,
-            descuento_volumen_pct, volumen_desde, tarifa_calculada, precio_ajustado_por)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::periodicidad_pago,$13,$14,$15,$16,$17,$18)`,
+            descuento_volumen_pct, volumen_desde, tarifa_calculada, precio_ajustado_por,
+            espacios_comprados, horas_dia, roadblock, prima_roadblock_pct)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::periodicidad_pago,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)`,
         [
           prop.id, it.sitioId, input.fechaInicio, input.fechaFin, it.precio ?? 0,
           it.unidad ?? 'mensual', it.cantidad ?? 1, it.tarifaUnitaria ?? (it.precio ?? 0),
@@ -1168,6 +1183,13 @@ export async function crearPropuesta(input: PropuestaInput) {
           // queda `null`: no hay nada que atribuir.
           it.tarifaCalculada ?? null,
           it.precioAjustado ? vendedorId : null,
+          // ADR 0042 · la calculadora. Los CHECK de 20261007 son la red: un
+          // Roadblock sin espacios o una prima sin Roadblock revientan aquí
+          // aunque un controller futuro se olvidara de validar.
+          it.espaciosComprados ?? null,
+          it.horasDia ?? null,
+          it.roadblock === true,
+          it.primaRoadblockPct ?? null,
         ],
       )
     }

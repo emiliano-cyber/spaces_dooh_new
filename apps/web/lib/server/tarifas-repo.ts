@@ -99,3 +99,69 @@ export async function datosParaTarifar(sitioIds: string[]): Promise<DatosParaTar
   }
   return { sitios, temporadas }
 }
+
+/** ADR 0042 · lo que la calculadora de spots necesita saber de una pantalla. */
+export type LoopDeSitio = {
+  /** `tipo_medio = 'PANTALLA_DIGITAL'`: el mismo criterio que la campaña usa para retener slots. */
+  digital: boolean
+  totalSpots: number | null
+  duracionSpotSeg: number | null
+  horario: string | null
+  /** El contador guardado, `sitios.spots_disponibles`. */
+  spotsDisponibles: number | null
+  /** Campañas distintas con reserva vigente, igual que `listarSitios`. */
+  campanasActivas: number
+}
+
+export type DatosDelLoop = {
+  /** Por id de pantalla. Una pantalla ausente —de otra organización— no tiene loop. */
+  sitios: Map<string, LoopDeSitio>
+  /** `config_negocio.spot_seg` de ESTA organización: el respaldo de la duración. */
+  spotSegOrganizacion: number | null
+}
+
+/**
+ * ADR 0042 · el loop de cada pantalla de la propuesta, en DOS consultas para
+ * toda la propuesta. Solo se llama si alguna línea usa la calculadora: toda la
+ * base instalada cotiza sin ella y no tiene por qué pagar el viaje.
+ *
+ * Misma doble capa que `datosParaTarifar` (RLS + `and tenant_id`), y por lo
+ * mismo: una pantalla de otra organización NO APARECE, así que no tiene loop
+ * y la calculadora la rechaza. Y el conteo de campañas va también con
+ * `r.tenant_id = s.tenant_id`: una reserva ajena colgada de esta pantalla no
+ * puede ni ocuparla ni liberarla.
+ *
+ * El conteo es el de `listarSitios` (`sitios-repo.ts`) a propósito, con su
+ * misma limitación: cuenta CAMPAÑAS, no slots retenidos. Así lo que el
+ * servidor acepta es lo que el vendedor ve en la pantalla.
+ */
+export async function datosDelLoop(sitioIds: string[]): Promise<DatosDelLoop> {
+  const tenant = await tenantActual()
+  const ids = [...new Set(sitioIds.filter((s) => UUID_RE.test(s)))]
+  const cfg = await q<any>('select spot_seg from config_negocio where tenant_id = $1', [tenant])
+  const spotSegOrganizacion = cfg[0]?.spot_seg != null ? Number(cfg[0].spot_seg) : null
+  const sitios = new Map<string, LoopDeSitio>()
+  if (!ids.length) return { sitios, spotSegOrganizacion }
+  const filas = await q<any>(
+    `select s.id, (s.tipo_medio = 'PANTALLA_DIGITAL') as digital, s.total_spots, s.duracion_spot_seg,
+            s.horario, s.spots_disponibles,
+            (select count(distinct r.campana_id) from reservas r
+              where r.sitio_id = s.id and r.tenant_id = s.tenant_id
+                and r.estatus <> 'CANCELADA' and r.fecha_fin >= current_date) as campanas_activas
+       from sitios s
+      where s.id = any($1::uuid[]) and s.tenant_id = $2`,
+    [ids, tenant],
+  )
+  const n = (v: unknown) => (v == null || v === '' ? null : Number(v))
+  for (const s of filas) {
+    sitios.set(String(s.id), {
+      digital: !!s.digital,
+      totalSpots: n(s.total_spots),
+      duracionSpotSeg: n(s.duracion_spot_seg),
+      horario: s.horario ?? null,
+      spotsDisponibles: n(s.spots_disponibles),
+      campanasActivas: Number(s.campanas_activas ?? 0),
+    })
+  }
+  return { sitios, spotSegOrganizacion }
+}

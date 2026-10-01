@@ -181,10 +181,17 @@ describe('2 · lo resuelto por el controller SE GUARDA', () => {
     // y `precio_ajustado_por`—, así que la pareja del volumen va antes. Los dos
     // nuevos también tienen que ser `null` explícito: una línea creada sin el
     // controller no tiene tarifa calculada ni ajuste que atribuir.
-    expect(p[p.length - 4]).toBe(0)
-    expect(p[p.length - 3]).toBeNull()
-    expect(p[p.length - 2]).toBeNull()
-    expect(p[p.length - 1]).toBeNull()
+    //
+    // ADR 0042 (2026-10-01) añadió CUATRO más detrás —`espacios_comprados`,
+    // `horas_dia`, `roadblock` y `prima_roadblock_pct`—, así que todo lo de
+    // antes se corre cuatro puestos. Sin calculadora son null, null, FALSE y
+    // null: `roadblock` es NOT NULL, y una línea normal NO es un Roadblock.
+    const k = p.length - 4
+    expect(p[k - 4]).toBe(0)
+    expect(p[k - 3]).toBeNull()
+    expect(p[k - 2]).toBeNull()
+    expect(p[k - 1]).toBeNull()
+    expect(p.slice(k)).toEqual([null, null, false, null])
   })
 })
 

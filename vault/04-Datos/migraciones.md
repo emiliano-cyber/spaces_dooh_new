@@ -37,9 +37,30 @@ archivos:
   - db/migrations/20261004_pantallas_digitales_importadas.sql
   - db/migrations/20261005_notas_de_version.sql
   - db/migrations/20261006_precio_ajustado_por_gerente.sql
+  - db/migrations/20261007_calculadora_spots.sql
 ---
 
 # Migraciones
+
+> [!warning] 2026-10-01 · `20261007_calculadora_spots.sql` — forma **aprobada** por el dueño, rama **sin fusionar**
+> Rama `feat/calculadora-spots` (ADR 0042). Cuatro columnas en `propuesta_items`,
+> **ninguna tabla** (el recuento de tablas no cambia):
+>
+> | Columna | Tipo | Quién escribe |
+> |---|---|---|
+> | `espacios_comprados` | `integer`, NULL | Solo `crearPropuesta()`, ya validado por `resolverCalculadora()`. Lo retiene la reserva al generar la campaña |
+> | `horas_dia` | `numeric(4,2)`, NULL | Ídem. Techo: la franja o el horario de la pantalla |
+> | `roadblock` | `boolean` **NOT NULL DEFAULT false** | Ídem. false = lo de siempre |
+> | `prima_roadblock_pct` | `numeric(5,2)`, NULL | Ídem; > 0 solo con `comercial.aprobar` |
+>
+> Cinco CHECK en `do $$` contra `pg_constraint` (idempotentes también a medias):
+> `espacios_comprados > 0`, `horas_dia` en (0, 24], prima en [0, 100], prima ≠ 0
+> solo con `roadblock`, y `roadblock` ⇒ `espacios_comprados` no nulo. Aborta si
+> `propuesta_items` no tiene RLS ENABLE+FORCE y `tenant_isolation`. GRANT de
+> tabla repetido. **Sin backfill**: no se sabe con qué espacios ni horas se
+> cotizó lo viejo. Nada de PG15. Lo fija `calculadora-spots.e2e.test.ts` §1
+> (tipos, default, que cada CHECK rechaza con `23514` y que el rol de la app
+> escribe lo bueno). Detalle en [[02-Backend/calculadora-de-spots]].
 
 > [!warning] 2026-10-01 · `20261006_precio_ajustado_por_gerente.sql` — forma **aprobada** por el dueño, rama **sin fusionar**
 > Rama `feat/precio-ajustado-por-gerente` (PRECIO-01, hallazgo B40). Dos columnas

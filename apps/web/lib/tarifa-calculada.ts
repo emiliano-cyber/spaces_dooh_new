@@ -178,9 +178,17 @@ export function textoBitacoraAjusteTarifa(a: {
   unidad: string
   tarifaCalculada: number | null
   tarifa: number
+  /**
+   * ADR 0042 · la prima de un Roadblock. Con prima, el motivo del ajuste va
+   * escrito: «de $1,200 a $1,500» a secas no deja saber si fue una prima
+   * pactada o un precio puesto a mano.
+   */
+  primaRoadblockPct?: number | null
 }): string {
+  const prima = Number(a.primaRoadblockPct ?? 0) || 0
+  const motivo = prima > 0 ? ` por Roadblock con prima del ${prima.toLocaleString('es-MX', { maximumFractionDigits: 2 })} %` : ''
   if (a.tarifaCalculada == null) {
-    return `Puso la tarifa de «${a.sitioNombre}» (${a.unidad}) en ${pesos(a.tarifa)}, sin tarifa calculada, en la propuesta`
+    return `Puso la tarifa de «${a.sitioNombre}» (${a.unidad}) en ${pesos(a.tarifa)}, sin tarifa calculada${motivo}, en la propuesta`
   }
-  return `Cambió la tarifa de «${a.sitioNombre}» (${a.unidad}) de ${pesos(a.tarifaCalculada)} a ${pesos(a.tarifa)} en la propuesta`
+  return `Cambió la tarifa de «${a.sitioNombre}» (${a.unidad}) de ${pesos(a.tarifaCalculada)} a ${pesos(a.tarifa)}${motivo} en la propuesta`
 }

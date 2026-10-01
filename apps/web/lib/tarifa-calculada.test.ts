@@ -241,6 +241,21 @@ describe('textoBitacoraAjusteTarifa · lo que queda en Actividad', () => {
     expect(t).toContain('900')
   })
 
+  it('ADR 0042 · un Roadblock con prima lo dice, con el porcentaje', () => {
+    const t = textoBitacoraAjusteTarifa({
+      sitioNombre: 'Pantalla Reforma',
+      unidad: 'spot',
+      tarifaCalculada: 1200,
+      tarifa: 1500,
+      primaRoadblockPct: 25,
+    })
+    expect(t).toBe('Cambió la tarifa de «Pantalla Reforma» (spot) de $1,200 a $1,500 por Roadblock con prima del 25 % en la propuesta')
+    // Sin prima, el texto de siempre: la prima 0 no es un Roadblock que contar.
+    expect(
+      textoBitacoraAjusteTarifa({ sitioNombre: 'P', unidad: 'spot', tarifaCalculada: 1200, tarifa: 900, primaRoadblockPct: 0 }),
+    ).toBe('Cambió la tarifa de «P» (spot) de $1,200 a $900 en la propuesta')
+  })
+
   it('sin tarifa calculada: lo dice, en vez de inventar un «de $0»', () => {
     const t = textoBitacoraAjusteTarifa({ sitioNombre: 'Pantalla B', unidad: 'mensual', tarifaCalculada: null, tarifa: 30000 })
     expect(t).toContain('sin tarifa calculada')

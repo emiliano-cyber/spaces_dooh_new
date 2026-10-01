@@ -308,6 +308,15 @@ describe('GUARDIA · ningun mensaje de error puede quedarse fuera EN SILENCIO', 
       'Ese prospecto no existe',
       'Tu organizacion ya tiene razones sociales registradas, asi que el cuestionario ya se contesto. Para cambiarlas, usa la pantalla de Administracion.',
       'Las tarifas por unidad se guardan en su propia ruta (PATCH /api/sitios/:id/modalidades), que siempre pide la contraseña.',
+      // ADR 0042 · los de `lib/calculadora-spots.ts`, que viajan por variable
+      // (`AppError(r.motivo)`). Que no estén muertas lo vigila
+      // `calculadora-spots.test.ts` («los motivos llegan traducidos»).
+      'La calculadora de spots solo aplica a pantallas digitales vendidas por spot.',
+      'La pantalla no tiene capturado cuántos espacios tiene su loop; captúralo en su ficha antes de usar la calculadora.',
+      'La prima de Roadblock va de 0 a 100 %.',
+      'La prima de Roadblock solo aplica a una línea marcada como Roadblock.',
+      'Con esos espacios y esas horas no sale ni un spot al día.',
+      'La línea no tiene días: revisa las fechas.',
     ])
     const muertas = Object.keys(CATALOGO_ERRORES).filter(
       (k) => !vivos.has(k) && !EXENTAS.has(k),

@@ -530,6 +530,14 @@ export interface PropuestaItem {
   tarifaCalculada?: number | null
   precioAjustadoPor?: string | null
   precioAjustadoPorNombre?: string | null
+  // ─── ADR 0042 · la CALCULADORA DE SPOTS (2026-10-01) ──────────────────────
+  // INTERNOS como los de arriba. `espaciosComprados` null = la línea no usó la
+  // calculadora (todo lo anterior, y toda pantalla fija u otra unidad). Con
+  // ella, `cantidad` = spots/día × días y `spotsPorDia` = esos spots/día.
+  espaciosComprados?: number | null
+  horasDia?: number | null
+  roadblock?: boolean
+  primaRoadblockPct?: number | null
 }
 
 /**

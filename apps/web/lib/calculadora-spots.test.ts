@@ -4,6 +4,7 @@ import {
   HORAS_OPERACION_RESPALDO,
   decidirPrecioCalculadora,
   duracionSpotSeg,
+  espaciosLibres,
   horasDeFranja,
   horasDeHorario,
   horasPorOmision,
@@ -15,6 +16,7 @@ import {
   usaCalculadora,
   type EntradaCalculadora,
 } from './calculadora-spots'
+import { traducirError } from './i18n/errores-servidor'
 
 // ============================================================================
 //  ADR 0042 · la calculadora de spots da la CANTIDAD; el precio sigue siendo el
@@ -288,6 +290,35 @@ describe('decidirPrecioCalculadora · la prima es un ajuste de gerente', () => {
   })
 })
 
+describe('los motivos llegan traducidos al inglés', () => {
+  it('ninguno de los rechazos de resolverCalculadora sale en español a quien lee en inglés', () => {
+    // La GUARDIA de `errores-servidor.test.ts` solo ve los literales de
+    // `new AppError('…')`; éstos viajan como `AppError(r.motivo)` y se le
+    // escaparían. Si alguien reescribe un motivo, esto se pone en rojo.
+    const rb = { ...base, roadblock: true, espaciosComprados: null, libres: 12, cantidadEnviada: 97200 }
+    const casos: EntradaCalculadora[] = [
+      { ...base, digital: false },
+      { ...base, totalSpots: null },
+      { ...base, espaciosComprados: 0 },
+      { ...rb, espaciosComprados: 11 },
+      { ...rb, primaRoadblockPct: 101 },
+      { ...base, primaRoadblockPct: 10 },
+      { ...base, horasDia: 19 },
+      { ...base, espaciosComprados: 1, horasDia: 0.05, cantidadEnviada: 0 },
+      { ...base, dias: 0 },
+      { ...base, cantidadEnviada: 100 },
+      { ...rb, libres: 11 },
+      { ...base, espaciosComprados: 6, cantidadEnviada: 48600 },
+    ]
+    for (const c of casos) {
+      const r = resolverCalculadora(c)
+      expect(r.ok, JSON.stringify(c)).toBe(false)
+      if (r.ok) continue
+      expect(traducirError(r.motivo, 'en'), r.motivo).not.toBe(r.motivo)
+    }
+  })
+})
+
 describe('usaCalculadora · qué línea entra por aquí', () => {
   it('cualquiera de los cuatro parámetros la activa; ninguno, la deja como hoy', () => {
     expect(usaCalculadora({})).toBe(false)
@@ -298,6 +329,24 @@ describe('usaCalculadora · qué línea entra por aquí', () => {
     expect(usaCalculadora({ horasDia: 4 })).toBe(true)
     expect(usaCalculadora({ roadblock: true })).toBe(true)
     expect(usaCalculadora({ primaRoadblockPct: 10 })).toBe(true)
+  })
+})
+
+describe('espaciosLibres · lo mismo que el inventario, y nunca más que el contador', () => {
+  it('total − campañas vigentes, como `listarSitios`', () => {
+    expect(espaciosLibres({ totalSpots: 12, guardados: null, campanasActivas: 1 })).toBe(11)
+    expect(espaciosLibres({ totalSpots: 12, guardados: null, campanasActivas: 0 })).toBe(12)
+  })
+
+  it('el contador guardado ACOTA, porque es con el que la campaña recorta la reserva', () => {
+    expect(espaciosLibres({ totalSpots: 12, guardados: 4, campanasActivas: 0 })).toBe(4)
+    expect(espaciosLibres({ totalSpots: 12, guardados: 12, campanasActivas: 3 })).toBe(9)
+  })
+
+  it('nunca negativo; sin ninguno de los dos datos, no se sabe', () => {
+    expect(espaciosLibres({ totalSpots: 2, guardados: null, campanasActivas: 5 })).toBe(0)
+    expect(espaciosLibres({ totalSpots: null, guardados: null, campanasActivas: 0 })).toBeNull()
+    expect(espaciosLibres({ totalSpots: null, guardados: 3, campanasActivas: 0 })).toBe(3)
   })
 })
 

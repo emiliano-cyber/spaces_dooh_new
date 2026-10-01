@@ -7,7 +7,9 @@ archivos:
   - apps/web/lib/server/propuestas-repo.ts
   - apps/web/lib/server/propuestas-controller.ts
   - apps/web/lib/tarifa-calculada.ts
+  - apps/web/lib/calculadora-spots.ts
   - apps/web/lib/server/tarifas-repo.ts
+  - db/migrations/20261007_calculadora_spots.sql
   - apps/web/app/api/propuestas/route.ts
   - apps/web/app/(app)/(shell)/propuestas/page.tsx
   - db/migrations/20261006_precio_ajustado_por_gerente.sql
@@ -342,6 +344,37 @@ mandaba el navegador y se podía cerrar un prime a 1 peso con un `curl`.
 
 Columnas en [[esquema]] · migración `20261006_precio_ajustado_por_gerente.sql`
 en [[migraciones]] · roles en [[roles-de-venta]].
+
+## La cantidad de spots también la calcula el servidor (ADR 0042, 01/10)
+
+Una línea de pantalla **digital** vendida **por spot** puede traer los
+parámetros de la calculadora: `espaciosComprados`, `horasDia`, `roadblock` y
+`primaRoadblockPct`. Con ellos, `crearPropuestaCtrl` **recalcula la cantidad**
+(`resolverCalculadora`, `lib/calculadora-spots.ts`) sobre el loop de ESTA
+organización (`datosDelLoop`, `tarifas-repo.ts`: RLS + `and tenant_id`) y:
+
+| Caso | Respuesta |
+|---|---|
+| Parámetros mal, o `cantidad` que no cuadra | **400**, con la cuenta escrita; no se guarda nada |
+| Más espacios que los libres, o Roadblock sin el loop entero libre | **409** |
+| Prima de Roadblock > 0 sin `comercial.aprobar` | **403** «Solo un gerente o superior puede poner prima a un Roadblock.» |
+| Prima con permiso | Se guarda; tarifa esperada = calculada × (1+prima), `tarifa_calculada` = la de la pantalla, `precio_ajustado_por` = la sesión, y una línea en Actividad «… por Roadblock con prima del N %» |
+
+- La prima entra en la regla de PRECIO-01 por `decidirPrecioCalculadora`, que
+  aplica la prima **una vez** y marca la línea como ajuste. Las líneas sin
+  calculadora siguen por `decidirPrecioItem`, sin cambio.
+- Con calculadora, `spots_por_dia` = los spots al día de la cuenta: lo cotizado
+  y lo programado en el CMS son el mismo número.
+- **Al generar la campaña**, `spots_reservados` = `espacios_comprados` (todos en
+  un Roadblock) por `spotsDeLaReserva`, acotado a lo libre como siempre. Va
+  **antes** que `spots_por_dia` en `pedidos`: en una línea de calculadora ese
+  campo vale cientos (los pases al día) y retendría cientos de slots.
+- El volumen se resuelve sobre la cantidad de la calculadora, como sobre
+  cualquier otra; la prima va dentro de la tarifa unitaria, así que el volumen
+  y la prima conmutan (son dos factores) salvo el redondeo al peso.
+- La liga pública no lleva ninguno de los cuatro campos.
+
+Detalle y decisiones en [[calculadora-de-spots]].
 
 ## Portal del cliente
 

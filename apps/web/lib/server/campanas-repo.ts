@@ -783,9 +783,15 @@ export async function generarCampanaDesdePropuesta(
           // opcional, asi que una propuesta mensual normal dejaba
           // `spots_reservados` en null, y `reparto-creativos.ts:51-68` lee ese
           // null como «es una lona».
+          //
+          // ADR 0042 · y una línea de la CALCULADORA dice cuántos slots compró:
+          // `espacios_comprados` (todos en un Roadblock). Va PRIMERO porque en
+          // esa línea `spots_por_dia` vale los pases al día de la cuenta —540,
+          // 3240— y meterlo aquí retendría cientos de slots de un loop de 12.
+          // Se acota igual que siempre a lo que de verdad queda libre.
           spotsDeLaReserva({
             digital: !!porSitio.get(it.sitio_id)?.digital,
-            pedidos: it.spots_por_dia,
+            pedidos: it.espacios_comprados ?? it.spots_por_dia,
             disponibles: porSitio.get(it.sitio_id)?.spots_disponibles ?? null,
           }),
           it.unidad ?? 'mensual', it.cantidad ?? 1,
