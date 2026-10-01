@@ -118,6 +118,23 @@ archivos:
 > el ápice. El certificado se amplía ANTES de recargar nginx, sin perder los
 > nombres que ya tiene, por el HSTS con `includeSubDomains`. Google como inicio
 > de sesión en este nombre necesita su URI en Google Cloud.
+>
+> **Corregido el mismo día:** ampliar el certificado de `space-os.io` FALLÓ. Se
+> renueva por `webroot` (no por DNS-01, como planeaba el runbook de la Fase 4)
+> y el **ápice `space-os.io` ya no resuelve al PADRE** —resuelve a
+> `67.207.88.243`—, así que Let's Encrypt busca la prueba en otra máquina. El
+> bloque 6 lleva ahora **su propio certificado** (`--cert-name
+> spaceos.space-os.io`), que no depende del ápice.
+
+> [!danger] 2026-10-01 · La renovación del certificado de `space-os.io` VA A FALLAR
+> Por lo mismo: es `webroot` y el ápice apunta fuera. Ese certificado cubre
+> también **`prueba.space-os.io`** (DEMO). Cuando caduque sin renovarse, DEMO
+> deja de cargar —y con HSTS de dos años no se puede saltar el error— y
+> `promover.yml`, que hace su smoke contra DEMO, se queda sin poder promover.
+> **Pendiente de decidir:** si el ápice apunta fuera a propósito, darle a
+> `prueba.space-os.io` su propio certificado como a `spaceos`; si no, devolver
+> el ápice al PADRE. La fecha límite es la de caducidad que dé
+> `certbot certificates --cert-name space-os.io`.
 
 > [!danger] 2026-10-01 · El PADRE se migra con `spaces_migrador`, NO con `padre.env`
 > `padre.env` es la configuración de la app y entra como `spaces_app`, que **no
