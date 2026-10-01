@@ -15,9 +15,20 @@ archivos:
   - db/migrations/20261001_almacen_datos_por_tipo.sql
   - db/migrations/20261002_franja_programada_campana.sql
   - db/migrations/20261003_codigo_aprobacion.sql
+  - db/migrations/20261005_notas_de_version.sql
 ---
 
 # Esquema de datos
+
+> [!warning] 2026-10-01 · `actualizaciones_instancia.notas_disponibles` — `20261005_notas_de_version.sql`, **pendiente de aprobación**
+> Una columna nueva, **ninguna tabla**: el recuento de tablas no cambia.
+>
+> | Columna | Tipo | Qué |
+> |---|---|---|
+> | `notas_disponibles` | `jsonb`, NULL | La entrada de `novedades.json` de la versión **disponible** (`{ version, fecha, items }`). La escribe el actualizador; la app **solo la lee** (sin `grant update` nuevo: el de la app es por columna) |
+>
+> Para qué: que el Dueño y el Administrador vean qué trae una versión **antes**
+> de aprobarla. Ver [[02-Backend/notas-de-version]] y [[migraciones]].
 
 > [!success] 2026-09-30 · el cupón con APROBACIÓN — COD-03, `20261003_codigo_aprobacion.sql`
 > **Aprobada por el dueño el 2026-09-30, incluida la forma.** Tres columnas

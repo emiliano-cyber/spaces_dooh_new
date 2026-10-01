@@ -37,6 +37,11 @@ instancia se actualizaba en la siguiente corrida del cron de las 04:17. Desde
 esta pieza, **el dueño de cada instancia elige, desde su propia pantalla, si
 instala la versión nueva cuando se publica**.
 
+> [!note] 2026-10-01 · el buzón lleva también las **notas** de la versión disponible
+> `notas_disponibles` (`20261005_notas_de_version.sql`), escrita por la misma
+> sonda de `update.sh` que anota `digest_disponible`. Detalle en
+> [[notas-de-version]].
+
 ## La idea central: la base de la instancia es el buzón
 
 `update.sh` sigue sin hablar con el PADRE — esa propiedad no la toca este

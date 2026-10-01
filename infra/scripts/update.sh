@@ -1841,12 +1841,47 @@ cli
       // ausente: lo que no se puede saber no se afirma.
       console.error('estado: no se pudo contar migraciones pendientes: ' + e.message)
     }
+    // Las NOTAS de la version disponible (pedido del dueno, 2026-10-01): se
+    // leen del `novedades.json` de ESTA imagen -la nueva- para que el dueno
+    // vea que trae antes de aprobarla. Informativas como la cuenta de arriba,
+    // y con una regla mas dura: NUNCA tumban la sonda. Archivo ausente (una
+    // imagen anterior), roto o sin la version: null, se dice y se sigue.
+    let notas = null
+    try {
+      const { notasParaVersion, RUTA_NOVEDADES } = await import(pathToFileURL('/app/scripts/actualizaciones.mjs').href)
+      notas = notasParaVersion(require('fs').readFileSync(RUTA_NOVEDADES, 'utf8'), process.env.SPACE_OS_VERSION_DISPONIBLE)
+      if (!notas) console.error('estado: la imagen no trae notas para ' + process.env.SPACE_OS_VERSION_DISPONIBLE)
+    } catch (e) {
+      console.error('estado: no se pudieron leer las notas de version: ' + e.message)
+    }
+    // ¿Existe ya la columna? NO es redundante, y es lo mas caro de esta
+    // sonda: corre con la imagen NUEVA contra la base VIEJA -las migraciones
+    // de la nueva se aplican al INSTALAR, despues-. La primera `--comprobar`
+    // tras publicar la version que crea `notas_disponibles` encontraria la
+    // columna sin crear; escribirla a ciegas daria 42703, esta sonda saldria
+    // con 9 ("no se pudo leer la tabla") en cada corrida, y la instancia no
+    // podria instalar NUNCA la version que trae la columna. Sin columna se
+    // escribe lo de siempre; el dueno vera las notas desde la siguiente.
+    const conNotas = (
+      await cli.query(
+        `select exists (select 1 from information_schema.columns
+                         where table_schema = 'public' and table_name = 'actualizaciones_instancia'
+                           and column_name = 'notas_disponibles') as hay`,
+      )
+    ).rows[0].hay
+    const disponibles = [process.env.SPACE_OS_VERSION_DISPONIBLE || null, process.env.SPACE_OS_DIGEST_DISPONIBLE || null, pendientes]
+    // null -> NULL de SQL, nunca `JSON.stringify(null)`: eso guardaria el
+    // valor JSON `null` y la columna dejaria de distinguir "sin notas" de
+    // "notas que son null". Y se escribe SIEMPRE, tambien null: las notas de
+    // la version anterior no pueden quedarse pegadas a la nueva.
     await cli.query(
       `update actualizaciones_instancia
           set version_disponible = $1, digest_disponible = $2,
-              migraciones_pendientes = $3, comprobado_en = now()
+              migraciones_pendientes = $3, comprobado_en = now()` +
+        (conNotas ? ', notas_disponibles = $4::jsonb' : '') +
+        `
         where id = true`,
-      [process.env.SPACE_OS_VERSION_DISPONIBLE || null, process.env.SPACE_OS_DIGEST_DISPONIBLE || null, pendientes],
+      conNotas ? [...disponibles, notas == null ? null : JSON.stringify(notas)] : disponibles,
     )
     const fila = (
       await cli.query('select modo, digest_instalado, aprobado_digest from actualizaciones_instancia where id = true')

@@ -35,9 +35,35 @@ archivos:
   - db/migrations/20261002_franja_programada_campana.sql
   - db/migrations/20261003_codigo_aprobacion.sql
   - db/migrations/20261004_pantallas_digitales_importadas.sql
+  - db/migrations/20261005_notas_de_version.sql
 ---
 
 # Migraciones
+
+> [!warning] 2026-10-01 · `20261005_notas_de_version.sql` — **PENDIENTE de aprobación del dueño**
+> Rama `feat/notas-de-version`, **sin fusionar**: ninguna migración aterriza en
+> `main` sin que el dueño vea su forma. Una columna en
+> `actualizaciones_instancia`, **ninguna tabla** (el recuento de tablas no
+> cambia):
+>
+> | Columna | Tipo | Quién escribe / quién lee |
+> |---|---|---|
+> | `notas_disponibles` | `jsonb`, NULL | La escribe `update.sh` (sonda de estado, rol privilegiado) con la entrada de `novedades.json` de la imagen NUEVA; la lee `GET /api/actualizaciones`. NULL = sin notas |
+>
+> **Ningún `grant` nuevo, a propósito**: el `select` de tabla de `20260921` ya
+> cubre la columna, y el `update` de la app es por columna, así que la nueva
+> nace sin él. Lo comprueba `migraciones.e2e.test.ts` («notas_disponibles:
+> jsonb, nullable, la app la LEE y NO la puede escribir»), **en rojo** antes de
+> existir la migración.
+>
+> **La trampa que tiene, y que ya está resuelta en `update.sh`:** la sonda
+> corre con la imagen nueva contra la base VIEJA, así que la primera
+> `--comprobar` tras publicar esta versión llega **antes** que esta migración.
+> La sonda mira `information_schema.columns` antes de escribir la columna; sin
+> eso, `42703` en cada corrida y la instancia **no podría instalar nunca** la
+> versión que trae la columna. Consecuencia aceptada: la primera vez, el dueño
+> no ve las notas de esa versión antes de instalarla. Detalle en
+> [[02-Backend/notas-de-version]].
 
 > [!success] 2026-10-01 · `20261004_pantallas_digitales_importadas.sql`
 > **Aprobada por el dueño el 2026-10-01.** Corrección de DATOS que va como

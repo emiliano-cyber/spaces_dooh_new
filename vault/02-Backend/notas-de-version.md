@@ -9,6 +9,10 @@ archivos:
   - apps/web/lib/novedades.ts
   - scripts/verificar-novedades.mjs
   - .github/workflows/release.yml
+  - db/migrations/20261005_notas_de_version.sql
+  - scripts/actualizaciones.mjs
+  - infra/scripts/update.sh
+  - Dockerfile
 ---
 
 # Notas de versión
@@ -98,6 +102,53 @@ Probado como **proceso** (`scripts/verificar-novedades.test.ts`), igual que el
 runner de migraciones: lo que mira el `set -e` del CI es el código de salida. La
 misma prueba lee `release.yml` y falla si el paso desaparece o se mueve detrás
 del `npm ci`.
+
+## Cómo llegan a la instancia ANTES de instalar
+
+La instancia **nunca habla con el PADRE** (ADR 0037): las notas de la versión
+disponible viajan **dentro de la imagen nueva**, y el actualizador las deja en
+el buzón de siempre.
+
+1. **El `Dockerfile` copia el archivo** a `/app/apps/web/novedades.json`, con
+   una `COPY` **explícita**. Medido el 2026-10-01 tras `npm run build`: hoy
+   `.next/standalone/apps/web/novedades.json` **sí existe**, porque el trazado
+   de Next sigue el `import` de `lib/server/novedades.ts`
+   (`.next/server/app/api/novedades/route.js.nft.json`). La `COPY` va igual: eso
+   es un efecto lateral de cómo lo importa la app, no un contrato. La ruta vive
+   en un solo sitio, `RUTA_NOVEDADES` de `scripts/actualizaciones.mjs`, y
+   `scripts/actualizaciones.test.ts` exige que la `COPY` case con ella.
+2. **La sonda de estado de `update.sh`** (`guion_estado()`, el guion node que
+   corre con la imagen **nueva** en cada `--comprobar`) lee ese archivo con
+   `notasParaVersion()` y escribe `notas_disponibles` **en la misma sentencia**
+   que `version_disponible` y `digest_disponible`.
+3. **`GET /api/actualizaciones`** la devuelve como `notasDisponibles`,
+   revalidada con las mismas reglas del archivo (inválida → `null`).
+
+### Las dos reglas de la sonda
+
+- **Las notas NUNCA tumban una actualización.** `notasParaVersion()` no lanza:
+  archivo ausente (una imagen anterior), JSON roto, versión sin entrada o una
+  «versión» que es el nombre del canal — todo es `null`, se dice en el log y se
+  sigue. Y se escribe **siempre**, también `null`: las notas de la versión
+  anterior no pueden quedarse pegadas a la nueva. `null` es NULL de SQL, nunca
+  el JSON `null`.
+- **Mira si la columna existe antes de escribirla.** La sonda corre con la
+  imagen nueva contra la base **vieja**: las migraciones de la nueva se aplican
+  al instalar, después. La primera `--comprobar` tras publicar la versión que
+  crea `notas_disponibles` la encontraría sin crear; a ciegas sería `42703`, la
+  sonda saldría con 9 en cada corrida y **la instancia no podría instalar nunca
+  la versión que trae la columna**. Coste aceptado: esa primera vez el dueño no
+  ve las notas antes de instalar.
+
+Las dos están probadas **ejecutando el guion de verdad**, extraído de
+`update.sh`, con un `pg` doble que anota cada consulta
+(`scripts/actualizaciones.test.ts`, «la sonda de estado anota
+notas_disponibles»). El arnés `infra/scripts/pruebas-update.sh` no puede verlas:
+dobla el `docker run` entero y nunca ejecuta el guion node.
+
+La columna: `20261005_notas_de_version.sql` ([[migraciones]], [[esquema]]).
+**Ningún `grant` nuevo**: el `select` de tabla ya la cubre y el `update` de la
+app es por columna, así que la app la lee y no la puede escribir.
 
 ## Relacionadas
 [[actualizaciones-instancia]] · [[02-Backend/_indice|Índice de Backend]] ·
