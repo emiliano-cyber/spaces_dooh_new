@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-09-28
+actualizado: 2026-10-01
 tags: [backend, inventario, sitios, amarillo]
 archivos:
   - apps/web/lib/server/sitios-repo.ts
@@ -173,6 +173,23 @@ comercialización sin borrar nada (`20260723_sitio_pausa_legal.sql`).
 `POST /api/sitios/import` con Excel. Agrupa por `codigo_proveedor` para crear
 las modalidades. `lib/predio-cercania.ts` agrupa pantallas en predios por radio
 (`RADIO_PREDIO_M`).
+
+> [!danger] 2026-10-01 · las digitales importadas antes del 29/09 se reservaban como FIJAS
+> El booking (`reservar` y `generarCampanaDesdePropuesta`, en
+> `lib/server/campanas-repo.ts`) decide digital **solo** por
+> `tipo_medio = 'PANTALLA_DIGITAL'`. El importador viejo ponía ahí la estructura
+> física (ESPECTACULAR, MURAL…) y marcaba lo digital en `exhibicion`. Así que la
+> pantalla **se veía digital en Inventario y se reservaba fija**: campaña OOH,
+> sin slots, pidiendo imprenta.
+>
+> `b25c7ca6` (29/09) arregló el importador (`valoresDe`, `sitios-repo.ts`), pero
+> **solo para las cargas nuevas**. Las ya cargadas siguieron mal hasta
+> `20261004_pantallas_digitales_importadas.sql` (ver [[04-Datos/migraciones]]).
+>
+> **La lección:** arreglar el código que escribe un dato no arregla los datos que
+> ya escribió. Si un arreglo cambia CÓMO se guarda algo, la misma tarea tiene que
+> preguntarse qué filas quedaron guardadas de la forma vieja. Se vio en DEMO y no
+> en local porque la base local se había recargado después del arreglo.
 
 > [!warning] `clave_interna` y `codigo_proveedor` son UNIQUE **globales**
 > No llevan `tenant_id` en la restricción (`db/schema.sql:124-125`). Dos

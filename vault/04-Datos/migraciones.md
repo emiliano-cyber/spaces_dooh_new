@@ -1,7 +1,7 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-09-30
+actualizado: 2026-10-01
 tags: [datos, migraciones, despliegue, rojo]
 archivos:
   - db/migrations/
@@ -34,9 +34,28 @@ archivos:
   - db/migrations/20260928_paquete_cerrado.sql
   - db/migrations/20261002_franja_programada_campana.sql
   - db/migrations/20261003_codigo_aprobacion.sql
+  - db/migrations/20261004_pantallas_digitales_importadas.sql
 ---
 
 # Migraciones
+
+> [!success] 2026-10-01 · `20261004_pantallas_digitales_importadas.sql`
+> **Aprobada por el dueño el 2026-10-01.** Corrección de DATOS que va como
+> `@tipo: esquema` **a propósito**: con `@tipo: datos`, `update.sh` la saltaría
+> y ninguna instancia la tomaría sola, que es justo lo que falló.
+>
+> Pone `tipo_medio = 'PANTALLA_DIGITAL'` en las pantallas que el importador
+> anterior al 29/09 dejó con su estructura física, y que por eso **se
+> reservaban como fijas** (DEMO, 01/10: 10 pantallas del CSV, cargadas el 25/09).
+> Criterio: las TRES marcas que el importador viejo ponía solo a las digitales
+> —`exhibicion` digital/rotativo, `PROGRAMATICO`, `total_spots` no nulo—. Un
+> prisma rotativo (TRADICIONAL, sin slots) no se toca. **No corrige campañas ni
+> reservas ya creadas**: decisión del dueño, por los candados de impresión y
+> facturación. Idempotente.
+>
+> Prueba: `apps/web/lib/test/pantallas-digitales-importadas.e2e.test.ts`
+> (9 casos, 3 negativos), **en rojo** con el `update` desactivado y verde con él.
+> Detalle de la causa en [[02-Backend/inventario-y-sitios]].
 
 > [!success] 2026-09-30 · `20261003_codigo_aprobacion.sql` — COD-03
 > **Aprobada por el dueño el 2026-09-30, con su forma.** Tres columnas en

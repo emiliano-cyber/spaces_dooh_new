@@ -5,6 +5,23 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-10-01
+
+- **Las pantallas digitales que se cargaron con el CSV ya crean campañas
+  digitales.** *(Lo encontraste tú en la instancia de pruebas.)* Las pantallas
+  cargadas antes del 29/09 con el archivo de carga masiva se veían como digitales
+  en Inventario, pero al generar una campaña desde una propuesta salía como si
+  fuera **fija**: pedía imprenta y no apartaba sus anuncios en la pantalla. El
+  29/09 se arregló la carga para lo nuevo, pero las pantallas que ya estaban se
+  quedaron con el dato viejo. Ahora, al actualizarse, cada instalación las
+  corrige sola.
+
+  Lo que no cambia: las campañas que **ya** se habían creado así se quedan como
+  estaban. En pruebas hay dos (las de Santa Fe Torre Digital). Para comprobar el
+  arreglo, haz una propuesta nueva sobre esa pantalla y genera su campaña: debe
+  salir digital. Y esas pantallas dejan de contar en el reporte por metro
+  cuadrado, que solo mide las fijas.
+
 ## 2026-09-30
 
 - **Los colores de los botones ya siguen tu regla en todas las pantallas.**
