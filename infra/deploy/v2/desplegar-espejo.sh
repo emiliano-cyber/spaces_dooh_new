@@ -125,9 +125,21 @@ verde "   listo (permisos 600)"
 paso "5) Base de V2: copia de V1 y migraciones nuevas sobre la copia"
 $C up -d v2mysql v2redis
 CLAVE=$(grep -E '^DB_PASSWORD=' .env.v2 | tail -1 | cut -d= -f2-)
-for i in $(seq 1 60); do $C exec -T v2mysql mysqladmin ping -uroot -p"$CLAVE" >/dev/null 2>&1 && break; sleep 2; done
-zcat "$R/base-v1.sql.gz" | $C exec -T v2mysql mysql -uroot -p"$CLAVE" space_eye 2>/dev/null
-verde "   copia cargada"
+# Por TCP y no por el socket: en su primer arranque la imagen de MySQL levanta un
+# servidor TEMPORAL (sin red) para inicializarse y luego lo reinicia. Un ping por
+# el socket le contesta a ese temporal, y cargar ahi se corta a la mitad.
+LISTO=0
+for i in $(seq 1 90); do
+  $C exec -T v2mysql mysqladmin ping -h127.0.0.1 -uroot -p"$CLAVE" >/dev/null 2>&1 && { LISTO=1; break; }
+  sleep 2
+done
+(( LISTO )) || { rojo "   El MySQL de V2 no arranco"; exit 1; }
+sleep 3
+if ! zcat "$R/base-v1.sql.gz" | $C exec -T v2mysql mysql -h127.0.0.1 -uroot -p"$CLAVE" space_eye 2>/tmp/carga.err; then
+  rojo "   No se pudo cargar la copia:"; grep -v Warning /tmp/carga.err | head -5; exit 1
+fi
+N=$($C exec -T v2mysql mysql -N -h127.0.0.1 -uroot -p"$CLAVE" space_eye -e 'SELECT COUNT(*) FROM devices' 2>/dev/null)
+verde "   copia cargada ($N equipos)"
 for f in $(ls "$DIR/backend/migrations" | awk '$0 >= "015"' | sort); do
   if $C exec -T v2mysql mysql -uroot -p"$CLAVE" space_eye < "$DIR/backend/migrations/$f" 2>/tmp/mig.err; then
     echo "   ok  $f"
