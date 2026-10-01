@@ -1,9 +1,14 @@
 # ---- Secrets / env ----
 .env
-.env.local
-.env.*.local
+# Cualquier .env con sufijo: .env.v2, .env.pruebas, .env.produccion... El script
+# de despliegue escribe .env.v2 CON LOS SECRETOS DE PRODUCCION DENTRO, y ese
+# script se corre desde una copia del repositorio en el droplet: sin esta linea,
+# un `git add -A` alli los publicaria.
+.env.*
 *.pem
-# (se conservan los .env.example)
+# Los ejemplos si se guardan: no llevan secretos, llevan los nombres.
+!.env.example
+!.env.*.example
 
 # ---- Node / backend ----
 node_modules/

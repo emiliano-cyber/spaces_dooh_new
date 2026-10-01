@@ -24,7 +24,7 @@ set -euo pipefail
 RESPALDO="${1:-}"
 AQUI="$(cd "$(dirname "$0")" && pwd)"
 PROY="space-eye-v2"
-PUERTO_V2=4100
+PUERTO_V2=4200
 
 rojo()  { printf '\033[31m%s\033[0m\n' "$*"; }
 verde() { printf '\033[32m%s\033[0m\n' "$*"; }
@@ -44,7 +44,7 @@ verde "   producción viva (HTTP $COD)"
 
 # ─── 2. Los puertos de V2, libres ───────────────────────────────────────────
 paso "2) Comprobando que los puertos de V2 estan libres"
-for p in 4100 8654 8989; do
+for p in 4200 8754 9089; do
   if ss -ltn 2>/dev/null | grep -q ":$p " ; then
     rojo "   El puerto $p esta ocupado. V2 no puede levantar ahi."
     exit 1
@@ -71,9 +71,10 @@ PUBLIC_BASE_URL=https://eyes.g500.space-os.io
 # El navegador abre el vivo por el dominio y su certificado: una pagina https no
 # puede abrir un WHEP en http.
 MEDIAMTX_WHEP_PUBLIC=https://eyes.g500.space-os.io/whep
-# Los puertos de MediaMTX de V2, corridos para no chocar con producción.
-MEDIAMTX_RTSP_PORT=8654
-MEDIAMTX_WEBRTC_PORT=8989
+# Los puertos de MediaMTX de V2, corridos para no chocar ni con producción ni
+# con la instancia de pruebas del 4100.
+MEDIAMTX_RTSP_PORT=8754
+MEDIAMTX_WEBRTC_PORT=9089
 FIN
 chmod 600 "$AQUI/.env.v2"
 verde "   .env.v2 listo (permisos 600)"
@@ -121,7 +122,7 @@ sleep 5
 COD_V2=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "http://127.0.0.1:$PUERTO_V2/api/app/version" || echo 000)
 COD_V1=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 http://127.0.0.1:4000/api/app/version || echo 000)
 
-echo "   V2 (4100): HTTP $COD_V2"
+echo "   V2 (4200): HTTP $COD_V2"
 echo "   V1 (4000): HTTP $COD_V1   <- esta es la que importa"
 
 FALLOS=0
@@ -130,10 +131,10 @@ FALLOS=0
 
 paso "RESULTADO"
 if [[ "$FALLOS" -eq 0 ]]; then
-  verde "V2 arriba en el 4100 y producción intacta en el 4000."
+  verde "V2 arriba en el 4200 y producción intacta en el 4000."
   echo
   echo "Siguiente: apuntar el vhost de Apache a V2 y recargar."
-  echo "  ProxyPass / http://127.0.0.1:4100/     y     /whep/ -> 127.0.0.1:8989"
+  echo "  ProxyPass / http://127.0.0.1:4200/     y     /whep/ -> 127.0.0.1:9089"
   echo "  apache2ctl configtest && systemctl reload apache2"
   echo
   echo "Para deshacerlo todo:  docker compose -p $PROY down"

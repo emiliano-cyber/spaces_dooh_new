@@ -168,12 +168,17 @@ function dashboard() {
     async deleteDevice(d) {
       // Borrar un equipo se lleva su historial completo y no hay vuelta atras:
       // se exige escribir ELIMINAR, no solo aceptar un aviso.
-      const confirmar = window.confirmarEscribiendo
-        // Respaldo por si el encabezado no alcanzo a cargar: mismo criterio,
-        // sin modal. Nunca se borra sin escribir la palabra.
-        || (async ({ mensaje, palabra }) => prompt(`${mensaje}\n\nEscribe ${palabra} para confirmar:`) === palabra);
+      // Antes habia aqui un respaldo con `prompt()` por si el encabezado no
+      // cargaba. Era peor que no tenerlo: el navegador encabeza esa ventana con
+      // la direccion del servidor -«159.203.188.58:4200 dice»- y, sobre todo,
+      // dejaba borrar por un camino degradado justo en la unica accion que no
+      // tiene vuelta atras. Si el dialogo de la casa no esta, no se borra.
+      if (!window.confirmarEscribiendo) {
+        this.showToast('Recarga la página para poder eliminar equipos', 'error');
+        return;
+      }
 
-      const ok = await confirmar({
+      const ok = await window.confirmarEscribiendo({
         titulo: 'Eliminar dispositivo',
         mensaje: `Vas a eliminar "${d.name}"`,
         detalle: 'Se borrarán sus fotos, su telemetría y todos sus registros. Esta acción no se puede deshacer.',

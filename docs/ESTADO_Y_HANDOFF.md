@@ -5,6 +5,97 @@ verifico y que sigue pendiente. Lo mas reciente primero.
 
 ---
 
+## 2026-09-24 al 2026-10-01 — Monitoreo en el telefono real, rediseño, vivo para varios y V2 como espejo
+
+Rama `feature/playlog-logs`, commits `3ce38e7` a `209ca5a`. Hay TRES instancias
+en el droplet; produccion (4000) no se toco en ningun paso:
+
+```
+:4000  V1, produccion. Los equipos de campo entran aqui (su APK lo trae fijo).
+:4100  pruebas (/var/www/Marketplace/space-eye-pruebas, proyecto seprueba).
+:4200  V2 (/var/www/Marketplace/space-eye-v2, proyecto space-eye-v2): todo lo
+       nuevo, ESPEJO de los equipos de V1 + el telefono de pruebas directo.
+```
+
+### 1. Monitoreo de pantalla probado en el telefono de pruebas (0.15.x)
+
+Ciclo completo validado en :4100 tapando y destapando la pantalla: alertas
+abiertas con evidencia y recuperadas solas por el equipo con su foto. En el
+camino se corrigio, todo con pruebas unitarias (43 en verde):
+
+- La camara en segundo plano (Android 14 niega el tipo FGS camara si la app no
+  esta al frente): se conserva y el dashboard avisa si Android la niega.
+- La exposicion automatica escondia las zonas quietas: se fija AE/AWB durante
+  cada vuelta, y se limpia al volver a la vista en vivo (la dejaba negra).
+- "Camara movida" se mide con la mediana de los puntos que casan, y solo con
+  rasgos FUERA de la pantalla (lo que se mueve dentro no cuenta).
+- Una alerta agrupada ("varios gabinetes") con su clave del servidor ya no tumba
+  la vuelta; una vuelta interrumpida se juzga solo con su tramo mas largo.
+- Aprendizaje configurable por equipo (2 h por omision; "solo la primera vuelta"
+  para pruebas) y creativos en modo continuo.
+
+### 2. Rediseño UX/UI con el Brand Book (`a1e50f5`, `2e3631e`)
+
+Tema comun (`frontend/src/js/tema.js` + `styles.css`, componentes `se-*`),
+ficha del equipo en pestañas, indicadores y historiales consistentes. "Tomar
+foto" siempre a la mano: dentro del vivo, disparador sobre el video y barra fija
+al bajar (abajo en el celular). Revisado sin desbordes a 360/768/1024/1920 px.
+
+### 3. Vista en vivo para varias personas (`5faec7d`)
+
+El telefono manda su video UNA vez al servidor de medios (MediaMTX) y este lo
+reparte: el backend contesta la oferta del telefono por WHIP y los navegadores
+ven por WHEP. Sin cambiar la APK. Espectador por PESTAÑA (todos usan la misma
+cuenta); se corta al irse el ultimo. MediaMTX espera 10 s los primeros cuadros
+(con 2 s colgaba a los telefonos que conectan por TURN).
+
+### 4. Auditoria antes de produccion (`bce869c`)
+
+Tres revisiones en paralelo (APK, backend, frontend). Lo grave, corregido:
+una alerta rechazada se reenviaba con su foto en cada vuelta (cientos de MB/dia);
+cada vistazo guardaba su JPEG de 3-5 MB (memoria); el catalogo de creativos no
+tenia tope; la evidencia de fallas se iba a las instancias de SPACE OS; marcar
+la pantalla de una Pi borraba sus creativos; la migracion del ENUM de fotos va
+con ALGORITHM=INSTANT.
+
+### 5. V2 en :4200 como ESPEJO de V1 (`3828d12` y siguientes)
+
+Los equipos de campo no se pueden reinstalar, asi que V2 no los tiene: los
+refleja. Cada 4 s copia de la base de V1 lo que reportan (solo columnas comunes,
+INSERT ... ON DUPLICATE, nunca REPLACE) y les manda ordenes por el Redis de V1
+(`backend/src/utils/espejo.ts`, `workers/espejoWorker.ts`). Fotos de V1
+montadas solo lectura. Probado en local con V1 real (`c7a10ee`) y un telefono
+simulado: foto, vivo con dos visores, corte al irse el ultimo, edicion escrita en
+las dos. Las migraciones 015-019 corrieron sobre una copia de la base real.
+
+- Escribe en V1 solo: filas de `commands` y las ediciones de un equipo.
+- Rechaza (409): campañas, programacion y borrados — se hacen en :4000.
+- Programador APAGADO en V2 (lo dispara V1; si no, cada foto saldria doble).
+- Respaldo de V1 del despliegue: `/root/respaldos/espejo-2026-10-01_1024/`.
+- TRAMPA: el backend de V2 vive en dos redes; sus servicios se llaman v2mysql,
+  v2redis y v2mediamtx para que "redis" nunca resuelva al de produccion.
+
+**Equipos propios de V2**: numeran desde 1.000.000.000 (`BASE_PROPIO`); el
+espejo no los borra ni los pisa. El telefono de pruebas se mudo de :4100 con todo
+su historial (81 fotos, 13 fallas, 12 creativos) como equipo `1000000002`
+(`infra/deploy/v2/mudar-prueba-a-v2.sh`). La APK 0.15.15 apunta a :4200 y se da
+de alta sola si el servidor rechaza su llave.
+
+### Pendientes
+
+1. **Mudar el telefono**: encenderlo y, en :4100, Mas -> Actualizar (0.15.15).
+2. **Probar desde :4200 con un equipo de campo real**: una foto y el vivo con dos
+   navegadores (no se hizo para no gastar datos de una pantalla real sin aviso).
+3. **Conmutar** cuando V2 sea la buena (README de `infra/deploy/v2`): migraciones
+   ya ensayadas; despues, APK 0.15+ a la flota para que tengan monitoreo.
+4. Programacion de fotos para los equipos propios de V2 (hoy apagada para todos).
+5. Memoria del droplet: ~660 MB libres con las tres instancias (swap 4 GB). Si se
+   pone lento, apagar :4100 primero.
+6. Siguen de antes: SE.4 aviso saliente, pantalla de descarga del instalador,
+   dominio + HTTPS, Pi/PC con el mismo analisis de fallas.
+
+---
+
 ## 2026-09-21 — Space Eyes se convierte en un modulo de SPACE OS
 
 Se cerro el encargo de llevar el modulo a un dashboard de monitoreo. Primero la
@@ -418,7 +509,7 @@ docker compose -f infra/docker-compose.ip.yml --env-file backend/.env up -d --bu
 
 ---
 
-## 24-sep-2026 — Monitoreo de la pantalla en el equipo (APK 0.15.0, SIN DESPLEGAR)
+## 24-sep-2026 — Monitoreo de la pantalla en el equipo (APK 0.15.0; ver la entrada del 1-oct para lo que siguio)
 
 El celular vigila su pantalla por si mismo: reconoce creativos y busca fallas
 SIN mandar imagenes; solo avisa cuando algo cambia de estado. Todo en la rama
