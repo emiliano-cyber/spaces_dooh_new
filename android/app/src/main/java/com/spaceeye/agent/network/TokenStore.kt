@@ -21,10 +21,22 @@ class TokenStore(private val ctx: Context) {
     }
 
     fun saveDeviceToken(token: String) {
-        prefs.edit().putString("device_token", token).apply()
+        // Se anota de que servidor es: una app compilada contra otro servidor (el
+        // equipo se mudo de instancia) no debe presentarse con la llave del anterior.
+        prefs.edit().putString("device_token", token)
+            .putString("device_token_server", com.spaceeye.agent.BuildConfig.SERVER_URL).apply()
     }
 
-    fun getDeviceToken(): String? = prefs.getString("device_token", null)
+    fun getDeviceToken(): String? {
+        val servidor = prefs.getString("device_token_server", null)
+        if (servidor != null && servidor != com.spaceeye.agent.BuildConfig.SERVER_URL) return null
+        return prefs.getString("device_token", null)
+    }
+
+    /** El servidor ya no reconoce la llave: se olvida para darse de alta otra vez. */
+    fun clearDeviceToken() {
+        prefs.edit().remove("device_token").remove("device_token_server").apply()
+    }
 
     fun saveDeviceUid(uid: String) {
         prefs.edit().putString("device_uid", uid).apply()

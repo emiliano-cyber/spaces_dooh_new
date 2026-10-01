@@ -23,6 +23,17 @@ import type { Request, Response, NextFunction } from 'express';
 
 export const espejoActivo = () => !!(env.ESPEJO_DB_HOST && env.ESPEJO_REDIS_URL);
 
+/**
+ * Desde aqui empiezan los numeros de lo que es PROPIO de esta instancia (un
+ * equipo que se conecta directo a V2, como el telefono de pruebas, y todo lo
+ * suyo). Lo que viene de V1 conserva su numero, que esta muy por debajo; asi
+ * nunca chocan, y el espejo sabe que no le toca borrar ni pisar lo de arriba.
+ */
+export const BASE_PROPIO = 1_000_000_000;
+
+/** El equipo esta conectado a V1 (se le habla por su buzon) y no a esta instancia. */
+export const esDeV1 = (deviceId: number) => espejoActivo() && Number(deviceId) < BASE_PROPIO;
+
 /** Como va la copia: lo lee el dashboard para avisar si el espejo se atraso. */
 export const estadoEspejo = { ultima: null as Date | null, error: '' };
 
@@ -85,9 +96,9 @@ export async function redisDeV1() {
  * Redis (lo recoge su deviceSocket); en modo espejo, al de V1 (lo recoge el
  * deviceSocket de V1, que es el que tiene a los equipos conectados).
  */
-export async function publicarAEquipos(canal: string, datos: unknown) {
+export async function publicarAEquipos(canal: string, datos: { device_id: number } & Record<string, unknown>) {
   const msg = JSON.stringify(datos);
-  if (espejoActivo()) await (await redisDeV1()).publish(canal, msg);
+  if (esDeV1(datos.device_id)) await (await redisDeV1()).publish(canal, msg);
   else await redis.publish(canal, msg);
 }
 
@@ -114,7 +125,7 @@ export async function ordenarEquipo(
                VALUES (?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE))`;
 
   let id: number;
-  if (espejoActivo()) {
+  if (esDeV1(deviceId)) {
     const v1 = baseV1();
     const tiene = await columnasV1('commands');
     const insertarEnV1 = async (firma: boolean) => {
@@ -162,7 +173,7 @@ export async function ordenarEquipo(
  * encuadre anterior.
  */
 export async function escribirEquipoEnV1(deviceId: number, campos: Record<string, unknown>) {
-  if (!espejoActivo()) return;
+  if (!esDeV1(deviceId)) return;
   const v1 = baseV1();
   // Solo las columnas que V1 tiene: lo nuevo de V2 no existe alla.
   const existentes = await columnasV1('devices');
@@ -199,6 +210,7 @@ export function copiarEdicionAV1(req: Request, res: Response, next: NextFunction
   res.on('finish', () => {
     if (res.statusCode >= 300) return;
     const id = Number(req.params.id);
+    if (!esDeV1(id)) return;
     pool.query<any[]>(`SELECT * FROM devices WHERE id = ?`, [id])
       .then(([filas]) => {
         const d = (filas as any[])[0];

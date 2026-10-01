@@ -21,7 +21,7 @@
 import { pool } from '../config/database';
 import { redis } from '../config/redis';
 import { env } from '../config/env';
-import { baseV1, columnasV1, estadoEspejo, redisDeV1 } from '../utils/espejo';
+import { BASE_PROPIO, baseV1, columnasV1, estadoEspejo, redisDeV1 } from '../utils/espejo';
 import { atenderCandidato, atenderOferta } from '../utils/relayTelefono';
 import { publicarAEquipos } from '../utils/espejo';
 import { registrarCandidato } from '../utils/iceDiag';
@@ -85,8 +85,9 @@ async function copiarChica(tabla: string) {
   // Lo que V1 ya no tiene, tampoco aqui (tablas con llave `id`).
   if (cols.includes('id')) {
     const ids = lista.map((f) => f.id);
-    if (ids.length) await pool.query(`DELETE FROM \`${tabla}\` WHERE id NOT IN (?)`, [ids]);
-    else await pool.query(`DELETE FROM \`${tabla}\``);
+    // Solo entre los numeros de V1: lo propio de esta instancia no se toca.
+    if (ids.length) await pool.query(`DELETE FROM \`${tabla}\` WHERE id NOT IN (?) AND id < ?`, [ids, BASE_PROPIO]);
+    else await pool.query(`DELETE FROM \`${tabla}\` WHERE id < ?`, [BASE_PROPIO]);
   }
 }
 
@@ -96,7 +97,7 @@ async function cursor(tabla: string): Promise<number> {
   const v = await redis.get(`espejo:cursor:${tabla}`);
   if (v != null) return Number(v);
   // Primera vez: se arranca desde lo que ya trajo el volcado inicial.
-  const [f] = await pool.query<any[]>(`SELECT COALESCE(MAX(id), 0) AS m FROM \`${tabla}\``);
+  const [f] = await pool.query<any[]>(`SELECT COALESCE(MAX(id), 0) AS m FROM \`${tabla}\` WHERE id < ?`, [BASE_PROPIO]);
   return Number((f as any[])[0].m);
 }
 
@@ -186,7 +187,22 @@ async function escucharAV1() {
   console.log('[Espejo] escuchando a V1');
 }
 
+/**
+ * Lo que nace aqui (un equipo conectado directo, sus fotos, sus ordenes) toma
+ * numeros desde BASE_PROPIO. Sin esto, la siguiente foto propia tomaria el
+ * numero que V1 le dara a su proxima foto, y el espejo la pisaria.
+ */
+async function separarNumeros() {
+  for (const t of [...CHICAS, ...CRECEN.map((c) => c.tabla)]) {
+    const [f] = await pool.query<any[]>(
+      `SELECT AUTO_INCREMENT AS a FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?`, [t]);
+    const a = Number((f as any[])[0]?.a ?? 0);
+    if ((f as any[]).length && a < BASE_PROPIO) await pool.query(`ALTER TABLE \`${t}\` AUTO_INCREMENT = ${BASE_PROPIO}`);
+  }
+}
+
 console.log(`[Espejo] activo: esta instancia refleja los equipos de ${env.ESPEJO_NOMBRE}`);
+separarNumeros().catch((e) => console.error('[Espejo] no se pudieron separar los numeros propios:', e.message));
 void unaVuelta();
 setInterval(() => void unaVuelta(), CADA_MS);
 escucharAV1().catch((e) => console.error('[Espejo] no se pudo escuchar a V1:', e.message));

@@ -199,6 +199,36 @@ class ApiClient(ctx: Context) {
      *   Viaja pegado a este reporte, que sale igual cada minuto, para que vigilar
      *   la pantalla no agregue peticiones propias.
      */
+    /**
+     * Alta (o re-alta) del equipo con su identificador estable. Para un equipo que
+     * el servidor ya conoce solo renueva la llave: no se duplica.
+     */
+    fun registrar(): Boolean {
+        val json = JSONObject().apply {
+            put("device_uid", tokenStore.getOrCreateDeviceUid())
+            put("android_version", android.os.Build.VERSION.RELEASE)
+            put("app_version", BuildConfig.VERSION_NAME)
+            put("model", android.os.Build.MODEL)
+            put("manufacturer", android.os.Build.MANUFACTURER)
+        }
+        val request = Request.Builder()
+            .url("$baseUrl/api/device/register")
+            .post(json.toString().toRequestBody("application/json".toMediaType()))
+            .build()
+        return try {
+            http.newCall(request).execute().use { r ->
+                if (!r.isSuccessful) { Log.e(TAG, "registrar: ${r.code}"); return false }
+                tokenStore.saveDeviceToken(JSONObject(r.body!!.string()).getString("token"))
+                true
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "registrar error: ${e.message}")
+            false
+        }
+    }
+
+    fun tieneLlave(): Boolean = tokenStore.getDeviceToken() != null
+
     fun reportStatus(status: DeviceStatus, extra: JSONObject? = null): Boolean {
         val token = tokenStore.getDeviceToken() ?: return false
 
@@ -246,6 +276,10 @@ class ApiClient(ctx: Context) {
             if (!success) {
                 Log.e(TAG, "Status report failed: ${response.code}")
             }
+            // Llave rechazada: el equipo se mudo de servidor o el servidor se
+            // reinstalo. Antes se quedaba asi para siempre, reportando a ciegas;
+            // ahora se olvida la llave y el latido lo vuelve a dar de alta.
+            if (response.code == 401) tokenStore.clearDeviceToken()
             response.close()
             success
         } catch (e: Exception) {

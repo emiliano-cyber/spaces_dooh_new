@@ -124,6 +124,9 @@ class MonitorService : Service() {
         scope.launch {
             while (isActive) {
                 try {
+                    // Sin llave (el servidor rechazo la anterior): darse de alta otra
+                    // vez y reconectar el canal de ordenes con la llave nueva.
+                    reAltaSiHaceFalta()
                     val status = statusCollector.collect()
                     updateNotification("Online · Bateria ${status.batteryPct}%")
 
@@ -135,12 +138,26 @@ class MonitorService : Service() {
                         apiClient.reportStatus(status, resumen)
                     }
                     if (!ok && resumen != null) vigilante.devolver(resumen)
+                    // Si el servidor acaba de rechazar la llave, se da de alta ya y
+                    // no hasta el siguiente latido.
+                    reAltaSiHaceFalta()
                 } catch (e: Exception) {
                     Log.e(TAG, "Heartbeat error: ${e.message}")
                     updateNotification("Reintentando...")
                 }
                 delay(60_000)
             }
+        }
+    }
+
+    /** Sin llave valida: darse de alta otra vez y reconectar el canal de ordenes. */
+    private suspend fun reAltaSiHaceFalta() {
+        if (apiClient.tieneLlave()) return
+        val ok = withContext(Dispatchers.IO) { apiClient.registrar() }
+        if (ok) {
+            RemoteLog.info(applicationContext, "service", "Equipo dado de alta de nuevo en el servidor")
+            socketManager.disconnect()
+            socketManager.connect()
         }
     }
 
