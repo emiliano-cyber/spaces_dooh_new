@@ -66,41 +66,41 @@ export async function prospectosApi(filtro: {
   if (filtro.etapas?.length) p.set('etapas', filtro.etapas.join(','))
   if (filtro.tipo) p.set('tipo', filtro.tipo)
   if (filtro.pagina) p.set('pagina', String(filtro.pagina))
-  return leer(await fetch(`/api/captacion/?${p}`), 'No se pudieron leer los prospectos')
+  return leer(await fetch(`/spaces-dooh/api/captacion/?${p}`), 'No se pudieron leer los prospectos')
 }
 
 export async function prospectoApi(id: string): Promise<ProspectoDetalle> {
-  return leer(await fetch(`/api/captacion/${id}/`), 'No se pudo leer el prospecto')
+  return leer(await fetch(`/spaces-dooh/api/captacion/${id}/`), 'No se pudo leer el prospecto')
 }
 
 export async function crearProspectoApi(f: ProspectoForm): Promise<ProspectoDetalle> {
-  return leer(await fetch('/api/captacion/', json('POST', f)), 'No se pudo dar de alta')
+  return leer(await fetch('/spaces-dooh/api/captacion/', json('POST', f)), 'No se pudo dar de alta')
 }
 
 export async function editarProspectoApi(id: string, f: ProspectoForm): Promise<ProspectoDetalle> {
   // El tipo viaja porque el esquema lo pide, pero el servidor valida contra el
   // que ya tiene: cambiarlo no hace nada.
   const { nota: _nota, ...resto } = f
-  return leer(await fetch(`/api/captacion/${id}/`, json('PATCH', resto)), 'No se pudo guardar')
+  return leer(await fetch(`/spaces-dooh/api/captacion/${id}/`, json('PATCH', resto)), 'No se pudo guardar')
 }
 
 export async function avanceApi(
   id: string,
   a: { etapa: Etapa; nota: string; siguientePaso?: string | null; siguientePasoFecha?: string | null },
 ): Promise<ProspectoDetalle> {
-  return leer(await fetch(`/api/captacion/${id}/avances/`, json('POST', a)), 'No se pudo registrar el avance')
+  return leer(await fetch(`/spaces-dooh/api/captacion/${id}/avances/`, json('POST', a)), 'No se pudo registrar el avance')
 }
 
 export async function aprobarApi(id: string, confirmaNombreRepetido = false): Promise<ProspectoDetalle> {
   return leer(
-    await fetch(`/api/captacion/${id}/decision/`, json('POST', { decision: 'APROBAR', confirmaNombreRepetido })),
+    await fetch(`/spaces-dooh/api/captacion/${id}/decision/`, json('POST', { decision: 'APROBAR', confirmaNombreRepetido })),
     'No se pudo aprobar',
   )
 }
 
 export async function rechazarApi(id: string, motivo: string): Promise<ProspectoDetalle> {
   return leer(
-    await fetch(`/api/captacion/${id}/decision/`, json('POST', { decision: 'RECHAZAR', motivo })),
+    await fetch(`/spaces-dooh/api/captacion/${id}/decision/`, json('POST', { decision: 'RECHAZAR', motivo })),
     'No se pudo rechazar',
   )
 }

@@ -32,6 +32,17 @@ guard        zod + reglas        SQL           tenant + pool
 | La validación de entrada va con `validar(schema, body)` | Traduce zod a español y humaniza el campo |
 | El SQL vive en el repo, nunca en el route | Y siempre parametrizado |
 | Toda operación por `id` lleva `and tenant_id = $n` | Segunda capa sobre la RLS |
+| Toda llamada **del navegador** a la API se escribe `'/spaces-dooh/api/...'`, con la barra final | No hay ningún parche de `fetch` que añada el `basePath`: `/api/...` va al ORIGEN y vuelve el 404 HTML de Next. Lo vigila `apps/web/lib/rutas-api-cliente.test.ts` |
+
+> [!danger] 2026-09-30 · el basePath faltaba en SEIS módulos a la vez
+> Franjas y temporadas, la rejilla de cada pantalla, códigos promocionales,
+> paquetes, descuentos por volumen, la franja programada, captación y la subida
+> de recibos de luz llamaban a `/api/...` sin `/spaces-dooh`: **30 llamadas en 8
+> archivos**. El servidor funcionaba —las e2e llaman con el prefijo puesto y
+> pasaban en verde— y en el navegador todo daba 404. Ya había pasado en
+> Reportes el 18/09. Lo vio el dueño abriendo Franjas: «no funciona». Desde
+> entonces `rutas-api-cliente.test.ts` lee el código del cliente y falla si una
+> cadena empieza por `/api/` (los comentarios no cuentan).
 
 ## Comentarios: se explica el **porqué**, no el qué
 

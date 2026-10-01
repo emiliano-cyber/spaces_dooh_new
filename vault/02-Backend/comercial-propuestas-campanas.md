@@ -152,6 +152,33 @@ El tenant de esas peticiones lo resuelve Postgres con
 
 Un creativo puede ser **imagen** o **código HTML** (`creatividades.codigo`).
 
+> [!danger] 2026-09-30 · subir una imagen fallaba con casi cualquier foto
+> El dueño: *«en campaña está el error de fetch para subir imágenes»*. Las dos
+> pantallas que suben imágenes (Creativos y la ficha de campaña) la envuelven
+> con `imagenAHtml()` —el player DOOH necesita HTML adaptable— y la envoltura
+> lleva la imagen **dos veces** en base64 (fondo difuminado y frente). Viaja por
+> `codigo`, cuyo límite era 2 MB: la foto más grande que entraba rondaba los
+> **700 KB**, aunque la pantalla prometía 5 MB. Y en producción nginx corta en
+> **12 MB** (`client_max_body_size 12M`): una de 5 MB envuelta (~14 MB) moría
+> antes de llegar a la app, como un error de red.
+>
+> **Ahora** (`creativos-controller.ts`): si el HTML es EXACTAMENTE la envoltura
+> de la app —se regenera con `imagenAHtml()` y se compara byte a byte—, la
+> imagen de dentro se valida **como imagen** (tipo real por magic bytes) con
+> tope `IMAGEN_CREATIVO_MAX_MB` = **4 MB** (`lib/creativo-html.ts`), y el HTML
+> puede llegar a 11 MB, por debajo de nginx. Un HTML escrito a mano, o una
+> envoltura retocada, sigue con 2 MB. Las dos pantallas avisan con el mismo
+> tope. Pruebas: `lib/server/creativos-imagen-envuelta.test.ts`.
+
+> [!note] 2026-09-30 · la pantalla de Creativos es solo de pantallas DIGITALES
+> Pedido del dueño: *«en creativos no deben de salir ninguna campaña de
+> pantalla fija»*. `soloDigitales()` (`lib/creativos-digitales.ts`, con
+> pruebas): digital es `tipoMedio === 'PANTALLA_DIGITAL'` —la regla de
+> `esDigital()` en `lib/data/derive.ts`—, NO `spotsReservados != null` (una
+> digital sin slots capturados lo tiene a null). Una campaña toda fija no sale;
+> una mixta sale con solo sus reservas digitales; una sin reservas se queda. El
+> creativo de una lona se sigue gestionando desde la ficha de su campaña.
+
 > [!warning] Tres formas de guardar lo mismo conviven en los datos reales
 > La UI decidía si un creativo era código o imagen **mirando el principio del
 > archivo**. Al dejar de mandar el arte en el payload, eso dejó de funcionar y

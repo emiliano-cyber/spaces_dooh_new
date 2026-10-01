@@ -11,7 +11,7 @@
 //  cuales todavia NO se pueden confirmar y por que.
 // ============================================================================
 
-export const RUTA_RECIBOS = '/api/energia/recibos'
+export const RUTA_RECIBOS = '/spaces-dooh/api/energia/recibos/'
 
 /**
  * Las opciones de «cuantos meses de calendario cubre cada recibo de esta

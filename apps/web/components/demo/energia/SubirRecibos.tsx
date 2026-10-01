@@ -110,7 +110,7 @@ export function SubirRecibos({
       }
       setGuardadas((g) => ({ ...g, [f.clave]: 'guardando' }))
       try {
-        const r = await fetch('/api/energia/consumos', {
+        const r = await fetch('/spaces-dooh/api/energia/consumos/', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify(cuerpoDeAlta(f)),

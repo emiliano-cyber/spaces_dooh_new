@@ -30,7 +30,7 @@ export type CampanaProgramacionUI = {
   avisos: AvisoProgramacion[]
 }
 
-const RUTA = '/api/campanas/franja-programada/'
+const RUTA = '/spaces-dooh/api/campanas/franja-programada/'
 
 async function fallar(r: Response, porOmision: string): Promise<never> {
   const d = await r.json().catch(() => ({}))

@@ -44,3 +44,13 @@ export function imagenDeHtml(codigo?: string | null): string | null {
   const m = codigo.match(/<img[^>]+src="(data:image\/[^"]+)"/i)
   return m ? m[1] : null
 }
+
+/**
+ * Tope de una imagen subida como creativo, en MB. Lo usan las DOS pantallas que
+ * suben imágenes (Creativos y la ficha de campaña) y el servidor
+ * (`creativos-controller.ts`), para que el aviso de la pantalla y el rechazo del
+ * servidor digan lo mismo. Es 4 y no 5 a propósito (2026-09-30): la envoltura
+ * lleva la imagen dos veces en base64, y 4 MB envueltos son ~10,7 MB, por debajo
+ * de los 12 MB que corta nginx en producción.
+ */
+export const IMAGEN_CREATIVO_MAX_MB = 4

@@ -40,6 +40,41 @@ La entrada más reciente va arriba.
   **Los cupones que ya estaban aplicados antes de este cambio quedan aprobados**:
   el cliente ya los había visto y no se le quita nada.
 
+- **En Creativos solo salen campañas de pantallas digitales.** *(Pedido tuyo del
+  30/09.)* Una campaña que solo tiene pantallas fijas (espectaculares, vallas,
+  murales) ya no aparece ahí. Si una campaña tiene de los dos tipos, sale con
+  sus pantallas digitales y sin las fijas.
+
+- **Ya se pueden subir fotos normales como creativo.** *(Lo encontraste tú: «en
+  campaña está el error para subir imágenes».)*
+
+  La pantalla decía que aceptaba imágenes de hasta 5 MB, pero en realidad
+  cualquier foto de más de unos 700 KB fallaba —con un mensaje confuso sobre «el
+  código del creativo» o, en el servidor de verdad, con un error de conexión—.
+  Ahora entran imágenes de **hasta 4 MB**, tanto desde la ficha de la campaña
+  como desde Creativos, y si una pesa más, la pantalla te lo dice así: «La
+  imagen supera 4 MB». El límite es 4 y no 5 para que el servidor de producción
+  no corte la subida a medias.
+
+- **En Creativos ya no está el botón «Repartir a todas».** *(Pedido tuyo del
+  30/09.)* Los creativos se asignan pantalla por pantalla. Lo que ya estaba
+  asignado no cambia, y la función sigue en el sistema por si se quiere
+  volver a poner.
+
+- **Arregladas seis pantallas que no cargaban nada.** *(Lo encontraste tú: «franjas
+  y temporadas no funciona».)*
+
+  **Franjas y temporadas**, **Códigos promocionales**, **Paquetes cerrados**,
+  **Descuentos por volumen**, las **tarifas por franja de cada pantalla**, el
+  **horario de transmisión** y la **subida de recibos de luz** se abrían pero no
+  traían ni guardaban nada. Pedían sus datos a una dirección equivocada (sin el
+  `/spaces-dooh` de la aplicación) y el servidor contestaba «no encontrado».
+  Lo que había por detrás funcionaba; lo que fallaba era el camino desde la
+  pantalla.
+
+  Ya cargan y guardan. Y ahora hay una revisión automática que avisa si alguna
+  pantalla nueva vuelve a pedir datos por el camino equivocado.
+
 - **Comercial OPEX, mejor acomodado; y Captación sale del menú por ahora.**
   *(Pedido tuyo del 30/09.)*
 

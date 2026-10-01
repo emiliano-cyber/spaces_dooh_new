@@ -35,14 +35,14 @@ async function fallar(r: Response, porOmision: string): Promise<never> {
 }
 
 export async function paquetesApi(): Promise<PaqueteUI[]> {
-  const r = await fetch('/api/paquetes/')
+  const r = await fetch('/spaces-dooh/api/paquetes/')
   if (!r.ok) return fallar(r, 'No se pudieron leer los paquetes')
   const d = (await r.json()) as { paquetes: PaqueteUI[] }
   return d.paquetes ?? []
 }
 
 export async function guardarPaqueteApi(p: Partial<PaqueteUI>): Promise<PaqueteUI> {
-  const r = await fetch(p.id ? `/api/paquetes/${p.id}/` : '/api/paquetes/', {
+  const r = await fetch(p.id ? `/spaces-dooh/api/paquetes/${p.id}/` : '/spaces-dooh/api/paquetes/', {
     method: p.id ? 'PATCH' : 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
@@ -72,7 +72,7 @@ export async function guardarPaqueteApi(p: Partial<PaqueteUI>): Promise<PaqueteU
  * sin perder nada, se le quita `activo`.
  */
 export async function borrarPaqueteApi(id: string): Promise<void> {
-  const r = await fetch(`/api/paquetes/${id}/`, { method: 'DELETE' })
+  const r = await fetch(`/spaces-dooh/api/paquetes/${id}/`, { method: 'DELETE' })
   if (!r.ok) await fallar(r, 'No se pudo eliminar el paquete')
 }
 
@@ -81,7 +81,7 @@ export async function aplicarPaqueteApi(
   propuestaId: string,
   paqueteId: string,
 ): Promise<{ nombre: string; precio: number; admiteCodigo: boolean; composicion: string[] }> {
-  const r = await fetch(`/api/propuestas/${propuestaId}/paquete/`, {
+  const r = await fetch(`/spaces-dooh/api/propuestas/${propuestaId}/paquete/`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ paqueteId }),
@@ -92,6 +92,6 @@ export async function aplicarPaqueteApi(
 
 /** Quita el paquete y devuelve la propuesta a los precios de línea. */
 export async function quitarPaqueteApi(propuestaId: string): Promise<void> {
-  const r = await fetch(`/api/propuestas/${propuestaId}/paquete/`, { method: 'DELETE' })
+  const r = await fetch(`/spaces-dooh/api/propuestas/${propuestaId}/paquete/`, { method: 'DELETE' })
   if (!r.ok) await fallar(r, 'No se pudo quitar el paquete')
 }
