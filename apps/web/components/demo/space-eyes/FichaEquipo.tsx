@@ -352,6 +352,9 @@ export function FichaEquipo({ id }: { id: number }) {
           {/* Selector de origen */}
           <div className="flex flex-wrap items-center gap-2 border-b border-border p-2.5">
             <div className="inline-flex rounded-md border border-border bg-surface p-0.5 text-[13px]">
+            <Pestana activa={vista === 'vivo'} onClick={() => setVista('vivo')} icono={<Radio className="h-3.5 w-3.5" />}>
+              En vivo
+            </Pestana>
             <Pestana activa={vista === 'equipo'} onClick={() => setVista('equipo')} icono={<Camera className="h-3.5 w-3.5" />}>
               Captura Space Eyes
             </Pestana>
@@ -365,9 +368,6 @@ export function FichaEquipo({ id }: { id: number }) {
               disabled={!fotoCliente || !fotoEquipo}
             >
               Comparar
-            </Pestana>
-            <Pestana activa={vista === 'vivo'} onClick={() => setVista('vivo')} icono={<Radio className="h-3.5 w-3.5" />}>
-              En vivo
             </Pestana>
             </div>
           </div>

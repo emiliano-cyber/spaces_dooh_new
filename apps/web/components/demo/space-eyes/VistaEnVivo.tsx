@@ -579,9 +579,8 @@ export function VistaEnVivo({ equipo, puedeOperar, onFoto, embebida = false }: V
       {/* Visor */}
       <div
         className={cn(
-          'relative flex max-h-[70vh] w-full select-none items-center',
+          'relative flex max-h-[70vh] w-full select-none items-center justify-center overflow-hidden bg-[#111]',
           embebida ? 'aspect-[16/10]' : 'aspect-[4/3]',
-          ' justify-center overflow-hidden bg-[#111]',
           vivo && !esRelay && puedeOperar && 'cursor-crosshair',
         )}
         onClick={tocarVideo}
@@ -591,12 +590,14 @@ export function VistaEnVivo({ equipo, puedeOperar, onFoto, embebida = false }: V
           autoPlay
           playsInline
           muted
-          className={cn('h-full w-full object-contain transition-transform', !vivo && 'hidden')}
+          // Fuera del flujo: apagado no debe empujar el aviso (con `hidden` seguía
+          // ocupando su lugar y el texto quedaba cargado a la derecha).
+          className={cn('absolute inset-0 h-full w-full object-contain transition-transform', !vivo && 'invisible')}
           style={estiloVideo()}
         />
 
         {!vivo ? (
-          <div className="px-6 text-center">
+          <div className="relative flex flex-col items-center px-6 text-center">
             {errorCarga ? (
               <>
                 <AlertTriangle className="mx-auto mb-2 h-8 w-8 text-warning" strokeWidth={1.5} />
