@@ -8,6 +8,7 @@ import { pool } from './config/database';
 import { setupDeviceNamespace } from './sockets/deviceSocket';
 import { setupDashboardNamespace } from './sockets/dashboardSocket';
 import { espejoActivo } from './utils/espejo';
+import { prepararInstancia } from './utils/instancia';
 
 async function main() {
   // Test DB connection
@@ -21,6 +22,9 @@ async function main() {
   }
 
   // Connect Redis
+  // Modo instancia: sus llaves y su primer administrador, si hacen falta.
+  await prepararInstancia();
+
   try {
     await connectRedis();
   } catch (err: any) {

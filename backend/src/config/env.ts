@@ -90,6 +90,18 @@ const schema = z.object({
   // Como se le llama a V1 en pantalla ("159.203.188.58:4000").
   ESPEJO_NOMBRE: z.string().default('V1'),
 
+  // MODO INSTANCIA (ver utils/instancia.ts): este Space Eye vive dentro del
+  // droplet de una empresa de SPACE OS y es solo suyo. Lo escribe el alta.
+  INSTANCIA_OWNER: z.string().default(''),
+  INSTANCIA_LLAVE: z.string().default(''),
+  INSTANCIA_TESTIGO: z.string().default(''),
+  ADMIN_EMAIL: z.string().default(''),
+  ADMIN_PASSWORD: z.string().default(''),
+  // Donde estan los instaladores que se publican (APK, agente de PC, de Pi).
+  // En una instancia es un volumen propio: cada empresa tiene los suyos,
+  // compilados contra SU servidor. Vacio = frontend/public, como siempre.
+  DESCARGAS_DIR: z.string().default(''),
+
   VIVO_TELEFONOS_POR_SERVIDOR: z
     .string()
     .default('true')

@@ -16,7 +16,9 @@ import crypto from 'crypto';
 // OJO con la profundidad: este archivo compila a dist/utils/, un nivel MAS
 // adentro que app.ts (dist/), asi que lleva un ".." extra para llegar al mismo
 // frontend/public.
-const PUBLIC = path.join(__dirname, '../../../frontend/public');
+// En una instancia, los instaladores de ESA empresa viven en su propio volumen
+// (DESCARGAS_DIR); el resto del frontend viene dentro de la imagen.
+const PUBLIC = process.env.DESCARGAS_DIR || path.join(__dirname, '../../../frontend/public');
 const APK = path.join(PUBLIC, 'space-eye.apk');
 const META = path.join(PUBLIC, 'space-eye.json');
 

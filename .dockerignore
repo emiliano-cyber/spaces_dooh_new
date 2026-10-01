@@ -1,0 +1,22 @@
+# Contexto de Dockerfile.instancia (la imagen que corre dentro de cada
+# instancia). Solo entra lo que la imagen necesita.
+#
+# Los instaladores NO van en la imagen: cada empresa tiene los suyos, compilados
+# contra SU servidor, y viven en un volumen (/descargas). Ademas pesan 130 MB.
+frontend/public/*.apk
+frontend/public/*.exe
+frontend/public/*.tar.gz
+frontend/public/space-eye*.json
+**/node_modules
+**/.env
+**/.env.*
+backend/dist
+backend/storage
+android
+ai-worker
+pc-agent
+pi-agent
+infra
+docs
+scripts
+.git

@@ -32,6 +32,8 @@ export function createApp() {
   app.use(express.urlencoded({ extended: true }));
 
   // Serve frontend static files
+  // Los instaladores de esta empresa primero (modo instancia), luego el panel.
+  if (env.DESCARGAS_DIR) app.use(express.static(path.resolve(env.DESCARGAS_DIR)));
   app.use(express.static(path.join(__dirname, '../../frontend/public')));
   app.use('/src', express.static(path.join(__dirname, '../../frontend/src')));
 

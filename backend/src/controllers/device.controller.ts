@@ -10,6 +10,7 @@ import { registrarResumen } from './monitoreo.controller';
 import { apkInfo } from '../utils/apkInfo';
 import { redis } from '../config/redis';
 import { comprobar, pareceLlave } from '../utils/llaveServicio';
+import { duenoPorOmision } from '../utils/instancia';
 
 // Los limites reflejan el tamaño real de las columnas: sin ellos, un dato mas
 // largo llegaba a MySQL, reventaba el INSERT y el error tumbaba el proceso. Se
@@ -47,6 +48,9 @@ export async function register(req: Request, res: Response) {
     }
     duenoDelTestigo = llave.owner;
   }
+  // Un Space Eye que vive dentro de una empresa: lo que se da de alta aqui es
+  // de esa empresa aunque el equipo no traiga testigo (las APK no lo mandan).
+  if (!duenoDelTestigo) duenoDelTestigo = duenoPorOmision();
 
   const [existing] = await pool.query<any[]>(
     `SELECT id FROM devices WHERE device_uid = ? LIMIT 1`,
