@@ -645,3 +645,34 @@ export async function creativosDeEquipo(id: number): Promise<SECreativosEquipo |
       })),
   }
 }
+
+// ─── La puerta del módulo completo (ADR 0041) ───────────────────────────────
+
+/**
+ * Reenvía una petición del navegador a Space Eye con la llave de la instancia.
+ * Lo usa /api/space-eyes/se/[...ruta], que ya comprobó el permiso y la lista de
+ * rutas. Se reenvía el cuerpo tal cual (JSON o un formulario con archivo, como
+ * la creatividad de una campaña) y la consulta; se devuelve la respuesta tal
+ * cual, incluido un CSV de exportación.
+ */
+export async function reenviarASpaceEye(req: Request, camino: string): Promise<Response> {
+  const url = new URL(req.url)
+  const destino = `${BASE}/api/${camino}${url.search}`
+  const cabeceras: Record<string, string> = { Authorization: `Bearer ${KEY}` }
+  const tipo = req.headers.get('content-type')
+  if (tipo) cabeceras['Content-Type'] = tipo
+  const conCuerpo = req.method !== 'GET' && req.method !== 'HEAD'
+  const r = await fetch(destino, {
+    method: req.method,
+    headers: cabeceras,
+    body: conCuerpo ? await req.arrayBuffer() : undefined,
+    cache: 'no-store',
+  })
+  const salida = new Headers()
+  for (const h of ['content-type', 'content-disposition']) {
+    const v = r.headers.get(h)
+    if (v) salida.set(h, v)
+  }
+  salida.set('Cache-Control', 'no-store')
+  return new Response(r.body, { status: r.status, headers: salida })
+}

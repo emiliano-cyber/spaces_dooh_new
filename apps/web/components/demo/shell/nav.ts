@@ -26,6 +26,12 @@ import {
   Package,
   Handshake,
   Eye,
+  LineChart,
+  Type,
+  CalendarClock,
+  Megaphone,
+  BadgeCheck,
+  TriangleAlert,
 } from 'lucide-react'
 import { ROLES_ASIGNABLES, rolLabel } from '@/lib/roles'
 import type { RolDemo } from '@/lib/data/types'
@@ -151,7 +157,17 @@ export const NAV: NavItem[] = [
   // Lo ven mando y venta (los mismos que Comercial): quien ensena una pantalla
   // a un cliente es quien primero necesita saber si la camara de ese sitio esta
   // viva y que enseno ayer.
-  { key: 'space-eyes', label: 'Space Eyes', href: '/space-eyes', icon: Eye, roles: [...MANDO, ...VENTA], grupo: 'ojos' },
+  { key: 'space-eyes', label: 'Equipos', href: '/space-eyes', icon: Eye, roles: [...MANDO, ...VENTA], grupo: 'ojos' },
+  // El resto del panel de Space Eye, dentro de SPACE OS (ADR 0041): lo que antes
+  // se operaba en el dashboard propio de Space Eye vive aqui, con los mismos
+  // roles. Todo habla con el Space Eye de ESTA instancia por /api/space-eyes/se.
+  { key: 'space-eyes-galeria', label: 'Galería', href: '/space-eyes/galeria', icon: Images, roles: [...MANDO, ...VENTA], grupo: 'ojos' },
+  { key: 'space-eyes-graficas', label: 'Gráficas', href: '/space-eyes/graficas', icon: LineChart, roles: [...MANDO, ...VENTA], grupo: 'ojos' },
+  { key: 'space-eyes-texto', label: 'Ajustar texto', href: '/space-eyes/texto', icon: Type, roles: [...MANDO], grupo: 'ojos' },
+  { key: 'space-eyes-programacion', label: 'Programación', href: '/space-eyes/programacion', icon: CalendarClock, roles: [...MANDO], grupo: 'ojos' },
+  { key: 'space-eyes-campanas', label: 'Campañas', href: '/space-eyes/campanas', icon: Megaphone, roles: [...MANDO, ...VENTA], grupo: 'ojos' },
+  { key: 'space-eyes-verificacion', label: 'Verificación', href: '/space-eyes/verificacion', icon: BadgeCheck, roles: [...MANDO, ...VENTA], grupo: 'ojos' },
+  { key: 'space-eyes-fallas', label: 'Fallas', href: '/space-eyes/fallas', icon: TriangleAlert, roles: [...MANDO, ...VENTA], grupo: 'ojos' },
 
   // ─── Vender ──────────────────────────────────────────────────────────────
   // En el orden en que se hace: a quién le vendes, qué le enseñas, si está
