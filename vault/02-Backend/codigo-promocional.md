@@ -299,6 +299,28 @@ muertos**: quitar el filtro público, quitar el 409 de aprobar, no quitar el
 cupón al aceptar, decidir con `comercial.crear`, nacer APROBADO y no reactivar
 la RECHAZADA.
 
+### Asignar desde la pantalla de Códigos (2026-09-30)
+
+Pedido del dueño: «en códigos promocionales debe de estar la opción de
+asignarse a alguna propuesta». Cada cupón **usable hoy** (vigente y con usos,
+`vigentesParaSelector`) trae **«Asignar a propuesta»** en
+`components/demo/codigos/GestionCodigos.tsx`, que abre un selector con las
+propuestas que lo admiten (`propuestasParaAsignar` en `lib/codigo-aprobacion.ts`:
+BORRADOR, ENVIADA o RECHAZADA **y sin otro cupón**).
+
+**No es un camino nuevo al dinero, es otra puerta al mismo**: llama a
+`POST /api/propuestas/:id/codigo`, el canje de siempre. Así que hereda todo lo
+de arriba sin repetir nada: gasta un uso, nace PENDIENTE y reactiva una
+RECHAZADA (la pantalla lo avisa al elegirla). El botón sale solo con
+`comercial.crear`, el permiso de esa ruta; la pantalla en sí es del módulo
+`precios`, y crear un cupón y aplicarlo siguen siendo permisos distintos.
+
+Se dejan fuera del selector las que ya llevan cupón porque el servidor rechaza
+el segundo (`codigos-repo.ts`, «ya tiene el codigo … Quitalo antes»): ofrecerlas
+sería ofrecer un botón que falla. **Verificado en navegador sin ventana el
+30/09** sobre una copia desechable de la base de desarrollo: asignado a una
+propuesta en borrador, quedó `PENDIENTE` y el cupón pasó de 1 a 2 usos.
+
 ---
 
 ## 7 · Dónde mirar

@@ -184,3 +184,25 @@ export function vigentesParaSelector<T extends CuponListado>(lista: T[], hoy: st
     )
     .sort((a, b) => a.codigo.localeCompare(b.codigo))
 }
+
+/**
+ * Las propuestas a las que se puede ASIGNAR un cupón desde la pantalla de
+ * Códigos promocionales. Pedido del dueño el 2026-09-30: «en códigos
+ * promocionales debe de estar la opción de asignarse a alguna propuesta».
+ *
+ * Es el MISMO canje que el bloque de la propuesta —mismo endpoint, mismo
+ * PENDIENTE, misma reactivación de una RECHAZADA—, solo que se elige desde el
+ * otro lado. Por eso la regla de qué estatus admiten cupón no se repite aquí:
+ * es `admiteCupon`.
+ *
+ * Se dejan fuera las que ya llevan un cupón: el servidor rechaza el segundo, y
+ * ofrecerlas sería ofrecer un botón que falla. Como en `vigentesParaSelector`,
+ * esto es comodidad; quien decide es el servidor.
+ */
+export function propuestasParaAsignar<
+  T extends { folio: string; estatus: string; codigoTexto: string | null },
+>(lista: T[] | undefined): T[] {
+  return (lista ?? [])
+    .filter((p) => admiteCupon(p.estatus) && p.codigoTexto == null)
+    .sort((a, b) => a.folio.localeCompare(b.folio))
+}

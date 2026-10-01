@@ -1,14 +1,20 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
-import { Trash2, Plus } from 'lucide-react'
+import { Fragment, useCallback, useEffect, useState } from 'react'
+import { Trash2, Plus, FileText } from 'lucide-react'
+import { toast } from 'sonner'
 import {
   codigosApi,
   guardarCodigoApi,
   borrarCodigoApi,
+  aplicarCodigoApi,
   type CodigoPromocionalUI,
 } from '@/lib/data/codigos-api'
 import { motivoCodigoInvalido, normalizarCodigo } from '@/lib/codigo-promocional'
+import { propuestasParaAsignar, vigentesParaSelector } from '@/lib/codigo-aprobacion'
+import { usePropuestas, useClientes } from '@/lib/data/client'
+import { refrescarEstado } from '@/lib/data/estado-api'
+import { usePuede } from '@/components/demo/shell/SesionContext'
 
 // ============================================================================
 //  Los CÓDIGOS PROMOCIONALES de la organización. ADR 0039, Fase 3.
@@ -33,6 +39,14 @@ import { motivoCodigoInvalido, normalizarCodigo } from '@/lib/codigo-promocional
 //   · **Se compone con las demás capas**, no se suma.
 //   · **No cuenta contra el tope de descuento** (COD-02, preguntado al dueño).
 //   · **Borrarlo reinicia la cuenta de usos** si se vuelve a crear igual.
+//
+//  ASIGNAR A UNA PROPUESTA (pedido del dueño, 2026-09-30). Cada cupón usable
+//  —vigente hoy y con usos— trae «Asignar a propuesta». Es el MISMO canje que
+//  el bloque del detalle de la propuesta (`POST /api/propuestas/:id/codigo`):
+//  consume un uso, nace PENDIENTE de aprobación y, sobre una RECHAZADA, la
+//  reactiva a borrador. No hay un segundo camino al dinero, solo una segunda
+//  puerta al mismo. El botón sale solo con `comercial.crear`, que es lo que
+//  exige esa ruta: crear el cupón y aplicarlo son permisos distintos.
 // ============================================================================
 
 const hoy = () => new Date().toISOString().slice(0, 10)
@@ -50,6 +64,13 @@ export function GestionCodigos() {
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(true)
   const [nuevo, setNuevo] = useState({ ...vacio })
+  // El cupón cuya fila tiene abierto el selector de propuestas, y la elegida.
+  const [asignando, setAsignando] = useState<string | null>(null)
+  const [propuestaSel, setPropuestaSel] = useState('')
+  const [aplicando, setAplicando] = useState(false)
+  const puedeAsignar = usePuede('comercial', 'crear')
+  const propuestas = usePropuestas()
+  const clientes = useClientes()
 
   const cargar = useCallback(async () => {
     try {
@@ -107,6 +128,38 @@ export function GestionCodigos() {
     }
   }
 
+  async function asignar(c: CodigoPromocionalUI) {
+    const p = (propuestas ?? []).find((x) => x.id === propuestaSel)
+    if (!p) return setError('Elige la propuesta a la que se asigna el código')
+    setAplicando(true)
+    try {
+      const r = (await aplicarCodigoApi(p.id, c.codigo)) as Awaited<
+        ReturnType<typeof aplicarCodigoApi>
+      > & { reactivada?: boolean }
+      toast.success(
+        `Código ${c.codigo} asignado a ${p.folio}: pendiente de aprobación` +
+          (r.reactivada ? '. La propuesta vuelve a borrador.' : ''),
+      )
+      setAsignando(null)
+      setPropuestaSel('')
+      setError(null)
+      // Cambiaron las dos cosas: el cupón gastó un uso y la propuesta lleva
+      // ahora su código (y quizá otro estatus).
+      await Promise.all([cargar(), refrescarEstado()])
+    } catch (e) {
+      // El mensaje del servidor TAL CUAL: distingue «venció» de «se agotó» de
+      // «ya tiene otro código».
+      setError(e instanceof Error ? e.message : 'No se pudo asignar')
+    } finally {
+      setAplicando(false)
+    }
+  }
+
+  const usables = new Set(vigentesParaSelector(codigos, hoy()).map((c) => c.id))
+  const elegibles = propuestasParaAsignar(propuestas)
+  const nombreCliente = (id: string | null) =>
+    (clientes ?? []).find((x) => x.id === id)?.nombre ?? 'sin cliente'
+
   if (cargando) return <p className="text-sm text-neutral-500">Cargando los códigos…</p>
 
   return (
@@ -159,8 +212,8 @@ export function GestionCodigos() {
             {codigos.map((c) => {
               const agotado = c.usosMaximos != null && c.usos >= c.usosMaximos
               const vencido = c.vigenteHasta < hoy()
-              return (
-                <tr key={c.id} className="border-b">
+              const fila = (
+                <tr className="border-b">
                   <td className="py-1.5 font-mono">{c.codigo}</td>
                   <td>{c.descuentoPct} %</td>
                   <td className={vencido ? 'text-neutral-400' : undefined}>
@@ -171,7 +224,20 @@ export function GestionCodigos() {
                     {c.usos} de {c.usosMaximos ?? '∞'}
                     {agotado && <span className="ml-1 text-xs">(agotado)</span>}
                   </td>
-                  <td className="text-right">
+                  <td className="space-x-3 text-right">
+                    {puedeAsignar && usables.has(c.id) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAsignando(asignando === c.id ? null : c.id)
+                          setPropuestaSel('')
+                        }}
+                        className="inline-flex items-center gap-1 text-xs font-medium hover:underline"
+                        aria-expanded={asignando === c.id}
+                      >
+                        <FileText className="h-3.5 w-3.5" /> Asignar a propuesta
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => void eliminar(c.id)}
@@ -182,6 +248,65 @@ export function GestionCodigos() {
                     </button>
                   </td>
                 </tr>
+              )
+              const elegida = elegibles.find((p) => p.id === propuestaSel)
+              return (
+                <Fragment key={c.id}>
+                  {fila}
+                  {asignando === c.id && (
+                    <tr className="border-b bg-neutral-50">
+                      <td colSpan={5} className="px-2 py-2">
+                        {elegibles.length === 0 ? (
+                          <p className="text-xs text-neutral-500">
+                            No hay propuestas a las que asignarlo: solo se puede en una propuesta en
+                            borrador, enviada o rechazada, y que no lleve ya otro código.
+                          </p>
+                        ) : (
+                          <div className="flex flex-wrap items-center gap-2">
+                            <select
+                              aria-label={`Propuesta para ${c.codigo}`}
+                              className="rounded border px-2 py-1 text-sm"
+                              value={propuestaSel}
+                              onChange={(e) => setPropuestaSel(e.target.value)}
+                            >
+                              <option value="">Elige una propuesta…</option>
+                              {elegibles.map((p) => (
+                                <option key={p.id} value={p.id}>
+                                  {`${p.folio} — ${p.nombre} · ${nombreCliente(p.clienteId)} · ${p.estatus.toLowerCase()}`}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              type="button"
+                              onClick={() => void asignar(c)}
+                              disabled={!propuestaSel || aplicando}
+                              className="rounded border px-2 py-1 text-xs font-medium disabled:opacity-50"
+                            >
+                              {aplicando ? 'Asignando…' : 'Asignar'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setAsignando(null)}
+                              className="text-xs text-neutral-500 hover:underline"
+                            >
+                              Cancelar
+                            </button>
+                            <p className="w-full text-xs text-neutral-500">
+                              Consume un uso del código y queda <b>pendiente de aprobación</b>: el
+                              cliente no lo ve hasta que un administrador o gerente lo apruebe desde
+                              la propuesta.
+                              {elegida?.estatus === 'RECHAZADA' && (
+                                <b className="text-amber-700">
+                                  {' Esta propuesta está rechazada: asignarle el código la reactiva a borrador.'}
+                                </b>
+                              )}
+                            </p>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               )
             })}
             <tr>

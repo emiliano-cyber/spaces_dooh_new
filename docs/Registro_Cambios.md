@@ -7,6 +7,15 @@ La entrada más reciente va arriba.
 
 ## 2026-09-30
 
+- **Un código promocional ya se puede asignar a una propuesta desde la pantalla
+  de Códigos promocionales.** *(Pedido tuyo del 30/09.)* Cada código vigente
+  tiene el botón **«Asignar a propuesta»**: eliges la propuesta de la lista y
+  listo. Es lo mismo que aplicarlo desde la propuesta. Gasta un uso del código y
+  queda **pendiente de aprobación**, así que el cliente no lo ve hasta que un
+  administrador o gerente lo apruebe. Si eliges una propuesta rechazada, la
+  pantalla te avisa de que vuelve a borrador. En la lista solo salen propuestas
+  en borrador, enviadas o rechazadas que todavía no tienen ningún código.
+
 - **Los cupones ahora los aprueba un administrador o gerente antes de que los vea
   el cliente.** *(Decisiones tuyas del 30/09.)*
 

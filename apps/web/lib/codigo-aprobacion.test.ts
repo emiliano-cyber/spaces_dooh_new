@@ -10,6 +10,7 @@ import {
   MSJ_APROBAR_CON_PENDIENTE,
   etiquetaEstadoCodigo,
   textoReactivacion,
+  propuestasParaAsignar,
   textoAprobacion,
   textoRechazo,
   textoQuitadoAlAceptar,
@@ -173,5 +174,37 @@ describe('6 · el selector de cupones existentes', () => {
 
   it('sin fecha legible no ofrece nada: la vigencia la decide el servidor de todas formas', () => {
     expect(vigentesParaSelector([C('A', '2026-01-01', '2026-12-31', null, 0)], '')).toEqual([])
+  })
+})
+
+describe('propuestasParaAsignar · el selector de Códigos promocionales (30/09)', () => {
+  const P = (folio: string, estatus: string, codigoTexto: string | null = null) => ({
+    id: folio,
+    folio,
+    estatus,
+    codigoTexto,
+  })
+
+  it('ofrece las que admiten cupón y no llevan uno: borrador, enviada y rechazada', () => {
+    const r = propuestasParaAsignar([
+      P('PR-3', 'RECHAZADA'),
+      P('PR-1', 'BORRADOR'),
+      P('PR-2', 'ENVIADA'),
+    ])
+    expect(r.map((p) => p.folio)).toEqual(['PR-1', 'PR-2', 'PR-3'])
+  })
+
+  it('NO ofrece una aprobada: su precio ya quedó fijo', () => {
+    expect(propuestasParaAsignar([P('PR-1', 'APROBADA')])).toEqual([])
+  })
+
+  it('NO ofrece la que ya lleva un cupón: hay que quitarlo antes desde la propuesta', () => {
+    // Asignar encima devolvería un 400 del servidor; ofrecerla sería ofrecer
+    // un botón que falla.
+    expect(propuestasParaAsignar([P('PR-1', 'BORRADOR', 'VERANO20')])).toEqual([])
+  })
+
+  it('sin propuestas cargadas no ofrece nada', () => {
+    expect(propuestasParaAsignar(undefined)).toEqual([])
   })
 })
