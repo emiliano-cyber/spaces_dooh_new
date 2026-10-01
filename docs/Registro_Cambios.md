@@ -49,6 +49,12 @@ La entrada más reciente va arriba.
   **Los cupones que ya estaban aplicados antes de este cambio quedan aprobados**:
   el cliente ya los había visto y no se le quita nada.
 
+- **Creativos se mueve al menú de Operaciones.** *(Pedido tuyo del 30/09.)*
+  Ahora aparece bajo «Operaciones», justo debajo de Campañas, y ya no bajo
+  «Comercial». Lo siguen viendo las mismas personas que antes (dueño,
+  administrador y el equipo de ventas). El perfil de Operaciones sigue sin
+  verlo, porque no tiene permiso para usar esa pantalla.
+
 - **En Creativos solo salen campañas de pantallas digitales.** *(Pedido tuyo del
   30/09.)* Una campaña que solo tiene pantallas fijas (espectaculares, vallas,
   murales) ya no aparece ahí. Si una campaña tiene de los dos tipos, sale con

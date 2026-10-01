@@ -104,23 +104,16 @@ describe('3 · los grupos son coherentes', () => {
   })
 })
 
-describe('3 bis · Creativos se alcanza DESDE COMERCIAL (2026-09-28)', () => {
-  // La pregunta literal de un dueño fue «¿puedo programar las pautas desde el
-  // módulo de ventas?», y hasta hoy la respuesta era NO: la pantalla existía,
-  // funcionaba y la abrían DUEÑO y COMERCIAL — pero colgaba del encabezado
-  // «Operaciones», y no había ningún enlace desde Propuestas ni desde Comercial.
-  // No faltaba función: faltaba puerta.
-  //
-  // Se movió de grupo en vez de duplicar la entrada. Duplicarla es IMPOSIBLE sin
-  // romper el producto, no solo esta prueba: §4 exige claves y rutas únicas, y
-  // `AuthGate` empareja por `href`, así que dos entradas con la misma ruta se
-  // encenderían las dos a la vez.
+describe('3 bis · Creativos cuelga de OPERACIONES (2026-09-30)', () => {
+  // Del 28/09 al 30/09 estuvo en «Comercial», porque un dueño preguntó si podía
+  // programar las pautas desde ventas. El 30/09 el dueño pidió literalmente
+  // «el menu de creativo muevelo a operaciones». Se movió de grupo y NO de
+  // roles: quien vende lo sigue viendo, ahora bajo el encabezado de Campañas.
   const creativos = NAV.find((n) => n.key === 'creativos')
 
   it('la entrada existe y la ve quien vende', () => {
-    // Decía `['DUENO', 'COMERCIAL']` hasta el 2026-09-29. El rol COMERCIAL se
-    // retiró con el ADR 0040 y lo sustituyen los tres de venta; lo que la prueba
-    // fija sigue siendo lo mismo: la pauta la arma quien vende, no operaciones.
+    // Los roles no se tocaron al moverla: `lib/modulos.ts` la autoriza con el
+    // módulo `comercial`, y un rol OPERACIONES que la viera se comería un 403.
     expect(creativos).toBeDefined()
     expect(creativos?.roles).toEqual([
       'DUENO',
@@ -131,22 +124,20 @@ describe('3 bis · Creativos se alcanza DESDE COMERCIAL (2026-09-28)', () => {
     ])
   })
 
-  it('cuelga del grupo «Comercial», que es el que rotula «vender»', () => {
-    expect(creativos?.grupo).toBe('vender')
-    expect(GRUPOS.find((g) => g.key === 'vender')?.titulo).toBe('Comercial')
+  it('cuelga del grupo «Operaciones», que es el que rotula «entregar»', () => {
+    expect(creativos?.grupo).toBe('entregar')
+    expect(GRUPOS.find((g) => g.key === 'entregar')?.titulo).toBe('Operaciones')
   })
 
-  it('va DESPUÉS de Propuestas: la pauta se arma sobre lo vendido', () => {
+  it('va justo DESPUÉS de Campañas: la pauta se arma sobre una campaña', () => {
     const posicion = (key: string) => NAV.findIndex((n) => n.key === key)
-    expect(posicion('propuestas')).toBeLessThan(posicion('creativos'))
+    expect(posicion('creativos')).toBe(posicion('campanas') + 1)
   })
 
-  it('un VENDEDOR lo ve sin pasar por ningún encabezado de otra área', () => {
-    // Lo que de verdad se pidió: que aparezca bajo «Comercial» para quien
-    // vende. Se mira lo que se pinta, no el arreglo entero. Era 'COMERCIAL'
-    // hasta el ADR 0040; el rol que hoy hace ese trabajo es 'VENDEDOR'.
-    const suyos = paraRol('VENDEDOR').filter((n) => n.grupo === 'vender').map((n) => n.key)
-    expect(suyos).toContain('creativos')
+  it('un VENDEDOR lo sigue viendo, ahora en Operaciones y no en Comercial', () => {
+    const grupoDe = (g: string) => paraRol('VENDEDOR').filter((n) => n.grupo === g).map((n) => n.key)
+    expect(grupoDe('entregar')).toContain('creativos')
+    expect(grupoDe('vender')).not.toContain('creativos')
   })
 })
 
