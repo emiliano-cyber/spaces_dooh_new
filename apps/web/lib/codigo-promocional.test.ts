@@ -3,6 +3,7 @@ import {
   normalizarCodigo,
   motivoCodigoInvalido,
   motivoCanjeImposible,
+  estadoDelCodigo,
   montoDescuentoCodigo,
   SIN_CODIGO,
   type CodigoPromocional,
@@ -241,5 +242,38 @@ describe('4 · montoDescuentoCodigo — el dinero, con su guarda', () => {
 
   it('un porcentaje por encima de 100 se acota a 100, no regala de más', () => {
     expect(montoDescuentoCodigo(10_000, 250)).toBe(10_000)
+  })
+})
+
+describe('estadoDelCodigo · la etiqueta de la lista (30/09)', () => {
+  const C = (desde: string, hasta: string, usosMaximos: number | null, usos: number) => ({
+    vigenteDesde: desde,
+    vigenteHasta: hasta,
+    usosMaximos,
+    usos,
+  })
+
+  it('vigente: dentro de fechas y con usos', () => {
+    expect(estadoDelCodigo(C('2026-09-01', '2026-12-31', 5, 1), '2026-09-30')).toBe('VIGENTE')
+  })
+
+  it('los dos extremos de la vigencia cuentan, igual que en el servidor', () => {
+    expect(estadoDelCodigo(C('2026-09-30', '2026-09-30', null, 0), '2026-09-30')).toBe('VIGENTE')
+  })
+
+  it('próximo: todavía no empieza', () => {
+    expect(estadoDelCodigo(C('2026-10-05', '2026-12-31', null, 0), '2026-09-30')).toBe('PROXIMO')
+  })
+
+  it('vencido: ya pasó la fecha de fin', () => {
+    expect(estadoDelCodigo(C('2026-01-01', '2026-09-29', null, 0), '2026-09-30')).toBe('VENCIDO')
+  })
+
+  it('agotado gana a vencido: es lo primero que hay que saber de un cupón sin usos', () => {
+    expect(estadoDelCodigo(C('2026-01-01', '2026-09-29', 2, 2), '2026-09-30')).toBe('AGOTADO')
+  })
+
+  it('sin tope de usos nunca se agota', () => {
+    expect(estadoDelCodigo(C('2026-01-01', '2026-12-31', null, 999), '2026-09-30')).toBe('VIGENTE')
   })
 })

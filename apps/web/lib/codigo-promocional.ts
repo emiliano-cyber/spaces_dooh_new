@@ -251,3 +251,25 @@ export function montoDescuentoCodigo(base: unknown, pct: unknown): number {
   if (!Number.isFinite(b) || !Number.isFinite(p) || p <= 0) return 0
   return Math.round(b * (Math.min(p, 100) / 100))
 }
+
+/**
+ * La etiqueta de cada código en la lista de «Códigos promocionales». Solo es
+ * para que el dueño vea de un vistazo cuáles sirven hoy; el canje lo sigue
+ * decidiendo el servidor con su reloj (`motivoCanjeImposible`).
+ *
+ * AGOTADO va primero a propósito: un cupón sin usos no se puede usar aunque
+ * se le alargue la fecha, y es lo primero que hay que saber de él.
+ * `hoy` llega como 'AAAA-MM-DD', y las fechas se comparan como texto, que en
+ * ese formato ordena igual que el calendario.
+ */
+export type EstadoDelCodigo = 'VIGENTE' | 'PROXIMO' | 'VENCIDO' | 'AGOTADO'
+
+export function estadoDelCodigo(
+  c: { vigenteDesde: string; vigenteHasta: string; usosMaximos: number | null; usos: number },
+  hoy: string,
+): EstadoDelCodigo {
+  if (c.usosMaximos != null && c.usos >= c.usosMaximos) return 'AGOTADO'
+  if (hoy < c.vigenteDesde) return 'PROXIMO'
+  if (hoy > c.vigenteHasta) return 'VENCIDO'
+  return 'VIGENTE'
+}

@@ -8,6 +8,7 @@ import { guardaEnVuelo, type GuardaEnVuelo } from '@/lib/clic-unico'
 // lo usa). Sin sombras ni gradientes.
 type Variant =
   | 'primary'
+  | 'success'
   | 'secondary'
   | 'tertiary'
   | 'danger'
@@ -28,6 +29,12 @@ type Size = 'sm' | 'md'
 // contacto, y no hace falta para esto.
 const variants: Record<Variant, string> = {
   primary: 'bg-accent text-accent-fg border border-accent hover:bg-accent-hover hover:border-accent-hover',
+  // VERDE = AÑADIR / AGREGAR. Regla del dueño del 2026-09-30 (convenciones.md,
+  // «Color de los botones»): azul (`primary`) para asignar o aceptar, verde
+  // para añadir. NO es `--success` (#1da850): con texto blanco da 3.1:1 y WCAG
+  // pide 4.5:1 para el texto de un botón. #15803d da 5.0:1, y #166534 al pasar
+  // el ratón, 7.1:1.
+  success: 'bg-[#15803d] text-white border border-[#15803d] hover:bg-[#166534] hover:border-[#166534]',
   secondary: 'bg-surface text-accent-hover border border-[var(--border-input)] hover:bg-accent-soft hover:border-accent',
   tertiary: 'bg-transparent text-accent border border-transparent px-2.5 hover:bg-accent-soft',
   danger: 'bg-surface text-error border border-error hover:bg-error-soft',

@@ -299,6 +299,20 @@ muertos**: quitar el filtro público, quitar el 409 de aprobar, no quitar el
 cupón al aceptar, decidir con `comercial.crear`, nacer APROBADO y no reactivar
 la RECHAZADA.
 
+### La pantalla (rediseño del 2026-09-30)
+
+Igual a Paquetes cerrados: tabla con una etiqueta de **estado** por código
+(`estadoDelCodigo` en `lib/codigo-promocional.ts`: VIGENTE · PROXIMO ·
+VENCIDO · AGOTADO, y **AGOTADO gana** porque un cupón sin usos no sirve aunque
+se le alargue la fecha) y el alta en su propia tarjeta «Nuevo código». Los
+botones siguen la regla de color de [[convenciones]]: azul para asignar, verde
+para añadir.
+
+La fecha de «hoy» es la **local**. Con `toISOString()` —lo que había— a partir
+de las 18:00 en México «hoy» ya era mañana: la etiqueta marcaba vigente un
+código que empezaba al día siguiente. **La etiqueta es solo de la pantalla**;
+el canje lo sigue decidiendo el servidor con `current_date` de Postgres.
+
 ### Asignar desde la pantalla de Códigos (2026-09-30)
 
 Pedido del dueño: «en códigos promocionales debe de estar la opción de

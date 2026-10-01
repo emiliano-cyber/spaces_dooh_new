@@ -1,9 +1,10 @@
 ---
 tipo: operacion
 estado: verificado
-actualizado: 2026-08-31
+actualizado: 2026-09-30
 tags: [convenciones, estilo, pruebas]
 archivos:
+  - apps/web/components/demo/ui/Button.tsx
   - apps/web/lib/server/errores.ts
   - apps/web/lib/test/README.md
   - docs/DEPENDENCIAS.md
@@ -318,6 +319,36 @@ Las e2e:
 > unitarias sin despeinarse. **Todo lo que toque tenant o sesión necesita e2e.**
 
 Las semillas usan fechas **relativas a hoy** (`enDias()`), nunca literales.
+
+## Color de los botones
+
+> [!important] Regla del dueño, 2026-09-30
+> «Todo botón sea **azul** para asignar o aceptar; **añadir o agregar, verde**.»
+
+| La acción es… | Variante de `Button` | Color | Ejemplos |
+|---|---|---|---|
+| **Asignar, aceptar, aprobar, aplicar, confirmar, guardar** | `primary` (la de por omisión) | Azul `--accent` (#0a66ff) | «Asignar a propuesta», «Asignar», «Aprobar código», «Aplicar» |
+| **Añadir, agregar, crear algo nuevo** | `success` | Verde #15803d | «Añadir código», «+ Añadir», «Crear paquete» |
+| Cancelar, cerrar, volver | `ghost` o `secondary` | Neutro | «Cancelar» |
+| Eliminar, dar de baja | `danger` / `ghost` con `text-error` (`dangerFill` solo en `ConfirmDialog`) | Rojo | «Eliminar», «Dar de baja» |
+
+**Se usa el componente `Button`** (`components/demo/ui/Button.tsx`), no un
+`<button>` con clases a mano: así el color sale de un solo sitio y además se
+hereda el bloqueo del doble clic (A5 / INC-07).
+
+**El verde NO es `--success` (#1da850)**, y no es por gusto: con texto blanco da
+**3.1:1**, y WCAG pide 4.5:1 para el texto de un botón. #15803d da **5.0:1**, y
+#166534 (al pasar el ratón) **7.1:1**. Si algún día se mapea un token verde
+oscuro en `tailwind.config.ts`, la variante `success` es el único sitio que hay
+que cambiar.
+
+> [!warning] Al 2026-09-30 la regla está aplicada en **Códigos promocionales**
+> y en la variante nueva del botón, NO en toda la aplicación. Muchas pantallas
+> —Franjas y temporadas, Descuentos por volumen, Paquetes cerrados, entre
+> otras— todavía tienen «+ Añadir» o «Crear» como enlace de texto o botón
+> neutro. **Al tocar una pantalla, se ajustan sus botones a esta tabla en el
+> mismo cambio.** Un barrido de todas a la vez es otra tarea, y hay que
+> pedirla.
 
 ## Nombres
 

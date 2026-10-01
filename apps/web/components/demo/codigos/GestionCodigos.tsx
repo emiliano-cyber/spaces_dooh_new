@@ -1,7 +1,7 @@
 'use client'
 
 import { Fragment, useCallback, useEffect, useState } from 'react'
-import { Trash2, Plus, FileText } from 'lucide-react'
+import { Trash2, Plus, FileText, Ticket } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   codigosApi,
@@ -10,7 +10,13 @@ import {
   aplicarCodigoApi,
   type CodigoPromocionalUI,
 } from '@/lib/data/codigos-api'
-import { motivoCodigoInvalido, normalizarCodigo } from '@/lib/codigo-promocional'
+import {
+  motivoCodigoInvalido,
+  normalizarCodigo,
+  estadoDelCodigo,
+  type EstadoDelCodigo,
+} from '@/lib/codigo-promocional'
+import { Button } from '@/components/demo/ui/Button'
 import { propuestasParaAsignar, vigentesParaSelector } from '@/lib/codigo-aprobacion'
 import { usePropuestas, useClientes } from '@/lib/data/client'
 import { refrescarEstado } from '@/lib/data/estado-api'
@@ -49,7 +55,28 @@ import { usePuede } from '@/components/demo/shell/SesionContext'
 //  exige esa ruta: crear el cupón y aplicarlo son permisos distintos.
 // ============================================================================
 
-const hoy = () => new Date().toISOString().slice(0, 10)
+// La fecha LOCAL, no la de UTC. Con `toISOString()` —lo que había hasta el
+// 2026-09-30— a partir de las 18:00 en México «hoy» ya era mañana: la etiqueta
+// marcaba vigente un código que empezaba al día siguiente, y el alta proponía
+// como inicio una fecha que todavía no había llegado.
+const hoy = () => {
+  const d = new Date()
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
+
+/** 'AAAA-MM-DD' → 'DD/MM/AAAA', como se leen las fechas en el resto de la app. */
+const fecha = (iso: string) => (/^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso.split('-').reverse().join('/') : iso)
+
+const ETIQUETA: Record<EstadoDelCodigo, { texto: string; clase: string }> = {
+  VIGENTE: { texto: 'Vigente', clase: 'border-[#10b98140] bg-[#e6f6ec] text-[#0f7a55]' },
+  PROXIMO: { texto: 'Próximo', clase: 'border-[#0a66ff33] bg-[#eef4ff] text-[#0a4fc4]' },
+  VENCIDO: { texto: 'Vencido', clase: 'border-neutral-300 bg-neutral-100 text-neutral-600' },
+  AGOTADO: { texto: 'Agotado', clase: 'border-[#f59e0b40] bg-[#fff7e6] text-[#9a6700]' },
+}
+
+const campo =
+  'h-9 rounded border border-[var(--border-input)] bg-surface px-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
 
 const vacio = {
   codigo: '',
@@ -194,58 +221,77 @@ export function GestionCodigos() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b text-left text-xs text-neutral-500">
-              <th className="py-1">Código</th>
-              <th>Descuento</th>
-              <th>Vigencia</th>
-              <th>Usos</th>
+              <th className="py-1.5 font-medium">Código</th>
+              <th className="font-medium">Estado</th>
+              <th className="font-medium">Descuento</th>
+              <th className="font-medium">Vigencia</th>
+              <th className="font-medium">Usos</th>
               <th />
             </tr>
           </thead>
           <tbody>
             {codigos.length === 0 && (
               <tr>
-                <td colSpan={5} className="py-3 text-neutral-500">
+                <td colSpan={6} className="py-4 text-neutral-500">
                   Todavía no hay ninguno. Sin códigos, todo se vende como hoy.
                 </td>
               </tr>
             )}
             {codigos.map((c) => {
-              const agotado = c.usosMaximos != null && c.usos >= c.usosMaximos
-              const vencido = c.vigenteHasta < hoy()
+              const estado = estadoDelCodigo(c, hoy())
+              const tope = c.usosMaximos
               const fila = (
-                <tr className="border-b">
-                  <td className="py-1.5 font-mono">{c.codigo}</td>
-                  <td>{c.descuentoPct} %</td>
-                  <td className={vencido ? 'text-neutral-400' : undefined}>
-                    {c.vigenteDesde} → {c.vigenteHasta}
-                    {vencido && <span className="ml-1 text-xs">(vencido)</span>}
-                  </td>
-                  <td className={agotado ? 'text-amber-700' : undefined}>
-                    {c.usos} de {c.usosMaximos ?? '∞'}
-                    {agotado && <span className="ml-1 text-xs">(agotado)</span>}
-                  </td>
-                  <td className="space-x-3 text-right">
-                    {puedeAsignar && usables.has(c.id) && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAsignando(asignando === c.id ? null : c.id)
-                          setPropuestaSel('')
-                        }}
-                        className="inline-flex items-center gap-1 text-xs font-medium hover:underline"
-                        aria-expanded={asignando === c.id}
-                      >
-                        <FileText className="h-3.5 w-3.5" /> Asignar a propuesta
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => void eliminar(c.id)}
-                      className="inline-flex items-center gap-1 text-xs text-red-700 hover:underline"
-                      title="Eliminar: deja de poder aplicarse. Lo ya cotizado y lo ya aprobado no se mueven, pero su cuenta de usos se pierde: si vuelves a crearlo con el mismo código, empieza de cero."
+                <tr className="border-b align-middle">
+                  <td className="py-2.5 font-mono font-medium">{c.codigo}</td>
+                  <td>
+                    <span
+                      className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${ETIQUETA[estado].clase}`}
                     >
-                      <Trash2 className="h-3.5 w-3.5" /> Eliminar
-                    </button>
+                      {ETIQUETA[estado].texto}
+                    </span>
+                  </td>
+                  <td className="font-medium">{c.descuentoPct} %</td>
+                  <td className={estado === 'VENCIDO' ? 'text-neutral-400' : undefined}>
+                    {fecha(c.vigenteDesde)} → {fecha(c.vigenteHasta)}
+                  </td>
+                  <td>
+                    <div className="text-[13px]">
+                      {c.usos} de {tope ?? '∞'}
+                    </div>
+                    {tope != null && tope > 0 && (
+                      <div className="mt-1 h-1 w-20 overflow-hidden rounded bg-neutral-200" aria-hidden>
+                        <div
+                          className={`h-full ${estado === 'AGOTADO' ? 'bg-[#f59e0b]' : 'bg-accent'}`}
+                          style={{ width: `${Math.min(100, (c.usos / tope) * 100)}%` }}
+                        />
+                      </div>
+                    )}
+                  </td>
+                  <td className="py-2 text-right">
+                    <div className="inline-flex items-center gap-2">
+                      {puedeAsignar && usables.has(c.id) && (
+                        <Button
+                          size="sm"
+                          variant={asignando === c.id ? 'secondary' : 'primary'}
+                          onClick={() => {
+                            setAsignando(asignando === c.id ? null : c.id)
+                            setPropuestaSel('')
+                          }}
+                          aria-expanded={asignando === c.id}
+                        >
+                          <FileText className="mr-1 h-3.5 w-3.5" /> Asignar a propuesta
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => void eliminar(c.id)}
+                        className="text-error hover:text-error"
+                        title="Eliminar: deja de poder aplicarse. Lo ya cotizado y lo ya aprobado no se mueven, pero su cuenta de usos se pierde: si vuelves a crearlo con el mismo código, empieza de cero."
+                      >
+                        <Trash2 className="mr-1 h-3.5 w-3.5" /> Eliminar
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               )
@@ -254,8 +300,8 @@ export function GestionCodigos() {
                 <Fragment key={c.id}>
                   {fila}
                   {asignando === c.id && (
-                    <tr className="border-b bg-neutral-50">
-                      <td colSpan={5} className="px-2 py-2">
+                    <tr className="border-b bg-surface-2/40">
+                      <td colSpan={6} className="px-3 py-3">
                         {elegibles.length === 0 ? (
                           <p className="text-xs text-neutral-500">
                             No hay propuestas a las que asignarlo: solo se puede en una propuesta en
@@ -265,7 +311,7 @@ export function GestionCodigos() {
                           <div className="flex flex-wrap items-center gap-2">
                             <select
                               aria-label={`Propuesta para ${c.codigo}`}
-                              className="rounded border px-2 py-1 text-sm"
+                              className={`${campo} min-w-[22rem]`}
                               value={propuestaSel}
                               onChange={(e) => setPropuestaSel(e.target.value)}
                             >
@@ -276,21 +322,16 @@ export function GestionCodigos() {
                                 </option>
                               ))}
                             </select>
-                            <button
-                              type="button"
-                              onClick={() => void asignar(c)}
+                            <Button
+                              size="sm"
+                              onClick={() => asignar(c)}
                               disabled={!propuestaSel || aplicando}
-                              className="rounded border px-2 py-1 text-xs font-medium disabled:opacity-50"
                             >
                               {aplicando ? 'Asignando…' : 'Asignar'}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setAsignando(null)}
-                              className="text-xs text-neutral-500 hover:underline"
-                            >
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => setAsignando(null)}>
                               Cancelar
-                            </button>
+                            </Button>
                             <p className="w-full text-xs text-neutral-500">
                               Consume un uso del código y queda <b>pendiente de aprobación</b>: el
                               cliente no lo ve hasta que un administrador o gerente lo apruebe desde
@@ -309,69 +350,79 @@ export function GestionCodigos() {
                 </Fragment>
               )
             })}
-            <tr>
-              <td className="py-2">
-                <input
-                  aria-label="Código"
-                  className="w-32 rounded border px-2 py-1 font-mono uppercase"
-                  placeholder="VERANO20"
-                  value={nuevo.codigo}
-                  onChange={(e) => setNuevo({ ...nuevo, codigo: e.target.value })}
-                />
-              </td>
-              <td>
-                <input
-                  aria-label="Descuento por ciento"
-                  type="number"
-                  min={0}
-                  max={100}
-                  step={0.5}
-                  className="w-20 rounded border px-2 py-1"
-                  placeholder="20"
-                  value={nuevo.descuentoPct}
-                  onChange={(e) => setNuevo({ ...nuevo, descuentoPct: e.target.value })}
-                />
-              </td>
-              <td className="space-x-1">
-                <input
-                  aria-label="Vigente desde"
-                  type="date"
-                  className="rounded border px-2 py-1"
-                  value={nuevo.vigenteDesde}
-                  onChange={(e) => setNuevo({ ...nuevo, vigenteDesde: e.target.value })}
-                />
-                <input
-                  aria-label="Vigente hasta"
-                  type="date"
-                  className="rounded border px-2 py-1"
-                  value={nuevo.vigenteHasta}
-                  onChange={(e) => setNuevo({ ...nuevo, vigenteHasta: e.target.value })}
-                />
-              </td>
-              <td>
-                <input
-                  aria-label="Tope de usos (vacío = sin tope)"
-                  type="number"
-                  min={1}
-                  step={1}
-                  className="w-20 rounded border px-2 py-1"
-                  placeholder="sin tope"
-                  value={nuevo.usosMaximos}
-                  onChange={(e) => setNuevo({ ...nuevo, usosMaximos: e.target.value })}
-                />
-              </td>
-              <td className="text-right">
-                <button
-                  type="button"
-                  onClick={() => void anadir()}
-                  className="inline-flex items-center gap-1 text-xs font-medium hover:underline"
-                >
-                  <Plus className="h-3.5 w-3.5" /> Añadir código
-                </button>
-              </td>
-            </tr>
           </tbody>
         </table>
+      </section>
+
+      {/* El alta va en su propia tarjeta, como «Nuevo paquete» en Paquetes
+          cerrados: antes era un renglón de campos sin etiqueta al pie de la
+          tabla, y no se distinguía qué columna era cada casilla. */}
+      <section className="rounded-md border p-3">
+        <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold">
+          <Ticket className="h-4 w-4" /> Nuevo código
+        </h3>
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="text-xs">
+            <span className="mb-0.5 block text-neutral-500">Código</span>
+            <input
+              aria-label="Código"
+              className={`${campo} w-36 font-mono uppercase`}
+              placeholder="VERANO20"
+              value={nuevo.codigo}
+              onChange={(e) => setNuevo({ ...nuevo, codigo: e.target.value })}
+            />
+          </label>
+          <label className="text-xs">
+            <span className="mb-0.5 block text-neutral-500">Descuento (%)</span>
+            <input
+              aria-label="Descuento por ciento"
+              type="number"
+              min={0}
+              max={100}
+              step={0.5}
+              className={`${campo} w-24`}
+              placeholder="20"
+              value={nuevo.descuentoPct}
+              onChange={(e) => setNuevo({ ...nuevo, descuentoPct: e.target.value })}
+            />
+          </label>
+          <label className="text-xs">
+            <span className="mb-0.5 block text-neutral-500">Vigente desde</span>
+            <input
+              aria-label="Vigente desde"
+              type="date"
+              className={campo}
+              value={nuevo.vigenteDesde}
+              onChange={(e) => setNuevo({ ...nuevo, vigenteDesde: e.target.value })}
+            />
+          </label>
+          <label className="text-xs">
+            <span className="mb-0.5 block text-neutral-500">Vigente hasta</span>
+            <input
+              aria-label="Vigente hasta"
+              type="date"
+              className={campo}
+              value={nuevo.vigenteHasta}
+              onChange={(e) => setNuevo({ ...nuevo, vigenteHasta: e.target.value })}
+            />
+          </label>
+          <label className="text-xs">
+            <span className="mb-0.5 block text-neutral-500">Tope de usos</span>
+            <input
+              aria-label="Tope de usos (vacío = sin tope)"
+              type="number"
+              min={1}
+              step={1}
+              className={`${campo} w-28`}
+              placeholder="sin tope"
+              value={nuevo.usosMaximos}
+              onChange={(e) => setNuevo({ ...nuevo, usosMaximos: e.target.value })}
+            />
+          </label>
+          <Button size="sm" variant="success" onClick={() => anadir()} className="h-9">
+            <Plus className="mr-1 h-3.5 w-3.5" /> Añadir código
+          </Button>
+        </div>
       </section>
     </div>
   )

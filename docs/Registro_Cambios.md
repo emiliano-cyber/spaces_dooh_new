@@ -7,6 +7,23 @@ La entrada más reciente va arriba.
 
 ## 2026-09-30
 
+- **La pantalla de Códigos promocionales tiene un diseño nuevo, igual al de
+  Paquetes cerrados.** *(Pedido tuyo del 30/09.)* Cada código lleva una etiqueta
+  de color con su estado (**Vigente**, **Próximo**, **Vencido** o **Agotado**) y
+  una barrita que enseña cuántos usos lleva. Las fechas se ven como
+  día/mes/año. El alta de un código nuevo va ahora en su propia tarjeta,
+  «Nuevo código», con el nombre de cada casilla encima. Antes eran casillas
+  sueltas al pie de la tabla.
+
+  Los botones siguen la regla de color que pediste: **azul** para asignar o
+  aceptar («Asignar a propuesta», «Asignar») y **verde** para añadir («Añadir
+  código»). La regla quedó escrita para aplicarla en el resto de las pantallas
+  conforme se vayan tocando.
+
+  De paso se arregló un error: después de las 6 de la tarde, la pantalla daba
+  por empezado un código que arrancaba **al día siguiente**, porque tomaba la
+  fecha con la hora de Londres. Ahora usa la fecha de aquí.
+
 - **Un código promocional ya se puede asignar a una propuesta desde la pantalla
   de Códigos promocionales.** *(Pedido tuyo del 30/09.)* Cada código vigente
   tiene el botón **«Asignar a propuesta»**: eliges la propuesta de la lista y
