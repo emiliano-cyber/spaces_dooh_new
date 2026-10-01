@@ -7,6 +7,7 @@ import { Button } from '@/components/demo/ui/Button'
 import type { PuntoDeMedicion } from '@/lib/server/energia-repo'
 import {
   OPCIONES_MESES,
+  MESES_POR_OMISION,
   RUTA_RECIBOS,
   cuerpoDeAlta,
   filasDeConfirmacion,
@@ -61,7 +62,11 @@ export function SubirRecibos({
   onGuardado: () => void
 }) {
   const [estado, setEstado] = useState<Estado>('quieto')
-  const [mesesEsperados, setMesesEsperados] = useState<string>(SIN_ELEGIR)
+  // Arranca en BIMESTRAL (3 meses de calendario) desde el 2026-09-30, por
+  // pedido del dueño — ver `MESES_POR_OMISION`. La opción «— elige antes de
+  // subir —» se queda en la lista: si alguien la vuelve a escoger, el archivo
+  // se deshabilita igual que antes.
+  const [mesesEsperados, setMesesEsperados] = useState<string>(String(MESES_POR_OMISION))
   const [respuesta, setRespuesta] = useState<RespuestaRecibosUI | null>(null)
   const [filas, setFilas] = useState<FilaDeConfirmacion[]>([])
   const [error, setError] = useState<string | null>(null)
