@@ -56,6 +56,7 @@ No hay servicio aparte.
 | [[integraciones-externas]] | DOOHmain, Space Eye, S3, Resend, Google, cron |
 | [[infraestructura-servidor]] | Pool, errores, folios, rate limit, subidas |
 | [[actualizaciones-instancia]] | ADR 0037: cada instancia elige si toma la versión nueva — el mapa de las cuatro piezas |
+| [[notas-de-version]] | Las notas de cada versión (`apps/web/novedades.json`): cómo las escribe un desarrollador en el mismo PR, la puerta de `release.yml` que no publica sin ellas, y cómo llegan al cliente — antes de instalar (Dueño/Administrador) y una vez después (todos) |
 
 ## Las tres capas
 
