@@ -133,8 +133,13 @@ archivos:
 > `promover.yml`, que hace su smoke contra DEMO, se queda sin poder promover.
 > **Pendiente de decidir:** si el ápice apunta fuera a propósito, darle a
 > `prueba.space-os.io` su propio certificado como a `spaceos`; si no, devolver
-> el ápice al PADRE. La fecha límite es la de caducidad que dé
-> `certbot certificates --cert-name space-os.io`.
+> el ápice al PADRE.
+>
+> **Medido el 01/10:** el de `space-os.io` (`space-os.io prueba.space-os.io`)
+> **caduca el 2026-11-29**; certbot empieza a intentar renovarlo ~30 días antes,
+> o sea **desde ~el 30/10 empezará a fallar**. El de `spaceos.space-os.io`
+> caduca el 2026-12-30 y se renueva solo: su nombre sí resuelve al PADRE. Las dos
+> direcciones dieron **200** tras el reload.
 
 > [!danger] 2026-10-01 · El PADRE se migra con `spaces_migrador`, NO con `padre.env`
 > `padre.env` es la configuración de la app y entra como `spaces_app`, que **no
