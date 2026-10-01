@@ -1,7 +1,7 @@
 ---
 tipo: preguntas
 estado: verificado
-actualizado: 2026-09-30
+actualizado: 2026-10-01
 tags: [preguntas, pendientes, riesgo]
 archivos:
   - apps/web/lib/server/
@@ -311,6 +311,29 @@ No hay tabla de control ni herramienta. El único registro son las notas
 **Pregunta:** ¿se asume que el repo y `spaces_prod` están en sync, o hay que
 reconciliar? Ya hubo una divergencia de 27 columnas
 (`20260805_objetos_solo_en_prod.sql`).
+
+### P22 · Google Maps en Comercial OPEX y en el alta de pantallas — PENDIENTE (01/10)
+
+**Nada construido todavía, a propósito.** El dueño preguntó el 01/10 si se puede
+usar la API de Google Maps para Comercial OPEX y los mapas, y pidió dejarlo
+registrado como pendiente. La propuesta está escrita en
+`docs/adr/0041-google-maps-solo-donde-aporta-y-con-clave-en-tiempo-de-ejecucion.md`
+(**estado: Propuesta**): Google solo en OPEX (lugares, Street View) y en el alta
+de pantallas (buscar la dirección); el basemap de las otras cinco pantallas,
+incluida la propuesta pública, sigue en OpenFreeMap (ADR 0030); la clave por
+instancia y en tiempo de ejecución, nunca `NEXT_PUBLIC_*`.
+
+**Lo que hay que decidir antes de escribir una línea:**
+1. ¿El alcance es ese, o Google en más pantallas?
+2. **¿Quién paga?** Una cuenta de Google Cloud de AS OOH para toda la flota, o
+   una por owner.
+3. **Verificar** los precios vigentes de Google Maps Platform y ponerle tope de
+   gasto a la cuenta.
+4. **Verificar** en los términos de Google si se pueden guardar para siempre las
+   coordenadas que da su buscador. Si no, el pin final lo fija la persona sobre
+   el mapa, y eso cambia el diseño del alta de pantallas.
+
+Al decidir: marcar el ADR 0041 como Aceptado (o Rechazado) y tachar esta entrada.
 
 ## 🟡 Deuda identificada, decisión pendiente
 

@@ -22,6 +22,13 @@ archivos: []
 > (lo arregla `fix/api-prefijo`), `db/schema.sql`, `aislamiento.e2e.test.ts` ni
 > `servidor-e2e.ts`. Detalle en [[02-Backend/codigo-promocional]] §8.
 
+> [!note] 2026-10-01 · **Pendientes de decisión, sin código**
+> - **Google Maps** (OPEX y alta de pantallas): ADR 0041 en Propuesta; falta el
+>   alcance y quién paga. Ver [[00-Indice/preguntas-abiertas]] P22.
+> - **Certificado de `prueba.space-os.io`**: caduca el 29/11 y no renovará
+>   mientras `space-os.io` apunte a 67.207.88.243. Ver
+>   [[01-Arquitectura/entorno-y-despliegue]].
+
 > [!success] 2026-10-01 · **v0.9.0 en `estable`; PADRE y DEMO actualizados. g500 sigue pendiente**
 > El dueño empujó `main`, etiquetó y promovió `v0.9.0`, y corrió PADRE y DEMO con
 > los comandos de la sesión. Dos minas en el PADRE (migrar con `spaces_app` y
