@@ -6,6 +6,22 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!success] 2026-09-30 · **COD-03 · el cupón con aprobación — RECLAMADO Y LIBERADO**
+> Rama `feat/cupon-con-aprobacion`, salida de `main` (`749510ba`). **ROJO por
+> tres lados** —migración (R3), dinero (R4) y lecturas por tenant (R2)—,
+> **aprobado por el dueño el 30/09, incluida la forma de la base**. **Sin
+> fusionar ni empujar**: lo integra la sesión principal.
+>
+> **Zonas tomadas y liberadas:** **Z5 · Comercial** (`propuestas-repo.ts`,
+> `codigos-repo.ts`, `codigos-controller.ts`, las rutas `propuestas/[id]`,
+> `propuestas/[id]/codigo` y la NUEVA `propuestas/[id]/codigo/decision`, el
+> detalle y la lista de propuestas, y los NUEVOS `BloqueCodigoPropuesta.tsx`,
+> `lib/codigo-aprobacion.ts` y `lib/data/codigo-aprobacion-api.ts`), **Z9 ·
+> Datos** (`20261003_codigo_aprobacion.sql`), **Z12 · Docs**, y el de alto
+> contacto `docs/Registro_Cambios.md`. **NO se tocó** `lib/data/codigos-api.ts`
+> (lo arregla `fix/api-prefijo`), `db/schema.sql`, `aislamiento.e2e.test.ts` ni
+> `servidor-e2e.ts`. Detalle en [[02-Backend/codigo-promocional]] §8.
+
 > [!important] 2026-09-30 · **Seis funciones en `main` (`8063181c`) — SIN EMPUJAR**
 > Captación (CAP-01), login 503 con la base caída, almacén por tipo (ALM-01),
 > checklist de la OT con autoguardado, Campañas compacta + menú plegable, y la

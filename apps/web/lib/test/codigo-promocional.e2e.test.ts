@@ -62,6 +62,29 @@ async function desbloquear(c: Cliente) {
   expect(r.status, JSON.stringify(r.datos)).toBe(200)
 }
 
+/**
+ * COD-03 · aprueba el cupón pendiente de una propuesta, como lo haría un
+ * gerente.
+ *
+ * Desde el 2026-10-03 todo cupón aplicado nace PENDIENTE y la propuesta NO se
+ * puede aprobar por dentro hasta que alguien con `comercial.aprobar` lo decida
+ * (409 en `cambiarEstatusPropuesta`). Las pruebas de este archivo que aprueban
+ * una propuesta con cupón —el congelado, el vencido después del canje, la
+ * cadena completa y la campaña— pasan por aquí ANTES de aprobar. No debilita
+ * lo que miden: siguen exigiendo los mismos importes, el mismo snapshot y la
+ * misma inmutabilidad; solo recorren el paso que ahora existe entre aplicar y
+ * aprobar. Lo que pasa SIN aprobar el cupón lo mide
+ * `codigo-aprobacion.e2e.test.ts`.
+ *
+ * La hace el DUEÑO de ALFA (`ca`), que tiene `comercial.aprobar`.
+ */
+async function aprobarCupon(c: Cliente, propuestaId: string) {
+  const r = await c.pedir(`/api/propuestas/${propuestaId}/codigo/decision/`, {
+    cuerpo: { decision: 'APROBAR' },
+  })
+  expect(r.status, JSON.stringify(r.datos)).toBe(200)
+}
+
 /** Siembra un cupón con el pool de pruebas, saltándose la aplicación. */
 async function sembrarCupon(
   org: { id: string },
@@ -505,6 +528,7 @@ describe('6 · ⚠️ BORRAR EL CUPÓN NO MUEVE UNA PROPUESTA APROBADA', () => {
     await sembrarCupon(alfa, 'CONGELA20', 20, enDias(-5), enDias(5), 10)
     idAprobada = await crearPropuesta(ca, alfa)
     expect((await ca.pedir(`/api/propuestas/${idAprobada}/codigo/`, { cuerpo: { codigo: 'CONGELA20' } })).status).toBe(200)
+    await aprobarCupon(ca, idAprobada) // COD-03: nace PENDIENTE
 
     const ap = await ca.pedir(`/api/propuestas/${idAprobada}/`, {
       metodo: 'PATCH',
@@ -600,6 +624,11 @@ describe('7 · la tercera pregunta con trampa: aplicado antes de vencer', () => 
       [alfa.id],
     )
 
+    // COD-03: el cupón nace PENDIENTE y se aprueba aquí, YA VENCIDO. Aprobar no
+    // vuelve a mirar la vigencia: igual que aprobar la propuesta, decide sobre
+    // lo canjeado, y la vigencia gobierna el canje.
+    await aprobarCupon(ca, id)
+
     const ap = await ca.pedir(`/api/propuestas/${id}/`, {
       metodo: 'PATCH',
       cuerpo: { estatus: 'APROBADA' },
@@ -645,6 +674,7 @@ describe('8 · la cadena se COMPONE, y llega hasta el documento que firma el cli
 
     expect((await ca.pedir(`/api/propuestas/${id}/`, { metodo: 'PATCH', cuerpo: { descuentoPct: 20 } })).status).toBe(200)
     expect((await ca.pedir(`/api/propuestas/${id}/codigo/`, { cuerpo: { codigo: 'CADENA20' } })).status).toBe(200)
+    await aprobarCupon(ca, id) // COD-03: sin esto, la liga pública no lo enseña
     expect((await ca.pedir(`/api/propuestas/${id}/`, { metodo: 'PATCH', cuerpo: { estatus: 'APROBADA' } })).status).toBe(200)
 
     const f = await poolTest().query('select snapshot_economico, token_publico from propuestas where id=$1', [id])
@@ -680,6 +710,7 @@ describe('8 · la cadena se COMPONE, y llega hasta el documento que firma el cli
     await sembrarCupon(alfa, 'CAMPANA20', 20, enDias(-5), enDias(5), 10)
     const id = await crearPropuesta(ca, alfa)
     expect((await ca.pedir(`/api/propuestas/${id}/codigo/`, { cuerpo: { codigo: 'CAMPANA20' } })).status).toBe(200)
+    await aprobarCupon(ca, id) // COD-03: nace PENDIENTE
     expect((await ca.pedir(`/api/propuestas/${id}/`, { metodo: 'PATCH', cuerpo: { estatus: 'APROBADA' } })).status).toBe(200)
 
     const gen = await ca.pedir(`/api/propuestas/${id}/generar-campana/`, { cuerpo: {} })

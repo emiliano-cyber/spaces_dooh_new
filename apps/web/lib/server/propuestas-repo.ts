@@ -11,6 +11,14 @@ import { AVISO_FRANJA_NO_VIAJA_AL_CMS, temporadaDeFecha } from '@/lib/rejilla'
 import { volumenDeLineas } from '@/lib/volumen'
 import { montoDescuentoCodigo } from '@/lib/codigo-promocional'
 import {
+  bloqueaAprobacion,
+  estadoCodigoDeFila,
+  filaParaCliente,
+  MSJ_APROBAR_CON_PENDIENTE,
+  textoQuitadoAlAceptar,
+} from '@/lib/codigo-aprobacion'
+import { quitarCanjeEnTx } from './codigos-repo'
+import {
   AVISO_PAQUETE_PRECIO_CERRADO,
   avisoPaqueteIncompleto,
   paqueteDeFila,
@@ -278,6 +286,15 @@ function armarPropuesta(p: any, items: any[]) {
     codigoTexto,
     codigoDescuentoPct,
     codigoDescuentoMonto,
+    // COD-03 · en qué estado está el cupón, para la pantalla INTERNA (la marca
+    // «cupón pendiente» de la lista y la etiqueta del detalle). Los importes de
+    // arriba NO cambian con el estado: por dentro, un cupón pendiente sigue
+    // contando, porque es lo que el vendedor está ofreciendo. Quien lo quita
+    // para el CLIENTE es `obtenerPropuestaPublica`, filtrando la fila antes de
+    // armar — por eso este campo NO viaja al objeto público, que se arma a mano.
+    codigoEstado: estadoCodigoDeFila(p),
+    codigoAprobadoEn: p.codigo_aprobado_en ? iso(p.codigo_aprobado_en) : null,
+    codigoAprobadoPor: p.codigo_aprobado_por_nombre ?? null,
     baseComercial,
     base,
     divisor,
@@ -666,14 +683,28 @@ export async function obtenerPropuestaPublica(codigo: string) {
 
   // S1-3: la liga pública se resuelve SOLO por token aleatorio (no por id/folio
   // enumerable). Sin el token exacto no se puede abrir la propuesta.
-  const p = await qPub1<any>(
+  const pLeida = await qPub1<any>(
     `select p.*, (select iva_pct from clientes c where c.id = p.cliente_id) as cliente_iva
        from propuestas p
       where p.token_publico = $1
       limit 1`,
     [cod],
   )
-  if (!p) return null
+  if (!pLeida) return null
+  // COD-03 · ⚠️ EL CUPÓN PENDIENTE NO EXISTE PARA EL CLIENTE. Decisión 3 del
+  // dueño: «no se muestra al cliente hasta que un admin o gerente lo apruebe»,
+  // y la 4 (opción B): mientras tanto ve la propuesta SIN el descuento.
+  //
+  // Se quita de la FILA, antes de `armarPropuesta`, y no del objeto de salida:
+  // así el texto no llega al JSON y TODOS los importes —monto del código, base,
+  // neto, IVA, total, los «aprobados»— salen sin él por construcción. Un filtro
+  // a la salida tendría que acordarse de cada uno, y este objeto ya se ha
+  // olvidado campos dos veces (ver el comentario del volumen, abajo).
+  //
+  // Esconderlo solo en `/p/[id]` no serviría: el JSON se lee con las
+  // herramientas del navegador, y un cliente que ve «VERANO20 −20 %» en la
+  // respuesta lo tiene por prometido.
+  const p = filaParaCliente(pLeida)
   const id = p.id
   // REJILLA-01 · la franja contratada, con su nombre, también en la LIGA
   // PÚBLICA. Es la superficie que ve el CLIENTE, así que es donde más caro
@@ -869,6 +900,44 @@ export async function aceptarPropuestaPublica(
     // Tenant del token, NO de la sesión: aquí no hay sesión (fijarTenant habría
     // fijado el GUC vacío y la transacción entera fallaría fail-closed).
     await fijarTenantExplicito(client, p.tenant_id)
+
+    // COD-03 · REGLA DERIVADA (no es palabra del dueño; la propuso la sesión
+    // principal para que el dinero cuadre con la opción B): si el cliente
+    // acepta con el cupón PENDIENTE, acepta EL PRECIO QUE VIO, que es sin
+    // cupón. Aquí, DENTRO de la transacción de la aceptación y con la fila
+    // bloqueada, se quita el cupón y se DEVUELVE SU USO —la misma
+    // `quitarCanjeEnTx` que usa quitarlo a mano— antes de pasar a APROBADA.
+    // El snapshot se congela DESPUÉS del commit, así que lee la propuesta ya
+    // sin cupón: lo firmado nunca lleva un descuento que nadie aprobó.
+    //
+    // El bloqueo (`for no key update`) es lo que impide que un gerente apruebe
+    // el cupón A LA VEZ: quien llegue segundo espera y lee lo que dejó el
+    // primero. Si el gerente gana, el cupón ya está APROBADO al llegar aquí y
+    // se conserva — el cliente paga MENOS de lo que vio, nunca más. Es el único
+    // lado en que esa carrera puede caer, y es el de la promesa cumplida.
+    const cup = (
+      await client.query(
+        `select codigo_texto, codigo_estado from propuestas
+          where id=$1 and tenant_id=$2 for no key update`,
+        [p.id, p.tenant_id],
+      )
+    ).rows[0]
+    if (cup && estadoCodigoDeFila(cup) === 'PENDIENTE') {
+      await quitarCanjeEnTx(client, p.id, p.tenant_id)
+      // A mano y no con `registrarAccion()`: aquí no hay sesión de la que
+      // sacar el tenant, y la línea tiene que ir en esta misma transacción.
+      await client.query(
+        `insert into acciones (accion, entidad, usuario_id, usuario_nombre, tenant_id)
+         values ($1,$2,null,$3,$4)`,
+        [
+          textoQuitadoAlAceptar(String(cup.codigo_texto)),
+          `${p.folio} · ${p.nombre}`,
+          `Cliente (liga pública): ${nombre}`,
+          p.tenant_id,
+        ],
+      )
+    }
+
     // Aceptar = aceptar todas las pantallas si no hay selección granular previa.
     const marcados = (
       await client.query(
@@ -921,8 +990,14 @@ export async function aceptarPropuestaPublica(
 }
 
 export async function listarPropuestas() {
+  // COD-03 · el NOMBRE de quien aprobó el cupón viaja con la propuesta, para
+  // que el detalle diga «Aprobado por X». Subconsulta con
+  // `u.tenant_id = p.tenant_id` como segunda capa: un id de usuario de otra
+  // organización no le pone nombre a una aprobación de ésta.
   const props = await q(
-    `select p.*, (select iva_pct from clientes c where c.id = p.cliente_id) as cliente_iva
+    `select p.*, (select iva_pct from clientes c where c.id = p.cliente_id) as cliente_iva,
+            (select u.nombre from usuarios u
+              where u.id = p.codigo_aprobado_por and u.tenant_id = p.tenant_id) as codigo_aprobado_por_nombre
        from propuestas p where p.tenant_id = $1 order by p.creado_en desc`,
     [await tenantActual()],
   )
@@ -1224,6 +1299,11 @@ export async function actualizarPropuesta(
 // confirmación explícita. El route la mapea a un aviso; el UI reconfirma.
 export class PropuestaCeroError extends PropuestaError {}
 
+// COD-03 · aprobar por dentro con el cupón PENDIENTE. Clase propia para que la
+// ruta lo mapee a 409 sin cambiar el 400 que hoy devuelven los demás
+// `PropuestaError` de esa ruta (agencia sin validar, estatus inválido).
+export class CodigoPendienteError extends PropuestaError {}
+
 const ESTATUS_VALIDOS = ['BORRADOR', 'ENVIADA', 'APROBADA', 'RECHAZADA']
 export async function cambiarEstatusPropuesta(
   id: string,
@@ -1233,6 +1313,22 @@ export async function cambiarEstatusPropuesta(
   if (!ESTATUS_VALIDOS.includes(estatus)) throw new Error('Estatus inválido')
   // Aprobar exige que la negociación con la agencia esté validada.
   if (estatus === 'APROBADA') {
+    // COD-03 · REGLA DERIVADA: con el cupón PENDIENTE no se aprueba por dentro.
+    // Aprobar congela el snapshot, y el snapshot congelaría un descuento que
+    // nadie aprobó —y que el cliente ni siquiera ha visto—. Va PRIMERO, antes
+    // que cualquier otra comprobación: es la que dice qué hacer («aprueba o
+    // rechaza el código»), y las demás no tienen sentido hasta resolverla.
+    //
+    // Si la propuesta no es de esta organización, `c` sale null y se sigue
+    // como antes: los guards de abajo son los que contestan ese caso, y
+    // `aislamiento.e2e.test.ts` fija lo que contestan.
+    const c = await q1<any>(
+      'select codigo_texto, codigo_estado from propuestas where id=$1 and tenant_id=$2',
+      [id, await tenantActual()],
+    )
+    if (c && bloqueaAprobacion(estadoCodigoDeFila(c))) {
+      throw new CodigoPendienteError(MSJ_APROBAR_CON_PENDIENTE)
+    }
     const p = await q1<any>('select agencia_id from propuestas where id=$1', [id])
     const bloq = await agenciaBloqueada(p?.agencia_id)
     if (bloq.bloqueada) {
@@ -1287,11 +1383,30 @@ export async function cambiarEstatusPropuesta(
       await q('update propuesta_items set aprobado=true where propuesta_id=$1', [id])
     }
   }
+  // COD-03 · la segunda red de la regla de arriba, y la que de verdad cierra la
+  // carrera: entre la comprobación y este update, alguien pudo aplicar un
+  // cupón (el canje bloquea la fila y lo deja PENDIENTE). Con la condición en
+  // el `where`, Postgres la reevalúa sobre la versión de la fila que gana el
+  // bloqueo, así que una APROBADA nunca queda con el cupón pendiente.
   const rows = await q(
-    `update propuestas set estatus=$2::est_propuesta where id=$1 returning *`,
+    `update propuestas set estatus=$2::est_propuesta
+      where id=$1
+        and ($2::text <> 'APROBADA' or codigo_estado is distinct from 'PENDIENTE')
+      returning *`,
     [id, estatus],
   )
-  if (!rows.length) return null
+  if (!rows.length) {
+    if (estatus === 'APROBADA') {
+      const c = await q1<any>(
+        'select codigo_texto, codigo_estado from propuestas where id=$1 and tenant_id=$2',
+        [id, await tenantActual()],
+      )
+      if (c && bloqueaAprobacion(estadoCodigoDeFila(c))) {
+        throw new CodigoPendienteError(MSJ_APROBAR_CON_PENDIENTE)
+      }
+    }
+    return null
+  }
   // S0-1: al aprobar se congela el snapshot económico (inmutable).
   if (estatus === 'APROBADA') await congelarSnapshotEconomico(id)
   const items = await q('select * from propuesta_items where propuesta_id=$1', [id])

@@ -195,6 +195,19 @@ function PropuestaCard({
                 {p.descuentoPct > 0 && (
                   <span className="rounded-full border border-[#f59e0b40] px-1.5 py-0.5 text-[10px] font-medium text-[#9a6700]">−{p.descuentoPct}%</span>
                 )}
+                {/* COD-03 · la marca de la lista: hay un cupón esperando a que
+                    alguien con `comercial.aprobar` lo decida. Sin ella, el
+                    gerente tendría que abrir propuesta por propuesta para saber
+                    qué le toca aprobar — y mientras tanto el cliente ve la
+                    cotización sin el descuento que el vendedor le ofreció. */}
+                {p.codigoEstado === 'PENDIENTE' && (
+                  <span
+                    title={`El código ${p.codigoTexto ?? ''} espera aprobación; el cliente todavía no lo ve`}
+                    className="rounded-full border border-[#f59e0b40] bg-[#f59e0b14] px-1.5 py-0.5 text-[10px] font-medium text-[#9a6700]"
+                  >
+                    Cupón pendiente
+                  </span>
+                )}
               </div>
               <div className="mt-0.5 text-[14px] font-medium text-ink">{p.nombre}</div>
               <div className="text-[12px] text-muted">

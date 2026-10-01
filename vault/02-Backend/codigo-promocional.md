@@ -1,10 +1,15 @@
 ---
 tipo: contrato
 estado: verificado
-actualizado: 2026-09-28
-tags: [backend, precios, descuentos, cupones, promociones, propuestas, dinero, snapshot, rls, concurrencia]
+actualizado: 2026-09-30
+tags: [backend, precios, descuentos, cupones, promociones, propuestas, dinero, snapshot, rls, concurrencia, aprobacion]
 archivos:
   - db/migrations/20260928_codigo_promocional.sql
+  - db/migrations/20261003_codigo_aprobacion.sql
+  - apps/web/lib/codigo-aprobacion.ts
+  - apps/web/app/api/propuestas/[id]/codigo/decision/route.ts
+  - apps/web/lib/data/codigo-aprobacion-api.ts
+  - apps/web/components/demo/codigos/BloqueCodigoPropuesta.tsx
   - apps/web/lib/codigo-promocional.ts
   - apps/web/lib/descuento.ts
   - apps/web/lib/server/codigos-repo.ts
@@ -41,6 +46,12 @@ tarifa base = f(pantalla, unidad, franja, fecha)     ← Fase 1
 > `20260928_codigo_promocional.sql` está escrita y probada contra bases
 > desechables, pero **el dueño pidió el 2026-09-28 aprobar todo cambio de esquema
 > antes de que aterrice**. Lo detenido es la fusión, no el código.
+
+> [!important] Desde COD-03 (2026-09-30) el cupón aplicado NACE PENDIENTE
+> El cliente no lo ve —ni la línea ni el total con él— hasta que lo aprueba
+> alguien con `comercial.aprobar`. Lo que dicen §3–§5 sobre el canje sigue
+> valiendo; lo que cambia está en **§8**, y es lo primero que hay que leer antes
+> de tocar el canje, la liga pública o la aprobación de una propuesta.
 
 ---
 
@@ -217,12 +228,90 @@ venta sin cupón es byte por byte el mismo JSON que producía la Fase 2.
 
 ---
 
+## 8 · La APROBACIÓN del cupón (COD-03, 2026-09-30)
+
+### Las decisiones del dueño, textuales
+
+1. «En propuesta se debe de poder poner un cupón si fue rechazada para volverla
+   a activar» → aplicar un cupón a una **RECHAZADA** la pasa a **BORRADOR** en la
+   **misma transacción** del canje, con la línea «Reactivó la propuesta con el
+   código X» en Actividad. A BORRADOR y no a ENVIADA: el cupón aún tiene que
+   aprobarse y la propuesta volver a mandarse.
+2. «Si está en borrador, asignar un cupón existente» → **selector** de los
+   cupones vigentes en el detalle (además de teclearlo). El bloque aparece en
+   BORRADOR, ENVIADA y RECHAZADA (`admiteCupon`).
+3. «Si se asigna, no se muestra al cliente hasta que un admin o gerente lo
+   apruebe» → **todo cupón aplicado nace `PENDIENTE`**. Deciden quienes tienen
+   `comercial.aprobar`: DUENO, ADMINISTRADOR, DIRECTOR_COMERCIAL y
+   GERENTE_VENTAS («los cuatro»). El VENDEDOR aplica y **no** decide (403).
+4. **Opción B**: mientras está PENDIENTE el cliente ve la propuesta **sin** el
+   descuento y **puede** aceptarla así.
+5. Columnas aprobadas: **tres** en `propuestas` — `codigo_estado`,
+   `codigo_aprobado_por`, `codigo_aprobado_en` ([[04-Datos/esquema]]).
+
+### Las reglas DERIVADAS (no son palabras del dueño)
+
+Las propuso la sesión principal para que el dinero cuadre con la opción B, y se
+dejan marcadas como tales por si el dueño las quiere revisar:
+
+| Regla | Dónde |
+|---|---|
+| Si el **cliente acepta** con el cupón PENDIENTE, acepta el precio que vio: dentro de la transacción de la aceptación, con la fila bloqueada, se quita el cupón y se **devuelve su uso** antes de pasar a APROBADA; el snapshot se congela después y lo lee ya sin cupón. Queda en Actividad a nombre de «Cliente (liga pública): …» | `aceptarPropuestaPublica` (`propuestas-repo.ts`) + `quitarCanjeEnTx` (`codigos-repo.ts`) |
+| **Aprobar por dentro** con el cupón PENDIENTE → **409** «Primero aprueba o rechaza el código promocional…» | `cambiarEstatusPropuesta`, con la condición repetida en el `where` del `update` |
+| **Rechazar** el cupón lo quita y **devuelve el uso** (la misma `quitarCanjeEnTx`), con **motivo obligatorio** (3–500) escrito en Actividad | `decidirCodigo` (`codigos-repo.ts`) |
+
+### Lo que ve quién
+
+| Superficie | Con PENDIENTE | Con APROBADO |
+|---|---|---|
+| `GET /api/propuestas/publica/:token` (la consumen `/p/[id]` y `/propuesta`) | **Sin cupón**: `codigoTexto` null, monto 0, total sin él. Se filtra la **fila** con `filaParaCliente` antes de `armarPropuesta`, así que el texto no viaja en el JSON y ningún importe lo lleva | Con cupón, como antes |
+| `POST /api/propuestas/publica/:token` (aceptar) | Acepta **sin** cupón; uso devuelto | Acepta **con** él |
+| Detalle y lista internos (`/api/estado`) | Los importes **siguen contando** el cupón —es lo que se ofrece—; marca «Cupón pendiente» en la lista y «· cupón pendiente de aprobación» en el renglón | Etiqueta «Aprobado por X» |
+| `GET /api/propuestas/:id/codigo` | `codigoEstado`, aprobador, y `puedeAprobarCodigo` calculado en el servidor con `tienePermiso(rol,'comercial','aprobar')` | ídem |
+
+**Inventario de lo que ve el cliente, medido el 30/09:** solo la liga pública
+(`app/api/propuestas/publica/[id]/route.ts` → `obtenerPropuestaPublica` y
+`aceptarPropuestaPublica`). El **portal** (`/portal/[token]`) es de campañas y
+no pinta precios; **no hay** PDF de propuesta (`generarPdf` es un marcador
+vacío en el detalle interno) ni correo que lleve precio. Si mañana aparece uno,
+tiene que leer la propuesta por `filaParaCliente` o heredar del snapshot.
+
+### Lo que no se ve y conviene saber
+
+- **Nadie aprueba su propio canje** al aplicarlo, ni siquiera un gerente: el
+  canje SIEMPRE deja PENDIENTE. Son dos clics y Actividad dice quién dio cada uno.
+- **La fila de la propuesta se bloquea** (`for no key update`) en el canje, en
+  quitar, en la decisión y en la aceptación pública. Es lo que impide que una
+  propuesta quede APROBADA con un cupón PENDIENTE congelado en el snapshot. Si un
+  gerente aprueba el cupón *a la vez* que el cliente acepta y gana el gerente, el
+  cupón se conserva: el cliente paga **menos** de lo que vio, nunca más.
+- **El uso se sigue contando al APLICAR** (§4), también si queda pendiente: un
+  cupón de un solo uso pendiente en una propuesta está agotado para las demás
+  hasta que se apruebe —y se quede— o se rechace —y vuelva—.
+- **El backfill** dejó APROBADOS, sin aprobador, los cupones aplicados antes de
+  la migración: el cliente ya los veía. La etiqueta dice «Aprobado» a secas.
+
+Pruebas: `lib/codigo-aprobacion.test.ts`, `lib/server/codigos-aprobacion.test.ts`,
+`lib/server/propuestas-repo-codigo-aprobacion.test.ts` y
+`lib/test/codigo-aprobacion.e2e.test.ts` (22 casos, dos organizaciones, una base
+propia para el backfill). **Mutantes con un build por mutante, los seis
+muertos**: quitar el filtro público, quitar el 409 de aprobar, no quitar el
+cupón al aceptar, decidir con `comercial.crear`, nacer APROBADO y no reactivar
+la RECHAZADA.
+
+---
+
 ## 7 · Dónde mirar
 
 - Reglas puras: `apps/web/lib/codigo-promocional.ts`
 - Canje y bloqueo: `apps/web/lib/server/codigos-repo.ts`
 - El candado del esquema de entrada: `apps/web/lib/server/codigos-controller.ts`
-- Migración: `db/migrations/20260928_codigo_promocional.sql`
+- Migración: `db/migrations/20260928_codigo_promocional.sql` y, para la
+  aprobación, `db/migrations/20261003_codigo_aprobacion.sql`
+- La aprobación (COD-03): reglas puras en `apps/web/lib/codigo-aprobacion.ts`,
+  `decidirCodigo` / `quitarCanjeEnTx` en `codigos-repo.ts`, la ruta
+  `app/api/propuestas/[id]/codigo/decision/route.ts` y el bloque
+  `components/demo/codigos/BloqueCodigoPropuesta.tsx`
 - Pruebas: `codigo-promocional.test.ts`, `descuento.codigo.test.ts`,
   `codigos-canje.test.ts`, `propuestas-snapshot-codigo.test.ts`,
   `propuestas-repo-codigo.test.ts` y `lib/test/codigo-promocional.e2e.test.ts`

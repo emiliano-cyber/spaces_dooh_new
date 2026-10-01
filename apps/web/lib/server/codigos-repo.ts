@@ -7,6 +7,16 @@ import {
   normalizarCodigo,
   type CodigoPromocional,
 } from '@/lib/codigo-promocional'
+import {
+  estadoCodigoDeFila,
+  estatusTrasCanje,
+  motivoDecisionImposible,
+  textoAprobacion,
+  textoReactivacion,
+  textoRechazo,
+  type EstadoCodigo,
+} from '@/lib/codigo-aprobacion'
+import type { PoolClient } from 'pg'
 
 // ============================================================================
 //  lib/server/codigos-repo.ts — Los códigos promocionales de la organización y
@@ -156,8 +166,89 @@ export async function borrarCodigo(id: string): Promise<boolean> {
   return !!fila
 }
 
-/** Lo que se congela en la propuesta al canjear. */
-export type CanjeHecho = { codigo: string; descuentoPct: number }
+/**
+ * Lo que se congela en la propuesta al canjear.
+ *
+ * COD-03 · `estado` es SIEMPRE `'PENDIENTE'` al canjear (decisión 3 del dueño):
+ * nadie aprueba su propio canje, ni siquiera quien tiene `comercial.aprobar`.
+ * Que lo aplique un gerente no lo salta — es un segundo clic, y el registro
+ * dice quién dio cada uno. `reactivada` = la propuesta estaba RECHAZADA y el
+ * canje la devolvió a BORRADOR (decisión 1).
+ */
+export type CanjeHecho = {
+  codigo: string
+  descuentoPct: number
+  estado: EstadoCodigo
+  reactivada: boolean
+}
+
+/** No se puede decidir sobre el cupón de esa propuesta (→ 409). */
+export class DecisionImposible extends Error {}
+
+/**
+ * La línea de Actividad, escrita DENTRO de la transacción que la provoca.
+ *
+ * No va por `registrarAccion()` a propósito: ésa corre en su propia conexión
+ * DESPUÉS del commit y se traga cualquier fallo, que está bien para «alguien
+ * hizo algo», pero aquí la línea ES la explicación de un cambio de dinero o de
+ * estatus — una reactivación o un rechazo sin su motivo escrito no se puede
+ * explicar después. Si la línea no se puede escribir, no se hace el cambio.
+ *
+ * `usuario_nombre` se congela como texto, igual que en `acciones-repo.ts`: dar
+ * de baja al gerente mañana no borra quién decidió.
+ */
+async function anotar(
+  client: PoolClient,
+  tenant: string | null,
+  usuario: { id: string; nombre?: string | null } | null,
+  accion: string,
+  entidad: string,
+) {
+  await client.query(
+    `insert into acciones (accion, entidad, usuario_id, usuario_nombre, tenant_id)
+     values ($1,$2,$3,$4,$5)`,
+    [accion, entidad, usuario?.id ?? null, usuario?.nombre ?? 'Sistema', tenant],
+  )
+}
+
+/** Cómo se nombra la propuesta en Actividad: folio y nombre, o el id si faltan. */
+function entidadDe(p: { folio?: string | null; nombre?: string | null }, id: string): string {
+  const partes = [p.folio, p.nombre].filter(Boolean)
+  return partes.length ? partes.join(' · ') : id
+}
+
+/**
+ * Quita el cupón de una propuesta y DEVUELVE EL USO, dentro de una transacción
+ * que ya existe. La comparten `quitarCodigo` (el vendedor lo quita),
+ * `decidirCodigo` (un gerente lo RECHAZA) y la aceptación pública con el cupón
+ * PENDIENTE (`propuestas-repo.ts`), para que las tres limpien LO MISMO: si una
+ * olvidara `codigo_estado`, el CHECK `propuestas_codigo_revision_ck` la tiraría
+ * — pero en producción, con un 500 delante de un cliente.
+ *
+ * Se borra la FILA del canje, que es el contador: no hay columna que
+ * decrementar, así que contador y registro no pueden discrepar.
+ */
+export async function quitarCanjeEnTx(
+  client: PoolClient,
+  propuestaId: string,
+  tenant: string | null,
+) {
+  await client.query('delete from canjes_codigo where propuesta_id=$1 and tenant_id=$2', [
+    propuestaId,
+    tenant,
+  ])
+  // Las SEIS columnas se limpian JUNTAS. Los CHECK `propuestas_codigo_pareja_ck`
+  // y `propuestas_codigo_revision_ck` rechazarían dejar una sin las otras, y es
+  // a propósito: un porcentaje sin su código es un descuento que nadie puede
+  // auditar, y un estado sin cupón no significa nada.
+  await client.query(
+    `update propuestas
+        set codigo_texto=null, codigo_descuento_pct=0, codigo_canjeado_en=null,
+            codigo_estado=null, codigo_aprobado_por=null, codigo_aprobado_en=null
+      where id=$1 and tenant_id=$2`,
+    [propuestaId, tenant],
+  )
+}
 
 /** El canje no se pudo hacer, y el mensaje explica por qué. */
 export class CanjeImposible extends Error {}
@@ -205,7 +296,8 @@ export async function canjearCodigo(
 ): Promise<CanjeHecho> {
   const codigo = normalizarCodigo(codigoTecleado)
   const tenant = await tenantActual()
-  const usuarioId = (await usuarioActual())?.id ?? null
+  const usuario = await usuarioActual()
+  const usuarioId = usuario?.id ?? null
 
   const client = await pool.connect()
   try {
@@ -216,9 +308,19 @@ export async function canjearCodigo(
     // Una propuesta aprobada es inmutable: su precio ya está congelado en el
     // snapshot y el cliente lo aceptó. Aplicarle un cupón después cambiaría un
     // documento firmado.
+    //
+    // COD-03 · y la fila se lee BLOQUEADA (`for no key update`). Sin el
+    // bloqueo, aprobar la propuesta por dentro —o que el cliente la acepte—
+    // podría colarse entre esta lectura y el update del paso 5, y la propuesta
+    // quedaría APROBADA con un cupón PENDIENTE que el snapshot congelaría: un
+    // descuento firmado que nadie aprobó. Con el bloqueo, quien llegue segundo
+    // espera y lee el estado de verdad. `no key update` y no `update`: no
+    // cambia ninguna clave, así que no tiene por qué bloquear a quien solo
+    // inserta filas que la referencian (el propio `canjes_codigo` de abajo).
     const prop = (
       await client.query(
-        'select estatus, codigo_texto from propuestas where id=$1 and tenant_id=$2',
+        `select estatus, codigo_texto, folio, nombre from propuestas
+          where id=$1 and tenant_id=$2 for no key update`,
         [propuestaId, tenant],
       )
     ).rows[0]
@@ -294,16 +396,40 @@ export async function canjearCodigo(
     // `propuestas_codigo_pareja_ck` rechazaría dejar uno sin los otros. El
     // momento sale de `now()` de Postgres —el mismo reloj que dijo que el cupón
     // estaba vigente—, no de Node.
+    //
+    // COD-03 · y nace PENDIENTE, en el MISMO update: no existe un instante en
+    // que la fila tenga cupón y no tenga estado (el CHECK
+    // `propuestas_codigo_revision_ck` tampoco lo dejaría). La aprobación se
+    // limpia aunque viniera vacía: un cupón nuevo no hereda la de nadie.
     const pct = Number(cup.descuento_pct)
     await client.query(
       `update propuestas
-          set codigo_texto=$2, codigo_descuento_pct=$3, codigo_canjeado_en=now()
+          set codigo_texto=$2, codigo_descuento_pct=$3, codigo_canjeado_en=now(),
+              codigo_estado='PENDIENTE', codigo_aprobado_por=null, codigo_aprobado_en=null
         where id=$1 and tenant_id=$4`,
       [propuestaId, String(cup.codigo), pct, tenant],
     )
 
+    // ── 6 · DECISIÓN 1 DEL DUEÑO: el cupón reactiva una RECHAZADA ──────────
+    // «En propuesta se debe de poder poner un cupón si fue rechazada para
+    // volverla a activar.» Vuelve a BORRADOR —no a ENVIADA—: el cupón todavía
+    // tiene que aprobarse y la propuesta volver a mandarse; reactivarla es
+    // devolverla a la mesa, no al cliente. Va DENTRO de la transacción del
+    // canje: si el canje falla (vencido, agotado, de otra empresa), la
+    // propuesta se queda RECHAZADA, y si la reactivación fallara, no se gasta
+    // el uso.
+    const reactivada = estatusTrasCanje(String(prop.estatus)) !== String(prop.estatus)
+    if (reactivada) {
+      await client.query(
+        `update propuestas set estatus='BORRADOR'::est_propuesta
+          where id=$1 and tenant_id=$2 and estatus='RECHAZADA'`,
+        [propuestaId, tenant],
+      )
+      await anotar(client, tenant, usuario, textoReactivacion(String(cup.codigo)), entidadDe(prop, propuestaId))
+    }
+
     await client.query('commit')
-    return { codigo: String(cup.codigo), descuentoPct: pct }
+    return { codigo: String(cup.codigo), descuentoPct: pct, estado: 'PENDIENTE', reactivada }
   } catch (e) {
     await client.query('rollback')
     throw e
@@ -332,9 +458,10 @@ export async function quitarCodigo(propuestaId: string): Promise<boolean> {
   try {
     await client.query('begin')
     await fijarTenant(client)
+    // Bloqueada por lo mismo que en el canje: que nadie la apruebe a la vez.
     const prop = (
       await client.query(
-        'select estatus, codigo_texto from propuestas where id=$1 and tenant_id=$2',
+        'select estatus, codigo_texto from propuestas where id=$1 and tenant_id=$2 for no key update',
         [propuestaId, tenant],
       )
     ).rows[0]
@@ -351,19 +478,7 @@ export async function quitarCodigo(propuestaId: string): Promise<boolean> {
       await client.query('rollback')
       return false
     }
-    await client.query('delete from canjes_codigo where propuesta_id=$1 and tenant_id=$2', [
-      propuestaId,
-      tenant,
-    ])
-    // Los tres campos se limpian JUNTOS. El CHECK `propuestas_codigo_pareja_ck`
-    // rechazaría dejar uno sin los otros, y es a propósito: un porcentaje sin su
-    // código es un descuento que nadie puede auditar.
-    await client.query(
-      `update propuestas
-          set codigo_texto=null, codigo_descuento_pct=0, codigo_canjeado_en=null
-        where id=$1 and tenant_id=$2`,
-      [propuestaId, tenant],
-    )
+    await quitarCanjeEnTx(client, propuestaId, tenant)
     await client.query('commit')
     return true
   } catch (e) {
@@ -371,5 +486,124 @@ export async function quitarCodigo(propuestaId: string): Promise<boolean> {
     throw e
   } finally {
     client.release()
+  }
+}
+
+/** La decisión de un gerente. El motivo solo existe al rechazar. */
+export type Decision = { decision: 'APROBAR' } | { decision: 'RECHAZAR'; motivo: string }
+
+/**
+ * ⚠️ APRUEBA O RECHAZA EL CUPÓN PENDIENTE DE UNA PROPUESTA.  COD-03.
+ *
+ * Quién puede llamarla lo decide la ruta (`exigir('comercial','aprobar')`);
+ * aquí se decide SOBRE QUÉ: solo un cupón PENDIENTE de una propuesta de esta
+ * organización que no esté aprobada. `null` = no existe aquí (→ 404, y no 403:
+ * decir «existe pero no es tuyo» ya cuenta algo de otra empresa).
+ *
+ * La fila se lee BLOQUEADA y el `update` de APROBAR repite
+ * `and codigo_estado='PENDIENTE'` en el `where`: dos gerentes decidiendo a la
+ * vez, o un gerente aprobando mientras el cliente acepta, se serializan aquí,
+ * y el segundo lee el estado que dejó el primero.
+ *
+ * Quién aprobó sale de la SESIÓN (`usuarioActual()`), nunca del cuerpo: si
+ * viajara en la petición, cualquiera firmaría la aprobación con el nombre de
+ * su gerente.
+ *
+ * RECHAZAR reutiliza `quitarCanjeEnTx`: el cupón se va y el uso VUELVE, igual
+ * que si lo quitara el vendedor. Lo que cambia es que el MOTIVO queda escrito.
+ */
+export async function decidirCodigo(
+  propuestaId: string,
+  d: Decision,
+): Promise<{ decision: Decision['decision']; codigo: string; descuentoPct: number } | null> {
+  const tenant = await tenantActual()
+  const usuario = await usuarioActual()
+  const client = await pool.connect()
+  try {
+    await client.query('begin')
+    await fijarTenant(client)
+    const prop = (
+      await client.query(
+        `select estatus, folio, nombre, codigo_texto, codigo_descuento_pct, codigo_estado
+           from propuestas where id=$1 and tenant_id=$2 for no key update`,
+        [propuestaId, tenant],
+      )
+    ).rows[0]
+    if (!prop) {
+      await client.query('rollback')
+      return null
+    }
+    const motivo = motivoDecisionImposible({
+      estatus: String(prop.estatus),
+      codigoEstado: estadoCodigoDeFila(prop),
+    })
+    if (motivo) throw new DecisionImposible(motivo)
+
+    const codigo = String(prop.codigo_texto)
+    const pct = Number(prop.codigo_descuento_pct)
+    if (d.decision === 'APROBAR') {
+      const upd = await client.query(
+        `update propuestas
+            set codigo_estado='APROBADO', codigo_aprobado_por=$3, codigo_aprobado_en=now()
+          where id=$1 and tenant_id=$2 and codigo_estado='PENDIENTE'
+          returning id`,
+        [propuestaId, tenant, usuario?.id ?? null],
+      )
+      // Con la fila bloqueada esto no debería pasar; si pasa, alguien cambió el
+      // estado por otro camino y lo honesto es no decir «aprobado».
+      if (!upd.rows.length) throw new DecisionImposible('El codigo cambio mientras se aprobaba; recarga.')
+      await anotar(client, tenant, usuario, textoAprobacion(codigo, pct), entidadDe(prop, propuestaId))
+    } else {
+      await quitarCanjeEnTx(client, propuestaId, tenant)
+      await anotar(client, tenant, usuario, textoRechazo(codigo, d.motivo), entidadDe(prop, propuestaId))
+    }
+    await client.query('commit')
+    return { decision: d.decision, codigo, descuentoPct: pct }
+  } catch (e) {
+    await client.query('rollback')
+    throw e
+  } finally {
+    client.release()
+  }
+}
+
+/**
+ * El cupón de una propuesta como lo lee la pantalla INTERNA: qué código, en
+ * qué estado y quién lo aprobó. `null` = la propuesta no es de esta
+ * organización.
+ *
+ * El nombre del aprobador sale por `left join` con `usuarios` y la segunda
+ * capa `u.tenant_id = p.tenant_id`: un id de usuario de otra organización no
+ * puede ponerle nombre a una aprobación de ésta.
+ */
+export async function leerCodigoDePropuesta(propuestaId: string): Promise<{
+  estatus: string
+  codigoTexto: string | null
+  codigoDescuentoPct: number
+  codigoEstado: EstadoCodigo | null
+  codigoAprobadoPor: string | null
+  codigoAprobadoEn: string | null
+} | null> {
+  const tenant = await tenantActual()
+  const r = await q1<any>(
+    `select p.estatus, p.codigo_texto, p.codigo_descuento_pct, p.codigo_estado,
+            u.nombre as aprobado_por_nombre, p.codigo_aprobado_en
+       from propuestas p
+       left join usuarios u on u.id = p.codigo_aprobado_por and u.tenant_id = p.tenant_id
+      where p.id = $1 and p.tenant_id = $2`,
+    [propuestaId, tenant],
+  )
+  if (!r) return null
+  const estado = estadoCodigoDeFila(r)
+  return {
+    estatus: String(r.estatus),
+    codigoTexto: r.codigo_texto ?? null,
+    codigoDescuentoPct: Number(r.codigo_descuento_pct ?? 0),
+    codigoEstado: estado,
+    codigoAprobadoPor: estado === 'APROBADO' ? (r.aprobado_por_nombre ?? null) : null,
+    codigoAprobadoEn:
+      r.codigo_aprobado_en instanceof Date
+        ? r.codigo_aprobado_en.toISOString()
+        : (r.codigo_aprobado_en ?? null),
   }
 }

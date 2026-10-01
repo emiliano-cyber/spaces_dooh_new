@@ -41,7 +41,7 @@ import {
   refrescarEstado,
   ConfirmacionCeroError,
 } from '@/lib/data/estado-api'
-import { aplicarCodigoApi, quitarCodigoApi } from '@/lib/data/codigos-api'
+import { BloqueCodigoPropuesta } from '@/components/demo/codigos/BloqueCodigoPropuesta'
 import {
   paquetesApi,
   aplicarPaqueteApi,
@@ -94,10 +94,6 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
   const [copiado, setCopiado] = useState(false)
   const [descInput, setDescInput] = useState('')
   const [guardandoDesc, setGuardandoDesc] = useState(false)
-  // COD-01 · el código promocional. SOLO se guarda lo TECLEADO: el porcentaje
-  // no existe en este componente, y no es un olvido — lo decide el servidor.
-  const [codInput, setCodInput] = useState('')
-  const [guardandoCod, setGuardandoCod] = useState(false)
   // PAQ-01 (ADR 0039, Fase 4) · el paquete que se está por aplicar. Solo el ID
   // viaja al servidor: el precio sale del catálogo bajo RLS y NUNCA del
   // navegador. Ver la cabecera de `app/api/propuestas/[id]/paquete/route.ts`.
@@ -148,34 +144,6 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
   }
 
   /**
-   * COD-01 · aplica el código. **Aquí no se valida nada del cupón.**
-   *
-   * No se comprueba la vigencia ni los usos, y es deliberado: las dos cosas son
-   * un reloj y un contador, y ninguno puede vivir en el navegador de quien
-   * vende (hallazgo B40). Lo único que se mira es que el campo no esté vacío,
-   * para ahorrar un viaje. El mensaje del servidor se enseña TAL CUAL porque
-   * distingue «no existe» de «venció» de «se agotó», y las tres se arreglan
-   * de forma distinta.
-   */
-  async function aplicarCodigo() {
-    if (codInput.trim() === '') {
-      toast.error('Teclea el código promocional')
-      return
-    }
-    setGuardandoCod(true)
-    try {
-      const r = await aplicarCodigoApi(id, codInput)
-      toast.success(`Código ${r.codigo} aplicado: ${r.descuentoPct} %`)
-      setCodInput('')
-      await refrescarEstado()
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Error')
-    } finally {
-      setGuardandoCod(false)
-    }
-  }
-
-  /**
    * PAQ-01 · aplica un paquete cerrado. **Aquí no se manda ningún precio.**
    *
    * Lo único que viaja es el ID. El precio, el nombre y la bandera de si admite
@@ -221,20 +189,6 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
       toast.error(e instanceof Error ? e.message : 'Error')
     } finally {
       setGuardandoPaq(false)
-    }
-  }
-
-  /** Quita el código y DEVUELVE EL USO al cupón. */
-  async function quitarCodigo() {
-    setGuardandoCod(true)
-    try {
-      await quitarCodigoApi(id)
-      toast.success('Código quitado; su uso vuelve al cupón')
-      await refrescarEstado()
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Error')
-    } finally {
-      setGuardandoCod(false)
     }
   }
 
@@ -461,7 +415,12 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                   cuadra en pantalla. */}
               {p.codigoDescuentoMonto > 0 && (
                 <Fila
-                  label={`Código ${p.codigoTexto ?? ''} (${p.codigoDescuentoPct}%)`}
+                  label={`Código ${p.codigoTexto ?? ''} (${p.codigoDescuentoPct}%)${
+                    // COD-03 · el total INTERNO cuenta el cupón aunque esté
+                    // pendiente (es lo que se ofrece); el renglón avisa de que
+                    // el cliente todavía no lo ve.
+                    p.codigoEstado === 'PENDIENTE' ? ' · cupón pendiente de aprobación' : ''
+                  }`}
                   valor={`− ${formatMonto(p.codigoDescuentoMonto)}`}
                   tono="text-error"
                 />
@@ -602,66 +561,19 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
               </div>
             )}
 
-            {/* COD-01 · EL CÓDIGO PROMOCIONAL (ADR 0039, Fase 3).
-                Bloque aparte del descuento comercial, y no es estética: son dos
-                cosas que autoriza gente distinta. El comercial lo pone quien
-                vende, bajo el tope de la organización; el código lo crea
-                Administración y aquí solo se TECLEA. Por eso este bloque no
-                tiene ningún campo de porcentaje. */}
-            {puedeEditar && (
-              <div className="rounded-md border border-border bg-surface-2/40 p-3">
-                <div className="text-[12px] font-medium text-ink">Código promocional</div>
-                {p.codigoTexto ? (
-                  <>
-                    <p className="mt-0.5 text-[11px] text-muted">
-                      Esta propuesta lleva el código <b className="font-mono">{p.codigoTexto}</b>{' '}
-                      con un <b>{p.codigoDescuentoPct} %</b>, que ya está congelado: si el código
-                      cambia o se borra, este precio no se mueve.
-                    </p>
-                    {editable ? (
-                      <div className="mt-2 flex items-center gap-2">
-                        <Button size="sm" variant="ghost" onClick={quitarCodigo} disabled={guardandoCod}>
-                          {guardandoCod ? 'Quitando…' : 'Quitar código'}
-                        </Button>
-                        <span className="text-[11px] text-muted">
-                          Quitarlo devuelve su uso al cupón.
-                        </span>
-                      </div>
-                    ) : (
-                      <p className="mt-2 text-[12px] text-muted">
-                        La propuesta ya está {est.label.toLowerCase()}; el código quedó fijo.
-                      </p>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <p className="mt-0.5 text-[11px] text-muted">
-                      Se aplica <b>después</b> del descuento comercial y se <b>compone</b> con él:
-                      un 20 % y un 20 % dejan al cliente pagando el 64 %, no el 60 %. Al aplicarlo
-                      se consume uno de sus usos — quitarlo lo devuelve.
-                    </p>
-                    {editable ? (
-                      <div className="mt-2 flex items-center gap-2">
-                        <input
-                          aria-label="Código promocional"
-                          value={codInput}
-                          onChange={(e) => setCodInput(e.target.value)}
-                          placeholder="VERANO20"
-                          className="h-9 w-36 rounded border border-border-strong bg-surface px-3 font-mono text-[13px] uppercase text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                        />
-                        <Button size="sm" onClick={aplicarCodigo} disabled={guardandoCod || codInput.trim() === ''}>
-                          {guardandoCod ? 'Aplicando…' : 'Aplicar'}
-                        </Button>
-                      </div>
-                    ) : (
-                      <p className="mt-2 text-[12px] text-muted">
-                        La propuesta ya está {est.label.toLowerCase()}; no admite código.
-                      </p>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
+            {/* COD-01 / COD-03 · EL CÓDIGO PROMOCIONAL. Vive en su propio
+                componente desde que necesita aprobación: estado, selector de
+                vigentes y decisión del gerente. Ver la cabecera de
+                `BloqueCodigoPropuesta`. Se ofrece también en RECHAZADA, que
+                `editable` excluye: un cupón la reactiva (decisión 1 del dueño). */}
+            <BloqueCodigoPropuesta
+              propuestaId={p.id}
+              estatus={p.estatus}
+              codigoTexto={p.codigoTexto}
+              codigoDescuentoPct={p.codigoDescuentoPct}
+              codigoEstado={p.codigoEstado}
+              puedeEditar={puedeEditar}
+            />
           </div>
         </CardContent>
       </Card>
@@ -875,7 +787,12 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                   comercial — eso viene de antes y no se toca aquí.) */}
               {p.codigoDescuentoMonto > 0 && (
                 <Fila
-                  label={`Código ${p.codigoTexto ?? ''} (${p.codigoDescuentoPct}%)`}
+                  label={`Código ${p.codigoTexto ?? ''} (${p.codigoDescuentoPct}%)${
+                    // COD-03 · el total INTERNO cuenta el cupón aunque esté
+                    // pendiente (es lo que se ofrece); el renglón avisa de que
+                    // el cliente todavía no lo ve.
+                    p.codigoEstado === 'PENDIENTE' ? ' · cupón pendiente de aprobación' : ''
+                  }`}
                   valor={`− ${formatMonto(p.codigoDescuentoMonto)}`}
                   tono="text-error"
                 />

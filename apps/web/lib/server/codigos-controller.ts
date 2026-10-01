@@ -8,7 +8,10 @@ import {
   borrarCodigo,
   canjearCodigo,
   quitarCodigo,
+  decidirCodigo,
+  leerCodigoDePropuesta,
   CanjeImposible,
+  DecisionImposible,
 } from './codigos-repo'
 
 // ============================================================================
@@ -141,4 +144,49 @@ export async function quitarCodigoCtrl(propuestaId: string) {
     if (e instanceof CanjeImposible) throw new AppError(e.message, 409)
     throw e
   }
+}
+
+/**
+ * COD-03 · EL ESQUEMA DE LA DECISIÓN de un gerente sobre el cupón pendiente.
+ *
+ * `.strict()` en las DOS ramas, y es el mismo candado que `canjeSchema` por el
+ * otro lado: aprobar no admite ni un campo más. Sin él, un cuerpo
+ * `{ decision: 'APROBAR', descuentoPct: 90 }` pasaría (zod descarta lo que no
+ * conoce) y hoy no haría nada — pero el día que alguien añada un campo «para
+ * ajustar el porcentaje al aprobar», la ruta ya lo estaría aceptando de
+ * cualquiera con `comercial.aprobar`. Con `.strict()` ese día empieza en rojo.
+ *
+ * Tampoco hay `aprobadoPor`: quién aprobó sale de la sesión, nunca del cuerpo.
+ *
+ * El motivo es OBLIGATORIO al rechazar y no se admite al aprobar: rechazar le
+ * quita a alguien un descuento que el vendedor ya ofreció, y seis meses
+ * después «lo rechazó Fulano» sin el porqué no se puede explicar. Acotado a
+ * 500 para que no se convierta en una caja de texto libre dentro de la
+ * bitácora.
+ */
+const decisionSchema = z.discriminatedUnion('decision', [
+  z.object({ decision: z.literal('APROBAR') }).strict(),
+  z.object({ decision: z.literal('RECHAZAR'), motivo: z.string().trim().min(3).max(500) }).strict(),
+])
+
+/** Aprueba o rechaza el cupón pendiente. 404 si no es de esta organización. */
+export async function decidirCodigoCtrl(propuestaId: string, body: unknown) {
+  const d = validar(decisionSchema, body)
+  try {
+    const r = await decidirCodigo(propuestaId, d)
+    if (!r) throw new AppError('Esa propuesta no existe en esta organizacion', 404)
+    return r
+  } catch (e) {
+    // 409 y no 400: la petición está bien formada; lo que choca es el ESTADO
+    // (ya aprobado, sin cupón, propuesta firmada).
+    if (e instanceof DecisionImposible) throw new AppError(e.message, 409)
+    throw e
+  }
+}
+
+/** El cupón de la propuesta para la pantalla interna. 404 si no es de aquí. */
+export async function leerCodigoCtrl(propuestaId: string) {
+  const r = await leerCodigoDePropuesta(propuestaId)
+  if (!r) throw new AppError('Esa propuesta no existe en esta organizacion', 404)
+  return r
 }

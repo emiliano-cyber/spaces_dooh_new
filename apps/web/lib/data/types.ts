@@ -596,6 +596,14 @@ export interface Propuesta {
   codigoTexto: string | null
   codigoDescuentoPct: number
   codigoDescuentoMonto: number
+  // COD-03 · el estado del cupón: `null` sin cupón, PENDIENTE mientras nadie
+  // con `comercial.aprobar` lo apruebe (el CLIENTE no lo ve), APROBADO después.
+  // Los importes de arriba lo cuentan IGUAL en los dos estados: por dentro un
+  // cupón pendiente sigue siendo lo que se está ofreciendo. Opcionales porque
+  // la liga pública no los manda nunca.
+  codigoEstado?: 'PENDIENTE' | 'APROBADO' | null
+  codigoAprobadoPor?: string | null
+  codigoAprobadoEn?: string | null
   baseComercial: number // brutoConVolumen − descuento, ANTES del código
   base: number          // baseComercial − código (base de cálculo)
   divisor: number       // 1 − comisión/100

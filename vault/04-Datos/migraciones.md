@@ -33,9 +33,35 @@ archivos:
   - db/migrations/20260928_codigo_promocional.sql
   - db/migrations/20260928_paquete_cerrado.sql
   - db/migrations/20261002_franja_programada_campana.sql
+  - db/migrations/20261003_codigo_aprobacion.sql
 ---
 
 # Migraciones
+
+> [!success] 2026-09-30 · `20261003_codigo_aprobacion.sql` — COD-03
+> **Aprobada por el dueño el 2026-09-30, con su forma.** Tres columnas en
+> `propuestas` (`codigo_estado`, `codigo_aprobado_por`, `codigo_aprobado_en`),
+> tres CHECK y un índice parcial — detalle en [[04-Datos/esquema]]. Aborta si
+> `propuestas` no tuviera RLS ENABLE+FORCE, igual que PROG-01.
+>
+> **Lleva backfill, y es parte del esquema, no `@tipo: datos`**: el CHECK
+> `propuestas_codigo_revision_ck` no se podría añadir sobre una base con un solo
+> cupón aplicado sin rellenar antes su estado. Los cupones existentes quedan
+> `APROBADO` (el cliente ya los vio). Idempotente: solo toca filas con cupón y
+> **sin** estado.
+>
+> Fecha **03/10** para ordenar después de `20261002_franja_programada_campana.sql`.
+> **Los nombres de los CHECK no son cosméticos**: Postgres los evalúa por orden
+> de nombre, y `revision` va detrás de `pareja`, así que el mensaje que
+> `codigo-promocional.e2e.test.ts` espera de `propuestas_codigo_pareja_ck` no
+> cambia (medido en 14 y 16).
+>
+> Probada en **PostgreSQL 14.24** y **16** desechables: historia completa
+> hasta la anterior, un cupón «de ayer» sembrado, la nueva aplicada **dos
+> veces** → APROBADO, `aprobado_en = canjeado_en`, los cuatro CHECK/FK
+> rechazando lo que deben, y la baja del aprobador dejando `aprobado_por` en
+> NULL sin romper nada. Y en la e2e (`codigo-aprobacion.e2e.test.ts` §1), en una
+> base propia. Sin `@pg-min`. LF en disco.
 
 > [!success] 2026-09-30 · `20261002_franja_programada_campana.sql` — PROG-01
 > **Aprobada por el dueño el 2026-09-30** (toda forma de base se aprueba antes de

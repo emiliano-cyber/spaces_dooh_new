@@ -532,6 +532,16 @@ describe('5 · el paquete es precio final (regla 2 del ADR)', () => {
     })
     expect(ap.status, JSON.stringify(ap.datos)).toBe(200)
 
+    // COD-03 (2026-10-03): todo cupón aplicado nace PENDIENTE y la propuesta no
+    // se aprueba por dentro hasta que alguien con `comercial.aprobar` lo decida
+    // (409). El dueño de ALFA lo tiene; se aprueba aquí y la prueba sigue
+    // exigiendo el mismo 24 000. Lo que pasa SIN aprobarlo lo mide
+    // `codigo-aprobacion.e2e.test.ts`.
+    const dec = await ca.pedir(`/api/propuestas/${id}/codigo/decision/`, {
+      cuerpo: { decision: 'APROBAR' },
+    })
+    expect(dec.status, JSON.stringify(dec.datos)).toBe(200)
+
     const aprob = await ca.pedir(`/api/propuestas/${id}/`, {
       metodo: 'PATCH',
       cuerpo: { estatus: 'APROBADA' },

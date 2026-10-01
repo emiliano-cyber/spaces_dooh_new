@@ -169,6 +169,8 @@ Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo el
 | POST | `/api/propuestas` · PATCH `/api/propuestas/[id]` | exigir |
 | PATCH | `/api/propuestas/items/[id]` | exigir |
 | POST | `/api/propuestas/[id]/generar-campana` | exigir |
+| GET · POST · DELETE | `/api/propuestas/[id]/codigo` | `comercial:ver` (leer: estado del cupón y `puedeAprobarCodigo`, COD-03) · `comercial:crear` (aplicar —nace **PENDIENTE**; en una RECHAZADA la reactiva a BORRADOR— y quitar); ver [[codigo-promocional]] |
+| POST | `/api/propuestas/[id]/codigo/decision` | `comercial:aprobar` — aprobar o rechazar (con motivo) el cupón PENDIENTE; `.strict()`; 409 si no está pendiente, 404 si es de otra organización (COD-03, 30/09) |
 | POST | `/api/reservar` | exigir |
 | PATCH | `/api/reservas/[id]/creativo` | exigir |
 | POST | `/api/creatividades` · PATCH·DELETE·PUT `/api/creatividades/[id]` | exigir |
@@ -318,7 +320,7 @@ el 26/08 y su cerrojo real es que `tenants` esté vacía, no el token).
 |---|---|---|
 | GET | `/api/portal/[token]` | `campanas.portal_token` |
 | GET·POST | `/api/firma/[token]` | token de firma del contrato |
-| GET·POST | `/api/propuestas/publica/[id]` | `propuestas.token_publico` |
+| GET·POST | `/api/propuestas/publica/[id]` | `propuestas.token_publico` — con el cupón **PENDIENTE** (COD-03) el GET no lo trae ni en el JSON y su total va sin él; el POST acepta **sin** cupón y devuelve el uso |
 | GET | `/api/logo/[token]` | `config_negocio.logo_token` |
 
 ## Cron

@@ -7,6 +7,39 @@ La entrada más reciente va arriba.
 
 ## 2026-09-30
 
+- **Los cupones ahora los aprueba un administrador o gerente antes de que los vea
+  el cliente.** *(Decisiones tuyas del 30/09.)*
+
+  Cuando alguien aplica un código promocional a una propuesta, el cupón queda
+  **«Pendiente de aprobación»**. Mientras lo esté, **el cliente ve su propuesta
+  sin ese descuento** —ni el renglón del código ni el total rebajado—, y por
+  dentro la propuesta **no se puede aprobar** hasta que alguien decida: sale el
+  aviso «Primero aprueba o rechaza el código promocional».
+
+  Pueden aprobar o rechazar el **Dueño, el Administrador, el Director comercial
+  y el Gerente de ventas**. El **Vendedor** puede aplicarlo, pero no aprobarlo.
+  Al aprobar, el cliente ya lo ve en su liga. Al **rechazar** hay que escribir el
+  motivo; el cupón se quita y **su uso vuelve** al cupón. Todo queda en
+  Actividad, con quién lo hizo.
+
+  Además:
+
+  - En la propuesta ya puedes **elegir el cupón de una lista** de los vigentes,
+    además de teclearlo.
+  - Si la propuesta estaba **rechazada**, aplicarle un cupón la **vuelve a
+    borrador** para retomarla (la pantalla te avisa antes).
+  - En la lista de propuestas, las que tienen un cupón esperando llevan la marca
+    **«Cupón pendiente»**.
+
+  **Una regla que conviene que conozcas** *(la propusimos nosotros para que las
+  cuentas cuadren; dinos si la quieres distinta)*: si el cliente **acepta** su
+  propuesta mientras el cupón sigue pendiente, la acepta **al precio que vio, sin
+  el cupón**. El cupón se quita en ese momento y su uso vuelve, y así queda lo
+  firmado y lo que se le cobra.
+
+  **Los cupones que ya estaban aplicados antes de este cambio quedan aprobados**:
+  el cliente ya los había visto y no se le quita nada.
+
 - **Comercial OPEX, mejor acomodado; y Captación sale del menú por ahora.**
   *(Pedido tuyo del 30/09.)*
 

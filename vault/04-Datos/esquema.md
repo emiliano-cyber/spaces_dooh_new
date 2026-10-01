@@ -14,9 +14,33 @@ archivos:
   - db/migrations/20260928_paquete_cerrado.sql
   - db/migrations/20261001_almacen_datos_por_tipo.sql
   - db/migrations/20261002_franja_programada_campana.sql
+  - db/migrations/20261003_codigo_aprobacion.sql
 ---
 
 # Esquema de datos
+
+> [!success] 2026-09-30 · el cupón con APROBACIÓN — COD-03, `20261003_codigo_aprobacion.sql`
+> **Aprobada por el dueño el 2026-09-30, incluida la forma.** Tres columnas
+> nuevas en `propuestas`, **ninguna tabla**: el recuento de tablas no cambia.
+>
+> | Columna | Tipo | Qué |
+> |---|---|---|
+> | `codigo_estado` | `text`, NULL | NULL = sin cupón · `'PENDIENTE'` = aplicado, el cliente **no** lo ve · `'APROBADO'` = lo aprobó alguien con `comercial.aprobar` |
+> | `codigo_aprobado_por` | `uuid` → `usuarios(id) on delete set null` | De la **sesión**, nunca del cuerpo. FK de una columna |
+> | `codigo_aprobado_en` | `timestamptz` | `now()` de Postgres |
+>
+> Tres CHECK: `propuestas_codigo_estado_ck` (el dominio, **text + CHECK y no
+> enum**), `propuestas_codigo_revision_ck` (`codigo_texto is null` ⇔
+> `codigo_estado is null`) y `propuestas_codigo_aprobado_ck` (APROBADO ⇒
+> `codigo_aprobado_en` no nulo). `codigo_aprobado_por` **no** se exige con
+> APROBADO: es `set null`, y dar de baja al aprobador rompería la fila. Índice
+> parcial `idx_propuestas_codigo_pendiente (tenant_id) where codigo_estado =
+> 'PENDIENTE'`.
+>
+> **Backfill en la misma migración**: los cupones ya aplicados pasan a
+> `APROBADO` con `codigo_aprobado_en = codigo_canjeado_en` y sin aprobador —el
+> cliente ya los había visto; no se le quita nada a nadie—. Sin `@pg-min`:
+> probada en 14.24 y 16. Ver [[02-Backend/codigo-promocional]] §8.
 
 > [!success] 2026-09-30 · `campanas.franja_programada_id` — PROG-01
 > **Aprobada por el dueño el 2026-09-30.** Columna nueva, **no tabla**: el

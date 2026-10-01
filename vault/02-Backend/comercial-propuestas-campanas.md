@@ -241,6 +241,25 @@ enseña `FranjaProgramadaCampana`, montado con una línea bajo el Pipeline.
 **Sin fusionar**: la columna espera la aprobación del dueño. Detalle completo en
 [[rejilla-franja-y-temporada]].
 
+## El cupón aplicado necesita aprobación (COD-03, 30/09)
+
+Todo código promocional aplicado a una propuesta nace **PENDIENTE**
+(`propuestas.codigo_estado`). Mientras lo esté:
+
+- la **liga pública** no lo enseña —ni la línea ni el total con él— porque
+  `obtenerPropuestaPublica` filtra la fila con `filaParaCliente` antes de armar;
+- el cliente **puede aceptar**, y acepta **sin** cupón: la aceptación lo quita y
+  devuelve su uso dentro de su transacción, antes del snapshot;
+- **no se puede aprobar por dentro** (`cambiarEstatusPropuesta` → 409
+  «Primero aprueba o rechaza el código promocional»);
+- por dentro, los importes lo **siguen contando** y la lista marca «Cupón
+  pendiente».
+
+Lo decide `POST /api/propuestas/[id]/codigo/decision` con `comercial.aprobar`
+(los cuatro roles de mando, no el VENDEDOR). Y aplicar un cupón a una
+**RECHAZADA** la devuelve a **BORRADOR**. Decisiones y reglas derivadas en
+[[codigo-promocional]] §8.
+
 ## Portal del cliente
 
 `campanas.portal_token` + `portal_activo` habilitan `/portal/[token]`.

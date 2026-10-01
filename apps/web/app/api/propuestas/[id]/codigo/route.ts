@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
-import { exigir } from '@/lib/server/auth'
-import { aplicarCodigoCtrl, quitarCodigoCtrl } from '@/lib/server/codigos-controller'
+import { exigir, tienePermiso } from '@/lib/server/auth'
+import { aplicarCodigoCtrl, quitarCodigoCtrl, leerCodigoCtrl } from '@/lib/server/codigos-controller'
 import { respuestaError } from '@/lib/server/errores'
 import { registrarAccion } from '@/lib/server/acciones-repo'
 
@@ -38,7 +38,29 @@ export const dynamic = 'force-dynamic'
 //  50 % y aplicárselo — y el cupón dejaría de ser una decisión del dueño.
 // ============================================================================
 
+// GET → COD-03 · el cupón de la propuesta para la pantalla INTERNA: código,
+// estado (PENDIENTE / APROBADO), quién lo aprobó, y si QUIEN PREGUNTA puede
+// decidir. `puedeAprobarCodigo` se calcula AQUÍ con la misma regla que la ruta
+// de la decisión (`comercial.aprobar`), igual que `puedeProgramar` en
+// `/api/campanas/franja-programada`: la pantalla no le ofrece al VENDEDOR un
+// botón que el servidor le va a negar, y no lo decide mirando el rol en el
+// navegador.
+export async function GET(_req: Request, { params }: { params: { id: string } }) {
+  const g = await exigir('comercial', 'ver')
+  if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
+  try {
+    const r = await leerCodigoCtrl(params.id)
+    const puedeAprobarCodigo = await tienePermiso(g.usuario.rol, 'comercial', 'aprobar')
+    return NextResponse.json({ ...r, puedeAprobarCodigo })
+  } catch (e) {
+    return respuestaError(e)
+  }
+}
+
 // POST → aplica el código. Cuenta un canje EN ESE MOMENTO, no al aprobar.
+// COD-03 · y lo deja PENDIENTE: el cliente no lo ve hasta que alguien con
+// `comercial.aprobar` lo apruebe en `/codigo/decision`. Si la propuesta estaba
+// RECHAZADA, el canje la devuelve a BORRADOR en la misma transacción.
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   const g = await exigir('comercial', 'crear')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
@@ -49,7 +71,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     // barata; es el mismo criterio con el que TOPE-02 escribe el descuento.
     await registrarAccion(
       g.usuario,
-      'Aplicó un código promocional a la propuesta',
+      'Aplicó un código promocional a la propuesta (pendiente de aprobación)',
       `${r.codigo}: ${r.descuentoPct} %`,
     )
     return NextResponse.json(r)

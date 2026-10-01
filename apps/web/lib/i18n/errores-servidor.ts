@@ -195,6 +195,9 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   // 1 sitio · lib/server/rejilla-controller.ts:260
   'Esa pantalla no existe':
     'That screen does not exist',
+  // 2 sitios · lib/server/codigos-controller.ts (COD-03: decidir y leer el cupón)
+  'Esa propuesta no existe en esta organizacion':
+    'That proposal does not exist in this organization',
   // 1 sitio · lib/server/codigos-controller.ts:138
   'Esa propuesta no tiene ningun codigo aplicado':
     'That proposal has no promo code applied',

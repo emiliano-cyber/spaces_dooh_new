@@ -1,7 +1,13 @@
 import { NextResponse } from 'next/server'
 import { AppError } from '@/lib/server/errores'
 import { exigir } from '@/lib/server/auth'
-import { cambiarEstatusPropuesta, actualizarPropuesta, PropuestaError, PropuestaCeroError } from '@/lib/server/propuestas-repo'
+import {
+  cambiarEstatusPropuesta,
+  actualizarPropuesta,
+  PropuestaError,
+  PropuestaCeroError,
+  CodigoPendienteError,
+} from '@/lib/server/propuestas-repo'
 import { generarCampanaDesdePropuesta, PropuestaCampanaError } from '@/lib/server/campanas-repo'
 import { registrarAccion } from '@/lib/server/acciones-repo'
 import { notificar } from '@/lib/server/notificaciones-repo'
@@ -118,6 +124,11 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     // S1-2: total $0 sin confirmar → aviso para que el UI reconfirme.
     if (e instanceof PropuestaCeroError) {
       return NextResponse.json({ error: e.message, requiereConfirmacionCero: true }, { status: 409 })
+    }
+    // COD-03 · aprobar con el cupón PENDIENTE: 409, conflicto de ESTADO, con la
+    // frase que dice qué hacer. No es un 400: la petición está bien formada.
+    if (e instanceof CodigoPendienteError) {
+      return NextResponse.json({ error: e.message, codigoPendiente: true }, { status: 409 })
     }
     return NextResponse.json(
       { error: e instanceof Error ? e.message : 'No se pudo actualizar' },
