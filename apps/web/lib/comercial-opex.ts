@@ -283,3 +283,19 @@ export function resumen(espacios: Espacio[], hoy: Date) {
 export function espacioElegido(espacios: Espacio[], id: string | null): Espacio | null {
   return espacios.find((e) => e.id === id) ?? espacios[0] ?? null
 }
+
+/**
+ * Las dos iniciales del círculo de un contacto. Quita el tratamiento («Ing.»,
+ * «Lic.», «Sra.»…) y se queda solo con palabras que empiezan por LETRA: la
+ * primera versión pintaba «C(» para «Sra. Carmen (vecina 1418)».
+ */
+export function iniciales(nombre: string): string {
+  return nombre
+    .replace(/^(Ing|Lic|Sra|Srta|Sr|Dr|Dra|Arq|Mtro|Mtra)\.?\s+/i, '')
+    .split(/\s+/)
+    .map((p) => p.replace(/[^\p{L}]/gu, ''))
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0].toUpperCase())
+    .join('')
+}

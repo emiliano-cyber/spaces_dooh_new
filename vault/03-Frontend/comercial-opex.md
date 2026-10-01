@@ -42,6 +42,20 @@ archivos:
 >   y pasársela al componente: así «hace N días» sale igual en el HTML y al
 >   hidratar.
 >
+> **Segunda pasada, el mismo día** —el dueño: *«aún no está bien arreglado en
+> documentos de la empresa, competencia, historial ni responsables y
+> contactos»*—, ya **con capturas reales** (Chromium sin ventana contra el
+> 3490). La causa de casi todo era una: **`preflight` de Tailwind está
+> DESACTIVADO** (`tailwind.config.ts:23`), así que cada `<ul>`/`<ol>` salía con
+> las viñetas, los números y la sangría del navegador —números «1. 2.» encima
+> de la línea de tiempo, puntos sueltos fuera de los recuadros—. Ahora toda
+> lista lleva `LISTA` (`m-0 list-none p-0`) y cada sección tiene su forma:
+> contactos con círculo de iniciales y teléfono/correo con icono; el historial
+> como línea de tiempo con canal en etiqueta y el siguiente paso con flecha;
+> la competencia en ficha; los documentos en filas con tipo y fecha alineada.
+> `iniciales()` pasó a `lib/comercial-opex.ts` con prueba: pintaba «C(» para
+> «Sra. Carmen (vecina 1418)».
+>
 > **Captación (CAP-01) se oculta del menú** a favor de esta pantalla. Solo se
 > quitó la entrada de `nav.ts`: las tablas, la API y el módulo `captacion` de
 > permisos siguen. Ver [[02-Backend/captacion]]. Cuando esto se construya hay

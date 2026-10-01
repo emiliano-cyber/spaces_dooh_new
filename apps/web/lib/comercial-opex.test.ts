@@ -8,6 +8,7 @@ import {
   resumen,
   ultimoAvance,
   espacioElegido,
+  iniciales,
   type Espacio,
 } from './comercial-opex'
 
@@ -135,5 +136,18 @@ describe('espacioElegido · qué espacio se detalla (2026-09-30)', () => {
   })
   it('sin espacios, null', () => {
     expect(espacioElegido([], 'x')).toBeNull()
+  })
+})
+
+describe('iniciales · el círculo de cada contacto (2026-09-30)', () => {
+  it('quita el tratamiento y toma dos iniciales', () => {
+    expect(iniciales('Ing. Roberto Salinas')).toBe('RS')
+    expect(iniciales('Lic. Andrea Ruiz')).toBe('AR')
+  })
+  it('ignora paréntesis, números y signos: «C(» se colaba en la primera versión', () => {
+    expect(iniciales('Sra. Carmen (vecina 1418)')).toBe('CV')
+  })
+  it('un nombre vacío no revienta', () => {
+    expect(iniciales('')).toBe('')
   })
 })
