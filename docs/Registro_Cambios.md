@@ -7,6 +7,48 @@ La entrada más reciente va arriba.
 
 ## 2026-10-01
 
+- **Calculadora de spots en las propuestas: tú eliges los espacios y las horas,
+  el sistema cuenta los spots.** *(Decisiones tuyas del 01/10, ADR 0042.)*
+  - Al cotizar una **pantalla digital por spot**, aparece la calculadora: cuántos
+    **espacios del loop** compra el cliente (de los que tiene la pantalla, y te
+    dice cuántos están libres) y cuántas **horas al día**. Las horas salen solas
+    de la franja que elijas o, sin franja, del horario de la pantalla; se pueden
+    bajar, no subir.
+  - Con eso calcula las **rotaciones por hora**, los **spots al día** y el
+    **total de spots** de la campaña, y pone esa cantidad en la línea. El
+    **precio por spot sigue siendo la tarifa de la pantalla** (con su franja, su
+    temporada y el descuento por volumen, como siempre).
+  - **Se cuenta hacia abajo**: con 7 espacios de 20 segundos salen 25,7 vueltas
+    por hora, y no se cobra la fracción. Por eso puede dar unos pesos menos que
+    la calculadora que usabas antes.
+  - El sistema **vuelve a hacer la cuenta** al guardar. Si alguien mandara otra
+    cantidad de spots por fuera de la pantalla, la rechaza con la cuenta escrita
+    y **no guarda nada**.
+  - **No hay tope de espacios por cliente**: el tope es lo que esté libre. Si
+    pides más espacios de los libres, el sistema no te deja guardar y te dice
+    cuántos quedan.
+  - **Roadblock**: marcando la casilla, la línea compra **todos** los espacios
+    de la pantalla, y para eso tienen que estar todos libres. Solo el **gerente
+    de ventas y superiores** pueden ponerle una **prima** encima de la tarifa;
+    el vendedor puede marcarlo, pero sin prima. La prima queda como un ajuste
+    de precio a nombre de quien la puso, y en Actividad se lee, por ejemplo,
+    «Cambió la tarifa de «Pantalla Reforma» (spot) de $1,200 a $1,500 por
+    Roadblock con prima del 25 %».
+  - Al convertirse en campaña, la pantalla queda **apartada con los espacios que
+    se compraron** (todos, en un Roadblock), y lo que se programa al día es lo
+    mismo que se cotizó.
+  - Si la calculadora no entiende el horario escrito en la pantalla, toma 18
+    horas y **lo avisa**. Debajo enseña también, solo como referencia, a cuánto
+    sale el spot comparado con la tarifa mensual; eso **no se cobra**.
+  - La calculadora se puede apagar en cada línea para capturar los spots a mano,
+    como hasta ahora. Las pantallas fijas y las demás unidades no cambian.
+  - **El cliente solo ve el precio final**: en la liga de la propuesta no
+    aparecen los espacios, las horas, el Roadblock ni la prima.
+
+  **Lleva el cambio de base que aprobaste:** cuatro columnas nuevas en las
+  líneas de propuesta (espacios comprados, horas al día, Roadblock y su prima).
+  Está en su rama, **sin fusionar a `main`**.
+
 - **La tarifa de cada pantalla en una propuesta la pone el sistema, y solo un
   gerente o superior puede cambiarla.** *(Pedido tuyo del 01/10: «aparte de ser
   calculado, el gerente será el único que podrá poner otro precio diferente al

@@ -9,6 +9,14 @@ import { Card, CardContent } from '@/components/demo/ui/Card'
 import { AvisoFranjaCMS } from '@/components/demo/rejilla/AvisoFranjaCMS'
 import { catalogoRejillaApi, type FranjaUI, type TemporadaUI } from '@/lib/data/rejilla-api'
 import { modalidadesDeSitio, tarifaCalculada } from '@/lib/tarifa-calculada'
+import {
+  duracionSpotSeg,
+  horasDeHorario,
+  horasPorOmision,
+  previsualizarCalculadora,
+  referenciaPorSpotMensual,
+  tarifaConPrima,
+} from '@/lib/calculadora-spots'
 import { resolverVolumen } from '@/lib/volumen'
 import { escalasVolumenApi, type TramoVolumenUI } from '@/lib/data/volumen-api'
 import { Button } from '@/components/demo/ui/Button'
@@ -43,6 +51,7 @@ import {
   UNIDADES,
   unidadCorta,
   cantidadEfectiva,
+  diasInclusivos,
   precioItem,
   periodosEnRango,
   fechaFinDesde,
@@ -402,6 +411,15 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
     // Cadena vacía = a la tarifa calculada, que es el caso normal y el ÚNICO
     // posible para un vendedor.
     tarifaManual: string
+    // ADR 0042 · la CALCULADORA DE SPOTS, solo para pantalla digital por spot.
+    // `manual` = el vendedor la apagó y captura la cantidad a mano, como antes.
+    // `espacios` y `horasDia` son texto porque son lo que se teclea; `horasDia`
+    // vacío = las de la franja o el horario. `prima` solo la toca un gerente.
+    manual: boolean
+    espacios: string
+    horasDia: string
+    roadblock: boolean
+    prima: string
   }
   const [cfg, setCfg] = useState<Record<string, CfgSitio>>({})
 
@@ -475,6 +493,7 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
     // con la advertencia del CMS encima.
     franjaId: '',
     tarifaManual: '',
+    ...CALC_POR_OMISION,
     ...(({ monto, per, arr }) => ({
       rentaMonto: monto, rentaPeriodicidad: per, rentaArrendadorId: arr,
     }))(rentaPrevia(s)),
@@ -507,14 +526,65 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
     const n = Number(c.tarifaManual)
     return Number.isFinite(n) && n >= 0 ? n : null
   }
+  // ─── ADR 0042 · la CALCULADORA DE SPOTS ─────────────────────────────────
+  // La cuenta es `previsualizarCalculadora()` de `lib/calculadora-spots.ts`, la
+  // MISMA con la que el servidor recalcula la cantidad y rechaza la que no
+  // cuadre. Aquí solo se enseña antes de mandar; quien decide es el servidor.
+  const config = useConfigNegocio()
+  // `tipo_medio`, no `exhibicion`: es el criterio con el que el servidor y la
+  // campaña deciden si una pantalla tiene loop (`spotsDeLaReserva`).
+  const conLoop = (s: any) => s.tipoMedio === 'PANTALLA_DIGITAL'
+  const usaCalcDe = (s: any) => {
+    const c = cfgDe(s)
+    return conLoop(s) && c.unidad === 'spot' && !c.manual
+  }
+  const franjaDe = (c: CfgSitio) => (c.franjaId ? franjas.find((f) => f.id === c.franjaId) ?? null : null)
+  // La prima solo cuenta si la pone alguien con `comercial.aprobar`: para el
+  // vendedor el campo está deshabilitado y la prima es 0, que es lo único que
+  // el servidor le acepta.
+  const primaDe = (s: any): number => {
+    const c = cfgDe(s)
+    if (!usaCalcDe(s) || !c.roadblock || !puedeAjustarTarifa) return 0
+    const n = Number(c.prima)
+    return Number.isFinite(n) && n > 0 ? n : 0
+  }
+  const calcDe = (s: any) => {
+    if (!usaCalcDe(s)) return null
+    const c = cfgDe(s)
+    const num = (t: string) => (t.trim() === '' ? null : Number(t))
+    return previsualizarCalculadora({
+      digital: true,
+      unidad: 'spot',
+      totalSpots: s.totalSpots ?? null,
+      duracionSeg: duracionSpotSeg(s.duracionSpotSeg, config?.spotSeg),
+      horasMaximas: horasPorOmision({ franja: franjaDe(c), horario: s.horario }),
+      // Lo que enseña el inventario: total − campañas vigentes.
+      libres: s.spotsDisponibles ?? null,
+      dias: diasInclusivos(fechaInicio, fechaFin),
+      espaciosComprados: c.roadblock ? null : num(c.espacios),
+      horasDia: num(c.horasDia),
+      roadblock: c.roadblock,
+      primaRoadblockPct: c.roadblock ? primaDe(s) : null,
+    })
+  }
+
   const tarifaCotizadaDe = (s: any): number => {
     const c = cfgDe(s)
-    return tarifaManualDe(c) ?? tarifaDe(s, c.unidad, c.franjaId)
+    const manual = tarifaManualDe(c)
+    if (manual != null) return manual
+    const base = tarifaDe(s, c.unidad, c.franjaId)
+    // ADR 0042 · un Roadblock con prima: calculada × (1 + prima), una vez. El
+    // servidor espera exactamente este número (`decidirPrecioCalculadora`).
+    const prima = primaDe(s)
+    return prima > 0 ? tarifaConPrima(base, prima) : base
   }
 
   // Cantidad efectiva (periodos del rango para unidades de tiempo; manual para
-  // spot/hora) y precio (tarifa × cantidad) de un sitio con su configuración.
+  // spot/hora; la de la calculadora para una digital por spot) y precio
+  // (tarifa × cantidad) de un sitio con su configuración.
   const cantidadDe = (s: any): number => {
+    const calc = calcDe(s)
+    if (calc) return calc.ok ? calc.cantidad : 0
     const c = cfgDe(s)
     return cantidadEfectiva(c.unidad, fechaInicio, fechaFin, c.cantidadManual)
   }
@@ -590,7 +660,7 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
 
   const setCfgSitio = (id: string, patch: Partial<CfgSitio>) => {
     const s = (sitios ?? []).find((x) => x.id === id)
-    const base = s ? cfgDe(s) : { unidad: 'mensual' as Unidad, cantidadManual: 1, spotsPorDia: '', rentaMonto: '', rentaPeriodicidad: 'MENSUAL', rentaArrendadorId: '', franjaId: '', tarifaManual: '' }
+    const base = s ? cfgDe(s) : { unidad: 'mensual' as Unidad, cantidadManual: 1, spotsPorDia: '', rentaMonto: '', rentaPeriodicidad: 'MENSUAL', rentaArrendadorId: '', franjaId: '', tarifaManual: '', ...CALC_POR_OMISION }
     setCfg((prev) => ({ ...prev, [id]: { ...base, ...prev[id], ...patch } }))
   }
 
@@ -637,7 +707,21 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
     fechaInicio && fechaFin && new Date(fechaFin) < new Date(fechaInicio)
       ? 'La fecha de fin no puede ser anterior a la de inicio.'
       : null
-  const errFormulario = errComision ?? errDuracion ?? errFechas
+  // ADR 0042 · una línea de la calculadora que el servidor rechazaría (más
+  // espacios que los libres, horas de más, un Roadblock sin el loop entero…) se
+  // avisa AQUÍ y deja el botón inerte, con el MISMO motivo que daría él: la
+  // misma función produce los dos textos.
+  const errCalculadora =
+    fechaInicio && fechaFin && !errFechas
+      ? (() => {
+          for (const s of seleccionados) {
+            const p = calcDe(s)
+            if (p && !p.ok) return `${s.nombre}: ${p.motivo}`
+          }
+          return null
+        })()
+      : null
+  const errFormulario = errComision ?? errDuracion ?? errFechas ?? errCalculadora
 
   const valido =
     !!nombre.trim() && !!fechaInicio && !!fechaFin && sel.size > 0 && !negociacionPendiente && !errFormulario
@@ -666,6 +750,11 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
           const c = cfgDe(s)
           const spots = parseInt(c.spotsPorDia, 10)
           const renta = Number(c.rentaMonto) || 0
+          // ADR 0042 · la línea de la calculadora manda sus parámetros y la
+          // cantidad que salió de ellos; el servidor la vuelve a calcular y
+          // rechaza una distinta.
+          const pc = calcDe(s)
+          const calc = pc && pc.ok ? pc : null
           return {
             sitioId: s.id,
             unidad: c.unidad,
@@ -677,8 +766,16 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
             // una cadena vacía no es un identificador, es «no hay».
             franjaId: c.franjaId || null,
             // Solo relevante para spot/hora; el servidor la ignora en unidades de tiempo.
-            cantidad: c.cantidadManual,
-            spotsPorDia: Number.isFinite(spots) && spots > 0 ? spots : null,
+            cantidad: calc ? calc.cantidad : c.cantidadManual,
+            spotsPorDia: calc ? calc.spotsDia : Number.isFinite(spots) && spots > 0 ? spots : null,
+            ...(calc
+              ? {
+                  espaciosComprados: calc.espaciosComprados,
+                  horasDia: calc.horasDia,
+                  roadblock: calc.roadblock,
+                  primaRoadblockPct: calc.primaRoadblockPct,
+                }
+              : {}),
             // Renta al propietario. Solo viaja si hay importe: el servidor exige
             // importe y periodicidad juntos, y sin arrendador el contrato no
             // puede salir de INCOMPLETO.
@@ -963,8 +1060,13 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                         ))}
                       </select>
                     )}
-                    {/* Cantidad: auto (periodos del rango) o manual (spot/hora) */}
-                    {esManual ? (
+                    {/* Cantidad: auto (periodos del rango), de la calculadora
+                        (digital por spot) o manual (spot/hora) */}
+                    {usaCalcDe(s) ? (
+                      <span className="demo-num whitespace-nowrap text-muted" title="Spots que salen de la calculadora de abajo">
+                        {calcDe(s)?.ok ? `${cantidadDe(s).toLocaleString('es-MX')} spots` : '— spots'}
+                      </span>
+                    ) : esManual ? (
                       <input
                         type="number"
                         min={1}
@@ -978,8 +1080,16 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                         {periodos} {unidadCorta(c.unidad, periodos)}
                       </span>
                     )}
-                    {/* Programación: spots por día — solo pantallas digitales */}
-                    {digital ? (
+                    {/* Programación: spots por día — solo pantallas digitales.
+                        Con la calculadora sale de la misma cuenta. */}
+                    {usaCalcDe(s) ? (
+                      <span className="demo-num w-24 text-center text-[11px] text-muted" title="Programación que sale de la calculadora">
+                        {(() => {
+                          const p = calcDe(s)
+                          return p?.ok ? `${p.spotsDia.toLocaleString('es-MX')} pases/día` : '—'
+                        })()}
+                      </span>
+                    ) : digital ? (
                       <input
                         type="number"
                         min={1}
@@ -1033,6 +1143,24 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                       )
                     })()}
                     <span className="demo-num w-24 text-right font-medium text-ink">{formatMonto(precioDe(s))}</span>
+
+                    {/* ADR 0042 · la CALCULADORA DE SPOTS. Solo en pantalla
+                        digital vendida por spot. Da la CANTIDAD; el precio por
+                        spot sigue siendo la tarifa de la pantalla de arriba. */}
+                    {conLoop(s) && c.unidad === 'spot' && (
+                      <CalculadoraSpotsLinea
+                        sitio={s}
+                        cfg={c}
+                        franja={franjaDe(c)}
+                        duracionSeg={duracionSpotSeg(s.duracionSpotSeg, config?.spotSeg)}
+                        resultado={calcDe(s)}
+                        dias={diasInclusivos(fechaInicio, fechaFin)}
+                        conFechas={!!fechaInicio && !!fechaFin}
+                        tarifaMensual={mods.find((m) => m.unidad === 'mensual')?.tarifa ?? s.tarifaMensual ?? 0}
+                        puedePrima={puedeAjustarTarifa}
+                        cambiar={(patch) => setCfgSitio(s.id, patch)}
+                      />
+                    )}
 
                     {/* Renta al propietario (el COSTO). Solo se pide para las
                         pantallas que aún no tienen contrato: si ya lo tienen, el
@@ -1154,6 +1282,163 @@ function puntoEnPoligono(p: [number, number], poly: [number, number][]): boolean
     if (cruza) dentro = !dentro
   }
   return dentro
+}
+
+// ADR 0042 · lo que una línea arranca teniendo de la calculadora: encendida,
+// un espacio, las horas de la franja o del horario, sin Roadblock.
+const CALC_POR_OMISION = { manual: false, espacios: '1', horasDia: '', roadblock: false, prima: '' }
+
+const fmtNum = (n: number, dec = 2) => n.toLocaleString('es-MX', { maximumFractionDigits: dec })
+
+type CfgCalculadora = { manual: boolean; espacios: string; horasDia: string; roadblock: boolean; prima: string }
+
+/**
+ * ADR 0042 · la calculadora de una línea. Es solo PRESENTACIÓN: la cuenta llega
+ * hecha en `resultado` (`previsualizarCalculadora`), y el servidor la repite.
+ */
+function CalculadoraSpotsLinea({
+  sitio,
+  cfg,
+  franja,
+  duracionSeg,
+  resultado,
+  dias,
+  conFechas,
+  tarifaMensual,
+  puedePrima,
+  cambiar,
+}: {
+  sitio: any
+  cfg: CfgCalculadora
+  franja: FranjaUI | null
+  duracionSeg: number
+  resultado: ReturnType<typeof previsualizarCalculadora> | null
+  dias: number
+  conFechas: boolean
+  tarifaMensual: number
+  puedePrima: boolean
+  cambiar: (patch: Partial<CfgCalculadora>) => void
+}) {
+  const total = Number(sitio.totalSpots ?? 0)
+  const libres = sitio.spotsDisponibles
+  const horasMax = horasPorOmision({ franja, horario: sitio.horario })
+  const horario = horasDeHorario(sitio.horario)
+  // Informativa y nada más: el dueño descartó usarla como precio (ADR 0042, 1).
+  const referencia = referenciaPorSpotMensual({
+    tarifaMensual,
+    totalSpots: sitio.totalSpots,
+    duracionSeg,
+    horasOperacion: horario.horas,
+  })
+  const inputCls =
+    'h-7 w-16 rounded border border-border-strong bg-surface px-1.5 text-[12px] text-ink disabled:opacity-50'
+  return (
+    <div className="w-full rounded bg-surface-2 px-2 py-1.5 text-[11px] text-muted">
+      <label className="inline-flex items-center gap-1.5 font-medium text-ink">
+        <input type="checkbox" checked={!cfg.manual} onChange={(e) => cambiar({ manual: !e.target.checked })} />
+        Calculadora de spots
+      </label>
+      {cfg.manual ? (
+        <span className="ml-2">Apagada: la cantidad de spots se captura a mano.</span>
+      ) : (
+        <>
+          <div className="mt-1 flex flex-wrap items-center gap-3">
+            <label className="inline-flex items-center gap-1" title="Cuántos espacios del loop compra esta línea">
+              Espacios del loop
+              <input
+                type="number"
+                min={1}
+                max={total || undefined}
+                step={1}
+                aria-label={`Espacios del loop de ${sitio.nombre}`}
+                className={inputCls}
+                value={cfg.roadblock ? String(total) : cfg.espacios}
+                disabled={cfg.roadblock}
+                onChange={(e) => cambiar({ espacios: e.target.value })}
+              />
+              <span className="demo-num">
+                de {total || '—'} · {libres != null ? `${libres} libres` : 'libres sin dato'}
+              </span>
+            </label>
+            <label
+              className="inline-flex items-center gap-1"
+              title={
+                franja
+                  ? `Las horas de la franja ${franja.nombre}; se pueden bajar`
+                  : 'Las horas del horario de la pantalla; se pueden bajar'
+              }
+            >
+              Horas al día
+              <input
+                type="number"
+                min={0.25}
+                max={horasMax}
+                step={0.25}
+                aria-label={`Horas al día de ${sitio.nombre}`}
+                placeholder={fmtNum(horasMax)}
+                className={inputCls}
+                value={cfg.horasDia}
+                onChange={(e) => cambiar({ horasDia: e.target.value })}
+              />
+            </label>
+            <label
+              className="inline-flex items-center gap-1"
+              title="Compra TODOS los espacios del loop; exige que estén libres"
+            >
+              <input
+                type="checkbox"
+                checked={cfg.roadblock}
+                onChange={(e) => cambiar({ roadblock: e.target.checked })}
+              />
+              Roadblock
+            </label>
+            <label
+              className="inline-flex items-center gap-1"
+              title={
+                puedePrima
+                  ? 'Porcentaje encima de la tarifa por spot. Queda como ajuste a tu nombre.'
+                  : 'Solo un gerente o superior puede poner prima a un Roadblock.'
+              }
+            >
+              Prima %
+              <input
+                type="number"
+                min={0}
+                max={100}
+                step={0.5}
+                aria-label={`Prima de Roadblock de ${sitio.nombre}`}
+                placeholder="0"
+                className={inputCls}
+                value={puedePrima ? cfg.prima : ''}
+                disabled={!cfg.roadblock || !puedePrima}
+                onChange={(e) => cambiar({ prima: e.target.value })}
+              />
+            </label>
+          </div>
+          {resultado?.ok ? (
+            <div className="demo-num mt-1 text-ink">
+              {fmtNum(resultado.rotacionesHora)} rotaciones/h · {resultado.spotsDia.toLocaleString('es-MX')} spots/día
+              × {dias} {dias === 1 ? 'día' : 'días'} = <b>{resultado.cantidad.toLocaleString('es-MX')} spots</b>
+            </div>
+          ) : resultado && conFechas ? (
+            <div className="mt-1 text-error">{resultado.motivo}</div>
+          ) : !conFechas ? (
+            <div className="mt-1">Pon las fechas para calcular los spots.</div>
+          ) : null}
+          {!franja && !horario.reconocido && (
+            <div className="mt-0.5 text-[#9a6700]">
+              No se entiende el horario de la pantalla («{sitio.horario || 'vacío'}»): se toman 18 h al día.
+            </div>
+          )}
+          {referencia != null && (
+            <div className="mt-0.5">
+              Equivale a {formatMonto(referencia)} por spot frente a la tarifa mensual (referencia: no se cobra).
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
 }
 
 function Dato({ label, valor }: { label: string; valor: string }) {

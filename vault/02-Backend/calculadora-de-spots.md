@@ -1,6 +1,6 @@
 ---
 tipo: contrato
-estado: en-curso
+estado: verificado
 actualizado: 2026-10-01
 tags: [backend, precios, propuestas, dinero, spots, roadblock, digital]
 archivos:
@@ -14,6 +14,10 @@ archivos:
   - apps/web/lib/server/propuestas-calculadora.test.ts
   - apps/web/lib/test/calculadora-spots.e2e.test.ts
   - apps/web/lib/i18n/errores-servidor.ts
+  - apps/web/app/(app)/(shell)/propuestas/page.tsx
+  - apps/web/app/(app)/(shell)/propuestas/[id]/page.tsx
+  - apps/web/lib/data/estado-api.ts
+  - apps/web/novedades.json
 ---
 
 # La calculadora de spots
@@ -136,6 +140,32 @@ Los motivos salen de `resolverCalculadora` y viajan como `AppError(r.motivo)`,
 así que la GUARDIA de i18n no los ve: van declarados a mano en
 `lib/i18n/errores-servidor.ts` (catálogo y `PATRONES_ERROR` para los que llevan
 números) y `calculadora-spots.test.ts` comprueba que todos se traducen.
+
+## En la pantalla
+
+En el alta de propuesta (`propuestas/page.tsx`, «Contratación por sitio»), toda
+línea de pantalla con `tipoMedio === 'PANTALLA_DIGITAL'` y unidad `spot` trae el
+bloque `CalculadoraSpotsLinea`, **encendido por omisión** con 1 espacio y las
+horas de la franja o del horario:
+
+- Espacios del loop (máx. `totalSpots`, con «N libres» del inventario), horas al
+  día (techo = el por omisión), casilla **Roadblock** y **Prima %**, que solo
+  se habilita con `usePuede('comercial','aprobar')`.
+- Debajo, «15 rotaciones/h · 540 spots/día × 30 días = **16 200 spots**», y esa
+  cantidad es la de la línea (el campo manual de cantidad y el de spots/día se
+  sustituyen por los de la cuenta).
+- La cuenta es `previsualizarCalculadora`: la misma función por dentro que
+  `resolverCalculadora`, sin comparar. Si el servidor la fuera a rechazar, el
+  pie del cuadro enseña **el mismo motivo** y el botón queda inerte.
+- Con prima, la tarifa que se manda es `tarifaConPrima(calculada, prima)`.
+- «Equivale a $X por spot frente a la tarifa mensual» (`referenciaPorSpotMensual`)
+  solo como referencia, si la pantalla tiene tarifa mensual.
+- La casilla «Calculadora de spots» se puede apagar: la línea vuelve a la
+  cantidad a mano y viaja sin parámetros, o sea exactamente como antes.
+
+El detalle interno (`propuestas/[id]/page.tsx`) enseña `etiquetaCalculadora`:
+«2 espacios del loop · 18 h al día», o «Roadblock · 12 espacios del loop · 18 h
+al día · prima 25 %». La liga pública no.
 
 ## Relacionadas
 

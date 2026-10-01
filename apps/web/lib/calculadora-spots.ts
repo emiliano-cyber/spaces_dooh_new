@@ -251,6 +251,20 @@ const fmtH = (h: number) => Number(h).toLocaleString('es-MX', { maximumFractionD
  * no muerda.
  */
 export function resolverCalculadora(e: EntradaCalculadora): ResultadoCalculadora {
+  return evaluar(e, true)
+}
+
+/**
+ * Lo mismo que `resolverCalculadora` SIN comparar la cantidad: es lo que la
+ * pantalla enseña antes de mandar, y la cantidad que luego manda. Una sola
+ * función por dentro (`evaluar`) para que el aviso de la pantalla y el rechazo
+ * del servidor no puedan decir cosas distintas.
+ */
+export function previsualizarCalculadora(e: Omit<EntradaCalculadora, 'cantidadEnviada'>): ResultadoCalculadora {
+  return evaluar(e, false)
+}
+
+function evaluar(e: EntradaCalculadora, comparar: boolean): ResultadoCalculadora {
   if (!e.digital || e.unidad !== 'spot') {
     return mal('La calculadora de spots solo aplica a pantallas digitales vendidas por spot.')
   }
@@ -296,7 +310,7 @@ export function resolverCalculadora(e: EntradaCalculadora): ResultadoCalculadora
   if (dias <= 0) return mal('La línea no tiene días: revisa las fechas.')
   const cantidad = spotsDia * dias
 
-  if (e.cantidadEnviada == null || Number(e.cantidadEnviada) !== cantidad) {
+  if (comparar && (e.cantidadEnviada == null || Number(e.cantidadEnviada) !== cantidad)) {
     return mal(
       `La cantidad de spots no cuadra con la calculadora: con ${espacios} espacios, ${fmtH(horas)} h al día y ${dias} días son ${cantidad} spots, no ${e.cantidadEnviada ?? 'ninguna'}.`,
     )
@@ -330,6 +344,25 @@ export function resolverCalculadora(e: EntradaCalculadora): ResultadoCalculadora
     spotsDia,
     cantidad,
   }
+}
+
+/**
+ * La línea del detalle INTERNO de la propuesta: «2 espacios del loop · 18 h al
+ * día», o «Roadblock · 12 espacios del loop · 18 h al día · prima 25 %».
+ * `null` si la línea no usó la calculadora. Vive aquí y no en la página porque
+ * así se prueba sin navegador.
+ */
+export function etiquetaCalculadora(p: ParametrosLinea): string | null {
+  if (p.espaciosComprados == null) return null
+  const e = Number(p.espaciosComprados)
+  const partes = [`${e} ${e === 1 ? 'espacio' : 'espacios'} del loop`]
+  if (p.horasDia != null) partes.push(`${Number(p.horasDia)} h al día`)
+  if (p.roadblock) {
+    partes.unshift('Roadblock')
+    const prima = Number(p.primaRoadblockPct ?? 0) || 0
+    if (prima > 0) partes.push(`prima ${prima} %`)
+  }
+  return partes.join(' · ')
 }
 
 /**

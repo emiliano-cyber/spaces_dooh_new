@@ -14,6 +14,18 @@
       {
         "tipo": "AJUSTADO",
         "texto": "En las propuestas, el sistema calcula la tarifa de cada pantalla. Solo el Gerente de ventas, el Director comercial, el Administrador y el Dueño pueden poner un precio distinto; el Vendedor cotiza siempre a la tarifa calculada. Cuando alguien ajusta un precio, la propuesta muestra por dentro cuál era la tarifa y quién la cambió; el cliente solo ve el precio final."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Calculadora de spots en las propuestas: al cotizar una pantalla digital por spot, eliges cuántos espacios del loop compras y cuántas horas al día, y el sistema calcula los spots de toda la campaña. El precio por spot sigue siendo la tarifa de la pantalla."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Roadblock: una línea puede comprar todos los espacios de una pantalla, siempre que estén todos libres. Solo el Gerente de ventas y superiores pueden ponerle una prima encima de la tarifa; el Vendedor puede marcarlo sin prima."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "Los spots se cuentan hacia abajo, día por día: si con los espacios elegidos no cabe un spot completo, no se cobra. Por eso el total puede salir unos pesos por debajo de la calculadora que se usaba antes."
       }
     ]
   }

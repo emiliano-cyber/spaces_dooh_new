@@ -5,6 +5,8 @@ import {
   decidirPrecioCalculadora,
   duracionSpotSeg,
   espaciosLibres,
+  etiquetaCalculadora,
+  previsualizarCalculadora,
   horasDeFranja,
   horasDeHorario,
   horasPorOmision,
@@ -316,6 +318,45 @@ describe('los motivos llegan traducidos al inglés', () => {
       if (r.ok) continue
       expect(traducirError(r.motivo, 'en'), r.motivo).not.toBe(r.motivo)
     }
+  })
+})
+
+describe('previsualizarCalculadora · lo que enseña la pantalla ANTES de mandar', () => {
+  it('da la misma cantidad que luego acepta el servidor', () => {
+    const { cantidadEnviada: _, ...sinCantidad } = base
+    const prev = previsualizarCalculadora(sinCantidad)
+    expect(prev).toMatchObject({ ok: true, cantidad: 16200, spotsDia: 540 })
+    if (!prev.ok) return
+    expect(resolverCalculadora({ ...base, cantidadEnviada: prev.cantidad })).toEqual(prev)
+  })
+
+  it('y avisa con el MISMO motivo que daría el servidor', () => {
+    const { cantidadEnviada: _, ...sinCantidad } = base
+    expect(previsualizarCalculadora({ ...sinCantidad, espaciosComprados: 6 })).toEqual({
+      ok: false,
+      status: 409,
+      motivo: 'Pides 6 espacios del loop y la pantalla solo tiene 5 libres.',
+    })
+  })
+})
+
+describe('etiquetaCalculadora · el detalle interno', () => {
+  it('sin calculadora no dice nada', () => {
+    expect(etiquetaCalculadora({ espaciosComprados: null, horasDia: null, roadblock: false, primaRoadblockPct: null })).toBeNull()
+  })
+
+  it('los espacios y las horas, con su concordancia', () => {
+    expect(etiquetaCalculadora({ espaciosComprados: 2, horasDia: 18, roadblock: false })).toBe('2 espacios del loop · 18 h al día')
+    expect(etiquetaCalculadora({ espaciosComprados: 1, horasDia: 4.5, roadblock: false })).toBe('1 espacio del loop · 4.5 h al día')
+  })
+
+  it('el Roadblock, y su prima solo si la hay', () => {
+    expect(etiquetaCalculadora({ espaciosComprados: 12, horasDia: 18, roadblock: true, primaRoadblockPct: 25 })).toBe(
+      'Roadblock · 12 espacios del loop · 18 h al día · prima 25 %',
+    )
+    expect(etiquetaCalculadora({ espaciosComprados: 12, horasDia: 18, roadblock: true, primaRoadblockPct: 0 })).toBe(
+      'Roadblock · 12 espacios del loop · 18 h al día',
+    )
   })
 })
 
