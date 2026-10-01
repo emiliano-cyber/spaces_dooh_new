@@ -1,8 +1,8 @@
-# Publicar la versión del 30/09 y mover g500 a PostgreSQL 16
+# Publicar la versión del 30/09–01/10 y mover g500 a PostgreSQL 16
 
 **Fecha:** 2026-09-30 · **Lo corre:** una persona (Claude no toca servidores)
-**Estado al escribirse:** `main` en `8063181c`, **sin empujar** (103 commits por
-delante de `emiliano`). g500 sigue en `v0.5.1` sobre PostgreSQL 14.24.
+**Estado al escribirse:** `main` en `d49d9b76` (puesta al día el 01/10), **sin empujar**
+(128 commits por delante de `emiliano`). g500 sigue en `v0.5.1` sobre PostgreSQL 14.24.
 
 > Esta es la copia versionada: IPs, registry y dominios van como parámetro
 > (`<IP_PADRE>`, `<IP_G500_VIEJO>`, `<IP_G500_NUEVO>`, `<REGISTRY>`), por la regla
@@ -13,18 +13,36 @@ delante de `emiliano`). g500 sigue en `v0.5.1` sobre PostgreSQL 14.24.
 
 ## 0 · Qué entra en esta versión
 
-| | Qué | Base de datos |
-|---|---|---|
-| CAP-01 | Captación: bitácora de prospectos con revisión y alta al aprobar | `20260930_captacion.sql` (2 tablas, 14 permisos) |
-| ALM-01 | Almacén por tipo (vehículo, herramienta, cámara…) con placas, marca, modelo, serie, ubicación | `20261001_almacen_datos_por_tipo.sql` (5 columnas) |
-| — | Checklist de la OT que se guarda al tachar | ninguna |
-| — | Login con error claro (503) si la base cae | ninguna |
-| — | Campañas: lista compacta y menú lateral plegable | ninguna |
-| PROG-01 | Franja en que se transmite cada campaña (no toca precio) | `20261002_franja_programada_campana.sql` (1 columna) |
+> **Puesta al día el 2026-10-01.** `main` en `d49d9b76`, **128 commits** por
+> delante de `emiliano` — no solo lo del 30/09: todo lo que se acumuló desde el
+> último empuje. Lo que se ve desde la aplicación:
 
-Las tres migraciones son **PostgreSQL 14 y 16**, sin `@pg-min`. Verificado en el
-árbol de `main`: typecheck limpio, **2940 unitarias** y **e2e completa 801 en 59
-archivos** (1 omitida).
+| Área | Qué |
+|---|---|
+| Precios (ADR 0039) | Franjas y temporadas · descuento por volumen · códigos promocionales · paquetes cerrados · tope de descuento por organización · vendedor de cada propuesta |
+| Cupones | **El cupón aplicado nace PENDIENTE** y lo aprueba un admin o gerente; el cliente no lo ve hasta entonces · asignar un cupón desde la pantalla de Códigos · rediseño de esa pantalla |
+| Roles (ADR 0040) | Los cuatro roles de venta y su matriz · el administrador ve el control de cambios · OPERACIONES y FINANZAS costean la OT |
+| Operaciones | Costo REAL de la OT · checklist que se guarda en cada clic · almacén por tipo (vehículos, herramientas, cámaras) con placas, marca, modelo, serie |
+| Campañas | Lista compacta / minimizar / ocultar · menú lateral plegable · horario de transmisión por franja (lo programan gerente, director y dirección) |
+| Creativos | En el menú de **Operaciones** · solo campañas digitales · fotos de hasta 4 MB · sin «Repartir a todas» |
+| Luz | Subir el PDF del recibo de CFE · meses declarados antes de subir, y **arranca en bimestral** |
+| Comercial | Comercial OPEX en dos columnas · Captación **construida pero oculta** del menú |
+| Toda la app | Solo español (el inglés queda apagado) · todo en pesos · **colores de botones**: azul asignar/aceptar, verde añadir, rojo eliminar · seis módulos que daban 404 en el navegador · login con 503 claro si la base cae · contraseña pedida en facturar, cobrar, pagar renta y contratos |
+
+**Migraciones nuevas: 14**, todas `@tipo: esquema` y **ninguna con `@pg-min`**
+(revisado archivo por archivo el 01/10). La única que exige PostgreSQL 15 sigue
+siendo la vieja `20260918_entidad_tenant_compuesto.sql`, que es la que tiene
+bloqueado a g500. La última es `20261003_codigo_aprobacion.sql`: tres columnas
+en `propuestas` y deja **APROBADOS** los cupones que ya estaban aplicados.
+
+**Verificado en el árbol de `main`:** typecheck limpio, **3180 unitarias** en
+233 archivos y la **e2e completa 823 en 60 archivos** (1 omitida) — esta última
+corrida sobre `6a3182ab`; lo que entró después son colores de botones, el
+selector de luz y el rediseño de Códigos, sin servidor ni base.
+
+**Captación está oculta**: la migración crea sus tablas y permisos, pero la
+entrada del menú está comentada (`nav.ts`). No hay que hacer nada; es a
+propósito hasta que se decida.
 
 **El orden importa:** A (publicar y validar en DEMO) → B (mover g500) → C
 (promover a `estable` y que g500 la tome). Se puede promover antes de mover g500
@@ -46,7 +64,7 @@ git push emiliano main
 gh run list --repo emiliano-cyber/spaces_dooh_new --workflow ci.yml --limit 1
 ```
 
-`git status` tiene que salir limpio y `git log` decir `8063181c` (o posterior).
+`git status` tiene que salir limpio y `git log` decir `d49d9b76` (o posterior).
 Espera a que `ci.yml` salga **verde** antes de seguir: corre typecheck, pruebas,
 build y e2e en una máquina limpia, que es una verificación que no depende de
 esta máquina. `gh` **siempre** con `--repo`: sin él apunta al remoto muerto.
@@ -104,13 +122,24 @@ SPACE_OS_CONF=/etc/space-os/demo-instancia.env /opt/space-os/update.sh
 tail -n 40 /var/log/space-os/update.log
 ```
 
-El `--dry-run` tiene que listar las migraciones pendientes (al menos las tres de
-arriba) y **no** salir con código 3 ni 4. La corrida real termina con salud en
-verde. Luego entra a DEMO y recorre: **Captación**, **Almacén** (dar de alta una
-camioneta con placas), una **OT** (tachar un punto y recargar), **Campañas**
-(vista compacta, menú plegable) y **Franjas y temporadas** (programar una
-campaña). **Nadie ha recorrido todavía estas pantallas en un navegador**: éste
-es el primer sitio donde se ven de verdad.
+El `--dry-run` tiene que listar las migraciones pendientes (las 14 de §0, o las
+que DEMO no tenga) y **no** salir con código 3 ni 4. La corrida real termina con
+salud en verde. Luego entra a DEMO y recorre, en este orden:
+
+1. **Códigos promocionales**: crea uno que empiece hoy, «Asignar a propuesta» a
+   una en borrador. Tiene que quedar «Pendiente de aprobación».
+2. **La propuesta**: «Aprobar código». Abre su liga de cliente: el descuento
+   aparece solo después de aprobar.
+3. **Consumo de luz**: el selector arranca en «3 meses … BIMESTRAL».
+4. **Creativos** (en el menú de Operaciones): solo campañas digitales; sube una
+   foto de 2–3 MB.
+5. **Almacén**: da de alta una camioneta con placas.
+6. Una **OT**: tacha un punto del checklist y recarga.
+7. **Campañas**: vista compacta y menú plegable.
+8. Mira que los botones de **añadir salgan verdes** y los de guardar/aprobar azules.
+
+En local se recorrió todo esto en un navegador sin ventana; **en DEMO es la
+primera vez con el build de la imagen.**
 
 ---
 
@@ -374,7 +403,7 @@ echo ok; sed -i 's|^\*/15|#*/15|' /etc/cron.d/space-os-update
 Con DEMO recorrida y g500 nuevo en verde:
 
 ```
-gh workflow run promover.yml --repo emiliano-cyber/spaces_dooh_new -f version=v0.9.0 -f motivo="captacion, almacen por tipo, checklist OT, login 503, campanas compacta y menu, franja programada"
+gh workflow run promover.yml --repo emiliano-cyber/spaces_dooh_new -f version=v0.9.0 -f motivo="cupon con aprobacion, precios ADR 0039, roles de venta, almacen por tipo, checklist OT, luz bimestral, colores de botones"
 gh run list --repo emiliano-cyber/spaces_dooh_new --workflow promover.yml --limit 1
 ```
 
@@ -387,8 +416,8 @@ Desde ahí el cron de las 04:17 lo mantiene al día.
 
 ## Lo que NO está verificado, con todas las letras
 
-- **Ninguna de las pantallas nuevas se ha recorrido en un navegador.** A4 y B8
-  son la primera vez.
+- **Las pantallas nuevas se recorrieron en local** (navegador sin ventana), **no
+  con el build de la imagen**: A4 y B8 son la primera vez ahí.
 - **`setup-droplet.sh` en Ubuntu 24.04** no se ha corrido nunca.
 - **El respaldo FINAL** no se ha ensayado: el ensayo fue con el del 29/09. Si
   g500 cambió mucho desde entonces, repite el ensayo local antes (B0.3).
