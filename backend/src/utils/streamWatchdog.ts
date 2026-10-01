@@ -10,6 +10,7 @@
 import { pool } from '../config/database';
 import { redis } from '../config/redis';
 import { cerrarSesion } from './relayTelefono';
+import { ordenarEquipo } from './espejo';
 
 // Un poco mas que el corte del navegador (3 min), para que el cliente corte
 // primero cuando esta vivo y este sea solo la red de seguridad.
@@ -92,15 +93,7 @@ export function sesionDeVista(deviceId: number): SesionDeVista | null {
 export async function stopStream(deviceId: number, reason: string) {
   disarmStreamWatchdog(deviceId);
   try {
-    const [result] = await pool.query<any>(
-      `INSERT INTO commands (device_id, command_type, payload, priority, expires_at)
-       VALUES (?, 'STOP_STREAM', NULL, 5, DATE_ADD(NOW(), INTERVAL 10 MINUTE))`,
-      [deviceId]
-    );
-    await redis.publish('device:command', JSON.stringify({
-      device_id: deviceId,
-      command: { id: (result as any).insertId, command_type: 'STOP_STREAM', payload: null },
-    }));
+    await ordenarEquipo(deviceId, 'STOP_STREAM', null);
     console.log(`[StreamWatchdog] STOP_STREAM enviado a device ${deviceId} (${reason})`);
   } catch (err: any) {
     console.error(`[StreamWatchdog] no se pudo detener device ${deviceId}:`, err.message);

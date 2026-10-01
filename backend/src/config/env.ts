@@ -73,6 +73,23 @@ const schema = z.object({
   // Los telefonos tambien transmiten por el servidor de medios: mandan su video
   // UNA vez y el servidor lo reparte a cuantos lo miren. Apagado, vuelven al
   // punto a punto de siempre (un solo espectador por equipo).
+  // MODO ESPEJO (V2 al lado de V1). Los equipos en campo traen fija la direccion
+  // de V1 en su APK y no hay quien vaya a cambiarla, asi que V2 no los tiene
+  // conectados: los REFLEJA. Lee de la base de V1 lo que los equipos reportan y
+  // les manda ordenes por el mismo buzon de Redis que usa V1 -igual que si
+  // alguien pulsara el boton en el dashboard de V1-. V1 no cambia ni se reinicia.
+  // Vacio = instancia normal, con sus propios equipos.
+  ESPEJO_DB_HOST: z.string().default(''),
+  ESPEJO_DB_PORT: z.coerce.number().default(3306),
+  ESPEJO_DB_USER: z.string().default('root'),
+  ESPEJO_DB_PASSWORD: z.string().default(''),
+  ESPEJO_DB_NAME: z.string().default('space_eye'),
+  ESPEJO_REDIS_URL: z.string().default(''),
+  // Las fotos de V1 (su volumen, montado solo lectura): se sirven si no estan aqui.
+  ESPEJO_STORAGE_DIR: z.string().default(''),
+  // Como se le llama a V1 en pantalla ("159.203.188.58:4000").
+  ESPEJO_NOMBRE: z.string().default('V1'),
+
   VIVO_TELEFONOS_POR_SERVIDOR: z
     .string()
     .default('true')

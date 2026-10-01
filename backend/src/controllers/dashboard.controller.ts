@@ -11,6 +11,7 @@ import {
   unirEspectador, SesionDeVista,
 } from '../utils/streamWatchdog';
 import { whipDe } from '../utils/relayTelefono';
+import { ordenarEquipo, publicarAEquipos } from '../utils/espejo';
 import { agentePcInfo, agentePiInfo, apkInfo } from '../utils/apkInfo';
 import { proximoDisparo, ventanasValidas } from '../utils/horarios';
 import { env } from '../config/env';
@@ -568,28 +569,15 @@ export async function sendCommand(req: Request, res: Response) {
     if (visor) unirEspectador(Number(deviceId), visor);
   }
 
-  const [result] = await pool.query<any>(
-    `INSERT INTO commands (device_id, command_type, payload, priority, created_by, expires_at)
-     VALUES (?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE))`,
-    [deviceId, command_type, JSON.stringify(payload ?? null), priority, req.user!.uid]
-  );
-
-  const command = {
-    id: (result as any).insertId,
-    command_type,
-    payload: payload ?? null,
-  };
-
-  await redis.publish('device:command', JSON.stringify({
-    device_id: Number(deviceId),
-    command,
-  }));
+  const commandId = await ordenarEquipo(Number(deviceId), command_type, payload, {
+    prioridad: priority, creadoPor: req.user!.uid,
+  });
 
   if (command_type === 'STOP_STREAM') {
     disarmStreamWatchdog(Number(deviceId));
   }
 
-  res.json({ command_id: (result as any).insertId, ...(stream ? { stream } : {}) });
+  res.json({ command_id: commandId, ...(stream ? { stream } : {}) });
 }
 
 /**
@@ -607,17 +595,7 @@ async function enviarOrden(
   userId: number | null,
   scheduleId: number | null = null,
 ) {
-  const [ins] = await pool.query<any>(
-    `INSERT INTO commands (device_id, command_type, payload, schedule_id, priority, created_by, expires_at)
-     VALUES (?, ?, ?, ?, 1, ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE))`,
-    [deviceId, tipo, JSON.stringify(payload ?? null), scheduleId, userId]
-  );
-  const id = (ins as any).insertId;
-  await redis.publish('device:command', JSON.stringify({
-    device_id: deviceId,
-    command: { id, command_type: tipo, payload: payload ?? null },
-  }));
-  return id;
+  return ordenarEquipo(deviceId, tipo, payload, { prioridad: 1, creadoPor: userId, scheduleId });
 }
 
 const dormir = (ms: number) => new Promise((r) => setTimeout(r, ms));

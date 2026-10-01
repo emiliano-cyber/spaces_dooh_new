@@ -7,6 +7,7 @@ import { connectRedis } from './config/redis';
 import { pool } from './config/database';
 import { setupDeviceNamespace } from './sockets/deviceSocket';
 import { setupDashboardNamespace } from './sockets/dashboardSocket';
+import { espejoActivo } from './utils/espejo';
 
 async function main() {
   // Test DB connection
@@ -50,7 +51,10 @@ async function main() {
   // Va aqui adentro en vez de en su propio contenedor porque el droplet tiene 2 GB
   // y ya carga seis; el candado de Redis (schedule:tick) evita el disparo doble si
   // algun dia se levanta mas de una instancia.
-  import('./workers/scheduleWorker').catch(console.error);
+  // En modo espejo las fotos programadas las dispara V1, que tiene la misma
+  // programacion: si las disparara tambien esta, cada foto saldria dos veces.
+  if (espejoActivo()) import('./workers/espejoWorker').catch(console.error);
+  else import('./workers/scheduleWorker').catch(console.error);
 
   server.listen(env.PORT, () => {
     console.log(`[SPACE EYE] API running on http://localhost:${env.PORT}`);

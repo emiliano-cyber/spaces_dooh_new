@@ -13,6 +13,7 @@
 // al servidor de medios (protocolo WHIP) y le devuelve al telefono la respuesta
 // del servidor. Los navegadores ven desde ahi (WHEP), igual que la Raspberry.
 import { env } from '../config/env';
+import { sesionDeVista } from './streamWatchdog';
 
 function autorizacion() {
   return 'Basic ' + Buffer.from(`${env.MEDIAMTX_USER}:${env.MEDIAMTX_PASS}`).toString('base64');
@@ -82,4 +83,53 @@ export async function cerrarSesion(recurso: string) {
     headers: { Authorization: autorizacion() },
     signal: AbortSignal.timeout(5000),
   });
+}
+
+/**
+ * La oferta de video de un telefono, si su vista se reparte por el servidor de
+ * medios. Devuelve false si no es el caso (punto a punto: la contesta un
+ * navegador). `contestar` le hace llegar la respuesta al telefono: por su socket
+ * si esta conectado aqui, o por el buzon de V1 si esta instancia es un espejo.
+ */
+export async function atenderOferta(did: number, payload: any, contestar: (r: any) => void | Promise<void>) {
+  const sesion = sesionDeVista(did);
+  if (!sesion?.whip) return false;
+  const sdp = payload?.sdp?.sdp ?? (typeof payload?.sdp === 'string' ? payload.sdp : '');
+  if (!sdp) return true;
+  try {
+    // Una oferta nueva en la misma sesion (el telefono reintento): la anterior
+    // ya no sirve.
+    if (sesion.recurso) cerrarSesion(sesion.recurso).catch(() => {});
+    sesion.oferta = sdp;
+    sesion.recurso = null;
+    const { respuesta, recurso } = await entregarOferta(sesion.whip, sdp);
+    // Si mientras tanto se corto la transmision, no se le contesta.
+    if (sesionDeVista(did) !== sesion) {
+      if (recurso) cerrarSesion(recurso).catch(() => {});
+      return true;
+    }
+    sesion.recurso = recurso;
+    await contestar({ sdp: { type: 'answer', sdp: respuesta } });
+    const pendientes = sesion.candidatosPendientes ?? [];
+    sesion.candidatosPendientes = [];
+    if (recurso) for (const c of pendientes) entregarCandidato(recurso, sdp, c).catch(() => {});
+  } catch (err: any) {
+    console.error(`[Relay] device ${did}: el servidor de medios no acepto su video:`, err.message);
+  }
+  return true;
+}
+
+/** Una direccion del telefono para su sesion repartida. false = no es el caso. */
+export function atenderCandidato(did: number, payload: any) {
+  const sesion = sesionDeVista(did);
+  if (!sesion?.whip) return false;
+  const c = payload?.candidate;
+  if (!c?.candidate) return true;
+  if (sesion.recurso && sesion.oferta) {
+    entregarCandidato(sesion.recurso, sesion.oferta, c).catch(() => {});
+  } else {
+    // Llega antes que la respuesta del servidor de medios: se guarda.
+    (sesion.candidatosPendientes ??= []).push(c);
+  }
+  return true;
 }

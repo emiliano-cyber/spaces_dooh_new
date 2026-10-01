@@ -1,5 +1,18 @@
 # Space Eye V2 — subirla sin tocar la que la gente usa
 
+> **Actualizado 1-oct-2026: V2 es un ESPEJO de V1.** Los equipos en campo traen
+> fija la direccion de V1 y no hay quien los reinstale, asi que V2 (4200) no los
+> tiene conectados: lee de la base de V1 lo que reportan y les manda ordenes por
+> el Redis de V1, igual que el dashboard de V1. Se despliega con
+> **`desplegar-espejo.sh`** (un solo paso: respalda, copia la base, migra la copia,
+> levanta y comprueba). Lo de abajo (respaldo.sh + desplegar-v2.sh) es el plan
+> anterior de copia unica y ya NO se usa: elegia el primer MySQL que encontraba,
+> que hoy podria ser el de pruebas.
+>
+> Mientras sea espejo: fotos, vista en vivo, monitoreo y ajustes de cada equipo
+> se manejan en V2; campañas, programacion y borrar se hacen en V1 (V2 las
+> rechaza con un aviso). V2 no ofrece actualizar la app de los equipos.
+
 La V1 está en producción y hay gente trabajando con ella. V2 se levanta **al
 lado**: otros contenedores, otros volúmenes, otros puertos y otra base de datos.
 Producción no se reinicia ni se modifica en ningún paso.
@@ -9,7 +22,8 @@ Al terminar:
 ```
 http://159.203.188.58:4000        V1 — la de siempre. Los equipos en campo
                                   siguen entrando aquí, sin enterarse.
-https://eyes.g500.space-os.io     V2 — lo nuevo, con una copia de los datos.
+http://159.203.188.58:4100        la instancia de PRUEBAS, que ya existía.
+https://eyes.g500.space-os.io     V2 — lo nuevo (4200), con una copia de los datos.
 ```
 
 ---
@@ -23,6 +37,12 @@ https://eyes.g500.space-os.io     V2 — lo nuevo, con una copia de los datos.
 ## Los tres pasos
 
 ```bash
+# 0. REVISAR, desde tu maquina, antes de subir nada. No toca ningun archivo.
+bash infra/revisar.sh
+#    Caza lo que ya se rompio una vez: dialogos del navegador que vuelven,
+#    JavaScript que no compila, CSS descuadrado, dos pilas peleandose un
+#    puerto, el vhost apuntando a donde V2 ya no publica, y .env versionados.
+
 # 1. RESPALDAR. No modifica nada: solo lee.
 bash infra/deploy/v2/respaldo.sh
 #    -> /root/respaldos/space-eye-<fecha>/  con base, fotos, .env y MANIFIESTO
@@ -73,7 +93,7 @@ cada respaldo lleva los comandos exactos.
 
 ## Cuando V2 pase a ser la buena
 
-1. En el vhost, cambiar `4100` → `4000` y `8989` → `8889`.
+1. En el vhost, cambiar `4200` → `4000` y `9089` → `8889`.
 2. `docker compose -p space-eye-v2 down -v`.
 3. Desplegar el código nuevo sobre la pila de producción, con su respaldo
    delante y sus migraciones —que para entonces ya se habrán ensayado aquí—.

@@ -1,4 +1,5 @@
 // backend/src/routes/index.ts
+import { copiarEdicionAV1, soloEnV1, estado as estadoDelEspejo } from '../utils/espejo';
 import { Router } from 'express';
 import { asyncRouter } from '../utils/asyncRouter';
 import multer from 'multer';
@@ -57,23 +58,24 @@ export function createRoutes() {
   // PlayLog / historico de telemetria (lee device_status existente).
   router.get('/api/devices/:id/telemetry', requireUser, telemetry.getTelemetry);
   router.get('/api/devices/:id/telemetry/export', requireUser, telemetry.exportTelemetry);
-  router.put('/api/devices/:id', requireUser, requireRole('admin', 'operator'), dashboard.updateDevice);
-  router.delete('/api/devices/:id', requireUser, requireRole('admin'), dashboard.deleteDevice);
+  router.put('/api/devices/:id', requireUser, requireRole('admin', 'operator'), copiarEdicionAV1, dashboard.updateDevice);
+  router.delete('/api/devices/:id', requireUser, requireRole('admin'), soloEnV1, dashboard.deleteDevice);
   router.post('/api/devices/:id/command', requireUser, requireRole('admin', 'operator'), dashboard.sendCommand);
   // Fijar orientacion por defecto del stream (solo admin).
-  router.put('/api/devices/:id/stream-rotation', requireUser, requireRole('admin'), dashboard.setStreamRotation);
+  router.put('/api/devices/:id/stream-rotation', requireUser, requireRole('admin'), copiarEdicionAV1, dashboard.setStreamRotation);
   // Encuadre, color y enfoque: tambien el operador. Ajustar la vista de un sitio
   // es operarlo, y dejarlo solo en manos de admin obligaba a que un operador
   // pidiera ayuda para algo que hace desde el visor. La orientacion fija y la
   // marca de datos SI siguen siendo de admin: se definen al instalar y cambian
   // lo que ve todo el mundo.
-  router.put('/api/devices/:id/camera', requireUser, requireRole('admin', 'operator'), dashboard.setCamera);
+  router.put('/api/devices/:id/camera', requireUser, requireRole('admin', 'operator'), copiarEdicionAV1, dashboard.setCamera);
   // Si el equipo ya empezo a transmitir (equipos que pasan por el servidor de medios).
   router.get('/api/devices/:id/stream-status', requireUser, dashboard.streamStatus);
   // Version del APK publicado, para saber que equipos estan atrasados.
   router.get('/api/app/version', requireUser, dashboard.appVersion);
+  router.get('/api/espejo', requireUser, estadoDelEspejo);
   // Posicion de la marca de informacion (overlay) del dispositivo (solo admin).
-  router.put('/api/devices/:id/overlay', requireUser, requireRole('admin'), dashboard.setOverlay);
+  router.put('/api/devices/:id/overlay', requireUser, requireRole('admin'), copiarEdicionAV1, dashboard.setOverlay);
 
   // Pantalla: esquinas, gabinetes, horario, y el monitoreo de fallas.
   router.get('/api/devices/:id/pantalla', requireUser, monitoreo.deEquipo);
@@ -91,7 +93,7 @@ export function createRoutes() {
   // Foto ya, en varios equipos de una vez (sin device_ids = toda la flota).
   router.post('/api/capture', requireUser, requireRole('admin', 'operator'), dashboard.capturarAhora);
   router.get('/api/photos', requireUser, dashboard.listPhotos);
-  router.delete('/api/photos/:id', requireUser, requireRole('admin', 'operator'), dashboard.deletePhoto);
+  router.delete('/api/photos/:id', requireUser, requireRole('admin', 'operator'), soloEnV1, dashboard.deletePhoto);
 
   // Espejo de SPACE OS: de aqui saca cada instancia lo que cambio en SUS camaras.
   router.get('/api/eyes/cambios', requireUser, eyes.cambios);
@@ -109,18 +111,18 @@ export function createRoutes() {
 
   // Schedules
   router.get('/api/schedules', requireUser, dashboard.listSchedules);
-  router.post('/api/schedules', requireUser, requireRole('admin', 'operator'), dashboard.createSchedule);
-  router.put('/api/schedules/:id', requireUser, requireRole('admin', 'operator'), dashboard.updateSchedule);
-  router.delete('/api/schedules/:id', requireUser, requireRole('admin'), dashboard.deleteSchedule);
+  router.post('/api/schedules', requireUser, requireRole('admin', 'operator'), soloEnV1, dashboard.createSchedule);
+  router.put('/api/schedules/:id', requireUser, requireRole('admin', 'operator'), soloEnV1, dashboard.updateSchedule);
+  router.delete('/api/schedules/:id', requireUser, requireRole('admin'), soloEnV1, dashboard.deleteSchedule);
 
   // Campaigns
   router.get('/api/campaigns', requireUser, dashboard.listCampaigns);
-  router.post('/api/campaigns', requireUser, requireRole('admin', 'operator'), dashboard.createCampaign);
+  router.post('/api/campaigns', requireUser, requireRole('admin', 'operator'), soloEnV1, dashboard.createCampaign);
   router.get('/api/campaigns/:id', requireUser, dashboard.getCampaign);
-  router.put('/api/campaigns/:id', requireUser, requireRole('admin', 'operator'), dashboard.actualizarCampana);
+  router.put('/api/campaigns/:id', requireUser, requireRole('admin', 'operator'), soloEnV1, dashboard.actualizarCampana);
   // La creatividad de referencia: la imagen contra la que se compara lo que
   // aparece en la pantalla. Sin ella una campana no se puede verificar ni buscar.
-  router.post('/api/campaigns/:id/creative', requireUser, requireRole('admin', 'operator'),
+  router.post('/api/campaigns/:id/creative', requireUser, requireRole('admin', 'operator'), soloEnV1,
     upload.single('creative'), dashboard.subirCreatividad);
 
   // Verifications

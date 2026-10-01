@@ -4,6 +4,7 @@ import { pool } from '../config/database';
 import { redis } from '../config/redis';
 import { encuadreDe, capturaPorStream, usaServidorDeMedios } from '../controllers/dashboard.controller';
 import { proximoDisparo } from '../utils/horarios';
+import { ordenarEquipo } from '../utils/espejo';
 
 async function fireSchedule(schedule: any) {
   // Se traen las columnas que hacen falta para decidir COMO tomar la foto, no
@@ -77,20 +78,7 @@ async function fireSchedule(schedule: any) {
     // orden, que vence sola a los 10 minutos.
     const payload = { ...extra, ...(await encuadreDe(eq.id)) };
 
-    const [result] = await pool.query<any>(
-      `INSERT INTO commands (device_id, command_type, payload, schedule_id, priority, expires_at)
-       VALUES (?, 'TAKE_PHOTO', ?, ?, 5, DATE_ADD(NOW(), INTERVAL 10 MINUTE))`,
-      [eq.id, JSON.stringify(payload), schedule.id]
-    );
-
-    await redis.publish('device:command', JSON.stringify({
-      device_id: eq.id,
-      command: {
-        id: (result as any).insertId,
-        command_type: 'TAKE_PHOTO',
-        payload,
-      },
-    }));
+    await ordenarEquipo(eq.id, 'TAKE_PHOTO', payload, { scheduleId: schedule.id });
   }
 
   await pool.query(

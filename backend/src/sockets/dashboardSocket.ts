@@ -3,6 +3,7 @@ import { Server, Socket } from 'socket.io';
 import { userJwt } from '../utils/jwt';
 import { redis } from '../config/redis';
 import { stopStream } from '../utils/streamWatchdog';
+import { publicarAEquipos } from '../utils/espejo';
 
 export function setupDashboardNamespace(io: Server) {
   const ns = io.of('/dashboard');
@@ -52,26 +53,18 @@ export function setupDashboardNamespace(io: Server) {
     });
 
     socket.on('webrtc_answer', async ({ device_id, sdp }) => {
-      await redis.publish('webrtc:dashboard_answer', JSON.stringify({
-        device_id,
-        sdp,
-        user_id: socket.data.user_id,
-      }));
+      await publicarAEquipos('webrtc:dashboard_answer', { device_id, sdp, user_id: socket.data.user_id });
     });
 
     socket.on('webrtc_ice_candidate', async ({ device_id, candidate }) => {
-      await redis.publish('webrtc:dashboard_ice', JSON.stringify({
-        device_id,
-        candidate,
-        user_id: socket.data.user_id,
-      }));
+      await publicarAEquipos('webrtc:dashboard_ice', { device_id, candidate, user_id: socket.data.user_id });
     });
 
     // Control manual de camara en vivo (zoom, enfoque, exposicion, WB, lock).
     // Canal efimero (no persiste en `commands`): solo aplica si el device
     // esta transmitiendo. payload = { device_id, control: {...} }.
     socket.on('camera_control', async ({ device_id, control }) => {
-      await redis.publish('camera:control', JSON.stringify({ device_id, control }));
+      await publicarAEquipos('camera:control', { device_id, control });
     });
   });
 

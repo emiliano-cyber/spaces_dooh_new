@@ -50,6 +50,9 @@ export function createApp() {
       res.status(403).json({ error: 'enlace_invalido_o_vencido' });
     });
     app.use('/storage', express.static(path.resolve(process.cwd(), env.STORAGE_DIR)));
+    // Modo espejo: las fotos que tomaron los equipos estan en el volumen de V1
+    // (montado solo lectura). Se busca primero aqui y luego alla.
+    if (env.ESPEJO_STORAGE_DIR) app.use('/storage', express.static(path.resolve(env.ESPEJO_STORAGE_DIR)));
     // Si el archivo no esta, express.static llama a next() y la peticion cae en
     // el comodin de mas abajo, que devuelve index.html con 200. O sea que pedir
     // una foto borrada contestaba una PAGINA WEB haciendose pasar por imagen: el

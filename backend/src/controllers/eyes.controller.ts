@@ -21,6 +21,7 @@ import { pool } from '../config/database';
 import { firmarFilas } from '../utils/firmaArchivos';
 import { redis } from '../config/redis';
 import { encuadreDe } from './dashboard.controller';
+import { ordenarEquipo } from '../utils/espejo';
 
 // Tope de filas por respuesta. Con mas, la instancia vuelve a preguntar desde la
 // marca que se le devuelve: es preferible varias vueltas cortas a una respuesta
@@ -186,14 +187,7 @@ export async function pedirCaptura(req: Request, res: Response) {
   // el dashboard: si no, la foto saldria con otro encuadre que las demas.
   const payload = await encuadreDe(deviceId);
 
-  const [r] = await pool.query<any>(
-    `INSERT INTO commands (device_id, command_type, payload, priority, created_by, expires_at)
-     VALUES (?, 'TAKE_PHOTO', ?, 5, NULL, DATE_ADD(NOW(), INTERVAL 10 MINUTE))`,
-    [deviceId, JSON.stringify(payload ?? null)]
-  );
-  const command = { id: (r as any).insertId, command_type: 'TAKE_PHOTO', payload: payload ?? null };
-
-  await redis.publish('device:command', JSON.stringify({ device_id: deviceId, command }));
+  const command = { id: await ordenarEquipo(deviceId, 'TAKE_PHOTO', payload), command_type: 'TAKE_PHOTO', payload: payload ?? null };
 
   // `en_linea` le sirve a la interfaz para decir la verdad mientras espera: a un
   // equipo caido la orden le llega cuando vuelva, no ahora.

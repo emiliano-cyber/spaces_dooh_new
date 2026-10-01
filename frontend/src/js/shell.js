@@ -449,7 +449,26 @@
   }
   window.contarFallas = contarFallas;
 
-  function arrancar() { render(); contarFallas(); }
+  // Si esta instancia es un espejo de otra (V2 reflejando a V1), se dice arriba
+  // de todo: los equipos estan conectados a la otra, y lo que esa administra
+  // (campañas, programacion) se cambia alla.
+  async function avisoDeEspejo() {
+    try {
+      const e = await API.get('/api/espejo');
+      if (!e || !e.activo) return;
+      const mount = document.getElementById('app-header');
+      if (!mount || document.getElementById('hdr-espejo')) return;
+      const atrasado = e.error || (e.atraso_s != null && e.atraso_s > 60);
+      const tira = el(`<div id="hdr-espejo" class="${atrasado ? 'bg-amber-50 text-amber-900 border-amber-200' : 'bg-neutral-50 text-neutral-600 border-neutral-200'} border-b text-xs">
+        <div class="max-w-7xl 2xl:max-w-[1600px] mx-auto px-4 sm:px-6 py-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+          <span class="font-medium text-neutral-900">Espejo de <span class="font-mono">${esc(e.origen)}</span></span>
+          <span>${atrasado ? 'La copia lleva un rato sin actualizarse; lo que ves puede estar atrasado.' : 'Los equipos siguen conectados allá. Fotos, vista en vivo y monitoreo se manejan aquí; campañas y programación, allá.'}</span>
+        </div></div>`);
+      mount.appendChild(tira);
+    } catch (_) { /* backend viejo o sin sesion: no hay aviso */ }
+  }
+
+  function arrancar() { render(); contarFallas(); avisoDeEspejo(); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arrancar);
   else arrancar();
 })();

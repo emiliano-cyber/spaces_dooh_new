@@ -65,6 +65,9 @@ const API = {
       const err = new Error(`API ${res.status}`);
       err.status = res.status;
       try { err.body = await res.json(); } catch (_) {}
+      // El servidor puede explicar el motivo en palabras (p. ej. el modo espejo):
+      // asi lo muestran los avisos que ya enseñan err.message.
+      if (err.body && err.body.mensaje) err.message = err.body.mensaje;
       throw err;
     }
     return res.json();

@@ -1,55 +1,51 @@
 # ============================================================================
-#  SPACE EYE V2 — la version nueva, EN PARALELO a la que la gente ya usa.
+#  SPACE EYE V2 — al lado de V1, como ESPEJO de sus equipos.
 # ----------------------------------------------------------------------------
-#  Se levanta con nombre de proyecto propio, asi que sus contenedores, su red y
-#  sus volumenes son OTROS. Producción no se toca ni se reinicia:
+#  docker compose -p space-eye-v2 -f docker-compose.v2.yml --env-file .env.v2 up -d
 #
-#    docker compose -p space-eye-v2 -f docker-compose.v2.yml --env-file .env.v2 up -d
+#  Los equipos en campo traen fija la direccion de V1 (159.203.188.58:4000) y no
+#  hay quien vaya a reinstalarlos, asi que V2 no los tiene conectados: los
+#  refleja. El backend de V2 entra tambien a la red de V1 para leer su base y
+#  dejar ordenes en su Redis (ver backend/src/utils/espejo.ts), y lee sus fotos
+#  de su volumen, montado SOLO LECTURA.
 #
-#  QUE QUEDA DONDE, AL TERMINAR
+#  OJO CON LOS NOMBRES. El backend esta en dos redes a la vez. Si los servicios de
+#  aqui se llamaran "mysql" y "redis", como en V1, ese nombre podria resolverse al
+#  contenedor de V1 y V2 escribiria lo suyo en la base o el Redis de produccion.
+#  Por eso aqui llevan nombre propio (v2mysql, v2redis, v2mediamtx), y a V1 se le
+#  llama por el nombre exacto de su contenedor (infra-mysql-1, infra-redis-1).
 #
-#    http://<ip>:4000               -> V1, la de siempre. Los equipos en campo
-#                                      siguen entrando por aqui, sin enterarse.
-#    https://eyes.g500.space-os.io  -> V2, por el vhost de Apache.
+#  Puertos corridos, para no chocar con V1 (4000, 8889, 8189) ni con la instancia
+#  de pruebas (4100, 8899, 8199): 4200, 9089 y 8389/udp. MySQL y Redis de V2 no
+#  se publican.
 #
-#  NINGUN PUERTO SE COMPARTE. Producción tiene 4000, 8554, 8889 y 8189/udp; aqui
-#  todo va corrido: 4100, 8654, 8989 y 8289/udp. Si dos pilas pelean un puerto,
-#  la segunda no levanta -y la primera, que es la que usa la gente, tampoco
-#  vuelve si alguien la reinicia-.
-#
-#  MySQL y Redis NO se publican al anfitrion: solo los usa esta pila, por su red
-#  interna. Un puerto que no se abre es un puerto que nadie puede tocar.
-#
-#  COTURN NO SE DUPLICA. El de producción (3478) sirve igual a las dos: es un
-#  relevo de STUN/TURN, no guarda nada de nadie. Levantar otro obligaria a
-#  moverlo de puerto y a tocar el firewall, que es justo lo que no queremos.
+#  Sin ai-worker: las fotos las verifica el de V1 (las toman los equipos de V1) y
+#  aqui llega el resultado por el espejo. Liviana a proposito: el droplet tiene
+#  2 GB y V1 va primero.
 # ============================================================================
 
 services:
-  mysql:
+  v2mysql:
     image: mysql:8.0
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
       MYSQL_DATABASE: ${DB_NAME:-space_eye}
-    # OJO: aqui NO se montan las migraciones en /docker-entrypoint-initdb.d,
-    # al reves que en producción. Esta base nace VACIA a proposito: el script de
-    # despliegue le carga el respaldo de producción y DESPUES corre las
-    # migraciones nuevas sobre esa copia. Asi se ensaya la migracion de verdad
-    # -con los datos de verdad- sin que producción se entere.
     volumes:
       - mysql_data_v2:/var/lib/mysql
     command: >
       --default-authentication-plugin=mysql_native_password
       --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
-      --innodb-buffer-pool-size=256M
+      --innodb-buffer-pool-size=96M --performance-schema=OFF
+    mem_limit: 400m
 
-  redis:
+  v2redis:
     image: redis:7-alpine
     restart: unless-stopped
-    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy noeviction
+    command: redis-server --appendonly yes --maxmemory 48mb --maxmemory-policy noeviction
     volumes:
       - redis_data_v2:/data
+    mem_limit: 80m
 
   backend:
     build:
@@ -57,39 +53,46 @@ services:
     restart: unless-stopped
     env_file: .env.v2
     environment:
-      DB_HOST: mysql
-      REDIS_URL: redis://redis:6379
+      DB_HOST: v2mysql
+      REDIS_URL: redis://v2redis:6379
       NODE_ENV: production
+      MEDIAMTX_API: http://v2mediamtx:9997
+      MEDIAMTX_WEBRTC_INTERNAL: http://v2mediamtx:8889
+      ESPEJO_STORAGE_DIR: /app/storage-v1
     ports:
-      - "4100:4000"
+      - "4200:4000"
     volumes:
       - ../../../frontend:/frontend:ro
       - storage_data_v2:/app/storage
-    depends_on: [mysql, redis]
+      # Las fotos que tomaron los equipos, en el volumen de V1. Solo lectura:
+      # V2 no puede borrar ni cambiar nada de alla.
+      - storage_v1:/app/storage-v1:ro
+    networks: [default, red_v1]
+    depends_on: [v2mysql, v2redis]
+    mem_limit: 450m
 
-  ai-worker:
-    build:
-      context: ../../../ai-worker
-    restart: unless-stopped
-    environment:
-      REDIS_URL: redis://redis:6379
-      API_BASE: http://backend:4000
-      WORKER_SECRET: ${WORKER_SECRET}
-    depends_on: [backend, redis]
-
-  mediamtx:
+  v2mediamtx:
     image: bluenviron/mediamtx:latest
     restart: unless-stopped
     environment:
       MTX_AUTHINTERNALUSERS_1_PASS: ${MEDIAMTX_PASS}
     volumes:
-      - ../../mediamtx/mediamtx.yml:/mediamtx.yml:ro
+      - ../../mediamtx/mediamtx.v2.yml:/mediamtx.yml:ro
     ports:
-      - "8654:8554"       # RTSP: por donde publicarian los agentes de V2
-      - "8989:8889"       # WHEP: lo consume Apache y lo sirve por el dominio
-      - "8289:8189/udp"   # medios WebRTC
+      - "9089:8889"       # WHEP: de aqui ve el navegador
+      - "8389:8389/udp"   # medios WebRTC (mismo numero dentro y fuera: va en las candidatas)
+    mem_limit: 80m
 
 volumes:
   mysql_data_v2:
   redis_data_v2:
   storage_data_v2:
+  # El de V1. Su nombre real lo averigua desplegar-espejo.sh y lo pasa aqui.
+  storage_v1:
+    external: true
+    name: ${V1_STORAGE_VOL}
+
+networks:
+  red_v1:
+    external: true
+    name: ${V1_RED}
