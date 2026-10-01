@@ -1,5 +1,6 @@
 'use client'
 
+import { MONEDA } from '@/lib/i18n/dinero'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { UserRound, FileText, Monitor, Check, ChevronLeft, ChevronRight, Loader2, Paperclip, X } from 'lucide-react'
@@ -113,7 +114,9 @@ export function ContratoWizard({
   const [fechaFin, setFechaFin] = useState('')
   const [renta, setRenta] = useState('')
   const [periodicidad, setPeriodicidad] = useState('MENSUAL')
-  const [moneda, setMoneda] = useState('MXN')
+  // Una sola moneda en todo el producto (30/09). Sale de la MISMA constante que
+  // usa el formato del dinero: dos declaraciones divergen, una no puede.
+  const moneda = MONEDA
   const [autoRenovable, setAutoRenovable] = useState(false)
   const [documento, setDocumento] = useState<string | null>(null) // PDF en base64 (data URL)
   const [docNombre, setDocNombre] = useState<string | null>(null)
@@ -344,7 +347,7 @@ export function ContratoWizard({
     setPaso(1)
     setModoArr('existente'); setArrId(''); setArrNombre(''); setArrRfc(''); setArrTel(''); setArrEmail('')
     setModoPredio('nuevo'); setPredioId(''); setPredioNombre(''); setPredioDireccion('')
-    setFechaInicio(''); setFechaFin(''); setRenta(''); setPeriodicidad('MENSUAL'); setMoneda('MXN'); setAutoRenovable(false)
+    setFechaInicio(''); setFechaFin(''); setRenta(''); setPeriodicidad('MENSUAL'); setAutoRenovable(false)
     setDocumento(null); setDocNombre(null)
     setModoPantalla('inventario'); setSitioSelId('')
     setNombre(''); setTipoMedio('ESPECTACULAR'); setExhibicion('fijo'); setDireccion(''); setAlcaldia(''); setCiudad('')
@@ -496,12 +499,21 @@ export function ContratoWizard({
                   {PERIODICIDADES.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
                 </select>
               </Campo>
-              <Campo label="Moneda">
-                <select value={moneda} onChange={(e) => setMoneda(e.target.value)} className={inputCls}>
-                  <option value="MXN">MXN (peso mexicano)</option>
-                  <option value="USD">USD (dólar)</option>
-                </select>
-              </Campo>
+              {/*
+                El selector de moneda SALIÓ el 2026-09-30, por decisión del dueño:
+                «deja todo en pesos». Ofrecía MXN y USD.
+
+                No es una simplificación cosmética: desde el 30/09 el formato del
+                dinero sale de una sola constante (`lib/i18n/dinero.ts`), así que
+                un contrato guardado en USD se habría seguido PINTANDO como pesos
+                —mismo número, otra divisa— sin dar ningún error. Un contrato de
+                1,000 dólares leído como 1,000 pesos se equivoca por veinte veces,
+                y nada en la pantalla lo delataría.
+
+                La columna `contratos_arrendamiento.moneda` SIGUE EXISTIENDO a
+                propósito: quitarla perdería el dato de cualquier contrato que ya
+                esté en otra divisa. Lo que se cierra es la puerta de entrada.
+              */}
               <label className="mt-6 inline-flex items-center gap-2 text-[13px] text-ink">
                 <input type="checkbox" checked={autoRenovable} onChange={(e) => setAutoRenovable(e.target.checked)} />
                 Renovación automática

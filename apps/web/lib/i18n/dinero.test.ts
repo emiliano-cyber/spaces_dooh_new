@@ -261,3 +261,37 @@ describe('GUARDIA 2 · ningun diccionario puede llevar dinero dentro', () => {
     expect(culpables).toEqual([])
   })
 })
+
+describe('GUARDIA 3 · ninguna pantalla deja ELEGIR moneda', () => {
+  // Puesto el 2026-09-30, cuando el dueno decidio «deja todo en pesos» y salio
+  // el selector MXN/USD del alta de contratos (`ContratoWizard.tsx`).
+  //
+  // No es una regla de estilo: desde ese mismo dia el dinero se formatea con UNA
+  // constante, asi que un contrato guardado en USD se PINTARIA como pesos --el
+  // mismo numero, otra divisa-- sin dar ningun error. Mil dolares leidos como
+  // mil pesos se equivocan por veinte veces, y nada en la pantalla lo delata.
+  //
+  // Por eso el guard mira la PUERTA DE ENTRADA y no el almacen: las columnas
+  // `moneda` siguen existiendo a proposito --quitarlas perderia el dato de
+  // cualquier fila que ya este en otra divisa--. Lo que no puede volver es que
+  // alguien capture una.
+  it('no hay un `<option value="USD">` ni ningun otro codigo de moneda ofrecido', () => {
+    const culpables: string[] = []
+    for (const rel of fuentes()) {
+      if (rel.startsWith('lib/i18n/')) continue // este archivo habla DE monedas
+      const src = readFileSync(path.join(RAIZ, rel), 'utf8')
+      for (const m of src.matchAll(/<option[^>]*value=["'](USD|EUR|PEN|GBP|MXN)["']/g)) {
+        culpables.push(`${rel} · ofrece ${m[1]}`)
+      }
+    }
+    expect(culpables).toEqual([])
+  })
+
+  it('y el arnes mira de verdad: el patron encuentra el caso que vino a prohibir', () => {
+    // Sin esto, un error en la expresion dejaria la prueba de arriba en verde
+    // sin mirar nada. Es el mismo fallo que CLAUDE.md documenta: una
+    // comprobacion por ausencia pasa sola.
+    const comoEra = `<option value="USD">USD (dólar)</option>`
+    expect([...comoEra.matchAll(/<option[^>]*value=["'](USD|EUR|PEN|GBP|MXN)["']/g)]).toHaveLength(1)
+  })
+})
