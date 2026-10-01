@@ -10,6 +10,10 @@
       {
         "tipo": "NUEVO",
         "texto": "En Administración → Actualizaciones, el Dueño y el Administrador ven qué trae la versión disponible antes de decidir si la instalan."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "En las propuestas, el sistema calcula la tarifa de cada pantalla. Solo el Gerente de ventas, el Director comercial, el Administrador y el Dueño pueden poner un precio distinto; el Vendedor cotiza siempre a la tarifa calculada. Cuando alguien ajusta un precio, la propuesta muestra por dentro cuál era la tarifa y quién la cambió; el cliente solo ve el precio final."
       }
     ]
   }
