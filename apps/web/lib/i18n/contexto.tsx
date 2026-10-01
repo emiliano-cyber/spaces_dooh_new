@@ -60,6 +60,13 @@ export interface ContextoIdioma {
   numero: (n: number, opciones?: Intl.NumberFormatOptions) => string
   fecha: (f: Date | string | number, opciones?: Intl.DateTimeFormatOptions) => string
   cambiarIdioma: (nuevo: Idioma) => void
+  /**
+   * ¿Se ofrece elegir idioma? Lo decide el SERVIDOR con `inglesActivo()`
+   * (apagado por omisión desde el 2026-09-30). Sin él, `SelectorIdioma` no se
+   * pinta y `cambiarIdioma` no hace nada: un selector que cambia algo que el
+   * servidor va a ignorar sería mentirle a quien lo usa.
+   */
+  puedeElegir: boolean
 }
 
 // El valor por omision existe para que un componente montado fuera del
@@ -74,9 +81,11 @@ const Contexto = createContext<ContextoIdioma | null>(null)
 // justo la llamada correcta.
 export function ProveedorIdioma({
   idioma: idiomaDelServidor,
+  puedeElegir = false,
   children,
 }: {
   idioma: Idioma
+  puedeElegir?: boolean
   children?: React.ReactNode
 }) {
   const router = useRouter()
@@ -91,6 +100,7 @@ export function ProveedorIdioma({
 
   const cambiarIdioma = useCallback(
     (nuevo: Idioma) => {
+      if (!puedeElegir) return
       // La CADENA la arma `cadenaCookieIdioma` (`idiomas.ts`) y no esta funcion.
       // El motivo es que se pueda probar: escribir en `document.cookie` es un
       // efecto que sin DOM no se observa, y el mutante que borraba esta linea
@@ -101,7 +111,7 @@ export function ProveedorIdioma({
       setIdioma(nuevo)
       router.refresh()
     },
-    [router],
+    [router, puedeElegir],
   )
 
   const valor = useMemo<ContextoIdioma>(
@@ -113,8 +123,9 @@ export function ProveedorIdioma({
       numero: (n, opciones) => formatearNumero(n, idioma, opciones),
       fecha: (f, opciones) => formatearFecha(f, idioma, opciones),
       cambiarIdioma,
+      puedeElegir,
     }),
-    [idioma, cambiarIdioma],
+    [idioma, cambiarIdioma, puedeElegir],
   )
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>
@@ -139,6 +150,7 @@ export function useIdioma(): ContextoIdioma {
     numero: (n, opciones) => formatearNumero(n, idioma, opciones),
     fecha: (f, opciones) => formatearFecha(f, idioma, opciones),
     cambiarIdioma: () => {},
+    puedeElegir: false,
   }
 }
 

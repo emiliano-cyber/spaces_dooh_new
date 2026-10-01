@@ -52,6 +52,31 @@ export type Idioma = (typeof IDIOMAS)[number]
 // hablamos se cae aqui, nunca al ingles.
 export const IDIOMA_POR_OMISION: Idioma = 'es'
 
+/**
+ * ¿Está ENCENDIDO el inglés? APAGADO por omisión desde el 2026-09-30.
+ *
+ * Pedido del dueño ese día: «se está mezclando y está en ambos idiomas,
+ * cámbialo para que solo por ahora esté en español». La causa: de las ~1300
+ * cadenas de la interfaz solo estaban traducidas la pantalla de entrar, el menú
+ * lateral y los errores del servidor (`vault/03-Frontend/idiomas-es-en.md` §9).
+ * Con el inglés elegido —por la cookie o por un navegador en inglés— esas
+ * partes salían en inglés y todo lo demás en español.
+ *
+ * Apagado, `idiomaDeLaPeticion()` devuelve SIEMPRE español (ignora la cookie y
+ * el `Accept-Language`) y el selector no se pinta. Nada de la traducción se
+ * borra: se enciende con `IDIOMA_INGLES=1` en el entorno del proceso cuando
+ * esté completa. Solo el valor exacto `1`: un `true` o un `si` mal escrito deja
+ * el producto como está, que es lo seguro.
+ *
+ * Recibe el entorno como parámetro para poder probarse sin tocar
+ * `process.env`. En el navegador no se llama: allí el servidor ya decidió.
+ */
+export function inglesActivo(
+  entorno: Record<string, string | undefined> = process.env,
+): boolean {
+  return entorno.IDIOMA_INGLES === '1'
+}
+
 // Mismo prefijo que `spaces_sesion` y `spaces_csrf`. NO es `httpOnly`: es una
 // preferencia de presentacion, no una credencial, y el selector de idioma la
 // escribe desde el navegador.

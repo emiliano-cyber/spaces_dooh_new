@@ -56,6 +56,37 @@ beforeEach(() => {
   estado.modo = 'peticion'
   estado.cookie = null
   estado.accept = null
+  // Estas pruebas describen el idioma CON el ingles encendido: lo que ocurrira
+  // cuando se reactive. Desde el 2026-09-30 viene APAGADO por omision (ver la
+  // describe de abajo), asi que se enciende aqui a proposito.
+  process.env.IDIOMA_INGLES = '1'
+})
+
+describe('con el ingles APAGADO —el valor por omision desde el 2026-09-30—', () => {
+  // Pedido del dueno: «se esta mezclando y esta ambos idiomas, cambialo para que
+  // solo por ahora este espanol». Solo dos pantallas estaban traducidas; con el
+  // ingles elegido (cookie) o con el navegador en ingles salia mitad y mitad.
+  beforeEach(() => {
+    delete process.env.IDIOMA_INGLES
+  })
+
+  it('una cookie que pide ingles NO cambia nada: espanol', async () => {
+    estado.cookie = 'en'
+    expect(await idioma()).toBe('es')
+  })
+
+  it('un navegador en ingles tampoco: espanol', async () => {
+    estado.accept = 'en-US,en;q=0.9'
+    expect(await idioma()).toBe('es')
+  })
+
+  it('cualquier valor que no sea exactamente 1 lo deja apagado', async () => {
+    for (const v of ['0', 'true', 'si', ' 1', '']) {
+      process.env.IDIOMA_INGLES = v
+      estado.cookie = 'en'
+      expect(await idioma(), `IDIOMA_INGLES=${JSON.stringify(v)}`).toBe('es')
+    }
+  })
 })
 
 describe('dentro de una peticion', () => {

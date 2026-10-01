@@ -8,7 +8,24 @@ import {
   normalizarIdioma,
   idiomaDeCabecera,
   resolverIdioma,
+  inglesActivo,
 } from './idiomas'
+
+describe('inglesActivo · el interruptor del ingles (2026-09-30)', () => {
+  // Apagado por omision: solo dos pantallas estan traducidas, y con el ingles
+  // encendido la aplicacion salia mezclada. Pedido del dueno: «solo por ahora
+  // este espanol». Se enciende con IDIOMA_INGLES=1 cuando la traduccion este
+  // completa.
+  it('sin la variable, APAGADO', () => {
+    expect(inglesActivo({})).toBe(false)
+  })
+  it('solo el valor exacto 1 lo enciende', () => {
+    expect(inglesActivo({ IDIOMA_INGLES: '1' })).toBe(true)
+    for (const v of ['0', 'true', 'si', ' 1', '1 ', '']) {
+      expect(inglesActivo({ IDIOMA_INGLES: v }), JSON.stringify(v)).toBe(false)
+    }
+  })
+})
 
 // ============================================================================
 //  I18N-01 · La eleccion del idioma, probada por separado del framework.

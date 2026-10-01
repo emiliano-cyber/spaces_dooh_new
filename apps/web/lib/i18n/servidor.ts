@@ -1,6 +1,12 @@
 import 'server-only'
 import { cookies, headers } from 'next/headers'
-import { resolverIdioma, COOKIE_IDIOMA, type Idioma } from './idiomas'
+import {
+  resolverIdioma,
+  inglesActivo,
+  COOKIE_IDIOMA,
+  IDIOMA_POR_OMISION,
+  type Idioma,
+} from './idiomas'
 
 // ============================================================================
 //  lib/i18n/servidor.ts — LEER LAS DOS SENALES, Y NADA MAS.
@@ -65,6 +71,12 @@ function leerSeguro(leer: () => string | null): string | null {
  * no falla**: devuelve el idioma de omision.
  */
 export function idiomaDeLaPeticion(): Idioma {
+  // Con el inglés apagado (omisión desde el 2026-09-30, ver `inglesActivo` en
+  // `idiomas.ts`) no se mira ni la cookie ni el navegador: SIEMPRE español. Es
+  // el único sitio que decide el idioma —lo usan el layout raíz y
+  // `respuestaError()`—, así que con esta línea se apagan las dos fuentes de
+  // la mezcla a la vez.
+  if (!inglesActivo()) return IDIOMA_POR_OMISION
   return resolverIdioma({
     cookie: leerSeguro(() => cookies().get(COOKIE_IDIOMA)?.value ?? null),
     cabecera: leerSeguro(() => headers().get('accept-language')),

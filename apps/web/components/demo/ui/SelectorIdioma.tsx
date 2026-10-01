@@ -31,7 +31,11 @@ import { useIdioma } from '@/lib/i18n/contexto'
 // ============================================================================
 
 export function SelectorIdioma({ className = '' }: { className?: string }) {
-  const { idioma, t, cambiarIdioma } = useIdioma()
+  const { idioma, t, cambiarIdioma, puedeElegir } = useIdioma()
+
+  // Con el inglés apagado (omisión desde el 2026-09-30) no se ofrece: el
+  // servidor ignoraría la elección y la pantalla seguiría en español.
+  if (!puedeElegir) return null
 
   return (
     <label className={`inline-flex items-center gap-1.5 ${className}`}>

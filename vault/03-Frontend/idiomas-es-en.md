@@ -19,6 +19,36 @@ archivos:
 
 # La aplicación en dos idiomas (I18N-01)
 
+> [!danger] 2026-09-30, tarde · EL INGLÉS ESTÁ APAGADO — solo español por ahora
+> Pedido del dueño el mismo día, al probarlo: *«le puse en español pero se está
+> mezclando y está en ambos idiomas; cámbialo para que solo por ahora esté en
+> español»*. **La causa:** con ~1300 cadenas en la interfaz, solo estaban
+> traducidas la pantalla de entrar, el menú lateral y los errores del servidor
+> (§9). En cuanto la aplicación decidía «inglés» —por la cookie de una elección
+> anterior, o por un navegador/Windows en inglés—, esas partes salían en inglés
+> y todo lo demás en español.
+>
+> **Qué se hizo** (nada de la traducción se borró):
+> - `inglesActivo()` en `lib/i18n/idiomas.ts`: lee `IDIOMA_INGLES` del entorno
+>   del proceso; **solo el valor exacto `1` enciende**. Sin él, apagado.
+> - `idiomaDeLaPeticion()` (`lib/i18n/servidor.ts`) devuelve **siempre español**
+>   con el inglés apagado: ignora la cookie y el `Accept-Language`. Es el único
+>   sitio que decide el idioma —lo usan el layout raíz y `respuestaError()`—, así
+>   que una línea apaga las dos fuentes de la mezcla.
+> - El layout pasa `puedeElegir={inglesActivo()}` al proveedor; `SelectorIdioma`
+>   no se pinta y `cambiarIdioma` no hace nada sin él. Un selector que cambia algo
+>   que el servidor ignora sería mentirle a quien lo usa.
+>
+> **Las pruebas de la traducción se conservan** y encienden el interruptor en su
+> `beforeEach`: describen lo que pasará al reactivarlo. Las nuevas fijan el
+> apagado —cookie `en` + navegador en inglés → español, `lang="es"`, sin
+> selector— y mueren con los dos mutantes (quitar la línea del servidor: 6 rojas;
+> quitar la guarda del selector: 1).
+>
+> **Para reactivarlo**, cuando la traducción esté completa: `IDIOMA_INGLES=1` en
+> el entorno del proceso (en el PADRE, `/etc/space-os/padre.env`; en una
+> instancia, `app.env`), y reiniciar.
+
 > [!important] Traducir la interfaz NO es traducir el código
 > El repositorio **sigue escribiéndose en español** — archivos, funciones,
 > variables, columnas, comentarios ([[convenciones]]). El inglés es una **capa

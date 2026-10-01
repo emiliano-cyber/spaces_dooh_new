@@ -60,6 +60,10 @@ vi.mock('next/headers', () => ({
 
 beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))
+  // Estas pruebas describen el producto CON el ingles encendido. Desde el
+  // 2026-09-30 viene apagado por omision (`inglesActivo`, idiomas.ts); lo que
+  // pasa apagado lo fija la describe «con el ingles APAGADO», al final.
+  process.env.IDIOMA_INGLES = '1'
 })
 
 async function pintarLogin(idioma: Idioma): Promise<string> {
@@ -68,8 +72,11 @@ async function pintarLogin(idioma: Idioma): Promise<string> {
   // `children`. Las dos formas rinden igual, pero `next lint` rechaza la
   // segunda (`react/no-children-prop`) y el build de Next corre el linter: con
   // la otra forma, esta prueba pasaba en verde y TUMBABA `npm run build`.
+  // `puedeElegir: true` imita lo que hace el layout con el ingles ENCENDIDO
+  // (`inglesActivo()`), que es lo que describen estas pruebas. Apagado, el
+  // layout pasa `false` y el selector no se pinta: ver la describe del final.
   return renderToStaticMarkup(
-    createElement(ProveedorIdioma, { idioma }, createElement(LoginPage)),
+    createElement(ProveedorIdioma, { idioma, puedeElegir: true }, createElement(LoginPage)),
   )
 }
 
@@ -286,5 +293,43 @@ describe('el layout raiz decide el idioma y lo DECLARA en el <html>', () => {
 
   it('una cookie con basura no secuestra el idioma', async () => {
     expect(await pintarRaiz('fr', 'en-US')).toMatch(/<html[^>]*lang="en"/)
+  })
+})
+
+// ─── 2026-09-30 · el ingles APAGADO, que es el valor por omision ─────────────
+//
+// Pedido del dueno: «se esta mezclando y esta ambos idiomas, cambialo para que
+// solo por ahora este espanol». Solo estaban traducidas la pantalla de entrar y
+// el menu lateral: con el ingles elegido —cookie— o con el navegador en ingles,
+// esas partes salian en ingles y el resto en espanol.
+describe('con el ingles APAGADO (omision desde el 2026-09-30)', () => {
+  beforeEach(() => {
+    delete process.env.IDIOMA_INGLES
+  })
+
+  it('el layout dice lang="es" aunque la cookie Y el navegador pidan ingles', async () => {
+    expect(await pintarRaiz('en', 'en-US,en;q=0.9')).toMatch(/<html[^>]*lang="es"/)
+  })
+
+  it('la pantalla de entrar sale en espanol y SIN selector de idioma', async () => {
+    cabeceras.cookie = 'en'
+    cabeceras.accept = 'en-US,en;q=0.9'
+    const { default: RootLayout } = await import('../../app/layout')
+    const { default: LoginPage } = await import('../../app/(app)/login/page')
+    const html = renderToStaticMarkup(RootLayout({ children: createElement(LoginPage) }))
+    expect(html).toMatch(/<html[^>]*lang="es"/)
+    expect(html).not.toMatch(/<select[^>]*aria-label="(Cambiar idioma|Change language)"/i)
+    expect(html).not.toMatch(/English/)
+  })
+
+  it('y ENCENDIDO el selector vuelve a estar: el interruptor es el que manda', async () => {
+    process.env.IDIOMA_INGLES = '1'
+    cabeceras.cookie = 'es'
+    cabeceras.accept = null
+    const { default: RootLayout } = await import('../../app/layout')
+    const { default: LoginPage } = await import('../../app/(app)/login/page')
+    const html = renderToStaticMarkup(RootLayout({ children: createElement(LoginPage) }))
+    expect(html).toMatch(/<select/)
+    expect(html).toMatch(/English/)
   })
 })

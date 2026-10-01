@@ -7,6 +7,19 @@ La entrada más reciente va arriba.
 
 ## 2026-09-30
 
+- **La aplicación vuelve a estar solo en español, por ahora.** *(Pedido tuyo del
+  30/09, al probarla: «se está mezclando y está en ambos idiomas».)*
+
+  El inglés se había preparado, pero de momento solo estaban traducidas la
+  pantalla de entrar, el menú lateral y los avisos de error. Si tu navegador o tu
+  Windows estaban en inglés —o si alguna vez elegiste «English»—, esas partes
+  salían en inglés y el resto en español.
+
+  Ahora **todo sale en español para todo el mundo**, sin importar el idioma del
+  navegador ni lo que se eligiera antes, y **el selector de idioma ya no aparece**
+  en la pantalla de entrar. **No se perdió nada de lo traducido**: cuando la
+  traducción esté completa se vuelve a encender con un ajuste del servidor.
+
 - **Los avisos de error tambien salen ya en INGLES.** *(Tu decision del 30/09:
   que los mensajes del servidor entren, en el idioma elegido.)*
 

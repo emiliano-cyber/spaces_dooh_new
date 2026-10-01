@@ -3,6 +3,7 @@ import { Inter, Source_Serif_4 } from 'next/font/google'
 import './globals.css'
 import { Providers } from './providers'
 import { idiomaDeLaPeticion } from '@/lib/i18n/servidor'
+import { inglesActivo } from '@/lib/i18n/idiomas'
 import { ProveedorIdioma } from '@/lib/i18n/contexto'
 
 export const metadata: Metadata = {
@@ -64,7 +65,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang={idioma} className={`${serif.variable} ${inter.variable}`}>
       <body>
-        <ProveedorIdioma idioma={idioma}>
+        <ProveedorIdioma idioma={idioma} puedeElegir={inglesActivo()}>
           <Providers>{children}</Providers>
         </ProveedorIdioma>
       </body>

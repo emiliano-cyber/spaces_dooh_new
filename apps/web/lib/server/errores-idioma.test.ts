@@ -48,6 +48,23 @@ beforeEach(() => {
   estado.cookie = null
   estado.accept = null
   vi.spyOn(console, 'error').mockImplementation(() => {})
+  // Las pruebas de traduccion describen el ingles ENCENDIDO. Desde el
+  // 2026-09-30 viene apagado por omision (describe 0, abajo).
+  process.env.IDIOMA_INGLES = '1'
+})
+
+describe('0 · con el ingles APAGADO (omision desde el 2026-09-30), el error sale en ESPANOL', () => {
+  beforeEach(() => {
+    delete process.env.IDIOMA_INGLES
+  })
+
+  it('aunque la cookie y el navegador pidan ingles', async () => {
+    estado.cookie = 'en'
+    estado.accept = 'en-US,en;q=0.9'
+    const { respuestaError, AppError } = await import('./errores')
+    const r = respuestaError(new AppError('Campaña no encontrada', 404))
+    expect(((await r.json()) as { error: string }).error).toBe('Campaña no encontrada')
+  })
 })
 
 describe('1 · con el idioma en INGLES, el error sale en ingles', () => {
