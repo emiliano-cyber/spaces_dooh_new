@@ -10,35 +10,26 @@ archivos:
 ---
 
 
-> [!question] 2026-09-30 · I18N — TRES decisiones que no toma un agente
-> La aplicación ya existe en español e inglés ([[03-Frontend/idiomas-es-en]]).
-> El mecanismo está puesto y dos pantallas traducidas; estas tres las decide el
-> dueño, y las tres cambian código:
+> [!success] 2026-09-30, tarde · I18N — LAS TRES CERRADAS por el dueño
+> Las tres preguntas que dejó I18N-01 tienen respuesta. **No se vuelven a
+> abrir**, y están escritas en el código donde antes decía «suposición»:
 >
-> **1 · ¿Qué inglés: de Estados Unidos o británico?**
-> Hoy está escrito en **inglés de EE. UU.**, y es una suposición, no una
-> decisión: el mercado es México y su vecino, e `Intl` ya formatea con `en-US`.
-> En una interfaz como ésta la diferencia real es de media docena de palabras
-> (`Settings`/`Preferences`, `Customize`/`Customise`, el formato de fecha). Si la
-> respuesta es británico, es un repaso del diccionario y un cambio de
-> `LOCALE_DE_IDIOMA.en` — nada más.
+> **1 · El idioma se recuerda POR DISPOSITIVO.** Lo que ya había: una cookie.
+> Quien elija inglés en su portátil seguirá viendo español en su teléfono.
+> Con eso se cierran dos cosas de golpe: **ninguna migración** —no hace falta
+> columna en `usuarios`— y desaparece la pregunta de quién manda cuando la
+> cuenta dice una cosa y el navegador otra, porque la cuenta no opina.
+> Anotado en `lib/i18n/contexto.tsx`.
 >
-> **2 · ¿El idioma se recuerda POR PERSONA o POR DISPOSITIVO?**
-> Hoy es **por dispositivo**: una cookie. Quien elija inglés en su portátil
-> seguirá viendo español en su teléfono, y al cambiar de navegador vuelve a
-> mandar el `Accept-Language`.
-> Por persona significa **una columna nueva en `usuarios`**, o sea **una
-> migración**, y ninguna aterriza sin que el dueño apruebe la forma. Tampoco es
-> gratis: habría que decidir quién gana cuando la cuenta dice una cosa y el
-> navegador otra (lo razonable: la cuenta, y la cookie solo antes de entrar).
+> **2 · Inglés de ESTADOS UNIDOS.** Lo que ya había, y deja de ser suposición de
+> quien escribió el archivo. Anotado en `lib/i18n/diccionario.ts`. Si algún día
+> cambia a británico es un repaso del diccionario y una línea en
+> `LOCALE_DE_IDIOMA`.
 >
-> **3 · ¿Los mensajes de error del SERVIDOR entran o no?**
-> Hoy **NO**, y se dice de frente: un usuario con la interfaz en inglés verá el
-> formulario en inglés y, si algo falla del lado del servidor, **el mensaje en
-> español** — justo en el peor momento.
-> El tamaño, medido el 30/09: **253 `new AppError(...)` en 42 archivos**, **137
-> llamadas a `respuestaError()`** y **11 archivos de prueba** que afirman ese
-> texto exacto. Es un lote propio y grande, no un remate de éste.
+> **3 · Los errores del SERVIDOR entran, y entraron** — I18N-05, el mismo día.
+> Ver [[03-Frontend/idiomas-es-en]] §8. Cubiertos **179 de 251** sitios con
+> certeza (**71 %**); **44 son plantillas con `${…}`** y necesitan claves con
+> huecos: ése es el lote siguiente y está contado.
 
 > [!question] 2026-09-30 · Y una CONTRADICCIÓN medida, que hay que resolver antes
 > El dueño dijo el 30/09 que **«el sistema se rige 100 % en pesos mexicanos por

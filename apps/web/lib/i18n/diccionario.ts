@@ -203,11 +203,15 @@ export type ClaveTexto = keyof typeof ES
 
 // ─── INGLES ─────────────────────────────────────────────────────────────────
 //
-// Se escribe en INGLES DE ESTADOS UNIDOS, y no es una decision de fondo sino la
-// suposicion menos mala mientras nadie la confirma: el mercado del producto es
-// Mexico y su vecino, `Intl` ya formatea con `en-US`, y la diferencia real
-// entre las dos variantes en una interfaz como esta es de media docena de
-// palabras. **Esta en las PREGUNTAS PARA EL DUENO.**
+// INGLES DE ESTADOS UNIDOS. **DECIDIDO POR EL DUENO el 2026-09-30**, y por eso
+// esta escrito aqui: hasta ese dia era una suposicion de quien escribio el
+// archivo —la menos mala, porque el mercado del producto es Mexico y su vecino
+// y `Intl` ya formatea con `en-US`— y una suposicion que nadie marca como tal
+// se acaba reabriendo cada pocas semanas.
+//
+// **No se vuelve a preguntar.** Si algun dia cambia a britanico, es un repaso
+// de este objeto y una linea en `LOCALE_DE_IDIOMA` (`dinero.ts`): la diferencia
+// real en una interfaz como esta es de media docena de palabras.
 //
 // El registro es el mismo que el del espanol: tuteo directo, frases cortas, sin
 // mayusculas de titulo en las frases (solo en los rotulos de menu y botones,

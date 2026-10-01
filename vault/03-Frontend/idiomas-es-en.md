@@ -192,30 +192,125 @@ ninguno menciona otra divisa. Más dos guardias que recorren **todo `apps/web`**
 > [[preguntas-abiertas]]: si de verdad hay una sola moneda, ese selector y esos
 > `default` sobran; si no la hay, `formatearDinero` tendrá que recibirla.
 
-## 8 · Los mensajes de error del SERVIDOR siguen en español
+## 8 · Los mensajes de error del SERVIDOR (I18N-05, 2026-09-30)
 
-**Dicho a propósito, no olvidado.** Ver el porqué y la cuenta en
-[[02-Backend/_indice]] y abajo:
+> [!success] Ya NO se quedan en español
+> En la primera entrega quedaron fuera a sabiendas. El dueño decidió el
+> **2026-09-30** que entran, y entraron.
 
-- El embudo es `respuestaError(e)` (`lib/server/errores.ts`, **archivo de alto
-  contacto**), con **137 llamadas**, y **no recibe la petición**.
-- Los textos se construyen **en el sitio donde se lanzan**: hay **253
-  `new AppError(...)` en 42 archivos**, cada uno con su frase en español.
-- Y **11 archivos de prueba** afirman ese texto exacto.
+### Dónde se traduce, y por qué ahí
 
-O sea: es un lote propio, y grande. Lo que sí se hizo es dejar el camino:
-`next/headers` **sí** está disponible dentro de `respuestaError()` (es
-request-scoped), así que el día que se haga no hace falta cambiar 137 firmas.
+En **`respuestaError()`** (`lib/server/errores.ts`, **archivo de alto contacto**
+— ver [[02-Backend/_indice]]) — el **único embudo** por donde salen los
+**253 `new AppError(...)`** de los 42 archivos. El catálogo va del **español
+canónico al inglés** (`lib/i18n/errores-servidor.ts`).
 
-**Consecuencia honesta, y hay que saberla:** un usuario con la interfaz en
-inglés verá el formulario en inglés y, **si algo falla del lado del servidor, el
-mensaje en español**. Justo en el peor momento.
+Es el único cambio funcional en ese archivo: cuatro llamadas envueltas en
+`alIdiomaDelCliente()`. Nada más se tocó.
 
-Lo que sí quedó cubierto es lo que valida **el navegador** antes de enviar: la
-regla de contraseña y la del correo. `lib/password.ts` ganó
-**`motivoPassword()`**, que devuelve un **código** (`'corta'`, `'sin-letra'`,
-`'sin-numero'`, `'con-espacios'`); `validarPassword()` no cambió ni de firma ni
-de texto y sigue sirviendo al servidor, que no tiene idioma.
+**El español es la FUENTE y no se tocó ni una letra.** `traducirError(m, 'es')`
+devuelve `m` idéntico, así que este lote **no puede alterar ninguna respuesta de
+las de hoy** — y por eso los **once archivos de prueba que afirman el texto
+exacto en español siguen en verde sin tocarse**. Esa red es justo lo que impide
+que, al traducir, se cambie lo que un error *dice*.
+
+### «Pero si en §5 dice que la frase no se usa de clave»
+
+Cierto, y sigue siendo cierto para la interfaz. Lo que hace peligroso ese patrón
+**no es la frase: es el SILENCIO** — se retoca una redacción y la traducción
+queda huérfana sin que nadie se entere.
+
+**Aquí el silencio está quitado.** `errores-servidor.test.ts` recorre el
+repositorio, saca todos los mensajes literales de `new AppError(...)` y exige
+que cada uno esté en el catálogo o declarado en `SIN_TRADUCIR`. Un mensaje
+nuevo, o uno reescrito, **pone la prueba en rojo**.
+
+La otra mitad del motivo es que aquí no se podía elegir: una clave por sitio
+toca **253 lugares** y obliga a reescribir el español.
+
+### La guardia que no se ve, y es la que importa
+
+> [!danger] `cookies()` y `headers()` LANZAN fuera de una petición
+> Medido contra Next 14.2.29 el 30/09:
+> ```
+> Error: `cookies` was called outside a request scope.
+> ```
+>
+> Daba igual mientras el único lector era el layout raíz. Dejó de dar igual con
+> `respuestaError()`, que corre **en el `catch` de cada ruta**: sin guardia, un
+> error nacido en un script o un trabajo de fondo haría que el manejador de
+> errores lanzara **otro** error, y el original se perdería.
+>
+> **El manejador de errores no puede ser una fuente de errores.**
+> `idiomaDeLaPeticion()` (`lib/i18n/servidor.ts`) envuelve las dos lecturas y
+> cae al español. Hay prueba, y es uno de los tres casos negativos.
+
+### La regla de idioma es LA MISMA, y está declarada una sola vez
+
+`resolverIdioma()` en `lib/i18n/idiomas.ts`. La interfaz y los errores leen la
+misma función: `cookie > Accept-Language > español`. **No hay una segunda
+función que decida el idioma** — eso habría sido crear el problema que este
+módulo vino a resolver.
+
+### Lo que NO se traduce, a propósito
+
+> [!warning] Lo que es REGISTRO se queda en español, siempre
+> Un registro escrito en dos idiomas según quién provocó el fallo es un registro
+> **inservible**: quien lo lee después no puede saber si «Not found» y
+> «No encontrado» son el mismo suceso.
+>
+> Se traduce **solo lo que viaja al cliente en el cuerpo de la respuesta**. Los
+> `console.error` de `respuestaError()`, la bitácora de acciones y los
+> expedientes quedan intactos — y sale gratis por construcción, porque este
+> módulo solo lo usa el `NextResponse.json`. **Hay prueba que lo vigila.**
+
+### Cuánto quedó cubierto, medido
+
+De los **251** `new AppError(...)` de producción (los otros 2 están en pruebas):
+
+| | Sitios | |
+|---|---:|---|
+| **Cubiertos con certeza** | **179** | **71 %** |
+| · literales (115 mensajes distintos) | 165 | |
+| · por constante catalogada | 14 | |
+| Dependen del valor en ejecución | 28 | 11 % |
+| **NO cubiertos — plantillas con `${…}`** | **44** | **18 %** |
+
+Los **28** son `e.message`, `motivo`, `r.error`…: se traducen **si** ese texto
+está catalogado, y a menudo lo está (son reenvíos de mensajes que sí figuran).
+La incertidumbre juega a favor, no en contra.
+
+Los **44** son plantillas con interpolación —`Son ${n} archivos y el máximo por
+tanda es ${m}`— y **no las cubre un catálogo de frases**: necesitan claves con
+huecos. **Es el lote siguiente, y está contado.**
+
+El catálogo tiene **142 entradas**: 115 de `new AppError` + 27 del embudo, del
+mapa de Postgres, de los motivos de zod y de las constantes compartidas.
+
+### Detalles que costaron una medición
+
+- **El archivo se generó leyendo el código.** Las claves en español no se
+  tecleron: se extrajeron del árbol y un generador comprobó, una por una, que
+  cada traducción corresponde a un mensaje que de verdad se lanza y que no falta
+  ninguno. **Un typo en el español es una entrada que nunca casa y que no da
+  error** — el fallo más caro que podía tener ese archivo.
+- **Los mensajes partidos en dos literales** (`'...' + '...'`) obligan a juntar
+  los trozos antes de catalogarlos. Guardar solo el primero deja una entrada que
+  no casa nunca. El extractor y la guardia hacen la concatenación.
+- **La guardia tacha los comentarios antes de buscar.** Su primera versión se
+  puso roja por un comentario que decía «115 mensajes de `new AppError('...')`».
+  Es el mismo fallo que este repositorio ya pagó —un `toContain` que casa con un
+  comentario—, esta vez del lado del arnés.
+- **Los mensajes de validación se traducen por PARTES.** `validar()` compone
+  `${Etiqueta}: ${motivo}`, y la combinatoria es campos × motivos. Se parte por
+  el primer `': '` **solo si la izquierda es una etiqueta de campo conocida**; si
+  no, un mensaje normal con dos puntos dentro —y hay varios— se trocearía mal.
+- **Los motivos de zod con un número dentro van por patrón**, no por frase: el
+  número sale del esquema y se conserva.
+- **Las cinco validaciones compartidas** (correo + las cuatro de contraseña)
+  dicen **lo mismo** en inglés vengan del navegador o del servidor, y hay prueba:
+  si divergieran, el usuario vería dos mensajes distintos para el mismo fallo
+  según lo rápido que escriba.
 
 ## 9 · Lo que falta, contado
 
@@ -252,6 +347,18 @@ casi todo:
 Tampoco se comprobó cómo quedan los textos ingleses **en el ancho real** del
 menú lateral («Volume discounts» y «Dayparts and seasons» son más largos que su
 original) ni con el menú colapsado.
+
+**Y de I18N-05 (los errores del servidor), lo que tampoco se vio:**
+
+- **Ninguna de las 142 traducciones la revisó un hablante nativo.** Son correctas
+  en el sentido de que dicen lo mismo, no necesariamente en el de que suenen
+  como las escribiría alguien de allí.
+- **Las e2e no ejercen el idioma**: pasan porque el español es el camino
+  identidad, no porque comprueben la traducción. Ninguna petición de la suite
+  manda `Accept-Language: en` ni la cookie.
+- **Los 28 sitios que dependen del valor en ejecución no se midieron uno por
+  uno**: se sabe que se traducen *si* el texto está catalogado, no cuántos lo
+  están de hecho en cada camino.
 
 ## Enlaces
 

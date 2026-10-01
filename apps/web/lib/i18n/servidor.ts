@@ -30,13 +30,43 @@ import { resolverIdioma, COOKIE_IDIOMA, type Idioma } from './idiomas'
 //  quedaba prerrenderizado fuera de ahi es `app/not-found.tsx`.
 // ============================================================================
 
+//  ─── Y POR QUE VA ENVUELTO EN UN `try` (I18N-05, 2026-09-30) ──────────────
+//
+//  Porque `cookies()` y `headers()` NO devuelven vacio fuera de una peticion:
+//  LANZAN. Medido contra Next 14.2.29 el 2026-09-30:
+//
+//      Error: `cookies` was called outside a request scope.
+//
+//  Daba igual mientras el unico llamador era el layout raiz, que siempre corre
+//  dentro de una peticion. Dejo de dar igual al entrar `respuestaError()`, que
+//  corre EN EL `catch` DE CADA RUTA: sin la guardia, un error lanzado desde un
+//  script, un trabajo de fondo o una prueba haria que el manejador de errores
+//  lanzara OTRO error, y el original —el que de verdad importa— se perderia.
+//
+//  **El manejador de errores no puede ser una fuente de errores.** De ahi que
+//  esto no lance nunca y caiga al espanol, que es lo que se servia antes de
+//  todo esto.
+//
+//  Se capturan las dos lecturas por separado a proposito: si algun dia `cookies`
+//  funcionara y `headers` no (o al reves), se aprovecha la que haya en vez de
+//  tirar las dos.
+function leerSeguro(leer: () => string | null): string | null {
+  try {
+    return leer()
+  } catch {
+    return null
+  }
+}
+
 /**
- * El idioma de esta peticion. Solo se puede llamar desde un Server Component o
- * un route handler.
+ * El idioma de esta peticion.
+ *
+ * Pensado para un Server Component o un route handler. **Fuera de una peticion
+ * no falla**: devuelve el idioma de omision.
  */
 export function idiomaDeLaPeticion(): Idioma {
   return resolverIdioma({
-    cookie: cookies().get(COOKIE_IDIOMA)?.value ?? null,
-    cabecera: headers().get('accept-language'),
+    cookie: leerSeguro(() => cookies().get(COOKIE_IDIOMA)?.value ?? null),
+    cabecera: leerSeguro(() => headers().get('accept-language')),
   })
 }

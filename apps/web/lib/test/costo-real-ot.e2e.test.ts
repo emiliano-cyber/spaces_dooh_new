@@ -55,13 +55,30 @@ const ESTIMACION = 1500
 
 // Un rango que contiene a la OT. Se usa `creado_en` (hoy) como fecha de la OT,
 // así que el rango es el mes en curso completo — `fechaDeOt` cae en él.
+// El mes EN UTC, y no en la hora de la maquina. Es deliberado.
+//
+// Encontrado el 2026-09-30 a las 19:16 locales --o sea, el ultimo dia del mes y
+// despues de las 18:00--: estas seis pruebas estaban en ROJO y no habia nada mal
+// en el codigo que prueban.
+//
+// El mecanismo: la OT se siembra con `now()`, que la base evalua en UTC, y el
+// contenedor del 5433 corre en UTC. A las 19:16 del 30 de septiembre en
+// UTC-6, `now()` ya es el **1 de OCTUBRE**. El rango se calculaba con la hora
+// LOCAL --del 1 al 30 de septiembre--, asi que la OT recien sembrada caia
+// FUERA por unas horas y todos los costos agregaban cero.
+//
+// Lo que lo hace caro es cuando aparece: **solo en las ultimas horas del ultimo
+// dia del mes**, unas seis al mes con UTC-6. El resto del mes pasa en verde, asi
+// que un rojo asi llega sin aviso, en CI, y parece un defecto del costo de la OT
+// --que es trabajo reciente-- cuando no lo es. Costaria un diagnostico entero.
+//
+// La cura es que el rango hable el mismo reloj que la fila: el de la base.
 function mesEnCurso(): { desde: string; hasta: string } {
   const h = new Date()
-  const iso = (d: Date) =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  const iso = (d: Date) => d.toISOString().slice(0, 10)
   return {
-    desde: iso(new Date(h.getFullYear(), h.getMonth(), 1)),
-    hasta: iso(new Date(h.getFullYear(), h.getMonth() + 1, 0)),
+    desde: iso(new Date(Date.UTC(h.getUTCFullYear(), h.getUTCMonth(), 1))),
+    hasta: iso(new Date(Date.UTC(h.getUTCFullYear(), h.getUTCMonth() + 1, 0))),
   }
 }
 const MES = mesEnCurso()

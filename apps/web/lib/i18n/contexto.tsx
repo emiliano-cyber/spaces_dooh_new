@@ -27,11 +27,15 @@ import { formatearDinero, formatearDineroRedondo, formatearFecha, formatearNumer
 //  navegador. La precedencia esta en `idiomas.ts` y es
 //  `cookie > Accept-Language > espanol`.
 //
-//  OJO CON LO QUE ESTO IMPLICA Y NO SE HA DECIDIDO: una cookie es POR
-//  NAVEGADOR, no por persona. Quien elija ingles en su portatil seguira viendo
-//  espanol en su telefono. Esta en las PREGUNTAS PARA EL DUENO, porque hacerlo
-//  por persona significa una columna nueva en `usuarios` y ninguna migracion
-//  aterriza sin que el la apruebe.
+//  POR DISPOSITIVO, Y ESTA DECIDIDO ASI. Una cookie vive en un navegador, no en
+//  una persona: quien elija ingles en su portatil seguira viendo espanol en su
+//  telefono. **Lo decidio el dueno el 2026-09-30**, y con eso se cierran dos
+//  cosas de golpe: no hace falta columna nueva en `usuarios` —o sea NINGUNA
+//  migracion— y desaparece la pregunta de quien manda cuando la cuenta dice una
+//  cosa y el navegador otra, porque la cuenta no opina.
+//
+//  **No se vuelve a preguntar.** Si algun dia se quiere por persona, eso SI es
+//  una migracion y la aprueba el dueno antes de escribirla.
 //
 //  ─── POR QUE `router.refresh()` Y NO UNA RECARGA ───────────────────────────
 //
