@@ -1,8 +1,10 @@
 # ADR 0042: La calculadora de spots da la CANTIDAD; el precio sigue siendo el de la pantalla
 
 - **Fecha:** 2026-10-01
-- **Estado:** Propuesta — decisiones de negocio tomadas por el dueño el 01/10; falta aprobar
-  las columnas y confirmar quién pone la prima del Roadblock.
+- **Estado:** Aceptada (2026-10-01). El dueño aprobó las cuatro columnas de
+  `propuesta_items` tal como se proponen abajo, y confirmó que la prima del Roadblock la pone
+  **solo** `comercial.aprobar` (Gerente de ventas y superiores). Antes decía «Propuesta —
+  falta aprobar las columnas y confirmar quién pone la prima».
 - **Relacionado:** [ADR 0039](0039-la-cadena-de-precio-del-spot.md) (la cadena de precio),
   [ADR 0040](0040-roles-de-venta-y-la-autorizacion-de-descuentos.md) (que dejó «la
   calculadora de precio de spot» **bloqueada por falta de la lógica**), y la tarifa calculada
@@ -73,13 +75,15 @@ Las decisiones de negocio son del dueño, textuales del 2026-10-01:
    - Compra **todos** los espacios del loop en las horas elegidas, así que exige que estén
      todos libres.
    - Su precio es el de esos spots más un **% de prima** capturado en esa línea.
-   - **Supuesto por confirmar:** la prima solo la pone `comercial.aprobar` (Gerente de ventas y
-     superiores), por la regla del 2026-10-01 de que solo ellos se apartan de la tarifa.
+   - **Confirmado por el dueño el 2026-10-01:** la prima solo la pone `comercial.aprobar`
+     (Gerente de ventas y superiores), por la regla del mismo día de que solo ellos se apartan
+     de la tarifa. Un vendedor sí puede marcar un Roadblock, con la prima en 0.
 6. **Una sola copia de las fórmulas**, en un módulo puro (`lib/calculadora-spots.ts`) que usan
    la pantalla y el servidor. El servidor **recalcula la cantidad** a partir de los parámetros
    guardados y rechaza una línea cuya cantidad no cuadre, igual que con la tarifa.
 
-**Columnas que hacen falta** en `propuesta_items` (pendientes de aprobación):
+**Columnas que hacen falta** en `propuesta_items` (aprobadas por el dueño el 2026-10-01,
+migración `db/migrations/20261007_calculadora_spots.sql`):
 
 | Columna | Tipo | Para qué |
 |---|---|---|
