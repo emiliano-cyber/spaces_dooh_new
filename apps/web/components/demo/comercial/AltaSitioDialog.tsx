@@ -113,7 +113,7 @@ export function AltaSitioDialog({
           <Button variant="secondary" size="sm" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button size="sm" disabled={!valido || enviando} onClick={submit}>
+          <Button variant="success" size="sm" disabled={!valido || enviando} onClick={submit}>
             {enviando ? 'Creando…' : 'Crear pantalla'}
           </Button>
         </div>

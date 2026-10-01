@@ -65,7 +65,7 @@ export function LicenciasCard({
         <h4 className="flex items-center gap-1.5 text-[13px] font-medium text-ink">
           <ShieldCheck className="h-4 w-4 text-muted" /> Licencias y permisos
         </h4>
-        <Button variant="secondary" className="h-7 px-2 text-[12px]" onClick={() => setAbrir(true)}>
+        <Button variant="success" className="h-7 px-2 text-[12px]" onClick={() => setAbrir(true)}>
           <Plus className="h-3.5 w-3.5" /> Agregar
         </Button>
       </div>

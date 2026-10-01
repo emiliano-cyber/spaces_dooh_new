@@ -1014,7 +1014,7 @@ function ModalidadesDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
                 <option key={u} value={u} className="capitalize">{u}</option>
               ))}
             </select>
-            <Button variant="secondary" size="sm" onClick={anadir} disabled={!porAnadir}>
+            <Button variant="success" size="sm" onClick={anadir} disabled={!porAnadir}>
               Añadir
             </Button>
           </div>

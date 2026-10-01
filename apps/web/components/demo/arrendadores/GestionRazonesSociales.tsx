@@ -205,7 +205,7 @@ export function GestionRazonesSociales({
                 <div className="flex items-center justify-between gap-2 border-b border-border bg-surface-2 px-3 py-2">
                   <span className="text-[13px] font-medium text-ink">{a.nombre}</span>
                   {puedeEditar && creandoEn !== a.id && (
-                    <Button size="sm" variant="secondary" onClick={() => abrirAlta(a.id)}>
+                    <Button size="sm" variant="success" onClick={() => abrirAlta(a.id)}>
                       <Plus className="h-3.5 w-3.5" /> Agregar
                     </Button>
                   )}

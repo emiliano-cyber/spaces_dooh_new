@@ -341,7 +341,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
 
           {/* Acciones de estatus (solo edición) */}
           {puedeEditar && p.estatus === 'BORRADOR' && (
-            <Button size="sm" variant="secondary" onClick={() => cambiar('ENVIADA')}><Send className="h-3.5 w-3.5" /> Enviar</Button>
+            <Button size="sm" variant="primary" onClick={() => cambiar('ENVIADA')}><Send className="h-3.5 w-3.5" /> Enviar</Button>
           )}
           {puedeEditar && (p.estatus === 'ENVIADA' || p.estatus === 'BORRADOR') && (
             <>

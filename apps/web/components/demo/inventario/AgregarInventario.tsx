@@ -42,10 +42,10 @@ export function AgregarInventario() {
             del diálogo de carga masiva, que se quitó: pedía entrar a "importar"
             para descubrir que también se podía dar de alta una sola. */}
         <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => setNuevaOpen(true)}>
+          <Button variant="success" onClick={() => setNuevaOpen(true)}>
             <PackagePlus className="h-4 w-4" /> Alta manual
           </Button>
-          <Button onClick={() => setImportOpen(true)}>
+          <Button variant="success" onClick={() => setImportOpen(true)}>
             <PackagePlus className="h-4 w-4" /> Carga masiva
           </Button>
         </div>

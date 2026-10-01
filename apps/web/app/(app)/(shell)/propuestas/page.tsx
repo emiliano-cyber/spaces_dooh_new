@@ -82,7 +82,7 @@ export default function PropuestasPage() {
           <p className="mt-1 text-[13px] text-muted">Cotizaciones con método del divisor (bruto / neto)</p>
         </div>
         {puedeEditar && (
-          <Button size="sm" onClick={() => setNuevoOpen(true)}>
+          <Button variant="success" size="sm" onClick={() => setNuevoOpen(true)}>
             <Plus className="h-3.5 w-3.5" /> Nueva propuesta
           </Button>
         )}
@@ -290,7 +290,7 @@ function PropuestaCard({
             {puedeEditar && (
               <div className="flex flex-wrap gap-2">
                 {p.estatus === 'BORRADOR' && (
-                  <Button size="sm" variant="secondary" onClick={() => cambiar('ENVIADA')}><Send className="h-3.5 w-3.5" /> Enviar</Button>
+                  <Button size="sm" variant="primary" onClick={() => cambiar('ENVIADA')}><Send className="h-3.5 w-3.5" /> Enviar</Button>
                 )}
                 {(p.estatus === 'ENVIADA' || p.estatus === 'BORRADOR') && (
                   <>
@@ -715,7 +715,7 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
           )}
           <div className="flex gap-2">
             <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
-            <Button size="sm" disabled={!valido || guardando} onClick={guardar}>
+            <Button variant="success" size="sm" disabled={!valido || guardando} onClick={guardar}>
               {guardando ? 'Guardando…' : 'Crear propuesta'}
             </Button>
           </div>

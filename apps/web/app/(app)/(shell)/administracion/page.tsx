@@ -121,7 +121,7 @@ function Usuarios({ onToast }: { onToast: (m: string) => void }) {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="inline-flex items-center gap-2"><Users className="h-4 w-4 text-muted" /> Equipo</CardTitle>
-        <Button size="sm" onClick={() => setInvOpen(true)}><UserPlus className="h-3.5 w-3.5" /> Invitar usuario</Button>
+        <Button variant="success" size="sm" onClick={() => setInvOpen(true)}><UserPlus className="h-3.5 w-3.5" /> Invitar usuario</Button>
       </CardHeader>
       <CardContent className="px-0 pb-0">
         {!usuarios ? (
@@ -430,7 +430,7 @@ function InvitarModal({ open, onOpenChange, onInvitado }: { open: boolean; onOpe
 
   return (
     <Modal open={open} onOpenChange={onOpenChange} title="Crear usuario" subtitle={conGoogle ? 'Entrará con su cuenta de Google' : 'Define su acceso y contraseña'}
-      footer={<div className="flex justify-end gap-2"><Button variant="secondary" size="sm" onClick={() => onOpenChange(false)}>Cancelar</Button><Button size="sm" disabled={!valido || enviando} onClick={enviar}>{enviando ? 'Creando…' : 'Crear usuario'}</Button></div>}>
+      footer={<div className="flex justify-end gap-2"><Button variant="success" size="sm" onClick={() => onOpenChange(false)}>Cancelar</Button><Button size="sm" disabled={!valido || enviando} onClick={enviar}>{enviando ? 'Creando…' : 'Crear usuario'}</Button></div>}>
       <div className="space-y-3">
         <Campo label="Nombre"><input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus /></Campo>
         <Campo label="Correo"><input className={inputCls} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="correo@empresa.com" /></Campo>
@@ -846,7 +846,7 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
             <div className="inline-flex items-center gap-1">
               <input type="number" value={nuevoIva} onChange={(e) => setNuevoIva(e.target.value)} placeholder="%"
                 className="h-8 w-20 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent" />
-              <Button size="sm" variant="secondary" onClick={() => {
+              <Button size="sm" variant="success" onClick={() => {
                 const nx = Number(nuevoIva)
                 if (nx >= 0 && !config.ivaTasas.includes(nx)) guardar({ ivaTasas: [...config.ivaTasas, nx].sort((a, b) => a - b) }, `IVA ${nx}% agregado`)
                 setNuevoIva('')
@@ -987,7 +987,7 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
             <div className="inline-flex items-center gap-1">
               <input type="number" value={nuevoPlazo} onChange={(e) => setNuevoPlazo(e.target.value)} placeholder="días"
                 className="h-8 w-20 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent" />
-              <Button size="sm" variant="secondary" onClick={() => {
+              <Button size="sm" variant="success" onClick={() => {
                 const nx = Number(nuevoPlazo)
                 if (nx > 0 && !config.plazosCobranza.includes(nx)) guardar({ plazosCobranza: [...config.plazosCobranza, nx].sort((a, b) => a - b) }, `Plazo ${nx} días agregado`)
                 setNuevoPlazo('')

@@ -527,7 +527,7 @@ export function Captacion() {
             <option value="">Todos los tipos</option>
             {TIPOS_PROSPECTO.map((t) => <option key={t} value={t}>{ETIQUETA_TIPO[t]}</option>)}
           </select>
-          <Button onClick={() => { setErrorForm(null); setForm({ valor: formVacio() }) }}>
+          <Button variant="success" onClick={() => { setErrorForm(null); setForm({ valor: formVacio() }) }}>
             <Plus className="mr-1 h-4 w-4" /> Nuevo prospecto
           </Button>
         </div>

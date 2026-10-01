@@ -690,7 +690,7 @@ export function ContratoWizard({
             // Confirmar REPITE la acción pendiente en vez de armar otra con lo
             // que diga el formulario ahora. `crear()` vuelve a leerlo entero, así
             // que llamarlo otra vez guardaría algo distinto de lo que se pidió.
-            <Button
+            <Button variant="success"
               size="sm"
               onClick={candado.reautenticando ? () => void candado.reintentar() : crear}
               disabled={

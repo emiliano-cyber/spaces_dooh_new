@@ -10,6 +10,7 @@ import {
 } from '@/lib/data/paquetes-api'
 import { motivoPaqueteInvalido, repartirPaquete } from '@/lib/paquete'
 import { useSitios } from '@/lib/data/client'
+import { Button } from '@/components/demo/ui/Button'
 
 // ============================================================================
 //  El CATÁLOGO DE PAQUETES CERRADOS de la organización. ADR 0039, Fase 4.
@@ -212,14 +213,16 @@ export function GestionPaquetes() {
                   >
                     {p.activo ? 'Desactivar' : 'Activar'}
                   </button>
-                  <button
+                  <Button
                     type="button"
                     onClick={() => void eliminar(p.id)}
-                    className="inline-flex items-center gap-1 text-xs text-red-700 hover:underline"
+                    size="sm"
+                    variant="ghost"
+                    className="text-error hover:text-error"
                     title="Eliminar: ninguna venta se mueve, porque su precio ya está copiado en cada propuesta. Lo que se pierde es saber de qué paquete salió."
                   >
                     <Trash2 className="h-3.5 w-3.5" /> Eliminar
-                  </button>
+                  </Button>
                 </td>
               </tr>
             ))}
@@ -264,13 +267,14 @@ export function GestionPaquetes() {
             />
             Admite código promocional encima
           </label>
-          <button
+          <Button
             type="button"
             onClick={() => void anadir()}
-            className="inline-flex items-center gap-1 rounded border px-2 py-1 text-xs font-medium hover:bg-neutral-50"
+            size="sm"
+            variant="success"
           >
             <Plus className="h-3.5 w-3.5" /> Crear paquete
-          </button>
+          </Button>
         </div>
 
         <div className="mt-3">

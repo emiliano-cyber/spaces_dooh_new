@@ -13,6 +13,7 @@ import {
   type TemporadaUI,
 } from '@/lib/data/rejilla-api'
 import { motivoFranjaInvalida, motivoTemporadaInvalida } from '@/lib/rejilla'
+import { Button } from '@/components/demo/ui/Button'
 
 // ============================================================================
 //  El catálogo de FRANJAS y TEMPORADAS de la organización. ADR 0039, Fase 1.
@@ -144,14 +145,16 @@ export function GestionRejilla() {
                 <td>{f.orden}</td>
                 <td className="text-right">
                   {f.activo && (
-                    <button
+                    <Button
                       type="button"
                       onClick={() => void darDeBaja('franja', f.id)}
-                      className="inline-flex items-center gap-1 text-xs text-red-700 hover:underline"
+                      size="sm"
+                      variant="ghost"
+                      className="text-error hover:text-error"
                       title="Dar de baja: deja de ofrecerse, y lo ya contratado sigue en pie"
                     >
                       <Trash2 className="h-3.5 w-3.5" /> Dar de baja
-                    </button>
+                    </Button>
                   )}
                 </td>
               </tr>
@@ -194,13 +197,14 @@ export function GestionRejilla() {
                 />
               </td>
               <td className="text-right">
-                <button
+                <Button
                   type="button"
                   onClick={() => void anadirFranja()}
-                  className="inline-flex items-center gap-1 text-xs font-medium hover:underline"
+                  size="sm"
+                  variant="success"
                 >
                   <Plus className="h-3.5 w-3.5" /> Añadir
-                </button>
+                </Button>
               </td>
             </tr>
           </tbody>
@@ -238,13 +242,15 @@ export function GestionRejilla() {
                 <td>{t.hasta}</td>
                 <td className="text-right">
                   {t.activo && (
-                    <button
+                    <Button
                       type="button"
                       onClick={() => void darDeBaja('temporada', t.id)}
-                      className="inline-flex items-center gap-1 text-xs text-red-700 hover:underline"
+                      size="sm"
+                      variant="ghost"
+                      className="text-error hover:text-error"
                     >
                       <Trash2 className="h-3.5 w-3.5" /> Dar de baja
-                    </button>
+                    </Button>
                   )}
                 </td>
               </tr>
@@ -278,13 +284,14 @@ export function GestionRejilla() {
                 />
               </td>
               <td className="text-right">
-                <button
+                <Button
                   type="button"
                   onClick={() => void anadirTemporada()}
-                  className="inline-flex items-center gap-1 text-xs font-medium hover:underline"
+                  size="sm"
+                  variant="success"
                 >
                   <Plus className="h-3.5 w-3.5" /> Añadir
-                </button>
+                </Button>
               </td>
             </tr>
           </tbody>

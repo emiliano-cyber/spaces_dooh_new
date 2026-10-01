@@ -305,7 +305,7 @@ export function GestionEntidadesFiscales({
       )}
 
       {puedeEditar && !creando && !editando && (
-        <Button size="sm" onClick={abrirAlta}>
+        <Button variant="success" size="sm" onClick={abrirAlta}>
           <Plus className="h-3.5 w-3.5" /> Nueva razón social
         </Button>
       )}
@@ -385,7 +385,7 @@ export function GestionEntidadesFiscales({
                       ) : (
                         <Button
                           size="sm"
-                          variant="secondary"
+                          variant="danger"
                           disabled={ocupado}
                           onClick={() => darDeBaja(e)}
                         >

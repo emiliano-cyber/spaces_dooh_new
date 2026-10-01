@@ -50,7 +50,7 @@ export default function ClientesPage() {
           <p className="mt-1 text-[13px] text-muted">Catálogo de clientes y sus datos fiscales</p>
         </div>
         {puedeEditar && (
-          <Button size="sm" onClick={() => setNuevoOpen(true)}>
+          <Button variant="success" size="sm" onClick={() => setNuevoOpen(true)}>
             <Plus className="h-3.5 w-3.5" /> Nuevo cliente
           </Button>
         )}
@@ -195,7 +195,7 @@ function BorrarClienteDialog({ cliente, onClose }: { cliente: Cliente; onClose: 
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
-          <Button
+          <Button variant="danger"
             size="sm"
             disabled={enviando || (reautenticando && !pass)}
             onClick={() => borrar(!!aviso)}

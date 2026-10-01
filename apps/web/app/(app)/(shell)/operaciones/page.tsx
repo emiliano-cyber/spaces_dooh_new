@@ -93,7 +93,7 @@ export default function OperacionesPage() {
           <p className="mt-1 text-[13px] text-muted">Tareas de cuadrilla · seguimiento de campo</p>
         </div>
         {puedeCrear && (
-          <Button size="sm" onClick={() => setNuevaOpen(true)}>
+          <Button variant="success" size="sm" onClick={() => setNuevaOpen(true)}>
             <Plus className="h-3.5 w-3.5" /> Nueva OT
           </Button>
         )}
@@ -349,7 +349,7 @@ function NuevaOTModal({
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="secondary" size="sm" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button size="sm" disabled={!descripcion.trim() || !fechaProg || enviando} onClick={crear}>
+          <Button variant="success" size="sm" disabled={!descripcion.trim() || !fechaProg || enviando} onClick={crear}>
             {enviando ? 'Creando…' : 'Crear OT'}
           </Button>
         </div>

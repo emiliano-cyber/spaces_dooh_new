@@ -193,10 +193,10 @@ export default function ArrendadoresPage() {
         </div>
         {puedeCrear && (
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="secondary" onClick={() => setNuevoOpen(true)}>
+            <Button size="sm" variant="success" onClick={() => setNuevoOpen(true)}>
               <Plus className="h-3.5 w-3.5" /> Nuevo arrendador
             </Button>
-            <Button size="sm" onClick={() => setContratoOpen(true)}>
+            <Button variant="success" size="sm" onClick={() => setContratoOpen(true)}>
               <FileSignature className="h-3.5 w-3.5" /> Nuevo contrato
             </Button>
           </div>
@@ -1135,7 +1135,7 @@ function BajaPropietarioDialog({
           <Button variant="secondary" size="sm" onClick={onClose}>
             Cancelar
           </Button>
-          <Button
+          <Button variant="danger"
             size="sm"
             disabled={enviando || (reautenticando && !pass)}
             onClick={darDeBaja}

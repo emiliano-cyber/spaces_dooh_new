@@ -187,7 +187,7 @@ export default function ComercialPage() {
           <p className="mt-1 text-[13px] text-muted">Tu red en el mapa · {conteo(filtrados.length, 'sitio')}</p>
         </div>
         {puedeCrear && (
-          <Button size="sm" onClick={() => setAltaOpen(true)}>
+          <Button variant="success" size="sm" onClick={() => setAltaOpen(true)}>
             <Plus className="h-3.5 w-3.5" /> Nueva pantalla
           </Button>
         )}

@@ -215,7 +215,7 @@ function NuevaOrganizacion({ onCreada }: { onCreada: () => void }) {
   if (!abierto) {
     return (
       <div className="mb-3">
-        <Button size="sm" onClick={() => setAbierto(true)}>
+        <Button variant="success" size="sm" onClick={() => setAbierto(true)}>
           <Plus className="h-3.5 w-3.5" /> Nueva organización
         </Button>
       </div>
@@ -266,7 +266,7 @@ function NuevaOrganizacion({ onCreada }: { onCreada: () => void }) {
 
       <div className="flex justify-end gap-2 pt-0.5">
         <Button size="sm" variant="secondary" onClick={() => { setAbierto(false); setError(null) }}>Cancelar</Button>
-        <Button size="sm" disabled={!valido || enviando} onClick={crear}>
+        <Button variant="success" size="sm" disabled={!valido || enviando} onClick={crear}>
           {enviando ? 'Creando…' : 'Crear organización'}
         </Button>
       </div>

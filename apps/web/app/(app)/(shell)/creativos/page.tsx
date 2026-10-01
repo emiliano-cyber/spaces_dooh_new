@@ -432,7 +432,7 @@ function CampanaCard({
           <div className="flex shrink-0 gap-2">
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile} />
             <input ref={reemplazarRef} type="file" accept="image/*" className="hidden" onChange={onReemplazoFile} />
-            <Button size="sm" disabled={subiendo} onClick={() => fileRef.current?.click()}>
+            <Button variant="success" size="sm" disabled={subiendo} onClick={() => fileRef.current?.click()}>
               <Upload className="h-3.5 w-3.5" /> Imagen
             </Button>
             <Button size="sm" variant="secondary" disabled={subiendo} onClick={() => setCodeOpen((v) => !v)}>

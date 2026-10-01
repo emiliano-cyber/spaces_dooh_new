@@ -54,7 +54,7 @@ export default function ComisionesPage() {
             <CardTitle>Agencias y su comisión</CardTitle>
           </div>
           {puede && (
-            <Button size="sm" onClick={() => setNuevaOpen(true)}>
+            <Button variant="success" size="sm" onClick={() => setNuevaOpen(true)}>
               <Plus className="h-3.5 w-3.5" /> Nueva agencia
             </Button>
           )}
@@ -167,7 +167,7 @@ function NuevaAgenciaDialog({ onClose }: { onClose: () => void }) {
           {error ? <span className="text-[12px] text-error">{error}</span> : <span />}
           <div className="flex gap-2">
             <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
-            <Button size="sm" disabled={!nombre.trim() || guardando} onClick={guardar}>
+            <Button variant="success" size="sm" disabled={!nombre.trim() || guardando} onClick={guardar}>
               {guardando ? 'Guardando…' : 'Crear agencia'}
             </Button>
           </div>
@@ -288,7 +288,7 @@ function AgenciaRow({
               <ShieldAlert className="h-3.5 w-3.5" /> Sin validar
             </span>
             {puede && (
-              <Button size="sm" variant="secondary" disabled={busy} onClick={() => guardar({ negociacionValidada: true })}>
+              <Button size="sm" variant="primary" disabled={busy} onClick={() => guardar({ negociacionValidada: true })}>
                 <Handshake className="h-3.5 w-3.5" /> Validar
               </Button>
             )}

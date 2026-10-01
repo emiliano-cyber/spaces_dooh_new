@@ -10,6 +10,7 @@ import {
 } from '@/lib/data/volumen-api'
 import { motivoTramoInvalido } from '@/lib/volumen'
 import { UNIDADES, unidadCorta } from '@/lib/periodos'
+import { Button } from '@/components/demo/ui/Button'
 
 // ============================================================================
 //  La ESCALA DE DESCUENTO POR VOLUMEN de la organización. ADR 0039, Fase 2.
@@ -146,14 +147,16 @@ export function GestionVolumen() {
                 </td>
                 <td>{t.descuentoPct} %</td>
                 <td className="text-right">
-                  <button
+                  <Button
                     type="button"
                     onClick={() => void eliminar(t.id)}
-                    className="inline-flex items-center gap-1 text-xs text-red-700 hover:underline"
+                    size="sm"
+                    variant="ghost"
+                    className="text-error hover:text-error"
                     title="Eliminar: deja de aplicarse a partir de ahora. Lo ya cotizado y lo ya aprobado no se mueven."
                   >
                     <Trash2 className="h-3.5 w-3.5" /> Eliminar
-                  </button>
+                  </Button>
                 </td>
               </tr>
             ))}
@@ -198,13 +201,14 @@ export function GestionVolumen() {
                 />
               </td>
               <td className="text-right">
-                <button
+                <Button
                   type="button"
                   onClick={() => void anadir()}
-                  className="inline-flex items-center gap-1 text-xs font-medium hover:underline"
+                  size="sm"
+                  variant="success"
                 >
                   <Plus className="h-3.5 w-3.5" /> Añadir tramo
-                </button>
+                </Button>
               </td>
             </tr>
           </tbody>

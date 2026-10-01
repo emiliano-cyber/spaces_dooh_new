@@ -7,6 +7,30 @@ La entrada más reciente va arriba.
 
 ## 2026-09-30
 
+- **Los colores de los botones ya siguen tu regla en todas las pantallas.**
+  *(Pedido tuyo del 30/09: «lo de los colores de los botones deben de estar en
+  toda la página».)* Ahora, en cualquier parte de la aplicación:
+  - **Verde** es para añadir algo nuevo: «Nuevo cliente», «Nueva propuesta»,
+    «Nueva OT», «Nuevo arrendador», «Agregar», «+ Añadir», «Crear paquete»,
+    «Crear usuario», «Invitar usuario» y los demás del mismo tipo.
+  - **Azul** es para asignar, aceptar o confirmar: «Guardar», «Aplicar»,
+    «Aprobar», «Enviar», «Programar», «Validar».
+  - **Rojo** es para quitar o dar de baja: «Eliminar», «Dar de baja», «Borrar»,
+    «Rechazar».
+  - Cancelar, cerrar y volver se quedan en gris.
+
+  En Franjas y temporadas, Descuentos por volumen y Paquetes cerrados, los
+  «+ Añadir» y «Crear paquete» eran un texto subrayado y ahora son un botón
+  verde de verdad, y «Eliminar» / «Dar de baja» son botones rojos. En
+  Validación de campañas, «Aprobar publicación» era verde y pasa a azul, porque
+  aprobar es aceptar, no añadir. No cambia lo que hace ningún botón: solo su
+  color.
+
+  Quedaron igual a propósito los botones que no son una acción de este tipo:
+  pestañas y filtros, flechas de página, botones de solo icono (el bote de
+  basura, la «×» de cerrar), las descargas a Excel/CSV, el menú, y la pantalla
+  de códigos de recuperación, que tiene un diseño propio aparte.
+
 - **La pantalla de Códigos promocionales tiene un diseño nuevo, igual al de
   Paquetes cerrados.** *(Pedido tuyo del 30/09.)* Cada código lleva una etiqueta
   de color con su estado (**Vigente**, **Próximo**, **Vencido** o **Agotado**) y

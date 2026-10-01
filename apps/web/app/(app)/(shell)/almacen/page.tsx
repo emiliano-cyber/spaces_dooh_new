@@ -94,7 +94,7 @@ export default function AlmacenPage() {
           </div>
         </div>
         {puedeEditar && (
-          <Button size="sm" onClick={() => setAltaOpen(true)}><Plus className="h-3.5 w-3.5" /> Registrar artículo</Button>
+          <Button variant="success" size="sm" onClick={() => setAltaOpen(true)}><Plus className="h-3.5 w-3.5" /> Registrar artículo</Button>
         )}
       </div>
 

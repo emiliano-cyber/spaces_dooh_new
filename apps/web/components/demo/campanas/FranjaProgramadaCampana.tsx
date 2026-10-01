@@ -10,6 +10,7 @@ import {
   type FranjaProgramacionUI,
 } from '@/lib/data/programacion-api'
 import { etiquetaFranja } from '@/lib/franja-programada'
+import { Button } from '@/components/demo/ui/Button'
 
 // ============================================================================
 //  El horario de transmisión de UNA campaña: verlo y cambiarlo.   PROG-01.
@@ -134,14 +135,14 @@ export function FranjaProgramadaCampana({ campanaId }: { campanaId: string }) {
                   </option>
                 ))}
               </select>
-              <button
+              <Button
                 type="button"
                 disabled={ocupado || eleccion === (campana.franjaProgramadaId ?? '')}
                 onClick={() => void guardar()}
-                className="rounded border px-2 py-1 text-[12px] font-medium hover:bg-surface-2 disabled:opacity-50"
+                size="sm"
               >
                 Guardar
-              </button>
+              </Button>
             </div>
             )}
 

@@ -82,7 +82,7 @@ export function AgregarCreativo({ campanaId }: { campanaId: string }) {
     <div className="space-y-2">
       <div className="flex gap-2">
         <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile} />
-        <Button size="sm" disabled={subiendo} onClick={() => fileRef.current?.click()}>
+        <Button variant="success" size="sm" disabled={subiendo} onClick={() => fileRef.current?.click()}>
           <Upload className="h-3.5 w-3.5" /> Imagen
         </Button>
         <Button size="sm" variant="secondary" disabled={subiendo} onClick={() => setCodeOpen((v) => !v)}>

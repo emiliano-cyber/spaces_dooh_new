@@ -342,13 +342,35 @@ hereda el bloqueo del doble clic (A5 / INC-07).
 oscuro en `tailwind.config.ts`, la variante `success` es el único sitio que hay
 que cambiar.
 
-> [!warning] Al 2026-09-30 la regla está aplicada en **Códigos promocionales**
-> y en la variante nueva del botón, NO en toda la aplicación. Muchas pantallas
-> —Franjas y temporadas, Descuentos por volumen, Paquetes cerrados, entre
-> otras— todavía tienen «+ Añadir» o «Crear» como enlace de texto o botón
-> neutro. **Al tocar una pantalla, se ajustan sus botones a esta tabla en el
-> mismo cambio.** Un barrido de todas a la vez es otra tarea, y hay que
-> pedirla.
+> [!warning] Desde el 2026-09-30 la regla está aplicada en TODA la aplicación
+> Pedido del dueño ese mismo día: «lo de los colores de los botones deben de
+> estar en toda la página». Barrido de `app/(app)` y `components/` (rama
+> `feat/botones-colores`). El criterio que se siguió, para que el siguiente lo
+> repita igual:
+>
+> - **Verde (`success`)**: el botón que abre o dispara un alta —«+ Nuevo …»,
+>   «Agregar», «Añadir», «Invitar usuario», «Alta manual», «Carga masiva»— y
+>   el envío de un formulario cuya etiqueta dice literalmente **Crear**
+>   («Crear usuario», «Crear OT», «Crear paquete»…).
+> - **Azul (`primary`)**: todo lo demás que confirma —«Guardar»,
+>   «Registrar», «Aplicar», «Aprobar», «Enviar», «Validar», «Programar»,
+>   «Abrir ticket», «Generar…»—. Un envío que no dice «Crear» va en azul
+>   aunque dé de alta un registro: se clasifica por la ETIQUETA, no por la
+>   tabla que toca.
+> - **Rojo**: la confirmación de una baja o un borrado va en `danger`; el
+>   «Eliminar» / «Dar de baja» de una fila, en `ghost` con `text-error`.
+>
+> Se dejaron FUERA a propósito, por categoría: pestañas, filtros y controles
+> segmentados (Tarifa/Renta, Fijar/Ajustar, Existente/Nuevo); paginación y
+> flechas; botones de solo icono (bote de basura, «×», lápiz); acordeones y
+> cabeceras de orden; menú y barra superior; descargas Excel/CSV; las
+> herramientas del mapa; los botones `doc-btn` de los documentos imprimibles
+> y de firma (estilo propio de papel); la pantalla de
+> `codigos-recuperacion`, que va con estilos en línea del navegador; y los
+> botones que abren o pliegan un formulario sin ser ellos el alta
+> («Código» en Creativos, «Cambiarla / Asignar contraseña»). Los casos
+> dudosos quedaron neutros, y **al tocar una pantalla se ajustan sus botones a
+> esta tabla en el mismo cambio**.
 
 ## Nombres
 

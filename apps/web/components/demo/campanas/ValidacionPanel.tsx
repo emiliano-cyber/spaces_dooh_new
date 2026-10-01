@@ -16,6 +16,7 @@ import { usePuede } from '@/components/demo/shell/SesionContext'
 import { useCampana, useCreatividades, formatFechaHora } from '@/lib/data/client'
 import { enviarADominioApi, validarPublicacionApi, eliminarCreatividadApi } from '@/lib/data/estado-api'
 import type { Creatividad } from '@/lib/data/types'
+import { Button } from '@/components/demo/ui/Button'
 
 // Panel de validación de publicación: se envía la campaña al dominio/CMS y un
 // revisor verifica la información de los anuncios antes de que salga al aire.
@@ -183,33 +184,37 @@ export function ValidacionPanel({ campanaId }: { campanaId: string }) {
       {puede && (
         <div className="mt-3">
           {!c.enviadaDominio ? (
-            <button
+            <Button
               type="button"
               disabled={busy}
               onClick={enviar}
-              className="inline-flex w-full items-center justify-center gap-1.5 rounded border border-border-strong px-3 py-2 text-[12px] font-medium text-ink transition-colors duration-150 hover:bg-surface-2 disabled:opacity-50"
+              size="sm"
+              className="w-full"
             >
               <Send className="h-3.5 w-3.5" />
               {busy ? 'Enviando…' : c.validacionEstatus === 'RECHAZADA' ? 'Corregir y reenviar al dominio' : 'Enviar al dominio'}
-            </button>
+            </Button>
           ) : c.validacionEstatus === 'PENDIENTE' ? (
             <div className="flex gap-2">
-              <button
+              <Button
                 type="button"
                 disabled={busy}
                 onClick={() => (requiereCreativos ? setConfirmarAprobar(true) : validar(true))}
-                className="inline-flex flex-1 items-center justify-center gap-1.5 rounded bg-success px-3 py-2 text-[12px] font-medium text-white transition-opacity duration-150 hover:opacity-90 disabled:opacity-50"
+                size="sm"
+                className="flex-1"
               >
                 <Check className="h-3.5 w-3.5" /> Aprobar publicación
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 disabled={busy}
                 onClick={() => validar(false)}
-                className="inline-flex flex-1 items-center justify-center gap-1.5 rounded border border-[#ef444466] px-3 py-2 text-[12px] font-medium text-error transition-colors duration-150 hover:bg-[#ef44440d] disabled:opacity-50"
+                size="sm"
+                variant="danger"
+                className="flex-1"
               >
                 <X className="h-3.5 w-3.5" /> Rechazar
-              </button>
+              </Button>
             </div>
           ) : null}
         </div>

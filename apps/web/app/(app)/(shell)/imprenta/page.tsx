@@ -67,7 +67,7 @@ export default function ImprentaPage() {
           <p className="mt-1 text-[13px] text-muted">Órdenes de impresión · del arte al montaje</p>
         </div>
         {puedeCrear && (
-          <Button size="sm" onClick={() => setNueva(true)}>
+          <Button variant="success" size="sm" onClick={() => setNueva(true)}>
             <Plus className="h-3.5 w-3.5" /> Nueva orden
           </Button>
         )}
@@ -131,7 +131,7 @@ export default function ImprentaPage() {
                     {puedeCrear && !o.pruebaColorAprobada && (
                       <Button
                         size="sm"
-                        variant="secondary"
+                        variant="primary"
                         onClick={async () => {
                           try { await aprobarPruebaColorApi(o.id, true) } catch (e) { toast.error(e instanceof Error ? e.message : 'Error') }
                         }}
@@ -219,7 +219,7 @@ function NuevaOrdenDialog({ open, onClose }: { open: boolean; onClose: () => voi
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
-          <Button size="sm" disabled={enviando || !campanaId} onClick={guardar}>
+          <Button variant="success" size="sm" disabled={enviando || !campanaId} onClick={guardar}>
             {enviando ? 'Creando…' : 'Crear orden'}
           </Button>
         </div>

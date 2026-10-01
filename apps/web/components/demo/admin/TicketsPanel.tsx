@@ -152,7 +152,7 @@ export function TicketsPanel({ onToast }: { onToast: (m: string) => void }) {
             })()}
 
             {!abierto ? (
-              <Button size="sm" onClick={() => setAbierto(true)}>
+              <Button variant="success" size="sm" onClick={() => setAbierto(true)}>
                 <Plus className="h-3.5 w-3.5" /> Nuevo ticket
               </Button>
             ) : (

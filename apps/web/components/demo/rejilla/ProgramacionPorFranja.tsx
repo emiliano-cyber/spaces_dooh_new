@@ -10,6 +10,7 @@ import {
   type FranjaProgramacionUI,
 } from '@/lib/data/programacion-api'
 import { etiquetaFranja } from '@/lib/franja-programada'
+import { Button } from '@/components/demo/ui/Button'
 
 // ============================================================================
 //  «Horario de transmisión»: junto a cada franja, qué campañas salen en ella.
@@ -196,14 +197,15 @@ export function ProgramacionPorFranja() {
                       )
                     })}
                   </div>
-                  <button
+                  <Button
                     type="button"
                     disabled={ocupado || sel.length === 0}
                     onClick={() => void operar(f.id, sel, () => setMarcadas({ ...marcadas, [f.id]: [] }))}
-                    className="mt-2 rounded border px-2 py-1 font-medium hover:bg-neutral-50 disabled:opacity-50"
+                    size="sm"
+                    className="mt-2"
                   >
                     Programar {sel.length || ''} en {f.nombre}
-                  </button>
+                  </Button>
                 </details>
               )}
             </li>
