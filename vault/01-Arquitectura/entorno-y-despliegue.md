@@ -111,6 +111,14 @@ archivos:
 ---
 # Entorno y despliegue
 
+> [!important] 2026-10-01 · `spaceos.space-os.io` — otro nombre para el PADRE
+> Pedido del dueño. Registro A a la IP del PADRE y bloque 6 de
+> `infra/nginx/space-os.io.conf`: proxy a `spaces_padre` (el 3000), la MISMA app
+> que `space-os.io`. **Sin** el receptor ni el panel de flota, que siguen solo en
+> el ápice. El certificado se amplía ANTES de recargar nginx, sin perder los
+> nombres que ya tiene, por el HSTS con `includeSubDomains`. Google como inicio
+> de sesión en este nombre necesita su URI en Google Cloud.
+
 > [!danger] 2026-10-01 · El PADRE se migra con `spaces_migrador`, NO con `padre.env`
 > `padre.env` es la configuración de la app y entra como `spaces_app`, que **no
 > puede crear tablas** (`permission denied for schema public`). Las tablas de
