@@ -63,7 +63,7 @@ hemos visto una respuesta con datos, así que no se interpreta nada todavía»*.
 > ya no con usuario y contraseña: con la cuenta admin cualquier instancia veía
 > la flota entera, y la RLS de aquí no puede proteger datos que no están en esta
 > base. Las fotos se sirven por `/api/space-eyes/foto` (sin contenido mixto,
-> sin SSRF). `SPACE_EYE_*` ya está en `infra/env/instancia.env.example`, que era
+> sin SSRF). `SPACE_EYE_*` ya está en `infra/env/app.env.example` (el que recibe el contenedor), que era
 > el hueco de abajo.
 >
 > **Fallas y creativos en la ficha** (`PantallaYCreativos.tsx`):

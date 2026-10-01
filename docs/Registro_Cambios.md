@@ -27,7 +27,7 @@ La entrada más reciente va arriba.
   falla o encender la vigilancia se hace en Space Eye.
 
   Para encenderlo en una instalación hacen falta `SPACE_EYE_BASE_URL` y
-  `SPACE_EYE_KEY` (ver `infra/env/instancia.env.example`). Cada instalación ve
+  `SPACE_EYE_KEY` (ver `infra/env/app.env.example`). Cada instalación ve
   **solo los equipos de su empresa**: lo garantiza la llave, no un filtro de
   este lado.
 
