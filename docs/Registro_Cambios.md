@@ -7,6 +7,28 @@ La entrada más reciente va arriba.
 
 ## 2026-10-01
 
+- **Cada versión nueva trae sus notas.** *(Pedido tuyo del 01/10.)* A partir de
+  la versión v0.9.2, cada vez que se instala una versión nueva:
+  - **Todas las personas** que entran ven, **una sola vez**, una ventana «Qué
+    hay de nuevo» con lo que cambió, agrupado en **Nuevo**, **Ajustado** y
+    **Corregido**. Al cerrarla no vuelve a salir para esa versión. Desde ahí
+    pueden abrir **Novedades**, que lista todas las versiones y lo que trajo
+    cada una.
+  - **El Dueño y el Administrador** ven además, en Administración →
+    Actualizaciones, **«Qué trae» la versión disponible** al lado del botón de
+    instalar, para decidir antes de instalarla. Si una versión no trae notas, lo
+    dice: «Esta versión no trae notas».
+  - Ya no se puede publicar una versión sin sus notas: el proceso de publicación
+    se detiene y avisa.
+
+  Una cosa a saber: con **esta** versión, la primera vez, el panel de
+  Actualizaciones todavía no puede enseñar sus notas antes de instalarla (la
+  instancia aún no tiene dónde guardarlas). La ventana de después de instalar sí
+  sale. Desde la siguiente versión, se ven antes y después.
+
+  **Necesita tu visto bueno antes de llegar a `main`:** añade una columna a la
+  base (`notas_disponibles`, en la tabla de actualizaciones de la instancia).
+
 - **Las pantallas digitales que se cargaron con el CSV ya crean campañas
   digitales.** *(Lo encontraste tú en la instancia de pruebas.)* Las pantallas
   cargadas antes del 29/09 con el archivo de carga masiva se veían como digitales

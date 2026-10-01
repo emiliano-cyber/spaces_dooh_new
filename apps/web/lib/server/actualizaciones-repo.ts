@@ -31,12 +31,16 @@ export interface FilaActualizacion {
   migraciones_pendientes: number | null
   comprobado_en: string | Date | null
   aprobado_digest: string | null
+  // `20261005_notas_de_version.sql`. La escribe el actualizador; aqui llega
+  // tal cual (pg ya parsea `jsonb`), y el route la revalida antes de servirla.
+  notas_disponibles: unknown
 }
 
 export async function obtenerFilaActualizacion(): Promise<FilaActualizacion> {
   const fila = await qRaw1<FilaActualizacion>(
     `select modo, version_instalada, digest_instalado, version_disponible,
-            digest_disponible, migraciones_pendientes, comprobado_en, aprobado_digest
+            digest_disponible, migraciones_pendientes, comprobado_en, aprobado_digest,
+            notas_disponibles
        from actualizaciones_instancia
       where id = true`,
   )

@@ -10,7 +10,8 @@ import {
   aprobarActualizacionApi,
   type EstadoActualizacion,
 } from '@/lib/data/actualizaciones-api'
-import { textoDeEstado, textoConfirmarInstalar } from '@/components/demo/admin/actualizaciones-ui'
+import { textoDeEstado, textoConfirmarInstalar, tituloNotasDisponibles } from '@/components/demo/admin/actualizaciones-ui'
+import { NotasDeVersion } from '@/components/demo/novedades/NotasDeVersion'
 
 // ============================================================================
 //  ActualizacionesPanel — ADR 0037: el dueño de la instancia ve qué versión
@@ -193,6 +194,17 @@ export function ActualizacionesPanel({ onToast }: { onToast: (m: string) => void
                 madrugada en cuanto se publica.
               </p>
             </div>
+
+            {/* Que trae la version, AL LADO del boton que la instala (pedido
+                del dueno, 2026-10-01): se decide leyendo esto. Sale con
+                cualquier modo -- en automatica tambien conviene saber que
+                entra de madrugada--, siempre que haya novedad. */}
+            {estado.hayNovedad && (
+              <div className="space-y-2 border-t border-border pt-3">
+                <p className="text-[12px] font-medium text-ink">{tituloNotasDisponibles(estado)}</p>
+                <NotasDeVersion notas={estado.notasDisponibles} />
+              </div>
+            )}
 
             {estado.hayNovedad && estado.modo === 'aprobacion' && estado.aprobadoDigest !== estado.digestDisponible && (
               <Button size="sm" onClick={() => setConfirmOpen(true)}>

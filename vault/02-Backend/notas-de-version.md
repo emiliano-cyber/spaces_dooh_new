@@ -1,6 +1,6 @@
 ---
 tipo: modulo
-estado: en-curso
+estado: verificado
 actualizado: 2026-10-01
 tags: [backend, instancias, despliegue, actualizaciones, novedades]
 archivos:
@@ -13,6 +13,13 @@ archivos:
   - scripts/actualizaciones.mjs
   - infra/scripts/update.sh
   - Dockerfile
+  - apps/web/lib/server/novedades.ts
+  - apps/web/app/api/novedades/route.ts
+  - apps/web/app/api/actualizaciones/route.ts
+  - apps/web/components/demo/novedades/NotasDeVersion.tsx
+  - apps/web/components/demo/shell/NovedadesDeVersion.tsx
+  - apps/web/components/demo/admin/ActualizacionesPanel.tsx
+  - apps/web/app/(app)/(shell)/novedades/page.tsx
 ---
 
 # Notas de versión
@@ -149,6 +156,60 @@ dobla el `docker run` entero y nunca ejecuta el guion node.
 La columna: `20261005_notas_de_version.sql` ([[migraciones]], [[esquema]]).
 **Ningún `grant` nuevo**: el `select` de tabla ya la cubre y el `update` de la
 app es por columna, así que la app la lee y no la puede escribir.
+
+## En la aplicación
+
+### Antes de instalar — el panel de Actualizaciones (Dueño y Administrador)
+
+`ActualizacionesPanel.tsx`, cuando hay novedad: **«Qué trae {versión}»**
+(`tituloNotasDisponibles()`, `actualizaciones-ui.ts`) con las notas agrupadas
+por tipo, **al lado del botón de instalar**. Sin notas: «Esta versión no trae
+notas». Sale en los dos modos — en automática también conviene saber qué entra
+de madrugada. Lo ve quien ve el panel: `GET /api/actualizaciones` exige
+`administracion:ver` (el negativo está en `actualizaciones.e2e.test.ts`).
+
+### Después de instalar — el diálogo, una vez por versión y usuario (todos)
+
+- **De dónde sale la versión:** `SPACE_OS_VERSION`, sellada en la imagen
+  (`Dockerfile`, `ARG VERSION`), leída en cada petición por
+  `GET /api/novedades`. En desarrollo (`NODE_ENV` distinto de `production`), sin
+  versión o con `desconocida` (el valor por omisión del `Dockerfile`):
+  **`null`, y el diálogo no sale nunca** (`versionInstaladaDe()`).
+- **De dónde salen las notas:** el `novedades.json` **empaquetado en el build**,
+  importado **solo** en `lib/server/novedades.ts` (`server-only`). Medido tras
+  `npm run build`: el texto de las notas **no** aparece en `.next/static` (el
+  bundle del navegador), solo en `server/app/api/novedades/route.js`. Importarlo
+  en un componente de cliente lo filtraría a cualquiera sin sesión, y dice qué
+  versión corre la instancia (P6).
+- **`/api/novedades` exige sesión, sin módulo** (`exigir()` a secas): lo ve
+  cualquier rol — la prueba entra con IMPRENTA, sin un permiso de
+  `administracion` — y sin sesión da 401 sin decir la versión
+  (`lib/test/novedades.e2e.test.ts`).
+- **Cuándo sale:** `debeMostrarNovedades()` (`lib/novedades.ts`) — nunca para
+  una versión sin notas, y no si este usuario ya la vio. «Visto» vive en
+  `localStorage`, **por usuario** (`claveVistas()`), con un tope de 20 versiones,
+  y **todo acceso va en `try/catch`**: si el almacenamiento falla, el diálogo
+  vuelve a salir en la próxima carga, que es preferible a no salir nunca. No
+  hay estado por usuario en la base, a propósito.
+- **Se marca visto al cerrar**, de cualquier forma (botón, X, Escape, clic
+  fuera), no al abrir.
+- Montado en `app/(app)/(shell)/layout.tsx`, junto a `SondeoNotificaciones`:
+  todo usuario con sesión pasa por el shell. Botones según la regla de
+  [[convenciones]]: «Entendido» en azul (`primary`, aceptar) y «Ver todas las
+  novedades» neutro (`ghost`, navegar).
+
+### La página «Novedades»
+
+`app/(app)/(shell)/novedades/page.tsx`: todas las versiones del archivo, de la
+más nueva a la más vieja, con la instalada marcada. **Sin entrada en el menú ni
+en `nav.ts`** (alto contacto): una ruta que el NAV no conoce no tiene puerta en
+`AuthGate`, que es justo lo que se quiere — la ve todo rol con sesión. Se llega
+desde el diálogo.
+
+Las tres vistas pintan con **el mismo componente**,
+`components/demo/novedades/NotasDeVersion.tsx` (con prueba de render): orden
+fijo Nuevo → Ajustado → Corregido, sin grupos vacíos, y el texto como texto,
+nunca como HTML.
 
 ## Relacionadas
 [[actualizaciones-instancia]] · [[02-Backend/_indice|Índice de Backend]] ·

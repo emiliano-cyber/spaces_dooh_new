@@ -54,7 +54,8 @@ beforeEach(async () => {
     `update actualizaciones_instancia
         set modo = 'aprobacion', aprobado_digest = null, aprobado_por = null,
             aprobado_en = null, digest_disponible = null, version_disponible = null,
-            digest_instalado = null, version_instalada = null, migraciones_pendientes = null
+            digest_instalado = null, version_instalada = null, migraciones_pendientes = null,
+            notas_disponibles = null
       where id = true`,
   )
 })
@@ -164,5 +165,62 @@ describe('GET/PATCH /api/actualizaciones', () => {
     expect(r.datos.digestDisponible).toBe('sha256:nuevo')
     expect(r.datos.hayNovedad).toBe(true)
     expect(r.datos.modo).toBe('aprobacion')
+  })
+})
+
+// ============================================================================
+//  Las notas de la version disponible (pedido del dueno, 2026-10-01).
+// ----------------------------------------------------------------------------
+//  Las escribe el actualizador en `notas_disponibles` (aqui, el pool ADMIN,
+//  como `sembrarDisponible`). El GET las revalida al leer: lo escribe otro
+//  proceso desde otra imagen, y lo que no sirva se ensena como "sin notas",
+//  nunca como un 500 ni como notas de otra version.
+// ============================================================================
+const NOTAS = { version: 'v0.9.2', fecha: '2026-10-01', items: [{ tipo: 'NUEVO', texto: 'Algo nuevo.' }] }
+
+async function sembrarNotas(version: string, notas: unknown): Promise<void> {
+  await poolTest().query(
+    `update actualizaciones_instancia
+        set digest_disponible = 'sha256:nuevo', version_disponible = $1, comprobado_en = now(),
+            notas_disponibles = $2::jsonb
+      where id = true`,
+    [version, notas == null ? null : JSON.stringify(notas)],
+  )
+}
+
+describe('GET /api/actualizaciones · notasDisponibles', () => {
+  it('devuelve las notas de la version disponible', async () => {
+    await sembrarNotas('v0.9.2', NOTAS)
+    const r = await (await comoDueno()).pedir('/api/actualizaciones/')
+    expect(r.status).toBe(200)
+    expect(r.datos.notasDisponibles).toEqual(NOTAS)
+  })
+
+  it('sin notas, null', async () => {
+    await sembrarNotas('v0.9.2', null)
+    const r = await (await comoDueno()).pedir('/api/actualizaciones/')
+    expect(r.status).toBe(200)
+    expect(r.datos.notasDisponibles).toBeNull()
+  })
+
+  it('NEGATIVO: unas notas invalidas son null, no un 500', async () => {
+    await sembrarNotas('v0.9.2', { ...NOTAS, items: [{ tipo: 'ELIMINADO', texto: '' }] })
+    const r = await (await comoDueno()).pedir('/api/actualizaciones/')
+    expect(r.status).toBe(200)
+    expect(r.datos.notasDisponibles).toBeNull()
+  })
+
+  it('NEGATIVO: unas notas de OTRA version no se ensenan como si fueran de la disponible', async () => {
+    await sembrarNotas('v0.9.3', NOTAS)
+    const r = await (await comoDueno()).pedir('/api/actualizaciones/')
+    expect(r.status).toBe(200)
+    expect(r.datos.notasDisponibles).toBeNull()
+  })
+
+  it('NEGATIVO: quien no tiene administracion:ver no ve las notas de antes de instalar', async () => {
+    await sembrarNotas('v0.9.2', NOTAS)
+    const r = await (await comoOtroRol()).pedir('/api/actualizaciones/')
+    expect(r.status).toBe(403)
+    expect(r.datos.notasDisponibles).toBeUndefined()
   })
 })

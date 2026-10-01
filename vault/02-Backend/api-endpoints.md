@@ -9,6 +9,7 @@ archivos:
   - apps/web/lib/server/auth.ts
   - apps/web/lib/server/cambios.ts
   - apps/web/lib/server/actualizaciones-repo.ts
+  - apps/web/app/api/novedades/route.ts
   - apps/web/app/api/tickets/route.ts
   - apps/web/lib/server/tickets-controller.ts
   - apps/web/lib/server/tickets-repo.ts
@@ -92,7 +93,8 @@ Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo el
 | GET | `/api/estado` | exigir | Devuelve **todo** el tenant |
 | GET·POST | `/api/entidades` | `administracion:ver` · `:crear` | Razones sociales **PROPIAS** del owner (17/09). `?inactivas=1` |
 | GET·PATCH·DELETE | `/api/entidades/[id]` | `administracion:ver` · `:crear` | `DELETE` es baja **lógica** (`activo = false`) |
-| GET·PATCH | `/api/actualizaciones` | `administracion:ver` · `:aprobar` | ADR 0037 — el dueño ve la versión instalada/disponible y aprueba por **DIGEST**, nunca por nombre de versión; `PATCH` con un digest que ya no es el disponible da **409** (comprobado y escrito en el mismo `UPDATE`, ver [[infraestructura-servidor]]) |
+| GET·PATCH | `/api/actualizaciones` | `administracion:ver` · `:aprobar` | ADR 0037 — el dueño ve la versión instalada/disponible y aprueba por **DIGEST**, nunca por nombre de versión; `PATCH` con un digest que ya no es el disponible da **409** (comprobado y escrito en el mismo `UPDATE`, ver [[infraestructura-servidor]]). El `GET` trae además `notasDisponibles`, las notas de la versión disponible **revalidadas** al leer (inválidas o de otra versión → `null`) — [[notas-de-version]] |
+| GET | `/api/novedades` | sesión (`exigir()` sin módulo) | Las notas de la versión **instalada** (`SPACE_OS_VERSION`; `null` en desarrollo o sin versión) y la lista entera de `novedades.json`, para el diálogo de una vez por versión y la página **Novedades**. **Con sesión siempre**: la versión va tras token en `/api/version` (P6) — [[notas-de-version]] |
 
 > [!warning] `/api/entidades` y `/api/razones-sociales` NO son lo mismo
 > `/api/entidades` son las razones sociales **del owner** —quien **PAGA** la
