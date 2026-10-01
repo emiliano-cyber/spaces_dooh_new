@@ -1,4 +1,5 @@
 import 'server-only'
+import { giroDeFoto } from '@/lib/space-eyes-marca'
 
 // ============================================================================
 //  lib/server/space-eye.ts — Cliente de la API de Space Eye (verificación de
@@ -89,6 +90,8 @@ interface SEPhoto {
   verification_status: string | null
   is_correct: boolean | null
   verification_score: number | null
+  /** Cuánto hay que girar la foto para verla derecha (la guarda el equipo). */
+  display_rotation?: number | string | null
 }
 
 // Devuelve la visión (cámara + IA) de la pantalla cuyo código de proveedor
@@ -168,7 +171,7 @@ export interface SEEquipoResumen {
   redTipo: string | null
   ultimaConexion: string | null
   estatus: string | null
-  ultimaFoto: { url: string; tomadaEn: string | null } | null
+  ultimaFoto: { url: string; tomadaEn: string | null; giro: number } | null
 }
 
 export interface SEEquipoDetalle extends SEEquipoResumen {
@@ -195,6 +198,7 @@ export interface SEFotoModulo {
   esCorrecta: boolean | null
   score: number | null
   gps: { lat: number; lng: number } | null
+  giro: number
 }
 
 interface SEDeviceFila extends SEDevice {
@@ -238,7 +242,7 @@ function resumen(d: SEDeviceFila, foto?: SEPhoto): SEEquipoResumen {
     redTipo: d.network_type ?? null,
     ultimaConexion: d.last_seen_at ?? null,
     estatus: d.status ?? null,
-    ultimaFoto: foto ? { url: urlDeFoto(foto.storage_path), tomadaEn: foto.taken_at } : null,
+    ultimaFoto: foto ? { url: urlDeFoto(foto.storage_path), tomadaEn: foto.taken_at, giro: giroDeFoto(foto) } : null,
   }
 }
 
@@ -316,6 +320,7 @@ export async function equipoDetalle(id: number): Promise<SEEquipoDetalle | null>
       esCorrecta: p.is_correct,
       score: p.verification_score != null ? Number(p.verification_score) : null,
       gps: p.gps_lat != null && p.gps_lng != null ? { lat: p.gps_lat, lng: p.gps_lng } : null,
+      giro: giroDeFoto(p),
     })),
   }
 }

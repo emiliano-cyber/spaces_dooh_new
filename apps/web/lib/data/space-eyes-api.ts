@@ -26,7 +26,7 @@ export interface EquipoResumen {
   redTipo: string | null
   ultimaConexion: string | null
   estatus: string | null
-  ultimaFoto: { url: string; tomadaEn: string | null } | null
+  ultimaFoto: { url: string; tomadaEn: string | null; giro: number } | null
   pantalla: { id: string; nombre: string } | null
 }
 
@@ -40,6 +40,8 @@ export interface FotoEquipo {
   esCorrecta: boolean | null
   score: number | null
   gps: { lat: number; lng: number } | null
+  /** Grados (0/90/180/270) para verla derecha. */
+  giro: number
 }
 
 export interface EquipoDetalle extends Omit<EquipoResumen, 'pantalla'> {
