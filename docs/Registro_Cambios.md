@@ -7,6 +7,11 @@ La entrada más reciente va arriba.
 
 ## 2026-09-30
 
+- **En Creativos ya no está el botón «Repartir a todas».** *(Pedido tuyo del
+  30/09.)* Los creativos se asignan pantalla por pantalla. Lo que ya estaba
+  asignado no cambia, y la función sigue en el sistema por si se quiere
+  volver a poner.
+
 - **Arregladas seis pantallas que no cargaban nada.** *(Lo encontraste tú: «franjas
   y temporadas no funciona».)*
 
