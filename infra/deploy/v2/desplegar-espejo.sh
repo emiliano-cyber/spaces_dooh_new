@@ -58,7 +58,7 @@ echo "   memoria disponible: ${MEM} MB"
 DISCO=$(df -m /var/lib/docker | awk 'NR==2 {print $4}')
 echo "   disco libre: ${DISCO} MB"
 (( DISCO >= 3000 )) || { rojo "   Hace falta al menos 3 GB libres."; exit 1; }
-for p in 4200 9089; do ss -ltn | grep -q ":$p " && { rojo "   Puerto $p ocupado"; exit 1; }; done
+for p in 4200 8754 9089; do ss -ltn | grep -q ":$p " && { rojo "   Puerto $p ocupado"; exit 1; }; done
 ss -lun | grep -q ":8389 " && { rojo "   Puerto 8389/udp ocupado"; exit 1; }
 verde "   puertos 4200, 9089 y 8389/udp libres"
 
@@ -107,6 +107,8 @@ JWT_DEVICE_SECRET=$(azar)
 PUBLIC_BASE_URL=http://$IP:4200
 MEDIAMTX_HOST=$IP
 MEDIAMTX_WEBRTC_PORT=9089
+# La Raspberry y las PCs publican aqui (RTSP) cuando la vista se abre desde V2.
+MEDIAMTX_RTSP_PORT=8754
 MEDIAMTX_PASS=$(azar)
 ESPEJO_DB_HOST=$V1_MYSQL
 ESPEJO_DB_USER=root

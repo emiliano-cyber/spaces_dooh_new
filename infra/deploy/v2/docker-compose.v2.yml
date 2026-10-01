@@ -16,8 +16,8 @@
 #  llama por el nombre exacto de su contenedor (infra-mysql-1, infra-redis-1).
 #
 #  Puertos corridos, para no chocar con V1 (4000, 8889, 8189) ni con la instancia
-#  de pruebas (4100, 8899, 8199): 4200, 9089 y 8389/udp. MySQL y Redis de V2 no
-#  se publican.
+#  de pruebas (4100, 8899, 8199): 4200, 8754, 9089 y 8389/udp. MySQL y Redis de
+#  V2 no se publican.
 #
 #  Sin ai-worker: las fotos las verifica el de V1 (las toman los equipos de V1) y
 #  aqui llega el resultado por el espejo. Liviana a proposito: el droplet tiene
@@ -79,6 +79,7 @@ services:
     volumes:
       - ../../mediamtx/mediamtx.v2.yml:/mediamtx.yml:ro
     ports:
+      - "8754:8554"       # RTSP: aqui publican la Raspberry y las PCs cuando la vista se abre desde V2
       - "9089:8889"       # WHEP: de aqui ve el navegador
       - "8389:8389/udp"   # medios WebRTC (mismo numero dentro y fuera: va en las candidatas)
     mem_limit: 80m

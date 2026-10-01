@@ -19,7 +19,7 @@ api: true
 apiAddress: :9997
 
 # --- Entrada: los agentes publican por RTSP ---
-rtsp: false
+rtsp: true
 rtspAddress: :8554
 # Solo TCP: es lo que atraviesa sin problemas las redes de los sitios y el LTE.
 rtspTransports: [tcp]
