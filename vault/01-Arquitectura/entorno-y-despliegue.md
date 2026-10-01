@@ -125,6 +125,16 @@ archivos:
 > `67.207.88.243`—, así que Let's Encrypt busca la prueba en otra máquina. El
 > bloque 6 lleva ahora **su propio certificado** (`--cert-name
 > spaceos.space-os.io`), que no depende del ápice.
+>
+> **Y el acceso con Google del PADRE se mudó a este nombre** (01/10, comprobado
+> por el dueño entrando con Google). Antes regresaba a `www.space-os.io`, que
+> tampoco llega al PADRE: 404. En `/etc/space-os/padre.env`, `APP_URL` y
+> `GOOGLE_REDIRECT_URI` apuntan ahora a `spaceos.space-os.io` —las dos, porque
+> `APP_URL` decide también a dónde se vuelve tras entrar y los enlaces de
+> «olvidé mi contraseña» (`lib/server/google-oauth.ts:63-68`)—, y la URI
+> `https://spaceos.space-os.io/spaces-dooh/api/auth/google/callback/` (con su
+> barra final) está dada de alta en Google Cloud. Copia de antes:
+> `/etc/space-os/padre.env.antes-spaceos`.
 
 > [!danger] 2026-10-01 · La renovación del certificado de `space-os.io` VA A FALLAR
 > Por lo mismo: es `webroot` y el ápice apunta fuera. Ese certificado cubre
