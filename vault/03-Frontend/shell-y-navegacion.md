@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-09-28
+actualizado: 2026-09-30
 tags: [frontend, shell, navegacion, rbac]
 archivos:
   - apps/web/lib/host.ts
@@ -64,16 +64,31 @@ Comportamiento:
 ### Los grupos del menú, y la trampa de buscarlos por su rótulo
 
 El menú va por **fases del proceso**, declaradas en `GRUPOS` (`nav.ts:85`), y el
-orden de ese arreglo **es** el orden en pantalla. Al 2026-09-28:
+orden de ese arreglo **es** el orden en pantalla. Al 2026-09-30:
 
 | Clave (código) | Rótulo (pantalla) | Entradas |
 |---|---|---|
 | `inicio` | *sin título* | Dashboard |
-| `patrimonio` | **Inventario** | Inventario · Arrendadores · Network |
-| `vender` | **Comercial** | Clientes · Comercial · Disponibilidad · Propuestas · **Creativos** |
-| `entregar` | **Operaciones** | Campañas · Imprenta · Operaciones · Almacén · Consumo de luz |
+| `patrimonio` | **Inventario** | Inventario · Arrendadores · Network · Almacén |
+| `vender` | **Comercial** | Clientes · Comercial · Disponibilidad · Propuestas |
+| `entregar` | **Operaciones** | Campañas · **Creativos** · Imprenta · Operaciones · Consumo de luz |
 | `cobrar` | **Finanzas** | Finanzas · Reportes · Comisiones |
 | `sistema` | **Sistema** | Integraciones · Razones sociales · Actividad · Administración |
+
+> [!important] 2026-09-30 · Creativos VOLVIÓ a **Operaciones**
+> Pedido literal del dueño: «el menu de creativo muevelo a operaciones». Cuelga
+> de `entregar`, **justo después de Campañas**: sus pautas se arman sobre una
+> campaña ya creada, y desde el mismo día la pantalla solo lista campañas de
+> pantallas digitales (`lib/creativos-digitales.ts`).
+>
+> **Se movió el grupo, NO los roles**: sigue siendo `[...MANDO, ...VENTA]`,
+> porque `lib/modulos.ts` la autoriza con el módulo `comercial`. Un rol
+> OPERACIONES sigue sin verla — darle la entrada sin el permiso sería ofrecerle
+> una pantalla que responde 403. Quien vende la encuentra bajo «Operaciones»,
+> donde ya ve Campañas. Lo fija `nav.test.ts` §3 bis.
+>
+> El recuadro de abajo es la historia del primer movimiento (28/09) y se
+> conserva por su porqué, no porque siga vigente.
 
 > [!important] Creativos se movió a **Comercial** el 2026-09-28
 > Estaba en `entregar` y ahora cuelga de `vender`, justo después de Propuestas.

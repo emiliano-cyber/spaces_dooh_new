@@ -200,36 +200,34 @@ export const NAV: NavItem[] = [
   // descuentos donde el paquete no aparece. Mismo grupo y mismo modulo
   // --`inventario`, como su endpoint-- por el mismo razonamiento.
   { key: 'paquetes', label: 'Paquetes cerrados', href: '/paquetes', icon: Package, roles: [...MANDO, ...JEFES_VENTA], grupo: 'vender' },
-  // Creativos cierra el tramo comercial desde el 2026-09-28, y venía de
-  // «Operaciones». El cambio lo pidió un dueño con una pregunta literal:
-  // «¿puedo programar las pautas desde el módulo de ventas?». La respuesta era
-  // NO, y no por falta de función — la pantalla existe, funciona y la abren
-  // DUEÑO y COMERCIAL— sino porque no había puerta: colgaba de un encabezado de
-  // otra área y no la enlazaba ni Propuestas ni Comercial. Solo se llegaba desde
-  // la ficha de una campaña.
-  //
-  // Se MOVIÓ en vez de duplicarse. Duplicar la entrada no es una opción cara,
-  // es imposible: `nav.test.ts` exige claves y rutas únicas, y `AuthGate`
-  // empareja por `href` (`path === n.href || path.startsWith(n.href + '/')`),
-  // así que dos entradas con la misma ruta se encenderían las dos a la vez.
-  //
-  // Y encaja con quién la usa: `lib/modulos.ts:36` la autoriza con el módulo
-  // `comercial`, no con `operaciones`. Un rol OPERACIONES nunca la vio.
-  //
-  // Lo que cuesta, dicho: el tramo «Operaciones» pierde el paso donde se sube
-  // el arte, y el relato del menú —vender primero, entregar después— se estira
-  // un poco, porque una pauta se arma sobre algo ya vendido. Se acepta: la
-  // pauta se decide AL VENDER, y quien la arma es quien vende.
-  { key: 'creativos', label: 'Creativos', href: '/creativos', icon: Images, roles: [...MANDO, ...VENTA], grupo: 'vender' },
+  // Creativos estuvo AQUÍ del 2026-09-28 al 2026-09-30; volvió a «Operaciones»
+  // (ver el porqué allí).
 
   // ─── Entregar ────────────────────────────────────────────────────────────
   // Campañas ABRE el tramo: es lo que nace al aprobar una propuesta. Antes
   // estaba tercera en el menú, tres puestos por ENCIMA de Propuestas, que es de
   // donde sale.
   { key: 'campanas', label: 'Campañas', href: '/campanas', icon: GitBranch, roles: [...MANDO, ...VENTA], grupo: 'entregar' },
-  // Creativos vivía AQUÍ hasta el 2026-09-28; se movió al grupo «Comercial»
-  // (ver el porqué allí). La ficha de campaña sigue enlazándolo, que es el otro
-  // camino y el más natural cuando ya hay campaña.
+  // Creativos va justo después de Campañas: sus pautas se arman sobre una
+  // campaña ya creada, y desde el 2026-09-30 solo lista campañas de pantallas
+  // digitales (`lib/creativos-digitales.ts`).
+  //
+  // Historia, porque ya se movió dos veces. Vivía aquí hasta el 2026-09-28; un
+  // dueño preguntó «¿puedo programar las pautas desde el módulo de ventas?» y
+  // se pasó al grupo «Comercial», porque colgaba de un encabezado de otra área y
+  // ni Propuestas ni Comercial lo enlazaban. El 2026-09-30 el dueño pidió
+  // literalmente «el menu de creativo muevelo a operaciones», y volvió.
+  //
+  // Lo que NO cambió al moverlo: los ROLES. Sigue siendo [...MANDO, ...VENTA],
+  // porque `lib/modulos.ts` lo autoriza con el módulo `comercial`; un rol
+  // OPERACIONES no lo ve, y darle la entrada sin el permiso sería ofrecerle una
+  // pantalla que responde 403. Quien vende lo encuentra igual, ahora bajo el
+  // encabezado «Operaciones», donde ya ve Campañas.
+  //
+  // Se MUEVE, nunca se duplica: `nav.test.ts` exige claves y rutas únicas, y
+  // `AuthGate` empareja por `href`, así que dos entradas con la misma ruta se
+  // encenderían las dos a la vez.
+  { key: 'creativos', label: 'Creativos', href: '/creativos', icon: Images, roles: [...MANDO, ...VENTA], grupo: 'entregar' },
   { key: 'imprenta', label: 'Imprenta', href: '/imprenta', icon: Printer, roles: [...MANDO, 'IMPRENTA'], grupo: 'entregar' },
   { key: 'operaciones', label: 'Operaciones', href: '/operaciones', icon: ClipboardList, roles: [...MANDO, 'OPERACIONES', 'FINANZAS'], grupo: 'entregar' },
   // Sin esta entrada la ruta NO TIENE PUERTA: `moduloDe()` devuelve null para
