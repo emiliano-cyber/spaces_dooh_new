@@ -17,8 +17,10 @@ import mysql from 'mysql2/promise';
 const BASE = 1_000_000_000;
 const ORIGEN = process.env.ORIGEN_DB || 'prueba_import';
 const DESTINO = process.env.DB_NAME || 'space_eye';
-// En orden: primero el equipo y sus fotos, que los demas apuntan a ellos.
-const TABLAS = ['devices', 'photos', 'commands', 'device_status', 'device_logs',
+// En orden: el equipo, sus ordenes (las fotos apuntan a la orden que las pidio)
+// y sus fotos (las fallas y los creativos apuntan a ellas). Fuera de orden,
+// INSERT IGNORE se salta EN SILENCIO lo que aun no tiene a quien apuntar.
+const TABLAS = ['devices', 'commands', 'photos', 'device_status', 'device_logs',
   'device_data_usage', 'pantalla_fallas', 'device_creatives', 'verifications'];
 // Las columnas que son numeros de otra fila y hay que correr igual.
 const REFERENCIAS = new Set(['id', 'device_id', 'photo_id', 'photo_recuperacion_id', 'command_id',
