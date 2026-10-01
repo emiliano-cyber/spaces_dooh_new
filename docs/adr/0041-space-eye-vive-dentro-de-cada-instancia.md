@@ -1,7 +1,7 @@
 # ADR 0041 · Space Eye vive dentro de cada instancia
 
 **Fecha:** 2026-10-01
-**Estado:** propuesto · construido en la rama `feat/space-eyes-con-mejoras` y ensayado en local · **las piezas ROJAS (R2/R7) esperan al dueño**
+**Estado:** propuesto · construido en la rama `feat/space-eyes-con-mejoras` y ensayado en local · **las piezas ROJAS (R2/R7) están escritas detrás de `--con-eyes` y esperan al dueño**
 **Decide:** Carlos, el 2026-10-01 («debe ser el mismo y debe estar dentro»)
 **Sustituye:** la decisión del 10/09 en `docs/Plan_Space_Eye_En_El_Menu.md:3-5,53-67` (Space Eye como un servicio central nuestro, reflejado en cada instancia), que ya apuntaba a esto como «destino» (`:75-80`)
 **Se apoya en:** ADR 0014 (Postgres en el host, la app en contenedor), ADR 0022 (un dueño = un droplet, una base, un dominio), ADR 0032 (el alta en droplet propio), ADR 0037 (cada instancia elige si toma la versión nueva)
@@ -78,8 +78,11 @@ se configura y se actualiza por los mismos caminos que la app**:
 
 ## Lo que cuesta, dicho claro
 
-- **Memoria.** Space Eye con su MySQL pide ~600 MB. Un hijo con Space Eye pasa
-  de `s-1vcpu-1gb` a **`s-1vcpu-2gb`** (≈ +6 USD/mes por empresa). Dispara el
+- **Memoria.** Medido en el ensayo local con la pila completa y un equipo:
+  **255 MB** (MySQL 183, API 45, MediaMTX 12, coturn 12, Redis 4), con topes de
+  `mem_limit` que suman 974 MB. Junto a la app y su Postgres en 1 GB no hay
+  margen: un hijo con Space Eye pasa de `s-1vcpu-1gb` a **`s-1vcpu-2gb`**
+  (≈ +6 USD/mes por empresa). Dispara el
   criterio 3 del ADR 0014 («que la base compita por memoria con la
   aplicación»): por eso queda escrito aquí y no se hace en silencio.
 - **El registry.** 99 MiB por versión de Space Eye contra 500 MiB totales. Con
@@ -109,3 +112,25 @@ no reconoce su llave, y conserva su historial porque se identifica por el mismo
   aparte. Queda como evolución posible, no como punto de partida.
 - **Seguir con un Space Eye central** reflejado en cada instancia. Es lo que
   hay hoy, y lo que el dueño pidió dejar.
+
+## Cómo se ensayó (01/10, en local)
+
+Ubuntu 24.04 (WSL) con Docker haciendo de droplet; la imagen de SPACE OS de esta
+rama y la de Space Eye (`Dockerfile.instancia`) construidas localmente:
+
+| Qué | Resultado |
+|---|---|
+| `update-eyes.sh`, primera instalación | 20 migraciones, credenciales y administrador registrados solos |
+| Segunda corrida | «al día», sin tocar nada |
+| Versión nueva sana | respaldo, migración, cambio, salud: código 0 |
+| Versión que no arranca | vuelta atrás + restauración, código 6; la siguiente corrida la salta (vetada) |
+| Migración rota | restaura sin dejar restos (tabla a medias borrada), código 4, no cambia |
+| Imagen que no existe | código 2, nada tocado |
+| `instancia.conf.tpl` en nginx 1.27 | `nginx -t` OK; app 200, eyes 401, `/whep/` 405, socket.io 101 |
+| Teléfono nuevo | se da de alta sin testigo, nace de la empresa, SPACE OS lo lista y su foto pedida desde la ficha llega |
+| La configuración la genera `eyes-alta.sh` | la misma biblioteca que usan las altas; mismo resultado desde cero |
+| `pruebas-instalar-hijo.sh` | 10 escenarios · 54 comprobaciones · 0 fallos (2 nuevos); 5 mutantes, los 5 muerden |
+| `pruebas-provision.sh` | 35 escenarios · 129 comprobaciones · 0 fallos (3 nuevos); 4 mutantes, los 4 muerden |
+
+Sin `--con-eyes` las dos altas hacen exactamente lo de antes (los escenarios de
+siempre siguen en verde y uno nuevo lo afirma por ausencia).

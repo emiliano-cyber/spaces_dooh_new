@@ -13,7 +13,11 @@
 #  Uso:
 #    instalar-hijo.sh --instancia <nombre> --dominio <dominio> \
 #        --licencia <dir> --contacto <correo> \
-#        [--confirmar | --dry-run]
+#        [--con-eyes] [--confirmar | --dry-run]
+#
+#  --con-eyes  la instancia nace con su Space Eye dentro (ADR 0041): las
+#              camaras de esta empresa se dan de alta en eyes.<dominio>. Pide
+#              ese segundo nombre en el DNS, apuntando a esta misma maquina.
 #
 #  LA REGLA DE QUE VA POR ARGUMENTO Y QUE POR ENTORNO, en una linea: por
 #  argumento, lo que IDENTIFICA a esta instancia (y aparece igual en su
@@ -83,6 +87,9 @@ TPL_INST="$RAIZ/infra/env/instancia.env.example"
 TPL_NGINX_NORMAL="$RAIZ/infra/nginx/instancia.conf.tpl"
 TPL_NGINX_SIN_LICENCIA="$RAIZ/infra/nginx/instancia-sin-licencia.conf.tpl"
 TPL_LICENCIA_HTML="$RAIZ/infra/nginx/publico/licencia-vencida.html"
+# Space Eyes dentro de la instancia (ADR 0041), solo con --con-eyes.
+EYES_ALTA_SH="$RAIZ/infra/scripts/eyes-alta.sh"
+TPL_EYES="$RAIZ/infra/eyes/eyes.env.example"
 # COSTURA DE PRUEBAS (tarea 11): el par de llaves real NO vive en este
 # repositorio -- lo genera la tarjeta `docs/evidencias/llaves-de-licencia.txt`
 # y se agrega al paquete de alta al armarlo -- asi que un arnes automatizado
@@ -98,6 +105,7 @@ uso() { sed -n '/^# ===USO-INICIO===$/,/^# ===USO-FIN===$/p' "$0" | sed '1d;$d';
 # ─── Argumentos ──────────────────────────────────────────────────────────────
 INSTANCIA=""
 DOMINIO=""
+CON_EYES=0
 LICENCIA_ORIGEN=""
 CONTACTO=""
 CONFIRMAR=0
@@ -139,6 +147,7 @@ while [[ $# -gt 0 ]]; do
     --spaces-secret)  bandera_retirada --spaces-secret SPACES_SECRET ;;
     --spaces-bucket)  bandera_retirada --spaces-bucket SPACES_BUCKET ;;
     --confirmar)      CONFIRMAR=1; shift ;;
+    --con-eyes)       CON_EYES=1; shift ;;
     --dry-run)        CONFIRMAR=0; shift ;;
     -h|--ayuda|--help) uso; exit 0 ;;
     *) echo "instalar-hijo: argumento desconocido: $1" >&2; uso >&2; exit "$EX_USO" ;;
@@ -172,6 +181,13 @@ if [[ ! -f "$ENTORNO_INSTANCIA_SH" ]]; then
 fi
 # shellcheck source=entorno-instancia.sh
 . "$ENTORNO_INSTANCIA_SH"
+if [[ "$CON_EYES" -eq 1 ]]; then
+  [[ -f "$EYES_ALTA_SH" && -f "$TPL_EYES" ]] || {
+    echo "instalar-hijo: --con-eyes pide infra/scripts/eyes-alta.sh e infra/eyes/ en el paquete." >&2
+    exit "$EX_ENTORNO"; }
+  # shellcheck source=eyes-alta.sh
+  . "$EYES_ALTA_SH"
+fi
 
 
 # ─── Validacion de argumentos ────────────────────────────────────────────────
@@ -542,7 +558,15 @@ comprobar_dns() {
     exit "$EX_USO"
   fi
   echo "  DNS: $DOMINIO resuelve a $ip_publica (esta maquina)"
+  IP_DROPLET="$ip_publica"
+  if [[ "$CON_EYES" -eq 1 ]] && ! getent hosts "eyes.$DOMINIO" 2>/dev/null | awk '{print $1}' | grep -qxF "$ip_publica"; then
+    echo "" >&2
+    echo "instalar-hijo: --con-eyes y 'eyes.$DOMINIO' no resuelve a esta maquina. Falta:" >&2
+    echo "                 A    eyes.$DOMINIO    ->    $ip_publica" >&2
+    exit "$EX_USO"
+  fi
 }
+IP_DROPLET=""
 comprobar_dns
 
 if [[ "$N_SPACES" -eq 0 ]]; then
@@ -574,6 +598,13 @@ fi
 # ─── 1 · Base del servidor ──────────────────────────────────────────────────
 paso "Base del servidor (Docker, PostgreSQL, nginx, certbot, ufw)"
 ejecutar bash "$SETUP_DROPLET"
+if [[ "$CON_EYES" -eq 1 ]]; then
+  # Lo que tiene que llegar desde los equipos y no pasa por nginx: RTSP de la Pi
+  # y la PC, medios WebRTC y el TURN (ver infra/eyes/docker-compose.yml).
+  for regla in 8554/tcp 8189/udp 3478/tcp 3478/udp 49160:49200/udp; do
+    ejecutar ufw allow "$regla"
+  done
+fi
 
 # ─── 2 · Base de datos: DOS roles ───────────────────────────────────────────
 # Las sentencias y su porque --NOBYPASSRLS en el rol de la aplicacion,
@@ -738,7 +769,13 @@ reescribir_env_sourceado "$TPL_INST" \
 escribir /etc/space-os/instancia.env 600 < "$TMP_INST"
 rm -f "$TMP_INST"
 
+PARES_EYES=()
+if [[ "$CON_EYES" -eq 1 ]]; then
+  eyes_preparar_credenciales
+  mapfile -t PARES_EYES < <(eyes_pares_app)
+fi
 reescribir_env_docker "$TPL_APP" \
+  "${PARES_EYES[@]}" \
   "APP_URL=https://$DOMINIO" \
   "DATABASE_URL=$(url_app "$CLAVE_APP")" \
   "GOOGLE_REDIRECT_URI=https://$DOMINIO/spaces-dooh/api/auth/google/callback/" \
@@ -746,6 +783,10 @@ reescribir_env_docker "$TPL_APP" \
   "FLOTA_TOKEN=$FLOTA_TOKEN" \
   "CANAL=$CANAL" \
   | escribir /etc/space-os/app.env 600
+if [[ "$CON_EYES" -eq 1 ]]; then
+  eyes_env "$TPL_EYES" "$INSTANCIA" "$DOMINIO" "${IP_DROPLET:-127.0.0.1}" \
+    | escribir /etc/space-os/eyes.env 600
+fi
 
 # ─── 6 · Entrar al registro de imagenes, sin credenciales en la linea de
 #         comandos ───────────────────────────────────────────────────────────
@@ -858,6 +899,13 @@ ejecutar bash -c "nginx -t && systemctl reload nginx"
 paso "Actualizador"
 ejecutar mkdir -p /opt/space-os /var/log/space-os
 escribir /opt/space-os/update.sh 750 < "$UPDATE_SH"
+if [[ "$CON_EYES" -eq 1 ]]; then
+  ejecutar mkdir -p /opt/space-os/eyes
+  while IFS=$'\t' read -r origen destino modo; do
+    escribir "$destino" "$modo" < "$origen"
+  done < <(eyes_archivos "$RAIZ")
+  eyes_cron | escribir /etc/cron.d/space-os-eyes 644
+fi
 escribir /opt/space-os/respaldo.sh 750 < "$RESPALDO_SH"
 escribir /opt/space-os/migrar.mjs 640 < "$MIGRAR_MJS"
 cat <<'CRON' | escribir /etc/cron.d/space-os-update 644
@@ -898,6 +946,15 @@ paso "Levantando la aplicacion"
 if [[ "$CONFIRMAR" -eq 1 ]]; then
   if /opt/space-os/update.sh; then
     echo "  la instancia ya sirve: no hay que esperar al cron de las 4:17"
+    if [[ "$CON_EYES" -eq 1 ]]; then
+      if /opt/space-os/update-eyes.sh; then
+        echo "  Space Eyes ya sirve en eyes.$DOMINIO"
+      else
+        # La app ya sirve; Space Eyes lo reintenta el cron cada noche y su
+        # registro dice por que.
+        echo "  aviso: Space Eyes no levanto en la primera corrida: tail -40 /var/log/space-os/eyes.log" >&2
+      fi
+    fi
   else
     echo "" >&2
     echo "instalar-hijo: la primera corrida de update.sh fallo. La maquina quedo con" >&2
@@ -909,6 +966,7 @@ if [[ "$CONFIRMAR" -eq 1 ]]; then
   fi
 else
   printf '%s /opt/space-os/update.sh\n' "$DRY_ETIQUETA"
+  [[ "$CON_EYES" -eq 1 ]] && printf '%s /opt/space-os/update-eyes.sh\n' "$DRY_ETIQUETA"
 fi
 
 # ─── 11 · El certificado ────────────────────────────────────────────────────
@@ -917,8 +975,12 @@ fi
 # (arriba) ya confirmo que el dominio resuelve a esta maquina antes de llegar
 # hasta aqui.
 paso "Certificado"
+# Con --con-eyes el MISMO certificado lleva el segundo nombre: eyes.<dominio>
+# usa las mismas rutas de /etc/letsencrypt/live/<dominio>/ en instancia.conf.tpl.
+NOMBRES_CERT=(-d "$DOMINIO")
+[[ "$CON_EYES" -eq 1 ]] && NOMBRES_CERT+=(-d "eyes.$DOMINIO")
 ejecutar certbot certonly --webroot -w /var/www/html -n --agree-tos --no-eff-email \
-  -m "$CONTACTO" -d "$DOMINIO"
+  -m "$CONTACTO" "${NOMBRES_CERT[@]}"
 
 paso "Instalando el vhost con TLS"
 # Los DOS marcadores, aqui tambien: `instancia.conf.tpl` no usa `__CONTACTO__`

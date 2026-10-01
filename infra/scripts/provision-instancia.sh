@@ -165,6 +165,9 @@ SIN_RESPALDO_REMOTO=0
 
 uso() { sed -n '2,44p' "$0"; }
 
+# Space Eyes dentro de la instancia (ADR 0041). Va en las DOS corridas: la del
+# aprovisionamiento y la de --emitir-certificado (el certificado lleva eyes.<dominio>).
+CON_EYES=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --host)                HOST="${2:-}"; shift 2 ;;
@@ -177,6 +180,7 @@ while [[ $# -gt 0 ]]; do
     --emitir-certificado)  EMITIR_CERT=1; shift ;;
     --bootstrap)           BOOTSTRAP=1; shift ;;
     --sin-respaldo-remoto) SIN_RESPALDO_REMOTO=1; shift ;;
+    --con-eyes)            CON_EYES=1; shift ;;
     -h|--ayuda|--help)     uso; exit 0 ;;
     *) echo "provision: argumento desconocido: $1" >&2; uso >&2; exit "$EX_USO" ;;
   esac
@@ -310,6 +314,14 @@ if [[ ! -f "$ENTORNO_INSTANCIA_SH" ]]; then
 fi
 # shellcheck source=entorno-instancia.sh
 . "$ENTORNO_INSTANCIA_SH"
+if [[ "$CON_EYES" -eq 1 ]]; then
+  EYES_ALTA_SH="$(dirname "${BASH_SOURCE[0]}")/eyes-alta.sh"
+  [[ -f "$EYES_ALTA_SH" && -f "$RAIZ/infra/eyes/eyes.env.example" ]] || {
+    echo "provision: --con-eyes pide infra/scripts/eyes-alta.sh e infra/eyes/." >&2
+    exit "$EX_ENTORNO"; }
+  # shellcheck source=eyes-alta.sh
+  . "$EYES_ALTA_SH"
+fi
 
 # Todo lo que va a acabar dentro de uno de los dos archivos de entorno se
 # revisa AQUI, antes de la primera palabra que viaja por ssh. `DOMINIO` ya paso
@@ -440,8 +452,10 @@ if [[ "$EMITIR_CERT" -eq 1 ]]; then
   #
   # `--webroot` tampoco necesita parar nginx, que es lo que obliga
   # `--standalone` y lo que convierte una renovacion en una caida.
+  NOMBRES_CERT="-d '$DOMINIO'"
+  [[ "$CON_EYES" -eq 1 ]] && NOMBRES_CERT="$NOMBRES_CERT -d 'eyes.$DOMINIO'"
   remoto "certbot certonly --webroot -w /var/www/html -n --agree-tos --no-eff-email \
-    -m '$CERTBOT_EMAIL' -d '$DOMINIO'"
+    -m '$CERTBOT_EMAIL' $NOMBRES_CERT"
 
   paso "Instalando el vhost con TLS"
   # Hasta aqui el sitio era solo HTTP. Ahora si existe el certificado, asi que
@@ -692,6 +706,10 @@ if [[ "$CREAR_DROPLET" -eq 1 ]]; then
   paso "Base del servidor (Docker, nginx, certbot, ufw)"
   remoto "bash -s" < "$RAIZ/infra/scripts/setup-droplet.sh"
 fi
+if [[ "$CON_EYES" -eq 1 ]]; then
+  # El video de las camaras no pasa por nginx (infra/eyes/docker-compose.yml).
+  remoto "for r in 8554/tcp 8189/udp 3478/tcp 3478/udp 49160:49200/udp; do ufw allow \$r; done"
+fi
 
 # ─── 2 · Base de datos: DOS roles ───────────────────────────────────────────
 paso "Base de datos"
@@ -825,7 +843,13 @@ remoto "mkdir -p /etc/space-os"
 # >>> invertida en un token corrompen la sustitucion sin dar error. Las dos
 # >>> funciones son DOS a proposito: `app.env` lo lee Docker y va sin comillas,
 # >>> `instancia.env` lo sourcea bash y va entrecomillado. No se unen.
+PARES_EYES=()
+if [[ "$CON_EYES" -eq 1 ]]; then
+  eyes_preparar_credenciales
+  mapfile -t PARES_EYES < <(eyes_pares_app)
+fi
 reescribir_env_docker "$TPL_APP" \
+  "${PARES_EYES[@]}" \
   "APP_URL=https://$DOMINIO" \
   "DATABASE_URL=$(url_app "$CLAVE_APP")" \
   "GOOGLE_REDIRECT_URI=https://$DOMINIO/spaces-dooh/api/auth/google/callback/" \
@@ -833,6 +857,10 @@ reescribir_env_docker "$TPL_APP" \
   "FLOTA_TOKEN=$TOKEN_FLOTA" \
   "CANAL=$CANAL" \
   | remoto_escribir /etc/space-os/app.env 600
+if [[ "$CON_EYES" -eq 1 ]]; then
+  eyes_env "$RAIZ/infra/eyes/eyes.env.example" "$INSTANCIA" "$DOMINIO" "$HOST" \
+    | remoto_escribir /etc/space-os/eyes.env 600
+fi
 
 # `instancia.env`. Desde el 2026-09-01 `REGISTRY`, `REGISTRY_TOKEN` y `CANAL`
 # se escriben de verdad: la decision del registro se tomo el 31/08 y sin
@@ -881,6 +909,13 @@ remoto "nginx -t && systemctl reload nginx"
 paso "Actualizador"
 remoto "mkdir -p /opt/space-os /var/log/space-os"
 remoto_escribir /opt/space-os/update.sh 750 < "$RAIZ/infra/scripts/update.sh"
+if [[ "$CON_EYES" -eq 1 ]]; then
+  remoto "mkdir -p /opt/space-os/eyes"
+  while IFS=$'\t' read -r origen destino modo; do
+    remoto_escribir "$destino" "$modo" < "$origen"
+  done < <(eyes_archivos "$RAIZ")
+  eyes_cron | remoto_escribir /etc/cron.d/space-os-eyes 644
+fi
 # `respaldo.sh` NO es opcional, y olvidarlo no da un aviso: da una instancia
 # rota en silencio. `update.sh:589-592` lo busca AL LADO SUYO y **aborta con
 # EX_CONFIG si no esta** —«sin el, la instancia se actualizaria sin respaldo
@@ -933,6 +968,11 @@ CRON
 paso "Levantando la aplicacion"
 if remoto "/opt/space-os/update.sh"; then
   echo "  la instancia ya sirve: no hay que esperar al cron de las 4:17"
+  if [[ "$CON_EYES" -eq 1 ]]; then
+    remoto "/opt/space-os/update-eyes.sh" \
+      && echo "  Space Eyes levantado (servira por eyes.$DOMINIO cuando haya certificado)" \
+      || echo "  AVISO: Space Eyes no levanto; el cron lo reintenta. ssh root@$HOST 'tail -40 /var/log/space-os/eyes.log'" >&2
+  fi
 else
   echo "" >&2
   echo "  AVISO: el aprovisionamiento SI termino y la maquina esta lista, pero la" >&2
@@ -951,14 +991,14 @@ cat <<FIN
   Lo que falta NO lo hacemos nosotros. Se le pide al owner:
 
       Apunta  $DOMINIO  a  ${HOST}
-      con un registro A en TU propio DNS.
+      con un registro A en TU propio DNS.$( [[ "$CON_EYES" -eq 1 ]] && printf '\n      Y tambien  eyes.%s  a  %s  (las camaras de esta empresa).' "$DOMINIO" "$HOST")
 
   La zona del owner es suya y AS OOH no entra en ella. No es una
   formalidad: es la parte de «soberana» que se puede comprobar.
 
   Cuando el owner confirme que ya apunta, y SOLO entonces:
 
-      $0 --host ${HOST} --dominio $DOMINIO --emitir-certificado --confirmar
+      $0 --host ${HOST} --dominio $DOMINIO --emitir-certificado$( [[ "$CON_EYES" -eq 1 ]] && printf ' --con-eyes') --confirmar
       $0 --host ${HOST} --dominio $DOMINIO --instancia $INSTANCIA \
          --email <correo-del-dueno> --bootstrap --confirmar
 

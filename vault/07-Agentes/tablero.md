@@ -6,6 +6,18 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!warning] 2026-10-01 · **ADR 0041 · Space Eye dentro de cada instancia — ROJO (R2/R7), escrito y ensayado, ESPERA AL DUEÑO**
+> Misma rama. Decidido por Carlos el 01/10 («debe ser el mismo y debe estar dentro»).
+> **Zonas rojas tocadas, detrás de una bandera nueva `--con-eyes`** (sin ella el
+> alta hace lo de siempre): `instalar-hijo.sh` y `provision-instancia.sh` (R2/R7:
+> escriben `eyes.env` y `SPACE_EYE_*` en `app.env`, ufw, certificado con
+> `eyes.<dominio>`, cron), y la tarjeta `docs/evidencias/alta-droplet-propio.txt`.
+> Nuevos y verdes: `infra/eyes/`, `update-eyes.sh`, `eyes-alta.sh`, el bloque
+> `eyes.__DOMINIO__` de `instancia.conf.tpl`. **NO se tocó** `update.sh`,
+> `setup-droplet.sh`, `base-instancia.sh` ni `entorno-instancia.sh`. Ensayo y
+> arneses en el ADR. **Falta y no se hizo:** el registro DNS `eyes.<dominio>` en
+> `flota-altas` (ADR 0029) y el plan del registry (99 MiB por versión).
+
 > [!important] 2026-10-01 · **Space Eyes con las mejoras de octubre — EN REVISION (sin fusionar ni empujar)**
 > Rama `feat/space-eyes-con-mejoras`, salida de `main` (`e3524eb0`). **AMARILLO**: ni
 > sesión, ni tenant, ni migración, ni dinero — el módulo lee de Space Eye con una
