@@ -7,8 +7,11 @@ import { Button } from '@/components/demo/ui/Button'
 import { SpaceOsMark } from '@/components/demo/ui/SpaceOsMark'
 import { apiLogin } from '@/lib/auth-real'
 import { landingDeRol } from '@/lib/data/client'
-import { esEmailValido, EMAIL_INVALIDO } from '@/lib/validacion'
-import { validarPassword, REGLA_PASSWORD } from '@/lib/password'
+import { esEmailValido } from '@/lib/validacion'
+import { motivoPassword } from '@/lib/password'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { SelectorIdioma } from '@/components/demo/ui/SelectorIdioma'
+import type { ClaveTexto } from '@/lib/i18n/diccionario'
 
 const inputCls =
   'h-10 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
@@ -40,19 +43,25 @@ const RUTA_GOOGLE = '/spaces-dooh/api/auth/google/inicio/'
 // que llega por la URL no se interpola en la página. Aquí se traduce contra una
 // lista cerrada, y un código desconocido cae en el mensaje genérico en vez de
 // pintarse tal cual.
-const MOTIVOS_GOOGLE: Record<string, string> = {
-  no_disponible: 'El acceso con Google no está disponible en este momento.',
-  cancelado: 'Cancelaste el acceso con Google.',
-  invalido: 'No se pudo completar el acceso con Google. Vuelve a intentarlo.',
-  no_registrado:
-    'Esa cuenta de Google no está dada de alta. Pide a tu administrador que te agregue.',
-  inactivo: 'Tu usuario está desactivado. Pide a tu administrador que lo reactive.',
-  ya_vinculada:
-    'Tu usuario ya tiene otra cuenta de Google vinculada. Pide a tu administrador que la revise.',
+//
+// I18N-01: la lista dejó de guardar el TEXTO y ahora guarda la CLAVE. El cierre
+// sigue siendo el mismo —un código que no esté aquí no pinta nada que venga de
+// la URL— y además el mensaje sale en el idioma de quien mira.
+const MOTIVOS_GOOGLE: Record<string, ClaveTexto> = {
+  no_disponible: 'login.google.error.no_disponible',
+  cancelado: 'login.google.error.cancelado',
+  invalido: 'login.google.error.invalido',
+  no_registrado: 'login.google.error.no_registrado',
+  inactivo: 'login.google.error.inactivo',
+  ya_vinculada: 'login.google.error.ya_vinculada',
 }
 
 export default function LoginPage() {
   const router = useRouter()
+  // I18N-01. El idioma ya viene resuelto desde el servidor (layout raíz), así
+  // que el primer render de esta página sale en el idioma correcto: no hay un
+  // segundo pase que cambie el texto delante de quien mira.
+  const { t } = useIdioma()
   const [modo, setModo] = useState<Modo>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -125,11 +134,11 @@ export default function LoginPage() {
     const p = new URLSearchParams(window.location.search)
     const motivo = p.get('google')
     if (!motivo) return
-    setError(MOTIVOS_GOOGLE[motivo] ?? 'No se pudo entrar con Google.')
+    setError(t(MOTIVOS_GOOGLE[motivo] ?? 'login.google.error.generico'))
     p.delete('google')
     const q = p.toString()
     window.history.replaceState({}, '', window.location.pathname + (q ? `?${q}` : ''))
-  }, [])
+  }, [t])
 
   const esSignup = modo === 'signup'
   const esForgot = modo === 'forgot'
@@ -157,7 +166,7 @@ export default function LoginPage() {
     setAviso(null)
     // Recuperar contraseña: envía el enlace y muestra un aviso genérico.
     if (esForgot) {
-      if (!esEmailValido(email)) { setError(EMAIL_INVALIDO); return }
+      if (!esEmailValido(email)) { setError(t('validacion.email')); return }
       setEnviando(true)
       try {
         const r = await fetch('/spaces-dooh/api/auth/forgot/', {
@@ -166,17 +175,20 @@ export default function LoginPage() {
           body: JSON.stringify({ email: email.trim() }),
         })
         const d = await r.json().catch(() => ({}))
-        if (!r.ok) throw new Error((d as { error?: string }).error ?? 'No se pudo enviar el enlace')
-        setAviso((d as { mensaje?: string }).mensaje ?? 'Si el correo está registrado, te enviamos un enlace.')
+        if (!r.ok) throw new Error((d as { error?: string }).error ?? t('login.error.enviar-enlace'))
+        // OJO: `d.mensaje` lo escribe el SERVIDOR y llega en español. El texto
+        // traducido es solo el respaldo de cuando no manda ninguno. Ver el
+        // apartado de mensajes de servidor en el informe I18N-01.
+        setAviso((d as { mensaje?: string }).mensaje ?? t('login.aviso-generico'))
         setEnlaceDev((d as { enlaceDev?: string }).enlaceDev ?? null)
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'No se pudo enviar el enlace')
+        setError(e instanceof Error ? e.message : t('login.error.enviar-enlace'))
       }
       setEnviando(false)
       return
     }
 
-    if (esSignup && !esEmailValido(email)) { setError(EMAIL_INVALIDO); return }
+    if (esSignup && !esEmailValido(email)) { setError(t('validacion.email')); return }
     setEnviando(true)
     try {
       if (esSignup) {
@@ -186,11 +198,11 @@ export default function LoginPage() {
           body: JSON.stringify({ organizacion: organizacion.trim(), nombre: nombre.trim(), email: email.trim(), password }),
         })
         const d = await r.json().catch(() => ({}))
-        if (!r.ok) throw new Error((d as { error?: string }).error ?? 'No se pudo crear la cuenta')
+        if (!r.ok) throw new Error((d as { error?: string }).error ?? t('login.error.crear-cuenta'))
       }
       await entrar(email, password)
     } catch (e) {
-      setError(e instanceof Error ? e.message : esSignup ? 'No se pudo crear la cuenta' : 'No se pudo iniciar sesión')
+      setError(e instanceof Error ? e.message : esSignup ? t('login.error.crear-cuenta') : t('login.error.iniciar-sesion'))
       setEnviando(false)
     }
   }
@@ -199,19 +211,21 @@ export default function LoginPage() {
   // ojo: aquí se pedían 6 caracteres mientras el servidor exigía 8 con letra y
   // número, así que el formulario dejaba pulsar «Crear cuenta» para devolver un
   // 400. En la primera pantalla de un registro abierto a internet.
-  const errorPassword = esSignup ? validarPassword(password) : null
+  // El MOTIVO (un codigo), no la frase: `lib/password.ts` la devuelve en
+  // espanol porque la comparte el servidor. Aqui se traduce.
+  const motivoError = esSignup ? motivoPassword(password) : null
+  const errorPassword = motivoError ? t(`password.${motivoError}` as ClaveTexto) : null
   const puedeEnviar = esForgot
     ? !!email.trim()
     : esSignup
       ? !!organizacion.trim() && !!nombre.trim() && !!email.trim() && !errorPassword
       : email && password
 
-  const titulo = esSignup ? 'Crear cuenta' : esForgot ? 'Recuperar contraseña' : 'Iniciar sesión'
-  const subtitulo = esSignup
-    ? 'Registra tu organización y tu usuario. Tendrás tu propio CRM.'
-    : esForgot
-      ? 'Escribe tu correo y te enviaremos un enlace para elegir una nueva contraseña.'
-      : 'Accede con tu cuenta.'
+  // Las tres claves siguen el nombre del modo (`login` | `signup` | `forgot`),
+  // asi que el ternario triple de antes desaparece. `diccionario.test.ts`
+  // comprueba que las seis existan en los dos idiomas.
+  const titulo = t(`login.titulo.${modo}` as ClaveTexto)
+  const subtitulo = t(`login.subtitulo.${modo}` as ClaveTexto)
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-bg px-4">
@@ -225,7 +239,7 @@ export default function LoginPage() {
                 no hay ningún nombre correcto que poner — y poner el de UNA le
                 daba la bienvenida a las otras cuatro con el nombre de un
                 competidor suyo. La empresa aparece en cuanto entras. */}
-            <div className="text-[11px] text-muted">Gestión de espacios publicitarios</div>
+            <div className="text-[11px] text-muted">{t('marca.descriptivo')}</div>
           </div>
         </div>
 
@@ -241,7 +255,7 @@ export default function LoginPage() {
               </div>
               {enlaceDev && (
                 <div className="border-t border-[#10b98133] pt-2">
-                  <div className="mb-1 text-[11px] font-medium text-muted">Enlace (solo en desarrollo):</div>
+                  <div className="mb-1 text-[11px] font-medium text-muted">{t('login.enlace-dev')}</div>
                   <a href={enlaceDev} className="break-all text-[11px] font-medium text-info hover:underline">{enlaceDev}</a>
                 </div>
               )}
@@ -257,35 +271,35 @@ export default function LoginPage() {
               {esSignup && (
                 <>
                   <label className="block">
-                    <span className="mb-1 block text-[12px] font-medium text-ink">Organización</span>
-                    <input className={inputCls} value={organizacion} onChange={(e) => setOrganizacion(e.target.value)} placeholder="Ej. Media Norte" autoFocus />
+                    <span className="mb-1 block text-[12px] font-medium text-ink">{t('login.campo.organizacion')}</span>
+                    <input className={inputCls} value={organizacion} onChange={(e) => setOrganizacion(e.target.value)} placeholder={t('login.ejemplo.organizacion')} autoFocus />
                   </label>
                   <label className="block">
-                    <span className="mb-1 block text-[12px] font-medium text-ink">Tu nombre</span>
-                    <input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej. Ana López" />
+                    <span className="mb-1 block text-[12px] font-medium text-ink">{t('login.campo.nombre')}</span>
+                    <input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder={t('login.ejemplo.nombre')} />
                   </label>
                 </>
               )}
               <label className="block">
-                <span className="mb-1 block text-[12px] font-medium text-ink">Correo</span>
+                <span className="mb-1 block text-[12px] font-medium text-ink">{t('login.campo.correo')}</span>
                 <input
                   type="email"
                   className={inputCls}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="tu@correo.com"
+                  placeholder={t('login.ejemplo.correo')}
                   autoFocus={!esSignup}
                 />
               </label>
               {!esForgot && (
                 <label className="block">
-                  <span className="mb-1 block text-[12px] font-medium text-ink">Contraseña</span>
+                  <span className="mb-1 block text-[12px] font-medium text-ink">{t('login.campo.password')}</span>
                   <input
                     type="password"
                     className={inputCls}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder={esSignup ? REGLA_PASSWORD : '••••••••'}
+                    placeholder={esSignup ? t('password.regla') : '••••••••'}
                     aria-invalid={!!errorPassword && password.length > 0}
                   />
                   {/* El motivo concreto, en cuanto se empieza a teclear. Antes
@@ -300,8 +314,8 @@ export default function LoginPage() {
               <Button type="submit" className="w-full" disabled={enviando || !puedeEnviar}>
                 {esSignup ? <UserPlus className="h-4 w-4" /> : esForgot ? <Mail className="h-4 w-4" /> : <LogIn className="h-4 w-4" />}
                 {enviando
-                  ? esSignup ? 'Creando cuenta…' : esForgot ? 'Enviando…' : 'Entrando…'
-                  : esSignup ? 'Crear cuenta' : esForgot ? 'Enviar enlace' : 'Entrar'}
+                  ? esSignup ? t('login.boton.creando') : esForgot ? t('login.boton.enviando') : t('login.boton.entrando')
+                  : esSignup ? t('login.boton.crear') : esForgot ? t('login.boton.enviar-enlace') : t('login.boton.entrar')}
               </Button>
 
               {/* Enlace a recuperar contraseña (solo en login, y solo si la
@@ -309,7 +323,7 @@ export default function LoginPage() {
               {modo === 'login' && RECUPERAR_HABILITADO && (
                 <div className="text-center">
                   <button type="button" onClick={() => cambiarModo('forgot')} className="text-[12px] text-muted hover:text-info hover:underline">
-                    ¿Olvidaste tu contraseña?
+                    {t('login.olvidaste')}
                   </button>
                 </div>
               )}
@@ -323,7 +337,7 @@ export default function LoginPage() {
                 <>
                   <div className="flex items-center gap-3 pt-1">
                     <span className="h-px flex-1 bg-border" />
-                    <span className="text-[11px] text-muted">o</span>
+                    <span className="text-[11px] text-muted">{t('comun.o')}</span>
                     <span className="h-px flex-1 bg-border" />
                   </div>
                   {/* En el ALTA se manda el nombre de la organización: es el
@@ -341,7 +355,7 @@ export default function LoginPage() {
                     onClick={(e) => {
                       if (esSignup && !organizacion.trim()) {
                         e.preventDefault()
-                        setError('Escribe el nombre de tu organización antes de continuar con Google.')
+                        setError(t('login.google.falta-organizacion'))
                       }
                     }}
                     className={`flex h-10 w-full items-center justify-center gap-2 rounded border border-border-strong bg-surface text-[13px] font-medium text-ink hover:bg-bg ${
@@ -349,7 +363,7 @@ export default function LoginPage() {
                     }`}
                   >
                     <MarcaGoogle />
-                    {esSignup ? 'Crear empresa con Google' : 'Continuar con Google'}
+                    {esSignup ? t('login.google.crear') : t('login.google.continuar')}
                   </a>
                 </>
               )}
@@ -360,15 +374,25 @@ export default function LoginPage() {
           <div className="mt-3 text-center text-[12px] text-muted">
             {esForgot ? (
               <button type="button" onClick={() => cambiarModo('login')} className="hover:underline">
-                ← Volver a <span className="font-medium text-info">iniciar sesión</span>
+                {t('login.volver')}<span className="font-medium text-info">{t('login.volver.enlace')}</span>
               </button>
             ) : autoregistroDisponible || esSignup ? (
               <button type="button" onClick={() => cambiarModo(esSignup ? 'login' : 'signup')} className="hover:underline">
-                {esSignup ? '¿Ya tienes cuenta? ' : '¿No tienes cuenta? '}
-                <span className="font-medium text-info">{esSignup ? 'Iniciar sesión' : 'Crear cuenta'}</span>
+                {esSignup ? t('login.ya-tienes-cuenta') : t('login.no-tienes-cuenta')}
+                <span className="font-medium text-info">{esSignup ? t('login.titulo.login') : t('login.titulo.signup')}</span>
               </button>
             ) : null}
           </div>
+        </div>
+
+        {/* I18N-01 · el cambio a mano.
+            Va aqui, fuera de la tarjeta, porque no es un campo del formulario
+            sino un ajuste de la pantalla; y va en el LOGIN porque es la primera
+            pantalla que ve cualquiera: si la deteccion automatica no acerto,
+            este es el sitio donde arreglarlo antes de teclear nada.
+            En cuanto se toca, la cookie manda sobre el navegador para siempre. */}
+        <div className="mt-4 flex justify-center">
+          <SelectorIdioma />
         </div>
       </div>
     </div>
