@@ -18,6 +18,7 @@ import {
 } from '@/lib/data/estado-api'
 import { useCampanas, useCreatividades, useReservas, useSitios, useClientes } from '@/lib/data/client'
 import { imagenAHtml, IMAGEN_CREATIVO_MAX_MB } from '@/lib/creativo-html'
+import { soloDigitales } from '@/lib/creativos-digitales'
 import type { Campana, Creatividad, Reserva, Sitio, EstValidacionCreatividad } from '@/lib/data/types'
 
 // Si un creativo HTML es una imagen envuelta (ver imagenAHtml), devuelve su data
@@ -104,10 +105,20 @@ export default function CreativosPage() {
     )
   }
 
+  // Solo pantallas DIGITALES (pedido del dueño, 2026-09-30: «en creativos no
+  // deben de salir ninguna campaña de pantalla fija»). Una campaña toda fija no
+  // sale; una mixta sale con sus reservas digitales. La regla, con pruebas, en
+  // `lib/creativos-digitales.ts`.
+  const { campanas: campanasDigitales, reservas: reservasDigitales } = soloDigitales(
+    campanas,
+    reservas,
+    sitios,
+  )
+
   // Solo campañas con spots reservados o con creativos (algo que gestionar).
-  const gestionables = campanas.filter(
+  const gestionables = campanasDigitales.filter(
     (c) =>
-      reservas.some((r) => r.campanaId === c.id) ||
+      reservasDigitales.some((r) => r.campanaId === c.id) ||
       creatividades.some((cr) => cr.campanaId === c.id),
   )
 
@@ -202,7 +213,7 @@ export default function CreativosPage() {
             key={c.id}
             campana={c}
             creativos={creatividades.filter((cr) => cr.campanaId === c.id)}
-            reservas={reservas.filter((r) => r.campanaId === c.id)}
+            reservas={reservasDigitales.filter((r) => r.campanaId === c.id)}
             sitios={sitios}
             puede={puede}
           />

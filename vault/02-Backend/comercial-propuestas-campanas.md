@@ -170,6 +170,15 @@ Un creativo puede ser **imagen** o **código HTML** (`creatividades.codigo`).
 > envoltura retocada, sigue con 2 MB. Las dos pantallas avisan con el mismo
 > tope. Pruebas: `lib/server/creativos-imagen-envuelta.test.ts`.
 
+> [!note] 2026-09-30 · la pantalla de Creativos es solo de pantallas DIGITALES
+> Pedido del dueño: *«en creativos no deben de salir ninguna campaña de
+> pantalla fija»*. `soloDigitales()` (`lib/creativos-digitales.ts`, con
+> pruebas): digital es `tipoMedio === 'PANTALLA_DIGITAL'` —la regla de
+> `esDigital()` en `lib/data/derive.ts`—, NO `spotsReservados != null` (una
+> digital sin slots capturados lo tiene a null). Una campaña toda fija no sale;
+> una mixta sale con solo sus reservas digitales; una sin reservas se queda. El
+> creativo de una lona se sigue gestionando desde la ficha de su campaña.
+
 > [!warning] Tres formas de guardar lo mismo conviven en los datos reales
 > La UI decidía si un creativo era código o imagen **mirando el principio del
 > archivo**. Al dejar de mandar el arte en el payload, eso dejó de funcionar y

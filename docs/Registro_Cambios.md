@@ -7,6 +7,11 @@ La entrada más reciente va arriba.
 
 ## 2026-09-30
 
+- **En Creativos solo salen campañas de pantallas digitales.** *(Pedido tuyo del
+  30/09.)* Una campaña que solo tiene pantallas fijas (espectaculares, vallas,
+  murales) ya no aparece ahí. Si una campaña tiene de los dos tipos, sale con
+  sus pantallas digitales y sin las fijas.
+
 - **Ya se pueden subir fotos normales como creativo.** *(Lo encontraste tú: «en
   campaña está el error para subir imágenes».)*
 
