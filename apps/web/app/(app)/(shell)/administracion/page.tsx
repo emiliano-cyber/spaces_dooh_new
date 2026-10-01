@@ -430,7 +430,7 @@ function InvitarModal({ open, onOpenChange, onInvitado }: { open: boolean; onOpe
 
   return (
     <Modal open={open} onOpenChange={onOpenChange} title="Crear usuario" subtitle={conGoogle ? 'Entrará con su cuenta de Google' : 'Define su acceso y contraseña'}
-      footer={<div className="flex justify-end gap-2"><Button variant="success" size="sm" onClick={() => onOpenChange(false)}>Cancelar</Button><Button size="sm" disabled={!valido || enviando} onClick={enviar}>{enviando ? 'Creando…' : 'Crear usuario'}</Button></div>}>
+      footer={<div className="flex justify-end gap-2"><Button variant="secondary" size="sm" onClick={() => onOpenChange(false)}>Cancelar</Button><Button variant="success" size="sm" disabled={!valido || enviando} onClick={enviar}>{enviando ? 'Creando…' : 'Crear usuario'}</Button></div>}>
       <div className="space-y-3">
         <Campo label="Nombre"><input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus /></Campo>
         <Campo label="Correo"><input className={inputCls} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="correo@empresa.com" /></Campo>
