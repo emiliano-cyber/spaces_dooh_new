@@ -1,6 +1,8 @@
 import 'server-only'
 import { NextResponse } from 'next/server'
 import { z, ZodError, type ZodIssue, type ZodType } from 'zod'
+import { idiomaDeLaPeticion } from '../i18n/servidor'
+import { traducirError } from '../i18n/errores-servidor'
 
 // ============================================================================
 //  lib/server/errores.ts — Fundación de la capa por capas (ruta → controller →
@@ -165,13 +167,39 @@ export function esBaseNoDisponible(e: unknown): boolean {
   return Array.isArray(hijos) && hijos.some((h) => esBaseNoDisponible(h))
 }
 
+// ─── La traducción a la salida (I18N-05, 2026-09-30) ────────────────────────
+//
+// Esta función es el ÚNICO embudo por el que salen los 253 `new AppError(...)`
+// del repositorio, así que es el único sitio donde hay que traducir para que
+// queden cubiertos todos. La alternativa —una clave en cada sitio— tocaba 253
+// lugares y obligaba a reescribir el español, que es justo lo que no debe
+// hacerse: once archivos de prueba afirman ese texto exacto, y esa red impide
+// que al traducir se cambie lo que un error DICE.
+//
+// El español es la FUENTE: `traducirError(m, 'es')` devuelve `m` sin tocarlo, y
+// lo que no esté en el catálogo también sale en español. Así este cambio no
+// puede alterar ni una respuesta de las de hoy.
+//
+// > [!warning] El idioma se lee con `idiomaDeLaPeticion()`, que NO LANZA fuera
+// > de una petición. Es imprescindible y no es celo: esta función corre en el
+// > `catch` de cada ruta, y `cookies()` lanza fuera de una petición. Sin la
+// > guardia, un error nacido en un script o un trabajo de fondo haría que el
+// > manejador de errores lanzara OTRO error y el original se perdiera.
+// > **El manejador de errores no puede ser una fuente de errores.**
+//
+// Lo que NO pasa por aquí, a propósito: los `console.error` de abajo. Un log en
+// dos idiomas según quién provocó el fallo es un registro inservible.
+function alIdiomaDelCliente(mensaje: string): string {
+  return traducirError(mensaje, idiomaDeLaPeticion())
+}
+
 // Mapea cualquier error a una respuesta HTTP. AppError/ZodError → 4xx con
 // mensaje; base que no responde → 503; errores de Postgres atribuibles a la
 // petición → 4xx genérico; lo demás → 500 sin filtrar internals (el detalle va
 // al log del servidor).
 export function respuestaError(e: unknown): NextResponse {
   if (e instanceof AppError) {
-    return NextResponse.json({ error: e.message }, { status: e.status })
+    return NextResponse.json({ error: alIdiomaDelCliente(e.message) }, { status: e.status })
   }
   if (e instanceof ZodError) {
     const i = e.issues[0]
@@ -179,22 +207,29 @@ export function respuestaError(e: unknown): NextResponse {
     const campo = etiqueta ? `${etiqueta}: ` : ''
     // Un issue custom puede pedir otro status (las subidas usan 422); ver validar().
     const status = (i as { params?: { status?: number } })?.params?.status ?? 400
-    return NextResponse.json({ error: `${campo}${i?.message ?? 'Datos inválidos'}` }, { status })
+    return NextResponse.json(
+      { error: alIdiomaDelCliente(`${campo}${i?.message ?? 'Datos inválidos'}`) },
+      { status },
+    )
   }
   if (esBaseNoDisponible(e)) {
-    // El detalle (host, puerto, código) va al log y SOLO al log.
+    // El detalle (host, puerto, código) va al log y SOLO al log — y en español,
+    // que es el idioma del registro.
     console.error('[api] La base de datos no responde:', e)
-    return NextResponse.json({ error: MENSAJE_BASE_NO_DISPONIBLE }, { status: 503 })
+    return NextResponse.json(
+      { error: alIdiomaDelCliente(MENSAJE_BASE_NO_DISPONIBLE) },
+      { status: 503 },
+    )
   }
   const pg = codigoPg(e)
   if (pg && ERRORES_PG[pg]) {
     const { status, mensaje } = ERRORES_PG[pg]
     console.error(`[api] Postgres ${pg}:`, e)
-    return NextResponse.json({ error: mensaje }, { status })
+    return NextResponse.json({ error: alIdiomaDelCliente(mensaje) }, { status })
   }
   // Inesperado: se registra completo del lado del servidor y al cliente solo le
   // llega que fue un error interno (el mensaje puede contener detalles del
   // esquema, de la conexión o de la consulta).
   console.error('[api] Error no controlado:', e)
-  return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  return NextResponse.json({ error: alIdiomaDelCliente('Error interno') }, { status: 500 })
 }

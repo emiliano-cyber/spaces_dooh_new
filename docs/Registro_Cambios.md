@@ -7,6 +7,51 @@ La entrada más reciente va arriba.
 
 ## 2026-09-30
 
+- **Los avisos de error tambien salen ya en INGLES.** *(Tu decision del 30/09:
+  que los mensajes del servidor entren, en el idioma elegido.)*
+
+  Hasta hoy, quien usaba la aplicacion en ingles veia **la pantalla en ingles y
+  el aviso de error en espanol** — justo cuando algo salia mal, que es el peor
+  momento para no entender. Eso se acabo para la mayoria de los avisos.
+
+  **Lo que cambia para ti, en una frase:** si entras con el navegador en ingles,
+  un aviso como «Campana no encontrada» ahora dice «Campaign not found».
+
+  **Importante, y es lo primero que conviene saber: en espanol NO CAMBIA NADA.**
+  Ni una palabra, ni una coma. El espanol sigue siendo el original y el ingles
+  es una version suya — no al reves. Traducir no era ocasion para reescribir lo
+  que un aviso dice, y no se reescribio ninguno.
+
+  **Cuanto quedo cubierto, contado:** de los **251** avisos que puede dar el
+  servidor, **179 salen ya en ingles** (el **71 %**). De los que faltan:
+
+  - **44 son avisos que llevan un dato dentro** —«Son 3 archivos y el maximo por
+    tanda es 10»—, y esos necesitan otra forma de traducirse. **Es el siguiente
+    lote y ya esta contado.**
+  - Otros **28** dependen de por donde venga el aviso: se traducen si el texto
+    ya esta en la lista, y muchas veces lo esta.
+
+  Mientras tanto, lo que falte **sale en espanol**, que es mucho mejor que salir
+  a medias o en blanco.
+
+  **Lo que NO se traduce, y es a proposito:** lo que queda **registrado** — el
+  historial de acciones, los registros internos del servidor y los expedientes.
+  Un registro escrito en dos idiomas segun quien provoco el fallo no sirve para
+  nada: quien lo lee despues no puede saber si dos lineas son el mismo suceso o
+  dos distintos. **La memoria del sistema se queda en un solo idioma.**
+
+  **Y dos decisiones tuyas que quedan cerradas por escrito**, para que nadie las
+  vuelva a preguntar: el ingles es **de Estados Unidos**, y el idioma se
+  recuerda **por dispositivo** (quien elija ingles en su computadora seguira
+  viendo espanol en su telefono). Esto ultimo significa, de paso, que **no hizo
+  falta ningun cambio en la base de datos**.
+
+  **Lo que nadie comprobo:** *sigue sin abrirse un navegador* — van siete
+  entregas. Y **ninguna de las 142 traducciones la reviso un hablante nativo**:
+  dicen lo mismo, pero no estan garantizadas de sonar como las escribiria
+  alguien de alla.
+
+
 - **Nueva pantalla «Comercial OPEX»: la prospeccion de arrendadores.** *(Tu
   peticion del 30/09, a partir de un prototipo tuyo: «por ahora solo sera html
   sin funciones» y «el mapa ese no lo anadas».)*

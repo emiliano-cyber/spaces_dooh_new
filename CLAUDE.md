@@ -98,7 +98,8 @@ vault/
 │                     codigo-promocional + paquete-cerrado + roles-de-venta,
 │                     y la bitacora de captacion (captacion, CAP-01)
 ├── 03-Frontend/      _indice + shell-y-navegacion · acceso-y-sesion-ui ·
-│                     idiomas-es-en (espanol/ingles, I18N-01) ·
+│                     idiomas-es-en (espanol/ingles: interfaz I18N-01 y
+│                     errores del servidor I18N-05) ·
 │                     modulos-internos · paginas-publicas ·
 │                     estado-y-data-fetching
 ├── 04-Datos/         esquema · migraciones
