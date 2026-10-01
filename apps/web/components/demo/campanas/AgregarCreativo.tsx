@@ -7,7 +7,7 @@ import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { crearCreatividadApi } from '@/lib/data/estado-api'
-import { imagenAHtml } from '@/lib/creativo-html'
+import { imagenAHtml, IMAGEN_CREATIVO_MAX_MB } from '@/lib/creativo-html'
 
 // ============================================================================
 //  Alta rápida de creativos desde la FICHA DE CAMPAÑA: subir una imagen o pegar
@@ -38,8 +38,8 @@ export function AgregarCreativo({ campanaId }: { campanaId: string }) {
     const f = e.target.files?.[0]
     e.target.value = ''
     if (!f) return
-    if (f.size > 5 * 1024 * 1024) {
-      toast.error('La imagen supera 5MB')
+    if (f.size > IMAGEN_CREATIVO_MAX_MB * 1024 * 1024) {
+      toast.error(`La imagen supera ${IMAGEN_CREATIVO_MAX_MB} MB`)
       return
     }
     const reader = new FileReader()

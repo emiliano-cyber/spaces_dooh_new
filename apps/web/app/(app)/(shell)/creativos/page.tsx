@@ -17,7 +17,7 @@ import {
   reemplazarCreatividadApi,
 } from '@/lib/data/estado-api'
 import { useCampanas, useCreatividades, useReservas, useSitios, useClientes } from '@/lib/data/client'
-import { imagenAHtml } from '@/lib/creativo-html'
+import { imagenAHtml, IMAGEN_CREATIVO_MAX_MB } from '@/lib/creativo-html'
 import type { Campana, Creatividad, Reserva, Sitio, EstValidacionCreatividad } from '@/lib/data/types'
 
 // Si un creativo HTML es una imagen envuelta (ver imagenAHtml), devuelve su data
@@ -271,8 +271,8 @@ function CampanaCard({
     const f = e.target.files?.[0]
     e.target.value = ''
     if (!f) return
-    if (f.size > 5 * 1024 * 1024) {
-      toast.error('La imagen supera 5MB')
+    if (f.size > IMAGEN_CREATIVO_MAX_MB * 1024 * 1024) {
+      toast.error(`La imagen supera ${IMAGEN_CREATIVO_MAX_MB} MB`)
       return
     }
     setSubiendo(true)
@@ -357,8 +357,8 @@ function CampanaCard({
     e.target.value = ''
     const id = reemplazarId
     if (!f || !id) return
-    if (f.size > 5 * 1024 * 1024) {
-      toast.error('La imagen supera 5MB')
+    if (f.size > IMAGEN_CREATIVO_MAX_MB * 1024 * 1024) {
+      toast.error(`La imagen supera ${IMAGEN_CREATIVO_MAX_MB} MB`)
       return
     }
     setBusy(id)

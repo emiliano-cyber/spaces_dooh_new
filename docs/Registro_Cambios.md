@@ -7,6 +7,17 @@ La entrada más reciente va arriba.
 
 ## 2026-09-30
 
+- **Ya se pueden subir fotos normales como creativo.** *(Lo encontraste tú: «en
+  campaña está el error para subir imágenes».)*
+
+  La pantalla decía que aceptaba imágenes de hasta 5 MB, pero en realidad
+  cualquier foto de más de unos 700 KB fallaba —con un mensaje confuso sobre «el
+  código del creativo» o, en el servidor de verdad, con un error de conexión—.
+  Ahora entran imágenes de **hasta 4 MB**, tanto desde la ficha de la campaña
+  como desde Creativos, y si una pesa más, la pantalla te lo dice así: «La
+  imagen supera 4 MB». El límite es 4 y no 5 para que el servidor de producción
+  no corte la subida a medias.
+
 - **En Creativos ya no está el botón «Repartir a todas».** *(Pedido tuyo del
   30/09.)* Los creativos se asignan pantalla por pantalla. Lo que ya estaba
   asignado no cambia, y la función sigue en el sistema por si se quiere

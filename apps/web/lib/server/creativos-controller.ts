@@ -8,6 +8,7 @@ import {
   CreatividadError,
 } from './creativos-repo'
 import { LIMITES, validarUpload } from './uploads'
+import { imagenAHtml, imagenDeHtml, IMAGEN_CREATIVO_MAX_MB } from '@/lib/creativo-html'
 
 // ============================================================================
 //  lib/server/creativos-controller.ts — Alta de creativos y asignación a
@@ -46,10 +47,62 @@ const archivoCreatividad = z
 // El HTML se almacena como TEXTO y se escapa al renderizar (nunca
 // dangerouslySetInnerHTML sin sandbox). Aquí solo se acota su tamaño.
 const MAX_CODIGO_BYTES = LIMITES.creatividadHtml.maxMB * 1024 * 1024
+
+// ─── La imagen ENVUELTA en HTML (2026-09-30) ────────────────────────────────
+// Las pantallas de Creativos y de la campaña suben una imagen envolviéndola con
+// `imagenAHtml` —el player DOOH necesita HTML que se adapte a cualquier
+// pantalla— y la envoltura lleva la imagen DOS veces (fondo difuminado y
+// frente). Con el límite de 2 MB del HTML, la foto más grande que entraba
+// rondaba los 700 KB, aunque la pantalla prometía 5 MB: el dueño lo vio como
+// «error al subir imágenes».
+//
+// Si el HTML es EXACTAMENTE la envoltura de la app (se regenera y se compara
+// byte a byte), la imagen de dentro se valida COMO IMAGEN —tipo real por magic
+// bytes— con su propio tope, y el HTML puede llegar a 11 MB: por debajo de los
+// 12 MB que corta nginx (`client_max_body_size 12M` en infra/nginx). Una imagen
+// de 4 MB envuelta pesa ~10,7 MB. Un HTML escrito a mano, o una envoltura
+// retocada, sigue con el límite de 2 MB.
+export const IMAGEN_ENVUELTA_MAX_MB = IMAGEN_CREATIVO_MAX_MB
+const HTML_ENVUELTO_MAX_BYTES = 11 * 1024 * 1024
+
+function imagenDeLaEnvoltura(html: string): string | null {
+  const img = imagenDeHtml(html)
+  if (!img) return null
+  const alt = html.match(/<img class="dooh-fg" src="[^"]*" alt="([^"]*)"\/>/)?.[1]
+  if (alt === undefined) return null
+  return imagenAHtml(img, alt) === html ? img : null
+}
+
 const codigoCreatividad = z
   .string()
   .trim()
   .superRefine((v, ctx) => {
+    const img = imagenDeLaEnvoltura(v)
+    if (img) {
+      try {
+        validarUpload({
+          base64: img,
+          allowlist: LIMITES.creatividadImagen.allowlist,
+          maxMB: IMAGEN_ENVUELTA_MAX_MB,
+          campo: 'imagen',
+        })
+      } catch (e) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: e instanceof Error ? e.message : `La imagen supera ${IMAGEN_ENVUELTA_MAX_MB} MB`,
+          params: { status: 422 },
+        })
+        return
+      }
+      if (Buffer.byteLength(v, 'utf8') > HTML_ENVUELTO_MAX_BYTES) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `La imagen supera ${IMAGEN_ENVUELTA_MAX_MB} MB`,
+          params: { status: 422 },
+        })
+      }
+      return
+    }
     if (Buffer.byteLength(v, 'utf8') > MAX_CODIGO_BYTES) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
