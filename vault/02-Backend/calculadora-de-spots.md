@@ -145,8 +145,20 @@ números) y `calculadora-spots.test.ts` comprueba que todos se traducen.
 
 En el alta de propuesta (`propuestas/page.tsx`, «Contratación por sitio»), toda
 línea de pantalla con `tipoMedio === 'PANTALLA_DIGITAL'` y unidad `spot` trae el
-bloque `CalculadoraSpotsLinea`, **encendido por omisión** con 1 espacio y las
-horas de la franja o del horario:
+bloque `CalculadoraSpotsLinea`, **APAGADO por omisión** desde el 2026-10-01
+(`CALCULADORA_POR_OMISION` en `lib/calculadora-spots.ts`). Al encenderlo arranca
+con 1 espacio y las horas de la franja o del horario:
+
+> [!danger] 2026-10-01 · por qué arranca apagada (decisión del dueño, opción B)
+> Nació encendida. Al revisarla en el navegador, «Insurgentes Sur LED» de la base
+> local tenía tarifa «por spot» de **$3,200**, que no es el precio de UNA
+> reproducción sino uno de día o de paquete. Antes se cotizaba con cantidad
+> manual 1 = $3,200; con la calculadora encendida llenaba **10,200 spots** y la
+> línea salía en **$32,640,000**. La propia referencia lo delataba: «equivale a
+> $0.31 por spot frente a la tarifa mensual». Hasta revisar las tarifas por spot
+> de cada instancia (g500 incluida), la línea arranca en cantidad manual y la
+> calculadora se enciende a mano. Encenderla por omisión es cambiar `manual:
+> true` por `false` en esa constante, con su prueba.
 
 - Espacios del loop (máx. `totalSpots`, con «N libres» del inventario), horas al
   día (techo = el por omisión), casilla **Roadblock** y **Prima %**, que solo

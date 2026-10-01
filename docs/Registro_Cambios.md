@@ -40,8 +40,13 @@ La entrada más reciente va arriba.
   - Si la calculadora no entiende el horario escrito en la pantalla, toma 18
     horas y **lo avisa**. Debajo enseña también, solo como referencia, a cuánto
     sale el spot comparado con la tarifa mensual; eso **no se cobra**.
-  - La calculadora se puede apagar en cada línea para capturar los spots a mano,
-    como hasta ahora. Las pantallas fijas y las demás unidades no cambian.
+  - **Por ahora arranca APAGADA** *(lo decidiste el 01/10)*: cada línea se cotiza
+    como siempre, con la cantidad a mano, y la calculadora se enciende con su
+    casilla. Es porque algunas pantallas tienen una tarifa «por spot» que en
+    realidad es de un día o de un paquete (por ejemplo, $3,200), y con la
+    calculadora encendida esa tarifa se multiplicaba por miles de spots. Cuando
+    las tarifas por spot sean el precio de **una** reproducción, se puede dejar
+    encendida desde el inicio. Las pantallas fijas y las demás unidades no cambian.
   - **El cliente solo ve el precio final**: en la liga de la propuesta no
     aparecen los espacios, las horas, el Roadblock ni la prima.
 

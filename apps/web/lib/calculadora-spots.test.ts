@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
+  CALCULADORA_POR_OMISION,
   DURACION_SPOT_RESPALDO_SEG,
   HORAS_OPERACION_RESPALDO,
   decidirPrecioCalculadora,
@@ -402,5 +403,21 @@ describe('referenciaPorSpotMensual · informativa, nunca se cobra', () => {
   it('sin tarifa mensual o sin loop, no hay referencia', () => {
     expect(referenciaPorSpotMensual({ tarifaMensual: 0, totalSpots: 12, duracionSeg: 20, horasOperacion: 18 })).toBeNull()
     expect(referenciaPorSpotMensual({ tarifaMensual: 45000, totalSpots: null, duracionSeg: 20, horasOperacion: 18 })).toBeNull()
+  })
+})
+
+describe('CALCULADORA_POR_OMISION — arranca APAGADA (decisión del dueño, 01/10)', () => {
+  // Con la calculadora encendida por omisión, una pantalla con tarifa «por spot»
+  // de $3,200 (capturada como precio de día o de paquete, no de UNA
+  // reproducción) cotizaba 10,200 spots = $32.6 M en vez de los $3,200 de
+  // siempre. Hasta revisar esas tarifas, la línea arranca en cantidad manual.
+  it('una línea nueva arranca en cantidad manual, sin calculadora', () => {
+    expect(CALCULADORA_POR_OMISION.manual).toBe(true)
+  })
+
+  it('y si alguien la enciende, empieza con un espacio y sin Roadblock', () => {
+    expect(CALCULADORA_POR_OMISION.espacios).toBe('1')
+    expect(CALCULADORA_POR_OMISION.roadblock).toBe(false)
+    expect(CALCULADORA_POR_OMISION.prima).toBe('')
   })
 })

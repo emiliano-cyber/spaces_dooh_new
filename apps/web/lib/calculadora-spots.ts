@@ -455,3 +455,26 @@ export function referenciaPorSpotMensual(e: {
   if (alMes <= 0) return null
   return Math.round((tarifa / alMes) * 100) / 100
 }
+
+/**
+ * Con qué arranca la calculadora en una línea nueva de propuesta.
+ *
+ * **APAGADA** (`manual: true`), por decisión del dueño del 2026-10-01. Encendida
+ * por omisión —como nació en ADR 0042— una pantalla con tarifa «por spot»
+ * capturada como precio de día o de paquete pasaba de cotizar $3,200 a $32.6 M:
+ * la calculadora llenaba 10,200 spots y los multiplicaba por esa tarifa. Medido
+ * en el navegador con «Insurgentes Sur LED» de la base local; su propia línea de
+ * referencia decía «equivale a $0.31 por spot frente a la tarifa mensual».
+ *
+ * Así la línea cotiza como antes (cantidad manual) hasta que se revisen las
+ * tarifas por spot, y la calculadora se enciende a mano en cada línea. Cuando
+ * las tarifas sean de UNA reproducción, encenderla por omisión es cambiar este
+ * `true` por `false`.
+ */
+export const CALCULADORA_POR_OMISION = {
+  manual: true,
+  espacios: '1',
+  horasDia: '',
+  roadblock: false,
+  prima: '',
+} as const

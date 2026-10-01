@@ -17,7 +17,7 @@
       },
       {
         "tipo": "NUEVO",
-        "texto": "Calculadora de spots en las propuestas: al cotizar una pantalla digital por spot, eliges cuántos espacios del loop compras y cuántas horas al día, y el sistema calcula los spots de toda la campaña. El precio por spot sigue siendo la tarifa de la pantalla."
+        "texto": "Calculadora de spots en las propuestas: al cotizar una pantalla digital por spot, eliges cuántos espacios del loop compras y cuántas horas al día, y el sistema calcula los spots de toda la campaña. El precio por spot sigue siendo la tarifa de la pantalla. Por ahora viene apagada: se enciende con la casilla «Calculadora de spots» en cada pantalla."
       },
       {
         "tipo": "NUEVO",

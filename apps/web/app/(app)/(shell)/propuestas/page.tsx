@@ -10,6 +10,7 @@ import { AvisoFranjaCMS } from '@/components/demo/rejilla/AvisoFranjaCMS'
 import { catalogoRejillaApi, type FranjaUI, type TemporadaUI } from '@/lib/data/rejilla-api'
 import { modalidadesDeSitio, tarifaCalculada } from '@/lib/tarifa-calculada'
 import {
+  CALCULADORA_POR_OMISION,
   duracionSpotSeg,
   horasDeHorario,
   horasPorOmision,
@@ -1284,9 +1285,10 @@ function puntoEnPoligono(p: [number, number], poly: [number, number][]): boolean
   return dentro
 }
 
-// ADR 0042 · lo que una línea arranca teniendo de la calculadora: encendida,
-// un espacio, las horas de la franja o del horario, sin Roadblock.
-const CALC_POR_OMISION = { manual: false, espacios: '1', horasDia: '', roadblock: false, prima: '' }
+// ADR 0042 · lo que una línea arranca teniendo de la calculadora. APAGADA desde
+// el 2026-10-01 por decisión del dueño: el porqué vive junto a la constante, en
+// `lib/calculadora-spots.ts`, que es donde lo vigila su prueba.
+const CALC_POR_OMISION = { ...CALCULADORA_POR_OMISION }
 
 const fmtNum = (n: number, dec = 2) => n.toLocaleString('es-MX', { maximumFractionDigits: dec })
 
