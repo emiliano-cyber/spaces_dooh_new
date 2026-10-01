@@ -5,7 +5,8 @@
 #    1. instancia nueva (credenciales, eyes.env) con dueno g500
 #    2. copia de la base de produccion (:4000) y migraciones 015+ sobre ella
 #    3. el telefono de pruebas (:4100) con todo su historial, en la zona propia
-#    4. las fotos (miniaturas de todo, completas de los ultimos 7 dias)
+#    4. las fotos (miniaturas de todo, completas de los ultimos 7 dias; y
+#       fotos-completas.tar: las completas que faltaban, bajadas por lista)
 #
 #  Uso (en WSL):  bash cargar-datos.sh /mnt/c/Users/hm284/datos-locales
 #  Espera ahi: v1.sql.gz, pruebas.sql.gz, importar-equipo.js, fotos-v1.tar,
@@ -58,7 +59,7 @@ echo "5) todo es de g500 (decision del 17/09: todas las camaras de hoy son suyas
 C exec -T mysql mysql -h127.0.0.1 -uroot -p"$CL" space_eye -e "UPDATE devices SET owner='g500' WHERE owner IS NULL OR owner=''" 2>/dev/null
 
 echo "6) fotos"
-for t in fotos-v1.tar fotos-pruebas.tar; do
+for t in fotos-v1.tar fotos-completas.tar fotos-pruebas.tar; do
   [ -f "$DATOS/$t" ] || { echo "   (sin $t)"; continue; }
   docker run --rm -v space-eyes_fotos:/d -v "$DATOS":/s:ro alpine sh -c "cd /d && tar xf /s/$t" && echo "   $t ok"
 done
