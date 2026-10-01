@@ -71,6 +71,15 @@ hemos visto una respuesta con datos, así que no se interpreta nada todavía»*.
 > `/api/devices/:id/pantalla` y `/creativos`, que desde el 01/10 aceptan llaves
 > **solo en lectura** y comprueban el dueño (404 por un equipo ajeno, que aquí es
 > `disponible: false`). Requieren Space Eye con esas rutas abiertas (V2, `:4200`).
+>
+> **El panel entero dentro del módulo** (01/10): las ocho pantallas del panel de
+> Space Eye viven ya en `/space-eyes/…` (Equipos, `galeria`, `graficas`, `texto`,
+> `programacion`, `campanas`, `verificacion`, `fallas`), y la ficha del equipo
+> tiene pestañas Fotos · En vivo (WHEP, `lib/space-eyes-whep.ts`) · Pantalla y
+> fallas · Creativos · Equipo. Todas hablan por la puerta
+> `/api/space-eyes/se/[...ruta]` (lista cerrada de rutas; GET con
+> `inventario.ver`, escribir con `inventario.crear`). Probado en local con la base
+> real de los equipos de :4000 más el de pruebas de :4100 (7 equipos, g500).
 
 `lib/server/space-eye.ts`. Cada espectacular tiene un teléfono Android que
 captura fotos y las verifica contra la creatividad con IA. El enlace

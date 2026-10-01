@@ -34,6 +34,12 @@ import {
 import { Bateria, PildoraConexion, Senal, calidadSenal, estaEnLinea, fechaHora, gigas, hace } from './piezas'
 import { Historial } from './Historial'
 import { PantallaYCreativos } from './PantallaYCreativos'
+import { VistaEnVivo } from './VistaEnVivo'
+import { PantallaConfig } from './PantallaConfig'
+import { CreativosConfig } from './CreativosConfig'
+import { EquipoAdmin } from './EquipoAdmin'
+import { Tabs, TabPanel } from '@/components/demo/ui/Tabs'
+import { usePuede } from '@/components/demo/shell/SesionContext'
 
 // ============================================================================
 //  Space Eyes — la ficha de un equipo.
@@ -66,6 +72,11 @@ export function FichaEquipo({ id }: { id: number }) {
   const [error, setError] = useState<string | null>(null)
   const [vista, setVista] = useState<Vista>('equipo')
   const [ampliada, setAmpliada] = useState<string | null>(null)
+  // Quien puede operar el equipo (pedir fotos, vivo, cambiar ajustes): el mismo
+  // permiso que exige la puerta /api/space-eyes/se para escribir.
+  const puedeOperar = usePuede('inventario', 'crear')
+  // Al guardar ajustes de pantalla o creativos, la vista de solo lectura se recarga.
+  const [version, setVersion] = useState(0)
   const [captura, setCaptura] = useState<Captura>('quieto')
   const [avisoCaptura, setAvisoCaptura] = useState<string | null>(null)
   const [subiendo, setSubiendo] = useState(false)
@@ -323,6 +334,18 @@ export function FichaEquipo({ id }: { id: number }) {
         </div>
       )}
 
+      {/* Las pestañas de la ficha: lo mismo que el panel de Space Eye, aqui. */}
+      <Tabs
+        defaultValue="fotos"
+        tabs={[
+          { value: 'fotos', label: 'Fotos' },
+          { value: 'vivo', label: 'En vivo' },
+          { value: 'pantalla', label: 'Pantalla y fallas' },
+          { value: 'creativos', label: 'Creativos' },
+          { value: 'equipo', label: 'Equipo' },
+        ]}
+      >
+      <TabPanel value="fotos" className="pt-4">
       <div className="flex flex-col gap-4 xl:flex-row">
         {/* ── La fotografía ── */}
         <div className="min-w-0 flex-1 overflow-hidden rounded-md border border-border bg-surface">
@@ -597,8 +620,30 @@ export function FichaEquipo({ id }: { id: number }) {
         </div>
       </div>
 
-      {/* Lo que el equipo ve en su pantalla: fallas y creativos (APK 0.15+) */}
-      <PantallaYCreativos id={equipo.id} onAmpliar={setAmpliada} />
+      </TabPanel>
+
+      <TabPanel value="vivo" className="pt-4">
+        <VistaEnVivo
+          equipo={{ id: equipo.id, nombre: equipo.nombre, appVersion: equipo.versionApp, online: equipo.online }}
+          puedeOperar={puedeOperar}
+          onFoto={() => { void traer() }}
+        />
+      </TabPanel>
+
+      <TabPanel value="pantalla" className="flex flex-col gap-4 pt-4">
+        <PantallaConfig equipoId={equipo.id} puedeOperar={puedeOperar} onCambio={() => setVersion((v) => v + 1)} />
+        {/* Lo que el equipo vio en su pantalla: fallas e historial (APK 0.15+) */}
+        <PantallaYCreativos key={version} id={equipo.id} onAmpliar={setAmpliada} soloFallas />
+      </TabPanel>
+
+      <TabPanel value="creativos" className="pt-4">
+        <CreativosConfig equipoId={equipo.id} puedeOperar={puedeOperar} onAmpliar={setAmpliada} onCambio={() => setVersion((v) => v + 1)} />
+      </TabPanel>
+
+      <TabPanel value="equipo" className="pt-4">
+        <EquipoAdmin equipoId={equipo.id} puedeOperar={puedeOperar} onCambio={() => { void traer() }} />
+      </TabPanel>
+      </Tabs>
 
       {/* Lightbox */}
       <Modal open={!!ampliada} onOpenChange={(v) => !v && setAmpliada(null)} size="xl" title={equipo.nombre}>

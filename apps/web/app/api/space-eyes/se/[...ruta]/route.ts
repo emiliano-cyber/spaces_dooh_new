@@ -23,7 +23,7 @@ export const dynamic = 'force-dynamic'
 // ============================================================================
 
 const PERMITIDAS = [
-  /^devices(\/\d+(\/(command|logs|telemetry(\/export)?|camera|overlay|stream-rotation|stream-status|pantalla|salud|creativos(\/reaprender)?))?)?$/,
+  /^devices(\/\d+(\/(command|logs|telemetry(\/export)?|camera|overlay|stream-rotation|stream-status|camera-control|pantalla|salud|creativos(\/reaprender)?))?)?$/,
   /^photos(\/\d+)?$/,
   /^fallas(\/\d+)?$/,
   /^creativos\/\d+$/,
