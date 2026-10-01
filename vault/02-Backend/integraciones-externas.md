@@ -65,6 +65,12 @@ hemos visto una respuesta con datos, así que no se interpreta nada todavía»*.
 > base. Las fotos se sirven por `/api/space-eyes/foto` (sin contenido mixto,
 > sin SSRF). `SPACE_EYE_*` ya está en `infra/env/instancia.env.example`, que era
 > el hueco de abajo.
+>
+> **Fallas y creativos en la ficha** (`PantallaYCreativos.tsx`):
+> `GET /api/space-eyes/:id/fallas` y `/creativos` leen de Space Eye
+> `/api/devices/:id/pantalla` y `/creativos`, que desde el 01/10 aceptan llaves
+> **solo en lectura** y comprueban el dueño (404 por un equipo ajeno, que aquí es
+> `disponible: false`). Requieren Space Eye con esas rutas abiertas (V2, `:4200`).
 
 `lib/server/space-eye.ts`. Cada espectacular tiene un teléfono Android que
 captura fotos y las verifica contra la creatividad con IA. El enlace

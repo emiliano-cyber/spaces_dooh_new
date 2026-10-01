@@ -251,4 +251,43 @@ suite('módulo Space Eyes', () => {
     const raro = await c.pedir(`/api/space-eyes/${equipoId}/telemetria/?horas=100000`)
     expect(raro.datos.horas).toBe(24)
   })
+
+  it('las fallas y los creativos del equipo responden, con sus fotos por NUESTRA ruta', async () => {
+    const c = new Cliente()
+    await c.entrar(a.usuarioEmail, PASSWORD_DEMO)
+    const f = await c.pedir(`/api/space-eyes/${equipoId}/fallas/`)
+    expect(f.status).toBe(200)
+    expect(f.datos.disponible).toBe(true)
+    for (const x of f.datos.fallas ?? []) {
+      for (const u of [x.evidencia, x.evidenciaMini, x.evidenciaRecuperacion].filter(Boolean)) {
+        expect(u.startsWith('/spaces-dooh/api/space-eyes/foto/')).toBe(true)
+      }
+    }
+    const cr = await c.pedir(`/api/space-eyes/${equipoId}/creativos/`)
+    expect(cr.status).toBe(200)
+    expect(cr.datos.disponible).toBe(true)
+    for (const x of cr.datos.creativos ?? []) {
+      expect(x.foto.startsWith('/spaces-dooh/api/space-eyes/foto/')).toBe(true)
+    }
+  })
+
+  it('las fallas de un equipo AJENO o inventado no se ven', async () => {
+    // Space Eye contesta 404 por un equipo de otro dueño; aqui eso es "no hay
+    // datos", no un error ni la falla de otro cliente.
+    const c = new Cliente()
+    await c.entrar(a.usuarioEmail, PASSWORD_DEMO)
+    for (const que of ['fallas', 'creativos']) {
+      const r = await c.pedir(`/api/space-eyes/999999/${que}/`)
+      expect(r.status).toBe(200)
+      expect(r.datos.disponible).toBe(false)
+    }
+  })
+
+  it('sin sesión, ni fallas ni creativos', async () => {
+    const anon = new Cliente()
+    for (const que of ['fallas', 'creativos']) {
+      const r = await anon.pedir(`/api/space-eyes/${equipoId}/${que}/`)
+      expect(r.status).toBe(401)
+    }
+  })
 })

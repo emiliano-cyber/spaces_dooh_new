@@ -33,6 +33,7 @@ import {
 } from '@/lib/data/space-eyes-api'
 import { Bateria, PildoraConexion, Senal, calidadSenal, estaEnLinea, fechaHora, gigas, hace } from './piezas'
 import { Historial } from './Historial'
+import { PantallaYCreativos } from './PantallaYCreativos'
 
 // ============================================================================
 //  Space Eyes — la ficha de un equipo.
@@ -595,6 +596,9 @@ export function FichaEquipo({ id }: { id: number }) {
           </Tarjeta>
         </div>
       </div>
+
+      {/* Lo que el equipo ve en su pantalla: fallas y creativos (APK 0.15+) */}
+      <PantallaYCreativos id={equipo.id} onAmpliar={setAmpliada} />
 
       {/* Lightbox */}
       <Modal open={!!ampliada} onOpenChange={(v) => !v && setAmpliada(null)} size="xl" title={equipo.nombre}>

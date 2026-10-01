@@ -506,3 +506,142 @@ export async function infoDeAlta(): Promise<SEInfoAlta> {
 export function testigoCompleto(): string {
   return TESTIGO
 }
+
+// ─── Fallas de pantalla y creativos detectados ──────────────────────────────
+//
+// Lo que el propio equipo descubre mirando su pantalla (APK 0.15 en adelante):
+// gabinetes apagados o congelados, pantalla apagada en horario, camara movida, y
+// los anuncios distintos que han pasado por ella. Space Eye comprueba el dueño
+// con la llave y contesta 404 por un equipo ajeno; aqui ese 404 es "no hay".
+
+/** Como api(), pero un 404 (equipo ajeno o inexistente) devuelve null. */
+async function apiOpcional<T>(path: string): Promise<T | null> {
+  const r = await fetch(`${BASE}${path}`, { headers: { Authorization: `Bearer ${KEY}` } })
+  if (r.status === 404) return null
+  if (!r.ok) throw new Error(`Space Eye: ${path} → ${r.status}`)
+  return (await r.json()) as T
+}
+
+export interface SEFalla {
+  id: number
+  tipo: string
+  /** Como la nombra Space Eye: «Gabinete apagado», «Pantalla congelada»... */
+  nombre: string
+  estado: 'abierta' | 'recuperada' | 'descartada'
+  /** Dónde, en palabras: «Gabinete 9 (fila 2, columna 3)», «Gabinetes 2, 5, 8 (3 de 15)», «Toda la pantalla». */
+  donde: string
+  confianza: number
+  detectadaEn: string
+  recuperadaEn: string | null
+  /** 'equipo' si se cerró sola al recuperarse; 'usuario' si alguien la cerró a mano. */
+  cerradaPor: string | null
+  nota: string | null
+  /** Ya por el proxy de fotos de esta aplicación. */
+  evidencia: string | null
+  evidenciaMini: string | null
+  evidenciaRecuperacion: string | null
+}
+
+export interface SEPantallaEquipo {
+  /** El equipo vigila su pantalla (el dueño lo enciende en Space Eye). */
+  vigilando: boolean
+  /** Todavía aprende cómo se ve normalmente: no avisa de fallas. */
+  aprendiendo: boolean
+  /** Cuántos gabinetes tiene la pantalla marcada, o null si no se ha marcado. */
+  gabinetes: number | null
+  horario: { inicio: string; fin: string } | null
+  /** Cuándo revisó por última vez y qué concluyó. */
+  ultimaRevision: { cuando: string; pantalla: string } | null
+  fallas: SEFalla[]
+}
+
+function dondeDeFalla(f: { fila: number | null; columna: number | null; gabinete: number | null; detalle: any }): string {
+  const lista: number[] = Array.isArray(f.detalle?.gabinetes) ? f.detalle.gabinetes : []
+  if (lista.length) {
+    const total = Number(f.detalle?.total) || null
+    const muestra = lista.slice(0, 12).join(', ') + (lista.length > 12 ? '…' : '')
+    return `Gabinetes ${muestra}${total ? ` (${lista.length} de ${total})` : ''}`
+  }
+  if (f.gabinete != null && f.fila != null && f.columna != null) {
+    return `Gabinete ${f.gabinete} (fila ${f.fila + 1}, columna ${f.columna + 1})`
+  }
+  return 'Toda la pantalla'
+}
+
+export async function pantallaDeEquipo(id: number): Promise<SEPantallaEquipo | null> {
+  if (!spaceEyeHabilitado()) return null
+  const d = await apiOpcional<{
+    pantalla: { filas: number; columnas: number; horario?: { inicio: string; fin: string } } | null
+    salud: { vigilar: boolean; aprendiendo: boolean } | null
+    ultimo: { ts?: number; pantalla?: string } | null
+    fallas: Record<string, any>[]
+  }>(`/api/devices/${id}/pantalla`)
+  if (!d) return null
+  const foto = (p: unknown) => (typeof p === 'string' && p ? urlDeFoto(p) : null)
+  return {
+    vigilando: !!d.salud?.vigilar,
+    aprendiendo: !!d.salud?.aprendiendo,
+    gabinetes: d.pantalla ? d.pantalla.filas * d.pantalla.columnas : null,
+    horario: d.pantalla ? { inicio: d.pantalla.horario?.inicio ?? '06:00', fin: d.pantalla.horario?.fin ?? '24:00' } : null,
+    ultimaRevision: d.ultimo?.ts ? { cuando: new Date(d.ultimo.ts).toISOString(), pantalla: String(d.ultimo.pantalla ?? '') } : null,
+    fallas: (d.fallas ?? []).map((f) => ({
+      id: Number(f.id),
+      tipo: String(f.tipo),
+      nombre: String(f.nombre ?? f.tipo),
+      estado: f.estado,
+      donde: dondeDeFalla(f as any),
+      confianza: Number(f.confianza ?? 0),
+      detectadaEn: String(f.detectada_en),
+      recuperadaEn: f.recuperada_en ? String(f.recuperada_en) : null,
+      cerradaPor: f.cerrada_por ?? null,
+      nota: f.nota ?? null,
+      evidencia: foto(f.evidencia),
+      evidenciaMini: foto(f.evidencia_mini ?? f.evidencia),
+      evidenciaRecuperacion: foto(f.evidencia_recuperacion),
+    })),
+  }
+}
+
+export interface SECreativo {
+  id: string
+  primeraVez: string
+  ultimaVez: string
+  /** Cuántas veces lo ha reconocido en su pantalla. */
+  vistas: number
+  foto: string | null
+}
+
+export interface SECreativosEquipo {
+  vigilando: boolean
+  aprendiendo: boolean
+  /** Fotos de creativos nuevos subidas hoy, y el tope por día. */
+  fotosHoy: number
+  maxDia: number
+  /** Con foto, del más reciente al más viejo. */
+  creativos: SECreativo[]
+}
+
+export async function creativosDeEquipo(id: number): Promise<SECreativosEquipo | null> {
+  if (!spaceEyeHabilitado()) return null
+  const d = await apiOpcional<{
+    config: { vigilar: boolean; aprendiendo: boolean; max_dia: number } | null
+    fotos_hoy: number
+    creativos: Record<string, any>[]
+  }>(`/api/devices/${id}/creativos`)
+  if (!d) return null
+  return {
+    vigilando: !!d.config?.vigilar,
+    aprendiendo: !!d.config?.aprendiendo,
+    fotosHoy: Number(d.fotos_hoy ?? 0),
+    maxDia: Number(d.config?.max_dia ?? 0),
+    creativos: (d.creativos ?? [])
+      .filter((c) => c.thumbnail_path || c.storage_path)
+      .map((c) => ({
+        id: String(c.id),
+        primeraVez: String(c.primera_vez),
+        ultimaVez: String(c.ultima_vez),
+        vistas: Number(c.vistas ?? 0),
+        foto: urlDeFoto(String(c.thumbnail_path || c.storage_path)),
+      })),
+  }
+}

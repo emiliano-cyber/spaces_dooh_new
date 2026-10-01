@@ -142,3 +142,58 @@ export function infoAltaApi(): Promise<InfoAlta> {
 export function testigoDeAltaApi(): Promise<InfoAlta> {
   return leer(`${API}/alta/?testigo=1`, { cache: 'no-store' })
 }
+
+// ─── Fallas de pantalla y creativos detectados ──────────────────────────────
+
+export interface Falla {
+  id: number
+  tipo: string
+  nombre: string
+  estado: 'abierta' | 'recuperada' | 'descartada'
+  donde: string
+  confianza: number
+  detectadaEn: string
+  recuperadaEn: string | null
+  cerradaPor: string | null
+  nota: string | null
+  evidencia: string | null
+  evidenciaMini: string | null
+  evidenciaRecuperacion: string | null
+}
+
+export interface PantallaEquipo {
+  disponible: boolean
+  vigilando?: boolean
+  aprendiendo?: boolean
+  gabinetes?: number | null
+  horario?: { inicio: string; fin: string } | null
+  ultimaRevision?: { cuando: string; pantalla: string } | null
+  fallas?: Falla[]
+}
+
+export interface Creativo {
+  id: string
+  primeraVez: string
+  ultimaVez: string
+  vistas: number
+  foto: string | null
+}
+
+export interface CreativosEquipo {
+  disponible: boolean
+  vigilando?: boolean
+  aprendiendo?: boolean
+  fotosHoy?: number
+  maxDia?: number
+  creativos?: Creativo[]
+}
+
+/** Lo que el equipo detecto mal en su pantalla, y su historial. */
+export function fallasApi(id: number): Promise<PantallaEquipo> {
+  return leer(`${API}/${id}/fallas/`, { cache: 'no-store' })
+}
+
+/** Los anuncios distintos que han pasado por la pantalla del equipo. */
+export function creativosApi(id: number): Promise<CreativosEquipo> {
+  return leer(`${API}/${id}/creativos/`, { cache: 'no-store' })
+}
