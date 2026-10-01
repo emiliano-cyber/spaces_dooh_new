@@ -7,6 +7,7 @@ import {
   enfriados,
   resumen,
   ultimoAvance,
+  espacioElegido,
   type Espacio,
 } from './comercial-opex'
 
@@ -118,5 +119,21 @@ describe('3 · los datos de la maqueta son coherentes', () => {
     for (const e of ESPACIOS.filter((x) => x.etapa === ETAPAS_RESPONSABLE.length - 1)) {
       expect(e.contactos.some((c) => c.legal), e.nombre).toBe(true)
     }
+  })
+})
+
+describe('espacioElegido · qué espacio se detalla (2026-09-30)', () => {
+  // La maqueta pasó a dos columnas: lista a la izquierda, detalle a la derecha.
+  // Elegir cuál ver no guarda nada; solo cambia lo que se pinta.
+  it('devuelve el elegido por su id', () => {
+    const otro = ESPACIOS[ESPACIOS.length - 1]
+    expect(espacioElegido(ESPACIOS, otro.id)).toBe(otro)
+  })
+  it('sin elección, o con un id que no existe, el PRIMERO — nunca una pantalla vacía', () => {
+    expect(espacioElegido(ESPACIOS, null)).toBe(ESPACIOS[0])
+    expect(espacioElegido(ESPACIOS, 'no-existe')).toBe(ESPACIOS[0])
+  })
+  it('sin espacios, null', () => {
+    expect(espacioElegido([], 'x')).toBeNull()
   })
 })

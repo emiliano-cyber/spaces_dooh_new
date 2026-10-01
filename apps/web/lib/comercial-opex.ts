@@ -274,3 +274,12 @@ export function resumen(espacios: Espacio[], hoy: Date) {
     enfriados: enfriados(espacios, hoy).length,
   }
 }
+
+/**
+ * El espacio que se detalla en la maqueta (2026-09-30: pasó a dos columnas).
+ * Sin elección, o con un id que ya no existe, el primero: una pantalla de
+ * detalle vacía no enseña la forma, que es para lo que existe la maqueta.
+ */
+export function espacioElegido(espacios: Espacio[], id: string | null): Espacio | null {
+  return espacios.find((e) => e.id === id) ?? espacios[0] ?? null
+}

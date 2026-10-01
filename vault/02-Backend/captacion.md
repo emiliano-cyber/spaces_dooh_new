@@ -20,6 +20,15 @@ archivos:
 
 # Captación — la bitácora de cómo va cada venta (CAP-01)
 
+> [!warning] 2026-09-30, tarde · OCULTA del menú
+> Pedido del dueño: *«elimina captación por ahora u ocúltalo»*, a favor de
+> [[03-Frontend/comercial-opex]], que es la forma que prefiere para la
+> prospección. **Solo se quitó la entrada de `components/demo/shell/nav.ts`**
+> (la línea queda comentada ahí, para restaurarla). Las tablas `prospectos` y
+> `prospecto_avances`, la API `/api/captacion/*`, la pantalla `/captacion` y el
+> módulo `captacion` de permisos **siguen**: volver es una línea, sin migración.
+> Una prueba de `nav.test.ts` fija que no está en el menú.
+
 > [!important] De dónde sale
 > Pedido del dueño el **2026-09-29**, recorriendo el ensayo de g500 con un perfil
 > de vendedor: *«falta la bitácora para ver el avance para crear nuevas pantallas

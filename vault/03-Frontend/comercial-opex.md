@@ -5,6 +5,7 @@ actualizado: 2026-09-30
 tags: [frontend, comercial, prospeccion, arrendadores, maqueta]
 archivos:
   - apps/web/app/(app)/(shell)/comercial-opex/page.tsx
+  - apps/web/components/demo/comercial-opex/ComercialOpex.tsx
   - apps/web/lib/comercial-opex.ts
   - apps/web/lib/comercial-opex.test.ts
   - apps/web/components/demo/shell/nav.ts
@@ -20,6 +21,32 @@ archivos:
 >
 > Sirve para **acordar la forma antes de construirla**, y la pantalla lo dice
 > arriba en un aviso ámbar para que nadie la confunda con algo que funciona.
+
+> [!note] 2026-09-30, tarde · acomodada en dos columnas, y Captación se oculta
+> Pedido del dueño: *«acomoda de mejor manera el comercial opex y elimina
+> captación por ahora u ocúltalo»*.
+>
+> - **Antes:** una sola columna; el detalle era SOLO del primer espacio y no se
+>   podía elegir otro, con ocho secciones apiladas.
+> - **Ahora** (`components/demo/comercial-opex/ComercialOpex.tsx`): las cuatro
+>   cifras arriba; a la izquierda la lista de espacios —estado, negociante,
+>   días sin contacto—, y al pulsar uno, su detalle a la derecha: la búsqueda
+>   del responsable como **barra de pasos**, el último contacto destacado, y
+>   bloques lado a lado (ficha y contactos; ofertas a lo ancho; historial como
+>   línea de tiempo; competencia, multimedia y documentos). Colores del tema,
+>   no grises sueltos.
+> - **Sigue siendo maqueta:** elegir qué espacio mirar no guarda nada ni llama a
+>   la API. `espacioElegido()` (`lib/comercial-opex.ts`, con prueba) cae al
+>   primero si el id no existe: nunca una pantalla de detalle vacía.
+> - La página se queda como Server Component para fijar la fecha de hoy UNA vez
+>   y pasársela al componente: así «hace N días» sale igual en el HTML y al
+>   hidratar.
+>
+> **Captación (CAP-01) se oculta del menú** a favor de esta pantalla. Solo se
+> quitó la entrada de `nav.ts`: las tablas, la API y el módulo `captacion` de
+> permisos siguen. Ver [[02-Backend/captacion]]. Cuando esto se construya hay
+> que decidir si va ENCIMA de `prospectos` (lo que ya existe) o aparte —aparte
+> duplicaría la bitácora—.
 
 ## Qué contesta
 

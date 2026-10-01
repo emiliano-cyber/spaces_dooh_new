@@ -7,6 +7,23 @@ La entrada más reciente va arriba.
 
 ## 2026-09-30
 
+- **Comercial OPEX, mejor acomodado; y Captación sale del menú por ahora.**
+  *(Pedido tuyo del 30/09.)*
+
+  En **Comercial OPEX** ahora ves a la izquierda la **lista de espacios** que se
+  están persiguiendo —con su estado, quién negocia y hace cuánto no se habla con
+  nadie— y **al pulsar uno, su detalle a la derecha**. Antes solo se veía el
+  detalle del primero, todo en una columna larga. El detalle enseña la búsqueda
+  del responsable como una **barra de pasos**, el último contacto destacado, y
+  la ficha, los contactos, las ofertas de renta, el historial, la competencia,
+  las fotos y los documentos en bloques lado a lado.
+
+  **Sigue siendo una maqueta**: los datos son de ejemplo y no se guarda nada.
+
+  **Captación ya no aparece en el menú**, porque se solapaba con esta pantalla.
+  No se borró nada: lo que se capturó ahí sigue guardado y se puede volver a
+  mostrar en cualquier momento.
+
 - **La aplicación vuelve a estar solo en español, por ahora.** *(Pedido tuyo del
   30/09, al probarla: «se está mezclando y está en ambos idiomas».)*
 

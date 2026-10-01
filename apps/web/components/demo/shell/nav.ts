@@ -25,7 +25,6 @@ import {
   Ticket,
   Package,
   Handshake,
-  Target,
 } from 'lucide-react'
 import { ROLES_ASIGNABLES, rolLabel } from '@/lib/roles'
 import type { RolDemo } from '@/lib/data/types'
@@ -146,9 +145,12 @@ export const NAV: NavItem[] = [
   { key: 'comercial', label: 'Comercial', href: '/comercial', icon: Map, roles: [...MANDO, ...VENTA], grupo: 'vender' },
   { key: 'disponibilidad', label: 'Disponibilidad', href: '/disponibilidad', icon: CalendarRange, roles: [...MANDO, ...VENTA], grupo: 'vender' },
   { key: 'propuestas', label: 'Propuestas', href: '/propuestas', icon: FileText, roles: [...MANDO, ...VENTA], grupo: 'vender' },
-  // CAP-01 · la bitacora de captacion. La ven los tres de venta: el vendedor, lo
-  // suyo; quien tiene `captacion.aprobar`, todo (lo filtra el servidor).
-  { key: 'captacion', label: 'Captación', href: '/captacion', icon: Target, roles: [...MANDO, ...VENTA], grupo: 'vender' },
+  // CAP-01 · la bitacora de captacion: OCULTA del menu desde el 2026-09-30.
+  // Pedido del dueno: «elimina captacion por ahora u ocultalo»; se solapaba con
+  // Comercial OPEX, que es la forma que prefiere. Solo se quita la ENTRADA: las
+  // tablas, la API y el modulo `captacion` de permisos siguen, asi que volver a
+  // ponerla es restaurar esta linea:
+  //   { key: 'captacion', label: 'Captación', href: '/captacion', icon: Target, roles: [...MANDO, ...VENTA], grupo: 'vender' },
   // Maqueta pedida el 2026-09-30: la prospección de arrendadores. Sin base y
   // sin formularios todavía. SE SOLAPA con Captación —que sí tiene base— y la
   // decisión de si se construye encima de `prospectos` o aparte está abierta.

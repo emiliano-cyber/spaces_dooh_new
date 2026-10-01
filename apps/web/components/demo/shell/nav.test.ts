@@ -288,3 +288,17 @@ describe('4 · lo que ya se cumplía y no debe romperse al reordenar', () => {
     }
   })
 })
+
+describe('Captación, OCULTA del menú por ahora (2026-09-30)', () => {
+  // Pedido del dueño: «elimina captación por ahora u ocúltalo». Se solapaba con
+  // Comercial OPEX, que es la forma que prefiere. Se OCULTA y no se borra: sus
+  // tablas y su API siguen, y el módulo de permisos `captacion` también, para
+  // poder traerla de vuelta sin migración.
+  it('no hay entrada de Captación en el menú', () => {
+    expect(NAV.find((n) => n.key === 'captacion')).toBeUndefined()
+    expect(NAV.find((n) => n.href === '/captacion')).toBeUndefined()
+  })
+  it('Comercial OPEX sigue en el grupo Comercial', () => {
+    expect(NAV.find((n) => n.key === 'comercial-opex')?.grupo).toBe('vender')
+  })
+})
