@@ -1,0 +1,119 @@
+# ============================================================================
+#  Space Eyes DENTRO de una instancia (ADR 0041).
+# ----------------------------------------------------------------------------
+#  No se levanta a mano: lo maneja infra/scripts/update-eyes.sh, que lo instala
+#  en /opt/space-os/eyes/ y lo corre como
+#
+#    docker compose -p space-eyes --env-file /etc/space-os/eyes.env up -d
+#
+#  con EYES_IMAGEN apuntando a la version que toca. Todo lo propio de la empresa
+#  (base, fotos, instaladores) vive en volumenes; la imagen es la misma para la
+#  flota entera.
+#
+#  PUERTOS. Lo que solo usa este droplet va a 127.0.0.1 y lo publica nginx por
+#  eyes.<dominio> con el certificado de la instancia. Lo que tiene que llegar
+#  desde los equipos, que es video, va abierto y lo deja pasar ufw:
+#
+#    127.0.0.1:4200   Space Eye (API, socket.io, panel)      → nginx eyes.<dominio>
+#    127.0.0.1:8889   MediaMTX WHEP (el navegador ve el vivo) → nginx eyes.<dominio>/whep/
+#    8554/tcp         RTSP: aqui publican la Pi y la PC
+#    8189/udp         medios WebRTC
+#    3478 + 49160-49200/udp   coturn (TURN), red del host
+#
+#  MySQL y Redis no se publican: solo los ve esta pila.
+# ============================================================================
+name: space-eyes
+
+services:
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:?falta DB_PASSWORD en eyes.env}
+      MYSQL_DATABASE: space_eye
+    command: >
+      --default-authentication-plugin=mysql_native_password
+      --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+      --innodb-buffer-pool-size=96M --performance-schema=OFF
+    volumes:
+      - base:/var/lib/mysql
+    mem_limit: 400m
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 48mb --maxmemory-policy noeviction
+    volumes:
+      - redis:/data
+    mem_limit: 80m
+
+  api:
+    image: ${EYES_IMAGEN:?falta EYES_IMAGEN}
+    restart: unless-stopped
+    env_file: ${EYES_CONF:-/etc/space-os/eyes.env}
+    environment:
+      DB_HOST: mysql
+      DB_NAME: space_eye
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: production
+      PUBLIC_BASE_URL: https://${EYES_DOMINIO:?falta EYES_DOMINIO}
+      MEDIAMTX_HOST: ${EYES_DOMINIO}
+      MEDIAMTX_API: http://mediamtx:9997
+      MEDIAMTX_WEBRTC_INTERNAL: http://mediamtx:8889
+      MEDIAMTX_WHEP_PUBLIC: https://${EYES_DOMINIO}/whep
+      TURN_URL: turn:${EYES_DOMINIO}:3478
+      STORAGE_DIR: /app/storage
+      DESCARGAS_DIR: /descargas
+    ports:
+      - "127.0.0.1:4200:4000"
+    volumes:
+      - fotos:/app/storage
+      - descargas:/descargas
+    depends_on: [mysql, redis]
+    mem_limit: 350m
+
+  mediamtx:
+    image: bluenviron/mediamtx:1.19.3
+    restart: unless-stopped
+    environment:
+      MTX_AUTHINTERNALUSERS_1_PASS: ${MEDIAMTX_PASS:?falta MEDIAMTX_PASS}
+      MTX_WEBRTCADDITIONALHOSTS: ${IP_PUBLICA:?falta IP_PUBLICA}
+    volumes:
+      - ./mediamtx.yml:/mediamtx.yml:ro
+    ports:
+      - "127.0.0.1:8889:8889"
+      - "8554:8554"
+      - "8189:8189/udp"
+    mem_limit: 80m
+
+  coturn:
+    image: coturn/coturn:4.6
+    restart: unless-stopped
+    # La red del host: un TURN detras de NAT de docker anuncia direcciones que
+    # nadie puede alcanzar.
+    network_mode: host
+    command:
+      - -n
+      - --log-file=stdout
+      - --listening-port=3478
+      - --fingerprint
+      - --use-auth-secret
+      - --static-auth-secret=${TURN_SECRET:?falta TURN_SECRET}
+      - --realm=${EYES_DOMINIO}
+      - --external-ip=${IP_PUBLICA}
+      - --min-port=49160
+      - --max-port=49200
+      - --no-cli
+      - --no-tls
+      - --no-dtls
+      - --denied-peer-ip=10.0.0.0-10.255.255.255
+      - --denied-peer-ip=172.16.0.0-172.31.255.255
+      - --denied-peer-ip=192.168.0.0-192.168.255.255
+      - --denied-peer-ip=127.0.0.0-127.255.255.255
+    mem_limit: 64m
+
+volumes:
+  base:
+  redis:
+  fotos:
+  descargas:
