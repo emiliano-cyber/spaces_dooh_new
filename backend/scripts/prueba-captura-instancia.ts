@@ -107,6 +107,17 @@ async function main() {
     r = await pedir('GET', `/api/devices/${conDueno.id}/telemetry`, ajenaEscribe);
     afirmar(r.status === 404, 'otro cliente NO lee ese historico', JSON.stringify(r.cuerpo));
 
+    console.log('\n4b) Fallas de pantalla y creativos (la ficha de SPACE OS)');
+    for (const que of ['pantalla', 'creativos']) {
+      r = await pedir('GET', `/api/devices/${conDueno.id}/${que}`, suyaLee);
+      afirmar(r.status === 200, `el dueno lee ${que} de su equipo`, `HTTP ${r.status}`);
+      r = await pedir('GET', `/api/devices/${conDueno.id}/${que}`, ajenaEscribe);
+      afirmar(r.status === 404, `otro cliente NO lee ${que} de ese equipo`, JSON.stringify(r.cuerpo));
+      // Con escritura y todo, una llave no CAMBIA nada aqui: su escritura es solo la captura.
+      r = await pedir('PUT', `/api/devices/${conDueno.id}/${que}`, suyaEscribe);
+      afirmar(r.status === 403, `PUT ${que} sigue cerrado a una llave con escritura`, `HTTP ${r.status}`);
+    }
+
     console.log('\n5) Que no se abrio nada mas (la parte que de verdad importa)');
     const cerradas: [string, string][] = [
       ['POST', `/api/devices/${conDueno.id}/command`],

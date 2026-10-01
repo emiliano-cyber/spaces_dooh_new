@@ -20,6 +20,7 @@ import { uploadPhoto } from '../services/photoStorage.service';
 import { firmar } from '../utils/firmaArchivos';
 import { configDe as configCreativos, fotosDeHoy as fotosCreativosDeHoy } from './creativos.controller';
 import { encuadreDe } from './dashboard.controller';
+import { equipoAjeno } from '../utils/dueno';
 
 /** Una falla descartada a mano no vuelve a sonar en este plazo. */
 const SILENCIO_DIAS = 7;
@@ -294,6 +295,7 @@ function presentar(filas: any[]) {
 /** La pantalla de un equipo: configuracion, ultima vuelta e historial. */
 export async function deEquipo(req: Request, res: Response) {
   const did = Number(req.params.id);
+  if (await equipoAjeno(req, did)) return res.status(404).json({ error: 'not_found' });
   const [filas] = await pool.query<any[]>(`SELECT pantalla, salud_ultimo FROM devices WHERE id = ?`, [did]);
   const d = (filas as any[])[0];
   if (!d) return res.status(404).json({ error: 'not_found' });

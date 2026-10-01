@@ -34,6 +34,11 @@ const RUTAS_DE_LLAVE: RegExp[] = [
   // controlador comprueba el dueno: sin esa comprobacion, abrir esta ruta a las
   // llaves entregaria el historico de la flota entera a cualquier instancia.
   /^\/api\/devices\/\d+\/telemetry$/,
+  // Fallas de pantalla y creativos detectados de UN equipo (para la ficha de
+  // SPACE OS). Los dos controladores comprueban el dueño. Sus PUT siguen
+  // cerrados a las llaves: piden rol de usuario, y una llave no tiene.
+  /^\/api\/devices\/\d+\/pantalla$/,
+  /^\/api\/devices\/\d+\/creativos$/,
   // La UNICA ruta que no es GET. Por eso la marca `escritura` de una llave
   // alcanza exactamente esto -pedir una foto- y nada mas: no hay otra puerta
   // abierta que no sea de lectura. Si algun dia se agrega otra, hay que volver
@@ -71,6 +76,12 @@ export async function requireUser(req: Request, res: Response, next: NextFunctio
     // no ir diciendo que clase de credencial es cada una.
     if (llave.uso !== 'lectura') {
       return res.status(401).json({ error: 'llave_invalida' });
+    }
+    // La escritura de una llave alcanza SOLO la captura: en cualquier otra ruta
+    // de la lista, una llave solo lee aunque tenga la marca.
+    const lee = ['GET', 'HEAD', 'OPTIONS'].includes(req.method);
+    if (!lee && !/^\/api\/eyes\/devices\/\d+\/captura$/.test(req.path)) {
+      return res.status(403).json({ error: 'ruta_no_permitida_para_llave' });
     }
     if (!RUTAS_DE_LLAVE.some((r) => r.test(req.path))) {
       return res.status(403).json({ error: 'ruta_no_permitida_para_llave' });

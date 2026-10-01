@@ -9,6 +9,7 @@
 // su copia local o reporta una huella que en realidad ya conociamos.
 import { Request, Response } from 'express';
 import { pool } from '../config/database';
+import { equipoAjeno } from '../utils/dueno';
 import { z } from 'zod';
 import { firmarFilas } from '../utils/firmaArchivos';
 import { encuadreDe } from './dashboard.controller';
@@ -197,6 +198,7 @@ export async function ligarFoto(deviceId: number, phash: string, photoId: number
 
 export async function listarDeEquipo(req: Request, res: Response) {
   const did = Number(req.params.id);
+  if (await equipoAjeno(req, did)) return res.status(404).json({ error: 'not_found' });
 
   const [filas] = await pool.query<any[]>(
     `SELECT c.*, p.thumbnail_path, p.storage_path, p.taken_at
