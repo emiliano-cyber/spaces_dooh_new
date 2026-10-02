@@ -5,6 +5,19 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-10-02
+
+- **En Nueva propuesta, los meses ya son meses de calendario.** *(Lo
+  encontraste tú: «elijo mes 2 y se los resta».)* Antes un mes contaba como 30
+  días, así que «desde el 5 de octubre, 2 meses» terminaba el **3 de diciembre**,
+  y el día de fin se iba corriendo hacia atrás con cada mes. Ahora termina el **4
+  de diciembre**, el día anterior al 5. Si el mes de llegada no tiene ese día
+  (por ejemplo, del 31 de enero a febrero), termina el último día de ese mes.
+- **Y se cobra por meses de calendario.** Antes, del 1 al 31 de octubre (31
+  días) se cobraban **2 meses**; ahora es 1. Solo cambia en propuestas nuevas:
+  las que ya estaban guardadas conservan su precio. Semanas y catorcenas no
+  cambian.
+
 ## 2026-10-01
 
 - **Calculadora de spots en las propuestas: tú eliges los espacios y las horas,

@@ -188,8 +188,10 @@ describe('2 · vender SIN escala sigue funcionando — invariante 3', () => {
 
 describe('3 · la cantidad que cuenta es la EFECTIVA, no la que llega en el cuerpo', () => {
   it('en unidades de tiempo la cantidad sale del rango de fechas', async () => {
-    // 2026-11-01 a 2027-04-30 son 181 días = 7 meses. Con un tramo «desde 6
-    // meses» tiene que entrar, aunque el cuerpo no mande ninguna `cantidad`.
+    // 2026-11-01 a 2027-04-30 son 6 meses DE CALENDARIO (noviembre a abril).
+    // Decía «181 días = 7 meses» hasta el 2026-10-02: con la regla de 30 días se
+    // cobraba un mes que no existe. Con un tramo «desde 6 meses» tiene que
+    // entrar igual, aunque el cuerpo no mande ninguna `cantidad`.
     listarEscalasMock.mockResolvedValue([
       { id: 'M1', unidad: 'mensual', desdeCantidad: 6, descuentoPct: 8 },
     ])
@@ -199,7 +201,7 @@ describe('3 · la cantidad que cuenta es la EFECTIVA, no la que llega en el cuer
       fechaFin: '2027-04-30',
       items: [{ sitioId: 'S1', unidad: 'mensual', tarifaUnitaria: 30000 }],
     })
-    expect(enviado().items[0].cantidad).toBe(7)
+    expect(enviado().items[0].cantidad).toBe(6)
     expect(enviado().items[0].descuentoVolumenPct).toBe(8)
   })
 

@@ -143,13 +143,60 @@ export function diasInclusivos(fechaInicio: string, fechaFin: string): number {
   return Math.floor((b - a) / 86_400_000) + 1
 }
 
+// ─── Los MESES son meses de CALENDARIO (decisión del dueño, 2026-10-02) ─────
+// Hasta ese día un mes valía 30 días, en la fecha «Hasta» y en la cuenta de lo
+// que se cobra. El dueño lo vio como «elijo mes 2 y se los resta»: 05/10 + 2
+// meses terminaba el 03/12, y el día de fin retrocedía con cada mes. Y la cuenta
+// —días ÷ 30 hacia ARRIBA— cobraba 2 meses por 01/10–31/10, que tiene 31 días.
+//
+// Las dos cosas cambian JUNTAS y por la misma función, `finDeMeses`: si solo
+// cambiara la fecha, 05/10–04/12 (61 días) se seguiría cobrando como 3 meses.
+// Semanas, catorcenas y días no cambian: 7, 14 y 1 son exactos.
+//
+// Las fechas se tratan como TEXTO 'AAAA-MM-DD' y en UTC, nunca con la hora local:
+// una fecha de calendario no tiene zona, y con `new Date('2026-10-05')` en México
+// el día se movería según la hora en que se calcule.
+
+const ISO_FECHA = /^(\d{4})-(\d{2})-(\d{2})/
+
+function partes(fecha: string): [number, number, number] | null {
+  const m = ISO_FECHA.exec(String(fecha))
+  return m ? [Number(m[1]), Number(m[2]) - 1, Number(m[3])] : null
+}
+
+const isoUTC = (ms: number) => new Date(ms).toISOString().slice(0, 10)
+
+/**
+ * El último día (inclusivo) de `n` meses de calendario que empiezan en
+ * `fechaInicio`: el día anterior al mismo número de día `n` meses después.
+ * 05/10 + 1 → 04/11. Si ese día no existe en el mes de llegada (31/01 + 1 mes),
+ * el periodo termina el último día de ese mes (28 o 29 de febrero).
+ */
+function finDeMeses(fechaInicio: string, n: number): string {
+  const p = partes(fechaInicio)
+  if (!p) return ''
+  const [y, m, d] = p
+  const ultimoDiaLlegada = new Date(Date.UTC(y, m + n + 1, 0)).getUTCDate()
+  if (d > ultimoDiaLlegada) return isoUTC(Date.UTC(y, m + n, ultimoDiaLlegada))
+  return isoUTC(Date.UTC(y, m + n, d) - 86_400_000)
+}
+
 // Cuántos periodos de `unidad` caben en el rango. Para spot/hora devuelve null:
 // esa cantidad no se deriva del tiempo, la pone el usuario.
 export function periodosEnRango(unidad: Unidad, fechaInicio: string, fechaFin: string): number | null {
   if (unidad === 'spot' || unidad === 'hora') return null
   const dias = diasInclusivos(fechaInicio, fechaFin)
   if (dias <= 0) return 0
-  const divisor = unidad === 'mensual' ? 30 : unidad === 'catorcenal' ? 14 : unidad === 'semanal' ? 7 : 1
+  if (unidad === 'mensual') {
+    // El menor número de meses de calendario que cubre el rango entero. Las
+    // fechas en 'AAAA-MM-DD' se comparan como texto, que ordena igual que el
+    // calendario. El tope solo protege de un rango absurdo (100 años).
+    const fin = String(fechaFin).slice(0, 10)
+    let n = 1
+    while (n < 1200 && finDeMeses(fechaInicio, n) < fin) n++
+    return n
+  }
+  const divisor = unidad === 'catorcenal' ? 14 : unidad === 'semanal' ? 7 : 1
   return Math.max(1, Math.ceil(dias / divisor))
 }
 
@@ -166,15 +213,16 @@ export function cantidadEfectiva(
   return Math.max(1, Math.floor(cantidadManual ?? 1))
 }
 
-// Fecha "hasta" a partir de una duración: fechaInicio + (cantidad × días de la
-// unidad) − 1 (rango inclusivo). Usa la MISMA equivalencia que el precio (mes=30,
-// catorcena=14, semana=7, día=1), así una duración de "1 mes" cubre exactamente
-// 1 periodo mensual. Devuelve '' si faltan datos. Solo unidades de tiempo.
+// Fecha "hasta" a partir de una duración (rango inclusivo). Usa la MISMA cuenta
+// que el precio (`periodosEnRango`): los meses son de calendario (`finDeMeses`) y
+// catorcena=14, semana=7, día=1, así una duración de "N meses" se cobra
+// exactamente como N meses. Devuelve '' si faltan datos. Solo unidades de tiempo.
 export function fechaFinDesde(fechaInicio: string, unidad: Unidad, cantidad: number): string {
   const base = Date.parse(fechaInicio)
   if (Number.isNaN(base) || !cantidad || cantidad < 1) return ''
   if (unidad === 'spot' || unidad === 'hora') return ''
-  const factor = unidad === 'mensual' ? 30 : unidad === 'catorcenal' ? 14 : unidad === 'semanal' ? 7 : 1
+  if (unidad === 'mensual') return finDeMeses(fechaInicio, Math.round(cantidad))
+  const factor = unidad === 'catorcenal' ? 14 : unidad === 'semanal' ? 7 : 1
   const diasTotal = Math.round(cantidad * factor)
   const fin = base + (diasTotal - 1) * 86_400_000
   return new Date(fin).toISOString().slice(0, 10)

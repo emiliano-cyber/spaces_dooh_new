@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-01
+actualizado: 2026-10-02
 tags: [backend, comercial, propuestas, campanas, amarillo, precio]
 archivos:
   - apps/web/lib/server/propuestas-repo.ts
@@ -262,6 +262,31 @@ producción de hoy.
 
 **Fuera de alcance:** los conceptos en la factura. Sigue siendo **un importe
 único sin desglose**; darle conceptos es tabla nueva, migración y dinero.
+
+## Los meses son de CALENDARIO (02/10)
+
+Decisión del dueño, a raíz de «elijo mes 2 y se los resta en vez de sumar» en
+Nueva propuesta. Hasta el 2026-10-02 `lib/periodos.ts` contaba **1 mes = 30
+días** en DOS sitios a la vez:
+
+- `fechaFinDesde` (la fecha «Hasta» de «Duración de la campaña»): 05/10 + 2 meses
+  terminaba el **03/12**. El día de fin retrocedía con cada mes, y eso es lo que
+  el dueño leyó como una resta.
+- `periodosEnRango` (los meses que se cobran): días ÷ 30 **hacia arriba**, así que
+  01/10–31/10 (31 días) se cobraba como **2 meses**, y 01/11–30/04 como 7.
+
+Ahora las dos usan `finDeMeses`: un mes acaba el día anterior al mismo número de
+día del mes siguiente (05/10 → 04/11), y si ese día no existe, el último del mes
+(31/01 + 1 → 28/02). Cambian **juntas** a propósito: si solo cambiara la fecha,
+05/10–04/12 (61 días) se habría seguido cobrando como 3 meses. Semanas (7),
+catorcenas (14) y días no cambian. Las fechas se tratan como texto en UTC, sin
+hora local.
+
+**Efecto en dinero:** solo para propuestas NUEVAS —las guardadas tienen su
+`cantidad` escrita—. Un rango de calendario completo deja de cobrar un mes de
+más. Pruebas: `lib/periodos.meses.test.ts` (rojo con la regla de 30 días); y
+`propuestas-volumen.test.ts`, que afirmaba «181 días = 7 meses» para
+noviembre–abril, ahora dice 6.
 
 ## La franja CONTRATADA y la PROGRAMADA no son la misma (PROG-01, 30/09)
 

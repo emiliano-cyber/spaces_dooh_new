@@ -358,7 +358,8 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
   const [fechaInicio, setFechaInicio] = useState('')
   const [fechaFin, setFechaFin] = useState('')
   // Duración de la campaña: N + unidad. Con la fecha "Desde" completa la fecha
-  // "Hasta" automáticamente (misma equivalencia que el precio: mes=30, etc.).
+  // "Hasta" automáticamente, con la MISMA cuenta que el precio: meses de
+  // calendario desde el 2026-10-02 (`lib/periodos.ts`), semanas de 7 y catorcenas de 14.
   const [duracionN, setDuracionN] = useState('1')
   const [duracionUnidad, setDuracionUnidad] = useState<Unidad>('mensual')
   const [sel, setSel] = useState<Set<string>>(new Set())
