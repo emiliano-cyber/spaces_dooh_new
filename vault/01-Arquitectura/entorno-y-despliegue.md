@@ -123,8 +123,12 @@ archivos:
 > [!important] 2026-10-01 · `spaceos.space-os.io` — otro nombre para el PADRE
 > Pedido del dueño. Registro A a la IP del PADRE y bloque 6 de
 > `infra/nginx/space-os.io.conf`: proxy a `spaces_padre` (el 3000), la MISMA app
-> que `space-os.io`. **Sin** el receptor ni el panel de flota, que siguen solo en
-> el ápice. El certificado se amplía ANTES de recargar nginx, sin perder los
+> que `space-os.io`. ~~Sin el receptor ni el panel de flota~~ — **corregido el
+> 02/10: los lleva**. Sin ellos el panel de flota y las altas no tenían ninguna
+> dirección (el ápice ya no llega al PADRE), y el dueño lo encontró en
+> producción. Con eso, `ORIGEN_PANEL` de `/etc/space-os/flota.env` pasa a
+> `https://spaceos.space-os.io` (cerrojo CSRF, `apps/flota/servidor.mjs:772`) y
+> el `FLOTA_REPORTE_URL` de cada instancia tiene que apuntar a este nombre. El certificado se amplía ANTES de recargar nginx, sin perder los
 > nombres que ya tiene, por el HSTS con `includeSubDomains`. Google como inicio
 > de sesión en este nombre necesita su URI en Google Cloud.
 >
