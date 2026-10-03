@@ -111,6 +111,22 @@ archivos:
 ---
 # Entorno y despliegue
 
+> [!danger] 2026-10-02 · El registro de imágenes se LLENA: limpiar antes de publicar
+> `release.yml` de `v0.9.2` falló con `denied: quota exceeded`: 471.52 de 500 MiB
+> con 17 imágenes. Plan gratuito ≈ 9 versiones completas. Antes de cada
+> publicación: borrar etiquetas viejas en el panel de DO (conservar `estable`,
+> `beta` y la última), **vaciar la basura** (sin eso no se libera nada) y, si el
+> run ya falló, `gh run rerun <ID> --repo emiliano-cyber/spaces_dooh_new --failed`.
+> La alternativa es el plan Basic (gasto: decide el dueño).
+
+> [!warning] 2026-10-02 · PADRE en blanco sin errores → reiniciar `spaces-web`
+> Todas las propuestas se abrían en blanco, sin error en el navegador ni en el
+> log. Reproducido con la MISMA versión en local: abría bien. Reiniciar
+> `spaces-web` lo arregló. Es la trampa del build en disco distinto del que sirve
+> el proceso (CLAUDE.md §4). No se llegó a medir: si se repite, compara antes
+> `stat -c %y .../.next/BUILD_ID` con `systemctl show spaces-web -p
+> ActiveEnterTimestamp`. Detalle en [[07-Agentes/diario/2026-10-02]].
+
 > [!success] 2026-10-01 · g500 en PostgreSQL 16, EN SU MISMO DROPLET, y en v0.9.1
 > Se descartó el droplet nuevo de la parte B de la guía: el dueño eligió subir
 > el motor en sitio (opción A del 23/09). PGDG + `pg_upgradecluster -v 16 -m dump

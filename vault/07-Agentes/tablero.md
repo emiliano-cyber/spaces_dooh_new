@@ -1,7 +1,7 @@
 ---
 tipo: tablero
 estado: verificado
-actualizado: 2026-10-01
+actualizado: 2026-10-02
 tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
@@ -21,6 +21,12 @@ archivos: []
 > contacto `docs/Registro_Cambios.md`. **NO se tocó** `lib/data/codigos-api.ts`
 > (lo arregla `fix/api-prefijo`), `db/schema.sql`, `aislamiento.e2e.test.ts` ni
 > `servidor-e2e.ts`. Detalle en [[02-Backend/codigo-promocional]] §8.
+
+> [!important] 2026-10-02 · **`v0.9.2` publicada en `beta`; PADRE, DEMO y promoción pendientes**
+> Entraron el panel de flota en `spaceos.space-os.io` y los meses de calendario.
+> El registro se llenó y se limpió; el PADRE dejó las propuestas en blanco y un
+> reinicio lo arregló. Zonas: todas LIBRES. Tarjeta de publicación en
+> `Downloads/PUBLICAR-v0.9.2-20261002.txt`. Detalle en [[07-Agentes/diario/2026-10-02]].
 
 > [!note] 2026-10-01 · **Pendientes de decisión, sin código**
 > - **Google Maps** (OPEX y alta de pantallas): ADR 0041 en Propuesta; falta el
