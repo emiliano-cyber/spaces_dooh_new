@@ -1,7 +1,7 @@
 ---
 tipo: operacion
 estado: sin-ejecutar
-actualizado: 2026-08-27
+actualizado: 2026-10-05
 tags: [operacion, produccion, verificacion, runbook]
 archivos:
   - db/schema.sql
@@ -9,7 +9,41 @@ archivos:
   - apps/web/lib/test/db-e2e.ts
   - apps/web/package.json
   - DESPLIEGUE_20260810_MIGRACIONES.txt
+  - infra/nginx/space-os.io.conf
 ---
+
+> [!danger] 2026-10-05 · el PADRE YA NO sirve `space-os.io`: se llega por `spaceos.space-os.io`
+> Lo vigente de abajo («el PADRE sirve `space-os.io` con certificado propio») es
+> del 26/08 y **dejó de ser cierto**. Desde el 01/10 el ápice `space-os.io`
+> **resuelve a otra máquina (67.207.88.243)** —lo dicen el comentario del bloque 6
+> de `infra/nginx/space-os.io.conf` (`:342` y `:359-365`, medido el 2026-10-01), el
+> commit `c1b4a1f9` y [[2026-10-02]]—, y el PADRE se alcanza por
+> **`spaceos.space-os.io`** (`server_name` en `:374`), con **certificado
+> propio** (`e3524eb0`) porque el del ápice ya no se puede renovar por
+> `webroot` desde aquí. Desde `c1b4a1f9` (02/10) ese bloque incluye también el
+> panel de flota y el receptor de reportes.
+>
+> Comprobado por el dueño el 02/10 en el PADRE (no desde aquí):
+> `/flota/` → 401, `/flota/reporte` → 403, login → 200 ([[2026-10-02]]).
+>
+> **Dónde está cada nombre hoy en `space-os.io.conf`:** catch-all `:92`,
+> HTTP→HTTPS `:116`, ápice `:133`, **`demo.space-os.io` `:213`** (la cita
+> `:188` de abajo es del 26/08), `prueba.space-os.io` —el nombre público de
+> DEMO desde el 31/08— `:288`, `spaceos.space-os.io` `:374`.
+>
+> **Ojo, y no está resuelto:** el catch-all sigue redirigiendo a
+> `https://space-os.io` (`:101`), o sea que quien entre al PADRE por la IP o
+> por un nombre desconocido acaba **en la otra máquina**. No se tocó: es nginx
+> (zona R6) y no es de esta tarea. Lo mismo el HSTS con `includeSubDomains` del
+> ápice (`:159`): ahora lo emite quien sirva el ápice. Ver
+> [[zonas-de-riesgo]] §R6.
+>
+> Y dos citas de abajo derivaron: `tenant-sin-default.e2e.test.ts:89` → el
+> `set default` está hoy en **`:96`**, y `db-e2e.ts:107-112` → el comentario
+> del «SUBCONJUNTO» va de **`:108` a `:116`**. Las de `db/schema.sql`
+> (`:598-611`, `:617-621` —el arreglo empieza en `:616`—, `:631-640`) siguen
+> en su sitio.
+
 
 > [!danger] 2026-08-26 · CORRECCIÓN DOBLE — esta nota tenía DOS cosas falsas
 > **① El acceso al droplet `209.97.146.136` NUNCA se perdió.** El aviso de abajo

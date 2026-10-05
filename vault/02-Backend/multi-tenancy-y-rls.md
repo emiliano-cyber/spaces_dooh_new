@@ -61,7 +61,7 @@ flowchart LR
     G --> RLS["políticas RLS de Postgres"]
 ```
 
-`lib/server/tenant.ts:32-42` (`tenantActual`). El override por cookie solo lo
+`lib/server/tenant.ts:33-43` (`tenantActual`). El override por cookie solo lo
 admite el **Dueño del tenant de plataforma** (el `tenants` más antiguo,
 `tenant.ts:27-30`), y además se verifica que el tenant destino exista
 (`tenant.ts:37-40`).
@@ -94,7 +94,7 @@ reutiliza conexiones entre tenants y un GUC de sesión filtraría datos
 > Pasó en `desbloquear()` (commit `43f9284`): todo desbloqueo contestaba «tu
 > usuario no tiene contraseña» y el restablecimiento quedó inservible. Volvió a
 > pasar en `fijarExigirReautenticacion()`, donde un `update` quedó en no-op
-> silencioso (`cambios.ts:149-163`). Las unitarias no lo ven porque simulan la
+> silencioso (`cambios.ts:149-163`, dentro de `fijarExigirReautenticacion()`, `:143-165`). Las unitarias no lo ven porque simulan la
 > base: **lo caza la integración**.
 
 ## Las dos generaciones de política RLS
@@ -163,7 +163,7 @@ with check (true)
 **Es a propósito, y es la única tabla de negocio así.** El panel de flota del
 PADRE pide los tickets de la instancia con `FLOTA_TOKEN`, sin sesión ni
 tenant, y tiene que verlos **todos**: `listarTicketsDeLaInstancia()` y
-`actualizarTicketDesdePanel()` van por `qRaw` (`tickets-repo.ts:120-145`). Con
+`actualizarTicketDesdePanel()` van por `qRaw` (`tickets-repo.ts:120-129` y `:153-214`). Con
 el GUC vacío, la rama `or … is null` deja pasar todo; con política fail-closed
 devolverían cero filas en silencio. El ADR lo dice así
 (`docs/adr/0038-los-tickets-de-soporte-viven-en-la-instancia.md:165-170`):

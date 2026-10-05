@@ -1,12 +1,13 @@
 ---
 tipo: operacion
 estado: verificado
-actualizado: 2026-09-17
+actualizado: 2026-10-05
 tags: [operacion, respaldos, postgres, local, datos-reales]
 archivos:
   - db/docker-compose.yml
   - db/dev-rol-app.sql
   - infra/scripts/respaldo.sh
+  - infra/scripts/respaldo-diario.sh
   - infra/scripts/update.sh
 ---
 
@@ -29,6 +30,27 @@ cliente.** Spaces → `space-os-respaldos` → carpeta de la instancia (`g500/`,
 
 Desde el 2026-09-17 los respaldos salen del droplet, así que **ya no hace falta
 entrar a la máquina del owner para recuperar datos**. Antes sí.
+
+> [!note] 2026-10-05 · hay DOS escritores de dumps, y los dos sirven aquí
+> Además del paso 3 de `update.sh` (`:2363-2371`, solo cuando hay imagen
+> nueva), desde el 22/09 existe **`infra/scripts/respaldo-diario.sh`**, que
+> respalda una vez al día aunque no haya release — ver [[respaldo-diario]]. Para
+> esta receta **son intercambiables**, y es a propósito
+> (`respaldo-diario.sh:230-235`): mismo nombre local
+> `spaces_<AAAAMMDD_HHMMSS>.dump`, mismo `pg_dump --format=custom`
+> (`respaldo-diario.sh:238`, `update.sh:2371`) y la misma subida de
+> `respaldo.sh`, que los deja en `s3://<bucket>/<instancia>/<AAAA-MM-DD-HHMM>.dump`
+> (`respaldo.sh:68` y `:120`). En el panel de Spaces **no se distingue** cuál
+> de los dos escribió cada archivo; tampoco hace falta.
+>
+> Dos diferencias que sí importan al elegir:
+> - Los del diario nacen **0600** en un directorio **0700**
+>   (`respaldo-diario.sh:225` y `:255`). Una vez descargado al portátil ese
+>   permiso ya no existe: trátalo como lo que es, la base entera en claro.
+> - Que el cron del diario esté **instalado** en g500 depende de que una persona
+>   haya corrido `docs/evidencias/12-instalar-respaldo-diario.txt`. **No se
+>   comprobó el 05/10.** Si en el bucket solo hay dumps de días de release, no
+>   lo está.
 
 > [!warning] Elige por TAMAÑO, no por fecha
 > En g500 convivían un dump de **181 KB** del 09/09 y dos de **6,1 MB** del
@@ -74,8 +96,8 @@ docker exec -i spaces_db psql -U spaces -d postgres -c 'create database spaces_g
 
 ## 4 · Restaurar
 
-Los dumps son **`pg_dump -Fc`** (`update.sh`, paso 3), así que van con
-`pg_restore`, no con `psql`:
+Los dumps son **`pg_dump -Fc`** (`update.sh`, paso 3, y `respaldo-diario.sh`,
+los dos con `--format=custom`), así que van con `pg_restore`, no con `psql`:
 
 ```powershell
 docker cp C:\Users\Server\Downloads\g500.dump spaces_db:/tmp/g500.dump

@@ -1,7 +1,7 @@
 ---
 tipo: tablero
 estado: en-curso
-actualizado: 2026-09-03
+actualizado: 2026-10-05
 tags: [instancias, orquestacion, agentes, fases-1-4]
 archivos:
   - docs/Plan_Instancias_Soberanas_v3.md
@@ -12,6 +12,26 @@ archivos:
 ---
 
 # Ejecución del plan v3 — Fases 1–4 en local
+
+> [!important] 2026-10-05 · «quedan DOS, F5.6 y F5.7» ya no es cierto: **F5.6 se cerró el 04/09**
+> Lo dice [[2026-09-04]] con su criterio de aceptación medido —`signup` 503,
+> `login-post` 401, segundo `--bootstrap` 404, `update.sh --dry-run` «sin
+> cambios: la instancia ya corre v0.3.0», **75** migraciones— y el droplet
+> `ensayo` destruido el mismo día. Esta nota se quedó en el 03/09 y no lo
+> recogió.
+>
+> **Queda UNA tarea de plan con objeto: `F5.7`** (alta de la primera instancia
+> de owner). Su ficha sigue marcada **BLOQUEADA** en
+> `docs/Plan_Instancias_Soberanas_v3.md:1681` por P2 y P3, que esta misma nota
+> da por cerradas el 20/08 (la tabla de decisiones, fila **P3**) — la
+> desalineación ya la apuntó [[tablero]] el 07/09 y **espera decisión; no se
+> replanea aquí**. Lo que **no se puede verificar desde el repositorio**: si el
+> alta de `g500` —la instancia con datos reales que aparece en los diarios
+> desde el 11/09— cuenta como el cierre de F5.7. Ningún diario ni expediente lo
+> declara; **no se da por cerrada**.
+>
+> Las cuentas de «quedan N» de los recuadros de abajo se dejan como estaban:
+> son la historia del recorrido.
 
 > [!danger] 2026-08-27 · EL DROPLET VIEJO SE RETIRA — lo de abajo sobre él caduca
 > **`209.97.146.136` ya no se usa** (decisión de Jochelo, 27/08) y **sus datos
@@ -75,7 +95,7 @@ se ensayan (ensayista-local) y su ejecución real queda como **tarjeta humana**.
 >
 > **Expediente línea por línea: `docs/evidencias/f3-5-demo-instancia-20260902.md`.**
 >
-> **Quedan DOS**: `F5.6` y `F5.7`, y las dos son «instalar de cero» — justamente
+> **Quedan DOS** *(al 02/09; **F5.6 se cerró el 04/09**, ver el recuadro del 05/10 arriba)*: `F5.6` y `F5.7`, y las dos son «instalar de cero» — justamente
 > lo único que este ensayo **no** pudo tocar: no se creó ningún droplet, ni se
 > instaló Postgres en una máquina virgen, ni se aplicó el esquema a una base
 > vacía. `F5.6` es la que más riesgo retira y la más barata.

@@ -1,9 +1,12 @@
 ---
 tipo: contrato
 estado: verificado
-actualizado: 2026-09-28
+actualizado: 2026-10-05
 tags: [backend, precios, descuentos, volumen, propuestas, dinero, snapshot, rls]
 archivos:
+  - apps/web/lib/periodos.ts
+  - apps/web/lib/tarifa-calculada.ts
+  - apps/web/lib/server/paquetes-repo.ts
   - db/migrations/20260928_descuento_por_volumen.sql
   - apps/web/lib/volumen.ts
   - apps/web/lib/descuento.ts
@@ -33,10 +36,38 @@ tarifa base = f(pantalla, unidad, franja, fecha)     ← Fase 1
       =  neto
 ```
 
+> [!note] 2026-10-05 · el diagrama de arriba es el del 28/09; la cadena de HOY
+> Las fases 3 y 4 **existen y están en `main`**: el cupón
+> ([[codigo-promocional]], `10e72087`) y el paquete ([[paquete-cerrado]]). La
+> cuenta real, verificada hoy en `armarPropuesta`
+> (`apps/web/lib/server/propuestas-repo.ts:142`) y repetida en el congelado
+> (`congelarSnapshotEconomico`, `:336`):
+>
+> ```
+> precio de línea = tarifa × cantidad
+>                   (tarifa: franja+temporada → franja → temporada → rejilla → modalidad)
+> volumen         = Σ round(precio_línea × pct_línea/100)        volumen.ts:244
+> brutoConVolumen = paquete ? precio_paquete : bruto − volumen    propuestas-repo.ts:182
+> comercial       = round(brutoConVolumen × comercial/100)        :196
+> baseComercial   = brutoConVolumen − comercial
+> cupón           = round(baseComercial × cupón/100)              :219
+>                   (0 si el paquete no admite cupón, :215)
+> base            = baseComercial − cupón
+> neto            = round(base × divisor de comisión)             :224
+> ```
+>
+> **El redondeo del volumen es POR LÍNEA**, no sobre el total: tres líneas de
+> 1 003 al 15 % descuentan 150 × 3 = **450**, y `round(3 009 × 0,15)` daría
+> **451**. Y **con paquete el volumen vale cero** (`propuestas-repo.ts:181`): el
+> precio del conjunto ya lo lleva dentro.
+
 > [!warning] Alcance
 > Esta nota describe **solo** el volumen. Si un documento te habla de códigos
 > promocionales o paquetes cerrados dentro de esta fase, describe trabajo que no
 > se ha hecho.
+>
+> *(2026-10-05: «dentro de esta fase». Los dos existen hoy como fases propias:
+> [[codigo-promocional]] y [[paquete-cerrado]].)*
 
 > [!danger] SIN FUSIONAR — la migración espera aprobación del dueño
 > Desde el **2026-09-28**, ningún cambio de base de datos aterriza sin que el
@@ -45,6 +76,10 @@ tarifa base = f(pantalla, unidad, franja, fecha)     ← Fase 1
 > no es ceremonia: cada migración que entra a `main` acaba corriendo en **g500**,
 > la única instancia con datos de cliente reales, y su runner **se para en seco**
 > si algo no cuadra. Una migración de más es una cola de despliegue detenida.
+>
+> **2026-10-05 · ya está FUSIONADA.** El commit `22c75a72` es ancestro de
+> `main` y `db/migrations/20260928_descuento_por_volumen.sql` está en el árbol.
+> El recuadro se conserva como historia de cómo se aprobó.
 
 ---
 
@@ -139,6 +174,20 @@ por un margen que no se perdió.
 > comercialPct)` y ajustar `descuento.volumen.test.ts`. Ningún otro archivo se
 > entera.
 
+> [!note] 2026-10-05 · las otras dos capas, frente al tope
+> - **El cupón NO cuenta.** `CODIGO_CUENTA_CONTRA_TOPE = false`
+>   (`apps/web/lib/descuento.ts:207`), y `descuentoContraTope` (`:220`) le pasa
+>   un 0 a `componerDescuentos`. Lo comparado sigue siendo la fórmula de arriba.
+>   Ver [[codigo-promocional]].
+> - **Con paquete, el volumen tampoco cuenta**, porque no se aplicó:
+>   `actualizarPropuesta` pasa `volumenPct = 0` si hay paquete vivo
+>   (`apps/web/lib/server/propuestas-repo.ts:1297-1305`).
+> - **Y al QUITAR el paquete el volumen vuelve**, así que se revalida el
+>   comercial con él: `quitarPaquete` (`apps/web/lib/server/paquetes-repo.ts:368`,
+>   comprobación en `:428`) se niega si el compuesto pasaría del tope. Commit
+>   `b2d30d50`, **en esta rama y todavía no en `main`** al 05/10. Ver
+>   [[paquete-cerrado]].
+
 **Consecuencia que hay que tener escrita:** si el dueño deja el tope **por debajo**
 de su propia escala de volumen, ninguna propuesta con volumen podrá tocar su
 descuento hasta que arregle una de las dos cosas. Eso es visible y se explica; lo
@@ -164,6 +213,13 @@ contrario —un techo que no es techo— no se ve.
 > Esta fase **no** arregla aquello —mover la cadena entera al servidor cambia el
 > comportamiento de cada venta y espera decisión del dueño (D11)— pero **tampoco
 > lo amplía**: el escalón de volumen nace del lado correcto.
+>
+> **2026-10-05 · este recuadro YA NO describe el código.** Desde `17fbd252`
+> (01/10, en `main`) `resolverTarifa` la llama también `tarifaCalculada`
+> (`apps/web/lib/tarifa-calculada.ts:95`), módulo puro que importan la pantalla
+> **y** `crearPropuestaCtrl` (`apps/web/lib/server/propuestas-controller.ts:359-375`).
+> Un precio distinto de la tarifa sin `comercial.aprobar` es **403**. Se
+> conserva como historia del hallazgo B40.
 
 Cómo: el cliente manda la **cantidad**; el porcentaje lo resuelve
 `propuestas-controller.ts` leyendo `escalas_volumen` bajo RLS. El `itemSchema` de
@@ -174,6 +230,22 @@ de VEND-01.
 Y la cantidad que cuenta es la **efectiva** (`cantidadEfectiva`), la misma que
 multiplica la tarifa: una `cantidad: 999` inflada a mano en una unidad de tiempo
 no regala ningún tramo, porque el rango de fechas manda.
+
+Verificado el 05/10 en `apps/web/lib/server/propuestas-controller.ts`: el
+`itemSchema` (`:100`) no declara `descuentoVolumenPct`; la escala se lee una vez
+por propuesta (`:213`); `volumenDelItem` resuelve el tramo (`:223-226`) con la
+cantidad efectiva (`:302`, aplicada en `:324`).
+
+> [!warning] 2026-10-05 · los meses de calendario pueden CAMBIAR EL TRAMO
+> Desde `6ab3c1f2` (02/10, en `main`) la unidad `mensual` cuenta **meses de
+> calendario** y no `días ÷ 30` hacia arriba: `periodosEnRango`
+> (`apps/web/lib/periodos.ts:186`) busca el menor `n` con
+> `finDeMeses(inicio, n) ≥ fin`, y `cantidadEfectiva` (`:205`) lo usa.
+> 01/10–31/10 pasó de **2** meses a **1**; 05/10–04/12 (61 días), de **3** a
+> **2**. Como el tramo se resuelve con esa cantidad, **una escala con umbral en
+> meses puede dejar de aplicar** a una propuesta capturada hoy con las mismas
+> fechas que una de antes. Las ya capturadas no cambian: el porcentaje está
+> copiado en la línea (§5).
 
 ---
 

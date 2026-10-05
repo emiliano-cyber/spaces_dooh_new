@@ -1,7 +1,7 @@
 ---
 tipo: contrato
 estado: verificado
-actualizado: 2026-09-30
+actualizado: 2026-10-05
 tags: [backend, precios, descuentos, cupones, promociones, propuestas, dinero, snapshot, rls, concurrencia, aprobacion]
 archivos:
   - db/migrations/20260928_codigo_promocional.sql
@@ -21,6 +21,8 @@ archivos:
   - apps/web/lib/server/campanas-repo.ts
   - apps/web/lib/data/codigos-api.ts
   - apps/web/components/demo/codigos/GestionCodigos.tsx
+  - apps/web/lib/paquete.ts
+  - apps/web/lib/server/paquetes-repo.ts
 ---
 
 # El código promocional
@@ -41,11 +43,45 @@ tarifa base = f(pantalla, unidad, franja, fecha)     ← Fase 1
 > Esta nota describe **solo** el código. Los **paquetes cerrados** son la Fase 4 y
 > **no existen**. Si un documento te habla de ellos dentro de esta fase, describe
 > trabajo que no se ha hecho.
+>
+> *(2026-10-05: los paquetes **sí existen** desde la Fase 4 —[[paquete-cerrado]]—
+> y anulan el cupón cuando no lo admiten: ver la nota de la cadena de hoy, abajo.)*
 
 > [!danger] LA MIGRACIÓN NO ESTÁ FUSIONADA
 > `20260928_codigo_promocional.sql` está escrita y probada contra bases
 > desechables, pero **el dueño pidió el 2026-09-28 aprobar todo cambio de esquema
 > antes de que aterrice**. Lo detenido es la fusión, no el código.
+>
+> **2026-10-05 · ya están FUSIONADAS las dos.** `10e72087` (tabla y canje) y
+> `aa165725` (COD-03, `20261003_codigo_aprobacion.sql`) son ancestros de `main`.
+> El recuadro se conserva como historia.
+
+> [!note] 2026-10-05 · el cupón en la cadena de HOY, verificado en el código
+> En `armarPropuesta` (`apps/web/lib/server/propuestas-repo.ts:142`):
+>
+> ```
+> brutoConVolumen = paquete ? precio_paquete : bruto − volumen      :182
+> comercial       = round(brutoConVolumen × comercial/100)          :196
+> baseComercial   = brutoConVolumen − comercial                     :218
+> cupón           = round(baseComercial × min(pct,100)/100)         :219
+> base            = baseComercial − cupón                           :223
+> neto            = round(base × divisor de comisión)               :224
+> iva             = round(base × iva/100);  total = base + iva      :225, :317
+> ```
+>
+> `montoDescuentoCodigo` (`apps/web/lib/codigo-promocional.ts:248`) devuelve 0
+> si la base o el porcentaje no son finitos o el porcentaje es ≤ 0. El
+> porcentaje leído se acota a [0, 100] (`propuestas-repo.ts:207-208`).
+>
+> **Con paquete que no admite cupón, el cupón vale 0** (`codigoAnulaPaquete`,
+> `:215-216`), leyendo la bandera del **congelado** de la propuesta, no del
+> catálogo. Es la segunda red: la primera es que **aplicar** un paquete así sobre
+> una propuesta con cupón se rechaza (`apps/web/lib/server/paquetes-repo.ts:281`).
+> Al revés no hay red en el servidor: `canjearCodigo` no consulta el paquete (no
+> hay ninguna referencia a «paquete» en `codigos-repo.ts` ni en
+> `codigos-controller.ts`), así que canjear sobre una propuesta con paquete que
+> no lo admite **gasta el uso** y descuenta 0. El
+> congelado aplica la misma regla (`congelarSnapshotEconomico`, `:455`).
 
 > [!important] Desde COD-03 (2026-09-30) el cupón aplicado NACE PENDIENTE
 > El cliente no lo ve —ni la línea ni el total con él— hasta que lo aprueba
@@ -81,6 +117,11 @@ desarrolla.
 > la cadena de precio de la Fase 1 vive **entera en el navegador**. Esta fase **no
 > arregla** aquello —es la decisión **D11**, del dueño— pero **nace del lado
 > correcto**: la pantalla manda el código tecleado y nada más.
+>
+> *(2026-10-05: «vive entera en el navegador» dejó de ser cierto el 01/10 con
+> `17fbd252`: la tarifa base la recalcula también el servidor con
+> `tarifaCalculada` (`apps/web/lib/tarifa-calculada.ts:95`, llamada desde
+> `apps/web/lib/server/propuestas-controller.ts:359`). Ver §6.)*
 
 ---
 
@@ -345,6 +386,15 @@ propuesta en borrador, quedó `PENDIENTE` y el cupón pasó de 1 a 2 usos.
 - Reglas puras: `apps/web/lib/codigo-promocional.ts`
 - Canje y bloqueo: `apps/web/lib/server/codigos-repo.ts`
 - El candado del esquema de entrada: `apps/web/lib/server/codigos-controller.ts`
+- Permisos, verificados el 05/10: el catálogo exige `exigir('precios','ver')`
+  para leer y `exigirCambioSensible('precios','crear')` para crear, editar y
+  borrar (`app/api/codigos-promocionales/route.ts:40,52`, `[id]/route.ts:35,52`);
+  el canje, `comercial.crear` (`app/api/propuestas/[id]/codigo/route.ts:65,85`);
+  la decisión, `comercial.aprobar` (`…/codigo/decision/route.ts:36`).
+  > [!warning] El comentario de `app/api/propuestas/[id]/codigo/route.ts:36`
+  > todavía dice que el catálogo se protege con `exigirCambioSensible('inventario', …)`.
+  > Es viejo: pasó a `comercial` con `bd08f388` (29/09) y a `precios` con
+  > `276c7237` (roles de venta). El código manda.
 - Migración: `db/migrations/20260928_codigo_promocional.sql` y, para la
   aprobación, `db/migrations/20261003_codigo_aprobacion.sql`
 - La aprobación (COD-03): reglas puras en `apps/web/lib/codigo-aprobacion.ts`,

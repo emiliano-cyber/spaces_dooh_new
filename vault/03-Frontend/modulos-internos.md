@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-09-30
+actualizado: 2026-10-05
 tags: [frontend, modulos, pantallas, verde]
 archivos:
   - apps/web/app/(app)/(shell)/
@@ -10,16 +10,23 @@ archivos:
   - apps/web/lib/campanas-vista.ts
   - apps/web/lib/campanas-menu.ts
   - apps/web/components/demo/campanas/CampanasNav.tsx
+  - apps/web/lib/tarifa-calculada.ts
+  - apps/web/lib/calculadora-spots.ts
+  - apps/web/app/(app)/(shell)/novedades/page.tsx
+  - apps/web/app/(app)/(shell)/codigos-recuperacion/page.tsx
+  - apps/web/app/(app)/(shell)/comercial-opex/page.tsx
 ---
 
 # Módulos internos (dentro del shell)
 
-22 rutas bajo `app/(app)/(shell)/`. Todas exigen sesión y pasan por
-[[shell-y-navegacion]].
+**30 módulos** bajo `app/(app)/(shell)/` (33 `page.tsx`: tres son detalles
+`[id]`). Todas exigen sesión y pasan por [[shell-y-navegacion]]. Recontado el
+2026-10-05 con `find "app/(app)/(shell)" -name page.tsx`; la nota decía 22.
 
 | Ruta | Módulo | Backend | Componentes propios |
 |---|---|---|---|
 | `/inicio` | Tablero | `/api/estado` | `KPICard`, `charts` |
+| `/novedades` | Notas de cada versión instalada | `/api/novedades` | `NotasDeVersion` — **sin entrada en el menú**, a propósito |
 | `/actividad` | Bitácora | `acciones` | — |
 | `/comercial` | Buscador de inventario | `/api/sitios` | `SiteFicha`, `ReservaDialog`, `AltaSitioDialog`, `SpaceEyeVision` |
 | `/disponibilidad` | Calendario | `/api/sitios` | `CalendarioDisponibilidad` |
@@ -27,10 +34,51 @@ archivos:
 | `/network` | Pantallas en red | `sitios.en_network` | — |
 | `/arrendadores` | Arrendadores, predios, contratos | `/api/arrendadores`, `/api/contratos` | `ContratoSheet`, `PagosRentaCard`, `CompromisoRentaCard`, `ConciliacionCard`, `PanelFirmas`, `ConstanciaFirmas`, `LicenciasCard`, `GestionRazonesSociales`, `BarraDocumento`, `BajaPropietarioDialog` |
 | `/clientes` | Clientes | `/api/clientes` | `ClientesBadge`, `BorrarClienteDialog` |
-| `/propuestas`, `/propuestas/[id]` | Propuestas | `/api/propuestas` | `Stepper` |
-| `/captacion` | Captación (CAP-01) | `/api/captacion/*` | `Captacion` — ver [[02-Backend/captacion]] |
-| `/campanas`, `/campanas/[id]` | Campañas | `/api/campanas/*` | `PipelineView`, `CandadoPanel`, `ValidacionPanel`, `PlaylogsPanel`, `DatosFacturacion`, `EvidenciaGaleria`, `AgregarCreativo`, `FranjaProgramadaCampana` (horario de transmisión, PROG-01) |
+| `/propuestas`, `/propuestas/[id]` | Propuestas, con **tarifa calculada** y **calculadora de spots** | `/api/propuestas`, `/api/rejilla/*`, `/api/volumen/escalas` | `AvisoFranjaCMS`, `MapView`, `CalculadoraSpotsLinea` (local de la página) |
+| `/captacion` | Captación (CAP-01) — **fuera del menú desde el 30/09** | `/api/captacion/*` | `Captacion` — ver [[02-Backend/captacion]] |
+| `/comercial-opex` | Prospección de arrendadores — **maqueta**, sin API ni guardado | — | `ComercialOpex` — ver [[comercial-opex]] |
 | `/franjas-y-temporadas` | Catálogo de franjas y temporadas, y **horario de transmisión** | `/api/rejilla/*`, `/api/campanas/franja-programada` | `GestionRejilla`, `ProgramacionPorFranja` (PROG-01) |
+| `/descuentos-por-volumen` | Escala de volumen (VOL-01) | `/api/volumen/escalas` | `GestionVolumen` — ver [[02-Backend/descuento-por-volumen]] |
+| `/codigos-promocionales` | Cupones (COD-01) | `/api/codigos-promocionales` | `GestionCodigos` — ver [[02-Backend/codigo-promocional]] |
+| `/paquetes` | Paquetes cerrados (PAQ-01) | `/api/paquetes` | `GestionPaquetes` — ver [[02-Backend/paquete-cerrado]] |
+| `/campanas`, `/campanas/[id]` | Campañas | `/api/campanas/*` | `PipelineView`, `CandadoPanel`, `ValidacionPanel`, `PlaylogsPanel`, `DatosFacturacion`, `EvidenciaGaleria`, `AgregarCreativo`, `FranjaProgramadaCampana` (horario de transmisión, PROG-01) |
+| `/creativos` | Creativos | `/api/creatividades` | — |
+| `/operaciones`, `/operaciones/ot/[id]` | Órdenes de trabajo | `/api/ot` | `OTVista` |
+| `/imprenta` | Imprenta | `/api/impresion` | — |
+| `/almacen` | Activos y traslados | `/api/almacen` | — |
+| `/energia` | Consumo de luz | `/api/energia/consumos`, `/api/energia/recibos` | `FormularioRecibo`, `RejillaCaptura`, `SubirRecibos` |
+| `/finanzas` | Facturas y cobranza | `/api/campanas/[id]/facturar`, `/api/cobranzas/*` | — |
+| `/reportes` | Rentabilidad | `/api/reportes/rentabilidad` | `FiltrosRentabilidad`, `TablaRentabilidad` — ver [[pantalla-reportes]] |
+| `/comisiones` | Comisiones | derivado | — |
+| `/integraciones` | Estado de conectores | `/api/integraciones` | — |
+| `/razones-sociales` | Razones sociales propias (gestión) | `/api/entidades` | `GestionEntidadesFiscales` |
+| `/administracion` | Usuarios, permisos, organizaciones, actualizacion de la instancia | `/api/usuarios`, `/api/tenants`, `/api/actualizaciones` | `OrganizacionesPanel`, `ControlCambiosPanel`, `ActualizacionesPanel`, `permisos.ts` |
+| `/configuracion` | Config del negocio | `/api/config`, `/api/organizacion` | — |
+| `/codigos-recuperacion` | Códigos de recuperación (ADR 0028 · B2) | `/api/perfil/codigos-recuperacion` | — |
+
+> [!note] 2026-10-05 · la tabla tenía nueve rutas de menos, y estaba partida
+> Faltaban `/novedades`, `/reportes`, `/paquetes`, `/codigos-promocionales`,
+> `/descuentos-por-volumen`, `/comercial-opex`, `/energia`, `/razones-sociales`
+> y `/codigos-recuperacion`, y dos recuadros metidos entre filas partían la
+> tabla en tres (Markdown no la reanuda). Los recuadros siguen, debajo.
+>
+> - **`/novedades`** (`novedades/page.tsx`) no tiene entrada en `nav.ts` **a
+>   propósito**: la ve todo rol con sesión, y una ruta que el NAV no conoce no
+>   tiene puerta en `AuthGate`. Se llega desde el diálogo de después de instalar
+>   (`NovedadesDeVersion`, ver [[shell-y-navegacion]]).
+> - **`/codigos-recuperacion`** tampoco está en el menú: es la salida obligatoria
+>   de quien entró con Google sin guardar sus códigos (`compuerta.ts`). Los
+>   códigos **no se piden al montar** —generarlos solos invalidaría los que ya
+>   tenía en papel—, y pedir un segundo lote exige contraseña.
+> - **`/comercial-opex`** es una maqueta: «por ahora solo será html sin
+>   funciones». Sin API, sin guardado y sin mapa (`comercial-opex/page.tsx:4-18`).
+> - **En `/propuestas`**, la tarifa de cada línea sale de `tarifaCalculada()`
+>   (`lib/tarifa-calculada.ts`, importada en `propuestas/page.tsx:11` y usada en
+>   `:518-521`), y la cantidad de spots de una digital, de
+>   `previsualizarCalculadora()` (`lib/calculadora-spots.ts`, ADR 0042, usada en
+>   `:557`). Las dos son módulos **puros que el servidor repite**: la pantalla
+>   solo enseña la cuenta, y si mandara otra, el servidor la rechaza (B40). La
+>   calculadora **arranca apagada en cada línea** (`b32cc83f`).
 
 > [!note] 2026-09-30 · la lista de Campañas se puede compactar, minimizar y ocultar
 > Pedido del dueño: cada tarjeta dibujaba el pipeline entero y con muchas
@@ -47,13 +95,6 @@ archivos:
 >
 > Los botones viven DENTRO del enlace de la tarjeta, así que llaman a
 > `preventDefault` + `stopPropagation`: sin eso, minimizar abriría la campaña.
-| `/creativos` | Creativos | `/api/creatividades` | — |
-| `/operaciones`, `/operaciones/ot/[id]` | Órdenes de trabajo | `/api/ot` | `OTVista` |
-| `/imprenta` | Imprenta | `/api/impresion` | — |
-| `/almacen` | Activos y traslados | `/api/almacen` | — |
-| `/finanzas` | Facturas y cobranza | `/api/campanas/[id]/facturar`, `/api/cobranzas/*` | — |
-| `/comisiones` | Comisiones | derivado | — |
-| `/administracion` | Usuarios, permisos, organizaciones, actualizacion de la instancia | `/api/usuarios`, `/api/tenants`, `/api/actualizaciones` | `OrganizacionesPanel`, `ControlCambiosPanel`, `ActualizacionesPanel`, `permisos.ts` |
 
 > [!tip] `ActualizacionesPanel` (ADR 0037) — la frase y el tono NO viven en el `.tsx`
 > Igual que `payloadCostosOt` o `compuerta.ts`: `vitest.config.ts` no monta jsdom
@@ -75,8 +116,6 @@ archivos:
 Desde el 07/08 el alta de usuario y la de organización llevan casilla **«entra
 con su cuenta de Google»**: no se teclea contraseña y el servidor genera una que
 nadie ve. Ver [[flujo-acceso-con-google]].
-| `/configuracion` | Config del negocio | `/api/config`, `/api/organizacion` | — |
-| `/integraciones` | Estado de conectores | `/api/integraciones` | — |
 
 > [!note] 2026-09-30 · el menú lateral del detalle de campaña se pliega en TODOS los anchos
 > Pedido del dueño. En `/campanas/[id]` el menú con las demás campañas
@@ -128,7 +167,8 @@ pero nadie la enciende, y en la flota no puede encenderse por instancia
 > roto, idéntico en el PADRE y en cada instancia, porque es el mismo binario.
 >
 > La regla de descartar el `(0,0)` **ya existía** en
-> `lib/predio-cercania.ts:92-98` y nunca había llegado al mapa. Ahora vive una
+> `lib/predio-cercania.ts` (`puntoDe`, `:97-103` al 2026-10-05) y nunca había
+> llegado al mapa. Ahora vive una
 > sola vez en **`lib/coordenadas.ts`** (`puntoUtil`), con 7 pruebas, y `MapView`
 > la usa en el filtro de pines y en el auto-enfoque.
 >
@@ -152,7 +192,7 @@ pero nadie la enciende, y en la flota no puede encenderse por instancia
 > **La carga masiva sigue SIN exigirlas, a propósito.** Un Excel de cien filas
 > rara vez las trae y bloquearlo sería fricción sin motivo; por eso ahí el
 > default se acompaña de `pendienteVerificacion`
-> (`lib/inventario-import.ts:211-218`). Dando de alta UNA pantalla tienes la
+> (`lib/inventario-import.ts:216-225`). Dando de alta UNA pantalla tienes la
 > dirección delante, así que ahí sí se exige.
 >
 > La semilla además coloca los dos pares que comparten predio a ~60 m, dentro de

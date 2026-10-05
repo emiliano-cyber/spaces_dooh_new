@@ -1,7 +1,7 @@
 ---
 tipo: contrato
 estado: verificado
-actualizado: 2026-09-30
+actualizado: 2026-10-05
 tags: [backend, precios, tarifas, franjas, temporadas, propuestas, dinero, snapshot, rls, programacion]
 archivos:
   - db/migrations/20260928_rejilla_franja_temporada.sql
@@ -25,6 +25,8 @@ archivos:
   - apps/web/components/demo/rejilla/ProgramacionPorFranja.tsx
   - apps/web/components/demo/campanas/FranjaProgramadaCampana.tsx
   - apps/web/lib/test/franja-programada.e2e.test.ts
+  - apps/web/lib/tarifa-calculada.ts
+  - apps/web/lib/server/tarifas-repo.ts
 ---
 
 # La rejilla de precios: franja horaria y temporada
@@ -41,10 +43,28 @@ y la fecha entra por la **temporada** que la cubre. Las capas de descuento
 —volumen, código promocional, paquete cerrado— son las fases 2, 3 y 4 del mismo
 ADR y **no existen todavía**.
 
+> [!note] 2026-10-05 · las otras tres capas YA existen, y el servidor recalcula la tarifa
+> Volumen, cupón y paquete están en `main`: [[descuento-por-volumen]],
+> [[codigo-promocional]], [[paquete-cerrado]]. Y desde `17fbd252` (01/10) la
+> tarifa base de cada línea **la recalcula el servidor**: `tarifaCalculada`
+> (`apps/web/lib/tarifa-calculada.ts:95`) toma las modalidades de la pantalla
+> (`modalidadesDeSitio`, `:55`), deduce la temporada de la fecha de inicio y,
+> si la pantalla tiene filas de rejilla **para esa unidad**, llama a
+> `resolverTarifa` (`apps/web/lib/rejilla.ts:251`); si no, se queda con la
+> modalidad. `crearPropuestaCtrl` la usa línea a línea
+> (`apps/web/lib/server/propuestas-controller.ts:359-375`) con los datos de
+> `datosParaTarifar` (`apps/web/lib/server/tarifas-repo.ts:45`), y un precio que
+> no coincide **al centavo** sin `comercial.aprobar` se rechaza con 403. El
+> orden de la tabla de abajo es el que aplica hoy, en la pantalla y en el
+> servidor.
+
 > [!warning] Alcance
 > Esta nota describe **solo** franja y temporada. Si un documento te habla de
 > descuentos por volumen, códigos promocionales o paquetes cerrados dentro de
 > esta fase, está describiendo trabajo que no se ha hecho.
+>
+> *(2026-10-05: «dentro de esta fase». Las tres capas existen hoy como fases
+> propias, con su nota cada una.)*
 
 ---
 
@@ -84,7 +104,10 @@ razones, y ninguna es estética:
   temporada un día de más. Es la «segunda verdad que envejece» que este
   repositorio ya documentó en `lib/server/tenant.ts:87-89` y en
   `20260928_vendedor_en_propuesta.sql` al negarse a copiar el vendedor a
-  `campanas`.
+  `campanas`. *(2026-10-05: la cita de `tenant.ts` no se sostiene — ni hoy ni
+  el 28/09 hubo ahí nada sobre una «segunda verdad»; lo más cercano son
+  `:86-88`, que hablan de no duplicar **lógica**. La frase literal está en la
+  migración del vendedor, `db/migrations/20260928_vendedor_en_propuesta.sql:62`.)*
 - **Sin entidad no hay dónde prohibir el solape.** Dos filas con vigencias
   cruzadas darían dos precios para el mismo día y el desempate lo decidiría el
   `order by` que tocara.
@@ -327,7 +350,9 @@ llegó, y va por **ruta propia**, no por una cadena más en una lista blanca.
 - **Cotizador de propuestas**: selector de franja por pantalla, con «Todo el día»
   por omisión. El precio se resuelve **en el cliente** con la misma
   `resolverTarifa` del servidor, sobre `sitio.rejilla`, que viaja con la pantalla
-  en una sola consulta para todas.
+  en una sola consulta para todas. *(2026-10-05: y desde el 01/10 el servidor lo
+  vuelve a calcular con la misma función, `tarifaCalculada`, y lo compara —ver
+  la nota del principio—. Lo que pinta el cliente ya no es lo que manda.)*
 
 ---
 
@@ -335,6 +360,9 @@ llegó, y va por **ruta propia**, no por una cadena más en una lista blanca.
 
 > [!danger] SIN FUSIONAR — la forma de la base espera la aprobación del dueño
 > Rama `feat/franja-programada`. Si lees esto en `main`, ya se aprobó.
+>
+> **2026-10-05 · se aprobó y está en `main`**: `16c4d367` y la migración
+> `20261002_franja_programada_campana.sql`.
 
 **Decisión del dueño**, textual: *«es para horario transmisión ya que el precio
 ya debe de estar en la campaña después de la propuesta»*. Desde Franjas y
@@ -418,6 +446,12 @@ las franjas a quien no tiene `precios.ver`, porque un nombre no es un precio.
   visible —ahora hay una tabla de precios que se podría contradecir— pero el
   agujero es anterior y cerrarlo significa resolver el precio en el servidor,
   que cambia el comportamiento de TODA venta. Es una decisión del dueño.
+  **Cerrado el 2026-10-01** (`17fbd252`, PRECIO-01): el dueño decidió que el
+  precio se calcula y solo un gerente o superior lo cambia. La `tarifaUnitaria`
+  sigue llegando en el cuerpo, pero el servidor la compara contra
+  `tarifaCalculada` y la rechaza si difiere sin permiso
+  (`apps/web/lib/server/propuestas-controller.ts:359-375`). Ver
+  [[comercial-propuestas-campanas]].
 
 - **Nadie ha medido cuántas filas genera** la rejilla en un inventario real.
   Siete unidades × N franjas × M temporadas crece rápido (ADR 0039 ya lo decía).

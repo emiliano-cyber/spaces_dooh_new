@@ -43,6 +43,21 @@ puso el último.
 > `20260928_paquete_cerrado.sql` está escrita y probada contra bases desechables,
 > pero **el dueño pidió el 2026-09-28 aprobar todo cambio de esquema antes de que
 > aterrice**. Lo detenido es la fusión, no el código.
+>
+> **2026-10-05 · ya está FUSIONADA.** `8e913662` («paquete cerrado -- estas
+> cinco pantallas, un mes, 180 000») es ancestro de `main`. El arreglo TOPE-PAQ
+> de §4 (`b2d30d50`) **no** lo es todavía: vive en esta rama. El recuadro se
+> conserva como historia.
+
+> [!note] 2026-10-05 · dónde entra, en el código
+> `armarPropuesta` (`apps/web/lib/server/propuestas-repo.ts:142`):
+> `descuentoVolumenMonto = paquete ? 0 : …` (`:181`) y
+> `brutoConVolumen = paquete ? paquete.precio : vol.brutoConVolumen` (`:182`).
+> Sobre ese número se calcula después el comercial (`:196`) y, si el paquete lo
+> admite, el cupón (`:215-219`). El presupuesto **aprobado** de un paquete es su
+> precio entero aunque se acepten menos pantallas (`:237`). El congelado repite
+> la misma cuenta (`:436`) y reparte con `repartirPaquete`
+> (`apps/web/lib/paquete.ts:119`, llamado en `propuestas-repo.ts:441`).
 
 ---
 
@@ -213,6 +228,9 @@ recibió, con un mensaje que nombraría un porcentaje ausente de su cotización.
 > sin salida. Es el caso «tope por debajo de la escala propia» de
 > [[02-Backend/descuento-por-volumen]] §3, y se arregla en Administración.
 > Pruebas: `paquetes-aplicar.test.ts` bloque 4.
+>
+> *(Verificado el 05/10: `quitarPaquete` en `apps/web/lib/server/paquetes-repo.ts:368`,
+> la comprobación en `:428`; commit `b2d30d50`, en esta rama y aún no en `main`.)*
 
 ---
 
@@ -267,7 +285,9 @@ menos: calcularía mal.
 
 `porSitio[]` lleva `paquete: true` cuando la venta vino de un paquete, y
 `lib/data/reportes.ts` **deja esas reservas fuera de la comparación**, con el
-mismo centinela `null` que ya usaba para la ambigüedad.
+mismo centinela `null` que ya usaba para la ambigüedad (`dePaquete`, declarado
+en `apps/web/lib/data/reportes.ts:429-435`; el centinela `DE_PAQUETE = null`, en
+`:1194`).
 
 **Por qué sacarlas y no es una rendición:** el reporte llama a la diferencia «el
 descuento comercial MÁS la comisión de agencia», y con un paquete esa frase es
@@ -287,8 +307,18 @@ igual: a nadie se le mide la mano con un descuento que decidió el dueño.
 
 | Operación | Ruta | Permiso |
 |---|---|---|
-| Crear/editar/borrar un paquete | `/api/paquetes` | `exigirCambioSensible('inventario','crear')` |
+| Crear/editar/borrar un paquete | `/api/paquetes` | `exigirCambioSensible('precios','crear')` |
 | Aplicarlo o quitarlo de una propuesta | `/api/propuestas/:id/paquete` | `comercial.crear` |
+
+> [!note] 2026-10-05 · el módulo ya no es `inventario`
+> Esta tabla decía `exigirCambioSensible('inventario','crear')`. Verificado hoy:
+> `app/api/paquetes/route.ts:44` y `app/api/paquetes/[id]/route.ts:32,49` exigen
+> `exigirCambioSensible('precios','crear')`, y la lista `exigir('precios','ver')`
+> (`route.ts:34`). Pasó a `comercial` con `bd08f388` (29/09) y a `precios` con
+> `276c7237` ([[roles-de-venta]]). Aplicar y quitar siguen en `comercial.crear`
+> (`app/api/propuestas/[id]/paquete/route.ts:40,59`). El comentario de esa misma
+> ruta (`:36`) todavía dice `inventario`: es viejo, el código manda. La
+> separación en dos permisos —lo que defiende esta sección— sigue en pie.
 
 Si fueran el mismo, quien vende se crearía su propio paquete al precio que
 quisiera y se lo aplicaría — **el tope de descuento del 28/09 evadido por
@@ -308,7 +338,9 @@ un descuento.
   `campanas-repo` (el camino sin snapshot), que viene de la Fase 2 y sigue
   señalado. El **paquete sí entra** en ese respaldo, porque dejarlo fuera habría
   hecho el defecto cualitativamente peor: no una desviación porcentual, sino un
-  número entero distinto.
+  número entero distinto. *(Sigue así el 05/10: `apps/web/lib/server/campanas-repo.ts:958-982`
+  —el aviso y el `paquete ? … : items.reduce(…)`—. Ojo con lo que dice el
+  código ahí: sin paquete ese respaldo ignora **volumen y cupón**.)*
 - **No admite propuestas mixtas** (paquete + pantallas sueltas).
 
 ---

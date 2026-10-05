@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-09-28
+actualizado: 2026-10-05
 tags: [frontend, reportes, rentabilidad, finanzas, dinero]
 archivos:
   - apps/web/app/(app)/(shell)/reportes/page.tsx
@@ -15,6 +15,8 @@ archivos:
   - apps/web/lib/modulos.ts
   - apps/web/components/demo/shell/nav.ts
   - apps/web/lib/test/reportes-acceso.e2e.test.ts
+  - apps/web/lib/server/reportes-controller.ts
+  - apps/web/lib/data/reportes.ts
 ---
 
 # Pantalla de reportes de rentabilidad
@@ -35,8 +37,8 @@ se le arreglaron **tres defectos que solo se vieron ABRIÉNDOLA** — ver
 > [!important] Pide sus números al ENDPOINT, nunca al store. Es lo único
 > importante de esta nota
 > Todas las demás pantallas de analítica leen del store: `/api/estado` devuelve
-> 24 rebanadas de tablas completas (`app/api/estado/route.ts:98-130`) y el front
-> deriva con `useStoreMemo` (`lib/data/client.ts:329`). **Ese camino ya reventó
+> 24 rebanadas de tablas completas (`app/api/estado/route.ts:98-137`) y el front
+> deriva con `useStoreMemo` (`lib/data/client.ts:140`). **Ese camino ya reventó
 > una vez: 6.12 MB y pantalla en blanco de 6 a 12 segundos, sin dar error**
 > —lo cuenta su propio código en `app/api/estado/route.ts:146-156`—.
 >
@@ -58,7 +60,7 @@ es **un tablero con un selector de dimensión**.
 
 Cinco secciones serían cinco copias de la misma tabla, y divergirían a la
 primera corrección: es el error de raíz que este repositorio documenta en
-`lib/server/tenant.ts:86-88`.
+`lib/server/tenant.ts:86-88` (que remite a `cuentas-controller.ts:36-40`).
 
 ## Los cuatro archivos, y por qué están partidos así
 
@@ -110,7 +112,7 @@ primera corrección: es el error de raíz que este repositorio documenta en
 > vacío indistinguible del no cargado—, y no da ningún error.
 >
 > **2 · La ruta necesitaba el `basePath` y la barra final.**
-> `next.config.mjs:126-127` declara `basePath: '/spaces-dooh'` y
+> `next.config.mjs:145-146` declara `basePath: '/spaces-dooh'` y
 > `trailingSlash: true`. Escrita como `/api/reportes/rentabilidad`, la petición
 > sale del navegador hacia el **origen** y no hacia la app, y lo que vuelve no
 > es un error de red: es el **404 de Next con cuerpo HTML**, que la pantalla
@@ -142,13 +144,13 @@ queda desfasado.
 >
 > - `grep` de `status: 501` sobre `apps/web/lib` y `apps/web/app`, sin
 >   pruebas: **cero líneas**.
-> - `MOTORES` (`lib/server/reportes-controller.ts:114`) es un `Record`
+> - `MOTORES` (`lib/server/reportes-controller.ts:124`) es un `Record`
 >   **exhaustivo** sobre el enum, así que declarar una dimensión sin su motor
 >   **no compila**. Lo que el tipo garantiza no necesita además un error en
 >   tiempo de ejecución.
 > - los demás caminos de error del endpoint están enumerados y ninguno da 501:
 >   `AppError` (400 por omisión), zod (400 o el status que pida el issue), los
->   códigos de Postgres de `errores.ts:105-114` (400/403/409), el 500 de
+>   códigos de Postgres de `errores.ts:106-116` (400/403/409), el 500 de
 >   respaldo y el 401/403 de `exigir`.
 >
 > Con eso, la fase `sin-motor` salió de `estado.ts` y `dimension` salió de
@@ -166,7 +168,7 @@ hace «por operación». Y en trimestral el encabezado de la primera columna dec
 
 > [!danger] Por qué esto no lo puede ver NINGUNA prueba de las que había
 > Las columnas propias de `operacion` y de `m2` son campos **opcionales** de
-> `FilaRentabilidad` (`lib/data/reportes.ts:118-134`). **Un campo opcional que
+> `FilaRentabilidad` (`lib/data/reportes.ts:107-218`). **Un campo opcional que
 > nadie lee no da error de tipos ni de ejecución**: da una tabla que calcula
 > perfectamente y no contesta su propia pregunta. El typecheck está contento, la
 > respuesta del endpoint es correcta y su e2e pasa — el dato llega y se tira en
@@ -214,6 +216,20 @@ Cuatro decisiones del diseño que no son de estilo:
 > **raya** —`null` en los cuatro campos, no cero— y el aviso `tarifa-sin-publicada`
 > dice encima de la tabla cuánto quedó fuera y por qué, **en ámbar solo si falta
 > algo**.
+
+> [!note] 2026-10-05 · y ya son OCHO, más el costo real de OT
+> - **`vendedor`** («Por vendedor», `components/demo/reportes/consulta.ts:122-125`),
+>   del mismo 28/09 (`16bf4d77`): cuánto vendió y cuánto descuento concedió cada
+>   quien crea la propuesta. Igual que `entidad` y `tarifa`, va **sin columnas de
+>   margen** (`SIN_MARGEN` en `tabla.costo-ot.test.ts:114`). El dato está en
+>   [[02-Backend/vendedor-en-propuesta]].
+> - **El costo de operación ya es el REAL de cada OT** cuando lo hay
+>   (`525b7c8b`, 29/09), y la tabla dice cuántas van medidas y cuántas
+>   estimadas: la cobertura viaja como `costosReales` (`tabla.ts:676`) junto a
+>   la de energía, tarifas y vendedores (`tabla.ts:670-676`). Ver
+>   [[02-Backend/costo-real-de-ot]].
+>
+> `MOTORES` (`reportes-controller.ts:124-133`) tiene hoy las ocho entradas.
   `trimestre` es la única que no va «peor primero», y es deliberado: sus filas
   son una serie de tiempo, no un ranking.
 
@@ -287,7 +303,7 @@ vigila** con una lista de jerga prohibida.
 > aquí puede llegar; como texto va DESPUÉS de `2026-09-30` —el '9' pesa más que
 > el '0'—, y un `<=` de cadenas diría que septiembre no solapa con septiembre.
 > **El aviso no saldría justo en el mes en el que hace falta.** Es el defecto que
-> este repo ya pagó dos veces (`lib/server/fechas.ts:42-48`).
+> este repo ya pagó dos veces (`lib/server/fechas.ts:42-47`).
 >
 > Un solo día de solape basta, y está **medido en el navegador**: con el rango
 > `2026-04-01 → 2026-07-01`, el costo del espacio sube de 184 500 a **186 483.87**
@@ -467,7 +483,7 @@ necesitas el número, córrelo.
 
 > [!danger] Lo que esa e2e NO puede afirmar, y conviene no creerse
 > El aviso que había aquí decía «ni pueda abrir `/reportes` por enlace directo».
-> **Medido el 18/09: el servidor NO lo impide.** `middleware.ts:174-179` solo
+> **Medido el 18/09: el servidor NO lo impide.** `middleware.ts:164-177` solo
 > compuerta por **presencia de sesión**, así que a un COMERCIAL autenticado
 > `/reportes/` le responde **200** con el HTML de la pantalla; quien lo desvía es
 > `AuthGate` **en el navegador**.

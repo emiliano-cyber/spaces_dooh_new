@@ -1,7 +1,7 @@
 ---
 tipo: operacion
 estado: verificado
-actualizado: 2026-09-30
+actualizado: 2026-10-05
 tags: [convenciones, estilo, pruebas]
 archivos:
   - apps/web/components/demo/ui/Button.tsx
@@ -9,6 +9,8 @@ archivos:
   - apps/web/lib/test/README.md
   - docs/DEPENDENCIAS.md
   - docs/Registro_Cambios.md
+  - scripts/recuentos.mjs
+  - infra/scripts/update.sh
 ---
 
 # Convenciones
@@ -313,6 +315,13 @@ Las e2e:
 > (`:1504`, `:1518`, `:1857`) se comparan **contra la misma base de la misma
 > instancia**, donde la collation es constante. Se revisó por sospecha y quedó
 > descartado.
+>
+> **2026-10-05 · las líneas derivaron, el argumento no.** `update.sh` tiene hoy
+> 2863 líneas: el `string_agg(… order by archivo)` está en `:2116` (y hay otro,
+> `order by t`, en `:2090`, el de la huella de esquema; mismo razonamiento), y
+> las tres lecturas de la huella son `HUELLA_ANTES` `:2426`, `HUELLA_DESPUES`
+> `:2440` y `HUELLA_RESTAURADA` `:2817`. Las tres siguen siendo contra la
+> misma base.
 
 > [!danger] Las unitarias no ven los fallos de RLS
 > Simulan la base. Los dos peores fallos de aislamiento del proyecto pasaron las
@@ -432,6 +441,35 @@ un lote grande de commits.
 
 ### 1 · Los recuentos siguen cuadrando
 
+> [!important] 2026-10-05 · esto ya no se cuenta a mano: `node scripts/recuentos.mjs`
+> Desde el 18/09 existe `scripts/recuentos.mjs`, que mide de una vez
+> **endpoints, tablas, migraciones, ADR, notas de la bóveda, enlaces internos,
+> wikilinks rotos y notas huérfanas** sobre el árbol donde se corre. Cubre los
+> chequeos **1 y 2** de esta sección. Se corre **desde la raíz del worktree**:
+>
+> ```
+> node scripts/recuentos.mjs
+> ```
+>
+> Al 2026-10-05, en `integra/riesgos-presentacion-14-oct`: **124 endpoints ·
+> 57 tablas · 106 migraciones · 42 ADR · 100 notas · 1287 enlaces · 2 rotos**
+> (los dos apuntan a ADR, que viven en `docs/`) **· 0 huérfanas**, medido **al
+> empezar** la puesta al día. Al terminarla, con cinco agentes editando la
+> bóveda en el mismo árbol, los enlaces ya eran **1432** — la misma tarde, el
+> mismo árbol. Es una foto: córrelo tú.
+>
+> Lo que **no** mide: las pruebas (se miden corriéndolas) ni los chequeos 3 y 4
+> (rutas citadas y números de línea). Y cómo cuenta, para no confundirse
+> (`scripts/recuentos.mjs:41-46` y `:51-62`): las tablas son **nombres
+> distintos** que casan `create table [if not exists] [public.]` en
+> `schema.sql` y en todas las migraciones, no líneas `^create table`; los
+> enlaces excluyen los de ancla (`[^]|#]`, la quinta trampa) y se resuelven
+> **por el último segmento**, así que dos `_indice` no dan falsa huérfana pero
+> tampoco distinguen cuál de los dos falta; y un wikilink escrito como ejemplo
+> entre backticks **sí** cuenta. Los comandos de PowerShell de abajo siguen
+> valiendo como comprobación independiente, pero **no son el camino
+> principal**.
+
 ```powershell
 "endpoints: $((Get-ChildItem apps\web\app\api -Recurse -Filter route.ts).Count)"
 "migraciones: $((Get-ChildItem db\migrations\*.sql).Count)"
@@ -448,7 +486,11 @@ con carpeta, tipo `02-Backend/_indice`. Al 10/08: **395 enlaces, 0 rotos, 0
 huérfanas**. Al 17/08, con el diario recuperado: **606 enlaces, 0 rotos, 0
 huérfanas** sobre 48 notas. Al 27/08: **726 enlaces, 0 rotos, 0 huérfanas**
 sobre 56 notas — tras arreglar los tres de la tercera trampa, abajo. Al
-**28/08**: **753 enlaces, 0 rotos, 0 huérfanas** sobre **57** notas.
+**28/08**: **753 enlaces, 0 rotos, 0 huérfanas** sobre **57** notas. Al
+**2026-10-05**, con `node scripts/recuentos.mjs`: **1287 enlaces** al empezar
+la puesta al día de ese día y **1432** con ella a medias, **2 rotos**
+(los dos a ADR de `docs/`, la tercera trampa de abajo) **y 0 huérfanas** sobre
+**100** notas.
 
 > [!tip] Quinta trampa: los enlaces a un ancla de la propia nota no son enlaces a notas
 > `manual-tecnico` usa 19 enlaces del tipo dobles-corchetes-almohadilla-título

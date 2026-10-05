@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-09-30
+actualizado: 2026-10-05
 tags: [frontend, i18n, idiomas, ingles, dinero]
 archivos:
   - apps/web/lib/i18n/idiomas.ts
@@ -15,6 +15,8 @@ archivos:
   - apps/web/components/demo/ui/SelectorIdioma.tsx
   - apps/web/lib/password.ts
   - scripts/i18n-inventario.mjs
+  - apps/web/lib/i18n/errores-servidor.ts
+  - apps/web/components/demo/inventario/ContratoWizard.tsx
 ---
 
 # La aplicación en dos idiomas (I18N-01)
@@ -171,8 +173,10 @@ clave**, y `Sidebar.tsx` hace `t(\`nav.${n.key}\`)` con respaldo al `label`.
 
 Hay dos arneses encima:
 
-- `diccionario.test.ts` exige que **las 26 entradas y los 5 grupos** existan en
-  los dos idiomas, y que **el español del diccionario reproduzca exactamente el
+- `diccionario.test.ts` exige que **todas las entradas y los grupos con título**
+  existan en los dos idiomas (recorre `NAV` y `GRUPOS`, no una cifra fija:
+  `diccionario.test.ts:173-190`; al 2026-10-05, **26 entradas y 5 grupos con
+  título**, el de `inicio` va sin él), y que **el español del diccionario reproduzca exactamente el
   `label` de `nav.ts`** — si alguien renombra un rótulo allí (ya pasó tres
   veces), la prueba obliga a traerlo aquí en el mismo commit.
 - `pantallas.test.ts` **rinde el menú** en los dos idiomas y comprueba que en
@@ -221,6 +225,16 @@ ninguno menciona otra divisa. Más dos guardias que recorren **todo `apps/web`**
 > **Nada de eso se tocó** en esta tarea. Queda anotado en
 > [[preguntas-abiertas]]: si de verdad hay una sola moneda, ese selector y esos
 > `default` sobran; si no la hay, `formatearDinero` tendrá que recibirla.
+
+> [!success] 2026-10-05 · el selector MXN/USD ya NO existe
+> Se decidió el mismo 30/09 por la tarde («deja todo en pesos») y salió en
+> `23a79bc2`. En `ContratoWizard.tsx` la moneda dejó de ser estado y sale de la
+> misma constante que el formato: `const moneda = MONEDA`
+> (`ContratoWizard.tsx:117-119`); el comentario donde estaba el selector cuenta
+> por qué (`:503-516`). **La columna `moneda` y sus `default 'PEN'` siguen en
+> `db/schema.sql` (`:110`, `:245`…)** a propósito: se cerró la puerta de entrada,
+> no el almacén. `totalizarMoneda` (`lib/data/derive.ts:277`) también sigue.
+> Medido antes del cambio en la base del 5433: ni un USD ni un PEN.
 
 ## 8 · Los mensajes de error del SERVIDOR (I18N-05, 2026-09-30)
 
@@ -316,6 +330,13 @@ huecos. **Es el lote siguiente, y está contado.**
 
 El catálogo tiene **142 entradas**: 115 de `new AppError` + 27 del embudo, del
 mapa de Postgres, de los motivos de zod y de las constantes compartidas.
+
+> [!note] 2026-10-05 · esas cifras son del 30/09 y el catálogo ya creció
+> Tres commits posteriores añadieron entradas a `lib/i18n/errores-servidor.ts`
+> al lanzar mensajes nuevos —el cupón pendiente (`aa165725`), la tarifa
+> calculada (`17fbd252`) y la calculadora de spots (`43082ac4`)—, obligados por
+> la guardia de `errores-servidor.test.ts`. Los 142 / 251 / 179 no se volvieron
+> a medir: tómalos como la foto de la entrega, no como el estado de hoy.
 
 ### Detalles que costaron una medición
 

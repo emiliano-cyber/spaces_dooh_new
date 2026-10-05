@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-01
+actualizado: 2026-10-05
 tags: [backend, instancias, despliegue, actualizaciones, novedades]
 archivos:
   - apps/web/novedades.json
@@ -20,6 +20,8 @@ archivos:
   - apps/web/components/demo/shell/NovedadesDeVersion.tsx
   - apps/web/components/demo/admin/ActualizacionesPanel.tsx
   - apps/web/app/(app)/(shell)/novedades/page.tsx
+  - apps/web/app/(app)/(shell)/layout.tsx
+  - apps/web/components/demo/admin/actualizaciones-ui.ts
 ---
 
 # Notas de versión
@@ -58,9 +60,14 @@ El archivo es una lista, **de la versión más nueva a la más vieja**:
       { "tipo": "CORREGIDO", "texto": "Lo que fallaba y ya no." }
     ]
   },
-  { "version": "v0.9.2", "fecha": "2026-10-01", "items": [ … ] }
+  { "version": "v0.9.2", "fecha": "2026-10-02", "items": [ … ] }
 ]
 ```
+
+> [!note] 2026-10-05 · la v0.9.2 lleva fecha **2026-10-02**, no 01/10
+> Así está hoy en `apps/web/novedades.json:4` (commit `7044082b`, «la v0.9.2
+> sale el 02/10»). El ejemplo de arriba decía `2026-10-01`, el día en que se
+> escribió esta nota; es la única entrada que tiene el archivo a esta fecha.
 
 - **Se escribe para el cliente, no para el equipo.** En español llano, sin
   nombres de archivo ni de tabla. «Ahora puedes…», no «se añadió el endpoint…».
@@ -92,7 +99,8 @@ prefiere verlos juntos que descubrirlos de uno en uno.
 ## La puerta: no se publica una versión sin sus notas
 
 `release.yml`, job `pruebas`, **lo primero tras tener node y antes del
-`npm ci`**: `node scripts/verificar-novedades.mjs "$VERSION"`.
+`npm ci`**: `node scripts/verificar-novedades.mjs "$VERSION"`
+(`.github/workflows/release.yml:174`; el `npm ci` va en `:181`).
 
 - Sale con **0** si el archivo entero es válido y trae la entrada del tag.
 - Sale con **1** si falta la entrada, si el archivo no se lee, no es JSON o no
@@ -117,16 +125,16 @@ disponible viajan **dentro de la imagen nueva**, y el actualizador las deja en
 el buzón de siempre.
 
 1. **El `Dockerfile` copia el archivo** a `/app/apps/web/novedades.json`, con
-   una `COPY` **explícita**. Medido el 2026-10-01 tras `npm run build`: hoy
+   una `COPY` **explícita** (`Dockerfile:132`). Medido el 2026-10-01 tras `npm run build`: hoy
    `.next/standalone/apps/web/novedades.json` **sí existe**, porque el trazado
    de Next sigue el `import` de `lib/server/novedades.ts`
    (`.next/server/app/api/novedades/route.js.nft.json`). La `COPY` va igual: eso
    es un efecto lateral de cómo lo importa la app, no un contrato. La ruta vive
-   en un solo sitio, `RUTA_NOVEDADES` de `scripts/actualizaciones.mjs`, y
+   en un solo sitio, `RUTA_NOVEDADES` de `scripts/actualizaciones.mjs:51`, y
    `scripts/actualizaciones.test.ts` exige que la `COPY` case con ella.
-2. **La sonda de estado de `update.sh`** (`guion_estado()`, el guion node que
+2. **La sonda de estado de `update.sh`** (`guion_estado()`, `infra/scripts/update.sh:1773`, el guion node que
    corre con la imagen **nueva** en cada `--comprobar`) lee ese archivo con
-   `notasParaVersion()` y escribe `notas_disponibles` **en la misma sentencia**
+   `notasParaVersion()` (`scripts/actualizaciones.mjs:69`) y escribe `notas_disponibles` **en la misma sentencia**
    que `version_disponible` y `digest_disponible`.
 3. **`GET /api/actualizaciones`** la devuelve como `notasDisponibles`,
    revalidada con las mismas reglas del archivo (inválida → `null`).
@@ -171,7 +179,7 @@ de madrugada. Lo ve quien ve el panel: `GET /api/actualizaciones` exige
 ### Después de instalar — el diálogo, una vez por versión y usuario (todos)
 
 - **De dónde sale la versión:** `SPACE_OS_VERSION`, sellada en la imagen
-  (`Dockerfile`, `ARG VERSION`), leída en cada petición por
+  (`Dockerfile:78-79`, `ARG VERSION`), leída en cada petición por
   `GET /api/novedades`. En desarrollo (`NODE_ENV` distinto de `production`), sin
   versión o con `desconocida` (el valor por omisión del `Dockerfile`):
   **`null`, y el diálogo no sale nunca** (`versionInstaladaDe()`).
@@ -193,7 +201,7 @@ de madrugada. Lo ve quien ve el panel: `GET /api/actualizaciones` exige
   hay estado por usuario en la base, a propósito.
 - **Se marca visto al cerrar**, de cualquier forma (botón, X, Escape, clic
   fuera), no al abrir.
-- Montado en `app/(app)/(shell)/layout.tsx`, junto a `SondeoNotificaciones`:
+- Montado en `app/(app)/(shell)/layout.tsx:92`, junto a `SondeoNotificaciones` (`:88`):
   todo usuario con sesión pasa por el shell. Botones según la regla de
   [[convenciones]]: «Entendido» en azul (`primary`, aceptar) y «Ver todas las
   novedades» neutro (`ghost`, navegar).

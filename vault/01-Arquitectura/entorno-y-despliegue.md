@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: verificado
-actualizado: 2026-09-30
+actualizado: 2026-10-05
 tags: [despliegue, entorno, ci, env, instancias]
 archivos:
   - infra/scripts/pruebas-update.sh
@@ -38,7 +38,61 @@ archivos:
   - infra/scripts/pruebas-provision.sh
   - infra/env/instancia.env.example
   - db/docker-compose.yml
+  - infra/scripts/respaldo-diario.sh
+  - infra/scripts/pruebas-respaldo-diario.sh
+  - scripts/verificar-novedades.mjs
+  - infra/systemd/spaces-web.service
 ---
+
+> [!important] 2026-10-05 · revalidación contra el código — lo que cambió
+> El cuerpo de esta nota es largo y en su mayor parte histórico; **no se
+> reescribe**. Se corrigen las afirmaciones que contradecían el código de hoy y
+> se anotan las citas corridas:
+>
+> 1. **«Las e2e no corren en ningún CI» — FALSO desde el 07/09.** `ci.yml`
+>    tiene un segundo trabajo, `e2e` («Integración · Postgres real»,
+>    `.github/workflows/ci.yml:195-244`), que monta `postgres` como servicio,
+>    hace el build que exige el arnés y corre `npm run test:e2e` (`:244`). Lo
+>    añadió `e126130d`. Corregido en la tabla de «CI».
+> 2. **`ci.yml` corre además los arneses de shell**: aprovisionamiento,
+>    instalador del cliente (con mutantes) y **respaldo diario**
+>    (`ci.yml:93-139`), y las unitarias son `turbo run test --filter=web
+>    --filter=flota` (`:81-82`).
+> 3. **Faltaban dos piezas.** `infra/scripts/respaldo-diario.sh` —el respaldo
+>    por reloj de cada instancia, distinto del que hace `update.sh` antes de
+>    migrar; ver [[respaldo-diario]]— y `scripts/verificar-novedades.mjs`, que
+>    `release.yml:174` corre al principio de las pruebas: **sin notas de versión
+>    no se publica** ([[notas-de-version]]). Ojo: ni `provision-instancia.sh` ni
+>    `instalar-hijo.sh` instalan hoy `respaldo-diario.sh`; su cron lo pone una
+>    persona (lo dice [[respaldo-diario]]).
+> 4. **El PADRE no corre con pm2**: lo arranca systemd
+>    (`infra/systemd/spaces-web.service:83`) desde el 28/08. La tabla «Producción
+>    ya no es un droplet» se corrige abajo.
+> 5. **Citas corridas, medidas hoy** (las de los recuadros fechados se dejan
+>    como estaban y se leen con esta tabla):
+>
+> | Cita en la nota | Hoy |
+> |---|---|
+> | `provision-instancia.sh:359` / `:853` (cron) | `infra/scripts/provision-instancia.sh:915` (`--comprobar` cada 15 min) y `:916` (04:17); en `instalar-hijo.sh`, `:886` y `:887` |
+> | `provision-instancia.sh:126` («el único `ssh root@`») | ya no es uno: `ssh … "root@$HOST"` aparece en `:344`, `:369`, `:385`, `:397`, y en los textos de ensayo `:340`, `:387`, `:463` |
+> | `update.sh:74` (código 75, `flock`) | `infra/scripts/update.sh:75` |
+> | `next.config.mjs:17` (trazado desde la raíz) | `apps/web/next.config.mjs:124` (`outputFileTracingRoot`); `output: 'standalone'` en `:119` |
+> | `next.config.mjs:19-20` (`basePath`, `trailingSlash`) | `apps/web/next.config.mjs:145-146` |
+> | `next.config.mjs:51` (`HSTS`) | `apps/web/next.config.mjs:175-188` (comentario y la condición `process.env.HSTS === '1'`) |
+> | `space-os.io.conf:124` / `:188` | `infra/nginx/space-os.io.conf:133` (`space-os.io`) / `:213` (`demo.`); `prueba.` en `:288` |
+> | `ci.yml:74-75` («solo unitarias») | `ci.yml:81-82`, y ya **no** es todo: ver el punto 1 |
+> | `auth.ts:184-188` (`COOKIE_SECURE`) | `apps/web/lib/server/auth.ts:249-253` (`cookieSecure`) |
+> | `instancia.conf.tpl:155` (`X-Forwarded-For $remote_addr`) | `infra/nginx/instancia.conf.tpl:162`; las otras dos (`proxy-app.conf:30`, `demo.space-os.io.conf:123`) siguen bien |
+>
+> Y una contradicción interna que esta revisión **no resuelve**, solo señala: el
+> recuadro del 22/09 sobre el cron cada 15 min dice que «un fallo real lo sigue
+> mandando» por correo, y el comentario del propio cron
+> (`provision-instancia.sh:905-914`) dice lo contrario —sin `MAILTO` y con la
+> salida redirigida, **cron no manda correo nunca**; el aviso llega por el
+> panel de flota—. Manda el código.
+>
+> `infra/nginx/instancia.conf.tpl` **existe** (y su hermana
+> `instancia-sin-licencia.conf.tpl`); la cita de la tabla de entornos es buena.
 
 > [!danger] 2026-08-26 · CORRECCIÓN DOBLE — esta nota tenía DOS cosas falsas
 > **① El acceso al droplet `209.97.146.136` NUNCA se perdió.** El aviso de abajo
@@ -575,8 +629,8 @@ instancia no necesita volumen.**
 
 | Workflow | Disparo | Qué corre |
 |---|---|---|
-| `ci.yml` | `pull_request` + push a `main` | typecheck → test → build (Node 20) |
-| `release.yml` | **push de un tag `v*.*.*`** | typecheck → unitarias → build → **e2e** → imagen a `beta` |
+| `ci.yml` | `pull_request` + push a `main` | Trabajo `verify`: typecheck → unitarias (`web` y `flota`) → arneses de shell (aprovisionamiento, instalador del cliente con mutantes, respaldo diario) → build. Trabajo **`e2e`** (desde el 07/09, `e126130d`): build → `npm run test:e2e` contra un `postgres` de servicio (`ci.yml:195-244`). Node 20 |
+| `release.yml` | **push de un tag `v*.*.*`** | **notas de versión** (`scripts/verificar-novedades.mjs`, `release.yml:174`) → typecheck → unitarias → build → **e2e** → imagen a `beta` |
 | `promover.yml` | **`workflow_dispatch` manual** | comprobar que la versión **es** `beta` → smoke en DEMO → **reetiquetar** `estable` |
 | `lockfile-check.yml` | push + PR | `npm ci --dry-run` (Node 22) |
 
@@ -642,7 +696,7 @@ Dos jobs, y el orden **es** el mecanismo de seguridad:
 
 | Job | Qué hace | Por qué está antes/después |
 |---|---|---|
-| `pruebas` | `npm ci` → typecheck → unitarias → **build** → e2e contra `postgres:16` | Es lo que `ci.yml:74-75` no llega a correr: allí `turbo run test` son **solo unitarias** y las e2e no corren en ningún CI |
+| `pruebas` | `npm ci` → typecheck → unitarias → **build** → e2e contra `postgres:16` | Cuando se escribió (17/08), era lo que `ci.yml` no llegaba a correr: allí `turbo run test` eran **solo unitarias**. **Desde el 07/09 (`e126130d`) `ci.yml` también corre las e2e** en su trabajo `e2e` (`ci.yml:195-244`); este job sigue siendo la puerta de la imagen |
 | `imagen` | `docker build --build-arg VERSION=<tag>` y push con **dos** etiquetas: la versión y `beta` | `needs: pruebas`, y el push es el **último** paso del **último** job |
 
 - **El build de Next dentro de `pruebas` no es un extra**: `lib/test/servidor-e2e.ts:31`
@@ -2031,10 +2085,10 @@ empuja: ver [[modelo-instancias-soberanas]] y
 
 | Entorno | Qué es | Cómo corre | Base | Dominio |
 |---|---|---|---|---|
-| **PADRE** | Plano de control de AS OOH y sitio institucional. **No sirve a ningún owner** | pm2 `spaces-web`, puerto **3000** | `spaces_prod` | `space-os.io` — `infra/nginx/space-os.io.conf:124` |
+| **PADRE** | Plano de control de AS OOH y sitio institucional. **No sirve a ningún owner** | **systemd** `spaces-web`, puerto **3000**, usuario `padre` (`infra/systemd/spaces-web.service:83`; era pm2 hasta el 28/08 — corregido aquí el 05/10) | `spaces_prod` | `space-os.io` — `infra/nginx/space-os.io.conf:133` |
 | **DEMO** | Banco de pruebas. **Contenedor** dentro del PADRE desde el 2026-09-02 ([ADR 0015](../../docs/adr/0015-demo-dentro-del-padre.md), [ADR 0017](../../docs/adr/0017-todo-se-concentra-en-el-padre.md)) | **`update.sh` + Docker**, contenedor `space-os-demo` desde `…/space-os:beta`, `--network host` con `PORT=3001` y `HOSTNAME=127.0.0.1`, cron a las 4:31. Config en `/etc/space-os/demo-instancia.env` y `demo-app.env`. La unidad systemd `spaces-demo` queda **deshabilitada como vuelta atrás**, no borrada — ver el aviso de abajo, porque `disable` **retira el symlink** | `spaces_demo`, 75 migraciones | **`prueba.space-os.io`** — nombre nuevo (31/08). `demo.space-os.io` es la demo original y **se elimina** ([ADR 0024](../../docs/adr/0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md), que sustituye al 0021) |
 | **Instancia de un owner** | Su copia completa: droplet, base y dominio propios | Contenedor Docker, lo levanta `infra/scripts/update.sh` | La suya | El **suyo**, en **su** zona DNS — plantilla `infra/nginx/instancia.conf.tpl` |
-| **Droplet de julio** | La máquina montada a mano en julio. **Fuera del modelo** ([ADR 0017](../../docs/adr/0017-todo-se-concentra-en-el-padre.md)) | pm2 `spaces-web`, usuario `emiliano`, `/var/www/Spaces` | `spaces_prod` propia, con cinco organizaciones dentro | Hoy sigue sirviendo `demo.space-os.io`. Su destino es **decisión abierta** |
+| **Droplet de julio** | La máquina montada a mano en julio. **Fuera del modelo** ([ADR 0017](../../docs/adr/0017-todo-se-concentra-en-el-padre.md)) | pm2 `spaces-web`, usuario `emiliano`, `/var/www/Spaces` | `spaces_prod` propia, con cinco organizaciones dentro | Hoy sigue sirviendo `demo.space-os.io`. ~~Su destino es **decisión abierta**~~ — **cerrada**: sale del modelo por el ADR 0023 (27/08) y `demo.space-os.io` se elimina por el ADR 0024; los datos de g500 sí se rescataron (ADR 0031) |
 
 > [!warning] Dos bases distintas se llaman igual: `spaces_prod`
 > La del PADRE (`docs/Runbook_Padre_Droplet_Nuevo.md:201`, creada el 24/08) y la
@@ -2049,7 +2103,8 @@ empuja: ver [[modelo-instancias-soberanas]] y
 |---|---|---|
 | Tag `v*.*.*` → imagen en el canal `beta` | La flota | `.github/workflows/release.yml` (ver arriba) |
 | `beta` → `estable`, reetiquetando y **sin reconstruir** | La flota | `.github/workflows/promover.yml` (ver arriba) |
-| La instancia jala su canal, respalda, migra y conmuta | Cada instancia, sola | `infra/scripts/update.sh`, por cron a las **04:17** (`infra/scripts/provision-instancia.sh:359`) |
+| La instancia jala su canal, respalda, migra y conmuta | Cada instancia, sola | `infra/scripts/update.sh`, por cron: `--comprobar` cada 15 min (solo aplica si el dueño aprobó, ADR 0037) y la corrida completa a las **04:17** (`infra/scripts/provision-instancia.sh:915-916`) |
+| Respaldo diario fuera del droplet | Cada instancia, sola | `infra/scripts/respaldo-diario.sh`, por su propio cron — ver [[respaldo-diario]] |
 | Alta de una instancia nueva | Una persona, **una sola vez** por owner | `infra/scripts/provision-instancia.sh` + `docs/runbook-alta-de-owner.md` |
 
 > [!success] `deploy.yml` ya NO está en el repo — F3.6 cerrada el 2026-08-31
@@ -2080,7 +2135,7 @@ tomarlo de modelo.
 
 ### `basePath` + `trailingSlash`: la trampa recurrente
 
-`apps/web/next.config.mjs:19-20` fija `basePath: '/spaces-dooh'` y
+`apps/web/next.config.mjs:145-146` fija `basePath: '/spaces-dooh'` y
 `trailingSlash: true`. Toda URL absoluta que se registre en un tercero debe
 llevar la barra final o la app responde 308 y el tercero no la sigue. Ya costó
 un redespliegue con la ruta del logo, y `DESPLIEGUE_GOOGLE.txt:49-56` lo repite
@@ -2097,10 +2152,10 @@ para el redirect URI de Google.
 | Variable | Para qué | Evidencia |
 |---|---|---|
 | `DATABASE_URL` | Conexión Postgres | `lib/server/db.ts:23` |
-| `NODE_ENV` | Modo, default de `Secure`, pool en dev | `lib/server/auth.ts:187` |
-| `COOKIE_SECURE` | Fuerza/apaga `Secure` en cookies | `lib/server/auth.ts:184-188` |
+| `NODE_ENV` | Modo, default de `Secure`, pool en dev | `lib/server/auth.ts:252` |
+| `COOKIE_SECURE` | Fuerza/apaga `Secure` en cookies | `lib/server/auth.ts:249-253` (`cookieSecure`) |
 | `APP_URL` | Base de enlaces en correos | `app/api/auth/forgot/route.ts:50` |
-| `HSTS` | Activa Strict-Transport-Security | `next.config.mjs:51` |
+| `HSTS` | Activa Strict-Transport-Security. **Bandera de BUILD**, no de ejecución | `next.config.mjs:175-188` |
 | `RESEND_API_KEY`, `EMAIL_FROM` | Correo saliente | `lib/server/email.ts` |
 | `RECORDATORIOS_TOKEN` | Autentica el cron; sin él la ruta da 503 | `app/api/recordatorios/route.ts` |
 | **`AUTOREGISTRO`** | **solo `'1'` enciende** el alta pública; **ausente = apagado**. Se lee en cada petición, no se hornea (F2.6, 14/08) | `lib/entorno.ts` · `app/api/signup/route.ts:21-26` |

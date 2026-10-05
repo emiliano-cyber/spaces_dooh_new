@@ -1,7 +1,7 @@
 ---
 tipo: indice
 estado: verificado
-actualizado: 2026-08-31
+actualizado: 2026-10-05
 tags: [frontend, indice]
 archivos:
   - apps/web/app/
@@ -15,6 +15,13 @@ componentes**, medidos el 31/08 — el retiro de la pista archivada los bajó de
 71 el 27/08. Hay un `pages/` pero solo con `_error.tsx` (shim); **no es Pages
 Router en uso**.
 
+> [!note] 2026-10-05 · remedido: 173 archivos en `app/` y 92 componentes
+> `find apps/web/app -type f` da **173**, y `find apps/web/components -name
+> '*.tsx'` da **92** (136 archivos en `components/` contando pruebas y módulos
+> `.ts` puros). La nota no dejó escrito con qué mandato salieron el 127 y el 67
+> del 31/08, así que la comparación con ellos es aproximada: lo seguro es la
+> cifra de hoy y el mandato que la reproduce.
+
 > [!note] El «130» que decía aquí no era el de ninguna fecha
 > Se escribió el 07/08 y nunca se remidió. Al llegar el retiro del 27/08 el
 > número real era **134**, así que la nota ya iba desfasada antes del cambio que
@@ -26,7 +33,7 @@ Router en uso**.
 |---|---|
 | [[shell-y-navegacion]] | Layouts anidados, sidebar, topbar, guards de UI |
 | [[acceso-y-sesion-ui]] | Login, recuperar contraseña, autoregistro |
-| [[modulos-internos]] | Las 22 pantallas dentro del shell |
+| [[modulos-internos]] | Los 30 módulos dentro del shell (33 `page.tsx`) |
 | [[pantalla-reportes]] | El tablero de rentabilidad: el límite con el endpoint, el 501 y los vacíos |
 | [[comercial-opex]] | Prospección de arrendadores. **MAQUETA sin base**, y se solapa con Captación |
 | [[paginas-publicas]] | Portal, firma, propuesta compartible, OT móvil |
@@ -43,14 +50,14 @@ Router en uso**.
 
 Lo que **no** cuelga de `(shell)` va sin chrome: `login`, `recuperar/[token]`,
 `contrato/[id]`, `firmar/[token]`, `m/ot/[id]`, `p/[id]`, `portal/[token]`,
-`propuesta`.
+`propuesta` y `bienvenida` (el cuestionario de razones sociales).
 
 ## Nota sobre nombres
 
 El grupo de rutas se llama `(app)` pero internamente todo el CSS y los
 componentes siguen diciendo **«demo»** (`components/demo/…`, `.demo-root`,
 `demo.css`). Es histórico. El segmento `/demo` **ya no existe en las URLs**:
-`middleware.ts:29-37` redirige `/demo/*` → `/*` con 308 permanente.
+`middleware.ts:103-109` redirige `/demo/*` → `/*` con 308 permanente.
 
 ## `_legacy` — retirado
 

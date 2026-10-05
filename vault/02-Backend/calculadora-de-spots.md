@@ -1,7 +1,7 @@
 ---
 tipo: contrato
 estado: verificado
-actualizado: 2026-10-01
+actualizado: 2026-10-05
 tags: [backend, precios, propuestas, dinero, spots, roadblock, digital]
 archivos:
   - apps/web/lib/calculadora-spots.ts
@@ -48,6 +48,23 @@ otro.
 | `horasDeFranja` / `horasDeHorario` / `horasPorOmision` | El techo de horas al día |
 | `tarifaConPrima` | `tarifa × (1 + prima/100)`, al centavo |
 | `referenciaPorSpotMensual` | «Equivale a $X por spot frente a la tarifa mensual». **Informativa: nunca se cobra** |
+
+> [!note] 2026-10-05 · dónde está cada pieza, medido hoy
+> En `apps/web/lib/calculadora-spots.ts`: `duracionSpotSeg` `:67`,
+> `horasDeFranja` `:78`, `horasDeHorario` `:111`, `horasPorOmision` `:134`,
+> `spotsPorDia` `:164`, `tarifaConPrima` `:178`, `usaCalculadora` `:197`,
+> `resolverCalculadora` `:253`, `previsualizarCalculadora` `:263`,
+> `etiquetaCalculadora` `:355`, `decidirPrecioCalculadora` `:386`,
+> `espaciosLibres` `:424`, `referenciaPorSpotMensual` `:445` y
+> `CALCULADORA_POR_OMISION` `:474`. En el servidor: la calculadora corre en
+> `crearPropuestaCtrl` **antes** que la tarifa
+> (`apps/web/lib/server/propuestas-controller.ts:236-267`), y la prima entra en
+> la decisión de precio en `:368-375`; el loop sale de `datosDelLoop`
+> (`apps/web/lib/server/tarifas-repo.ts:138`); la campaña pasa
+> `it.espacios_comprados ?? it.spots_por_dia` en
+> `apps/web/lib/server/campanas-repo.ts:794`. Los meses de calendario de
+> `6ab3c1f2` (02/10) no tocan esta cuenta: usa **días** (`diasInclusivos`,
+> `propuestas-controller.ts:236`).
 
 ## Decisiones que hubo que tomar
 

@@ -1,7 +1,7 @@
 ---
 tipo: glosario
 estado: verificado
-actualizado: 2026-08-31
+actualizado: 2026-10-05
 tags: [dominio, negocio, vocabulario, flota]
 archivos:
   - db/schema.sql
@@ -85,10 +85,10 @@ archivos:
 | **Tenant de plataforma** | El tenant más antiguo (`rgb`). Solo su Dueño puede cambiar de CRM. Está **vacío**. | `lib/server/tenant.ts:27-30` |
 | **`g500`** | La organización con datos de negocio. Nombre comercial `PIXELED`. | — |
 | **`eyro`** | **Perfil de PRUEBAS del usuario.** Lo que aparezca ahí no es deuda operativa — pero sí publica de verdad en DOOHmain. Ver [[multi-tenancy-y-rls]]. | — |
-| **Desbloqueo** | Reautenticación con la contraseña propia que abre 15 min para cambios sensibles (ADR 0009). | `sesiones.desbloqueo_expira_en` |
+| **Desbloqueo** | Abre 15 min para cambios sensibles (`DESBLOQUEO_MINUTOS`, `lib/server/cambios.ts:58`). Desde el **ADR 0036** (21/09) acepta **dos** contraseñas con alcance distinto: la **propia** de cada quien (sirve para todo) o la **compartida** que asigna el Dueño (`tenants.cambios_password_hash`), que sirve solo para el candado de dinero/catálogo y **nunca** para restablecer el acceso de otra persona. La sesión guarda cuál se usó. | `sesiones.desbloqueo_expira_en`, `sesiones.desbloqueo_es_propio` (`20260921_restaura_contrasena_compartida_cambios.sql`) |
 | **Cambio sensible** | Operación sobre dinero o catálogo que exige desbloqueo. | `lib/server/cambios.ts` |
 | **Contraseña temporal** | La que entrega un administrador al restablecer. Fuerza cambio al entrar. | `usuarios.debe_cambiar_password` |
-| **Rol** | `DUENO`, `COMERCIAL`, `OPERACIONES`, `IMPRENTA`, `FINANZAS` (+`CLIENTE`, retirado por ADR 0010). | `rol_demo` |
+| **Rol** | `DUENO`, `ADMINISTRADOR`, `DIRECTOR_COMERCIAL`, `GERENTE_VENTAS`, `VENDEDOR`, `OPERACIONES`, `IMPRENTA`, `FINANZAS`. Los cuatro de venta llegan con el **ADR 0040** (29/09); `VENDEDOR` es el default nuevo de `usuarios.rol`. `COMERCIAL` se retira **de uso**, no del enum —un valor de enum no se quita—, y `CLIENTE` quedó retirado por el ADR 0010. Ver [[02-Backend/roles-de-venta]]. | `rol_demo` (`db/migrations/20260929_roles_de_venta_enum.sql:63-74`; default en `20260929_roles_de_venta_matriz.sql:236`) |
 | **Módulo / acción** | Unidad de permiso: `ver`, `crear`, `aprobar`, `facturar`. | `rol_permisos` |
 | **Método de sesión** | Cómo se abrió la sesión: `password` o `google`. Existe porque quien entró con Google **no tiene contraseña que reautenticar**. | `sesiones.metodo` (`20260825_sesion_metodo.sql:39-40`) |
 
@@ -102,9 +102,9 @@ Vocabulario del modelo aprobado el 2026-08-12. Antes de esta fecha «tenant» y
 | **Instancia** | Una copia completa de SPACE OS con su droplet, su base y su dominio. La unidad que se le entrega a un owner. | `infra/scripts/provision-instancia.sh` |
 | **Owner** | La empresa dueña de una instancia. **No es lo mismo que un tenant**: hoy un owner es un tenant dentro de su propia instancia. | — |
 | **PADRE** | El plano de control: donde se trabaja el código y desde donde se publica. `space-os.io`, droplet `137.184.107.53`. | `infra/systemd/spaces-web.service` |
-| **DEMO** | El banco de pruebas donde se ensaya una versión antes de soltarla a la flota. Corre en el 3001 **dentro del PADRE**, y desde el 31/08 se llama `pruebas.space-os.io`. | `infra/systemd/spaces-demo.service` |
+| **DEMO** | El banco de pruebas donde se ensaya una versión antes de soltarla a la flota. Corre en el 3001 **dentro del PADRE**, y desde el 31/08 se llama `prueba.space-os.io` —en singular, `infra/nginx/space-os.io.conf:288`; esta nota decía `pruebas` hasta el 05/10—. | `infra/systemd/spaces-demo.service` |
 | **Canal** | `beta` o `estable`. DEMO sigue `beta`; **una instancia de owner sigue siempre `estable`**. Un owner en `beta` es un owner haciendo de conejillo. | `infra/env/instancia.env.example:30-35` |
-| **Registry** | El almacén de la aplicación ya empaquetada, para que cada servidor la **instale** en vez de construirla. | Pendiente de nombre (decisión P4) |
+| **Registry** | El almacén de la aplicación ya empaquetada, para que cada servidor la **instale** en vez de construirla. | Existe desde el 31/08 (`registryspaces`, NYC3). Ningún archivo lo quema: entra por `vars.REGISTRY` (`.github/workflows/release.yml:224`) y por `REGISTRY` en el `.env` de cada instancia |
 | **Actualizador** | `update.sh` en cada instancia: jala la imagen del canal, aplica migraciones y reinicia. | `infra/scripts/update.sh` |
 
 > [!warning] «Tenant» ya no significa «cliente»
@@ -113,6 +113,14 @@ Vocabulario del modelo aprobado el 2026-08-12. Antes de esta fecha «tenant» y
 > **se queda como defensa en profundidad dentro de cada una**. Leer una nota
 > anterior al 12/08 con el significado nuevo lleva a conclusiones falsas.
 
+> [!note] 2026-10-05 · lo que se corrigió en esta revisión
+> Cuatro términos llevaban un mes describiendo algo que ya cambió: **Rol** (faltaban
+> los cuatro de venta del ADR 0040), **Desbloqueo** (seguía diciendo «solo la
+> contraseña propia», revertido en parte por el ADR 0036), **Registry** («pendiente
+> de nombre», cuando existe desde el 31/08) y **DEMO** (`pruebas.` por `prueba.`).
+> Ojo: el comentario de `infra/env/instancia.env.example:37-40` todavía dice que el
+> nombre del registry «no está decidido»; es código, y esta revisión no lo toca.
+
 ## Relacionadas
-[[esquema]] · [[decisiones]] · [[comercial-propuestas-campanas]] ·
+[[roles-de-venta]] · [[esquema]] · [[decisiones]] · [[comercial-propuestas-campanas]] ·
 [[finanzas-y-cobranza]] · [[MOC-Proyecto]]

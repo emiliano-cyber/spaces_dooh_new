@@ -1,7 +1,7 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-09-18
+actualizado: 2026-10-05
 tags: [datos, semilla, demo, rentabilidad, reportes, ooh-summit, entidades, energia, caras]
 archivos:
   - scripts/semilla-demo.mjs
@@ -11,9 +11,43 @@ archivos:
   - apps/web/lib/data/reportes.ts
   - apps/web/lib/costos-ot.ts
   - apps/web/lib/server/bienvenida-repo.ts
+  - apps/web/lib/server/reportes-repo.ts
+  - apps/web/lib/coordenadas.ts
 ---
 
 # La semilla de demostración
+
+> [!important] 2026-10-05 · dos cosas que cambiaron alrededor de la semilla desde el 18/09
+> **1 · El costo REAL de la OT (OT-COSTO-01, 29/09) y el renombrado a
+> `margenBruto`.** Desde `20260929_costo_real_ot.sql` una orden puede llevar
+> `ordenes_trabajo.costo_real`, y el motor de reportes lo prefiere a la tarifa
+> por tipo (`apps/web/lib/data/reportes.ts:1359-1367`; lo lee
+> `apps/web/lib/server/reportes-repo.ts:159`). **La semilla no lo siembra**: su
+> `insert into ordenes_trabajo` (`scripts/semilla-demo.mjs:1372-1381`) no
+> nombra la columna, así que las 114 órdenes nacen con `costo_real` en NULL y
+> el reporte las sigue costeando por tipo — **las cifras del guion no se
+> movieron**. Pero el `--verificar` calcula la operación **solo por tipo**
+> (`scripts/semilla-demo.mjs:1539-1540`): si alguien captura un costo real a
+> mano en una OT de la demostración, el reporte y la verificación dejan de
+> coincidir sin que nada avise.
+>
+> El campo del reporte se llama **`margenBruto`** desde el 29/09
+> (`apps/web/lib/data/reportes.ts:102`, `:125`, `:226`). En la consulta de
+> verificación el alias se quedó en `margen` **a propósito**
+> (`scripts/semilla-demo.mjs:1576-1584` explica por qué: renombrar solo el lado
+> JavaScript dejó el `--verificar` saliendo siempre con código 2). Donde esta
+> nota dice «margen» se refiere a ese mismo número.
+>
+> **2 · Latitud y longitud son OBLIGATORIAS** (`a2964383`, 24/09, en `main`).
+> Una pantalla ya no nace sin ubicación, y la semilla, que no sembraba
+> coordenadas, ahora se las da a las **seis** (`scripts/semilla-demo.mjs:373`
+> en adelante, una pareja por pantalla; el `insert` las pasa como `$21`/`$22`
+> en `:1230` y `:1252`). Lo fija `scripts/semilla-demo.test.ts:639`
+> («las seis traen coordenadas utilizables», con `puntoUtil` de
+> `apps/web/lib/coordenadas.ts`). Sin eso el mapa las mandaba al (0,0).
+>
+> Lo que **no** se volvió a medir hoy: el total de filas (247) ni las cifras del
+> guion de abajo; no se corrió la semilla contra una base el 05/10.
 
 `scripts/semilla-demo.mjs` siembra el **guion** con el que se enseña el módulo de
 rentabilidad: una historia coherente de varios trimestres, con una conclusión
