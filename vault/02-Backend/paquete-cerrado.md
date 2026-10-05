@@ -1,7 +1,7 @@
 ---
 tipo: contrato
 estado: verificado
-actualizado: 2026-09-28
+actualizado: 2026-10-05
 tags: [backend, precios, paquetes, promociones, propuestas, dinero, snapshot, rls, reportes]
 archivos:
   - db/migrations/20260928_paquete_cerrado.sql
@@ -184,6 +184,35 @@ Por omisión **no admite nada encima**:
 **Y el volumen deja de contar contra el tope** cuando hay paquete: si contara, a
 un vendedor le rechazarían un descuento por un volumen que el cliente nunca
 recibió, con un mensaje que nombraría un porcentaje ausente de su cotización.
+
+> [!danger] TOPE-PAQ · 2026-10-05 · **quitar el paquete se NIEGA si el volumen
+> devuelto deja la venta por encima del tope**
+> La regla de arriba tenía un reverso que nadie revisaba. Con paquete, el
+> vendedor guarda un 15 % comercial contra un tope del 20 % aunque las líneas
+> lleven un 10 % de volumen, porque el volumen no cuenta. **Al quitar el
+> paquete el volumen vuelve** —es justo lo que promete «devuelve la venta a como
+> estaba»— y la venta queda en `1 − 0,85 × 0,90 = 23,5 %` regalado contra un
+> techo de 20. `quitarPaquete` solo limpiaba las cinco columnas, y **la
+> aprobación (`cambiarEstatusPropuesta`) y la aceptación por liga pública
+> (`aceptarPropuestaPublica`) no miran el tope**: se aprobaba y se congelaba en
+> el snapshot por encima de lo autorizado.
+>
+> **Se cierra donde nace el estado malo, no en la aprobación.** Es el criterio
+> de TOPE-01: *por encima del tope no se guarda nada*. Revalidar al aprobar
+> habría dejado pasar la aceptación del cliente por la liga, que no pasa por
+> ese camino, y habría dejado la propuesta enviada con un precio que luego no
+> se puede firmar. `quitarPaquete` relee dentro de su transacción el descuento
+> comercial y el volumen de las líneas y los pasa por la misma
+> `descuentoDentroDelTope` que la edición; si no cabe, `PaqueteImposible`
+> (409) con el mensaje del tope y la salida: **baja primero el descuento
+> comercial**. Nada se toca: ni el enlace ni las columnas.
+>
+> **Con 0 % comercial siempre se deja quitar**, aunque el volumen solo pase el
+> tope: no hay discreción del vendedor que acotar, la propuesta queda igual
+> que una recién creada con esas líneas, y negarse dejaría el paquete pegado
+> sin salida. Es el caso «tope por debajo de la escala propia» de
+> [[02-Backend/descuento-por-volumen]] §3, y se arregla en Administración.
+> Pruebas: `paquetes-aplicar.test.ts` bloque 4.
 
 ---
 

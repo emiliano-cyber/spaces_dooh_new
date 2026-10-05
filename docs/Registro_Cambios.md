@@ -5,6 +5,19 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-10-05
+
+- **Quitar un paquete ya no puede dejar una propuesta por encima del tope de
+  descuento.** Mientras una propuesta tiene un paquete, el descuento por volumen
+  no se aplica y por eso tampoco cuenta contra el tope. Pero al **quitar** el
+  paquete el volumen vuelve, y el descuento total podía quedar por encima del
+  máximo que autoriza tu organización sin que nadie lo revisara; la propuesta se
+  podía aprobar así. Por ejemplo: tope 20 %, volumen 10 % y descuento comercial
+  15 % daban un **23,5 %** en total. Ahora el sistema **no deja quitar el
+  paquete** en ese caso, te dice el tope y la cuenta, y te pide **bajar primero
+  el descuento comercial**. Si el descuento comercial es 0 %, el paquete se
+  puede quitar siempre.
+
 ## 2026-10-02
 
 - **En Nueva propuesta, los meses ya son meses de calendario.** *(Lo

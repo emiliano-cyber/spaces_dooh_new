@@ -6,6 +6,16 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!important] 2026-10-05 · **TOPE-PAQ · Z5 · Comercial RECLAMADA — EN REVISION**
+> Rama `fix/tope-al-quitar-paquete`, salida de `main` (`09c65ca2`). **ROJO por
+> dinero (R4)**: quitar un paquete devolvía el volumen sin revisar el tope, y la
+> aprobación no lo revisa. **Sin fusionar ni empujar**: espera revisión humana.
+> Tocados: `lib/server/paquetes-repo.ts` (`quitarPaquete`) y su prueba
+> `paquetes-aplicar.test.ts`, más Z12 (`paquete-cerrado.md`, este tablero) y el
+> de alto contacto `docs/Registro_Cambios.md`. **Sin migración**; NO se tocó
+> `db/schema.sql`, `aislamiento.e2e.test.ts` ni `servidor-e2e.ts`. Detalle en
+> [[02-Backend/paquete-cerrado]] §4.
+
 > [!success] 2026-09-30 · **COD-03 · el cupón con aprobación — RECLAMADO Y LIBERADO**
 > Rama `feat/cupon-con-aprobacion`, salida de `main` (`749510ba`). **ROJO por
 > tres lados** —migración (R3), dinero (R4) y lecturas por tenant (R2)—,

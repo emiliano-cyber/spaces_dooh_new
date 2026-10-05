@@ -50,6 +50,10 @@ vi.mock('./db', () => ({
 }))
 vi.mock('./tenant', () => ({ tenantActual: vi.fn(async () => 'T1') }))
 vi.mock('./auth', () => ({ usuarioActual: vi.fn(async () => ({ id: 'U1' })) }))
+// El techo de la organización. Por omisión el respaldo (100 %), que es «no hay
+// tope»: así los bloques 1-3 se comportan igual que antes de TOPE-PAQ.
+let topeDelTenant = 100
+vi.mock('./config-repo', () => ({ topeDescuentoDelTenant: vi.fn(async () => topeDelTenant) }))
 
 const { aplicarPaquete, quitarPaquete, PaqueteImposible } = await import('./paquetes-repo')
 
@@ -66,6 +70,7 @@ const SITIOS = ['S1', 'S2', 'S3']
 beforeEach(() => {
   ejecutadas.length = 0
   client.query.mockClear()
+  topeDelTenant = 100
   filas.propuesta = [{ id: 'P1', estatus: 'BORRADOR', codigo_texto: null, paquete_nombre: null }]
   filas.paquete = [{ ...PAQUETE }]
   filas.paqueteSitios = SITIOS.map((s) => ({ sitio_id: s }))
@@ -215,5 +220,76 @@ describe('3 · quitar el paquete DEVUELVE los precios de línea', () => {
   it('una propuesta de otra organización devuelve `false`', async () => {
     filas.propuesta = []
     await expect(quitarPaquete('P1')).resolves.toBe(false)
+  })
+})
+
+describe('4 · TOPE-PAQ · quitar el paquete NO deja la venta por encima del tope', () => {
+  // Con paquete, el volumen no cuenta contra el tope (PAQ-01): no se aplicó.
+  // Por eso un vendedor puede guardar un 15 % comercial con un tope del 20 %
+  // aunque las líneas lleven un 10 % de volumen. Al QUITAR el paquete ese
+  // volumen vuelve a aplicarse, y la venta queda en 1 − 0,85 × 0,90 = 23,5 %
+  // regalado contra un techo de 20. Antes de esta prueba nadie lo revisaba, y
+  // la aprobación tampoco: se aprobaba y se congelaba por encima del tope.
+  const conVolumen = (pct: number) =>
+    SITIOS.map((s, i) => ({
+      id: `I${i}`,
+      sitio_id: s,
+      precio: '10000.00',
+      descuento_volumen_pct: String(pct),
+    }))
+
+  beforeEach(() => {
+    topeDelTenant = 20
+    filas.items = conVolumen(10)
+    filas.propuesta = [
+      {
+        id: 'P1',
+        estatus: 'BORRADOR',
+        codigo_texto: null,
+        paquete_nombre: 'Periferico',
+        descuento_pct: '15.00',
+        codigo_descuento_pct: null,
+      },
+    ]
+  })
+
+  it('se NIEGA si al volver el volumen el descuento compuesto pasa el tope', async () => {
+    await expect(quitarPaquete('P1')).rejects.toBeInstanceOf(PaqueteImposible)
+    await expect(quitarPaquete('P1')).rejects.toThrow(/20 %/)
+  })
+
+  it('y al negarse NO toca nada: ni el enlace ni las cinco columnas', async () => {
+    await expect(quitarPaquete('P1')).rejects.toThrow()
+    expect(sql()).not.toMatch(/delete from paquete_aplicaciones/)
+    expect(sql()).not.toMatch(/update propuestas/)
+    expect(sql()).toMatch(/rollback/)
+  })
+
+  it('el mensaje dice qué hacer: bajar el descuento comercial antes de quitarlo', async () => {
+    await expect(quitarPaquete('P1')).rejects.toThrow(/baja.*descuento comercial/i)
+  })
+
+  it('SÍ lo quita si el compuesto cabe: 10 % comercial con 10 % de volumen = 19 %', async () => {
+    filas.propuesta[0].descuento_pct = '10.00'
+    await expect(quitarPaquete('P1')).resolves.toBe(true)
+    expect(sql()).toMatch(/delete from paquete_aplicaciones/)
+  })
+
+  it('el límite es INCLUSIVO, como en la edición: exactamente el tope pasa', async () => {
+    // 1 − 0,8 × 0,75 = 40 % justo; con tope 40 tiene que pasar.
+    topeDelTenant = 40
+    filas.items = conVolumen(25)
+    filas.propuesta[0].descuento_pct = '20.00'
+    await expect(quitarPaquete('P1')).resolves.toBe(true)
+  })
+
+  it('sin descuento comercial siempre se puede quitar, aunque el volumen solo pase el tope', async () => {
+    // El volumen es la escala del dueño, no discreción del vendedor: con 0 %
+    // comercial no hay nada que bajar, y la propuesta queda igual que una
+    // recién creada con esas líneas (que `crearPropuesta` admite). Negarse
+    // dejaría el paquete pegado sin salida desde la pantalla.
+    topeDelTenant = 5
+    filas.propuesta[0].descuento_pct = '0.00'
+    await expect(quitarPaquete('P1')).resolves.toBe(true)
   })
 })
