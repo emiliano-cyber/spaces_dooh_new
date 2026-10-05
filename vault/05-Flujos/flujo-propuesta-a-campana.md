@@ -135,8 +135,9 @@ sequenceDiagram
   `descuentoSobreTope: true`, `propuestas-repo.ts:1469-1498`) y la aceptación
   por la liga también (409, sin nombrar el tope al cliente, `:946-985`, dentro
   de su transacción y tras bloquear la fila). Misma cuenta que la edición:
-  `descuentoDePropuestaDentroDelTope` (`lib/descuento.ts:362`). Con 0 %
-  comercial no se revisa. Detalle en [[02-Backend/descuento-por-volumen]] §3.
+  `descuentoDePropuestaDentroDelTope` (`lib/descuento.ts:424`). Con 0 %
+  comercial no se revisa, y desde TOPE-04 (05/10) la edición tampoco: guardar
+  0 % se acepta aunque el volumen solo pase el tope. Detalle en [[02-Backend/descuento-por-volumen]] §3.
 - **6** · desde el 01/10 (`17fbd252`), `crearPropuestaCtrl` recalcula la tarifa
   de cada línea con `lib/tarifa-calculada.ts` (`tarifaCalculada()` en `:95`,
   `decidirPrecioItem()` en `:150`) sobre los datos de la organización
@@ -149,7 +150,7 @@ sequenceDiagram
 > [!note] 2026-10-05 · quitar el paquete también respeta el tope
 > `quitarPaquete()` (`paquetes-repo.ts:376`) se niega si, al volver el
 > descuento por volumen de las líneas, el comercial deja de caber en el tope de
-> la organización (`:404-436`, la misma `descuentoDentroDelTope` que la
+> la organización (`:404-439`, la misma `descuentoDentroDelTope` que la
 > edición). Lanza `PaqueteImposible` y el controller la mapea a **409**
 > (`paquetes-controller.ts:129`). Con 0 % comercial no se valida: no hay
 > discreción del vendedor que acotar. Se llega por

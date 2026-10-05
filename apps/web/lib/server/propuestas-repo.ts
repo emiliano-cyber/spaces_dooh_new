@@ -1423,9 +1423,9 @@ function revisarTopeVigente(
   lineas: Parameters<typeof descuentoDePropuestaDentroDelTope>[3],
   tope: number,
 ): void {
-  const comercial = Number(fila.descuento_pct ?? 0)
-  if (!(comercial > 0)) return
-  descuentoDePropuestaDentroDelTope(comercial, tope, fila, lineas)
+  // TOPE-04 · el «con 0 % no se revisa» ya no se escribe aquí: vive en
+  // `descuentoDentroDelTope`, para que la edición diga exactamente lo mismo.
+  descuentoDePropuestaDentroDelTope(Number(fila.descuento_pct ?? 0), tope, fila, lineas)
 }
 
 const ESTATUS_VALIDOS = ['BORRADOR', 'ENVIADA', 'APROBADA', 'RECHAZADA']

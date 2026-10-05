@@ -76,13 +76,23 @@ describe('descuentoDentroDelTope con volumen', () => {
   it('el limite es INCLUSIVO tambien con volumen', () => {
     // compuesto(0, 20) = 20 exacto
     expect(descuentoDentroDelTope(0, 20, 20)).toBe(0)
+    // Desde TOPE-04 el 0 % no mira el tope, así que el límite inclusivo se
+    // demuestra también con comercial: compuesto(20, 20) = 36 exacto.
+    expect(descuentoDentroDelTope(20, 36, 20)).toBe(20)
+    expect(() => descuentoDentroDelTope(20.01, 36, 20)).toThrow(DescuentoSobreTope)
   })
 
-  it('el volumen SOLO, ya por encima del tope, no deja poner ni un 0 % comercial', () => {
+  it('el volumen SOLO, ya por encima del tope, no deja poner NINGÚN comercial > 0 — pero sí el 0 %', () => {
     // Es una consecuencia real de la decisión, y tiene que estar escrita: si el
     // dueño baja el tope por debajo de su propia escala de volumen, ninguna
-    // propuesta con volumen se puede tocar hasta que arregle una de las dos.
-    expect(() => descuentoDentroDelTope(0, 10, 15)).toThrow(DescuentoSobreTope)
+    // propuesta con volumen lleva descuento comercial hasta que arregle una de
+    // las dos.
+    expect(() => descuentoDentroDelTope(1, 10, 15)).toThrow(DescuentoSobreTope)
+    // TOPE-04 (2026-10-05) · hasta hoy esta prueba exigía rechazar también el
+    // 0 %, y eso dejaba al vendedor sin salida: aprobar le pedía «ajustar» un
+    // descuento que no admitía ningún valor. Con 0 % comercial no hay
+    // discreción que acotar (mismo criterio que aprobar y quitar un paquete).
+    expect(descuentoDentroDelTope(0, 10, 15)).toBe(0)
   })
 
   it('un volumen ilegible se lee como CERO volumen, nunca como NaN', () => {

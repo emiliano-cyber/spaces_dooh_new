@@ -176,17 +176,17 @@ por un margen que no se perdió.
 
 > [!note] 2026-10-05 · las otras dos capas, frente al tope
 > - **El cupón NO cuenta.** `CODIGO_CUENTA_CONTRA_TOPE = false`
->   (`apps/web/lib/descuento.ts:210`), y `descuentoContraTope` (`:223`) le pasa
+>   (`apps/web/lib/descuento.ts:260`), y `descuentoContraTope` (`:273`) le pasa
 >   un 0 a `componerDescuentos`. Lo comparado sigue siendo la fórmula de arriba.
 >   Ver [[codigo-promocional]].
 > - **Con paquete, el volumen tampoco cuenta**, porque no se aplicó:
 >   `descuentoDePropuestaDentroDelTope` pasa `volumenPct = 0` si hay paquete
->   vivo (`apps/web/lib/descuento.ts:362`; la llama `actualizarPropuesta` en
+>   vivo (`apps/web/lib/descuento.ts:424`; la llama `actualizarPropuesta` en
 >   `apps/web/lib/server/propuestas-repo.ts:1357`). Hasta TOPE-03 la cuenta vivía
 >   dentro de `actualizarPropuesta`.
 > - **Y al QUITAR el paquete el volumen vuelve**, así que se revalida el
 >   comercial con él: `quitarPaquete` (`apps/web/lib/server/paquetes-repo.ts:376`,
->   comprobación en `:436`) se niega si el compuesto pasaría del tope. Commit
+>   comprobación en `:439`) se niega si el compuesto pasaría del tope. Commit
 >   `b2d30d50`, **en esta rama y todavía no en `main`** al 05/10. Ver
 >   [[paquete-cerrado]].
 
@@ -198,7 +198,7 @@ por un margen que no se perdió.
 > techo vigente se **congelaba en el snapshot**.
 >
 > - **La cuenta es UNA**: `descuentoDePropuestaDentroDelTope`
->   (`apps/web/lib/descuento.ts:362`) — volumen sí salvo con paquete, cupón según
+>   (`apps/web/lib/descuento.ts:424`) — volumen sí salvo con paquete, cupón según
 >   `CODIGO_CUENTA_CONTRA_TOPE`. La usan la edición (`propuestas-repo.ts:1357`),
 >   la aprobación (`revisarTopeVigente`, `:1421`, llamada en `:1493`) y la liga
 >   (`:976`). `quitarPaquete` sigue con su propia llamada a
@@ -206,8 +206,8 @@ por un margen que no se perdió.
 >   paquete**.
 > - **Aprobar** con el descuento por encima: `TopeVigenteError` → **409**
 >   `descuentoSobreTope: true`, con el descuento, el total con volumen, el tope
->   y qué hacer (`mensajeTopeVigente`, `descuento.ts:387`). No se escribe nada.
-> - **Aceptar por la liga**: 409 con `MSJ_TOPE_VIGENTE_PUBLICO` (`:405`), que
+>   y qué hacer (`mensajeTopeVigente`, `descuento.ts:449`). No se escribe nada.
+> - **Aceptar por la liga**: 409 con `MSJ_TOPE_VIGENTE_PUBLICO` (`:476`), que
 >   **no nombra el tope** —es un dato interno— y manda al cliente con su
 >   ejecutivo. Se revisa dentro de la transacción, tras el `for no key update`
 >   de la propuesta (el mismo bloqueo que ya tenía, sin cambiar el orden), con el
@@ -231,9 +231,46 @@ por un margen que no se perdió.
 > `lib/descuento.tope.test.ts` (TOPE-03, 5) y `lib/test/tope-descuento.e2e.test.ts`
 > (TOPE-03, 4; mutada con rebuild: 3 en rojo).
 
+> [!important] 2026-10-05 · TOPE-04 · si el volumen SOLO ya pasa el tope, 0 % comercial SÍ se guarda
+> El caso: Administración baja el tope al 5 % y la escala de la organización da
+> 10 %. Hasta hoy la **edición** rechazaba incluso guardar 0 % comercial
+> (`componerDescuentos(10, 0)` = 10 > 5), mientras aprobar, la liga y
+> `quitarPaquete` **no revisaban** con 0 % comercial (TOPE-PAQ). Aprobar
+> contestaba 409 «Ajusta el descuento» y el vendedor no podía ajustarlo a
+> **nada**: solo Administración subiendo el tope lo destrababa.
+>
+> - **La regla vive en UN sitio**: `descuentoDentroDelTope`
+>   (`apps/web/lib/descuento.ts:330`) devuelve 0 sin mirar el tope cuando el
+>   comercial es 0 (`:350`). Edición, aprobación (`revisarTopeVigente`,
+>   `propuestas-repo.ts:1421`), liga y `quitarPaquete` (`paquetes-repo.ts:439`)
+>   pasan todas por ahí; los dos atajos `comercial > 0` que tenían aprobar y
+>   quitar el paquete se quitaron. Para esas tres puertas el comportamiento es
+>   idéntico; la única que cambia es la edición.
+> - **Con comercial > 0 sigue rechazando** exactamente como antes si el
+>   compuesto pasa el tope.
+> - **El mensaje dice la salida real** (`mensajeSobreTope`, `descuento.ts:115`,
+>   y `mensajeTopeVigente`, `:449`): si el volumen solo ya pasa el tope, «El
+>   descuento por volumen (10 %) ya supera el tope (5 %): deja el descuento
+>   comercial en 0 % o pide a Administración que suba el tope.»; si no, el de
+>   siempre más «Cabe hasta X % comercial», con X de
+>   `comercialMaximoDentroDelTope` (`:157`), que se **comprueba** contra
+>   `descuentoContraTope` en lugar de repetir la regla. Estos mensajes no pasan
+>   por el catálogo ES/EN (`respuestaError`): la ruta los devuelve tal cual.
+> - **La pantalla no bloqueaba el 0 %** (`propuestas/[id]/page.tsx` solo compara
+>   `d > tope`), así que no hubo que tocarla.
+>
+> Pruebas: `lib/descuento.tope.test.ts` (TOPE-04, 5), `lib/server/propuestas-repo-tope-vigente.test.ts`
+> (§3, 3), `lib/descuento.volumen.test.ts` (la prueba que exigía rechazar el 0 %
+> se invirtió) y `lib/test/tope-descuento.e2e.test.ts` (TOPE-04, 2: tope bajado
+> por la API → aprobar 409 con la salida → editar a 1 % 400 → editar a 0 % 200 →
+> aprobar 200). Rojo a la vista antes de implementar (7 unitarias; las 2 e2e
+> contra el build viejo); mutante que quita la regla → build → 1 e2e en rojo →
+> restaurar → build.
+
 **Consecuencia que hay que tener escrita:** si el dueño deja el tope **por debajo**
-de su propia escala de volumen, ninguna propuesta con volumen podrá tocar su
-descuento hasta que arregle una de las dos cosas. Eso es visible y se explica; lo
+de su propia escala de volumen, ninguna propuesta con volumen podrá llevar
+descuento **comercial** hasta que arregle una de las dos cosas (desde TOPE-04,
+05/10, dejarlo en 0 % sí se guarda y se aprueba). Eso es visible y se explica; lo
 contrario —un techo que no es techo— no se ve.
 
 ---

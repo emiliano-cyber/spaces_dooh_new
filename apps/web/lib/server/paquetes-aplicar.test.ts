@@ -212,7 +212,11 @@ describe('3 · quitar el paquete DEVUELVE los precios de línea', () => {
     // Quitar el paquete tiene que devolver la venta EXACTAMENTE a como estaba,
     // y el volumen de cada línea nunca se borró: solo se dejó de aplicar.
     await quitarPaquete('P1')
-    expect(sql()).not.toMatch(/descuento_volumen_pct/)
+    // Ninguna ESCRITURA lo toca. Leerlo sí: TOPE-04 (05/10) quitó el atajo del
+    // 0 % comercial de aquí —vive en `descuentoDentroDelTope`—, así que el
+    // volumen de las líneas se LEE siempre para la cuenta del tope.
+    const escrituras = ejecutadas.map((e) => e.sql).filter((s) => !/^\s*select/i.test(s))
+    expect(escrituras.join('\n---\n')).not.toMatch(/descuento_volumen_pct/)
   })
 
   it('una propuesta APROBADA no se puede desempaquetar', async () => {

@@ -502,4 +502,83 @@ describe('TOPE-03 · aprobar y aceptar revisan el tope VIGENTE', () => {
     expect((await estado(idB)).estatus).toBe('APROBADA')
     await configurarTope(ca, 100)
   })
+
+  // ── TOPE-04 (2026-10-05) · el VOLUMEN SOLO ya pasa el tope ────────────────
+  // Administración baja el tope al 5 % y la escala de la organización da 10 %.
+  // Hasta hoy aprobar contestaba 409 «Ajusta el descuento» y la edición
+  // rechazaba incluso el 0 % comercial: el vendedor no tenía salida. Ahora el
+  // 0 % se guarda (el volumen no es discreción suya) y aprobar funciona; con
+  // cualquier comercial > 0 se sigue negando, y el mensaje dice la salida real.
+  it('TOPE-04 · volumen solo sobre el tope: 0 % comercial se guarda y aprueba; > 0 sigue 409', async () => {
+    const tramo = await poolTest().query(
+      `insert into escalas_volumen (tenant_id, unidad, desde_cantidad, descuento_pct)
+       values ($1, 'spot', 50, 10) returning id`,
+      [alfa.id],
+    )
+    try {
+      await configurarTope(ca, 40)
+      const r = await ca.pedir('/api/propuestas/', {
+        cuerpo: {
+          nombre: 'TOPE-04 · volumen sobre el tope',
+          clienteId: alfa.clienteId,
+          fechaInicio: enDias(1),
+          fechaFin: enDias(10),
+          items: [{ sitioId: alfa.sitioId, unidad: 'spot', tarifaUnitaria: 1200, cantidad: 50 }],
+        },
+      })
+      expect(r.status, JSON.stringify(r.datos)).toBe(201)
+      const id = r.datos.id as string
+      const lin = await poolTest().query(
+        'select descuento_volumen_pct from propuesta_items where propuesta_id = $1',
+        [id],
+      )
+      expect(Number(lin.rows[0].descuento_volumen_pct)).toBe(10)
+      expect((await ponerDescuento(ca, id, 5)).status).toBe(200)
+      await enviar(ca, id)
+
+      // Administración baja el tope POR DEBAJO de su propia escala, por la API.
+      await configurarTope(ca, 5)
+
+      const SALIDA =
+        'El descuento por volumen (10 %) ya supera el tope (5 %): deja el descuento ' +
+        'comercial en 0 % o pide a Administración que suba el tope.'
+
+      // Aprobar con 5 % comercial: 409, y el mensaje dice la salida REAL.
+      const a = await aprobar(ca, id)
+      expect(a.status, JSON.stringify(a.datos)).toBe(409)
+      expect(a.datos.descuentoSobreTope).toBe(true)
+      expect(String(a.datos.error)).toContain(SALIDA)
+      expect(String(a.datos.error)).not.toMatch(/Ajusta el descuento/)
+      expect((await estado(id)).estatus).toBe('ENVIADA')
+
+      // Editar a un comercial > 0 sigue rechazándose, con la misma salida.
+      const mal = await ponerDescuento(ca, id, 1)
+      expect(mal.status, JSON.stringify(mal.datos)).toBe(400)
+      expect(String(mal.datos.error)).toBe(SALIDA)
+      expect(await descuentoEnBase(id)).toBe(5)
+
+      // Editar a 0 % SE GUARDA — hasta hoy también era 400.
+      const cero = await ponerDescuento(ca, id, 0)
+      expect(cero.status, JSON.stringify(cero.datos)).toBe(200)
+      expect(await descuentoEnBase(id)).toBe(0)
+
+      // Y aprobar funciona, con el snapshot escrito.
+      const ok = await aprobar(ca, id)
+      expect(ok.status, JSON.stringify(ok.datos)).toBe(200)
+      expect((await estado(id)).estatus).toBe('APROBADA')
+      expect((await estado(id)).snapshot_economico).not.toBeNull()
+    } finally {
+      await poolTest().query('delete from escalas_volumen where id = $1', [tramo.rows[0].id])
+      await configurarTope(ca, 100)
+    }
+  })
+
+  it('TOPE-04 · con volumen que SÍ cabe, el rechazo dice hasta cuánto comercial cabe', async () => {
+    await configurarTope(ca, 20)
+    const id = await nuevaPropuesta(ca, alfa, 'TOPE-04 · máximo que cabe')
+    const r = await ponerDescuento(ca, id, 25)
+    expect(r.status, JSON.stringify(r.datos)).toBe(400)
+    expect(String(r.datos.error)).toMatch(/Cabe hasta 20 % comercial/)
+    await configurarTope(ca, 100)
+  })
 })

@@ -237,7 +237,7 @@ recibió, con un mensaje que nombraría un porcentaje ausente de su cotización.
 > Pruebas: `paquetes-aplicar.test.ts` bloque 4.
 >
 > *(Verificado el 05/10: `quitarPaquete` en `apps/web/lib/server/paquetes-repo.ts:376`,
-> la comprobación en `:436`; commit `b2d30d50`, en esta rama y aún no en `main`.)*
+> la comprobación en `:439`; commit `b2d30d50`, en esta rama y aún no en `main`.)*
 
 ---
 

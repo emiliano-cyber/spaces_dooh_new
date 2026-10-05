@@ -235,3 +235,44 @@ describe('2 · el cliente acepta por la liga con el tope BAJADO', () => {
     expect(r?.ok).toBe(true)
   })
 })
+
+describe('3 · TOPE-04 · el volumen SOLO pasa el tope: la edición deja 0 % comercial', () => {
+  // Tope bajado a 5 % con una escala que da 10 % de volumen. Antes la edición
+  // rechazaba incluso 0 %, y la aprobación pedía «ajustar» algo que no tenía
+  // ningún valor posible. Mismo criterio que aprobar y quitarPaquete.
+  const escribioDescuento = () =>
+    consultas.some((c) => /update propuestas set[\s\S]*descuento_pct=/i.test(c.sql))
+
+  beforeEach(() => {
+    tope.valor = 5
+    respuestas.propuesta = [{ ...PROP, descuento_pct: '5.00' }]
+    respuestas.items = [{ ...ITEM, descuento_volumen_pct: 10 }]
+  })
+
+  it('guardar 0 % comercial SE GUARDA', async () => {
+    const r = await repo.actualizarPropuesta('P1', { descuentoPct: 0 })
+    expect(r).not.toBeNull()
+    expect(r.descuentoAplicado).toBe(0)
+    expect(escribioDescuento()).toBe(true)
+  })
+
+  it('con comercial > 0 sigue rechazando, con la salida real y sin escribir', async () => {
+    const e = await repo.actualizarPropuesta('P1', { descuentoPct: 5 }).catch((x: unknown) => x)
+    expect(e).toBeInstanceOf(Error)
+    expect(String((e as Error).message)).toMatch(
+      /descuento por volumen \(10 %\) ya supera el tope \(5 %\): deja el descuento comercial en 0 %/,
+    )
+    expect(escribioDescuento()).toBe(false)
+  })
+
+  it('aprobar con comercial > 0 dice la misma salida, no «Ajusta el descuento»', async () => {
+    const e = await cambiarEstatusPropuesta('P1', 'APROBADA', { confirmarCero: true }).catch(
+      (x: unknown) => x,
+    )
+    expect(e).toBeInstanceOf(repo.TopeVigenteError)
+    const msg = String((e as Error).message)
+    expect(msg).toMatch(/deja el descuento comercial en 0 % o pide a Administración que suba el tope/)
+    expect(msg).not.toMatch(/Ajusta el descuento/)
+    expect(escribioAprobada()).toBe(false)
+  })
+})

@@ -415,33 +415,35 @@ export async function quitarPaquete(propuestaId: string): Promise<boolean> {
     // —que `crearPropuesta` admite— y negarse dejaría el paquete pegado sin
     // salida. Si el volumen SOLO pasa el tope, es el tope por debajo de la
     // escala propia, y eso se arregla en Administración (VOL-02).
+    //
+    // TOPE-04 (05/10) · ese «con 0 % no se valida» ya no se escribe aquí: vive
+    // en `descuentoDentroDelTope`, para que la edición, la aprobación, la liga
+    // y esta puerta compartan exactamente el mismo criterio.
     const comercial = Number(prop.descuento_pct ?? 0)
-    if (comercial > 0) {
-      const lineas = (
-        await client.query(
-          `select precio, descuento_volumen_pct from propuesta_items
-            where propuesta_id=$1 and tenant_id=$2`,
-          [propuestaId, tenant],
-        )
-      ).rows
-      const volumenPct = volumenDeLineas(
-        lineas.map((l: any) => ({
-          precio: Number(l.precio),
-          descuentoVolumenPct: Number(l.descuento_volumen_pct ?? 0),
-        })),
-      ).volumenPctEfectivo
-      try {
-        // Sin paquete el cupón vuelve a descontar siempre, así que pasa entero
-        // (y hoy `CODIGO_CUENTA_CONTRA_TOPE` lo anula igualmente).
-        descuentoDentroDelTope(comercial, tope, volumenPct, Number(prop.codigo_descuento_pct ?? 0))
-      } catch (e) {
-        if (!(e instanceof DescuentoSobreTope)) throw e
-        throw new PaqueteImposible(
-          `No se puede quitar el paquete "${prop.paquete_nombre}": sin el paquete vuelve a ` +
-            `aplicarse el descuento por volumen de las lineas. ${e.message} ` +
-            'Baja primero el descuento comercial y vuelve a quitar el paquete.',
-        )
-      }
+    const lineas = (
+      await client.query(
+        `select precio, descuento_volumen_pct from propuesta_items
+          where propuesta_id=$1 and tenant_id=$2`,
+        [propuestaId, tenant],
+      )
+    ).rows
+    const volumenPct = volumenDeLineas(
+      lineas.map((l: any) => ({
+        precio: Number(l.precio),
+        descuentoVolumenPct: Number(l.descuento_volumen_pct ?? 0),
+      })),
+    ).volumenPctEfectivo
+    try {
+      // Sin paquete el cupón vuelve a descontar siempre, así que pasa entero
+      // (y hoy `CODIGO_CUENTA_CONTRA_TOPE` lo anula igualmente).
+      descuentoDentroDelTope(comercial, tope, volumenPct, Number(prop.codigo_descuento_pct ?? 0))
+    } catch (e) {
+      if (!(e instanceof DescuentoSobreTope)) throw e
+      throw new PaqueteImposible(
+        `No se puede quitar el paquete "${prop.paquete_nombre}": sin el paquete vuelve a ` +
+          `aplicarse el descuento por volumen de las lineas. ${e.message} ` +
+          'Baja primero el descuento comercial y vuelve a quitar el paquete.',
+      )
     }
 
     await client.query('delete from paquete_aplicaciones where propuesta_id=$1 and tenant_id=$2', [

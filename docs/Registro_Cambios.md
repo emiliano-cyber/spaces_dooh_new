@@ -7,6 +7,18 @@ La entrada más reciente va arriba.
 
 ## 2026-10-05
 
+- **Si el descuento por volumen ya pasa el tope, ahora se puede dejar el
+  descuento comercial en 0 % y aprobar.** Caso: Administración baja el descuento
+  máximo al 5 % y la escala de volumen de tu organización da 10 %. Hasta hoy el
+  sistema no dejaba aprobar la propuesta («ajusta el descuento») pero tampoco
+  dejaba guardarle **ningún** descuento, ni siquiera 0 %: no había salida sin
+  que Administración subiera el tope. Ahora **0 % de descuento comercial se
+  guarda y la propuesta se aprueba** (el volumen sale de la escala de la
+  organización, no lo decide quien vende). Cualquier descuento comercial por
+  encima de 0 se sigue rechazando, y el aviso ya dice qué hacer: «deja el
+  descuento comercial en 0 % o pide a Administración que suba el tope». Cuando
+  sí cabe algo, el aviso dice además **hasta cuánto** descuento comercial puedes
+  poner.
 - **Bajar el tope de descuento ya no deja cerrar ventas por encima de él.** Si
   Administración baja el descuento máximo después de que una propuesta ya tenía
   su descuento guardado, la propuesta **conserva** su descuento y se sigue
