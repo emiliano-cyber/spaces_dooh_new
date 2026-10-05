@@ -435,7 +435,7 @@ Cubiertos por e2e, pero **no** por unitarias:
 | Archivo | Líneas (`wc -l`, 05/10) | Cobertura (05/10) |
 |---|---|---|
 | `finanzas-repo.ts` | ~~298~~ 310 | solo e2e (los `finanzas-controller.*.test.ts` lo **simulan**) |
-| `propuestas-repo.ts` | ~~593~~ 1461 | **ya tiene unitarias**: `propuestas-repo-codigo`, `-codigo-aprobacion`, `-paquete` y `-volumen` `.test.ts` — de los caminos de precio nuevos, no del archivo entero |
+| `propuestas-repo.ts` | ~~593~~ ~~1461~~ 1574 (+113 el 05/10 por TOPE-03) | **ya tiene unitarias**: `propuestas-repo-codigo`, `-codigo-aprobacion`, `-paquete`, `-volumen` y `-tope-vigente` `.test.ts` — de los caminos de precio nuevos, no del archivo entero |
 | `ot-repo.ts` | ~~269~~ 353 | **ya tiene unitarias**: `ot-repo.checklist-aislamiento.test.ts` y `ot-repo.costo-aislamiento.test.ts` |
 | `codigos-repo.ts` | ~~609~~ 638 (**faltaba**; +29 el 05/10 por el canje sobre paquete) | unitarias en `codigos-canje.test.ts` y `codigos-aprobacion.test.ts`; es dinero (canje y aprobación de cupones) |
 | `usuarios-repo.ts` | ~~224~~ 443 | solo e2e (`perfil-controller.password-google.test.ts` lo simula) |
@@ -455,7 +455,7 @@ arriba, corre las e2e — que son las únicas que cubren el SQL de verdad y
 | Archivo | Líneas | Riesgo |
 |---|---|---|
 | `arrendadores-repo.ts` | ~~1317~~ 1498 | Conflictos entre agentes garantizados |
-| `propuestas-repo.ts` | ~~593~~ 1461 | Toda la cadena de precio del ADR 0039 vive aquí; unitarias solo de esos caminos |
+| `propuestas-repo.ts` | ~~593~~ ~~1461~~ 1574 | Toda la cadena de precio del ADR 0039 vive aquí; unitarias solo de esos caminos |
 | `campanas-repo.ts` | ~~1214~~ 1392 | Idem |
 | `sitios-repo.ts` | ~~624~~ 741 | Whitelist `CAMPO_COL` — expone columnas a escritura |
 | `codigos-repo.ts` | 609 | Cupones: `for update` contra la carrera del último uso |

@@ -363,8 +363,8 @@ export async function aplicarPaquete(
  * Con paquete el volumen no cuenta contra el tope (PAQ-01, en
  * `actualizarPropuesta`), así que el vendedor pudo guardar un comercial que
  * SOLO cabía porque el volumen estaba apagado. Al quitar el paquete el volumen
- * vuelve, y nadie más lo revisa: ni `cambiarEstatusPropuesta` al aprobar ni
- * `aceptarPropuestaPublica` por la liga. Tope 20, volumen 10, comercial 15 →
+ * vuelve, y hasta TOPE-03 (05/10) no lo revisaban ni `cambiarEstatusPropuesta`
+ * ni `aceptarPropuestaPublica` (hoy sí, pero tarde). Tope 20, vol 10, com 15 →
  * 23,5 % aprobado y congelado en el snapshot por encima de lo autorizado.
  *
  * Se cierra AQUÍ y no en la aprobación por el criterio de TOPE-01: por encima

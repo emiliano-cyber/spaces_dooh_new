@@ -215,7 +215,9 @@ recibió, con un mensaje que nombraría un porcentaje ausente de su cotización.
 > techo de 20. `quitarPaquete` solo limpiaba las cinco columnas, y **la
 > aprobación (`cambiarEstatusPropuesta`) y la aceptación por liga pública
 > (`aceptarPropuestaPublica`) no miran el tope**: se aprobaba y se congelaba en
-> el snapshot por encima de lo autorizado.
+> el snapshot por encima de lo autorizado. *(Desde TOPE-03, el mismo 05/10, las
+> dos sí revisan el tope vigente —ver [[descuento-por-volumen]] §3—; el cierre
+> de aquí sigue siendo el primero, porque impide guardar el estado malo.)*
 >
 > **Se cierra donde nace el estado malo, no en la aprobación.** Es el criterio
 > de TOPE-01: *por encima del tope no se guarda nada*. Revalidar al aprobar

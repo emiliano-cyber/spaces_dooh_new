@@ -7,6 +7,9 @@
 //  existe `lib/perfil-acceso.ts`.
 // ============================================================================
 
+import { volumenDeLineas } from './volumen'
+import { paqueteDeFila } from './paquete'
+
 export class DescuentoInvalido extends Error {
   constructor(recibido: unknown) {
     super(`El descuento debe ser un número entre 0 y 100; llegó ${JSON.stringify(recibido)}`)
@@ -319,3 +322,86 @@ export function textoBitacoraPropuesta(version: number, descuentoAplicado: numbe
   if (descuentoAplicado === 0) return `Quitó el descuento de la propuesta (v${version})`
   return `Puso ${pct(descuentoAplicado)} % de descuento en la propuesta (v${version})`
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+//  TOPE-03 · la cuenta del tope de UNA PROPUESTA, escrita una sola vez
+// ────────────────────────────────────────────────────────────────────────────
+//
+// Hasta el 2026-10-05 esta cuenta vivía DENTRO de `actualizarPropuesta`, y era
+// el único sitio que la hacía. Si Administración bajaba el tope después de que
+// una propuesta guardó su descuento, ni la aprobación interna
+// (`cambiarEstatusPropuesta`) ni la aceptación del cliente por la liga
+// (`aceptarPropuestaPublica`) la repetían, y el descuento por encima del techo
+// VIGENTE se congelaba en el snapshot. Para que las tres puertas digan lo mismo
+// la cuenta tiene que ser UNA: si cada una la copiara, el día que el dueño
+// conteste VOL-02 o COD-02 se cambiaría en un sitio y no en los otros.
+
+/** Las columnas de `propuestas` que deciden qué capas cuentan contra el tope. */
+export interface FilaPropuestaTope {
+  paquete_nombre?: unknown
+  paquete_precio?: unknown
+  paquete_admite_codigo?: unknown
+  codigo_descuento_pct?: unknown
+}
+
+/** Una línea de `propuesta_items`, tal como sale de la base. */
+export interface LineaPropuestaTope {
+  precio: unknown
+  descuento_volumen_pct?: unknown
+}
+
+/**
+ * El descuento comercial `comercialPct` **validado contra el tope de esa
+ * propuesta**: revienta con `DescuentoSobreTope` si no cabe.
+ *
+ * - **Volumen** (VOL-02): el de las líneas tal como se capturó, no lo que la
+ *   escala diga hoy. **Con paquete vivo no cuenta** (PAQ-01): no se aplicó.
+ * - **Cupón** (COD-02): se pasa siempre bien —0 si el paquete no lo admite,
+ *   porque no descontó nada— y `CODIGO_CUENTA_CONTRA_TOPE` decide si cuenta.
+ */
+export function descuentoDePropuestaDentroDelTope(
+  comercialPct: unknown,
+  tope: unknown,
+  fila: FilaPropuestaTope,
+  lineas: readonly LineaPropuestaTope[],
+): number {
+  const paqueteVivo = paqueteDeFila(fila)
+  const volumenPct = paqueteVivo
+    ? 0
+    : volumenDeLineas(
+        (lineas ?? []).map((l) => ({
+          precio: Number(l.precio),
+          descuentoVolumenPct: Number(l.descuento_volumen_pct ?? 0),
+        })),
+      ).volumenPctEfectivo
+  const codigoPct =
+    paqueteVivo && !paqueteVivo.admiteCodigo ? 0 : Number(fila.codigo_descuento_pct ?? 0)
+  return descuentoDentroDelTope(comercialPct, tope, volumenPct, codigoPct)
+}
+
+/**
+ * TOPE-03 · lo que se le dice a QUIEN APRUEBA cuando el descuento guardado ya
+ * no cabe en el tope de hoy. Dice los dos números y qué hacer: un «no se puede»
+ * sin la cifra deja a quien aprueba sin saber cuánto bajar.
+ */
+export function mensajeTopeVigente(e: DescuentoSobreTope): string {
+  const total =
+    e.volumenPct > 0
+      ? ` (${pct(descuentoContraTope(e.pedido, e.volumenPct))} % en total con el ` +
+        `${pct(e.volumenPct)} % por volumen)`
+      : ''
+  return (
+    `El descuento de esta propuesta, ${pct(e.pedido)} %${total}, supera el tope vigente ` +
+    `de tu organización, ${pct(e.tope)} %: el tope se bajó después de guardarlo. ` +
+    'Ajusta el descuento antes de aprobarla, o pídele a Administración que suba el tope.'
+  )
+}
+
+/**
+ * TOPE-03 · lo que se le dice al CLIENTE en la liga pública. **No nombra el
+ * tope**: es un dato interno de la organización y el cliente no puede hacer
+ * nada con él. Lo único útil para él es a quién acudir.
+ */
+export const MSJ_TOPE_VIGENTE_PUBLICO =
+  'Esta propuesta necesita una revisión de su descuento antes de poder aceptarse. ' +
+  'Pídele a tu ejecutivo que te envíe la versión actualizada.'

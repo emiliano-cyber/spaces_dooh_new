@@ -385,3 +385,121 @@ describe('TOPE-02 · la bitácora dice CUÁNTO descuento se puso', () => {
     expect(suyas).toContain('Puso 30 % de descuento en la propuesta (v1)')
   })
 })
+
+describe('TOPE-03 · aprobar y aceptar revisan el tope VIGENTE', () => {
+  // El caso de arriba («bajar el tope NO invalida lo ya pactado») sigue en pie:
+  // el descuento guardado se conserva y la propuesta se sigue editando. Lo que
+  // ya no se puede es CERRARLA con él. Hasta el 2026-10-05 ni la aprobación
+  // interna ni la aceptación por la liga miraban el tope, y el descuento por
+  // encima del techo vigente se congelaba en el snapshot.
+
+  async function enviar(c: Cliente, id: string) {
+    const r = await c.pedir(`/api/propuestas/${id}/`, { metodo: 'PATCH', cuerpo: { estatus: 'ENVIADA' } })
+    expect(r.status, JSON.stringify(r.datos)).toBe(200)
+  }
+  async function aprobar(c: Cliente, id: string) {
+    return c.pedir(`/api/propuestas/${id}/`, {
+      metodo: 'PATCH', cuerpo: { estatus: 'APROBADA', confirmarCero: true },
+    })
+  }
+  async function aceptarPorLiga(id: string) {
+    const t = await poolTest().query('select token_publico from propuestas where id=$1', [id])
+    return new Cliente().pedir(`/api/propuestas/publica/${t.rows[0].token_publico}/`, {
+      cuerpo: { nombre: 'Cliente Final' },
+    })
+  }
+  async function estado(id: string) {
+    const r = await poolTest().query(
+      'select estatus::text as estatus, snapshot_economico, aceptado_en from propuestas where id=$1',
+      [id],
+    )
+    return r.rows[0]
+  }
+
+  it('tope bajado → APROBAR por dentro se niega (409), y la propuesta queda como estaba', async () => {
+    await configurarTope(ca, 40)
+    const id = await nuevaPropuesta(ca, alfa, 'TOPE-03 · aprobar con tope bajado')
+    expect((await ponerDescuento(ca, id, 40)).status).toBe(200)
+    await enviar(ca, id)
+    await configurarTope(ca, 10)
+
+    const r = await aprobar(ca, id)
+    expect(r.status, JSON.stringify(r.datos)).toBe(409)
+    expect(r.datos.descuentoSobreTope).toBe(true)
+    expect(String(r.datos.error)).toContain('40 %')
+    expect(String(r.datos.error)).toContain('10 %')
+
+    const e = await estado(id)
+    expect(e.estatus).toBe('ENVIADA')
+    expect(e.snapshot_economico).toBeNull()
+    // Lo ya guardado NO se toca (TOPE-01).
+    expect(await descuentoEnBase(id)).toBe(40)
+
+    // Y la salida que el mensaje propone funciona: ajustar el descuento y aprobar.
+    expect((await ponerDescuento(ca, id, 10)).status).toBe(200)
+    const ok = await aprobar(ca, id)
+    expect(ok.status, JSON.stringify(ok.datos)).toBe(200)
+    expect((await estado(id)).estatus).toBe('APROBADA')
+    expect((await estado(id)).snapshot_economico).not.toBeNull()
+  })
+
+  it('tope bajado → ACEPTAR por la liga se niega (409) sin decirle el tope al cliente', async () => {
+    await configurarTope(ca, 40)
+    const id = await nuevaPropuesta(ca, alfa, 'TOPE-03 · liga con tope bajado')
+    expect((await ponerDescuento(ca, id, 40)).status).toBe(200)
+    await enviar(ca, id)
+    await configurarTope(ca, 10)
+
+    const r = await aceptarPorLiga(id)
+    expect(r.status, JSON.stringify(r.datos)).toBe(409)
+    expect(String(r.datos.error)).toMatch(/ejecutivo/)
+    expect(String(r.datos.error)).not.toMatch(/%/)
+
+    const e = await estado(id)
+    expect(e.estatus).toBe('ENVIADA')
+    expect(e.aceptado_en).toBeNull()
+    expect(e.snapshot_economico).toBeNull()
+  })
+
+  it('con el descuento DENTRO del tope vigente, aprobar y aceptar siguen funcionando', async () => {
+    await configurarTope(ca, 40)
+    const idA = await nuevaPropuesta(ca, alfa, 'TOPE-03 · aprobar dentro')
+    const idL = await nuevaPropuesta(ca, alfa, 'TOPE-03 · liga dentro')
+    for (const id of [idA, idL]) {
+      expect((await ponerDescuento(ca, id, 10)).status).toBe(200)
+      await enviar(ca, id)
+    }
+    // Bajado, pero no por debajo de lo guardado: el límite es inclusivo.
+    await configurarTope(ca, 10)
+
+    const a = await aprobar(ca, idA)
+    expect(a.status, JSON.stringify(a.datos)).toBe(200)
+    expect((await estado(idA)).estatus).toBe('APROBADA')
+
+    const l = await aceptarPorLiga(idL)
+    expect(l.status, JSON.stringify(l.datos)).toBe(200)
+    expect((await estado(idL)).estatus).toBe('APROBADA')
+    expect((await estado(idL)).snapshot_economico).not.toBeNull()
+  })
+
+  it('la liga lee el tope de la organización DE LA PROPUESTA (RLS, sin sesión)', async () => {
+    // Las dos direcciones: el 40 % cabe en beta (60) y no en alfa (10). Si la
+    // lectura del tope en la ruta pública perdiera el tenant del token, una de
+    // las dos saldría al revés.
+    await configurarTope(ca, 40)
+    await configurarTope(cb, 60)
+    const idA = await nuevaPropuesta(ca, alfa, 'TOPE-03 · liga alfa')
+    const idB = await nuevaPropuesta(cb, beta, 'TOPE-03 · liga beta')
+    expect((await ponerDescuento(ca, idA, 40)).status).toBe(200)
+    expect((await ponerDescuento(cb, idB, 40)).status).toBe(200)
+    await enviar(ca, idA)
+    await enviar(cb, idB)
+    await configurarTope(ca, 10)
+
+    expect((await aceptarPorLiga(idA)).status).toBe(409)
+    const b = await aceptarPorLiga(idB)
+    expect(b.status, JSON.stringify(b.datos)).toBe(200)
+    expect((await estado(idB)).estatus).toBe('APROBADA')
+    await configurarTope(ca, 100)
+  })
+})

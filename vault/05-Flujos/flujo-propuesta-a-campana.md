@@ -122,13 +122,21 @@ sequenceDiagram
 - **4** · `generarCampanaDesdePropuesta()` rechaza cualquier estatus distinto de
   `APROBADA` (`campanas-repo.ts:649-651`), y también una propuesta sin cliente
   (`:652-654`). El route lo traduce a 409 (`generar-campana/route.ts:31`).
-- **5** · `cambiarEstatusPropuesta()` (`propuestas-repo.ts:1355`) comprueba el
-  cupón **primero** (`:1363-1378`) y lo vuelve a exigir en el `where` del
-  `update` (`:1438-1443`), que es lo que cierra la carrera con un canje
+- **5** · `cambiarEstatusPropuesta()` (`propuestas-repo.ts:1432`) comprueba el
+  cupón **primero** (`:1440-1461`) y lo vuelve a exigir en el `where` del
+  `update` (`:1551-1556`), que es lo que cierra la carrera con un canje
   simultáneo. **La aceptación por la liga pública se comporta distinto, a
   propósito**: no se niega, sino que quita el cupón pendiente y devuelve su uso
-  dentro de la misma transacción (`propuestas-repo.ts:918-940`) — el cliente
+  dentro de la misma transacción (`propuestas-repo.ts:918-988`) — el cliente
   acepta el precio que vio.
+- **5 bis** · TOPE-03 (05/10, tarde): **aprobar y aceptar por la liga revisan el
+  tope VIGENTE.** Si Administración bajó el tope después de guardar el
+  descuento, `cambiarEstatusPropuesta` se niega con `TopeVigenteError` (409,
+  `descuentoSobreTope: true`, `propuestas-repo.ts:1469-1498`) y la aceptación
+  por la liga también (409, sin nombrar el tope al cliente, `:946-985`, dentro
+  de su transacción y tras bloquear la fila). Misma cuenta que la edición:
+  `descuentoDePropuestaDentroDelTope` (`lib/descuento.ts:362`). Con 0 %
+  comercial no se revisa. Detalle en [[02-Backend/descuento-por-volumen]] §3.
 - **6** · desde el 01/10 (`17fbd252`), `crearPropuestaCtrl` recalcula la tarifa
   de cada línea con `lib/tarifa-calculada.ts` (`tarifaCalculada()` en `:95`,
   `decidirPrecioItem()` en `:150`) sobre los datos de la organización

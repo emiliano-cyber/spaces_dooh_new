@@ -7,6 +7,15 @@ La entrada más reciente va arriba.
 
 ## 2026-10-05
 
+- **Bajar el tope de descuento ya no deja cerrar ventas por encima de él.** Si
+  Administración baja el descuento máximo después de que una propuesta ya tenía
+  su descuento guardado, la propuesta **conserva** su descuento y se sigue
+  pudiendo editar, pero **ya no se puede aprobar así**: el sistema te dice el
+  descuento que lleva, el tope de hoy y te pide **ajustar el descuento** (o que
+  Administración suba el tope). Lo mismo si el **cliente** intenta aceptarla
+  desde la liga: no se acepta, y se le pide que hable con su ejecutivo (al
+  cliente no se le dice el tope). Antes la venta se cerraba con un descuento que
+  ya nadie autorizaba. Las propuestas sin descuento comercial no cambian.
 - **Un código promocional ya no se gasta en una propuesta con paquete de precio
   final.** Si la propuesta tiene un paquete que **no admite códigos**, el código
   no descuenta nada; pero hasta hoy el sistema lo aceptaba igual y **le restaba

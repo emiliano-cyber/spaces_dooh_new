@@ -6,6 +6,9 @@ import {
   DescuentoSobreTope,
   DescuentoInvalido,
   TOPE_DESCUENTO_RESPALDO,
+  descuentoDePropuestaDentroDelTope,
+  mensajeTopeVigente,
+  MSJ_TOPE_VIGENTE_PUBLICO,
 } from './descuento'
 
 // ============================================================================
@@ -200,5 +203,46 @@ describe('textoBitacoraPropuesta — la bitácora dice CUÁNTO', () => {
     // Y un decimal legítimo NO se redondea a entero.
     expect(textoBitacoraPropuesta(2, 12.5))
       .toBe('Puso 12.5 % de descuento en la propuesta (v2)')
+  })
+})
+
+describe('TOPE-03 · la cuenta del tope de UNA propuesta, la misma en las tres puertas', () => {
+  const sinPaquete = { paquete_nombre: null, paquete_precio: null, codigo_descuento_pct: 0 }
+  const conVolumen = [{ precio: 100_000, descuento_volumen_pct: 10 }]
+
+  it('el volumen de las líneas cuenta: 10 % + 25 % = 32,5 % no cabe en 30', () => {
+    expect(() => descuentoDePropuestaDentroDelTope(25, 30, sinPaquete, conVolumen)).toThrow(
+      DescuentoSobreTope,
+    )
+    expect(descuentoDePropuestaDentroDelTope(20, 30, sinPaquete, conVolumen)).toBe(20)
+  })
+
+  it('con paquete vivo el volumen NO cuenta (PAQ-01)', () => {
+    const paq = { paquete_nombre: 'Combo', paquete_precio: 90_000, codigo_descuento_pct: 0 }
+    expect(descuentoDePropuestaDentroDelTope(25, 30, paq, conVolumen)).toBe(25)
+  })
+
+  it('el cupón no cuenta mientras CODIGO_CUENTA_CONTRA_TOPE sea false (COD-02)', () => {
+    expect(
+      descuentoDePropuestaDentroDelTope(30, 30, { ...sinPaquete, codigo_descuento_pct: 50 }, []),
+    ).toBe(30)
+  })
+
+  it('el mensaje interno dice el descuento, el total con volumen, el tope y qué hacer', () => {
+    let e: DescuentoSobreTope | null = null
+    try {
+      descuentoDePropuestaDentroDelTope(25, 30, sinPaquete, conVolumen)
+    } catch (x) {
+      e = x as DescuentoSobreTope
+    }
+    const m = mensajeTopeVigente(e!)
+    expect(m).toContain('25 %')
+    expect(m).toContain('32.5 %')
+    expect(m).toContain('30 %')
+    expect(m).toMatch(/Ajusta el descuento/)
+  })
+
+  it('el mensaje al CLIENTE no lleva ningún porcentaje', () => {
+    expect(MSJ_TOPE_VIGENTE_PUBLICO).not.toMatch(/%/)
   })
 })
