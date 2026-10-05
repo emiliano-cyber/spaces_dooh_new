@@ -237,6 +237,14 @@ reservas, creativos, OC y órdenes de impresión.
 > `FLOTA_REPORTE_URL` de cada instancia tienen que apuntar a este nombre.
 > Nada de esto se comprobó contra el servidor el 05/10: se lee del archivo y de
 > los commits. Ver [[verificacion-de-produccion]].
+>
+> **2026-10-05 · el catch-all ya no manda fuera (en el repo; sin desplegar).**
+> El `default_server` del 80 (`:89-103`) redirigía a `https://space-os.io`
+> —desde el 01/10 otra máquina—; ahora hace **`return 444`** (`:101`). Vigila
+> el cambio `apps/web/lib/nginx-padre.test.ts`, que falla con cualquier 301 en
+> ese bloque. Ninguna línea del archivo se desplazó. Queda abierto el **443**:
+> sin `default_server`, un nombre desconocido cae en el bloque del ápice
+> (`:128`) y lo sirve el PADRE — decisión del dueño, no de esta tarea.
 
 > [!success] 2026-08-28 · La CSP pasa a BLOQUEANTE
 > Nació en modo reporte el 26/08 —una CSP mal puesta no da error de servidor,

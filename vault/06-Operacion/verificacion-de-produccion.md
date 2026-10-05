@@ -10,6 +10,7 @@ archivos:
   - apps/web/package.json
   - DESPLIEGUE_20260810_MIGRACIONES.txt
   - infra/nginx/space-os.io.conf
+  - apps/web/lib/nginx-padre.test.ts
 ---
 
 > [!danger] 2026-10-05 · el PADRE YA NO sirve `space-os.io`: se llega por `spaceos.space-os.io`
@@ -37,6 +38,30 @@ archivos:
 > (zona R6) y no es de esta tarea. Lo mismo el HSTS con `includeSubDomains` del
 > ápice (`:159`): ahora lo emite quien sirva el ápice. Ver
 > [[zonas-de-riesgo]] §R6.
+>
+> **Actualización del 2026-10-05, mismo día — el catch-all, CORREGIDO EN EL
+> REPO y SIN DESPLEGAR.** El `default_server` del 80 (`server_name _` en `:92`)
+> ya no redirige: **`return 444` en `:101`** —nginx cierra la conexión sin
+> responder—. No se eligió redirigir a `spaceos.space-os.io` porque un 301 a un
+> nombre fijo es exactamente lo que falló: el navegador lo guarda, y el PADRE ya
+> se mudó de nombre una vez. Lo vigila `apps/web/lib/nginx-padre.test.ts`
+> (prueba estática; rojo con el redirect viejo, verde con el 444). **Las líneas
+> del archivo no se movieron**: todas las citas `space-os.io.conf:NNN` de la
+> bóveda siguen valiendo. El HTTP→HTTPS de los nombres conocidos (`:113-125`)
+> usa `$host` y no apunta al ápice: no se tocó.
+>
+> **Hasta que una persona lo despliegue, el PADRE sigue sirviendo el 301
+> viejo.** Comprobación tras el reload, desde fuera:
+> `curl -sI -H 'Host: nadie.invalid' http://137.184.107.53/` tiene que dar
+> **conexión cerrada sin respuesta** (`curl: (52) Empty reply from server`), no
+> un `301` con `Location: https://space-os.io/`.
+>
+> **Y queda abierto, para el dueño:** en el **443** no hay `default_server`, así
+> que nginx usa el primer bloque 443 —el del ápice, `:128-202`— para cualquier
+> nombre desconocido o para `https://<IP>`: lo sirve **el PADRE** con el
+> certificado de `space-os.io`. No manda a nadie fuera, por eso no se tocó aquí;
+> cerrarlo (`ssl_reject_handshake on` en un `default_server` del 443) es otra
+> decisión de R6.
 >
 > Y dos citas de abajo derivaron: `tenant-sin-default.e2e.test.ts:89` → el
 > `set default` está hoy en **`:96`**, y `db-e2e.ts:107-112` → el comentario

@@ -234,6 +234,35 @@ archivos:
 > caduca el 2026-12-30 y se renueva solo: su nombre sí resuelve al PADRE. Las dos
 > direcciones dieron **200** tras el reload.
 
+> [!warning] 2026-10-05 · El catch-all del PADRE mandaba a OTRA máquina — corregido en el repo, SIN DESPLEGAR
+> El `default_server` del 80 de `infra/nginx/space-os.io.conf` (`:89-103`) hacía
+> `return 301 https://space-os.io$request_uri`. Con el ápice resolviendo a
+> `67.207.88.243` desde el 01/10, quien llegaba al PADRE por la IP o por un
+> nombre desconocido salía **a una máquina ajena**, con un 301 que el navegador
+> guarda. Ahora es **`return 444`** (`:101`): se cierra sin responder. Se
+> conserva el hueco de ACME del bloque.
+>
+> **Por qué 444 y no un 301 a `spaceos.space-os.io`.** La plantilla de
+> instancia (`infra/nginx/instancia.conf.tpl:76`) redirige a `__DOMINIO__`, y ahí
+> es correcto: el dominio de una instancia es suyo por construcción. Los nombres
+> del PADRE no lo son —ya se mudó una vez, de `space-os.io` a `spaceos`—, y un
+> host desconocido no tiene ningún destino legítimo. Nada en el repo usa
+> `http://<IP>` (buscado el 05/10). El HTTP→HTTPS de los nombres conocidos
+> (`:113-125`) usa `$host` y no cambia.
+>
+> Prueba estática: `apps/web/lib/nginx-padre.test.ts` (3 en rojo con el 301
+> viejo, 5 en verde con el 444). **No se corrió `nginx -t`**: no hay nginx en la
+> máquina de desarrollo. Las líneas del archivo no se movieron, así que las
+> citas `space-os.io.conf:NNN` de la bóveda siguen valiendo.
+>
+> **Abierto para el dueño:** el 443 no tiene `default_server`; un nombre
+> desconocido o `https://<IP>` cae en el primer bloque 443 —el del ápice,
+> `:128`— y lo sirve el PADRE con el certificado de `space-os.io`. No sale de la
+> máquina, pero tampoco se rechaza. Y sigue sin decidir **qué es hoy el ápice**:
+> si se deja fuera a propósito, los bloques 2 y 3 que lo nombran (`:116`,
+> `:133`) ya no reciben tráfico legítimo y su certificado caduca el 29/11 (ver
+> arriba).
+
 > [!danger] 2026-10-01 · El PADRE se migra con `spaces_migrador`, NO con `padre.env`
 > `padre.env` es la configuración de la app y entra como `spaces_app`, que **no
 > puede crear tablas** (`permission denied for schema public`). Las tablas de
