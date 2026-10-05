@@ -16,6 +16,13 @@ archivos: []
 > `db/schema.sql`, `aislamiento.e2e.test.ts` ni `servidor-e2e.ts`. Detalle en
 > [[02-Backend/paquete-cerrado]] §4.
 
+> [!warning] 2026-10-05 · **Z1 · Auth — EN REVISION** (rama `fix/cookie-tenant-activo-secure`)
+> La cookie `spaces_tenant_activo` pasa a decidir `Secure` con `cookieSecure()`
+> (P9). **ROJO por sesión (R1)**: sin fusionar ni empujar, espera aprobación
+> humana. Toca `app/api/tenant-activo/route.ts` (que el reparto pone en Z2 ·
+> Tenant, también reclamada por esta rama) y la nueva
+> `lib/server/tenant-activo-cookie.test.ts`. e2e NO corridas (sin Docker).
+
 > [!success] 2026-09-30 · **COD-03 · el cupón con aprobación — RECLAMADO Y LIBERADO**
 > Rama `feat/cupon-con-aprobacion`, salida de `main` (`749510ba`). **ROJO por
 > tres lados** —migración (R3), dinero (R4) y lecturas por tenant (R2)—,

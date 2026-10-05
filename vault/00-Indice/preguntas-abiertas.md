@@ -1,7 +1,7 @@
 ---
 tipo: preguntas
 estado: verificado
-actualizado: 2026-10-01
+actualizado: 2026-10-05
 tags: [preguntas, pendientes, riesgo]
 archivos:
   - apps/web/lib/server/
@@ -382,6 +382,14 @@ helper, así que el día que alguien monte un entorno sin ella —o la quite por
 error— esta cookie perderá `Secure` **y las otras dos no**, porque
 `cookieSecure()` cae a `NODE_ENV === 'production'`. Una divergencia así no falla:
 solo deja de proteger. Arreglo de una línea cuando se toque esa ruta.
+
+> [!success] **RESUELTA el 2026-10-05** (rama `fix/cookie-tenant-activo-secure`)
+> `app/api/tenant-activo/route.ts` ya llama a `cookieSecure()`, igual que la
+> sesión y el CSRF: las tres cookies deciden `Secure` en un solo sitio. Era la
+> única cookie del árbol con el patrón (`grep COOKIE_SECURE` en `apps/web`).
+> La defiende `lib/server/tenant-activo-cookie.test.ts`: en producción SIN
+> `COOKIE_SECURE` la cookie sale con `Secure` —ese caso estaba en rojo antes
+> del arreglo— y con `COOKIE_SECURE=0` o en desarrollo sale sin él.
 
 ### P10 · No se purgan sesiones ni tokens vencidos
 

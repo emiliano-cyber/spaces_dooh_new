@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-09-30
+actualizado: 2026-10-05
 tags: [backend, auth, seguridad, rojo]
 archivos:
   - apps/web/lib/server/auth.ts
@@ -608,11 +608,12 @@ simulada), `lib/server/errores-base-caida.test.ts` (la clasificación),
 
 ## Deuda conocida
 
-1. `app/api/tenant-activo/route.ts:23` usa `process.env.COOKIE_SECURE === '1'`
-   en vez de `cookieSecure()`. **Hoy no es un bug**: `COOKIE_SECURE=1` está
-   puesta en el droplet (comprobado el 07/08). Es deuda: el día que falte esa
-   variable, esta cookie perderá `Secure` **y las otras dos no**, porque
-   `cookieSecure()` cae a `NODE_ENV === 'production'`. Ver [[preguntas-abiertas]] P9.
+1. ~~`app/api/tenant-activo/route.ts:23` usa `process.env.COOKIE_SECURE === '1'`
+   en vez de `cookieSecure()`.~~ **Resuelta el 2026-10-05**: la cookie
+   `spaces_tenant_activo` decide `Secure` con `cookieSecure()`, como
+   `spaces_sesion` y `spaces_csrf`. Antes, en producción sin `COOKIE_SECURE`,
+   esta cookie salía sin `Secure` y las otras dos no. La prueba es
+   `lib/server/tenant-activo-cookie.test.ts`. Ver [[preguntas-abiertas]] P9.
 2. No hay purga de `sesiones` ni `password_resets` vencidos.
 3. No hay rotación de sesión ni sliding expiration.
 
