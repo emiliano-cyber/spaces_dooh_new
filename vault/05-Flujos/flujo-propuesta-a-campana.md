@@ -139,7 +139,7 @@ sequenceDiagram
   (`propuestas-repo.ts:1156`).
 
 > [!note] 2026-10-05 · quitar el paquete también respeta el tope
-> `quitarPaquete()` (`paquetes-repo.ts:368`) se niega si, al volver el
+> `quitarPaquete()` (`paquetes-repo.ts:376`) se niega si, al volver el
 > descuento por volumen de las líneas, el comercial deja de caber en el tope de
 > la organización (`:404-436`, la misma `descuentoDentroDelTope` que la
 > edición). Lanza `PaqueteImposible` y el controller la mapea a **409**

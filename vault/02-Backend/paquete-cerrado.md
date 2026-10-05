@@ -192,6 +192,11 @@ Por omisión **no admite nada encima**:
 - **El código promocional solo si `admite_codigo`**, que **nace apagada**.
   Aplicar un paquete que no lo admite sobre una propuesta que ya tiene cupón se
   **rechaza con una frase**; y la aritmética lo anula además como segunda red.
+  *(2026-10-05: y **al revés también**. Hasta ese día canjear un cupón sobre una
+  propuesta que ya tenía un paquete así se aceptaba, gastaba el uso y descontaba
+  0; ahora `canjearCodigo` se niega antes de contar, y `aplicarPaquete` lee la
+  propuesta con `for no key update` para que los dos caminos no se crucen. El
+  detalle, en [[02-Backend/codigo-promocional]].)*
 - **El descuento comercial SÍ se sigue aplicando**, y está preguntado al dueño.
   Se queda porque es lo único que el vendedor negocia y ya está acotado por el
   tope de la organización.
@@ -229,8 +234,8 @@ recibió, con un mensaje que nombraría un porcentaje ausente de su cotización.
 > [[02-Backend/descuento-por-volumen]] §3, y se arregla en Administración.
 > Pruebas: `paquetes-aplicar.test.ts` bloque 4.
 >
-> *(Verificado el 05/10: `quitarPaquete` en `apps/web/lib/server/paquetes-repo.ts:368`,
-> la comprobación en `:428`; commit `b2d30d50`, en esta rama y aún no en `main`.)*
+> *(Verificado el 05/10: `quitarPaquete` en `apps/web/lib/server/paquetes-repo.ts:376`,
+> la comprobación en `:436`; commit `b2d30d50`, en esta rama y aún no en `main`.)*
 
 ---
 

@@ -183,8 +183,8 @@ por un margen que no se perdió.
 >   `actualizarPropuesta` pasa `volumenPct = 0` si hay paquete vivo
 >   (`apps/web/lib/server/propuestas-repo.ts:1297-1305`).
 > - **Y al QUITAR el paquete el volumen vuelve**, así que se revalida el
->   comercial con él: `quitarPaquete` (`apps/web/lib/server/paquetes-repo.ts:368`,
->   comprobación en `:428`) se niega si el compuesto pasaría del tope. Commit
+>   comercial con él: `quitarPaquete` (`apps/web/lib/server/paquetes-repo.ts:376`,
+>   comprobación en `:436`) se niega si el compuesto pasaría del tope. Commit
 >   `b2d30d50`, **en esta rama y todavía no en `main`** al 05/10. Ver
 >   [[paquete-cerrado]].
 

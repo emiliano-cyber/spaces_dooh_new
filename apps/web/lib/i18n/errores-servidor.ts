@@ -572,6 +572,19 @@ export const PATRONES_ERROR: ReadonlyArray<{ re: RegExp; en: string }> = [
     en: 'A Roadblock needs all $1 loop slots free, and the screen has $2.',
   },
   { re: /^Pides (\d+) espacios del loop y la pantalla solo tiene (\d+) libres\.$/, en: 'You ask for $1 loop slots and the screen only has $2 free.' },
+  // 2026-10-05 · regla 2 del ADR 0039, las dos direcciones: el canje sobre un
+  // paquete de precio final (`canjearCodigo`) y el paquete sobre un cupón ya
+  // canjeado (`aplicarPaquete`). Llevan el nombre del paquete y del cupón, y
+  // viajan por variable (`new AppError(e.message, …)`), así que la guardia de
+  // literales no las ve: van por patrón, como las del ADR 0042.
+  {
+    re: /^El paquete "(.+)" de esta propuesta es precio final y no admite codigos promocionales\. Quita el paquete, o cambialo por uno que si los admita, antes de aplicar el codigo\.$/,
+    en: 'The package "$1" on this proposal is a final price and does not accept promo codes. Remove the package, or swap it for one that does, before applying the code.',
+  },
+  {
+    re: /^El paquete "(.+)" es precio final y no admite codigos promocionales\. Quita el codigo "(.+)" antes de aplicarlo, o usa un paquete que si los admita\.$/,
+    en: 'The package "$1" is a final price and does not accept promo codes. Remove the code "$2" before applying it, or use a package that does.',
+  },
 ]
 
 // Una pieza suelta: el motivo, sin la etiqueta de campo delante.

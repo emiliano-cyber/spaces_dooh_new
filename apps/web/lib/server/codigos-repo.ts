@@ -16,6 +16,7 @@ import {
   textoRechazo,
   type EstadoCodigo,
 } from '@/lib/codigo-aprobacion'
+import { paqueteDeFila } from '@/lib/paquete'
 import type { PoolClient } from 'pg'
 
 // ============================================================================
@@ -319,7 +320,9 @@ export async function canjearCodigo(
     // inserta filas que la referencian (el propio `canjes_codigo` de abajo).
     const prop = (
       await client.query(
-        `select estatus, codigo_texto, folio, nombre from propuestas
+        `select estatus, codigo_texto, folio, nombre,
+                paquete_nombre, paquete_precio, paquete_admite_codigo
+           from propuestas
           where id=$1 and tenant_id=$2 for no key update`,
         [propuestaId, tenant],
       )
@@ -328,6 +331,32 @@ export async function canjearCodigo(
     if (prop.estatus === 'APROBADA') {
       throw new CanjeImposible(
         'La propuesta ya esta aprobada y es inmutable; un cambio va como adenda.',
+      )
+    }
+
+    // ── 0-bis · REGLA 2 DEL ADR 0039, DESDE ESTE LADO ──────────────────────
+    // 2026-10-05. Un paquete es PRECIO FINAL y, si su bandera congelada dice
+    // que no admite cupón, `armarPropuesta` lo anula (`propuestas-repo.ts`,
+    // `codigoAnulaPaquete`). Hasta hoy este canje NO lo miraba: insertaba la
+    // fila de `canjes_codigo` —que ES el contador— y el descuento salía 0. Un
+    // uso de la promoción gastado a cambio de nada, con un 200 OK y sin una
+    // frase. El camino inverso (poner el paquete sobre una propuesta con
+    // cupón) ya se negaba en `aplicarPaquete` (`paquetes-repo.ts`); éste es
+    // su espejo.
+    //
+    // Se decide con `paqueteDeFila`, la MISMA lectura que usa `armarPropuesta`,
+    // para que el canje se rechace exactamente cuando el cupón no descontaría:
+    // ni uno más ni uno menos. Va ANTES de bloquear el cupón, igual que la
+    // APROBADA: no se le retiene la fila a una promoción por un intento que no
+    // podía prosperar. Y la fila de la propuesta ya está bloqueada (`for no
+    // key update`, arriba), así que nadie le pone ni le quita el paquete entre
+    // esta lectura y el insert: `aplicarPaquete` lee esa misma fila con el
+    // mismo bloqueo y espera a que este canje confirme o revierta.
+    const paquete = paqueteDeFila(prop)
+    if (paquete && !paquete.admiteCodigo) {
+      throw new CanjeImposible(
+        `El paquete "${paquete.nombre}" de esta propuesta es precio final y no admite codigos ` +
+          'promocionales. Quita el paquete, o cambialo por uno que si los admita, antes de aplicar el codigo.',
       )
     }
 

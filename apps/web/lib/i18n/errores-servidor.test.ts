@@ -162,6 +162,33 @@ describe('traducirError · los mensajes de validacion, por partes', () => {
     expect(traducirError('No puede ser mayor que 100', 'en')).toBe('Must not be greater than 100')
   })
 
+  it('2026-10-05 · cupón y paquete de precio final: las DOS direcciones salen en inglés', () => {
+    // Llevan el nombre del paquete dentro, así que van por patrón. El canje lo
+    // lanza `canjearCodigo` y el inverso `aplicarPaquete`; los dos viajan por
+    // variable (`new AppError(e.message, …)`), y por eso la guardia de
+    // literales de abajo no los ve.
+    expect(
+      traducirError(
+        'El paquete "Pack Centro" de esta propuesta es precio final y no admite codigos ' +
+          'promocionales. Quita el paquete, o cambialo por uno que si los admita, antes de aplicar el codigo.',
+        'en',
+      ),
+    ).toBe(
+      'The package "Pack Centro" on this proposal is a final price and does not accept promo codes. ' +
+        'Remove the package, or swap it for one that does, before applying the code.',
+    )
+    expect(
+      traducirError(
+        'El paquete "Pack Centro" es precio final y no admite codigos promocionales. ' +
+          'Quita el codigo "VERANO20" antes de aplicarlo, o usa un paquete que si los admita.',
+        'en',
+      ),
+    ).toBe(
+      'The package "Pack Centro" is a final price and does not accept promo codes. ' +
+        'Remove the code "VERANO20" before applying it, or use a package that does.',
+    )
+  })
+
   it('un patron NO se traga un numero que no es el suyo', () => {
     const r = traducirError('Debe tener al menos 8 caracteres', 'en')
     expect(r).toContain('8')

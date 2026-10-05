@@ -159,6 +159,18 @@ describe('2 · los NEGATIVOS, que son el corazón de la fase', () => {
     await expect(aplicarPaquete('P1', 'PK1')).rejects.toThrow(/codigo|código/i)
   })
 
+  it('la propuesta se lee BLOQUEADA, con el mismo `for no key update` que el canje', async () => {
+    // 2026-10-05 · sin el bloqueo, la regla 2 tenía una carrera: este paso
+    // leía «sin cupón» mientras un canje en vuelo leía «sin paquete», y
+    // confirmaban los dos — paquete de precio final y un uso gastado que no
+    // descuenta nada. El canje lee la fila con este mismo bloqueo
+    // (`codigos-repo.ts`), así que quien llega segundo espera.
+    await aplicarPaquete('P1', 'PK1')
+    const lectura = ejecutadas.find((e) => /from propuestas/.test(e.sql))
+    expect(lectura?.sql).toMatch(/codigo_texto/)
+    expect(lectura?.sql).toMatch(/for no key update/i)
+  })
+
   it('pero SÍ se aplica si el paquete admite código', async () => {
     filas.paquete = [{ ...PAQUETE, admite_codigo: true }]
     filas.propuesta = [

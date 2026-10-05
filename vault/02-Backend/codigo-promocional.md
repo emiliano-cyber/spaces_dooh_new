@@ -76,12 +76,55 @@ tarifa base = f(pantalla, unidad, franja, fecha)     ← Fase 1
 > **Con paquete que no admite cupón, el cupón vale 0** (`codigoAnulaPaquete`,
 > `:215-216`), leyendo la bandera del **congelado** de la propuesta, no del
 > catálogo. Es la segunda red: la primera es que **aplicar** un paquete así sobre
-> una propuesta con cupón se rechaza (`apps/web/lib/server/paquetes-repo.ts:281`).
-> Al revés no hay red en el servidor: `canjearCodigo` no consulta el paquete (no
+> una propuesta con cupón se rechaza (`apps/web/lib/server/paquetes-repo.ts:289`).
+> ~~Al revés no hay red en el servidor: `canjearCodigo` no consulta el paquete (no
 > hay ninguna referencia a «paquete» en `codigos-repo.ts` ni en
 > `codigos-controller.ts`), así que canjear sobre una propuesta con paquete que
-> no lo admite **gasta el uso** y descuenta 0. El
+> no lo admite **gasta el uso** y descuenta 0.~~ **Cerrado el mismo 05/10, ver
+> el recuadro de abajo.** El
 > congelado aplica la misma regla (`congelarSnapshotEconomico`, `:455`).
+
+> [!success] 2026-10-05 · canjear sobre un paquete que no admite cupón ya SE NIEGA, sin gastar el uso
+> **El defecto, confirmado antes de tocar nada:** `canjearCodigo` leía la
+> propuesta sin mirar el paquete, insertaba la fila de `canjes_codigo` —que
+> **es** el contador— y contestaba 200; `armarPropuesta` anulaba después el
+> cupón (`codigoAnulaPaquete`). Un uso de la promoción gastado a cambio de un
+> descuento de 0, sin una frase. Con un cupón de un solo uso, la promoción
+> quedaba agotada sin haber descontado un peso.
+>
+> **La corrección es el espejo de la que ya tenía `aplicarPaquete`**, no una
+> política nueva: el paso 0-bis de `canjearCodigo`
+> (`apps/web/lib/server/codigos-repo.ts:337-361`) lee el paquete congelado en
+> la **misma** lectura bloqueada de la propuesta (`for no key update`, `:326`)
+> y, si `paqueteDeFila` dice que no admite código, lanza `CanjeImposible`
+> (**400**, como todos los rechazos del canje) **antes de bloquear el cupón y
+> de contar**. Se decide con `paqueteDeFila` —la misma lectura que
+> `armarPropuesta`— para rechazar exactamente cuando el cupón no descontaría.
+> La frase nombra el paquete y la salida: *quita el paquete, o cámbialo por uno
+> que sí los admita*. En inglés va por patrón en
+> `apps/web/lib/i18n/errores-servidor.ts` (lleva el nombre dentro), y de paso
+> el mensaje del camino inverso, que tampoco estaba traducido.
+>
+> **Y una carrera que quedaba entre los dos caminos:** `aplicarPaquete` leía
+> la propuesta **sin bloqueo**, así que un canje en vuelo (que lee «sin
+> paquete») y un paquete en vuelo (que lee «sin cupón») podían confirmar los
+> dos. Ahora lee con el mismo `for no key update`
+> (`apps/web/lib/server/paquetes-repo.ts:246-254`) y quien llega segundo
+> espera y ve lo que dejó el primero.
+>
+> **El camino inverso ya estaba bien y no se cambió de política:** aplicar un
+> paquete que no admite código sobre una propuesta con cupón se rechaza (409)
+> pidiendo quitar antes el cupón. Se eligió **no** liberar el canje en
+> silencio con `quitarCanjeEnTx`: devolver el uso y retirar un descuento que el
+> vendedor puso a propósito es una decisión que tiene que tomar una persona
+> viendo la frase, no un efecto lateral de aplicar un paquete.
+>
+> Pruebas: `codigos-canje.test.ts` bloque 3 (rojo visto: el canje resolvía con
+> 20 %), `paquetes-aplicar.test.ts` (el bloqueo) y la e2e
+> `paquete-cerrado.e2e.test.ts` bloque 5, que con un cupón de **un solo uso**
+> comprueba 400, cero filas en `canjes_codigo` y que otra propuesta sin paquete
+> lo sigue pudiendo canjear. Mutada (quitada la comprobación → build → e2e):
+> cae con `expected 200 to be 400`.
 
 > [!important] Desde COD-03 (2026-09-30) el cupón aplicado NACE PENDIENTE
 > El cliente no lo ve —ni la línea ni el total con él— hasta que lo aprueba

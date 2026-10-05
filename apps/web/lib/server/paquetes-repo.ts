@@ -243,7 +243,15 @@ export async function aplicarPaquete(
     // ── 0 · la propuesta existe, es de aquí y NO está aprobada ─────────────
     const prop = (
       await client.query(
-        'select estatus, codigo_texto, paquete_nombre from propuestas where id=$1 and tenant_id=$2',
+        // 2026-10-05 · `for no key update`, el MISMO bloqueo con el que lee el
+        // canje de un cupón (`codigos-repo.ts`). Sin él, la regla 2 de abajo
+        // tenía una carrera: este paso leía «sin cupón» mientras un canje en
+        // vuelo leía «sin paquete», confirmaban los dos, y la propuesta
+        // quedaba con un paquete de precio final y un uso del cupón gastado
+        // que no descuenta nada. Con el bloqueo, quien llega segundo espera y
+        // lee lo que el primero dejó.
+        `select estatus, codigo_texto, paquete_nombre from propuestas
+          where id=$1 and tenant_id=$2 for no key update`,
         [propuestaId, tenant],
       )
     ).rows[0]

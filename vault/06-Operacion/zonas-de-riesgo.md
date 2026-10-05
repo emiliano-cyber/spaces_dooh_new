@@ -429,7 +429,7 @@ Cubiertos por e2e, pero **no** por unitarias:
 | `finanzas-repo.ts` | ~~298~~ 310 | solo e2e (los `finanzas-controller.*.test.ts` lo **simulan**) |
 | `propuestas-repo.ts` | ~~593~~ 1461 | **ya tiene unitarias**: `propuestas-repo-codigo`, `-codigo-aprobacion`, `-paquete` y `-volumen` `.test.ts` — de los caminos de precio nuevos, no del archivo entero |
 | `ot-repo.ts` | ~~269~~ 353 | **ya tiene unitarias**: `ot-repo.checklist-aislamiento.test.ts` y `ot-repo.costo-aislamiento.test.ts` |
-| `codigos-repo.ts` | 609 (**faltaba**) | unitarias en `codigos-canje.test.ts` y `codigos-aprobacion.test.ts`; es dinero (canje y aprobación de cupones) |
+| `codigos-repo.ts` | ~~609~~ 638 (**faltaba**; +29 el 05/10 por el canje sobre paquete) | unitarias en `codigos-canje.test.ts` y `codigos-aprobacion.test.ts`; es dinero (canje y aprobación de cupones) |
 | `usuarios-repo.ts` | ~~224~~ 443 | solo e2e (`perfil-controller.password-google.test.ts` lo simula) |
 | `password-reset-repo.ts` | 122 | solo e2e |
 | `identidades-repo.ts` | 127 | solo e2e (Google) |

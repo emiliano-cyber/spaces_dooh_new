@@ -7,6 +7,15 @@ La entrada más reciente va arriba.
 
 ## 2026-10-05
 
+- **Un código promocional ya no se gasta en una propuesta con paquete de precio
+  final.** Si la propuesta tiene un paquete que **no admite códigos**, el código
+  no descuenta nada; pero hasta hoy el sistema lo aceptaba igual y **le restaba
+  un uso a la promoción**. Con un código de un solo uso, la promoción quedaba
+  agotada sin haber descontado un peso. Ahora el sistema **no deja aplicar el
+  código** en ese caso, te dice qué paquete lo impide y te pide quitar el
+  paquete o cambiarlo por uno que sí admita códigos. **No se gasta ningún uso.**
+  Al revés ya funcionaba bien y no cambia: poner un paquete así en una propuesta
+  que ya tiene código te pide quitar antes el código.
 - **Quitar un paquete ya no puede dejar una propuesta por encima del tope de
   descuento.** Mientras una propuesta tiene un paquete, el descuento por volumen
   no se aplica y por eso tampoco cuenta contra el tope. Pero al **quitar** el

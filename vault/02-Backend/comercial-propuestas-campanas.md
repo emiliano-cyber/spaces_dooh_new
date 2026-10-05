@@ -156,7 +156,7 @@ porque anotarlo siempre haría inútil el filtro por persona de Actividad.
 > [!note] 2026-10-05 · quitar un paquete también pasa por el tope
 > Con paquete aplicado el volumen no cuenta contra el tope (PAQ-01); al quitarlo
 > volvía a sumarse y nadie lo revisaba. Desde `b2d30d50`, `quitarPaquete`
-> (`paquetes-repo.ts:368`) recalcula y pasa por el mismo `descuentoDentroDelTope`;
+> (`paquetes-repo.ts:376`) recalcula y pasa por el mismo `descuentoDentroDelTope`;
 > si no cabe, 409 y no se guarda nada. Detalle en [[paquete-cerrado]].
 
 ## La liga pública de la propuesta
