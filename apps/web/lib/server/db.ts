@@ -14,9 +14,9 @@ import type { PoolClient } from 'pg'
 //  de cada consulta. Nunca a nivel de sesión: el pool reusa conexiones entre
 //  tenants y un GUC de sesión filtraría datos de otro tenant.
 //
-//  `qRaw()/qRaw1()` NO fijan tenant: solo para el bootstrap (tenants, usuarios,
-//  sesiones) que se resuelve ANTES de conocer el tenant. Esas tablas quedan
-//  exentas de RLS fail-closed.
+//  `qRaw()/qRaw1()` NO fijan tenant: solo bootstrap previo al tenant. `tenants` y `sesiones`
+//  no tienen RLS; `usuarios` SÍ (fail-closed + FORCE) y se lee por las funciones SECURITY
+//  DEFINER `auth_*`. Un qRaw directo sobre una tabla fail-closed da CERO filas, sin error.
 // ============================================================================
 
 const DATABASE_URL =
