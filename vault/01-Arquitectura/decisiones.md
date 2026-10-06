@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: verificado
-actualizado: 2026-09-18
+actualizado: 2026-10-05
 tags: [adr, decisiones, reglas-de-negocio]
 archivos:
   - docs/adr/
@@ -22,6 +22,13 @@ archivos:
 > Se completó midiendo `docs/adr/` en vez de releyendo. El recuento sale de
 > `node scripts/recuentos.mjs`.
 
+> [!warning] 2026-10-05 · y volvió a pasar: SEIS ADR de retraso
+> La tabla terminaba en el `0036` mientras `docs/adr/` iba por el `0042`
+> (`node scripts/recuentos.mjs`: **42, hasta 0042**). Faltaban las dos de la
+> flota del 21-22/09 y **las cuatro de la cadena de precio y la venta** que se
+> enseñan el 14/10. Añadidas abajo, leyendo cada ADR. Y aparecieron dos
+> desfases entre el **estado escrito** del ADR y el código, que se anotan en su
+> fila en vez de corregir el ADR (un ADR no se edita para cambiar su historia).
 ## ADR formales
 
 Viven en `docs/adr/`. **Un ADR aceptado no se edita para cambiar la decisión**:
@@ -39,17 +46,17 @@ se escribe uno nuevo que lo reemplace (`~/.claude/skills/eng-architecture`).
 | 0008 | Cupo de clientes por pantalla | Aceptada | `sitios.max_clientes`, `config_negocio.max_clientes_pantalla` |
 | 0009 | **Reautenticación individual** | Aceptada, enmendada por `0036` | `lib/server/cambios.ts` — ver [[autenticacion-y-sesion]] |
 | 0010 | Catálogo explícito de módulos, retiro del rol `CLIENTE` | Aceptada | `lib/modulos.ts`; el enum aún lo tiene |
-| 0011 | `config_negocio` por tenant | **Propuesta** | Ya implementado (`db/schema.sql:643-674`) |
+| 0011 | `config_negocio` por tenant | **Propuesta** | Ya implementado: la tabla se declara en `db/schema.sql:108` y su `tenant_id`, índice único y RLS se añaden en el bloque `:643-674` |
 | 0012 | **Acceso con cuenta de Google** | Aceptada + **enmendada el 07/08** | [[flujo-acceso-con-google]] |
 | 0013 | **Altas que no se pueden duplicar** | Aceptada | `arrendadores_tenant_rfc_uq` (`20260810_arrendadores_rfc_unico.sql`); el nombre repetido avisa con 409 y se puede confirmar — ver [[arrendadores-y-contratos]]. Su espejo para `clientes` llegó el 26/08 con `20260826_clientes_rfc_unico.sql`, **escrita y sin aplicar** ([[migraciones]]) |
 | 0014 | Postgres **en el droplet**, no base administrada | **Propuesta** (21/08) | Ninguno todavía. Toca el aprovisionamiento (F8.1), no la app |
 | 0015 | DEMO vive **dentro** del PADRE | ~~Aceptada~~ → superada por el 0016 → **restablecida por el 0017** | `infra/systemd/spaces-demo.service` |
 | 0016 | DEMO se queda en su propio droplet | **SUPERADA** el mismo día (25/08) por el 0017 | — |
-| 0017 | **Todo se concentra en el PADRE** | Aceptada (25/08) | `infra/nginx/space-os.io.conf` sirve `space-os.io` (`:124`) y `demo.space-os.io` (`:188`) desde la misma máquina |
-| 0018 | **Fijar la primera contraseña tras entrar con Google, sin teclear la anterior** | Aceptada — **verificada en producción el 25/08** | `sesiones.metodo` (`20260825_sesion_metodo.sql`), `crearSesion(usuarioId, metodo)` **sin default a propósito** (`lib/server/auth.ts:98-103`) y [[flujo-acceso-con-google]] |
+| 0017 | **Todo se concentra en el PADRE** | Aceptada (25/08) | `infra/nginx/space-os.io.conf` sirve `space-os.io` (`:133`), `demo.space-os.io` (`:213`) y `prueba.space-os.io` (`:288`) desde la misma máquina — líneas medidas el 05/10 |
+| 0018 | **Fijar la primera contraseña tras entrar con Google, sin teclear la anterior** | Aceptada — **verificada en producción el 25/08** | `sesiones.metodo` (`20260825_sesion_metodo.sql`), `crearSesion(usuarioId, metodo)` **sin default a propósito**: el comentario que lo explica está en `lib/server/auth.ts:102-106` y la función en `:107` (medido el 05/10). Ver [[flujo-acceso-con-google]] |
 | 0019 | DEMO arranca con **systemd**, no con pm2 | Aceptada (25/08) | `infra/systemd/spaces-demo.service`; pm2 es inalcanzable para el usuario `demo` |
 | 0020 | No hay demostración pública | **SUPERADA** el mismo día (26/08) por el 0021 | — |
-| 0021 | ~~`demo.space-os.io` se queda~~ **SUPERADA por el 0024 (27/08)** | Aceptada (26/08) | `infra/nginx/space-os.io.conf:188`. **Canceló TH-F4.5** (borrar su registro A) |
+| 0021 | ~~`demo.space-os.io` se queda~~ **SUPERADA por el 0024 (27/08)** | Aceptada (26/08) | `infra/nginx/space-os.io.conf:188` (hoy `:213`). **Canceló TH-F4.5** (borrar su registro A) |
 | 0022 | **Una instancia dedicada por owner**; la RLS pasa a defensa en profundidad | Aceptada (26/08) | Toda la Fase 5: `infra/scripts/provision-instancia.sh`, `/api/bootstrap`, `/api/version`. Ver [[modelo-instancias-soberanas]] |
 | 0023 | **El droplet viejo sale del modelo**, y sus datos no se rescatan | Aceptada (27/08) | Retira `F0.2`, `F1.1`, `F1.5`, `F7.1`, `F7.2` y `F7.3`: **la Fase 7 entera**. El plan queda en **40 tareas con objeto**. Extiende el 0017 |
 | 0024 | **`demo.space-os.io` es la demo ORIGINAL y se eliminará** | Aceptada (27/08) — **sustituye al 0021** | No se mueve al PADRE ni se le emite certificado. **`F4.3` queda sin objeto**: el plan baja a **39 tareas con objeto**. Su certificado (26/10) pasa a ser caducidad natural, no plazo |
@@ -65,11 +72,18 @@ se escribe uno nuevo que lo reemplace (`~/.claude/skills/eng-architecture`).
 | 0034 | **Multi-entidad es ATRIBUCIÓN, no aislamiento** | Aceptada (18/09) — PR #91 | La frase ES la decisión: el owner no quiere separar sus razones sociales, quiere **verlas juntas**. Descarta «un tenant por razón social», que rompía el consolidado por diseño. Su apartado de seguridad lleva el agujero R2 con su medición |
 | 0035 | **Los reportes se agregan en el SERVIDOR, no en el navegador** | Aceptada (18/09) — PR #91 | El límite `/api/reportes/*`. Motivo medido: `/api/estado` llegó a **6.12 MB** con pantalla en blanco de 6-12 s **sin dar error**, y un reporte trimestral mira años. Declara lo que NO hace: sin agregación en SQL y sin tope de rango |
 | 0036 | **Contraseña compartida de vuelta para el control de cambios** | Aceptada (21/09) | Enmienda al `0009`, pedida por el dueño. `tenants.cambios_password_hash` vuelve, pero SOLO desbloquea el candado general — `exigirReautenticacionSiempre` (resetear a un tercero) sigue exigiendo la propia — ver [[autenticacion-y-sesion]] |
+| 0037 | **Cada instancia elige si toma la versión nueva** | Aceptada (21/09) | La base de la instancia es el buzón entre la aplicación y el actualizador: tabla `actualizaciones_instancia` (`20260921_actualizaciones_instancia.sql`), `app/api/actualizaciones/`, `update.sh --comprobar` y su cron cada 15 min (`infra/scripts/provision-instancia.sh:915`). Ver [[actualizaciones-instancia]] |
+| 0038 | **Los tickets de soporte viven en la instancia, y el panel los jala** | Aceptada (22/09) | Tabla `tickets` con `tenant_id` y RLS (`20260923_tickets.sql`), `app/api/tickets/`; el PADRE los lee agrupados por instancia en una pantalla hermana de `/flota/` |
+| 0039 | **La cadena de precio del spot**: franja, temporada, volumen, código y paquete | Escrito «aprobado para diseño · fases 1–4 una detrás de otra» (28/09). **Las cuatro fases tienen migración en el árbol**: `20260928_rejilla_franja_temporada.sql`, `_descuento_por_volumen.sql`, `_codigo_promocional.sql`, `_paquete_cerrado.sql` | [[02-Backend/rejilla-franja-y-temporada]] · [[02-Backend/descuento-por-volumen]] · [[02-Backend/codigo-promocional]] · [[02-Backend/paquete-cerrado]] |
+| 0040 | **Roles de venta y la autorización de descuentos** | Escrito «en diseño · nada construido · la migración espera aprobación» (29/09). **Desfase con el código:** las dos migraciones existen (`20260929_roles_de_venta_enum.sql` y `_matriz.sql`). El estado del documento no se actualizó — mismo vicio que el `0011` y el `0014` | Cuatro roles nuevos en `rol_demo` (`ADMINISTRADOR`, `DIRECTOR_COMERCIAL`, `GERENTE_VENTAS`, `VENDEDOR`, este último default de `usuarios.rol`); `COMERCIAL` se retira de uso. Ver [[02-Backend/roles-de-venta]] |
+| 0041 | **Google Maps solo donde aporta, con la clave en tiempo de ejecución** | **Propuesta** (01/10), pendiente del dueño | **Ninguno todavía**: no hay código de Google Maps en `apps/web` (búsqueda del 05/10). Complementa —no reemplaza— el `0030`. Pendiente también en [[preguntas-abiertas]] (P22) |
+| 0042 | **La calculadora de spots da la CANTIDAD; el precio sigue siendo el de la pantalla** | Aceptada (01/10) | Cuatro columnas en `propuesta_items` (`20261007_calculadora_spots.sql`); la prima del Roadblock solo con `comercial.aprobar`. Ver [[02-Backend/calculadora-de-spots]] |
 
 > [!danger] Cuatro de estos ADR se superaron entre sí en 48 horas — lee el estado, no el número
 > `0015` → `0016` → `0017` y `0020` → `0021` cambiaron de decisión **el mismo día
 > en que se escribieron**, y el `0015` llegó a resucitar. Un ADR más alto no es
-> automáticamente el vigente sobre el mismo asunto: **lo vigente hoy es
+> automáticamente el vigente sobre el mismo asunto: **lo vigente hoy (frase del
+> 27/08, sigue cierta al 05/10 para este asunto) es
 > `0017` (todo en el PADRE), `0022` (una instancia por owner), `0023` (el
 > droplet viejo sale del modelo) y `0024` (`demo.space-os.io` se eliminará)**.
 > Citar el `0016`, el `0020` o el `0021` como si mandaran es el error que ya
@@ -105,7 +119,8 @@ Están razonadas en comentarios, no en `docs/adr/`. Se documentan aquí porque
 tienen el mismo peso operativo.
 
 ### D-1 · La sesión es opaca y se resuelve contra la tabla, no criptográficamente
-`lib/server/auth.ts:103-113` genera 256 bits aleatorios y los guarda en `sesiones`.
+`lib/server/auth.ts:107-117` (`crearSesion`) genera 256 bits aleatorios
+(`randomBytes(32)`, `:108`) y los guarda en `sesiones`.
 No hay JWT ni firma. **Ventaja:** la revocación es real (borrar la fila).
 **Costo:** cada petición hace una consulta.
 
@@ -115,6 +130,12 @@ No hay JWT ni firma. **Ventaja:** la revocación es real (borrar la fila).
 > bcrypt.compare(...)` de `verifyPassword`. La cabecera de
 > `20260825_sesion_metodo.sql:5` **también** cita la línea vieja: es una
 > migración ya aplicada y **no se edita** (R3), así que la corrección vive aquí.
+>
+> **2026-10-05 · y volvió a moverse, y esta nota se contradecía a sí misma:**
+> la fila del ADR 0018 citaba `auth.ts:98-103` y este apartado `:103-113`
+> para la misma función. Medido hoy: el comentario «el método es OBLIGATORIO»
+> ocupa `:102-106`, **`crearSesion` empieza en `:107`** y termina en `:117`;
+> `:94-97` es `verifyPassword`. Las dos citas se igualaron a eso.
 
 ### D-2 · El GUC de tenant es transaction-local, nunca de sesión
 `lib/server/db.ts:12-15` lo explica: el pool reutiliza conexiones entre tenants,
@@ -122,7 +143,7 @@ y un `set_config` a nivel de sesión filtraría datos de otra organización.
 **Es la línea que sostiene todo el aislamiento.** Ver [[multi-tenancy-y-rls]].
 
 ### D-3 · Doble capa de aislamiento: RLS + filtro explícito
-`lib/server/usuarios-repo.ts:11-15`: toda operación por `id` lleva **además**
+`lib/server/usuarios-repo.ts:13-17`: toda operación por `id` lleva **además**
 `and tenant_id = $n`. Redundante con la RLS a propósito — "si algún día la app
 conectara con un rol BYPASSRLS, esto sigue aislando".
 

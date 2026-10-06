@@ -1,5 +1,5 @@
 import 'server-only'
-import { descuentoDentroDelTope } from '@/lib/descuento'
+import { DescuentoSobreTope, descuentoDePropuestaDentroDelTope, mensajeTopeVigente, MSJ_TOPE_VIGENTE_PUBLICO, topeDescuentoValido } from '@/lib/descuento'
 import { topeDescuentoDelTenant } from './config-repo'
 import { randomBytes } from 'crypto'
 import { q, q1, pool, fijarTenant, fijarTenantExplicito, qConTenant, qRaw1 } from './db'
@@ -929,14 +929,62 @@ export async function aceptarPropuestaPublica(
     // primero. Si el gerente gana, el cupón ya está APROBADO al llegar aquí y
     // se conserva — el cliente paga MENOS de lo que vio, nunca más. Es el único
     // lado en que esa carrera puede caer, y es el de la promesa cumplida.
+    //
+    // TOPE-03 · la misma lectura bloqueada trae el descuento y el paquete: el
+    // tope vigente se revisa sobre la fila que ya no puede cambiar debajo.
     const cup = (
       await client.query(
-        `select codigo_texto, codigo_estado from propuestas
+        `select codigo_texto, codigo_estado, descuento_pct, codigo_descuento_pct,
+                paquete_nombre, paquete_precio, paquete_admite_codigo
+           from propuestas
           where id=$1 and tenant_id=$2 for no key update`,
         [p.id, p.tenant_id],
       )
     ).rows[0]
-    if (cup && estadoCodigoDeFila(cup) === 'PENDIENTE') {
+    const cuponPendiente = !!cup && estadoCodigoDeFila(cup) === 'PENDIENTE'
+
+    // TOPE-03 · el cliente tampoco puede cerrar un descuento que ya no cabe en
+    // el tope de HOY. Es la misma revisión que la aprobación interna
+    // (`revisarTopeVigente`), y aquí es la que más importa: sin ella, la liga
+    // es la puerta trasera — lo que por dentro se niega, el cliente lo firma.
+    //
+    // Va ANTES de quitar el cupón pendiente para que negarse no deje nada a
+    // medias (el rollback lo desharía igual, pero así no hay nada que deshacer).
+    // Con el cupón pendiente se cuenta como ya quitado, que es como quedaría.
+    //
+    // El tope se lee con ESTE cliente y el tenant del TOKEN: aquí no hay
+    // sesión, así que `topeDescuentoDelTenant()` no sirve. Y con `tenant_id`
+    // explícito además de la RLS: el techo de una organización no puede
+    // decidirlo la configuración de otra (R2). Sin fila, el respaldo del 100 %.
+    //
+    // Al cliente NO se le dice el tope: es un dato interno, y lo único útil
+    // para él es a quién acudir.
+    if (cup) {
+      const lineas = (
+        await client.query(
+          `select precio, descuento_volumen_pct from propuesta_items
+            where propuesta_id=$1 and tenant_id=$2`,
+          [p.id, p.tenant_id],
+        )
+      ).rows
+      const cfg = (
+        await client.query('select tope_descuento_pct from config_negocio where tenant_id=$1', [
+          p.tenant_id,
+        ])
+      ).rows[0]
+      try {
+        revisarTopeVigente(
+          cuponPendiente ? { ...cup, codigo_descuento_pct: 0 } : cup,
+          lineas,
+          topeDescuentoValido(cfg?.tope_descuento_pct),
+        )
+      } catch (e) {
+        if (!(e instanceof DescuentoSobreTope)) throw e
+        throw new TopeVigenteError(MSJ_TOPE_VIGENTE_PUBLICO, e)
+      }
+    }
+
+    if (cuponPendiente) {
       await quitarCanjeEnTx(client, p.id, p.tenant_id)
       // A mano y no con `registrarAccion()`: aquí no hay sesión de la que
       // sacar el tenant, y la línea tiene que ir en esta misma transacción.
@@ -1294,31 +1342,23 @@ export async function actualizarPropuesta(
     // contara, a un vendedor le rechazarían un descuento comercial por un
     // volumen que el cliente nunca recibió, y el mensaje de error le nombraría
     // un porcentaje que no aparece en ninguna parte de su cotización.
-    const paqueteVivo = paqueteDeFila(cur)
-    const volumenPct = paqueteVivo
-      ? 0
-      : volumenDeLineas(
-          lineas.map((l) => ({
-            precio: Number(l.precio),
-            descuentoVolumenPct: Number(l.descuento_volumen_pct ?? 0),
-          })),
-        ).volumenPctEfectivo
+    //
     // COD-02 · el cupón entra como ARGUMENTO aunque hoy no cuente. La decisión
     // de si cuenta o no vive ENTERA en `CODIGO_CUENTA_CONTRA_TOPE`
-    // (`lib/descuento.ts`), y está preguntada al dueño; pasarlo desde aquí es lo
-    // que hace que cambiar la respuesta sea una constante y no una cacería por
-    // los llamantes. Se lee de la propuesta, no de `codigos_promocionales`: lo
-    // que cuenta es lo que se canjeó, no lo que el cupón diga hoy.
-    const d = descuentoDentroDelTope(
+    // (`lib/descuento.ts`), y está preguntada al dueño. Se lee de la propuesta,
+    // no de `codigos_promocionales`: lo que cuenta es lo que se canjeó, no lo
+    // que el cupón diga hoy. Y no cuenta si el paquete no lo admite: no
+    // descontó nada.
+    //
+    // TOPE-03 · las tres reglas de arriba viven en
+    // `descuentoDePropuestaDentroDelTope` (`lib/descuento.ts`) y no aquí,
+    // porque la aprobación y la aceptación por la liga hacen LA MISMA cuenta
+    // contra el tope vigente. Una copia en cada puerta divergiría.
+    const d = descuentoDePropuestaDentroDelTope(
       input.descuentoPct,
       await topeDescuentoDelTenant(),
-      volumenPct,
-      // PAQ-01 · y el cupón tampoco cuenta si el paquete no lo admite, por la
-      // misma razón: no descontó nada. (Hoy `CODIGO_CUENTA_CONTRA_TOPE` es
-      // `false`, así que este argumento se anula después de todas formas; se
-      // pasa bien igualmente para que el día que el dueño cambie esa constante
-      // no haya que volver a buscar los llamantes.)
-      paqueteVivo && !paqueteVivo.admiteCodigo ? 0 : Number(cur.codigo_descuento_pct ?? 0),
+      cur,
+      lineas,
     )
     sets.push(`descuento_pct=$${i++}`)
     vals.push(d)
@@ -1351,6 +1391,43 @@ export class PropuestaCeroError extends PropuestaError {}
 // `PropuestaError` de esa ruta (agencia sin validar, estatus inválido).
 export class CodigoPendienteError extends PropuestaError {}
 
+// TOPE-03 · aprobar (por dentro o el cliente por la liga) una propuesta cuyo
+// descuento ya no cabe en el tope VIGENTE. Es un `PropuestaError` para que la
+// liga pública lo conteste 409 sin tocar su ruta; la interna lo distingue para
+// marcarlo en la respuesta. `detalle` lleva los números para quien los quiera
+// leer sin parsear la frase — la frase del cliente NO los lleva.
+export class TopeVigenteError extends PropuestaError {
+  readonly detalle: DescuentoSobreTope
+  constructor(mensaje: string, detalle: DescuentoSobreTope) {
+    super(mensaje)
+    this.detalle = detalle
+  }
+}
+
+/**
+ * TOPE-03 · ¿el descuento comercial GUARDADO cabe en el tope de HOY?
+ *
+ * Revienta con `DescuentoSobreTope` si no. Es la misma cuenta que la edición
+ * (`descuentoDePropuestaDentroDelTope`), con el descuento que ya está en la
+ * fila en lugar del que se teclea.
+ *
+ * Con 0 % comercial no revisa nada, por el mismo criterio que `quitarPaquete`
+ * (TOPE-PAQ): el tope acota la DISCRECIÓN de quien vende, y sin descuento
+ * comercial no hay discreción. Si el volumen solo ya pasa el tope, es el tope
+ * por debajo de la escala propia (VOL-02), que se arregla en Administración —
+ * y negarse dejaría la propuesta imposible de aprobar sin que el vendedor
+ * pueda hacer nada.
+ */
+function revisarTopeVigente(
+  fila: { descuento_pct?: unknown } & Parameters<typeof descuentoDePropuestaDentroDelTope>[2],
+  lineas: Parameters<typeof descuentoDePropuestaDentroDelTope>[3],
+  tope: number,
+): void {
+  // TOPE-04 · el «con 0 % no se revisa» ya no se escribe aquí: vive en
+  // `descuentoDentroDelTope`, para que la edición diga exactamente lo mismo.
+  descuentoDePropuestaDentroDelTope(Number(fila.descuento_pct ?? 0), tope, fila, lineas)
+}
+
 const ESTATUS_VALIDOS = ['BORRADOR', 'ENVIADA', 'APROBADA', 'RECHAZADA']
 export async function cambiarEstatusPropuesta(
   id: string,
@@ -1369,9 +1446,15 @@ export async function cambiarEstatusPropuesta(
     // Si la propuesta no es de esta organización, `c` sale null y se sigue
     // como antes: los guards de abajo son los que contestan ese caso, y
     // `aislamiento.e2e.test.ts` fija lo que contestan.
+    //
+    // TOPE-03 · la misma lectura trae el descuento y las columnas del paquete:
+    // las necesita la revisión del tope vigente, más abajo.
+    const tenant = await tenantActual()
     const c = await q1<any>(
-      'select codigo_texto, codigo_estado from propuestas where id=$1 and tenant_id=$2',
-      [id, await tenantActual()],
+      `select codigo_texto, codigo_estado, descuento_pct, codigo_descuento_pct,
+              paquete_nombre, paquete_precio, paquete_admite_codigo
+         from propuestas where id=$1 and tenant_id=$2`,
+      [id, tenant],
     )
     if (c && bloqueaAprobacion(estadoCodigoDeFila(c))) {
       throw new CodigoPendienteError(MSJ_APROBAR_CON_PENDIENTE)
@@ -1382,6 +1465,36 @@ export async function cambiarEstatusPropuesta(
       throw new PropuestaError(
         `La negociación con la agencia ${bloq.nombre ?? ''} no está validada; no se puede aprobar la propuesta`,
       )
+    }
+    // TOPE-03 · el descuento guardado tiene que caber en el tope de HOY.
+    //
+    // El tope se valida al ESCRIBIR el descuento (`actualizarPropuesta`) y al
+    // quitar un paquete (`quitarPaquete`), pero Administración puede BAJARLO
+    // después. Hasta el 2026-10-05 aprobar no lo revisaba, y el descuento por
+    // encima del techo vigente se congelaba en el snapshot — o sea, la venta se
+    // cerraba con un descuento que hoy nadie autoriza.
+    //
+    // Lo ya guardado NO se toca (TOPE-01: «bajar el tope no invalida lo ya
+    // pactado»): la propuesta conserva su descuento y se sigue editando. Lo que
+    // no se puede es CERRARLA así. Quien aprueba ajusta el descuento —y la
+    // edición vuelve a validar contra el tope— o Administración lo sube.
+    //
+    // Fuera de transacción, como el resto de las comprobaciones de aquí: una
+    // edición concurrente del descuento se valida a sí misma contra el tope, y
+    // lo único que queda en la ventana es que el tope baje justo entre esta
+    // lectura y el `update` — milisegundos, y con el tope de un instante antes.
+    if (c) {
+      const lineas = await q<any>(
+        `select precio, descuento_volumen_pct from propuesta_items
+          where propuesta_id=$1 and tenant_id=$2`,
+        [id, tenant],
+      )
+      try {
+        revisarTopeVigente(c, lineas, await topeDescuentoDelTenant())
+      } catch (e) {
+        if (!(e instanceof DescuentoSobreTope)) throw e
+        throw new TopeVigenteError(mensajeTopeVigente(e), e)
+      }
     }
     // S1-2: guardarraíl contra aprobar/facturar en $0 sin confirmación.
     const tot = await q1<{ base: string }>(

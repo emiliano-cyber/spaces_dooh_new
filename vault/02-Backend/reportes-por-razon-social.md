@@ -1,13 +1,14 @@
 ---
 tipo: contrato
 estado: verificado
-actualizado: 2026-09-18
+actualizado: 2026-10-05
 tags: [reportes, multi-entidad, razones-sociales, atribucion]
 archivos:
   - apps/web/lib/data/reportes.ts
   - apps/web/lib/server/reportes-repo.ts
   - apps/web/components/demo/reportes/tabla.ts
   - apps/web/components/demo/reportes/consulta.ts
+  - apps/web/lib/server/reportes-controller.ts
 ---
 
 # La sexta dimensión: `entidad`
@@ -41,9 +42,11 @@ campaña) y el comprobante tiene emisora.
 > [!important] Del comprobante se leen DOS columnas, y el importe NO es una de ellas
 > `campana_id` y `entidad_emisora_id`, nada más. El ingreso del reporte sale de
 > las **reservas prorrateadas por días**, igual que en las otras cinco
-> dimensiones. Tomarlo del comprobante daría **dos facturaciones distintas del
+> dimensiones *(siete al 2026-10-05: `sitio`, `trimestre`, `operacion`, `m2`,
+> `luz`, `tarifa` y `vendedor` — `apps/web/lib/data/reportes.ts:68`)*. Tomarlo del comprobante daría **dos facturaciones distintas del
 > mismo periodo según el agrupador**, que es el error de raíz que este
-> repositorio documenta (`lib/server/tenant.ts:87-89`).
+> repositorio documenta (`lib/server/tenant.ts:87-89`; *al 2026-10-05 ese
+> texto está en `:86-88`*).
 >
 > El mapa dice a nombre de **quién**, nunca **cuánto**.
 
@@ -94,6 +97,11 @@ Columnas: `Razón social · Ingreso · Costo del espacio · Saldo atribuido ·
    un competidor del ranking: es un hueco de captura. Se reconoce por la clave
    vacía —la única fila del reporte sin id— así que la regla no se activa en las
    otras cinco dimensiones. Hay prueba de las dos cosas.
+   *(2026-10-05: ya no es la única. `vendedor` pinta su «Sin vendedor» con la
+   **misma** clave vacía, `CLAVE_SIN_ASIGNAR = ''` (`apps/web/lib/data/reportes.ts:2137`,
+   usada en `:2628`), así que la regla de `tabla.ts:499` la manda también al
+   final — que es lo que se quiere, ver [[vendedor-en-propuesta]]. El comentario
+   de `tabla.ts:495-498` sigue diciendo «la única fila sin id».)*
 3. **Abre por quien factura más** (`ingreso` descendente). No hay margen que
    ordenar.
 
@@ -113,7 +121,8 @@ formas según dónde salga.
 ## 4 · Dónde vive el reparto, y por qué ahí
 
 En **`matriz()`**, en el mismo recorrido que las celdas por pantalla
-(`PorEntidad`, `lib/data/reportes.ts`). No en el motor de la dimensión.
+(`PorEntidad`, `lib/data/reportes.ts:994`; `matriz()` en `:1081` y el motor
+`rentabilidadPorEntidad` en `:2199`, medidos el 05/10). No en el motor de la dimensión.
 
 El motivo es concreto: el ingreso se prorratea **por días** y la renta **por
 meses equivalentes**, con segmentos de vigencia y fracción de caras. Repetir esa
@@ -136,7 +145,9 @@ año entero a la última movería dinero entre sociedades sin ningún síntoma.
 
 Las dos consultas nuevas usan **`q()`** y llevan **`tenant_id = $1` explícito**.
 El guard `reportes-repo.aislamiento.test.ts` ve ahora **8 consultas** y las
-comprueba todas.
+comprueba todas. *(Al 2026-10-05 son **once** `q()` en `reportes-repo.ts`; las
+dos de esta dimensión están en `:211` —`entidades_fiscales`, `:217`— y `:237`
+—el puente `campana_id, entidad_emisora_id`, `:238`—.)*
 
 **Comprobado por mutación el 18/09**: quitando el `where e.tenant_id = $1` de la
 consulta de entidades, el guard se pone **rojo**. No es un guard vacuo.

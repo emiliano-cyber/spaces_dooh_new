@@ -2,9 +2,9 @@ import 'server-only'
 import { randomBytes } from 'crypto'
 import { cookies } from 'next/headers'
 import bcrypt from 'bcryptjs'
-// Autenticación (usuarios/sesiones): consultas RAW sin GUC. El login resuelve al
-// usuario ANTES de conocer el tenant; usuarios/tenants están exentas de RLS
-// fail-closed. Usar q() aquí recursaría (q -> tenantActual -> usuarioActual -> q).
+// RAW sin GUC: el login resuelve al usuario ANTES del tenant, y q() recursaría (q -> tenantActual
+// -> usuarioActual -> q). `sesiones`/`rol_permisos` no tienen RLS; `usuarios` SÍ (fail-closed+FORCE)
+// y se lee SOLO por las `auth_*` SECURITY DEFINER: un qRaw directo da 0 filas, sin error (R2).
 import { qRaw as q, qRaw1 as q1 } from './db'
 
 // ============================================================================

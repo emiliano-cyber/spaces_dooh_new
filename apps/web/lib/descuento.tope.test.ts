@@ -6,6 +6,10 @@ import {
   DescuentoSobreTope,
   DescuentoInvalido,
   TOPE_DESCUENTO_RESPALDO,
+  descuentoDePropuestaDentroDelTope,
+  mensajeTopeVigente,
+  MSJ_TOPE_VIGENTE_PUBLICO,
+  comercialMaximoDentroDelTope,
 } from './descuento'
 
 // ============================================================================
@@ -200,5 +204,116 @@ describe('textoBitacoraPropuesta — la bitácora dice CUÁNTO', () => {
     // Y un decimal legítimo NO se redondea a entero.
     expect(textoBitacoraPropuesta(2, 12.5))
       .toBe('Puso 12.5 % de descuento en la propuesta (v2)')
+  })
+})
+
+describe('TOPE-03 · la cuenta del tope de UNA propuesta, la misma en las tres puertas', () => {
+  const sinPaquete = { paquete_nombre: null, paquete_precio: null, codigo_descuento_pct: 0 }
+  const conVolumen = [{ precio: 100_000, descuento_volumen_pct: 10 }]
+
+  it('el volumen de las líneas cuenta: 10 % + 25 % = 32,5 % no cabe en 30', () => {
+    expect(() => descuentoDePropuestaDentroDelTope(25, 30, sinPaquete, conVolumen)).toThrow(
+      DescuentoSobreTope,
+    )
+    expect(descuentoDePropuestaDentroDelTope(20, 30, sinPaquete, conVolumen)).toBe(20)
+  })
+
+  it('con paquete vivo el volumen NO cuenta (PAQ-01)', () => {
+    const paq = { paquete_nombre: 'Combo', paquete_precio: 90_000, codigo_descuento_pct: 0 }
+    expect(descuentoDePropuestaDentroDelTope(25, 30, paq, conVolumen)).toBe(25)
+  })
+
+  it('el cupón no cuenta mientras CODIGO_CUENTA_CONTRA_TOPE sea false (COD-02)', () => {
+    expect(
+      descuentoDePropuestaDentroDelTope(30, 30, { ...sinPaquete, codigo_descuento_pct: 50 }, []),
+    ).toBe(30)
+  })
+
+  it('el mensaje interno dice el descuento, el total con volumen, el tope y qué hacer', () => {
+    let e: DescuentoSobreTope | null = null
+    try {
+      descuentoDePropuestaDentroDelTope(25, 30, sinPaquete, conVolumen)
+    } catch (x) {
+      e = x as DescuentoSobreTope
+    }
+    const m = mensajeTopeVigente(e!)
+    expect(m).toContain('25 %')
+    expect(m).toContain('32.5 %')
+    expect(m).toContain('30 %')
+    expect(m).toMatch(/Ajusta el descuento/)
+  })
+
+  it('el mensaje al CLIENTE no lleva ningún porcentaje', () => {
+    expect(MSJ_TOPE_VIGENTE_PUBLICO).not.toMatch(/%/)
+  })
+})
+
+// ============================================================================
+//  TOPE-04 · el VOLUMEN SOLO ya pasa el tope (2026-10-05)
+// ----------------------------------------------------------------------------
+//  Administración baja el tope al 5 % y la escala de la organización da 10 %
+//  de volumen. Hasta hoy la EDICIÓN rechazaba incluso guardar 0 % comercial
+//  —`componerDescuentos(10, 0)` = 10 > 5—, mientras que aprobar, la liga y
+//  quitar un paquete NO revisaban con 0 % comercial (criterio TOPE-PAQ). La
+//  aprobación decía «Ajusta el descuento» y el vendedor no podía ajustarlo a
+//  nada. Ahora el criterio vive en `descuentoDentroDelTope`, una sola vez.
+// ============================================================================
+describe('TOPE-04 · con el volumen solo por encima del tope, 0 % comercial SÍ se guarda', () => {
+  const sinPaquete = { paquete_nombre: null, paquete_precio: null, codigo_descuento_pct: 0 }
+  const vol10 = [{ precio: 100_000, descuento_volumen_pct: 10 }]
+  const SALIDA =
+    'El descuento por volumen (10 %) ya supera el tope (5 %): deja el descuento comercial ' +
+    'en 0 % o pide a Administración que suba el tope.'
+
+  it('tope 5, volumen 10, comercial 0 → se acepta (el vendedor no controla la escala)', () => {
+    expect(descuentoDentroDelTope(0, 5, 10)).toBe(0)
+    expect(descuentoDePropuestaDentroDelTope(0, 5, sinPaquete, vol10)).toBe(0)
+  })
+
+  it('tope 5, volumen 10, comercial 5 → SIGUE rechazando', () => {
+    expect(() => descuentoDePropuestaDentroDelTope(5, 5, sinPaquete, vol10)).toThrow(
+      DescuentoSobreTope,
+    )
+    // Y cualquier cosa por encima de 0, por pequeña que sea.
+    expect(() => descuentoDentroDelTope(0.01, 5, 10)).toThrow(DescuentoSobreTope)
+  })
+
+  it('el mensaje dice la salida REAL: comercial en 0 % o subir el tope', () => {
+    let e: DescuentoSobreTope | null = null
+    try {
+      descuentoDePropuestaDentroDelTope(5, 5, sinPaquete, vol10)
+    } catch (x) {
+      e = x as DescuentoSobreTope
+    }
+    expect(e).toBeInstanceOf(DescuentoSobreTope)
+    expect(e!.message).toBe(SALIDA)
+    // Y la aprobación dice lo mismo, no «Ajusta el descuento» a secas.
+    const m = mensajeTopeVigente(e!)
+    expect(m).toContain(SALIDA)
+    expect(m).not.toMatch(/Ajusta el descuento/)
+  })
+
+  it('si el volumen cabe, el mensaje dice el MÁXIMO comercial que cabe', () => {
+    // tope 20, volumen 15: 1 − 0,80 / 0,85 = 5,882… → cabe hasta 5,88 %.
+    let e: DescuentoSobreTope | null = null
+    try {
+      descuentoDentroDelTope(10, 20, 15)
+    } catch (x) {
+      e = x as DescuentoSobreTope
+    }
+    expect(e!.message).toMatch(/hasta 5\.88 % comercial/)
+    expect(mensajeTopeVigente(e!)).toMatch(/hasta 5\.88 % comercial/)
+    // Sin volumen el máximo es el tope mismo.
+    expect(() => descuentoDentroDelTope(70, 40)).toThrow(/hasta 40 % comercial/)
+  })
+
+  it('el máximo anunciado CABE de verdad, y una centésima más ya no', () => {
+    for (const [tope, vol] of [[20, 15], [30, 10], [40, 0], [5, 4.99], [100, 50], [12.5, 3]]) {
+      const m = comercialMaximoDentroDelTope(tope, vol)
+      expect(descuentoDentroDelTope(m, tope, vol)).toBe(m)
+      if (m < 100) expect(() => descuentoDentroDelTope(m + 0.01, tope, vol)).toThrow(DescuentoSobreTope)
+    }
+    // Con el volumen por encima no cabe nada: 0.
+    expect(comercialMaximoDentroDelTope(5, 10)).toBe(0)
   })
 })

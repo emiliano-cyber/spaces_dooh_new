@@ -1,7 +1,7 @@
 ---
 tipo: flujo
 estado: verificado
-actualizado: 2026-09-17
+actualizado: 2026-10-05
 tags: [flujo, auth, google, oidc, rojo]
 archivos:
   - docs/adr/0012-acceso-con-cuenta-de-google.md
@@ -14,6 +14,8 @@ archivos:
   - apps/web/app/api/auth/google/callback/route.ts
   - apps/web/lib/test/google-oauth.e2e.test.ts
   - db/migrations/20260806_identidades_externas.sql
+  - apps/web/scripts/bootstrap-auth.mjs
+  - apps/web/app/api/auth/login/route.ts
 ---
 
 # Flujo: acceso con cuenta de Google (ADR 0012)
@@ -40,10 +42,18 @@ Termina exactamente donde termina el login normal: `crearSesion()` + las dos
 cookies. Cero cambios en `exigir()`, en el middleware o en los **90** handlers.
 
 > [!important] Desde el 25/08 `crearSesion` sabe CÓMO se abrió la sesión
-> Lleva un segundo argumento (`auth.ts:103`), y el callback de Google pasa
+> Lleva un segundo argumento (`auth.ts:107`), y el callback de Google pasa
 > `'google'` donde el login normal pasa `'password'`. La columna la añadió
 > `20260825_sesion_metodo.sql`. No es telemetría: es lo que hace posible el
 > ADR 0018, abajo.
+>
+> **2026-10-05 · y desde el 07/09 la relación va también al revés.** Una cuenta
+> con `usuarios.solo_google` (ADR 0028 · B3, `20260907_solo_google.sql`) **no
+> puede entrar con contraseña**: el login por contraseña la verifica y, si es
+> correcta, contesta 403 «Esta cuenta entra con Google»
+> (`app/api/auth/login/route.ts:89-105`). La contraseña sigue existiendo y
+> sigue pidiéndose para los cambios sensibles; lo que deja de hacer es abrir
+> sesión. Detalle en [[flujo-login]].
 
 **Google nunca decide a qué organización perteneces ni qué rol tienes.** Eso no
 cambió con la enmienda.
@@ -94,7 +104,7 @@ vez se resuelve por correo, y a partir de ahí por `sub`.
 
 ## Sin dependencias nuevas
 
-`lib/server/google-oauth.ts:5-17`: el `id_token` llega por canal directo
+`lib/server/google-oauth.ts:6-20`: el `id_token` llega por canal directo
 servidor-a-servidor, y OIDC Core §3.1.3.7 punto 6 permite no verificar la firma.
 
 > [!danger] La exención vale SOLO para ese canal
@@ -172,7 +182,7 @@ httpOnly**:
 
 Mecánica: la UI llama a `/api/auth/google/inicio?alta=1&organizacion=…`, el
 servidor lo guarda en `COOKIE_ALTA_ORG` (corta, httpOnly) y el callback lo lee de
-ahí (`inicio/route.ts:72-113`, `callback/route.ts:165-169`). El callback además
+ahí (`inicio/route.ts:71-115`, `callback/route.ts:164-166`). El callback además
 vuelve a comprobar `autoregistroHabilitado()` — no se fía de que `/inicio` ya lo
 hiciera.
 
@@ -182,7 +192,7 @@ hiciera.
 > Medido en el PADRE el 2026-08-25, y **es el camino por defecto**, no un caso
 > raro: toda instancia nueva nace así.
 >
-> 1. `bootstrap-auth.mjs:229` crea al Dueño con `debe_cambiar_password = true` y
+> 1. `apps/web/scripts/bootstrap-auth.mjs:247` crea al Dueño con `debe_cambiar_password = true` y
 >    una temporal que **imprime una sola vez**. La del 21/08 se perdió al cerrar
 >    la consola.
 > 2. Google lo autentica sin problema.
@@ -277,7 +287,7 @@ APP_URL=http://localhost:3000
 > error es `redirect_uri_mismatch`, que al menos es explícito.
 >
 > **La barra final tampoco aquí es cosmética**: mismo motivo que en producción
-> (`google-oauth.ts:55-58`), y Google **no sigue redirecciones** en el callback.
+> (`google-oauth.ts:54-58`), y Google **no sigue redirecciones** en el callback.
 
 > [!tip] Y si sólo quieres ver la pantalla, hay un doble
 > `apps/web/lib/test/doble-google.ts`, con `GOOGLE_DOBLE_EMAIL` (por omisión

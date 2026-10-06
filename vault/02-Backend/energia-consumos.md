@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-09-29
+actualizado: 2026-10-05
 tags: [backend, energia, luz, reportes, rentabilidad, captura, operaciones, dinero, rojo]
 archivos:
   - db/migrations/20260918_consumos_energia.sql
@@ -83,7 +83,7 @@ consumos_energia
 ### Las cuatro decisiones que costaron pensarlas
 
 **1 · El anclaje es excluyente, y admite la pantalla suelta.** Molde:
-`licencias` (`20260729_licencias_permisos.sql:41-58`). El medidor del predio es
+`licencias` (`20260729_licencias_permisos.sql:41-59`; el CHECK del anclaje está en `:57-59`, medido el 05/10). El medidor del predio es
 el caso que describió el dueño; la pantalla suelta está porque
 **`sitios.predio_id` es NULLABLE**. Sin ella, el consumo de una pantalla sin
 predio no tendría dónde ir: existiría en el inventario y su luz no tendría fila
@@ -140,7 +140,7 @@ Fail-closed + FORCE, con el predicado **literal** de
 > Copiarla al motor de reportes habría hecho que **la renta de un predio se
 > repartiera de una forma y su luz de otra sobre las mismas pantallas**, en la
 > misma fila de la misma tabla. Es el error de raíz que este repo documenta en
-> `lib/server/tenant.ts:87-89`.
+> `lib/server/tenant.ts:87-89` *(al 2026-10-05 ese texto está en `:86-88`)*.
 >
 > El movimiento **no cambió conducta**: las **206 unitarias de `derive`** pasan
 > sin tocarse, incluidas `derive.anclaje-contrato.test.ts` y `derive.pnl.test.ts`.
@@ -478,7 +478,8 @@ quinta dimensión no le costó nada a la pantalla que ya existía.
    del recibo duplicado. Ver la lista de abajo.
 2. ~~**El área `energia` no está registrada**~~ **YA LO ESTÁ**, desde el merge de
    la ola 4: `lib/modulos.ts:42` y `components/demo/shell/nav.ts:130` (medido
-   sobre `main`, `ac4f71c`). Con eso `moduloDe()` resuelve `/energia` y
+   sobre `main`, `ac4f71c`; **al 2026-10-05 están en `lib/modulos.ts:87` y
+   `nav.ts:238`**, los dos archivos crecieron). Con eso `moduloDe()` resuelve `/energia` y
    `noAutorizado` vuelve a decidir. **Si vuelves a leer este punto en presente,
    está viejo.**
 

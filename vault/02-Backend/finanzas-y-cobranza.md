@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-09-17
+actualizado: 2026-10-05
 tags: [backend, finanzas, facturacion, dinero, rojo]
 archivos:
   - apps/web/lib/server/finanzas-repo.ts
@@ -9,6 +9,10 @@ archivos:
   - apps/web/lib/finanzas-calculo.ts
   - apps/web/lib/server/config-fiscal.ts
   - db/migrations/20260728_cobro_parcialidades.sql
+  - apps/web/lib/server/cambios.ts
+  - apps/web/lib/server/config-repo.ts
+  - apps/web/app/api/campanas/[id]/facturar/route.ts
+  - db/migrations/20260921_restaura_contrasena_compartida_cambios.sql
 ---
 
 # Finanzas: facturación y cobranza
@@ -29,7 +33,7 @@ archivos:
 > [!warning] Hasta el 2026-08-28 el «+ desbloqueo» no pedía nada en una instancia nueva
 > `exigirCambioSensible()` tiene dos mitades, y la segunda —comprobar que quien
 > está al teclado es esa persona— cuelga de `tenants.exigir_reautenticacion`
-> (`cambios.ts:199-210`). Esa columna nació con `default false`
+> (`exigeReautenticacion`, `cambios.ts:64-71`, que consulta `exigirDesbloqueo` en `:275-278`; `exigirCambioSensible` está en `:316`). Esa columna nació con `default false`
 > (`20260804_reautenticacion_individual.sql:34`) y **nada en las semillas ni en
 > el aprovisionamiento la tocaba**: cada instancia nueva arrancaba con el candado
 > abierto, incluidas las **tres rutas de dinero** —`facturar`, `cobranzas/pagar`
@@ -45,8 +49,16 @@ archivos:
 >
 > Sigue siendo un interruptor (ADR 0009): lo que cambió es la **polaridad** — se
 > apaga a propósito en vez de encenderse a propósito. La fricción es menor de lo
-> que suena: el desbloqueo dura 15 minutos (`cambios.ts:49`), así que facturar
+> que suena: el desbloqueo dura 15 minutos (`DESBLOQUEO_MINUTOS`, `cambios.ts:58`), así que facturar
 > diez campañas seguidas pide la contraseña una vez.
+>
+> **2026-09-21 · y ya no tiene que ser la contraseña propia** (ADR 0036, enmienda
+> al 0009, commit `a2355019`): el candado vuelve a aceptar también una
+> **contraseña compartida** que asigna el Dueño
+> (`20260921_restaura_contrasena_compartida_cambios.sql`). Abre el candado
+> general —el de facturar y cobrar incluido—, pero no
+> `exigirReautenticacionSiempre()`, que exige la propia
+> (`sesiones.desbloqueo_es_propio`). Detalle en [[autenticacion-y-sesion]].
 
 ## El candado de facturación
 
@@ -105,6 +117,18 @@ sequenceDiagram
 `razon_social`, `uso_cfdi`, `serie`, `folio_fiscal`): si el cliente cambia sus
 datos después, la factura emitida no cambia.
 
+> [!note] 2026-09-18 · la razón social que EMITE (`8c6002e7`)
+> `facturas.entidad_emisora_id` dice cuál de **mis** razones sociales emite el
+> comprobante. `POST /api/campanas/[id]/facturar` la recibe como
+> `entidadEmisoraId` (`finanzas-controller.ts:69`) y solo viaja al `insert`
+> (`finanzas-repo.ts:209-211`): **no toca ningún importe**. Ausente o `null` =
+> «sin asignar», y el servidor no la adivina; la preselección por roles es solo
+> de la pantalla. El esquema de facturar ganó `.strict()`
+> (`finanzas-controller.ts:74-80`): un `monto` colado en el cuerpo ya no se
+> ignora en silencio, es un 400. Ojo al nombre: `razon_social` de la factura es
+> la del **cliente**; la mía es `entidad_emisora_id` (`finanzas-repo.ts:30-33`).
+> Ver [[entidades-fiscales]] y [[multi-entidad-en-uso]].
+
 `lib/server/config-fiscal.ts` resuelve el IVA y la razón social comercial por
 tenant. El IVA por cliente vive en `clientes.iva_pct` (default 16).
 
@@ -128,10 +152,10 @@ omisión de la columna).
 > días)». Lo encontró la auditoría externa del 26/08 (CFG-01).
 >
 > Ahora la lista se lee **del tenant** con `plazosCobranzaDelTenant()`
-> (`config-repo.ts:96`), y con dos cautelas que conviene no deshacer:
+> (`config-repo.ts:110`), y con dos cautelas que conviene no deshacer:
 >
 > - **Lista vacía → respaldo `{60,90,120}`.** Es alcanzable: Administración
->   borra plazos uno a uno sin mínimo (`administracion/page.tsx:887`) y
+>   borra plazos uno a uno sin mínimo (`administracion/page.tsx:984`) y
 >   `PATCH /api/config` acepta el arreglo vacío. Tomarla al pie de la letra
 >   dejaría a esa organización **sin poder emitir ninguna factura** — peor que
 >   el fallo que se corrigió, y sobre dinero.

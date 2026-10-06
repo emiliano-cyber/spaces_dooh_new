@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-09-29
+actualizado: 2026-10-05
 tags: [backend, reportes, rentabilidad, finanzas, dinero, contratos, m2, operaciones, rojo]
 archivos:
   - apps/web/lib/data/reportes.ts
@@ -28,6 +28,10 @@ archivos:
 > `tarifa` porque la pregunta es de PRECIO y no de costo, y `vendedor` porque las
 > filas son PERSONAS y la renta del arrendador no la decide quien vende.
 > `tabla.luz.test.ts` comprueba que las tres exenciones sean **exactas**.
+>
+> *(Verificado el 2026-10-05: siguen siendo ocho — `DIMENSIONES_REPORTE`,
+> `apps/web/lib/data/reportes.ts:68`, y `MOTORES`,
+> `apps/web/lib/server/reportes-controller.ts:124-133`.)*
 
 Complementa a [[02-Backend/reportes-rentabilidad]], que describe el **límite** —
 el endpoint, sus capas, el prorrateo y el aislamiento. Esta nota cubre lo que
@@ -100,7 +104,8 @@ vuelva a decidir lo que ya está decidido.
 > Devuelve **una copia** con el estatus normalizado, como **argumento de una
 > llamada**. No se escribe nada en la base ni en la respuesta. La alternativa era
 > copiar la atribución al servidor, y este repo documenta esa clase de error como
-> su error de raíz (`lib/server/tenant.ts:87-89`): dos implementaciones divergen,
+> su error de raíz (`lib/server/tenant.ts:87-89`; al 05/10 el texto está en
+> `:86-88`, y el comentario de `derive.ts:1233` repite la cita vieja): dos implementaciones divergen,
 > y aquí divergir significa que **el reporte y el dashboard darían dos costos
 > distintos para la misma pantalla**. El guard de
 > `reportes-repo.aislamiento.test.ts` ya lo vigilaba y sigue en verde.
@@ -169,7 +174,7 @@ fila no es una pantalla. `arrendador` es nulo — son todos los del periodo. Y
 `detalle` trae el rango **real** cubierto, porque un reporte que arranca el 10 de
 febrero no cubre el T1 completo.
 
-La etiqueta sale de `etiquetaBucket()` (`derive.ts:1551`), la misma que pinta la
+La etiqueta sale de `etiquetaBucket()` (`derive.ts:1590` al 05/10; decía `:1551`), la misma que pinta la
 gráfica de ocupación: dos etiquetados del mismo trimestre acabarían diciendo
 «T1» en una pantalla y «1er trimestre» en la otra.
 
@@ -244,7 +249,7 @@ misma superficie. Mezclarlas produce **un ranking sin sentido y sin error**.
 Se usa la regla **de presentación** (`medioLabel`: el tipo de medio digital, **o**
 `es_rotativo`, **o** la exhibición digital o rotativa) y **no** la de booking
 (`esDigital`, que por S0-3 solo mira el tipo de medio). Las dos difieren a
-propósito (`derive.ts:1373`) y aquí manda la primera porque la pregunta es **qué
+propósito (`derive.ts:1415`, junto a `medioLabel` en `:1416`; decía `:1373`) y aquí manda la primera porque la pregunta es **qué
 vende** la pantalla: un rotativo sobre estructura estática vende rotación.
 
 > [!danger] Hay un guard, y es por el modo de fallo
@@ -391,7 +396,8 @@ convención vigente, y se les sumaron dos:
 > valor. Se convierte **una vez**, en el borde.
 
 El aislamiento **no cambió**: las seis consultas siguen con `q()` y su
-`and tenant_id` explícito, nunca `qRaw`. Ver
+`and tenant_id` explícito, nunca `qRaw`. *(Al 05/10 son once en
+`reportes-repo.ts`, todas con `q()`.)* Ver
 [[02-Backend/reportes-rentabilidad]] y [[multi-tenancy-y-rls]].
 
 ---

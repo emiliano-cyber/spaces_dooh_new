@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-02
+actualizado: 2026-10-06
 tags: [backend, comercial, propuestas, campanas, amarillo, precio]
 archivos:
   - apps/web/lib/server/propuestas-repo.ts
@@ -28,6 +28,9 @@ archivos:
   - apps/web/app/(app)/(shell)/campanas/[id]/page.tsx
   - apps/web/components/demo/campanas/FranjaProgramadaCampana.tsx
   - apps/web/lib/server/programacion-repo.ts
+  - apps/web/lib/server/contratos-sitio.ts
+  - apps/web/lib/server/portal-repo.ts
+  - apps/web/lib/server/paquetes-repo.ts
 ---
 
 # Comercial: propuestas, reservas y campañas
@@ -43,13 +46,17 @@ Cliente → Propuesta (folio, ítems, comisión) → aprobada
 
 | Archivo | Líneas | Responsabilidad |
 |---|---|---|
-| `campanas-repo.ts` | 1265 | Clientes, campañas, reservas, confirmar/extender |
-| `propuestas-repo.ts` | 638 | Propuestas, ítems, liga pública, aceptación |
-| `lib/descuento.ts` | 157 | Descuento válido **y bajo el tope**, y el texto de bitácora (puro, con tests) |
+| `campanas-repo.ts` | 1392 | Clientes, campañas, reservas, confirmar/extender |
+| `propuestas-repo.ts` | 1461 | Propuestas, ítems, liga pública, aceptación |
+| `lib/descuento.ts` | 321 | Descuento válido **y bajo el tope**, y el texto de bitácora (puro, con tests) |
 | `creativos-repo.ts` | 366 | Alta, validación y asignación de creativos |
-| `propuestas-controller.ts` | 121 | Validación zod |
+| `propuestas-controller.ts` | 428 | Validación zod |
 | `campanas-controller.ts` | 92 | Validación zod |
-| `lib/reparto-creativos.ts` | — | Reparto puro (con tests) |
+| `lib/reparto-creativos.ts` | 72 | Reparto puro (con tests) |
+
+> Líneas medidas con `wc -l` el 2026-10-05. `propuestas-repo.ts` y
+> `propuestas-controller.ts` más que duplicaron desde la tabla anterior
+> (638 y 121) con la cadena de precio del ADR 0039, PRECIO-01 y la calculadora.
 
 ## El método del divisor
 
@@ -63,9 +70,9 @@ lo que se le cobra al cliente.
 
 | Regla | Dónde |
 |---|---|
-| **No reservar con contrato incompleto** (ADR 0003) | `campanas-repo.ts` → `exigirContratoCompleto()` |
-| **Propuesta inmutable** una vez enviada | `PropuestaError` → 409 (`propuestas-repo.ts:9`) |
-| **Gate de negociación**: agencia con negociación sin validar bloquea crear/aprobar | `agenciaBloqueada()` (`propuestas-repo.ts:12-16`) |
+| **No reservar con contrato incompleto** (ADR 0003) | `exigirContratoCompleto()` (`contratos-sitio.ts:234`), llamada desde `campanas-repo.ts:467` y `:915` |
+| **Propuesta inmutable** una vez enviada | `PropuestaError` → 409 (`propuestas-repo.ts:63`) |
+| **Gate de negociación**: agencia con negociación sin validar bloquea crear/aprobar | `agenciaBloqueada()` (`propuestas-repo.ts:67`) |
 | **Cupo de clientes por pantalla** (ADR 0008) | `campanas-repo.cupo-clientes.test.ts` |
 | **Tope de descuento por organización** (TOPE-01) | `descuentoDentroDelTope()` (`lib/descuento.ts`) |
 | **Generar campaña es idempotente** (hallazgo A5) | `flujo-critico.e2e.test.ts` |
@@ -74,12 +81,12 @@ lo que se le cobra al cliente.
 
 ### El cupo global se lee con filtro de organización
 
-`cupoGlobalClientes()` (`campanas-repo.ts:295-313`) lee
+`cupoGlobalClientes()` (`campanas-repo.ts:317-335`, comentario y función) lee
 `config_negocio.max_clientes_pantalla` **filtrando por `tenant_id`** contra
 `current_setting('app.tenant_id', true)`, no solo apoyándose en la RLS.
 
 Hasta el 13/08 la consulta era un `select ... limit 1` **sin `where`**: hoy la
-salvaba el único llamador (`reservar()`, `:427`), que corre dentro de una
+salvaba el único llamador (`reservar()`, `:357`; la llamada está en `:449`), que corre dentro de una
 transacción con el tenant ya fijado. Es la segunda capa que el resto del repo sí
 aplica, y aquí faltaba — un `limit 1` sin `where` devuelve la fila de
 **cualquier** organización en cuanto alguien llame a la función desde otra
@@ -145,6 +152,12 @@ queda el importe, pero para entonces ya no se sabe quién lo puso.
 `textoBitacoraPropuesta()` escribe ahora «Puso 22 % de descuento en la propuesta
 (v2)» — y **solo cuando el descuento cambió de verdad**, no en cada guardado,
 porque anotarlo siempre haría inútil el filtro por persona de Actividad.
+
+> [!note] 2026-10-05 · quitar un paquete también pasa por el tope
+> Con paquete aplicado el volumen no cuenta contra el tope (PAQ-01); al quitarlo
+> volvía a sumarse y nadie lo revisaba. Desde `b2d30d50`, `quitarPaquete`
+> (`paquetes-repo.ts:376`) recalcula y pasa por el mismo `descuentoDentroDelTope`;
+> si no cabe, 409 y no se guarda nada. Detalle en [[paquete-cerrado]].
 
 ## La liga pública de la propuesta
 
@@ -220,7 +233,7 @@ cincuenta spots.
 >
 > Confundirlos fue **DATA-02** (auditoría del 26/08): se escribía el mismo valor
 > en las dos columnas, así que una propuesta mensual normal dejaba
-> `spots_reservados` en `null` y `reparto-creativos.ts:51-68` leía ese null como
+> `spots_reservados` en `null` y `reparto-creativos.ts:56-72` (`asignacionDePantalla`) leía ese null como
 > «es una lona» — una pantalla digital repartida como si fuera impresa. El
 > arreglo de la ESCRITURA vive en `campanas-repo.ts` (inserción desde propuesta);
 > el de la LECTURA es de hoy.
@@ -383,8 +396,13 @@ organización (`datosDelLoop`, `tarifas-repo.ts`: RLS + `and tenant_id`) y:
 | Parámetros mal, o `cantidad` que no cuadra | **400**, con la cuenta escrita; no se guarda nada |
 | Más espacios que los libres, o Roadblock sin el loop entero libre | **409** |
 | Prima de Roadblock > 0 sin `comercial.aprobar` | **403** «Solo un gerente o superior puede poner prima a un Roadblock.» |
-| Prima con permiso | Se guarda; tarifa esperada = calculada × (1+prima), `tarifa_calculada` = la de la pantalla, `precio_ajustado_por` = la sesión, y una línea en Actividad «… por Roadblock con prima del N %» |
+| Prima con permiso | Se guarda; tarifa esperada = calculada × (1+prima), `tarifa_calculada` = la base sin prima, `precio_ajustado_por` = la sesión, y una línea en Actividad «… por Roadblock con prima del N %» |
 
+- **ADR 0043 (06/10): el PRECIO de esa línea también lo pone la calculadora.**
+  La tarifa esperada ya no es la modalidad `spot`: es la tarifa mensual
+  repartida entre los spots del loop (`tarifaBaseCalculadora`), y el loop es la
+  ocupación de hoy (`campanasActivas`) más la línea, como la calculadora HTML
+  del dueño. Una pantalla sin tarifa mensual → 403 `sin-tarifa`, como PRECIO-01.
 - La prima entra en la regla de PRECIO-01 por `decidirPrecioCalculadora`, que
   aplica la prima **una vez** y marca la línea como ajuste. Las líneas sin
   calculadora siguen por `decidirPrecioItem`, sin cambio.
@@ -404,7 +422,7 @@ Detalle y decisiones en [[calculadora-de-spots]].
 ## Portal del cliente
 
 `campanas.portal_token` + `portal_activo` habilitan `/portal/[token]`.
-`portal-repo.ts:10-12`: devuelve **solo** lo de esa campaña — nada de otros
+`portal-repo.ts:9-12`: devuelve **solo** lo de esa campaña — nada de otros
 clientes ni datos financieros.
 
 ## Relacionadas

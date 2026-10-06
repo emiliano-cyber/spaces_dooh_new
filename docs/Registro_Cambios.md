@@ -5,6 +5,78 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-10-06
+
+- **La calculadora de spots ahora cuenta igual que tu calculadora HTML («Valor
+  Real del Spot Unitario»).** *(Decisión tuya del 06/10, ADR 0043.)* Cambian
+  cuatro cosas, y solo en las líneas que tienen la calculadora encendida:
+  - **El precio por spot sale de la tarifa mensual de la pantalla**: tarifa
+    mensual ÷ los spots que un anunciante recibe en un mes. Antes era la tarifa
+    «por spot» de la pantalla. Con tu ejemplo ($100,000, 6 anunciantes, 20
+    segundos, 18 horas) da **$6.17**, igual que el HTML. Si la pantalla no
+    tiene tarifa mensual, la línea lo avisa y solo un gerente puede ponerle
+    precio.
+  - **El loop son los anunciantes de hoy más los espacios que compras.** Antes
+    contaba siempre todos los espacios de la pantalla. Con la pantalla medio
+    vacía salen más spots y cada uno cuesta menos; con la pantalla llena, al
+    revés. Lo que se paga por un espacio durante un mes queda en la tarifa
+    mensual.
+  - **Las fracciones de spot ya no se tiran cada día**: se suman y se redondea
+    una sola vez al final. Con 7 anunciantes de 20 segundos, 30 días dan 13,885
+    spots (antes 13,860).
+  - **El Roadblock se valora por hora**, como en el HTML: lo que vale una hora
+    de la pantalla llena, más la prima, repartido entre los spots de esa hora.
+  - Debajo de la línea ves ahora el desglose: el tamaño del loop, las vueltas
+    por hora, los spots al día y la cuenta del precio.
+  - **Diferencia que queda:** el precio se cobra al centavo, así que el total
+    puede variar unos pesos frente a «espacios × tarifa mensual».
+  - **Las propuestas ya guardadas no cambian.** Si editas una, se recalcula con
+    la regla nueva. Las líneas por spot sin calculadora (cantidad a mano) siguen
+    con la tarifa por spot de siempre.
+
+## 2026-10-05
+
+- **Si el descuento por volumen ya pasa el tope, ahora se puede dejar el
+  descuento comercial en 0 % y aprobar.** Caso: Administración baja el descuento
+  máximo al 5 % y la escala de volumen de tu organización da 10 %. Hasta hoy el
+  sistema no dejaba aprobar la propuesta («ajusta el descuento») pero tampoco
+  dejaba guardarle **ningún** descuento, ni siquiera 0 %: no había salida sin
+  que Administración subiera el tope. Ahora **0 % de descuento comercial se
+  guarda y la propuesta se aprueba** (el volumen sale de la escala de la
+  organización, no lo decide quien vende). Cualquier descuento comercial por
+  encima de 0 se sigue rechazando, y el aviso ya dice qué hacer: «deja el
+  descuento comercial en 0 % o pide a Administración que suba el tope». Cuando
+  sí cabe algo, el aviso dice además **hasta cuánto** descuento comercial puedes
+  poner.
+- **Bajar el tope de descuento ya no deja cerrar ventas por encima de él.** Si
+  Administración baja el descuento máximo después de que una propuesta ya tenía
+  su descuento guardado, la propuesta **conserva** su descuento y se sigue
+  pudiendo editar, pero **ya no se puede aprobar así**: el sistema te dice el
+  descuento que lleva, el tope de hoy y te pide **ajustar el descuento** (o que
+  Administración suba el tope). Lo mismo si el **cliente** intenta aceptarla
+  desde la liga: no se acepta, y se le pide que hable con su ejecutivo (al
+  cliente no se le dice el tope). Antes la venta se cerraba con un descuento que
+  ya nadie autorizaba. Las propuestas sin descuento comercial no cambian.
+- **Un código promocional ya no se gasta en una propuesta con paquete de precio
+  final.** Si la propuesta tiene un paquete que **no admite códigos**, el código
+  no descuenta nada; pero hasta hoy el sistema lo aceptaba igual y **le restaba
+  un uso a la promoción**. Con un código de un solo uso, la promoción quedaba
+  agotada sin haber descontado un peso. Ahora el sistema **no deja aplicar el
+  código** en ese caso, te dice qué paquete lo impide y te pide quitar el
+  paquete o cambiarlo por uno que sí admita códigos. **No se gasta ningún uso.**
+  Al revés ya funcionaba bien y no cambia: poner un paquete así en una propuesta
+  que ya tiene código te pide quitar antes el código.
+- **Quitar un paquete ya no puede dejar una propuesta por encima del tope de
+  descuento.** Mientras una propuesta tiene un paquete, el descuento por volumen
+  no se aplica y por eso tampoco cuenta contra el tope. Pero al **quitar** el
+  paquete el volumen vuelve, y el descuento total podía quedar por encima del
+  máximo que autoriza tu organización sin que nadie lo revisara; la propuesta se
+  podía aprobar así. Por ejemplo: tope 20 %, volumen 10 % y descuento comercial
+  15 % daban un **23,5 %** en total. Ahora el sistema **no deja quitar el
+  paquete** en ese caso, te dice el tope y la cuenta, y te pide **bajar primero
+  el descuento comercial**. Si el descuento comercial es 0 %, el paquete se
+  puede quitar siempre.
+
 ## 2026-10-02
 
 - **En Nueva propuesta, los meses ya son meses de calendario.** *(Lo

@@ -1,13 +1,15 @@
 ---
 tipo: operacion
 estado: verificado
-actualizado: 2026-09-14
+actualizado: 2026-10-05
 tags: [riesgo, seguridad, operacion, obligatorio]
 archivos:
   - apps/web/lib/server/
   - db/migrations/
   - apps/web/middleware.ts
   - infra/nginx/demo.space-os.io.conf
+  - infra/nginx/space-os.io.conf
+  - infra/scripts/update.sh
   - infra/scripts/base-instancia.sh
   - infra/scripts/entorno-instancia.sh
   - infra/scripts/pruebas-provision.sh
@@ -21,6 +23,19 @@ archivos:
 > Clasificación derivada del código real de este repo, no de reglas genéricas.
 > Cada zona dice **por qué**, **qué se rompe** y **qué verificar antes de
 > mergear**.
+
+> [!important] 2026-10-05 · puesta al día contra el código
+> Remedido hoy en `integra/riesgos-presentacion-14-oct` (salida de `main` en
+> `09c65ca2`). Lo que cambió, cada uno en su sección:
+>
+> - **R6** — el PADRE se sirve hoy por **`spaceos.space-os.io`**, bloque 6 de
+>   `infra/nginx/space-os.io.conf` (`server_name` en `:374`), con certificado
+>   propio. El ápice `space-os.io` (`:133`) ya no resuelve a esta máquina.
+> - **R7** — `update.sh` sourcea `instancia.env` en **`:841`**, no en `:750`;
+>   las citas del recuadro del 11/09 derivaron (detalle al final de R7).
+> - **A1 / A2** — los tamaños eran de agosto; `propuestas-repo.ts` y
+>   `ot-repo.ts` **ya tienen unitarias**, y `codigos-repo.ts` (dinero, 609
+>   líneas) no figuraba.
 
 ---
 
@@ -202,6 +217,35 @@ reservas, creativos, OC y órdenes de impresión.
 `infra/systemd/spaces-web.service`, `infra/systemd/spaces-demo.service`,
 `infra/systemd/flota-reporte.service`
 
+> [!warning] 2026-10-05 · el PADRE ya NO se sirve por el ápice: `spaceos.space-os.io`, bloque 6
+> `infra/nginx/space-os.io.conf` tiene hoy **seis** bloques `server`: el
+> `default_server` (`:92`), el de HTTP→HTTPS (`:116`), el ápice
+> `space-os.io` (`:133`), `demo.space-os.io` (`:213`), `prueba.space-os.io`
+> (`:288`) y **`spaceos.space-os.io` (`:374`)**. El último nació el 01/10
+> (`9150d882`), pasó a **certificado propio** con `e3524eb0` —ampliar el del
+> ápice falló porque `space-os.io` ya no resuelve al PADRE y el `webroot`
+> de Let's Encrypt buscaba en otra máquina— y con `c1b4a1f9` (02/10) incluye
+> también `snippets/flota-reporte.conf` y `snippets/flota-panel.conf`: el
+> panel de flota y el receptor de reportes **solo estaban en el ápice**, y no
+> había dirección que llegara a ellos.
+>
+> **Lo que se rompe si se toca a medias:** un bloque nuevo cuyo certificado no
+> existe hace fallar `nginx -t` y el reload no ocurre; y el HSTS del ápice
+> lleva `includeSubDomains`, así que un subdominio sin certificado queda
+> **inaccesible**, no «con aviso». Fuera del archivo, y escrito para una
+> persona por `c1b4a1f9`: `ORIGEN_PANEL` de `flota.env` y el
+> `FLOTA_REPORTE_URL` de cada instancia tienen que apuntar a este nombre.
+> Nada de esto se comprobó contra el servidor el 05/10: se lee del archivo y de
+> los commits. Ver [[verificacion-de-produccion]].
+>
+> **2026-10-05 · el catch-all ya no manda fuera (en el repo; sin desplegar).**
+> El `default_server` del 80 (`:89-103`) redirigía a `https://space-os.io`
+> —desde el 01/10 otra máquina—; ahora hace **`return 444`** (`:101`). Vigila
+> el cambio `apps/web/lib/nginx-padre.test.ts`, que falla con cualquier 301 en
+> ese bloque. Ninguna línea del archivo se desplazó. Queda abierto el **443**:
+> sin `default_server`, un nombre desconocido cae en el bloque del ápice
+> (`:128`) y lo sirve el PADRE — decisión del dueño, no de esta tarea.
+
 > [!success] 2026-08-28 · La CSP pasa a BLOQUEANTE
 > Nació en modo reporte el 26/08 —una CSP mal puesta no da error de servidor,
 > devuelve 200 con la interfaz rota— y ese modo hizo su trabajo: destapó las
@@ -251,7 +295,7 @@ limitador en memoria funcione.
 
 > [!danger] 2026-09-11 · `provision-instancia.sh` escribe la configuración de un cliente SIN saneamiento — hallazgo de forma, no explotado hoy
 > **Por qué:** `update.sh` **sourcea** `instancia.env` (`. "$CONF"`,
-> `update.sh:750`) como root, por cron, cada noche. Eso significa que ese
+> `update.sh:750` el 11/09; **`:841` al 2026-10-05**) como root, por cron, cada noche. Eso significa que ese
 > archivo no es texto: es bash. Un valor con un espacio dentro, sin comillas,
 > se lee como DOS palabras — la primera queda como una asignación de entorno
 > para la segunda, que bash **ejecuta como un comando**. En el servidor de un
@@ -364,6 +408,22 @@ limitador en memoria funcione.
 > archivos que faltaban —el viejo y el que este trabajo añadió— antes de que
 > nadie los echara en falta.
 
+> [!note] 2026-10-05 · las citas del recuadro del 11/09 describen el código de ESE día
+> Se dejan como estaban porque cuentan el hallazgo; el código de hoy, medido:
+>
+> - `validar_valor_seguro()` ya no vive en `instalar-hijo.sh:115-130`: está en
+>   `infra/scripts/entorno-instancia.sh:62`, y `reescribir_env_sourceado()` en
+>   `:125` del mismo archivo.
+> - En `instalar-hijo.sh` las llamadas sobre `REGISTRY`, `REGISTRY_TOKEN` y
+>   `PADRE_URL` están en `:454`, `:459` y `:471` (no `:517`/`:522`/`:534`).
+>   El `source` de `base-instancia.sh` sigue en `:438-446`.
+> - `provision-instancia.sh` **ya sí se protege**: sourcea
+>   `entorno-instancia.sh` (`:304-311`), valida `--instancia`, `REGISTRY`,
+>   `REGISTRY_TOKEN` y `CANAL` en `:323-326`, y escribe con
+>   `reescribir_env_docker` (`:828`) y `reescribir_env_sourceado` (`:845`). Las
+>   citas `:633-640`, `:645-648`, `:515`, `:89-95` y `:157` del recuadro son
+>   del archivo de antes del cierre; el regex de `DOMINIO` está hoy en `:249`.
+
 ---
 
 # 🟡 AMARILLO — cambiar con cuidado
@@ -372,27 +432,35 @@ limitador en memoria funcione.
 
 Cubiertos por e2e, pero **no** por unitarias:
 
-| Archivo | Líneas | Cobertura |
+| Archivo | Líneas (`wc -l`, 05/10) | Cobertura (05/10) |
 |---|---|---|
-| `finanzas-repo.ts` | 298 | solo e2e |
-| `propuestas-repo.ts` | 593 | solo e2e |
-| `ot-repo.ts` | 269 | solo e2e |
-| `usuarios-repo.ts` | 224 | solo e2e |
+| `finanzas-repo.ts` | ~~298~~ 310 | solo e2e (los `finanzas-controller.*.test.ts` lo **simulan**) |
+| `propuestas-repo.ts` | ~~593~~ ~~1461~~ 1574 (+113 el 05/10 por TOPE-03) | **ya tiene unitarias**: `propuestas-repo-codigo`, `-codigo-aprobacion`, `-paquete`, `-volumen` y `-tope-vigente` `.test.ts` — de los caminos de precio nuevos, no del archivo entero |
+| `ot-repo.ts` | ~~269~~ 353 | **ya tiene unitarias**: `ot-repo.checklist-aislamiento.test.ts` y `ot-repo.costo-aislamiento.test.ts` |
+| `codigos-repo.ts` | ~~609~~ 638 (**faltaba**; +29 el 05/10 por el canje sobre paquete) | unitarias en `codigos-canje.test.ts` y `codigos-aprobacion.test.ts`; es dinero (canje y aprobación de cupones) |
+| `usuarios-repo.ts` | ~~224~~ 443 | solo e2e (`perfil-controller.password-google.test.ts` lo simula) |
 | `password-reset-repo.ts` | 122 | solo e2e |
 | `identidades-repo.ts` | 127 | solo e2e (Google) |
 
-**39 de 54 módulos de `lib/server/` no tienen prueba unitaria.** Antes de
-cambiar cualquiera de los de arriba, corre las e2e — que son las únicas que lo
-cubren y **tardan** (necesitan Docker).
+~~**39 de 54 módulos de `lib/server/` no tienen prueba unitaria.**~~ La cifra era
+de agosto. Al 2026-10-05 `lib/server/` tiene **85** módulos `.ts` que no son
+prueba, y **58** no tienen un `.test.ts` con su nombre al lado — es una
+heurística por nombre (`codigos-repo` sale «sin prueba» y la tiene con otro
+nombre), no una medida de cobertura. Antes de cambiar cualquiera de los de
+arriba, corre las e2e — que son las únicas que cubren el SQL de verdad y
+**tardan** (necesitan Postgres).
 
 ## A2 · Los archivos gigantes
 
 | Archivo | Líneas | Riesgo |
 |---|---|---|
-| `arrendadores-repo.ts` | 1317 | Conflictos entre agentes garantizados |
-| `campanas-repo.ts` | 1214 | Idem |
-| `sitios-repo.ts` | 624 | Whitelist `CAMPO_COL` — expone columnas a escritura |
-| `propuestas-repo.ts` | 593 | Sin unitarias |
+| `arrendadores-repo.ts` | ~~1317~~ 1498 | Conflictos entre agentes garantizados |
+| `propuestas-repo.ts` | ~~593~~ ~~1461~~ 1574 | Toda la cadena de precio del ADR 0039 vive aquí; unitarias solo de esos caminos |
+| `campanas-repo.ts` | ~~1214~~ 1392 | Idem |
+| `sitios-repo.ts` | ~~624~~ 741 | Whitelist `CAMPO_COL` — expone columnas a escritura |
+| `codigos-repo.ts` | 609 | Cupones: `for update` contra la carrera del último uso |
+
+Líneas medidas con `wc -l` el 2026-10-05; lo tachado es de agosto.
 
 Dos agentes en el mismo archivo **van a chocar**. Ver [[AGENTES]].
 

@@ -11,11 +11,13 @@ import {
   horasDeFranja,
   horasDeHorario,
   horasPorOmision,
-  referenciaPorSpotMensual,
+  cantidadDeSpots,
+  loopDeLaLinea,
   resolverCalculadora,
   rotacionesPorHora,
-  spotsPorDia,
+  tarifaBaseCalculadora,
   tarifaConPrima,
+  tarifaPorSpot,
   usaCalculadora,
   type EntradaCalculadora,
 } from './calculadora-spots'
@@ -28,32 +30,106 @@ import { traducirError } from './i18n/errores-servidor'
 //  servidor rechaza de verdad lo mide `calculadora-spots.e2e.test.ts`.
 // ============================================================================
 
+// ADR 0043 · las fórmulas son las de la calculadora HTML del dueño
+// (`indexcal.html`), con UNA diferencia: se cuenta en enteros —horas en
+// centésimas, pesos en centavos— para que la pantalla y el servidor den el
+// MISMO número. Los casos llevan las cifras que enseña esa calculadora.
 describe('las fórmulas', () => {
-  it('rotaciones por hora = 3600 / (espacios del loop × duración)', () => {
+  it('rotaciones por hora = 3600 / (anunciantes del loop × duración)', () => {
     expect(rotacionesPorHora(12, 20)).toBe(15)
+    expect(rotacionesPorHora(6, 20)).toBe(30)
     expect(rotacionesPorHora(7, 20)).toBeCloseTo(25.714, 3)
   })
 
-  it('spots al día: el caso exacto, 12 espacios × 20 s, 1 espacio, 18 h → 270', () => {
-    expect(spotsPorDia({ totalSpots: 12, duracionSeg: 20, espacios: 1, horasDia: 18 })).toBe(270)
-    expect(spotsPorDia({ totalSpots: 12, duracionSeg: 20, espacios: 3, horasDia: 18 })).toBe(810)
+  it('el loop es la OCUPACIÓN: los anunciantes de hoy más los espacios que compra la línea', () => {
+    expect(loopDeLaLinea({ totalSpots: 12, ocupados: 5, espacios: 1, roadblock: false })).toBe(6)
+    expect(loopDeLaLinea({ totalSpots: 12, ocupados: 0, espacios: 2, roadblock: false })).toBe(2)
+    // Nunca más que la pantalla: el exceso lo rechaza el 409 de los libres.
+    expect(loopDeLaLinea({ totalSpots: 12, ocupados: 11, espacios: 3, roadblock: false })).toBe(12)
+    // Sin saber la ocupación, el loop entero: no se inventa una pantalla vacía.
+    expect(loopDeLaLinea({ totalSpots: 12, ocupados: null, espacios: 1, roadblock: false })).toBe(12)
+    // Un Roadblock ES el loop entero.
+    expect(loopDeLaLinea({ totalSpots: 12, ocupados: 0, espacios: 12, roadblock: true })).toBe(12)
   })
 
-  it('el caso FRACCIONARIO: 7 espacios × 20 s se redondea hacia ABAJO por día', () => {
-    // 3600 / 140 = 25,714… rotaciones por hora. La calculadora original cobraba
-    // 25,714 × 18 = 462,857 spots; aquí se cobran 462: no se cobra una
-    // reproducción que no ocurre.
-    expect(spotsPorDia({ totalSpots: 7, duracionSeg: 20, espacios: 1, horasDia: 1 })).toBe(25)
-    expect(spotsPorDia({ totalSpots: 7, duracionSeg: 20, espacios: 1, horasDia: 18 })).toBe(462)
-    // Y se redondea al FINAL del día, no por hora: 25 × 18 serían 450.
-    expect(spotsPorDia({ totalSpots: 7, duracionSeg: 20, espacios: 2, horasDia: 18 })).toBe(925)
+  it('el caso de la calculadora HTML: 6 anunciantes × 20 s, 18 h, 30 días → 16 200 spots', () => {
+    expect(cantidadDeSpots({ loop: 6, duracionSeg: 20, espacios: 1, horasDia: 18, dias: 30, roadblock: false })).toBe(16200)
   })
 
-  it('las horas fraccionarias cuentan al minuto que dan, sin errores de coma flotante', () => {
-    // 15 rotaciones × 1 espacio × 4,5 h = 67,5 → 67.
-    expect(spotsPorDia({ totalSpots: 12, duracionSeg: 20, espacios: 1, horasDia: 4.5 })).toBe(67)
-    // 0,1 + 0,2 no es 0,3 en flotante; la cuenta no puede depender de eso.
-    expect(spotsPorDia({ totalSpots: 12, duracionSeg: 20, espacios: 1, horasDia: 0.1 + 0.2 })).toBe(4)
+  it('SIN redondeo por día: 7 anunciantes × 20 s cuenta las fracciones y redondea UNA vez, al final', () => {
+    // 3600 / 140 = 25,714… × 18 h = 462,857 al día × 30 = 13 885,7 → 13 885.
+    // Con el redondeo por día del ADR 0042 eran 462 × 30 = 13 860.
+    expect(cantidadDeSpots({ loop: 7, duracionSeg: 20, espacios: 1, horasDia: 18, dias: 30, roadblock: false })).toBe(13885)
+    expect(cantidadDeSpots({ loop: 7, duracionSeg: 20, espacios: 1, horasDia: 18, dias: 1, roadblock: false })).toBe(462)
+  })
+
+  it('las horas fraccionarias, sin errores de coma flotante', () => {
+    // 15 rotaciones × 4,5 h × 2 días = 135, exacto.
+    expect(cantidadDeSpots({ loop: 12, duracionSeg: 20, espacios: 1, horasDia: 4.5, dias: 2, roadblock: false })).toBe(135)
+    // 0,1 + 0,2 no es 0,3 en flotante; 15 × 0,3 × 10 = 45, no 44.
+    expect(cantidadDeSpots({ loop: 12, duracionSeg: 20, espacios: 1, horasDia: 0.1 + 0.2, dias: 10, roadblock: false })).toBe(45)
+  })
+
+  it('Roadblock: floor(3600 / duración) spots por hora, como la calculadora HTML', () => {
+    expect(cantidadDeSpots({ loop: 12, duracionSeg: 20, espacios: 12, horasDia: 18, dias: 30, roadblock: true })).toBe(97200)
+    // 3600 / 7 = 514,28 → 514 por hora: la hora no da un spot partido.
+    expect(cantidadDeSpots({ loop: 12, duracionSeg: 7, espacios: 12, horasDia: 1, dias: 1, roadblock: true })).toBe(514)
+  })
+})
+
+describe('tarifaPorSpot · el PRECIO sale de la tarifa mensual, como en la calculadora HTML', () => {
+  it('tarifa mensual ÷ spots de un anunciante al mes: $100,000 con 6 anunciantes → $6.17', () => {
+    expect(tarifaPorSpot({ tarifaMensual: 100000, loop: 6, duracionSeg: 20, horasOperacion: 18, roadblock: false })).toBe(6.17)
+  })
+
+  it('con el loop lleno el spot vale el doble que con la mitad: lo que se paga al mes no cambia', () => {
+    expect(tarifaPorSpot({ tarifaMensual: 100000, loop: 12, duracionSeg: 20, horasOperacion: 18, roadblock: false })).toBe(12.35)
+  })
+
+  it('Roadblock: ingreso de la hora ÷ spots de la hora, $1,111.11 / 180 → $6.17', () => {
+    // ingresoHora = 100 000 × 6 / (18 × 30) = 1 111,11; spots en la hora = 180.
+    expect(tarifaPorSpot({ tarifaMensual: 100000, loop: 6, duracionSeg: 20, horasOperacion: 18, roadblock: true })).toBe(6.17)
+    // Y con la prima del 30 % del HTML, $8.02 por spot ($1,444.44 la hora).
+    expect(tarifaConPrima(6.17, 30)).toBe(8.02)
+  })
+
+  it('NEGATIVO · sin tarifa mensual, sin loop o sin horas no hay precio', () => {
+    expect(tarifaPorSpot({ tarifaMensual: 0, loop: 6, duracionSeg: 20, horasOperacion: 18, roadblock: false })).toBeNull()
+    expect(tarifaPorSpot({ tarifaMensual: 100000, loop: 0, duracionSeg: 20, horasOperacion: 18, roadblock: false })).toBeNull()
+    expect(tarifaPorSpot({ tarifaMensual: 100000, loop: 6, duracionSeg: 20, horasOperacion: 0, roadblock: false })).toBeNull()
+  })
+})
+
+describe('tarifaBaseCalculadora · de qué tarifa mensual sale', () => {
+  const comun = {
+    franjaId: null,
+    temporadas: [],
+    fechaInicio: '2026-11-01',
+    loop: 6,
+    duracionSeg: 20,
+    horasOperacion: 18,
+    roadblock: false,
+  }
+
+  it('la modalidad mensual de la pantalla, aunque la línea se venda por spot', () => {
+    const sitio = {
+      modalidadesDetalle: [
+        { unidad: 'spot', tarifaPublicada: 3200 },
+        { unidad: 'mensual', tarifaPublicada: 100000 },
+      ],
+    }
+    expect(tarifaBaseCalculadora({ ...comun, sitio })).toEqual({ tarifa: 6.17, calculable: true })
+  })
+
+  it('sin modalidad mensual, la tarifa mensual de la ficha', () => {
+    const sitio = { tarifaMensual: 100000, modalidadesDetalle: [{ unidad: 'spot', tarifaPublicada: 3200 }] }
+    expect(tarifaBaseCalculadora({ ...comun, sitio })).toEqual({ tarifa: 6.17, calculable: true })
+  })
+
+  it('NEGATIVO · sin ninguna tarifa mensual NO cae a la del spot: no es calculable', () => {
+    // Caer a los $3,200 «por spot» es justo lo que cotizaba $32.6 M el 01/10.
+    const sitio = { modalidadesDetalle: [{ unidad: 'spot', tarifaPublicada: 3200 }] }
+    expect(tarifaBaseCalculadora({ ...comun, sitio })).toEqual({ tarifa: 0, calculable: false })
   })
 })
 
@@ -102,7 +178,9 @@ describe('los respaldos', () => {
   })
 })
 
-// Pantalla de 12 espacios de 20 s, 18 h de operación, 5 libres, 30 días.
+// Pantalla de 12 espacios de 20 s, 18 h de operación, 4 anunciantes hoy, 5
+// libres (el contador guardado acota), 30 días. Con 2 espacios el loop es de 6:
+// 30 rotaciones por hora × 2 espacios × 18 h = 1080 al día.
 const base: EntradaCalculadora = {
   digital: true,
   unidad: 'spot',
@@ -110,12 +188,13 @@ const base: EntradaCalculadora = {
   duracionSeg: 20,
   horasMaximas: 18,
   libres: 5,
+  ocupados: 4,
   dias: 30,
   espaciosComprados: 2,
   horasDia: null,
   roadblock: false,
   primaRoadblockPct: null,
-  cantidadEnviada: 2 * 270 * 30,
+  cantidadEnviada: 1080 * 30,
 }
 
 describe('resolverCalculadora · la línea completa', () => {
@@ -127,15 +206,28 @@ describe('resolverCalculadora · la línea completa', () => {
       horasDia: 18,
       roadblock: false,
       primaRoadblockPct: null,
-      rotacionesHora: 15,
-      spotsDia: 540,
-      cantidad: 16200,
+      loop: 6,
+      rotacionesHora: 30,
+      spotsDia: 1080,
+      spotsDiaExactos: 1080,
+      cantidad: 32400,
     })
   })
 
   it('el vendedor BAJA las horas y la cantidad baja con ellas', () => {
-    const r = resolverCalculadora({ ...base, horasDia: 6, cantidadEnviada: 2 * 90 * 30 })
-    expect(r).toMatchObject({ ok: true, horasDia: 6, spotsDia: 180, cantidad: 5400 })
+    const r = resolverCalculadora({ ...base, horasDia: 6, cantidadEnviada: 360 * 30 })
+    expect(r).toMatchObject({ ok: true, horasDia: 6, spotsDia: 360, cantidad: 10800 })
+  })
+
+  it('el loop crece con la ocupación: con 9 anunciantes hoy, 2 espacios son un loop de 11', () => {
+    // 3600 / 220 = 16,36 rotaciones × 2 × 18 = 589,09 al día × 30 = 17 672,7 → 17 672.
+    const r = resolverCalculadora({ ...base, ocupados: 9, libres: null, cantidadEnviada: 17672 })
+    expect(r).toMatchObject({ ok: true, loop: 11, spotsDia: 589, cantidad: 17672 })
+  })
+
+  it('sin ocupación conocida, el loop es la pantalla entera', () => {
+    const r = resolverCalculadora({ ...base, ocupados: null, cantidadEnviada: 540 * 30 })
+    expect(r).toMatchObject({ ok: true, loop: 12, spotsDia: 540, cantidad: 16200 })
   })
 
   it('NEGATIVO · una cantidad que no cuadra se rechaza con la cuenta escrita', () => {
@@ -144,7 +236,7 @@ describe('resolverCalculadora · la línea completa', () => {
       ok: false,
       status: 400,
       motivo:
-        'La cantidad de spots no cuadra con la calculadora: con 2 espacios, 18 h al día y 30 días son 16200 spots, no 100.',
+        'La cantidad de spots no cuadra con la calculadora: con 2 espacios, 18 h al día y 30 días son 32400 spots, no 100.',
     })
     // Sin cantidad tampoco: el servidor no rellena lo que el vendedor no vio.
     expect(resolverCalculadora({ ...base, cantidadEnviada: null })).toMatchObject({ ok: false, status: 400 })
@@ -163,14 +255,15 @@ describe('resolverCalculadora · la línea completa', () => {
   })
 
   it('NEGATIVO · más espacios que los libres → 409, no 400: es la pantalla, no la petición', () => {
-    const r = resolverCalculadora({ ...base, espaciosComprados: 6, cantidadEnviada: 6 * 270 * 30 })
+    const r = resolverCalculadora({ ...base, espaciosComprados: 6, cantidadEnviada: 58320 })
     expect(r).toEqual({
       ok: false,
       status: 409,
       motivo: 'Pides 6 espacios del loop y la pantalla solo tiene 5 libres.',
     })
     // `libres` desconocido no acota, igual que `spotsDeLaReserva`.
-    expect(resolverCalculadora({ ...base, libres: null, espaciosComprados: 6, cantidadEnviada: 48600 })).toMatchObject({
+    // Loop de 4 + 6 = 10: 18 rotaciones × 6 × 18 h × 30 = 58 320.
+    expect(resolverCalculadora({ ...base, libres: null, espaciosComprados: 6, cantidadEnviada: 58320 })).toMatchObject({
       ok: true,
     })
   })
@@ -185,10 +278,15 @@ describe('resolverCalculadora · la línea completa', () => {
     expect(resolverCalculadora({ ...base, totalSpots: 0 })).toMatchObject({ ok: false, status: 400 })
   })
 
-  it('NEGATIVO · si no sale ni un spot al día, no se vende', () => {
-    // 12 × 20 s = 240 s de loop; 0,05 h = 180 s: no da una vuelta.
-    const r = resolverCalculadora({ ...base, espaciosComprados: 1, horasDia: 0.05, cantidadEnviada: 0 })
+  it('NEGATIVO · si en todo el periodo no sale ni un spot, no se vende', () => {
+    // Loop de 5 × 20 s = 100 s; 0,02 h = 72 s: 0,72 spots en un día.
+    const r = resolverCalculadora({ ...base, espaciosComprados: 1, horasDia: 0.02, dias: 1, cantidadEnviada: 0 })
     expect(r).toMatchObject({ ok: false, status: 400 })
+  })
+
+  it('pero las fracciones de varios días SÍ suman: 0,72 al día × 30 días = 21', () => {
+    const r = resolverCalculadora({ ...base, espaciosComprados: 1, horasDia: 0.02, cantidadEnviada: 21 })
+    expect(r).toMatchObject({ ok: true, spotsDia: 0, cantidad: 21 })
   })
 })
 
@@ -196,10 +294,11 @@ describe('Roadblock', () => {
   const rb: EntradaCalculadora = {
     ...base,
     libres: 12,
+    ocupados: 0,
     roadblock: true,
     espaciosComprados: null,
     primaRoadblockPct: 25,
-    cantidadEnviada: 12 * 270 * 30,
+    cantidadEnviada: 180 * 18 * 30,
   }
 
   it('compra TODOS los espacios del loop', () => {
@@ -208,6 +307,7 @@ describe('Roadblock', () => {
       espaciosComprados: 12,
       roadblock: true,
       primaRoadblockPct: 25,
+      loop: 12,
       spotsDia: 3240,
       cantidad: 97200,
     })
@@ -298,7 +398,7 @@ describe('los motivos llegan traducidos al inglés', () => {
     // La GUARDIA de `errores-servidor.test.ts` solo ve los literales de
     // `new AppError('…')`; éstos viajan como `AppError(r.motivo)` y se le
     // escaparían. Si alguien reescribe un motivo, esto se pone en rojo.
-    const rb = { ...base, roadblock: true, espaciosComprados: null, libres: 12, cantidadEnviada: 97200 }
+    const rb = { ...base, roadblock: true, espaciosComprados: null, libres: 12, ocupados: 0, cantidadEnviada: 97200 }
     const casos: EntradaCalculadora[] = [
       { ...base, digital: false },
       { ...base, totalSpots: null },
@@ -307,11 +407,11 @@ describe('los motivos llegan traducidos al inglés', () => {
       { ...rb, primaRoadblockPct: 101 },
       { ...base, primaRoadblockPct: 10 },
       { ...base, horasDia: 19 },
-      { ...base, espaciosComprados: 1, horasDia: 0.05, cantidadEnviada: 0 },
+      { ...base, espaciosComprados: 1, horasDia: 0.02, dias: 1, cantidadEnviada: 0 },
       { ...base, dias: 0 },
       { ...base, cantidadEnviada: 100 },
       { ...rb, libres: 11 },
-      { ...base, espaciosComprados: 6, cantidadEnviada: 48600 },
+      { ...base, espaciosComprados: 6, cantidadEnviada: 58320 },
     ]
     for (const c of casos) {
       const r = resolverCalculadora(c)
@@ -326,7 +426,7 @@ describe('previsualizarCalculadora · lo que enseña la pantalla ANTES de mandar
   it('da la misma cantidad que luego acepta el servidor', () => {
     const { cantidadEnviada: _, ...sinCantidad } = base
     const prev = previsualizarCalculadora(sinCantidad)
-    expect(prev).toMatchObject({ ok: true, cantidad: 16200, spotsDia: 540 })
+    expect(prev).toMatchObject({ ok: true, cantidad: 32400, spotsDia: 1080 })
     if (!prev.ok) return
     expect(resolverCalculadora({ ...base, cantidadEnviada: prev.cantidad })).toEqual(prev)
   })
@@ -389,20 +489,6 @@ describe('espaciosLibres · lo mismo que el inventario, y nunca más que el cont
     expect(espaciosLibres({ totalSpots: 2, guardados: null, campanasActivas: 5 })).toBe(0)
     expect(espaciosLibres({ totalSpots: null, guardados: null, campanasActivas: 0 })).toBeNull()
     expect(espaciosLibres({ totalSpots: null, guardados: 3, campanasActivas: 0 })).toBe(3)
-  })
-})
-
-describe('referenciaPorSpotMensual · informativa, nunca se cobra', () => {
-  it('tarifa mensual ÷ spots de un cliente al mes', () => {
-    // 15 rotaciones × 18 h = 270 al día × 30 = 8100 al mes.
-    expect(referenciaPorSpotMensual({ tarifaMensual: 45000, totalSpots: 12, duracionSeg: 20, horasOperacion: 18 })).toBe(
-      5.56,
-    )
-  })
-
-  it('sin tarifa mensual o sin loop, no hay referencia', () => {
-    expect(referenciaPorSpotMensual({ tarifaMensual: 0, totalSpots: 12, duracionSeg: 20, horasOperacion: 18 })).toBeNull()
-    expect(referenciaPorSpotMensual({ tarifaMensual: 45000, totalSpots: null, duracionSeg: 20, horasOperacion: 18 })).toBeNull()
   })
 })
 

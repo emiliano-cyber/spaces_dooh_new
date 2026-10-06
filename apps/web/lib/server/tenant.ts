@@ -2,17 +2,17 @@ import 'server-only'
 import { cache } from 'react'
 import type { PoolClient } from 'pg'
 import { cookies } from 'next/headers'
-// Bootstrap del tenant: usa consultas RAW (sin GUC) sobre tablas EXENTAS de RLS
-// fail-closed (tenants/usuarios). Fijar el GUC aquí recursaría (q -> tenantActual).
+// Bootstrap del tenant: consultas RAW (sin GUC); fijarlo aquí recursaría (q -> tenantActual).
+// Solo leen `tenants`, que NO tiene RLS. `usuarios` SÍ es fail-closed: ver la cabecera.
 import { qRaw as q, qRaw1 as q1 } from './db'
 import { usuarioActual } from './auth'
 
 // ============================================================================
 //  lib/server/tenant.ts — Multi-tenant a nivel aplicación.
 // ----------------------------------------------------------------------------
-//  Cada organización (fila de `tenants`) es un CRM propio. El aislamiento se
-//  hace por FILTRADO EXPLÍCITO de `tenant_id` en las lecturas y ESTAMPADO en
-//  los inserts (la conexión sigue siendo superuser, así que RLS no aplica).
+//  Cada organización (fila de `tenants`) es un CRM propio. Aísla la RLS fail-closed + FORCE
+//  (rol de la app NOBYPASSRLS, ASSERT en `20260720_hard1_usuarios_rls.sql`) y, de 2.ª capa,
+//  el `tenant_id` explícito. `usuarios` se lee por las `auth_*`: un qRaw directo da 0 filas.
 //
 //  El "tenant activo" de la request es:
 //   • el del usuario en sesión, o
@@ -75,8 +75,8 @@ export async function listarTenants(): Promise<TenantRow[]> {
 }
 
 // Crea una organización (CRM) nueva. Si el slug choca, se le añade un sufijo.
-// Nota: `config_negocio` es global (una sola fila), así que por ahora todos los
-// CRMs comparten la configuración del negocio (moneda, IVA, loop/slot).
+// `config_negocio` es una fila POR TENANT desde el ADR 0011 (`db/schema.sql:643`):
+// esta función no la crea; la crea quien da de alta, o `config-repo.ts` al leer.
 //
 // F5.1: acepta un `client` opcional para participar en la transacción del alta.
 // Sin él, todo sigue como antes. La tarea no listaba este archivo, pero sin esto

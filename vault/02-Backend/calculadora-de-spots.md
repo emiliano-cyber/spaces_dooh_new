@@ -1,7 +1,7 @@
 ---
 tipo: contrato
 estado: verificado
-actualizado: 2026-10-01
+actualizado: 2026-10-05
 tags: [backend, precios, propuestas, dinero, spots, roadblock, digital]
 archivos:
   - apps/web/lib/calculadora-spots.ts
@@ -22,15 +22,23 @@ archivos:
 
 # La calculadora de spots
 
-**ADR 0042, aceptado el 2026-10-01.** La calculadora da la **CANTIDAD** de spots
-de una línea de pantalla digital vendida por spot. El **precio** sigue siendo el
-de la pantalla: la cadena del ADR 0039 —modalidad `spot`, rejilla por franja y
-temporada, volumen sobre la cantidad, código, comisión— no cambia.
+**ADR 0043, aceptado el 2026-10-06, que sustituye las decisiones 1, 2 y 3 del
+ADR 0042.** La calculadora da la **CANTIDAD** de spots de una línea de pantalla
+digital vendida por spot **y su PRECIO**, y cuenta como la calculadora HTML con
+la que cotiza el dueño (`indexcal.html`, «Valor Real del Spot Unitario»):
 
 ```
-spotsDia = floor( 3600 / (espaciosDelLoop × duraciónSpot) × espaciosComprados × horasDía )
-cantidad = spotsDia × días
+loop      = anunciantes de hoy + espacios de la línea        (Roadblock: todos)
+cantidad  = floor( 3600 / (loop × duración) × espacios × horasDía × días )
+precio    = tarifaMensual / (3600 / (loop × duración) × horasOperación × 30)
+Roadblock = tarifaMensual × loop / (horasOperación × 30) / floor(3600 / duración)
+            por spot, × (1 + prima)
 ```
+
+Con el ejemplo del HTML —$100,000 al mes, 6 anunciantes, 20 s, 18 h, 30 días—
+da lo mismo que el HTML: **16 200 spots a $6.17**, y el Roadblock con prima del
+30 % a **$8.02** por spot ($1,444.44 la hora). El volumen, el cupón y la
+comisión se siguen componiendo **encima** del precio (ADR 0039).
 
 Todo vive en **un módulo puro**, `apps/web/lib/calculadora-spots.ts`, que usan la
 pantalla y el servidor. Es la misma razón que `tarifa-calculada.ts`: si cada lado
@@ -41,25 +49,64 @@ otro.
 
 | Función | Qué hace |
 |---|---|
-| `spotsPorDia` | La fórmula, **en enteros** (horas en centésimas): `0.1 + 0.2` no puede quitarle un spot a nadie |
+| `loopDeLaLinea` | Ocupados + espacios de la línea, con tope en `total_spots`. Sin ocupación conocida, o en Roadblock, el loop entero |
+| `cantidadDeSpots` | La cantidad **en enteros** (horas en centésimas), redondeada UNA vez al final del periodo |
+| `tarifaPorSpot` | El precio por spot, al centavo, normal o de Roadblock |
+| `tarifaMensualDeSitio` | De qué tarifa mensual sale: la modalidad `mensual` (con su rejilla) o `sitios.tarifa_mensual`. **Nunca** la tarifa `spot` |
+| `tarifaBaseCalculadora` | `{ tarifa, calculable }` para `decidirPrecioCalculadora` |
 | `resolverCalculadora` | La línea completa: valida, calcula la cantidad, la compara con la enviada y mira los libres. Devuelve `400` (la petición está mal) o `409` (la pantalla no tiene los espacios) |
 | `decidirPrecioCalculadora` | La prima del Roadblock dentro de la regla de PRECIO-01 |
 | `duracionSpotSeg` | La pantalla → la organización (`config_negocio.spot_seg`) → **20 s** |
 | `horasDeFranja` / `horasDeHorario` / `horasPorOmision` | El techo de horas al día |
 | `tarifaConPrima` | `tarifa × (1 + prima/100)`, al centavo |
-| `referenciaPorSpotMensual` | «Equivale a $X por spot frente a la tarifa mensual». **Informativa: nunca se cobra** |
+
+> [!note] 2026-10-05 · dónde está cada pieza, medido hoy
+> En `apps/web/lib/calculadora-spots.ts`: `duracionSpotSeg` `:67`,
+> `horasDeFranja` `:78`, `horasDeHorario` `:111`, `horasPorOmision` `:134`,
+> `spotsPorDia` `:164`, `tarifaConPrima` `:178`, `usaCalculadora` `:197`,
+> `resolverCalculadora` `:253`, `previsualizarCalculadora` `:263`,
+> `etiquetaCalculadora` `:355`, `decidirPrecioCalculadora` `:386`,
+> `espaciosLibres` `:424`, `referenciaPorSpotMensual` `:445` y
+> `CALCULADORA_POR_OMISION` `:474`. En el servidor: la calculadora corre en
+> `crearPropuestaCtrl` **antes** que la tarifa
+> (`apps/web/lib/server/propuestas-controller.ts:236-267`), y la prima entra en
+> la decisión de precio en `:368-375`; el loop sale de `datosDelLoop`
+> (`apps/web/lib/server/tarifas-repo.ts:138`); la campaña pasa
+> `it.espacios_comprados ?? it.spots_por_dia` en
+> `apps/web/lib/server/campanas-repo.ts:794`. Los meses de calendario de
+> `6ab3c1f2` (02/10) no tocan esta cuenta: usa **días** (`diasInclusivos`,
+> `propuestas-controller.ts:236`).
 
 ## Decisiones que hubo que tomar
 
-> [!important] Se redondea hacia abajo, UNA vez y al final del día
-> Con 7 espacios de 20 s salen 25,71 rotaciones por hora. La calculadora original
-> cobraba la fracción; aquí `floor(25,71 × 18) = 462` spots al día. Ni 462,86
-> (se cobraría una reproducción que no ocurre) ni `25 × 18 = 450` (se le
-> quitarían 12 al cliente por redondear cada hora).
+> [!important] La ocupación son las CAMPAÑAS VIGENTES, en los dos lados
+> El inventario enseña libres = `total − campañas` (`listarSitios`), así que la
+> pantalla saca los ocupados como `total − libres`, y el servidor lee
+> `campanasActivas` de `datosDelLoop`. Es el mismo número. **No** se usa el
+> contador `spots_disponibles` guardado: si cada lado contara el loop con un
+> número distinto, la cantidad no cuadraría y el servidor rechazaría la venta con
+> un 400 sin que nadie hubiera tocado nada.
 
-> [!important] El loop son TODOS los espacios (`total_spots`)
-> No la ocupación del día. Con la pantalla medio vacía el mismo spot no puede
-> salir más barato (decisión 3 del ADR).
+> [!important] Las fracciones suman; se redondea una vez, al final
+> Con 7 anunciantes de 20 s salen 25,71 rotaciones por hora: 462,86 al día y
+> **13 885** en 30 días. Con el `floor` por día del ADR 0042 eran 13 860. Un
+> periodo sin un solo spot sí se rechaza.
+
+> [!important] Las horas del PRECIO son las del horario, no las de la franja
+> La renta mensual paga el día entero. La franja pone el techo de horas de la
+> cantidad y, si tiene rejilla sobre la modalidad `mensual`, su precio. Pero una
+> franja corta no encarece el spot por tener menos horas.
+
+> [!warning] Con la pantalla vacía, la línea ES el loop
+> Compre los espacios que compre, recibe `3600 / duración` spots por hora (180
+> con spots de 20 s). Lo que cambia con los espacios es el precio por spot, y el
+> total de la línea queda en `espacios × tarifa mensual` salvo el redondeo al
+> centavo (2 × $45,000 → $90,396 en la e2e). Es la cuenta del HTML.
+
+> [!note] Lo que había hasta el 2026-10-06 (ADR 0042)
+> Precio = la tarifa `spot` con su rejilla; loop = todos los espacios; `floor`
+> por día. Las líneas por spot **sin** calculadora siguen con la tarifa `spot`,
+> como siempre.
 
 **El horario es texto libre.** `sitios.horario` lo escribe el alta
 (`06:00-24:00`), lo copia el importador del Excel, y hay `6:00 am a 12:00 pm`,
@@ -113,12 +160,16 @@ campaña acota—.
 
 - Compra **todos** los espacios (`espacios_comprados = total_spots`) y exige el
   loop entero libre.
-- Precio por spot = tarifa calculada × (1 + prima/100) (`tarifaConPrima`).
+- Precio por spot (ADR 0043) = lo que vale una hora del loop entero —tarifa
+  mensual × espacios ÷ (horas de operación × 30)— entre los `floor(3600 /
+  duración)` spots de esa hora, y × (1 + prima/100) (`tarifaConPrima`). La
+  «ocupación» que valora la hora es el loop ENTERO: el Roadblock exige el loop
+  vacío, y con la ocupación de hoy la hora valdría $0.
 - `decidirPrecioCalculadora`: prima > 0 sin `comercial.aprobar` →
   `prima-sin-permiso` (403). Con permiso, la esperada lleva la prima **una
   vez**, la línea queda como **ajuste** (`precio_ajustado_por`, Actividad) y
-  `tarifa_calculada` guarda la de la **pantalla**, para que «de $1,200 a
-  $1,500» diga cuánto se movió.
+  `tarifa_calculada` guarda la base **sin prima**, para que «de $5.56 a
+  $6.95» diga cuánto se movió.
 - Un vendedor puede marcar el Roadblock con prima 0: es un precio a la tarifa.
 
 **Volumen × prima.** La prima va en la tarifa unitaria; el volumen se aplica
@@ -159,19 +210,26 @@ con 1 espacio y las horas de la franja o del horario:
 > de cada instancia (g500 incluida), la línea arranca en cantidad manual y la
 > calculadora se enciende a mano. Encenderla por omisión es cambiar `manual:
 > true` por `false` en esa constante, con su prueba.
+>
+> **2026-10-06 · el motivo ya no aplica, pero sigue apagada.** Desde el ADR 0043
+> la calculadora no usa la tarifa `spot`: el precio sale de la tarifa mensual, así
+> que aquel $32.6 M ya no se puede dar. Encenderla por omisión es otra decisión
+> del dueño, y no se tomó.
 
 - Espacios del loop (máx. `totalSpots`, con «N libres» del inventario), horas al
   día (techo = el por omisión), casilla **Roadblock** y **Prima %**, que solo
   se habilita con `usePuede('comercial','aprobar')`.
-- Debajo, «15 rotaciones/h · 540 spots/día × 30 días = **16 200 spots**», y esa
-  cantidad es la de la línea (el campo manual de cantidad y el de spots/día se
-  sustituyen por los de la cuenta).
+- Debajo, el desglose del HTML: «Loop de 6 anunciantes (4 hoy + esta línea) ·
+  2:00 min», «30 rotaciones/h · 1 080 spots/día × 30 días = **32 400 spots**» y
+  «Tarifa mensual $45,000 ÷ 16 200 spots de un anunciante al mes = **$2.78 por
+  spot**» (en Roadblock, la hora del loop y su prima). Esa cantidad y ese precio
+  son los de la línea: el campo manual de cantidad y el de spots/día se
+  sustituyen por los de la cuenta. Sin tarifa mensual, lo avisa.
 - La cuenta es `previsualizarCalculadora`: la misma función por dentro que
   `resolverCalculadora`, sin comparar. Si el servidor la fuera a rechazar, el
   pie del cuadro enseña **el mismo motivo** y el botón queda inerte.
-- Con prima, la tarifa que se manda es `tarifaConPrima(calculada, prima)`.
-- «Equivale a $X por spot frente a la tarifa mensual» (`referenciaPorSpotMensual`)
-  solo como referencia, si la pantalla tiene tarifa mensual.
+- La tarifa base es `tarifaBaseCalculadora`, la misma que comprueba el servidor;
+  con prima, la que se manda es `tarifaConPrima(base, prima)`.
 - La casilla «Calculadora de spots» se puede apagar: la línea vuelve a la
   cantidad a mano y viaja sin parámetros, o sea exactamente como antes.
 

@@ -198,6 +198,56 @@ describe('3 · lo que el servidor RECHAZA', () => {
     respuestas.propuesta = []
     await expect(canjearCodigo('P1', 'VERANO20')).rejects.toThrow(/no existe/i)
   })
+
+  // 2026-10-05 · REGLA 2 DEL ADR 0039 POR EL OTRO LADO. Hasta hoy, canjear un
+  // cupón sobre una propuesta con un paquete de PRECIO FINAL se aceptaba:
+  // gastaba un uso (la fila de `canjes_codigo` ES el contador) y el descuento
+  // salía 0, porque `armarPropuesta` anula el cupón cuando el paquete no lo
+  // admite. Un uso gastado a cambio de nada, y sin una sola frase.
+  it('un paquete que NO admite código RECHAZA el canje, y no se gasta el uso', async () => {
+    respuestas.propuesta = [
+      {
+        estatus: 'BORRADOR',
+        codigo_texto: null,
+        paquete_nombre: 'Pack Centro',
+        paquete_precio: 180000,
+        paquete_admite_codigo: false,
+      },
+    ]
+    await expect(canjearCodigo('P1', 'VERANO20')).rejects.toThrow(CanjeImposible)
+    await expect(canjearCodigo('P1', 'VERANO20')).rejects.toThrow(
+      /"Pack Centro".*no admite codigos promocionales/,
+    )
+    expect(ejecutadas.some((s) => /insert into canjes_codigo/.test(s))).toBe(false)
+    expect(ejecutadas.some((s) => /update propuestas[\s\S]*codigo_texto=/.test(s))).toBe(false)
+    // Igual que con la APROBADA: ni se bloquea el cupón por un intento que no
+    // podía prosperar.
+    expect(ejecutadas.some((s) => /for update/i.test(s))).toBe(false)
+    expect(revertida).toBe(true)
+  })
+
+  it('la comprobación del paquete lee la MISMA fila bloqueada, con `tenant_id`', async () => {
+    await canjearCodigo('P1', 'VERANO20')
+    const lectura = ejecutadas.find((s) => /from propuestas/.test(s)) ?? ''
+    expect(lectura).toMatch(/paquete_admite_codigo/)
+    expect(lectura).toMatch(/for no key update/i)
+    expect(lectura).toMatch(/tenant_id\s*=\s*\$2/)
+  })
+
+  it('un paquete que SÍ admite código deja canjear, como siempre', async () => {
+    respuestas.propuesta = [
+      {
+        estatus: 'BORRADOR',
+        codigo_texto: null,
+        paquete_nombre: 'Pack Abierto',
+        paquete_precio: 180000,
+        paquete_admite_codigo: true,
+      },
+    ]
+    const r = await canjearCodigo('P1', 'VERANO20')
+    expect(r.descuentoPct).toBe(20)
+    expect(ejecutadas.some((s) => /insert into canjes_codigo/.test(s))).toBe(true)
+  })
 })
 
 // ─── 4 · EL CONGELADO Y LA NORMALIZACIÓN ───────────────────────────────────

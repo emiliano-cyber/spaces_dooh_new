@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: verificado
-actualizado: 2026-08-28
+actualizado: 2026-10-05
 tags: [arquitectura, componentes]
 archivos:
   - ecosystem.config.js
@@ -9,7 +9,32 @@ archivos:
   - apps/web/middleware.ts
   - apps/web/lib/server/db.ts
   - infra/nginx/demo.space-os.io.conf
+  - infra/nginx/space-os.io.conf
+  - infra/systemd/spaces-web.service
+  - infra/scripts/update.sh
+  - infra/scripts/provision-instancia.sh
+  - .github/workflows/release.yml
+  - .github/workflows/promover.yml
 ---
+
+> [!important] 2026-10-05 · lo que esta nota afirmaba en su cuerpo y ya no es cierto
+> Revalidada hoy contra el código. Tres afirmaciones del cuerpo estaban
+> caducadas y se corrigen abajo, sin borrar los recuadros históricos:
+>
+> 1. **«El despliegue es manual por SSH. No hay CD.» — FALSO desde agosto.**
+>    Hay entrega continua, por *pull*: `release.yml` construye y publica la imagen
+>    en el registry, `promover.yml` la pasa de `beta` a `estable` tras el smoke
+>    contra DEMO, y cada instancia se actualiza **sola** con `update.sh` desde su
+>    cron (`infra/scripts/provision-instancia.sh:915-916`: `--comprobar` cada
+>    15 min y la corrida completa a las 4:17). El `deploy.yml` por SSH **se retiró
+>    el 31/08** (F3.6) y no existe en `.github/workflows/`.
+> 2. **El diagrama de componentes** dibujaba el droplet viejo `209.97.146.136`,
+>    pm2 y **90** route handlers. Se conserva como historia y se añade el vigente:
+>    PADRE `137.184.107.53` con systemd, **124** handlers (medido con
+>    `node scripts/recuentos.mjs`) e instancias en contenedor.
+> 3. **Citas corridas**: `usuarios-repo.ts:11-23` (ahí ya no hay funciones de
+>    repo: las públicas empiezan en `:35`), `db.ts:60`/`:79` (hoy `:59` y `:74`)
+>    y `space-os.io.conf:188` (el bloque de `demo.` está hoy en `:211-213`).
 
 > [!danger] 2026-08-26 · CORRECCIÓN DOBLE — esta nota tenía DOS cosas falsas
 > **① El acceso al droplet `209.97.146.136` NUNCA se perdió.** El aviso de abajo
@@ -26,7 +51,8 @@ archivos:
 > [ADR 0021](../../docs/adr/0021-demo-space-os-io-se-queda.md): `demo.space-os.io`
 > SE CONSERVA como demostración de las instancias hijas, y la tarjeta TH-F4.5
 > queda cancelada.** El proceso del `3001` conserva su bloque de nginx en
-> `infra/nginx/space-os.io.conf:188`.
+> `infra/nginx/space-os.io.conf:188` *(al 05/10 ese `server_name demo.space-os.io`
+> está en `:213`)*.
 >
 > ⚠️ **Y HAY UNA TERCERA CAPA, del 2026-08-27:** el
 > [ADR 0024](../../docs/adr/0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md)
@@ -107,7 +133,7 @@ corre un único proceso.**
 
 | Pista | Estado | Evidencia |
 |---|---|---|
-| `apps/web` — Next.js con BFF integrado | **VIVA**, es el producto | `ecosystem.config.js:4-27` |
+| `apps/web` — Next.js con BFF integrado | **VIVA**, es el producto. En el PADRE la arranca **systemd** (`infra/systemd/spaces-web.service:83`); en cada instancia hija, un **contenedor** desde la imagen del registry (`infra/scripts/update.sh`). `ecosystem.config.js:4-28` es la configuración de pm2 de la época anterior: sigue en el repo, pero el PADRE ya no arranca con ella | `ecosystem.config.js:4-28` · `spaces-web.service:83` |
 | `_archive/api` — Fastify + Prisma + BullMQ | Archivada, nunca se desplegó | `ecosystem.config.js:1-3` |
 | ~~`apps/web/lib/auth-context.tsx`~~ | **RETIRADO el 27/08** con la pista archivada | [[zonas-de-riesgo]] §A6 |
 
@@ -128,6 +154,50 @@ corre un único proceso.**
 > se retiró.
 
 ## Componentes
+
+### Hoy (2026-10-05)
+
+```mermaid
+flowchart TB
+    subgraph gh["GitHub Actions"]
+        CI["ci.yml<br/>typecheck · test · build · e2e"]
+        REL["release.yml<br/>construye y publica la imagen"]
+        PROM["promover.yml<br/>beta → estable, tras smoke contra DEMO"]
+    end
+    REG[("registry de imágenes<br/>vars.REGISTRY")]
+
+    subgraph padre["PADRE · 137.184.107.53"]
+        NGX["nginx · space-os.io<br/>TLS · HSTS"]
+        WEB["systemd · spaces-web · :3000<br/>next start desde el repo"]
+        DEMO["DEMO · :3001 · prueba.space-os.io<br/>contenedor desde la imagen (F3.5)"]
+        PGP[("PostgreSQL<br/>spaces_prod · spaces_demo")]
+    end
+
+    subgraph hija["Instancia hija (droplet del owner)"]
+        CRONH["cron · update.sh<br/>--comprobar c/15 min · completa 4:17"]
+        APP["contenedor space-os · :3000<br/>124 route handlers · RLS"]
+        PGH[("PostgreSQL de la instancia")]
+    end
+
+    REL --> REG
+    PROM --> REG
+    REG -->|pull| DEMO
+    REG -->|pull| CRONH --> APP --> PGH
+    NGX --> WEB --> PGP
+    NGX --> DEMO --> PGP
+```
+
+Lo que el diagrama no dice y conviene saber: **el PADRE no empuja nada** a las
+instancias; cada una mira el registry y decide si toma la versión nueva
+(ADR 0037, [[actualizaciones-instancia]]). El detalle está en
+[[entorno-y-despliegue]] y [[modelo-instancias-soberanas]].
+
+### Antes del 28/08 — HISTORIA, no lo uses como mapa
+
+> [!warning] Diagrama del droplet viejo
+> Se conserva tal cual estaba. Describe `209.97.146.136` con pm2 y 90 route
+> handlers: esa máquina salió del modelo el 27/08 (ADR 0023) y el PADRE dejó pm2
+> por systemd el 28/08.
 
 ```mermaid
 flowchart TB
@@ -180,9 +250,9 @@ flowchart LR
 | Capa | Responsabilidad | Ejemplo |
 |---|---|---|
 | `route.ts` | Guard, parseo HTTP, `respuestaError()` | `apps/web/app/api/contratos/route.ts` |
-| `*-controller.ts` | Validación zod, reglas de negocio | `apps/web/lib/server/cuentas-controller.ts:33-54` |
-| `*-repo.ts` | SQL, filtro explícito por `tenant_id` | `apps/web/lib/server/usuarios-repo.ts:11-23` |
-| `db.ts` | Pool, transacción, GUC `app.tenant_id` | `apps/web/lib/server/db.ts:60` (`fijarTenant`) y `:79` (`q`) |
+| `*-controller.ts` | Validación zod, reglas de negocio | `apps/web/lib/server/cuentas-controller.ts:28-39` (esquema zod) y `:46` (`crearOrgConDueno`) |
+| `*-repo.ts` | SQL, filtro explícito por `tenant_id` | `apps/web/lib/server/usuarios-repo.ts:35` (`listarUsuarios`) y `:48` (`crearUsuario`) |
+| `db.ts` | Pool, transacción, GUC `app.tenant_id` | `apps/web/lib/server/db.ts:59` (`fijarTenant`) y `:74` (`q`) |
 
 ## Las tres cosas que definen este sistema
 
@@ -193,7 +263,12 @@ flowchart LR
 2. **No hay ORM ni librería de auth.** Todo es SQL a mano y auth propia. Eso
    hace el sistema pequeño y auditable, pero también significa que cada
    consulta nueva debe acordarse del tenant por su cuenta.
-3. **El despliegue es manual por SSH.** No hay CD. Ver [[entorno-y-despliegue]].
+3. **El despliegue es por *pull*, no por *push*.** Se publica una imagen
+   (`release.yml`), se promueve de `beta` a `estable` (`promover.yml`) y cada
+   instancia se actualiza sola con `update.sh` desde su cron. **Nadie entra por
+   SSH a desplegar** en una instancia. Ver [[entorno-y-despliegue]].
+   *(Hasta el 05/10 esta línea decía «el despliegue es manual por SSH, no hay
+   CD»: era cierto antes del 31/08, cuando aún existía `deploy.yml`.)*
 
 ## Relacionadas
 [[stack-y-dependencias]] · [[entorno-y-despliegue]] · [[decisiones]] ·

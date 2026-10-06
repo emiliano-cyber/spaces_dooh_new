@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 import { MAXIMO_BYTES, leerPaginasDePdf } from './lector-pdf'
 
 // ============================================================================
@@ -96,6 +96,27 @@ function pdfDePrueba(renglones: [number, 'ansi' | 'cid', string][]): Uint8Array 
 }
 
 describe('leerPaginasDePdf', () => {
+  // La carga en frio de `pdfjs-dist`, FUERA de las pruebas y con su propio plazo.
+  //
+  // `lector-pdf.ts` importa pdf.js y su worker con `import()` dinamico, asi que
+  // los ~3 MB de JavaScript se cargan en la PRIMERA llamada — y la pagaba entera
+  // la primera prueba de este archivo. Medido el 2026-10-05 en la suite completa
+  // (241 archivos en paralelo): 218-604 ms la primera prueba, 1-6 ms cada una de
+  // las demas. En una corrida anterior, con la maquina saturada, esa carga se
+  // paso de los 5 s y fallo «lee el texto de una fuente WinAnsi» por timeout,
+  // sin que el lector tuviera nada mal.
+  //
+  // Se precargan aqui los MISMOS dos especificadores que importa el lector: el
+  // modulo queda en la cache y su `import()` ya no cuesta nada. Asi el plazo de
+  // 5 s de cada prueba sigue midiendo el comportamiento, y no la cola del disco.
+  // Subir el timeout de las pruebas habria tapado tambien un lector lento de
+  // verdad.
+  beforeAll(async () => {
+    await import('pdfjs-dist/legacy/build/pdf.mjs')
+    // @ts-expect-error -- el worker no publica `.d.ts` (ver `lector-pdf.ts`)
+    await import('pdfjs-dist/legacy/build/pdf.worker.mjs')
+  }, 60_000)
+
   it('lee el texto de una fuente WinAnsi', async () => {
     const lineas = await leerPaginasDePdf(
       pdfDePrueba([[700, 'ansi', 'Comision Federal de Electricidad']]),

@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-09-29
+actualizado: 2026-10-05
 tags: [backend, operaciones, ot, reportes, rentabilidad, dinero, rojo]
 archivos:
   - db/migrations/20260929_costo_real_ot.sql
@@ -16,6 +16,7 @@ archivos:
   - apps/web/components/demo/reportes/tabla.ts
   - apps/web/components/operaciones/OTVista.tsx
   - apps/web/lib/test/costo-real-ot.e2e.test.ts
+  - db/migrations/20260929_roles_operaciones_costear.sql
 ---
 
 # El costo REAL de una orden de trabajo (OT-COSTO-01)
@@ -54,7 +55,8 @@ no hay          → vale la estimación por tipo, como hasta hoy
 > [!danger] La regla se declara UNA vez, en `lib/costos-ot.ts`, y no es estilo
 > `costoEfectivoDeOt(ot, costos)` y `tieneCostoReal(ot)` las usan **los TRES que
 > calculan margen**: el motor de reportes, el **dashboard del dueño** y el **P&L
-> por campaña** (`derive.ts:632` y `:752`).
+> por campaña** (`derive.ts:632` y `:752`; el del reporte, en
+> `lib/data/reportes.ts:1380`).
 >
 > **Y ya divergió durante este mismo cambio.** Al meter `costo_real` solo en el
 > motor de reportes, los otros dos siguieron cobrando la tarifa por tipo: con una
@@ -128,6 +130,19 @@ este número ni el reporte.
 dinero, igual que facturar una campaña o registrar un pago de renta. El permiso
 sigue siendo `operaciones.crear` (hoy **DUENO** y **OPERACIONES**): esto **no
 cambia quién entra al módulo**, añade la segunda puerta sobre un campo de dinero.
+
+> [!important] 2026-10-05 · el permiso YA NO es `operaciones.crear`: es `operaciones.costear`
+> El mismo 29/09, `c0ad8108` creó la acción **`operaciones.costear`** y la ruta
+> la exige hoy: `exigirCambioSensible('operaciones', 'costear')`
+> (`apps/web/app/api/ot/[id]/costo/route.ts:56`). La tienen **DUENO,
+> ADMINISTRADOR, OPERACIONES y FINANZAS**
+> (`db/migrations/20260929_roles_operaciones_costear.sql:97-105`): Finanzas
+> porque **la factura de la cuadrilla le llega a ella**. La migración añade
+> además `FINANZAS + operaciones.ver`, porque no se puede costear lo que no se
+> puede abrir — y esa fila le abre también `GET /api/almacen` y
+> `GET /api/energia/consumos`. Se descartó dar `operaciones.crear` a Finanzas
+> porque eso es **crear y cerrar** OT. Sigue siendo cambio sensible. Ver
+> [[roles-de-venta]].
 
 La lógica de lo que el campo entiende de lo tecleado vive **fuera del `.tsx`**,
 en `lib/costo-ot-captura.ts`, por el motivo de siempre en este repositorio:

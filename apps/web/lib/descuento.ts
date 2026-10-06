@@ -7,6 +7,9 @@
 //  existe `lib/perfil-acceso.ts`.
 // ============================================================================
 
+import { volumenDeLineas } from './volumen'
+import { paqueteDeFila } from './paquete'
+
 export class DescuentoInvalido extends Error {
   constructor(recibido: unknown) {
     super(`El descuento debe ser un número entre 0 y 100; llegó ${JSON.stringify(recibido)}`)
@@ -97,21 +100,69 @@ export class DescuentoSobreTope extends Error {
     // alguien le rechazan un 10 % contra un tope del 20 % y lo único que puede
     // concluir es que el sistema está roto — el número que sobra no está en
     // ninguna de las dos cifras que él ve.
-    const base =
-      `El descuento máximo que autoriza tu organización es ${pct(tope)} %, y se pidió ` +
-      `${pct(pedido)} %.`
-    const conVolumen =
-      volumenPct > 0
-        ? `El descuento máximo que autoriza tu organización es ${pct(tope)} %. ` +
-          `Esta propuesta ya lleva ${pct(volumenPct)} % por volumen, así que un ` +
-          `${pct(pedido)} % comercial deja un ${pct(descuentoContraTope(pedido, volumenPct))} % ` +
-          `en total (los descuentos se componen, no se suman).`
-        : base
-    super(`${conVolumen} Pídele a Administración que lo suba si hace falta.`)
+    //
+    // TOPE-04 (2026-10-05) · y DICE LA SALIDA REAL. Si el volumen SOLO ya pasa
+    // el tope, ningún comercial > 0 cabe, pero dejarlo en 0 % SÍ se guarda (ver
+    // `descuentoDentroDelTope`). Si cabe algo, dice HASTA CUÁNTO: es el número
+    // que la persona tiene que teclear.
+    super(mensajeSobreTope(pedido, tope, volumenPct))
     this.pedido = pedido
     this.tope = tope
     this.volumenPct = volumenPct
   }
+}
+
+function mensajeSobreTope(pedido: number, tope: number, volumenPct: number): string {
+  if (volumenSuperaTope(volumenPct, tope)) return mensajeVolumenSobreTope(volumenPct, tope)
+  const cuenta =
+    volumenPct > 0
+      ? `El descuento máximo que autoriza tu organización es ${pct(tope)} %. ` +
+        `Esta propuesta ya lleva ${pct(volumenPct)} % por volumen, así que un ` +
+        `${pct(pedido)} % comercial deja un ${pct(descuentoContraTope(pedido, volumenPct))} % ` +
+        `en total (los descuentos se componen, no se suman).`
+      : `El descuento máximo que autoriza tu organización es ${pct(tope)} %, y se pidió ` +
+        `${pct(pedido)} %.`
+  return (
+    `${cuenta} Cabe hasta ${pct(comercialMaximoDentroDelTope(tope, volumenPct))} % comercial. ` +
+    'Pídele a Administración que lo suba si hace falta.'
+  )
+}
+
+/**
+ * TOPE-04 · ¿el volumen SOLO ya pasa el tope? Con la misma tolerancia que
+ * `descuentoDentroDelTope`: un volumen exactamente igual al tope cabe.
+ */
+function volumenSuperaTope(volumenPct: unknown, tope: unknown): boolean {
+  return descuentoContraTope(0, volumenPct) - topeDescuentoValido(tope) > 1e-9
+}
+
+/** TOPE-04 · la frase de cuando el volumen solo ya pasa el tope. Una sola vez. */
+function mensajeVolumenSobreTope(volumenPct: number, tope: number): string {
+  return (
+    `El descuento por volumen (${pct(volumenPct)} %) ya supera el tope (${pct(tope)} %): ` +
+    'deja el descuento comercial en 0 % o pide a Administración que suba el tope.'
+  )
+}
+
+/**
+ * TOPE-04 · el descuento comercial MÁS ALTO que cabe en `tope` con `volumenPct`
+ * de volumen, en centésimas y redondeado HACIA ABAJO: el número que se anuncia
+ * tiene que pasar de verdad por `descuentoDentroDelTope`. 0 si el volumen solo
+ * ya pasa el tope.
+ *
+ * No es otra regla del tope: el candidato sale de despejar la composición y se
+ * COMPRUEBA con `descuentoContraTope`, que es la única que decide. Si el
+ * redondeo flotante lo dejara una centésima por encima, baja una.
+ */
+export function comercialMaximoDentroDelTope(tope: unknown, volumenPct: unknown): number {
+  const t = topeDescuentoValido(tope)
+  const v = pctSeguro(volumenPct)
+  if (volumenSuperaTope(v, t)) return 0
+  if (v >= 100) return 100
+  const bruto = 100 * (1 - (1 - t / 100) / (1 - v / 100))
+  let m = Math.max(0, Math.min(100, Math.floor(bruto * 100 + 1e-6) / 100))
+  if (descuentoContraTope(m, v) - t > 1e-9) m = Math.max(0, Number((m - 0.01).toFixed(2)))
+  return m
 }
 
 /** `22.00` → `'22'`, `12.50` → `'12.5'`. `numeric` de `pg` llega con ceros. */
@@ -162,8 +213,10 @@ export function topeDescuentoValido(valor: unknown): number {
 // El volumen se come margen de negociación del vendedor: con una escala del
 // 15 % y un tope del 20 %, al comercial le quedan ~5,9 puntos, no 5 ni 20. Y si
 // el dueño deja el tope POR DEBAJO de su propia escala, ninguna propuesta con
-// volumen podrá tocar su descuento hasta que arregle una de las dos cosas. Eso
-// es visible y se explica; lo contrario —un techo que no es techo— no se ve.
+// volumen podrá llevar descuento COMERCIAL hasta que arregle una de las dos
+// cosas. Eso es visible y se explica; lo contrario —un techo que no es techo—
+// no se ve. (Hasta el 2026-10-05 ni siquiera se podía guardar el 0 %; desde
+// TOPE-04 sí: con 0 % comercial no hay discreción que acotar.)
 
 // ────────────────────────────────────────────────────────────────────────────
 //  COD-02 · ¿el CÓDIGO PROMOCIONAL cuenta contra este tope?
@@ -172,9 +225,9 @@ export function topeDescuentoValido(valor: unknown): number {
 // ⚠️ ESTA ES LA PREGUNTA DE NEGOCIO DE LA FASE 3, Y NO LA DECIDE EL CÓDIGO.
 // Está preguntada al dueño. Mientras no conteste, la respuesta implementada es
 // **NO cuenta**, y vive entera en la constante de abajo: cambiarla a `true`
-// hace que `descuentoContraTope` componga también el cupón, y ningún otro
-// archivo se entera. La aritmética de las tres capas ya está escrita y probada
-// (`componerDescuentos`), así que el cambio es una línea.
+// hace que `descuentoContraTope` componga también el cupón (`componerDescuentos`
+// ya lo sabe hacer). ⚠️ Salvo con comercial 0 %: `descuentoDentroDelTope` sale
+// ANTES de componer (TOPE-04, 05/10), y ese atajo también habría que revisarlo.
 //
 // ─── Por qué NO, mientras nadie diga lo contrario ─────────────────────────
 // Porque el tope y el cupón **acotan a personas distintas**. El tope nació el
@@ -283,6 +336,18 @@ export function descuentoDentroDelTope(
   // Primero la guarda de siempre: `NaN` no puede colarse por «NaN > tope es
   // false», que es exactamente el modo de fallo que documenta este archivo.
   const d = descuentoValido(valor)
+  // TOPE-04 (2026-10-05) · CON 0 % COMERCIAL NO HAY NADA QUE REVISAR. El tope
+  // acota la DISCRECIÓN de quien vende, y sin descuento comercial no la hay:
+  // el volumen sale de la escala de la organización y el cupón lo aprobó el
+  // dueño (COD-02). Si el volumen SOLO ya pasa el tope, es el tope por debajo
+  // de la escala propia (VOL-02), y eso se arregla en Administración.
+  //
+  // Vive AQUÍ y no en cada llamante porque es el criterio de las cuatro
+  // puertas —edición, aprobación, liga y `quitarPaquete` (TOPE-PAQ)—. Hasta
+  // hoy aprobar y quitar el paquete lo aplicaban por su cuenta y la edición
+  // no: la aprobación contestaba «Ajusta el descuento» y la edición rechazaba
+  // incluso el 0 %, así que el vendedor no podía ajustarlo a NADA.
+  if (d === 0) return 0
   const techo = topeDescuentoValido(tope)
   const efectivo = descuentoContraTope(d, volumenPct, codigoPct)
   // La comparación lleva una tolerancia de `1e-9` puntos porcentuales, o sea
@@ -319,3 +384,95 @@ export function textoBitacoraPropuesta(version: number, descuentoAplicado: numbe
   if (descuentoAplicado === 0) return `Quitó el descuento de la propuesta (v${version})`
   return `Puso ${pct(descuentoAplicado)} % de descuento en la propuesta (v${version})`
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+//  TOPE-03 · la cuenta del tope de UNA PROPUESTA, escrita una sola vez
+// ────────────────────────────────────────────────────────────────────────────
+//
+// Hasta el 2026-10-05 esta cuenta vivía DENTRO de `actualizarPropuesta`, y era
+// el único sitio que la hacía. Si Administración bajaba el tope después de que
+// una propuesta guardó su descuento, ni la aprobación interna
+// (`cambiarEstatusPropuesta`) ni la aceptación del cliente por la liga
+// (`aceptarPropuestaPublica`) la repetían, y el descuento por encima del techo
+// VIGENTE se congelaba en el snapshot. Para que las tres puertas digan lo mismo
+// la cuenta tiene que ser UNA: si cada una la copiara, el día que el dueño
+// conteste VOL-02 o COD-02 se cambiaría en un sitio y no en los otros.
+
+/** Las columnas de `propuestas` que deciden qué capas cuentan contra el tope. */
+export interface FilaPropuestaTope {
+  paquete_nombre?: unknown
+  paquete_precio?: unknown
+  paquete_admite_codigo?: unknown
+  codigo_descuento_pct?: unknown
+}
+
+/** Una línea de `propuesta_items`, tal como sale de la base. */
+export interface LineaPropuestaTope {
+  precio: unknown
+  descuento_volumen_pct?: unknown
+}
+
+/**
+ * El descuento comercial `comercialPct` **validado contra el tope de esa
+ * propuesta**: revienta con `DescuentoSobreTope` si no cabe.
+ *
+ * - **Volumen** (VOL-02): el de las líneas tal como se capturó, no lo que la
+ *   escala diga hoy. **Con paquete vivo no cuenta** (PAQ-01): no se aplicó.
+ * - **Cupón** (COD-02): se pasa siempre bien —0 si el paquete no lo admite,
+ *   porque no descontó nada— y `CODIGO_CUENTA_CONTRA_TOPE` decide si cuenta.
+ */
+export function descuentoDePropuestaDentroDelTope(
+  comercialPct: unknown,
+  tope: unknown,
+  fila: FilaPropuestaTope,
+  lineas: readonly LineaPropuestaTope[],
+): number {
+  const paqueteVivo = paqueteDeFila(fila)
+  const volumenPct = paqueteVivo
+    ? 0
+    : volumenDeLineas(
+        (lineas ?? []).map((l) => ({
+          precio: Number(l.precio),
+          descuentoVolumenPct: Number(l.descuento_volumen_pct ?? 0),
+        })),
+      ).volumenPctEfectivo
+  const codigoPct =
+    paqueteVivo && !paqueteVivo.admiteCodigo ? 0 : Number(fila.codigo_descuento_pct ?? 0)
+  return descuentoDentroDelTope(comercialPct, tope, volumenPct, codigoPct)
+}
+
+/**
+ * TOPE-03 · lo que se le dice a QUIEN APRUEBA cuando el descuento guardado ya
+ * no cabe en el tope de hoy. Dice los dos números y qué hacer: un «no se puede»
+ * sin la cifra deja a quien aprueba sin saber cuánto bajar.
+ */
+export function mensajeTopeVigente(e: DescuentoSobreTope): string {
+  const total =
+    e.volumenPct > 0
+      ? ` (${pct(descuentoContraTope(e.pedido, e.volumenPct))} % en total con el ` +
+        `${pct(e.volumenPct)} % por volumen)`
+      : ''
+  const cabecera =
+    `El descuento de esta propuesta, ${pct(e.pedido)} %${total}, supera el tope vigente ` +
+    `de tu organización, ${pct(e.tope)} %: el tope se bajó después de guardarlo. `
+  // TOPE-04 · si el volumen solo ya lo pasa, «ajusta el descuento» no tiene
+  // más valor posible que el 0 %: se dice eso, con la misma frase que la edición.
+  if (volumenSuperaTope(e.volumenPct, e.tope)) {
+    return cabecera + mensajeVolumenSobreTope(e.volumenPct, e.tope)
+  }
+  return (
+    cabecera +
+    'Ajusta el descuento antes de aprobarla (cabe hasta ' +
+    `${pct(comercialMaximoDentroDelTope(e.tope, e.volumenPct))} % comercial), ` +
+    'o pídele a Administración que suba el tope.'
+  )
+}
+
+/**
+ * TOPE-03 · lo que se le dice al CLIENTE en la liga pública. **No nombra el
+ * tope**: es un dato interno de la organización y el cliente no puede hacer
+ * nada con él. Lo único útil para él es a quién acudir.
+ */
+export const MSJ_TOPE_VIGENTE_PUBLICO =
+  'Esta propuesta necesita una revisión de su descuento antes de poder aceptarse. ' +
+  'Pídele a tu ejecutivo que te envíe la versión actualizada.'

@@ -1,7 +1,7 @@
 ---
 tipo: operacion
 estado: verificado
-actualizado: 2026-09-22
+actualizado: 2026-10-05
 tags: [operacion, respaldo, instancias, cron, spaces]
 archivos:
   - infra/scripts/respaldo-diario.sh
@@ -13,12 +13,31 @@ archivos:
 
 # Respaldo diario de una instancia
 
+> [!note] 2026-10-05 · citas de `update.sh` remedidas — cuatro corrieron ~35 líneas
+> `infra/scripts/update.sh` tiene hoy 2863 líneas. Las que se movieron, con su
+> valor de hoy (el texto de abajo conserva el original y lleva la corrección al
+> lado):
+>
+> | Decía | Hoy | Qué |
+> |---|---|---|
+> | `update.sh:2333` | `:2363-2369` | el paso 3 · respaldo (`BK=…` en `:2368`) |
+> | `update.sh:2332` | `:2367` | `mkdir -p "$DIR_RESPALDOS"` a secas |
+> | `update.sh:2379` | `:2414` | `ARCHIVO_ANTERIOR="$DIR_ESTADO/version-anterior"` |
+> | `update.sh:2580` | `:2615` | `… >"$DIR_ESTADO/version-actual"` |
+>
+> **Siguen en su sitio**, comprobadas una a una: `:431` (`DIR_ESTADO`),
+> `:841` (`. "$CONF"`), `:911` (`DIR_RESPALDOS`), `:802-818` y `:817` (el
+> `flock -n -E`), `:1644-1713` (la derivación suelta de la conexión); en
+> `respaldo-diario.sh`, `:116`, `:150` y `:187`; en `respaldo.sh`,
+> `:229-232` y `:330`. Lo que dice la nota sobre g500 y DEMO **no** se
+> volvió a comprobar en los servidores.
+
 > [!danger] Lo que esta nota viene a arreglar, medido el 2026-09-22
 > **g500 —la única instancia con datos reales de cliente— se respaldaba fuera de
 > su droplet ÚNICAMENTE cuando se desplegaba una versión nueva.**
 >
 > No era un olvido de configuración: es **dónde vive el dump**. `update.sh`
-> respalda en su paso 3 (`update.sh:2333`) y a ese paso solo se llega si hay
+> respalda en su paso 3 (`update.sh:2333`; **`:2363-2369` al 05/10**) y a ese paso solo se llega si hay
 > imagen nueva — las corridas `sin cambios` salen antes. Como `estable` no se
 > movía desde el 17/09, la copia remota más reciente tenía **cinco días** y la
 > había subido una persona a mano.
@@ -152,8 +171,8 @@ inventó aquí: es el que ya usa `respaldo.sh:229-232`.
 > de `$DIR_ESTADO`, que el cron de DEMO no cambia:
 >
 > ```
-> update.sh:2379   ARCHIVO_ANTERIOR="$DIR_ESTADO/version-anterior"
-> update.sh:2580   … >"$DIR_ESTADO/version-actual"
+> update.sh:2379   ARCHIVO_ANTERIOR="$DIR_ESTADO/version-anterior"     # :2414 al 05/10
+> update.sh:2580   … >"$DIR_ESTADO/version-actual"                      # :2615 al 05/10
 > ```
 >
 > Si el PADRE corre su propio `update.sh`, ese par **colisiona exactamente igual**
@@ -241,7 +260,7 @@ argv»*) y tocar una sola copia de la derivación (R7).
 
 > [!danger] Un dump es la base entera, y nacía legible por todo el droplet
 > Encontrado al revisar este cambio el **22/09**. Nadie ponía permisos al
-> directorio de respaldos: `update.sh:2332` hace `mkdir -p` a secas y, con el
+> directorio de respaldos: `update.sh:2332` (**`:2367` al 05/10**) hace `mkdir -p` a secas y, con el
 > umask 022 de root, eso deja el directorio en **0755** y cada dump en **0644**.
 > Un dump no tiene RLS, ni tenant, ni sesión: es la base completa, en claro,
 > legible por cualquier usuario local del droplet — incluido el que corre la

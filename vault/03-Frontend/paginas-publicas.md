@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-08-31
+actualizado: 2026-10-05
 tags: [frontend, publico, tokens, amarillo]
 archivos:
   - apps/web/app/(app)/portal/[token]/
@@ -10,6 +10,8 @@ archivos:
   - apps/web/app/(app)/m/ot/[id]/
   - apps/web/app/(app)/contrato/[id]/
   - apps/web/lib/server/portal-repo.ts
+  - apps/web/middleware.ts
+  - apps/web/components/demo/rejilla/AvisoFranjaCMS.tsx
 ---
 
 # Páginas públicas (sin sesión)
@@ -37,7 +39,7 @@ Más `/contrato/[id]` (vista interna del contrato) y `/propuesta`.
 
 ## Qué se expone, y qué no
 
-`lib/server/portal-repo.ts:11-13`: el portal devuelve **solo** lo de esa
+`lib/server/portal-repo.ts:11-12`: el portal devuelve **solo** lo de esa
 campaña — nada de otros clientes ni datos financieros.
 
 > [!danger] Al añadir un campo al portal, comprueba que no arrastre precio
@@ -47,18 +49,34 @@ campaña — nada de otros clientes ni datos financieros.
 
 ## Exención de CSRF
 
-Estas rutas están exentas del double-submit (`middleware.ts:47-61`) porque **no
+Estas rutas están exentas del double-submit (`middleware.ts:119-133`) porque **no
 dependen de la cookie de sesión**: la credencial es el token del enlace. Si
 alguna empezara a leer la cookie, la exención se vuelve un agujero.
 
 > [!warning] Desde F5.2 hay una exención más, y no es una página
-> `/api/bootstrap` (`middleware.ts:61`) también está exenta: arranca una
+> `/api/bootstrap` (`middleware.ts:133`) también está exenta: arranca una
 > instancia recién aprovisionada, cuando la base está vacía y **todavía no
 > existe ninguna sesión que proteger**. Su credencial es `BOOTSTRAP_TOKEN` y su
 > cerrojo real es que la tabla `tenants` esté vacía. Cuenta como puerta sin
 > sesión aunque no tenga página: si algún día `tenants` deja de estar vacía y el
 > guard no lo comprueba, la exención se vuelve una puerta abierta.
 > Ver [[modelo-instancias-soberanas]].
+
+## La propuesta pública enseña la cadena de precio entera
+
+> [!note] 2026-10-05 · lo que añadió el ADR 0039 a `/p/[id]`
+> Desde finales de septiembre la cotización que ve el cliente
+> (`app/(app)/p/[id]/page.tsx`) muestra, además de los ítems:
+> - la **franja contratada** con su horario en cada línea (`:253-262`) y, si
+>   alguna tiene franja, el aviso `AvisoFranjaCMS` (`:298-300`);
+> - el **paquete cerrado** primero, como «precio del conjunto» y no como
+>   descuento (`:338-357`);
+> - el **descuento por volumen** con su porcentaje (`:363-366`);
+> - el **código promocional con su nombre** (`:380-383`).
+>
+> Todo opcional en el tipo (`:16-72`): una propuesta sin nada de eso se pinta
+> como antes. Ver [[rejilla-franja-y-temporada]], [[descuento-por-volumen]],
+> [[codigo-promocional]] y [[paquete-cerrado]].
 
 ## Marca en las páginas de cara al cliente
 

@@ -1,7 +1,7 @@
 ---
 tipo: contrato
 estado: verificado
-actualizado: 2026-09-30
+actualizado: 2026-10-05
 tags: [backend, precios, descuentos, cupones, promociones, propuestas, dinero, snapshot, rls, concurrencia, aprobacion]
 archivos:
   - db/migrations/20260928_codigo_promocional.sql
@@ -21,6 +21,8 @@ archivos:
   - apps/web/lib/server/campanas-repo.ts
   - apps/web/lib/data/codigos-api.ts
   - apps/web/components/demo/codigos/GestionCodigos.tsx
+  - apps/web/lib/paquete.ts
+  - apps/web/lib/server/paquetes-repo.ts
 ---
 
 # El código promocional
@@ -41,11 +43,88 @@ tarifa base = f(pantalla, unidad, franja, fecha)     ← Fase 1
 > Esta nota describe **solo** el código. Los **paquetes cerrados** son la Fase 4 y
 > **no existen**. Si un documento te habla de ellos dentro de esta fase, describe
 > trabajo que no se ha hecho.
+>
+> *(2026-10-05: los paquetes **sí existen** desde la Fase 4 —[[paquete-cerrado]]—
+> y anulan el cupón cuando no lo admiten: ver la nota de la cadena de hoy, abajo.)*
 
 > [!danger] LA MIGRACIÓN NO ESTÁ FUSIONADA
 > `20260928_codigo_promocional.sql` está escrita y probada contra bases
 > desechables, pero **el dueño pidió el 2026-09-28 aprobar todo cambio de esquema
 > antes de que aterrice**. Lo detenido es la fusión, no el código.
+>
+> **2026-10-05 · ya están FUSIONADAS las dos.** `10e72087` (tabla y canje) y
+> `aa165725` (COD-03, `20261003_codigo_aprobacion.sql`) son ancestros de `main`.
+> El recuadro se conserva como historia.
+
+> [!note] 2026-10-05 · el cupón en la cadena de HOY, verificado en el código
+> En `armarPropuesta` (`apps/web/lib/server/propuestas-repo.ts:142`):
+>
+> ```
+> brutoConVolumen = paquete ? precio_paquete : bruto − volumen      :182
+> comercial       = round(brutoConVolumen × comercial/100)          :196
+> baseComercial   = brutoConVolumen − comercial                     :218
+> cupón           = round(baseComercial × min(pct,100)/100)         :219
+> base            = baseComercial − cupón                           :223
+> neto            = round(base × divisor de comisión)               :224
+> iva             = round(base × iva/100);  total = base + iva      :225, :317
+> ```
+>
+> `montoDescuentoCodigo` (`apps/web/lib/codigo-promocional.ts:248`) devuelve 0
+> si la base o el porcentaje no son finitos o el porcentaje es ≤ 0. El
+> porcentaje leído se acota a [0, 100] (`propuestas-repo.ts:207-208`).
+>
+> **Con paquete que no admite cupón, el cupón vale 0** (`codigoAnulaPaquete`,
+> `:215-216`), leyendo la bandera del **congelado** de la propuesta, no del
+> catálogo. Es la segunda red: la primera es que **aplicar** un paquete así sobre
+> una propuesta con cupón se rechaza (`apps/web/lib/server/paquetes-repo.ts:289`).
+> ~~Al revés no hay red en el servidor: `canjearCodigo` no consulta el paquete (no
+> hay ninguna referencia a «paquete» en `codigos-repo.ts` ni en
+> `codigos-controller.ts`), así que canjear sobre una propuesta con paquete que
+> no lo admite **gasta el uso** y descuenta 0.~~ **Cerrado el mismo 05/10, ver
+> el recuadro de abajo.** El
+> congelado aplica la misma regla (`congelarSnapshotEconomico`, `:455`).
+
+> [!success] 2026-10-05 · canjear sobre un paquete que no admite cupón ya SE NIEGA, sin gastar el uso
+> **El defecto, confirmado antes de tocar nada:** `canjearCodigo` leía la
+> propuesta sin mirar el paquete, insertaba la fila de `canjes_codigo` —que
+> **es** el contador— y contestaba 200; `armarPropuesta` anulaba después el
+> cupón (`codigoAnulaPaquete`). Un uso de la promoción gastado a cambio de un
+> descuento de 0, sin una frase. Con un cupón de un solo uso, la promoción
+> quedaba agotada sin haber descontado un peso.
+>
+> **La corrección es el espejo de la que ya tenía `aplicarPaquete`**, no una
+> política nueva: el paso 0-bis de `canjearCodigo`
+> (`apps/web/lib/server/codigos-repo.ts:337-361`) lee el paquete congelado en
+> la **misma** lectura bloqueada de la propuesta (`for no key update`, `:326`)
+> y, si `paqueteDeFila` dice que no admite código, lanza `CanjeImposible`
+> (**400**, como todos los rechazos del canje) **antes de bloquear el cupón y
+> de contar**. Se decide con `paqueteDeFila` —la misma lectura que
+> `armarPropuesta`— para rechazar exactamente cuando el cupón no descontaría.
+> La frase nombra el paquete y la salida: *quita el paquete, o cámbialo por uno
+> que sí los admita*. En inglés va por patrón en
+> `apps/web/lib/i18n/errores-servidor.ts` (lleva el nombre dentro), y de paso
+> el mensaje del camino inverso, que tampoco estaba traducido.
+>
+> **Y una carrera que quedaba entre los dos caminos:** `aplicarPaquete` leía
+> la propuesta **sin bloqueo**, así que un canje en vuelo (que lee «sin
+> paquete») y un paquete en vuelo (que lee «sin cupón») podían confirmar los
+> dos. Ahora lee con el mismo `for no key update`
+> (`apps/web/lib/server/paquetes-repo.ts:246-254`) y quien llega segundo
+> espera y ve lo que dejó el primero.
+>
+> **El camino inverso ya estaba bien y no se cambió de política:** aplicar un
+> paquete que no admite código sobre una propuesta con cupón se rechaza (409)
+> pidiendo quitar antes el cupón. Se eligió **no** liberar el canje en
+> silencio con `quitarCanjeEnTx`: devolver el uso y retirar un descuento que el
+> vendedor puso a propósito es una decisión que tiene que tomar una persona
+> viendo la frase, no un efecto lateral de aplicar un paquete.
+>
+> Pruebas: `codigos-canje.test.ts` bloque 3 (rojo visto: el canje resolvía con
+> 20 %), `paquetes-aplicar.test.ts` (el bloqueo) y la e2e
+> `paquete-cerrado.e2e.test.ts` bloque 5, que con un cupón de **un solo uso**
+> comprueba 400, cero filas en `canjes_codigo` y que otra propuesta sin paquete
+> lo sigue pudiendo canjear. Mutada (quitada la comprobación → build → e2e):
+> cae con `expected 200 to be 400`.
 
 > [!important] Desde COD-03 (2026-09-30) el cupón aplicado NACE PENDIENTE
 > El cliente no lo ve —ni la línea ni el total con él— hasta que lo aprueba
@@ -81,6 +160,11 @@ desarrolla.
 > la cadena de precio de la Fase 1 vive **entera en el navegador**. Esta fase **no
 > arregla** aquello —es la decisión **D11**, del dueño— pero **nace del lado
 > correcto**: la pantalla manda el código tecleado y nada más.
+>
+> *(2026-10-05: «vive entera en el navegador» dejó de ser cierto el 01/10 con
+> `17fbd252`: la tarifa base la recalcula también el servidor con
+> `tarifaCalculada` (`apps/web/lib/tarifa-calculada.ts:95`, llamada desde
+> `apps/web/lib/server/propuestas-controller.ts:359`). Ver §6.)*
 
 ---
 
@@ -345,6 +429,15 @@ propuesta en borrador, quedó `PENDIENTE` y el cupón pasó de 1 a 2 usos.
 - Reglas puras: `apps/web/lib/codigo-promocional.ts`
 - Canje y bloqueo: `apps/web/lib/server/codigos-repo.ts`
 - El candado del esquema de entrada: `apps/web/lib/server/codigos-controller.ts`
+- Permisos, verificados el 05/10: el catálogo exige `exigir('precios','ver')`
+  para leer y `exigirCambioSensible('precios','crear')` para crear, editar y
+  borrar (`app/api/codigos-promocionales/route.ts:40,52`, `[id]/route.ts:35,52`);
+  el canje, `comercial.crear` (`app/api/propuestas/[id]/codigo/route.ts:65,85`);
+  la decisión, `comercial.aprobar` (`…/codigo/decision/route.ts:36`).
+  > [!warning] El comentario de `app/api/propuestas/[id]/codigo/route.ts:36`
+  > todavía dice que el catálogo se protege con `exigirCambioSensible('inventario', …)`.
+  > Es viejo: pasó a `comercial` con `bd08f388` (29/09) y a `precios` con
+  > `276c7237` (roles de venta). El código manda.
 - Migración: `db/migrations/20260928_codigo_promocional.sql` y, para la
   aprobación, `db/migrations/20261003_codigo_aprobacion.sql`
 - La aprobación (COD-03): reglas puras en `apps/web/lib/codigo-aprobacion.ts`,

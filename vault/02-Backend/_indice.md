@@ -1,18 +1,28 @@
 ---
 tipo: indice
 estado: verificado
-actualizado: 2026-09-29
+actualizado: 2026-10-05
 tags: [backend, indice]
 archivos:
   - apps/web/app/api/
   - apps/web/lib/server/
+  - scripts/recuentos.mjs
 ---
 
 # Índice — Backend
 
-El backend es un **BFF dentro de la propia app Next**: **99** Route Handlers
-sobre **111** archivos en `apps/web/lib/server/`.
+El backend es un **BFF dentro de la propia app Next**: **124** Route Handlers
+sobre **170** archivos `.ts` en `apps/web/lib/server/` (**85** de código y 85
+de pruebas `*.test.ts`).
 No hay servicio aparte.
+
+> [!warning] 2026-10-05 · esta nota decía 99 handlers con el árbol en 124
+> Medido hoy con `node scripts/recuentos.mjs` (endpoints **124**) y
+> `ls apps/web/lib/server/*.ts | wc -l` (**170**; sin `*.test.ts`, **85**). La
+> tabla de abajo seguía llamando «los 96 endpoints» a [[api-endpoints]], que a
+> su vez documentaba 100: tres cifras distintas en dos notas y ninguna era la
+> del código. Y la tabla de archivos más grandes era de antes del ADR 0039:
+> `propuestas-repo.ts` ha pasado de 593 a 1461 líneas.
 
 > [!tip] Recuento medido el 2026-09-21, en esta rama, con `node scripts/recuentos.mjs`
 > Decía 96/105 (18/09) y ya se había quedado atrás, otra vez, dos commits
@@ -29,13 +39,14 @@ No hay servicio aparte.
 
 | Nota | Cubre |
 |---|---|
-| [[api-endpoints]] | Los 96 endpoints con método, guard y módulo |
+| [[api-endpoints]] | Los 124 endpoints con método, guard y módulo |
 | [[autenticacion-y-sesion]] | Cookie, sesión, CSRF, RBAC, reautenticación |
 | [[roles-de-venta]] | **ADR 0040**: los cuatro roles nuevos y su matriz (86 filas · 10 módulos · 8 roles), el retiro de `COMERCIAL` **de uso y no del esquema**, por qué son DOS migraciones (un valor de enum no se usa en la transacción que lo añade), el módulo `precios`, y **los dos guards del Dueño** con su carrera resuelta por `for update` |
 | [[multi-tenancy-y-rls]] | Aislamiento entre organizaciones |
 | [[inventario-y-sitios]] | Pantallas, predios, modalidades, importación |
 | [[arrendadores-y-contratos]] | Arrendadores, contratos, rentas, firma — la razón social de quien me **COBRA** |
 | [[entidades-fiscales]] | Las razones sociales **PROPIAS** del owner: quien **PAGA**, compra activos, tramita licencias o vende |
+| [[multi-entidad-en-uso]] | El día en que las razones sociales dejaron de ser solo backend: la pantalla y la asignación en contratos y facturas |
 | [[comercial-propuestas-campanas]] | Propuestas, reservas, campañas, creativos |
 | [[operaciones-y-ot]] | Órdenes de trabajo, evidencias, imprenta, almacén |
 | [[finanzas-y-cobranza]] | Facturación, candado, parcialidades |
@@ -47,7 +58,7 @@ No hay servicio aparte.
 | [[descuento-por-volumen]] | **ADR 0039, Fase 2**: «compra 50 spots y pagas 40». Por qué la escala cuelga de la organización y por qué los tramos son planos; si el volumen cuenta contra el tope; y cómo se congela |
 | [[codigo-promocional]] | **ADR 0039, Fase 3**: «usa este código y ten un 20 % adicional». Cómo se resuelve **la carrera del último uso** con un `for update`; por qué el canje se cuenta al APLICAR y no al aprobar; por qué el cupón **no** cuenta contra el tope; y cómo se congela |
 | [[paquete-cerrado]] | **ADR 0039, Fase 4**: «estas cinco pantallas, prime, un mes: 180 000». El único escalón que **sustituye** el precio en vez de modificarlo. Cómo se **reparte** entre las pantallas cuadrando al peso (mayor resto); por qué un paquete **no admite volumen** y solo admite cupón con su bandera; por qué sale con **raya** del reporte publicada vs neta; y cómo se congela |
-| [[calculadora-de-spots]] | **ADR 0042**: la calculadora da la **cantidad** de spots de una pantalla digital —espacios del loop, horas al día y días— y el precio sigue siendo el de la pantalla. Por qué se redondea hacia abajo una vez al día, por qué el loop son **todos** los espacios, cómo se lee el horario de texto libre, y el **Roadblock** con su prima solo de gerente |
+| [[calculadora-de-spots]] | **ADR 0043** (sustituye las decisiones 1-3 del 0042): la calculadora da la **cantidad** y el **precio** de una pantalla digital como la calculadora HTML del dueño —loop = ocupación de hoy + la línea, precio = tarifa mensual ÷ spots—. Por qué la ocupación son las campañas vigentes en los dos lados, por qué las horas del precio son las del horario, cómo se lee el horario de texto libre, y el **Roadblock** con su prima solo de gerente |
 | [[captacion]] | **CAP-01**: la bitácora de captación — clientes, arrendadores, predios y pantallas que se están trabajando. El vendedor ve **lo suyo** (por permiso `captacion.aprobar`, no por rol); aprobar crea el registro real en **dos pasos** con reclamo bloqueado; la bitácora **solo crece** (sin update ni delete para la app) |
 | [[energia-consumos]] | La quinta dimensión: el recibo de luz, su captura mensual y el reparto por caras |
 | [[recibos-cfe-pdf]] | **Subir el PDF de CFE**: las dos codificaciones del recibo, por qué el `Total` impreso NO es el costo del periodo, el reparto de un recibo bimestral en meses de calendario, y el emparejamiento con el predio **sin tocar el esquema** |
@@ -68,19 +79,23 @@ Detalle en [[vision-general]] y [[convenciones]].
 
 Tamaño = superficie de conflicto entre agentes. Ver [[AGENTES]].
 
+Medido el **2026-10-05** con `wc -l apps/web/lib/server/*.ts`, sin las
+pruebas.
+
 | Archivo | Líneas | Zona |
 |---|---|---|
-| `lib/server/arrendadores-repo.ts` | 1317 | [[arrendadores-y-contratos]] |
-| `lib/server/campanas-repo.ts` | 1214 | [[comercial-propuestas-campanas]] |
-| `lib/server/sitios-repo.ts` | 624 | [[inventario-y-sitios]] |
-| `lib/server/propuestas-repo.ts` | 593 | [[comercial-propuestas-campanas]] |
-| `lib/server/arrendadores-controller.ts` | 460 | [[arrendadores-y-contratos]] |
-| `lib/server/firmas-repo.ts` | 336 | [[arrendadores-y-contratos]] |
-| `lib/server/contratos-sitio.ts` | 336 | [[arrendadores-y-contratos]] |
-| `lib/server/doohmain.ts` | 313 | [[integraciones-externas]] |
-| `lib/server/finanzas-repo.ts` | 298 | [[finanzas-y-cobranza]] |
-| `lib/server/google-oauth.ts` | 289 | [[autenticacion-y-sesion]] |
-| `lib/server/reportes-repo.ts` | 159 | [[reportes-rentabilidad]] |
+| `lib/server/arrendadores-repo.ts` | 1498 | [[arrendadores-y-contratos]] |
+| `lib/server/propuestas-repo.ts` | 1461 | [[comercial-propuestas-campanas]] |
+| `lib/server/campanas-repo.ts` | 1392 | [[comercial-propuestas-campanas]] |
+| `lib/server/sitios-repo.ts` | 741 | [[inventario-y-sitios]] |
+| `lib/server/codigos-repo.ts` | 609 | [[codigo-promocional]] |
+| `lib/server/arrendadores-controller.ts` | 505 | [[arrendadores-y-contratos]] |
+| `lib/server/reportes-repo.ts` | 467 | [[reportes-rentabilidad]] |
+| `lib/server/paquetes-repo.ts` | 460 | [[paquete-cerrado]] |
+| `lib/server/captacion-repo.ts` | 444 | [[captacion]] |
+| `lib/server/usuarios-repo.ts` | 443 | [[autenticacion-y-sesion]] |
+| `lib/server/propuestas-controller.ts` | 428 | [[comercial-propuestas-campanas]] |
+| `lib/server/doohmain.ts` | 403 | [[integraciones-externas]] |
 
 ## Relacionadas
 [[MOC-Proyecto]] · [[03-Frontend/_indice|Índice de Frontend]] · [[esquema]] ·

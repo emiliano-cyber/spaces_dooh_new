@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-09-22
+actualizado: 2026-10-05
 tags: [backend, instancias, despliegue, rojo]
 archivos:
   - db/migrations/20260921_actualizaciones_instancia.sql
@@ -14,6 +14,9 @@ archivos:
   - infra/scripts/update.sh
   - infra/scripts/instalar-hijo.sh
   - infra/scripts/provision-instancia.sh
+  - infra/scripts/pruebas-update.sh
+  - db/migrations/20261005_notas_de_version.sql
+  - Dockerfile
 ---
 
 # Actualización elegida por instancia (ADR 0037)
@@ -73,7 +76,7 @@ Si el dueño aprobara «v0.4.2» y luego alguien moviera la etiqueta del canal
 —cosa que pasa: `release.yml` y `promover.yml` lo hacen a propósito—, esa
 aprobación instalaría **una imagen que el dueño nunca vio**. Atada al digest,
 una aprobación caducada deja de valer sola: `aprobarDigest()` en
-`apps/web/lib/server/actualizaciones-repo.ts:64-78` hace la comprobación y la
+`apps/web/lib/server/actualizaciones-repo.ts:68-82` hace la comprobación y la
 escritura en **el mismo `UPDATE`** (el digest va en el `WHERE`, no en un
 `SELECT` previo), así que no cabe una corrida de `update.sh --comprobar`
 cambiando el disponible justo en medio. Si el digest ya no cuadra, el `PATCH`
@@ -100,7 +103,7 @@ web —no en `update.sh`— bastaría para que una instancia se auto-aprobara un
 imagen que nadie publicó, sin pasar por el registry ni por el actualizador.
 Postgres rechazaría el intento con `42501`, que `respuestaError()` traduce a
 403: es la **segunda** capa, no la única — el `.strict()` del `patchSchema` en
-`route.ts:47-55` es la primera y más barata.
+`route.ts:48-56` es la primera y más barata.
 
 > [!warning] El `revoke all` no es paranoia, es necesario
 > `20260824_grants_tablas_futuras.sql` da privilegios por omisión —incluido
@@ -183,8 +186,8 @@ este coste en la práctica.
 > ningún código.
 >
 > **El comportamiento es el correcto y el aviso sí llega, por el panel de
-> flota:** `reportar_a_flota` con `FLOTA_CODIGO` (`infra/scripts/update.sh:780-798`)
-> corre en cada `salir()` y entrega el código al PADRE. Queda escrito, y no
+> flota:** `reportar_a_flota` (`infra/scripts/update.sh:722`) corre en cada `salir()`
+> (`update.sh:780-792`: fija `FLOTA_CODIGO` en `:788` y lo llama en `:792`) y entrega el código al PADRE. Queda escrito, y no
 > simplemente reescrito, porque **el dueño aceptó el coste describiéndolo como
 > correos** y esa decisión tiene que poder revisarse sabiendo cuál es el canal
 > de verdad. Si lo que se quería era un correo, hoy no existe: haría falta
@@ -200,7 +203,7 @@ este coste en la práctica.
 | Decisión pura | `scripts/actualizaciones.mjs` → `decidirActualizacion()`, con `scripts/actualizaciones.test.ts` | [[modelo-instancias-soberanas]] |
 | Pantalla | `ActualizacionesPanel.tsx` (pinta) + `actualizaciones-ui.ts` (frase y tono, con pruebas — el `.tsx` no las tiene porque `vitest.config.ts` no monta jsdom) + `lib/data/actualizaciones-api.ts` (tipo y fetch, en `lib/data/` para no arrastrar `pg` al navegador) | [[modulos-internos]] |
 | Actualizador | `infra/scripts/update.sh`, paso **2b** (entre comparar digest y respaldar), banderas `--comprobar` / sin bandera | [[entorno-y-despliegue]] |
-| Cron | `infra/scripts/instalar-hijo.sh:886` y `infra/scripts/provision-instancia.sh:853` — misma línea, `*/15 * * * * root /opt/space-os/update.sh --comprobar …`, junto a la de las 04:17, no en su lugar | [[entorno-y-despliegue]] |
+| Cron | `infra/scripts/instalar-hijo.sh:886` y `infra/scripts/provision-instancia.sh:915` — misma línea, `*/15 * * * * root /opt/space-os/update.sh --comprobar …`, junto a la de las 04:17, no en su lugar | [[entorno-y-despliegue]] |
 | Copia a la imagen | `Dockerfile:117`, `COPY scripts/actualizaciones.mjs` — **construido y comprobado el 22/09**: `docker build` en verde y `/app/scripts/actualizaciones.mjs` dentro del contenedor, con su `import()` devolviendo `decidirActualizacion` | [[entorno-y-despliegue]] |
 
 ## Lo que hay que hacer a mano, y que no se le puede pedir a este commit
@@ -214,6 +217,15 @@ vive solo en esta rama —no en `main`—, así que DEMO y g500 corren sin la
 tabla y siguen actualizándose como siempre. Los pasos completos, en orden de lo
 que más duele si se olvida, están en la tarjeta humana:
 `docs/evidencias/tarjeta-actualizaciones-elegidas.md`.
+
+> [!note] 2026-10-05 · «vive solo en esta rama» ya no es cierto
+> La migración `20260921_actualizaciones_instancia.sql` está en `main`
+> (`dc403dc3`), y DEMO la corrió el 22/09
+> (`docs/evidencias/adr0037-demo-20260922.md`). El párrafo de arriba se
+> conserva como el estado del 22/09. Lo que **no** se puede verificar desde el
+> repositorio es qué `update.sh` corre hoy en cada anfitrión: eso solo lo dice
+> el servidor (`/opt/space-os/update.sh --help | grep -c comprobar`, paso 0 de
+> la tarjeta).
 
 ### El despliegue va por DOS vehículos, y el que importa no llega solo
 
@@ -245,7 +257,7 @@ que hay que tener juntas en la cabeza:
 servidor. Expediente: `docs/evidencias/adr0037-demo-20260922.md`.*
 
 Tras actualizar, la fila quedó con `version_instalada` y `digest_instalado` en
-**NULL**. Con eso `hayNovedad` (`apps/web/app/api/actualizaciones/route.ts:69`)
+**NULL**. Con eso `hayNovedad` (`apps/web/app/api/actualizaciones/route.ts:70`)
 daba **verdadero**, y la pantalla del dueño anunciaba una `v0.6.0` disponible
 **teniendo `v0.6.0` corriendo**. Y si alguien aprobaba esa novedad falsa, la
 aprobación **no se consumía nunca** —la corrida siguiente sale por el corte de

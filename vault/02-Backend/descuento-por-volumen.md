@@ -1,9 +1,12 @@
 ---
 tipo: contrato
 estado: verificado
-actualizado: 2026-09-28
+actualizado: 2026-10-05
 tags: [backend, precios, descuentos, volumen, propuestas, dinero, snapshot, rls]
 archivos:
+  - apps/web/lib/periodos.ts
+  - apps/web/lib/tarifa-calculada.ts
+  - apps/web/lib/server/paquetes-repo.ts
   - db/migrations/20260928_descuento_por_volumen.sql
   - apps/web/lib/volumen.ts
   - apps/web/lib/descuento.ts
@@ -33,10 +36,38 @@ tarifa base = f(pantalla, unidad, franja, fecha)     ← Fase 1
       =  neto
 ```
 
+> [!note] 2026-10-05 · el diagrama de arriba es el del 28/09; la cadena de HOY
+> Las fases 3 y 4 **existen y están en `main`**: el cupón
+> ([[codigo-promocional]], `10e72087`) y el paquete ([[paquete-cerrado]]). La
+> cuenta real, verificada hoy en `armarPropuesta`
+> (`apps/web/lib/server/propuestas-repo.ts:142`) y repetida en el congelado
+> (`congelarSnapshotEconomico`, `:336`):
+>
+> ```
+> precio de línea = tarifa × cantidad
+>                   (tarifa: franja+temporada → franja → temporada → rejilla → modalidad)
+> volumen         = Σ round(precio_línea × pct_línea/100)        volumen.ts:244
+> brutoConVolumen = paquete ? precio_paquete : bruto − volumen    propuestas-repo.ts:182
+> comercial       = round(brutoConVolumen × comercial/100)        :196
+> baseComercial   = brutoConVolumen − comercial
+> cupón           = round(baseComercial × cupón/100)              :219
+>                   (0 si el paquete no admite cupón, :215)
+> base            = baseComercial − cupón
+> neto            = round(base × divisor de comisión)             :224
+> ```
+>
+> **El redondeo del volumen es POR LÍNEA**, no sobre el total: tres líneas de
+> 1 003 al 15 % descuentan 150 × 3 = **450**, y `round(3 009 × 0,15)` daría
+> **451**. Y **con paquete el volumen vale cero** (`propuestas-repo.ts:181`): el
+> precio del conjunto ya lo lleva dentro.
+
 > [!warning] Alcance
 > Esta nota describe **solo** el volumen. Si un documento te habla de códigos
 > promocionales o paquetes cerrados dentro de esta fase, describe trabajo que no
 > se ha hecho.
+>
+> *(2026-10-05: «dentro de esta fase». Los dos existen hoy como fases propias:
+> [[codigo-promocional]] y [[paquete-cerrado]].)*
 
 > [!danger] SIN FUSIONAR — la migración espera aprobación del dueño
 > Desde el **2026-09-28**, ningún cambio de base de datos aterriza sin que el
@@ -45,6 +76,10 @@ tarifa base = f(pantalla, unidad, franja, fecha)     ← Fase 1
 > no es ceremonia: cada migración que entra a `main` acaba corriendo en **g500**,
 > la única instancia con datos de cliente reales, y su runner **se para en seco**
 > si algo no cuadra. Una migración de más es una cola de despliegue detenida.
+>
+> **2026-10-05 · ya está FUSIONADA.** El commit `22c75a72` es ancestro de
+> `main` y `db/migrations/20260928_descuento_por_volumen.sql` está en el árbol.
+> El recuadro se conserva como historia de cómo se aprobó.
 
 ---
 
@@ -139,9 +174,103 @@ por un margen que no se perdió.
 > comercialPct)` y ajustar `descuento.volumen.test.ts`. Ningún otro archivo se
 > entera.
 
+> [!note] 2026-10-05 · las otras dos capas, frente al tope
+> - **El cupón NO cuenta.** `CODIGO_CUENTA_CONTRA_TOPE = false`
+>   (`apps/web/lib/descuento.ts:260`), y `descuentoContraTope` (`:273`) le pasa
+>   un 0 a `componerDescuentos`. Lo comparado sigue siendo la fórmula de arriba.
+>   Ver [[codigo-promocional]].
+> - **Con paquete, el volumen tampoco cuenta**, porque no se aplicó:
+>   `descuentoDePropuestaDentroDelTope` pasa `volumenPct = 0` si hay paquete
+>   vivo (`apps/web/lib/descuento.ts:424`; la llama `actualizarPropuesta` en
+>   `apps/web/lib/server/propuestas-repo.ts:1357`). Hasta TOPE-03 la cuenta vivía
+>   dentro de `actualizarPropuesta`.
+> - **Y al QUITAR el paquete el volumen vuelve**, así que se revalida el
+>   comercial con él: `quitarPaquete` (`apps/web/lib/server/paquetes-repo.ts:376`,
+>   comprobación en `:439`) se niega si el compuesto pasaría del tope. Commit
+>   `b2d30d50`, **en esta rama y todavía no en `main`** al 05/10. Ver
+>   [[paquete-cerrado]].
+
+> [!important] 2026-10-05 · TOPE-03 · aprobar y aceptar revisan el tope VIGENTE
+> El tope se validaba al **escribir** el descuento y al quitar un paquete. Si
+> Administración lo **bajaba** después, ni la aprobación interna
+> (`cambiarEstatusPropuesta`) ni la aceptación del cliente por la liga
+> (`aceptarPropuestaPublica`) lo volvían a mirar, y el descuento por encima del
+> techo vigente se **congelaba en el snapshot**.
+>
+> - **La cuenta es UNA**: `descuentoDePropuestaDentroDelTope`
+>   (`apps/web/lib/descuento.ts:424`) — volumen sí salvo con paquete, cupón según
+>   `CODIGO_CUENTA_CONTRA_TOPE`. La usan la edición (`propuestas-repo.ts:1357`),
+>   la aprobación (`revisarTopeVigente`, `:1421`, llamada en `:1493`) y la liga
+>   (`:976`). `quitarPaquete` sigue con su propia llamada a
+>   `descuentoDentroDelTope` porque cuenta el volumen **como si ya no hubiera
+>   paquete**.
+> - **Aprobar** con el descuento por encima: `TopeVigenteError` → **409**
+>   `descuentoSobreTope: true`, con el descuento, el total con volumen, el tope
+>   y qué hacer (`mensajeTopeVigente`, `descuento.ts:449`). No se escribe nada.
+> - **Aceptar por la liga**: 409 con `MSJ_TOPE_VIGENTE_PUBLICO` (`:476`), que
+>   **no nombra el tope** —es un dato interno— y manda al cliente con su
+>   ejecutivo. Se revisa dentro de la transacción, tras el `for no key update`
+>   de la propuesta (el mismo bloqueo que ya tenía, sin cambiar el orden), con el
+>   tope leído por el tenant del **token** (`config_negocio` con
+>   `tenant_id` explícito); sin fila, el respaldo del 100 %.
+> - **Con 0 % comercial no se revisa**, por el criterio de TOPE-PAQ: el tope
+>   acota la discreción del vendedor, y si el volumen solo pasa el tope es la
+>   escala por encima del techo, que se arregla en Administración.
+> - **Lo ya guardado no se toca** (TOPE-01): el descuento se conserva y la
+>   propuesta se sigue editando; lo que no se puede es cerrarla así.
+>
+> **Abierto para el dueño:** ¿una propuesta ya **ENVIADA** debe respetar el tope
+> con que se envió? Lo implementado es lo conservador (el de hoy manda también
+> para lo enviado). La alternativa es guardar el tope al enviar y validar contra
+> ése; exige columna nueva, o sea migración. Y no hay mecanismo de «aprobación
+> por encima del tope»: los techos por rol y la autorización al aprobar del
+> ADR 0040 **no están construidos**; cuando lo estén, esta revisión es donde
+> encajan.
+>
+> Pruebas: `lib/server/propuestas-repo-tope-vigente.test.ts` (11),
+> `lib/descuento.tope.test.ts` (TOPE-03, 5) y `lib/test/tope-descuento.e2e.test.ts`
+> (TOPE-03, 4; mutada con rebuild: 3 en rojo).
+
+> [!important] 2026-10-05 · TOPE-04 · si el volumen SOLO ya pasa el tope, 0 % comercial SÍ se guarda
+> El caso: Administración baja el tope al 5 % y la escala de la organización da
+> 10 %. Hasta hoy la **edición** rechazaba incluso guardar 0 % comercial
+> (`componerDescuentos(10, 0)` = 10 > 5), mientras aprobar, la liga y
+> `quitarPaquete` **no revisaban** con 0 % comercial (TOPE-PAQ). Aprobar
+> contestaba 409 «Ajusta el descuento» y el vendedor no podía ajustarlo a
+> **nada**: solo Administración subiendo el tope lo destrababa.
+>
+> - **La regla vive en UN sitio**: `descuentoDentroDelTope`
+>   (`apps/web/lib/descuento.ts:330`) devuelve 0 sin mirar el tope cuando el
+>   comercial es 0 (`:350`). Edición, aprobación (`revisarTopeVigente`,
+>   `propuestas-repo.ts:1421`), liga y `quitarPaquete` (`paquetes-repo.ts:439`)
+>   pasan todas por ahí; los dos atajos `comercial > 0` que tenían aprobar y
+>   quitar el paquete se quitaron. Para esas tres puertas el comportamiento es
+>   idéntico; la única que cambia es la edición.
+> - **Con comercial > 0 sigue rechazando** exactamente como antes si el
+>   compuesto pasa el tope.
+> - **El mensaje dice la salida real** (`mensajeSobreTope`, `descuento.ts:115`,
+>   y `mensajeTopeVigente`, `:449`): si el volumen solo ya pasa el tope, «El
+>   descuento por volumen (10 %) ya supera el tope (5 %): deja el descuento
+>   comercial en 0 % o pide a Administración que suba el tope.»; si no, el de
+>   siempre más «Cabe hasta X % comercial», con X de
+>   `comercialMaximoDentroDelTope` (`:157`), que se **comprueba** contra
+>   `descuentoContraTope` en lugar de repetir la regla. Estos mensajes no pasan
+>   por el catálogo ES/EN (`respuestaError`): la ruta los devuelve tal cual.
+> - **La pantalla no bloqueaba el 0 %** (`propuestas/[id]/page.tsx` solo compara
+>   `d > tope`), así que no hubo que tocarla.
+>
+> Pruebas: `lib/descuento.tope.test.ts` (TOPE-04, 5), `lib/server/propuestas-repo-tope-vigente.test.ts`
+> (§3, 3), `lib/descuento.volumen.test.ts` (la prueba que exigía rechazar el 0 %
+> se invirtió) y `lib/test/tope-descuento.e2e.test.ts` (TOPE-04, 2: tope bajado
+> por la API → aprobar 409 con la salida → editar a 1 % 400 → editar a 0 % 200 →
+> aprobar 200). Rojo a la vista antes de implementar (7 unitarias; las 2 e2e
+> contra el build viejo); mutante que quita la regla → build → 1 e2e en rojo →
+> restaurar → build.
+
 **Consecuencia que hay que tener escrita:** si el dueño deja el tope **por debajo**
-de su propia escala de volumen, ninguna propuesta con volumen podrá tocar su
-descuento hasta que arregle una de las dos cosas. Eso es visible y se explica; lo
+de su propia escala de volumen, ninguna propuesta con volumen podrá llevar
+descuento **comercial** hasta que arregle una de las dos cosas (desde TOPE-04,
+05/10, dejarlo en 0 % sí se guarda y se aprueba). Eso es visible y se explica; lo
 contrario —un techo que no es techo— no se ve.
 
 ---
@@ -164,6 +293,13 @@ contrario —un techo que no es techo— no se ve.
 > Esta fase **no** arregla aquello —mover la cadena entera al servidor cambia el
 > comportamiento de cada venta y espera decisión del dueño (D11)— pero **tampoco
 > lo amplía**: el escalón de volumen nace del lado correcto.
+>
+> **2026-10-05 · este recuadro YA NO describe el código.** Desde `17fbd252`
+> (01/10, en `main`) `resolverTarifa` la llama también `tarifaCalculada`
+> (`apps/web/lib/tarifa-calculada.ts:95`), módulo puro que importan la pantalla
+> **y** `crearPropuestaCtrl` (`apps/web/lib/server/propuestas-controller.ts:359-375`).
+> Un precio distinto de la tarifa sin `comercial.aprobar` es **403**. Se
+> conserva como historia del hallazgo B40.
 
 Cómo: el cliente manda la **cantidad**; el porcentaje lo resuelve
 `propuestas-controller.ts` leyendo `escalas_volumen` bajo RLS. El `itemSchema` de
@@ -174,6 +310,22 @@ de VEND-01.
 Y la cantidad que cuenta es la **efectiva** (`cantidadEfectiva`), la misma que
 multiplica la tarifa: una `cantidad: 999` inflada a mano en una unidad de tiempo
 no regala ningún tramo, porque el rango de fechas manda.
+
+Verificado el 05/10 en `apps/web/lib/server/propuestas-controller.ts`: el
+`itemSchema` (`:100`) no declara `descuentoVolumenPct`; la escala se lee una vez
+por propuesta (`:213`); `volumenDelItem` resuelve el tramo (`:223-226`) con la
+cantidad efectiva (`:302`, aplicada en `:324`).
+
+> [!warning] 2026-10-05 · los meses de calendario pueden CAMBIAR EL TRAMO
+> Desde `6ab3c1f2` (02/10, en `main`) la unidad `mensual` cuenta **meses de
+> calendario** y no `días ÷ 30` hacia arriba: `periodosEnRango`
+> (`apps/web/lib/periodos.ts:186`) busca el menor `n` con
+> `finDeMeses(inicio, n) ≥ fin`, y `cantidadEfectiva` (`:205`) lo usa.
+> 01/10–31/10 pasó de **2** meses a **1**; 05/10–04/12 (61 días), de **3** a
+> **2**. Como el tramo se resuelve con esa cantidad, **una escala con umbral en
+> meses puede dejar de aplicar** a una propuesta capturada hoy con las mismas
+> fechas que una de antes. Las ya capturadas no cambian: el porcentaje está
+> copiado en la línea (§5).
 
 ---
 

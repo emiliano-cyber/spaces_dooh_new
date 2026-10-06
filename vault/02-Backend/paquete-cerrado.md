@@ -1,7 +1,7 @@
 ---
 tipo: contrato
 estado: verificado
-actualizado: 2026-09-28
+actualizado: 2026-10-05
 tags: [backend, precios, paquetes, promociones, propuestas, dinero, snapshot, rls, reportes]
 archivos:
   - db/migrations/20260928_paquete_cerrado.sql
@@ -43,6 +43,21 @@ puso el último.
 > `20260928_paquete_cerrado.sql` está escrita y probada contra bases desechables,
 > pero **el dueño pidió el 2026-09-28 aprobar todo cambio de esquema antes de que
 > aterrice**. Lo detenido es la fusión, no el código.
+>
+> **2026-10-05 · ya está FUSIONADA.** `8e913662` («paquete cerrado -- estas
+> cinco pantallas, un mes, 180 000») es ancestro de `main`. El arreglo TOPE-PAQ
+> de §4 (`b2d30d50`) **no** lo es todavía: vive en esta rama. El recuadro se
+> conserva como historia.
+
+> [!note] 2026-10-05 · dónde entra, en el código
+> `armarPropuesta` (`apps/web/lib/server/propuestas-repo.ts:142`):
+> `descuentoVolumenMonto = paquete ? 0 : …` (`:181`) y
+> `brutoConVolumen = paquete ? paquete.precio : vol.brutoConVolumen` (`:182`).
+> Sobre ese número se calcula después el comercial (`:196`) y, si el paquete lo
+> admite, el cupón (`:215-219`). El presupuesto **aprobado** de un paquete es su
+> precio entero aunque se acepten menos pantallas (`:237`). El congelado repite
+> la misma cuenta (`:436`) y reparte con `repartirPaquete`
+> (`apps/web/lib/paquete.ts:119`, llamado en `propuestas-repo.ts:441`).
 
 ---
 
@@ -177,6 +192,11 @@ Por omisión **no admite nada encima**:
 - **El código promocional solo si `admite_codigo`**, que **nace apagada**.
   Aplicar un paquete que no lo admite sobre una propuesta que ya tiene cupón se
   **rechaza con una frase**; y la aritmética lo anula además como segunda red.
+  *(2026-10-05: y **al revés también**. Hasta ese día canjear un cupón sobre una
+  propuesta que ya tenía un paquete así se aceptaba, gastaba el uso y descontaba
+  0; ahora `canjearCodigo` se niega antes de contar, y `aplicarPaquete` lee la
+  propuesta con `for no key update` para que los dos caminos no se crucen. El
+  detalle, en [[02-Backend/codigo-promocional]].)*
 - **El descuento comercial SÍ se sigue aplicando**, y está preguntado al dueño.
   Se queda porque es lo único que el vendedor negocia y ya está acotado por el
   tope de la organización.
@@ -184,6 +204,40 @@ Por omisión **no admite nada encima**:
 **Y el volumen deja de contar contra el tope** cuando hay paquete: si contara, a
 un vendedor le rechazarían un descuento por un volumen que el cliente nunca
 recibió, con un mensaje que nombraría un porcentaje ausente de su cotización.
+
+> [!danger] TOPE-PAQ · 2026-10-05 · **quitar el paquete se NIEGA si el volumen
+> devuelto deja la venta por encima del tope**
+> La regla de arriba tenía un reverso que nadie revisaba. Con paquete, el
+> vendedor guarda un 15 % comercial contra un tope del 20 % aunque las líneas
+> lleven un 10 % de volumen, porque el volumen no cuenta. **Al quitar el
+> paquete el volumen vuelve** —es justo lo que promete «devuelve la venta a como
+> estaba»— y la venta queda en `1 − 0,85 × 0,90 = 23,5 %` regalado contra un
+> techo de 20. `quitarPaquete` solo limpiaba las cinco columnas, y **la
+> aprobación (`cambiarEstatusPropuesta`) y la aceptación por liga pública
+> (`aceptarPropuestaPublica`) no miran el tope**: se aprobaba y se congelaba en
+> el snapshot por encima de lo autorizado. *(Desde TOPE-03, el mismo 05/10, las
+> dos sí revisan el tope vigente —ver [[descuento-por-volumen]] §3—; el cierre
+> de aquí sigue siendo el primero, porque impide guardar el estado malo.)*
+>
+> **Se cierra donde nace el estado malo, no en la aprobación.** Es el criterio
+> de TOPE-01: *por encima del tope no se guarda nada*. Revalidar al aprobar
+> habría dejado pasar la aceptación del cliente por la liga, que no pasa por
+> ese camino, y habría dejado la propuesta enviada con un precio que luego no
+> se puede firmar. `quitarPaquete` relee dentro de su transacción el descuento
+> comercial y el volumen de las líneas y los pasa por la misma
+> `descuentoDentroDelTope` que la edición; si no cabe, `PaqueteImposible`
+> (409) con el mensaje del tope y la salida: **baja primero el descuento
+> comercial**. Nada se toca: ni el enlace ni las columnas.
+>
+> **Con 0 % comercial siempre se deja quitar**, aunque el volumen solo pase el
+> tope: no hay discreción del vendedor que acotar, la propuesta queda igual
+> que una recién creada con esas líneas, y negarse dejaría el paquete pegado
+> sin salida. Es el caso «tope por debajo de la escala propia» de
+> [[02-Backend/descuento-por-volumen]] §3, y se arregla en Administración.
+> Pruebas: `paquetes-aplicar.test.ts` bloque 4.
+>
+> *(Verificado el 05/10: `quitarPaquete` en `apps/web/lib/server/paquetes-repo.ts:376`,
+> la comprobación en `:439`; commit `b2d30d50`, en esta rama y aún no en `main`.)*
 
 ---
 
@@ -238,7 +292,9 @@ menos: calcularía mal.
 
 `porSitio[]` lleva `paquete: true` cuando la venta vino de un paquete, y
 `lib/data/reportes.ts` **deja esas reservas fuera de la comparación**, con el
-mismo centinela `null` que ya usaba para la ambigüedad.
+mismo centinela `null` que ya usaba para la ambigüedad (`dePaquete`, declarado
+en `apps/web/lib/data/reportes.ts:429-435`; el centinela `DE_PAQUETE = null`, en
+`:1194`).
 
 **Por qué sacarlas y no es una rendición:** el reporte llama a la diferencia «el
 descuento comercial MÁS la comisión de agencia», y con un paquete esa frase es
@@ -258,8 +314,18 @@ igual: a nadie se le mide la mano con un descuento que decidió el dueño.
 
 | Operación | Ruta | Permiso |
 |---|---|---|
-| Crear/editar/borrar un paquete | `/api/paquetes` | `exigirCambioSensible('inventario','crear')` |
+| Crear/editar/borrar un paquete | `/api/paquetes` | `exigirCambioSensible('precios','crear')` |
 | Aplicarlo o quitarlo de una propuesta | `/api/propuestas/:id/paquete` | `comercial.crear` |
+
+> [!note] 2026-10-05 · el módulo ya no es `inventario`
+> Esta tabla decía `exigirCambioSensible('inventario','crear')`. Verificado hoy:
+> `app/api/paquetes/route.ts:44` y `app/api/paquetes/[id]/route.ts:32,49` exigen
+> `exigirCambioSensible('precios','crear')`, y la lista `exigir('precios','ver')`
+> (`route.ts:34`). Pasó a `comercial` con `bd08f388` (29/09) y a `precios` con
+> `276c7237` ([[roles-de-venta]]). Aplicar y quitar siguen en `comercial.crear`
+> (`app/api/propuestas/[id]/paquete/route.ts:40,59`). El comentario de esa misma
+> ruta (`:36`) todavía dice `inventario`: es viejo, el código manda. La
+> separación en dos permisos —lo que defiende esta sección— sigue en pie.
 
 Si fueran el mismo, quien vende se crearía su propio paquete al precio que
 quisiera y se lo aplicaría — **el tope de descuento del 28/09 evadido por
@@ -279,7 +345,9 @@ un descuento.
   `campanas-repo` (el camino sin snapshot), que viene de la Fase 2 y sigue
   señalado. El **paquete sí entra** en ese respaldo, porque dejarlo fuera habría
   hecho el defecto cualitativamente peor: no una desviación porcentual, sino un
-  número entero distinto.
+  número entero distinto. *(Sigue así el 05/10: `apps/web/lib/server/campanas-repo.ts:958-982`
+  —el aviso y el `paquete ? … : items.reduce(…)`—. Ojo con lo que dice el
+  código ahí: sin paquete ese respaldo ignora **volumen y cupón**.)*
 - **No admite propuestas mixtas** (paquete + pantallas sueltas).
 
 ---

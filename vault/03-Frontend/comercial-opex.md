@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: en-curso
-actualizado: 2026-09-30
+actualizado: 2026-10-05
 tags: [frontend, comercial, prospeccion, arrendadores, maqueta]
 archivos:
   - apps/web/app/(app)/(shell)/comercial-opex/page.tsx
@@ -46,7 +46,8 @@ archivos:
 > documentos de la empresa, competencia, historial ni responsables y
 > contactos»*—, ya **con capturas reales** (Chromium sin ventana contra el
 > 3490). La causa de casi todo era una: **`preflight` de Tailwind está
-> DESACTIVADO** (`tailwind.config.ts:23`), así que cada `<ul>`/`<ol>` salía con
+> DESACTIVADO** (`tailwind.config.ts:24`; decía `:23`, que es la línea de
+> `corePlugins`), así que cada `<ul>`/`<ol>` salía con
 > las viñetas, los números y la sangría del navegador —números «1. 2.» encima
 > de la línea de tiempo, puntos sueltos fuera de los recuadros—. Ahora toda
 > lista lleva `LISTA` (`m-0 list-none p-0`) y cada sección tiene su forma:
@@ -111,8 +112,9 @@ Dos cosas, y viven en `lib/comercial-opex.ts` **con pruebas**, no dentro del
 
 **[[02-Backend/captacion]] ya existe y SÍ tiene base**: `prospectos` y
 `prospecto_avances` (`db/migrations/20260930_captacion.sql`), con etapa,
-siguiente paso, vendedor, bitácora y aprobación. Su pantalla está en
-`/captacion`, justo encima de ésta en el menú.
+siguiente paso, vendedor, bitácora y aprobación. Su pantalla sigue en
+`/captacion`, pero **ya no está en el menú** desde el 30/09 por la tarde (la
+línea de `nav.ts:153` queda comentada): solo se llega por URL.
 
 Lo que esta maqueta trae y aquello **no** tiene:
 
@@ -138,7 +140,8 @@ contrario. Meterlas en la misma tabla por llamarse parecido sería el error caro
 
 ## Permisos
 
-Módulo **`comercial`**, con `apiPropia: false` porque hoy no tiene API. La ven
+Módulo **`comercial`**, con `apiPropia: false` porque hoy no tiene API
+(`lib/modulos.ts:47`). La ven
 Dueño, Administrador y los tres roles de venta — el mismo reparto que Captación.
 
 El día que tenga API, `apiPropia` pasa a `true` y hay que decidir si su módulo
@@ -147,7 +150,10 @@ sigue siendo `comercial` o se va con `captacion`. Ver [[02-Backend/roles-de-vent
 ## Lo que NO se hizo
 
 - **El mapa del prototipo.** Pedido explícitamente fuera.
-- **Elegir otro espacio.** Se detalla el primero; sin interactividad no hay
-  forma de cambiar, y añadirla sería la «función» que se pidió dejar fuera.
-- **Nadie la ha abierto en un navegador.** Compila y entra en el build; la
-  lógica tiene 10 pruebas. El `.tsx` no lo ha visto nadie.
+- ~~**Elegir otro espacio.**~~ **Ya se puede desde la tarde del 30/09** (ver
+  el recuadro de arriba): la lista de la izquierda elige cuál se detalla, sin
+  guardar nada. Lo que se dejó fuera fue guardar, no mirar.
+- ~~**Nadie la ha abierto en un navegador.**~~ La segunda pasada del 30/09 se
+  hizo **con capturas reales** (Chromium sin ventana). Lo que sigue sin
+  existir es una prueba que la rinda: el arnés no monta DOM. La lógica de
+  `lib/comercial-opex.ts` tiene **16** pruebas al 2026-10-05 (decía 10).

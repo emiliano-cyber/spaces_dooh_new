@@ -3,14 +3,23 @@
 //  Módulo PURO: sin `fetch`, sin React, sin BD. Lo usan la pantalla de
 //  propuestas y el servidor, y ése es todo su motivo de existir.  ADR 0042.
 // ----------------------------------------------------------------------------
-//  Decisión del dueño, 2026-10-01: la calculadora da la CANTIDAD de spots de
-//  una línea; el PRECIO sigue siendo el de la pantalla (modalidad `spot`, la
-//  rejilla por franja y temporada, el volumen sobre la cantidad, el código y la
-//  comisión: la cadena del ADR 0039, intacta).
+//  ADR 0043 (2026-10-06), que sustituye las decisiones 1, 2 y 3 del ADR 0042:
+//  la calculadora cuenta COMO LA CALCULADORA HTML DEL DUEÑO (`indexcal.html`),
+//  la cantidad Y el precio.
 //
-//      spotsDia = floor( 3600 / (espaciosDelLoop × duraciónSpot)
-//                        × espaciosComprados × horasDía )
-//      cantidad = spotsDia × días
+//      loop      = anunciantes de hoy + espacios de la línea   (Roadblock: todos)
+//      cantidad  = floor( 3600 / (loop × duración) × espacios × horasDía × días )
+//      precio    = tarifaMensual / (3600 / (loop × duración) × horasOperación × 30)
+//      Roadblock = tarifaMensual × loop / (horasOperación × 30) / floor(3600 / duración)
+//                  por spot, × (1 + prima)
+//
+//  El volumen, el cupón y la comisión se siguen componiendo ENCIMA del precio,
+//  igual que antes: lo que cambió es el primer escalón, no la cadena.
+//
+//  Lo que había ANTES (ADR 0042, 2026-10-01): el precio era la tarifa `spot` de
+//  la pantalla, el loop eran todos los espacios y se redondeaba por día. Se
+//  cambió porque las cifras no cuadraban con la calculadora con la que el
+//  dueño cotiza; los porqués de aquel diseño siguen en el ADR 0042.
 //
 //  ─── POR QUÉ UNA SOLA COPIA PARA LOS DOS LADOS ─────────────────────────────
 //  Es la misma razón que `lib/tarifa-calculada.ts` y `lib/rejilla.ts`
@@ -21,24 +30,37 @@
 //  podría mandar «100 spots» con un `curl` para bajar el total — que es el
 //  hallazgo B40 otra vez, por la puerta de la cantidad en vez de la tarifa.
 //
-//  ─── DOS COSAS DE LA CALCULADORA ORIGINAL QUE NO SE COPIAN ─────────────────
-//  · Spots FRACCIONARIOS: con 7 espacios de 20 s salen 25,71 rotaciones por
-//    hora, y aquélla multiplicaba ese 25,71. Aquí se redondea HACIA ABAJO, una
-//    vez y al final del día: no se cobra una reproducción que no ocurre.
-//  · La ocupación del día como tamaño del loop (decisión 3 del ADR): el loop
-//    son TODOS los espacios de la pantalla (`total_spots`). Con la pantalla
-//    medio vacía el mismo spot no puede salir más barato.
+//  ─── LO QUE NO SE COPIA DE LA CALCULADORA HTML ─────────────────────────────
+//  · La coma flotante. Aquélla divide en flotante; aquí se cuenta en enteros
+//    (horas en centésimas, pesos en centavos) y se redondea UNA vez, al final
+//    del periodo. Las fracciones de spot de cada día SÍ suman —como en el
+//    HTML—, pero un 13 885,99999 no puede volverse 13 885 en un lado y 13 886
+//    en el otro: el servidor rechazaría la venta.
+//  · El precio se guarda al CENTAVO (`tarifa_unitaria` es `numeric(14,2)`):
+//    $100,000 ÷ 16 200 = $6.1728 se cobra a $6.17, que es lo que el HTML enseña.
 //
-//  ─── LO QUE NO VIVE AQUÍ ───────────────────────────────────────────────────
-//  La tarifa base (`tarifa-calculada.ts`), el volumen, el código y el paquete.
-//  Lo único de precio que hay aquí es la PRIMA del Roadblock, porque solo existe
-//  con la calculadora y se compone encima de la tarifa calculada.
+//  ─── LA OCUPACIÓN: LA MISMA CUENTA EN LOS DOS LADOS ────────────────────────
+//  «Anunciantes de hoy» son las CAMPAÑAS VIGENTES de la pantalla, el mismo
+//  conteo que enseña el inventario (`listarSitios`: libres = total − campañas)
+//  y que lee el servidor (`datosDelLoop.campanasActivas`). NO es el contador
+//  `spots_disponibles` guardado: si la pantalla contara con uno y el servidor
+//  con otro, el loop saldría distinto, la cantidad no cuadraría y la venta se
+//  bloquearía con un 400 sin que el vendedor hubiera tocado nada.
 // ============================================================================
 
-import { minutosDeHora } from './rejilla'
-import { centavos, decidirPrecioItem, type DecisionPrecio } from './tarifa-calculada'
+import { minutosDeHora, type Temporada } from './rejilla'
+import {
+  centavos,
+  decidirPrecioItem,
+  tarifaCalculada,
+  type DecisionPrecio,
+  type SitioTarifable,
+} from './tarifa-calculada'
 
 export const SEGUNDOS_POR_HORA = 3600
+
+/** Los días del mes de la calculadora HTML («Días activos al mes»). */
+export const DIAS_DEL_MES = 30
 
 /**
  * La duración de un spot cuando ni la pantalla ni la organización la dicen.
@@ -140,10 +162,10 @@ export function horasPorOmision(e: {
   return horasDeHorario(e.horario).horas
 }
 
-/** Rotaciones por hora de UN espacio. Solo para enseñar; no entra en la cuenta. */
-export function rotacionesPorHora(totalSpots: number, duracionSeg: number): number {
-  if (!esPositivo(totalSpots) || !esPositivo(duracionSeg)) return 0
-  return SEGUNDOS_POR_HORA / (totalSpots * duracionSeg)
+/** Rotaciones por hora de UN espacio en un loop de `loop` anunciantes. Solo para enseñar. */
+export function rotacionesPorHora(loop: number, duracionSeg: number): number {
+  if (!esPositivo(loop) || !esPositivo(duracionSeg)) return 0
+  return SEGUNDOS_POR_HORA / (loop * duracionSeg)
 }
 
 /** Las horas en CENTÉSIMAS enteras: la columna es `numeric(4,2)`. */
@@ -153,21 +175,129 @@ const centesimas = (h: number) => Math.round(Number(h) * 100)
 export const redondearHoras = (h: number) => centesimas(h) / 100
 
 /**
- * LA FÓRMULA. Spots al día de la línea, redondeados hacia abajo.
+ * El tamaño del loop de una línea: los anunciantes de HOY más los espacios que
+ * compra, como el deslizador «Anunciantes en el loop» de la calculadora HTML
+ * —que cuenta al propio cliente—. Un Roadblock es el loop entero.
  *
- * Se hace en ENTEROS —horas en centésimas— y no con
- * `floor(3600 / (t × d) × e × h)` en coma flotante: `0.1 + 0.2` no es `0.3`, y
- * un 269,99999 que debía ser 270 le quitaría al cliente un spot al día por un
- * error que no se ve. Y sobre todo, el servidor y la pantalla tienen que dar
- * el MISMO entero o la venta se bloquea.
+ * `ocupados` son las campañas vigentes (ver la cabecera). Sin el dato, el loop
+ * entero: suponer la pantalla vacía regalaría spots que no salen.
  */
-export function spotsPorDia(e: { totalSpots: number; duracionSeg: number; espacios: number; horasDia: number }): number {
-  if (!esPositivo(e.totalSpots) || !esPositivo(e.duracionSeg) || !esPositivo(e.espacios) || !esPositivo(e.horasDia)) {
-    return 0
-  }
-  const numerador = SEGUNDOS_POR_HORA * Math.round(e.espacios) * centesimas(e.horasDia)
-  const denominador = Math.round(e.totalSpots) * Math.round(e.duracionSeg) * 100
+export function loopDeLaLinea(e: {
+  totalSpots: number
+  ocupados: number | null | undefined
+  espacios: number
+  roadblock: boolean
+}): number {
+  const total = Math.round(e.totalSpots)
+  if (e.roadblock || e.ocupados == null || !Number.isFinite(Number(e.ocupados))) return total
+  return Math.min(total, Math.max(0, Math.floor(Number(e.ocupados))) + Math.round(e.espacios))
+}
+
+/** Spots de un Roadblock en una hora: la hora no da un spot partido. */
+const spotsPorHoraRoadblock = (duracionSeg: number) => Math.floor(SEGUNDOS_POR_HORA / Math.round(duracionSeg))
+
+/**
+ * LA FÓRMULA DE LA CANTIDAD, como la calculadora HTML: las fracciones de spot
+ * de cada día suman, y se redondea hacia abajo UNA vez, al final del periodo.
+ *
+ * En ENTEROS —horas en centésimas— y no en coma flotante: `0.1 + 0.2` no es
+ * `0.3`, y el servidor y la pantalla tienen que dar el MISMO entero o la venta
+ * se bloquea.
+ */
+export function cantidadDeSpots(e: {
+  loop: number
+  duracionSeg: number
+  espacios: number
+  horasDia: number
+  dias: number
+  roadblock: boolean
+}): number {
+  if (!esPositivo(e.loop) || !esPositivo(e.duracionSeg) || !esPositivo(e.espacios) || !esPositivo(e.horasDia)) return 0
+  if (!esPositivo(e.dias)) return 0
+  const dias = Math.floor(e.dias)
+  if (e.roadblock) return Math.floor((spotsPorHoraRoadblock(e.duracionSeg) * centesimas(e.horasDia) * dias) / 100)
+  const numerador = SEGUNDOS_POR_HORA * Math.round(e.espacios) * centesimas(e.horasDia) * dias
+  const denominador = Math.round(e.loop) * Math.round(e.duracionSeg) * 100
   return Math.floor(numerador / denominador)
+}
+
+/**
+ * EL PRECIO POR SPOT, como la calculadora HTML, al centavo.
+ *
+ *  · Normal: tarifa mensual ÷ spots que UN anunciante recibe en 30 días con
+ *    las horas de operación de la pantalla. Con el loop más lleno, cada spot
+ *    vale más y salen menos: lo que se paga por un espacio al mes es la tarifa
+ *    mensual, ocupe quien ocupe el resto.
+ *  · Roadblock: el ingreso de UNA hora con el loop entero —tarifa × loop ÷
+ *    horas al mes— repartido entre los `floor(3600 / duración)` spots de esa
+ *    hora. La prima va aparte (`tarifaConPrima`), una sola vez.
+ *
+ * Las horas de operación son las del HORARIO de la pantalla, no las de la
+ * franja: la renta mensual paga el día entero, y una franja corta no puede
+ * encarecer el spot por tener menos horas. La franja ya pone su precio en la
+ * rejilla de la tarifa mensual.
+ */
+export function tarifaPorSpot(e: {
+  tarifaMensual: number | null | undefined
+  loop: number
+  duracionSeg: number
+  horasOperacion: number
+  roadblock: boolean
+}): number | null {
+  const mensual = centavos(Number(e.tarifaMensual) || 0)
+  const horas = centesimas(e.horasOperacion)
+  if (mensual <= 0 || !esPositivo(e.loop) || !esPositivo(e.duracionSeg) || !(horas > 0)) return null
+  const loop = Math.round(e.loop)
+  const cent = e.roadblock
+    ? Math.round((mensual * loop * 100) / (horas * DIAS_DEL_MES * spotsPorHoraRoadblock(e.duracionSeg)))
+    : Math.round((mensual * loop * Math.round(e.duracionSeg) * 100) / (SEGUNDOS_POR_HORA * horas * DIAS_DEL_MES))
+  return cent / 100
+}
+
+/**
+ * La tarifa BASE de una línea de calculadora —sin prima—, con la forma
+ * `{ tarifa, calculable }` que espera `decidirPrecioCalculadora`.
+ *
+ * La tarifa mensual es la de la modalidad `mensual` de la pantalla resuelta por
+ * `tarifaCalculada()` —con su rejilla de franja y temporada, si la tiene—, y si
+ * la pantalla no la ofrece, su `tarifaMensual` de ficha. NUNCA la del spot: la
+ * tarifa «por spot» capturada como precio de día o de paquete es la que cotizó
+ * $32.6 M el 2026-10-01. Sin ninguna, no es calculable y solo un gerente pone
+ * el precio, igual que PRECIO-01.
+ */
+export function tarifaBaseCalculadora(e: {
+  sitio: SitioTarifable
+  franjaId: string | null
+  temporadas: Temporada[]
+  fechaInicio: string
+  loop: number
+  duracionSeg: number
+  horasOperacion: number
+  roadblock: boolean
+}): { tarifa: number; calculable: boolean } {
+  const tarifa = tarifaPorSpot({ ...e, tarifaMensual: tarifaMensualDeSitio(e) })
+  return tarifa == null ? { tarifa: 0, calculable: false } : { tarifa, calculable: true }
+}
+
+/**
+ * La tarifa MENSUAL de la que sale el precio de la calculadora (ver
+ * `tarifaBaseCalculadora`). Aparte para que la pantalla enseñe en el desglose
+ * exactamente el número con el que contó el servidor. 0 = no hay.
+ */
+export function tarifaMensualDeSitio(e: {
+  sitio: SitioTarifable
+  franjaId: string | null
+  temporadas: Temporada[]
+  fechaInicio: string
+}): number {
+  const mensual = tarifaCalculada({
+    sitio: e.sitio,
+    unidad: 'mensual',
+    franjaId: e.franjaId,
+    temporadas: e.temporadas,
+    fechaInicio: e.fechaInicio,
+  })
+  return mensual.calculable ? mensual.tarifa : Number(e.sitio.tarifaMensual) || 0
 }
 
 /**
@@ -209,6 +339,11 @@ export type EntradaCalculadora = ParametrosLinea & {
   horasMaximas: number
   /** Espacios libres ahora. `null` = no se sabe, no se acota (igual que `spotsDeLaReserva`). */
   libres: number | null
+  /**
+   * ADR 0043 · los anunciantes de HOY: las campañas vigentes de la pantalla.
+   * `null` = no se sabe, y el loop es la pantalla entera (`loopDeLaLinea`).
+   */
+  ocupados?: number | null
   /** Días de la línea, inclusivos (`diasInclusivos`). */
   dias: number
   /** La cantidad que mandó la pantalla, para compararla. */
@@ -223,8 +358,14 @@ export type ResultadoCalculadora =
       roadblock: boolean
       /** `null` sin Roadblock; 0 o más con él. */
       primaRoadblockPct: number | null
+      /** ADR 0043 · los anunciantes del loop con los que se contó. */
+      loop: number
       rotacionesHora: number
+      /** Spots al día, redondeados hacia abajo: es la PROGRAMACIÓN del CMS (`spots_por_dia`, entero). */
       spotsDia: number
+      /** Spots al día con sus fracciones, a dos decimales: lo que enseña la pantalla. */
+      spotsDiaExactos: number
+      /** Lo que se cobra: el periodo entero, redondeado UNA vez. */
       cantidad: number
     }
   /** 400 = la petición está mal; 409 = la pantalla no tiene los espacios libres. */
@@ -302,13 +443,20 @@ function evaluar(e: EntradaCalculadora, comparar: boolean): ResultadoCalculadora
     return mal(`Las horas al día van de más de 0 a ${fmtH(horasMax)}: más horas de las que transmite la pantalla serían spots que no salen.`)
   }
 
-  const spotsDia = spotsPorDia({ totalSpots: total, duracionSeg: e.duracionSeg, espacios, horasDia: horas })
-  if (spotsDia <= 0) {
-    return mal('Con esos espacios y esas horas no sale ni un spot al día.')
-  }
+  const loop = loopDeLaLinea({ totalSpots: total, ocupados: e.ocupados, espacios, roadblock })
+  const cuenta = { loop, duracionSeg: e.duracionSeg, espacios, horasDia: horas, roadblock }
   const dias = Math.floor(Number(e.dias) || 0)
   if (dias <= 0) return mal('La línea no tiene días: revisa las fechas.')
-  const cantidad = spotsDia * dias
+  // ADR 0043 · las fracciones de cada día suman: un día de 0,72 spots no se
+  // vende, treinta sí (21). Lo que se rechaza es un PERIODO sin un solo spot.
+  const cantidad = cantidadDeSpots({ ...cuenta, dias })
+  if (cantidad <= 0) {
+    return mal('Con esos espacios y esas horas no sale ni un spot al día.')
+  }
+  const spotsDia = cantidadDeSpots({ ...cuenta, dias: 1 })
+  const spotsDiaExactos = roadblock
+    ? (spotsPorHoraRoadblock(e.duracionSeg) * centesimas(horas)) / 100
+    : Math.round((SEGUNDOS_POR_HORA * espacios * centesimas(horas)) / (loop * Math.round(e.duracionSeg))) / 100
 
   if (comparar && (e.cantidadEnviada == null || Number(e.cantidadEnviada) !== cantidad)) {
     return mal(
@@ -340,8 +488,10 @@ function evaluar(e: EntradaCalculadora, comparar: boolean): ResultadoCalculadora
     horasDia: horas,
     roadblock,
     primaRoadblockPct: roadblock ? (prima ?? 0) : null,
-    rotacionesHora: rotacionesPorHora(total, e.duracionSeg),
+    loop,
+    rotacionesHora: rotacionesPorHora(loop, e.duracionSeg),
     spotsDia,
+    spotsDiaExactos,
     cantidad,
   }
 }
@@ -433,27 +583,6 @@ export function espaciosLibres(e: {
   if (e.guardados != null && Number.isFinite(Number(e.guardados))) candidatos.push(Number(e.guardados))
   if (!candidatos.length) return null
   return Math.max(0, Math.min(...candidatos))
-}
-
-/**
- * «Equivale a $X por spot frente a la tarifa mensual»: la tarifa mensual de la
- * pantalla entre los spots que un cliente de UN espacio recibe en 30 días.
- *
- * INFORMATIVA y nada más (decisión 1 del ADR): el dueño descartó usarla como
- * precio. Se enseña para que el vendedor compare, nunca se manda ni se cobra.
- */
-export function referenciaPorSpotMensual(e: {
-  tarifaMensual: number | null | undefined
-  totalSpots: number | null | undefined
-  duracionSeg: number
-  horasOperacion: number
-}): number | null {
-  const tarifa = Number(e.tarifaMensual) || 0
-  if (tarifa <= 0 || !esPositivo(e.totalSpots)) return null
-  const alDia = spotsPorDia({ totalSpots: e.totalSpots, duracionSeg: e.duracionSeg, espacios: 1, horasDia: e.horasOperacion })
-  const alMes = alDia * 30
-  if (alMes <= 0) return null
-  return Math.round((tarifa / alMes) * 100) / 100
 }
 
 /**

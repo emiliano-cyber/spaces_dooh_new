@@ -1,7 +1,7 @@
 ---
 tipo: operacion
 estado: sin-ejecutar
-actualizado: 2026-08-27
+actualizado: 2026-10-05
 tags: [operacion, produccion, verificacion, runbook]
 archivos:
   - db/schema.sql
@@ -9,7 +9,66 @@ archivos:
   - apps/web/lib/test/db-e2e.ts
   - apps/web/package.json
   - DESPLIEGUE_20260810_MIGRACIONES.txt
+  - infra/nginx/space-os.io.conf
+  - apps/web/lib/nginx-padre.test.ts
 ---
+
+> [!danger] 2026-10-05 · el PADRE YA NO sirve `space-os.io`: se llega por `spaceos.space-os.io`
+> Lo vigente de abajo («el PADRE sirve `space-os.io` con certificado propio») es
+> del 26/08 y **dejó de ser cierto**. Desde el 01/10 el ápice `space-os.io`
+> **resuelve a otra máquina (67.207.88.243)** —lo dicen el comentario del bloque 6
+> de `infra/nginx/space-os.io.conf` (`:342` y `:359-365`, medido el 2026-10-01), el
+> commit `c1b4a1f9` y [[2026-10-02]]—, y el PADRE se alcanza por
+> **`spaceos.space-os.io`** (`server_name` en `:374`), con **certificado
+> propio** (`e3524eb0`) porque el del ápice ya no se puede renovar por
+> `webroot` desde aquí. Desde `c1b4a1f9` (02/10) ese bloque incluye también el
+> panel de flota y el receptor de reportes.
+>
+> Comprobado por el dueño el 02/10 en el PADRE (no desde aquí):
+> `/flota/` → 401, `/flota/reporte` → 403, login → 200 ([[2026-10-02]]).
+>
+> **Dónde está cada nombre hoy en `space-os.io.conf`:** catch-all `:92`,
+> HTTP→HTTPS `:116`, ápice `:133`, **`demo.space-os.io` `:213`** (la cita
+> `:188` de abajo es del 26/08), `prueba.space-os.io` —el nombre público de
+> DEMO desde el 31/08— `:288`, `spaceos.space-os.io` `:374`.
+>
+> **Ojo, y no está resuelto:** el catch-all sigue redirigiendo a
+> `https://space-os.io` (`:101`), o sea que quien entre al PADRE por la IP o
+> por un nombre desconocido acaba **en la otra máquina**. No se tocó: es nginx
+> (zona R6) y no es de esta tarea. Lo mismo el HSTS con `includeSubDomains` del
+> ápice (`:159`): ahora lo emite quien sirva el ápice. Ver
+> [[zonas-de-riesgo]] §R6.
+>
+> **Actualización del 2026-10-05, mismo día — el catch-all, CORREGIDO EN EL
+> REPO y SIN DESPLEGAR.** El `default_server` del 80 (`server_name _` en `:92`)
+> ya no redirige: **`return 444` en `:101`** —nginx cierra la conexión sin
+> responder—. No se eligió redirigir a `spaceos.space-os.io` porque un 301 a un
+> nombre fijo es exactamente lo que falló: el navegador lo guarda, y el PADRE ya
+> se mudó de nombre una vez. Lo vigila `apps/web/lib/nginx-padre.test.ts`
+> (prueba estática; rojo con el redirect viejo, verde con el 444). **Las líneas
+> del archivo no se movieron**: todas las citas `space-os.io.conf:NNN` de la
+> bóveda siguen valiendo. El HTTP→HTTPS de los nombres conocidos (`:113-125`)
+> usa `$host` y no apunta al ápice: no se tocó.
+>
+> **Hasta que una persona lo despliegue, el PADRE sigue sirviendo el 301
+> viejo.** Comprobación tras el reload, desde fuera:
+> `curl -sI -H 'Host: nadie.invalid' http://137.184.107.53/` tiene que dar
+> **conexión cerrada sin respuesta** (`curl: (52) Empty reply from server`), no
+> un `301` con `Location: https://space-os.io/`.
+>
+> **Y queda abierto, para el dueño:** en el **443** no hay `default_server`, así
+> que nginx usa el primer bloque 443 —el del ápice, `:128-202`— para cualquier
+> nombre desconocido o para `https://<IP>`: lo sirve **el PADRE** con el
+> certificado de `space-os.io`. No manda a nadie fuera, por eso no se tocó aquí;
+> cerrarlo (`ssl_reject_handshake on` en un `default_server` del 443) es otra
+> decisión de R6.
+>
+> Y dos citas de abajo derivaron: `tenant-sin-default.e2e.test.ts:89` → el
+> `set default` está hoy en **`:96`**, y `db-e2e.ts:107-112` → el comentario
+> del «SUBCONJUNTO» va de **`:108` a `:116`**. Las de `db/schema.sql`
+> (`:598-611`, `:617-621` —el arreglo empieza en `:616`—, `:631-640`) siguen
+> en su sitio.
+
 
 > [!danger] 2026-08-26 · CORRECCIÓN DOBLE — esta nota tenía DOS cosas falsas
 > **① El acceso al droplet `209.97.146.136` NUNCA se perdió.** El aviso de abajo

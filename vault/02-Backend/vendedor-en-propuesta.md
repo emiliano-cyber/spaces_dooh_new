@@ -1,7 +1,7 @@
 ---
 tipo: contrato
 estado: verificado
-actualizado: 2026-09-28
+actualizado: 2026-10-05
 tags: [backend, reportes, rentabilidad, propuestas, usuarios, vendedores, dinero, rojo, r2]
 archivos:
   - db/migrations/20260928_vendedor_en_propuesta.sql
@@ -14,6 +14,8 @@ archivos:
   - apps/web/lib/data/reportes.vendedor.test.ts
   - apps/web/lib/server/propuestas-vendedor.test.ts
   - apps/web/lib/test/vendedor-en-propuesta.e2e.test.ts
+  - apps/web/lib/server/usuarios-repo.ts
+  - apps/web/lib/server/campanas-repo.ts
 ---
 
 # El vendedor de una propuesta, y la octava dimensión
@@ -48,7 +50,7 @@ Automático, sin campo que rellenar, y no falseable porque **se toma de la sesi�
 en el servidor**:
 
 ```ts
-// propuestas-repo.ts, dentro de crearPropuesta()
+// propuestas-repo.ts, dentro de crearPropuesta() — :1133 al 2026-10-05
 const vendedorId = (await usuarioActual())?.id ?? null
 ```
 
@@ -91,7 +93,8 @@ Solo `sesiones.usuario_id` cascadea, y ahí la fila no significa nada sin su
 usuario.
 
 > [!important] Y hay una razón dura además de la coherencia
-> **`borrarUsuario()` existe y se usa** (`usuarios-repo.ts:143`). Con
+> **`borrarUsuario()` existe y se usa** (`usuarios-repo.ts:269` al 05/10; decía
+> `:143`, el archivo creció). Con
 > `restrict`, el primer vendedor que hiciera una propuesta quedaría
 > **imborrable** y la pantalla de usuarios devolvería un 500 sin explicar por
 > qué. Con `set null` la atribución se degrada a «Sin vendedor» —el mismo hueco
@@ -115,7 +118,11 @@ deduce por ese join y **no se copia**:
 
 - Copiarlo daría **dos verdades sobre el mismo hecho**, y divergirían el día que
   alguien reasigne una propuesta o regenere una campaña. Es el error de raíz que
-  este repo documenta en `lib/server/tenant.ts:87-89`.
+  este repo documenta en `lib/server/tenant.ts:87-89`. *(2026-10-05: esa cita no
+  se sostiene —ni hoy ni el 28/09 hubo ahí nada sobre dos verdades; `:86-88`
+  hablan de no duplicar lógica—. La frase está en la propia migración,
+  `db/migrations/20260928_vendedor_en_propuesta.sql:62`, y en el congelado de la
+  temporada, `apps/web/lib/server/propuestas-repo.ts:469`.)*
 - Y para la campaña nacida en Comercial **no habría a quién copiar**: estampar
   ahí a quien la **tecleó** le acreditaría una venta a un operador o a finanzas.
   Eso es **exactamente el dato falseable que esta tarea existe para evitar**,
@@ -232,14 +239,19 @@ Lo que no se sabe es cuánto descontó.
 ### Hereda la trampa de las dos convenciones de precio
 
 `reservas.precio` guarda **la lista** si la venta nació en Comercial
-(`campanas-repo.ts:443`) y **el neto** si nació de una propuesta (`:701`). Una
+(`campanas-repo.ts:462`, `precio = tarifa_mensual`) y **el neto** si nació de una
+propuesta (`:766-768`, `netoSitio`; citas medidas el 05/10 — decían `:443` y
+`:701`). Una
 reserva entra en la comparación **solo si su precio ES el neto que el snapshot
 congeló** para esa pantalla. Comparar una cifra contra sí misma daría un
 descuento del **0 %** que nadie concedió — y aquí ese 0 % **se lo comería un
 vendedor con nombre y apellido**.
 
 También hereda el **centinela de ambigüedad**: una propuesta con dos ítems de la
-misma pantalla no se compara.
+misma pantalla no se compara. Y desde la Fase 4 (`8e913662`), el **centinela de
+paquete**: una pantalla vendida dentro de un paquete cerrado queda fuera de la
+comparación (`DE_PAQUETE`, `apps/web/lib/data/reportes.ts:1194`) — a nadie se le
+mide la mano con un precio de conjunto. Ver [[paquete-cerrado]] §7.
 
 ### Las otras dos decisiones
 
@@ -279,7 +291,10 @@ de agrupador no puede cambiar las cifras grandes de arriba.
 
 El aislamiento **no cambió de forma**: las ocho consultas siguen con `q()` y su
 `and tenant_id` explícito, nunca `qRaw`, y el guard de
-`reportes-repo.aislamiento.test.ts` las recorre todas sin tocarse. Ver
+`reportes-repo.aislamiento.test.ts` las recorre todas sin tocarse. *(2026-10-05:
+hoy son **once** llamadas a `q()` en `apps/web/lib/server/reportes-repo.ts`, de
+`:98` a `:317`, y ya eran once en el propio commit de VEND-01 (`16bf4d77`): el
+«ocho» se contó mal desde el principio. Ninguna usa `qRaw`.)* Ver
 [[multi-tenancy-y-rls]] y [[02-Backend/reportes-rentabilidad]].
 
 ---

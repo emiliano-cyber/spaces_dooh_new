@@ -1,7 +1,7 @@
 ---
 tipo: contrato
 estado: verificado
-actualizado: 2026-09-28
+actualizado: 2026-10-05
 tags: [backend, reportes, rentabilidad, tarifas, propuestas, dinero, snapshot]
 archivos:
   - apps/web/lib/data/reportes.ts
@@ -12,6 +12,8 @@ archivos:
   - apps/web/lib/data/reportes.tarifa.test.ts
   - apps/web/components/demo/reportes/tabla.tarifa.test.ts
   - db/migrations/20260708_snapshot_economico.sql
+  - apps/web/lib/server/propuestas-repo.ts
+  - apps/web/lib/server/campanas-repo.ts
 ---
 
 # La séptima dimensión: `tarifa` — publicada contra neta
@@ -44,7 +46,8 @@ la tarifa de lista.
 **`reservas → campanas.propuesta_id → propuestas.snapshot_economico`**
 (`db/schema.sql:392`, con el índice `idx_campanas_propuesta` en `:407`).
 
-La consulta vive en `reportes-repo.ts`, junto a las otras ocho, y **no se acota
+La consulta vive en `reportes-repo.ts` (`:265` al 05/10; hoy son once
+consultas en total), y **no se acota
 por rango** — por lo mismo que `facturas`: lo que hace falta es el mapa de las
 campañas que tocan el periodo, y son dos columnas por campaña nacida de
 propuesta, que es el orden de magnitud de las campañas y no el de las reservas.
@@ -82,6 +85,13 @@ desaparece hace creer que esa pantalla no vendió.
 > - Reserva desde **propuesta** → guarda el **neto**
 >   (`campanas-repo.ts:701`, tras `factorDesc × divisor`).
 >
+> *(2026-10-05: las citas corrieron. Hoy la lista está en
+> `apps/web/lib/server/campanas-repo.ts:462` y el neto en `:766-768`
+> (`netoSitio`: el del snapshot si lo hay; si no,
+> `round(base × volumen × comercial × cupón × divisor)`, donde la base es la
+> parte del paquete o el precio de la línea). El comentario de
+> `apps/web/lib/data/reportes.ts:1209-1210` repite las citas viejas.)*
+>
 > Es un defecto conocido. **Esta dimensión NO lo arregla**: arreglarlo toca cómo
 > se ESCRIBE un precio, y eso es zona roja y va después del Summit.
 
@@ -90,7 +100,18 @@ contra sí misma** y daría un descuento del 0 % que nadie concedió.
 
 El guard es exacto y medible: **una reserva entra en la comparación solo si su
 `precio` coincide con el `neto` que el snapshot congeló para esa pantalla.** Si
-no coincide, no se sabe qué convención lleva → se declara.
+no coincide, no se sabe qué convención lleva → se declara. (Verificado el 05/10:
+`if (e && e.neto === r.precio)`, `apps/web/lib/data/reportes.ts:1225`.)
+
+### Y el cuarto, desde la Fase 4: la pantalla vendida en PAQUETE
+
+Una pantalla cuyo `porSitio[]` lleva `paquete: true` **queda fuera de la
+comparación** aunque su precio cuadre: su neto salió de repartir un precio de
+conjunto, no de descontar su lista, y un paquete premium daría una brecha
+negativa. `reportes-repo.ts:406` lo lee como `dePaquete`, y `matriz()` le pone
+el centinela `DE_PAQUETE = null` (`apps/web/lib/data/reportes.ts:1194`, aplicado
+en `:1199`) — el mismo `null` que la ambigüedad. Cuenta en `sinTarifa`. Detalle
+en [[paquete-cerrado]] §7.
 
 Eso cubre de paso el caso que **no se ve leyendo**: una campaña que sí nació de
 una propuesta y a la que luego se le añadieron pantallas desde Comercial, a
@@ -142,7 +163,29 @@ había puesto `porEntidad` dentro del bucle.
 ### La columna NO se llama «Descuento»
 
 `neto = lista × (1 − descuento) × (1 − comisión)`, y el snapshot **no las separa
-por pantalla**. Se llama **«Descuento y comisión»**, y el nombre es la mitad del
+por pantalla**.
+
+> [!warning] 2026-10-05 · esa fórmula es la de julio; la de HOY tiene más capas
+> El neto por pantalla que congela `congelarSnapshotEconomico`
+> (`apps/web/lib/server/propuestas-repo.ts:497-499`) es:
+>
+> ```
+> sin paquete:  round(lista × (1−volumen_línea) × (1−comercial) × (1−cupón) × (1−comisión))
+> con paquete:  round(parte_del_paquete × (1−comercial) × (1−cupón) × (1−comisión))
+> ```
+>
+> con `factorVol` por línea (`:477`), `factorDesc` (`:408`), `factorCodigo`
+> (`:462`, 1 si el paquete no admite cupón) y el divisor de comisión
+> (`divisorDeComision`, `apps/web/lib/data/derive.ts:402`: `1 − comisión/100`,
+> o 1 si no hay). Es **un solo redondeo al final**, no uno por capa como en la
+> cabecera: la suma de los `porSitio[].neto` puede diferir del `neto` de la
+> propuesta en algún peso.
+>
+> Así que la brecha que este reporte llama **«Descuento y comisión»** lleva
+> dentro también el **volumen** y el **cupón**. El nombre no miente —son
+> descuentos—, pero la nota de cobertura (`notaDeTarifas`) solo nombra el
+> comercial y la comisión. Y el paquete no está en la brecha porque esas
+> pantallas ya no entran (arriba). Se llama **«Descuento y comisión»**, y el nombre es la mitad del
 trabajo de la columna: llamarla «Descuento» haría leer la comisión de la agencia
 como una rebaja que alguien concedió. Mismo criterio que `saldoAtribuido` en
 [[reportes-por-razon-social]].
@@ -203,6 +246,9 @@ leería nadie, que es la lección del ámbar que dejó de avisar por salir en to
   por pantalla, la brecha viene junta.
 - **No sabe quién concedió el descuento.** Ninguna propuesta tiene dueño
   (`usuario_id` solo existe en `sesiones` y en la bitácora).
+  *(2026-10-05: superado el mismo 28/09 por VEND-01 — `propuestas.usuario_id`
+  y la dimensión `vendedor`, que reutiliza este mismo camino. Ver
+  [[vendedor-en-propuesta]].)*
 - **No se ha visto en un navegador.** Lo verificado es typecheck, unitarias y
   e2e. Este repositorio tiene precedente de algo que se leía bien en el código y
   se veía mal en pantalla — las columnas por dimensión, encontradas el 18/09 con
