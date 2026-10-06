@@ -7,6 +7,21 @@ La entrada más reciente va arriba.
 
 ## 2026-10-06
 
+- **Propuestas tiene un resumen por periodo.** Arriba de la lista eliges el
+  periodo —este mes, mes pasado, trimestre, trimestre pasado, año o un rango—
+  y ves cuántas propuestas se **generaron**, cuántas se **aprobaron** y por
+  cuánto, cuántas se **rechazaron**, la **tasa de cierre**, la **ganancia** y
+  la **ganancia por aprobada** (lo vendido menos la renta de las pantallas), el
+  desglose **por vendedor** y las aprobadas de más a menos ganancia.
+  - La ganancia la ven el Dueño, el Administrador y el Director comercial;
+    los gerentes y vendedores ven los conteos y la venta.
+  - Desde hoy el sistema guarda **cuándo** se aprueba y se rechaza cada
+    propuesta. Las aprobadas de antes tomaron la fecha en que se congeló su
+    precio; las rechazadas de antes no tenían fecha y no aparecen en ningún
+    periodo.
+  - Si una pantalla aprobada no tiene contrato de renta, la propuesta cuenta en
+    la venta pero no en la ganancia, y el resumen lo avisa.
+
 - **Finanzas tiene un resumen por periodo.** Arriba de todo eliges el periodo
   —este mes, mes pasado, trimestre, trimestre pasado, año o un rango de
   fechas— y ves lo **facturado**, lo **cobrado**, lo que queda **por cobrar al

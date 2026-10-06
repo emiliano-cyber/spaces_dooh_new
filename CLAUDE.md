@@ -130,11 +130,11 @@ código, no de memoria:
 | Framework | Next.js 14.2.29, App Router | `apps/web/package.json:17` |
 | Base de datos | PostgreSQL, `pg` directo (sin ORM) | `apps/web/lib/server/db.ts:2` |
 | Aislamiento | RLS de Postgres por `app.tenant_id` | `apps/web/lib/server/db.ts:60` y `:79` |
-| Endpoints | **125** route handlers | `apps/web/app/api/**/route.ts` |
+| Endpoints | **126** route handlers | `apps/web/app/api/**/route.ts` |
 | Tablas | **58** | `vault/04-Datos/esquema.md` |
-| Migraciones | **107** | `vault/04-Datos/migraciones.md` |
+| Migraciones | **108** | `vault/04-Datos/migraciones.md` |
 
-> Esos recuentos llevan fecha de validación **2026-10-06** (rama `feat/finanzas-periodos`), medidos con
+> Esos recuentos llevan fecha de validación **2026-10-06** (rama `feat/propuestas-tablero`, sobre `feat/finanzas-periodos`), medidos con
 > `node scripts/recuentos.mjs` sobre este árbol. Trátalos como una
 > afirmación con fecha, no como una verdad permanente — §5 explica cómo
 > reverificarlos.

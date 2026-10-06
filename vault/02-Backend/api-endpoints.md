@@ -29,7 +29,7 @@ archivos:
   - apps/web/app/api/volumen/escalas/
 ---
 
-# API — los 125 endpoints
+# API — los 126 endpoints
 
 Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo el
 `basePath` `/spaces-dooh` (`apps/web/next.config.mjs:145`).
@@ -202,6 +202,7 @@ en `:230-237`) y **no** puede condicionarse a que la ruta
 |---|---|---|
 | POST | `/api/clientes` · PATCH `/api/clientes/[id]` | exigir |
 | DELETE | `/api/clientes/[id]` | **REAUTH** + `comercial:aprobar` |
+| GET | `/api/propuestas/resumen` | exigir (`comercial:ver`); costo y ganancia solo con `finanzas:ver` | (06/10, PROP-PER) tablero por periodo: generadas, aprobadas, rechazadas, tasa de cierre, ganancia (venta − renta del contrato) |
 | POST | `/api/propuestas` · PATCH `/api/propuestas/[id]` | exigir (`comercial:crear`). Desde `17fbd252` (01/10) el `POST` **recalcula la tarifa** de cada línea en el servidor; un precio distinto al centavo exige además `comercial:aprobar` del rol de la sesión, o 403 y no se guarda nada |
 | POST · DELETE | `/api/propuestas/[id]/paquete` | (05/10) `comercial:crear` — aplicar o quitar un paquete cerrado; el cuerpo lleva **solo** `paqueteId`, el precio lo copia el servidor bajo RLS — [[paquete-cerrado]] |
 | PATCH | `/api/propuestas/items/[id]` | exigir |
