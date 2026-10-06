@@ -33,6 +33,8 @@ const PERMITIDAS = [
   /^capture$/,
   /^ice-servers$/,
   /^app\/version$/,
+  // Codigos de vinculacion de equipos nuevos (Agregar dispositivo).
+  /^vinculaciones(\/[A-Za-z0-9-]{8,9})?$/,
 ]
 
 async function puerta(req: Request, ruta: string[]) {
@@ -47,7 +49,7 @@ async function puerta(req: Request, ruta: string[]) {
     return NextResponse.json({ error: 'Ruta de Space Eye no permitida' }, { status: 404 })
   }
   try {
-    return await reenviarASpaceEye(req, camino)
+    return await reenviarASpaceEye(req, camino, g.usuario.email)
   } catch {
     return NextResponse.json({ error: 'No se pudo hablar con Space Eye' }, { status: 502 })
   }

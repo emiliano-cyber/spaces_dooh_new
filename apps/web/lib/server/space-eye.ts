@@ -692,10 +692,14 @@ export async function creativosDeEquipo(id: number): Promise<SECreativosEquipo |
  * la creatividad de una campaña) y la consulta; se devuelve la respuesta tal
  * cual, incluido un CSV de exportación.
  */
-export async function reenviarASpaceEye(req: Request, camino: string): Promise<Response> {
+// `quien`: el usuario de SPACE OS que hace la operacion. Viaja en una cabecera
+// para que Space Eye deje constancia (p. ej. quien genero un codigo de
+// vinculacion): con la llave de la instancia, Space Eye no sabe quien es.
+export async function reenviarASpaceEye(req: Request, camino: string, quien?: string): Promise<Response> {
   const url = new URL(req.url)
   const destino = `${BASE}/api/${camino}${url.search}`
   const cabeceras: Record<string, string> = { Authorization: `Bearer ${KEY}` }
+  if (quien) cabeceras['X-SpaceOS-Usuario'] = quien.replace(/[^ -~]/g, '').slice(0, 150)
   const tipo = req.headers.get('content-type')
   if (tipo) cabeceras['Content-Type'] = tipo
   const conCuerpo = req.method !== 'GET' && req.method !== 'HEAD'
