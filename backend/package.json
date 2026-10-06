@@ -12,6 +12,7 @@
     "revisar:relojes": "tsx scripts/revisar-relojes.ts",
     "ajustar:reloj": "tsx scripts/ajustar-reloj.ts",
     "prueba:monitoreo": "tsx scripts/prueba-monitoreo.ts",
+    "prueba:agentes": "tsx scripts/prueba-agentes-de-fabrica.ts",
     "script:create-admin": "tsx scripts/create-admin.ts"
   },
   "dependencies": {

@@ -15,7 +15,9 @@ backend/storage
 android
 ai-worker
 pc-agent
-pi-agent
+# Del agente de Raspberry solo entra su paquete (Dockerfile.instancia lo publica).
+pi-agent/*
+!pi-agent/dist
 infra
 docs
 scripts

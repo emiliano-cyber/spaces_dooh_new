@@ -431,7 +431,7 @@ export async function encuadreDe(deviceId: number) {
 
 export async function sendCommand(req: Request, res: Response) {
   const schema = z.object({
-    command_type: z.enum(['TAKE_PHOTO', 'START_STREAM', 'STOP_STREAM', 'UPDATE_CONFIG', 'REBOOT_APP', 'SYNC_SCHEDULE', 'CHANGE_QUALITY', 'UPDATE_APP']),
+    command_type: z.enum(['TAKE_PHOTO', 'START_STREAM', 'STOP_STREAM', 'UPDATE_CONFIG', 'REBOOT_APP', 'SYNC_SCHEDULE', 'CHANGE_QUALITY', 'UPDATE_APP', 'REBOOT_DEVICE']),
     payload: z.any().optional(),
     priority: z.number().min(1).max(9).default(5),
   });

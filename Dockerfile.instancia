@@ -34,6 +34,9 @@ RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=build /app/dist ./dist
 COPY backend/migrations ./migrations
 COPY frontend /frontend
+# El agente de Raspberry (pi-agent: npm run empaquetar). Al arrancar se publica
+# en /descargas si es mas nuevo que lo publicado (utils/agentesDeFabrica.ts).
+COPY pi-agent/dist/space-eye-pi-agent.tar.gz pi-agent/dist/space-eye-pi-agent.json pi-agent/dist/instalar-pi.sh /app/agentes/
 # Las descargas de la empresa (APK, agentes) se publican en este volumen.
 RUN mkdir -p /descargas /app/storage
 ENV DESCARGAS_DIR=/descargas

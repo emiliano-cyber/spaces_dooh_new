@@ -9,6 +9,7 @@ import { setupDeviceNamespace } from './sockets/deviceSocket';
 import { setupDashboardNamespace } from './sockets/dashboardSocket';
 import { espejoActivo } from './utils/espejo';
 import { prepararInstancia } from './utils/instancia';
+import { publicarAgentesDeFabrica } from './utils/agentesDeFabrica';
 
 async function main() {
   // Test DB connection
@@ -24,6 +25,8 @@ async function main() {
   // Connect Redis
   // Modo instancia: sus llaves y su primer administrador, si hacen falta.
   await prepararInstancia();
+  // Lo que la imagen trae para los equipos (agente de Raspberry), si es nuevo.
+  publicarAgentesDeFabrica();
 
   try {
     await connectRedis();
