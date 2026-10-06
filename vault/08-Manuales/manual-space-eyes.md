@@ -151,8 +151,19 @@ En la ficha del equipo › **Equipo**:
 - **Reiniciar equipo** *(solo Raspberry)*: reinicia la Raspberry completa. Es lo
   que destraba una cámara o una red que se quedaron colgadas.
 
+## 6. Cuando tus equipos cambian de servidor *(etapa 3)*
+
+Si tu empresa estrena su propio servidor de cámaras, nosotros pasamos tus
+equipos al servidor nuevo **a distancia**, uno por uno. No tienes que hacer
+nada ni ir a los sitios.
+
+- Cada equipo conserva su nombre, su historial y sus fotos.
+- Mientras se muda, puede dejar de comunicarse uno o dos minutos.
+- Si el servidor nuevo no le responde, el equipo **regresa solo** al anterior
+  en máximo 30 minutos, y lo verás en su registro como «La mudanza a … no se
+  completó». No se pierde nada; se vuelve a intentar cuando esté resuelto.
+
 ## Pendiente de escribir
 
-- Mudar equipos existentes a otro servidor *(etapa 3)*.
 - Activar o desactivar Space Eyes por empresa desde el panel *(etapa 4)*.
 - Capturas de pantalla de la versión final *(etapa 5)*.
