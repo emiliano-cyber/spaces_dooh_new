@@ -7,6 +7,11 @@ La entrada más reciente va arriba.
 
 ## 2026-10-06
 
+- **Finanzas ya no dice «vencida» en una cuota pagada.** En Cobranza, junto a
+  la fecha de vencimiento salía «(12d vencida)» en rojo aunque la cuota ya
+  estuviera pagada y su etiqueta dijera «Pagada». Ahora, si está pagada, dice
+  «pagada»; los días de atraso solo aparecen mientras se debe.
+
 - **La calculadora de spots ahora cuenta igual que tu calculadora HTML («Valor
   Real del Spot Unitario»).** *(Decisión tuya del 06/10, ADR 0043.)* Cambian
   cuatro cosas, y solo en las líneas que tienen la calculadora encendida:

@@ -15,6 +15,7 @@ import {
 } from '@/components/demo/StatusBadge'
 import { cn } from '@/lib/cn'
 import { armarListaFacturas, cuentaPorEstatus } from '@/components/demo/finanzas/facturas-lista'
+import { etiquetaVencimiento, type TonoVencimiento } from '@/components/demo/finanzas/vencimiento-cuota'
 import { ComprobanteDialog } from '@/components/demo/finanzas/ComprobanteDialog'
 import { generarFacturaApi, recordarCobranzaApi, pagarCobranzaApi } from '@/lib/data/estado-api'
 import { usePuede } from '@/components/demo/shell/SesionContext'
@@ -870,6 +871,13 @@ function PagoModal({
 // desmonta y vuelve a montar TODAS las filas — el DOM entero de la tabla, en
 // cada tecla del filtro. Sería justo lo contrario de lo que busca M7. Cuesta
 // cinco props y las vale.
+// Clases escritas enteras: Tailwind solo genera las que encuentra literales.
+const CLASE_TONO: Record<TonoVencimiento, string> = {
+  error: 'text-error',
+  warning: 'text-warning',
+  muted: 'text-muted',
+}
+
 function FilaCuota({
 cob, fac, entidades, sangrada, cliNombre, puedeCobrar, recordando, onPagar, onRecordar,
 }: {
@@ -885,7 +893,7 @@ onPagar: (c: { id: string; folio: string; saldo: number }) => void
 onRecordar: (id: string) => void
 }) {
   const est = estadoCobranza(cob)
-  const dias = diasHasta(cob.fechaVencimiento)
+  const venc = etiquetaVencimiento(est, diasHasta(cob.fechaVencimiento))
   return (
     <tr className={cn('border-b border-border last:border-0', sangrada && 'bg-surface-2/40')}>
       <td className={cn('demo-num px-4 py-2.5 text-ink', sangrada && 'pl-10 text-muted')}>
@@ -924,9 +932,9 @@ onRecordar: (id: string) => void
             separa a la vista pero al copiar la celda salía «27/08/2026(24d)»
             pegado, que es lo que reportó M8. */}
         {formatFecha(cob.fechaVencimiento)}{' '}
-        <span className={cn('text-[11px]', dias < 0 ? 'text-error' : dias <= 30 ? 'text-warning' : 'text-muted')}>
-          ({dias < 0 ? `${Math.abs(dias)}d vencida` : `${dias}d`})
-        </span>
+        {/* El ESTADO manda, no la fecha: una cuota pagada no dice «vencida»
+            aunque su fecha haya pasado (06/10, `vencimiento-cuota.ts`). */}
+        <span className={cn('text-[11px]', CLASE_TONO[venc.tono])}>({venc.texto})</span>
       </td>
       <td className="px-4 py-2.5">
         <div className="flex flex-col items-start gap-1.5">
