@@ -384,7 +384,7 @@ function Dato({ k, v, mono }: { k: string; v: string | number | null | undefined
 
 // ─── Órdenes: reiniciar y actualizar ─────────────────────────────────────────
 function Ordenes({ equipo, versiones, puedeOperar }: { equipo: Equipo; versiones: Versiones | null; puedeOperar: boolean }) {
-  const [pedir, setPedir] = useState<'reiniciar' | 'actualizar' | null>(null)
+  const [pedir, setPedir] = useState<'reiniciar' | 'actualizar' | 'equipo' | null>(null)
   const [enviando, setEnviando] = useState(false)
   const [msg, setMsg] = useState<Mensaje>(null)
 
@@ -417,13 +417,15 @@ function Ordenes({ equipo, versiones, puedeOperar }: { equipo: Equipo; versiones
     try {
       await seApi(`devices/${equipo.id}/command`, {
         method: 'POST',
-        body: { command_type: tipo === 'reiniciar' ? 'REBOOT_APP' : 'UPDATE_APP' },
+        body: { command_type: tipo === 'reiniciar' ? 'REBOOT_APP' : tipo === 'equipo' ? 'REBOOT_DEVICE' : 'UPDATE_APP' },
       })
       setMsg({
         tipo: 'ok',
         texto:
           tipo === 'reiniciar'
             ? 'Orden enviada: la app se reinicia en el equipo.'
+            : tipo === 'equipo'
+              ? 'Orden enviada: la Raspberry se reinicia; vuelve a reportar en uno o dos minutos.'
             : seActualizaSolo
               ? 'Actualización enviada; el equipo se reiniciará al terminar.'
               : 'Orden enviada: falta confirmar la instalación en el equipo.',
@@ -446,7 +448,9 @@ function Ordenes({ equipo, versiones, puedeOperar }: { equipo: Equipo; versiones
     <section className="overflow-hidden rounded-md border border-border bg-surface">
       <header className="border-b border-border p-3">
         <h2 className="text-[14px] font-semibold text-ink">Programa del equipo</h2>
-        <p className="mt-0.5 text-[12px] text-muted">Reiniciar la app o instalarle la versión publicada, sin ir al sitio.</p>
+        <p className="mt-0.5 text-[12px] text-muted">
+          Reiniciar la app{esPi(v) ? ' o el equipo' : ''}, o instalarle la versión publicada, sin ir al sitio.
+        </p>
       </header>
       <div className="flex flex-col gap-3 p-3 text-[12px]">
         <dl className="divide-y divide-border">
@@ -485,6 +489,11 @@ function Ordenes({ equipo, versiones, puedeOperar }: { equipo: Equipo; versiones
           <Button size="sm" variant="danger" disabled={!puedeOperar || enviando} onClick={() => setPedir('reiniciar')}>
             <Power className="h-3.5 w-3.5" /> Reiniciar app
           </Button>
+          {esPi(v) && (
+            <Button size="sm" variant="danger" disabled={!puedeOperar || enviando} onClick={() => setPedir('equipo')}>
+              <Power className="h-3.5 w-3.5" /> Reiniciar equipo
+            </Button>
+          )}
         </div>
       </div>
 
@@ -497,6 +506,17 @@ function Ordenes({ equipo, versiones, puedeOperar }: { equipo: Equipo; versiones
         onConfirm={() => void enviar()}
       >
         Se reinicia la aplicación en el equipo. Deja de reportar unos segundos y vuelve sola.
+      </ConfirmDialog>
+      <ConfirmDialog
+        open={pedir === 'equipo'}
+        onOpenChange={(o) => !o && setPedir(null)}
+        title="Reiniciar la Raspberry"
+        confirmLabel="Reiniciar equipo"
+        busy={enviando}
+        onConfirm={() => void enviar()}
+      >
+        Se reinicia la Raspberry entera, no solo la app: es lo que destraba una cámara o una red que se quedaron colgadas.
+        Deja de reportar uno o dos minutos y vuelve sola.
       </ConfirmDialog>
       <ConfirmDialog
         open={pedir === 'actualizar'}
