@@ -6,12 +6,13 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
-> [!important] 2026-10-06 · **INTEGRA-RIESGOS-Y-CALC · Z1, Z2, Z5 y Z12 — EN REVISION** · ROJO (R1 sesión · R2 tenant · R4 dinero)
-> Rama **`integra/riesgos-y-calculadora-14-oct`**, empujada a `emiliano`. Une
-> las dos de abajo —`integra/riesgos-presentacion-14-oct` (`7393d633`) y
+> [!success] 2026-10-06 · **INTEGRA-RIESGOS-Y-CALC · Z1, Z2, Z5 y Z12 — LIBERADO, FUSIONADO EN `main`** · ROJO (R1 sesión · R2 tenant · R4 dinero)
+> Rama **`integra/riesgos-y-calculadora-14-oct`**. Une las dos de abajo
+> —`integra/riesgos-presentacion-14-oct` (`7393d633`) y
 > `feat/calculadora-como-html` (`afb3e7df`)— en el merge `9e313c62`. **Sustituye
-> a los dos reclamos de abajo como rama a fusionar.** **Sin fusionar en
-> `main`**: espera aprobación humana.
+> a los dos reclamos de abajo**, que quedan liberados con este. **Fusionada en
+> `main` en local el 06/10 con aprobación del dueño**; empujar `main` lo hace
+> una persona.
 >
 > Los cuatro conflictos fueron de documentación (bitácora, tablero, fechas de
 > frontmatter y las cifras de `CLAUDE.md`, re-medidas con
@@ -51,7 +52,7 @@ archivos: []
 > (o la suite e2e completa) antes de fusionar. Detalle en
 > [[02-Backend/calculadora-de-spots]].
 
-> [!important] 2026-10-05 · **INTEGRA-RIESGOS · Z1, Z2, Z5 y Z12 — EN REVISION** · ROJO (R1 sesión · R2 tenant · R4 dinero)
+> [!success] 2026-10-05 · **INTEGRA-RIESGOS · Z1, Z2, Z5 y Z12 — LIBERADO (fusionado en `main` el 06/10 vía INTEGRA-RIESGOS-Y-CALC)** · ROJO (R1 sesión · R2 tenant · R4 dinero)
 > Rama **`integra/riesgos-presentacion-14-oct`**, salida de `main` en
 > `09c65ca2`. **Un solo reclamo** para lo que antes figuraba aquí como tres
 > (TOPE-PAQ en Z5, la cookie en Z1 y `agente-rls-comentarios` en Z2): las tres
