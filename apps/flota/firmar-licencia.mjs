@@ -58,10 +58,12 @@ const avisoDias = Number(argumento('aviso-dias', '30'))
 const graciaDias = Number(argumento('gracia-dias', '15'))
 const rutaLlave = argumento('llave', '/etc/space-os/llaves/space-os.key.pem')
 const salida = argumento('salida', '.')
+// Modulos vendidos aparte, separados por coma (hoy: space-eyes).
+const modulos = argumento('modulos', '').split(',').map((m) => m.trim()).filter(Boolean)
 
 if (!instancia || !dominio || !vence) {
   console.error('uso: firmar-licencia.mjs --instancia <n> --dominio <d> --vence <YYYY-MM-DD>')
-  console.error('     [--aviso-dias 30] [--gracia-dias 15] [--llave <ruta>] [--salida <dir>]')
+  console.error('     [--aviso-dias 30] [--gracia-dias 15] [--llave <ruta>] [--salida <dir>] [--modulos space-eyes]')
   process.exit(64)
 }
 
@@ -70,7 +72,7 @@ if (!instancia || !dominio || !vence) {
 let json
 try {
   json = construirLicencia({
-    instancia, dominio, vence, avisoDias, graciaDias, emitida: hoyUTC(),
+    instancia, dominio, vence, avisoDias, graciaDias, emitida: hoyUTC(), modulos,
   })
 } catch (error) {
   console.error(`firmar-licencia: ${error.message}`)

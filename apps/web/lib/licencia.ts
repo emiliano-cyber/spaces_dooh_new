@@ -78,3 +78,25 @@ export function avisoDeLicencia(
 
   return { tono: estado, vence, finGracia }
 }
+
+/**
+ * ¿La licencia de esta instancia enciende el modulo? (`modulos` en la
+ * licencia firmada, ADR 0041 etapa 4: Space Eyes se vende aparte).
+ *
+ *   - sin licencia (`null`: los hijos administrados no llevan) → `null`, o sea
+ *     "la licencia no decide": manda la configuracion, como hasta ahora;
+ *   - con licencia → si el modulo esta en su lista.
+ *
+ * Una licencia ilegible tambien devuelve `null`: un archivo roto no puede
+ * quitarle a una empresa algo que ya pago. La firma la comprueba update.sh en
+ * cada corrida, que es quien apaga de verdad.
+ */
+export function licenciaIncluyeModulo(crudo: string | null, modulo: string): boolean | null {
+  if (crudo == null) return null
+  try {
+    const l = JSON.parse(crudo) as { modulos?: unknown }
+    return Array.isArray(l.modulos) && l.modulos.includes(modulo)
+  } catch {
+    return null
+  }
+}

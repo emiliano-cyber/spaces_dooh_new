@@ -1,5 +1,7 @@
 import 'server-only'
+import { readFile } from 'node:fs/promises'
 import { giroDeFoto } from '@/lib/space-eyes-marca'
+import { licenciaIncluyeModulo } from '@/lib/licencia'
 
 // ============================================================================
 //  lib/server/space-eye.ts — Cliente de la API de Space Eye (verificación de
@@ -50,8 +52,23 @@ export type EstadoModulo = 'activo' | 'no_contratado' | 'sin_respuesta'
 let saludCache: { en: number; ok: boolean } | null = null
 const SALUD_TTL_MS = 30_000
 
+// La misma ruta que lee el layout para la banda de vencimiento.
+const RUTA_LICENCIA = process.env.LICENCIA_JSON ?? '/etc/space-os/licencia/licencia.json'
+
+async function leerLicencia(): Promise<string | null> {
+  try {
+    return await readFile(RUTA_LICENCIA, 'utf8')
+  } catch {
+    return null
+  }
+}
+
 export async function estadoDelModulo(): Promise<EstadoModulo> {
   if (!spaceEyeHabilitado()) return 'no_contratado'
+  // Si la empresa tiene licencia, la licencia decide: desactivar el modulo
+  // muestra la demostracion, sin borrar equipos ni historial (siguen en su
+  // Space Eye, trabajando). Sin licencia, manda la configuracion.
+  if (licenciaIncluyeModulo(await leerLicencia(), 'space-eyes') === false) return 'no_contratado'
   const ahora = Date.now()
   if (saludCache && ahora - saludCache.en < SALUD_TTL_MS) return saludCache.ok ? 'activo' : 'sin_respuesta'
   let ok = false

@@ -1,4 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { mkdtempSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
 // El estado del módulo decide si una empresa ve sus equipos, la demostración o
 // el aviso de "no responde". Un error aquí le enseñaría la demo a quien ya pagó
@@ -45,5 +48,41 @@ describe('estadoDelModulo', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false }))
     const m = await cargar({ SPACE_EYE_BASE_URL: 'http://eyes.local', SPACE_EYE_KEY: 'se_x' })
     expect(await m.estadoDelModulo()).toBe('sin_respuesta')
+  })
+
+  // La licencia decide si la empresa tiene licencia (etapa 4). Sin licencia
+  // (hijos administrados) manda la configuracion, como antes.
+  const dir = mkdtempSync(join(tmpdir(), 'lic-'))
+  const lic = (contenido: object | string) => {
+    const f = join(dir, `l-${Math.random()}.json`)
+    writeFileSync(f, typeof contenido === 'string' ? contenido : JSON.stringify(contenido))
+    return f
+  }
+  const conEyes = { SPACE_EYE_BASE_URL: 'http://eyes.local', SPACE_EYE_KEY: 'se_x' }
+
+  it('con licencia que incluye space-eyes: activo', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true }))
+    const m = await cargar({ ...conEyes, LICENCIA_JSON: lic({ instancia: 'x', modulos: ['space-eyes'] }) })
+    expect(await m.estadoDelModulo()).toBe('activo')
+  })
+
+  it('con licencia SIN space-eyes: la demostracion, aunque el servidor exista', async () => {
+    const fetch = vi.fn().mockResolvedValue({ ok: true })
+    vi.stubGlobal('fetch', fetch)
+    const m = await cargar({ ...conEyes, LICENCIA_JSON: lic({ instancia: 'x', vence: '2027-01-01' }) })
+    expect(await m.estadoDelModulo()).toBe('no_contratado')
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('sin archivo de licencia: manda la configuracion', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true }))
+    const m = await cargar({ ...conEyes, LICENCIA_JSON: join(dir, 'no-existe.json') })
+    expect(await m.estadoDelModulo()).toBe('activo')
+  })
+
+  it('una licencia ilegible no le quita el modulo a nadie', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true }))
+    const m = await cargar({ ...conEyes, LICENCIA_JSON: lic('{ esto no es json') })
+    expect(await m.estadoDelModulo()).toBe('activo')
   })
 })
