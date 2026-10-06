@@ -1,10 +1,27 @@
 ---
 tipo: tablero
 estado: verificado
-actualizado: 2026-10-02
+actualizado: 2026-10-06
 tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
+
+> [!success] 2026-10-06 · **CALC-02 · la calculadora cuenta como la HTML — RECLAMADO Y LIBERADO**
+> Rama `feat/calculadora-como-html`, salida de `main` (`09c65ca2`). **ROJO por
+> dinero (R4)**: cambia la cantidad y el precio de las líneas con calculadora.
+> **Aprobado por el dueño el 06/10** (ADR 0043). Sin migración. **Sin fusionar ni
+> empujar.**
+>
+> **Zonas tomadas y liberadas:** **Z5 · Comercial** (`lib/calculadora-spots.ts`,
+> `propuestas-controller.ts`, `propuestas/page.tsx` y sus pruebas), **Z12 ·
+> Docs**, y el de alto contacto `docs/Registro_Cambios.md`. **NO se tocó**
+> `db/schema.sql`, `aislamiento.e2e.test.ts` ni `servidor-e2e.ts`.
+>
+> **La e2e de la calculadora NO se corrió**: esta máquina no tiene Docker
+> funcionando (falta WSL). Hay que correr `cd apps/web && npm run build && npx
+> vitest run --config vitest.e2e.config.ts lib/test/calculadora-spots.e2e.test.ts`
+> (o la suite e2e completa) antes de fusionar. Detalle en
+> [[02-Backend/calculadora-de-spots]].
 
 > [!success] 2026-09-30 · **COD-03 · el cupón con aprobación — RECLAMADO Y LIBERADO**
 > Rama `feat/cupon-con-aprobacion`, salida de `main` (`749510ba`). **ROJO por

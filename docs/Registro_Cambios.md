@@ -5,6 +5,35 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-10-06
+
+- **La calculadora de spots ahora cuenta igual que tu calculadora HTML («Valor
+  Real del Spot Unitario»).** *(Decisión tuya del 06/10, ADR 0043.)* Cambian
+  cuatro cosas, y solo en las líneas que tienen la calculadora encendida:
+  - **El precio por spot sale de la tarifa mensual de la pantalla**: tarifa
+    mensual ÷ los spots que un anunciante recibe en un mes. Antes era la tarifa
+    «por spot» de la pantalla. Con tu ejemplo ($100,000, 6 anunciantes, 20
+    segundos, 18 horas) da **$6.17**, igual que el HTML. Si la pantalla no
+    tiene tarifa mensual, la línea lo avisa y solo un gerente puede ponerle
+    precio.
+  - **El loop son los anunciantes de hoy más los espacios que compras.** Antes
+    contaba siempre todos los espacios de la pantalla. Con la pantalla medio
+    vacía salen más spots y cada uno cuesta menos; con la pantalla llena, al
+    revés. Lo que se paga por un espacio durante un mes queda en la tarifa
+    mensual.
+  - **Las fracciones de spot ya no se tiran cada día**: se suman y se redondea
+    una sola vez al final. Con 7 anunciantes de 20 segundos, 30 días dan 13,885
+    spots (antes 13,860).
+  - **El Roadblock se valora por hora**, como en el HTML: lo que vale una hora
+    de la pantalla llena, más la prima, repartido entre los spots de esa hora.
+  - Debajo de la línea ves ahora el desglose: el tamaño del loop, las vueltas
+    por hora, los spots al día y la cuenta del precio.
+  - **Diferencia que queda:** el precio se cobra al centavo, así que el total
+    puede variar unos pesos frente a «espacios × tarifa mensual».
+  - **Las propuestas ya guardadas no cambian.** Si editas una, se recalcula con
+    la regla nueva. Las líneas por spot sin calculadora (cantidad a mano) siguen
+    con la tarifa por spot de siempre.
+
 ## 2026-10-02
 
 - **En Nueva propuesta, los meses ya son meses de calendario.** *(Lo

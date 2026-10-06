@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-02
+actualizado: 2026-10-06
 tags: [backend, comercial, propuestas, campanas, amarillo, precio]
 archivos:
   - apps/web/lib/server/propuestas-repo.ts
@@ -383,8 +383,13 @@ organización (`datosDelLoop`, `tarifas-repo.ts`: RLS + `and tenant_id`) y:
 | Parámetros mal, o `cantidad` que no cuadra | **400**, con la cuenta escrita; no se guarda nada |
 | Más espacios que los libres, o Roadblock sin el loop entero libre | **409** |
 | Prima de Roadblock > 0 sin `comercial.aprobar` | **403** «Solo un gerente o superior puede poner prima a un Roadblock.» |
-| Prima con permiso | Se guarda; tarifa esperada = calculada × (1+prima), `tarifa_calculada` = la de la pantalla, `precio_ajustado_por` = la sesión, y una línea en Actividad «… por Roadblock con prima del N %» |
+| Prima con permiso | Se guarda; tarifa esperada = calculada × (1+prima), `tarifa_calculada` = la base sin prima, `precio_ajustado_por` = la sesión, y una línea en Actividad «… por Roadblock con prima del N %» |
 
+- **ADR 0043 (06/10): el PRECIO de esa línea también lo pone la calculadora.**
+  La tarifa esperada ya no es la modalidad `spot`: es la tarifa mensual
+  repartida entre los spots del loop (`tarifaBaseCalculadora`), y el loop es la
+  ocupación de hoy (`campanasActivas`) más la línea, como la calculadora HTML
+  del dueño. Una pantalla sin tarifa mensual → 403 `sin-tarifa`, como PRECIO-01.
 - La prima entra en la regla de PRECIO-01 por `decidirPrecioCalculadora`, que
   aplica la prima **una vez** y marca la línea como ajuste. Las líneas sin
   calculadora siguen por `decidirPrecioItem`, sin cambio.

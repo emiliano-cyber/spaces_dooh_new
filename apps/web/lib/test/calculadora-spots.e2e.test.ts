@@ -7,7 +7,9 @@ import { arrancarServidor, pararServidor, Cliente } from './servidor-e2e'
 // ============================================================================
 //  ADR 0042 · LA CALCULADORA DE SPOTS — contra Postgres y un Next de verdad.
 // ----------------------------------------------------------------------------
-//  La calculadora da la CANTIDAD; el precio sigue siendo el de la pantalla.
+//  La calculadora da la CANTIDAD y, desde el ADR 0043, el PRECIO por spot: la
+//  tarifa mensual repartida entre los spots del loop, y el loop es la ocupación
+//  de hoy más la línea — la cuenta de la calculadora HTML del dueño.
 //  Es ROJO por triple —migración, tenant y dinero—. Las unitarias
 //  (`calculadora-spots.test.ts`) fijan las fórmulas; aquí se mide:
 //
@@ -32,8 +34,17 @@ let roadblockConPrima: string
 
 const correo = (quien: string) => `${quien}@calc.test`
 const DIAS = 30 // enDias(3) … enDias(32), inclusivos
-// Pantalla de 12 espacios de 20 s, 06:00–24:00: 15 rotaciones por hora, 18 h.
-const SPOTS_DIA_POR_ESPACIO = 270
+// Pantalla de 12 espacios de 20 s, 06:00–24:00, tarifa mensual 45 000.
+//
+// ADR 0043 · con la pantalla VACÍA el loop es solo la línea: compre los
+// espacios que compre, salen 3600 / 20 = 180 spots por hora, 3 240 al día y
+// 97 200 en 30 días. Lo que cambia con los espacios es el PRECIO por spot,
+// 45 000 ÷ (3600 / (loop × 20) × 18 × 30):
+const CANT_VACIA = 180 * 18 * DIAS // 97 200
+const POR_SPOT = { loop1: 0.46, loop2: 0.93, loop3: 1.39, loop12: 5.56 } as const
+// Roadblock: 45 000 × 12 / (18 × 30) = 1 000 la hora ÷ 180 spots = $5.56; con
+// prima del 25 %, $6.95.
+const RB_CON_PRIMA = 6.95
 
 async function sembrarUsuario(nombre: string, quien: string, rol: string): Promise<string> {
   const r = await poolTest().query(
@@ -208,45 +219,58 @@ describe('1 · la migración', () => {
 // ─── 2 · EL VENDEDOR COTIZA CON LA CALCULADORA ──────────────────────────────
 
 describe('2 · el servidor guarda los parámetros y RECALCULA la cantidad', () => {
-  it('2 espacios, 18 h, 30 días → 16 200 spots a la tarifa de la pantalla', async () => {
-    const cantidad = 2 * SPOTS_DIA_POR_ESPACIO * DIAS
-    const r = await crear(cVend, [{ tarifaUnitaria: 1200, espaciosComprados: 2, cantidad }])
+  it('2 espacios en la pantalla vacía, 18 h, 30 días → 97 200 spots a $0.93: 2 × 45 000, al centavo', async () => {
+    const r = await crear(cVend, [{ tarifaUnitaria: POR_SPOT.loop2, espaciosComprados: 2, cantidad: CANT_VACIA }])
     expect(r.status, JSON.stringify(r.datos)).toBe(201)
     expect(await lineas(r.datos.id)).toEqual([
       {
-        cantidad: 16200,
-        precio: 1200 * 16200,
-        tarifa_unitaria: 1200,
-        // La programación sale de la misma cuenta: 540 pases al día.
-        spots_por_dia: 540,
+        cantidad: 97200,
+        // 0.93 × 97 200 = 90 396: los 396 sobre 90 000 son el redondeo al centavo.
+        precio: 90396,
+        tarifa_unitaria: 0.93,
+        // La programación sale de la misma cuenta: 3 240 pases al día.
+        spots_por_dia: 3240,
         espacios_comprados: 2,
         horas_dia: 18,
         roadblock: false,
         prima_roadblock_pct: null,
-        tarifa_calculada: 1200,
+        tarifa_calculada: 0.93,
         precio_ajustado_por: null,
       },
     ])
   })
 
+  it('NEGATIVO · la tarifa «spot» de la pantalla ya no es el precio de la calculadora → 403 al vendedor', async () => {
+    const antes = await cuantasPropuestas()
+    const r = await crear(cVend, [{ tarifaUnitaria: 1200, espaciosComprados: 2, cantidad: CANT_VACIA }])
+    expect(r.status).toBe(403)
+    expect(r.datos.error).toBe('Solo un gerente o superior puede cambiar la tarifa de una pantalla.')
+    expect(await cuantasPropuestas()).toBe(antes)
+  })
+
   it('el vendedor BAJA las horas a 6 y la cantidad baja con ellas', async () => {
-    const r = await crear(cVend, [{ tarifaUnitaria: 1200, espaciosComprados: 1, horasDia: 6, cantidad: 90 * DIAS }])
+    const r = await crear(cVend, [{ tarifaUnitaria: POR_SPOT.loop1, espaciosComprados: 1, horasDia: 6, cantidad: 180 * 6 * DIAS }])
     expect(r.status, JSON.stringify(r.datos)).toBe(201)
-    expect(await lineas(r.datos.id)).toMatchObject([{ cantidad: 2700, horas_dia: 6, spots_por_dia: 90 }])
+    expect(await lineas(r.datos.id)).toMatchObject([{ cantidad: 32400, horas_dia: 6, spots_por_dia: 1080 }])
   })
 
   it('NEGATIVO · una cantidad manipulada → 400 con la cuenta, y NO se escribe nada', async () => {
     const antes = await cuantasPropuestas()
-    const r = await crear(cVend, [{ tarifaUnitaria: 1200, espaciosComprados: 2, cantidad: 100 }])
+    const r = await crear(cVend, [{ tarifaUnitaria: POR_SPOT.loop2, espaciosComprados: 2, cantidad: 100 }])
     expect(r.status).toBe(400)
     expect(r.datos.error).toBe(
-      'La cantidad de spots no cuadra con la calculadora: con 2 espacios, 18 h al día y 30 días son 16200 spots, no 100.',
+      'La cantidad de spots no cuadra con la calculadora: con 2 espacios, 18 h al día y 30 días son 97200 spots, no 100.',
     )
     expect(await cuantasPropuestas()).toBe(antes)
   })
 
+  it('NEGATIVO · la cantidad del loop ENTERO (la regla del ADR 0042) ya no cuadra → 400', async () => {
+    const r = await crear(cVend, [{ tarifaUnitaria: POR_SPOT.loop2, espaciosComprados: 2, cantidad: 2 * 270 * DIAS }])
+    expect(r.status).toBe(400)
+  })
+
   it('NEGATIVO · más horas de las que transmite la pantalla → 400', async () => {
-    const r = await crear(cVend, [{ tarifaUnitaria: 1200, espaciosComprados: 1, horasDia: 20, cantidad: 300 * DIAS }])
+    const r = await crear(cVend, [{ tarifaUnitaria: POR_SPOT.loop1, espaciosComprados: 1, horasDia: 20, cantidad: 180 * 20 * DIAS }])
     expect(r.status).toBe(400)
   })
 
@@ -259,7 +283,8 @@ describe('2 · el servidor guarda los parámetros y RECALCULA la cantidad', () =
   })
 
   it('el detalle INTERNO trae los parámetros', async () => {
-    const r = await crear(cVend, [{ tarifaUnitaria: 1200, espaciosComprados: 3, cantidad: 3 * SPOTS_DIA_POR_ESPACIO * DIAS }])
+    const r = await crear(cVend, [{ tarifaUnitaria: POR_SPOT.loop3, espaciosComprados: 3, cantidad: CANT_VACIA }])
+    expect(r.status, JSON.stringify(r.datos)).toBe(201)
     const est = await cVend.pedir('/api/estado/')
     const p = (est.datos.propuestas as any[]).find((x) => x.id === r.datos.id)
     expect(p.items[0]).toMatchObject({ espaciosComprados: 3, horasDia: 18, roadblock: false, primaRoadblockPct: null })
@@ -267,7 +292,7 @@ describe('2 · el servidor guarda los parámetros y RECALCULA la cantidad', () =
 
   it('NEGATIVO · R2: la pantalla de beta no se cotiza con la calculadora desde alfa', async () => {
     const antes = await cuantasPropuestas()
-    const r = await crear(cVend, [{ tarifaUnitaria: 900, espaciosComprados: 1, cantidad: SPOTS_DIA_POR_ESPACIO * DIAS }], beta.sitioId)
+    const r = await crear(cVend, [{ tarifaUnitaria: 900, espaciosComprados: 1, cantidad: CANT_VACIA }], beta.sitioId)
     expect(r.status).toBeGreaterThanOrEqual(400)
     expect(await cuantasPropuestas()).toBe(antes)
   })
@@ -275,41 +300,50 @@ describe('2 · el servidor guarda los parámetros y RECALCULA la cantidad', () =
 
 // ─── 3 · ROADBLOCK ──────────────────────────────────────────────────────────
 
-const CANT_RB = 12 * SPOTS_DIA_POR_ESPACIO * DIAS // 97 200
+// floor(3600 / 20) = 180 spots por hora × 18 h × 30 días: el mismo 97 200.
+const CANT_RB = 180 * 18 * DIAS
 
 describe('3 · Roadblock: todos los espacios, prima solo de gerente', () => {
   it('NEGATIVO · el VENDEDOR con prima > 0 → 403, y no se escribe nada', async () => {
     const antes = await cuantasPropuestas()
-    const r = await crear(cVend, [{ tarifaUnitaria: 1500, roadblock: true, primaRoadblockPct: 25, cantidad: CANT_RB }])
+    const r = await crear(cVend, [{ tarifaUnitaria: RB_CON_PRIMA, roadblock: true, primaRoadblockPct: 25, cantidad: CANT_RB }])
     expect(r.status).toBe(403)
     expect(r.datos.error).toBe('Solo un gerente o superior puede poner prima a un Roadblock.')
     expect(await cuantasPropuestas()).toBe(antes)
   })
 
-  it('el VENDEDOR sí marca un Roadblock a prima 0, a la tarifa', async () => {
-    const r = await crear(cVend, [{ tarifaUnitaria: 1200, roadblock: true, cantidad: CANT_RB }])
+  it('el VENDEDOR sí marca un Roadblock a prima 0, al precio de la hora repartido', async () => {
+    const r = await crear(cVend, [{ tarifaUnitaria: POR_SPOT.loop12, roadblock: true, cantidad: CANT_RB }])
     expect(r.status, JSON.stringify(r.datos)).toBe(201)
     expect(await lineas(r.datos.id)).toMatchObject([
-      { cantidad: CANT_RB, espacios_comprados: 12, roadblock: true, prima_roadblock_pct: 0, precio_ajustado_por: null },
+      {
+        cantidad: CANT_RB,
+        tarifa_unitaria: POR_SPOT.loop12,
+        tarifa_calculada: POR_SPOT.loop12,
+        espacios_comprados: 12,
+        roadblock: true,
+        prima_roadblock_pct: 0,
+        precio_ajustado_por: null,
+      },
     ])
   })
 
-  it('el GERENTE con prima del 25 % → 201, tarifa 1 500, ajuste a su nombre y en Actividad', async () => {
-    const r = await crear(cGer, [{ tarifaUnitaria: 1500, roadblock: true, primaRoadblockPct: 25, cantidad: CANT_RB }])
+  it('el GERENTE con prima del 25 % → 201, $6.95, ajuste a su nombre y en Actividad', async () => {
+    const r = await crear(cGer, [{ tarifaUnitaria: RB_CON_PRIMA, roadblock: true, primaRoadblockPct: 25, cantidad: CANT_RB }])
     expect(r.status, JSON.stringify(r.datos)).toBe(201)
     roadblockConPrima = r.datos.id
     expect(await lineas(r.datos.id)).toEqual([
       {
         cantidad: CANT_RB,
-        precio: 1500 * CANT_RB,
-        tarifa_unitaria: 1500,
-        spots_por_dia: 12 * SPOTS_DIA_POR_ESPACIO,
+        precio: Math.round(RB_CON_PRIMA * CANT_RB),
+        tarifa_unitaria: RB_CON_PRIMA,
+        spots_por_dia: 180 * 18,
         espacios_comprados: 12,
         horas_dia: 18,
         roadblock: true,
         prima_roadblock_pct: 25,
-        // La de la PANTALLA, sin la prima: «de $1,200 a $1,500».
-        tarifa_calculada: 1200,
+        // La base, sin la prima: «de $5.56 a $6.95».
+        tarifa_calculada: POR_SPOT.loop12,
         precio_ajustado_por: gerenteId,
       },
     ])
@@ -321,35 +355,42 @@ describe('3 · Roadblock: todos los espacios, prima solo de gerente', () => {
     ).rows
     expect(acc.map((a) => a.accion)).toEqual([
       'Creó propuesta',
-      'Cambió la tarifa de «Pantalla calcalfa» (spot) de $1,200 a $1,500 por Roadblock con prima del 25 % en la propuesta',
+      'Cambió la tarifa de «Pantalla calcalfa» (spot) de $5.56 a $6.95 por Roadblock con prima del 25 % en la propuesta',
     ])
     expect(acc[1].usuario_nombre).toBe('Gael Gerente')
   })
 
-  it('la prima se aplica UNA vez: lo que se guarda es lo enviado, no 1 500 × 1,25', async () => {
+  it('la prima se aplica UNA vez: lo que se guarda es lo enviado, no 6.95 × 1,25', async () => {
     // La pantalla manda la tarifa YA con la prima. Si el servidor volviera a
-    // multiplicar al guardar, la línea quedaría a 1 875 (1 200 × 1,25 × 1,25).
-    const r = await crear(cGer, [{ tarifaUnitaria: 1500, roadblock: true, primaRoadblockPct: 25, cantidad: CANT_RB }])
-    expect(await lineas(r.datos.id)).toMatchObject([{ tarifa_unitaria: 1500, precio: 1500 * CANT_RB }])
+    // multiplicar al guardar, la línea quedaría a 8.69 (5.56 × 1,25 × 1,25).
+    const r = await crear(cGer, [{ tarifaUnitaria: RB_CON_PRIMA, roadblock: true, primaRoadblockPct: 25, cantidad: CANT_RB }])
+    expect(await lineas(r.datos.id)).toMatchObject([{ tarifa_unitaria: RB_CON_PRIMA, precio: Math.round(RB_CON_PRIMA * CANT_RB) }])
   })
 
   it('NEGATIVO · Roadblock sobre una pantalla con un espacio ocupado → 409', async () => {
     const antes = await cuantasPropuestas()
-    const r = await crear(cGer, [{ tarifaUnitaria: 1200, roadblock: true, cantidad: CANT_RB }], sitioOcupado)
+    const r = await crear(cGer, [{ tarifaUnitaria: POR_SPOT.loop12, roadblock: true, cantidad: CANT_RB }], sitioOcupado)
     expect(r.status).toBe(409)
     expect(r.datos.error).toBe('Un Roadblock necesita los 12 espacios del loop libres, y la pantalla tiene 11.')
     expect(await cuantasPropuestas()).toBe(antes)
   })
 
-  it('NEGATIVO · más espacios que los libres → 409; los que caben, sí', async () => {
-    const malo = await crear(cVend, [{ tarifaUnitaria: 1200, espaciosComprados: 12, cantidad: CANT_RB }], sitioOcupado)
+  it('NEGATIVO · más espacios que los libres → 409; los que caben, sí — y cuentan con el ocupante en el loop', async () => {
+    // 1 campaña + 12 espacios = loop de 12 (tope): 15 × 12 × 18 × 30 = 97 200.
+    const malo = await crear(cVend, [{ tarifaUnitaria: POR_SPOT.loop12, espaciosComprados: 12, cantidad: 97200 }], sitioOcupado)
     expect(malo.status).toBe(409)
-    const bueno = await crear(
-      cVend,
-      [{ tarifaUnitaria: 1200, espaciosComprados: 11, cantidad: 11 * SPOTS_DIA_POR_ESPACIO * DIAS }],
-      sitioOcupado,
-    )
+    // 1 campaña + 11 espacios = loop de 12: 15 × 11 × 18 × 30 = 89 100, a $5.56.
+    // La pantalla no tiene modalidad mensual: el precio sale de su tarifa
+    // mensual de ficha (45 000).
+    const bueno = await crear(cVend, [{ tarifaUnitaria: POR_SPOT.loop12, espaciosComprados: 11, cantidad: 89100 }], sitioOcupado)
     expect(bueno.status, JSON.stringify(bueno.datos)).toBe(201)
+    expect(await lineas(bueno.datos.id)).toMatchObject([{ cantidad: 89100, tarifa_calculada: POR_SPOT.loop12, spots_por_dia: 2970 }])
+  })
+
+  it('con el ocupante, 1 espacio entra a un loop de 2: 90 rotaciones por hora, a $0.93', async () => {
+    const r = await crear(cVend, [{ tarifaUnitaria: POR_SPOT.loop2, espaciosComprados: 1, cantidad: 90 * 18 * DIAS }], sitioOcupado)
+    expect(r.status, JSON.stringify(r.datos)).toBe(201)
+    expect(await lineas(r.datos.id)).toMatchObject([{ cantidad: 48600, spots_por_dia: 1620, tarifa_calculada: POR_SPOT.loop2 }])
   })
 })
 
@@ -368,18 +409,16 @@ describe('4 · al generar la campaña, spots_reservados = espacios comprados', (
     ).rows
   }
 
-  it('3 espacios → la reserva retiene 3 slots, y programa 810 pases al día', async () => {
+  it('3 espacios → la reserva retiene 3 slots, y programa 3 240 pases al día', async () => {
     // Las dos propuestas se crean ANTES de generar ninguna campaña: con una
     // campaña vigente la pantalla ya no tiene el loop entero libre y el
     // Roadblock (bien) no se dejaría cotizar.
-    const tres = await crear(cDueno, [{ tarifaUnitaria: 1200, espaciosComprados: 3, cantidad: 3 * SPOTS_DIA_POR_ESPACIO * DIAS }])
+    const tres = await crear(cDueno, [{ tarifaUnitaria: POR_SPOT.loop3, espaciosComprados: 3, cantidad: CANT_VACIA }])
     expect(tres.status, JSON.stringify(tres.datos)).toBe(201)
-    const rb = await crear(cDueno, [{ tarifaUnitaria: 1200, roadblock: true, cantidad: CANT_RB }])
+    const rb = await crear(cDueno, [{ tarifaUnitaria: POR_SPOT.loop12, roadblock: true, cantidad: CANT_RB }])
     expect(rb.status, JSON.stringify(rb.datos)).toBe(201)
 
-    expect(await aprobarYGenerar(tres.datos.id)).toEqual([
-      { spots_reservados: 3, spots_por_dia: 810, cantidad: 3 * SPOTS_DIA_POR_ESPACIO * DIAS },
-    ])
+    expect(await aprobarYGenerar(tres.datos.id)).toEqual([{ spots_reservados: 3, spots_por_dia: 3240, cantidad: CANT_VACIA }])
     // Un Roadblock retiene TODOS.
     expect(await aprobarYGenerar(rb.datos.id)).toEqual([{ spots_reservados: 12, spots_por_dia: 3240, cantidad: CANT_RB }])
   })
@@ -411,6 +450,6 @@ describe('5 · el CLIENTE ve solo el precio final', () => {
     ]) {
       expect(crudo, `la liga pública filtra «${fuga}»`).not.toContain(fuga)
     }
-    expect(pub.datos.items[0].precio).toBe(1500 * CANT_RB)
+    expect(pub.datos.items[0].precio).toBe(Math.round(RB_CON_PRIMA * CANT_RB))
   })
 })

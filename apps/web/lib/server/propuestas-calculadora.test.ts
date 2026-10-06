@@ -59,15 +59,26 @@ const TARIFAS = {
     ],
   ]),
 }
-const LOOP = {
+// ADR 0043 · 12 espacios de 20 s, 18 h, y 4 campañas vigentes: una línea de 2
+// espacios entra a un loop de 6, como el ejemplo de la calculadora HTML.
+const LOOP_DE = (campanasActivas: number) => ({
   spotSegOrganizacion: 10,
   sitios: new Map<string, any>([
     [
       UUID_A,
-      { digital: true, totalSpots: 12, duracionSpotSeg: 20, horario: '06:00-24:00', spotsDisponibles: null, campanasActivas: 0 },
+      { digital: true, totalSpots: 12, duracionSpotSeg: 20, horario: '06:00-24:00', spotsDisponibles: null, campanasActivas },
     ],
   ]),
-}
+})
+const LOOP = LOOP_DE(4)
+
+// Tarifa mensual 45 000 → 4 500 000 centavos. Por spot, con 18 h y 30 días:
+//   loop de 6:  45 000 / (30 × 18 × 30)  = 2.777… → $2.78
+//   loop de 5:  45 000 / (36 × 18 × 30)  = 2.314… → $2.31
+//   Roadblock:  45 000 × 12 / 540 / 180  = 5.555… → $5.56; con prima 25 %, $6.95
+const POR_SPOT_6 = 2.78
+const POR_SPOT_5 = 2.31
+const POR_SPOT_RB = 5.56
 
 const VENDEDOR = { id: 'U-VEND', rol: 'VENDEDOR', nombre: 'Vera' }
 const GERENTE = { id: 'U-GER', rol: 'GERENTE_VENTAS', nombre: 'Gael' }
@@ -117,15 +128,19 @@ describe('1 · sin calculadora, nada cambia', () => {
   })
 })
 
-describe('2 · con calculadora, la cantidad la decide el servidor', () => {
-  it('2 espacios × 18 h × 30 días → el repo recibe 16 200, los parámetros y 540 pases al día', async () => {
-    await crearPropuestaCtrl(cuerpo([{ espaciosComprados: 2, cantidad: 16200, spotsPorDia: 3 }]))
+describe('2 · con calculadora, la cantidad Y el precio los decide el servidor (ADR 0043)', () => {
+  it('2 espacios en un loop de 6 × 18 h × 30 días → 32 400 spots a $2.78, y 1 080 pases al día', async () => {
+    await crearPropuestaCtrl(cuerpo([{ espaciosComprados: 2, cantidad: 32400, spotsPorDia: 3, tarifaUnitaria: POR_SPOT_6 }]))
     const it = m.crearPropuesta.mock.calls[0][0].items[0]
     expect(it).toMatchObject({
-      cantidad: 16200,
-      precio: 1200 * 16200,
+      cantidad: 32400,
+      tarifaUnitaria: POR_SPOT_6,
+      // 2 espacios × 45 000 = 90 000; los 72 pesos son el redondeo al centavo.
+      precio: 90072,
+      tarifaCalculada: POR_SPOT_6,
+      precioAjustado: false,
       // La programación sale de la cuenta, no del cuerpo.
-      spotsPorDia: 540,
+      spotsPorDia: 1080,
       espaciosComprados: 2,
       horasDia: 18,
       roadblock: false,
@@ -133,28 +148,48 @@ describe('2 · con calculadora, la cantidad la decide el servidor', () => {
     })
   })
 
+  it('NEGATIVO · la tarifa «spot» de la pantalla YA NO es el precio de la calculadora: 403 para el vendedor', async () => {
+    const r = await rechazo(crearPropuestaCtrl(cuerpo([{ espaciosComprados: 2, cantidad: 32400, tarifaUnitaria: 1200 }])))
+    expect(r).toEqual({ status: 403, mensaje: 'Solo un gerente o superior puede cambiar la tarifa de una pantalla.' })
+    expect(m.crearPropuesta).not.toHaveBeenCalled()
+  })
+
+  it('NEGATIVO · una pantalla sin tarifa mensual no tiene precio calculado: solo el gerente', async () => {
+    m.datosParaTarifar.mockResolvedValue({
+      temporadas: [],
+      sitios: new Map([[UUID_A, { nombre: 'Sin mensual', modalidadesDetalle: [{ unidad: 'spot', tarifaPublicada: 1200 }] }]]),
+    })
+    const r = await rechazo(crearPropuestaCtrl(cuerpo([{ espaciosComprados: 2, cantidad: 32400, tarifaUnitaria: 1200 }])))
+    expect(r.status).toBe(403)
+    expect(r.mensaje).toMatch(/no tiene una tarifa calculada/)
+  })
+
   it('NEGATIVO · una cantidad que no cuadra → 400 y el repo NO se llama', async () => {
-    const r = await rechazo(crearPropuestaCtrl(cuerpo([{ espaciosComprados: 2, cantidad: 100 }])))
+    const r = await rechazo(crearPropuestaCtrl(cuerpo([{ espaciosComprados: 2, cantidad: 100, tarifaUnitaria: POR_SPOT_6 }])))
     expect(r.status).toBe(400)
     expect(r.mensaje).toMatch(/^La cantidad de spots no cuadra con la calculadora/)
     expect(m.crearPropuesta).not.toHaveBeenCalled()
   })
 
-  it('con franja, el techo de horas es la franja: 4 h de prime, a 1 800', async () => {
-    await crearPropuestaCtrl(cuerpo([{ espaciosComprados: 1, franjaId: 'F-PRIME', tarifaUnitaria: 1800, cantidad: 60 * 30 }]))
-    expect(m.crearPropuesta.mock.calls[0][0].items[0]).toMatchObject({ cantidad: 1800, horasDia: 4, spotsPorDia: 60 })
+  it('NEGATIVO · la cantidad del loop ENTERO (la regla del ADR 0042) ya no cuadra', async () => {
+    const r = await rechazo(crearPropuestaCtrl(cuerpo([{ espaciosComprados: 2, cantidad: 16200, tarifaUnitaria: POR_SPOT_6 }])))
+    expect(r.status).toBe(400)
+  })
+
+  it('con franja, el techo de horas es la franja; el precio sigue saliendo de las 18 h del horario', async () => {
+    // Loop de 5: 36 rotaciones × 4 h × 30 días = 4 320.
+    await crearPropuestaCtrl(cuerpo([{ espaciosComprados: 1, franjaId: 'F-PRIME', tarifaUnitaria: POR_SPOT_5, cantidad: 4320 }]))
+    expect(m.crearPropuesta.mock.calls[0][0].items[0]).toMatchObject({ cantidad: 4320, horasDia: 4, spotsPorDia: 144 })
     const r = await rechazo(
-      crearPropuestaCtrl(cuerpo([{ espaciosComprados: 1, franjaId: 'F-PRIME', tarifaUnitaria: 1800, horasDia: 5, cantidad: 75 * 30 }])),
+      crearPropuestaCtrl(cuerpo([{ espaciosComprados: 1, franjaId: 'F-PRIME', tarifaUnitaria: POR_SPOT_5, horasDia: 5, cantidad: 5400 }])),
     )
     expect(r.status).toBe(400)
   })
 
   it('NEGATIVO · sin espacios libres → 409', async () => {
-    m.datosDelLoop.mockResolvedValue({
-      ...LOOP,
-      sitios: new Map([[UUID_A, { ...LOOP.sitios.get(UUID_A), campanasActivas: 11 }]]),
-    })
-    const r = await rechazo(crearPropuestaCtrl(cuerpo([{ espaciosComprados: 2, cantidad: 16200 }])))
+    m.datosDelLoop.mockResolvedValue(LOOP_DE(11))
+    // Loop de min(12, 11 + 2) = 12: 15 × 2 × 18 × 30 = 16 200.
+    const r = await rechazo(crearPropuestaCtrl(cuerpo([{ espaciosComprados: 2, cantidad: 16200, tarifaUnitaria: 12.35 }])))
     expect(r.status).toBe(409)
     expect(m.crearPropuesta).not.toHaveBeenCalled()
   })
@@ -167,43 +202,49 @@ describe('2 · con calculadora, la cantidad la decide el servidor', () => {
 })
 
 describe('3 · Roadblock y su prima', () => {
-  const RB = { roadblock: true, cantidad: 12 * 270 * 30 }
+  // floor(3600 / 20) = 180 spots por hora × 18 h × 30 días.
+  const RB = { roadblock: true, cantidad: 180 * 18 * 30 }
+  beforeEach(() => {
+    // Un Roadblock exige el loop vacío.
+    m.datosDelLoop.mockResolvedValue(LOOP_DE(0))
+  })
 
   it('NEGATIVO · VENDEDOR con prima → 403 con la frase, y el repo NO se llama', async () => {
-    const r = await rechazo(crearPropuestaCtrl(cuerpo([{ ...RB, primaRoadblockPct: 25, tarifaUnitaria: 1500 }])))
+    const r = await rechazo(crearPropuestaCtrl(cuerpo([{ ...RB, primaRoadblockPct: 25, tarifaUnitaria: 6.95 }])))
     expect(r).toEqual({ status: 403, mensaje: 'Solo un gerente o superior puede poner prima a un Roadblock.' })
     expect(m.crearPropuesta).not.toHaveBeenCalled()
   })
 
-  it('VENDEDOR sin prima → entra a la tarifa, sin ajuste', async () => {
-    const r = await crearPropuestaCtrl(cuerpo([RB]))
+  it('VENDEDOR sin prima → entra al precio de la hora repartido entre sus spots, sin ajuste', async () => {
+    const r = await crearPropuestaCtrl(cuerpo([{ ...RB, tarifaUnitaria: POR_SPOT_RB }]))
     expect(m.crearPropuesta.mock.calls[0][0].items[0]).toMatchObject({
       espaciosComprados: 12,
       roadblock: true,
       primaRoadblockPct: 0,
-      tarifaCalculada: 1200,
+      cantidad: 97200,
+      tarifaCalculada: POR_SPOT_RB,
       precioAjustado: false,
     })
     expect(r.ajustes).toEqual([])
   })
 
-  it('GERENTE con prima 25 % a 1 500 → ajuste, tarifa calculada 1 200, y el ajuste lleva la prima', async () => {
+  it('GERENTE con prima 25 % a $6.95 → ajuste, tarifa calculada $5.56, y el ajuste lleva la prima', async () => {
     m.usuarioActual.mockResolvedValue(GERENTE)
-    const r = await crearPropuestaCtrl(cuerpo([{ ...RB, primaRoadblockPct: 25, tarifaUnitaria: 1500 }]))
+    const r = await crearPropuestaCtrl(cuerpo([{ ...RB, primaRoadblockPct: 25, tarifaUnitaria: 6.95 }]))
     expect(m.crearPropuesta.mock.calls[0][0].items[0]).toMatchObject({
-      tarifaUnitaria: 1500,
-      precio: 1500 * RB.cantidad,
-      tarifaCalculada: 1200,
+      tarifaUnitaria: 6.95,
+      precio: Math.round(6.95 * RB.cantidad),
+      tarifaCalculada: POR_SPOT_RB,
       precioAjustado: true,
       primaRoadblockPct: 25,
     })
     expect(r.ajustes).toEqual([
-      { sitioId: UUID_A, sitioNombre: 'Pantalla Reforma', unidad: 'spot', tarifaCalculada: 1200, tarifa: 1500, primaRoadblockPct: 25 },
+      { sitioId: UUID_A, sitioNombre: 'Pantalla Reforma', unidad: 'spot', tarifaCalculada: POR_SPOT_RB, tarifa: 6.95, primaRoadblockPct: 25 },
     ])
   })
 
   it('NEGATIVO · VENDEDOR que manda la tarifa CON prima sin poner prima → 403 «distinta»', async () => {
-    const r = await rechazo(crearPropuestaCtrl(cuerpo([{ ...RB, tarifaUnitaria: 1500 }])))
+    const r = await rechazo(crearPropuestaCtrl(cuerpo([{ ...RB, tarifaUnitaria: 6.95 }])))
     expect(r).toEqual({ status: 403, mensaje: 'Solo un gerente o superior puede cambiar la tarifa de una pantalla.' })
   })
 })

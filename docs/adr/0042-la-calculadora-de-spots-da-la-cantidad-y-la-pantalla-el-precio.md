@@ -5,6 +5,10 @@
   `propuesta_items` tal como se proponen abajo, y confirmó que la prima del Roadblock la pone
   **solo** `comercial.aprobar` (Gerente de ventas y superiores). Antes decía «Propuesta —
   falta aprobar las columnas y confirmar quién pone la prima».
+- **Sustituida en parte (2026-10-06)** por el [ADR 0043](0043-la-calculadora-de-spots-cuenta-como-la-calculadora-html.md):
+  las decisiones **1, 2 y 3** (precio de la tarifa `spot`, `floor` por día, loop = todos los
+  espacios) ya no rigen. La calculadora cuenta cantidad Y precio como la calculadora HTML del
+  dueño. Las decisiones 4, 5 y 6 siguen vigentes.
 - **Relacionado:** [ADR 0039](0039-la-cadena-de-precio-del-spot.md) (la cadena de precio),
   [ADR 0040](0040-roles-de-venta-y-la-autorizacion-de-descuentos.md) (que dejó «la
   calculadora de precio de spot» **bloqueada por falta de la lógica**), y la tarifa calculada
