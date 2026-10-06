@@ -269,7 +269,7 @@ export function AjustarTexto() {
                 {(equipos ?? []).map((d) => (
                   <option key={d.id} value={String(d.id)}>
                     {d.name}
-                    {d.online ? '' : ' (sin reportar)'}
+                    {d.online ? '' : ' (sin comunicación)'}
                   </option>
                 ))}
               </select>

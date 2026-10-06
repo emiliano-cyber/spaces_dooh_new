@@ -33,6 +33,38 @@ export function spaceEyeHabilitado(): boolean {
   return !!(BASE && KEY)
 }
 
+// ─── El estado del módulo para esta empresa ─────────────────────────────────
+//
+// Lo que decide qué ve el usuario al entrar a Space Eyes:
+//   - 'no_contratado': la empresa no tiene Space Eyes → la demostración, nunca
+//     una pantalla vacía o con errores. Hoy es "no hay Space Eye configurado";
+//     cuando la licencia traiga módulos (ADR 0041, etapa 4) también contará eso.
+//   - 'sin_respuesta': lo tiene, pero su servidor de cámaras no contesta ahora
+//     (caído, reiniciando, actualizándose) → un aviso claro, no errores sueltos.
+//   - 'activo'.
+//
+// La salud se pregunta a /health con un tope de 3 s y se recuerda 30 s: entrar a
+// cada pantalla del módulo no debe sumar una espera ni una petición por clic.
+export type EstadoModulo = 'activo' | 'no_contratado' | 'sin_respuesta'
+
+let saludCache: { en: number; ok: boolean } | null = null
+const SALUD_TTL_MS = 30_000
+
+export async function estadoDelModulo(): Promise<EstadoModulo> {
+  if (!spaceEyeHabilitado()) return 'no_contratado'
+  const ahora = Date.now()
+  if (saludCache && ahora - saludCache.en < SALUD_TTL_MS) return saludCache.ok ? 'activo' : 'sin_respuesta'
+  let ok = false
+  try {
+    const r = await fetch(`${BASE}/health`, { cache: 'no-store', signal: AbortSignal.timeout(3000) })
+    ok = r.ok
+  } catch {
+    ok = false
+  }
+  saludCache = { en: ahora, ok }
+  return ok ? 'activo' : 'sin_respuesta'
+}
+
 // GET autenticado con la llave de la instancia.
 async function api<T>(path: string): Promise<T> {
   const r = await fetch(`${BASE}${path}`, { headers: { Authorization: `Bearer ${KEY}` } })

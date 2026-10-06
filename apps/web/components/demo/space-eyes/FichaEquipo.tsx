@@ -257,7 +257,7 @@ export function FichaEquipo({ id }: { id: number }) {
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="truncate text-lg font-semibold text-ink">{equipo.nombre}</h1>
-            <PildoraConexion online={enLinea} />
+            <PildoraConexion online={enLinea} pendiente={!equipo.ultimaConexion} />
           </div>
           <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-muted">
             {equipo.empresa && (
@@ -422,7 +422,7 @@ export function FichaEquipo({ id }: { id: number }) {
 
               {/* La barra de estado, SOBRE la fotografía */}
               <div className="absolute inset-x-0 top-0 flex flex-wrap items-center gap-x-4 gap-y-1.5 bg-gradient-to-b from-black/80 via-black/45 to-transparent p-3">
-                <PildoraConexion online={enLinea} sobreFoto />
+                <PildoraConexion online={enLinea} pendiente={!equipo.ultimaConexion} sobreFoto />
                 <span className="text-[12px] text-white/85">
                   Última conexión <strong className="font-semibold text-white">{hace(equipo.ultimaConexion)}</strong>
                 </span>

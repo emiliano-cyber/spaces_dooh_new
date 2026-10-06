@@ -105,13 +105,20 @@ export function Senal({
 // pasa a fondo oscuro: sobre una imagen, un badge claro desaparece.
 export function PildoraConexion({
   online,
+  pendiente = false,
   sobreFoto = false,
   className,
 }: {
   online: boolean
+  /** Se dio de alta pero NUNCA se ha comunicado: falta terminar de vincularlo. */
+  pendiente?: boolean
   sobreFoto?: boolean
   className?: string
 }) {
+  // Tres estados que un usuario sin conocimientos técnicos entiende. Un equipo
+  // registrado no se da por funcionando: lo dice su última comunicación.
+  const estado = online ? 'linea' : pendiente ? 'pendiente' : 'sin'
+  const texto = { linea: 'En línea', pendiente: 'Pendiente de vincular', sin: 'Sin comunicación' }[estado]
   if (sobreFoto) {
     return (
       <span
@@ -120,8 +127,13 @@ export function PildoraConexion({
           className,
         )}
       >
-        <span className={cn('h-1.5 w-1.5 rounded-full', online ? 'bg-[#35d07f]' : 'bg-[#f87171]')} />
-        {online ? 'EN LÍNEA' : 'SIN REPORTAR'}
+        <span
+          className={cn(
+            'h-1.5 w-1.5 rounded-full',
+            estado === 'linea' ? 'bg-[#35d07f]' : estado === 'pendiente' ? 'bg-[#fbbf24]' : 'bg-[#f87171]',
+          )}
+        />
+        {texto.toUpperCase()}
       </span>
     )
   }
@@ -129,14 +141,18 @@ export function PildoraConexion({
     <span
       className={cn(
         'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold',
-        online
+        estado === 'linea'
           ? 'border-[#1da85040] bg-success-soft text-[#146c39]'
-          : 'border-[#dc262640] bg-error-soft text-[#b91c1c]',
+          : estado === 'pendiente'
+            ? 'border-[#f59e0b40] bg-warning-soft text-[#92400e]'
+            : 'border-[#dc262640] bg-error-soft text-[#b91c1c]',
         className,
       )}
     >
-      <span className={cn('h-1.5 w-1.5 rounded-full', online ? 'bg-success' : 'bg-error')} />
-      {online ? 'En línea' : 'Sin reportar'}
+      <span
+        className={cn('h-1.5 w-1.5 rounded-full', estado === 'linea' ? 'bg-success' : estado === 'pendiente' ? 'bg-warning' : 'bg-error')}
+      />
+      {texto}
     </span>
   )
 }

@@ -152,7 +152,7 @@ export function ListaEquipos() {
           {/* Los cuatro números que deciden si hay que hacer algo hoy */}
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <Indicador titulo="En línea" valor={enLinea} pie={`de ${conEstado.length} equipos`} punto="bg-success" />
-            <Indicador titulo="Sin reportar" valor={caidos} pie="más de 10 min" punto="bg-error" />
+            <Indicador titulo="Sin comunicación" valor={caidos} pie="más de 10 min" punto="bg-error" />
             <Indicador
               titulo="Batería crítica"
               valor={bateriaBaja}
@@ -314,7 +314,7 @@ function TarjetaEquipo({ equipo: e, enLinea }: { equipo: EquipoResumen; enLinea:
             <span className="text-[12px]">Sin capturas todavía</span>
           </div>
         )}
-        <PildoraConexion online={enLinea} sobreFoto className="absolute left-2 top-2" />
+        <PildoraConexion online={enLinea} pendiente={!e.ultimaConexion} sobreFoto className="absolute left-2 top-2" />
         {e.ultimaFoto?.tomadaEn && (
           <span className="absolute bottom-2 right-2 inline-flex items-center gap-1.5 rounded-full bg-black/60 px-2 py-0.5 text-[10.5px] text-white backdrop-blur-sm">
             <Clock className="h-3 w-3" strokeWidth={2} />
