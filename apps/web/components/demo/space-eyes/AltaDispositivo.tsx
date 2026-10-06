@@ -42,6 +42,10 @@ import { fechaHora } from './piezas'
 //      si ya esta encendida, un comando. Vence en 14 dias: la tarjeta se
 //      prepara en la oficina y se instala despues.
 //    - PC: el codigo que pide el asistente de instalacion. 14 dias.
+//
+//  VARIOS A LA VEZ: el mismo codigo (un QR, un archivo de microSD) sirve para
+//  hasta N equipos, con tope, vencimiento y la lista de quien lo uso. Para
+//  instalar 20 telefonos o 20 Raspberry en una jornada.
 // ============================================================================
 
 type Tipo = 'telefono' | 'raspberry' | 'pc'
@@ -50,7 +54,10 @@ interface Vinculacion {
   codigo: string
   tipo: Tipo
   nota: string | null
-  estado: 'vigente' | 'usado' | 'vencido' | 'cancelado'
+  estado: 'vigente' | 'usado' | 'agotado' | 'vencido' | 'cancelado'
+  usos: number
+  usos_max: number
+  equipos: { id: number; nombre: string | null }[]
   creado_por: string | null
   creado_en: string
   expira_en: string
@@ -131,7 +138,9 @@ function CodigoGrande({ v }: { v: Vinculacion }) {
     <div className="flex flex-wrap items-center gap-3 rounded-md border border-border bg-surface-2 p-3">
       <KeyRound className="h-4 w-4 text-muted" />
       <span className="font-mono text-[22px] font-semibold tracking-[0.12em] text-ink">{v.codigo}</span>
-      <span className="text-[12px] text-muted">Sirve una sola vez · vence {fechaHora(v.expira_en)}</span>
+      <span className="text-[12px] text-muted">
+        {v.usos_max > 1 ? `Sirve para ${v.usos_max} equipos` : 'Sirve una sola vez'} · vence {fechaHora(v.expira_en)}
+      </span>
       <span className="ml-auto">
         <Copiar texto={v.codigo} />
       </span>
@@ -146,6 +155,9 @@ export function AltaDispositivo() {
   const [lista, setLista] = useState<Vinculacion[] | null>(null)
   const [generado, setGenerado] = useState<Vinculacion | null>(null)
   const [trabajando, setTrabajando] = useState(false)
+  // Cuantos equipos se instalan con el mismo codigo, y cuantos dias dura si son varios.
+  const [cuantos, setCuantos] = useState(1)
+  const [dias, setDias] = useState(1)
   const [error, setError] = useState<string | null>(null)
 
   // Raspberry
@@ -174,13 +186,23 @@ export function AltaDispositivo() {
     setGenerado(null)
     setError(null)
     setKitListo(false)
-  }, [tipo, modoPi])
+  }, [tipo, modoPi, cuantos, dias])
+
+  // Un lote de telefonos se instala en una jornada; Raspberry y PC se preparan
+  // antes de ir: por omision 1 dia y 14 dias.
+  useEffect(() => {
+    setDias(tipo === 'telefono' ? 1 : 14)
+  }, [tipo])
+  const lote = cuantos > 1
 
   async function generar(nota?: string): Promise<Vinculacion | null> {
     setTrabajando(true)
     setError(null)
     try {
-      const v = await seApi<Vinculacion>('vinculaciones', { method: 'POST', body: { tipo, ...(nota ? { nota } : {}) } })
+      const v = await seApi<Vinculacion>('vinculaciones', {
+        method: 'POST',
+        body: { tipo, ...(nota ? { nota } : {}), ...(lote ? { usos: cuantos, horas: dias * 24 } : {}) },
+      })
       setGenerado(v)
       void recargar()
       return v
@@ -205,7 +227,7 @@ export function AltaDispositivo() {
       nombre: nombre.trim(),
       wifi: conexion === 'wifi' ? { red: red.trim(), clave } : null,
     })
-    descargar(`space-eye-raspberry-${v.codigo}.zip`, datos, 'application/zip')
+    descargar(`space-eye-raspberry-${v.codigo}${lote ? `-para-${cuantos}` : ''}.zip`, datos, 'application/zip')
     setKitListo(true)
     // La clave del WiFi no se queda en la pantalla: ya va en el archivo.
     setClave('')
@@ -278,6 +300,42 @@ export function AltaDispositivo() {
           Para agregar equipos necesitas permiso de edición en Inventario. Pídeselo a un administrador de tu empresa.
         </p>
       )}
+      {puedeCrear && (
+        <div className="flex flex-wrap items-end gap-3 rounded-md border border-border bg-surface p-3">
+          <label className="flex flex-col gap-1 text-[12px] text-muted">
+            ¿Cuántos equipos vas a instalar?
+            <input
+              type="number"
+              min={1}
+              max={200}
+              value={cuantos}
+              onChange={(e) => setCuantos(Math.max(1, Math.min(200, Number(e.target.value) || 1)))}
+              className="w-24 rounded-md border border-border bg-surface px-3 py-2 text-[13px] text-ink"
+            />
+          </label>
+          {lote && (
+            <label className="flex flex-col gap-1 text-[12px] text-muted">
+              El código dura
+              <select
+                value={dias}
+                onChange={(e) => setDias(Number(e.target.value))}
+                className="rounded-md border border-border bg-surface px-3 py-2 text-[13px] text-ink"
+              >
+                {[1, 3, 7, 14].map((d) => (
+                  <option key={d} value={d}>
+                    {d === 1 ? '1 día' : `${d} días`}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <p className="min-w-0 flex-1 text-[12px] text-muted">
+            {lote
+              ? `Un solo ${tipo === 'telefono' ? 'QR' : tipo === 'raspberry' ? 'archivo' : 'código'} para los ${cuantos}: cada equipo entra por separado. Al equipo ${cuantos + 1} ya no lo deja entrar, y puedes cancelarlo en cualquier momento.`
+              : 'Uno solo: el código sirve una vez.'}
+          </p>
+        </div>
+      )}
       {error && <p className="rounded-md border border-[#dc262640] bg-error-soft p-3 text-[13px] text-[#b91c1c]">{error}</p>}
 
       {/* ── Teléfono ── */}
@@ -347,10 +405,16 @@ export function AltaDispositivo() {
                   <input
                     value={nombre}
                     onChange={(e) => setNombre(e.target.value)}
-                    placeholder="Av. Juárez 120 · Cara A"
+                    placeholder={lote ? 'Déjalo vacío para varias' : 'Av. Juárez 120 · Cara A'}
                     maxLength={80}
                     className="rounded-md border border-border bg-surface px-3 py-2 text-[13px] text-ink"
                   />
+                  {lote && (
+                    <span className="text-[11.5px]">
+                      El mismo archivo va en las {cuantos} microSD. A cada Raspberry le pones el nombre de su sitio en Equipos
+                      cuando aparezca.
+                    </span>
+                  )}
                 </label>
                 <div className="flex flex-col gap-1 text-[12px] text-muted">
                   ¿Cómo se conecta a internet en el sitio?
@@ -410,8 +474,11 @@ export function AltaDispositivo() {
                 </div>
                 {kitListo && generado && (
                   <p className="text-[12.5px] text-success">
-                    Listo: se descargó <strong>space-eye-raspberry-{generado.codigo}.zip</strong> con el código {generado.codigo}.
-                    Sirve para una sola Raspberry y vence en 14 días.
+                    Listo: se descargó el archivo con el código {generado.codigo}.{' '}
+                    {generado.usos_max > 1
+                      ? `Cópialo en las ${generado.usos_max} microSD; sirve hasta para ${generado.usos_max} Raspberry.`
+                      : 'Sirve para una sola Raspberry.'}{' '}
+                    Vence {fechaHora(generado.expira_en)}.
                   </p>
                 )}
               </div>
@@ -522,7 +589,30 @@ export function AltaDispositivo() {
                     <td className="px-3 py-2 text-ink">{NOMBRE_TIPO[v.tipo]}</td>
                     <td className="px-3 py-2 text-muted">{v.nota || '—'}</td>
                     <td className="px-3 py-2">
-                      {v.estado === 'usado' && v.equipo ? (
+                      {v.usos_max > 1 ? (
+                        <span className={v.estado === 'vigente' ? 'text-ink' : 'text-muted'}>
+                          {v.usos} de {v.usos_max} equipos
+                          {v.estado === 'vigente'
+                            ? ` · vigente hasta ${fechaHora(v.expira_en)}`
+                            : v.estado === 'agotado'
+                              ? ' · completo'
+                              : v.estado === 'cancelado'
+                                ? ' · cancelado'
+                                : ' · vencido'}
+                          {v.equipos.length > 0 && (
+                            <span className="block text-[11.5px] text-muted">
+                              {v.equipos.map((e, i) => (
+                                <span key={e.id}>
+                                  {i > 0 && ', '}
+                                  <Link href={`/space-eyes/${e.id}`} className="text-success hover:underline">
+                                    {e.nombre || `equipo ${e.id}`}
+                                  </Link>
+                                </span>
+                              ))}
+                            </span>
+                          )}
+                        </span>
+                      ) : v.estado === 'usado' && v.equipo ? (
                         <Link href={`/space-eyes/${v.equipo.id}`} className="text-success hover:underline">
                           Usado · {v.equipo.nombre || `equipo ${v.equipo.id}`}
                         </Link>

@@ -77,6 +77,28 @@ mismo:
 
 Sin código, un equipo nuevo **no puede** entrar a tu empresa.
 
+### Varios equipos con un solo código
+
+Si vas a instalar muchos equipos a la vez (por ejemplo 20 teléfonos o 20
+Raspberry), escribe cuántos en **«¿Cuántos equipos vas a instalar?»** antes de
+generar el código. Así:
+
+- **Teléfonos:** un solo QR para todos. Puedes proyectarlo o imprimirlo; cada
+  teléfono lo escanea y entra como un equipo distinto.
+- **Raspberry:** un solo archivo para todas: copias el mismo `user-data` y
+  `network-config` en todas las microSD. Deja vacío el nombre del sitio y, cuando
+  cada una aparezca en **Equipos**, le pones el de su sitio. Si usan WiFi, el
+  archivo lleva la red de UN sitio: para sitios con otra red, genera otro.
+- **Cuánto dura:** un día para teléfonos y 14 días para Raspberry o PC, o lo que
+  elijas (1, 3, 7 o 14 días).
+
+Los candados de un código que sirve varias veces:
+
+- **Tope:** si pediste 20, el equipo 21 ya no entra.
+- **Se cancela** en cualquier momento, aunque le queden usos.
+- En **Códigos de vinculación** ves cuántos lleva («7 de 20 equipos») y **cuáles
+  lo usaron**. Si aparece uno que no reconoces, dalo de baja desde su ficha.
+
 ### 4.1 Un teléfono Android
 
 1. Instala la app **Space Eye** en el teléfono (el enlace de descarga está en la
