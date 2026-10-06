@@ -1,11 +1,14 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-10-06
 tags: [datos, semilla, demo, rentabilidad, reportes, ooh-summit, entidades, energia, caras]
 archivos:
   - scripts/semilla-demo.mjs
   - scripts/semilla-demo.test.ts
+  - scripts/semilla-catalogo-demo.mjs
+  - scripts/semilla-catalogo-demo.test.ts
+  - infra/scripts/sembrar-catalogo-demo.sh
   - scripts/reiniciar-razones-sociales.mjs
   - db/semilla-desarrollo.sql
   - apps/web/lib/data/reportes.ts
@@ -16,6 +19,55 @@ archivos:
 ---
 
 # La semilla de demostración
+
+> [!important] 2026-10-06 · hay DOS semillas, y conviven en la misma organización
+> **`scripts/semilla-demo.mjs` es el GUION** (todo lo de abajo): seis pantallas
+> `DEMO-*` afinadas para que el reporte de rentabilidad cuente una frase.
+> **`scripts/semilla-catalogo-demo.mjs` es el CATÁLOGO**: lo que pide una demo
+> para que cada pantalla del producto tenga algo que enseñar. Todo lleva el
+> prefijo `CAT-` y no toca una sola fila `DEMO-`, así que las cifras del guion
+> no se mueven.
+>
+> Lo que siembra, medido con `--resumen` el 06/10 (805 filas, 0 en la 2.ª corrida):
+>
+> | | |
+> |---|---|
+> | Pantallas | 24 · 12 fijas y 12 digitales, **2 de cada clase en cada uno de los 6 estados comerciales**; cada estado legal y operativo aparece al menos 2 veces |
+> | Contratos | 11 · vigente, por vencer, vencido, renovado, cancelado e incompleto; de 2024 a **2028** |
+> | Rentas | 260 pagos, con 3 vencidos a propósito |
+> | Luz | 208 recibos, por predio y mes, de 2024-01 al último mes cerrado, con huecos |
+> | Comercial | 8 clientes (una agencia con dos clientes suyos) · 13 propuestas (4 aprobadas, 3 enviadas, 3 borradores, 3 rechazadas) · 23 campañas en los 7 estados, de 2024 a 2028 · 57 reservas · 13 comprobantes con su cobranza (pagada, al corriente, por vencer, vencida y uno anulado) |
+> | Operación | 77 órdenes de trabajo, en los 8 estados de `est_ot` |
+> | Usuarios | uno por rol de `ROLES_ASIGNABLES`, `<rol>@catalogo.invalid`. **Sin** `CLIENTE` ni `COMERCIAL`: no tienen permisos (ADR 0010 y 0040) |
+>
+> **El estado de cada pantalla sale de sus reservas**: las OCUPADAS tienen
+> campaña ACTIVA hoy, las RESERVADAS tienen reservas por delante y las
+> DISPONIBLES solo historia. `comprobarCoherencia()` lo revisa sobre el plan
+> antes de abrir la base y **se niega a sembrar** si el «hoy» la rompe: con
+> `--ancla=2026-11-25`, por ejemplo, la cotización 020 ya habría empezado.
+> Funciona hasta finales de octubre de 2026; después hay que mover fechas.
+>
+> **La contraseña no está en el repositorio**: entra por `SEMILLA_CLAVE` y se
+> cifra en la base con `crypt(…, gen_salt('bf', 10))` de pgcrypto, que
+> `bcryptjs` compara igual. Un usuario que ya existe no se toca.
+>
+> **En el servidor la corre una persona** con
+> `infra/scripts/sembrar-catalogo-demo.sh <spaces_demo|spaces_prod> [--con-guion]`,
+> que toma la URL de `spaces_migrador` de `/etc/space-os/demo-instancia.env`,
+> **respalda la base con `pg_dump` antes**. La vuelta atrás es `--deshacer`:
+> borra solo lo `CAT-` de la organización, sin `cascade` y en una transacción
+> (ensayada en local: 805 filas fuera, el guion intacto con 82 581 frente a
+> 156 906, y la 2.ª vez «nada que deshacer»).
+>
+> [!warning] Por qué NO se restaura el `pg_dump` como vuelta atrás
+> `pg_restore --clean` emite `DROP EXTENSION pgcrypto`, y la extensión es de
+> `postgres`, no de `spaces_migrador` (diario del 01/10): la restauración
+> moriría entera. El respaldo se queda para un desastre, y lo restaura alguien
+> con el rol `postgres`.
+>
+> Verificado el 06/10 sobre una base local con las 105 migraciones: la app
+> compilada entra con los 8 usuarios (200) y `GET /api/estado` devuelve las 13
+> propuestas, las 7 clases de campaña y las 24 pantallas con su estado.
 
 > [!important] 2026-10-05 · dos cosas que cambiaron alrededor de la semilla desde el 18/09
 > **1 · El costo REAL de la OT (OT-COSTO-01, 29/09) y el renombrado a

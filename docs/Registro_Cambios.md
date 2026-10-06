@@ -7,6 +7,28 @@ La entrada más reciente va arriba.
 
 ## 2026-10-06
 
+- **La demo tiene ahora un catálogo completo de ejemplo.** Para enseñar
+  cualquier pantalla del sistema sin capturar nada a mano:
+  - **24 pantallas**: 12 fijas y 12 digitales, dos de cada una en cada estado
+    (disponible, reservada, ocupada, bloqueada, en mantenimiento y de baja), con
+    permisos y estado operativo variados.
+  - **Historia desde enero de 2024**: campañas terminadas y cobradas,
+    canceladas, por facturar, al aire hoy y confirmadas hasta **2028**.
+  - **Propuestas** aprobadas, enviadas, en borrador y rechazadas (con su
+    motivo).
+  - **Contratos de renta** vigentes hasta 2028, uno por vencer, vencidos,
+    renovado, cancelado e incompleto, con su calendario de pagos (algunos
+    atrasados a propósito).
+  - **Recibos de luz** mes a mes desde 2024, con algunos meses sin recibo para
+    que se vea el aviso.
+  - **Un usuario por rol** (dueño, administrador, director comercial, gerente de
+    ventas, vendedor, operaciones, imprenta y finanzas) para enseñar qué ve
+    cada uno. La contraseña se elige al sembrar; no está guardada en ningún
+    archivo.
+  - Todo es de demostración: nombres con «DEMO», correos que no existen y
+    claves que empiezan por `CAT-`. Los ejemplos del reporte de rentabilidad
+    (Tlalpan y Santa Mónica) no cambian.
+
 - **La calculadora de spots ahora cuenta igual que tu calculadora HTML («Valor
   Real del Spot Unitario»).** *(Decisión tuya del 06/10, ADR 0043.)* Cambian
   cuatro cosas, y solo en las líneas que tienen la calculadora encendida:

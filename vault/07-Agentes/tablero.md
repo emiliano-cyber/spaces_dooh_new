@@ -6,6 +6,15 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!success] 2026-10-06 · **SEMILLA-CATALOGO · Z12 y la semilla de demo — RECLAMADO Y LIBERADO** · VERDE (solo datos de demo)
+> Rama `feat/semilla-catalogo-demo`, salida de `main` (`a0bdd4c7`). **Sin
+> migración, sin tocar código de la aplicación**: `scripts/semilla-catalogo-demo.mjs`
+> y su prueba, `infra/scripts/sembrar-catalogo-demo.sh` (lo corre una persona en
+> el PADRE), [[04-Datos/semilla-de-demostracion]] y la bitácora (alto contacto).
+> **NO se tocó** `db/schema.sql`, `aislamiento.e2e.test.ts` ni `servidor-e2e.ts`.
+> Unitarias de las dos semillas en verde (53); sembrada dos veces en local
+> (805 filas y luego 0) y comprobada con la app compilada.
+
 > [!success] 2026-10-06 · **INTEGRA-RIESGOS-Y-CALC · Z1, Z2, Z5 y Z12 — LIBERADO, FUSIONADO EN `main`** · ROJO (R1 sesión · R2 tenant · R4 dinero)
 > Rama **`integra/riesgos-y-calculadora-14-oct`**. Une las dos de abajo
 > —`integra/riesgos-presentacion-14-oct` (`7393d633`) y
