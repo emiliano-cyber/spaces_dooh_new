@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-10-06
 tags: [backend, finanzas, facturacion, dinero, rojo]
 archivos:
   - apps/web/lib/server/finanzas-repo.ts
@@ -12,6 +12,9 @@ archivos:
   - apps/web/lib/server/cambios.ts
   - apps/web/lib/server/config-repo.ts
   - apps/web/app/api/campanas/[id]/facturar/route.ts
+  - apps/web/lib/finanzas-periodo.ts
+  - apps/web/app/api/finanzas/resumen/route.ts
+  - db/migrations/20261008_cobranza_abonos.sql
   - db/migrations/20260921_restaura_contrasena_compartida_cambios.sql
 ---
 
@@ -137,6 +140,39 @@ tenant. El IVA por cliente vive en `clientes.iva_pct` (default 16).
 > pero la operación real es en México (`MXN`, IVA 16%) y hay migraciones que lo
 > corrigen (`20260724_a3_moneda_default_mxn.sql`,
 > `20260724_moneda_por_tenant.sql`). Los nombres de columna `igv` se quedaron.
+
+## Cada pago con su fecha, y Finanzas por periodo (06/10, ADR 0046)
+
+> [!important] Hasta el 06/10 el sistema no sabía CUÁNDO entraba un pago
+> `cobranzas.monto_pagado` es un acumulado: cada pago le sumaba su importe y
+> la fecha se perdía. Desde `20261008_cobranza_abonos.sql` cada pago deja un
+> renglón en **`cobranza_abonos`** —importe, día, quién— y el invariante
+> `monto_pagado = sum(abonos)` lo sostiene `registrarPagoCobranza`
+> (`finanzas-repo.ts:290`) escribiendo las dos en **una transacción con la
+> cobranza bloqueada** (`for update`).
+
+Lo que trajo, y lo que cerró de paso:
+
+- **El pago admite `fecha`** (la de la transferencia), por omisión hoy en la
+  zona de la base, nunca futura. `usuario_id` sale de la sesión.
+- **El doble clic ya no cobra dos veces**: antes dos pagos simultáneos leían
+  el mismo acumulado. Y pagar lo ya pagado es un **409**, no un «pago de $0».
+- **Lo cobrado antes** se rescató con `origen = 'historico'`, un renglón por
+  cobranza fechado con el último pago de la bitácora; sin rastro, sin fecha
+  (cuenta en el saldo, no en ningún periodo).
+- **`GET /api/finanzas/resumen`** (`finanzas.ver`) sirve el tablero y el
+  estado de cuenta; las cuentas son puras en `lib/finanzas-periodo.ts`, con
+  las definiciones escritas en su cabecera. El vencido se mide al **corte**:
+  fin del periodo, o hoy si no ha terminado.
+- En pantalla: **Resumen del periodo** arriba de Finanzas (mes, mes pasado,
+  trimestre, trimestre pasado, año, rango) y **Estado de cuenta** (este mes /
+  mes pasado, empresa o un cliente, con CSV) después de Cobranza.
+- **«Vencida» en una cuota pagada** era la columna «Vence», que miraba solo la
+  fecha: ahora el estado manda (`components/demo/finanzas/vencimiento-cuota.ts`).
+
+Cobertura: `lib/finanzas-periodo.test.ts` (21, con cinco mutantes muertos),
+`vencimiento-cuota.test.ts`, `estado-cuenta-csv.test.ts` y la e2e
+`lib/test/finanzas-periodos.e2e.test.ts` (RLS, invariante, doble clic, rescate).
 
 ## Cobranza y recordatorios
 

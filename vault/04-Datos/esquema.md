@@ -25,7 +25,7 @@ archivos:
 > [!important] 2026-10-05 · puesta al día — lo que abajo dice «pendiente» o «SIN FUSIONAR» YA ESTÁ en `main`
 > Medido hoy con `node scripts/recuentos.mjs` sobre el árbol de
 > `integra/riesgos-presentacion-14-oct` (salida de `main` en `09c65ca2`):
-> **57 tablas y 106 migraciones**. `db/schema.sql` tiene **679 líneas**
+> **58 tablas y 107 migraciones** (06/10, con `cobranza_abonos`; antes 57 y 106). `db/schema.sql` tiene **679 líneas**
 > (`wc -l`) y **28** `create table`; las **29** restantes llegan por migración.
 >
 > Los recuadros de abajo se conservan como historia, pero su estado caducó:
@@ -591,7 +591,7 @@ erDiagram
 > error. Ver [[02-Backend/costo-real-de-ot]].
 
 ### Finanzas
-`facturas`, `cobranzas`.
+`facturas`, `cobranzas`, `cobranza_abonos` (06/10: cada pago con su fecha, ADR 0046).
 
 ### Integraciones
 `doohmain_consultas_play`, `doohmain_remote_campaigns`, `doohmain_remote_lists`,
@@ -669,6 +669,7 @@ Restricciones **UNIQUE globales** (sin tenant): `sitios.clave_interna`,
 | `contratos_arrendamiento` | `pagos_renta` |
 | `propuestas` | `propuesta_items` |
 | `facturas` | `cobranzas` |
+| `cobranzas` | `cobranza_abonos` |
 | `ordenes_trabajo` | `evidencias_ot` |
 | `arrendadores` | `arrendador_razon_social` |
 

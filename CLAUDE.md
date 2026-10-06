@@ -22,7 +22,7 @@ Confundirlos es el error más común al llegar.
 | **Formato** | Notas enlazadas entre sí, con frontmatter | Archivos sueltos: ADR, planes, runbooks, bitácora |
 | **Se lee** | Antes de tocar código | Cuando necesitas el porqué de una decisión |
 
-En `docs/` viven: los **ADR** (`docs/adr/`, van por la **0043**), los **planes**
+En `docs/` viven: los **ADR** (`docs/adr/`, van por la **0046** (la 0044 y la 0045 en ramas sin fusionar el 06/10)), los **planes**
 (`docs/Plan_*.md`), los **runbooks**, las **correcciones de datos en producción**
 (`docs/datos/`, cada una con su rollback capturado antes) y la **bitácora**
 (`docs/Registro_Cambios.md`), que está escrita para quien no programa.
@@ -130,11 +130,11 @@ código, no de memoria:
 | Framework | Next.js 14.2.29, App Router | `apps/web/package.json:17` |
 | Base de datos | PostgreSQL, `pg` directo (sin ORM) | `apps/web/lib/server/db.ts:2` |
 | Aislamiento | RLS de Postgres por `app.tenant_id` | `apps/web/lib/server/db.ts:60` y `:79` |
-| Endpoints | **124** route handlers | `apps/web/app/api/**/route.ts` |
-| Tablas | **57** | `vault/04-Datos/esquema.md` |
-| Migraciones | **106** | `vault/04-Datos/migraciones.md` |
+| Endpoints | **125** route handlers | `apps/web/app/api/**/route.ts` |
+| Tablas | **58** | `vault/04-Datos/esquema.md` |
+| Migraciones | **107** | `vault/04-Datos/migraciones.md` |
 
-> Esos recuentos llevan fecha de validación **2026-10-05**, medidos con
+> Esos recuentos llevan fecha de validación **2026-10-06** (rama `feat/finanzas-periodos`), medidos con
 > `node scripts/recuentos.mjs` sobre este árbol. Trátalos como una
 > afirmación con fecha, no como una verdad permanente — §5 explica cómo
 > reverificarlos.

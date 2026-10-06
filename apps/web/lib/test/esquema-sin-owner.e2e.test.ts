@@ -185,7 +185,11 @@ describe('el esquema base no trae la organización de nadie', () => {
     //     `prospecto_avances`--, la bitacora de captacion (CAP-01). Decima vez, y
     //     otra vez desde la corrida completa: las 33 e2e propias de la tarea y
     //     las 2791 unitarias estaban en verde.
-    expect(trasMigrar.tablas).toBe(57)
+    //   · 58 el 2026-10-06: `20261008_cobranza_abonos.sql` anade
+    //     `cobranza_abonos`, cada pago de un cliente con su fecha (ADR 0046).
+    //     Undecima vez, y otra vez desde la corrida completa: las 16 e2e
+    //     propias de la tarea estaban en verde.
+    expect(trasMigrar.tablas).toBe(58)
     // Lo que de verdad importa: ni las migraciones resucitan al owner.
     expect(trasMigrar.tenants).toBe(0)
   })

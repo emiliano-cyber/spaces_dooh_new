@@ -7,6 +7,26 @@ La entrada más reciente va arriba.
 
 ## 2026-10-06
 
+- **Finanzas tiene un resumen por periodo.** Arriba de todo eliges el periodo
+  —este mes, mes pasado, trimestre, trimestre pasado, año o un rango de
+  fechas— y ves lo **facturado**, lo **cobrado**, lo que queda **por cobrar al
+  cierre**, cuántas **facturas vencidas** hay (y por cuánto), y la renta
+  pagada y por pagar a propietarios.
+- **Estado de cuenta de este mes y del mes pasado**, de la empresa o de un
+  cliente: saldo al inicio, lo facturado, lo cobrado, el saldo al cierre y lo
+  vencido, con cada factura y cada pago en orden y el saldo corrido. Se
+  descarga en CSV (abre en Excel).
+- **Al registrar un pago ahora pones la fecha en que se recibió** (por
+  omisión, hoy). Así lo cobrado cae en el mes correcto aunque lo registres
+  días después. Los pagos de antes de este cambio se fecharon con la
+  bitácora; los que no tenían rastro cuentan en el saldo pero no en lo cobrado
+  de ningún mes, y la pantalla lo avisa.
+- **Pagar dos veces la misma cuota ya no es posible**: un doble clic podía
+  registrar el pago dos veces, y volver a pagar una cuota ya pagada dejaba un
+  pago de $0 en la bitácora. Ahora el segundo se rechaza.
+- **La lista de Facturas muestra la fecha de emisión legible** (salía como
+  «2026-10-01T06:00:00.000Z»).
+
 - **Finanzas ya no dice «vencida» en una cuota pagada.** En Cobranza, junto a
   la fecha de vencimiento salía «(12d vencida)» en rojo aunque la cuota ya
   estuviera pagada y su etiqueta dijera «Pagada». Ahora, si está pagada, dice

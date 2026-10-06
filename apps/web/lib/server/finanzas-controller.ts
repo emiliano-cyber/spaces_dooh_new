@@ -3,7 +3,11 @@ import { z } from 'zod'
 import { AppError, validar } from './errores'
 import { plazosCobranzaDelTenant, plazoPorDefecto } from './config-repo'
 import { fechaZod } from './fechas'
-import { generarFactura, registrarPagoCobranza, FacturaError } from './finanzas-repo'
+import {
+  generarFactura, registrarPagoCobranza, FacturaError,
+  datosFinanzas, clienteDeMiOrganizacion, hoyDeLaBase,
+} from './finanzas-repo'
+import { periodoDe, resumirPeriodo, movimientosDelPeriodo, type TipoPeriodo } from '@/lib/finanzas-periodo'
 import { obtenerEntidad } from './entidades-repo'
 
 // ============================================================================
@@ -15,11 +19,19 @@ import { obtenerEntidad } from './entidades-repo'
 const pagoSchema = z.object({
   // Abono opcional (>0). Ausente/null = liquidar el saldo completo.
   monto: z.coerce.number().positive('El monto del abono debe ser mayor a 0').nullish(),
+  // El DÍA en que entró el dinero (ADR 0046). Ausente = hoy. Que no sea futuro
+  // lo comprueba el repo contra el «hoy» de la base, no contra el reloj de
+  // este servidor, que está en UTC.
+  fecha: fechaZod('Falta la fecha del pago').nullish(),
 })
 
-export async function registrarPagoCtrl(cobranzaId: string, body: unknown) {
+// `usuarioId` sale de la SESIÓN (lo pone la ruta), nunca del cuerpo.
+export async function registrarPagoCtrl(cobranzaId: string, body: unknown, usuarioId?: string | null) {
   const d = validar(pagoSchema, body ?? {})
-  const c = await registrarPagoCobranza(cobranzaId, d.monto ?? null)
+  const c = await registrarPagoCobranza(cobranzaId, d.monto ?? null, {
+    fecha: d.fecha ? d.fecha.slice(0, 10) : null,
+    usuarioId: usuarioId ?? null,
+  })
   if (!c) throw new AppError('Cobranza no encontrada', 404)
   return c
 }
@@ -122,5 +134,41 @@ export async function generarFacturaCtrl(campanaId: string, body: unknown) {
       throw new AppError(e.message, status)
     }
     throw e
+  }
+}
+
+// ─── Finanzas por periodo (ADR 0046) ────────────────────────────────────────
+const TIPOS: TipoPeriodo[] = ['mes', 'mes-anterior', 'trimestre', 'trimestre-anterior', 'anio', 'rango']
+
+const resumenSchema = z.object({
+  periodo: z.enum(TIPOS as [TipoPeriodo, ...TipoPeriodo[]], {
+    errorMap: () => ({ message: 'Periodo inválido' }),
+  }),
+  desde: z.string().optional(),
+  hasta: z.string().optional(),
+  cliente: z.string().uuid('Cliente inválido').optional(),
+})
+
+// El tablero y el estado de cuenta: el resumen del periodo y sus movimientos.
+// Con `cliente`, solo lo de ese cliente, y tiene que ser de MI organización:
+// uno ajeno es un 404, no una hoja en ceros que parezca la de alguien al día.
+export async function resumenFinanzasCtrl(query: Record<string, string | undefined>) {
+  const d = validar(resumenSchema, query)
+  let periodo
+  try {
+    periodo = periodoDe(d.periodo, await hoyDeLaBase(), { desde: d.desde, hasta: d.hasta })
+  } catch (e) {
+    throw new AppError(e instanceof Error ? e.message : 'Periodo inválido', 400)
+  }
+  if (d.cliente && !(await clienteDeMiOrganizacion(d.cliente))) {
+    throw new AppError('Cliente no encontrado', 404)
+  }
+  const hoy = await hoyDeLaBase()
+  const datos = await datosFinanzas(d.cliente ?? null)
+  return {
+    periodo,
+    hoy,
+    resumen: resumirPeriodo(datos, periodo, hoy, d.cliente ?? null),
+    movimientos: movimientosDelPeriodo(datos, periodo, d.cliente ?? null),
   }
 }

@@ -676,11 +676,12 @@ export async function generarFacturaApi(
   await refrescarEstado()
 }
 
-export async function pagarCobranzaApi(cobranzaId: string, monto?: number): Promise<void> {
+// `fecha`: el DÍA en que entró el dinero, AAAA-MM-DD (ADR 0046). Ausente = hoy.
+export async function pagarCobranzaApi(cobranzaId: string, monto?: number, fecha?: string): Promise<void> {
   const r = await fetch(`${API}/cobranzas/${cobranzaId}/pagar/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ monto: monto ?? null }),
+    body: JSON.stringify({ monto: monto ?? null, ...(fecha ? { fecha } : {}) }),
   })
   const d = await r.json().catch(() => ({}))
   if (!r.ok) throw new Error(d.error ?? 'No se pudo registrar el pago')
