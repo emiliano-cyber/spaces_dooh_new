@@ -10,7 +10,9 @@ import { registrarResumen } from './monitoreo.controller';
 import { apkInfo } from '../utils/apkInfo';
 import { redis } from '../config/redis';
 import { comprobar, pareceLlave } from '../utils/llaveServicio';
-import { duenoPorOmision } from '../utils/instancia';
+import { duenoPorOmision, enModoInstancia } from '../utils/instancia';
+import * as vinc from '../utils/vinculaciones';
+import { env } from '../config/env';
 
 // Los limites reflejan el tamaño real de las columnas: sin ellos, un dato mas
 // largo llegaba a MySQL, reventaba el INSERT y el error tumbaba el proceso. Se
@@ -29,13 +31,16 @@ const registerSchema = z.object({
   // siempre; lo que no traiga testigo queda SIN dueno, que es lo correcto -un
   // equipo sin asignar no es de todos, es de nadie hasta que alguien lo asigne.
   provision_token: recorta(128).optional(),
+  // Codigo de vinculacion generado en SPACE OS ("Agregar dispositivo"). Es como
+  // entra un equipo nuevo a un Space Eye de empresa; ver utils/vinculaciones.ts.
+  codigo_vinculacion: recorta(20).optional(),
 });
 
 export async function register(req: Request, res: Response) {
   const parsed = registerSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'invalid_input' });
 
-  const { device_uid, android_version, app_version, model, manufacturer, provision_token } = parsed.data;
+  const { device_uid, android_version, app_version, model, manufacturer, provision_token, codigo_vinculacion } = parsed.data;
 
   // De quien es este equipo. NO se acepta un nombre de dueno enviado por el
   // aparato: se deduce del testigo, que solo existe para una instancia. El
@@ -56,9 +61,30 @@ export async function register(req: Request, res: Response) {
     `SELECT id FROM devices WHERE device_uid = ? LIMIT 1`,
     [device_uid]
   );
+  const yaExiste = !!(existing as any[])[0];
+
+  // Un equipo NUEVO en el Space Eye de una empresa necesita autorizacion: un
+  // codigo de vinculacion vigente, o el testigo de alta (instaladores de antes).
+  // Sin eso, cualquiera con el APK metia un aparato en la empresa. Un equipo que
+  // YA existe no necesita nada: renovar su llave o reinstalarlo es lo de siempre.
+  let vinculacion: { id: number; owner: string | null } | null = null;
+  if (!yaExiste && codigo_vinculacion) {
+    const ip = req.ip || '';
+    if (vinc.bloqueado(ip)) return res.status(429).json({ error: 'demasiados_intentos' });
+    const codigo = vinc.normalizar(codigo_vinculacion);
+    vinculacion = codigo ? await vinc.gastar(codigo) : null;
+    if (!vinculacion) {
+      vinc.anotarFallo(ip);
+      return res.status(403).json({ error: 'codigo_invalido' });
+    }
+    if (vinculacion.owner) duenoDelTestigo = vinculacion.owner;
+  }
+  if (!yaExiste && !vinculacion && !provision_token && enModoInstancia() && env.VINCULACION_OBLIGATORIA === 'si') {
+    return res.status(403).json({ error: 'vinculacion_requerida' });
+  }
 
   let deviceId: number;
-  if ((existing as any[])[0]) {
+  if (yaExiste) {
     deviceId = (existing as any[])[0].id;
     await pool.query(
       `UPDATE devices SET android_version=?, app_version=?, model=?, manufacturer=? WHERE id=?`,
@@ -75,6 +101,7 @@ export async function register(req: Request, res: Response) {
        android_version, app_version, model, manufacturer]
     );
     deviceId = (result as any).insertId;
+    if (vinculacion) await vinc.ligarEquipo(vinculacion.id, deviceId);
   }
 
   const token = deviceJwt.sign({ did: deviceId, device_uid });

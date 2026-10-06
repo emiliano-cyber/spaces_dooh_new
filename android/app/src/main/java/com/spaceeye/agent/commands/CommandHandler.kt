@@ -336,7 +336,11 @@ class CommandHandler(
                     // Actualizacion remota: evita el viaje a sitio por cada version.
                     "UPDATE_APP" -> {
                         val url = payload?.optString("url").orEmpty()
-                            .ifBlank { "${com.spaceeye.agent.BuildConfig.SERVER_URL}/space-eye.apk" }
+                            .ifBlank {
+                                val servidor = com.spaceeye.agent.network.TokenStore(ctx).servidorActivo()
+                                    ?: com.spaceeye.agent.BuildConfig.SERVER_URL
+                                "$servidor/space-eye.apk"
+                            }
                         val sha = payload?.optString("sha256")?.ifBlank { null }
                         val vc = payload?.optInt("version_code", 0)?.takeIf { it > 0 }
                         RemoteLog.info(ctx, "update", "Actualizacion solicitada desde el dashboard")

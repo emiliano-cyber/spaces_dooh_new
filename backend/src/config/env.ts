@@ -93,6 +93,10 @@ const schema = z.object({
   // MODO INSTANCIA (ver utils/instancia.ts): este Space Eye vive dentro del
   // droplet de una empresa de SPACE OS y es solo suyo. Lo escribe el alta.
   INSTANCIA_OWNER: z.string().default(''),
+  // En un Space Eye de empresa, un equipo NUEVO solo entra con un codigo de
+  // vinculacion (o el testigo de alta de los instaladores de antes). 'no' lo
+  // apaga, solo para emergencias: vuelve a dejar entrar a cualquiera.
+  VINCULACION_OBLIGATORIA: z.enum(['si', 'no']).default('si'),
   INSTANCIA_LLAVE: z.string().default(''),
   INSTANCIA_TESTIGO: z.string().default(''),
   ADMIN_EMAIL: z.string().default(''),

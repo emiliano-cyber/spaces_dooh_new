@@ -101,6 +101,12 @@ async function probarServidor(servidor) {
 // CUIDADO con la palabra: en este archivo "testigo" a secas es el del navegador
 // (el que impide que otra pestana dispare una instalacion). El de alta -la
 // credencial que le pone dueno al equipo- se llama SIEMPRE testigoDeAlta.
+// "abcd-2345 " -> "ABCD2345"; vacio si no tiene forma de codigo.
+function codigoLimpio(c) {
+  const s = String(c || '').toUpperCase().replace(/[\s-]/g, '');
+  return /^[ABCDEFGHJKMNPQRSTWXYZ2-9]{8}$/.test(s) ? s : '';
+}
+
 function configDesde(d) {
   const { host, puerto } = inst.partirHost(String(d.camara || '').trim(), 80);
   const { testigo: testigoDeAlta } = inst.resolverTestigo(d.testigo_alta);
@@ -109,6 +115,9 @@ function configDesde(d) {
     // Solo si es legible: escribir uno roto seria dejar al agente reintentando
     // contra un rechazo seguro.
     ...(inst.pareceTestigo(testigoDeAlta) ? { testigo_de_alta: testigoDeAlta } : {}),
+    // El codigo de un solo uso de SPACE OS: lo que deja entrar a un equipo
+    // NUEVO al Space Eye de la empresa. Se guarda limpio (sin guion).
+    ...(codigoLimpio(d.codigo) ? { codigo_vinculacion: codigoLimpio(d.codigo) } : {}),
     camara: {
       host,
       puerto,
@@ -277,6 +286,14 @@ no arrancara solo cuando se reinicie la PC.</div>
 
 <form id="f" onsubmit="return false">
 <div class="tarjeta">
+  <h2><span class="num">0</span> Tu empresa</h2>
+  <div class="sub" style="margin:0 0 6px">Los dos datos salen de SPACE OS &gt; Space Eyes &gt; Agregar dispositivo &gt; PC.</div>
+  <label>Servidor de tu empresa</label>
+  <input id="servidor" placeholder="https://eyes.tuempresa.com" autocomplete="off">
+  <label>Codigo de vinculacion</label>
+  <input id="codigo" placeholder="ABCD-2345" autocomplete="off" style="text-transform:uppercase">
+</div>
+<div class="tarjeta">
   <h2><span class="num">1</span> Datos de la camara</h2>
   <label>IP de la camara en la red local</label>
   <input id="camara" placeholder="192.168.1.100" autocomplete="off">
@@ -285,7 +302,6 @@ no arrancara solo cuando se reinicie la PC.</div>
     <div><label>Clave</label><input id="clave" type="password" autocomplete="off"></div>
   </div>
   <details class="avanzado"><summary>Opciones avanzadas</summary>
-    <label>Servidor SPACE EYE</label><input id="servidor">
     <div class="fila">
       <div><label>Canal de fotos</label><input id="canal" value="101"></div>
       <div><label>Canal de vista en vivo</label><input id="canal_stream" value="102"></div>
@@ -338,7 +354,7 @@ $('alta').innerHTML = D.alta.valido
       : 'No encontre ningun testigo (<code>' + D.alta.archivo + '</code> junto al programa). El equipo quedara <b>sin dueno</b> hasta que se le asigne desde el dashboard.');
 
 const datos = () => ({
-  servidor: $('servidor').value.trim(), camara: $('camara').value.trim(),
+  servidor: $('servidor').value.trim(), codigo: $('codigo').value.trim(), camara: $('camara').value.trim(),
   usuario: $('usuario').value.trim(), clave: $('clave').value,
   canal: $('canal').value, canal_stream: $('canal_stream').value, uid: $('uid').value.trim(),
   testigo_alta: $('testigo_alta').value.trim(),

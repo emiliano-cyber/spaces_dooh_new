@@ -2,7 +2,6 @@ package com.spaceeye.agent.network
 
 import android.content.Context
 import android.util.Log
-import com.spaceeye.agent.BuildConfig
 import io.socket.client.IO
 import io.socket.client.Socket
 import org.json.JSONObject
@@ -23,6 +22,7 @@ class SocketManager(private val ctx: Context) {
 
     fun connect() {
         val token = tokenStore.getDeviceToken() ?: return
+        val servidor = tokenStore.servidorActivo() ?: return
 
         val opts = IO.Options.builder()
             .setAuth(mapOf("token" to token))
@@ -34,7 +34,7 @@ class SocketManager(private val ctx: Context) {
             .setTransports(arrayOf("websocket"))
             .build()
 
-        socket = IO.socket("${BuildConfig.SERVER_URL}/devices", opts).apply {
+        socket = IO.socket("$servidor/devices", opts).apply {
             on("command") { args ->
                 val cmd = args[0] as? JSONObject ?: return@on
                 onCommand?.invoke(cmd)
@@ -65,6 +65,9 @@ class SocketManager(private val ctx: Context) {
     fun emit(event: String, data: JSONObject) {
         socket?.emit(event, data)
     }
+
+    /** Si ya se creo el canal (aunque este reconectando por su cuenta). */
+    fun abierto(): Boolean = socket != null
 
     fun disconnect() {
         socket?.disconnect()

@@ -9,12 +9,18 @@
 #  En una Pi recien grabada (Raspberry Pi OS / Debian 13, con red):
 #
 #    curl -fsSL https://eyes.<dominio>/instalar-pi.sh | \
-#      sudo bash -s -- --servidor https://eyes.<dominio> --testigo se_xxx
+#      sudo bash -s -- --servidor https://eyes.<dominio> --codigo ABCD-2345
+#
+#  (O sin conectarse nunca a la Pi: el archivo de la microSD que da SPACE OS
+#  corre este mismo instalador en el primer arranque.)
 #
 #  --servidor   el Space Eye de la empresa (de ahi baja el agente y ahi se da
 #               de alta el equipo).
-#  --testigo    el testigo de alta de la empresa (pantalla de descarga): el
-#               equipo nace ya de esa empresa. Sin el, nace sin dueno.
+#  --codigo     el codigo de vinculacion de SPACE OS (Agregar dispositivo >
+#               Raspberry): de un solo uso, es lo que deja entrar al equipo.
+#  --testigo    el testigo de alta de los instaladores de antes (compatibilidad).
+#  --usuario    con que usuario corre el agente, si no se lanza con sudo desde
+#               el (el primer arranque corre como root).
 #  --paquete    instalar desde un .tar.gz local en vez de bajarlo (sin red).
 #  --sin-servicio  no instala el servicio de systemd (contenedores de ensayo).
 #
@@ -23,11 +29,13 @@
 # ============================================================================
 set -euo pipefail
 
-SERVIDOR="" TESTIGO="" PAQUETE="" SERVICIO=1
+SERVIDOR="" TESTIGO="" CODIGO="" USUARIO="" PAQUETE="" SERVICIO=1
 while [ $# -gt 0 ]; do
   case "$1" in
     --servidor) SERVIDOR="${2%/}"; shift 2 ;;
     --testigo) TESTIGO="$2"; shift 2 ;;
+    --codigo) CODIGO="$2"; shift 2 ;;
+    --usuario) USUARIO="$2"; shift 2 ;;
     --paquete) PAQUETE="$2"; shift 2 ;;
     --sin-servicio) SERVICIO=0; shift ;;
     *) echo "opcion desconocida: $1" >&2; exit 2 ;;
@@ -39,8 +47,9 @@ done
 
 # El agente corre con el usuario que lanzo sudo, no con root: si alguien le
 # metiera mano, no tendria la Pi entera.
-USUARIO="${SUDO_USER:-}"
-[ -n "$USUARIO" ] && [ "$USUARIO" != root ] || { echo "correrlo con sudo desde el usuario de la Pi, no como root" >&2; exit 2; }
+USUARIO="${USUARIO:-${SUDO_USER:-}}"
+[ -n "$USUARIO" ] && [ "$USUARIO" != root ] || { echo "correrlo con sudo desde el usuario de la Pi, o con --usuario" >&2; exit 2; }
+id "$USUARIO" >/dev/null 2>&1 || { echo "no existe el usuario $USUARIO" >&2; exit 2; }
 CASA="$(getent passwd "$USUARIO" | cut -d: -f6)"
 DIR="$CASA/pi-agent"
 paso() { echo; echo "[$1] $2"; }
@@ -76,13 +85,14 @@ echo "    pi-agent $VERSION"
 
 paso 3 "Configuracion"
 CONFIG="$DIR/config.json"
-node - "$CONFIG" "$SERVIDOR" "$TESTIGO" <<'NODE'
+node - "$CONFIG" "$SERVIDOR" "$TESTIGO" "$CODIGO" <<'NODE'
 const fs = require('fs');
-const [archivo, servidor, testigo] = process.argv.slice(2);
+const [archivo, servidor, testigo, codigo] = process.argv.slice(2);
 let c = {};
 try { c = JSON.parse(fs.readFileSync(archivo, 'utf8')); } catch {}
 c.server_url = servidor;
 if (testigo) c.testigo_de_alta = testigo;
+if (codigo) c.codigo_vinculacion = codigo;
 fs.writeFileSync(archivo, JSON.stringify(c, null, 2) + '\n');
 NODE
 chmod 600 "$CONFIG"
@@ -132,5 +142,5 @@ EOF
 fi
 
 echo
-echo "LISTO: pi-agent $VERSION contra $SERVIDOR${TESTIGO:+ (con testigo de alta)}."
+echo "LISTO: pi-agent $VERSION contra $SERVIDOR${CODIGO:+ (con codigo de vinculacion)}${TESTIGO:+ (con testigo de alta)}."
 echo "En unos segundos aparece en SPACE OS > Space Eyes > Equipos."

@@ -21,7 +21,7 @@ const { Puente } = require('./puente');
 // la misma version, no hay forma de saber que corre cada sitio -y eso ya costo
 // caro en la flota: REVOLUCION 267 llevaba TRES versiones de atraso sin que el
 // dashboard lo delatara, porque el numero nunca cambiaba.
-const VERSION = '0.7.0';
+const VERSION = '0.7.1';
 const SERVIDOR_POR_OMISION = 'http://159.203.188.58:4000';
 
 const ahora = () => new Date().toISOString().replace('T', ' ').slice(0, 19);
@@ -222,6 +222,9 @@ async function main() {
     // Va tal cual lo trae el archivo. El agente NO sabe de quien es -ni tiene
     // por que saberlo-: solo lo entrega.
     provision_token: cfg.testigo_de_alta || undefined,
+    // Desde la 0.7.1: el codigo de vinculacion que dio SPACE OS (lo escribe el
+    // instalador o el archivo de la microSD). Solo cuenta la primera vez.
+    codigo_vinculacion: cfg.codigo_vinculacion || undefined,
   };
 
   let reg = null;
@@ -243,6 +246,21 @@ async function main() {
         log('AVISO: el servidor RECHAZO el testigo de alta de este equipo.');
         log('       Se da de alta SIN dueno; hay que asignarlo desde el dashboard');
         log('       y revisar el testigo que trae el perfil de descarga.');
+        continue;
+      }
+      // Un Space Eye de empresa no deja entrar a un equipo nuevo sin un codigo
+      // vigente. Reintentar cada 10 s no lo arregla: se avisa claro y se vuelve
+      // a probar cada 5 min, por si mientras tanto le cargan un codigo nuevo.
+      if (e?.status === 403 && /vinculacion_requerida|codigo_invalido/.test(e.cuerpo || '')) {
+        const vencido = /codigo_invalido/.test(e.cuerpo || '');
+        log(vencido
+          ? 'AVISO: el servidor RECHAZO el codigo de vinculacion (vencido, ya usado o cancelado).'
+          : 'AVISO: este equipo es nuevo y no trae codigo de vinculacion.');
+        log('       Genera uno en SPACE OS > Space Eyes > Agregar dispositivo y ponlo en');
+        log('       config.json ("codigo_vinculacion"). Reintento en 5 min.');
+        await dormir(5 * 60 * 1000);
+        Object.assign(cfg, cargarConfig());
+        datosRegistro.codigo_vinculacion = cfg.codigo_vinculacion || undefined;
         continue;
       }
       const espera = Math.min(60, intento * 10);

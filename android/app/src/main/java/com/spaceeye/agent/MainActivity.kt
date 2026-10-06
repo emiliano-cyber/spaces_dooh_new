@@ -13,6 +13,7 @@ import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
 import android.util.Log
+import com.spaceeye.agent.network.RemoteLog
 import com.spaceeye.agent.service.KioskAdminReceiver
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -24,8 +25,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
+import com.spaceeye.agent.network.ApiClient
 import com.spaceeye.agent.network.TokenStore
 import com.spaceeye.agent.service.MonitorService
+import com.spaceeye.agent.vinculacion.PantallaVincular
+import com.spaceeye.agent.vinculacion.Vinculacion
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
 
@@ -43,8 +51,16 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    // Telefono nuevo (sin servidor): en vez del agente se muestra la pantalla de
+    // vincular. Ver TokenStore.servidorActivo.
+    private var necesitaVincular by mutableStateOf(false)
+    private var avisoVincular by mutableStateOf<String?>(null)
+    private var enlace by mutableStateOf<Vinculacion.Datos?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        necesitaVincular = TokenStore(this).servidorActivo() == null
+        leerEnlace(intent)
 
         // Permite que la app se muestre y encienda la pantalla aun bloqueada
         // (util para kiosco / recuperacion desatendida).
@@ -61,7 +77,13 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             MaterialTheme {
-                MainScreen()
+                if (necesitaVincular) {
+                    PantallaVincular(enlace, avisoVincular, BuildConfig.VERSION_NAME) { servidor, codigo ->
+                        vincular(servidor, codigo)
+                    }
+                } else {
+                    MainScreen()
+                }
             }
         }
 
@@ -80,15 +102,83 @@ class MainActivity : ComponentActivity() {
         window.decorView.postDelayed({ MonitorService.setCameraActive(true) }, 2000)
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        leerEnlace(intent)
+    }
+
+    /**
+     * La app se abrio con el enlace del QR (spaceeye://vincular?...), p. ej. desde
+     * la camara normal del telefono. Solo se usa si el telefono aun no esta
+     * vinculado: un enlace cualquiera no debe poder mudar a otro servidor un
+     * equipo que ya trabaja.
+     */
+    private fun leerEnlace(intent: Intent?) {
+        val texto = intent?.data?.toString() ?: return
+        val datos = Vinculacion.leerEnlace(texto)
+        when {
+            !necesitaVincular -> Log.w("MainActivity", "enlace de vinculacion ignorado: el telefono ya esta vinculado")
+            datos == null -> avisoVincular = "Ese enlace no es un código válido de SPACE OS."
+            else -> enlace = datos
+        }
+    }
+
+    /** Alta con el codigo de SPACE OS. null si salio bien; si no, que decirle al instalador. */
+    private suspend fun vincular(servidor: String, codigo: String): String? {
+        val r = withContext(Dispatchers.IO) { ApiClient(applicationContext).vincular(servidor, codigo) }
+        if (r == ApiClient.Alta.LISTO) {
+            RemoteLog.info(applicationContext, "service", "Telefono vinculado a $servidor")
+            necesitaVincular = false
+            avisoVincular = null
+            enlace = null
+            arrancarServicio()
+            return null
+        }
+        return when (r) {
+            ApiClient.Alta.CODIGO_INVALIDO ->
+                "El código no sirve (venció, ya se usó o se canceló). Genera otro en SPACE OS."
+            ApiClient.Alta.VINCULACION_REQUERIDA ->
+                "El servidor pide un código de vinculación. Genera uno en SPACE OS."
+            ApiClient.Alta.DEMASIADOS_INTENTOS ->
+                "Demasiados intentos seguidos. Espera unos minutos y vuelve a intentar."
+            ApiClient.Alta.SIN_HTTPS ->
+                "La dirección del servidor debe empezar con https://"
+            ApiClient.Alta.SIN_RED ->
+                "No se pudo conectar con el servidor. Revisa que el teléfono tenga internet y la dirección del servidor, y vuelve a intentar."
+            else -> "El servidor no pudo vincular el teléfono. Vuelve a intentar en un momento."
+        }
+    }
+
+    private fun arrancarServicio() {
+        MonitorService.start(this)
+        // Igual que en onResume: con la app en pantalla Android concede la camara
+        // al servicio, que apenas esta arrancando.
+        window.decorView.postDelayed({ MonitorService.setCameraActive(true) }, 2000)
+    }
+
     private fun checkAndStart() {
         val tokenStore = TokenStore(this)
-        val token = tokenStore.getDeviceToken()
-        if (token != null) {
+        if (tokenStore.servidorActivo() == null) {
+            necesitaVincular = true
+            return
+        }
+        if (tokenStore.getDeviceToken() != null) {
             MonitorService.start(this)
-        } else {
-            // Sin token: primera ejecucion -> registrar el device (SetupActivity
-            // hace el POST /api/device/register y arranca MonitorService al terminar).
-            startActivity(Intent(this, SetupActivity::class.java))
+            return
+        }
+        // Tiene servidor pero no llave (el servidor la rechazo): re-alta sin
+        // codigo, el equipo ya es conocido alli. Antes lo hacia SetupActivity.
+        lifecycleScope.launch {
+            val r = withContext(Dispatchers.IO) { ApiClient(applicationContext).alta() }
+            when (r) {
+                ApiClient.Alta.CODIGO_INVALIDO, ApiClient.Alta.VINCULACION_REQUERIDA -> {
+                    // Lo borraron del servidor: sin un codigo nuevo no hay manera.
+                    avisoVincular = "El servidor ya no reconoce este teléfono. Vincúlalo de nuevo con un código de SPACE OS."
+                    necesitaVincular = true
+                }
+                // Listo, o sin red: el servicio reintenta la alta en cada latido.
+                else -> MonitorService.start(applicationContext)
+            }
         }
     }
 

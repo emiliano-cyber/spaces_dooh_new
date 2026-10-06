@@ -2,7 +2,6 @@ package com.spaceeye.agent.network
 
 import android.content.Context
 import android.util.Log
-import com.spaceeye.agent.BuildConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -29,14 +28,14 @@ object RemoteLog {
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
-    private fun buildRequest(token: String, level: String, category: String, message: String): Request {
+    private fun buildRequest(servidor: String, token: String, level: String, category: String, message: String): Request {
         val json = JSONObject().apply {
             put("level", level)
             put("category", category)
             put("message", message)
         }
         return Request.Builder()
-            .url("${BuildConfig.SERVER_URL}/api/device/log")
+            .url("$servidor/api/device/log")
             .header("Authorization", "Bearer $token")
             .post(json.toString().toRequestBody("application/json".toMediaType()))
             .build()
@@ -45,10 +44,12 @@ object RemoteLog {
     /** Envio asincrono (uso normal). Tambien deja rastro en logcat. */
     fun log(ctx: Context, level: String, category: String, message: String) {
         Log.d(TAG, "[$level/$category] $message")
-        val token = TokenStore(ctx).getDeviceToken() ?: return
+        val store = TokenStore(ctx)
+        val token = store.getDeviceToken() ?: return
+        val servidor = store.servidorActivo() ?: return
         scope.launch {
             try {
-                client.newCall(buildRequest(token, level, category, message)).execute().use { }
+                client.newCall(buildRequest(servidor, token, level, category, message)).execute().use { }
             } catch (e: Exception) {
                 Log.w(TAG, "log post failed: ${e.message}")
             }
@@ -64,10 +65,12 @@ object RemoteLog {
      * esta muriendo). Corre en un hilo aparte para no violar NetworkOnMainThread.
      */
     fun logCrashBlocking(ctx: Context, category: String, message: String) {
-        val token = TokenStore(ctx).getDeviceToken() ?: return
+        val store = TokenStore(ctx)
+        val token = store.getDeviceToken() ?: return
+        val servidor = store.servidorActivo() ?: return
         val t = Thread {
             try {
-                client.newCall(buildRequest(token, "critical", category, message)).execute().use { }
+                client.newCall(buildRequest(servidor, token, "critical", category, message)).execute().use { }
             } catch (_: Exception) {
             }
         }

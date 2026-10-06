@@ -34,9 +34,15 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- Vinculacion: el QR de SPACE OS es un enlace spaceeye://vincular?...
+                 Asi tambien sirve escanearlo con la camara normal del telefono. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="spaceeye" android:host="vincular"/>
+            </intent-filter>
         </activity>
-
-        <activity android:name=".SetupActivity" android:exported="false"/>
 
         <service
             android:name=".service.MonitorService"

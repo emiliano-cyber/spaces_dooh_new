@@ -26,7 +26,7 @@ const rutas = require('./rutas');
 // contestaba "vista en vivo no disponible en el agente de PC", y en el navegador
 // eso salia como "la camara esta ocupada". Nadie podia saber, mirando el
 // dashboard, que ese equipo tenia un programa viejo.
-const VERSION = '1.5.0';
+const VERSION = '1.6.0';
 const RAIZ = rutas.BASE;
 const RUTA_CONFIG = rutas.config;
 const RUTA_ESTADO = rutas.estado;
@@ -156,6 +156,9 @@ async function main() {
     // Va tal cual lo trae el archivo. El agente NO sabe de quien es -ni tiene
     // por que saberlo-: solo lo entrega y el servidor estampa el dueno.
     provision_token: cfg.testigo_de_alta || undefined,
+    // Desde la 1.6.0: el codigo de vinculacion que dio SPACE OS (lo escribe el
+    // asistente). Solo cuenta la primera vez.
+    codigo_vinculacion: cfg.codigo_vinculacion || undefined,
   };
 
   let reg = null;
@@ -177,6 +180,19 @@ async function main() {
         log('AVISO: el servidor RECHAZO el testigo de alta de este equipo.');
         log('       Se da de alta SIN dueno; hay que asignarlo desde el dashboard');
         log('       y revisar el testigo que trae el paquete de descarga.');
+        continue;
+      }
+      // El Space Eye de una empresa no deja entrar a un equipo nuevo sin un
+      // codigo vigente: se avisa claro y se reintenta cada 5 min, por si
+      // mientras tanto le ponen un codigo nuevo en config.json.
+      if (e?.status === 403 && /vinculacion_requerida|codigo_invalido/.test(e.cuerpo || '')) {
+        log(/codigo_invalido/.test(e.cuerpo || '')
+          ? 'AVISO: el servidor RECHAZO el codigo de vinculacion (vencido, ya usado o cancelado).'
+          : 'AVISO: este equipo es nuevo y no trae codigo de vinculacion.');
+        log('       Genera uno en SPACE OS > Space Eyes > Agregar dispositivo > PC y vuelve a');
+        log('       abrir el asistente. Reintento en 5 min.');
+        await dormir(5 * 60 * 1000);
+        try { datosRegistro.codigo_vinculacion = JSON.parse(fs.readFileSync(rutas.config, 'utf8')).codigo_vinculacion || undefined; } catch { /* sigue */ }
         continue;
       }
       const espera = Math.min(60, intento * 10);

@@ -40,7 +40,7 @@ class Api {
   // el dueno el mismo, asi el equipo no puede declararse de quien quiera. Se
   // manda solo si existe -sin testigo el alta es la de siempre y el equipo nace
   // sin dueno, a la espera de que alguien lo asigne desde el dashboard.
-  async registrar({ device_uid, app_version, model, manufacturer, os_version, provision_token }) {
+  async registrar({ device_uid, app_version, model, manufacturer, os_version, provision_token, codigo_vinculacion }) {
     const r = await this._req('POST', '/api/device/register', {
       device_uid,
       android_version: os_version, // el backend llama asi al campo de version del SO
@@ -48,6 +48,8 @@ class Api {
       model,
       manufacturer,
       ...(provision_token ? { provision_token } : {}),
+      // Codigo de un solo uso de SPACE OS: lo que deja entrar a un equipo nuevo.
+      ...(codigo_vinculacion ? { codigo_vinculacion } : {}),
     });
     this.token = r.token;
     return r;

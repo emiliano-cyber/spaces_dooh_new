@@ -12,10 +12,13 @@ android {
         applicationId = "com.spaceeye.agent"
         minSdk = 26
         targetSdk = 34
-        versionCode = 31
-        versionName = "0.15.15"
+        versionCode = 32
+        versionName = "0.16.0"
 
-        // URL del backend. Default = IP LAN de la PC (Wi-Fi) para celular real.
+        // URL del backend de la flota de siempre. Desde la 0.16.0 solo la usan los
+        // telefonos que ya estaban dados de alta antes (TokenStore.servidorActivo);
+        // un telefono nuevo recibe su servidor al vincularse con el QR de SPACE OS.
+        // Default = IP LAN de la PC (Wi-Fi) para celular real.
         // Override sin tocar codigo:  ./gradlew assembleDebug -PserverUrl=http://192.168.1.80:4000
         // Para el emulador usa:       -PserverUrl=http://10.0.2.2:4000
         val serverUrl = (project.findProperty("serverUrl") as String?) ?: "http://192.168.100.135:4000"
@@ -66,6 +69,12 @@ dependencies {
     implementation("androidx.camera:camera-core:1.3.4")
     implementation("androidx.camera:camera-camera2:1.3.4")
     implementation("androidx.camera:camera-lifecycle:1.3.4")
+    // Vista previa del escaner de vinculacion (ver vinculacion/PantallaVincular.kt).
+    implementation("androidx.camera:camera-view:1.3.4")
+
+    // Lector de QR de la vinculacion. Solo el nucleo de ZXing (Java puro, chico):
+    // ML Kit arrastraria Google Play Services y mas MB por datos en cada equipo.
+    implementation("com.google.zxing:core:3.5.3")
 
     // WorkManager
     implementation("androidx.work:work-runtime-ktx:2.9.0")

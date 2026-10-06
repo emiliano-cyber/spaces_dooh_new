@@ -29,7 +29,10 @@ class ApiClient(ctx: Context) {
     }
 
     private val tokenStore = TokenStore(ctx)
-    private val baseUrl = BuildConfig.SERVER_URL
+    // Se lee en cada peticion y no una vez: el telefono puede vincularse (o
+    // re-vincularse a otra empresa) con el servicio ya corriendo. Sin servidor
+    // tampoco hay llave, asi que las peticiones con llave ni salen.
+    private val baseUrl: String get() = tokenStore.servidorActivo().orEmpty()
 
     private val http = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
@@ -199,31 +202,75 @@ class ApiClient(ctx: Context) {
      *   Viaja pegado a este reporte, que sale igual cada minuto, para que vigilar
      *   la pantalla no agregue peticiones propias.
      */
+    /** Como termino un intento de alta; la pantalla de vincular explica cada caso. */
+    enum class Alta { LISTO, CODIGO_INVALIDO, VINCULACION_REQUERIDA, DEMASIADOS_INTENTOS, SIN_HTTPS, SIN_RED, ERROR }
+
     /**
-     * Alta (o re-alta) del equipo con su identificador estable. Para un equipo que
-     * el servidor ya conoce solo renueva la llave: no se duplica.
+     * Re-alta del equipo con su identificador estable, al servidor que ya tiene.
+     * Para un equipo que el servidor ya conoce solo renueva la llave: no se duplica
+     * y no necesita codigo de vinculacion.
      */
-    fun registrar(): Boolean {
+    fun registrar(): Boolean = alta() == Alta.LISTO
+
+    fun alta(): Alta {
+        val servidor = tokenStore.servidorActivo() ?: return Alta.VINCULACION_REQUERIDA
+        return alta(servidor, null)
+    }
+
+    /**
+     * Primera alta de un telefono nuevo con el codigo de SPACE OS. Solo si el
+     * servidor lo acepta se guarda el servidor (junto con la llave): un codigo
+     * mal escrito no deja al telefono apuntando a un lugar equivocado.
+     */
+    fun vincular(servidor: String, codigo: String): Alta = alta(servidor, codigo)
+
+    private fun alta(servidor: String, codigo: String?): Alta {
         val json = JSONObject().apply {
             put("device_uid", tokenStore.getOrCreateDeviceUid())
             put("android_version", android.os.Build.VERSION.RELEASE)
             put("app_version", BuildConfig.VERSION_NAME)
             put("model", android.os.Build.MODEL)
             put("manufacturer", android.os.Build.MANUFACTURER)
+            codigo?.let { put("codigo_vinculacion", it) }
         }
-        val request = Request.Builder()
-            .url("$baseUrl/api/device/register")
-            .post(json.toString().toRequestBody("application/json".toMediaType()))
-            .build()
+        val request = try {
+            Request.Builder()
+                .url("$servidor/api/device/register")
+                .post(json.toString().toRequestBody("application/json".toMediaType()))
+                .build()
+        } catch (e: IllegalArgumentException) {
+            Log.e(TAG, "alta: direccion invalida $servidor")
+            return Alta.ERROR
+        }
         return try {
             http.newCall(request).execute().use { r ->
-                if (!r.isSuccessful) { Log.e(TAG, "registrar: ${r.code}"); return false }
-                tokenStore.saveDeviceToken(JSONObject(r.body!!.string()).getString("token"))
-                true
+                val cuerpo = r.body?.string().orEmpty()
+                if (r.isSuccessful) {
+                    val token = JSONObject(cuerpo).getString("token")
+                    if (codigo != null) tokenStore.guardarVinculacion(servidor, token)
+                    else tokenStore.saveDeviceToken(token)
+                    return Alta.LISTO
+                }
+                val error = try { JSONObject(cuerpo).optString("error") } catch (_: Exception) { "" }
+                Log.e(TAG, "alta: ${r.code} $error")
+                when {
+                    error == "codigo_invalido" -> Alta.CODIGO_INVALIDO
+                    error == "vinculacion_requerida" -> Alta.VINCULACION_REQUERIDA
+                    r.code == 429 -> Alta.DEMASIADOS_INTENTOS
+                    else -> Alta.ERROR
+                }
             }
+        } catch (e: java.net.UnknownServiceException) {
+            // Android rechaza http:// fuera de los servidores de siempre
+            // (network_security_config): el de cada empresa va por https.
+            Log.e(TAG, "alta: ${e.message}")
+            Alta.SIN_HTTPS
+        } catch (e: java.io.IOException) {
+            Log.e(TAG, "alta error: ${e.message}")
+            Alta.SIN_RED
         } catch (e: Exception) {
-            Log.e(TAG, "registrar error: ${e.message}")
-            false
+            Log.e(TAG, "alta error: ${e.message}")
+            Alta.ERROR
         }
     }
 

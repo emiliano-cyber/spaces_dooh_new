@@ -14,6 +14,7 @@ import * as telemetry from '../controllers/telemetry.controller';
 import * as users from '../controllers/users.controller';
 import * as creativos from '../controllers/creativos.controller';
 import * as monitoreo from '../controllers/monitoreo.controller';
+import * as vinculaciones from '../controllers/vinculaciones.controller';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 
@@ -83,6 +84,10 @@ export function createRoutes() {
   router.put('/api/devices/:id/pantalla', requireUser, requireRole('admin', 'operator'), monitoreo.configurarPantalla);
   router.put('/api/devices/:id/salud', requireUser, requireRole('admin', 'operator'), monitoreo.configurarSalud);
   router.get('/api/fallas', requireUser, monitoreo.listar);
+  // Codigos de vinculacion: como entra un equipo nuevo a la empresa (021).
+  router.post('/api/vinculaciones', requireUser, requireRole('admin', 'operator'), vinculaciones.crear);
+  router.get('/api/vinculaciones', requireUser, requireRole('admin', 'operator'), vinculaciones.listar);
+  router.delete('/api/vinculaciones/:codigo', requireUser, requireRole('admin', 'operator'), vinculaciones.cancelar);
   router.put('/api/fallas/:id', requireUser, requireRole('admin', 'operator'), monitoreo.actualizar);
   // Creativos detectados en la pantalla
   router.get('/api/devices/:id/creativos', requireUser, creativos.listarDeEquipo);

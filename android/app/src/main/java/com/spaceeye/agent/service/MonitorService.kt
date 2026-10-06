@@ -152,7 +152,12 @@ class MonitorService : Service() {
 
     /** Sin llave valida: darse de alta otra vez y reconectar el canal de ordenes. */
     private suspend fun reAltaSiHaceFalta() {
-        if (apiClient.tieneLlave()) return
+        if (apiClient.tieneLlave()) {
+            // La llave llego por otro lado (el telefono se vinculo desde la pantalla
+            // con el servicio ya corriendo): el canal de ordenes nunca se abrio.
+            if (!socketManager.abierto()) socketManager.connect()
+            return
+        }
         val ok = withContext(Dispatchers.IO) { apiClient.registrar() }
         if (ok) {
             RemoteLog.info(applicationContext, "service", "Equipo dado de alta de nuevo en el servidor")
