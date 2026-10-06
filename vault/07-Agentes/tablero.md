@@ -6,6 +6,31 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!important] 2026-10-06 · **INTEGRA-RIESGOS-Y-CALC · Z1, Z2, Z5 y Z12 — EN REVISION** · ROJO (R1 sesión · R2 tenant · R4 dinero)
+> Rama **`integra/riesgos-y-calculadora-14-oct`**, empujada a `emiliano`. Une
+> las dos de abajo —`integra/riesgos-presentacion-14-oct` (`7393d633`) y
+> `feat/calculadora-como-html` (`afb3e7df`)— en el merge `9e313c62`. **Sustituye
+> a los dos reclamos de abajo como rama a fusionar.** **Sin fusionar en
+> `main`**: espera aprobación humana.
+>
+> Los cuatro conflictos fueron de documentación (bitácora, tablero, fechas de
+> frontmatter y las cifras de `CLAUDE.md`, re-medidas con
+> `node scripts/recuentos.mjs`: 1446 enlaces sobre 101 notas). Ninguno de código.
+>
+> **Verificación** (medida en este árbol): `npm run typecheck` limpio ·
+> **3398 unitarias en 244 archivos** · `npm run build` · **e2e 884 de 886** (más
+> 1 omitida, 64 archivos) contra un **PostgreSQL 16.10 portátil** en el 5433,
+> sin Docker. **`calculadora-spots.e2e.test.ts` pasa**: queda cerrado el
+> pendiente de CALC-02. La única que falla es la de siempre,
+> `grants-rol-app.e2e.test.ts` («si NO existe ninguno de los dos, ABORTA»),
+> que necesita `docker run`.
+>
+> [!warning] La base e2e tiene que tener un locale que sepa de acentos
+> Con `initdb --locale=C`, `upper('Pérez')` deja la `é` en minúscula y
+> `arrendador-duplicado.e2e.test.ts` falla **en falso**. Crear `spaces_e2e` con
+> `template template0 locale_provider icu icu_locale 'en-US' locale 'C'`, que
+> equivale al `en_US.utf8` de la imagen de Docker.
+
 > [!success] 2026-10-06 · **CALC-02 · la calculadora cuenta como la HTML — RECLAMADO Y LIBERADO**
 > Rama `feat/calculadora-como-html`, salida de `main` (`09c65ca2`). **ROJO por
 > dinero (R4)**: cambia la cantidad y el precio de las líneas con calculadora.
@@ -16,6 +41,9 @@ archivos: []
 > `propuestas-controller.ts`, `propuestas/page.tsx` y sus pruebas), **Z12 ·
 > Docs**, y el de alto contacto `docs/Registro_Cambios.md`. **NO se tocó**
 > `db/schema.sql`, `aislamiento.e2e.test.ts` ni `servidor-e2e.ts`.
+>
+> **Ya se corrió, en la rama integrada (ver arriba): pasa.** Lo que sigue es
+> el estado al cerrar la rama:
 >
 > **La e2e de la calculadora NO se corrió**: esta máquina no tiene Docker
 > funcionando (falta WSL). Hay que correr `cd apps/web && npm run build && npx
