@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-08-31
+actualizado: 2026-10-05
 tags: [frontend, estado, fetch, react-query, zustand]
 archivos:
   - apps/web/app/providers.tsx
@@ -22,7 +22,7 @@ archivos:
 | **Context** | Sesión (`SesionContext`) | `components/demo/shell/SesionContext.tsx` |
 
 > [!note] El QueryClient se crea **por instancia de componente**
-> `providers.tsx:17-19` lo explica: un singleton compartiría la caché entre
+> `providers.tsx:17-18` lo explica: un singleton compartiría la caché entre
 > renders de servidor de usuarios distintos y filtraría datos ajenos.
 
 ## El store de zustand es herencia de la demo
@@ -54,7 +54,7 @@ flowchart LR
 Ninguno toca `GET`/`HEAD` ni cross-origin. Son idempotentes.
 
 > [!danger] Por qué se parchea `fetch` en vez de tocar cada llamada
-> `csrf-client.ts:6-13`: las llamadas al BFF están repartidas en muchos
+> `csrf-client.ts:7-13`: las llamadas al BFF están repartidas en muchos
 > `*-api.ts` **sin un chokepoint único**. El parche es la forma de garantizar que
 > ninguna mutación se olvide del header. **Si quitas el parche, todas las
 > mutaciones empiezan a dar 403.**
@@ -108,7 +108,17 @@ igual, y la ficha pediría la galería de todas.
 | ~~`lib/portal-cliente-api.ts`~~ | **Retirado el 27/08** — cero importadores |
 
 Todas las rutas llevan **barra final** por `trailingSlash: true`
-(`auth-real.ts:8-12`).
+(`auth-real.ts:8-10`).
+
+> [!note] 2026-10-05 · `apiLogin()` ya no lee el cuerpo a ciegas
+> Desde `35f7ad1d` (30/09), `apiLogin()` (`lib/auth-real.ts:53-76`) envuelve el
+> `fetch` y el `res.json()`: un fallo de red da un mensaje en español, un 5xx
+> sin JSON da «El servicio no está disponible…» (`NO_DISPONIBLE`,
+> `auth-real.ts:50-51`) y los mensajes del servidor pasan tal cual. Antes, con
+> la base caída, el login enseñaba «Unexpected end of JSON input». Y
+> `UsuarioAuth` trae desde el 07/09 el booleano derivado `debeGuardarCodigos`
+> (`auth-real.ts:31`), que el cliente usa sin recalcularlo. Ver
+> [[acceso-y-sesion-ui]].
 
 > [!success] `lib/auth-context.tsx` ya no existe
 > Era el cliente JWT contra el backend archivado y **seguía montado** en

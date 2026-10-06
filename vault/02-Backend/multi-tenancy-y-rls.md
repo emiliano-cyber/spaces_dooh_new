@@ -1,11 +1,14 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-08-26
+actualizado: 2026-10-05
 tags: [backend, multi-tenant, rls, seguridad, rojo, instancias]
 archivos:
   - apps/web/lib/server/db.ts
   - apps/web/lib/server/tenant.ts
+  - apps/web/lib/server/auth.ts
+  - apps/web/lib/server/tickets-repo.ts
+  - db/migrations/20260923_tickets.sql
   - db/schema.sql
   - db/migrations/20260812_sin_default_tenant.sql
   - apps/web/lib/test/tenant-sin-default.e2e.test.ts
@@ -58,21 +61,29 @@ flowchart LR
     G --> RLS["políticas RLS de Postgres"]
 ```
 
-`lib/server/tenant.ts:22-41`. El override por cookie solo lo admite el **Dueño
-del tenant de plataforma** (el `tenants` más antiguo, `tenant.ts:26-29`), y
-además se verifica que el tenant destino exista.
+`lib/server/tenant.ts:33-43` (`tenantActual`). El override por cookie solo lo
+admite el **Dueño del tenant de plataforma** (el `tenants` más antiguo,
+`tenant.ts:27-30`), y además se verifica que el tenant destino exista
+(`tenant.ts:37-40`).
 
-## Las cuatro puertas a la base
+## Las siete puertas a la base
 
 `lib/server/db.ts` — elegir mal es el error más común de este repo.
 
+> Hasta el 05/10 este apartado se titulaba «Las cuatro puertas» y su tabla
+> listaba cinco. Faltaban `fijarTenant` y `withTxBootstrap` (F5.1, 26/08), y la
+> fila de `qRaw` citaba `password_resets` como uso legítimo cuando es
+> fail-closed desde el 07/08: se lee por `auth_reset_por_token()`.
+
 | Función | Fija `app.tenant_id` | Cuándo usarla |
 |---|---|---|
-| `q()` / `q1()` | Sí, del tenant de la sesión | **Por defecto.** Todo lo normal |
-| `qRaw()` / `qRaw1()` | **No** | Solo bootstrap: `tenants`, `sesiones`, `password_resets`, funciones `auth_*` |
-| `qConTenant(id, …)` | Sí, explícito | Hay tenant pero aún no hay sesión: signup, reset, desbloqueo |
-| `withTenantTx(fn)` | Sí, del de la sesión | Varias sentencias atómicas |
-| `fijarTenantExplicito(client,id)` | Sí, explícito | Rutas públicas por token y el cron |
+| `q()` / `q1()` (`db.ts:74-93`) | Sí, del tenant de la sesión | **Por defecto.** Todo lo normal |
+| `qRaw()` / `qRaw1()` (`db.ts:64-71`) | **No** | Solo lo que no tiene RLS (`tenants`, `sesiones`, `rol_permisos`, `schema_migrations`), las funciones SECURITY DEFINER (`auth_*`, `*_tenant_por_token`) y el panel de `tickets` (ver abajo) |
+| `qConTenant(id, …)` (`db.ts:100-118`) | Sí, explícito | Hay tenant pero aún no hay sesión: signup, reset, desbloqueo |
+| `withTenantTx(fn)` (`db.ts:165-180`) | Sí, del de la sesión | Varias sentencias atómicas |
+| `fijarTenant(client)` (`db.ts:59-61`) | Sí, del de la sesión | Transacción explícita con `pool.connect()` + `begin` propios (`campanas-repo`, `arrendadores-repo`). Va **después** del `begin`: fuera de transacción el GUC local muere en la misma sentencia |
+| `fijarTenantExplicito(client,id)` (`db.ts:124-126`) | Sí, explícito | Rutas públicas por token y el cron |
+| `withTxBootstrap(fn)` (`db.ts:143-161`) | **No al empezar**; lo fija `ctx.fijarTenant(id)` a mitad | Altas: el `INSERT` de `tenants` (sin RLS) y el del Dueño (fail-closed) en UNA transacción, para que un fallo del segundo deshaga el primero (`cuentas-controller.ts:74`) |
 
 Siempre **transaction-local** (`set_config(..., true)`). Nunca de sesión: el pool
 reutiliza conexiones entre tenants y un GUC de sesión filtraría datos
@@ -83,7 +94,7 @@ reutiliza conexiones entre tenants y un GUC de sesión filtraría datos
 > Pasó en `desbloquear()` (commit `43f9284`): todo desbloqueo contestaba «tu
 > usuario no tiene contraseña» y el restablecimiento quedó inservible. Volvió a
 > pasar en `fijarExigirReautenticacion()`, donde un `update` quedó en no-op
-> silencioso (`cambios.ts:115-123`). Las unitarias no lo ven porque simulan la
+> silencioso (`cambios.ts:149-163`, dentro de `fijarExigirReautenticacion()`, `:143-165`). Las unitarias no lo ven porque simulan la
 > base: **lo caza la integración**.
 
 ## Las dos generaciones de política RLS
@@ -124,7 +135,53 @@ Más `usuarios` (`20260720_hard1_usuarios_rls.sql`), `config_negocio`
 
 ### Exentas a propósito (bootstrap)
 `tenants`, `sesiones`, `rol_permisos`, `folios_consecutivos`. Se resuelven antes
-de que exista tenant, o son globales por diseño.
+de que exista tenant, o son globales por diseño. Comprobado el 05/10: ninguna
+de las cuatro aparece en un `enable row level security` de `db/schema.sql` ni
+de `db/migrations/`.
+
+> [!warning] `usuarios` NO está exenta, aunque tres comentarios lo dijeran
+> Hasta el 05/10, `tenant.ts:5-6`, `auth.ts:5-7` y `db.ts:17-19` la daban por
+> exenta. Es **fail-closed + FORCE** desde `20260720_hard1_usuarios_rls.sql:136-141`.
+> El código funciona porque las lecturas previas a la sesión van por funciones
+> SECURITY DEFINER acotadas a una fila —`auth_usuario_por_email`,
+> `auth_usuario_por_sesion`, `auth_email_existe`, `auth_usuario_por_identidad`—,
+> no porque la tabla esté abierta. Un `qRaw` directo sobre `usuarios` devuelve
+> **cero filas sin error**: es el fallo de `desbloquear()` y de
+> `fijarExigirReautenticacion()`.
+
+### La excepción fail-OPEN: `tickets` (ADR 0038)
+
+`tickets` tiene RLS + FORCE, pero su política es la **permisiva**, no la
+fail-closed (`db/migrations/20260923_tickets.sql:37-40`):
+
+```sql
+using (tenant_id = nullif(current_setting('app.tenant_id', true),'')::uuid
+       or nullif(current_setting('app.tenant_id', true),'') is null)
+with check (true)
+```
+
+**Es a propósito, y es la única tabla de negocio así.** El panel de flota del
+PADRE pide los tickets de la instancia con `FLOTA_TOKEN`, sin sesión ni
+tenant, y tiene que verlos **todos**: `listarTicketsDeLaInstancia()` y
+`actualizarTicketDesdePanel()` van por `qRaw` (`tickets-repo.ts:120-129` y `:153-214`). Con
+el GUC vacío, la rama `or … is null` deja pasar todo; con política fail-closed
+devolverían cero filas en silencio. El ADR lo dice así
+(`docs/adr/0038-los-tickets-de-soporte-viven-en-la-instancia.md:165-170`):
+*«El GET con token de flota atraviesa todos los tenants de la instancia, y eso
+es `qRaw` deliberado. Es la zona roja R2 […] Por eso va con dos pruebas e2e
+emparejadas y no una: que la ruta del cliente aísla, y que la del panel
+atraviesa.»*
+
+> [!danger] Lo que esto implica, y no lo dice el ADR
+> - El aislamiento del lado del cliente lo da **solo** que `q()` fije el GUC:
+>   cualquier `qRaw` sobre `tickets` desde una ruta de cliente ve los de todas
+>   las organizaciones. Es exactamente el modo de fallo R2, con el signo «fuga»
+>   en vez de «cero filas».
+> - `with check (true)`: la base **no** impide insertar un ticket con el
+>   `tenant_id` de otra organización. Lo impide `crearTicket()`, que toma el
+>   tenant de la sesión.
+> - No copies esta política a una tabla nueva: es la excepción documentada, no
+>   la plantilla.
 
 > [!note] `password_resets` dejó de estar exenta el 07/08
 > Commit `f703c1c`: *«el invariante vuelve a cumplirse»*. Queda una parte
@@ -134,20 +191,23 @@ de que exista tenant, o son globales por diseño.
 
 1. **RLS de Postgres** — la política del motor.
 2. **Filtro explícito en la aplicación** — toda operación por `id` lleva además
-   `and tenant_id = $n` (`usuarios-repo.ts:11-15`). Redundante a propósito: *«si
+   `and tenant_id = $n` (`usuarios-repo.ts:13-17`). Redundante a propósito: *«si
    algún día la app conectara con un rol BYPASSRLS, esto sigue aislando»*.
 
 ## El candado del rol de base de datos
 
 `20260720_hard1_usuarios_rls.sql` termina con un `ASSERT` que **hace fallar la
-migración** si el rol de la app tiene `rolsuper` o `rolbypassrls`. En producción
-la app conecta con un rol `NOBYPASSRLS`; en las pruebas, `spaces_app`
-(`apps/web/lib/test/db-e2e.ts`).
+migración** si el rol de la app tiene `rolsuper` o `rolbypassrls`
+(`:146-157`, el `raise` en `:155`). En producción la app conecta con un rol
+`NOBYPASSRLS`; en las pruebas, `spaces_app` (`apps/web/lib/test/db-e2e.ts`).
 
-> [!bug] Comentario obsoleto que induce a error
-> `lib/server/tenant.ts:12-15` dice *«la conexión sigue siendo superuser, así que
-> RLS no aplica»*. **Eso ya no es cierto** desde Hardening 1. Si te guías por ese
-> comentario, escribirás código inseguro.
+> [!bug] Comentario obsoleto que inducía a error — CORREGIDO el 2026-10-05
+> `lib/server/tenant.ts:13-15` decía *«la conexión sigue siendo superuser, así que
+> RLS no aplica»*, y `tenant.ts:5-6`, `auth.ts:5-7` y `db.ts:17-19` daban
+> `usuarios` por exenta. **Ninguna de las dos cosas era cierta** desde
+> Hardening 1, y guiarse por ellas lleva a escribir un `qRaw` que devuelve cero
+> filas. Rama `docs/rls-comentarios-y-tickets`: se reescribieron conservando el
+> número de líneas de cada archivo, para no mover las citas de otras notas.
 
 ## Rutas públicas: el tenant sale del token
 
@@ -164,7 +224,7 @@ pruebas.
 
 | Slug | Qué es | Evidencia |
 |---|---|---|
-| `rgb` | **Tenant de plataforma** (el más antiguo). Su Dueño es el único que puede cambiar de CRM. **Está vacío**: cero campañas, reservas y creativos | `tenant.ts:26-29`; `DESPLIEGUE_20260810_INC02.txt:11` |
+| `rgb` | **Tenant de plataforma** (el más antiguo). Su Dueño es el único que puede cambiar de CRM. **Está vacío**: cero campañas, reservas y creativos | `tenant.ts:27-30`; `DESPLIEGUE_20260810_INC02.txt:11` |
 | `g500` | La organización de la demo, nombre comercial `PIXELED`. Es la que tiene datos de negocio | `docs/datos/20260810_inc05_residuos_demo_g500.sql` |
 | `eyro` | **Perfil de PRUEBAS del usuario** (confirmado el 10/08). Sus campañas, pantallas y usuarios existen para ensayar, no para operar | Indicación directa del usuario |
 

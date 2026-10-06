@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-09-30
+actualizado: 2026-10-05
 tags: [backend, operaciones, ot, imprenta, amarillo, almacen, checklist]
 archivos:
   - apps/web/lib/server/ot-repo.ts
@@ -21,6 +21,8 @@ archivos:
   - apps/web/app/api/ot/[id]/checklist/route.ts
   - apps/web/lib/checklist-autoguardado.ts
   - apps/web/components/operaciones/OTVista.tsx
+  - apps/web/lib/data/derive.ts
+  - apps/web/lib/server/storage.ts
 ---
 
 # Operaciones, OT e imprenta
@@ -49,7 +51,7 @@ mantenimiento, herrería, eléctrico, inspección (`tipo_ot`, `db/schema.sql:53`
 > lo demás: el de costo lleva el candado de dinero y el del checklist solo
 > cambia `checklist[i].hecho`. Ninguno es un editor general de la OT. `asignado_a` sigue sin poder cambiarse. Se escribe en dos momentos: al **crear**
 > la OT (`crearOTCtrl`, campo `asignadoA`) y al **cerrarla**, donde
-> `ot-repo.ts:193` hace `asignado_a = coalesce(asignado_a, $3)` para estampar a
+> `ot-repo.ts:277` (dentro de `cerrarOT`, `:254`) hace `asignado_a = coalesce(asignado_a, $3)` para estampar a
 > quien cierra. Cambiar el responsable de una OT existente exige un script de
 > datos — o un endpoint nuevo.
 
@@ -95,7 +97,7 @@ viejo.
 
 ## El cierre de OT es lo que destraba la facturación
 
-`ot-repo.ts:11-14`: cerrar una OT con foto guarda la evidencia, completa la OT
+`ot-repo.ts:10-13` (cabecera del archivo): cerrar una OT con foto guarda la evidencia, completa la OT
 y, **si está ligada a una campaña, enciende `fotos_comprobatorias` y
 `reporte_publicacion`** — dos de los tres candados de [[finanzas-y-cobranza]].
 
@@ -129,7 +131,7 @@ ARTE_RECIBIDO → VALIDADO → EN_PRODUCCION → IMPRESO → LISTO_MONTAJE
 
 Con **prueba de color** aprobable (`prueba_color_url`,
 `prueba_color_aprobada`). Folio consecutivo `OI-2026-0001`
-(`impresion-repo.ts:13-15`).
+(`impresion-repo.ts:14-16`, `folioDocumento('oi')`).
 
 ## OT automáticas
 
@@ -154,13 +156,13 @@ mejor esfuerzo.
 Desde el **2026-09-17** el costo de mano de obra de una orden de trabajo sale de
 `config_negocio.costos_ot` (jsonb, una fila por tenant — ADR 0011) y se resuelve
 por tipo en `lib/costos-ot.ts`. Lo lee todo el que calcula margen:
-`dashboardMetrics` (`derive.ts:618`), `margenCampana` (`derive.ts:735`) y los
+`dashboardMetrics` (`derive.ts:603`, el costo en `:632`), `margenCampana` (`derive.ts:731`, el costo en `:752`) —los dos por `costoEfectivoDeOt`, que prefiere el costo real— y los
 reportes de rentabilidad ([[reportes-rentabilidad]]).
 
 Antes era una constante en el archivo de derivados:
 
 ```ts
-// lib/data/derive.ts:254 — RETIRADA el 17/09
+// lib/data/derive.ts — RETIRADA el 17/09 (en :254 queda el comentario que lo cuenta)
 const COSTO_OPERATIVO_POR_OT = 1500
 // Parámetro de demo; en producción vendría de ConfigNegocio o por tipo de OT.
 ```

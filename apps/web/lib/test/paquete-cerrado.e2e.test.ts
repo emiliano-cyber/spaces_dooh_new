@@ -512,6 +512,68 @@ describe('5 · el paquete es precio final (regla 2 del ADR)', () => {
     })
     expect(ap.status).toBe(409)
     expect(String(ap.datos.error)).toMatch(/codigo/i)
+    // El rechazo no toca el cupón: sigue puesto, con su uso, y sin paquete.
+    const tras = await poolTest().query(
+      `select p.codigo_texto, p.paquete_nombre,
+              (select count(*)::int from canjes_codigo c where c.propuesta_id = p.id) as canjes
+         from propuestas p where p.id = $1`,
+      [id],
+    )
+    expect(tras.rows[0]).toEqual({ codigo_texto: 'PAQTEST', paquete_nombre: null, canjes: 1 })
+  })
+
+  it('2026-10-05 · y al REVÉS: canjear sobre un paquete que no lo admite se NIEGA sin gastar el uso', async () => {
+    // El defecto: el canje no miraba el paquete, insertaba la fila de
+    // `canjes_codigo` —que ES el contador— y el descuento salía 0 porque
+    // `armarPropuesta` anula el cupón. Un cupón de UN solo uso lo hace
+    // visible: si el intento lo gastara, la segunda propuesta ya no podría.
+    await poolTest().query(
+      `insert into codigos_promocionales
+         (tenant_id, codigo, descuento_pct, vigente_desde, vigente_hasta, usos_maximos)
+       values ($1,'UNSOLOUSO',20,current_date - 1, current_date + 30, 1)
+       on conflict do nothing`,
+      [alfa.id],
+    )
+    const cr = await crearPaquete(ca, {
+      nombre: 'Precio final sin cupon',
+      precioCerrado: 30_000,
+      sitios: [alfa.sitioId, sitioA2],
+    })
+    expect(cr.status, JSON.stringify(cr.datos)).toBe(201)
+    expect(cr.datos.admiteCodigo).toBe(false)
+
+    const id = await crearPropuestaDeDos(ca, alfa, sitioA2, 'Paquete y luego cupon')
+    const ap = await ca.pedir(`/api/propuestas/${id}/paquete/`, {
+      cuerpo: { paqueteId: cr.datos.id },
+    })
+    expect(ap.status, JSON.stringify(ap.datos)).toBe(200)
+
+    const cod = await ca.pedir(`/api/propuestas/${id}/codigo/`, { cuerpo: { codigo: 'UNSOLOUSO' } })
+    expect(cod.status, JSON.stringify(cod.datos)).toBe(400)
+    expect(String(cod.datos.error)).toMatch(/"Precio final sin cupon".*no admite codigos promocionales/)
+
+    // NINGÚN uso gastado, y la propuesta sin cupón.
+    const usos = await poolTest().query(
+      `select count(*)::int as n from canjes_codigo c
+         join codigos_promocionales k on k.id = c.codigo_id
+        where k.tenant_id = $1 and k.codigo = 'UNSOLOUSO'`,
+      [alfa.id],
+    )
+    expect(usos.rows[0].n).toBe(0)
+    const p = await poolTest().query(
+      'select codigo_texto, codigo_descuento_pct, codigo_estado from propuestas where id=$1',
+      [id],
+    )
+    expect(p.rows[0].codigo_texto).toBeNull()
+    expect(p.rows[0].codigo_estado).toBeNull()
+    expect(Number(p.rows[0].codigo_descuento_pct)).toBe(0)
+
+    // Y la prueba de que el uso sigue ahí: otra propuesta SIN paquete lo canjea.
+    const otra = await crearPropuestaDeDos(ca, alfa, sitioA2, 'El uso sigue vivo')
+    const cod2 = await ca.pedir(`/api/propuestas/${otra}/codigo/`, {
+      cuerpo: { codigo: 'UNSOLOUSO' },
+    })
+    expect(cod2.status, JSON.stringify(cod2.datos)).toBe(200)
   })
 
   it('pero SÍ se aplica, y el cupón descuenta, cuando la bandera está encendida', async () => {

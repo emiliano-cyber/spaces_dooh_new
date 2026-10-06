@@ -7,6 +7,7 @@ import { HidratarSitios } from '@/components/demo/shell/HidratarSitios'
 import { MenuMovilProvider } from '@/components/demo/shell/MenuMovilContext'
 import { SondeoNotificaciones } from '@/components/demo/shell/SondeoNotificaciones'
 import { BandaLicencia } from '@/components/demo/shell/BandaLicencia'
+import { NovedadesDeVersion } from '@/components/demo/shell/NovedadesDeVersion'
 import { avisoDeLicencia } from '@/lib/licencia'
 
 const RUTA_LICENCIA = process.env.LICENCIA_JSON ?? '/etc/space-os/licencia/licencia.json'
@@ -85,6 +86,10 @@ export default async function ShellLayout({ children }: { children: React.ReactN
         {/* Notificaciones en vivo. Solo dentro del shell: sin sesión no hay a
             quién avisar, y el sondeo pediría por nada. */}
         <SondeoNotificaciones />
+        {/* Las notas de la version instalada, UNA vez por version y usuario
+            (pedido del dueno, 2026-10-01). Aqui y no en un modulo: todo
+            usuario con sesion pasa por el shell. */}
+        <NovedadesDeVersion />
         {/* Alto exacto de la ventana con overflow oculto: el sidebar queda fijo
             y el único que scrollea es <main>. `h-dvh` (no `h-screen`) para que
             la barra de direcciones móvil no recorte el pie del menú. */}

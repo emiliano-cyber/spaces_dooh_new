@@ -7,6 +7,7 @@ import {
   PropuestaError,
   PropuestaCeroError,
   CodigoPendienteError,
+  TopeVigenteError,
 } from '@/lib/server/propuestas-repo'
 import { generarCampanaDesdePropuesta, PropuestaCampanaError } from '@/lib/server/campanas-repo'
 import { registrarAccion } from '@/lib/server/acciones-repo'
@@ -129,6 +130,12 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     // frase que dice qué hacer. No es un 400: la petición está bien formada.
     if (e instanceof CodigoPendienteError) {
       return NextResponse.json({ error: e.message, codigoPendiente: true }, { status: 409 })
+    }
+    // TOPE-03 · el descuento guardado ya no cabe en el tope VIGENTE: 409 con la
+    // frase que dice los dos números y qué hacer. Conflicto de estado, como el
+    // de arriba: la petición está bien formada, lo que cambió fue el tope.
+    if (e instanceof TopeVigenteError) {
+      return NextResponse.json({ error: e.message, descuentoSobreTope: true }, { status: 409 })
     }
     return NextResponse.json(
       { error: e instanceof Error ? e.message : 'No se pudo actualizar' },

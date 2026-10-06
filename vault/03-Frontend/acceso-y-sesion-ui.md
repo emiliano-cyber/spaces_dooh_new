@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-09-08
+actualizado: 2026-10-05
 tags: [frontend, login, sesion, rojo]
 archivos:
   - apps/web/app/(app)/login/page.tsx
@@ -11,6 +11,10 @@ archivos:
   - apps/web/app/api/auth/metodos/route.ts
   - apps/web/components/demo/shell/AuthGate.tsx
   - apps/web/components/demo/shell/compuerta.ts
+  - apps/web/app/api/auth/login/route.ts
+  - apps/web/lib/server/errores.ts
+  - apps/web/components/demo/ui/SelectorIdioma.tsx
+  - apps/web/middleware.ts
 ---
 
 # Acceso y sesión (UI)
@@ -57,7 +61,7 @@ contraseña». Los dos últimos se apagan por variable:
 > botón lo decide la respuesta de `/api/auth/metodos/`.
 
 > [!danger] Ocultar el botón no es apagar la función
-> `app/api/signup/route.ts:15-18` lo dice explícitamente: la misma imagen sirve a
+> `app/api/signup/route.ts:34-36` lo dice explícitamente: la misma imagen sirve a
 > toda la flota, así que ocultar el botón dejaría el endpoint abierto y cualquiera
 > con la URL crearía organizaciones y usuarios `DUENO` en la base de esa instancia.
 > **Toda bandera de UI necesita su gemela en servidor.**
@@ -65,6 +69,10 @@ contraseña». Los dos últimos se apagan por variable:
 > Ojo al leer ese comentario: llama a DEMO «la única con el registro abierto», y
 > desde el **14/08 eso ya no es cierto** — va cerrado en toda la flota, DEMO
 > incluida. El punto que defiende sigue en pie; el ejemplo caducó.
+>
+> **2026-10-05:** el comentario ya está corregido en el código —se reescribió el
+> 03/09 y hoy deja constancia del error en `signup/route.ts:28-32`—. Lo de arriba
+> queda como historia de por qué se corrigió.
 
 ## Qué ofrece este despliegue: `GET /api/auth/metodos`
 
@@ -84,13 +92,13 @@ que responde 503 es peor que no ofrecerla. Ver [[flujo-acceso-con-google]].
 > Next hornea las `NEXT_PUBLIC_*` en el build. `GOOGLE_CLIENT_ID`, `GOOGLE_OAUTH`
 > y —desde F2.6— `AUTOREGISTRO` **no** llevan ese prefijo y se leen en tiempo de
 > petición, por eso encenderlas solo necesita `pm2 reload --update-env`
-> (`DESPLIEGUE_GOOGLE.txt:91-95`) o reiniciar el contenedor.
+> (`DESPLIEGUE_GOOGLE.txt:89-93`) o reiniciar el contenedor.
 
 ## Con sesión abierta, `/login` no se queda a la vista
 
 Desde `e7c3517` (INC-08), la página **valida la sesión contra el servidor** y
 redirige, en vez de decidirlo desde el cliente
-(`app/(app)/login/page.tsx:87-95`).
+(`app/(app)/login/page.tsx:115-128`).
 
 > [!note] Por qué se ve el formulario un instante
 > Es deliberado: se valida contra `/api/auth/me` en vez de fiarse de la mera
@@ -98,13 +106,33 @@ redirige, en vez de decidirlo desde el cliente
 > es ese parpadeo; la ventaja es que una cookie caducada no te deja en una página
 > que no lleva a ningún sitio.
 
+## La base caída da 503 con mensaje, no una pantalla rota
+
+> [!note] 2026-10-05 · `35f7ad1d` (30/09)
+> Con Postgres apagado, `POST /api/auth/login` devolvía un **500 con el cuerpo
+> vacío** y la pantalla enseñaba «Unexpected end of JSON input». Hoy las rutas de
+> `app/api/auth/**` pasan por `respuestaError()`, que reconoce una base que no
+> responde con `esBaseNoDisponible()` (`lib/server/errores.ts:160`) y contesta
+> **503 con un mensaje en el idioma del cliente** (`errores.ts:215-222`); el
+> detalle técnico va solo al log. En el cliente, `apiLogin()`
+> (`lib/auth-real.ts:53-76`) ya no hace `res.json()` a ciegas: un 5xx sin JSON
+> se muestra como «El servicio no está disponible…», y un fallo de red, en
+> español.
+
+## Selector de idioma en el login
+
+Bajo la tarjeta del formulario va `<SelectorIdioma />`
+(`app/(app)/login/page.tsx:395`): es la primera pantalla que ve cualquiera, así
+que es el sitio donde corregir la detección automática antes de teclear nada.
+Ver [[idiomas-es-en]].
+
 ## Recuperar contraseña
 
 `/recuperar/[token]` — el token viaja en el enlace del correo. `GET
 /api/auth/reset` lo valida antes de mostrar el formulario; `POST` lo aplica y
 **borra todas las sesiones del usuario**.
 
-Ruta pública en el middleware (`middleware.ts:94`).
+Ruta pública en el middleware (`middleware.ts:170`).
 
 ## Contraseña temporal
 
@@ -147,9 +175,11 @@ redirección y la exención de render.
 > `20260907_solo_google.sql` — «en producción todavía nadie entra con Google» —
 > y era falso para el PADRE.
 >
-> **Desbloqueo sin desplegar**: entrar con contraseña. `login/route.ts:89` abre
+> **Desbloqueo sin desplegar**: entrar con contraseña. `login/route.ts:107` abre
 > la sesión con `metodo = 'password'` y `debeGuardarCodigos()` solo mira a quien
-> entró con Google. Solo falla si la cuenta tiene `solo_google` encendido.
+> entró con Google. Solo falla si la cuenta tiene `solo_google` encendido: en ese
+> caso `login/route.ts:89-105` responde **403** con `soloGoogle: true` —después
+> de verificar la contraseña, para no regalar enumeración—.
 
 La decisión vive en un `.ts` y no dentro del componente por una razón concreta:
 `vitest.config.ts` **no monta jsdom a propósito**, así que una decisión de

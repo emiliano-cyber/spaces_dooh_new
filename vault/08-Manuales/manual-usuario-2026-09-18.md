@@ -20,6 +20,37 @@ archivos:
 
 # Manual de usuario — lo que entró en septiembre
 
+> [!warning] 2026-10-05 · lo que este manual ya no cuenta como es
+> Este manual es una **fotografía** de la aplicación hasta el **25/09** y no se
+> reescribe (conserva su `actualizado`). Comparado hoy con el código, estas
+> partes ya no corresponden a lo que ves en pantalla:
+>
+> - **§ 8 · Capturar el recibo de luz.** Describe solo la captura **a mano**. Desde
+>   el 29/09 la pantalla «Consumo de luz» tiene, **debajo** del formulario de
+>   siempre, un segundo camino: **subir los PDF del recibo de CFE**. Antes de subir
+>   se **declara cuántos meses de calendario cubre cada recibo** de la tanda (el
+>   selector arranca en **bimestral**, tres meses de calendario, desde el 30/09), y
+>   la aplicación propone los campos que lee del PDF para que los confirmes; si lo
+>   declarado y el PDF no coinciden, **manda el PDF** y el recibo sale marcado
+>   (`components/demo/energia/SubirRecibos.tsx`). El formulario a mano del 8.1
+>   sigue existiendo. Ver [[02-Backend/recibos-cfe-pdf]].
+> - **§ 6 · Decidir cuándo esta instalación toma la versión nueva.** Desde el 01/10
+>   la tarjeta de Actualizaciones muestra **qué trae** la versión disponible (sus
+>   notas, `ActualizacionesPanel.tsx:205`), y existe una página **«Novedades»**
+>   y un aviso que cada persona ve una vez después de cada versión. Nada de eso
+>   aparece en el 6.1-6.3 ni en sus capturas. Ver [[02-Backend/notas-de-version]].
+> - **§ 9.3 · «Las cinco formas de mirar».** El reporte tiene hoy **ocho**
+>   dimensiones: a las cinco se sumaron razón social (`entidad`), tarifa publicada
+>   contra neta (`tarifa`) y vendedor (`apps/web/lib/data/reportes.ts:68`).
+> - **Nada posterior al 28/09** está aquí: los roles de venta (Director comercial,
+>   Gerente de ventas, Vendedor, Administrador), las pantallas de precio (franjas y
+>   temporadas, descuentos por volumen, códigos promocionales, paquetes), la
+>   calculadora de spots, Comercial OPEX, la aplicación en inglés y la moneda única
+>   en pesos.
+>
+> Lo que siga sin aparecer en esta lista no se comprobó pantalla por pantalla el
+> 05/10: se comprobó contra el código.
+
 ## Qué cubre este manual y qué no
 
 Este manual cubre **seis cosas nuevas** que aparecieron en SPACE OS a lo largo de

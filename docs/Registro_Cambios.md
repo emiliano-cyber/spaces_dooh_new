@@ -5,7 +5,192 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-10-06
+
+- **La calculadora de spots ahora cuenta igual que tu calculadora HTML («Valor
+  Real del Spot Unitario»).** *(Decisión tuya del 06/10, ADR 0043.)* Cambian
+  cuatro cosas, y solo en las líneas que tienen la calculadora encendida:
+  - **El precio por spot sale de la tarifa mensual de la pantalla**: tarifa
+    mensual ÷ los spots que un anunciante recibe en un mes. Antes era la tarifa
+    «por spot» de la pantalla. Con tu ejemplo ($100,000, 6 anunciantes, 20
+    segundos, 18 horas) da **$6.17**, igual que el HTML. Si la pantalla no
+    tiene tarifa mensual, la línea lo avisa y solo un gerente puede ponerle
+    precio.
+  - **El loop son los anunciantes de hoy más los espacios que compras.** Antes
+    contaba siempre todos los espacios de la pantalla. Con la pantalla medio
+    vacía salen más spots y cada uno cuesta menos; con la pantalla llena, al
+    revés. Lo que se paga por un espacio durante un mes queda en la tarifa
+    mensual.
+  - **Las fracciones de spot ya no se tiran cada día**: se suman y se redondea
+    una sola vez al final. Con 7 anunciantes de 20 segundos, 30 días dan 13,885
+    spots (antes 13,860).
+  - **El Roadblock se valora por hora**, como en el HTML: lo que vale una hora
+    de la pantalla llena, más la prima, repartido entre los spots de esa hora.
+  - Debajo de la línea ves ahora el desglose: el tamaño del loop, las vueltas
+    por hora, los spots al día y la cuenta del precio.
+  - **Diferencia que queda:** el precio se cobra al centavo, así que el total
+    puede variar unos pesos frente a «espacios × tarifa mensual».
+  - **Las propuestas ya guardadas no cambian.** Si editas una, se recalcula con
+    la regla nueva. Las líneas por spot sin calculadora (cantidad a mano) siguen
+    con la tarifa por spot de siempre.
+
+## 2026-10-05
+
+- **Si el descuento por volumen ya pasa el tope, ahora se puede dejar el
+  descuento comercial en 0 % y aprobar.** Caso: Administración baja el descuento
+  máximo al 5 % y la escala de volumen de tu organización da 10 %. Hasta hoy el
+  sistema no dejaba aprobar la propuesta («ajusta el descuento») pero tampoco
+  dejaba guardarle **ningún** descuento, ni siquiera 0 %: no había salida sin
+  que Administración subiera el tope. Ahora **0 % de descuento comercial se
+  guarda y la propuesta se aprueba** (el volumen sale de la escala de la
+  organización, no lo decide quien vende). Cualquier descuento comercial por
+  encima de 0 se sigue rechazando, y el aviso ya dice qué hacer: «deja el
+  descuento comercial en 0 % o pide a Administración que suba el tope». Cuando
+  sí cabe algo, el aviso dice además **hasta cuánto** descuento comercial puedes
+  poner.
+- **Bajar el tope de descuento ya no deja cerrar ventas por encima de él.** Si
+  Administración baja el descuento máximo después de que una propuesta ya tenía
+  su descuento guardado, la propuesta **conserva** su descuento y se sigue
+  pudiendo editar, pero **ya no se puede aprobar así**: el sistema te dice el
+  descuento que lleva, el tope de hoy y te pide **ajustar el descuento** (o que
+  Administración suba el tope). Lo mismo si el **cliente** intenta aceptarla
+  desde la liga: no se acepta, y se le pide que hable con su ejecutivo (al
+  cliente no se le dice el tope). Antes la venta se cerraba con un descuento que
+  ya nadie autorizaba. Las propuestas sin descuento comercial no cambian.
+- **Un código promocional ya no se gasta en una propuesta con paquete de precio
+  final.** Si la propuesta tiene un paquete que **no admite códigos**, el código
+  no descuenta nada; pero hasta hoy el sistema lo aceptaba igual y **le restaba
+  un uso a la promoción**. Con un código de un solo uso, la promoción quedaba
+  agotada sin haber descontado un peso. Ahora el sistema **no deja aplicar el
+  código** en ese caso, te dice qué paquete lo impide y te pide quitar el
+  paquete o cambiarlo por uno que sí admita códigos. **No se gasta ningún uso.**
+  Al revés ya funcionaba bien y no cambia: poner un paquete así en una propuesta
+  que ya tiene código te pide quitar antes el código.
+- **Quitar un paquete ya no puede dejar una propuesta por encima del tope de
+  descuento.** Mientras una propuesta tiene un paquete, el descuento por volumen
+  no se aplica y por eso tampoco cuenta contra el tope. Pero al **quitar** el
+  paquete el volumen vuelve, y el descuento total podía quedar por encima del
+  máximo que autoriza tu organización sin que nadie lo revisara; la propuesta se
+  podía aprobar así. Por ejemplo: tope 20 %, volumen 10 % y descuento comercial
+  15 % daban un **23,5 %** en total. Ahora el sistema **no deja quitar el
+  paquete** en ese caso, te dice el tope y la cuenta, y te pide **bajar primero
+  el descuento comercial**. Si el descuento comercial es 0 %, el paquete se
+  puede quitar siempre.
+
+## 2026-10-02
+
+- **En Nueva propuesta, los meses ya son meses de calendario.** *(Lo
+  encontraste tú: «elijo mes 2 y se los resta».)* Antes un mes contaba como 30
+  días, así que «desde el 5 de octubre, 2 meses» terminaba el **3 de diciembre**,
+  y el día de fin se iba corriendo hacia atrás con cada mes. Ahora termina el **4
+  de diciembre**, el día anterior al 5. Si el mes de llegada no tiene ese día
+  (por ejemplo, del 31 de enero a febrero), termina el último día de ese mes.
+- **Y se cobra por meses de calendario.** Antes, del 1 al 31 de octubre (31
+  días) se cobraban **2 meses**; ahora es 1. Solo cambia en propuestas nuevas:
+  las que ya estaban guardadas conservan su precio. Semanas y catorcenas no
+  cambian.
+
 ## 2026-10-01
+
+- **Calculadora de spots en las propuestas: tú eliges los espacios y las horas,
+  el sistema cuenta los spots.** *(Decisiones tuyas del 01/10, ADR 0042.)*
+  - Al cotizar una **pantalla digital por spot**, aparece la calculadora: cuántos
+    **espacios del loop** compra el cliente (de los que tiene la pantalla, y te
+    dice cuántos están libres) y cuántas **horas al día**. Las horas salen solas
+    de la franja que elijas o, sin franja, del horario de la pantalla; se pueden
+    bajar, no subir.
+  - Con eso calcula las **rotaciones por hora**, los **spots al día** y el
+    **total de spots** de la campaña, y pone esa cantidad en la línea. El
+    **precio por spot sigue siendo la tarifa de la pantalla** (con su franja, su
+    temporada y el descuento por volumen, como siempre).
+  - **Se cuenta hacia abajo**: con 7 espacios de 20 segundos salen 25,7 vueltas
+    por hora, y no se cobra la fracción. Por eso puede dar unos pesos menos que
+    la calculadora que usabas antes.
+  - El sistema **vuelve a hacer la cuenta** al guardar. Si alguien mandara otra
+    cantidad de spots por fuera de la pantalla, la rechaza con la cuenta escrita
+    y **no guarda nada**.
+  - **No hay tope de espacios por cliente**: el tope es lo que esté libre. Si
+    pides más espacios de los libres, el sistema no te deja guardar y te dice
+    cuántos quedan.
+  - **Roadblock**: marcando la casilla, la línea compra **todos** los espacios
+    de la pantalla, y para eso tienen que estar todos libres. Solo el **gerente
+    de ventas y superiores** pueden ponerle una **prima** encima de la tarifa;
+    el vendedor puede marcarlo, pero sin prima. La prima queda como un ajuste
+    de precio a nombre de quien la puso, y en Actividad se lee, por ejemplo,
+    «Cambió la tarifa de «Pantalla Reforma» (spot) de $1,200 a $1,500 por
+    Roadblock con prima del 25 %».
+  - Al convertirse en campaña, la pantalla queda **apartada con los espacios que
+    se compraron** (todos, en un Roadblock), y lo que se programa al día es lo
+    mismo que se cotizó.
+  - Si la calculadora no entiende el horario escrito en la pantalla, toma 18
+    horas y **lo avisa**. Debajo enseña también, solo como referencia, a cuánto
+    sale el spot comparado con la tarifa mensual; eso **no se cobra**.
+  - **Por ahora arranca APAGADA** *(lo decidiste el 01/10)*: cada línea se cotiza
+    como siempre, con la cantidad a mano, y la calculadora se enciende con su
+    casilla. Es porque algunas pantallas tienen una tarifa «por spot» que en
+    realidad es de un día o de un paquete (por ejemplo, $3,200), y con la
+    calculadora encendida esa tarifa se multiplicaba por miles de spots. Cuando
+    las tarifas por spot sean el precio de **una** reproducción, se puede dejar
+    encendida desde el inicio. Las pantallas fijas y las demás unidades no cambian.
+  - **El cliente solo ve el precio final**: en la liga de la propuesta no
+    aparecen los espacios, las horas, el Roadblock ni la prima.
+
+  **Lleva el cambio de base que aprobaste:** cuatro columnas nuevas en las
+  líneas de propuesta (espacios comprados, horas al día, Roadblock y su prima).
+  Está en su rama, **sin fusionar a `main`**.
+
+- **La tarifa de cada pantalla en una propuesta la pone el sistema, y solo un
+  gerente o superior puede cambiarla.** *(Pedido tuyo del 01/10: «aparte de ser
+  calculado, el gerente será el único que podrá poner otro precio diferente al
+  de la tarifa, e igual usuarios superiores».)*
+  - Al armar una propuesta, cada pantalla sale con su **tarifa calculada**: la
+    de su tarifario, la de su franja horaria y la de la temporada de la fecha de
+    inicio, igual que hasta hoy.
+  - El **vendedor** ve esa tarifa pero **no la puede cambiar**. Si alguien
+    intentara mandar otro precio por fuera de la pantalla, el sistema lo
+    rechaza con «Solo un gerente o superior puede cambiar la tarifa de una
+    pantalla» y **no guarda nada**. Antes eso sí se podía, y era el hueco más
+    serio de la auditoría de precios.
+  - Si una pantalla **no tiene tarifa** capturada, el vendedor no la puede
+    cotizar: el aviso le dice que pida a un gerente que le ponga precio.
+  - El **gerente de ventas, el director comercial, el administrador y el
+    dueño** sí pueden escribir otra tarifa. Queda guardada la tarifa que había
+    calculado el sistema y **quién la cambió**, y en **Actividad** aparece una
+    línea como «Cambió la tarifa de «Pantalla Reforma» (mensual) de $45,000 a
+    $30,000». En el detalle de la propuesta se ve «Tarifa calculada $45,000 ·
+    ajustada por Gael».
+  - **El cliente solo ve el precio final.** En la liga de la propuesta no
+    aparece ni la tarifa calculada ni quién la ajustó.
+  - Nada cambia en los descuentos por volumen, el descuento comercial, los
+    cupones ni los paquetes: se siguen aplicando encima, igual que antes.
+  - Las propuestas que ya existían se quedan como están; en ellas no consta la
+    tarifa calculada (no se puede saber cuál era aquel día).
+
+  **Lleva el cambio de base que aprobaste:** dos columnas nuevas en las líneas
+  de propuesta (la tarifa calculada y quién la ajustó). Está en su rama, **sin
+  fusionar a `main`**.
+
+- **Cada versión nueva trae sus notas.** *(Pedido tuyo del 01/10.)* A partir de
+  la versión v0.9.2, cada vez que se instala una versión nueva:
+  - **Todas las personas** que entran ven, **una sola vez**, una ventana «Qué
+    hay de nuevo» con lo que cambió, agrupado en **Nuevo**, **Ajustado** y
+    **Corregido**. Al cerrarla no vuelve a salir para esa versión. Desde ahí
+    pueden abrir **Novedades**, que lista todas las versiones y lo que trajo
+    cada una.
+  - **El Dueño y el Administrador** ven además, en Administración →
+    Actualizaciones, **«Qué trae» la versión disponible** al lado del botón de
+    instalar, para decidir antes de instalarla. Si una versión no trae notas, lo
+    dice: «Esta versión no trae notas».
+  - Ya no se puede publicar una versión sin sus notas: el proceso de publicación
+    se detiene y avisa.
+
+  Una cosa a saber: con **esta** versión, la primera vez, el panel de
+  Actualizaciones todavía no puede enseñar sus notas antes de instalarla (la
+  instancia aún no tiene dónde guardarlas). La ventana de después de instalar sí
+  sale. Desde la siguiente versión, se ven antes y después.
+
+  **Necesita tu visto bueno antes de llegar a `main`:** añade una columna a la
+  base (`notas_disponibles`, en la tabla de actualizaciones de la instancia).
 
 - **Space Eyes ya está en el menú, con lo que ven las cámaras.** Un grupo nuevo,
   **Space Eyes**, entre Inventario y Comercial (lo ven Dueño, Administrador y el

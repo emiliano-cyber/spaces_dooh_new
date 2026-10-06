@@ -116,6 +116,21 @@ COPY --chown=node:node scripts/migrar.mjs ./scripts/migrar.mjs
 # `update.sh`, pero para `actualizaciones.mjs` en vez de `migrar.mjs`.
 COPY --chown=node:node scripts/actualizaciones.mjs ./scripts/actualizaciones.mjs
 
+# Las notas de version (pedido del dueno, 2026-10-01), COMO ARCHIVO, en la
+# misma ruta que en el repo. Quien lo necesita suelto es la sonda de estado de
+# `update.sh`, que corre en un contenedor efimero de ESTA imagen y lee
+# `RUTA_NOVEDADES` (`scripts/actualizaciones.mjs`) para ensenarle al dueno que
+# trae la version antes de aprobarla.
+#
+# MEDIDO el 2026-10-01: HOY el standalone ya lo trae -- `lib/server/novedades.ts`
+# lo importa y el trazado de Next lo apunta en
+# `.next/server/app/api/novedades/route.js.nft.json`--. Esta linea va IGUAL, a
+# proposito: eso es un efecto lateral de COMO lo importa la app, no un
+# contrato. El dia que la app lo lea de otra forma, el archivo desaparece de la
+# imagen sin que falle nada: la sonda anota null para siempre, que es peor que
+# un error. `scripts/actualizaciones.test.ts` exige que las dos rutas casen.
+COPY --chown=node:node apps/web/novedades.json ./apps/web/novedades.json
+
 # next/image escribe las imagenes remotas optimizadas bajo .next/cache. Sin este
 # directorio ya creado y con dueño, el usuario `node` no puede servirlas. Es el
 # unico sitio donde el proceso escribe: la instancia no necesita volumen.

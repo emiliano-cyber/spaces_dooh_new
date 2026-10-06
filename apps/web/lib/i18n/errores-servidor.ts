@@ -276,9 +276,36 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   // 1 sitio · lib/server/google-oauth.ts:206
   'Google no devolvió una identidad utilizable.':
     'Google did not return a usable identity.',
-  // 1 sitio · lib/server/propuestas-controller.ts:210
+  // 1 sitio · lib/server/propuestas-controller.ts
   'Ítem no encontrado':
     'Item not found',
+  // 1 sitio · lib/server/propuestas-controller.ts (PRECIO-01, 2026-10-01)
+  'Solo un gerente o superior puede cambiar la tarifa de una pantalla.':
+    "Only a manager or above can change a screen's rate.",
+  // 1 sitio · lib/server/propuestas-controller.ts (PRECIO-01, 2026-10-01)
+  'Esta pantalla no tiene una tarifa calculada para esa unidad. Pide a un gerente o superior que le ponga precio.':
+    'This screen has no calculated rate for that unit. Ask a manager or above to set its price.',
+  // ADR 0042 · la calculadora de spots (2026-10-01). Las dos primeras son
+  // literales del controller; las demás salen de `lib/calculadora-spots.ts`
+  // (`resolverCalculadora`) y llegan al cliente por `AppError(r.motivo)`, así
+  // que la GUARDIA no las ve: se declaran aquí a mano para que el inglés no
+  // pinte español. Las que llevan números van en `PATRONES_ERROR`.
+  'La calculadora de spots necesita la tarifa por spot de la línea.':
+    "The spot calculator needs the line's per-spot rate.",
+  'Solo un gerente o superior puede poner prima a un Roadblock.':
+    'Only a manager or above can put a premium on a Roadblock.',
+  'La calculadora de spots solo aplica a pantallas digitales vendidas por spot.':
+    'The spot calculator only applies to digital screens sold per spot.',
+  'La pantalla no tiene capturado cuántos espacios tiene su loop; captúralo en su ficha antes de usar la calculadora.':
+    'The screen does not record how many slots its loop has; enter it on its record before using the calculator.',
+  'La prima de Roadblock va de 0 a 100 %.':
+    'The Roadblock premium goes from 0 to 100 %.',
+  'La prima de Roadblock solo aplica a una línea marcada como Roadblock.':
+    'The Roadblock premium only applies to a line marked as Roadblock.',
+  'Con esos espacios y esas horas no sale ni un spot al día.':
+    'With those slots and hours not even one spot a day comes out.',
+  'La línea no tiene días: revisa las fechas.':
+    'The line has no days: check the dates.',
   // 1 sitio · lib/server/impresion-controller.ts:14
   'La campaña es requerida':
     'The campaign is required',
@@ -527,6 +554,37 @@ export const PATRONES_ERROR: ReadonlyArray<{ re: RegExp; en: string }> = [
   { re: /^Debe ser mayor o igual a (\d+(?:\.\d+)?)$/, en: 'Must be greater than or equal to $1' },
   { re: /^Debe ser mayor que (\d+(?:\.\d+)?)$/, en: 'Must be greater than $1' },
   { re: /^No puede ser mayor que (\d+(?:\.\d+)?)$/, en: 'Must not be greater than $1' },
+  // ADR 0042 · los de `resolverCalculadora` (`lib/calculadora-spots.ts`): el
+  // número sale de la pantalla y de la línea, no del esquema, pero el problema
+  // es el mismo — no cabe en un catálogo de frases.
+  { re: /^Un Roadblock compra los (\d+) espacios del loop, no (\d+)\.$/, en: 'A Roadblock buys all $1 slots of the loop, not $2.' },
+  { re: /^Los espacios del loop van de 1 a (\d+)\.$/, en: 'Loop slots go from 1 to $1.' },
+  {
+    re: /^Las horas al día van de más de 0 a ([\d.,]+): más horas de las que transmite la pantalla serían spots que no salen\.$/,
+    en: 'Hours per day go from more than 0 to $1: more hours than the screen broadcasts would be spots that never air.',
+  },
+  {
+    re: /^La cantidad de spots no cuadra con la calculadora: con (\d+) espacios, ([\d.,]+) h al día y (\d+) días son (\d+) spots, no (.+)\.$/,
+    en: 'The spot quantity does not match the calculator: with $1 slots, $2 h a day and $3 days it is $4 spots, not $5.',
+  },
+  {
+    re: /^Un Roadblock necesita los (\d+) espacios del loop libres, y la pantalla tiene (\d+)\.$/,
+    en: 'A Roadblock needs all $1 loop slots free, and the screen has $2.',
+  },
+  { re: /^Pides (\d+) espacios del loop y la pantalla solo tiene (\d+) libres\.$/, en: 'You ask for $1 loop slots and the screen only has $2 free.' },
+  // 2026-10-05 · regla 2 del ADR 0039, las dos direcciones: el canje sobre un
+  // paquete de precio final (`canjearCodigo`) y el paquete sobre un cupón ya
+  // canjeado (`aplicarPaquete`). Llevan el nombre del paquete y del cupón, y
+  // viajan por variable (`new AppError(e.message, …)`), así que la guardia de
+  // literales no las ve: van por patrón, como las del ADR 0042.
+  {
+    re: /^El paquete "(.+)" de esta propuesta es precio final y no admite codigos promocionales\. Quita el paquete, o cambialo por uno que si los admita, antes de aplicar el codigo\.$/,
+    en: 'The package "$1" on this proposal is a final price and does not accept promo codes. Remove the package, or swap it for one that does, before applying the code.',
+  },
+  {
+    re: /^El paquete "(.+)" es precio final y no admite codigos promocionales\. Quita el codigo "(.+)" antes de aplicarlo, o usa un paquete que si los admita\.$/,
+    en: 'The package "$1" is a final price and does not accept promo codes. Remove the code "$2" before applying it, or use a package that does.',
+  },
 ]
 
 // Una pieza suelta: el motivo, sin la etiqueta de campo delante.

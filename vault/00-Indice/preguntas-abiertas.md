@@ -1,7 +1,7 @@
 ---
 tipo: preguntas
 estado: verificado
-actualizado: 2026-09-30
+actualizado: 2026-10-05
 tags: [preguntas, pendientes, riesgo]
 archivos:
   - apps/web/lib/server/
@@ -48,6 +48,16 @@ archivos:
 > vez: **o el selector de USD sobra, o `formatearDinero` tendrá que recibir la
 > moneda del dato.** Decidirlo es barato ahora y caro después de traducir
 > cuarenta pantallas.
+>
+> > [!success] RESUELTA el 2026-09-30 por la noche — anotado el 2026-10-05
+> > Jochelo: «deja todo en pesos». El commit `23a79bc2`
+> > (`fix(dinero): sale el selector de moneda`) **quitó el selector MXN/USD** de
+> > `ContratoWizard.tsx`: el campo sale ahora de la constante `MONEDA`, la misma
+> > que usa el formato (el comentario que lo explica está en
+> > `ContratoWizard.tsx:504-508`). **Las columnas `moneda` se quedan**, a
+> > propósito: se cerró la puerta de entrada, no el almacén. Medido en ese
+> > commit: ni un USD ni un PEN en la base del 5433. Las citas de arriba
+> > (`:498-501`) describen el código ANTES de ese commit y se dejan como historia.
 
 
 > [!danger] 2026-08-24 · P1 dejó de ser una pregunta: la cerraron los hechos
@@ -80,7 +90,9 @@ archivos:
 > que una persona ponga las variables y empuje la primera etiqueta
 > (`docs/evidencias/registry-TH-P4b.txt`).
 >
-> ✅ **2026-08-31, más tarde · la segunda también tiene respuesta: `pruebas.space-os.io`.**
+> ✅ **2026-08-31, más tarde · la segunda también tiene respuesta: `prueba.space-os.io`.**
+> *(En singular. Este encabezado decía `pruebas.` hasta el 2026-10-05: el
+> `server_name` es `prueba.space-os.io`, `infra/nginx/space-os.io.conf:288`.)*
 > La pregunta era **qué dirección representa a DEMO** para el smoke de
 > `promover.yml`, y no tenía candidata válida: `demo.space-os.io` apunta a la
 > máquina que el ADR 0023 sacó del modelo, y la DEMO real (el `3001` dentro del
@@ -88,7 +100,8 @@ archivos:
 >
 > **Decisión de Jochelo (31/08): un nombre NUEVO**, no `demo.space-os.io`. El
 > vhost ya está **en el repositorio y versionado**
-> (`infra/nginx/space-os.io.conf:276`), y `/etc/nginx/sites-enabled/spaces` es un
+> (`infra/nginx/space-os.io.conf:286-288` al 05/10: `listen 443` y su
+> `server_name`; el nombre también está en el bloque del puerto 80, `:116`), y `/etc/nginx/sites-enabled/spaces` es un
 > symlink al repo, así que del lado del código no queda nada.
 >
 > **Lo que falta es de servidor, y lo hace una persona**: DNS → certificado →
@@ -312,6 +325,29 @@ No hay tabla de control ni herramienta. El único registro son las notas
 reconciliar? Ya hubo una divergencia de 27 columnas
 (`20260805_objetos_solo_en_prod.sql`).
 
+### P22 · Google Maps en Comercial OPEX y en el alta de pantallas — PENDIENTE (01/10)
+
+**Nada construido todavía, a propósito.** El dueño preguntó el 01/10 si se puede
+usar la API de Google Maps para Comercial OPEX y los mapas, y pidió dejarlo
+registrado como pendiente. La propuesta está escrita en
+`docs/adr/0041-google-maps-solo-donde-aporta-y-con-clave-en-tiempo-de-ejecucion.md`
+(**estado: Propuesta**): Google solo en OPEX (lugares, Street View) y en el alta
+de pantallas (buscar la dirección); el basemap de las otras cinco pantallas,
+incluida la propuesta pública, sigue en OpenFreeMap (ADR 0030); la clave por
+instancia y en tiempo de ejecución, nunca `NEXT_PUBLIC_*`.
+
+**Lo que hay que decidir antes de escribir una línea:**
+1. ¿El alcance es ese, o Google en más pantallas?
+2. **¿Quién paga?** Una cuenta de Google Cloud de AS OOH para toda la flota, o
+   una por owner.
+3. **Verificar** los precios vigentes de Google Maps Platform y ponerle tope de
+   gasto a la cuenta.
+4. **Verificar** en los términos de Google si se pueden guardar para siempre las
+   coordenadas que da su buscador. Si no, el pin final lo fija la persona sobre
+   el mapa, y eso cambia el diseño del alta de pantallas.
+
+Al decidir: marcar el ADR 0041 como Aceptado (o Rechazado) y tachar esta entrada.
+
 ## 🟡 Deuda identificada, decisión pendiente
 
 ### P6 · ADR 0011 dice «Propuesta» pero está en producción
@@ -360,6 +396,14 @@ error— esta cookie perderá `Secure` **y las otras dos no**, porque
 `cookieSecure()` cae a `NODE_ENV === 'production'`. Una divergencia así no falla:
 solo deja de proteger. Arreglo de una línea cuando se toque esa ruta.
 
+> [!success] **RESUELTA el 2026-10-05** (rama `fix/cookie-tenant-activo-secure`)
+> `app/api/tenant-activo/route.ts` ya llama a `cookieSecure()`, igual que la
+> sesión y el CSRF: las tres cookies deciden `Secure` en un solo sitio. Era la
+> única cookie del árbol con el patrón (`grep COOKIE_SECURE` en `apps/web`).
+> La defiende `lib/server/tenant-activo-cookie.test.ts`: en producción SIN
+> `COOKIE_SECURE` la cookie sale con `Secure` —ese caso estaba en rojo antes
+> del arreglo— y con `COOKIE_SECURE=0` o en desarrollo sale sin él.
+
 ### P10 · No se purgan sesiones ni tokens vencidos
 
 `sesiones` y `password_resets` filtran por fecha al leer, pero las filas se
@@ -367,9 +411,16 @@ acumulan indefinidamente. **¿Hace falta un barrido, o el volumen no lo justific
 
 ### P11 · El rate limit no sobrevive al escalado
 
-`lib/server/rate-limit.ts` es un `Map` en memoria, y funciona porque pm2 corre
-**una** instancia en modo fork. **¿Hay plan de escalar? Si sí, hay que migrar a
-un store compartido antes.**
+`lib/server/rate-limit.ts` es un `Map` en memoria, y funciona porque corre
+**un solo proceso** de Next por instancia. **¿Hay plan de escalar? Si sí, hay que
+migrar a un store compartido antes.**
+
+> [!note] 2026-10-05 · ya no es pm2
+> Esta pregunta decía «pm2 corre una instancia en modo fork». Hoy el PADRE lo
+> arranca **systemd** con un único `next start` (`infra/systemd/spaces-web.service:83`),
+> y cada instancia hija es **un contenedor** (`infra/scripts/update.sh`). La
+> premisa de la pregunta sigue en pie —un proceso, un `Map`—; solo cambió quién
+> lo arranca.
 
 ### P12 · Códigos de pantalla únicos entre organizaciones
 
@@ -507,6 +558,23 @@ cola entera. Se documenta en la cabecera de la migración con las tres razones.
    la pregunta de aquí**.
 3. Si al leer código encuentras algo indeterminable, **añádelo** en vez de
    suponerlo.
+
+> [!note] 2026-10-05 · citas que derivaron en recuadros históricos
+> Los recuadros de arriba se conservan como historia, pero sus números de línea
+> ya no apuntan donde decían. Medido hoy abriendo cada archivo:
+>
+> | Cita en el recuadro | Hoy |
+> |---|---|
+> | `promover.yml:127-129` (exige `https://`) | `.github/workflows/promover.yml:128-130` |
+> | `api/version/route.ts:102` (`SPACE_OS_VERSION ?? 'desconocida'`) | `apps/web/app/api/version/route.ts:90` |
+> | `Plan_Instancias_Soberanas_v3.md:1345` (F4.4) | la ficha de F4.4 empieza en `docs/Plan_Instancias_Soberanas_v3.md:1385` |
+> | `bootstrap-auth.mjs:54-82` (identidad por entorno) | `apps/web/scripts/bootstrap-auth.mjs:63-90` aprox. (las variables desde `:63`, la validación desde `:69`) |
+> | `ContratoWizard.tsx:498-501` (selector MXN/USD) | ya no existe: lo quitó `23a79bc2` (ver el recuadro de la moneda) |
+> | `space-os.io.conf:276` (vhost de DEMO) | `infra/nginx/space-os.io.conf:288` |
+>
+> Y comprobadas sin cambio: `db/schema.sql:598-611` (el esquema nace sin
+> organización), `:617-621` (las 23 tablas), `:75-80` (`rol_permisos`), `:124-125`
+> (claves únicas globales) y `:110,390,545` (`'PEN'`).
 
 ## Relacionadas
 [[MOC-Proyecto]] · [[zonas-de-riesgo]] · [[decisiones]] ·

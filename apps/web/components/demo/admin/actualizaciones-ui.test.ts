@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { textoDeEstado, textoConfirmarInstalar } from './actualizaciones-ui'
+import { textoDeEstado, textoConfirmarInstalar, tituloNotasDisponibles } from './actualizaciones-ui'
 
 const AL_DIA = {
   modo: 'aprobacion' as const,
@@ -10,6 +10,7 @@ const AL_DIA = {
   comprobadoEn: '2026-09-22T10:00:00.000Z',
   aprobadoDigest: null,
   hayNovedad: false,
+  notasDisponibles: null,
 }
 const CON_NOVEDAD = {
   ...AL_DIA, versionDisponible: 'v0.4.2', digestDisponible: 'sha256:b',
@@ -112,5 +113,15 @@ describe('textoConfirmarInstalar', () => {
   it('siempre avisa del corte de servicio, que es lo que justifica el dialogo', () => {
     const t = textoConfirmarInstalar(CON_NOVEDAD)
     expect(t).toMatch(/corta|corte/i)
+  })
+})
+
+describe('tituloNotasDisponibles', () => {
+  it('nombra la version disponible', () => {
+    expect(tituloNotasDisponibles(CON_NOVEDAD)).toBe('Qué trae v0.4.2')
+  })
+
+  it('sin nombre de version, no inventa uno', () => {
+    expect(tituloNotasDisponibles({ ...CON_NOVEDAD, versionDisponible: null })).toBe('Qué trae la versión disponible')
   })
 })

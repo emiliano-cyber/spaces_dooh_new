@@ -4,6 +4,7 @@
 import { toast } from 'sonner'
 import { conteo } from '@/lib/plural'
 import { resumenContratacion, etiquetaFrecuencia } from '@/lib/periodos'
+import { etiquetaCalculadora } from '@/lib/calculadora-spots'
 import { AvisoFranjaCMS } from '@/components/demo/rejilla/AvisoFranjaCMS'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
@@ -665,6 +666,27 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                               tarifaUnitaria: it.tarifaUnitaria,
                             })}
                           </div>
+                          {/* PRECIO-01 · la tarifa se apartó de la calculada.
+                              Solo en esta pantalla INTERNA: la liga del
+                              cliente enseña el precio final y nada más. Las
+                              dos cifras y el nombre, porque «ajustada» a secas
+                              no deja saber cuánto se movió ni quién lo movió. */}
+                          {it.precioAjustadoPor && (
+                            <div className="text-[11px] font-medium text-[#9a6700]">
+                              {it.tarifaCalculada != null
+                                ? `Tarifa calculada ${formatMonto(it.tarifaCalculada)}`
+                                : 'Sin tarifa calculada'}
+                              {' · ajustada por '}
+                              {it.precioAjustadoPorNombre ?? 'un usuario dado de baja'}
+                            </div>
+                          )}
+                          {/* ADR 0042 · con qué se calculó la cantidad: espacios
+                              del loop, horas al día y, si lo es, Roadblock y su
+                              prima. Solo aquí, en la pantalla INTERNA: la liga
+                              del cliente enseña el precio final. */}
+                          {etiquetaCalculadora(it) && (
+                            <div className="text-[11px] text-muted">{etiquetaCalculadora(it)}</div>
+                          )}
                           {etiquetaFrecuencia(it.spotsPorDia) && (
                             <div className="text-[11px] text-muted">{etiquetaFrecuencia(it.spotsPorDia)}</div>
                           )}

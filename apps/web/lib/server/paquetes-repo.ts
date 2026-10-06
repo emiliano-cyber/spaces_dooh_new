@@ -2,6 +2,9 @@ import 'server-only'
 import { q, q1, pool, fijarTenant } from './db'
 import { tenantActual } from './tenant'
 import { usuarioActual } from './auth'
+import { topeDescuentoDelTenant } from './config-repo'
+import { descuentoDentroDelTope, DescuentoSobreTope } from '@/lib/descuento'
+import { volumenDeLineas } from '@/lib/volumen'
 
 // ============================================================================
 //  lib/server/paquetes-repo.ts — El catálogo de PAQUETES CERRADOS de la
@@ -240,7 +243,15 @@ export async function aplicarPaquete(
     // ── 0 · la propuesta existe, es de aquí y NO está aprobada ─────────────
     const prop = (
       await client.query(
-        'select estatus, codigo_texto, paquete_nombre from propuestas where id=$1 and tenant_id=$2',
+        // 2026-10-05 · `for no key update`, el MISMO bloqueo con el que lee el
+        // canje de un cupón (`codigos-repo.ts`). Sin él, la regla 2 de abajo
+        // tenía una carrera: este paso leía «sin cupón» mientras un canje en
+        // vuelo leía «sin paquete», confirmaban los dos, y la propuesta
+        // quedaba con un paquete de precio final y un uso del cupón gastado
+        // que no descuenta nada. Con el bloqueo, quien llega segundo espera y
+        // lee lo que el primero dejó.
+        `select estatus, codigo_texto, paquete_nombre from propuestas
+          where id=$1 and tenant_id=$2 for no key update`,
         [propuestaId, tenant],
       )
     ).rows[0]
@@ -347,16 +358,40 @@ export async function aplicarPaquete(
  * en la BASE — anularlo en la base haría este camino irreversible.
  *
  * `false` = esa propuesta no existe aquí o no tenía paquete.
+ *
+ * ═══ TOPE-PAQ · y por eso SE NIEGA si el volumen devuelto pasa el tope ═════
+ * Con paquete el volumen no cuenta contra el tope (PAQ-01, en
+ * `actualizarPropuesta`), así que el vendedor pudo guardar un comercial que
+ * SOLO cabía porque el volumen estaba apagado. Al quitar el paquete el volumen
+ * vuelve, y hasta TOPE-03 (05/10) no lo revisaban ni `cambiarEstatusPropuesta`
+ * ni `aceptarPropuestaPublica` (hoy sí, pero tarde). Tope 20, vol 10, com 15 →
+ * 23,5 % aprobado y congelado en el snapshot por encima de lo autorizado.
+ *
+ * Se cierra AQUÍ y no en la aprobación por el criterio de TOPE-01: por encima
+ * del tope no se guarda nada. Revalidar al aprobar no cubriría la aceptación
+ * del cliente por la liga, y dejaría enviada una propuesta que no se puede
+ * firmar. Misma función que la edición —`descuentoDentroDelTope`— para que la
+ * política (qué capas cuentan) siga viviendo en un solo sitio.
  */
 export async function quitarPaquete(propuestaId: string): Promise<boolean> {
   const tenant = await tenantActual()
+  // Fuera de la transacción, igual que en `actualizarPropuesta`: es una
+  // lectura de configuración con contexto de tenant, no parte del cambio.
+  const tope = await topeDescuentoDelTenant()
   const client = await pool.connect()
   try {
     await client.query('begin')
     await fijarTenant(client)
+    // `for no key update`: el descuento comercial que se valida abajo no puede
+    // cambiar entre esta lectura y el commit. Ojo, cubre UN lado de la carrera:
+    // `actualizarPropuesta` lee sin bloqueo, así que una edición que leyó el
+    // paquete vivo antes de este commit aún podría escribir después un
+    // comercial que ya no cabe. Es una ventana de milisegundos con dos personas
+    // tocando la misma propuesta; cerrarla del todo es bloquear también allí.
     const prop = (
       await client.query(
-        'select estatus, paquete_nombre from propuestas where id=$1 and tenant_id=$2',
+        `select estatus, paquete_nombre, descuento_pct, codigo_descuento_pct
+           from propuestas where id=$1 and tenant_id=$2 for no key update`,
         [propuestaId, tenant],
       )
     ).rows[0]
@@ -373,6 +408,44 @@ export async function quitarPaquete(propuestaId: string): Promise<boolean> {
       await client.query('rollback')
       return false
     }
+
+    // ── TOPE-PAQ · el volumen vuelve: ¿cabe el comercial con él? ───────────
+    // Con 0 % comercial no se valida: no hay discreción del vendedor que
+    // acotar, la propuesta queda igual que una recién creada con esas líneas
+    // —que `crearPropuesta` admite— y negarse dejaría el paquete pegado sin
+    // salida. Si el volumen SOLO pasa el tope, es el tope por debajo de la
+    // escala propia, y eso se arregla en Administración (VOL-02).
+    //
+    // TOPE-04 (05/10) · ese «con 0 % no se valida» ya no se escribe aquí: vive
+    // en `descuentoDentroDelTope`, para que la edición, la aprobación, la liga
+    // y esta puerta compartan exactamente el mismo criterio.
+    const comercial = Number(prop.descuento_pct ?? 0)
+    const lineas = (
+      await client.query(
+        `select precio, descuento_volumen_pct from propuesta_items
+          where propuesta_id=$1 and tenant_id=$2`,
+        [propuestaId, tenant],
+      )
+    ).rows
+    const volumenPct = volumenDeLineas(
+      lineas.map((l: any) => ({
+        precio: Number(l.precio),
+        descuentoVolumenPct: Number(l.descuento_volumen_pct ?? 0),
+      })),
+    ).volumenPctEfectivo
+    try {
+      // Sin paquete el cupón vuelve a descontar siempre, así que pasa entero
+      // (y hoy `CODIGO_CUENTA_CONTRA_TOPE` lo anula igualmente).
+      descuentoDentroDelTope(comercial, tope, volumenPct, Number(prop.codigo_descuento_pct ?? 0))
+    } catch (e) {
+      if (!(e instanceof DescuentoSobreTope)) throw e
+      throw new PaqueteImposible(
+        `No se puede quitar el paquete "${prop.paquete_nombre}": sin el paquete vuelve a ` +
+          `aplicarse el descuento por volumen de las lineas. ${e.message} ` +
+          'Baja primero el descuento comercial y vuelve a quitar el paquete.',
+      )
+    }
+
     await client.query('delete from paquete_aplicaciones where propuesta_id=$1 and tenant_id=$2', [
       propuestaId,
       tenant,

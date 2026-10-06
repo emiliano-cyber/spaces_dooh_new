@@ -1,0 +1,36 @@
+[
+  {
+    "version": "v0.9.2",
+    "fecha": "2026-10-02",
+    "items": [
+      {
+        "tipo": "NUEVO",
+        "texto": "Cada versión nueva trae sus notas: después de instalarse, cada persona ve una sola vez qué cambió, y puede volver a consultarlo cuando quiera en «Novedades»."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "En Administración → Actualizaciones, el Dueño y el Administrador ven qué trae la versión disponible antes de decidir si la instalan."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "En las propuestas, el sistema calcula la tarifa de cada pantalla. Solo el Gerente de ventas, el Director comercial, el Administrador y el Dueño pueden poner un precio distinto; el Vendedor cotiza siempre a la tarifa calculada. Cuando alguien ajusta un precio, la propuesta muestra por dentro cuál era la tarifa y quién la cambió; el cliente solo ve el precio final."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Calculadora de spots en las propuestas: al cotizar una pantalla digital por spot, eliges cuántos espacios del loop compras y cuántas horas al día, y el sistema calcula los spots de toda la campaña. El precio por spot sigue siendo la tarifa de la pantalla. Por ahora viene apagada: se enciende con la casilla «Calculadora de spots» en cada pantalla."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Roadblock: una línea puede comprar todos los espacios de una pantalla, siempre que estén todos libres. Solo el Gerente de ventas y superiores pueden ponerle una prima encima de la tarifa; el Vendedor puede marcarlo sin prima."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "Los spots se cuentan hacia abajo, día por día: si con los espacios elegidos no cabe un spot completo, no se cobra. Por eso el total puede salir unos pesos por debajo de la calculadora que se usaba antes."
+      },
+      {
+        "tipo": "CORREGIDO",
+        "texto": "En Nueva propuesta, la duración en meses ya usa meses de calendario: «desde el 5 de octubre, 2 meses» termina el 4 de diciembre, y no el 3 como antes. Y se cobra igual: del 1 al 31 de un mes es 1 mes, no 2. Las propuestas ya guardadas conservan su precio."
+      }
+    ]
+  }
+]

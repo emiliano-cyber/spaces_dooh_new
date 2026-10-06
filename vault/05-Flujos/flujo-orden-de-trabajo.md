@@ -1,7 +1,7 @@
 ---
 tipo: flujo
 estado: verificado
-actualizado: 2026-09-30
+actualizado: 2026-10-05
 tags: [flujo, operaciones, ot, evidencias]
 archivos:
   - apps/web/lib/server/ot-repo.ts
@@ -11,6 +11,8 @@ archivos:
   - apps/web/app/(app)/m/ot/[id]/
   - apps/web/app/api/ot/[id]/checklist/route.ts
   - apps/web/lib/checklist-autoguardado.ts
+  - apps/web/app/api/ot/route.ts
+  - apps/web/app/api/ot/[id]/costo/route.ts
 ---
 
 # Flujo: orden de trabajo en campo
@@ -36,8 +38,8 @@ sequenceDiagram
     else origen manual
         OP->>OT: POST /api/ot
     end
-    OT->>PG: insert ordenes_trabajo (folio consecutivo, PENDIENTE)
-    OT->>PG: notificar()
+    OT->>PG: insert ordenes_trabajo (folio consecutivo, PENDIENTE, requiere_revision)
+    OT->>PG: registrarAccion() — bitácora (el route; no hay notificar() al crear)
 
     Note over OP,OT: no hay ruta para reasignar ni reprogramar una OT ya creada (ver operaciones-y-ot)
     CU->>CU: abre /m/ot/[id] (sin chrome)
@@ -56,12 +58,43 @@ sequenceDiagram
     end
     OT->>PG: insert evidencias_ot (foto, GPS, tomada_en, timestamp)
     OT->>PG: ordenes_trabajo → COMPLETADA
-    alt la OT está ligada a una campaña
+    alt la OT es MONTAJE_LONA y está ligada a una campaña
         OT->>PG: campanas.fotos_comprobatorias = true
-        OT->>PG: campanas.reporte_publicacion = true
-        Note over OT: dos de las tres llaves del candado de facturación
+        OT->>PG: → LISTA_FACTURAR si ya hay OC (y, en HÍBRIDA, reporte_publicacion)
+        Note over OT: UNA de las tres llaves del candado — nunca reporte_publicacion
     end
+    OP->>OT: PATCH /api/ot/[id]/costo {costoReal} (después, y aparte)
+    OT->>PG: ordenes_trabajo.costo_real — candado de cambios (dinero)
 ```
+
+> [!warning] 2026-10-05 · el cierre enciende UNA llave, no dos
+> Este diagrama decía que cerrar una OT ligada a una campaña ponía
+> `fotos_comprobatorias` **y** `reporte_publicacion`. **No es así, y no lo era
+> desde el hallazgo N-5.** `cerrarOT()` (`ot-repo.ts:254`) solo toca la campaña
+> si la OT es de tipo `MONTAJE_LONA` (`:306`), y entonces enciende
+> **únicamente** `fotos_comprobatorias` (`:309`). Las OT de inspección,
+> mantenimiento o desmontaje no completan evidencia de facturación.
+> `reporte_publicacion` (la evidencia DIGITAL) sale de aprobar la publicación
+> (`campanas-repo.ts:1247`) o del proof-of-play (`playlogs-repo.ts:92`). Ver
+> [[flujo-facturacion-y-cobranza]].
+>
+> Tampoco había `notificar()` al crear: el route de alta solo anota en la
+> bitácora (`app/api/ot/route.ts:24`). El aviso que existe es el de OT
+> **vencidas** (`notificarOTsVencidas()`, `ot-repo.ts:68`).
+>
+> Y el cierre deja la OT en `COMPLETADA` directamente (`ot-repo.ts:275-279`),
+> aunque `crearOT` la dé de alta con `requiere_revision = true` (`:243-245`).
+
+## El costo REAL de la OT (OT-COSTO-01, 2026-09-29)
+
+`PATCH /api/ot/[id]/costo` fija o borra `ordenes_trabajo.costo_real`
+(`fijarCostoOT()`, `ot-repo.ts:117`), que sustituye la estimación por tipo en
+el reporte de rentabilidad (commit `525b7c8b`). **Es una ruta propia y no un
+campo de `cerrar`, a propósito** (`app/api/ot/[id]/costo/route.ts:15-30`): el
+cierre lo hace un técnico en la calle y no debe pedir la contraseña del candado
+de cambios, el costo se conoce días después, y las OT ya cerradas no tendrían
+otra forma de capturarlo. La ruta va por `exigirCambioSensible('operaciones', 'costear')` (`:56`), como todo lo
+que es dinero. Detalle en [[operaciones-y-ot]].
 
 ## Estados
 

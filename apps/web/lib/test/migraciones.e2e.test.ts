@@ -246,6 +246,26 @@ describe('actualizaciones_instancia (ADR 0037)', () => {
       poolApp().query("update actualizaciones_instancia set digest_disponible = 'sha256:inventado'"),
     ).rejects.toThrow()
   })
+
+  // 2026-10-01 · `20261005_notas_de_version.sql`: las notas de la version
+  // disponible. Las escribe el ACTUALIZADOR, como el resto de lo disponible,
+  // y la app solo las lee. La migracion NO concede ningun `update` nuevo: el
+  // `select` de tabla de 20260921 ya cubre una columna nueva, y el `update`
+  // de la app es por columna, asi que una columna nueva nace sin el.
+  it('notas_disponibles: jsonb, nullable, la app la LEE y NO la puede escribir', async () => {
+    const col = await poolTest().query(
+      `select data_type, is_nullable from information_schema.columns
+        where table_name = 'actualizaciones_instancia' and column_name = 'notas_disponibles'`,
+    )
+    expect(col.rows).toEqual([{ data_type: 'jsonb', is_nullable: 'YES' }])
+
+    await expect(poolApp().query('select notas_disponibles from actualizaciones_instancia')).resolves.toBeTruthy()
+    // NEGATIVO: si la app pudiera escribirla, podria ensenarle al dueno, al
+    // lado del boton de instalar, unas notas que la imagen no trae.
+    await expect(
+      poolApp().query(`update actualizaciones_instancia set notas_disponibles = '{"version":"v9.9.9"}'::jsonb`),
+    ).rejects.toThrow(/permission denied/)
+  })
 })
 
 // ============================================================================

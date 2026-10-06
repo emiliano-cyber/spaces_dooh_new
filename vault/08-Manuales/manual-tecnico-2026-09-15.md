@@ -23,6 +23,42 @@ archivos:
 
 # Manual técnico — SPACE OS — 2026-09-15
 
+> [!warning] 2026-10-05 · esta fotografía ya no corresponde en estas secciones
+> El manual es del **15/09** y **no se reescribe**: es una fotografía fechada, y
+> conserva su `actualizado`. Medido hoy contra el código, esto ya no es cierto:
+>
+> - **§ Pantallas — `basePath`.** La cita `apps/web/next.config.mjs:126-127` hoy
+>   está en **`:145-146`** (el valor no cambió: `/spaces-dooh` y `trailingSlash: true`).
+> - **§ Pantallas — «Hay 31 páginas».** Hoy hay **42** `page.tsx` en `apps/web/app`
+>   (`find apps/web/app -name page.tsx`). Faltan, entre otras, las de reportes,
+>   razones sociales, consumo de luz, Comercial OPEX y las cuatro de precio
+>   (franjas y temporadas, descuentos por volumen, códigos promocionales, paquetes).
+> - **§ Pantallas — la tabla de rutas y roles derivada de `nav.ts`.** Entera
+>   caducada desde los **roles de venta del 29/09** (ADR 0040,
+>   `276c7237`): ya no hay `COMERCIAL` en el menú; los ítems llevan `MANDO`
+>   (`DUENO`, `ADMINISTRADOR`), `VENTA` (`DIRECTOR_COMERCIAL`, `GERENTE_VENTAS`,
+>   `VENDEDOR`) o `JEFES_VENTA` (`components/demo/shell/nav.ts:117-119`), y todos
+>   los `nav.ts:NN` de la tabla apuntan a otra línea (el menú empieza hoy en `:121`).
+>   Ver [[03-Frontend/shell-y-navegacion]] y [[02-Backend/roles-de-venta]].
+> - **§ Las capas fijas y § Multi-tenancy — `db.ts:74-89`** como «donde se fija
+>   `app.tenant_id`»: `apps/web/lib/server/db.ts:74` es **`q`**, que lo usa; quien
+>   lo fija es **`fijarTenant`, en `:59`**.
+> - **§ Re-autenticación de operaciones sensibles.** Describe la contraseña de
+>   cambios del ADR 0028; el **ADR 0036** (21/09) la cambió: acepta la propia o
+>   una compartida que asigna el Dueño, y la compartida no sirve para restablecer
+>   a otra persona. Ver [[glosario]] («Desbloqueo»).
+> - **§ Modelo de datos y § Migraciones** — 28 + 12 tablas y 80 migraciones son
+>   cifras del 15/09. Hoy, con `node scripts/recuentos.mjs`: **57 tablas,
+>   106 migraciones, 124 endpoints, 42 ADR**.
+> - **§ Despliegue / Los workflows** — no recoge `scripts/verificar-novedades.mjs`
+>   (`release.yml:174`, notas de versión obligatorias) ni el trabajo `e2e` de
+>   `ci.yml` tal como está hoy; ver [[entorno-y-despliegue]].
+> - **Nada de lo posterior al 15/09** está aquí: cadena de precio (ADR 0039),
+>   roles de venta (0040), actualizaciones por instancia (0037), tickets (0038),
+>   calculadora de spots (0042), captación, recibos de CFE en PDF, idiomas.
+>
+> Para el estado de hoy, empieza por [[MOC-Proyecto]].
+
 > [!info] Qué es este documento y de dónde sale
 > Se escribe sobre el inventario [[00-Inventario/inventario-2026-09-15]], levantado y
 > medido hoy sobre el repositorio. **Sustituye al manual tecnico del 2026-08-11**, retirado el 24/09,

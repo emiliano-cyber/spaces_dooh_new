@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-09-30
+actualizado: 2026-10-05
 tags: [backend, auth, seguridad, rojo]
 archivos:
   - apps/web/lib/server/auth.ts
@@ -45,6 +45,10 @@ archivos:
   - apps/web/lib/server/errores-base-caida.test.ts
   - apps/web/lib/auth-real.login.test.ts
   - apps/web/lib/test/login-sin-base.e2e.test.ts
+  - apps/web/lib/password.ts
+  - apps/web/lib/roles.ts
+  - apps/web/lib/csrf-client.ts
+  - apps/web/app/api/bootstrap/route.ts
 ---
 
 # Autenticación y sesión
@@ -54,19 +58,19 @@ archivos:
 
 ## Mecanismo: propio, sin librería
 
-Las únicas dependencias son `pg` y `bcryptjs` (`apps/web/package.json:37-38`).
+Las únicas dependencias son `pg` y `bcryptjs` (`apps/web/package.json:37,39`).
 No hay NextAuth, ni `jose`, ni iron-session.
 
 | Pieza | Valor | Evidencia |
 |---|---|---|
-| Cookie de sesión | `spaces_sesion`, httpOnly, sameSite lax, 30 días | `lib/server/auth.ts:15-16,204-214` |
-| Token | 256 bits aleatorios, **opaco y sin firma** | `lib/server/auth.ts:103-113` |
-| **Método de la sesión** | `'password'` \| `'google'`, **obligatorio y sin default** (ADR 0018) | `lib/server/auth.ts:96,98-103` · `20260825_sesion_metodo.sql` |
+| Cookie de sesión | `spaces_sesion`, httpOnly, sameSite lax, 30 días | `lib/server/auth.ts:15-16,256-266` |
+| Token | 256 bits aleatorios, **opaco y sin firma** | `lib/server/auth.ts:107-117` |
+| **Método de la sesión** | `'password'` \| `'google'`, **obligatorio y sin default** (ADR 0018) | `lib/server/auth.ts:100,102-107` · `20260825_sesion_metodo.sql` |
 | Validez | Fila viva en `sesiones` con `expira_en > now()` | `auth_usuario_por_sesion()` |
-| Hash de contraseña | bcrypt costo 10 | `lib/server/auth.ts:87-89` |
-| Contraseña generada (alta con Google) | `passwordAleatoria()`, cumple la política por construcción | `lib/server/auth.ts:59-62` |
-| Cookie CSRF | `spaces_csrf`, **httpOnly:false a propósito** | `lib/server/auth.ts:222-239` |
-| `Secure` | ON en producción salvo `COOKIE_SECURE=0` | `lib/server/auth.ts:197-201` |
+| Hash de contraseña | bcrypt costo 10 | `lib/server/auth.ts:91-93` |
+| Contraseña generada (alta con Google) | `passwordAleatoria()`, cumple la política por construcción | `lib/server/auth.ts:63-66` |
+| Cookie CSRF | `spaces_csrf`, **httpOnly:false a propósito** | `lib/server/auth.ts:268-291` |
+| `Secure` | ON en producción salvo `COOKIE_SECURE=0` | `lib/server/auth.ts:245-253` |
 
 > [!warning] Las seis citas de arriba habían derivado hasta 21 líneas — recalculadas el 27/08
 > `auth.ts` pasó de 188 a **239** líneas entre el 10/08 y el 25/08 (`passwordAleatoria()`
@@ -75,6 +79,11 @@ No hay NextAuth, ni `jose`, ni iron-session.
 > `crearSesion` y hoy `:92` es `return bcrypt.compare(...)` — o sea, quien buscara
 > «cómo se genera el token» acababa leyendo la verificación de contraseña. Es
 > exactamente el modo de fallo que describe [[convenciones]] §4.
+>
+> **2026-10-05 · y otra vez.** `auth.ts` tiene hoy **291** líneas (los códigos
+> de recuperación del ADR 0028 y `passwordDeAlta()`), y las ocho citas de la
+> tabla habían vuelto a derivar entre 4 y 52 líneas. Recalculadas abriendo el
+> archivo. El ejemplo de arriba es historia: hoy `:92` es `bcrypt.hash(...)`.
 
 > [!danger] El ADR 0018 abre una excepción a «para cambiar la contraseña hay que teclear la anterior»
 > Desde el 25/08, quien entró con Google y **nunca** ha tenido contraseña puede
@@ -86,7 +95,7 @@ No hay NextAuth, ni `jose`, ni iron-session.
 > Tres decisiones que sostienen la excepción y **no se tocan a la ligera**:
 > 1. `crearSesion(usuarioId, metodo)` **no tiene valor por omisión**, a propósito:
 >    un default silencioso le regalaría la excepción a una tercera vía de entrada
->    que alguien añada sin pensarlo (`lib/server/auth.ts:98-103`).
+>    que alguien añada sin pensarlo (`lib/server/auth.ts:102-107`).
 > 2. Las sesiones que ya existían se marcaron **`'password'`**, no `'google'`: de
 >    ellas no se puede afirmar el origen, y la opción segura es la que **cierra**
 >    la excepción.
@@ -220,7 +229,7 @@ dueño legítimo tiene que poder reconocer el «yo no hice eso».
 Encontrado el 07/09 al recorrer la cadena completa:
 
 - El servidor corta **primero** por la contraseña temporal (`auth.ts:204`) y
-  **después** por los códigos (`auth.ts:230`).
+  **después** por los códigos (`auth.ts:230`) — comprobadas de nuevo el 05/10.
 - El `AuthGate` lleva al usuario **primero** a los códigos.
 
 **No es un fallo:** las dos pantallas están exentas del guard a propósito, así que
@@ -236,7 +245,7 @@ responde **400**. El Dueño nace así:
 
 | Columna | Valor | Por qué |
 |---|---|---|
-| `password_hash` | aleatorio, `passwordAleatoria()` | **NO nulo, y es deliberado.** Un usuario sin hash queda encerrado: no puede desbloquear dinero ni tocar su perfil (`auth.ts:48-62`) |
+| `password_hash` | aleatorio, `passwordAleatoria()` | **NO nulo, y es deliberado.** Un usuario sin hash queda encerrado: no puede desbloquear dinero ni tocar su perfil (`auth.ts:48-66`) |
 | `solo_google` | `true` | La contraseña no abre la puerta (ADR 0028) |
 | `debe_cambiar_password` | `true` | Es lo que le abre la excepción del ADR 0018 para fijar **la suya** sin teclear la anterior — que no sabe |
 
@@ -287,10 +296,10 @@ Cobertura del bloque: `lib/test/codigos-recuperacion.e2e.test.ts`,
 
 ## El gate de sesión, y de dónde sale el origen de su redirección
 
-`middleware.ts:173`. Sin cookie `spaces_sesion` en una ruta no pública, se
+`middleware.ts:175-178`. Sin cookie `spaces_sesion` en una ruta no pública, se
 responde **307 con una `Location` ABSOLUTA construida desde la cabecera `Host`** —
 `https://g500.space-os.io/spaces-dooh/login/`. Lo mismo hace la compatibilidad de
-las rutas viejas `/demo/*` (`middleware.ts:104`, 308).
+las rutas viejas `/demo/*` (`middleware.ts:102-109`, 308).
 
 > [!danger] 2026-09-17 · la `Location` relativa devolvía **500 en toda la flota**
 > **Esta sección decía «relativa, nunca una URL absoluta» y estaba equivocada.**
@@ -320,7 +329,7 @@ las rutas viejas `/demo/*` (`middleware.ts:104`, 308).
 > | Comprobación | Por qué no lo vio |
 > |---|---|
 > | `middleware.test.ts` | Llama a `middleware()` a pelo: el `new URL()` que revienta está en el **adaptador**, por encima |
-> | Smoke de `promover.yml:245` | Mira `/login/` y `/api/auth/metodos/`, **las dos públicas**: el gate no se dispara |
+> | Smoke de `promover.yml:260-261` | Mira `/login/` y `/api/auth/metodos/`, **las dos públicas**: el gate no se dispara |
 > | Salud de `update.sh` | La misma ruta pública |
 >
 > El arreglo tocó **sólo** el camino del redirect, y ninguna de las tres pasa por
@@ -374,7 +383,7 @@ que tiene forma de nombre de máquina** (`/^[a-z0-9.-]+(:\d{1,5})?$/` tras `trim
 
 > [!warning] Al construir la cabecera a mano, el `basePath` ya no se antepone solo
 > Lo hacía Next al redirigir con `nextUrl`. Ahora lo pone `redirigir()`
-> (`middleware.ts:74-83`), junto con la barra final que exige
+> (`middleware.ts:78-87`), junto con la barra final que exige
 > `trailingSlash: true` — sin ella Next añadiría otro salto para ponerla.
 
 Cobertura: `apps/web/middleware.test.ts`. Los negativos son los que sujetan esto:
@@ -387,14 +396,14 @@ decida nunca el `Host`**, y sobre todo que toda `Location` **sobreviva a
 
 ## CSRF — double-submit
 
-`middleware.ts:76-103`. En `POST/PUT/PATCH/DELETE` sobre `/api/`, si hay cookie de
+`middleware.ts:111-145`. En `POST/PUT/PATCH/DELETE` sobre `/api/`, si hay cookie de
 sesión, exige `x-csrf-token == spaces_csrf`. El front parcha `window.fetch` para
 reenviarlo (`lib/csrf-client.ts:36-66`).
 
 **Exentos** (no dependen de la cookie): `/api/auth/login`, `/auth/forgot`,
 `/auth/reset`, `/auth/logout`, `/api/signup`, `/api/portal/`, `/api/firma/`,
 `/api/propuestas/publica/` y, desde el 26/08, **`/api/bootstrap`**
-(`middleware.ts:89-98`).
+(`middleware.ts:119-133`).
 
 > [!important] La exención de `/api/bootstrap` no es su protección
 > Se exime porque **no hay sesión que proteger**: la base está vacía, no existe
@@ -416,7 +425,7 @@ reenviarlo (`lib/csrf-client.ts:36-66`).
 > es de la instalación entera, no por organización. Ver [[preguntas-abiertas]].
 
 > [!danger] No hay atajo para el Dueño: si la tabla está vacía, no ve nada
-> `permisosDeRol` y `tienePermiso` (`auth.ts:139-157`) son consultas directas a
+> `permisosDeRol` y `tienePermiso` (`auth.ts:163-179`) son consultas directas a
 > `rol_permisos`, **sin excepción por rol**, y `exigir()` es fail-closed. Ningún
 > rol —tampoco `DUENO`— tiene privilegio implícito.
 >
@@ -447,9 +456,14 @@ reenviarlo (`lib/csrf-client.ts:36-66`).
 > actualizarse, una instancia que ya existía **gana** esas filas. Quien dé de
 > alta un usuario `FINANZAS` le está dando la facturación.
 >
-> Los roles siguen ofreciéndose en `components/demo/shell/nav.ts:136-137`, y
-> `CLIENTE` sigue retirado de esa lista por el ADR 0010 (`nav.ts:138-141`) — esas
+> Los roles siguen ofreciéndose en `lib/roles.ts:70-71` (`ROLES_ASIGNABLES`), y
+> `CLIENTE` sigue retirado de esa lista por el ADR 0010 (`lib/roles.ts:72-73`) — esas
 > tres citas también habían derivado.
+>
+> **2026-10-05:** y volvieron a moverse, esta vez de archivo. La lista vivía en
+> `components/demo/shell/nav.ts`; el ADR 0040 (29/09) la mudó a `lib/roles.ts`, y
+> `nav.ts:279` solo la reexporta como `ROLES`. Las citas viejas a `nav.ts:136-141`
+> mandaban a una entrada del menú.
 
 ## Reautenticación para cambios sensibles (ADR 0009 + ADR 0036)
 
@@ -490,8 +504,9 @@ contraseña compartida — solo la propia prueba identidad. Es lo que protege
 > disparó esta conversación.
 
 > [!danger] INVARIANTE: todo usuario tiene `password_hash`
-> `cambios.ts:168-170` responde *«Tu usuario no tiene contraseña»* y
-> `perfil-controller.ts:83-88` exige `passwordActual`. Un usuario con
+> `cambios.ts:221-224` responde *«Tu usuario no tiene contraseña»* —desde el ADR
+> 0036, solo si **tampoco** hay compartida— y `perfil-controller.ts:82-90` exige
+> `passwordActual`. Un usuario con
 > `password_hash = null` **no puede** cambiar su correo, ni salir de
 > `debe_cambiar_password`: sigue encerrado sin salida por esas dos vías. **Desde
 > el ADR 0036 sí puede desbloquear el candado general de cambios**, si el Dueño
@@ -499,7 +514,7 @@ contraseña compartida — solo la propia prueba identidad. Es lo que protege
 > que solo acepta la propia.
 >
 > El invariante se sostiene en dos sitios: `crearUsuario()` lanza si no recibe
-> contraseña (`usuarios-repo.ts:49-50`), y el alta «entra con Google» **genera una
+> contraseña (`usuarios-repo.ts:62`), y el alta «entra con Google» **genera una
 > que nadie ve** en vez de dejar el campo vacío (`4206ab2`). Es la solución por
 > construcción a la restricción 4 del ADR 0012.
 >
@@ -511,7 +526,7 @@ contraseña compartida — solo la propia prueba identidad. Es lo que protege
 > contraseña que **nadie ve**, y `PATCH /api/perfil` le pedía justo esa para poder
 > cambiarla. El ADR 0018 lo resolvió, y conviene leer la excepción entera antes de
 > tocar nada de aquí: son **cuatro condiciones que van juntas**
-> (`perfil-controller.ts:49-57`), y cada una tapa un abuso distinto.
+> (`perfil-controller.ts:36-58`: el comentario y `puedeFijarSinAnterior()`), y cada una tapa un abuso distinto.
 >
 > | Condición | Qué impide |
 > |---|---|
@@ -525,11 +540,13 @@ contraseña compartida — solo la propia prueba identidad. Es lo que protege
 
 ## Contraseñas
 
-Política única (`apps/web/lib/password.ts:26-39`): ≥8 caracteres, al menos una
+Política única (`apps/web/lib/password.ts:40-47` `motivoPassword` y `:62-65` `validarPassword`): ≥8 caracteres, al menos una
 letra y un número, sin espacios. **Ya no vive en `auth.ts`** — salió a
-`lib/password.ts` el 10/08 (`cde5f58`) y `auth.ts:36` solo la reexporta.
+`lib/password.ts` el 10/08 (`cde5f58`) y `auth.ts:44` solo la reexporta. Desde
+I18N-01 (30/09) la regla devuelve además un **código** (`motivoPassword`) que el
+navegador traduce; `validarPassword` sigue dando la misma frase en español.
 La comparten signup, alta de usuarios y cambio de perfil — y
-`passwordAleatoria()` (`auth.ts:59-62`) la **construye** en vez de confiar en el
+`passwordAleatoria()` (`auth.ts:63-66`) la **construye** en vez de confiar en el
 azar, porque base64url puede salir sin letra o sin dígito y el alta fallaría una
 vez de cada tantas.
 
@@ -556,7 +573,7 @@ algún día se escala a varias, deja de valer.
 | signup | 5 / h por IP |
 | google/inicio | 10 / 5 min por IP |
 | desbloquear | 5 / 5 min por usuario+IP |
-| bootstrap | 10 / h por IP (`app/api/bootstrap/route.ts:63`) — **pasarse contesta 404**, no 429 |
+| bootstrap | 10 / h por IP (`app/api/bootstrap/route.ts:64`) — **pasarse contesta 404**, no 429 |
 
 ## Con la base caída: 503 con JSON, nunca un 500 vacío
 
@@ -571,7 +588,8 @@ algún día se escala a varias, deja de valer.
 **El contrato:** toda ruta de `app/api/auth/**` que toca la base pasa sus
 excepciones por `respuestaError()`, y `respuestaError()` reconoce una base que no
 responde (`esBaseNoDisponible()`, en `lib/server/errores.ts`) y contesta **503**
-con `{ error: MENSAJE_BASE_NO_DISPONIBLE }` —«El servicio no está disponible en
+con `{ error: MENSAJE_BASE_NO_DISPONIBLE }` (`errores.ts:139`, devuelto en
+`:218-222` y, desde I18N-05, traducido al idioma de quien pide) —«El servicio no está disponible en
 este momento. Intenta de nuevo en unos minutos.»—. El host, el puerto y el código
 van al log y **solo** al log.
 
@@ -608,11 +626,12 @@ simulada), `lib/server/errores-base-caida.test.ts` (la clasificación),
 
 ## Deuda conocida
 
-1. `app/api/tenant-activo/route.ts:23` usa `process.env.COOKIE_SECURE === '1'`
-   en vez de `cookieSecure()`. **Hoy no es un bug**: `COOKIE_SECURE=1` está
-   puesta en el droplet (comprobado el 07/08). Es deuda: el día que falte esa
-   variable, esta cookie perderá `Secure` **y las otras dos no**, porque
-   `cookieSecure()` cae a `NODE_ENV === 'production'`. Ver [[preguntas-abiertas]] P9.
+1. ~~`app/api/tenant-activo/route.ts:23` usa `process.env.COOKIE_SECURE === '1'`
+   en vez de `cookieSecure()`.~~ **Resuelta el 2026-10-05**: la cookie
+   `spaces_tenant_activo` decide `Secure` con `cookieSecure()`, como
+   `spaces_sesion` y `spaces_csrf`. Antes, en producción sin `COOKIE_SECURE`,
+   esta cookie salía sin `Secure` y las otras dos no. La prueba es
+   `lib/server/tenant-activo-cookie.test.ts`. Ver [[preguntas-abiertas]] P9.
 2. No hay purga de `sesiones` ni `password_resets` vencidos.
 3. No hay rotación de sesión ni sliding expiration.
 

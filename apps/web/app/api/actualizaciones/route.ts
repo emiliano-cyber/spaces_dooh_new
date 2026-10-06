@@ -9,6 +9,7 @@ import {
   aprobarDigest,
   type FilaActualizacion,
 } from '@/lib/server/actualizaciones-repo'
+import { entradaValida } from '@/lib/novedades'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -67,6 +68,13 @@ function aEstado(fila: FilaActualizacion) {
     // digest disponible IGUAL al instalado es "ya lo tienes", no una novedad
     // — así lo define el ADR 0037 en la tabla misma.
     hayNovedad: fila.digest_disponible != null && fila.digest_disponible !== fila.digest_instalado,
+    // Las notas de la version disponible, para que el Dueno vea que trae
+    // ANTES de aprobarla. Se REVALIDAN aqui con las reglas del archivo
+    // (`lib/novedades-reglas.mjs`): las escribio `update.sh` desde otra
+    // imagen, y unas notas rotas -- o de OTRA version que `version_disponible`
+    // -- se sirven como `null` ("Esta version no trae notas"), nunca como un
+    // 500 ni pintadas al lado del boton de instalar algo que no son.
+    notasDisponibles: entradaValida(fila.notas_disponibles, fila.version_disponible),
   }
 }
 

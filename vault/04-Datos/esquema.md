@@ -1,7 +1,7 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-09-30
+actualizado: 2026-10-05
 tags: [datos, esquema, er, postgres]
 archivos:
   - db/schema.sql
@@ -10,14 +10,53 @@ archivos:
   - db/migrations/20260921_actualizaciones_instancia.sql
   - db/migrations/20260923_tickets.sql
   - db/migrations/20260928_tope_descuento_propuestas.sql
+  - db/migrations/20261006_precio_ajustado_por_gerente.sql
+  - db/migrations/20261007_calculadora_spots.sql
   - db/migrations/20260928_codigo_promocional.sql
   - db/migrations/20260928_paquete_cerrado.sql
   - db/migrations/20261001_almacen_datos_por_tipo.sql
   - db/migrations/20261002_franja_programada_campana.sql
   - db/migrations/20261003_codigo_aprobacion.sql
+  - db/migrations/20261005_notas_de_version.sql
 ---
 
 # Esquema de datos
+
+> [!important] 2026-10-05 · puesta al día — lo que abajo dice «pendiente» o «SIN FUSIONAR» YA ESTÁ en `main`
+> Medido hoy con `node scripts/recuentos.mjs` sobre el árbol de
+> `integra/riesgos-presentacion-14-oct` (salida de `main` en `09c65ca2`):
+> **57 tablas y 106 migraciones**. `db/schema.sql` tiene **679 líneas**
+> (`wc -l`) y **28** `create table`; las **29** restantes llegan por migración.
+>
+> Los recuadros de abajo se conservan como historia, pero su estado caducó:
+>
+> | Recuadro | Decía | Hoy | Entró en `main` |
+> |---|---|---|---|
+> | `20261005_notas_de_version.sql` | pendiente de aprobación | **en `main`** | `c3398f1e` (01/10) |
+> | `20261006_precio_ajustado_por_gerente.sql` | — | **en `main`** | `17fbd252` (01/10) |
+> | `20261007_calculadora_spots.sql` | — | **en `main`** | `43082ac4` (01/10) |
+> | `paquetes`, `paquete_sitios`, `paquete_aplicaciones` | SIN FUSIONAR | **en `main`** | `8e913662` (28/09) |
+> | `codigos_promocionales`, `canjes_codigo` | SIN FUSIONAR | **en `main`** | `10e72087` (28/09) |
+> | `escalas_volumen` | SIN FUSIONAR | **en `main`** | merge `e653f530` (28/09) |
+>
+> Las cifras del cuerpo («46 tablas», «74 migraciones», «70 de esquema y 4 de
+> datos») eran del 23/09 y del 27/08: corregidas abajo con esta fecha. Sobre
+> «de datos»: hoy **una sola** migración lleva `@tipo: datos` en su **primera
+> línea** (`20260731_calendario_meses_cortos.sql`), que es lo que mira el
+> runner; otras cinco nombran la marca más abajo en el archivo y **no** cuentan
+> como de datos (`grep -l` da seis, `head -1` da una).
+
+> [!warning] 2026-10-01 · `actualizaciones_instancia.notas_disponibles` — `20261005_notas_de_version.sql`, **pendiente de aprobación**
+> Una columna nueva, **ninguna tabla**: el recuento de tablas no cambia.
+>
+> | Columna | Tipo | Qué |
+> |---|---|---|
+> | `notas_disponibles` | `jsonb`, NULL | La entrada de `novedades.json` de la versión **disponible** (`{ version, fecha, items }`). La escribe el actualizador; la app **solo la lee** (sin `grant update` nuevo: el de la app es por columna) |
+>
+> Para qué: que el Dueño y el Administrador vean qué trae una versión **antes**
+> de aprobarla. Ver [[02-Backend/notas-de-version]] y [[migraciones]].
+>
+> **2026-10-05:** ya no está pendiente: entró en `main` con `c3398f1e` el 01/10.
 
 > [!success] 2026-09-30 · el cupón con APROBACIÓN — COD-03, `20261003_codigo_aprobacion.sql`
 > **Aprobada por el dueño el 2026-09-30, incluida la forma.** Tres columnas
@@ -61,6 +100,9 @@ archivos:
 > probadas contra bases desechables, y **detenidas en la fusión** a la espera de
 > la aprobación del dueño. **Si las lees en `main`, es que ya se aprobó** — y
 > entonces las tablas son **55**.
+>
+> **2026-10-05:** aprobadas y en `main` (`8e913662`, 28/09). Hoy las tablas son
+> **57**: después llegaron `prospectos` y `prospecto_avances` (CAP-01).
 
 > [!note] 2026-09-28 · TRES TABLAS NUEVAS, el PAQUETE CERRADO — ADR 0039, Fase 4
 > `db/migrations/20260928_paquete_cerrado.sql`. **Las tablas pasan de 52 a 55**,
@@ -121,6 +163,8 @@ archivos:
 > desechables, y **detenidas en la fusión** a la espera de la aprobación del
 > dueño. **Si las lees en `main`, es que ya se aprobó** — y entonces las tablas
 > son **52**.
+>
+> **2026-10-05:** aprobadas y en `main` (`10e72087`, 28/09).
 
 > [!note] 2026-09-28 · DOS TABLAS NUEVAS, `codigos_promocionales` y `canjes_codigo` — ADR 0039, Fase 3
 > `db/migrations/20260928_codigo_promocional.sql`. **Las tablas pasan de 50 a
@@ -166,6 +210,8 @@ archivos:
 > apruebe antes. La migración de abajo está escrita y probada contra bases
 > desechables; lo detenido es la fusión. **Si la lees en `main`, es que ya se
 > aprobó** — y entonces las tablas son 50.
+>
+> **2026-10-05:** aprobada y en `main` (merge `e653f530`, 28/09).
 
 > [!note] 2026-09-28 · UNA TABLA NUEVA, `escalas_volumen` — ADR 0039, Fase 2
 > `db/migrations/20260928_descuento_por_volumen.sql`. **Las tablas pasan de 49 a
@@ -187,6 +233,22 @@ archivos:
 > Dos CHECK que valen la pena: `desde_cantidad >= 2` (un tramo «desde 1» sería
 > bajar el tarifario entero sin que se note) y `descuento_pct > 0` (un tramo al
 > 0 % es una regla que no hace nada y hace creer que sí).
+>
+> **PRECIO-01 (2026-10-01)** · y dos más en `propuesta_items`, de
+> `20261006_precio_ajustado_por_gerente.sql`: `tarifa_calculada` (numeric(14,2),
+> nullable) — la tarifa por unidad que calculó el servidor— y
+> `precio_ajustado_por` (uuid → `usuarios(id)` **on delete set null**, nullable)
+> —quién se apartó de ella, de la sesión—. Internas: no viajan a la liga
+> pública. Ver [[02-Backend/comercial-propuestas-campanas]].
+>
+> **ADR 0042 (2026-10-01)** · y cuatro más en `propuesta_items`, de
+> `20261007_calculadora_spots.sql`, para la calculadora de spots:
+> `espacios_comprados` (integer), `horas_dia` (numeric(4,2)), `roadblock`
+> (boolean **NOT NULL DEFAULT false**) y `prima_roadblock_pct` (numeric(5,2)).
+> Cinco CHECK: espacios > 0, horas en (0, 24], prima en [0, 100], prima ≠ 0
+> **solo** con `roadblock`, y un `roadblock` **con** espacios. NULL/false = la
+> línea no usó la calculadora, que es todo lo anterior. Internas. Ver
+> [[02-Backend/calculadora-de-spots]].
 >
 > Más tres columnas: `propuesta_items.descuento_volumen_pct` (numeric(5,2), **NOT
 > NULL DEFAULT 0**), `propuesta_items.volumen_desde` (integer, nullable) y
@@ -348,10 +410,11 @@ archivos:
 > archivos **sí** los aplica una actualización normal, sin `--con-datos`.
 > Comprobar por qué perdieron la marca es una tarea propia, no se hizo aquí.
 
-**PostgreSQL, un solo schema (`public`), ~~45~~ 46 tablas (ver la nota del
-23/09 arriba), sin ORM.** `db/schema.sql`
-(679 líneas) + **74** migraciones aditivas — **70 de esquema y 4 de datos**
-(medido el 27/08, y ya caducado — ver los avisos de arriba).
+**PostgreSQL, un solo schema (`public`), ~~45~~ ~~46~~ 57 tablas (medido el
+2026-10-05 con `node scripts/recuentos.mjs`), sin ORM.** `db/schema.sql`
+(679 líneas, 28 tablas) + ~~74~~ **106** migraciones aditivas — ~~70 de esquema
+y 4 de datos~~ **105 de esquema y 1 de datos** por su primera línea, que es lo
+que mira el runner (medido el 2026-10-05; lo tachado es del 27/08).
 
 > [!warning] Las de datos son CUATRO, no una — y el runner las salta por defecto
 > Esta nota decía «una de datos» desde el 19/08 y ya entonces eran tres. Hoy
@@ -364,7 +427,7 @@ archivos:
 
 > [!warning] `schema.sql` no es el estado final
 > Varias columnas y **todas** las políticas RLS fail-closed llegan por
-> migración. El estado real = `schema.sql` + las **74** en orden. Ver
+> migración. El estado real = `schema.sql` + las ~~74~~ **106** (05/10) en orden. Ver
 > [[migraciones]].
 >
 > [!warning] 2026-09-18 · esta nota decía **39** en su cuerpo y **43** en su

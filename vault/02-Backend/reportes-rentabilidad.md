@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-09-17
+actualizado: 2026-10-05
 tags: [backend, reportes, rentabilidad, finanzas, dinero, rojo]
 archivos:
   - apps/web/app/api/reportes/rentabilidad/route.ts
@@ -12,6 +12,7 @@ archivos:
   - apps/web/lib/costos-ot.ts
   - apps/web/lib/server/config-repo.ts
   - db/migrations/20260917_costos_ot_por_tipo.sql
+  - db/migrations/20260929_costo_real_ot.sql
 ---
 
 # Reportes de rentabilidad
@@ -32,6 +33,11 @@ reportes y el cálculo. Nació el **2026-09-17** con el módulo de rentabilidad.
 > `app/api/estado/route.ts:146-156`, junto al medidor que se dejó detrás de la
 > bandera `MEDIR_ESTADO=1` precisamente para poder volver a mirarlo. Un
 > `select *` con una columna nueva y grande basta para repetirlo.
+>
+> *(Citas remedidas el 2026-10-05: las 24 rebanadas están en
+> `app/api/estado/route.ts:98-138`, el relato de los 6.12 MB en `:146-156`
+> —la frase en `:151`— y `useStoreMemo` se declara en `lib/data/client.ts:140`;
+> `:329` es uno de sus usos.)*
 >
 > Los reportes de rentabilidad verán **historia de años** cuando haya clientes
 > reales. Por ese camino no aguantan: el volumen crecería con la antigüedad de
@@ -54,12 +60,18 @@ pantalla**.
 | Archivo | Qué hace |
 |---|---|
 | `app/api/reportes/rentabilidad/route.ts` | `exigir('finanzas','ver')`, `runtime = 'nodejs'`, `dynamic = 'force-dynamic'`, `respuestaError(e)` |
-| `lib/server/reportes-controller.ts:100` | `validarConsultaRentabilidad` — zod, enums cerrados |
-| `lib/server/reportes-controller.ts:128` | `rentabilidadCtrl` — despacha por dimensión con un `Record` exhaustivo: una dimensión sin motor **no compila** |
-| `lib/server/reportes-repo.ts:50` | `datosRentabilidad` — las 5 consultas + el costo de OT |
-| `lib/data/reportes.ts:986` | `rentabilidadPorSitio` — el prorrateo |
-| `lib/data/reportes.ts:340` | `bucketsDelRango` — el eje de tiempo |
-| `lib/data/reportes.ts:400` | `mesesEquivalentes` — días de calendario a meses de renta |
+| `lib/server/reportes-controller.ts:104` | `validarConsultaRentabilidad` — zod, enums cerrados |
+| `lib/server/reportes-controller.ts:135` | `rentabilidadCtrl` — despacha por dimensión con un `Record` exhaustivo (`MOTORES`, `:124-133`): una dimensión sin motor **no compila** |
+| `lib/server/reportes-repo.ts:63` | `datosRentabilidad` — hoy **once** consultas `q()` (`:98` a `:317`), incluida la del costo de OT |
+| `lib/data/reportes.ts:1670` | `rentabilidadPorSitio` — el prorrateo |
+| `lib/data/reportes.ts:669` | `bucketsDelRango` — el eje de tiempo |
+| `lib/data/reportes.ts:729` | `mesesEquivalentes` — días de calendario a meses de renta |
+
+> [!note] 2026-10-05 · remedidas con `grep -n`, y van SEIS de seis corridas
+> La tabla decía `:100`, `:128`, `:50`, `:986`, `:340` y `:400`. Ninguna seguía
+> en su sitio: `reportes.ts` pasó de unas 1 000 líneas a más de 2 800 con las
+> dimensiones `entidad`, `tarifa` y `vendedor`, el paquete y el costo real de
+> OT (2 843 líneas al 05/10). Es exactamente lo que avisa el recuadro de abajo.
 
 > [!warning] 2026-09-18 · esta tabla tuvo CINCO de sus SEIS citas mal
 > Y es la tabla que alguien abriría para navegar el módulo por primera vez, o
@@ -92,7 +104,7 @@ GET /api/reportes/rentabilidad?dimension=sitio&granularidad=mes
 
 | Parámetro | Valores | Nota |
 |---|---|---|
-| `dimension` | `sitio` · `trimestre` · `operacion` · `m2` | **las cuatro tienen motor** desde el 18/09 — ver [[02-Backend/reportes-dimensiones]] |
+| `dimension` | `sitio` · `trimestre` · `operacion` · `m2` · `luz` · `entidad` · `tarifa` · `vendedor` | **las ocho tienen motor** (`DIMENSIONES_REPORTE`, `lib/data/reportes.ts:68`; `MOTORES`, `reportes-controller.ts:124-133`). Las cuatro primeras desde el 18/09 — ver [[02-Backend/reportes-dimensiones]]; `luz` el 18/09; `entidad` ([[reportes-por-razon-social]]), `tarifa` ([[tarifa-publicada-vs-neta]]) y `vendedor` ([[vendedor-en-propuesta]]) después |
 | `granularidad` | `mes` · `trimestre` | `dia` y `semana` existen en `Granularidad` y **no valen aquí** |
 | `desde` / `hasta` | `AAAA-MM-DD`, inclusive | **obligatorias**, sin valor por omisión |
 
@@ -140,7 +152,7 @@ no tenga sustituto.
 > **pasan sin tocarse** tras este cambio.
 >
 > Lo único que cambió en ellas es la FIRMA: de `DemoState` a `DatosAtribucion`
-> (`derive.ts:1239` y `:1282`), una interfaz con solo `sitios` y `contratos`.
+> (`derive.ts:1234` y `:1282` al 05/10; decía `:1239`), una interfaz con solo `sitios` y `contratos`.
 > `DemoState` sigue encajando por estructura, así que ni un llamador de la UI se
 > tocó, y el servidor puede reusarla sin fabricar un `DemoState` entero con
 > veintitantas rebanadas vacías.
@@ -150,12 +162,12 @@ no tenga sustituto.
 > implementaciones divergen**, y aquí divergir significa que el reporte y el
 > dashboard darían dos costos distintos para la misma pantalla.
 
-**Es nuevo el eje de tiempo.** `margenPorSitio()` (`derive.ts:1308`) es una
-**foto de hoy**: filtra las reservas vigentes hoy (`derive.ts:1315`) y no sabe
+**Es nuevo el eje de tiempo.** `margenPorSitio()` (`derive.ts:1347`) es una
+**foto de hoy**: filtra las reservas vigentes hoy (`derive.ts:1354`) y no sabe
 de periodos.
 
-También es nuevo `'trimestre'` en `Granularidad` (`derive.ts:1483`) y su
-etiquetado, y `etiquetaBucket` pasó a **exportarse** (`derive.ts:1551`): dos
+También es nuevo `'trimestre'` en `Granularidad` (`derive.ts:1522`) y su
+etiquetado, y `etiquetaBucket` pasó a **exportarse** (`derive.ts:1590`): dos
 etiquetados del mismo bucket acabarían diciendo «T1» en una pantalla y «1er
 trimestre» en la otra para el mismo periodo.
 
@@ -199,8 +211,18 @@ Una orden de trabajo **no se prorratea**: es un evento, y su costo entra complet
 en el periodo en que se trabaja. El importe sale por **tipo** de OT desde
 `config_negocio.costos_ot` — ver [[02-Backend/operaciones-y-ot]].
 
+> [!important] 2026-10-05 · desde el 29/09 el COSTO REAL manda sobre el tipo
+> Con `525b7c8b` la OT puede llevar `costo_real`, capturado a mano
+> ([[costo-real-de-ot]]). El reporte lo lee (`reportes-repo.ts:159` y `:452`) y
+> usa `costoEfectivoDeOt` (`apps/web/lib/costos-ot.ts:114`): **el real sustituye
+> a la estimación por tipo, no se le suma**, y un real de **0** es un costo
+> válido —se compara con `!= null`—. El bucle está en `lib/data/reportes.ts:1359`
+> y cuenta aparte cuántas OT fueron reales y cuántas estimadas
+> (`costosOt`, `:1126`), para que la nota del reporte lo diga.
+
 La fecha con la que una OT entra en un periodo es la de completada, si no la
-programada, y si no la de creación (`lib/data/reportes.ts:295`). El costo se
+programada, y si no la de creación (`fechaDeOt`, `lib/data/reportes.ts:965`;
+decía `:295`). El costo se
 devenga cuando el trabajo ocurre, y una OT pendiente ya tiene fecha prevista:
 contarla por su creación la metería en el mes en que se capturó.
 
@@ -228,7 +250,7 @@ anual toca los cuatro trimestres y aporta su parte a cada uno.
 
 ## Aislamiento (R2)
 
-Las cinco consultas usan `q()` —que fija `app.tenant_id` transaction-local— y
+Las consultas —cinco al nacer, **once** al 05/10— usan `q()` —que fija `app.tenant_id` transaction-local— y
 llevan **`and tenant_id = $1` explícito** como segunda capa sobre la RLS. Nunca
 `qRaw()`. `reportes-repo.aislamiento.test.ts` lee el archivo y falla si
 cualquier consulta pierde su filtro, si aparece un `qRaw` o si algo se interpola.

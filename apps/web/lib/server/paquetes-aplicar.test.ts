@@ -50,6 +50,10 @@ vi.mock('./db', () => ({
 }))
 vi.mock('./tenant', () => ({ tenantActual: vi.fn(async () => 'T1') }))
 vi.mock('./auth', () => ({ usuarioActual: vi.fn(async () => ({ id: 'U1' })) }))
+// El techo de la organización. Por omisión el respaldo (100 %), que es «no hay
+// tope»: así los bloques 1-3 se comportan igual que antes de TOPE-PAQ.
+let topeDelTenant = 100
+vi.mock('./config-repo', () => ({ topeDescuentoDelTenant: vi.fn(async () => topeDelTenant) }))
 
 const { aplicarPaquete, quitarPaquete, PaqueteImposible } = await import('./paquetes-repo')
 
@@ -66,6 +70,7 @@ const SITIOS = ['S1', 'S2', 'S3']
 beforeEach(() => {
   ejecutadas.length = 0
   client.query.mockClear()
+  topeDelTenant = 100
   filas.propuesta = [{ id: 'P1', estatus: 'BORRADOR', codigo_texto: null, paquete_nombre: null }]
   filas.paquete = [{ ...PAQUETE }]
   filas.paqueteSitios = SITIOS.map((s) => ({ sitio_id: s }))
@@ -154,6 +159,18 @@ describe('2 · los NEGATIVOS, que son el corazón de la fase', () => {
     await expect(aplicarPaquete('P1', 'PK1')).rejects.toThrow(/codigo|código/i)
   })
 
+  it('la propuesta se lee BLOQUEADA, con el mismo `for no key update` que el canje', async () => {
+    // 2026-10-05 · sin el bloqueo, la regla 2 tenía una carrera: este paso
+    // leía «sin cupón» mientras un canje en vuelo leía «sin paquete», y
+    // confirmaban los dos — paquete de precio final y un uso gastado que no
+    // descuenta nada. El canje lee la fila con este mismo bloqueo
+    // (`codigos-repo.ts`), así que quien llega segundo espera.
+    await aplicarPaquete('P1', 'PK1')
+    const lectura = ejecutadas.find((e) => /from propuestas/.test(e.sql))
+    expect(lectura?.sql).toMatch(/codigo_texto/)
+    expect(lectura?.sql).toMatch(/for no key update/i)
+  })
+
   it('pero SÍ se aplica si el paquete admite código', async () => {
     filas.paquete = [{ ...PAQUETE, admite_codigo: true }]
     filas.propuesta = [
@@ -195,7 +212,11 @@ describe('3 · quitar el paquete DEVUELVE los precios de línea', () => {
     // Quitar el paquete tiene que devolver la venta EXACTAMENTE a como estaba,
     // y el volumen de cada línea nunca se borró: solo se dejó de aplicar.
     await quitarPaquete('P1')
-    expect(sql()).not.toMatch(/descuento_volumen_pct/)
+    // Ninguna ESCRITURA lo toca. Leerlo sí: TOPE-04 (05/10) quitó el atajo del
+    // 0 % comercial de aquí —vive en `descuentoDentroDelTope`—, así que el
+    // volumen de las líneas se LEE siempre para la cuenta del tope.
+    const escrituras = ejecutadas.map((e) => e.sql).filter((s) => !/^\s*select/i.test(s))
+    expect(escrituras.join('\n---\n')).not.toMatch(/descuento_volumen_pct/)
   })
 
   it('una propuesta APROBADA no se puede desempaquetar', async () => {
@@ -215,5 +236,76 @@ describe('3 · quitar el paquete DEVUELVE los precios de línea', () => {
   it('una propuesta de otra organización devuelve `false`', async () => {
     filas.propuesta = []
     await expect(quitarPaquete('P1')).resolves.toBe(false)
+  })
+})
+
+describe('4 · TOPE-PAQ · quitar el paquete NO deja la venta por encima del tope', () => {
+  // Con paquete, el volumen no cuenta contra el tope (PAQ-01): no se aplicó.
+  // Por eso un vendedor puede guardar un 15 % comercial con un tope del 20 %
+  // aunque las líneas lleven un 10 % de volumen. Al QUITAR el paquete ese
+  // volumen vuelve a aplicarse, y la venta queda en 1 − 0,85 × 0,90 = 23,5 %
+  // regalado contra un techo de 20. Antes de esta prueba nadie lo revisaba, y
+  // la aprobación tampoco: se aprobaba y se congelaba por encima del tope.
+  const conVolumen = (pct: number) =>
+    SITIOS.map((s, i) => ({
+      id: `I${i}`,
+      sitio_id: s,
+      precio: '10000.00',
+      descuento_volumen_pct: String(pct),
+    }))
+
+  beforeEach(() => {
+    topeDelTenant = 20
+    filas.items = conVolumen(10)
+    filas.propuesta = [
+      {
+        id: 'P1',
+        estatus: 'BORRADOR',
+        codigo_texto: null,
+        paquete_nombre: 'Periferico',
+        descuento_pct: '15.00',
+        codigo_descuento_pct: null,
+      },
+    ]
+  })
+
+  it('se NIEGA si al volver el volumen el descuento compuesto pasa el tope', async () => {
+    await expect(quitarPaquete('P1')).rejects.toBeInstanceOf(PaqueteImposible)
+    await expect(quitarPaquete('P1')).rejects.toThrow(/20 %/)
+  })
+
+  it('y al negarse NO toca nada: ni el enlace ni las cinco columnas', async () => {
+    await expect(quitarPaquete('P1')).rejects.toThrow()
+    expect(sql()).not.toMatch(/delete from paquete_aplicaciones/)
+    expect(sql()).not.toMatch(/update propuestas/)
+    expect(sql()).toMatch(/rollback/)
+  })
+
+  it('el mensaje dice qué hacer: bajar el descuento comercial antes de quitarlo', async () => {
+    await expect(quitarPaquete('P1')).rejects.toThrow(/baja.*descuento comercial/i)
+  })
+
+  it('SÍ lo quita si el compuesto cabe: 10 % comercial con 10 % de volumen = 19 %', async () => {
+    filas.propuesta[0].descuento_pct = '10.00'
+    await expect(quitarPaquete('P1')).resolves.toBe(true)
+    expect(sql()).toMatch(/delete from paquete_aplicaciones/)
+  })
+
+  it('el límite es INCLUSIVO, como en la edición: exactamente el tope pasa', async () => {
+    // 1 − 0,8 × 0,75 = 40 % justo; con tope 40 tiene que pasar.
+    topeDelTenant = 40
+    filas.items = conVolumen(25)
+    filas.propuesta[0].descuento_pct = '20.00'
+    await expect(quitarPaquete('P1')).resolves.toBe(true)
+  })
+
+  it('sin descuento comercial siempre se puede quitar, aunque el volumen solo pase el tope', async () => {
+    // El volumen es la escala del dueño, no discreción del vendedor: con 0 %
+    // comercial no hay nada que bajar, y la propuesta queda igual que una
+    // recién creada con esas líneas (que `crearPropuesta` admite). Negarse
+    // dejaría el paquete pegado sin salida desde la pantalla.
+    topeDelTenant = 5
+    filas.propuesta[0].descuento_pct = '0.00'
+    await expect(quitarPaquete('P1')).resolves.toBe(true)
   })
 })

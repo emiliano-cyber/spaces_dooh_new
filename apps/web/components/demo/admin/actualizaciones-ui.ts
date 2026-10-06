@@ -110,3 +110,10 @@ export function textoConfirmarInstalar(e: EstadoActualizacion): string {
         : `Trae ${conteo(n, 'migración', 'migraciones')} pendiente${n === 1 ? '' : 's'}`
   return `Vas a instalar ${version}. ${migraciones}. El servicio se corta mientras dura la instalación.`
 }
+
+// El titulo de las notas que acompanan al boton de instalar (pedido del
+// dueno, 2026-10-01): el Dueno y el Administrador ven QUE trae la version
+// ANTES de aprobarla. Sin nombre de version no se inventa uno.
+export function tituloNotasDisponibles(e: EstadoActualizacion): string {
+  return `Qué trae ${e.versionDisponible ?? 'la versión disponible'}`
+}

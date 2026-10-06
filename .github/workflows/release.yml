@@ -152,6 +152,27 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      # NO SE PUBLICA UNA VERSIÓN SIN SUS NOTAS (pedido del dueño, 2026-10-01).
+      # Cada cliente ve, después de instalar, qué trae la versión; si el tag no
+      # tiene su entrada en `apps/web/novedades.json`, ese diálogo no saldría y
+      # el panel de Actualizaciones diría «Esta versión no trae notas».
+      #
+      # Va AQUÍ, lo primero tras tener node y ANTES del `npm ci`, a propósito:
+      # es la comprobación más barata de todo el workflow (un JSON) y la que más
+      # fácil se olvida. Más abajo costaría la suite entera —45 minutos de tope—
+      # descubrir que faltaba un párrafo. El script no tiene dependencias
+      # (`scripts/verificar-novedades.mjs`, con su prueba), así que no necesita
+      # el `npm ci`.
+      #
+      # La versión viaja como VARIABLE DE ENTORNO y no como `${{ }}` dentro del
+      # script, por el motivo de la cabecera. El script valida su forma (sale
+      # con 2 si no es vX.Y.Z[-sufijo]) y valida el archivo ENTERO, no solo que
+      # exista la entrada.
+      - name: Comprobar que la versión trae sus notas
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: node scripts/verificar-novedades.mjs "$VERSION"
+
       # `npm ci` y no `npm install`, por el motivo que documenta `ci.yml:63-68`:
       # instala exactamente el árbol del lockfile en vez de arreglarlo por su
       # cuenta y publicar una imagen construida sobre dependencias que no probó

@@ -49,6 +49,19 @@ vi.mock('./volumen-repo', () => ({
   borrarTramoVolumen: vi.fn(),
 }))
 
+// PRECIO-01 · desde el 2026-10-01 el controller calcula la tarifa de cada línea
+// (`tarifas-repo`) y, si el precio se aparta, pregunta el permiso de la SESIÓN
+// (`auth`). Se sustituyen por el mismo motivo que los de arriba. Sesión de
+// DUEÑO y sin tarifas: toda línea pasa como ajuste de alguien con permiso, que
+// es neutro para el volumen. La regla del precio vive en `propuestas-precio.test.ts`.
+vi.mock('./tarifas-repo', () => ({
+  datosParaTarifar: vi.fn(async () => ({ sitios: new Map(), temporadas: [] })),
+}))
+vi.mock('./auth', () => ({
+  usuarioActual: vi.fn(async () => ({ id: 'U-DUENO', rol: 'DUENO' })),
+  tienePermiso: vi.fn(async () => true),
+}))
+
 import { crearPropuestaCtrl } from './propuestas-controller'
 
 const CUERPO = {
@@ -175,8 +188,10 @@ describe('2 · vender SIN escala sigue funcionando — invariante 3', () => {
 
 describe('3 · la cantidad que cuenta es la EFECTIVA, no la que llega en el cuerpo', () => {
   it('en unidades de tiempo la cantidad sale del rango de fechas', async () => {
-    // 2026-11-01 a 2027-04-30 son 181 días = 7 meses. Con un tramo «desde 6
-    // meses» tiene que entrar, aunque el cuerpo no mande ninguna `cantidad`.
+    // 2026-11-01 a 2027-04-30 son 6 meses DE CALENDARIO (noviembre a abril).
+    // Decía «181 días = 7 meses» hasta el 2026-10-02: con la regla de 30 días se
+    // cobraba un mes que no existe. Con un tramo «desde 6 meses» tiene que
+    // entrar igual, aunque el cuerpo no mande ninguna `cantidad`.
     listarEscalasMock.mockResolvedValue([
       { id: 'M1', unidad: 'mensual', desdeCantidad: 6, descuentoPct: 8 },
     ])
@@ -186,7 +201,7 @@ describe('3 · la cantidad que cuenta es la EFECTIVA, no la que llega en el cuer
       fechaFin: '2027-04-30',
       items: [{ sitioId: 'S1', unidad: 'mensual', tarifaUnitaria: 30000 }],
     })
-    expect(enviado().items[0].cantidad).toBe(7)
+    expect(enviado().items[0].cantidad).toBe(6)
     expect(enviado().items[0].descuentoVolumenPct).toBe(8)
   })
 

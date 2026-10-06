@@ -1,13 +1,18 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-08-10
+actualizado: 2026-10-05
 tags: [backend, arrendadores, contratos, dinero, rojo]
 archivos:
   - apps/web/lib/server/arrendadores-repo.ts
   - apps/web/lib/server/arrendadores-controller.ts
   - apps/web/lib/server/firmas-repo.ts
   - apps/web/lib/server/contrato-expediente.ts
+  - apps/web/lib/server/contratos-sitio.ts
+  - apps/web/lib/server/operaciones-eventos.ts
+  - apps/web/lib/medios-url.ts
+  - apps/web/app/api/contratos/[id]/route.ts
+  - apps/web/lib/test/entidad-en-documentos.e2e.test.ts
   - apps/web/lib/contrato-documento.ts
   - apps/web/lib/renta-periodicidad.ts
   - docs/Reglas_Arrendadores.md
@@ -20,18 +25,19 @@ archivos:
 > bancarios del arrendador fueron el primer caso de reconfirmación obligatoria
 > del sistema. Ver [[zonas-de-riesgo]].
 
-Es el módulo más grande del backend: `arrendadores-repo.ts` tiene **1317
-líneas**.
+Es el módulo más grande del backend: `arrendadores-repo.ts` tiene **1498
+líneas** (`wc -l`, medido el 2026-10-05; eran 1317 el 10/08).
 
 ## Archivos
 
 | Archivo | Líneas | Responsabilidad |
 |---|---|---|
-| `arrendadores-repo.ts` | 1317 | Arrendadores, predios, contratos, pagos, licencias, razones sociales |
-| `arrendadores-controller.ts` | 460 | Validación zod (RFC, email, periodicidad, adjuntos) |
-| `firmas-repo.ts` | 336 | Firma electrónica del contrato |
+| `arrendadores-repo.ts` | 1498 | Arrendadores, predios, contratos, pagos, licencias, razones sociales |
+| `arrendadores-controller.ts` | 505 | Validación zod (RFC, email, periodicidad, adjuntos) |
+| `firmas-repo.ts` | 353 | Firma electrónica del contrato |
 | `contratos-sitio.ts` | 336 | Contrato en el alta de pantalla (compartido con [[inventario-y-sitios]]) |
 | `contrato-expediente.ts` | 95 | Reúne datos vivos y llama al redactor puro |
+| `lib/contrato-documento.ts` | 462 | Redactor puro del contrato (`documentoATexto`: lo que se firma) |
 
 ## Reglas de negocio
 
@@ -73,6 +79,13 @@ sequenceDiagram
 El anclaje decide **qué espacio** se describe (`contrato-expediente.ts:9-14`):
 con `predio_id` → el predio completo; sin él → la pantalla suelta.
 
+> [!note] 2026-10-05 · el aviso de «faltan datos» ya dice DÓNDE se capturan
+> Desde `504b4fc8`, cada dato de `faltantes` lleva la pantalla donde se
+> captura, y el domicilio del arrendador (`arrendadores.direccion`) por fin se
+> guarda en el alta y se edita desde la lista de Arrendadores. **`documentoATexto`
+> no cambió**: `faltantes` no entra en el texto que se firma, así que ninguna
+> firma existente se invalidó.
+
 ## Predio vs pantalla suelta
 
 Es el discriminador que atraviesa todo el módulo. Un contrato puede colgar de un
@@ -89,7 +102,7 @@ predio (lo normal) o de una pantalla individual (legado). Las columnas
 | Alta de pantalla nueva (solo fijas) | OT de **MONTAJE** |
 
 Todo a **mejor esfuerzo**: si la OT falla, la acción principal no se rompe
-(`operaciones-eventos.ts:11-14`).
+(`operaciones-eventos.ts:12-13`).
 
 ## El documento del contrato NO viaja en la hidratación (10/08)
 
@@ -116,6 +129,40 @@ la columna.
 Las consultas de **detalle** siguen haciendo `select *`, así que no cambian:
 `rowToContrato` resuelve con `??` y el valor real gana cuando está.
 
+## Un RFC es de un solo arrendador (INC-07)
+
+`arrendadores-repo.ts:233-249` — dos redes distintas contra el duplicado: el
+**RFC**, con índice único en la base (`arrendadores_tenant_rfc_uq`), duro y que
+cubre también la carrera entre dos pestañas; y el **nombre**, que solo avisa
+(`ArrendadorDuplicado`) y deja continuar si quien da el alta confirma que es
+otra persona. El caso que lo motivó fue una repetición humana a 71 segundos,
+no un doble clic.
+
+## La razón social del owner que paga la renta (18/09)
+
+Desde `8c6002e7`, `PATCH /api/contratos/[id]` escribe
+`contratos_arrendamiento.entidad_id`: la [[entidades-fiscales|entidad fiscal]]
+**del owner** que paga la renta (no confundir con `razon_social_id`, que es la
+del arrendador). Su par en el comprobante es `facturas.entidad_emisora_id`
+— ver [[finanzas-y-cobranza]].
+
+- Se valida contra el tenant **antes** de escribir
+  (`arrendadores-repo.ts:1199-1219`): la FK compuesta de
+  `20260918_entidad_tenant_compuesto.sql` la rechazaría igual, pero por el
+  camino del 23503, que llega como un 500. La FK es la red; esto es la puerta.
+- `undefined` es «no la toques» y `null` **desasigna** (`:1206-1208`). Sin esa
+  distinción, editar el importe de la renta borraría la razón social en
+  silencio; lo fija `lib/test/entidad-en-documentos.e2e.test.ts`.
+- El default se **deriva** de los roles, no se guarda: una sola entidad con
+  ARRENDAMIENTOS viene preseleccionada; con dos, ninguna.
+- La ruta tiene el guard `exigirCambioSensible('arrendadores', 'crear')`
+  (`app/api/contratos/[id]/route.ts:25`), así que asignar la razón social pide
+  volver a teclear la contraseña aunque sea un dato fiscal y no un importe.
+  Decisión conservadora y documentada en el commit: separarlo abriría otra ruta
+  de escritura sobre un contrato, y eso es R4.
+
+Ver [[multi-entidad-en-uso]].
+
 ## Columnas deprecadas
 
 `sitios.renta_arrendador` y `sitios.periodicidad_renta` están marcadas
@@ -124,4 +171,4 @@ desde la Fase 1. Siguen en la tabla.
 
 ## Relacionadas
 [[inventario-y-sitios]] · [[finanzas-y-cobranza]] · [[operaciones-y-ot]] ·
-[[esquema]] · [[decisiones]] · [[zonas-de-riesgo]] · [[MOC-Proyecto]]
+[[entidades-fiscales]] · [[multi-entidad-en-uso]] · [[esquema]] · [[decisiones]] · [[zonas-de-riesgo]] · [[MOC-Proyecto]]

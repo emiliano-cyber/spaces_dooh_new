@@ -1,7 +1,7 @@
 ---
 tipo: contrato
 estado: verificado
-actualizado: 2026-08-31
+actualizado: 2026-10-05
 tags: [agentes, coordinacion, obligatorio]
 archivos:
   - apps/web/lib/server/
@@ -48,6 +48,22 @@ cambian juntos. **Dueño único a la vez.**
 | **Z11 · Utilidades** | — | `apps/web/lib/*.ts` puros con `.test.ts` | 🟢 zona de entrada |
 | **Z12 · Docs** | `docs/`, `DESPLIEGUE_*.txt`, `vault/` | — | 🟢 |
 
+> [!warning] 2026-10-05 · VEINTE carpetas de `app/api/` no caen en ninguna zona
+> Las doce zonas son de agosto. Medido hoy contra `ls apps/web/app/api`
+> (52 carpetas), estas no aparecen en la columna «Backend» de ninguna fila:
+> `actualizaciones`, `admin`, `bienvenida`, `bootstrap`, `cambios`,
+> `captacion`, `codigos-promocionales`, `energia`, `entidades`, `estado`,
+> `firma`, `notificaciones`, `novedades`, `paquetes`, `permisos`,
+> `rejilla`, `reportes`, `tickets`, `version` y `volumen`.
+>
+> Varias son **dinero** —`codigos-promocionales`, `paquetes`, `volumen` y
+> `rejilla` son la cadena de precio del ADR 0039, y en la práctica se han
+> reclamado como **Z5**— y `cambios` vive con `lib/server/cambios.ts`, que es
+> **Z1**. **No se reasignan aquí**: repartir zonas es una decisión de
+> coordinación, no de documentación. Mientras tanto, la regla práctica: reclama
+> la zona del `lib/server/*-repo.ts` que vayas a tocar, y si no tiene, dilo en
+> el tablero con su ruta.
+
 ---
 
 ## Archivos de alto contacto — claim EXCLUSIVO
@@ -61,7 +77,7 @@ zona, y suéltalos en cuanto acabes.
 | `apps/web/next.config.mjs` | `basePath`, headers, alias de webpack |
 | `apps/web/lib/server/db.ts` | Las cuatro puertas a la base |
 | `apps/web/lib/server/errores.ts` | Contrato de errores de todos los handlers |
-| `apps/web/lib/server/auth.ts` | Lo usan **72 de 90** handlers (medido el 31/08) |
+| `apps/web/lib/server/auth.ts` | Lo importan **98 de 124** `route.ts` (medido el 2026-10-05 con `grep -l "server/auth['\"]"` sobre `apps/web/app/api/**/route.ts`; el 31/08 eran 72 de 90) |
 | `apps/web/lib/server/uploads.ts` | Punto único de validación de subidas |
 | `apps/web/lib/server/folios.ts` | Todos los folios consecutivos |
 | `apps/web/lib/modulos.ts` | Catálogo del ADR 0010 |

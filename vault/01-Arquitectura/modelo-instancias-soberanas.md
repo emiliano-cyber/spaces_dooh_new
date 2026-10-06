@@ -1,13 +1,16 @@
 ---
 tipo: arquitectura
 estado: en-curso
-actualizado: 2026-09-21
+actualizado: 2026-10-05
 tags: [instancias, despliegue, padre, demo, flota, costos, plan, licencia]
 archivos:
   - docs/Plan_Instancias_Soberanas_v2.md
+  - docs/Plan_Instancias_Soberanas_v3.md
   - db/schema.sql
-  - .github/workflows/deploy.yml
-  - infra/scripts/new-tenant.sh
+  - db/migrations/20260921_actualizaciones_instancia.sql
+  - apps/web/app/api/actualizaciones/route.ts
+  - apps/web/components/demo/admin/ActualizacionesPanel.tsx
+  - scripts/migrar.mjs
   - apps/web/lib/test/db-e2e.ts
   - apps/web/middleware.ts
   - apps/flota/diagnostico.mjs
@@ -24,6 +27,40 @@ archivos:
 ---
 
 # Modelo de instancias soberanas — avance de la corrección
+
+> [!important] 2026-10-05 · revalidada contra el código — qué se corrigió
+> 1. **Frontmatter.** Listaba `.github/workflows/deploy.yml` e
+>    `infra/scripts/new-tenant.sh`, que **ya no existen** (F3.6, `658c467`, y F5.5, `10f11b6a`).
+>    Se quitaron de `archivos:`; el cuerpo los sigue nombrando como historia, que
+>    es correcto. Tampoco existe ya `setup-first-tenant.sh`: la fila que dice que
+>    «borrar solo `new-tenant.sh` dejaría `setup-first-tenant.sh:28` roto» es
+>    el razonamiento de F5.5, que se ejecutó y retiró los cuatro.
+> 2. **«Lo que todavía no existe»** (§6, la tabla, el endpoint, `--comprobar` y el
+>    cron de 15 min del ADR 0037) **ya existe todo**:
+>    `db/migrations/20260921_actualizaciones_instancia.sql` (la tabla),
+>    `apps/web/app/api/actualizaciones/route.ts` y
+>    `components/demo/admin/ActualizacionesPanel.tsx` (endpoint y pantalla),
+>    `update.sh --comprobar` (`infra/scripts/update.sh:17-29`) y el cron en los
+>    dos caminos de alta (`infra/scripts/provision-instancia.sh:915` e
+>    `instalar-hijo.sh:886`). Ver [[actualizaciones-instancia]].
+> 3. **Citas de `update.sh` corridas** —el archivo tiene hoy **2863 líneas**—:
+>
+> | Cita en la nota | Hoy |
+> |---|---|
+> | `update.sh:377` (`. "$CONF"`) | `:841` |
+> | `update.sh:406` / `:414` (`EX_LICENCIA` / `_NO_COMPROBABLE`) | `:459` / `:467` |
+> | `update.sh:847` (`LICENCIA_REQUERIDA` por omisión `0`) | `:930` |
+> | `update.sh:861` (ruta de `space-os.pub`) | `:944` (`LICENCIA_PUB`) |
+> | `update.sh:962` (`date -u +%s`) | `:1045` |
+> | `update.sh:1502-1508` / `:1503-1506` (`url_de_env_app` y su aviso) | `:1585-1591` / `:1587-1589` |
+> | `update.sh:1519` (aborta con `EX_CONFIG`) | `:1602` |
+> | `update.sh:2093` (`docker run --env-file`) | `:2567` |
+> | `instalar-hijo.sh:751` (instala `space-os.pub`) | `infra/scripts/instalar-hijo.sh:647` |
+> | `space-os.io.conf:165` (`include` del reporte de flota) | `infra/nginx/space-os.io.conf:174` |
+> | `db-e2e.ts:145-155` (orden de migraciones) | el mapa vive en `scripts/migrar.mjs:67` (`ANTES_DE`); `db-e2e.ts:163-168` lo importa con `ordenar()` |
+> | `apps/flota/diagnostico.mjs:133-134` (códigos 8 y 9) | `:179-180` |
+>
+> DEMO se llama **`prueba.space-os.io`** (singular; `infra/nginx/space-os.io.conf:288`).
 
 > [!danger] 2026-08-27 · LA FASE 7 DESAPARECE — decidido en el [ADR 0023](../../docs/adr/0023-el-droplet-viejo-sale-del-modelo.md)
 > **El droplet viejo (`209.97.146.136`) ya no se usa** —decisión de Jochelo del
@@ -244,8 +281,8 @@ cambian tareas concretas.
 | `withTxBootstrap` **no existe** | El documento lo da por «rescatado tal cual». Era una propuesta del plan del 11 que nunca se escribió: es **código nuevo** (F5.1) |
 | Los `DEFAULT` de `tenant_id` son **23, no 21** | Contados uno a uno en `db/schema.sql` **antes del 19/08**; desde `9d609f0` el esquema ya no los crea y esas líneas son otra cosa. La migración los descubre por catálogo, no por lista |
 | ~~`deploy.yml` entra por SSH, compila en el servidor y recarga pm2~~ | **Resuelto el 2026-08-31: F3.6 lo retiró** (commit `658c467`). Era exactamente lo que el modelo prohíbe. Ver [[entorno-y-despliegue]] |
-| Los scripts muertos de la pista Prisma son **cuatro**, y uno llama a otro | Borrar solo `new-tenant.sh` dejaría `setup-first-tenant.sh:28` roto |
-| El orden de migraciones **no es alfabético** (`db-e2e.ts:145-155`) | El runner de la Fase 3 tiene que reproducir dos excepciones reales o una instancia nueva no levanta — ver [[migraciones]] |
+| Los scripts muertos de la pista Prisma son **cuatro**, y uno llama a otro | Borrar solo `new-tenant.sh` dejaría `setup-first-tenant.sh:28` roto. **Resuelto: F5.5 retiró los cuatro** (`10f11b6a`: `deploy.sh`, `migrate-all-tenants.sh`, `new-tenant.sh`, `setup-first-tenant.sh`); ninguno existe hoy en `infra/scripts/` (comprobado el 05/10) |
+| El orden de migraciones **no es alfabético** (hoy `scripts/migrar.mjs:67`, `ANTES_DE`; `db-e2e.ts:163-168` lo importa — la cita original era `db-e2e.ts:145-155`) | El runner de la Fase 3 tiene que reproducir dos excepciones reales o una instancia nueva no levanta — ver [[migraciones]] |
 | `server-only` bloquea el atajo de la Fase 5 | Un script de aprovisionamiento no puede importar el alta ni el hash de contraseña; el Dueño se crea por una ruta HTTP de un solo uso |
 | El panel de flota no cabe en `apps/web` | El artefacto es idéntico para todos: meterlo ahí mandaría la lista de la flota al servidor de cada owner |
 
@@ -443,11 +480,11 @@ imagen y pide el certificado. Sus tres tarjetas, en el orden en que se usan:
 ### La regla de los dos archivos de configuración: un archivo, un parser
 
 `instancia.env` lo **sourcea** bash (`update.sh` hace `. "$CONF"`,
-`update.sh:377`) y sus valores van **entrecomillados**: un valor con un
+`update.sh:841`) y sus valores van **entrecomillados**: un valor con un
 espacio sin comillas hace que bash ejecute la segunda palabra como si fuera un
 comando, como root, cada noche (invariante I7, documentado también en
 `CLAUDE.md`). `app.env` lo lee **Docker** como `--env-file`
-(`update.sh:2093` arranca el contenedor con él) y sus valores van **sin
+(`update.sh:2567` arranca el contenedor con él) y sus valores van **sin
 comillas**: Docker no las interpreta, se las queda dentro del valor.
 
 El propio `update.sh` ya advertía la diferencia, antes de que hiciera falta:
@@ -455,26 +492,26 @@ El propio `update.sh` ya advertía la diferencia, antes de que hiciera falta:
 > Formato `--env-file` de docker: CLAVE=valor, sin comillas ni `export`. Por
 > eso se lee con grep y no con `.`: sourcearlo interpretaria las comillas de
 > otra manera que docker, y ahi es donde nacen las diferencias invisibles.
-> — `update.sh:1503-1506`
+> — `update.sh:1587-1589`
 
 `instalar-hijo.sh` tenía una sola función para los dos archivos y siempre
 entrecomillaba, así que `app.env` quedaba con la comilla dentro del valor.
-`url_de_env_app()` (`update.sh:1502-1508`) leía esa comilla, la comparaba
+`url_de_env_app()` (`update.sh:1585-1591`) leía esa comilla, la comparaba
 contra el destino de `instancia.env` (que sí sourcea, sin comillas), los dos
-nunca coincidían, y `update.sh:1519` abortaba con `EX_CONFIG` en la primera
+nunca coincidían, y `update.sh:1602` abortaba con `EX_CONFIG` en la primera
 corrida del cron: la instancia quedaba servida pero sin poder actualizarse
 jamás. Corregido separando `reescribir_env_sourceado()` (para `instancia.env`)
 de `reescribir_env_docker()` (para `app.env`) — el aviso estaba escrito
-(`update.sh:1503-1506`) y lo que faltó fue leerlo.
+(`update.sh:1587-1589`) y lo que faltó fue leerlo.
 
 ### Los dos códigos de salida, y son dos llamadas de teléfono distintas
 
 | Código | Qué significa | A quién se llama |
 |---|---|---|
-| **8** (`EX_LICENCIA`, `update.sh:406`) | la licencia venció, es inválida, o es de otra instancia/dominio: el contenedor está detenido a propósito y nginx sirve la página de vencimiento | al cliente, de facturación |
-| **9** (`EX_LICENCIA_NO_COMPROBABLE`, `update.sh:414`) | falta `openssl` o su versión no soporta `pkeyutl -verify -rawin` con Ed25519: la instancia **sigue sirviendo** | a nosotros, a arreglar una herramienta propia — el cliente no tiene nada que ver |
+| **8** (`EX_LICENCIA`, `update.sh:459`) | la licencia venció, es inválida, o es de otra instancia/dominio: el contenedor está detenido a propósito y nginx sirve la página de vencimiento | al cliente, de facturación |
+| **9** (`EX_LICENCIA_NO_COMPROBABLE`, `update.sh:467`) | falta `openssl` o su versión no soporta `pkeyutl -verify -rawin` con Ed25519: la instancia **sigue sirviendo** | a nosotros, a arreglar una herramienta propia — el cliente no tiene nada que ver |
 
-El panel de flota ya distingue los dos (`apps/flota/diagnostico.mjs:133-134`):
+El panel de flota ya distingue los dos (`apps/flota/diagnostico.mjs:179-180`):
 el 8 se traduce como *«la licencia vencio y la instancia esta apagada a
 proposito: no es una averia»*, el 9 como *«no se pudo verificar la licencia: la
 instancia sigue sirviendo, pero hay un problema de herramienta»*. Confundirlos
@@ -573,7 +610,7 @@ sourcea `instancia.env`, así que el cliente podía escribir esa misma variable
 en su propio archivo y congelar su licencia en `sana` para siempre, sin
 parchear una sola línea de código y sin dejar de reportar al panel de flota.
 Se quitó por completo de `licencia_estado()`; ahora usa siempre `date -u +%s`
-(`update.sh:962`). El arnés ya no mueve el reloj: mueve las **fechas de la
+(`update.sh:1045`). El arnés ya no mueve el reloj: mueve las **fechas de la
 licencia** contra un banco de casos compartido
 (`infra/licencias/estados.casos.tsv`), que es lo que ya fabricaba de todos
 modos. Vale la pena que quede escrito por qué se cerró: es la clase de agujero
@@ -583,9 +620,9 @@ que se reintroduce solo si nadie deja la razón al lado.
 
 1. **Archivo firmado en la máquina, comprobado sin salir a internet.** El PADRE
    firma con su llave privada; la pública es idéntica para toda la flota y
-   **viaja en el paquete de alta, no en la imagen** — `instalar-hijo.sh:751` la
+   **viaja en el paquete de alta, no en la imagen** — `instalar-hijo.sh:647` la
    instala en `/opt/space-os/space-os.pub` (modo 644), que es de donde la lee
-   `update.sh:861`. En el `Dockerfile` no hay ningún `COPY` de `space-os.pub`, y
+   `update.sh:944`. En el `Dockerfile` no hay ningún `COPY` de `space-os.pub`, y
    no puede haberlo: quien comprueba la firma es `update.sh`, **fuera** del
    contenedor. El PADRE sólo hace falta para **renovar**, nunca para funcionar —
    si se cae, ningún cliente se queda fuera de su propio sistema.
@@ -695,10 +732,19 @@ movido después. Un `modo` que no es `'automatica'` ni `'aprobacion'` nunca
 actualiza (`motivo: 'modo-desconocido'`): fail-closed, porque actualizar corta
 el servicio y migra la base.
 
-Lo que **todavía no existe**: la tabla de instancia, el endpoint/pantalla de
+~~Lo que **todavía no existe**: la tabla de instancia, el endpoint/pantalla de
 Administración, la escritura de `update.sh --comprobar` contra esa tabla y el
 cron de 15 minutos. `decidirActualizacion()` está aislada y probada, pero nadie
-la invoca todavía — eso es el resto del plan de siete tareas.
+la invoca todavía — eso es el resto del plan de siete tareas.~~
+
+**2026-10-05 · ya existe todo** (la frase de arriba era cierta el 21/09, al
+cerrar la tarea 1): la tabla `actualizaciones_instancia`
+(`db/migrations/20260921_actualizaciones_instancia.sql:53`), el endpoint
+`apps/web/app/api/actualizaciones/route.ts` con su pantalla
+`components/demo/admin/ActualizacionesPanel.tsx`, `update.sh --comprobar`
+(`infra/scripts/update.sh:17-29`) y el cron cada 15 min
+(`infra/scripts/provision-instancia.sh:915`, `instalar-hijo.sh:886`). Ver
+[[actualizaciones-instancia]].
 
 ## 7 · Lo que está bloqueado, y por quién
 

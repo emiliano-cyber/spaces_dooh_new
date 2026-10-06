@@ -1,5 +1,7 @@
 'use client'
 
+import type { EntradaNovedades } from '@/lib/novedades'
+
 // ============================================================================
 //  lib/data/actualizaciones-api.ts — Actualizacion elegida por instancia.
 //  ADR 0037. El tipo vive aqui (y no en lib/server/) porque lo consume un
@@ -18,6 +20,9 @@ export interface EstadoActualizacion {
   // digestDisponible existe y es distinto del instalado (lo calcula el
   // servidor; ver `route.ts:aEstado`, no se recalcula aqui).
   hayNovedad: boolean
+  // Las notas de la version disponible, ya revalidadas por el servidor
+  // (`route.ts:aEstado`). null = sin notas, o unas que no servian.
+  notasDisponibles: EntradaNovedades | null
 }
 
 const API = '/spaces-dooh/api'

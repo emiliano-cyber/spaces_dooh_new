@@ -1,7 +1,7 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-10-01
+actualizado: 2026-10-05
 tags: [datos, migraciones, despliegue, rojo]
 archivos:
   - db/migrations/
@@ -32,12 +32,116 @@ archivos:
   - db/migrations/20260928_descuento_por_volumen.sql
   - db/migrations/20260928_codigo_promocional.sql
   - db/migrations/20260928_paquete_cerrado.sql
+  - db/migrations/20260928_rejilla_franja_temporada.sql
+  - db/migrations/20260928_vendedor_en_propuesta.sql
+  - db/migrations/20260929_costo_real_ot.sql
+  - db/migrations/20260929_roles_de_venta_enum.sql
+  - db/migrations/20260929_roles_de_venta_matriz.sql
+  - db/migrations/20260929_roles_operaciones_costear.sql
+  - db/migrations/20260930_captacion.sql
   - db/migrations/20261002_franja_programada_campana.sql
   - db/migrations/20261003_codigo_aprobacion.sql
   - db/migrations/20261004_pantallas_digitales_importadas.sql
+  - db/migrations/20261005_notas_de_version.sql
+  - db/migrations/20261006_precio_ajustado_por_gerente.sql
+  - db/migrations/20261007_calculadora_spots.sql
 ---
 
 # Migraciones
+
+> [!important] 2026-10-05 · puesta al día — ninguna de las de abajo está ya «sin fusionar»
+> Medido hoy con `node scripts/recuentos.mjs` sobre el árbol de
+> `integra/riesgos-presentacion-14-oct` (salida de `main` en `09c65ca2`):
+> **106 migraciones y 57 tablas**. Es el recuento vigente; los de los recuadros
+> de abajo (92/52 del 28/09, 94, 99…) son fotos de su día y se dejan como tales.
+>
+> Lo que los recuadros dicen «sin fusionar» o «pendiente», con el commit de
+> `main` donde aterrizó (`git log --first-parent`):
+>
+> | Migración | Decía | Entró en `main` |
+> |---|---|---|
+> | `20261007_calculadora_spots.sql` | rama sin fusionar | `43082ac4` (01/10) |
+> | `20261006_precio_ajustado_por_gerente.sql` | rama sin fusionar | `17fbd252` (01/10) |
+> | `20261005_notas_de_version.sql` | PENDIENTE de aprobación | `c3398f1e` (01/10) |
+> | `20260928_paquete_cerrado.sql` | SIN FUSIONAR | `8e913662` (28/09) |
+> | `20260928_codigo_promocional.sql` | SIN FUSIONAR | `10e72087` (28/09) |
+> | `20260928_descuento_por_volumen.sql` | SIN FUSIONAR | merge `e653f530` (28/09) |
+>
+> Y las **dos** del ADR 0040 —`20260929_roles_de_venta_enum.sql` y
+> `20260929_roles_de_venta_matriz.sql`— están en `main` desde `276c7237`
+> (29/09, merge `2590e0d7`); faltaban en el `archivos:` de esta nota, igual
+> que `roles_operaciones_costear`, `costo_real_ot`, `captacion`, la rejilla y
+> `vendedor_en_propuesta`. Añadidas hoy.
+>
+> **De datos por la primera línea, que es lo que mira el runner: una sola**,
+> `20260731_calendario_meses_cortos.sql` (`head -1` de las 106). El mapa
+> `ANTES_DE` está en `scripts/migrar.mjs:67-74`, con las dos excepciones de
+> siempre y ninguna nueva.
+
+> [!warning] 2026-10-01 · `20261007_calculadora_spots.sql` — forma **aprobada** por el dueño, rama **sin fusionar**
+> **2026-10-05: ya en `main` (`43082ac4`).** Rama `feat/calculadora-spots` (ADR 0042). Cuatro columnas en `propuesta_items`,
+> **ninguna tabla** (el recuento de tablas no cambia):
+>
+> | Columna | Tipo | Quién escribe |
+> |---|---|---|
+> | `espacios_comprados` | `integer`, NULL | Solo `crearPropuesta()`, ya validado por `resolverCalculadora()`. Lo retiene la reserva al generar la campaña |
+> | `horas_dia` | `numeric(4,2)`, NULL | Ídem. Techo: la franja o el horario de la pantalla |
+> | `roadblock` | `boolean` **NOT NULL DEFAULT false** | Ídem. false = lo de siempre |
+> | `prima_roadblock_pct` | `numeric(5,2)`, NULL | Ídem; > 0 solo con `comercial.aprobar` |
+>
+> Cinco CHECK en `do $$` contra `pg_constraint` (idempotentes también a medias):
+> `espacios_comprados > 0`, `horas_dia` en (0, 24], prima en [0, 100], prima ≠ 0
+> solo con `roadblock`, y `roadblock` ⇒ `espacios_comprados` no nulo. Aborta si
+> `propuesta_items` no tiene RLS ENABLE+FORCE y `tenant_isolation`. GRANT de
+> tabla repetido. **Sin backfill**: no se sabe con qué espacios ni horas se
+> cotizó lo viejo. Nada de PG15. Lo fija `calculadora-spots.e2e.test.ts` §1
+> (tipos, default, que cada CHECK rechaza con `23514` y que el rol de la app
+> escribe lo bueno). Detalle en [[02-Backend/calculadora-de-spots]].
+
+> [!warning] 2026-10-01 · `20261006_precio_ajustado_por_gerente.sql` — forma **aprobada** por el dueño, rama **sin fusionar**
+> **2026-10-05: ya en `main` (`17fbd252`).** Rama `feat/precio-ajustado-por-gerente` (PRECIO-01, hallazgo B40). Dos columnas
+> en `propuesta_items`, **ninguna tabla** (el recuento de tablas no cambia):
+>
+> | Columna | Tipo | Quién escribe |
+> |---|---|---|
+> | `tarifa_calculada` | `numeric(14,2)`, NULL | Solo `crearPropuesta()`, con la tarifa que calculó el controller (`lib/tarifa-calculada.ts`). NULL = línea anterior al 01/10, o pantalla sin tarifa a la que un gerente le puso precio |
+> | `precio_ajustado_por` | `uuid` → `usuarios(id)` **on delete set null**, NULL | Solo `crearPropuesta()`, con el usuario de la SESIÓN, y solo si el precio se apartó de la tarifa. NULL = a la tarifa |
+>
+> FK de **una** columna con `on delete set null` simple (nada de `set null (col)`,
+> que es de PG15): mismo criterio que `propuestas.usuario_id` y
+> `codigo_aprobado_por`, porque el id sale de la sesión y no del cuerpo. La FK
+> va en un `do $$` contra `pg_constraint`: idempotente también a medias. Aborta
+> si `propuesta_items` no tiene RLS ENABLE+FORCE y `tenant_isolation`. GRANT de
+> tabla repetido (`select, insert, update`) aunque los de tabla ya cubren
+> columnas nuevas. **Sin backfill**: la tarifa de HOY no es la de entonces.
+> Lo fija `precio-ajustado.e2e.test.ts` §1 (tipos, FK `confdeltype = 'n'`, y que
+> el rol de la app escribe las dos). Detalle en
+> [[02-Backend/comercial-propuestas-campanas]].
+
+> [!warning] 2026-10-01 · `20261005_notas_de_version.sql` — **PENDIENTE de aprobación del dueño**
+> **2026-10-05: ya en `main` (`c3398f1e`).** Rama `feat/notas-de-version`, **sin fusionar** (al 01/10): ninguna migración aterriza en
+> `main` sin que el dueño vea su forma. Una columna en
+> `actualizaciones_instancia`, **ninguna tabla** (el recuento de tablas no
+> cambia):
+>
+> | Columna | Tipo | Quién escribe / quién lee |
+> |---|---|---|
+> | `notas_disponibles` | `jsonb`, NULL | La escribe `update.sh` (sonda de estado, rol privilegiado) con la entrada de `novedades.json` de la imagen NUEVA; la lee `GET /api/actualizaciones`. NULL = sin notas |
+>
+> **Ningún `grant` nuevo, a propósito**: el `select` de tabla de `20260921` ya
+> cubre la columna, y el `update` de la app es por columna, así que la nueva
+> nace sin él. Lo comprueba `migraciones.e2e.test.ts` («notas_disponibles:
+> jsonb, nullable, la app la LEE y NO la puede escribir»), **en rojo** antes de
+> existir la migración.
+>
+> **La trampa que tiene, y que ya está resuelta en `update.sh`:** la sonda
+> corre con la imagen nueva contra la base VIEJA, así que la primera
+> `--comprobar` tras publicar esta versión llega **antes** que esta migración.
+> La sonda mira `information_schema.columns` antes de escribir la columna; sin
+> eso, `42703` en cada corrida y la instancia **no podría instalar nunca** la
+> versión que trae la columna. Consecuencia aceptada: la primera vez, el dueño
+> no ve las notas de esa versión antes de instalarla. Detalle en
+> [[02-Backend/notas-de-version]].
 
 > [!success] 2026-10-01 · `20261004_pantallas_digitales_importadas.sql`
 > **Aprobada por el dueño el 2026-10-01.** Corrección de DATOS que va como
@@ -174,7 +278,8 @@ archivos:
 > columnas en NULL / false.
 >
 > **SIN FUSIONAR al 2026-09-28**: espera la aprobación del dueño, requisito desde
-> ese día para todo cambio de base de datos.
+> ese día para todo cambio de base de datos. **2026-10-05: aprobada y en `main`
+> (`8e913662`).**
 >
 > **Añade `sitios_id_tenant_uq`** sobre una tabla existente, y es lo único que
 > toca de lo anterior: hace falta para que la FK de `paquete_sitios` a `sitios`
@@ -230,7 +335,8 @@ archivos:
 > dos tablas **nacen vacías** y las columnas en 0 / NULL.
 >
 > **SIN FUSIONAR al 2026-09-28**: espera la aprobación del dueño, requisito desde
-> ese día para todo cambio de base de datos.
+> ese día para todo cambio de base de datos. **2026-10-05: aprobada y en `main`
+> (`10e72087`).**
 >
 > **Añade `propuestas_id_tenant_uq`** sobre una tabla existente, y es lo único que
 > toca de lo anterior: hace falta para que la FK de `canjes_codigo` a `propuestas`
@@ -261,7 +367,7 @@ archivos:
 > `db/schema.sql`. No mueve ni un importe — la escala **nace vacía** y las tres
 > columnas nacen en 0.
 >
-> **SIN FUSIONAR al 2026-09-28**: espera la aprobación del dueño, que desde ese
+> **2026-10-05: aprobada y en `main` (merge `e653f530`).** **SIN FUSIONAR al 2026-09-28**: espera la aprobación del dueño, que desde ese
 > día es requisito para todo cambio de base de datos. El motivo es concreto: cada
 > migración que entra a `main` acaba corriendo en **g500**, la única instancia con
 > datos de cliente reales, y su runner se para en seco si algo no cuadra.
@@ -995,7 +1101,7 @@ rojo. El censo lista **todas** las roturas, no solo la primera.
 
 ## Dos migraciones cuyo nombre miente sobre el orden
 
-El mapa `ANTES_DE` vive en **`scripts/migrar.mjs`** y se declara **una sola
+El mapa `ANTES_DE` vive en **`scripts/migrar.mjs:67-74`** (verificado el 2026-10-05) y se declara **una sola
 vez**: `db-e2e.ts` tenía su copia y desde el 17/08 la importa (`ordenar()`). Dos
 copias divergen, y divergir aquí significa que las pruebas apliquen en un orden y
 el droplet en otro. **Si aplicas por orden alfabético a ciegas, estas dos
@@ -1237,7 +1343,8 @@ servidor.**
 con `node scripts/recuentos.mjs`, que existe justo para que esta cifra no se
 vuelva a mantener a mano — este párrafo la ha tenido mal **tres veces**. Ya
 caducó otra vez con la del 21/09 de abajo: vuelve a correr el script si la
-necesitas, no sumes a mano.
+necesitas, no sumes a mano. **Al 2026-10-05 da 106 archivos y 57 tablas** —y
+caducará igual—.
 
 > [!success] 2026-09-21 — `20260921_restaura_contrasena_compartida_cambios.sql`
 > Trae de vuelta `tenants.cambios_password_hash` (ADR 0036, enmienda al 0009 —

@@ -118,6 +118,12 @@ export async function crearPropuestaApi(input: {
     tarifaUnitaria?: number
     cantidad?: number
     spotsPorDia?: number | null
+    // ADR 0042 · la calculadora de spots. El servidor recalcula la cantidad
+    // con ellos y rechaza la que no cuadre.
+    espaciosComprados?: number | null
+    horasDia?: number | null
+    roadblock?: boolean
+    primaRoadblockPct?: number | null
   }[]
   notas?: string | null
 }): Promise<void> {

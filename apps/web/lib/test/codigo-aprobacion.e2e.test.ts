@@ -51,6 +51,15 @@ beforeAll(async () => {
   await recrearEsquema()
   await asegurarPermisos()
   alfa = await sembrarTenant('cupapralfa')
+  // PRECIO-01 (2026-10-01) · la vendedora cotiza 1 spot a 100 000, y desde que
+  // el servidor calcula la tarifa eso solo vale si ES la tarifa: se le da a la
+  // pantalla su modalidad «spot» a 100 000. Los importes de todo el archivo
+  // siguen siendo los mismos; lo que se mide aquí es el cupón, no el precio.
+  await poolTest().query(
+    `insert into sitio_modalidades (sitio_id, unidad, tarifa_publicada, costo_compra, tenant_id)
+     values ($1,'spot',100000,0,$2)`,
+    [alfa.sitioId, alfa.id],
+  )
   beta = await sembrarTenant('cupaprbeta')
   // Decisión 3 del dueño: aprueban «los cuatro» que tienen `comercial.aprobar`.
   // Aquí van el más bajo de los cuatro (GERENTE_VENTAS) y quien NO debe poder

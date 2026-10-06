@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-09-17
+actualizado: 2026-10-05
 tags: [backend, integraciones, terceros, cron]
 archivos:
   - apps/web/lib/server/doohmain.ts
@@ -13,6 +13,9 @@ archivos:
   - apps/web/lib/server/integraciones.ts
   - apps/web/lib/server/google-oauth.ts
   - apps/web/app/api/recordatorios/route.ts
+  - apps/web/lib/email-remitente.ts
+  - apps/web/next.config.mjs
+  - infra/env/app.env.example
 ---
 
 # Integraciones externas
@@ -32,7 +35,7 @@ sin romperse.
 
 ## DOOHmain — publicación en pantallas
 
-`lib/server/doohmain.ts` (**403 líneas** el 31/08; eran 313 el 07/08). Al aprobar la publicación de una campaña,
+`lib/server/doohmain.ts` (**403 líneas** el 31/08, y siguen siendo 403 el 05/10; eran 313 el 07/08). Al aprobar la publicación de una campaña,
 publica cada creativo validado en cada pantalla **invocando un SDK de Python por
 subproceso** (`execFile`), con el mismo contrato JSON del CLI.
 
@@ -104,6 +107,10 @@ Credenciales **solo por env, nunca al cliente**.
 >
 > Aplica igual a `ADMOBILIZE_API_KEY`, `CMS_API_TOKEN` y `CFDI_PAC_KEY`, que el
 > traspaso del 15/09 ya había señalado.
+>
+> **2026-10-05 · sigue igual.** Ninguna de las tres plantillas de `infra/env/`
+> (`app.env.example`, `instancia.env.example`, `ejecutor.env.example`) declara
+> `SPACE_EYE_*`, `ADMOBILIZE_API_KEY` ni `CFDI_PAC_KEY` — medido con `grep`.
 
 > [!success] 2026-09-17 · el PADRE NO lleva la integración — medido, no supuesto
 > Se levantó como «divergencia del E4.1» del plan de Space Eye. **No existe.**
@@ -116,7 +123,7 @@ Credenciales **solo por env, nunca al cliente**.
 > SPACE_EYE_PASS         VACIA
 > ```
 >
-> Coincide con `docs/Runbook_Padre_Droplet_Nuevo.md:370`, que lista `SPACE_EYE_*`
+> Coincide con `docs/Runbook_Padre_Droplet_Nuevo.md:405` (era `:370` el 17/09), que lista `SPACE_EYE_*`
 > como **«No. Son de operación, y el PADRE es plano de control»**.
 >
 > **Lo que sí está encendido con credenciales reales es el entorno de
@@ -147,15 +154,19 @@ Credenciales **solo por env, nunca al cliente**.
 ## Almacenamiento S3
 
 `lib/server/storage.ts` — `PutObject` + URL firmada. Si no está configurado, el
-llamador cae a data URL en base de datos sin romperse. `next.config.mjs:116-126`
-autoriza `*.digitaloceanspaces.com` y `*.cdn.digitaloceanspaces.com` en
-`next/image`.
+llamador cae a data URL en base de datos sin romperse. `next.config.mjs:148-159`
+(`images.remotePatterns`; los dos `hostname` en `:152` y `:156`) autoriza
+`*.digitaloceanspaces.com` y `*.cdn.digitaloceanspaces.com` en `next/image`.
 
 > [!warning] Esa cita estaba 94 líneas más arriba, y es el modo de fallo típico
 > Decía `next.config.mjs:22-33`. El archivo creció con la **CSP** del 26–28/08 y
 > ese rango pasó a contener la narración de la CSP, no los dominios de imagen.
 > No daba error: mandaba al sitio equivocado. Es el caso que [[convenciones]] §4
 > describe — un archivo que crece invalida todas sus citas de golpe.
+>
+> **Y volvió a pasar: 2026-10-05.** El arreglo de arriba dejó `:116-126`, y al
+> medirlo hoy el bloque está en `:148-159` — otras 32 líneas más abajo. Nadie
+> tocó Spaces: creció lo de arriba.
 
 ## Conectores en modo demo
 
@@ -174,8 +185,8 @@ autoriza `*.digitaloceanspaces.com` y `*.cdn.digitaloceanspaces.com` en
 
 | Propiedad | Cómo |
 |---|---|
-| Autenticación | Header `x-recordatorios-token` == `RECORDATORIOS_TOKEN` |
-| Sin variable | **503**, no corre abierta |
+| Autenticación | Header `x-recordatorios-token` == `RECORDATORIOS_TOKEN` (`recordatorios/route.ts:53`) |
+| Sin variable | **503**, no corre abierta (`:50`) |
 | Multi-tenant | Recorre todos los tenants fijando `app.tenant_id` uno por uno |
 | Idempotencia | Por día: no inserta si ya existe una igual creada hoy |
 | Correo | **Un** correo de resumen por tenant, solo si hubo avisos nuevos |

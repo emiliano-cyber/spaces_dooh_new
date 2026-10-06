@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-01
+actualizado: 2026-10-05
 tags: [backend, inventario, sitios, amarillo]
 archivos:
   - apps/web/lib/server/sitios-repo.ts
@@ -12,6 +12,9 @@ archivos:
   - apps/web/lib/modalidades.ts
   - apps/web/app/api/sitios/[id]/modalidades/route.ts
   - apps/web/lib/predio-cercania.ts
+  - apps/web/app/api/sitios/[id]/route.ts
+  - apps/web/app/api/sitios/[id]/rejilla/route.ts
+  - apps/web/app/api/sitios/[id]/media/route.ts
 ---
 
 # Inventario y sitios
@@ -100,20 +103,25 @@ tomara de la petición, la regla de la pantalla fija se saltaría con una línea
 
 | Archivo | Responsabilidad |
 |---|---|
-| `lib/server/sitios-repo.ts` (724) | CRUD, importación, whitelist `CAMPO_COL`, modalidades |
+| `lib/server/sitios-repo.ts` (741) | CRUD, importación, whitelist `CAMPO_COL` (`:416`), modalidades |
 | `lib/server/sitios-controller.ts` (209) | Validación zod, mapeo de errores FK→HTTP |
-| `lib/modalidades.ts` | Las siete unidades y la regla de la pantalla fija (puro) |
+| `lib/modalidades.ts` (93) | Las siete unidades y la regla de la pantalla fija (puro) |
 | `lib/server/contratos-sitio.ts` (336) | Contrato al **alta** (ADR 0002) |
 | `lib/server/almacen-repo.ts` (141) | Activos físicos y traslados (Fase 3); por tipo desde el 30/09 ([[operaciones-y-ot]]) |
-| `lib/inventario-import.ts` | Parseo del Excel de carga masiva |
-| `lib/predio-cercania.ts` | Agrupa pantallas en predios por distancia |
+| `lib/inventario-import.ts` (271) | Parseo del Excel de carga masiva |
+| `lib/predio-cercania.ts` (199) | Agrupa pantallas en predios por distancia |
+
+Líneas medidas con `wc -l` el 2026-10-05. `sitios-repo.ts` ya no tiene
+`horasOperacion` ni `parseHora`: los retiró `12fc300d` (01/10) porque nadie los
+llamaba; la cantidad de spots de una pantalla digital vive ahora en un módulo
+puro — ver [[calculadora-de-spots]].
 
 ## Reglas de negocio codificadas
 
 | Regla | ADR | Dónde |
 |---|---|---|
 | Arrendador obligatorio al dar de alta una pantalla | 0002 | `contratos-sitio.ts` (`exigirArrendador`) |
-| El contrato nace **INCOMPLETO** y eso es a propósito | 0001 | `contratos-sitio.ts:8-16` |
+| El contrato nace **INCOMPLETO** y eso es a propósito | 0001 | `contratos-sitio.ts:16-19` |
 | Un solo costo por pantalla: la renta al arrendador | 0006 | `costo_compra` **no** es un costo aparte |
 | Cupo de clientes distintos por pantalla | 0008 | `sitios.max_clientes` |
 
@@ -121,22 +129,28 @@ tomara de la petición, la regla de la pantalla fija se saltaría con una línea
 > El ADR 0001 lo abría al **vender**, y eso tapaba el agujero tarde: hasta la
 > primera venta, una pantalla cargada por Excel no tenía rastro de a quién se le
 > paga la renta. El ADR 0002 mueve el disparador al alta, que es donde el dato
-> se conoce (`contratos-sitio.ts:8-16`).
+> se conoce (`contratos-sitio.ts:10-14`).
 
 ## Seguridad de la edición
 
 `sitios-repo.ts` **whitelistea columnas** (`CAMPO_COL`) y usa SQL parametrizado;
 el `PATCH` acepta un `z.record` genérico y el filtro real está en el repo
-(`sitios-controller.ts:7-10`). Cambiar esa whitelist es exponer columnas nuevas
+(`sitios-controller.ts:17-21`). Cambiar esa whitelist es exponer columnas nuevas
 a escritura desde el cliente.
 
-El desbloqueo NO se exige igual en las tres rutas, y la diferencia importa:
+El desbloqueo NO se exige igual en las cuatro rutas, y la diferencia importa:
 
 | Ruta | Cuándo pide la contraseña |
 |---|---|
 | `DELETE /api/sitios/[id]` | **Siempre**: borrar catálogo siempre es sensible |
 | `PATCH /api/sitios/[id]` | **Solo si el cuerpo trae un campo de `CAMPOS_SENSIBLES`** (`route.ts:15-18`). Editar nombre, dirección o notas no la pide, a propósito |
-| `PATCH /api/sitios/[id]/modalidades` | **Siempre**: la ruta entera es sensible, sin lista de campos |
+| `PATCH /api/sitios/[id]/modalidades` | **Siempre**: la ruta entera es sensible, sin lista de campos (`modalidades/route.ts:49`) |
+| `PATCH /api/sitios/[id]/rejilla` | **Siempre**, el mismo candado que las modalidades (`rejilla/route.ts:50`); el `GET` solo pide `inventario.ver` (`:40`). Ver [[rejilla-franja-y-temporada]] |
+
+`PATCH` y `DELETE` de `/api/sitios/[id]` piden primero `exigir('inventario',
+'crear')` (`[id]/route.ts:22` y `:47`) y después `exigirDesbloqueo()` —
+condicional en el `PATCH` (`:30`), incondicional en el `DELETE` (`:49`). La
+lista `CAMPOS_SENSIBLES` está en `[id]/route.ts:15-18`.
 
 Ver [[autenticacion-y-sesion]].
 
@@ -151,7 +165,8 @@ listados pasan `false` y reciben `fotos: []`, `imagenPromocional: null` y
 `tieneFotos: boolean`. `getSitio` y el portal público siguen con `true`.
 
 La galería se pide a **`GET /api/sitios/[id]/media`** (permiso `network.ver`, el
-mismo con el que la rebanada viaja) y la carga `SiteFicha` al abrirse.
+mismo con el que la rebanada viaja; `media/route.ts:31`) y la carga `SiteFicha`
+al abrirse.
 
 > [!note] Por qué el `select s.*` se quedó como estaba
 > Convertirlo en lista explícita son ~48 columnas. Cambiar un peso medido por el

@@ -86,7 +86,10 @@ function cotizacion(nombre: string) {
     clienteId: org.clienteId,
     fechaInicio: enDias(1),
     fechaFin: enDias(30),
-    items: [{ sitioId: org.sitioId, precio: 10_000 }],
+    // A la TARIFA de la pantalla sembrada (45 000 mensual, `semillas-e2e.ts`):
+    // desde PRECIO-01 (2026-10-01) un vendedor que manda otro precio recibe un
+    // 403, y aquí se mide el permiso de COTIZAR, no el de cambiar la tarifa.
+    items: [{ sitioId: org.sitioId, precio: 45_000 }],
   }
 }
 

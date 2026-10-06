@@ -1,7 +1,7 @@
 ---
 tipo: moc
 estado: verificado
-actualizado: 2026-10-01
+actualizado: 2026-10-05
 tags: [indice, entrada]
 archivos:
   - package.json
@@ -25,12 +25,12 @@ cobranza.
 | Producto vivo | Una sola app Next.js con BFF integrado | `apps/web/package.json` · lo arranca **systemd**, no pm2 (`infra/systemd/spaces-web.service:83`) |
 | Framework | Next.js 14.2.29, App Router | `apps/web/package.json:17` |
 | Base de datos | PostgreSQL, `pg` directo (sin ORM) | `apps/web/lib/server/db.ts:2` |
-| Aislamiento | RLS de Postgres por `app.tenant_id` | `apps/web/lib/server/db.ts:60` y `:79` |
-| Producción | **El PADRE `137.184.107.53` sirve `space-os.io`**, certificado propio hasta el **2026-11-23** con renovación automática. DEMO vive dentro de él (proceso `3001`, base `spaces_demo`) y desde el **31/08 se llama `pruebas.space-os.io`** — nombre nuevo, no `demo.space-os.io`, que es solo la demostración ORIGINAL, la sirve la máquina vieja y **se eliminará** ([ADR 0024](../../docs/adr/0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md), que sustituye al 0021) | `infra/nginx/space-os.io.conf:124` y `:188` · [ADR 0017](../../docs/adr/0017-todo-se-concentra-en-el-padre.md) · [ADR 0024](../../docs/adr/0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md) · [ADR 0022](../../docs/adr/0022-instancia-dedicada-por-owner.md) |
-| Endpoints | **123** route handlers | `apps/web/app/api/**/route.ts` |
+| Aislamiento | RLS de Postgres por `app.tenant_id` | `apps/web/lib/server/db.ts:59` (`fijarTenant`) y `:74` (`q`) |
+| Producción | **El PADRE `137.184.107.53` sirve `space-os.io`**, certificado propio hasta el **2026-11-23** con renovación automática. DEMO vive dentro de él (proceso `3001`, base `spaces_demo`) y desde el **31/08 se llama `prueba.space-os.io`** —en singular: es el `server_name` de `infra/nginx/space-os.io.conf:288`; esta celda decía `pruebas` hasta el 05/10— — nombre nuevo, no `demo.space-os.io`, que es solo la demostración ORIGINAL, la sirve la máquina vieja y **se eliminará** ([ADR 0024](../../docs/adr/0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md), que sustituye al 0021) | `infra/nginx/space-os.io.conf:133` (`space-os.io`), `:213` (`demo.`) y `:288` (`prueba.`) · [ADR 0017](../../docs/adr/0017-todo-se-concentra-en-el-padre.md) · [ADR 0024](../../docs/adr/0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md) · [ADR 0022](../../docs/adr/0022-instancia-dedicada-por-owner.md) |
+| Endpoints | **124** route handlers | `apps/web/app/api/**/route.ts` |
 | Tablas | **57** | [[esquema]] |
-| Migraciones | **103** | [[migraciones]] |
-| ADR | **40** (`0001`–`0040`) | `docs/adr/` · [[decisiones]] |
+| Migraciones | **106** | [[migraciones]] |
+| ADR | **42** (`0001`–`0042`) | `docs/adr/` · [[decisiones]] |
 
 > [!success] `demo.space-os.io` SE ELIMINARÁ — cerrado el 27/08 por el ADR 0024
 > Ese nombre **no sirve más que para la demostración original** —la anterior al
@@ -53,6 +53,11 @@ cobranza.
 > route handlers: los que reciben cuerpo. Es un subconjunto, no el total. Un
 > commit que diga «72 endpoints» habla de ese censo; el total de
 > `app/api/**/route.ts` medido el **27/08** es **90**.
+>
+> **2026-10-05 · el 90 es historia:** el total medido hoy con
+> `node scripts/recuentos.mjs` es **124** —la tabla de arriba—. La lección no
+> cambia: «72» es un censo parcial y no se confunde con el total, sea cual sea
+> el total del día.
 
 ## Antes de tocar nada
 
@@ -70,13 +75,13 @@ cobranza.
 ### 01 · Arquitectura
 - [[vision-general]] — diagrama de componentes y por qué hay una sola pista viva
 - [[stack-y-dependencias]] — versiones reales y por qué están fijadas
-- [[entorno-y-despliegue]] — local, CI y el despliegue manual por SSH
-- [[decisiones]] — los 24 ADR y las decisiones deducidas del código
+- [[entorno-y-despliegue]] — local, CI (con e2e desde el 07/09), imagen del registro, `update.sh` por cron y el respaldo diario
+- [[decisiones]] — los 42 ADR y las decisiones deducidas del código
 - [[modelo-instancias-soberanas]] — una instancia por owner: avance de la corrección del 12/08, costos y calendario
 
 ### 02 · Backend
 - [[02-Backend/_indice|Índice de Backend]] — mapa de la capa servidor
-- [[api-endpoints]] — los 90 endpoints con método, guard y módulo
+- [[api-endpoints]] — los endpoints con método, guard y módulo (124 medidos el 05/10; la cifra de su título es la de su última revisión)
 - [[autenticacion-y-sesion]] — cookie, sesión, CSRF, permisos, reautenticación
 - [[multi-tenancy-y-rls]] — cómo se aísla cada organización
 - [[inventario-y-sitios]] — pantallas, modalidades, importación
@@ -87,26 +92,40 @@ cobranza.
 - [[02-Backend/codigo-promocional]] — ADR 0039 Fase 3: «usa este código y ten un 20 % adicional». La carrera del último uso la resuelve un `for update` sobre la fila del cupón; el canje se cuenta al APLICAR, no al aprobar; el cupón NO cuenta contra el tope (decisión abierta); y borrar el cupón no mueve una propuesta aprobada
 - [[02-Backend/paquete-cerrado]] — ADR 0039 Fase 4: «estas cinco pantallas, prime, un mes: 180 000». El único escalón que SUSTITUYE el precio en vez de modificarlo; el reparto a prorrata cuadra al peso por el método del mayor resto; el paquete es precio final (ni volumen ni cupón salvo bandera, que nace apagada); sale con RAYA del reporte publicada vs neta; y borrar el paquete no mueve una propuesta aprobada
 - [[02-Backend/roles-de-venta]] — ADR 0040: los CUATRO roles de venta y su matriz (**86 filas · 10 módulos · 8 roles**); `COMERCIAL` se retira DE USO y no del esquema —un valor de enum no se puede quitar—; **son DOS migraciones** porque un valor recién añadido no se puede usar en la transacción que lo añadió (medido en PostgreSQL 14.24); el módulo `precios`, que existe porque «cotizar» y «crear un cupón» eran el mismo permiso; y **los dos guards del Dueño**, con la carrera resuelta por un `for update` en UNA sola sentencia
+- [[02-Backend/calculadora-de-spots]] — ADR 0043 (sustituye 1-3 del 0042): la calculadora cuenta como la calculadora HTML del dueño — la CANTIDAD (loop = ocupación de hoy + la línea, fracciones sumadas y un solo redondeo al final) y el PRECIO (tarifa mensual ÷ spots de un anunciante al mes); el servidor recalcula los dos y rechaza lo que no cuadre; el Roadblock compra el loop entero y su prima es solo de gerente
 - [[02-Backend/captacion]] — CAP-01: la bitácora de captación. Prospectos de cliente, arrendador, predio o pantalla con sus etapas; el vendedor ve lo suyo y no se aprueba solo; al aprobar nace el registro real, y dos aprobaciones a la vez crean UNO
+- [[02-Backend/vendedor-en-propuesta]] — el vendedor de una propuesta, y la octava dimensión de reportes
+- [[02-Backend/tarifa-publicada-vs-neta]] — la séptima dimensión: tarifa publicada contra neta
+- [[02-Backend/reportes-rentabilidad]] — el módulo de reportes de rentabilidad
+- [[02-Backend/reportes-dimensiones]] — las cuatro dimensiones de rentabilidad
+- [[02-Backend/reportes-por-razon-social]] — la sexta dimensión: `entidad`
+- [[02-Backend/entidades-fiscales]] — las razones sociales del owner
+- [[02-Backend/multi-entidad-en-uso]] — multi-entidad en uso
+- [[02-Backend/energia-consumos]] — consumo de luz: la captura y la quinta dimensión
+- [[02-Backend/recibos-cfe-pdf]] — subir el PDF del recibo de CFE
+- [[02-Backend/cuestionario-bienvenida]] — el cuestionario de bienvenida
 - [[operaciones-y-ot]] — órdenes de trabajo, evidencias, imprenta
 - [[02-Backend/costo-real-de-ot]] — OT-COSTO-01: lo que de verdad costó cada visita, y que **SUSTITUYE** a la tarifa por tipo en vez de sumarse; `NULL` no es `0` y por eso la columna no lleva DEFAULT; la captura es una ruta propia con candado de dinero, no un campo de `cerrar`; y el reporte DICE cuántas visitas van medidas y cuántas estimadas — el único hueco del reporte que no se ve en la tabla. Trae el renombrado a **margen bruto** y dónde queda escrito que **bruto no es neto**
 - [[finanzas-y-cobranza]] — facturación, candado, parcialidades
 - [[integraciones-externas]] — DOOHmain, Space Eye, Spaces S3, Resend, Google
 - [[infraestructura-servidor]] — pool, errores, folios, rate limit, subidas
 - [[actualizaciones-instancia]] — ADR 0037: cada instancia elige si toma la versión nueva; el mapa de las cuatro piezas
+- [[notas-de-version]] — las notas de cada versión (`apps/web/novedades.json`): se escriben en el mismo PR, `release.yml` no publica sin ellas, el Dueño las ve antes de instalar y todos una vez después
 
 ### 03 · Frontend
 - [[03-Frontend/_indice|Índice de Frontend]] — mapa de la capa cliente
 - [[shell-y-navegacion]] — layouts, sidebar, topbar, guards de UI
 - [[acceso-y-sesion-ui]] — login, recuperar, autoregistro
 - [[idiomas-es-en]] — la aplicación en español e inglés: cómo se detecta, cómo se cambia, y por qué el dinero no se mueve
-- [[modulos-internos]] — las 22 pantallas del shell
+- [[modulos-internos]] — las pantallas del shell (eran 22 el 31/08; el recuento de hoy está en la propia nota)
+- [[03-Frontend/pantalla-reportes]] — la pantalla de reportes de rentabilidad
+- [[03-Frontend/comercial-opex]] — Comercial OPEX: prospección de arrendadores
 - [[paginas-publicas]] — portal, firma, propuesta compartible, OT móvil
 - [[estado-y-data-fetching]] — React Query, zustand, el parche de `fetch`
 
 ### 04 · Datos
-- [[esquema]] — diagrama ER y las 44 tablas
-- [[migraciones]] — las 84 en orden, y las trampas de orden
+- [[esquema]] — diagrama ER y las tablas (57 medidas el 05/10)
+- [[migraciones]] — las migraciones en orden (106 medidas el 05/10), y las trampas de orden
 - [[04-Datos/semilla-de-demostracion]] — el guion de datos de la demo del 14/10
 
 ### 05 · Flujos
@@ -132,9 +151,23 @@ cobranza.
 - [[ejecucion-plan-v3]] — estado vivo de la ejecución del plan v3, tarea por tarea
 - [[auditoria-f3-9-y-m3]] — **ROJO (20/08)**: la contraseña sale al bucket de logs
   cuando el `=` de la consulta va percent-encoded
+- [[auditoria-cuatro-rojo-20260820]] — auditoría de los cuatro ROJO del 20/08
 - [[_plantilla-diaria]] — plantilla del diario
-- [[2026-09-02]] — **última entrada**: DEMO pasa a ser una instancia (F3.5), y
+- [[2026-10-05]] — **última entrada**: auditoría de la bóveda, cuatro riesgos y la bóveda al día para el 14/10
+- [[2026-10-02]] — el registro lleno y el PADRE en blanco
+- [[2026-10-01]] — lo publicado, las dos minas del PADRE y las digitales que se reservaban como fijas
+- [[2026-09-30]] — el diario conjunto del 29 y el 30 de septiembre
+- [[2026-09-18]] · [[2026-09-17]] · [[2026-09-15]] · [[2026-09-14]] ·
+  [[2026-09-11]] — las entradas de mediados de septiembre (enlazadas desde el
+  MOC el 05/10: antes solo se llegaba a ellas en dos saltos)
+- [[2026-09-09]] — el alta completa desde el panel, de punta a punta y por primera vez
+- [[2026-09-08]] — el candado del ADR 0028 encerró al PADRE
+- [[2026-09-07]] — el ejecutor de altas arranca, y falla en el sitio previsto
+- [[2026-09-04]] — F5.6 cerrada, y el panel de flota nace con dos ADR
+- [[2026-09-03]] — la tarjeta de F5.6 no cerraba F5.6
+- [[2026-09-02]] — DEMO pasa a ser una instancia (F3.5), y
   F2.4 resulta que llevaba un día cerrada EN FALSO
+- [[2026-08-31]] — el registry existe, F2.3 cerrada
 - [[2026-08-27]] —: la CSP en modo reporte destapa que la pista
   archivada seguía ejecutándose en producción; se retiran nueve rutas
 - [[2026-08-25]] — el PADRE nunca había hablado con su base,
@@ -158,6 +191,10 @@ cobranza.
 - [[2026-08-10]] — despliegues del día + V2-01
 - [[2026-08-07]] — creación de la bóveda y la tarde de Google
 
+### 00 · Inventario
+- [[inventario-2026-08-11]] — base de los primeros manuales
+- [[inventario-2026-09-15]] — el inventario del 15/09, base del manual técnico vigente
+
 ### 08 · Manuales
 Llevan fecha en el nombre: cada corrida escribe uno nuevo en vez de pisar el
 anterior. **Queda SOLO el último de cada clase** — los cuatro anteriores se
@@ -166,6 +203,8 @@ retiraron el 24/09, y siguen en el historial de git para quien los necesite.
   entornos, despliegue y operación. 31 pendientes al cierre
 - [[manual-usuario-2026-09-18]] — **el vigente**. Para quien usa la aplicación sin saber
   programar, ordenado por tarea y con los controles nombrados por su rótulo real.
+  **Desde el 05/10 lleva arriba la lista de secciones que ya no corresponden**
+  (recibo de luz, novedades, todo lo posterior al 28/09); el técnico, igual.
 
 > [!warning] Esta lista decía que el vigente era el del **25/08**
 > Y era falso: existían el del 15/09 y el del 18/09 cuando se escribió eso. Un
@@ -186,6 +225,31 @@ retiraron el 24/09, y siguen en el historial de git para quien los necesite.
 > Respecto del **28/08** se movieron las migraciones (74 → **75**, por
 > `20260828_reautenticacion_por_defecto.sql`) y desapareció
 > `.github/workflows/deploy.yml` (F3.6). Endpoints, tablas y ADR siguen igual.
+
+> [!important] 2026-10-05 · las cifras del recuadro de arriba son HISTORIA
+> El recuadro conserva lo medido el 31/08 (90 · 75 · 39 · 24 · 804 sobre 57) y
+> se deja así a propósito: es el registro de aquella validación. **Hoy**,
+> con `node scripts/recuentos.mjs` sobre la rama
+> `integra/riesgos-presentacion-14-oct`: **124** endpoints, **57** tablas,
+> **106** migraciones, **42** ADR, **100** notas, **1287** enlaces internos,
+> **2** wikilinks rotos (los dos a ADR, que viven en `docs/`) y **0** huérfanas
+> —medido ANTES de esta revisión, que añade enlaces al MOC—. Al cerrarla, el
+> script daba **1432** enlaces, **2** rotos (los mismos) y **0** huérfanas, con
+> otras cuatro revisiones de la bóveda en curso en el mismo árbol: la cifra
+> buena es la que dé el script cuando lo corras tú, no este párrafo.
+>
+> Revalidadas contra el código el 05/10, nota a nota: este MOC, [[glosario]],
+> [[preguntas-abiertas]], [[vision-general]], [[stack-y-dependencias]],
+> [[entorno-y-despliegue]], [[decisiones]] y [[modelo-instancias-soberanas]].
+> Los dos manuales recibieron un aviso de caducidad arriba y **conservan su
+> fecha**: son fotografías.
+>
+> Y se corrigió un nombre que este MOC llevaba mal desde el 31/08: DEMO es
+> **`prueba.space-os.io`**, en singular (`infra/nginx/space-os.io.conf:288`).
+> Además, el mapa no enlazaba **28 notas** que ya existían (las de reportes,
+> multi-entidad, energía, CFE, OPEX, el inventario del 15/09 y catorce entradas
+> del diario): no eran huérfanas —otras notas las enlazaban—, pero rompían la
+> promesa de «cualquier nota en un salto». Ya están arriba.
 
 > [!warning] Qué se revalidó el 31/08 y qué NO — la lista, para que nadie la suponga
 > No todas las notas se comprobaron igual, y la diferencia importa más que el
