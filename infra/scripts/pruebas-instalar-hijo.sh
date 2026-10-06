@@ -435,6 +435,8 @@ else mal "la llave de app.env y la de eyes.env no son la misma: el modulo daria 
 if [ -n "$TEST_APP" ] && [ "$TEST_APP" = "$TEST_EYES" ] && [ "$TEST_APP" != "$LLAVE_APP" ]; then bien
 else mal "el testigo no coincide entre los dos archivos, o es la misma credencial que la llave"; fi
 modo_escrito /etc/space-os/eyes.env 600
+# Y la licencia del padre: con Space Eyes, update.sh la baja sola (etapa 4).
+escrito_casa /etc/space-os/instancia.env '^LICENCIA_DEL_PADRE="1"$'
 escrito_dice /etc/cron.d/space-os-eyes '/opt/space-os/update-eyes.sh --comprobar'
 if grep -qE -- "certbot .*-d $DOM .*-d eyes\.$DOM" "$SALIDA"; then bien
 else mal "el certificado no pide eyes.$DOM: los equipos verian un certificado ajeno"; fi
@@ -450,6 +452,7 @@ correr REGISTRY=registro.ejemplo/x PADRE_URL=https://padre.ejemplo.invalid FLOTA
 codigo_es 0
 escrito_casa /etc/space-os/app.env '^SPACE_EYE_KEY=$'
 if [ -f "$(ruta_escrita /etc/space-os/eyes.env)" ]; then mal "sin --con-eyes se escribio eyes.env"; else bien; fi
+if grep -q '^LICENCIA_DEL_PADRE' "$(ruta_escrita /etc/space-os/instancia.env)" 2>/dev/null; then mal "sin --con-eyes se escribio LICENCIA_DEL_PADRE"; else bien; fi
 if grep -qF -- "eyes.$DOM" "$SALIDA"; then mal "sin --con-eyes aparece eyes.$DOM en lo que se haria"; else bien; fi
 limpiar
 

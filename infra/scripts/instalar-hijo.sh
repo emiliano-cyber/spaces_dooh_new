@@ -765,6 +765,9 @@ reescribir_env_sourceado "$TPL_INST" \
   printf '# comentada, como documentacion.\n'
   printf 'DOMINIO="%s"\n' "$DOMINIO"
   printf 'LICENCIA_REQUERIDA="1"\n'
+  # Con Space Eyes, la licencia la baja update.sh del padre en cada corrida
+  # (ADR 0041, etapa 4): activar o desactivar el modulo es firmarla alla.
+  if [[ "$CON_EYES" -eq 1 ]]; then printf 'LICENCIA_DEL_PADRE="1"\n'; fi
 } >> "$TMP_INST"
 escribir /etc/space-os/instancia.env 600 < "$TMP_INST"
 rm -f "$TMP_INST"

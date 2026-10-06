@@ -163,7 +163,24 @@ nada ni ir a los sitios.
   en máximo 30 minutos, y lo verás en su registro como «La mudanza a … no se
   completó». No se pierde nada; se vuelve a intentar cuando esté resuelto.
 
+## 7. Para quien administra la plataforma: activar Space Eyes a una empresa *(etapa 4)*
+
+Esto lo hace el superadministrador en el servidor padre; la empresa no tiene
+que hacer nada.
+
+- **Empresa nueva:** en el panel de altas deja marcada **«Con Space Eyes»**. Su
+  servidor nace con el servicio de cámaras listo (2 GB) y su dirección
+  `eyes.<dominio>`. Si el dominio es de la empresa, debe apuntar **los dos**
+  nombres a la IP que da el panel.
+- **Activar o desactivar** a una empresa que ya existe: en el panel, la columna
+  **space eyes** dice si lo tiene y, al pasar el cursor, la orden exacta, por
+  ejemplo `node apps/flota/modulo.mjs --instancia pixeled --activar space-eyes`.
+  Pide la frase de paso de la llave de licencias y deja constancia de quién y
+  cuándo.
+- En **15 minutos o menos** la empresa ve Space Eyes (o vuelve a ver la
+  demostración, si se desactivó). **Desactivar no borra** equipos ni fotos.
+
 ## Pendiente de escribir
 
-- Activar o desactivar Space Eyes por empresa desde el panel *(etapa 4)*.
+
 - Capturas de pantalla de la versión final *(etapa 5)*.

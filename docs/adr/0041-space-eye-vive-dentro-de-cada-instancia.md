@@ -134,3 +134,41 @@ rama y la de Space Eye (`Dockerfile.instancia`) construidas localmente:
 
 Sin `--con-eyes` las dos altas hacen exactamente lo de antes (los escenarios de
 siempre siguen en verde y uno nuevo lo afirma por ausencia).
+
+## Etapa 4 (07/10): activar Space Eyes por empresa, y el alta con Space Eyes
+
+Construido en la rama, detrás de `--con-eyes` / `LICENCIA_DEL_PADRE`, para
+la aprobación del dueño (Emiliano). Sin esas banderas todo hace lo de siempre.
+
+**La licencia decide si una empresa lo ve.** La licencia firmada lleva un
+campo opcional `modulos: ["space-eyes"]` (`apps/flota/licencia.mjs`), al
+final y solo si hay alguno: las licencias ya firmadas no cambian ni un byte.
+En la app, `estadoDelModulo()` la lee: con licencia, Space Eyes se ve solo si
+la incluye (si no, la demostración; equipos e historial intactos); sin
+licencia (hijos administrados), manda la configuración, como antes.
+
+**Activar o desactivar = una orden en el padre.**
+`node apps/flota/modulo.mjs --instancia <n> --activar|--desactivar space-eyes`
+re-firma la licencia vigente con el módulo puesto o quitado (mismo dominio,
+vencimiento y avisos), pide la frase de paso y deja `bitacora.jsonl` (quién,
+cuándo, qué). No es un botón del panel porque el panel no tiene credenciales
+(ADR 0027); el panel muestra una columna «space eyes» con la orden exacta.
+
+**El hijo la baja solo.** 🔴 `update.sh`, con `LICENCIA_DEL_PADRE=1` (lo
+escribe `instalar-hijo.sh --con-eyes`), pide en cada corrida
+`/flota/licencia.json` y `.firma` con su token (`reporte.mjs`, cada instancia
+recibe SOLO la suya) y la instala solo si valida igual que la de disco
+(firma y de esta instancia). Si el padre no contesta, no tiene licencia para
+ella o manda una que no valida, sigue con la que hay. Arnés: E150–E155
+(164 escenarios · 920 comprobaciones), y dos mutantes que muerden.
+
+**El alta con Space Eyes desde el panel.** La solicitud tiene `con_eyes`
+(casilla marcada por omisión): el ejecutor pasa `--con-eyes` al alta y a la
+reemisión del certificado, crea también el registro `eyes.<dominio>` si la
+zona es nuestra y usa `DO_TAMANO_CON_EYES` (2 GB por omisión).
+
+**Falta:** un hijo creado SIN `--con-eyes` no tiene la pila; activarle el
+módulo exige instalarla (certificado con `eyes.`, ufw, `eyes.env`, cron). Hoy
+es un paso a mano; automatizarlo es el siguiente trabajo de esta zona. Los
+hijos administrados (`provision-instancia.sh`) no llevan licencia: en ellos
+Space Eyes depende solo de si nacieron con `--con-eyes`.
