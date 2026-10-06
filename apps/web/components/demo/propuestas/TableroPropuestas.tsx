@@ -98,7 +98,7 @@ export function TableroPropuestas() {
           <div className={cn('space-y-4', cargando && 'opacity-60')}>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
               <Cifra label="Generadas" valor={String(r.generadas)} pie="creadas en el periodo" />
-              <Cifra label="Aprobadas" valor={String(r.aprobadas.n)} pie={`venta ${formatMonto(r.aprobadas.venta)}`} tono="ok" />
+              <Cifra label="Aprobadas" valor={String(r.aprobadas.n)} pie={`venta ${formatMonto(r.aprobadas.venta)} sin IVA`} tono="ok" />
               <Cifra label="Rechazadas" valor={String(r.rechazadas)} pie="en el periodo" tono={r.rechazadas > 0 ? 'error' : undefined} />
               <Cifra
                 label="Tasa de cierre"
@@ -134,7 +134,7 @@ export function TableroPropuestas() {
                       <th className="py-2 pr-4 text-right font-medium">Generadas</th>
                       <th className="py-2 pr-4 text-right font-medium">Aprobadas</th>
                       <th className="py-2 pr-4 text-right font-medium">Rechazadas</th>
-                      <th className="py-2 pr-4 text-right font-medium">Venta</th>
+                      <th className="py-2 pr-4 text-right font-medium">Venta sin IVA</th>
                       {conGanancia && <th className="py-2 text-right font-medium">Ganancia</th>}
                     </tr>
                   </thead>
@@ -165,7 +165,7 @@ export function TableroPropuestas() {
                         <th className="py-2 pr-4 font-medium">Propuesta</th>
                         <th className="py-2 pr-4 font-medium">Vendedor</th>
                         <th className="py-2 pr-4 font-medium">Aprobada</th>
-                        <th className="py-2 pr-4 text-right font-medium">Venta</th>
+                        <th className="py-2 pr-4 text-right font-medium">Venta sin IVA</th>
                         {conGanancia && <th className="py-2 pr-4 text-right font-medium">Renta</th>}
                         {conGanancia && <th className="py-2 text-right font-medium">Ganancia</th>}
                       </tr>
