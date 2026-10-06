@@ -7,9 +7,23 @@ import path from 'path';
 import { createRoutes } from './routes';
 import { env } from './config/env';
 import { firmaValida } from './utils/firmaArchivos';
+import { enModoInstancia } from './utils/instancia';
 
 export function createApp() {
   const app = express();
+
+  // En el Space Eye de una empresa (modo instancia) SIEMPRE hay un nginx
+  // delante (eyes.<dominio>), y llega por el puerto publicado de Docker: desde
+  // la red privada del host. Sin esto, TODAS las peticiones parecian venir de
+  // la misma IP, y el limite por IP de abajo se volvia un limite para el
+  // servidor entero (20 equipos reportando lo agotaban) y el bloqueo por codigos
+  // de vinculacion malos cerraba la puerta a todos a la vez. nginx REEMPLAZA
+  // X-Forwarded-For con la IP real (no la agrega): no se puede falsificar desde
+  // fuera. Solo se confia en saltos de loopback y redes privadas. TRUST_PROXY
+  // lo cambia si hiciera falta.
+  if (process.env.TRUST_PROXY || enModoInstancia()) {
+    app.set('trust proxy', process.env.TRUST_PROXY || 'loopback, uniquelocal');
+  }
 
   // Security
   app.use(helmet({
@@ -24,6 +38,11 @@ export function createApp() {
     max: 1000,
     standardHeaders: true,
     legacyHeaders: false,
+    // Los equipos ya dados de alta llevan su propia llave y reportan solos cada
+    // minuto: 20 en la misma oficina (misma IP publica) agotarian el limite y
+    // dejarian de reportar. No cuentan aqui; el ALTA si (register), que ademas
+    // tiene su bloqueo por codigos malos.
+    skip: (req) => req.path.startsWith('/device/') && req.path !== '/device/register',
   });
   app.use('/api/', limiter);
 

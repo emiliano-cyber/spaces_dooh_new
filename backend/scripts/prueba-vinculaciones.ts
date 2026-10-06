@@ -30,16 +30,17 @@ async function panel(metodo: string, ruta: string, cuerpo?: unknown) {
   return { status: r.status, json: (await r.json().catch(() => ({}))) as any };
 }
 
-async function alta(uid: string, codigo?: string) {
+async function alta(uid: string, codigo?: string, ip?: string) {
   const r = await fetch(API + '/api/device/register', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    // `ip`: como la pondria el nginx de la instancia (X-Forwarded-For).
+    headers: { 'Content-Type': 'application/json', ...(ip ? { 'X-Forwarded-For': ip } : {}) },
     body: JSON.stringify({
       device_uid: uid, android_version: 'ensayo', app_version: 'pi-agent 0.7.1',
       model: 'Pi de ensayo', manufacturer: 'Raspberry Pi', ...(codigo ? { codigo_vinculacion: codigo } : {}),
     }),
   });
-  return { status: r.status, json: (await r.json().catch(() => ({}))) as any };
+  return { status: r.status, json: (await r.json().catch(() => ({}))) as any, limite: r.headers.get('ratelimit-limit') };
 }
 
 const uid = () => `ensayo-${crypto.randomBytes(10).toString('hex')}`;
@@ -97,6 +98,22 @@ const uid = () => `ensayo-${crypto.randomBytes(10).toString('hex')}`;
   const dias = (new Date(g.json.expira_en).getTime() - new Date(g.json.creado_en).getTime()) / 86400000;
   afirmar(Math.round(hora) === 60, 'telefono: 60 min', `(${Math.round(hora)})`);
   afirmar(Math.round(dias) === 14, 'Raspberry: 14 dias', `(${Math.round(dias)})`);
+
+  console.log('\n9) El bloqueo por codigos malos es POR IP (detras de nginx), no global');
+  const ipMala = `203.0.113.${10 + Math.floor(Math.random() * 200)}`;
+  for (let i = 0; i < 10; i++) await alta(uid(), 'ZZZZ-ZZZZ', ipMala);
+  const bloqueada = await alta(uid(), 'ZZZZ-ZZZZ', ipMala);
+  afirmar(bloqueada.status === 429, 'tras 10 codigos malos, esa IP espera', `(${bloqueada.status})`);
+  const otra = await alta(uid(), 'ZZZZ-ZZZZ', '198.51.100.9');
+  afirmar(otra.status === 403, 'otra IP (otra oficina) sigue pudiendo vincular', `(${otra.status})`);
+
+  console.log('\n10) Un equipo ya dado de alta no cuenta contra el limite por IP');
+  const st = await fetch(API + '/api/device/status', {
+    method: 'POST', headers: { Authorization: `Bearer ${r2.json.token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ battery_pct: 90 }),
+  });
+  afirmar(!st.headers.get('ratelimit-limit'), 'su reporte de estado no lleva contador', `(${st.status})`);
+  afirmar(!!r3.limite, 'el alta si lo lleva');
 
   console.log(fallos ? `\n${fallos} FALLAS\n` : '\nTodo bien.\n');
   process.exit(fallos ? 1 : 0);
