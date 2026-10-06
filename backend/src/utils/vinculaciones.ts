@@ -25,6 +25,19 @@ export const VIGENCIA_MIN: Record<TipoEquipo, number> = {
   pc: 14 * 24 * 60,
 };
 
+// Un lote de telefonos se instala en una jornada (no en una hora).
+export const VIGENCIA_LOTE_TELEFONO_MIN = 24 * 60;
+// Lo mas que dura un codigo y lo mas que se puede pedir de un lote.
+export const VIGENCIA_MAX_MIN = 14 * 24 * 60;
+export const USOS_MAX = 200;
+
+/** Cuanto dura un codigo: lo pedido (en horas), o lo de su tipo. */
+export function vigenciaMin(tipo: TipoEquipo, usos: number, horas?: number): number {
+  if (horas && horas > 0) return Math.min(Math.round(horas * 60), VIGENCIA_MAX_MIN);
+  if (tipo === 'telefono' && usos > 1) return VIGENCIA_LOTE_TELEFONO_MIN;
+  return VIGENCIA_MIN[tipo];
+}
+
 export function generarCodigo(): string {
   const bytes = crypto.randomBytes(LARGO);
   let c = '';
@@ -49,15 +62,17 @@ export function enlaceDeVinculacion(servidor: string, codigo: string): string {
 }
 
 /**
- * Gasta el codigo para un equipo, si sigue vigente. Devuelve el dueno con el
- * que nace el equipo, o null si el codigo no sirve (no existe, vencio, ya se
- * uso o se cancelo). Un solo UPDATE con todas las condiciones: si dos equipos
- * lo presentan a la vez, la base deja pasar a uno solo.
+ * Gasta UN uso del codigo para un equipo, si le quedan y sigue vigente.
+ * Devuelve el dueno con el que nace el equipo, o null si el codigo no sirve (no
+ * existe, vencio, se acabaron sus usos o se cancelo). Un solo UPDATE con todas
+ * las condiciones: si varios equipos lo presentan a la vez, la base deja pasar
+ * exactamente a los que caben. MySQL evalua el SET de izquierda a derecha, asi
+ * que `usado_en` ve `usos` ya incrementado: se marca al gastar el ultimo uso.
  */
 export async function gastar(codigo: string): Promise<{ id: number; owner: string | null } | null> {
   const [r] = await pool.query<any>(
-    `UPDATE vinculaciones SET usado_en = NOW()
-      WHERE codigo = ? AND usado_en IS NULL AND cancelado_en IS NULL AND expira_en > NOW()`,
+    `UPDATE vinculaciones SET usos = usos + 1, usado_en = IF(usos >= usos_max, NOW(), usado_en)
+      WHERE codigo = ? AND usos < usos_max AND cancelado_en IS NULL AND expira_en > NOW()`,
     [codigo]
   );
   if (!(r as any).affectedRows) return null;
@@ -68,7 +83,9 @@ export async function gastar(codigo: string): Promise<{ id: number; owner: strin
 
 /** Despues de crear el equipo: con que equipo se uso el codigo (auditoria). */
 export async function ligarEquipo(idVinculacion: number, deviceId: number) {
-  await pool.query(`UPDATE vinculaciones SET device_id = ? WHERE id = ?`, [deviceId, idVinculacion]);
+  await pool.query(`INSERT INTO vinculacion_equipos (vinculacion_id, device_id) VALUES (?, ?)`, [idVinculacion, deviceId]);
+  // El de un solo uso, ademas, en su propia fila (como antes).
+  await pool.query(`UPDATE vinculaciones SET device_id = ? WHERE id = ? AND usos_max = 1`, [deviceId, idVinculacion]);
 }
 
 // ─── Intentos fallidos ───────────────────────────────────────────────────────

@@ -115,6 +115,35 @@ const uid = () => `ensayo-${crypto.randomBytes(10).toString('hex')}`;
   afirmar(!st.headers.get('ratelimit-limit'), 'su reporte de estado no lleva contador', `(${st.status})`);
   afirmar(!!r3.limite, 'el alta si lo lleva');
 
+  console.log('\n11) UN codigo para VARIOS equipos (lote)');
+  const lote = await panel('POST', '/api/vinculaciones', { tipo: 'raspberry', usos: 3, nota: 'lote de ensayo' });
+  afirmar(lote.status === 201 && lote.json.usos_max === 3 && lote.json.usos === 0, 'se genera con tope de 3 usos', lote.json.codigo);
+  const ids: number[] = [];
+  for (let i = 0; i < 3; i++) {
+    const r = await alta(uid(), lote.json.codigo);
+    if (r.status === 200) ids.push(r.json.device_id);
+  }
+  afirmar(ids.length === 3 && new Set(ids).size === 3, 'entran 3 equipos, cada uno distinto', ids.join(', '));
+  const cuarto = await alta(uid(), lote.json.codigo);
+  afirmar(cuarto.status === 403 && cuarto.json.error === 'codigo_invalido', 'el cuarto NO entra (tope)', `(${cuarto.status})`);
+  const vl = ((await panel('GET', '/api/vinculaciones')).json.vinculaciones || []).find((x: any) => x.codigo === lote.json.codigo);
+  afirmar(vl?.estado === 'agotado' && vl?.usos === 3, 'la lista lo muestra agotado, 3 de 3', `${vl?.estado} ${vl?.usos}/${vl?.usos_max}`);
+  afirmar((vl?.equipos || []).map((e: any) => e.id).join() === ids.join(), 'con los 3 equipos que lo usaron');
+
+  console.log('\n12) Un lote se cancela a la mitad');
+  const lote2 = await panel('POST', '/api/vinculaciones', { tipo: 'telefono', usos: 5 });
+  afirmar((await alta(uid(), lote2.json.codigo)).status === 200, 'entra el primero');
+  afirmar((await panel('DELETE', `/api/vinculaciones/${lote2.json.codigo}`)).status === 200, 'se cancela con usos pendientes');
+  afirmar((await alta(uid(), lote2.json.codigo)).status === 403, 'y ya no entra nadie mas');
+
+  console.log('\n13) Vigencia de un lote');
+  const horas = (v: any) => Math.round((new Date(v.expira_en).getTime() - new Date(v.creado_en).getTime()) / 3600000);
+  afirmar(horas(lote2.json) === 24, 'un lote de telefonos dura un dia (una jornada de instalacion)', `(${horas(lote2.json)} h)`);
+  const lote3 = await panel('POST', '/api/vinculaciones', { tipo: 'telefono', usos: 2, horas: 48 });
+  afirmar(horas(lote3.json) === 48, 'o lo que se pida', `(${horas(lote3.json)} h)`);
+  const malo = await panel('POST', '/api/vinculaciones', { tipo: 'telefono', usos: 500 });
+  afirmar(malo.status === 400, 'mas de 200 equipos por codigo no se acepta', `(${malo.status})`);
+
   console.log(fallos ? `\n${fallos} FALLAS\n` : '\nTodo bien.\n');
   process.exit(fallos ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(1); });
