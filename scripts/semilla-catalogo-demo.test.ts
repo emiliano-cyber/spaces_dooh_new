@@ -5,6 +5,7 @@ import {
   comprobarCoherencia,
   sentenciasDelCatalogo,
   sentenciasDeshacer,
+  columnasDeLaSiembra,
   vencimiento,
   USUARIOS,
 } from './semilla-catalogo-demo.mjs'
@@ -109,6 +110,33 @@ describe('semilla-catalogo-demo', () => {
     expect(texto).not.toMatch(/space-os\.io/)
     for (const u of USUARIOS) expect(u.email).toMatch(/\.invalid$/)
     for (const c of plan().clientes) expect(c.rfc).toMatch(/^DMO/)
+  })
+
+  it('sin espacios_comprados la partida se siembra igual, y esa columna no aparece', () => {
+    // DEMO iba tres migraciones por detrás el 06/10 y el catálogo murió a mitad
+    // con «column espacios_comprados does not exist».
+    const con = sentenciasDelCatalogo(plan(), TENANT, 'x'.repeat(12))
+    const sin = sentenciasDelCatalogo(plan(), TENANT, 'x'.repeat(12), { sinEspacios: true })
+    expect(sin).toHaveLength(con.length)
+    const partidas = sin.filter((s) => /insert into propuesta_items/.test(s.sql))
+    expect(partidas.length).toBe(29)
+    for (const s of partidas) {
+      expect(s.sql).not.toContain('espacios_comprados')
+      // Mismo número de parámetros: el `$8` sigue en el SQL para que Postgres le
+      // pueda dar tipo, y va en null.
+      expect(s.sql).toContain('$8::integer is null')
+      expect(s.valores[7]).toBeNull()
+    }
+    expect(columnasDeLaSiembra(con)).toContain('propuesta_items.espacios_comprados')
+    expect(columnasDeLaSiembra(sin)).not.toContain('propuesta_items.espacios_comprados')
+  })
+
+  it('columnasDeLaSiembra lee las columnas de cada insert', () => {
+    const cols = columnasDeLaSiembra(sentenciasDelCatalogo(plan(), TENANT, 'x'.repeat(12)))
+    expect(cols).toContain('sitios.clave_interna')
+    expect(cols).toContain('usuarios.password_hash')
+    expect(cols).toContain('pagos_renta.periodo')
+    expect(cols.every((c) => /^\w+\.\w+$/.test(c))).toBe(true)
   })
 
   it('el vencimiento se ancla al día de inicio y se recorta a fin de mes, como la app', () => {

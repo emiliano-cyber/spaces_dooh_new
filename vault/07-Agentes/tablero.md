@@ -14,6 +14,12 @@ archivos: []
 > **NO se tocó** `db/schema.sql`, `aislamiento.e2e.test.ts` ni `servidor-e2e.ts`.
 > Unitarias de las dos semillas en verde (53); sembrada dos veces en local
 > (805 filas y luego 0) y comprobada con la app compilada.
+>
+> **Reabierto y vuelto a liberar el 06/10 por la noche**: la primera siembra en
+> DEMO dejó 65 filas en una organización equivocada (ver
+> [[04-Datos/semilla-de-demostracion]]). Organización obligatoria, comprobación
+> de la base antes de escribir, y `docs/datos/20261006_retirar_org_demo_rentabilidad.sql`
+> para limpiarlo. 57 unitarias de las semillas en verde.
 
 > [!success] 2026-10-06 · **INTEGRA-RIESGOS-Y-CALC · Z1, Z2, Z5 y Z12 — LIBERADO, FUSIONADO EN `main`** · ROJO (R1 sesión · R2 tenant · R4 dinero)
 > Rama **`integra/riesgos-y-calculadora-14-oct`**. Une las dos de abajo

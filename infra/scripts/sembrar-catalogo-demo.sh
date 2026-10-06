@@ -6,10 +6,12 @@
 #  Uso, desde el clon del repositorio en el PADRE y ya con `git pull` hecho:
 #
 #    cd /var/www/Spaces
-#    sudo bash infra/scripts/sembrar-catalogo-demo.sh <base> [--con-guion]
+#    sudo bash infra/scripts/sembrar-catalogo-demo.sh <base> --org=<slug> [--con-guion | --deshacer]
 #
 #    <base>        spaces_demo  (el contenedor DEMO del 3001)
 #                  spaces_prod  (la aplicación del PADRE)
+#    --org=<slug>  la organización donde vive la demo. OBLIGATORIA y tiene que
+#                  existir: en `spaces_demo` es `demo` (medido el 06/10)
 #    --con-guion   antes del catálogo corre también `semilla-demo.mjs`, el
 #                  guion de rentabilidad (Tlalpan vs Santa Mónica y las razones
 #                  sociales que emiten los comprobantes)
@@ -29,6 +31,12 @@
 #  · El respaldo va ANTES y con `conexion-pg.sh`, que separa la contraseña de la
 #    URL para que `pg_dump` no la deje en `argv` (visible con `ps`).
 #  · La semilla es idempotente: correr este guion dos veces no duplica nada.
+#  · ANTES del respaldo y de pedir nada, `--comprobar` lee la base: que la
+#    organización exista, que estén las columnas que la siembra escribe y que
+#    las claves `CAT-` no sean de otra organización. El 06/10 la primera corrida
+#    en DEMO se hizo con la organización por omisión y el guion dejó 65 filas
+#    sueltas en una organización nueva; por eso ya no hay organización por
+#    omisión.
 #
 #  ─── Vuelta atrás ─────────────────────────────────────────────────────────
 #  `--deshacer` borra lo `CAT-` y nada más. NO se restaura el `pg_dump` como
@@ -39,22 +47,29 @@
 # ============================================================================
 set -Eeuo pipefail
 
+USO="uso: sudo bash infra/scripts/sembrar-catalogo-demo.sh <spaces_demo|spaces_prod> --org=<slug> [--con-guion | --deshacer]"
 BASE="${1:-}"
-CON_GUION="${2:-}"
 CONF="${SPACE_OS_CONF:-/etc/space-os/demo-instancia.env}"
 DIR_RESPALDOS="${DIR_RESPALDOS:-/var/lib/space-os/respaldos-semilla}"
-ORG="${ORG:-demo-rentabilidad}"
+ORG=""
+CON_GUION=""
+DESHACER=""
 
 case "$BASE" in
   spaces_demo|spaces_prod) ;;
-  *) echo "uso: sudo bash infra/scripts/sembrar-catalogo-demo.sh <spaces_demo|spaces_prod> [--con-guion]" >&2; exit 1 ;;
+  *) echo "$USO" >&2; exit 1 ;;
 esac
-DESHACER=""
-case "$CON_GUION" in
-  ''|--con-guion) ;;
-  --deshacer) DESHACER=1; CON_GUION="" ;;
-  *) echo "opcion desconocida: $CON_GUION" >&2; exit 1 ;;
-esac
+shift
+for a in "$@"; do
+  case "$a" in
+    --org=?*) ORG="${a#--org=}" ;;
+    --con-guion) CON_GUION=1 ;;
+    --deshacer) DESHACER=1 ;;
+    *) echo "opcion desconocida: $a" >&2; echo "$USO" >&2; exit 1 ;;
+  esac
+done
+[ -n "$ORG" ] || { echo "ERROR: falta --org=<slug>. En spaces_demo la demo vive en 'demo'." >&2; echo "$USO" >&2; exit 1; }
+[ -z "$CON_GUION" ] || [ -z "$DESHACER" ] || { echo "ERROR: --con-guion y --deshacer no van juntos." >&2; exit 1; }
 
 [ -f scripts/semilla-catalogo-demo.mjs ] || { echo "ERROR: corre esto desde la raiz del repositorio (/var/www/Spaces), con git pull hecho." >&2; exit 1; }
 [ -r "$CONF" ] || { echo "ERROR: no se puede leer $CONF (hace falta sudo)." >&2; exit 1; }
@@ -81,6 +96,9 @@ fi
 echo "== 1 · lo que se va a sembrar (no toca la base)"
 node scripts/semilla-catalogo-demo.mjs --resumen --org="$ORG"
 
+echo "== 1b · comprobacion de la base (solo lee)"
+node scripts/semilla-catalogo-demo.mjs --comprobar --org="$ORG" || { echo "Nada se toco." >&2; exit 1; }
+
 read -rs -p "Contrasena para los 8 usuarios demo (10+ caracteres): " SEMILLA_CLAVE; echo
 read -rs -p "Repitela: " OTRA; echo
 [ "$SEMILLA_CLAVE" = "$OTRA" ] || { echo "ERROR: no coinciden. Nada se toco." >&2; exit 1; }
@@ -96,7 +114,7 @@ BK="$DIR_RESPALDOS/${BASE}_antes_catalogo_$(date +%Y%m%d_%H%M%S).dump"
 correr_pg pg_dump --format=custom --file="$BK"
 echo "   respaldo: $BK ($(stat -c %s "$BK") bytes)"
 
-if [ "$CON_GUION" = --con-guion ]; then
+if [ -n "$CON_GUION" ]; then
   echo "== 3a · el guion de rentabilidad (semilla-demo.mjs)"
   node scripts/semilla-demo.mjs --org="$ORG" --trimestres=4
 fi
@@ -110,7 +128,7 @@ cat <<FIN
    Entra con cualquiera de los 8 correos *@catalogo.invalid y la contrasena que pusiste.
 
    Vuelta atras (borra solo lo sembrado por el catalogo):
-     sudo bash infra/scripts/sembrar-catalogo-demo.sh $BASE --deshacer
+     sudo bash infra/scripts/sembrar-catalogo-demo.sh $BASE --org=$ORG --deshacer
    Respaldo completo de antes, para un desastre (restaurarlo exige el rol postgres):
      $BK
 FIN

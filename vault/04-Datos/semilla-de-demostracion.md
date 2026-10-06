@@ -52,7 +52,7 @@ archivos:
 > `bcryptjs` compara igual. Un usuario que ya existe no se toca.
 >
 > **En el servidor la corre una persona** con
-> `infra/scripts/sembrar-catalogo-demo.sh <spaces_demo|spaces_prod> [--con-guion]`,
+> `infra/scripts/sembrar-catalogo-demo.sh <spaces_demo|spaces_prod> --org=<slug> [--con-guion]`,
 > que toma la URL de `spaces_migrador` de `/etc/space-os/demo-instancia.env`,
 > **respalda la base con `pg_dump` antes**. La vuelta atrás es `--deshacer`:
 > borra solo lo `CAT-` de la organización, sin `cascade` y en una transacción
@@ -65,6 +65,34 @@ archivos:
 > moriría entera. El respaldo se queda para un desastre, y lo restaura alguien
 > con el rol `postgres`.
 >
+> [!danger] 2026-10-06, noche · la primera siembra en DEMO salió por el sitio equivocado
+> Se corrió **sin organización explícita** y el guion usó la de por omisión,
+> `demo-rentabilidad`. En `spaces_demo` la demo vive en **`demo`**. Como
+> `clave_interna`, `campanas.folio` y `ordenes_trabajo.folio` son únicos en
+> TODA la base, el `on conflict` dio por «ya sembradas» las filas `DEMO-` de la
+> otra organización, y lo que se guarda por organización sí entró: **65 filas
+> sueltas en una organización nueva, sin un solo error** («filas nuevas: 65 ·
+> ya sembradas: 182»). El catálogo murió después con «column
+> espacios_comprados does not exist» —DEMO corre `beta` y su base iba por la
+> migración del **04/10**, tres por detrás de `main`— y volvió atrás entero.
+>
+> **Lo que cambió para que no se repita**, reproducido en local antes de
+> escribirlo (mismos 65/182):
+> - **Ya no hay organización por omisión.** El catálogo y el guion del PADRE
+>   exigen `--org=<slug>`, y la organización tiene que existir (o pedirse con
+>   `--crear-org`).
+> - **`semilla-demo.mjs` para si sus pantallas son de otra organización**, antes
+>   de escribir nada, y dice cuál.
+> - **El catálogo lee la base antes de escribir** (`--comprobar`): que estén
+>   las columnas que escribe y que sus claves `CAT-` no sean de otra
+>   organización. `espacios_comprados` es la única opcional: sin ella las
+>   partidas se siembran sin ese dato. No se aplican migraciones a mano en
+>   DEMO para esto: le llegan con la imagen por `update.sh` (R3).
+> - Las 65 filas se retiran con
+>   `docs/datos/20261006_retirar_org_demo_rentabilidad.sql`, por id, con
+>   captura a CSV y su vuelta atrás. El ciclo entero (seco, aplicar, negarse
+>   la 2.ª vez, volver, retirar) se ensayó en local sobre la reproducción.
+
 > Verificado el 06/10 sobre una base local con las 105 migraciones: la app
 > compilada entra con los 8 usuarios (200) y `GET /api/estado` devuelve las 13
 > propuestas, las 7 clases de campaña y las 24 pantallas con su estado.

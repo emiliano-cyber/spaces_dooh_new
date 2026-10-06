@@ -798,7 +798,15 @@ export function comprobarCoherencia(plan) {
 // clave natural en cada `insert`, claves ajenas resueltas dentro del SQL y
 // filtradas por `tenant_id`, y CAST explícito en cada parámetro.
 
-export function sentenciasDelCatalogo(plan, T, clave) {
+export function sentenciasDelCatalogo(plan, T, clave, opciones = {}) {
+  // `sinEspacios`: la base aún no tiene `propuesta_items.espacios_comprados`
+  // (llega con `20261007_calculadora_spots.sql`). DEMO corre la imagen `beta`
+  // y su base va por detrás de `main`: medido el 06/10, se quedaba en la
+  // migración del 04/10. La columna solo dice cuántos de los 12 espacios compra
+  // una partida digital, así que sin ella la propuesta se siembra igual y se
+  // pierde ese dato, no la propuesta. Cualquier OTRA columna que falte la para
+  // `comprobarBase()`: esa no se adivina.
+  const conEspacios = !opciones.sinEspacios
   const out = []
   const add = (etiqueta, sql, valores, extra = {}) => out.push({ etiqueta, sql, valores, ...extra })
   const predioDe = (c) => plan.predios.find((p) => p.clave === c).nombre
@@ -995,15 +1003,15 @@ export function sentenciasDelCatalogo(plan, T, clave) {
       add(
         `partida ${p.folio} · ${it.sitio}`,
         `insert into propuesta_items (tenant_id, propuesta_id, sitio_id, fecha_inicio, fecha_fin, precio,
-                                      aprobado, unidad, cantidad, tarifa_unitaria, espacios_comprados)
+                                      aprobado, unidad, cantidad, tarifa_unitaria${conEspacios ? ', espacios_comprados' : ''})
          select $1::uuid, pr.id, s.id, $2::date, $3::date, $4::numeric, $5::boolean, 'mensual',
-                $6::numeric, $7::numeric, $8::integer
+                $6::numeric, $7::numeric${conEspacios ? ', $8::integer' : ''}
            from propuestas pr
            join sitios s on s.tenant_id = $1::uuid and s.clave_interna = $9::text
-          where pr.tenant_id = $1::uuid and pr.folio = $10::text
+          where pr.tenant_id = $1::uuid and pr.folio = $10::text${conEspacios ? '' : ' and $8::integer is null'}
             and not exists (select 1 from propuesta_items x
                              where x.tenant_id = $1::uuid and x.propuesta_id = pr.id and x.sitio_id = s.id)`,
-        [T, it.desde, it.hasta, it.precio, it.aprobado, it.cantidad, it.tarifa, it.espacios, it.sitio, p.folio],
+        [T, it.desde, it.hasta, it.precio, it.aprobado, it.cantidad, it.tarifa, conEspacios ? it.espacios : null, it.sitio, p.folio],
       )
     }
   }
@@ -1158,6 +1166,81 @@ export function sentenciasDeshacer(plan, T) {
   ]
 }
 
+// ─── Lo que se comprueba EN LA BASE antes de escribir nada ─────────────────
+//
+// Nació el 2026-10-06 de una siembra en DEMO que salió mal por dos lados, y
+// ninguno se veía desde el plan:
+//
+//  · El guion se corrió con la organización por omisión, `demo-rentabilidad`,
+//    y la demo de esa base vivía en `demo`. Las claves `DEMO-` son únicas en
+//    toda la base, así que el `on conflict` las reconoció como «ya sembradas»
+//    —eran de la otra organización— y las tablas que se guardan por
+//    organización sí entraron: 65 filas sueltas en una organización nueva y
+//    vacía, sin un solo error. Por eso ahora la organización tiene que EXISTIR
+//    (o pedirse con `--crear-org`) y las claves no pueden ser de otra.
+//  · La base de DEMO iba tres migraciones por detrás y el catálogo murió a
+//    mitad con «column espacios_comprados does not exist». La transacción
+//    volvió atrás entera, pero el fallo tenía que verse ANTES.
+
+/** Las columnas que la siembra escribe, sacadas de sus propios `insert`. */
+export function columnasDeLaSiembra(sentencias) {
+  const out = new Set()
+  for (const s of sentencias) {
+    const m = /insert into (\w+)\s*\(([^)]*)\)/i.exec(s.sql)
+    if (!m) continue
+    for (const c of m[2].split(',')) out.add(`${m[1]}.${c.trim()}`)
+  }
+  return [...out].sort()
+}
+
+const COLUMNAS_OPCIONALES = ['propuesta_items.espacios_comprados']
+const SIN_TENANT = '00000000-0000-4000-8000-000000000000'
+
+export async function comprobarBase(cli, plan, opciones = {}) {
+  const r = { tenantId: null, orgs: [], faltan: [], sinEspacios: false, ajenos: [], problemas: [] }
+
+  const orgs = await cli.query('select id, slug from tenants order by slug')
+  r.orgs = orgs.rows.map((x) => x.slug)
+  r.tenantId = orgs.rows.find((x) => x.slug === plan.organizacion.slug)?.id ?? null
+
+  const hay = new Set(
+    (await cli.query(
+      `select table_name || '.' || column_name as c from information_schema.columns where table_schema = 'public'`,
+    )).rows.map((x) => x.c),
+  )
+  for (const c of columnasDeLaSiembra(sentenciasDelCatalogo(plan, SIN_TENANT, 'x'.repeat(12)))) {
+    if (hay.has(c)) continue
+    if (COLUMNAS_OPCIONALES.includes(c)) r.sinEspacios = true
+    else r.faltan.push(c)
+  }
+
+  // Claves únicas en TODA la base que ya tenga otra organización.
+  const consultas = [
+    ['pantallas', 'sitios', 'clave_interna', plan.sitios.map((s) => s.clave)],
+    ['propuestas', 'propuestas', 'folio', plan.propuestas.map((p) => p.folio)],
+    ['campanas', 'campanas', 'folio', plan.campanas.map((c) => c.folio)],
+    ['comprobantes', 'facturas', 'folio', plan.comprobantes.map((f) => f.folio)],
+    ['ordenes', 'ordenes_trabajo', 'folio', plan.ordenes.map((o) => o.folio)],
+  ]
+  for (const [que, tabla, col, claves] of consultas) {
+    const x = await cli.query(
+      `select t.slug, count(*)::int as n from ${tabla} y join tenants t on t.id = y.tenant_id
+        where y.${col} = any($1::text[]) and y.tenant_id <> $2::uuid group by 1`,
+      [claves, r.tenantId ?? SIN_TENANT],
+    )
+    for (const row of x.rows) r.ajenos.push(`${row.n} ${que} con clave CAT- ya son de la organizacion '${row.slug}'`)
+  }
+
+  if (!r.tenantId && !opciones.crearOrg)
+    r.problemas.push(
+      `no existe la organizacion '${plan.organizacion.slug}'. Las que hay: ${r.orgs.join(', ') || 'ninguna'}. ` +
+        'Si de verdad quieres una nueva, anade --crear-org',
+    )
+  for (const c of r.faltan) r.problemas.push(`falta la columna ${c}: esta base va por detras de las migraciones`)
+  r.problemas.push(...r.ajenos)
+  return r
+}
+
 // ─── Línea de órdenes ──────────────────────────────────────────────────────
 
 const USO = `uso:
@@ -1165,8 +1248,11 @@ const USO = `uso:
   SEMILLA_CLAVE='<contrasena de los usuarios demo>' \\
     node scripts/semilla-catalogo-demo.mjs [opciones]
 
-  --org=<slug>            organizacion a crear/reusar (por omision demo-rentabilidad)
+  --org=<slug>            organizacion donde sembrar. OBLIGATORIA para tocar una base,
+                          y tiene que existir
+  --crear-org             permite crearla si no existe
   --org-nombre=<texto>    su nombre visible si hay que crearla
+  --comprobar             solo LEE la base: organizacion, columnas y claves ajenas
   --ancla=AAAA-MM-DD      el «hoy» de la semilla (por omision hoy)
   --resumen               imprime lo que sembraria y NO toca ninguna base
   --deshacer              borra lo sembrado por este script (lo CAT-) de esa organizacion`
@@ -1174,9 +1260,11 @@ const USO = `uso:
 const BASES_PROHIBIDAS = ['spaces_e2e']
 
 function opcionesDeArgv(args) {
-  const o = { resumen: false, deshacer: false }
+  const o = { resumen: false, deshacer: false, comprobar: false, crearOrg: false }
   for (const a of args) {
     if (a === '--resumen') { o.resumen = true; continue }
+    if (a === '--comprobar') { o.comprobar = true; continue }
+    if (a === '--crear-org') { o.crearOrg = true; continue }
     if (a === '--deshacer') { o.deshacer = true; continue }
     const m = /^--([a-z-]+)=(.*)$/.exec(a)
     if (!m) throw new Error(`argumento desconocido: ${a}\n\n${USO}`)
@@ -1223,6 +1311,11 @@ export async function main(argv = process.argv) {
     return 1
   }
 
+  if (!o.resumen && !o.slug) {
+    // Dar por hecha la organización es justo lo que salió mal el 06/10.
+    console.error(`ERROR semilla-catalogo-demo: falta --org=<slug>. Para tocar una base hay que nombrarla.\n\n${USO}`)
+    return 1
+  }
   if (o.deshacer) return deshacer(plan)
 
   imprimirResumen(plan)
@@ -1253,7 +1346,7 @@ export async function main(argv = process.argv) {
     return 1
   }
   const clave = process.env.SEMILLA_CLAVE ?? ''
-  if (clave.length < 10) {
+  if (!o.comprobar && clave.length < 10) {
     console.error('ERROR semilla-catalogo-demo: falta SEMILLA_CLAVE (10 caracteres o mas): es la contrasena de los usuarios demo.')
     return 1
   }
@@ -1262,6 +1355,22 @@ export async function main(argv = process.argv) {
   await cli.connect()
   let salida = 0
   try {
+    const base = await comprobarBase(cli, plan, o)
+    console.log(
+      `comprobado en la base: organizacion ${base.tenantId ? 'existe' : 'NO existe'} · ` +
+        `${base.faltan.length} columnas faltantes · ${base.ajenos.length} claves ajenas` +
+        (base.sinEspacios ? ' · sin espacios_comprados (se siembra sin ese dato)' : ''),
+    )
+    if (base.problemas.length) {
+      console.error('ERROR semilla-catalogo-demo: no se escribe nada:')
+      for (const m of base.problemas) console.error(`  - ${m}`)
+      return 1
+    }
+    if (o.comprobar) {
+      console.log('--comprobar: la base admite el catalogo. No se escribio nada.')
+      return 0
+    }
+
     await cli.query('begin')
     await cli.query(
       `insert into tenants (nombre, slug, moneda) values ($1::text, $2::text, 'MXN') on conflict (slug) do nothing`,
@@ -1278,7 +1387,7 @@ export async function main(argv = process.argv) {
     let nuevas = 0
     let ya = 0
     const porTabla = {}
-    for (const s of sentenciasDelCatalogo(plan, T, clave)) {
+    for (const s of sentenciasDelCatalogo(plan, T, clave, { sinEspacios: base.sinEspacios })) {
       const r = await cli.query(s.sql, s.valores)
       const tabla = s.etiqueta.split(' ')[0]
       if (r.rowCount > 0) {

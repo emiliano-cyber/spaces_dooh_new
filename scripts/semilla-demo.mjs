@@ -1748,6 +1748,29 @@ export async function main(argv = process.argv) {
   await cli.connect()
   let salida = 0
   try {
+    // ─── ¿Las pantallas del guion son ya de OTRA organización? ─────────────
+    // Pasó el 2026-10-06 en DEMO: la demo vivía en la organización `demo` y
+    // esto se corrió con la de por omisión. `clave_interna`, `campanas.folio` y
+    // `ordenes_trabajo.folio` son únicos en TODA la base, así que el
+    // `on conflict` reconoció las filas de la otra organización como «ya
+    // sembradas», y lo que se guarda por organización —razones sociales,
+    // arrendadores, predios, clientes, luz— sí entró: 65 filas sueltas en una
+    // organización nueva, sin pantallas y sin un solo error. Se para antes de
+    // escribir nada, y se dice dónde está el guion.
+    const ajenas = await cli.query(
+      `select t.slug, count(*)::int as n from sitios s join tenants t on t.id = s.tenant_id
+        where s.clave_interna = any($1::text[]) and t.slug <> $2::text group by 1`,
+      [plan.sitios.map((s) => s.clave), plan.organizacion.slug],
+    )
+    if (ajenas.rows.length) {
+      const donde = ajenas.rows.map((r) => `'${r.slug}' (${r.n} pantallas)`).join(', ')
+      console.error(
+        `ERROR semilla-demo: las pantallas del guion ya son de otra organizacion: ${donde}.\n` +
+          `No se escribio nada. Para sembrar ahi, corre con --org=${ajenas.rows[0].slug}.`,
+      )
+      return 1
+    }
+
     await cli.query('begin')
 
     const org = sentenciaOrganizacion(plan)
