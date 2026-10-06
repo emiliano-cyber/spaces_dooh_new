@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-10-06
 tags: [backend, auth, seguridad, rojo]
 archivos:
   - apps/web/lib/server/auth.ts
@@ -554,6 +554,22 @@ Restablecimiento por correo: `password_resets`, token de 256 bits, un solo uso,
 60 minutos, y **borra todas las sesiones del usuario**
 (`password-reset-repo.ts`). Está apagado en producción
 (`NEXT_PUBLIC_RECUPERAR_PASSWORD`) porque no hay correo saliente.
+
+**Invitación de usuarios (06/10, [ADR 0044](../../docs/adr/0044-invitacion-de-usuarios-con-enlace-para-elegir-contrasena.md)).**
+La misma tabla y la misma página, con otra vigencia: `POST /api/usuarios` con
+`invitar: true` crea la cuenta con `passwordAleatoria()` y emite un token de
+**72 h** (`crearInvitacion`, `password-reset-repo.ts:91`) con el tenant de la
+**sesión** de quien invita. El enlace (`/recuperar/<token>?bienvenida=1`) se manda
+por correo si lo hay; si no —el caso de hoy— o si el envío falla, vuelve al
+administrador para que lo pase (`usuarios-controller.ts:155`). `invitar` con
+`password` o con `entraConGoogle` es un 400.
+
+> [!important] Desde el 06/10 la bandera apaga PEDIR un enlace, no USARLO
+> `NEXT_PUBLIC_RECUPERAR_PASSWORD=0` solo se comprueba en `/api/auth/forgot`, el
+> único emisor público. `/api/auth/reset` ya no la mira: con ella, la invitación
+> moría con 503 en todas las instancias, que nacen con la bandera en 0. Lo fija
+> `lib/server/invitacion-interruptor.test.ts`; el flujo entero, por HTTP y con la
+> RLS real, `lib/test/invitacion-usuario.e2e.test.ts`.
 
 > [!note] `password_resets` pasó a fail-closed el 07/08
 > `20260807_password_resets_rls.sql` (`f703c1c`). Ya **no** es una tabla exenta

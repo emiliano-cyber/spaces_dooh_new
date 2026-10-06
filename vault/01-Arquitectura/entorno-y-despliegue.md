@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-10-06
 tags: [despliegue, entorno, ci, env, instancias]
 archivos:
   - infra/scripts/pruebas-update.sh
@@ -2183,12 +2183,12 @@ para el redirect URI de Google.
 | `DATABASE_URL` | Conexión Postgres | `lib/server/db.ts:23` |
 | `NODE_ENV` | Modo, default de `Secure`, pool en dev | `lib/server/auth.ts:252` |
 | `COOKIE_SECURE` | Fuerza/apaga `Secure` en cookies | `lib/server/auth.ts:249-253` (`cookieSecure`) |
-| `APP_URL` | Base de enlaces en correos | `app/api/auth/forgot/route.ts:50` |
+| `APP_URL` | Base de enlaces en correos y de la invitación de usuarios | `app/api/auth/forgot/route.ts:50`, `app/api/usuarios/route.ts:30` |
 | `HSTS` | Activa Strict-Transport-Security. **Bandera de BUILD**, no de ejecución | `next.config.mjs:175-188` |
 | `RESEND_API_KEY`, `EMAIL_FROM` | Correo saliente | `lib/server/email.ts` |
 | `RECORDATORIOS_TOKEN` | Autentica el cron; sin él la ruta da 503 | `app/api/recordatorios/route.ts` |
 | **`AUTOREGISTRO`** | **solo `'1'` enciende** el alta pública; **ausente = apagado**. Se lee en cada petición, no se hornea (F2.6, 14/08) | `lib/entorno.ts` · `app/api/signup/route.ts:21-26` |
-| `NEXT_PUBLIC_RECUPERAR_PASSWORD` | Apaga recuperar contraseña | `app/api/auth/forgot/route.ts:18` |
+| `NEXT_PUBLIC_RECUPERAR_PASSWORD` | Apaga **pedir** un enlace de recuperación; usarlo no (ADR 0044) | `app/api/auth/forgot/route.ts:18` |
 | `NEXT_PUBLIC_MAPTILER_KEY` | Mapas. **Nadie la define, y en la flota NO PUEDE definirse**: `NEXT_PUBLIC_*` se hornea al compilar, así que sería una clave para toda la flota (ADR 0030). El basemap real es OpenFreeMap, sin clave | `components/demo/MapView.tsx` |
 | `DO_SPACES_KEY/SECRET/ENDPOINT/BUCKET/CDN_URL` | Almacenamiento S3 | `lib/server/storage.ts:12-16` |
 | `GOOGLE_OAUTH`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` | Acceso con Google | `lib/server/google-oauth.ts` |

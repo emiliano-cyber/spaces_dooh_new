@@ -1,7 +1,7 @@
 ---
 tipo: referencia
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-10-06
 tags: [backend, api, endpoints]
 archivos:
   - apps/web/app/api/
@@ -91,7 +91,7 @@ Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo el
 | GET | `/api/auth/me` | usuarioActual | Rellena `spaces_csrf` si falta |
 | GET | `/api/auth/metodos` | PÚBLICO | `{"google":bool,"autoregistro":bool}`, `force-dynamic`, `no-store` |
 | POST | `/api/auth/forgot` | PÚBLICO | 5/15min IP + 3/h correo |
-| GET·POST | `/api/auth/reset` | PÚBLICO | GET valida token, POST aplica |
+| GET·POST | `/api/auth/reset` | PÚBLICO | GET valida token, POST aplica. Desde el 06/10 **no** lo apaga `NEXT_PUBLIC_RECUPERAR_PASSWORD` (ADR 0044) |
 | GET | `/api/auth/google/inicio` | PÚBLICO | 302 a Google; 503 si apagado |
 | GET | `/api/auth/google/callback` | PÚBLICO | Canjea código, abre sesión |
 | POST | `/api/signup` | PÚBLICO | 503 salvo `AUTOREGISTRO=1` (fail-closed desde el 14/08; se lee al arrancar, no en el build) |
@@ -106,7 +106,7 @@ Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo el
 
 | Método | Path | Guard | Nota |
 |---|---|---|---|
-| GET·POST | `/api/usuarios` | exigir | acepta `entraConGoogle` (sin contraseña) |
+| GET·POST | `/api/usuarios` | exigir | acepta `entraConGoogle` (sin contraseña) o `invitar` (06/10, ADR 0044: enlace de 72 h; vuelve en `invitacion.enlace` solo si el correo no salió) |
 | PATCH·DELETE | `/api/usuarios/[id]` | exigir | |
 | POST | `/api/usuarios/[id]/restablecer` | **REAUTH + DESBLOQ** | |
 | GET·POST | `/api/tenants` | exigir | el admin acepta `entraConGoogle` |
@@ -137,7 +137,7 @@ Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo el
 > `POST /api/usuarios` y `POST /api/tenants` aceptan `entraConGoogle: true` y
 > entonces **no se manda contraseña**: el servidor genera una con
 > `passwordAleatoria()` que nadie ve, a través de `passwordDeAlta()`
-> (`lib/server/auth.ts:72-89`, llamada en `usuarios-controller.ts:99` y
+> (`lib/server/auth.ts:72-89`, llamada en `usuarios-controller.ts:128` y
 > `cuentas-controller.ts:121,141`; las citas anteriores —`:45,74` y `:31,77`—
 > ya no apuntaban a nada, verificado el 05/10). Ambos rechazan el alta si Google no está
 > habilitado en ese servidor (`googleDisponible`), porque crearían a alguien que

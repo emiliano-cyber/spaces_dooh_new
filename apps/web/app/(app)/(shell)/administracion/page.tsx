@@ -40,6 +40,7 @@ import { useActualizarConfig, useSitios } from '@/lib/data/client'
 import type { RolDemo, UsuarioDemo, ConfigNegocio } from '@/lib/data/client'
 import type { TipoOT } from '@/lib/data/types'
 import { validarPassword, REGLA_PASSWORD } from '@/lib/password'
+import { ROL_POR_OMISION } from '@/lib/roles'
 
 const inputCls =
   'h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
@@ -185,7 +186,7 @@ function Usuarios({ onToast }: { onToast: (m: string) => void }) {
         )}
       </CardContent>
 
-      <InvitarModal open={invOpen} onOpenChange={setInvOpen} onInvitado={(n) => { onToast(`Usuario ${n} creado`); cargar() }} />
+      <InvitarModal open={invOpen} onOpenChange={setInvOpen} onInvitado={(n, enviada) => { onToast(enviada ? `Invitación enviada a ${n}` : `Usuario ${n} creado`); cargar() }} />
 
       {passwordDe && (
         <CambiarPasswordModal
@@ -371,16 +372,30 @@ function CambiarPasswordModal({
   )
 }
 
-function InvitarModal({ open, onOpenChange, onInvitado }: { open: boolean; onOpenChange: (v: boolean) => void; onInvitado: (nombre: string) => void }) {
+// Tres formas de dar acceso, y se manda UNA (el servidor rechaza mezclas con un
+// 400). La invitación va primero y por omisión (ADR 0044): es la única en la
+// que nadie más que la persona conoce su contraseña. «Fijar contraseña» se
+// conserva a propósito —decisión del dueño del 06/10— para quien la prefiera.
+type AccesoAlta = 'invitar' | 'password' | 'google'
+
+function InvitarModal({ open, onOpenChange, onInvitado }: { open: boolean; onOpenChange: (v: boolean) => void; onInvitado: (nombre: string, invitacionEnviada: boolean) => void }) {
   const [nombre, setNombre] = useState('')
   const [email, setEmail] = useState('')
   const [cargo, setCargo] = useState('')
-  const [rol, setRol] = useState<RolDemo>('COMERCIAL')
+  // VENDEDOR y no 'COMERCIAL': desde el ADR 0040 la API rechaza COMERCIAL, y el
+  // desplegable —que no lo ofrece— enseñaba la primera opción mientras el estado
+  // seguía en COMERCIAL. Quien no tocaba el rol recibía un 400 al crear.
+  const [rol, setRol] = useState<RolDemo>(ROL_POR_OMISION)
   const [password, setPassword] = useState('')
-  const [conGoogle, setConGoogle] = useState(false)
+  const [acceso, setAcceso] = useState<AccesoAlta>('invitar')
   const [googleDisponible, setGoogleDisponible] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
+  // El enlace de invitación cuando el correo NO salió. Se enseña una sola vez,
+  // como la contraseña temporal: al cerrar el modal no hay forma de recuperarlo
+  // (se puede emitir otro con «Restablecer contraseña»).
+  const [enlace, setEnlace] = useState<{ url: string; fallo: boolean } | null>(null)
+  const [copiado, setCopiado] = useState(false)
 
   // La bandera de Google no viaja al cliente (no lleva prefijo NEXT_PUBLIC_,
   // para que apagarla no exija recompilar), así que se pregunta al servidor.
@@ -396,74 +411,143 @@ function InvitarModal({ open, onOpenChange, onInvitado }: { open: boolean; onOpe
     return () => { vivo = false }
   }, [open])
 
-  // Con Google no hace falta contraseña. Sin él, el mínimo es el que exige el
-  // SERVIDOR (validarPassword: 8, con letra y número) — antes pedía 6 aquí, así
-  // que una de 6 pasaba el formulario y el servidor la rechazaba después con un
-  // mensaje que parecía salido de la nada.
-  // La misma funcion que corre el servidor: `length >= 8` dejaba pasar
-  // «aaaaaaaa», que rebota con «debe incluir al menos un numero».
-  const valido = !!nombre.trim() && !!email.trim() && (conGoogle || !validarPassword(password))
+  // Con invitación o Google no hace falta contraseña. Con «fijar», el mínimo es
+  // el que exige el SERVIDOR (validarPassword: 8, con letra y número) — antes
+  // pedía 6 aquí, así que una de 6 pasaba el formulario y el servidor la
+  // rechazaba después con un mensaje que parecía salido de la nada.
+  const valido = !!nombre.trim() && !!email.trim() && (acceso !== 'password' || !validarPassword(password))
+
+  function limpiar() {
+    setNombre(''); setEmail(''); setCargo(''); setPassword(''); setRol(ROL_POR_OMISION)
+    setAcceso('invitar'); setEnlace(null); setCopiado(false); setError(null)
+  }
+
+  function cerrar() {
+    onOpenChange(false)
+    limpiar()
+  }
 
   async function enviar() {
     if (!esEmailValido(email)) { setError(EMAIL_INVALIDO); return }
     setEnviando(true)
     setError(null)
     try {
-      await invitarUsuarioApi({
+      const u = await invitarUsuarioApi({
         nombre: nombre.trim(),
         email: email.trim(),
         cargo: cargo.trim() || 'Miembro del equipo',
         rol,
-        // Se manda UNA de las dos, nunca las dos: con `entraConGoogle` el
-        // servidor ignora cualquier contraseña, y mandarla igual dejaría en el
-        // cuerpo de la petición un secreto que no se va a usar.
-        ...(conGoogle ? { entraConGoogle: true } : { password: password.trim() }),
+        // Se manda UNA de las tres, nunca dos: el servidor contesta 400 a una
+        // mezcla, y mandar una contraseña que no se va a usar dejaría un
+        // secreto en el cuerpo de la petición.
+        ...(acceso === 'invitar' ? { invitar: true }
+          : acceso === 'google' ? { entraConGoogle: true }
+          : { password: password.trim() }),
       })
-      onInvitado(nombre.trim())
-      onOpenChange(false)
-      setNombre(''); setEmail(''); setCargo(''); setPassword(''); setConGoogle(false)
+      const inv = u.invitacion
+      if (inv && !inv.enviada) {
+        // La cuenta ya existe: se avisa al padre ahora (para recargar la lista)
+        // y el modal se queda abierto enseñando el enlace.
+        onInvitado(nombre.trim(), false)
+        setEnlace({ url: inv.enlace, fallo: !!inv.fallo })
+      } else {
+        onInvitado(nombre.trim(), !!inv?.enviada)
+        cerrar()
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo invitar')
     }
     setEnviando(false)
   }
 
+  function copiar() {
+    if (!enlace) return
+    navigator.clipboard?.writeText(enlace.url).then(
+      () => setCopiado(true),
+      () => setCopiado(false),
+    )
+  }
+
+  const subtitulo = enlace ? 'Comparte el enlace con la persona'
+    : acceso === 'invitar' ? 'Recibirá un enlace para elegir su contraseña'
+    : acceso === 'google' ? 'Entrará con su cuenta de Google'
+    : 'Define su acceso y contraseña'
+
+  const footer = enlace
+    ? <div className="flex justify-end gap-2"><Button variant="success" size="sm" onClick={cerrar}>Listo</Button></div>
+    : <div className="flex justify-end gap-2"><Button variant="secondary" size="sm" onClick={cerrar}>Cancelar</Button><Button variant="success" size="sm" disabled={!valido || enviando} onClick={enviar}>{enviando ? 'Creando…' : acceso === 'invitar' ? 'Crear e invitar' : 'Crear usuario'}</Button></div>
+
   return (
-    <Modal open={open} onOpenChange={onOpenChange} title="Crear usuario" subtitle={conGoogle ? 'Entrará con su cuenta de Google' : 'Define su acceso y contraseña'}
-      footer={<div className="flex justify-end gap-2"><Button variant="secondary" size="sm" onClick={() => onOpenChange(false)}>Cancelar</Button><Button variant="success" size="sm" disabled={!valido || enviando} onClick={enviar}>{enviando ? 'Creando…' : 'Crear usuario'}</Button></div>}>
-      <div className="space-y-3">
-        <Campo label="Nombre"><input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus /></Campo>
-        <Campo label="Correo"><input className={inputCls} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="correo@empresa.com" /></Campo>
-        <Campo label="Cargo"><input className={inputCls} value={cargo} onChange={(e) => setCargo(e.target.value)} /></Campo>
-        <Campo label="Rol"><select className={inputCls} value={rol} onChange={(e) => setRol(e.target.value as RolDemo)}>{ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}</select></Campo>
-        {googleDisponible && (
-          <label className="flex cursor-pointer items-start gap-2 rounded border border-border bg-bg p-2.5">
-            <input
-              type="checkbox"
-              className="mt-0.5"
-              checked={conGoogle}
-              onChange={(e) => { setConGoogle(e.target.checked); setError(null) }}
+    <Modal open={open} onOpenChange={(v) => (v ? onOpenChange(true) : cerrar())} title="Crear usuario" subtitle={subtitulo} footer={footer}>
+      {enlace ? (
+        <div className="space-y-3">
+          {enlace.fallo ? (
+            <p className="flex items-start gap-2 rounded border border-[#f59e0b40] bg-[#f59e0b0d] p-2.5 text-[12px] text-ink">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[#b45309]" />
+              La cuenta se creó, pero el correo no se pudo enviar. Pásale este enlace por otro medio.
+            </p>
+          ) : (
+            <p className="text-[12px] text-muted">
+              La cuenta de <b className="text-ink">{nombre}</b> está creada. Este servidor no tiene correo
+              configurado, así que pásale este enlace por un medio seguro: con él elige su contraseña.
+            </p>
+          )}
+          <div className="break-all rounded border border-border bg-bg p-2.5 font-mono text-[12px] text-ink">{enlace.url}</div>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] text-muted">Vence en 72 horas y sirve una sola vez. No se volverá a mostrar.</span>
+            <Button variant="secondary" size="sm" onClick={copiar}>{copiado ? <><Check className="h-3.5 w-3.5" /> Copiado</> : 'Copiar enlace'}</Button>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <Campo label="Nombre"><input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus /></Campo>
+          <Campo label="Correo"><input className={inputCls} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="correo@empresa.com" /></Campo>
+          <Campo label="Cargo"><input className={inputCls} value={cargo} onChange={(e) => setCargo(e.target.value)} /></Campo>
+          <Campo label="Rol"><select className={inputCls} value={rol} onChange={(e) => setRol(e.target.value as RolDemo)}>{ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}</select></Campo>
+          <fieldset className="space-y-1.5">
+            <legend className="mb-1 text-[12px] font-medium text-ink">Acceso</legend>
+            <OpcionAcceso
+              activa={acceso === 'invitar'} onElegir={() => { setAcceso('invitar'); setError(null) }}
+              titulo="Enviar invitación"
+              detalle="Recibe un enlace para elegir su propia contraseña. Nadie más la conoce."
             />
-            <span className="text-[12px] leading-snug">
-              <span className="font-medium text-ink">Entra con su cuenta de Google</span>
-              <span className="block text-muted">
-                No tendrás que inventar ni enviarle ninguna contraseña. Su correo de
-                Google debe ser el mismo que escribiste arriba.
-              </span>
-            </span>
-          </label>
-        )}
-        {/* La contraseña desaparece —no se deshabilita— cuando entra con
-            Google: un campo gris que sigue ahí invita a preguntarse si hay que
-            rellenarlo igual. */}
-        {!conGoogle && (
-          <Campo label="Contraseña">
-            <input className={inputCls} type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={REGLA_PASSWORD} />
-          </Campo>
-        )}
-        {error && <p className="text-[12px] text-error">{error}</p>}
-      </div>
+            <OpcionAcceso
+              activa={acceso === 'password'} onElegir={() => { setAcceso('password'); setError(null) }}
+              titulo="Fijar la contraseña yo"
+              detalle="Tú la escribes y se la entregas por un medio seguro."
+            />
+            {googleDisponible && (
+              <OpcionAcceso
+                activa={acceso === 'google'} onElegir={() => { setAcceso('google'); setError(null) }}
+                titulo="Entra con su cuenta de Google"
+                detalle="Su correo de Google debe ser el mismo que escribiste arriba."
+              />
+            )}
+          </fieldset>
+          {/* La contraseña desaparece —no se deshabilita— si no se va a usar:
+              un campo gris que sigue ahí invita a preguntarse si hay que
+              rellenarlo igual. */}
+          {acceso === 'password' && (
+            <Campo label="Contraseña">
+              <input className={inputCls} type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={REGLA_PASSWORD} />
+            </Campo>
+          )}
+          {error && <p className="text-[12px] text-error">{error}</p>}
+        </div>
+      )}
     </Modal>
+  )
+}
+
+function OpcionAcceso({ activa, onElegir, titulo, detalle }: { activa: boolean; onElegir: () => void; titulo: string; detalle: string }) {
+  return (
+    <label className={cn('flex cursor-pointer items-start gap-2 rounded border p-2.5', activa ? 'border-accent bg-bg' : 'border-border')}>
+      <input type="radio" name="acceso-alta" className="mt-0.5" checked={activa} onChange={onElegir} />
+      <span className="text-[12px] leading-snug">
+        <span className="font-medium text-ink">{titulo}</span>
+        <span className="block text-muted">{detalle}</span>
+      </span>
+    </label>
   )
 }
 

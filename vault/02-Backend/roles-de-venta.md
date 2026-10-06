@@ -1,7 +1,7 @@
 ---
 tipo: contrato
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-10-06
 tags: [backend, roles, permisos, rbac, enum, migraciones, dueno, guards, carrera]
 archivos:
   - db/migrations/20260929_roles_de_venta_enum.sql
@@ -329,7 +329,7 @@ Detalle en [[comercial-propuestas-campanas]].
 > `:110`; `rechazoDelCambio` en `apps/web/lib/guardas-usuarios.ts:143`;
 > `conGuardasDeDueno` en `apps/web/lib/server/usuarios-repo.ts:145`, con el
 > `for update` en `:163`, `actualizarUsuario` en `:196` y `borrarUsuario` en
-> `:269`; `crearUsuarioCtrl` en `apps/web/lib/server/usuarios-controller.ts:93`;
+> `:269`; `crearUsuarioCtrl` en `apps/web/lib/server/usuarios-controller.ts:105`;
 > `crearOrgConDueno` en `apps/web/lib/server/cuentas-controller.ts:46`; el
 > permiso de PRECIO-01 en `apps/web/lib/server/propuestas-controller.ts:347`; y el
 > de `operaciones.costear` en `apps/web/app/api/ot/[id]/costo/route.ts:56`

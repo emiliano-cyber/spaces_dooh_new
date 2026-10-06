@@ -8,23 +8,15 @@ export const dynamic = 'force-dynamic'
 
 // GET /api/auth/reset?token=…  → { valido } para que la página decida si muestra
 // el formulario o un aviso de "enlace inválido/expirado".
-// Recuperar contraseña se apaga con NEXT_PUBLIC_RECUPERAR_PASSWORD=0. Se
-// comprueba también aquí y no solo en la UI: ocultar el enlace del login dejaría
-// el endpoint accesible y siguiendo emisión de tokens de restablecimiento.
-// Ausente o distinto de '0' = habilitado (no cambia el comportamiento en dev).
-function recuperarDeshabilitado(): NextResponse | null {
-  if (process.env.NEXT_PUBLIC_RECUPERAR_PASSWORD === '0') {
-    return NextResponse.json(
-      { error: 'La recuperación de contraseña está deshabilitada temporalmente. Contacta al administrador.' },
-      { status: 503 },
-    )
-  }
-  return null
-}
-
+//
+// NEXT_PUBLIC_RECUPERAR_PASSWORD=0 NO se comprueba aquí desde el 06/10 (ADR
+// 0044), y es deliberado. La bandera apaga PEDIR un enlace —eso lo cierra
+// /api/auth/forgot, el único emisor público—, no USARLO. Con ella aquí, la
+// invitación de un usuario nuevo, que emite un administrador con sesión, moría
+// con 503 en todas las instancias, que nacen con la bandera en 0. Con el emisor
+// público apagado, los únicos tokens que existen los creó alguien con sesión.
+// Lo fija `lib/server/invitacion-interruptor.test.ts`.
 export async function GET(req: Request) {
-  const off = recuperarDeshabilitado()
-  if (off) return off
   const token = new URL(req.url).searchParams.get('token') ?? ''
   // Dentro del try: con la base caída la consulta lanzaba y Next contestaba un
   // 500 con el cuerpo vacío (2026-09-30). El POST de abajo ya lo tenía.
@@ -39,8 +31,6 @@ export async function GET(req: Request) {
 // PÚBLICO. Valida token (no usado/no expirado) y la política de contraseña,
 // invalida el token y cierra las sesiones del usuario.
 export async function POST(req: Request) {
-  const off = recuperarDeshabilitado()
-  if (off) return off
   const lim = limitar(`reset:${ipDe(req)}`, 10, 15 * 60_000)
   if (!lim.ok) {
     return NextResponse.json({ error: `Demasiados intentos. Espera ${lim.retrySeg}s.` }, { status: 429 })

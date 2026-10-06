@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-10-06
 tags: [frontend, login, sesion, rojo]
 archivos:
   - apps/web/app/(app)/login/page.tsx
@@ -30,7 +30,7 @@ contraseña». Los dos últimos se apagan por variable:
 | Variable | Cuándo se decide | Efecto en la UI | Y **también** en el servidor |
 |---|---|---|---|
 | `AUTOREGISTRO` (solo `1` enciende) | **Al arrancar** | Oculta el alta | `POST /api/signup` → 503 |
-| `NEXT_PUBLIC_RECUPERAR_PASSWORD=0` | En el **build** | Oculta el enlace | `POST /api/auth/forgot` → apagado |
+| `NEXT_PUBLIC_RECUPERAR_PASSWORD=0` | En el **build** | Oculta el enlace | `POST /api/auth/forgot` → apagado. **No** `/api/auth/reset` desde el 06/10 (ADR 0044): la invitación lo usa |
 
 > [!important] La bandera del autoregistro salió del build el 14/08 (F2.6)
 > Se llamaba `NEXT_PUBLIC_AUTOREGISTRO` y el prefijo la hacía **hornearse en el
@@ -131,6 +131,16 @@ Ver [[idiomas-es-en]].
 `/recuperar/[token]` — el token viaja en el enlace del correo. `GET
 /api/auth/reset` lo valida antes de mostrar el formulario; `POST` lo aplica y
 **borra todas las sesiones del usuario**.
+
+Con `?bienvenida=1` es una **invitación** (ADR 0044): mismos token y servidor,
+otros textos —«Elige tu contraseña», y si venció, «pide a quien te dio de alta que
+te envíe otra»—. Desde el 06/10 valida con `validarPassword`, la regla del
+servidor, y no solo la longitud.
+
+El alta de usuario (`administracion/page.tsx`, `InvitarModal`) ofrece tres formas
+de acceso, una por alta: **enviar invitación** (por omisión), fijar la contraseña,
+o Google si está habilitado. Si el correo no salió, el modal enseña el enlace
+**una vez** para copiarlo.
 
 Ruta pública en el middleware (`middleware.ts:170`).
 

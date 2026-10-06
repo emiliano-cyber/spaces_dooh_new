@@ -144,10 +144,10 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   // 1 sitio · lib/server/firmas-repo.ts:315
   'El enlace de firma expiró. Pide uno nuevo.':
     'The signing link expired. Request a new one.',
-  // 1 sitio · lib/server/password-reset-repo.ts:100
+  // 1 sitio · lib/server/password-reset-repo.ts:133
   'El enlace expiró. Solicita uno nuevo.':
     'The link expired. Request a new one.',
-  // 1 sitio · lib/server/password-reset-repo.ts:98
+  // 1 sitio · lib/server/password-reset-repo.ts:131
   'El enlace no es válido.':
     'The link is not valid.',
   // 1 sitio · lib/server/ot-repo.ts:226
@@ -255,7 +255,7 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   // 1 sitio · lib/server/firmas-repo.ts:316
   'Este contrato ya fue firmado con este enlace.':
     'This contract was already signed with this link.',
-  // 1 sitio · lib/server/password-reset-repo.ts:99
+  // 1 sitio · lib/server/password-reset-repo.ts:132
   'Este enlace ya se usó. Solicita uno nuevo.':
     'This link has already been used. Request a new one.',
   // 1 sitio · lib/server/captacion-repo.ts:408
@@ -402,10 +402,10 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   // 2 sitios · app/api/energia/recibos/route.ts:81
   'No llego ningun archivo.':
     'No file arrived.',
-  // 1 sitio · lib/server/usuarios-controller.ts:184
+  // 1 sitio · lib/server/usuarios-controller.ts:240
   'No puedes eliminar tu propio usuario':
     'You cannot delete your own user',
-  // 1 sitio · lib/server/usuarios-controller.ts:142
+  // 1 sitio · lib/server/usuarios-controller.ts:198
   'No puedes modificar tu propio usuario. Cambia tu contraseña en Configuración.':
     'You cannot modify your own user. Change your password in Settings.',
   // 1 sitio · lib/server/recibos-cfe/lector-pdf.ts:114
@@ -423,7 +423,7 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   // 2 sitios · lib/server/arrendadores-controller.ts:350
   'Pago no encontrado':
     'Payment not found',
-  // 1 sitio · lib/server/usuarios-controller.ts:167
+  // 1 sitio · lib/server/usuarios-controller.ts:223
   'Para cambiar tu propia contraseña usa Configuración.':
     'To change your own password use Settings.',
   // 1 sitio · lib/server/arrendadores-controller.ts:160
@@ -441,9 +441,12 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   // 1 sitio · lib/server/arrendadores-repo.ts:1436
   'Una licencia ampara un predio O una pantalla suelta, no ambos ni ninguno.':
     'A permit covers either a property OR a single screen, not both and not neither.',
-  // 1 sitio · lib/server/usuarios-controller.ts:107
+  // 1 sitio · lib/server/usuarios-controller.ts:137
   'Ya existe un usuario con ese correo':
     'A user with that email already exists',
+  // 1 sitio · lib/server/usuarios-controller.ts:118 (ADR 0044)
+  'Elige una sola forma de acceso: invitación, contraseña o Google.':
+    'Choose a single way to sign in: invitation, password or Google.',
 
   // ── Centrales: no salen de un `new AppError('...')` literal ──
   'Dato con formato inválido':
