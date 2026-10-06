@@ -13,6 +13,7 @@ import com.spaceeye.agent.network.SocketManager
 import com.spaceeye.agent.telemetry.DeviceStatusCollector
 import com.spaceeye.agent.commands.CommandHandler
 import com.spaceeye.agent.pantalla.Monitor
+import com.spaceeye.agent.vinculacion.Mudanza
 import kotlinx.coroutines.*
 
 class MonitorService : Service() {
@@ -138,15 +139,55 @@ class MonitorService : Service() {
                         apiClient.reportStatus(status, resumen)
                     }
                     if (!ok && resumen != null) vigilante.devolver(resumen)
+                    revisarMudanza(ok)
                     // Si el servidor acaba de rechazar la llave, se da de alta ya y
                     // no hasta el siguiente latido.
                     reAltaSiHaceFalta()
                 } catch (e: Exception) {
                     Log.e(TAG, "Heartbeat error: ${e.message}")
                     updateNotification("Reintentando...")
+                    // Aunque el latido falle, el reloj de la mudanza sigue corriendo.
+                    try { revisarMudanza(false) } catch (_: Exception) {}
                 }
                 delay(60_000)
             }
+        }
+    }
+
+    /**
+     * Mudanza pendiente (ver vinculacion/Mudanza.kt): el primer reporte que entra
+     * en el servidor nuevo la confirma; si pasa la espera sin ninguno, el equipo
+     * vuelve solo al de antes y lo avisa alla. Vive en el latido porque la espera
+     * se guarda con su hora de inicio y sobrevive a reinicios de la app y del
+     * telefono.
+     */
+    private suspend fun revisarMudanza(reporteOk: Boolean) {
+        val tokens = com.spaceeye.agent.network.TokenStore(applicationContext)
+        val estado = tokens.leer()
+        val p = estado.pendiente ?: return
+        when (Mudanza.decidir(p, reporteOk, System.currentTimeMillis())) {
+            Mudanza.Accion.CONFIRMAR -> {
+                tokens.guardar(Mudanza.confirmar(estado))
+                RemoteLog.info(applicationContext, "mudanza", "Equipo mudado desde ${p.anterior}")
+            }
+            Mudanza.Accion.REGRESAR -> {
+                val nuevo = estado.servidor
+                tokens.guardar(Mudanza.regresar(estado))
+                // Si no habia llave de antes, la re-alta sin codigo la saca en el
+                // viejo (ya conoce al equipo) y reconecta; si la habia, solo se
+                // reconecta el canal de ordenes.
+                if (apiClient.tieneLlave()) {
+                    socketManager.disconnect()
+                    socketManager.connect()
+                } else {
+                    reAltaSiHaceFalta()
+                }
+                RemoteLog.error(
+                    applicationContext, "mudanza",
+                    "La mudanza a $nuevo no se completo: el servidor nuevo no respondio y el equipo regreso solo a este"
+                )
+            }
+            else -> Unit
         }
     }
 

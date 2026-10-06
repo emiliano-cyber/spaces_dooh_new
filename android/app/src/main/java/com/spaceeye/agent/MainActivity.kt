@@ -170,8 +170,10 @@ class MainActivity : ComponentActivity() {
         // codigo, el equipo ya es conocido alli. Antes lo hacia SetupActivity.
         lifecycleScope.launch {
             val r = withContext(Dispatchers.IO) { ApiClient(applicationContext).alta() }
-            when (r) {
-                ApiClient.Alta.CODIGO_INVALIDO, ApiClient.Alta.VINCULACION_REQUERIDA -> {
+            val rechazado = r == ApiClient.Alta.CODIGO_INVALIDO || r == ApiClient.Alta.VINCULACION_REQUERIDA
+            when {
+                // A media mudanza nunca: el servicio regresa solo al servidor de antes.
+                rechazado && tokenStore.mudanzaPendiente() == null -> {
                     // Lo borraron del servidor: sin un codigo nuevo no hay manera.
                     avisoVincular = "El servidor ya no reconoce este teléfono. Vincúlalo de nuevo con un código de SPACE OS."
                     necesitaVincular = true

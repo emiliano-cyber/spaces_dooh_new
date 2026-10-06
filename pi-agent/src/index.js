@@ -15,13 +15,14 @@ const { Api } = require('./api');
 const tele = require('./telemetria');
 const rutas = require('./rutas');
 const actualizar = require('./actualizar');
+const mudanza = require('./mudanza');
 const { Puente } = require('./puente');
 
 // SUBIR SIEMPRE al publicar una version nueva. Si dos paquetes distintos dicen
 // la misma version, no hay forma de saber que corre cada sitio -y eso ya costo
 // caro en la flota: REVOLUCION 267 llevaba TRES versiones de atraso sin que el
 // dashboard lo delatara, porque el numero nunca cambiaba.
-const VERSION = '0.7.1';
+const VERSION = '0.7.2';
 const SERVIDOR_POR_OMISION = 'http://159.203.188.58:4000';
 
 const ahora = () => new Date().toISOString().replace('T', ' ').slice(0, 19);
@@ -263,6 +264,13 @@ async function main() {
         datosRegistro.codigo_vinculacion = cfg.codigo_vinculacion || undefined;
         continue;
       }
+      // Recien mudado y el servidor nuevo no responde: pasado el plazo, de
+      // vuelta al anterior en vez de quedarse mudo.
+      if (mudanza.vencida(cfg)) {
+        const m = mudanza.revertir(cfg);
+        log(`MUDANZA: el servidor nuevo no respondio en el plazo; regreso a ${m.anterior}`);
+        return process.exit(1);
+      }
       const espera = Math.min(60, intento * 10);
       log(`no pude registrarme (intento ${intento}): ${e.message}`);
       log(`  -> reintento en ${espera}s. Revisa la conexion y server_url.`);
@@ -272,6 +280,14 @@ async function main() {
   estado.device_id = reg.device_id;
   guardarEstado(estado);
   log(`registrado como equipo #${reg.device_id} (uid ${uid})`);
+  if (mudanza.pendiente(cfg)) log(`MUDANZA: estrenando ${cfg.server_url} (antes ${cfg.mudanza.anterior}); se confirma con el primer reporte`);
+  // Si volvio de una mudanza fallida, que se sepa en el panel de ESTE servidor.
+  if (cfg.mudanza_fallida) {
+    const f = cfg.mudanza_fallida;
+    api.log('error', 'mudanza', `La mudanza a ${f.a} no se completo: el servidor nuevo no respondio y el equipo regreso solo a este`).catch(() => {});
+    mudanza.escribirConfig({ mudanza_fallida: undefined });
+    delete cfg.mudanza_fallida;
+  }
   api.log('info', 'startup', `Agente de Raspberry Pi v${VERSION} iniciado — ${modoCamara}`);
   // Que el rechazo no se quede en el log del equipo: el sintoma que se ve desde
   // el dashboard es un equipo sin dueno, y sin esto nadie sabria por que.
@@ -484,6 +500,24 @@ async function main() {
         if (fallo) api.log('error', 'power', `No se pudo reiniciar el equipo: ${fallo}`).catch(() => {});
         return;
       }
+      case 'UPDATE_CONFIG': {
+        const payload = typeof cmd.payload === 'string' ? JSON.parse(cmd.payload || '{}') : (cmd.payload || {});
+        if (!payload.mudanza) return api.resultadoComando(cmd.id, true, { ignorado: 'UPDATE_CONFIG' });
+        // Mudarse a otro servidor: primero se prueba alla; si no se puede, se
+        // queda aqui y contesta por que (ver src/mudanza.js).
+        try {
+          if (transmision.activa()) transmision.detener('el equipo se muda de servidor');
+          const r = await mudanza.preparar({ payload: payload.mudanza, cfg, datosRegistro, Api });
+          log(`MUDANZA: listo para ${r.servidor} (equipo #${r.device_id} alla); reiniciando`);
+          await api.resultadoComando(cmd.id, true, { mudanza: r.servidor, device_id_nuevo: r.device_id });
+          await api.log('info', 'mudanza', `El equipo se muda a ${r.servidor}`).catch(() => {});
+          return process.exit(0);
+        } catch (e) {
+          log(`MUDANZA: no se hizo (${e.message})`);
+          api.log('error', 'mudanza', `No se pudo mudar: ${e.message}`).catch(() => {});
+          return api.resultadoComando(cmd.id, false, null, `No se pudo mudar: ${e.message}`.slice(0, 500));
+        }
+      }
       case 'REBOOT_APP':
         log('reinicio solicitado desde el dashboard');
         await api.resultadoComando(cmd.id, true);
@@ -541,9 +575,20 @@ async function main() {
         const resumen = vigilancia.tomarPendiente();
         try {
           await api.reportarEstado({ ...tele.recolectar(cfg), ...(resumen || {}) });
+          // El primer reporte que entra en el servidor nuevo confirma la mudanza.
+          const m = mudanza.confirmar(cfg);
+          if (m) {
+            log(`MUDANZA: confirmada en ${cfg.server_url}`);
+            api.log('info', 'mudanza', `Equipo mudado desde ${m.anterior}`).catch(() => {});
+          }
         } catch (e) {
           // Si el reporte no salio, el resumen espera al siguiente.
           vigilancia.devolver(resumen);
+          if (mudanza.vencida(cfg)) {
+            const m = mudanza.revertir(cfg);
+            log(`MUDANZA: sin reportar en ${cfg.server_url} en el plazo; regreso a ${m.anterior}`);
+            process.exit(1);
+          }
           throw e;
         }
         const e = tele.alimentacion();

@@ -17,6 +17,8 @@ import kotlin.math.abs
 import com.spaceeye.agent.network.ApiClient
 import com.spaceeye.agent.network.RemoteLog
 import com.spaceeye.agent.network.SocketManager
+import com.spaceeye.agent.network.TokenStore
+import com.spaceeye.agent.vinculacion.Mudanza
 import com.spaceeye.agent.network.WebRTCClient
 import com.spaceeye.agent.service.MonitorService
 import kotlinx.coroutines.CoroutineScope
@@ -200,6 +202,47 @@ class CommandHandler(
         } catch (e: Exception) {
             Log.w(TAG, "location: ${e.message}")
             null
+        }
+    }
+
+    /**
+     * Mudarse a otro servidor (ver vinculacion/Mudanza.kt). Primero se prueba el
+     * alta alla; solo si sale se le contesta al servidor de siempre, con su llave,
+     * y despues se cambia y se reconecta el canal de ordenes al nuevo. No hace
+     * falta reiniciar la app: cada peticion lee el servidor y la llave al salir.
+     */
+    private suspend fun mudarse(id: Int, orden: Mudanza.Orden) {
+        val r = withContext(Dispatchers.IO) {
+            Mudanza.intentar(orden, TokenStore(ctx), System.currentTimeMillis(), apiClient::altaEn) { lista ->
+                if (id > 0) apiClient.reportCommandResult(
+                    id, true,
+                    JSONObject().put("mudanza", lista.servidor)
+                        .apply { lista.deviceIdNuevo?.let { put("device_id_nuevo", it) } }
+                )
+                RemoteLog.info(ctx, "mudanza", "El equipo se muda a ${lista.servidor}")
+            }
+        }
+        when (r) {
+            is Mudanza.Resultado.Lista -> {
+                Log.i(TAG, "Mudanza a ${r.servidor}; reconectando")
+                // Un vivo abierto va contra el servidor de antes: se corta.
+                if (webrtc.isStreaming() || webrtc.vivoPedido()) {
+                    webrtc.stopStreaming()
+                    if (!vigilando) MonitorService.setCameraActive(false)
+                }
+                socketManager.disconnect()
+                socketManager.connect()
+            }
+            is Mudanza.Resultado.Fallo -> mudanzaFallida(id, r.motivo)
+        }
+    }
+
+    /** No se movio: se queda donde estaba y le dice al de siempre por que. */
+    private suspend fun mudanzaFallida(id: Int, motivo: String) {
+        Log.w(TAG, "Mudanza no hecha: $motivo")
+        RemoteLog.error(ctx, "mudanza", "No se pudo mudar: $motivo")
+        if (id > 0) withContext(Dispatchers.IO) {
+            apiClient.reportCommandResult(id, false, errorMessage = "No se pudo mudar: $motivo".take(500))
         }
     }
 
@@ -401,6 +444,17 @@ class CommandHandler(
                             withContext(Dispatchers.IO) {
                                 apiClient.reportCommandResult(id, true)
                             }
+                        }
+                    }
+                    // Configuracion a distancia. Por ahora el telefono solo atiende la
+                    // mudanza a otro servidor; lo demas se ignora, como siempre.
+                    "UPDATE_CONFIG" -> {
+                        val datos = payload ?: cmd.optString("payload").takeIf { it.isNotBlank() }
+                            ?.let { try { JSONObject(it) } catch (_: Exception) { null } }
+                        when (val l = Mudanza.leerOrden(datos)) {
+                            Mudanza.Lectura.NoEsMudanza -> Unit
+                            is Mudanza.Lectura.Invalida -> mudanzaFallida(id, l.motivo)
+                            is Mudanza.Lectura.Valida -> mudarse(id, l.orden)
                         }
                     }
                     "REBOOT_APP" -> {

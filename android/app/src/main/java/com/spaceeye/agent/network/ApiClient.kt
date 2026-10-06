@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.spaceeye.agent.BuildConfig
 import com.spaceeye.agent.telemetry.DeviceStatus
+import com.spaceeye.agent.vinculacion.Mudanza
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
@@ -224,7 +225,28 @@ class ApiClient(ctx: Context) {
      */
     fun vincular(servidor: String, codigo: String): Alta = alta(servidor, codigo)
 
-    private fun alta(servidor: String, codigo: String?): Alta {
+    private fun alta(servidor: String, codigo: String?): Alta = when (val r = altaEn(servidor, codigo)) {
+        is Mudanza.Alta.Lista -> {
+            if (codigo != null) tokenStore.guardarVinculacion(servidor, r.token)
+            else tokenStore.saveDeviceToken(r.token)
+            Alta.LISTO
+        }
+        is Mudanza.Alta.Rechazada -> when {
+            r.error == "codigo_invalido" -> Alta.CODIGO_INVALIDO
+            r.error == "vinculacion_requerida" -> Alta.VINCULACION_REQUERIDA
+            r.codigoHttp == 429 -> Alta.DEMASIADOS_INTENTOS
+            else -> Alta.ERROR
+        }
+        is Mudanza.Alta.SinRed -> Alta.SIN_RED
+        Mudanza.Alta.SoloHttps -> Alta.SIN_HTTPS
+    }
+
+    /**
+     * Pide el alta a [servidor] SIN guardar nada: la mudanza la prueba en el
+     * servidor nuevo antes de decidir si se mueve (ver Mudanza). Solo viajan los
+     * datos del equipo y, si hay, el codigo; nada del servidor de antes.
+     */
+    fun altaEn(servidor: String, codigo: String?): Mudanza.Alta {
         val json = JSONObject().apply {
             put("device_uid", tokenStore.getOrCreateDeviceUid())
             put("android_version", android.os.Build.VERSION.RELEASE)
@@ -240,37 +262,31 @@ class ApiClient(ctx: Context) {
                 .build()
         } catch (e: IllegalArgumentException) {
             Log.e(TAG, "alta: direccion invalida $servidor")
-            return Alta.ERROR
+            return Mudanza.Alta.Rechazada("direccion_invalida", 0)
         }
         return try {
             http.newCall(request).execute().use { r ->
                 val cuerpo = r.body?.string().orEmpty()
                 if (r.isSuccessful) {
-                    val token = JSONObject(cuerpo).getString("token")
-                    if (codigo != null) tokenStore.guardarVinculacion(servidor, token)
-                    else tokenStore.saveDeviceToken(token)
-                    return Alta.LISTO
+                    val o = JSONObject(cuerpo)
+                    return Mudanza.Alta.Lista(o.getString("token"), o.optLong("device_id").takeIf { it > 0 })
                 }
                 val error = try { JSONObject(cuerpo).optString("error") } catch (_: Exception) { "" }
                 Log.e(TAG, "alta: ${r.code} $error")
-                when {
-                    error == "codigo_invalido" -> Alta.CODIGO_INVALIDO
-                    error == "vinculacion_requerida" -> Alta.VINCULACION_REQUERIDA
-                    r.code == 429 -> Alta.DEMASIADOS_INTENTOS
-                    else -> Alta.ERROR
-                }
+                Mudanza.Alta.Rechazada(error, r.code)
             }
         } catch (e: java.net.UnknownServiceException) {
             // Android rechaza http:// fuera de los servidores de siempre
             // (network_security_config): el de cada empresa va por https.
             Log.e(TAG, "alta: ${e.message}")
-            Alta.SIN_HTTPS
+            Mudanza.Alta.SoloHttps
         } catch (e: java.io.IOException) {
             Log.e(TAG, "alta error: ${e.message}")
-            Alta.SIN_RED
+            Mudanza.Alta.SinRed(e.message ?: e.javaClass.simpleName)
         } catch (e: Exception) {
+            // Contesto 200 pero sin llave legible: para quien llama es un rechazo.
             Log.e(TAG, "alta error: ${e.message}")
-            Alta.ERROR
+            Mudanza.Alta.Rechazada("respuesta_invalida", 200)
         }
     }
 

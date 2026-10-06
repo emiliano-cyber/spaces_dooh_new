@@ -6,9 +6,10 @@ import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.spaceeye.agent.BuildConfig
+import com.spaceeye.agent.vinculacion.Mudanza
 import com.spaceeye.agent.vinculacion.Vinculacion
 
-class TokenStore(private val ctx: Context) {
+class TokenStore(private val ctx: Context) : Mudanza.Almacen {
 
     private val prefs: SharedPreferences by lazy {
         val masterKey = MasterKey.Builder(ctx)
@@ -83,6 +84,47 @@ class TokenStore(private val ctx: Context) {
     fun clearDeviceToken() {
         prefs.edit().remove("device_token").remove("device_token_server").apply()
     }
+
+    // --- Mudanza a otro servidor (ver vinculacion/Mudanza.kt) ----------------
+
+    override fun leer(): Mudanza.Estado {
+        val pendiente = prefs.getString("mudanza_anterior", null)?.let {
+            Mudanza.Pendiente(
+                anterior = it,
+                tokenAnterior = prefs.getString("mudanza_token_anterior", null),
+                desde = prefs.getLong("mudanza_desde", 0L),
+                esperaMin = prefs.getInt("mudanza_espera_min", Mudanza.ESPERA_MIN),
+            )
+        }
+        return Mudanza.Estado(
+            servidor = servidorActivo(),
+            token = prefs.getString("device_token", null),
+            tokenServidor = prefs.getString("device_token_server", null),
+            pendiente = pendiente,
+        )
+    }
+
+    /**
+     * Todo de una vez y con commit (no apply): si el proceso muere justo despues
+     * de mudarse, al volver tiene que encontrar servidor, llave y la mudanza
+     * pendiente juntos, o el regreso automatico no sabria a donde volver.
+     */
+    override fun guardar(estado: Mudanza.Estado) {
+        val e = prefs.edit()
+        fun poner(clave: String, valor: String?) { if (valor == null) e.remove(clave) else e.putString(clave, valor) }
+        // Nunca se borra el servidor: sin el, el telefono caeria en la pantalla de vincular.
+        estado.servidor?.let { e.putString("servidor", it) }
+        poner("device_token", estado.token)
+        poner("device_token_server", estado.tokenServidor)
+        val p = estado.pendiente
+        poner("mudanza_anterior", p?.anterior)
+        poner("mudanza_token_anterior", p?.tokenAnterior)
+        if (p == null) e.remove("mudanza_desde").remove("mudanza_espera_min")
+        else e.putLong("mudanza_desde", p.desde).putInt("mudanza_espera_min", p.esperaMin)
+        e.commit()
+    }
+
+    fun mudanzaPendiente(): Mudanza.Pendiente? = leer().pendiente
 
     fun saveDeviceUid(uid: String) {
         prefs.edit().putString("device_uid", uid).apply()

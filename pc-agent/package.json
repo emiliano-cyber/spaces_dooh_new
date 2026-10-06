@@ -8,6 +8,7 @@
   "scripts": {
     "start": "node src/index.js",
     "probar-camara": "node src/probar-camara.js",
+    "probar": "node --test \"pruebas/*.test.js\"",
     "probar-stream": "node src/index.js --probar-stream",
     "bajar-ffmpeg": "node bajar-ffmpeg.js",
     "build": "node build.js"

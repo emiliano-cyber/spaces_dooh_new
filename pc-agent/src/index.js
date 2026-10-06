@@ -15,6 +15,7 @@ const { Camara } = require('./camera');
 const { Transmision } = require('./transmision');
 const { Api } = require('./api');
 const actualizar = require('./actualizar');
+const mudanza = require('./mudanza');
 const rutas = require('./rutas');
 
 // OJO: subir esto en CADA build que se lleve a un sitio.
@@ -195,6 +196,13 @@ async function main() {
         try { datosRegistro.codigo_vinculacion = JSON.parse(fs.readFileSync(rutas.config, 'utf8')).codigo_vinculacion || undefined; } catch { /* sigue */ }
         continue;
       }
+      // Recien mudado y el servidor nuevo no responde: pasado el plazo, de
+      // vuelta al anterior en vez de quedarse mudo (ver src/mudanza.js).
+      if (mudanza.vencida(cfg)) {
+        const m = mudanza.revertir(cfg);
+        log(`MUDANZA: el servidor nuevo no respondio en el plazo; regreso a ${m.anterior}`);
+        return process.exit(1);
+      }
       const espera = Math.min(60, intento * 10);
       log(`no pude registrarme (intento ${intento}): ${e.message}`);
       log(`  -> reintento en ${espera}s. Revisa server_url en config.json y la conexion.`);
@@ -204,6 +212,13 @@ async function main() {
   estado.device_id = reg.device_id;
   guardarEstado(estado);
   log(`registrado como equipo #${reg.device_id} (uid ${uid})`);
+  if (mudanza.pendiente(cfg)) log(`MUDANZA: estrenando ${cfg.server_url} (antes ${cfg.mudanza.anterior}); se confirma con el primer reporte`);
+  if (cfg.mudanza_fallida) {
+    const f = cfg.mudanza_fallida;
+    api.log('error', 'mudanza', `La mudanza a ${f.a} no se completo: el servidor nuevo no respondio y el equipo regreso solo a este`).catch(() => {});
+    mudanza.escribirConfig({ mudanza_fallida: undefined });
+    delete cfg.mudanza_fallida;
+  }
   api.log('info', 'startup', `Agente de PC v${VERSION} iniciado en ${os.hostname()}`);
   // Que el rechazo no se quede en el log de la PC del sitio: el sintoma que se ve
   // desde el dashboard es un equipo sin dueno, y sin esto nadie sabria por que.
@@ -312,6 +327,22 @@ async function main() {
           return api.resultadoComando(cmd.id, false, null, e.message.slice(0, 500));
         }
       }
+      case 'UPDATE_CONFIG': {
+        const payload = typeof cmd.payload === 'string' ? JSON.parse(cmd.payload || '{}') : (cmd.payload || {});
+        if (!payload.mudanza) return api.resultadoComando(cmd.id, true, { ignorado: 'UPDATE_CONFIG' });
+        try {
+          if (transmision.activa && transmision.activa()) transmision.detener('el equipo se muda de servidor');
+          const r = await mudanza.preparar({ payload: payload.mudanza, cfg, datosRegistro, Api });
+          log(`MUDANZA: listo para ${r.servidor} (equipo #${r.device_id} alla); reiniciando`);
+          await api.resultadoComando(cmd.id, true, { mudanza: r.servidor, device_id_nuevo: r.device_id });
+          await api.log('info', 'mudanza', `El equipo se muda a ${r.servidor}`).catch(() => {});
+          return process.exit(0);
+        } catch (e) {
+          log(`MUDANZA: no se hizo (${e.message})`);
+          api.log('error', 'mudanza', `No se pudo mudar: ${e.message}`).catch(() => {});
+          return api.resultadoComando(cmd.id, false, null, `No se pudo mudar: ${e.message}`.slice(0, 500));
+        }
+      }
       case 'REBOOT_APP':
         log('reinicio solicitado desde el dashboard');
         await api.resultadoComando(cmd.id, true);
@@ -362,9 +393,19 @@ async function main() {
       try {
         const viva = await camara.estaViva();
         await api.reportarEstado(telemetriaPc(viva));
+        const m = mudanza.confirmar(cfg);
+        if (m) {
+          log(`MUDANZA: confirmada en ${cfg.server_url}`);
+          api.log('info', 'mudanza', `Equipo mudado desde ${m.anterior}`).catch(() => {});
+        }
         if (!viva) api.log('warning', 'camera', 'La camara no responde en la red local');
       } catch (e) {
         log(`no pude reportar estado: ${e.message}`);
+        if (mudanza.vencida(cfg)) {
+          const m = mudanza.revertir(cfg);
+          log(`MUDANZA: sin reportar en ${cfg.server_url} en el plazo; regreso a ${m.anterior}`);
+          process.exit(1);
+        }
       }
       await dormir(intervaloEstado);
     }
