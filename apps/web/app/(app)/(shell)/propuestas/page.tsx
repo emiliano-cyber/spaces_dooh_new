@@ -11,12 +11,17 @@ import { catalogoRejillaApi, type FranjaUI, type TemporadaUI } from '@/lib/data/
 import { modalidadesDeSitio, tarifaCalculada } from '@/lib/tarifa-calculada'
 import {
   CALCULADORA_POR_OMISION,
+  DIAS_DEL_MES,
+  SEGUNDOS_POR_HORA,
   duracionSpotSeg,
   horasDeHorario,
   horasPorOmision,
+  loopDeLaLinea,
   previsualizarCalculadora,
-  referenciaPorSpotMensual,
+  rotacionesPorHora,
+  tarifaBaseCalculadora,
   tarifaConPrima,
+  tarifaMensualDeSitio,
 } from '@/lib/calculadora-spots'
 import { resolverVolumen } from '@/lib/volumen'
 import { escalasVolumenApi, type TramoVolumenUI } from '@/lib/data/volumen-api'
@@ -517,8 +522,6 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
    */
   const tarifaCalculadaDe = (s: any, unidad: Unidad, franjaId?: string) =>
     tarifaCalculada({ sitio: s, unidad, franjaId: franjaId || null, temporadas, fechaInicio })
-  const tarifaDe = (s: any, unidad: Unidad, franjaId?: string): number =>
-    tarifaCalculadaDe(s, unidad, franjaId).tarifa
 
   // PRECIO-01 · la tarifa que de verdad se COTIZA: la manual del gerente si la
   // puso, la calculada en cualquier otro caso. Un vendedor no tiene campo, así
@@ -550,6 +553,12 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
     const n = Number(c.prima)
     return Number.isFinite(n) && n > 0 ? n : 0
   }
+  // ADR 0043 · los anunciantes de HOY: las campañas vigentes. El inventario da
+  // libres = total − campañas (`listarSitios`), así que total − libres es el
+  // MISMO conteo que lee el servidor (`datosDelLoop.campanasActivas`). Con otro,
+  // el loop saldría distinto y el servidor rechazaría la cantidad.
+  const ocupadosDe = (s: any): number | null =>
+    s.totalSpots != null && s.spotsDisponibles != null ? Math.max(0, Number(s.totalSpots) - Number(s.spotsDisponibles)) : null
   const calcDe = (s: any) => {
     if (!usaCalcDe(s)) return null
     const c = cfgDe(s)
@@ -562,6 +571,7 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
       horasMaximas: horasPorOmision({ franja: franjaDe(c), horario: s.horario }),
       // Lo que enseña el inventario: total − campañas vigentes.
       libres: s.spotsDisponibles ?? null,
+      ocupados: ocupadosDe(s),
       dias: diasInclusivos(fechaInicio, fechaFin),
       espaciosComprados: c.roadblock ? null : num(c.espacios),
       horasDia: num(c.horasDia),
@@ -570,11 +580,40 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
     })
   }
 
+  // ADR 0043 · la tarifa BASE de una línea: con calculadora, la tarifa mensual
+  // repartida entre los spots del loop (`tarifaBaseCalculadora`, la MISMA que
+  // usa el servidor); sin ella, la de la modalidad, como siempre.
+  //
+  // El loop se cuenta aquí aunque falten las fechas: el precio por spot no
+  // depende de los días, y sin esto la línea diría «sin tarifa» cuando lo
+  // único que falta es el periodo.
+  const tarifaBaseDe = (s: any): { tarifa: number; calculable: boolean } => {
+    const c = cfgDe(s)
+    if (!usaCalcDe(s)) return tarifaCalculadaDe(s, c.unidad, c.franjaId)
+    const total = Number(s.totalSpots ?? 0)
+    const loop = loopDeLaLinea({
+      totalSpots: total,
+      ocupados: ocupadosDe(s),
+      espacios: c.roadblock ? total : Math.max(1, Math.floor(Number(c.espacios) || 1)),
+      roadblock: c.roadblock,
+    })
+    return tarifaBaseCalculadora({
+      sitio: s,
+      franjaId: c.franjaId || null,
+      temporadas,
+      fechaInicio,
+      loop,
+      duracionSeg: duracionSpotSeg(s.duracionSpotSeg, config?.spotSeg),
+      horasOperacion: horasDeHorario(s.horario).horas,
+      roadblock: c.roadblock,
+    })
+  }
+
   const tarifaCotizadaDe = (s: any): number => {
     const c = cfgDe(s)
     const manual = tarifaManualDe(c)
     if (manual != null) return manual
-    const base = tarifaDe(s, c.unidad, c.franjaId)
+    const base = tarifaBaseDe(s).tarifa
     // ADR 0042 · un Roadblock con prima: calculada × (1 + prima), una vez. El
     // servidor espera exactamente este número (`decidirPrecioCalculadora`).
     const prima = primaDe(s)
@@ -1109,7 +1148,7 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                         Para el vendedor es un texto, no un campo: el servidor
                         rechazaría cualquier otro número que mandara. */}
                     {(() => {
-                      const calc = tarifaCalculadaDe(s, c.unidad, c.franjaId)
+                      const calc = tarifaBaseDe(s)
                       const manual = tarifaManualDe(c)
                       const ajustada = manual != null && Math.round(manual * 100) !== Math.round(calc.tarifa * 100)
                       return puedeAjustarTarifa ? (
@@ -1147,8 +1186,9 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                     <span className="demo-num w-24 text-right font-medium text-ink">{formatMonto(precioDe(s))}</span>
 
                     {/* ADR 0042 · la CALCULADORA DE SPOTS. Solo en pantalla
-                        digital vendida por spot. Da la CANTIDAD; el precio por
-                        spot sigue siendo la tarifa de la pantalla de arriba. */}
+                        digital vendida por spot. Da la CANTIDAD y, desde el ADR
+                        0043, también el PRECIO por spot (tarifa mensual ÷
+                        spots del loop), como la calculadora HTML. */}
                     {conLoop(s) && c.unidad === 'spot' && (
                       <CalculadoraSpotsLinea
                         sitio={s}
@@ -1158,7 +1198,9 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                         resultado={calcDe(s)}
                         dias={diasInclusivos(fechaInicio, fechaFin)}
                         conFechas={!!fechaInicio && !!fechaFin}
-                        tarifaMensual={mods.find((m) => m.unidad === 'mensual')?.tarifa ?? s.tarifaMensual ?? 0}
+                        tarifaMensual={tarifaMensualDeSitio({ sitio: s, franjaId: c.franjaId || null, temporadas, fechaInicio })}
+                        tarifaSpot={tarifaBaseDe(s)}
+                        prima={primaDe(s)}
                         puedePrima={puedeAjustarTarifa}
                         cambiar={(patch) => setCfgSitio(s.id, patch)}
                       />
@@ -1308,6 +1350,8 @@ function CalculadoraSpotsLinea({
   dias,
   conFechas,
   tarifaMensual,
+  tarifaSpot,
+  prima,
   puedePrima,
   cambiar,
 }: {
@@ -1318,7 +1362,11 @@ function CalculadoraSpotsLinea({
   resultado: ReturnType<typeof previsualizarCalculadora> | null
   dias: number
   conFechas: boolean
+  /** La tarifa mensual con la que se cuenta (`tarifaMensualDeSitio`). */
   tarifaMensual: number
+  /** La tarifa base por spot, sin prima (`tarifaBaseCalculadora`). */
+  tarifaSpot: { tarifa: number; calculable: boolean }
+  prima: number
   puedePrima: boolean
   cambiar: (patch: Partial<CfgCalculadora>) => void
 }) {
@@ -1326,13 +1374,12 @@ function CalculadoraSpotsLinea({
   const libres = sitio.spotsDisponibles
   const horasMax = horasPorOmision({ franja, horario: sitio.horario })
   const horario = horasDeHorario(sitio.horario)
-  // Informativa y nada más: el dueño descartó usarla como precio (ADR 0042, 1).
-  const referencia = referenciaPorSpotMensual({
-    tarifaMensual,
-    totalSpots: sitio.totalSpots,
-    duracionSeg,
-    horasOperacion: horario.horas,
-  })
+  // ADR 0043 · el desglose de la calculadora HTML. Solo enseña: las cifras que
+  // cuentan ya vienen hechas en `resultado` y `tarifaSpot`, y el servidor las
+  // repite con las mismas funciones.
+  const horasMes = horario.horas * DIAS_DEL_MES
+  const ingresoHora = resultado?.ok && horasMes > 0 ? (tarifaMensual * resultado.loop) / horasMes : null
+  const spotsHoraRB = Math.floor(SEGUNDOS_POR_HORA / duracionSeg)
   const inputCls =
     'h-7 w-16 rounded border border-border-strong bg-surface px-1.5 text-[12px] text-ink disabled:opacity-50'
   return (
@@ -1419,10 +1466,41 @@ function CalculadoraSpotsLinea({
             </label>
           </div>
           {resultado?.ok ? (
-            <div className="demo-num mt-1 text-ink">
-              {fmtNum(resultado.rotacionesHora)} rotaciones/h · {resultado.spotsDia.toLocaleString('es-MX')} spots/día
-              × {dias} {dias === 1 ? 'día' : 'días'} = <b>{resultado.cantidad.toLocaleString('es-MX')} spots</b>
-            </div>
+            <>
+              <div className="demo-num mt-1">
+                Loop de {resultado.loop} {resultado.loop === 1 ? 'anunciante' : 'anunciantes'}
+                {!resultado.roadblock && resultado.loop < total && ` (${resultado.loop - resultado.espaciosComprados} hoy + esta línea)`}
+                {' · '}
+                {Math.floor((resultado.loop * duracionSeg) / 60)}:
+                {String((resultado.loop * duracionSeg) % 60).padStart(2, '0')} min
+              </div>
+              <div className="demo-num text-ink">
+                {resultado.roadblock
+                  ? `${spotsHoraRB.toLocaleString('es-MX')} spots/h`
+                  : `${fmtNum(resultado.rotacionesHora)} rotaciones/h`}{' '}
+                · {fmtNum(resultado.spotsDiaExactos)} spots/día × {dias} {dias === 1 ? 'día' : 'días'} ={' '}
+                <b>{resultado.cantidad.toLocaleString('es-MX')} spots</b>
+              </div>
+              {tarifaSpot.calculable && (
+                <div className="demo-num">
+                  {resultado.roadblock && ingresoHora != null ? (
+                    <>
+                      Hora del loop: {formatMonto(tarifaMensual)} × {resultado.loop} ÷ {fmtNum(horasMes)} h ={' '}
+                      {formatMonto(ingresoHora)}
+                      {prima > 0 && ` + prima ${fmtNum(prima)} % = ${formatMonto(ingresoHora * (1 + prima / 100))}`} ÷{' '}
+                      {spotsHoraRB} spots ={' '}
+                      <b className="text-ink">{formatMonto(prima > 0 ? tarifaConPrima(tarifaSpot.tarifa, prima) : tarifaSpot.tarifa)} por spot</b>
+                    </>
+                  ) : (
+                    <>
+                      Tarifa mensual {formatMonto(tarifaMensual)} ÷{' '}
+                      {fmtNum(rotacionesPorHora(resultado.loop, duracionSeg) * horario.horas * DIAS_DEL_MES, 0)} spots de un
+                      anunciante al mes = <b className="text-ink">{formatMonto(tarifaSpot.tarifa)} por spot</b>
+                    </>
+                  )}
+                </div>
+              )}
+            </>
           ) : resultado && conFechas ? (
             <div className="mt-1 text-error">{resultado.motivo}</div>
           ) : !conFechas ? (
@@ -1433,9 +1511,9 @@ function CalculadoraSpotsLinea({
               No se entiende el horario de la pantalla («{sitio.horario || 'vacío'}»): se toman 18 h al día.
             </div>
           )}
-          {referencia != null && (
-            <div className="mt-0.5">
-              Equivale a {formatMonto(referencia)} por spot frente a la tarifa mensual (referencia: no se cobra).
+          {!tarifaSpot.calculable && (
+            <div className="mt-0.5 text-[#9a6700]">
+              La pantalla no tiene tarifa mensual: el precio por spot sale de ella. Pide a un gerente que lo ponga.
             </div>
           )}
         </>

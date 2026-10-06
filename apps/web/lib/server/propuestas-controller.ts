@@ -12,8 +12,10 @@ import {
   decidirPrecioCalculadora,
   duracionSpotSeg,
   espaciosLibres,
+  horasDeHorario,
   horasPorOmision,
   resolverCalculadora,
+  tarifaBaseCalculadora,
   usaCalculadora,
 } from '@/lib/calculadora-spots'
 import { datosDelLoop, datosParaTarifar } from './tarifas-repo'
@@ -73,6 +75,12 @@ import { usuarioActual, tienePermiso } from './auth'
 //    · prima de Roadblock > 0 sin `comercial.aprobar` → 403;
 //    · prima con permiso → la tarifa esperada es calculada × (1+prima), y la
 //      línea queda como AJUSTE, con su `precio_ajustado_por` y su Actividad.
+//
+//  ADR 0043 · y desde el 2026-10-06 el PRECIO de esa línea tampoco es la
+//  modalidad `spot`: es la tarifa mensual repartida entre los spots del loop
+//  (`tarifaBaseCalculadora`), y el loop es la ocupación de hoy más la línea.
+//  Es la cuenta de la calculadora HTML del dueño. La regla de quién puede
+//  apartarse de ese precio es la misma.
 //
 //  Una línea SIN parámetros sigue exactamente como antes: la calculadora no
 //  existe para ella, ni para las pantallas fijas ni para las demás unidades.
@@ -254,6 +262,10 @@ export async function crearPropuestaCtrl(body: unknown) {
       duracionSeg: duracionSpotSeg(s?.duracionSpotSeg, loop.spotSegOrganizacion),
       horasMaximas: horasPorOmision({ franja, horario: s?.horario ?? null }),
       libres: s ? espaciosLibres({ totalSpots: s.totalSpots, guardados: s.spotsDisponibles, campanasActivas: s.campanasActivas }) : null,
+      // ADR 0043 · el loop es la ocupación. Las CAMPAÑAS vigentes y no el
+      // contador guardado: es lo que cuenta la pantalla (total − libres del
+      // inventario), y si los dos contaran distinto la cantidad no cuadraría.
+      ocupados: s ? s.campanasActivas : null,
       dias,
       espaciosComprados: it.espaciosComprados ?? null,
       horasDia: it.horasDia ?? null,
@@ -354,15 +366,32 @@ export async function crearPropuestaCtrl(body: unknown) {
   const fechaTarifa = String(d.fechaInicio).slice(0, 10)
   const items: ((typeof normalizados)[number] & { tarifaCalculada: number | null; precioAjustado: boolean })[] = []
   const ajustes: AjusteTarifa[] = []
-  for (const it of normalizados) {
+  for (const [idx, it] of normalizados.entries()) {
     const sitio = datos.sitios.get(it.sitioId)
-    const calc = tarifaCalculada({
-      sitio: sitio ?? {},
-      unidad: it.unidad,
-      franjaId: it.franjaId,
-      temporadas: datos.temporadas,
-      fechaInicio: fechaTarifa,
-    })
+    // ADR 0043 · una línea de calculadora NO se tarifa con la modalidad `spot`:
+    // su precio sale de la tarifa MENSUAL repartida entre los spots del loop,
+    // como en la calculadora HTML. `normalizados` va en el orden de `d.items`,
+    // y por eso `calculadoras[idx]` es la de esta línea.
+    const conCalc = calculadoras[idx]
+    const deLoop = conCalc ? loop?.sitios.get(it.sitioId) : undefined
+    const calc = conCalc
+      ? tarifaBaseCalculadora({
+          sitio: sitio ?? {},
+          franjaId: it.franjaId,
+          temporadas: datos.temporadas,
+          fechaInicio: fechaTarifa,
+          loop: conCalc.loop,
+          duracionSeg: duracionSpotSeg(deLoop?.duracionSpotSeg, loop?.spotSegOrganizacion),
+          horasOperacion: horasDeHorario(deLoop?.horario ?? null).horas,
+          roadblock: conCalc.roadblock,
+        })
+      : tarifaCalculada({
+          sitio: sitio ?? {},
+          unidad: it.unidad,
+          franjaId: it.franjaId,
+          temporadas: datos.temporadas,
+          fechaInicio: fechaTarifa,
+        })
     // ADR 0042 · una línea de calculadora pasa por `decidirPrecioCalculadora`,
     // que mete la prima del Roadblock dentro de la MISMA regla: la tarifa
     // esperada es calculada × (1+prima) —la prima se aplica UNA vez, ahí— y una
