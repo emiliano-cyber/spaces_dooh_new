@@ -47,7 +47,10 @@ export async function GET(req: Request) {
   }
 
   const p = new URL(req.url).searchParams.get('p') ?? ''
-  if (!RUTA_VALIDA.test(p) || p.includes('..')) {
+  // `//` aparte, como `..`: el juego de caracteres de RUTA_VALIDA incluye la
+  // barra, así que dos seguidas casaban aunque el comentario de arriba dijera
+  // «sin `//`» (revisión del 06/10).
+  if (!RUTA_VALIDA.test(p) || p.includes('..') || p.includes('//')) {
     return NextResponse.json({ error: 'Ruta de foto inválida' }, { status: 400 })
   }
 

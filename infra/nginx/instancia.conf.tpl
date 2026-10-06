@@ -192,7 +192,7 @@ server {
 }
 
 # ============================================================================
-#  eyes.__DOMINIO__ — el Space Eye de ESTA instancia (ADR 0041).
+#  eyes.__DOMINIO__ — el Space Eye de ESTA instancia (ADR 0045).
 # ----------------------------------------------------------------------------
 #  Por aqui entran los equipos de la empresa (APK, Raspberry, PC) y nuestro
 #  panel de operacion. Mismo certificado que el dominio de la app: el alta lo

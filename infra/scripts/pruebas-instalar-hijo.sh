@@ -409,7 +409,7 @@ else mal "no dice que falta FLOTA_TOKEN: $(tail -2 "$SALIDA" | tr '\n' ' ')"; fi
 limpiar
 
 # ============================================================================
-#  EYES · Space Eyes dentro de la instancia (ADR 0041), con --con-eyes
+#  EYES · Space Eyes dentro de la instancia (ADR 0045), con --con-eyes
 # ----------------------------------------------------------------------------
 #  Lo que no puede fallar: que las DOS credenciales con que la app le habla a su
 #  Space Eye sean las MISMAS a los dos lados (si no, el modulo da 401 y nadie

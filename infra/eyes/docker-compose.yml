@@ -1,5 +1,5 @@
 # ============================================================================
-#  Space Eyes DENTRO de una instancia (ADR 0041).
+#  Space Eyes DENTRO de una instancia (ADR 0045).
 # ----------------------------------------------------------------------------
 #  No se levanta a mano: lo maneja infra/scripts/update-eyes.sh, que lo instala
 #  en /opt/space-os/eyes/ y lo corre como

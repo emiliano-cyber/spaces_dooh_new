@@ -275,7 +275,10 @@ function Pc({ info }: { info: InfoAlta }) {
           </p>
           <Bajar d={info.agentePc} nombre="SpaceEyeAgente.exe" />
           <a
-            href={`${info.servidor}/ffmpeg.exe`}
+            // Por esta aplicación, no directo a Space Eye: ver `INSTALADORES` en
+            // lib/server/space-eye.ts (descarga bloqueada en HTTPS y binario
+            // cambiable en la wifi del sitio).
+            href="/spaces-dooh/api/space-eyes/descarga/ffmpeg/"
             className="inline-flex items-center gap-1.5 text-[12px] font-medium text-accent hover:underline"
           >
             <Download className="h-3.5 w-3.5" /> ffmpeg.exe
@@ -383,17 +386,30 @@ function Bajar({ d, nombre }: { d: Descarga | null; nombre: string }) {
     )
   }
   const mb = d.bytes != null ? `${(d.bytes / 1024 ** 2).toFixed(1)} MB` : null
+  // La huella se ENSEÑA. Space Eye la publicaba en el manifiesto y la pantalla
+  // la leía sin pintarla: un hash que no se ve no protege nada. Con ella, quien
+  // instala puede comprobar que el archivo que tiene es el publicado.
   return (
-    <a
-      href={d.url}
-      className="inline-flex items-center gap-1.5 rounded border border-border-strong bg-surface px-2.5 py-1.5 text-[12px] font-medium text-ink hover:bg-surface-2"
-    >
-      <Download className="h-3.5 w-3.5 text-accent" />
-      {nombre}
-      <span className="font-normal text-muted">
-        {d.version ? `v${d.version}` : ''}
-        {mb ? ` · ${mb}` : ''}
-      </span>
-    </a>
+    <div className="flex flex-col gap-1">
+      <a
+        href={d.url}
+        className="inline-flex w-fit items-center gap-1.5 rounded border border-border-strong bg-surface px-2.5 py-1.5 text-[12px] font-medium text-ink hover:bg-surface-2"
+      >
+        <Download className="h-3.5 w-3.5 text-accent" />
+        {nombre}
+        <span className="font-normal text-muted">
+          {d.version ? `v${d.version}` : ''}
+          {mb ? ` · ${mb}` : ''}
+        </span>
+      </a>
+      {d.sha256 && (
+        <span className="text-[11px] text-muted">
+          SHA-256: <code className="break-all font-mono text-ink">{d.sha256}</code>
+          <span className="block">
+            Para comprobarlo en Windows: <code className="font-mono">certutil -hashfile {nombre} SHA256</code>
+          </span>
+        </span>
+      )}
+    </div>
   )
 }

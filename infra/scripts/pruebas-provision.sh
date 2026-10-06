@@ -328,7 +328,7 @@ DOM=prueba.ejemplo.com   # RFC 2606 — dominio reservado, no existe
 # ============================================================================
 #  Obligaba al operador a volcar los TRES tokens al entorno de su shell para
 #  emitir un certificado que no necesita ninguno.
-# ─── EYES · Space Eyes dentro de la instancia (ADR 0041), con --con-eyes ────
+# ─── EYES · Space Eyes dentro de la instancia (ADR 0045), con --con-eyes ────
 escenario 'EYES · --con-eyes: mismas credenciales en app.env y eyes.env, archivos, cron y ufw'
 preparar
 correr REGISTRY=registro.ejemplo/x REGISTRY_TOKEN=t CANAL=beta -- \

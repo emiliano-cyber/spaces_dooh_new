@@ -22,7 +22,7 @@ Confundirlos es el error más común al llegar.
 | **Formato** | Notas enlazadas entre sí, con frontmatter | Archivos sueltos: ADR, planes, runbooks, bitácora |
 | **Se lee** | Antes de tocar código | Cuando necesitas el porqué de una decisión |
 
-En `docs/` viven: los **ADR** (`docs/adr/`, van por la **0043**), los **planes**
+En `docs/` viven: los **ADR** (`docs/adr/`, van por la **0045**), los **planes**
 (`docs/Plan_*.md`), los **runbooks**, las **correcciones de datos en producción**
 (`docs/datos/`, cada una con su rollback capturado antes) y la **bitácora**
 (`docs/Registro_Cambios.md`), que está escrita para quien no programa.
@@ -39,12 +39,12 @@ no se versiona configuración de la herramienta. Consecuencia práctica: la bóv
 Markdown puro y **se lee igual desde un editor, desde `cat` o desde un agente**. No
 necesitas instalar nada.
 
-Al 2026-10-06 tiene **1446 enlaces internos** sobre **101 notas**, con **2
+Al 2026-10-06 tiene **1450 enlaces internos** sobre **101 notas**, con **2
 wikilinks rotos** —los dos apuntan a ADR, que viven en `docs/` y no en la
 bóveda, así que es un choque de convención más que un enlace muerto— y
 **0 notas huérfanas**. Medido con `node scripts/recuentos.mjs` **en este
 árbol**, al cerrar el trabajo y no antes. Las
-mediciones previas daban 1445 sobre 101 (06/10, la integracion de los riesgos del 14/10 antes de la calculadora como la HTML), 1440 sobre 101 (05/10, la boveda al dia antes del cupon, el tope vigente y nginx), 1285 sobre 100 (05/10, antes de poner la boveda al dia tras la auditoria), 1281 sobre 99 (02/10, antes del diario del 02/10), 1273 sobre 98 (01/10, antes de la calculadora de spots), 1271 sobre 98 (01/10, la tarifa calculada sin el pendiente de Google Maps), 1264 sobre 98 (01/10, antes de la tarifa calculada), 1262 sobre 98 (01/10, antes de anotar Google Maps como pendiente), 1245 sobre 97 (01/10, antes de las notas de version), 1240 sobre 96 (01/10, antes del diario del despliegue), 1238 sobre 96 (01/10, antes de corregir las pantallas digitales importadas), 1237 sobre 96 (30/09, antes del rediseno de Codigos y la regla de botones), 1231 sobre 96 (30/09, antes del cupon con aprobacion), 1229 sobre 96 (30/09, antes de acomodar OPEX), 1209 sobre 94 (30/09, antes de los dos idiomas), 1200 sobre 93 (30/09, con la franja programada, antes del diario), 1196 sobre 93 (30/09, la integracion antes de la franja programada), 1193 sobre 93 (30/09, cada rama por separado: ninguna veia los enlaces de las otras), 1189 sobre 93 (30/09, el almacen por tipo sin migracion), 1188 sobre 93 (29/09, al cerrar la captacion), 1179 sobre 92 (29/09, antes de la captacion), 1173 sobre 91 (29/09, al integrar el costo de OT), 1155 sobre 90 (29/09, los roles), 1144 sobre 89 (28/09), 1131 sobre 88 (28/09, el codigo promocional), 1121 sobre 87 (28/09, el volumen), 1109 sobre 86 (28/09, la rejilla), 1096 sobre 85 (28/09, VEND-01), 1072 sobre 84 (28/09), 1056 sobre 83 (25/09), 1045
+mediciones previas daban 1449 sobre 101 (06/10, la rama de Space Eyes antes de su revision), 1446 sobre 101 (06/10, main tras la calculadora), 1445 sobre 101 (06/10, la integracion de los riesgos del 14/10 antes de la calculadora como la HTML), 1440 sobre 101 (05/10, la boveda al dia antes del cupon, el tope vigente y nginx), 1285 sobre 100 (05/10, antes de poner la boveda al dia tras la auditoria), 1281 sobre 99 (02/10, antes del diario del 02/10), 1273 sobre 98 (01/10, antes de la calculadora de spots), 1271 sobre 98 (01/10, la tarifa calculada sin el pendiente de Google Maps), 1264 sobre 98 (01/10, antes de la tarifa calculada), 1262 sobre 98 (01/10, antes de anotar Google Maps como pendiente), 1245 sobre 97 (01/10, antes de las notas de version), 1240 sobre 96 (01/10, antes del diario del despliegue), 1238 sobre 96 (01/10, antes de corregir las pantallas digitales importadas), 1237 sobre 96 (30/09, antes del rediseno de Codigos y la regla de botones), 1231 sobre 96 (30/09, antes del cupon con aprobacion), 1229 sobre 96 (30/09, antes de acomodar OPEX), 1209 sobre 94 (30/09, antes de los dos idiomas), 1200 sobre 93 (30/09, con la franja programada, antes del diario), 1196 sobre 93 (30/09, la integracion antes de la franja programada), 1193 sobre 93 (30/09, cada rama por separado: ninguna veia los enlaces de las otras), 1189 sobre 93 (30/09, el almacen por tipo sin migracion), 1188 sobre 93 (29/09, al cerrar la captacion), 1179 sobre 92 (29/09, antes de la captacion), 1173 sobre 91 (29/09, al integrar el costo de OT), 1155 sobre 90 (29/09, los roles), 1144 sobre 89 (28/09), 1131 sobre 88 (28/09, el codigo promocional), 1121 sobre 87 (28/09, el volumen), 1109 sobre 86 (28/09, la rejilla), 1096 sobre 85 (28/09, VEND-01), 1072 sobre 84 (28/09), 1056 sobre 83 (25/09), 1045
 sobre 82 (24/09), 1148
 sobre 86 (23/09), 1101 sobre 85 (18/09), 753 sobre 57 (28/08), 606 sobre 48
 (17/08) y 395 sobre 43 (10/08).
@@ -130,11 +130,11 @@ código, no de memoria:
 | Framework | Next.js 14.2.29, App Router | `apps/web/package.json:17` |
 | Base de datos | PostgreSQL, `pg` directo (sin ORM) | `apps/web/lib/server/db.ts:2` |
 | Aislamiento | RLS de Postgres por `app.tenant_id` | `apps/web/lib/server/db.ts:60` y `:79` |
-| Endpoints | **124** route handlers | `apps/web/app/api/**/route.ts` |
+| Endpoints | **134** route handlers | `apps/web/app/api/**/route.ts` |
 | Tablas | **57** | `vault/04-Datos/esquema.md` |
 | Migraciones | **106** | `vault/04-Datos/migraciones.md` |
 
-> Esos recuentos llevan fecha de validación **2026-10-05**, medidos con
+> Esos recuentos llevan fecha de validación **2026-10-06** (en la rama `fix/space-eyes-revision`), medidos con
 > `node scripts/recuentos.mjs` sobre este árbol. Trátalos como una
 > afirmación con fecha, no como una verdad permanente — §5 explica cómo
 > reverificarlos.

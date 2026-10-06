@@ -165,7 +165,7 @@ SIN_RESPALDO_REMOTO=0
 
 uso() { sed -n '2,44p' "$0"; }
 
-# Space Eyes dentro de la instancia (ADR 0041). Va en las DOS corridas: la del
+# Space Eyes dentro de la instancia (ADR 0045). Va en las DOS corridas: la del
 # aprovisionamiento y la de --emitir-certificado (el certificado lleva eyes.<dominio>).
 CON_EYES=0
 while [[ $# -gt 0 ]]; do
