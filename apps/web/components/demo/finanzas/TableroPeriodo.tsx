@@ -127,8 +127,8 @@ export function TableroPeriodo() {
             {r.abonosSinFecha > 0 && (
               <p className="flex items-start gap-1.5 text-[11px] text-muted">
                 <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
-                {formatMonto(r.abonosSinFecha)} se cobraron antes de que el sistema guardara la fecha de cada pago:
-                cuentan en el saldo, pero no en lo cobrado de ningún periodo.
+                {formatMonto(r.abonosSinFecha)} de lo cobrado son pagos de antes de que el sistema guardara la fecha de
+                cada pago: se fecharon con la fecha de su factura, así que su mes es aproximado.
               </p>
             )}
           </div>

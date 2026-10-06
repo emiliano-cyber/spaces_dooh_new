@@ -19,8 +19,8 @@ La entrada más reciente va arriba.
 - **Al registrar un pago ahora pones la fecha en que se recibió** (por
   omisión, hoy). Así lo cobrado cae en el mes correcto aunque lo registres
   días después. Los pagos de antes de este cambio se fecharon con la
-  bitácora; los que no tenían rastro cuentan en el saldo pero no en lo cobrado
-  de ningún mes, y la pantalla lo avisa.
+  bitácora; los que no tenían rastro llevan la fecha de su factura, y la
+  pantalla avisa de que esa fecha es aproximada.
 - **Pagar dos veces la misma cuota ya no es posible**: un doble clic podía
   registrar el pago dos veces, y volver a pagar una cuota ya pagada dejaba un
   pago de $0 en la bitácora. Ahora el segundo se rechaza.

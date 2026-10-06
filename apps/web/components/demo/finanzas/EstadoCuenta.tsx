@@ -133,7 +133,14 @@ export function EstadoCuenta() {
                     {datos.movimientos.map((m, i) => (
                       <tr key={i} className="border-b border-border last:border-0">
                         <td className="demo-num px-4 py-2 text-muted">{formatFecha(m.fecha)}</td>
-                        <td className="px-4 py-2 text-ink">{m.tipo === 'factura' ? 'Factura' : 'Pago recibido'}</td>
+                        <td className="px-4 py-2 text-ink">
+                          {m.tipo === 'factura' ? 'Factura' : 'Pago recibido'}
+                          {m.aproximado && (
+                            <span className="block text-[10px] text-muted" title="Pago anterior a que el sistema guardara fechas: lleva la fecha de su factura">
+                              fecha aproximada
+                            </span>
+                          )}
+                        </td>
                         <td className="demo-num px-4 py-2 text-ink">{m.folio}</td>
                         {!cliente && <td className="px-4 py-2 text-muted">{nombreCliente(m.clienteId)}</td>}
                         <td className="demo-num px-4 py-2 text-right text-ink">{m.cargo ? formatMonto(m.cargo) : ''}</td>

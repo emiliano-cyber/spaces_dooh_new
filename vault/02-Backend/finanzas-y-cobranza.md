@@ -158,8 +158,9 @@ Lo que trajo, y lo que cerró de paso:
 - **El doble clic ya no cobra dos veces**: antes dos pagos simultáneos leían
   el mismo acumulado. Y pagar lo ya pagado es un **409**, no un «pago de $0».
 - **Lo cobrado antes** se rescató con `origen = 'historico'`, un renglón por
-  cobranza fechado con el último pago de la bitácora; sin rastro, sin fecha
-  (cuenta en el saldo, no en ningún periodo).
+  cobranza fechado con el último pago de la bitácora; sin rastro, sin fecha en
+  la base, y el cálculo lo **fecha con su factura** marcándolo aproximado (no
+  «antes de todo»: eso dejaba el año con saldo inicial negativo).
 - **`GET /api/finanzas/resumen`** (`finanzas.ver`) sirve el tablero y el
   estado de cuenta; las cuentas son puras en `lib/finanzas-periodo.ts`, con
   las definiciones escritas en su cabecera. El vencido se mide al **corte**:

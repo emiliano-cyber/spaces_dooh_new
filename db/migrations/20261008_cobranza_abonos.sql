@@ -37,8 +37,9 @@
 --    · Su `fecha` es la del ULTIMO «Registro pago»/«Registro abono» de la
 --      bitacora (`acciones`) para ese folio, en la misma organizacion y no
 --      anterior a la cobranza. Si no hay ninguno (pagos de antes de que la
---      bitacora los anotara), queda NULL: cuenta en el saldo, pero no en lo
---      cobrado de ningun periodo. Es la unica forma de no inventar una fecha.
+--      bitacora los anotara), queda NULL: aqui no se inventa ninguna fecha. El
+--      calculo por periodo (`lib/finanzas-periodo.ts`) lo FECHA CON SU FACTURA
+--      y lo marca como aproximado; asi ningun periodo arranca en negativo.
 --
 --  ═══ LO QUE NO HACE ═══════════════════════════════════════════════════════
 --

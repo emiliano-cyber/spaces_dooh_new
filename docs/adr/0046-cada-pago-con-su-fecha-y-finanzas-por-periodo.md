@@ -37,8 +37,14 @@ cuánto se había cobrado, pero no cuándo. Sin eso no hay «cobrado en septiemb
    la base, y nunca futura.
 4. **Lo cobrado antes de la migración se rescata, aproximado y marcado:** un renglón por
    cobranza con `origen = 'historico'`, fechado con el último «Registró pago/abono» de la
-   bitácora para ese folio. Sin rastro → fecha `NULL`: cuenta en el saldo, no en lo cobrado de
-   ningún periodo. La pantalla lo dice cuando pasa.
+   bitácora para ese folio. Sin rastro → fecha `NULL` en la base (no se inventa), y el cálculo
+   por periodo lo **fecha con su factura** y lo marca *aproximado*; la pantalla dice cuánto de lo
+   cobrado lleva fecha aproximada.
+
+   > Primero se trató como «pagado antes de cualquier periodo». Sembrando ejemplos el 06/10 salió
+   > el fallo: el año 2026 arrancaba con saldo **−4 640**, porque se descontaba un pago de una
+   > factura de junio antes de que la factura existiera. Fecharlo con su factura es lo más
+   > pronto en que pudo pagarse, y mantiene `inicial + facturado − cobrado = final`.
 5. **Las cuentas son puras** (`lib/finanzas-periodo.ts`) y las sirve
    `GET /api/finanzas/resumen` con `finanzas.ver`. Definiciones:
    - facturado = facturas no anuladas emitidas en el periodo;

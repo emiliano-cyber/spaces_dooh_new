@@ -158,12 +158,39 @@ describe('2 · el resumen de un periodo', () => {
     expect(r.renta).toBeNull()
   })
 
-  it('un abono histórico sin fecha cuenta en el saldo, no en lo cobrado de un periodo', () => {
+  it('un abono histórico sin fecha se fecha con su FACTURA, y se avisa', () => {
+    // F2 se emitió el 10/09: el abono sin fecha cae en septiembre, no en
+    // octubre, y queda marcado como aproximado.
     const conHistorico = { ...datos, abonos: [...abonos, { cobranzaId: 'q2a', monto: 1000, fecha: null }] }
-    const r = resumirPeriodo(conHistorico, oct, '2026-10-06')
-    expect(r.cobrado).toBe(6600)
-    expect(r.saldoInicial).toBe(resumirPeriodo(datos, oct, '2026-10-06').saldoInicial - 1000)
-    expect(r.abonosSinFecha).toBe(1000)
+    const s = resumirPeriodo(conHistorico, sep, '2026-10-06')
+    expect(s.cobrado).toBe(5000 + 1000)
+    expect(s.abonosSinFecha).toBe(1000)
+    const o = resumirPeriodo(conHistorico, oct, '2026-10-06')
+    expect(o.cobrado).toBe(6600)
+    expect(o.abonosSinFecha).toBe(0)
+    expect(o.saldoInicial).toBe(s.saldoFinal)
+  })
+
+  it('un periodo que contiene la factura con abono histórico NO arranca en negativo', () => {
+    // Lo encontró sembrar ejemplos el 06/10: tratando el abono sin fecha como
+    // «anterior a todo», el año salía con saldo inicial de −4 640.
+    const d = {
+      facturas: [{ id: 'h', folio: 'H', clienteId: 'c', fecha: '2026-06-20', monto: 4640, anulada: false }],
+      cuotas: [{ id: 'qh', facturaId: 'h', vence: '2026-07-20', monto: 4640 }],
+      abonos: [{ cobranzaId: 'qh', monto: 4640, fecha: null }],
+      rentas: [],
+    }
+    const anio = resumirPeriodo(d, { desde: '2026-01-01', hasta: '2026-12-31' }, '2026-10-06')
+    expect(anio.saldoInicial).toBe(0)
+    expect(anio.saldoFinal).toBe(0)
+    expect(anio.cobrado).toBe(4640)
+  })
+
+  it('en los movimientos, el abono histórico sale en la fecha de su factura y marcado', () => {
+    const conHistorico = { ...datos, abonos: [...abonos, { cobranzaId: 'q2a', monto: 1000, fecha: null }] }
+    const m = movimientosDelPeriodo(conHistorico, sep, 'c1')
+    const h = m.find((x) => x.tipo === 'abono' && x.aproximado)
+    expect(h).toMatchObject({ fecha: '2026-09-10', folio: 'F2', abono: 1000 })
   })
 
   it('los importes no arrastran centavos de coma flotante', () => {

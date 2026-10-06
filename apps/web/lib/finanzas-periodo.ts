@@ -10,8 +10,12 @@
 //  · FACTURADO: facturas no anuladas EMITIDAS en el periodo, con IVA.
 //  · COBRADO: abonos cuya FECHA cae en el periodo (`cobranza_abonos`). Antes del
 //    06/10 el sistema no guardaba esa fecha; lo rescatado sin rastro en la
-//    bitácora queda sin fecha y no se atribuye a ningún periodo (cuenta en el
-//    saldo, como algo pagado antes de cualquier periodo).
+//    bitácora se FECHA CON SU FACTURA (lo más pronto en que pudo pagarse) y se
+//    marca `aproximado`: `abonosSinFecha` dice cuánto de lo cobrado del periodo
+//    lleva fecha aproximada. Tratarlo como «anterior a cualquier periodo» —lo
+//    primero que se hizo— dejaba el año con saldo inicial NEGATIVO (−4 640 con
+//    los ejemplos del 06/10), porque descontaba un pago de una factura que aún
+//    no existía.
 //  · SALDO INICIAL: lo facturado antes del periodo menos lo cobrado antes.
 //    SALDO FINAL = inicial + facturado − cobrado. El final de un mes es, por
 //    construcción, el inicial del siguiente.
@@ -126,12 +130,19 @@ function vigentes(d: DatosFinanzas, clienteId?: string | null) {
   const ids = new Set(facturas.map((f) => f.id))
   const cuotas = d.cuotas.filter((c) => ids.has(c.facturaId))
   const idsCuota = new Set(cuotas.map((c) => c.id))
-  const abonos = d.abonos.filter((x) => idsCuota.has(x.cobranzaId))
+  const fechaFactura = new Map(facturas.map((f) => [f.id, f.fecha]))
+  const facturaDeCuota = new Map(cuotas.map((c) => [c.id, c.facturaId]))
+  const abonos = d.abonos
+    .filter((x) => idsCuota.has(x.cobranzaId))
+    .map((x) => ({
+      ...x,
+      dia: x.fecha ?? (fechaFactura.get(facturaDeCuota.get(x.cobranzaId)!) as string),
+      aproximado: x.fecha === null,
+    }))
   return { facturas, cuotas, abonos }
 }
 
-// Sin fecha = rescate histórico: se trata como pagado ANTES de cualquier periodo.
-const antesDe = (x: AbonoP, dia: string) => x.fecha === null || x.fecha < dia
+const antesDe = (x: { dia: string }, dia: string) => x.dia < dia
 const enPeriodo = (dia: string | null, p: Periodo) => dia !== null && dia >= p.desde && dia <= p.hasta
 
 export interface ResumenPeriodo {
@@ -144,7 +155,8 @@ export interface ResumenPeriodo {
   corte: string
   /** null en la vista de un cliente: la renta es de la empresa. */
   renta: { pagada: number; porPagar: number } | null
-  /** Lo rescatado sin fecha (ADR 0046): está en el saldo, no en ningún periodo. */
+  /** De lo cobrado en el periodo, cuánto lleva fecha APROXIMADA (rescate histórico sin
+   *  rastro, fechado con su factura; ADR 0046). */
   abonosSinFecha: number
 }
 
@@ -158,7 +170,8 @@ export function resumirPeriodo(
 
   const emitidas = facturas.filter((f) => enPeriodo(f.fecha, p))
   const facturado = redondear(emitidas.reduce((s, f) => s + f.monto, 0))
-  const cobrado = redondear(abonos.filter((x) => enPeriodo(x.fecha, p)).reduce((s, x) => s + x.monto, 0))
+  const delPeriodo = abonos.filter((x) => enPeriodo(x.dia, p))
+  const cobrado = redondear(delPeriodo.reduce((s, x) => s + x.monto, 0))
 
   const facturadoAntes = facturas.filter((f) => f.fecha < p.desde).reduce((s, f) => s + f.monto, 0)
   const cobradoAntes = abonos.filter((x) => antesDe(x, p.desde)).reduce((s, x) => s + x.monto, 0)
@@ -168,7 +181,7 @@ export function resumirPeriodo(
   const corte = p.hasta < hoy ? p.hasta : hoy
   const pagadoAlCorte = new Map<string, number>()
   for (const x of abonos) {
-    if (x.fecha === null || x.fecha <= corte) {
+    if (x.dia <= corte) {
       pagadoAlCorte.set(x.cobranzaId, (pagadoAlCorte.get(x.cobranzaId) ?? 0) + x.monto)
     }
   }
@@ -200,7 +213,7 @@ export function resumirPeriodo(
     vencido: { monto: redondear(vencidoMonto), facturas: facturasVencidas.size },
     corte,
     renta,
-    abonosSinFecha: redondear(abonos.filter((x) => x.fecha === null).reduce((s, x) => s + x.monto, 0)),
+    abonosSinFecha: redondear(delPeriodo.filter((x) => x.aproximado).reduce((s, x) => s + x.monto, 0)),
   }
 }
 
@@ -213,6 +226,8 @@ export interface Movimiento {
   abono: number
   /** Saldo después de este movimiento, partiendo del saldo inicial del periodo. */
   saldo: number
+  /** Abono histórico sin fecha propia: lleva la de su factura. */
+  aproximado?: boolean
 }
 
 // Los renglones del estado de cuenta: cada factura emitida (cargo) y cada pago
@@ -228,10 +243,13 @@ export function movimientosDelPeriodo(d: DatosFinanzas, p: Periodo, clienteId?: 
       .filter((f) => enPeriodo(f.fecha, p))
       .map((f) => ({ fecha: f.fecha, tipo: 'factura' as const, folio: f.folio, clienteId: f.clienteId, cargo: f.monto, abono: 0 })),
     ...abonos
-      .filter((x) => enPeriodo(x.fecha, p))
+      .filter((x) => enPeriodo(x.dia, p))
       .map((x) => {
         const f = facturaDeCuota.get(x.cobranzaId)!
-        return { fecha: x.fecha as string, tipo: 'abono' as const, folio: f.folio, clienteId: f.clienteId, cargo: 0, abono: x.monto }
+        return {
+          fecha: x.dia, tipo: 'abono' as const, folio: f.folio, clienteId: f.clienteId, cargo: 0, abono: x.monto,
+          ...(x.aproximado ? { aproximado: true } : {}),
+        }
       }),
   ].sort((a, b) => a.fecha.localeCompare(b.fecha) || (a.tipo === b.tipo ? 0 : a.tipo === 'factura' ? -1 : 1))
 

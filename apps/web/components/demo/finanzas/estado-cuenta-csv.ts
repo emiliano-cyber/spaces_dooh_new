@@ -42,7 +42,7 @@ export function csvEstadoCuenta(
     ...d.movimientos.map((m) =>
       [
         m.fecha,
-        m.tipo === 'factura' ? 'Factura' : 'Pago recibido',
+        m.tipo === 'factura' ? 'Factura' : m.aproximado ? 'Pago recibido (fecha aproximada)' : 'Pago recibido',
         texto(m.folio),
         ...(conCliente ? [texto(nombreCliente(m.clienteId))] : []),
         m.cargo ? num(m.cargo) : '',
