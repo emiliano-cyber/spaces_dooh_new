@@ -94,10 +94,32 @@ class Api {
     return this._req('POST', '/api/device/upload-photo', fd);
   }
 
-  // Configuracion de vigilancia del loop y catalogo de huellas ya conocidas.
-  creativos() {
-    return this._req('GET', '/api/device/creativos');
+  // Lo que la vigilancia de la pantalla necesita para una vuelta: el marco de la
+  // pantalla, el encuadre y la configuracion de creativos y de fallas. Es la
+  // misma ruta que usa el telefono (APK 0.15+).
+  monitoreo() {
+    return this._req('GET', '/api/device/monitoreo');
+  }
+
+  // Abre, confirma o cierra una falla de pantalla, con su foto de evidencia.
+  // Devuelve el id, `RECHAZADA` si el servidor dijo que no (no se reintenta:
+  // seria rechazada otra vez) o null si no hubo red (se encola y se reintenta).
+  // Un 401 es token caducado, no rechazo: el sondeo vuelve a dar de alta y la
+  // falla sale en el siguiente intento.
+  async reportarFalla(campos, foto) {
+    const fd = new FormData();
+    for (const [k, v] of Object.entries(campos || {})) fd.append(k, String(v));
+    if (foto) fd.append('photo', new Blob([foto], { type: 'image/jpeg' }), 'evidencia.jpg');
+    try {
+      const r = await this._req('POST', '/api/device/fallas', fd);
+      return Number(r?.id) > 0 ? Number(r.id) : null;
+    } catch (e) {
+      if (e.status >= 400 && e.status < 500 && e.status !== 401 && e.status !== 408) return RECHAZADA;
+      return null;
+    }
   }
 }
 
-module.exports = { Api };
+const RECHAZADA = -1;
+
+module.exports = { Api, RECHAZADA };

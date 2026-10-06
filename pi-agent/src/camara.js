@@ -11,6 +11,7 @@
 // El modo se puede fijar en config.json ("camara": { "modo": "usb" }); por
 // omision se detecta solo.
 const fs = require('fs');
+const path = require('path');
 const { spawn } = require('child_process');
 
 const ANCHO = 1920;
@@ -232,6 +233,16 @@ class Camara {
   async detectar() {
     if (this._modo) return this._modo;
     const forzado = this.cfg.modo && this.cfg.modo !== 'auto' ? this.cfg.modo : null;
+
+    // Camara de ensayo: la foto es `<carpeta>/actual.jpg`, y quien prueba la
+    // cambia por debajo. Sirve para ensayar la vigilancia sin una Pi (la escena
+    // real de un sitio, con gabinetes apagados a proposito). Solo se usa si se
+    // pide en config.json; nunca se elige sola.
+    if (forzado === 'carpeta') {
+      if (!this.cfg.carpeta) throw new Error('modo "carpeta" sin "carpeta" en la configuracion de la camara');
+      this._detalle = `CAMARA DE ENSAYO: ${this.cfg.carpeta}/actual.jpg`;
+      return (this._modo = 'carpeta');
+    }
 
     if (!forzado || forzado === 'libcamera') {
       const mipi = await hayCamaraMipi();
@@ -487,6 +498,8 @@ class Camara {
 
   async tomarFoto(opciones = {}) {
     const modo = await this.detectar();
+
+    if (modo === 'carpeta') return fs.promises.readFile(path.join(this.cfg.carpeta, 'actual.jpg'));
 
     if (modo === 'libcamera') {
       const ajustes = opciones.ajustes || {};

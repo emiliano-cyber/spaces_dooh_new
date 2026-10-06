@@ -45,7 +45,17 @@ const { execFile } = require('child_process');
 const rutas = require('./rutas');
 
 // Lo que se reemplaza al actualizar. Todo lo demas de la carpeta se respeta.
-const CONTENIDO = ['src', 'package.json', 'node_modules'];
+const CONTENIDO = ['src', 'vision', 'package.json', 'node_modules', 'requisitos.json'];
+
+// Paquetes del sistema que una version puede pedir (requisitos.json -> apt). Se
+// instalan con `sudo -n`: el instalador deja a este usuario usar apt-get sin
+// contrasena. Solo nombres de paquete simples: nada que parezca una opcion.
+const NOMBRE_APT = /^[a-z0-9][a-z0-9+.-]{1,60}$/;
+const ESPERA_APT_MS = 30 * 60 * 1000;
+// Si apt ya esta corriendo (las actualizaciones automaticas de Raspberry Pi OS,
+// o una instalacion anterior que sigue en curso), se espera a que termine en
+// vez de fallar al instante y dejar la vigilancia apagada 6 h.
+const ESPERAR_CANDADO = ['-o', 'DPkg::Lock::Timeout=900'];
 
 // Cuantos arranques fallidos se toleran antes de volver a la version anterior.
 // Tres da margen a un tropiezo puntual (la red del sitio caida al arrancar) sin
@@ -104,6 +114,64 @@ function descomprimir(carpeta, archivo, subcarpeta) {
       resolve();
     });
   });
+}
+
+function correr(bin, args, timeout) {
+  return new Promise((resolve) => {
+    execFile(bin, args, { timeout, maxBuffer: 4 * 1024 * 1024 }, (err, salida, stderr) =>
+      resolve({ ok: !err, salida: String(salida || ''), error: String(stderr || err?.message || '').trim() }));
+  });
+}
+
+/**
+ * Lo que la version nueva necesita del SISTEMA, no de node_modules: hoy,
+ * python3-opencv para la vigilancia de la pantalla. Sin esto, mandar una
+ * funcion que use un programa nuevo exigiria ir al sitio a instalarlo.
+ *
+ * Nunca tumba la actualizacion: si apt falla (sin red, sin sudo, disco lleno),
+ * el agente se actualiza igual y la funcion que dependia de eso queda apagada
+ * con su aviso. Un sitio mudo cuesta un viaje; una vigilancia apagada, no.
+ *
+ * Ojo con los datos: python3-opencv con lo que arrastra pesa unos 60-100 MB. Se
+ * baja UNA vez; las siguientes actualizaciones lo encuentran instalado.
+ */
+async function prepararSistema(carpeta, log, { instalarFaltantes = true } = {}) {
+  let pedidos = [];
+  try {
+    const r = JSON.parse(fs.readFileSync(path.join(carpeta, 'requisitos.json'), 'utf8'));
+    pedidos = (r.apt || []).filter((n) => NOMBRE_APT.test(n));
+  } catch { /* version sin requisitos */ }
+
+  const faltan = [];
+  for (const n of pedidos) {
+    const q = await correr('dpkg-query', ['-W', '-f=${Status}', n], 10000);
+    if (!q.salida.includes('install ok installed')) faltan.push(n);
+  }
+  const resultado = { pedidos, instalados: [], faltan: [] };
+  if (faltan.length && !instalarFaltantes) resultado.faltan = faltan;
+  if (faltan.length && instalarFaltantes) {
+    log(`actualizacion: instalando paquetes del sistema: ${faltan.join(' ')}`);
+    let r = await correr('sudo', ['-n', 'apt-get', ...ESPERAR_CANDADO, 'install', '-y', '-q', '--no-install-recommends', ...faltan], ESPERA_APT_MS);
+    if (!r.ok) {
+      // La lista de paquetes de la Pi puede ser vieja: se refresca y se reintenta.
+      await correr('sudo', ['-n', 'apt-get', ...ESPERAR_CANDADO, 'update', '-q'], ESPERA_APT_MS);
+      r = await correr('sudo', ['-n', 'apt-get', ...ESPERAR_CANDADO, 'install', '-y', '-q', '--no-install-recommends', ...faltan], ESPERA_APT_MS);
+    }
+    for (const n of faltan) {
+      const q = await correr('dpkg-query', ['-W', '-f=${Status}', n], 10000);
+      (q.salida.includes('install ok installed') ? resultado.instalados : resultado.faltan).push(n);
+    }
+    if (resultado.faltan.length) log(`actualizacion: no se pudieron instalar ${resultado.faltan.join(' ')} (${r.error.slice(-200)})`);
+  }
+
+  // La vigilancia, probada como el agente: arrancarla con --version. Sale 3 si
+  // falta OpenCV.
+  const script = path.join(carpeta, 'vision', 'monitor.py');
+  if (fs.existsSync(script)) {
+    const v = await correr('python3', [script, '--version'], ESPERA_PRUEBA_MS);
+    resultado.vision = v.ok ? v.salida.trim().slice(0, 60) : `no arranca: ${v.error.slice(-160)}`;
+  }
+  return resultado;
 }
 
 // Arranca el agente nuevo con --version para comprobar que es codigo vivo y no
@@ -170,6 +238,9 @@ async function instalar(payload, log, versionActual) {
   }
   log(`actualizacion: el agente nuevo responde (${prueba.version})`);
 
+  const sistema = await prepararSistema(desempacado, log);
+  if (sistema.vision) log(`actualizacion: vigilancia de la pantalla: ${sistema.vision}`);
+
   // El cambio propiamente dicho. Se aparta lo viejo ANTES de mover lo nuevo, y
   // si algo falla a media maniobra se deshace en el acto: quedarse sin `src/`
   // dejaria al sitio mudo hasta que alguien vaya.
@@ -212,6 +283,7 @@ async function instalar(payload, log, versionActual) {
     yaEstaba: false,
     version: version || prueba.version,
     bytes,
+    sistema,
     // systemd (Restart=always) lo vuelve a levantar en segundos.
     arrancar: () => process.exit(0),
   };
@@ -276,4 +348,47 @@ function confirmar(log) {
   return true;
 }
 
-module.exports = { instalar, revisarArranque, confirmar };
+/**
+ * Lo que un instalador VIEJO no supo hacer, lo termina la version nueva.
+ *
+ * La actualizacion la ejecuta la version que YA estaba instalada, con sus
+ * propias reglas: la 0.6.0 solo copia src/, package.json y node_modules, asi
+ * que al instalar la 0.7.0 deja fuera vision/ y requisitos.json. Siguen en la
+ * carpeta de trabajo hasta que la version nueva se confirma: se toman de ahi.
+ */
+function completar(log) {
+  const nuevo = path.join(dir.trabajo, 'nuevo');
+  if (!fs.existsSync(marca) || !fs.existsSync(nuevo)) return [];
+  const hechos = [];
+  for (const nombre of CONTENIDO) {
+    const destino = path.join(rutas.BASE, nombre);
+    const origen = path.join(nuevo, nombre);
+    if (fs.existsSync(destino) || !fs.existsSync(origen)) continue;
+    try { fs.renameSync(origen, destino); hechos.push(nombre); } catch { /* sin eso, solo falta esa parte */ }
+  }
+  if (hechos.length) log(`actualizacion: el instalador anterior no copio ${hechos.join(', ')}; completado`);
+  return hechos;
+}
+
+// Cada cuanto se reintenta apt si fallo (sin red, repositorio caido): no tiene
+// caso gastar datos del modem en cada reinicio del agente.
+const REINTENTO_APT_MS = 6 * 60 * 60 * 1000;
+const marcaApt = path.join(rutas.BASE, '.requisitos.json');
+
+/**
+ * Al arrancar: que el sistema tenga lo que pide ESTA version (requisitos.json).
+ * Cubre a la Pi que se actualizo desde una version que no sabia instalar
+ * paquetes, y a la instalada a mano. Si apt falla, se reintenta cada 6 h.
+ */
+async function asegurarRequisitos(log) {
+  let previo = null;
+  try { previo = JSON.parse(fs.readFileSync(marcaApt, 'utf8')); } catch { /* primera vez */ }
+  const reciente = previo && previo.faltan?.length && Date.now() - Number(previo.cuando || 0) < REINTENTO_APT_MS;
+  const r = await prepararSistema(rutas.BASE, log, { instalarFaltantes: !reciente });
+  if (r.instalados.length || (r.faltan.length && !reciente)) {
+    try { fs.writeFileSync(marcaApt, JSON.stringify({ cuando: Date.now(), ...r }, null, 2)); } catch { /* no es grave */ }
+  }
+  return r;
+}
+
+module.exports = { instalar, revisarArranque, confirmar, completar, asegurarRequisitos };

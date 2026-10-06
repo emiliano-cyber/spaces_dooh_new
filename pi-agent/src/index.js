@@ -15,13 +15,13 @@ const { Api } = require('./api');
 const tele = require('./telemetria');
 const rutas = require('./rutas');
 const actualizar = require('./actualizar');
-const { Vigilante } = require('./vigilante');
+const { Puente } = require('./puente');
 
 // SUBIR SIEMPRE al publicar una version nueva. Si dos paquetes distintos dicen
 // la misma version, no hay forma de saber que corre cada sitio -y eso ya costo
 // caro en la flota: REVOLUCION 267 llevaba TRES versiones de atraso sin que el
 // dashboard lo delatara, porque el numero nunca cambiaba.
-const VERSION = '0.6.0';
+const VERSION = '0.7.0';
 const SERVIDOR_POR_OMISION = 'http://159.203.188.58:4000';
 
 const ahora = () => new Date().toISOString().replace('T', ' ').slice(0, 19);
@@ -155,6 +155,7 @@ async function main() {
   // para despues, un fallo al abrir la camara impediria llegar hasta aqui y el
   // equipo quedaria en un ciclo de reinicios que nadie puede romper a distancia.
   const trasActualizar = actualizar.revisarArranque(log);
+  actualizar.completar(log);
 
   const cfg = cargarConfig();
   const estado = cargarEstado();
@@ -283,7 +284,18 @@ async function main() {
   // Vigilancia del loop de la pantalla. Con un solo sensor no se puede mirar
   // mientras se atiende una foto o una transmision, asi que se le da la forma de
   // saberlo: la evidencia y la vista en vivo mandan sobre la vigilancia.
-  const vigilante = new Vigilante(camara, api, log, () => enCurso.size > 0 || transmision.activa());
+  //
+  // La vigilancia es la misma del telefono (fallas de la pantalla y creativos
+  // nuevos), en Python con OpenCV; ver src/puente.js. Lo que aprende vive en
+  // `pantalla/`, fuera de lo que reemplaza una actualizacion.
+  const vigilancia = new Puente({
+    camara, api, log,
+    ocupada: () => enCurso.size > 0 || transmision.activa(),
+    dirEstado: path.join(rutas.BASE, 'pantalla'),
+  });
+  // Al irse el agente (actualizacion, reinicio) se va tambien monitor.py: si
+  // quedara huerfano, el nuevo arrancaria otro y habria dos mirando la camara.
+  process.on('exit', () => vigilancia.detener());
 
   async function tomarYSubir(cmd) {
     if (enCurso.has(cmd.id)) return;
@@ -298,6 +310,9 @@ async function main() {
         api.log('info', 'stream', 'Transmision cortada para atender una foto programada');
         await dormir(600);
       }
+      // Si la vigilancia esta a mitad de una toma, se la deja terminar: dos
+      // capturas a la vez sobre el mismo sensor hacen fallar a las dos.
+      await vigilancia.esperarCamara();
       // Encuadre y ajustes de imagen que fija el dashboard por equipo. Viajan en
       // la orden, igual que en los telefonos; antes se llamaba a tomarFoto() sin
       // nada y la Raspberry ignoraba el zoom por completo.
@@ -406,12 +421,18 @@ async function main() {
         if (transmision.activa()) transmision.detener('el equipo se va a actualizar');
         try {
           const payload = typeof cmd.payload === 'string' ? JSON.parse(cmd.payload || '{}') : (cmd.payload || {});
+          // Un Space Eye sin PUBLIC_BASE_URL manda la ruta sola ("/space-eye-
+          // pi-agent.tar.gz"): se completa con el servidor de este equipo, que
+          // es justo de donde hay que bajarla.
+          if (payload.url && !/^https?:\/\//i.test(payload.url)) {
+            payload.url = new URL(payload.url, cfg.server_url.replace(/\/+$/, '') + '/').toString();
+          }
           const r = await actualizar.instalar(payload, log, VERSION);
           if (r.yaEstaba) return api.resultadoComando(cmd.id, true, { ya_estaba: true, version: r.version });
 
           // Se avisa ANTES de irse: al reiniciar ya no hay quien conteste, y el
           // dashboard se quedaria esperando un resultado que nunca llega.
-          await api.resultadoComando(cmd.id, true, { version: r.version, bytes: r.bytes });
+          await api.resultadoComando(cmd.id, true, { version: r.version, bytes: r.bytes, sistema: r.sistema });
           await api.log('info', 'update', `Instalada la version ${r.version}; reiniciando`);
           return r.arrancar();
         } catch (e) {
@@ -419,6 +440,31 @@ async function main() {
           api.log('error', 'update', `No se pudo actualizar: ${e.message}`);
           return api.resultadoComando(cmd.id, false, null, e.message.slice(0, 500));
         }
+      }
+      case 'REBOOT_DEVICE': {
+        // Reiniciar la Pi entera: lo que destraba una camara que libcamera dejo
+        // colgada o una red que no volvio tras un corte del modem. Es el unico
+        // permiso de root del agente ademas de apt (instalar.sh).
+        log('reinicio del EQUIPO solicitado desde el dashboard');
+        if (transmision.activa()) transmision.detener('el equipo se va a reiniciar');
+        // Primero se pregunta si hay permiso (sin hacerlo), para poder contestar
+        // un error claro; despues se avisa al servidor y recien entonces se
+        // reinicia: con la Pi apagandose ya no sale ninguna respuesta.
+        const sudo = (args) => new Promise((resolve) => {
+          require('child_process').execFile('sudo', ['-n', ...args], { timeout: 20000 },
+            (err, _o, stderr) => resolve(err ? String(stderr || err.message).trim().slice(0, 300) : null));
+        });
+        const sinPermiso = await sudo(['-l', 'systemctl', 'reboot']);
+        if (sinPermiso) {
+          log(`no puedo reiniciar el equipo: ${sinPermiso}`);
+          return api.resultadoComando(cmd.id, false, null,
+            'El equipo no tiene permiso para reiniciarse: falta correr instalar.sh una vez en la Pi');
+        }
+        await api.resultadoComando(cmd.id, true, { reiniciando: true });
+        await api.log('info', 'power', 'Reinicio del equipo pedido desde el panel').catch(() => {});
+        const fallo = await sudo(['systemctl', 'reboot']);
+        if (fallo) api.log('error', 'power', `No se pudo reiniciar el equipo: ${fallo}`).catch(() => {});
+        return;
       }
       case 'REBOOT_APP':
         log('reinicio solicitado desde el dashboard');
@@ -474,8 +520,14 @@ async function main() {
         // El resultado del recorrido viaja PEGADO al reporte de estado, no en
         // una peticion propia: son huellas de 64 caracteres y asi detectar un
         // creativo nuevo no le cuesta datos moviles al sitio.
-        const creativos = vigilante.tomarPendiente();
-        await api.reportarEstado({ ...tele.recolectar(cfg), ...(creativos ? { creativos } : {}) });
+        const resumen = vigilancia.tomarPendiente();
+        try {
+          await api.reportarEstado({ ...tele.recolectar(cfg), ...(resumen || {}) });
+        } catch (e) {
+          // Si el reporte no salio, el resumen espera al siguiente.
+          vigilancia.devolver(resumen);
+          throw e;
+        }
         const e = tele.alimentacion();
         if (e?.subvoltaje_ahora && !avisoVoltaje) {
           avisoVoltaje = true;
@@ -514,7 +566,17 @@ async function main() {
   // --- vigilancia del loop de la pantalla ---
   // En su propio bucle, no atado al de comandos: un recorrido dura minutos y no
   // debe retrasar una orden del dashboard.
-  vigilante.correr().catch((e) => log(`vigilancia detenida: ${e?.message || e}`));
+  // Antes, lo que el sistema necesita para vigilar (python3-opencv). Puede
+  // tardar minutos la primera vez; el agente ya esta trabajando mientras tanto.
+  actualizar.asegurarRequisitos(log)
+    .then((r) => {
+      if (r.instalados.length) api.log('info', 'update', `Instalado en el equipo: ${r.instalados.join(', ')}`).catch(() => {});
+      if (r.faltan.length) api.log('warning', 'update', `Falta en el equipo: ${r.faltan.join(', ')}; la vigilancia de la pantalla no puede correr`).catch(() => {});
+    })
+    .catch((e) => log(`no pude revisar los requisitos del sistema: ${e.message}`))
+    .finally(() => vigilancia.iniciar()
+      .then(() => vigilancia.vigilar())
+      .catch((e) => log(`vigilancia detenida: ${e?.message || e}`)));
 
   log('agente listo; esperando comandos del dashboard');
 }

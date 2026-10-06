@@ -1,6 +1,6 @@
 {
   "name": "spaceeye-pi-agent",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "description": "Agente de Raspberry Pi 5 para SPACE EYE (camara oficial, webcam USB o imagen de prueba)",
   "main": "src/index.js",

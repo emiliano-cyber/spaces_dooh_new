@@ -55,7 +55,16 @@ En la ficha del equipo, boton de actualizar. El agente:
    paquete malo dejaria la Pi en un ciclo de reinicios imposible de romper a
    distancia.
 
-**Nunca se tocan** `config.json`, `state.json`, `agente.log` ni `cola/`. Perder
+Desde la **v0.7.0** una version puede pedir **paquetes del sistema**
+(`requisitos.json`, hoy `python3-opencv` para la vigilancia): la actualizacion
+los instala con apt antes de cambiar, y si no puede (sin red, repositorio
+caido) el agente se actualiza igual y reintenta cada 6 h. La primera vez son
+unos 60-100 MB; despues ya estan. Y si quien instala es una version vieja que
+no sabe de esto (la 0.6.0 no copia `vision/`), la nueva lo completa sola al
+arrancar.
+
+**Nunca se tocan** `config.json`, `state.json`, `agente.log`, `cola/` ni
+`pantalla/` (lo que aprendio la vigilancia). Perder
 `state.json` daria de alta un equipo nuevo y partiria el historial del sitio en
 dos, asi que jamas entra en la maniobra.
 
@@ -78,43 +87,39 @@ equipos rechazan la actualizacion sin romperse.
 > empaquetador se niega si no coinciden. Si dos paquetes distintos dicen la misma
 > version, no hay forma de saber que corre cada sitio — ya paso en la flota.
 
-## Vigilancia del loop (creativos nuevos)
+## Vigilancia de la pantalla (fallas y creativos nuevos)
 
-Un espectacular rota entre varios anuncios, y las fotos programadas caen a horas
-fijas: si un creativo nuevo entra al loop a media tarde, con suerte se descubre
-al dia siguiente — y puede que nunca, si su turno no coincide nunca con el
-horario de la programacion. Desde la **v0.3.0** el equipo lo detecta solo.
+Desde la **v0.7.0** la Raspberry vigila su pantalla **igual que el telefono**
+(APK 0.15): es el mismo codigo, portado a Python con OpenCV (`vision/`). Antes
+usaba una huella de 256 bits que no reconocia el mismo creativo de un dia para
+otro (medido el 23-sep: subia fotos basura).
 
-Se enciende en la ficha del equipo, en el dashboard. Cada recorrido, la Pi mira
-la pantalla varias veces y calcula una **huella de 256 bits** de cada vistazo.
-Esos vistazos son imagenes pequeñas en gris que **no salen del equipo**:
-reconocer un creativo cuesta cero megas. Solo cuando aparece una huella que no
-reconoce se gasta una foto de verdad.
+En cada vuelta mira la pantalla varias veces, dentro del marco que se dibuja en
+el panel (cuatro esquinas, filas x columnas de gabinetes, horario):
 
-Lo que viaja son las huellas —64 caracteres cada una— **pegadas al reporte de
-estado** que el equipo ya manda. Una docena de creativos no llega a un kilobyte.
+- **Fallas:** gabinetes apagados o congelados, pantalla apagada o congelada,
+  camara movida, sin imagen. Solo avisa cuando lo confirma en dos vueltas
+  separadas, con una foto de evidencia marcada en rojo, y **cierra sola** la
+  falla cuando la pantalla se recupera.
+- **Creativos nuevos:** reconoce cada anuncio por sus puntos (ORB) y solo sube
+  foto de uno que no conocia y que confirma con una segunda mirada.
 
-Tres protecciones que conviene conocer:
+Lo que mira **no sale del equipo**: en una vuelta normal solo viaja un resumen
+de unos cientos de bytes pegado al reporte de estado. Lo que aprende vive en
+`pantalla/`, que una actualizacion nunca toca.
 
-1. **Las primeras 24 h solo aprende.** Registra el loop completo, de dia y de
-   noche, sin fotografiar nada. Sin eso, el primer recorrido subiria doce fotos
-   de creativos que llevaban semanas puestos.
-2. **Tope diario** (`max_dia`, 12 por omision). Una pantalla averiada que
-   parpadea no puede vaciar el plan de datos del sitio.
-3. **Un solo sensor.** Si hay una foto o una transmision en curso, el vistazo se
-   salta: la evidencia y la vista en vivo mandan sobre la vigilancia.
+Como esta armado: Node sigue siendo dueno de la camara y de la red, y
+`vision/monitor.py` le pide las tomas y le entrega las alertas por un puente
+local (`src/puente.js`, contrato en `vision/PUENTE.md`). Asi la foto pedida y la
+vista en vivo siguen mandando sobre la vigilancia, como en el telefono. Si a la
+Pi le falta OpenCV, la vigilancia no corre pero el agente sigue con todo lo
+demas.
 
-La huella aguanta el cambio de luz por construccion: se compara cada zona contra
-la mediana de la propia imagen, asi que el MISMO creativo de dia y de noche da
-distancia 0 (comprobado), mientras que dos creativos distintos dan 128.
+Pruebas (53, con las mismas fotos de referencia que las del telefono):
 
-| Opcion (en la ficha del equipo) | Por omision |
-|---|---|
-| Cada cuanto recorre | 360 min |
-| Cuanto dura el recorrido | 270 s |
-| Cada cuanto mira | 15 s |
-| Fotos maximas por dia | 12 |
-| Tolerancia (bits de diferencia) | 24 |
+```bash
+docker run --rm -v "$PWD:/r" -w /r pi-vision-pruebas python3 -m pytest -q vision/pruebas
+```
 
 ## ⚠️ Antes de nada: la alimentacion
 
@@ -165,7 +170,24 @@ ping spaceeye-pi01.local
 ssh pi@spaceeye-pi01.local
 ```
 
-## 3. Instalar lo necesario en la Pi
+## 3. Instalar (lo rapido: un comando)
+
+Desde la **v0.7.0**, en la Pi recien grabada y con red:
+
+```bash
+curl -fsSL https://eyes.<dominio>/instalar-pi.sh |   sudo bash -s -- --servidor https://eyes.<dominio> --testigo se_xxx
+```
+
+Instala Node, OpenCV y vnstat, baja el agente que publica el Space Eye de la
+empresa (comprobando su huella), lo deja como servicio y le da permiso de
+instalar paquetes y reiniciar el equipo. **Despues ya no hace falta volver a
+tocarla**: desde SPACE OS se actualiza, se reinicia la app o la Pi entera, y se
+configura la vigilancia. Se puede correr otra vez sin perder la identidad.
+
+Lo de abajo (pasos 3 a 6 a mano) sigue valiendo para una Pi sin instalador.
+
+### A mano
+
 
 ```bash
 sudo apt update

@@ -23,7 +23,7 @@ const META = path.join(DIST, 'space-eye-pi-agent.json');
 
 // Lo mismo que reemplaza `src/actualizar.js` al instalar. Si aqui se agrega algo
 // hay que agregarlo alla, o quedaria fuera de la actualizacion.
-const CONTENIDO = ['src', 'package.json', 'node_modules'];
+const CONTENIDO = ['src', 'vision', 'package.json', 'node_modules', 'requisitos.json'];
 
 const paso = (n, t) => console.log(`\n[${n}] ${t}`);
 
@@ -56,7 +56,7 @@ function version() {
   fs.mkdirSync(DIST, { recursive: true });
   if (fs.existsSync(PAQUETE)) fs.unlinkSync(PAQUETE);
 
-  paso(1, 'Comprimiendo src/, package.json y node_modules...');
+  paso(1, 'Comprimiendo src/, vision/, package.json, requisitos.json y node_modules...');
   // Rutas RELATIVAS y cwd, sin letra de unidad. GNU tar (el que trae Git para
   // Windows) interpreta "C:\..." como si "C" fuera un servidor remoto e intenta
   // conectarse por rsh; falla con un error que no dice nada. bsdtar no tiene ese
@@ -64,7 +64,10 @@ function version() {
   //
   // --format=ustar porque bsdtar escribe pax por omision, y eso ensucia el
   // desempacado en la Pi con archivos PaxHeader.
-  execFileSync('tar', ['--format=ustar', '-czf', 'dist/space-eye-pi-agent.tar.gz', ...CONTENIDO], {
+  // Las pruebas de la vigilancia y la cache de Python no viajan a campo: en un
+  // modem LTE cada megabyte cuenta.
+  const fuera = ['vision/pruebas', '__pycache__', '*.pyc'].flatMap((p) => ['--exclude', p]);
+  execFileSync('tar', ['--format=ustar', ...fuera, '-czf', 'dist/space-eye-pi-agent.tar.gz', ...CONTENIDO], {
     cwd: RAIZ,
     stdio: ['ignore', 'inherit', 'inherit'],
   });
@@ -72,6 +75,10 @@ function version() {
   const bytes = fs.statSync(PAQUETE).size;
   const sha256 = crypto.createHash('sha256').update(fs.readFileSync(PAQUETE)).digest('hex');
   console.log(`    ${(bytes / 1048576).toFixed(1)} MB`);
+
+  // El instalador de una Pi nueva viaja con el paquete: Space Eye lo publica
+  // junto (instalar-pi.sh) y asi siempre instala la version que se ofrece.
+  fs.copyFileSync(path.join(RAIZ, 'instalar.sh'), path.join(DIST, 'instalar-pi.sh'));
 
   paso(2, 'Escribiendo el manifiesto...');
   fs.writeFileSync(META, JSON.stringify({
