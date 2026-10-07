@@ -12,8 +12,12 @@
   `v0.10.0`): finanzas y propuestas por periodo, estado de cuenta, invitación
   de usuarios, cambios de contrato antes de firmar, calculadora como la HTML,
   slots libres, descuento 0.00, tope de descuento, y seis correcciones.
-- **Cuatro migraciones de esquema**, todas **aditivas** (no borran ni cambian
-  columnas existentes) y aprobadas por el dueño:
+- **Cuatro migraciones de esquema nuevas**, todas **aditivas** (no borran ni
+  cambian columnas existentes) y aprobadas por el dueño. **Ojo con la cuenta:**
+  son 4 si g500 ya está en `v0.9.2`; si sigue en `v0.9.1` le llegan **7**,
+  porque se suman las tres de `v0.9.2` (`20261005_notas_de_version`,
+  `20261006_precio_ajustado_por_gerente`, `20261007_calculadora_spots`).
+  Medido en el ensayo local (§10):
 
   | Migración | Qué hace en g500 |
   |---|---|
@@ -77,7 +81,8 @@ systemctl daemon-reload
 systemctl restart spaces-web
 ```
 
-- `--pendientes` tiene que listar las **4** de §0 (y la de datos como omitida).
+- `--pendientes` tiene que listar **al menos** las 4 de §0 (más las de
+  `v0.9.2` si el PADRE no las tenía) y la de datos como omitida.
 - **Migrar antes del build y del reinicio.** Si el build no dice `BUILD_OK`,
   no reinicies: el PADRE sigue sirviendo lo de antes.
 - Las dos líneas de `install … update.sh / respaldo.sh` de la guía del 30/09
@@ -91,7 +96,7 @@ SPACE_OS_CONF=/etc/space-os/demo-instancia.env /opt/space-os/update.sh
 tail -n 40 /var/log/space-os/update.log
 ```
 
-El `--dry-run` lista las 4 migraciones y **no** sale con código 3 ni 4; la
+El `--dry-run` lista las migraciones pendientes y **no** sale con código 3 ni 4; la
 corrida real termina con la salud en verde. Luego entra a DEMO y recorre:
 
 1. **Finanzas** → arriba, el selector de periodo: «Este mes» y «Mes pasado»
@@ -122,7 +127,8 @@ se instala solo**. En ≤ 15 min tras promover, el `--comprobar` de g500 ve la
 versión nueva.
 
 1. Entra a **g500.space-os.io** como Dueño → Administración → Actualizaciones.
-   Debe ofrecer `v0.10.0` con sus notas y **4 migraciones**.
+   Debe ofrecer `v0.10.0` con sus notas y **4 migraciones** (**7** si venía
+   de `v0.9.1`; cualquier otro número, para y avísame).
 2. **Apruébala.** El siguiente `--comprobar` (≤ 15 min) la instala.
 3. `update.sh` **saca un respaldo** de la base antes de migrar
    (`/var/lib/space-os/respaldos/spaces_AAAAMMDD_HHMMSS.dump`, y una copia al
@@ -181,11 +187,59 @@ anterior con el `crane copy` que imprime el resumen de `promover.yml`, y
 restaurar a mano el `.dump` de §6.3. Como las cuatro migraciones solo
 **agregan**, el código anterior funciona con el esquema nuevo; el riesgo de
 volver atrás sin restaurar la base es que los pagos registrados mientras tanto
-no tendrían abono con fecha. **Si llegas aquí, para y avísame antes de
-ejecutar nada**: lo armamos sobre el caso concreto.
+no tendrían abono con fecha. **Medido en el ensayo (§10):** un pago hecho con
+`v0.9.1` sobre la base migrada deja la cobranza sin cuadrar (176 000 pagado
+contra 175 000 en abonos), y volver a subir a `v0.10.0` **no lo arregla solo**:
+el rescate de la migración ya corrió. Así que, si se vuelve atrás sin restaurar
+y se registran pagos, **antes de reintentar `v0.10.0` hay que conciliar esas
+cobranzas**. **Si llegas aquí, para y avísame antes de ejecutar nada**: lo
+armamos sobre el caso concreto.
 
 ## 9 · Al terminar
 
 - [ ] Anota en la bitácora: versión, hora de instalación en g500, quién aprobó.
 - [ ] Si algo de esta guía no coincidió con lo que viste, dímelo: se corrige
       aquí mismo para la próxima.
+
+## 10 · Ensayo local del 07/10 (lo que ya se probó antes de tocar g500)
+
+Se reprodujo en esta máquina el camino de g500, con una base desechable
+(`spaces_ensayog500_test`, PostgreSQL 16 en el 5433) y sin contenedores:
+
+1. **La base en `v0.9.1`**: `schema.sql` + 102 migraciones con el runner de
+   esa etiqueta, semilla de la demo, y **historia hecha con la app `v0.9.1`
+   compilada** (no por SQL): dos abonos a una cobranza, una liquidación, cuatro
+   propuestas (2 aprobadas, 1 rechazada, 1 borrador). Así la bitácora tiene los
+   textos reales que lee el rescate.
+2. **Respaldo** con `pg_dump -Fc` (299 KB), como el paso 3 de `update.sh`.
+3. **`migrar.mjs` de esta rama, sin `--con-datos`**: `--pendientes` listó **7**
+   de esquema + la de datos omitida; la corrida aplicó las 7 (código 0); la
+   segunda, **0 aplicadas** (idempotente).
+4. **Las comprobaciones de §7**: cobranzas que no cuadran **0**; 8 abonos
+   históricos, **uno por cobranza** aunque hubo dos abonos; los dos pagados con
+   la app tomaron la **fecha de su bitácora** y los 6 de la semilla (sin
+   rastro) quedaron sin fecha, como aproximados; las 2 aprobadas tienen
+   `aprobada_en`; `spaces_app` sobre `contrato_cambios`:
+   `SELECT=t INSERT=t UPDATE=f DELETE=f TRUNCATE=f`. Ningún monto, propuesta ni
+   contrato cambió: la foto de antes y la de después solo difieren en las tablas
+   nuevas.
+5. **`v0.10.0` sobre la base migrada**, por HTTP: los cinco periodos de
+   Finanzas en 200 (lo histórico sale marcado `aproximado`); un abono con fecha
+   de ayer se suma al histórico y la cobranza sigue cuadrando; resumen de
+   propuestas con ganancia para el Dueño y **sin ella** para el Vendedor;
+   editar la renta de un contrato existente deja historial con la parte y quién
+   la capturó; un `update` directo de `spaces_app` sobre el historial lo
+   **rechaza Postgres (42501)**; alta con invitación devuelve el enlace sin
+   mandar correo; novedades de `v0.10.0`; las cinco pantallas de §4 en 200.
+6. **Vuelta atrás sin restaurar** (`v0.9.1` sobre la base migrada): entra,
+   lee el estado completo, registra un pago y edita un contrato. Sirve, con la
+   salvedad de la deriva de cobranza que describe §8.
+7. **Vuelta atrás restaurando**: `pg_restore` del respaldo en una base nueva
+   dio una foto **idéntica** a la de antes de migrar (102 migraciones, sin las
+   tablas nuevas, mismos montos), `spaces_app` conserva sus permisos, y volver
+   a migrar encima aplica las 7 sin error.
+
+**Lo que este ensayo NO cubre:** `update.sh` en sí (necesita Docker; su
+respaldo, huella y conmutación no se ejercitaron aquí), el volumen y las
+rarezas de los datos reales de g500, y el comportamiento en PostgreSQL 16 con
+el locale de su droplet. Eso es lo que miran §6 y §7 en vivo.
