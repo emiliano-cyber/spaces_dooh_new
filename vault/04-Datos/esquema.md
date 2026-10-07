@@ -590,6 +590,9 @@ erDiagram
 > existentes de golpe, desplomando el costo de operación del reporte sin un solo
 > error. Ver [[02-Backend/costo-real-de-ot]].
 
+### Comercial · fechas de estatus
+`propuestas.aprobada_en` y `propuestas.rechazada_en` (06/10, PROP-PER): cuándo se aprobó o rechazó, para el tablero por periodo.
+
 ### Finanzas
 `facturas`, `cobranzas`, `cobranza_abonos` (06/10: cada pago con su fecha, ADR 0046).
 

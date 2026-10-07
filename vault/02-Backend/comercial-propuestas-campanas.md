@@ -419,6 +419,37 @@ organización (`datosDelLoop`, `tarifas-repo.ts`: RLS + `and tenant_id`) y:
 
 Detalle y decisiones en [[calculadora-de-spots]].
 
+## Tablero de propuestas por periodo (PROP-PER, 06/10)
+
+Arriba de la lista de Propuestas, con el mismo selector que Finanzas (este mes,
+mes pasado, trimestre, trimestre pasado, año, rango): **generadas**,
+**aprobadas** (y su venta), **rechazadas**, **tasa de cierre**, **ganancia** y
+**ganancia por aprobada**, el desglose **por vendedor** y las aprobadas del
+periodo de mayor a menor ganancia.
+
+- **Cada cosa por su fecha.** Generada por `creado_en`, aprobada por
+  `aprobada_en`, rechazada por `rechazada_en`: columnas nuevas
+  (`20261009_propuestas_fechas_estatus.sql`) que pone `cambiarEstatusPropuesta`
+  y la aceptación por la liga. Cambiar de estatus borra la fecha del que se
+  deja. Las aprobadas viejas se fecharon con `snapshot_en` (se congela al
+  aprobar); **las rechazadas viejas quedan sin fecha** y no caen en ningún
+  periodo.
+- **Ganancia = venta − renta de las pantallas** (decisión del dueño). Venta =
+  `snapshot_economico.neto` (sin IVA, después de comisión). Renta = la del
+  **contrato** vigente de cada pantalla aprobada (`rentaAtribuidaPorSitio`, la
+  misma que `margenCampana` y los reportes) por sus meses de calendario
+  (`periodosEnRango('mensual')`). Una pantalla sin contrato deja la propuesta
+  **sin costo**: cuenta en la venta, no en la ganancia, y la pantalla lo avisa.
+- **Quién ve qué.** El tablero pide `comercial.ver`; el costo y la ganancia,
+  además `finanzas.ver` (Dueño, Administrador, Director comercial). A un
+  Gerente o Vendedor no le llegan del servidor.
+
+Las cuentas, puras, en `lib/propuestas-periodo.ts`; la ruta,
+`GET /api/propuestas/resumen`. Cobertura: `lib/propuestas-periodo.test.ts`
+(con 4 mutantes muertos) y `lib/test/propuestas-tablero.e2e.test.ts` (fechas
+al aprobar/rechazar —con un mutante contra build reconstruido—, renta del
+contrato, permisos, migración).
+
 ## Portal del cliente
 
 `campanas.portal_token` + `portal_activo` habilitan `/portal/[token]`.

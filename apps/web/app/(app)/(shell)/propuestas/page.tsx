@@ -30,6 +30,7 @@ import { Modal } from '@/components/demo/ui/Modal'
 import { MapView } from '@/components/demo/MapView'
 import { pinTono } from '@/components/demo/StatusBadge'
 import { usePuede } from '@/components/demo/shell/SesionContext'
+import { TableroPropuestas } from '@/components/demo/propuestas/TableroPropuestas'
 import {
   usePropuestas,
   useFunnelPropuestas,
@@ -102,6 +103,9 @@ export default function PropuestasPage() {
           </Button>
         )}
       </div>
+
+      {/* Cómo va el periodo: generadas, aprobadas, rechazadas y ganancia (06/10). */}
+      <TableroPropuestas />
 
       {funnel && funnel.total > 0 && <FunnelStrip f={funnel} />}
 

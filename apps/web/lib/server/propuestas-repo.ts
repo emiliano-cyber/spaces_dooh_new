@@ -1013,7 +1013,9 @@ export async function aceptarPropuestaPublica(
     const upd = (
       await client.query(
         `update propuestas
-            set estatus='APROBADA', aceptado_en=now(), aceptado_por=$2, aceptado_ip=$3
+            set estatus='APROBADA', aceptado_en=now(), aceptado_por=$2, aceptado_ip=$3,
+                -- PROP-PER (06/10): la fecha de aprobación que cuenta el tablero.
+                aprobada_en=coalesce(aprobada_en, now()), rechazada_en=null
           where id=$1
           returning estatus, aceptado_en, aceptado_por`,
         [p.id, nombre, input.ip ?? null],
@@ -1549,7 +1551,13 @@ export async function cambiarEstatusPropuesta(
   // el `where`, Postgres la reevalúa sobre la versión de la fila que gana el
   // bloqueo, así que una APROBADA nunca queda con el cupón pendiente.
   const rows = await q(
-    `update propuestas set estatus=$2::est_propuesta
+    `update propuestas set estatus=$2::est_propuesta,
+            -- PROP-PER (06/10): cuándo se aprobó o se rechazó, para el tablero
+            -- por periodo. Re-aprobar no mueve la fecha; cambiar de estatus
+            -- borra la del que se deja (una rechazada que se aprueba es una
+            -- aprobada, no las dos cosas).
+            aprobada_en  = case when $2::text = 'APROBADA'  then coalesce(aprobada_en, now()) else null end,
+            rechazada_en = case when $2::text = 'RECHAZADA' then coalesce(rechazada_en, now()) else null end
       where id=$1
         and ($2::text <> 'APROBADA' or codigo_estado is distinct from 'PENDIENTE')
       returning *`,
