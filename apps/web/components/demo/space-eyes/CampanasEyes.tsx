@@ -9,10 +9,15 @@ import { ErrorSE, fotoSE, seApi } from '@/lib/data/space-eyes-se'
 // ============================================================================
 //  Space Eyes — campañas de verificación.
 //
-//  Port de `campaigns.html` de Space Eye. Una campaña aquí NO es la campaña
-//  comercial de SPACE OS: es la creatividad de referencia que las cámaras
-//  comparan contra lo que aparece en la pantalla, más los equipos donde debe
-//  verse y su vigencia. Sin creatividad la verificación no puede hacer nada.
+//  Port de `campaigns.html` de Space Eye. Una campaña aquí es la creatividad
+//  de referencia que las cámaras comparan contra lo que aparece en la
+//  pantalla, más los equipos donde debe verse y su vigencia. Sin creatividad
+//  la verificación no puede hacer nada.
+//
+//  Desde oct-2026 las campañas comerciales llegan SOLAS desde Operaciones
+//  (lib/server/space-eyes-campanas.ts): una por campaña y creativo, con los
+//  equipos de sus pantallas. Esas se marcan «De Operaciones» y no se editan
+//  aquí; las capturadas a mano siguen igual.
 // ============================================================================
 
 interface CampanaSE {
@@ -26,6 +31,9 @@ interface CampanaSE {
   creative_path: string | null
   device_count: number
   photo_count: number
+  // 'spaceos:<empresa>': llegó sola de Operaciones (sus reservas confirmadas).
+  // Esas no se editan aquí: la siguiente sincronización desharía el cambio.
+  origen?: string | null
 }
 
 interface EquipoSE {
@@ -566,7 +574,10 @@ function TarjetaCampana({ campana: c, onEditar }: { campana: CampanaSE; onEditar
             {c.active ? 'Activa' : 'Inactiva'}
           </span>
         </div>
-        <p className="mt-0.5 truncate text-[12px] text-muted">{c.advertiser || 'Sin anunciante'}</p>
+        <p className="mt-0.5 truncate text-[12px] text-muted">
+          {c.advertiser || 'Sin anunciante'}
+          {c.origen && <span className="text-accent"> · De Operaciones</span>}
+        </p>
 
         <div className="mt-3 grid grid-cols-3 gap-2 text-[12px]">
           <Dato titulo="Equipos" valor={c.device_count} />
@@ -582,9 +593,18 @@ function TarjetaCampana({ campana: c, onEditar }: { campana: CampanaSE; onEditar
           ) : (
             <span className="text-[12px] text-muted">Sin verificación</span>
           )}
-          <Button variant="tertiary" size="sm" onClick={onEditar}>
-            Editar
-          </Button>
+          {c.origen ? (
+            <span
+              className="text-[12px] text-muted"
+              title="Llegó de Operaciones: se cambia allá (creativo, pantallas y fechas de sus reservas) y aquí se actualiza solo."
+            >
+              Se cambia en Operaciones
+            </span>
+          ) : (
+            <Button variant="tertiary" size="sm" onClick={onEditar}>
+              Editar
+            </Button>
+          )}
         </div>
       </div>
     </div>

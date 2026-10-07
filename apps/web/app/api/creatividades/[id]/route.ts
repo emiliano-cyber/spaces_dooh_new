@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { avisarCambioDeCampanas } from '@/lib/server/space-eyes-campanas'
 import { exigir } from '@/lib/server/auth'
 import {
   validarCreatividad,
@@ -38,6 +39,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       crea.nombre,
     )
   }
+  // Space Eyes: un creativo aprobado (o rechazado) cambia lo que esperan ver los equipos.
+  await avisarCambioDeCampanas()
   return NextResponse.json(crea)
 }
 
@@ -62,6 +65,7 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
     estabaPublicado ? 'Retiró creativo (pendiente en DOOHmain)' : 'Eliminó creativo',
     crea.nombre,
   )
+  await avisarCambioDeCampanas()
   return NextResponse.json({ ...crea, doohmain, pendienteEnDoohmain: estabaPublicado })
 }
 
@@ -82,6 +86,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     const crea = await reemplazarCreatividad(params.id, arte)
     if (!crea) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
     await registrarAccion(g.usuario, 'Reemplazó creativo', crea.nombre)
+    await avisarCambioDeCampanas()
     return NextResponse.json({ ...crea, doohmain })
   } catch (e) {
     return respuestaError(e)

@@ -49,6 +49,9 @@ type Salud = {
   aprendizaje_min: number
   aprendiendo: boolean
   cada_min: number
+  // La pantalla completa apagada avisa en menos de un minuto. Space Eye viejo
+  // no lo manda: cuenta como encendido, que es lo que hace el equipo.
+  aviso_rapido?: boolean
 }
 type Ultimo = {
   ts?: string
@@ -90,12 +93,14 @@ const FRECUENCIA = [
 const CAMPO =
   'h-8 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:bg-surface-2 disabled:text-muted'
 
-// Solo la APK 0.15.0+ usa la pantalla marcada y busca fallas. La Raspberry y el
-// agente de PC todavía no.
+// Usan la pantalla marcada y buscan fallas la APK 0.15.0+ y la Raspberry
+// 0.7.0+ (pi-agent/vision). El agente de PC todavía no.
 function usaPantalla(version: string | null | undefined): boolean {
   const v = String(version || '')
-  if (/^(pi|pc)-agent/i.test(v)) return false
-  const [a, b] = v.split('.').map(Number)
+  if (/^pc-agent/i.test(v)) return false
+  const pi = /^pi-agent/i.test(v)
+  const [a, b] = v.replace(/^pi-agent[^\d]*/i, '').split('.').map(Number)
+  if (pi) return a > 0 || (a === 0 && b >= 7)
   return a > 0 || (a === 0 && b >= 15)
 }
 
@@ -162,7 +167,9 @@ export function PantallaConfig({
   const ultimo = datos?.ultimo ?? null
 
   // ─── Vigilancia ──────────────────────────────────────────────────────────
-  async function guardarSalud(cambios: Partial<Pick<Salud, 'vigilar' | 'aprendizaje_min' | 'cada_min'>>) {
+  async function guardarSalud(
+    cambios: Partial<Pick<Salud, 'vigilar' | 'aprendizaje_min' | 'cada_min' | 'aviso_rapido'>>,
+  ) {
     setGuardandoSalud(true)
     setAviso(null)
     try {
@@ -375,8 +382,8 @@ export function PantallaConfig({
       <div className="flex flex-col gap-3 p-3">
         {!sabe && (
           <Aviso tono="alerta">
-            La vigilancia de fallas necesita la app 0.15.0 o posterior en el celular. La Raspberry y el agente de PC
-            todavía no la tienen.
+            La vigilancia de fallas necesita la app 0.15.0 o posterior en el celular, o el agente 0.7.0 en la
+            Raspberry. El agente de PC todavía no la tiene.
           </Aviso>
         )}
         {sabe && !pantalla && (
@@ -443,6 +450,24 @@ export function PantallaConfig({
               {opciones(FRECUENCIA, salud?.cada_min)}
             </select>
           </label>
+        </div>
+
+        <div
+          className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border p-3"
+          title="Mientras mira su pantalla, si el equipo la ve entera apagada tres veces seguidas (con luz alrededor) avisa en ese momento, con su foto, sin esperar la siguiente revisión. De noche o con la lente tapada no avisa así: eso lo decide la revisión de siempre."
+        >
+          <div className="min-w-0 flex-1">
+            <p className="text-[13px] text-ink">Avisar al instante si la pantalla se apaga completa</p>
+            <p className="mt-0.5 text-[12px] text-muted">
+              En menos de un minuto y una sola vez por apagón; se cierra sola cuando vuelve.
+            </p>
+          </div>
+          <Interruptor
+            etiqueta={salud?.aviso_rapido === false ? 'Apagado' : 'Encendido'}
+            activo={salud?.aviso_rapido !== false}
+            deshabilitado={!puedeOperar || !vigilar || guardandoSalud}
+            onCambio={(v) => guardarSalud({ aviso_rapido: v })}
+          />
         </div>
 
         {/* ── Editor: 4 esquinas + gabinetes + zonas tapadas + horario ── */}

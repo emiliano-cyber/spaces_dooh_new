@@ -9,6 +9,7 @@ import {
 } from './creativos-repo'
 import { LIMITES, validarUpload } from './uploads'
 import { imagenAHtml, imagenDeHtml, IMAGEN_CREATIVO_MAX_MB } from '@/lib/creativo-html'
+import { avisarCambioDeCampanas } from './space-eyes-campanas'
 
 // ============================================================================
 //  lib/server/creativos-controller.ts — Alta de creativos y asignación a
@@ -178,6 +179,8 @@ export async function setCreativosReservaCtrl(reservaId: string, body: unknown) 
   const creativos = (d.creativos ?? []).map((c) => ({ creatividadId: c.creatividadId, veces: c.veces ?? 1 }))
   const res = await setCreativosDeReserva(reservaId, creativos)
   if (!res) throw new AppError('Reserva no encontrada', 404)
+  // Space Eyes: lo que sale en esa pantalla cambió.
+  await avisarCambioDeCampanas()
   return { creativos: res }
 }
 
@@ -198,5 +201,6 @@ export async function repartirCreativosCtrl(campanaId: string, body: unknown) {
   const d = validar(repartirSchema, body ?? {})
   const res = await repartirCreativosEnCampana(campanaId, d.creatividadIds, d.soloVacias ?? false)
   if (!res) throw new AppError('Campaña no encontrada', 404)
+  await avisarCambioDeCampanas()
   return res
 }

@@ -173,6 +173,62 @@ En la ficha del equipo › **Equipo**:
 - **Reiniciar equipo** *(solo Raspberry)*: reinicia la Raspberry completa. Es lo
   que destraba una cámara o una red que se quedaron colgadas.
 
+### 5.1 Creativos nuevos y pantalla apagada
+
+En la ficha del equipo › **Creativos**:
+
+- **Frecuencia**: deja **Continuo**. El equipo mira su pantalla todo el día
+  sin gastar datos, así que **no se le escapa un creativo que sale una sola
+  vez**. Mirando «cada 30 min» o más, un anuncio que pasa una vez entre dos
+  miradas no se ve (el panel lo advierte).
+- **Mandar las fotos nuevas**: *Al momento* (llega en cuanto aparece) o
+  *Juntas cada 2, 4, 8 o 12 horas*. Juntas llega **una foto por creativo, la
+  más nítida** que tomó; un creativo que se repite **no se vuelve a mandar**.
+  Elegir «juntas» no ahorra datos (son las mismas fotos): sirve para recibirlas
+  en tandas. Las fotos que esperan se guardan en el equipo y no se pierden si
+  se reinicia.
+- **Datos del chip este mes**: lo que el equipo lleva gastado contra el tope
+  de **4 GB**. Las fotos de creativos pesan poco (unos 100 KB cada una, con un
+  tope diario); casi todo el consumo es la **vista en vivo**.
+
+En **Pantalla y fallas**:
+
+- **Avisar al instante si la pantalla se apaga completa** (encendido de
+  fábrica): si el equipo ve la pantalla entera apagada en su horario, avisa
+  **en menos de un minuto** con su foto, sin esperar la siguiente revisión.
+  Es **un solo aviso por apagón** y se cierra solo cuando la pantalla vuelve.
+  De noche o con la lente tapada no avisa así: eso lo decide la revisión de
+  siempre, que confirma dos veces.
+- Lo tienen la **Raspberry 0.7.3** y la **app del teléfono 0.16.2** en
+  adelante (se actualizan desde **Equipo › Actualizar app**). Los cambios de
+  estos ajustes llegan al equipo en unos minutos.
+
+### 5.2 Las campañas que vendes: foto de prueba automática
+
+Lo que se vende y se sube en **Operaciones** llega solo a los equipos de
+Space Eyes. No hay que capturar nada dos veces.
+
+- **Cuándo cuenta:** desde que la **reserva está confirmada** y su creativo
+  **aprobado** y asignado a la pantalla, mientras la reserva esté vigente.
+  Si se cancela, se retira el creativo o vence, el equipo deja de buscarla.
+- **Cómo se liga:** por el **código de la pantalla**. El equipo de Space Eyes
+  tiene que tener el mismo código que la pantalla en Inventario.
+- **Qué hace el equipo:** baja la imagen del creativo **una sola vez** (unos
+  50 KB) y, cuando la ve en su pantalla, **le toma foto al momento**, ligada a
+  esa campaña. Es **una foto de prueba por campaña al día**, y no le quita
+  lugar a las fotos de creativos nuevos.
+- **Cuánto tarda en llegar al equipo:** unos minutos (máximo ~5) después de
+  confirmar o asignar. Lo mismo para cualquier ajuste del panel.
+- **Dónde se ve:** en Space Eyes › **Campañas** aparece marcada «De
+  Operaciones» (se cambia allá, no aquí), y sus fotos en la galería del equipo.
+- **Lo programático** (los slots que se venden por internet) sigue aparte:
+  cualquier imagen que el equipo no conozca se fotografía como creativo nuevo.
+  Los creativos en HTML entran por aquí, porque no traen imagen que reconocer.
+- **Consumo:** con 10 campañas en una pantalla son unos 30 MB al mes de fotos
+  de prueba. Cabe de sobra en los 4 GB.
+- Lo tienen la **Raspberry 0.7.4** y la **app del teléfono 0.16.3** en adelante,
+  con la vigilancia de creativos encendida.
+
 ## 6. Cuando tus equipos cambian de servidor *(etapa 3)*
 
 Si tu empresa estrena su propio servidor de cámaras, nosotros pasamos tus

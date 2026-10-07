@@ -6,12 +6,14 @@ import { cn } from '@/lib/cn'
 import { Button } from '@/components/demo/ui/Button'
 import { ConfirmDialog } from '@/components/demo/ui/ConfirmDialog'
 import { seApi, fotoSE, ErrorSE } from '@/lib/data/space-eyes-se'
-import { fechaHora, hace } from './piezas'
+import { fechaHora, gigas, hace } from './piezas'
 
 // ============================================================================
 //  CreativosConfig — la vigilancia de creativos de un equipo, en su parte de
-//  AJUSTES: encenderla, cada cuánto mira (o en continuo), volver a aprender y
-//  descartar un hallazgo que no era un creativo nuevo («No es nuevo»).
+//  AJUSTES: encenderla, cada cuánto mira (o en continuo), cuándo manda las
+//  fotos nuevas (al momento o juntas cada 2/4/8/12 h), los datos del mes contra
+//  el tope de 4 GB, volver a aprender y descartar un hallazgo que no era un
+//  creativo nuevo («No es nuevo»).
 // ----------------------------------------------------------------------------
 //  Props:
 //    equipoId     id del equipo en Space Eye.
@@ -35,6 +37,9 @@ type Config = {
   desde: string | null
   max_dia: number
   cada_min: number
+  // 0 = al momento; si no, juntas cada N minutos (una por creativo, la más
+  // nítida). Space Eye viejo no lo manda: cuenta como «al momento».
+  envio_min?: number
 }
 type Creativo = {
   id: number
@@ -47,6 +52,19 @@ type Creativo = {
   storage_path: string | null
 }
 type Resp = { config: Config | null; fotos_hoy: number; creativos: Creativo[] }
+
+// Cuándo manda las fotos nuevas. Mirar no cambia: el equipo sigue mirando
+// todo el tiempo y no se le escapa un creativo que sale una sola vez.
+const ENVIO = [
+  { v: 0, t: 'Al momento' },
+  { v: 120, t: 'Juntas cada 2 horas' },
+  { v: 240, t: 'Juntas cada 4 horas' },
+  { v: 480, t: 'Juntas cada 8 horas' },
+  { v: 720, t: 'Juntas cada 12 horas' },
+]
+
+// El tope de datos del chip por equipo y mes (plan contratado hoy).
+const TOPE_MES = 4 * 1024 ** 3
 
 const FRECUENCIA = [
   { v: 0, t: 'Continuo (avisa al minuto)' },
@@ -71,6 +89,41 @@ function usaPantalla(version: string | null | undefined): boolean {
   return sabeVigilar(version) && !/^pi-agent/i.test(String(version || ''))
 }
 
+// Los datos del chip en el mes contra el tope de 4 GB. Las fotos son lo de
+// menos: casi todo se va en la vista en vivo.
+function MedidorMes({ bytes }: { bytes: number | null }) {
+  const pct = bytes == null ? 0 : Math.min(100, (bytes / TOPE_MES) * 100)
+  const tono = pct >= 90 ? 'bg-error' : pct >= 70 ? 'bg-warning' : 'bg-success'
+  return (
+    <div
+      className="col-span-2 rounded-md border border-border p-3"
+      title="Datos móviles (chip) que el equipo lleva este mes, según su propio reporte. Casi todo lo gasta la vista en vivo; las fotos de creativos pesan poco."
+    >
+      <p className="text-[11px] uppercase tracking-wide text-muted">Datos del chip este mes</p>
+      {bytes == null ? (
+        <p className="mt-1.5 text-[12px] text-muted">El equipo todavía no reporta su consumo.</p>
+      ) : (
+        <>
+          <p className="mt-1 text-lg tabular-nums text-ink">
+            {gigas(bytes)}
+            <span className="text-muted"> / 4 GB</span>
+          </p>
+          <div
+            className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-2"
+            role="meter"
+            aria-label="Datos del chip este mes"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(pct)}
+          >
+            <div className={cn('h-full rounded-full', tono)} style={{ width: `${pct}%` }} />
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 function mensaje(e: unknown): string {
   if (e instanceof ErrorSE && e.status === 403) return 'No tienes permiso para cambiar esto.'
   return e instanceof Error ? e.message : String(e)
@@ -89,6 +142,8 @@ export function CreativosConfig({
 }) {
   const [datos, setDatos] = useState<Resp | null>(null)
   const [version, setVersion] = useState<string | null>(null)
+  // Bytes del chip en el mes (lo reporta el equipo con su telemetría).
+  const [datosMes, setDatosMes] = useState<number | null>(null)
   const [marcada, setMarcada] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
@@ -108,13 +163,18 @@ export function CreativosConfig({
     setError(null)
     Promise.all([
       seApi<Resp>(`devices/${equipoId}/creativos`),
-      seApi<{ device: { app_version: string | null } }>(`devices/${equipoId}`),
+      seApi<{
+        device: { app_version: string | null }
+        data_usage?: { mobile_month?: number | string | null } | null
+      }>(`devices/${equipoId}`),
       seApi<{ pantalla: unknown }>(`devices/${equipoId}/pantalla`).catch(() => ({ pantalla: true })),
     ])
       .then(([c, d, p]) => {
         if (!vivo) return
         setDatos(c)
         setVersion(d.device?.app_version ?? null)
+        const mes = d.data_usage?.mobile_month
+        setDatosMes(mes == null || mes === '' ? null : Number(mes))
         setMarcada(!!p.pantalla)
       })
       .catch((e) => vivo && setError(mensaje(e)))
@@ -123,7 +183,7 @@ export function CreativosConfig({
     }
   }, [equipoId])
 
-  async function guardar(cambios: Partial<Pick<Config, 'vigilar' | 'cada_min'>>) {
+  async function guardar(cambios: Partial<Pick<Config, 'vigilar' | 'cada_min' | 'envio_min'>>) {
     setGuardando(true)
     setAviso(null)
     try {
@@ -292,7 +352,47 @@ export function CreativosConfig({
                   )}
                 </div>
               </div>
+
+              <div
+                className="col-span-2 rounded-md border border-border p-3"
+                title="Mirar y mandar son dos cosas: el equipo mira todo el tiempo y aquí se elige cuándo viajan las fotos. Juntas llega una por creativo, la más nítida; un creativo que se repite no se vuelve a mandar."
+              >
+                <label htmlFor={`cre-envio-${equipoId}`} className="text-[11px] uppercase tracking-wide text-muted">
+                  Mandar las fotos nuevas
+                </label>
+                <div className="mt-1.5">
+                  <select
+                    id={`cre-envio-${equipoId}`}
+                    value={cfg.envio_min ?? 0}
+                    disabled={!puedeOperar || guardando}
+                    onChange={(e) => guardar({ envio_min: Number(e.target.value) })}
+                    className="h-8 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:bg-surface-2 disabled:text-muted"
+                  >
+                    {(ENVIO.some((o) => o.v === (cfg.envio_min ?? 0))
+                      ? ENVIO
+                      : [...ENVIO, { v: cfg.envio_min ?? 0, t: `Juntas cada ${cfg.envio_min} min` }]
+                    ).map((o) => (
+                      <option key={o.v} value={o.v}>
+                        {o.t}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1.5 text-[11px] text-muted">
+                    Solo las nuevas: una foto por creativo. Mirar no gasta datos.
+                  </p>
+                </div>
+              </div>
+
+              <MedidorMes bytes={datosMes} />
             </div>
+
+            {cfg.cada_min > 0 && (
+              <Aviso tono="info">
+                Mirando por intervalos, un creativo que sale una sola vez entre dos miradas no se ve. Para no perder
+                ninguno, usa «Continuo»: mirar no gasta datos, y con «Juntas cada N horas» decides cuándo llegan las
+                fotos.
+              </Aviso>
+            )}
 
             <div>
               <p className="mb-2 text-[11px] uppercase tracking-wide text-muted">Creativos nuevos detectados</p>
