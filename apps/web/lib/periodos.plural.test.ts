@@ -16,7 +16,7 @@ describe('unidadCorta', () => {
     expect(unidadCorta('diaria', 3)).toBe('días')
     expect(unidadCorta('catorcenal', 2)).toBe('catorcenas')
     expect(unidadCorta('semanal', 2)).toBe('semanas')
-    expect(unidadCorta('spot', 2)).toBe('spots')
+    expect(unidadCorta('spot', 2)).toBe('salidas') // CPS-CPM (07/10)
     expect(unidadCorta('hora', 2)).toBe('horas')
   })
 

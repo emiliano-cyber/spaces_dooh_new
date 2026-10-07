@@ -12,6 +12,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const UUID_A = '11111111-1111-4111-8111-111111111111'
 const UUID_B = '22222222-2222-4222-8222-222222222222'
+const UUID_C = '44444444-4444-4444-8444-444444444444'
 
 const m = vi.hoisted(() => ({
   crearPropuesta: vi.fn(async (input: any) => ({ id: 'P1', nombre: input.nombre, input })),
@@ -65,6 +66,18 @@ const DATOS = {
       },
     ],
     [UUID_B, { nombre: 'Pantalla sin tarifa', tarifaPublicada: 0, tarifaMensual: 0 }],
+    // CPS-CPM (07/10) · una digital con tarifa CPM de 85 por millar.
+    [
+      UUID_C,
+      {
+        nombre: 'Pantalla Periférico',
+        tarifaPublicada: 60000,
+        modalidadesDetalle: [
+          { unidad: 'mensual', tarifaPublicada: 60000 },
+          { unidad: 'cpm', tarifaPublicada: 85 },
+        ],
+      },
+    ],
   ]),
 }
 
@@ -258,5 +271,41 @@ describe('5 · la tarifa se calcula con UNA lectura por propuesta', () => {
     )
     expect(m.datosParaTarifar).toHaveBeenCalledTimes(1)
     expect(m.datosParaTarifar.mock.calls[0][0]).toEqual([UUID_A, UUID_A])
+  })
+})
+
+describe('CPS-CPM (07/10) · CPM: la cantidad son millares que captura quien vende', () => {
+  it('2 500 millares a 85 → 212 500, y la cantidad NO sale de las fechas', async () => {
+    await crearPropuestaCtrl(
+      cuerpo([{ sitioId: UUID_C, unidad: 'cpm', tarifaUnitaria: 85, cantidad: 2500 }], '2026-11-01', '2026-11-30'),
+    )
+    expect(enviado().items[0]).toMatchObject({
+      unidad: 'cpm',
+      cantidad: 2500,
+      tarifaUnitaria: 85,
+      tarifaCalculada: 85,
+      precioAjustado: false,
+      precio: 212500,
+    })
+  })
+
+  it('NEGATIVO · un CPM distinto de la tarifa de la pantalla, sin permiso, se rechaza', async () => {
+    const e = await rechazo(
+      crearPropuestaCtrl(cuerpo([{ sitioId: UUID_C, unidad: 'cpm', tarifaUnitaria: 40, cantidad: 2500 }])),
+    )
+    expect(e.status).toBe(403)
+    expect(m.crearPropuesta).not.toHaveBeenCalled()
+  })
+
+  it('NEGATIVO · CPM en una pantalla sin tarifa CPM no se cotiza a ciegas', async () => {
+    const e = await rechazo(
+      crearPropuestaCtrl(cuerpo([{ sitioId: UUID_A, unidad: 'cpm', tarifaUnitaria: 85, cantidad: 2500 }])),
+    )
+    expect(e.message).toBe(MSJ_SIN_TARIFA)
+  })
+
+  it('CPS sigue siendo `spot`: el cuerpo que manda la pantalla no cambia', async () => {
+    await crearPropuestaCtrl(cuerpo([{ sitioId: UUID_A, unidad: 'spot', tarifaUnitaria: 1200, cantidad: 50 }]))
+    expect(enviado().items[0]).toMatchObject({ unidad: 'spot', cantidad: 50, precio: 60000 })
   })
 })

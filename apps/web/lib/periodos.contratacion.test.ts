@@ -44,19 +44,20 @@ describe('resumenContratacion — el QUÉ junto al CUÁNTO', () => {
   it('50 spots se leen como 50 spots por su tarifa', () => {
     expect(
       resumenContratacion({ unidad: 'spot', cantidad: 50, tarifaUnitaria: 1200 }),
-    ).toBe('50 spots × $ 1,200.00')
+    ).toBe('50 salidas × $ 1,200.00')
   })
 
   it('concuerda el singular, que es donde ya se escribió «2 mess»', () => {
     // `unidadCorta` existe justo por esto (M10 de la auditoría del 04/08): en
     // español «mes» pluraliza en «meses», no en «mess».
-    expect(resumenContratacion({ unidad: 'spot', cantidad: 1, tarifaUnitaria: 1200 })).toBe('1 spot × $ 1,200.00')
+    expect(resumenContratacion({ unidad: 'spot', cantidad: 1, tarifaUnitaria: 1200 })).toBe('1 salida × $ 1,200.00')
     expect(resumenContratacion({ unidad: 'mensual', cantidad: 1, tarifaUnitaria: 9000 })).toBe('1 mes × $ 9,000.00')
     expect(resumenContratacion({ unidad: 'mensual', cantidad: 3, tarifaUnitaria: 9000 })).toBe('3 meses × $ 9,000.00')
   })
 
-  it('las seis unidades tienen nombre propio; ninguna sale con su clave cruda', () => {
-    const vistos = (['mensual', 'catorcenal', 'semanal', 'diaria', 'spot', 'hora'] as const).map(
+  // CPS-CPM (07/10): «spot» se lee «salidas» (CPS) y entra CPM, en millares.
+  it('las siete unidades tienen nombre propio; ninguna sale con su clave cruda', () => {
+    const vistos = (['mensual', 'catorcenal', 'semanal', 'diaria', 'spot', 'hora', 'cpm'] as const).map(
       (u) => resumenContratacion({ unidad: u, cantidad: 2, tarifaUnitaria: 100 }),
     )
     expect(vistos).toEqual([
@@ -64,8 +65,9 @@ describe('resumenContratacion — el QUÉ junto al CUÁNTO', () => {
       '2 catorcenas × $ 100.00',
       '2 semanas × $ 100.00',
       '2 días × $ 100.00',
-      '2 spots × $ 100.00',
+      '2 salidas × $ 100.00',
       '2 horas × $ 100.00',
+      '2 millares × $ 100.00',
     ])
   })
 
@@ -81,7 +83,7 @@ describe('resumenContratacion — el QUÉ junto al CUÁNTO', () => {
       // que el typecheck lo diga es la mitad del guard.
       spotsPorDia: 12,
     })
-    expect(r).toBe('50 spots × $ 1,200.00')
+    expect(r).toBe('50 salidas × $ 1,200.00')
     expect(r).not.toContain('12')
   })
 
@@ -89,7 +91,7 @@ describe('resumenContratacion — el QUÉ junto al CUÁNTO', () => {
     // Un «× $ 0.00» afirma que la unidad es gratis. Los ítems anteriores al
     // 21/07 pueden traer `tarifa_unitaria` en 0 (el backfill solo rellenó los
     // que tenían precio), así que este caso existe en datos reales.
-    expect(resumenContratacion({ unidad: 'spot', cantidad: 50, tarifaUnitaria: 0 })).toBe('50 spots')
+    expect(resumenContratacion({ unidad: 'spot', cantidad: 50, tarifaUnitaria: 0 })).toBe('50 salidas')
     expect(resumenContratacion({ unidad: 'mensual', cantidad: 2, tarifaUnitaria: null })).toBe('2 meses')
   })
 
@@ -102,7 +104,7 @@ describe('resumenContratacion — el QUÉ junto al CUÁNTO', () => {
   })
 
   it('etiquetaCantidad da el QUÉ sin el precio, para donde no cabe el importe', () => {
-    expect(etiquetaCantidad('spot', 50)).toBe('50 spots')
+    expect(etiquetaCantidad('spot', 50)).toBe('50 salidas')
     expect(etiquetaCantidad('mensual', 1)).toBe('1 mes')
   })
 })
@@ -120,7 +122,7 @@ describe('resumenReserva — en la campaña la multiplicación YA NO CUADRA', ()
     // lado de «$ 54,000.00» enseñaría una multiplicación que no da, y se leería
     // como un defecto del sistema cuando es el descuento haciendo su trabajo.
     const r = resumenReserva({ unidad: 'spot', cantidad: 50, precio: 54_000 })
-    expect(r).toBe('50 spots · $ 54,000.00')
+    expect(r).toBe('50 salidas · $ 54,000.00')
     expect(r).not.toContain('×')
   })
 

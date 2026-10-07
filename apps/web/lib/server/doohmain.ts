@@ -18,6 +18,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { q, q1 } from './db'
 import { esPantallaDigitalSql } from './pantalla-digital-sql'
+import { folioBase } from '../folio-venta'
 
 const pexec = promisify(execFile)
 
@@ -387,7 +388,10 @@ export async function publicarCampanaEnDoohmain(campanaId: string): Promise<Resu
       const r = await ejecutarPublish({
         version: a.creativo_id, anunciante, campana: camp.nombre,
         fi: fecha(camp.fecha_inicio), ff: fecha(camp.fecha_fin),
-        filepath: mat.path, screen, list: camp.folio,
+        // FOLIO-VENTA (07/10) · la lista del CMS lleva el folio SIN tramo: una
+        // campaña extendida (PR-2026-0042.1) sigue siendo la misma lista en el
+        // reproductor, no una nueva junto a la vieja.
+        filepath: mat.path, screen, list: folioBase(camp.folio),
         cantDia,
       })
       out.push({

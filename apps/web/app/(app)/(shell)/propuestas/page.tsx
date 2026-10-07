@@ -62,6 +62,7 @@ import {
   precioItem,
   periodosEnRango,
   fechaFinDesde,
+  esCantidadManual,
   type Unidad,
 } from '@/lib/periodos'
 import { PERIODICIDADES, factorMensual } from '@/lib/renta-periodicidad'
@@ -939,7 +940,7 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                 onChange={(e) => setDuracionN(e.target.value)}
               />
               <select className={inputCls} value={duracionUnidad} onChange={(e) => setDuracionUnidad(e.target.value as Unidad)}>
-                {UNIDADES.filter((u) => u.unidad !== 'spot' && u.unidad !== 'hora').map((u) => {
+                {UNIDADES.filter((u) => !esCantidadManual(u.unidad)).map((u) => {
                   const n = parseInt(duracionN, 10) || 1
                   return (
                     <option key={u.unidad} value={u.unidad}>
@@ -1062,7 +1063,7 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                 const c = cfgDe(s)
                 const mods = modalidadesDe(s)
                 const periodos = periodosEnRango(c.unidad, fechaInicio, fechaFin)
-                const esManual = periodos === null // spot / hora
+                const esManual = periodos === null // spot (CPS) / hora / cpm
                 // Los spots/día (programación) solo aplican a pantallas DIGITALES;
                 // las fijas no tienen spots.
                 const digital =
@@ -1106,10 +1107,10 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                       </select>
                     )}
                     {/* Cantidad: auto (periodos del rango), de la calculadora
-                        (digital por spot) o manual (spot/hora) */}
+                        (digital por spot) o manual (spot/hora/cpm) */}
                     {usaCalcDe(s) ? (
-                      <span className="demo-num whitespace-nowrap text-muted" title="Spots que salen de la calculadora de abajo">
-                        {calcDe(s)?.ok ? `${cantidadDe(s).toLocaleString('es-MX')} spots` : '— spots'}
+                      <span className="demo-num whitespace-nowrap text-muted" title="Salidas que salen de la calculadora de abajo">
+                        {calcDe(s)?.ok ? `${cantidadDe(s).toLocaleString('es-MX')} salidas` : '— salidas'}
                       </span>
                     ) : esManual ? (
                       <input
@@ -1118,11 +1119,19 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                         className="h-8 w-20 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink"
                         value={c.cantidadManual}
                         onChange={(e) => setCfgSitio(s.id, { cantidadManual: Math.max(1, parseInt(e.target.value, 10) || 1) })}
-                        title={`Nº de ${unidadCorta(c.unidad, 2)}`}
+                        title={c.unidad === 'cpm' ? 'Millares de impactos contratados (1 millar = 1,000 impactos)' : `Nº de ${unidadCorta(c.unidad, 2)}`}
                       />
                     ) : (
                       <span className="whitespace-nowrap text-muted" title="Periodos calculados del rango de fechas">
                         {periodos} {unidadCorta(c.unidad, periodos)}
+                      </span>
+                    )}
+                    {/* CPS-CPM · el CPM se captura en MILLARES. Se escribe a cuántos
+                        impactos equivale para que nadie teclee 2,500,000 donde
+                        van 2,500: cobraría mil veces de más. */}
+                    {esManual && !usaCalcDe(s) && c.unidad === 'cpm' && (
+                      <span className="demo-num whitespace-nowrap text-muted">
+                        millares = {(c.cantidadManual * 1000).toLocaleString('es-MX')} impactos
                       </span>
                     )}
                     {/* Programación: spots por día — solo pantallas digitales.

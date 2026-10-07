@@ -11,11 +11,15 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const consultas: { texto: string; params: unknown[] }[] = []
 let finActual: string | null = '2026-09-30'
+// FOLIO-VENTA (07/10) · el update de la campaña devuelve la fila escrita; sin
+// ella es que otra extensión la llevó más lejos entre la lectura y el update.
+let escribeCampana = true
 
 vi.mock('./db', () => ({
   q: vi.fn(async (texto: string, params: unknown[] = []) => {
     consultas.push({ texto, params })
     if (/select fecha_fin/i.test(texto)) return finActual == null ? [] : [{ fecha_fin: finActual }]
+    if (/^\s*update campanas/i.test(texto)) return escribeCampana ? [{ id: 'cmp-1' }] : []
     if (/select \* from campanas/i.test(texto)) {
       return [{ id: 'cmp-1', nombre: 'Campaña', fecha_inicio: '2026-08-01', fecha_fin: finActual }]
     }
@@ -32,6 +36,7 @@ const { extenderCampana } = await import('./campanas-repo')
 beforeEach(() => {
   consultas.length = 0
   finActual = '2026-09-30'
+  escribeCampana = true
 })
 
 async function extender(nueva: string) {
@@ -50,7 +55,7 @@ describe('control · extender de verdad sigue funcionando', () => {
   it('una fecha posterior alarga la campaña y sus reservas', async () => {
     const r = await extender('2026-12-31')
     expect(r.ok, r.mensaje).toBe(true)
-    expect(consultas.some((c) => /update campanas set fecha_fin/i.test(c.texto))).toBe(true)
+    expect(consultas.some((c) => /update campanas[\s\S]*fecha_fin = \$2/i.test(c.texto))).toBe(true)
     expect(consultas.some((c) => /update reservas\s+set fecha_fin/i.test(c.texto))).toBe(true)
   })
 
@@ -97,7 +102,7 @@ describe('VAL-07 · la campaña de otra organización', () => {
     // HTTP —la RLS con FORCE tapa el hueco—, asi que si se omite ninguna prueba
     // de caja negra lo diria. Por eso se afirma sobre el SQL.
     await extender('2026-12-31')
-    const u = consultas.filter((c) => /update (campanas|reservas)\s+set fecha_fin/i.test(c.texto))
+    const u = consultas.filter((c) => /update (campanas|reservas)\s+set (fecha_fin|folio)/i.test(c.texto))
     expect(u.length).toBe(2)
     for (const c of u) expect(c.texto, c.texto).toMatch(/tenant_id/)
   })
@@ -107,5 +112,33 @@ describe('VAL-07 · la campaña de otra organización', () => {
     const r = await extender('2026-12-31')
     expect(r.ok, r.mensaje).toBe(true)
     expect(r.campana).toBeNull()
+  })
+})
+
+describe('FOLIO-VENTA (07/10) · el tramo .1/.2 lo pone el mismo update', () => {
+  const upd = () => consultas.find((c) => /^\s*update campanas/i.test(c.texto))?.texto ?? ''
+
+  it('el folio y la fecha se escriben en UNA sentencia, no en dos', async () => {
+    await extender('2026-12-31')
+    expect(upd()).toMatch(/set folio = case[\s\S]*fecha_fin = \$2/)
+  })
+
+  it('la expresión llega a Postgres con su barra: «\.» y no «.» (cualquier carácter)', async () => {
+    await extender('2026-12-31')
+    expect(upd()).toContain(String.raw`folio ~ '\.[0-9]+$'`)
+    expect(upd()).not.toContain(`folio ~ '.[0-9]+$'`)
+  })
+
+  it('NEGATIVO · si otra extensión la llevó más lejos: 409 y las reservas no se tocan', async () => {
+    escribeCampana = false
+    const r = await extender('2026-12-31')
+    expect(r.ok).toBe(false)
+    expect(r.status).toBe(409)
+    expect(consultas.some((c) => /update reservas/i.test(c.texto))).toBe(false)
+  })
+
+  it('el update no acorta: lleva la condición sobre la fecha que tiene la fila', async () => {
+    await extender('2026-12-31')
+    expect(upd()).toMatch(/fecha_fin <= \$2::date/)
   })
 })

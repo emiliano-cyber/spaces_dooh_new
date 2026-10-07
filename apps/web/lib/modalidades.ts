@@ -18,7 +18,7 @@
 // ============================================================================
 
 /**
- * Las siete unidades de venta, tal cual las declara el libro «Listas validadas»
+ * Las ocho unidades de venta, tal cual las declara el libro «Listas validadas»
  * de la plantilla de inventario. `sitio_modalidades.unidad` es `text` libre en
  * la base (`db/schema.sql:207`), así que esta lista es el único guardián.
  */
@@ -30,6 +30,10 @@ export const UNIDADES_VENTA = [
   'spot',
   'hora',
   'programatico',
+  // CPS-CPM (07/10) · costo por millar de impactos. Solo en digitales, como
+  // spot y hora: una pantalla fija sigue vendiéndose por periodo. CPS no tiene
+  // clave propia: es `spot` con el nombre de ventas (`lib/periodos.ts`).
+  'cpm',
 ] as const
 
 export type UnidadVenta = (typeof UNIDADES_VENTA)[number]
@@ -44,7 +48,7 @@ export const UNIDADES_FIJO = ['mensual', 'catorcenal'] as const
 
 const ETIQUETA_FIJO = UNIDADES_FIJO.map((u) => `"${u}"`).join(' o ')
 
-/** ¿Es una unidad de las siete? Compara ya normalizada. */
+/** ¿Es una unidad de las ocho? Compara ya normalizada. */
 export function esUnidadValida(unidad: string): unidad is UnidadVenta {
   return (UNIDADES_VENTA as readonly string[]).includes(unidad)
 }

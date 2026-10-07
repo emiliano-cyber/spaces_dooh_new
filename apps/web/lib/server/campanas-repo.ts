@@ -731,11 +731,17 @@ export async function generarCampanaDesdePropuesta(
       : null
     const agenciaNombre = ag?.nombre ?? null
 
+    // FOLIO-VENTA (07/10) · la campaña lleva el folio de su VENTA, el de la
+    // propuesta: ventas pidió poder buscarla por el mismo número con el que la
+    // vendió. No choca con nada: `propuestas.folio` es único y una propuesta da
+    // una sola campaña (`campanas_propuesta_uq`). Las extensiones le suman .1,
+    // .2… en `extenderCampana`. Una campaña SIN propuesta sigue con el folio
+    // propio de `folioCampana`.
     const campanaId = (
       await client.query(
         `insert into campanas (folio, nombre, cliente_id, agencia, fecha_inicio, fecha_fin, estado_comercial, tipo_campana, propuesta_id, moneda, tenant_id)
          values ($1,$2,$3,$4,$5,$6,'CONFIRMADA',$7,$8,coalesce((select moneda from tenants where id=$9),'MXN'),$9) returning id`,
-        [await folioCampana(await prefijoTenant(await tenantActual()), client), prop.nombre, prop.cliente_id, agenciaNombre, fechaInicio, fechaFin, tipoCampana, propuestaId, await tenantActual()],
+        [prop.folio, prop.nombre, prop.cliente_id, agenciaNombre, fechaInicio, fechaFin, tipoCampana, propuestaId, await tenantActual()],
       )
     ).rows[0].id
 
@@ -1084,7 +1090,38 @@ export async function extenderCampana(campanaId: string, nuevaFechaFin: string) 
     )
   }
 
-  await q(`update campanas set fecha_fin=$2 where id=$1 and tenant_id=$3`, [campanaId, nuevaFechaFin, tenantId])
+  // FOLIO-VENTA (07/10) · alargar le suma un tramo al folio: PR-2026-0042 →
+  // .1 → .2. Lo calcula la base en el MISMO update, comparando con la fecha
+  // que la fila tiene al escribir: dos extensiones a la vez quedan en serie por
+  // el candado de la fila y la segunda ve el .1 de la primera. Calcularlo aquí
+  // con la fecha leída arriba dejaría que las dos escribieran .1. Repetir la
+  // misma fecha no alarga nada y no sube el tramo.
+  //
+  // Y el `fecha_fin <= $2` del where cierra la carrera que el guard de arriba
+  // no ve: si otra extensión la llevó MÁS LEJOS entre la lectura y este update,
+  // escribir la nuestra la acortaría. Sin fila escrita no se toca nada más.
+  //
+  // Las barras van DOBLES porque esto es una plantilla de JS: con una sola,
+  // `'\.'` llega a Postgres como `'.'` —«cualquier carácter»— y PR-2026-0042
+  // se leería como si ya trajera el tramo «2».
+  const escrita = await q<{ id: string }>(
+    `update campanas
+        set folio = case
+              when fecha_fin is null or fecha_fin >= $2::date then folio
+              when folio ~ '\\.[0-9]+$'
+                then regexp_replace(folio, '\\.[0-9]+$', '') || '.' ||
+                     (substring(folio from '\\.([0-9]+)$')::int + 1)
+              else folio || '.1'
+            end,
+            fecha_fin = $2
+      where id = $1 and tenant_id = $3
+        and (fecha_fin is null or fecha_fin <= $2::date)
+      returning id`,
+    [campanaId, nuevaFechaFin, tenantId],
+  )
+  if (!escrita[0]) {
+    throw new AppError('Otra persona acaba de extender esta campaña más lejos. Recarga para ver la fecha nueva.', 409)
+  }
   await q(`update reservas set fecha_fin=$2 where campana_id=$1 and tenant_id=$3`, [campanaId, nuevaFechaFin, tenantId])
   await recalcularPresupuesto(null, campanaId)
   const rows = await q('select * from campanas where id=$1 and tenant_id=$2', [campanaId, tenantId])

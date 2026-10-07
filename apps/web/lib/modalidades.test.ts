@@ -25,11 +25,19 @@ import { validarFila } from './inventario-import'
 //  importador, esa sección cae.
 // ============================================================================
 
-describe('1 · las siete unidades de venta', () => {
-  it('son exactamente las siete que admite la plantilla', () => {
+describe('1 · las ocho unidades de venta', () => {
+  // `cpm` entró el 07/10 (CPS-CPM): costo por millar de impactos. CPS no es
+  // una unidad aparte, es `spot` con el nombre de ventas.
+  it('son exactamente las ocho que admite la plantilla', () => {
     expect([...UNIDADES_VENTA]).toEqual([
-      'mensual', 'catorcenal', 'semanal', 'diaria', 'spot', 'hora', 'programatico',
+      'mensual', 'catorcenal', 'semanal', 'diaria', 'spot', 'hora', 'programatico', 'cpm',
     ])
+  })
+
+  it('CPM se vende en una digital, y en una FIJA no', () => {
+    expect(motivoModalidadInvalida('cpm', 'digital')).toBeNull()
+    expect(motivoModalidadInvalida('CPM', 'rotativo')).toBeNull()
+    expect(motivoModalidadInvalida('cpm', 'fijo')).toMatch(/mensual/)
   })
 
   it('una pantalla FIJA solo admite las dos de periodo', () => {
@@ -53,9 +61,9 @@ describe('2 · qué se rechaza, que es lo que hay que demostrar', () => {
     expect(motivo).toMatch(/catorcenal/)
   })
 
-  it('las cinco unidades que una FIJA no admite se rechazan TODAS', () => {
+  it('las seis unidades que una FIJA no admite se rechazan TODAS', () => {
     const prohibidas = UNIDADES_VENTA.filter((u) => !UNIDADES_FIJO.includes(u as never))
-    expect(prohibidas).toHaveLength(5)
+    expect(prohibidas).toHaveLength(6)
     for (const u of prohibidas) {
       expect(motivoModalidadInvalida(u, 'fijo'), `«${u}» coló en una pantalla fija`).toBeTruthy()
     }

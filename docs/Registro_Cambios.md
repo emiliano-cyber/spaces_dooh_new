@@ -7,6 +7,34 @@ La entrada más reciente va arriba.
 
 ## 2026-10-07
 
+- **CPS y CPM para vender pantallas digitales.** *(Pedido de ventas del 06/10.)*
+  - **«Por spot» ahora se llama «CPS · costo por salida»**, y donde decía
+    «50 spots» dice «50 salidas». Funciona igual que antes: tarifa por salida ×
+    salidas. Las propuestas y campañas que ya tenías no cambian de precio.
+  - **Nueva unidad «CPM · costo por millar».** Se cobra por cada mil impactos.
+    En la propuesta tecleas los **millares** contratados (2,500 millares =
+    2.5 millones de impactos) y al lado aparece a cuántos impactos equivale.
+    El importe es tarifa CPM × millares: 85 × 2,500 = $212,500.
+  - Para venderla, la pantalla necesita su **tarifa CPM**: se le agrega en su
+    ficha, en las unidades de venta, igual que la mensual o la de spot. Solo
+    las **digitales** la admiten; una fija se sigue vendiendo por mes o
+    catorcena. La plantilla de inventario ya la trae.
+- **La campaña lleva el número de su venta, y cada extensión le suma .1.**
+  *(Pedido de ventas del 06/10.)*
+  - Al aprobar una propuesta, la campaña que se genera toma **el mismo folio
+    de la propuesta** (por ejemplo `PR-2026-0042`), así se busca con el número
+    con el que se vendió.
+  - Cada vez que **se extiende** a una fecha posterior, el folio sube un
+    tramo: `PR-2026-0042.1`, luego `.2`… En el registro de actividad queda
+    «Extendió campaña PR-2026-0042.1 hasta el …», así se ve qué cubre cada
+    tramo. Repetir la misma fecha no cambia el número.
+  - Las campañas que ya existían conservan su folio; el cambio vale para las
+    que se generen desde hoy, y el .1 para cualquier campaña que se extienda.
+  - **De paso se corrigió un fallo:** si dos personas extendían la misma
+    campaña al mismo tiempo, la más corta podía **recortarla**. Ahora la que
+    llega tarde recibe el aviso «Otra persona acaba de extender esta campaña
+    más lejos» y no toca nada.
+
 - **Un contrato de arrendador se puede cambiar antes de firmarlo, y queda
   escrito quién pidió cada cambio.** *(Pedido tuyo del 07/10.)* En la ficha del
   contrato hay una sección nueva, **«Cambios al contrato»**, con el botón

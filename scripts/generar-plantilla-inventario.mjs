@@ -27,7 +27,7 @@ const COLS = [
   { k: 'nombre', obl: true, desc: 'Nombre visible del sitio o pantalla.', valido: 'Texto libre', ej1: 'Pantalla Periférico Sur', ej2: 'Espectacular Insurgentes' },
   { k: 'tipo_medio', obl: false, desc: 'Tipo de soporte físico.', valido: 'espectacular · muro · valla · parabus · mupi · publitienda · puente · otro', ej1: 'espectacular', ej2: 'espectacular' },
   { k: 'exhibicion', obl: true, desc: '¿La pieza es impresa (fija) o pantalla (digital)?', valido: 'fijo · digital', ej1: 'digital', ej2: 'fijo' },
-  { k: 'unidad', obl: true, desc: 'Cómo se comercializa. REGLA: si exhibicion=fijo solo "mensual" o "catorcenal".', valido: 'mensual · catorcenal · semanal · diaria · spot · hora · programatico', ej1: 'spot', ej2: 'mensual' },
+  { k: 'unidad', obl: true, desc: 'Cómo se comercializa. REGLA: si exhibicion=fijo solo "mensual" o "catorcenal".', valido: 'mensual · catorcenal · semanal · diaria · spot (CPS, costo por salida) · hora · programatico · cpm (costo por millar)', ej1: 'spot', ej2: 'mensual' },
   { k: 'es_rotativo', obl: false, desc: '¿La cara rota entre varios anunciantes?', valido: 'si · no', ej1: 'no', ej2: 'no' },
   { k: 'plaza_ciudad', obl: false, desc: 'Ciudad o plaza donde está el sitio.', valido: 'Texto libre', ej1: 'CDMX', ej2: 'CDMX' },
   { k: 'direccion', obl: false, desc: 'Dirección o referencia de ubicación.', valido: 'Texto libre', ej1: 'Periférico Sur 4000', ej2: 'Av. Insurgentes 1200' },
@@ -94,7 +94,7 @@ const listas = [
   ['', 'spot', '', 'mupi', ''],
   ['', 'hora', '', 'publitienda', ''],
   ['', 'programatico', '', 'puente', ''],
-  ['', '', '', 'otro', ''],
+  ['', 'cpm', '', 'otro', ''],
 ]
 const wsListas = XLSX.utils.aoa_to_sheet(listas)
 wsListas['!cols'] = [{ wch: 14 }, { wch: 16 }, { wch: 18 }, { wch: 16 }, { wch: 8 }]

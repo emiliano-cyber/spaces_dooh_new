@@ -50,6 +50,12 @@ import { RejillaDialog } from '@/components/demo/rejilla/RejillaDialog'
 // unidades existen y cuáles admite esta pantalla. Se importan en vez de
 // repetirse — dos copias de la misma regla divergen (ver `lib/modalidades.ts`).
 import { UNIDADES_VENTA, motivoModalidadInvalida } from '@/lib/modalidades'
+import { UNIDAD_LABEL } from '@/lib/periodos'
+
+// CPS-CPM (07/10) · la unidad se lee con su nombre de venta («CPS · costo por
+// salida», «CPM · costo por millar») y no con la clave guardada. Las que no
+// tienen nombre (programático) se quedan con la clave, como antes.
+const nombreUnidad = (u: string) => UNIDAD_LABEL[u] ?? u
 import {
   useReservas,
   useIncidencias,
@@ -519,7 +525,7 @@ export function SiteFicha({
                 <ul className="divide-y divide-border rounded-md border border-border">
                   {modalidades.map((m, i) => (
                     <li key={i} className="flex items-center justify-between px-3 py-1.5 text-[12px]">
-                      <span className="capitalize text-ink">{m.unidad}</span>
+                      <span className="capitalize text-ink">{nombreUnidad(m.unidad)}</span>
                       <span className="demo-num text-muted">{formatMonto(m.tarifaPublicada)}</span>
                     </li>
                   ))}
@@ -950,8 +956,8 @@ function ModalidadesDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
           const quitada = quitadas.includes(m.unidad)
           return (
             <div key={m.unidad} className="flex items-center gap-2">
-              <span className={`w-28 shrink-0 text-[13px] capitalize ${quitada ? 'text-muted line-through' : 'text-ink'}`}>
-                {m.unidad}
+              <span className={`w-44 shrink-0 text-[13px] capitalize ${quitada ? 'text-muted line-through' : 'text-ink'}`}>
+                {nombreUnidad(m.unidad)}
               </span>
               <input
                 type="number"
@@ -978,7 +984,7 @@ function ModalidadesDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
 
         {nuevas.map((n, i) => (
           <div key={`nueva-${n.unidad}`} className="flex items-center gap-2">
-            <span className="w-28 shrink-0 text-[13px] capitalize text-ink">{n.unidad}</span>
+            <span className="w-44 shrink-0 text-[13px] capitalize text-ink">{nombreUnidad(n.unidad)}</span>
             <input
               type="number"
               min={0}
@@ -1011,7 +1017,7 @@ function ModalidadesDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
             >
               <option value="">Añadir unidad…</option>
               {disponibles.map((u) => (
-                <option key={u} value={u} className="capitalize">{u}</option>
+                <option key={u} value={u} className="capitalize">{nombreUnidad(u)}</option>
               ))}
             </select>
             <Button variant="success" size="sm" onClick={anadir} disabled={!porAnadir}>

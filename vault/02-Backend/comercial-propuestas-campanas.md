@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-06
+actualizado: 2026-10-07
 tags: [backend, comercial, propuestas, campanas, amarillo, precio]
 archivos:
   - apps/web/lib/server/propuestas-repo.ts
@@ -23,6 +23,9 @@ archivos:
   - apps/web/lib/server/reservas-controller.ts
   - apps/web/lib/reparto-creativos.ts
   - apps/web/lib/periodos.ts
+  - apps/web/lib/folio-venta.ts
+  - apps/web/lib/modalidades.ts
+  - apps/web/app/api/campanas/[id]/extender/route.ts
   - apps/web/lib/data/types.ts
   - apps/web/app/(app)/(shell)/propuestas/[id]/page.tsx
   - apps/web/app/(app)/(shell)/campanas/[id]/page.tsx
@@ -41,6 +44,10 @@ archivos:
 Cliente → Propuesta (folio, ítems, comisión) → aprobada
        → Campaña (folio) → Reservas (sitio × fechas) → Creativos → publicación
 ```
+
+Desde el 07/10 la campaña nacida de una propuesta lleva **el folio de la
+propuesta** (`PR-2026-0042`), y cada extensión le suma un tramo: `.1`, `.2`…
+Ver «CPS, CPM y el folio de venta» más abajo.
 
 ## Archivos
 
@@ -221,7 +228,9 @@ con tests) y se invoca desde `POST /api/campanas/[id]/creativos/repartir`.
 
 `propuesta_items` y `reservas` guardan CÓMO se contrató desde
 `20260721_propuesta_unidad_spots.sql`: `unidad` (mensual · catorcenal · semanal ·
-diaria · spot · hora), `cantidad`, `tarifa_unitaria` y `spots_por_dia`.
+diaria · spot · hora · cpm), `cantidad`, `tarifa_unitaria` y `spots_por_dia`.
+Desde el 07/10 «Por spot» se lee **CPS · costo por salida** y su cantidad
+**salidas**; la clave guardada sigue siendo `spot`.
 
 Se pueden vender **50 spots** —en Propuestas eliges «Por spot», tecleas 50 y el
 precio sale `tarifa_spot × 50`, recalculado en el servidor— y hasta el
@@ -455,6 +464,54 @@ Las cuentas, puras, en `lib/propuestas-periodo.ts`; la ruta,
 (con 4 mutantes muertos) y `lib/test/propuestas-tablero.e2e.test.ts` (fechas
 al aprobar/rechazar —con un mutante contra build reconstruido—, renta del
 contrato, permisos, migración).
+
+## CPS, CPM y el folio de venta (07/10)
+
+Pedido de ventas del 06/10: «cps y cpm» y «asociar el id con el no. de venta; si
+se alarga la campaña, añadir un .1». Decisiones del dueño, el 07/10:
+
+- **CPS es «Por spot» renombrado**, no una unidad nueva. Solo cambia lo que se
+  lee (`lib/periodos.ts`, `UNIDADES`): «CPS · costo por salida», «50 salidas».
+  La clave `spot` se queda porque es la que guardan las propuestas, reservas y
+  tarifas de antes; cambiarla les habría cambiado el significado sin migrarlas.
+- **CPM es una unidad nueva, `cpm`, y su cantidad son MILLARES de impactos**,
+  que captura quien vende. 85 por millar × 2 500 millares (2.5 millones de
+  impactos) = 212 500. Se eligió millares y no impactos para que el importe
+  siga siendo `tarifa × cantidad` en todas partes —volumen, snapshot, PDF,
+  reserva—: con impactos habría que dividir entre 1000 en cada sitio que
+  multiplica, y el que se olvidara cobraría mil veces de más. La pantalla
+  escribe al lado a cuántos impactos equivale lo tecleado. Como la unidad es
+  texto libre en la base, **no hizo falta migración**.
+- CPM se publica como modalidad **solo en digitales**, igual que spot y hora
+  (`lib/modalidades.ts`): una fija sigue vendiéndose por periodo. Su tarifa
+  sale de la modalidad `cpm` de la pantalla; sin ella, solo un gerente le pone
+  precio (la regla de PRECIO-01, sin cambios).
+- Las unidades de cantidad manual están en UNA lista, `esCantidadManual()`.
+  Antes eran tres comparaciones sueltas `spot || hora`, y añadir CPM a dos de
+  las tres habría derivado sus millares de las fechas en la tercera.
+- **El folio de la campaña es el de su propuesta** (`campanas-repo.ts`,
+  `generarCampanaDesdePropuesta`). No choca: `propuestas.folio` es único y una
+  propuesta da una sola campaña. Una campaña creada sin propuesta conserva su
+  folio propio (`folioCampana`).
+- **Extender le suma un tramo** en el MISMO `update` que alarga la fecha,
+  calculado por la base con la fecha que la fila tiene al escribir. Repetir la
+  misma fecha no sube el tramo. La bitácora deja «Extendió campaña
+  PR-2026-0042.1 hasta 2026-12-31»: leídas en orden, las entradas dicen qué
+  cubre cada tramo.
+- **Lo que apareció al hacerlo:** `extenderCampana` leía la fecha y escribía en
+  dos pasos, así que dos extensiones a la vez podían **acortar** la campaña (la
+  de 60 días pisando a la de 90). El `update` ahora exige `fecha_fin <= nueva`;
+  si otra la llevó más lejos, responde **409** y no toca las reservas.
+- **La lista del CMS lleva el folio SIN tramo** (`folioBase`, en
+  `doohmain.ts`): una campaña extendida sigue siendo la misma lista en el
+  reproductor, no una nueva junto a la vieja.
+
+Probado en `lib/periodos.cps-cpm.test.ts`, `lib/folio-venta.test.ts`,
+`lib/server/propuestas-precio.test.ts`,
+`lib/server/campanas-repo.extender.test.ts` y, contra Postgres,
+`lib/test/folio-venta-cpm.e2e.test.ts` (folio heredado, .1/.2, la carrera, la
+bitácora, CPM hasta la reserva y CPM rechazado en una fija). Ocho mutantes,
+todos muertos; el del folio heredado, contra build reconstruido.
 
 ## Portal del cliente
 

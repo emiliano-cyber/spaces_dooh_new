@@ -6,13 +6,13 @@
 //
 //  Convención de equivalencias (misma que el enum periodicidad_pago del schema:
 //  "mensual ≡ 30 días"): mensual/30, catorcenal/14, semanal/7, diaria/1.
-//  `spot` y `hora` no se derivan del rango: su cantidad la captura el usuario
-//  (nº de spots u horas contratadas).
+//  `spot`, `hora` y `cpm` no se derivan del rango: su cantidad la captura el
+//  usuario (nº de salidas, de horas o de millares de impactos contratados).
 // ============================================================================
 
 import { formatMonto } from '@/lib/data/derive'
 
-export type Unidad = 'mensual' | 'catorcenal' | 'semanal' | 'diaria' | 'spot' | 'hora'
+export type Unidad = 'mensual' | 'catorcenal' | 'semanal' | 'diaria' | 'spot' | 'hora' | 'cpm'
 
 // `plural` es explícito y no `corta + 's'`: en español una palabra terminada en
 // -s tónica pluraliza en -es, así que la regla automática escribía «2 mess» en
@@ -24,9 +24,27 @@ export const UNIDADES: { unidad: Unidad; label: string; corta: string; plural: s
   { unidad: 'catorcenal', label: 'Catorcenal', corta: 'catorcena', plural: 'catorcenas' },
   { unidad: 'semanal', label: 'Semanal', corta: 'semana', plural: 'semanas' },
   { unidad: 'diaria', label: 'Diaria', corta: 'día', plural: 'días' },
-  { unidad: 'spot', label: 'Por spot', corta: 'spot', plural: 'spots' },
+  // CPS-CPM (07/10) · «Por spot» se llama como lo dice ventas: CPS, costo por
+  // salida. La CLAVE sigue siendo `spot` a propósito: es la que guardan las
+  // propuestas, reservas y tarifas de antes, y cambiarla les cambiaría el
+  // significado sin migrarlas. Solo cambia lo que se lee.
+  { unidad: 'spot', label: 'CPS · costo por salida', corta: 'salida', plural: 'salidas' },
   { unidad: 'hora', label: 'Por hora', corta: 'hora', plural: 'horas' },
+  // CPM · costo por millar. La cantidad son MILLARES de impactos, no impactos:
+  // así el importe sigue siendo `tarifa × cantidad` en todas partes (volumen,
+  // snapshot, PDF, reserva). Con impactos habría que dividir entre 1000 en cada
+  // sitio que multiplica, y el que se olvidara cobraría mil veces de más.
+  { unidad: 'cpm', label: 'CPM · costo por millar', corta: 'millar', plural: 'millares' },
 ]
+
+// Las unidades cuya cantidad la teclea quien vende en vez de salir de las
+// fechas. Una sola lista: antes eran tres `unidad === 'spot' || unidad ===
+// 'hora'` sueltos, y añadir CPM a dos de los tres habría derivado su cantidad
+// del rango en el tercero.
+const CANTIDAD_MANUAL: readonly string[] = ['spot', 'hora', 'cpm']
+export function esCantidadManual(unidad: string): boolean {
+  return CANTIDAD_MANUAL.includes(unidad)
+}
 
 export const UNIDAD_LABEL: Record<string, string> = Object.fromEntries(
   UNIDADES.map((u) => [u.unidad, u.label]),
@@ -181,10 +199,10 @@ function finDeMeses(fechaInicio: string, n: number): string {
   return isoUTC(Date.UTC(y, m + n, d) - 86_400_000)
 }
 
-// Cuántos periodos de `unidad` caben en el rango. Para spot/hora devuelve null:
+// Cuántos periodos de `unidad` caben en el rango. Para spot/hora/cpm devuelve null:
 // esa cantidad no se deriva del tiempo, la pone el usuario.
 export function periodosEnRango(unidad: Unidad, fechaInicio: string, fechaFin: string): number | null {
-  if (unidad === 'spot' || unidad === 'hora') return null
+  if (esCantidadManual(unidad)) return null
   const dias = diasInclusivos(fechaInicio, fechaFin)
   if (dias <= 0) return 0
   if (unidad === 'mensual') {
@@ -201,7 +219,7 @@ export function periodosEnRango(unidad: Unidad, fechaInicio: string, fechaFin: s
 }
 
 // La cantidad efectiva del ítem: para unidades de tiempo, los periodos del
-// rango; para spot/hora, la cantidad manual (mínimo 1).
+// rango; para spot/hora/cpm, la cantidad manual (mínimo 1).
 export function cantidadEfectiva(
   unidad: Unidad,
   fechaInicio: string,
@@ -220,7 +238,7 @@ export function cantidadEfectiva(
 export function fechaFinDesde(fechaInicio: string, unidad: Unidad, cantidad: number): string {
   const base = Date.parse(fechaInicio)
   if (Number.isNaN(base) || !cantidad || cantidad < 1) return ''
-  if (unidad === 'spot' || unidad === 'hora') return ''
+  if (esCantidadManual(unidad)) return ''
   if (unidad === 'mensual') return finDeMeses(fechaInicio, Math.round(cantidad))
   const factor = unidad === 'catorcenal' ? 14 : unidad === 'semanal' ? 7 : 1
   const diasTotal = Math.round(cantidad * factor)
