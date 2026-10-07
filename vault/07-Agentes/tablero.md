@@ -6,6 +6,13 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!warning] 2026-10-06 · **SEIS RAMAS ESPERAN AL DUEÑO** — ninguna está en `main`
+> `feat/invitacion-usuarios` (Z1, ROJO R1) · `feat/finanzas-periodos` (Z7/Z9, ROJO R4 + migración) ·
+> `feat/propuestas-tablero` (Z5, migración; sale de la de finanzas: **fusionarla después**) ·
+> `fix/space-eyes-revision` (para José) · `feat/disponibilidad-slots-libres` y
+> `feat/descuento-comercial-cero` (Z5, verdes). Cada una trae su reclamo en SU copia de este
+> tablero; al fusionar, **juntar** las entradas, no quedarse con un lado. Detalle en [[2026-10-06]].
+
 > [!success] 2026-10-06 · **SEMILLA-CATALOGO · Z12 y la semilla de demo — RECLAMADO Y LIBERADO** · VERDE (solo datos de demo)
 > Rama `feat/semilla-catalogo-demo`, salida de `main` (`a0bdd4c7`). **Sin
 > migración, sin tocar código de la aplicación**: `scripts/semilla-catalogo-demo.mjs`
