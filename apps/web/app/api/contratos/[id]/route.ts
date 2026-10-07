@@ -30,7 +30,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   // operaciones distintas para quien la revise después.
   const incompleto = (await estatusContrato(params.id)) === 'INCOMPLETO'
   try {
-    const contrato = await editarContratoCtrl(params.id, await req.json().catch(() => ({})))
+    // El usuario va aparte del cuerpo: QUIÉN capturó el cambio sale de la
+    // sesión, nunca de lo que mande el navegador (CONTRATO-CAMBIOS, 07/10).
+    const contrato = await editarContratoCtrl(params.id, await req.json().catch(() => ({})), g.usuario)
     // El audit distingue completar de editar: son operaciones distintas para
     // quien revise la bitácora después.
     const quedoCompleto = incompleto && contrato.estatus !== 'INCOMPLETO'

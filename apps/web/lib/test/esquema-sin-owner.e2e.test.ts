@@ -189,7 +189,12 @@ describe('el esquema base no trae la organización de nadie', () => {
     //     `cobranza_abonos`, cada pago de un cliente con su fecha (ADR 0046).
     //     Undecima vez, y otra vez desde la corrida completa: las 16 e2e
     //     propias de la tarea estaban en verde.
-    expect(trasMigrar.tablas).toBe(58)
+    //   · 59 el 2026-10-07: `20261010_contrato_cambios.sql` anade
+    //     `contrato_cambios`, el historial de cambios de un contrato de
+    //     arrendamiento con quien los propuso (CONTRATO-CAMBIOS). Duodecima
+    //     vez, y otra vez desde la corrida completa: las 9 e2e propias de la
+    //     tarea estaban en verde.
+    expect(trasMigrar.tablas).toBe(59)
     // Lo que de verdad importa: ni las migraciones resucitan al owner.
     expect(trasMigrar.tenants).toBe(0)
   })

@@ -5,6 +5,26 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-10-07
+
+- **Un contrato de arrendador se puede cambiar antes de firmarlo, y queda
+  escrito quién pidió cada cambio.** *(Pedido tuyo del 07/10.)* En la ficha del
+  contrato hay una sección nueva, **«Cambios al contrato»**, con el botón
+  **«Editar términos»**: renta, periodicidad, fechas, moneda, depósito,
+  renovación automática, arrendador, su razón social y con cuál de tus razones
+  sociales se paga.
+  - Al guardar eliges **quién lo propuso** —el arrendador o nosotros— y puedes
+    anotar el motivo. El sistema guarda además **quién lo capturó** y cuándo.
+  - Debajo ves el **historial**: cada cambio con lo que había antes y lo que
+    quedó, del más nuevo al más viejo. Guardar sin cambiar nada no deja renglón.
+  - **Si ya se había enviado a firma** y nadie ha firmado, el cambio se permite,
+    pero **el enlace que tenía el arrendador deja de servir** (así no puede
+    firmar la versión vieja) y hay que volver a enviarlo. La pantalla lo avisa
+    antes de guardar.
+  - **Ya firmado no se cambia**, igual que antes: se hace un contrato nuevo.
+  - Los cambios de antes de hoy no aparecen: no había dónde sacar quién los
+    pidió, y no se inventa.
+
 ## 2026-10-06
 
 - **Disponibilidad: en las pantallas digitales ahora ves cuántos espacios

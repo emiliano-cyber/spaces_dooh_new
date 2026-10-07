@@ -6,6 +6,7 @@ import { cn } from '@/lib/cn'
 import { Sheet } from '@/components/demo/ui/Sheet'
 import { Modal } from '@/components/demo/ui/Modal'
 import { LicenciasCard } from '@/components/demo/arrendadores/LicenciasCard'
+import { CambiosContrato } from '@/components/demo/arrendadores/CambiosContrato'
 import { Button } from '@/components/demo/ui/Button'
 import {
   StatusBadge,
@@ -238,6 +239,11 @@ export function ContratoSheet({
               )}
             </div>
           </div>
+
+          {/* CONTRATO-CAMBIOS (07/10): editar los términos antes de firmar,
+              con quién propuso cada cambio, y el historial. La `key` lo
+              reinicia al abrir otro contrato con la ficha ya montada. */}
+          <CambiosContrato key={contrato.id} contrato={contrato} onToast={onToast} />
 
           {/* Licencias y permisos del emplazamiento. Se anclan igual que el
               contrato: al predio si la pantalla pertenece a uno —y entonces

@@ -186,7 +186,8 @@ en `:230-237`) y **no** puede condicionarse a que la ruta
 | PATCH | `/api/arrendadores/[id]` | **SENSIBLE** |
 | DELETE | `/api/arrendadores/[id]` | **REAUTH** + `arrendadores:aprobar` |
 | POST | `/api/contratos` | **SENSIBLE** |
-| PATCH | `/api/contratos/[id]` | **SENSIBLE** |
+| PATCH | `/api/contratos/[id]` | **SENSIBLE** (07/10) acepta `propuestoPor` (ARRENDADOR/ARRENDATARIO) y `motivo`; deja un renglón en `contrato_cambios` con el usuario de la sesión; si estaba enviado a firma, anula el envío |
+| GET | `/api/contratos/[id]/cambios` | `arrendadores` ver (07/10): historial de cambios, del más nuevo al más viejo |
 | POST | `/api/contratos/[id]/cancelar` | **SENSIBLE** |
 | POST | `/api/contratos/[id]/renovar` | **SENSIBLE** |
 | GET | `/api/contratos/[id]/documento` | `arrendadores` **o** `finanzas` |

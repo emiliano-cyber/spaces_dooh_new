@@ -550,6 +550,10 @@ export async function editarContratoApi(
     entidadId?: string | null
     deposito?: number | null
     documentoUrl?: string | null
+    // CONTRATO-CAMBIOS (07/10): qué parte pidió el cambio y por qué. Van al
+    // historial, no al contrato. Quién lo capturó lo pone el servidor.
+    propuestoPor?: 'ARRENDADOR' | 'ARRENDATARIO'
+    motivo?: string
   },
 ): Promise<void> {
   const r = await fetch(`${API}/contratos/${contratoId}/`, {
@@ -560,6 +564,40 @@ export async function editarContratoApi(
   const d = await r.json().catch(() => ({}))
   if (!r.ok) throw new Error(d.error ?? 'No se pudo guardar el contrato')
   await refrescarEstado()
+}
+
+// Historial de cambios de un contrato, del más nuevo al más viejo.
+export interface CambioContratoUI {
+  id: string
+  propuestoPor: 'ARRENDADOR' | 'ARRENDATARIO' | null
+  motivo: string | null
+  usuarioNombre: string
+  cambios: { campo: string; etiqueta: string; antes: string | null; despues: string | null }[]
+  envioAnulado: boolean
+  creadoEn: string
+}
+
+export async function cambiosDeContratoApi(contratoId: string): Promise<CambioContratoUI[]> {
+  const r = await fetch(`${API}/contratos/${contratoId}/cambios/`, { cache: 'no-store' })
+  const d = await r.json().catch(() => [])
+  if (!r.ok) throw new Error((d as { error?: string }).error ?? 'No se pudo leer el historial')
+  return d as CambioContratoUI[]
+}
+
+// Cómo va la firma del contrato, reducido a lo que decide si se puede editar:
+// `firmado` (alguien ya firmó: no se cambia) y `enviado` (hay enlace vivo: si
+// se cambia, el envío se anula). Lee el mismo GET que el panel de firmas.
+export async function estadoFirmaContratoApi(
+  contratoId: string,
+): Promise<{ firmado: boolean; enviado: boolean }> {
+  const r = await fetch(`${API}/contratos/${contratoId}/firma/`, { cache: 'no-store' })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error((d as { error?: string }).error ?? 'No se pudo leer el estado de la firma')
+  const firmas = ((d as { firmas?: { estatus: string }[] }).firmas ?? [])
+  return {
+    firmado: firmas.some((f) => f.estatus === 'FIRMADA'),
+    enviado: !!(d as { hashCongelado?: string | null }).hashCongelado,
+  }
 }
 
 export async function reportarIncidenciaApi(input: {

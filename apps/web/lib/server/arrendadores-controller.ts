@@ -250,10 +250,19 @@ const editarContratoSchema = z.object({
   // la del OWNER —quien PAGA—. Se parecen en el nombre y no tienen nada que ver;
   // el aviso está aquí porque es donde se confunden.
   entidadId: z.string().uuid().nullish(),
+  // CONTRATO-CAMBIOS (07/10): QUÉ PARTE pidió el cambio y por qué. No son
+  // columnas del contrato: se separan del patch abajo y van al historial.
+  // QUIÉN lo capturó no viaja en el cuerpo: sale de la sesión.
+  propuestoPor: z.enum(['ARRENDADOR', 'ARRENDATARIO']).nullish(),
+  motivo: z.string().trim().max(500, 'El motivo no puede pasar de 500 caracteres').nullish(),
 }).strict()
 
-export async function editarContratoCtrl(id: string, body: unknown) {
-  const d = editarContratoSchema.parse(body ?? {})
+export async function editarContratoCtrl(
+  id: string,
+  body: unknown,
+  usuario?: { id: string; nombre: string },
+) {
+  const { propuestoPor, motivo, ...d } = validar(editarContratoSchema, body ?? {})
   // Atajo barato: con las dos fechas en el patch se sabe sin consultar la fila.
   // La comprobación de verdad —contra la fecha ya guardada cuando el patch trae
   // solo una— la hace el model; ver `fechasInvertidas` más abajo (UX-01).
@@ -261,7 +270,13 @@ export async function editarContratoCtrl(id: string, body: unknown) {
   if (fi && ff && ordenInvertido(fi, ff)) {
     throw new AppError('La fecha de fin no puede ser anterior a la de inicio', 400)
   }
-  const r = await editarContrato(id, d)
+  const r = await editarContrato(
+    id,
+    d,
+    usuario
+      ? { usuarioId: usuario.id, nombre: usuario.nombre, propuestoPor: propuestoPor ?? null, motivo: motivo || null }
+      : undefined,
+  )
   if ('noEncontrado' in r) throw new AppError('Contrato no encontrado', 404)
   if ('fechasInvertidas' in r) {
     // Se nombran las dos fechas: quien edita ve el formulario del contrato con

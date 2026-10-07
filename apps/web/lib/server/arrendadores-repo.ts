@@ -11,6 +11,7 @@ import { periodoDeIndice, montoMensualEquivalente } from '../renta-periodicidad'
 import { exigirArrendador, exigirSitioEnElPredio } from './contratos-sitio'
 import { sumarDias } from '../contrato-vigencia'
 import { rutaDocumentoContrato } from '../medios-url'
+import { diferenciasContrato, idsMencionados, type PartePropone } from '../contrato-cambios'
 
 // ============================================================================
 //  lib/server/arrendadores-repo.ts — Arrendadores, contratos de arrendamiento
@@ -1119,6 +1120,17 @@ export async function estatusContrato(id: string): Promise<string | null> {
 
 // Edita un contrato (campos provistos). Recalcula el estatus por fechas salvo que
 // esté CANCELADO (en cuyo caso no se edita: se debe crear uno nuevo).
+//
+// `quien` es quién hace la edición y qué parte la pidió (CONTRATO-CAMBIOS,
+// 07/10). La ruta lo arma con la SESIÓN —el usuario— y el cuerpo —la parte y el
+// motivo—. Sin él la edición se aplica igual pero no deja renglón de historial.
+export interface QuienCambia {
+  usuarioId: string
+  nombre: string
+  propuestoPor?: PartePropone | null
+  motivo?: string | null
+}
+
 export async function editarContrato(id: string, patch: {
   fechaInicio?: string; fechaFin?: string; montoRenta?: number; periodicidad?: string
   moneda?: string; deposito?: number | null; documentoUrl?: string | null
@@ -1127,7 +1139,7 @@ export async function editarContrato(id: string, patch: {
   // `undefined` no la toca. No confundir con `razonSocialId`, que es la del
   // ARRENDADOR — quien me COBRA.
   entidadId?: string | null
-}): Promise<
+}, quien?: QuienCambia): Promise<
   | { noEncontrado: true }
   | { cancelado: true }
   | { firmado: true }
@@ -1271,6 +1283,54 @@ export async function editarContrato(id: string, patch: {
     // un error de base de datos incomprensible para quien lo está capturando.
     const completo = arrendador != null && ff != null && monto != null && per != null
     provided.push(['estatus', completo ? estatusPorFechas(fi, ff) : 'INCOMPLETO'])
+
+    // ─── El historial (CONTRATO-CAMBIOS, 07/10) ─────────────────────────────
+    // Se calcula contra la fila de ANTES y se escribe en esta misma
+    // transacción: si la edición revierte, el renglón también, y no puede
+    // quedar anotado un cambio que no ocurrió (ni al revés).
+    const ids = idsMencionados(cur[0], patch)
+    const nombres: Record<string, string> = {}
+    if (ids.length) {
+      const { rows: ns } = await client.query(
+        `select id::text as id, nombre from arrendadores where tenant_id = $2 and id::text = any($1)
+         union all
+         select id::text, razon_social from arrendador_razon_social where tenant_id = $2 and id::text = any($1)
+         union all
+         select id::text, razon_social from entidades_fiscales where tenant_id = $2 and id::text = any($1)`,
+        [ids, tenantId],
+      )
+      for (const n of ns) nombres[n.id] = n.nombre
+    }
+    const cambios = diferenciasContrato(cur[0], patch, nombres)
+
+    // Si ya se había enviado a firma y nadie ha firmado (lo firmado se rechazó
+    // arriba), el texto congelado dejó de ser lo acordado y el arrendador podía
+    // firmar desde su enlace la versión VIEJA: la firma salía «invalidada»
+    // después, cuando ya no tenía arreglo. Ahora se anula el envío —se borran
+    // las firmas pendientes con su enlace y se descongela el texto— y la
+    // pantalla pide volver a enviarlo con lo nuevo.
+    //
+    // El PDF adjunto NO cuenta: `documentoATexto` no lo recita, así que subirlo
+    // no cambia lo que se firma, y anular por eso obligaría al arrendador a
+    // volver a firmar exactamente el mismo texto.
+    const envioAnulado =
+      cambios.some((c) => c.campo !== 'documentoUrl') && cur[0].documento_hash != null
+    if (envioAnulado) {
+      await client.query(
+        `delete from contrato_firmas where contrato_id = $1 and tenant_id = $2 and estatus <> 'FIRMADA'`,
+        [id, tenantId],
+      )
+      provided.push(['documento_congelado', null], ['documento_hash', null], ['congelado_en', null])
+    }
+    if (cambios.length && quien) {
+      await client.query(
+        `insert into contrato_cambios
+           (tenant_id, contrato_id, propuesto_por, motivo, usuario_id, usuario_nombre, cambios, envio_anulado)
+         values ($1, $2, $3, $4, $5, $6, $7::jsonb, $8)`,
+        [tenantId, id, quien.propuestoPor ?? null, quien.motivo?.trim() || null,
+         quien.usuarioId, quien.nombre, JSON.stringify(cambios), envioAnulado],
+      )
+    }
 
     const sets = provided.map(([c], i) =>
       c === 'periodicidad' ? `${c} = $${i + 1}::periodicidad_pago`
@@ -1495,4 +1555,37 @@ export async function borrarLicencia(id: string) {
     [id, await tenantActual()],
   )
   return rows.length > 0
+}
+
+// ─── Historial de cambios de un contrato (CONTRATO-CAMBIOS, 07/10) ──────────
+// Del más nuevo al más viejo. El `tenant_id` va además de la RLS, como en toda
+// lectura por id: si la RLS faltara, esto seguiría sin enseñar lo ajeno.
+export interface CambioContrato {
+  id: string
+  propuestoPor: PartePropone | null
+  motivo: string | null
+  usuarioNombre: string
+  cambios: { campo: string; etiqueta: string; antes: string | null; despues: string | null }[]
+  envioAnulado: boolean
+  creadoEn: string
+}
+
+export async function cambiosDeContrato(contratoId: string): Promise<CambioContrato[]> {
+  const tenantId = await tenantActual()
+  const rows = await q<Record<string, any>>(
+    `select id, propuesto_por, motivo, usuario_nombre, cambios, envio_anulado, creado_en
+       from contrato_cambios
+      where contrato_id = $1 and tenant_id = $2
+      order by creado_en desc, id`,
+    [contratoId, tenantId],
+  )
+  return rows.map((r) => ({
+    id: r.id,
+    propuestoPor: r.propuesto_por ?? null,
+    motivo: r.motivo ?? null,
+    usuarioNombre: r.usuario_nombre,
+    cambios: Array.isArray(r.cambios) ? r.cambios : [],
+    envioAnulado: !!r.envio_anulado,
+    creadoEn: r.creado_en instanceof Date ? r.creado_en.toISOString() : String(r.creado_en),
+  }))
 }

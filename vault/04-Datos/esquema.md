@@ -1,7 +1,7 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-10-07
 tags: [datos, esquema, er, postgres]
 archivos:
   - db/schema.sql
@@ -25,7 +25,7 @@ archivos:
 > [!important] 2026-10-05 · puesta al día — lo que abajo dice «pendiente» o «SIN FUSIONAR» YA ESTÁ en `main`
 > Medido hoy con `node scripts/recuentos.mjs` sobre el árbol de
 > `integra/riesgos-presentacion-14-oct` (salida de `main` en `09c65ca2`):
-> **58 tablas y 107 migraciones** (06/10, con `cobranza_abonos`; antes 57 y 106). `db/schema.sql` tiene **679 líneas**
+> **59 tablas y 109 migraciones** (07/10, con `contrato_cambios`; antes 58 y 108) (06/10, con `cobranza_abonos`; antes 57 y 106). `db/schema.sql` tiene **679 líneas**
 > (`wc -l`) y **28** `create table`; las **29** restantes llegan por migración.
 >
 > Los recuadros de abajo se conservan como historia, pero su estado caducó:
@@ -593,6 +593,9 @@ erDiagram
 ### Comercial · fechas de estatus
 `propuestas.aprobada_en` y `propuestas.rechazada_en` (06/10, PROP-PER): cuándo se aprobó o rechazó, para el tablero por periodo.
 
+### Arrendadores · historial de cambios del contrato
+`contrato_cambios` (07/10, CONTRATO-CAMBIOS): un renglón por edición que cambió algo — qué parte lo propuso (`propuesto_por`: ARRENDADOR / ARRENDATARIO, NULL si no es negociación), quién lo capturó (`usuario_id` + `usuario_nombre` copiado), el motivo, la lista `cambios` (jsonb, antes/después ya legibles) y si anuló un envío a firma (`envio_anulado`). Solo se inserta: el rol de la aplicación tiene `select, insert` y nada más. Ver [[02-Backend/arrendadores-y-contratos]].
+
 ### Finanzas
 `facturas`, `cobranzas`, `cobranza_abonos` (06/10: cada pago con su fecha, ADR 0046).
 
@@ -669,7 +672,7 @@ Restricciones **UNIQUE globales** (sin tenant): `sitios.clave_interna`,
 | `usuarios` | `sesiones`, `identidades_externas`, `password_resets` |
 | `sitios` | `sitio_modalidades`, `incidencias` |
 | `campanas` | `reservas`, `creatividades`, `ordenes_compra`, `ordenes_impresion` |
-| `contratos_arrendamiento` | `pagos_renta` |
+| `contratos_arrendamiento` | `pagos_renta`, `contrato_firmas`, `contrato_cambios` |
 | `propuestas` | `propuesta_items` |
 | `facturas` | `cobranzas` |
 | `cobranzas` | `cobranza_abonos` |

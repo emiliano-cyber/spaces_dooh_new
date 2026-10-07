@@ -1,12 +1,15 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-10-07
 tags: [backend, arrendadores, contratos, dinero, rojo]
 archivos:
   - apps/web/lib/server/arrendadores-repo.ts
   - apps/web/lib/server/arrendadores-controller.ts
   - apps/web/lib/server/firmas-repo.ts
+  - apps/web/lib/contrato-cambios.ts
+  - apps/web/components/demo/arrendadores/CambiosContrato.tsx
+  - db/migrations/20261010_contrato_cambios.sql
   - apps/web/lib/server/contrato-expediente.ts
   - apps/web/lib/server/contratos-sitio.ts
   - apps/web/lib/server/operaciones-eventos.ts
@@ -85,6 +88,34 @@ con `predio_id` → el predio completo; sin él → la pantalla suelta.
 > guarda en el alta y se edita desde la lista de Arrendadores. **`documentoATexto`
 > no cambió**: `faltantes` no entra en el texto que se firma, así que ninguna
 > firma existente se invalidó.
+
+## Cambios antes de firmar, con quién los propuso (07/10)
+
+Pedido del dueño el 07/10. `editarContrato` (`arrendadores-repo.ts`) escribe, en la
+MISMA transacción que la edición, un renglón en `contrato_cambios` con:
+
+- **qué parte lo propuso** (`propuesto_por`: ARRENDADOR / ARRENDATARIO), que llega
+  en el cuerpo del PATCH y valida el controller; NULL cuando no es negociación
+  («Completar información», «La paga → Cambiar»);
+- **quién lo capturó**, de la sesión (`app/api/contratos/[id]/route.ts` pasa
+  `g.usuario`), nunca del cuerpo: el esquema es `.strict()`;
+- **qué cambió**, ya legible: `lib/contrato-cambios.ts` compara normalizado
+  (fechas por día, importes a dos decimales), anota los ids con el NOMBRE de ese
+  momento y el PDF solo como «anterior / nuevo». Sin cambios no hay renglón.
+
+**Si estaba enviado a firma** (hay `documento_hash`) y nadie firmó, el cambio
+**anula el envío**: borra las firmas pendientes —con el token del arrendador— y
+descongela el texto. Antes el enlace seguía vivo y el arrendador podía firmar la
+versión vieja; la firma salía «invalidada» cuando ya no tenía arreglo. Lo
+firmado sigue sin poder cambiarse (409). Subir el **PDF** adjunto se anota pero **no** anula el envío:
+`documentoATexto` no lo recita, así que el texto que se firma no cambia.
+
+La pantalla es `components/demo/arrendadores/CambiosContrato.tsx`, dentro de
+`ContratoSheet`; el historial lo sirve `GET /api/contratos/[id]/cambios`
+(`ver`). Pruebas: `lib/contrato-cambios.test.ts`, el controller, y
+`lib/test/contrato-cambios.e2e.test.ts` (historial, envío anulado con el enlace
+muerto, firmado intocable y aislamiento entre organizaciones), con dos
+mutantes del repo que mueren. Tabla en [[04-Datos/esquema]].
 
 ## Predio vs pantalla suelta
 

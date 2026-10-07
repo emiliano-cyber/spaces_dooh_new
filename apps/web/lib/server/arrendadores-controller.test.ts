@@ -345,3 +345,43 @@ describe('VAL-11 · la vigencia de la licencia se compara por calendario', () =>
     ).rejects.toThrow('no puede vencer antes de expedirse')
   })
 })
+
+// ─── CONTRATO-CAMBIOS (07/10) · quién propuso el cambio ─────────────────────
+// La parte y el motivo vienen del cuerpo; QUIÉN captura, de la sesión. El
+// esquema es `.strict()`, así que antes de esto un `propuestoPor` en el cuerpo
+// era un 400. Y lo que llega al repo como patch no puede llevarlos: el repo
+// convierte cada clave del patch en una columna.
+describe('editarContratoCtrl — quién propuso el cambio', () => {
+  const ANA = { id: 'U1', nombre: 'Ana López' }
+
+  it('separa la parte y el motivo del patch y los pasa con el usuario de la sesión', async () => {
+    repo.editarContrato.mockResolvedValueOnce({ contrato: { id: 'C1' } })
+    await editarContratoCtrl('C1', { montoRenta: 18000, propuestoPor: 'ARRENDADOR', motivo: ' pidió más renta ' }, ANA)
+    expect(repo.editarContrato).toHaveBeenCalledWith(
+      'C1',
+      { montoRenta: 18000 },
+      { usuarioId: 'U1', nombre: 'Ana López', propuestoPor: 'ARRENDADOR', motivo: 'pidió más renta' },
+    )
+  })
+
+  it('una parte que no existe se rechaza antes de tocar la base', async () => {
+    await expect(editarContratoCtrl('C1', { montoRenta: 18000, propuestoPor: 'EL_VECINO' }, ANA))
+      .rejects.toMatchObject({ status: 400 })
+    expect(repo.editarContrato).not.toHaveBeenCalled()
+  })
+
+  it('el motivo tiene tope, igual que en la base', async () => {
+    await expect(editarContratoCtrl('C1', { montoRenta: 18000, motivo: 'x'.repeat(501) }, ANA))
+      .rejects.toMatchObject({ status: 400 })
+    expect(repo.editarContrato).not.toHaveBeenCalled()
+  })
+
+  it('sin parte (completar un contrato) se anota igual, con la parte vacía', async () => {
+    repo.editarContrato.mockResolvedValueOnce({ contrato: { id: 'C1' } })
+    await editarContratoCtrl('C1', { fechaFin: '2027-12-31' }, ANA)
+    expect(repo.editarContrato).toHaveBeenCalledWith(
+      'C1', { fechaFin: '2027-12-31' },
+      { usuarioId: 'U1', nombre: 'Ana López', propuestoPor: null, motivo: null },
+    )
+  })
+})
