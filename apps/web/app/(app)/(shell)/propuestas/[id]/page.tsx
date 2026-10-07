@@ -1,7 +1,7 @@
 'use client'
 
-
 import { toast } from 'sonner'
+import { pctConDosDecimales } from '@/lib/descuento-comercial'
 import { conteo } from '@/lib/plural'
 import { resumenContratacion, etiquetaFrecuencia } from '@/lib/periodos'
 import { etiquetaCalculadora } from '@/lib/calculadora-spots'
@@ -93,7 +93,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
   const router = useRouter()
   const [generando, setGenerando] = useState(false)
   const [copiado, setCopiado] = useState(false)
-  const [descInput, setDescInput] = useState('')
+  const [descInput, setDescInput] = useState('0.00')
   const [guardandoDesc, setGuardandoDesc] = useState(false)
   // PAQ-01 (ADR 0039, Fase 4) · el paquete que se está por aplicar. Solo el ID
   // viaja al servidor: el precio sale del catálogo bajo RLS y NUNCA del
@@ -105,7 +105,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
   const pActual = propuestas?.find((x) => x.id === id)
   // Sincroniza el input de descuento con el valor actual al cargar/cambiar.
   useEffect(() => {
-    if (pActual) setDescInput(String(pActual.descuentoPct))
+    if (pActual) setDescInput(pctConDosDecimales(pActual.descuentoPct))
   }, [pActual?.id, pActual?.descuentoPct])
 
   // PAQ-01 · el catálogo de paquetes, para el selector. Se lee UNA vez y con el
@@ -409,7 +409,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                   tono="text-error"
                 />
               )}
-              <Fila label={`Descuento comercial (${p.descuentoPct}%)`} valor={p.descuentoMonto ? `− ${formatMonto(p.descuentoMonto)}` : '—'} tono={p.descuentoMonto ? 'text-error' : undefined} />
+              <Fila label={`Descuento comercial (${pctConDosDecimales(p.descuentoPct)}%)`} valor={p.descuentoMonto ? `− ${formatMonto(p.descuentoMonto)}` : '—'} tono={p.descuentoMonto ? 'text-error' : undefined} />
               {/* COD-01 · el renglón aparece SOLO cuando hay código, y tiene que
                   aparecer con SU NOMBRE: un descuento sin decir de qué cupón salió
                   no se puede explicar seis meses después, y sin él la escalera no
@@ -452,9 +452,10 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                   <div className="mt-2 flex items-center gap-2">
                     <div className="relative">
                       <input
-                        type="number" min={0} max={topeDescuento} step={1}
+                        type="number" min={0} max={topeDescuento} step={0.01}
                         value={descInput}
                         onChange={(e) => setDescInput(e.target.value)}
+                        onBlur={() => { if (descInput.trim() === '') setDescInput('0.00') }}
                         className="h-9 w-24 rounded border border-border-strong bg-surface pl-3 pr-6 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
                       />
                       <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[12px] text-muted">%</span>

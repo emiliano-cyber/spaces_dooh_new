@@ -66,6 +66,12 @@ El precio **neto** sale de dividir el **bruto** entre `(1 − comisión)`
 (`propuestas.comision_pct` vs `propuestas.descuento_pct`). Confundirlos cambia
 lo que se le cobra al cliente.
 
+En la ficha de la propuesta el descuento comercial se muestra **siempre con dos
+decimales y por omisión «0.00»** (pedido del dueño, 06/10): el campo vacío o un
+«0» a secas hacían dudar de si faltaba el dato. Admite centésimas (`step 0.01`),
+que es lo que guarda la columna `numeric(5,2)`; si se borra el campo vuelve a
+0.00. Formato en `pctConDosDecimales` (`lib/descuento-comercial.ts`).
+
 ## Reglas codificadas
 
 | Regla | Dónde |
