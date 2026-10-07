@@ -1,6 +1,8 @@
 import 'server-only'
 import { randomBytes } from 'crypto'
-import { pool, q, q1, fijarTenant } from './db'
+import { pool, q, q1, fijarTenant, withTenantTx } from './db'
+import { AppError } from './errores'
+import type { DatosFinanzas } from '../finanzas-periodo'
 import { tenantActual } from './tenant'
 import {
   repartirCuotas, INTERVALO_PERIODO, duracionMeses, opcionesParcialidad, PERIODICIDAD_LABEL,
@@ -272,39 +274,152 @@ export async function generarFactura(
 // Registrar pago de una cobranza. Admite abonos parciales: si no se pasa monto,
 // se liquida el total. La cobranza queda PAGADA solo cuando lo pagado cubre el
 // total de la factura (cobranza viva: "por cobrar" refleja el saldo real).
-export async function registrarPagoCobranza(cobranzaId: string, monto?: number | null) {
-  const cob = await q1<any>('select * from cobranzas where id=$1', [cobranzaId])
-  if (!cob) return null
-  const fac = await q1<any>('select monto, folio from facturas where id=$1', [cob.factura_id])
-  // El total a cubrir es el de ESTA cobranza: si es una parcialidad, su propio
-  // importe; si es cobro único (histórico), el de la factura. Usar siempre el de
-  // la factura haría que abonar una cuota liquidara la factura entera.
-  const total = cob.monto != null ? Number(cob.monto) : Number(fac?.monto ?? 0)
-  const yaPagado = Number(cob.monto_pagado ?? 0)
-  const abono = monto != null && monto > 0 ? Math.min(monto, total - yaPagado) : total - yaPagado
-  const nuevoPagado = Math.round((yaPagado + abono) * 100) / 100
-  const liquidado = nuevoPagado >= total
-  await q(
-    `update cobranzas set monto_pagado=$2, estatus = case when $3 then 'PAGADA'::est_cobranza else estatus end where id=$1`,
-    [cobranzaId, nuevoPagado, liquidado],
-  )
-  // La factura queda PAGADA solo cuando no le queda ninguna parcialidad viva.
-  // Con cobro único es equivalente a lo de antes; con parcialidades, marcarla al
-  // liquidar la primera daría por cobrado lo que no se ha cobrado.
-  if (liquidado) {
-    const vivas = await q1<{ n: string }>(
-      `select count(*)::text as n from cobranzas where factura_id=$1 and estatus <> 'PAGADA'`,
-      [cob.factura_id],
+//
+// Desde el 06/10 (ADR 0046) cada pago deja además su renglón en
+// `cobranza_abonos` —importe, DÍA en que se recibió y quién lo registró—, que
+// es lo que permite decir cuánto se cobró en un periodo. Va todo en UNA
+// transacción y con la fila de la cobranza BLOQUEADA (`for update`):
+//
+//   · el invariante `monto_pagado = sum(abonos)` no puede quedar a medias;
+//   · dos pagos a la vez (el doble clic) leían el mismo `monto_pagado` y
+//     sumaban los dos. Con el bloqueo, el segundo espera, ve la cobranza ya
+//     liquidada y recibe un 409.
+//
+// Y una cobranza ya pagada se rechaza: antes «pagarla» otra vez registraba un
+// pago de $0 «(liquidado)» en la bitácora.
+export async function registrarPagoCobranza(
+  cobranzaId: string,
+  monto?: number | null,
+  opts: { fecha?: string | null; usuarioId?: string | null } = {},
+) {
+  const tenant = await tenantActual()
+  return withTenantTx(async (cx) => {
+    const cob = (
+      await cx.query('select * from cobranzas where id=$1 and tenant_id=$2 for update', [cobranzaId, tenant])
+    ).rows[0]
+    if (!cob) return null
+    const fac = (
+      await cx.query('select monto, folio from facturas where id=$1 and tenant_id=$2', [cob.factura_id, tenant])
+    ).rows[0]
+    // El total a cubrir es el de ESTA cobranza: si es una parcialidad, su propio
+    // importe; si es cobro único (histórico), el de la factura. Usar siempre el de
+    // la factura haría que abonar una cuota liquidara la factura entera.
+    const total = cob.monto != null ? Number(cob.monto) : Number(fac?.monto ?? 0)
+    const yaPagado = Number(cob.monto_pagado ?? 0)
+    const saldoPrevio = Math.round((total - yaPagado) * 100) / 100
+    if (saldoPrevio <= 0) throw new AppError('Esta cobranza ya está pagada', 409)
+
+    // El día lo pone la BASE (zona America/Mexico_City en producción): el
+    // reloj del servidor de la app está en UTC y a las 19:00 ya es mañana.
+    const hoy: string = (await cx.query(`select to_char(current_date, 'YYYY-MM-DD') as d`)).rows[0].d
+    const fecha = opts.fecha ?? hoy
+    if (fecha > hoy) throw new AppError('La fecha del pago no puede ser futura', 400)
+
+    const abono = Math.round((monto != null && monto > 0 ? Math.min(monto, saldoPrevio) : saldoPrevio) * 100) / 100
+    const nuevoPagado = Math.round((yaPagado + abono) * 100) / 100
+    const liquidado = nuevoPagado >= total
+    await cx.query(
+      `update cobranzas set monto_pagado=$2, estatus = case when $3 then 'PAGADA'::est_cobranza else estatus end
+        where id=$1 and tenant_id=$4`,
+      [cobranzaId, nuevoPagado, liquidado, tenant],
     )
-    if (Number(vivas?.n ?? 0) === 0) {
-      await q(`update facturas set estatus='PAGADA' where id=$1`, [cob.factura_id])
+    await cx.query(
+      `insert into cobranza_abonos (tenant_id, cobranza_id, monto, fecha, origen, usuario_id)
+       values ($1, $2, $3, $4, 'registro', $5)`,
+      [tenant, cobranzaId, abono, fecha, opts.usuarioId ?? null],
+    )
+    // La factura queda PAGADA solo cuando no le queda ninguna parcialidad viva.
+    // Con cobro único es equivalente a lo de antes; con parcialidades, marcarla al
+    // liquidar la primera daría por cobrado lo que no se ha cobrado.
+    if (liquidado) {
+      const vivas = (
+        await cx.query(
+          `select count(*)::text as n from cobranzas where factura_id=$1 and tenant_id=$2 and estatus <> 'PAGADA'`,
+          [cob.factura_id, tenant],
+        )
+      ).rows[0]
+      if (Number(vivas?.n ?? 0) === 0) {
+        await cx.query(`update facturas set estatus='PAGADA' where id=$1 and tenant_id=$2`, [cob.factura_id, tenant])
+      }
     }
-  }
+    const despues = (await cx.query('select * from cobranzas where id=$1', [cobranzaId])).rows[0]
+    return {
+      ...rowToCobranza(despues),
+      folio: fac?.folio ?? null,
+      abono,
+      fecha,
+      saldo: Math.round((total - nuevoPagado) * 100) / 100,
+      liquidado,
+    }
+  })
+}
+
+// ─── Finanzas por periodo (ADR 0046) ────────────────────────────────────────
+//
+// Las filas que necesita `lib/finanzas-periodo.ts`, ya en su forma. Se leen
+// ENTERAS (no solo el periodo) porque el saldo inicial depende de todo lo de
+// antes; para el volumen de una organización son cientos de filas, no miles.
+// Con cliente, solo lo suyo; la renta es de la empresa y no se lee.
+export async function datosFinanzas(clienteId?: string | null): Promise<DatosFinanzas> {
+  const tenant = await tenantActual()
+  const conCliente = clienteId ? 'and f.cliente_id = $2' : ''
+  const params = clienteId ? [tenant, clienteId] : [tenant]
+  const [facturas, cuotas, abonos, rentas] = await Promise.all([
+    q<any>(
+      `select f.id, f.folio, f.cliente_id, to_char(f.fecha_emision, 'YYYY-MM-DD') as fecha,
+              f.monto, f.estatus::text as estatus
+         from facturas f where f.tenant_id = $1 ${conCliente}`,
+      params,
+    ),
+    q<any>(
+      `select c.id, c.factura_id, to_char(c.fecha_vencimiento, 'YYYY-MM-DD') as vence,
+              coalesce(c.monto, f.monto) as monto
+         from cobranzas c join facturas f on f.id = c.factura_id and f.tenant_id = c.tenant_id
+        where c.tenant_id = $1 ${conCliente}`,
+      params,
+    ),
+    q<any>(
+      `select x.cobranza_id, x.monto, to_char(x.fecha, 'YYYY-MM-DD') as fecha
+         from cobranza_abonos x
+         join cobranzas c on c.id = x.cobranza_id and c.tenant_id = x.tenant_id
+         join facturas f on f.id = c.factura_id and f.tenant_id = c.tenant_id
+        where x.tenant_id = $1 ${conCliente}`,
+      params,
+    ),
+    clienteId
+      ? Promise.resolve([])
+      : q<any>(
+          `select monto, periodo, estatus::text as estatus, to_char(fecha_pago, 'YYYY-MM-DD') as fecha_pago
+             from pagos_renta where tenant_id = $1`,
+          [tenant],
+        ),
+  ])
   return {
-    ...rowToCobranza((await q('select * from cobranzas where id=$1', [cobranzaId]))[0]),
-    folio: fac?.folio ?? null,
-    abono,
-    saldo: Math.round((total - nuevoPagado) * 100) / 100,
-    liquidado,
+    facturas: facturas.map((r) => ({
+      id: r.id, folio: r.folio, clienteId: r.cliente_id, fecha: r.fecha,
+      monto: Number(r.monto), anulada: r.estatus === 'ANULADA',
+    })),
+    cuotas: cuotas.map((r) => ({ id: r.id, facturaId: r.factura_id, vence: r.vence, monto: Number(r.monto) })),
+    abonos: abonos.map((r) => ({ cobranzaId: r.cobranza_id, monto: Number(r.monto), fecha: r.fecha })),
+    rentas: rentas.map((r: any) => ({
+      monto: Number(r.monto),
+      // `periodo` es texto con una fecha dentro (`arrendadores-repo.ts` lo
+      // castea a date); se queda con los diez primeros caracteres.
+      periodo: String(r.periodo).slice(0, 10),
+      pagada: r.estatus === 'PAGADO',
+      fechaPago: r.fecha_pago,
+    })),
   }
+}
+
+// ¿Es este cliente de MI organización? El estado de cuenta de un cliente ajeno
+// tiene que ser un 404, no una hoja en ceros que parezca la de alguien sin deuda.
+export async function clienteDeMiOrganizacion(clienteId: string): Promise<boolean> {
+  const tenant = await tenantActual()
+  return !!(await q1('select 1 from clientes where id = $1 and tenant_id = $2', [clienteId, tenant]))
+}
+
+// Hoy, en la zona de la base.
+export async function hoyDeLaBase(): Promise<string> {
+  return (await q1<{ d: string }>(`select to_char(current_date, 'YYYY-MM-DD') as d`))!.d
 }

@@ -29,7 +29,7 @@ archivos:
   - apps/web/app/api/volumen/escalas/
 ---
 
-# API — los 124 endpoints
+# API — los 125 endpoints
 
 Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo el
 `basePath` `/spaces-dooh` (`apps/web/next.config.mjs:145`).
@@ -270,7 +270,8 @@ agrupa las cuatro pantallas en `lib/modulos.ts:77-83`.
 
 | Método | Path | Guard |
 |---|---|---|
-| POST | `/api/cobranzas/[id]/pagar` | **SENSIBLE** |
+| POST | `/api/cobranzas/[id]/pagar` | **SENSIBLE** (06/10) acepta `fecha` (día en que entró el dinero, nunca futura); deja un renglón en `cobranza_abonos`; pagar lo ya pagado es 409 |
+| GET | `/api/finanzas/resumen` | exigir (`finanzas.ver`) | (06/10, ADR 0046) `?periodo=mes\|mes-anterior\|trimestre\|trimestre-anterior\|anio\|rango[&desde&hasta][&cliente]` → resumen del periodo y movimientos del estado de cuenta. Cliente ajeno = 404 |
 | POST | `/api/cobranzas/[id]/recordar` | exigir |
 | GET | `/api/reportes/rentabilidad` | (05/10) `finanzas:ver` — el reporte ya agregado en el servidor (`?dimension=&granularidad=&desde=&hasta=`), para no derivarlo en el navegador desde `/api/estado` — [[reportes-rentabilidad]] |
 

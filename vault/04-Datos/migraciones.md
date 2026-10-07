@@ -52,7 +52,7 @@ archivos:
 > [!important] 2026-10-05 · puesta al día — ninguna de las de abajo está ya «sin fusionar»
 > Medido hoy con `node scripts/recuentos.mjs` sobre el árbol de
 > `integra/riesgos-presentacion-14-oct` (salida de `main` en `09c65ca2`):
-> **106 migraciones y 57 tablas**. Es el recuento vigente; los de los recuadros
+> **107 migraciones y 58 tablas** (06/10, con `20261008_cobranza_abonos.sql`). Es el recuento vigente; los de los recuadros
 > de abajo (92/52 del 28/09, 94, 99…) son fotos de su día y se dejan como tales.
 >
 > Lo que los recuadros dicen «sin fusionar» o «pendiente», con el commit de
@@ -61,6 +61,7 @@ archivos:
 > | Migración | Decía | Entró en `main` |
 > |---|---|---|
 > | `20261007_calculadora_spots.sql` | rama sin fusionar | `43082ac4` (01/10) |
+> | `20261008_cobranza_abonos.sql` | rama `feat/finanzas-periodos`, **forma por aprobar** | ADR 0046 (06/10) |
 > | `20261006_precio_ajustado_por_gerente.sql` | rama sin fusionar | `17fbd252` (01/10) |
 > | `20261005_notas_de_version.sql` | PENDIENTE de aprobación | `c3398f1e` (01/10) |
 > | `20260928_paquete_cerrado.sql` | SIN FUSIONAR | `8e913662` (28/09) |

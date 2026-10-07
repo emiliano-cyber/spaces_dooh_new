@@ -87,9 +87,15 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   // 2 sitios · lib/server/clientes-controller.ts:116
   'Cliente no encontrado':
     'Client not found',
-  // 1 sitio · lib/server/finanzas-controller.ts:23
+  // 1 sitio · lib/server/finanzas-controller.ts:35
   'Cobranza no encontrada':
     'Receivable not found',
+  // 1 sitio · lib/server/finanzas-repo.ts:310 (ADR 0046)
+  'Esta cobranza ya está pagada':
+    'This receivable is already paid',
+  // 1 sitio · lib/server/finanzas-repo.ts:316 (ADR 0046)
+  'La fecha del pago no puede ser futura':
+    'The payment date cannot be in the future',
   // 2 sitios · lib/server/arrendadores-controller.ts:265
   'Contrato no encontrado':
     'Contract not found',

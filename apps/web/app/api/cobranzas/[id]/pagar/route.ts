@@ -16,7 +16,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   if (!gc.ok) return gc.res
   const g = { usuario: gc.usuario }
   try {
-    const c = await registrarPagoCtrl(params.id, await req.json().catch(() => ({})))
+    const c = await registrarPagoCtrl(params.id, await req.json().catch(() => ({})), g.usuario.id)
     const montoTxt = `$${Math.round(c.abono ?? 0).toLocaleString('es-MX')}`
     await registrarAccion(
       g.usuario,

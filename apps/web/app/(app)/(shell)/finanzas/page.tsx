@@ -15,7 +15,10 @@ import {
 } from '@/components/demo/StatusBadge'
 import { cn } from '@/lib/cn'
 import { armarListaFacturas, cuentaPorEstatus } from '@/components/demo/finanzas/facturas-lista'
+import { etiquetaVencimiento, type TonoVencimiento } from '@/components/demo/finanzas/vencimiento-cuota'
 import { ComprobanteDialog } from '@/components/demo/finanzas/ComprobanteDialog'
+import { TableroPeriodo } from '@/components/demo/finanzas/TableroPeriodo'
+import { EstadoCuenta } from '@/components/demo/finanzas/EstadoCuenta'
 import { generarFacturaApi, recordarCobranzaApi, pagarCobranzaApi } from '@/lib/data/estado-api'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { useCandado, PasoContrasena } from '@/components/demo/ui/candado'
@@ -165,6 +168,9 @@ export default function FinanzasPage() {
         <p className="mt-1 text-[13px] text-muted">Facturación, cobranza y renta a arrendadores</p>
       </div>
 
+      {/* Lo primero que se ve: cómo va el periodo (06/10, ADR 0046). */}
+      <TableroPeriodo />
+
       {/* Listas para facturar */}
       <Card>
         <CardHeader className="flex flex-row items-center gap-2">
@@ -254,7 +260,8 @@ export default function FinanzasPage() {
                     >
                       <td className="demo-num px-4 py-2.5 font-medium text-ink">{f.folio}</td>
                       <td className="demo-num px-4 py-2.5 text-[11px] text-muted">{f.folioFiscal}</td>
-                      <td className="demo-num px-4 py-2.5 text-muted">{f.fechaEmision}</td>
+                      {/* Formateada: llegaba cruda del servidor (`2026-10-01T06:00:00.000Z`), visto en el navegador el 06/10. */}
+                      <td className="demo-num px-4 py-2.5 text-muted">{formatFecha(f.fechaEmision)}</td>
                       <td className="px-4 py-2.5 text-muted">{f.cliente}</td>
                       <td className="px-4 py-2.5 text-muted">{f.campana}</td>
                       <td className="px-4 py-2.5 text-muted">{f.emisora}</td>
@@ -391,6 +398,11 @@ export default function FinanzasPage() {
           todo normalizado a mes para poder compararlo y sumarlo. Va antes que
           las cuotas porque responde la pregunta de arriba: cuánto cuesta la
           renta al mes. */}
+      {/* Estado de cuenta de este mes y del pasado, de la empresa o de un
+          cliente (06/10, ADR 0046). Va después de la cobranza, que es de
+          donde salen sus movimientos. */}
+      <EstadoCuenta />
+
       <CompromisoRentaCard />
 
       {/* Renta a los propietarios: la otra mitad del flujo de caja. Cobranza
@@ -749,6 +761,13 @@ function GenerarFacturaDialog({
 }
 
 // S0-2: registrar pago/abono sobre una cobranza (parcial o total) con saldo.
+// Hoy en la hora del NAVEGADOR (la de quien registra), como AAAA-MM-DD.
+// `toISOString()` daría el día en UTC: a las 19:00 en México ya sería mañana.
+function hoyLocal(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 function PagoModal({
   cob,
   onClose,
@@ -759,6 +778,9 @@ function PagoModal({
   onDone: (msg: string) => void
 }) {
   const [monto, setMonto] = useState(String(Math.round(cob.saldo * 100) / 100))
+  // El DÍA en que entró el dinero (ADR 0046): por omisión hoy, y se puede
+  // poner el de la transferencia de ayer. El servidor rechaza una fecha futura.
+  const [fecha, setFecha] = useState(hoyLocal())
   const [error, setError] = useState<string | null>(null)
   // B38 · `POST /api/cobranzas/:id/pagar` pasa por `exigirCambioSensible`
   // (`app/api/cobranzas/[id]/pagar/route.ts:15`). Este cuadro pintaba el 403 en
@@ -773,7 +795,7 @@ function PagoModal({
     setError(null)
     return candado.ejecutar({
       // total → liquida el saldo; parcial → el monto ingresado (el backend lo acota al saldo)
-      guardar: () => pagarCobranzaApi(cob.id, total ? undefined : num),
+      guardar: () => pagarCobranzaApi(cob.id, total ? undefined : num, fecha || undefined),
       alLograr: () => onDone(total || num >= cob.saldo ? 'Cobranza liquidada' : 'Abono registrado'),
       alFallar: setError,
       mensajeSiFalla: 'No se pudo registrar el pago',
@@ -845,6 +867,17 @@ function PagoModal({
             className="h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-60"
           />
         </label>
+        <label className="block">
+          <span className="mb-1 block text-[12px] font-medium text-ink">Fecha en que se recibió</span>
+          <input
+            type="date"
+            value={fecha}
+            max={hoyLocal()}
+            disabled={candado.reautenticando}
+            onChange={(e) => setFecha(e.target.value)}
+            className="h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-60"
+          />
+        </label>
         {excede && (
           <p className="text-[12px] text-warning">
             ⚠ El monto excede el saldo ({formatMonto(cob.saldo)}). Solo se aplicará el saldo pendiente.
@@ -860,6 +893,13 @@ function PagoModal({
       </div>
     </Modal>
   )
+}
+
+// Clases escritas enteras: Tailwind solo genera las que encuentra literales.
+const CLASE_TONO: Record<TonoVencimiento, string> = {
+  error: 'text-error',
+  warning: 'text-warning',
+  muted: 'text-muted',
 }
 
 // Una fila de CUOTA: las mismas celdas de siempre, con sangría si va dentro de
@@ -885,7 +925,7 @@ onPagar: (c: { id: string; folio: string; saldo: number }) => void
 onRecordar: (id: string) => void
 }) {
   const est = estadoCobranza(cob)
-  const dias = diasHasta(cob.fechaVencimiento)
+  const venc = etiquetaVencimiento(est, diasHasta(cob.fechaVencimiento))
   return (
     <tr className={cn('border-b border-border last:border-0', sangrada && 'bg-surface-2/40')}>
       <td className={cn('demo-num px-4 py-2.5 text-ink', sangrada && 'pl-10 text-muted')}>
@@ -924,9 +964,9 @@ onRecordar: (id: string) => void
             separa a la vista pero al copiar la celda salía «27/08/2026(24d)»
             pegado, que es lo que reportó M8. */}
         {formatFecha(cob.fechaVencimiento)}{' '}
-        <span className={cn('text-[11px]', dias < 0 ? 'text-error' : dias <= 30 ? 'text-warning' : 'text-muted')}>
-          ({dias < 0 ? `${Math.abs(dias)}d vencida` : `${dias}d`})
-        </span>
+        {/* El ESTADO manda, no la fecha: una cuota pagada no dice «vencida»
+            aunque su fecha haya pasado (06/10, `vencimiento-cuota.ts`). */}
+        <span className={cn('text-[11px]', CLASE_TONO[venc.tono])}>({venc.texto})</span>
       </td>
       <td className="px-4 py-2.5">
         <div className="flex flex-col items-start gap-1.5">
