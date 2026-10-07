@@ -153,7 +153,8 @@ cobranza.
   cuando el `=` de la consulta va percent-encoded
 - [[auditoria-cuatro-rojo-20260820]] — auditoría de los cuatro ROJO del 20/08
 - [[_plantilla-diaria]] — plantilla del diario
-- [[2026-10-06]] — **última entrada**: seis ramas esperando al dueño (invitación, finanzas por periodo, tablero de propuestas, Space Eyes, slots libres, descuento 0.00) y el entorno local de pruebas
+- [[2026-10-07]] — **última entrada**: las cinco ramas del 06/10 en `main`, los cambios de contrato antes de firmar, las licencias de Space Eyes para José y las notas de `v0.10.0`
+- [[2026-10-06]] — seis ramas esperando al dueño (invitación, finanzas por periodo, tablero de propuestas, Space Eyes, slots libres, descuento 0.00) y el entorno local de pruebas
 - [[2026-10-05]] — auditoría de la bóveda, cuatro riesgos y la bóveda al día para el 14/10
 - [[2026-10-02]] — el registro lleno y el PADRE en blanco
 - [[2026-10-01]] — lo publicado, las dos minas del PADRE y las digitales que se reservaban como fijas

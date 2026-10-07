@@ -1,5 +1,75 @@
 [
   {
+    "version": "v0.10.0",
+    "fecha": "2026-10-07",
+    "items": [
+      {
+        "tipo": "NUEVO",
+        "texto": "Finanzas tiene un resumen por periodo: eliges este mes, el mes pasado, el trimestre, el año o un rango de fechas, y ves lo facturado, lo cobrado, lo que queda por cobrar, las facturas vencidas y la renta pagada y por pagar a propietarios."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Estado de cuenta de este mes y del mes pasado, de la empresa o de un cliente: saldo al inicio, lo facturado, lo cobrado, el saldo al cierre y lo vencido, con cada factura y cada pago en orden. Se descarga en CSV para abrirlo en Excel."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "Al registrar un pago ahora pones la fecha en que se recibió (por omisión, hoy), para que lo cobrado caiga en el mes correcto. Los pagos registrados antes de esta versión llevan una fecha aproximada, y la pantalla lo avisa."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Propuestas tiene un resumen por periodo: cuántas se generaron, se aprobaron y se rechazaron, la tasa de cierre y el desglose por vendedor. El Dueño, el Administrador y el Director comercial ven además la ganancia: lo vendido menos la renta de las pantallas."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Los contratos de arrendador se pueden cambiar antes de firmarse con «Editar términos», en la ficha del contrato. Cada cambio queda en su historial con lo que había antes y lo que quedó, quién lo propuso (el arrendador o nosotros), el motivo y quién lo registró. Si el contrato ya se había enviado a firma, el enlace anterior deja de servir y hay que enviarlo otra vez."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Al crear un usuario puedes mandarle una invitación para que elija su propia contraseña, en lugar de inventarle una. El enlace vale 72 horas y sirve una sola vez; mientras no haya correo configurado, te aparece para que se lo envíes tú."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "La calculadora de spots cuenta igual que la calculadora «Valor Real del Spot Unitario»: el precio por spot sale de la tarifa mensual de la pantalla y el loop cuenta a los anunciantes de hoy más los espacios que compras. Debajo de cada línea ves el desglose de la cuenta. Las propuestas ya guardadas no cambian hasta que las edites."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "En Disponibilidad, las pantallas digitales dicen cuántos espacios quedan («7 libres» o «Lleno») en lugar de «3/10»."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "El descuento comercial de una propuesta aparece como 0.00 % y acepta centésimas, por ejemplo 7.50 %."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "El tope de descuento se respeta siempre: una propuesta que quedó por encima del tope ya no se aprueba ni la acepta el cliente desde su liga, y quitar un paquete no deja el descuento total por encima del máximo. Si el descuento por volumen ya llega al tope, puedes dejar el descuento comercial en 0 % y aprobar."
+      },
+      {
+        "tipo": "CORREGIDO",
+        "texto": "Un código promocional ya no se gasta en una propuesta con un paquete que no admite códigos: el sistema avisa antes y no descuenta ningún uso de la promoción."
+      },
+      {
+        "tipo": "CORREGIDO",
+        "texto": "Pagar dos veces la misma cuota ya no es posible, ni con un doble clic."
+      },
+      {
+        "tipo": "CORREGIDO",
+        "texto": "En Cobranza, una cuota pagada ya no dice «vencida» junto a su fecha."
+      },
+      {
+        "tipo": "CORREGIDO",
+        "texto": "En Disponibilidad, el filtro «Solo con hueco libre» ya no esconde las pantallas digitales a medio vender."
+      },
+      {
+        "tipo": "CORREGIDO",
+        "texto": "Crear un usuario sin tocar el rol ya no da error."
+      },
+      {
+        "tipo": "CORREGIDO",
+        "texto": "La lista de Facturas muestra la fecha de emisión legible."
+      }
+    ]
+  },
+  {
     "version": "v0.9.2",
     "fecha": "2026-10-02",
     "items": [
