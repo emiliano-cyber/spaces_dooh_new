@@ -172,7 +172,7 @@ export function FallasFlota() {
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-2 text-ink">
           <MonitorX className="h-5 w-5" strokeWidth={1.75} />
         </span>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-[12rem] flex-1">
           <h1 className="text-lg font-semibold text-ink">Fallas de pantalla</h1>
           <p className="text-[13px] text-muted">
             Lo que cada equipo detectó por sí mismo al revisar su pantalla. Se actualiza cada minuto.
@@ -328,7 +328,54 @@ export function FallasFlota() {
         ) : lista.length === 0 ? (
           <p className="px-3 py-10 text-center text-[13px] text-muted">Sin fallas con este filtro.</p>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* Hasta 1280 px, tarjetas: la tabla mide 820 y en celular o con el
+              menu abierto quedaba cortada (se deslizaba de lado). */}
+          <ul className="divide-y divide-border xl:hidden">
+            {lista.map((f) => (
+              <li key={f.id} className="space-y-1.5 p-3 text-[12px]">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-medium text-ink">{f.nombre}</span>
+                  <span className={cn('rounded-full px-2 py-0.5 text-[11px]', ESTADO[f.estado]?.clase)}>
+                    {ESTADO[f.estado]?.texto ?? f.estado}
+                  </span>
+                </div>
+                <div className="text-muted">{donde(f)}</div>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-muted">
+                  <Link href={`/space-eyes/${f.device_id}`} className="text-accent hover:underline">
+                    {f.equipo}
+                  </Link>
+                  <span className="tabular-nums">{fechaHora(f.detectada_en)}</span>
+                  {f.recuperada_en && (
+                    <span className="tabular-nums">
+                      → {fechaHora(f.recuperada_en)}
+                      {f.cerrada_por === 'usuario' ? ' · a mano' : ''}
+                    </span>
+                  )}
+                </div>
+                {f.nota && <div className="text-[11px] text-muted">{f.nota}</div>}
+                {(f.evidencia || f.evidencia_recuperacion) && (
+                  <div className="flex gap-3">
+                    {f.evidencia && (
+                      <button type="button" onClick={() => setVerFoto(fotoSE(f.evidencia))} className="text-accent hover:underline">
+                        Foto al detectar
+                      </button>
+                    )}
+                    {f.evidencia_recuperacion && (
+                      <button
+                        type="button"
+                        onClick={() => setVerFoto(fotoSE(f.evidencia_recuperacion))}
+                        className="text-accent hover:underline"
+                      >
+                        Foto al recuperar
+                      </button>
+                    )}
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+          <div className="hidden overflow-x-auto xl:block">
             <table className="w-full min-w-[820px] text-[12px]">
               <thead className="border-b border-border text-left text-[11px] text-muted">
                 <tr>
@@ -384,6 +431,7 @@ export function FallasFlota() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </section>
 

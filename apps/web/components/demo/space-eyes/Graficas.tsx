@@ -319,7 +319,7 @@ export function Graficas() {
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-2 text-ink">
           <BarChart3 className="h-5 w-5" strokeWidth={1.75} />
         </span>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-[12rem] flex-1">
           <h1 className="text-lg font-semibold text-ink">Gráficas</h1>
           <p className="text-[13px] text-muted">Estadísticas y telemetría de cada equipo: cómo ha estado y cuánto consume.</p>
         </div>

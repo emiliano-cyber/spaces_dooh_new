@@ -272,7 +272,7 @@ export function Galeria() {
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-2 text-ink">
           <Images className="h-5 w-5" strokeWidth={1.75} />
         </span>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-[12rem] flex-1">
           <h1 className="text-lg font-semibold text-ink">Galería de fotos</h1>
           <p className="text-[13px] text-muted">
             Todas las fotos de los equipos: programadas, pedidas a mano, de creativos nuevos y de fallas.

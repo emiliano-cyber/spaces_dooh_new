@@ -105,13 +105,15 @@ export function ListaEquipos() {
     .pop()
 
   return (
-    <div className="w-full space-y-4 p-6">
-      {/* El encabezado de Inventario, exacto */}
-      <div className="flex items-center gap-3">
+    <div className="w-full space-y-4 p-4 sm:p-6">
+      {/* El encabezado de Inventario, exacto. En celular los botones bajan a
+          su propia fila: a 390 px el título quedaba en una columna de una
+          palabra por renglón. */}
+      <div className="flex flex-wrap items-center gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-2 text-ink">
           <Eye className="h-5 w-5" strokeWidth={1.75} />
         </span>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-[12rem] flex-1">
           <h1 className="text-lg font-semibold text-ink">Space Eyes</h1>
           <p className="text-[13px] text-muted">
             Los equipos que vigilan tus pantallas: qué están viendo y cómo están.
@@ -222,7 +224,7 @@ export function ListaEquipos() {
 
           {/* Rejilla */}
           {cargando && !equipos ? (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 min-[1900px]:grid-cols-5 min-[2400px]:grid-cols-6">
               {[0, 1, 2].map((i) => (
                 <div key={i} className="h-60 animate-pulse rounded-md bg-surface-2" />
               ))}
@@ -234,7 +236,7 @@ export function ListaEquipos() {
                 : 'Ningún equipo coincide con el filtro.'}
             </div>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 min-[1900px]:grid-cols-5 min-[2400px]:grid-cols-6">
               {visibles.map((e) => (
                 <TarjetaEquipo key={e.id} equipo={e} enLinea={e.enLinea} />
               ))}
@@ -324,7 +326,9 @@ function TarjetaEquipo({ equipo: e, enLinea }: { equipo: EquipoResumen; enLinea:
       </div>
 
       <div className="p-3">
-        <div className="truncate text-[13px] font-medium text-ink">{e.nombre}</div>
+        <div className="line-clamp-2 break-words text-[13px] font-medium leading-snug text-ink" title={e.nombre}>
+          {e.nombre}
+        </div>
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-muted">
           {e.empresa && <span className="rounded bg-surface-2 px-1.5 py-0.5 font-medium text-ink">{e.empresa}</span>}
           {e.pantalla ? (

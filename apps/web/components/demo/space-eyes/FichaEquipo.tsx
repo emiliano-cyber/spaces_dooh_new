@@ -241,7 +241,7 @@ export function FichaEquipo({ id }: { id: number }) {
   const senal = calidadSenal(equipo.senalDbm)
 
   return (
-    <div className="w-full space-y-4 p-6">
+    <div className="mx-auto w-full max-w-[1800px] space-y-4 p-4 sm:p-6">
       {/* Migas */}
       <Link href="/space-eyes" className="inline-flex items-center gap-1.5 text-[12px] text-muted hover:text-ink">
         <ChevronLeft className="h-3.5 w-3.5" /> Space Eyes
@@ -254,9 +254,9 @@ export function FichaEquipo({ id }: { id: number }) {
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-2 text-ink">
           <Eye className="h-5 w-5" strokeWidth={1.75} />
         </span>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-[14rem] flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="truncate text-lg font-semibold text-ink">{equipo.nombre}</h1>
+            <h1 className="break-words text-lg font-semibold text-ink">{equipo.nombre}</h1>
             <PildoraConexion online={enLinea} pendiente={!equipo.ultimaConexion} />
           </div>
           <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-muted">
@@ -351,7 +351,7 @@ export function FichaEquipo({ id }: { id: number }) {
         <div className="min-w-0 flex-1 overflow-hidden rounded-md border border-border bg-surface">
           {/* Selector de origen */}
           <div className="flex flex-wrap items-center gap-2 border-b border-border p-2.5">
-            <div className="inline-flex rounded-md border border-border bg-surface p-0.5 text-[13px]">
+            <div className="flex flex-wrap gap-0.5 rounded-md border border-border bg-surface p-0.5 text-[13px]">
             <Pestana activa={vista === 'vivo'} onClick={() => setVista('vivo')} icono={<Radio className="h-3.5 w-3.5" />}>
               En vivo
             </Pestana>
@@ -401,7 +401,7 @@ export function FichaEquipo({ id }: { id: number }) {
               />
             </div>
           ) : (
-            <div className="relative aspect-[16/10] bg-[#12100e]">
+            <div className="relative aspect-[16/10] max-h-[70vh] w-full bg-[#12100e]">
               {vista === 'equipo' ? (
                 fotoEquipo ? (
                   <FotoGirada src={fotoEquipo.url} alt={`Captura de Space Eyes de ${equipo.nombre}`} giro={fotoEquipo.giro} />
@@ -674,7 +674,7 @@ function Pestana({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        'inline-flex h-8 items-center gap-1.5 rounded-md border px-3 text-[12px] font-medium transition-colors',
+        'inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-md border px-3 text-[12px] font-medium transition-colors',
         activa
           ? 'border-accent bg-accent-soft text-accent'
           : 'border-border-strong bg-surface text-ink hover:bg-surface-2',
@@ -710,7 +710,7 @@ function Panel({
         <span className={cn('rounded px-2 py-0.5 text-[10px] font-bold tracking-[0.07em] text-white', selloClase)}>{sello}</span>
         <span className="truncate text-[11px] text-muted">{pie}</span>
       </div>
-      <div className="relative aspect-[4/3] bg-[#12100e]">
+      <div className="relative aspect-[4/3] max-h-[60vh] w-full bg-[#12100e]">
         {url ? (
           <button type="button" onClick={() => onAmpliar(url)} className="relative block h-full w-full" aria-label={`Ampliar: ${sello}`}>
             <FotoGirada src={url} alt={alt} giro={giro} />

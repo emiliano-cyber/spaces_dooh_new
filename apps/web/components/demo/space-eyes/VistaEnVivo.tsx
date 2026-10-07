@@ -580,7 +580,7 @@ export function VistaEnVivo({ equipo, puedeOperar, onFoto, embebida = false }: V
       <div
         className={cn(
           'relative flex max-h-[70vh] w-full select-none items-center justify-center overflow-hidden bg-[#111]',
-          embebida ? 'aspect-[16/10]' : 'aspect-[4/3]',
+          embebida ? 'aspect-[16/10] max-h-[70vh] w-full' : 'aspect-[4/3] max-h-[70vh] w-full',
           vivo && !esRelay && puedeOperar && 'cursor-crosshair',
         )}
         onClick={tocarVideo}

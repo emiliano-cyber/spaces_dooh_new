@@ -228,11 +228,11 @@ export function AjustarTexto() {
         Space Eyes
       </Link>
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-2 text-ink">
           <Type className="h-5 w-5" strokeWidth={1.75} />
         </span>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-[12rem] flex-1">
           <h1 className="text-lg font-semibold text-ink">Ajustar texto de las fotos</h1>
           <p className="text-[13px] text-muted">
             Toma una fotografía de prueba y acomoda cómo se verá <b className="font-medium text-ink">nombre · fecha · hora</b>.

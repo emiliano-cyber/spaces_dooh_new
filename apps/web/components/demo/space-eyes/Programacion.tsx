@@ -383,7 +383,7 @@ export function Programacion() {
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-2 text-ink">
           <CalendarClock className="h-5 w-5" strokeWidth={1.75} />
         </span>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-[12rem] flex-1">
           <h1 className="text-lg font-semibold text-ink">Programación de fotos</h1>
           <p className="text-[13px] text-muted">
             Las fotos se toman solas, a una hora impredecible dentro de las franjas que definas.
@@ -429,7 +429,46 @@ export function Programacion() {
           <p className="mt-1 text-[13px] text-muted">Hoy las fotos solo se toman cuando alguien las pide a mano.</p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-md border border-border bg-surface">
+        <>
+        {/* Hasta 1280 px, tarjetas: la tabla mide 820 y quedaba cortada. */}
+        <ul className="divide-y divide-border rounded-md border border-border bg-surface xl:hidden">
+          {lista.map((s) => {
+            const est = estado(s)
+            const sinFotosSemana = !!s.active && !fueraDeVigencia(s) && !(Number(s.fotos_semana) > 0)
+            return (
+              <li key={s.id} className={cn('space-y-1.5 p-3 text-[13px]', !s.active && 'opacity-60')}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-medium text-ink">{s.name}</span>
+                  <span className={cn('whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[11px] font-semibold', est.clase)}>
+                    {est.texto}
+                  </span>
+                </div>
+                <div className="text-[12px] text-muted">
+                  {destinoTexto(s)} · {cuandoTexto(s)}
+                </div>
+                <div className="text-[12px] text-ink">
+                  Próxima: {proximaTexto(s)} ·{' '}
+                  <span className="demo-num">{s.fotos || 0}</span> fotos{' '}
+                  <span className={cn('whitespace-nowrap', sinFotosSemana ? 'font-medium text-error' : 'text-muted')}>
+                    ({s.fotos_semana || 0} esta semana)
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1 pt-1">
+                  <Button size="sm" variant="ghost" onClick={() => editar(s)}>
+                    Editar
+                  </Button>
+                  <Button size="sm" variant="tertiary" onClick={() => alternar(s)}>
+                    {s.active ? 'Pausar' : 'Activar'}
+                  </Button>
+                  <Button size="sm" variant="danger" onClick={() => setABorrar(s)}>
+                    Eliminar
+                  </Button>
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+        <div className="hidden overflow-x-auto rounded-md border border-border bg-surface xl:block">
           <table className="w-full min-w-[820px] text-[13px]">
             <thead className="border-b border-border bg-surface-2 text-left text-[12px] text-muted">
               <tr>
@@ -485,6 +524,7 @@ export function Programacion() {
             </tbody>
           </table>
         </div>
+        </>
       )}
 
       <ConfirmDialog

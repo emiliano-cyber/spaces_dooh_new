@@ -262,11 +262,11 @@ export function AltaDispositivo() {
         <ChevronLeft className="h-3.5 w-3.5" /> Space Eyes
       </Link>
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-2 text-ink">
           <Eye className="h-5 w-5" strokeWidth={1.75} />
         </span>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-[12rem] flex-1">
           <h1 className="text-lg font-semibold text-ink">Agregar dispositivo</h1>
           <p className="text-[13px] text-muted">
             Cada equipo nuevo entra con un código de un solo uso que se genera aquí. Elige qué equipo vas a instalar.
@@ -576,9 +576,9 @@ export function AltaDispositivo() {
                 <tr>
                   <th className="px-3 py-2">Código</th>
                   <th className="px-3 py-2">Equipo</th>
-                  <th className="px-3 py-2">Sitio</th>
+                  <th className="hidden px-3 py-2 sm:table-cell">Sitio</th>
                   <th className="px-3 py-2">Estado</th>
-                  <th className="px-3 py-2">Generó</th>
+                  <th className="hidden px-3 py-2 md:table-cell">Generó</th>
                   <th className="px-3 py-2" />
                 </tr>
               </thead>
@@ -587,7 +587,7 @@ export function AltaDispositivo() {
                   <tr key={v.codigo}>
                     <td className="px-3 py-2 font-mono text-ink">{v.codigo}</td>
                     <td className="px-3 py-2 text-ink">{NOMBRE_TIPO[v.tipo]}</td>
-                    <td className="px-3 py-2 text-muted">{v.nota || '—'}</td>
+                    <td className="hidden px-3 py-2 text-muted sm:table-cell">{v.nota || '—'}</td>
                     <td className="px-3 py-2">
                       {v.usos_max > 1 ? (
                         <span className={v.estado === 'vigente' ? 'text-ink' : 'text-muted'}>
@@ -624,7 +624,7 @@ export function AltaDispositivo() {
                         </span>
                       )}
                     </td>
-                    <td className="px-3 py-2 text-muted">{(v.creado_por || '').replace(/^SPACE OS · /, '')}</td>
+                    <td className="hidden px-3 py-2 text-muted md:table-cell">{(v.creado_por || '').replace(/^SPACE OS · /, '')}</td>
                     <td className="px-3 py-2 text-right">
                       {v.estado === 'vigente' && puedeCrear && (
                         <Button variant="ghost" size="sm" onClick={() => void cancelar(v.codigo)}>

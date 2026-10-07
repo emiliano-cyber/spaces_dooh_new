@@ -76,7 +76,7 @@ export function Verificacion() {
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-2 text-ink">
           <ShieldCheck className="h-5 w-5" strokeWidth={1.75} />
         </span>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-[12rem] flex-1">
           <h1 className="text-lg font-semibold text-ink">Verificación</h1>
           <p className="text-[13px] text-muted">Comparación de cada foto contra la creatividad de su campaña.</p>
         </div>
@@ -128,7 +128,61 @@ export function Verificacion() {
           Sin resultados de verificación
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-md border border-border bg-surface">
+        <>
+        {/* Hasta 1024 px, tarjetas: la tabla mide 720 y en celular quedaba cortada. */}
+        <ul className="divide-y divide-border rounded-md border border-border bg-surface lg:hidden">
+          {lista.map((v) => {
+            const miniatura = fotoSE(v.thumbnail_path || v.storage_path)
+            const completa = fotoSE(v.storage_path || v.thumbnail_path)
+            const ssim = num(v.ssim_score)
+            const phash = num(v.phash_distance)
+            const conf = num(v.confidence)
+            const correcto = !!v.is_correct
+            return (
+              <li key={v.id} className="flex gap-3 p-3 text-[12px]">
+                {miniatura ? (
+                  <a
+                    href={completa ?? miniatura}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block h-16 w-16 shrink-0 overflow-hidden rounded bg-surface-2"
+                    title="Ver la foto completa"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={miniatura} alt={`Foto de ${v.device_name ?? 'equipo'}`} className="h-full w-full object-cover" />
+                  </a>
+                ) : (
+                  <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded bg-surface-2 text-muted">
+                    <ImageOff className="h-4 w-4" strokeWidth={1.5} />
+                  </span>
+                )}
+                <div className="min-w-0 flex-1 space-y-1">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-medium text-ink">{v.device_name ?? '—'}</span>
+                    <span
+                      className={cn(
+                        'whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[11px] font-semibold',
+                        correcto
+                          ? 'border-[#1da85040] bg-success-soft text-[#146c39]'
+                          : 'border-[#dc262640] bg-error-soft text-[#b91c1c]',
+                      )}
+                    >
+                      {correcto ? 'Correcto' : 'Incorrecto'}
+                    </span>
+                  </div>
+                  <div className="demo-num flex flex-wrap gap-x-3 text-muted">
+                    <span>Confianza {conf !== null ? `${(conf * 100).toFixed(0)}%` : '—'}</span>
+                    <span>SSIM {ssim !== null && ssim !== 0 ? ssim.toFixed(3) : '—'}</span>
+                    <span>pHash {phash ?? '—'}</span>
+                    <span className={v.ocr_match ? 'text-success' : 'text-error'}>OCR {v.ocr_match ? 'Sí' : 'No'}</span>
+                  </div>
+                  <div className="text-muted">{fechaHora(v.processed_at)}</div>
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+        <div className="hidden overflow-x-auto rounded-md border border-border bg-surface lg:block">
           <table className="w-full min-w-[720px] text-[13px]">
             <thead className="border-b border-border bg-surface-2 text-left text-[12px] text-muted">
               <tr>
@@ -200,6 +254,7 @@ export function Verificacion() {
             </tbody>
           </table>
         </div>
+        </>
       )}
 
       {!error && (pagina > 1 || hayMas) && (
