@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-10-06
 tags: [frontend, modulos, pantallas, verde]
 archivos:
   - apps/web/app/(app)/(shell)/
@@ -29,7 +29,7 @@ archivos:
 | `/novedades` | Notas de cada versión instalada | `/api/novedades` | `NotasDeVersion` — **sin entrada en el menú**, a propósito |
 | `/actividad` | Bitácora | `acciones` | — |
 | `/comercial` | Buscador de inventario | `/api/sitios` | `SiteFicha`, `ReservaDialog`, `AltaSitioDialog`, `SpaceEyeVision` |
-| `/disponibilidad` | Calendario | `/api/sitios` | `CalendarioDisponibilidad` |
+| `/disponibilidad` | Calendario — en las **digitales**, cada celda dice los **slots que quedan libres** (06/10) | `/api/sitios` | `SlotsBadge`; la rejilla es local de la página y la calcula `disponibilidad()` (`lib/data/derive.ts`) |
 | `/inventario` | Alta y carga masiva | `/api/sitios`, `/api/sitios/import` | `InventarioTabla`, `ImportarInventarioDialog`, `NuevaPantallaForm`, `ContratoWizard`, `AgregarInventario`, `InfoAnadidaModal` |
 | `/network` | Pantallas en red | `sitios.en_network` | — |
 | `/arrendadores` | Arrendadores, predios, contratos | `/api/arrendadores`, `/api/contratos` | `ContratoSheet`, `PagosRentaCard`, `CompromisoRentaCard`, `ConciliacionCard`, `PanelFirmas`, `ConstanciaFirmas`, `LicenciasCard`, `GestionRazonesSociales`, `BarraDocumento`, `BajaPropietarioDialog` |
@@ -55,6 +55,25 @@ archivos:
 | `/administracion` | Usuarios, permisos, organizaciones, actualizacion de la instancia | `/api/usuarios`, `/api/tenants`, `/api/actualizaciones` | `OrganizacionesPanel`, `ControlCambiosPanel`, `ActualizacionesPanel`, `permisos.ts` |
 | `/configuracion` | Config del negocio | `/api/config`, `/api/organizacion` | — |
 | `/codigos-recuperacion` | Códigos de recuperación (ADR 0028 · B2) | `/api/perfil/codigos-recuperacion` | — |
+
+> [!note] 2026-10-06 · Disponibilidad: los slots que QUEDAN, no los usados
+> Pedido del dueño: «en pantallas digitales, las que quedan disponibles». La
+> celda de una digital decía `3/10` (usados de total) y había que restar de
+> cabeza; ahora dice **«7 libres»** o **«Lleno»**, y la insignia junto al nombre
+> colorea lo que queda en el primer periodo. La celda trae `spotsLibres`
+> (nunca negativo; `null` si la pantalla no declara capacidad, y entonces se
+> sigue mostrando «N usados» en vez de inventar un total).
+>
+> **Y un defecto que salió al hacerlo:** «Solo con hueco libre» filtraba por
+> periodos **LIBRES del todo**, así que una digital con 7 de 10 slots libres
+> **desaparecía del filtro** — justo la que se puede vender. Ahora filtra por
+> `conHueco` (libre, o digital con slots). El resumen de arriba cuenta aparte
+> las estáticas libres y las digitales con lugar, con el total de slots.
+> Pruebas: `lib/data/derive.disponibilidad-slots.test.ts`.
+>
+> **Lo que NO cuenta:** el cupo de clientes por pantalla (ADR 0008). Una digital
+> con slots libres pero con el cupo de anunciantes lleno sale con lugar aquí;
+> la reserva la sigue rechazando el servidor.
 
 > [!note] 2026-10-05 · la tabla tenía nueve rutas de menos, y estaba partida
 > Faltaban `/novedades`, `/reportes`, `/paquetes`, `/codigos-promocionales`,

@@ -7,6 +7,15 @@ La entrada más reciente va arriba.
 
 ## 2026-10-06
 
+- **Disponibilidad: en las pantallas digitales ahora ves cuántos espacios
+  quedan.** Antes cada casilla decía «3/10» (usados de diez) y había que restar;
+  ahora dice **«7 libres»**, o **«Lleno»** cuando ya no cabe nadie. La insignia
+  junto al nombre de la pantalla se pinta verde, ámbar o roja según lo que
+  queda, y el resumen de arriba dice cuántas pantallas digitales tienen lugar y
+  cuántos espacios suman.
+  - **Y se corrigió el filtro «Solo con hueco libre»**: escondía las pantallas
+    digitales a medio vender, que son justo las que todavía se pueden ofrecer.
+
 - **La demo tiene ahora un catálogo completo de ejemplo.** Para enseñar
   cualquier pantalla del sistema sin capturar nada a mano:
   - **24 pantallas**: 12 fijas y 12 digitales, dos de cada una en cada estado
