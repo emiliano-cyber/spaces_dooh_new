@@ -7,6 +7,10 @@ La entrada más reciente va arriba.
 
 ## 2026-10-06
 
+- **El descuento comercial de una propuesta aparece por omisión como 0.00 %.**
+  Antes el campo mostraba «0» a secas. Ahora siempre lleva dos decimales y
+  acepta centésimas (por ejemplo 7.50 %); si borras el número, vuelve a 0.00.
+
 - **La demo tiene ahora un catálogo completo de ejemplo.** Para enseñar
   cualquier pantalla del sistema sin capturar nada a mano:
   - **24 pantallas**: 12 fijas y 12 digitales, dos de cada una en cada estado
