@@ -1661,6 +1661,9 @@ export interface CeldaDisponibilidad {
   ocupantes: OcupanteCelda[]
   spotsUsados: number
   spotsTotal: number | null // capacidad (solo digitales)
+  // Lo que QUEDA por vender (solo digitales con capacidad declarada; nunca
+  // negativo). Es la cifra que pide quien vende: con «3/10» había que restar.
+  spotsLibres: number | null
 }
 export interface PeriodoDisponibilidad {
   clave: string
@@ -1677,6 +1680,9 @@ export interface FilaDisponibilidad {
   totalSpots: number | null
   celdas: CeldaDisponibilidad[]
   libres: number // n.º de periodos LIBRE (para resumen / orden)
+  // n.º de periodos donde aún cabe una campaña: LIBRE, o digital con slots
+  // libres. Es lo que filtra «Solo con hueco libre».
+  conHueco: number
 }
 export interface Disponibilidad {
   periodos: PeriodoDisponibilidad[]
@@ -1763,6 +1769,7 @@ export function disponibilidad(state: DemoState, opts: OpcionesDisponibilidad): 
     const digital = esDigital(s)
     const rs = porSitio.get(s.id) ?? []
     let libres = 0
+    let conHueco = 0
     const celdas: CeldaDisponibilidad[] = periodos.map((p) => {
       const pIni = new Date(`${p.inicio}T00:00:00`).getTime()
       const pFin = new Date(`${p.fin}T23:59:59`).getTime()
@@ -1790,7 +1797,9 @@ export function disponibilidad(state: DemoState, opts: OpcionesDisponibilidad): 
         estado = solapan.length > 0 ? 'OCUPADO' : 'LIBRE'
       }
       if (estado === 'LIBRE') libres++
-      return { estado, ocupantes, spotsUsados, spotsTotal }
+      if (estado !== 'OCUPADO') conHueco++
+      const spotsLibres = spotsTotal != null ? Math.max(0, spotsTotal - spotsUsados) : null
+      return { estado, ocupantes, spotsUsados, spotsTotal, spotsLibres }
     })
     return {
       sitioId: s.id,
@@ -1801,10 +1810,13 @@ export function disponibilidad(state: DemoState, opts: OpcionesDisponibilidad): 
       totalSpots: digital ? s.totalSpots : null,
       celdas,
       libres,
+      conHueco,
     }
   })
 
-  const filtradas = opts.soloDisponibles ? filas.filter((f) => f.libres > 0) : filas
+  // Hasta el 06/10 filtraba por `libres`, y una digital con 7 de 10 slots
+  // libres desaparecía del filtro «con hueco»: justo la que se puede vender.
+  const filtradas = opts.soloDisponibles ? filas.filter((f) => f.conHueco > 0) : filas
   return { periodos, filas: filtradas, totalSitios: state.sitios.length }
 }
 

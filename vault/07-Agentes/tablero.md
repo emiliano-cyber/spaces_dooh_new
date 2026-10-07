@@ -13,6 +13,15 @@ archivos: []
 > `feat/descuento-comercial-cero` (Z5, verdes). Cada una trae su reclamo en SU copia de este
 > tablero; al fusionar, **juntar** las entradas, no quedarse con un lado. Detalle en [[2026-10-06]].
 
+> [!success] 2026-10-06 · **DISP-SLOTS · Z5 Comercial (solo Disponibilidad) — RECLAMADO Y LIBERADO** · VERDE (sin migración, sin sesión, sin dinero)
+> Rama `feat/disponibilidad-slots-libres`, salida de `main` (`16816572`). Toca
+> `disponibilidad()` en `lib/data/derive.ts` (dos campos nuevos:
+> `spotsLibres` en la celda y `conHueco` en la fila), la página
+> `/disponibilidad`, su prueba nueva, [[03-Frontend/modulos-internos]] y la
+> bitácora (alto contacto). Corrige de paso el filtro «Solo con hueco libre»,
+> que escondía las digitales a medio vender. **Pendiente de la aprobación del
+> dueño para fusionar.**
+
 > [!success] 2026-10-06 · **SEMILLA-CATALOGO · Z12 y la semilla de demo — RECLAMADO Y LIBERADO** · VERDE (solo datos de demo)
 > Rama `feat/semilla-catalogo-demo`, salida de `main` (`a0bdd4c7`). **Sin
 > migración, sin tocar código de la aplicación**: `scripts/semilla-catalogo-demo.mjs`

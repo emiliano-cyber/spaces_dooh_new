@@ -55,11 +55,20 @@ export default function DisponibilidadPage() {
     )
   }, [disp, busqueda])
 
-  // Resumen del primer periodo: cuántas pantallas quedan libres.
+  // Resumen del primer periodo: cuántas pantallas quedan libres. Las digitales
+  // se cuentan aparte, por slots: una con 7 de 10 libres no está «libre», pero
+  // se puede vender, y es lo que pidió el dueño ver (06/10).
   const resumenPrimer = useMemo(() => {
     if (!disp || disp.periodos.length === 0) return null
-    const libres = disp.filas.filter((f) => f.celdas[0]?.estado === 'LIBRE').length
-    return { periodo: disp.periodos[0].label, libres, total: disp.filas.length }
+    const estaticas = disp.filas.filter((f) => !f.digital)
+    const digitales = disp.filas.filter((f) => f.digital && f.celdas[0]?.estado !== 'OCUPADO')
+    return {
+      periodo: disp.periodos[0].label,
+      libres: estaticas.filter((f) => f.celdas[0]?.estado === 'LIBRE').length,
+      estaticas: estaticas.length,
+      digitales: digitales.length,
+      slots: digitales.reduce((acc, f) => acc + (f.celdas[0]?.spotsLibres ?? 0), 0),
+    }
   }, [disp])
 
   return (
@@ -151,9 +160,18 @@ export default function DisponibilidadPage() {
       {/* Resumen */}
       {resumenPrimer && (
         <p className="text-[13px] text-muted">
+          En <span className="font-medium text-ink">{resumenPrimer.periodo}</span>:{' '}
           <span className="font-medium text-ink">{resumenPrimer.libres}</span> de{' '}
-          {resumenPrimer.total} pantallas libres en{' '}
-          <span className="font-medium text-ink">{resumenPrimer.periodo}</span>.
+          {resumenPrimer.estaticas} estáticas libres
+          {resumenPrimer.digitales > 0 && (
+            <>
+              {' '}y <span className="font-medium text-ink">{resumenPrimer.digitales}</span>{' '}
+              {resumenPrimer.digitales === 1 ? 'pantalla digital' : 'pantallas digitales'} con
+              lugar, <span className="font-medium text-ink">{resumenPrimer.slots}</span>{' '}
+              {resumenPrimer.slots === 1 ? 'slot libre' : 'slots libres'}
+            </>
+          )}
+          .
         </p>
       )}
 
@@ -195,7 +213,7 @@ export default function DisponibilidadPage() {
                     <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
                       <span className="text-[11px] text-muted">{f.clave}</span>
                       {f.digital && f.totalSpots != null ? (
-                        <SlotsBadge total={f.totalSpots} />
+                        <SlotsBadge total={f.totalSpots} disponibles={f.celdas[0]?.spotsLibres} />
                       ) : f.digital ? (
                         <span className="rounded bg-surface-2 px-1 text-[10px] text-muted">digital</span>
                       ) : null}
@@ -213,8 +231,11 @@ export default function DisponibilidadPage() {
                                   o.spots != null ? `, ${o.spots} slots` : ''
                                 })`,
                             )
-                            .join('\n')
-                        : 'Libre'
+                            .join('\n') +
+                          (c.spotsLibres != null ? `\nQuedan ${c.spotsLibres} de ${c.spotsTotal} slots` : '')
+                        : c.spotsLibres != null
+                          ? `Libre: ${c.spotsLibres} slots`
+                          : 'Libre'
                     return (
                       <td key={i} className="px-1 py-1 text-center">
                         <div
@@ -225,10 +246,14 @@ export default function DisponibilidadPage() {
                             soloTentativa && 'border-dashed',
                           )}
                         >
-                          {c.estado === 'LIBRE'
+                          {f.digital && c.spotsLibres != null
+                            ? c.spotsLibres > 0
+                              ? `${c.spotsLibres} ${c.spotsLibres === 1 ? 'libre' : 'libres'}`
+                              : 'Lleno'
+                            : c.estado === 'LIBRE'
                             ? '·'
                             : f.digital
-                              ? `${c.spotsUsados}${c.spotsTotal != null ? `/${c.spotsTotal}` : ''}`
+                              ? `${c.spotsUsados} usados`
                               : soloTentativa
                                 ? 'Tent.'
                                 : 'Ocup.'}
@@ -250,7 +275,7 @@ export default function DisponibilidadPage() {
         </span>
         <span className="flex items-center gap-1.5">
           <span className={cn('inline-block h-3 w-4 rounded border', TONO_CELDA.PARCIAL)} /> Parcial
-          (digital con slots)
+          (digital: el número son los slots que quedan libres)
         </span>
         <span className="flex items-center gap-1.5">
           <span className={cn('inline-block h-3 w-4 rounded border', TONO_CELDA.OCUPADO)} /> Ocupado
