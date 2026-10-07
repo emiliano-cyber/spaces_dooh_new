@@ -14,10 +14,11 @@ archivos:
 
 # Manual de usuario — Space Eyes
 
-> [!info] Borrador que crece por etapas
-> Se escribe a la par que se construye la integración definitiva de Space Eyes
-> (plan del 06/10). Cada sección dice desde qué etapa existe. Las capturas se
-> agregan al cerrar la etapa 5, con la versión que vaya a producción.
+> [!info] Cómo está hecho este manual
+> Se escribió a la par que se construyó la integración de Space Eyes (plan del
+> 06/10). Cada sección dice desde qué etapa existe. Las capturas son del
+> 07/10/2026, con datos de prueba; la versión de producción se ve igual. Para
+> el detalle técnico: [[manual-tecnico-space-eyes]].
 
 ## 1. Qué es Space Eyes
 
@@ -57,12 +58,34 @@ configurar nada.
 Un equipo nunca se da por funcionando solo por estar en la lista: lo dice su
 **última comunicación**.
 
+![Space Eyes › Equipos: arriba los totales (en línea, sin comunicación, batería crítica, última captura), los filtros Todos / En línea / Con atención, la búsqueda y las tarjetas de cada equipo con su última foto, su estado, batería, red y hace cuánto se comunicó](capturas-space-eyes-2026-10-07/01-lista-1366.jpg)
+
+En el celular la misma página se acomoda en una columna y los botones bajan a
+su propia fila:
+
+![La lista de equipos en un celular: los totales en dos columnas y una tarjeta por equipo con el nombre completo](capturas-space-eyes-2026-10-07/02-lista-celular.jpg)
+
+### La ficha de un equipo
+
+Al tocar una tarjeta se abre su ficha, con cuatro pestañas: **Fotos**,
+**Pantalla y fallas**, **Creativos** y **Equipo**. En **Fotos** está primero
+**En vivo** (la vista en vivo se detiene sola a los 3 minutos para cuidar los
+datos), luego la última **Captura Space Eyes**, la **Foto del cliente** y
+**Comparar** las dos. A la derecha: energía, conexión, la pantalla de tu
+inventario a la que está ligado (por su código) y los datos del equipo.
+
+![Ficha de TLALPAN 985: título con su estado, código de pantalla y dirección; botones Tomar foto y Subir foto; la captura con la barra de estado encima; y a la derecha energía, conexión, pantalla asociada y detalles del equipo](capturas-space-eyes-2026-10-07/03-ficha-fotos.jpg)
+
+![La misma ficha en un celular: los botones debajo del título y los selectores de la foto en dos renglones, sin cortarse](capturas-space-eyes-2026-10-07/04-ficha-celular.jpg)
+
 Si sale **«El servicio de cámaras no responde en este momento»**, el servidor
 de cámaras de tu empresa se está actualizando o reiniciando. Tus equipos siguen
 trabajando y lo que tomen aparece cuando vuelva. Pulsa **Volver a intentar**
 en unos minutos; si pasa más de una hora, abre un ticket de soporte.
 
 ## 4. Agregar un equipo *(etapa 2)*
+
+![Agregar dispositivo: se elige Teléfono Android, Raspberry Pi o PC con cámara IP; cuántos equipos vas a instalar; los pasos y Generar código; y abajo la lista de códigos de vinculación con su estado y los equipos que los usaron](capturas-space-eyes-2026-10-07/08-agregar-dispositivo.jpg)
 
 **Space Eyes › Equipos › Agregar dispositivo.** Necesitas permiso de edición en
 Inventario.
@@ -173,6 +196,8 @@ En la ficha del equipo › **Equipo**:
 - **Reiniciar equipo** *(solo Raspberry)*: reinicia la Raspberry completa. Es lo
   que destraba una cámara o una red que se quedaron colgadas.
 
+![La pestaña Equipo de una Raspberry: versión del agente, Actualizar app, Reiniciar app y Reiniciar equipo](capturas-space-eyes-2026-10-07/07-equipo.jpg)
+
 ### 5.1 Creativos nuevos y pantalla apagada
 
 En la ficha del equipo › **Creativos**:
@@ -203,6 +228,10 @@ En **Pantalla y fallas**:
   adelante (se actualizan desde **Equipo › Actualizar app**). Los cambios de
   estos ajustes llegan al equipo en unos minutos.
 
+![Creativos: Vigilar la pantalla encendido y «Vigilando en continuo»; fotos de hoy contra el tope del día, creativos en el catálogo, la frecuencia, Mandar las fotos nuevas (Al momento o Juntas cada 2, 4, 8 o 12 horas), los datos del chip del mes y los creativos nuevos detectados](capturas-space-eyes-2026-10-07/06-creativos.jpg)
+
+![Pantalla y fallas: la pantalla marcada (gabinetes y horario), cuánto aprende, cada cuánto revisa y el interruptor «Avisar al instante si la pantalla se apaga completa»](capturas-space-eyes-2026-10-07/05-pantalla-y-fallas.jpg)
+
 ### 5.2 Las campañas que vendes: foto de prueba automática
 
 Lo que se vende y se sube en **Operaciones** llega solo a los equipos de
@@ -228,6 +257,36 @@ Space Eyes. No hay que capturar nada dos veces.
   de prueba. Cabe de sobra en los 4 GB.
 - Lo tienen la **Raspberry 0.7.4** y la **app del teléfono 0.16.3** en adelante,
   con la vigilancia de creativos encendida.
+
+![Space Eyes › Campañas: cada campaña con su creativo de referencia, equipos, fotos y periodo; las que llegaron de Operaciones dicen «De Operaciones» y «Se cambia en Operaciones»](capturas-space-eyes-2026-10-07/09-campanas.jpg)
+
+### 5.3 Las demás pantallas del módulo
+
+- **Fallas**: el historial de fallas de todos tus equipos (abiertas,
+  recuperadas, las que no eran falla), con la foto al detectar y al recuperar.
+  En el celular se ve como tarjetas.
+
+  ![Fallas de pantalla: totales de abiertas, recuperadas y no eran falla, y el historial con fecha, equipo, falla, zona, estado, recuperación y evidencia](capturas-space-eyes-2026-10-07/10-fallas.jpg)
+
+  ![Fallas en un celular: cada falla en una tarjeta con su estado, el equipo, las fechas y las fotos](capturas-space-eyes-2026-10-07/11-fallas-celular.jpg)
+
+- **Galería**: todas las fotos de los equipos, por fechas, origen (programada,
+  pedida a mano, creativo nuevo, falla, campaña) y equipo; se puede descargar
+  el álbum.
+
+  ![Galería de fotos con filtros de fechas, origen y equipo](capturas-space-eyes-2026-10-07/12-galeria.jpg)
+
+- **Gráficas**: energía, temperatura, señal y consumo de datos de cada equipo.
+
+  ![Gráficas de un equipo: estado, temperatura, batería y consumo de datos](capturas-space-eyes-2026-10-07/13-graficas.jpg)
+
+- **Programación**: fotos automáticas por horario, por equipo o por grupo.
+
+  ![Programación de fotos: cada programación con a qué aplica, cuándo, la próxima foto y cuántas tomó](capturas-space-eyes-2026-10-07/14-programacion.jpg)
+
+- **Ajustar texto**: el nombre, la fecha y la hora que se ven sobre las fotos.
+
+  ![Ajustar texto: una foto de prueba con la marca encima y sus controles de tamaño, fuente y posición](capturas-space-eyes-2026-10-07/15-ajustar-texto.jpg)
 
 ## 6. Cuando tus equipos cambian de servidor *(etapa 3)*
 
@@ -260,5 +319,4 @@ que hacer nada.
 
 ## Pendiente de escribir
 
-
-- Capturas de pantalla de la versión final *(etapa 5)*.
+- Lo que cambie al pasar la flota de g500 a su Space Eye *(etapa 5)*.
