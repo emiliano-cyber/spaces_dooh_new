@@ -1090,6 +1090,26 @@ licencia_del_padre() {
     registrar "   licencia del padre: la que bajo NO valida (firma o instancia); se descarta y se sigue con la que hay"
     rm -rf "$tmp"; return 0
   fi
+  # Nunca hacia atras (revision del 07/10). La copia del padre puede ser VIEJA:
+  # `firmar-licencia.mjs` escribe por omision en `.`, asi que una renovacion
+  # copiada a mano a la instancia deja en el padre la de antes, con firma buena
+  # y de esta instancia. Instalarla le quitaba la renovacion, y si ya habia
+  # vencido terminaba en el `docker stop` de las vencidas (E157). Si la de disco
+  # es valida, la del padre entra solo si no vence antes y, venciendo el mismo
+  # dia, si no se emitio antes (E156-E159). Las fechas son YYYY-MM-DD: se
+  # comparan como texto. Con la de disco rota no hay nada que proteger (E160).
+  local nueva_vence nueva_emitida disco_vence disco_emitida
+  if ( registrar() { :; }; licencia_valida ); then
+    nueva_vence="$(LICENCIA_DIR="$tmp" licencia_texto vence)"
+    nueva_emitida="$(LICENCIA_DIR="$tmp" licencia_texto emitida)"
+    disco_vence="$(licencia_texto vence)"
+    disco_emitida="$(licencia_texto emitida)"
+    if [[ "$nueva_vence" < "$disco_vence" ]] \
+       || { [ "$nueva_vence" = "$disco_vence" ] && [[ "$nueva_emitida" < "$disco_emitida" ]]; }; then
+      registrar "   licencia del padre: es MAS VIEJA que la de disco (vence $nueva_vence, emitida $nueva_emitida; la de disco vence $disco_vence, emitida $disco_emitida); se descarta y se sigue con la que hay"
+      rm -rf "$tmp"; return 0
+    fi
+  fi
   mkdir -p "$LICENCIA_DIR" \
     && install -m 644 "$tmp/licencia.firma" "$LICENCIA_DIR/.licencia.firma.nueva" \
     && install -m 644 "$tmp/licencia.json" "$LICENCIA_DIR/.licencia.json.nueva" \

@@ -171,6 +171,19 @@ recibe SOLO la suya) y la instala solo si valida igual que la de disco
 ella o manda una que no valida, sigue con la que hay. Arnés: E150–E155
 (164 escenarios · 920 comprobaciones), y dos mutantes que muerden.
 
+> **Y nunca hacia atrás (revisión del 07/10).** `licencia_valida` mira firma,
+> instancia y dominio, no fechas, así que una copia VIEJA en el padre —y la
+> hay en cuanto una renovación se firma con `firmar-licencia.mjs`, que escribe
+> por omisión en `.`, y se copia a mano a la instancia— se instalaba encima de
+> la renovada; si ya había vencido, la instancia terminaba en el `docker stop`
+> de las vencidas. Ahora, con la de disco válida, la del padre entra solo si no
+> vence antes y, venciendo el mismo día, si no se emitió antes (activar o
+> desactivar conserva el vencimiento y emite hoy, así que sigue pasando).
+> Arnés: E156–E160 y un tercer mutante, que muerde (E157 vuelve al código 8).
+> **Regla práctica:** al renovar una instancia con `LICENCIA_DEL_PADRE=1`,
+> firma con `--salida apps/flota/licencias/<instancia>` en el padre, o lo
+> renovado no llega por este canal (llega a mano y el padre ya no lo pisa).
+
 **El alta con Space Eyes desde el panel.** La solicitud tiene `con_eyes`
 (casilla marcada por omisión): el ejecutor pasa `--con-eyes` al alta y a la
 reemisión del certificado, crea también el registro `eyes.<dominio>` si la
