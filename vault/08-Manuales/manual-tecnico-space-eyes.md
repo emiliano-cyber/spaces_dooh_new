@@ -242,7 +242,7 @@ PC **1.6.0**, imagen de Space Eye construida con `space-eye/Dockerfile.instancia
 
 | Qué | Comando |
 |---|---|
-| SPACE OS, todo | `cd apps/web && npx vitest run` (3436) · `npx tsc --noEmit` · `npx eslint components/demo/space-eyes` |
+| SPACE OS, todo | `cd apps/web && npx vitest run` (249 archivos, 3443 pruebas) · `npx tsc --noEmit` · `npx eslint components/demo/space-eyes` |
 | Sincronización de campañas | `npx vitest run lib/server/space-eyes-campanas.test.ts` |
 | Visión de la Raspberry | `cd space-eye/pi-agent && python3 -m pytest vision/pruebas` (necesita OpenCV; hay imagen de Docker en el ensayo) |
 | Node de la Raspberry | `cd space-eye/pi-agent && npm run probar` |

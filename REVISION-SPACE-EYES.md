@@ -80,7 +80,7 @@ Sin las banderas (`LICENCIA_DEL_PADRE`, `--con-eyes`) todo se comporta como en
 cd apps/web
 npx tsc --noEmit                      # limpio
 npx eslint components/demo/space-eyes # limpio
-npx vitest run                        # 3436 en verde (incluye space-eyes-campanas 8/8)
+npx vitest run                        # 249 archivos, 3443 pruebas en verde (incluye space-eyes-campanas 8/8)
 
 # Space Eye: servidor
 cd space-eye/backend && npm ci && npx tsc --noEmit
