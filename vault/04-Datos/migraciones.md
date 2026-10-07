@@ -61,7 +61,7 @@ archivos:
 > | Migración | Decía | Entró en `main` |
 > |---|---|---|
 > | `20261007_calculadora_spots.sql` | rama sin fusionar | `43082ac4` (01/10) |
-> | `20261010_contrato_cambios.sql` | rama `feat/contratos-cambios-antes-de-firmar`, **forma por aprobar** | CONTRATO-CAMBIOS (07/10) |
+> | `20261010_contrato_cambios.sql` | forma aprobada por el dueño el 07/10 | `47ee0a98` (07/10) |
 > | `20261009_propuestas_fechas_estatus.sql` | forma aprobada por el dueño el 07/10 | `f67d1611` (07/10) |
 > | `20261008_cobranza_abonos.sql` | forma aprobada por el dueño el 07/10 | `f67d1611` (07/10) |
 > | `20261006_precio_ajustado_por_gerente.sql` | rama sin fusionar | `17fbd252` (01/10) |
