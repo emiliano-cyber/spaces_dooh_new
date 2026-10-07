@@ -55,8 +55,9 @@ flowchart LR
 - **La pantalla y el equipo se ligan por código:**
   `sitios.codigo_proveedor` (SPACE OS) = `devices.billboard_code` (Space Eye),
   sin mayúsculas ni espacios.
-- **Si la empresa no tiene el módulo** (licencia sin `space-eyes`, o sin
-  `SPACE_EYE_BASE_URL`), `/space-eyes` muestra la demostración
+- **Si la empresa no tiene el módulo** (licencia con `modulos` y sin
+  `space-eyes`, o sin `SPACE_EYE_BASE_URL`; una licencia de antes, **sin el
+  campo** `modulos`, no decide y manda la configuración), `/space-eyes` muestra la demostración
   (`DemoSpaceEyes.tsx`); si lo tiene pero no responde, `SinRespuesta.tsx`.
   Lo decide `estadoDelModulo()` en `lib/server/space-eye.ts` (salud cada 30 s).
 

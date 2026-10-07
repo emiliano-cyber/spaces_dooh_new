@@ -316,6 +316,10 @@ export function fechaLegible(iso) {
 function celdaModulo(nombre, modulosDeInstancia) {
   const { licencia, modulos } = modulosDeInstancia(nombre)
   if (!licencia) return '<td class="sub" title="Sin licencia en el padre: manda el alta (--con-eyes)">—</td>'
+  if (modulos === null) {
+    const orden = ordenPara(nombre, 'space-eyes', true)
+    return `<td class="sub" title="${escapar(`Su licencia no dice nada: manda la configuracion de la instancia. Para fijarlo: ${orden}`)}">segun config</td>`
+  }
   const activo = modulos.includes('space-eyes')
   const orden = ordenPara(nombre, 'space-eyes', !activo)
   return `<td title="${escapar(`Para ${activo ? 'desactivarlo' : 'activarlo'}: ${orden}`)}">${activo ? 'activo' : 'no'}</td>`

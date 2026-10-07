@@ -39,6 +39,8 @@ export function licenciaConModulo(jsonVigente, { modulo, activar, hoy }) {
   if (!MODULOS.includes(modulo)) throw new Error(`modulo desconocido: ${modulo} (hay: ${MODULOS.join(', ')})`)
   const v = JSON.parse(jsonVigente)
   const actuales = Array.isArray(v.modulos) ? v.modulos : []
+  // Quitar el ultimo deja `modulos: []`, ESCRITO: sin el campo la licencia no
+  // decidiria y el modulo seguiria encendido por configuracion.
   const modulos = activar ? [...actuales, modulo] : actuales.filter((m) => m !== modulo)
   return construirLicencia({
     instancia: v.instancia,
@@ -55,7 +57,8 @@ export function licenciaConModulo(jsonVigente, { modulo, activar, hoy }) {
 export function modulosDe(instancia, dir = DIR_LICENCIAS) {
   try {
     const l = JSON.parse(readFileSync(join(dir, instancia, 'licencia.json'), 'utf8'))
-    return { licencia: true, modulos: Array.isArray(l.modulos) ? l.modulos : [] }
+    // `null`: una licencia de antes, que no decide (manda la configuracion).
+    return { licencia: true, modulos: Array.isArray(l.modulos) ? l.modulos : null }
   } catch {
     return { licencia: false, modulos: [] }
   }
