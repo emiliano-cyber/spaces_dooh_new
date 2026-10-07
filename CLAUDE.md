@@ -39,7 +39,7 @@ no se versiona configuración de la herramienta. Consecuencia práctica: la bóv
 Markdown puro y **se lee igual desde un editor, desde `cat` o desde un agente**. No
 necesitas instalar nada.
 
-Al 2026-10-06 tiene **1460 enlaces internos** sobre **102 notas**, con **2
+Al 2026-10-07 tiene **1461 enlaces internos** sobre **102 notas**, con **2
 wikilinks rotos** —los dos apuntan a ADR, que viven en `docs/` y no en la
 bóveda, así que es un choque de convención más que un enlace muerto— y
 **0 notas huérfanas**. Medido con `node scripts/recuentos.mjs` **en este
@@ -134,7 +134,7 @@ código, no de memoria:
 | Tablas | **58** | `vault/04-Datos/esquema.md` |
 | Migraciones | **108** | `vault/04-Datos/migraciones.md` |
 
-> Esos recuentos llevan fecha de validación **2026-10-06** (rama `feat/propuestas-tablero`, sobre `feat/finanzas-periodos`), medidos con
+> Esos recuentos llevan fecha de validación **2026-10-07** (integración de las cinco ramas del 06/10 sobre `main`), medidos con
 > `node scripts/recuentos.mjs` sobre este árbol. Trátalos como una
 > afirmación con fecha, no como una verdad permanente — §5 explica cómo
 > reverificarlos.

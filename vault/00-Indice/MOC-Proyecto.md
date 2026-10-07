@@ -30,7 +30,7 @@ cobranza.
 | Endpoints | **126** route handlers | `apps/web/app/api/**/route.ts` |
 | Tablas | **58** | [[esquema]] |
 | Migraciones | **108** | [[migraciones]] |
-| ADR | **42** (`0001`–`0042`) | `docs/adr/` · [[decisiones]] |
+| ADR | **45** (`0001`–`0046`) | `docs/adr/` · [[decisiones]] |
 
 > [!success] `demo.space-os.io` SE ELIMINARÁ — cerrado el 27/08 por el ADR 0024
 > Ese nombre **no sirve más que para la demostración original** —la anterior al
