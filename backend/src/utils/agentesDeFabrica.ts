@@ -52,6 +52,13 @@ function leerMeta(archivo: string): { version: string | null; sha256: string | n
   }
 }
 
+/** El archivo de la imagen existe y no es igual al publicado (o no hay publicado). */
+function distinto(deFabrica: string, publicado: string): boolean {
+  if (!fs.existsSync(deFabrica)) return false;
+  if (!fs.existsSync(publicado)) return true;
+  return !fs.readFileSync(deFabrica).equals(fs.readFileSync(publicado));
+}
+
 /** Publica en `destino` los agentes de la imagen que sean mas nuevos. */
 export function publicarAgentesDeFabrica(destino = process.env.DESCARGAS_DIR || '', origen = FABRICA): string[] {
   if (!destino || !fs.existsSync(origen)) return [];
@@ -66,7 +73,22 @@ export function publicarAgentesDeFabrica(destino = process.env.DESCARGAS_DIR || 
     // reconstruyo sin subir el numero): manda el de la imagen, que es el que
     // se probo junto con este servidor.
     const comparacion = publicada ? compararVersiones(deFabrica, publicada) : 1;
-    if (comparacion < 0 || (comparacion === 0 && pub.sha256 === fab.sha256)) continue;
+    if (comparacion < 0) continue;
+    if (comparacion === 0 && pub.sha256 === fab.sha256) {
+      // Mismo agente, pero el instalador pudo cambiar solo (p. ej. la zona
+      // horaria, 6-oct): sin esto un arreglo del instalador nunca se publicaba,
+      // porque solo se copiaba junto con un paquete nuevo.
+      const cambiados = a.extras.filter((x) => distinto(path.join(origen, x), path.join(destino, x)));
+      for (const x of cambiados) {
+        try {
+          fs.copyFileSync(path.join(origen, x), path.join(destino, x));
+          hechos.push(`${a.nombre}: ${x}`);
+        } catch (e: any) {
+          console.error(`[Agentes] no pude publicar ${x}: ${e.message}`);
+        }
+      }
+      continue;
+    }
     try {
       fs.mkdirSync(destino, { recursive: true });
       fs.copyFileSync(path.join(origen, a.paquete), path.join(destino, a.paquete));

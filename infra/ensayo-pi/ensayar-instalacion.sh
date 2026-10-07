@@ -34,6 +34,8 @@ docker exec $PI su pi -c "curl -fsSL $SERV/instalar-pi.sh | sudo bash -s -- --se
 afirmar "docker exec $PI test -f /home/pi/pi-agent/vision/monitor.py" "el agente quedo en ~/pi-agent, con su vigilancia"
 afirmar "docker exec $PI python3 -c 'import cv2'" "OpenCV instalado"
 afirmar "docker exec $PI test -f /etc/sudoers.d/space-eye-agente" "dejo los permisos del agente"
+# La Pi de fabrica viene en UTC: el horario de la pantalla quedaria corrido 6 h.
+afirmar "docker exec $PI readlink /etc/localtime | grep -q America/Mexico_City" "dejo la hora de Mexico (venia en UTC)"
 
 echo; echo "2) Sin el sudo amplio de la imagen: solo lo que dejo instalar.sh"
 docker exec $PI rm -f /etc/sudoers.d/pi

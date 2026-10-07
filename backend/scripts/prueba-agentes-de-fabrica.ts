@@ -69,7 +69,14 @@ afirmar(publicarAgentesDeFabrica(descargas, fabrica).length === 1, 'publica el d
 afirmar(leer('space-eye-pi-agent.tar.gz') === 'paquete 0.9.0 corregido', 'el paquete publicado es el corregido');
 afirmar(publicarAgentesDeFabrica(descargas, fabrica).length === 0, 'y no lo vuelve a copiar en el siguiente arranque');
 
-console.log('\n7) Sin carpeta de descargas (Space Eye central) o sin agentes en la imagen');
+console.log('\n7) Solo cambio el instalador (mismo agente): se publica el instalador');
+fs.writeFileSync(path.join(fabrica, 'instalar-pi.sh'), '# instalador con zona horaria');
+afirmar(publicarAgentesDeFabrica(descargas, fabrica).length === 1, 'lo publica');
+afirmar(leer('instalar-pi.sh') === '# instalador con zona horaria', 'el instalador servido es el nuevo');
+afirmar(leer('space-eye-pi-agent.tar.gz') === 'paquete 0.9.0 corregido', 'el paquete no se toca');
+afirmar(publicarAgentesDeFabrica(descargas, fabrica).length === 0, 'y no lo vuelve a copiar');
+
+console.log('\n8) Sin carpeta de descargas (Space Eye central) o sin agentes en la imagen');
 afirmar(publicarAgentesDeFabrica('', fabrica).length === 0, 'sin DESCARGAS_DIR no hace nada');
 afirmar(publicarAgentesDeFabrica(descargas, path.join(tmp, 'no-existe')).length === 0, 'sin /app/agentes no hace nada');
 

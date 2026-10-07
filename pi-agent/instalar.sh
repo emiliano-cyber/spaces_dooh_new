@@ -23,13 +23,16 @@
 #               el (el primer arranque corre como root).
 #  --paquete    instalar desde un .tar.gz local en vez de bajarlo (sin red).
 #  --sin-servicio  no instala el servicio de systemd (contenedores de ensayo).
+#  --zona       zona horaria si la Pi esta en UTC (America/Mexico_City). El
+#               horario de la pantalla se compara con la hora LOCAL: en UTC se
+#               corre 6 horas y la vigilancia mira con la pantalla apagada.
 #
 #  Se puede correr otra vez: no duplica nada y conserva la identidad del
 #  equipo (state.json), su configuracion y lo que la vigilancia aprendio.
 # ============================================================================
 set -euo pipefail
 
-SERVIDOR="" TESTIGO="" CODIGO="" USUARIO="" PAQUETE="" SERVICIO=1
+SERVIDOR="" TESTIGO="" CODIGO="" USUARIO="" PAQUETE="" SERVICIO=1 ZONA="America/Mexico_City"
 while [ $# -gt 0 ]; do
   case "$1" in
     --servidor) SERVIDOR="${2%/}"; shift 2 ;;
@@ -38,6 +41,7 @@ while [ $# -gt 0 ]; do
     --usuario) USUARIO="$2"; shift 2 ;;
     --paquete) PAQUETE="$2"; shift 2 ;;
     --sin-servicio) SERVICIO=0; shift ;;
+    --zona) ZONA="$2"; shift 2 ;;
     *) echo "opcion desconocida: $1" >&2; exit 2 ;;
   esac
 done
@@ -53,6 +57,18 @@ id "$USUARIO" >/dev/null 2>&1 || { echo "no existe el usuario $USUARIO" >&2; exi
 CASA="$(getent passwd "$USUARIO" | cut -d: -f6)"
 DIR="$CASA/pi-agent"
 paso() { echo; echo "[$1] $2"; }
+
+# La hora local. Solo si la Pi sigue en UTC (la de fabrica): una zona que
+# alguien ya eligio no se toca. El archivo de la microSD ya la pone.
+ACTUAL="$(readlink /etc/localtime 2>/dev/null | sed 's|.*/zoneinfo/||')"
+case "${ACTUAL:-UTC}" in
+  UTC|Etc/UTC|Etc/Universal|Universal|Zulu)
+    if [ -f "/usr/share/zoneinfo/$ZONA" ]; then
+      if command -v timedatectl >/dev/null && timedatectl set-timezone "$ZONA" 2>/dev/null; then :
+      else ln -sf "/usr/share/zoneinfo/$ZONA" /etc/localtime; echo "$ZONA" > /etc/timezone; fi
+      echo "zona horaria: $ZONA (estaba en UTC)"
+    fi ;;
+esac
 
 paso 1 "Paquetes del sistema"
 export DEBIAN_FRONTEND=noninteractive
