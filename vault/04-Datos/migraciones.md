@@ -52,7 +52,7 @@ archivos:
 > [!important] 2026-10-05 · puesta al día — ninguna de las de abajo está ya «sin fusionar»
 > Medido hoy con `node scripts/recuentos.mjs` sobre el árbol de
 > `integra/riesgos-presentacion-14-oct` (salida de `main` en `09c65ca2`):
-> **109 migraciones y 59 tablas** (07/10, con `20261010_contrato_cambios.sql`; antes 108 y 58) (06/10, con `20261009_propuestas_fechas_estatus.sql`; antes 107) (06/10, con `20261008_cobranza_abonos.sql`). Es el recuento vigente; los de los recuadros
+> **110 migraciones y 59 tablas** (07/10, con `20261011_contrato_cambios_solo_insercion.sql`; antes 109) (07/10, con `20261010_contrato_cambios.sql`; antes 108 y 58) (06/10, con `20261009_propuestas_fechas_estatus.sql`; antes 107) (06/10, con `20261008_cobranza_abonos.sql`). Es el recuento vigente; los de los recuadros
 > de abajo (92/52 del 28/09, 94, 99…) son fotos de su día y se dejan como tales.
 >
 > Lo que los recuadros dicen «sin fusionar» o «pendiente», con el commit de
@@ -61,6 +61,7 @@ archivos:
 > | Migración | Decía | Entró en `main` |
 > |---|---|---|
 > | `20261007_calculadora_spots.sql` | rama sin fusionar | `43082ac4` (01/10) |
+> | `20261011_contrato_cambios_solo_insercion.sql` | rama `fix/contrato-cambios-solo-insercion` | quita `update`/`delete` que el privilegio por omisión del 24/08 daba sobre `contrato_cambios`: la 20261010 decía «solo select e insert» y era falso (07/10) |
 > | `20261010_contrato_cambios.sql` | forma aprobada por el dueño el 07/10 | `47ee0a98` (07/10) |
 > | `20261009_propuestas_fechas_estatus.sql` | forma aprobada por el dueño el 07/10 | `f67d1611` (07/10) |
 > | `20261008_cobranza_abonos.sql` | forma aprobada por el dueño el 07/10 | `f67d1611` (07/10) |

@@ -196,3 +196,20 @@ describe('4 · adjuntar el PDF no es cambiar los términos', () => {
     expect(h[0]).toMatchObject({ envioAnulado: false, cambios: [{ campo: 'documentoUrl', despues: 'PDF nuevo' }] })
   })
 })
+
+describe('5 · el historial solo se agrega: la aplicación no lo reescribe', () => {
+  it('el rol de la aplicación puede leer e insertar, y NO actualizar ni borrar', async () => {
+    // `20260824_grants_tablas_futuras.sql` da por omisión select, insert,
+    // update y delete sobre CUALQUIER tabla nueva. La migración de la tabla
+    // decía «solo select e insert» y era falso: el grant explícito no quita lo
+    // que ya dio el privilegio por omisión. Lo arregla el `revoke` de
+    // `20261011_contrato_cambios_solo_insercion.sql`.
+    const priv = async (p: string) =>
+      (await poolTest().query(`select has_table_privilege('spaces_app', 'contrato_cambios', $1) as si`, [p])).rows[0].si
+    expect(await priv('SELECT')).toBe(true)
+    expect(await priv('INSERT')).toBe(true)
+    expect(await priv('UPDATE')).toBe(false)
+    expect(await priv('DELETE')).toBe(false)
+    expect(await priv('TRUNCATE')).toBe(false)
+  })
+})

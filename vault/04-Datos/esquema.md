@@ -594,7 +594,7 @@ erDiagram
 `propuestas.aprobada_en` y `propuestas.rechazada_en` (06/10, PROP-PER): cuándo se aprobó o rechazó, para el tablero por periodo.
 
 ### Arrendadores · historial de cambios del contrato
-`contrato_cambios` (07/10, CONTRATO-CAMBIOS): un renglón por edición que cambió algo — qué parte lo propuso (`propuesto_por`: ARRENDADOR / ARRENDATARIO, NULL si no es negociación), quién lo capturó (`usuario_id` + `usuario_nombre` copiado), el motivo, la lista `cambios` (jsonb, antes/después ya legibles) y si anuló un envío a firma (`envio_anulado`). Solo se inserta: el rol de la aplicación tiene `select, insert` y nada más. Ver [[02-Backend/arrendadores-y-contratos]].
+`contrato_cambios` (07/10, CONTRATO-CAMBIOS): un renglón por edición que cambió algo — qué parte lo propuso (`propuesto_por`: ARRENDADOR / ARRENDATARIO, NULL si no es negociación), quién lo capturó (`usuario_id` + `usuario_nombre` copiado), el motivo, la lista `cambios` (jsonb, antes/después ya legibles) y si anuló un envío a firma (`envio_anulado`). Solo se inserta: el rol de la aplicación tiene `select, insert` y nada más **desde `20261011_contrato_cambios_solo_insercion.sql`** — la 20261010 lo afirmaba, pero el privilegio por omisión de `20260824_grants_tablas_futuras.sql` le seguía dando `update` y `delete`; lo comprueba `has_table_privilege` en la e2e. Ver [[02-Backend/arrendadores-y-contratos]].
 
 ### Finanzas
 `facturas`, `cobranzas`, `cobranza_abonos` (06/10: cada pago con su fecha, ADR 0046).

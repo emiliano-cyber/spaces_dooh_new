@@ -132,7 +132,7 @@ código, no de memoria:
 | Aislamiento | RLS de Postgres por `app.tenant_id` | `apps/web/lib/server/db.ts:60` y `:79` |
 | Endpoints | **127** route handlers | `apps/web/app/api/**/route.ts` |
 | Tablas | **59** | `vault/04-Datos/esquema.md` |
-| Migraciones | **109** | `vault/04-Datos/migraciones.md` |
+| Migraciones | **110** | `vault/04-Datos/migraciones.md` |
 
 > Esos recuentos llevan fecha de validación **2026-10-07** (rama `feat/contratos-cambios-antes-de-firmar`, sobre la integración de las cinco ramas del 06/10), medidos con
 > `node scripts/recuentos.mjs` sobre este árbol. Trátalos como una
