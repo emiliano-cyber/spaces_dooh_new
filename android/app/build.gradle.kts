@@ -12,8 +12,8 @@ android {
         applicationId = "com.spaceeye.agent"
         minSdk = 26
         targetSdk = 34
-        versionCode = 33
-        versionName = "0.16.1"
+        versionCode = 35
+        versionName = "0.16.3"
 
         // URL del backend de la flota de siempre. Desde la 0.16.0 solo la usan los
         // telefonos que ya estaban dados de alta antes (TokenStore.servidorActivo);

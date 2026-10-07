@@ -292,6 +292,32 @@ class ApiClient(ctx: Context) {
 
     fun tieneLlave(): Boolean = tokenStore.getDeviceToken() != null
 
+    /** Huella de la configuracion de vigilancia segun el ultimo reporte de estado, o null. */
+    @Volatile var vigilancia: String? = null
+        private set
+
+    /**
+     * El arte reducido (JPEG, unos 50 KB) de una campana vendida para esta
+     * pantalla. null sin red, o si la campana ya no es de este equipo (404).
+     */
+    fun referenciaCampana(id: Int): ByteArray? {
+        val token = tokenStore.getDeviceToken() ?: return null
+        val request = Request.Builder()
+            .url("$baseUrl/api/device/campanas/$id/referencia")
+            .header("Authorization", "Bearer $token")
+            .get()
+            .build()
+        return try {
+            http.newCall(request).execute().use { r ->
+                if (!r.isSuccessful) { Log.w(TAG, "referenciaCampana $id: ${r.code}"); null }
+                else r.body?.bytes()?.takeIf { it.isNotEmpty() }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "referenciaCampana error: ${e.message}")
+            null
+        }
+    }
+
     fun reportStatus(status: DeviceStatus, extra: JSONObject? = null): Boolean {
         val token = tokenStore.getDeviceToken() ?: return false
 
@@ -338,6 +364,13 @@ class ApiClient(ctx: Context) {
             val success = response.isSuccessful
             if (!success) {
                 Log.e(TAG, "Status report failed: ${response.code}")
+            } else {
+                // La huella de la configuracion de vigilancia: si cambia, Monitor
+                // vuelve a pedirla sin esperar su plazo. Los servidores viejos no
+                // la mandan (null = "no se sabe", y se respeta el plazo).
+                vigilancia = try {
+                    JSONObject(response.body?.string().orEmpty()).optString("vigilancia", "").ifEmpty { null }
+                } catch (_: Exception) { null }
             }
             // Llave rechazada: el equipo se mudo de servidor o el servidor se
             // reinstalo. Antes se quedaba asi para siempre, reportando a ciegas;

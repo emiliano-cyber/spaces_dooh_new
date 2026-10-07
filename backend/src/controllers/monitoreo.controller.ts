@@ -20,6 +20,7 @@ import { uploadPhoto } from '../services/photoStorage.service';
 import { firmar } from '../utils/firmaArchivos';
 import { configDe as configCreativos, fotosDeHoy as fotosCreativosDeHoy } from './creativos.controller';
 import { encuadreDe } from './dashboard.controller';
+import { campanasDelEquipo } from './campanasSpaceos.controller';
 import { equipoAjeno } from '../utils/dueno';
 
 /** Una falla descartada a mano no vuelve a sonar en este plazo. */
@@ -77,7 +78,7 @@ function clave(tipo: string, fila: number | null, columna: number | null) {
 async function saludDe(deviceId: number) {
   const [filas] = await pool.query<any[]>(
     `SELECT salud_watch, salud_desde, salud_cada_min, salud_confirmaciones, salud_umbral, salud_max_dia,
-            creative_recorrido_seg, creative_paso_seg, aprendizaje_min
+            creative_recorrido_seg, creative_paso_seg, aprendizaje_min, salud_aviso_rapido
      FROM devices WHERE id = ?`, [deviceId]);
   const d = (filas as any[])[0];
   if (!d) return null;
@@ -96,6 +97,8 @@ async function saludDe(deviceId: number) {
     max_dia: d.salud_max_dia,
     recorrido_seg: d.creative_recorrido_seg,
     paso_seg: d.creative_paso_seg,
+    // Pantalla completa apagada: aviso en menos de un minuto (023).
+    aviso_rapido: d.salud_aviso_rapido == null ? true : !!d.salud_aviso_rapido,
   };
 }
 
@@ -135,6 +138,14 @@ export async function paraElEquipo(req: Request, res: Response) {
     creativos: creativos && {
       ...creativos,
       restantes_hoy: Math.max(0, creativos.max_dia - (await fotosCreativosDeHoy(did))),
+      // Las campanas vendidas en SPACE OS para esta pantalla: el equipo baja su
+      // referencia y manda una foto de prueba al dia cuando la reconoce.
+      campanas: await campanasDelEquipo(did).catch((err) => {
+        // Las campanas NUNCA pueden dejar al equipo sin vigilar: sin ellas
+        // sigue todo lo demas (paso en el ensayo del 6-oct con un SQL roto).
+        console.error('[campanas] no se pudieron leer las del equipo:', err?.message);
+        return [];
+      }),
     },
     salud: salud && {
       ...salud,
@@ -349,6 +360,7 @@ export async function configurarSalud(req: Request, res: Response) {
     max_dia: z.number().int().min(1).max(50).optional(),
     // Minutos de aprendizaje, para creativos y fallas: 0 = solo la primera vuelta.
     aprendizaje_min: z.number().int().min(0).max(1440).optional(),
+    aviso_rapido: z.boolean().optional(),
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'invalid_input' });
@@ -366,6 +378,7 @@ export async function configurarSalud(req: Request, res: Response) {
   if (d.umbral !== undefined) { campos.push('salud_umbral = ?'); valores.push(d.umbral); }
   if (d.max_dia !== undefined) { campos.push('salud_max_dia = ?'); valores.push(d.max_dia); }
   if (d.aprendizaje_min !== undefined) { campos.push('aprendizaje_min = ?'); valores.push(d.aprendizaje_min); }
+  if (d.aviso_rapido !== undefined) { campos.push('salud_aviso_rapido = ?'); valores.push(d.aviso_rapido ? 1 : 0); }
   if (!campos.length) return res.status(400).json({ error: 'no_fields' });
   await pool.query(`UPDATE devices SET ${campos.join(', ')} WHERE id = ?`, [...valores, req.params.id]);
   res.json({ ok: true, salud: await saludDe(Number(req.params.id)) });

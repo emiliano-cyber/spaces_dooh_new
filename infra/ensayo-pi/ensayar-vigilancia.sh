@@ -83,6 +83,9 @@ docker exec $PI sh -c 'echo sana > /camara/modo'
 echo; echo "1) Marcar la pantalla y encender la vigilancia (cada 5 min, sin aprendizaje largo)"
 se -X PUT "$API/api/devices/$ID/pantalla" -d '{"esquinas":[[0.274,0.165],[0.76,0.192],[0.773,0.386],[0.309,0.413]],"filas":5,"columnas":3,"excluir":[],"horario":{"inicio":"00:00","fin":"24:00"}}' >/dev/null
 se -X PUT "$API/api/devices/$ID/salud" -d '{"vigilar":true,"cada_min":5,"confirmaciones":2,"aprendizaje_min":0}' >/dev/null
+# Cierra las fallas que dejo un ensayo anterior (p. ej. la pantalla negra del de
+# envio y apagon): si no, "pantalla sana: ninguna alerta" ve la de antes.
+echo "UPDATE pantalla_fallas SET estado='recuperada', recuperada_en=NOW(), cerrada_por='usuario', nota='ensayo' WHERE device_id=$ID AND estado='abierta'" | wsl.exe -d Ubuntu -- bash /mnt/c/Users/hm284/Space_eye/infra/ensayo-pi/sql.sh >/dev/null
 # Empieza de cero (sin lo aprendido en un ensayo anterior) y pide la configuracion al arrancar.
 docker exec $PI sh -c 'rm -rf /home/pi/pi-agent/pantalla'
 docker restart $PI >/dev/null

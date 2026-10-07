@@ -56,6 +56,21 @@ export async function deleteStored(storagePath: string): Promise<void> {
   }
 }
 
+// Lee de vuelta un objeto guardado (local o en Spaces). Lo usa la referencia de
+// campana que baja el equipo: se reduce aqui y no viaja la original.
+export async function leerStored(storagePath: string): Promise<Buffer> {
+  if (storagePath.startsWith('/storage/')) {
+    const key = storagePath.replace(/^\/storage\//, '');
+    const ruta = path.join(STORAGE_ROOT, key);
+    // Nada de salirse de la carpeta de fotos con un "../" en la ruta guardada.
+    if (!ruta.startsWith(STORAGE_ROOT + path.sep)) throw new Error('ruta_invalida');
+    return fs.readFile(ruta);
+  }
+  const res = await fetch(resolveStorageUrl(storagePath), { signal: AbortSignal.timeout(30_000) });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return Buffer.from(await res.arrayBuffer());
+}
+
 // Convierte una storage_path guardada en BD a una URL descargable por el worker.
 // - Ya es http(s): se devuelve tal cual.
 // - Empieza con '/': modo local, se antepone PUBLIC_BASE_URL.

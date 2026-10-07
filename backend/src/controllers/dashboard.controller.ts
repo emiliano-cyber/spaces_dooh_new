@@ -1054,7 +1054,14 @@ export async function subirCreatividad(req: Request, res: Response) {
     req.file.mimetype
   );
 
-  await pool.query(`UPDATE campaigns SET creative_path = ? WHERE id = ?`, [ruta, campaignId]);
+  // creative_sha: el equipo vuelve a bajar la referencia solo si cambia.
+  // origen_sha: lo manda SPACE OS al sincronizar, para no resubir el mismo arte.
+  const origenSha = typeof req.body?.origen_sha === 'string' && /^[0-9a-f]{64}$/.test(req.body.origen_sha)
+    ? req.body.origen_sha : null;
+  await pool.query(
+    `UPDATE campaigns SET creative_path = ?, creative_sha = ?, origen_sha = COALESCE(?, origen_sha) WHERE id = ?`,
+    [ruta, crypto.createHash('sha256').update(imagen).digest('hex'), origenSha, campaignId]
+  );
   // Firmada tambien aqui: la vista previa se pinta con esta misma respuesta.
   res.json({ ok: true, creative_path: firmar(ruta) });
 }

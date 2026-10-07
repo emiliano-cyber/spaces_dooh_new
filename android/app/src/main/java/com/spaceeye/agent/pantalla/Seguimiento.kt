@@ -129,6 +129,18 @@ class Seguimiento(
     /** El servidor rechazo la alerta: aqui tampoco queda abierta. */
     fun olvidar(clave: String) { abiertas.remove(clave) }
 
+    fun estaAbierta(clave: String): Boolean = clave in abiertas
+
+    /**
+     * Una falla que se abrio FUERA de la revision de siempre (el aviso rapido de
+     * pantalla apagada, ApagadaRapida.kt). Queda abierta aqui como cualquier otra:
+     * no se vuelve a abrir, y se cierra sola cuando la revision vea la pantalla
+     * sana `recuperacion` veces. Sin numero (no hubo red) caduca como las demas.
+     */
+    fun abrirExterna(clave: String, id: Long?, ahora: Long = System.currentTimeMillis()) {
+        if (clave !in abiertas) abiertas[clave] = Abierta(id, 0, ahora)
+    }
+
     /** Zonas aprendidas como "nunca cambian". Solo cuentan tras VUELTAS_MINIMAS. */
     fun excluidas(): Set<Pair<Int, Int>> = celdas.filter { (_, c) ->
         c.vueltas >= VUELTAS_MINIMAS && c.quietas.toDouble() / c.vueltas >= FRACCION_EXCLUIR

@@ -15,6 +15,7 @@ import * as users from '../controllers/users.controller';
 import * as creativos from '../controllers/creativos.controller';
 import * as monitoreo from '../controllers/monitoreo.controller';
 import * as vinculaciones from '../controllers/vinculaciones.controller';
+import * as campanasSpaceos from '../controllers/campanasSpaceos.controller';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 
@@ -49,6 +50,8 @@ export function createRoutes() {
   // Monitoreo de la pantalla (APK 0.15.0+): configuracion antes de cada vuelta,
   // y alertas de falla solo cuando algo cambia de estado.
   router.get('/api/device/monitoreo', requireDevice, monitoreo.paraElEquipo);
+  // El arte reducido de una campana del equipo, para reconocerla en su pantalla.
+  router.get('/api/device/campanas/:id/referencia', requireDevice, campanasSpaceos.referenciaParaEquipo);
   router.post('/api/device/fallas', requireDevice, upload.single('photo'), monitoreo.reportarFalla);
 
   // --- Dashboard endpoints (user JWT) ---
@@ -124,6 +127,9 @@ export function createRoutes() {
   // Campaigns
   router.get('/api/campaigns', requireUser, dashboard.listCampaigns);
   router.post('/api/campaigns', requireUser, requireRole('admin', 'operator'), soloEnV1, dashboard.createCampaign);
+  // SPACE OS manda su lista completa de campanas vigentes (las de sus reservas).
+  router.post('/api/campaigns/sincronizar', requireUser, requireRole('admin', 'operator'), soloEnV1,
+    campanasSpaceos.sincronizar);
   router.get('/api/campaigns/:id', requireUser, dashboard.getCampaign);
   router.put('/api/campaigns/:id', requireUser, requireRole('admin', 'operator'), soloEnV1, dashboard.actualizarCampana);
   // La creatividad de referencia: la imagen contra la que se compara lo que

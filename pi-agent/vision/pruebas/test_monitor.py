@@ -105,6 +105,9 @@ class PuenteFalso:
         self.resumenes = []
         self.rutas = []
         self._id = 41
+        self.version = None     # la huella del ultimo reporte de estado
+        self.artes = {}         # id de campana -> JPEG de referencia
+        self.pruebas = []       # (foto, id de campana)
         puente = self
 
         class Atender(BaseHTTPRequestHandler):
@@ -132,6 +135,13 @@ class PuenteFalso:
                     return self._responder(200, {"ocupada": False})
                 if self.path == "/monitoreo":
                     return self._responder(200, puente.config)
+                if self.path == "/version":
+                    return self._responder(200, {"version": puente.version})
+                if self.path.startswith("/campana/"):
+                    arte = puente.artes.get(int(self.path.rsplit("/", 1)[1]))
+                    if arte is None:
+                        return self._responder(404, {"error": "no_es_del_equipo"})
+                    return self._responder(200, datos=arte, tipo="image/jpeg")
                 if self.path == "/camara/tomar":
                     if not puente.fotos:
                         return self._responder(503, {"error": "sin camara"})
@@ -169,6 +179,9 @@ class PuenteFalso:
                     return self._responder(200, {"id": int(campos["falla_id"])})
                 if self.path == "/creativo":
                     puente.creativos.append((base64.b64decode(j["foto"]), j["huella"]))
+                    return self._responder(200, {"ok": True})
+                if self.path == "/campana":
+                    puente.pruebas.append((base64.b64decode(j["foto"]), j["campana_id"]))
                     return self._responder(200, {"ok": True})
                 if self.path == "/log":
                     puente.logs.append(j)
@@ -393,7 +406,8 @@ def test_una_vuelta_como_proceso_habla_con_el_puente_y_termina(tmp_path):
         r = _correr(["--puente", puente.url, "--dir", str(tmp_path / "p"), "--una-vuelta"],
                     {"PUENTE_SECRETO": SECRETO})
         assert r.returncode == 0, r.stderr
-        assert puente.rutas == ["GET /monitoreo"]
+        # Primero la huella de la configuracion (la da el ultimo reporte de estado).
+        assert puente.rutas == ["GET /version", "GET /monitoreo"]
         sin_secreto = {k: v for k, v in os.environ.items() if k != "PUENTE_SECRETO"}
         r = subprocess.run([sys.executable, os.path.join(VISION, "monitor.py"), "--puente", puente.url,
                             "--dir", str(tmp_path / "p"), "--una-vuelta"],

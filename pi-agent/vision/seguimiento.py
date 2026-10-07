@@ -180,6 +180,19 @@ class Seguimiento:
         """El servidor rechazo la alerta: aqui tampoco queda abierta."""
         self._abiertas.pop(clave_, None)
 
+    def esta_abierta(self, clave_):
+        return clave_ in self._abiertas
+
+    def abrir_externa(self, clave_, id_=None):
+        """
+        Una falla que se abrio FUERA de la revision de siempre (el aviso rapido
+        de pantalla apagada, apagada_rapida.py). Queda abierta aqui como
+        cualquier otra: no se vuelve a abrir, y se cierra sola cuando la
+        revision vea la pantalla sana `recuperacion` veces.
+        """
+        if clave_ not in self._abiertas:
+            self._abiertas[clave_] = _Abierta(id_, 0, self._ahora_ms())
+
     def excluidas(self):
         """Zonas aprendidas como "nunca cambian". Solo cuentan tras VUELTAS_MINIMAS.
         En lista, en el orden en que se aprendieron (fila por fila)."""

@@ -22,7 +22,7 @@ const { Puente } = require('./puente');
 // la misma version, no hay forma de saber que corre cada sitio -y eso ya costo
 // caro en la flota: REVOLUCION 267 llevaba TRES versiones de atraso sin que el
 // dashboard lo delatara, porque el numero nunca cambiaba.
-const VERSION = '0.7.2';
+const VERSION = '0.7.5';
 const SERVIDOR_POR_OMISION = 'http://159.203.188.58:4000';
 
 const ahora = () => new Date().toISOString().replace('T', ' ').slice(0, 19);
@@ -574,7 +574,10 @@ async function main() {
         // creativo nuevo no le cuesta datos moviles al sitio.
         const resumen = vigilancia.tomarPendiente();
         try {
-          await api.reportarEstado({ ...tele.recolectar(cfg), ...(resumen || {}) });
+          const r = await api.reportarEstado({ ...tele.recolectar(cfg), ...(resumen || {}) });
+          // Si cambio la configuracion de vigilancia (un ajuste del panel, una
+          // campana nueva), monitor.py la vuelve a pedir en su siguiente vuelta.
+          if (r && typeof r.vigilancia === 'string') vigilancia.version = r.vigilancia;
           // El primer reporte que entra en el servidor nuevo confirma la mudanza.
           const m = mudanza.confirmar(cfg);
           if (m) {

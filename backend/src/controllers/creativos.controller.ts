@@ -32,7 +32,8 @@ const HUELLA = /^[0-9a-f]{64}$/i;
 export async function configDe(deviceId: number) {
   const [filas] = await pool.query<any[]>(
     `SELECT creative_watch, creative_desde, creative_max_dia, creative_cada_min,
-            creative_recorrido_seg, creative_paso_seg, creative_tolerancia, aprendizaje_min
+            creative_recorrido_seg, creative_paso_seg, creative_tolerancia, aprendizaje_min,
+            creative_envio_min
      FROM devices WHERE id = ?`,
     [deviceId]
   );
@@ -56,6 +57,8 @@ export async function configDe(deviceId: number) {
     desde: d.creative_desde,
     max_dia: d.creative_max_dia,
     cada_min: d.creative_cada_min,
+    // Cuando mandar las fotos nuevas: 0 al momento, o juntas cada N min (023).
+    envio_min: Number(d.creative_envio_min ?? 0),
     recorrido_seg: d.creative_recorrido_seg,
     paso_seg: d.creative_paso_seg,
     tolerancia: d.creative_tolerancia,
@@ -226,6 +229,8 @@ export async function configurar(req: Request, res: Response) {
     recorrido_seg: z.number().int().min(60).max(900).optional(),
     paso_seg: z.number().int().min(5).max(60).optional(),
     tolerancia: z.number().int().min(0).max(128).optional(),
+    // 0 = al momento; si no, juntas cada N minutos (el panel ofrece 2/4/8/12 h).
+    envio_min: z.number().int().min(0).max(1440).optional(),
   });
 
   const parsed = schema.safeParse(req.body);
@@ -248,6 +253,7 @@ export async function configurar(req: Request, res: Response) {
   if (d.recorrido_seg !== undefined) { campos.push('creative_recorrido_seg = ?'); valores.push(d.recorrido_seg); }
   if (d.paso_seg !== undefined) { campos.push('creative_paso_seg = ?'); valores.push(d.paso_seg); }
   if (d.tolerancia !== undefined) { campos.push('creative_tolerancia = ?'); valores.push(d.tolerancia); }
+  if (d.envio_min !== undefined) { campos.push('creative_envio_min = ?'); valores.push(d.envio_min); }
 
   if (!campos.length) return res.status(400).json({ error: 'no_fields' });
 

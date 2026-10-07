@@ -47,6 +47,9 @@ class Puente {
     this.tomando = null;      // promesa de la toma en curso: la foto pedida la espera
     this.hijo = null;
     this.detenido = false;
+    // La huella de la configuracion de vigilancia que dio el servidor en el
+    // ultimo reporte de estado: monitor.py la compara para saber si pedirla.
+    this.version = null;
   }
 
   // ─── El resumen de la vuelta, pegado al reporte de estado ─────────────────
@@ -124,6 +127,8 @@ class Puente {
 
     if (req.method === 'POST' && ruta === '/camara/cerrar') { await leerJson(req); return responder(res, 200, { ok: true }); }
 
+    if (req.method === 'GET' && ruta === '/version') return responder(res, 200, { version: this.version });
+
     if (req.method === 'GET' && ruta === '/monitoreo') {
       try { return responder(res, 200, await this.api.monitoreo()); }
       catch (e) { return responder(res, 502, { error: e.message }); }
@@ -146,6 +151,32 @@ class Puente {
         return responder(res, 200, { ok: true });
       } catch (e) {
         this.log(`puente: no pude subir el creativo: ${e.message}`);
+        return responder(res, 200, { ok: false });
+      }
+    }
+
+    // Campanas de SPACE OS: la referencia para reconocerla y su prueba del dia.
+    const campana = ruta.match(/^\/campana\/(\d{1,12})$/);
+    if (req.method === 'GET' && campana) {
+      try {
+        const jpeg = await this.api.referenciaCampana(campana[1]);
+        if (!jpeg) return responder(res, 404, { error: 'no_es_del_equipo' });
+        res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Content-Length': jpeg.length });
+        return res.end(jpeg);
+      } catch (e) {
+        return responder(res, 502, { error: e.message });
+      }
+    }
+
+    if (req.method === 'POST' && ruta === '/campana') {
+      const { foto, campana_id } = await leerJson(req);
+      try {
+        await this.api.subirFoto(Buffer.from(foto, 'base64'), {
+          taken_at: new Date().toISOString(), source: 'campana', campaign_id: Number(campana_id),
+        });
+        return responder(res, 200, { ok: true });
+      } catch (e) {
+        this.log(`puente: no pude subir la prueba de la campana ${campana_id}: ${e.message}`);
         return responder(res, 200, { ok: false });
       }
     }

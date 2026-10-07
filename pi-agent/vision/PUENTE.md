@@ -34,6 +34,8 @@ relanzarlo cada 30 s. `--version` sale con 0 solo si los dos cargan.
 | `GET /monitoreo` | — | la configuración de `/api/device/monitoreo` tal cual, o `502` |
 | `POST /falla` | `{"campos": {...}, "foto": "<jpeg en base64>" \| null}` | `{"id": n}` · `{"rechazada": true}` (el servidor dijo 4xx) · `502` (sin red: encolar) |
 | `POST /creativo` | `{"foto": "<base64>", "huella": "..."}` | `{"ok": bool}` (sube con `source=creative_change`) |
+| `GET /campana/<id>` | — | `200 image/jpeg`: el arte reducido de una campana del equipo (`/api/device/campanas/<id>/referencia`) · `404` ya no es del equipo · `502` sin red |
+| `POST /campana` | `{"foto": "<base64>", "campana_id": n}` | `{"ok": bool}` (sube con `source=campana` y `campaign_id`: la prueba del dia) |
 | `POST /log` | `{"nivel": "info"\|"warn"\|"error", "etiqueta": "monitor", "texto": "..."}` | `{"ok": true}` |
 | `POST /resumen` | `{"creativos": {...}}` o `{"salud": {...}}` | `{"ok": true}`: Node lo pega al próximo reporte de estado con la misma regla de `Monitor.devolver` (creativos se unen, salud vale la más reciente) |
 

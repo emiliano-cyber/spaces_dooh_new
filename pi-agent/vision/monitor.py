@@ -64,7 +64,10 @@ from reconocedor import Reconocedor
 from reconocedor import UMBRAL as UMBRAL_CREATIVO
 from revision_camara import RevisionCamara
 from salud_analisis import Pantalla
-from seguimiento import Camara, Observacion, Seguimiento, clave_del_servidor, clave_grupo
+from seguimiento import Camara, Observacion, Seguimiento, clave, clave_del_servidor, clave_grupo
+from lote import LoteCreativos
+from apagada_rapida import DetectorApagada
+from campanas import Campanas
 
 REINTENTO_MIN = 15
 APAGADO_MIN = 60
@@ -225,6 +228,22 @@ class ApiPuente:
         estado, j = self._p.pedir_json("POST", "/creativo", cuerpo, timeout=180.0)
         return estado == 200 and isinstance(j, dict) and bool(j.get("ok"))
 
+    def version(self):
+        """La huella de la configuracion segun el ultimo reporte de estado, o None."""
+        estado, j = self._p.pedir_json("GET", "/version", timeout=5.0)
+        v = j.get("version") if estado == 200 and isinstance(j, dict) else None
+        return v if isinstance(v, str) else None
+
+    def referencia_campana(self, id_):
+        """El arte reducido de una campana del equipo (JPEG), o None."""
+        estado, datos = self._p.pedir("GET", "/campana/%d" % int(id_), timeout=120.0)
+        return datos if estado == 200 and datos else None
+
+    def subir_campana(self, jpeg, id_):
+        cuerpo = {"foto": base64.b64encode(jpeg).decode("ascii"), "campana_id": int(id_)}
+        estado, j = self._p.pedir_json("POST", "/campana", cuerpo, timeout=180.0)
+        return estado == 200 and isinstance(j, dict) and bool(j.get("ok"))
+
     def log(self, nivel, etiqueta, texto):
         """RemoteLog del telefono: al registro del servidor y a stderr."""
         log_local(nivel, etiqueta, texto)
@@ -266,6 +285,12 @@ class Monitor:
         self.revision = RevisionCamara(self.dir)
         self.evidencia = Evidencia(self.dir, ahora)
         self.seguimiento = Seguimiento(ahora_ms=ahora)
+        # Fotos de creativos nuevos que esperan su envio agrupado (envio_min).
+        self.lote = LoteCreativos(self.dir, ahora)
+        # Pantalla completa apagada: aviso en menos de un minuto.
+        self.detector_apagada = DetectorApagada()
+        # Campanas vendidas en SPACE OS para esta pantalla: su prueba del dia.
+        self.campanas = Campanas(self.dir, self.api.referencia_campana, ahora)
         self.estado_archivo = os.path.join(self.dir, "seguimiento.json")
         self.pendientes_archivo = os.path.join(self.dir, "pendientes.json")
         self.firma_seguimiento = ""
@@ -281,6 +306,9 @@ class Monitor:
         # que se manda al registro remoto una vez por hora (o si hay algo nuevo).
         self.config = None
         self.config_en = 0
+        # Huella de la configuracion cuando se pidio (la da el servidor en cada
+        # reporte de estado): si cambia, se vuelve a pedir aunque sea continuo.
+        self.config_version = None
         self.acum_vistazos = 0
         self.acum_conocidos = set()
         self.ultimo_log_creativos = 0
@@ -334,13 +362,20 @@ class Monitor:
         sc = opt_obj(c, "salud")
         salud_pronto = sc is not None and opt_bool(sc, "vigilar") and \
             ahora - self.ultima_salud >= max(opt_long(sc, "cada_min", 60), 5) * 60_000 - 30_000
-        if c is not None and continuo and not salud_pronto and ahora - self.config_en < CONFIG_CONTINUO_MS:
+        # La huella que dio el servidor: si no cambio, lo que se tiene sirve.
+        # Un ajuste en el panel o una campana nueva la cambian, y llega en la
+        # siguiente vuelta en vez de esperar los 15 minutos.
+        version = self.api.version()
+        igual = version is None or version == self.config_version
+        if c is not None and continuo and not salud_pronto and igual and \
+                ahora - self.config_en < CONFIG_CONTINUO_MS:
             return c
         nueva = self.api.monitoreo()
         if nueva is None:
             return None
         self.config = nueva
         self.config_en = ahora
+        self.config_version = version
         return nueva
 
     # --- La vuelta ---------------------------------------------------------
@@ -350,6 +385,9 @@ class Monitor:
         forzar: hace el recorrido aunque el intervalo no lo pida (--una-vuelta)."""
         r = self.configuracion()
         if r is None:
+            # Sin esto el equipo se queda callado sin vigilar y nadie sabe por que
+            # (paso en el ensayo del 6-oct: el servidor respondia 500).
+            log_local("warn", "monitor", "no se pudo leer la configuracion; reintento en %d min" % REINTENTO_MIN)
             return REINTENTO_MIN * 60_000
         c_cfg = opt_obj(r, "creativos")
         s_cfg = opt_obj(r, "salud")
@@ -387,6 +425,17 @@ class Monitor:
             log_local("info", "monitor", "fuera del horario de la pantalla: no se vigila")
             return 10 * 60_000
 
+        # Envio agrupado de creativos nuevos: al cumplirse el plazo, o en cuanto
+        # se vuelva a "al momento" con fotos esperando.
+        envio_min = opt_long(c_cfg, "envio_min", 0) if quiere_creativos else 0
+        if len(self.lote) and (envio_min <= 0 or self.lote.toca_enviar(envio_min)):
+            self.enviar_lote(c_cfg)
+        # Aviso rapido de pantalla apagada (encendido por omision).
+        aviso_cfg = s_cfg if quiere_salud and opt_bool(s_cfg, "aviso_rapido", True) else None
+        # Las campanas de hoy: baja la referencia de las nuevas, olvida las que ya no.
+        if quiere_creativos:
+            self.campanas.actualizar(opt_arr(c_cfg, "campanas") or [])
+
         ahora = self.reloj.ahora_ms()
         toca_c = quiere_creativos and (forzar or continuo or ahora - self.ultima_creativos >= cada_c * 60_000 - 60_000)
         toca_s = quiere_salud and (forzar or ahora - self.ultima_salud >= cada_s * 60_000 - 30_000)
@@ -398,14 +447,14 @@ class Monitor:
             return min(max(min(falta_c, falta_s), 60_000), max(espera, 60_000))
 
         self.enviar_pendientes()
-        self.recorrido(r, geo, c_cfg if toca_c else None, s_cfg if toca_s else None, continuo)
+        self.recorrido(r, geo, c_cfg if toca_c else None, s_cfg if toca_s else None, continuo, aviso_cfg)
         if toca_c:
             self.ultima_creativos = ahora
         if toca_s:
             self.ultima_salud = ahora
         return espera
 
-    def recorrido(self, r, geo, c_cfg, s_cfg, continuo=False):
+    def recorrido(self, r, geo, c_cfg, s_cfg, continuo=False, aviso_cfg=None):
         base = c_cfg if c_cfg is not None else s_cfg
         total_ms = opt_long(base, "recorrido_seg", 270) * 1000
         paso_ms = max(opt_long(base, "paso_seg", 15) * 1000, 5_000)
@@ -418,6 +467,8 @@ class Monitor:
 
         # Creativos
         restantes_c = opt_int(c_cfg, "restantes_hoy", 0) if c_cfg is not None else 0
+        # > 0: las fotos nuevas no se suben al momento, se juntan (lote.py).
+        envio_min = opt_long(c_cfg, "envio_min", 0) if c_cfg is not None else 0
         if c_cfg is not None:
             self.reconocedor.abrir(firma_encuadre + "|" + opt_str(c_cfg, "desde"))
             aprendiendo_c = opt_bool(c_cfg, "aprendiendo") or \
@@ -444,6 +495,7 @@ class Monitor:
                     saltados += 1
                     abierta = False
                     candidata = None
+                    self.detector_apagada.reiniciar()
                     self.reloj.dormir(paso_ms)
                     continue
                 if not abierta:
@@ -468,6 +520,10 @@ class Monitor:
                     continue
                 espera = paso_ms
 
+                # Pantalla completa apagada: no espera a la revision de siempre.
+                if aviso_cfg is not None and self.detector_apagada.observar(v.pantalla, v.marco, geo.esquinas):
+                    self.avisar_apagada(v, geo, giro, aviso_cfg)
+
                 if c_cfg is not None:
                     gris = enderezador.a_doubles(v.pantalla)
                     h = huella.calcular(gris, v.pantalla.shape[1], v.pantalla.shape[0])
@@ -478,10 +534,29 @@ class Monitor:
                         rasgos = vision.rasgos(v.pantalla)
                         id_, puntos = self.reconocedor.reconocer(rasgos)
                         previa = candidata
-                        if id_ is not None and puntos >= UMBRAL_CREATIVO:
+                        # Una campana vendida en SPACE OS: su prueba del dia sale al
+                        # momento (aun aprendiendo) y NO es un creativo nuevo, asi que
+                        # no gasta el tope de lo programatico.
+                        camp = self.campanas.buscar(rasgos, v.pantalla)[0] if len(self.campanas) else None
+                        if camp is not None:
+                            candidata = None
+                            if self.campanas.pendiente(camp) and v.jpeg:
+                                self.subir_campana(self.evidencia.reducir(self.camara.enderezar(v.jpeg, giro)), camp)
+                            if id_ is not None and puntos >= UMBRAL_CREATIVO:
+                                vistas[id_] = True
+                            else:
+                                # Que el catalogo la conozca: cuando la campana termine
+                                # no debe volver como "nueva".
+                                self.reconocedor.agregar(h, rasgos)
+                        elif id_ is not None and puntos >= UMBRAL_CREATIVO:
                             vistas[id_] = True
                             self.reconocedor.aprender_variante(id_, rasgos, puntos)
                             candidata = None
+                            # Espera su envio agrupado: si esta mirada sale mas
+                            # nitida, se manda esta.
+                            if self.lote.tiene(id_) and v.jpeg:
+                                self.lote.mejorar(id_, self.evidencia.reducir(self.camara.enderezar(v.jpeg, giro)),
+                                                  nitidez(v.pantalla))
                         elif previa is not None and vision.coincidencias(previa[1], rasgos) >= UMBRAL_CREATIVO:
                             # Segunda mirada: sigue ahi. Es un creativo nuevo de verdad.
                             self.reconocedor.agregar(previa[0], previa[1], rasgos)
@@ -491,7 +566,11 @@ class Monitor:
                             # la otra: una vuelta solo usaba la mitad del tope
                             # (3 de 5). Aqui se corrige; el telefono, en su
                             # proxima version.
-                            if not aprendiendo_c and restantes_c > 0:
+                            if not aprendiendo_c and envio_min > 0:
+                                # Envio agrupado: se guarda y sale con el lote.
+                                foto = self.evidencia.reducir(self.camara.enderezar(v.jpeg, giro))
+                                self.lote.agregar(previa[0], foto, nitidez(v.pantalla))
+                            elif not aprendiendo_c and restantes_c > 0:
                                 foto = self.evidencia.reducir(self.camara.enderezar(v.jpeg, giro))
                                 if self.subir_creativo(foto, previa[0]):
                                     fotos += 1
@@ -683,6 +762,64 @@ class Monitor:
             resultado.pantalla.name if resultado else None, camara_estado.name,
             len(resultado.zonas) if resultado else None, len(eventos)))
 
+    def enviar_lote(self, c_cfg):
+        """Manda las fotos de creativos nuevos que esperaban, una por creativo."""
+        restantes = opt_int(c_cfg, "restantes_hoy", 0) if c_cfg is not None else 0
+        enviadas = 0
+        pendientes = self.lote.pendientes()
+        for h, jpeg in pendientes:
+            if restantes <= 0:
+                break
+            if self.subir_creativo(jpeg, h):
+                self.lote.quitar(h)
+                restantes -= 1
+                enviadas += 1
+        if c_cfg is not None:
+            c_cfg["restantes_hoy"] = restantes
+        self.lote.marcar_envio()
+        quedan = len(self.lote)
+        self.api.log("info", "creative", "Envio agrupado: %d foto(s) de creativos nuevos" % enviadas +
+                     ("; %d esperan al tope de manana" % quedan if quedan else ""))
+
+    def avisar_apagada(self, v, geo, giro, cfg):
+        """Pantalla completa apagada: la falla sale ya, con su foto."""
+        k = clave("pantalla_apagada", None, None)
+        silenciadas = set(opt_arr(cfg, "silenciadas") or [])
+        # Solo si ya se vio la pantalla funcionando alguna vez: recien instalado
+        # (o con el marco mal puesto) un "apagon" seria una falsa alarma.
+        if self.vueltas_salud == 0:
+            return
+        if self.seguimiento.esta_abierta(k) or k in silenciadas or opt_int(cfg, "restantes_hoy", 6) <= 0:
+            return
+        texto = NOMBRES["pantalla_apagada"]
+        foto = self.evidencia.preparar(self.camara.enderezar(v.jpeg, giro), geo, [], texto) if v.jpeg else None
+        detalle = {"texto": texto, "vistazos": self.detector_apagada.vistazos, "rapido": True, "camara": "OK"}
+        campos = {
+            "evento": "abrir", "tipo": "pantalla_apagada", "confianza": repr(1.0),
+            "detectada_en": self.reloj.instante(),
+            "detalle": json.dumps(detalle, ensure_ascii=False, separators=(",", ":")),
+        }
+        nombre_evidencia = "%d_%s" % (self.reloj.ahora_ms(), k.replace(":", "_"))
+        if foto is not None:
+            self.evidencia.guardar(nombre_evidencia, foto)
+        self.evidencia.anotar(campos)
+        id_ = self.api.reportar_falla(campos, foto)
+        if id_ == FALLA_RECHAZADA:
+            return
+        if id_ is not None:
+            self.seguimiento.abrir_externa(k, id_)
+            # La configuracion de esta vuelta se pidio ANTES de abrirla: se anota
+            # aqui como la anotara el servidor. Si no, la revision de esta misma
+            # vuelta (sincronizar) la olvidaria y la siguiente la abriria otra vez.
+            cfg.setdefault("abiertas", []).append({"id": id_, "tipo": "pantalla_apagada"})
+            self.api.log("warn", "monitor", texto + " (aviso rapido)")
+        else:
+            self.seguimiento.abrir_externa(k, None)
+            self.encolar(campos, k, nombre_evidencia if foto is not None else None)
+        cfg["restantes_hoy"] = opt_int(cfg, "restantes_hoy", 6) - 1
+        self.guardar_estado()
+        log_local("warn", "monitor", "pantalla apagada: aviso rapido (%d vistazos)" % self.detector_apagada.vistazos)
+
     def guardar_estado(self):
         try:
             _escribir_json(self.estado_archivo, {"firma": self.firma_seguimiento, "desde": self.desde_seguimiento,
@@ -739,6 +876,17 @@ class Monitor:
             _escribir_json(self.pendientes_archivo, quedan)
         self.guardar_estado()
 
+    def subir_campana(self, jpeg, id_):
+        """La prueba del dia de una campana: se marca solo si llego."""
+        ok = self.api.subir_campana(jpeg, id_)
+        if ok:
+            self.campanas.marcar(id_)
+            self.api.log("info", "campaign", "Campana %d vista en la pantalla; foto de prueba subida (%d KB)"
+                         % (id_, len(jpeg) // 1024))
+        else:
+            self.api.log("warn", "campaign", "Campana %d vista en la pantalla, pero la foto no se pudo subir" % id_)
+        return ok
+
     def subir_creativo(self, jpeg, huella_):
         ok = self.api.subir_creativo(jpeg, huella_)
         if ok:
@@ -747,6 +895,12 @@ class Monitor:
         else:
             self.api.log("warn", "creative", "Creativo nuevo detectado, pero la foto no se pudo subir")
         return ok
+
+
+def nitidez(gris):
+    """Varianza del laplaciano: mas alta, mas nitida (para quedarse con la mejor foto)."""
+    import cv2
+    return float(cv2.Laplacian(gris, cv2.CV_64F).var())
 
 
 def _escribir_json(ruta, valor):

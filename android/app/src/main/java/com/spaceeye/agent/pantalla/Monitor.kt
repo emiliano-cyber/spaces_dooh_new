@@ -67,7 +67,7 @@ class Monitor(
          * sin parar NO cuesta mas datos que mirar cada 6 horas. Lo unico que
          * viaja sigue siendo la foto de un creativo nuevo.
          */
-        private const val CONFIG_CONTINUO_MS = 15 * 60_000L
+        private const val CONFIG_CONTINUO_MS = HuellaConfig.PLAZO_MS
         private const val LOG_CONTINUO_MS = 60 * 60_000L
         private const val PAUSA_CONTINUO_MS = 5_000L
 
@@ -94,6 +94,14 @@ class Monitor(
     // aprender. La primera siempre es de aprendizaje.
     private var vueltasSalud = 0
 
+    // Fotos de creativos nuevos que esperan su envio agrupado (envio_min).
+    private val lote = LoteCreativos(dir) { System.currentTimeMillis() }
+    // Pantalla completa apagada: se mira en cada vistazo, no al final de la vuelta.
+    private val detectorApagada = DetectorApagada()
+    // Campanas vendidas en SPACE OS para esta pantalla: su prueba del dia.
+    private val campanas = Campanas(dir, { id -> api.referenciaCampana(id) }, { System.currentTimeMillis() })
+    private val buscadorCampanas = BuscadorCampanas(campanas)
+
     private var ultimaCreativos = 0L
     private var ultimaSalud = 0L
 
@@ -101,6 +109,8 @@ class Monitor(
     // manda al registro remoto una vez por hora (o en cuanto aparece algo nuevo).
     private var config: JSONObject? = null
     private var configEn = 0L
+    // La huella que tenia el servidor cuando se pidio la configuracion guardada.
+    private var configHuella: String? = null
     private var acumVistazos = 0
     private val acumConocidos = mutableSetOf<String>()
     private var ultimoLogCreativos = 0L
@@ -168,10 +178,15 @@ class Monitor(
         val saludPronto = c?.optJSONObject("salud")?.let { s ->
             s.optBoolean("vigilar") && ahora - ultimaSalud >= s.optLong("cada_min", 60L).coerceAtLeast(5L) * 60_000L - 30_000L
         } == true
-        if (c != null && continuo && !saludPronto && ahora - configEn < CONFIG_CONTINUO_MS) return c
+        // La huella del ultimo reporte de estado: si no cambio, lo que se tiene
+        // sirve. Un ajuste en el panel o una campana nueva la cambian, y llega en
+        // la siguiente vuelta en vez de esperar los 15 minutos.
+        val huella = api.vigilancia
+        if (c != null && continuo && !saludPronto && HuellaConfig.reusar(huella, configHuella, configEn, ahora, CONFIG_CONTINUO_MS)) return c
         val nueva = api.monitoreo() ?: return null
         config = nueva
         configEn = ahora
+        configHuella = huella
         return nueva
     }
 
@@ -209,10 +224,18 @@ class Monitor(
         avisoSinPantalla = false
         // Fuera de horario: se vuelve a mirar el reloj cada 10 minutos.
         if (!geo.enHorario(LocalTime.now())) return 10 * 60_000L
+        // Envio agrupado de creativos nuevos: al cumplirse el plazo, o en cuanto
+        // se vuelva a "al momento" con fotos esperando.
+        val envioMin = if (quiereCreativos) cCfg!!.optLong("envio_min", 0L) else 0L
+        if (lote.debeEnviar(envioMin)) enviarLote(cCfg)
+        // Aviso rapido de pantalla apagada (encendido por omision).
+        val avisoCfg = if (DetectorApagada.activo(sCfg)) sCfg else null
         if (!Vision.cargar()) {
             RemoteLog.error(ctx, "monitor", "No se pudo cargar el reconocimiento de imagen (OpenCV); no se vigila")
             return APAGADO_MIN * 60_000L
         }
+        // Las campanas de hoy: baja la referencia de las nuevas, olvida las que ya no.
+        if (quiereCreativos) campanas.actualizar(cCfg!!.optJSONArray("campanas"))
 
         val ahora = System.currentTimeMillis()
         val tocaC = quiereCreativos && (continuo || ahora - ultimaCreativos >= cadaC * 60_000L - 60_000L)
@@ -226,13 +249,14 @@ class Monitor(
         }
 
         enviarPendientes()
-        recorrido(r, geo, if (tocaC) cCfg else null, if (tocaS) sCfg else null, continuo)
+        recorrido(r, geo, if (tocaC) cCfg else null, if (tocaS) sCfg else null, continuo, avisoCfg)
         if (tocaC) ultimaCreativos = ahora
         if (tocaS) ultimaSalud = ahora
         return espera
     }
 
-    private suspend fun recorrido(r: JSONObject, geo: Geometria, cCfg: JSONObject?, sCfg: JSONObject?, continuo: Boolean = false) {
+    private suspend fun recorrido(r: JSONObject, geo: Geometria, cCfg: JSONObject?, sCfg: JSONObject?, continuo: Boolean = false,
+                                  avisoCfg: JSONObject? = null) {
         val base = cCfg ?: sCfg!!
         val totalMs = base.optLong("recorrido_seg", 270L) * 1000L
         val pasoMs = (base.optLong("paso_seg", 15L) * 1000L).coerceAtLeast(5_000L)
@@ -245,6 +269,8 @@ class Monitor(
 
         // Creativos
         var restantesC = cCfg?.optInt("restantes_hoy", 0) ?: 0
+        // > 0: las fotos nuevas no se suben al momento, se juntan (LoteCreativos).
+        val envioMin = cCfg?.optLong("envio_min", 0L) ?: 0L
         val aprendiendoC: Boolean
         if (cCfg != null) {
             reconocedor.abrir(firmaEncuadre + "|" + cCfg.optString("desde"))
@@ -268,12 +294,16 @@ class Monitor(
             while (System.currentTimeMillis() < fin) {
                 if (camara.ocupada()) {
                     saltados++; abierta = false; candidata = null
+                    detectorApagada.reiniciar()
                     delay(pasoMs); continue
                 }
                 if (!abierta) {
                     abierta = camara.abrir(lente, zoom)
                     if (!abierta) { saltados++; delay(pasoMs); continue }
                     sesion++
+                    // Al reabrir, la exposicion se fija de nuevo: los vistazos de
+                    // antes ya no son "seguidos" de los de ahora.
+                    detectorApagada.reiniciar()
                 }
                 val tomas = mutableListOf<ByteArray>()
                 repeat(TOMAS) { camara.tomar()?.let { tomas.add(it) } }
@@ -281,6 +311,11 @@ class Monitor(
                 val v = Enderezador.preparar(tomas, geo, giro)
                 if (v == null) { delay(pasoMs); continue }
                 var espera = pasoMs
+
+                // Pantalla completa apagada: no espera a la revision de siempre.
+                if (avisoCfg != null && detectorApagada.observar(medirApagada(v, geo))) {
+                    avisarApagada(v, geo, giro, avisoCfg)
+                }
 
                 if (cCfg != null) {
                     val gris = Enderezador.aDoubles(v.pantalla)
@@ -292,14 +327,38 @@ class Monitor(
                         val rasgos = Vision.rasgos(v.pantalla)
                         val (id, puntos) = reconocedor.reconocer(rasgos)
                         val previa = candidata
-                        if (id != null && puntos >= Reconocedor.UMBRAL) {
+                        // Una campana vendida en SPACE OS: su prueba del dia sale al
+                        // momento (aun aprendiendo) y NO es un creativo nuevo, asi que
+                        // no gasta el tope de lo programatico.
+                        val camp = if (campanas.tamaño > 0) buscadorCampanas.buscar(rasgos, v.pantalla) else null
+                        if (camp != null) {
+                            candidata = null
+                            if (campanas.pendiente(camp) && v.jpeg.isNotEmpty()) {
+                                subirCampana(evidencia.reducir(camara.enderezar(v.jpeg, giro)), camp)
+                            }
+                            if (id != null && puntos >= Reconocedor.UMBRAL) vistas.add(id)
+                            // Que el catalogo la conozca: cuando la campana termine no
+                            // debe volver como "nueva".
+                            else reconocedor.agregar(huella, rasgos)
+                        } else if (id != null && puntos >= Reconocedor.UMBRAL) {
                             vistas.add(id); reconocedor.aprenderVariante(id, rasgos, puntos); candidata = null
+                            // Espera su envio agrupado: si esta mirada sale mas
+                            // nitida, se manda esta. La foto solo se prepara si mejora.
+                            if (lote.tiene(id) && v.jpeg.isNotEmpty()) {
+                                val n = nitidez(v.pantalla)
+                                if (lote.mejoraria(id, n)) lote.mejorar(id, evidencia.reducir(camara.enderezar(v.jpeg, giro)), n)
+                            }
                         } else if (previa != null && Vision.coincidencias(previa.second, rasgos) >= Reconocedor.UMBRAL) {
                             // Segunda mirada: sigue ahi. Es un creativo nuevo de verdad.
                             reconocedor.agregar(previa.first, previa.second, rasgos)
                             nuevas.add(previa.first)
-                            if (!aprendiendoC && fotos < restantesC) {
-                                if (subirCreativo(evidencia.reducir(camara.enderezar(v.jpeg, giro)), previa.first)) { fotos++; restantesC-- }
+                            when (LoteCreativos.destino(aprendiendoC, envioMin, restantesC)) {
+                                // Envio agrupado: se guarda y sale con el lote.
+                                LoteCreativos.Destino.LOTE -> lote.agregar(previa.first,
+                                    evidencia.reducir(camara.enderezar(v.jpeg, giro)), nitidez(v.pantalla))
+                                LoteCreativos.Destino.SUBIR ->
+                                    if (subirCreativo(evidencia.reducir(camara.enderezar(v.jpeg, giro)), previa.first)) { fotos++; restantesC-- }
+                                LoteCreativos.Destino.NINGUNO -> Unit
                             }
                             candidata = null
                         } else {
@@ -516,6 +575,67 @@ class Monitor(
         }
         if (quedan.length() == 0) pendientesArchivo.delete() else pendientesArchivo.writeText(quedan.toString())
         guardarEstado()
+    }
+
+    /** Manda las fotos de creativos nuevos que esperaban, una por creativo. */
+    private fun enviarLote(cCfg: JSONObject?) {
+        val e = lote.enviar(cCfg?.optInt("restantes_hoy", 0) ?: 0) { h, jpeg -> subirCreativo(jpeg, h) }
+        cCfg?.put("restantes_hoy", e.restantes)
+        RemoteLog.info(ctx, "creative", "Envio agrupado: ${e.enviadas} foto(s) de creativos nuevos" +
+            (if (e.quedan > 0) "; ${e.quedan} esperan al tope de manana" else ""))
+    }
+
+    private fun medirApagada(v: Vistazo, geo: Geometria): DetectorApagada.Medida {
+        val p = ByteArray(v.pantalla.total().toInt()).also { v.pantalla.get(0, 0, it) }
+        val m = ByteArray(v.marco.total().toInt()).also { v.marco.get(0, 0, it) }
+        return detectorApagada.medir(p, m, v.marco.cols(), v.marco.rows(), geo.esquinas)
+    }
+
+    /** Pantalla completa apagada: la falla sale ya, con su foto. */
+    private fun avisarApagada(v: Vistazo, geo: Geometria, giro: Int, cfg: JSONObject) {
+        val k = DetectorApagada.CLAVE
+        if (!DetectorApagada.puedeAvisar(vueltasSalud, seguimiento.estaAbierta(k), DetectorApagada.silenciada(cfg),
+                cfg.optInt("restantes_hoy", 6))) return
+        val texto = NOMBRES.getValue(k)
+        val foto = if (v.jpeg.isNotEmpty()) evidencia.preparar(camara.enderezar(v.jpeg, giro), geo, emptyList(), texto) else null
+        val campos = mutableMapOf(
+            "evento" to "abrir", "tipo" to k, "confianza" to "1.0",
+            "detectada_en" to java.time.Instant.now().toString(),
+            "detalle" to JSONObject().put("texto", texto).put("vistazos", detectorApagada.vistazos)
+                .put("rapido", true).put("camara", "OK").toString(),
+        )
+        val nombreEvidencia = "${System.currentTimeMillis()}_$k"
+        foto?.let { evidencia.guardar(nombreEvidencia, it) }
+        evidencia.anotar(JSONObject(campos as Map<*, *>))
+        val id = api.reportarFalla(campos, foto)
+        if (id == com.spaceeye.agent.network.FALLA_RECHAZADA) return
+        DetectorApagada.anotar(seguimiento, cfg, id)
+        if (id != null) RemoteLog.warn(ctx, "monitor", "$texto (aviso rapido)")
+        // Sin red: queda abierta aqui (no se repite) y el aviso sale despues.
+        else encolar(campos, k, if (foto != null) nombreEvidencia else null)
+        guardarEstado()
+        Log.w(TAG, "pantalla apagada: aviso rapido (${detectorApagada.vistazos} vistazos)")
+    }
+
+    /** Varianza del laplaciano: mas alta, mas nitida (para quedarse con la mejor foto). */
+    private fun nitidez(gris: org.opencv.core.Mat): Double {
+        val lap = org.opencv.core.Mat()
+        val media = org.opencv.core.MatOfDouble()
+        val desv = org.opencv.core.MatOfDouble()
+        return try {
+            org.opencv.imgproc.Imgproc.Laplacian(gris, lap, org.opencv.core.CvType.CV_64F)
+            org.opencv.core.Core.meanStdDev(lap, media, desv)
+            desv.get(0, 0)[0].let { it * it }
+        } finally { lap.release(); media.release(); desv.release() }
+    }
+
+    /** La prueba del dia de una campana: se marca solo si llego. */
+    private fun subirCampana(jpeg: ByteArray, id: Int) {
+        val ok = api.uploadPhoto(photoBytes = jpeg, campaignId = id, source = "campana", watermarkBaked = false)
+        if (ok) {
+            campanas.marcar(id)
+            RemoteLog.info(ctx, "campaign", "Campana $id vista en la pantalla; foto de prueba subida (${jpeg.size / 1024} KB)")
+        } else RemoteLog.warn(ctx, "campaign", "Campana $id vista en la pantalla, pero la foto no se pudo subir")
     }
 
     private fun subirCreativo(jpeg: ByteArray, huella: String): Boolean {

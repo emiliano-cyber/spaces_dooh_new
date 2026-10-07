@@ -104,6 +104,18 @@ class Api {
     return this._req('GET', '/api/device/monitoreo');
   }
 
+  // El arte reducido de una campana de este equipo (la vende SPACE OS), para
+  // reconocerla en la pantalla. null si ya no es del equipo (404).
+  async referenciaCampana(id) {
+    const res = await fetch(`${this.base}/api/device/campanas/${Number(id)}/referencia`, {
+      headers: this.token ? { Authorization: `Bearer ${this.token}` } : {},
+      signal: AbortSignal.timeout(this.timeoutMs),
+    });
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(`referencia de campana ${id} -> HTTP ${res.status}`);
+    return Buffer.from(await res.arrayBuffer());
+  }
+
   // Abre, confirma o cierra una falla de pantalla, con su foto de evidencia.
   // Devuelve el id, `RECHAZADA` si el servidor dijo que no (no se reintenta:
   // seria rechazada otra vez) o null si no hubo red (se encola y se reintenta).

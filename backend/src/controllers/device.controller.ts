@@ -4,6 +4,7 @@ import bcrypt from 'bcrypt';
 import { pool } from '../config/database';
 import { deviceJwt } from '../utils/jwt';
 import { z } from 'zod';
+import { versionVigilancia } from '../utils/versionVigilancia';
 import { uploadPhoto } from '../services/photoStorage.service';
 import { configDe, registrarRecorrido, ligarFoto } from './creativos.controller';
 import { registrarResumen } from './monitoreo.controller';
@@ -258,7 +259,15 @@ export async function reportStatus(req: Request, res: Response) {
   }
 
   await redis.publish('device:status', JSON.stringify({ device_id: did, ...d }));
-  res.json({ ok: true });
+  // La huella de su configuracion de vigilancia: si cambio, el equipo la vuelve
+  // a pedir (ver utils/versionVigilancia). Un fallo aqui no tumba el reporte.
+  let vigilancia: string | null = null;
+  try {
+    vigilancia = await versionVigilancia(did);
+  } catch (err) {
+    console.error('[monitoreo] no se pudo calcular la version:', (err as any)?.message);
+  }
+  res.json({ ok: true, ...(vigilancia ? { vigilancia } : {}) });
 }
 
 export async function pendingCommands(req: Request, res: Response) {
@@ -349,7 +358,9 @@ export async function uploadPhotoEndpoint(req: Request, res: Response) {
     campaign_id: z.coerce.number().optional(),
     gps_lat: z.coerce.number().optional(),
     gps_lng: z.coerce.number().optional(),
-    source: z.enum(['manual','scheduled','on_demand','boot','creative_change']).default('manual'),
+    // 'campana': el equipo reconocio en su pantalla el arte de una campana y
+    // manda su prueba del dia (con campaign_id).
+    source: z.enum(['manual','scheduled','on_demand','boot','creative_change','campana']).default('manual'),
     // Huella del creativo que disparo la foto (solo en source=creative_change).
     phash: z.string().regex(/^[0-9a-fA-F]{64}$/).optional(),
     // La APK v0.8.0 sube la foto SIN marca quemada -> envia watermark_baked="false",
