@@ -12,6 +12,9 @@ import { AppError } from './errores'
 //  que siempre responde igual). La lectura del usuario va por la función
 //  SECURITY DEFINER auth_usuario_por_email (usuarios es fail-closed).
 //
+//  crearInvitacion: lo mismo para un usuario recién dado de alta, con 72 h y
+//  el tenant de la sesión de quien invita (ADR 0044). Se consume igual.
+//
 //  consumirReset: valida el token y, con el tenant guardado, actualiza la
 //  contraseña vía qConTenant, marca el token usado, invalida los demás tokens y
 //  cierra todas las sesiones del usuario.
@@ -33,7 +36,13 @@ import { AppError } from './errores'
 //  (43f9284). Hay prueba de integración que lo cubre.
 // ============================================================================
 
+// Dos vigencias sobre la MISMA tabla, y es lo único que distingue un enlace de
+// recuperación de una invitación (ADR 0044). La recuperación la pide quien ya
+// tiene cuenta y está esperando el correo: una hora sobra, y acota lo que vale
+// un enlace olvidado en un buzón. La invitación la recibe alguien que no la
+// espera y puede abrirla al día siguiente — o el lunes.
 const VIGENCIA_MIN = 60
+const VIGENCIA_INVITACION_MIN = 72 * 60
 
 interface UsuarioAuth {
   id: string
@@ -70,6 +79,30 @@ export async function crearReset(email: string): Promise<ResetCreado | null> {
     [token, u.id, u.tenant_id, expira.toISOString()],
   )
   return { token, usuarioId: u.id, nombre: u.nombre, email: u.email }
+}
+
+// Invitación de un usuario recién dado de alta (ADR 0044): un enlace de 72 h
+// para que elija SU contraseña, en vez de que el administrador le invente una.
+//
+// El tenant sale de la SESIÓN de quien invita, no de un parámetro: el alta
+// acaba de crear al usuario en ese tenant, y aceptar uno de fuera abriría la
+// puerta a emitir tokens para cuentas de otra organización. Si no hay sesión,
+// falla cerrado.
+export async function crearInvitacion(usuarioId: string): Promise<{ token: string }> {
+  // Import diferido: el resto de este módulo es PRE-SESIÓN y lo cargan las rutas
+  // públicas de /api/auth. `./tenant` arrastra la sesión (cookies, `cache` de
+  // React), que esas rutas no necesitan; importarlo arriba la metía en todas.
+  const { tenantActual } = await import('./tenant')
+  const tenantId = await tenantActual()
+  if (!tenantId) throw new Error('Sin tenant en la sesión: no se puede invitar')
+  const token = randomBytes(32).toString('hex')
+  const expira = new Date(Date.now() + VIGENCIA_INVITACION_MIN * 60_000)
+  await qConTenant(
+    tenantId,
+    `insert into password_resets (token, usuario_id, tenant_id, expira_en) values ($1,$2,$3,$4)`,
+    [token, usuarioId, tenantId, expira.toISOString()],
+  )
+  return { token }
 }
 
 interface ResetRow {

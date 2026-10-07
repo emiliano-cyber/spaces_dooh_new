@@ -180,7 +180,7 @@ describe('el Dueño ya no nace con una contraseña compartida', () => {
   //  que es la peor combinación de las dos.
   //
   //  Las piezas del arreglo ya existían: `restablecerPasswordCtrl`
-  //  (`usuarios-controller.ts:122`) hace este flujo entero para el
+  //  (`usuarios-controller.ts:221`) hace este flujo entero para el
   //  restablecimiento, y `exigir()` (`auth.ts:167`) corta con 403 mientras la
   //  marca esté puesta, dejando abiertas a propósito `/api/auth/me` y
   //  `/api/perfil` para que el usuario pueda salir del estado.

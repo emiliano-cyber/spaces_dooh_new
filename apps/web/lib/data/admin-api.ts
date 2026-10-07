@@ -23,10 +23,16 @@ export async function listarUsuariosApi(): Promise<UsuarioDemo[]> {
 }
 // `entraConGoogle` sustituye a `password`: el servidor genera una que nadie ve
 // y la persona entra con su cuenta de Google (ADR 0012, enmienda E1).
+// `invitar` sustituye a las dos (ADR 0044): la persona elige su contraseña con
+// un enlace de 72 h. El enlace vuelve en `invitacion` solo si el correo no salió.
+export type InvitacionAlta =
+  | { enviada: true }
+  | { enviada: false; enlace: string; fallo?: true }
+
 export async function invitarUsuarioApi(input: {
   nombre: string; email: string; cargo?: string; rol: RolDemo
-  password?: string; entraConGoogle?: boolean
-}): Promise<UsuarioDemo> {
+  password?: string; entraConGoogle?: boolean; invitar?: boolean
+}): Promise<UsuarioDemo & { invitacion?: InvitacionAlta }> {
   return jsonOk(
     await fetch(`${API}/usuarios/`, {
       method: 'POST',

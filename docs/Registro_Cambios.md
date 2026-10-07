@@ -29,6 +29,27 @@ La entrada más reciente va arriba.
     claves que empiezan por `CAT-`. Los ejemplos del reporte de rentabilidad
     (Tlalpan y Santa Mónica) no cambian.
 
+- **Al crear un usuario ya puedes mandarle una invitación en vez de inventarle
+  una contraseña.** *(Decisión tuya del 06/10, ADR 0044.)* En Administración →
+  Crear usuario, la opción nueva **«Enviar invitación»** viene marcada: la
+  persona recibe un enlace con el que **elige su propia contraseña**, y nadie más
+  la conoce. El enlace vale **72 horas** y sirve una sola vez.
+  - **Mientras no haya correo configurado** (hoy no lo hay en ninguna
+    instancia), al crear el usuario te aparece el enlace para que lo copies y se
+    lo mandes tú por WhatsApp o por tu correo. Se muestra una sola vez.
+  - **Cuando se configure el correo**, el enlace le llega solo a la persona y ya
+    no te aparece a ti.
+  - **«Fijar la contraseña yo» sigue disponible**, igual que antes, y también
+    «Entra con su cuenta de Google» donde esté activado.
+  - Si el enlace vence antes de que lo use, usa «Restablecer contraseña» en su
+    usuario.
+- **Crear un usuario sin tocar el rol ya no da error.** El formulario arrancaba
+  con un rol que el sistema ya no acepta (Comercial), aunque en pantalla se veía
+  otro; si no lo cambiabas, la cuenta no se creaba. Ahora arranca en Vendedor.
+- **«¿Olvidaste tu contraseña?» sigue sin mandar correo** en las instancias: no
+  hay correo configurado todavía. Para encenderlo hace falta una cuenta de
+  Resend con el dominio verificado; la invitación de arriba funciona sin eso.
+
 - **La calculadora de spots ahora cuenta igual que tu calculadora HTML («Valor
   Real del Spot Unitario»).** *(Decisión tuya del 06/10, ADR 0043.)* Cambian
   cuatro cosas, y solo en las líneas que tienen la calculadora encendida:

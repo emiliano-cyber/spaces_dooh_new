@@ -5,8 +5,10 @@ import { z } from 'zod'
 // dos copias del generador de contrasenas pueden divergir sin dar error.
 import { generarPasswordTemporal } from '../password-temporal.mjs'
 import { AppError, validar } from './errores'
-import { validarPassword, hashPassword, passwordDeAlta } from './auth'
+import { validarPassword, hashPassword, passwordDeAlta, passwordAleatoria } from './auth'
 import { googleHabilitado } from './google-oauth'
+import { crearInvitacion } from './password-reset-repo'
+import { emailHabilitado, enviarEmail, htmlCorreoInvitacion } from './email'
 import { esEmailValido } from '@/lib/validacion'
 import { ROLES_ASIGNABLES } from '@/lib/roles'
 import { rechazoDeNombrarDueno } from '@/lib/guardas-usuarios'
@@ -56,7 +58,17 @@ const crearSchema = z.object({
   // El alta no comunica ninguna contraseña: la persona entra con su cuenta de
   // Google. Quita la fricción de inventar una y pasársela por chat.
   entraConGoogle: z.boolean().optional(),
+  // ADR 0044: la persona elige SU contraseña con un enlace de 72 h. Excluye a
+  // las otras dos formas de acceso; mezclarla con `password` dejaría la duda de
+  // cuál manda, y la respuesta correcta a esa duda es un 400.
+  invitar: z.boolean().optional(),
 })
+
+// Lo que vuelve al administrador de una invitación. El enlace SOLO viaja cuando
+// el correo no salió: si salió, el único que debe tenerlo es la persona.
+export type ResultadoInvitacion =
+  | { enviada: true }
+  | { enviada: false; enlace: string; fallo?: true }
 
 // `.strict()` importa aquí: al retirar `password` del esquema, un cliente viejo
 // que siga mandándolo recibe un 400 en vez de que el campo se ignore en
@@ -90,30 +102,74 @@ export function listarUsuariosCtrl() {
 // primera organización no hay ningún Dueño que pueda autorizar nada. La exención
 // es una separación de caminos y no una bandera, y la fija
 // `lib/arranque-sin-guard.test.ts`.
-export async function crearUsuarioCtrl(body: unknown, actor: Actor) {
+export async function crearUsuarioCtrl(
+  body: unknown,
+  actor: Actor,
+  // La raíz pública del enlace de invitación. La pone la ruta (APP_URL, o el
+  // origen de la petición) porque este módulo no conoce HTTP.
+  opts: { baseUrl?: string } = {},
+): Promise<Awaited<ReturnType<typeof crearUsuario>> & { invitacion?: ResultadoInvitacion }> {
   const d = validar(crearSchema, body)
 
   const nombrar = rechazoDeNombrarDueno(actor.rol, d.rol)
   if (nombrar) throw new AppError(nombrar.mensaje, nombrar.status)
 
-  const r = passwordDeAlta({
-    entraConGoogle: d.entraConGoogle,
-    password: d.password,
-    googleDisponible: googleHabilitado(),
-  })
-  if ('error' in r) throw new AppError(r.error, 400)
-  const password = r.password
+  if (d.invitar && (d.password !== undefined || d.entraConGoogle)) {
+    throw new AppError('Elige una sola forma de acceso: invitación, contraseña o Google.', 400)
+  }
+
+  // Con invitación la cuenta nace con un secreto que NADIE ve —el mismo que usa
+  // Google (ADR 0012)— y no sin hash: un usuario sin hash queda encerrado si
+  // luego le restablecen la contraseña. La que vale es la que elija la persona.
+  let password: string
+  if (d.invitar) {
+    password = passwordAleatoria()
+  } else {
+    const r = passwordDeAlta({
+      entraConGoogle: d.entraConGoogle,
+      password: d.password,
+      googleDisponible: googleHabilitado(),
+    })
+    if ('error' in r) throw new AppError(r.error, 400)
+    password = r.password
+  }
 
   if (await emailExiste(d.email)) throw new AppError('Ya existe un usuario con ese correo', 409)
   // Se pasa la contraseña resuelta y NO `d`: mandar el objeto entero colaría
   // `entraConGoogle` hasta el repo, que no sabe qué hacer con él.
-  return crearUsuario({
+  const usuario = await crearUsuario({
     nombre: d.nombre,
     email: d.email,
     cargo: d.cargo,
     rol: d.rol,
     password,
   })
+  if (!d.invitar) return usuario
+  return { ...usuario, invitacion: await invitar(usuario, opts.baseUrl ?? '') }
+}
+
+// Emite la invitación y decide si el enlace viaja por correo o vuelve al
+// administrador. Que el correo falle NO deshace el alta: la cuenta ya existe y
+// el enlace sirve igual, así que se devuelve con `fallo` para que la pantalla
+// lo diga en vez de dar por enviado algo que no salió.
+async function invitar(
+  usuario: { id: string; nombre: string; email: string },
+  baseUrl: string,
+): Promise<ResultadoInvitacion> {
+  const { token } = await crearInvitacion(usuario.id)
+  const enlace = `${baseUrl}/spaces-dooh/recuperar/${token}?bienvenida=1`
+  if (!emailHabilitado()) return { enviada: false, enlace }
+  try {
+    await enviarEmail({
+      to: usuario.email,
+      subject: 'Te dieron acceso a Space OS · elige tu contraseña',
+      html: htmlCorreoInvitacion(usuario.nombre, enlace),
+    })
+    return { enviada: true }
+  } catch (e) {
+    console.error('[invitacion] no se pudo enviar el correo:', e)
+    return { enviada: false, enlace, fallo: true }
+  }
 }
 
 // El ACTOR entra entero —id y rol— y no solo su id. El rol lo necesitan los dos

@@ -104,7 +104,7 @@ export function htmlCorreoReset(nombre: string, link: string): string {
   <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:480px;margin:0 auto;color:#18181b">
     <h2 style="font-size:18px;margin:0 0 12px">Restablecer tu contraseña</h2>
     <p style="font-size:14px;line-height:1.5;color:#3f3f46">
-      Hola ${nombre || ''}, recibimos una solicitud para restablecer la contraseña de tu cuenta en Space OS.
+      Hola ${escaparHtml(nombre)}, recibimos una solicitud para restablecer la contraseña de tu cuenta en Space OS.
       Haz clic en el botón para elegir una nueva. Este enlace vence en 1 hora y solo se puede usar una vez.
     </p>
     <p style="margin:20px 0">
@@ -116,6 +116,31 @@ export function htmlCorreoReset(nombre: string, link: string): string {
       Si no solicitaste esto, puedes ignorar este correo; tu contraseña no cambiará.
       Si el botón no funciona, copia y pega este enlace:<br>
       <span style="word-break:break-all;color:#0a66ff">${link}</span>
+    </p>
+  </div>`
+}
+
+// Plantilla de la invitación a un usuario recién dado de alta (ADR 0044). Canal
+// de SISTEMA. El nombre se escapa: lo escribe el administrador en el alta, y
+// sin escapar una etiqueta en él entraría como HTML en el correo de otro.
+export function htmlCorreoInvitacion(nombre: string, link: string): string {
+  const href = escaparHtml(link)
+  return `
+  <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:480px;margin:0 auto;color:#18181b">
+    <h2 style="font-size:18px;margin:0 0 12px">Te dieron acceso a Space OS</h2>
+    <p style="font-size:14px;line-height:1.5;color:#3f3f46">
+      Hola ${escaparHtml(nombre)}, se creó una cuenta para ti en Space OS.
+      Haz clic en el botón para elegir tu contraseña. Este enlace vence en 72 horas y solo se puede usar una vez.
+    </p>
+    <p style="margin:20px 0">
+      <a href="${href}" style="display:inline-block;background:#0a66ff;color:#fff;text-decoration:none;font-size:14px;font-weight:600;padding:10px 18px;border-radius:8px">
+        Elegir mi contraseña
+      </a>
+    </p>
+    <p style="font-size:12px;color:#71717a;line-height:1.5">
+      Si el enlace venció, pide a quien te dio de alta que te envíe otro.
+      Si el botón no funciona, copia y pega este enlace:<br>
+      <span style="word-break:break-all;color:#0a66ff">${href}</span>
     </p>
   </div>`
 }
