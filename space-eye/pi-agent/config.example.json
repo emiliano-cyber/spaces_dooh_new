@@ -1,0 +1,33 @@
+{
+  "server_url": "http://159.203.188.58:4000",
+
+  "_comentario_testigo": "Testigo de alta: la credencial que hace que el equipo nazca ya asignado a su dueno. La da la pantalla de descarga del perfil del cliente y solo sirve para eso -no lee nada-. Si se deja vacio el equipo se da de alta SIN dueno y hay que asignarlo desde el dashboard. Cambiarlo despues del primer alta no muda al equipo de cliente: eso se hace a proposito desde el dashboard.",
+  "testigo_de_alta": "",
+
+  "_comentario_enlace": "Como sale a internet el sitio. Ponlo en 'lte' cuando detras del cable hay un modem con SIM: para la Pi eso es eth0 y sin esto su gasto se contaria como WiFi, o sea fuera de la cuenta de datos moviles y del tope del plan. Con WiFi o modem USB no hace falta: se detecta solo. 'operador' es solo el nombre que se lee en el dashboard.",
+  "enlace": "",
+  "operador": "",
+
+  "_comentario_intervalos": "Cada cuanto habla el equipo sin que pase nada. Es casi todo lo que gasta al mes: 180/300 son ~40 MB/mes; bajarlos a 60/30 lo sube a ~230 MB/mes. El servidor da por caido a un equipo a los 10 minutos.",
+  "intervalo_estado_seg": 180,
+  "intervalo_sondeo_seg": 300,
+  "intervalo_sondeo_caido_seg": 30,
+
+  "_comentario_camara": "Los ajustes de imagen (exposicion, color, encuadre, cuadros a promediar) se manejan POR EQUIPO desde el dashboard y llegan en la orden; aqui solo va lo del equipo en si. 'fps_promedio' y 'calidad_promedio' son de la captura promediada: 30 cuadros por segundo y calidad 2 de ffmpeg (2 = la mejor, 31 = la peor).",
+  "camara": {
+    "modo": "auto",
+    "ancho": 1920,
+    "alto": 1080,
+    "calidad": 90,
+    "espera_ms": 1500,
+    "fps_promedio": 30,
+    "calidad_promedio": 2
+  },
+
+  "_comentario_stream": "Vista en vivo. El caudal se calcula del tamano (720p15 = ~1.5 Mbps = ~11 MB/min). Fijar 'bitrate' solo si un sitio necesita otra cosa: sin limite, rpicam-vid manda ~7 Mbps, o sea 50 MB por minuto.",
+  "stream": {
+    "ancho": 1280,
+    "alto": 720,
+    "fps": 15
+  }
+}

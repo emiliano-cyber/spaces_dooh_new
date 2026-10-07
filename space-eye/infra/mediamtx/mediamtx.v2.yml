@@ -1,0 +1,71 @@
+# SPACE EYE — servidor de medios para la vista en vivo.
+#
+# Por que existe: los equipos que NO son telefonos Android no pueden hacer
+# WebRTC punto a punto sin arrastrar GStreamer (la Raspberry no lo trae y en las
+# PCs con camara IP romperia el agente de un solo .exe). En su lugar el agente
+# EMPUJA el video aqui con ffmpeg mientras alguien lo esta viendo, y el
+# dashboard lo consume por WebRTC desde este mismo servidor.
+#
+#   Raspberry Pi  --RTSP--> [ este servidor ] --WebRTC--> dashboard
+#   Camara IP     --RTSP-->
+#
+# Los telefonos Android NO pasan por aqui: siguen con su WebRTC punto a punto.
+
+logLevel: info
+
+# API interna (no se publica al exterior): sirve para saber que transmisiones
+# estan activas desde el backend.
+api: true
+apiAddress: :9997
+
+# --- Entrada: los agentes publican por RTSP ---
+rtsp: true
+rtspAddress: :8554
+# Solo TCP: es lo que atraviesa sin problemas las redes de los sitios y el LTE.
+rtspTransports: [tcp]
+
+# --- Salida: el dashboard consume por WebRTC ---
+webrtc: true
+webrtcAddress: :8889
+webrtcAllowOrigins: ["*"]
+webrtcLocalUDPAddress: :8389
+# Dentro de Docker el servidor solo se ve a si mismo con una IP privada; hay que
+# decirle cual es la IP publica o el navegador recibiria candidatos inservibles.
+webrtcIPsFromInterfaces: false
+webrtcAdditionalHosts: [159.203.188.58]
+# Cuanto espera el servidor los primeros cuadros de quien publica. El default
+# (2 s) no le alcanza a un telefono: su camara tarda en entregar el primer
+# cuadro, mas si conecta por el TURN, y el servidor colgaba la transmision
+# ("deadline exceeded while waiting tracks") dejando el visor esperando.
+webrtcTrackGatherTimeout: 10s
+
+# Apagados: no se usan y cada uno seria un puerto mas expuesto.
+rtmp: false
+hls: false
+srt: false
+
+authMethod: internal
+authInternalUsers:
+  # Anonimo: SOLO puede ver. Y solo ve si acierta el nombre de la ruta, que el
+  # backend genera al azar para cada transmision y deja de existir al cortarla.
+  - user: any
+    pass:
+    ips: []
+    permissions:
+      - action: read
+      - action: playback
+
+  # Los agentes (Raspberry y PC con camara IP) publican con este usuario. La
+  # contrasena NO va en el repositorio: se inyecta con MTX_AUTHINTERNALUSERS_1_PASS
+  # desde backend/.env al levantar el contenedor.
+  - user: spaceeye
+    pass: cambiame
+    ips: []
+    permissions:
+      - action: publish
+      - action: read
+      - action: api
+
+paths:
+  # Las rutas se crean solas cuando un agente empieza a publicar.
+  all_others:

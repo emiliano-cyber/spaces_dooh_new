@@ -1,0 +1,21 @@
+{
+  "server_url": "http://159.203.188.58:4000",
+
+  "_comentario_testigo": "Testigo de alta: hace que el equipo nazca asignado a su dueno. Lo escribe el instalador con lo que venia en testigo.txt junto al programa; aqui solo hace falta ponerlo a mano si se configura sin el asistente. Vacio = equipo sin dueno, a asignar desde el dashboard.",
+  "testigo_de_alta": "",
+
+  "camara": {
+    "host": "192.168.1.64",
+    "puerto": 80,
+    "usuario": "admin",
+    "clave": "LA_CLAVE_DE_LA_CAMARA",
+    "canal": 101,
+    "sub_stream": false,
+    "canal_stream": 102,
+    "puerto_rtsp": 554,
+    "timeout_ms": 15000
+  },
+
+  "intervalo_estado_seg": 60,
+  "intervalo_sondeo_seg": 30
+}

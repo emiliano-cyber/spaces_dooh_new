@@ -1,0 +1,20 @@
+[Unit]
+Description=SPACE EYE — agente de Raspberry Pi
+Documentation=file:/home/pi/pi-agent/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Ajusta User y las rutas si instalas el agente con otro usuario.
+User=adavailable
+WorkingDirectory=/home/adavailable/pi-agent
+ExecStart=/usr/bin/node /home/adavailable/pi-agent/src/index.js
+# Que se levante siempre: un equipo en un espectacular no tiene quien lo reinicie.
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

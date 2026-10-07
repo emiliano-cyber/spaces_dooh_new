@@ -1,0 +1,7 @@
+# Lo que corre en Linux (la Raspberry, los contenedores) va con LF siempre,
+# aunque se clone en Windows con core.autocrlf: un .sh con CRLF falla en bash
+# ("set: pipefail\r: invalid option") y se descubre ya en el sitio.
+*.sh text eol=lf
+*.py text eol=lf
+pi-agent/** text eol=lf
+infra/** text eol=lf

@@ -1,0 +1,43 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Telefono nuevo (instancia)</title>
+<script src="/socket.io/socket.io.js"></script>
+<style>body{font:14px monospace;padding:16px}#log{white-space:pre-wrap}</style>
+</head><body>
+<h3>Telefono NUEVO dado de alta en el Space Eye de la instancia</h3>
+<canvas id="c" width="640" height="480" style="width:320px;border:1px solid #ccc"></canvas>
+<div id="log"></div>
+<script>
+// Hace lo que la APK recien instalada: se da de alta (SIN testigo, como la APK),
+// reporta su estado, escucha ordenes y sube la foto que le piden.
+const log = (m) => { document.getElementById('log').textContent += new Date().toLocaleTimeString() + ' ' + m + '\n'; };
+const c = document.getElementById('c'), g = c.getContext('2d'); let t = 0;
+setInterval(() => { t++; g.fillStyle = `hsl(${(t*3) % 360},70%,45%)`; g.fillRect(0,0,640,480); g.fillStyle='#fff'; g.font='40px monospace'; g.fillText('PANTALLA ' + t, 60, 250); }, 200);
+window.estado = { alta: null, fotos: 0, ordenes: [] };
+(async () => {
+  const r = await fetch('/api/device/register', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ device_uid: 'android-simulado-instancia-01', android_version: '14', app_version: '0.15.15', model: 'Simulado', manufacturer: 'Prueba' }) });
+  const d = await r.json();
+  window.estado.alta = { status: r.status, device_id: d.device_id ?? d.id };
+  log('alta: HTTP ' + r.status + ' equipo ' + (d.device_id ?? d.id));
+  const token = d.token;
+  const reportar = () => fetch('/api/device/status', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+    body: JSON.stringify({ battery_pct: 87, battery_charging: true, signal_dbm: -71, network_type: 'LTE', network_operator: 'Prueba' }) })
+    .then((x) => log('estado: HTTP ' + x.status));
+  reportar(); setInterval(reportar, 20000);
+  const socket = io('/devices', { auth: { token }, transports: ['websocket'] });
+  socket.on('connect', () => log('socket conectado'));
+  socket.on('connect_error', (e) => log('socket error ' + e.message));
+  socket.on('command', async (cmd) => {
+    log('orden ' + cmd.command_type + ' #' + cmd.id); window.estado.ordenes.push(cmd.command_type);
+    if (cmd.command_type === 'TAKE_PHOTO') {
+      const blob = await new Promise((ok) => c.toBlob(ok, 'image/jpeg', 0.85));
+      const fd = new FormData();
+      fd.append('photo', blob, 'foto.jpg'); fd.append('taken_at', new Date().toISOString());
+      fd.append('command_id', String(cmd.id)); fd.append('source', 'on_demand');
+      const x = await fetch('/api/device/upload-photo', { method: 'POST', headers: { Authorization: 'Bearer ' + token }, body: fd });
+      log('foto subida: HTTP ' + x.status); window.estado.fotos++;
+    }
+  });
+})();
+</script>
+</body></html>

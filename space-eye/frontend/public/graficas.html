@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SPACE EYES — Gráficas</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/src/js/tema.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="/src/css/styles.css">
+</head>
+<body class="bg-neutral-50 text-neutral-900 font-sans antialiased">
+  <div x-data="graficas()" x-init="init()" class="min-h-screen">
+
+    <div id="app-header"></div>
+
+    <main class="max-w-7xl 2xl:max-w-[1600px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      <p class="se-eyebrow">Monitoreo</p>
+      <h1 class="se-titulo text-[28px] mt-1 mb-5">Estadísticas y telemetría</h1>
+
+      <!-- Filtros -->
+      <div class="bg-white border border-neutral-200 rounded-lg p-4 mb-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
+          <label class="block">
+            <span class="text-neutral-500 text-xs">Dispositivo</span>
+            <select x-model="deviceId" @change="load()" class="mt-1 w-full px-3 py-2 border border-neutral-300 rounded">
+              <template x-for="d in devices" :key="d.id">
+                <option :value="d.id" x-text="d.name"></option>
+              </template>
+            </select>
+          </label>
+          <label class="block">
+            <span class="text-neutral-500 text-xs">Periodo</span>
+            <select x-model="range" @change="onRangePreset()" class="mt-1 w-full px-3 py-2 border border-neutral-300 rounded">
+              <option value="24h">Hoy (24 h)</option>
+              <option value="7d">Semana</option>
+              <option value="30d">Mes</option>
+              <option value="custom">Personalizado</option>
+            </select>
+          </label>
+          <label class="block" x-show="range === 'custom'">
+            <span class="text-neutral-500 text-xs">Desde</span>
+            <input type="datetime-local" x-model="from" class="mt-1 w-full px-3 py-2 border border-neutral-300 rounded">
+          </label>
+          <label class="block" x-show="range === 'custom'">
+            <span class="text-neutral-500 text-xs">Hasta</span>
+            <input type="datetime-local" x-model="to" class="mt-1 w-full px-3 py-2 border border-neutral-300 rounded">
+          </label>
+          <div class="flex items-end gap-2" x-show="range === 'custom'">
+            <button @click="load()" class="se-btn se-btn-primario">Aplicar</button>
+          </div>
+          <div class="flex items-end">
+            <button @click="exportCsv()" class="se-btn se-btn-secundario">Exportar CSV</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Alertas + estado -->
+      <div x-show="loaded" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6 text-sm">
+        <div class="bg-white border border-neutral-200 rounded-lg p-3">
+          <div class="text-neutral-400 text-xs">Estado</div>
+          <div class="font-semibold" :class="deviceOnline ? 'text-green-600' : 'text-neutral-500'" x-text="deviceOnline ? 'En línea' : 'Sin conexión'"></div>
+        </div>
+        <div class="bg-white border border-neutral-200 rounded-lg p-3">
+          <div class="text-neutral-400 text-xs">Temp CPU máx</div>
+          <div class="font-semibold tabular-nums" x-text="summary.cpu_temp_max != null ? Number(summary.cpu_temp_max).toFixed(1)+' °C' : 'n/d'"></div>
+        </div>
+        <div class="bg-white border border-neutral-200 rounded-lg p-3">
+          <div class="text-neutral-400 text-xs">Batería mín</div>
+          <div class="font-semibold tabular-nums" x-text="summary.battery_pct_min != null ? summary.battery_pct_min+' %' : 'n/d'"></div>
+        </div>
+        <div class="bg-white border border-neutral-200 rounded-lg p-3">
+          <div class="text-neutral-400 text-xs">Muestras</div>
+          <div class="font-semibold tabular-nums" x-text="summary.samples ?? 0"></div>
+        </div>
+      </div>
+
+      <div x-show="loaded && alerts.length > 0" class="mb-6 space-y-1.5">
+        <template x-for="a in alerts" :key="a.type">
+          <div class="flex items-center gap-2 text-sm px-3 py-2 rounded"
+               :class="a.level === 'critical' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'">
+            <span class="font-bold" x-text="a.level === 'critical' ? '⚠' : '!'"></span>
+            <span x-text="a.message"></span>
+          </div>
+        </template>
+      </div>
+
+      <!-- Consumo de datos -->
+      <div class="bg-white border border-neutral-200 rounded-lg p-4 mb-6">
+        <h3 class="font-medium mb-3">Consumo de datos (chip / WiFi)</h3>
+        <template x-if="!dataUsage">
+          <p class="text-sm text-neutral-400">Sin datos de consumo (requiere la app v0.7.0 en el equipo).</p>
+        </template>
+        <template x-if="dataUsage">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div><canvas id="chartData" height="150"></canvas></div>
+            <div class="text-sm self-center">
+              <div class="grid grid-cols-3 gap-2 mb-1 text-xs text-neutral-500 font-medium"><span></span><span class="text-right">Móvil</span><span class="text-right">WiFi</span></div>
+              <template x-for="row in [['Hoy','today'],['Semana','week'],['Mes','month'],['Total','total']]" :key="row[1]">
+                <div class="grid grid-cols-3 gap-2 py-1 border-t border-neutral-100">
+                  <span class="text-neutral-500" x-text="row[0]"></span>
+                  <span class="text-right font-medium" x-text="fmtBytes(dataUsage['mobile_'+row[1]])"></span>
+                  <span class="text-right" x-text="fmtBytes(dataUsage['wifi_'+row[1]])"></span>
+                </div>
+              </template>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <!-- Graficas de telemetria -->
+      <div x-show="loaded && summary.samples > 0" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div class="bg-white border border-neutral-200 rounded-lg p-4"><h3 class="font-medium text-sm mb-2">Temperatura (CPU / batería)</h3><canvas id="chartTemp" height="150"></canvas></div>
+        <div class="bg-white border border-neutral-200 rounded-lg p-4"><h3 class="font-medium text-sm mb-2">Nivel de batería</h3><canvas id="chartBattery" height="150"></canvas></div>
+        <div class="bg-white border border-neutral-200 rounded-lg p-4"><h3 class="font-medium text-sm mb-2">Intensidad de señal</h3><canvas id="chartSignal" height="150"></canvas></div>
+        <div class="bg-white border border-neutral-200 rounded-lg p-4"><h3 class="font-medium text-sm mb-2">Almacenamiento y memoria libres</h3><canvas id="chartStorage" height="150"></canvas></div>
+      </div>
+      <p x-show="loaded && (!summary.samples || summary.samples === 0)" class="text-center text-neutral-400 text-sm py-12">
+        Sin telemetría en el periodo seleccionado para este dispositivo.
+      </p>
+    </main>
+  </div>
+
+  <script src="/src/js/api.js"></script>
+  <script src="/src/js/shell.js"></script>
+  <script src="/src/js/pages/graficas.js"></script>
+</body>
+</html>

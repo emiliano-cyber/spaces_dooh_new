@@ -1,0 +1,3461 @@
+diff --git a/apps/web/app/(app)/(shell)/space-eyes/[id]/page.tsx b/apps/web/app/(app)/(shell)/space-eyes/[id]/page.tsx
+new file mode 100644
+index 0000000..2b8a211
+--- /dev/null
++++ b/apps/web/app/(app)/(shell)/space-eyes/[id]/page.tsx
+@@ -0,0 +1,21 @@
++'use client'
++
++import { useParams } from 'next/navigation'
++import { FichaEquipo } from '@/components/demo/space-eyes/FichaEquipo'
++
++// Ficha de un equipo Space Eyes. El id es el del equipo en Space Eye (numérico);
++// uno de otra instancia contesta 404 allá y la ficha lo trata como no
++// encontrado, sin decir nunca "no es tuyo".
++export default function SpaceEyeEquipoPage() {
++  const params = useParams<{ id: string }>()
++  const id = Number(params?.id)
++  if (!Number.isInteger(id) || id <= 0) {
++    return (
++      <div className="w-full p-6">
++        <h1 className="text-lg font-semibold text-ink">Equipo no encontrado</h1>
++        <p className="mt-2 text-[13px] text-muted">La dirección no corresponde a ningún equipo Space Eyes.</p>
++      </div>
++    )
++  }
++  return <FichaEquipo id={id} />
++}
+diff --git a/apps/web/app/(app)/(shell)/space-eyes/nuevo/page.tsx b/apps/web/app/(app)/(shell)/space-eyes/nuevo/page.tsx
+new file mode 100644
+index 0000000..8c24889
+--- /dev/null
++++ b/apps/web/app/(app)/(shell)/space-eyes/nuevo/page.tsx
+@@ -0,0 +1,10 @@
++'use client'
++
++import { AltaDispositivo } from '@/components/demo/space-eyes/AltaDispositivo'
++
++// Alta de un equipo Space Eyes. No hay formulario que "cree" el equipo: el
++// agente se registra solo al arrancar, así que esta pantalla entrega el
++// instalador de cada tipo y el testigo con el que nace asignado a la empresa.
++export default function NuevoDispositivoPage() {
++  return <AltaDispositivo />
++}
+diff --git a/apps/web/app/(app)/(shell)/space-eyes/page.tsx b/apps/web/app/(app)/(shell)/space-eyes/page.tsx
+new file mode 100644
+index 0000000..eddf649
+--- /dev/null
++++ b/apps/web/app/(app)/(shell)/space-eyes/page.tsx
+@@ -0,0 +1,10 @@
++'use client'
++
++import { ListaEquipos } from '@/components/demo/space-eyes/ListaEquipos'
++
++// Pantalla "Space Eyes": todos los equipos de la instancia. El alcance por
++// empresa lo pone la llave de servicio en el servidor, y el permiso lo exige el
++// BFF (`inventario.ver`); aquí no se decide nada de eso.
++export default function SpaceEyesPage() {
++  return <ListaEquipos />
++}
+diff --git a/apps/web/app/api/space-eyes/[id]/captura/route.ts b/apps/web/app/api/space-eyes/[id]/captura/route.ts
+new file mode 100644
+index 0000000..ae64318
+--- /dev/null
++++ b/apps/web/app/api/space-eyes/[id]/captura/route.ts
+@@ -0,0 +1,61 @@
++import { NextResponse } from 'next/server'
++import { exigir } from '@/lib/server/auth'
++import { registrarAccion } from '@/lib/server/acciones-repo'
++import { equipoDetalle, pedirCaptura, spaceEyeHabilitado } from '@/lib/server/space-eye'
++import { respuestaError } from '@/lib/server/errores'
++
++export const runtime = 'nodejs'
++export const dynamic = 'force-dynamic'
++
++// ============================================================================
++//  POST /api/space-eyes/:id/captura — pedirle una foto al equipo, ahora.
++// ----------------------------------------------------------------------------
++//  Es la ÚNICA ruta de este módulo que escribe algo, y lo que escribe es una
++//  orden en Space Eye, no un dato nuestro.
++//
++//  EL PERMISO ES `inventario.crear` y no `ver`. Mirar el estado de un equipo y
++//  encenderle la cámara no son lo mismo: lo segundo gasta datos del plan del
++//  sitio y despierta el teléfono. Quien puede editar el inventario puede pedir
++//  una foto; quien solo lo consulta, no.
++//
++//  QUEDA EN ACTIVIDAD. Una foto a demanda la pide una persona, y dentro de un
++//  mes la pregunta será quién encendió esa cámara y cuándo. Sin el registro, la
++//  única huella estaría en los logs del otro sistema.
++// ============================================================================
++
++export async function POST(_req: Request, { params }: { params: { id: string } }) {
++  const g = await exigir('inventario', 'crear')
++  if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
++
++  if (!spaceEyeHabilitado()) {
++    return NextResponse.json({ error: 'La integración con Space Eye no está configurada' }, { status: 503 })
++  }
++
++  const id = Number(params.id)
++  if (!Number.isInteger(id) || id <= 0) {
++    return NextResponse.json({ error: 'Equipo inválido' }, { status: 400 })
++  }
++
++  try {
++    // Se resuelve el equipo ANTES de pedir nada: así el registro de actividad
++    // lleva el nombre del sitio y no un número, y un id de otra instancia se
++    // corta aquí con el mismo 404 que da la ficha.
++    const equipo = await equipoDetalle(id)
++    if (!equipo) return NextResponse.json({ error: 'Equipo no encontrado' }, { status: 404 })
++
++    const r = await pedirCaptura(id)
++    await registrarAccion(g.usuario, 'Pidió una foto a Space Eyes', equipo.nombre)
++
++    return NextResponse.json({
++      orden: r.orden,
++      enLinea: r.enLinea,
++      // Lo que la interfaz tiene que decirle a quien está esperando. Un equipo
++      // caído NO es un error: la orden queda encolada y la recoge al volver.
++      mensaje: r.enLinea
++        ? 'El equipo está tomando la foto. Aparecerá aquí en unos segundos.'
++        : 'El equipo no está en línea ahora mismo. La foto quedó pedida y la tomará en cuanto vuelva.',
++    })
++  } catch (e) {
++    return respuestaError(e)
++  }
++}
+diff --git a/apps/web/app/api/space-eyes/[id]/route.ts b/apps/web/app/api/space-eyes/[id]/route.ts
+new file mode 100644
+index 0000000..69ec5f7
+--- /dev/null
++++ b/apps/web/app/api/space-eyes/[id]/route.ts
+@@ -0,0 +1,59 @@
++import { NextResponse } from 'next/server'
++import { exigir } from '@/lib/server/auth'
++import { q1 } from '@/lib/server/db'
++import { equipoDetalle, spaceEyeHabilitado } from '@/lib/server/space-eye'
++import { respuestaError } from '@/lib/server/errores'
++
++export const runtime = 'nodejs'
++export const dynamic = 'force-dynamic'
++
++// ============================================================================
++//  GET /api/space-eyes/:id — la ficha de un equipo.
++// ----------------------------------------------------------------------------
++//  Devuelve el equipo, su estado más reciente, su consumo, sus últimas fotos y
++//  —si su código empareja con una pantalla del tenant— la pantalla y la foto
++//  que el cliente subió a su galería.
++//
++//  LA «FOTO DEL CLIENTE» NO ES UNA TABLA NUEVA. Es la primera de la galería de
++//  la pantalla (`sitios.fotos`), que ya existe y que el cliente ya sube desde la
++//  ficha de Inventario. Inventarle almacenamiento propio a este módulo habría
++//  dejado dos galerías de la misma pantalla que se contradicen entre sí.
++//
++//  Un equipo que no es de esta instancia da 404 en Space Eye, y aquí se
++//  convierte en el mismo 404: la ficha dice «no encontrado», nunca «no es tuyo».
++// ============================================================================
++
++export async function GET(_req: Request, { params }: { params: { id: string } }) {
++  const g = await exigir('inventario', 'ver')
++  if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
++
++  if (!spaceEyeHabilitado()) {
++    return NextResponse.json({ error: 'La integración con Space Eye no está configurada' }, { status: 503 })
++  }
++
++  const id = Number(params.id)
++  if (!Number.isInteger(id) || id <= 0) {
++    return NextResponse.json({ error: 'Equipo inválido' }, { status: 400 })
++  }
++
++  try {
++    const equipo = await equipoDetalle(id)
++    if (!equipo) return NextResponse.json({ error: 'Equipo no encontrado' }, { status: 404 })
++
++    // La pantalla del tenant que vigila este equipo, y su galería. Va bajo RLS,
++    // así que una pantalla de otro tenant sencillamente no aparece.
++    let pantalla: { id: string; nombre: string; fotoCliente: string | null } | null = null
++    const codigo = (equipo.codigoPantalla ?? '').trim()
++    if (codigo) {
++      const s = await q1<{ id: string; nombre: string; fotos: string[] | null }>(
++        'select id, nombre, fotos from sitios where lower(codigo_proveedor) = lower($1) limit 1',
++        [codigo],
++      )
++      if (s) pantalla = { id: s.id, nombre: s.nombre, fotoCliente: s.fotos?.[0] ?? null }
++    }
++
++    return NextResponse.json({ equipo, pantalla })
++  } catch (e) {
++    return respuestaError(e)
++  }
++}
+diff --git a/apps/web/app/api/space-eyes/[id]/telemetria/route.ts b/apps/web/app/api/space-eyes/[id]/telemetria/route.ts
+new file mode 100644
+index 0000000..88e704e
+--- /dev/null
++++ b/apps/web/app/api/space-eyes/[id]/telemetria/route.ts
+@@ -0,0 +1,48 @@
++import { NextResponse } from 'next/server'
++import { exigir } from '@/lib/server/auth'
++import { telemetriaDeEquipo, spaceEyeHabilitado } from '@/lib/server/space-eye'
++import { respuestaError } from '@/lib/server/errores'
++
++export const runtime = 'nodejs'
++export const dynamic = 'force-dynamic'
++
++// ============================================================================
++//  GET /api/space-eyes/:id/telemetria?horas=24 — el histórico del equipo.
++// ----------------------------------------------------------------------------
++//  Va en su propia ruta y NO dentro de la ficha porque es información
++//  secundaria: la ficha tiene que pintar sin esperarla, y esto se pide solo
++//  cuando alguien abre la tarjeta del histórico. Metido en la ficha, una semana
++//  de telemetría retrasaría la foto, que es lo que la gente viene a ver.
++//
++//  El alcance lo pone la llave (el controlador de Space Eye comprueba el dueño y
++//  contesta 404 por un equipo ajeno), y el permiso es el de mirar: `ver`.
++// ============================================================================
++
++const HORAS_PERMITIDAS = [24, 168, 720] as const
++
++export async function GET(req: Request, { params }: { params: { id: string } }) {
++  const g = await exigir('inventario', 'ver')
++  if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
++
++  if (!spaceEyeHabilitado()) {
++    return NextResponse.json({ error: 'La integración con Space Eye no está configurada' }, { status: 503 })
++  }
++
++  const id = Number(params.id)
++  if (!Number.isInteger(id) || id <= 0) {
++    return NextResponse.json({ error: 'Equipo inválido' }, { status: 400 })
++  }
++
++  // Rangos cerrados a tres, y no un número libre: un `horas=100000` pediría
++  // meses de histórico al tercero por cada recarga de pantalla.
++  const pedidas = Number(new URL(req.url).searchParams.get('horas') ?? 24)
++  const horas = (HORAS_PERMITIDAS as readonly number[]).includes(pedidas) ? pedidas : 24
++
++  try {
++    const t = await telemetriaDeEquipo(id, horas)
++    if (!t) return NextResponse.json({ disponible: false, horas })
++    return NextResponse.json({ disponible: true, horas, ...t })
++  } catch (e) {
++    return respuestaError(e)
++  }
++}
+diff --git a/apps/web/app/api/space-eyes/alta/route.ts b/apps/web/app/api/space-eyes/alta/route.ts
+new file mode 100644
+index 0000000..c09a5f7
+--- /dev/null
++++ b/apps/web/app/api/space-eyes/alta/route.ts
+@@ -0,0 +1,42 @@
++import { NextResponse } from 'next/server'
++import { exigir } from '@/lib/server/auth'
++import { infoDeAlta, testigoCompleto, spaceEyeHabilitado } from '@/lib/server/space-eye'
++import { respuestaError } from '@/lib/server/errores'
++
++export const runtime = 'nodejs'
++export const dynamic = 'force-dynamic'
++
++// ============================================================================
++//  GET /api/space-eyes/alta — lo que hace falta para dar de alta un equipo.
++// ----------------------------------------------------------------------------
++//  Devuelve de dónde se baja el instalador de cada tipo de equipo, con su
++//  versión y su huella, y si esta instancia tiene testigo de alta configurado.
++//
++//  EL TESTIGO COMPLETO SOLO CON `?testigo=1`, y solo para quien puede dar de
++//  alta (`inventario.crear`). Por omisión viaja únicamente el prefijo, que es
++//  lo que se puede enseñar en una pantalla sin repartir la credencial: pintarlo
++//  entero al cargar la página lo dejaría en el historial del navegador, en
++//  cualquier captura de pantalla y en la consola de red de quien pase por ahí.
++//  Se pide a propósito, con un clic, y el registro de esa petición queda.
++// ============================================================================
++
++export async function GET(req: Request) {
++  const quiereTestigo = new URL(req.url).searchParams.get('testigo') === '1'
++
++  // Ver los instaladores es parte de consultar el inventario; llevarse la
++  // credencial que asigna un equipo a la empresa, no.
++  const g = await exigir('inventario', quiereTestigo ? 'crear' : 'ver')
++  if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
++
++  if (!spaceEyeHabilitado()) {
++    return NextResponse.json({ error: 'La integración con Space Eye no está configurada' }, { status: 503 })
++  }
++
++  try {
++    const info = await infoDeAlta()
++    if (!quiereTestigo) return NextResponse.json(info)
++    return NextResponse.json({ ...info, testigoCompleto: testigoCompleto() })
++  } catch (e) {
++    return respuestaError(e)
++  }
++}
+diff --git a/apps/web/app/api/space-eyes/foto/route.ts b/apps/web/app/api/space-eyes/foto/route.ts
+new file mode 100644
+index 0000000..63155e9
+--- /dev/null
++++ b/apps/web/app/api/space-eyes/foto/route.ts
+@@ -0,0 +1,78 @@
++import { NextResponse } from 'next/server'
++import { exigir } from '@/lib/server/auth'
++import { spaceEyeHabilitado, urlAbsolutaDeFoto } from '@/lib/server/space-eye'
++
++export const runtime = 'nodejs'
++export const dynamic = 'force-dynamic'
++
++// ============================================================================
++//  GET /api/space-eyes/foto?p=/storage/... — las fotos, servidas por nosotros.
++// ----------------------------------------------------------------------------
++//  POR QUÉ EXISTE, Y NO ES UN LUJO
++//
++//  Esta aplicación se sirve por HTTPS y Space Eye, hoy, por HTTP plano. Un
++//  navegador NO carga una imagen `http://` dentro de una página `https://`: la
++//  bloquea como contenido mixto, sin pedir permiso y sin más señal que una línea
++//  en la consola. O sea que apuntar el `<img>` directo a Space Eye deja el
++//  módulo entero sin fotos EN PRODUCCIÓN, funcionando perfecto en local. Es el
++//  fallo que no avisa.
++//
++//  Sirviéndolas desde aquí van por el mismo dominio y el mismo certificado que
++//  la página, así que funcionan con Space Eye en HTTPS y también mientras siga
++//  en HTTP. Y de paso el navegador del cliente nunca habla directo con Space
++//  Eye: no aprende su dirección ni sus rutas de almacenamiento.
++//
++//  LO QUE SE ACEPTA COMO `p`
++//
++//  Solo una ruta de almacenamiento de Space Eye, con su firma. Nunca una URL
++//  completa: si esta ruta aceptara `http://loquesea`, sería un proxy abierto
++//  desde dentro del droplet —el clásico SSRF, con el que se leen las credenciales
++//  del metadata del proveedor—. La dirección del servidor la pone SIEMPRE este
++//  servidor, y de `p` solo se toma el camino.
++//
++//  La firma la comprueba Space Eye, no nosotros: las fotos caducan a las 6 h y
++//  una ruta sin firma válida se contesta con lo que él conteste.
++// ============================================================================
++
++// `/storage/...` con su firma opcional. Sin `..`, sin `//`, sin esquema, sin
++// host: lo que no case con esto no se pide a nadie.
++const RUTA_VALIDA = /^\/storage\/[A-Za-z0-9/_.-]+\.(jpg|jpeg|png|webp)(\?[A-Za-z0-9=&_.-]*)?$/i
++
++export async function GET(req: Request) {
++  const g = await exigir('inventario', 'ver')
++  if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
++
++  if (!spaceEyeHabilitado()) {
++    return NextResponse.json({ error: 'La integración con Space Eye no está configurada' }, { status: 503 })
++  }
++
++  const p = new URL(req.url).searchParams.get('p') ?? ''
++  if (!RUTA_VALIDA.test(p) || p.includes('..')) {
++    return NextResponse.json({ error: 'Ruta de foto inválida' }, { status: 400 })
++  }
++
++  try {
++    const r = await fetch(urlAbsolutaDeFoto(p), { cache: 'no-store' })
++    if (!r.ok) {
++      // Se repite el código de Space Eye tal cual: un 403 por firma caducada
++      // tiene que llegar como 403 y no disfrazado de error nuestro.
++      return NextResponse.json({ error: 'No se pudo leer la foto' }, { status: r.status })
++    }
++
++    // Se transmite el cuerpo sin juntarlo entero en memoria: son fotos de 2 MB y
++    // varias a la vez en una galería.
++    return new NextResponse(r.body, {
++      status: 200,
++      headers: {
++        'Content-Type': r.headers.get('content-type') ?? 'image/jpeg',
++        // Privada: es la foto de la pantalla de un cliente detrás de sesión, y
++        // no puede quedar en una caché compartida. Cinco minutos evitan la
++        // ráfaga de abrir y cerrar la ficha sin servir nada rancio.
++        'Cache-Control': 'private, max-age=300',
++        'Content-Disposition': 'inline',
++      },
++    })
++  } catch {
++    return NextResponse.json({ error: 'No se pudo leer la foto' }, { status: 502 })
++  }
++}
+diff --git a/apps/web/app/api/space-eyes/route.ts b/apps/web/app/api/space-eyes/route.ts
+new file mode 100644
+index 0000000..e81a23e
+--- /dev/null
++++ b/apps/web/app/api/space-eyes/route.ts
+@@ -0,0 +1,62 @@
++import { NextResponse } from 'next/server'
++import { exigir } from '@/lib/server/auth'
++import { q } from '@/lib/server/db'
++import { listarEquipos, spaceEyeHabilitado } from '@/lib/server/space-eye'
++import { respuestaError } from '@/lib/server/errores'
++
++export const runtime = 'nodejs'
++export const dynamic = 'force-dynamic'
++
++// ============================================================================
++//  GET /api/space-eyes — los equipos Space Eyes de esta instancia.
++// ----------------------------------------------------------------------------
++//  DE DÓNDE SALE EL ALCANCE. De la llave de servicio, no de aquí: Space Eye
++//  responde con los equipos de su dueño y nada más. Esta ruta no puede ampliar
++//  lo que se ve, solo emparejarlo con las pantallas del tenant.
++//
++//  EL PERMISO ES `inventario.ver`. Un equipo Space Eyes vigila una pantalla del
++//  inventario, así que quien puede ver el inventario puede ver quién lo está
++//  mirando. Se reutiliza a propósito en vez de crear un módulo nuevo: el
++//  catálogo de permisos viaja en las migraciones, y un módulo `space_eyes` sin
++//  su fila en `rol_permisos` dejaría la pantalla en 403 para todo el mundo
++//  —`tienePermiso` es fail-closed—.
++//
++//  EL EMPAREJAMIENTO pantalla↔equipo es el mismo de siempre:
++//  `sitios.codigo_proveedor == device.billboard_code`. Se hace aquí, con una
++//  sola consulta bajo RLS, en vez de una por equipo. Un equipo cuyo código no
++//  empareje sale igual, marcado como sin pantalla: un equipo que no aparece es
++//  un equipo que nadie repara.
++// ============================================================================
++
++export async function GET() {
++  const g = await exigir('inventario', 'ver')
++  if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
++
++  if (!spaceEyeHabilitado()) {
++    return NextResponse.json({ disponible: false, motivo: 'no_configurado', equipos: [] })
++  }
++
++  try {
++    const equipos = await listarEquipos()
++
++    // Las pantallas del tenant, bajo RLS. Solo lo que hace falta para enlazar.
++    const sitios = await q<{ id: string; nombre: string; codigo_proveedor: string | null }>(
++      'select id, nombre, codigo_proveedor from sitios where codigo_proveedor is not null',
++    )
++    const porCodigo = new Map<string, { id: string; nombre: string }>()
++    for (const s of sitios) {
++      const c = (s.codigo_proveedor ?? '').trim().toLowerCase()
++      if (c) porCodigo.set(c, { id: s.id, nombre: s.nombre })
++    }
++
++    return NextResponse.json({
++      disponible: true,
++      equipos: equipos.map((e) => ({
++        ...e,
++        pantalla: porCodigo.get((e.codigoPantalla ?? '').trim().toLowerCase()) ?? null,
++      })),
++    })
++  } catch (e) {
++    return respuestaError(e)
++  }
++}
+diff --git a/apps/web/components/demo/shell/nav.ts b/apps/web/components/demo/shell/nav.ts
+index 089e775..d9c049f 100644
+--- a/apps/web/components/demo/shell/nav.ts
++++ b/apps/web/components/demo/shell/nav.ts
+@@ -18,6 +18,7 @@ import {
+   Percent,
+   CalendarRange,
+   Warehouse,
++  Eye,
+ } from 'lucide-react'
+ import type { RolDemo } from '@/lib/data/types'
+ 
+@@ -66,7 +67,7 @@ import type { RolDemo } from '@/lib/data/types'
+ //
+ // Un grupo sin ítems visibles no pinta su título (lo resuelve el Sidebar): un
+ // rol de Operaciones ve dos entradas, no seis encabezados vacíos.
+-export type GrupoNav = 'inicio' | 'patrimonio' | 'vender' | 'entregar' | 'cobrar' | 'sistema'
++export type GrupoNav = 'inicio' | 'patrimonio' | 'ojos' | 'vender' | 'entregar' | 'cobrar' | 'sistema'
+ 
+ export interface NavItem {
+   key: string
+@@ -83,6 +84,7 @@ export interface NavItem {
+ export const GRUPOS: { key: GrupoNav; titulo: string | null }[] = [
+   { key: 'inicio', titulo: null },
+   { key: 'patrimonio', titulo: 'Inventario' },
++  { key: 'ojos', titulo: 'Space Eyes' },
+   { key: 'vender', titulo: 'Comercial' },
+   { key: 'entregar', titulo: 'Operaciones' },
+   { key: 'cobrar', titulo: 'Finanzas' },
+@@ -103,6 +105,18 @@ export const NAV: NavItem[] = [
+   { key: 'arrendadores', label: 'Arrendadores', href: '/arrendadores', icon: Building2, roles: ['DUENO'], grupo: 'patrimonio' },
+   { key: 'network', label: 'Network', href: '/network', icon: Network, roles: ['DUENO', 'COMERCIAL'], grupo: 'patrimonio' },
+ 
++  // ─── Space Eyes ──────────────────────────────────────────────────────────
++  // Va DESPUES de Inventario y ANTES de Comercial, y con grupo propio, por la
++  // misma regla con la que esta ordenado el resto del menu: el encabezado
++  // nombra la fase y la entrada es su pantalla principal. Colgarlo de
++  // Inventario lo haria parecer un accesorio de la ficha de una pantalla, que
++  // es justo lo que dejo de ser: aqui se entra a mirar la flota de equipos,
++  // no una pantalla.
++  //
++  // Comercial lo ve: quien ensena una pantalla a un cliente es quien primero
++  // necesita saber si la camara de ese sitio esta viva y que enseno ayer.
++  { key: 'space-eyes', label: 'Space Eyes', href: '/space-eyes', icon: Eye, roles: ['DUENO', 'COMERCIAL'], grupo: 'ojos' },
++
+   // ─── Vender ──────────────────────────────────────────────────────────────
+   // En el orden en que se hace: a quién le vendes, qué le enseñas, si está
+   // libre en esas fechas, y la propuesta que sale de ahí.
+diff --git a/apps/web/components/demo/space-eyes/AltaDispositivo.tsx b/apps/web/components/demo/space-eyes/AltaDispositivo.tsx
+new file mode 100644
+index 0000000..182f006
+--- /dev/null
++++ b/apps/web/components/demo/space-eyes/AltaDispositivo.tsx
+@@ -0,0 +1,399 @@
++'use client'
++
++import { useCallback, useEffect, useState } from 'react'
++import Link from 'next/link'
++import {
++  AlertTriangle,
++  Check,
++  ChevronLeft,
++  Copy,
++  Cpu,
++  Download,
++  Eye,
++  Loader2,
++  MonitorSmartphone,
++  Smartphone,
++} from 'lucide-react'
++import { cn } from '@/lib/cn'
++import { Button } from '@/components/demo/ui/Button'
++import { infoAltaApi, testigoDeAltaApi, type Descarga, type InfoAlta } from '@/lib/data/space-eyes-api'
++
++// ============================================================================
++//  Agregar un dispositivo a Space Eyes.
++//
++//  UN EQUIPO SE DA DE ALTA SOLO: se instala el agente, arranca, se registra y
++//  aparece en la lista. Esta pantalla no «crea» nada — no hay un formulario que
++//  invente un equipo que todavía no existe, porque un equipo inventado es una
++//  fila que nunca reporta y que nadie sabe si está mal instalada o no existe.
++//
++//  Lo que sí resuelve son las dos cosas que no se resuelven solas: de dónde se
++//  baja el instalador de cada tipo, y con qué credencial nace el equipo ya
++//  asignado a esta empresa.
++//
++//  CADA TIPO DICE LA VERDAD DE SU FLUJO. Hoy el agente de PC y el de Raspberry
++//  llevan testigo de alta y nacen con dueño; la APK de Android todavía no, así
++//  que nace sin asignar y hay que asignarla. Enseñar los tres iguales sería más
++//  bonito y mandaría a alguien a buscar un campo que no existe.
++// ============================================================================
++
++type Tipo = 'android' | 'pc' | 'pi'
++
++const TIPOS: { id: Tipo; etiqueta: string; icono: typeof Smartphone }[] = [
++  { id: 'android', etiqueta: 'Celular Android', icono: Smartphone },
++  { id: 'pc', etiqueta: 'PC + cámara IP', icono: MonitorSmartphone },
++  { id: 'pi', etiqueta: 'Raspberry Pi', icono: Cpu },
++]
++
++export function AltaDispositivo() {
++  const [tipo, setTipo] = useState<Tipo>('android')
++  const [info, setInfo] = useState<InfoAlta | null>(null)
++  const [cargando, setCargando] = useState(true)
++  const [error, setError] = useState<string | null>(null)
++
++  useEffect(() => {
++    void (async () => {
++      try {
++        setInfo(await infoAltaApi())
++      } catch (e) {
++        setError(e instanceof Error ? e.message : 'No se pudo consultar Space Eyes')
++      }
++      setCargando(false)
++    })()
++  }, [])
++
++  return (
++    <div className="w-full space-y-4 p-6">
++      <Link href="/space-eyes" className="inline-flex items-center gap-1.5 text-[12px] text-muted hover:text-ink">
++        <ChevronLeft className="h-3.5 w-3.5" /> Space Eyes
++      </Link>
++
++      <div className="flex items-center gap-3">
++        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-2 text-ink">
++          <Eye className="h-5 w-5" strokeWidth={1.75} />
++        </span>
++        <div className="min-w-0 flex-1">
++          <h1 className="text-lg font-semibold text-ink">Agregar dispositivo</h1>
++          <p className="text-[13px] text-muted">
++            Instala el agente en el equipo y aparecerá solo en la lista. Elige de qué tipo es.
++          </p>
++        </div>
++      </div>
++
++      {/* El mismo selector de vía de Inventario */}
++      <div className="inline-flex rounded-md border border-border bg-surface p-0.5 text-[13px]">
++        {TIPOS.map((t) => {
++          const Icono = t.icono
++          return (
++            <button
++              key={t.id}
++              type="button"
++              onClick={() => setTipo(t.id)}
++              className={cn(
++                'inline-flex items-center gap-1.5 rounded px-3 py-1.5 transition-colors duration-150',
++                tipo === t.id ? 'bg-surface-2 font-medium text-ink' : 'text-muted hover:text-ink',
++              )}
++            >
++              <Icono className="h-3.5 w-3.5" /> {t.etiqueta}
++            </button>
++          )
++        })}
++      </div>
++
++      {cargando ? (
++        <div className="h-64 animate-pulse rounded-md bg-surface-2" />
++      ) : error ? (
++        <div className="flex items-start gap-2 rounded-md border border-[#dc262640] bg-error-soft p-3 text-[12px]">
++          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-error" />
++          <div>
++            <div className="font-medium text-ink">No se pudo preparar el alta</div>
++            <div className="text-muted">{error}</div>
++          </div>
++        </div>
++      ) : (
++        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
++          <div className="rounded-md border border-border bg-surface">
++            {tipo === 'android' && <Android info={info!} />}
++            {tipo === 'pc' && <Pc info={info!} />}
++            {tipo === 'pi' && <Pi info={info!} />}
++          </div>
++
++          <div className="space-y-3">
++            <TestigoDeAlta info={info!} />
++            <div className="rounded-md border border-border bg-surface p-3">
++              <div className="text-[11px] uppercase tracking-wide text-muted">¿Falta quién lo instale?</div>
++              <p className="mt-2 text-[12px] text-muted">
++                Las cuentas de quienes entran a SPACE OS se dan de alta en Administración. Para instalar un equipo en
++                sitio no hace falta cuenta: el agente se registra solo.
++              </p>
++              <Link
++                href="/administracion"
++                className="mt-2 inline-flex text-[12px] font-medium text-accent hover:underline"
++              >
++                Ir a Administración →
++              </Link>
++            </div>
++          </div>
++        </div>
++      )}
++    </div>
++  )
++}
++
++// ─── El testigo: la credencial que hace que el equipo nazca con dueño ───────
++function TestigoDeAlta({ info }: { info: InfoAlta }) {
++  const [completo, setCompleto] = useState<string | null>(null)
++  const [pidiendo, setPidiendo] = useState(false)
++  const [copiado, setCopiado] = useState(false)
++
++  const revelar = useCallback(async () => {
++    setPidiendo(true)
++    try {
++      const d = await testigoDeAltaApi()
++      setCompleto(d.testigoCompleto ?? '')
++    } catch {
++      setCompleto('')
++    }
++    setPidiendo(false)
++  }, [])
++
++  async function copiar() {
++    if (!completo) return
++    try {
++      await navigator.clipboard.writeText(completo)
++      setCopiado(true)
++      setTimeout(() => setCopiado(false), 2500)
++    } catch {
++      /* si el navegador no deja, queda a la vista para copiar a mano */
++    }
++  }
++
++  if (!info.testigo.hay) {
++    return (
++      <div className="rounded-md border border-[#f59e0b40] bg-warning-soft p-3">
++        <div className="text-[11px] uppercase tracking-wide text-ink">Sin testigo de alta</div>
++        <p className="mt-2 text-[12px] text-ink">
++          Esta instancia no tiene testigo configurado, así que los equipos nuevos van a nacer <b>sin empresa
++          asignada</b> y habrá que asignarlos a mano. No es un error: los equipos funcionan igual.
++        </p>
++        <p className="mt-2 text-[12px] text-muted">
++          Para cerrarlo hace falta un testigo de alta de Space Eye en la variable{' '}
++          <code className="rounded bg-surface-2 px-1 py-0.5">SPACE_EYE_PROVISION_TOKEN</code>.
++        </p>
++      </div>
++    )
++  }
++
++  return (
++    <div className="rounded-md border border-border bg-surface p-3">
++      <div className="text-[11px] uppercase tracking-wide text-muted">Testigo de alta</div>
++      <p className="mt-2 text-[12px] text-muted">
++        Es lo que hace que el equipo nazca ya asignado{info.empresa ? ` a ${info.empresa}` : ''}. No sirve para leer
++        nada: solo para que un equipo nuevo diga de quién es.
++      </p>
++
++      <div className="mt-2 flex items-center gap-2">
++        <code className="flex-1 truncate rounded bg-surface-2 px-2 py-1.5 text-[12px] text-ink">
++          {completo ? completo : `${info.testigo.prefijo}…`}
++        </code>
++        {completo ? (
++          <Button variant="secondary" size="sm" onClick={copiar} aria-label="Copiar el testigo">
++            {copiado ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
++          </Button>
++        ) : (
++          <Button variant="secondary" size="sm" onClick={revelar} disabled={pidiendo}>
++            {pidiendo ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
++            Ver
++          </Button>
++        )}
++      </div>
++      <p className="mt-2 text-[11px] text-muted">
++        Trátalo como una contraseña: viaja dentro del instalador y se revoca desde Space Eye si se filtra.
++      </p>
++    </div>
++  )
++}
++
++// ─── Los tres flujos ────────────────────────────────────────────────────────
++function Android({ info }: { info: InfoAlta }) {
++  return (
++    <>
++      <Cabecera
++        titulo="Celular Android"
++        pie="Un teléfono con la APK de Space Eyes. Es el equipo más común de la flota."
++      />
++      <ol className="divide-y divide-border">
++        <Paso n={1} titulo="Descarga la APK en el teléfono">
++          <p>
++            Abre esta dirección desde el navegador del propio teléfono, o pásala por un cable. Android va a pedir
++            permiso para instalar de un origen desconocido; es normal.
++          </p>
++          <Bajar d={info.apk} nombre="space-eye.apk" />
++        </Paso>
++        <Paso n={2} titulo="Instálala y ábrela una vez">
++          <p>
++            La aplicación ya trae dentro la dirección del servidor, así que <b>no pregunta nada</b>: al abrirla se
++            registra sola y se queda trabajando en segundo plano. Conviene dejar el teléfono conectado a la corriente y
++            quitarle el ahorro de energía.
++          </p>
++        </Paso>
++        <Paso n={3} titulo="Asígnalo a la empresa">
++          <div className="flex items-start gap-2 rounded-md border border-[#f59e0b40] bg-warning-soft p-2.5 text-ink">
++            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" strokeWidth={1.9} />
++            <div>
++              <b>Este paso todavía es a mano para los teléfonos.</b> La APK{' '}
++              {info.apk?.version ? `(v${info.apk.version})` : ''} aún no lleva el testigo de alta, así que el equipo
++              aparece <b>sin empresa</b> y hay que asignarlo desde el panel de Space Eye. Los agentes de PC y de
++              Raspberry sí lo llevan y nacen asignados.
++            </div>
++          </div>
++        </Paso>
++        <Paso n={4} titulo="Compruébalo aquí">
++          <p>
++            En menos de un minuto debe aparecer en la lista de Space Eyes, en línea y con su primera foto.
++          </p>
++          <Link href="/space-eyes" className="inline-flex text-[12px] font-medium text-accent hover:underline">
++            Volver a la lista →
++          </Link>
++        </Paso>
++      </ol>
++    </>
++  )
++}
++
++function Pc({ info }: { info: InfoAlta }) {
++  return (
++    <>
++      <Cabecera
++        titulo="PC + cámara IP"
++        pie="Para sitios donde en lugar de un teléfono hay una cámara fija (HiLook / Hikvision) y una PC encendida."
++      />
++      <ol className="divide-y divide-border">
++        <Paso n={1} titulo="Copia los tres archivos a la PC, en la misma carpeta">
++          <p>
++            El programa, <code>ffmpeg.exe</code> —solo lo necesita la vista en vivo— y un archivo de texto llamado{' '}
++            <code>testigo.txt</code> con el testigo de alta dentro, en una sola línea.
++          </p>
++          <Bajar d={info.agentePc} nombre="SpaceEyeAgente.exe" />
++          <a
++            href={`${info.servidor}/ffmpeg.exe`}
++            className="inline-flex items-center gap-1.5 text-[12px] font-medium text-accent hover:underline"
++          >
++            <Download className="h-3.5 w-3.5" /> ffmpeg.exe
++          </a>
++        </Paso>
++        <Paso n={2} titulo="Clic derecho → Ejecutar como administrador">
++          <p>
++            Se abre solo un formulario en el navegador: IP de la cámara, usuario y clave. El botón «Probar cámara»
++            enseña la foto ahí mismo, para confirmar el encuadre sin ir a buscar ningún archivo.
++          </p>
++        </Paso>
++        <Paso n={3} titulo="Instalar">
++          <p>
++            El instalador recoge el testigo solo y lo dice en pantalla antes de instalar. Al terminar deja el arranque
++            automático puesto: si se reinicia la PC, el agente vuelve solo.
++          </p>
++        </Paso>
++        <Paso n={4} titulo="Compruébalo aquí">
++          <p>El equipo aparece en la lista ya asignado{info.empresa ? ` a ${info.empresa}` : ''}.</p>
++          <Link href="/space-eyes" className="inline-flex text-[12px] font-medium text-accent hover:underline">
++            Volver a la lista →
++          </Link>
++        </Paso>
++      </ol>
++    </>
++  )
++}
++
++function Pi({ info }: { info: InfoAlta }) {
++  return (
++    <>
++      <Cabecera
++        titulo="Raspberry Pi + cámara"
++        pie="Para espectaculares sin teléfono ni PC: una Pi con su cámara, pensada para estar a la intemperie."
++      />
++      <ol className="divide-y divide-border">
++        <Paso n={1} titulo="Copia el agente a la Pi">
++          <Bajar d={info.agentePi} nombre="space-eye-pi-agent.tar.gz" />
++          <pre className="mt-1 overflow-x-auto rounded bg-surface-2 px-2.5 py-2 text-[11px] text-ink">
++            {`scp space-eye-pi-agent.tar.gz pi@<la-pi>:~/\nssh pi@<la-pi>\ntar xzf space-eye-pi-agent.tar.gz && cd pi-agent && npm install`}
++          </pre>
++        </Paso>
++        <Paso n={2} titulo="Escribe su configuración">
++          <p>
++            Copia <code>config.example.json</code> a <code>config.json</code> y pega el testigo en{' '}
++            <code>testigo_de_alta</code>. Si el sitio sale a internet por un módem con SIM, pon también{' '}
++            <code>&quot;enlace&quot;: &quot;lte&quot;</code> para que su consumo se cuente como datos móviles.
++          </p>
++          <pre className="mt-1 overflow-x-auto rounded bg-surface-2 px-2.5 py-2 text-[11px] text-ink">
++            {`{\n  "server_url": "${info.servidor}",\n  "testigo_de_alta": "${info.testigo.prefijo || 'se_'}…"\n}`}
++          </pre>
++        </Paso>
++        <Paso n={3} titulo="Arráncalo y déjalo como servicio">
++          <pre className="mt-1 overflow-x-auto rounded bg-surface-2 px-2.5 py-2 text-[11px] text-ink">
++            {`npm run probar-camara   # dice qué cámara encontró\nnpm start               # arranca el agente`}
++          </pre>
++          <p>
++            Si la Pi reporta falta de voltaje al arrancar, cámbiale la fuente antes de dejarla: es la causa más común
++            de que se comporte raro.
++          </p>
++        </Paso>
++        <Paso n={4} titulo="Compruébalo aquí">
++          <p>El equipo aparece en la lista ya asignado{info.empresa ? ` a ${info.empresa}` : ''}.</p>
++          <Link href="/space-eyes" className="inline-flex text-[12px] font-medium text-accent hover:underline">
++            Volver a la lista →
++          </Link>
++        </Paso>
++      </ol>
++    </>
++  )
++}
++
++// ─── Piezas ─────────────────────────────────────────────────────────────────
++function Cabecera({ titulo, pie }: { titulo: string; pie: string }) {
++  return (
++    <div className="border-b border-border px-3 py-2.5">
++      <div className="text-[13px] font-medium text-ink">{titulo}</div>
++      <p className="text-[12px] text-muted">{pie}</p>
++    </div>
++  )
++}
++
++function Paso({ n, titulo, children }: { n: number; titulo: string; children: React.ReactNode }) {
++  return (
++    <li className="flex gap-3 px-3 py-3">
++      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-surface-2 text-[11px] font-medium text-ink">
++        {n}
++      </span>
++      <div className="min-w-0 flex-1">
++        <div className="text-[13px] font-medium text-ink">{titulo}</div>
++        <div className="mt-1 flex flex-col items-start gap-2 text-[12px] text-muted [&_code]:rounded [&_code]:bg-surface-2 [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-[11px] [&_code]:text-ink">
++          {children}
++        </div>
++      </div>
++    </li>
++  )
++}
++
++function Bajar({ d, nombre }: { d: Descarga | null; nombre: string }) {
++  if (!d) {
++    return (
++      <span className="text-[12px] text-muted">
++        {nombre}: no está publicado en este servidor todavía.
++      </span>
++    )
++  }
++  const mb = d.bytes != null ? `${(d.bytes / 1024 ** 2).toFixed(1)} MB` : null
++  return (
++    <a
++      href={d.url}
++      className="inline-flex items-center gap-1.5 rounded border border-border-strong bg-surface px-2.5 py-1.5 text-[12px] font-medium text-ink hover:bg-surface-2"
++    >
++      <Download className="h-3.5 w-3.5 text-accent" />
++      {nombre}
++      <span className="font-normal text-muted">
++        {d.version ? `v${d.version}` : ''}
++        {mb ? ` · ${mb}` : ''}
++      </span>
++    </a>
++  )
++}
+diff --git a/apps/web/components/demo/space-eyes/FichaEquipo.tsx b/apps/web/components/demo/space-eyes/FichaEquipo.tsx
+new file mode 100644
+index 0000000..7f6f66b
+--- /dev/null
++++ b/apps/web/components/demo/space-eyes/FichaEquipo.tsx
+@@ -0,0 +1,736 @@
++'use client'
++
++import { useCallback, useEffect, useRef, useState } from 'react'
++import Link from 'next/link'
++import {
++  AlertTriangle,
++  Camera,
++  CameraOff,
++  CheckCircle2,
++  ChevronLeft,
++  CircleHelp,
++  Eye,
++  Columns2,
++  Download,
++  Loader2,
++  MapPin,
++  Maximize2,
++  Monitor,
++  RefreshCw,
++  Upload,
++  UserRound,
++  XCircle,
++} from 'lucide-react'
++import { cn } from '@/lib/cn'
++import { Button } from '@/components/demo/ui/Button'
++import { Modal } from '@/components/demo/ui/Modal'
++import { actualizarSitioApi } from '@/lib/data/sitios-api'
++import {
++  equipoApi,
++  pedirCapturaApi,
++  type FichaEquipoDatos,
++  type FotoEquipo,
++} from '@/lib/data/space-eyes-api'
++import { Bateria, PildoraConexion, Senal, calidadSenal, estaEnLinea, fechaHora, gigas, hace } from './piezas'
++import { Historial } from './Historial'
++
++// ============================================================================
++//  Space Eyes — la ficha de un equipo.
++//
++//  ORDEN DE LECTURA, de arriba abajo: qué equipo es y si está vivo; QUÉ ESTÁ
++//  VIENDO (la fotografía, que ocupa la mitad de la pantalla); y recién después
++//  lo técnico. Alguien que entra por primera vez tiene que poder decir «éste es
++//  mi equipo, está en línea y ésta es la última foto que tomó» sin que nadie se
++//  lo explique.
++//
++//  LOS DOS ORÍGENES DE IMAGEN no se mezclan nunca: la captura del equipo y la
++//  foto que subió el cliente viven en pestañas separadas y cada una lleva su
++//  sello encima. Confundirlas sería el peor error posible de esta pantalla: la
++//  foto del cliente es lo que se PROMETIÓ y la captura es lo que HAY.
++// ============================================================================
++
++type Vista = 'equipo' | 'cliente' | 'comparar'
++type Captura = 'quieto' | 'pidiendo' | 'esperando' | 'llegó' | 'encolada'
++
++// Cada cuánto se vuelve a preguntar mientras se espera una foto, y por cuánto
++// tiempo. Un minuto cubre de sobra lo que tarda un teléfono en despertar, abrir
++// la cámara y subir 2 MB; pasado eso se deja de insistir y se dice la verdad en
++// vez de girar para siempre.
++const SONDEO_MS = 4000
++const SONDEOS_MAX = 15
++
++export function FichaEquipo({ id }: { id: number }) {
++  const [datos, setDatos] = useState<FichaEquipoDatos | null>(null)
++  const [cargando, setCargando] = useState(true)
++  const [error, setError] = useState<string | null>(null)
++  const [vista, setVista] = useState<Vista>('equipo')
++  const [ampliada, setAmpliada] = useState<string | null>(null)
++  const [captura, setCaptura] = useState<Captura>('quieto')
++  const [avisoCaptura, setAvisoCaptura] = useState<string | null>(null)
++  const [subiendo, setSubiendo] = useState(false)
++  const [fotoElegida, setFotoElegida] = useState(0)
++  const archivoRef = useRef<HTMLInputElement | null>(null)
++  const sondeo = useRef<ReturnType<typeof setInterval> | null>(null)
++
++  const traer = useCallback(async () => {
++    const d = await equipoApi(id)
++    setDatos(d)
++    return d
++  }, [id])
++
++  const sincronizar = useCallback(async () => {
++    setCargando(true)
++    setError(null)
++    try {
++      await traer()
++    } catch (e) {
++      setError(e instanceof Error ? e.message : 'No se pudo consultar Space Eyes')
++    }
++    setCargando(false)
++  }, [traer])
++
++  useEffect(() => {
++    void sincronizar()
++  }, [sincronizar])
++
++  // Un sondeo abierto al cambiar de pantalla seguiría pidiendo para siempre.
++  useEffect(() => () => { if (sondeo.current) clearInterval(sondeo.current) }, [])
++
++  const equipo = datos?.equipo
++  const pantalla = datos?.pantalla ?? null
++  const enLinea = equipo ? estaEnLinea(equipo.online, equipo.ultimaConexion) : false
++  const fotos = equipo?.fotos ?? []
++  const fotoEquipo: FotoEquipo | null = fotos[fotoElegida] ?? fotos[0] ?? null
++  const fotoCliente = pantalla?.fotoCliente ?? null
++
++  /**
++   * Pedir una foto y ESPERARLA.
++   *
++   * Que la orden salga no es lo que el usuario vino a ver: vino a ver la foto.
++   * Así que al aceptar la orden se queda sondeando hasta que aparezca una foto
++   * más nueva que la que ya había, y entonces la muestra sola. Sin esto habría
++   * que decirle a la gente «ahora recarga a ver si llegó», que es exactamente el
++   * trabajo que la pantalla debería hacer por ella.
++   */
++  async function tomarFoto() {
++    if (!equipo) return
++    setAvisoCaptura(null)
++    setCaptura('pidiendo')
++    const referencia = fotos[0]?.tomadaEn ?? null
++    try {
++      const r = await pedirCapturaApi(equipo.id)
++      if (!r.enLinea) {
++        setCaptura('encolada')
++        setAvisoCaptura(r.mensaje)
++        return
++      }
++      setCaptura('esperando')
++      setAvisoCaptura(r.mensaje)
++      setVista('equipo')
++
++      let vueltas = 0
++      if (sondeo.current) clearInterval(sondeo.current)
++      sondeo.current = setInterval(async () => {
++        vueltas += 1
++        try {
++          const d = await traer()
++          const nueva = d.equipo.fotos[0]?.tomadaEn ?? null
++          if (nueva && nueva !== referencia) {
++            if (sondeo.current) clearInterval(sondeo.current)
++            setFotoElegida(0)
++            setCaptura('llegó')
++            // Se dice que llegó, y el aviso se va solo: la foto nueva ya está
++            // en pantalla, así que dejarlo fijo sería ruido sobre la evidencia.
++            setAvisoCaptura('Llegó la foto: es la que estás viendo.')
++            setTimeout(() => {
++              setAvisoCaptura((a) => (a === 'Llegó la foto: es la que estás viendo.' ? null : a))
++              setCaptura((c) => (c === 'llegó' ? 'quieto' : c))
++            }, 6000)
++            return
++          }
++        } catch {
++          /* una vuelta fallida no cancela la espera: la siguiente lo reintenta */
++        }
++        if (vueltas >= SONDEOS_MAX) {
++          if (sondeo.current) clearInterval(sondeo.current)
++          setCaptura('quieto')
++          setAvisoCaptura(
++            'La foto no ha llegado todavía. La orden sigue en pie: el equipo la subirá en cuanto pueda.',
++          )
++        }
++      }, SONDEO_MS)
++    } catch (e) {
++      setCaptura('quieto')
++      setAvisoCaptura(e instanceof Error ? e.message : 'No se pudo pedir la foto')
++    }
++  }
++
++  /**
++   * Subir la foto del cliente.
++   *
++   * Se guarda en la GALERÍA DE LA PANTALLA (`sitios.fotos`), que es donde ya
++   * viven las fotos que sube el cliente desde Inventario, y queda de primera
++   * —la primera de la galería es la imagen principal de esa pantalla, regla que
++   * ya existía—. Inventarle un almacén propio a este módulo habría dejado dos
++   * galerías de la misma pantalla contradiciéndose.
++   */
++  async function subirFoto(e: React.ChangeEvent<HTMLInputElement>) {
++    const file = e.target.files?.[0]
++    e.target.value = ''
++    if (!file || !pantalla) return
++    setSubiendo(true)
++    try {
++      const dataUrl = await new Promise<string>((res, rej) => {
++        const r = new FileReader()
++        r.onload = () => res(r.result as string)
++        r.onerror = () => rej(new Error('No se pudo leer la imagen'))
++        r.readAsDataURL(file)
++      })
++      // La galería actual, para no pisarla al agregar.
++      const r = await fetch(`/spaces-dooh/api/sitios/${pantalla.id}/media/`, { cache: 'no-store' })
++      const actuales = r.ok ? (((await r.json()) as { fotos?: string[] }).fotos ?? []) : []
++      const nuevas = [dataUrl, ...actuales]
++      await actualizarSitioApi(pantalla.id, { fotos: nuevas, imagenPromocional: dataUrl })
++      await traer()
++      setVista('cliente')
++    } catch (err) {
++      setAvisoCaptura(err instanceof Error ? err.message : 'No se pudo subir la foto')
++    }
++    setSubiendo(false)
++  }
++
++  if (cargando && !datos) {
++    return (
++      <div className="w-full p-5 lg:p-6">
++        <div className="h-8 w-64 animate-pulse rounded bg-surface-2" />
++        <div className="mt-4 h-[420px] animate-pulse rounded-lg bg-surface-2" />
++      </div>
++    )
++  }
++
++  if (error || !equipo) {
++    return (
++      <div className="w-full p-5 lg:p-6">
++        <Link href="/space-eyes" className="inline-flex items-center gap-1.5 text-[12px] text-muted hover:text-ink">
++          <ChevronLeft className="h-3.5 w-3.5" /> Space Eyes
++        </Link>
++        <div className="mt-4 flex items-start gap-2 rounded-md border border-[#dc262640] bg-error-soft p-3 text-[12px]">
++          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-error" />
++          <div>
++            <div className="font-medium text-ink">No se pudo abrir el equipo</div>
++            <div className="text-muted">{error ?? 'Equipo no encontrado'}</div>
++          </div>
++        </div>
++      </div>
++    )
++  }
++
++  const senal = calidadSenal(equipo.senalDbm)
++
++  return (
++    <div className="w-full space-y-4 p-6">
++      {/* Migas */}
++      <Link href="/space-eyes" className="inline-flex items-center gap-1.5 text-[12px] text-muted hover:text-ink">
++        <ChevronLeft className="h-3.5 w-3.5" /> Space Eyes
++      </Link>
++
++      {/* El encabezado de Inventario, exacto: icono en cuadro de 40, titulo de
++          18 px y subtitulo de 13. El nombre de un equipo no manda mas que el de
++          un modulo; antes era un serif de 24 px y se veia de otra casa. */}
++      <div className="flex flex-wrap items-center gap-3">
++        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-2 text-ink">
++          <Eye className="h-5 w-5" strokeWidth={1.75} />
++        </span>
++        <div className="min-w-0 flex-1">
++          <div className="flex flex-wrap items-center gap-2">
++            <h1 className="truncate text-lg font-semibold text-ink">{equipo.nombre}</h1>
++            <PildoraConexion online={enLinea} />
++          </div>
++          <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-muted">
++            {equipo.empresa && (
++              <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[11px] font-medium text-ink">{equipo.empresa}</span>
++            )}
++            {pantalla ? (
++              <Link href={`/comercial?sitio=${pantalla.id}`} className="inline-flex items-center gap-1.5 hover:text-ink">
++                <Monitor className="h-3.5 w-3.5" strokeWidth={1.7} />
++                {pantalla.nombre}
++              </Link>
++            ) : (
++              <span className="inline-flex items-center gap-1.5 italic">
++                <Monitor className="h-3.5 w-3.5" strokeWidth={1.7} />
++                sin pantalla asignada
++              </span>
++            )}
++            {equipo.codigoPantalla && <span className="tabular-nums">· {equipo.codigoPantalla}</span>}
++            {equipo.direccion && <span className="truncate">· {equipo.direccion}</span>}
++          </div>
++        </div>
++
++        {/* Acciones: las dos importantes, a la vista */}
++        <div className="flex flex-wrap items-center gap-2">
++          <Button
++            variant="primary"
++            size="sm"
++            onClick={tomarFoto}
++            disabled={captura === 'pidiendo' || captura === 'esperando'}
++          >
++            {captura === 'pidiendo' || captura === 'esperando' ? (
++              <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
++            ) : (
++              <Camera className="mr-2 h-3.5 w-3.5" />
++            )}
++            {captura === 'esperando' ? 'Esperando la foto…' : captura === 'pidiendo' ? 'Pidiendo…' : 'Tomar foto'}
++          </Button>
++
++          <input
++            ref={archivoRef}
++            type="file"
++            accept="image/*"
++            className="hidden"
++            onChange={subirFoto}
++            aria-hidden
++            tabIndex={-1}
++          />
++          <Button
++            variant="secondary"
++            size="sm"
++            onClick={() => archivoRef.current?.click()}
++            disabled={!pantalla || subiendo}
++            title={pantalla ? undefined : 'Este equipo no tiene una pantalla asignada donde guardar la foto'}
++          >
++            {subiendo ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Upload className="mr-2 h-3.5 w-3.5" />}
++            Subir foto
++          </Button>
++          <Button variant="ghost" size="sm" onClick={() => void sincronizar()} aria-label="Actualizar estado">
++            <RefreshCw className={cn('h-3.5 w-3.5', cargando && 'animate-spin')} />
++          </Button>
++        </div>
++      </div>
++
++      {avisoCaptura && (
++        <div
++          className={cn(
++            'rounded-md border p-2.5 text-[12px]',
++            captura === 'encolada'
++              ? 'border-[#f59e0b40] bg-warning-soft text-ink'
++              : captura === 'llegó'
++                ? 'border-[#1da85040] bg-success-soft text-ink'
++                : 'border-border bg-surface-2 text-muted',
++          )}
++        >
++          {avisoCaptura}
++        </div>
++      )}
++
++      <div className="flex flex-col gap-4 xl:flex-row">
++        {/* ── La fotografía ── */}
++        <div className="min-w-0 flex-1 overflow-hidden rounded-md border border-border bg-surface">
++          {/* Selector de origen */}
++          <div className="flex flex-wrap items-center gap-2 border-b border-border p-2.5">
++            <div className="inline-flex rounded-md border border-border bg-surface p-0.5 text-[13px]">
++            <Pestana activa={vista === 'equipo'} onClick={() => setVista('equipo')} icono={<Camera className="h-3.5 w-3.5" />}>
++              Captura Space Eyes
++            </Pestana>
++            <Pestana activa={vista === 'cliente'} onClick={() => setVista('cliente')} icono={<UserRound className="h-3.5 w-3.5" />}>
++              Foto del cliente
++            </Pestana>
++            <Pestana
++              activa={vista === 'comparar'}
++              onClick={() => setVista('comparar')}
++              icono={<Columns2 className="h-3.5 w-3.5" />}
++              disabled={!fotoCliente || !fotoEquipo}
++            >
++              Comparar
++            </Pestana>
++            </div>
++          </div>
++
++          {/* Imagen + barra de estado encima */}
++          {vista === 'comparar' ? (
++            <div className="grid gap-px bg-border sm:grid-cols-2">
++              <Panel
++                sello="FOTO DEL CLIENTE"
++                selloClase="bg-[#7c3aed]"
++                url={fotoCliente}
++                pie="Subida a la galería de la pantalla"
++                onAmpliar={setAmpliada}
++                alt={`Foto del cliente de ${equipo.nombre}`}
++              />
++              <Panel
++                sello="CAPTURA SPACE EYES"
++                selloClase="bg-accent"
++                url={fotoEquipo?.url ?? null}
++                pie={fotoEquipo ? fechaHora(fotoEquipo.tomadaEn) : 'sin capturas'}
++                onAmpliar={setAmpliada}
++                alt={`Captura de Space Eyes de ${equipo.nombre}`}
++              />
++            </div>
++          ) : (
++            <div className="relative aspect-[16/10] bg-[#12100e]">
++              {vista === 'equipo' ? (
++                fotoEquipo ? (
++                  // eslint-disable-next-line @next/next/no-img-element
++                  <img src={fotoEquipo.url} alt={`Captura de Space Eyes de ${equipo.nombre}`} className="h-full w-full object-contain" />
++                ) : (
++                  <Vacio texto="Este equipo todavía no ha subido ninguna foto." />
++                )
++              ) : fotoCliente ? (
++                // eslint-disable-next-line @next/next/no-img-element
++                <img src={fotoCliente} alt={`Foto del cliente de ${equipo.nombre}`} className="h-full w-full object-contain" />
++              ) : (
++                <Vacio
++                  texto={
++                    pantalla
++                      ? 'Nadie ha subido todavía una foto de esta pantalla. Usa «Subir foto».'
++                      : 'Este equipo no tiene una pantalla asignada, así que no hay galería donde guardar la foto del cliente.'
++                  }
++                />
++              )}
++
++              {/* La barra de estado, SOBRE la fotografía */}
++              <div className="absolute inset-x-0 top-0 flex flex-wrap items-center gap-x-4 gap-y-1.5 bg-gradient-to-b from-black/80 via-black/45 to-transparent p-3">
++                <PildoraConexion online={enLinea} sobreFoto />
++                <span className="text-[12px] text-white/85">
++                  Última conexión <strong className="font-semibold text-white">{hace(equipo.ultimaConexion)}</strong>
++                </span>
++                <span className="text-[12px] text-white/85">
++                  Batería <strong className="font-semibold text-white">{equipo.bateriaPct != null ? `${equipo.bateriaPct}%` : '—'}</strong>
++                </span>
++                <span className="text-[12px] text-white/85">
++                  {equipo.redOperador ?? (equipo.redTipo === 'WIFI' ? 'WiFi' : 'Red')}{' '}
++                  <strong className="font-semibold text-white">{senal.texto}</strong>
++                  {equipo.senalDbm != null && <span className="text-white/60"> · {equipo.senalDbm} dBm</span>}
++                </span>
++                {fotoEquipo?.tomadaEn && vista === 'equipo' && (
++                  <span className="ml-auto text-[12px] text-white/85">
++                    Última captura <strong className="font-semibold text-white">{hace(fotoEquipo.tomadaEn)}</strong>
++                  </span>
++                )}
++              </div>
++
++              {/* Sello de origen y acciones sobre la imagen */}
++              {((vista === 'equipo' && fotoEquipo) || (vista === 'cliente' && fotoCliente)) && (
++                <div className="absolute inset-x-0 bottom-0 flex items-end gap-2 bg-gradient-to-t from-black/75 to-transparent p-3">
++                  <div className="min-w-0 flex-1">
++                    <span
++                      className={cn(
++                        'inline-block rounded px-2 py-0.5 text-[10px] font-bold tracking-[0.07em] text-white',
++                        vista === 'equipo' ? 'bg-accent' : 'bg-[#7c3aed]',
++                      )}
++                    >
++                      {vista === 'equipo' ? 'CAPTURA SPACE EYES' : 'FOTO DEL CLIENTE'}
++                    </span>
++                    <div className="mt-1.5 text-[12px] tabular-nums text-white/90">
++                      {vista === 'equipo'
++                        ? `${fechaHora(fotoEquipo?.tomadaEn ?? null)}${fotoEquipo?.origen ? ` · ${fotoEquipo.origen === 'on_demand' ? 'a demanda' : 'programada'}` : ''}`
++                        : 'Subida a la galería de la pantalla'}
++                    </div>
++                  </div>
++                  <button
++                    type="button"
++                    aria-label="Ampliar"
++                    onClick={() => setAmpliada(vista === 'equipo' ? (fotoEquipo?.url ?? null) : fotoCliente)}
++                    className="flex h-8 w-8 items-center justify-center rounded-md border border-white/25 bg-black/45 text-white hover:bg-black/65"
++                  >
++                    <Maximize2 className="h-3.5 w-3.5" />
++                  </button>
++                  {vista === 'equipo' && fotoEquipo && (
++                    <a
++                      href={fotoEquipo.url}
++                      download
++                      aria-label="Descargar"
++                      className="flex h-8 w-8 items-center justify-center rounded-md border border-white/25 bg-black/45 text-white hover:bg-black/65"
++                    >
++                      <Download className="h-3.5 w-3.5" />
++                    </a>
++                  )}
++                </div>
++              )}
++
++              {/* Velo mientras el equipo va por la foto */}
++              {(captura === 'pidiendo' || captura === 'esperando') && (
++                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/70">
++                  <Loader2 className="h-9 w-9 animate-spin text-white" strokeWidth={1.5} />
++                  <div className="text-[14px] font-medium text-white">Pidiéndole la foto al equipo…</div>
++                  <div className="text-[12px] text-white/70">Suele tardar entre 5 y 20 segundos</div>
++                </div>
++              )}
++            </div>
++          )}
++
++          {/* Veredicto de IA + capturas recientes */}
++          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-border p-3">
++            {fotoEquipo ? <Veredicto foto={fotoEquipo} /> : <span className="text-[12px] text-muted">Sin capturas</span>}
++            {fotoEquipo?.ancho && (
++              <>
++                <span className="h-4 w-px bg-border" />
++                <span className="text-[12px] tabular-nums text-muted">
++                  {fotoEquipo.ancho} × {fotoEquipo.alto}
++                </span>
++              </>
++            )}
++            {fotoEquipo?.gps && (
++              <span className="inline-flex items-center gap-1.5 text-[12px] tabular-nums text-muted">
++                <MapPin className="h-3.5 w-3.5" strokeWidth={1.7} />
++                {fotoEquipo.gps.lat.toFixed(5)}, {fotoEquipo.gps.lng.toFixed(5)}
++              </span>
++            )}
++
++            {fotos.length > 1 && (
++              <div className="ml-auto flex items-center gap-1.5">
++                <span className="text-[11px] text-muted">Recientes</span>
++                {fotos.slice(0, 5).map((f, i) => (
++                  <button
++                    key={`${f.url}-${i}`}
++                    type="button"
++                    onClick={() => {
++                      setFotoElegida(i)
++                      setVista('equipo')
++                    }}
++                    aria-label={`Captura del ${fechaHora(f.tomadaEn)}`}
++                    className={cn(
++                      'h-9 w-14 overflow-hidden rounded border',
++                      i === fotoElegida ? 'border-accent ring-1 ring-accent' : 'border-border hover:border-border-strong',
++                    )}
++                  >
++                    {/* eslint-disable-next-line @next/next/no-img-element */}
++                    <img src={f.url} alt="" className="h-full w-full object-cover" />
++                  </button>
++                ))}
++              </div>
++            )}
++          </div>
++        </div>
++
++        {/* ── Lo técnico ── */}
++        <div className="flex w-full shrink-0 flex-col gap-3 xl:w-[340px]">
++          <Tarjeta titulo="Energía">
++            <div className="flex items-baseline gap-2">
++              <span className="text-lg font-semibold leading-none text-ink">
++                {equipo.bateriaPct != null ? `${equipo.bateriaPct}%` : '—'}
++              </span>
++              {equipo.cargando != null && (
++                <span className={cn('text-[12px]', equipo.cargando ? 'text-success' : 'text-muted')}>
++                  {equipo.cargando ? 'cargando' : 'sin cargar'}
++                </span>
++              )}
++            </div>
++            {equipo.bateriaPct != null && (
++              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-2">
++                <div
++                  className={cn(
++                    'h-full',
++                    equipo.bateriaPct >= 50 ? 'bg-success' : equipo.bateriaPct >= 20 ? 'bg-warning' : 'bg-error',
++                  )}
++                  style={{ width: `${Math.max(2, equipo.bateriaPct)}%` }}
++                />
++              </div>
++            )}
++            <div className="mt-3 flex gap-5">
++              <Dato etiqueta="Temp. batería" valor={equipo.bateriaTemp != null ? `${equipo.bateriaTemp} °C` : null} />
++              <Dato etiqueta="Temp. equipo" valor={equipo.equipoTemp != null ? `${equipo.equipoTemp} °C` : null} />
++            </div>
++          </Tarjeta>
++
++          <Tarjeta titulo="Conexión">
++            <div className="flex items-center gap-2.5">
++              <Senal dbm={equipo.senalDbm} tipo={equipo.redTipo} operador={equipo.redOperador} className="text-[13px]" />
++              <span className="text-[12px] text-muted">
++                {senal.texto}
++                {equipo.senalDbm != null ? ` · ${equipo.senalDbm} dBm` : ''}
++              </span>
++            </div>
++            {equipo.datos && (equipo.datos.movilMes != null || equipo.datos.wifiMes != null) && (
++              <div className="mt-3 border-t border-border pt-3">
++                <div className="flex items-baseline justify-between text-[11px]">
++                  <span className="text-muted">Datos de este mes</span>
++                  <span className="tabular-nums text-ink">
++                    {gigas((equipo.datos.movilMes ?? 0) + (equipo.datos.wifiMes ?? 0))}
++                  </span>
++                </div>
++                <div className="mt-2 flex gap-4 text-[11px] text-muted">
++                  <span>Móvil {gigas(equipo.datos.movilMes)}</span>
++                  <span>WiFi {gigas(equipo.datos.wifiMes)}</span>
++                </div>
++              </div>
++            )}
++          </Tarjeta>
++
++          <Tarjeta titulo="Pantalla asociada">
++            {pantalla ? (
++              <div className="flex gap-3">
++                <div className="h-14 w-20 shrink-0 overflow-hidden rounded-md bg-surface-2">
++                  {fotoCliente ? (
++                    // eslint-disable-next-line @next/next/no-img-element
++                    <img src={fotoCliente} alt="" className="h-full w-full object-cover" />
++                  ) : null}
++                </div>
++                <div className="min-w-0">
++                  <div className="truncate text-[13px] font-medium text-ink">{pantalla.nombre}</div>
++                  <div className="text-[11px] tabular-nums text-muted">{equipo.codigoPantalla}</div>
++                  <Link href={`/comercial?sitio=${pantalla.id}`} className="text-[12px] font-medium text-accent hover:underline">
++                    Abrir la ficha →
++                  </Link>
++                </div>
++              </div>
++            ) : (
++              <p className="text-[12px] text-muted">
++                Ningún sitio de tu inventario tiene el código{' '}
++                <span className="tabular-nums text-ink">{equipo.codigoPantalla ?? '—'}</span>, así que este equipo no está
++                enlazado a una pantalla.
++              </p>
++            )}
++          </Tarjeta>
++
++          {/* Secundario y plegado: la ficha no espera por el histórico */}
++          <Historial id={equipo.id} />
++
++          <Tarjeta titulo="Detalles del equipo">
++            <dl className="flex flex-col gap-2">
++              <Fila etiqueta="Modelo" valor={[equipo.fabricante, equipo.modelo].filter(Boolean).join(' ') || null} />
++              <Fila etiqueta="Versión del agente" valor={equipo.versionApp} />
++              <Fila etiqueta="Almacenamiento libre" valor={equipo.almacenamientoLibreMb != null ? `${equipo.almacenamientoLibreMb} MB` : null} />
++              <Fila etiqueta="Capturas guardadas" valor={`${fotos.length}`} />
++            </dl>
++          </Tarjeta>
++        </div>
++      </div>
++
++      {/* Lightbox */}
++      <Modal open={!!ampliada} onOpenChange={(v) => !v && setAmpliada(null)} size="xl" title={equipo.nombre}>
++        {ampliada && (
++          // eslint-disable-next-line @next/next/no-img-element
++          <img src={ampliada} alt={`Fotografía de ${equipo.nombre}`} className="w-full rounded border border-border object-contain" />
++        )}
++      </Modal>
++    </div>
++  )
++}
++
++function Pestana({
++  activa,
++  onClick,
++  icono,
++  disabled,
++  children,
++}: {
++  activa: boolean
++  onClick: () => void
++  icono: React.ReactNode
++  disabled?: boolean
++  children: React.ReactNode
++}) {
++  return (
++    <button
++      type="button"
++      onClick={onClick}
++      disabled={disabled}
++      className={cn(
++        'inline-flex h-8 items-center gap-1.5 rounded-md border px-3 text-[12px] font-medium transition-colors',
++        activa
++          ? 'border-accent bg-accent-soft text-accent'
++          : 'border-border-strong bg-surface text-ink hover:bg-surface-2',
++        disabled && 'cursor-not-allowed opacity-45 hover:bg-surface',
++      )}
++    >
++      {icono}
++      {children}
++    </button>
++  )
++}
++
++function Panel({
++  sello,
++  selloClase,
++  url,
++  pie,
++  alt,
++  onAmpliar,
++}: {
++  sello: string
++  selloClase: string
++  url: string | null
++  pie: string
++  alt: string
++  onAmpliar: (url: string) => void
++}) {
++  return (
++    <div className="bg-surface">
++      <div className="flex items-center gap-2 p-2.5">
++        <span className={cn('rounded px-2 py-0.5 text-[10px] font-bold tracking-[0.07em] text-white', selloClase)}>{sello}</span>
++        <span className="truncate text-[11px] text-muted">{pie}</span>
++      </div>
++      <div className="relative aspect-[4/3] bg-[#12100e]">
++        {url ? (
++          <button type="button" onClick={() => onAmpliar(url)} className="block h-full w-full" aria-label={`Ampliar: ${sello}`}>
++            {/* eslint-disable-next-line @next/next/no-img-element */}
++            <img src={url} alt={alt} className="h-full w-full object-contain" />
++          </button>
++        ) : (
++          <Vacio texto="Sin fotografía" />
++        )}
++      </div>
++    </div>
++  )
++}
++
++function Vacio({ texto }: { texto: string }) {
++  return (
++    <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
++      <CameraOff className="h-7 w-7 text-white/35" strokeWidth={1.4} />
++      <span className="text-[12px] text-white/60">{texto}</span>
++    </div>
++  )
++}
++
++function Tarjeta({ titulo, children }: { titulo: string; children: React.ReactNode }) {
++  return (
++    <div className="rounded-md border border-border bg-surface p-3">
++      <div className="text-[11px] uppercase tracking-wide text-muted">{titulo}</div>
++      <div className="mt-2">{children}</div>
++    </div>
++  )
++}
++
++function Dato({ etiqueta, valor }: { etiqueta: string; valor: string | null }) {
++  return (
++    <div>
++      <div className="text-[11px] text-muted">{etiqueta}</div>
++      <div className={cn('text-[13px] tabular-nums', valor ? 'text-ink' : 'text-muted')}>{valor ?? 'sin dato'}</div>
++    </div>
++  )
++}
++
++function Fila({ etiqueta, valor }: { etiqueta: string; valor: string | null }) {
++  return (
++    <div className="flex items-baseline justify-between gap-3 text-[12px]">
++      <dt className="text-muted">{etiqueta}</dt>
++      <dd className={cn('text-right', valor ? 'text-ink' : 'text-muted')}>{valor ?? 'sin dato'}</dd>
++    </div>
++  )
++}
++
++// Dictamen de IA de la captura. Mismos tres estados que la ficha comercial, para
++// que una foto no signifique una cosa en una pantalla y otra en la de al lado.
++function Veredicto({ foto }: { foto: FotoEquipo }) {
++  const pct = foto.score != null ? `${Math.round(foto.score * 100)}%` : null
++  if (foto.esCorrecta === true) {
++    return (
++      <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[#0f7a55]">
++        <CheckCircle2 className="h-4 w-4" strokeWidth={1.8} /> Anuncio correcto{pct ? ` · confianza ${pct}` : ''}
++      </span>
++    )
++  }
++  if (foto.esCorrecta === false) {
++    return (
++      <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-error">
++        <XCircle className="h-4 w-4" strokeWidth={1.8} /> No coincide con la creatividad{pct ? ` · ${pct}` : ''}
++      </span>
++    )
++  }
++  return (
++    <span className="inline-flex items-center gap-1.5 text-[12px] text-muted">
++      <CircleHelp className="h-4 w-4" strokeWidth={1.8} /> Verificación de IA pendiente
++    </span>
++  )
++}
+diff --git a/apps/web/components/demo/space-eyes/Historial.tsx b/apps/web/components/demo/space-eyes/Historial.tsx
+new file mode 100644
+index 0000000..6dbcc7e
+--- /dev/null
++++ b/apps/web/components/demo/space-eyes/Historial.tsx
+@@ -0,0 +1,332 @@
++'use client'
++
++import { useCallback, useEffect, useMemo, useState } from 'react'
++import { AlertTriangle, ChevronDown, Loader2, TriangleAlert } from 'lucide-react'
++import { cn } from '@/lib/cn'
++import { telemetriaApi, type PuntoTelemetria, type Telemetria } from '@/lib/data/space-eyes-api'
++
++// ============================================================================
++//  Historial del equipo — batería y señal, por hora.
++//
++//  DOS GRÁFICAS Y NO UNA. Batería (0–100 %) y señal (−120 a −50 dBm) no
++//  comparten escala, y meterlas en un eje doble es la forma más común de
++//  mentir con una gráfica: cualquiera de las dos líneas puede quedar «arriba»
++//  de la otra según dónde se pongan los topes, y el cruce que se ve no
++//  significa nada. Dos gráficas apiladas comparten el eje del tiempo, que es lo
++//  único que de verdad comparten.
++//
++//  EL EJE DE LA BATERÍA VA DE 0 A 100 SIEMPRE. Ajustarlo al mínimo del rango
++//  convertiría una caída de 100% a 96% en un precipicio.
++//
++//  LOS HUECOS SE QUEDAN HUECOS. Si el equipo no reportó entre las 2 y las 6 de
++//  la mañana, la línea se CORTA. Unir esos dos puntos dibujaría cuatro horas de
++//  datos que nadie midió, y justo en las horas en que un equipo se muere.
++//
++//  SE PIDE AL ABRIR, no al pintar la ficha: es información secundaria y la
++//  fotografía es lo que la gente viene a ver.
++// ============================================================================
++
++const RANGOS = [
++  { horas: 24 as const, etiqueta: '24 h' },
++  { horas: 168 as const, etiqueta: '7 d' },
++  { horas: 720 as const, etiqueta: '30 d' },
++]
++
++// Los mismos umbrales con los que Space Eye levanta alertas. Si aquí fueran
++// otros, la línea de peligro y el aviso se contradirían.
++const BATERIA_MIN = 20
++const SENAL_MIN = -105
++
++export function Historial({ id }: { id: number }) {
++  const [abierto, setAbierto] = useState(false)
++  const [horas, setHoras] = useState<24 | 168 | 720>(24)
++  const [datos, setDatos] = useState<Telemetria | null>(null)
++  const [cargando, setCargando] = useState(false)
++  const [error, setError] = useState<string | null>(null)
++
++  const traer = useCallback(async (h: 24 | 168 | 720) => {
++    setCargando(true)
++    setError(null)
++    try {
++      setDatos(await telemetriaApi(id, h))
++    } catch (e) {
++      setError(e instanceof Error ? e.message : 'No se pudo leer el histórico')
++    }
++    setCargando(false)
++  }, [id])
++
++  useEffect(() => {
++    if (abierto) void traer(horas)
++  }, [abierto, horas, traer])
++
++  const serie = datos?.serie ?? []
++  const hayDatos = serie.some((p) => p.battery_pct != null || p.signal_dbm != null)
++
++  return (
++    <div className="rounded-md border border-border bg-surface">
++      <button
++        type="button"
++        onClick={() => setAbierto((v) => !v)}
++        aria-expanded={abierto}
++        className="flex w-full items-center gap-2 p-3 text-left"
++      >
++        <span className="flex-1 text-[11px] uppercase tracking-wide text-muted">
++          Histórico del equipo
++        </span>
++        {cargando && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted" />}
++        <ChevronDown className={cn('h-4 w-4 text-muted transition-transform', abierto && 'rotate-180')} />
++      </button>
++
++      {abierto && (
++        <div className="border-t border-border p-3">
++          {/* Los filtros, en una fila sobre las gráficas */}
++          <div className="flex items-center gap-1.5">
++            {RANGOS.map((r) => (
++              <button
++                key={r.horas}
++                type="button"
++                onClick={() => setHoras(r.horas)}
++                className={cn(
++                  'h-7 rounded-md border px-2.5 text-[12px]',
++                  horas === r.horas
++                    ? 'border-ink bg-ink text-bg'
++                    : 'border-border-strong bg-surface text-ink hover:bg-surface-2',
++                )}
++              >
++                {r.etiqueta}
++              </button>
++            ))}
++            {datos?.muestras != null && (
++              <span className="ml-auto text-[11px] text-muted">{datos.muestras} reportes</span>
++            )}
++          </div>
++
++          {error ? (
++            <p className="mt-3 text-[12px] text-muted">{error}</p>
++          ) : !datos && cargando ? (
++            <div className="mt-3 h-40 animate-pulse rounded-md bg-surface-2" />
++          ) : !hayDatos ? (
++            <p className="mt-3 text-[12px] text-muted">
++              Este equipo no reportó nada en el rango elegido, así que no hay nada que dibujar. Prueba con un rango más
++              amplio.
++            </p>
++          ) : (
++            <>
++              <Grafica
++                titulo="Batería"
++                unidad="%"
++                serie={serie}
++                valor={(p) => p.battery_pct}
++                dominio={[0, 100]}
++                umbral={BATERIA_MIN}
++                umbralTexto="20% · batería baja"
++                peorEs="min"
++              />
++              <Grafica
++                titulo="Señal"
++                unidad="dBm"
++                serie={serie}
++                valor={(p) => p.signal_dbm}
++                dominio={[-120, -50]}
++                umbral={SENAL_MIN}
++                umbralTexto="−105 dBm · señal débil"
++                peorEs="min"
++                className="mt-4"
++              />
++
++              {/* Los avisos que ya calcula Space Eye. Icono + texto, nunca solo color */}
++              {datos?.alertas && datos.alertas.length > 0 && (
++                <ul className="mt-4 flex flex-col gap-1.5 border-t border-border pt-3">
++                  {datos.alertas.map((a, i) => (
++                    <li key={`${a.type}-${i}`} className="flex items-start gap-2 text-[12px]">
++                      {a.level === 'critical' ? (
++                        <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-error" strokeWidth={1.9} />
++                      ) : (
++                        <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" strokeWidth={1.9} />
++                      )}
++                      <span className="text-ink">{a.message}</span>
++                    </li>
++                  ))}
++                </ul>
++              )}
++
++              {/* Los mismos números, legibles sin ver la gráfica */}
++              <details className="mt-3">
++                <summary className="cursor-pointer text-[12px] text-muted hover:text-ink">Ver los datos</summary>
++                <div className="mt-2 max-h-52 overflow-auto">
++                  <table className="w-full text-[11px]">
++                    <caption className="sr-only">Batería y señal por hora</caption>
++                    <thead className="sticky top-0 bg-surface text-left text-muted">
++                      <tr>
++                        <th scope="col" className="py-1 pr-2 font-medium">Hora</th>
++                        <th scope="col" className="py-1 pr-2 font-medium">Batería</th>
++                        <th scope="col" className="py-1 font-medium">Señal</th>
++                      </tr>
++                    </thead>
++                    <tbody className="tabular-nums text-ink">
++                      {serie.map((p) => (
++                        <tr key={p.bucket} className="border-t border-border">
++                          <td className="py-1 pr-2">{horaCorta(p.bucket, horas)}</td>
++                          <td className="py-1 pr-2">{p.battery_pct != null ? `${p.battery_pct}%` : '—'}</td>
++                          <td className="py-1">{p.signal_dbm != null ? `${p.signal_dbm} dBm` : '—'}</td>
++                        </tr>
++                      ))}
++                    </tbody>
++                  </table>
++                </div>
++              </details>
++            </>
++          )}
++        </div>
++      )}
++    </div>
++  )
++}
++
++// ─── Una gráfica: una serie, línea de 2px, umbral punteado y hueco donde falta ──
++function Grafica({
++  titulo,
++  unidad,
++  serie,
++  valor,
++  dominio,
++  umbral,
++  umbralTexto,
++  peorEs,
++  className,
++}: {
++  titulo: string
++  unidad: string
++  serie: PuntoTelemetria[]
++  valor: (p: PuntoTelemetria) => number | null
++  dominio: [number, number]
++  umbral: number
++  umbralTexto: string
++  peorEs: 'min' | 'max'
++  className?: string
++}) {
++  const [activo, setActivo] = useState<number | null>(null)
++
++  const W = 600
++  const H = 96
++  const PAD_Y = 8
++
++  const puntos = useMemo(() => serie.map(valor), [serie, valor])
++  const conValor = puntos.filter((v): v is number => v != null)
++  const ultimo = [...puntos].reverse().find((v): v is number => v != null) ?? null
++  const peor = conValor.length
++    ? peorEs === 'min'
++      ? Math.min(...conValor)
++      : Math.max(...conValor)
++    : null
++
++  const x = (i: number) => (serie.length <= 1 ? W / 2 : (i / (serie.length - 1)) * W)
++  const y = (v: number) => {
++    const [lo, hi] = dominio
++    const t = (Math.min(hi, Math.max(lo, v)) - lo) / (hi - lo)
++    return H - PAD_Y - t * (H - PAD_Y * 2)
++  }
++
++  // Tramos: cada corte de datos abre uno nuevo, así la línea no cruza el hueco.
++  const tramos: string[] = []
++  let actual: string[] = []
++  puntos.forEach((v, i) => {
++    if (v == null) {
++      if (actual.length > 1) tramos.push(actual.join(' '))
++      actual = []
++      return
++    }
++    actual.push(`${actual.length === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(v).toFixed(1)}`)
++  })
++  if (actual.length > 1) tramos.push(actual.join(' '))
++  // Un punto solo no dibuja línea: se marca con un círculo para que se vea.
++  const sueltos = puntos
++    .map((v, i) => ({ v, i }))
++    .filter(({ v, i }) => v != null && puntos[i - 1] == null && puntos[i + 1] == null) as { v: number; i: number }[]
++
++  const activoPunto = activo != null ? serie[activo] : null
++  const activoValor = activo != null ? puntos[activo] : null
++
++  return (
++    <figure className={cn('m-0', className)}>
++      <figcaption className="flex items-baseline gap-2">
++        <span className="text-[12px] font-medium text-ink">{titulo}</span>
++        <span className="text-[11px] text-muted">
++          {peor != null ? `peor ${peor}${unidad === '%' ? '%' : ` ${unidad}`}` : 'sin dato'}
++        </span>
++        {ultimo != null && (
++          <span className="ml-auto text-[12px] tabular-nums text-ink">
++            {ultimo}
++            {unidad === '%' ? '%' : ` ${unidad}`}
++          </span>
++        )}
++      </figcaption>
++
++      <div className="relative mt-1.5">
++        <svg
++          viewBox={`0 0 ${W} ${H}`}
++          preserveAspectRatio="none"
++          className="block h-24 w-full touch-none"
++          role="img"
++          aria-label={`${titulo} por hora. Peor valor del rango: ${peor ?? 'sin dato'} ${unidad}.`}
++          onMouseLeave={() => setActivo(null)}
++          onMouseMove={(e) => {
++            const r = e.currentTarget.getBoundingClientRect()
++            const t = (e.clientX - r.left) / r.width
++            setActivo(Math.max(0, Math.min(serie.length - 1, Math.round(t * (serie.length - 1)))))
++          }}
++        >
++          {/* Suelo y techo, recesivos */}
++          <line x1="0" y1={H - PAD_Y} x2={W} y2={H - PAD_Y} stroke="var(--border)" strokeWidth="1" />
++          {/* El umbral: es un estado, y por eso lleva el color de aviso */}
++          <line
++            x1="0"
++            y1={y(umbral)}
++            x2={W}
++            y2={y(umbral)}
++            stroke="var(--warning)"
++            strokeWidth="1"
++            strokeDasharray="4 4"
++            opacity="0.65"
++          />
++          {tramos.map((d, i) => (
++            <path key={i} d={d} fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
++          ))}
++          {sueltos.map(({ v, i }) => (
++            <circle key={i} cx={x(i)} cy={y(v)} r="2.5" fill="var(--accent)" />
++          ))}
++          {activo != null && activoValor != null && (
++            <>
++              <line x1={x(activo)} y1={PAD_Y} x2={x(activo)} y2={H - PAD_Y} stroke="var(--border-strong)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
++              <circle cx={x(activo)} cy={y(activoValor)} r="3.5" fill="var(--accent)" stroke="var(--surface)" strokeWidth="2" vectorEffect="non-scaling-stroke" />
++            </>
++          )}
++        </svg>
++
++        <span className="pointer-events-none absolute left-0 top-0 text-[10.5px] text-muted">{umbralTexto}</span>
++
++        {activoPunto && activoValor != null && (
++          <div
++            className="pointer-events-none absolute -top-1 z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-md border border-border bg-surface px-2 py-1 text-[11px] shadow-[0_2px_8px_rgba(28,22,18,.12)]"
++            style={{ left: `${(x(activo!) / W) * 100}%` }}
++          >
++            <span className="tabular-nums text-ink">
++              {activoValor}
++              {unidad === '%' ? '%' : ` ${unidad}`}
++            </span>
++            <span className="ml-1.5 text-muted">{horaCorta(activoPunto.bucket, 24)}</span>
++          </div>
++        )}
++      </div>
++    </figure>
++  )
++}
++
++// "14:00" en un día; "mar 14 h" en rangos largos, donde la hora suelta no ubica.
++function horaCorta(bucket: string, horas: number): string {
++  const d = new Date(bucket.replace(' ', 'T'))
++  if (Number.isNaN(d.getTime())) return bucket
++  return horas <= 24
++    ? d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
++    : d.toLocaleString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit' })
++}
+diff --git a/apps/web/components/demo/space-eyes/ListaEquipos.tsx b/apps/web/components/demo/space-eyes/ListaEquipos.tsx
+new file mode 100644
+index 0000000..4b358ed
+--- /dev/null
++++ b/apps/web/components/demo/space-eyes/ListaEquipos.tsx
+@@ -0,0 +1,354 @@
++'use client'
++
++import { useCallback, useEffect, useMemo, useState } from 'react'
++import Link from 'next/link'
++import {
++  AlertTriangle,
++  BatteryLow,
++  Camera,
++  CameraOff,
++  Clock,
++  Eye,
++  Loader2,
++  Plus,
++  RefreshCw,
++  Search,
++} from 'lucide-react'
++import { cn } from '@/lib/cn'
++import { Button } from '@/components/demo/ui/Button'
++import { listarEquiposApi, type EquipoResumen } from '@/lib/data/space-eyes-api'
++import { Bateria, PildoraConexion, Senal, estaEnLinea, hace, tonoBateria } from './piezas'
++
++// ============================================================================
++//  Space Eyes — el listado.
++//
++//  La pregunta que contesta esta pantalla no es «qué equipos tengo» sino «hay
++//  algo que atender ahora mismo». Por eso lo primero son los cuatro números de
++//  arriba, y por eso cada equipo enseña SU ÚLTIMA FOTO: un equipo que reporta
++//  bien pero lleva una semana viendo una lona caída solo se nota mirando.
++//
++//  VISTE COMO INVENTARIO, no como un módulo invitado. El encabezado es el mismo
++//  patrón —icono en cuadro de 40, título de 18 px, subtítulo de 13—, el selector
++//  de filtros es el mismo segmentado con el que Inventario elige entre lista,
++//  contrato y carga masiva, y los bordes, radios y tamaños salen de ahí. Lo
++//  único que NO se copia es la tabla: aquí cada fila tiene una fotografía que
++//  vale más que cualquier columna.
++// ============================================================================
++
++type Filtro = 'todos' | 'linea' | 'atencion'
++
++export function ListaEquipos() {
++  const [equipos, setEquipos] = useState<EquipoResumen[] | null>(null)
++  const [error, setError] = useState<string | null>(null)
++  const [noConfigurado, setNoConfigurado] = useState(false)
++  const [cargando, setCargando] = useState(true)
++  const [filtro, setFiltro] = useState<Filtro>('todos')
++  const [busqueda, setBusqueda] = useState('')
++  const [empresa, setEmpresa] = useState<string>('todas')
++
++  const sincronizar = useCallback(async () => {
++    setCargando(true)
++    setError(null)
++    try {
++      const d = await listarEquiposApi()
++      setNoConfigurado(!d.disponible)
++      setEquipos(d.equipos)
++    } catch (e) {
++      setError(e instanceof Error ? e.message : 'No se pudo consultar Space Eyes')
++    }
++    setCargando(false)
++  }, [])
++
++  useEffect(() => {
++    void sincronizar()
++  }, [sincronizar])
++
++  const conEstado = useMemo(
++    () => (equipos ?? []).map((e) => ({ ...e, enLinea: estaEnLinea(e.online, e.ultimaConexion) })),
++    [equipos],
++  )
++
++  // «Atención» no es solo estar caído: una batería por debajo de 20% en un sitio
++  // sin corriente es el aviso que llega DÍAS antes de que el equipo se apague.
++  const necesitaAtencion = useCallback(
++    (e: { enLinea: boolean; bateriaPct: number | null }) => !e.enLinea || tonoBateria(e.bateriaPct) === 'rojo',
++    [],
++  )
++
++  const empresas = useMemo(
++    () => Array.from(new Set(conEstado.map((e) => e.empresa).filter((x): x is string => !!x))).sort(),
++    [conEstado],
++  )
++
++  const visibles = useMemo(() => {
++    const t = busqueda.trim().toLowerCase()
++    return conEstado.filter((e) => {
++      if (filtro === 'linea' && !e.enLinea) return false
++      if (filtro === 'atencion' && !necesitaAtencion(e)) return false
++      if (empresa !== 'todas' && e.empresa !== empresa) return false
++      if (!t) return true
++      return (
++        e.nombre.toLowerCase().includes(t) ||
++        (e.codigoPantalla ?? '').toLowerCase().includes(t) ||
++        (e.pantalla?.nombre ?? '').toLowerCase().includes(t)
++      )
++    })
++  }, [conEstado, filtro, empresa, busqueda, necesitaAtencion])
++
++  const enLinea = conEstado.filter((e) => e.enLinea).length
++  const caidos = conEstado.length - enLinea
++  const bateriaBaja = conEstado.filter((e) => tonoBateria(e.bateriaPct) === 'rojo').length
++  const ultimaCaptura = conEstado
++    .map((e) => e.ultimaFoto?.tomadaEn)
++    .filter((x): x is string => !!x)
++    .sort()
++    .pop()
++
++  return (
++    <div className="w-full space-y-4 p-6">
++      {/* El encabezado de Inventario, exacto */}
++      <div className="flex items-center gap-3">
++        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-2 text-ink">
++          <Eye className="h-5 w-5" strokeWidth={1.75} />
++        </span>
++        <div className="min-w-0 flex-1">
++          <h1 className="text-lg font-semibold text-ink">Space Eyes</h1>
++          <p className="text-[13px] text-muted">
++            Los equipos que vigilan tus pantallas: qué están viendo y cómo están.
++          </p>
++        </div>
++        <div className="flex items-center gap-2">
++          <Button variant="secondary" size="sm" onClick={() => void sincronizar()} disabled={cargando}>
++            {cargando ? (
++              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
++            ) : (
++              <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
++            )}
++            Actualizar
++          </Button>
++          <Link href="/space-eyes/nuevo">
++            <Button variant="primary" size="sm">
++              <Plus className="mr-1.5 h-3.5 w-3.5" />
++              Agregar dispositivo
++            </Button>
++          </Link>
++        </div>
++      </div>
++
++      {noConfigurado ? (
++        <div className="rounded-md border border-border bg-surface-2 p-4 text-[13px] text-muted">
++          La integración con Space Eyes no está configurada en este entorno.
++        </div>
++      ) : error ? (
++        <div className="flex items-start gap-2 rounded-md border border-[#dc262640] bg-error-soft p-3 text-[12px]">
++          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-error" />
++          <div>
++            <div className="font-medium text-ink">No se pudo consultar Space Eyes</div>
++            <div className="text-muted">{error}</div>
++          </div>
++        </div>
++      ) : (
++        <>
++          {/* Los cuatro números que deciden si hay que hacer algo hoy */}
++          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
++            <Indicador titulo="En línea" valor={enLinea} pie={`de ${conEstado.length} equipos`} punto="bg-success" />
++            <Indicador titulo="Sin reportar" valor={caidos} pie="más de 10 min" punto="bg-error" />
++            <Indicador
++              titulo="Batería crítica"
++              valor={bateriaBaja}
++              pie="bajo 20%"
++              icono={<BatteryLow className="h-3.5 w-3.5 text-warning" strokeWidth={1.8} />}
++            />
++            <Indicador
++              titulo="Última captura"
++              valor={ultimaCaptura ? hace(ultimaCaptura).replace('hace ', '') : '—'}
++              pie={ultimaCaptura ? 'de toda la flota' : 'sin fotos todavía'}
++              icono={<Camera className="h-3.5 w-3.5 text-muted" strokeWidth={1.8} />}
++            />
++          </div>
++
++          {/* Filtros: el mismo segmentado de Inventario */}
++          <div className="flex flex-wrap items-center gap-2">
++            <div className="inline-flex rounded-md border border-border bg-surface p-0.5 text-[13px]">
++              <Pestana activa={filtro === 'todos'} onClick={() => setFiltro('todos')}>
++                Todos · {conEstado.length}
++              </Pestana>
++              <Pestana activa={filtro === 'linea'} onClick={() => setFiltro('linea')}>
++                En línea · {enLinea}
++              </Pestana>
++              <Pestana activa={filtro === 'atencion'} onClick={() => setFiltro('atencion')}>
++                Con atención · {conEstado.filter(necesitaAtencion).length}
++              </Pestana>
++            </div>
++
++            {empresas.length > 1 && (
++              <>
++                <label className="sr-only" htmlFor="se-empresa">
++                  Empresa
++                </label>
++                <select
++                  id="se-empresa"
++                  value={empresa}
++                  onChange={(e) => setEmpresa(e.target.value)}
++                  className="h-8 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
++                >
++                  <option value="todas">Todas las empresas</option>
++                  {empresas.map((x) => (
++                    <option key={x} value={x}>
++                      {x}
++                    </option>
++                  ))}
++                </select>
++              </>
++            )}
++
++            <div className="relative ml-auto w-full sm:w-64">
++              <Search
++                className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted"
++                strokeWidth={1.8}
++              />
++              <label className="sr-only" htmlFor="se-buscar">
++                Buscar equipo o pantalla
++              </label>
++              <input
++                id="se-buscar"
++                value={busqueda}
++                onChange={(e) => setBusqueda(e.target.value)}
++                placeholder="Buscar equipo o pantalla"
++                className="h-9 w-full rounded border border-border-strong bg-surface pl-8 pr-3 text-[13px] text-ink outline-none placeholder:text-muted focus-visible:ring-2 focus-visible:ring-accent"
++              />
++            </div>
++          </div>
++
++          {/* Rejilla */}
++          {cargando && !equipos ? (
++            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
++              {[0, 1, 2].map((i) => (
++                <div key={i} className="h-60 animate-pulse rounded-md bg-surface-2" />
++              ))}
++            </div>
++          ) : visibles.length === 0 ? (
++            <div className="rounded-md border border-border bg-surface-2 px-3 py-10 text-center text-[13px] text-muted">
++              {conEstado.length === 0
++                ? 'Todavía no hay equipos Space Eyes dados de alta para esta cuenta.'
++                : 'Ningún equipo coincide con el filtro.'}
++            </div>
++          ) : (
++            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
++              {visibles.map((e) => (
++                <TarjetaEquipo key={e.id} equipo={e} enLinea={e.enLinea} />
++              ))}
++            </div>
++          )}
++        </>
++      )}
++    </div>
++  )
++}
++
++function Indicador({
++  titulo,
++  valor,
++  pie,
++  punto,
++  icono,
++}: {
++  titulo: string
++  valor: number | string
++  pie: string
++  punto?: string
++  icono?: React.ReactNode
++}) {
++  return (
++    <div className="rounded-md border border-border bg-surface p-3">
++      <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted">
++        {punto ? <span className={cn('h-1.5 w-1.5 rounded-full', punto)} /> : icono}
++        {titulo}
++      </div>
++      <div className="mt-1.5 flex items-baseline gap-1.5">
++        <span className="text-lg font-semibold leading-none text-ink">{valor}</span>
++        <span className="text-[12px] text-muted">{pie}</span>
++      </div>
++    </div>
++  )
++}
++
++// El mismo selector de vía que usa Inventario. Antes eran pastillas negras, que
++// en esta casa no existen en ningún otro módulo.
++function Pestana({
++  activa,
++  onClick,
++  children,
++}: {
++  activa: boolean
++  onClick: () => void
++  children: React.ReactNode
++}) {
++  return (
++    <button
++      type="button"
++      onClick={onClick}
++      className={cn(
++        'inline-flex items-center gap-1.5 rounded px-3 py-1.5 transition-colors duration-150',
++        activa ? 'bg-surface-2 font-medium text-ink' : 'text-muted hover:text-ink',
++      )}
++    >
++      {children}
++    </button>
++  )
++}
++
++function TarjetaEquipo({ equipo: e, enLinea }: { equipo: EquipoResumen; enLinea: boolean }) {
++  return (
++    <Link
++      href={`/space-eyes/${e.id}`}
++      className="group block overflow-hidden rounded-md border border-border bg-surface transition-colors duration-150 hover:border-border-strong"
++    >
++      {/* La última captura manda: es lo que se viene a ver */}
++      <div className="relative aspect-[16/9] overflow-hidden bg-surface-2">
++        {e.ultimaFoto ? (
++          // eslint-disable-next-line @next/next/no-img-element
++          <img
++            src={e.ultimaFoto.url}
++            alt={`Última captura de ${e.nombre}`}
++            className="h-full w-full object-cover"
++          />
++        ) : (
++          <div className="flex h-full flex-col items-center justify-center gap-1.5 text-muted">
++            <CameraOff className="h-5 w-5" strokeWidth={1.4} />
++            <span className="text-[12px]">Sin capturas todavía</span>
++          </div>
++        )}
++        <PildoraConexion online={enLinea} sobreFoto className="absolute left-2 top-2" />
++        {e.ultimaFoto?.tomadaEn && (
++          <span className="absolute bottom-2 right-2 inline-flex items-center gap-1.5 rounded-full bg-black/60 px-2 py-0.5 text-[10.5px] text-white backdrop-blur-sm">
++            <Clock className="h-3 w-3" strokeWidth={2} />
++            {hace(e.ultimaFoto.tomadaEn)}
++          </span>
++        )}
++      </div>
++
++      <div className="p-3">
++        <div className="truncate text-[13px] font-medium text-ink">{e.nombre}</div>
++        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-muted">
++          {e.empresa && <span className="rounded bg-surface-2 px-1.5 py-0.5 font-medium text-ink">{e.empresa}</span>}
++          {e.pantalla ? (
++            <span className="truncate">{e.pantalla.nombre}</span>
++          ) : e.codigoPantalla ? (
++            <span className="demo-num">{e.codigoPantalla}</span>
++          ) : (
++            <span className="italic">sin pantalla asignada</span>
++          )}
++        </div>
++
++        <div className="mt-2.5 flex items-center gap-3 border-t border-border pt-2.5">
++          <Bateria pct={e.bateriaPct} />
++          <Senal dbm={e.senalDbm} tipo={e.redTipo} />
++          <span className={cn('ml-auto text-[12px]', enLinea ? 'text-muted' : 'font-medium text-error')}>
++            {hace(e.ultimaConexion)}
++          </span>
++        </div>
++      </div>
++    </Link>
++  )
++}
+diff --git a/apps/web/components/demo/space-eyes/piezas.tsx b/apps/web/components/demo/space-eyes/piezas.tsx
+new file mode 100644
+index 0000000..cc069f2
+--- /dev/null
++++ b/apps/web/components/demo/space-eyes/piezas.tsx
+@@ -0,0 +1,158 @@
++'use client'
++
++import { Battery, BatteryLow, SignalHigh, SignalLow, SignalMedium, Wifi } from 'lucide-react'
++import { cn } from '@/lib/cn'
++
++// ============================================================================
++//  Piezas compartidas del módulo Space Eyes: las mismas reglas de color y las
++//  mismas palabras en la lista y en la ficha.
++//
++//  Viven aquí y no en cada pantalla porque un equipo con 18% de batería tiene
++//  que verse igual de mal en los dos sitios. Dos copias de estos umbrales se
++//  separan en cuanto alguien toque una.
++// ============================================================================
++
++// ─── Cuánto hace ────────────────────────────────────────────────────────────
++// "hace 4 min", "hace 3 h", "hace 8 d". Aproximado a propósito: para decidir si
++// hay que ir al sitio, el minuto exacto no cambia nada.
++export function hace(iso: string | null): string {
++  if (!iso) return 'nunca'
++  const ms = Date.now() - new Date(iso).getTime()
++  if (!Number.isFinite(ms) || ms < 0) return '—'
++  const min = Math.floor(ms / 60_000)
++  if (min < 1) return 'hace segundos'
++  if (min < 60) return `hace ${min} min`
++  const h = Math.floor(min / 60)
++  if (h < 24) return `hace ${h} h`
++  const d = Math.floor(h / 24)
++  if (d < 14) return `hace ${d} d`
++  return `hace ${Math.floor(d / 7)} semanas`
++}
++
++// Un equipo se da por caído a los 10 minutos sin reportar: es el mismo umbral
++// que usa Space Eye, y si aquí fuera otro, las dos pantallas se contradirían.
++const MINUTOS_CAIDO = 10
++
++export function estaEnLinea(online: boolean, ultimaConexion: string | null): boolean {
++  if (!online) return false
++  if (!ultimaConexion) return false
++  return Date.now() - new Date(ultimaConexion).getTime() < MINUTOS_CAIDO * 60_000
++}
++
++// ─── Batería ────────────────────────────────────────────────────────────────
++export function tonoBateria(pct: number | null): 'verde' | 'ambar' | 'rojo' | 'neutro' {
++  if (pct == null) return 'neutro'
++  if (pct >= 50) return 'verde'
++  if (pct >= 20) return 'ambar'
++  return 'rojo'
++}
++
++const TINTA = {
++  verde: 'text-success',
++  ambar: 'text-warning',
++  rojo: 'text-error',
++  neutro: 'text-muted',
++} as const
++
++export function Bateria({ pct, className }: { pct: number | null; className?: string }) {
++  const tono = tonoBateria(pct)
++  const Icono = tono === 'rojo' ? BatteryLow : Battery
++  return (
++    <span className={cn('inline-flex items-center gap-1.5 text-[12px] text-ink', className)}>
++      <Icono className={cn('h-4 w-4', TINTA[tono])} strokeWidth={1.8} />
++      {pct == null ? <span className="text-muted">sin dato</span> : `${pct}%`}
++    </span>
++  )
++}
++
++// ─── Señal ──────────────────────────────────────────────────────────────────
++// dBm: más negativo es peor. −85 es el punto donde una foto de 2 MB empieza a
++// tardar de verdad, y −100 donde ya no sube.
++export function calidadSenal(dbm: number | null): { texto: string; tono: 'verde' | 'ambar' | 'rojo' | 'neutro' } {
++  if (dbm == null) return { texto: 'sin dato', tono: 'neutro' }
++  if (dbm >= -75) return { texto: 'buena', tono: 'verde' }
++  if (dbm >= -90) return { texto: 'regular', tono: 'ambar' }
++  return { texto: 'débil', tono: 'rojo' }
++}
++
++export function Senal({
++  dbm,
++  tipo,
++  operador,
++  className,
++}: {
++  dbm: number | null
++  tipo: string | null
++  operador?: string | null
++  className?: string
++}) {
++  const { tono } = calidadSenal(dbm)
++  const esWifi = (tipo ?? '').toUpperCase().includes('WIFI')
++  const Icono = esWifi ? Wifi : tono === 'rojo' ? SignalLow : tono === 'ambar' ? SignalMedium : SignalHigh
++  const etiqueta = esWifi ? 'WiFi' : (tipo ?? '').toUpperCase() === 'CELLULAR' ? 'Móvil' : (tipo ?? 'sin dato')
++  return (
++    <span className={cn('inline-flex items-center gap-1.5 text-[12px] text-ink', className)}>
++      <Icono className={cn('h-4 w-4', TINTA[tono])} strokeWidth={1.8} />
++      {etiqueta}
++      {operador ? <span className="text-muted">· {operador}</span> : null}
++    </span>
++  )
++}
++
++// ─── Pastilla de conexión ───────────────────────────────────────────────────
++// La misma en la lista, en la ficha y encima de la fotografía. `sobreFoto` la
++// pasa a fondo oscuro: sobre una imagen, un badge claro desaparece.
++export function PildoraConexion({
++  online,
++  sobreFoto = false,
++  className,
++}: {
++  online: boolean
++  sobreFoto?: boolean
++  className?: string
++}) {
++  if (sobreFoto) {
++    return (
++      <span
++        className={cn(
++          'inline-flex items-center gap-1.5 rounded-full bg-black/60 px-2.5 py-1 text-[10.5px] font-semibold tracking-wide text-white backdrop-blur-sm',
++          className,
++        )}
++      >
++        <span className={cn('h-1.5 w-1.5 rounded-full', online ? 'bg-[#35d07f]' : 'bg-[#f87171]')} />
++        {online ? 'EN LÍNEA' : 'SIN REPORTAR'}
++      </span>
++    )
++  }
++  return (
++    <span
++      className={cn(
++        'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold',
++        online
++          ? 'border-[#1da85040] bg-success-soft text-[#146c39]'
++          : 'border-[#dc262640] bg-error-soft text-[#b91c1c]',
++        className,
++      )}
++    >
++      <span className={cn('h-1.5 w-1.5 rounded-full', online ? 'bg-success' : 'bg-error')} />
++      {online ? 'En línea' : 'Sin reportar'}
++    </span>
++  )
++}
++
++// ─── Fecha y hora larga, para los pies de foto ──────────────────────────────
++export function fechaHora(iso: string | null): string {
++  if (!iso) return '—'
++  const d = new Date(iso)
++  if (Number.isNaN(d.getTime())) return '—'
++  return d.toLocaleString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
++}
++
++// Bytes a algo legible. El consumo llega en bytes y "1521483776" no le dice
++// nada a nadie.
++export function gigas(bytes: number | null): string {
++  if (bytes == null) return '—'
++  const gb = bytes / 1024 ** 3
++  if (gb >= 1) return `${gb.toFixed(2)} GB`
++  return `${(bytes / 1024 ** 2).toFixed(0)} MB`
++}
+diff --git a/apps/web/lib/atajos-404.ts b/apps/web/lib/atajos-404.ts
+index f125d98..bf24b52 100644
+--- a/apps/web/lib/atajos-404.ts
++++ b/apps/web/lib/atajos-404.ts
+@@ -19,19 +19,32 @@ import { NAV, type NavItem } from '@/components/demo/shell/nav'
+ //  `vitest.config.ts`). Sacando la lista a un dato puro, la parte que se puede
+ //  romper en silencio queda cubierta y el `.tsx` solo pinta.
+ //
+-//  Nueve y no dieciocho: la rejilla es una salida de emergencia, no una copia
+-//  del menú. Se escoge uno por fase del proceso (ver `GRUPOS` en `nav.ts`) y las
+-//  dos fases con más tráfico —vender y entregar— llevan dos.
++//  Doce y no diecinueve: la rejilla es una salida de emergencia, no una copia
++//  del menú. La regla es DOS POR FASE (ver `GRUPOS` en `nav.ts`), salvo las dos
++//  fases que tienen una sola entrada en todo el menú —inicio y Space Eyes—, que
++//  aportan la suya.
++//
++//  Antes eran nueve con otra regla («una por fase, y dos en las de más
++//  tráfico»). Cambió al agregar la fase de Space Eyes: con seis fases, nueve
++//  obligaba a elegir a dedo qué tres fases llevaban la segunda, y doce cabe
++//  exacto en la rejilla de tres columnas sin dejar la última fila coja.
++//
++//  Las dos cuentas las vigila `atajos-404.test.ts` —un atajo por fase, y el
++//  total múltiplo de tres—, así que agregar un grupo al menú sin pasar por aquí
++//  pone la prueba en rojo. Es justo lo que pasó.
+ // ============================================================================
+ 
+ export const CLAVES_ATAJOS_404 = [
+-  'dashboard',      // inicio
++  'dashboard',      // inicio      (fase de una sola entrada)
+   'inventario',     // patrimonio
++  'network',        // patrimonio
++  'space-eyes',     // ojos        (fase de una sola entrada)
+   'clientes',       // vender
+   'propuestas',     // vender
+   'campanas',       // entregar
+   'operaciones',    // entregar
+   'finanzas',       // cobrar
++  'comisiones',     // cobrar
+   'actividad',      // sistema
+   'administracion', // sistema
+ ] as const
+diff --git a/apps/web/lib/data/space-eyes-api.ts b/apps/web/lib/data/space-eyes-api.ts
+new file mode 100644
+index 0000000..e5733dd
+--- /dev/null
++++ b/apps/web/lib/data/space-eyes-api.ts
+@@ -0,0 +1,144 @@
++'use client'
++
++// ============================================================================
++//  lib/data/space-eyes-api.ts — El módulo Space Eyes: la flota y su ficha.
++//
++//  Consume el BFF /api/space-eyes; el servidor habla con Space Eye y la llave
++//  nunca sale de ahí. Su hermano `space-eye-api.ts` responde otra pregunta —la
++//  cámara de UNA pantalla, dentro de la ficha comercial— y se conserva tal cual:
++//  las dos pantallas leen lo mismo por caminos distintos y ninguna sustituye a
++//  la otra.
++//
++//  Las rutas llevan barra final: basePath /spaces-dooh + trailingSlash.
++// ============================================================================
++
++const API = '/spaces-dooh/api/space-eyes'
++
++export interface EquipoResumen {
++  id: number
++  nombre: string
++  codigoPantalla: string | null
++  empresa: string | null
++  modelo: string | null
++  online: boolean
++  bateriaPct: number | null
++  senalDbm: number | null
++  redTipo: string | null
++  ultimaConexion: string | null
++  estatus: string | null
++  ultimaFoto: { url: string; tomadaEn: string | null } | null
++  pantalla: { id: string; nombre: string } | null
++}
++
++export interface FotoEquipo {
++  url: string
++  tomadaEn: string | null
++  ancho: number | null
++  alto: number | null
++  origen: string | null
++  verificacionEstatus: string | null
++  esCorrecta: boolean | null
++  score: number | null
++  gps: { lat: number; lng: number } | null
++}
++
++export interface EquipoDetalle extends Omit<EquipoResumen, 'pantalla'> {
++  uid: string | null
++  versionApp: string | null
++  fabricante: string | null
++  direccion: string | null
++  bateriaTemp: number | null
++  equipoTemp: number | null
++  redOperador: string | null
++  cargando: boolean | null
++  almacenamientoLibreMb: number | null
++  datos: { movilMes: number | null; wifiMes: number | null } | null
++  fotos: FotoEquipo[]
++}
++
++export interface FichaEquipoDatos {
++  equipo: EquipoDetalle
++  pantalla: { id: string; nombre: string; fotoCliente: string | null } | null
++}
++
++async function leer<T>(url: string, init?: RequestInit): Promise<T> {
++  const r = await fetch(url, init)
++  if (!r.ok) {
++    const d = await r.json().catch(() => ({}))
++    throw new Error((d as { error?: string }).error ?? 'No se pudo hablar con Space Eyes')
++  }
++  return r.json() as Promise<T>
++}
++
++export function listarEquiposApi(): Promise<{ disponible: boolean; motivo?: string; equipos: EquipoResumen[] }> {
++  return leer(`${API}/`, { cache: 'no-store' })
++}
++
++export function equipoApi(id: number): Promise<FichaEquipoDatos> {
++  return leer(`${API}/${id}/`, { cache: 'no-store' })
++}
++
++/** Pide una foto AHORA. `enLinea: false` no es un fallo: la orden queda encolada. */
++export function pedirCapturaApi(id: number): Promise<{ orden: number; enLinea: boolean; mensaje: string }> {
++  return leer(`${API}/${id}/captura/`, { method: 'POST' })
++}
++
++export interface PuntoTelemetria {
++  bucket: string
++  samples: number
++  battery_pct: number | null
++  signal_dbm: number | null
++  battery_temp: number | null
++  cpu_temp: number | null
++}
++export interface AlertaTelemetria {
++  level: string
++  type: string
++  message: string
++  value: number | null
++}
++export interface Telemetria {
++  disponible: boolean
++  horas: number
++  muestras?: number
++  bateriaMin?: number | null
++  senalMin?: number | null
++  alertas?: AlertaTelemetria[]
++  serie?: PuntoTelemetria[]
++}
++
++/** Histórico por hora. Se pide solo al abrir la tarjeta, no al pintar la ficha. */
++export function telemetriaApi(id: number, horas: 24 | 168 | 720 = 24): Promise<Telemetria> {
++  return leer(`${API}/${id}/telemetria/?horas=${horas}`, { cache: 'no-store' })
++}
++
++export interface Descarga {
++  url: string
++  version: string | null
++  bytes: number | null
++  publicado: string | null
++  sha256: string | null
++}
++export interface InfoAlta {
++  testigo: { hay: boolean; prefijo: string }
++  empresa: string | null
++  servidor: string
++  apk: Descarga | null
++  agentePc: Descarga | null
++  agentePi: Descarga | null
++  testigoCompleto?: string
++}
++
++/** Lo que hace falta para dar de alta un equipo: instaladores y testigo. */
++export function infoAltaApi(): Promise<InfoAlta> {
++  return leer(`${API}/alta/`, { cache: 'no-store' })
++}
++
++/**
++ * El testigo COMPLETO. Va en una llamada aparte y con un clic de por medio: si
++ * viajara al cargar la pantalla quedaría en el historial, en cualquier captura
++ * y en la consola de red de quien pase por ahí.
++ */
++export function testigoDeAltaApi(): Promise<InfoAlta> {
++  return leer(`${API}/alta/?testigo=1`, { cache: 'no-store' })
++}
+diff --git a/apps/web/lib/server/space-eye.ts b/apps/web/lib/server/space-eye.ts
+index 4963aaa..338b620 100644
+--- a/apps/web/lib/server/space-eye.ts
++++ b/apps/web/lib/server/space-eye.ts
+@@ -15,45 +15,26 @@ import 'server-only'
+ // ============================================================================
+ 
+ const BASE = process.env.SPACE_EYE_BASE_URL ?? ''
+-const USER = process.env.SPACE_EYE_USER ?? ''
+-const PASS = process.env.SPACE_EYE_PASS ?? ''
+ 
+-// La integración está activa solo si hay URL y credenciales configuradas.
+-export function spaceEyeHabilitado(): boolean {
+-  return !!(BASE && USER && PASS)
+-}
+-
+-// El access token de Space Eye dura 15 min; lo cacheamos en memoria del proceso
+-// con un margen para renovarlo antes de que expire.
+-let tokenCache: { access: string; expira: number } | null = null
+-
+-async function login(): Promise<string> {
+-  const r = await fetch(`${BASE}/api/auth/login`, {
+-    method: 'POST',
+-    headers: { 'Content-Type': 'application/json' },
+-    body: JSON.stringify({ email: USER, password: PASS }),
+-  })
+-  if (!r.ok) throw new Error(`Space Eye: login falló (${r.status})`)
+-  const d = (await r.json()) as { access_token?: string }
+-  if (!d.access_token) throw new Error('Space Eye: login sin token')
+-  tokenCache = { access: d.access_token, expira: Date.now() + 12 * 60_000 }
+-  return d.access_token
+-}
++// Llave de servicio de ESTA instancia. Sustituye al usuario/contraseña con el
++// que se entraba antes, y no es un detalle de forma: esa cuenta era la de
++// administración de Space Eye y veía la flota COMPLETA, o sea las cámaras de
++// todos los clientes. La llave solo alcanza los equipos de su dueño, así que el
++// aislamiento entre instancias lo hace el servidor y no la suerte de que los
++// códigos de sitio no se repitan.
++//
++// No caduca, es de solo lectura y se revoca desde Space Eye. Por eso se fue
++// tambien todo el manejo de token: no hay login, ni caché, ni reintento por 401.
++const KEY = process.env.SPACE_EYE_KEY ?? ''
+ 
+-async function token(): Promise<string> {
+-  if (tokenCache && tokenCache.expira > Date.now()) return tokenCache.access
+-  return login()
++// La integración está activa solo si hay URL y llave configuradas.
++export function spaceEyeHabilitado(): boolean {
++  return !!(BASE && KEY)
+ }
+ 
+-// GET autenticado. Si el token caducó (401), reintenta una vez tras re-login.
++// GET autenticado con la llave de la instancia.
+ async function api<T>(path: string): Promise<T> {
+-  let t = await token()
+-  let r = await fetch(`${BASE}${path}`, { headers: { Authorization: `Bearer ${t}` } })
+-  if (r.status === 401) {
+-    tokenCache = null
+-    t = await login()
+-    r = await fetch(`${BASE}${path}`, { headers: { Authorization: `Bearer ${t}` } })
+-  }
++  const r = await fetch(`${BASE}${path}`, { headers: { Authorization: `Bearer ${KEY}` } })
+   if (!r.ok) throw new Error(`Space Eye: ${path} → ${r.status}`)
+   return (await r.json()) as T
+ }
+@@ -121,11 +102,13 @@ export async function visionDeCodigo(codigoProveedor: string | null | undefined)
+   const dev = devices.find((d) => (d.billboard_code ?? '').trim().toLowerCase() === codigo)
+   if (!dev) return { disponible: false, motivo: 'sin_camara' }
+ 
+-  // Última foto de ese dispositivo (la más reciente). Filtramos por device por si
+-  // el backend ignora el query param.
++  // Última foto de ese dispositivo (la más reciente). El parámetro es
++  // `device_id`: con `device` el backend lo ignoraba y devolvía las fotos de la
++  // flota entera, y lo único que salvaba la situación era el filtro de abajo.
++  // Se deja el filtro igual, como red.
+   let foto: SEPhoto | undefined
+   try {
+-    const { photos } = await api<{ photos: SEPhoto[] }>(`/api/photos?device=${dev.id}&limit=5`)
++    const { photos } = await api<{ photos: SEPhoto[] }>(`/api/photos?device_id=${dev.id}&limit=5`)
+     foto = photos.filter((p) => p.device_id === dev.id)[0]
+   } catch {
+     /* si falla la foto, igual devolvemos el estado del dispositivo */
+@@ -144,7 +127,11 @@ export async function visionDeCodigo(codigoProveedor: string | null | undefined)
+     },
+     foto: foto
+       ? {
+-          url: `${BASE}${foto.storage_path}`,
++          // Por el proxy, igual que el módulo: esta sección ya existía y tenía
++          // el mismo fallo esperando en producción —una página HTTPS no carga
++          // una imagen HTTP—, solo que nadie lo había visto porque nunca se
++          // desplegó.
++          url: urlDeFoto(foto.storage_path),
+           tomadaEn: foto.taken_at,
+           ancho: foto.width,
+           alto: foto.height,
+@@ -156,3 +143,366 @@ export async function visionDeCodigo(codigoProveedor: string | null | undefined)
+       : null,
+   }
+ }
++
++// ════════════════════════════════════════════════════════════════════════════
++//  EL MÓDULO Space Eyes — la flota, no una pantalla
++// ----------------------------------------------------------------------------
++//  Lo de arriba responde una pregunta concreta: «de esta pantalla, ¿qué ve su
++//  cámara?». Lo de abajo es el módulo del menú, que empieza por la otra punta:
++//  todos los equipos de la instancia, y de ahí a uno.
++//
++//  Todo sale de la MISMA llave de servicio, así que el alcance no se decide
++//  aquí: el servidor de Space Eye solo entrega los equipos de su dueño. Esta
++//  parte no puede ampliar lo que se ve, solo presentarlo.
++// ════════════════════════════════════════════════════════════════════════════
++
++export interface SEEquipoResumen {
++  id: number
++  nombre: string
++  codigoPantalla: string | null
++  empresa: string | null
++  modelo: string | null
++  online: boolean
++  bateriaPct: number | null
++  senalDbm: number | null
++  redTipo: string | null
++  ultimaConexion: string | null
++  estatus: string | null
++  ultimaFoto: { url: string; tomadaEn: string | null } | null
++}
++
++export interface SEEquipoDetalle extends SEEquipoResumen {
++  uid: string | null
++  versionApp: string | null
++  fabricante: string | null
++  direccion: string | null
++  bateriaTemp: number | null
++  equipoTemp: number | null
++  redOperador: string | null
++  cargando: boolean | null
++  almacenamientoLibreMb: number | null
++  datos: { movilMes: number | null; wifiMes: number | null } | null
++  fotos: SEFotoModulo[]
++}
++
++export interface SEFotoModulo {
++  url: string
++  tomadaEn: string | null
++  ancho: number | null
++  alto: number | null
++  origen: string | null
++  verificacionEstatus: string | null
++  esCorrecta: boolean | null
++  score: number | null
++  gps: { lat: number; lng: number } | null
++}
++
++interface SEDeviceFila extends SEDevice {
++  owner?: string | null
++  device_uid?: string | null
++  app_version?: string | null
++  manufacturer?: string | null
++  address?: string | null
++  network_type?: string | null
++}
++
++// ─── Las fotos se sirven POR NOSOTROS, no por Space Eye ────────────────────
++//
++// Esta aplicación va por HTTPS y Space Eye puede ir por HTTP: un navegador NO
++// carga una imagen http dentro de una página https, la bloquea sin avisar. Así
++// que lo que viaja al cliente es SIEMPRE una ruta nuestra, y el proxy
++// (`/api/space-eyes/foto`) trae los bytes por detrás. Ver el comentario de esa
++// ruta para el porqué completo.
++//
++// Se guarda solo el camino (`/storage/...` con su firma), nunca la dirección de
++// Space Eye: el navegador no tiene por qué aprenderla.
++export function urlDeFoto(storagePath: string): string {
++  return `/spaces-dooh/api/space-eyes/foto/?p=${encodeURIComponent(storagePath)}`
++}
++
++/** La dirección real, que solo se usa del lado del servidor. */
++export function urlAbsolutaDeFoto(storagePath: string): string {
++  return `${BASE}${storagePath}`
++}
++
++function resumen(d: SEDeviceFila, foto?: SEPhoto): SEEquipoResumen {
++  return {
++    id: d.id,
++    nombre: d.name,
++    codigoPantalla: d.billboard_code ?? null,
++    empresa: d.owner ?? null,
++    modelo: d.model ?? null,
++    online: !!d.online,
++    bateriaPct: d.battery_pct ?? null,
++    senalDbm: d.signal_dbm ?? null,
++    redTipo: d.network_type ?? null,
++    ultimaConexion: d.last_seen_at ?? null,
++    estatus: d.status ?? null,
++    ultimaFoto: foto ? { url: urlDeFoto(foto.storage_path), tomadaEn: foto.taken_at } : null,
++  }
++}
++
++/**
++ * Los equipos de la instancia, con su última captura.
++ *
++ * Dos llamadas y no una por equipo: `/api/photos` devuelve las últimas fotos de
++ * la flota YA ordenadas, así que se agrupan por equipo y cada uno se queda con
++ * la primera. Con una llamada por equipo, veinte cámaras serían veintiún viajes
++ * al tercero cada vez que alguien abre el menú.
++ */
++export async function listarEquipos(): Promise<SEEquipoResumen[]> {
++  if (!spaceEyeHabilitado()) return []
++  const { devices } = await api<{ devices: SEDeviceFila[] }>('/api/devices')
++
++  // Si falla, la lista se pinta igual: sin miniatura, pero con el estado de cada
++  // equipo, que es lo que de verdad se viene a ver.
++  let ultimas = new Map<number, SEPhoto>()
++  try {
++    const { photos } = await api<{ photos: SEPhoto[] }>('/api/photos?limit=60')
++    for (const p of photos) if (!ultimas.has(p.device_id)) ultimas.set(p.device_id, p)
++  } catch {
++    ultimas = new Map()
++  }
++
++  return devices.map((d) => resumen(d, ultimas.get(d.id)))
++}
++
++/** Un equipo con todo lo que la ficha enseña, incluidas sus últimas fotos. */
++export async function equipoDetalle(id: number): Promise<SEEquipoDetalle | null> {
++  if (!spaceEyeHabilitado()) return null
++
++  let d: { device: SEDeviceFila; latest_status: any; data_usage: any }
++  try {
++    d = await api<{ device: SEDeviceFila; latest_status: any; data_usage: any }>(`/api/devices/${id}`)
++  } catch {
++    // Un equipo de otro dueño contesta 404 igual que uno que no existe, y así se
++    // trata aquí: la ficha dice «no encontrado», nunca «no es tuyo».
++    return null
++  }
++
++  let fotos: SEPhoto[] = []
++  try {
++    const r = await api<{ photos: SEPhoto[] }>(`/api/photos?device_id=${id}&limit=24`)
++    fotos = r.photos.filter((p) => p.device_id === id)
++  } catch {
++    fotos = []
++  }
++
++  const s = d.latest_status ?? {}
++  const u = d.data_usage ?? null
++  return {
++    ...resumen(d.device, fotos[0]),
++    // El estado más reciente es más fresco que el resumen de la lista.
++    bateriaPct: s.battery_pct ?? d.device.battery_pct ?? null,
++    senalDbm: s.signal_dbm ?? d.device.signal_dbm ?? null,
++    redTipo: s.network_type ?? d.device.network_type ?? null,
++    uid: d.device.device_uid ?? null,
++    versionApp: d.device.app_version ?? null,
++    fabricante: d.device.manufacturer ?? null,
++    direccion: d.device.address ?? null,
++    bateriaTemp: s.battery_temp ?? null,
++    equipoTemp: s.cpu_temp ?? null,
++    redOperador: s.network_operator ?? null,
++    cargando: s.battery_charging == null ? null : !!s.battery_charging,
++    almacenamientoLibreMb: s.storage_free_mb ?? null,
++    datos: u ? { movilMes: u.data_mobile_month ?? null, wifiMes: u.data_wifi_month ?? null } : null,
++    fotos: fotos.map((p) => ({
++      url: urlDeFoto(p.storage_path),
++      tomadaEn: p.taken_at,
++      ancho: p.width,
++      alto: p.height,
++      origen: (p as any).source ?? null,
++      verificacionEstatus: p.verification_status,
++      esCorrecta: p.is_correct,
++      score: p.verification_score != null ? Number(p.verification_score) : null,
++      gps: p.gps_lat != null && p.gps_lng != null ? { lat: p.gps_lat, lng: p.gps_lng } : null,
++    })),
++  }
++}
++
++/**
++ * Pedirle una foto AHORA a un equipo.
++ *
++ * Es lo ÚNICO que esta integración escribe, y va por una ruta propia de Space
++ * Eye (`/api/eyes/devices/:id/captura`) que solo sabe hacer eso: el tipo de
++ * orden no es un parámetro, así que desde aquí no se puede reiniciar un equipo,
++ * abrirle la transmisión ni cambiarle la configuración aunque alguien lo
++ * intente. La llave necesita la marca de escritura, y esa marca no alcanza
++ * ninguna otra ruta.
++ *
++ * `en_linea: false` no es un error: la orden queda encolada y el equipo la
++ * recoge cuando vuelva. La interfaz lo dice en vez de fingir que viene en
++ * camino.
++ */
++export async function pedirCaptura(id: number): Promise<{ orden: number; enLinea: boolean }> {
++  if (!spaceEyeHabilitado()) throw new Error('Space Eye no está configurado')
++  const r = await fetch(`${BASE}/api/eyes/devices/${id}/captura`, {
++    method: 'POST',
++    headers: { Authorization: `Bearer ${KEY}` },
++  })
++  if (!r.ok) throw new Error(`Space Eye: no se pudo pedir la foto (${r.status})`)
++  const d = (await r.json()) as { orden: number; en_linea: boolean }
++  return { orden: d.orden, enLinea: !!d.en_linea }
++}
++
++export interface SEPuntoTelemetria {
++  bucket: string
++  samples: number
++  battery_pct: number | null
++  signal_dbm: number | null
++  battery_temp: number | null
++  cpu_temp: number | null
++}
++export interface SEAlertaTelemetria {
++  level: 'critical' | 'warning' | string
++  type: string
++  message: string
++  value: number | null
++}
++export interface SETelemetria {
++  desde: string
++  hasta: string
++  muestras: number
++  bateriaMin: number | null
++  senalMin: number | null
++  alertas: SEAlertaTelemetria[]
++  serie: SEPuntoTelemetria[]
++}
++
++/**
++ * Histórico del equipo, por hora: batería, señal y temperaturas.
++ *
++ * Por hora y no crudo a propósito: el equipo reporta cada ~60 s, así que una
++ * semana cruda son diez mil puntos para dibujar una línea de 300 píxeles. El
++ * servidor ya sabe promediar por hora, y de paso el mínimo de cada hora —que es
++ * el dato que importa: una batería que TOCÓ el 8% a las 4 de la mañana no se ve
++ * en un promedio.
++ */
++export async function telemetriaDeEquipo(id: number, horas = 24): Promise<SETelemetria | null> {
++  if (!spaceEyeHabilitado()) return null
++  const desde = new Date(Date.now() - horas * 3600_000).toISOString()
++  const q = new URLSearchParams({ granularity: 'hour', from: desde })
++  try {
++    const d = await api<{
++      range: { from: string; to: string }
++      summary: Record<string, unknown>
++      alerts: SEAlertaTelemetria[]
++      series: Record<string, unknown>[]
++    }>(`/api/devices/${id}/telemetry?${q.toString()}`)
++
++    const num = (v: unknown) => (v == null ? null : Number(v))
++    return {
++      desde: d.range.from,
++      hasta: d.range.to,
++      muestras: Number(d.summary?.samples ?? 0),
++      // El PEOR valor del rango, no el promedio: es lo que decide si hay que ir
++      // al sitio.
++      bateriaMin: num(d.summary?.battery_pct_min),
++      senalMin: num(d.summary?.signal_dbm_min),
++      alertas: d.alerts ?? [],
++      serie: (d.series ?? []).map((p) => ({
++        bucket: String(p.bucket ?? ''),
++        samples: Number(p.samples ?? 0),
++        // En las series por hora se toma el MÍNIMO de batería y señal por el
++        // mismo motivo, y si el servidor no lo manda se cae al promedio.
++        battery_pct: num(p.battery_pct_min ?? p.battery_pct),
++        signal_dbm: num(p.signal_dbm_min ?? p.signal_dbm),
++        battery_temp: num(p.battery_temp_max ?? p.battery_temp),
++        cpu_temp: num(p.cpu_temp_max ?? p.cpu_temp),
++      })),
++    }
++  } catch {
++    // El histórico es información secundaria: si no llega, la ficha se pinta
++    // igual y la tarjeta lo dice. No puede tumbar la pantalla.
++    return null
++  }
++}
++
++// ════════════════════════════════════════════════════════════════════════════
++//  ALTA DE UN EQUIPO NUEVO, desde aquí
++// ----------------------------------------------------------------------------
++//  Un equipo se da de alta SOLO: se instala el agente, arranca, se registra y
++//  aparece en la lista. Lo que esta pantalla tiene que resolver son las dos
++//  cosas que no se resuelven solas: de dónde se baja el instalador de cada tipo
++//  de equipo, y con qué credencial nace asignado a esta empresa.
++//
++//  EL TESTIGO DE ALTA VIENE DEL ENTORNO, no se pide al vuelo. Es una credencial
++//  de despliegue, igual que `SPACE_EYE_KEY`: se crea una vez en Space Eye para
++//  esta instancia y se pone aquí. La alternativa —que la instancia pudiera
++//  FABRICAR testigos por su cuenta— convertiría una llave de solo lectura en
++//  una fábrica de credenciales, que es exactamente lo que la separación entre
++//  «llave de lectura» y «testigo de alta» existe para impedir.
++//
++//  Un testigo NO lee nada: solo sirve para que un equipo nuevo diga de quién es.
++// ════════════════════════════════════════════════════════════════════════════
++
++const TESTIGO = process.env.SPACE_EYE_PROVISION_TOKEN ?? ''
++
++export interface SEDescarga {
++  url: string
++  version: string | null
++  bytes: number | null
++  publicado: string | null
++  sha256: string | null
++}
++export interface SEInfoAlta {
++  // Solo el prefijo del testigo viaja por omisión: es lo que se puede enseñar
++  // en pantalla sin repartir la credencial.
++  testigo: { hay: boolean; prefijo: string }
++  empresa: string | null
++  servidor: string
++  apk: SEDescarga | null
++  agentePc: SEDescarga | null
++  agentePi: SEDescarga | null
++}
++
++/** Los manifiestos son públicos (los sirve el mismo servidor, sin sesión). */
++async function manifiesto(archivo: string, descarga: string): Promise<SEDescarga | null> {
++  try {
++    const r = await fetch(`${BASE}/${archivo}`, { cache: 'no-store' })
++    if (!r.ok) return null
++    const d = (await r.json()) as Record<string, unknown>
++    return {
++      url: `${BASE}/${descarga}`,
++      version: d.version != null ? String(d.version) : null,
++      bytes: d.bytes != null ? Number(d.bytes) : null,
++      publicado: d.publicado != null ? String(d.publicado) : null,
++      sha256: d.sha256 != null ? String(d.sha256) : null,
++    }
++  } catch {
++    return null
++  }
++}
++
++export async function infoDeAlta(): Promise<SEInfoAlta> {
++  // De quién son los equipos de esta instancia. Se saca de los que ya hay en
++  // vez de escribirlo en otra variable de entorno: una segunda fuente para el
++  // mismo dato es una segunda fuente que se puede contradecir.
++  let empresa: string | null = null
++  try {
++    const { devices } = await api<{ devices: { owner?: string | null }[] }>('/api/devices')
++    empresa = devices.find((d) => d.owner)?.owner ?? null
++  } catch {
++    empresa = null
++  }
++
++  const [apk, agentePc, agentePi] = await Promise.all([
++    manifiesto('space-eye.json', 'space-eye.apk'),
++    manifiesto('space-eye-agente.json', 'SpaceEyeAgente.exe'),
++    manifiesto('space-eye-pi-agent.json', 'space-eye-pi-agent.tar.gz'),
++  ])
++
++  return {
++    testigo: { hay: Boolean(TESTIGO), prefijo: TESTIGO ? TESTIGO.slice(0, 15) : '' },
++    empresa,
++    servidor: BASE,
++    apk,
++    agentePc,
++    agentePi,
++  }
++}
++
++/** El testigo completo. Se entrega aparte y solo a quien puede dar de alta. */
++export function testigoCompleto(): string {
++  return TESTIGO
++}
+diff --git a/apps/web/lib/test/space-eyes.e2e.test.ts b/apps/web/lib/test/space-eyes.e2e.test.ts
+new file mode 100644
+index 0000000..6673150
+--- /dev/null
++++ b/apps/web/lib/test/space-eyes.e2e.test.ts
+@@ -0,0 +1,254 @@
++import { describe, it, expect, beforeAll, afterAll } from 'vitest'
++import { recrearEsquema, cerrarPool, poolTest } from './db-e2e'
++import { sembrarTenant, asegurarPermisos, PASSWORD_DEMO } from './semillas-e2e'
++import { arrancarServidor, pararServidor, Cliente } from './servidor-e2e'
++
++// ============================================================================
++//  El módulo Space Eyes, de punta a punta: sesión real, RLS real y el servidor
++//  de Space Eye de verdad al otro lado.
++// ----------------------------------------------------------------------------
++//  POR QUÉ CONTRA EL SPACE EYE REAL Y NO UN DOBLE. Lo que hay que comprobar es
++//  justo lo que un doble daría por bueno: que la llave de servicio solo trae los
++//  equipos de su dueño, que pedir una foto pasa por la ÚNICA ruta que acepta
++//  escritura, y que un equipo ajeno contesta 404. Un doble que responde lo que
++//  uno quiere no prueba ninguna de las tres.
++//
++//  QUÉ HACE FALTA para correrla (si no está, se salta sola y lo dice):
++//    - el backend de Space Eye en marcha (por omisión http://127.0.0.1:4000)
++//    - SPACE_EYE_KEY con una llave de LECTURA+ESCRITURA de ese dueño
++//    - SPACE_EYE_OWNER_CODIGO: el billboard_code de un equipo de ese dueño
++//
++//    SPACE_EYE_BASE_URL=http://127.0.0.1:4000 SPACE_EYE_KEY=se_... \
++//    SPACE_EYE_OWNER_CODIGO=05599-D01 npx vitest run lib/test/space-eyes.e2e.test.ts
++// ============================================================================
++
++const BASE_SE = process.env.SPACE_EYE_BASE_URL ?? 'http://127.0.0.1:4000'
++const LLAVE = process.env.SPACE_EYE_KEY ?? ''
++const CODIGO = process.env.SPACE_EYE_OWNER_CODIGO ?? ''
++
++let a: Awaited<ReturnType<typeof sembrarTenant>>
++let comercial: Awaited<ReturnType<typeof sembrarTenant>>
++let equipoId = 0
++
++// Se decide AQUÍ, y no dentro de cada caso, si esta prueba se pide: con las dos
++// variables puestas corre, y sin ellas vitest las reporta SALTADAS.
++//
++// Saltar no es lo mismo que pasar. La primera versión de este archivo devolvía
++// temprano en cada `it` y los doce casos salían en verde sin haber hablado con
++// nadie: doce mentiras en verde, que es peor que no tener prueba. Si las
++// variables están puestas y el entorno no responde, `beforeAll` REVIENTA con el
++// motivo.
++const pedido = Boolean(LLAVE && CODIGO)
++const suite = pedido ? describe : describe.skip
++
++beforeAll(async () => {
++  if (!pedido) return
++  // El backend, vivo y con ese equipo, ANTES de montar nada: si no, los doce
++  // casos fallarían por el andamio y parecería que el módulo está roto.
++  let devices: { id: number; billboard_code: string | null }[]
++  try {
++    const r = await fetch(`${BASE_SE}/api/devices`, { headers: { Authorization: `Bearer ${LLAVE}` } })
++    if (!r.ok) throw new Error(`GET /api/devices respondió ${r.status} (¿la llave es de lectura y no está revocada?)`)
++    devices = ((await r.json()) as { devices: typeof devices }).devices
++  } catch (e) {
++    throw new Error(
++      `No pude hablar con Space Eye en ${BASE_SE}: ${e instanceof Error ? e.message : e}. ` +
++        `Levanta el backend o quita SPACE_EYE_KEY para saltar esta prueba.`,
++    )
++  }
++  const equipo = devices.find((d) => (d.billboard_code ?? '').toLowerCase() === CODIGO.toLowerCase())
++  if (!equipo) {
++    throw new Error(
++      `Ningún equipo de esa llave tiene el código "${CODIGO}". Los que hay: ` +
++        `${devices.map((d) => d.billboard_code ?? '(sin código)').join(', ') || 'ninguno'}.`,
++    )
++  }
++  equipoId = equipo.id
++
++  await recrearEsquema()
++  await asegurarPermisos()
++  a = await sembrarTenant('seyes')
++  comercial = await sembrarTenant('seyescom', { rol: 'COMERCIAL' })
++
++  // La pantalla del tenant toma el código del equipo REAL: es el emparejamiento
++  // que el módulo tiene que resolver (sitios.codigo_proveedor == billboard_code).
++  await poolTest().query('update sitios set codigo_proveedor = $1 where id = $2', [CODIGO, a.sitioId])
++
++  await arrancarServidor()
++}, 180_000)
++
++afterAll(async () => {
++  if (!pedido) return
++  await pararServidor()
++  await cerrarPool()
++})
++
++suite('módulo Space Eyes', () => {
++  it('sin sesión, el listado responde 401', async () => {
++    const anon = new Cliente()
++    const r = await anon.pedir('/api/space-eyes/')
++    expect(r.status).toBe(401)
++  })
++
++  it('con sesión, trae los equipos del dueño de la llave', async () => {
++    const c = new Cliente()
++    await c.entrar(a.usuarioEmail, PASSWORD_DEMO)
++    const r = await c.pedir('/api/space-eyes/')
++    expect(r.status).toBe(200)
++    expect(r.datos.disponible).toBe(true)
++    expect(Array.isArray(r.datos.equipos)).toBe(true)
++    expect(r.datos.equipos.length).toBeGreaterThan(0)
++  })
++
++  it('empareja el equipo con la pantalla del tenant por su código', async () => {
++    const c = new Cliente()
++    await c.entrar(a.usuarioEmail, PASSWORD_DEMO)
++    const r = await c.pedir('/api/space-eyes/')
++    const mio = r.datos.equipos.find((e: { id: number }) => e.id === equipoId)
++    expect(mio).toBeTruthy()
++    expect(mio.pantalla).toBeTruthy()
++    expect(mio.pantalla.id).toBe(a.sitioId)
++  })
++
++  it('un equipo sin pantalla en este tenant sale igual, marcado sin pantalla', async () => {
++    const c = new Cliente()
++    await c.entrar(a.usuarioEmail, PASSWORD_DEMO)
++    const r = await c.pedir('/api/space-eyes/')
++    const otros = r.datos.equipos.filter((e: { id: number }) => e.id !== equipoId)
++    // Solo una pantalla del tenant lleva el código, así que el resto va sin
++    // enlazar. Lo que importa es que NO desaparezcan de la lista.
++    for (const e of otros) expect(e.pantalla).toBeNull()
++  })
++
++  it('la ficha trae el equipo y su pantalla', async () => {
++    const c = new Cliente()
++    await c.entrar(a.usuarioEmail, PASSWORD_DEMO)
++    const r = await c.pedir(`/api/space-eyes/${equipoId}/`)
++    expect(r.status).toBe(200)
++    expect(r.datos.equipo.id).toBe(equipoId)
++    expect(r.datos.equipo.codigoPantalla.toLowerCase()).toBe(CODIGO.toLowerCase())
++    expect(r.datos.pantalla.id).toBe(a.sitioId)
++  })
++
++  it('la pantalla de OTRO tenant no aparece como pantalla asociada', async () => {
++    // El tenant de al lado no tiene ese código, así que ve el equipo (es de la
++    // misma instancia) pero SIN pantalla: la RLS no le deja ver la del vecino.
++    const c = new Cliente()
++    await c.entrar(comercial.usuarioEmail, PASSWORD_DEMO)
++    const r = await c.pedir(`/api/space-eyes/${equipoId}/`)
++    expect(r.status).toBe(200)
++    expect(r.datos.pantalla).toBeNull()
++  })
++
++  it('pedir una foto funciona con permiso de crear', async () => {
++    const c = new Cliente()
++    await c.entrar(a.usuarioEmail, PASSWORD_DEMO)
++    const r = await c.pedir(`/api/space-eyes/${equipoId}/captura/`, { metodo: 'POST' })
++    expect(r.status).toBe(200)
++    expect(typeof r.datos.orden).toBe('number')
++    expect(typeof r.datos.mensaje).toBe('string')
++  })
++
++  it('un rol que solo consulta NO puede encender la cámara', async () => {
++    const c = new Cliente()
++    await c.entrar(comercial.usuarioEmail, PASSWORD_DEMO)
++    const puedeVer = await c.pedir('/api/space-eyes/')
++    expect(puedeVer.status).toBe(200)
++    const r = await c.pedir(`/api/space-eyes/${equipoId}/captura/`, { metodo: 'POST' })
++    expect(r.status).toBe(403)
++  })
++
++  it('pedir una foto queda registrado en Actividad', async () => {
++    const c = new Cliente()
++    await c.entrar(a.usuarioEmail, PASSWORD_DEMO)
++    await c.pedir(`/api/space-eyes/${equipoId}/captura/`, { metodo: 'POST' })
++    const r = await poolTest().query(
++      `select accion, entidad from acciones where accion = 'Pidió una foto a Space Eyes' order by id desc limit 1`,
++    )
++    expect(r.rows.length).toBe(1)
++    expect(String(r.rows[0].entidad).length).toBeGreaterThan(0)
++  })
++
++  it('el alta enseña los instaladores a quien solo consulta', async () => {
++    const c = new Cliente()
++    await c.entrar(comercial.usuarioEmail, PASSWORD_DEMO)
++    const r = await c.pedir('/api/space-eyes/alta/')
++    expect(r.status).toBe(200)
++    expect(typeof r.datos.servidor).toBe('string')
++    // El prefijo sí, la credencial no: sin pedirla, no viaja.
++    expect(r.datos.testigoCompleto).toBeUndefined()
++  })
++
++  it('el testigo COMPLETO no se le entrega a quien solo consulta', async () => {
++    const c = new Cliente()
++    await c.entrar(comercial.usuarioEmail, PASSWORD_DEMO)
++    const r = await c.pedir('/api/space-eyes/alta/?testigo=1')
++    expect(r.status).toBe(403)
++    expect(JSON.stringify(r.datos)).not.toContain('se_')
++  })
++
++  it('y sí a quien puede dar de alta', async () => {
++    if (!process.env.SPACE_EYE_PROVISION_TOKEN) return
++    const c = new Cliente()
++    await c.entrar(a.usuarioEmail, PASSWORD_DEMO)
++    const r = await c.pedir('/api/space-eyes/alta/?testigo=1')
++    expect(r.status).toBe(200)
++    expect(r.datos.testigoCompleto).toBe(process.env.SPACE_EYE_PROVISION_TOKEN)
++  })
++
++  it('las fotos viajan por NUESTRA ruta, no por la de Space Eye', async () => {
++    // Si alguna vez vuelve a salir una URL absoluta a Space Eye, en producción
++    // el navegador la bloquea por contenido mixto y el módulo se queda sin
++    // fotos. Aquí es donde se atrapa.
++    const c = new Cliente()
++    await c.entrar(a.usuarioEmail, PASSWORD_DEMO)
++    const r = await c.pedir(`/api/space-eyes/${equipoId}/`)
++    const fotos: { url: string }[] = r.datos.equipo.fotos ?? []
++    for (const f of fotos) {
++      expect(f.url.startsWith('/spaces-dooh/api/space-eyes/foto/')).toBe(true)
++      expect(f.url).not.toContain(BASE_SE)
++    }
++  })
++
++  it('el proxy de fotos no se deja usar para pedir cualquier cosa', async () => {
++    const c = new Cliente()
++    await c.entrar(a.usuarioEmail, PASSWORD_DEMO)
++    // Una URL completa a otro servidor sería un proxy abierto desde dentro del
++    // droplet: el clásico SSRF con el que se leen las credenciales del metadata
++    // del proveedor.
++    for (const malo of [
++      'http://169.254.169.254/latest/meta-data/',
++      'https://example.com/foto.jpg',
++      '/storage/../../etc/passwd',
++      '/api/llaves',
++      '//evil.example.com/x.jpg',
++    ]) {
++      const r = await c.pedir(`/api/space-eyes/foto/?p=${encodeURIComponent(malo)}`)
++      expect(r.status).toBe(400)
++    }
++  })
++
++  it('sin sesión, el proxy de fotos no sirve nada', async () => {
++    const anon = new Cliente()
++    const r = await anon.pedir('/api/space-eyes/foto/?p=%2Fstorage%2Fx.jpg')
++    expect(r.status).toBe(401)
++  })
++
++  it('un equipo inventado da 404, no 500', async () => {
++    const c = new Cliente()
++    await c.entrar(a.usuarioEmail, PASSWORD_DEMO)
++    const r = await c.pedir('/api/space-eyes/999999/')
++    expect(r.status).toBe(404)
++  })
++
++  it('el histórico responde y respeta el rango', async () => {
++    const c = new Cliente()
++    await c.entrar(a.usuarioEmail, PASSWORD_DEMO)
++    const r = await c.pedir(`/api/space-eyes/${equipoId}/telemetria/?horas=168`)
++    expect(r.status).toBe(200)
++    expect(r.datos.horas).toBe(168)
++    // Un rango fuera de la lista cerrada cae a 24 h en vez de pedir meses.
++    const raro = await c.pedir(`/api/space-eyes/${equipoId}/telemetria/?horas=100000`)
++    expect(raro.datos.horas).toBe(24)
++  })
++})
+diff --git a/infra/env/instancia.env.example b/infra/env/instancia.env.example
+index b0686e7..aac4d3f 100644
+--- a/infra/env/instancia.env.example
++++ b/infra/env/instancia.env.example
+@@ -171,3 +171,41 @@ LOGS_BUCKET=
+ #
+ #  Vacío = se jala sin autenticar, que es lo correcto si el registro es público.
+ REGISTRY_TOKEN=
++
++# ─── Space Eyes: las cámaras que vigilan las pantallas de esta empresa ───────
++#
++#  El plano de dispositivos vive en Space Eye, no aquí: los equipos (APK,
++#  Raspberry, PC con cámara IP) hablan con ÉL y nunca con esta aplicación. Esta
++#  instancia lo LEE por API, con una llave de alcance, y por eso solo ve los
++#  equipos de su empresa: el aislamiento lo hace el servidor de Space Eye, no un
++#  filtro de este lado.
++#
++#  Sin estas variables el módulo Space Eyes se pinta igual y dice que no está
++#  configurado. No rompe nada: simplemente no hay cámaras.
++#
++#  OJO CON EL PROTOCOLO. Esta aplicación se sirve por HTTPS, así que una
++#  dirección `http://` aquí deja las fotos sin cargar en el navegador —una
++#  página HTTPS no carga imágenes HTTP y el error solo se ve en la consola—.
++#  Tiene que ser https, con su certificado.
++SPACE_EYE_BASE_URL=
++
++#  Llave de servicio de ESTA instancia. La crea el administrador de Space Eye
++#  con el dueño de esta empresa:
++#
++#    curl -X POST https://<space-eye>/api/llaves \
++#      -H "Authorization: Bearer <token admin>" -H 'Content-Type: application/json' \
++#      -d '{"nombre":"instancia <empresa>","uso":"lectura","owner":"<empresa>","escritura":true}'
++#
++#  `escritura` SOLO si esta instancia debe poder pedir fotos a demanda. Esa marca
++#  alcanza exactamente esa ruta y ninguna otra: es la única de la lista blanca
++#  que no es de lectura. Sin ella el módulo funciona completo en modo consulta.
++SPACE_EYE_KEY=
++
++#  OPCIONAL. Testigo de alta: hace que un equipo nuevo nazca ya asignado a esta
++#  empresa, en vez de nacer sin dueño y tener que asignarlo a mano. Es una
++#  credencial DISTINTA de la de arriba y no lee nada —solo sirve para que un
++#  equipo diga de quién es— porque viaja DENTRO de un instalador, que pasa por
++#  manos, USBs y correos. El servidor impide usar una en lugar de la otra.
++#
++#    -d '{"nombre":"testigo de alta <empresa>","uso":"alta","owner":"<empresa>"}'
++SPACE_EYE_PROVISION_TOKEN=

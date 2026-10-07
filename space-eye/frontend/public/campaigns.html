@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SPACE EYES — Campañas</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/src/js/tema.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <link rel="stylesheet" href="/src/css/styles.css">
+</head>
+<body class="bg-neutral-50 text-neutral-900 font-sans antialiased">
+  <div x-data="campaignsPage()" x-init="init()" class="min-h-screen">
+
+    <div id="app-header"></div>
+
+    <main class="max-w-7xl 2xl:max-w-[1600px] mx-auto px-6 py-8">
+      <div class="flex items-start justify-between mb-6 gap-4 flex-wrap">
+        <div>
+          <p class="se-eyebrow">Comercial</p>
+          <h1 class="se-titulo text-[28px] mt-1">Campañas publicitarias</h1>
+          <p class="text-sm text-neutral-500 mt-0.5">
+            La creatividad de referencia es la imagen contra la que el sistema compara lo que aparece en la pantalla.
+          </p>
+        </div>
+        <button @click="abrirNueva()" class="px-4 py-2 bg-[#0A66FF] text-white text-sm rounded hover:bg-blue-700 shrink-0">
+          + Nueva campaña
+        </button>
+      </div>
+
+      <!-- ================= FORMULARIO ================= -->
+      <div x-show="mostrarForm" x-cloak class="bg-white border border-neutral-200 rounded-lg p-6 mb-6">
+        <h3 class="font-medium mb-5" x-text="form.id ? 'Editar campaña' : 'Nueva campaña'"></h3>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+          <!-- Datos -->
+          <div class="space-y-4">
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-sm text-neutral-700 mb-1">Nombre</label>
+                <input x-model="form.name" type="text" placeholder="Ej. Verano 2026"
+                       class="w-full px-3 py-2 border border-neutral-300 rounded text-sm">
+              </div>
+              <div>
+                <label class="block text-sm text-neutral-700 mb-1">Anunciante</label>
+                <input x-model="form.advertiser" type="text" placeholder="Ej. Coca-Cola"
+                       class="w-full px-3 py-2 border border-neutral-300 rounded text-sm">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-sm text-neutral-700 mb-1">Fecha inicio</label>
+                <input x-model="form.start_date" type="date" class="w-full px-3 py-2 border border-neutral-300 rounded text-sm">
+              </div>
+              <div>
+                <label class="block text-sm text-neutral-700 mb-1">Fecha fin</label>
+                <input x-model="form.end_date" type="date" class="w-full px-3 py-2 border border-neutral-300 rounded text-sm">
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm text-neutral-700 mb-2">Equipos donde va esta campaña</label>
+              <div class="border border-neutral-300 rounded max-h-44 overflow-y-auto divide-y divide-neutral-100">
+                <template x-for="d in equipos" :key="d.id">
+                  <label class="flex items-center gap-2 px-3 py-2 text-sm hover:bg-neutral-50 cursor-pointer">
+                    <input type="checkbox" :value="d.id"
+                           :checked="form.device_ids.includes(d.id)"
+                           @change="alternarEquipo(d.id)">
+                    <span x-text="d.name"></span>
+                    <span class="text-xs text-neutral-400" x-text="d.billboard_code"></span>
+                  </label>
+                </template>
+                <p x-show="equipos.length === 0" class="px-3 py-2 text-sm text-neutral-400">No hay equipos</p>
+              </div>
+              <p class="text-[11px] text-neutral-400 mt-1">
+                <span x-text="form.device_ids.length"></span> seleccionados
+              </p>
+            </div>
+
+            <label class="flex items-center gap-2 text-sm text-neutral-700">
+              <input x-model="form.verification_enabled" type="checkbox" class="rounded">
+              Verificar automáticamente las fotos contra la creatividad
+            </label>
+            <p class="text-[11px] text-neutral-400 -mt-2 ml-6">
+              Requiere subir la creatividad. Sin ella la verificación no puede hacer nada.
+            </p>
+          </div>
+
+          <!-- Creatividad -->
+          <div>
+            <label class="block text-sm text-neutral-700 mb-2">Creatividad de referencia</label>
+
+            <div class="border-2 border-dashed border-neutral-300 rounded-lg p-4 text-center"
+                 :class="vistaPrevia ? 'border-solid border-neutral-200' : ''">
+              <img x-show="vistaPrevia" :src="vistaPrevia" class="max-h-56 mx-auto rounded" alt="Creatividad">
+
+              <div x-show="!vistaPrevia" class="py-8">
+                <svg class="w-10 h-10 mx-auto text-neutral-300 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M18 9h.008v.008H18V9zm2.25 9a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18V6A2.25 2.25 0 016 3.75h12A2.25 2.25 0 0120.25 6v12z"/>
+                </svg>
+                <p class="text-sm text-neutral-500">Sube la imagen del anuncio</p>
+                <p class="text-xs text-neutral-400 mt-1">JPG o PNG, hasta 20 MB</p>
+              </div>
+
+              <input type="file" accept="image/jpeg,image/png" class="hidden" x-ref="archivo"
+                     @change="elegirArchivo($event)">
+              <button type="button" @click="$refs.archivo.click()"
+                      class="mt-3 px-3 py-1.5 text-xs border border-neutral-300 rounded hover:bg-neutral-50"
+                      x-text="vistaPrevia ? 'Cambiar imagen' : 'Elegir imagen'"></button>
+            </div>
+
+            <p class="text-[11px] text-neutral-500 mt-2">
+              Es la imagen tal como debe verse en la pantalla. Sirve para comprobar que la campaña
+              está al aire y, más adelante, para que el sistema reconozca ese creativo entre los
+              que rotan en el sitio.
+            </p>
+            <p x-show="form.id && !archivoNuevo && creativoActual" class="text-[11px] text-emerald-700 mt-1">
+              Esta campaña ya tiene creatividad guardada.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex gap-2 mt-6 pt-4 border-t border-neutral-100">
+          <button @click="guardar()" :disabled="guardando"
+                  class="px-4 py-2 bg-[#0A66FF] text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50"
+                  x-text="guardando ? 'Guardando…' : (form.id ? 'Guardar cambios' : 'Crear campaña')"></button>
+          <button @click="mostrarForm = false" class="px-4 py-2 bg-neutral-100 text-neutral-700 text-sm rounded hover:bg-neutral-200">Cancelar</button>
+        </div>
+      </div>
+
+      <!-- ================= LISTA ================= -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
+        <template x-for="c in campaigns" :key="c.id">
+          <div class="bg-white border border-neutral-200 rounded-lg overflow-hidden">
+            <div class="aspect-video bg-neutral-100 flex items-center justify-center">
+              <img x-show="c.creative_path" :src="c.creative_path" class="w-full h-full object-contain" alt="">
+              <p x-show="!c.creative_path" class="text-xs text-amber-700 px-4 text-center">
+                Sin creatividad de referencia
+              </p>
+            </div>
+
+            <div class="p-4">
+              <div class="flex items-start justify-between mb-1 gap-2">
+                <h3 class="font-medium" x-text="c.name"></h3>
+                <span :class="c.active ? 'bg-green-100 text-green-700' : 'bg-neutral-100 text-neutral-500'"
+                      class="text-xs px-2 py-0.5 rounded-full shrink-0" x-text="c.active ? 'Activa' : 'Inactiva'"></span>
+              </div>
+              <p class="text-sm text-neutral-500 mb-3" x-text="c.advertiser || 'Sin anunciante'"></p>
+
+              <div class="grid grid-cols-3 gap-2 text-xs">
+                <div>
+                  <div class="text-neutral-500">Equipos</div>
+                  <div class="font-medium" x-text="c.device_count"></div>
+                </div>
+                <div>
+                  <div class="text-neutral-500">Fotos</div>
+                  <div class="font-medium" x-text="c.photo_count"></div>
+                </div>
+                <div>
+                  <div class="text-neutral-500">Periodo</div>
+                  <div class="font-medium" x-text="periodo(c)"></div>
+                </div>
+              </div>
+
+              <div class="mt-3 pt-3 border-t border-neutral-100 flex items-center justify-between">
+                <span x-show="c.verification_enabled && c.creative_path" class="text-xs text-blue-600">Verificación activa</span>
+                <span x-show="c.verification_enabled && !c.creative_path" class="text-xs text-amber-700">Verificación sin creatividad</span>
+                <span x-show="!c.verification_enabled" class="text-xs text-neutral-400">Sin verificación</span>
+                <button @click="editar(c)" class="text-xs text-[#0A66FF] hover:underline">Editar</button>
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <div x-show="campaigns.length === 0" class="text-center py-16">
+        <p class="text-neutral-500">No hay campañas creadas</p>
+        <p class="text-neutral-400 text-sm mt-1">Crea una para agrupar las fotos de un cliente y comprobar que su anuncio está al aire.</p>
+      </div>
+    </main>
+  </div>
+
+  <script src="/src/js/api.js"></script>
+  <script src="/src/js/shell.js"></script>
+  <script src="/src/js/pages/campaigns.js"></script>
+</body>
+</html>
