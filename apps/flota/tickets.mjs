@@ -73,3 +73,41 @@ export function filasDeTickets(respuestas) {
     }
   })
 }
+
+// ─── Las solicitudes de activación de Space Eyes ────────────────────────────
+//  Una empresa sin Space Eyes ve la demostración del módulo, y su botón
+//  «Solicitar activación» abre un ticket con este asunto EXACTO
+//  (`components/demo/space-eyes/DemoSpaceEyes.tsx`; una prueba los amarra).
+//  Revuelto con los demás tickets nadie lo veía: el padre no se enteraba de
+//  que alguien pedía el módulo. Aquí se separan para pintarlos arriba de la
+//  lista de empresas, con la orden exacta para activarlo.
+export const ASUNTO_ACTIVACION_EYES = 'Solicitud de activación de Space Eyes'
+
+/** ¿Este ticket es una solicitud de activación de Space Eyes aún sin atender? */
+export function esSolicitudDeActivacion(t) {
+  return !!t && t.asunto === ASUNTO_ACTIVACION_EYES && (t.estado === 'ABIERTO' || t.estado === 'EN_PROCESO')
+}
+
+/**
+ * De lo que contestó cada instancia en `GET /api/tickets`, las solicitudes de
+ * activación pendientes: una por instancia (la más reciente), de la más nueva
+ * a la más vieja. Una instancia que no contestó no aporta ninguna: no se
+ * inventa ni se oculta nada, su fila ya sale como sin-respuesta en la tabla.
+ */
+export function solicitudesDeActivacion(respuestas) {
+  const salida = []
+  for (const r of respuestas ?? []) {
+    if (!Array.isArray(r.tickets)) continue
+    const suyas = r.tickets.filter(esSolicitudDeActivacion)
+    if (!suyas.length) continue
+    const ultima = [...suyas].sort((a, b) => String(b.creado_en).localeCompare(String(a.creado_en)))[0]
+    salida.push({
+      nombre: r.nombre,
+      dominio: r.dominio,
+      folio: ultima.folio ?? null,
+      creado_en: ultima.creado_en ?? null,
+      total: suyas.length,
+    })
+  }
+  return salida.sort((a, b) => String(b.creado_en).localeCompare(String(a.creado_en)))
+}
