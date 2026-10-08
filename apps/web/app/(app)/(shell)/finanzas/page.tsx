@@ -6,6 +6,7 @@ import { CheckCircle2, ChevronRight, FileText, Lock, Receipt } from 'lucide-reac
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
+import { CampoCifra } from '@/components/demo/ui/CampoCifra'
 import { EmptyState } from '@/components/demo/EmptyState'
 import type { Cobranza, Factura, EstCobranza } from '@/lib/data/types'
 import {
@@ -855,15 +856,15 @@ function PagoModal({
       <div className="space-y-2">
         <label className="block">
           <span className="mb-1 block text-[12px] font-medium text-ink">Monto del abono</span>
-          <input
-            type="number"
-            min={0}
-            step="0.01"
-            value={monto}
+          {/* Con coma de miles al teclear (CampoCifra). `monto` sigue siendo la
+              cifra sin comas; si no se entiende llega 'NaN' y «Registrar
+              abono» queda deshabilitado por el mismo `!num` de siempre. */}
+          <CampoCifra
+            valor={monto}
             // En solo lectura mientras se teclea la contraseña: lo que se
             // confirma es el importe que el servidor rechazó, no otro.
             disabled={candado.reautenticando}
-            onChange={(e) => setMonto(e.target.value)}
+            onCambio={(crudo) => setMonto(crudo)}
             className="h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-60"
           />
         </label>

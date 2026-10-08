@@ -122,6 +122,9 @@ export function CampoCifra({
         autoComplete="off"
         value={texto}
         aria-invalid={error ? true : undefined}
+        // El borde rojo se ve aunque el formulario esconda el texto del error
+        // (`mostrarError={false}` en filas estrechas, que lo dicen en su pie).
+        className={`${resto.className ?? ''} aria-[invalid=true]:border-error`.trim()}
         title={error ?? resto.title}
         onChange={(e) => {
           const el = e.target

@@ -49,7 +49,7 @@ describe('CampoCifra', () => {
 
   it('respeta las clases y el placeholder del formulario', () => {
     const html = rendir({ valor: '', className: 'demo-num x', placeholder: 'Ej. 8000' })
-    expect(html).toContain('class="demo-num x"')
+    expect(html).toContain('class="demo-num x aria-[invalid=true]:border-error"')
     expect(html).toContain('placeholder="Ej. 8000"')
   })
 })

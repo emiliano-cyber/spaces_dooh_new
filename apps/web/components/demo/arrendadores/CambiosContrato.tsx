@@ -5,6 +5,8 @@ import { History, Loader2, Pencil } from 'lucide-react'
 import { Modal } from '@/components/demo/ui/Modal'
 import { Button } from '@/components/demo/ui/Button'
 import { CampoContrasena } from '@/components/demo/ui/CampoContrasena'
+import { CampoCifra } from '@/components/demo/ui/CampoCifra'
+import { CRUDO_INVALIDO } from '@/lib/captura-cifra'
 import {
   useArrendadores,
   useRazonesSociales,
@@ -222,6 +224,10 @@ function EditarTerminosModal({
 
   const faltante =
     !hayCambios ? 'Cambia al menos un dato.'
+    // Una cifra que CampoCifra no entiende llega como 'NaN': se dice así, y no
+    // con el «tiene que ser mayor que cero» o «no puede ser negativo» de abajo,
+    // que también la pararían pero diciendo otra cosa.
+    : f.montoRenta === CRUDO_INVALIDO || f.deposito === CRUDO_INVALIDO ? 'Corrige la cifra marcada en rojo.'
     : !propuestoPor ? 'Elige quién propuso el cambio.'
     : !f.arrendadorId ? 'Elige el arrendador.'
     : !(Number(f.montoRenta) > 0) ? 'La renta tiene que ser mayor que cero.'
@@ -377,8 +383,8 @@ function EditarTerminosModal({
           </label>
           <label className="block">
             <span className="text-[12px] text-muted">Renta</span>
-            <input type="number" min="0" step="0.01" className={inputCls} value={f.montoRenta}
-              onChange={(e) => poner('montoRenta', e.target.value)} disabled={enviando} />
+            <CampoCifra className={inputCls} valor={f.montoRenta}
+              onCambio={(crudo) => poner('montoRenta', crudo)} disabled={enviando} />
           </label>
           <label className="block">
             <span className="text-[12px] text-muted">Periodicidad</span>
@@ -398,8 +404,8 @@ function EditarTerminosModal({
           </label>
           <label className="block">
             <span className="text-[12px] text-muted">Depósito (opcional)</span>
-            <input type="number" min="0" step="0.01" className={inputCls} value={f.deposito}
-              onChange={(e) => poner('deposito', e.target.value)} disabled={enviando} />
+            <CampoCifra className={inputCls} valor={f.deposito}
+              onCambio={(crudo) => poner('deposito', crudo)} disabled={enviando} />
           </label>
           <label className="flex items-center gap-2 sm:col-span-2">
             <input type="checkbox" checked={f.autoRenovable}

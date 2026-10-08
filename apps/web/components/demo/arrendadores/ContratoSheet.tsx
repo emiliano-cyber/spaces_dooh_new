@@ -42,6 +42,7 @@ import { PERIODICIDADES, periodicidadLabel } from '@/lib/renta-periodicidad'
 import { desbloquearApi } from '@/lib/data/cambios-api'
 import { confirmarConCandado } from '@/lib/cambios-candado'
 import { CampoContrasena } from '@/components/demo/ui/CampoContrasena'
+import { CampoCifra } from '@/components/demo/ui/CampoCifra'
 import { useCandado, DialogoCandado } from '@/components/demo/ui/candado'
 import type { EntidadUI } from '@/components/demo/razones-sociales/gestion'
 import {
@@ -762,13 +763,12 @@ function CompletarContratoModal({
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="block">
             <span className="mb-1 block text-[12px] font-medium text-ink">Importe de la renta</span>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
+            {/* Con coma de miles al teclear; lo que no se entiende llega como
+                'NaN' y `faltante` lo para con el `!Number.isFinite` de siempre. */}
+            <CampoCifra
               className={inputCls}
-              value={monto}
-              onChange={(e) => setMonto(e.target.value)}
+              valor={monto}
+              onCambio={(crudo) => setMonto(crudo)}
               placeholder="0.00"
             />
           </label>

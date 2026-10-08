@@ -27,6 +27,8 @@ import { resolverVolumen } from '@/lib/volumen'
 import { escalasVolumenApi, type TramoVolumenUI } from '@/lib/data/volumen-api'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
+import { CampoCifra } from '@/components/demo/ui/CampoCifra'
+import { CRUDO_INVALIDO } from '@/lib/captura-cifra'
 import { MapView } from '@/components/demo/MapView'
 import { pinTono } from '@/components/demo/StatusBadge'
 import { usePuede } from '@/components/demo/shell/SesionContext'
@@ -768,7 +770,19 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
           return null
         })()
       : null
-  const errFormulario = errComision ?? errDuracion ?? errFechas ?? errCalculadora
+  // Coma de miles al teclear (fase 2, 08/10): un importe que no se entiende
+  // llega como 'NaN' (CampoCifra). Sin esta línea se perdería en silencio: la
+  // tarifa caería a la calculada (`tarifaManualDe`) y la renta a «sin renta»
+  // (`Number(...) || 0`), y la propuesta saldría con otro precio y otro costo.
+  const errCifras = (() => {
+    for (const s of seleccionados) {
+      const c = cfgDe(s)
+      if (c.tarifaManual === CRUDO_INVALIDO) return `${s.nombre}: la tarifa no se entiende. Corrígela antes de guardar.`
+      if (c.rentaMonto === CRUDO_INVALIDO) return `${s.nombre}: la renta no se entiende. Corrígela antes de guardar.`
+    }
+    return null
+  })()
+  const errFormulario = errComision ?? errDuracion ?? errFechas ?? errCalculadora ?? errCifras
 
   const valido =
     !!nombre.trim() && !!fechaInicio && !!fechaFin && sel.size > 0 && !negociacionPendiente && !errFormulario
@@ -1168,17 +1182,15 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                       return puedeAjustarTarifa ? (
                         <span className="flex items-center gap-1" title="Tarifa por unidad. Déjala vacía para usar la calculada.">
                           <span className="text-[11px] text-muted">Tarifa</span>
-                          <input
-                            type="number"
-                            min={0}
-                            step="0.01"
+                          <CampoCifra
                             aria-label={`Tarifa por unidad de ${s.nombre}`}
                             placeholder={calc.calculable ? String(calc.tarifa) : 'sin tarifa'}
                             className={`h-8 w-24 rounded border bg-surface px-2 text-[12px] text-ink ${
                               ajustada ? 'border-[#f59e0b]' : 'border-border-strong'
                             }`}
-                            value={c.tarifaManual}
-                            onChange={(e) => setCfgSitio(s.id, { tarifaManual: e.target.value })}
+                            valor={c.tarifaManual}
+                            mostrarError={false}
+                            onCambio={(crudo) => setCfgSitio(s.id, { tarifaManual: crudo })}
                           />
                           {ajustada && (
                             <span className="text-[10px] font-medium text-[#9a6700]">
@@ -1257,13 +1269,12 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                             <option key={a.id} value={a.id}>{a.nombre}</option>
                           ))}
                         </select>
-                        <input
-                          type="number"
-                          min={0}
+                        <CampoCifra
                           placeholder="importe"
                           className="h-8 w-28 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink"
-                          value={c.rentaMonto}
-                          onChange={(e) => setCfgSitio(s.id, { rentaMonto: e.target.value })}
+                          valor={c.rentaMonto}
+                          mostrarError={false}
+                          onCambio={(crudo) => setCfgSitio(s.id, { rentaMonto: crudo })}
                         />
                         <select
                           className="h-8 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink"

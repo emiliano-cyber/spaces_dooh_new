@@ -7,6 +7,8 @@ import { cn } from '@/lib/cn'
 import { useReadiness, useCampana } from '@/lib/data/client'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { crearOrdenCompraApi } from '@/lib/data/estado-api'
+import { CampoCifra } from '@/components/demo/ui/CampoCifra'
+import { CRUDO_INVALIDO } from '@/lib/captura-cifra'
 
 const hoyISO = () => new Date().toISOString().slice(0, 10)
 
@@ -43,7 +45,10 @@ export function CandadoPanel({ campanaId }: { campanaId: string }) {
     'h-8 w-full rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
 
   async function registrarOC() {
-    if (!numeroOc.trim()) return
+    // Un monto que no se entiende llega como 'NaN' (CampoCifra). `Number` lo
+    // dejaría en NaN, que JSON manda como null: la OC se registraría SIN monto
+    // sin que nadie lo pidiera. Se para aquí y en el botón.
+    if (!numeroOc.trim() || monto === CRUDO_INVALIDO) return
     setEnviando(true)
     try {
       await crearOrdenCompraApi({
@@ -101,23 +106,28 @@ export function CandadoPanel({ campanaId }: { campanaId: string }) {
             onChange={(e) => setNumeroOc(e.target.value)}
           />
           <div className="grid grid-cols-2 gap-2">
-            <input
+            <CampoCifra
               className={inp}
-              type="number"
               placeholder="Monto (opcional)"
-              value={monto}
-              onChange={(e) => setMonto(e.target.value)}
+              valor={monto}
+              mostrarError={false}
+              onCambio={(crudo) => setMonto(crudo)}
             />
             <input className={inp} type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
           </div>
           <button
             type="button"
-            disabled={enviando || !numeroOc.trim()}
+            disabled={enviando || !numeroOc.trim() || monto === CRUDO_INVALIDO}
             onClick={registrarOC}
             className="w-full rounded border border-border-strong px-3 py-2 text-[12px] font-medium text-ink transition-colors duration-150 hover:bg-surface-2 disabled:opacity-50"
           >
             {enviando ? 'Registrando…' : 'Registrar OC'}
           </button>
+          {monto === CRUDO_INVALIDO && (
+            <p className="text-[11px] text-error">
+              El monto no se entiende: la coma separa miles y el punto, decimales (212,500.50).
+            </p>
+          )}
           <p className="text-[10px] text-muted">
             Número, monto y fecha vienen precargados de la campaña; ajústalos si el cliente dio otros.
             El documento de la OC es el contrato (se adjunta en “Datos de facturación”).
