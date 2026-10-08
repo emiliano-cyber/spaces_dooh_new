@@ -1,10 +1,8 @@
 import 'server-only'
 import { z } from 'zod'
 import { AppError, validar } from './errores'
-import { filasPropuestasResumen } from './propuestas-resumen-repo'
+import { filasAtribucionRenta, filasPropuestasResumen } from './propuestas-resumen-repo'
 import { hoyDeLaBase } from './finanzas-repo'
-import { listarSitios } from './sitios-repo'
-import { listarContratos } from './arrendadores-repo'
 import { periodoDe, type TipoPeriodo } from '@/lib/finanzas-periodo'
 import { resumirPropuestas, type PropuestaP } from '@/lib/propuestas-periodo'
 import { contratoVigentePorSitio, rentaAtribuidaPorSitio, type DatosAtribucion } from '@/lib/data/derive'
@@ -38,7 +36,12 @@ const schema = z.object({
 // sin él no se lee ni un contrato.
 export async function resumenPropuestasCtrl(query: Record<string, string | undefined>, conGanancia: boolean) {
   const d = validar(schema, query)
-  const hoy = await hoyDeLaBase()
+  // Las lecturas no dependen unas de otras: van a la vez, no en fila.
+  const [hoy, { propuestas, items }, atribucion] = await Promise.all([
+    hoyDeLaBase(),
+    filasPropuestasResumen(),
+    conGanancia ? filasAtribucionRenta() : null,
+  ])
   let periodo
   try {
     periodo = periodoDe(d.periodo, hoy, { desde: d.desde, hasta: d.hasta })
@@ -46,8 +49,7 @@ export async function resumenPropuestasCtrl(query: Record<string, string | undef
     throw new AppError(e instanceof Error ? e.message : 'Periodo inválido', 400)
   }
 
-  const { propuestas, items } = await filasPropuestasResumen()
-  const costoDe = conGanancia ? await costosDeRenta(items) : new Map<string, number | null>()
+  const costoDe = atribucion ? costosDeRenta(items, atribucion) : new Map<string, number | null>()
 
   const props: PropuestaP[] = propuestas.map((p) => ({
     id: p.id,
@@ -66,15 +68,14 @@ export async function resumenPropuestasCtrl(query: Record<string, string | undef
   return { periodo, hoy, conGanancia, resumen: resumirPropuestas(props, periodo, conGanancia) }
 }
 
-async function costosDeRenta(
+function costosDeRenta(
   items: { propuestaId: string; sitioId: string; fechaInicio: string; fechaFin: string }[],
-): Promise<Map<string, number | null>> {
-  const [sitios, contratos] = await Promise.all([listarSitios(), listarContratos()])
-  // Son las MISMAS filas que `/api/estado` manda al store y sobre las que el
-  // navegador corre estas dos funciones; el tipo del repo es más ancho que el
-  // del store y TypeScript no los iguala. Lo que las funciones leen —sitioId,
-  // predioId, estatus, fechas, montoRenta, periodicidad, caras— sí viene
-  // (`arrendadores-repo.ts:190`, `sitios-repo.ts:61,92`).
+  { sitios, contratos }: Awaited<ReturnType<typeof filasAtribucionRenta>>,
+): Map<string, number | null> {
+  // Las mismas funciones que corre el navegador sobre el estado completo, con
+  // solo las columnas que leen (`filasAtribucionRenta`): id, predio y caras de
+  // la pantalla; anclaje, estatus y renta del contrato. El tipo del store es
+  // más ancho y TypeScript no los iguala.
   const estado = { sitios, contratos } as unknown as DatosAtribucion
   const vigente = contratoVigentePorSitio(estado)
   const mensual = rentaAtribuidaPorSitio(estado)

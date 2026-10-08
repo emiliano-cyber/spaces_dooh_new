@@ -83,3 +83,49 @@ export async function filasPropuestasResumen(): Promise<{
     })),
   }
 }
+
+// Lo mínimo para atribuir la renta de cada pantalla (08/10). Antes se usaban
+// `listarSitios()` y `listarContratos()`, que son las consultas del estado
+// completo: la de pantallas hace `select s.*` —y con eso trae de Postgres las
+// FOTOS de cada pantalla, guardadas como data URL base64 en un `text[]`, para
+// tirarlas— más dos subconsultas por pantalla sobre reservas y otras dos
+// consultas de tarifas que aquí nadie lee. El tablero se pide de nuevo en cada
+// cambio de periodo, así que ese peso se pagaba en cada clic.
+//
+// `contratoVigentePorSitio` y `rentaAtribuidaPorSitio` leen solo esto: de la
+// pantalla, id, predio y caras; del contrato, a qué está anclado, su estatus y
+// su renta. `caras ?? 1` y el `null` de la renta se conservan igual que en
+// `rowToSitio` y `rowToContrato`: un contrato sin importe no es renta 0.
+export async function filasAtribucionRenta(): Promise<{
+  sitios: { id: string; predioId: string | null; caras: number }[]
+  contratos: {
+    id: string
+    sitioId: string | null
+    predioId: string | null
+    estatus: string
+    montoRenta: number | null
+    periodicidad: string | null
+  }[]
+}> {
+  const tenant = await tenantActual()
+  const [sitios, contratos] = await Promise.all([
+    q<any>(`select s.id, s.predio_id, s.caras from sitios s where s.tenant_id = $1`, [tenant]),
+    q<any>(
+      `select c.id, c.sitio_id, c.predio_id, c.estatus, c.monto_renta, c.periodicidad
+         from contratos_arrendamiento c
+        where c.tenant_id = $1`,
+      [tenant],
+    ),
+  ])
+  return {
+    sitios: sitios.map((r) => ({ id: r.id, predioId: r.predio_id ?? null, caras: r.caras ?? 1 })),
+    contratos: contratos.map((r) => ({
+      id: r.id,
+      sitioId: r.sitio_id ?? null,
+      predioId: r.predio_id ?? null,
+      estatus: r.estatus,
+      montoRenta: r.monto_renta != null ? Number(r.monto_renta) : null,
+      periodicidad: r.periodicidad ?? null,
+    })),
+  }
+}
