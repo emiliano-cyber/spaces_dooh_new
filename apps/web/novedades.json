@@ -25,6 +25,22 @@
       },
       {
         "tipo": "NUEVO",
+        "texto": "Nueva unidad de venta «CPM · costo por millar» para pantallas digitales: en la propuesta tecleas los millares contratados (2,500 millares = 2.5 millones de impactos) y el importe es tarifa × millares. Para venderla, agrega la tarifa CPM en la ficha de la pantalla, en sus unidades de venta."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "«Por spot» ahora se llama «CPS · costo por salida», y la cantidad se lee en salidas. El cálculo es el mismo y nada de lo ya vendido cambia de precio."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "La campaña que se genera de una propuesta lleva el mismo folio de la propuesta (por ejemplo PR-2026-0042), y cada vez que la extiendes a una fecha posterior el folio sube un tramo: .1, .2… Las campañas que ya existían conservan su folio hasta que se extiendan."
+      },
+      {
+        "tipo": "CORREGIDO",
+        "texto": "Si dos personas extienden la misma campaña al mismo tiempo, la extensión más corta ya no puede recortarla: quien llega tarde recibe un aviso y no se cambia nada."
+      },
+      {
+        "tipo": "NUEVO",
         "texto": "Al crear un usuario puedes mandarle una invitación para que elija su propia contraseña, en lugar de inventarle una. El enlace vale 72 horas y sirve una sola vez; mientras no haya correo configurado, te aparece para que se lo envíes tú."
       },
       {
