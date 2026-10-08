@@ -10,6 +10,10 @@
       {
         "tipo": "AJUSTADO",
         "texto": "Al solicitar Space Eyes desde su demostración, el aviso de confirmación muestra el folio de tu solicitud."
+      },
+      {
+        "tipo": "CORREGIDO",
+        "texto": "Una notificación aparece en pantalla una sola vez; después queda solo en la campanita. Antes podía repetirse cada 15 segundos."
       }
     ]
   },

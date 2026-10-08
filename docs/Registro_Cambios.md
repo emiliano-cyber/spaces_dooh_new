@@ -7,6 +7,14 @@ La entrada más reciente va arriba.
 
 ## 2026-10-08
 
+- **Una notificación sale una sola vez en pantalla.** *(Pedido tuyo del
+  08/10.)* El aviso que aparece en la esquina cuando llega una notificación
+  se repetía cada 15 segundos con la misma notificación, hasta que llegaba
+  otra. Era un problema de precisión: la base guarda la hora con millonésimas
+  de segundo y la pantalla la recordaba solo con milésimas, así que la
+  notificación siempre parecía «nueva». Ahora sale una vez y después solo está
+  en la campanita. Si tienes la aplicación abierta en dos pestañas, cada una
+  la avisa una vez.
 - **Si una actualización llega sin sus notas, el panel lo avisa en vez de
   callarlo.** *(Pedido tuyo del 08/10.)* En Administración → Actualizaciones,
   donde van las notas de la versión nueva, antes decía «Esta versión no trae
