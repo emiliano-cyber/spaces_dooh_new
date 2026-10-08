@@ -130,23 +130,31 @@ class Campanas:
             self._rasgos[k] = [vision.rasgos(np.ascontiguousarray(ref))]
         return self._rasgos[k]
 
-    def buscar(self, rasgos, pantalla):
-        """La campana que se ve en esta pantalla enderezada, o (None, 0)."""
+    def buscar_todas(self, rasgos, pantalla):
+        """
+        TODAS las campanas cuyo arte se ve en esta pantalla, de la que mejor
+        coincide a la que menos: [(id, puntos)]. El mismo creativo puede estar
+        vendido en dos campanas para la misma pantalla, y cada una necesita su
+        prueba (paso en el ensayo del 8-oct: la segunda se quedaba sin foto).
+        """
         alto, ancho = pantalla.shape[:2]
-        mejor, puntos = None, 0
+        halladas = []
         for id_ in self.activas:
             if not os.path.exists(self._archivo(id_, self.activas[id_]["sha"])):
                 continue
-            for r in self._de(id_, ancho, alto):
-                p = vision.coincidencias(rasgos, r)
-                if p > puntos:
-                    mejor, puntos = id_, p
-        if mejor is None or puntos < UMBRAL:
-            return None, puntos
-        variantes = self._rasgos[(mejor, ancho, alto, self.activas[mejor]["sha"])]
-        if len(variantes) < VARIANTES_MAX:
-            variantes.append(rasgos)
-        return mejor, puntos
+            puntos = max((vision.coincidencias(rasgos, r) for r in self._de(id_, ancho, alto)), default=0)
+            if puntos >= UMBRAL:
+                halladas.append((id_, puntos))
+                variantes = self._rasgos[(id_, ancho, alto, self.activas[id_]["sha"])]
+                if len(variantes) < VARIANTES_MAX:
+                    variantes.append(rasgos)
+        halladas.sort(key=lambda x: -x[1])
+        return halladas
+
+    def buscar(self, rasgos, pantalla):
+        """La campana que MEJOR se ve en esta pantalla, o (None, 0)."""
+        halladas = self.buscar_todas(rasgos, pantalla)
+        return halladas[0] if halladas else (None, 0)
 
     def pendiente(self, id_):
         self._nuevo_dia()

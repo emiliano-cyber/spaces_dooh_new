@@ -43,6 +43,13 @@ const esquema = z.object({
 
 const limpio = (c: string) => c.trim().toLowerCase();
 
+// La verificacion con IA necesita el ai-worker, y la pila de Space Eye de cada
+// empresa (infra/eyes) NO lo trae: con la verificacion encendida, las fotos de
+// prueba se quedaban en "pendiente" para siempre. Se enciende solo donde hay
+// verificador (VERIFICACION_IA=1); sin el, la foto de prueba llega igual y se
+// revisa a ojo.
+const verificarConIa = () => process.env.VERIFICACION_IA === '1';
+
 /**
  * POST /api/campaigns/sincronizar — la lista completa de un origen.
  *
@@ -64,10 +71,11 @@ export async function sincronizar(req: Request, res: Response) {
     for (const c of campanas) {
       await conn.query(
         `INSERT INTO campaigns (name, advertiser, start_date, end_date, verification_enabled, active, origen, origen_id)
-         VALUES (?, ?, ?, ?, TRUE, TRUE, ?, ?)
+         VALUES (?, ?, ?, ?, ?, TRUE, ?, ?)
          ON DUPLICATE KEY UPDATE name = VALUES(name), advertiser = VALUES(advertiser),
-           start_date = VALUES(start_date), end_date = VALUES(end_date), active = TRUE`,
-        [c.nombre, c.anunciante ?? null, c.desde, c.hasta, origen, c.origen_id]
+           start_date = VALUES(start_date), end_date = VALUES(end_date), active = TRUE,
+           verification_enabled = VALUES(verification_enabled)`,
+        [c.nombre, c.anunciante ?? null, c.desde, c.hasta, verificarConIa(), origen, c.origen_id]
       );
       const [f] = await conn.query<any[]>(
         `SELECT id, creative_path, origen_sha FROM campaigns WHERE origen = ? AND origen_id = ?`,

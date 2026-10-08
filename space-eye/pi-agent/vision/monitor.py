@@ -537,11 +537,17 @@ class Monitor:
                         # Una campana vendida en SPACE OS: su prueba del dia sale al
                         # momento (aun aprendiendo) y NO es un creativo nuevo, asi que
                         # no gasta el tope de lo programatico.
-                        camp = self.campanas.buscar(rasgos, v.pantalla)[0] if len(self.campanas) else None
-                        if camp is not None:
+                        # Todas las que coinciden: el mismo arte puede estar en dos
+                        # campanas de esta pantalla y cada una lleva su prueba.
+                        halladas = self.campanas.buscar_todas(rasgos, v.pantalla) if len(self.campanas) else []
+                        if halladas:
                             candidata = None
-                            if self.campanas.pendiente(camp) and v.jpeg:
-                                self.subir_campana(self.evidencia.reducir(self.camara.enderezar(v.jpeg, giro)), camp)
+                            foto_prueba = None
+                            for camp, _ in halladas:
+                                if self.campanas.pendiente(camp) and v.jpeg:
+                                    if foto_prueba is None:
+                                        foto_prueba = self.evidencia.reducir(self.camara.enderezar(v.jpeg, giro))
+                                    self.subir_campana(foto_prueba, camp)
                             if id_ is not None and puntos >= UMBRAL_CREATIVO:
                                 vistas[id_] = True
                             else:

@@ -22,7 +22,7 @@ set -uo pipefail
 export MSYS_NO_PATHCONV=1
 API=http://127.0.0.1:4200
 PI=pi-simulada-1
-VERSION="pi-agent 0.7.5"
+VERSION="pi-agent 0.7.6"
 CODIGO="ENSAYO-PI-1"
 ANUNCIOS=/c/Users/hm284/datos-locales/pi/anuncios
 WSL() { wsl.exe -d Ubuntu -- bash -lc "$1"; }
@@ -41,10 +41,14 @@ ID="$(docker exec $PI cat /home/pi/pi-agent/state.json | jq_ 'o.device_id')"
 version() { se "$API/api/devices/$ID" | jq_ 'o.device.app_version'; }
 pruebas() { echo "SELECT COUNT(*) FROM photos WHERE device_id=$ID AND source='campana' AND campaign_id=$1" | sql; }
 con_foto() { se "$API/api/devices/$ID/creativos" | jq_ '(o.creativos||[]).filter(c=>c.photo_id).length'; }
-referencias() { docker exec $PI sh -c 'ls /home/pi/pi-agent/pantalla/campanas/ 2>/dev/null | grep -c "\.jpg$"'; }
+# Las referencias en disco de UNA campana (quedan otras de corridas anteriores).
+referencias() { docker exec $PI sh -c "ls /home/pi/pi-agent/pantalla/campanas/ 2>/dev/null | grep -c '^$1_.*\.jpg$'"; }
 ARTE="$ANUNCIOS/$(ls "$ANUNCIOS" | sort | sed -n 12p)"   # el 12o: /camara/unicos/2.jpg
 SHA="$(sha256sum "$ARTE" | cut -c1-64)"
 HOY="$(date +%F)"; HASTA="$(date -d '+5 days' +%F)"
+# Una campana NUEVA en cada corrida: si se repitiera la de antes, su arte ya
+# estaria arriba y Space Eye, con razon, no lo volveria a pedir.
+CORRIDA="$(date +%s)"
 
 echo "Pi simulada: equipo #$ID ($(version)); arte: $(basename "$ARTE")"
 
@@ -53,24 +57,33 @@ sej -X POST "$API/api/devices/$ID/command" -d '{"command_type":"UPDATE_APP"}' >/
 esperar '[ "$(version)" = "$VERSION" ] && echo true' 300
 afirmar "[ \"\$(version)\" = '$VERSION' ]" "reporta $VERSION"
 sej -X PUT "$API/api/devices/$ID" -d "{\"billboard_code\":\"$CODIGO\"}" >/dev/null
-# Creativos en continuo, envio al momento (lo que deja el otro ensayo).
-sej -X PUT "$API/api/devices/$ID/creativos" -d '{"vigilar":true,"cada_min":0,"envio_min":0}' >/dev/null
+# Creativos en continuo y envio al momento. "vigilar" NO se vuelve a mandar:
+# encenderlo reinicia el aprendizaje y el loop saldria como "nuevo".
+sej -X PUT "$API/api/devices/$ID/creativos" -d '{"cada_min":0,"envio_min":0}' >/dev/null
 docker exec $PI sh -c 'echo sana > /camara/modo'
+# Su propio alimentador de camara (el del ensayo de envio): cambia de anuncio
+# cada 12 s y, si aparece /camara/una.jpg, lo muestra UNA vez 15 s. Asi no
+# depende de cual ensayo corrio antes (el de gabinetes deja otro).
+docker exec $PI sh -c 'pkill -f alimentar-camara 2>/dev/null; true'
+docker exec -d $PI bash -c 'exec -a alimentar-camara bash -c "while :; do for f in \$(ls /camara/sana); do if [ -f /camara/una.jpg ]; then mv /camara/una.jpg /camara/.t.jpg && mv /camara/.t.jpg /camara/actual.jpg; sleep 15; fi; m=\$(cat /camara/modo); cp /camara/\$m/\$f /camara/.t.jpg && mv /camara/.t.jpg /camara/actual.jpg; sleep 12; done; done"'
 sleep 90
 
 echo; echo "1) SPACE OS manda una campana para la pantalla $CODIGO"
-CUERPO="{\"origen\":\"spaceos:ensayo\",\"campanas\":[{\"origen_id\":\"c-ensayo:k-1\",\"nombre\":\"Ensayo - arte 12\",\"anunciante\":\"Ensayo\",\"desde\":\"$HOY\",\"hasta\":\"$HASTA\",\"codigos\":[\"ensayo-pi-1\"],\"sha\":\"$SHA\"}]}"
+CUERPO="{\"origen\":\"spaceos:ensayo\",\"campanas\":[{\"origen_id\":\"c-ensayo-$CORRIDA:k-1\",\"nombre\":\"Ensayo - arte 12\",\"anunciante\":\"Ensayo\",\"desde\":\"$HOY\",\"hasta\":\"$HASTA\",\"codigos\":[\"ensayo-pi-1\"],\"sha\":\"$SHA\"}]}"
 R="$(sej -X POST "$API/api/campaigns/sincronizar" -d "$CUERPO")"
 CID="$(echo "$R" | jq_ 'o.campanas[0].id')"
 afirmar "[ \"\$(echo '$R' | jq_ 'o.campanas[0].necesita_creativo && o.campanas[0].equipos===1')\" = true ]" "campana #$CID ligada a 1 equipo, pide su arte"
 se -X POST "$API/api/campaigns/$CID/creative" -F "creative=@$(cygpath -m "$ARTE");type=image/jpeg" -F "origen_sha=$SHA" >/dev/null
 R2="$(sej -X POST "$API/api/campaigns/sincronizar" -d "$CUERPO")"
 afirmar "[ \"\$(echo '$R2' | jq_ 'o.campanas[0].necesita_creativo')\" = false ]" "con el arte arriba ya no lo vuelve a pedir"
+# Sin ai-worker en la pila de la instancia, la campana nace SIN verificacion
+# automatica (si no, sus pruebas se quedarian "pendientes" para siempre).
+afirmar "[ \"\$(echo \"SELECT verification_enabled FROM campaigns WHERE id=$CID\" | sql)\" = 0 ]" "sin verificador con IA, nace sin verificacion automatica"
 BASE_PRUEBAS="$(pruebas "$CID")"; BASE_FOTOS="$(con_foto)"
 
 echo; echo "2) La Pi baja la referencia sola (huella de la configuracion)"
 T0=$SECONDS
-afirmar "esperar '[ \$(referencias) -ge 1 ] && echo true' 360" "referencia en disco"
+afirmar "esperar '[ \$(referencias $CID) -ge 1 ] && echo true' 420" "referencia de la campana #$CID en disco"
 echo "   tardo $((SECONDS - T0)) s"
 
 echo; echo "3) El arte sale UNA vez en la pantalla (15 s)"
@@ -89,7 +102,7 @@ afirmar "[ \"\$(pruebas $CID)\" = \"\$((BASE_PRUEBAS + 1))\" ]" "una sola prueba
 echo; echo "5) SPACE OS ya no la manda (cancelada o vencida)"
 R3="$(sej -X POST "$API/api/campaigns/sincronizar" -d '{"origen":"spaceos:ensayo","campanas":[]}')"
 afirmar "[ \"\$(echo '$R3' | jq_ 'o.apagadas')\" = 1 ]" "se apaga en Space Eye"
-afirmar "esperar '[ \$(referencias) = 0 ] && echo true' 360" "la Pi borra su referencia"
+afirmar "esperar '[ \$(referencias $CID) = 0 ] && echo true' 420" "la Pi borra su referencia"
 afirmar "[ \"\$(echo \"SELECT COUNT(*) FROM photos WHERE campaign_id=$CID\" | sql)\" -ge 1 ]" "las pruebas siguen ligadas (nada se borra)"
 
 echo
