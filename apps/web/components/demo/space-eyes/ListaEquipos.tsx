@@ -18,6 +18,7 @@ import { cn } from '@/lib/cn'
 import { Button } from '@/components/demo/ui/Button'
 import { listarEquiposApi, type EquipoResumen } from '@/lib/data/space-eyes-api'
 import { Bateria, FotoGirada, PildoraConexion, Senal, estaEnLinea, hace, tonoBateria } from './piezas'
+import { formatNumero } from '@/lib/formato-numero'
 
 // ============================================================================
 //  Space Eyes — el listado.
@@ -156,7 +157,7 @@ export function ListaEquipos() {
         <>
           {/* Los cuatro números que deciden si hay que hacer algo hoy */}
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <Indicador titulo="En línea" valor={enLinea} pie={`de ${conEstado.length} equipos`} punto="bg-success" />
+            <Indicador titulo="En línea" valor={enLinea} pie={`de ${formatNumero(conEstado.length)} equipos`} punto="bg-success" />
             <Indicador titulo="Sin comunicación" valor={caidos} pie="más de 10 min" punto="bg-error" />
             <Indicador
               titulo="Batería crítica"
@@ -176,13 +177,13 @@ export function ListaEquipos() {
           <div className="flex flex-wrap items-center gap-2">
             <div className="inline-flex rounded-md border border-border bg-surface p-0.5 text-[13px]">
               <Pestana activa={filtro === 'todos'} onClick={() => setFiltro('todos')}>
-                Todos · {conEstado.length}
+                Todos · {formatNumero(conEstado.length)}
               </Pestana>
               <Pestana activa={filtro === 'linea'} onClick={() => setFiltro('linea')}>
                 En línea · {enLinea}
               </Pestana>
               <Pestana activa={filtro === 'atencion'} onClick={() => setFiltro('atencion')}>
-                Con atención · {conEstado.filter(necesitaAtencion).length}
+                Con atención · {formatNumero(conEstado.filter(necesitaAtencion).length)}
               </Pestana>
               <Pestana activa={filtro === 'manual'} onClick={() => setFiltro('manual')}>
                 Se actualizan a mano · {conEstado.filter((e) => e.actualizacion?.sola === false).length}

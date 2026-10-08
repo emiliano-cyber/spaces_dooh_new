@@ -9,6 +9,7 @@ import { ConfirmDialog } from '@/components/demo/ui/ConfirmDialog'
 import { seApi, fotoSE, ErrorSE } from '@/lib/data/space-eyes-se'
 import { fechaHora } from './piezas'
 import { comoSeActualiza } from '@/lib/space-eyes-actualizacion'
+import { formatNumero } from '@/lib/formato-numero'
 
 // ============================================================================
 //  EquipoAdmin — la administración de un equipo: sus datos de sitio, los
@@ -301,7 +302,7 @@ function FichaYDatos({
           <Dato k="Operador" v={estado?.network_operator} />
           <Dato k="IP pública" v={estado?.source_ip} mono />
           <Dato k="Última conexión" v={fechaHora(equipo.last_seen_at)} />
-          <Dato k="Almacenamiento libre" v={estado?.storage_free_mb ? `${estado.storage_free_mb} MB` : null} mono />
+          <Dato k="Almacenamiento libre" v={estado?.storage_free_mb ? `${formatNumero(estado.storage_free_mb)} MB` : null} mono />
           <Dato k="Temperatura CPU" v={estado?.cpu_temp ? `${estado.cpu_temp} °C` : null} mono />
           <Dato k="Temperatura batería" v={estado?.battery_temp != null ? `${estado.battery_temp} °C` : null} mono />
         </Grupo>
@@ -779,7 +780,7 @@ function AjustesImagen({
               {expManual && (
                 <>
                   <div className="grid grid-cols-2 gap-3">
-                    {deslizador('obturador', 'Obturador', 200, 40000, 100, 8000, (v) => `${Math.round(v)} µs`)}
+                    {deslizador('obturador', 'Obturador', 200, 40000, 100, 8000, (v) => `${formatNumero(v)} µs`)}
                     {deslizador('ganancia', 'Ganancia', 1, 16, 0.25, 1)}
                   </div>
                   <p className="mt-1 text-[11px] text-muted">

@@ -8,6 +8,7 @@ import { Button } from '@/components/demo/ui/Button'
 import { ConfirmDialog } from '@/components/demo/ui/ConfirmDialog'
 import { InlinePanel } from '@/components/demo/ui/InlinePanel'
 import { ErrorSE, seApi } from '@/lib/data/space-eyes-se'
+import { formatNumero } from '@/lib/formato-numero'
 
 // ============================================================================
 //  Space Eyes — programación de fotos.
@@ -618,7 +619,7 @@ function FormularioProgramacion({
 
             {f.destino === 'todos' && (
               <p className="text-[12px] text-muted">
-                Aplica a los {equipos.length} equipos de la flota, incluyendo los que se den de alta después.
+                Aplica a los {formatNumero(equipos.length)} equipos de la flota, incluyendo los que se den de alta después.
               </p>
             )}
             {f.destino === 'device' && (

@@ -31,6 +31,7 @@ import {
   type FotoConMarca,
 } from '@/lib/space-eyes-marca'
 import { FotoGirada, fechaHora } from './piezas'
+import { formatNumero } from '@/lib/formato-numero'
 
 // ============================================================================
 //  Space Eyes — galería de fotos.
@@ -386,7 +387,7 @@ export function Galeria() {
               <span className="text-[12px] text-muted">
                 {totalExacto ? (
                   <>
-                    <span className="demo-num text-ink">{total}</span> fotos
+                    <span className="demo-num text-ink">{formatNumero(total)}</span> fotos
                   </>
                 ) : (
                   'Fotos filtradas'

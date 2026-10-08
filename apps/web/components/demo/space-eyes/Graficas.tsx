@@ -28,6 +28,7 @@ import { cn } from '@/lib/cn'
 import { Button } from '@/components/demo/ui/Button'
 import { ErrorSE, seApi, urlSE } from '@/lib/data/space-eyes-se'
 import { estaEnLinea, PildoraConexion } from './piezas'
+import { formatNumero } from '@/lib/formato-numero'
 
 // ============================================================================
 //  Space Eyes — Gráficas.
@@ -460,7 +461,7 @@ export function Graficas() {
                   valor={batMin != null ? `${batMin} %` : 'n/d'}
                   alerta={batMin != null && u != null && batMin < u.battery_pct_min}
                 />
-                <Indicador titulo="Muestras" valor={String(muestras)} />
+                <Indicador titulo="Muestras" valor={formatNumero(muestras)} />
               </div>
 
               {/* Alertas: icono + texto, nunca solo color */}
@@ -498,7 +499,7 @@ export function Graficas() {
                       <BarChart data={consumoBarras} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
                         <CartesianGrid stroke={C.borde} vertical={false} />
                         <XAxis dataKey="etiqueta" tick={ejeTick} tickLine={false} axisLine={{ stroke: C.borde }} />
-                        <YAxis tick={ejeTick} tickLine={false} axisLine={false} />
+                        <YAxis tick={ejeTick} tickLine={false} axisLine={false} tickFormatter={(v) => formatNumero(v)} />
                         <Tooltip content={<CajaTooltip unidad="MB" />} cursor={{ fill: 'var(--surface-2)' }} />
                         <Legend wrapperStyle={{ fontSize: 11 }} iconSize={10} />
                         <Bar dataKey="movil" name="Móvil (MB)" fill={C.acento} radius={[3, 3, 0, 0]} />

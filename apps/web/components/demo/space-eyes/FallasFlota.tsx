@@ -8,6 +8,7 @@ import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
 import { seApi, fotoSE, ErrorSE } from '@/lib/data/space-eyes-se'
 import { VisorFoto, fechaHora } from './piezas'
+import { formatNumero } from '@/lib/formato-numero'
 
 // ============================================================================
 //  Space Eyes — fallas de pantalla de TODA la flota.
@@ -242,7 +243,7 @@ export function FallasFlota() {
       {abiertas.length > 0 && (
         <section>
           <h2 className="mb-2 text-[11px] uppercase tracking-wide text-muted">
-            Requieren atención · <span className="tabular-nums">{abiertas.length}</span>
+            Requieren atención · <span className="tabular-nums">{formatNumero(abiertas.length)}</span>
           </h2>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {abiertas.map((f) => {

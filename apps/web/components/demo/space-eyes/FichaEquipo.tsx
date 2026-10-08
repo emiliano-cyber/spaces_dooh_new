@@ -41,6 +41,7 @@ import { CreativosConfig } from './CreativosConfig'
 import { EquipoAdmin } from './EquipoAdmin'
 import { Tabs, TabPanel } from '@/components/demo/ui/Tabs'
 import { usePuede } from '@/components/demo/shell/SesionContext'
+import { formatNumero } from '@/lib/formato-numero'
 
 // ============================================================================
 //  Space Eyes — la ficha de un equipo.
@@ -623,8 +624,8 @@ export function FichaEquipo({ id }: { id: number }) {
             <dl className="flex flex-col gap-2">
               <Fila etiqueta="Modelo" valor={[equipo.fabricante, equipo.modelo].filter(Boolean).join(' ') || null} />
               <Fila etiqueta="Versión del agente" valor={equipo.versionApp} />
-              <Fila etiqueta="Almacenamiento libre" valor={equipo.almacenamientoLibreMb != null ? `${equipo.almacenamientoLibreMb} MB` : null} />
-              <Fila etiqueta="Capturas guardadas" valor={`${fotos.length}`} />
+              <Fila etiqueta="Almacenamiento libre" valor={equipo.almacenamientoLibreMb != null ? `${formatNumero(equipo.almacenamientoLibreMb)} MB` : null} />
+              <Fila etiqueta="Capturas guardadas" valor={formatNumero(fotos.length)} />
             </dl>
           </Tarjeta>
         </div>

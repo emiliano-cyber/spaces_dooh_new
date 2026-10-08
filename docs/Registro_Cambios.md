@@ -22,6 +22,9 @@ La entrada más reciente va arriba.
   - Energía (importes y kWh de los recibos), Actividad, Captación, el diálogo
     de reserva, Creativos, los tramos de volumen, Network, Integraciones y los
     contadores de toda la aplicación («1,532 registros»).
+  - **Space Eyes:** fotos de la galería y de cada campaña, reportes, muestras,
+    el almacenamiento libre de cada equipo, el eje de consumo de datos y los
+    contadores de equipos y fallas.
   - **Lo que se queda igual a propósito:** las descargas a CSV/Excel siguen sin
     coma, para que Excel pueda sumar. Los campos donde se **teclea** una cifra
     todavía no la muestran: es la segunda fase.

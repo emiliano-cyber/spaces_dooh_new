@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, ChevronDown, Loader2, TriangleAlert } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { telemetriaApi, type PuntoTelemetria, type Telemetria } from '@/lib/data/space-eyes-api'
+import { formatNumero } from '@/lib/formato-numero'
 
 // ============================================================================
 //  Historial del equipo — batería y señal, por hora.
@@ -97,7 +98,7 @@ export function Historial({ id }: { id: number }) {
               </button>
             ))}
             {datos?.muestras != null && (
-              <span className="ml-auto text-[11px] text-muted">{datos.muestras} reportes</span>
+              <span className="ml-auto text-[11px] text-muted">{formatNumero(datos.muestras)} reportes</span>
             )}
           </div>
 

@@ -5,6 +5,7 @@ import { AlertTriangle, ImageIcon, Loader2, Plus, RefreshCw, ScanEye } from 'luc
 import { cn } from '@/lib/cn'
 import { Button } from '@/components/demo/ui/Button'
 import { ErrorSE, fotoSE, seApi } from '@/lib/data/space-eyes-se'
+import { formatNumero } from '@/lib/formato-numero'
 
 // ============================================================================
 //  Space Eyes — campañas de verificación.
@@ -410,7 +411,7 @@ export function CampanasEyes() {
                 </div>
                 <p className="mt-1 flex items-center gap-1.5 text-[11px] text-muted">
                   {cargandoEquiposAsignados && <Loader2 className="h-3 w-3 animate-spin" />}
-                  {cargandoEquiposAsignados ? 'Leyendo equipos asignados…' : `${form.device_ids.length} seleccionados`}
+                  {cargandoEquiposAsignados ? 'Leyendo equipos asignados…' : `${formatNumero(form.device_ids.length)} seleccionados`}
                 </p>
               </div>
 
@@ -615,7 +616,7 @@ function Dato({ titulo, valor }: { titulo: string; valor: number | string }) {
   return (
     <div className="min-w-0">
       <div className="text-[11px] text-muted">{titulo}</div>
-      <div className="demo-num truncate font-medium text-ink">{valor}</div>
+      <div className="demo-num truncate font-medium text-ink">{typeof valor === 'number' ? formatNumero(valor) : valor}</div>
     </div>
   )
 }

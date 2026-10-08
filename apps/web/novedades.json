@@ -5,7 +5,7 @@
     "items": [
       {
         "tipo": "AJUSTADO",
-        "texto": "Todas las cifras que se ven llevan coma de miles (2,500 y $ 1,234,567.50): Inicio, la gráfica de tentativas, los pases al día, el historial de cambios del contrato, Energía, Actividad y los contadores. Las descargas a CSV/Excel siguen sin coma, para que Excel pueda sumar."
+        "texto": "Todas las cifras que se ven llevan coma de miles (2,500 y $ 1,234,567.50): Inicio, la gráfica de tentativas, los pases al día, el historial de cambios del contrato, Energía, Actividad, Space Eyes y los contadores. Las descargas a CSV/Excel siguen sin coma, para que Excel pueda sumar."
       }
     ]
   },
