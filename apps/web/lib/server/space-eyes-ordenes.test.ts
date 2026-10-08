@@ -16,7 +16,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 //      actualizarla— quedan en la bitácora con quién y a qué equipo.
 // ============================================================================
 
-const usuario = { id: 'u-1', nombre: 'Ana', rol: 'DUENO', tenantId: 't-1' }
+const usuario = { id: 'u-1', nombre: 'Ana', email: 'ana@ejemplo.test', rol: 'DUENO', tenantId: 't-1' }
 const exigir = vi.fn(async (..._a: unknown[]) => ({ ok: true, usuario }))
 vi.mock('@/lib/server/auth', () => ({ exigir: (...a: unknown[]) => exigir(...a) }))
 
@@ -41,7 +41,7 @@ function orden(id: string, cuerpo: unknown): Request {
   })
 }
 const ctx = (id: string) => ({ params: { ruta: ['devices', id, 'command'] } })
-const textoReenviado = () => new TextDecoder().decode(reenviar.mock.calls[0][2] as ArrayBuffer)
+const textoReenviado = () => new TextDecoder().decode(reenviar.mock.calls[0][3] as ArrayBuffer)
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -113,7 +113,8 @@ describe('3 · lo que no es una orden no cambia', () => {
     const req = new Request('http://127.0.0.1/spaces-dooh/api/space-eyes/se/devices')
     const r = await GET(req, { params: { ruta: ['devices'] } })
     expect(r.status).toBe(200)
-    expect(reenviar).toHaveBeenCalledWith(req, 'devices', undefined)
+    // El tercero es quién: Space Eye lo anota (p. ej. quién generó un código).
+    expect(reenviar).toHaveBeenCalledWith(req, 'devices', 'ana@ejemplo.test', undefined)
     expect(registrarAccion).not.toHaveBeenCalled()
   })
 })
