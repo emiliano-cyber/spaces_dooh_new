@@ -2,6 +2,7 @@ import 'server-only'
 import { readFile } from 'node:fs/promises'
 import { giroDeFoto } from '@/lib/space-eyes-marca'
 import { licenciaIncluyeModulo } from '@/lib/licencia'
+import { comoSeActualiza, type ComoSeActualiza } from '@/lib/space-eyes-actualizacion'
 
 // ============================================================================
 //  lib/server/space-eye.ts — Cliente de la API de Space Eye (verificación de
@@ -221,6 +222,8 @@ export interface SEEquipoResumen {
   ultimaConexion: string | null
   estatus: string | null
   ultimaFoto: { url: string; tomadaEn: string | null; giro: number } | null
+  /** Si se actualiza sin que nadie toque el equipo (ver lib/space-eyes-actualizacion). */
+  actualizacion: ComoSeActualiza
 }
 
 export interface SEEquipoDetalle extends SEEquipoResumen {
@@ -254,6 +257,10 @@ interface SEDeviceFila extends SEDevice {
   owner?: string | null
   device_uid?: string | null
   app_version?: string | null
+  app_version_code?: number | null
+  device_owner?: number | boolean | null
+  app_actualiza_sola?: number | boolean | null
+  app_actualiza_motivo?: string | null
   manufacturer?: string | null
   address?: string | null
   network_type?: string | null
@@ -292,6 +299,13 @@ function resumen(d: SEDeviceFila, foto?: SEPhoto): SEEquipoResumen {
     ultimaConexion: d.last_seen_at ?? null,
     estatus: d.status ?? null,
     ultimaFoto: foto ? { url: urlDeFoto(foto.storage_path), tomadaEn: foto.taken_at, giro: giroDeFoto(foto) } : null,
+    actualizacion: comoSeActualiza({
+      app_version: d.app_version ?? null,
+      app_version_code: d.app_version_code ?? null,
+      device_owner: d.device_owner ?? null,
+      app_actualiza_sola: d.app_actualiza_sola ?? null,
+      app_actualiza_motivo: d.app_actualiza_motivo ?? null,
+    }),
   }
 }
 

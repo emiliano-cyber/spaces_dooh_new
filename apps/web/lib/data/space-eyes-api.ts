@@ -28,6 +28,8 @@ export interface EquipoResumen {
   estatus: string | null
   ultimaFoto: { url: string; tomadaEn: string | null; giro: number } | null
   pantalla: { id: string; nombre: string } | null
+  /** Si se actualiza sin que nadie toque el equipo (lib/space-eyes-actualizacion). */
+  actualizacion?: { sola: boolean; texto: string; tono: 'ok' | 'aviso' | 'visita' }
 }
 
 export interface FotoEquipo {

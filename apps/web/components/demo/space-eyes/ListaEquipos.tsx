@@ -35,7 +35,9 @@ import { Bateria, FotoGirada, PildoraConexion, Senal, estaEnLinea, hace, tonoBat
 //  vale más que cualquier columna.
 // ============================================================================
 
-type Filtro = 'todos' | 'linea' | 'atencion'
+// 'manual': los que NO se actualizan solos (necesitan un toque o una visita):
+// con esto se planea la vuelta antes de actualizar la flota.
+type Filtro = 'todos' | 'linea' | 'atencion' | 'manual'
 
 export function ListaEquipos() {
   const [equipos, setEquipos] = useState<EquipoResumen[] | null>(null)
@@ -85,6 +87,7 @@ export function ListaEquipos() {
     return conEstado.filter((e) => {
       if (filtro === 'linea' && !e.enLinea) return false
       if (filtro === 'atencion' && !necesitaAtencion(e)) return false
+      if (filtro === 'manual' && e.actualizacion?.sola !== false) return false
       if (empresa !== 'todas' && e.empresa !== empresa) return false
       if (!t) return true
       return (
@@ -180,6 +183,9 @@ export function ListaEquipos() {
               </Pestana>
               <Pestana activa={filtro === 'atencion'} onClick={() => setFiltro('atencion')}>
                 Con atención · {conEstado.filter(necesitaAtencion).length}
+              </Pestana>
+              <Pestana activa={filtro === 'manual'} onClick={() => setFiltro('manual')}>
+                Se actualizan a mano · {conEstado.filter((e) => e.actualizacion?.sola === false).length}
               </Pestana>
             </div>
 
@@ -339,6 +345,18 @@ function TarjetaEquipo({ equipo: e, enLinea }: { equipo: EquipoResumen; enLinea:
             <span className="italic">sin pantalla asignada</span>
           )}
         </div>
+
+        {e.actualizacion && !e.actualizacion.sola && (
+          <div
+            className={cn(
+              'mt-1.5 text-[11.5px]',
+              e.actualizacion.tono === 'visita' ? 'text-error' : 'text-warning',
+            )}
+            title={e.actualizacion.texto}
+          >
+            {e.actualizacion.tono === 'visita' ? 'Para actualizar necesita una visita' : 'Para actualizar pide un toque'}
+          </div>
+        )}
 
         <div className="mt-2.5 flex items-center gap-3 border-t border-border pt-2.5">
           <Bateria pct={e.bateriaPct} />

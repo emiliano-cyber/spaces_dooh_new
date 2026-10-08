@@ -192,6 +192,13 @@ En la ficha del equipo › **Equipo**:
 
 - **Actualizar app**: instala la versión publicada. El equipo la prueba antes de
   reemplazar nada y, si la nueva no arranca, **regresa sola** a la anterior.
+- **Actualizaciones:** la ficha dice si el equipo **se actualiza solo**, sin
+  que nadie toque el teléfono, o si necesita a alguien en sitio. Desde la app
+  0.16.4 los teléfonos con Android 12 o más nuevo se actualizan solos. El paso
+  a la 0.16.4 todavía pide **un toque** en el teléfono, una sola vez. Las
+  versiones anteriores a la 0.10.0 necesitan una visita. En **Equipos**, el
+  filtro **«Se actualizan a mano»** lista los que necesitan una vuelta antes
+  de actualizar la flota. Raspberry y PC siempre se actualizan solas.
 - **Reiniciar app**: reinicia el programa del equipo.
 - **Reiniciar equipo** *(solo Raspberry)*: reinicia la Raspberry completa. Es lo
   que destraba una cámara o una red que se quedaron colgadas.

@@ -176,6 +176,7 @@ las fotos que importan. Mirar no gasta datos.
 | 021, 022 | `vinculaciones` (códigos de un uso o de lote, `usos_max ≤ 200`) |
 | **023** | `devices.creative_envio_min`, `devices.salud_aviso_rapido` |
 | **024** | `campaigns.origen/origen_id/origen_sha/creative_sha`, `photos.source = 'campana'` |
+| **025** | `devices.app_actualiza_sola/app_actualiza_motivo/app_instalador/android_sdk` |
 
 Todas son aditivas e idempotentes (procedimiento + `IF NOT EXISTS`); los
 cambios de `ENUM` van con `ALGORITHM=INSTANT` para no bloquear la tabla de
@@ -221,8 +222,17 @@ huella `vigilancia`), `pending-commands`, `upload-photo`
   con regreso solo a los 30 min (`space-eye/docs/MUDANZA_DE_EQUIPOS.md`).
 - **App del teléfono**: firmada con la llave de la flota (NO está en el repo;
   NO perderla). La versión de prueba nunca se instala en equipos de producción.
+- **Actualización sin toque (APK 0.16.4)**: la app declara
+  `UPDATE_PACKAGES_WITHOUT_USER_ACTION` y pide `USER_ACTION_NOT_REQUIRED`; en
+  Android 12+ se actualiza a sí misma sin confirmación. Sin el permiso (las
+  versiones anteriores) Android pide un toque en CADA actualización. Cada
+  estado reporta si la próxima entra sola y por qué (`AppUpdater.decidir`:
+  `kiosco`, `sola`, `android_viejo`, `sin_permiso`, `sin_instalar_apps`,
+  `otro_dueno`), migración `025`, y el panel lo traduce
+  (`lib/space-eyes-actualizacion.ts`): ficha › Equipo y el filtro «Se
+  actualizan a mano» de la lista.
 
-Versiones al 07/10/2026: Raspberry **0.7.5**, teléfono **0.16.3** (código 35),
+Versiones al 07/10/2026: Raspberry **0.7.5**, teléfono **0.16.4** (código 36),
 PC **1.6.0**, imagen de Space Eye construida con `space-eye/Dockerfile.instancia`.
 
 ## 8. Despliegue

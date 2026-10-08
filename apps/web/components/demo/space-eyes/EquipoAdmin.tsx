@@ -8,6 +8,7 @@ import { Modal } from '@/components/demo/ui/Modal'
 import { ConfirmDialog } from '@/components/demo/ui/ConfirmDialog'
 import { seApi, fotoSE, ErrorSE } from '@/lib/data/space-eyes-se'
 import { fechaHora } from './piezas'
+import { comoSeActualiza } from '@/lib/space-eyes-actualizacion'
 
 // ============================================================================
 //  EquipoAdmin — la administración de un equipo: sus datos de sitio, los
@@ -44,6 +45,9 @@ type Equipo = {
   app_version: string | null
   app_version_code: number | null
   device_owner: number | boolean | null
+  // APK 0.16.4+: si la próxima actualización entra sin tocar el teléfono.
+  app_actualiza_sola?: number | boolean | null
+  app_actualiza_motivo?: string | null
   last_seen_at: string | null
   camera_ajustes: string | Ajustes | null
   photo_rotation: number | null
@@ -392,7 +396,8 @@ function Ordenes({ equipo, versiones, puedeOperar }: { equipo: Equipo; versiones
   // Lo publicado PARA ESTE equipo: cada tipo baja lo suyo.
   const publicado: Publicado | undefined = esPc(v) ? versiones?.agente_pc : esPi(v) ? versiones?.agente_pi : versiones ?? undefined
   const owner = equipo.device_owner === 1 || equipo.device_owner === true
-  const seActualizaSolo = esPc(v) || esPi(v) || owner
+  const como = comoSeActualiza(equipo)
+  const seActualizaSolo = como.sola
   const instaladaTexto = String(v || '').replace(/^(pc|pi)-agent\s*v?/i, '')
   const instalado = Number(equipo.app_version_code) || 0
   const atrasada =
@@ -405,9 +410,9 @@ function Ordenes({ equipo, versiones, puedeOperar }: { equipo: Equipo; versiones
     ? 'Se instalará el agente publicado en esta PC. Verifica la huella del archivo antes de sustituirlo y, si el programa nuevo no arranca, vuelve solo al anterior.'
     : esPi(v)
       ? 'Se instalará el agente publicado en esta Raspberry. Verifica la huella y lo prueba antes de reemplazar nada; si la versión nueva no arranca, vuelve sola a la anterior. La identidad del equipo y sus fotos pendientes se conservan.'
-      : owner
+      : owner || seActualizaSolo
         ? `Se instalará la versión ${publicado?.version || 'publicada'} en este equipo. Tardará un par de minutos y la app se reiniciará sola.`
-        : 'Este equipo no puede instalar solo: alguien tendrá que confirmar la instalación en la pantalla del teléfono. ¿Enviar de todos modos?'
+        : `${como.texto} ¿Enviar de todos modos?`
 
   async function enviar() {
     const tipo = pedir
@@ -467,15 +472,22 @@ function Ordenes({ equipo, versiones, puedeOperar }: { equipo: Equipo; versiones
             <div>
               Hay una versión nueva: <span className="font-medium tabular-nums">{publicado?.version}</span>.{' '}
               <span className="text-muted">
-                {seActualizaSolo
-                  ? 'Se instala sola, sin tocar el equipo.'
-                  : 'Este equipo pedirá confirmación en su pantalla (no es dueño del dispositivo).'}
+                {seActualizaSolo ? 'Se instala sola, sin tocar el equipo.' : como.texto}
               </span>
             </div>
           </div>
         ) : (
           publicado?.disponible && <p className="text-success">Tiene la versión publicada.</p>
         )}
+        {/* Siempre a la vista: decide si actualizar la flota necesita visitas. */}
+        <p
+          className={cn(
+            'text-[12px]',
+            como.tono === 'ok' ? 'text-success' : como.tono === 'visita' ? 'text-error' : 'text-warning',
+          )}
+        >
+          Actualizaciones: {como.texto}
+        </p>
         {msg && <p className={msg.tipo === 'ok' ? 'text-success' : 'text-error'}>{msg.texto}</p>}
         <div className="flex flex-wrap gap-2">
           <Button
