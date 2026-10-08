@@ -30,6 +30,7 @@ import { listarPropuestas } from '@/lib/server/propuestas-repo'
 import { listarOrdenesCompra } from '@/lib/server/ordenes-compra-repo'
 import { listarNotificaciones } from '@/lib/server/notificaciones-repo'
 import { obtenerConfig } from '@/lib/server/config-repo'
+import { listarNombresDeUsuarios } from '@/lib/server/usuarios-repo'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -102,7 +103,7 @@ export async function GET() {
   // lanza. Es lo que alcanza también a cancelaciones y vencimientos.
   if (verComercial) void sincronizarCampanasEyes({ tenant: await tenantActual() })
 
-  const [sitios, sitiosRed, clientes, campanas, reservas, creatividades, ordenesTrabajo, evidencias, facturas, cobranzas, ordenesImpresion, acciones, arrendadores, contratos, pagosRenta, incidencias, propuestas, ordenesCompra, notificaciones, configNegocio, predios, razonesSociales, licencias, entidadesFiscales] =
+  const [sitios, sitiosRed, clientes, campanas, reservas, creatividades, ordenesTrabajo, evidencias, facturas, cobranzas, ordenesImpresion, acciones, arrendadores, contratos, pagosRenta, incidencias, propuestas, ordenesCompra, notificaciones, configNegocio, predios, razonesSociales, licencias, entidadesFiscales, usuarios] =
     await Promise.all([
       si('network', listarSitios),
       si('network', listarSitiosRed),
@@ -142,9 +143,12 @@ export async function GET() {
       // decide la interfaz con el campo `activo` (`opcionesDeAsignacion`), que
       // es donde esa distinción importa.
       si('administracion', () => listarEntidades({ incluirInactivas: true })),
+      // Los nombres, para que Operaciones diga quién es el responsable de cada
+      // OT (ver `listarNombresDeUsuarios`). Sin esto todas decían «Sin asignar».
+      si('operaciones', listarNombresDeUsuarios),
     ])
   const cuerpo = {
-    sitios, sitiosRed, clientes, campanas, reservas, creatividades, ordenesTrabajo, evidencias, facturas, cobranzas, ordenesImpresion, acciones, arrendadores, contratos, pagosRenta, incidencias, propuestas, ordenesCompra, notificaciones, configNegocio, predios, razonesSociales, licencias, entidadesFiscales,
+    sitios, sitiosRed, clientes, campanas, reservas, creatividades, ordenesTrabajo, evidencias, facturas, cobranzas, ordenesImpresion, acciones, arrendadores, contratos, pagosRenta, incidencias, propuestas, ordenesCompra, notificaciones, configNegocio, predios, razonesSociales, licencias, entidadesFiscales, usuarios,
   }
   if (process.env.MEDIR_ESTADO === '1') medirRebanadas(cuerpo)
   return NextResponse.json(cuerpo)

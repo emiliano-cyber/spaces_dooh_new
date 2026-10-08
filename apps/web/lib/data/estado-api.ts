@@ -1,7 +1,7 @@
 'use client'
 
 import { useDemoStore } from './store'
-import type { Campana } from './types'
+import type { Campana, RolDemo } from './types'
 import { esErrorDeDesbloqueo } from '@/lib/cambios-candado'
 import type { ResultadoLote } from '@/lib/cambios-lote'
 
@@ -44,6 +44,13 @@ export async function refrescarEstado(): Promise<void> {
     reservas: e.reservas ?? [],
     creatividades: e.creatividades ?? [],
     ordenesTrabajo: e.ordenesTrabajo ?? [],
+    // Solo id, nombre, rol y activo (`listarNombresDeUsuarios`): el correo y
+    // el cargo no viajan, y Operaciones —su único lector— no los usa.
+    usuarios: (e.usuarios ?? []).map((u: { id: string; nombre: string; rol: RolDemo; activo: boolean }) => ({
+      email: '',
+      cargo: '',
+      ...u,
+    })),
     evidencias: e.evidencias ?? [],
     facturas: e.facturas ?? [],
     cobranzas: e.cobranzas ?? [],

@@ -188,8 +188,16 @@ export async function getOTcompleta(id: string) {
     ? await q1('select id, nombre, tipo_campana, oc_recibida, fotos_comprobatorias, reporte_publicacion from campanas where id=$1', [ot.campanaId])
     : null
   const evidencias = await resolverEvidencias(await q('select * from evidencias_ot where ot_id=$1 order by timestamp asc', [id]))
+  // El NOMBRE del responsable, para que la pantalla de la OT lo diga (08/10).
+  // Una OT cerrada sin responsable ya lo tiene: `cerrarOT` estampa a quien
+  // cierra. Con el tenant como segunda capa sobre la RLS.
+  const responsable = ot.asignadoAUserId
+    ? ((await q1('select nombre from usuarios where id = $1 and tenant_id = $2', [ot.asignadoAUserId, r.tenant_id]))
+        ?.nombre ?? null)
+    : null
   return {
     ot,
+    responsable,
     sitio: sitio
       ? { id: sitio.id, nombre: sitio.nombre, direccion: sitio.direccion, lat: n(sitio.lat), lng: n(sitio.lng) }
       : null,

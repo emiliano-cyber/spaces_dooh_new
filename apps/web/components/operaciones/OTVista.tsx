@@ -60,6 +60,9 @@ interface OTData {
     ocRecibida: boolean; fotosComprobatorias: boolean; reportePublicacion: boolean
   } | null
   evidencias: any[]
+  // Nombre del responsable (08/10). Una OT cerrada sin responsable ya trae a
+  // quien la cerró. Ausente = servidor viejo; null = sin responsable.
+  responsable?: string | null
   // OT-CHECK-01 · si este usuario puede tachar el checklist (mismo permiso que
   // la ruta: `operaciones.crear`). Ausente = servidor viejo → se asume que sí y
   // decide la ruta.
@@ -168,7 +171,7 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
     )
   }
 
-  const { ot, sitio, campana, evidencias } = data
+  const { ot, sitio, campana, evidencias, responsable } = data
   const completada = ot.estatus === 'COMPLETADA'
   const puedeChecklist = ot.checklist.length > 0
   const puedeEditar = data.puedeEditar !== false
@@ -294,6 +297,11 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
     <div>
       <h1 className="text-lg font-semibold text-ink">{ot.descripcion}</h1>
       {campana && <p className="mt-0.5 text-[12px] text-muted">Campaña: {campana.nombre}</p>}
+      {responsable !== undefined && (
+        <p className="mt-0.5 text-[12px] text-muted">
+          Responsable: <span className="text-ink">{responsable ?? 'Sin asignar'}</span>
+        </p>
+      )}
       {sitio && (
         <p className="mt-1 inline-flex items-center gap-1 text-[12px] text-muted">
           <MapPin className="h-3.5 w-3.5" /> {sitio.direccion}

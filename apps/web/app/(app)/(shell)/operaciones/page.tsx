@@ -3,6 +3,7 @@
 import { toast } from 'sonner'
 import { useMemo, useState, useEffect } from 'react'
 import Link from 'next/link'
+import { fechaLocalISO } from '@/lib/fecha-local'
 import { Smartphone, Calendar, User, Camera, ArrowRight, Plus, AlertTriangle } from 'lucide-react'
 import { Card } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
@@ -272,12 +273,16 @@ function NuevaOTModal({
   const [sitioId, setSitioId] = useState('')
   const [campanaId, setCampanaId] = useState('')
   const [prioridad, setPrioridad] = useState<Prioridad>('NORMAL')
-  const [fechaProg, setFechaProg] = useState('')
+  // Hoy por omisión (pedido del 08/10): casi toda OT se programa para el día en
+  // que se captura, y en blanco el botón de crear quedaba apagado sin decir por qué.
+  const [fechaProg, setFechaProg] = useState(() => fechaLocalISO())
   const [asignado, setAsignado] = useState('')
   const [enviando, setEnviando] = useState(false)
   const usuarios = useUsuarios()
-  // Responsables sugeridos: usuarios con rol de Operaciones (o cualquiera si no hay).
-  const responsables = (usuarios ?? []).filter((u) => u.rol === 'OPERACIONES' || u.rol === 'DUENO')
+  // Responsables sugeridos: usuarios ACTIVOS con rol de Operaciones o Dueño. La
+  // lista llega de /api/estado desde el 08/10; antes venía vacía y este selector
+  // solo ofrecía «Sin asignar».
+  const responsables = (usuarios ?? []).filter((u) => u.activo && (u.rol === 'OPERACIONES' || u.rol === 'DUENO'))
   const sel =
     'h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
 

@@ -37,6 +37,22 @@ export async function listarUsuarios() {
   return rows.map(rowToUsuario)
 }
 
+// Los nombres de los usuarios de ESTA organización, para que Operaciones nombre
+// al responsable de cada OT y ofrezca a quién asignarla (08/10). Antes la
+// pantalla buscaba el nombre en una lista que `/api/estado` nunca mandaba, y
+// todas las OT decían «Sin asignar» aunque la base tuviera responsable.
+// MÍNIMA a propósito: sin correo ni cargo. La ve cualquiera que vea
+// Operaciones, no solo Administración, así que lleva lo justo para nombrar.
+// Incluye a los INACTIVOS: una OT vieja sigue teniendo responsable aunque ya
+// no trabaje aquí; quién se ofrece al asignar lo filtra la pantalla.
+export async function listarNombresDeUsuarios(): Promise<{ id: string; nombre: string; rol: string; activo: boolean }[]> {
+  const rows = await q<any>(
+    'select id, nombre, rol::text as rol, activo from usuarios where tenant_id = $1 order by nombre asc',
+    [await tenantActual()],
+  )
+  return rows.map((r) => ({ id: r.id, nombre: r.nombre, rol: r.rol, activo: !!r.activo }))
+}
+
 // F5.1: con `client`, el INSERT va por la transaccion del alta y se deshace con
 // ella. Sin el, todo sigue como hoy con `qConTenant`. NO se duplica la funcion:
 // el propio repo advierte que duplicar es «la forma segura de que las tres
