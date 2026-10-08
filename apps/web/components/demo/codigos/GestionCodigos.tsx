@@ -17,6 +17,7 @@ import {
   type EstadoDelCodigo,
 } from '@/lib/codigo-promocional'
 import { Button } from '@/components/demo/ui/Button'
+import { CampoCifra } from '@/components/demo/ui/CampoCifra'
 import { propuestasParaAsignar, vigentesParaSelector } from '@/lib/codigo-aprobacion'
 import { usePropuestas, useClientes } from '@/lib/data/client'
 import { refrescarEstado } from '@/lib/data/estado-api'
@@ -408,15 +409,16 @@ export function GestionCodigos() {
           </label>
           <label className="text-xs">
             <span className="mb-0.5 block text-neutral-500">Tope de usos</span>
-            <input
+            {/* Entero, con coma de miles. Vacío sigue siendo SIN TOPE, y lo
+                que no se entiende llega como 'NaN', que `motivoCodigoInvalido`
+                rechaza («tiene que ser un numero entero»). */}
+            <CampoCifra
               aria-label="Tope de usos (vacío = sin tope)"
-              type="number"
-              min={1}
-              step={1}
+              decimales={0}
               className={`${campo} w-28`}
               placeholder="sin tope"
-              value={nuevo.usosMaximos}
-              onChange={(e) => setNuevo({ ...nuevo, usosMaximos: e.target.value })}
+              valor={nuevo.usosMaximos}
+              onCambio={(crudo) => setNuevo({ ...nuevo, usosMaximos: crudo })}
             />
           </label>
           <Button size="sm" variant="success" onClick={() => anadir()} className="h-9">

@@ -11,6 +11,7 @@ import {
 import { motivoTramoInvalido } from '@/lib/volumen'
 import { UNIDADES, unidadCorta } from '@/lib/periodos'
 import { Button } from '@/components/demo/ui/Button'
+import { CampoCifra } from '@/components/demo/ui/CampoCifra'
 import { formatNumero } from '@/lib/formato-numero'
 
 // ============================================================================
@@ -177,15 +178,16 @@ export function GestionVolumen() {
                 </select>
               </td>
               <td>
-                <input
+                {/* Entera, con coma de miles. Lo que no se entiende llega como
+                    'NaN' y `motivoTramoInvalido` lo rechaza como siempre. */}
+                <CampoCifra
                   aria-label="A partir de qué cantidad"
-                  type="number"
-                  min={2}
-                  step={1}
+                  decimales={0}
+                  mostrarError={false}
                   className="w-24 rounded border px-2 py-1"
                   placeholder="50"
-                  value={nuevo.desdeCantidad}
-                  onChange={(e) => setNuevo({ ...nuevo, desdeCantidad: e.target.value })}
+                  valor={nuevo.desdeCantidad}
+                  onCambio={(crudo) => setNuevo({ ...nuevo, desdeCantidad: crudo })}
                 />
               </td>
               <td>

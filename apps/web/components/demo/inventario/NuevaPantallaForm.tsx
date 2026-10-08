@@ -102,7 +102,9 @@ export function NuevaPantallaForm({
   // Un importe que no se entiende llega como 'NaN' (CampoCifra). Sin esto,
   // `Number(tarifa) || 0` daría de alta la pantalla con tarifa CERO, y la renta
   // y el precio por m² se quedarían en «sin capturar» sin que nadie lo pidiera.
-  const cifraInvalida = [renta, tarifa, precioM2].includes(CRUDO_INVALIDO)
+  // Los slots también: `Number(x) || 12` pondría el valor por omisión en vez
+  // del tecleado.
+  const cifraInvalida = [renta, tarifa, precioM2, totalSpots, spotsDisp].includes(CRUDO_INVALIDO)
   const valido = !!nombre.trim() && !cvInvalido && !!imagen && !!arrendadorId && !!ubicacion && !cifraInvalida
 
   function toggleModalidad(m: string) {
@@ -186,7 +188,7 @@ export function NuevaPantallaForm({
           Latitud y longitud obligatorias (pestaña Ubicación)
         </span>
       ) : cifraInvalida ? (
-        <span className="text-[12px] text-error">Hay un importe en rojo que no se entiende (renta, tarifa o precio por m²)</span>
+        <span className="text-[12px] text-error">Hay una cifra en rojo que no se entiende (renta, tarifa, precio por m² o slots)</span>
       ) : (
         <span />
       )}
@@ -299,8 +301,8 @@ export function NuevaPantallaForm({
               <div className="mb-2 text-[12px] font-medium text-ink">Configuración de slots</div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <Campo label="Duración por slot (s)"><input className={inputCls} inputMode="numeric" value={duracionSpot} onChange={(e) => setDuracionSpot(e.target.value)} placeholder="Ej. 20" /></Campo>
-                <Campo label="Total slots"><input className={inputCls} inputMode="numeric" value={totalSpots} onChange={(e) => setTotalSpots(e.target.value)} placeholder="Ej. 12" /></Campo>
-                <Campo label="Slots disponibles"><input className={inputCls} inputMode="numeric" value={spotsDisp} onChange={(e) => setSpotsDisp(e.target.value)} placeholder="Ej. 12" /></Campo>
+                <Campo label="Total slots"><CampoCifra decimales={0} className={inputCls} valor={totalSpots} onCambio={(crudo) => setTotalSpots(crudo)} placeholder="Ej. 12" /></Campo>
+                <Campo label="Slots disponibles"><CampoCifra decimales={0} className={inputCls} valor={spotsDisp} onCambio={(crudo) => setSpotsDisp(crudo)} placeholder="Ej. 12" /></Campo>
               </div>
             </div>
           </TabPanel>

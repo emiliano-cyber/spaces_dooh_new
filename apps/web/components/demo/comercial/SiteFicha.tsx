@@ -1113,7 +1113,7 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
   }, [sitio.id, open])
 
   async function guardar() {
-    if (tarifa === CRUDO_INVALIDO) return
+    if (tarifa === CRUDO_INVALIDO || (digital && spotsPorHora === CRUDO_INVALIDO)) return
     setEnviando(true)
     // Bloque sin `try`: era uno, y el `catch` se retiró porque `candado.ejecutar`
     // DEVUELVE el fallo en vez de lanzarlo (lo enseña `alFallar`). Se conserva
@@ -1236,6 +1236,8 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
               // 'NaN' = la tarifa no se entiende (CampoCifra). Sin esto,
               // `Number(tarifa) || 0` la guardaría como CERO.
               tarifa === CRUDO_INVALIDO ||
+              // Lo mismo con los slots por hora: `Number(x) || 0` los pondría en 0.
+              (digital && spotsPorHora === CRUDO_INVALIDO) ||
               (candado.reautenticando && !candado.pass)
             }
             onClick={candado.reautenticando ? () => void candado.reintentar() : guardar}
@@ -1374,7 +1376,7 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
                 <input type="number" inputMode="numeric" min={0} value={duracionSlot} onChange={(e) => setDuracionSlot(e.target.value)} placeholder="Ej. 20" className={`demo-num ${inputCls}`} />
               </CampoEdit>
               <CampoEdit label="Slots por hora">
-                <input type="number" inputMode="numeric" min={0} value={spotsPorHora} onChange={(e) => setSpotsPorHora(e.target.value)} placeholder="Ej. 180" className={`demo-num ${inputCls}`} />
+                <CampoCifra decimales={0} valor={spotsPorHora} onCambio={(crudo) => setSpotsPorHora(crudo)} placeholder="Ej. 180" className={`demo-num ${inputCls}`} />
               </CampoEdit>
               <CampoEdit label="Resolución (px)">
                 <input value={resolucionPx} onChange={(e) => setResolucionPx(e.target.value)} placeholder="1920x1080" className={inputCls} />

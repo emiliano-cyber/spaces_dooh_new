@@ -83,16 +83,21 @@ export function CampoCifra({
   const cursorPendiente = React.useRef<number | null>(null)
   const ref = React.useRef<HTMLInputElement>(null)
 
-  // Si el formulario cambia el valor por su cuenta (lo limpia tras guardar, o
-  // precarga otro registro), se pinta lo nuevo. Lo que este mismo campo emitió
-  // no cuenta como cambio: si no, cada tecla borraría el punto final de
-  // «212,500.» al volver como «212500».
+  // Si el formulario guarda algo distinto de lo que este campo le entregó, se
+  // pinta lo que guarda: lo limpió tras guardar, precargó otro registro, lo
+  // ACOTÓ (la reserva no pasa de los slots libres) o se quedó con el último
+  // valor válido porque lo tecleado no se entendía. Así el campo nunca enseña
+  // una cifra distinta de la que se va a mandar — que es lo que hacía el
+  // `<input type="number">` controlado. Va SIN dependencias a propósito: el
+  // valor guardado puede no cambiar (acotar 125 a 12 cuando ya había 12) y aun
+  // así lo tecleado hay que corregirlo. Lo que este campo emitió no cuenta como
+  // cambio: si no, cada tecla borraría el punto final de «212,500.».
   React.useEffect(() => {
     if (crudoProp !== ultimoEmitido.current) {
       ultimoEmitido.current = crudoProp
       setTexto(textoDesdeCrudo(crudoProp))
     }
-  }, [crudoProp])
+  })
 
   useEfectoDeDisposicion(() => {
     const el = ref.current

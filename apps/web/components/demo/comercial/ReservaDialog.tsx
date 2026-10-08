@@ -5,6 +5,7 @@ import { conteo } from '@/lib/plural'
 import { AlertTriangle } from 'lucide-react'
 import { Modal } from '@/components/demo/ui/Modal'
 import { Button } from '@/components/demo/ui/Button'
+import { CampoCifra } from '@/components/demo/ui/CampoCifra'
 import { reservarApi } from '@/lib/data/estado-api'
 import { formatNumero } from '@/lib/formato-numero'
 import {
@@ -298,13 +299,16 @@ export function ReservaDialog({
                     <div className="flex items-center justify-between gap-2 pl-1">
                       <span className="text-[11px] text-muted">
                         Reserva{' '}
-                        <input
-                          type="number"
-                          min={0}
-                          max={disp}
-                          value={reservados}
-                          onChange={(e) => {
-                            const v = Math.max(0, Math.min(disp, Math.round(Number(e.target.value) || 0)))
+                        {/* La misma cuenta de siempre sobre la cifra sin comas: se
+                            acota a [0, disp] y lo que no se entiende ('NaN') cae a
+                            0 — y el campo lo ENSEÑA, porque vuelve a pintarse con el
+                            valor guardado. Nunca reserva algo distinto de lo que se ve. */}
+                        <CampoCifra
+                          decimales={0}
+                          mostrarError={false}
+                          valor={reservados}
+                          onCambio={(crudo) => {
+                            const v = Math.max(0, Math.min(disp, Math.round(Number(crudo) || 0)))
                             setSpots((prev) => ({ ...prev, [s.id]: v }))
                           }}
                           className="demo-num mx-1 h-7 w-16 rounded border border-border-strong bg-surface px-2 text-right text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"

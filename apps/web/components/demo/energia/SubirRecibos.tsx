@@ -316,12 +316,11 @@ export function SubirRecibos({
                     <td className="whitespace-nowrap px-2 py-2">{f.periodo}</td>
                     <td className="whitespace-nowrap px-2 py-2 text-muted">{f.dias}</td>
                     <td className="px-2 py-2">
-                      <input
-                        inputMode="decimal"
+                      <CampoCifra
                         className={entrada}
                         placeholder="escríbelo"
-                        value={f.kwh}
-                        onChange={(e) => cambiar(f.clave, 'kwh', e.target.value)}
+                        valor={f.kwh}
+                        onCambio={(crudo) => cambiar(f.clave, 'kwh', crudo)}
                       />
                     </td>
                     <td className="px-2 py-2">

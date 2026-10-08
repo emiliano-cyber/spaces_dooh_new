@@ -138,12 +138,11 @@ export function FormularioRecibo({
           <label className={etiqueta} htmlFor="recibo-kwh">
             kWh
           </label>
-          <input
+          <CampoCifra
             id="recibo-kwh"
-            inputMode="decimal"
             className={entrada}
-            value={recibo.kwh}
-            onChange={campo('kwh')}
+            valor={recibo.kwh}
+            onCambio={(crudo) => campo('kwh')({ target: { value: crudo } })}
           />
         </div>
 

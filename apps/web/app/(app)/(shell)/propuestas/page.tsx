@@ -779,6 +779,7 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
       const c = cfgDe(s)
       if (c.tarifaManual === CRUDO_INVALIDO) return `${s.nombre}: la tarifa no se entiende. Corrígela antes de guardar.`
       if (c.rentaMonto === CRUDO_INVALIDO) return `${s.nombre}: la renta no se entiende. Corrígela antes de guardar.`
+      if (c.spotsPorDia === CRUDO_INVALIDO && !usaCalcDe(s)) return `${s.nombre}: los spots por día no se entienden. Corrígelos antes de guardar.`
     }
     return null
   })()
@@ -1128,12 +1129,18 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                         {calcDe(s)?.ok ? `${cantidadDe(s).toLocaleString('es-MX')} salidas` : '— salidas'}
                       </span>
                     ) : esManual ? (
-                      <input
-                        type="number"
-                        min={1}
+                      // Entera y con coma de miles (2,500 millares). Vacío
+                      // vuelve a 1, como hacía el `parseInt(...) || 1` de antes,
+                      // y lo que no se entiende no cambia nada: el campo vuelve
+                      // a enseñar la cantidad guardada (CampoCifra se resincroniza).
+                      <CampoCifra
+                        decimales={0}
+                        mostrarError={false}
                         className="h-8 w-20 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink"
-                        value={c.cantidadManual}
-                        onChange={(e) => setCfgSitio(s.id, { cantidadManual: Math.max(1, parseInt(e.target.value, 10) || 1) })}
+                        valor={c.cantidadManual}
+                        onCambio={(_crudo, lectura) => {
+                          if (lectura.ok) setCfgSitio(s.id, { cantidadManual: Math.max(1, lectura.valor ?? 1) })
+                        }}
                         title={c.unidad === 'cpm' ? 'Millares de impactos contratados (1 millar = 1,000 impactos)' : `Nº de ${unidadCorta(c.unidad, 2)}`}
                       />
                     ) : (
@@ -1159,13 +1166,13 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                         })()}
                       </span>
                     ) : digital ? (
-                      <input
-                        type="number"
-                        min={1}
+                      <CampoCifra
+                        decimales={0}
+                        mostrarError={false}
                         placeholder="spots/día"
                         className="h-8 w-24 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink"
-                        value={c.spotsPorDia}
-                        onChange={(e) => setCfgSitio(s.id, { spotsPorDia: e.target.value })}
+                        valor={c.spotsPorDia}
+                        onCambio={(crudo) => setCfgSitio(s.id, { spotsPorDia: crudo })}
                         title="Programación: cuántas veces al día se muestra (opcional)"
                       />
                     ) : (
