@@ -5,6 +5,8 @@ import { conteo } from '@/lib/plural'
 import { CheckCircle2, Users, ShieldCheck, UserPlus, Building2, X, Plus, Check, Upload, Percent, MonitorPlay, KeyRound, Scale, AlertTriangle, Mail, CornerUpLeft, Loader2, Wrench, Save } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
+import { CampoCifra } from '@/components/demo/ui/CampoCifra'
+import { CRUDO_INVALIDO } from '@/lib/captura-cifra'
 import { Modal } from '@/components/demo/ui/Modal'
 import { Tabs, TabPanel } from '@/components/demo/ui/Tabs'
 import { ROLES, rolLabel } from '@/components/demo/shell/nav'
@@ -1158,6 +1160,11 @@ function CostosOtCard({
 
   const payload = payloadCostosOt(original, borrador)
   const hayCambios = Object.keys(payload).length > 0
+  // `payloadCostosOt` DESCARTA lo que no es un número para no tirar el PATCH
+  // entero. Con la coma de miles al teclear, lo que no se entiende llega como
+  // 'NaN' (CampoCifra): se para el botón para que ese costo no se quede sin
+  // guardar mientras los demás sí, sin que nadie lo note.
+  const hayInvalido = Object.values(borrador).includes(CRUDO_INVALIDO)
 
   async function guardarCostos() {
     setBusy(true)
@@ -1187,18 +1194,16 @@ function CostosOtCard({
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {tipos.map((t) => (
             <Campo key={t} label={TIPO_OT_LABEL[t]}>
-              <input
-                type="number"
-                min={0}
+              <CampoCifra
                 placeholder="Usa el respaldo"
                 className={`demo-num ${inputCls}`}
-                value={borrador[t] ?? ''}
-                onChange={(e) => setBorrador((b) => ({ ...b, [t]: e.target.value }))}
+                valor={borrador[t] ?? ''}
+                onCambio={(crudo) => setBorrador((b) => ({ ...b, [t]: crudo }))}
               />
             </Campo>
           ))}
         </div>
-        <Button size="sm" disabled={busy || !hayCambios} onClick={guardarCostos}>
+        <Button size="sm" disabled={busy || !hayCambios || hayInvalido} onClick={guardarCostos}>
           <Save className="h-3.5 w-3.5" /> {busy ? 'Guardando…' : 'Guardar'}
         </Button>
       </CardContent>
