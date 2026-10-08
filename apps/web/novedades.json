@@ -1,5 +1,19 @@
 [
   {
+    "version": "v0.11.1",
+    "fecha": "2026-10-08",
+    "items": [
+      {
+        "tipo": "AJUSTADO",
+        "texto": "En Inicio, «Tentativas» son ahora las propuestas que aún no se cierran (en borrador o enviadas), sin IVA, y dice cuántas son. Antes eran las reservas tentativas, que casi siempre sumaban cero."
+      },
+      {
+        "tipo": "CORREGIDO",
+        "texto": "El resumen de Propuestas por periodo carga más rápido: ya no lee las fotos de todas las pantallas para calcular la renta. Las cifras no cambian."
+      }
+    ]
+  },
+  {
     "version": "v0.11.0",
     "fecha": "2026-10-08",
     "items": [

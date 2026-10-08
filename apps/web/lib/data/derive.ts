@@ -311,8 +311,10 @@ export interface DashboardMetrics {
   ocupacionDigitales: { sitios: number; ocupados: number; capacidad: number }
   ocupacionFijas: { sitios: number; ocupados: number; capacidad: number }
   sinSlotsCapturados: number // digitales sin slots capturados (entran valiendo 1)
-  reservasTentativas: number
   reservasConfirmadas: number
+  // «Tentativas» de Inicio = propuestas que aún no se cierran (BORRADOR o
+  // ENVIADA), por su NETO. Ver el cálculo en `dashboardMetrics`.
+  propuestasAbiertas: number
   valorTentativo: number
   valorConfirmado: number
   alertas: Alerta[]
@@ -602,10 +604,16 @@ export function ocupacionRed(
 
 export function dashboardMetrics(state: DemoState): DashboardMetrics {
   const confirmadas = state.reservas.filter((r) => r.estatus === 'CONFIRMADA')
-  const tentativas = state.reservas.filter((r) => r.estatus === 'TENTATIVA')
   const ingresoMes = confirmadas.reduce((s, r) => s + r.precio, 0)
   const valorConfirmado = ingresoMes
-  const valorTentativo = tentativas.reduce((s, r) => s + r.precio, 0)
+  // Lo tentativo es lo que está EN NEGOCIACIÓN: propuestas en borrador o
+  // enviadas (pedido del 08/10). Antes eran las reservas TENTATIVA, que solo
+  // viven un rato entre apartar y confirmar y casi siempre sumaban 0. Se suma
+  // el NETO, no el `total`: «Confirmadas» suma `reservas.precio`, que es ese
+  // mismo neto repartido por pantalla (`propuestas-repo.ts`, `porSitio`); con
+  // el total, con IVA, la barra tentativa saldría un 16 % más alta sin serlo.
+  const abiertas = (state.propuestas ?? []).filter((p) => p.estatus === 'BORRADOR' || p.estatus === 'ENVIADA')
+  const valorTentativo = abiertas.reduce((s, p) => s + (Number(p.neto) || 0), 0)
 
   // ── Motor de costos (3 fuentes) ──────────────────────────────────────────
   const sitioPorId = new Map(state.sitios.map((s) => [s.id, s]))
@@ -704,8 +712,8 @@ export function dashboardMetrics(state: DemoState): DashboardMetrics {
     ocupacionDigitales: red.digitales,
     ocupacionFijas: red.fijas,
     sinSlotsCapturados: red.sinSlots,
-    reservasTentativas: tentativas.length,
     reservasConfirmadas: confirmadas.length,
+    propuestasAbiertas: abiertas.length,
     valorTentativo,
     valorConfirmado,
     alertas: construirAlertas(state),

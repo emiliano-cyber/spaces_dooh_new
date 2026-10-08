@@ -5,6 +5,23 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-10-08
+
+- **En Inicio, «Tentativas» son las propuestas que aún no se cierran.**
+  *(Pedido tuyo del 08/10.)* La tarjeta se llama ahora «Tentativas vs
+  confirmadas». La barra de tentativas suma las propuestas **en borrador o
+  enviadas**, y debajo dice cuántas son. Antes sumaba las reservas
+  «tentativas», que solo existen un momento entre apartar y confirmar y casi
+  siempre daban $0. Se suma lo que recibe el medio, **sin IVA**, igual que la
+  barra de confirmadas, para que las dos se puedan comparar. Ojo: el «En
+  pipeline» de Propuestas suma el total **con** IVA, así que las dos cifras no
+  van a coincidir.
+- **El resumen de Propuestas carga más rápido.** Para calcular la renta de
+  cada pantalla leía la ficha completa de todas las pantallas, **fotos
+  incluidas**, cada vez que cambiabas de periodo. Ahora lee solo lo que
+  necesita (la pantalla, su predio y sus caras, y la renta del contrato). Las
+  cifras son las mismas.
+
 ## 2026-10-07
 
 - **CPS y CPM para vender pantallas digitales.** *(Pedido de ventas del 06/10.)*

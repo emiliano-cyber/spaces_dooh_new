@@ -177,7 +177,7 @@ export default function DashboardPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Reservas: tentativas vs confirmadas</CardTitle>
+            <CardTitle>Tentativas vs confirmadas</CardTitle>
           </CardHeader>
           <CardContent>
             {!m ? (
@@ -186,7 +186,11 @@ export default function DashboardPage() {
               <>
                 <ReservasChart tentativo={m.valorTentativo} confirmado={m.valorConfirmado} />
                 <div className="mt-3 grid grid-cols-2 gap-2 text-[12px]">
-                  <Leyenda color="#f59e0b" label="Tentativas" valor={formatMonto(m.valorTentativo)} />
+                  <Leyenda
+                    color="#f59e0b"
+                    label={`Tentativas · ${m.propuestasAbiertas} propuesta${m.propuestasAbiertas === 1 ? '' : 's'} sin cerrar`}
+                    valor={formatMonto(m.valorTentativo)}
+                  />
                   <Leyenda color="#10b981" label="Confirmadas" valor={formatMonto(m.valorConfirmado)} />
                 </div>
               </>
