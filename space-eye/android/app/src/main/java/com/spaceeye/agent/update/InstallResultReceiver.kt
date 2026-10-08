@@ -36,7 +36,8 @@ class InstallResultReceiver : BroadcastReceiver() {
                     try {
                         ctx.startActivity(confirmar)
                         RemoteLog.warn(ctx, "update",
-                            "La actualizacion espera confirmacion EN EL EQUIPO (no es device owner)")
+                            "La actualizacion espera confirmacion EN EL EQUIPO (" +
+                                AppUpdater.estadoAutoActualizacion(ctx).motivo + ")")
                     } catch (e: Exception) {
                         RemoteLog.error(ctx, "update", "No se pudo mostrar la confirmacion: ${e.message}")
                     }

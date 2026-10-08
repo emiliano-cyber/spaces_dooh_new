@@ -19,6 +19,11 @@
     <!-- Actualizacion remota de la app. En equipos device owner la instalacion es
          silenciosa; en el resto Android pide confirmacion en pantalla. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
+    <!-- Android 12+: deja que la app se ACTUALICE A SI MISMA sin que nadie
+         confirme en la pantalla (con USER_ACTION_NOT_REQUIRED en la sesion).
+         Sin el, Android pedia un toque en cada actualizacion aunque la app no lo
+         quisiera. Es un permiso normal: se concede al instalar, sin preguntar. -->
+    <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION"/>
 
     <uses-feature android:name="android.hardware.camera" android:required="true"/>
 

@@ -33,6 +33,9 @@ data class DeviceStatus(
     // toque el equipo. Se reporta para saber desde el dashboard cuales sitios se
     // actualizan solos y cuales necesitan una mano.
     val deviceOwner: Boolean = false,
+    // Si la proxima actualizacion se instalara sin que nadie toque el telefono
+    // (Android 12+ con el permiso de la 0.16.4, o kiosco), y si no, por que.
+    val autoActualizacion: com.spaceeye.agent.update.AppUpdater.AutoActualizacion? = null,
 )
 
 class DeviceStatusCollector(private val ctx: Context) {
@@ -94,7 +97,10 @@ class DeviceStatusCollector(private val ctx: Context) {
             cpuTemp = readCpuTemp(),
             uptimeSeconds = SystemClock.elapsedRealtime() / 1000,
             dataUsage = try { DataUsageCollector(ctx).collect() } catch (_: Exception) { null },
-            deviceOwner = com.spaceeye.agent.update.AppUpdater.esDeviceOwner(ctx)
+            deviceOwner = com.spaceeye.agent.update.AppUpdater.esDeviceOwner(ctx),
+            autoActualizacion = try {
+                com.spaceeye.agent.update.AppUpdater.estadoAutoActualizacion(ctx)
+            } catch (_: Exception) { null },
         )
     }
 

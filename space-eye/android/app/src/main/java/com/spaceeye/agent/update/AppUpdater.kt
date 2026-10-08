@@ -3,12 +3,16 @@
 // Los equipos viven en espectaculares: mandar a alguien a reinstalar el APK cuesta
 // un viaje por sitio. Esto permite actualizarlos desde el dashboard.
 //
-// Dos escenarios, mismo codigo:
-//   - Si la app es DEVICE OWNER (equipo provisionado en modo kiosco), la
-//     instalacion es SILENCIOSA: nadie toca el telefono.
-//   - Si no lo es, Android exige confirmacion: se lanza la pantalla de
-//     instalacion y alguien en sitio da un toque. Se reporta como tal para que en
-//     el dashboard se sepa que quedo pendiente.
+// Tres escenarios, mismo codigo:
+//   - DEVICE OWNER (modo kiosco): instalacion SILENCIOSA.
+//   - Android 12+ con el permiso UPDATE_PACKAGES_WITHOUT_USER_ACTION (desde la
+//     0.16.4): la app se actualiza A SI MISMA sin que nadie confirme. Las
+//     versiones anteriores no lo declaraban, asi que el paso a la 0.16.4 aun
+//     pide un toque; de ahi en adelante, solas.
+//   - Si no (Android 11 o antes, o "Instalar apps desconocidas" apagado),
+//     Android exige confirmacion: se lanza la pantalla de instalacion y alguien
+//     en sitio da un toque. Cada estado reporta cual de los tres aplica
+//     (estadoAutoActualizacion) para que el panel lo diga.
 //
 // La app se reinicia sola al terminar: el instalador mata el proceso y el
 // MonitorService vuelve por su cuenta (START_STICKY + AlarmManager).
@@ -31,6 +35,53 @@ class AppUpdater(private val ctx: Context) {
         private const val TAG = "AppUpdater"
         const val ACCION_RESULTADO = "com.spaceeye.agent.INSTALL_RESULT"
 
+        /**
+         * Si la PROXIMA actualizacion se instalara sola, y si no, por que. Se
+         * reporta en cada estado para que el panel diga que telefonos se
+         * actualizan solos y cuales necesitan a alguien en sitio.
+         */
+        fun estadoAutoActualizacion(ctx: Context): AutoActualizacion {
+            val pm = ctx.packageManager
+            val instalador = try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R)
+                    pm.getInstallSourceInfo(ctx.packageName).installingPackageName
+                else @Suppress("DEPRECATION") pm.getInstallerPackageName(ctx.packageName)
+            } catch (e: Exception) { null }
+            val dueno = try {
+                if (Build.VERSION.SDK_INT >= 34) pm.getInstallSourceInfo(ctx.packageName).updateOwnerPackageName else null
+            } catch (e: Exception) { null }
+            val permiso = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                ctx.checkSelfPermission("android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION") ==
+                android.content.pm.PackageManager.PERMISSION_GRANTED
+            val puedeInstalar = try { pm.canRequestPackageInstalls() } catch (e: Exception) { false }
+            val motivo = decidir(esDeviceOwner(ctx), Build.VERSION.SDK_INT, permiso, puedeInstalar, dueno, ctx.packageName)
+            return AutoActualizacion(motivo, instalador, Build.VERSION.SDK_INT)
+        }
+
+        /**
+         * Las reglas de Android para instalar SIN confirmacion, en orden. Puro
+         * (sin Android) para poder probarlo. "sola" y "kiosco" son las buenas.
+         */
+        fun decidir(
+            deviceOwner: Boolean,
+            sdk: Int,
+            permisoSinToque: Boolean,
+            puedeInstalar: Boolean,
+            duenoDeActualizaciones: String?,
+            paquete: String,
+        ): String = when {
+            deviceOwner -> "kiosco"
+            // Antes de Android 12 no existe la instalacion sin toque fuera de kiosco.
+            sdk < 31 -> "android_viejo"
+            // La version instalada no declara el permiso (las anteriores a 0.16.4).
+            !permisoSinToque -> "sin_permiso"
+            // "Instalar apps desconocidas" apagado para Space Eye en Ajustes.
+            !puedeInstalar -> "sin_instalar_apps"
+            // Android 14: si otra tienda se quedo con las actualizaciones, pide toque.
+            duenoDeActualizaciones != null && duenoDeActualizaciones != paquete -> "otro_dueno"
+            else -> "sola"
+        }
+
         /** Si es device owner, puede instalar sin que nadie toque la pantalla. */
         fun esDeviceOwner(ctx: Context): Boolean = try {
             val dpm = ctx.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
@@ -38,6 +89,11 @@ class AppUpdater(private val ctx: Context) {
         } catch (e: Exception) {
             false
         }
+    }
+
+    /** motivo: "kiosco" | "sola" | "android_viejo" | "sin_permiso" | "sin_instalar_apps" | "otro_dueno". */
+    data class AutoActualizacion(val motivo: String, val instalador: String?, val sdk: Int) {
+        val sola: Boolean get() = motivo == "kiosco" || motivo == "sola"
     }
 
     sealed class Resultado {

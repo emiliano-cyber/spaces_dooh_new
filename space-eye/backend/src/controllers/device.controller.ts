@@ -144,6 +144,12 @@ const statusSchema = z.object({
   // mandan, por eso son opcionales.
   device_owner: z.boolean().optional(),
   app_version_code: z.number().int().optional(),
+  // APK 0.16.4+: si la proxima actualizacion entra sin que nadie toque el
+  // telefono, y si no, por que (migracion 025).
+  actualiza_sola: z.boolean().optional(),
+  actualiza_motivo: z.string().max(30).optional(),
+  app_instalador: z.string().max(120).optional(),
+  android_sdk: z.number().int().min(1).max(200).optional(),
   // Resultado del ultimo recorrido del loop de la pantalla. Viaja AQUI, pegado
   // al reporte que el equipo ya manda, en vez de en una peticion propia: son
   // huellas de 64 caracteres: una docena de creativos no llegan a un kilobyte, y
@@ -208,11 +214,17 @@ export async function reportStatus(req: Request, res: Response) {
      lat = COALESCE(?, lat), lng = COALESCE(?, lng),
      device_owner = COALESCE(?, device_owner),
      app_version = COALESCE(?, app_version),
-     app_version_code = COALESCE(?, app_version_code) WHERE id = ?`,
+     app_version_code = COALESCE(?, app_version_code),
+     app_actualiza_sola = COALESCE(?, app_actualiza_sola),
+     app_actualiza_motivo = COALESCE(?, app_actualiza_motivo),
+     app_instalador = COALESCE(?, app_instalador),
+     android_sdk = COALESCE(?, android_sdk) WHERE id = ?`,
     [d.gps_lat ?? null, d.gps_lng ?? null,
      d.device_owner === undefined ? null : (d.device_owner ? 1 : 0),
      nombreVersion,
-     d.app_version_code ?? null, did]
+     d.app_version_code ?? null,
+     d.actualiza_sola === undefined ? null : (d.actualiza_sola ? 1 : 0),
+     d.actualiza_motivo ?? null, d.app_instalador ?? null, d.android_sdk ?? null, did]
   );
 
   // Consumo de datos: upsert del ultimo snapshot (solo si el APK lo reporta).
