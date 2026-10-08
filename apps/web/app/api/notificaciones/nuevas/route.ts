@@ -19,8 +19,9 @@ export async function GET(req: Request) {
 
   const desde = new URL(req.url).searchParams.get('desde')
   if (!desde || Number.isNaN(Date.parse(desde))) {
-    return NextResponse.json({ notificaciones: [] })
+    return NextResponse.json({ notificaciones: [], marca: null })
   }
   // El repo filtra por tenant; un usuario nunca ve las de otra organización.
-  return NextResponse.json({ notificaciones: await notificacionesDesde(desde) })
+  // `marca` es la `desde` de la siguiente pregunta (ver notificacionesDesde).
+  return NextResponse.json(await notificacionesDesde(desde))
 }

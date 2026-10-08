@@ -40,6 +40,10 @@ export function SondeoNotificaciones() {
   // vino en la carga inicial y avisar de todo el histórico al abrir sería ruido.
   const desde = useRef<string>(new Date().toISOString())
   const enCurso = useRef(false)
+  // Las que ya salieron como aviso en esta pestaña. Segunda capa sobre la
+  // marca: una notificación se avisa UNA vez y después solo vive en la
+  // campanita (pedido del 08/10).
+  const avisadas = useRef(new Set<string>())
 
   useEffect(() => {
     let vivo = true
@@ -54,15 +58,18 @@ export function SondeoNotificaciones() {
           { cache: 'no-store' },
         )
         if (!r.ok) return // sesión caída o error puntual: se reintenta al siguiente ciclo
-        const d = (await r.json()) as { notificaciones?: any[] }
-        const nuevas = d.notificaciones ?? []
+        const d = (await r.json()) as { notificaciones?: any[]; marca?: string | null }
+        const nuevas = (d.notificaciones ?? []).filter((n) => !avisadas.current.has(n.id))
+        // Avanza la marca ANTES de avisar: si algo falla al pintar el aviso, no
+        // se repite la misma notificación en cada ciclo. Es la `marca` del
+        // servidor, con microsegundos, y NO el `creadoEn` de la última: ése
+        // trae milisegundos, quedaba por debajo de la hora real y la misma
+        // notificación volvía a salir cada 15 s (08/10).
+        if (d.marca) desde.current = d.marca
         if (!nuevas.length) return
 
-        // Avanza la marca ANTES de avisar: si algo falla al pintar el aviso, no
-        // se repite la misma notificación en cada ciclo.
-        desde.current = nuevas[nuevas.length - 1].creadoEn ?? desde.current
-
         for (const n of nuevas) {
+          avisadas.current.add(n.id)
           const mostrar = MOSTRAR[n.nivel as string] ?? toast
           mostrar(n.titulo, {
             description: n.detalle ?? undefined,

@@ -91,14 +91,26 @@ export async function listarNotificaciones() {
 // 10:00:07 pulsas «Borrar todas», el ciclo siguiente lo devolvería —se creó
 // después de la marca— y saltaría el aviso emergente de algo que acabas de
 // vaciar. El panel sí quedaría limpio, y el usuario vería un fantasma.
+// Devuelve, además de las notificaciones, la MARCA con la que preguntar la
+// próxima vez: el `creado_en` de la última, con sus MICROsegundos. No vale el
+// `creadoEn` de la notificación: es un ISO de JavaScript, con milisegundos, y
+// queda por debajo de la hora real (…05.123 < …05.123456). Con esa marca la
+// misma notificación volvía a cumplir `creado_en > desde` y el aviso emergente
+// salía otra vez en cada sondeo, cada 15 s (08/10). Redondearla hacia arriba
+// tampoco sirve: se saltaría otra creada en el mismo milisegundo.
+// `notificaciones-una-vez.e2e.test.ts` lo prueba contra Postgres real.
 export async function notificacionesDesde(desde: string) {
   const rows = await q(
-    `select * from notificaciones
+    `select *, to_char(creado_en at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as marca
+       from notificaciones
       where tenant_id = $1 and creado_en > $2::timestamptz and archivada_en is null
       order by creado_en asc limit 20`,
     [await tenantActual(), desde],
   )
-  return rows.map(rowToNotif)
+  return {
+    notificaciones: rows.map(rowToNotif),
+    marca: rows.length ? (rows[rows.length - 1].marca as string) : desde,
+  }
 }
 
 export async function marcarNotificacionLeida(id: string) {
