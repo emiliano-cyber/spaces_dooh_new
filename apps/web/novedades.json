@@ -1,5 +1,19 @@
 [
   {
+    "version": "v0.11.2",
+    "fecha": "2026-10-08",
+    "items": [
+      {
+        "tipo": "AJUSTADO",
+        "texto": "En Administración → Actualizaciones, si una versión nueva llega sin sus notas, ahora sale un aviso para que lo reportes antes de aprobarla, en lugar de «Esta versión no trae notas»."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "Al solicitar Space Eyes desde su demostración, el aviso de confirmación muestra el folio de tu solicitud."
+      }
+    ]
+  },
+  {
     "version": "v0.11.1",
     "fecha": "2026-10-08",
     "items": [

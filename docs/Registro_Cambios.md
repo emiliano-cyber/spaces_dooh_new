@@ -7,6 +7,16 @@ La entrada más reciente va arriba.
 
 ## 2026-10-08
 
+- **Si una actualización llega sin sus notas, el panel lo avisa en vez de
+  callarlo.** *(Pedido tuyo del 08/10.)* En Administración → Actualizaciones,
+  donde van las notas de la versión nueva, antes decía «Esta versión no trae
+  notas». Eso nunca es cierto: no se publica ninguna versión sin notas. Si no
+  llegan es que el actualizador del servidor no las anotó, y es lo que le
+  pasaba a g500 desde el 05/10 (su actualizador era del 23/09 y ya se le
+  cambió). Ahora sale un aviso en amarillo: «No llegaron las notas de vX…
+  avisa a soporte antes de aprobarla», y el diálogo de instalar lo repite. El
+  botón **no** se bloquea, para poder instalar un arreglo urgente aunque las
+  notas fallen.
 - **En Inicio, «Tentativas» son las propuestas que aún no se cierran.**
   *(Pedido tuyo del 08/10.)* La tarjeta se llama ahora «Tentativas vs
   confirmadas». La barra de tentativas suma las propuestas **en borrador o

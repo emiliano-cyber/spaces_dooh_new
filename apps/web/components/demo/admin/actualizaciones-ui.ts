@@ -108,7 +108,22 @@ export function textoConfirmarInstalar(e: EstadoActualizacion): string {
       : n === 0
         ? 'No trae migraciones pendientes'
         : `Trae ${conteo(n, 'migración', 'migraciones')} pendiente${n === 1 ? '' : 's'}`
-  return `Vas a instalar ${version}. ${migraciones}. El servicio se corta mientras dura la instalación.`
+  const sinNotas = e.notasDisponibles ? '' : ' No llegaron sus notas: no sabes qué trae.'
+  return `Vas a instalar ${version}. ${migraciones}.${sinNotas} El servicio se corta mientras dura la instalación.`
+}
+
+// El aviso cuando la versión disponible llega SIN notas (08/10). No es «una
+// versión que no trae notas»: `release.yml` no publica ninguna sin su entrada
+// en `novedades.json`. Si faltan, el actualizador del servidor no las anotó
+// —un `update.sh` anterior al 01/10, o la sonda que falló al leerlas—, y eso
+// es un fallo nuestro, no de la versión. Pasó en g500: su `update.sh` era del
+// 23/09 y la tarjeta dijo «Esta versión no trae notas» desde el 05/10 sin que
+// nadie lo viera. No bloquea el botón a propósito: un arreglo urgente tiene
+// que poder instalarse aunque las notas fallen. Lo decide quien lo lee.
+export function avisoSinNotas(e: EstadoActualizacion): string | null {
+  if (!e.hayNovedad || e.notasDisponibles) return null
+  const version = e.versionDisponible ?? 'la versión disponible'
+  return `No llegaron las notas de ${version}, así que aquí no puedes ver qué trae. Avisa a soporte antes de aprobarla: casi siempre es el actualizador del servidor, no la versión.`
 }
 
 // El titulo de las notas que acompanan al boton de instalar (pedido del

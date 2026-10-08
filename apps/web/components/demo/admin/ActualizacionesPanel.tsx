@@ -10,7 +10,7 @@ import {
   aprobarActualizacionApi,
   type EstadoActualizacion,
 } from '@/lib/data/actualizaciones-api'
-import { textoDeEstado, textoConfirmarInstalar, tituloNotasDisponibles } from '@/components/demo/admin/actualizaciones-ui'
+import { textoDeEstado, textoConfirmarInstalar, tituloNotasDisponibles, avisoSinNotas } from '@/components/demo/admin/actualizaciones-ui'
 import { NotasDeVersion } from '@/components/demo/novedades/NotasDeVersion'
 
 // ============================================================================
@@ -202,7 +202,16 @@ export function ActualizacionesPanel({ onToast }: { onToast: (m: string) => void
             {estado.hayNovedad && (
               <div className="space-y-2 border-t border-border pt-3">
                 <p className="text-[12px] font-medium text-ink">{tituloNotasDisponibles(estado)}</p>
-                <NotasDeVersion notas={estado.notasDisponibles} />
+                {/* Sin notas NO se pinta «Esta versión no trae notas»: si
+                    faltan es que el servidor no las anotó (avisoSinNotas). */}
+                {avisoSinNotas(estado) ? (
+                  <div className={`flex items-start gap-2 rounded border px-3 py-2 text-[13px] ${TONO_CLASE.alerta}`}>
+                    <AlertTriangle className={`mt-0.5 h-4 w-4 shrink-0 ${TONO_ICONO_CLASE.alerta}`} />
+                    <span>{avisoSinNotas(estado)}</span>
+                  </div>
+                ) : (
+                  <NotasDeVersion notas={estado.notasDisponibles} />
+                )}
               </div>
             )}
 
