@@ -29,6 +29,14 @@ export const dynamic = 'force-dynamic'
 //   3. **Las OT ya cerradas no tendrían forma de capturarlo nunca.** El día que
 //      esto se despliega, TODAS lo están.
 //
+//  ─── DESDE EL 08/10, UNA OT CERRADA YA NO ADMITE COSTO ────────────────────
+//  Los motivos 2 y 3 de arriba eran la razón para capturarlo DESPUÉS del
+//  cierre. El dueño decidió lo contrario, sabiendo que una factura tardía de
+//  la cuadrilla ya no se podrá registrar: el costo se captura ANTES de cerrar,
+//  la pantalla lo avisa junto al botón «Cerrar OT», y con la OT COMPLETADA
+//  esta ruta contesta 409 (`fijarCostoOT`). Una cerrada sin costo se queda con
+//  la estimación por tipo. Sigue siendo una ruta propia por el motivo 1.
+//
 //  ─── SÍ PASA POR EL CANDADO DE CAMBIOS, Y AQUÍ SÍ CORRESPONDE ─────────────
 //  Es dinero, y del que no se ve: entra al costo de operación del reporte de
 //  rentabilidad restando del margen, sin comprobante ni contraparte que lo

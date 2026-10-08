@@ -336,3 +336,50 @@ describe('5 · NEGATIVO · lo que la ruta y la tabla rechazan', () => {
     expect(r.status).toBe(401)
   })
 })
+
+// ─── 6 · una OT CERRADA ya no admite costo (pedido del dueño, 08/10) ────────
+//
+// Hasta el 08/10 el costo se podía capturar después de cerrar, a propósito: la
+// cuadrilla pasa su factura días después. El dueño lo decidió al revés, sabiendo
+// ese costo: el costo se captura ANTES de cerrar, y al cerrar se avisa. Una OT
+// cerrada sin costo entra al reporte con la estimación por tipo, para siempre.
+describe('6 · una OT cerrada ya no admite costo', () => {
+  const FOTO = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
+  let otCerrada = ''
+
+  beforeAll(async () => {
+    const { rows } = await poolTest().query(
+      `insert into ordenes_trabajo (folio, tipo, sitio_id, descripcion, fecha_programada, estatus, costo_real, tenant_id)
+       values ('OT-COSTO-CERRADA', 'HERRERIA', $1, 'Herreria', now(), 'PENDIENTE', 3000, $2) returning id`,
+      [orgA.sitioId, orgA.id],
+    )
+    otCerrada = rows[0].id
+    await desbloquear(a)
+    await desbloquear(finanzas)
+    const c = await a.pedir(`/api/ot/${otCerrada}/cerrar/`, { cuerpo: { fotoUrl: FOTO } })
+    if (c.status !== 200) throw new Error(`no se pudo cerrar: ${JSON.stringify(c.datos)}`)
+  })
+
+  it('capturar o cambiar el costo de una OT cerrada da 409 y lo dice', async () => {
+    const r = await fijarCosto(a, otCerrada, 9000)
+    expect(r.status).toBe(409)
+    expect(r.datos.error).toMatch(/cerrada/i)
+  })
+
+  it('tampoco lo puede FINANZAS, ni borrarlo con null', async () => {
+    expect((await fijarCosto(finanzas, otCerrada, 1)).status).toBe(409)
+    expect((await fijarCosto(finanzas, otCerrada, null)).status).toBe(409)
+  })
+
+  it('y la base conserva el costo que tenía al cerrarse', async () => {
+    const { rows } = await poolTest().query('select costo_real, estatus from ordenes_trabajo where id = $1', [otCerrada])
+    expect(rows[0].estatus).toBe('COMPLETADA')
+    expect(Number(rows[0].costo_real)).toBe(3000)
+  })
+
+  it('NEGATIVO: una OT de otra organización sigue dando 404, no 409', async () => {
+    // El 409 no puede delatar que existe una OT cerrada en otra organización.
+    await poolTest().query(`update ordenes_trabajo set estatus = 'COMPLETADA' where id = $1`, [otB])
+    expect((await fijarCosto(a, otB, 5)).status).toBe(404)
+  })
+})

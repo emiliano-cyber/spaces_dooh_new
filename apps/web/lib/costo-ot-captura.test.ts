@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { leerCostoOt, hayQueGuardarCosto, textoDeCosto } from './costo-ot-captura'
+import { leerCostoOt, hayQueGuardarCosto, textoDeCosto, avisoAntesDeCerrar, textoCostoDeCerrada } from './costo-ot-captura'
 
 // ============================================================================
 //  OT-COSTO-01 · lo que el campo «Costo real» de la OT entiende de lo tecleado.
@@ -104,5 +104,38 @@ describe('textoDeCosto · lo que se precarga en el campo', () => {
     // Con separadores, el propio campo devolvería '12,000' y `leerCostoOt` lo
     // rechazaría: el usuario vería un error por un texto que no escribió.
     expect(textoDeCosto(12000)).toBe('12000')
+  })
+})
+
+// ─── Una OT cerrada ya no admite costo (decisión del dueño, 08/10) ──────────
+describe('avisoAntesDeCerrar', () => {
+  it('sin costo: avisa que después ya no se podrá registrar y que entra la estimación', () => {
+    const t = avisoAntesDeCerrar(null)
+    expect(t).toMatch(/ya no (podrás|se podrá) registrar/i)
+    expect(t).toMatch(/estimación/i)
+  })
+
+  it('con costo: dice el importe, con coma de miles, y que queda fijo', () => {
+    const t = avisoAntesDeCerrar(12500)
+    expect(t).toContain('$ 12,500.00')
+    expect(t).toMatch(/fijo|ya no se podrá cambiar/i)
+  })
+
+  it('CERO es un costo capturado, no «sin costo»', () => {
+    expect(avisoAntesDeCerrar(0)).toContain('$ 0.00')
+  })
+})
+
+describe('textoCostoDeCerrada', () => {
+  it('con costo: el importe y que ya no se cambia', () => {
+    const t = textoCostoDeCerrada(3000)
+    expect(t).toContain('$ 3,000.00')
+    expect(t).toMatch(/cerrada/i)
+  })
+
+  it('sin costo: que se cerró sin él y el reporte usa la estimación', () => {
+    const t = textoCostoDeCerrada(null)
+    expect(t).toMatch(/sin costo/i)
+    expect(t).toMatch(/estimación/i)
   })
 })

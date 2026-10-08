@@ -392,9 +392,12 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   // 9 sitios · lib/server/errores.ts:17
   'No encontrado':
     'Not found',
-  // 2 sitios · lib/server/ot-repo.ts:122
+  // 2 sitios · lib/server/ot-repo.ts
   'No encontramos esa orden de trabajo':
     'We could not find that work order',
+  // 1 sitio · lib/server/ot-repo.ts (una OT cerrada ya no admite costo, 08/10)
+  'Esta orden de trabajo ya está cerrada: su costo ya no se puede registrar ni cambiar.':
+    'This work order is already closed: its cost can no longer be recorded or changed.',
   // 2 sitios · lib/server/perfil-controller.ts:75
   'No hay cambios que guardar':
     'There are no changes to save',

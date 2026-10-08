@@ -1,7 +1,7 @@
 ---
 tipo: flujo
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-10-08
 tags: [flujo, operaciones, ot, evidencias]
 archivos:
   - apps/web/lib/server/ot-repo.ts
@@ -63,7 +63,8 @@ sequenceDiagram
         OT->>PG: → LISTA_FACTURAR si ya hay OC (y, en HÍBRIDA, reporte_publicacion)
         Note over OT: UNA de las tres llaves del candado — nunca reporte_publicacion
     end
-    OP->>OT: PATCH /api/ot/[id]/costo {costoReal} (después, y aparte)
+    Note over OP,OT: el costo se captura ANTES de cerrar (desde el 08/10)
+    OP->>OT: PATCH /api/ot/[id]/costo {costoReal} — con la OT ya COMPLETADA: 409
     OT->>PG: ordenes_trabajo.costo_real — candado de cambios (dinero)
 ```
 
@@ -93,7 +94,9 @@ el reporte de rentabilidad (commit `525b7c8b`). **Es una ruta propia y no un
 campo de `cerrar`, a propósito** (`app/api/ot/[id]/costo/route.ts:15-30`): el
 cierre lo hace un técnico en la calle y no debe pedir la contraseña del candado
 de cambios, el costo se conoce días después, y las OT ya cerradas no tendrían
-otra forma de capturarlo. La ruta va por `exigirCambioSensible('operaciones', 'costear')` (`:56`), como todo lo
+otra forma de capturarlo. **Desde el 08/10 eso último ya no vale:** por
+decisión del dueño, una OT cerrada ya no admite costo (409) y la pantalla lo
+avisa antes de cerrar; ver [[costo-real-de-ot]]. La ruta va por `exigirCambioSensible('operaciones', 'costear')` (`:56`), como todo lo
 que es dinero. Detalle en [[operaciones-y-ot]].
 
 ## Estados

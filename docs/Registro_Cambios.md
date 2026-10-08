@@ -7,6 +7,23 @@ La entrada más reciente va arriba.
 
 ## 2026-10-08
 
+- **Órdenes de trabajo: fecha de hoy, responsable visible y costo antes de
+  cerrar.** *(Pedido tuyo del 08/10.)*
+  - **Una OT nueva nace programada para hoy.** Antes la fecha venía en blanco.
+    Se cambia si es para otro día.
+  - **Se ve quién es el responsable.** En Operaciones todas las OT decían «Sin
+    asignar», aunque tuvieran responsable: la pantalla no recibía los nombres de
+    los usuarios. Ahora la lista y la ficha de la OT lo dicen. Si una OT se
+    cierra sin responsable, queda como responsable **quien la cerró** (eso ya
+    pasaba por dentro desde agosto; ahora se ve). Al crear una OT, el campo
+    «Responsable» ya ofrece a los usuarios de Operaciones y al Dueño; antes
+    salía vacío.
+  - **El costo se captura antes de cerrar.** Junto al botón «Cerrar OT» sale
+    un aviso: si la cierras sin costo, ya no podrás registrarlo. Una OT cerrada
+    muestra su costo, pero ya no se puede capturar, cambiar ni borrar. **Ojo:**
+    si la cuadrilla manda su factura días después de cerrar, ese costo ya no
+    entra; la OT se queda con la estimación por tipo de tarea en el reporte de
+    rentabilidad. Lo decidiste así sabiendo eso.
 - **Una notificación sale una sola vez en pantalla.** *(Pedido tuyo del
   08/10.)* El aviso que aparece en la esquina cuando llega una notificación
   se repetía cada 15 segundos con la misma notificación, hasta que llegaba

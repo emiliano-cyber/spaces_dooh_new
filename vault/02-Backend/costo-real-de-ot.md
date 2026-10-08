@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-10-08
 tags: [backend, operaciones, ot, reportes, rentabilidad, dinero, rojo]
 archivos:
   - db/migrations/20260929_costo_real_ot.sql
@@ -125,6 +125,19 @@ este número ni el reporte.
 >    que destraba la facturación de la campaña.
 > 3. **Las OT ya cerradas no podrían capturarlo nunca**, y el día del despliegue
 >    lo están todas.
+
+> [!danger] 2026-10-08 · una OT CERRADA ya no admite costo (decisión del dueño)
+> Los motivos 2 y 3 de arriba eran la razón para capturar el costo DESPUÉS del
+> cierre. **El dueño decidió lo contrario el 08/10**, sabiendo que una factura
+> tardía de la cuadrilla ya no se podrá registrar: el costo se captura **antes**
+> de cerrar. Con la OT `COMPLETADA`, `fijarCostoOT()` contesta **409** —la
+> condición va dentro del `update`, para que un cierre simultáneo no se cuele—,
+> y una OT de otra organización sigue siendo 404. La pantalla avisa junto al
+> botón «Cerrar OT» (`avisoAntesDeCerrar`, `lib/costo-ot-captura.ts`) y, ya
+> cerrada, solo muestra el costo (`textoCostoDeCerrada`). Una cerrada sin costo
+> se queda con la estimación por tipo. Lo prueban
+> `costo-real-ot.e2e.test.ts` §6 y `lib/costo-ot-captura.test.ts`. La ruta
+> sigue siendo propia por el motivo 1.
 
 **Pasa por `exigirCambioSensible('operaciones', 'crear')`** — el candado de
 dinero, igual que facturar una campaña o registrar un pago de renta. El permiso

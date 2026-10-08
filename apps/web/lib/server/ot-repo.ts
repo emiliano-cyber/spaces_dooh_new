@@ -114,13 +114,29 @@ export async function listarEvidencias() {
 // Se devuelve la fila con `returning *` y se comprueba que exista en vez de leer
 // antes: un `select` + `update` deja una carrera entre los dos, y aquí el
 // resultado de esa carrera es un 404 en una escritura que sí ocurrió.
+// Una OT CERRADA (COMPLETADA) ya no admite costo: ni capturarlo, ni cambiarlo,
+// ni borrarlo. Decisión del dueño del 08/10, que invierte la de OT-COSTO-01
+// (el costo se podía capturar después porque la cuadrilla factura días más
+// tarde): el costo se captura ANTES de cerrar y al cerrar se avisa. Una cerrada
+// sin costo se queda con la estimación por tipo.
+//
+// La condición va DENTRO del `update`, no en un `select` previo: leído aparte,
+// un cierre que entra entre la lectura y la escritura dejaría capturar el costo
+// de una OT ya cerrada. Si no se actualizó nada, el `select` de después solo
+// decide QUÉ decir —y con el tenant: una OT cerrada de otra organización sigue
+// siendo 404, no 409, para no delatar que existe—.
 export async function fijarCostoOT(id: string, costo: number | null) {
+  const tenant = await tenantActual()
   const r = await q1(
-    'update ordenes_trabajo set costo_real = $3 where id = $1 and tenant_id = $2 returning *',
-    [id, await tenantActual(), costo],
+    // En UNA línea: `ot-repo.costo-aislamiento.test.ts` lee la sentencia por
+    // líneas y exige ver `where id` y `and tenant_id` junto a `costo_real`.
+    `update ordenes_trabajo set costo_real = $3 where id = $1 and tenant_id = $2 and estatus <> 'COMPLETADA' returning *`,
+    [id, tenant, costo],
   )
-  if (!r) throw new AppError('No encontramos esa orden de trabajo', 404)
-  return rowToOT(r)
+  if (r) return rowToOT(r)
+  const existe = await q1('select estatus from ordenes_trabajo where id = $1 and tenant_id = $2', [id, tenant])
+  if (!existe) throw new AppError('No encontramos esa orden de trabajo', 404)
+  throw new AppError('Esta orden de trabajo ya está cerrada: su costo ya no se puede registrar ni cambiar.', 409)
 }
 
 // ─── OT-CHECK-01 · marcar o desmarcar UN punto del checklist ────────────────

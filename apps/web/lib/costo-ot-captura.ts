@@ -1,3 +1,4 @@
+import { formatMonto } from './data/derive'
 // ============================================================================
 //  lib/costo-ot-captura.ts — OT-COSTO-01 · qué entiende el campo «Costo real»
 //  de una orden de trabajo de lo que se teclea en él.
@@ -82,4 +83,24 @@ export function hayQueGuardarCosto(original: number | null, nuevo: number | null
  */
 export function textoDeCosto(valor: number | null): string {
   return valor == null ? '' : String(valor)
+}
+
+// ─── Una OT CERRADA ya no admite costo (decisión del dueño, 08/10) ──────────
+// El servidor lo rechaza (`fijarCostoOT`, 409); estos son los textos de la
+// pantalla. El importe va con `formatMonto`: con coma de miles, como toda cifra.
+
+/** Lo que se dice junto al botón «Cerrar OT», ANTES de cerrarla. */
+export function avisoAntesDeCerrar(costoReal: number | null): string {
+  if (costoReal == null) {
+    return 'Esta OT no tiene costo capturado. Si la cierras, ya no podrás registrarlo después: el reporte de rentabilidad usará la estimación por tipo de tarea.'
+  }
+  return `Al cerrarla, el costo de ${formatMonto(costoReal)} queda fijo: ya no se podrá cambiar.`
+}
+
+/** Lo que se dice del costo de una OT que ya está cerrada. */
+export function textoCostoDeCerrada(costoReal: number | null): string {
+  if (costoReal == null) {
+    return 'Se cerró sin costo capturado: el reporte de rentabilidad usa la estimación por tipo de tarea.'
+  }
+  return `Costo registrado: ${formatMonto(costoReal)}. La OT está cerrada y ya no se puede cambiar.`
 }

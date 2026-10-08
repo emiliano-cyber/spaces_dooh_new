@@ -14,6 +14,18 @@
       {
         "tipo": "CORREGIDO",
         "texto": "Una notificación aparece en pantalla una sola vez; después queda solo en la campanita. Antes podía repetirse cada 15 segundos."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "Una orden de trabajo nueva nace programada para hoy."
+      },
+      {
+        "tipo": "CORREGIDO",
+        "texto": "Operaciones muestra quién es el responsable de cada orden de trabajo; antes todas decían «Sin asignar». Si una se cierra sin responsable, queda quien la cerró. Al crear una, el campo «Responsable» ya ofrece a quién asignarla."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "El costo de una orden de trabajo se captura antes de cerrarla: al cerrar se avisa, y una vez cerrada ya no se puede registrar ni cambiar."
       }
     ]
   },

@@ -26,7 +26,13 @@ import { trailFromLocation } from '@/lib/nav-trail'
 import { getOTApi, cerrarOTApi, fijarCostoOTApi, marcarPuntoChecklistApi } from '@/lib/data/estado-api'
 import { crearColaChecklist, type ColaChecklist, type InfoGuardado } from '@/lib/checklist-autoguardado'
 import { useCandado, DialogoCandado } from '@/components/demo/ui/candado'
-import { leerCostoOt, hayQueGuardarCosto, textoDeCosto } from '@/lib/costo-ot-captura'
+import {
+  leerCostoOt,
+  hayQueGuardarCosto,
+  textoDeCosto,
+  avisoAntesDeCerrar,
+  textoCostoDeCerrada,
+} from '@/lib/costo-ot-captura'
 import type { FotoMeta, EstOT, ChecklistItem } from '@/lib/data/types'
 
 // blob: URL → data URL (base64) para que la foto persista en la BD.
@@ -425,6 +431,12 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
 
   const cerrarBtn = !completada ? (
     <>
+      {/* Una OT cerrada ya no admite costo (decisión del dueño, 08/10): se
+          avisa AQUÍ, antes de cerrar, que es el último momento para capturarlo. */}
+      <p className="mb-2 flex items-start gap-1.5 rounded border border-warning/40 bg-warning/10 px-2 py-1.5 text-[12px] text-ink">
+        <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
+        <span>{avisoAntesDeCerrar(ot.costoReal ?? null)}</span>
+      </p>
       {/* Mientras un punto viaja, cerrar esperaría a nada y la petición del
           punto llegaría DESPUÉS del cierre, con un 409 que parecería un fallo. */}
       <Button className="w-full" disabled={!todoListo || cerrando || guardado.estado === 'guardando'} onClick={cerrar}>
@@ -509,11 +521,18 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
               </div>
             </div>
           )}
-          {/* Va SIEMPRE, cerrada o no. El costo se sabe muchas veces días
-              después del cierre —la cuadrilla pasa su factura cuando pasa— y
-              las OT que ya estaban cerradas el día del despliegue no tendrían
-              forma de capturarlo nunca. */}
-          {costoSection}
+          {/* Hasta el 08/10 el costo se capturaba también DESPUÉS de cerrar
+              (la cuadrilla factura días más tarde). El dueño decidió lo
+              contrario: cerrada, el costo queda fijo y solo se muestra. El
+              servidor lo rechaza igual (`fijarCostoOT`, 409). */}
+          {completada ? (
+            <div className="rounded-md border border-border bg-surface p-3">
+              <div className="text-[13px] font-semibold text-ink">Costo real de esta visita</div>
+              <p className="mt-1 text-[12px] text-muted">{textoCostoDeCerrada(ot.costoReal ?? null)}</p>
+            </div>
+          ) : (
+            costoSection
+          )}
         </div>
       </div>
       <DialogoCandado
