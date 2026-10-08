@@ -11,7 +11,7 @@ import {
   unirEspectador, SesionDeVista,
 } from '../utils/streamWatchdog';
 import { whipDe } from '../utils/relayTelefono';
-import { ordenarEquipo, publicarAEquipos } from '../utils/espejo';
+import { ordenarEquipo, publicarAEquipos, esDeV1 } from '../utils/espejo';
 import { agentePcInfo, agentePiInfo, apkInfo } from '../utils/apkInfo';
 import { proximoDisparo, ventanasValidas } from '../utils/horarios';
 import { env } from '../config/env';
@@ -461,6 +461,17 @@ export async function sendCommand(req: Request, res: Response) {
   // -REVOLUCION 267 llevaba TRES versiones de atraso sin que se viera en el
   // dashboard, porque el numero de version no cambiaba.
   if (command_type === 'UPDATE_APP') {
+    // En el espejo, los equipos de V1 (los de la flota de siempre) NO se
+    // actualizan desde aqui: la app nueva viene con la direccion de este
+    // servidor y el telefono se mudaria solo, sin control. Se actualizan desde
+    // V1, o se mudan a proposito (docs/MUDANZA_DE_EQUIPOS.md). Los equipos
+    // propios del espejo (ids >= BASE_PROPIO) si se actualizan.
+    if (esDeV1(Number(deviceId))) {
+      return res.status(409).json({
+        error: 'espejo_no_actualiza_equipos_de_v1',
+        mensaje: 'Este equipo es de la flota de V1: se actualiza alla, o se muda primero.',
+      });
+    }
     const [filas] = await pool.query<any[]>(`SELECT app_version FROM devices WHERE id = ?`, [deviceId]);
     const version = String((filas as any[])[0]?.app_version || '');
 
