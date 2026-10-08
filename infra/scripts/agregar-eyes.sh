@@ -8,26 +8,30 @@
 #  dónde registrarse. Esto hace en el droplet de la empresa, como root, lo
 #  mismo que el alta, con las mismas piezas (eyes-alta.sh):
 #
-#    1. comprueba: DNS de eyes.<dominio> a ESTE droplet, puertos libres, app viva
+#    1. comprueba: app viva, IP del droplet, puertos libres
 #    2. respalda /etc/space-os y el sitio de nginx
 #    3. credenciales nuevas (o las que ya tenga), eyes.env, compose, cron
 #    4. levanta la pila con update-eyes.sh (migra y comprueba salud)
-#    5. certificado con eyes.<dominio> y su bloque de nginx (instancia.conf.tpl)
+#    5. nginx: el fragmento space-eyes.conf dentro del sitio del dominio
 #    6. la app: SPACE_EYE_* en app.env y se vuelve a levantar; si no responde,
 #       regresa sola a la de antes
 #
+#  SIN SUBDOMINIO: los equipos entran por el MISMO dominio de la instancia
+#  (https://<dominio>/api/..., su droplet y nadie más). No hace falta otro
+#  registro DNS ni otro nombre en el certificado. El video va a la IP.
+#
 #  Uso (desde una copia del repo en el droplet):
 #    bash infra/scripts/agregar-eyes.sh --dominio g500.space-os.io --owner g500 \
-#         --contacto carlos@asnetwork.io [--imagen-tar /root/space-eye.tar.gz] \
-#         [--imagen space-eye:0.16.16] [--apk /root/space-eye.apk]
+#         [--imagen-tar /root/space-eye.tar] [--imagen space-eye:0.16.16] \
+#         [--apk /root/space-eye.apk]
 #
 #  --imagen-tar: la imagen de Space Eye exportada con `docker save` (mientras
 #  no haya registry para ella). --apk: publica esa app para que los celulares
-#  la bajen de https://eyes.<dominio>/space-eye.apk.
+#  la bajen de https://<dominio>/space-eye.apk.
 #
 #  Se puede correr otra vez: conserva credenciales y no duplica nada.
-#  Para ensayar fuera de un droplet: CONF_DIR, OPT_DIR, SITES_DIR, CRON_DIR,
-#  LOG_DIR, y SALTAR_CERT=1 / SALTAR_NGINX=1 / SALTAR_APP=1.
+#  Para ensayar fuera de un droplet: CONF_DIR, OPT_DIR, SITES_DIR, SNIPPETS_DIR,
+#  CRON_DIR, LOG_DIR, y SALTAR_NGINX=1 / SALTAR_APP=1.
 # ============================================================================
 set -euo pipefail
 RAIZ="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -39,6 +43,7 @@ source "$RAIZ/infra/scripts/eyes-alta.sh"
 CONF_DIR="${CONF_DIR:-/etc/space-os}"
 OPT_DIR="${OPT_DIR:-/opt/space-os}"
 SITES_DIR="${SITES_DIR:-/etc/nginx/sites-available}"
+SNIPPETS_DIR="${SNIPPETS_DIR:-/etc/nginx/snippets}"
 CRON_DIR="${CRON_DIR:-/etc/cron.d}"
 LOG_DIR="${LOG_DIR:-/var/log/space-os}"
 CONTENEDOR="${CONTENEDOR:-space-os}"
@@ -65,7 +70,7 @@ codigo() { curl -s -o /dev/null -m 8 -w '%{http_code}' "$@" || echo 000; }
 APP_ENV="$CONF_DIR/app.env"
 INST_ENV="$CONF_DIR/instancia.env"
 EYES_ENV="$CONF_DIR/eyes.env"
-EYES="eyes.$DOMINIO"
+SITIO="$SITES_DIR/$DOMINIO"
 
 # ─── 1 · Comprobaciones ───────────────────────────────────────────────────
 paso "1. Comprobaciones"
@@ -81,10 +86,10 @@ if [[ -z "$IP" ]]; then
 fi
 [[ "$IP" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || falla "no pude saber la IP pública de este droplet (usa --ip)"
 echo "   IP pública: $IP"
-if [[ "${SALTAR_CERT:-0}" != 1 ]]; then
-  RESUELVE="$(getent ahostsv4 "$EYES" | awk '{print $1; exit}' || true)"
-  [[ "$RESUELVE" == "$IP" ]] || falla "$EYES resuelve a '${RESUELVE:-nada}', no a este droplet ($IP). Cambia su DNS (registro A) y vuelve a correr."
-  echo "   $EYES -> $IP ok"
+if [[ "${SALTAR_NGINX:-0}" != 1 ]]; then
+  [[ -f "$SITIO" ]] || falla "no existe el sitio de nginx $SITIO"
+  grep -q "server_name $DOMINIO;" "$SITIO" || falla "$SITIO no sirve $DOMINIO"
+  grep -q 'listen 443' "$SITIO" || falla "$SITIO no tiene bloque https"
 fi
 YA="$( [[ -f "$EYES_ENV" ]] && echo 1 || echo 0 )"
 if [[ "$YA" == 0 ]]; then
@@ -99,7 +104,7 @@ paso "2. Respaldo"
 R="${RESPALDOS:-/root/respaldos}/agregar-eyes-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$R" && chmod 700 "$R"
 cp -a "$CONF_DIR" "$R/space-os"
-[[ -f "$SITES_DIR/$DOMINIO" ]] && cp -p "$SITES_DIR/$DOMINIO" "$R/nginx-$DOMINIO"
+[[ -f "$SITIO" ]] && cp -p "$SITIO" "$R/nginx-$DOMINIO"
 echo "   $R"
 
 # ─── 3 · Imagen, credenciales y archivos ──────────────────────────────────
@@ -126,10 +131,18 @@ fi
 mkdir -p "$OPT_DIR/eyes" "$LOG_DIR"
 while IFS=$'\t' read -r origen destino modo; do
   destino="${destino/\/opt\/space-os/$OPT_DIR}"
+  destino="${destino/\/etc\/nginx\/snippets/$SNIPPETS_DIR}"
+  mkdir -p "$(dirname "$destino")"
   install -m "$modo" "$origen" "$destino"
 done < <(eyes_archivos "$RAIZ")
 mkdir -p "$CRON_DIR"; eyes_cron > "$CRON_DIR/space-os-eyes"; chmod 644 "$CRON_DIR/space-os-eyes"
-echo "   eyes.env, compose, mediamtx.yml, update-eyes.sh y cron en su lugar"
+echo "   eyes.env, compose, mediamtx.yml, update-eyes.sh, fragmento de nginx y cron en su lugar"
+# Una instalación hecha con el diseño viejo (eyes.<dominio>) se corrige aquí:
+# el dominio de los equipos es el de la instancia, no un subdominio.
+if grep -q "^EYES_DOMINIO=eyes\." "$EYES_ENV"; then
+  sed -i "s|^EYES_DOMINIO=.*|EYES_DOMINIO=$DOMINIO|" "$EYES_ENV"
+  echo "   eyes.env: EYES_DOMINIO pasa a $DOMINIO (sin subdominio)"
+fi
 
 # ─── 4 · La pila ──────────────────────────────────────────────────────────
 paso "4. Levantando Space Eye (update-eyes.sh migra y comprueba su salud)"
@@ -148,31 +161,66 @@ if [[ -n "$APK" ]]; then
     "$VNOMBRE" "$VCODE" "$SHA" "$BYTES" "$(date -Iseconds)" > /tmp/space-eye.json
   docker cp "$APK" "$API:/descargas/space-eye.apk"
   docker cp /tmp/space-eye.json "$API:/descargas/space-eye.json"; rm -f /tmp/space-eye.json
-  echo "   app $VNOMBRE publicada en https://$EYES/space-eye.apk"
+  echo "   app $VNOMBRE publicada en https://$DOMINIO/space-eye.apk"
 fi
 
-# ─── 5 · Certificado y nginx ──────────────────────────────────────────────
-if [[ "${SALTAR_CERT:-0}" != 1 ]]; then
-  paso "5. Certificado con $EYES y su bloque de nginx"
-  certbot certonly --webroot -w /var/www/html -n --agree-tos --no-eff-email --expand \
-    -m "${CONTACTO:-operacion@$DOMINIO}" -d "$DOMINIO" -d "$EYES"
-fi
+# ─── 5 · nginx ────────────────────────────────────────────────────────────
+# El sitio de la instancia ya existe y tiene su certificado: solo se le agrega
+# la línea que incluye el fragmento, DENTRO del bloque https del dominio,
+# justo después de su server_name. No se reescribe el resto del sitio.
+INCLUIR='include /etc/nginx/snippets/space-eyes*.conf;'
 if [[ "${SALTAR_NGINX:-0}" != 1 ]]; then
-  if grep -q "server_name $EYES;" "$SITES_DIR/$DOMINIO" 2>/dev/null; then
-    echo "   el sitio ya tenía el bloque de $EYES"
+  paso "5. nginx: los equipos entran por https://$DOMINIO"
+  cp -p "$SITIO" "$SITIO.nuevo"
+  # Un sitio hecho con la plantilla vieja trae al final los bloques de
+  # eyes.<dominio>. Se quitan: los equipos ya no entran por ahí.
+  if grep -q "server_name eyes\.$DOMINIO;" "$SITIO.nuevo"; then
+    awk -v marca="#  eyes.$DOMINIO" '
+      index($0, marca) == 1 { corta = 1 }
+      !corta { lineas[++n] = $0 }
+      END {
+        # La línea de ==== que abre el comentario de ese bloque también sobra.
+        if (corta && n > 0 && lineas[n] ~ /^# =+$/) n--
+        while (n > 0 && lineas[n] == "") n--
+        for (i = 1; i <= n; i++) print lineas[i]
+      }' "$SITIO.nuevo" > "$SITIO.tmp" && mv "$SITIO.tmp" "$SITIO.nuevo"
+    grep -q "server_name eyes\.$DOMINIO;" "$SITIO.nuevo" && { rm -f "$SITIO.nuevo"; falla "no pude quitar los bloques de eyes.$DOMINIO de $SITIO (no se tocó)"; }
+    echo "   se quitaron los bloques viejos de eyes.$DOMINIO"
+  fi
+  if grep -qF "$INCLUIR" "$SITIO.nuevo"; then
+    echo "   el sitio ya incluía el fragmento de Space Eye"
   else
-    DOMINIO_SED="$(printf '%s' "$DOMINIO" | sed 's/[.[\*^$/]/\\&/g')"
-    sed -e "s/__DOMINIO__/$DOMINIO_SED/g" -e "s/__CONTACTO__/${CONTACTO//\//\\/}/g" \
-      "$RAIZ/infra/nginx/instancia.conf.tpl" > "$SITES_DIR/$DOMINIO.nuevo"
-    grep -q '__[A-Z]*__' "$SITES_DIR/$DOMINIO.nuevo" && falla "quedó un marcador sin sustituir en el sitio de nginx"
-    mv "$SITES_DIR/$DOMINIO.nuevo" "$SITES_DIR/$DOMINIO"
+    awk -v dominio="$DOMINIO" -v incluir="$INCLUIR" '
+      /listen 443/ { en443 = 1 }
+      { print }
+      en443 && !hecho && $1 == "server_name" && $2 == dominio ";" {
+        print ""
+        print "  # Space Eye de esta instancia: sus equipos entran por este mismo dominio."
+        print "  " incluir
+        hecho = 1
+      }
+      END { if (!hecho) exit 3 }' "$SITIO.nuevo" > "$SITIO.tmp" \
+      || { rm -f "$SITIO.tmp" "$SITIO.nuevo"; falla "no encontré el server_name $DOMINIO del bloque https en $SITIO (no se tocó)"; }
+    mv "$SITIO.tmp" "$SITIO.nuevo"
+  fi
+  if cmp -s "$SITIO" "$SITIO.nuevo"; then
+    rm -f "$SITIO.nuevo"
+  else
+    mv "$SITIO.nuevo" "$SITIO"
     if ! nginx -t 2>/tmp/nginx-t.txt; then
-      cat /tmp/nginx-t.txt; cp -p "$R/nginx-$DOMINIO" "$SITES_DIR/$DOMINIO"
+      cat /tmp/nginx-t.txt; cp -p "$R/nginx-$DOMINIO" "$SITIO"
       falla "nginx -t falló: se dejó el sitio de antes (Space Eye quedó arriba, la app no se tocó)"
     fi
     systemctl reload nginx
-    echo "   nginx con $EYES"
   fi
+  # Comprobación de punta a punta, por el dominio y desde fuera de docker.
+  # El reload de nginx no es instantáneo: se le dan unos segundos.
+  for _ in $(seq 1 10); do
+    C_API="$(codigo --resolve "$DOMINIO:443:127.0.0.1" "https://$DOMINIO/api/app/version")"
+    [[ "$C_API" == 401 || "$C_API" == 200 ]] && break; sleep 1
+  done
+  [[ "$C_API" == 401 || "$C_API" == 200 ]] || falla "https://$DOMINIO/api/ no llega a Space Eye (dio $C_API)"
+  echo "   https://$DOMINIO/api/ llega a Space Eye ($C_API) y la app sigue en /spaces-dooh"
 fi
 
 # ─── 6 · La app de la instancia ───────────────────────────────────────────
@@ -203,7 +251,7 @@ fi
 
 # ─── Resumen ──────────────────────────────────────────────────────────────
 paso "LISTO"
-echo "   Space Eye de $OWNER: https://$EYES (los equipos) · 127.0.0.1:4200 (su SPACE OS)"
+echo "   Space Eye de $OWNER: https://$DOMINIO (los equipos) · 127.0.0.1:4200 (su SPACE OS)"
 echo "   Respaldo: $R"
 echo "   Si su licencia trae el módulo apagado, en el padre:"
 echo "     node apps/flota/modulo.mjs --instancia $OWNER --activar space-eyes"

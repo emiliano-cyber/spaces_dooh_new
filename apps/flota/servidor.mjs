@@ -1119,7 +1119,7 @@ export function paginaAltas(solicitudes, usuario, csrf, zonas = {}) {
   <label>Nombre de la instancia<input name="instancia" required placeholder="pixeled"></label>
   <label>Dominio${sufijo ? ' <span class="sub">(en blanco = ' + escapar(sufijo) + ')</span>' : ''}<input name="dominio"${sufijo ? '' : ' required'} placeholder="${escapar(ejemploDominio)}"></label>
   <label>Correo del Dueño (su cuenta de Google)<input name="email" type="email" required></label>
-  <label><input type="checkbox" name="con_eyes" value="si" checked> Con Space Eyes (cámaras) <span class="sub">— servidor de 2 GB y <code>eyes.&lt;dominio&gt;</code>; si el dominio es del cliente, debe apuntar los DOS nombres</span></label>
+  <label><input type="checkbox" name="con_eyes" value="si" checked> Con Space Eyes (cámaras) <span class="sub">— servidor de 2 GB; los equipos entran por el mismo dominio, sin otro registro</span></label>
   <button type="submit">Dar de alta</button>
 </form>
 

@@ -452,8 +452,8 @@ if [[ "$EMITIR_CERT" -eq 1 ]]; then
   #
   # `--webroot` tampoco necesita parar nginx, que es lo que obliga
   # `--standalone` y lo que convierte una renovacion en una caida.
+  # Un solo nombre aun con --con-eyes: los equipos entran por el MISMO dominio.
   NOMBRES_CERT="-d '$DOMINIO'"
-  [[ "$CON_EYES" -eq 1 ]] && NOMBRES_CERT="$NOMBRES_CERT -d 'eyes.$DOMINIO'"
   remoto "certbot certonly --webroot -w /var/www/html -n --agree-tos --no-eff-email \
     -m '$CERTBOT_EMAIL' $NOMBRES_CERT"
 
@@ -910,7 +910,7 @@ paso "Actualizador"
 remoto "mkdir -p /opt/space-os /var/log/space-os"
 remoto_escribir /opt/space-os/update.sh 750 < "$RAIZ/infra/scripts/update.sh"
 if [[ "$CON_EYES" -eq 1 ]]; then
-  remoto "mkdir -p /opt/space-os/eyes"
+  remoto "mkdir -p /opt/space-os/eyes /etc/nginx/snippets"
   while IFS=$'\t' read -r origen destino modo; do
     remoto_escribir "$destino" "$modo" < "$origen"
   done < <(eyes_archivos "$RAIZ")
@@ -970,7 +970,7 @@ if remoto "/opt/space-os/update.sh"; then
   echo "  la instancia ya sirve: no hay que esperar al cron de las 4:17"
   if [[ "$CON_EYES" -eq 1 ]]; then
     remoto "/opt/space-os/update-eyes.sh" \
-      && echo "  Space Eyes levantado (servira por eyes.$DOMINIO cuando haya certificado)" \
+      && echo "  Space Eyes levantado (los equipos entran por $DOMINIO cuando haya certificado)" \
       || echo "  AVISO: Space Eyes no levanto; el cron lo reintenta. ssh root@$HOST 'tail -40 /var/log/space-os/eyes.log'" >&2
   fi
 else

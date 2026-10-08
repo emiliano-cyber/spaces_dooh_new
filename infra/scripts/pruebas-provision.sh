@@ -346,15 +346,16 @@ escrito_dice /opt/space-os/eyes/docker-compose.yml 'name: space-eyes'
 hubo 'ufw allow'
 # Que se CORRA, no solo que se copie: la copia tambien menciona la ruta.
 hubo_regex 'root@[^ ]+ /opt/space-os/update-eyes.sh$'
-dice "eyes.$DOM"
+no_hubo "eyes.$DOM"
 limpiar
 
-escenario 'EYES · --emitir-certificado --con-eyes pide el certificado con los DOS nombres'
+escenario 'EYES · --emitir-certificado --con-eyes pide el certificado con UN solo nombre'
 preparar
 correr -u REGISTRY -u REGISTRY_TOKEN CERTBOT_EMAIL=x@ejemplo.com -- \
   --host "$IP" --dominio "$DOM" --emitir-certificado --con-eyes --confirmar
 codigo_es 0
-hubo_regex "certbot certonly .*-d '$DOM' -d 'eyes\.$DOM'"
+hubo_regex "certbot certonly .*-d '$DOM'"
+no_hubo "eyes.$DOM"
 limpiar
 
 escenario 'EYES · sin --con-eyes, ni eyes.env ni segundo nombre en el certificado'
