@@ -3472,13 +3472,13 @@ limpiar
 # Firma con la MISMA llave del escenario (la de usar_licencia) una licencia que
 # "tiene el padre", con la instancia y los modulos que se le digan, y prende la
 # bandera y el canal de la flota.
-#   licencia_en_el_padre <instancia> [modulos-json]
+#   licencia_en_el_padre <instancia> [modulos-json] [vence] [emitida]
 licencia_en_el_padre() {
-  local inst="$1" mods="${2:-}"
+  local inst="$1" mods="${2:-}" vence="${3:-$(date -u -d '+300 days' +%F)}" emitida="${4:-2026-10-07}"
   mkdir -p "$RAIZ_TMP/padre"
   {
     printf '{\n  "instancia": "%s",\n  "dominio": "demo.ejemplo.invalid",\n' "$inst"
-    printf '  "emitida": "2026-10-07",\n  "vence": "%s",\n  "aviso_dias": 30,\n  "gracia_dias": 15' "$(date -u -d '+300 days' +%F)"
+    printf '  "emitida": "%s",\n  "vence": "%s",\n  "aviso_dias": 30,\n  "gracia_dias": 15' "$emitida" "$vence"
     [ -n "$mods" ] && printf ',\n  "modulos": %s' "$mods"
     printf '\n}\n'
   } >"$RAIZ_TMP/padre/licencia.json"
@@ -3556,6 +3556,59 @@ export C_LICENCIA_DIR="$RAIZ_TMP/padre"
 correr
 hubo '/flota/licencia.json'
 log_calla 'instalada la nueva'
+limpiar
+
+# ─── Y nunca hacia atras (revision del 07/10, hallazgo ALTO 2) ─────────────
+# La copia del padre puede ser VIEJA: `firmar-licencia.mjs` escribe por omision
+# en `.`, no en `licencias/<instancia>/`, asi que una renovacion copiada a mano
+# a la instancia deja en el padre la de antes. Con firma buena y de esta
+# instancia se instalaba igual, y una ya vencida acababa en el `docker stop`
+# de las vencidas. La del padre entra solo si no vence ANTES que la de disco
+# (y, venciendo el mismo dia, si no se emitio antes).
+preparar 'E156 una licencia del padre que vence ANTES que la de disco se descarta'
+usar_licencia "$(date -u -d '+300 days' +%F)"
+cp "$RAIZ_TMP/licencia/licencia.json" "$RAIZ_TMP/antes.json"
+licencia_en_el_padre demo '["space-eyes"]' "$(date -u -d '+60 days' +%F)"
+correr
+log_dice 'licencia del padre: es MAS VIEJA que la de disco'
+log_calla 'instalada la nueva'
+log_dice 'licencia: sana'
+if cmp -s "$RAIZ_TMP/antes.json" "$RAIZ_TMP/licencia/licencia.json"; then bien; else mal 'se instalo una licencia que vence antes que la de disco'; fi
+limpiar
+
+preparar 'E157 una ya VENCIDA del padre no apaga una instancia renovada'
+usar_licencia "$(date -u -d '+300 days' +%F)"
+licencia_en_el_padre demo '["space-eyes"]' "$(date -u -d '-40 days' +%F)"
+correr
+log_dice 'licencia del padre: es MAS VIEJA que la de disco'
+log_dice 'licencia: sana'
+log_calla 'licencia: vencida'
+codigo_es 0
+limpiar
+
+preparar 'E158 mismo vencimiento y emitida ANTES que la de disco: se descarta'
+usar_licencia "$(date -u -d '+300 days' +%F)"
+licencia_en_el_padre demo '[]' "$(date -u -d '+300 days' +%F)" '2025-12-01'
+correr
+log_dice 'licencia del padre: es MAS VIEJA que la de disco'
+log_calla 'instalada la nueva'
+limpiar
+
+preparar 'E159 mismo vencimiento y emitida DESPUES (activar el modulo): se instala'
+usar_licencia "$(date -u -d '+300 days' +%F)"
+licencia_en_el_padre demo '["space-eyes"]' "$(date -u -d '+300 days' +%F)" '2026-10-07'
+correr
+log_dice 'licencia del padre: instalada la nueva (modulos: space-eyes)'
+log_dice 'licencia: sana'
+limpiar
+
+preparar 'E160 con la de disco rota, la del padre (buena) la repara aunque venza antes'
+usar_licencia "$(date -u -d '+300 days' +%F)"
+printf ' ' >>"$RAIZ_TMP/licencia/licencia.json"
+licencia_en_el_padre demo '["space-eyes"]' "$(date -u -d '+60 days' +%F)"
+correr
+log_dice 'licencia del padre: instalada la nueva'
+log_dice 'licencia: sana'
 limpiar
 
 printf '\n%s escenarios · %s comprobaciones · %s rojas\n' "$ESCENARIOS" "$COMPROBACIONES" "$FALLOS"
@@ -3885,6 +3938,10 @@ if [ "${1:-}" = '--mutantes' ]; then
   # Pedirla aunque la instancia no lo haya pedido: E150 tiene que verlo.
   probar_mutante 'pedir la licencia al padre sin LICENCIA_DEL_PADRE' \
     's@^  \[ "\$LICENCIA_DEL_PADRE" = 1 \] || return 0$@  true                         || return 0@'
+  # Instalar una MAS VIEJA que la de disco (revision del 07/10): E156-E158
+  # tienen que verlo, y E157 con el `docker stop` de una vencida (codigo 8).
+  probar_mutante 'instalar la licencia del padre aunque sea mas vieja que la de disco' \
+    's@^  if ( registrar() { :; }; licencia_valida ); then$@  if false; then@'
 
   printf '\n%s mutantes · %s escapan\n' "$MUT_TOTAL" "$MUT_FALLOS"
   [ "$MUT_FALLOS" -eq 0 ] || exit 1

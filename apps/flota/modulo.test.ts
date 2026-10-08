@@ -20,11 +20,18 @@ describe('licenciaConModulo', () => {
     expect(nueva).toEqual({ ...JSON.parse(vigente), emitida: '2026-10-07', modulos: ['space-eyes'] })
   })
 
-  it('desactivar: lo quita y la licencia vuelve a ser como las de antes', () => {
+  it('desactivar: lo quita y lo deja ESCRITO como apagado', () => {
     const con = licenciaConModulo(vigente, { modulo: 'space-eyes', activar: true, hoy: '2026-10-07' })
     const sin = licenciaConModulo(con, { modulo: 'space-eyes', activar: false, hoy: '2026-10-08' })
-    expect(JSON.parse(sin).modulos).toBeUndefined()
+    // Sin el campo la licencia no decidiria y mandaria la configuracion: el
+    // modulo seguiria encendido. Apagar es `modulos: []`.
+    expect(JSON.parse(sin).modulos).toEqual([])
     expect(JSON.parse(sin).vence).toBe('2027-06-30')
+  })
+
+  it('desactivar una licencia de antes (sin el campo) tambien lo escribe', () => {
+    const sin = licenciaConModulo(vigente, { modulo: 'space-eyes', activar: false, hoy: '2026-10-08' })
+    expect(JSON.parse(sin).modulos).toEqual([])
   })
 
   it('activar dos veces no lo repite', () => {
@@ -44,6 +51,10 @@ describe('modulosDe y la orden del panel', () => {
     writeFileSync(join(dir, 'pixeled', 'licencia.json'), licenciaConModulo(vigente, { modulo: 'space-eyes', activar: true, hoy: '2026-10-07' }))
     expect(modulosDe('pixeled', dir)).toEqual({ licencia: true, modulos: ['space-eyes'] })
     expect(modulosDe('sin-licencia', dir)).toEqual({ licencia: false, modulos: [] })
+    // Una licencia de antes no decide: el panel no puede pintarla como «no».
+    mkdirSync(join(dir, 'vieja'))
+    writeFileSync(join(dir, 'vieja', 'licencia.json'), vigente)
+    expect(modulosDe('vieja', dir)).toEqual({ licencia: true, modulos: null })
   })
 
   it('la orden que muestra el panel es exactamente la que hace el cambio', () => {

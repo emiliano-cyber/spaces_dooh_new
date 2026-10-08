@@ -589,6 +589,18 @@ describe('pagina · el motivo se ve', () => {
     expect(html).toContain('&lt;script&gt;')
   })
 
+  // La columna «space eyes» (etapa 4). Una licencia de antes no dice nada de
+  // modulos: el panel no puede pintarla «no», porque en la instancia manda la
+  // configuracion y el modulo puede estar encendido (revision del 07/10).
+  it('space eyes: activo, apagado y «segun config» con una licencia de antes', () => {
+    const celda = (modulos: string[] | null, licencia = true) =>
+      pagina([sana], null, () => ({ licencia, modulos: modulos ?? null }))
+    expect(celda(['space-eyes'])).toContain('>activo</td>')
+    expect(celda([])).toContain('>no</td>')
+    expect(celda(null)).toContain('>segun config</td>')
+    expect(celda([], false)).toContain('>—</td>')
+  })
+
   it('el motivo se acompaña de la ultima vez que estuvo bien', () => {
     expect(pagina([caida], null)).toContain('2026-09-10T09:00:00Z')
   })

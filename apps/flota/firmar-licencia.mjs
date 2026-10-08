@@ -22,7 +22,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { createInterface } from 'node:readline'
 
-import { construirLicencia, firmar } from './licencia.mjs'
+import { construirLicencia, firmar, leerModulos } from './licencia.mjs'
 
 function argumento(nombre, porOmision = undefined) {
   const i = process.argv.indexOf(`--${nombre}`)
@@ -58,12 +58,21 @@ const avisoDias = Number(argumento('aviso-dias', '30'))
 const graciaDias = Number(argumento('gracia-dias', '15'))
 const rutaLlave = argumento('llave', '/etc/space-os/llaves/space-os.key.pem')
 const salida = argumento('salida', '.')
-// Modulos vendidos aparte, separados por coma (hoy: space-eyes).
-const modulos = argumento('modulos', '').split(',').map((m) => m.trim()).filter(Boolean)
+// Modulos vendidos aparte, separados por coma (hoy: space-eyes), o `ninguno`.
+// Sin la bandera la licencia no dice nada y manda la configuracion de la
+// instancia: OJO al renovar una a la que se le apago Space Eyes, que hay que
+// repetir `--modulos ninguno` o vuelve a encenderse.
+let modulos
+try {
+  modulos = leerModulos(argumento('modulos'))
+} catch (error) {
+  console.error(`firmar-licencia: ${error.message}`)
+  process.exit(64)
+}
 
 if (!instancia || !dominio || !vence) {
   console.error('uso: firmar-licencia.mjs --instancia <n> --dominio <d> --vence <YYYY-MM-DD>')
-  console.error('     [--aviso-dias 30] [--gracia-dias 15] [--llave <ruta>] [--salida <dir>] [--modulos space-eyes]')
+  console.error('     [--aviso-dias 30] [--gracia-dias 15] [--llave <ruta>] [--salida <dir>] [--modulos space-eyes|ninguno]')
   process.exit(64)
 }
 

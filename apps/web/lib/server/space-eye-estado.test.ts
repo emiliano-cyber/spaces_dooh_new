@@ -66,12 +66,21 @@ describe('estadoDelModulo', () => {
     expect(await m.estadoDelModulo()).toBe('activo')
   })
 
-  it('con licencia SIN space-eyes: la demostracion, aunque el servidor exista', async () => {
+  it('con licencia firmada SIN space-eyes: la demostracion, aunque el servidor exista', async () => {
     const fetch = vi.fn().mockResolvedValue({ ok: true })
     vi.stubGlobal('fetch', fetch)
-    const m = await cargar({ ...conEyes, LICENCIA_JSON: lic({ instancia: 'x', vence: '2027-01-01' }) })
+    const m = await cargar({ ...conEyes, LICENCIA_JSON: lic({ instancia: 'x', vence: '2027-01-01', modulos: [] }) })
     expect(await m.estadoDelModulo()).toBe('no_contratado')
     expect(fetch).not.toHaveBeenCalled()
+  })
+
+  // Las licencias firmadas antes de la etapa 4 no traen `modulos`. Si eso
+  // contara como «sin Space Eyes», desplegar esta version le quitaria el modulo
+  // a toda instancia con licencia que ya lo usa (revision del 07/10).
+  it('con una licencia de antes (sin el campo modulos): manda la configuracion', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true }))
+    const m = await cargar({ ...conEyes, LICENCIA_JSON: lic({ instancia: 'x', vence: '2027-01-01' }) })
+    expect(await m.estadoDelModulo()).toBe('activo')
   })
 
   it('sin archivo de licencia: manda la configuracion', async () => {

@@ -1,6 +1,6 @@
 import { generateKeyPairSync } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
-import { NOMBRE_VALIDO_INSTANCIA, construirLicencia, firmar, verificar } from './licencia.mjs'
+import { NOMBRE_VALIDO_INSTANCIA, construirLicencia, firmar, leerModulos, verificar } from './licencia.mjs'
 
 const par = () => generateKeyPairSync('ed25519')
 const otro = () => generateKeyPairSync('ed25519')
@@ -61,11 +61,20 @@ describe('construirLicencia', () => {
 })
 
 describe('modulos vendidos aparte (Space Eyes)', () => {
-  it('sin modulos, la licencia queda byte a byte como las de antes', () => {
+  it('sin decir modulos, la licencia queda byte a byte como las de antes', () => {
     // Las licencias ya firmadas no traen `modulos`: si este cambio alterara sus
     // bytes, todas dejarian de validar y se apagarian instancias al corriente.
-    expect(construirLicencia({ ...datos, modulos: [] })).toBe(construirLicencia(datos))
     expect(construirLicencia(datos)).not.toContain('modulos')
+    expect(construirLicencia({ ...datos, modulos: undefined })).toBe(construirLicencia(datos))
+  })
+
+  // Sin el campo, la licencia NO decide (manda la configuracion, como antes de
+  // la etapa 4). Por eso apagar tiene que escribirse: `modulos: []` es «firmado
+  // sin Space Eyes», y no puede confundirse con una licencia de antes.
+  it('una lista vacia se firma tal cual: es apagar, no «como antes»', () => {
+    const json = construirLicencia({ ...datos, modulos: [] })
+    expect(JSON.parse(json).modulos).toEqual([])
+    expect(json).not.toBe(construirLicencia(datos))
   })
 
   it('con Space Eyes, lo lleva al final, ordenado y sin repetir', () => {
@@ -84,6 +93,21 @@ describe('modulos vendidos aparte (Space Eyes)', () => {
     const con = construirLicencia({ ...datos, modulos: ['space-eyes'] })
     expect(verificar(con, firmar(sin, privateKey), publicKey)).toBe(false)
     expect(verificar(con, firmar(con, privateKey), publicKey)).toBe(true)
+  })
+})
+
+describe('leerModulos (--modulos de firmar-licencia)', () => {
+  it('sin la bandera: la licencia no dice nada de modulos', () => {
+    expect(leerModulos(undefined)).toBeUndefined()
+  })
+  it('«ninguno» firma el modulo apagado', () => {
+    expect(leerModulos('ninguno')).toEqual([])
+  })
+  it('una lista separada por comas', () => {
+    expect(leerModulos(' space-eyes , ')).toEqual(['space-eyes'])
+  })
+  it('vacia es un error, no un apagado por accidente', () => {
+    expect(() => leerModulos('')).toThrow(/ninguno/)
   })
 })
 

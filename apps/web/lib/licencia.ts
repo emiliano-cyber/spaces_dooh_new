@@ -85,7 +85,8 @@ export function avisoDeLicencia(
  *
  *   - sin licencia (`null`: los hijos administrados no llevan) → `null`, o sea
  *     "la licencia no decide": manda la configuracion, como hasta ahora;
- *   - con licencia → si el modulo esta en su lista.
+ *   - licencia sin el campo `modulos` (las de antes) → `null` tambien;
+ *   - con `modulos` (aunque sea `[]`) → si el modulo esta en su lista.
  *
  * Una licencia ilegible tambien devuelve `null`: un archivo roto no puede
  * quitarle a una empresa algo que ya pago. La firma la comprueba update.sh en
@@ -95,7 +96,11 @@ export function licenciaIncluyeModulo(crudo: string | null, modulo: string): boo
   if (crudo == null) return null
   try {
     const l = JSON.parse(crudo) as { modulos?: unknown }
-    return Array.isArray(l.modulos) && l.modulos.includes(modulo)
+    // Sin el campo, la licencia es de antes de la etapa 4 y no decide: si
+    // contara como «sin el modulo», desplegar esta version le quitaria Space
+    // Eyes a toda instancia con licencia que ya lo usa (revision del 07/10).
+    if (!Array.isArray(l.modulos)) return null
+    return l.modulos.includes(modulo)
   } catch {
     return null
   }

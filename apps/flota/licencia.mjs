@@ -64,7 +64,7 @@ export const MODULOS = ['space-eyes']
  * El JSON exacto que se firma y se escribe. El orden de las claves es fijo y la
  * indentacion tambien: son los bytes que cubre la firma.
  */
-export function construirLicencia({ instancia, dominio, vence, avisoDias, graciaDias, emitida, modulos = [] }) {
+export function construirLicencia({ instancia, dominio, vence, avisoDias, graciaDias, emitida, modulos }) {
   if (typeof instancia !== 'string' || !NOMBRE_VALIDO_INSTANCIA.test(instancia)) {
     throw new Error(`\`instancia\` no es un nombre valido (minusculas, digitos y guiones): ${String(instancia)}`)
   }
@@ -76,7 +76,7 @@ export function construirLicencia({ instancia, dominio, vence, avisoDias, gracia
   exigirDias('aviso_dias', avisoDias)
   exigirDias('gracia_dias', graciaDias)
 
-  if (!Array.isArray(modulos) || modulos.some((m) => !MODULOS.includes(m))) {
+  if (modulos !== undefined && (!Array.isArray(modulos) || modulos.some((m) => !MODULOS.includes(m)))) {
     throw new Error(`\`modulos\` solo puede llevar ${MODULOS.join(', ')}: ${JSON.stringify(modulos)}`)
   }
 
@@ -88,15 +88,32 @@ export function construirLicencia({ instancia, dominio, vence, avisoDias, gracia
     aviso_dias: avisoDias,
     gracia_dias: graciaDias,
   }
-  // Solo si hay alguno, y al FINAL: una licencia sin modulos queda byte a byte
-  // como las de antes, asi que las que ya estan firmadas siguen validando y
-  // nadie tiene que volver a firmar nada por esto. Ordenados y sin repetir,
-  // para que la misma decision produzca siempre los mismos bytes.
-  const lista = [...new Set(modulos)].sort()
-  if (lista.length) cuerpo.modulos = lista
+  // Al FINAL, y solo si se dijo: una licencia que no dice nada de modulos queda
+  // byte a byte como las de antes, asi que las ya firmadas siguen validando.
+  // Y una lista VACIA si se escribe, porque no significan lo mismo: sin el
+  // campo la licencia no decide (manda la configuracion de la instancia, como
+  // antes de la etapa 4); con `[]` la licencia apaga los modulos. Confundirlas
+  // le quitaba Space Eyes, al desplegar, a toda instancia con una licencia de
+  // antes (revision del 07/10). Ordenados y sin repetir, para que la misma
+  // decision produzca siempre los mismos bytes.
+  if (modulos !== undefined) cuerpo.modulos = [...new Set(modulos)].sort()
   // El salto final es a proposito: un archivo de texto sin el ultimo salto es
   // el que rompe `cat`, los editores y los diffs.
   return JSON.stringify(cuerpo, null, 2) + '\n'
+}
+
+/**
+ * `--modulos` de firmar-licencia: sin la bandera la licencia no dice nada
+ * (manda la configuracion); `ninguno` los firma apagados. Una cadena vacia es
+ * un error y no un apagado: `--modulos "$VAR"` con la variable vacia no puede
+ * quitarle a nadie lo que pago.
+ */
+export function leerModulos(valor) {
+  if (valor === undefined) return undefined
+  if (valor.trim() === 'ninguno') return []
+  const lista = valor.split(',').map((m) => m.trim()).filter(Boolean)
+  if (!lista.length) throw new Error('`--modulos` vacio: escribe los modulos (space-eyes) o `ninguno` para firmarlos apagados')
+  return lista
 }
 
 /** Ed25519 no lleva funcion de resumen aparte: por eso el algoritmo va en `null`. */

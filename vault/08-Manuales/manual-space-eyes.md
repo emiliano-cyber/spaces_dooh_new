@@ -321,6 +321,12 @@ que hacer nada.
   ejemplo `node apps/flota/modulo.mjs --instancia pixeled --activar space-eyes`.
   Pide la frase de paso de la llave de licencias y deja constancia de quién y
   cuándo.
+- Si la columna dice **«según config»**, la licencia de esa empresa es de
+  antes y no dice nada de Space Eyes: lo tiene si su servidor está configurado.
+  Activarlo o desactivarlo con la orden lo deja escrito en la licencia.
+- **Al renovar la licencia** de una empresa a la que se le desactivó Space
+  Eyes, firma con `--modulos ninguno`; sin esa opción la licencia nueva no
+  dice nada y el módulo vuelve a depender de la configuración.
 - En **15 minutos o menos** la empresa ve Space Eyes (o vuelve a ver la
   demostración, si se desactivó). **Desactivar no borra** equipos ni fotos.
 
