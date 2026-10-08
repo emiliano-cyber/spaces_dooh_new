@@ -27,7 +27,33 @@ La entrada más reciente va arriba.
     contadores de equipos y fallas.
   - **Lo que se queda igual a propósito:** las descargas a CSV/Excel siguen sin
     coma, para que Excel pueda sumar. Los campos donde se **teclea** una cifra
-    todavía no la muestran: es la segunda fase.
+    también la llevan desde la segunda fase (siguiente punto).
+- **La coma de miles también al escribir una cifra.** *(Pedido tuyo del
+  08/10, segunda fase.)* En los campos de importes y cantidades grandes, al
+  teclear 212500 se ve **212,500** mientras escribes. Lo que se guarda es
+  exactamente el mismo número que antes; la coma solo está en lo que ves.
+  - **Dónde:** abonos de cobranza, tarifas y rentas de la propuesta, cambios
+    de contrato y ficha del contrato, monto de la orden de compra, tarifas de
+    la ficha de pantalla y de la rejilla por franja, asistente de contrato,
+    alta de pantalla, importación (precio por m²), tabla de inventario (celda
+    y cambio en lote), paquetes, recibos de luz (importe y kWh), costo real
+    de la OT, costo de mano de obra por tipo de OT (Administración), y las
+    cantidades grandes: millares y spots por día, slots de la reserva, tramos
+    de volumen, tope de usos de un código y slots por hora.
+  - **La regla, como se lee en México:** la coma solo separa miles (cada tres
+    cifras) y el punto solo es decimal. Puedes escribir 212500, 212,500 o
+    $ 212,500.50.
+  - **Lo que el campo NO adivina:** si escribes una coma mal puesta
+    («2,50»), dos puntos («1.234.567») o el estilo europeo («2.500,50»), el
+    campo se pone en rojo, te dice por qué y no deja guardar. Y **«2.500» en
+    un importe se rechaza**: en México eso es dos punto cinco, pero casi
+    siempre quien lo escribe quería dos mil quinientos — y guardar un importe
+    mil veces menor no da ningún error.
+  - **Se corrigieron de paso varios huecos por los que un importe mal escrito
+    se guardaba como cero o se perdía sin aviso.** Por ejemplo, «15,000»
+    escrito en la tarifa del alta rápida de una pantalla se guardaba como
+    tarifa $0; ahora se lee como 15,000. Y en la tabla de inventario, una
+    tarifa ilegible ya no se guarda como cero.
 - **Órdenes de trabajo: fecha de hoy, responsable visible y costo antes de
   cerrar.** *(Pedido tuyo del 08/10.)*
   - **Una OT nueva nace programada para hoy.** Antes la fecha venía en blanco.

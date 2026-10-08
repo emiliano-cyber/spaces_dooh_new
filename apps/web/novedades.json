@@ -6,6 +6,10 @@
       {
         "tipo": "AJUSTADO",
         "texto": "Todas las cifras que se ven llevan coma de miles (2,500 y $ 1,234,567.50): Inicio, la gráfica de tentativas, los pases al día, el historial de cambios del contrato, Energía, Actividad, Space Eyes y los contadores. Las descargas a CSV/Excel siguen sin coma, para que Excel pueda sumar."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "Al escribir un importe o una cantidad grande, la coma de miles aparece mientras tecleas (212,500). Se guarda el mismo número que antes. Si la cifra es ambigua —una coma mal puesta, o «2.500» en un importe— el campo se pone en rojo y te dice cómo escribirla, en lugar de adivinar."
       }
     ]
   },
