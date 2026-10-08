@@ -46,6 +46,30 @@ class BuscadorCampanas(private val campanas: Campanas) {
     }
 
     /** La campana que se ve en esta pantalla enderezada (gris), o null. */
+    /**
+     * TODAS las campanas cuyo arte se ve, de la que mejor coincide a la que
+     * menos. El mismo creativo puede estar vendido en dos campanas para la
+     * misma pantalla y cada una necesita su prueba (paso en el ensayo de la
+     * Raspberry del 8-oct: la segunda se quedaba sin foto).
+     */
+    fun buscarTodas(r: Vision.Rasgos, pantalla: Mat): List<Int> {
+        val refs = campanas.referencias()
+        val vigentes = refs.map { it.id to it.sha }.toSet()
+        rasgos.keys.filter { (it.id to it.sha) !in vigentes }.forEach { k -> rasgos.remove(k)?.firstOrNull()?.desc?.release() }
+        val ancho = pantalla.cols()
+        val alto = pantalla.rows()
+        val halladas = mutableListOf<Pair<Int, Int>>()
+        for (ref in refs) {
+            val vs = de(ref, ancho, alto)
+            val p = vs.maxOfOrNull { Vision.coincidencias(r, it) } ?: 0
+            if (p >= Reconocedor.UMBRAL) {
+                halladas.add(ref.id to p)
+                if (vs.size < VARIANTES_MAX) vs.add(r)
+            }
+        }
+        return halladas.sortedByDescending { it.second }.map { it.first }
+    }
+
     fun buscar(r: Vision.Rasgos, pantalla: Mat): Int? {
         val refs = campanas.referencias()
         // Lo de campanas que ya no estan (o cuyo arte cambio) se suelta.

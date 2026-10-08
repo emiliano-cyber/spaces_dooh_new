@@ -261,3 +261,41 @@ def test_cuando_termina_la_campana_su_arte_no_vuelve_como_nuevo(entorno):
     puente.config["creativos"]["campanas"] = []          # vencio o se cancelo
     una_vuelta(puente, reloj, d, [D, D, T, D, D])
     assert puente.creativos == [], "ya era conocido: no gasta foto de lo programatico"
+
+
+def test_el_mismo_arte_en_dos_campanas_cada_una_lleva_su_prueba(entorno):
+    # Paso en el ensayo del 8-oct: con dos campanas del mismo creativo en la
+    # pantalla, el equipo se quedaba con la mejor coincidencia (que ya tenia su
+    # prueba de hoy) y la otra no recibia foto.
+    puente, reloj, d = entorno(configuracion(creativos=con_campana(campanas=[
+        {"id": 41, "sha": "d" * 64, "foto_hoy": True},
+        {"id": 42, "sha": "e" * 64, "foto_hoy": False},
+    ])))
+    puente.artes[41] = arte_limpio()
+    puente.artes[42] = arte_limpio()
+    una_vuelta(puente, reloj, d, [T])
+    una_vuelta(puente, reloj, d, [D, D, T])
+    assert [c for _, c in puente.pruebas] == [42], "la que no tenia prueba hoy, la recibe"
+    assert puente.creativos == []
+
+
+def test_dos_campanas_sin_prueba_reciben_una_cada_una(entorno):
+    puente, reloj, d = entorno(configuracion(creativos=con_campana(campanas=[
+        {"id": 41, "sha": "d" * 64, "foto_hoy": False},
+        {"id": 42, "sha": "e" * 64, "foto_hoy": False},
+    ])))
+    puente.artes[41] = arte_limpio()
+    puente.artes[42] = arte_limpio()
+    una_vuelta(puente, reloj, d, [T])
+    una_vuelta(puente, reloj, d, [D, D, T, D])
+    assert sorted(c for _, c in puente.pruebas) == [41, 42], "una por campana, la misma foto"
+
+
+def test_buscar_todas_ordena_de_mejor_a_peor(tmp_path):
+    c, srv, _ = armar(tmp_path)
+    srv.artes[7] = jpeg(A)
+    srv.artes[8] = jpeg(B)
+    c.actualizar([{"id": 7, "sha": "1" * 64}, {"id": 8, "sha": "2" * 64}])
+    vista = vista_por_la_camara(A)
+    halladas = c.buscar_todas(vision.rasgos(vista), vista)
+    assert [i for i, _ in halladas] == [7], "solo la que de verdad coincide"

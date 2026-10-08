@@ -330,11 +330,17 @@ class Monitor(
                         // Una campana vendida en SPACE OS: su prueba del dia sale al
                         // momento (aun aprendiendo) y NO es un creativo nuevo, asi que
                         // no gasta el tope de lo programatico.
-                        val camp = if (campanas.tamaño > 0) buscadorCampanas.buscar(rasgos, v.pantalla) else null
-                        if (camp != null) {
+                        // Todas las que coinciden: el mismo arte puede estar en dos
+                        // campanas de esta pantalla y cada una lleva su prueba.
+                        val halladas = if (campanas.tamaño > 0) buscadorCampanas.buscarTodas(rasgos, v.pantalla) else emptyList()
+                        if (halladas.isNotEmpty()) {
                             candidata = null
-                            if (campanas.pendiente(camp) && v.jpeg.isNotEmpty()) {
-                                subirCampana(evidencia.reducir(camara.enderezar(v.jpeg, giro)), camp)
+                            var fotoPrueba: ByteArray? = null
+                            for (camp in halladas) {
+                                if (campanas.pendiente(camp) && v.jpeg.isNotEmpty()) {
+                                    val foto = fotoPrueba ?: evidencia.reducir(camara.enderezar(v.jpeg, giro)).also { fotoPrueba = it }
+                                    subirCampana(foto, camp)
+                                }
                             }
                             if (id != null && puntos >= Reconocedor.UMBRAL) vistas.add(id)
                             // Que el catalogo la conozca: cuando la campana termine no
