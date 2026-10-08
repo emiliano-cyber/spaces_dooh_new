@@ -127,7 +127,14 @@ sequenceDiagram
 - **Space Eye** (`space-eye/backend/src/controllers/campanasSpaceos.controller.ts`):
   cada par campaña-creativo es una fila de `campaigns` con
   `origen`/`origen_id`; lo que ya no viene se apaga (`active = FALSE`), nada se
-  borra. Migración `024_campanas_de_spaceos.sql`.
+  borra. Migración `024_campanas_de_spaceos.sql`. Nacen **sin verificación
+  con IA** salvo que el Space Eye tenga `VERIFICACION_IA=1`: la pila de cada
+  empresa (`infra/eyes`) no trae el ai-worker, y con la verificación encendida
+  las pruebas se quedaban en «pendiente» para siempre. La foto de prueba llega
+  igual y se revisa a ojo.
+- **El equipo** busca TODAS las campañas cuyo arte coincide (el mismo
+  creativo puede estar vendido en dos campañas de la misma pantalla) y sube la
+  prueba de cada una que la necesite.
 - **El equipo** (`space-eye/pi-agent/vision/campanas.py`,
   `space-eye/android/.../pantalla/Campanas.kt` y `BuscadorCampanas.kt`): la
   campaña se busca ANTES que el catálogo de creativos; si coincide, sube su
@@ -232,7 +239,7 @@ huella `vigilancia`), `pending-commands`, `upload-photo`
   (`lib/space-eyes-actualizacion.ts`): ficha › Equipo y el filtro «Se
   actualizan a mano» de la lista.
 
-Versiones al 07/10/2026: Raspberry **0.7.5**, teléfono **0.16.4** (código 36),
+Versiones al 08/10/2026: Raspberry **0.7.6**, teléfono **0.16.4** (código 36),
 PC **1.6.0**, imagen de Space Eye construida con `space-eye/Dockerfile.instancia`.
 
 ## 8. Despliegue
