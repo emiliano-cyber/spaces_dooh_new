@@ -338,6 +338,13 @@ class ApiClient(ctx: Context) {
             // Permite ver en el dashboard que equipos se pueden actualizar solos.
             put("device_owner", status.deviceOwner)
             put("app_version_code", com.spaceeye.agent.BuildConfig.VERSION_CODE)
+            // Si se actualiza sola y por que (ver AppUpdater.decidir).
+            status.autoActualizacion?.let { a ->
+                put("actualiza_sola", a.sola)
+                put("actualiza_motivo", a.motivo)
+                a.instalador?.let { put("app_instalador", it.take(120)) }
+                put("android_sdk", a.sdk)
+            }
             // Consumo de datos (movil/WiFi). Campos opcionales: si el equipo no los
             // pudo leer se omiten y el backend/dashboard muestran n/d.
             status.dataUsage?.let { du ->
