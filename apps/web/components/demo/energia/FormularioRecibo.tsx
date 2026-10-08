@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Zap } from 'lucide-react'
 import { Button } from '@/components/demo/ui/Button'
+import { CampoCifra } from '@/components/demo/ui/CampoCifra'
 import type { PuntoDeMedicion } from '@/lib/server/energia-repo'
 import { motivoInvalidoDelRecibo, type ReciboEnFormulario } from './captura'
 
@@ -150,12 +151,14 @@ export function FormularioRecibo({
           <label className={etiqueta} htmlFor="recibo-importe">
             Importe
           </label>
-          <input
+          {/* Con coma de miles al teclear. Lo que no se entiende llega como
+              'NaN' y `motivoInvalidoDelRecibo` lo para («tiene que ser un
+              número»), igual que paraba cualquier texto antes. */}
+          <CampoCifra
             id="recibo-importe"
-            inputMode="decimal"
             className={entrada}
-            value={recibo.importe}
-            onChange={campo('importe')}
+            valor={recibo.importe}
+            onCambio={(crudo) => campo('importe')({ target: { value: crudo } })}
           />
         </div>
       </div>

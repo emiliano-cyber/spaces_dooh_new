@@ -11,6 +11,7 @@ import {
 import { motivoPaqueteInvalido, repartirPaquete } from '@/lib/paquete'
 import { useSitios } from '@/lib/data/client'
 import { Button } from '@/components/demo/ui/Button'
+import { CampoCifra } from '@/components/demo/ui/CampoCifra'
 
 // ============================================================================
 //  El CATÁLOGO DE PAQUETES CERRADOS de la organización. ADR 0039, Fase 4.
@@ -247,15 +248,16 @@ export function GestionPaquetes() {
           </label>
           <label className="text-xs">
             <span className="mb-0.5 block text-neutral-500">Precio del conjunto (pesos enteros)</span>
-            <input
+            {/* Pesos ENTEROS (decimales 0): el reparto no admite centavos. Lo
+                que no se entiende llega como 'NaN' y `motivoPaqueteInvalido`
+                lo rechaza («tiene que ser un numero»). */}
+            <CampoCifra
               aria-label="Precio cerrado del paquete"
-              type="number"
-              min={1}
-              step={1}
+              decimales={0}
               className="w-36 rounded border px-2 py-1 text-sm"
               placeholder="180000"
-              value={nuevo.precioCerrado}
-              onChange={(e) => setNuevo({ ...nuevo, precioCerrado: e.target.value })}
+              valor={nuevo.precioCerrado}
+              onCambio={(crudo) => setNuevo({ ...nuevo, precioCerrado: crudo })}
             />
           </label>
           <label className="flex items-center gap-1.5 text-xs">

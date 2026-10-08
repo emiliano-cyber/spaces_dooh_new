@@ -4,6 +4,8 @@ import { useMemo, useRef, useState } from 'react'
 import { Search, Cpu, Pencil, Loader2, CheckCircle2, UserPlus, Tag, X, Building2, Download } from 'lucide-react'
 import { Card } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
+import { CampoCifra } from '@/components/demo/ui/CampoCifra'
+import { CRUDO_INVALIDO } from '@/lib/captura-cifra'
 import { SiteFicha } from '@/components/demo/comercial/SiteFicha'
 import { StatusBadge, SITIO_TONO, SITIO_LABEL, disponibilidadInventario } from '@/components/demo/StatusBadge'
 import { usePuede } from '@/components/demo/shell/SesionContext'
@@ -182,6 +184,13 @@ export function InventarioTabla() {
   // Aplica el cambio masivo: "fijar" pone el mismo valor a todas; "ajustar"
   // sube/baja un % sobre el valor actual de cada una.
   async function aplicarMasivo() {
+    // 'NaN' = CampoCifra no entendió lo tecleado. Hay que pararlo ANTES del
+    // `replace` de abajo, que lo dejaría en '' → Number('') = 0 → «fijar la
+    // tarifa en $0» a todo el lote.
+    if (valorTarifa === CRUDO_INVALIDO) {
+      notify('La cifra no se entiende: la coma separa miles y el punto, decimales (15,000.50)')
+      return
+    }
     const num = Number(valorTarifa.replace(/[^\d.-]/g, ''))
     if (!Number.isFinite(num)) {
       notify('Escribe un número válido')
@@ -393,10 +402,13 @@ export function InventarioTabla() {
           </div>
           <div className="inline-flex items-center gap-1">
             <span className="text-muted">{modoTarifa === 'fijar' ? '$' : ''}</span>
-            <input
-              inputMode="decimal"
-              value={valorTarifa}
-              onChange={(e) => setValorTarifa(e.target.value)}
+            {/* Fijar = importe (sin negativos); Ajustar = porcentaje, que puede
+                ser negativo. El mismo campo, con coma de miles al teclear. */}
+            <CampoCifra
+              valor={valorTarifa}
+              minimo={modoTarifa === 'ajustar' ? null : 0}
+              mostrarError={false}
+              onCambio={(crudo) => setValorTarifa(crudo)}
               onKeyDown={(e) => { if (e.key === 'Enter') void aplicarMasivo() }}
               placeholder={
                 modoTarifa === 'ajustar'
@@ -629,6 +641,13 @@ function CeldaRenta({
   async function guardar() {
     if (resueltoRef.current || !info) return
     resueltoRef.current = true
+    // 'NaN' = CampoCifra no entendió lo tecleado; el `replace` de abajo lo
+    // convertiría en 0. Se dice y no se guarda nada.
+    if (val === CRUDO_INVALIDO) {
+      setEditando(false)
+      onSaved('La renta no se entiende: no se guardó. La coma separa miles y el punto, decimales.')
+      return
+    }
     const num = Number(val.replace(/[^\d.]/g, ''))
     // Un 0 NO se guarda: `contrato_monto_ck` lo rechaza y, peor, se leería como
     // «el espacio es gratis». Sin cambio real tampoco se manda nada.
@@ -709,12 +728,12 @@ function CeldaRenta({
   return (
     <span className="inline-flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
       <span className="text-[12px] text-muted">$</span>
-      <input
+      <CampoCifra
         autoFocus
-        inputMode="decimal"
-        value={val}
+        valor={val}
         disabled={saving}
-        onChange={(e) => setVal(e.target.value)}
+        mostrarError={false}
+        onCambio={(crudo) => setVal(crudo)}
         onKeyDown={(e) => {
           if (e.key === 'Enter') { e.preventDefault(); void guardar() }
           if (e.key === 'Escape') { e.preventDefault(); cancelar() }
@@ -757,6 +776,13 @@ function CeldaTarifa({
   async function guardar() {
     if (resueltoRef.current) return
     resueltoRef.current = true
+    // Sin esto, 'NaN' (lo tecleado no se entiende) pasaría por el `replace` a
+    // '' y de ahí a una tarifa de CERO guardada en silencio.
+    if (val === CRUDO_INVALIDO) {
+      setEditando(false)
+      onSaved('La tarifa no se entiende: no se guardó. La coma separa miles y el punto, decimales.')
+      return
+    }
     const num = Number(val.replace(/[^\d.]/g, ''))
     if (!Number.isFinite(num) || num < 0 || num === (sitio.tarifaMensual ?? 0)) {
       setEditando(false)
@@ -813,12 +839,12 @@ function CeldaTarifa({
   return (
     <span className="inline-flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
       <span className="text-[12px] text-muted">$</span>
-      <input
+      <CampoCifra
         autoFocus
-        inputMode="decimal"
-        value={val}
+        valor={val}
         disabled={saving}
-        onChange={(e) => setVal(e.target.value)}
+        mostrarError={false}
+        onCambio={(crudo) => setVal(crudo)}
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
             e.preventDefault()

@@ -7,6 +7,8 @@ import { Modal } from '@/components/demo/ui/Modal'
 import { InlinePanel } from '@/components/demo/ui/InlinePanel'
 import { Tabs, TabPanel } from '@/components/demo/ui/Tabs'
 import { Button } from '@/components/demo/ui/Button'
+import { CampoCifra } from '@/components/demo/ui/CampoCifra'
+import { CRUDO_INVALIDO } from '@/lib/captura-cifra'
 import { cn } from '@/lib/cn'
 import { altaSitioApi } from '@/lib/data/sitios-api'
 import { useArrendadores, type Sitio, type TipoMedio } from '@/lib/data/client'
@@ -97,7 +99,11 @@ export function NuevaPantallaForm({
   // pendiente de verificación (`lib/inventario-import.ts:211-218`). Dando de
   // alta UNA pantalla tienes la dirección delante.
   const ubicacion = puntoUtil(lat, lng)
-  const valido = !!nombre.trim() && !cvInvalido && !!imagen && !!arrendadorId && !!ubicacion
+  // Un importe que no se entiende llega como 'NaN' (CampoCifra). Sin esto,
+  // `Number(tarifa) || 0` daría de alta la pantalla con tarifa CERO, y la renta
+  // y el precio por m² se quedarían en «sin capturar» sin que nadie lo pidiera.
+  const cifraInvalida = [renta, tarifa, precioM2].includes(CRUDO_INVALIDO)
+  const valido = !!nombre.trim() && !cvInvalido && !!imagen && !!arrendadorId && !!ubicacion && !cifraInvalida
 
   function toggleModalidad(m: string) {
     setModalidades((prev) => (prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m]))
@@ -179,6 +185,8 @@ export function NuevaPantallaForm({
         <span className="text-[12px] text-error">
           Latitud y longitud obligatorias (pestaña Ubicación)
         </span>
+      ) : cifraInvalida ? (
+        <span className="text-[12px] text-error">Hay un importe en rojo que no se entiende (renta, tarifa o precio por m²)</span>
       ) : (
         <span />
       )}
@@ -223,11 +231,10 @@ export function NuevaPantallaForm({
                 pregunta es «¿a quién y cuánto le pago por este espacio?», que se
                 responde de una vez. Es el único costo de la pantalla (ADR 0006). */}
             <Campo label="Renta al arrendador (opcional)">
-              <input
+              <CampoCifra
                 className={`demo-num ${inputCls}`}
-                inputMode="decimal"
-                value={renta}
-                onChange={(e) => setRenta(e.target.value)}
+                valor={renta}
+                onCambio={(crudo) => setRenta(crudo)}
                 placeholder="Ej. 45000"
               />
               <span className="mt-1 block text-[11px] text-muted">
@@ -334,7 +341,7 @@ export function NuevaPantallaForm({
 
           <TabPanel value="precios" className="space-y-3 pt-3">
             <h3 className="text-base font-semibold text-ink">Precios</h3>
-            <Campo label="Tarifa publicada"><input className={inputCls} inputMode="numeric" value={tarifa} onChange={(e) => setTarifa(e.target.value)} placeholder="Ej. 15000" /></Campo>
+            <Campo label="Tarifa publicada"><CampoCifra className={inputCls} valor={tarifa} onCambio={(crudo) => setTarifa(crudo)} placeholder="Ej. 15000" /></Campo>
             {/* El costo NO se captura aquí (ADR 0006). Una pantalla tiene un solo
                 costo —la renta al arrendador— y se captura en la pestaña Básico,
                 junto a quién es ese arrendador. Tener aquí un "costo de compra"
@@ -345,7 +352,7 @@ export function NuevaPantallaForm({
               {Number(renta) > 0 ? `Actualmente: ${Number(renta).toLocaleString('es-MX')}.` : 'Aún sin capturar.'}
             </div>
             <Campo label="Precio por m² (estáticas)">
-              <input className={inputCls} value={precioM2} onChange={(e) => setPrecioM2(e.target.value)} placeholder="Se aplica a las estáticas del lote" />
+              <CampoCifra className={inputCls} valor={precioM2} onCambio={(crudo) => setPrecioM2(crudo)} placeholder="Se aplica a las estáticas del lote" />
             </Campo>
           </TabPanel>
 

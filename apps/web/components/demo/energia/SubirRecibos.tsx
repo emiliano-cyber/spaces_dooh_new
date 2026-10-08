@@ -6,6 +6,7 @@ import { formatMonto } from '@/lib/data/derive'
 import { AlertTriangle, CheckCircle2, FileUp, Info, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { Button } from '@/components/demo/ui/Button'
+import { CampoCifra } from '@/components/demo/ui/CampoCifra'
 import type { PuntoDeMedicion } from '@/lib/server/energia-repo'
 import {
   OPCIONES_MESES,
@@ -324,12 +325,13 @@ export function SubirRecibos({
                       />
                     </td>
                     <td className="px-2 py-2">
-                      <input
-                        inputMode="decimal"
+                      {/* Coma de miles al teclear; lo que no se entiende llega
+                          como 'NaN' y `motivoNoConfirmable` lo para. */}
+                      <CampoCifra
                         className={entrada}
                         placeholder="escríbelo"
-                        value={f.importe}
-                        onChange={(e) => cambiar(f.clave, 'importe', e.target.value)}
+                        valor={f.importe}
+                        onCambio={(crudo) => cambiar(f.clave, 'importe', crudo)}
                       />
                     </td>
                     <td className="whitespace-nowrap px-2 py-2">

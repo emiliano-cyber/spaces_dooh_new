@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { Modal } from '@/components/demo/ui/Modal'
 import { Button } from '@/components/demo/ui/Button'
+import { CampoCifra } from '@/components/demo/ui/CampoCifra'
+import { CRUDO_INVALIDO } from '@/lib/captura-cifra'
 import { cn } from '@/lib/cn'
 import { altaSitioApi } from '@/lib/data/sitios-api'
 import {
@@ -68,7 +70,10 @@ export function AltaSitioDialog({
 
   const digital = tipoMedio === 'PANTALLA_DIGITAL'
   // ADR 0002: sin arrendador no hay contrato que abrir, y el alta se rechaza.
-  const valido = nombre.trim() && distrito.trim() && direccionComercial.trim() && arrendadorId
+  // La tarifa que no se entiende llega como 'NaN' (CampoCifra). Sin la última
+  // condición, `Number(tarifa) || 0` daría de alta la pantalla con tarifa CERO
+  // — que es lo que pasaba antes con «15,000» tecleado en este campo de texto.
+  const valido = nombre.trim() && distrito.trim() && direccionComercial.trim() && arrendadorId && tarifa !== CRUDO_INVALIDO
 
   async function submit() {
     if (!valido) return
@@ -179,7 +184,7 @@ export function AltaSitioDialog({
 
         <Seccion titulo="Comercialización">
           <Campo label="Tarifa publicada ($)">
-            <input className={inputCls} inputMode="numeric" value={tarifa} onChange={(e) => setTarifa(e.target.value)} placeholder="Ej. 15000" />
+            <CampoCifra className={inputCls} valor={tarifa} onCambio={(crudo) => setTarifa(crudo)} placeholder="Ej. 15000" />
           </Campo>
           <Campo label="Regla de comercialización">
             <div className="flex gap-2">

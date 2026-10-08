@@ -5,6 +5,8 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { UserRound, FileText, Monitor, Check, ChevronLeft, ChevronRight, Loader2, Paperclip, X } from 'lucide-react'
 import { Button } from '@/components/demo/ui/Button'
+import { CampoCifra } from '@/components/demo/ui/CampoCifra'
+import { CRUDO_INVALIDO } from '@/lib/captura-cifra'
 import { useCandado, PasoContrasena } from '@/components/demo/ui/candado'
 import { cn } from '@/lib/cn'
 import { crearContratoConSitioApi, agregarPantallaAPredioApi } from '@/lib/data/estado-api'
@@ -170,7 +172,9 @@ export function ContratoWizard({
   const paso2Ok =
     !paso2Aplica ||
     (!!fechaInicio && !!fechaFin && fechaFin >= fechaInicio && renta.trim() !== '' && Number(renta) >= 0)
-  const paso3Ok = modoPantalla === 'inventario' ? !!sitioSelId : !!nombre.trim()
+  // Una tarifa que no se entiende llega como 'NaN' (CampoCifra); sin esta
+  // condición `Number(tarifa) || 0` la daría de alta en CERO.
+  const paso3Ok = modoPantalla === 'inventario' ? !!sitioSelId : !!nombre.trim() && tarifa !== CRUDO_INVALIDO
 
   function siguiente() {
     setError(null)
@@ -188,6 +192,7 @@ export function ContratoWizard({
             `El contrato nuevo debe empezar el ${formatFecha(minimoVigencia.desde)} o después.`,
         )
       }
+      if (renta === CRUDO_INVALIDO) return setError('La renta no se entiende: la coma separa miles y el punto, decimales (8,000.50).')
       if (renta.trim() === '' || Number(renta) < 0) return setError('Captura la renta (no negativa).')
     }
     // El predio ya tiene contrato: no hay nada que capturar en el paso 2.
@@ -492,7 +497,7 @@ export function ContratoWizard({
               </Campo>
               <Campo label="Fin de vigencia"><input type="date" value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} className={inputCls} /></Campo>
               <Campo label="Renta">
-                <input type="number" inputMode="decimal" value={renta} onChange={(e) => setRenta(e.target.value)} className={`demo-num ${inputCls}`} placeholder="Ej. 8000" />
+                <CampoCifra valor={renta} onCambio={(crudo) => setRenta(crudo)} className={`demo-num ${inputCls}`} placeholder="Ej. 8000" />
               </Campo>
               <Campo label="Periodicidad del pago">
                 <select value={periodicidad} onChange={(e) => setPeriodicidad(e.target.value)} className={inputCls}>
@@ -620,7 +625,7 @@ export function ContratoWizard({
               <Campo label="Distrito / alcaldía"><input value={alcaldia} onChange={(e) => setAlcaldia(e.target.value)} className={inputCls} /></Campo>
               <Campo label="Ciudad"><input value={ciudad} onChange={(e) => setCiudad(e.target.value)} className={inputCls} /></Campo>
               <Campo label="Caras"><input type="number" inputMode="numeric" min={1} value={caras} onChange={(e) => setCaras(e.target.value)} className={`demo-num ${inputCls}`} placeholder="1" /></Campo>
-              <Campo label="Tarifa publicada"><input type="number" inputMode="decimal" value={tarifa} onChange={(e) => setTarifa(e.target.value)} className={`demo-num ${inputCls}`} placeholder="Ej. 15000" /></Campo>
+              <Campo label="Tarifa publicada"><CampoCifra valor={tarifa} onCambio={(crudo) => setTarifa(crudo)} className={`demo-num ${inputCls}`} placeholder="Ej. 15000" /></Campo>
               {/* No hay "costo de compra" (ADR 0006): el costo de la pantalla es
                   la renta del contrato, que ya se capturó en el paso del predio.
                   Pedirlo aquí producía dos números distintos para el mismo

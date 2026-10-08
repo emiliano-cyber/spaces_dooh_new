@@ -30,6 +30,8 @@ import { Sheet } from '@/components/demo/ui/Sheet'
 import { Modal } from '@/components/demo/ui/Modal'
 import { ConfirmDialog } from '@/components/demo/ui/ConfirmDialog'
 import { Button } from '@/components/demo/ui/Button'
+import { CampoCifra } from '@/components/demo/ui/CampoCifra'
+import { CRUDO_INVALIDO } from '@/lib/captura-cifra'
 import { FotoUploaderMock } from '@/components/demo/FotoUploaderMock'
 import { CalendarioDisponibilidad } from '@/components/demo/CalendarioDisponibilidad'
 import { SpaceEyeVision } from '@/components/demo/comercial/SpaceEyeVision'
@@ -895,6 +897,10 @@ function ModalidadesDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
   }
 
   const nuevaSinTarifa = nuevas.some((n) => n.tarifa.trim() === '' || !Number.isFinite(Number(n.tarifa)))
+  // Una tarifa YA puesta que no se entiende llega como 'NaN' (CampoCifra), y
+  // `guardar` se la salta (`!Number.isFinite → continue`): se guardaría todo lo
+  // demás y ESA tarifa se quedaría como estaba sin que nadie lo notara.
+  const previaInvalida = previas.some((m) => !quitadas.includes(m.unidad) && tarifas[m.unidad] === CRUDO_INVALIDO)
 
   return (
     <Modal
@@ -918,6 +924,7 @@ function ModalidadesDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
               enviando ||
               candado.enviando ||
               nuevaSinTarifa ||
+              previaInvalida ||
               (candado.reautenticando && !candado.pass)
             }
             onClick={candado.reautenticando ? () => void candado.reintentar() : guardar}
@@ -960,13 +967,11 @@ function ModalidadesDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
               <span className={`w-44 shrink-0 text-[13px] capitalize ${quitada ? 'text-muted line-through' : 'text-ink'}`}>
                 {nombreUnidad(m.unidad)}
               </span>
-              <input
-                type="number"
-                min={0}
-                step="0.01"
-                value={tarifas[m.unidad] ?? ''}
+              <CampoCifra
+                valor={tarifas[m.unidad] ?? ''}
                 disabled={quitada}
-                onChange={(e) => setTarifas((t) => ({ ...t, [m.unidad]: e.target.value }))}
+                mostrarError={false}
+                onCambio={(crudo) => setTarifas((t) => ({ ...t, [m.unidad]: crudo }))}
                 className={`${inputCls} flex-1 disabled:opacity-50`}
               />
               <button
@@ -986,15 +991,13 @@ function ModalidadesDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
         {nuevas.map((n, i) => (
           <div key={`nueva-${n.unidad}`} className="flex items-center gap-2">
             <span className="w-44 shrink-0 text-[13px] capitalize text-ink">{nombreUnidad(n.unidad)}</span>
-            <input
-              type="number"
-              min={0}
-              step="0.01"
+            <CampoCifra
               autoFocus
               placeholder="Tarifa"
-              value={n.tarifa}
-              onChange={(e) =>
-                setNuevas((prev) => prev.map((x, j) => (j === i ? { ...x, tarifa: e.target.value } : x)))
+              valor={n.tarifa}
+              mostrarError={false}
+              onCambio={(crudo) =>
+                setNuevas((prev) => prev.map((x, j) => (j === i ? { ...x, tarifa: crudo } : x)))
               }
               className={`${inputCls} flex-1`}
             />
@@ -1008,6 +1011,12 @@ function ModalidadesDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
             </button>
           </div>
         ))}
+
+        {(previaInvalida || nuevas.some((n) => n.tarifa === CRUDO_INVALIDO)) && (
+          <p className="text-[11px] text-error">
+            Hay una tarifa en rojo que no se entiende: la coma separa miles y el punto, decimales (15,000.50).
+          </p>
+        )}
 
         {disponibles.length > 0 && (
           <div className="flex items-center gap-2 border-t border-border pt-3">
@@ -1104,6 +1113,7 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
   }, [sitio.id, open])
 
   async function guardar() {
+    if (tarifa === CRUDO_INVALIDO) return
     setEnviando(true)
     // Bloque sin `try`: era uno, y el `catch` se retiró porque `candado.ejecutar`
     // DEVUELVE el fallo en vez de lanzarlo (lo enseña `alFallar`). Se conserva
@@ -1223,6 +1233,9 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
               enviando ||
               candado.enviando ||
               !nombre.trim() ||
+              // 'NaN' = la tarifa no se entiende (CampoCifra). Sin esto,
+              // `Number(tarifa) || 0` la guardaría como CERO.
+              tarifa === CRUDO_INVALIDO ||
               (candado.reautenticando && !candado.pass)
             }
             onClick={candado.reautenticando ? () => void candado.reintentar() : guardar}
@@ -1300,7 +1313,7 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
 
         <div className="grid grid-cols-1 gap-3">
           <CampoEdit label="Tarifa publicada (mensual)">
-            <input type="number" inputMode="decimal" value={tarifa} onChange={(e) => setTarifa(e.target.value)} className={`demo-num ${inputCls}`} />
+            <CampoCifra valor={tarifa} onCambio={(crudo) => setTarifa(crudo)} className={`demo-num ${inputCls}`} />
           </CampoEdit>
         </div>
 

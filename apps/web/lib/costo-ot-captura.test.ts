@@ -45,9 +45,25 @@ describe('leerCostoOt · del texto tecleado al importe', () => {
   })
 
   it('NEGATIVO · lo que no es un número se rechaza', () => {
-    for (const basura of ['abc', '12a', '--', '1,5', '1 200']) {
+    // '1,5' sigue fuera también desde el 08/10: es una coma MAL puesta (¿1.5 o
+    // 15?), y eso no se adivina.
+    for (const basura of ['abc', '12a', '--', '1,5', '1 200', '0x10', '2.500,50']) {
       expect(leerCostoOt(basura).ok, basura).toBe(false)
     }
+  })
+
+  it('la coma de miles BIEN puesta se acepta (fase 2, 08/10)', () => {
+    // Hasta el 08/10 se rechazaba porque la pantalla no la producía. Ahora el
+    // campo pinta 12,000 mientras se teclea, así que la regla tiene que
+    // entender lo que la propia pantalla enseña.
+    expect(leerCostoOt('12,000')).toEqual({ ok: true, valor: 12000 })
+    expect(leerCostoOt('$ 1,250.50')).toEqual({ ok: true, valor: 1250.5 })
+  })
+
+  it('NEGATIVO · «2.500» no se lee como 2,500 ni se guarda como 2.5 en silencio', () => {
+    const r = leerCostoOt('2.500')
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error).toMatch(/punto es decimal/i)
   })
 
   it('NEGATIVO · `Infinity` y notación rara no pasan', () => {
@@ -100,9 +116,9 @@ describe('textoDeCosto · lo que se precarga en el campo', () => {
     expect(textoDeCosto(0)).toBe('0')
   })
 
-  it('un importe se enseña tal cual, sin separadores de miles', () => {
-    // Con separadores, el propio campo devolvería '12,000' y `leerCostoOt` lo
-    // rechazaría: el usuario vería un error por un texto que no escribió.
+  it('un importe se precarga sin separadores de miles: es el valor del formulario, no lo que se ve', () => {
+    // Desde el 08/10 las comas las pone CampoCifra al PINTARLO; el valor que
+    // guarda el formulario (y lo que devuelve el campo al teclear) va sin ellas.
     expect(textoDeCosto(12000)).toBe('12000')
   })
 })

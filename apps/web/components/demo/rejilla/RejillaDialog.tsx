@@ -5,6 +5,8 @@ import { toast } from 'sonner'
 import { Trash2, Plus } from 'lucide-react'
 import { Modal } from '@/components/demo/ui/Modal'
 import { Button } from '@/components/demo/ui/Button'
+import { CampoCifra } from '@/components/demo/ui/CampoCifra'
+import { CRUDO_INVALIDO } from '@/lib/captura-cifra'
 import { useCandado, PasoContrasena } from '@/components/demo/ui/candado'
 import { AvisoFranjaCMS } from './AvisoFranjaCMS'
 import {
@@ -151,6 +153,12 @@ export function RejillaDialog({
   }
 
   const sinCatalogo = franjas.length === 0 && temporadas.length === 0
+  // Una tarifa que no se entiende llega como 'NaN' (CampoCifra) y `guardar` se
+  // la salta (`!Number.isFinite → continue`): se guardaría el resto y esa celda
+  // seguiría con su precio viejo sin que nadie lo notara. Se para antes.
+  const hayInvalida =
+    filas.some((f) => !quitadas.includes(clave(f)) && tarifas[clave(f)] === CRUDO_INVALIDO) ||
+    nueva.tarifa === CRUDO_INVALIDO
 
   return (
     <Modal
@@ -170,7 +178,7 @@ export function RejillaDialog({
           </Button>
           <Button
             size="sm"
-            disabled={candado.enviando || sinCatalogo || (candado.reautenticando && !candado.pass)}
+            disabled={candado.enviando || sinCatalogo || hayInvalida || (candado.reautenticando && !candado.pass)}
             onClick={candado.reautenticando ? () => void candado.reintentar() : () => void guardar()}
           >
             {candado.enviando
@@ -185,6 +193,11 @@ export function RejillaDialog({
       <div className="space-y-3">
         <PasoContrasena candado={candado} onEnter={() => void candado.reintentar()} />
         <AvisoFranjaCMS />
+        {hayInvalida && (
+          <p className="text-[11px] text-error">
+            Hay una tarifa en rojo que no se entiende: la coma separa miles y el punto, decimales (15,000.50).
+          </p>
+        )}
 
         {sinCatalogo ? (
           <p className="rounded-md border border-border bg-surface-2 px-3 py-2 text-[12px] text-muted">
@@ -221,14 +234,13 @@ export function RejillaDialog({
                     <td className="pr-2">{etiquetaFranja(f.franjaId)}</td>
                     <td className="pr-2">{etiquetaTemporada(f.temporadaId)}</td>
                     <td className="pr-2 text-right">
-                      <input
-                        type="number"
-                        step="0.01"
+                      <CampoCifra
                         aria-label={`Tarifa de ${f.unidad}`}
                         className="h-7 w-24 rounded border border-border-strong bg-surface px-2 text-right"
-                        value={tarifas[k] ?? ''}
+                        valor={tarifas[k] ?? ''}
                         disabled={fuera}
-                        onChange={(e) => setTarifas({ ...tarifas, [k]: e.target.value })}
+                        mostrarError={false}
+                        onCambio={(crudo) => setTarifas({ ...tarifas, [k]: crudo })}
                       />
                     </td>
                     <td className="text-right">
@@ -294,13 +306,12 @@ export function RejillaDialog({
                     </select>
                   </td>
                   <td className="pr-2 text-right">
-                    <input
-                      type="number"
-                      step="0.01"
+                    <CampoCifra
                       aria-label="Tarifa de la nueva fila"
                       className="h-7 w-24 rounded border border-border-strong bg-surface px-2 text-right"
-                      value={nueva.tarifa}
-                      onChange={(e) => setNueva({ ...nueva, tarifa: e.target.value })}
+                      valor={nueva.tarifa}
+                      mostrarError={false}
+                      onCambio={(crudo) => setNueva({ ...nueva, tarifa: crudo })}
                     />
                   </td>
                   <td className="text-right text-muted">

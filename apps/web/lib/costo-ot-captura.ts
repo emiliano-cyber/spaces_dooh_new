@@ -1,4 +1,5 @@
 import { formatMonto } from './data/derive'
+import { leerCifra } from './captura-cifra'
 // ============================================================================
 //  lib/costo-ot-captura.ts — OT-COSTO-01 · qué entiende el campo «Costo real»
 //  de una orden de trabajo de lo que se teclea en él.
@@ -33,28 +34,19 @@ export type LecturaCosto =
  * confusión que este módulo existe para no tener. El vacío se decide ANTES.
  */
 export function leerCostoOt(texto: string): LecturaCosto {
-  const t = texto.trim()
-  if (t === '') return { ok: true, valor: null }
-
-  // Se exige la forma completa del número en vez de fiarse de `Number`, que
-  // acepta cosas que aquí no son un importe: '0x10', ' 12 ' con separadores, y
-  // 'Infinity'. Sin comas de millar: el campo se precarga sin ellas
-  // (`textoDeCosto`), así que aceptarlas sería aceptar algo que la propia
-  // pantalla nunca produce.
-  if (!/^-?\d+(\.\d+)?$/.test(t)) {
-    return { ok: false, error: 'Escribe solo el importe, con punto decimal y sin comas. Ejemplo: 12000 o 1250.50' }
+  // Desde el 08/10 (fase 2 de la coma de miles) es `leerCifra` con las reglas
+  // de cualquier importe: dos decimales y sin negativos. Hasta esa fecha este
+  // lector RECHAZABA las comas, y con razón: la pantalla no las producía, así
+  // que aceptarlas era aceptar algo que nadie había escrito. Ahora el campo
+  // (`CampoCifra`) pinta 12,000 mientras se teclea, y la regla tiene que
+  // entender lo que la propia pantalla enseña. Lo que NO cambia es lo que se
+  // rechaza por ambiguo: '1,5' sigue fuera (¿1.5 o 15?), igual que '0x10',
+  // 'Infinity', '1e999' y los espacios dentro. Y el vacío sigue siendo BORRAR.
+  const r = leerCifra(texto, { decimales: 2, minimo: 0 })
+  if (!r.ok) {
+    return { ok: false, error: /negativ/i.test(r.error) ? 'El costo no puede ser negativo' : r.error }
   }
-
-  const v = Number(t)
-  // `1e999` pasa la expresión regular? No —lleva una 'e'— pero un número con
-  // muchísimos dígitos sí, y `Number` lo convierte en Infinity. Se comprueba.
-  if (!Number.isFinite(v)) {
-    return { ok: false, error: 'Ese importe es demasiado grande' }
-  }
-  if (v < 0) {
-    return { ok: false, error: 'El costo no puede ser negativo' }
-  }
-  return { ok: true, valor: v }
+  return r
 }
 
 /**
@@ -77,9 +69,10 @@ export function hayQueGuardarCosto(original: number | null, nuevo: number | null
  * ha capturado» en la afirmación «costó cero» en cuanto el usuario guardara. Y
  * un cero capturado SÍ se enseña, porque es un dato que alguien decidió.
  *
- * Sin separadores de miles a propósito: con ellos el propio campo devolvería
- * '12,000' y `leerCostoOt` lo rechazaría, así que el usuario vería un error por
- * un texto que no escribió.
+ * Sin separadores de miles: esto es lo que guarda el FORMULARIO, no lo que se
+ * ve. Las comas las pone `CampoCifra` al pintarlo (12,000), y lo que devuelve
+ * al teclear vuelve a venir sin ellas — el mismo contrato que todos los campos
+ * de importe desde el 08/10.
  */
 export function textoDeCosto(valor: number | null): string {
   return valor == null ? '' : String(valor)

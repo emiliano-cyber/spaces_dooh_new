@@ -15,6 +15,8 @@ import {
 import { Modal } from '@/components/demo/ui/Modal'
 import { InlinePanel } from '@/components/demo/ui/InlinePanel'
 import { Button } from '@/components/demo/ui/Button'
+import { CampoCifra } from '@/components/demo/ui/CampoCifra'
+import { CRUDO_INVALIDO } from '@/lib/captura-cifra'
 import { InfoAnadidaModal } from './InfoAnadidaModal'
 import { cn } from '@/lib/cn'
 import { validarArchivo, type FilaValidada } from '@/lib/inventario-import'
@@ -134,7 +136,11 @@ export function ImportarInventarioDialog({
   // cuando el archivo trae solo digitales es pedir un dato que no se va a usar.
   const hayFijas = (filas ?? []).some((f) => f.datos?.exhibicion === 'fijo')
 
-  const listoParaImportar = !!filas && !!arrendadorId
+  // Un precio por m² que no se entiende llega como 'NaN' (CampoCifra) y
+  // `Number` lo mandaría como NaN, que JSON convierte en null: el lote se
+  // importaría SIN precio sin que nadie lo pidiera.
+  const precioM2Invalido = precioM2 === CRUDO_INVALIDO
+  const listoParaImportar = !!filas && !!arrendadorId && !precioM2Invalido
 
   function reset() {
     setFilas(null)
@@ -375,16 +381,21 @@ export function ImportarInventarioDialog({
           </div>
           <div className="flex items-center gap-1">
             <span className="text-[13px] text-muted">$</span>
-            <input
-              value={precioM2}
-              onChange={(e) => setPrecioM2(e.target.value)}
-              inputMode="numeric"
+            <CampoCifra
+              valor={precioM2}
+              onCambio={(crudo) => setPrecioM2(crudo)}
+              mostrarError={false}
               placeholder="65"
               className="h-9 w-20 rounded border border-border-strong bg-surface px-2 text-right text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent demo-num"
             />
             <span className="text-[13px] text-muted">/m²</span>
           </div>
         </div>
+        )}
+        {precioM2Invalido && (
+          <p className="text-[11px] text-error">
+            El precio por m² no se entiende: la coma separa miles y el punto, decimales (65.50).
+          </p>
         )}
 
         {/* Info limpieza de encabezados */}

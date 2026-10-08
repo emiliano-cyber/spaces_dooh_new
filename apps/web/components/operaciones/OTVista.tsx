@@ -15,6 +15,7 @@ import {
 import { candadoDeSegmentos } from '@/lib/data/derive'
 import { FotoUploaderMock } from '@/components/demo/FotoUploaderMock'
 import { Button } from '@/components/demo/ui/Button'
+import { CampoCifra } from '@/components/demo/ui/CampoCifra'
 import { Breadcrumbs, type Crumb } from '@/components/demo/ui/Breadcrumbs'
 import {
   StatusBadge,
@@ -85,10 +86,15 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
   const [fotos, setFotos] = useState<FotoMeta[]>([])
   const [geo, setGeo] = useState<{ lat: number; lng: number } | null>(null)
   const [cerrando, setCerrando] = useState(false)
-  // OT-COSTO-01 · el costo REAL de la visita. `costoTexto` es lo tecleado tal
-  // cual (string y no number: el campo tiene que poder estar vacío, y un
-  // `number | null` no distingue «vacío» de «todavía no escribo nada»).
+  // OT-COSTO-01 · el costo REAL de la visita. `costoTexto` es la cifra SIN comas
+  // que entrega `CampoCifra` (string y no number: el campo tiene que poder estar
+  // vacío, y un `number | null` no distingue «vacío» de «todavía no escribo
+  // nada»). Las comas solo existen en lo que se ve.
   const [costoTexto, setCostoTexto] = useState('')
+  // Por qué no se entendió lo tecleado, tal como lo dijo `leerCifra`. Se guarda
+  // aparte porque `costoTexto` en ese caso es 'NaN', y releerlo daría un motivo
+  // genérico en vez del concreto («las comas van cada tres cifras»…).
+  const [costoErrorLectura, setCostoErrorLectura] = useState<string | null>(null)
   const [costoError, setCostoError] = useState<string | null>(null)
   const [costoAviso, setCostoAviso] = useState<string | null>(null)
   const [guardandoCosto, setGuardandoCosto] = useState(false)
@@ -153,6 +159,7 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
       // El campo se precarga con lo que hay guardado. `null` deja la caja
       // VACÍA y no en cero: un cero afirmaría que la visita fue gratis.
       setCostoTexto(textoDeCosto(d.ot.costoReal ?? null))
+      setCostoErrorLectura(null)
     }
   }, [id])
   useEffect(() => {
@@ -217,6 +224,10 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
   async function guardarCosto() {
     setCostoError(null)
     setCostoAviso(null)
+    if (costoErrorLectura) {
+      setCostoError(costoErrorLectura)
+      return
+    }
     const leido = leerCostoOt(costoTexto)
     if (!leido.ok) {
       setCostoError(leido.error)
@@ -262,12 +273,12 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
           <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[13px] text-muted">
             $
           </span>
-          <input
-            type="text"
-            inputMode="decimal"
-            value={costoTexto}
-            onChange={(e) => {
-              setCostoTexto(e.target.value)
+          <CampoCifra
+            valor={costoTexto}
+            mostrarError={false}
+            onCambio={(crudo, lectura) => {
+              setCostoTexto(crudo)
+              setCostoErrorLectura(lectura.ok ? null : lectura.error)
               setCostoError(null)
               setCostoAviso(null)
             }}
