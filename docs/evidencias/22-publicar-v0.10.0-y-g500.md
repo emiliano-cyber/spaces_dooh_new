@@ -8,10 +8,15 @@
 
 ## 0 · Qué lleva esta versión
 
-- **Lo que ve el cliente:** las 16 notas de `apps/web/novedades.json` (entrada
+- **Lo que ve el cliente:** las 20 notas de `apps/web/novedades.json` (entrada
   `v0.10.0`): finanzas y propuestas por periodo, estado de cuenta, invitación
-  de usuarios, cambios de contrato antes de firmar, calculadora como la HTML,
-  slots libres, descuento 0.00, tope de descuento, y seis correcciones.
+  de usuarios, cambios de contrato antes de firmar, **CPS y CPM, y la campaña
+  con el folio de su venta (.1 al extender)** —añadidos el 07/10 por la
+  noche—, calculadora como la HTML, slots libres, descuento 0.00, tope de
+  descuento, y siete correcciones.
+- **CPS/CPM/folio no traen migración** (la unidad es texto libre en la base).
+  Las campañas que ya existen en g500 **conservan su folio**; solo las nuevas
+  nacen con el de su propuesta, y cualquiera que se extienda gana el `.1`.
 - **Cuatro migraciones de esquema nuevas**, todas **aditivas** (no borran ni
   cambian columnas existentes) y aprobadas por el dueño. **Ojo con la cuenta:**
   son 4 si g500 ya está en `v0.9.2`; si sigue en `v0.9.1` le llegan **7**,
@@ -48,6 +53,8 @@
 
 ```
 cd C:\Users\Server\spaces_doohmain_nueva
+git merge --ff-only feat/cps-cpm-folio-venta
+git push emiliano main
 git status
 git log --oneline -1
 gh run list --repo emiliano-cyber/spaces_dooh_new --workflow ci.yml --limit 1
@@ -107,7 +114,15 @@ corrida real termina con la salud en verde. Luego entra a DEMO y recorre:
    términos», elige «El arrendador», cambia la renta y guarda. Sale en el historial.
 5. **Administración** → crea un usuario con «Enviar invitación»: aparece el enlace.
 6. **Disponibilidad** → las digitales dicen «N libres».
-7. Entra con un usuario nuevo: sale una vez el diálogo de **novedades de v0.10.0**.
+7. **Inventario** → ficha de una pantalla **digital** → unidades de venta: la
+   de spot se lee «CPS · costo por salida»; agrega **«CPM · costo por
+   millar»** con tarifa 85 y guarda. En una **fija**, CPM tiene que rechazarse.
+8. **Propuestas** → nueva, esa pantalla en CPM, **2500** millares: al lado dice
+   2,500,000 impactos y el importe es **$212,500**. Apruébala y genera la
+   campaña: su folio es el **mismo `PR-…`** de la propuesta.
+9. **Campañas** → extiende esa campaña a una fecha posterior: el folio pasa a
+   `PR-….1`. Extiéndela otra vez: `.2`. Repetir la misma fecha no lo cambia.
+10. Entra con un usuario nuevo: sale una vez el diálogo de **novedades de v0.10.0**.
 
 ## 5 · Promover a `estable` (PowerShell)
 
@@ -163,7 +178,9 @@ La última tiene que decir **`f`**.
 Y en la pantalla de g500, con datos de verdad: login · Finanzas por periodo
 (lo cobrado antes de hoy dice «aproximado») · Propuestas por periodo · abrir un
 contrato y ver «Cambios al contrato» (**no** edites uno real para probar: usa
-uno de prueba o solo mira).
+uno de prueba o solo mira) · abrir una propuesta vieja que usaba «Por spot»:
+ahora dice **CPS · costo por salida** y su total **no cambió** · las campañas
+de antes conservan su folio.
 
 ## 8 · Cuándo y cómo volver atrás
 
@@ -238,6 +255,11 @@ Se reprodujo en esta máquina el camino de g500, con una base desechable
    dio una foto **idéntica** a la de antes de migrar (102 migraciones, sin las
    tablas nuevas, mismos montos), `spaces_app` conserva sus permisos, y volver
    a migrar encima aplica las 7 sin error.
+
+**CPS/CPM/folio** llegaron después de este ensayo y no pasan por él: no tocan
+la base (sin migración) y se probaron aparte en su rama —3517 unitarias, e2e
+935 de 937 contra Postgres, 8 mutantes muertos—. Lo que falta es verlos en
+pantalla, que es §4 pasos 7–9 en DEMO.
 
 **Lo que este ensayo NO cubre:** `update.sh` en sí (necesita Docker; su
 respaldo, huella y conmutación no se ejercitaron aquí), el volumen y las
