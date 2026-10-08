@@ -20,7 +20,13 @@ import { modulosDe, ordenPara } from './modulo.mjs'
 import { crearSolicitud as crearEnCola, listar as listarCola } from './cola.mjs'
 import { cargarInventario, consultar, leerReportes, fusionar, resumen, tokenDe, tokensDeArchivo, COLUMNAS } from './estado.mjs'
 import { clasificarFallo, RECURSO_TICKETS } from './diagnostico.mjs'
-import { filasDeTickets, OK as TICKET_OK, SIN_RESPUESTA as TICKET_SIN_RESPUESTA } from './tickets.mjs'
+import {
+  filasDeTickets,
+  OK as TICKET_OK,
+  SIN_RESPUESTA as TICKET_SIN_RESPUESTA,
+  esSolicitudDeActivacion,
+  solicitudesDeActivacion,
+} from './tickets.mjs'
 
 /**
  * Las zonas que gestionamos, para SUGERIR un dominio cuando se deja en blanco.
@@ -313,7 +319,12 @@ export function fechaLegible(iso) {
 }
 
 /** La celda de Space Eyes de una instancia, con la orden para cambiarlo. */
-function celdaModulo(nombre, modulosDeInstancia) {
+function celdaModulo(nombre, modulosDeInstancia, pidio = false) {
+  // Pidió activarlo desde la demostración: es lo primero que hay que ver.
+  if (pidio) {
+    const orden = ordenPara(nombre, 'space-eyes', true)
+    return `<td class="hay-pendientes" title="${escapar(`Pidió activar Space Eyes. Para activarlo: ${orden}`)}">pidió activación</td>`
+  }
   const { licencia, modulos } = modulosDeInstancia(nombre)
   if (!licencia) return '<td class="sub" title="Sin licencia en el padre: manda el alta (--con-eyes)">—</td>'
   if (modulos === null) {
@@ -326,7 +337,8 @@ function celdaModulo(nombre, modulosDeInstancia) {
 }
 
 /** La página. Todo lo que viene de una instancia pasa por `escapar()`. */
-export function pagina(filas, usuario, modulosDeInstancia = modulosDe) {
+export function pagina(filas, usuario, modulosDeInstancia = modulosDe, solicitudes = []) {
+  const pidieron = new Set(solicitudes.map((s) => s.nombre))
   // Space Eyes se vende aparte (ADR 0041, etapa 4): se ve aqui si la licencia
   // que el padre le entrega a cada instancia lo trae. Cambiarlo es firmar con
   // modulo.mjs (el panel no tiene credenciales): el titulo de la celda da la
@@ -342,7 +354,7 @@ export function pagina(filas, usuario, modulosDeInstancia = modulosDe) {
         // valor exacto en el `datetime` y ensena la version corta.
         const valor = c === 'fecha' ? celdaFecha(f[c]) : escapar(f[c])
         return `<td${clase}>${valor}</td>`
-      }).join('') + celdaModulo(f.nombre, modulosDeInstancia)
+      }).join('') + celdaModulo(f.nombre, modulosDeInstancia, pidieron.has(f.nombre))
       // Una instancia que no contesta se marca en la FILA, no solo en su celda
       // de estado: es lo que se ve sin leer, que es el trabajo de esta tabla.
       const fila = `<tr${f.estado === 'sin-respuesta' ? ' class="atencion"' : ''}>${celdas}</tr>`
@@ -383,13 +395,35 @@ export function pagina(filas, usuario, modulosDeInstancia = modulosDe) {
       'flota',
       `<span class="cifra">${escapar(filas.length)}</span> instancia(s) · ${alarma}${atrasadas} · consultado ahora · ${escapar(usuario?.email ?? '')}`,
     )}
-<div class="marco"><table><thead><tr>${encabezados}</tr></thead>
+${avisoDeSolicitudes(solicitudes)}<div class="marco"><table><thead><tr>${encabezados}</tr></thead>
 <tbody>
 ${cuerpo}
 </tbody></table></div>
 <footer>Se consulta a cada instancia al cargar la página. Una instancia que no
 responde sale como <b>sin-respuesta</b> y no rompe la tabla.</footer>`,
   )
+}
+
+/**
+ * Las empresas que pidieron Space Eyes desde la demostración, arriba de todo y
+ * con la orden exacta para activarlo (se firma con la frase de paso, por eso
+ * el panel no lo hace solo). Sin solicitudes no se pinta nada. Todo lo que
+ * viene de la instancia pasa por `escapar()`.
+ */
+export function avisoDeSolicitudes(solicitudes) {
+  if (!solicitudes?.length) return ''
+  const filas = solicitudes
+    .map(
+      (s) => `<tr><td>${escapar(s.nombre)}</td><td>${escapar(s.dominio)}</td><td>${escapar(s.folio ?? '')}</td>
+    <td>${escapar(fechaLegible(s.creado_en))}</td><td><code>${escapar(ordenPara(s.nombre, 'space-eyes', true))}</code></td></tr>`,
+    )
+    .join('\n')
+  return `<div class="marco solicitudes"><p><b>Solicitudes de activación de Space Eyes</b> · <span class="cifra-ambar">${escapar(solicitudes.length)}</span> empresa(s) lo pidieron desde la demostración. Al activarlo, cierra su ticket en <a href="/flota/tickets/">Tickets</a>.</p>
+<table><thead><tr><th>empresa</th><th>dominio</th><th>folio</th><th>pedido</th><th>para activarlo</th></tr></thead>
+<tbody>
+${filas}
+</tbody></table></div>
+`
 }
 
 /**
@@ -548,8 +582,12 @@ ${escapar(t.respuesta)}</textarea></label>
           // del atributo. Si trae un valor raro, el nombre de clase no existe
           // en la hoja y la celda sale sin adorno --- que es lo correcto: no
           // se inventa un color para un estado que no conocemos.
+          // La solicitud de Space Eyes lleva la orden para activarlo junto al asunto.
+          const activacion = esSolicitudDeActivacion(t)
+            ? `<br><span class="hay-pendientes">Para activarlo: <code>${escapar(ordenPara(f.nombre, 'space-eyes', true))}</code></span>`
+            : ''
           return `<tr>
-    <td>${escapar(t.folio)}</td><td>${escapar(t.tenant_id)}</td><td>${escapar(t.asunto)}</td>
+    <td>${escapar(t.folio)}</td><td>${escapar(t.tenant_id)}</td><td>${escapar(t.asunto)}${activacion}</td>
     <td class="estado-${escapar(t.estado)}">${escapar(t.estado)}</td><td class="prio-${escapar(t.prioridad)}">${escapar(t.prioridad)}</td><td>${escapar(fechaLegible(t.creado_en))}</td>
     <td class="${contestado ? 'contestado' : 'sin-contestar'}">${celdaRespuesta}</td>
   </tr>
@@ -734,8 +772,18 @@ export async function manejar(peticion, deps) {
     return { status: 200, cabeceras, cuerpo: paginaTickets(respuestas, acceso.usuario, token) }
   }
 
-  const filas = await obtenerFilas()
-  return { status: 200, cabeceras: SIN_CACHE, cuerpo: pagina(filas, acceso.usuario) }
+  // La lista de empresas pregunta también por los tickets, solo para avisar
+  // de las solicitudes de activación de Space Eyes. Si esa consulta falla, la
+  // lista sale igual (sin aviso): no puede tumbar la pantalla principal.
+  const [filas, respuestas] = await Promise.all([
+    obtenerFilas(),
+    obtenerRespuestasTickets ? obtenerRespuestasTickets().catch(() => []) : [],
+  ])
+  return {
+    status: 200,
+    cabeceras: SIN_CACHE,
+    cuerpo: pagina(filas, acceso.usuario, undefined, solicitudesDeActivacion(respuestas)),
+  }
 }
 
 /**

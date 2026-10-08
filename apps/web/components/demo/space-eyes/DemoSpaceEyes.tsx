@@ -122,18 +122,22 @@ export function DemoSpaceEyes() {
   const puedeSolicitar = usePuede('administracion', 'crear')
   const [enviando, setEnviando] = useState(false)
   const [resultado, setResultado] = useState<'ok' | 'error' | null>(null)
+  // El folio del ticket: prueba de que la solicitud SÍ se creó (y con qué
+  // buscarla). El padre la ve arriba de su lista de empresas.
+  const [folio, setFolio] = useState<string | null>(null)
 
   async function solicitar() {
     setEnviando(true)
     setResultado(null)
     try {
-      await crearTicketApi({
+      const ticket = await crearTicketApi({
         asunto: 'Solicitud de activación de Space Eyes',
         cuerpo:
           'Nos interesa activar Space Eyes (cámaras que vigilan nuestras pantallas: fotos de exhibición, fallas y creativos). ' +
           'Solicitud enviada desde la demostración del módulo en SPACE OS.',
         prioridad: 'NORMAL',
       })
+      setFolio(ticket?.folio ?? null)
       setResultado('ok')
     } catch {
       setResultado('error')
@@ -153,7 +157,10 @@ export function DemoSpaceEyes() {
         <p className="text-[13px] text-muted">Para activarlo, pide a un administrador de tu empresa que lo solicite desde esta misma pantalla.</p>
       )}
       {resultado === 'ok' && (
-        <p className="text-[12px] text-success">Listo: recibimos tu solicitud y te contactaremos. Puedes seguirla en Administración › Configuración › Soporte.</p>
+        <p className="text-[12px] text-success">
+          Listo: recibimos tu solicitud{folio ? ` (folio ${folio})` : ''} y te contactaremos. Puedes seguirla en
+          Administración › Configuración › Soporte.
+        </p>
       )}
       {resultado === 'error' && <p className="text-[12px] text-error">No se pudo enviar la solicitud. Inténtalo de nuevo en unos minutos.</p>}
     </div>
