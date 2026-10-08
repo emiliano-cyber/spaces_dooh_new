@@ -11,6 +11,8 @@
 //  vocal), y el segundo argumento existe para el día que aparezca uno que no.
 // ============================================================================
 
+import { formatNumero } from './formato-numero'
+
 export function plural(n: number, singular: string, formaPlural?: string): string {
   // `Math.abs` porque 0 y los negativos van en plural: «0 resultados» es lo que
   // se dice en voz alta, y «-1 resultado» no debería ocurrir pero tampoco debe
@@ -20,5 +22,6 @@ export function plural(n: number, singular: string, formaPlural?: string): strin
 
 // El caso de uso real: número y sustantivo concordados de una vez.
 export function conteo(n: number, singular: string, formaPlural?: string): string {
-  return `${n} ${plural(n, singular, formaPlural)}`
+  // Con coma de miles (estándar del 08/10): «1,532 registros», no «1532».
+  return `${formatNumero(n)} ${plural(n, singular, formaPlural)}`
 }

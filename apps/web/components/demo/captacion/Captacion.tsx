@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Plus, Clock, CheckCircle2, XCircle } from 'lucide-react'
 import { Button } from '@/components/demo/ui/Button'
 import { Sheet } from '@/components/demo/ui/Sheet'
+import { formatNumero } from '@/lib/formato-numero'
 import {
   ETAPAS,
   ETAPAS_DE_TRABAJO,
@@ -578,7 +579,7 @@ export function Captacion() {
         {paginas > 1 && (
           <div className="mt-2 flex items-center justify-end gap-2 text-xs text-ink-muted">
             <Button size="sm" variant="secondary" disabled={numPagina <= 1} onClick={() => setNumPagina(numPagina - 1)}>Anterior</Button>
-            <span>Página {numPagina} de {paginas} · {pagina!.total} prospectos</span>
+            <span>Página {numPagina} de {paginas} · {formatNumero(pagina!.total)} prospectos</span>
             <Button size="sm" variant="secondary" disabled={numPagina >= paginas} onClick={() => setNumPagina(numPagina + 1)}>Siguiente</Button>
           </div>
         )}

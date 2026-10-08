@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server'
+import { formatNumero } from '@/lib/formato-numero'
+import { formatMonto } from '@/lib/data/derive'
 import { exigir } from '@/lib/server/auth'
 import { crearConsumoCtrl, tableroConsumosCtrl } from '@/lib/server/energia-controller'
 import { respuestaError } from '@/lib/server/errores'
@@ -53,7 +55,7 @@ export async function POST(req: Request) {
     await registrarAccion(
       g.usuario,
       'Capturó recibo de luz',
-      `${c.periodo.slice(0, 7)} — ${c.kwh} kWh por ${c.importe}${c.medidor ? ` (medidor ${c.medidor})` : ''}`,
+      `${c.periodo.slice(0, 7)} — ${formatNumero(Number(c.kwh))} kWh por ${formatMonto(Number(c.importe))}${c.medidor ? ` (medidor ${c.medidor})` : ''}`,
     )
     return NextResponse.json(c, { status: 201 })
   } catch (e) {

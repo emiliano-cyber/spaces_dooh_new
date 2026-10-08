@@ -74,6 +74,7 @@ import type { FotoMeta } from '@/lib/data/types'
 import { periodicidadLabel } from '@/lib/renta-periodicidad'
 import { ubicacion } from '@/lib/ubicacion'
 import { etiquetaTipoMedio, TIPO_MEDIO_LABEL } from '@/lib/tipo-medio'
+import { formatNumero } from '@/lib/formato-numero'
 
 const CMS_LABEL: Record<string, string> = {
   BROADSIGN: 'Broadsign',
@@ -436,9 +437,9 @@ export function SiteFicha({
             <dl className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-2.5 border-t border-border pt-2.5 text-[13px]">
               <Caracteristica icon={<Monitor className="h-4 w-4" />} label="Resolución" valor={sitio.resolucionPx ?? '—'} mono />
               <Caracteristica icon={<Monitor className="h-4 w-4" />} label="Contenido" valor={sitio.tipoContenido === 'VIDEO' ? 'Video' : sitio.tipoContenido === 'IMAGEN' ? 'Imagen' : '—'} />
-              <Caracteristica icon={<Monitor className="h-4 w-4" />} label="Total de slots" valor={sitio.totalSpots != null ? String(sitio.totalSpots) : '—'} mono />
-              <Caracteristica icon={<Monitor className="h-4 w-4" />} label="Slots disponibles" valor={sitio.spotsDisponibles != null ? String(sitio.spotsDisponibles) : '—'} mono />
-              <Caracteristica icon={<Monitor className="h-4 w-4" />} label="Slots por hora" valor={sitio.spotsPorHora != null ? String(sitio.spotsPorHora) : '—'} mono />
+              <Caracteristica icon={<Monitor className="h-4 w-4" />} label="Total de slots" valor={formatNumero(sitio.totalSpots)} mono />
+              <Caracteristica icon={<Monitor className="h-4 w-4" />} label="Slots disponibles" valor={formatNumero(sitio.spotsDisponibles)} mono />
+              <Caracteristica icon={<Monitor className="h-4 w-4" />} label="Slots por hora" valor={formatNumero(sitio.spotsPorHora)} mono />
               <Caracteristica icon={<Clock className="h-4 w-4" />} label="Duración por slot" valor={sitio.duracionSpotSeg != null ? `${sitio.duracionSpotSeg} s` : '—'} mono />
               <Caracteristica icon={<Clock className="h-4 w-4" />} label="Horario" valor={sitio.horario ?? '—'} mono />
               <Caracteristica icon={<Monitor className="h-4 w-4" />} label="CMS" valor={sitio.cms ? CMS_LABEL[sitio.cms] : '—'} />

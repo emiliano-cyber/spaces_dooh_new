@@ -3,6 +3,7 @@ import { exigirCambioSensible } from '@/lib/server/cambios'
 import { guardarTramoCtrl, borrarTramoCtrl } from '@/lib/server/volumen-controller'
 import { respuestaError } from '@/lib/server/errores'
 import { registrarAccion } from '@/lib/server/acciones-repo'
+import { formatNumero } from '@/lib/formato-numero'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -33,7 +34,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     await registrarAccion(
       g.usuario,
       'Editó un tramo de descuento por volumen',
-      `${tramo.unidad}: desde ${tramo.desdeCantidad} → ${tramo.descuentoPct} %`,
+      `${tramo.unidad}: desde ${formatNumero(tramo.desdeCantidad)} → ${tramo.descuentoPct} %`,
     )
     return NextResponse.json(tramo)
   } catch (e) {

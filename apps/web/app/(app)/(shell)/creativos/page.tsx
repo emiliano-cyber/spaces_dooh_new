@@ -20,6 +20,7 @@ import { useCampanas, useCreatividades, useReservas, useSitios, useClientes } fr
 import { imagenAHtml, IMAGEN_CREATIVO_MAX_MB } from '@/lib/creativo-html'
 import { soloDigitales } from '@/lib/creativos-digitales'
 import type { Campana, Creatividad, Reserva, Sitio, EstValidacionCreatividad } from '@/lib/data/types'
+import { formatNumero } from '@/lib/formato-numero'
 
 // Si un creativo HTML es una imagen envuelta (ver imagenAHtml), devuelve su data
 // URL para mostrarlo como imagen en previews/miniaturas; si no, null.
@@ -627,8 +628,8 @@ function CampanaCard({
                     <div className="truncate text-[13px] font-medium text-ink">{sitio?.nombre ?? 'Sitio'}</div>
                     {digital && (
                       <div className="demo-num text-[11px] text-muted">
-                        <span className={excede ? 'font-semibold text-error' : 'text-ink'}>{usados}</span>
-                        /{r.spotsReservados} spots asignados
+                        <span className={excede ? 'font-semibold text-error' : 'text-ink'}>{formatNumero(usados)}</span>
+                        /{formatNumero(r.spotsReservados)} spots asignados
                       </div>
                     )}
                   </div>

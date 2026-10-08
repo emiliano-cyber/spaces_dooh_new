@@ -7,6 +7,24 @@ La entrada más reciente va arriba.
 
 ## 2026-10-08
 
+- **Todas las cifras llevan su coma de miles.** *(Pedido tuyo del 08/10.)* Es
+  el estándar desde hoy: 2,500 y $ 1,234,567.50. Ya lo hacían los importes de
+  casi todas las pantallas y los documentos que ve el cliente; faltaba en unos
+  treinta sitios que pintaban el número tal cual. Los que se notan más:
+  - **Inicio:** la ocupación («1,250 de 3,400 espacios»), y la gráfica de
+    Tentativas vs confirmadas, cuyo eje decía «2500k» y su cifra al pasar el
+    ratón salía sin $ ni coma.
+  - **Propuestas y Campañas:** «6,000 pases al día» y los spots de la
+    calculadora de roadblock.
+  - **Historial de cambios del contrato:** la renta salía «12000.00 →
+    15000.00»; ahora «$ 12,000.00 → $ 15,000.00», también en los cambios que
+    ya estaban guardados.
+  - Energía (importes y kWh de los recibos), Actividad, Captación, el diálogo
+    de reserva, Creativos, los tramos de volumen, Network, Integraciones y los
+    contadores de toda la aplicación («1,532 registros»).
+  - **Lo que se queda igual a propósito:** las descargas a CSV/Excel siguen sin
+    coma, para que Excel pueda sumar. Los campos donde se **teclea** una cifra
+    todavía no la muestran: es la segunda fase.
 - **Órdenes de trabajo: fecha de hoy, responsable visible y costo antes de
   cerrar.** *(Pedido tuyo del 08/10.)*
   - **Una OT nueva nace programada para hoy.** Antes la fecha venía en blanco.

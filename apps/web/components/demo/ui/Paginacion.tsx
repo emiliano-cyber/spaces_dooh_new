@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { formatNumero } from '@/lib/formato-numero'
 
 // ============================================================================
 //  Paginacion — recorte de listas largas + su control.
@@ -62,8 +63,8 @@ export function Paginacion({
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-2.5">
       <span className="text-[12px] text-muted">
-        <span className="demo-num text-ink">{desde}–{hasta}</span> de{' '}
-        <span className="demo-num text-ink">{total}</span> {etiqueta}
+        <span className="demo-num text-ink">{formatNumero(desde)}–{formatNumero(hasta)}</span> de{' '}
+        <span className="demo-num text-ink">{formatNumero(total)}</span> {etiqueta}
       </span>
       <div className="flex items-center gap-1.5">
         <button type="button" className={btn} onClick={() => irA(pagina - 1)} disabled={pagina <= 1}>

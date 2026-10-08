@@ -66,6 +66,7 @@ import {
   type Unidad,
 } from '@/lib/periodos'
 import { PERIODICIDADES, factorMensual } from '@/lib/renta-periodicidad'
+import { formatNumero } from '@/lib/formato-numero'
 
 // Periodicidades de la renta al propietario (enum `periodicidad_pago` en la BD)
 // y su equivalencia a mensual: ambas vienen de lib/renta-periodicidad.ts, la
@@ -1501,7 +1502,7 @@ function CalculadoraSpotsLinea({
                       Hora del loop: {formatMonto(tarifaMensual)} × {resultado.loop} ÷ {fmtNum(horasMes)} h ={' '}
                       {formatMonto(ingresoHora)}
                       {prima > 0 && ` + prima ${fmtNum(prima)} % = ${formatMonto(ingresoHora * (1 + prima / 100))}`} ÷{' '}
-                      {spotsHoraRB} spots ={' '}
+                      {formatNumero(spotsHoraRB)} spots ={' '}
                       <b className="text-ink">{formatMonto(prima > 0 ? tarifaConPrima(tarifaSpot.tarifa, prima) : tarifaSpot.tarifa)} por spot</b>
                     </>
                   ) : (

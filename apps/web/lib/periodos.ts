@@ -11,6 +11,7 @@
 // ============================================================================
 
 import { formatMonto } from '@/lib/data/derive'
+import { formatNumero } from '@/lib/formato-numero'
 
 export type Unidad = 'mensual' | 'catorcenal' | 'semanal' | 'diaria' | 'spot' | 'hora' | 'cpm'
 
@@ -150,7 +151,8 @@ export function resumenReserva(r: { unidad: string; cantidad: number; precio: nu
 export function etiquetaFrecuencia(spotsPorDia: number | null | undefined): string | null {
   const n = Number(spotsPorDia ?? 0)
   if (!Number.isFinite(n) || n <= 0) return null
-  return `${n} ${n === 1 ? 'pase' : 'pases'} al día`
+  // Con coma de miles: una digital pasa de 6,000 pases al día.
+  return `${formatNumero(n)} ${n === 1 ? 'pase' : 'pases'} al día`
 }
 
 // Días inclusivos entre dos fechas 'YYYY-MM-DD' (14→20 son 7 días).

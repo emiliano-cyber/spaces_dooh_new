@@ -13,6 +13,8 @@ import {
   Cell,
 } from 'recharts'
 import type { PuntoOcupacion } from '@/lib/data/client'
+import { formatMonto, formatMontoCorto } from '@/lib/data/derive'
+import { formatNumero } from '@/lib/formato-numero'
 
 // Gráficas de la demo con los tokens de color de SET. Planas, sin sombras.
 
@@ -24,13 +26,16 @@ const MUTED = '#71717a'
 
 const ejeTick = { fontSize: 11, fill: MUTED }
 
-function TooltipBox({ active, payload, label, suffix }: any) {
+// `formato` decide cómo se lee la cifra. Sin él, número redondeado con coma de
+// miles. Antes pintaba `Math.round(valor)` crudo, y en la gráfica de dinero de
+// Inicio salía «212500», sin $ ni coma (estándar del 08/10).
+function TooltipBox({ active, payload, label, suffix, formato }: any) {
   if (!active || !payload?.length) return null
   return (
     <div className="rounded border border-border bg-surface px-2.5 py-1.5 text-[12px] shadow-none">
       <div className="text-muted">{label}</div>
       <div className="demo-num font-medium text-ink">
-        {Math.round(payload[0].value)}
+        {formato ? formato(payload[0].value) : formatNumero(Math.round(payload[0].value))}
         {suffix}
       </div>
     </div>
@@ -92,9 +97,10 @@ export function ReservasChart({
           tick={ejeTick}
           tickLine={false}
           axisLine={false}
-          tickFormatter={(v) => (v >= 1000 ? `${v / 1000}k` : `${v}`)}
+          // Dinero compacto con su coma: «$ 2,500k» salía como «2500k».
+          tickFormatter={(v) => formatMontoCorto(v)}
         />
-        <Tooltip content={<TooltipBox suffix="" />} cursor={{ fill: '#0000000a' }} />
+        <Tooltip content={<TooltipBox suffix="" formato={formatMonto} />} cursor={{ fill: '#0000000a' }} />
         <Bar dataKey="valor" radius={[3, 3, 0, 0]}>
           {data.map((d) => (
             <Cell key={d.name} fill={d.color} />

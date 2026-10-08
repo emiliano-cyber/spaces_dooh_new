@@ -1,3 +1,4 @@
+import { formatMonto } from './data/derive'
 // ============================================================================
 //  lib/contrato-cambios.ts — Qué cambió en un contrato de arrendamiento.
 //
@@ -88,6 +89,18 @@ function normal(v: unknown, tipo: Tipo, nombres: Record<string, string>): string
     default:
       return String(v).trim() || null
   }
+}
+
+// Cómo se MUESTRA un valor del historial (estándar del 08/10: el dinero con $
+// y coma de miles). Lo que se GUARDA no cambia —`normal()` deja «12000.00»—:
+// es lo que se compara, y el historial solo admite inserciones, así que sus
+// filas viejas tienen que verse igual de bien que las nuevas. Un texto que no
+// es número se enseña tal cual, nunca como «$ 0.00».
+export function valorParaMostrar(campo: string, valor: string | null): string | null {
+  if (valor == null) return null
+  const tipo = CAMPOS.find((c) => c.campo === campo)?.tipo
+  if (tipo !== 'dinero' || !/^-?\d+(\.\d+)?$/.test(valor.trim())) return valor
+  return formatMonto(Number(valor))
 }
 
 export function diferenciasContrato(

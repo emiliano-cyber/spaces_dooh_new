@@ -25,6 +25,7 @@ import Link from 'next/link'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { TIPO_MEDIO_LABEL } from '@/lib/tipo-medio'
 import { ubicacion } from '@/lib/ubicacion'
+import { formatNumero } from '@/lib/formato-numero'
 import {
   sitiosSinContratoCompleto,
   useSitios,
@@ -379,7 +380,7 @@ export default function ComercialPage() {
                       <div className="demo-num mt-0.5 text-[12.5px] text-muted">
                         {s.codigoProveedor} · {ubicacion([s.alcaldia, s.ciudad])} · {formatMonto(tarifaDeSitio(s))}
                         {esDigital && s.totalSpots == null && s.spotsPorHora != null && (
-                          <> · {s.spotsPorHora} slots/h</>
+                          <> · {formatNumero(s.spotsPorHora)} slots/h</>
                         )}
                       </div>
                       <div className="mt-1 inline-flex items-center gap-1.5 truncate text-[12px] text-muted">

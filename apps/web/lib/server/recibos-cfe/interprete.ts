@@ -1,3 +1,5 @@
+import { formatNumero } from '@/lib/formato-numero'
+import { formatMonto } from '@/lib/data/derive'
 // ============================================================================
 //  lib/server/recibos-cfe/interprete.ts — Del texto de un recibo de CFE a los
 //  campos de `consumos_energia`. PURO: ni red, ni base, ni PDF.
@@ -252,7 +254,7 @@ export function interpretarRecibo(lineas: string[]): ReciboCfe {
     r.avisos.push('No se pudieron leer los kWh del recibo: capturalos a mano.')
   } else if (r.kwh == null) {
     r.avisos.push(
-      `El recibo dice ${r.kwhLeido} kWh, y un valor de cero o negativo no se acepta ` +
+      `El recibo dice ${formatNumero(r.kwhLeido)} kWh, y un valor de cero o negativo no se acepta ` +
         'como lectura: escribelo a mano si el recibo de verdad dice eso.',
     )
   }
@@ -269,7 +271,7 @@ export function interpretarRecibo(lineas: string[]): ReciboCfe {
     r.importe = aceptable(r.importeLeido)
     if (r.importe == null) {
       r.avisos.push(
-        `El importe del periodo se leyo como ${r.importeLeido.toFixed(2)}, y un valor de ` +
+        `El importe del periodo se leyo como ${formatMonto(r.importeLeido)}, y un valor de ` +
           'cero o negativo no se acepta como lectura: escribelo a mano.',
       )
     }
@@ -285,8 +287,8 @@ export function interpretarRecibo(lineas: string[]): ReciboCfe {
     const suma = posteriores.reduce((a, c) => a + c.monto, r.conceptos[iFac].monto)
     if (Math.abs(suma - r.conceptos[iTotal].monto) > 0.02) {
       r.avisos.push(
-        `La aritmetica del recibo no cuadra: ${suma.toFixed(2)} contra un Total de ` +
-          `${r.conceptos[iTotal].monto.toFixed(2)}. Alguna cifra se leyo mal; revisa el PDF.`,
+        `La aritmetica del recibo no cuadra: ${formatMonto(suma)} contra un Total de ` +
+          `${formatMonto(r.conceptos[iTotal].monto)}. Alguna cifra se leyo mal; revisa el PDF.`,
       )
     }
   }

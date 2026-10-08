@@ -1,3 +1,5 @@
+import { formatNumero } from '@/lib/formato-numero'
+import { formatMonto } from '@/lib/data/derive'
 // ============================================================================
 //  components/demo/energia/recibos.ts — La logica de la pantalla de subir PDF.
 // ----------------------------------------------------------------------------
@@ -315,15 +317,15 @@ export function textoDeLoLeido(l: LecturaRecibo): string {
   if (l.desde && l.hasta) partes.push(`periodo ${l.desde} → ${l.hasta}`)
   // El cero LEIDO se enseña aunque no se acepte como dato: es la unica forma de
   // que quien captura entienda por que el campo salio vacio.
-  if (l.kwh == null && l.kwhLeido != null) partes.push(`el PDF dice ${l.kwhLeido} kWh`)
-  else if (l.kwhLeido != null) partes.push(`${l.kwhLeido} kWh`)
-  if (l.facturacionPeriodo != null) partes.push(`facturación ${l.facturacionPeriodo.toFixed(2)}`)
-  if (l.alumbradoPublico != null) partes.push(`alumbrado ${l.alumbradoPublico.toFixed(2)}`)
+  if (l.kwh == null && l.kwhLeido != null) partes.push(`el PDF dice ${formatNumero(l.kwhLeido)} kWh`)
+  else if (l.kwhLeido != null) partes.push(`${formatNumero(l.kwhLeido)} kWh`)
+  if (l.facturacionPeriodo != null) partes.push(`facturación ${formatMonto(l.facturacionPeriodo)}`)
+  if (l.alumbradoPublico != null) partes.push(`alumbrado ${formatMonto(l.alumbradoPublico)}`)
   // El Total se enseña SIEMPRE y marcado como lo que es: es el numero grande
   // del recibo, el que una persona buscaria, y NO es lo que se captura — lleva
   // adeudos, pagos y depositos de otros meses.
   if (l.totalDelRecibo != null) {
-    partes.push(`Total del recibo ${l.totalDelRecibo.toFixed(2)} (incluye adeudos y pagos)`)
+    partes.push(`Total del recibo ${formatMonto(l.totalDelRecibo)} (incluye adeudos y pagos)`)
   }
   return partes.join(' · ')
 }

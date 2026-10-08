@@ -11,6 +11,7 @@ import {
 import { motivoTramoInvalido } from '@/lib/volumen'
 import { UNIDADES, unidadCorta } from '@/lib/periodos'
 import { Button } from '@/components/demo/ui/Button'
+import { formatNumero } from '@/lib/formato-numero'
 
 // ============================================================================
 //  La ESCALA DE DESCUENTO POR VOLUMEN de la organización. ADR 0039, Fase 2.
@@ -143,7 +144,7 @@ export function GestionVolumen() {
                   {UNIDADES.find((u) => u.unidad === t.unidad)?.label ?? t.unidad}
                 </td>
                 <td>
-                  {t.desdeCantidad} {unidadCorta(t.unidad, t.desdeCantidad)}
+                  {formatNumero(t.desdeCantidad)} {unidadCorta(t.unidad, t.desdeCantidad)}
                 </td>
                 <td>{t.descuentoPct} %</td>
                 <td className="text-right">

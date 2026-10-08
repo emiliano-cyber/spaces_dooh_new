@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/C
 import { EmptyState } from '@/components/demo/EmptyState'
 import { Paginacion, usePaginacion } from '@/components/demo/ui/Paginacion'
 import { useAcciones, formatFechaHora } from '@/lib/data/client'
+import { formatNumero } from '@/lib/formato-numero'
 
 const selectCls =
   'h-9 rounded border border-border-strong bg-surface px-2.5 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
@@ -95,7 +96,7 @@ export default function ActividadPage() {
         )}
         {acciones && (
           <span className="ml-auto text-[12px] text-muted">
-            {lista.length} de {acciones.length}
+            {formatNumero(lista.length)} de {formatNumero(acciones.length)}
           </span>
         )}
       </div>

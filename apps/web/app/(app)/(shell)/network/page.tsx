@@ -13,6 +13,7 @@ import { cn } from '@/lib/cn'
 import { toggleNetworkApi } from '@/lib/data/sitios-api'
 import { useSitios, useSitiosRed, formatMonto, type CMS } from '@/lib/data/client'
 import { etiquetaTipoMedio } from '@/lib/tipo-medio'
+import { formatNumero } from '@/lib/formato-numero'
 
 const CMS_LABEL: Record<CMS, string> = {
   BROADSIGN: 'Broadsign',
@@ -59,10 +60,10 @@ export default function NetworkPage() {
           </>
         ) : (
           <>
-            <KPICard label="Espacios totales" value={String(total)} sub={`${enNetwork.length} en la Network`} tono="azul" icon={<Network className="h-4 w-4" />} />
-            <KPICard label="En la Network" value={String(enNetwork.length)} sub="compartidos" tono="verde" icon={<Share2 className="h-4 w-4" />} />
-            <KPICard label="Programáticos" value={String(programaticos)} sub="venta automatizada" tono="ambar" icon={<Cpu className="h-4 w-4" />} />
-            <KPICard label="Tradicionales" value={String(tradicionales)} sub="venta directa" tono="neutro" icon={<Cpu className="h-4 w-4" />} />
+            <KPICard label="Espacios totales" value={formatNumero(total)} sub={`${formatNumero(enNetwork.length)} en la Network`} tono="azul" icon={<Network className="h-4 w-4" />} />
+            <KPICard label="En la Network" value={formatNumero(enNetwork.length)} sub="compartidos" tono="verde" icon={<Share2 className="h-4 w-4" />} />
+            <KPICard label="Programáticos" value={formatNumero(programaticos)} sub="venta automatizada" tono="ambar" icon={<Cpu className="h-4 w-4" />} />
+            <KPICard label="Tradicionales" value={formatNumero(tradicionales)} sub="venta directa" tono="neutro" icon={<Cpu className="h-4 w-4" />} />
           </>
         )}
       </div>

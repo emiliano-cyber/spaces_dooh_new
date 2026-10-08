@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { diferenciasContrato } from './contrato-cambios'
+import { diferenciasContrato, valorParaMostrar } from './contrato-cambios'
 
 // La fila tal como llega de Postgres: fechas como Date, importes como texto
 // (`numeric`), y los ids crudos. El patch, como lo manda la pantalla.
@@ -66,5 +66,28 @@ describe('diferenciasContrato', () => {
     expect(diferenciasContrato(fila, { autoRenovable: true })).toEqual([
       { campo: 'autoRenovable', etiqueta: 'Renovación automática', antes: 'No', despues: 'Sí' },
     ])
+  })
+})
+
+// Estándar del 08/10: el dinero del historial se MUESTRA con $ y coma de miles.
+// Lo guardado no cambia («12000.00»): el historial solo admite inserciones y
+// sus filas viejas tienen que verse igual de bien que las nuevas.
+describe('valorParaMostrar', () => {
+  it('la renta y el depósito salen con $ y coma, también los guardados antes', () => {
+    expect(valorParaMostrar('montoRenta', '12000.00')).toBe('$ 12,000.00')
+    expect(valorParaMostrar('deposito', '1500')).toBe('$ 1,500.00')
+  })
+
+  it('lo que no es dinero sale tal cual', () => {
+    expect(valorParaMostrar('periodicidad', 'MENSUAL')).toBe('MENSUAL')
+    expect(valorParaMostrar('fechaFin', '2027-01-31')).toBe('2027-01-31')
+  })
+
+  it('NEGATIVO: un texto que no es número no se convierte en $ 0.00', () => {
+    expect(valorParaMostrar('montoRenta', 'abc')).toBe('abc')
+  })
+
+  it('vacío sigue vacío', () => {
+    expect(valorParaMostrar('montoRenta', null)).toBeNull()
   })
 })

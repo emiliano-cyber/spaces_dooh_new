@@ -16,6 +16,7 @@ import { EvidenciaGaleria } from '@/components/demo/campanas/EvidenciaGaleria'
 import { PlaylogsPanel } from '@/components/demo/campanas/PlaylogsPanel'
 import { AgregarCreativo } from '@/components/demo/campanas/AgregarCreativo'
 import { FranjaProgramadaCampana } from '@/components/demo/campanas/FranjaProgramadaCampana'
+import { formatNumero } from '@/lib/formato-numero'
 import {
   StatusBadge,
   CAMPANA_TONO,
@@ -298,10 +299,10 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
           }
         >
             <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-[13px] sm:grid-cols-4">
-              <Fila label="Sitios contratados" valor={String(reporte.sitiosContratados)} mono />
-              <Fila label="Sitios entregados" valor={String(reporte.sitiosEntregados)} mono />
-              <Fila label="Testigos (fotos)" valor={String(reporte.testigos)} mono />
-              <Fila label="Días contratados" valor={String(reporte.diasContratados)} mono />
+              <Fila label="Sitios contratados" valor={formatNumero(reporte.sitiosContratados)} mono />
+              <Fila label="Sitios entregados" valor={formatNumero(reporte.sitiosEntregados)} mono />
+              <Fila label="Testigos (fotos)" valor={formatNumero(reporte.testigos)} mono />
+              <Fila label="Días contratados" valor={formatNumero(reporte.diasContratados)} mono />
             </dl>
         </Seccion>
       )}

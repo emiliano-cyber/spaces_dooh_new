@@ -230,7 +230,7 @@ describe('textoDeLoLeido — el valor ORIGINAL al lado', () => {
     // Es el numero grande del papel, el que una persona buscaria, y NO es lo
     // que se captura: lleva adeudos, pagos y depositos de otros meses.
     const t = textoDeLoLeido(lectura())
-    expect(t).toContain('7941.35')
+    expect(t).toContain('$ 7,941.35') // con $ y coma de miles (estándar del 08/10)
     expect(t).toMatch(/incluye adeudos y pagos/i)
   })
 

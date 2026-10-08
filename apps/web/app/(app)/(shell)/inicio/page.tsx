@@ -14,6 +14,8 @@ import {
   Check,
 } from 'lucide-react'
 import { useAlertasVisibles, TIPOS_ALERTA } from '@/lib/alertas-visibles'
+import { formatNumero } from '@/lib/formato-numero'
+import { conteo } from '@/lib/plural'
 import { KPICard, KPICardSkeleton } from '@/components/demo/KPICard'
 import { OcupacionChart, ReservasChart } from '@/components/demo/charts'
 import { MapView, type MapPoint } from '@/components/demo/MapView'
@@ -107,7 +109,7 @@ export default function DashboardPage() {
             <KPICard
               label="Ingreso contratado del mes"
               value={formatMonto(m.ingresoMes)}
-              sub={`${m.reservasConfirmadas} reservas confirmadas`}
+              sub={conteo(m.reservasConfirmadas, 'reserva confirmada', 'reservas confirmadas')}
               tono="azul"
               icon={<TrendingUp className="h-4 w-4" />}
             />
@@ -132,7 +134,7 @@ export default function DashboardPage() {
             <KPICard
               label="Ocupación de la red"
               value={`${m.ocupacionPct.toFixed(0)}%`}
-              sub={`${m.espaciosOcupados} de ${m.capacidadRed} espacios · digital ${m.ocupacionDigitales.ocupados}/${m.ocupacionDigitales.capacidad} · fijas ${m.ocupacionFijas.ocupados}/${m.ocupacionFijas.capacidad}`}
+              sub={`${formatNumero(m.espaciosOcupados)} de ${formatNumero(m.capacidadRed)} espacios · digital ${formatNumero(m.ocupacionDigitales.ocupados)}/${formatNumero(m.ocupacionDigitales.capacidad)} · fijas ${formatNumero(m.ocupacionFijas.ocupados)}/${formatNumero(m.ocupacionFijas.capacidad)}`}
               tono="azul"
               icon={<Gauge className="h-4 w-4" />}
             />
@@ -159,8 +161,8 @@ export default function DashboardPage() {
               <CardTitle>Ocupación</CardTitle>
               {serie && (
                 <p className="mt-0.5 text-[12px] text-muted">
-                  {serie.diasOcupados.toLocaleString('es-PE')} espacios·día ocupados de{' '}
-                  {serie.diasDisponibles.toLocaleString('es-PE')} disponibles
+                  {formatNumero(serie.diasOcupados)} espacios·día ocupados de{' '}
+                  {formatNumero(serie.diasDisponibles)} disponibles
                 </p>
               )}
             </div>

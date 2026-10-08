@@ -8,6 +8,7 @@ import { formatMonto, formatFecha, usePropuestas } from '@/lib/data/client'
 import type { TipoPeriodo } from '@/lib/finanzas-periodo'
 import { OPCIONES_PERIODO } from '@/components/demo/finanzas/TableroPeriodo'
 import { resumenPropuestasApi, type RespuestaResumenPropuestas } from '@/lib/data/propuestas-resumen-api'
+import { formatNumero } from '@/lib/formato-numero'
 
 // ============================================================================
 //  El tablero de propuestas por periodo (PROP-PER, 06/10).
@@ -97,9 +98,9 @@ export function TableroPropuestas() {
         ) : (
           <div className={cn('space-y-4', cargando && 'opacity-60')}>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-              <Cifra label="Generadas" valor={String(r.generadas)} pie="creadas en el periodo" />
-              <Cifra label="Aprobadas" valor={String(r.aprobadas.n)} pie={`venta ${formatMonto(r.aprobadas.venta)} sin IVA`} tono="ok" />
-              <Cifra label="Rechazadas" valor={String(r.rechazadas)} pie="en el periodo" tono={r.rechazadas > 0 ? 'error' : undefined} />
+              <Cifra label="Generadas" valor={formatNumero(r.generadas)} pie="creadas en el periodo" />
+              <Cifra label="Aprobadas" valor={formatNumero(r.aprobadas.n)} pie={`venta ${formatMonto(r.aprobadas.venta)} sin IVA`} tono="ok" />
+              <Cifra label="Rechazadas" valor={formatNumero(r.rechazadas)} pie="en el periodo" tono={r.rechazadas > 0 ? 'error' : undefined} />
               <Cifra
                 label="Tasa de cierre"
                 valor={r.tasaCierre === null ? '—' : pct(r.tasaCierre * 100)}
@@ -142,9 +143,9 @@ export function TableroPropuestas() {
                     {r.porVendedor.map((v) => (
                       <tr key={v.vendedor} className="border-b border-border last:border-0">
                         <td className="py-2 pr-4 text-ink">{v.vendedor}</td>
-                        <td className="demo-num py-2 pr-4 text-right text-muted">{v.generadas}</td>
-                        <td className="demo-num py-2 pr-4 text-right text-ink">{v.aprobadas}</td>
-                        <td className="demo-num py-2 pr-4 text-right text-muted">{v.rechazadas}</td>
+                        <td className="demo-num py-2 pr-4 text-right text-muted">{formatNumero(v.generadas)}</td>
+                        <td className="demo-num py-2 pr-4 text-right text-ink">{formatNumero(v.aprobadas)}</td>
+                        <td className="demo-num py-2 pr-4 text-right text-muted">{formatNumero(v.rechazadas)}</td>
                         <td className="demo-num py-2 pr-4 text-right text-ink">{formatMonto(v.venta)}</td>
                         {conGanancia && <td className="demo-num py-2 text-right text-ink">{formatMonto(v.ganancia ?? 0)}</td>}
                       </tr>

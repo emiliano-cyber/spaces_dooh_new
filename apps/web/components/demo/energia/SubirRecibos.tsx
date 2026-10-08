@@ -1,6 +1,8 @@
 'use client'
 
 import { useCallback, useState } from 'react'
+import { formatNumero } from '@/lib/formato-numero'
+import { formatMonto } from '@/lib/data/derive'
 import { AlertTriangle, CheckCircle2, FileUp, Info, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { Button } from '@/components/demo/ui/Button'
@@ -361,7 +363,7 @@ export function SubirRecibos({
                       {f.yaCapturado ? (
                         <p className="mt-1 max-w-[16rem] text-[11px] leading-snug text-warning">
                           Ya hay uno capturado en {f.yaCapturado.periodo.slice(0, 7)}:{' '}
-                          {f.yaCapturado.kwh} kWh por {f.yaCapturado.importe}. Guardar otra vez
+                          {formatNumero(f.yaCapturado.kwh)} kWh por {formatMonto(f.yaCapturado.importe)}. Guardar otra vez
                           DUPLICA el costo de ese mes.
                         </p>
                       ) : null}

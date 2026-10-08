@@ -1,4 +1,5 @@
 import { repartirEnMeses, type ReciboCfe } from './interprete'
+import { formatMonto } from '@/lib/data/derive'
 
 // ============================================================================
 //  lib/server/recibos-cfe/propuesta.ts — De un recibo leido a lo que se PROPONE
@@ -278,7 +279,7 @@ export function notasDelRecibo(lectura: ReciboCfe): string {
   if (lectura.tarifa) partes.push(`tarifa ${lectura.tarifa}`)
   if (lectura.desde && lectura.hasta) partes.push(`periodo ${lectura.desde} a ${lectura.hasta}`)
   if (lectura.alumbradoPublico != null) {
-    partes.push(`alumbrado publico ${lectura.alumbradoPublico.toFixed(2)} incluido`)
+    partes.push(`alumbrado publico ${formatMonto(lectura.alumbradoPublico)} incluido`)
   }
   return partes.join(', ') + '.'
 }

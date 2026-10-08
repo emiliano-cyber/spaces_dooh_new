@@ -10,7 +10,7 @@ import {
 } from '../finanzas-calculo'
 import { notificar } from './notificaciones-repo'
 import { IGV_PCT } from './campanas-repo'
-import { candadoDeSegmentos } from '@/lib/data/derive'
+import { candadoDeSegmentos, formatMonto } from '@/lib/data/derive'
 
 // ============================================================================
 //  lib/server/finanzas-repo.ts — Facturación y cobranza.
@@ -240,7 +240,7 @@ export async function generarFactura(
       // aborta. Prefiero no facturar a dejar una cartera que no suma.
       const suma = Math.round(importes.reduce((a, x) => a + x, 0) * 100) / 100
       if (suma !== total) {
-        throw new FacturaError(`Las parcialidades suman ${suma} y la factura ${total}`)
+        throw new FacturaError(`Las parcialidades suman ${formatMonto(suma)} y la factura ${formatMonto(total)}`)
       }
       const paso = INTERVALO_PERIODO[plan.periodicidad]
       for (let i = 0; i < importes.length; i++) {

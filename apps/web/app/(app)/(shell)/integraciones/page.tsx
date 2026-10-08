@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Plug, Cpu, Activity } from 'lucide-react'
 import { Card, CardContent } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
+import { formatNumero } from '@/lib/formato-numero'
 
 const API = '/spaces-dooh/api/integraciones'
 
@@ -109,8 +110,8 @@ export default function IntegracionesPage() {
         </div>
         {metricas && (
           <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1 rounded-md border border-border bg-surface-2 p-3 text-[12px] sm:grid-cols-4">
-            <Dato label="Vehículos" valor={String(metricas.vehiculos)} />
-            <Dato label="Personas" valor={String(metricas.personas)} />
+            <Dato label="Vehículos" valor={formatNumero(metricas.vehiculos)} />
+            <Dato label="Personas" valor={formatNumero(metricas.personas)} />
             <Dato label="Vel. prom." valor={`${metricas.velocidadPromedioKmh} km/h`} />
             <Dato label="Ventana" valor={metricas.ventana} />
             {metricas.simulado && (

@@ -6,6 +6,7 @@ import { AlertTriangle } from 'lucide-react'
 import { Modal } from '@/components/demo/ui/Modal'
 import { Button } from '@/components/demo/ui/Button'
 import { reservarApi } from '@/lib/data/estado-api'
+import { formatNumero } from '@/lib/formato-numero'
 import {
   formatMonto,
   tarifaDeSitio,
@@ -173,7 +174,7 @@ export function ReservaDialog({
             {totalSpotsReservados > 0 && (
               <>
                 {' · '}
-                <span className="demo-num font-semibold text-ink">{totalSpotsReservados}</span> slots
+                <span className="demo-num font-semibold text-ink">{formatNumero(totalSpotsReservados)}</span> slots
                 {config && (
                   <>
                     {' · '}

@@ -19,6 +19,7 @@ import {
   type CambioContratoUI,
 } from '@/lib/data/estado-api'
 import { PERIODICIDADES } from '@/lib/renta-periodicidad'
+import { valorParaMostrar } from '@/lib/contrato-cambios'
 import { desbloquearApi } from '@/lib/data/cambios-api'
 import { confirmarConCandado } from '@/lib/cambios-candado'
 import { ROL_CONTRATO, opcionesDeAsignacion } from '@/components/demo/razones-sociales/asignacion'
@@ -130,9 +131,9 @@ export function CambiosContrato({
                 {h.cambios.map((c) => (
                   <li key={c.campo}>
                     <span className="text-muted">{c.etiqueta}:</span>{' '}
-                    <span className="line-through decoration-muted">{c.antes ?? 'vacío'}</span>
+                    <span className="line-through decoration-muted">{valorParaMostrar(c.campo, c.antes) ?? 'vacío'}</span>
                     {' → '}
-                    <b className="text-ink">{c.despues ?? 'vacío'}</b>
+                    <b className="text-ink">{valorParaMostrar(c.campo, c.despues) ?? 'vacío'}</b>
                   </li>
                 ))}
               </ul>
