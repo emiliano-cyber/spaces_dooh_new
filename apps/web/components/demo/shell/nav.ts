@@ -25,6 +25,13 @@ import {
   Ticket,
   Package,
   Handshake,
+  Eye,
+  LineChart,
+  Type,
+  CalendarClock,
+  Megaphone,
+  BadgeCheck,
+  TriangleAlert,
 } from 'lucide-react'
 import { ROLES_ASIGNABLES, rolLabel } from '@/lib/roles'
 import type { RolDemo } from '@/lib/data/types'
@@ -74,7 +81,7 @@ import type { RolDemo } from '@/lib/data/types'
 //
 // Un grupo sin ítems visibles no pinta su título (lo resuelve el Sidebar): un
 // rol de Operaciones ve dos entradas, no seis encabezados vacíos.
-export type GrupoNav = 'inicio' | 'patrimonio' | 'vender' | 'entregar' | 'cobrar' | 'sistema'
+export type GrupoNav = 'inicio' | 'patrimonio' | 'ojos' | 'vender' | 'entregar' | 'cobrar' | 'sistema'
 
 export interface NavItem {
   key: string
@@ -91,6 +98,7 @@ export interface NavItem {
 export const GRUPOS: { key: GrupoNav; titulo: string | null }[] = [
   { key: 'inicio', titulo: null },
   { key: 'patrimonio', titulo: 'Inventario' },
+  { key: 'ojos', titulo: 'Space Eyes' },
   { key: 'vender', titulo: 'Comercial' },
   { key: 'entregar', titulo: 'Operaciones' },
   { key: 'cobrar', titulo: 'Finanzas' },
@@ -137,6 +145,29 @@ export const NAV: NavItem[] = [
   // lo MUEVA operaciones no lo convierte en una tarea de operaciones, igual que
   // el almacen de una tienda no es del repartidor.
   { key: 'almacen', label: 'Almacén', href: '/almacen', icon: Warehouse, roles: [...MANDO, 'OPERACIONES'], grupo: 'patrimonio' },
+
+  // ─── Space Eyes ──────────────────────────────────────────────────────────
+  // Va DESPUES de Inventario y ANTES de Comercial, y con grupo propio, por la
+  // misma regla con la que esta ordenado el resto del menu: el encabezado
+  // nombra la fase y la entrada es su pantalla principal. Colgarlo de
+  // Inventario lo haria parecer un accesorio de la ficha de una pantalla, que
+  // es justo lo que dejo de ser: aqui se entra a mirar la flota de equipos,
+  // no una pantalla.
+  //
+  // Lo ven mando y venta (los mismos que Comercial): quien ensena una pantalla
+  // a un cliente es quien primero necesita saber si la camara de ese sitio esta
+  // viva y que enseno ayer.
+  { key: 'space-eyes', label: 'Equipos', href: '/space-eyes', icon: Eye, roles: [...MANDO, ...VENTA], grupo: 'ojos' },
+  // El resto del panel de Space Eye, dentro de SPACE OS (ADR 0041): lo que antes
+  // se operaba en el dashboard propio de Space Eye vive aqui, con los mismos
+  // roles. Todo habla con el Space Eye de ESTA instancia por /api/space-eyes/se.
+  { key: 'space-eyes-galeria', label: 'Galería', href: '/space-eyes/galeria', icon: Images, roles: [...MANDO, ...VENTA], grupo: 'ojos' },
+  { key: 'space-eyes-graficas', label: 'Gráficas', href: '/space-eyes/graficas', icon: LineChart, roles: [...MANDO, ...VENTA], grupo: 'ojos' },
+  { key: 'space-eyes-texto', label: 'Ajustar texto', href: '/space-eyes/texto', icon: Type, roles: [...MANDO], grupo: 'ojos' },
+  { key: 'space-eyes-programacion', label: 'Programación', href: '/space-eyes/programacion', icon: CalendarClock, roles: [...MANDO], grupo: 'ojos' },
+  { key: 'space-eyes-campanas', label: 'Campañas', href: '/space-eyes/campanas', icon: Megaphone, roles: [...MANDO, ...VENTA], grupo: 'ojos' },
+  { key: 'space-eyes-verificacion', label: 'Verificación', href: '/space-eyes/verificacion', icon: BadgeCheck, roles: [...MANDO, ...VENTA], grupo: 'ojos' },
+  { key: 'space-eyes-fallas', label: 'Fallas', href: '/space-eyes/fallas', icon: TriangleAlert, roles: [...MANDO, ...VENTA], grupo: 'ojos' },
 
   // ─── Vender ──────────────────────────────────────────────────────────────
   // En el orden en que se hace: a quién le vendes, qué le enseñas, si está

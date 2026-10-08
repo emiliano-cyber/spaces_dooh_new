@@ -38,7 +38,7 @@
 
 import { createHash, timingSafeEqual } from 'node:crypto'
 import { createServer } from 'node:http'
-import { mkdir, rename, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -198,14 +198,42 @@ async function leerCuerpo(peticion) {
   return Buffer.concat(trozos).toString('utf8')
 }
 
-export function crearServidor({ instancias, dirEstado, ruta = '/flota/reporte' }) {
+// ─── La licencia de cada instancia, para que la baje sola ─────────────────
+// ADR 0041, etapa 4: activar o desactivar un modulo (Space Eyes) es firmar una
+// licencia nueva en el padre. La instancia la pide aqui en cada corrida de
+// update.sh, con el mismo token con el que reporta, y la acepta solo si la
+// firma valida con la llave publica que trae: este canal no puede inventar una
+// licencia, solo entregar la que se firmo. Cada instancia recibe la SUYA: el
+// nombre sale del token, nunca de la peticion.
+//
+// Dos rutas y los bytes tal cual (no un JSON con los dos dentro): asi el otro
+// lado, que es bash, no necesita nada para leerlos y la firma cubre exactamente
+// los bytes que llegan.
+export const ARCHIVOS_LICENCIA = { '/flota/licencia.json': 'licencia.json', '/flota/licencia.firma': 'licencia.firma' }
+
+export function crearServidor({ instancias, dirEstado, dirLicencias = null, ruta = '/flota/reporte' }) {
   return createServer(async (peticion, respuesta) => {
     const responder = (codigo, datos) => {
       respuesta.writeHead(codigo, { 'content-type': 'application/json', 'cache-control': 'no-store' })
       respuesta.end(JSON.stringify(datos))
     }
 
-    if (peticion.method !== 'POST' || (peticion.url ?? '').split('?')[0] !== ruta) {
+    const camino = (peticion.url ?? '').split('?')[0]
+    if (peticion.method === 'GET' && ARCHIVOS_LICENCIA[camino] && dirLicencias) {
+      const nombre = instanciaDelToken(peticion.headers['x-flota-token'], instancias)
+      if (!nombre || !NOMBRE_VALIDO.test(nombre)) return responder(401, { ok: false })
+      try {
+        const bytes = await readFile(join(dirLicencias, nombre, ARCHIVOS_LICENCIA[camino]))
+        respuesta.writeHead(200, { 'content-type': 'application/octet-stream', 'cache-control': 'no-store' })
+        return respuesta.end(bytes)
+      } catch {
+        // Sin licencia firmada para esta instancia: no es un error, es "nada
+        // que bajar" (los hijos administrados no llevan).
+        return responder(404, { ok: false, motivo: 'sin_licencia' })
+      }
+    }
+
+    if (peticion.method !== 'POST' || camino !== ruta) {
       return responder(404, { ok: false })
     }
 
@@ -249,7 +277,9 @@ async function principal() {
   }
   await mkdir(dirEstado, { recursive: true })
 
-  crearServidor({ instancias: inventario.instancias, dirEstado }).listen(puerto, interfaz, () => {
+  // Donde firmar-licencia.mjs deja la de cada instancia: <dir>/<instancia>/.
+  const dirLicencias = process.env.FLOTA_DIR_LICENCIAS ?? join(AQUI, 'licencias')
+  crearServidor({ instancias: inventario.instancias, dirEstado, dirLicencias }).listen(puerto, interfaz, () => {
     console.log('receptor de flota en http://' + interfaz + ':' + puerto + '/flota/reporte')
     console.log('estado en ' + dirEstado)
   })

@@ -180,7 +180,7 @@ sha256sum licencia.json licencia.firma > licencia.sha256
   encuentra sus propias plantillas:
 
 D=/tmp/paquete-space-os
-rm -rf "$D"; mkdir -p "$D"/infra/scripts "$D"/infra/env "$D"/infra/nginx/publico "$D"/infra/licencias "$D"/scripts
+rm -rf "$D"; mkdir -p "$D"/infra/scripts "$D"/infra/env "$D"/infra/nginx/publico "$D"/infra/licencias "$D"/scripts "$D"/infra/eyes
 
 cp infra/scripts/instalar-hijo.sh   "$D"/infra/scripts/
 cp infra/scripts/base-instancia.sh  "$D"/infra/scripts/
@@ -195,6 +195,13 @@ cp infra/nginx/instancia.conf.tpl              "$D"/infra/nginx/
 cp infra/nginx/instancia-sin-licencia.conf.tpl "$D"/infra/nginx/
 cp infra/nginx/publico/licencia-vencida.html   "$D"/infra/nginx/publico/
 cp infra/licencias/space-os.pub     "$D"/infra/licencias/
+# Space Eyes dentro de la instancia (ADR 0041), para --con-eyes. Van siempre:
+# sin la bandera el instalador no los toca.
+cp infra/scripts/eyes-alta.sh       "$D"/infra/scripts/
+cp infra/scripts/update-eyes.sh     "$D"/infra/scripts/
+cp infra/eyes/docker-compose.yml    "$D"/infra/eyes/
+cp infra/eyes/mediamtx.yml          "$D"/infra/eyes/
+cp infra/eyes/eyes.env.example      "$D"/infra/eyes/
 
 ( cd "$D" && find . -type f -exec sha256sum {} \; | sort -k2 > ../paquete-space-os.sha256 )
 tar -C "$D" -czf /tmp/paquete-space-os.tar.gz .

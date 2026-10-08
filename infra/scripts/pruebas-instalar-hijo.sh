@@ -409,6 +409,54 @@ else mal "no dice que falta FLOTA_TOKEN: $(tail -2 "$SALIDA" | tr '\n' ' ')"; fi
 limpiar
 
 # ============================================================================
+#  EYES · Space Eyes dentro de la instancia (ADR 0041), con --con-eyes
+# ----------------------------------------------------------------------------
+#  Lo que no puede fallar: que las DOS credenciales con que la app le habla a su
+#  Space Eye sean las MISMAS a los dos lados (si no, el modulo da 401 y nadie
+#  sabe por que), que eyes.env sea secreto, que el certificado lleve el segundo
+#  nombre, y que SIN la bandera no cambie nada de lo de siempre.
+# ============================================================================
+escenario 'EYES · --con-eyes: las MISMAS credenciales en app.env y eyes.env, 600, cron y certificado con eyes.<dominio>'
+preparar
+fabricar_licencia p "$DOM"
+correr REGISTRY=registro.ejemplo/x PADRE_URL=https://padre.ejemplo.invalid FLOTA_TOKEN=t0ken-de-flota -- \
+  --instancia p --dominio "$DOM" --licencia "$LICDIR" --con-eyes
+codigo_es 0
+escrito_casa /etc/space-os/app.env '^SPACE_EYE_BASE_URL=http://127\.0\.0\.1:4200$'
+escrito_casa /etc/space-os/app.env '^SPACE_EYE_KEY=se_[0-9a-f]{12}_[A-Za-z0-9_-]{40,}$'
+escrito_casa /etc/space-os/eyes.env '^INSTANCIA_OWNER=p$'
+escrito_casa /etc/space-os/eyes.env "^EYES_DOMINIO=eyes\.$DOM\$"
+LLAVE_APP="$(grep -m1 '^SPACE_EYE_KEY=' "$(ruta_escrita /etc/space-os/app.env)" 2>/dev/null | cut -d= -f2-)"
+LLAVE_EYES="$(grep -m1 '^INSTANCIA_LLAVE=' "$(ruta_escrita /etc/space-os/eyes.env)" 2>/dev/null | cut -d= -f2-)"
+TEST_APP="$(grep -m1 '^SPACE_EYE_PROVISION_TOKEN=' "$(ruta_escrita /etc/space-os/app.env)" 2>/dev/null | cut -d= -f2-)"
+TEST_EYES="$(grep -m1 '^INSTANCIA_TESTIGO=' "$(ruta_escrita /etc/space-os/eyes.env)" 2>/dev/null | cut -d= -f2-)"
+if [ -n "$LLAVE_APP" ] && [ "$LLAVE_APP" = "$LLAVE_EYES" ]; then bien
+else mal "la llave de app.env y la de eyes.env no son la misma: el modulo daria 401"; fi
+if [ -n "$TEST_APP" ] && [ "$TEST_APP" = "$TEST_EYES" ] && [ "$TEST_APP" != "$LLAVE_APP" ]; then bien
+else mal "el testigo no coincide entre los dos archivos, o es la misma credencial que la llave"; fi
+modo_escrito /etc/space-os/eyes.env 600
+# Y la licencia del padre: con Space Eyes, update.sh la baja sola (etapa 4).
+escrito_casa /etc/space-os/instancia.env '^LICENCIA_DEL_PADRE="1"$'
+escrito_dice /etc/cron.d/space-os-eyes '/opt/space-os/update-eyes.sh --comprobar'
+if grep -qE -- "certbot .*-d $DOM .*-d eyes\.$DOM" "$SALIDA"; then bien
+else mal "el certificado no pide eyes.$DOM: los equipos verian un certificado ajeno"; fi
+if grep -qF -- 'ufw allow 8189/udp' "$SALIDA"; then bien
+else mal "no se abre el UDP del vivo (8189)"; fi
+limpiar
+
+escenario 'EYES · SIN --con-eyes, el alta es la de siempre: ni eyes.env, ni credenciales, ni segundo nombre'
+preparar
+fabricar_licencia p "$DOM"
+correr REGISTRY=registro.ejemplo/x PADRE_URL=https://padre.ejemplo.invalid FLOTA_TOKEN=t0ken-de-flota -- \
+  --instancia p --dominio "$DOM" --licencia "$LICDIR"
+codigo_es 0
+escrito_casa /etc/space-os/app.env '^SPACE_EYE_KEY=$'
+if [ -f "$(ruta_escrita /etc/space-os/eyes.env)" ]; then mal "sin --con-eyes se escribio eyes.env"; else bien; fi
+if grep -q '^LICENCIA_DEL_PADRE' "$(ruta_escrita /etc/space-os/instancia.env)" 2>/dev/null; then mal "sin --con-eyes se escribio LICENCIA_DEL_PADRE"; else bien; fi
+if grep -qF -- "eyes.$DOM" "$SALIDA"; then mal "sin --con-eyes aparece eyes.$DOM en lo que se haria"; else bien; fi
+limpiar
+
+# ============================================================================
 #  PAQUETE · lo que el instalador NECESITA esta en la lista que arma la tarjeta
 # ============================================================================
 #  El defecto que lo motivo, medido el 2026-09-14 y con tres dias de vida:

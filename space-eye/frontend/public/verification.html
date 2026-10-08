@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SPACE EYES — Verificación</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/src/js/tema.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <link rel="stylesheet" href="/src/css/styles.css">
+</head>
+<body class="bg-neutral-50 text-neutral-900 font-sans antialiased">
+  <div x-data="verificationPage()" x-init="init()" class="min-h-screen">
+
+    <div id="app-header"></div>
+
+    <main class="max-w-7xl 2xl:max-w-[1600px] mx-auto px-4 sm:px-6 py-8">
+      <div class="mb-6">
+        <p class="se-eyebrow">Evidencia</p>
+        <h1 class="se-titulo text-[28px] mt-1">Verificación</h1>
+        <p class="text-sm text-neutral-500 mt-1">Comparación de cada foto contra la creatividad de su campaña.</p>
+      </div>
+      <div class="flex gap-3 mb-6">
+        <select x-model="filters.is_correct" class="px-3 py-2 border border-neutral-300 rounded text-sm">
+          <option value="">Todos los resultados</option>
+          <option value="true">Correctos</option>
+          <option value="false">Incorrectos</option>
+        </select>
+        <button @click="loadVerifications()" class="se-btn se-btn-primario">Filtrar</button>
+      </div>
+
+      <div class="bg-white border border-neutral-200 rounded-lg overflow-x-auto">
+        <table class="w-full text-sm min-w-[640px]">
+          <thead class="bg-neutral-50 border-b border-neutral-200">
+            <tr>
+              <th class="text-left px-4 py-3 font-medium text-neutral-700">Foto</th>
+              <th class="text-left px-4 py-3 font-medium text-neutral-700">Device</th>
+              <th class="text-left px-4 py-3 font-medium text-neutral-700">SSIM</th>
+              <th class="text-left px-4 py-3 font-medium text-neutral-700">pHash</th>
+              <th class="text-left px-4 py-3 font-medium text-neutral-700">OCR Match</th>
+              <th class="text-left px-4 py-3 font-medium text-neutral-700">Resultado</th>
+              <th class="text-left px-4 py-3 font-medium text-neutral-700">Confianza</th>
+              <th class="text-left px-4 py-3 font-medium text-neutral-700">Fecha</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="v in verifications" :key="v.id">
+              <tr class="border-b border-neutral-100">
+                <td class="px-4 py-3">
+                  <div class="w-12 h-12 bg-neutral-100 rounded overflow-hidden">
+                    <img :src="v.thumbnail_path" class="w-full h-full object-cover">
+                  </div>
+                </td>
+                <td class="px-4 py-3" x-text="v.device_name"></td>
+                <td class="px-4 py-3" x-text="v.ssim_score ? v.ssim_score.toFixed(3) : '—'"></td>
+                <td class="px-4 py-3" x-text="v.phash_distance ?? '—'"></td>
+                <td class="px-4 py-3">
+                  <span :class="v.ocr_match ? 'text-green-600' : 'text-red-600'" x-text="v.ocr_match ? 'Si' : 'No'"></span>
+                </td>
+                <td class="px-4 py-3">
+                  <span :class="v.is_correct ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'"
+                        class="text-xs px-2 py-0.5 rounded-full" x-text="v.is_correct ? 'Correcto' : 'Incorrecto'"></span>
+                </td>
+                <td class="px-4 py-3" x-text="(v.confidence * 100).toFixed(0) + '%'"></td>
+                <td class="px-4 py-3 text-neutral-500" x-text="new Date(v.processed_at).toLocaleString()"></td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+        <p x-show="verifications.length === 0" class="text-center py-8 text-neutral-500">Sin resultados de verificacion</p>
+      </div>
+    </main>
+  </div>
+
+  <script src="/src/js/api.js"></script>
+  <script src="/src/js/shell.js"></script>
+  <script src="/src/js/pages/verification.js"></script>
+</body>
+</html>

@@ -1052,6 +1052,56 @@ licencia_estado() {
   fi
 }
 
+# ─── La licencia, bajada del padre (ADR 0041, etapa 4) ─────────────────────
+# Activar o desactivar un modulo vendido aparte (Space Eyes) es firmar una
+# licencia nueva en el padre. Con LICENCIA_DEL_PADRE=1 (lo escribe el alta con
+# --con-eyes), cada corrida la pide con el mismo token con el que reporta y la
+# instala SOLO si valida igual que la de disco: firma correcta y de ESTA
+# instancia. El canal no puede inventar una licencia, solo entregar la firmada.
+#
+# Nunca empeora nada: sin la bandera no hace nada; si el padre no contesta, no
+# tiene licencia para esta instancia o manda una que no valida, se sigue con la
+# que ya hay. Corre antes de la revision de siempre, asi una licencia nueva
+# cuenta en esta misma corrida.
+LICENCIA_DEL_PADRE="${LICENCIA_DEL_PADRE:-0}"
+licencia_del_padre() {
+  [ "$LICENCIA_DEL_PADRE" = 1 ] || return 0
+  [ "${DRY_RUN:-0}" = 0 ] || return 0
+  [ -n "${FLOTA_REPORTE_URL:-}" ] || { registrar "   licencia del padre: no hay FLOTA_REPORTE_URL; no se pide"; return 0; }
+  local token base tmp archivo codigo modulos
+  token="$(flota_token)"
+  [ -n "$token" ] || { registrar "   licencia del padre: no hay FLOTA_TOKEN; no se pide"; return 0; }
+  base="${FLOTA_REPORTE_URL%/reporte}"
+  tmp="$(mktemp -d 2>/dev/null)" || return 0
+  for archivo in licencia.json licencia.firma; do
+    codigo="$(printf 'header = "x-flota-token: %s"\n' "$token" \
+      | curl -s -K - -o "$tmp/$archivo" -w '%{http_code}' --max-time 15 "$base/$archivo" 2>/dev/null)" || codigo=000
+    case "$codigo" in
+      200) ;;
+      404) registrar "   licencia del padre: el padre no tiene una firmada para esta instancia; se sigue con la que hay"; rm -rf "$tmp"; return 0 ;;
+      *)   registrar "   licencia del padre: no se pudo bajar $archivo (HTTP $codigo); se sigue con la que hay"; rm -rf "$tmp"; return 0 ;;
+    esac
+  done
+  if cmp -s "$tmp/licencia.json" "$LICENCIA_DIR/licencia.json" 2>/dev/null \
+     && cmp -s "$tmp/licencia.firma" "$LICENCIA_DIR/licencia.firma" 2>/dev/null; then
+    rm -rf "$tmp"; return 0
+  fi
+  if ! LICENCIA_DIR="$tmp" licencia_valida; then
+    registrar "   licencia del padre: la que bajo NO valida (firma o instancia); se descarta y se sigue con la que hay"
+    rm -rf "$tmp"; return 0
+  fi
+  mkdir -p "$LICENCIA_DIR" \
+    && install -m 644 "$tmp/licencia.firma" "$LICENCIA_DIR/.licencia.firma.nueva" \
+    && install -m 644 "$tmp/licencia.json" "$LICENCIA_DIR/.licencia.json.nueva" \
+    && mv -f "$LICENCIA_DIR/.licencia.firma.nueva" "$LICENCIA_DIR/licencia.firma" \
+    && mv -f "$LICENCIA_DIR/.licencia.json.nueva" "$LICENCIA_DIR/licencia.json" \
+    || { registrar "   licencia del padre: no se pudo instalar en $LICENCIA_DIR; se sigue con la que hay"; rm -rf "$tmp"; return 0; }
+  modulos="$(tr -d '\n ' < "$LICENCIA_DIR/licencia.json" | sed -n 's/.*"modulos":\[\([^]]*\)\].*/\1/p' | tr -d '"')"
+  registrar "   licencia del padre: instalada la nueva (modulos: ${modulos:-ninguno})"
+  rm -rf "$tmp"
+}
+licencia_del_padre
+
 if [ "$LICENCIA_REQUERIDA" = 1 ]; then
   # `openssl` es una dependencia NUEVA de este bloque -- el resto de update.sh
   # no la necesitaba hasta hoy. Si falta, o si la version no soporta

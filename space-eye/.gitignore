@@ -1,0 +1,65 @@
+# ---- Secrets / env ----
+.env
+# Cualquier .env con sufijo: .env.v2, .env.pruebas, .env.produccion... El script
+# de despliegue escribe .env.v2 CON LOS SECRETOS DE PRODUCCION DENTRO, y ese
+# script se corre desde una copia del repositorio en el droplet: sin esta linea,
+# un `git add -A` alli los publicaria.
+.env.*
+*.pem
+# Los ejemplos si se guardan: no llevan secretos, llevan los nombres.
+!.env.example
+!.env.*.example
+
+# ---- Node / backend ----
+node_modules/
+dist/
+build/
+*.log
+npm-debug.log*
+yarn-error.log*
+.npm/
+
+# ---- Fotos / evidencia generadas en runtime (STORAGE_DRIVER=local) ----
+backend/storage/
+
+# ---- Python / ai-worker ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+
+# ---- Android / Gradle ----
+.gradle/
+android/**/build/
+android/local.properties
+android/.idea/
+android/app/release/
+*.iml
+*.keystore
+*.jks
+local.properties
+
+# ---- Artefactos de build / debug (no versionar) ----
+*.apk
+
+# El agente de PC publicado para la actualizacion por red: 82 MB, se genera con
+# "npm run build" en pc-agent y se copia aqui. No tiene por que vivir en el repo.
+frontend/public/SpaceEyeAgente.exe
+cap.png
+inc.png
+
+# Capturas sueltas con las que se probo el verificador a mano (fotos de sitio,
+# recortes, camara tapada). Son material de banco de pruebas, no del producto.
+ev/
+
+# ---- ffmpeg del agente de PC (mas de 70 MB; se baja con npm run bajar-ffmpeg) ----
+pc-agent/vendor/
+
+# ---- Editor / OS ----
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.swp

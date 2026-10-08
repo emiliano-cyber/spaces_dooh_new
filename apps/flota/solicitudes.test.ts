@@ -184,3 +184,36 @@ describe('dominioDeAlta y zonaPorOmision', () => {
     expect(validarSolicitud(d)).toEqual({ ok: true, errores: [] })
   })
 })
+
+// ─── Space Eyes en el alta (ADR 0041, etapa 4) ──────────────────────────────
+describe('con_eyes: el hijo con Space Eyes dentro', () => {
+  const base = { instancia: 'pixeled', dominio: 'pixeled.ejemplo.mx', email: 'duenio@ejemplo.mx' }
+  const ejecutor = { DO_REGION: 'nyc1', DO_TAMANO: 's-1vcpu-1gb' }
+
+  it('sin el campo, la solicitud es la de siempre: ni --con-eyes ni otro tamano', () => {
+    const r = argumentosDeAlta(base, ejecutor)
+    expect(r.argumentos).not.toContain('--con-eyes')
+    expect(r.entorno.DO_TAMANO).toBe('s-1vcpu-1gb')
+  })
+
+  it('con "si": --con-eyes antes de --confirmar, y 2 GB', () => {
+    const r = argumentosDeAlta({ ...base, con_eyes: 'si' }, ejecutor)
+    expect(r.argumentos.slice(-2)).toEqual(['--con-eyes', '--confirmar'])
+    expect(r.entorno.DO_TAMANO).toBe('s-1vcpu-2gb')
+  })
+
+  it('el tamano con Space Eyes lo pone el ejecutor si lo trae', () => {
+    const r = argumentosDeAlta({ ...base, con_eyes: 'si' }, { ...ejecutor, DO_TAMANO_CON_EYES: 's-2vcpu-4gb' })
+    expect(r.entorno.DO_TAMANO).toBe('s-2vcpu-4gb')
+  })
+
+  it('con "no": como sin el campo', () => {
+    expect(argumentosDeAlta({ ...base, con_eyes: 'no' }, ejecutor).argumentos).not.toContain('--con-eyes')
+  })
+
+  it('cualquier otro valor se rechaza: un formulario raro no decide una factura', () => {
+    for (const v of ['true', '1', 'SI', '--con-eyes', 'si; rm -rf /']) {
+      expect(validarSolicitud({ ...base, con_eyes: v }).ok).toBe(false)
+    }
+  })
+})

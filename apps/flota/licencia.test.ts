@@ -60,6 +60,33 @@ describe('construirLicencia', () => {
   })
 })
 
+describe('modulos vendidos aparte (Space Eyes)', () => {
+  it('sin modulos, la licencia queda byte a byte como las de antes', () => {
+    // Las licencias ya firmadas no traen `modulos`: si este cambio alterara sus
+    // bytes, todas dejarian de validar y se apagarian instancias al corriente.
+    expect(construirLicencia({ ...datos, modulos: [] })).toBe(construirLicencia(datos))
+    expect(construirLicencia(datos)).not.toContain('modulos')
+  })
+
+  it('con Space Eyes, lo lleva al final, ordenado y sin repetir', () => {
+    const json = construirLicencia({ ...datos, modulos: ['space-eyes', 'space-eyes'] })
+    expect(JSON.parse(json).modulos).toEqual(['space-eyes'])
+    expect(Object.keys(JSON.parse(json)).at(-1)).toBe('modulos')
+  })
+
+  it('un modulo que no existe se rechaza al firmar', () => {
+    expect(() => construirLicencia({ ...datos, modulos: ['spaceyes'] })).toThrow(/solo puede llevar/)
+  })
+
+  it('agregar o quitar un modulo invalida la firma anterior', () => {
+    const { privateKey, publicKey } = par()
+    const sin = construirLicencia(datos)
+    const con = construirLicencia({ ...datos, modulos: ['space-eyes'] })
+    expect(verificar(con, firmar(sin, privateKey), publicKey)).toBe(false)
+    expect(verificar(con, firmar(con, privateKey), publicKey)).toBe(true)
+  })
+})
+
 describe('firmar y verificar', () => {
   it('ida y vuelta: lo que se firma, valida', () => {
     const { privateKey, publicKey } = par()

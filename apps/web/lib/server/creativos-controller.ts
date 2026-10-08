@@ -178,6 +178,8 @@ export async function setCreativosReservaCtrl(reservaId: string, body: unknown) 
   const creativos = (d.creativos ?? []).map((c) => ({ creatividadId: c.creatividadId, veces: c.veces ?? 1 }))
   const res = await setCreativosDeReserva(reservaId, creativos)
   if (!res) throw new AppError('Reserva no encontrada', 404)
+  // Space Eyes: lo que sale en esa pantalla cambió.
+  await avisarSpaceEyes()
   return { creativos: res }
 }
 
@@ -198,5 +200,17 @@ export async function repartirCreativosCtrl(campanaId: string, body: unknown) {
   const d = validar(repartirSchema, body ?? {})
   const res = await repartirCreativosEnCampana(campanaId, d.creatividadIds, d.soloVacias ?? false)
   if (!res) throw new AppError('Campaña no encontrada', 404)
+  await avisarSpaceEyes()
   return res
+}
+
+// Space Eyes se carga solo cuando hace falta: importarlo arriba arrastraba la
+// sesión (React `cache`) a todo el que importa este archivo, también a las
+// pruebas que no la tienen. Nunca lanza (ver space-eyes-campanas.ts).
+async function avisarSpaceEyes(): Promise<void> {
+  try {
+    await (await import('./space-eyes-campanas')).avisarCambioDeCampanas()
+  } catch {
+    /* sin Space Eyes no hay nada que avisar */
+  }
 }

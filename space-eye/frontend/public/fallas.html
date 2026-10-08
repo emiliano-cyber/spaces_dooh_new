@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SPACE EYES — Fallas</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/src/js/tema.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <link rel="stylesheet" href="/src/css/styles.css">
+</head>
+<body class="bg-neutral-50 text-neutral-900 font-sans antialiased">
+  <div x-data="fallasPage()" x-init="init()" class="min-h-screen">
+
+    <div id="app-header"></div>
+
+    <main class="max-w-7xl 2xl:max-w-[1600px] mx-auto px-4 sm:px-6 py-8">
+      <!-- Encabezado de pagina -->
+      <div class="flex flex-wrap items-end justify-between gap-4 mb-6">
+        <div>
+          <p class="se-eyebrow">Monitoreo</p>
+          <h1 class="se-titulo text-[28px] mt-1">Fallas de pantalla</h1>
+          <p class="text-sm text-neutral-500 mt-1">Lo que cada equipo detectó por sí mismo al revisar su pantalla. Se actualiza solo.</p>
+        </div>
+        <select x-model="deviceId" @change="load()" class="px-3 py-2 border border-neutral-300 rounded-md text-sm bg-white min-w-[260px]">
+          <option value="">Todos los equipos</option>
+          <template x-for="d in devices" :key="d.id">
+            <option :value="d.id" x-text="d.name"></option>
+          </template>
+        </select>
+      </div>
+
+      <!-- Indicadores -->
+      <div class="grid grid-cols-3 gap-3 mb-6">
+        <div class="se-kpi">
+          <div class="se-kpi-label">Abiertas</div>
+          <div class="se-kpi-valor" :class="cuenta('abierta') ? 'text-red-700' : 'text-neutral-400'" x-text="cuenta('abierta')"></div>
+        </div>
+        <div class="se-kpi">
+          <div class="se-kpi-label">Recuperadas</div>
+          <div class="se-kpi-valor" x-text="cuenta('recuperada')"></div>
+        </div>
+        <div class="se-kpi">
+          <div class="se-kpi-label">No eran falla</div>
+          <div class="se-kpi-valor text-neutral-500" x-text="cuenta('descartada')"></div>
+        </div>
+      </div>
+
+      <!-- Abiertas: es lo que hay que atender -->
+      <section x-show="abiertas().length" class="mb-8">
+        <p class="se-eyebrow mb-3">Requieren atención · <span x-text="abiertas().length"></span></p>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <template x-for="f in abiertas()" :key="f.id">
+            <div class="se-card flex gap-4 p-4 !border-l-[3px] !border-l-red-600">
+              <button @click="verFoto = f.evidencia" x-show="f.evidencia_mini" class="shrink-0 w-24 sm:w-40 aspect-[4/3] bg-neutral-100 rounded overflow-hidden">
+                <img :src="f.evidencia_mini" class="w-full h-full object-cover" alt="Evidencia">
+              </button>
+              <div class="text-sm flex-1 min-w-0">
+                <span class="se-badge se-badge-falla">Falla detectada</span>
+                <p class="font-semibold mt-2" x-text="f.nombre"></p>
+                <dl class="mt-1.5 space-y-0.5 text-[13px]">
+                  <div class="flex gap-2"><dt class="text-neutral-500 w-20 shrink-0">Equipo</dt>
+                    <dd class="min-w-0"><a :href="'/device-detail.html?id=' + f.device_id + '#fallas'" class="text-blue-700 hover:underline" x-text="f.equipo"></a></dd></div>
+                  <div class="flex gap-2"><dt class="text-neutral-500 w-20 shrink-0">Zona</dt><dd class="min-w-0 break-words" x-text="Pantalla.donde(f)"></dd></div>
+                  <div class="flex gap-2"><dt class="text-neutral-500 w-20 shrink-0">Detectada</dt><dd class="font-mono text-xs pt-0.5" x-text="fecha(f.detectada_en)"></dd></div>
+                  <div class="flex gap-2"><dt class="text-neutral-500 w-20 shrink-0">Confianza</dt><dd class="font-mono text-xs pt-0.5" x-text="Math.round(f.confianza * 100) + '%'"></dd></div>
+                </dl>
+                <div x-show="puedeCerrar" class="flex flex-wrap gap-2 mt-3">
+                  <button @click="cerrar(f, 'recuperada')" class="se-btn se-btn-secundario se-btn-chico">Ya se arregló</button>
+                  <button @click="cerrar(f, 'descartada')" class="se-btn se-btn-discreto se-btn-chico">No es falla</button>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </section>
+
+      <!-- Historial -->
+      <section class="se-card">
+        <div class="se-card-head">
+          <div class="se-card-title">Historial</div>
+          <div class="flex rounded-md border border-neutral-300 overflow-hidden text-sm">
+            <template x-for="op in [['','Todas'],['abierta','Abiertas'],['recuperada','Recuperadas'],['descartada','No eran falla']]" :key="op[0]">
+              <button @click="estado = op[0]" class="px-3 py-1.5 border-r last:border-r-0 border-neutral-200"
+                :class="estado === op[0] ? 'bg-neutral-900 text-white' : 'text-neutral-600 hover:bg-neutral-50'" x-text="op[1]"></button>
+            </template>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm min-w-[820px]">
+            <thead class="text-left text-xs text-neutral-500 border-b border-neutral-200">
+              <tr>
+                <th class="px-4 py-2.5 font-medium">Detectada</th>
+                <th class="px-4 py-2.5 font-medium">Equipo</th>
+                <th class="px-4 py-2.5 font-medium">Falla</th>
+                <th class="px-4 py-2.5 font-medium">Zona</th>
+                <th class="px-4 py-2.5 font-medium">Estado</th>
+                <th class="px-4 py-2.5 font-medium">Recuperación</th>
+                <th class="px-4 py-2.5 font-medium">Evidencia</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-neutral-200">
+              <template x-for="f in lista()" :key="f.id">
+                <tr class="hover:bg-neutral-50">
+                  <td class="px-4 py-2.5 whitespace-nowrap font-mono text-xs" x-text="fecha(f.detectada_en)"></td>
+                  <td class="px-4 py-2.5"><a :href="'/device-detail.html?id=' + f.device_id + '#fallas'" class="text-blue-700 hover:underline" x-text="f.equipo"></a></td>
+                  <td class="px-4 py-2.5" x-text="f.nombre"></td>
+                  <td class="px-4 py-2.5 text-neutral-600" x-text="Pantalla.donde(f)"></td>
+                  <td class="px-4 py-2.5">
+                    <span class="se-badge" :class="{ 'se-badge-falla': f.estado === 'abierta', 'se-badge-ok': f.estado === 'recuperada' }"
+                      x-text="{ abierta: 'Abierta', recuperada: 'Recuperada', descartada: 'No era falla' }[f.estado]"></span>
+                    <span x-show="f.nota" class="block text-xs text-neutral-500 mt-1" x-text="f.nota"></span>
+                  </td>
+                  <td class="px-4 py-2.5 whitespace-nowrap font-mono text-xs" x-text="f.recuperada_en ? fecha(f.recuperada_en) + (f.cerrada_por === 'usuario' ? ' · a mano' : '') : '—'"></td>
+                  <td class="px-4 py-2.5 whitespace-nowrap text-xs">
+                    <button x-show="f.evidencia" @click="verFoto = f.evidencia" class="text-blue-700 hover:underline">al detectar</button>
+                    <button x-show="f.evidencia_recuperacion" @click="verFoto = f.evidencia_recuperacion" class="text-blue-700 hover:underline ml-2">al recuperar</button>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+        <p x-show="cargado && !lista().length" class="text-center text-neutral-500 text-sm py-10">Sin fallas con este filtro.</p>
+      </section>
+    </main>
+
+    <!-- Evidencia en grande -->
+    <div x-show="verFoto" style="display:none" class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" @keydown.escape.window="verFoto = null">
+      <div class="relative max-w-6xl w-full">
+        <img :src="verFoto" class="max-h-[85vh] mx-auto rounded" alt="Evidencia">
+        <div class="flex justify-center gap-4 mt-3 text-sm">
+          <a :href="verFoto" target="_blank" class="text-white underline">Abrir en otra pestaña</a>
+          <button @click="verFoto = null" class="text-white underline">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/src/js/api.js"></script>
+  <script src="/src/js/shell.js"></script>
+  <script src="/src/js/socket.js"></script>
+  <script src="/src/js/pantalla.js"></script>
+  <script src="/src/js/pages/fallas.js"></script>
+</body>
+</html>

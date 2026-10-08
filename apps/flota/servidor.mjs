@@ -15,7 +15,8 @@
 import { createServer } from 'node:http'
 import { randomUUID } from 'node:crypto'
 import { verificarAcceso } from './acceso.mjs'
-import { validarSolicitud, CAMPOS, dominioDeAlta, zonaPorOmision } from './solicitudes.mjs'
+import { validarSolicitud, CAMPOS, CAMPOS_OPCIONALES, dominioDeAlta, zonaPorOmision } from './solicitudes.mjs'
+import { modulosDe, ordenPara } from './modulo.mjs'
 import { crearSolicitud as crearEnCola, listar as listarCola } from './cola.mjs'
 import { cargarInventario, consultar, leerReportes, fusionar, resumen, tokenDe, tokensDeArchivo, COLUMNAS } from './estado.mjs'
 import { clasificarFallo, RECURSO_TICKETS } from './diagnostico.mjs'
@@ -311,9 +312,22 @@ export function fechaLegible(iso) {
   })
 }
 
+/** La celda de Space Eyes de una instancia, con la orden para cambiarlo. */
+function celdaModulo(nombre, modulosDeInstancia) {
+  const { licencia, modulos } = modulosDeInstancia(nombre)
+  if (!licencia) return '<td class="sub" title="Sin licencia en el padre: manda el alta (--con-eyes)">—</td>'
+  const activo = modulos.includes('space-eyes')
+  const orden = ordenPara(nombre, 'space-eyes', !activo)
+  return `<td title="${escapar(`Para ${activo ? 'desactivarlo' : 'activarlo'}: ${orden}`)}">${activo ? 'activo' : 'no'}</td>`
+}
+
 /** La página. Todo lo que viene de una instancia pasa por `escapar()`. */
-export function pagina(filas, usuario) {
-  const encabezados = COLUMNAS.map((c) => `<th>${escapar(c)}</th>`).join('')
+export function pagina(filas, usuario, modulosDeInstancia = modulosDe) {
+  // Space Eyes se vende aparte (ADR 0041, etapa 4): se ve aqui si la licencia
+  // que el padre le entrega a cada instancia lo trae. Cambiarlo es firmar con
+  // modulo.mjs (el panel no tiene credenciales): el titulo de la celda da la
+  // orden exacta. No es parte de COLUMNAS: eso es lo que REPORTA la instancia.
+  const encabezados = COLUMNAS.map((c) => `<th>${escapar(c)}</th>`).join('') + '<th>space eyes</th>'
   const cuerpo = filas
     .map((f) => {
       const celdas = COLUMNAS.map((c) => {
@@ -324,7 +338,7 @@ export function pagina(filas, usuario) {
         // valor exacto en el `datetime` y ensena la version corta.
         const valor = c === 'fecha' ? celdaFecha(f[c]) : escapar(f[c])
         return `<td${clase}>${valor}</td>`
-      }).join('')
+      }).join('') + celdaModulo(f.nombre, modulosDeInstancia)
       // Una instancia que no contesta se marca en la FILA, no solo en su celda
       // de estado: es lo que se ve sin leer, que es el trabajo de esta tabla.
       const fila = `<tr${f.estado === 'sin-respuesta' ? ' class="atencion"' : ''}>${celdas}</tr>`
@@ -339,7 +353,7 @@ export function pagina(filas, usuario) {
       const visto = f.ultimaVezBien ? ' · ultima vez bien ' + celdaFecha(f.ultimaVezBien) : ''
       return (
         fila +
-        `\n<tr class="motivo"><td colspan="${COLUMNAS.length}">${escapar(f.motivo)}${visto}</td></tr>`
+        `\n<tr class="motivo"><td colspan="${COLUMNAS.length + 1}">${escapar(f.motivo)}${visto}</td></tr>`
       )
     })
     .join('\n')
@@ -781,6 +795,8 @@ async function pedirAlta(entrada, ctx) {
   }
 
   const datos = Object.fromEntries(CAMPOS.map((c) => [c, cuerpo?.[c]]))
+  // Una casilla sin marcar no llega en el formulario: eso es "no".
+  for (const c of CAMPOS_OPCIONALES) datos[c] = cuerpo?.[c] === 'si' ? 'si' : 'no'
   // El dominio en blanco se rellena con `<instancia>.<zona por omision>`, para
   // que crear un hijo «como ensayo4» sea un solo campo y el registro A lo ponga
   // el ejecutor solo. Un dominio escrito se respeta TAL CUAL: puede ser el del
@@ -1051,6 +1067,7 @@ export function paginaAltas(solicitudes, usuario, csrf, zonas = {}) {
   <label>Nombre de la instancia<input name="instancia" required placeholder="pixeled"></label>
   <label>Dominio${sufijo ? ' <span class="sub">(en blanco = ' + escapar(sufijo) + ')</span>' : ''}<input name="dominio"${sufijo ? '' : ' required'} placeholder="${escapar(ejemploDominio)}"></label>
   <label>Correo del Dueño (su cuenta de Google)<input name="email" type="email" required></label>
+  <label><input type="checkbox" name="con_eyes" value="si" checked> Con Space Eyes (cámaras) <span class="sub">— servidor de 2 GB y <code>eyes.&lt;dominio&gt;</code>; si el dominio es del cliente, debe apuntar los DOS nombres</span></label>
   <button type="submit">Dar de alta</button>
 </form>
 

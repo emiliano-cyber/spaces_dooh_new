@@ -1,0 +1,119 @@
+# SPACE EYE — stack de PRODUCCION (equipos remotos)
+# Requisitos: un VPS con IP publica, un dominio apuntando (A record) al VPS,
+# y los puertos 80/443 (TLS) y 3478 + rango relay (TURN) abiertos.
+# Uso:  docker compose -f infra/docker-compose.prod.yml --env-file backend/.env up -d --build
+#
+# Variables clave en el .env: DOMAIN, TURN_SECRET, PUBLIC_IP (IP publica del VPS),
+# DB_PASSWORD, JWT_SECRET, JWT_DEVICE_SECRET, WORKER_SECRET, PUBLIC_BASE_URL,
+# TURN_URL.
+
+services:
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME:-space_eye}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ../backend/migrations:/docker-entrypoint-initdb.d
+    command: >
+      --default-authentication-plugin=mysql_native_password
+      --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy noeviction
+    volumes:
+      - redis_data:/data
+
+  backend:
+    build:
+      context: ../backend
+    restart: unless-stopped
+    env_file: ../backend/.env
+    # ─── PUENTE DE MIGRACION: el 4000 sigue abierto ──────────────────────────
+    #
+    #  Este compose no publicaba el puerto del backend: con Caddy delante, todo
+    #  entra por 443 y con TLS, que es lo correcto. Pero los equipos que YA
+    #  estan instalados apuntan a `http://<ip>:4000` -la APK lo lleva compilado
+    #  y los agentes en su config.json-, asi que pasar de docker-compose.ip.yml
+    #  a este SIN esto deja a la flota entera sin servidor, en silencio y sin
+    #  forma de arreglarlo salvo yendo sitio por sitio.
+    #
+    #  Se cierra el dia que ningun equipo apunte a la IP: los agentes de PC y de
+    #  Raspberry cambian su `server_url` en una actualizacion; la APK necesita
+    #  una version nueva. Hasta entonces, se queda.
+    ports:
+      - "4000:4000"
+    environment:
+      DB_HOST: mysql
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: production
+    volumes:
+      - ../frontend:/frontend:ro
+      - storage_data:/app/storage
+    depends_on: [mysql, redis]
+
+  ai-worker:
+    build:
+      context: ../ai-worker
+    restart: unless-stopped
+    environment:
+      REDIS_URL: redis://redis:6379
+      API_BASE: http://backend:4000
+      WORKER_SECRET: ${WORKER_SECRET}
+    depends_on: [backend, redis]
+
+  # Reverse proxy con HTTPS automatico (Let's Encrypt). Proxya HTTP y WebSocket.
+  # ─── Servidor de medios: la vista en vivo de la Raspberry y del agente de PC ──
+  #
+  #  Faltaba en este compose y estaba en el de IP, asi que NO habia forma de
+  #  tener HTTPS y vista en vivo a la vez: o certificado sin vivo, o vivo sin
+  #  certificado. Con el cliente entrando por https, eso es no tener vivo.
+  #
+  #  Los agentes PUBLICAN por RTSP (8554) contra este servicio; el navegador
+  #  CONSUME por WHEP, y ese lo sirve Caddy por el dominio con TLS -por eso 8889
+  #  ya no se publica al exterior-. 8189/udp si: son los medios WebRTC y van
+  #  directos, no por el proxy.
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    restart: unless-stopped
+    environment:
+      MTX_AUTHINTERNALUSERS_1_PASS: ${MEDIAMTX_PASS}
+    volumes:
+      - ./mediamtx/mediamtx.yml:/mediamtx.yml:ro
+    ports:
+      - "8554:8554"       # RTSP: entrada de los agentes
+      - "8189:8189/udp"   # medios WebRTC
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [backend]
+
+  # Servidor TURN para WebRTC en redes remotas / datos moviles (NAT de operador).
+  coturn:
+    image: coturn/coturn:4.6
+    restart: unless-stopped
+    network_mode: host   # necesario para el rango de puertos relay de TURN
+    volumes:
+      - ./coturn/turnserver.conf:/etc/coturn/turnserver.conf:ro
+    command: ["-c", "/etc/coturn/turnserver.conf"]
+
+volumes:
+  mysql_data:
+  redis_data:
+  storage_data:
+  caddy_data:
+  caddy_config:

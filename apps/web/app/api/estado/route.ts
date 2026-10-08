@@ -10,6 +10,8 @@ import {
   recomputarEstadoCampanas,
 } from '@/lib/server/campanas-repo'
 import { listarOT, listarEvidencias, notificarOTsVencidas } from '@/lib/server/ot-repo'
+import { sincronizarCampanasEyes } from '@/lib/server/space-eyes-campanas'
+import { tenantActual } from '@/lib/server/tenant'
 import { listarFacturas, listarCobranzas, recordarCobranzasVencidas } from '@/lib/server/finanzas-repo'
 import { listarOrdenesImpresion } from '@/lib/server/impresion-repo'
 import { listarAcciones } from '@/lib/server/acciones-repo'
@@ -94,6 +96,11 @@ export async function GET() {
     // estatus congelado.
     puede('arrendadores') ? recomputarEstatusArrendadores() : null,
   ])
+
+  // Space Eyes: las campañas vigentes a los equipos de su pantalla. APARTE de
+  // la respuesta (no se espera) y con respiro de 2 min por empresa; nunca
+  // lanza. Es lo que alcanza también a cancelaciones y vencimientos.
+  if (verComercial) void sincronizarCampanasEyes({ tenant: await tenantActual() })
 
   const [sitios, sitiosRed, clientes, campanas, reservas, creatividades, ordenesTrabajo, evidencias, facturas, cobranzas, ordenesImpresion, acciones, arrendadores, contratos, pagosRenta, incidencias, propuestas, ordenesCompra, notificaciones, configNegocio, predios, razonesSociales, licencias, entidadesFiscales] =
     await Promise.all([

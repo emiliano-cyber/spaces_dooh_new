@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SPACE EYES — Ajustar texto</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/src/js/tema.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <link rel="stylesheet" href="/src/css/styles.css">
+  <style>
+    /* Preview WYSIWYG: la fuente se mide en cqw (1% del ancho del recuadro),
+       igual que el render de descarga usa ancho/42 -> size*2.381cqw. */
+    .overlay-preview { container-type: inline-size; }
+  </style>
+</head>
+<body class="bg-neutral-50 text-neutral-900 font-sans antialiased">
+  <div x-data="ajustarTexto()" x-init="init()" class="min-h-screen">
+
+    <div id="app-header"></div>
+
+    <main class="max-w-7xl 2xl:max-w-[1600px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      <p class="se-eyebrow">Fotos</p>
+      <h1 class="se-titulo text-[28px] mt-1 mb-1">Ajustar texto de las fotos</h1>
+      <p class="text-sm text-neutral-500 mb-4">Toma una fotografía de prueba y configura cómo se verá <b>nombre · fecha · hora</b>. Se aplica a todas las fotos del dispositivo.</p>
+
+      <!-- Selector + captura -->
+      <div class="bg-white border border-neutral-200 rounded-lg p-4 mb-6">
+        <div class="flex flex-wrap items-end gap-3 text-sm">
+          <label class="block w-full sm:w-auto min-w-0">
+            <span class="text-neutral-500 text-xs">Dispositivo</span>
+            <select x-model="deviceId" @change="onDeviceChange()" class="mt-1 px-3 py-2 border border-neutral-300 rounded w-full sm:w-auto sm:min-w-[220px] max-w-full">
+              <template x-for="d in devices" :key="d.id"><option :value="d.id" x-text="d.name"></option></template>
+            </select>
+          </label>
+          <button @click="takePhoto()" :disabled="capturing || !deviceId"
+            class="px-4 py-2 bg-[#0A66FF] text-white rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3"/></svg>
+            <span x-text="capturing ? 'Capturando…' : 'Tomar fotografía'"></span>
+          </button>
+          <span class="text-xs text-neutral-400" x-show="!previewSrc">La cámara solo captura al presionar el botón.</span>
+          <span class="text-xs text-amber-600" x-show="!isAdmin">Solo un administrador puede guardar la configuración.</span>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Preview -->
+        <div class="lg:col-span-2">
+          <div class="overlay-preview relative w-full aspect-[4/3] bg-neutral-800 rounded-lg overflow-hidden select-none"
+               :class="isAdmin && previewSrc ? 'cursor-move' : ''"
+               @mousedown="dragStart($event)" @mousemove="dragMove($event)" @mouseup="dragEnd()" @mouseleave="dragEnd()"
+               @touchstart="dragStart($event)" @touchmove.prevent="dragMove($event)" @touchend="dragEnd()">
+            <template x-if="previewSrc">
+              <img :src="previewSrc" class="absolute inset-0 w-full h-full object-cover" alt="preview">
+            </template>
+            <template x-if="!previewSrc">
+              <div class="absolute inset-0 flex flex-col items-center justify-center text-neutral-400 text-sm gap-2">
+                <svg class="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3"/></svg>
+                Toma una fotografía para previsualizar
+              </div>
+            </template>
+            <!-- Marca en vivo -->
+            <div x-show="previewSrc && enabled" :style="overlayCss()"
+                 class="absolute pointer-events-none whitespace-pre">
+              <template x-for="l in lines()" :key="l"><div x-text="l"></div></template>
+            </div>
+          </div>
+          <p class="text-xs text-neutral-400 mt-2" x-show="previewSrc && isAdmin">Arrastra la marca para moverla. Los cambios se ven en tiempo real.</p>
+        </div>
+
+        <!-- Controles -->
+        <div class="bg-white border border-neutral-200 rounded-lg p-4 space-y-4 text-sm" :class="!isAdmin ? 'opacity-60 pointer-events-none' : ''">
+          <label class="flex items-center justify-between">
+            <span class="text-neutral-600 font-medium">Mostrar marca</span>
+            <input type="checkbox" x-model="enabled">
+          </label>
+          <label class="block">
+            <span class="text-neutral-500">Tamaño (<span x-text="style.size.toFixed(1)"></span>)</span>
+            <input type="range" min="0.6" max="4" step="0.1" x-model.number="style.size" class="w-full">
+          </label>
+          <label class="block">
+            <span class="text-neutral-500">Peso de la fuente</span>
+            <select x-model="style.weight" class="mt-1 w-full px-2 py-1.5 border border-neutral-300 rounded">
+              <option value="normal">Normal</option>
+              <option value="bold">Negrita</option>
+            </select>
+          </label>
+          <label class="block">
+            <span class="text-neutral-500">Color del texto</span>
+            <input type="color" x-model="style.color" class="mt-1 w-full h-9 border border-neutral-300 rounded">
+          </label>
+          <label class="block">
+            <span class="text-neutral-500">Alineación</span>
+            <select x-model="style.align" class="mt-1 w-full px-2 py-1.5 border border-neutral-300 rounded">
+              <option value="left">Izquierda</option>
+              <option value="center">Centro</option>
+              <option value="right">Derecha</option>
+            </select>
+          </label>
+          <label class="block">
+            <span class="text-neutral-500">Espaciado entre líneas (<span x-text="style.lineSpacing.toFixed(1)"></span>)</span>
+            <input type="range" min="0.9" max="2.5" step="0.1" x-model.number="style.lineSpacing" class="w-full">
+          </label>
+          <label class="block">
+            <span class="text-neutral-500">Espaciado entre letras (<span x-text="style.letterSpacing.toFixed(2)"></span>)</span>
+            <input type="range" min="-0.1" max="0.6" step="0.02" x-model.number="style.letterSpacing" class="w-full">
+          </label>
+          <label class="flex items-center justify-between">
+            <span class="text-neutral-600">Sombra</span>
+            <input type="checkbox" x-model="style.shadow">
+          </label>
+          <label class="flex items-center justify-between">
+            <span class="text-neutral-600">Fondo semitransparente</span>
+            <input type="checkbox" x-model="style.bg">
+          </label>
+          <div class="pt-2 border-t border-neutral-100 flex items-center justify-between">
+            <span class="text-xs text-neutral-400" x-text="`x:${Math.round(x)}% y:${Math.round(y)}%`"></span>
+            <button @click="save()" :disabled="!isAdmin"
+              class="px-4 py-2 bg-[#0A66FF] text-white rounded hover:bg-blue-700 disabled:opacity-50">Guardar configuración</button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <div x-show="toast.show" x-transition style="display:none"
+         class="fixed bottom-5 right-5 z-50 px-4 py-2.5 rounded-lg text-white text-sm shadow-lg"
+         :class="toast.type === 'error' ? 'bg-red-600' : toast.type === 'success' ? 'bg-green-600' : 'bg-neutral-800'"
+         x-text="toast.msg"></div>
+  </div>
+
+  <script src="/src/js/api.js"></script>
+  <script src="/src/js/shell.js"></script>
+  <script src="/src/js/pages/ajustar-texto.js"></script>
+</body>
+</html>

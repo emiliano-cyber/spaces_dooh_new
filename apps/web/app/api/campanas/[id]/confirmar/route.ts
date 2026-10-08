@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { avisarCambioDeCampanas } from '@/lib/server/space-eyes-campanas'
 import { exigir } from '@/lib/server/auth'
 import { confirmarReservaCtrl } from '@/lib/server/campanas-controller'
 import { respuestaError } from '@/lib/server/errores'
@@ -14,6 +15,8 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
   try {
     const c = await confirmarReservaCtrl(params.id)
     await registrarAccion(g.usuario, 'Confirmó reserva', c.nombre)
+    // Space Eyes: desde confirmada, los equipos de sus pantallas la esperan.
+    await avisarCambioDeCampanas()
     return NextResponse.json(c)
   } catch (e) {
     return respuestaError(e)

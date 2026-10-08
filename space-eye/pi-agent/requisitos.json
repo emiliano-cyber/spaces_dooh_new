@@ -1,0 +1,4 @@
+{
+  "_por_que": "Paquetes del sistema que esta version necesita. src/actualizar.js los instala con apt antes de cambiar de version; si no puede, el agente se actualiza igual y solo la vigilancia de la pantalla queda apagada.",
+  "apt": ["python3", "python3-numpy", "python3-opencv"]
+}

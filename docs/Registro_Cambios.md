@@ -336,6 +336,30 @@ La entrada más reciente va arriba.
   **Necesita tu visto bueno antes de llegar a `main`:** añade una columna a la
   base (`notas_disponibles`, en la tabla de actualizaciones de la instancia).
 
+- **Space Eyes ya está en el menú, con lo que ven las cámaras.** Un grupo nuevo,
+  **Space Eyes**, entre Inventario y Comercial (lo ven Dueño, Administrador y el
+  equipo de ventas). Ahí está la lista de todos tus equipos de cámara —si están
+  en línea, su batería, su señal y su última foto— y, al entrar a uno:
+  - la **última foto** de la pantalla y el botón para **tomar una nueva** (llega
+    sola en unos segundos; si el equipo está apagado, la orden se queda en cola
+    y te lo dice);
+  - **Pantalla y fallas**: lo que el propio equipo detecta mal en su pantalla
+    —gabinetes apagados o congelados, pantalla apagada en su horario, cámara
+    movida—, con la foto del momento en que lo vio y la de cuando se arregló;
+  - **Creativos detectados**: cada anuncio distinto que ha pasado por esa
+    pantalla, cuándo apareció y cuántas veces se ha visto. Es la prueba de qué
+    estuvo al aire;
+  - el histórico de batería y señal, y el alta de equipos nuevos.
+
+  Las fallas y los creativos los detectan los teléfonos con la app 0.15 o
+  posterior; en los demás, la ficha lo dice. Aquí solo se mira: cerrar una
+  falla o encender la vigilancia se hace en Space Eye.
+
+  Para encenderlo en una instalación hacen falta `SPACE_EYE_BASE_URL` y
+  `SPACE_EYE_KEY` (ver `infra/env/app.env.example`). Cada instalación ve
+  **solo los equipos de su empresa**: lo garantiza la llave, no un filtro de
+  este lado.
+
 - **Las pantallas digitales que se cargaron con el CSV ya crean campañas
   digitales.** *(Lo encontraste tú en la instancia de pruebas.)* Las pantallas
   cargadas antes del 29/09 con el archivo de carga masiva se veían como digitales

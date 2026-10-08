@@ -6,6 +6,8 @@ tags: [backend, integraciones, terceros, cron]
 archivos:
   - apps/web/lib/server/doohmain.ts
   - apps/web/lib/server/space-eye.ts
+  - apps/web/app/api/space-eyes/
+  - apps/web/components/demo/space-eyes/
   - apps/web/lib/server/storage.ts
   - apps/web/lib/server/email.ts
   - apps/web/lib/server/integraciones.ts
@@ -55,6 +57,32 @@ flowchart LR
 hemos visto una respuesta con datos, así que no se interpreta nada todavía»*.
 
 ## Space Eye — verificación por cámara
+
+> [!success] 2026-10-01 · **Módulo Space Eyes en el menú** (rama `feat/space-eyes-con-mejoras`)
+> Grupo propio **Space Eyes** entre Inventario y Comercial (lo ven `MANDO` y
+> `VENTA`, con `inventario.ver`; pedir foto o subirla, `inventario.crear`):
+> listado de la flota, ficha del equipo, historial, captura a demanda y alta de
+> equipos. Habla con Space Eye **con una llave de servicio** (`SPACE_EYE_KEY`) y
+> ya no con usuario y contraseña: con la cuenta admin cualquier instancia veía
+> la flota entera, y la RLS de aquí no puede proteger datos que no están en esta
+> base. Las fotos se sirven por `/api/space-eyes/foto` (sin contenido mixto,
+> sin SSRF). `SPACE_EYE_*` ya está en `infra/env/app.env.example` (el que recibe el contenedor), que era
+> el hueco de abajo.
+>
+> **Fallas y creativos en la ficha** (`PantallaYCreativos.tsx`):
+> `GET /api/space-eyes/:id/fallas` y `/creativos` leen de Space Eye
+> `/api/devices/:id/pantalla` y `/creativos`, que desde el 01/10 aceptan llaves
+> **solo en lectura** y comprueban el dueño (404 por un equipo ajeno, que aquí es
+> `disponible: false`). Requieren Space Eye con esas rutas abiertas (V2, `:4200`).
+>
+> **El panel entero dentro del módulo** (01/10): las ocho pantallas del panel de
+> Space Eye viven ya en `/space-eyes/…` (Equipos, `galeria`, `graficas`, `texto`,
+> `programacion`, `campanas`, `verificacion`, `fallas`), y la ficha del equipo
+> tiene pestañas Fotos · En vivo (WHEP, `lib/space-eyes-whep.ts`) · Pantalla y
+> fallas · Creativos · Equipo. Todas hablan por la puerta
+> `/api/space-eyes/se/[...ruta]` (lista cerrada de rutas; GET con
+> `inventario.ver`, escribir con `inventario.crear`). Probado en local con la base
+> real de los equipos de :4000 más el de pruebas de :4100 (7 equipos, g500).
 
 `lib/server/space-eye.ts`. Cada espectacular tiene un teléfono Android que
 captura fotos y las verifica contra la creatividad con IA. El enlace

@@ -1,0 +1,99 @@
+# ============================================================================
+#  SPACE EYE V2 — al lado de V1, como ESPEJO de sus equipos.
+# ----------------------------------------------------------------------------
+#  docker compose -p space-eye-v2 -f docker-compose.v2.yml --env-file .env.v2 up -d
+#
+#  Los equipos en campo traen fija la direccion de V1 (159.203.188.58:4000) y no
+#  hay quien vaya a reinstalarlos, asi que V2 no los tiene conectados: los
+#  refleja. El backend de V2 entra tambien a la red de V1 para leer su base y
+#  dejar ordenes en su Redis (ver backend/src/utils/espejo.ts), y lee sus fotos
+#  de su volumen, montado SOLO LECTURA.
+#
+#  OJO CON LOS NOMBRES. El backend esta en dos redes a la vez. Si los servicios de
+#  aqui se llamaran "mysql" y "redis", como en V1, ese nombre podria resolverse al
+#  contenedor de V1 y V2 escribiria lo suyo en la base o el Redis de produccion.
+#  Por eso aqui llevan nombre propio (v2mysql, v2redis, v2mediamtx), y a V1 se le
+#  llama por el nombre exacto de su contenedor (infra-mysql-1, infra-redis-1).
+#
+#  Puertos corridos, para no chocar con V1 (4000, 8889, 8189) ni con la instancia
+#  de pruebas (4100, 8899, 8199): 4200, 8754, 9089 y 8389/udp. MySQL y Redis de
+#  V2 no se publican.
+#
+#  Sin ai-worker: las fotos las verifica el de V1 (las toman los equipos de V1) y
+#  aqui llega el resultado por el espejo. Liviana a proposito: el droplet tiene
+#  2 GB y V1 va primero.
+# ============================================================================
+
+services:
+  v2mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME:-space_eye}
+    volumes:
+      - mysql_data_v2:/var/lib/mysql
+    command: >
+      --default-authentication-plugin=mysql_native_password
+      --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+      --innodb-buffer-pool-size=96M --performance-schema=OFF
+    mem_limit: 400m
+
+  v2redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 48mb --maxmemory-policy noeviction
+    volumes:
+      - redis_data_v2:/data
+    mem_limit: 80m
+
+  backend:
+    build:
+      context: ../../../backend
+    restart: unless-stopped
+    env_file: .env.v2
+    environment:
+      DB_HOST: v2mysql
+      REDIS_URL: redis://v2redis:6379
+      NODE_ENV: production
+      MEDIAMTX_API: http://v2mediamtx:9997
+      MEDIAMTX_WEBRTC_INTERNAL: http://v2mediamtx:8889
+      ESPEJO_STORAGE_DIR: /app/storage-v1
+    ports:
+      - "4200:4000"
+    volumes:
+      - ../../../frontend:/frontend:ro
+      - storage_data_v2:/app/storage
+      # Las fotos que tomaron los equipos, en el volumen de V1. Solo lectura:
+      # V2 no puede borrar ni cambiar nada de alla.
+      - storage_v1:/app/storage-v1:ro
+    networks: [default, red_v1]
+    depends_on: [v2mysql, v2redis]
+    mem_limit: 450m
+
+  v2mediamtx:
+    image: bluenviron/mediamtx:latest
+    restart: unless-stopped
+    environment:
+      MTX_AUTHINTERNALUSERS_1_PASS: ${MEDIAMTX_PASS}
+    volumes:
+      - ../../mediamtx/mediamtx.v2.yml:/mediamtx.yml:ro
+    ports:
+      - "8754:8554"       # RTSP: aqui publican la Raspberry y las PCs cuando la vista se abre desde V2
+      - "9089:8889"       # WHEP: de aqui ve el navegador
+      - "8389:8389/udp"   # medios WebRTC (mismo numero dentro y fuera: va en las candidatas)
+    mem_limit: 80m
+
+volumes:
+  mysql_data_v2:
+  redis_data_v2:
+  storage_data_v2:
+  # El de V1. Su nombre real lo averigua desplegar-espejo.sh y lo pasa aqui.
+  storage_v1:
+    external: true
+    name: ${V1_STORAGE_VOL}
+
+networks:
+  red_v1:
+    external: true
+    name: ${V1_RED}

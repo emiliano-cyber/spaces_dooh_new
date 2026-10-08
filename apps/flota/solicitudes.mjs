@@ -22,6 +22,17 @@
 /** Lo unico que una solicitud puede traer. Todo lo demas se ignora. */
 export const CAMPOS = ['instancia', 'dominio', 'email']
 
+/**
+ * Opcionales: si faltan, la solicitud es la de siempre. `con_eyes` = 'si' pide
+ * el hijo con Space Eyes dentro (ADR 0041): `--con-eyes` en el alta, el
+ * registro `eyes.<dominio>` y un droplet de 2 GB. Cualquier otro valor que no
+ * sea 'si' o 'no' se rechaza: un formulario raro no decide una factura.
+ */
+export const CAMPOS_OPCIONALES = ['con_eyes']
+
+/** ¿Esta solicitud pide Space Eyes? */
+export const conEyes = (solicitud) => solicitud?.con_eyes === 'si'
+
 // Nombre de instancia: minusculas, digitos y guion interior. Empieza y acaba en
 // alfanumerico -- si empezara por guion, el guion se leeria como bandera.
 // Tampoco `/`, `\` ni puntos: acaba siendo parte de un nombre de archivo.
@@ -106,6 +117,9 @@ export function validarSolicitud(datos) {
   if (!RE_EMAIL.test(d.email)) {
     errores.push('email: no parece un correo')
   }
+  if (d.con_eyes !== undefined && d.con_eyes !== null && d.con_eyes !== 'si' && d.con_eyes !== 'no') {
+    errores.push('con_eyes: solo "si" o "no"')
+  }
 
   return errores.length ? { ok: false, errores } : { ok: true, errores: [] }
 }
@@ -133,11 +147,15 @@ export function argumentosDeAlta(solicitud, entornoEjecutor = {}) {
       solicitud.dominio,
       '--instancia',
       solicitud.instancia,
+      ...(conEyes(solicitud) ? ['--con-eyes'] : []),
       '--confirmar',
     ],
     entorno: {
       DO_REGION: entornoEjecutor.DO_REGION,
-      DO_TAMANO: entornoEjecutor.DO_TAMANO,
+      // Con Space Eyes un hijo no cabe en 1 GB (ADR 0041: 255 MB medidos de la
+      // pila, mas la app y su Postgres). El tamano lo sigue poniendo el
+      // ejecutor, no el formulario: DO_TAMANO_CON_EYES, o 2 GB por omision.
+      DO_TAMANO: conEyes(solicitud) ? entornoEjecutor.DO_TAMANO_CON_EYES || 's-1vcpu-2gb' : entornoEjecutor.DO_TAMANO,
       DO_SSH_KEYS: entornoEjecutor.DO_SSH_KEYS,
       REGISTRY: entornoEjecutor.REGISTRY,
       REGISTRY_TOKEN: entornoEjecutor.REGISTRY_TOKEN,

@@ -35,6 +35,7 @@ import { comprobar, veredicto } from './comprobaciones.mjs'
 import { avanzar } from './avanzar.mjs'
 import { inscribir } from './inscribir.mjs'
 import { resolve4, resolveSoa } from 'node:dns/promises'
+import { conEyes } from './solicitudes.mjs'
 
 const DIR = process.env.DIR_SOLICITUDES
 if (!DIR) {
@@ -124,7 +125,10 @@ if (!solicitud) {
       await anotarEnEsa(`pidiendo el certificado de ${dominio}`)
       const { codigo } = await lanzarGuion({
         guion: GUION,
-        argumentos: ['--host', String(aMedias.ip), '--dominio', String(dominio), '--emitir-certificado', '--confirmar'],
+        // Con Space Eyes el certificado lleva tambien eyes.<dominio>: si se
+        // reemitiera sin `--con-eyes`, se perderia ese nombre (ADR 0041).
+        argumentos: ['--host', String(aMedias.ip), '--dominio', String(dominio), '--emitir-certificado',
+          ...(conEyes(aMedias) ? ['--con-eyes'] : []), '--confirmar'],
         entorno: process.env,
         onLinea: (l) => anotarEnEsa(l),
       })
@@ -231,6 +235,12 @@ if (!esDeNuestraZona(solicitud.dominio, zonas)) {
       token: process.env.CLOUDFLARE_TOKEN ?? '',
     })
     await anotar(`registro A creado: ${solicitud.dominio} → ${ip} (sin proxy)`)
+    // Space Eyes vive en eyes.<dominio>, en el mismo droplet. Sin este nombre,
+    // el certificado (que lo lleva) no se puede emitir (ADR 0041).
+    if (conEyes(solicitud)) {
+      await crearRegistroA(`eyes.${solicitud.dominio}`, ip, { zonas, token: process.env.CLOUDFLARE_TOKEN ?? '' })
+      await anotar(`registro A creado: eyes.${solicitud.dominio} → ${ip} (sin proxy, Space Eyes)`)
+    }
     await marcar(DIR, solicitud.id, ESPERANDO_DNS, { ip, dns: 'creado' })
   } catch (e) {
     await anotar(`el registro A no se pudo crear: ${e.message}`)

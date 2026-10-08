@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SPACE EYES — Equipos</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/src/js/tema.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <link rel="stylesheet" href="/src/css/styles.css">
+</head>
+<body class="bg-neutral-50 text-neutral-900 font-sans antialiased">
+  <div x-data="dashboard()" x-init="init()" class="min-h-screen">
+
+    <!-- NAV -->
+    <div id="app-header"></div>
+
+    <main class="max-w-7xl 2xl:max-w-[1600px] mx-auto px-4 sm:px-6 py-8">
+      <!-- Encabezado de pagina -->
+      <div class="flex flex-wrap items-end justify-between gap-4 mb-6">
+        <div>
+          <p class="se-eyebrow">Monitoreo</p>
+          <h1 class="se-titulo text-[28px] mt-1">Equipos</h1>
+          <p class="text-sm text-neutral-500 mt-1">Cada equipo vigila una pantalla. Entra a uno para ver su vista en vivo, fotos y fallas.</p>
+        </div>
+        <button @click="capturarTodos()" :disabled="capturandoTodos"
+                title="Pide una foto a todos los equipos de la lista" class="se-btn se-btn-primario">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
+          </svg>
+          <span x-text="capturandoTodos ? 'Pidiendo…' : 'Foto a todos'"></span>
+        </button>
+      </div>
+
+      <!-- Indicadores de la flota -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        <div class="se-kpi">
+          <div class="se-kpi-label">Equipos</div>
+          <div class="se-kpi-valor" x-text="totalCount"></div>
+        </div>
+        <div class="se-kpi">
+          <div class="se-kpi-label">En línea</div>
+          <div class="se-kpi-valor text-green-700" x-text="onlineCount"></div>
+        </div>
+        <div class="se-kpi">
+          <div class="se-kpi-label">Sin conexión</div>
+          <div class="se-kpi-valor" :class="totalCount - onlineCount ? 'text-neutral-900' : 'text-neutral-400'" x-text="totalCount - onlineCount"></div>
+        </div>
+        <a href="/fallas.html?estado=abierta" class="se-kpi card-hover block">
+          <div class="se-kpi-label">Fallas abiertas</div>
+          <div class="se-kpi-valor" :class="fallasTotal ? 'text-red-700' : 'text-neutral-400'" x-text="fallasTotal"></div>
+        </a>
+      </div>
+
+      <!-- Filtros -->
+      <div class="flex flex-wrap items-center gap-2 mb-4">
+        <div class="relative w-full sm:w-auto">
+          <svg class="w-4 h-4 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z"/></svg>
+          <input x-model="search" type="text" placeholder="Buscar por nombre, código o dirección"
+            class="pl-9 pr-3 py-2 border border-neutral-300 rounded-md text-sm w-full sm:w-72 bg-white focus:outline-none focus:border-blue-600">
+        </div>
+        <!-- En el celular se desliza de lado en vez de partirse en dos renglones -->
+        <div class="flex max-w-full overflow-x-auto rounded-md border border-neutral-300 bg-white text-sm" style="scrollbar-width:none">
+          <template x-for="op in [['all','Todos'],['online','En línea'],['offline','Sin conexión'],['maintenance','Mantenimiento']]" :key="op[0]">
+            <button @click="filter = op[0]" class="px-3 py-2 border-r last:border-r-0 border-neutral-200 whitespace-nowrap shrink-0"
+              :class="filter === op[0] ? 'bg-neutral-900 text-white' : 'text-neutral-600 hover:bg-neutral-50'" x-text="op[1]"></button>
+          </template>
+        </div>
+        <span class="text-xs text-neutral-500 ml-auto" x-show="filtered.length !== totalCount">
+          <span class="font-mono" x-text="filtered.length"></span> de <span class="font-mono" x-text="totalCount"></span>
+        </span>
+      </div>
+
+      <!-- Tarjetas de equipo -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
+        <template x-for="d in filtered" :key="d.id">
+          <div @click="openDevice(d.id)"
+               class="group se-card card-hover cursor-pointer flex flex-col"
+               :class="d.pinned && '!border-amber-500'">
+            <div class="p-4 pb-3">
+              <div class="flex items-start justify-between gap-3">
+                <h3 class="font-semibold text-[15px] text-neutral-900 leading-snug min-w-0 flex items-start gap-1.5">
+                  <svg x-show="d.pinned" class="w-3.5 h-3.5 mt-1 text-amber-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.958a1 1 0 00.95.69h4.162c.969 0 1.371 1.24.588 1.81l-3.37 2.448a1 1 0 00-.363 1.118l1.287 3.958c.3.922-.755 1.688-1.54 1.118l-3.37-2.448a1 1 0 00-1.175 0l-3.37 2.448c-.784.57-1.838-.196-1.539-1.118l1.287-3.958a1 1 0 00-.363-1.118L2.34 9.385c-.783-.57-.38-1.81.588-1.81h4.162a1 1 0 00.95-.69l1.286-3.958z"/></svg>
+                  <span class="line-clamp-2" x-text="d.name"></span>
+                </h3>
+                <span class="se-badge shrink-0" :class="d.online ? 'se-badge-ok' : ''" x-text="d.online ? 'En línea' : 'Sin conexión'"></span>
+              </div>
+              <p class="text-xs text-neutral-500 mt-1.5 line-clamp-2" x-text="d.address || d.billboard_code || 'Sin ubicación'"></p>
+              <p x-show="fallasPorEquipo[d.id]" class="mt-2 text-xs font-medium text-red-700 flex items-center gap-1.5">
+                <span class="w-1.5 h-1.5 rounded-full bg-red-600"></span>
+                <span x-text="fallasPorEquipo[d.id] === 1 ? '1 falla abierta' : fallasPorEquipo[d.id] + ' fallas abiertas'"></span>
+              </p>
+            </div>
+            <div class="grid grid-cols-3 border-t border-neutral-200 mt-auto">
+              <div class="px-4 py-2.5">
+                <div class="text-[11px] text-neutral-500">Batería</div>
+                <div class="font-mono text-sm" x-text="(d.battery_pct != null ? d.battery_pct + '%' : '—')"></div>
+              </div>
+              <div class="px-4 py-2.5 border-l border-neutral-200">
+                <div class="text-[11px] text-neutral-500">Señal</div>
+                <div class="text-sm font-medium" x-text="signalLabel(d.signal_dbm)"></div>
+              </div>
+              <div class="px-4 py-2.5 border-l border-neutral-200">
+                <div class="text-[11px] text-neutral-500">Último contacto</div>
+                <div class="font-mono text-sm" x-text="relTime(d.last_seen_at)"></div>
+              </div>
+            </div>
+            <div class="flex items-center justify-between px-4 py-2 border-t border-neutral-200 bg-neutral-50 rounded-b-lg">
+              <span class="font-mono text-[11px] text-neutral-500" x-text="d.app_version ? 'v' + String(d.app_version).replace(/^v/, '') : ''"></span>
+              <div class="flex items-center gap-0.5">
+                <button @click.stop="togglePin(d)" :title="d.pinned ? 'Desfijar' : 'Fijar arriba'"
+                        class="p-1.5 rounded hover:bg-white" :class="d.pinned ? 'text-amber-500' : 'text-neutral-400 hover:text-neutral-700'">
+                  <svg class="w-4 h-4" :fill="d.pinned ? 'currentColor' : 'none'" viewBox="0 0 20 20" stroke="currentColor" stroke-width="1.5"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.958a1 1 0 00.95.69h4.162c.969 0 1.371 1.24.588 1.81l-3.37 2.448a1 1 0 00-.363 1.118l1.287 3.958c.3.922-.755 1.688-1.54 1.118l-3.37-2.448a1 1 0 00-1.175 0l-3.37 2.448c-.784.57-1.838-.196-1.539-1.118l1.287-3.958a1 1 0 00-.363-1.118L2.34 9.385c-.783-.57-.38-1.81.588-1.81h4.162a1 1 0 00.95-.69l1.286-3.958z"/></svg>
+                </button>
+                <button @click.stop="capturarUno(d)" title="Tomar foto ahora" :disabled="capturando === d.id"
+                        class="p-1.5 rounded text-neutral-400 hover:bg-white hover:text-blue-600 disabled:text-blue-600">
+                  <svg class="w-4 h-4" :class="capturando === d.id && 'animate-pulse'" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
+                  </svg>
+                </button>
+                <button @click.stop="deleteDevice(d)" title="Eliminar dispositivo"
+                        class="p-1.5 rounded text-neutral-400 opacity-0 group-hover:opacity-100 hover:bg-white hover:text-red-600">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 7h12M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m-7 0v11a2 2 0 002 2h4a2 2 0 002-2V7"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <div x-show="devices.length === 0" class="se-card text-center py-16 px-6">
+        <p class="font-semibold mb-1">Todavía no hay equipos</p>
+        <p class="text-sm text-neutral-500">Aparecen solos al instalar la app en el celular o el agente en la Raspberry o la PC.</p>
+      </div>
+      <p x-show="devices.length && filtered.length === 0" class="text-center text-sm text-neutral-500 py-12">Ningún equipo coincide con la búsqueda.</p>
+    </main>
+
+    <!-- Toast -->
+    <div x-show="toast.show" style="display:none" x-transition
+         class="fixed bottom-6 right-6 z-[70] px-4 py-3 rounded-lg shadow-lg text-sm text-white"
+         :class="{ 'bg-green-600': toast.type === 'success', 'bg-red-600': toast.type === 'error', 'bg-neutral-800': toast.type === 'info' }">
+      <span x-text="toast.msg"></span>
+    </div>
+  </div>
+
+  <script src="/src/js/api.js"></script>
+  <script src="/src/js/shell.js"></script>
+  <script src="/src/js/socket.js"></script>
+  <script src="/src/js/pages/dashboard.js"></script>
+</body>
+</html>

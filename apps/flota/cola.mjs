@@ -17,7 +17,7 @@
 import { readdir, readFile, writeFile, mkdir, rename, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
-import { validarSolicitud, CAMPOS } from './solicitudes.mjs'
+import { validarSolicitud, CAMPOS, CAMPOS_OPCIONALES } from './solicitudes.mjs'
 import { PENDIENTE, EN_CURSO, ESPERANDO_DNS, EMITIENDO_CERT } from './ejecutor.mjs'
 
 // ─── Escribir sin pisarse ───────────────────────────────────────────────────
@@ -125,6 +125,7 @@ export async function crearSolicitud(dir, datos, pedidaPor) {
   const id = nuevoId()
   // Se copian SOLO los campos conocidos. Lo que venga de más no se guarda.
   const limpia = Object.fromEntries(CAMPOS.map((c) => [c, datos[c]]))
+  for (const c of CAMPOS_OPCIONALES) if (datos[c] !== undefined) limpia[c] = datos[c]
   const solicitud = {
     id,
     estado: PENDIENTE,

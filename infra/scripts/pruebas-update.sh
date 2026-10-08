@@ -235,6 +235,24 @@ FIN
   cat >"$BIN/curl" <<'FIN'
 #!/usr/bin/env bash
 printf 'curl %s\n' "$*" >>"$REG_LLAMADAS"
+# La licencia que baja del padre (ADR 0041, etapa 4): se sirve desde
+# `C_LICENCIA_DIR` a lo que pida `-o`, ANTES de tocar el contador de llamadas,
+# asi los escenarios que numeran sus `curl` no se enteran de esta.
+case " $* " in
+  *"/flota/licencia."*)
+    destino=''; ant=''; url=''
+    for a in "$@"; do
+      [ "$ant" = -o ] && destino="$a"
+      case "$a" in http*) url="$a" ;; esac
+      ant="$a"
+    done
+    if [ -n "${C_LICENCIA_DIR:-}" ] && [ -f "$C_LICENCIA_DIR/${url##*/}" ]; then
+      cp "$C_LICENCIA_DIR/${url##*/}" "$destino"; printf '200'
+    else
+      printf '%s' "${C_LICENCIA_CODIGO:-404}"
+    fi
+    exit 0 ;;
+esac
 # EL CUERPO que se POSTEA, no solo que se posteo. En argv solo se ve
 # `--data-binary @/ruta/al/archivo`, y lo que el reporte de flota promete
 # —`codigo` dentro del JSON— viaja precisamente ahi dentro. Sin leer el archivo
@@ -3450,6 +3468,96 @@ log_dice 'actualizaciones_instancia sigue sin existir'
 log_calla 'no se pudo anotar'
 limpiar
 
+# ─── La licencia que baja del padre (ADR 0041, etapa 4) ────────────────────
+# Firma con la MISMA llave del escenario (la de usar_licencia) una licencia que
+# "tiene el padre", con la instancia y los modulos que se le digan, y prende la
+# bandera y el canal de la flota.
+#   licencia_en_el_padre <instancia> [modulos-json]
+licencia_en_el_padre() {
+  local inst="$1" mods="${2:-}"
+  mkdir -p "$RAIZ_TMP/padre"
+  {
+    printf '{\n  "instancia": "%s",\n  "dominio": "demo.ejemplo.invalid",\n' "$inst"
+    printf '  "emitida": "2026-10-07",\n  "vence": "%s",\n  "aviso_dias": 30,\n  "gracia_dias": 15' "$(date -u -d '+300 days' +%F)"
+    [ -n "$mods" ] && printf ',\n  "modulos": %s' "$mods"
+    printf '\n}\n'
+  } >"$RAIZ_TMP/padre/licencia.json"
+  openssl pkeyutl -sign -inkey "$RAIZ_TMP/k.pem" -rawin \
+    -in "$RAIZ_TMP/padre/licencia.json" -out "$RAIZ_TMP/padre/licencia.firma" 2>/dev/null
+  export C_LICENCIA_DIR="$RAIZ_TMP/padre"
+  cat >>"$SPACE_OS_CONF" <<FIN
+LICENCIA_DEL_PADRE=1
+FLOTA_REPORTE_URL=https://padre.ejemplo.invalid/flota/reporte
+FLOTA_TOKEN=token-de-prueba
+FIN
+}
+
+preparar 'E150 sin LICENCIA_DEL_PADRE no se le pide nada al padre'
+usar_licencia "$(date -u -d '+60 days' +%F)"
+licencia_en_el_padre demo '["space-eyes"]'
+printf 'LICENCIA_DEL_PADRE=0\n' >>"$SPACE_OS_CONF"
+correr
+no_hubo '/flota/licencia.'
+log_calla 'licencia del padre'
+limpiar
+
+preparar 'E151 la licencia nueva del padre (con Space Eyes) se instala y cuenta en esta corrida'
+usar_licencia "$(date -u -d '+60 days' +%F)"
+licencia_en_el_padre demo '["space-eyes"]'
+correr
+hubo '/flota/licencia.json'
+hubo '/flota/licencia.firma'
+log_dice 'licencia del padre: instalada la nueva (modulos: space-eyes)'
+log_dice 'licencia: sana'
+if cmp -s "$RAIZ_TMP/padre/licencia.json" "$RAIZ_TMP/licencia/licencia.json" \
+   && cmp -s "$RAIZ_TMP/padre/licencia.firma" "$RAIZ_TMP/licencia/licencia.firma"; then bien; else mal 'la licencia del padre no quedo en LICENCIA_DIR'; fi
+limpiar
+
+preparar 'E152 una licencia del padre de OTRA instancia se descarta: la de disco no se toca'
+usar_licencia "$(date -u -d '+60 days' +%F)"
+cp "$RAIZ_TMP/licencia/licencia.json" "$RAIZ_TMP/antes.json"
+licencia_en_el_padre otracosa '["space-eyes"]'
+correr
+log_dice 'licencia del padre: la que bajo NO valida'
+log_dice 'licencia: sana'
+if cmp -s "$RAIZ_TMP/antes.json" "$RAIZ_TMP/licencia/licencia.json"; then bien; else mal 'se instalo una licencia de otra instancia'; fi
+limpiar
+
+preparar 'E153 una licencia del padre con la firma rota se descarta'
+usar_licencia "$(date -u -d '+60 days' +%F)"
+cp "$RAIZ_TMP/licencia/licencia.json" "$RAIZ_TMP/antes.json"
+licencia_en_el_padre demo '["space-eyes"]'
+printf ' ' >>"$RAIZ_TMP/padre/licencia.json"
+correr
+log_dice 'licencia del padre: la que bajo NO valida'
+if cmp -s "$RAIZ_TMP/antes.json" "$RAIZ_TMP/licencia/licencia.json"; then bien; else mal 'se instalo una licencia con la firma rota'; fi
+limpiar
+
+preparar 'E154 el padre no tiene licencia para esta instancia (404): se sigue con la que hay'
+usar_licencia "$(date -u -d '+60 days' +%F)"
+licencia_en_el_padre demo '["space-eyes"]'
+export C_LICENCIA_DIR="$RAIZ_TMP/no-existe"
+correr
+log_dice 'el padre no tiene una firmada para esta instancia'
+log_dice 'licencia: sana'
+codigo_es 0
+limpiar
+
+preparar 'E155 si la del padre es la misma que la de disco, no se reinstala'
+usar_licencia "$(date -u -d '+60 days' +%F)"
+mkdir -p "$RAIZ_TMP/padre"
+cp "$RAIZ_TMP/licencia/licencia.json" "$RAIZ_TMP/licencia/licencia.firma" "$RAIZ_TMP/padre/"
+cat >>"$SPACE_OS_CONF" <<FIN
+LICENCIA_DEL_PADRE=1
+FLOTA_REPORTE_URL=https://padre.ejemplo.invalid/flota/reporte
+FLOTA_TOKEN=token-de-prueba
+FIN
+export C_LICENCIA_DIR="$RAIZ_TMP/padre"
+correr
+hubo '/flota/licencia.json'
+log_calla 'instalada la nueva'
+limpiar
+
 printf '\n%s escenarios · %s comprobaciones · %s rojas\n' "$ESCENARIOS" "$COMPROBACIONES" "$FALLOS"
 
 # ============================================================================
@@ -3768,6 +3876,15 @@ if [ "${1:-}" = '--mutantes' ]; then
   # promesa de la cabecera y la del ensayo en seco de la tarjeta del alta.
   probar_mutante 'el --dry-run del apagado pierde su guard y vuelve a apagar' \
     's@^      if \[ "\$DRY_RUN" = 1 \]; then$@      if [ "$DRY_RUN" = 9 ]; then@'
+
+  # ── Y los dos de la licencia del padre (ADR 0041, etapa 4) ──────────────
+  # Instalar lo que mande el padre sin comprobarlo: E152 (otra instancia) y
+  # E153 (firma rota) tienen que verlo.
+  probar_mutante 'instalar la licencia del padre sin comprobar firma ni instancia' \
+    's@^  if ! LICENCIA_DIR="\$tmp" licencia_valida; then$@  if false; then                               @'
+  # Pedirla aunque la instancia no lo haya pedido: E150 tiene que verlo.
+  probar_mutante 'pedir la licencia al padre sin LICENCIA_DEL_PADRE' \
+    's@^  \[ "\$LICENCIA_DEL_PADRE" = 1 \] || return 0$@  true                         || return 0@'
 
   printf '\n%s mutantes · %s escapan\n' "$MUT_TOTAL" "$MUT_FALLOS"
   [ "$MUT_FALLOS" -eq 0 ] || exit 1

@@ -328,6 +328,43 @@ DOM=prueba.ejemplo.com   # RFC 2606 — dominio reservado, no existe
 # ============================================================================
 #  Obligaba al operador a volcar los TRES tokens al entorno de su shell para
 #  emitir un certificado que no necesita ninguno.
+# ─── EYES · Space Eyes dentro de la instancia (ADR 0041), con --con-eyes ────
+escenario 'EYES · --con-eyes: mismas credenciales en app.env y eyes.env, archivos, cron y ufw'
+preparar
+correr REGISTRY=registro.ejemplo/x REGISTRY_TOKEN=t CANAL=beta -- \
+  --host "$IP" --dominio "$DOM" --instancia p --con-eyes --confirmar
+codigo_es 0
+escrito_casa /etc/space-os/app.env '^SPACE_EYE_BASE_URL=http://127\.0\.0\.1:4200$'
+escrito_casa /etc/space-os/eyes.env '^INSTANCIA_OWNER=p$'
+escrito_casa /etc/space-os/eyes.env "^IP_PUBLICA=$IP\$"
+LLAVE_APP="$(grep -m1 '^SPACE_EYE_KEY=' "$(ruta_escrita /etc/space-os/app.env)" 2>/dev/null | cut -d= -f2-)"
+LLAVE_EYES="$(grep -m1 '^INSTANCIA_LLAVE=' "$(ruta_escrita /etc/space-os/eyes.env)" 2>/dev/null | cut -d= -f2-)"
+if [ -n "$LLAVE_APP" ] && [ "$LLAVE_APP" = "$LLAVE_EYES" ]; then bien
+else mal "la llave de app.env y la de eyes.env no son la misma: el modulo daria 401"; fi
+escrito_dice /etc/cron.d/space-os-eyes '/opt/space-os/update-eyes.sh --comprobar'
+escrito_dice /opt/space-os/eyes/docker-compose.yml 'name: space-eyes'
+hubo 'ufw allow'
+# Que se CORRA, no solo que se copie: la copia tambien menciona la ruta.
+hubo_regex 'root@[^ ]+ /opt/space-os/update-eyes.sh$'
+dice "eyes.$DOM"
+limpiar
+
+escenario 'EYES · --emitir-certificado --con-eyes pide el certificado con los DOS nombres'
+preparar
+correr -u REGISTRY -u REGISTRY_TOKEN CERTBOT_EMAIL=x@ejemplo.com -- \
+  --host "$IP" --dominio "$DOM" --emitir-certificado --con-eyes --confirmar
+codigo_es 0
+hubo_regex "certbot certonly .*-d '$DOM' -d 'eyes\.$DOM'"
+limpiar
+
+escenario 'EYES · sin --con-eyes, ni eyes.env ni segundo nombre en el certificado'
+preparar
+correr -u REGISTRY -u REGISTRY_TOKEN CERTBOT_EMAIL=x@ejemplo.com -- \
+  --host "$IP" --dominio "$DOM" --emitir-certificado --confirmar
+codigo_es 0
+no_hubo "eyes.$DOM"
+limpiar
+
 escenario '31 · --emitir-certificado NO exige REGISTRY ni REGISTRY_TOKEN'
 preparar
 correr -u REGISTRY -u REGISTRY_TOKEN CERTBOT_EMAIL=x@ejemplo.com -- \

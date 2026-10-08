@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SPACE EYES — Programación</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/src/js/tema.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <link rel="stylesheet" href="/src/css/styles.css">
+</head>
+<body class="bg-neutral-50 text-neutral-900 font-sans antialiased">
+  <div x-data="schedulerPage()" x-init="init()" class="min-h-screen">
+
+    <div id="app-header"></div>
+
+    <main class="max-w-7xl 2xl:max-w-[1600px] mx-auto px-6 py-8">
+
+      <div class="flex items-start justify-between mb-6 gap-4 flex-wrap">
+        <div>
+          <p class="se-eyebrow">Fotos</p>
+          <h1 class="se-titulo text-[28px] mt-1">Programación de fotos</h1>
+          <p class="text-sm text-neutral-500 mt-0.5">Las fotos se toman solas, a una hora impredecible dentro de las franjas que definas.</p>
+        </div>
+        <button @click="abrirNueva()" class="px-4 py-2 bg-[#0A66FF] text-white text-sm rounded hover:bg-blue-700 shrink-0">
+          + Nueva programacion
+        </button>
+      </div>
+
+      <!-- ================= FORMULARIO ================= -->
+      <div x-show="mostrarForm" x-cloak class="bg-white border border-neutral-200 rounded-lg p-6 mb-6">
+        <h3 class="font-medium mb-5" x-text="form.id ? 'Editar programacion' : 'Nueva programacion'"></h3>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+          <!-- Columna izquierda: que y a quien -->
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm text-neutral-700 mb-1">Nombre</label>
+              <input x-model="form.name" type="text" placeholder="Ej. Evidencia diaria de la ruta norte"
+                     class="w-full px-3 py-2 border border-neutral-300 rounded text-sm">
+            </div>
+
+            <div>
+              <label class="block text-sm text-neutral-700 mb-1">Aplicar a</label>
+              <div class="flex gap-2 mb-2 flex-wrap">
+                <template x-for="op in [['todos','Todos los equipos'],['device','Un equipo'],['campaign','Una campana']]" :key="op[0]">
+                  <button type="button" @click="form.destino = op[0]; form.device_id = null; form.group_id = null; form.campaign_id = null"
+                          :class="form.destino === op[0] ? 'bg-[#0A66FF] text-white border-[#0A66FF]' : 'bg-white text-neutral-700 border-neutral-300 hover:bg-neutral-50'"
+                          class="px-3 py-1.5 text-xs rounded border" x-text="op[1]"></button>
+                </template>
+              </div>
+
+              <p x-show="form.destino === 'todos'" class="text-xs text-neutral-500">
+                Aplica a los <span x-text="equipos.length"></span> equipos de la flota, incluyendo los que se den de alta despues.
+              </p>
+
+              <select x-show="form.destino === 'device'" x-model.number="form.device_id"
+                      class="w-full px-3 py-2 border border-neutral-300 rounded text-sm">
+                <option :value="null">— Elegir equipo —</option>
+                <template x-for="d in equipos" :key="d.id">
+                  <option :value="d.id" x-text="d.name + (d.billboard_code ? ' (' + d.billboard_code + ')' : '')"></option>
+                </template>
+              </select>
+
+              <select x-show="form.destino === 'campaign'" x-model.number="form.campaign_id"
+                      class="w-full px-3 py-2 border border-neutral-300 rounded text-sm">
+                <option :value="null">— Elegir campana —</option>
+                <template x-for="c in campanas" :key="c.id">
+                  <option :value="c.id" x-text="c.name + ' · ' + (c.device_count || 0) + ' equipos'"></option>
+                </template>
+              </select>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-sm text-neutral-700 mb-1">Desde <span class="text-neutral-400">(opcional)</span></label>
+                <input x-model="form.valid_from" type="date" class="w-full px-3 py-2 border border-neutral-300 rounded text-sm">
+              </div>
+              <div>
+                <label class="block text-sm text-neutral-700 mb-1">Hasta <span class="text-neutral-400">(opcional)</span></label>
+                <input x-model="form.valid_until" type="date" class="w-full px-3 py-2 border border-neutral-300 rounded text-sm">
+              </div>
+            </div>
+          </div>
+
+          <!-- Columna derecha: cuando -->
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm text-neutral-700 mb-1">Cuando</label>
+              <select x-model="form.frequency_type" class="w-full px-3 py-2 border border-neutral-300 rounded text-sm">
+                <option value="random_windows">Hora al azar dentro de franjas (recomendado)</option>
+                <option value="specific_times">Horas exactas</option>
+                <option value="interval">Cada cierto tiempo</option>
+              </select>
+            </div>
+
+            <!-- Franjas -->
+            <div x-show="form.frequency_type === 'random_windows'" class="space-y-3">
+              <div class="bg-blue-50 border border-blue-200 rounded p-3 text-xs text-blue-900">
+                Una foto por franja, en un minuto sorteado cada dia. La hora no se repite, asi que la
+                evidencia no se puede acomodar de antemano.
+              </div>
+
+              <template x-for="(v, i) in form.windows" :key="i">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs text-neutral-500 w-16 shrink-0">Franja <span x-text="i + 1"></span></span>
+                  <input x-model="v.ini" type="time" class="px-2 py-1.5 border border-neutral-300 rounded text-sm">
+                  <span class="text-neutral-400 text-sm">a</span>
+                  <input x-model="v.fin" type="time" class="px-2 py-1.5 border border-neutral-300 rounded text-sm">
+                  <button type="button" @click="form.windows.splice(i, 1)"
+                          class="text-red-600 hover:bg-red-50 rounded px-2 py-1 text-xs">Quitar</button>
+                </div>
+              </template>
+
+              <button type="button" @click="form.windows.push({ ini: '12:00', fin: '14:00' })"
+                      class="text-[#0A66FF] hover:underline text-sm">+ Agregar franja</button>
+
+              <div class="flex flex-wrap gap-2 pt-1">
+                <span class="text-xs text-neutral-500 self-center">Rapido:</span>
+                <button type="button" @click="form.windows = [{ini:'08:00',fin:'10:00'},{ini:'13:00',fin:'15:00'},{ini:'18:00',fin:'20:00'}]"
+                        class="px-2 py-1 text-xs border border-neutral-300 rounded hover:bg-neutral-50">Manana, tarde y noche</button>
+                <button type="button" @click="form.windows = [{ini:'07:00',fin:'21:00'}]"
+                        class="px-2 py-1 text-xs border border-neutral-300 rounded hover:bg-neutral-50">Una al dia</button>
+              </div>
+            </div>
+
+            <!-- Horas exactas -->
+            <div x-show="form.frequency_type === 'specific_times'" class="space-y-3">
+              <div class="bg-amber-50 border border-amber-200 rounded p-3 text-xs text-amber-900">
+                Siempre al mismo minuto. Sirve para un reporte fijo, pero como evidencia es debil:
+                una hora predecible se puede preparar.
+              </div>
+              <template x-for="(h, i) in form.specific_times" :key="i">
+                <div class="flex items-center gap-2">
+                  <input :value="h" @input="form.specific_times[i] = $event.target.value" type="time"
+                         class="px-2 py-1.5 border border-neutral-300 rounded text-sm">
+                  <button type="button" @click="form.specific_times.splice(i, 1)"
+                          class="text-red-600 hover:bg-red-50 rounded px-2 py-1 text-xs">Quitar</button>
+                </div>
+              </template>
+              <button type="button" @click="form.specific_times.push('12:00')"
+                      class="text-[#0A66FF] hover:underline text-sm">+ Agregar hora</button>
+            </div>
+
+            <!-- Intervalo -->
+            <div x-show="form.frequency_type === 'interval'" class="space-y-3">
+              <label class="block text-sm text-neutral-700 mb-1">Cada cuantos minutos</label>
+              <input x-model.number="form.interval_minutes" type="number" min="5"
+                     class="w-full px-3 py-2 border border-neutral-300 rounded text-sm">
+              <div class="bg-red-50 border border-red-200 rounded p-3 text-xs text-red-900">
+                Ojo con los datos moviles: a este ritmo son <strong x-text="fotosPorDiaTexto()"></strong>.
+              </div>
+            </div>
+
+            <!-- Costo estimado -->
+            <div class="bg-neutral-50 border border-neutral-200 rounded p-3">
+              <div class="text-xs text-neutral-500 mb-1">Consumo estimado por equipo</div>
+              <div class="text-sm">
+                <span x-text="fotosPorDiaTexto()"></span>
+                <span class="text-neutral-400"> · </span>
+                <span class="font-medium" x-text="consumoMesTexto()"></span>
+              </div>
+              <div class="text-[11px] text-neutral-400 mt-1">A 1.5 MB por foto, que es lo que pesan hoy. Cada equipo gasta ~20 MB al mes sin fotos programadas.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex gap-2 mt-6 pt-4 border-t border-neutral-100">
+          <button @click="guardar()" :disabled="guardando"
+                  class="px-4 py-2 bg-[#0A66FF] text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50"
+                  x-text="guardando ? 'Guardando…' : (form.id ? 'Guardar cambios' : 'Crear programacion')"></button>
+          <button @click="mostrarForm = false" class="px-4 py-2 bg-neutral-100 text-neutral-700 text-sm rounded hover:bg-neutral-200">Cancelar</button>
+        </div>
+      </div>
+
+      <!-- ================= LISTA ================= -->
+      <div class="bg-white border border-neutral-200 rounded-lg overflow-x-auto">
+        <table class="w-full text-sm min-w-[820px]">
+          <thead class="bg-neutral-50 border-b border-neutral-200">
+            <tr>
+              <th class="text-left px-4 py-3 font-medium text-neutral-700">Nombre</th>
+              <th class="text-left px-4 py-3 font-medium text-neutral-700">Aplica a</th>
+              <th class="text-left px-4 py-3 font-medium text-neutral-700">Cuando</th>
+              <th class="text-left px-4 py-3 font-medium text-neutral-700">Proxima foto</th>
+              <th class="text-left px-4 py-3 font-medium text-neutral-700">Fotos</th>
+              <th class="text-left px-4 py-3 font-medium text-neutral-700">Estado</th>
+              <th class="text-right px-4 py-3 font-medium text-neutral-700">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="s in schedules" :key="s.id">
+              <tr class="border-b border-neutral-100" :class="!s.active && 'opacity-60'">
+                <td class="px-4 py-3 font-medium" x-text="s.name"></td>
+                <td class="px-4 py-3 text-neutral-600" x-text="destinoTexto(s)"></td>
+                <td class="px-4 py-3 text-neutral-600" x-text="cuandoTexto(s)"></td>
+                <td class="px-4 py-3" x-text="proximaTexto(s)"></td>
+                <td class="px-4 py-3 text-neutral-600">
+                  <span x-text="s.fotos || 0"></span>
+                  <!-- Se muestra SIEMPRE, tambien en cero. Antes se ocultaba con
+                       x-show="s.fotos_semana > 0", o sea que el numero que delata el
+                       problema desaparecia exactamente cuando habia problema. En rojo
+                       cuando la programacion deberia estar disparando y no ha tomado
+                       ninguna en siete dias. -->
+                  <span class="text-xs whitespace-nowrap"
+                        :class="(s.active && !fueraDeVigencia(s) && !(s.fotos_semana > 0)) ? 'text-red-600 font-medium' : 'text-neutral-400'"
+                        x-text="'(' + (s.fotos_semana || 0) + ' esta semana)'"></span>
+                </td>
+                <td class="px-4 py-3">
+                  <!-- El estado sale de estado(), que mira `active` Y la vigencia. Antes
+                       solo miraba `active`: una programacion que aun no empieza o que ya
+                       vencio se veia verde y "Activa" sin tomar una sola foto. -->
+                  <span :class="estado(s).clase"
+                        class="px-2 py-0.5 rounded text-xs border whitespace-nowrap" x-text="estado(s).texto"></span>
+                </td>
+                <td class="px-4 py-3 text-right whitespace-nowrap">
+                  <button @click="editar(s)" class="text-neutral-600 hover:underline text-xs mr-3">Editar</button>
+                  <button @click="alternar(s)" class="text-[#0A66FF] hover:underline text-xs mr-3" x-text="s.active ? 'Pausar' : 'Activar'"></button>
+                  <button @click="eliminar(s)" class="text-red-600 hover:underline text-xs">Eliminar</button>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+        <div x-show="schedules.length === 0" class="text-center py-12 px-6">
+          <p class="text-neutral-500">Todavia no hay ninguna programacion.</p>
+          <p class="text-neutral-400 text-sm mt-1">Hoy las fotos solo se toman cuando alguien las pide a mano.</p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="/src/js/api.js"></script>
+  <script src="/src/js/shell.js"></script>
+  <script src="/src/js/pages/scheduler.js"></script>
+</body>
+</html>

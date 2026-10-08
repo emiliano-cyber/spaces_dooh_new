@@ -54,10 +54,17 @@ function exigirDias(nombre, valor) {
 }
 
 /**
+ * Los modulos que se venden aparte y que la licencia puede encender. Una lista
+ * cerrada: un nombre mal escrito al firmar se rechaza aqui, en vez de firmarse
+ * una licencia que no enciende nada y nadie entiende por que.
+ */
+export const MODULOS = ['space-eyes']
+
+/**
  * El JSON exacto que se firma y se escribe. El orden de las claves es fijo y la
  * indentacion tambien: son los bytes que cubre la firma.
  */
-export function construirLicencia({ instancia, dominio, vence, avisoDias, graciaDias, emitida }) {
+export function construirLicencia({ instancia, dominio, vence, avisoDias, graciaDias, emitida, modulos = [] }) {
   if (typeof instancia !== 'string' || !NOMBRE_VALIDO_INSTANCIA.test(instancia)) {
     throw new Error(`\`instancia\` no es un nombre valido (minusculas, digitos y guiones): ${String(instancia)}`)
   }
@@ -69,6 +76,10 @@ export function construirLicencia({ instancia, dominio, vence, avisoDias, gracia
   exigirDias('aviso_dias', avisoDias)
   exigirDias('gracia_dias', graciaDias)
 
+  if (!Array.isArray(modulos) || modulos.some((m) => !MODULOS.includes(m))) {
+    throw new Error(`\`modulos\` solo puede llevar ${MODULOS.join(', ')}: ${JSON.stringify(modulos)}`)
+  }
+
   const cuerpo = {
     instancia,
     dominio,
@@ -77,6 +88,12 @@ export function construirLicencia({ instancia, dominio, vence, avisoDias, gracia
     aviso_dias: avisoDias,
     gracia_dias: graciaDias,
   }
+  // Solo si hay alguno, y al FINAL: una licencia sin modulos queda byte a byte
+  // como las de antes, asi que las que ya estan firmadas siguen validando y
+  // nadie tiene que volver a firmar nada por esto. Ordenados y sin repetir,
+  // para que la misma decision produzca siempre los mismos bytes.
+  const lista = [...new Set(modulos)].sort()
+  if (lista.length) cuerpo.modulos = lista
   // El salto final es a proposito: un archivo de texto sin el ultimo salto es
   // el que rompe `cat`, los editores y los diffs.
   return JSON.stringify(cuerpo, null, 2) + '\n'
