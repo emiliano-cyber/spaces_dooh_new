@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================================
-#  update-eyes.sh — instala y actualiza el Space Eye de ESTA instancia (ADR 0041).
+#  update-eyes.sh — instala y actualiza el Space Eye de ESTA instancia (ADR 0045).
 # ----------------------------------------------------------------------------
 #  El hermano de update.sh para la otra pila del droplet. Por que no es el mismo
 #  guion: update.sh maneja UNA imagen, contra el Postgres del host, con

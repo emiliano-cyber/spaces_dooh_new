@@ -391,12 +391,18 @@ export async function equipoDetalle(id: number): Promise<SEEquipoDetalle | null>
 /**
  * Pedirle una foto AHORA a un equipo.
  *
- * Es lo ÚNICO que esta integración escribe, y va por una ruta propia de Space
- * Eye (`/api/eyes/devices/:id/captura`) que solo sabe hacer eso: el tipo de
- * orden no es un parámetro, así que desde aquí no se puede reiniciar un equipo,
- * abrirle la transmisión ni cambiarle la configuración aunque alguien lo
- * intente. La llave necesita la marca de escritura, y esa marca no alcanza
- * ninguna otra ruta.
+ * Va por una ruta propia de Space Eye (`/api/eyes/devices/:id/captura`) que
+ * solo sabe hacer eso: el tipo de orden no es un parámetro.
+ *
+ * OJO, corregido el 06/10: este comentario decía que era «lo ÚNICO que esta
+ * integración escribe» y que desde aquí no se podía reiniciar un equipo ni
+ * abrirle la transmisión. Dejó de ser verdad con la puerta del módulo completo
+ * (ADR 0045, `reenviarASpaceEye`): por `/api/space-eyes/se` pasan también
+ * órdenes —reiniciar la app o el equipo, actualizar, abrir y cerrar el vivo—,
+ * la cámara, la programación y las campañas, todo con `inventario.crear`. Qué
+ * órdenes pasan de ESTE lado lo decide la lista `ORDENES` de esa ruta; que
+ * Space Eye las acepte depende de lo que permita la llave de la instancia, y
+ * eso vive en el servidor de Space Eye, no aquí.
  *
  * `en_linea: false` no es un error: la orden queda encolada y el equipo la
  * recoge cuando vuelva. La interfaz lo dice en vez de fingir que viene en
@@ -524,14 +530,48 @@ export interface SEInfoAlta {
   agentePi: SEDescarga | null
 }
 
+// ─── Los instaladores se bajan POR ESTA aplicación (revisión del 06/10) ─────
+//
+// El botón apuntaba directo a `${BASE}/space-eye.apk`, y BASE hoy es HTTP
+// plano. En una instancia (HTTPS) Chrome BLOQUEA una descarga insegura que sale
+// de una página segura: el APK no se bajaba en producción y en local sí. Y desde
+// la wifi de un cliente, alguien en esa red podía cambiar el binario que se
+// instala en un equipo con cámara. Es el mismo motivo por el que existe
+// `/api/space-eyes/foto`. El navegador baja de aquí; el tramo hasta Space Eye
+// queda entre los dos servidores.
+//
+// Lista CERRADA: el tipo que llega por la URL elige una entrada de aquí y nunca
+// se pega a una ruta, así que no hay forma de pedirle a Space Eye otro archivo.
+export const INSTALADORES = {
+  apk: { manifiesto: 'space-eye.json', archivo: 'space-eye.apk' },
+  'agente-pc': { manifiesto: 'space-eye-agente.json', archivo: 'SpaceEyeAgente.exe' },
+  'agente-pi': { manifiesto: 'space-eye-pi-agent.json', archivo: 'space-eye-pi-agent.tar.gz' },
+  // Sin manifiesto: lo necesita solo la vista en vivo del agente de Windows.
+  ffmpeg: { manifiesto: null, archivo: 'ffmpeg.exe' },
+} as const
+export type TipoInstalador = keyof typeof INSTALADORES
+
+export function esTipoInstalador(t: string): t is TipoInstalador {
+  return Object.prototype.hasOwnProperty.call(INSTALADORES, t)
+}
+
+export function urlDeDescarga(tipo: TipoInstalador): string {
+  return `/spaces-dooh/api/space-eyes/descarga/${tipo}/`
+}
+
+/** Pide el instalador a Space Eye. Devuelve su Response tal cual (el llamador mira `ok`). */
+export async function bajarInstalador(tipo: TipoInstalador): Promise<Response> {
+  return fetch(`${BASE}/${INSTALADORES[tipo].archivo}`, { cache: 'no-store' })
+}
+
 /** Los manifiestos son públicos (los sirve el mismo servidor, sin sesión). */
-async function manifiesto(archivo: string, descarga: string): Promise<SEDescarga | null> {
+async function manifiesto(archivo: string, tipo: TipoInstalador): Promise<SEDescarga | null> {
   try {
     const r = await fetch(`${BASE}/${archivo}`, { cache: 'no-store' })
     if (!r.ok) return null
     const d = (await r.json()) as Record<string, unknown>
     return {
-      url: `${BASE}/${descarga}`,
+      url: urlDeDescarga(tipo),
       version: d.version != null ? String(d.version) : null,
       bytes: d.bytes != null ? Number(d.bytes) : null,
       publicado: d.publicado != null ? String(d.publicado) : null,
@@ -555,9 +595,9 @@ export async function infoDeAlta(): Promise<SEInfoAlta> {
   }
 
   const [apk, agentePc, agentePi] = await Promise.all([
-    manifiesto('space-eye.json', 'space-eye.apk'),
-    manifiesto('space-eye-agente.json', 'SpaceEyeAgente.exe'),
-    manifiesto('space-eye-pi-agent.json', 'space-eye-pi-agent.tar.gz'),
+    manifiesto(INSTALADORES.apk.manifiesto, 'apk'),
+    manifiesto(INSTALADORES['agente-pc'].manifiesto, 'agente-pc'),
+    manifiesto(INSTALADORES['agente-pi'].manifiesto, 'agente-pi'),
   ])
 
   return {
@@ -714,7 +754,7 @@ export async function creativosDeEquipo(id: number): Promise<SECreativosEquipo |
   }
 }
 
-// ─── La puerta del módulo completo (ADR 0041) ───────────────────────────────
+// ─── La puerta del módulo completo (ADR 0045) ───────────────────────────────
 
 /**
  * Reenvía una petición del navegador a Space Eye con la llave de la instancia.
@@ -726,7 +766,15 @@ export async function creativosDeEquipo(id: number): Promise<SECreativosEquipo |
 // `quien`: el usuario de SPACE OS que hace la operacion. Viaja en una cabecera
 // para que Space Eye deje constancia (p. ej. quien genero un codigo de
 // vinculacion): con la llave de la instancia, Space Eye no sabe quien es.
-export async function reenviarASpaceEye(req: Request, camino: string, quien?: string): Promise<Response> {
+// `cuerpo`: el cuerpo YA LEÍDO, cuando la puerta tuvo que mirarlo antes (las
+// órdenes a un equipo). Un Request solo se lee una vez; sin esto, revisar la
+// orden dejaba a Space Eye recibiendo un cuerpo vacío.
+export async function reenviarASpaceEye(
+  req: Request,
+  camino: string,
+  quien?: string,
+  cuerpo?: ArrayBuffer,
+): Promise<Response> {
   const url = new URL(req.url)
   const destino = `${BASE}/api/${camino}${url.search}`
   const cabeceras: Record<string, string> = { Authorization: `Bearer ${KEY}` }
@@ -737,7 +785,7 @@ export async function reenviarASpaceEye(req: Request, camino: string, quien?: st
   const r = await fetch(destino, {
     method: req.method,
     headers: cabeceras,
-    body: conCuerpo ? await req.arrayBuffer() : undefined,
+    body: conCuerpo ? (cuerpo ?? (await req.arrayBuffer())) : undefined,
     cache: 'no-store',
   })
   const salida = new Headers()

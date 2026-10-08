@@ -151,6 +151,20 @@ La entrada más reciente va arriba.
   estuviera pagada y su etiqueta dijera «Pagada». Ahora, si está pagada, dice
   «pagada»; los días de atraso solo aparecen mientras se debe.
 
+- **Space Eyes: los instaladores ya se pueden bajar desde una instancia con
+  candado (https).** El botón para bajar la app del teléfono, el agente de
+  Windows, el de Raspberry y `ffmpeg.exe` llevaba directo al servidor de Space
+  Eye, que no tiene candado, y Chrome bloquea esa descarga. Ahora se bajan por
+  la propia aplicación, y junto a cada botón aparece su **huella (SHA-256)**
+  para comprobar que el archivo es el publicado.
+- **Space Eyes: reiniciar o actualizar un equipo queda en la bitácora de
+  acciones**, con quién lo hizo y a qué equipo. Y el servidor solo deja pasar
+  las órdenes que la pantalla ofrece (foto, vivo, reiniciar la app, reiniciar
+  el equipo, actualizar); cualquier otra se rechaza.
+- **Administración → Roles y permisos: «Inventario» ahora dice que abre Space
+  Eyes** (cámaras, fotos, vivo y órdenes a los equipos). Antes daba acceso a
+  todo eso sin mencionarlo.
+
 - **La calculadora de spots ahora cuenta igual que tu calculadora HTML («Valor
   Real del Spot Unitario»).** *(Decisión tuya del 06/10, ADR 0043.)* Cambian
   cuatro cosas, y solo en las líneas que tienen la calculadora encendida:

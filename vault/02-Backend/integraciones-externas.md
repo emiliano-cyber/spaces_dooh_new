@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-10-06
 tags: [backend, integraciones, terceros, cron]
 archivos:
   - apps/web/lib/server/doohmain.ts
@@ -84,6 +84,34 @@ hemos visto una respuesta con datos, así que no se interpreta nada todavía»*.
 > `inventario.ver`, escribir con `inventario.crear`). Probado en local con la base
 > real de los equipos de :4000 más el de pruebas de :4100 (7 equipos, g500).
 
+> [!important] 2026-10-06 · revisión con correcciones (rama `fix/space-eyes-revision`)
+> Pedida por el dueño sobre `feat/space-eyes-con-mejoras` en `8afa2ed8`. Lo que
+> cambió, cada cosa con su prueba en rojo primero:
+>
+> - **Las órdenes a un equipo pasan por una lista** (`ORDENES` en
+>   `app/api/space-eyes/se/[...ruta]/route.ts`): TAKE_PHOTO, START/STOP_STREAM,
+>   REBOOT_APP, UPDATE_APP y REBOOT_DEVICE. Antes el `command_type` lo elegía el
+>   navegador y pasaba cualquiera. Reiniciar (app o equipo) y actualizar quedan
+>   en la **bitácora de acciones** con quién y qué equipo, solo si Space Eye la
+>   aceptó. `space-eyes-ordenes.test.ts`.
+> - **Los instaladores se bajan por esta aplicación**
+>   (`/api/space-eyes/descarga/<apk|agente-pc|agente-pi|ffmpeg>`, lista cerrada)
+>   y la ficha **enseña el SHA-256**. El `href` iba directo a Space Eye por HTTP:
+>   en una instancia HTTPS Chrome bloquea esa descarga, y en la wifi del sitio
+>   el binario se podía cambiar. `space-eyes-descargas.test.ts`.
+> - **«Inventario» dice que abre Space Eyes** en la matriz (`lib/modulos.ts`,
+>   área `space-eyes`), con un guard que cubre todo el grupo `ojos` del menú.
+>   `space-eyes-permisos.test.ts`.
+> - **`/api/space-eyes/foto` rechaza `//`**, que su comentario prometía.
+> - El comentario de `pedirCaptura` que decía «lo ÚNICO que esta integración
+>   escribe» se corrigió, y el ADR pasó de **0041 a 0045** (chocaba con Google Maps).
+>
+> **Lo que NO se pudo arreglar desde aquí:** que Space Eye se sirva por HTTPS
+> (servidor), y si la marca `escritura` de la llave alcanza solo la captura
+> —como afirma `infra/env/app.env.example`— o también las órdenes. Si fuera
+> lo primero, reiniciar y el vivo darían 403 desde Space Eye. Pregunta para
+> quien lleva Space Eye.
+
 `lib/server/space-eye.ts`. Cada espectacular tiene un teléfono Android que
 captura fotos y las verifica contra la creatividad con IA. El enlace
 pantalla↔cámara es **por código**: `sitios.codigo_proveedor == device.billboard_code`.
@@ -111,6 +139,10 @@ Credenciales **solo por env, nunca al cliente**.
 > **2026-10-05 · sigue igual.** Ninguna de las tres plantillas de `infra/env/`
 > (`app.env.example`, `instancia.env.example`, `ejecutor.env.example`) declara
 > `SPACE_EYE_*`, `ADMOBILIZE_API_KEY` ni `CFDI_PAC_KEY` — medido con `grep`.
+>
+> **Eso es `main`.** En la rama de Space Eyes `app.env.example` **sí** declara
+> `SPACE_EYE_BASE_URL`, `SPACE_EYE_KEY` y el testigo (`8444721c`, 01/10): el
+> hueco se cierra cuando esa rama aterrice.
 
 > [!success] 2026-09-17 · el PADRE NO lleva la integración — medido, no supuesto
 > Se levantó como «divergencia del E4.1» del plan de Space Eye. **No existe.**

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================================
-#  eyes-alta.sh — lo que el alta de una instancia hace por su Space Eye (ADR 0041).
+#  eyes-alta.sh — lo que el alta de una instancia hace por su Space Eye (ADR 0045).
 # ----------------------------------------------------------------------------
 #  Biblioteca: la cargan con `source` instalar-hijo.sh y provision-instancia.sh,
 #  y la usa el ensayo local. Aqui va TODA la logica de Space Eyes en el alta; en
@@ -63,7 +63,7 @@ eyes_env() {
 # actualiza de madrugada (diez minutos despues que la app, para no coincidir).
 eyes_cron() {
   cat <<'CRON'
-# Space Eyes de esta instancia (ADR 0041). Escrito por el alta.
+# Space Eyes de esta instancia (ADR 0045). Escrito por el alta.
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 */15 * * * * root /opt/space-os/update-eyes.sh --comprobar >> /var/log/space-os/eyes.log 2>&1 || { c=$?; [ $c -eq 75 ] || [ $c -eq 10 ]; }

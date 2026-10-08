@@ -9,7 +9,7 @@ archivos:
   - apps/web/components/demo/space-eyes/SinRespuesta.tsx
   - apps/web/components/demo/space-eyes/EquipoAdmin.tsx
   - apps/web/lib/space-eyes-kit-pi.ts
-  - docs/adr/0041-space-eye-vive-dentro-de-cada-instancia.md
+  - docs/adr/0045-space-eye-vive-dentro-de-cada-instancia.md
 ---
 
 # Manual de usuario — Space Eyes

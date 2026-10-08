@@ -15,7 +15,7 @@
 #        --licencia <dir> --contacto <correo> \
 #        [--con-eyes] [--confirmar | --dry-run]
 #
-#  --con-eyes  la instancia nace con su Space Eye dentro (ADR 0041): las
+#  --con-eyes  la instancia nace con su Space Eye dentro (ADR 0045): las
 #              camaras de esta empresa se dan de alta en eyes.<dominio>. Pide
 #              ese segundo nombre en el DNS, apuntando a esta misma maquina.
 #
@@ -87,7 +87,7 @@ TPL_INST="$RAIZ/infra/env/instancia.env.example"
 TPL_NGINX_NORMAL="$RAIZ/infra/nginx/instancia.conf.tpl"
 TPL_NGINX_SIN_LICENCIA="$RAIZ/infra/nginx/instancia-sin-licencia.conf.tpl"
 TPL_LICENCIA_HTML="$RAIZ/infra/nginx/publico/licencia-vencida.html"
-# Space Eyes dentro de la instancia (ADR 0041), solo con --con-eyes.
+# Space Eyes dentro de la instancia (ADR 0045), solo con --con-eyes.
 EYES_ALTA_SH="$RAIZ/infra/scripts/eyes-alta.sh"
 TPL_EYES="$RAIZ/infra/eyes/eyes.env.example"
 # COSTURA DE PRUEBAS (tarea 11): el par de llaves real NO vive en este

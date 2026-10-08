@@ -9,7 +9,7 @@ archivos:
   - apps/web/app/api/space-eyes/se/[...ruta]/route.ts
   - apps/web/components/demo/space-eyes/
   - space-eye/ (servidor, agentes y app; ver space-eye/docs/)
-  - docs/adr/0041-space-eye-vive-dentro-de-cada-instancia.md
+  - docs/adr/0045-space-eye-vive-dentro-de-cada-instancia.md
 ---
 
 # Manual técnico — Space Eyes
@@ -24,7 +24,7 @@ cosa, cómo se prueba y las trampas que ya costaron horas.
 > - **Space Eye** (carpeta `space-eye/` de esta misma rama, con todo su
 >   historial): el servidor de cámaras, los agentes de Raspberry y PC, y la app
 >   Android. Cada empresa (instancia) tiene **su propio** Space Eye
->   ([[0041-space-eye-vive-dentro-de-cada-instancia|ADR 0041]]).
+>   ([[0045-space-eye-vive-dentro-de-cada-instancia|ADR 0045]]).
 
 ## 1. El panorama
 
@@ -241,7 +241,7 @@ PC **1.6.0**, imagen de Space Eye construida con `space-eye/Dockerfile.instancia
 - Cada instancia levanta su Space Eye con su pila (`infra/eyes/`) y lo
   actualiza `infra/scripts/update-eyes.sh`; se activa por empresa con la licencia firmada
   (`apps/flota/modulo.mjs`, `LICENCIA_DEL_PADRE=1`) y las altas nuevas con
-  `--con-eyes` ([[0041-space-eye-vive-dentro-de-cada-instancia|ADR 0041]],
+  `--con-eyes` ([[0045-space-eye-vive-dentro-de-cada-instancia|ADR 0045]],
   etapa 4: **zona ROJA, la aprueba Emiliano**).
 - La imagen: `docker build -f space-eye/Dockerfile.instancia space-eye`.
   Las migraciones de Space Eye corren solas al arrancar.
@@ -292,6 +292,6 @@ contra un Space Eye local.
    sitios; el equipo los ve, con razón, como uno solo.
 
 ## Relacionadas
-[[manual-space-eyes]] · [[0041-space-eye-vive-dentro-de-cada-instancia]] ·
+[[manual-space-eyes]] · [[0045-space-eye-vive-dentro-de-cada-instancia]] ·
 `space-eye/docs/ARQUITECTURA_SPACE_EYES.md` ·
 `space-eye/docs/MANUAL_TECNICO.md` · `REVISION-SPACE-EYES.md`

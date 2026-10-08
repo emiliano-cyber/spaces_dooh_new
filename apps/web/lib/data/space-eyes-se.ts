@@ -1,4 +1,4 @@
-// Cliente de la puerta /api/space-eyes/se/... (ADR 0041): las pantallas del
+// Cliente de la puerta /api/space-eyes/se/... (ADR 0045): las pantallas del
 // módulo Space Eyes hablan con el Space Eye de su instancia a través de aquí.
 // Las rutas son las de Space Eye sin el /api inicial: seApi('devices'),
 // seApi('photos?device_id=4'), seApi('schedules', { method: 'POST', body }).

@@ -158,7 +158,7 @@ export const NAV: NavItem[] = [
   // a un cliente es quien primero necesita saber si la camara de ese sitio esta
   // viva y que enseno ayer.
   { key: 'space-eyes', label: 'Equipos', href: '/space-eyes', icon: Eye, roles: [...MANDO, ...VENTA], grupo: 'ojos' },
-  // El resto del panel de Space Eye, dentro de SPACE OS (ADR 0041): lo que antes
+  // El resto del panel de Space Eye, dentro de SPACE OS (ADR 0045): lo que antes
   // se operaba en el dashboard propio de Space Eye vive aqui, con los mismos
   // roles. Todo habla con el Space Eye de ESTA instancia por /api/space-eyes/se.
   { key: 'space-eyes-galeria', label: 'Galería', href: '/space-eyes/galeria', icon: Images, roles: [...MANDO, ...VENTA], grupo: 'ojos' },

@@ -46,6 +46,12 @@ export const AREAS: AreaProducto[] = [
   // siendo `comercial` o se va con `captacion`, con la que se solapa.
   { clave: 'comercial-opex', label: 'Comercial OPEX', modulo: 'comercial', apiPropia: false },
   { clave: 'inventario', label: 'Inventario', modulo: 'inventario', apiPropia: true },
+  // Las ocho pantallas de Space Eyes (equipos, galería, vivo, programación,
+  // campañas, verificación, fallas) exigen `inventario.ver` / `inventario.crear`.
+  // Sin esta línea, quien marcaba «Inventario» abría las cámaras y las fotos de
+  // los espectaculares sin que la matriz lo dijera: el defecto exacto de arriba.
+  // Con `crear`, además, se reinicia o actualiza un equipo a distancia.
+  { clave: 'space-eyes', label: 'Space Eyes (cámaras, fotos, vivo y órdenes a los equipos)', modulo: 'inventario', apiPropia: true },
   // ─── Las cuatro de la cadena de precio: modulo `precios` ──────────────────
   //
   // Han cambiado de modulo DOS VECES el mismo dia, el 2026-09-29, y las dos

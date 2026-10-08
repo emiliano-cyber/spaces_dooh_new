@@ -1,4 +1,6 @@
-# ADR 0041 · Space Eye vive dentro de cada instancia
+# ADR 0045 · Space Eye vive dentro de cada instancia
+
+> Renumerado el 2026-10-06: nació como **0041**, número que en `main` ya tenía el ADR de Google Maps. El contenido no cambió.
 
 **Fecha:** 2026-10-01
 **Estado:** propuesto · construido en la rama `feat/space-eyes-con-mejoras` y ensayado en local · **las piezas ROJAS (R2/R7) están escritas detrás de `--con-eyes` y esperan al dueño**

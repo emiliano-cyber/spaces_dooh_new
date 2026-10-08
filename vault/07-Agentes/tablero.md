@@ -42,6 +42,22 @@ archivos: []
 > de la base antes de escribir, y `docs/datos/20261006_retirar_org_demo_rentabilidad.sql`
 > para limpiarlo. 57 unitarias de las semillas en verde.
 
+> [!important] 2026-10-06 · **EYES-REV · Z3 — revisión de Space Eyes CON correcciones, pedida por el dueño** · ROJO (R1 por la bitácora de órdenes)
+> Rama **`fix/space-eyes-revision`**, salida de `feat/space-eyes-con-mejoras`
+> en `8afa2ed8` (cabeza de José del 06/10). **No se commiteó en su rama**
+> (regla 2 de AGENTES): esta va encima, para que él la integre o la discuta.
+> Z3 sigue reclamada por `agente-space-eyes`; esto es trabajo pedido por el
+> dueño sobre esa misma zona, no un reclamo nuevo.
+>
+> Lo que cambia, con detalle en [[02-Backend/integraciones-externas]]: lista de
+> órdenes a un equipo y bitácora de reinicios · instaladores por esta
+> aplicación con su SHA-256 · área `space-eyes` en `lib/modulos.ts` · `//` en
+> la ruta de fotos · comentario falso de `pedirCaptura` · ADR **0041 → 0045**.
+> Toca `components/demo/shell/nav.ts` (alto contacto) **solo en un comentario**.
+>
+> **Verificado:** typecheck limpio · **3447 unitarias**. Las e2e de Space Eye
+> siguen sin poder correrse aquí: necesitan un Space Eye y su llave.
+
 > [!success] 2026-10-06 · **INTEGRA-RIESGOS-Y-CALC · Z1, Z2, Z5 y Z12 — LIBERADO, FUSIONADO EN `main`** · ROJO (R1 sesión · R2 tenant · R4 dinero)
 > Rama **`integra/riesgos-y-calculadora-14-oct`**. Une las dos de abajo
 > —`integra/riesgos-presentacion-14-oct` (`7393d633`) y
@@ -137,7 +153,7 @@ archivos: []
 > refleja. Quien vaya a tocar esas zonas —o `nav.ts`— que lo mire antes con
 > `git show origin/feat/space-eyes-con-mejoras:vault/07-Agentes/tablero.md`.
 
-> [!warning] 2026-10-01 · **ADR 0041 · Space Eye dentro de cada instancia — ROJO (R2/R7), escrito y ensayado, ESPERA AL DUEÑO**
+> [!warning] 2026-10-01 · **ADR 0045 (antes 0041, renumerado el 06/10: chocaba con el de Google Maps) · Space Eye dentro de cada instancia — ROJO (R2/R7), escrito y ensayado, ESPERA AL DUEÑO**
 > Misma rama. Decidido por Carlos el 01/10 («debe ser el mismo y debe estar dentro»).
 > **Zonas rojas tocadas, detrás de una bandera nueva `--con-eyes`** (sin ella el
 > alta hace lo de siempre): `instalar-hijo.sh` y `provision-instancia.sh` (R2/R7:
