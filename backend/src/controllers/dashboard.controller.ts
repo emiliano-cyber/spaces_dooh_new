@@ -818,7 +818,15 @@ export async function listPhotos(req: Request, res: Response) {
   );
 
   // Las rutas salen FIRMADAS: /storage exige firma desde el 2026-09-14.
-  res.json({ photos: firmarFilas(rows as any[]), total: (countResult as any[])[0]?.total || 0 });
+  // GPS como NUMERO: mysql2 entrega las DECIMAL como texto ("19.43260000") y
+  // SPACE OS lo formatea con toFixed; con texto su ficha del equipo tronaba
+  // entera en cuanto un telefono mandaba ubicacion (g500, 09/10).
+  const fotos = firmarFilas(rows as any[]).map((p) => ({
+    ...p,
+    gps_lat: p.gps_lat == null ? null : Number(p.gps_lat),
+    gps_lng: p.gps_lng == null ? null : Number(p.gps_lng),
+  }));
+  res.json({ photos: fotos, total: (countResult as any[])[0]?.total || 0 });
 }
 
 // Elimina una foto tomada por error: borra archivos (full + thumb) y la fila.
