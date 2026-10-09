@@ -135,8 +135,9 @@ interface SEPhoto {
   taken_at: string | null
   width: number | null
   height: number | null
-  gps_lat: number | null
-  gps_lng: number | null
+  // DECIMAL en MySQL: Space Eye las entrega como TEXTO ("19.43260000").
+  gps_lat: number | string | null
+  gps_lng: number | string | null
   verification_status: string | null
   is_correct: boolean | null
   verification_score: number | null
@@ -191,7 +192,7 @@ export async function visionDeCodigo(codigoProveedor: string | null | undefined)
           verificacionEstatus: foto.verification_status,
           esCorrecta: foto.is_correct,
           score: foto.verification_score != null ? Number(foto.verification_score) : null,
-          gps: foto.gps_lat != null && foto.gps_lng != null ? { lat: foto.gps_lat, lng: foto.gps_lng } : null,
+          gps: gpsDeFoto(foto),
         }
       : null,
   }
@@ -335,6 +336,19 @@ export async function listarEquipos(): Promise<SEEquipoResumen[]> {
 }
 
 /** Un equipo con todo lo que la ficha enseña, incluidas sus últimas fotos. */
+/**
+ * La ubicacion de una foto, SIEMPRE como numeros. Space Eye guarda el GPS en
+ * columnas DECIMAL y mysql2 las entrega como texto: la ficha del equipo hace
+ * `gps.lat.toFixed(5)` y con texto la pagina entera tronaba («Application
+ * error») en cuanto un telefono mandaba su ubicacion (g500, 09/10/2026).
+ */
+export function gpsDeFoto(f: { gps_lat?: unknown; gps_lng?: unknown }): { lat: number; lng: number } | null {
+  if (f.gps_lat == null || f.gps_lng == null || f.gps_lat === '' || f.gps_lng === '') return null
+  const lat = Number(f.gps_lat)
+  const lng = Number(f.gps_lng)
+  return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null
+}
+
 export async function equipoDetalle(id: number): Promise<SEEquipoDetalle | null> {
   if (!spaceEyeHabilitado()) return null
 
@@ -382,7 +396,7 @@ export async function equipoDetalle(id: number): Promise<SEEquipoDetalle | null>
       verificacionEstatus: p.verification_status,
       esCorrecta: p.is_correct,
       score: p.verification_score != null ? Number(p.verification_score) : null,
-      gps: p.gps_lat != null && p.gps_lng != null ? { lat: p.gps_lat, lng: p.gps_lng } : null,
+      gps: gpsDeFoto(p),
       giro: giroDeFoto(p),
     })),
   }
