@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: verificado
-actualizado: 2026-10-06
+actualizado: 2026-10-09
 tags: [despliegue, entorno, ci, env, instancias]
 archivos:
   - infra/scripts/pruebas-update.sh
@@ -952,6 +952,33 @@ manual completo —configuración, códigos de salida, cron— está en
 > —96 `exit 1` al día— al mandar poner el cron `--comprobar` sin copiar antes el
 > guion. De ahí el **paso 0** de esa tarjeta y la sección nueva de
 > `docs/runbook-actualizar-instancia.md`.
+
+> [!danger] 2026-10-08 · y copiarlo «a mano» desde Windows lo deja en CRLF: **g500 pasó un día sin actualizarse**
+> El `update.sh` nuevo se copió a g500 con `scp` desde el checkout de esta
+> máquina (`core.autocrlf=true`) y llegó con `\r` al final de cada línea. El
+> cron empezó a fallar con `/usr/bin/env: 'bash\r': No such file or directory`,
+> **código 127**, en cada `--comprobar`, que en g500 es el único cron activo
+> (su línea de las 04:17 está comentada, `#17 4 * * *`). g500 se
+> quedó en `v0.11.1` sin ver `v0.11.2` ni `v0.11.3`, y como el reporte a la
+> flota lo manda el mismo `update.sh`, **no hubo ningún error a la vista**:
+> solo silencio. Se descubrió el 09/10, cuando `v0.11.3` no aparecía para
+> aprobar.
+>
+> **La huella lo delata en un segundo.** La de g500 era `6add877f…`, que es
+> exactamente la del archivo canónico con CRLF:
+>
+> ```bash
+> sha256sum /opt/space-os/update.sh                        # en la instancia
+> git show v0.11.3:infra/scripts/update.sh | sha256sum      # el canónico (8672d6b7… en v0.11.3)
+> ```
+>
+> **Arreglo:** `sed -i 's/\r$//' /opt/space-os/update.sh` y volver a medir la
+> huella. **La regla:** todo `.sh` que se copie a un servidor se compara con su
+> huella de git **justo después de copiarlo**, y el arreglo se da por cerrado
+> con esa salida delante, no al dictarlo. Detalle en
+> [[07-Agentes/diario/2026-10-09]]. Es la misma familia que el recuadro de
+> migraciones en CRLF de `CLAUDE.md`: `git status` sale limpio y el archivo
+> en disco no es el de git.
 
 El orden importa y está elegido para que cada paso falle antes de haber hecho daño:
 `pull` y comparar digest (igual → sale 0 sin tocar nada) → **respaldo** `pg_dump -Fc`

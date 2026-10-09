@@ -1,10 +1,20 @@
 ---
 tipo: tablero
 estado: verificado
-actualizado: 2026-10-07
+actualizado: 2026-10-09
 tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
+
+> [!warning] 2026-10-09 · **`v0.11.3` en `estable` (`03aadf22`); g500 sigue en `v0.11.1`**
+> El 08/10 salieron cuatro versiones (`v0.11.0` Space Eyes … `v0.11.3` coma de
+> miles), todas sin migraciones y empujadas por el dueño. **g500 no ofrecía la
+> actualización** porque su `update.sh` llegó en CRLF por `scp` desde Windows y
+> no arranca (`bash\r`, código 127) desde el 08/10 a las 18:30 UTC. El arreglo
+> (`sed`) ya se le dio al dueño; **falta la huella `8672d6b7…` pegada**.
+> Después: probar la captura con coma en DEMO, aprobar en g500 y vigilar una
+> hora, y solo entonces Space Eyes en g500 (guía 23). Zonas: todas LIBRES.
+> Detalle en [[07-Agentes/diario/2026-10-09]] y [[07-Agentes/diario/2026-10-08]].
 
 > [!success] 2026-10-07 · **CINCO DE LAS SEIS RAMAS ESTÁN EN `main`** (`f67d1611`, empujado por el dueño)
 > Aprobadas por el dueño el 07/10, con las dos migraciones (`20261008_cobranza_abonos` y

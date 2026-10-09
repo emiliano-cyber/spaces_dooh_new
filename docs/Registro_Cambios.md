@@ -5,6 +5,30 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-10-09
+
+- **Se publicó la versión v0.11.3** (las comas de miles al ver y al teclear
+  cifras). Ya está lista para las instancias. Antes de instalarla en g500 se
+  prueba en DEMO que al teclear una cifra se guarde exactamente lo tecleado.
+- **g500 llevaba un día sin enterarse de las actualizaciones.** Su
+  actualizador automático (`update.sh`) se le copió el 08/10 desde una
+  computadora con Windows. Llegó con los saltos de línea de Windows, y en el
+  servidor (Linux) ya no podía arrancar. No daba ningún error a la vista: g500
+  simplemente dejó de revisar si había versiones nuevas y se quedó en la
+  v0.11.1. Se notó hoy, porque la v0.11.3 no le aparecía para aprobar.
+  - **Arreglo:** quitar esos saltos con un solo comando y comprobar la
+    «huella» del archivo, que tiene que ser idéntica a la del repositorio.
+    Pendiente de confirmar en g500.
+  - **Al instalar, g500 pasa de la v0.11.1 directo a la v0.11.3**, así que
+    recibe también lo de la v0.11.2: el aviso que sale una sola vez, la fecha
+    y el responsable de las OT, y el costo que se bloquea al cerrarlas.
+  - **Para que no se repita:** cada vez que se copie un archivo de este tipo
+    a un servidor, se compara su huella justo después de copiarlo.
+- **Pendiente aparte:** al subir su registro de actualización al almacenamiento
+  en la nube, g500 recibe «acceso denegado». Los **respaldos** de la base sí
+  se suben bien; lo que falla es solo el registro. Falta darle ese permiso en
+  DigitalOcean.
+
 ## 2026-10-08
 
 - **Todas las cifras llevan su coma de miles.** *(Pedido tuyo del 08/10.)* Es
