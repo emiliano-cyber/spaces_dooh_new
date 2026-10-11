@@ -144,6 +144,16 @@ if grep -q "^EYES_DOMINIO=eyes\." "$EYES_ENV"; then
   echo "   eyes.env: EYES_DOMINIO pasa a $DOMINIO (sin subdominio)"
 fi
 
+# Lo que llega de los equipos sin pasar por nginx: RTSP de la Pi y la PC,
+# medios WebRTC y el TURN. Las mismas reglas que instalar-hijo.sh --con-eyes.
+# Sin ellas el vivo tardaba muchísimo buscando un camino (g500, 11/10).
+if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q '^Status: active'; then
+  for regla in 8554/tcp 8189/udp 3478/tcp 3478/udp 49160:49200/udp; do
+    ufw allow "$regla" >/dev/null
+  done
+  echo "   firewall: abiertos los puertos del video (8554, 8189/udp, 3478, 49160-49200/udp)"
+fi
+
 # ─── 4 · La pila ──────────────────────────────────────────────────────────
 paso "4. Levantando Space Eye (update-eyes.sh migra y comprueba su salud)"
 EYES_CONF="$EYES_ENV" EYES_DIR="$OPT_DIR/eyes" INSTANCIA_CONF="$INST_ENV" \
