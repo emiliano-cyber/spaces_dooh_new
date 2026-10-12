@@ -70,6 +70,8 @@ class Monitor(
         private const val CONFIG_CONTINUO_MS = HuellaConfig.PLAZO_MS
         private const val LOG_CONTINUO_MS = 60 * 60_000L
         private const val PAUSA_CONTINUO_MS = 5_000L
+        // Cada cuanto se mira, mientras se espera, si cambio la configuracion.
+        private const val PASO_ESPERA_MS = 30_000L
 
         val NOMBRES = mapOf(
             "zona_apagada" to "Posible gabinete apagado",
@@ -162,7 +164,30 @@ class Monitor(
                 Log.e(TAG, "vuelta fallo: ${e.message}", e)
                 RemoteLog.warn(ctx, "monitor", "La vigilancia de la pantalla fallo: ${e.message}")
             }
-            delay(esperaMs)
+            esperarOAjuste(esperaMs)
+        }
+    }
+
+    /**
+     * Duerme hasta la siguiente vuelta, pero se despierta en cuanto cambia la
+     * configuracion en el panel (la huella llega con cada latido, cada minuto).
+     * Antes se dormia de corrido: si alguien bajaba la frecuencia de 1 hora a 5
+     * minutos, el equipo seguia esperando la hora entera y una falla puesta a
+     * proposito no se veia (Tlalpan, 12/10/2026). Despertar no gasta datos: solo
+     * compara la huella que ya trae el latido.
+     */
+    private suspend fun esperarOAjuste(esperaMs: Long) {
+        val huellaAntes = api.vigilancia
+        var queda = esperaMs
+        while (queda > 0) {
+            val paso = minOf(queda, PASO_ESPERA_MS)
+            delay(paso)
+            queda -= paso
+            val ahora = api.vigilancia
+            if (ahora != null && ahora != huellaAntes) {
+                Log.i(TAG, "la configuracion de vigilancia cambio: se revisa ya")
+                return
+            }
         }
     }
 
