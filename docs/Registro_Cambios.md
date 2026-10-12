@@ -5,6 +5,13 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-10-12
+
+- **Nuevo texto en la presentación de Space Eyes.** Debajo del título, en
+  lugar de la explicación del equipo junto a cada pantalla, ahora dice:
+  «Incidencias reportadas antes de que voltee a ver el sitio.» y «Campaña
+  programática comprobada en cuanto se reproduce.». Solo cambia el texto.
+
 ## 2026-10-11
 
 - **La versión v0.11.4 ya está en g500.** Se instaló la noche del 11/10

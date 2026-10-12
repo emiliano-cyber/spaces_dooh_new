@@ -184,8 +184,9 @@ export function DemoSpaceEyes() {
           </div>
           <h1 className="text-[22px] font-semibold leading-tight text-ink sm:text-[26px]">Tus pantallas, vistas desde el sitio, sin ir al sitio</h1>
           <p className="text-[14px] leading-relaxed text-muted">
-            Un equipo pequeño junto a cada pantalla (teléfono, Raspberry o cámara IP) toma fotos de lo que está al aire, avisa
-            cuando algo falla y te deja verla en vivo desde aquí. Todo queda dentro de SPACE OS, con los permisos de tu empresa.
+            Incidencias reportadas antes de que voltee a ver el sitio.
+            <br />
+            Campaña programática comprobada en cuanto se reproduce.
           </p>
           {accion}
         </div>
