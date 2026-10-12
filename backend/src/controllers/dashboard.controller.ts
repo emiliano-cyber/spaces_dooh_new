@@ -205,9 +205,14 @@ export async function setStreamRotation(req: Request, res: Response) {
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'invalid_input' });
 
+  // El giro de las fotos va con el de la vista: como se fija la vista asi deben
+  // salir las fotos. Las que se toman con el vivo abierto ya salian derechas;
+  // las de la vigilancia y las programadas (sin vivo) salian de lado porque
+  // photo_rotation se quedaba en 0 (Tlalpan, 12/10/2026). Solo cambia como se
+  // MUESTRAN las fotos nuevas: el archivo no se toca (ver photoStorage).
   const [r] = await pool.query<any>(
-    `UPDATE devices SET stream_rotation = ? WHERE id = ?`,
-    [parsed.data.rotation, req.params.id]
+    `UPDATE devices SET stream_rotation = ?, photo_rotation = ? WHERE id = ?`,
+    [parsed.data.rotation, parsed.data.rotation, req.params.id]
   );
   if ((r as any).affectedRows === 0) return res.status(404).json({ error: 'not_found' });
   res.json({ ok: true, rotation: parsed.data.rotation });
