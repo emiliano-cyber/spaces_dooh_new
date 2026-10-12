@@ -195,6 +195,25 @@ export async function controlDeCamara(req: Request, res: Response) {
   const d = (f as any[])[0];
   if (!d || (req.servicio?.owner && d.owner !== req.servicio.owner)) return res.status(404).json({ error: 'not_found' });
   await publicarAEquipos('camera:control', { device_id: id, control: parsed.data });
+  // La exposicion y el balance que se dejan en el vivo quedan como los del
+  // sitio: viajan en camera_ajustes con cada orden de foto y en la vigilancia,
+  // y la app (0.16.7+) los aplica al abrir la camara. Antes eran temporales y
+  // la foto sin vivo salia con otra luz y otro color (Tlalpan, 12/10/2026).
+  // El enfoque fijo ya lo guarda el panel con PUT /camera.
+  const { action, value } = parsed.data;
+  if (action === 'exposure' || action === 'wb') {
+    const clave = action === 'exposure' ? '$.exposicion' : '$.balance';
+    const neutro = action === 'exposure' ? Number(value) === 0 : value === 'auto';
+    if (neutro) {
+      await pool.query(
+        `UPDATE devices SET camera_ajustes = JSON_REMOVE(COALESCE(camera_ajustes, JSON_OBJECT()), ?) WHERE id = ?`,
+        [clave, id]);
+    } else {
+      await pool.query(
+        `UPDATE devices SET camera_ajustes = JSON_SET(COALESCE(camera_ajustes, JSON_OBJECT()), ?, ?) WHERE id = ?`,
+        [clave, action === 'exposure' ? Math.round(Number(value)) : String(value), id]);
+    }
+  }
   res.json({ ok: true });
 }
 

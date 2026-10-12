@@ -670,7 +670,9 @@ class Monitor:
         camara_estado = self.revision.revisar(vistazos, geo)
         excluir = set(geo.excluir) | set(self.seguimiento.excluidas())
         resultado = salud_analisis.analizar([v.salud for v in vistazos], geo.filas, geo.columnas, excluir,
-                                            self.textura_normal) \
+                                            self.textura_normal,
+                                            min(max(opt_double(cfg, "cambio_minimo", salud_analisis.CAMBIO_MINIMO), 2.0), 30.0),
+                                            min(max(opt_double(cfg, "sin_contenido", salud_analisis.SIN_CONTENIDO), 0.1), 0.8)) \
             if camara_estado == Camara.OK else None
 
         abiertas = {}

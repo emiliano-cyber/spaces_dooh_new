@@ -282,4 +282,15 @@ class SaludAnalisisTest {
         val texD = SaludAnalisis.analizar(dublan, 4, 6).textura
         assertTrue(SaludAnalisis.analizar(dublan, 4, 6, texturaNormal = texD).pantalla != Pantalla.APAGADA)
     }
+
+    @Test
+    fun losUmbralesDelSitioVienenDeLaWeb() {
+        // Mas exigente para contar un cambio = menos cambios; con la textura normal
+        // al doble de la real, la vuelta sana tampoco se acusa con 0.4 pero si con 0.8.
+        val base = SaludAnalisis.analizar(tlalpan, 4, 6)
+        val exigente = SaludAnalisis.analizar(tlalpan, 4, 6, cambioMinimo = 60.0)
+        assertTrue(exigente.cambios < base.cambios)
+        assertTrue(SaludAnalisis.analizar(tlalpan, 4, 6, texturaNormal = base.textura * 2).pantalla != Pantalla.APAGADA)
+        assertEquals(Pantalla.APAGADA, SaludAnalisis.analizar(tlalpan, 4, 6, texturaNormal = base.textura * 2, sinContenido = 0.8).pantalla)
+    }
 }

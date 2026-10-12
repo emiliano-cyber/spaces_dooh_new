@@ -146,14 +146,18 @@ object SaludAnalisis {
     /**
      * @param texturaNormal la textura de bordes de este sitio en sus vueltas sanas
      *   (la lleva el Monitor); null mientras no la conozca.
+     * @param cambioMinimo y [sinContenido]: los umbrales del sitio, ajustables
+     *   desde la web (salud.cambio_minimo / salud.sin_contenido); por omision los
+     *   de fabrica. Asi una falsa alarma de un sitio se corrige sin APK nueva.
      */
     fun analizar(tomas: List<Imagen>, filas: Int, columnas: Int, excluir: Set<Pair<Int, Int>> = emptySet(),
-                 texturaNormal: Double? = null): Resultado {
+                 texturaNormal: Double? = null, cambioMinimo: Double = CAMBIO_MINIMO,
+                 sinContenido: Double = SIN_CONTENIDO): Resultado {
         val n = tomas.size
         if (n < 2) return Resultado(Pantalla.INCONCLUSO, n, 0, emptyList())
 
         var cambios = 0
-        for (k in 1 until n) if (diferencia(tomas[k], tomas[k - 1], filas, columnas) > CAMBIO_MINIMO) cambios++
+        for (k in 1 until n) if (diferencia(tomas[k], tomas[k - 1], filas, columnas) > cambioMinimo) cambios++
         val uniformes = tomas.count { it.desviacion() < UNIFORME }.toDouble() / n
         val tex = mediana(tomas.map { textura(it) })
 
@@ -163,7 +167,7 @@ object SaludAnalisis {
         // luz al reflejo, y con 4 o mas "cambios" la vuelta pasaba al analisis por
         // zonas y salia OK. Es la MEDIANA de la vuelta: un anuncio oscuro dura
         // unos segundos y no la baja. La confirma Seguimiento en dos vueltas.
-        if (texturaNormal != null && texturaNormal > 0 && n >= 6 && tex < SIN_CONTENIDO * texturaNormal)
+        if (texturaNormal != null && texturaNormal > 0 && n >= 6 && tex < sinContenido * texturaNormal)
             return Resultado(Pantalla.APAGADA, n, cambios, emptyList(), textura = tex)
         if (cambios == 0 && n >= 6) return Resultado(Pantalla.CONGELADA, n, cambios, emptyList(), textura = tex)
         if (cambios < CAMBIOS_PARA_ZONAS) return Resultado(Pantalla.INCONCLUSO, n, cambios, emptyList(), textura = tex)

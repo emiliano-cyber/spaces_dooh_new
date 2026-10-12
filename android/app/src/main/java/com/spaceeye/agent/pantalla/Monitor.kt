@@ -24,6 +24,8 @@ interface CamaraParaVigilar {
     fun ocupada(): Boolean
     /** Abre la camara con el encuadre del sitio y la deja lista. */
     suspend fun abrir(lente: String, zoom: Float): Boolean
+    /** Los ajustes finos del sitio (enfoque fijo, exposicion, balance) para la proxima apertura. */
+    fun ajustes(a: org.json.JSONObject?) {}
     /** Un JPEG tal como sale del sensor (sin girar), o null. */
     suspend fun tomar(): ByteArray?
     /** Gira el JPEG como las demas fotos del sitio, para subirlo. */
@@ -340,6 +342,7 @@ class Monitor(
                     delay(pasoMs); continue
                 }
                 if (!abierta) {
+                    camara.ajustes(encuadre?.optJSONObject("camera_ajustes"))
                     abierta = camara.abrir(lente, zoom)
                     if (!abierta) { saltados++; delay(pasoMs); continue }
                     sesion++
@@ -491,7 +494,9 @@ class Monitor(
         val camaraEstado = revision.revisar(vistazos, geo)
         val excluir = geo.excluir + seguimiento.excluidas()
         val resultado = if (camaraEstado == Seguimiento.Camara.OK)
-            SaludAnalisis.analizar(vistazos.map { it.salud }, geo.filas, geo.columnas, excluir, texturaNormal) else null
+            SaludAnalisis.analizar(vistazos.map { it.salud }, geo.filas, geo.columnas, excluir, texturaNormal,
+                cfg.optDouble("cambio_minimo", SaludAnalisis.CAMBIO_MINIMO).coerceIn(2.0, 30.0),
+                cfg.optDouble("sin_contenido", SaludAnalisis.SIN_CONTENIDO).coerceIn(0.1, 0.8)) else null
 
         val abiertas = mutableMapOf<String, Long>()
         cfg.optJSONArray("abiertas")?.let { a -> for (i in 0 until a.length()) a.getJSONObject(i).let { o ->

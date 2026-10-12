@@ -129,7 +129,9 @@ def textura_bordes(t):
     return float(np.mean(np.abs(lap))) if lap.size else 0.0
 
 
-def analizar(tomas, filas, columnas, excluir=frozenset(), textura_normal=None):
+def analizar(tomas, filas, columnas, excluir=frozenset(), textura_normal=None,
+             cambio_minimo=CAMBIO_MINIMO, sin_contenido=SIN_CONTENIDO):
+    """cambio_minimo y sin_contenido: los umbrales del sitio, ajustables desde la web."""
     """
     excluir: zonas que no se juzgan: tapadas (una barda, un arbol) o que se sabe
     que no cambian. Las aprende Seguimiento en las primeras vueltas.
@@ -140,7 +142,7 @@ def analizar(tomas, filas, columnas, excluir=frozenset(), textura_normal=None):
 
     cambios = 0
     for k in range(1, n):
-        if _diferencia(tomas[k], tomas[k - 1], filas, columnas) > CAMBIO_MINIMO:
+        if _diferencia(tomas[k], tomas[k - 1], filas, columnas) > cambio_minimo:
             cambios += 1
     uniformes = sum(1 for t in tomas if t.desviacion() < UNIFORME) / n
     tex = mediana([textura_bordes(t) for t in tomas])
@@ -150,7 +152,7 @@ def analizar(tomas, filas, columnas, excluir=frozenset(), textura_normal=None):
     # Lisa toda la vuelta comparada con lo normal del sitio: apagada de dia (o
     # sin contenido). Antes de mirar los cambios: las nubes cambian la luz del
     # reflejo y con 4 o mas la vuelta salia OK por zonas. La confirma Seguimiento.
-    if textura_normal and textura_normal > 0 and n >= 6 and tex < SIN_CONTENIDO * textura_normal:
+    if textura_normal and textura_normal > 0 and n >= 6 and tex < sin_contenido * textura_normal:
         return Resultado(Pantalla.APAGADA, n, cambios, [], textura=tex)
     if cambios == 0 and n >= 6:
         return Resultado(Pantalla.CONGELADA, n, cambios, [], textura=tex)

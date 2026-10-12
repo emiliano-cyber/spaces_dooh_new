@@ -78,7 +78,8 @@ function clave(tipo: string, fila: number | null, columna: number | null) {
 async function saludDe(deviceId: number) {
   const [filas] = await pool.query<any[]>(
     `SELECT salud_watch, salud_desde, salud_cada_min, salud_confirmaciones, salud_umbral, salud_max_dia,
-            creative_recorrido_seg, creative_paso_seg, aprendizaje_min, salud_aviso_rapido
+            creative_recorrido_seg, creative_paso_seg, aprendizaje_min, salud_aviso_rapido,
+            salud_cambio_minimo, salud_sin_contenido
      FROM devices WHERE id = ?`, [deviceId]);
   const d = (filas as any[])[0];
   if (!d) return null;
@@ -99,6 +100,10 @@ async function saludDe(deviceId: number) {
     paso_seg: d.creative_paso_seg,
     // Pantalla completa apagada: aviso en menos de un minuto (023).
     aviso_rapido: d.salud_aviso_rapido == null ? true : !!d.salud_aviso_rapido,
+    // Umbrales ajustables desde la web (026). Solo se mandan si alguien los
+    // cambio: sin ellos la app usa los de fabrica (8 y 0.4). APK 0.16.7+.
+    ...(d.salud_cambio_minimo != null ? { cambio_minimo: Number(d.salud_cambio_minimo) } : {}),
+    ...(d.salud_sin_contenido != null ? { sin_contenido: Number(d.salud_sin_contenido) } : {}),
   };
 }
 
@@ -361,6 +366,9 @@ export async function configurarSalud(req: Request, res: Response) {
     // Minutos de aprendizaje, para creativos y fallas: 0 = solo la primera vuelta.
     aprendizaje_min: z.number().int().min(0).max(1440).optional(),
     aviso_rapido: z.boolean().optional(),
+    // null = volver al de fabrica.
+    cambio_minimo: z.number().min(2).max(30).nullable().optional(),
+    sin_contenido: z.number().min(0.1).max(0.8).nullable().optional(),
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'invalid_input' });
@@ -379,6 +387,8 @@ export async function configurarSalud(req: Request, res: Response) {
   if (d.max_dia !== undefined) { campos.push('salud_max_dia = ?'); valores.push(d.max_dia); }
   if (d.aprendizaje_min !== undefined) { campos.push('aprendizaje_min = ?'); valores.push(d.aprendizaje_min); }
   if (d.aviso_rapido !== undefined) { campos.push('salud_aviso_rapido = ?'); valores.push(d.aviso_rapido ? 1 : 0); }
+  if (d.cambio_minimo !== undefined) { campos.push('salud_cambio_minimo = ?'); valores.push(d.cambio_minimo); }
+  if (d.sin_contenido !== undefined) { campos.push('salud_sin_contenido = ?'); valores.push(d.sin_contenido); }
   if (!campos.length) return res.status(400).json({ error: 'no_fields' });
   await pool.query(`UPDATE devices SET ${campos.join(', ')} WHERE id = ?`, [...valores, req.params.id]);
   res.json({ ok: true, salud: await saludDe(Number(req.params.id)) });
