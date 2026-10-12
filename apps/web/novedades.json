@@ -1,5 +1,27 @@
 [
   {
+    "version": "v0.11.5",
+    "fecha": "2026-10-12",
+    "items": [
+      {
+        "tipo": "AJUSTADO",
+        "texto": "En Administración → Identidad de la empresa, la razón social ya no se escribe: se elige de tus Razones sociales. Es el mismo registro, así que si la renombras o le corriges el RFC allí, Identidad, Inicio y los contratos lo ven al momento. La que ya tenías escrita se pasó sola a la lista."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "Inicio, Inventario, Comercial y el resto de las pantallas abren más rápido cuando hay pantallas con muchas fotos: las listas ya no cargan las fotos que no muestran. Las fotos se siguen viendo al abrir la ficha de cada pantalla."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "Nuevo texto en la presentación de Space Eyes: «Incidencias reportadas antes de que voltee a ver el sitio. Campaña programática comprobada en cuanto se reproduce.»"
+      },
+      {
+        "tipo": "CORREGIDO",
+        "texto": "En las páginas de Space Eyes (Galería, Gráficas, Fallas…) el menú marca solo la página abierta; antes «Equipos» se quedaba marcado también."
+      }
+    ]
+  },
+  {
     "version": "v0.11.4",
     "fecha": "2026-10-11",
     "items": [
