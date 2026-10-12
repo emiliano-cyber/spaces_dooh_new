@@ -132,11 +132,14 @@ interface SEDevice {
 interface SEPhoto {
   device_id: number
   storage_path: string
+  /** La miniatura de 400 px que Space Eye guarda al recibir la foto. */
+  thumbnail_path?: string | null
   taken_at: string | null
   width: number | null
   height: number | null
-  gps_lat: number | null
-  gps_lng: number | null
+  // DECIMAL en MySQL: Space Eye las entrega como TEXTO ("19.43260000").
+  gps_lat: number | string | null
+  gps_lng: number | string | null
   verification_status: string | null
   is_correct: boolean | null
   verification_score: number | null
@@ -191,7 +194,7 @@ export async function visionDeCodigo(codigoProveedor: string | null | undefined)
           verificacionEstatus: foto.verification_status,
           esCorrecta: foto.is_correct,
           score: foto.verification_score != null ? Number(foto.verification_score) : null,
-          gps: foto.gps_lat != null && foto.gps_lng != null ? { lat: foto.gps_lat, lng: foto.gps_lng } : null,
+          gps: gpsDeFoto(foto),
         }
       : null,
   }
@@ -221,7 +224,7 @@ export interface SEEquipoResumen {
   redTipo: string | null
   ultimaConexion: string | null
   estatus: string | null
-  ultimaFoto: { url: string; tomadaEn: string | null; giro: number } | null
+  ultimaFoto: { url: string; miniatura: string; tomadaEn: string | null; giro: number } | null
   /** Si se actualiza sin que nadie toque el equipo (ver lib/space-eyes-actualizacion). */
   actualizacion: ComoSeActualiza
 }
@@ -251,6 +254,8 @@ export interface SEFotoModulo {
   score: number | null
   gps: { lat: number; lng: number } | null
   giro: number
+  /** La miniatura: lo que se pinta primero y en las tiras de recientes. */
+  miniatura: string
 }
 
 interface SEDeviceFila extends SEDevice {
@@ -280,6 +285,16 @@ export function urlDeFoto(storagePath: string): string {
   return `/spaces-dooh/api/space-eyes/foto/?p=${encodeURIComponent(storagePath)}`
 }
 
+/**
+ * La miniatura de una foto (400 px, unos 30 KB), o la foto si no la tiene.
+ * Abrir una ficha bajaba seis fotos completas del celular (2-5 MB cada una)
+ * solo para pintar recuadros de 56 px: con 1 GB de servidor tardaba segundos
+ * (g500, 11/10/2026).
+ */
+export function miniaturaDe(f: { storage_path: string; thumbnail_path?: string | null }): string {
+  return urlDeFoto(f.thumbnail_path || f.storage_path)
+}
+
 /** La dirección real, que solo se usa del lado del servidor. */
 export function urlAbsolutaDeFoto(storagePath: string): string {
   return `${BASE}${storagePath}`
@@ -298,7 +313,9 @@ function resumen(d: SEDeviceFila, foto?: SEPhoto): SEEquipoResumen {
     redTipo: d.network_type ?? null,
     ultimaConexion: d.last_seen_at ?? null,
     estatus: d.status ?? null,
-    ultimaFoto: foto ? { url: urlDeFoto(foto.storage_path), tomadaEn: foto.taken_at, giro: giroDeFoto(foto) } : null,
+    ultimaFoto: foto
+      ? { url: urlDeFoto(foto.storage_path), miniatura: miniaturaDe(foto), tomadaEn: foto.taken_at, giro: giroDeFoto(foto) }
+      : null,
     actualizacion: comoSeActualiza({
       app_version: d.app_version ?? null,
       app_version_code: d.app_version_code ?? null,
@@ -335,6 +352,19 @@ export async function listarEquipos(): Promise<SEEquipoResumen[]> {
 }
 
 /** Un equipo con todo lo que la ficha enseña, incluidas sus últimas fotos. */
+/**
+ * La ubicacion de una foto, SIEMPRE como numeros. Space Eye guarda el GPS en
+ * columnas DECIMAL y mysql2 las entrega como texto: la ficha del equipo hace
+ * `gps.lat.toFixed(5)` y con texto la pagina entera tronaba («Application
+ * error») en cuanto un telefono mandaba su ubicacion (g500, 09/10/2026).
+ */
+export function gpsDeFoto(f: { gps_lat?: unknown; gps_lng?: unknown }): { lat: number; lng: number } | null {
+  if (f.gps_lat == null || f.gps_lng == null || f.gps_lat === '' || f.gps_lng === '') return null
+  const lat = Number(f.gps_lat)
+  const lng = Number(f.gps_lng)
+  return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null
+}
+
 export async function equipoDetalle(id: number): Promise<SEEquipoDetalle | null> {
   if (!spaceEyeHabilitado()) return null
 
@@ -375,6 +405,7 @@ export async function equipoDetalle(id: number): Promise<SEEquipoDetalle | null>
     datos: u ? { movilMes: u.data_mobile_month ?? null, wifiMes: u.data_wifi_month ?? null } : null,
     fotos: fotos.map((p) => ({
       url: urlDeFoto(p.storage_path),
+      miniatura: miniaturaDe(p),
       tomadaEn: p.taken_at,
       ancho: p.width,
       alto: p.height,
@@ -382,7 +413,7 @@ export async function equipoDetalle(id: number): Promise<SEEquipoDetalle | null>
       verificacionEstatus: p.verification_status,
       esCorrecta: p.is_correct,
       score: p.verification_score != null ? Number(p.verification_score) : null,
-      gps: p.gps_lat != null && p.gps_lng != null ? { lat: p.gps_lat, lng: p.gps_lng } : null,
+      gps: gpsDeFoto(p),
       giro: giroDeFoto(p),
     })),
   }

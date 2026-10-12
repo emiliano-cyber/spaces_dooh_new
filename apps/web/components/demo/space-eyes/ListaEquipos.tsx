@@ -316,7 +316,7 @@ function TarjetaEquipo({ equipo: e, enLinea }: { equipo: EquipoResumen; enLinea:
       {/* La última captura manda: es lo que se viene a ver */}
       <div className="relative aspect-[16/9] overflow-hidden bg-surface-2">
         {e.ultimaFoto ? (
-          <FotoGirada src={e.ultimaFoto.url} alt={`Última captura de ${e.nombre}`} giro={e.ultimaFoto.giro} />
+          <FotoGirada src={e.ultimaFoto.miniatura} alt={`Última captura de ${e.nombre}`} giro={e.ultimaFoto.giro} />
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-1.5 text-muted">
             <CameraOff className="h-5 w-5" strokeWidth={1.4} />

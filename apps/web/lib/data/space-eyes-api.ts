@@ -26,7 +26,7 @@ export interface EquipoResumen {
   redTipo: string | null
   ultimaConexion: string | null
   estatus: string | null
-  ultimaFoto: { url: string; tomadaEn: string | null; giro: number } | null
+  ultimaFoto: { url: string; miniatura: string; tomadaEn: string | null; giro: number } | null
   pantalla: { id: string; nombre: string } | null
   /** Si se actualiza sin que nadie toque el equipo (lib/space-eyes-actualizacion). */
   actualizacion?: { sola: boolean; texto: string; tono: 'ok' | 'aviso' | 'visita' }
@@ -44,6 +44,8 @@ export interface FotoEquipo {
   gps: { lat: number; lng: number } | null
   /** Grados (0/90/180/270) para verla derecha. */
   giro: number
+  /** La miniatura de 400 px: lo que se pinta primero y en las tiras de recientes. */
+  miniatura: string
 }
 
 export interface EquipoDetalle extends Omit<EquipoResumen, 'pantalla'> {

@@ -405,7 +405,12 @@ export function FichaEquipo({ id }: { id: number }) {
             <div className="relative aspect-[16/10] max-h-[70vh] w-full bg-[#12100e]">
               {vista === 'equipo' ? (
                 fotoEquipo ? (
-                  <FotoGirada src={fotoEquipo.url} alt={`Captura de Space Eyes de ${equipo.nombre}`} giro={fotoEquipo.giro} />
+                  <FotoGirada
+                    src={fotoEquipo.url}
+                    previa={fotoEquipo.miniatura}
+                    alt={`Captura de Space Eyes de ${equipo.nombre}`}
+                    giro={fotoEquipo.giro}
+                  />
                 ) : (
                   <Vacio texto="Este equipo todavía no ha subido ninguna foto." />
                 )
@@ -528,7 +533,7 @@ export function FichaEquipo({ id }: { id: number }) {
                       i === fotoElegida ? 'border-accent ring-1 ring-accent' : 'border-border hover:border-border-strong',
                     )}
                   >
-                    <FotoGirada src={f.url} alt="" giro={f.giro} />
+                    <FotoGirada src={f.miniatura} alt="" giro={f.giro} />
                   </button>
                 ))}
               </div>
