@@ -959,7 +959,8 @@ manual completo —configuración, códigos de salida, cron— está en
 > cron empezó a fallar con `/usr/bin/env: 'bash\r': No such file or directory`,
 > **código 127**, en cada `--comprobar`, que en g500 es el único cron activo
 > (su línea de las 04:17 está comentada, `#17 4 * * *`). g500 se
-> quedó en `v0.11.1` sin ver `v0.11.2` ni `v0.11.3`, y como el reporte a la
+> quedó en `v0.11.1` del 08/10 18:30 al 09/10 16:30 UTC, cuando ya arreglado
+> instaló `v0.11.3`, y como el reporte a la
 > flota lo manda el mismo `update.sh`, **no hubo ningún error a la vista**:
 > solo silencio. Se descubrió el 09/10, cuando `v0.11.3` no aparecía para
 > aprobar.

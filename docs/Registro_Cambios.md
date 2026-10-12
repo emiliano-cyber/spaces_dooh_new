@@ -7,6 +7,18 @@ La entrada más reciente va arriba.
 
 ## 2026-10-11
 
+- **La versión v0.11.4 ya está en g500.** Se instaló la noche del 11/10
+  (05:45 del 12/10 en hora UTC), aprobada por ti, y la probaste en el
+  navegador: la versión, las fotos de Space Eyes, la ficha del celular, una
+  propuesta vieja y un importe nuevo. No cambió nada en la base de datos y se
+  sacó respaldo antes.
+  - **g500 no se pudo agrandar a 2 GB**: su región de DigitalOcean no tenía
+    espacio para el cambio. Sigue con 1 GB más memoria de reserva en disco,
+    lo que alcanza para la presentación pero va justo. Se cambia a un servidor
+    más grande después del 14.
+  - **Space Eye estuvo detenido unos 20 minutos** esa noche por una pausa
+    hecha a mano mientras se instalaba. Ya está encendido; la actualización no
+    lo apagó.
 - **Space Eyes abre más rápido** *(cambio de José, para la presentación del
   14)*. Al abrir un equipo se bajaban seis fotos completas del celular, de 2
   a 5 MB cada una, solo para pintar los cuadritos de «Recientes». Ahora la

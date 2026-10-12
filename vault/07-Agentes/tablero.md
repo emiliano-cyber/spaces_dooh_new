@@ -1,10 +1,15 @@
 ---
 tipo: tablero
 estado: verificado
-actualizado: 2026-10-11
+actualizado: 2026-10-12
 tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
+
+> [!success] 2026-10-12 · **`v0.11.4` INSTALADA EN g500** (05:45 UTC, aprobada por el dueño, probada en el navegador)
+> g500 no se pudo subir a 2 GB (sin capacidad en su región): sigue con 1 GB + swap, ~285 MB libres. Space
+> Eye arriba con `0.16.18-local` fijada en `EYES_IMAGEN`. DEMO y el `update.sh` del PADRE siguen atrasados.
+> Detalle en [[07-Agentes/diario/2026-10-11]].
 
 > [!important] 2026-10-11 · **`v0.11.4` en integración: dos ramas de Space Eyes de José, para el 14**
 > `integra/v0-11-4` = `main` + `fix/space-eyes-fotos-rapidas` + `fix/space-eyes-solicitudes-en-padre`,
