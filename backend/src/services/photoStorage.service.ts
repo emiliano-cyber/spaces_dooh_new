@@ -98,6 +98,9 @@ interface UploadParams {
   phash?: string;
 }
 
+/** Origenes de foto que el equipo entrega ya con la orientacion del vivo. */
+const FOTOS_YA_DERECHAS = new Set(['falla', 'creative_change', 'campana']);
+
 /** Si la orden que pidio la foto le dijo a la app cuanto girarla. */
 async function ordenTraeGiro(commandId?: number | null): Promise<boolean> {
   if (!commandId) return false;
@@ -111,8 +114,13 @@ async function ordenTraeGiro(commandId?: number | null): Promise<boolean> {
  * Cuanto habria que girar ESTA foto al mostrarla (photo_rotation). No se toca
  * el archivo. No se gira si la app ya la entrego derecha: ver ordenTraeGiro.
  */
-async function giroAlMostrar(deviceId: number, commandId?: number | null): Promise<number> {
+async function giroAlMostrar(deviceId: number, commandId?: number | null, source?: string | null): Promise<number> {
   try {
+    // Las fotos de la VIGILANCIA (evidencia de falla, creativo nuevo, prueba
+    // de campaña) ya salen del equipo giradas con la orientacion del vivo
+    // (Monitor: camara.enderezar(jpeg, rotation)). Girarlas otra vez al
+    // mostrarlas las dejaba de lado (Magnocentro, 12/10/2026).
+    if (source && FOTOS_YA_DERECHAS.has(source)) return 0;
     // La app endereza la foto (con o sin visor abierto) SOLO si la orden le dijo
     // como: payload.rotation, que manda el boton de la vista en vivo. El boton de
     // la ficha, la vigilancia y las programadas no lo mandan: esas salen crudas,
@@ -164,7 +172,7 @@ export async function uploadPhoto(p: UploadParams) {
      storedFull, storedThumb, p.fileBuffer.length, meta.width, meta.height, p.taken_at,
      p.gps_lat ?? null, p.gps_lng ?? null, source, p.watermark_baked ?? true,
      p.phash ? p.phash.toLowerCase() : null,
-     await giroAlMostrar(p.deviceId, p.command_id)]
+     await giroAlMostrar(p.deviceId, p.command_id, source)]
   );
 
   if (p.campaign_id) {
