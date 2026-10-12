@@ -72,6 +72,9 @@ class Monitor(
         private const val PAUSA_CONTINUO_MS = 5_000L
         // Cada cuanto se mira, mientras se espera, si cambio la configuracion.
         private const val PASO_ESPERA_MS = 30_000L
+        // Respiro minimo entre dos vueltas aunque el recorrido dure mas que la
+        // frecuencia: la camara se cierra y se reabre, y el telefono descansa.
+        private const val MINIMO_ENTRE_VUELTAS_MS = 20_000L
 
         val NOMBRES = mapOf(
             "zona_apagada" to "Posible gabinete apagado",
@@ -284,7 +287,14 @@ class Monitor(
         recorrido(r, geo, if (tocaC) cCfg else null, if (tocaS) sCfg else null, continuo, avisoCfg)
         if (tocaC) ultimaCreativos = ahora
         if (tocaS) ultimaSalud = ahora
-        return espera
+        // La frecuencia se cuenta de INICIO a inicio. Antes se esperaba la
+        // frecuencia completa DESPUES del recorrido (4.5 min): "cada 5 min" eran
+        // 9.5 y una falla, que se confirma en dos vueltas, tardaba 20 min en
+        // avisar (Tlalpan, 12/10/2026). Si el recorrido dura mas que la
+        // frecuencia, la siguiente empieza casi enseguida.
+        if (continuo) return espera
+        val transcurrido = System.currentTimeMillis() - ahora
+        return (espera - transcurrido).coerceAtLeast(MINIMO_ENTRE_VUELTAS_MS)
     }
 
     private suspend fun recorrido(r: JSONObject, geo: Geometria, cCfg: JSONObject?, sCfg: JSONObject?, continuo: Boolean = false,

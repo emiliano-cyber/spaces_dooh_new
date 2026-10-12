@@ -82,6 +82,8 @@ CONFIRMAR_MS = 4_000
 CONFIG_CONTINUO_MS = 15 * 60_000
 LOG_CONTINUO_MS = 60 * 60_000
 PAUSA_CONTINUO_MS = 5_000
+# Respiro minimo entre dos vueltas aunque el recorrido dure mas que la frecuencia.
+MINIMO_ENTRE_VUELTAS_MS = 20_000
 # Long.MAX_VALUE del telefono, para los "no toca" del calculo de esperas.
 SIN_LIMITE = 2 ** 63 - 1
 
@@ -457,7 +459,11 @@ class Monitor:
             self.ultima_creativos = ahora
         if toca_s:
             self.ultima_salud = ahora
-        return espera
+        # La frecuencia se cuenta de INICIO a inicio (igual que la APK): antes se
+        # esperaba completa DESPUES del recorrido (4.5 min) y "cada 5 min" eran 9.5.
+        if continuo:
+            return espera
+        return max(espera - (self.reloj.ahora_ms() - ahora), MINIMO_ENTRE_VUELTAS_MS)
 
     def recorrido(self, r, geo, c_cfg, s_cfg, continuo=False, aviso_cfg=None):
         base = c_cfg if c_cfg is not None else s_cfg
