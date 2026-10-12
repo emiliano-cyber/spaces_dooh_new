@@ -5,6 +5,30 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-10-11
+
+- **Space Eyes abre más rápido** *(cambio de José, para la presentación del
+  14)*. Al abrir un equipo se bajaban seis fotos completas del celular, de 2
+  a 5 MB cada una, solo para pintar los cuadritos de «Recientes». Ahora la
+  lista y esos cuadritos usan la miniatura que Space Eye ya guarda, y la foto
+  grande aparece al instante en versión ligera y se completa al terminar de
+  bajar.
+- **La ficha de un equipo de Space Eyes ya no falla con su ubicación**
+  *(cambio de José)*. Cuando el teléfono de g500 mandó su ubicación por
+  primera vez, la página entera mostró «Application error»: la ubicación
+  llegaba como texto y la pantalla esperaba un número.
+- **En el servidor principal, las solicitudes de activación de Space Eyes se
+  ven dentro de su pantalla** *(cambio de José)*. Cada solicitud trae la
+  orden para activarla lista para copiar; activar sigue pidiendo la frase de
+  paso. Las empresas no lo ven: solo existe en el servidor principal.
+  - **Se quitaron de ese cambio dos guiones** que conectaban g500 a un
+    servidor de cámaras externo. Eran del diseño anterior: Space Eye ya vive
+    dentro de g500, y correrlos lo habría desconectado de él.
+- **Lo que sigue pendiente de José** (revisión del 11/10): un parpadeo de la
+  foto al usar «Tomar foto», subir al repositorio la versión de Space Eye que
+  corre en g500, y proteger las cookies de la aplicación en la configuración
+  de g500. El detalle está en la bóveda (diario del 11/10).
+
 ## 2026-10-09
 
 - **Se publicó la versión v0.11.3** (las comas de miles al ver y al teclear

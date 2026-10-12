@@ -1,10 +1,18 @@
 ---
 tipo: tablero
 estado: verificado
-actualizado: 2026-10-09
+actualizado: 2026-10-11
 tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
+
+> [!important] 2026-10-11 · **`v0.11.4` en integración: dos ramas de Space Eyes de José, para el 14**
+> `integra/v0-11-4` = `main` + `fix/space-eyes-fotos-rapidas` + `fix/space-eyes-solicitudes-en-padre`,
+> **sin** `conectar-g500/` (diseño anterior). `feat/space-eyes-en-hijo-existente` espera a después
+> de la demo (ÁMBAR: la tarjeta de alta no copia `space-eyes.conf`; toca nginx, R6). Pendientes de
+> José: parpadeo al «Tomar foto», subir la imagen `0.16.18-local` de g500 al repo, cookies en
+> `space-eyes.conf`. g500 a 2 GB, decidido por el dueño. Zonas: Z3 la tiene José en su rama; el
+> resto LIBRES. Detalle en [[07-Agentes/diario/2026-10-11]].
 
 > [!warning] 2026-10-09 · **`v0.11.3` en `estable` (`03aadf22`); g500 sigue en `v0.11.1`**
 > El 08/10 salieron cuatro versiones (`v0.11.0` Space Eyes … `v0.11.3` coma de

@@ -1,5 +1,19 @@
 [
   {
+    "version": "v0.11.4",
+    "fecha": "2026-10-11",
+    "items": [
+      {
+        "tipo": "AJUSTADO",
+        "texto": "Space Eyes abre más rápido: la lista de equipos y las fotos recientes usan una versión ligera de cada foto, y la foto grande aparece al instante y se completa al terminar de bajar."
+      },
+      {
+        "tipo": "CORREGIDO",
+        "texto": "La ficha de un equipo de Space Eyes ya no falla cuando el teléfono manda su ubicación."
+      }
+    ]
+  },
+  {
     "version": "v0.11.3",
     "fecha": "2026-10-08",
     "items": [
