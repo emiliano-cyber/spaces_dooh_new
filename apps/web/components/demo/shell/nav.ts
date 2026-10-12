@@ -308,3 +308,14 @@ export const NAV: NavItem[] = [
 //
 // Se reexportan para no tocar a quien ya los importaba de aqui.
 export { ROLES_ASIGNABLES as ROLES, rolLabel }
+
+// El ítem del menú que se enciende en `here` (ruta sin basePath ni barra final).
+// Una sección queda activa en su página y en cualquier subruta (detalle), p. ej.
+// /operaciones/ot/123 marca «Operaciones»; si dos coinciden, gana el href más
+// largo, como en `AuthGate`. Sin eso, en /space-eyes/galeria se encendían
+// «Equipos» (/space-eyes) y «Galería» a la vez (g500, 12/10). La raíz ('/')
+// solo coincide exacta para no encenderse en todas las rutas.
+export function hrefActivo(here: string, hrefs: string[]): string | null {
+  const coincide = (h: string) => here === h || (h !== '/' && here.startsWith(h + '/'))
+  return hrefs.filter(coincide).sort((a, b) => b.length - a.length)[0] ?? null
+}

@@ -10,7 +10,7 @@ import { TOKEN_TELCO, useConfigNegocio } from '@/lib/data/client'
 import { useIdioma } from '@/lib/i18n/contexto'
 import { DICCIONARIOS as DIC, type ClaveTexto } from '@/lib/i18n/diccionario'
 import { useSesionCtx } from './SesionContext'
-import { NAV, GRUPOS } from './nav'
+import { NAV, GRUPOS, hrefActivo } from './nav'
 import { useMenuMovil } from './MenuMovilContext'
 
 // Globo con el nombre de la opción, para el sidebar colapsado. Va por el portal
@@ -87,13 +87,9 @@ function SidebarContent({
   // Normaliza el basePath para marcar el activo.
   const norm = (p: string) => p.replace(/\/spaces-dooh/, '').replace(/\/$/, '') || '/'
   const here = norm(pathname ?? '/')
-  // Una sección queda activa en su página y en cualquier subruta (detalle), p.
-  // ej. /operaciones/ot/123 marca "Operaciones". La raíz ('/') solo coincide
-  // exacto para no encenderse en todas las rutas.
-  const esActivo = (href: string) => {
-    const h = norm(href)
-    return here === h || (h !== '/' && here.startsWith(h + '/'))
-  }
+  // UN solo ítem encendido: el de href más largo (ver `hrefActivo`).
+  const activo = hrefActivo(here, items.map((n) => norm(n.href)))
+  const esActivo = (href: string) => norm(href) === activo
 
   return (
     <TooltipPrimitive.Provider delayDuration={150} skipDelayDuration={300}>
