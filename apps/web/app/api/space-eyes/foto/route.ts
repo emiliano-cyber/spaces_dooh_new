@@ -69,9 +69,11 @@ export async function GET(req: Request) {
       headers: {
         'Content-Type': r.headers.get('content-type') ?? 'image/jpeg',
         // Privada: es la foto de la pantalla de un cliente detrás de sesión, y
-        // no puede quedar en una caché compartida. Cinco minutos evitan la
-        // ráfaga de abrir y cerrar la ficha sin servir nada rancio.
-        'Cache-Control': 'private, max-age=300',
+        // no puede quedar en una caché compartida. Una hora: Space Eye firma por
+        // bloques de una hora, así que la misma foto conserva la misma dirección
+        // ese tiempo y volver a abrir la ficha la pinta desde la caché. Una foto
+        // no cambia nunca: lo nuevo llega con otra dirección.
+        'Cache-Control': 'private, max-age=3600',
         'Content-Disposition': 'inline',
       },
     })

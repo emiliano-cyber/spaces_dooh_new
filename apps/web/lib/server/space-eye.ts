@@ -132,6 +132,8 @@ interface SEDevice {
 interface SEPhoto {
   device_id: number
   storage_path: string
+  /** La miniatura de 400 px que Space Eye guarda al recibir la foto. */
+  thumbnail_path?: string | null
   taken_at: string | null
   width: number | null
   height: number | null
@@ -222,7 +224,7 @@ export interface SEEquipoResumen {
   redTipo: string | null
   ultimaConexion: string | null
   estatus: string | null
-  ultimaFoto: { url: string; tomadaEn: string | null; giro: number } | null
+  ultimaFoto: { url: string; miniatura: string; tomadaEn: string | null; giro: number } | null
   /** Si se actualiza sin que nadie toque el equipo (ver lib/space-eyes-actualizacion). */
   actualizacion: ComoSeActualiza
 }
@@ -252,6 +254,8 @@ export interface SEFotoModulo {
   score: number | null
   gps: { lat: number; lng: number } | null
   giro: number
+  /** La miniatura: lo que se pinta primero y en las tiras de recientes. */
+  miniatura: string
 }
 
 interface SEDeviceFila extends SEDevice {
@@ -281,6 +285,16 @@ export function urlDeFoto(storagePath: string): string {
   return `/spaces-dooh/api/space-eyes/foto/?p=${encodeURIComponent(storagePath)}`
 }
 
+/**
+ * La miniatura de una foto (400 px, unos 30 KB), o la foto si no la tiene.
+ * Abrir una ficha bajaba seis fotos completas del celular (2-5 MB cada una)
+ * solo para pintar recuadros de 56 px: con 1 GB de servidor tardaba segundos
+ * (g500, 11/10/2026).
+ */
+export function miniaturaDe(f: { storage_path: string; thumbnail_path?: string | null }): string {
+  return urlDeFoto(f.thumbnail_path || f.storage_path)
+}
+
 /** La dirección real, que solo se usa del lado del servidor. */
 export function urlAbsolutaDeFoto(storagePath: string): string {
   return `${BASE}${storagePath}`
@@ -299,7 +313,9 @@ function resumen(d: SEDeviceFila, foto?: SEPhoto): SEEquipoResumen {
     redTipo: d.network_type ?? null,
     ultimaConexion: d.last_seen_at ?? null,
     estatus: d.status ?? null,
-    ultimaFoto: foto ? { url: urlDeFoto(foto.storage_path), tomadaEn: foto.taken_at, giro: giroDeFoto(foto) } : null,
+    ultimaFoto: foto
+      ? { url: urlDeFoto(foto.storage_path), miniatura: miniaturaDe(foto), tomadaEn: foto.taken_at, giro: giroDeFoto(foto) }
+      : null,
     actualizacion: comoSeActualiza({
       app_version: d.app_version ?? null,
       app_version_code: d.app_version_code ?? null,
@@ -389,6 +405,7 @@ export async function equipoDetalle(id: number): Promise<SEEquipoDetalle | null>
     datos: u ? { movilMes: u.data_mobile_month ?? null, wifiMes: u.data_wifi_month ?? null } : null,
     fotos: fotos.map((p) => ({
       url: urlDeFoto(p.storage_path),
+      miniatura: miniaturaDe(p),
       tomadaEn: p.taken_at,
       ancho: p.width,
       alto: p.height,

@@ -188,26 +188,45 @@ export function gigas(bytes: number | null): string {
 //
 // El padre pone el tamaño (`relative aspect-…`); esto lo llena entero. Sin
 // `loading="lazy"`: dentro de un contenedor de tamaño Chrome nunca la carga.
+//
+// `previa`: la miniatura (400 px, ya en caché casi siempre) que se pinta al
+// instante mientras baja la foto completa del celular (2-5 MB); al llegar esta,
+// la reemplaza. Sin ella, abrir una ficha era ver un recuadro negro varios
+// segundos (g500, 11/10/2026).
 export function FotoGirada({
   src,
   alt,
   giro = 0,
   className,
   onError,
+  previa,
 }: {
   src: string
   alt: string
   giro?: number
   className?: string
   onError?: () => void
+  previa?: string
 }) {
   const g = ((Math.round(giro) % 360) + 360) % 360
   const acostada = g === 90 || g === 270
   const [vertical, setVertical] = useState(false)
+  const [cargada, setCargada] = useState<string | null>(null)
+  const esperando = !!previa && previa !== src && cargada !== src
   const caja = { width: acostada ? '100cqh' : '100cqw', height: acostada ? '100cqw' : '100cqh' }
   const girar = `translate(-50%, -50%)${g ? ` rotate(${g}deg)` : ''}`
   return (
     <div className="absolute inset-0 overflow-hidden bg-[#12100e]" style={{ containerType: 'size' }}>
+      {esperando && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={previa}
+          alt=""
+          aria-hidden
+          className="absolute left-1/2 top-1/2 max-w-none object-contain"
+          style={{ ...caja, transform: girar }}
+        />
+      )}
       {vertical && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -227,10 +246,12 @@ export function FotoGirada({
           const { naturalWidth: w, naturalHeight: h } = e.currentTarget
           // Vertical tal como se ve: con un giro de 90° se intercambian.
           setVertical(acostada ? w > h : h > w)
+          setCargada(src)
         }}
         className={cn(
           'absolute left-1/2 top-1/2 max-w-none',
           vertical ? 'object-contain' : 'object-cover',
+          esperando && 'opacity-0',
           className,
         )}
         style={{ ...caja, transform: girar }}
