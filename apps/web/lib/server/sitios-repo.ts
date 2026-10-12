@@ -103,7 +103,8 @@ export function rowToSitio(r: any, modalidades: any[] = [], conMedia = true, rej
     imagenPromocional: conMedia ? r.imagen_promocional : null,
     // Para que la ficha sepa si hay galería que pedir sin traérsela: sin esto,
     // «todavía no cargó» y «no tiene fotos» se ven igual.
-    tieneFotos: (r.fotos?.length ?? 0) > 0,
+    // Los listados no traen `fotos` y mandan `tiene_fotos` ya calculado.
+    tieneFotos: r.tiene_fotos ?? (r.fotos?.length ?? 0) > 0,
     notas: r.notas,
     modalidades: modalidades.map((m) => m.unidad),
     modalidadesDetalle: modalidades.map((m) => ({
@@ -221,13 +222,47 @@ function valoresDe(s: any): unknown[] {
 // mismo texto libre que pudieran divergir.
 
 // ─── Lectura ────────────────────────────────────────────────────────────────
+
+// Las columnas de `sitios` MENOS la media, para los listados. Cierra el
+// pendiente que dejaba el comentario de `conMedia`: el tráfico Postgres→Node.
+// Medido en g500 el 12/10: una pantalla con 10.4 MB de fotos dejaba
+// `/api/sitios` en 3.1 s y `/api/estado` en 7 s, porque `s.*` las sacaba de
+// Postgres para tirarlas en `rowToSitio`. En local: 1069 ms con `s.*`, 1 ms sin.
+//
+// Se leen del catálogo y no se escriben a mano por lo mismo que allí se dice:
+// una columna olvidada pasaría a `undefined` en todo el inventario sin que nada
+// falle. Una vez por proceso; una migración nueva llega con un proceso nuevo.
+// Los nombres vienen de `pg_attribute` y van con `quote_ident`.
+let columnasSinMedia: Promise<string> | null = null
+function columnasDeListado(): Promise<string> {
+  columnasSinMedia ??= q<{ c: string }>(
+    `select string_agg('s.' || quote_ident(attname), ', ' order by attnum) as c
+       from pg_attribute
+      where attrelid = 'sitios'::regclass and attnum > 0 and not attisdropped
+        and attname not in ('fotos', 'imagen_promocional')`,
+  ).then(
+    (r) => r[0].c,
+    (e) => {
+      columnasSinMedia = null
+      throw e
+    },
+  )
+  return columnasSinMedia
+}
+// `pg_column_size` lee el tamaño guardado sin traer el valor. Medido en
+// Postgres el 12/10: un `text[]` vacío ocupa 13 bytes en disco (cabecera corta)
+// y 16 como literal; con UN elemento, aunque sea '', ya son 25. El corte en 20
+// separa los dos casos con margen. No se compara contra `'{}'::text[]`: ése
+// mide 16 y no 13, y acertaba solo por casualidad.
+const TIENE_FOTOS = `pg_column_size(s.fotos) > 20 as tiene_fotos`
+
 export async function listarSitios(): Promise<any[]> {
   // ADR 0008: los dos conteos miran FECHAS (`fecha_fin >= current_date`). Sin
   // ese filtro, una campaña terminada hace dos años seguía ocupando su slot y el
   // inventario envejecía hacia "todo lleno". Aquí no hay un periodo que vender,
   // así que el criterio es "vigente hoy o a futuro".
   const sitios = await q(
-    `select s.*,
+    `select ${await columnasDeListado()}, ${TIENE_FOTOS},
             (select count(distinct r.campana_id) from reservas r
               where r.sitio_id = s.id and r.estatus <> 'CANCELADA'
                 and r.fecha_fin >= current_date) as campanas_activas,
@@ -269,7 +304,8 @@ export async function listarSitios(): Promise<any[]> {
 export async function listarSitiosRed(): Promise<any[]> {
   const yo = await tenantActual()
   const sitios = await q(
-    `select s.*, t.nombre as dueno_tenant, (s.tenant_id = $1) as es_propio
+    `select ${await columnasDeListado()}, ${TIENE_FOTOS},
+            t.nombre as dueno_tenant, (s.tenant_id = $1) as es_propio
        from sitios s left join tenants t on t.id = s.tenant_id
       order by s.creado_en asc`,
     [yo],

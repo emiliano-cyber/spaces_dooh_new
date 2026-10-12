@@ -7,6 +7,14 @@ La entrada más reciente va arriba.
 
 ## 2026-10-12
 
+- **Inventario, Comercial y el arranque de la aplicación, más rápidos.** Con
+  muchas fotos en una pantalla, cada lista de pantallas las leía enteras de la
+  base aunque no las mostrara. En g500 una pantalla con 10 MB de fotos hacía
+  que cada página tardara de 5 a 7 segundos en aparecer. Ahora las listas no
+  las leen; las fotos se siguen viendo igual al abrir la ficha de la pantalla.
+- **El menú marca una sola opción en Space Eyes.** En Galería, Gráficas,
+  Fallas y las demás, «Equipos» se quedaba resaltado a la vez que la página
+  abierta.
 - **Nuevo texto en la presentación de Space Eyes.** Debajo del título, en
   lugar de la explicación del equipo junto a cada pantalla, ahora dice:
   «Incidencias reportadas antes de que voltee a ver el sitio.» y «Campaña

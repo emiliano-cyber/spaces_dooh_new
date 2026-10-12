@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-10-12
 tags: [backend, inventario, sitios, amarillo]
 archivos:
   - apps/web/lib/server/sitios-repo.ts
@@ -168,11 +168,21 @@ La galería se pide a **`GET /api/sitios/[id]/media`** (permiso `network.ver`, e
 mismo con el que la rebanada viaja; `media/route.ts:31`) y la carga `SiteFicha`
 al abrirse.
 
-> [!note] Por qué el `select s.*` se quedó como estaba
-> Convertirlo en lista explícita son ~48 columnas. Cambiar un peso medido por el
-> riesgo de que a alguien se le caiga una y ese campo pase a `undefined` en todo
-> el inventario no compensa. Lo que sobraba —el peso de la RESPUESTA— se corta
-> en el mapper; el tráfico Postgres→Node sigue ahí y está anotado en el código.
+> [!note] El `select s.*` se quitó el 12/10, y sin lista a mano
+> Se dejó el 10/08 porque una lista explícita son ~48 columnas y se le puede
+> caer una. Pero el tráfico Postgres→Node que quedaba pendiente **se notó en
+> g500**: una pantalla con **10.4 MB** de fotos dejaba `/api/sitios` en 3.1 s y
+> `/api/estado` en 7 s (en local, 1069 ms contra 1 ms sin las fotos).
+>
+> Ahora `listarSitios` y `listarSitiosRed` piden
+> `columnasDeListado()` (`sitios-repo.ts`): las columnas de `sitios` leídas de
+> `pg_attribute` **menos** `fotos` e `imagen_promocional`, una vez por proceso.
+> Así una columna nueva entra sola. `tieneFotos` sale de
+> `pg_column_size(s.fotos) > 20`, que no trae el valor: un `text[]` vacío mide
+> 13 bytes en disco y uno con un elemento, 25 o más.
+>
+> Lo fijan `sitios-repo.listado-sin-media.test.ts` (el SQL no lee la media) y
+> `hidratacion-ligera.e2e.test.ts` (fotos frente a arreglo vacío).
 
 ## Estados
 
