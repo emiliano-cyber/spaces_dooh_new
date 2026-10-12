@@ -110,7 +110,7 @@ AGRUPAR_DESDE = 3            # desde cuantos gabinetes con la misma falla se agr
 # degradado y las nubes le cambian la luz. Lo que la delata: un anuncio tiene
 # BORDES y un reflejo es liso. Se compara con lo NORMAL de ese sitio (lo lleva
 # el Monitor), porque el valor absoluto depende de cuanto ocupa la pantalla.
-SIN_CONTENIDO = 0.3
+SIN_CONTENIDO = 0.4
 
 
 def textura_bordes(t):

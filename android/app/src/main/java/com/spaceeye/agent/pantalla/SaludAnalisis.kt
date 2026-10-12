@@ -83,7 +83,7 @@ object SaludAnalisis {
      * pantalla en la foto. Medido con fotos reales: Santa Monica apagada 2.2
      * contra 30-58 encendida; Tlalpan encendida y deslavada por el sol, minimo 14.
      */
-    const val SIN_CONTENIDO = 0.3
+    const val SIN_CONTENIDO = 0.4
 
     /** Media de |Laplaciano| (3x3) sobre la toma suavizada (3x3): cuantos bordes tiene. */
     fun textura(t: Imagen): Double {
