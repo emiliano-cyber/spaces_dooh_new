@@ -95,6 +95,12 @@ class Monitor(
     // Vueltas en que la pantalla se vio funcionando desde que se empezo a
     // aprender. La primera siempre es de aprendizaje.
     private var vueltasSalud = 0
+    /**
+     * La textura de bordes de ESTA pantalla en sus vueltas sanas (promedio movil).
+     * Con ella se reconoce la pantalla apagada de dia, que no se ve negra: ver
+     * SaludAnalisis.SIN_CONTENIDO. Vale para un encuadre; se olvida si cambia.
+     */
+    private var texturaNormal: Double? = null
 
     // Fotos de creativos nuevos que esperan su envio agrupado (envio_min).
     private val lote = LoteCreativos(dir) { System.currentTimeMillis() }
@@ -153,6 +159,7 @@ class Monitor(
         try { if (estadoArchivo.exists()) JSONObject(estadoArchivo.readText()).let {
             firmaSeguimiento = it.optString("firma"); desdeSeguimiento = it.optLong("desde")
             vueltasSalud = it.optInt("vueltas")
+            texturaNormal = it.optDouble("textura", Double.NaN).takeIf { t -> !t.isNaN() && t > 0 }
             it.optJSONObject("estado")?.let { e -> seguimiento.deJson(e) }
         } } catch (_: Exception) {}
 
@@ -460,6 +467,7 @@ class Monitor(
             firmaSeguimiento = firmaEncuadre + "|" + desdeServidor
             desdeSeguimiento = System.currentTimeMillis()
             vueltasSalud = 0
+            texturaNormal = null
         }
         // "|fuera": las referencias viejas se tomaron con la pantalla incluida;
         // con este sufijo se vuelven a tomar solo con lo de alrededor.
@@ -473,7 +481,7 @@ class Monitor(
         val camaraEstado = revision.revisar(vistazos, geo)
         val excluir = geo.excluir + seguimiento.excluidas()
         val resultado = if (camaraEstado == Seguimiento.Camara.OK)
-            SaludAnalisis.analizar(vistazos.map { it.salud }, geo.filas, geo.columnas, excluir) else null
+            SaludAnalisis.analizar(vistazos.map { it.salud }, geo.filas, geo.columnas, excluir, texturaNormal) else null
 
         val abiertas = mutableMapOf<String, Long>()
         cfg.optJSONArray("abiertas")?.let { a -> for (i in 0 until a.length()) a.getJSONObject(i).let { o ->
@@ -494,7 +502,14 @@ class Monitor(
             Seguimiento.Observacion(resultado, camaraEstado, geo.filas, geo.columnas),
             aprendiendo, silenciadas, cfg.optInt("restantes_hoy", 6))
 
-        if (resultado?.pantalla == SaludAnalisis.Pantalla.OK) vueltasSalud++
+        if (resultado?.pantalla == SaludAnalisis.Pantalla.OK) {
+            vueltasSalud++
+            // Lo normal de este sitio, solo con vueltas sanas y sin interrupciones.
+            if (!interrumpida && resultado.textura > 0) {
+                val t = resultado.textura
+                texturaNormal = texturaNormal?.let { it * 0.8 + t * 0.2 } ?: t
+            }
+        }
 
         val ultimo = vistazos.lastOrNull()
         for (e in eventos) {
@@ -550,6 +565,8 @@ class Monitor(
             .put("vistazos_usados", vistazos.size)
             .put("interrumpida", interrumpida)
             .put("cambios", resultado?.cambios ?: 0)
+            .put("textura", resultado?.textura?.let { Math.round(it * 100) / 100.0 } ?: 0.0)
+            .put("textura_normal", texturaNormal?.let { Math.round(it * 100) / 100.0 } ?: 0.0)
             .put("aprendiendo", aprendiendo)
             // Si Android le niega la camara en segundo plano, la vuelta no ve nada
             // y hay que decirlo: si no, el dashboard solo muestra "no se pudo juzgar".
@@ -571,7 +588,8 @@ class Monitor(
     private fun guardarEstado() {
         try {
             estadoArchivo.writeText(JSONObject().put("firma", firmaSeguimiento).put("desde", desdeSeguimiento)
-                .put("vueltas", vueltasSalud).put("estado", seguimiento.aJson()).toString())
+                .put("vueltas", vueltasSalud).put("textura", texturaNormal ?: 0.0)
+                .put("estado", seguimiento.aJson()).toString())
         } catch (_: Exception) {}
     }
 

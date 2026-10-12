@@ -299,7 +299,8 @@ def test_aprende_abre_el_gabinete_apagado_y_lo_recupera(entorno):
     # Lo aprendido quedo bajo --dir con el mismo JSON que el telefono.
     with open(os.path.join(d, "seguimiento.json"), encoding="utf-8") as f:
         estado = json.load(f)
-    assert set(estado) == {"firma", "desde", "vueltas", "estado"}
+    assert set(estado) == {"firma", "desde", "vueltas", "textura", "estado"}
+    assert estado["textura"] > 0   # aprendio la textura normal de la pantalla
     assert set(estado["estado"]) == {"candidatos", "abiertas", "celdas", "ultima"}
 
 

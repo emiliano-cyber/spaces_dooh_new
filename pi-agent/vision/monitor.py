@@ -298,6 +298,9 @@ class Monitor:
         # Vueltas en que la pantalla se vio funcionando desde que se empezo a
         # aprender. La primera siempre es de aprendizaje.
         self.vueltas_salud = 0
+        # Textura de bordes de ESTA pantalla en sus vueltas sanas (promedio movil):
+        # reconoce la pantalla apagada de dia. Vale para un encuadre.
+        self.textura_normal = None
 
         self.ultima_creativos = 0
         self.ultima_salud = 0
@@ -324,6 +327,8 @@ class Monitor:
                 self.firma_seguimiento = opt_str(j, "firma")
                 self.desde_seguimiento = opt_long(j, "desde", 0)
                 self.vueltas_salud = opt_int(j, "vueltas", 0)
+                t = j.get("textura")
+                self.textura_normal = float(t) if isinstance(t, (int, float)) and t > 0 else None
                 e = opt_obj(j, "estado")
                 if e is not None:
                     self.seguimiento.de_json(e)
@@ -647,6 +652,7 @@ class Monitor:
             self.firma_seguimiento = firma_encuadre + "|" + desde_servidor
             self.desde_seguimiento = self.reloj.ahora_ms()
             self.vueltas_salud = 0
+            self.textura_normal = None
         # "|fuera": las referencias se toman solo con lo de alrededor de la pantalla.
         self.revision.abrir(firma_encuadre + "|fuera")
         # Aprende la primera vuelta en que vea la pantalla funcionando, y ademas
@@ -657,7 +663,8 @@ class Monitor:
 
         camara_estado = self.revision.revisar(vistazos, geo)
         excluir = set(geo.excluir) | set(self.seguimiento.excluidas())
-        resultado = salud_analisis.analizar([v.salud for v in vistazos], geo.filas, geo.columnas, excluir) \
+        resultado = salud_analisis.analizar([v.salud for v in vistazos], geo.filas, geo.columnas, excluir,
+                                            self.textura_normal) \
             if camara_estado == Camara.OK else None
 
         abiertas = {}
@@ -683,6 +690,9 @@ class Monitor:
 
         if resultado is not None and resultado.pantalla == Pantalla.OK:
             self.vueltas_salud += 1
+            if not interrumpida and resultado.textura > 0:
+                t = resultado.textura
+                self.textura_normal = t if self.textura_normal is None else self.textura_normal * 0.8 + t * 0.2
 
         ultimo = vistazos[-1] if vistazos else None
         for e in eventos:
@@ -748,6 +758,8 @@ class Monitor:
             "vistazos_usados": len(vistazos),
             "interrumpida": interrumpida,
             "cambios": resultado.cambios if resultado is not None else 0,
+            "textura": round(resultado.textura, 2) if resultado is not None else 0.0,
+            "textura_normal": round(self.textura_normal, 2) if self.textura_normal else 0.0,
             "aprendiendo": aprendiendo,
             # En la Pi nadie le niega la camara a la vigilancia.
             "camara_permitida": True,
@@ -829,7 +841,8 @@ class Monitor:
     def guardar_estado(self):
         try:
             _escribir_json(self.estado_archivo, {"firma": self.firma_seguimiento, "desde": self.desde_seguimiento,
-                                                 "vueltas": self.vueltas_salud, "estado": self.seguimiento.a_json()})
+                                                 "vueltas": self.vueltas_salud, "textura": self.textura_normal or 0.0,
+                                                 "estado": self.seguimiento.a_json()})
         except Exception:
             pass
 
