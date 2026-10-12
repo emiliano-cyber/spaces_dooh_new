@@ -38,7 +38,8 @@ import {
   actualizarConfigApi,
   type PermisosMatriz,
 } from '@/lib/data/admin-api'
-import { useActualizarConfig, useSitios } from '@/lib/data/client'
+import Link from 'next/link'
+import { useActualizarConfig, useSitios, useEntidadesFiscales } from '@/lib/data/client'
 import type { RolDemo, UsuarioDemo, ConfigNegocio } from '@/lib/data/client'
 import type { TipoOT } from '@/lib/data/types'
 import { validarPassword, REGLA_PASSWORD } from '@/lib/password'
@@ -732,6 +733,10 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
       // formulario: sin esta sincronización el menú seguía con la imagen vieja
       // hasta recargar la página.
       if ('logoUrl' in cambios) sincronizarConfig({ logoUrl: c.logoUrl })
+      // El encabezado de Inicio lee la razón social del store, igual que el logo.
+      if ('entidadPrincipalId' in cambios || 'rfc' in cambios) {
+        sincronizarConfig({ razonSocial: c.razonSocial, entidadPrincipalId: c.entidadPrincipalId })
+      }
       if (msg) onToast(msg)
       return true
     } catch (e) {
@@ -894,11 +899,7 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
             </span>
           </Campo>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Campo label="Razón social">
-              <input className={inputCls} value={config.razonSocial ?? ''} placeholder="p. ej. RGB Catorce S de RL de CV"
-                onChange={(e) => setConfig({ ...config, razonSocial: e.target.value })}
-                onBlur={(e) => guardar({ razonSocial: e.target.value.trim() || null }, 'Razón social actualizada')} />
-            </Campo>
+            <RazonSocialPrincipal config={config} guardar={guardar} />
             <Campo label="Nombre comercial">
               <input className={inputCls} value={config.nombreComercial ?? ''} placeholder="p. ej. PIXELED"
                 onChange={(e) => setConfig({ ...config, nombreComercial: e.target.value })}
@@ -1228,6 +1229,45 @@ const CAMPOS_CONTRATO = [
   ['representanteLegal', 'Representante legal'],
 ] as const
 
+// La razón social de la empresa NO se escribe aquí: se ELIGE de «Razones
+// sociales» (20261012_razon_social_principal.sql). Antes era un texto libre que
+// vivía aparte de esa lista, y agregar o renombrar una razón social allá no se
+// enteraba aquí. Ahora es la misma fila, así que no pueden discrepar.
+//
+// Solo se ofrecen las activas: la principal no se puede dar de baja (el
+// servidor lo impide con 409), y elegir una retirada la volvería a poner en
+// los contratos sin que nadie la reactivara a propósito.
+function RazonSocialPrincipal({
+  config, guardar,
+}: {
+  config: ConfigNegocio
+  guardar: (cambios: Partial<ConfigNegocio>, msg?: string) => Promise<boolean>
+}) {
+  const entidades = useEntidadesFiscales()
+  const activas = (entidades ?? []).filter((e) => e.activo)
+  const elegida = config.entidadPrincipalId ?? ''
+  return (
+    <Campo label="Razón social">
+      {activas.length > 0 ? (
+        <select className={inputCls} value={elegida}
+          onChange={(e) => { if (e.target.value) void guardar({ entidadPrincipalId: e.target.value }, 'Razón social actualizada') }}>
+          {!elegida && <option value="">Elige la razón social de la empresa</option>}
+          {activas.map((e) => (
+            <option key={e.id} value={e.id}>{e.razonSocial}</option>
+          ))}
+        </select>
+      ) : (
+        <div className="flex h-9 items-center rounded border border-border bg-surface-2 px-3 text-[13px] text-muted">
+          {entidades === undefined ? 'Cargando…' : 'Todavía no hay razones sociales'}
+        </div>
+      )}
+      <Link href="/razones-sociales" className="mt-1 inline-block text-[11px] font-medium text-accent hover:underline">
+        + Agregar o editar en Razones sociales
+      </Link>
+    </Campo>
+  )
+}
+
 function DatosFiscales({
   config, setConfig, guardar,
 }: {
@@ -1291,7 +1331,8 @@ function DatosFiscales({
           'p. ej. escritura pública 12,345 del 3 de marzo de 2014, ante el notario 45 de Guadalajara, Jalisco',
           'Datos de constitución actualizados', true)}
         <span className="-mt-1 block text-[11px] text-muted">
-          La razón social se captura arriba, en «Identidad de la empresa».
+          El RFC es el de la razón social principal: cambiarlo aquí lo cambia también en «Razones sociales».
+          La razón social se elige arriba, en «Identidad de la empresa».
         </span>
       </CardContent>
     </Card>

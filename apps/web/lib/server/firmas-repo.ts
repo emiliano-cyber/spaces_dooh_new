@@ -4,6 +4,7 @@ import { pool, q, q1, fijarTenant, qRaw1, qConTenant } from './db'
 import { tenantActual } from './tenant'
 import { AppError } from './errores'
 import { expedienteContrato } from './contrato-expediente'
+import { JOIN_PRINCIPAL } from './config-repo'
 import { documentoATexto, fechaISO } from '@/lib/contrato-documento'
 import { rutaLogo } from '@/lib/medios-url'
 
@@ -94,11 +95,12 @@ export async function enviarAFirma(contratoId: string): Promise<{ token: string 
     const token = randomBytes(32).toString('hex')
     const nombres = await client.query(
       `select coalesce(rs.razon_social, a.nombre) as arrendador, a.email as correo,
-              coalesce(t.razon_social, t.nombre)  as arrendatario
+              coalesce(ep.razon_social, t.razon_social, t.nombre)  as arrendatario
          from contratos_arrendamiento c
          left join arrendadores a on a.id = c.arrendador_id
          left join arrendador_razon_social rs on rs.id = c.razon_social_id
          join tenants t on t.id = c.tenant_id
+         ${JOIN_PRINCIPAL}
         where c.id = $1`,
       [contratoId],
     )

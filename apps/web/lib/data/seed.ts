@@ -471,6 +471,7 @@ export function buildSeed(): DemoState {
       // llega en `configNegocio` desde /api/estado.
       nombreTenant: '',
       razonSocial: null,
+      entidadPrincipalId: null,
       nombreComercial: null,
       rfc: null,
       domicilioFiscal: null,

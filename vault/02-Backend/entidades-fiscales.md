@@ -1,11 +1,15 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-10-12
 tags: [backend, entidades, fiscal, administracion, tenant, rojo]
 archivos:
   - db/migrations/20260917_entidades_fiscales.sql
   - db/migrations/20260921_corrige_acentos_catalogo_roles_entidad.sql
+  - db/migrations/20261012_razon_social_principal.sql
+  - apps/web/lib/server/config-repo.ts
+  - apps/web/app/api/config/route.ts
+  - apps/web/lib/test/razon-social-principal.e2e.test.ts
   - apps/web/lib/server/entidades-repo.ts
   - apps/web/lib/server/entidades-controller.ts
   - apps/web/app/api/entidades/route.ts
@@ -209,6 +213,46 @@ ya aísla— y tienen que devolver cero filas
 > [!note] 2026-10-05 · los dos últimos puntos eran ciertos el 17/09
 > Se conservan tachados porque la nota se escribió el día del backend y las dos
 > cosas llegaron al día siguiente. Lo que sigue sin hacer es el timbrado.
+
+## La principal: la razón social de la empresa (12/10)
+
+Hasta el 12/10 la razón social de la organización vivía **dos veces sin
+conexión**: como texto libre en `tenants.razon_social` (Administración →
+Identidad de la empresa) y como filas de esta tabla. Agregar o renombrar una en
+«Razones sociales» no se enteraba en Identidad. El dueño pidió que estuvieran
+«espejeadas».
+
+`20261012_razon_social_principal.sql` añade **`tenants.entidad_principal_id`**,
+con FK compuesta `(entidad_principal_id, id) → entidades_fiscales (id,
+tenant_id)` y sin `on delete` (las entidades se dan de baja lógica). Desde ahí:
+
+| Qué | Cómo |
+|---|---|
+| **Leer** la razón social y el RFC de la empresa | De la entidad principal: `JOIN_PRINCIPAL` e `IDENTIDAD_TENANT` en `config-repo.ts`. Los usan Identidad, `/api/estado` (encabezado de Inicio), el contrato (`contrato-expediente.ts`) y la firma (`firmas-repo.ts`). `tenants.razon_social`/`rfc` solo cuentan si **no** hay principal |
+| **Elegir** la principal | `PATCH /api/config` con `entidadPrincipalId`. Tiene que ser de esta organización y estar activa; si no, 400. `razonSocial` ya no se acepta (400 por `.strict()`) |
+| **El RFC** de «Datos fiscales para contratos» | Se escribe **en la entidad principal** (`guardarIdentidadFiscal`), no en `tenants.rfc` |
+| **La primera** que se agrega | Pasa a ser la principal (`principalSiNoHayEnTx`), también desde el cuestionario de bienvenida |
+| **Dar de baja** la principal | 409, por `DELETE` y por `PATCH activo:false`. Primero se elige otra |
+
+**El traslado de la migración**, organización por organización y con
+`set_config('app.tenant_id')` porque la tabla tiene RLS con FORCE:
+
+- con razón social escrita → la busca en la lista sin distinguir mayúsculas ni
+  espacios de los extremos; si no está, la agrega con el RFC de la organización;
+- sin razón social y con **una** sola activa → ésa; con dos o más no adivina;
+- la elegida queda activa y hereda el RFC de la organización si le faltaba.
+
+`tenants.razon_social` y `tenants.rfc` **no se borran** (expandir y luego
+contraer). Probado en `razon-social-principal.e2e.test.ts`: espejo, elección,
+RFC, bajas, aislamiento entre organizaciones y el traslado con su
+idempotencia. Dos mutantes (quitar el candado de la baja y desviar el RFC a
+`tenants`) los cazó, con `npm run build` antes de medir.
+
+> [!warning] Lo que sigue sin hacer
+> El contrato recita la razón social **principal** aunque el contrato tenga otra
+> asignada en `contratos_arrendamiento.entidad_id`: `contrato-expediente.ts` no
+> lee esa columna, igual que antes no la leía. El domicilio, el representante
+> y los datos de constitución siguen en `tenants`, uno por organización.
 
 ## Relacionadas
 

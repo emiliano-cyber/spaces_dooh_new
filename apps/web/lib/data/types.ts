@@ -881,6 +881,10 @@ export interface AccionLog {
 export interface ConfigNegocio {
   nombreTenant: string
   razonSocial: string | null      // razón social fiscal (encabezado del dashboard)
+  // Cuál de «Razones sociales» es la de la empresa. `razonSocial` y `rfc` se
+  // leen de esa entidad (20261012_razon_social_principal.sql); se cambia
+  // eligiendo otra, nunca escribiendo el nombre.
+  entidadPrincipalId: string | null
   nombreComercial: string | null  // nombre comercial / marca (encabezado del dashboard)
   // Datos fiscales de la empresa (parte ARRENDATARIA). Viven en `tenants`, no en
   // `config_negocio`: son POR organización. Solo los devuelve /api/config (panel

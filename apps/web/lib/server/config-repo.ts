@@ -1,5 +1,6 @@
 import 'server-only'
-import { q, q1 } from './db'
+import { q, q1, withTenantTx } from './db'
+import { AppError } from './errores'
 import { tenantActual } from './tenant'
 import { sanearCostosOt } from '../costos-ot'
 import { topeDescuentoValido, TOPE_DESCUENTO_RESPALDO } from '../descuento'
@@ -28,6 +29,7 @@ export function rowToConfig(r: any) {
     // razón social / nombre comercial son POR TENANT (viven en `tenants`); aquí
     // van como placeholder null y se resuelven en obtenerConfig()/…Admin().
     razonSocial: null as string | null,
+    entidadPrincipalId: null as string | null,
     nombreComercial: null as string | null,
     // Datos fiscales: también POR tenant. Solo los rellena obtenerConfigAdmin().
     rfc: null as string | null,
@@ -178,17 +180,40 @@ export async function topeDescuentoDelTenant(): Promise<number> {
 
 export { TOPE_DESCUENTO_RESPALDO }
 
+// ─── La razón social de la organización ES su entidad principal ──────────
+// `tenants.entidad_principal_id` (20261012_razon_social_principal.sql) apunta a
+// una fila de «Razones sociales», y la razón social y el RFC se LEEN de ahí. Si
+// se copiaran, renombrar la entidad dejaría Identidad, el contrato y la firma
+// con el nombre viejo: es el defecto que pidió quitar el dueño el 12/10.
+//
+// El respaldo a `tenants.razon_social`/`tenants.rfc` solo cuenta cuando NO hay
+// principal (una organización con varias entidades y ninguna elegida). Con
+// principal se lee la entidad aunque le falte el RFC: mezclar el RFC de un lado
+// y el nombre de otro sacaría un contrato con dos identidades.
+//
+// Lo usan también `contrato-expediente.ts` y `firmas-repo.ts`; el alias de la
+// tabla de organizaciones tiene que ser `t`.
+export const JOIN_PRINCIPAL =
+  'left join entidades_fiscales ep on ep.id = t.entidad_principal_id and ep.tenant_id = t.id'
+export const IDENTIDAD_TENANT = `t.entidad_principal_id,
+            case when ep.id is not null then ep.razon_social else t.razon_social end as razon_social,
+            case when ep.id is not null then ep.rfc else t.rfc end as rfc`
+
 export async function obtenerConfig() {
   const cfg = rowToConfig(await obtenerConfigRow())
   // Identidad de la organización: siempre de `tenants`. Es la ÚNICA fuente
-  // (ADR 0011), así que esto ya no «pisa» un valor rival — lo rellena.
+  // (ADR 0011), así que esto ya no «pisa» un valor rival — lo rellena. La
+  // razón social sale de la entidad principal (ver IDENTIDAD_TENANT).
   const t = await q1<any>(
-    'select nombre, razon_social, nombre_comercial from tenants where id = $1',
+    `select t.nombre, t.nombre_comercial, ${IDENTIDAD_TENANT}
+       from tenants t ${JOIN_PRINCIPAL}
+      where t.id = $1`,
     [await tenantActual()],
   )
   cfg.nombreTenant = t?.nombre ?? ''
   cfg.razonSocial = t?.razon_social ?? null
   cfg.nombreComercial = t?.nombre_comercial ?? null
+  cfg.entidadPrincipalId = t?.entidad_principal_id ?? null
   // El correo de avisos NO se reparte por /api/estado: ninguna pantalla del
   // shell lo necesita y lo consume el servidor (el cron lo lee de la base, no
   // de aquí). Mismo criterio que los datos fiscales — solo sale por
@@ -212,17 +237,68 @@ export async function obtenerConfig() {
 export async function obtenerConfigAdmin() {
   const cfg = rowToConfig(await obtenerConfigRow())
   const t = await q1<any>(
-    `select nombre, razon_social, nombre_comercial, rfc, domicilio_fiscal,
-            representante_legal, datos_constitucion
-       from tenants where id = $1`,
+    `select t.nombre, t.nombre_comercial, ${IDENTIDAD_TENANT}, t.domicilio_fiscal,
+            t.representante_legal, t.datos_constitucion
+       from tenants t ${JOIN_PRINCIPAL}
+      where t.id = $1`,
     [await tenantActual()],
   )
   cfg.nombreTenant = t?.nombre ?? ''
   cfg.razonSocial = t?.razon_social ?? null
   cfg.nombreComercial = t?.nombre_comercial ?? null
+  cfg.entidadPrincipalId = t?.entidad_principal_id ?? null
   cfg.rfc = t?.rfc ?? null
   cfg.domicilioFiscal = t?.domicilio_fiscal ?? null
   cfg.representanteLegal = t?.representante_legal ?? null
   cfg.datosConstitucion = t?.datos_constitucion ?? null
   return cfg
+}
+
+// Escribe la identidad fiscal que vive en «Razones sociales»: cuál es la
+// principal y su RFC. Devuelve si cambió algo, para el registro de acciones.
+//
+// El RFC de «Datos fiscales para contratos» se escribe EN la entidad principal,
+// no en `tenants.rfc`: es el que se lee (IDENTIDAD_TENANT), y escribirlo en el
+// otro lado haría que el campo «no guardara» sin dar error. Solo sin principal
+// cae en `tenants.rfc`, que es entonces el que se lee.
+//
+// La principal tiene que ser de ESTA organización y estar activa. La FK
+// compuesta ya impide apuntar a la de otra; el `exists` lo convierte en un 400
+// legible y además rechaza una dada de baja, que la FK no ve.
+export async function guardarIdentidadFiscal(cambios: {
+  entidadPrincipalId?: string
+  rfc?: string | null
+}): Promise<boolean> {
+  if (cambios.entidadPrincipalId === undefined && cambios.rfc === undefined) return false
+  const tenantId = await tenantActual()
+  return withTenantTx(async (client) => {
+    if (cambios.entidadPrincipalId !== undefined) {
+      const { rowCount } = await client.query(
+        `update tenants set entidad_principal_id = $1
+          where id = $2
+            and exists (select 1 from entidades_fiscales
+                         where id = $1 and tenant_id = $2 and activo)`,
+        [cambios.entidadPrincipalId, tenantId],
+      )
+      if (!rowCount) {
+        throw new AppError('Esa razón social no existe o está dada de baja.', 400)
+      }
+    }
+    if (cambios.rfc !== undefined) {
+      const { rows } = await client.query(
+        'select entidad_principal_id from tenants where id = $1',
+        [tenantId],
+      )
+      const principal: string | null = rows[0]?.entidad_principal_id ?? null
+      if (principal) {
+        await client.query(
+          'update entidades_fiscales set rfc = $1 where id = $2 and tenant_id = $3',
+          [cambios.rfc, principal, tenantId],
+        )
+      } else {
+        await client.query('update tenants set rfc = $1 where id = $2', [cambios.rfc, tenantId])
+      }
+    }
+    return true
+  })
 }

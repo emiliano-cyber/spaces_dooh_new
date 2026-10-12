@@ -386,6 +386,12 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   // 1 sitio · app/api/energia/recibos/route.ts:50
   'Manda los PDF como formulario, en el campo `archivos`.':
     'Send the PDFs as a form, in the `archivos` field.',
+  // 1 sitio · lib/server/config-repo.ts (guardarIdentidadFiscal)
+  'Esa razón social no existe o está dada de baja.':
+    'That legal entity does not exist or has been deactivated.',
+  // 1 sitio · lib/server/entidades-repo.ts (noEsPrincipalEnTx)
+  'Es la razón social principal de la empresa. Elige otra en Administración → Identidad de la empresa antes de darla de baja.':
+    "It is the company's main legal entity. Choose another one in Administration → Company identity before deactivating it.",
   // 4 sitios · lib/server/arrendadores-controller.ts:412
   'No encontrada':
     'Not found',

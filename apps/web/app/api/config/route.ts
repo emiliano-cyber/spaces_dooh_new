@@ -4,7 +4,7 @@ import { exigir } from '@/lib/server/auth'
 import { q } from '@/lib/server/db'
 import { tenantActual } from '@/lib/server/tenant'
 import { registrarAccion } from '@/lib/server/acciones-repo'
-import { obtenerConfigRow, obtenerConfigAdmin } from '@/lib/server/config-repo'
+import { obtenerConfigRow, obtenerConfigAdmin, guardarIdentidadFiscal } from '@/lib/server/config-repo'
 import { respuestaError, validar } from '@/lib/server/errores'
 import { exigirDesbloqueo, respuestaDesbloqueo } from '@/lib/server/cambios'
 import { LIMITES, uploadZod } from '@/lib/server/uploads'
@@ -87,7 +87,11 @@ const configSchema = z
           .max(99_999_999, 'El costo de una orden de trabajo es demasiado grande')
           .nullable(),
       ),
-    razonSocial: z.string().trim().max(200).nullable(),
+    // La razón social ya no se escribe como texto: Identidad elige cuál de
+    // «Razones sociales» es la principal (20261012_razon_social_principal.sql).
+    // Un cliente viejo que mande `razonSocial` recibe 400 por el `.strict()`, en
+    // vez de escribir una columna que ya nadie lee.
+    entidadPrincipalId: z.string().uuid('Elige una razón social de la lista'),
     nombreComercial: z.string().trim().max(200).nullable(),
     // Datos fiscales de la parte ARRENDATARIA (los recita el contrato).
     rfc: rfcTenant,
@@ -168,6 +172,14 @@ export async function PATCH(req: Request) {
   // y no solo al leer porque dejar basura entrar a la columna es arrastrarla en
   // cada respaldo y que el siguiente que lea el jsonb crudo se la crea.
   if (b.costosOt !== undefined) b.costosOt = JSON.stringify(sanearCostosOt(b.costosOt))
+  // La identidad fiscal va PRIMERO: es la única parte que puede rechazar por
+  // un dato de otra tabla (una principal ajena o dada de baja → 400), y si
+  // fuera al final, ese 400 llegaría con el resto de la petición ya guardado.
+  const identidad = await guardarIdentidadFiscal({
+    entidadPrincipalId: b.entidadPrincipalId as string | undefined,
+    rfc: b.rfc as string | null | undefined,
+  })
+
   const sets: string[] = []
   const vals: unknown[] = []
   for (const [k, col] of Object.entries(map)) {
@@ -187,8 +199,8 @@ export async function PATCH(req: Request) {
   // organización y su única fuente.
   const tenantMap: Record<string, string> = {
     nombreTenant: 'nombre',
-    razonSocial: 'razon_social', nombreComercial: 'nombre_comercial',
-    rfc: 'rfc', domicilioFiscal: 'domicilio_fiscal',
+    nombreComercial: 'nombre_comercial',
+    domicilioFiscal: 'domicilio_fiscal',
     representanteLegal: 'representante_legal', datosConstitucion: 'datos_constitucion',
   }
   const tSets: string[] = []
@@ -204,7 +216,7 @@ export async function PATCH(req: Request) {
     await q(`update tenants set ${tSets.join(', ')} where id = $${tVals.length}`, tVals)
   }
 
-  if (sets.length || tSets.length) {
+  if (sets.length || tSets.length || identidad) {
     await registrarAccion(g.usuario, 'Actualizó configuración', 'Negocio')
   }
   return NextResponse.json(await obtenerConfigAdmin())

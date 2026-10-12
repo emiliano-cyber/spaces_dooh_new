@@ -1,6 +1,7 @@
 import 'server-only'
 import { q, q1, withTenantTx } from './db'
 import { tenantActual } from './tenant'
+import { AppError } from './errores'
 import type { PoolClient } from 'pg'
 
 // ============================================================================
@@ -172,6 +173,7 @@ export async function crearEntidad(input: AltaEntidad): Promise<EntidadFiscal> {
     )
     const creada = rows[0]
     await fijarRolesEnTx(client, creada.id, input.roles ?? [], tenantId)
+    await principalSiNoHayEnTx(client, creada.id, tenantId)
     return { ...filaAEntidad(creada), roles: await rolesEnTx(client, creada.id, tenantId) }
   })
 }
@@ -214,6 +216,8 @@ export async function editarEntidad(
     ]
     const dadas = columnas.filter(([, v]) => v !== undefined)
 
+    if (patch.activo === false) await noEsPrincipalEnTx(client, id, tenantId)
+
     let fila: any
     if (dadas.length) {
       const sets = dadas.map(([c], i) => `${c} = $${i + 1}`)
@@ -253,10 +257,54 @@ export async function editarEntidad(
 // fallaría — dejaría esos documentos sin razón social en silencio, que es peor
 // que un error. Se apaga y deja de ofrecerse al capturar.
 export async function desactivarEntidad(id: string): Promise<boolean> {
-  const rows = await q(
-    `update entidades_fiscales set activo = false
-      where id = $1 and tenant_id = $2 returning id`,
-    [id, await tenantActual()],
+  const tenantId = await tenantActual()
+  return withTenantTx(async (client) => {
+    await noEsPrincipalEnTx(client, id, tenantId)
+    const { rows } = await client.query(
+      `update entidades_fiscales set activo = false
+        where id = $1 and tenant_id = $2 returning id`,
+      [id, tenantId],
+    )
+    return rows.length > 0
+  })
+}
+
+// ─── La principal (20261012_razon_social_principal.sql) ──────────────────
+// `tenants.entidad_principal_id` dice cuál de estas filas es la razón social de
+// la organización: la que se ve en Identidad, la que recita el contrato y la
+// que firma. Ver JOIN_PRINCIPAL en config-repo.ts.
+
+// La PRIMERA razón social que se agrega pasa a ser la principal. Sin esto, una
+// organización nueva tendría la lista llena e Identidad vacía, que es el mismo
+// desajuste que esta columna vino a quitar. Las siguientes no la cambian: eso
+// se decide en Identidad.
+export async function principalSiNoHayEnTx(
+  client: PoolClient,
+  entidadId: string,
+  tenantId: string | null,
+): Promise<void> {
+  await client.query(
+    'update tenants set entidad_principal_id = $1 where id = $2 and entidad_principal_id is null',
+    [entidadId, tenantId],
   )
-  return rows.length > 0
+}
+
+// La principal no se da de baja. Dejarla apagada sacaría de la lista de
+// Identidad la que está elegida, y el contrato seguiría recitando una razón
+// social que la empresa dio por retirada. Primero se elige otra.
+async function noEsPrincipalEnTx(
+  client: PoolClient,
+  entidadId: string,
+  tenantId: string | null,
+): Promise<void> {
+  const { rows } = await client.query(
+    'select 1 from tenants where id = $1 and entidad_principal_id = $2',
+    [tenantId, entidadId],
+  )
+  if (rows.length) {
+    throw new AppError(
+      'Es la razón social principal de la empresa. Elige otra en Administración → Identidad de la empresa antes de darla de baja.',
+      409,
+    )
+  }
 }

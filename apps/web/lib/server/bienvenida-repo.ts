@@ -1,6 +1,7 @@
 import 'server-only'
 import { q, withTenantTx } from './db'
 import { tenantActual } from './tenant'
+import { principalSiNoHayEnTx } from './entidades-repo'
 import type { PoolClient } from 'pg'
 import type { EntidadPlaneada, RolCatalogo, EntidadConRoles } from '@/lib/cuestionario-entidades'
 
@@ -180,6 +181,9 @@ export async function crearEntidadesDelCuestionario(
     for (const entidad of plan) {
       entidades.push(await insertarEntidadEnTx(client, entidad, tenantId))
     }
+    // La primera del cuestionario queda como la razón social de la empresa;
+    // se cambia después en Identidad. Ver `principalSiNoHayEnTx`.
+    if (entidades[0]) await principalSiNoHayEnTx(client, entidades[0].id, tenantId)
     return { ok: true as const, entidades }
   })
 }

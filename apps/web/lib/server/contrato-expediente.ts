@@ -1,6 +1,7 @@
 import 'server-only'
 import { q1 } from './db'
 import { tenantActual } from './tenant'
+import { JOIN_PRINCIPAL } from './config-repo'
 import { generarContrato, fechaISO, type DocumentoContrato } from '@/lib/contrato-documento'
 
 // ============================================================================
@@ -26,7 +27,11 @@ export async function expedienteContrato(
             a.nombre  as arr_nombre,  a.rfc as arr_rfc, a.curp as arr_curp,
             a.direccion as arr_direccion, a.nacionalidad as arr_nacionalidad,
             rs.razon_social as arr_razon_social,
-            t.razon_social as ata_razon_social, t.nombre as ata_nombre, t.rfc as ata_rfc,
+            -- La razón social y el RFC de la parte arrendataria son los de la
+            -- entidad PRINCIPAL; ver JOIN_PRINCIPAL en config-repo.ts.
+            case when ep.id is not null then ep.razon_social else t.razon_social end as ata_razon_social,
+            t.nombre as ata_nombre,
+            case when ep.id is not null then ep.rfc else t.rfc end as ata_rfc,
             t.domicilio_fiscal as ata_domicilio, t.representante_legal as ata_representante,
             t.datos_constitucion as ata_constitucion,
             s.nombre as sitio_nombre, s.codigo_proveedor as sitio_codigo,
@@ -39,6 +44,7 @@ export async function expedienteContrato(
        left join sitios  s on s.id = c.sitio_id
        left join predios p on p.id = c.predio_id
        join tenants t on t.id = c.tenant_id
+       ${JOIN_PRINCIPAL}
       where c.id = $1 and c.tenant_id = $2`,
     [contratoId, tenantId],
   )

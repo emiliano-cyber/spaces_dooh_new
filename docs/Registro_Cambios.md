@@ -11,6 +11,22 @@ La entrada más reciente va arriba.
   lugar de la explicación del equipo junto a cada pantalla, ahora dice:
   «Incidencias reportadas antes de que voltee a ver el sitio.» y «Campaña
   programática comprobada en cuanto se reproduce.». Solo cambia el texto.
+- **La razón social de la empresa ahora se elige de «Razones sociales».** En
+  Administración → Identidad de la empresa, «Razón social» ya no es un texto
+  para escribir: es una lista con las razones sociales activas, y debajo un
+  enlace para agregar o editar. Es el mismo registro, así que si renombras una
+  o le corriges el RFC en «Razones sociales», Identidad, el encabezado de
+  Inicio y los contratos lo ven al momento.
+  - La **primera** razón social que agregas queda como la de la empresa; la
+    cambias en Identidad cuando quieras.
+  - El **RFC** de «Datos fiscales para contratos» es el de esa razón social:
+    cambiarlo en un lado lo cambia en el otro.
+  - La razón social elegida **no se puede dar de baja**: primero elige otra.
+  - Al actualizar, la razón social que ya tenías escrita **se pasa sola** a la
+    lista (si ya estaba, se usa ésa). Si no tenías ninguna escrita y en la
+    lista hay varias, la eliges tú en Identidad.
+  - El **nombre comercial** se queda en Identidad: es la marca, no una razón
+    social.
 
 ## 2026-10-11
 
