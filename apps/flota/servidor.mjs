@@ -76,6 +76,14 @@ export const RUTAS_ALTAS = ['/flota/altas/', '/flota/altas', '/altas/', '/altas'
 export const RUTAS_TICKETS = ['/flota/tickets/', '/flota/tickets', '/tickets/', '/tickets']
 
 /**
+ * Las solicitudes de activación de Space Eyes en JSON, para el módulo Space
+ * Eyes del SPACE OS del padre: el panel es otra página y ahí nadie las buscaba
+ * (08/10). Mismo dominio, misma sesión, mismo permiso que el resto del panel.
+ * Mismas cuatro variantes por el prefijo que recorta nginx.
+ */
+export const RUTAS_SOLICITUDES = ['/flota/solicitudes.json', '/solicitudes.json']
+
+/**
  * El panel pone SU PROPIA cookie CSRF.
  *
  * Antes leia `spaces_csrf`, la de la aplicacion. Eso era una dependencia que no
@@ -710,7 +718,8 @@ export async function manejar(peticion, deps) {
   const esFlota = RUTAS.includes(ruta)
   const esAltas = RUTAS_ALTAS.includes(ruta)
   const esTickets = RUTAS_TICKETS.includes(ruta)
-  if (!esFlota && !esAltas && !esTickets) {
+  const esSolicitudes = RUTAS_SOLICITUDES.includes(ruta)
+  if (!esFlota && !esAltas && !esTickets && !esSolicitudes) {
     return { status: 404, cabeceras: SIN_CACHE, cuerpo: '<!doctype html><meta charset="utf-8"><title>404</title><p>No existe.' }
   }
   const esAltaNueva = esAltas && metodo === 'POST'
@@ -736,7 +745,24 @@ export async function manejar(peticion, deps) {
 
   // Se deniega ANTES de consultar: no hay por que ir a tocar los servidores de
   // los clientes para acabar contestando 401.
-  if (!acceso.permitido) return noAutorizado()
+  if (!acceso.permitido) {
+    // El módulo del padre pregunta con fetch: un 401 en JSON, no una página.
+    if (esSolicitudes) return { status: 401, cabeceras: { ...SIN_CACHE, 'content-type': 'application/json' }, cuerpo: '{"error":"no autorizado"}' }
+    return noAutorizado()
+  }
+
+  if (esSolicitudes) {
+    const respuestas = obtenerRespuestasTickets ? await obtenerRespuestasTickets().catch(() => null) : null
+    const cuerpo = respuestas === null
+      ? { solicitudes: [], error: 'no se pudo consultar a las instancias' }
+      : {
+          solicitudes: solicitudesDeActivacion(respuestas).map((s) => ({
+            ...s,
+            orden: ordenPara(s.nombre, 'space-eyes', true),
+          })),
+        }
+    return { status: 200, cabeceras: { ...SIN_CACHE, 'content-type': 'application/json' }, cuerpo: JSON.stringify(cuerpo) }
+  }
 
   if (esAltaNueva) return await pedirAlta({ origen, csrf, cookie, cuerpo }, { crearSolicitud, origenEsperado, acceso, registrar })
 

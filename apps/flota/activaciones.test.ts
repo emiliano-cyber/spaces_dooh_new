@@ -136,3 +136,52 @@ describe('el asunto es el mismo de los dos lados', () => {
     expect(demo).toContain(`asunto: '${ASUNTO_ACTIVACION_EYES}'`)
   })
 })
+
+describe('el módulo Space Eyes del padre las pide en JSON', () => {
+  it('con la orden para activar cada una', async () => {
+    const { d } = deps([{ nombre: 'g500', dominio: 'g500.space-os.io', tickets: [SOLICITUD, OTRO] }])
+    const r = await manejar({ metodo: 'GET', ruta: '/flota/solicitudes.json', cookie: 'spaces_sesion=x' }, d)
+    expect(r.status).toBe(200)
+    expect(r.cabeceras['content-type']).toMatch(/application\/json/)
+    const j = JSON.parse(r.cuerpo)
+    expect(j.solicitudes).toEqual([
+      {
+        nombre: 'g500',
+        dominio: 'g500.space-os.io',
+        folio: 'TK-0007',
+        creado_en: '2026-10-08T15:00:00Z',
+        total: 1,
+        orden: 'node apps/flota/modulo.mjs --instancia g500 --activar space-eyes',
+      },
+    ])
+  })
+
+  it('también sin el prefijo /flota (nginx lo recorta)', async () => {
+    const { d } = deps([])
+    const r = await manejar({ metodo: 'GET', ruta: '/solicitudes.json', cookie: 'spaces_sesion=x' }, d)
+    expect(r.status).toBe(200)
+    expect(JSON.parse(r.cuerpo).solicitudes).toEqual([])
+  })
+
+  it('sin permiso: 401 en JSON y sin preguntar a nadie', async () => {
+    const x = deps([{ nombre: 'g500', dominio: 'g500.space-os.io', tickets: [SOLICITUD] }], {
+      acceso: { permitido: false, motivo: 'sin sesion' },
+    })
+    const r = await manejar({ metodo: 'GET', ruta: '/flota/solicitudes.json', cookie: '' }, x.d)
+    expect(r.status).toBe(401)
+    expect(r.cabeceras['content-type']).toMatch(/application\/json/)
+    expect(x.consultasTickets).toBe(0)
+  })
+
+  it('si no se pudo consultar, lo dice en vez de decir "ninguna"', async () => {
+    const { d } = deps(new Error('red caída'))
+    const r = await manejar({ metodo: 'GET', ruta: '/flota/solicitudes.json', cookie: 'spaces_sesion=x' }, d)
+    expect(JSON.parse(r.cuerpo).error).toBeTruthy()
+  })
+
+  it('solo GET', async () => {
+    const { d } = deps([])
+    const r = await manejar({ metodo: 'POST', ruta: '/flota/solicitudes.json', cookie: 'spaces_sesion=x' }, d)
+    expect(r.status).toBe(405)
+  })
+})
