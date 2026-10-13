@@ -116,7 +116,8 @@ describe('sincronizarCampanasEyes', () => {
     expect(lectura.tenant).toBe('empresa-1')
     expect(lectura.params).toEqual(['empresa-1'])
     expect(lectura.texto).toMatch(/r\.estatus = 'CONFIRMADA'/)
-    expect(lectura.texto).toMatch(/estado_comercial in \('CONFIRMADA', 'ACTIVA'\)/)
+    // Al aire tambien es LISTA_FACTURAR (publicacion aprobada + orden de compra).
+    expect(lectura.texto).toMatch(/estado_comercial in \('CONFIRMADA', 'ACTIVA', 'LISTA_FACTURAR'\)/)
     expect(lectura.texto).toMatch(/estatus_validacion = 'VALIDADA'/)
     expect(lectura.texto).toMatch(/retirado_en is null/)
     expect(lectura.texto).not.toMatch(/\b(insert|update|delete)\b/i)

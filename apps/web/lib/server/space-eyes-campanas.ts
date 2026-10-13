@@ -83,7 +83,11 @@ export async function campanasParaEyes(tenant: string): Promise<CampanaParaEyes[
        join creatividades cr on cr.id::text = e->>'creatividadId'
       where r.tenant_id = $1
         and r.estatus = 'CONFIRMADA'
-        and c.estado_comercial in ('CONFIRMADA', 'ACTIVA')
+        -- LISTA_FACTURAR tambien: es una campana AL AIRE a la que ya se le
+        -- aprobo la publicacion y llego la orden de compra, no una terminada.
+        -- Sin ella, lo que mas se vigila —lo que ya esta corriendo y se va a
+        -- cobrar— era justo lo que nunca llegaba a los equipos.
+        and c.estado_comercial in ('CONFIRMADA', 'ACTIVA', 'LISTA_FACTURAR')
         and r.fecha_fin >= current_date
         and cr.estatus_validacion = 'VALIDADA'
         and cr.retirado_en is null
