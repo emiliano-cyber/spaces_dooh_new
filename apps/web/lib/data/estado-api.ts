@@ -4,6 +4,7 @@ import { useDemoStore } from './store'
 import type { Campana, RolDemo } from './types'
 import { esErrorDeDesbloqueo } from '@/lib/cambios-candado'
 import type { ResultadoLote } from '@/lib/cambios-lote'
+import type { RespuestaPublicacion } from '@/lib/doohmain-resultado'
 
 // ============================================================================
 //  lib/data/estado-api.ts — Estado persistido (BD) → store, y mutaciones de
@@ -963,7 +964,7 @@ export async function validarPublicacionApi(
   campanaId: string,
   aprobar: boolean,
   motivo?: string,
-): Promise<Campana> {
+): Promise<Campana & { doohmain?: RespuestaPublicacion }> {
   const r = await fetch(`${API}/campanas/${campanaId}/validar/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

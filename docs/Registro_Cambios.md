@@ -5,6 +5,20 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-10-13
+
+- **Publicar una campaña en DOOHmain vuelve a funcionar.** Al aprobar la
+  publicación, el arte no llegaba a ninguna pantalla de DOOHmain: se quedaba
+  una campaña vacía allá y nada más. Era un defecto en las tablas donde la
+  aplicación anota lo que ya subió. Se corrige al actualizar (con un cambio a
+  la base de datos), sin tocar lo ya publicado.
+- **Al aprobar la publicación se ve qué pasó en cada pantalla.** Debajo de
+  «Aprobada por…» aparece la lista de pantallas con su pantalla en DOOHmain y
+  si quedó «Publicada», «Ya estaba publicada» o con qué error (por ejemplo,
+  una pantalla que no tiene su nombre de DOOHmain configurado). Antes decía
+  «Publicación aprobada» aunque no se hubiera subido nada. En **Actividad**
+  queda escrito qué pantallas fallaron y por qué.
+
 ## 2026-10-12
 
 - **Inventario, Comercial y el arranque de la aplicación, más rápidos.** Con

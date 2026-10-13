@@ -1,10 +1,13 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-06
+actualizado: 2026-10-13
 tags: [backend, integraciones, terceros, cron]
 archivos:
   - apps/web/lib/server/doohmain.ts
+  - apps/web/lib/doohmain-resultado.ts
+  - apps/web/components/demo/campanas/ValidacionPanel.tsx
+  - db/migrations/20261013_doohmain_seguimiento_unicas.sql
   - apps/web/lib/server/space-eye.ts
   - apps/web/app/api/space-eyes/
   - apps/web/components/demo/space-eyes/
@@ -52,6 +55,26 @@ flowchart LR
 > `DOOHMAIN_SDK_DIR`) y un mapa JSON (`DOOHMAIN_SCREEN_MAP`). No es entrada de
 > usuario, pero cualquier cambio aquí es zona ROJA. La idempotencia la resuelve
 > el SDK contra sus propias tablas.
+
+> [!danger] 2026-10-13 · Hasta `20261013_doohmain_seguimiento_unicas.sql`, publicar FALLABA en toda base levantada desde el repo
+> `20260805_objetos_solo_en_prod.sql` creaba las tres tablas del SDK
+> (`doohmain_remote_campaigns`, `doohmain_remote_lists`, `media_uploads`) sin
+> identidad en `id` y sin las únicas; `20260901_doohmain_tracking.sql` las
+> define bien pero con `if not exists`, y no hacía nada. El SDK
+> (`doohmain_sdk/db.py`) usa `ON CONFLICT` y reventaba **después** de
+> `create_campaign`: campaña vacía en DOOHmain, ni arte ni spot. Probado de
+> punta a punta contra un DOOHmain simulado: [[07-Agentes/diario/2026-10-13]].
+>
+> **El resultado ya se ve.** `ValidacionPanel.tsx` descartaba el campo
+> `doohmain` de `POST /api/campanas/:id/validar`; ahora lo lee
+> `lib/doohmain-resultado.ts` y la ficha lista cada pantalla con su pantalla de
+> DOOHmain y «Publicada» / «Ya estaba publicada» / el error. No se guarda: al
+> recargar queda el renglón de Actividad, que nombra las que fallaron.
+>
+> **Sigue abierto, y es de dinero (ROJO):** aprobar pasa la campaña a
+> `LISTA_FACTURAR` y enciende `reporte_publicacion`
+> (`campanas-repo.ts:1279`) **antes** de publicar y sin mirar el resultado. Y no
+> hay botón para reintentar una publicación ya aprobada.
 
 `playlogs-repo.ts` guarda la respuesta **cruda** de la API a propósito: *«aún no
 hemos visto una respuesta con datos, así que no se interpreta nada todavía»*.

@@ -17,6 +17,7 @@ import { useCampana, useCreatividades, formatFechaHora } from '@/lib/data/client
 import { enviarADominioApi, validarPublicacionApi, eliminarCreatividadApi } from '@/lib/data/estado-api'
 import type { Creatividad } from '@/lib/data/types'
 import { Button } from '@/components/demo/ui/Button'
+import { resumirPublicacion, type ResumenPublicacion } from '@/lib/doohmain-resultado'
 
 // Panel de validación de publicación: se envía la campaña al dominio/CMS y un
 // revisor verifica la información de los anuncios antes de que salga al aire.
@@ -28,6 +29,9 @@ export function ValidacionPanel({ campanaId }: { campanaId: string }) {
   const [busyCr, setBusyCr] = useState<string | null>(null)
   const [confirmar, setConfirmar] = useState<Creatividad | null>(null)
   const [confirmarAprobar, setConfirmarAprobar] = useState(false)
+  // Lo que respondió DOOHmain en ESTA aprobación. No se guarda: al recargar
+  // queda el renglón de Actividad, que nombra las pantallas que fallaron.
+  const [publicacion, setPublicacion] = useState<ResumenPublicacion | null>(null)
 
   if (!c) return <div className="h-40 w-full animate-pulse rounded-md bg-surface-2" />
 
@@ -54,7 +58,17 @@ export function ValidacionPanel({ campanaId }: { campanaId: string }) {
     }
     setBusy(true)
     try {
-      await validarPublicacionApi(campanaId, aprobar, motivo)
+      const r = await validarPublicacionApi(campanaId, aprobar, motivo)
+      // Antes se descartaba `r.doohmain` y la ficha decía «aprobada» aunque
+      // ninguna pantalla recibiera nada (13/10). Solo aplica a lo que tiene
+      // segmento digital: una OOH no pasa por DOOHmain.
+      if (aprobar && requiereCreativos) {
+        const res = resumirPublicacion(r.doohmain)
+        setPublicacion(res)
+        if (res.tipo === 'ok') toast.success(`Publicada en DOOHmain: ${res.filas.length} pantalla(s)`)
+        else if (res.tipo === 'parcial') toast.warning(`DOOHmain: ${res.fallidas} pantalla(s) con error`)
+        else if (res.tipo === 'error') toast.error('No se publicó en DOOHmain')
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'No se pudo validar la publicación')
     }
@@ -180,6 +194,9 @@ export function ValidacionPanel({ campanaId }: { campanaId: string }) {
         </div>
       )}
 
+      {/* Lo que respondió DOOHmain, pantalla por pantalla */}
+      {publicacion && <ResultadoDoohmain r={publicacion} />}
+
       {/* Acciones */}
       {puede && (
         <div className="mt-3">
@@ -301,5 +318,52 @@ function Condicion({ ok, label }: { ok: boolean; label: string }) {
       </span>
       <span className={ok ? 'text-ink' : 'text-muted'}>{label}</span>
     </li>
+  )
+}
+
+const ESTADO_PUBLICACION: Record<string, string> = {
+  published: 'Publicada',
+  already_published: 'Ya estaba publicada',
+}
+
+function ResultadoDoohmain({ r }: { r: ResumenPublicacion }) {
+  const tono =
+    r.tipo === 'ok' ? 'border-success/40 bg-success-soft'
+    : r.tipo === 'parcial' || r.tipo === 'apagada' ? 'border-warning/40 bg-warning-soft'
+    : r.tipo === 'error' ? 'border-error/40 bg-error-soft'
+    : 'border-border bg-surface-2'
+  const titulo =
+    r.tipo === 'apagada' ? 'No se subió nada a DOOHmain: la publicación está apagada en esta instancia'
+    : r.tipo === 'sin-pantallas' ? 'No había pantallas digitales que subir a DOOHmain'
+    : r.tipo === 'error' && !r.filas.length ? `No se publicó en DOOHmain: ${r.error ?? 'sin detalle'}`
+    : r.tipo === 'error' ? 'No se publicó en ninguna pantalla de DOOHmain'
+    : r.tipo === 'parcial' ? `Publicada en DOOHmain con ${r.fallidas} pantalla(s) con error`
+    : 'Publicada en DOOHmain'
+  return (
+    <div className={cn('mt-3 rounded border p-2 text-[12px]', tono)} role="status">
+      <div className="flex items-start gap-1.5 font-medium text-ink">
+        {r.tipo === 'ok' ? (
+          <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" />
+        ) : (
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
+        )}
+        <span>{titulo}</span>
+      </div>
+      {r.filas.length > 0 && (
+        <ul className="mt-1.5 space-y-1">
+          {r.filas.map((f, i) => (
+            <li key={`${f.sitio}-${f.creativoNombre ?? ''}-${i}`} className="flex flex-wrap items-baseline gap-x-1.5 break-words">
+              {f.ok ? <Check className="h-3 w-3 shrink-0 text-success" /> : <X className="h-3 w-3 shrink-0 text-error" />}
+              <span className="font-mono text-[11px] text-ink">{f.sitio}</span>
+              <span className="text-muted">→ {f.screen ?? 'sin pantalla en DOOHmain'}</span>
+              {f.creativoNombre ? <span className="text-muted">· {f.creativoNombre}</span> : null}
+              <span className={f.ok ? 'text-success' : 'text-error'}>
+                · {f.ok ? ESTADO_PUBLICACION[f.estado ?? ''] ?? f.estado ?? 'Publicada' : f.error ?? 'Error'}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   )
 }
