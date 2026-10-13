@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-12
+actualizado: 2026-10-13
 tags: [backend, inventario, sitios, amarillo]
 archivos:
   - apps/web/lib/server/sitios-repo.ts
@@ -124,6 +124,7 @@ puro — ver [[calculadora-de-spots]].
 | El contrato nace **INCOMPLETO** y eso es a propósito | 0001 | `contratos-sitio.ts:16-19` |
 | Un solo costo por pantalla: la renta al arrendador | 0006 | `costo_compra` **no** es un costo aparte |
 | Cupo de clientes distintos por pantalla | 0008 | `sitios.max_clientes` |
+| A qué pantalla de DOOHmain se publica (13/10) | — | `sitios.doohmain_pantalla`: solo por el PATCH de la ficha (`CAMPO_COL`), **no** en `COLS`, para que alta e importación no la pisen; el controller recorta y vacío → null; `sitios_doohmain_pantalla_ck` repite la regla. Ver [[integraciones-externas]] |
 
 > [!note] Por qué el contrato se abre en el alta y no en la venta
 > El ADR 0001 lo abría al **vender**, y eso tapaba el agujero tarde: hasta la

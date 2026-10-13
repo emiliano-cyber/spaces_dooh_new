@@ -7,6 +7,15 @@ La entrada más reciente va arriba.
 
 ## 2026-10-13
 
+- **Cada pantalla dice a qué pantalla de DOOHmain va.** En la ficha de una
+  pantalla digital (Editar), el campo **«Pantalla en DOOHmain»** sugiere las
+  pantallas de tu cuenta de DOOHmain; eliges una y guardas. Ya no hace falta
+  pedir que se configure en el servidor cada pantalla nueva. Si lo dejas
+  vacío, se usa lo que esté configurado en el servidor, como hasta hoy.
+- **Las pantallas de otro CMS ya no se mandan a DOOHmain.** Si en la ficha la
+  pantalla dice CMS «Broadsign» (u otro), al publicar la campaña aparece como
+  «Se programa en su CMS» y no se sube a DOOHmain. Antes se subía igual.
+
 - **Publicar una campaña en DOOHmain vuelve a funcionar.** Al aprobar la
   publicación, el arte no llegaba a ninguna pantalla de DOOHmain: se quedaba
   una campaña vacía allá y nada más. Era un defecto en las tablas donde la

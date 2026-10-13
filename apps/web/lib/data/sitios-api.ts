@@ -210,3 +210,15 @@ export async function reubicarSitioApi(id: string, predioId: string): Promise<{ 
   await refrescarSitios()
   return d as { otFolio: string | null }
 }
+
+// Los nombres de pantalla que ve la cuenta de DOOHmain, para ofrecerlos en la
+// ficha (13/10). Nunca lanza: sin respuesta, la ficha deja escribir a mano.
+export async function pantallasDoohmainApi(): Promise<{ habilitado: boolean; pantallas: string[]; error?: string }> {
+  try {
+    const r = await fetch('/spaces-dooh/api/integraciones/doohmain/pantallas/')
+    if (!r.ok) return { habilitado: false, pantallas: [] }
+    return await r.json()
+  } catch {
+    return { habilitado: false, pantallas: [], error: 'Sin conexión' }
+  }
+}

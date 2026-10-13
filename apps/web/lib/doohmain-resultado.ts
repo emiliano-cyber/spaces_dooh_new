@@ -14,6 +14,7 @@ export interface FilaPublicacion {
   screen: string | null
   ok: boolean
   estado?: string
+  cms?: string // con estado otro_cms: el CMS que dice la ficha
   error?: string
 }
 
@@ -25,22 +26,25 @@ export interface ResumenPublicacion {
   tipo: 'apagada' | 'error' | 'sin-pantallas' | 'ok' | 'parcial'
   publicadas: number
   yaEstaban: number
+  // Pantallas que la ficha marca con OTRO CMS: no se mandan a DOOHmain (13/10).
+  omitidas: number
   fallidas: number
   filas: FilaPublicacion[]
   error?: string
 }
 
 export function resumirPublicacion(r: RespuestaPublicacion): ResumenPublicacion {
-  const base = { publicadas: 0, yaEstaban: 0, fallidas: 0, filas: [] as FilaPublicacion[] }
+  const base = { publicadas: 0, yaEstaban: 0, omitidas: 0, fallidas: 0, filas: [] as FilaPublicacion[] }
   if (r === undefined) return { ...base, tipo: 'apagada' }
   if (!Array.isArray(r)) return { ...base, tipo: 'error', error: r.error }
   if (r.length === 0) return { ...base, tipo: 'sin-pantallas' }
 
   const fallidas = r.filter((f) => !f.ok).length
   const yaEstaban = r.filter((f) => f.ok && f.estado === 'already_published').length
-  const publicadas = r.length - fallidas - yaEstaban
+  const omitidas = r.filter((f) => f.ok && f.estado === 'otro_cms').length
+  const publicadas = r.length - fallidas - yaEstaban - omitidas
   const tipo = fallidas === 0 ? 'ok' : fallidas === r.length ? 'error' : 'parcial'
-  return { tipo, publicadas, yaEstaban, fallidas, filas: r }
+  return { tipo, publicadas, yaEstaban, omitidas, fallidas, filas: r }
 }
 
 // El renglón de Actividad. Nombra pantalla y motivo de cada fallo: es lo único

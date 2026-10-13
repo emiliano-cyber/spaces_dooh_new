@@ -73,7 +73,9 @@ export function ValidacionPanel({ campanaId }: { campanaId: string }) {
   function mostrarPublicacion(r: RespuestaPublicacion) {
     const res = resumirPublicacion(r)
     setPublicacion(res)
-    if (res.tipo === 'ok') toast.success(`Publicada en DOOHmain: ${res.filas.length} pantalla(s)`)
+    // Las de otro CMS no cuentan: no fueron a DOOHmain.
+    if (res.tipo === 'ok' && res.filas.length === res.omitidas) toast.info('Ninguna pantalla de esta campaña va a DOOHmain')
+    else if (res.tipo === 'ok') toast.success(`Publicada en DOOHmain: ${res.filas.length - res.omitidas} pantalla(s)`)
     else if (res.tipo === 'parcial') toast.warning(`DOOHmain: ${res.fallidas} pantalla(s) con error`)
     else if (res.tipo === 'error') toast.error('No se publicó en DOOHmain')
   }
@@ -365,9 +367,12 @@ function Condicion({ ok, label }: { ok: boolean; label: string }) {
   )
 }
 
+const NOMBRE_CMS: Record<string, string> = { BROADSIGN: 'Broadsign', INVIDIS: 'Invidis' }
+
 const ESTADO_PUBLICACION: Record<string, string> = {
   published: 'Publicada',
   already_published: 'Ya estaba publicada',
+  otro_cms: 'Se programa en su CMS',
 }
 
 function ResultadoDoohmain({ r }: { r: ResumenPublicacion }) {
@@ -382,6 +387,7 @@ function ResultadoDoohmain({ r }: { r: ResumenPublicacion }) {
     : r.tipo === 'error' && !r.filas.length ? `No se publicó en DOOHmain: ${r.error ?? 'sin detalle'}`
     : r.tipo === 'error' ? 'No se publicó en ninguna pantalla de DOOHmain'
     : r.tipo === 'parcial' ? `Publicada en DOOHmain con ${r.fallidas} pantalla(s) con error`
+    : r.filas.length === r.omitidas ? 'Ninguna pantalla de esta campaña va a DOOHmain: todas usan otro CMS'
     : 'Publicada en DOOHmain'
   return (
     <div className={cn('mt-3 rounded border p-2 text-[12px]', tono)} role="status">
@@ -399,7 +405,9 @@ function ResultadoDoohmain({ r }: { r: ResumenPublicacion }) {
             <li key={`${f.sitio}-${f.creativoNombre ?? ''}-${i}`} className="flex flex-wrap items-baseline gap-x-1.5 break-words">
               {f.ok ? <Check className="h-3 w-3 shrink-0 text-success" /> : <X className="h-3 w-3 shrink-0 text-error" />}
               <span className="font-mono text-[11px] text-ink">{f.sitio}</span>
-              <span className="text-muted">→ {f.screen ?? 'sin pantalla en DOOHmain'}</span>
+              <span className="text-muted">
+                → {f.estado === 'otro_cms' ? `no va a DOOHmain: la opera ${NOMBRE_CMS[f.cms ?? ''] ?? 'otro CMS'}` : f.screen ?? 'sin pantalla en DOOHmain'}
+              </span>
               {f.creativoNombre ? <span className="text-muted">· {f.creativoNombre}</span> : null}
               <span className={f.ok ? 'text-success' : 'text-error'}>
                 · {f.ok ? ESTADO_PUBLICACION[f.estado ?? ''] ?? f.estado ?? 'Publicada' : f.error ?? 'Error'}

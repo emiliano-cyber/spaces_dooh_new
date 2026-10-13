@@ -89,6 +89,7 @@ export function rowToSitio(r: any, modalidades: any[] = [], conMedia = true, rej
     comercializacion: r.comercializacion,
     enNetwork: !!r.en_network,
     cms: r.cms,
+    doohmainPantalla: r.doohmain_pantalla ?? null,
     predioId: r.predio_id ?? null,
     arrendadorId: r.arrendador_id ?? null,
     rentaArrendador: n(r.renta_arrendador),
@@ -481,6 +482,10 @@ const CAMPO_COL: Record<string, string> = {
   // ADR 0008. Editable desde la ficha: quien puede tocar el inventario puede
   // fijar el cupo. El valor se valida en el controller (entero ≥ 1 o null).
   maxClientes: 'max_clientes',
+  // 13/10 · a qué pantalla de DOOHmain se publica (`20261013_sitios_pantalla_doohmain.sql`).
+  // Solo por aquí: no está en `COLS`, así que el alta y la re-importación no la pisan.
+  // El controller la normaliza (recorta, vacío → null, tope de 120).
+  doohmainPantalla: 'doohmain_pantalla',
 }
 export async function actualizarSitio(id: string, cambios: Record<string, unknown>): Promise<any | null> {
   const sets: string[] = []

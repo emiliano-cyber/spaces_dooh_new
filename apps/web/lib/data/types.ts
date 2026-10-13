@@ -243,6 +243,10 @@ export interface Sitio {
   comercializacion: Comercializacion // programático vs tradicional
   enNetwork: boolean // compartido a la Network
   cms: CMS | null // CMS que opera la pantalla
+  // Nombre de la pantalla en DOOHmain a la que se publica. null = lo decide el
+  // servidor (DOOHMAIN_SCREEN_MAP / DOOHMAIN_DEFAULT_SCREEN). Opcional: los
+  // datos de demostración del cliente no lo traen.
+  doohmainPantalla?: string | null
   predioId?: string | null // predio (inmueble) al que pertenece la pantalla (N pantallas : 1 predio)
   arrendadorId?: string | null // propietario/arrendador del inmueble (directo, sin contrato)
   /** @deprecated Fase 1: la renta vive en el contrato del predio. No usar en P&L/UI. */

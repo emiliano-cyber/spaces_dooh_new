@@ -6,6 +6,8 @@ tags: [backend, integraciones, terceros, cron]
 archivos:
   - apps/web/lib/server/doohmain.ts
   - apps/web/lib/doohmain-resultado.ts
+  - apps/web/app/api/integraciones/doohmain/pantallas/route.ts
+  - db/migrations/20261013_sitios_pantalla_doohmain.sql
   - apps/web/components/demo/campanas/ValidacionPanel.tsx
   - db/migrations/20261013_doohmain_seguimiento_unicas.sql
   - apps/web/lib/server/space-eye.ts
@@ -80,6 +82,21 @@ flowchart LR
 > Solo publica: no toca estado, aprobación ni candado (`campanaParaReintentarPublicacion`
 > no escribe nada), exige la misma asignación por pantalla que aprobar, y lo ya
 > publicado sale como «Ya estaba publicada».
+
+> [!success] 2026-10-13 · La pantalla de DOOHmain se captura en la ficha (rama `feat/doohmain-pantalla-por-sitio`)
+> `sitios.doohmain_pantalla` (`20261013_sitios_pantalla_doohmain.sql`) es el nombre de la
+> pantalla tal como lo conoce DOOHmain. Al publicar el orden es **ficha →
+> `DOOHMAIN_SCREEN_MAP` → `DOOHMAIN_DEFAULT_SCREEN`**: una instancia que ya usa el mapa
+> no cambia. La ficha ofrece las pantallas de la cuenta
+> (`GET /api/integraciones/doohmain/pantallas` → `doohmain_sdk ping`, `inventario:ver`);
+> sin respuesta, se escribe a mano.
+>
+> **Y el CMS de la ficha se respeta.** Una pantalla con `cms` distinto de
+> `DOOHMAIN` ya no se manda: sale `estado: 'otro_cms'` («Se programa en su CMS») y
+> no cuenta como fallo. Antes una Broadsign se publicaba en DOOHmain por el mapa o
+> por la pantalla por omisión — pasó en la verificación del 13/10 con `CAT-D02`.
+> Sin CMS en la ficha se publica como hasta hoy. Prueba del orden:
+> `lib/server/doohmain.pantalla.test.ts`.
 
 `playlogs-repo.ts` guarda la respuesta **cruda** de la API a propósito: *«aún no
 hemos visto una respuesta con datos, así que no se interpreta nada todavía»*.

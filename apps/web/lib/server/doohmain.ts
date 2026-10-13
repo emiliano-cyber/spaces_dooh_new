@@ -53,6 +53,8 @@ export interface ResultadoPublicacion {
   estado?: string
   error?: string
   category?: string
+  // Solo con `estado: 'otro_cms'`: el CMS que dice la ficha de la pantalla.
+  cms?: string
 }
 
 // Escribe el creativo (data URL o HTML inline) a un archivo temporal para que el
@@ -204,6 +206,18 @@ async function ejecutarSdk(cli: string[]): Promise<any> {
   }
 }
 
+// Las pantallas que la cuenta del owner ve en DOOHmain, para elegir en la ficha
+// de cada pantalla (13/10). Solo lectura (`get_screen_list`). Nunca lanza: si
+// DOOHmain no contesta, la ficha deja escribir el nombre a mano.
+export async function listarPantallasDoohmain(): Promise<{ habilitado: boolean; pantallas: string[]; error?: string }> {
+  if (!doohmainHabilitado()) return { habilitado: false, pantallas: [] }
+  const r = await ejecutarSdk(['-m', 'doohmain_sdk', 'ping'])
+  if (r?.ok === false || !Array.isArray(r?.screens)) {
+    return { habilitado: true, pantallas: [], error: r?.error ?? 'DOOHmain no respondió' }
+  }
+  return { habilitado: true, pantallas: r.screens.filter((s: unknown) => typeof s === 'string') }
+}
+
 // Reproducciones de una o varias campañas (por su `auth` de DOOHmain).
 export async function consultarStats(
   auths: string[], desde: string, hasta: string,
@@ -292,6 +306,7 @@ export async function publicarCampanaEnDoohmain(campanaId: string): Promise<Resu
   // `veces` puede venir como texto dentro del jsonb; se castea explícitamente.
   const asignaciones = await q<any>(
     `select r.id as reserva_id, s.clave_interna, s.nombre as sitio_nombre,
+            s.doohmain_pantalla, s.cms,
             r.spots_por_dia,
             cr.id as creativo_id, cr.nombre as creativo_nombre,
             cr.archivo_url, cr.codigo, cr.formato,
@@ -353,6 +368,18 @@ export async function publicarCampanaEnDoohmain(campanaId: string): Promise<Resu
   const materiales = new Map<string, Awaited<ReturnType<typeof materializar>>>()
   try {
     for (const a of asignaciones) {
+      // La ficha dice que esta pantalla la opera OTRO CMS (13/10). Antes se
+      // mandaba igual a DOOHmain —por el mapa o por la pantalla por omisión— y
+      // el arte acababa en un reproductor que no era el suyo. No es un fallo:
+      // se reporta para que se vea por qué no salió por aquí. Sin CMS en la
+      // ficha se publica como hasta hoy.
+      if (a.cms && a.cms !== 'DOOHMAIN') {
+        out.push({
+          creativoId: a.creativo_id, creativoNombre: a.creativo_nombre, sitio: a.clave_interna,
+          screen: null, ok: true, estado: 'otro_cms', cms: a.cms,
+        })
+        continue
+      }
       let mat = materiales.get(a.creativo_id)
       if (mat === undefined) {
         mat = await materializar({
@@ -365,7 +392,10 @@ export async function publicarCampanaEnDoohmain(campanaId: string): Promise<Resu
         out.push({ creativoId: a.creativo_id, creativoNombre: a.creativo_nombre, sitio: a.clave_interna, screen: null, ok: false, error: 'creativo sin contenido subible', category: 'validation' })
         continue
       }
-      const screen = mapa[a.clave_interna] ?? DEFAULT_SCREEN
+      // La ficha manda (`sitios.doohmain_pantalla`, 13/10); el mapa y la pantalla
+      // por omisión del servidor quedan de respaldo, así que una instancia que ya
+      // los usa no cambia.
+      const screen = a.doohmain_pantalla ?? mapa[a.clave_interna] ?? DEFAULT_SCREEN
       if (!screen) {
         out.push({ creativoId: a.creativo_id, creativoNombre: a.creativo_nombre, sitio: a.clave_interna, screen: null, ok: false, error: 'sitio sin pantalla DOOHmain mapeada', category: 'validation' })
         continue

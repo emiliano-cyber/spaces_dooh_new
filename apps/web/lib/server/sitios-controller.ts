@@ -38,6 +38,17 @@ const cupoSchema = z.object({
   ]),
 })
 
+// 13/10 · a qué pantalla de DOOHmain se publica. DOOHmain compara el nombre
+// exacto, así que se recorta aquí: « adv_004» fallaría al publicar, días después
+// de capturarlo. Vacío = null («lo decide el servidor»). La base repite la regla
+// (`sitios_doohmain_pantalla_ck`); esto es lo que da el mensaje legible.
+const pantallaDoohmainSchema = z.object({
+  doohmainPantalla: z
+    .union([z.null(), z.string()])
+    .transform((v) => (v == null ? null : v.trim() || null))
+    .refine((v) => v == null || v.length <= 120, 'El nombre de la pantalla en DOOHmain no puede pasar de 120 caracteres'),
+})
+
 // Las modalidades NO entran por el PATCH general, y rechazarlas es parte del
 // arreglo del 2026-09-28. Explicación larga en
 // `app/api/sitios/[id]/modalidades/route.ts`; lo corto: una modalidad es una
@@ -63,6 +74,10 @@ export async function actualizarSitioCtrl(id: string, body: unknown) {
     return { sitio: s, toggled: true }
   }
   const d = validar(updateSchema, b)
+  if ('doohmainPantalla' in d) {
+    const { doohmainPantalla } = validar(pantallaDoohmainSchema, { doohmainPantalla: d.doohmainPantalla })
+    d.doohmainPantalla = doohmainPantalla
+  }
   if ('maxClientes' in d) {
     const { maxClientes } = validar(cupoSchema, { maxClientes: d.maxClientes })
     d.maxClientes = maxClientes === '' ? null : maxClientes

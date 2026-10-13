@@ -25,6 +25,11 @@ describe('resumirPublicacion', () => {
     expect(r.filas).toHaveLength(3)
   })
 
+  it('una pantalla de otro CMS no cuenta como publicada ni como fallo', () => {
+    const r = resumirPublicacion([ok('A'), { sitio: 'B', screen: null, ok: true, estado: 'otro_cms', cms: 'BROADSIGN' }])
+    expect(r).toMatchObject({ tipo: 'ok', publicadas: 1, omitidas: 1, fallidas: 0 })
+  })
+
   it('todas bien es «ok»; todas mal es «error»', () => {
     expect(resumirPublicacion([ok('A'), ok('B')]).tipo).toBe('ok')
     expect(resumirPublicacion([mal('A', 'x')]).tipo).toBe('error')

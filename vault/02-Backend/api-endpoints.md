@@ -219,6 +219,7 @@ en `:230-237`) y **no** puede condicionarse a que la ruta
 | POST | `/api/campanas/[id]/extender` | exigir |
 | POST | `/api/campanas/[id]/oc` | exigir |
 | POST | `/api/campanas/[id]/validar` | exigir |
+| POST | `/api/campanas/[id]/reintentar-publicacion` | `comercial:crear` — vuelve a mandar a DOOHmain una publicación YA aprobada, sin cambiar la campaña (13/10); ver [[integraciones-externas]] |
 | POST | `/api/campanas/[id]/creativos/repartir` | exigir |
 | POST | `/api/campanas/[id]/enviar-dominio` | exigir |
 | GET·POST | `/api/campanas/[id]/playlogs` | exigir |
@@ -285,6 +286,7 @@ agrupa las cuatro pantallas en `lib/modulos.ts:77-83`.
 | POST | `/api/notificaciones/[id]/leer` | exigir |
 | POST | `/api/notificaciones/archivar-todas` | exigir |
 | GET | `/api/integraciones` | exigir |
+| GET | `/api/integraciones/doohmain/pantallas` | `inventario:ver` — las pantallas que ve la cuenta de DOOHmain, para la ficha; 200 con lista vacía y el motivo si DOOHmain no contesta (13/10) |
 
 > [!warning] `leer-todas` no existe: se llama `archivar-todas`
 > Esta tabla listó `POST /api/notificaciones/leer-todas` desde el 07/08 hasta el

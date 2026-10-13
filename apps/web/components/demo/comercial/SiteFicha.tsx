@@ -45,7 +45,7 @@ import {
   PAGO_LABEL,
 } from '@/components/demo/StatusBadge'
 import { usePuede } from '@/components/demo/shell/SesionContext'
-import { actualizarSitioApi, actualizarModalidadesApi, borrarSitioApi, pausarSitioLegalApi, reanudarSitioLegalApi, reubicarSitioApi } from '@/lib/data/sitios-api'
+import { actualizarSitioApi, actualizarModalidadesApi, borrarSitioApi, pausarSitioLegalApi, reanudarSitioLegalApi, reubicarSitioApi, pantallasDoohmainApi } from '@/lib/data/sitios-api'
 import { useCandado, PasoContrasena } from '@/components/demo/ui/candado'
 import { RejillaDialog } from '@/components/demo/rejilla/RejillaDialog'
 // Las mismas reglas que aplica el importador y que impone el servidor: qué
@@ -445,6 +445,14 @@ export function SiteFicha({
               <Caracteristica icon={<Clock className="h-4 w-4" />} label="Duración por slot" valor={sitio.duracionSpotSeg != null ? `${sitio.duracionSpotSeg} s` : '—'} mono />
               <Caracteristica icon={<Clock className="h-4 w-4" />} label="Horario" valor={sitio.horario ?? '—'} mono />
               <Caracteristica icon={<Monitor className="h-4 w-4" />} label="CMS" valor={sitio.cms ? CMS_LABEL[sitio.cms] : '—'} />
+              {(!sitio.cms || sitio.cms === 'DOOHMAIN') && (
+                <Caracteristica
+                  icon={<Monitor className="h-4 w-4" />}
+                  label="Pantalla en DOOHmain"
+                  valor={sitio.doohmainPantalla ?? 'La decide el servidor'}
+                  mono={!!sitio.doohmainPantalla}
+                />
+              )}
             </dl>
           )}
 
@@ -1076,6 +1084,11 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
   const [spotsPorHora, setSpotsPorHora] = useState(sitio.spotsPorHora != null ? String(sitio.spotsPorHora) : '')
   const [horario, setHorario] = useState(sitio.horario ?? '')
   const [cms, setCms] = useState<string>(sitio.cms ?? '')
+  // 13/10 · a qué pantalla de DOOHmain se publica. Antes solo se podía decir en
+  // el `.env` del servidor (DOOHMAIN_SCREEN_MAP). Las sugerencias son las
+  // pantallas que ve la cuenta; si DOOHmain no contesta, se escribe a mano.
+  const [doohmainPantalla, setDoohmainPantalla] = useState(sitio.doohmainPantalla ?? '')
+  const [pantallasDm, setPantallasDm] = useState<{ habilitado: boolean; pantallas: string[]; error?: string } | null>(null)
   const [enviando, setEnviando] = useState(false)
   // B38 · el `guardar` de abajo manda un DIFF, así que solo dispara el candado
   // cuando el diff toca tarifa, costo o arrendador (`CAMPOS_SENSIBLES` en
@@ -1110,7 +1123,19 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
     setSpotsPorHora(sitio.spotsPorHora != null ? String(sitio.spotsPorHora) : '')
     setHorario(sitio.horario ?? '')
     setCms(sitio.cms ?? '')
+    setDoohmainPantalla(sitio.doohmainPantalla ?? '')
   }, [sitio.id, open])
+
+  // La lista se pide al abrir, y solo para pantallas digitales: es una llamada
+  // al SDK de DOOHmain, no algo que convenga hacer por cada ficha que se mira.
+  useEffect(() => {
+    if (!open || !digital || pantallasDm) return
+    let vivo = true
+    pantallasDoohmainApi().then((r) => vivo && setPantallasDm(r))
+    return () => {
+      vivo = false
+    }
+  }, [open, digital, pantallasDm])
 
   async function guardar() {
     if (tarifa === CRUDO_INVALIDO || (digital && spotsPorHora === CRUDO_INVALIDO)) return
@@ -1189,6 +1214,9 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
         }
         if ((horario.trim() || null) !== (sitio.horario ?? null)) cambios.horario = horario.trim() || null
         if ((cms || null) !== (sitio.cms ?? null)) cambios.cms = cms || null
+        if ((doohmainPantalla.trim() || null) !== (sitio.doohmainPantalla ?? null)) {
+          cambios.doohmainPantalla = doohmainPantalla.trim() || null
+        }
       }
 
       if (Object.keys(cambios).length === 0) {
@@ -1394,6 +1422,25 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
                   {Object.entries(CMS_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                 </select>
               </CampoEdit>
+              {(cms === '' || cms === 'DOOHMAIN') && (
+                <CampoEdit label="Pantalla en DOOHmain">
+                  <input
+                    value={doohmainPantalla}
+                    onChange={(e) => setDoohmainPantalla(e.target.value)}
+                    list={`pantallas-doohmain-${sitio.id}`}
+                    placeholder="Vacío = la decide el servidor"
+                    className={inputCls}
+                  />
+                  <datalist id={`pantallas-doohmain-${sitio.id}`}>
+                    {(pantallasDm?.pantallas ?? []).map((p) => <option key={p} value={p} />)}
+                  </datalist>
+                  {pantallasDm?.habilitado && pantallasDm.error ? (
+                    <span className="mt-1 block text-[11px] text-muted">
+                      No se pudo leer la lista de DOOHmain ({pantallasDm.error}); escribe el nombre tal como aparece allí.
+                    </span>
+                  ) : null}
+                </CampoEdit>
+              )}
               <CampoEdit label="Horario">
                 <input value={horario} onChange={(e) => setHorario(e.target.value)} placeholder="Ej. 06:00–24:00" className={inputCls} />
               </CampoEdit>
