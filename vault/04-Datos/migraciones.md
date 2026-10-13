@@ -60,7 +60,7 @@ archivos:
 >
 > | Migración | Decía | Entró en `main` |
 > |---|---|---|
-> | `20261013_sitios_pantalla_doohmain.sql` | rama `feat/doohmain-pantalla-por-sitio`, **forma pendiente de aprobar por el dueño** | `sitios.doohmain_pantalla` (texto, sin espacios en los extremos, 1–120): a qué pantalla de DOOHmain se publica cada pantalla, capturada en la ficha (13/10) |
+> | `20261013_sitios_pantalla_doohmain.sql` | rama `feat/doohmain-pantalla-por-sitio`, **forma aprobada por el dueño el 13/10** (la subió a `main` en `84b589f3`; sale en v0.11.7) | `sitios.doohmain_pantalla` (texto, sin espacios en los extremos, 1–120): a qué pantalla de DOOHmain se publica cada pantalla, capturada en la ficha (13/10) |
 > | `20261013_doohmain_seguimiento_unicas.sql` | rama `fix/doohmain-publicacion`, **forma aprobada por el dueño el 13/10** | identidad en `id` y las tres únicas que el SDK de DOOHmain necesita: `20260805` creaba las tablas sin ellas y `20260901` (`if not exists`) no hacía nada, así que publicar fallaba en toda base levantada desde el repo (13/10) |
 > | `20261012_razon_social_principal.sql` | rama `feat/razon-social-principal`, **forma aprobada por el dueño el 12/10** | `tenants.entidad_principal_id`: la razón social de Identidad sale de «Razones sociales» (12/10) |
 > | `20261007_calculadora_spots.sql` | rama sin fusionar | `43082ac4` (01/10) |
