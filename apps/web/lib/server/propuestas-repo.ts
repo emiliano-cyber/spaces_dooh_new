@@ -1291,6 +1291,60 @@ export interface PropuestaActualizada {
   descuentoAplicado: number | null
 }
 
+// Pone el cliente a una propuesta APROBADA que se aprobó sin él (13/10).
+//
+// Se puede aprobar sin cliente, pero `generarCampanaDesdePropuesta` no genera
+// campaña sin él (no habría a quién facturar), y una vez aprobada la propuesta
+// es inmutable: quedaba atascada para siempre. Se encontró en g500 preparando
+// la primera prueba real de DOOHmain.
+//
+// Es la ÚNICA excepción a la inmutabilidad, y por eso va acotada:
+//   · Solo si la propuesta NO tiene cliente. Cambiar uno ya puesto sería
+//     cambiar a quién se le vendió, y eso va como adenda.
+//   · Solo un anunciante (no una agencia), igual que el selector al crear.
+//   · Solo si su IVA es el mismo con el que se congeló el snapshot al aprobar.
+//     Sin cliente se congeló el general (16 %); un cliente con otro IVA haría
+//     que la campaña cobrara un total distinto del que se aprobó, porque la
+//     campaña lee el IVA del cliente en vivo.
+// El `cliente_id is null` va también en el `where`: si dos personas lo eligen a
+// la vez, gana la primera y la segunda recibe el error, no un cambio silencioso.
+export async function asignarClienteAPropuestaAprobada(propuestaId: string, clienteId: string): Promise<void> {
+  const tenant = await tenantActual()
+  const p = await q1<any>(
+    'select estatus, cliente_id, snapshot_economico from propuestas where id=$1 and tenant_id=$2',
+    [propuestaId, tenant],
+  )
+  if (!p) throw new PropuestaError('Propuesta no encontrada')
+  if (p.estatus !== 'APROBADA') {
+    throw new PropuestaError('Solo se le pone cliente al generar la campaña de una propuesta aprobada')
+  }
+  if (p.cliente_id) {
+    if (p.cliente_id === clienteId) return
+    throw new PropuestaError('La propuesta ya tiene cliente; cambiarlo va como adenda')
+  }
+  const c = await q1<any>(
+    'select nombre, tipo, iva_pct from clientes where id=$1 and tenant_id=$2',
+    [clienteId, tenant],
+  )
+  if (!c) throw new PropuestaError('Cliente no encontrado')
+  if (c.tipo === 'AGENCIA') {
+    throw new PropuestaError(`${c.nombre} es una agencia; elige al anunciante`)
+  }
+  const ivaAprobado = Number(p.snapshot_economico?.ivaPct ?? IVA_PCT)
+  const ivaCliente = Number(c.iva_pct ?? IVA_PCT)
+  if (ivaCliente !== ivaAprobado) {
+    throw new PropuestaError(
+      `${c.nombre} tiene IVA de ${ivaCliente} % y la propuesta se aprobó con ${ivaAprobado} %: ` +
+        'el total cambiaría. Crea una propuesta nueva con este cliente',
+    )
+  }
+  const rows = await q(
+    'update propuestas set cliente_id=$2 where id=$1 and tenant_id=$3 and cliente_id is null returning id',
+    [propuestaId, clienteId, tenant],
+  )
+  if (!rows.length) throw new PropuestaError('La propuesta ya tiene cliente; cambiarlo va como adenda')
+}
+
 // Actualiza campos editables de la propuesta (descuento comercial, nombre,
 // notas). Regla de negocio: una propuesta APROBADA es inmutable. Si se cambia
 // el descuento de una propuesta ya ENVIADA, sube la versión (renegociación).

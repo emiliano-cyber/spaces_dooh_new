@@ -1,5 +1,15 @@
 [
   {
+    "version": "v0.11.8",
+    "fecha": "2026-10-13",
+    "items": [
+      {
+        "tipo": "CORREGIDO",
+        "texto": "Una propuesta aprobada sin cliente ya puede generar su campaña: al pulsar «Generar campaña» se abre una ventana para elegir el cliente. Solo si la propuesta no tenía cliente, debe ser un anunciante (no una agencia) y con el mismo IVA con el que se aprobó; si no, el total cambiaría y la aplicación lo avisa."
+      }
+    ]
+  },
+  {
     "version": "v0.11.7",
     "fecha": "2026-10-13",
     "items": [

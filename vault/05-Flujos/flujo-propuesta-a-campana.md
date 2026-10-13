@@ -121,7 +121,29 @@ sequenceDiagram
 
 - **4** · `generarCampanaDesdePropuesta()` rechaza cualquier estatus distinto de
   `APROBADA` (`campanas-repo.ts:649-651`), y también una propuesta sin cliente
-  (`:652-654`). El route lo traduce a 409 (`generar-campana/route.ts:31`).
+  (`:652-654`). El route lo traduce a 409 (`generar-campana/route.ts:44`).
+
+> [!important] 2026-10-13 · el cliente se puede poner AL GENERAR, una sola vez
+> Una propuesta se podía aprobar sin cliente, pero sin él no se genera la
+> campaña, y aprobada ya no se edita: quedaba **atascada para siempre**. Se
+> encontró en g500 preparando la primera prueba real de DOOHmain.
+>
+> Ahora `POST generar-campana` acepta `{ clienteId }` (`generar-campana/route.ts:27-29`)
+> y, antes de generar, llama a `asignarClienteAPropuestaAprobada()`
+> (`propuestas-repo.ts:1311`). Es la **única excepción** a la inmutabilidad de
+> una APROBADA, con tres candados:
+>
+> - **Solo si falta.** Con cliente ya puesto, otro distinto es 409 («adenda»).
+>   El `cliente_id is null` va también en el `where` del `update`.
+> - **Solo un anunciante de esta organización** (`tipo <> 'AGENCIA'`, `tenant_id`).
+> - **Solo con el IVA congelado.** Sin cliente, el snapshot se congeló con el
+>   16 % general; la campaña lee el IVA del cliente **en vivo**
+>   (`campanas-repo.ts:43`), así que un cliente con otro IVA cobraría un total
+>   distinto del aprobado. Se niega y se pide una propuesta nueva.
+>
+> En la interfaz, «Generar campaña» abre `ElegirClienteDialog` cuando falta
+> el cliente (lista y detalle de la propuesta). Pruebas:
+> `lib/test/propuesta-sin-cliente.e2e.test.ts`.
 - **5** · `cambiarEstatusPropuesta()` (`propuestas-repo.ts:1432`) comprueba el
   cupón **primero** (`:1440-1461`) y lo vuelve a exigir en el `where` del
   `update` (`:1551-1556`), que es lo que cierra la carrera con un canje

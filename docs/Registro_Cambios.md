@@ -7,6 +7,14 @@ La entrada más reciente va arriba.
 
 ## 2026-10-13
 
+- **Una propuesta aprobada sin cliente ya puede generar su campaña.** Antes se
+  quedaba atascada: sin cliente no se genera la campaña, y aprobada ya no se
+  podía editar. Ahora, al pulsar «Generar campaña», si falta el cliente se
+  abre una ventana para elegirlo y se genera en el mismo paso. Solo se puede
+  poner si la propuesta no tenía cliente (cambiarlo sigue yendo como adenda),
+  tiene que ser un anunciante (no una agencia), y su IVA tiene que ser el
+  mismo con el que se aprobó; si no, el total cambiaría y la aplicación lo
+  dice y no lo pone.
 - **Cada pantalla dice a qué pantalla de DOOHmain va.** En la ficha de una
   pantalla digital (Editar), el campo **«Pantalla en DOOHmain»** sugiere las
   pantallas de tu cuenta de DOOHmain; eliges una y guardas. Ya no hace falta

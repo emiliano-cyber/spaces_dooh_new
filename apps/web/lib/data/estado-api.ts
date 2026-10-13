@@ -184,8 +184,14 @@ export async function actualizarPropuestaApi(
 }
 
 // Genera una campaña a partir de una propuesta aprobada (solo sitios aprobados).
-export async function generarCampanaDesdePropuestaApi(propuestaId: string): Promise<{ id: string }> {
-  const r = await fetch(`${API}/propuestas/${propuestaId}/generar-campana/`, { method: 'POST' })
+// `clienteId`: solo si la propuesta se aprobó sin cliente; el servidor lo pone
+// antes de generar.
+export async function generarCampanaDesdePropuestaApi(propuestaId: string, clienteId?: string): Promise<{ id: string }> {
+  const r = await fetch(`${API}/propuestas/${propuestaId}/generar-campana/`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(clienteId ? { clienteId } : {}),
+  })
   const d = await r.json().catch(() => ({}))
   if (!r.ok) throw new Error(d.error ?? 'No se pudo generar la campaña')
   await refrescarEstado()

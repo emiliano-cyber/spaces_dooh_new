@@ -27,6 +27,7 @@ import { resolverVolumen } from '@/lib/volumen'
 import { escalasVolumenApi, type TramoVolumenUI } from '@/lib/data/volumen-api'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
+import { ElegirClienteDialog } from '@/components/demo/propuestas/ElegirClienteDialog'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
 import { CRUDO_INVALIDO } from '@/lib/captura-cifra'
 import { MapView } from '@/components/demo/MapView'
@@ -150,6 +151,7 @@ function PropuestaCard({
   const est = EST[p.estatus]
   const router = useRouter()
   const [generando, setGenerando] = useState(false)
+  const [elegirCliente, setElegirCliente] = useState(false)
 
   // ADR 0008 · pantallas de esta propuesta que ya tienen su cupo de clientes
   // lleno en las fechas propuestas, para un cliente que no está entre ellos.
@@ -190,10 +192,16 @@ function PropuestaCard({
       toast.error(e instanceof Error ? e.message : 'Error')
     }
   }
-  async function generarCampana() {
+  // Sin cliente no se genera: primero se elige (ElegirClienteDialog).
+  async function generarCampana(clienteId?: string) {
+    if (!p.clienteId && !clienteId) {
+      setElegirCliente(true)
+      return
+    }
     setGenerando(true)
     try {
-      const camp = await generarCampanaDesdePropuestaApi(p.id)
+      const camp = await generarCampanaDesdePropuestaApi(p.id, clienteId)
+      setElegirCliente(false)
       if (camp?.id) router.push(`/campanas/${camp.id}`)
     } catch (e) { toast.error(e instanceof Error ? e.message : 'Error') }
     setGenerando(false)
@@ -332,7 +340,7 @@ function PropuestaCard({
                       </Button>
                     </>
                   ) : (
-                    <Button size="sm" disabled={generando} onClick={generarCampana}>
+                    <Button size="sm" disabled={generando} onClick={() => void generarCampana()}>
                       <ChevronRight className="h-3.5 w-3.5" /> {generando ? 'Generando…' : 'Generar campaña'}
                     </Button>
                   )
@@ -342,6 +350,12 @@ function PropuestaCard({
           </div>
         )}
       </Card>
+      <ElegirClienteDialog
+        open={elegirCliente}
+        onOpenChange={setElegirCliente}
+        clientes={clientes}
+        onElegir={(clienteId) => generarCampana(clienteId)}
+      />
     </li>
   )
 }

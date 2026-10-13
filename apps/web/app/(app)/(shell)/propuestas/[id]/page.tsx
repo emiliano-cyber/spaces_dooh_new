@@ -43,6 +43,7 @@ import {
   ConfirmacionCeroError,
 } from '@/lib/data/estado-api'
 import { BloqueCodigoPropuesta } from '@/components/demo/codigos/BloqueCodigoPropuesta'
+import { ElegirClienteDialog } from '@/components/demo/propuestas/ElegirClienteDialog'
 import {
   paquetesApi,
   aplicarPaqueteApi,
@@ -92,6 +93,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
   const puedeEditar = usePuede('comercial', 'crear')
   const router = useRouter()
   const [generando, setGenerando] = useState(false)
+  const [elegirCliente, setElegirCliente] = useState(false)
   const [copiado, setCopiado] = useState(false)
   const [descInput, setDescInput] = useState('0.00')
   const [guardandoDesc, setGuardandoDesc] = useState(false)
@@ -292,10 +294,16 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
   async function aprobar(itemId: string, aprobado: boolean) {
     try { await aprobarItemPropuestaApi(itemId, aprobado) } catch (e) { toast.error(e instanceof Error ? e.message : 'Error') }
   }
-  async function generarCampana() {
+  // Sin cliente no se genera: primero se elige (ElegirClienteDialog).
+  async function generarCampana(clienteId?: string) {
+    if (!p!.clienteId && !clienteId) {
+      setElegirCliente(true)
+      return
+    }
     setGenerando(true)
     try {
-      const camp = await generarCampanaDesdePropuestaApi(id)
+      const camp = await generarCampanaDesdePropuestaApi(id, clienteId)
+      setElegirCliente(false)
       if (camp?.id) router.push(`/campanas/${camp.id}`)
     } catch (e) { toast.error(e instanceof Error ? e.message : 'Error') }
     setGenerando(false)
@@ -351,12 +359,19 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
             </>
           )}
           {puedeEditar && p.estatus === 'APROBADA' && (
-            <Button size="sm" disabled={generando} onClick={generarCampana}>
+            <Button size="sm" disabled={generando} onClick={() => void generarCampana()}>
               <ChevronRight className="h-3.5 w-3.5" /> {generando ? 'Generando…' : 'Generar campaña'}
             </Button>
           )}
         </div>
       </div>
+
+      <ElegirClienteDialog
+        open={elegirCliente}
+        onOpenChange={setElegirCliente}
+        clientes={clientes}
+        onElegir={(clienteId) => generarCampana(clienteId)}
+      />
 
       {/* Barra de metadatos (fechas / anunciante / agencia / comisión) */}
       <Card className="overflow-hidden p-0">

@@ -1,19 +1,32 @@
 import { NextResponse } from 'next/server'
+import { z } from 'zod'
 import { exigir } from '@/lib/server/auth'
 import { generarCampanaDesdePropuesta, PropuestaCampanaError } from '@/lib/server/campanas-repo'
-import { respuestaError } from '@/lib/server/errores'
+import { asignarClienteAPropuestaAprobada, PropuestaError } from '@/lib/server/propuestas-repo'
+import { respuestaError, validar } from '@/lib/server/errores'
 import { registrarAccion } from '@/lib/server/acciones-repo'
 import { notificar } from '@/lib/server/notificaciones-repo'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-// POST /api/propuestas/[id]/generar-campana → deriva una campaña de la propuesta
-// APROBADA (solo sitios aprobados, precio neto de comisión). Idempotente.
-export async function POST(_req: Request, { params }: { params: { id: string } }) {
+// `clienteId` solo cuando la propuesta se aprobó SIN cliente (13/10): sin él
+// no se genera la campaña y, aprobada, ya no había dónde ponerlo. Las reglas
+// (solo si falta, solo anunciante, mismo IVA) viven en
+// `asignarClienteAPropuestaAprobada`.
+const cuerpoSchema = z.object({ clienteId: z.string().uuid('Cliente inválido').optional() })
+
+// POST /api/propuestas/[id]/generar-campana  { clienteId? } → deriva una campaña
+// de la propuesta APROBADA (solo sitios aprobados, precio neto de comisión).
+// Idempotente.
+export async function POST(req: Request, { params }: { params: { id: string } }) {
   const g = await exigir('comercial', 'crear')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
   try {
+    const { clienteId } = validar(cuerpoSchema, await req.json().catch(() => ({})))
+    if (clienteId) {
+      await asignarClienteAPropuestaAprobada(params.id, clienteId)
+    }
     const { campana, yaExistia } = await generarCampanaDesdePropuesta(params.id)
     // Solo se registra y notifica si REALMENTE se creó. Al ser idempotente, un
     // segundo envío devuelve la campaña que ya existía: anotarlo en la bitácora
@@ -28,7 +41,9 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
     }
     return NextResponse.json(campana, { status: yaExistia ? 200 : 201 })
   } catch (e) {
-    if (e instanceof PropuestaCampanaError) return NextResponse.json({ error: e.message }, { status: 409 })
+    if (e instanceof PropuestaCampanaError || e instanceof PropuestaError) {
+      return NextResponse.json({ error: e.message }, { status: 409 })
+    }
     // El `throw e` que habia aqui convertia en 500 CUALQUIER otro error de
     // dominio, y el mas comun es un AppError con su propio status: el guard del
     // ADR 0003 -«esta pantalla no se puede vender: su contrato de arrendamiento

@@ -207,7 +207,7 @@ en `:230-237`) y **no** puede condicionarse a que la ruta
 | POST | `/api/propuestas` · PATCH `/api/propuestas/[id]` | exigir (`comercial:crear`). Desde `17fbd252` (01/10) el `POST` **recalcula la tarifa** de cada línea en el servidor; un precio distinto al centavo exige además `comercial:aprobar` del rol de la sesión, o 403 y no se guarda nada |
 | POST · DELETE | `/api/propuestas/[id]/paquete` | (05/10) `comercial:crear` — aplicar o quitar un paquete cerrado; el cuerpo lleva **solo** `paqueteId`, el precio lo copia el servidor bajo RLS — [[paquete-cerrado]] |
 | PATCH | `/api/propuestas/items/[id]` | exigir |
-| POST | `/api/propuestas/[id]/generar-campana` | exigir |
+| POST | `/api/propuestas/[id]/generar-campana` | exigir (`comercial:crear`). (13/10) Cuerpo opcional `{ clienteId }` (UUID, si no 400): pone el cliente a una APROBADA que no lo tenía —solo anunciante de esta organización y con el mismo IVA del snapshot; si no, 409— y genera |
 | GET · POST · DELETE | `/api/propuestas/[id]/codigo` | `comercial:ver` (leer: estado del cupón y `puedeAprobarCodigo`, COD-03) · `comercial:crear` (aplicar —nace **PENDIENTE**; en una RECHAZADA la reactiva a BORRADOR— y quitar); ver [[codigo-promocional]] |
 | POST | `/api/propuestas/[id]/codigo/decision` | `comercial:aprobar` — aprobar o rechazar (con motivo) el cupón PENDIENTE; `.strict()`; 409 si no está pendiente, 404 si es de otra organización (COD-03, 30/09) |
 | POST | `/api/reservar` | exigir |
