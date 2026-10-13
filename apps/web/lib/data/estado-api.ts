@@ -976,6 +976,17 @@ export async function validarPublicacionApi(
   return d
 }
 
+// Vuelve a mandar a DOOHmain una publicación ya aprobada. No cambia la campaña,
+// así que no hace falta refrescar el estado.
+export async function reintentarPublicacionApi(
+  campanaId: string,
+): Promise<Campana & { doohmain?: RespuestaPublicacion }> {
+  const r = await fetch(`${API}/campanas/${campanaId}/reintentar-publicacion/`, { method: 'POST' })
+  const d = await r.json()
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo volver a publicar')
+  return d
+}
+
 export async function extenderCampanaApi(campanaId: string, fechaFin: string): Promise<Campana> {
   const r = await fetch(`${API}/campanas/${campanaId}/extender/`, {
     method: 'POST',

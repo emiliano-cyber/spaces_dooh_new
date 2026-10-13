@@ -73,8 +73,13 @@ flowchart LR
 >
 > **Sigue abierto, y es de dinero (ROJO):** aprobar pasa la campaña a
 > `LISTA_FACTURAR` y enciende `reporte_publicacion`
-> (`campanas-repo.ts:1279`) **antes** de publicar y sin mirar el resultado. Y no
-> hay botón para reintentar una publicación ya aprobada.
+> (`campanas-repo.ts:1306`) **antes** de publicar y sin mirar el resultado.
+>
+> **Reintento (13/10, pedido del dueño):** con la publicación aprobada, la ficha
+> ofrece «Volver a publicar en DOOHmain» → `POST /api/campanas/:id/reintentar-publicacion`.
+> Solo publica: no toca estado, aprobación ni candado (`campanaParaReintentarPublicacion`
+> no escribe nada), exige la misma asignación por pantalla que aprobar, y lo ya
+> publicado sale como «Ya estaba publicada».
 
 `playlogs-repo.ts` guarda la respuesta **cruda** de la API a propósito: *«aún no
 hemos visto una respuesta con datos, así que no se interpreta nada todavía»*.

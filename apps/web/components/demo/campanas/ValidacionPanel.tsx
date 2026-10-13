@@ -2,7 +2,7 @@
 
 import { toast } from 'sonner'
 import { useState } from 'react'
-import { ShieldCheck, Send, Check, X, Clock, Images, Code2, Trash2, AlertTriangle } from 'lucide-react'
+import { ShieldCheck, Send, Check, X, Clock, Images, Code2, Trash2, AlertTriangle, RotateCw } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import {
   StatusBadge,
@@ -14,10 +14,10 @@ import {
 import { ConfirmDialog } from '@/components/demo/ui/ConfirmDialog'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { useCampana, useCreatividades, formatFechaHora } from '@/lib/data/client'
-import { enviarADominioApi, validarPublicacionApi, eliminarCreatividadApi } from '@/lib/data/estado-api'
+import { enviarADominioApi, validarPublicacionApi, reintentarPublicacionApi, eliminarCreatividadApi } from '@/lib/data/estado-api'
 import type { Creatividad } from '@/lib/data/types'
 import { Button } from '@/components/demo/ui/Button'
-import { resumirPublicacion, type ResumenPublicacion } from '@/lib/doohmain-resultado'
+import { resumirPublicacion, type ResumenPublicacion, type RespuestaPublicacion } from '@/lib/doohmain-resultado'
 
 // Panel de validación de publicación: se envía la campaña al dominio/CMS y un
 // revisor verifica la información de los anuncios antes de que salga al aire.
@@ -32,6 +32,7 @@ export function ValidacionPanel({ campanaId }: { campanaId: string }) {
   // Lo que respondió DOOHmain en ESTA aprobación. No se guarda: al recargar
   // queda el renglón de Actividad, que nombra las pantallas que fallaron.
   const [publicacion, setPublicacion] = useState<ResumenPublicacion | null>(null)
+  const [confirmarReintento, setConfirmarReintento] = useState(false)
 
   if (!c) return <div className="h-40 w-full animate-pulse rounded-md bg-surface-2" />
 
@@ -62,15 +63,27 @@ export function ValidacionPanel({ campanaId }: { campanaId: string }) {
       // Antes se descartaba `r.doohmain` y la ficha decía «aprobada» aunque
       // ninguna pantalla recibiera nada (13/10). Solo aplica a lo que tiene
       // segmento digital: una OOH no pasa por DOOHmain.
-      if (aprobar && requiereCreativos) {
-        const res = resumirPublicacion(r.doohmain)
-        setPublicacion(res)
-        if (res.tipo === 'ok') toast.success(`Publicada en DOOHmain: ${res.filas.length} pantalla(s)`)
-        else if (res.tipo === 'parcial') toast.warning(`DOOHmain: ${res.fallidas} pantalla(s) con error`)
-        else if (res.tipo === 'error') toast.error('No se publicó en DOOHmain')
-      }
+      if (aprobar && requiereCreativos) mostrarPublicacion(r.doohmain)
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'No se pudo validar la publicación')
+    }
+    setBusy(false)
+  }
+
+  function mostrarPublicacion(r: RespuestaPublicacion) {
+    const res = resumirPublicacion(r)
+    setPublicacion(res)
+    if (res.tipo === 'ok') toast.success(`Publicada en DOOHmain: ${res.filas.length} pantalla(s)`)
+    else if (res.tipo === 'parcial') toast.warning(`DOOHmain: ${res.fallidas} pantalla(s) con error`)
+    else if (res.tipo === 'error') toast.error('No se publicó en DOOHmain')
+  }
+
+  async function reintentar() {
+    setBusy(true)
+    try {
+      mostrarPublicacion((await reintentarPublicacionApi(campanaId)).doohmain)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'No se pudo volver a publicar')
     }
     setBusy(false)
   }
@@ -233,6 +246,20 @@ export function ValidacionPanel({ campanaId }: { campanaId: string }) {
                 <X className="h-3.5 w-3.5" /> Rechazar
               </Button>
             </div>
+          ) : aprobada && requiereCreativos ? (
+            // Sin esto, una publicación que falló en DOOHmain no tenía vuelta
+            // desde la aplicación (pedido del dueño, 13/10).
+            <Button
+              type="button"
+              disabled={busy}
+              onClick={() => setConfirmarReintento(true)}
+              size="sm"
+              variant="secondary"
+              className="w-full"
+            >
+              <RotateCw className="h-3.5 w-3.5" />
+              {busy ? 'Publicando…' : 'Volver a publicar en DOOHmain'}
+            </Button>
           ) : null}
         </div>
       )}
@@ -280,6 +307,23 @@ export function ValidacionPanel({ campanaId }: { campanaId: string }) {
         </span>{' '}
         (la API de DOOHmain no lo permite): cualquier cambio posterior deberá hacerse{' '}
         <span className="text-ink">manualmente en el panel de DOOHmain</span>. ¿Continuar?
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={confirmarReintento}
+        onOpenChange={setConfirmarReintento}
+        title="Volver a publicar en DOOHmain"
+        confirmLabel="Sí, volver a publicar"
+        variant="primary"
+        busy={busy}
+        onConfirm={async () => {
+          await reintentar()
+          setConfirmarReintento(false)
+        }}
+      >
+        Se manda otra vez a DOOHmain cada pantalla de la campaña con la pieza que tiene asignada{' '}
+        <span className="font-medium text-ink">hoy</span>. Lo que ya está publicado no se duplica. La
+        campaña no cambia de estado.
       </ConfirmDialog>
     </div>
   )

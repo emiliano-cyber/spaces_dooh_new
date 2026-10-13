@@ -466,3 +466,86 @@ describe('3 · rechazar un creativo no toca las campañas de al lado', () => {
     expect((await asignaciones(campB))[0].creativos).toEqual([{ creatividadId: crB, veces: 10 }])
   })
 })
+
+// ─── Reintentar la publicación ya aprobada ──────────────────────────────────
+
+describe('5 · reintentar la publicación en DOOHmain', () => {
+  // Pedido por el dueño el 13/10. Aprobada la publicación, la ficha no ofrecía
+  // ningún botón: si DOOHmain fallaba —tablas rotas, una pantalla sin mapa, la
+  // red—, no había forma de volver a mandarla. El reintento SOLO publica: no
+  // toca estado, fechas ni el candado de facturación, que ya decidió `validar`.
+  const reintentar = (campanaId: string, cli = c) =>
+    cli.pedir(`/api/campanas/${campanaId}/reintentar-publicacion/`, { cuerpo: {} })
+
+  async function aprobada(): Promise<string> {
+    const camp = await sembrarCampana({ sitios: [{ id: org.sitioId, spots: 6 }, { id: sitioB, spots: 10 }] })
+    await aprobar(await sembrarCreativo(camp, 'La única'))
+    expect((await c.pedir(`/api/campanas/${camp}/enviar-dominio/`, { cuerpo: {} })).status).toBe(200)
+    expect((await c.pedir(`/api/campanas/${camp}/validar/`, { cuerpo: { aprobar: true } })).status).toBe(200)
+    return camp
+  }
+
+  it('vuelve a mandar cada pantalla y devuelve el resultado de cada una', async () => {
+    const camp = await aprobada()
+    const r = await reintentar(camp)
+    expect(r.status, JSON.stringify(r.datos)).toBe(200)
+    expect(new Set(r.datos.doohmain.map((f: any) => f.sitio))).toEqual(new Set([CLAVE_A, CLAVE_B]))
+  })
+
+  it('no cambia el estado, la aprobación ni el candado de facturación', async () => {
+    const camp = await aprobada()
+    const antes = (await poolTest().query(
+      `select estado_comercial, validacion_estatus, validacion_en, validacion_por, reporte_publicacion
+         from campanas where id=$1`, [camp])).rows[0]
+    await reintentar(camp)
+    const despues = (await poolTest().query(
+      `select estado_comercial, validacion_estatus, validacion_en, validacion_por, reporte_publicacion
+         from campanas where id=$1`, [camp])).rows[0]
+    expect(despues).toEqual(antes)
+  })
+
+  it('queda en Actividad, nombrando las pantallas que fallaron', async () => {
+    const camp = await aprobada()
+    await reintentar(camp)
+    // En el arnés el intérprete no existe: las dos pantallas fallan.
+    const r = await poolTest().query(
+      `select accion from acciones where accion like 'Reintento de publicación en DOOHmain%' order by timestamp desc limit 1`,
+    )
+    expect(r.rows[0]?.accion).toContain(CLAVE_A)
+    expect(r.rows[0]?.accion).toContain(CLAVE_B)
+  })
+
+  it('una campaña cuya publicación NO está aprobada rebota: primero se aprueba', async () => {
+    const camp = await sembrarCampana()
+    await aprobar(await sembrarCreativo(camp, 'La única'))
+    await c.pedir(`/api/campanas/${camp}/enviar-dominio/`, { cuerpo: {} })
+    const r = await reintentar(camp)
+    expect(r.status).toBe(409)
+    expect(r.datos.error).toContain('aprobada')
+  })
+
+  it('también exige que cada pantalla tenga su pieza, como aprobar', async () => {
+    const camp = await aprobada()
+    const res = await poolTest().query(
+      `select r.id from reservas r join sitios s on s.id=r.sitio_id where r.campana_id=$1 and s.nombre='Pantalla B'`,
+      [camp],
+    )
+    await c.pedir(`/api/reservas/${res.rows[0].id}/creativo/`, { metodo: 'PATCH', cuerpo: { creativos: [] } })
+    const r = await reintentar(camp)
+    expect(r.status).toBe(409)
+    expect(r.datos.error).toContain('Pantalla B')
+  })
+
+  it('sin permiso de comercial, 403; y la de otra organización no existe', async () => {
+    const camp = await aprobada()
+    const imprenta = await sembrarTenant('reintento-imprenta', { rol: 'IMPRENTA' })
+    const ci = new Cliente()
+    await ci.entrar(imprenta.usuarioEmail, PASSWORD_DEMO)
+    expect((await reintentar(camp, ci)).status).toBe(403)
+
+    const ajena = await sembrarTenant('reintento-ajena')
+    const ca = new Cliente()
+    await ca.entrar(ajena.usuarioEmail, PASSWORD_DEMO)
+    expect((await reintentar(camp, ca)).status).toBe(404)
+  })
+})

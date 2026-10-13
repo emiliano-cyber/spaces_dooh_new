@@ -60,7 +60,7 @@ archivos:
 >
 > | Migración | Decía | Entró en `main` |
 > |---|---|---|
-> | `20261013_doohmain_seguimiento_unicas.sql` | rama `fix/doohmain-publicacion`, **forma pendiente de aprobar por el dueño** | identidad en `id` y las tres únicas que el SDK de DOOHmain necesita: `20260805` creaba las tablas sin ellas y `20260901` (`if not exists`) no hacía nada, así que publicar fallaba en toda base levantada desde el repo (13/10) |
+> | `20261013_doohmain_seguimiento_unicas.sql` | rama `fix/doohmain-publicacion`, **forma aprobada por el dueño el 13/10** | identidad en `id` y las tres únicas que el SDK de DOOHmain necesita: `20260805` creaba las tablas sin ellas y `20260901` (`if not exists`) no hacía nada, así que publicar fallaba en toda base levantada desde el repo (13/10) |
 > | `20261012_razon_social_principal.sql` | rama `feat/razon-social-principal`, **forma aprobada por el dueño el 12/10** | `tenants.entidad_principal_id`: la razón social de Identidad sale de «Razones sociales» (12/10) |
 > | `20261007_calculadora_spots.sql` | rama sin fusionar | `43082ac4` (01/10) |
 > | `20261011_contrato_cambios_solo_insercion.sql` | rama `fix/contrato-cambios-solo-insercion` | quita `update`/`delete` que el privilegio por omisión del 24/08 daba sobre `contrato_cambios`: la 20261010 decía «solo select e insert» y era falso (07/10) |

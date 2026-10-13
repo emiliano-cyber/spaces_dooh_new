@@ -1,7 +1,7 @@
 ---
 tipo: referencia
 estado: verificado
-actualizado: 2026-10-06
+actualizado: 2026-10-13
 tags: [backend, api, endpoints]
 archivos:
   - apps/web/app/api/

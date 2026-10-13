@@ -1244,6 +1244,27 @@ export async function enviarADominio(campanaId: string) {
   return rows[0] ? rowToCampana(rows[0]) : null
 }
 
+// Reintento de una publicación YA aprobada (13/10). Solo comprueba que se
+// puede volver a mandar; no escribe nada. A propósito: el estado, la fecha de
+// aprobación y el candado de facturación los decidió `validarPublicacion`, y
+// reintentar no es volver a aprobar. Lo ya publicado no se duplica: el SDK lo
+// reconoce en sus tablas (`20261013_doohmain_seguimiento_unicas.sql`).
+export async function campanaParaReintentarPublicacion(campanaId: string) {
+  const camp = await q1<any>('select * from campanas where id=$1', [campanaId])
+  if (!camp) return null
+  if (camp.validacion_estatus !== 'APROBADA') {
+    throw new ValidacionError(
+      'La publicación de esta campaña no está aprobada: primero se aprueba en «Validación de publicación»',
+    )
+  }
+  // El mismo guard que al aprobar: entre la aprobación y el reintento se puede
+  // haber vaciado un slot, y mandar esa pantalla la dejaría a oscuras.
+  if (camp.tipo_campana === 'DOOH' || camp.tipo_campana === 'HIBRIDA') {
+    await exigirTodaPantallaConCreativo(campanaId, 'reintentar la publicación')
+  }
+  return rowToCampana(camp)
+}
+
 // Paso 2: el revisor valida la publicación. Aprobar → la campaña pasa a ACTIVA
 // (al aire). Rechazar → se guarda el motivo y se baja la bandera de envío para
 // que deba corregirse y reenviarse antes de volver a revisarse.

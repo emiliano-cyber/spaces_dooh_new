@@ -130,7 +130,7 @@ código, no de memoria:
 | Framework | Next.js 14.2.29, App Router | `apps/web/package.json:17` |
 | Base de datos | PostgreSQL, `pg` directo (sin ORM) | `apps/web/lib/server/db.ts:2` |
 | Aislamiento | RLS de Postgres por `app.tenant_id` | `apps/web/lib/server/db.ts:60` y `:79` |
-| Endpoints | **137** route handlers | `apps/web/app/api/**/route.ts` |
+| Endpoints | **138** route handlers | `apps/web/app/api/**/route.ts` |
 | Tablas | **59** | `vault/04-Datos/esquema.md` |
 | Migraciones | **111** | `vault/04-Datos/migraciones.md` |
 

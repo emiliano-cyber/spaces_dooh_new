@@ -18,6 +18,10 @@ La entrada más reciente va arriba.
   una pantalla que no tiene su nombre de DOOHmain configurado). Antes decía
   «Publicación aprobada» aunque no se hubiera subido nada. En **Actividad**
   queda escrito qué pantallas fallaron y por qué.
+- **Botón «Volver a publicar en DOOHmain».** En una campaña con la publicación
+  ya aprobada, si alguna pantalla no se subió (por ejemplo, porque faltaba su
+  nombre en DOOHmain), ahora se puede volver a mandar desde la misma ficha. Lo
+  que ya estaba publicado no se duplica, y la campaña no cambia de estado.
 
 ## 2026-10-12
 

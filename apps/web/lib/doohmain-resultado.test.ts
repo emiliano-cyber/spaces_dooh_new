@@ -40,4 +40,11 @@ describe('textoAccionPublicacion', () => {
   it('sin errores, el texto de siempre', () => {
     expect(textoAccionPublicacion([ok('A')])).toBe('Publicó campaña en DOOHmain')
   })
+
+  it('un reintento se distingue de la primera publicación', () => {
+    expect(textoAccionPublicacion([ok('A')], 'reintento')).toBe('Reintento de publicación en DOOHmain sin errores')
+    expect(textoAccionPublicacion([mal('B', 'x')], 'reintento')).toBe(
+      'Reintento de publicación en DOOHmain con 1 error(es): B (x)',
+    )
+  })
 })

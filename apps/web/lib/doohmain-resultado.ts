@@ -45,9 +45,16 @@ export function resumirPublicacion(r: RespuestaPublicacion): ResumenPublicacion 
 
 // El renglón de Actividad. Nombra pantalla y motivo de cada fallo: es lo único
 // que sobrevive a recargar la ficha.
-export function textoAccionPublicacion(filas: FilaPublicacion[]): string {
+// El reintento (botón de la ficha, 13/10) se escribe aparte: en Actividad tiene
+// que verse que fue un segundo intento y no la aprobación.
+export function textoAccionPublicacion(filas: FilaPublicacion[], cual: 'aprobacion' | 'reintento' = 'aprobacion'): string {
   const fallos = filas.filter((f) => !f.ok)
-  if (!fallos.length) return 'Publicó campaña en DOOHmain'
   const detalle = fallos.map((f) => `${f.sitio} (${f.error ?? 'sin detalle'})`).join('; ')
+  if (cual === 'reintento') {
+    return fallos.length
+      ? `Reintento de publicación en DOOHmain con ${fallos.length} error(es): ${detalle}`
+      : 'Reintento de publicación en DOOHmain sin errores'
+  }
+  if (!fallos.length) return 'Publicó campaña en DOOHmain'
   return `Publicación en DOOHmain con ${fallos.length} error(es): ${detalle}`
 }

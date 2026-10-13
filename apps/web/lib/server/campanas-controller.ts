@@ -7,6 +7,7 @@ import {
   confirmarReserva,
   validarPublicacion,
   enviarADominio,
+  campanaParaReintentarPublicacion,
   extenderCampana,
   guardarContratoCampana,
   ValidacionError,
@@ -42,6 +43,17 @@ export async function validarPublicacionCtrl(id: string, usuarioNombre: string, 
 export async function enviarADominioCtrl(id: string) {
   try {
     const c = await enviarADominio(id)
+    if (!c) throw new AppError('Campaña no encontrada', 404)
+    return c
+  } catch (e) {
+    if (e instanceof ValidacionError) throw new AppError(e.message, 409)
+    throw e
+  }
+}
+
+export async function reintentarPublicacionCtrl(id: string) {
+  try {
+    const c = await campanaParaReintentarPublicacion(id)
     if (!c) throw new AppError('Campaña no encontrada', 404)
     return c
   } catch (e) {
