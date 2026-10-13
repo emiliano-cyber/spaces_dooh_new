@@ -20,6 +20,7 @@ import { uploadPhoto } from '../services/photoStorage.service';
 import { firmar } from '../utils/firmaArchivos';
 import { configDe as configCreativos, fotosDeHoy as fotosCreativosDeHoy } from './creativos.controller';
 import { encuadreDe } from './dashboard.controller';
+import { horarioParaElReloj } from '../utils/relojEquipo';
 import { campanasDelEquipo } from './campanasSpaceos.controller';
 import { equipoAjeno } from '../utils/dueno';
 
@@ -124,7 +125,7 @@ async function alertasDeHoy(deviceId: number) {
  */
 export async function paraElEquipo(req: Request, res: Response) {
   const did = req.device!.did;
-  const [filas] = await pool.query<any[]>(`SELECT pantalla, stream_rotation FROM devices WHERE id = ?`, [did]);
+  const [filas] = await pool.query<any[]>(`SELECT pantalla, stream_rotation, clock_offset_s FROM devices WHERE id = ?`, [did]);
   const d = (filas as any[])[0];
   if (!d) return res.status(404).json({ error: 'not_found' });
 
@@ -137,8 +138,12 @@ export async function paraElEquipo(req: Request, res: Response) {
     `SELECT DISTINCT tipo, fila, columna FROM pantalla_fallas
      WHERE device_id = ? AND estado = 'descartada' AND recuperada_en >= NOW() - INTERVAL ? DAY`, [did, SILENCIO_DIAS]);
 
+  // El horario va traducido al reloj del equipo, que es con el que lo compara
+  // (un telefono 2 h atrasado revisaba de 8:00 a 2:00).
+  const pantalla = json(d.pantalla);
+  if (pantalla && pantalla.horario) pantalla.horario = horarioParaElReloj(pantalla.horario, Number(d.clock_offset_s) || 0);
   res.json({
-    pantalla: json(d.pantalla),
+    pantalla,
     encuadre: { ...(await encuadreDe(did)), rotation: Number(d.stream_rotation) || 0 },
     creativos: creativos && {
       ...creativos,
