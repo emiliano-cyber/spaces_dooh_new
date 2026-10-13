@@ -439,7 +439,43 @@ export async function actualizar(req: Request, res: Response) {
      WHERE id = ? AND estado = 'abierta'`,
     [parsed.data.estado, req.user!.uid, parsed.data.nota ?? null, req.params.id]);
   if (!(r as any).affectedRows) return res.status(404).json({ error: 'no_abierta' });
-  const [f] = await pool.query<any[]>(`SELECT device_id FROM pantalla_fallas WHERE id = ?`, [req.params.id]);
-  await avisar((f as any[])[0].device_id, Number(req.params.id), parsed.data.estado);
-  res.json({ ok: true });
+  const [f] = await pool.query<any[]>(`SELECT device_id, tipo FROM pantalla_fallas WHERE id = ?`, [req.params.id]);
+  const falla = (f as any[])[0];
+  await avisar(falla.device_id, Number(req.params.id), parsed.data.estado);
+  const ajuste = parsed.data.estado === 'descartada' ? await aprenderDeDescarte(falla.device_id, falla.tipo) : null;
+  res.json({ ok: true, ...(ajuste ? { ajuste } : {}) });
+}
+
+/**
+ * Calificar una deteccion como «No es falla» ENSEÑA al equipo, ademas de
+ * silenciarla 7 dias: ajusta los umbrales de ESE equipo, que viajan en su
+ * configuracion (APK 0.16.7+), sin actualizar nada.
+ *
+ *   - pantalla_congelada falsa: el mismo anuncio se repitio toda la revision
+ *     (Magnocentro, 12/10/2026). La revision dura 2 min mas (tope 15) para
+ *     alcanzar a ver el ciclo de anuncios entero.
+ *   - pantalla_apagada falsa: se exige una pantalla mas lisa (sin_contenido
+ *     baja 0.05, minimo 0.2).
+ *   - fallas de gabinete: basta el silencio de 7 dias de esa zona.
+ *
+ * Devuelve, en palabras, lo que cambio (para mostrarlo), o null.
+ */
+async function aprenderDeDescarte(deviceId: number, tipo: string): Promise<string | null> {
+  if (tipo === 'pantalla_congelada') {
+    const [r] = await pool.query<any>(
+      `UPDATE devices SET creative_recorrido_seg = LEAST(900, COALESCE(creative_recorrido_seg, 270) + 120)
+       WHERE id = ? AND COALESCE(creative_recorrido_seg, 270) < 900`, [deviceId]);
+    if (!(r as any).affectedRows) return null;
+    const [d] = await pool.query<any[]>(`SELECT creative_recorrido_seg s FROM devices WHERE id = ?`, [deviceId]);
+    return `La revisión ahora dura ${Math.round(Number((d as any[])[0].s) / 60 * 10) / 10} min para ver el ciclo de anuncios completo`;
+  }
+  if (tipo === 'pantalla_apagada') {
+    const [r] = await pool.query<any>(
+      `UPDATE devices SET salud_sin_contenido = GREATEST(0.20, COALESCE(salud_sin_contenido, 0.40) - 0.05)
+       WHERE id = ? AND COALESCE(salud_sin_contenido, 0.40) > 0.20`, [deviceId]);
+    if (!(r as any).affectedRows) return null;
+    const [d] = await pool.query<any[]>(`SELECT salud_sin_contenido s FROM devices WHERE id = ?`, [deviceId]);
+    return `Ahora exige una pantalla más lisa para avisar (${Math.round(Number((d as any[])[0].s) * 100)}% de lo normal)`;
+  }
+  return null;
 }
