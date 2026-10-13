@@ -67,7 +67,35 @@ type Ultimo = {
   excluidas?: Celda[]
 }
 type RespPantalla = { pantalla: Pantalla | null; salud: Salud | null; ultimo: Ultimo | null }
-type Foto = { id: number; source?: string; storage_path?: string | null; thumbnail_path?: string | null }
+type Foto = {
+  id: number
+  source?: string
+  storage_path?: string | null
+  thumbnail_path?: string | null
+  display_rotation?: number | null
+}
+
+// Una foto tomada sin la vista en vivo llega acostada y trae su giro aparte
+// (`display_rotation`). El equipo vigila la pantalla ya girada como en el vivo,
+// así que las esquinas se marcan sobre la foto girada: se gira aquí en un lienzo
+// (no con CSS) para que los toques caigan en las coordenadas de la foto derecha.
+async function fotoDerecha(url: string, giro: number): Promise<string> {
+  const g = ((Math.round(giro) % 360) + 360) % 360
+  if (g !== 90 && g !== 180 && g !== 270) return url
+  const img = new Image()
+  img.src = url
+  await img.decode()
+  const lado = g === 180
+  const lienzo = document.createElement('canvas')
+  lienzo.width = lado ? img.naturalWidth : img.naturalHeight
+  lienzo.height = lado ? img.naturalHeight : img.naturalWidth
+  const ctx = lienzo.getContext('2d')
+  if (!ctx) return url
+  ctx.translate(lienzo.width / 2, lienzo.height / 2)
+  ctx.rotate((g * Math.PI) / 180)
+  ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2)
+  return lienzo.toDataURL('image/jpeg', 0.9)
+}
 
 type Edicion = { esquinas: Punto[]; filas: number | ''; columnas: number | ''; excluir: Celda[]; horario: Horario }
 type Modo = 'esquinas' | 'excluir'
@@ -153,7 +181,12 @@ export function PantallaConfig({
         setDatos(p)
         setVersion(d.device?.app_version ?? null)
         const ref = (f.photos ?? []).find((x) => x.source !== 'falla')
-        setFoto(ref ? fotoSE(ref.storage_path || ref.thumbnail_path) : null)
+        if (!ref) return setFoto(null)
+        const url = fotoSE(ref.storage_path || ref.thumbnail_path)
+        if (!url) return setFoto(null)
+        return fotoDerecha(url, ref.display_rotation ?? 0)
+          .catch(() => url)
+          .then((u) => vivo && setFoto(u))
       })
       .catch((e) => vivo && setError(mensaje(e)))
     return () => {
