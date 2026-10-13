@@ -1,5 +1,23 @@
 [
   {
+    "version": "v0.11.6",
+    "fecha": "2026-10-13",
+    "items": [
+      {
+        "tipo": "CORREGIDO",
+        "texto": "Publicar una campaña en DOOHmain vuelve a funcionar: al aprobar la publicación, el arte no llegaba a ninguna pantalla. Se corrige al actualizar, sin tocar lo ya publicado."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Al aprobar la publicación de una campaña ves qué pasó en cada pantalla: su pantalla en DOOHmain y si quedó publicada, ya lo estaba, o con qué error. En Actividad queda escrito qué pantallas fallaron y por qué."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Botón «Volver a publicar en DOOHmain» en las campañas con la publicación aprobada: vuelve a mandar las pantallas que falten sin duplicar las que ya están y sin cambiar el estado de la campaña."
+      }
+    ]
+  },
+  {
     "version": "v0.11.5",
     "fecha": "2026-10-12",
     "items": [
