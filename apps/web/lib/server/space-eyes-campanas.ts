@@ -74,7 +74,7 @@ export async function campanasParaEyes(tenant: string): Promise<CampanaParaEyes[
             to_char(min(r.fecha_inicio), 'YYYY-MM-DD') as desde,
             to_char(max(r.fecha_fin), 'YYYY-MM-DD') as hasta,
             array_agg(distinct lower(trim(s.codigo_proveedor))) as codigos,
-            encode(sha256(convert_to(cr.archivo_url, 'UTF8')), 'hex') as sha
+            encode(sha256(convert_to(coalesce(cr.archivo_url, substring(cr.codigo from '<img[^>]+src="(data:image/[^"]+)"')), 'UTF8')), 'hex') as sha
        from reservas r
        join campanas c on c.id = r.campana_id
        join sitios s on s.id = r.sitio_id
@@ -91,9 +91,15 @@ export async function campanasParaEyes(tenant: string): Promise<CampanaParaEyes[
         and r.fecha_fin >= current_date
         and cr.estatus_validacion = 'VALIDADA'
         and cr.retirado_en is null
-        and cr.archivo_url like 'data:image/%'
+        -- El arte vive en archivo_url (data URL) o DENTRO de codigo: la pantalla
+        -- de Creativos y el alta rapida envuelven toda imagen con imagenAHtml
+        -- para el player, y dejan archivo_url en nulo. Exigir archivo_url dejaba
+        -- fuera TODO lo que se sube desde la interfaz, que es por lo que ninguna
+        -- campana de SPACE OS habia llegado nunca a un equipo. El patron es el
+        -- mismo que usa es_imagen en campanas-repo.
+        and coalesce(cr.archivo_url, substring(cr.codigo from '<img[^>]+src="(data:image/[^"]+)"')) like 'data:image/%'
         and coalesce(trim(s.codigo_proveedor), '') <> ''
-      group by c.id, cr.id, c.nombre, cr.nombre, c.marca, cr.archivo_url
+      group by c.id, cr.id, c.nombre, cr.nombre, c.marca, cr.archivo_url, cr.codigo
       order by c.id, cr.id`,
     [tenant],
   )
@@ -109,14 +115,17 @@ export async function campanasParaEyes(tenant: string): Promise<CampanaParaEyes[
   }))
 }
 
-// El arte, decodificado del data URL en que lo guarda Operaciones.
+// El arte, decodificado del data URL en que lo guarda Operaciones: suelto en
+// `archivo_url`, o envuelto por `imagenAHtml` dentro de `codigo` (que es como
+// queda TODO lo que se sube desde la interfaz).
 async function arteDe(tenant: string, creatividadId: string): Promise<{ bytes: Buffer; tipo: string } | null> {
-  const f = await qConTenant<{ archivo_url: string | null }>(
+  const f = await qConTenant<{ arte: string | null }>(
     tenant,
-    `select archivo_url from creatividades where id = $1 and tenant_id = $2`,
+    `select coalesce(archivo_url, substring(codigo from '<img[^>]+src="(data:image/[^"]+)"')) as arte
+       from creatividades where id = $1 and tenant_id = $2`,
     [creatividadId, tenant],
   )
-  const m = /^data:(image\/[a-z0-9.+-]+);base64,([\s\S]*)$/i.exec(f[0]?.archivo_url ?? '')
+  const m = /^data:(image\/[a-z0-9.+-]+);base64,([\s\S]*)$/i.exec(f[0]?.arte ?? '')
   if (!m) return null
   return { tipo: m[1].toLowerCase(), bytes: Buffer.from(m[2], 'base64') }
 }

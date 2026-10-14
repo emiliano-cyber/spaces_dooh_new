@@ -26,7 +26,9 @@ vi.mock('./db', () => ({
   qConTenant: vi.fn(async (tenant: string, texto: string, params?: unknown[]) => {
     consultas.push({ tenant, texto, params })
     if (texto.includes('from reservas')) return filas
-    if (texto.includes('from creatividades where id')) return [{ archivo_url: arte }]
+    // `arte` y no `archivo_url`: la consulta saca el data URL de donde este,
+    // suelto o envuelto por imagenAHtml dentro de `codigo`.
+    if (texto.includes('from creatividades where id')) return [{ arte }]
     return []
   }),
 }))
@@ -119,6 +121,10 @@ describe('sincronizarCampanasEyes', () => {
     // Al aire tambien es LISTA_FACTURAR (publicacion aprobada + orden de compra).
     expect(lectura.texto).toMatch(/estado_comercial in \('CONFIRMADA', 'ACTIVA', 'LISTA_FACTURAR'\)/)
     expect(lectura.texto).toMatch(/estatus_validacion = 'VALIDADA'/)
+    // Toda imagen subida desde la interfaz queda envuelta en HTML dentro de
+    // `codigo`, con `archivo_url` en nulo: exigir `archivo_url` dejaba fuera
+    // todo lo real.
+    expect(lectura.texto).toMatch(/substring\(cr\.codigo from '<img\[\^>\]\+src="\(data:image\//)
     expect(lectura.texto).toMatch(/retirado_en is null/)
     expect(lectura.texto).not.toMatch(/\b(insert|update|delete)\b/i)
     const delArte = consultas.find((c) => c.texto.includes('from creatividades where id'))!
