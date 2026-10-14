@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-10-14
 tags: [backend, reportes, rentabilidad, finanzas, dinero, rojo]
 archivos:
   - apps/web/app/api/reportes/rentabilidad/route.ts
@@ -145,14 +145,14 @@ no tenga sustituto.
 ## Qué se reusa y qué es nuevo
 
 > [!tip] La atribución de renta NO se rehizo — se movió, y no se copió
-> `rentaAtribuidaPorSitio()` (`lib/data/derive.ts:1282`) reparte la renta del
+> `rentaAtribuidaPorSitio()` (`lib/data/derive.ts:1290`) reparte la renta del
 > contrato de un predio entre las caras de sus pantallas y distingue el contrato
 > de predio del contrato de pantalla suelta. Está pensada y probada
 > (`derive.anclaje-contrato.test.ts`, `derive.pnl.test.ts`), y esas dos pruebas
 > **pasan sin tocarse** tras este cambio.
 >
 > Lo único que cambió en ellas es la FIRMA: de `DemoState` a `DatosAtribucion`
-> (`derive.ts:1234` y `:1282` al 05/10; decía `:1239`), una interfaz con solo `sitios` y `contratos`.
+> (`derive.ts:1242` y `:1290` al 14/10; decía `:1239`), una interfaz con solo `sitios` y `contratos`.
 > `DemoState` sigue encajando por estructura, así que ni un llamador de la UI se
 > tocó, y el servidor puede reusarla sin fabricar un `DemoState` entero con
 > veintitantas rebanadas vacías.
@@ -162,12 +162,12 @@ no tenga sustituto.
 > implementaciones divergen**, y aquí divergir significa que el reporte y el
 > dashboard darían dos costos distintos para la misma pantalla.
 
-**Es nuevo el eje de tiempo.** `margenPorSitio()` (`derive.ts:1347`) es una
-**foto de hoy**: filtra las reservas vigentes hoy (`derive.ts:1354`) y no sabe
+**Es nuevo el eje de tiempo.** `margenPorSitio()` (`derive.ts:1355`) es una
+**foto de hoy**: filtra las reservas vigentes hoy (`derive.ts:1362`) y no sabe
 de periodos.
 
-También es nuevo `'trimestre'` en `Granularidad` (`derive.ts:1522`) y su
-etiquetado, y `etiquetaBucket` pasó a **exportarse** (`derive.ts:1590`): dos
+También es nuevo `'trimestre'` en `Granularidad` (`derive.ts:1530`) y su
+etiquetado, y `etiquetaBucket` pasó a **exportarse** (`derive.ts:1598`): dos
 etiquetados del mismo bucket acabarían diciendo «T1» en una pantalla y «1er
 trimestre» en la otra para el mismo periodo.
 

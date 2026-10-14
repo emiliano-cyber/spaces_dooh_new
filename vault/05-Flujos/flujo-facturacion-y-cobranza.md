@@ -1,7 +1,7 @@
 ---
 tipo: flujo
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-10-14
 tags: [flujo, finanzas, dinero, rojo]
 archivos:
   - apps/web/lib/server/finanzas-repo.ts
@@ -62,9 +62,9 @@ sequenceDiagram
 > - **`notificar()` lo llama el route, no el repo**, y fuera de la transacción
 >   (`app/api/campanas/[id]/facturar/route.ts:20-21`).
 > - **El plazo ya no es 60/90/120 a fuego**: sale de la configuración de la
->   organización (`plazosCobranzaDelTenant()`, `config-repo.ts:110`), que se lee
+>   organización (`plazosCobranzaDelTenant()`, `config-repo.ts:112`), que se lee
 >   antes de validar (`finanzas-controller.ts:87`). 60/90/120 queda solo como
->   respaldo si la lista está vacía (`config-repo.ts:88`). Commit `b7ed5cb4`.
+>   respaldo si la lista está vacía (`config-repo.ts:90`). Commit `b7ed5cb4`.
 > - **La factura lleva la razón social que la emite**: `entidadEmisoraId`,
 >   opcional y validada contra el tenant antes de emitir
 >   (`finanzas-controller.ts:69-72` y `:102-106`), que viaja al `insert`
@@ -82,7 +82,7 @@ sequenceDiagram
 | Llave | Se enciende en |
 |---|---|
 | `oc_recibida` | Registro de la OC (`ordenes-compra-repo.ts:65`) o de imprenta (`impresion-repo.ts:109`) |
-| `fotos_comprobatorias` | Cierre de una OT **`MONTAJE_LONA`** con foto (`ot-repo.ts:306-309`) — [[flujo-orden-de-trabajo]] |
+| `fotos_comprobatorias` | Cierre de una OT **`MONTAJE_LONA`** con foto (`ot-repo.ts:330-333`) — [[flujo-orden-de-trabajo]] |
 | `reporte_publicacion` | Aprobar la publicación (`campanas-repo.ts:1247`) o el proof-of-play (`playlogs-repo.ts:92`) — **nunca** el cierre de una OT |
 
 > [!note] 2026-10-05 · la tabla decía que las dos últimas llaves salían del cierre de la OT

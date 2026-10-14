@@ -1,7 +1,7 @@
 ---
 tipo: contrato
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-10-14
 tags: [backend, precios, descuentos, volumen, propuestas, dinero, snapshot, rls]
 archivos:
   - apps/web/lib/periodos.ts
@@ -182,7 +182,7 @@ por un margen que no se perdió.
 > - **Con paquete, el volumen tampoco cuenta**, porque no se aplicó:
 >   `descuentoDePropuestaDentroDelTope` pasa `volumenPct = 0` si hay paquete
 >   vivo (`apps/web/lib/descuento.ts:424`; la llama `actualizarPropuesta` en
->   `apps/web/lib/server/propuestas-repo.ts:1357`). Hasta TOPE-03 la cuenta vivía
+>   `apps/web/lib/server/propuestas-repo.ts:1413`). Hasta TOPE-03 la cuenta vivía
 >   dentro de `actualizarPropuesta`.
 > - **Y al QUITAR el paquete el volumen vuelve**, así que se revalida el
 >   comercial con él: `quitarPaquete` (`apps/web/lib/server/paquetes-repo.ts:376`,
@@ -199,8 +199,8 @@ por un margen que no se perdió.
 >
 > - **La cuenta es UNA**: `descuentoDePropuestaDentroDelTope`
 >   (`apps/web/lib/descuento.ts:424`) — volumen sí salvo con paquete, cupón según
->   `CODIGO_CUENTA_CONTRA_TOPE`. La usan la edición (`propuestas-repo.ts:1357`),
->   la aprobación (`revisarTopeVigente`, `:1421`, llamada en `:1493`) y la liga
+>   `CODIGO_CUENTA_CONTRA_TOPE`. La usan la edición (`propuestas-repo.ts:1413`),
+>   la aprobación (`revisarTopeVigente`, `:1477`, llamada en `:1549`) y la liga
 >   (`:976`). `quitarPaquete` sigue con su propia llamada a
 >   `descuentoDentroDelTope` porque cuenta el volumen **como si ya no hubiera
 >   paquete**.
@@ -242,7 +242,7 @@ por un margen que no se perdió.
 > - **La regla vive en UN sitio**: `descuentoDentroDelTope`
 >   (`apps/web/lib/descuento.ts:330`) devuelve 0 sin mirar el tope cuando el
 >   comercial es 0 (`:350`). Edición, aprobación (`revisarTopeVigente`,
->   `propuestas-repo.ts:1421`), liga y `quitarPaquete` (`paquetes-repo.ts:439`)
+>   `propuestas-repo.ts:1477`), liga y `quitarPaquete` (`paquetes-repo.ts:439`)
 >   pasan todas por ahí; los dos atajos `comercial > 0` que tenían aprobar y
 >   quitar el paquete se quitaron. Para esas tres puertas el comportamiento es
 >   idéntico; la única que cambia es la edición.

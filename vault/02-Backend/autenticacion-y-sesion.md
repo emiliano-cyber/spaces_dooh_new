@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-06
+actualizado: 2026-10-14
 tags: [backend, auth, seguridad, rojo]
 archivos:
   - apps/web/lib/server/auth.ts
@@ -462,7 +462,7 @@ reenviarlo (`lib/csrf-client.ts:36-66`).
 >
 > **2026-10-05:** y volvieron a moverse, esta vez de archivo. La lista vivía en
 > `components/demo/shell/nav.ts`; el ADR 0040 (29/09) la mudó a `lib/roles.ts`, y
-> `nav.ts:279` solo la reexporta como `ROLES`. Las citas viejas a `nav.ts:136-141`
+> `nav.ts:310` solo la reexporta como `ROLES`. Las citas viejas a `nav.ts:136-141`
 > mandaban a una entrada del menú.
 
 ## Reautenticación para cambios sensibles (ADR 0009 + ADR 0036)
@@ -514,7 +514,7 @@ contraseña compartida — solo la propia prueba identidad. Es lo que protege
 > que solo acepta la propia.
 >
 > El invariante se sostiene en dos sitios: `crearUsuario()` lanza si no recibe
-> contraseña (`usuarios-repo.ts:62`), y el alta «entra con Google» **genera una
+> contraseña (`usuarios-repo.ts:78`), y el alta «entra con Google» **genera una
 > que nadie ve** en vez de dejar el campo vacío (`4206ab2`). Es la solución por
 > construcción a la restricción 4 del ADR 0012.
 >

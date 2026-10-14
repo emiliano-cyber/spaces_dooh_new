@@ -5,6 +5,18 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-10-14
+
+- **La documentación interna, al día con las versiones 0.11.4 a 0.11.9.** No
+  cambia nada en la aplicación. Se revisó la documentación técnica contra lo
+  que se hizo del 8 al 13 de octubre y se corrigió lo que había quedado viejo:
+  nombres del menú, referencias al código y lo nuevo de Space Eyes. También se
+  arregló un conteo automático que decía que había una tabla de más en la base
+  de datos.
+- **La versión 0.11.9 tardó en publicarse porque el almacén de versiones se
+  llenó.** Se liberó espacio y se publicó el mismo día. Pasa más o menos cada
+  nueve versiones mientras se use el plan gratuito.
+
 ## 2026-10-13
 
 - **Dos nombres nuevos en el menú Comercial.** «Comercial OPEX» ahora se llama

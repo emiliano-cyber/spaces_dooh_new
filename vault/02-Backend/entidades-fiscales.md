@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-12
+actualizado: 2026-10-14
 tags: [backend, entidades, fiscal, administracion, tenant, rojo]
 archivos:
   - db/migrations/20260917_entidades_fiscales.sql
@@ -109,16 +109,16 @@ manda [[06-Operacion/convenciones]]. El SQL vive solo en el repo.
 
 | Función | Qué hace | Línea |
 |---|---|---|
-| `listarEntidades` | Solo las activas salvo `incluirInactivas` | `entidades-repo.ts:70` |
-| `obtenerEntidad` | Por id **y** tenant; `null` si es de otra organización | `:83` |
-| `rolesDeEntidad` | Los roles, acotados por tenant | `:93` |
-| `catalogoRolesEntidad` | Los roles disponibles, leídos de la base | `:106` |
-| `crearEntidad` | Entidad + roles en la **misma** transacción | `:157` |
-| `editarEntidad` | Parche por campo; los roles se **reemplazan** en bloque | `:196` |
-| `desactivarEntidad` | Baja **lógica** (`activo = false`) | `:255` |
+| `listarEntidades` | Solo las activas salvo `incluirInactivas` | `entidades-repo.ts:71` |
+| `obtenerEntidad` | Por id **y** tenant; `null` si es de otra organización | `:84` |
+| `rolesDeEntidad` | Los roles, acotados por tenant | `:94` |
+| `catalogoRolesEntidad` | Los roles disponibles, leídos de la base | `:107` |
+| `crearEntidad` | Entidad + roles en la **misma** transacción | `:158` |
+| `editarEntidad` | Parche por campo; los roles se **reemplazan** en bloque | `:198` |
+| `desactivarEntidad` | Baja **lógica** (`activo = false`) | `:259` |
 
 Los roles viajan con la entidad en la misma consulta (`ROLES_DE_LA_FILA`,
-`entidades-repo.ts:60-63`) y no en una consulta por fila: el listado las pinta
+`entidades-repo.ts:61-64`) y no en una consulta por fila: el listado las pinta
 todas y una por entidad es el N+1 clásico. Esa subconsulta lleva **su propio**
 `tenant_id`, no se apoya en que el padre ya esté acotado.
 
@@ -134,7 +134,7 @@ todas y una por entidad es el N+1 clásico. Esa subconsulta lleva **su propio**
 
 El `GET` del listado devuelve `{ entidades, catalogo }`: el catálogo de papeles
 viaja **con su etiqueta y su orden** en la misma respuesta, y se lee con
-`catalogoRolesConEtiqueta` de `bienvenida-repo.ts:54` en vez de reescribir la
+`catalogoRolesConEtiqueta` de `bienvenida-repo.ts:55` en vez de reescribir la
 consulta (`route.ts:31-53`). Este repositorio ya tuvo dos catálogos de permisos
 que divergían; lo que lo impide es que solo exista una consulta.
 
@@ -154,12 +154,12 @@ dato fiscal cambió no basta, hay que poder ver de qué a qué.
 ### La rebanada de `/api/estado`
 
 `si('administracion', () => listarEntidades({ incluirInactivas: true }))`
-(`apps/web/app/api/estado/route.ts:137`), y la clave `entidadesFiscales` viaja
-en el cuerpo (`:140`).
+(`apps/web/app/api/estado/route.ts:145`), y la clave `entidadesFiscales` viaja
+en el cuerpo (`:151`).
 
 > [!note] 2026-10-05 · `incluirInactivas` va PUESTO en la hidratación
 > Esta nota decía `listarEntidades()` a secas. Hoy la rebanada pide también las
-> dadas de baja (`estado/route.ts:130-137`): una entidad inactiva **sigue
+> dadas de baja (`estado/route.ts:133-145`): una entidad inactiva **sigue
 > nombrando** contratos y comprobantes ya emitidos, y sin ella esas pantallas
 > pintarían «sin asignar» donde sí hay dato — y el primer guardado del
 > formulario borraría la referencia sin que nadie lo pidiera. Quién se

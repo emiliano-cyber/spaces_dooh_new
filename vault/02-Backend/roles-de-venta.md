@@ -1,7 +1,7 @@
 ---
 tipo: contrato
 estado: verificado
-actualizado: 2026-10-06
+actualizado: 2026-10-14
 tags: [backend, roles, permisos, rbac, enum, migraciones, dueno, guards, carrera]
 archivos:
   - db/migrations/20260929_roles_de_venta_enum.sql
@@ -327,12 +327,12 @@ Detalle en [[comercial-propuestas-campanas]].
 > [!note] 2026-10-05 · citas medidas hoy (ningún archivo de esta nota cambió desde el 01/10)
 > `ROL_POR_OMISION` en `apps/web/lib/roles.ts:80` y `puedeVerControlCambios` en
 > `:110`; `rechazoDelCambio` en `apps/web/lib/guardas-usuarios.ts:143`;
-> `conGuardasDeDueno` en `apps/web/lib/server/usuarios-repo.ts:145`, con el
-> `for update` en `:163`, `actualizarUsuario` en `:196` y `borrarUsuario` en
-> `:269`; `crearUsuarioCtrl` en `apps/web/lib/server/usuarios-controller.ts:105`;
+> `conGuardasDeDueno` en `apps/web/lib/server/usuarios-repo.ts:161`, con el
+> `for update` en `:179`, `actualizarUsuario` en `:212` y `borrarUsuario` en
+> `:285`; `crearUsuarioCtrl` en `apps/web/lib/server/usuarios-controller.ts:105`;
 > `crearOrgConDueno` en `apps/web/lib/server/cuentas-controller.ts:46`; el
 > permiso de PRECIO-01 en `apps/web/lib/server/propuestas-controller.ts:347`; y el
-> de `operaciones.costear` en `apps/web/app/api/ot/[id]/costo/route.ts:56`
+> de `operaciones.costear` en `apps/web/app/api/ot/[id]/costo/route.ts:64`
 > (filas en `20260929_roles_operaciones_costear.sql:97-105`). Los recuentos de la
 > tabla «Qué entró» (92 filas, 27 del Dueño…) **no se volvieron a medir**: exigen
 > una base con las migraciones aplicadas.

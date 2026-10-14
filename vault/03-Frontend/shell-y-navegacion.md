@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-13
+actualizado: 2026-10-14
 tags: [frontend, shell, navegacion, rbac]
 archivos:
   - apps/web/lib/host.ts
@@ -80,13 +80,14 @@ Comportamiento:
 
 ### Los grupos del menú, y la trampa de buscarlos por su rótulo
 
-El menú va por **fases del proceso**, declaradas en `GRUPOS` (`nav.ts:91-98`), y el
+El menú va por **fases del proceso**, declaradas en `GRUPOS` (`nav.ts:98-106`), y el
 orden de ese arreglo **es** el orden en pantalla. Al 2026-10-05 (26 entradas):
 
 | Clave (código) | Rótulo (pantalla) | Entradas |
 |---|---|---|
 | `inicio` | *sin título* | Dashboard |
 | `patrimonio` | **Inventario** | Inventario · Arrendadores · Network · Almacén |
+| `ojos` | **Space Eyes** | Equipos · Galería · Gráficas · Ajustar texto · Programación · Campañas · Verificación · Fallas — desde v0.11.0 (08/10, ADR 0045); fuera de la cuenta de 26 de arriba. Ajustar texto y Programación solo MANDO; el resto MANDO + VENTA. `hrefActivo()` (`nav.ts:311-321`) enciende **una sola** entrada en sus subpáginas (v0.11.5) |
 | `vender` | **Comercial** | Clientes · Comercial · Disponibilidad · Propuestas · Comercial negociación · Franjas y temporadas · Descuentos por volumen · Códigos de negociación · Paquetes cerrados |
 | `entregar` | **Operaciones** | Campañas · **Creativos** · Imprenta · Operaciones · Consumo de luz |
 | `cobrar` | **Finanzas** | Finanzas · Reportes · Comisiones |
@@ -103,16 +104,16 @@ orden de ese arreglo **es** el orden en pantalla. Al 2026-10-05 (26 entradas):
 >
 > [!note] 2026-10-05 · el grupo Comercial tenía cinco entradas sin listar
 > La tabla se había quedado en cuatro. Desde el 29-30/09 cuelgan de `vender`
-> **Comercial OPEX** (`nav.ts:157`, la maqueta de prospección de arrendadores,
+> **Comercial OPEX** (`nav.ts:188`, la maqueta de prospección de arrendadores,
 > ver [[comercial-opex]]) y las cuatro de la **cadena de precio del ADR 0039**,
-> en el orden de la cadena: Franjas y temporadas (`:170`), Descuentos por
-> volumen (`:189`), Códigos promocionales (`:195`) y Paquetes cerrados (`:202`).
-> Esas cuatro las ven solo `MANDO` y `JEFES_VENTA` (`nav.ts:117-119`, ADR 0040):
+> en el orden de la cadena: Franjas y temporadas (`:201`), Descuentos por
+> volumen (`:220`), Códigos promocionales (`:226`) y Paquetes cerrados (`:233`).
+> Esas cuatro las ven solo `MANDO` y `JEFES_VENTA` (`nav.ts:125-127`, ADR 0040):
 > el VENDEDOR aplica códigos y paquetes pero no los crea. Su permiso sigue siendo
 > el módulo `inventario`, el de sus endpoints — el permiso dice quién puede
 > tocarlas, no de quién es el trabajo.
 >
-> **Captación** está **fuera del menú** desde el 30/09 (`nav.ts:148-153`, la
+> **Captación** está **fuera del menú** desde el 30/09 (`nav.ts:179-184`, la
 > línea queda comentada): se solapaba con Comercial OPEX. Solo se quitó la
 > entrada; tablas, API y módulo `captacion` siguen.
 

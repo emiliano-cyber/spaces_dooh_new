@@ -1,7 +1,7 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-10-07
+actualizado: 2026-10-14
 tags: [datos, esquema, er, postgres]
 archivos:
   - db/schema.sql
@@ -18,6 +18,9 @@ archivos:
   - db/migrations/20261002_franja_programada_campana.sql
   - db/migrations/20261003_codigo_aprobacion.sql
   - db/migrations/20261005_notas_de_version.sql
+  - db/migrations/20261012_razon_social_principal.sql
+  - db/migrations/20261013_sitios_pantalla_doohmain.sql
+  - db/migrations/20261013_doohmain_seguimiento_unicas.sql
 ---
 
 # Esquema de datos
@@ -25,8 +28,12 @@ archivos:
 > [!important] 2026-10-05 · puesta al día — lo que abajo dice «pendiente» o «SIN FUSIONAR» YA ESTÁ en `main`
 > Medido hoy con `node scripts/recuentos.mjs` sobre el árbol de
 > `integra/riesgos-presentacion-14-oct` (salida de `main` en `09c65ca2`):
-> **59 tablas y 109 migraciones** (07/10, con `contrato_cambios`; antes 58 y 108) (06/10, con `cobranza_abonos`; antes 57 y 106). `db/schema.sql` tiene **679 líneas**
-> (`wc -l`) y **28** `create table`; las **29** restantes llegan por migración.
+> **59 tablas y 113 migraciones** (14/10: las cuatro migraciones del 11 al 13/10
+> no crean tablas; el «60» que [[migraciones]] llegó a afirmar el 13/10 era un
+> `if` de un comentario contado como tabla por `recuentos.mjs`, ya corregido)
+> (07/10, con `contrato_cambios`; antes 58 y 108) (06/10, con `cobranza_abonos`; antes 57 y 106). `db/schema.sql` tiene **679 líneas**
+> (`wc -l`) y **28** `create table`; las **31** restantes llegan por migración
+> (decía 29 desde el 05/10, y ya no sumaba con las 59).
 >
 > Los recuadros de abajo se conservan como historia, pero su estado caducó:
 >
@@ -558,6 +565,16 @@ erDiagram
 `sitios`, `sitio_modalidades`, `predios`, `incidencias`, `licencias`,
 `almacen_activos`, `almacen_movimientos`.
 
+> [!note] `sitios.doohmain_pantalla` (2026-10-13, `20261013_sitios_pantalla_doohmain.sql`)
+> `text` NULL: el nombre de la pantalla **tal como lo conoce DOOHmain**, a la que
+> se publica esa pantalla. Al publicar manda sobre `DOOHMAIN_SCREEN_MAP` del
+> servidor; `NULL` = usa el mapa y `DOOHMAIN_DEFAULT_SCREEN` de respaldo.
+> `sitios_doohmain_pantalla_ck`: sin espacios en los extremos y de 1 a 120
+> caracteres (el vacío es `NULL`, nunca `''`). **No es única a propósito** —dos
+> caras pueden salir por el mismo reproductor— y **no entra** al alta ni a la
+> importación por archivo (`COLS` de `sitios-repo.ts`): una re-importación la
+> pisaría con `NULL`. Ver [[02-Backend/integraciones-externas]].
+
 > [!success] `almacen_activos` por tipo (2026-09-30) — la migración está **APROBADA por el dueño el 2026-09-30** (antes: pendiente de aprobación)
 > `tipo_activo` es `text` **sin CHECK** (`20260723_almacen.sql:26`); el
 > catálogo (`VEHICULO`, `HERRAMIENTA`, `PANTALLA`, `EQUIPO`, `CAMARA`,
@@ -602,6 +619,20 @@ erDiagram
 ### Integraciones
 `doohmain_consultas_play`, `doohmain_remote_campaigns`, `doohmain_remote_lists`,
 `media_uploads`.
+
+> [!important] 2026-10-13 · las tres de seguimiento ya aceptan lo que escribe el SDK
+> `20260805_objetos_solo_en_prod.sql` las creaba con `id bigint primary key`
+> **sin identidad ni únicas**, y `20260901_doohmain_tracking.sql`, que las define
+> bien, no hacía nada por su `create table if not exists`. El SDK registra con
+> `ON CONFLICT (version)` y `ON CONFLICT (screen_name, list_name, media_id)`, así
+> que **en toda base levantada desde el repositorio publicar en DOOHmain fallaba
+> siempre**, y además después de `create_campaign`: dejaba una campaña vacía en
+> DOOHmain. `20261013_doohmain_seguimiento_unicas.sql` pone `id` como identidad
+> (la secuencia arranca después del mayor `id`), agrega `uniq_version`,
+> `uniq_screen_list_media` y `uniq_media_version` si no hay ya una única sobre
+> esas columnas, y da permiso de secuencias a `spaces_app`/`spaces_user`. **Con
+> registros repetidos aborta** en vez de borrar: cada fila es la prueba de algo
+> publicado. Prueba: `lib/test/doohmain-seguimiento.e2e.test.ts`.
 
 ## Enums
 

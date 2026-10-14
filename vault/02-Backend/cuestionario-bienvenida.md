@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-10-14
 tags: [backend, frontend, entidades, fiscal, administracion, bienvenida, onboarding, tenant]
 archivos:
   - apps/web/lib/cuestionario-entidades.ts
@@ -78,7 +78,7 @@ estado**:
    alta de la segunda, así que no hay nada que guardar.
 
 > [!warning] El recuento cuenta TAMBIÉN las dadas de baja
-> `bienvenida-repo.ts:71-73` *(decía `:68`; remedido el 05/10)* no filtra por `activo`, y es deliberado: haber
+> `bienvenida-repo.ts:72-74` *(decía `:68`; remedido el 05/10)* no filtra por `activo`, y es deliberado: haber
 > contestado el cuestionario es un **hecho histórico**. Con el filtro puesto,
 > quien desactivara todas sus razones sociales volvería a ver el cuestionario y
 > crearía el duplicado que este módulo existe para evitar. Su prueba se pone
@@ -93,7 +93,7 @@ un módulo puro sin acceso a base.
 | Archivo | Qué decide | Líneas |
 |---|---|---|
 | `lib/cuestionario-entidades.ts` | La traducción respuestas → entidades y roles. **Puro** | 395 |
-| `lib/server/bienvenida-repo.ts` | El SQL, la transacción y el cerrojo | 182 |
+| `lib/server/bienvenida-repo.ts` | El SQL, la transacción y el cerrojo | 189 |
 | `lib/server/bienvenida-controller.ts` | Forma de la entrada, permiso de escritura, HTTP | 130 |
 | `app/api/bienvenida/route.ts` | Guard y bitácora | 67 |
 | `app/(app)/bienvenida/page.tsx` | Carga, «ya contestado», saltar | 148 |
@@ -180,7 +180,7 @@ quien revise después tiene que poder leerlo sin abrir la base.
 
 ## O quedan TODAS, o ninguna
 
-`crearEntidadesDelCuestionario` (`bienvenida-repo.ts:164`) hace **todo** dentro
+`crearEntidadesDelCuestionario` (`bienvenida-repo.ts:165`) hace **todo** dentro
 de un `withTenantTx`. No es un detalle de estilo: a medias es **peor** que no
 haberlo contestado, porque el estado se deriva de que exista alguna entidad y el
 cuestionario **ya no se volvería a ofrecer**.
@@ -191,13 +191,13 @@ cuestionario **ya no se volvería a ofrecer**.
 > pueden contar las dos cero y escribir las dos.
 >
 > Dentro de la transacción se toma `pg_advisory_xact_lock`
-> (`bienvenida-repo.ts:171`) **antes** del recuento (`:173`), y con eso la
+> (`bienvenida-repo.ts:172`) **antes** del recuento (`:173`), y con eso la
 > segunda encuentra 1 y sale con `{ ok: false, yaHabia }`, que el controller
 > convierte en **409**. El orden lo fija una prueba: si alguien mueve el cerrojo
 > detrás del recuento, se pone roja.
 >
 > El cerrojo usa la **forma de dos enteros** y las dos mitades del uuid
-> calculadas en JavaScript (`cerrojoDeTenant`, `:107`), no `hashtext()`:
+> calculadas en JavaScript (`cerrojoDeTenant`, `:108`), no `hashtext()`:
 > `hashtext` es una función interna de Postgres, sin documentar, y apoyar un
 > cerrojo en algo así es apostar a que no cambie nunca. El `| 0` convierte al
 > int32 **con signo** que espera pg — sin él, un uuid que empiece por `f`
@@ -233,7 +233,7 @@ cuestionario **ya no se volvería a ofrecer**.
 > `db.ts` siguen exactas.
 
 El único `select` **sin** `tenant_id` es el del catálogo
-(`bienvenida-repo.ts:58`, dentro de `catalogoRolesConEtiqueta`, `:54`), y eso es correcto: `catalogo_roles_entidad` no tiene
+(`bienvenida-repo.ts:59`, dentro de `catalogoRolesConEtiqueta`, `:55`), y eso es correcto: `catalogo_roles_entidad` no tiene
 esa columna porque es vocabulario del producto, igual para toda la flota. Hay una
 prueba que lo **fija**, para que nadie «arregle» la consulta añadiéndole un
 filtro que no existe.

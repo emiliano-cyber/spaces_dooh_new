@@ -1,7 +1,7 @@
 ---
 tipo: moc
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-10-14
 tags: [indice, entrada]
 archivos:
   - package.json
@@ -29,7 +29,7 @@ cobranza.
 | Producción | **El PADRE `137.184.107.53` sirve `space-os.io`**, certificado propio hasta el **2026-11-23** con renovación automática. DEMO vive dentro de él (proceso `3001`, base `spaces_demo`) y desde el **31/08 se llama `prueba.space-os.io`** —en singular: es el `server_name` de `infra/nginx/space-os.io.conf:288`; esta celda decía `pruebas` hasta el 05/10— — nombre nuevo, no `demo.space-os.io`, que es solo la demostración ORIGINAL, la sirve la máquina vieja y **se eliminará** ([ADR 0024](../../docs/adr/0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md), que sustituye al 0021) | `infra/nginx/space-os.io.conf:133` (`space-os.io`), `:213` (`demo.`) y `:288` (`prueba.`) · [ADR 0017](../../docs/adr/0017-todo-se-concentra-en-el-padre.md) · [ADR 0024](../../docs/adr/0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md) · [ADR 0022](../../docs/adr/0022-instancia-dedicada-por-owner.md) |
 | Endpoints | **139** route handlers | `apps/web/app/api/**/route.ts` |
 | Tablas | **59** | [[esquema]] |
-| Migraciones | **111** | [[migraciones]] |
+| Migraciones | **113** | [[migraciones]] |
 | ADR | **46** (`0001`–`0046`) | `docs/adr/` · [[decisiones]] |
 
 > [!success] `demo.space-os.io` SE ELIMINARÁ — cerrado el 27/08 por el ADR 0024
@@ -119,7 +119,7 @@ cobranza.
 - [[idiomas-es-en]] — la aplicación en español e inglés: cómo se detecta, cómo se cambia, y por qué el dinero no se mueve
 - [[modulos-internos]] — las pantallas del shell (eran 22 el 31/08; el recuento de hoy está en la propia nota)
 - [[03-Frontend/pantalla-reportes]] — la pantalla de reportes de rentabilidad
-- [[03-Frontend/comercial-opex]] — Comercial OPEX: prospección de arrendadores
+- [[03-Frontend/comercial-opex]] — Comercial negociación (ruta `/comercial-opex`): prospección de arrendadores
 - [[paginas-publicas]] — portal, firma, propuesta compartible, OT móvil
 - [[estado-y-data-fetching]] — React Query, zustand, el parche de `fetch`
 

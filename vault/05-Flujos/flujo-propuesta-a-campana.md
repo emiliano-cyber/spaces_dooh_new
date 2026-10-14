@@ -1,9 +1,11 @@
 ---
 tipo: flujo
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-10-13
 tags: [flujo, comercial, principal]
 archivos:
+  - apps/web/app/(app)/(shell)/propuestas/page.tsx
+  - apps/web/lib/data/estado-api.ts
   - apps/web/lib/server/propuestas-repo.ts
   - apps/web/lib/server/propuestas-controller.ts
   - apps/web/lib/server/campanas-repo.ts

@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-08
+actualizado: 2026-10-14
 tags: [backend, operaciones, ot, reportes, rentabilidad, dinero, rojo]
 archivos:
   - db/migrations/20260929_costo_real_ot.sql
@@ -55,7 +55,7 @@ no hay          → vale la estimación por tipo, como hasta hoy
 > [!danger] La regla se declara UNA vez, en `lib/costos-ot.ts`, y no es estilo
 > `costoEfectivoDeOt(ot, costos)` y `tieneCostoReal(ot)` las usan **los TRES que
 > calculan margen**: el motor de reportes, el **dashboard del dueño** y el **P&L
-> por campaña** (`derive.ts:632` y `:752`; el del reporte, en
+> por campaña** (`derive.ts:640` y `:760`; el del reporte, en
 > `lib/data/reportes.ts:1380`).
 >
 > **Y ya divergió durante este mismo cambio.** Al meter `costo_real` solo en el
@@ -63,7 +63,7 @@ no hay          → vale la estimación por tipo, como hasta hoy
 > OT de 12 000 capturada, **el reporte decía 12 000 y el dashboard 1 500 para la
 > misma orden**, sin ningún error. No lo encontró una prueba —lo encontró releer
 > el diff—, y es exactamente el fallo que la cabecera de `costos-ot.ts` dice que
-> ese archivo existe para evitar, y el que `derive.ts:749-751` ya tenía escrito
+> ese archivo existe para evitar, y el que `derive.ts:757-759` ya tenía escrito
 > sobre la constante vieja:
 >
 > > «Si aquí se quedara la constante, el margen de una campaña y el del mes
@@ -147,7 +147,7 @@ cambia quién entra al módulo**, añade la segunda puerta sobre un campo de din
 > [!important] 2026-10-05 · el permiso YA NO es `operaciones.crear`: es `operaciones.costear`
 > El mismo 29/09, `c0ad8108` creó la acción **`operaciones.costear`** y la ruta
 > la exige hoy: `exigirCambioSensible('operaciones', 'costear')`
-> (`apps/web/app/api/ot/[id]/costo/route.ts:56`). La tienen **DUENO,
+> (`apps/web/app/api/ot/[id]/costo/route.ts:64`). La tienen **DUENO,
 > ADMINISTRADOR, OPERACIONES y FINANZAS**
 > (`db/migrations/20260929_roles_operaciones_costear.sql:97-105`): Finanzas
 > porque **la factura de la cuadrilla le llega a ella**. La migración añade
@@ -247,7 +247,7 @@ las tres pinta margen, así que el aviso hablaría de una columna que no está.
 |---|---|
 | `lib/data/reportes.costo-ot.test.ts` | 17 · sustitución, el cero, la cobertura, y que `entidad`/`tarifa` siguen sin heredar margen |
 | `components/demo/reportes/tabla.costo-ot.test.ts` | 12 · que la PANTALLA enseñe el aviso, su tono, y que «bruto no es neto» siga a la columna |
-| `lib/costo-ot-captura.test.ts` | 16 · vacío = borrar, cero ≠ vacío, no mandar lo que no cambió |
+| `lib/costo-ot-captura.test.ts` | 23 (eran 16; las nuevas, del 08/10: coma de miles al teclear y el costo de una OT cerrada) · vacío = borrar, cero ≠ vacío, no mandar lo que no cambió |
 | `lib/server/ot-costo-controller.test.ts` | 7 · el zod: negativo, texto, NaN, cuerpo vacío |
 | `lib/server/ot-repo.costo-aislamiento.test.ts` | 4 · que la escritura lleve su `and tenant_id` escrito |
 | `lib/costo-efectivo-ot.test.ts` | 10 · que la regla se declare una vez, y que el dashboard y el P&L den **la misma cifra** que el reporte |

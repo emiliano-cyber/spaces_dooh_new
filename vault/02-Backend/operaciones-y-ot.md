@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-10-14
 tags: [backend, operaciones, ot, imprenta, amarillo, almacen, checklist]
 archivos:
   - apps/web/lib/server/ot-repo.ts
@@ -34,7 +34,7 @@ mantenimiento, herrería, eléctrico, inspección (`tipo_ot`, `db/schema.sql:53`
 
 | Archivo | Líneas | Responsabilidad |
 |---|---|---|
-| `ot-repo.ts` | 353 | OT + evidencias, cierre, checklist punto a punto, costo real, notificaciones |
+| `ot-repo.ts` | 377 | OT + evidencias, cierre, checklist punto a punto, costo real, notificaciones |
 | `ot-controller.ts` | 99 | Validación (alta, costo, punto del checklist) |
 | `impresion-repo.ts` | 121 | Órdenes de impresión y OC |
 | `operaciones-eventos.ts` | 86 | OT automáticas desde Arrendadores |
@@ -51,9 +51,20 @@ mantenimiento, herrería, eléctrico, inspección (`tipo_ot`, `db/schema.sql:53`
 > lo demás: el de costo lleva el candado de dinero y el del checklist solo
 > cambia `checklist[i].hecho`. Ninguno es un editor general de la OT. `asignado_a` sigue sin poder cambiarse. Se escribe en dos momentos: al **crear**
 > la OT (`crearOTCtrl`, campo `asignadoA`) y al **cerrarla**, donde
-> `ot-repo.ts:277` (dentro de `cerrarOT`, `:254`) hace `asignado_a = coalesce(asignado_a, $3)` para estampar a
+> `ot-repo.ts:301` (dentro de `cerrarOT`, `:278`) hace `asignado_a = coalesce(asignado_a, $3)` para estampar a
 > quien cierra. Cambiar el responsable de una OT existente exige un script de
 > datos — o un endpoint nuevo.
+>
+> **Desde el 08/10 (v0.11.2) el responsable SE VE.** Hasta entonces todas las
+> OT decían «Sin asignar» aunque la base lo tuviera: la pantalla buscaba el
+> nombre en una lista que `/api/estado` nunca mandaba. Ahora `/api/estado` trae
+> `usuarios` con `listarNombresDeUsuarios()` (`usuarios-repo.ts`): mínima a
+> propósito —id, nombre, rol y activo, sin correo—, porque la ve cualquiera con
+> permiso de Operaciones, e incluye a los inactivos para que una OT vieja
+> conserve su nombre. Y **la OT nueva nace con la fecha de hoy** en la hora del
+> navegador (`fechaLocalISO()`, `lib/fecha-local.ts`): `toISOString()` daba el
+> día en UTC, que en México a partir de las 18:00 ya es mañana. Prueba:
+> `lib/test/ot-responsable.e2e.test.ts`.
 
 ## El checklist se guarda punto a punto (OT-CHECK-01, 2026-09-30)
 
@@ -66,7 +77,7 @@ cerrar la pestaña. Pedido del dueño: «que se guarde cada vez que se tacha alg
 
 **Hoy**, cada clic manda `PATCH /api/ot/[id]/checklist` con
 `{ indice, label, hecho }` → `marcarPuntoChecklistCtrl` (zod estricto,
-`ot-controller.ts:96`) → `marcarPuntoChecklist` (`ot-repo.ts:153`). Sin
+`ot-controller.ts:96`) → `marcarPuntoChecklist` (`ot-repo.ts:169`). Sin
 migración: la columna ya existía.
 
 | Decisión | Por qué |
@@ -97,7 +108,7 @@ viejo.
 
 ## El cierre de OT es lo que destraba la facturación
 
-`ot-repo.ts:10-13` (cabecera del archivo): cerrar una OT con foto guarda la evidencia, completa la OT
+`ot-repo.ts:10-14` (cabecera del archivo): cerrar una OT con foto guarda la evidencia, completa la OT
 y, **si está ligada a una campaña, enciende `fotos_comprobatorias` y
 `reporte_publicacion`** — dos de los tres candados de [[finanzas-y-cobranza]].
 
@@ -156,7 +167,7 @@ mejor esfuerzo.
 Desde el **2026-09-17** el costo de mano de obra de una orden de trabajo sale de
 `config_negocio.costos_ot` (jsonb, una fila por tenant — ADR 0011) y se resuelve
 por tipo en `lib/costos-ot.ts`. Lo lee todo el que calcula margen:
-`dashboardMetrics` (`derive.ts:603`, el costo en `:632`), `margenCampana` (`derive.ts:731`, el costo en `:752`) —los dos por `costoEfectivoDeOt`, que prefiere el costo real— y los
+`dashboardMetrics` (`derive.ts:605`, el costo en `:640`), `margenCampana` (`derive.ts:739`, el costo en `:760`) —los dos por `costoEfectivoDeOt`, que prefiere el costo real— y los
 reportes de rentabilidad ([[reportes-rentabilidad]]).
 
 Antes era una constante en el archivo de derivados:

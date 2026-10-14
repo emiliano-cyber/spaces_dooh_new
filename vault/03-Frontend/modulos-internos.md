@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-06
+actualizado: 2026-10-14
 tags: [frontend, modulos, pantallas, verde]
 archivos:
   - apps/web/app/(app)/(shell)/
@@ -36,10 +36,10 @@ archivos:
 | `/clientes` | Clientes | `/api/clientes` | `ClientesBadge`, `BorrarClienteDialog` |
 | `/propuestas`, `/propuestas/[id]` | Propuestas, con **tarifa calculada** y **calculadora de spots** | `/api/propuestas`, `/api/rejilla/*`, `/api/volumen/escalas` | `AvisoFranjaCMS`, `MapView`, `CalculadoraSpotsLinea` (local de la página) |
 | `/captacion` | Captación (CAP-01) — **fuera del menú desde el 30/09** | `/api/captacion/*` | `Captacion` — ver [[02-Backend/captacion]] |
-| `/comercial-opex` | Prospección de arrendadores — **maqueta**, sin API ni guardado | — | `ComercialOpex` — ver [[comercial-opex]] |
+| `/comercial-opex` | Comercial negociación: prospección de arrendadores — **maqueta**, sin API ni guardado | — | `ComercialOpex` — ver [[comercial-opex]] |
 | `/franjas-y-temporadas` | Catálogo de franjas y temporadas, y **horario de transmisión** | `/api/rejilla/*`, `/api/campanas/franja-programada` | `GestionRejilla`, `ProgramacionPorFranja` (PROG-01) |
 | `/descuentos-por-volumen` | Escala de volumen (VOL-01) | `/api/volumen/escalas` | `GestionVolumen` — ver [[02-Backend/descuento-por-volumen]] |
-| `/codigos-promocionales` | Cupones (COD-01) | `/api/codigos-promocionales` | `GestionCodigos` — ver [[02-Backend/codigo-promocional]] |
+| `/codigos-promocionales` | Códigos de negociación: cupones (COD-01) | `/api/codigos-promocionales` | `GestionCodigos` — ver [[02-Backend/codigo-promocional]] |
 | `/paquetes` | Paquetes cerrados (PAQ-01) | `/api/paquetes` | `GestionPaquetes` — ver [[02-Backend/paquete-cerrado]] |
 | `/campanas`, `/campanas/[id]` | Campañas | `/api/campanas/*` | `PipelineView`, `CandadoPanel`, `ValidacionPanel`, `PlaylogsPanel`, `DatosFacturacion`, `EvidenciaGaleria`, `AgregarCreativo`, `FranjaProgramadaCampana` (horario de transmisión, PROG-01) |
 | `/creativos` | Creativos | `/api/creatividades` | — |

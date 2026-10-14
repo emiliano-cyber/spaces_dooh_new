@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: en-curso
-actualizado: 2026-10-05
+actualizado: 2026-10-14
 tags: [frontend, comercial, prospeccion, arrendadores, maqueta]
 archivos:
   - apps/web/app/(app)/(shell)/comercial-opex/page.tsx
@@ -12,7 +12,9 @@ archivos:
   - apps/web/lib/modulos.ts
 ---
 
-# Comercial OPEX · prospección de arrendadores
+# Comercial negociación · prospección de arrendadores
+
+> [!note] 2026-10-14 · el menú la llama «Comercial negociación» desde el 13/10 (v0.11.9); la ruta sigue siendo /comercial-opex y la clave de permiso no cambió.
 
 > [!warning] Esto es una MAQUETA, y el `estado: en-curso` de arriba es literal
 > **No tiene base, no tiene API y no guarda nada.** Los cinco espacios que pinta
@@ -114,11 +116,11 @@ Dos cosas, y viven en `lib/comercial-opex.ts` **con pruebas**, no dentro del
 `prospecto_avances` (`db/migrations/20260930_captacion.sql`), con etapa,
 siguiente paso, vendedor, bitácora y aprobación. Su pantalla sigue en
 `/captacion`, pero **ya no está en el menú** desde el 30/09 por la tarde (la
-línea de `nav.ts:153` queda comentada): solo se llega por URL.
+línea de `nav.ts:184` queda comentada): solo se llega por URL.
 
 Lo que esta maqueta trae y aquello **no** tiene:
 
-| | Captación (real) | Comercial OPEX (maqueta) |
+| | Captación (real) | Comercial negociación (maqueta) |
 |---|---|---|
 | Contactos | **uno**, en un `jsonb` | **varios**: dueño, apoderada, vecina, portero |
 | Competencia | no | sí: quién más ofrece y cuánto |

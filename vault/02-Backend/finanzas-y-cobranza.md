@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-06
+actualizado: 2026-10-14
 tags: [backend, finanzas, facturacion, dinero, rojo]
 archivos:
   - apps/web/lib/server/finanzas-repo.ts
@@ -189,7 +189,7 @@ omisión de la columna).
 > días)». Lo encontró la auditoría externa del 26/08 (CFG-01).
 >
 > Ahora la lista se lee **del tenant** con `plazosCobranzaDelTenant()`
-> (`config-repo.ts:110`), y con dos cautelas que conviene no deshacer:
+> (`config-repo.ts:112`), y con dos cautelas que conviene no deshacer:
 >
 > - **Lista vacía → respaldo `{60,90,120}`.** Es alcanzable: Administración
 >   borra plazos uno a uno sin mínimo (`administracion/page.tsx:984`) y

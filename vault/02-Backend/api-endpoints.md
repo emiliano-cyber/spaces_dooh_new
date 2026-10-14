@@ -1,7 +1,7 @@
 ---
 tipo: referencia
 estado: verificado
-actualizado: 2026-10-13
+actualizado: 2026-10-14
 tags: [backend, api, endpoints]
 archivos:
   - apps/web/app/api/
@@ -112,10 +112,10 @@ Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo el
 | GET·POST | `/api/tenants` | exigir | el admin acepta `entraConGoogle` |
 | POST | `/api/tenant-activo` | exigir | Cambio de CRM del super-admin |
 | PATCH | `/api/organizacion` | exigir | |
-| GET·PATCH | `/api/config` | exigir | |
+| GET·PATCH | `/api/config` | exigir | Desde el 12/10 el `PATCH` toma `entidadPrincipalId` (uuid de una de [[entidades-fiscales]]) y **rechaza `razonSocial`** con 400 por el `.strict()` (`config/route.ts:92-94`) |
 | GET·PUT | `/api/cambios` | exigir | Interruptor de reautenticación |
 | POST·DELETE | `/api/cambios/desbloquear` | exigir | |
-| GET | `/api/estado` | exigir | Devuelve **todo** el tenant |
+| GET | `/api/estado` | exigir | Devuelve **todo** el tenant. Desde el 08/10 incluye `usuarios` (id, nombre, rol, activo; sin correo) para nombrar al responsable de cada OT — [[operaciones-y-ot]] |
 | GET·POST | `/api/entidades` | `administracion:ver` · `:crear` | Razones sociales **PROPIAS** del owner (17/09). `?inactivas=1` |
 | GET·PATCH·DELETE | `/api/entidades/[id]` | `administracion:ver` · `:crear` | `DELETE` es baja **lógica** (`activo = false`) |
 | GET·POST | `/api/bienvenida` | `administracion:ver` · `:crear` | (05/10) El cuestionario de las razones sociales del owner: el `POST` crea filas en `entidades_fiscales` y `entidad_roles` (201). Va **después** del alta, nunca dentro del bootstrap de un solo uso — [[cuestionario-bienvenida]] |
@@ -264,7 +264,7 @@ agrupa las cuatro pantallas en `lib/modulos.ts:77-83`.
 | GET·POST | `/api/ot` | exigir |
 | GET | `/api/ot/[id]` | exigir |
 | POST | `/api/ot/[id]/cerrar` | exigir |
-| PATCH | `/api/ot/[id]/costo` | exigirCambioSensible (`operaciones.costear`) |
+| PATCH | `/api/ot/[id]/costo` | exigirCambioSensible (`operaciones.costear`) · **409** si la OT está `COMPLETADA` (desde el 08/10; de otra organización, 404) — [[costo-real-de-ot]] |
 | PATCH | `/api/ot/[id]/checklist` | exigir (`operaciones.crear`) — un punto por petición, 2026-09-30 |
 | GET·POST | `/api/impresion` · PATCH `/api/impresion/[id]` | exigir |
 | PATCH | `/api/impresion/[id]/prueba-color` | exigir |
@@ -293,9 +293,30 @@ agrupa las cuatro pantallas en `lib/modulos.ts:77-83`.
 > **27/08**, y esa ruta da **404** desde el 10/08 — verificado en producción ese
 > mismo día ([[2026-08-10]]). La sustituyó `archivar-todas`, que además de marcar
 > leída **archiva** (`app/api/notificaciones/archivar-todas/route.ts:8-11`); el
-> cliente la llama en `apps/web/lib/data/estado-api.ts:102`. [[manual-tecnico-2026-09-15]]
+> cliente la llama en `apps/web/lib/data/estado-api.ts:109-110`. [[manual-tecnico-2026-09-15]]
 > llevaba **trece días** señalando el error de esta nota sin que nadie lo
 > arreglara: una discrepancia anotada en otra nota no se corrige sola.
+
+## Space Eyes (ADR 0045, desde v0.11.0)
+
+Diez rutas, todas con el permiso de **inventario**: hablan con el Space Eye de
+**esta** instancia y nunca exponen su dirección ni su llave al navegador.
+Detalle en [[08-Manuales/manual-tecnico-space-eyes]].
+
+| Método | Ruta | Guard | Notas |
+|---|---|---|---|
+| GET | `/api/space-eyes` | `inventario:ver` | Lista de equipos |
+| GET | `/api/space-eyes/[id]` | `inventario:ver` | Ficha; un equipo de otro dueño responde igual que uno inexistente. GPS siempre numérico (`gpsDeFoto`) |
+| POST | `/api/space-eyes/[id]/captura` | `inventario:crear` | Pide una foto al equipo |
+| GET | `/api/space-eyes/[id]/creativos` · `/fallas` · `/telemetria` | `inventario:ver` | Pestañas de la ficha |
+| GET | `/api/space-eyes/foto` | `inventario:ver` | Sirve la foto o su miniatura con `Cache-Control: private, max-age=3600` (`foto/route.ts:76`) |
+| GET | `/api/space-eyes/descarga/[tipo]` | `inventario:ver` | Descargas (álbum, kit) |
+| GET | `/api/space-eyes/alta` | `inventario:ver`, o `:crear` si pide testigo | Códigos de vinculación |
+| GET·POST·PUT·DELETE | `/api/space-eyes/se/[...ruta]` | `inventario:ver` al leer, `:crear` al escribir | Pasarela al API de Space Eye con la llave de la instancia |
+
+Las **solicitudes de activación** que se ven arriba del módulo en el PADRE no
+son de aquí: vienen de `/flota/solicitudes.json`, del panel de flota (ver
+Flota).
 
 ## Flota
 

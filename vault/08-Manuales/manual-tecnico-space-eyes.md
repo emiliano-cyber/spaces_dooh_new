@@ -1,7 +1,7 @@
 ---
 tipo: manual
 estado: vigente
-actualizado: 2026-10-07
+actualizado: 2026-10-14
 tags: [manual, tecnico, desarrollador, space-eyes, camaras, raspberry, telefono, campanas]
 archivos:
   - apps/web/lib/server/space-eye.ts
@@ -290,6 +290,28 @@ contra un Space Eye local.
    simulados no bajan sus actualizaciones.
 7. **Datos de ensayo**: los anuncios 8 y 9 son el MISMO creativo en dos
    sitios; el equipo los ve, con razón, como uno solo.
+8. **Miniaturas, no fotos completas** (v0.11.4, rama de José
+   `fix/space-eyes-fotos-rapidas`): abrir una ficha bajaba seis fotos del
+   celular de 2-5 MB para pintar recuadros de 56 px, y con 1 GB de servidor
+   tardaba segundos (g500, 11/10). `miniaturaDe()`
+   (`lib/server/space-eye.ts:294`) usa `thumbnail_path` (~400 px, ~30 KB) y cae
+   a la foto si no hay; `/api/space-eyes/foto` responde con
+   `Cache-Control: private, max-age=3600` (`foto/route.ts:76`).
+9. **El GPS llega como TEXTO** (v0.11.4, misma rama, `54bfcaf8`): Space Eye lo
+   guarda en `DECIMAL` y mysql2 lo entrega como cadena, así que
+   `gps.lat.toFixed(5)` tumbaba la ficha entera («Application error») en cuanto
+   un teléfono mandaba su ubicación (g500, 09/10). `gpsDeFoto()`
+   (`space-eye.ts:361`) lo devuelve siempre como números, o `null`.
+
+## 10 bis. Solicitudes de activación en el PADRE (v0.11.4)
+
+Hasta el 08/10 las solicitudes de activación de Space Eyes solo se veían en el
+panel de flota, que es otra página, y nadie las buscaba ahí. Ahora el
+`layout.tsx` de `/space-eyes` pinta `SolicitudesActivacion.tsx` arriba de todo,
+que lee `/flota/solicitudes.json` (`RUTAS_SOLICITUDES`,
+`apps/flota/servidor.mjs:84`) con la misma sesión y el mismo permiso que el
+resto del panel. **En una instancia hija ese JSON da 404, y es lo esperado**:
+el receptor de flota solo vive en el PADRE.
 
 ## Relacionadas
 [[manual-space-eyes]] · [[0045-space-eye-vive-dentro-de-cada-instancia]] ·
