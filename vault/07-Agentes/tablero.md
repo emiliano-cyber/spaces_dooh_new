@@ -6,10 +6,10 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
-> [!success] 2026-10-14 · **`v0.11.9` en `beta`** tras llenarse el registro (`denied: quota exceeded`, run `38516330947`)
+> [!success] 2026-10-14 · **`v0.11.9` en `estable`** (run `38576580857`, digest `3f5d15ea…`; vuelta atrás `2207b6cd…`) tras llenarse el registro (`denied: quota exceeded`, run `38516330947`)
 > `v0.11.8` (cliente al generar campaña) salió en verde el 13/10; `v0.11.9` (rótulos «Comercial
 > negociación» y «Códigos de negociación») falló al empujar la imagen. El dueño limpió el registro y el
-> relanzamiento salió en verde: falta promoverla a `estable`. **Z12 · Docs reclamada y liberada** el mismo
+> relanzamiento salió en verde y el dueño la promovió a `estable` a las 13:59 UTC. **Z12 · Docs reclamada y liberada** el mismo
 > día: la bóveda al día tras v0.11.4 → v0.11.9. Detalle en [[07-Agentes/diario/2026-10-14]].
 
 > [!success] 2026-10-12 · **`v0.11.4` INSTALADA EN g500** (05:45 UTC, aprobada por el dueño, probada en el navegador)
