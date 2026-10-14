@@ -34,7 +34,7 @@ import { CampoCifra } from '@/components/demo/ui/CampoCifra'
 //
 //  ─── LA PANTALLA DICE LO QUE CUESTA, con esas palabras ───────────────────
 //  Un paquete SUSTITUYE la suma de las tarifas: no la descuenta, la reemplaza.
-//  Y no admite descuento por volumen, ni código promocional salvo que su
+//  Y no admite descuento por volumen, ni código de negociación salvo que su
 //  bandera lo permita. Callar eso haría que el dueño capturara una cosa
 //  creyendo otra y lo descubriera en la primera cotización — o peor, no lo
 //  descubriera.
@@ -161,7 +161,7 @@ export function GestionPaquetes() {
         Da igual lo que sumen las pantallas — se cobra el precio del paquete.
         <br />
         Por eso un paquete <b>no admite descuento por volumen</b> (su precio ya lo lleva dentro) ni
-        código promocional, salvo que marques la casilla de abajo. El descuento comercial de la
+        código de negociación, salvo que marques la casilla de abajo. El descuento comercial de la
         propuesta sí se sigue aplicando encima.
         <br />
         Y <b>quitar una pantalla de una propuesta ya cotizada NO baja el precio</b>: el reparto se
@@ -263,11 +263,11 @@ export function GestionPaquetes() {
           <label className="flex items-center gap-1.5 text-xs">
             <input
               type="checkbox"
-              aria-label="Admite código promocional encima"
+              aria-label="Admite código de negociación encima"
               checked={nuevo.admiteCodigo}
               onChange={(e) => setNuevo({ ...nuevo, admiteCodigo: e.target.checked })}
             />
-            Admite código promocional encima
+            Admite código de negociación encima
           </label>
           <Button
             type="button"

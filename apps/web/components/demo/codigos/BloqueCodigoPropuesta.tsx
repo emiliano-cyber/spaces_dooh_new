@@ -115,7 +115,7 @@ export function BloqueCodigoPropuesta({
   async function aplicar() {
     const codigo = (codSel || codInput).trim()
     if (!codigo) {
-      toast.error('Elige o teclea el código promocional')
+      toast.error('Elige o teclea el código de negociación')
       return
     }
     setGuardando(true)
@@ -189,7 +189,7 @@ export function BloqueCodigoPropuesta({
   return (
     <div className="rounded-md border border-border bg-surface-2/40 p-3">
       <div className="flex items-center gap-2">
-        <span className="text-[12px] font-medium text-ink">Código promocional</span>
+        <span className="text-[12px] font-medium text-ink">Código de negociación</span>
         {etiqueta && (
           <span
             className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${
@@ -294,7 +294,7 @@ export function BloqueCodigoPropuesta({
                 </select>
               )}
               <input
-                aria-label="Código promocional"
+                aria-label="Código de negociación"
                 value={codInput}
                 onChange={(e) => { setCodInput(e.target.value); if (e.target.value) setCodSel('') }}
                 placeholder={vigentes.length > 0 ? 'o tecléalo' : 'VERANO20'}

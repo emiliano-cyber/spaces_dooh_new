@@ -1,5 +1,15 @@
 [
   {
+    "version": "v0.11.9",
+    "fecha": "2026-10-13",
+    "items": [
+      {
+        "tipo": "AJUSTADO",
+        "texto": "En el menú Comercial, «Comercial OPEX» ahora se llama «Comercial negociación» y «Códigos promocionales» se llama «Códigos de negociación». En la propuesta y en Paquetes, «código promocional» también pasa a «código de negociación». Las pantallas y los permisos siguen igual."
+      }
+    ]
+  },
+  {
     "version": "v0.11.8",
     "fecha": "2026-10-13",
     "items": [

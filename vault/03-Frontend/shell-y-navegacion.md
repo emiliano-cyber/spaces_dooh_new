@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-10-13
 tags: [frontend, shell, navegacion, rbac]
 archivos:
   - apps/web/lib/host.ts
@@ -87,11 +87,20 @@ orden de ese arreglo **es** el orden en pantalla. Al 2026-10-05 (26 entradas):
 |---|---|---|
 | `inicio` | *sin título* | Dashboard |
 | `patrimonio` | **Inventario** | Inventario · Arrendadores · Network · Almacén |
-| `vender` | **Comercial** | Clientes · Comercial · Disponibilidad · Propuestas · Comercial OPEX · Franjas y temporadas · Descuentos por volumen · Códigos promocionales · Paquetes cerrados |
+| `vender` | **Comercial** | Clientes · Comercial · Disponibilidad · Propuestas · Comercial negociación · Franjas y temporadas · Descuentos por volumen · Códigos de negociación · Paquetes cerrados |
 | `entregar` | **Operaciones** | Campañas · **Creativos** · Imprenta · Operaciones · Consumo de luz |
 | `cobrar` | **Finanzas** | Finanzas · Reportes · Comisiones |
 | `sistema` | **Sistema** | Integraciones · Razones sociales · Actividad · Administración |
 
+> [!note] 2026-10-13 · dos rótulos cambiados por el dueño
+> «Comercial OPEX» se llama **Comercial negociación** y «Códigos promocionales»
+> **Códigos de negociación** (en el menú, en `lib/modulos.ts` —la pantalla de
+> permisos— y en el título de cada página; en la propuesta y en Paquetes,
+> «código promocional» pasa a «código de negociación»). **Solo cambian los
+> rótulos**: las claves (`comercial-opex`, `codigos-promocionales`), las rutas
+> y los permisos siguen igual, así que ningún rol pierde ni gana acceso. Los
+> mensajes de error del servidor siguen diciendo «codigo promocional».
+>
 > [!note] 2026-10-05 · el grupo Comercial tenía cinco entradas sin listar
 > La tabla se había quedado en cuatro. Desde el 29-30/09 cuelgan de `vender`
 > **Comercial OPEX** (`nav.ts:157`, la maqueta de prospección de arrendadores,

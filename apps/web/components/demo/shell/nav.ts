@@ -185,7 +185,7 @@ export const NAV: NavItem[] = [
   // Maqueta pedida el 2026-09-30: la prospección de arrendadores. Sin base y
   // sin formularios todavía. SE SOLAPA con Captación —que sí tiene base— y la
   // decisión de si se construye encima de `prospectos` o aparte está abierta.
-  { key: 'comercial-opex', label: 'Comercial OPEX', href: '/comercial-opex', icon: Handshake, roles: [...MANDO, ...VENTA], grupo: 'vender' },
+  { key: 'comercial-opex', label: 'Comercial negociación', href: '/comercial-opex', icon: Handshake, roles: [...MANDO, ...VENTA], grupo: 'vender' },
   // ─── Las cuatro de la CADENA DE PRECIO, en Comercial ──────────────────────
   //
   // Van en este orden a proposito: primero de donde sale la tarifa, y luego lo
@@ -223,7 +223,7 @@ export const NAV: NavItem[] = [
   // sola, y un codigo es una CAMPANA que se le promete a un cliente por su
   // nombre, con fecha de caducidad y cupo. Mismo grupo y mismo modulo
   // --`inventario`, como su endpoint-- por el mismo razonamiento.
-  { key: 'codigos-promocionales', label: 'Codigos promocionales', href: '/codigos-promocionales', icon: Ticket, roles: [...MANDO, ...JEFES_VENTA], grupo: 'vender' },
+  { key: 'codigos-promocionales', label: 'Códigos de negociación', href: '/codigos-promocionales', icon: Ticket, roles: [...MANDO, ...JEFES_VENTA], grupo: 'vender' },
   // PAQ-01 · los paquetes cerrados (ADR 0039, Fase 4). Pantalla PROPIA, y aqui
   // el motivo es mas fuerte que en las dos de arriba: aquellas son DESCUENTOS
   // sobre un precio, y un paquete SUSTITUYE el precio. Ponerlo con ellas haria

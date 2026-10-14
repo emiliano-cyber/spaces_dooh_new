@@ -7,6 +7,11 @@ La entrada más reciente va arriba.
 
 ## 2026-10-13
 
+- **Dos nombres nuevos en el menú Comercial.** «Comercial OPEX» ahora se llama
+  **Comercial negociación** y «Códigos promocionales» se llama **Códigos de
+  negociación**. En la propuesta y en Paquetes, «código promocional» también
+  pasa a decir «código de negociación». Solo cambia el nombre: las pantallas,
+  los enlaces y quién puede entrar siguen igual.
 - **Una propuesta aprobada sin cliente ya puede generar su campaña.** Antes se
   quedaba atascada: sin cliente no se genera la campaña, y aprobada ya no se
   podía editar. Ahora, al pulsar «Generar campaña», si falta el cliente se

@@ -504,8 +504,8 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                       está congelado: si el paquete cambia o se borra, este precio no se mueve.
                       {' '}
                       {p.paquete.admiteCodigo
-                        ? 'Admite código promocional encima.'
-                        : 'Es precio final: no admite descuento por volumen ni código promocional.'}
+                        ? 'Admite código de negociación encima.'
+                        : 'Es precio final: no admite descuento por volumen ni código de negociación.'}
                     </p>
                     {/* La frase que responde a «¿y si alguien quita una
                         pantalla?». Se enseña en cuanto la propuesta deja de

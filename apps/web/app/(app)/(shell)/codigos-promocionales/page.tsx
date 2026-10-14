@@ -34,7 +34,7 @@ export default function CodigosPromocionalesPage() {
       <header className="flex items-center gap-2">
         <Ticket className="h-5 w-5" />
         <div>
-          <h1 className="text-lg font-semibold">Códigos promocionales</h1>
+          <h1 className="text-lg font-semibold">Códigos de negociación</h1>
           <p className="text-xs text-neutral-500">
             Códigos con vencimiento y cupo que un vendedor aplica a una cotización. Los pone esta
             empresa y no se comparten con nadie más.

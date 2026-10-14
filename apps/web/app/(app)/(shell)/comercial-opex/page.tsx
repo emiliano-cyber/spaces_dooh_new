@@ -24,7 +24,7 @@ export default function ComercialOpexPage() {
       <header className="flex items-start gap-2">
         <Handshake className="mt-0.5 h-5 w-5 text-ink" />
         <div className="min-w-0">
-          <h1 className="text-lg font-semibold text-ink">Comercial OPEX</h1>
+          <h1 className="text-lg font-semibold text-ink">Comercial negociación</h1>
           <p className="text-[12px] text-muted">
             Prospección de arrendadores: los espacios que se están persiguiendo, quién manda en cada
             uno y cómo va la negociación de su renta.

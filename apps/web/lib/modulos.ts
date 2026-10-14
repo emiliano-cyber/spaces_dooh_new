@@ -44,7 +44,7 @@ export const AREAS: AreaProducto[] = [
   // porque HOY NO TIENE API NI BASE -- se pidió «solo html sin funciones». El
   // día que la tenga, esto pasa a `true` y hay que decidir si su módulo sigue
   // siendo `comercial` o se va con `captacion`, con la que se solapa.
-  { clave: 'comercial-opex', label: 'Comercial OPEX', modulo: 'comercial', apiPropia: false },
+  { clave: 'comercial-opex', label: 'Comercial negociación', modulo: 'comercial', apiPropia: false },
   { clave: 'inventario', label: 'Inventario', modulo: 'inventario', apiPropia: true },
   // Las ocho pantallas de Space Eyes (equipos, galería, vivo, programación,
   // campañas, verificación, fallas) exigen `inventario.ver` / `inventario.crear`.
@@ -82,7 +82,7 @@ export const AREAS: AreaProducto[] = [
   // `crear`.
   { clave: 'franjas-y-temporadas', label: 'Franjas y temporadas', modulo: 'precios', apiPropia: true },
   { clave: 'descuentos-por-volumen', label: 'Descuentos por volumen', modulo: 'precios', apiPropia: true },
-  { clave: 'codigos-promocionales', label: 'Codigos promocionales', modulo: 'precios', apiPropia: true },
+  { clave: 'codigos-promocionales', label: 'Códigos de negociación', modulo: 'precios', apiPropia: true },
   // PAQ-01 · y aqui importa mas que en las otras tres: quien pueda escribir
   // aqui fija el precio de una venta entera saltandose la rejilla y el tope de
   // descuento.
