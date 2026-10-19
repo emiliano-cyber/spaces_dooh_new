@@ -921,7 +921,18 @@ function deviceDetail() {
           command_type: 'TAKE_PHOTO',
           priority: 1,
           // Rotacion del visor + nombre del sitio -> el telefono los graba en la foto.
-          payload: { rotation: this.rotation, site: (this.device && this.device.name) || '' },
+          // Y si el visor esta movido, ESA foto sale como se ve, sin cambiar el
+          // encuadre del sitio. Antes no se podia: la foto salia siempre al
+          // encuadre guardado, asi que quien queria una toma mas cerrada tenia
+          // que pulsar "Fijar encuadre", y eso lo cambia para todos y le tira al
+          // equipo el catalogo de creativos que aprendio.
+          payload: {
+            rotation: this.rotation,
+            site: (this.device && this.device.name) || '',
+            ...(this.encuadreCambiado()
+              ? { encuadre_temporal: { zoom: Number(this.zoom) || 0, lens: this.lens, ajustes: this._cuerpoAjustes() } }
+              : {}),
+          },
         });
         // El device tarda ~2-6s en capturar y subir. Sondeamos hasta que
         // aparezca una foto nueva.

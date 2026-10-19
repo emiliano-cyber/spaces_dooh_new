@@ -187,6 +187,12 @@ export async function controlDeCamara(req: Request, res: Response) {
     value: z.union([z.number(), z.string().max(20)]).optional(),
     x: z.number().min(0).max(1).optional(),
     y: z.number().min(0).max(1).optional(),
+    // 'false' = aplicalo en el vivo pero NO lo dejes guardado. Lo manda la
+    // puerta de SPACE OS por quien no puede fijar el encuadre: alla se sabe que
+    // rol tiene la persona, aqui llega la llave de la instancia, que es de
+    // admin. Solo quita permiso, nunca lo da, asi que no importa que viaje en
+    // el cuerpo: lo peor que puede hacer un cliente con ella es no guardar.
+    guardar: z.boolean().optional(),
   }).strict();
   const parsed = schema.safeParse(req.body ?? {});
   if (!parsed.success) return res.status(400).json({ error: 'invalid_input' });
@@ -200,8 +206,16 @@ export async function controlDeCamara(req: Request, res: Response) {
   // y la app (0.16.7+) los aplica al abrir la camara. Antes eran temporales y
   // la foto sin vivo salia con otra luz y otro color (Tlalpan, 12/10/2026).
   // El enfoque fijo ya lo guarda el panel con PUT /camera.
+  //
+  // Pero solo las deja guardadas el ADMIN (19-oct-2026). Mover el zoom, el
+  // enfoque, la luz o el color EN EL VIVO lo puede hacer cualquiera que opere el
+  // equipo -es mirar, y se acaba al cerrar la vista: la app no guarda nada de
+  // eso-; lo que no puede es que al soltarlo quede cambiado para todos. De estas
+  // seis acciones, estas dos eran las unicas que se escribian en la base, asi
+  // que eran la unica forma en que mirar dejaba rastro.
   const { action, value } = parsed.data;
-  if (action === 'exposure' || action === 'wb') {
+  const dejarGuardado = parsed.data.guardar !== false && req.user?.role === 'admin';
+  if ((action === 'exposure' || action === 'wb') && dejarGuardado) {
     const clave = action === 'exposure' ? '$.exposicion' : '$.balance';
     const neutro = action === 'exposure' ? Number(value) === 0 : value === 'auto';
     if (neutro) {
@@ -473,6 +487,29 @@ export async function sendCommand(req: Request, res: Response) {
   // la foto (si no, se encuadraria contra algo distinto de lo que se recibe).
   if (command_type === 'TAKE_PHOTO' || command_type === 'START_STREAM') {
     payload = { ...(payload ?? {}), ...(await encuadreDe(Number(deviceId))) };
+    // ESTA foto, con otro encuadre, SIN cambiar el del sitio.
+    //
+    // Antes no habia forma: la foto salia siempre al encuadre guardado, asi que
+    // quien queria una toma mas cerrada tenia que pulsar "Fijar encuadre" -y eso
+    // cambia el sitio para todos, tira el catalogo de creativos del equipo y lo
+    // deja un dia sin reconocer nada-. Era la causa, no la mala intencion: en
+    // G500 tres pantallas acabaron torcidas asi.
+    //
+    // Ahora se pide con la orden y vale solo para esta captura. No se escribe en
+    // la base, no sale en ninguna otra foto y la programada sigue usando el
+    // encuadre del sitio. Por eso va en un campo aparte y no reutilizando
+    // camera_zoom: el encuadre fijo tiene que seguir siendo lo que manda por
+    // omision, y lo de una vez tiene que pedirse a proposito.
+    const t = (payload as any).encuadre_temporal;
+    delete (payload as any).encuadre_temporal;
+    if (t && typeof t === 'object') {
+      const z = Number(t.zoom);
+      if (Number.isFinite(z)) (payload as any).camera_zoom = Math.min(1, Math.max(0, z));
+      if (t.lens === 'main' || t.lens === 'wide') (payload as any).camera_lens = t.lens;
+      if (t.ajustes && typeof t.ajustes === 'object') {
+        (payload as any).camera_ajustes = { ...((payload as any).camera_ajustes ?? {}), ...t.ajustes };
+      }
+    }
   }
 
   // La orden de actualizar lleva de donde bajar el programa, su huella y que

@@ -87,9 +87,14 @@ export function createRoutes() {
   // frecuencias y umbrales (salud, creativos) y cerrar fallas. Nada de eso
   // toca lo que la camara ve.
   router.put('/api/devices/:id/camera', requireUser, requireRole('admin'), copiarEdicionAV1, dashboard.setCamera);
-  // Tampoco es temporal: la exposicion y el balance que se dejan en el vivo se
-  // guardan en camera_ajustes y viajan en cada foto (ver controlDeCamara).
-  router.post('/api/devices/:id/camera-control', requireUser, requireRole('admin'), dashboard.controlDeCamara);
+  // El control del vivo (zoom, enfoque, luz, color) SI lo puede usar el
+  // operador: es mirar. La app no guarda nada de eso y se acaba al cerrar la
+  // vista; y para que la foto salga como se ve, la orden lleva el encuadre de
+  // ESA captura (payload.encuadre_temporal en sendCommand), que tampoco se
+  // escribe en la base. Lo unico que aqui dejaba rastro -la exposicion y el
+  // balance, que se guardan en camera_ajustes- solo queda guardado si es admin
+  // (ver controlDeCamara).
+  router.post('/api/devices/:id/camera-control', requireUser, requireRole('admin', 'operator'), dashboard.controlDeCamara);
   // Si el equipo ya empezo a transmitir (equipos que pasan por el servidor de medios).
   router.get('/api/devices/:id/stream-status', requireUser, dashboard.streamStatus);
   // Version del APK publicado, para saber que equipos estan atrasados.
