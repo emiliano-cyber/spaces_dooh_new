@@ -348,7 +348,7 @@
                 </div>
                 <!-- Lente: el gran angular (0.5x) es una camara fisica distinta,
                      no se llega con zoom. Solo en equipos que lo tengan. -->
-                <select x-show="!esRelay && puedeEncuadrar" style="display:none" x-model="lens"
+                <select x-show="!esRelay && puedeAjustar" style="display:none" x-model="lens"
                         class="shrink-0 bg-white/15 hover:bg-white/25 text-white text-[11px] rounded px-1.5 py-1 border-0 outline-none cursor-pointer backdrop-blur-sm"
                         title="Gran angular: abarca más desde la misma distancia. Solo si el equipo lo tiene.">
                   <option class="text-black" value="main">Lente normal</option>
@@ -357,6 +357,14 @@
                 <!-- Fija el encuadre para las fotos, incluidas las programadas.
                      Pide permiso, que es lo que exige el servidor: en los equipos de
                      relay el boton se veia habilitado para cualquiera y contestaba 403. -->
+                <!-- Quien no fija el encuadre puede MIRAR por el otro lente: se
+                     reabre la vista con el y nada queda cambiado. -->
+                <button x-show="!puedeEncuadrar && lens !== savedLens && !esRelay" style="display:none"
+                  @click="verAsi()" :disabled="reencuadrando"
+                  class="shrink-0 flex items-center gap-1 bg-[#0A66FF] hover:bg-blue-700 disabled:opacity-40 text-white text-[11px] rounded px-2 py-1"
+                  title="Abre la vista con este lente. No cambia el encuadre del sitio.">
+                  <span x-text="reencuadrando ? 'Abriendo…' : 'Ver con este lente'">Ver con este lente</span>
+                </button>
                 <button x-show="puedeEncuadrar" style="display:none" @click="aplicarEncuadre()"
                   :disabled="!encuadreCambiado() || reencuadrando"
                   class="shrink-0 flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-default text-white text-[11px] rounded px-2 py-1"
@@ -365,7 +373,7 @@
                   <span x-text="reencuadrando ? 'Aplicando…' : (encuadreCambiado() ? 'Fijar encuadre' : 'Encuadre guardado')">Fijar encuadre</span>
                 </button>
                 <!-- Volver al encuadre guardado, sin tocar el equipo -->
-                <button x-show="puedeEncuadrar && encuadreCambiado() && !reencuadrando" style="display:none"
+                <button x-show="puedeAjustar && encuadreCambiado() && !reencuadrando" style="display:none"
                         @click="descartarEncuadre()"
                         class="shrink-0 bg-white/15 hover:bg-white/25 text-white text-[11px] rounded px-2 py-1 backdrop-blur-sm"
                         title="Volver al encuadre que tiene guardado el equipo.">

@@ -744,7 +744,22 @@ function deviceDetail() {
       // asi que para ver la version nitida hay que reabrir.
       const hayQueReabrir = cambioLente || (this.esRelay && cambioRecorte);
       if (!this.streaming || !hayQueReabrir) return;
+      await this.reabrirVisor();
+    },
 
+    /**
+     * Mirar por el otro lente SIN fijarlo. El lente es otra camara fisica, asi
+     * que no basta con pedirselo a la sesion abierta: hay que reabrirla, y la
+     * orden lleva el encuadre de esta vista (encuadreDeAhora), que no se
+     * guarda. Quien puede fijarlo no necesita esto: su boton es el de fijar.
+     */
+    async verAsi() {
+      if (this.reencuadrando || !this.streaming) return;
+      await this.reabrirVisor();
+      this.showToast('Así se ve con este lente. No cambió el encuadre del sitio.', 'info');
+    },
+
+    async reabrirVisor() {
       // Se reabre SIN bajar la bandera de streaming, para que el visor y sus
       // controles sigan en pantalla y no parezca que se cayo la transmision.
       this.reencuadrando = true;
@@ -929,9 +944,7 @@ function deviceDetail() {
           payload: {
             rotation: this.rotation,
             site: (this.device && this.device.name) || '',
-            ...(this.encuadreCambiado()
-              ? { encuadre_temporal: { zoom: Number(this.zoom) || 0, lens: this.lens, ajustes: this._cuerpoAjustes() } }
-              : {}),
+            ...(this.encuadreDeAhora() ? { encuadre_temporal: this.encuadreDeAhora() } : {}),
           },
         });
         // El device tarda ~2-6s en capturar y subir. Sondeamos hasta que
@@ -1138,8 +1151,11 @@ function deviceDetail() {
         },
       });
       this.streamClient = cliente;
+      // Con el encuadre que se esta mirando, si no es el del sitio: asi el
+      // lente y el acercamiento se ven de verdad sin cambiarselo a nadie.
+      const encuadreAbierto = this.encuadreDeAhora();
       try {
-        await this.streamClient.start();
+        await this.streamClient.start(encuadreAbierto || undefined);
       } catch (err) {
         this.streamClient = null;
         // Alguien mas tiene abierta la vista de este equipo.
@@ -1193,8 +1209,12 @@ function deviceDetail() {
       // START_STREAM el encuadre GUARDADO del equipo, asi que es contra esto -y
       // no contra el deslizador- que se calcula el recorte de la vista previa.
       // Sin esta referencia, el video se veria ampliado dos veces.
-      this.zoomEnStream = Number(this.savedZoom) || 0;
-      this.brilloEnStream = Number(this.savedBrillo) || 0;
+      // Si la vista se abrio con un encuadre de una sola vez, la referencia es
+      // ESE y no el guardado, o el video saldria ampliado dos veces.
+      this.zoomEnStream = Number(encuadreAbierto ? encuadreAbierto.zoom : this.savedZoom) || 0;
+      this.brilloEnStream = Number(
+        encuadreAbierto ? (encuadreAbierto.ajustes?.brillo ?? 0) : this.savedBrillo
+      ) || 0;
       this.centroEnStream = {
         x: Number(this.ajustes?.centro_x ?? 0.5),
         y: Number(this.ajustes?.centro_y ?? 0.5),
@@ -1527,6 +1547,20 @@ function deviceDetail() {
     // Hay algo sin guardar. Incluye el centro del recorte: antes solo miraba
     // lente y zoom, asi que mover el recorte de lado dejaba el boton en gris y
     // no habia forma de aplicarlo.
+    /**
+     * El encuadre que se esta mirando, si no es el guardado del sitio.
+     *
+     * Viaja con la orden de abrir la vista y con la de la foto, y vale SOLO
+     * para esa vez: no se escribe en el equipo ni cambia lo que ven los demas.
+     * Es lo que permite mirar por el gran angular, o mas de cerca, y llevarse
+     * la foto asi, sin tener que FIJAR el encuadre -que es lo que le borra al
+     * equipo el catalogo de creativos que aprendio-.
+     */
+    encuadreDeAhora() {
+      if (!this.encuadreCambiado()) return null;
+      return { zoom: Number(this.zoom) || 0, lens: this.lens, ajustes: this._cuerpoAjustes() };
+    },
+
     encuadreCambiado() {
       return this.lens !== this.savedLens
         || Math.abs(Number(this.zoom) - this.savedZoom) > 0.001

@@ -77,12 +77,19 @@ class WhepStreamClient {
     } catch (e) { /* la pestaña ya se esta cerrando */ }
   }
 
-  async start() {
+  // `encuadre` abre la camara con OTRO encuadre solo para esta vista, sin tocar
+  // el del sitio: es lo que deja mirar por el gran angular, o mas de cerca, a
+  // quien no puede fijarlo. Sin el, el equipo abre con el encuadre guardado.
+  async start(encuadre) {
     // El backend crea una ruta al azar y de un solo uso: le dice al equipo a
     // donde publicar y a nosotros de donde ver.
     const res = await API.post(`/api/devices/${this.deviceId}/command`, {
       command_type: 'START_STREAM',
-      payload: { session_id: Date.now().toString(), visor: this.visor },
+      payload: {
+        session_id: Date.now().toString(),
+        visor: this.visor,
+        ...(encuadre ? { encuadre_temporal: encuadre } : {}),
+      },
     });
     if (!res || !res.stream || !res.stream.whep) {
       throw new Error('el servidor no entrego la direccion de la transmision');
