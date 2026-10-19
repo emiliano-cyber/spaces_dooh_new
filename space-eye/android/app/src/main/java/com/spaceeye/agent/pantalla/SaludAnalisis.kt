@@ -60,12 +60,53 @@ object SaludAnalisis {
         /** Actividad y brillo de cada zona relativos a la mediana (fila x columna). */
         val actividad: Array<DoubleArray>? = null,
         val brillo: Array<DoubleArray>? = null,
+        /** Textura de bordes de la vuelta (mediana de las tomas): ver [textura]. */
+        val textura: Double = 0.0,
     )
 
     /** Una toma enderezada de la pantalla, en gris. */
     class Imagen(val px: DoubleArray, val ancho: Int, val alto: Int) {
         fun media(): Double = px.average()
         fun desviacion(): Double = std(px)
+    }
+
+    /**
+     * PANTALLA SIN CONTENIDO. De dia una pantalla LED apagada no se ve negra ni
+     * pareja: refleja el cielo en un degradado, y las nubes le cambian la luz
+     * (2-3 "cambios" por vuelta). Ninguna regla de arriba la ve y la vuelta sale
+     * INCONCLUSA para siempre (Tlalpan, 12/10/2026, 40 min apagada sin aviso).
+     *
+     * Lo que si la delata: un anuncio tiene BORDES (letras, logos, fotos) y un
+     * reflejo es liso. La textura de bordes es la media de |Laplaciano| sobre la
+     * toma suavizada; se compara con lo NORMAL de ese mismo sitio (aprendido en
+     * sus vueltas sanas), porque el valor absoluto depende de cuanto ocupa la
+     * pantalla en la foto. Medido con fotos reales: Santa Monica apagada 2.2
+     * contra 30-58 encendida; Tlalpan encendida y deslavada por el sol, minimo 14.
+     */
+    const val SIN_CONTENIDO = 0.4
+
+    /** Media de |Laplaciano| (3x3) sobre la toma suavizada (3x3): cuantos bordes tiene. */
+    fun textura(t: Imagen): Double {
+        val w = t.ancho; val h = t.alto
+        if (w < 5 || h < 5) return 0.0
+        val s = DoubleArray(w * h)
+        for (y in 1 until h - 1) for (x in 1 until w - 1) {
+            var acc = 0.0
+            for (dy in -1..1) for (dx in -1..1) {
+                val k = if (dx == 0 && dy == 0) 4.0 else if (dx == 0 || dy == 0) 2.0 else 1.0
+                acc += k * t.px[(y + dy) * w + x + dx]
+            }
+            s[y * w + x] = acc / 16.0
+        }
+        var suma = 0.0
+        var n = 0
+        for (y in 2 until h - 2) for (x in 2 until w - 2) {
+            val i = y * w + x
+            val lap = 2.0 * (s[i - 1] + s[i + 1] + s[i - w] + s[i + w]) + (s[i - w - 1] + s[i - w + 1] + s[i + w - 1] + s[i + w + 1]) - 12.0 * s[i]
+            suma += abs(lap)
+            n++
+        }
+        return if (n == 0) 0.0 else suma / n
     }
 
     // Umbrales. Medidos, no inventados: ver la nota de arriba.
@@ -102,17 +143,34 @@ object SaludAnalisis {
      * @param excluir zonas que no se juzgan: tapadas (una barda, un arbol) o que
      *   se sabe que no cambian. Las aprende Seguimiento en las primeras 24 h.
      */
-    fun analizar(tomas: List<Imagen>, filas: Int, columnas: Int, excluir: Set<Pair<Int, Int>> = emptySet()): Resultado {
+    /**
+     * @param texturaNormal la textura de bordes de este sitio en sus vueltas sanas
+     *   (la lleva el Monitor); null mientras no la conozca.
+     * @param cambioMinimo y [sinContenido]: los umbrales del sitio, ajustables
+     *   desde la web (salud.cambio_minimo / salud.sin_contenido); por omision los
+     *   de fabrica. Asi una falsa alarma de un sitio se corrige sin APK nueva.
+     */
+    fun analizar(tomas: List<Imagen>, filas: Int, columnas: Int, excluir: Set<Pair<Int, Int>> = emptySet(),
+                 texturaNormal: Double? = null, cambioMinimo: Double = CAMBIO_MINIMO,
+                 sinContenido: Double = SIN_CONTENIDO): Resultado {
         val n = tomas.size
         if (n < 2) return Resultado(Pantalla.INCONCLUSO, n, 0, emptyList())
 
         var cambios = 0
-        for (k in 1 until n) if (diferencia(tomas[k], tomas[k - 1], filas, columnas) > CAMBIO_MINIMO) cambios++
+        for (k in 1 until n) if (diferencia(tomas[k], tomas[k - 1], filas, columnas) > cambioMinimo) cambios++
         val uniformes = tomas.count { it.desviacion() < UNIFORME }.toDouble() / n
+        val tex = mediana(tomas.map { textura(it) })
 
-        if (uniformes >= FRACCION_APAGADA) return Resultado(Pantalla.APAGADA, n, cambios, emptyList())
-        if (cambios == 0 && n >= 6) return Resultado(Pantalla.CONGELADA, n, cambios, emptyList())
-        if (cambios < CAMBIOS_PARA_ZONAS) return Resultado(Pantalla.INCONCLUSO, n, cambios, emptyList())
+        if (uniformes >= FRACCION_APAGADA) return Resultado(Pantalla.APAGADA, n, cambios, emptyList(), textura = tex)
+        // Lisa toda la vuelta comparada con lo normal del sitio: apagada de dia (o
+        // sin contenido). Va ANTES de mirar los cambios: las nubes le cambian la
+        // luz al reflejo, y con 4 o mas "cambios" la vuelta pasaba al analisis por
+        // zonas y salia OK. Es la MEDIANA de la vuelta: un anuncio oscuro dura
+        // unos segundos y no la baja. La confirma Seguimiento en dos vueltas.
+        if (texturaNormal != null && texturaNormal > 0 && n >= 6 && tex < sinContenido * texturaNormal)
+            return Resultado(Pantalla.APAGADA, n, cambios, emptyList(), textura = tex)
+        if (cambios == 0 && n >= 6) return Resultado(Pantalla.CONGELADA, n, cambios, emptyList(), textura = tex)
+        if (cambios < CAMBIOS_PARA_ZONAS) return Resultado(Pantalla.INCONCLUSO, n, cambios, emptyList(), textura = tex)
 
         // Por zona: brillo medio en cada toma, y la textura (desviacion) maxima.
         val medias = Array(filas) { Array(columnas) { DoubleArray(n) } }
@@ -153,7 +211,7 @@ object SaludAnalisis {
                 zonas.add(Zona("zona_congelada", f, c, redondea(1 - rAct / CONGELADA_ACTIVIDAD)))
             }
         }
-        return Resultado(Pantalla.OK, n, cambios, agrupar(zonas), relAct, relMax)
+        return Resultado(Pantalla.OK, n, cambios, agrupar(zonas), relAct, relMax, textura = tex)
     }
 
     /** Tres o mas gabinetes con la misma falla son UNA falla con su lista. */

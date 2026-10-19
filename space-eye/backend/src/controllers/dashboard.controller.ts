@@ -11,7 +11,7 @@ import {
   unirEspectador, SesionDeVista,
 } from '../utils/streamWatchdog';
 import { whipDe } from '../utils/relayTelefono';
-import { ordenarEquipo, publicarAEquipos } from '../utils/espejo';
+import { ordenarEquipo, publicarAEquipos, esDeV1 } from '../utils/espejo';
 import { agentePcInfo, agentePiInfo, apkInfo } from '../utils/apkInfo';
 import { proximoDisparo, ventanasValidas } from '../utils/horarios';
 import { env } from '../config/env';
@@ -187,6 +187,12 @@ export async function controlDeCamara(req: Request, res: Response) {
     value: z.union([z.number(), z.string().max(20)]).optional(),
     x: z.number().min(0).max(1).optional(),
     y: z.number().min(0).max(1).optional(),
+    // 'false' = aplicalo en el vivo pero NO lo dejes guardado. Lo manda la
+    // puerta de SPACE OS por quien no puede fijar el encuadre: alla se sabe que
+    // rol tiene la persona, aqui llega la llave de la instancia, que es de
+    // admin. Solo quita permiso, nunca lo da, asi que no importa que viaje en
+    // el cuerpo: lo peor que puede hacer un cliente con ella es no guardar.
+    guardar: z.boolean().optional(),
   }).strict();
   const parsed = schema.safeParse(req.body ?? {});
   if (!parsed.success) return res.status(400).json({ error: 'invalid_input' });
@@ -195,6 +201,33 @@ export async function controlDeCamara(req: Request, res: Response) {
   const d = (f as any[])[0];
   if (!d || (req.servicio?.owner && d.owner !== req.servicio.owner)) return res.status(404).json({ error: 'not_found' });
   await publicarAEquipos('camera:control', { device_id: id, control: parsed.data });
+  // La exposicion y el balance que se dejan en el vivo quedan como los del
+  // sitio: viajan en camera_ajustes con cada orden de foto y en la vigilancia,
+  // y la app (0.16.7+) los aplica al abrir la camara. Antes eran temporales y
+  // la foto sin vivo salia con otra luz y otro color (Tlalpan, 12/10/2026).
+  // El enfoque fijo ya lo guarda el panel con PUT /camera.
+  //
+  // Pero solo las deja guardadas el ADMIN (19-oct-2026). Mover el zoom, el
+  // enfoque, la luz o el color EN EL VIVO lo puede hacer cualquiera que opere el
+  // equipo -es mirar, y se acaba al cerrar la vista: la app no guarda nada de
+  // eso-; lo que no puede es que al soltarlo quede cambiado para todos. De estas
+  // seis acciones, estas dos eran las unicas que se escribian en la base, asi
+  // que eran la unica forma en que mirar dejaba rastro.
+  const { action, value } = parsed.data;
+  const dejarGuardado = parsed.data.guardar !== false && req.user?.role === 'admin';
+  if ((action === 'exposure' || action === 'wb') && dejarGuardado) {
+    const clave = action === 'exposure' ? '$.exposicion' : '$.balance';
+    const neutro = action === 'exposure' ? Number(value) === 0 : value === 'auto';
+    if (neutro) {
+      await pool.query(
+        `UPDATE devices SET camera_ajustes = JSON_REMOVE(COALESCE(camera_ajustes, JSON_OBJECT()), ?) WHERE id = ?`,
+        [clave, id]);
+    } else {
+      await pool.query(
+        `UPDATE devices SET camera_ajustes = JSON_SET(COALESCE(camera_ajustes, JSON_OBJECT()), ?, ?) WHERE id = ?`,
+        [clave, action === 'exposure' ? Math.round(Number(value)) : String(value), id]);
+    }
+  }
   res.json({ ok: true });
 }
 
@@ -205,9 +238,14 @@ export async function setStreamRotation(req: Request, res: Response) {
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'invalid_input' });
 
+  // El giro de las fotos va con el de la vista: como se fija la vista asi deben
+  // salir las fotos. Las que se toman con el vivo abierto ya salian derechas;
+  // las de la vigilancia y las programadas (sin vivo) salian de lado porque
+  // photo_rotation se quedaba en 0 (Tlalpan, 12/10/2026). Solo cambia como se
+  // MUESTRAN las fotos nuevas: el archivo no se toca (ver photoStorage).
   const [r] = await pool.query<any>(
-    `UPDATE devices SET stream_rotation = ? WHERE id = ?`,
-    [parsed.data.rotation, req.params.id]
+    `UPDATE devices SET stream_rotation = ?, photo_rotation = ? WHERE id = ?`,
+    [parsed.data.rotation, parsed.data.rotation, req.params.id]
   );
   if ((r as any).affectedRows === 0) return res.status(404).json({ error: 'not_found' });
   res.json({ ok: true, rotation: parsed.data.rotation });
@@ -449,6 +487,29 @@ export async function sendCommand(req: Request, res: Response) {
   // la foto (si no, se encuadraria contra algo distinto de lo que se recibe).
   if (command_type === 'TAKE_PHOTO' || command_type === 'START_STREAM') {
     payload = { ...(payload ?? {}), ...(await encuadreDe(Number(deviceId))) };
+    // ESTA foto, con otro encuadre, SIN cambiar el del sitio.
+    //
+    // Antes no habia forma: la foto salia siempre al encuadre guardado, asi que
+    // quien queria una toma mas cerrada tenia que pulsar "Fijar encuadre" -y eso
+    // cambia el sitio para todos, tira el catalogo de creativos del equipo y lo
+    // deja un dia sin reconocer nada-. Era la causa, no la mala intencion: en
+    // G500 tres pantallas acabaron torcidas asi.
+    //
+    // Ahora se pide con la orden y vale solo para esta captura. No se escribe en
+    // la base, no sale en ninguna otra foto y la programada sigue usando el
+    // encuadre del sitio. Por eso va en un campo aparte y no reutilizando
+    // camera_zoom: el encuadre fijo tiene que seguir siendo lo que manda por
+    // omision, y lo de una vez tiene que pedirse a proposito.
+    const t = (payload as any).encuadre_temporal;
+    delete (payload as any).encuadre_temporal;
+    if (t && typeof t === 'object') {
+      const z = Number(t.zoom);
+      if (Number.isFinite(z)) (payload as any).camera_zoom = Math.min(1, Math.max(0, z));
+      if (t.lens === 'main' || t.lens === 'wide') (payload as any).camera_lens = t.lens;
+      if (t.ajustes && typeof t.ajustes === 'object') {
+        (payload as any).camera_ajustes = { ...((payload as any).camera_ajustes ?? {}), ...t.ajustes };
+      }
+    }
   }
 
   // La orden de actualizar lleva de donde bajar el programa, su huella y que
@@ -461,6 +522,17 @@ export async function sendCommand(req: Request, res: Response) {
   // -REVOLUCION 267 llevaba TRES versiones de atraso sin que se viera en el
   // dashboard, porque el numero de version no cambiaba.
   if (command_type === 'UPDATE_APP') {
+    // En el espejo, los equipos de V1 (los de la flota de siempre) NO se
+    // actualizan desde aqui: la app nueva viene con la direccion de este
+    // servidor y el telefono se mudaria solo, sin control. Se actualizan desde
+    // V1, o se mudan a proposito (docs/MUDANZA_DE_EQUIPOS.md). Los equipos
+    // propios del espejo (ids >= BASE_PROPIO) si se actualizan.
+    if (esDeV1(Number(deviceId))) {
+      return res.status(409).json({
+        error: 'espejo_no_actualiza_equipos_de_v1',
+        mensaje: 'Este equipo es de la flota de V1: se actualiza alla, o se muda primero.',
+      });
+    }
     const [filas] = await pool.query<any[]>(`SELECT app_version FROM devices WHERE id = ?`, [deviceId]);
     const version = String((filas as any[])[0]?.app_version || '');
 
@@ -807,7 +879,15 @@ export async function listPhotos(req: Request, res: Response) {
   );
 
   // Las rutas salen FIRMADAS: /storage exige firma desde el 2026-09-14.
-  res.json({ photos: firmarFilas(rows as any[]), total: (countResult as any[])[0]?.total || 0 });
+  // GPS como NUMERO: mysql2 entrega las DECIMAL como texto ("19.43260000") y
+  // SPACE OS lo formatea con toFixed; con texto su ficha del equipo tronaba
+  // entera en cuanto un telefono mandaba ubicacion (g500, 09/10).
+  const fotos = firmarFilas(rows as any[]).map((p) => ({
+    ...p,
+    gps_lat: p.gps_lat == null ? null : Number(p.gps_lat),
+    gps_lng: p.gps_lng == null ? null : Number(p.gps_lng),
+  }));
+  res.json({ photos: fotos, total: (countResult as any[])[0]?.total || 0 });
 }
 
 // Elimina una foto tomada por error: borra archivos (full + thumb) y la fila.

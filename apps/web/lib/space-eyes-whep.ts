@@ -34,6 +34,13 @@ function nuevoVisor(): string {
 
 const dormir = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
 
+/** Un encuadre para UNA vista o UNA foto, que no cambia el del sitio. */
+export interface EncuadreTemporal {
+  zoom?: number
+  lens?: 'main' | 'wide'
+  ajustes?: Record<string, unknown> | null
+}
+
 export class VisorWhep {
   readonly visor = nuevoVisor()
   /** La vista ya estaba abierta por otra persona y nos unimos a ella. */
@@ -58,14 +65,26 @@ export class VisorWhep {
    * Pide la transmisión, espera a que el equipo publique y conecta el video.
    * Lanza ErrorSE si Space Eye la rechaza (409 vista_ocupada, 503 sin servidor
    * de medios…) y Error con un motivo legible si el equipo no llega a publicar.
+   *
+   * `encuadre` abre la cámara con OTRO encuadre solo para esta vista, sin tocar
+   * el del sitio: es lo que deja mirar por el gran angular, o más de cerca, a
+   * quien no puede fijarlo (`encuadre_temporal`, ver `sendCommand` de Space
+   * Eye). Sin él, el equipo abre con el encuadre guardado, como siempre.
    */
-  async iniciar(): Promise<void> {
+  async iniciar(encuadre?: EncuadreTemporal): Promise<void> {
     this.pidioInicio = true
     const res = await seApi<{ stream?: { modo: string; whep: string }; compartida?: boolean; con?: string }>(
       `devices/${this.deviceId}/command`,
       {
         method: 'POST',
-        body: { command_type: 'START_STREAM', payload: { session_id: Date.now().toString(), visor: this.visor } },
+        body: {
+          command_type: 'START_STREAM',
+          payload: {
+            session_id: Date.now().toString(),
+            visor: this.visor,
+            ...(encuadre ? { encuadre_temporal: encuadre } : {}),
+          },
+        },
       },
     )
     if (!res?.stream?.whep) throw new Error('Space Eye no entregó la dirección de la transmisión')

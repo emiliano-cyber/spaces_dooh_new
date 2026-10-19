@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { exigir } from '@/lib/server/auth'
 import { spaceEyeHabilitado, reenviarASpaceEye } from '@/lib/server/space-eye'
 import { registrarAccion } from '@/lib/server/acciones-repo'
+import { puedeEncuadrar } from '@/lib/roles'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -18,6 +19,8 @@ export const dynamic = 'force-dynamic'
 //  QUIÉN PUEDE: mirar (GET) pide `inventario.ver`; cambiar algo (POST, PUT,
 //  DELETE) pide `inventario.crear`. La empresa la pone la llave, no el
 //  navegador: Space Eye solo contesta por los equipos de su dueño.
+//
+//  Y el ENCUADRE, además, solo el Dueño (ver `ENCUADRE` más abajo).
 //
 //  QUÉ NO PASA: solo rutas de la lista de abajo. Usuarios y llaves de Space Eye
 //  quedan fuera aquí y también en Space Eye.
@@ -61,6 +64,49 @@ const ACCION_DE_ORDEN: Record<string, string> = {
 
 const ES_ORDEN = /^devices\/(\d+)\/command$/
 
+// ─── El encuadre que SE QUEDA, solo del Dueño (19/10/2026) ──────────────────
+//
+// La línea no está entre mirar y tocar, sino entre MOVER y QUE SE QUEDE:
+//
+//   · mover el zoom, el enfoque, la luz o el color EN EL VISOR lo hace
+//     cualquiera que opere el equipo, y la foto que pida sale como la está
+//     viendo (`encuadre_temporal` en la orden, que no se escribe en ningún
+//     lado). Eso no se toca: es la mitad del trabajo de todos los días;
+//   · lo que cambia el sitio PARA TODOS es de él y solo de él: el lente, el
+//     zoom y el recorte guardados (`camera`), la orientación fija
+//     (`stream-rotation`) y las cuatro esquinas de la pantalla (`pantalla`).
+//
+// Hasta hoy todo eso bastaba con `inventario.crear`, que tienen el Dueño, el
+// ADMINISTRADOR y OPERACIONES. Resultado medido en G500 el 19-oct: el encuadre
+// torcido en tres pantallas. Y la culpa no era de la mala intención sino de que
+// no había otra forma: para llevarse una toma más cerrada HABÍA que pulsar
+// «Fijar encuadre». Por eso esto no se cierra sin abrir lo otro, o la gente se
+// queda sin poder hacer su trabajo y el candado dura una semana.
+//
+// Cerrarlo importa porque el catálogo de creativos que el equipo aprendió vale
+// para UN encuadre: al cambiarlo se tira entero y el sitio pasa un día sin
+// reconocer nada — y si la pantalla queda más chica dentro de la foto, deja de
+// reconocer para siempre (AUTOPISTA: 14 % de la foto, reconoce 1 de 16).
+//
+// El porqué y el quién viven en `lib/roles.ts` (`puedeEncuadrar`), con pruebas.
+// Aquí solo se dice QUÉ rutas son. Space Eye lo exige además por su lado
+// (`requireRole('admin')`): esta puerta le habla con la llave de la instancia,
+// que es de admin, así que si esta regla no estuviera, Space Eye no la salvaría.
+const ENCUADRE = /^devices\/\d+\/(camera|stream-rotation|pantalla)$/
+
+// El control del visor es de todos, con una salvedad: de sus seis acciones, la
+// exposición y el balance son las únicas que Space Eye GUARDA en el equipo
+// (desde 0.16.7, para que la foto sin visor salga con la misma luz). Para quien
+// no encuadra se reenvían con `guardar: false`: se aplican en el visor y se van
+// al cerrarlo. La bandera solo quita permiso, nunca lo da, así que no importa
+// que viaje en el cuerpo.
+const CONTROL_DEL_VISOR = /^devices\/\d+\/camera-control$/
+
+// Quién tocó el encuadre de qué equipo. Va a la bitácora como los reinicios, y
+// por el mismo motivo: el día que una pantalla deje de reconocer creativos, lo
+// primero que hay que poder contestar es quién la movió y cuándo.
+const ES_ENCUADRE_DE = /^devices\/(\d+)\//
+
 async function puerta(req: Request, ruta: string[]) {
   const lee = req.method === 'GET' || req.method === 'HEAD'
   const g = await exigir('inventario', lee ? 'ver' : 'crear')
@@ -72,9 +118,38 @@ async function puerta(req: Request, ruta: string[]) {
   if (!PERMITIDAS.some((r) => r.test(camino))) {
     return NextResponse.json({ error: 'Ruta de Space Eye no permitida' }, { status: 404 })
   }
+  // El encuadre que se queda, solo el Dueño. Se mira DESPUÉS de la lista de
+  // rutas (para no decir «no tienes permiso» de algo que ni existe) y antes de
+  // hablar con Space Eye. Los GET quedan fuera: mirar el encuadre no lo mueve.
+  const puedeFijar = puedeEncuadrar(g.usuario.rol)
+  const encuadre = !lee && ENCUADRE.test(camino)
+  if (encuadre && !puedeFijar) {
+    return NextResponse.json(
+      {
+        error:
+          'Solo el Dueño puede FIJAR el encuadre de un equipo (lente, zoom, orientación y ' +
+          'las esquinas de la pantalla): cambiarlo borra lo que el equipo aprendió y lo deja ' +
+          'un día sin reconocer los creativos. Mover el visor y pedir la foto como la ves sí puedes.',
+      },
+      { status: 403 },
+    )
+  }
   const orden = req.method === 'POST' ? ES_ORDEN.exec(camino) : null
   let cuerpo: ArrayBuffer | undefined
   let tipo: string | null = null
+  // Control del visor de quien no fija el encuadre: se reenvía pidiendo que NO
+  // se guarde. Se reescribe el cuerpo en vez de rechazarlo porque mover la luz
+  // para ver bien es justo lo que tiene que seguir pudiendo hacer.
+  if (!lee && !puedeFijar && CONTROL_DEL_VISOR.test(camino)) {
+    const texto = new TextDecoder().decode(await req.arrayBuffer())
+    let datos: Record<string, unknown>
+    try {
+      datos = JSON.parse(texto) as Record<string, unknown>
+    } catch {
+      return NextResponse.json({ error: 'Control de cámara no entendido' }, { status: 400 })
+    }
+    cuerpo = new TextEncoder().encode(JSON.stringify({ ...datos, guardar: false })).buffer as ArrayBuffer
+  }
   if (orden) {
     cuerpo = await req.arrayBuffer()
     try {
@@ -93,6 +168,13 @@ async function puerta(req: Request, ruta: string[]) {
     // nada, y apuntarla como hecha sería mentir en la bitácora.
     if (orden && tipo && r.ok && ACCION_DE_ORDEN[tipo]) {
       await registrarAccion(g.usuario, ACCION_DE_ORDEN[tipo], `equipo ${orden[1]}`)
+    }
+    if (encuadre && r.ok) {
+      await registrarAccion(
+        g.usuario,
+        'Cambió el encuadre de un equipo de Space Eyes',
+        `equipo ${ES_ENCUADRE_DE.exec(camino)?.[1] ?? '?'}`,
+      )
     }
     return r
   } catch {

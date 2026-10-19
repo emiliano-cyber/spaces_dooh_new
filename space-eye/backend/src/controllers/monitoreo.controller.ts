@@ -20,6 +20,7 @@ import { uploadPhoto } from '../services/photoStorage.service';
 import { firmar } from '../utils/firmaArchivos';
 import { configDe as configCreativos, fotosDeHoy as fotosCreativosDeHoy } from './creativos.controller';
 import { encuadreDe } from './dashboard.controller';
+import { horarioParaElReloj } from '../utils/relojEquipo';
 import { campanasDelEquipo } from './campanasSpaceos.controller';
 import { equipoAjeno } from '../utils/dueno';
 
@@ -78,7 +79,8 @@ function clave(tipo: string, fila: number | null, columna: number | null) {
 async function saludDe(deviceId: number) {
   const [filas] = await pool.query<any[]>(
     `SELECT salud_watch, salud_desde, salud_cada_min, salud_confirmaciones, salud_umbral, salud_max_dia,
-            creative_recorrido_seg, creative_paso_seg, aprendizaje_min, salud_aviso_rapido
+            creative_recorrido_seg, creative_paso_seg, aprendizaje_min, salud_aviso_rapido,
+            salud_cambio_minimo, salud_sin_contenido
      FROM devices WHERE id = ?`, [deviceId]);
   const d = (filas as any[])[0];
   if (!d) return null;
@@ -99,6 +101,10 @@ async function saludDe(deviceId: number) {
     paso_seg: d.creative_paso_seg,
     // Pantalla completa apagada: aviso en menos de un minuto (023).
     aviso_rapido: d.salud_aviso_rapido == null ? true : !!d.salud_aviso_rapido,
+    // Umbrales ajustables desde la web (026). Solo se mandan si alguien los
+    // cambio: sin ellos la app usa los de fabrica (8 y 0.4). APK 0.16.7+.
+    ...(d.salud_cambio_minimo != null ? { cambio_minimo: Number(d.salud_cambio_minimo) } : {}),
+    ...(d.salud_sin_contenido != null ? { sin_contenido: Number(d.salud_sin_contenido) } : {}),
   };
 }
 
@@ -119,7 +125,7 @@ async function alertasDeHoy(deviceId: number) {
  */
 export async function paraElEquipo(req: Request, res: Response) {
   const did = req.device!.did;
-  const [filas] = await pool.query<any[]>(`SELECT pantalla, stream_rotation FROM devices WHERE id = ?`, [did]);
+  const [filas] = await pool.query<any[]>(`SELECT pantalla, stream_rotation, clock_offset_s FROM devices WHERE id = ?`, [did]);
   const d = (filas as any[])[0];
   if (!d) return res.status(404).json({ error: 'not_found' });
 
@@ -132,8 +138,12 @@ export async function paraElEquipo(req: Request, res: Response) {
     `SELECT DISTINCT tipo, fila, columna FROM pantalla_fallas
      WHERE device_id = ? AND estado = 'descartada' AND recuperada_en >= NOW() - INTERVAL ? DAY`, [did, SILENCIO_DIAS]);
 
+  // El horario va traducido al reloj del equipo, que es con el que lo compara
+  // (un telefono 2 h atrasado revisaba de 8:00 a 2:00).
+  const pantalla = json(d.pantalla);
+  if (pantalla && pantalla.horario) pantalla.horario = horarioParaElReloj(pantalla.horario, Number(d.clock_offset_s) || 0);
   res.json({
-    pantalla: json(d.pantalla),
+    pantalla,
     encuadre: { ...(await encuadreDe(did)), rotation: Number(d.stream_rotation) || 0 },
     creativos: creativos && {
       ...creativos,
@@ -361,6 +371,9 @@ export async function configurarSalud(req: Request, res: Response) {
     // Minutos de aprendizaje, para creativos y fallas: 0 = solo la primera vuelta.
     aprendizaje_min: z.number().int().min(0).max(1440).optional(),
     aviso_rapido: z.boolean().optional(),
+    // null = volver al de fabrica.
+    cambio_minimo: z.number().min(2).max(30).nullable().optional(),
+    sin_contenido: z.number().min(0.1).max(0.8).nullable().optional(),
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'invalid_input' });
@@ -379,6 +392,8 @@ export async function configurarSalud(req: Request, res: Response) {
   if (d.max_dia !== undefined) { campos.push('salud_max_dia = ?'); valores.push(d.max_dia); }
   if (d.aprendizaje_min !== undefined) { campos.push('aprendizaje_min = ?'); valores.push(d.aprendizaje_min); }
   if (d.aviso_rapido !== undefined) { campos.push('salud_aviso_rapido = ?'); valores.push(d.aviso_rapido ? 1 : 0); }
+  if (d.cambio_minimo !== undefined) { campos.push('salud_cambio_minimo = ?'); valores.push(d.cambio_minimo); }
+  if (d.sin_contenido !== undefined) { campos.push('salud_sin_contenido = ?'); valores.push(d.sin_contenido); }
   if (!campos.length) return res.status(400).json({ error: 'no_fields' });
   await pool.query(`UPDATE devices SET ${campos.join(', ')} WHERE id = ?`, [...valores, req.params.id]);
   res.json({ ok: true, salud: await saludDe(Number(req.params.id)) });
@@ -429,7 +444,43 @@ export async function actualizar(req: Request, res: Response) {
      WHERE id = ? AND estado = 'abierta'`,
     [parsed.data.estado, req.user!.uid, parsed.data.nota ?? null, req.params.id]);
   if (!(r as any).affectedRows) return res.status(404).json({ error: 'no_abierta' });
-  const [f] = await pool.query<any[]>(`SELECT device_id FROM pantalla_fallas WHERE id = ?`, [req.params.id]);
-  await avisar((f as any[])[0].device_id, Number(req.params.id), parsed.data.estado);
-  res.json({ ok: true });
+  const [f] = await pool.query<any[]>(`SELECT device_id, tipo FROM pantalla_fallas WHERE id = ?`, [req.params.id]);
+  const falla = (f as any[])[0];
+  await avisar(falla.device_id, Number(req.params.id), parsed.data.estado);
+  const ajuste = parsed.data.estado === 'descartada' ? await aprenderDeDescarte(falla.device_id, falla.tipo) : null;
+  res.json({ ok: true, ...(ajuste ? { ajuste } : {}) });
+}
+
+/**
+ * Calificar una deteccion como «No es falla» ENSEÑA al equipo, ademas de
+ * silenciarla 7 dias: ajusta los umbrales de ESE equipo, que viajan en su
+ * configuracion (APK 0.16.7+), sin actualizar nada.
+ *
+ *   - pantalla_congelada falsa: el mismo anuncio se repitio toda la revision
+ *     (Magnocentro, 12/10/2026). La revision dura 2 min mas (tope 15) para
+ *     alcanzar a ver el ciclo de anuncios entero.
+ *   - pantalla_apagada falsa: se exige una pantalla mas lisa (sin_contenido
+ *     baja 0.05, minimo 0.2).
+ *   - fallas de gabinete: basta el silencio de 7 dias de esa zona.
+ *
+ * Devuelve, en palabras, lo que cambio (para mostrarlo), o null.
+ */
+async function aprenderDeDescarte(deviceId: number, tipo: string): Promise<string | null> {
+  if (tipo === 'pantalla_congelada') {
+    const [r] = await pool.query<any>(
+      `UPDATE devices SET creative_recorrido_seg = LEAST(900, COALESCE(creative_recorrido_seg, 270) + 120)
+       WHERE id = ? AND COALESCE(creative_recorrido_seg, 270) < 900`, [deviceId]);
+    if (!(r as any).affectedRows) return null;
+    const [d] = await pool.query<any[]>(`SELECT creative_recorrido_seg s FROM devices WHERE id = ?`, [deviceId]);
+    return `La revisión ahora dura ${Math.round(Number((d as any[])[0].s) / 60 * 10) / 10} min para ver el ciclo de anuncios completo`;
+  }
+  if (tipo === 'pantalla_apagada') {
+    const [r] = await pool.query<any>(
+      `UPDATE devices SET salud_sin_contenido = GREATEST(0.20, COALESCE(salud_sin_contenido, 0.40) - 0.05)
+       WHERE id = ? AND COALESCE(salud_sin_contenido, 0.40) > 0.20`, [deviceId]);
+    if (!(r as any).affectedRows) return null;
+    const [d] = await pool.query<any[]>(`SELECT salud_sin_contenido s FROM devices WHERE id = ?`, [deviceId]);
+    return `Ahora exige una pantalla más lisa para avisar (${Math.round(Number((d as any[])[0].s) * 100)}% de lo normal)`;
+  }
+  return null;
 }

@@ -7,7 +7,6 @@ import path from 'path';
 import { env } from '../config/env';
 import { pool } from '../config/database';
 import { verificationQueue } from './verification.service';
-import { estaTransmitiendo } from '../utils/streamWatchdog';
 import { firmar } from '../utils/firmaArchivos';
 
 const s3 = new S3Client({
@@ -99,16 +98,36 @@ interface UploadParams {
   phash?: string;
 }
 
+/** Origenes de foto que el equipo entrega ya con la orientacion del vivo. */
+const FOTOS_YA_DERECHAS = new Set(['falla', 'creative_change', 'campana']);
+
+/** Si la orden que pidio la foto le dijo a la app cuanto girarla. */
+async function ordenTraeGiro(commandId?: number | null): Promise<boolean> {
+  if (!commandId) return false;
+  const [filas] = await pool.query<any[]>(`SELECT payload FROM commands WHERE id = ?`, [commandId]);
+  let p = (filas as any[])[0]?.payload;
+  if (typeof p === 'string') { try { p = JSON.parse(p); } catch { p = null; } }
+  return p != null && typeof p === 'object' && Number.isFinite(Number(p.rotation));
+}
+
 /**
- * Cuanto habria que girar ESTA foto al mostrarla. No se toca el archivo.
- *
- * Solo se aplica a las fotos que llegan SIN vista en vivo: con el visor abierto
- * la app ya las entrega derechas. Por eso el mismo equipo necesita giro en la
- * foto programada y no en la que se toma desde la ficha.
+ * Cuanto habria que girar ESTA foto al mostrarla (photo_rotation). No se toca
+ * el archivo. No se gira si la app ya la entrego derecha: ver ordenTraeGiro.
  */
-async function giroAlMostrar(deviceId: number): Promise<number> {
+async function giroAlMostrar(deviceId: number, commandId?: number | null, source?: string | null): Promise<number> {
   try {
-    if (estaTransmitiendo(deviceId)) return 0;
+    // Las fotos de la VIGILANCIA (evidencia de falla, creativo nuevo, prueba
+    // de campaña) ya salen del equipo giradas con la orientacion del vivo
+    // (Monitor: camara.enderezar(jpeg, rotation)). Girarlas otra vez al
+    // mostrarlas las dejaba de lado (Magnocentro, 12/10/2026).
+    if (source && FOTOS_YA_DERECHAS.has(source)) return 0;
+    // La app endereza la foto (con o sin visor abierto) SOLO si la orden le dijo
+    // como: payload.rotation, que manda el boton de la vista en vivo. El boton de
+    // la ficha, la vigilancia y las programadas no lo mandan: esas salen crudas,
+    // haya vivo abierto o no, y se giran al mostrarlas (Tlalpan, 12/10/2026).
+    // Antes se suponia que "hay vivo abierto" = "ya viene derecha", y la foto de
+    // la ficha con un vivo abierto en otra pestaña salia de lado.
+    if (await ordenTraeGiro(commandId)) return 0;
     const [filas] = await pool.query<any[]>(
       `SELECT photo_rotation FROM devices WHERE id = ?`,
       [deviceId]
@@ -153,7 +172,7 @@ export async function uploadPhoto(p: UploadParams) {
      storedFull, storedThumb, p.fileBuffer.length, meta.width, meta.height, p.taken_at,
      p.gps_lat ?? null, p.gps_lng ?? null, source, p.watermark_baked ?? true,
      p.phash ? p.phash.toLowerCase() : null,
-     await giroAlMostrar(p.deviceId)]
+     await giroAlMostrar(p.deviceId, p.command_id, source)]
   );
 
   if (p.campaign_id) {

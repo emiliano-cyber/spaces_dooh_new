@@ -110,3 +110,42 @@ export function rolLabel(rol: RolDemo): string {
 export function puedeVerControlCambios(rol: RolDemo | null | undefined): boolean {
   return rol === 'DUENO' || rol === 'ADMINISTRADOR'
 }
+
+/**
+ * Quién puede mover lo que la cámara de un equipo de Space Eyes VE: el lente,
+ * el zoom, el recorte, el color, el enfoque, la orientación fija y las cuatro
+ * esquinas con las que se marca la pantalla.
+ *
+ * SOLO EL DUEÑO. Decidido el 2026-10-19, después de encontrar el encuadre
+ * torcido en tres pantallas de G500: varias personas con acceso movieron el
+ * zoom desde el visor del vivo porque «se veía mejor así».
+ *
+ * No es un ajuste de vista que se deshaga mirando. El catálogo de creativos que
+ * cada equipo aprende vale para UN encuadre (`Reconocedor.kt` de Space Eye): al
+ * cambiar el lente, el zoom o las esquinas se tira entero, y el sitio pasa un
+ * día sin reconocer nada mientras vuelve a aprender. Y si el encuadre nuevo
+ * deja la pantalla más chica o más borrosa dentro de la foto, deja de reconocer
+ * PARA SIEMPRE — medido el 19-oct en AUTOPISTA (la pantalla le quedó en el 14 %
+ * de la foto, con 4.3x de zoom digital: reconoce uno de dieciséis vistazos).
+ *
+ * El ADMINISTRADOR se queda fuera a propósito, y es la diferencia con
+ * `puedeVerControlCambios`: aquí no se trata de confianza sino de cuántas manos
+ * tocan un ajuste que cuesta un día de vigilancia. Quien instala el equipo
+ * encuadra una vez; después nadie tiene por qué volver a moverlo.
+ *
+ * Lo que los demás SIGUEN pudiendo: mirar el vivo, pedir fotos, cambiar
+ * frecuencias y umbrales de la vigilancia, y cerrar fallas. Nada de eso cambia
+ * lo que la cámara ve.
+ *
+ * Vive aquí y no dentro de un `.tsx` por lo mismo que la de arriba: una
+ * condición escrita en el JSX no la comprueba nadie. La puerta de verdad está
+ * en `app/api/space-eyes/se/[...ruta]/route.ts`, que usa ESTA función.
+ *
+ * Toma `string` y no `RolDemo` a propósito: el rol de la sesión
+ * (`UsuarioSesion.rol`) viaja como texto plano desde la base, y una guarda que
+ * exige un `as` para poder llamarse es una guarda que alguien acabará
+ * rodeando. Cualquier texto que no sea 'DUENO' da false, que es el lado seguro.
+ */
+export function puedeEncuadrar(rol: string | null | undefined): boolean {
+  return rol === 'DUENO'
+}

@@ -18,7 +18,10 @@ import { formatNumero } from '@/lib/formato-numero'
 // ----------------------------------------------------------------------------
 //  Props:
 //    equipoId     id del equipo en Space Eye.
-//    puedeOperar  false = solo mirar: no se editan datos, no se guardan ajustes
+//    puedeOperar  false = solo mirar: no se editan datos ni se mandan ordenes
+//    puedeEncuadrar  los AJUSTES DE IMAGEN (encuadre fino, color, giro de la
+//                 foto) cambian lo que la camara ve y lo que el equipo aprende:
+//                 solo el Dueno (`lib/roles.ts`, 19/10/2026).
 //                 ni se mandan órdenes. Los registros se leen igual.
 //    onCambio?    opcional; se llama después de guardar los datos del sitio o
 //                 los ajustes, para que la ficha que lo integra se refresque
@@ -125,10 +128,12 @@ type Mensaje = { tipo: 'ok' | 'error'; texto: string } | null
 export function EquipoAdmin({
   equipoId,
   puedeOperar,
+  puedeEncuadrar,
   onCambio,
 }: {
   equipoId: number
   puedeOperar: boolean
+  puedeEncuadrar: boolean
   onCambio?: () => void
 }) {
   const [equipo, setEquipo] = useState<Equipo | null>(null)
@@ -181,7 +186,7 @@ export function EquipoAdmin({
         <FichaYDatos equipo={equipo} estado={estado} puedeOperar={puedeOperar} onGuardado={alGuardar} />
         <Ordenes equipo={equipo} versiones={versiones} puedeOperar={puedeOperar} />
       </div>
-      <AjustesImagen key={equipo.id} equipo={equipo} puedeOperar={puedeOperar} onGuardado={alGuardar} />
+      <AjustesImagen key={equipo.id} equipo={equipo} puedeEncuadrar={puedeEncuadrar} onGuardado={alGuardar} />
       <Registros equipoId={equipoId} />
     </div>
   )
@@ -549,11 +554,11 @@ function Ordenes({ equipo, versiones, puedeOperar }: { equipo: Equipo; versiones
 // ─── Ajustes de imagen ───────────────────────────────────────────────────────
 function AjustesImagen({
   equipo,
-  puedeOperar,
+  puedeEncuadrar,
   onGuardado,
 }: {
   equipo: Equipo
-  puedeOperar: boolean
+  puedeEncuadrar: boolean
   onGuardado: () => Promise<void>
 }) {
   const inicial = leerAjustes(equipo.camera_ajustes)
@@ -665,7 +670,7 @@ function AjustesImagen({
     }
   }
 
-  const bloqueado = !puedeOperar
+  const bloqueado = !puedeEncuadrar
   const deslizador = (
     campo: string,
     nombre: string,
@@ -879,6 +884,11 @@ function AjustesImagen({
                 </Button>
               </div>
             </div>
+            {bloqueado && (
+              <p className="mb-2 text-[12px] text-muted">
+                Estos ajustes cambian lo que la cámara ve en todas sus fotos: solo los mueve el Dueño.
+              </p>
+            )}
             {msg && <p className={cn('mb-2 text-[12px]', msg.tipo === 'ok' ? 'text-success' : 'text-error')}>{msg.texto}</p>}
             <div className="flex aspect-video items-center justify-center overflow-hidden rounded-md border border-border bg-surface-2">
               {fotoPrueba ? (

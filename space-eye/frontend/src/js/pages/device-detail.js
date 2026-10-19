@@ -60,9 +60,16 @@ function deviceDetail() {
     savedCentro: { x: 0.5, y: 0.5 },
     savedBrillo: 0,
     isAdmin: false,     // solo admin puede fijar la orientacion / overlay
-    // Quien puede GUARDAR ajustes de camara (encuadre, color, enfoque). El
-    // operador tambien: ajustar la vista de un sitio es parte de operarlo.
+    // Quien puede cambiar FRECUENCIAS y UMBRALES de la vigilancia. El operador
+    // tambien: afinan como se vigila, no cambian lo que la camara ve.
     puedeAjustar: false,
+    // Quien puede mover lo que la camara VE: lente, zoom, color, enfoque y las
+    // esquinas de la pantalla. Solo admin desde el 19-oct-2026. Cambiar
+    // cualquiera de esos tira el catalogo de creativos que el equipo aprendio
+    // -vale para UN encuadre- y el sitio pasa un dia sin reconocer nada; si el
+    // encuadre nuevo deja la pantalla mas chica, deja de reconocer para
+    // siempre. Paso en G500: varias personas movieron el zoom desde el visor.
+    puedeEncuadrar: false,
     // --- Ajustes de imagen del equipo (encuadre fino y color) ---
     // Viven en el servidor y viajan en cada orden de foto. Nacieron porque la
     // Raspberry ignoraba hasta el zoom, y para corregir el tinte morado que da
@@ -170,6 +177,7 @@ function deviceDetail() {
         const rol = JSON.parse(localStorage.getItem('user') || '{}').role;
         this.isAdmin = rol === 'admin';
         this.puedeAjustar = rol === 'admin' || rol === 'operator';
+        this.puedeEncuadrar = rol === 'admin';
       } catch (_) {}
 
       await this.loadDevice();
@@ -385,7 +393,7 @@ function deviceDetail() {
     },
 
     pantAbajo(e) {
-      if (!this.editPant || !this.puedeAjustar) return;
+      if (!this.editPant || !this.puedeEncuadrar) return;
       e.preventDefault();
       const [x, y] = this._puntoFoto(e);
       const q = this.editPant.esquinas;
@@ -736,18 +744,63 @@ function deviceDetail() {
       // asi que para ver la version nitida hay que reabrir.
       const hayQueReabrir = cambioLente || (this.esRelay && cambioRecorte);
       if (!this.streaming || !hayQueReabrir) return;
+      // Forzado: el encuadre nuevo es el de TODOS, asi que la transmision se
+      // reabre tambien para quien este mirando.
+      await this.reabrirVisor(true);
+    },
 
-      // Se reabre SIN bajar la bandera de streaming, para que el visor y sus
-      // controles sigan en pantalla y no parezca que se cayo la transmision.
+    /**
+     * Mirar asi de verdad, SIN fijar nada. Dos casos lo piden, y los dos por el
+     * mismo motivo -la camara se abre una vez y con un encuadre-:
+     *
+     *   - el LENTE, que es otra camara fisica;
+     *   - el ACERCAMIENTO en los equipos que pasan por el servidor de medios
+     *     (la Raspberry fija el recorte al arrancar rpicam-vid), donde hasta
+     *     que no se reabre lo que se ve es la vista previa ampliada.
+     *
+     * En los dos, la orden de abrir lleva el encuadre de esta vista
+     * (encuadreDeAhora), que no se guarda. Quien puede fijarlo no necesita
+     * esto: su boton es el de fijar, que ademas lo deja para todos.
+     */
+    async verAsi() {
+      if (this.reencuadrando || !this.streaming) return;
+      const porLente = this.lens !== this.savedLens;
+      await this.reabrirVisor(false);
+      if (this.streamClient && this.streamClient.compartida) {
+        this.showToast(
+          `${this.streamClient.compartidaCon || 'Otra persona'} está viendo este equipo: la vista sigue con su `
+            + 'encuadre. La foto que pidas sí sale como la tienes puesta.',
+          'info'
+        );
+        return;
+      }
+      this.showToast(
+        porLente
+          ? 'Así se ve con este lente. No cambió el encuadre del sitio.'
+          : 'Ya se ve nítido a este acercamiento. No cambió el encuadre del sitio.',
+        'info'
+      );
+    },
+
+    /**
+     * Reabre la vista sin bajar la bandera de streaming, para que el visor y
+     * sus controles sigan en pantalla y no parezca que se cayo la transmision.
+     *
+     * `forzar` decide algo que se ve en la pantalla de OTRA persona: forzado
+     * corta la transmision para todos los que esten mirando, y eso solo es de
+     * recibo cuando el encuadre se esta cambiando PARA todos (fijarlo). Quien
+     * solo quiere mirar de otra forma cierra sin forzar: si hay alguien mas
+     * viendo, el servidor mantiene la transmision y lo devuelve a ella en vez
+     * de arrancarsela de las manos.
+     */
+    async reabrirVisor(forzar) {
       this.reencuadrando = true;
       try {
         // El visor viejo pierde la vigencia aqui, al cerrarlo, y no 1200 ms
         // despues cuando arranca el nuevo: en ese hueco su aviso de muerte
         // llegaba a tiempo de tumbar una vista que seguia en pantalla.
         this.streamTurno++;
-        // Forzado: aunque haya otras personas mirando, el lente nuevo es otra
-        // camara fisica y hay que reabrir la transmision para todos.
-        await this.streamClient?.stop({ forzar: true });
+        await this.streamClient?.stop({ forzar: Boolean(forzar) });
         this.streamClient = null;
         // La camara del equipo necesita un respiro para soltarse antes de que la
         // reclame la transmision nueva.
@@ -913,7 +966,16 @@ function deviceDetail() {
           command_type: 'TAKE_PHOTO',
           priority: 1,
           // Rotacion del visor + nombre del sitio -> el telefono los graba en la foto.
-          payload: { rotation: this.rotation, site: (this.device && this.device.name) || '' },
+          // Y si el visor esta movido, ESA foto sale como se ve, sin cambiar el
+          // encuadre del sitio. Antes no se podia: la foto salia siempre al
+          // encuadre guardado, asi que quien queria una toma mas cerrada tenia
+          // que pulsar "Fijar encuadre", y eso lo cambia para todos y le tira al
+          // equipo el catalogo de creativos que aprendio.
+          payload: {
+            rotation: this.rotation,
+            site: (this.device && this.device.name) || '',
+            ...(this.encuadreDeAhora() ? { encuadre_temporal: this.encuadreDeAhora() } : {}),
+          },
         });
         // El device tarda ~2-6s en capturar y subir. Sondeamos hasta que
         // aparezca una foto nueva.
@@ -1119,8 +1181,11 @@ function deviceDetail() {
         },
       });
       this.streamClient = cliente;
+      // Con el encuadre que se esta mirando, si no es el del sitio: asi el
+      // lente y el acercamiento se ven de verdad sin cambiarselo a nadie.
+      const encuadreAbierto = this.encuadreDeAhora();
       try {
-        await this.streamClient.start();
+        await this.streamClient.start(encuadreAbierto || undefined);
       } catch (err) {
         this.streamClient = null;
         // Alguien mas tiene abierta la vista de este equipo.
@@ -1174,8 +1239,12 @@ function deviceDetail() {
       // START_STREAM el encuadre GUARDADO del equipo, asi que es contra esto -y
       // no contra el deslizador- que se calcula el recorte de la vista previa.
       // Sin esta referencia, el video se veria ampliado dos veces.
-      this.zoomEnStream = Number(this.savedZoom) || 0;
-      this.brilloEnStream = Number(this.savedBrillo) || 0;
+      // Si la vista se abrio con un encuadre de una sola vez, la referencia es
+      // ESE y no el guardado, o el video saldria ampliado dos veces.
+      this.zoomEnStream = Number(encuadreAbierto ? encuadreAbierto.zoom : this.savedZoom) || 0;
+      this.brilloEnStream = Number(
+        encuadreAbierto ? (encuadreAbierto.ajustes?.brillo ?? 0) : this.savedBrillo
+      ) || 0;
       this.centroEnStream = {
         x: Number(this.ajustes?.centro_x ?? 0.5),
         y: Number(this.ajustes?.centro_y ?? 0.5),
@@ -1508,6 +1577,20 @@ function deviceDetail() {
     // Hay algo sin guardar. Incluye el centro del recorte: antes solo miraba
     // lente y zoom, asi que mover el recorte de lado dejaba el boton en gris y
     // no habia forma de aplicarlo.
+    /**
+     * El encuadre que se esta mirando, si no es el guardado del sitio.
+     *
+     * Viaja con la orden de abrir la vista y con la de la foto, y vale SOLO
+     * para esa vez: no se escribe en el equipo ni cambia lo que ven los demas.
+     * Es lo que permite mirar por el gran angular, o mas de cerca, y llevarse
+     * la foto asi, sin tener que FIJAR el encuadre -que es lo que le borra al
+     * equipo el catalogo de creativos que aprendio-.
+     */
+    encuadreDeAhora() {
+      if (!this.encuadreCambiado()) return null;
+      return { zoom: Number(this.zoom) || 0, lens: this.lens, ajustes: this._cuerpoAjustes() };
+    },
+
     encuadreCambiado() {
       return this.lens !== this.savedLens
         || Math.abs(Number(this.zoom) - this.savedZoom) > 0.001

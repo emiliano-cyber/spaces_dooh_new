@@ -58,6 +58,8 @@ class CommandHandler(
 
     override fun ocupada(): Boolean = fotosEnCurso.get() > 0 || webrtc.isStreaming() || webrtc.vivoPedido()
 
+    override fun ajustes(a: JSONObject?) = webrtc.setAjustesSitio(a)
+
     override suspend fun abrir(lente: String, zoom: Float): Boolean {
         if (ocupada()) return false
         vigilando = true
@@ -274,6 +276,10 @@ class CommandHandler(
                         val lente = payload?.optString("camera_lens", "main") ?: "main"
                         val zoom = (payload?.optDouble("camera_zoom", 0.0) ?: 0.0).toFloat()
                         webrtc.setEncuadre(lente, zoom)
+                        // Y los ajustes finos que se dejaron en el vivo: enfoque
+                        // fijo, exposicion y balance. Sin ellos la foto sin vivo
+                        // enfocaba y media la luz en automatico y salia distinta.
+                        webrtc.setAjustesSitio(payload?.optJSONObject("camera_ajustes"))
 
                         // UN SOLO camino para la foto, haya stream o no.
                         //

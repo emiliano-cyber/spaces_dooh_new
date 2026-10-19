@@ -23,6 +23,11 @@ import numpy as np
 VISTAZOS = 3
 BRILLO_MAX = 40.0
 DESVIACION_MAX = 14.0
+# De DIA una pantalla LED apagada no se ve negra: refleja el cielo y sale gris
+# (brillo 64 medido en Santa Monica, 14-sep). La delata que queda PAREJA, sin
+# contenido: bajo esta desviacion (la de SaludAnalisis UNIFORME) se da por
+# apagada aunque no sea oscura. Igual que ApagadaRapida.kt.
+DESVIACION_PAREJA = 6.0
 FUERA_MIN = 45.0
 
 
@@ -52,7 +57,9 @@ class DetectorApagada:
         media, desv = cv2.meanStdDev(pantalla)
         brillo = float(media[0][0])
         fuera = float(cv2.mean(marco, mask=self._fuera(marco, esquinas))[0])
-        oscura = brillo < BRILLO_MAX and float(desv[0][0]) < DESVIACION_MAX
+        d = float(desv[0][0])
+        # Negra (de noche o a la sombra) o pareja sin contenido (de dia, gris).
+        oscura = (brillo < BRILLO_MAX and d < DESVIACION_MAX) or d < DESVIACION_PAREJA
         return oscura, fuera > FUERA_MIN, brillo, fuera
 
     def observar(self, pantalla, marco, esquinas):
