@@ -1,7 +1,7 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-10-14
+actualizado: 2026-10-19
 tags: [datos, esquema, er, postgres]
 archivos:
   - db/schema.sql
@@ -614,7 +614,7 @@ erDiagram
 `contrato_cambios` (07/10, CONTRATO-CAMBIOS): un renglón por edición que cambió algo — qué parte lo propuso (`propuesto_por`: ARRENDADOR / ARRENDATARIO, NULL si no es negociación), quién lo capturó (`usuario_id` + `usuario_nombre` copiado), el motivo, la lista `cambios` (jsonb, antes/después ya legibles) y si anuló un envío a firma (`envio_anulado`). Solo se inserta: el rol de la aplicación tiene `select, insert` y nada más **desde `20261011_contrato_cambios_solo_insercion.sql`** — la 20261010 lo afirmaba, pero el privilegio por omisión de `20260824_grants_tablas_futuras.sql` le seguía dando `update` y `delete`; lo comprueba `has_table_privilege` en la e2e. Ver [[02-Backend/arrendadores-y-contratos]].
 
 ### Finanzas
-`facturas`, `cobranzas`, `cobranza_abonos` (06/10: cada pago con su fecha, ADR 0046).
+`facturas`, `cobranzas`, `cobranza_abonos` (06/10: cada pago con su fecha, ADR 0046; 19/10: `comprobante_url`, el recibo de cada pago, COB-COMP — ver [[02-Backend/finanzas-y-cobranza]]).
 
 ### Integraciones
 `doohmain_consultas_play`, `doohmain_remote_campaigns`, `doohmain_remote_lists`,

@@ -92,6 +92,12 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   // 1 sitio · lib/server/finanzas-controller.ts:35
   'Cobranza no encontrada':
     'Receivable not found',
+  // 1 sitio · lib/server/finanzas-controller.ts:65 (COB-COMP)
+  'Falta el comprobante':
+    'The receipt is missing',
+  // 1 sitio · lib/server/finanzas-controller.ts:74 (COB-COMP)
+  'Comprobante no encontrado':
+    'Receipt not found',
   // 1 sitio · lib/server/finanzas-repo.ts:310 (ADR 0046)
   'Esta cobranza ya está pagada':
     'This receivable is already paid',

@@ -1,7 +1,7 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-10-13
+actualizado: 2026-10-19
 tags: [datos, migraciones, despliegue, rojo]
 archivos:
   - db/migrations/
@@ -52,7 +52,7 @@ archivos:
 > [!important] 2026-10-05 · puesta al día — ninguna de las de abajo está ya «sin fusionar»
 > Medido hoy con `node scripts/recuentos.mjs` sobre el árbol de
 > `integra/riesgos-presentacion-14-oct` (salida de `main` en `09c65ca2`):
-> **113 migraciones y 59 tablas** —el «60» que decía aquí el 13/10 era falso:
+> **114 migraciones y 59 tablas** (19/10, con `20261019_cobranza_abono_comprobante.sql`; antes 113) —el «60» que decía aquí el 13/10 era falso:
 > `recuentos.mjs` contaba como tabla la palabra `if` de un comentario de
 > `20261013_doohmain_seguimiento_unicas.sql`; corregido el 14/10 quitando los
 > comentarios antes de medir— (13/10, con `20261013_sitios_pantalla_doohmain.sql`; antes 112) (13/10, con `20261013_doohmain_seguimiento_unicas.sql`; antes 111) (12/10, con `20261012_razon_social_principal.sql`; antes 110) (07/10, con `20261011_contrato_cambios_solo_insercion.sql`; antes 109) (07/10, con `20261010_contrato_cambios.sql`; antes 108 y 58) (06/10, con `20261009_propuestas_fechas_estatus.sql`; antes 107) (06/10, con `20261008_cobranza_abonos.sql`). Es el recuento vigente; los de los recuadros
@@ -63,6 +63,7 @@ archivos:
 >
 > | Migración | Decía | Entró en `main` |
 > |---|---|---|
+> | `20261019_cobranza_abono_comprobante.sql` | rama `feat/comprobante-cobranza`, **SIN FUSIONAR: forma por aprobar por el dueño** (ROJO R3/R4) | `cobranza_abonos.comprobante_url` (texto, nace vacía): el recibo o la transferencia de cada pago de cliente. Solo agrega la columna; RLS y permisos ya estaban (19/10) |
 > | `20261013_sitios_pantalla_doohmain.sql` | rama `feat/doohmain-pantalla-por-sitio`, **forma aprobada por el dueño el 13/10** (la subió a `main` en `84b589f3`; sale en v0.11.7) | `sitios.doohmain_pantalla` (texto, sin espacios en los extremos, 1–120): a qué pantalla de DOOHmain se publica cada pantalla, capturada en la ficha (13/10) |
 > | `20261013_doohmain_seguimiento_unicas.sql` | rama `fix/doohmain-publicacion`, **forma aprobada por el dueño el 13/10** | identidad en `id` y las tres únicas que el SDK de DOOHmain necesita: `20260805` creaba las tablas sin ellas y `20260901` (`if not exists`) no hacía nada, así que publicar fallaba en toda base levantada desde el repo (13/10) |
 > | `20261012_razon_social_principal.sql` | rama `feat/razon-social-principal`, **forma aprobada por el dueño el 12/10** | `tenants.entidad_principal_id`: la razón social de Identidad sale de «Razones sociales» (12/10) |

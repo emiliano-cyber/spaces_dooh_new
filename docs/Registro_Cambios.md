@@ -5,6 +5,18 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-10-19
+
+- **Cada pago de un cliente puede llevar su comprobante.** En Finanzas →
+  Cobranza, al **Registrar pago** hay un campo nuevo, **«Comprobante de
+  pago»**, para adjuntar el recibo o la transferencia (PDF o imagen, hasta
+  5 MB). Es opcional. Y en cada cobranza que ya tiene algo pagado aparece
+  **«Pagos y comprobantes»**: la lista de los pagos recibidos, con su fecha y
+  quién los registró, donde se abre cada comprobante o se sube el que llegó
+  después. Subirlo después no cambia el importe ni la fecha del pago. Es lo
+  mismo que ya tenían los pagos de renta a los arrendadores. *(Preparado en
+  su rama; espera la aprobación del dueño para publicarse.)*
+
 ## 2026-10-14
 
 - **La documentación interna, al día con las versiones 0.11.4 a 0.11.9.** No
