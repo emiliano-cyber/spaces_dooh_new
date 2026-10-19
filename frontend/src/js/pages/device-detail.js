@@ -60,9 +60,16 @@ function deviceDetail() {
     savedCentro: { x: 0.5, y: 0.5 },
     savedBrillo: 0,
     isAdmin: false,     // solo admin puede fijar la orientacion / overlay
-    // Quien puede GUARDAR ajustes de camara (encuadre, color, enfoque). El
-    // operador tambien: ajustar la vista de un sitio es parte de operarlo.
+    // Quien puede cambiar FRECUENCIAS y UMBRALES de la vigilancia. El operador
+    // tambien: afinan como se vigila, no cambian lo que la camara ve.
     puedeAjustar: false,
+    // Quien puede mover lo que la camara VE: lente, zoom, color, enfoque y las
+    // esquinas de la pantalla. Solo admin desde el 19-oct-2026. Cambiar
+    // cualquiera de esos tira el catalogo de creativos que el equipo aprendio
+    // -vale para UN encuadre- y el sitio pasa un dia sin reconocer nada; si el
+    // encuadre nuevo deja la pantalla mas chica, deja de reconocer para
+    // siempre. Paso en G500: varias personas movieron el zoom desde el visor.
+    puedeEncuadrar: false,
     // --- Ajustes de imagen del equipo (encuadre fino y color) ---
     // Viven en el servidor y viajan en cada orden de foto. Nacieron porque la
     // Raspberry ignoraba hasta el zoom, y para corregir el tinte morado que da
@@ -170,6 +177,7 @@ function deviceDetail() {
         const rol = JSON.parse(localStorage.getItem('user') || '{}').role;
         this.isAdmin = rol === 'admin';
         this.puedeAjustar = rol === 'admin' || rol === 'operator';
+        this.puedeEncuadrar = rol === 'admin';
       } catch (_) {}
 
       await this.loadDevice();
@@ -385,7 +393,7 @@ function deviceDetail() {
     },
 
     pantAbajo(e) {
-      if (!this.editPant || !this.puedeAjustar) return;
+      if (!this.editPant || !this.puedeEncuadrar) return;
       e.preventDefault();
       const [x, y] = this._puntoFoto(e);
       const q = this.editPant.esquinas;

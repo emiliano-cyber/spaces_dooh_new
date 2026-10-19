@@ -348,7 +348,7 @@
                 </div>
                 <!-- Lente: el gran angular (0.5x) es una camara fisica distinta,
                      no se llega con zoom. Solo en equipos que lo tengan. -->
-                <select x-show="!esRelay && puedeAjustar" style="display:none" x-model="lens"
+                <select x-show="!esRelay && puedeEncuadrar" style="display:none" x-model="lens"
                         class="shrink-0 bg-white/15 hover:bg-white/25 text-white text-[11px] rounded px-1.5 py-1 border-0 outline-none cursor-pointer backdrop-blur-sm"
                         title="Gran angular: abarca más desde la misma distancia. Solo si el equipo lo tiene.">
                   <option class="text-black" value="main">Lente normal</option>
@@ -357,7 +357,7 @@
                 <!-- Fija el encuadre para las fotos, incluidas las programadas.
                      Pide permiso, que es lo que exige el servidor: en los equipos de
                      relay el boton se veia habilitado para cualquiera y contestaba 403. -->
-                <button x-show="puedeAjustar" style="display:none" @click="aplicarEncuadre()"
+                <button x-show="puedeEncuadrar" style="display:none" @click="aplicarEncuadre()"
                   :disabled="!encuadreCambiado() || reencuadrando"
                   class="shrink-0 flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-default text-white text-[11px] rounded px-2 py-1"
                   title="Guarda el encuadre actual. Se aplica también a las fotos programadas.">
@@ -365,7 +365,7 @@
                   <span x-text="reencuadrando ? 'Aplicando…' : (encuadreCambiado() ? 'Fijar encuadre' : 'Encuadre guardado')">Fijar encuadre</span>
                 </button>
                 <!-- Volver al encuadre guardado, sin tocar el equipo -->
-                <button x-show="puedeAjustar && encuadreCambiado() && !reencuadrando" style="display:none"
+                <button x-show="puedeEncuadrar && encuadreCambiado() && !reencuadrando" style="display:none"
                         @click="descartarEncuadre()"
                         class="shrink-0 bg-white/15 hover:bg-white/25 text-white text-[11px] rounded px-2 py-1 backdrop-blur-sm"
                         title="Volver al encuadre que tiene guardado el equipo.">
@@ -555,7 +555,7 @@
                 </div>
               </template>
               <p x-show="!pant?.pantalla" class="text-sm text-neutral-500 mt-1.5">Sin marcar</p>
-              <button x-show="puedeAjustar && !editPant" @click="empezarPantalla()" class="se-btn se-btn-secundario se-btn-chico mt-3"
+              <button x-show="puedeEncuadrar && !editPant" @click="empezarPantalla()" class="se-btn se-btn-secundario se-btn-chico mt-3"
                 x-text="pant?.pantalla ? 'Cambiar pantalla' : 'Marcar la pantalla'"></button>
             </div>
             <div class="border border-neutral-200 rounded-md p-3"
@@ -1103,7 +1103,9 @@
             <div>
               <div class="flex items-center justify-between mb-2">
                 <span class="text-xs text-neutral-600">Foto de prueba</span>
-                <div class="flex gap-2">
+                <!-- Los dos ESCRIBEN en el equipo: "Probar" guarda antes de pedir la
+                     foto. Por eso los dos son de admin, como el resto del encuadre. -->
+                <div class="flex gap-2" x-show="puedeEncuadrar" style="display:none">
                   <button @click="probarAjustes()" :disabled="probandoAjustes || guardandoAjustes"
                           class="px-3 py-1.5 text-xs bg-neutral-800 text-white rounded hover:bg-neutral-700 disabled:opacity-50"
                           x-text="probandoAjustes ? 'Tomando…' : 'Probar'"></button>
@@ -1111,6 +1113,9 @@
                           class="px-3 py-1.5 text-xs bg-[#0A66FF] text-white rounded hover:bg-blue-700 disabled:opacity-50"
                           x-text="guardandoAjustes ? 'Guardando…' : 'Guardar'"></button>
                 </div>
+                <span x-show="!puedeEncuadrar" style="display:none" class="text-xs text-neutral-500">
+                  Solo el administrador cambia la imagen del equipo
+                </span>
               </div>
               <div class="aspect-video bg-neutral-100 border border-neutral-200 rounded flex items-center justify-center overflow-hidden">
                 <img x-show="fotoPrueba" :src="fotoPrueba" class="w-full h-full object-contain" alt="Foto de prueba">
