@@ -1,5 +1,27 @@
 [
   {
+    "version": "v0.11.10",
+    "fecha": "2026-10-19",
+    "items": [
+      {
+        "tipo": "AJUSTADO",
+        "texto": "Space Eyes: solo el Dueño puede fijar el encuadre de un equipo (lente, zoom, orientación y las esquinas de la pantalla). Cambiarlo borra lo que el equipo aprendió y lo deja un día sin reconocer los creativos. Los demás siguen moviendo el zoom, la luz y el enfoque en la vista en vivo, y la foto que piden sale como la ven, sin cambiar el encuadre del sitio. En Actividad queda quién fijó el encuadre de qué equipo."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Space Eyes: en la vista en vivo, «Ver con este lente» y «Ver nítido» dejan mirar por otro lente o con el acercamiento de la Raspberry sin fijarlo."
+      },
+      {
+        "tipo": "CORREGIDO",
+        "texto": "Space Eyes: las campañas con el arte guardado como archivo, o envuelto en HTML, ya llegan a los equipos. Antes no aparecían en la lista del equipo y no daban ningún error."
+      },
+      {
+        "tipo": "CORREGIDO",
+        "texto": "Space Eyes: «Agregar dispositivo» avisa cuando la dirección del servidor no sirve, en vez de mostrar una que el equipo no puede alcanzar."
+      }
+    ]
+  },
+  {
     "version": "v0.11.9",
     "fecha": "2026-10-13",
     "items": [

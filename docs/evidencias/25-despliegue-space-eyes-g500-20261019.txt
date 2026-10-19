@@ -1,4 +1,28 @@
 ===============================================================================
+ NOTA DE INTEGRACION (Emiliano, 2026-10-19) — leer antes que el resto
+-------------------------------------------------------------------------------
+ Esta nota estaba en la raiz del repo como DESPLIEGUE_20261019_SPACE_EYES.txt;
+ se movio aqui al integrarla en la rama `integra/v0-11-10`. Dos precisiones:
+
+ 1. «Desplegar solo A deja el candado A MEDIAS» es cierto, pero por otra
+    razon que la escrita abajo. El candado real es el de SPACE OS (PASO A):
+    la puerta /api/space-eyes/se contesta 403 a quien no es Dueno ANTES de
+    hablar con Space Eye. El `requireRole('admin')` de Space Eye no protege,
+    porque la puerta le habla con la llave de la instancia, que es admin.
+    Lo que queda a medias sin el PASO B es que exposicion y balance de quien
+    no es Dueno SE GUARDARIAN en el equipo: el Space Eye viejo no entiende
+    `guardar: false`. El PASO B sigue siendo obligatorio.
+ 2. OPERACIONES NO tiene `inventario.crear` (solo `ver`, desde
+    20260804_modulo_inventario.sql): hoy no abre la vista en vivo. Donde
+    abajo dice «Quien opera (ADMINISTRADOR, OPERACIONES)», hoy solo aplica al
+    ADMINISTRADOR. Es el punto 4 de «lo que NO arregla».
+
+ El PASO A ya no es «desde la rama»: g500 instala solo lo que esta en
+ `estable`. Va como v0.11.10: PR a main -> release.yml -> DEMO -> promover ->
+ aprobar en g500.
+===============================================================================
+
+===============================================================================
  DESPLIEGUE — Space Eyes en g500: encuadre, campanas y 12 dias de Space Eye
                                                         Preparado: 2026-10-19
 -------------------------------------------------------------------------------

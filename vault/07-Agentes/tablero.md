@@ -1,10 +1,18 @@
 ---
 tipo: tablero
 estado: verificado
-actualizado: 2026-10-14
+actualizado: 2026-10-19
 tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
+
+> [!important] 2026-10-19 · **`v0.11.10` en integración: la rama de Space Eyes de José** · ROJO R1 (permisos del encuadre)
+> `integra/v0-11-10` = `main` (`7816e8e2`) + `fix/space-eyes-fotos-rapidas` (`2d9f9c7e`), sin conflictos
+> y sin migraciones de SPACE OS. Encima: notas de versión, bitácora, la nota de
+> [[02-Backend/integraciones-externas]], el comentario de OPERACIONES corregido y la nota de despliegue
+> movida a `docs/evidencias/25-despliegue-space-eyes-g500-20261019.txt`. Zonas: Z3 (José, en su rama)
+> y Z12 en REVISION por esta integración. **El despliegue en g500 son DOS pasos y los corre una
+> persona**: la `v0.11.10` por el camino de siempre y después `update-eyes.sh` en el droplet.
 
 > [!success] 2026-10-14 · **`v0.11.9` en `estable`** (run `38576580857`, digest `3f5d15ea…`; vuelta atrás `2207b6cd…`) tras llenarse el registro (`denied: quota exceeded`, run `38516330947`)
 > `v0.11.8` (cliente al generar campaña) salió en verde el 13/10; `v0.11.9` (rótulos «Comercial

@@ -76,8 +76,10 @@ const ES_ORDEN = /^devices\/(\d+)\/command$/
 //     zoom y el recorte guardados (`camera`), la orientación fija
 //     (`stream-rotation`) y las cuatro esquinas de la pantalla (`pantalla`).
 //
-// Hasta hoy todo eso bastaba con `inventario.crear`, que tienen el Dueño, el
-// ADMINISTRADOR y OPERACIONES. Resultado medido en G500 el 19-oct: el encuadre
+// Hasta hoy todo eso bastaba con `inventario.crear`, que tienen el Dueño y el
+// ADMINISTRADOR. OPERACIONES no: solo tiene `inventario.ver` desde
+// `20260804_modulo_inventario.sql`, así que hoy ni siquiera abre la vista en
+// vivo (pendiente aparte, pide migración). Resultado medido en G500 el 19-oct: el encuadre
 // torcido en tres pantallas. Y la culpa no era de la mala intención sino de que
 // no había otra forma: para llevarse una toma más cerrada HABÍA que pulsar
 // «Fijar encuadre». Por eso esto no se cierra sin abrir lo otro, o la gente se
