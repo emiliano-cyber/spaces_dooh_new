@@ -82,6 +82,8 @@ CONFIRMAR_MS = 4_000
 CONFIG_CONTINUO_MS = 15 * 60_000
 LOG_CONTINUO_MS = 60 * 60_000
 PAUSA_CONTINUO_MS = 5_000
+# Respiro minimo entre dos vueltas aunque el recorrido dure mas que la frecuencia.
+MINIMO_ENTRE_VUELTAS_MS = 20_000
 # Long.MAX_VALUE del telefono, para los "no toca" del calculo de esperas.
 SIN_LIMITE = 2 ** 63 - 1
 
@@ -298,6 +300,9 @@ class Monitor:
         # Vueltas en que la pantalla se vio funcionando desde que se empezo a
         # aprender. La primera siempre es de aprendizaje.
         self.vueltas_salud = 0
+        # Textura de bordes de ESTA pantalla en sus vueltas sanas (promedio movil):
+        # reconoce la pantalla apagada de dia. Vale para un encuadre.
+        self.textura_normal = None
 
         self.ultima_creativos = 0
         self.ultima_salud = 0
@@ -324,6 +329,8 @@ class Monitor:
                 self.firma_seguimiento = opt_str(j, "firma")
                 self.desde_seguimiento = opt_long(j, "desde", 0)
                 self.vueltas_salud = opt_int(j, "vueltas", 0)
+                t = j.get("textura")
+                self.textura_normal = float(t) if isinstance(t, (int, float)) and t > 0 else None
                 e = opt_obj(j, "estado")
                 if e is not None:
                     self.seguimiento.de_json(e)
@@ -452,7 +459,11 @@ class Monitor:
             self.ultima_creativos = ahora
         if toca_s:
             self.ultima_salud = ahora
-        return espera
+        # La frecuencia se cuenta de INICIO a inicio (igual que la APK): antes se
+        # esperaba completa DESPUES del recorrido (4.5 min) y "cada 5 min" eran 9.5.
+        if continuo:
+            return espera
+        return max(espera - (self.reloj.ahora_ms() - ahora), MINIMO_ENTRE_VUELTAS_MS)
 
     def recorrido(self, r, geo, c_cfg, s_cfg, continuo=False, aviso_cfg=None):
         base = c_cfg if c_cfg is not None else s_cfg
@@ -537,11 +548,17 @@ class Monitor:
                         # Una campana vendida en SPACE OS: su prueba del dia sale al
                         # momento (aun aprendiendo) y NO es un creativo nuevo, asi que
                         # no gasta el tope de lo programatico.
-                        camp = self.campanas.buscar(rasgos, v.pantalla)[0] if len(self.campanas) else None
-                        if camp is not None:
+                        # Todas las que coinciden: el mismo arte puede estar en dos
+                        # campanas de esta pantalla y cada una lleva su prueba.
+                        halladas = self.campanas.buscar_todas(rasgos, v.pantalla) if len(self.campanas) else []
+                        if halladas:
                             candidata = None
-                            if self.campanas.pendiente(camp) and v.jpeg:
-                                self.subir_campana(self.evidencia.reducir(self.camara.enderezar(v.jpeg, giro)), camp)
+                            foto_prueba = None
+                            for camp, _ in halladas:
+                                if self.campanas.pendiente(camp) and v.jpeg:
+                                    if foto_prueba is None:
+                                        foto_prueba = self.evidencia.reducir(self.camara.enderezar(v.jpeg, giro))
+                                    self.subir_campana(foto_prueba, camp)
                             if id_ is not None and puntos >= UMBRAL_CREATIVO:
                                 vistas[id_] = True
                             else:
@@ -641,6 +658,7 @@ class Monitor:
             self.firma_seguimiento = firma_encuadre + "|" + desde_servidor
             self.desde_seguimiento = self.reloj.ahora_ms()
             self.vueltas_salud = 0
+            self.textura_normal = None
         # "|fuera": las referencias se toman solo con lo de alrededor de la pantalla.
         self.revision.abrir(firma_encuadre + "|fuera")
         # Aprende la primera vuelta en que vea la pantalla funcionando, y ademas
@@ -651,7 +669,10 @@ class Monitor:
 
         camara_estado = self.revision.revisar(vistazos, geo)
         excluir = set(geo.excluir) | set(self.seguimiento.excluidas())
-        resultado = salud_analisis.analizar([v.salud for v in vistazos], geo.filas, geo.columnas, excluir) \
+        resultado = salud_analisis.analizar([v.salud for v in vistazos], geo.filas, geo.columnas, excluir,
+                                            self.textura_normal,
+                                            min(max(opt_double(cfg, "cambio_minimo", salud_analisis.CAMBIO_MINIMO), 2.0), 30.0),
+                                            min(max(opt_double(cfg, "sin_contenido", salud_analisis.SIN_CONTENIDO), 0.1), 0.8)) \
             if camara_estado == Camara.OK else None
 
         abiertas = {}
@@ -677,6 +698,9 @@ class Monitor:
 
         if resultado is not None and resultado.pantalla == Pantalla.OK:
             self.vueltas_salud += 1
+            if not interrumpida and resultado.textura > 0:
+                t = resultado.textura
+                self.textura_normal = t if self.textura_normal is None else self.textura_normal * 0.8 + t * 0.2
 
         ultimo = vistazos[-1] if vistazos else None
         for e in eventos:
@@ -742,6 +766,8 @@ class Monitor:
             "vistazos_usados": len(vistazos),
             "interrumpida": interrumpida,
             "cambios": resultado.cambios if resultado is not None else 0,
+            "textura": round(resultado.textura, 2) if resultado is not None else 0.0,
+            "textura_normal": round(self.textura_normal, 2) if self.textura_normal else 0.0,
             "aprendiendo": aprendiendo,
             # En la Pi nadie le niega la camara a la vigilancia.
             "camara_permitida": True,
@@ -823,7 +849,8 @@ class Monitor:
     def guardar_estado(self):
         try:
             _escribir_json(self.estado_archivo, {"firma": self.firma_seguimiento, "desde": self.desde_seguimiento,
-                                                 "vueltas": self.vueltas_salud, "estado": self.seguimiento.a_json()})
+                                                 "vueltas": self.vueltas_salud, "textura": self.textura_normal or 0.0,
+                                                 "estado": self.seguimiento.a_json()})
         except Exception:
             pass
 

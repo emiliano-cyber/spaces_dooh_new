@@ -56,8 +56,10 @@ class Zona:
 
 
 class Resultado:
-    def __init__(self, pantalla, vistazos, cambios, zonas, actividad=None, brillo=None):
+    def __init__(self, pantalla, vistazos, cambios, zonas, actividad=None, brillo=None, textura=0.0):
         self.pantalla = pantalla
+        # Textura de bordes de la vuelta (mediana de las tomas): ver textura_bordes().
+        self.textura = textura
         self.vistazos = vistazos
         self.cambios = cambios
         self.zonas = zonas
@@ -103,7 +105,33 @@ NEGRO_ACTIVIDAD = 2.5        # ...y sin ningun cambio
 AGRUPAR_DESDE = 3            # desde cuantos gabinetes con la misma falla se agrupan
 
 
-def analizar(tomas, filas, columnas, excluir=frozenset()):
+# PANTALLA SIN CONTENIDO (port de SaludAnalisis.SIN_CONTENIDO). De dia una
+# pantalla LED apagada no se ve negra ni pareja: refleja el cielo en un
+# degradado y las nubes le cambian la luz. Lo que la delata: un anuncio tiene
+# BORDES y un reflejo es liso. Se compara con lo NORMAL de ese sitio (lo lleva
+# el Monitor), porque el valor absoluto depende de cuanto ocupa la pantalla.
+SIN_CONTENIDO = 0.4
+
+
+def textura_bordes(t):
+    """Media de |Laplaciano| (3x3) sobre la toma suavizada (3x3). Mismo calculo que la APK."""
+    w, h = t.ancho, t.alto
+    if w < 5 or h < 5:
+        return 0.0
+    m = t.matriz()
+    s = np.zeros_like(m)
+    s[1:-1, 1:-1] = (4.0 * m[1:-1, 1:-1]
+                     + 2.0 * (m[:-2, 1:-1] + m[2:, 1:-1] + m[1:-1, :-2] + m[1:-1, 2:])
+                     + (m[:-2, :-2] + m[:-2, 2:] + m[2:, :-2] + m[2:, 2:])) / 16.0
+    c = s[2:-2, 2:-2]
+    lap = (2.0 * (s[2:-2, 1:-3] + s[2:-2, 3:-1] + s[1:-3, 2:-2] + s[3:-1, 2:-2])
+           + (s[1:-3, 1:-3] + s[1:-3, 3:-1] + s[3:-1, 1:-3] + s[3:-1, 3:-1]) - 12.0 * c)
+    return float(np.mean(np.abs(lap))) if lap.size else 0.0
+
+
+def analizar(tomas, filas, columnas, excluir=frozenset(), textura_normal=None,
+             cambio_minimo=CAMBIO_MINIMO, sin_contenido=SIN_CONTENIDO):
+    """cambio_minimo y sin_contenido: los umbrales del sitio, ajustables desde la web."""
     """
     excluir: zonas que no se juzgan: tapadas (una barda, un arbol) o que se sabe
     que no cambian. Las aprende Seguimiento en las primeras vueltas.
@@ -114,16 +142,22 @@ def analizar(tomas, filas, columnas, excluir=frozenset()):
 
     cambios = 0
     for k in range(1, n):
-        if _diferencia(tomas[k], tomas[k - 1], filas, columnas) > CAMBIO_MINIMO:
+        if _diferencia(tomas[k], tomas[k - 1], filas, columnas) > cambio_minimo:
             cambios += 1
     uniformes = sum(1 for t in tomas if t.desviacion() < UNIFORME) / n
+    tex = mediana([textura_bordes(t) for t in tomas])
 
     if uniformes >= FRACCION_APAGADA:
-        return Resultado(Pantalla.APAGADA, n, cambios, [])
+        return Resultado(Pantalla.APAGADA, n, cambios, [], textura=tex)
+    # Lisa toda la vuelta comparada con lo normal del sitio: apagada de dia (o
+    # sin contenido). Antes de mirar los cambios: las nubes cambian la luz del
+    # reflejo y con 4 o mas la vuelta salia OK por zonas. La confirma Seguimiento.
+    if textura_normal and textura_normal > 0 and n >= 6 and tex < sin_contenido * textura_normal:
+        return Resultado(Pantalla.APAGADA, n, cambios, [], textura=tex)
     if cambios == 0 and n >= 6:
-        return Resultado(Pantalla.CONGELADA, n, cambios, [])
+        return Resultado(Pantalla.CONGELADA, n, cambios, [], textura=tex)
     if cambios < CAMBIOS_PARA_ZONAS:
-        return Resultado(Pantalla.INCONCLUSO, n, cambios, [])
+        return Resultado(Pantalla.INCONCLUSO, n, cambios, [], textura=tex)
 
     # Por zona: brillo medio en cada toma, y la textura (desviacion) maxima.
     medias = [[[0.0] * n for _ in range(columnas)] for _ in range(filas)]
@@ -158,7 +192,7 @@ def analizar(tomas, filas, columnas, excluir=frozenset()):
             zonas.append(Zona("zona_apagada", f, c, 0.9))
         elif r_act < CONGELADA_ACTIVIDAD:
             zonas.append(Zona("zona_congelada", f, c, redondea(1 - r_act / CONGELADA_ACTIVIDAD)))
-    return Resultado(Pantalla.OK, n, cambios, _agrupar(zonas), rel_act, rel_max)
+    return Resultado(Pantalla.OK, n, cambios, _agrupar(zonas), rel_act, rel_max, textura=tex)
 
 
 def _agrupar(zonas):

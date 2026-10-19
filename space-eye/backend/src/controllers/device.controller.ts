@@ -14,6 +14,7 @@ import { comprobar, pareceLlave } from '../utils/llaveServicio';
 import { duenoPorOmision, enModoInstancia } from '../utils/instancia';
 import * as vinc from '../utils/vinculaciones';
 import { env } from '../config/env';
+import { medirRelojConFoto } from '../utils/relojEquipo';
 
 // Los limites reflejan el tamaño real de las columnas: sin ellos, un dato mas
 // largo llegaba a MySQL, reventaba el INSERT y el error tumbaba el proceso. Se
@@ -383,6 +384,10 @@ export async function uploadPhotoEndpoint(req: Request, res: Response) {
 
   // Multipart manda strings; solo "false"/"0" cuentan como no-quemada.
   const baked = !(meta.watermark_baked === 'false' || meta.watermark_baked === '0');
+
+  // El reloj del equipo, medido con esta foto si la pidio una orden reciente
+  // (ver utils/relojEquipo). Nunca tumba la subida.
+  await medirRelojConFoto(did, meta.command_id, meta.taken_at).catch(() => null);
 
   const result = await uploadPhoto({
     deviceId: did,
