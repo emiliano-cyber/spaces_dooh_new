@@ -133,7 +133,6 @@ describe('3 · lo que no es una orden no cambia', () => {
 // ============================================================================
 const ENCUADRE: [string, string[], string][] = [
   ['PUT', ['devices', '7', 'camera'], 'devices/7/camera'],
-  ['POST', ['devices', '7', 'camera-control'], 'devices/7/camera-control'],
   ['PUT', ['devices', '7', 'stream-rotation'], 'devices/7/stream-rotation'],
   ['PUT', ['devices', '7', 'pantalla'], 'devices/7/pantalla'],
 ]
@@ -195,5 +194,72 @@ describe('4 · el encuadre solo lo mueve el Dueño', () => {
     const [req, ctxp] = pedir('PUT', ['devices', '7', 'salud'])
     expect((await PUT(req, ctxp)).status).toBe(200)
     expect(reenviar).toHaveBeenCalledTimes(1)
+  })
+})
+
+// ============================================================================
+//  5 · Mover el visor es de todos; que se quede, del Dueño.
+// ----------------------------------------------------------------------------
+//  La primera versión de la regla (19/10, misma mañana) cerró de más: dejó el
+//  control del visor entero en manos del Dueño, y con eso nadie más podía
+//  acercar una toma para ver un detalle ni corregir la luz de una foto. Se
+//  habría rodeado en una semana, que es lo que pasa con los candados que
+//  estorban el trabajo de todos los días.
+//
+//  Lo que se fija aquí es la línea buena: el control del visor pasa para
+//  cualquiera que opere el equipo, pero a quien no fija el encuadre se le
+//  reenvía con `guardar: false` — de las seis acciones, la exposición y el
+//  balance son las únicas que Space Eye escribe en el equipo.
+// ============================================================================
+describe('5 · el control del visor es de quien opera', () => {
+  async function control(rol: string, accion: string) {
+    exigir.mockResolvedValueOnce({ ok: true, usuario: { ...usuario, rol } })
+    const { POST: P } = await import('@/app/api/space-eyes/se/[...ruta]/route')
+    const req = new Request('http://127.0.0.1/spaces-dooh/api/space-eyes/se/devices/7/camera-control', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: accion, value: 0.8 }),
+    })
+    const r = await P(req, { params: { ruta: ['devices', '7', 'camera-control'] } })
+    // El 4.º argumento es el cuerpo REESCRITO; `undefined` = se reenvió la
+    // petición original sin tocarla.
+    const crudo = reenviar.mock.calls[0]?.[3] as ArrayBuffer | undefined
+    const enviado = crudo ? JSON.parse(new TextDecoder().decode(crudo)) : null
+    return { status: r.status, enviado }
+  }
+
+  it.each(['zoom', 'focus', 'exposure', 'wb'])('OPERACIONES puede mover %s', async (accion) => {
+    const { status } = await control('OPERACIONES', accion)
+    expect(status).toBe(200)
+    expect(reenviar).toHaveBeenCalledTimes(1)
+  })
+
+  it('pero se reenvía con guardar:false, para que no quede puesto', async () => {
+    const { enviado } = await control('ADMINISTRADOR', 'exposure')
+    expect(enviado).toEqual({ action: 'exposure', value: 0.8, guardar: false })
+  })
+
+  it('al Dueño no se le toca el cuerpo: lo suyo sí se queda', async () => {
+    const { status, enviado } = await control('DUENO', 'exposure')
+    expect(status).toBe(200)
+    // `null` = la puerta no reescribió nada y reenvió la petición original.
+    expect(enviado).toBeNull()
+  })
+
+  it('mover el visor NO llena la bitácora (es de todos los días)', async () => {
+    await control('OPERACIONES', 'zoom')
+    expect(registrarAccion).not.toHaveBeenCalled()
+  })
+
+  it('y la foto con el encuadre de ESA toma pasa para cualquiera', async () => {
+    exigir.mockResolvedValueOnce({ ok: true, usuario: { ...usuario, rol: 'OPERACIONES' } })
+    const cuerpo = {
+      command_type: 'TAKE_PHOTO',
+      payload: { rotation: 0, encuadre_temporal: { zoom: 0.7, lens: 'main' } },
+    }
+    const r = await POST(orden('7', cuerpo), ctx('7'))
+    expect(r.status).toBe(200)
+    // Intacto: el encuadre de esa toma lo resuelve Space Eye, no esta puerta.
+    expect(JSON.parse(textoReenviado())).toEqual(cuerpo)
   })
 })

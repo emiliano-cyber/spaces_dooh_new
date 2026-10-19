@@ -64,19 +64,27 @@ const ACCION_DE_ORDEN: Record<string, string> = {
 
 const ES_ORDEN = /^devices\/(\d+)\/command$/
 
-// ─── El encuadre, solo del Dueño (19/10/2026) ───────────────────────────────
+// ─── El encuadre que SE QUEDA, solo del Dueño (19/10/2026) ──────────────────
 //
-// Lo que estas cuatro rutas escriben es lo que la cámara VE: el lente y el zoom
-// y el recorte (`camera`), el color y el enfoque que se dejan desde el visor
-// —que NO son temporales: se guardan en `camera_ajustes` y viajan en cada foto—
-// (`camera-control`), la orientación fija (`stream-rotation`) y las cuatro
-// esquinas con las que se marca la pantalla (`pantalla`).
+// La línea no está entre mirar y tocar, sino entre MOVER y QUE SE QUEDE:
 //
-// Hasta hoy bastaba `inventario.crear`, que tienen el Dueño, el ADMINISTRADOR y
-// OPERACIONES. Resultado medido en G500 el 19-oct: el encuadre torcido en tres
-// pantallas porque varias personas movieron el zoom desde el visor. No es un
-// ajuste de vista: el catálogo de creativos que el equipo aprendió vale para UN
-// encuadre y al cambiarlo se tira entero, así que el sitio pasa un día sin
+//   · mover el zoom, el enfoque, la luz o el color EN EL VISOR lo hace
+//     cualquiera que opere el equipo, y la foto que pida sale como la está
+//     viendo (`encuadre_temporal` en la orden, que no se escribe en ningún
+//     lado). Eso no se toca: es la mitad del trabajo de todos los días;
+//   · lo que cambia el sitio PARA TODOS es de él y solo de él: el lente, el
+//     zoom y el recorte guardados (`camera`), la orientación fija
+//     (`stream-rotation`) y las cuatro esquinas de la pantalla (`pantalla`).
+//
+// Hasta hoy todo eso bastaba con `inventario.crear`, que tienen el Dueño, el
+// ADMINISTRADOR y OPERACIONES. Resultado medido en G500 el 19-oct: el encuadre
+// torcido en tres pantallas. Y la culpa no era de la mala intención sino de que
+// no había otra forma: para llevarse una toma más cerrada HABÍA que pulsar
+// «Fijar encuadre». Por eso esto no se cierra sin abrir lo otro, o la gente se
+// queda sin poder hacer su trabajo y el candado dura una semana.
+//
+// Cerrarlo importa porque el catálogo de creativos que el equipo aprendió vale
+// para UN encuadre: al cambiarlo se tira entero y el sitio pasa un día sin
 // reconocer nada — y si la pantalla queda más chica dentro de la foto, deja de
 // reconocer para siempre (AUTOPISTA: 14 % de la foto, reconoce 1 de 16).
 //
@@ -84,7 +92,15 @@ const ES_ORDEN = /^devices\/(\d+)\/command$/
 // Aquí solo se dice QUÉ rutas son. Space Eye lo exige además por su lado
 // (`requireRole('admin')`): esta puerta le habla con la llave de la instancia,
 // que es de admin, así que si esta regla no estuviera, Space Eye no la salvaría.
-const ENCUADRE = /^devices\/\d+\/(camera|camera-control|stream-rotation|pantalla)$/
+const ENCUADRE = /^devices\/\d+\/(camera|stream-rotation|pantalla)$/
+
+// El control del visor es de todos, con una salvedad: de sus seis acciones, la
+// exposición y el balance son las únicas que Space Eye GUARDA en el equipo
+// (desde 0.16.7, para que la foto sin visor salga con la misma luz). Para quien
+// no encuadra se reenvían con `guardar: false`: se aplican en el visor y se van
+// al cerrarlo. La bandera solo quita permiso, nunca lo da, así que no importa
+// que viaje en el cuerpo.
+const CONTROL_DEL_VISOR = /^devices\/\d+\/camera-control$/
 
 // Quién tocó el encuadre de qué equipo. Va a la bitácora como los reinicios, y
 // por el mismo motivo: el día que una pantalla deje de reconocer creativos, lo
@@ -102,17 +118,18 @@ async function puerta(req: Request, ruta: string[]) {
   if (!PERMITIDAS.some((r) => r.test(camino))) {
     return NextResponse.json({ error: 'Ruta de Space Eye no permitida' }, { status: 404 })
   }
-  // El encuadre, solo el Dueño. Se mira DESPUÉS de la lista de rutas (para no
-  // decir «no tienes permiso» de algo que ni existe) y antes de hablar con
-  // Space Eye. Los GET quedan fuera: mirar el encuadre no lo mueve.
+  // El encuadre que se queda, solo el Dueño. Se mira DESPUÉS de la lista de
+  // rutas (para no decir «no tienes permiso» de algo que ni existe) y antes de
+  // hablar con Space Eye. Los GET quedan fuera: mirar el encuadre no lo mueve.
+  const puedeFijar = puedeEncuadrar(g.usuario.rol)
   const encuadre = !lee && ENCUADRE.test(camino)
-  if (encuadre && !puedeEncuadrar(g.usuario.rol)) {
+  if (encuadre && !puedeFijar) {
     return NextResponse.json(
       {
         error:
-          'Solo el Dueño puede cambiar el encuadre de un equipo (lente, zoom, color, ' +
-          'orientación y las esquinas de la pantalla): moverlo borra lo que el equipo ' +
-          'aprendió y lo deja un día sin reconocer los creativos.',
+          'Solo el Dueño puede FIJAR el encuadre de un equipo (lente, zoom, orientación y ' +
+          'las esquinas de la pantalla): cambiarlo borra lo que el equipo aprendió y lo deja ' +
+          'un día sin reconocer los creativos. Mover el visor y pedir la foto como la ves sí puedes.',
       },
       { status: 403 },
     )
@@ -120,6 +137,19 @@ async function puerta(req: Request, ruta: string[]) {
   const orden = req.method === 'POST' ? ES_ORDEN.exec(camino) : null
   let cuerpo: ArrayBuffer | undefined
   let tipo: string | null = null
+  // Control del visor de quien no fija el encuadre: se reenvía pidiendo que NO
+  // se guarde. Se reescribe el cuerpo en vez de rechazarlo porque mover la luz
+  // para ver bien es justo lo que tiene que seguir pudiendo hacer.
+  if (!lee && !puedeFijar && CONTROL_DEL_VISOR.test(camino)) {
+    const texto = new TextDecoder().decode(await req.arrayBuffer())
+    let datos: Record<string, unknown>
+    try {
+      datos = JSON.parse(texto) as Record<string, unknown>
+    } catch {
+      return NextResponse.json({ error: 'Control de cámara no entendido' }, { status: 400 })
+    }
+    cuerpo = new TextEncoder().encode(JSON.stringify({ ...datos, guardar: false })).buffer as ArrayBuffer
+  }
   if (orden) {
     cuerpo = await req.arrayBuffer()
     try {

@@ -450,7 +450,7 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
 
   // Tocar el video enfoca ahí; con el enfoque fijo, ese punto pasa a ser el del sitio.
   const tocarVideo = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!vivo || esRelay || !puedeEncuadrar) return
+    if (!vivo || esRelay || !puedeOperar) return
     const r = e.currentTarget.getBoundingClientRect()
     const x = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width))
     const y = Math.min(1, Math.max(0, (e.clientY - r.top) / r.height))
@@ -477,9 +477,36 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
     if (tomandoFoto) return
     setTomandoFoto(true)
     try {
+      // Si el visor esta movido, ESA foto sale como se ve, y el encuadre del
+      // sitio no se toca: `encuadre_temporal` vale para esta captura y no se
+      // escribe en ningun lado. Es lo que hace que no haga falta ser el Dueno
+      // para llevarse la foto que uno quiere -antes la unica forma de acercar
+      // una toma era pulsar «Fijar encuadre», que la cambia para todos y le
+      // tira al equipo el catalogo de creativos que aprendio-.
+      const temporal = encuadreCambiado || exposicion !== 0 || balance !== 'auto'
       await seApi(`devices/${id}/command`, {
         method: 'POST',
-        body: { command_type: 'TAKE_PHOTO', priority: 1, payload: { rotation: rotacion, site: equipo.nombre } },
+        body: {
+          command_type: 'TAKE_PHOTO',
+          priority: 1,
+          payload: {
+            rotation: rotacion,
+            site: equipo.nombre,
+            ...(temporal
+              ? {
+                  encuadre_temporal: {
+                    zoom,
+                    lens: lente,
+                    ajustes: {
+                      ...(cuerpoAjustes(ajustes) ?? {}),
+                      ...(exposicion !== 0 ? { exposicion } : {}),
+                      ...(balance !== 'auto' ? { balance } : {}),
+                    },
+                  },
+                }
+              : {}),
+          },
+        },
       })
       toast.success('Foto pedida: llega en unos segundos')
       onFoto?.()
@@ -589,7 +616,7 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
         className={cn(
           'relative flex max-h-[70vh] w-full select-none items-center justify-center overflow-hidden bg-[#111]',
           embebida ? 'aspect-[16/10] max-h-[70vh] w-full' : 'aspect-[4/3] max-h-[70vh] w-full',
-          vivo && !esRelay && puedeEncuadrar && 'cursor-crosshair',
+          vivo && !esRelay && puedeOperar && 'cursor-crosshair',
         )}
         onClick={tocarVideo}
       >
@@ -701,7 +728,7 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
             onClick={(e) => e.stopPropagation()}
             className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent px-3 pb-3 pt-8 text-white"
           >
-            {puedeEncuadrar && !esRelay ? (
+            {puedeOperar && !esRelay ? (
               <div className="mb-2.5 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
                 <label className="flex flex-1 items-center gap-2" title="Zoom">
                   <ZoomIn className="h-4 w-4 shrink-0 text-white/80" />
@@ -736,7 +763,7 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
               </div>
             ) : null}
 
-            {puedeEncuadrar && esRelay ? (
+            {puedeOperar && esRelay ? (
               <div className="mb-2.5 space-y-2">
                 <label className="flex items-center gap-3" title="Zoom">
                   <ZoomIn className="h-4 w-4 shrink-0 text-white/80" />
@@ -798,7 +825,7 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
             ) : null}
 
             <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto pb-0.5">
-              {puedeEncuadrar && !esRelay ? (
+              {puedeOperar && !esRelay ? (
                 <>
                   <select
                     value={balance}
@@ -891,9 +918,9 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
             <p className="mt-2 text-[10.5px] leading-snug text-white/60">
               {!puedeEncuadrar ? (
                 <>
-                  El encuadre de este equipo —zoom, lente, color, enfoque y orientación— lo cambia solo el Dueño:
-                  moverlo borra lo que el equipo aprendió de su pantalla y lo deja un día sin reconocer los creativos.
-                  Desde aquí puedes mirar y pedir fotos.
+                  Mueve el zoom, la luz y el enfoque a tu gusto y pide la foto: <strong>sale como la estás viendo</strong>.
+                  Nada de esto se guarda, así que el encuadre del sitio no cambia —fijarlo para todos lo hace solo el
+                  Dueño, porque borra lo que el equipo aprendió de su pantalla—.
                 </>
               ) : esRelay ? (
                 <>
