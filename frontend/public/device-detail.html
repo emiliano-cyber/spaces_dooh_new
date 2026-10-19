@@ -357,13 +357,20 @@
                 <!-- Fija el encuadre para las fotos, incluidas las programadas.
                      Pide permiso, que es lo que exige el servidor: en los equipos de
                      relay el boton se veia habilitado para cualquiera y contestaba 403. -->
-                <!-- Quien no fija el encuadre puede MIRAR por el otro lente: se
-                     reabre la vista con el y nada queda cambiado. -->
-                <button x-show="!puedeEncuadrar && lens !== savedLens && !esRelay" style="display:none"
+                <!-- Quien no fija el encuadre puede MIRAR asi: se reabre la vista
+                     y nada queda cambiado. Aparece cuando hace falta reabrir para
+                     verlo de verdad -la MISMA condicion que usa "Fijar encuadre"-:
+                     el lente, que es otra camara fisica, y el acercamiento en los
+                     equipos que pasan por el servidor de medios, donde el recorte
+                     se le da a la camara al arrancar y hasta entonces lo que se ve
+                     es la vista previa ampliada. -->
+                <button x-show="!puedeEncuadrar && (lens !== savedLens || (esRelay && encuadreCambiado()))" style="display:none"
                   @click="verAsi()" :disabled="reencuadrando"
                   class="shrink-0 flex items-center gap-1 bg-[#0A66FF] hover:bg-blue-700 disabled:opacity-40 text-white text-[11px] rounded px-2 py-1"
-                  title="Abre la vista con este lente. No cambia el encuadre del sitio.">
-                  <span x-text="reencuadrando ? 'Abriendo…' : 'Ver con este lente'">Ver con este lente</span>
+                  :title="lens !== savedLens
+                    ? 'Abre la vista con este lente. No cambia el encuadre del sitio.'
+                    : 'Abre la vista a este acercamiento, ya nítida. No cambia el encuadre del sitio.'">
+                  <span x-text="reencuadrando ? 'Abriendo…' : (lens !== savedLens ? 'Ver con este lente' : 'Ver nítido')">Ver nítido</span>
                 </button>
                 <button x-show="puedeEncuadrar" style="display:none" @click="aplicarEncuadre()"
                   :disabled="!encuadreCambiado() || reencuadrando"

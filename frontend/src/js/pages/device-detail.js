@@ -744,33 +744,63 @@ function deviceDetail() {
       // asi que para ver la version nitida hay que reabrir.
       const hayQueReabrir = cambioLente || (this.esRelay && cambioRecorte);
       if (!this.streaming || !hayQueReabrir) return;
-      await this.reabrirVisor();
+      // Forzado: el encuadre nuevo es el de TODOS, asi que la transmision se
+      // reabre tambien para quien este mirando.
+      await this.reabrirVisor(true);
     },
 
     /**
-     * Mirar por el otro lente SIN fijarlo. El lente es otra camara fisica, asi
-     * que no basta con pedirselo a la sesion abierta: hay que reabrirla, y la
-     * orden lleva el encuadre de esta vista (encuadreDeAhora), que no se
-     * guarda. Quien puede fijarlo no necesita esto: su boton es el de fijar.
+     * Mirar asi de verdad, SIN fijar nada. Dos casos lo piden, y los dos por el
+     * mismo motivo -la camara se abre una vez y con un encuadre-:
+     *
+     *   - el LENTE, que es otra camara fisica;
+     *   - el ACERCAMIENTO en los equipos que pasan por el servidor de medios
+     *     (la Raspberry fija el recorte al arrancar rpicam-vid), donde hasta
+     *     que no se reabre lo que se ve es la vista previa ampliada.
+     *
+     * En los dos, la orden de abrir lleva el encuadre de esta vista
+     * (encuadreDeAhora), que no se guarda. Quien puede fijarlo no necesita
+     * esto: su boton es el de fijar, que ademas lo deja para todos.
      */
     async verAsi() {
       if (this.reencuadrando || !this.streaming) return;
-      await this.reabrirVisor();
-      this.showToast('Así se ve con este lente. No cambió el encuadre del sitio.', 'info');
+      const porLente = this.lens !== this.savedLens;
+      await this.reabrirVisor(false);
+      if (this.streamClient && this.streamClient.compartida) {
+        this.showToast(
+          `${this.streamClient.compartidaCon || 'Otra persona'} está viendo este equipo: la vista sigue con su `
+            + 'encuadre. La foto que pidas sí sale como la tienes puesta.',
+          'info'
+        );
+        return;
+      }
+      this.showToast(
+        porLente
+          ? 'Así se ve con este lente. No cambió el encuadre del sitio.'
+          : 'Ya se ve nítido a este acercamiento. No cambió el encuadre del sitio.',
+        'info'
+      );
     },
 
-    async reabrirVisor() {
-      // Se reabre SIN bajar la bandera de streaming, para que el visor y sus
-      // controles sigan en pantalla y no parezca que se cayo la transmision.
+    /**
+     * Reabre la vista sin bajar la bandera de streaming, para que el visor y
+     * sus controles sigan en pantalla y no parezca que se cayo la transmision.
+     *
+     * `forzar` decide algo que se ve en la pantalla de OTRA persona: forzado
+     * corta la transmision para todos los que esten mirando, y eso solo es de
+     * recibo cuando el encuadre se esta cambiando PARA todos (fijarlo). Quien
+     * solo quiere mirar de otra forma cierra sin forzar: si hay alguien mas
+     * viendo, el servidor mantiene la transmision y lo devuelve a ella en vez
+     * de arrancarsela de las manos.
+     */
+    async reabrirVisor(forzar) {
       this.reencuadrando = true;
       try {
         // El visor viejo pierde la vigencia aqui, al cerrarlo, y no 1200 ms
         // despues cuando arranca el nuevo: en ese hueco su aviso de muerte
         // llegaba a tiempo de tumbar una vista que seguia en pantalla.
         this.streamTurno++;
-        // Forzado: aunque haya otras personas mirando, el lente nuevo es otra
-        // camara fisica y hay que reabrir la transmision para todos.
-        await this.streamClient?.stop({ forzar: true });
+        await this.streamClient?.stop({ forzar: Boolean(forzar) });
         this.streamClient = null;
         // La camara del equipo necesita un respiro para soltarse antes de que la
         // reclame la transmision nueva.
