@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { exigir } from '@/lib/server/auth'
 import { spaceEyeHabilitado, reenviarASpaceEye } from '@/lib/server/space-eye'
 import { registrarAccion } from '@/lib/server/acciones-repo'
+import { puedeEncuadrar } from '@/lib/roles'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -18,6 +19,8 @@ export const dynamic = 'force-dynamic'
 //  QUIÉN PUEDE: mirar (GET) pide `inventario.ver`; cambiar algo (POST, PUT,
 //  DELETE) pide `inventario.crear`. La empresa la pone la llave, no el
 //  navegador: Space Eye solo contesta por los equipos de su dueño.
+//
+//  Y el ENCUADRE, además, solo el Dueño (ver `ENCUADRE` más abajo).
 //
 //  QUÉ NO PASA: solo rutas de la lista de abajo. Usuarios y llaves de Space Eye
 //  quedan fuera aquí y también en Space Eye.
@@ -61,6 +64,33 @@ const ACCION_DE_ORDEN: Record<string, string> = {
 
 const ES_ORDEN = /^devices\/(\d+)\/command$/
 
+// ─── El encuadre, solo del Dueño (19/10/2026) ───────────────────────────────
+//
+// Lo que estas cuatro rutas escriben es lo que la cámara VE: el lente y el zoom
+// y el recorte (`camera`), el color y el enfoque que se dejan desde el visor
+// —que NO son temporales: se guardan en `camera_ajustes` y viajan en cada foto—
+// (`camera-control`), la orientación fija (`stream-rotation`) y las cuatro
+// esquinas con las que se marca la pantalla (`pantalla`).
+//
+// Hasta hoy bastaba `inventario.crear`, que tienen el Dueño, el ADMINISTRADOR y
+// OPERACIONES. Resultado medido en G500 el 19-oct: el encuadre torcido en tres
+// pantallas porque varias personas movieron el zoom desde el visor. No es un
+// ajuste de vista: el catálogo de creativos que el equipo aprendió vale para UN
+// encuadre y al cambiarlo se tira entero, así que el sitio pasa un día sin
+// reconocer nada — y si la pantalla queda más chica dentro de la foto, deja de
+// reconocer para siempre (AUTOPISTA: 14 % de la foto, reconoce 1 de 16).
+//
+// El porqué y el quién viven en `lib/roles.ts` (`puedeEncuadrar`), con pruebas.
+// Aquí solo se dice QUÉ rutas son. Space Eye lo exige además por su lado
+// (`requireRole('admin')`): esta puerta le habla con la llave de la instancia,
+// que es de admin, así que si esta regla no estuviera, Space Eye no la salvaría.
+const ENCUADRE = /^devices\/\d+\/(camera|camera-control|stream-rotation|pantalla)$/
+
+// Quién tocó el encuadre de qué equipo. Va a la bitácora como los reinicios, y
+// por el mismo motivo: el día que una pantalla deje de reconocer creativos, lo
+// primero que hay que poder contestar es quién la movió y cuándo.
+const ES_ENCUADRE_DE = /^devices\/(\d+)\//
+
 async function puerta(req: Request, ruta: string[]) {
   const lee = req.method === 'GET' || req.method === 'HEAD'
   const g = await exigir('inventario', lee ? 'ver' : 'crear')
@@ -71,6 +101,21 @@ async function puerta(req: Request, ruta: string[]) {
   const camino = ruta.join('/')
   if (!PERMITIDAS.some((r) => r.test(camino))) {
     return NextResponse.json({ error: 'Ruta de Space Eye no permitida' }, { status: 404 })
+  }
+  // El encuadre, solo el Dueño. Se mira DESPUÉS de la lista de rutas (para no
+  // decir «no tienes permiso» de algo que ni existe) y antes de hablar con
+  // Space Eye. Los GET quedan fuera: mirar el encuadre no lo mueve.
+  const encuadre = !lee && ENCUADRE.test(camino)
+  if (encuadre && !puedeEncuadrar(g.usuario.rol)) {
+    return NextResponse.json(
+      {
+        error:
+          'Solo el Dueño puede cambiar el encuadre de un equipo (lente, zoom, color, ' +
+          'orientación y las esquinas de la pantalla): moverlo borra lo que el equipo ' +
+          'aprendió y lo deja un día sin reconocer los creativos.',
+      },
+      { status: 403 },
+    )
   }
   const orden = req.method === 'POST' ? ES_ORDEN.exec(camino) : null
   let cuerpo: ArrayBuffer | undefined
@@ -93,6 +138,13 @@ async function puerta(req: Request, ruta: string[]) {
     // nada, y apuntarla como hecha sería mentir en la bitácora.
     if (orden && tipo && r.ok && ACCION_DE_ORDEN[tipo]) {
       await registrarAccion(g.usuario, ACCION_DE_ORDEN[tipo], `equipo ${orden[1]}`)
+    }
+    if (encuadre && r.ok) {
+      await registrarAccion(
+        g.usuario,
+        'Cambió el encuadre de un equipo de Space Eyes',
+        `equipo ${ES_ENCUADRE_DE.exec(camino)?.[1] ?? '?'}`,
+      )
     }
     return r
   } catch {

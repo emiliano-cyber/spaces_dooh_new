@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { ROLES_ASIGNABLES, puedeVerControlCambios, rolLabel, VALORES_ROL } from './roles'
+import { puedeEncuadrar, ROLES_ASIGNABLES, puedeVerControlCambios, rolLabel, VALORES_ROL } from './roles'
 import { landingDeRol } from './data/usuarios'
 import type { RolDemo } from './data/types'
 
@@ -136,5 +136,42 @@ describe('puedeVerControlCambios', () => {
   it('no lo ve quien no tiene sesión', () => {
     expect(puedeVerControlCambios(undefined)).toBe(false)
     expect(puedeVerControlCambios(null)).toBe(false)
+  })
+})
+
+// ============================================================================
+//  Quién mueve el encuadre de un equipo de Space Eyes.
+// ----------------------------------------------------------------------------
+//  Decidido el 2026-10-19 por el dueño, con el encuadre torcido en tres
+//  pantallas de G500 delante: varias personas con acceso habían movido el zoom
+//  desde el visor del vivo. Mover el lente, el zoom o las cuatro esquinas TIRA
+//  el catálogo de creativos que el equipo aprendió —vale para un encuadre— y el
+//  sitio pasa un día sin reconocer nada; con un encuadre peor, deja de
+//  reconocer para siempre.
+//
+//  El ADMINISTRADOR queda FUERA, y esa es justo la diferencia con
+//  `puedeVerControlCambios`. Si alguien un día se la amplía «por simetría», que
+//  tenga que venir aquí y borrar una prueba que dice por qué no.
+// ============================================================================
+describe('puedeEncuadrar', () => {
+  it('solo el Dueño', () => {
+    expect(puedeEncuadrar('DUENO')).toBe(true)
+  })
+
+  it('el ADMINISTRADOR NO, aunque vea el control de cambios', () => {
+    expect(puedeEncuadrar('ADMINISTRADOR')).toBe(false)
+    expect(puedeVerControlCambios('ADMINISTRADOR')).toBe(true)
+  })
+
+  it('ningún otro rol, tampoco OPERACIONES, que es quien opera los equipos', () => {
+    for (const rol of VALORES_ROL) {
+      if (rol === 'DUENO') continue
+      expect(puedeEncuadrar(rol), rol).toBe(false)
+    }
+  })
+
+  it('ni quien no tiene sesión', () => {
+    expect(puedeEncuadrar(undefined)).toBe(false)
+    expect(puedeEncuadrar(null)).toBe(false)
   })
 })

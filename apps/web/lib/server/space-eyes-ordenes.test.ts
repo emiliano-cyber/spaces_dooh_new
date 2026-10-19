@@ -118,3 +118,82 @@ describe('3 · lo que no es una orden no cambia', () => {
     expect(registrarAccion).not.toHaveBeenCalled()
   })
 })
+
+// ============================================================================
+//  4 · El encuadre, solo del Dueño (19/10/2026).
+// ----------------------------------------------------------------------------
+//  Lo que estas cuatro rutas escriben es lo que la cámara VE. Con solo
+//  `inventario.crear` las tenían también el ADMINISTRADOR y OPERACIONES, y el
+//  resultado está medido: el encuadre torcido en tres pantallas de G500 porque
+//  varias personas movieron el zoom desde el visor del vivo. Mover el lente, el
+//  zoom o las esquinas tira el catálogo que el equipo aprendió.
+//
+//  Se prueba AQUÍ, en la puerta, y no solo en `puedeEncuadrar`: lo que hay que
+//  fijar no es la regla sino que la puerta la use, con estas rutas y no otras.
+// ============================================================================
+const ENCUADRE: [string, string[], string][] = [
+  ['PUT', ['devices', '7', 'camera'], 'devices/7/camera'],
+  ['POST', ['devices', '7', 'camera-control'], 'devices/7/camera-control'],
+  ['PUT', ['devices', '7', 'stream-rotation'], 'devices/7/stream-rotation'],
+  ['PUT', ['devices', '7', 'pantalla'], 'devices/7/pantalla'],
+]
+
+function pedir(metodo: string, ruta: string[]): [Request, { params: { ruta: string[] } }] {
+  const req = new Request(`http://127.0.0.1/spaces-dooh/api/space-eyes/se/${ruta.join('/')}`, {
+    method: metodo,
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ zoom: 0.9 }),
+  })
+  return [req, { params: { ruta } }]
+}
+
+describe('4 · el encuadre solo lo mueve el Dueño', () => {
+  it.each(ENCUADRE)('%s %s: al Dueño sí, y queda en la bitácora', async (metodo, ruta, camino) => {
+    const { PUT, POST: POST2 } = await import('@/app/api/space-eyes/se/[...ruta]/route')
+    const [req, ctxp] = pedir(metodo, ruta)
+    const r = await (metodo === 'PUT' ? PUT : POST2)(req, ctxp)
+    expect(r.status).toBe(200)
+    expect(reenviar.mock.calls[0][1]).toBe(camino)
+    expect(registrarAccion).toHaveBeenCalledWith(
+      usuario,
+      'Cambió el encuadre de un equipo de Space Eyes',
+      'equipo 7',
+    )
+  })
+
+  it.each(ENCUADRE)('%s %s: al ADMINISTRADOR no, y no llega a Space Eye', async (metodo, ruta) => {
+    exigir.mockResolvedValueOnce({ ok: true, usuario: { ...usuario, rol: 'ADMINISTRADOR' } })
+    const { PUT, POST: POST2 } = await import('@/app/api/space-eyes/se/[...ruta]/route')
+    const [req, ctxp] = pedir(metodo, ruta)
+    const r = await (metodo === 'PUT' ? PUT : POST2)(req, ctxp)
+    expect(r.status).toBe(403)
+    expect(reenviar).not.toHaveBeenCalled()
+    expect(registrarAccion).not.toHaveBeenCalled()
+  })
+
+  it('a OPERACIONES tampoco, que es quien opera los equipos todos los días', async () => {
+    exigir.mockResolvedValueOnce({ ok: true, usuario: { ...usuario, rol: 'OPERACIONES' } })
+    const { PUT } = await import('@/app/api/space-eyes/se/[...ruta]/route')
+    const [req, ctxp] = pedir('PUT', ['devices', '7', 'camera'])
+    expect((await PUT(req, ctxp)).status).toBe(403)
+    expect(reenviar).not.toHaveBeenCalled()
+  })
+
+  it('MIRAR el encuadre lo sigue pudiendo cualquiera que entre al módulo', async () => {
+    exigir.mockResolvedValueOnce({ ok: true, usuario: { ...usuario, rol: 'OPERACIONES' } })
+    const req = new Request('http://127.0.0.1/spaces-dooh/api/space-eyes/se/devices/7/pantalla')
+    const r = await GET(req, { params: { ruta: ['devices', '7', 'pantalla'] } })
+    expect(r.status).toBe(200)
+    expect(reenviar).toHaveBeenCalledTimes(1)
+  })
+
+  it('lo que NO es encuadre sigue bastando con inventario.crear', async () => {
+    exigir.mockResolvedValueOnce({ ok: true, usuario: { ...usuario, rol: 'OPERACIONES' } })
+    const { PUT } = await import('@/app/api/space-eyes/se/[...ruta]/route')
+    // Umbrales y frecuencias de la vigilancia: afinan cómo se vigila, no
+    // cambian lo que la cámara ve.
+    const [req, ctxp] = pedir('PUT', ['devices', '7', 'salud'])
+    expect((await PUT(req, ctxp)).status).toBe(200)
+    expect(reenviar).toHaveBeenCalledTimes(1)
+  })
+})

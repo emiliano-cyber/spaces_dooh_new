@@ -24,8 +24,11 @@ import { fechaHora } from './piezas'
 // ----------------------------------------------------------------------------
 //  Props:
 //    equipoId     id del equipo en Space Eye.
-//    puedeOperar  false = solo mirar: ni marcar la pantalla ni tocar la
-//                 vigilancia.
+//    puedeOperar  false = solo mirar: no se toca la vigilancia (interruptor,
+//                 frecuencia, umbrales).
+//    puedeEncuadrar  marcar la pantalla es ENCUADRAR: las 4 esquinas son lo que
+//                 el equipo mira, y cambiarlas tira el catalogo de creativos
+//                 que aprendio. Solo el Dueno (`lib/roles.ts`, 19/10/2026).
 //    onCambio?    opcional; se llama después de guardar algo (pantalla o
 //                 vigilancia), para que quien la integra refresque lo demás
 //                 (los creativos, por ejemplo, se reinician al cambiar las
@@ -140,10 +143,12 @@ function mensaje(e: unknown): string {
 export function PantallaConfig({
   equipoId,
   puedeOperar,
+  puedeEncuadrar,
   onCambio,
 }: {
   equipoId: number
   puedeOperar: boolean
+  puedeEncuadrar: boolean
   onCambio?: () => void
 }) {
   const [datos, setDatos] = useState<RespPantalla | null>(null)
@@ -267,7 +272,7 @@ export function PantallaConfig({
   }
 
   function abajo(e: PE<HTMLDivElement>) {
-    if (!edit || !puedeOperar || !num) return
+    if (!edit || !puedeEncuadrar || !num) return
     const p = puntoFoto(e)
     if (!p) return
     e.preventDefault()
@@ -446,10 +451,15 @@ export function PantallaConfig({
             ) : (
               <p className="mt-1.5 text-[13px] text-muted">Sin marcar</p>
             )}
-            {puedeOperar && !edit && (
+            {puedeEncuadrar && !edit && (
               <Button size="sm" variant="secondary" className="mt-3" onClick={empezar}>
                 {pantalla ? 'Cambiar pantalla' : 'Marcar la pantalla'}
               </Button>
+            )}
+            {!puedeEncuadrar && (
+              <p className="mt-2 text-[12px] text-muted">
+                Marcar la pantalla la cambia para el equipo y borra lo que aprendió: solo lo hace el Dueño.
+              </p>
             )}
           </div>
 
@@ -651,7 +661,7 @@ export function PantallaConfig({
             )}
 
             <div className="mt-3 flex flex-wrap items-center gap-2">
-              <Button size="sm" disabled={!sePuedeGuardar || !puedeOperar} onClick={pedirGuardar}>
+              <Button size="sm" disabled={!sePuedeGuardar || !puedeEncuadrar} onClick={pedirGuardar}>
                 {guardandoPant ? 'Guardando…' : 'Guardar pantalla'}
               </Button>
               <Button size="sm" variant="secondary" disabled={guardandoPant} onClick={() => setEdit(null)}>

@@ -52,6 +52,14 @@ const RETARDO_CONTROL_MS = 150
 export interface VistaEnVivoProps {
   equipo: { id: number; nombre: string; appVersion?: string | null; online: boolean }
   puedeOperar: boolean
+  /**
+   * Quién puede mover lo que la cámara VE: zoom, lente, color, enfoque,
+   * orientación. Solo el Dueño (`lib/roles.ts`). Separado de `puedeOperar`
+   * desde el 19/10/2026: con el permiso de operar bastaba, y varias personas
+   * dejaron torcido el encuadre de tres pantallas de G500 moviendo el zoom
+   * desde aquí. Mirar el vivo y pedir fotos sigue siendo de quien opera.
+   */
+  puedeEncuadrar: boolean
   /** Se pidió una foto con el disparador: la ficha puede ponerse a esperarla. */
   onFoto?: () => void
   /** Dentro del marco de Fotos de la ficha: sin borde propio y del mismo tamaño que la foto. */
@@ -141,7 +149,7 @@ function motivoDe(e: unknown, porDefecto: string): string {
   return e instanceof Error && e.message ? e.message : porDefecto
 }
 
-export function VistaEnVivo({ equipo, puedeOperar, onFoto, embebida = false }: VistaEnVivoProps) {
+export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embebida = false }: VistaEnVivoProps) {
   const id = equipo.id
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const clienteRef = useRef<VisorWhep | null>(null)
@@ -442,7 +450,7 @@ export function VistaEnVivo({ equipo, puedeOperar, onFoto, embebida = false }: V
 
   // Tocar el video enfoca ahí; con el enfoque fijo, ese punto pasa a ser el del sitio.
   const tocarVideo = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!vivo || esRelay || !puedeOperar) return
+    if (!vivo || esRelay || !puedeEncuadrar) return
     const r = e.currentTarget.getBoundingClientRect()
     const x = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width))
     const y = Math.min(1, Math.max(0, (e.clientY - r.top) / r.height))
@@ -581,7 +589,7 @@ export function VistaEnVivo({ equipo, puedeOperar, onFoto, embebida = false }: V
         className={cn(
           'relative flex max-h-[70vh] w-full select-none items-center justify-center overflow-hidden bg-[#111]',
           embebida ? 'aspect-[16/10] max-h-[70vh] w-full' : 'aspect-[4/3] max-h-[70vh] w-full',
-          vivo && !esRelay && puedeOperar && 'cursor-crosshair',
+          vivo && !esRelay && puedeEncuadrar && 'cursor-crosshair',
         )}
         onClick={tocarVideo}
       >
@@ -693,7 +701,7 @@ export function VistaEnVivo({ equipo, puedeOperar, onFoto, embebida = false }: V
             onClick={(e) => e.stopPropagation()}
             className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent px-3 pb-3 pt-8 text-white"
           >
-            {puedeOperar && !esRelay ? (
+            {puedeEncuadrar && !esRelay ? (
               <div className="mb-2.5 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
                 <label className="flex flex-1 items-center gap-2" title="Zoom">
                   <ZoomIn className="h-4 w-4 shrink-0 text-white/80" />
@@ -728,7 +736,7 @@ export function VistaEnVivo({ equipo, puedeOperar, onFoto, embebida = false }: V
               </div>
             ) : null}
 
-            {puedeOperar && esRelay ? (
+            {puedeEncuadrar && esRelay ? (
               <div className="mb-2.5 space-y-2">
                 <label className="flex items-center gap-3" title="Zoom">
                   <ZoomIn className="h-4 w-4 shrink-0 text-white/80" />
@@ -790,7 +798,7 @@ export function VistaEnVivo({ equipo, puedeOperar, onFoto, embebida = false }: V
             ) : null}
 
             <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto pb-0.5">
-              {puedeOperar && !esRelay ? (
+              {puedeEncuadrar && !esRelay ? (
                 <>
                   <select
                     value={balance}
@@ -829,7 +837,7 @@ export function VistaEnVivo({ equipo, puedeOperar, onFoto, embebida = false }: V
                 </button>
               </div>
 
-              {puedeOperar && !esRelay ? (
+              {puedeEncuadrar && !esRelay ? (
                 <select
                   value={lente}
                   onChange={(e) => setLente(e.target.value as Lente)}
@@ -842,7 +850,7 @@ export function VistaEnVivo({ equipo, puedeOperar, onFoto, embebida = false }: V
                 </select>
               ) : null}
 
-              {puedeOperar ? (
+              {puedeEncuadrar ? (
                 <button
                   type="button"
                   onClick={aplicarEncuadre}
@@ -854,12 +862,12 @@ export function VistaEnVivo({ equipo, puedeOperar, onFoto, embebida = false }: V
                   {reencuadrando ? 'Aplicando…' : encuadreCambiado ? 'Fijar encuadre' : 'Encuadre guardado'}
                 </button>
               ) : null}
-              {puedeOperar && encuadreCambiado && !reencuadrando ? (
+              {puedeEncuadrar && encuadreCambiado && !reencuadrando ? (
                 <button type="button" onClick={descartarEncuadre} className={cn(ctlBoton, ctlSuave)} title="Volver al encuadre que tiene guardado el equipo">
                   Descartar
                 </button>
               ) : null}
-              {puedeOperar && rotacion !== rotacionGuardada ? (
+              {puedeEncuadrar && rotacion !== rotacionGuardada ? (
                 <button
                   type="button"
                   onClick={fijarOrientacion}
@@ -877,8 +885,17 @@ export function VistaEnVivo({ equipo, puedeOperar, onFoto, embebida = false }: V
               ) : null}
             </div>
 
+            {/* El pie explica los controles que se tienen delante, así que
+                quien no encuadra lee otro: el de antes hablaba de deslizadores
+                y de «Fijar encuadre» que ya no están. */}
             <p className="mt-2 text-[10.5px] leading-snug text-white/60">
-              {esRelay ? (
+              {!puedeEncuadrar ? (
+                <>
+                  El encuadre de este equipo —zoom, lente, color, enfoque y orientación— lo cambia solo el Dueño:
+                  moverlo borra lo que el equipo aprendió de su pantalla y lo deja un día sin reconocer los creativos.
+                  Desde aquí puedes mirar y pedir fotos.
+                </>
+              ) : esRelay ? (
                 <>
                   Lo que ves al mover los deslizadores es una vista previa: el equipo no cambia hasta que pulses{' '}
                   <strong>Fijar encuadre</strong> (ahí la vista se reabre un segundo para traer la imagen nítida).
@@ -889,7 +906,7 @@ export function VistaEnVivo({ equipo, puedeOperar, onFoto, embebida = false }: V
                   temporales: solo el zoom y el lente se guardan, al pulsar <strong>Fijar encuadre</strong>.
                 </>
               )}{' '}
-              La orientación fija es la que todos ven al abrir la vista.
+              {puedeEncuadrar ? 'La orientación fija es la que todos ven al abrir la vista.' : ''}
             </p>
           </div>
         ) : null}
