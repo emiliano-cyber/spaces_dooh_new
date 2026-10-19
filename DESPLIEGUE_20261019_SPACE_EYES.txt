@@ -1,0 +1,183 @@
+===============================================================================
+ DESPLIEGUE — Space Eyes en g500: encuadre, campanas y 12 dias de Space Eye
+                                                        Preparado: 2026-10-19
+-------------------------------------------------------------------------------
+ >>> SIN EJECUTAR. Lo prepara Jose; lo despliega Emiliano. <<<
+
+ Instancia  : g500.space-os.io  (droplet 142.93.113.106)
+ Rama       : fix/space-eyes-fotos-rapidas   (en 496784c4 al escribir esto)
+ BD         : NO se toca a mano. Dos migraciones NUEVAS de Space Eye las
+              aplica solo `update-eyes.sh` (ver PASO 2).
+
+ SON DOS DESPLIEGUES, no uno:
+   A. la aplicacion de SPACE OS  (donde viven el modulo y la puerta)
+   B. la pila de Space Eye       (update-eyes.sh: el servidor de los equipos)
+ Desplegar solo A deja el candado del encuadre A MEDIAS: la pantalla esconde
+ los botones pero el servidor de Space Eye los seguiria aceptando.
+===============================================================================
+
+
+POR QUE ESTO NO PODIA ESPERAR
+-----------------------------
+1. En G500 varias personas movieron el zoom desde el visor y dejaron el
+   encuadre torcido en TRES pantallas. No es cosmetico: el catalogo de
+   creativos que cada equipo aprende vale para UN encuadre, asi que al
+   cambiarlo se tira entero y el sitio pasa un dia sin reconocer nada. Medido
+   el 19-oct: AUTOPISTA, con la pantalla en el 14% de la foto y 4.3x de zoom
+   digital, reconoce 1 de cada 16 vistazos. TLALPAN, con el encuadre bueno,
+   reconoce 5 o 6.
+
+2. Ninguna campana de SPACE OS con el arte guardado como ARCHIVO llegaba a los
+   equipos. «Lanzamiento SpaceOs» se publico el 14-oct, con su reserva
+   confirmada y su creativo validado, y nunca llego a PATRIOTISMO. «Aceptamos
+   g500» ademas se apago sola el dia que su arte se volvio a guardar asi.
+   Ninguno de los dos daba error: la campana simplemente no sale en la lista.
+
+3. El instalador del agente de PC traia grabada la direccion de produccion de
+   la flota propia. Quien instalara en el sitio de un cliente y pulsara Enter
+   sin leer daba de alta esa camara EN LA EMPRESA EQUIVOCADA.
+
+
+QUE LLEVA LA RAMA
+-----------------
+Del lado de SPACE OS (apps/web):
+
+  3fe5c6ba  El encuadre de un equipo solo lo mueve el Dueno
+  e7fba942  El visor lo mueve quien opera; fijarlo sigue siendo del Dueno
+  0f2bb278  El lente tambien se abre: gran angular sin fijarlo
+  c97c4eff  «Ver nitido» tambien para el acercamiento de la Raspberry
+  bf303ce4  Las campanas con el arte guardado como archivo llegan al equipo
+  46b18cea  Agregar dispositivo avisa si la direccion del servidor no sirve
+  (mas lo que ya traia la rama de antes: fotos rapidas, GPS, tarjetas de
+   campana, LISTA_FACTURAR, arte envuelto en HTML)
+
+Del lado de Space Eye (space-eye/), via merge 496784c4 — OJO CON ESTO:
+
+  La copia de space-eye/ se habia quedado en e37596f, del 7-oct. DOCE DIAS de
+  trabajo estaban solo en el repo de Space Eye, que no tiene remoto. Construir
+  la imagen desde aqui habria dejado fuera todo eso sin que nada avisara. Ya
+  esta traido con su historial (20 commits), igual que las dos veces
+  anteriores. Lo que llega:
+
+  - el encuadre pasa a ser solo de admin, y la foto sale con el encuadre de
+    ESA toma (payload.encuadre_temporal), sin tocar el del sitio;
+  - el instalador de PC ya no trae empresa por omision;
+  - el reloj corrido de un equipo se mide y se corrige desde el servidor
+    (era lo de AUTOPISTA, 2 h atrasado);
+  - calificar «No es falla» ajusta los umbrales del equipo;
+  - umbrales de deteccion por equipo desde la web (APK 0.16.7);
+  - la pantalla apagada de dia se detecta;
+  - las fotos de la vigilancia ya no salen de lado;
+  - campanas: cada una recibe su prueba aunque compartan arte.
+
+
+LA REGLA DEL ENCUADRE, EN UNA LINEA
+-----------------------------------
+No separa mirar de tocar, sino MOVER de QUE SE QUEDE.
+
+  Quien opera (ADMINISTRADOR, OPERACIONES):  mueve zoom, lente, luz y enfoque
+    en el visor, y la foto que pide SALE COMO LA ESTA VIENDO. Nada de eso se
+    guarda. Sigue teniendo galeria, vivo, programacion, creativos y fallas.
+  Solo el DUENO:  FIJAR el encuadre (/camera), la orientacion
+    (/stream-rotation) y las esquinas de la pantalla (/pantalla).
+
+La regla vive en apps/web/lib/roles.ts (`puedeEncuadrar`) con pruebas, no
+dentro de un .tsx. La puerta de verdad es /api/space-eyes/se, que ademas deja
+en la bitacora quien toco el encuadre de que equipo. Space Eye lo exige por su
+lado con requireRole('admin').
+
+A quien no es Dueno, la puerta le reenvia el control del visor con
+`guardar: false`: de sus seis acciones, exposicion y balance son las unicas
+que Space Eye escribe en el equipo. La bandera solo QUITA permiso.
+
+
+PASO 1 · SPACE OS
+-----------------
+Como cualquier otro despliegue de la aplicacion. No hay migracion de Postgres
+en esta rama: no se toca la base.
+
+Comprobar despues, en g500.space-os.io:
+  a) Space Eyes > Campanas: «Lanzamiento SpaceOs» aparece (puede tardar unos
+     minutos: el sincronizador tiene un respiro de 2 min), y «Aceptamos g500»
+     vuelve a estar ACTIVA. Esas dos cosas juntas son la prueba de que el
+     arreglo de las campanas entro.
+  b) Space Eyes > un equipo > Vista en vivo, entrando como DUENO: siguen los
+     botones «Fijar encuadre» y «Fijar orientacion».
+
+
+PASO 2 · LA PILA DE SPACE EYE   (sin esto, el candado queda a medias)
+---------------------------------------------------------------------
+En el droplet:
+
+    /opt/space-os/update-eyes.sh        (o como se invoque en esta instancia)
+
+El script ya hace lo correcto solo, y conviene saberlo para leer su salida:
+  - levanta base, redis y video ANTES de migrar;
+  - RESPALDA la base de Space Eye y comprueba que el volcado no salio cortado;
+  - corre las migraciones con la imagen NUEVA y, si fallan, RESTAURA el
+    respaldo y NO cambia de version;
+  - cambia la imagen, mira la salud y vuelve atras sola si no responde.
+
+MIGRACIONES NUEVAS que entran aqui:
+    026_umbrales_por_equipo.sql
+    027_fotos_de_vigilancia_derechas.sql
+Las dos aditivas e idempotentes, como las anteriores.
+
+NO SE PIERDE NADA, y no es por suerte:
+  fotos        volumen `fotos:/app/storage`        — la imagen no lo toca
+  instaladores volumen `descargas:/descargas`      — el agente de PC 1.6.0 y
+               ffmpeg que se publicaron a mano siguen ahi. El unico que la
+               imagen republica es el de Raspberry, y solo si es MAS NUEVO:
+               nunca baja de version (utils/agentesDeFabrica.ts).
+  base         volumen `base:/var/lib/mysql` + el respaldo de arriba
+
+Comprobar despues:
+  a) Equipos sigue listando los 5, con sus fotos y su historial.
+  b) Entrando como ADMINISTRADOR: en la vista en vivo YA NO salen «Fijar
+     encuadre» ni «Fijar orientacion», pero si el zoom, la luz, el enfoque y
+     el boton «Ver con este lente» / «Ver nitido». Pedir una foto con el visor
+     movido: debe salir como se ve, y el encuadre del sitio NO cambia.
+  c) Entrando como DUENO: todo como antes.
+
+
+LO QUE NO ARREGLA ESTE DESPLIEGUE, y conviene saber
+---------------------------------------------------
+1. ROLES. En g500 las cinco cuentas eran DUENO. Se bajaron a ADMINISTRADOR
+   mario@adavailable.com y demo@adavailable.com; queda demo@asnetwork.io, que
+   hasta que no se baje podra encuadrar aunque esto se despliegue.
+   (Un ADMINISTRADOR no puede nombrarse DUENO: eso ya lo impedia
+   lib/guardas-usuarios.ts. Por eso el candado aguanta.)
+
+2. EL ENCUADRE YA TORCIDO sigue torcido. El candado impide que vuelva a
+   pasar; no deshace lo hecho. Pendiente: volver a marcar MAGNOCENTRO —su
+   recuadro abarca el marco, un anuncio rojo a la izquierda y banqueta, asi
+   que el LED es como el 60% de lo que el equipo mira— y apretar el de
+   PATRIOTISMO. Hay que hacerlo DE DIA, con la pantalla encendida, y cada
+   equipo vuelve a aprender su catalogo ese dia.
+
+3. AUTOPISTA no tiene arreglo por software: la pantalla le queda al 14% de la
+   foto y ya esta exprimiendo el zoom digital. O se acerca el telefono, o ese
+   sitio no reconoce creativos.
+
+4. DIRECCION PUBLICA DE SPACE EYE en g500. PUBLIC_BASE_URL de su pila apunta
+   al propio servidor (127.0.0.1:4200), asi que la pantalla «Agregar
+   dispositivo» dictaba una direccion que desde un sitio no existe. Con este
+   despliegue AVISA en vez de dictarla, pero el arreglo de verdad es poner esa
+   variable en la configuracion de la instancia.
+
+5. El rol OPERACIONES no tiene `inventario.crear`, asi que no puede ni abrir
+   la vista en vivo. Es defecto de la semilla de permisos y pide migracion:
+   no entra aqui.
+
+
+ROLLBACK
+--------
+SPACE OS : el de siempre (volver al commit anterior y reconstruir).
+Space Eye: `update-eyes.sh` ya vuelve atras solo si la migracion falla o si la
+           aplicacion no responde. Si hiciera falta a mano, la imagen anterior
+           queda etiquetada como `space-eye-local:anterior`.
+Respaldo aparte: ademas del que toma el actualizador —que vive en el MISMO
+           droplet—, el 19-oct se bajo a una maquina de la oficina un respaldo
+           completo (fotos + las dos bases + indice CSV), con
+           Space_eye_backups/g500-alta-equipos-2026-10-08/respaldar-g500-completo.sh
+===============================================================================
