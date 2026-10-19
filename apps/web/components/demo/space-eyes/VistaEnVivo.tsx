@@ -446,19 +446,29 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
     }
     toast.success('Encuadre fijado: se aplica también a las fotos programadas')
     if (!reabrir) return
-    await reabrirVisor()
+    // Forzado: el encuadre nuevo es el de TODOS, así que la transmisión se
+    // reabre también para quien esté mirando.
+    await reabrirVisor(true)
   }
 
-  // Se reabre sin apagar el visor, con un aviso encima: que no parezca caída.
-  const reabrirVisor = async () => {
+  /**
+   * Se reabre sin apagar el visor, con un aviso encima: que no parezca caída.
+   *
+   * `forzar` decide algo que se ve en la pantalla de OTRA persona. Forzado corta
+   * la transmisión para todos los que estén mirando, y eso solo es de recibo
+   * cuando el encuadre se está cambiando PARA todos (fijarlo). Quien solo quiere
+   * mirar de otra forma cierra sin forzar: si hay alguien más viendo, el
+   * servidor mantiene la transmisión y lo devuelve a ella —verá el encuadre de
+   * quien la abrió, y se le dice— en vez de arrancársela de las manos.
+   */
+  const reabrirVisor = async (forzar: boolean) => {
     setReencuadrando(true)
     try {
       turnoRef.current++
       limpiarTimers()
       const viejo = clienteRef.current
       clienteRef.current = null
-      // Forzado: el lente nuevo es otra cámara física, se reabre para todos.
-      await viejo?.detener(true)
+      await viejo?.detener(forzar)
       await new Promise((r) => setTimeout(r, RESPIRO_REABRIR_MS))
       await iniciar({ reabriendo: true })
     } finally {
@@ -467,15 +477,33 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
   }
 
   /**
-   * Mirar por el otro lente sin fijarlo. El lente es otra cámara física, así que
-   * no basta con pedírselo a la sesión abierta: hay que reabrirla, y la orden
-   * lleva el encuadre de esta vista (`encuadreDeAhora`), que no se guarda.
-   * Quien puede fijarlo no necesita esto: su botón es «Fijar encuadre».
+   * Mirar así de verdad, sin fijar nada. Dos casos lo piden, y los dos por el
+   * mismo motivo —la cámara se abre una vez y con un encuadre—:
+   *
+   *   · el LENTE, que es otra cámara física;
+   *   · el ACERCAMIENTO en los equipos que pasan por el servidor de medios (la
+   *     Raspberry fija el recorte al arrancar `rpicam-vid`), donde hasta que no
+   *     se reabre lo que se ve es la vista previa ampliada, no la imagen nítida.
+   *
+   * En los dos, la orden de abrir lleva el encuadre de esta vista
+   * (`encuadreDeAhora`), que no se guarda. Quien puede fijarlo no necesita
+   * esto: su botón es «Fijar encuadre», que además lo deja para todos.
    */
   const verAsi = async () => {
     if (reencuadrando) return
-    await reabrirVisor()
-    toast.info('Así se ve con este lente. No cambió el encuadre del sitio.')
+    await reabrirVisor(false)
+    if (clienteRef.current?.compartida) {
+      toast.info(
+        `${clienteRef.current.compartidaCon ?? 'Otra persona'} está viendo este equipo: la vista sigue con su encuadre. ` +
+          'La foto que pidas sí sale como la tienes puesta.',
+      )
+      return
+    }
+    toast.info(
+      cambioLente
+        ? 'Así se ve con este lente. No cambió el encuadre del sitio.'
+        : 'Ya se ve nítido a este acercamiento. No cambió el encuadre del sitio.',
+    )
   }
 
   // ─── Enfoque (teléfonos) ─────────────────────────────────────────────────
@@ -916,19 +944,27 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
                 </select>
               ) : null}
 
-              {/* Quien no fija el encuadre puede MIRAR por el otro lente: se
-                  reabre la vista con él y nada queda cambiado. Solo aparece
-                  cuando hace falta reabrir, que es lo que el lente obliga. */}
-              {!puedeEncuadrar && cambioLente && !esRelay ? (
+              {/* Quien no fija el encuadre puede MIRAR así: se reabre la vista
+                  y nada queda cambiado. Aparece cuando hace falta reabrir para
+                  verlo de verdad, que es la MISMA condición que usa «Fijar
+                  encuadre»: el lente —otra cámara física— y, en los equipos que
+                  pasan por el servidor de medios, el acercamiento, porque ahí el
+                  recorte se le da a la cámara al arrancar y hasta entonces lo
+                  que se ve es la vista previa ampliada. */}
+              {!puedeEncuadrar && (cambioLente || (esRelay && cambioRecorte)) ? (
                 <button
                   type="button"
                   onClick={verAsi}
                   disabled={reencuadrando}
                   className={cn(ctlBoton, 'bg-accent hover:bg-accent-hover disabled:opacity-40')}
-                  title="Abre la vista con este lente. No cambia el encuadre del sitio."
+                  title={
+                    cambioLente
+                      ? 'Abre la vista con este lente. No cambia el encuadre del sitio.'
+                      : 'Abre la vista a este acercamiento, ya nítida. No cambia el encuadre del sitio.'
+                  }
                 >
                   <Check className="h-3.5 w-3.5" />
-                  {reencuadrando ? 'Abriendo…' : 'Ver con este lente'}
+                  {reencuadrando ? 'Abriendo…' : cambioLente ? 'Ver con este lente' : 'Ver nítido'}
                 </button>
               ) : null}
               {puedeEncuadrar ? (
@@ -973,9 +1009,10 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
               {!puedeEncuadrar ? (
                 <>
                   Mueve el zoom, el lente, la luz y el enfoque a tu gusto y pide la foto:{' '}
-                  <strong>sale como la estás viendo</strong>. Nada de esto se guarda, así que el encuadre del sitio no
-                  cambia —fijarlo para todos lo hace solo el Dueño, porque borra lo que el equipo aprendió de su
-                  pantalla—.
+                  <strong>sale como la estás viendo</strong>.{' '}
+                  {esRelay ? 'Aquí el acercamiento es una vista previa: «Ver nítido» abre la imagen de verdad. ' : ''}
+                  Nada de esto se guarda, así que el encuadre del sitio no cambia —fijarlo para todos lo hace solo el
+                  Dueño, porque borra lo que el equipo aprendió de su pantalla—.
                 </>
               ) : esRelay ? (
                 <>
