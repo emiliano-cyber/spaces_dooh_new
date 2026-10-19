@@ -162,3 +162,43 @@ describe('sincronizarCampanasEyes', () => {
     expect(r?.arteSubido).toBe(0)
   })
 })
+
+// ============================================================================
+//  El arte se busca ANTES en el HTML que en `archivo_url` (19/10/2026).
+// ----------------------------------------------------------------------------
+//  Hay tres formas de guardar lo mismo, por historia:
+//    A. `archivo_url` con la imagen incrustada (`data:image/...`);
+//    B. la imagen dentro del HTML de `codigo`, con `archivo_url` en nulo;
+//    C. la imagen dentro del HTML Y `archivo_url` con una RUTA
+//       (`/spaces-dooh/api/creativos/<id>/arte`), que es como quedan los
+//       archivos grandes.
+//
+//  Con `archivo_url` primero, el caso C se perdía entero: el coalesce se
+//  quedaba con la ruta, veía que no empieza por `data:image/` y descartaba la
+//  campaña sin llegar a mirar el HTML. Medido en G500: «Lanzamiento SpaceOs»
+//  (PNG de 605 KB) nunca llegó a los equipos, y «Aceptamos g500» se apagó sola
+//  el día que su arte se volvió a guardar así — y nadie lo relacionó, porque no
+//  hay error: la campaña simplemente no sale en la lista.
+//
+//  El orden solo se puede comprobar sobre el TEXTO de la consulta: el filtro
+//  vive en SQL y aquí la base está simulada. Es poco, pero es lo que impide que
+//  alguien lo vuelva a invertir «porque archivo_url suena a lo primero».
+// ============================================================================
+describe('de dónde sale el arte', () => {
+  it('la consulta mira el HTML de `codigo` ANTES que `archivo_url`', async () => {
+    await sincronizarCampanasEyes({ forzar: true, tenant: 'empresa-1' })
+    for (const c of consultas) {
+      for (const linea of c.texto.split('\n')) {
+        if (!linea.includes('coalesce') || !linea.includes('archivo_url')) continue
+        expect(linea.indexOf('substring('), linea.trim()).toBeLessThan(linea.indexOf('archivo_url'))
+      }
+    }
+  })
+
+  it('una campaña del caso C (ruta en archivo_url) sube su arte igual', async () => {
+    // Lo que devolvería la consulta ya corregida: la imagen del HTML, no la ruta.
+    arte = 'data:image/png;base64,' + Buffer.from('PNG-GRANDE').toString('base64')
+    const r = await sincronizarCampanasEyes({ forzar: true, tenant: 'empresa-1' })
+    expect(r?.arteSubido).toBe(1)
+  })
+})

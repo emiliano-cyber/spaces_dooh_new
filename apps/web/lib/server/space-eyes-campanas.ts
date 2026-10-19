@@ -74,7 +74,7 @@ export async function campanasParaEyes(tenant: string): Promise<CampanaParaEyes[
             to_char(min(r.fecha_inicio), 'YYYY-MM-DD') as desde,
             to_char(max(r.fecha_fin), 'YYYY-MM-DD') as hasta,
             array_agg(distinct lower(trim(s.codigo_proveedor))) as codigos,
-            encode(sha256(convert_to(coalesce(cr.archivo_url, substring(cr.codigo from '<img[^>]+src="(data:image/[^"]+)"')), 'UTF8')), 'hex') as sha
+            encode(sha256(convert_to(coalesce(substring(cr.codigo from '<img[^>]+src="(data:image/[^"]+)"'), cr.archivo_url), 'UTF8')), 'hex') as sha
        from reservas r
        join campanas c on c.id = r.campana_id
        join sitios s on s.id = r.sitio_id
@@ -97,7 +97,20 @@ export async function campanasParaEyes(tenant: string): Promise<CampanaParaEyes[
         -- fuera TODO lo que se sube desde la interfaz, que es por lo que ninguna
         -- campana de SPACE OS habia llegado nunca a un equipo. El patron es el
         -- mismo que usa es_imagen en campanas-repo.
-        and coalesce(cr.archivo_url, substring(cr.codigo from '<img[^>]+src="(data:image/[^"]+)"')) like 'data:image/%'
+        --
+        -- EL ORDEN IMPORTA, y mirar primero el HTML no es un capricho: hay una
+        -- TERCERA forma de guardarlo que aparece con los archivos grandes -el
+        -- HTML lleva la imagen Y archivo_url lleva una RUTA
+        -- (/spaces-dooh/api/creativos/<id>/arte)-. Con archivo_url primero, el
+        -- coalesce se quedaba con la ruta, veia que no empieza por data:image/
+        -- y descartaba la campana sin llegar a mirar el HTML. Medido en G500 el
+        -- 14-oct: «Lanzamiento SpaceOs» (un PNG de 605 KB) nunca llego a los
+        -- equipos, y «Aceptamos g500» se apago sola el dia que su arte se
+        -- volvio a guardar asi. Con el HTML primero valen los tres casos, y
+        -- archivo_url sigue sirviendo para lo que de verdad lleva incrustado.
+        -- La ruta /api/creativos/<id>/arte resuelve en este mismo orden y por
+        -- esta misma razon.
+        and coalesce(substring(cr.codigo from '<img[^>]+src="(data:image/[^"]+)"'), cr.archivo_url) like 'data:image/%'
         and coalesce(trim(s.codigo_proveedor), '') <> ''
       group by c.id, cr.id, c.nombre, cr.nombre, c.marca, cr.archivo_url, cr.codigo
       order by c.id, cr.id`,
@@ -121,7 +134,7 @@ export async function campanasParaEyes(tenant: string): Promise<CampanaParaEyes[
 async function arteDe(tenant: string, creatividadId: string): Promise<{ bytes: Buffer; tipo: string } | null> {
   const f = await qConTenant<{ arte: string | null }>(
     tenant,
-    `select coalesce(archivo_url, substring(codigo from '<img[^>]+src="(data:image/[^"]+)"')) as arte
+    `select coalesce(substring(codigo from '<img[^>]+src="(data:image/[^"]+)"'), archivo_url) as arte
        from creatividades where id = $1 and tenant_id = $2`,
     [creatividadId, tenant],
   )
