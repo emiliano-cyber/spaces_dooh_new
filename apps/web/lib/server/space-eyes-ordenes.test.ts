@@ -263,3 +263,26 @@ describe('5 · el control del visor es de quien opera', () => {
     expect(JSON.parse(textoReenviado())).toEqual(cuerpo)
   })
 })
+
+// ============================================================================
+//  6 · Abrir la vista con otro lente tampoco es fijar el encuadre.
+// ----------------------------------------------------------------------------
+//  El lente es otra cámara física: no basta con pedírselo a la sesión abierta,
+//  hay que reabrirla. Por eso la orden de abrir la vista lleva el mismo
+//  `encuadre_temporal` que la foto. Si esta ruta se cerrara «porque toca el
+//  encuadre», mirar por el gran angular volvería a exigir fijarlo —que es
+//  exactamente lo que torció tres pantallas de G500—.
+// ============================================================================
+describe('6 · abrir la vista con otro lente', () => {
+  it('START_STREAM con encuadre_temporal pasa para quien opera, intacto', async () => {
+    exigir.mockResolvedValueOnce({ ok: true, usuario: { ...usuario, rol: 'OPERACIONES' } })
+    const cuerpo = {
+      command_type: 'START_STREAM',
+      payload: { session_id: '1', visor: 'v-1', encuadre_temporal: { zoom: 0, lens: 'wide' } },
+    }
+    const r = await POST(orden('7', cuerpo), ctx('7'))
+    expect(r.status).toBe(200)
+    expect(JSON.parse(textoReenviado())).toEqual(cuerpo)
+    expect(registrarAccion).not.toHaveBeenCalled()
+  })
+})
