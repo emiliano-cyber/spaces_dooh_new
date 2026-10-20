@@ -6,6 +6,7 @@ import { AlertTriangle } from 'lucide-react'
 import { Modal } from '@/components/demo/ui/Modal'
 import { Button } from '@/components/demo/ui/Button'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
+import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { reservarApi } from '@/lib/data/estado-api'
 import { formatNumero } from '@/lib/formato-numero'
 import {
@@ -140,8 +141,12 @@ export function ReservaDialog({
   for (const s of sitios) if (esDigital(s)) spotsPorSitio[s.id] = reservedOf(s)
   const totalSpotsReservados = Object.values(spotsPorSitio).reduce((a, b) => a + b, 0)
 
+  // OBLIG-01 · el cliente lo exigía ya esta pantalla (el botón no se podía
+  // pulsar sin él); las fechas, el servidor (`reservas-controller.ts:15-16`).
+  const ob = useObligatorios({ cliente, inicio, fin }, ['cliente', 'inicio', 'fin'])
+
   async function submit() {
-    if (!cliente.trim() || sitios.length === 0) return
+    if (!ob.validar() || sitios.length === 0) return
     setEnviando(true)
     const camp = await reservarApi({
       clienteNombre: cliente.trim(),
@@ -158,6 +163,7 @@ export function ReservaDialog({
     setNombre('')
     setTipo('AUTO')
     setSpots({})
+    ob.reiniciar()
     onOpenChange(false)
   }
 
@@ -189,7 +195,7 @@ export function ReservaDialog({
             <Button variant="secondary" size="sm" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button size="sm" onClick={submit} disabled={enviando || !cliente.trim()}>
+            <Button size="sm" onClick={submit} disabled={enviando}>
               {enviando ? 'Reservando…' : 'Reservar (tentativa)'}
             </Button>
           </div>
@@ -197,7 +203,7 @@ export function ReservaDialog({
       }
     >
       <div className="space-y-3">
-        <Campo label="Cliente">
+        <Campo label="Cliente" obligatorio falta={ob.falta('cliente')}>
           <input
             className={inputCls}
             value={cliente}
@@ -206,7 +212,7 @@ export function ReservaDialog({
             autoFocus
           />
         </Campo>
-        <Campo label="Nombre de campaña (opcional)">
+        <Campo label="Nombre de campaña">
           <input
             className={inputCls}
             value={nombre}
@@ -215,10 +221,10 @@ export function ReservaDialog({
           />
         </Campo>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Campo label="Inicio">
+          <Campo label="Inicio" obligatorio falta={ob.falta('inicio')}>
             <input type="date" className={inputCls} value={inicio} onChange={(e) => setInicio(e.target.value)} />
           </Campo>
-          <Campo label="Fin">
+          <Campo label="Fin" obligatorio falta={ob.falta('fin')}>
             <input type="date" className={inputCls} value={fin} onChange={(e) => setFin(e.target.value)} />
           </Campo>
         </div>
@@ -327,14 +333,5 @@ export function ReservaDialog({
         </div>
       </div>
     </Modal>
-  )
-}
-
-function Campo({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-[12px] font-medium text-ink">{label}</span>
-      {children}
-    </label>
   )
 }

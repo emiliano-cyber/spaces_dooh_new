@@ -8,6 +8,7 @@ import { useReadiness, useCampana } from '@/lib/data/client'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { crearOrdenCompraApi } from '@/lib/data/estado-api'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
+import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { CRUDO_INVALIDO } from '@/lib/captura-cifra'
 
 const hoyISO = () => new Date().toISOString().slice(0, 10)
@@ -44,11 +45,16 @@ export function CandadoPanel({ campanaId }: { campanaId: string }) {
   const inp =
     'h-8 w-full rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
 
+  // OBLIG-01 · el número de OC lo exige esta pantalla (el servidor lo acepta
+  // vacío, `ordenes-compra-controller.ts:42`, pero una OC sin número no se
+  // puede cotejar con la del cliente). Monto y fecha son opcionales.
+  const ob = useObligatorios({ numeroOc }, ['numeroOc'])
+
   async function registrarOC() {
     // Un monto que no se entiende llega como 'NaN' (CampoCifra). `Number` lo
     // dejaría en NaN, que JSON manda como null: la OC se registraría SIN monto
     // sin que nadie lo pidiera. Se para aquí y en el botón.
-    if (!numeroOc.trim() || monto === CRUDO_INVALIDO) return
+    if (!ob.validar() || monto === CRUDO_INVALIDO) return
     setEnviando(true)
     try {
       await crearOrdenCompraApi({
@@ -99,25 +105,25 @@ export function CandadoPanel({ campanaId }: { campanaId: string }) {
       {!r.ocRecibida && puedeOC && (
         <div className="mt-3 space-y-2 rounded border border-border bg-surface p-3">
           <p className="text-[12px] font-medium text-ink">Registrar OC del cliente</p>
-          <input
-            className={inp}
-            placeholder="Número de OC del cliente *"
-            value={numeroOc}
-            onChange={(e) => setNumeroOc(e.target.value)}
-          />
+          <Campo label="Número de OC del cliente" obligatorio falta={ob.falta('numeroOc')}>
+            <input className={inp} value={numeroOc} onChange={(e) => setNumeroOc(e.target.value)} />
+          </Campo>
           <div className="grid grid-cols-2 gap-2">
-            <CampoCifra
-              className={inp}
-              placeholder="Monto (opcional)"
-              valor={monto}
-              mostrarError={false}
-              onCambio={(crudo) => setMonto(crudo)}
-            />
-            <input className={inp} type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+            <Campo label="Monto">
+              <CampoCifra
+                className={inp}
+                valor={monto}
+                mostrarError={false}
+                onCambio={(crudo) => setMonto(crudo)}
+              />
+            </Campo>
+            <Campo label="Fecha">
+              <input className={inp} type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+            </Campo>
           </div>
           <button
             type="button"
-            disabled={enviando || !numeroOc.trim() || monto === CRUDO_INVALIDO}
+            disabled={enviando || monto === CRUDO_INVALIDO}
             onClick={registrarOC}
             className="w-full rounded border border-border-strong px-3 py-2 text-[12px] font-medium text-ink transition-colors duration-150 hover:bg-surface-2 disabled:opacity-50"
           >

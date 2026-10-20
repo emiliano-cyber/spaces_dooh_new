@@ -6,6 +6,7 @@ import { Images, Upload, Check, X, Clock, Code2, Eye, Download, RefreshCw, Trash
 import { Card } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
+import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { ConfirmDialog } from '@/components/demo/ui/ConfirmDialog'
 import { EmptyState } from '@/components/demo/EmptyState'
 import { usePuede } from '@/components/demo/shell/SesionContext'
@@ -244,6 +245,9 @@ function CampanaCard({
   const [codeOpen, setCodeOpen] = useState(false)
   const [codeNombre, setCodeNombre] = useState('')
   const [codigo, setCodigo] = useState('')
+  // OBLIG-01 · en el alta por código, el código es lo único obligatorio; el
+  // nombre cae a «Creativo (código)» (el servidor sí lo exige, y lo recibe así).
+  const ob = useObligatorios({ codigo }, ['codigo'])
   // Creativo cuyo HTML se está viendo en el modal (null = cerrado).
   const [verFuente, setVerFuente] = useState<Creatividad | null>(null)
   // La fuente se PIDE al abrir el modal. Antes venía dentro del payload de
@@ -308,7 +312,7 @@ function CampanaCard({
   }
 
   async function guardarCodigo() {
-    if (!codigo.trim()) return
+    if (!ob.validar()) return
     setSubiendo(true)
     try {
       await crearCreatividadApi({
@@ -320,6 +324,7 @@ function CampanaCard({
       setCodigo('')
       setCodeNombre('')
       setCodeOpen(false)
+      ob.reiniciar()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'No se pudo guardar')
     }
@@ -446,22 +451,34 @@ function CampanaCard({
       {/* Alta por código (HTML/UTF) */}
       {puede && codeOpen && (
         <div className="space-y-2 rounded-md border border-border bg-surface-2 p-2.5">
-          <input
-            value={codeNombre}
-            onChange={(e) => setCodeNombre(e.target.value)}
-            placeholder="Nombre del creativo (opcional)"
-            className="h-8 w-full rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
-          />
-          <textarea
-            value={codigo}
-            onChange={(e) => setCodigo(e.target.value)}
-            placeholder="Pega aquí el código del creativo (HTML/UTF)…"
-            rows={5}
-            className="w-full rounded border border-border-strong bg-surface px-2 py-1.5 font-mono text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
-          />
+          <Campo label="Nombre del creativo">
+            <input
+              value={codeNombre}
+              onChange={(e) => setCodeNombre(e.target.value)}
+              className="h-8 w-full rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            />
+          </Campo>
+          <Campo label="Código" obligatorio falta={ob.falta('codigo')}>
+            <textarea
+              value={codigo}
+              onChange={(e) => setCodigo(e.target.value)}
+              placeholder="Pega aquí el código del creativo (HTML/UTF)…"
+              rows={5}
+              className="w-full rounded border border-border-strong bg-surface px-2 py-1.5 font-mono text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            />
+          </Campo>
           <div className="flex justify-end gap-2">
-            <Button size="sm" variant="secondary" onClick={() => setCodeOpen(false)}>Cancelar</Button>
-            <Button size="sm" disabled={!codigo.trim() || subiendo} onClick={guardarCodigo}>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                setCodeOpen(false)
+                ob.reiniciar()
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button size="sm" disabled={subiendo} onClick={guardarCodigo}>
               {subiendo ? 'Guardando…' : 'Guardar código'}
             </Button>
           </div>

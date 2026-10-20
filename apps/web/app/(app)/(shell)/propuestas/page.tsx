@@ -29,6 +29,7 @@ import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
 import { ElegirClienteDialog } from '@/components/demo/propuestas/ElegirClienteDialog'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
+import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { CRUDO_INVALIDO } from '@/lib/captura-cifra'
 import { MapView } from '@/components/demo/MapView'
 import { pinTono } from '@/components/demo/StatusBadge'
@@ -799,8 +800,15 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
   })()
   const errFormulario = errComision ?? errDuracion ?? errFechas ?? errCalculadora ?? errCifras
 
-  const valido =
-    !!nombre.trim() && !!fechaInicio && !!fechaFin && sel.size > 0 && !negociacionPendiente && !errFormulario
+  // OBLIG-01 · los obligatorios son los del servidor (`crearSchema`,
+  // propuestas-controller.ts:143-157): nombre, las dos fechas y al menos un
+  // sitio. NO deshabilitan el botón: se pulsa, se pinta en rojo el que falta y
+  // no se manda nada. Lo que sigue bloqueando es lo que no es «falta un dato».
+  const ob = useObligatorios(
+    { nombre, fechaInicio, fechaFin, sitios: [...sel] },
+    ['nombre', 'fechaInicio', 'fechaFin', 'sitios'],
+  )
+  const valido = !negociacionPendiente && !errFormulario
 
   function toggle(id: string) {
     setSel((prev) => {
@@ -811,7 +819,7 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
   }
 
   async function guardar() {
-    if (!valido) return
+    if (!ob.validar() || !valido) return
     setGuardando(true)
     setError(null)
     try {
@@ -907,7 +915,7 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
       }
     >
       <div className="space-y-3">
-        <Campo label="Nombre de la propuesta">
+        <Campo label="Nombre de la propuesta" obligatorio falta={ob.falta('nombre')}>
           <input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus />
         </Campo>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -959,7 +967,7 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
         )}
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Campo label="Desde"><input type="date" className={inputCls} value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} /></Campo>
+          <Campo label="Desde" obligatorio falta={ob.falta('fechaInicio')}><input type="date" className={inputCls} value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} /></Campo>
           <Campo label="Duración de la campaña">
             <div className="flex gap-2">
               <input
@@ -983,17 +991,18 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
           </Campo>
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Campo label="Hasta (se calcula de la duración)">
+          <Campo label="Hasta (se calcula de la duración)" obligatorio falta={ob.falta('fechaFin')}>
             <input type="date" className={inputCls} value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} />
           </Campo>
           <Campo label="Comisión de la agencia (%)"><input className={inputCls} value={comision} onChange={(e) => setComision(e.target.value)} /></Campo>
         </div>
 
-        {/* Selección de sitios: dos vistas alternables (lista / mapa) */}
-        <div>
-          <div className="mb-1 flex items-center justify-between gap-2">
-            <span className="text-[12px] font-medium text-ink">Sitios ({sel.size})</span>
-            {/* Switch de vista */}
+        {/* Selección de sitios: dos vistas alternables (lista / mapa). `div` y no
+            `label`: dentro hay botones, y un <label> que los envuelve dispara el
+            primero al pulsar el texto. */}
+        <Campo como="div" className="relative" label={`Sitios (${sel.size})`} obligatorio falta={ob.falta('sitios')}>
+          {/* Switch de vista, a la altura de la etiqueta como antes */}
+          <div className="absolute -top-1 right-0">
             <div className="inline-flex overflow-hidden rounded-md border border-border-strong text-[11px]">
               <button
                 type="button"
@@ -1074,7 +1083,7 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
               </p>
             </>
           )}
-        </div>
+        </Campo>
 
         {/* Configuración por tiempo de cada sitio seleccionado */}
         {seleccionados.length > 0 && (
@@ -1574,15 +1583,6 @@ function Dato({ label, valor }: { label: string; valor: string }) {
       <div className="text-[11px] text-muted">{label}</div>
       <div className="demo-num text-[13px] text-ink">{valor}</div>
     </div>
-  )
-}
-
-function Campo({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-[12px] font-medium text-ink">{label}</span>
-      {children}
-    </label>
   )
 }
 

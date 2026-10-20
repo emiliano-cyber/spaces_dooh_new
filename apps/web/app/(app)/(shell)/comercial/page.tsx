@@ -9,6 +9,7 @@ import { MapView, type MapPoint } from '@/components/demo/MapView'
 import { Card } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
+import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { SiteFicha } from '@/components/demo/comercial/SiteFicha'
 import { ReservaDialog } from '@/components/demo/comercial/ReservaDialog'
 import { AltaSitioDialog } from '@/components/demo/comercial/AltaSitioDialog'
@@ -558,24 +559,32 @@ function ExtenderDialog({
   onDone: (nombre: string) => void
 }) {
   const [fin, setFin] = useState(isoDate(60))
+  // OBLIG-01 · la nueva fecha de fin es todo lo que pide el diálogo. Vacía,
+  // `new Date('')` reventaba al pasarla a ISO sin decir por qué.
+  const ob = useObligatorios({ fin }, ['fin'])
   if (!campana) return null
+  function cerrar() {
+    ob.reiniciar()
+    onClose()
+  }
   return (
     <Modal
       open={!!campana}
-      onOpenChange={(v) => !v && onClose()}
+      onOpenChange={(v) => !v && cerrar()}
       title="Extender campaña"
       subtitle={campana.nombre}
       footer={
         <div className="flex justify-end gap-2">
-          <Button variant="secondary" size="sm" onClick={onClose}>
+          <Button variant="secondary" size="sm" onClick={cerrar}>
             Cancelar
           </Button>
           <Button
             size="sm"
             onClick={async () => {
+              if (!ob.validar()) return
               await extenderCampanaApi(campana.id, new Date(fin).toISOString())
               onDone(campana.nombre)
-              onClose()
+              cerrar()
             }}
           >
             <CalendarClock className="h-3.5 w-3.5" /> Extender
@@ -583,17 +592,22 @@ function ExtenderDialog({
         </div>
       }
     >
-      <label className="block">
-        <span className="mb-1 flex items-center gap-1.5 text-[12px] font-medium text-ink">
-          <MapPin className="h-3.5 w-3.5 text-muted" /> Nueva fecha de fin
-        </span>
+      <Campo
+        label={
+          <span className="inline-flex items-center gap-1.5">
+            <MapPin className="h-3.5 w-3.5 text-muted" /> Nueva fecha de fin
+          </span>
+        }
+        obligatorio
+        falta={ob.falta('fin')}
+      >
         <input
           type="date"
           value={fin}
           onChange={(e) => setFin(e.target.value)}
           className="h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
         />
-      </label>
+      </Campo>
     </Modal>
   )
 }

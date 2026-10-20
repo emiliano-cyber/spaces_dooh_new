@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Modal } from '@/components/demo/ui/Modal'
 import { Button } from '@/components/demo/ui/Button'
+import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import type { Cliente } from '@/lib/data/types'
 
 // Una propuesta se puede aprobar sin cliente, pero sin él no se genera la
@@ -23,15 +24,23 @@ export function ElegirClienteDialog({
 }) {
   const [clienteId, setClienteId] = useState('')
   const [enviando, setEnviando] = useState(false)
+  // OBLIG-01 · el cliente es lo único que pide el diálogo: sin él no hay a quién
+  // facturar. El botón ya no se apaga por eso; se pulsa y el selector sale en rojo.
+  const ob = useObligatorios({ clienteId }, ['clienteId'])
+  const { reiniciar } = ob
   useEffect(() => {
-    if (open) setClienteId('')
+    if (open) {
+      setClienteId('')
+      reiniciar()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
   // Mismo filtro que el selector al crear la propuesta: las agencias van aparte.
   const anunciantes = (clientes ?? []).filter((c) => c.tipo !== 'AGENCIA')
 
   async function confirmar() {
-    if (!clienteId) return
+    if (!ob.validar()) return
     setEnviando(true)
     try {
       await onElegir(clienteId)
@@ -49,7 +58,7 @@ export function ElegirClienteDialog({
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="secondary" size="sm" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button size="sm" disabled={!clienteId || enviando} onClick={() => void confirmar()}>
+          <Button size="sm" disabled={enviando || anunciantes.length === 0} onClick={() => void confirmar()}>
             {enviando ? 'Generando…' : 'Poner cliente y generar campaña'}
           </Button>
         </div>
@@ -60,10 +69,9 @@ export function ElegirClienteDialog({
           No hay clientes. Créalo primero en Clientes y vuelve a esta propuesta.
         </p>
       ) : (
-        <label className="block text-[12px] font-medium text-muted">
-          Cliente
+        <Campo label="Cliente" obligatorio falta={ob.falta('clienteId')}>
           <select
-            className="mt-1 h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            className="h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
             value={clienteId}
             onChange={(e) => setClienteId(e.target.value)}
             autoFocus
@@ -75,7 +83,7 @@ export function ElegirClienteDialog({
               </option>
             ))}
           </select>
-        </label>
+        </Campo>
       )}
     </Modal>
   )
