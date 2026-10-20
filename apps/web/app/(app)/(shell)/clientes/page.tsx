@@ -17,6 +17,7 @@ import {
 import { desbloquearApi, esErrorDeDesbloqueo } from '@/lib/data/cambios-api'
 import { esEmailValido, esTelefonoValido, esCpValido, EMAIL_INVALIDO, TELEFONO_INVALIDO, CP_INVALIDO } from '@/lib/validacion'
 import { esRfcValido } from '@/lib/rfc'
+import { FichaCliente } from '@/components/demo/clientes/FichaCliente'
 
 const inputCls =
   'h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
@@ -41,6 +42,8 @@ export default function ClientesPage() {
   const [editar, setEditar] = useState<Cliente | null>(null)
   const [borrar, setBorrar] = useState<Cliente | null>(null)
   const [nuevoOpen, setNuevoOpen] = useState(false)
+  // Ficha con el pipeline y las campañas del cliente (20/10).
+  const [ver, setVer] = useState<Cliente | null>(null)
 
   return (
     <div className="w-full space-y-4">
@@ -84,7 +87,16 @@ export default function ClientesPage() {
               <tbody>
                 {clientes.map((c) => (
                   <tr key={c.id} className="border-b border-border last:border-0">
-                    <td className="px-4 py-2.5 text-ink">{c.nombre}</td>
+                    <td className="px-4 py-2.5">
+                      <button
+                        type="button"
+                        onClick={() => setVer(c)}
+                        title="Ver pipeline y campañas"
+                        className="text-left text-ink hover:text-accent hover:underline"
+                      >
+                        {c.nombre}
+                      </button>
+                    </td>
                     <td className="demo-num px-4 py-2.5 text-muted">{c.rfc || '—'}</td>
                     <td className="px-4 py-2.5 text-muted">{c.razonSocial || '—'}</td>
                     <td className="px-4 py-2.5 text-muted">{c.tipo === 'AGENCIA' ? 'Agencia' : 'Directo'}</td>
@@ -129,6 +141,7 @@ export default function ClientesPage() {
       {nuevoOpen && <ClienteDialog onClose={() => setNuevoOpen(false)} />}
       {editar && <ClienteDialog cliente={editar} onClose={() => setEditar(null)} />}
       {borrar && <BorrarClienteDialog cliente={borrar} onClose={() => setBorrar(null)} />}
+      {ver && <FichaCliente cliente={ver} onClose={() => setVer(null)} />}
     </div>
   )
 }
