@@ -22,7 +22,7 @@ La entrada más reciente va arriba.
   «Aceptamos g500» se había apagado sola; ninguna daba error.
 - **Space Eyes: «Agregar dispositivo» avisa** cuando la dirección del servidor
   no sirve, en vez de mostrar una que el equipo no puede alcanzar.
-- *(Trabajo de José. Va en la versión 0.11.10; para que el candado quede
+- *(Trabajo de José. Va en la versión 0.12.0; para que el candado quede
   completo, en g500 hay que actualizar también el servidor de Space Eye.)*
 - **Cada pago de un cliente puede llevar su comprobante.** En Finanzas →
   Cobranza, al **Registrar pago** hay un campo nuevo, **«Comprobante de
@@ -32,7 +32,7 @@ La entrada más reciente va arriba.
   quién los registró, donde se abre cada comprobante o se sube el que llegó
   después. Subirlo después no cambia el importe ni la fecha del pago. Es lo
   mismo que ya tenían los pagos de renta a los arrendadores. *(Aprobado por el dueño el 19/10; sale en la
-  próxima versión.)*
+  versión 0.12.0.)*
 ## 2026-10-20
 
 - **En Clientes ya se ven las campañas y el pipeline de cada cliente.** Al
@@ -57,8 +57,8 @@ La entrada más reciente va arriba.
   sin decir por qué, o el error llegaba después sin decir de qué campo.
 - **Reportar una incidencia ahora pide la descripción.** Antes, si se dejaba
   vacía, se guardaba con un texto genérico.
-- *(Los formularios de Space Eyes se pasan a esta regla en cuanto aterrice su
-  versión 0.11.10.)*
+- *(Los formularios de Space Eyes se pasan a esta regla en una versión
+  posterior a la 0.12.0, la primera que los trae a `main`.)*
 - **Todas las pantallas se pueden plegar por secciones, como Arrendadores.**
   En Dashboard, Inventario, Comercial, Clientes, Propuestas, Campañas,
   Creativos, Operaciones, Finanzas, Reportes, Administración y el resto, cada

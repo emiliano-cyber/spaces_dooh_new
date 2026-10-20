@@ -1,8 +1,24 @@
 [
   {
-    "version": "v0.11.10",
-    "fecha": "2026-10-19",
+    "version": "v0.12.0",
+    "fecha": "2026-10-20",
     "items": [
+      {
+        "tipo": "NUEVO",
+        "texto": "Cobranza: al registrar un pago de cliente puedes adjuntar su comprobante (recibo o transferencia, PDF o imagen de hasta 5 MB). En cada cobranza con algo pagado, «Pagos y comprobantes» muestra los pagos recibidos con su fecha y quién los registró; ahí abres cada comprobante o subes el que llegó después, sin cambiar el importe ni la fecha del pago."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Clientes: al pulsar el nombre de un cliente se abre su ficha con su pipeline (borrador, enviada, aprobada, campaña en curso y terminada, con montos) y sus campañas; al pulsar una campaña vas directo a ella."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "En todos los formularios de alta y edición, los campos obligatorios llevan asterisco y los opcionales solo su nombre. Si guardas con un obligatorio vacío, ese campo se pone en rojo con «Falta este dato» y no se guarda nada; al escribirlo, el rojo se quita. Reportar una incidencia ahora pide la descripción."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "Todas las pantallas se pliegan por secciones, como Arrendadores: un clic en el encabezado de cada bloque lo pliega o despliega, y sus cifras siguen a la vista. La aplicación recuerda en tu navegador lo que dejaste plegado."
+      },
       {
         "tipo": "AJUSTADO",
         "texto": "Space Eyes: solo el Dueño puede fijar el encuadre de un equipo (lente, zoom, orientación y las esquinas de la pantalla). Cambiarlo borra lo que el equipo aprendió y lo deja un día sin reconocer los creativos. Los demás siguen moviendo el zoom, la luz y el enfoque en la vista en vivo, y la foto que piden sale como la ven, sin cambiar el encuadre del sitio. En Actividad queda quién fijó el encuadre de qué equipo."

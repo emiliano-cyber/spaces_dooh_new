@@ -2,7 +2,8 @@
  NOTA DE INTEGRACION (Emiliano, 2026-10-19) — leer antes que el resto
 -------------------------------------------------------------------------------
  Esta nota estaba en la raiz del repo como DESPLIEGUE_20261019_SPACE_EYES.txt;
- se movio aqui al integrarla en la rama `integra/v0-11-10`. Dos precisiones:
+ se movio aqui al integrarla en la rama `integra/v0-11-10` (que sale como
+ v0.12.0 junto con otras cuatro ramas, en `integra/v0-12-0`). Dos precisiones:
 
  1. «Desplegar solo A deja el candado A MEDIAS» es cierto, pero por otra
     razon que la escrita abajo. El candado real es el de SPACE OS (PASO A):
@@ -18,7 +19,7 @@
     ADMINISTRADOR. Es el punto 4 de «lo que NO arregla».
 
  El PASO A ya no es «desde la rama»: g500 instala solo lo que esta en
- `estable`. Va como v0.11.10: PR a main -> release.yml -> DEMO -> promover ->
+ `estable`. Va como v0.12.0: PR a main -> release.yml -> DEMO -> promover ->
  aprobar en g500.
 ===============================================================================
 

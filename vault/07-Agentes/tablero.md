@@ -1,11 +1,19 @@
 ---
 tipo: tablero
 estado: verificado
-actualizado: 2026-10-19
+actualizado: 2026-10-20
 actualizado: 2026-10-20
 tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
+
+> [!important] 2026-10-20 · **`v0.12.0` preparada en `integra/v0-12-0`, SIN empujar** · ROJO (R3 migración, R4 dinero, R1 encuadre)
+> `main` (`7816e8e2`) + cinco ramas: `integra/v0-11-10` (Space Eyes de José), `feat/comprobante-cobranza`
+> (migración `20261019_cobranza_abono_comprobante.sql`, forma aprobada por el dueño el 19/10),
+> `feat/clientes-campanas-pipeline`, `feat/campos-obligatorios` y `feat/secciones-colapsables`. Las notas de
+> la `v0.11.10`, que nunca se publicó, pasan a la `v0.12.0`. **Lo empuja, etiqueta, publica y promueve una
+> persona**, y en g500 después de aprobarla se corre `update-eyes.sh` (guía 25). Las zonas de las cinco ramas
+> se liberan cuando aterrice en `main`.
 
 > [!important] 2026-10-19 · **`v0.11.10` en integración: la rama de Space Eyes de José** · ROJO R1 (permisos del encuadre)
 > `integra/v0-11-10` = `main` (`7816e8e2`) + `fix/space-eyes-fotos-rapidas` (`2d9f9c7e`), sin conflictos

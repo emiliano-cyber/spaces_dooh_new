@@ -1,7 +1,7 @@
 ---
 tipo: moc
 estado: verificado
-actualizado: 2026-10-19
+actualizado: 2026-10-20
 tags: [indice, entrada]
 archivos:
   - package.json
