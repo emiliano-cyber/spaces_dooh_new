@@ -27,7 +27,8 @@ import {
   FileDown,
   Check as CheckIcon,
 } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
+import { Card } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { Breadcrumbs, type Crumb } from '@/components/demo/ui/Breadcrumbs'
 import { MapView, type MapPoint } from '@/components/demo/MapView'
@@ -384,10 +385,10 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
         </div>
       </Card>
 
-      {/* Resumen económico (KPIs) */}
-      <Card>
-        <CardHeader><CardTitle>Resumen económico</CardTitle></CardHeader>
-        <CardContent>
+      {/* Resumen económico (KPIs). PLEG-02 · el descuento tecleado vive en
+          esta página y sobrevive a plegar; lo que se esté escribiendo en el
+          bloque del código de negociación, no (es estado de ese componente). */}
+      <CardColapsable id="propuesta.resumen-economico" titulo="Resumen económico">
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <Kpi icon={<Wallet className="h-4 w-4" />} tono="info" label="Total c/IVA" value={formatMonto(p.total)} />
             <Kpi icon={<Coins className="h-4 w-4" />} tono="success" label="Neto propuesto" value={formatMonto(p.neto)} />
@@ -592,18 +593,18 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
               puedeEditar={puedeEditar}
             />
           </div>
-        </CardContent>
-      </Card>
+      </CardColapsable>
 
       {/* Sitios y renta (publishers) */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Sitios y renta</CardTitle>
+      <CardColapsable
+        id="propuesta.sitios"
+        titulo="Sitios y renta"
+        resumen={
           <span className="text-[12px] text-muted">
             Renta total ref. <b className="demo-num text-ink">{formatMonto(rentaTotal)}</b>
           </span>
-        </CardHeader>
-        <CardContent>
+        }
+      >
           {p.items.length === 0 ? (
             <p className="text-[13px] text-muted">Esta propuesta no tiene sitios.</p>
           ) : (
@@ -754,13 +755,11 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
               )}
             </div>
           )}
-        </CardContent>
-      </Card>
+      </CardColapsable>
 
-      {/* Mapa con la ubicación de las pantallas */}
-      <Card>
-        <CardHeader><CardTitle>Ubicación de las pantallas</CardTitle></CardHeader>
-        <CardContent>
+      {/* Mapa con la ubicación de las pantallas. PLEG-02 · plegado, el mapa se
+          desmonta: al volver a abrirlo se redibuja con el encuadre inicial. */}
+      <CardColapsable id="propuesta.mapa" titulo="Ubicación de las pantallas">
           <div className="h-[360px] w-full overflow-hidden rounded border border-border">
             {puntos.length ? (
               <MapView points={puntos} zoom={11} />
@@ -777,18 +776,18 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
               {sinCoords} de {conteo(p.items.length, 'pantalla')} no tienen coordenadas y no aparecen en el mapa.
             </p>
           )}
-        </CardContent>
-      </Card>
+      </CardColapsable>
 
       {/* Costo (método del divisor) */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Costo · método del divisor</CardTitle>
+      <CardColapsable
+        id="propuesta.costo"
+        titulo="Costo · método del divisor"
+        resumen={
           <span className="text-[12px] text-muted">
             Aprobado {p.itemsAprobados}/{conteo(p.items.length, 'sitio')}
           </span>
-        </CardHeader>
-        <CardContent>
+        }
+      >
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {/* Desglose */}
             <dl className="space-y-2 text-[13px]">
@@ -857,8 +856,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
               </dl>
             </div>
           </div>
-        </CardContent>
-      </Card>
+      </CardColapsable>
     </div>
   )
 }

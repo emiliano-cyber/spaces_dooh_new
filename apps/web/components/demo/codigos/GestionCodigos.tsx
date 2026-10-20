@@ -19,6 +19,7 @@ import {
 import { Button } from '@/components/demo/ui/Button'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
 import { useObligatorios } from '@/components/demo/ui/Campo'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { propuestasParaAsignar, vigentesParaSelector } from '@/lib/codigo-aprobacion'
 import { usePropuestas, useClientes } from '@/lib/data/client'
 import { refrescarEstado } from '@/lib/data/estado-api'
@@ -218,13 +219,20 @@ export function GestionCodigos() {
         de código dejan al cliente pagando el <b>51,2 %</b>, no el 40 %.
       </div>
 
-      <section>
-        <h2 className="mb-1 text-sm font-semibold">Códigos de esta empresa</h2>
-        <p className="mb-3 text-xs text-neutral-500">
-          Las promociones las pone cada empresa: estos códigos no se comparten con nadie más. Los
-          dos extremos de la vigencia son <b>inclusivos</b> — «hasta el 30» incluye el 30. Dejar el
-          tope de usos vacío significa <b>sin tope</b>; entonces el único freno es la fecha.
-        </p>
+      {/* PLEG-02 · la lista se pliega; el aviso de arriba y el alta de abajo
+          no. Lo que se esté asignando en una fila vive en el estado de este
+          componente, no en la tarjeta: plegar no lo borra. */}
+      <CardColapsable
+        id="codigos-promocionales.lista"
+        titulo="Códigos de esta empresa"
+        subtitulo={
+          <>
+            Las promociones las pone cada empresa: estos códigos no se comparten con nadie más. Los
+            dos extremos de la vigencia son <b>inclusivos</b> — «hasta el 30» incluye el 30. Dejar
+            el tope de usos vacío significa <b>sin tope</b>; entonces el único freno es la fecha.
+          </>
+        }
+      >
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b text-left text-xs text-neutral-500">
@@ -359,12 +367,12 @@ export function GestionCodigos() {
             })}
           </tbody>
         </table>
-      </section>
+      </CardColapsable>
 
       {/* El alta va en su propia tarjeta, como «Nuevo paquete» en Paquetes
           cerrados: antes era un renglón de campos sin etiqueta al pie de la
           tabla, y no se distinguía qué columna era cada casilla. */}
-      <section className="rounded-md border p-3">
+      <section className="rounded-md border bg-surface p-3">
         <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold">
           <Ticket className="h-4 w-4" /> Nuevo código
         </h3>

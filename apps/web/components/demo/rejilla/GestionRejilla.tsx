@@ -15,6 +15,7 @@ import {
 import { motivoFranjaInvalida, motivoTemporadaInvalida } from '@/lib/rejilla'
 import { Button } from '@/components/demo/ui/Button'
 import { useObligatorios } from '@/components/demo/ui/Campo'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 
 // ============================================================================
 //  El catálogo de FRANJAS y TEMPORADAS de la organización. ADR 0039, Fase 1.
@@ -112,7 +113,7 @@ export function GestionRejilla() {
   if (cargando) return <p className="text-sm text-neutral-500">Cargando el catálogo…</p>
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Va ARRIBA del todo, antes de que nadie capture nada: el dueño tiene que
           saber qué NO hace el sistema antes de montar su tabla de precios. */}
       <AvisoFranjaCMS />
@@ -123,13 +124,20 @@ export function GestionRejilla() {
         </p>
       )}
 
-      <section>
-        <h2 className="mb-1 text-sm font-semibold">Franjas horarias</h2>
-        <p className="mb-3 text-xs text-neutral-500">
-          El fin es <b>exclusivo</b>: 06:00–10:00 y 10:00–14:00 se tocan y no se pisan. Dos franjas
-          no pueden solaparse — si pudieran, el precio de un spot a las 09:30 dependería de un
-          desempate que nadie decidió.
-        </p>
+      {/* PLEG-02 · cada catálogo se pliega por separado. Lo capturado a medias
+          en la fila de alta vive en el estado de ESTE componente, no en la
+          tarjeta: plegar y desplegar no lo borra. */}
+      <CardColapsable
+        id="franjas-y-temporadas.franjas"
+        titulo="Franjas horarias"
+        subtitulo={
+          <>
+            El fin es <b>exclusivo</b>: 06:00–10:00 y 10:00–14:00 se tocan y no se pisan. Dos
+            franjas no pueden solaparse — si pudieran, el precio de un spot a las 09:30 dependería
+            de un desempate que nadie decidió.
+          </>
+        }
+      >
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b text-left text-xs text-neutral-500">
@@ -221,15 +229,20 @@ export function GestionRejilla() {
             </tr>
           </tbody>
         </table>
-      </section>
+      </CardColapsable>
 
-      <section>
-        <h2 className="mb-1 text-sm font-semibold">Temporadas</h2>
-        <p className="mb-3 text-xs text-neutral-500">
-          Fechas <b>concretas</b>, con año: «Buen Fin 2026» y «Buen Fin 2027» son dos temporadas,
-          porque las fechas cambian cada año. Ambos extremos entran. Tampoco pueden solaparse: si
-          «Diciembre» y «Buen Fin» se pisan, hay que decidir qué precio manda esos días.
-        </p>
+      <CardColapsable
+        id="franjas-y-temporadas.temporadas"
+        titulo="Temporadas"
+        subtitulo={
+          <>
+            Fechas <b>concretas</b>, con año: «Buen Fin 2026» y «Buen Fin 2027» son dos
+            temporadas, porque las fechas cambian cada año. Ambos extremos entran. Tampoco pueden
+            solaparse: si «Diciembre» y «Buen Fin» se pisan, hay que decidir qué precio manda esos
+            días.
+          </>
+        }
+      >
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b text-left text-xs text-neutral-500">
@@ -308,7 +321,7 @@ export function GestionRejilla() {
             </tr>
           </tbody>
         </table>
-      </section>
+      </CardColapsable>
     </div>
   )
 }

@@ -13,6 +13,7 @@ import { useSitios } from '@/lib/data/client'
 import { Button } from '@/components/demo/ui/Button'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
 import { useObligatorios } from '@/components/demo/ui/Campo'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 
 // ============================================================================
 //  El CATÁLOGO DE PAQUETES CERRADOS de la organización. ADR 0039, Fase 4.
@@ -175,13 +176,20 @@ export function GestionPaquetes() {
         recalcula entre las que quedan y la propuesta lo avisa.
       </div>
 
-      <section>
-        <h2 className="mb-1 text-sm font-semibold">Paquetes de la organización</h2>
-        <p className="mb-3 text-xs text-neutral-500">
-          El precio se reparte entre las pantallas <b>a prorrata de su tarifa de lista</b>, y la
-          suma de las partes da el precio del paquete <b>al peso</b>. Ese reparto es el ingreso que
-          el reporte de rentabilidad le atribuye a cada pantalla.
-        </p>
+      {/* PLEG-02 · la lista se pliega; el aviso de arriba y el alta de abajo
+          no (el alta es un formulario y plegarlo borraría la vista de lo que se
+          está capturando). */}
+      <CardColapsable
+        id="paquetes.lista"
+        titulo="Paquetes de la organización"
+        subtitulo={
+          <>
+            El precio se reparte entre las pantallas <b>a prorrata de su tarifa de lista</b>, y la
+            suma de las partes da el precio del paquete <b>al peso</b>. Ese reparto es el ingreso
+            que el reporte de rentabilidad le atribuye a cada pantalla.
+          </>
+        }
+      >
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b text-left text-xs text-neutral-500">
@@ -236,9 +244,9 @@ export function GestionPaquetes() {
             ))}
           </tbody>
         </table>
-      </section>
+      </CardColapsable>
 
-      <section className="rounded-md border p-3">
+      <section className="rounded-md border bg-surface p-3">
         <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold">
           <Package className="h-4 w-4" /> Nuevo paquete
         </h3>

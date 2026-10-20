@@ -3,7 +3,7 @@
 import { toast } from 'sonner'
 import { useEffect, useState } from 'react'
 import { Percent, Handshake, ShieldCheck, ShieldAlert, Building2, Users, Plus } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
@@ -48,19 +48,20 @@ export default function ComisionesPage() {
       </div>
 
       {/* Agencias: comisión + negociación */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <Building2 className="h-4 w-4 text-muted" />
-            <CardTitle>Agencias y su comisión</CardTitle>
-          </div>
-          {puede && (
+      {/* PLEG-02 · al plegar se desmontan las filas: un porcentaje tecleado y
+          sin guardar en una de ellas se pierde. */}
+      <CardColapsable
+        id="comisiones.agencias"
+        titulo="Agencias y su comisión"
+        icono={<Building2 className="h-4 w-4 text-muted" />}
+        accion={
+          puede && (
             <Button variant="success" size="sm" onClick={() => setNuevaOpen(true)}>
               <Plus className="h-3.5 w-3.5" /> Nueva agencia
             </Button>
-          )}
-        </CardHeader>
-        <CardContent>
+          )
+        }
+      >
           {agencias.length === 0 ? (
             <p className="text-[13px] text-muted">
               Aún no hay agencias. Usa «Nueva agencia» para crear una.
@@ -89,16 +90,14 @@ export default function ComisionesPage() {
               </table>
             </div>
           )}
-        </CardContent>
-      </Card>
+      </CardColapsable>
 
       {/* Clientes directos: agencia asignada → comisión aplicada */}
-      <Card>
-        <CardHeader className="flex flex-row items-center gap-2">
-          <Users className="h-4 w-4 text-muted" />
-          <CardTitle>Clientes y su agencia</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <CardColapsable
+        id="comisiones.clientes"
+        titulo="Clientes y su agencia"
+        icono={<Users className="h-4 w-4 text-muted" />}
+      >
           {directos.length === 0 ? (
             <p className="text-[13px] text-muted">No hay clientes directos.</p>
           ) : (
@@ -119,8 +118,7 @@ export default function ComisionesPage() {
               </table>
             </div>
           )}
-        </CardContent>
-      </Card>
+      </CardColapsable>
 
       {nuevaOpen && <NuevaAgenciaDialog onClose={() => setNuevaOpen(false)} />}
     </div>

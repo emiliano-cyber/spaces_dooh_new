@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Plus, Pencil, Trash2, Building2, Handshake, ShieldCheck, ShieldAlert } from 'lucide-react'
-import { Card, CardContent } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
@@ -62,8 +62,12 @@ export default function ClientesPage() {
       ) : clientes.length === 0 ? (
         <p className="py-10 text-center text-[13px] text-muted">Aún no hay clientes.</p>
       ) : (
-        <Card>
-          <CardContent className="p-0">
+        <CardColapsable
+          id="clientes.lista"
+          titulo="Lista de clientes"
+          resumen={<span className="text-[12px] text-muted">{clientes.length} {clientes.length === 1 ? 'cliente' : 'clientes'}</span>}
+          contentClassName="px-0 pb-0"
+        >
             {/* `overflow-x-auto` es el patrón de TODAS las demás tablas de la
                 aplicación (arrendadores, almacén, campañas, finanzas…): sin él,
                 una tabla de seis columnas en una pantalla estrecha no cabe, se
@@ -123,8 +127,7 @@ export default function ClientesPage() {
                 </tbody>
               </table>
             </div>
-          </CardContent>
-        </Card>
+        </CardColapsable>
       )}
 
       {nuevoOpen && <ClienteDialog onClose={() => setNuevoOpen(false)} />}

@@ -5,7 +5,8 @@ import { conteo } from '@/lib/plural'
 import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { Plus, FileText, Send, Check, X, ChevronDown, ChevronRight, Monitor, Square, List, Map as MapIcon } from 'lucide-react'
-import { Card, CardContent } from '@/components/demo/ui/Card'
+import { Card } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { AvisoFranjaCMS } from '@/components/demo/rejilla/AvisoFranjaCMS'
 import { catalogoRejillaApi, type FranjaUI, type TemporadaUI } from '@/lib/data/rejilla-api'
 import { modalidadesDeSitio, tarifaCalculada } from '@/lib/tarifa-calculada'
@@ -120,17 +121,29 @@ export default function PropuestasPage() {
       ) : propuestas.length === 0 ? (
         <p className="py-10 text-center text-[13px] text-muted">Aún no hay propuestas.</p>
       ) : (
-        <ul className="space-y-3">
-          {propuestas.map((p) => (
-            <PropuestaCard
-              key={p.id}
-              p={p}
-              abierta={abierta === p.id}
-              onToggle={() => setAbierta(abierta === p.id ? null : p.id)}
-              puedeEditar={puedeEditar}
-            />
-          ))}
-        </ul>
+        // PLEG-02 · qué propuesta está desplegada vive en `abierta`, en esta
+        // página: plegar la lista y volver a abrirla la deja como estaba.
+        <CardColapsable
+          id="propuestas.lista"
+          titulo="Lista de propuestas"
+          resumen={
+            <span className="text-[12px] text-muted">
+              {propuestas.length} {propuestas.length === 1 ? 'propuesta' : 'propuestas'}
+            </span>
+          }
+        >
+          <ul className="space-y-3">
+            {propuestas.map((p) => (
+              <PropuestaCard
+                key={p.id}
+                p={p}
+                abierta={abierta === p.id}
+                onToggle={() => setAbierta(abierta === p.id ? null : p.id)}
+                puedeEditar={puedeEditar}
+              />
+            ))}
+          </ul>
+        </CardColapsable>
       )}
 
       {nuevoOpen && <NuevaPropuestaDialog onClose={() => setNuevoOpen(false)} />}
@@ -1598,8 +1611,7 @@ function FunnelStrip({ f }: { f: FunnelPropuestas }) {
     </div>
   )
   return (
-    <Card>
-      <CardContent>
+    <CardColapsable id="propuestas.embudo" titulo="Embudo de propuestas">
         <div className="grid grid-cols-2 gap-4 py-1 lg:grid-cols-4">
           <Tile label="En pipeline" valor={formatMontoCorto(f.pipelineValue)} sub={`${enPipeline} propuesta${enPipeline === 1 ? '' : 's'} (borrador + enviada)`} />
           <Tile label="Ganado" tono="text-[#0f7a55]" valor={formatMontoCorto(f.ganadoValue)} sub={`${f.aprobadas} aprobada${f.aprobadas === 1 ? '' : 's'}`} />
@@ -1611,8 +1623,7 @@ function FunnelStrip({ f }: { f: FunnelPropuestas }) {
           <FunnelRow label="Aprobadas" n={f.aprobadas} bar={barra(f.aprobadas, 'bg-[#10b981]')} />
           <FunnelRow label="Perdidas" n={f.rechazadas} bar={barra(f.rechazadas, 'bg-[#ef4444]')} />
         </div>
-      </CardContent>
-    </Card>
+    </CardColapsable>
   )
 }
 

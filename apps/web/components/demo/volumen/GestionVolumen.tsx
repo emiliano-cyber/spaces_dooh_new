@@ -13,6 +13,7 @@ import { UNIDADES, unidadCorta } from '@/lib/periodos'
 import { Button } from '@/components/demo/ui/Button'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
 import { useObligatorios } from '@/components/demo/ui/Campo'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { formatNumero } from '@/lib/formato-numero'
 
 // ============================================================================
@@ -123,12 +124,19 @@ export function GestionVolumen() {
         dejan al cliente pagando el <b>64 %</b>, no el 60 %.
       </div>
 
-      <section>
-        <h2 className="mb-1 text-sm font-semibold">Tramos por unidad de venta</h2>
-        <p className="mb-3 text-xs text-neutral-500">
-          Cada unidad tiene su propia escala, porque 50 spots y 50 meses no son la misma compra.
-          Los tramos tienen que <b>crecer</b>: comprar más nunca puede descontar menos.
-        </p>
+      {/* PLEG-02 · la escala se pliega; el aviso de arriba no, porque es lo
+          que hay que leer antes de capturar un tramo. Lo tecleado en la fila de
+          alta vive en el estado de este componente: plegar no lo borra. */}
+      <CardColapsable
+        id="descuentos-por-volumen.tramos"
+        titulo="Tramos por unidad de venta"
+        subtitulo={
+          <>
+            Cada unidad tiene su propia escala, porque 50 spots y 50 meses no son la misma compra.
+            Los tramos tienen que <b>crecer</b>: comprar más nunca puede descontar menos.
+          </>
+        }
+      >
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b text-left text-xs text-neutral-500">
@@ -224,7 +232,7 @@ export function GestionVolumen() {
             </tr>
           </tbody>
         </table>
-      </section>
+      </CardColapsable>
     </div>
   )
 }
