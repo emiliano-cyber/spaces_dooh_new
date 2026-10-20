@@ -15,6 +15,7 @@ import {
   Users,
   Wallet,
 } from 'lucide-react'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import {
   DOCUMENTOS_EMPRESA,
   ESPACIOS,
@@ -93,13 +94,19 @@ function Antiguedad({ e, hoy }: { e: Espacio; hoy: Date }) {
   )
 }
 
+// Cada bloque del detalle se pliega con un clic en su encabezado (pedido del
+// 20/10, «como Arrendadores»). El `id` hace que el navegador recuerde cuáles
+// dejó plegados la persona; es el mismo para todos los espacios, así que
+// plegar «Competencia» la pliega al mirar cualquier otro.
 function Bloque({
+  id,
   titulo,
   icono: Icono,
   cuenta,
   children,
   className = '',
 }: {
+  id: string
   titulo: string
   icono: typeof Users
   cuenta?: number
@@ -107,13 +114,16 @@ function Bloque({
   className?: string
 }) {
   return (
-    <section className={`rounded-md border border-border bg-surface p-3 ${className}`}>
-      <h3 className="mb-2.5 flex items-center gap-1.5 text-[13px] font-semibold text-ink">
-        <Icono className="h-4 w-4 text-muted" strokeWidth={1.75} /> {titulo}
-        {cuenta !== undefined && <span className="font-normal text-muted">({cuenta})</span>}
-      </h3>
+    <CardColapsable
+      id={`comercial-opex.${id}`}
+      titulo={cuenta !== undefined ? `${titulo} (${cuenta})` : titulo}
+      icono={<Icono className="h-4 w-4 text-muted" strokeWidth={1.75} />}
+      className={className}
+      headerClassName="px-3 pt-3 pb-2.5"
+      contentClassName="px-3 pb-3"
+    >
       {children}
-    </section>
+    </CardColapsable>
   )
 }
 
@@ -157,7 +167,7 @@ function Pasos({ etapa }: { etapa: number }) {
 
 function Contactos({ s }: { s: Espacio }) {
   return (
-    <Bloque titulo="Responsables y contactos" icono={Users} cuenta={s.contactos.length}>
+    <Bloque id="contactos" titulo="Responsables y contactos" icono={Users} cuenta={s.contactos.length}>
       {s.contactos.length === 0 ? (
         <Vacio>Todavía no se sabe con quién hablar.</Vacio>
       ) : (
@@ -200,7 +210,7 @@ function Contactos({ s }: { s: Espacio }) {
 
 function Competencia({ s }: { s: Espacio }) {
   return (
-    <Bloque titulo="Competencia" icono={Swords} cuenta={s.competencia.length}>
+    <Bloque id="competencia" titulo="Competencia" icono={Swords} cuenta={s.competencia.length}>
       {s.competencia.length === 0 ? (
         <Vacio>Sin competencia identificada.</Vacio>
       ) : (
@@ -222,7 +232,7 @@ function Competencia({ s }: { s: Espacio }) {
 
 function Historial({ s }: { s: Espacio }) {
   return (
-    <Bloque titulo="Historial" icono={MessageSquare} cuenta={s.bitacora.length}>
+    <Bloque id="historial" titulo="Historial" icono={MessageSquare} cuenta={s.bitacora.length}>
       {s.bitacora.length === 0 ? (
         <Vacio>Sin contactos registrados.</Vacio>
       ) : (
@@ -260,7 +270,7 @@ function Historial({ s }: { s: Espacio }) {
 
 function Documentos() {
   return (
-    <Bloque titulo="Documentos de la empresa" icono={FileText} cuenta={DOCUMENTOS_EMPRESA.length}>
+    <Bloque id="documentos" titulo="Documentos de la empresa" icono={FileText} cuenta={DOCUMENTOS_EMPRESA.length}>
       <ul className={`${LISTA} divide-y divide-border`}>
         {DOCUMENTOS_EMPRESA.map((d) => (
           <li key={d.nombre} className="flex items-center gap-2 py-1.5 first:pt-0 last:pb-0">
@@ -279,7 +289,7 @@ function Documentos() {
 
 function Multimedia({ s }: { s: Espacio }) {
   return (
-    <Bloque titulo="Fotos y videos del espacio" icono={ImageIcon} cuenta={s.multimedia.length}>
+    <Bloque id="multimedia" titulo="Fotos y videos del espacio" icono={ImageIcon} cuenta={s.multimedia.length}>
       {s.multimedia.length === 0 ? (
         <Vacio>Sin material todavía.</Vacio>
       ) : (
@@ -318,14 +328,11 @@ function Detalle({ s, hoy }: { s: Espacio; hoy: Date }) {
         </div>
       </div>
 
-      <div className="rounded-md border border-border bg-surface p-3">
-        <h3 className="mb-3 flex items-center gap-1.5 text-[13px] font-semibold text-ink">
-          <ShieldCheck className="h-4 w-4 text-muted" strokeWidth={1.75} /> Búsqueda del responsable
-        </h3>
+      <Bloque id="responsable" titulo="Búsqueda del responsable" icono={ShieldCheck}>
         <div className="overflow-x-auto pb-1">
           <Pasos etapa={s.etapa} />
         </div>
-      </div>
+      </Bloque>
 
       {u && (
         <div className="rounded-md border border-accent/40 bg-accent-soft px-3 py-2 text-[13px]">
@@ -348,7 +355,7 @@ function Detalle({ s, hoy }: { s: Espacio; hoy: Date }) {
           contactos —la más larga— no deja un hueco vacío al lado. */}
       <div className="grid items-start gap-3 lg:grid-cols-2">
         <div className="space-y-3">
-          <Bloque titulo="Ficha técnica" icono={Building2}>
+          <Bloque id="ficha" titulo="Ficha técnica" icono={Building2}>
             <dl className="m-0 grid grid-cols-2 gap-x-3 gap-y-2 text-[13px]">
               {(
                 [
@@ -370,7 +377,7 @@ function Detalle({ s, hoy }: { s: Espacio; hoy: Date }) {
         <Contactos s={s} />
       </div>
 
-      <Bloque titulo="Ofertas de renta al arrendador" icono={Wallet} cuenta={s.ofertas.length}>
+      <Bloque id="ofertas" titulo="Ofertas de renta al arrendador" icono={Wallet} cuenta={s.ofertas.length}>
         {s.ofertas.length === 0 ? (
           <Vacio>Todavía no se le ha ofrecido nada.</Vacio>
         ) : (
@@ -425,6 +432,7 @@ export function ComercialOpex({ hoyIso }: { hoyIso: string }) {
 
   return (
     <div className="space-y-4">
+      <CardColapsable id="comercial-opex.resumen" titulo="Resumen">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {(
           [
@@ -440,10 +448,13 @@ export function ComercialOpex({ hoyIso }: { hoyIso: string }) {
           </div>
         ))}
       </div>
+      </CardColapsable>
 
-      <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
-        <aside className="space-y-2">
-          <h2 className="m-0 text-[13px] font-semibold text-ink">Espacios en seguimiento</h2>
+      {/* `items-start`: con la lista plegada su tarjeta no se estira a la
+          altura del detalle. El espacio elegido vive aquí, fuera de la
+          tarjeta: plegar la lista no lo pierde. */}
+      <div className="grid items-start gap-4 lg:grid-cols-[320px_1fr]">
+        <CardColapsable id="comercial-opex.espacios" titulo="Espacios en seguimiento" headerClassName="px-3 pt-3 pb-2" contentClassName="px-3 pb-3">
           <ul className={`${LISTA} space-y-1.5`}>
             {ESPACIOS.map((e) => {
               const activo = s?.id === e.id
@@ -473,7 +484,7 @@ export function ComercialOpex({ hoyIso }: { hoyIso: string }) {
               )
             })}
           </ul>
-        </aside>
+        </CardColapsable>
 
         {/* Un <div> y no <main>: la pantalla ya vive dentro del <main> del shell. */}
         <div className="min-w-0">{s ? <Detalle s={s} hoy={hoy} /> : null}</div>

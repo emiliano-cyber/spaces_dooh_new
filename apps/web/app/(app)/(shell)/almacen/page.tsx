@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { Warehouse, Plus, ArrowLeftRight, Loader2 } from 'lucide-react'
-import { Card, CardContent } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
@@ -108,7 +108,9 @@ export default function AlmacenPage() {
         </div>
       )}
 
-      <Card className="overflow-hidden p-0">
+      {/* Plegable (pedido del 20/10). El filtro por tipo vive en la página,
+          fuera de la tarjeta: plegar y desplegar no lo pierde. */}
+      <CardColapsable id="almacen.articulos" titulo="Artículos" className="overflow-hidden" contentClassName="px-0 pb-0">
         {!activos ? (
           <div className="h-40 animate-pulse rounded-md bg-surface-2" />
         ) : activos.length === 0 ? (
@@ -160,7 +162,7 @@ export default function AlmacenPage() {
             </table>
           </div>
         )}
-      </Card>
+      </CardColapsable>
 
       {altaOpen && <AltaActivoModal onClose={() => setAltaOpen(false)} onCreado={() => { setAltaOpen(false); void cargar() }} />}
       {mover && (

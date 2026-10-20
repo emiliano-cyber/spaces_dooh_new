@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Plus, Clock, CheckCircle2, XCircle } from 'lucide-react'
 import { Button } from '@/components/demo/ui/Button'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Sheet } from '@/components/demo/ui/Sheet'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { formatNumero } from '@/lib/formato-numero'
@@ -559,6 +560,10 @@ export function Captacion() {
         <p className="text-xs text-ink-muted">Estos esperan a que un gerente, director o administrador los revise.</p>
       )}
 
+      {/* Plegable (pedido del 20/10). Solo la tabla: las pestañas, el filtro
+          por tipo, «Nuevo prospecto» y la página viven en ESTE componente,
+          fuera de la tarjeta, así que plegar y desplegar no los pierde. */}
+      <CardColapsable id="captacion.prospectos" titulo="Prospectos">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -605,6 +610,7 @@ export function Captacion() {
           </div>
         )}
       </div>
+      </CardColapsable>
 
       <Sheet
         open={!!form}

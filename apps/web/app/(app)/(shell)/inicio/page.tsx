@@ -19,7 +19,7 @@ import { conteo } from '@/lib/plural'
 import { KPICard, KPICardSkeleton } from '@/components/demo/KPICard'
 import { OcupacionChart, ReservasChart } from '@/components/demo/charts'
 import { MapView, type MapPoint } from '@/components/demo/MapView'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import {
   SITIO_TONO,
   SITIO_LABEL,
@@ -96,6 +96,7 @@ export default function DashboardPage() {
       {/* KPIs — 4 columnas solo desde xl (1280px). Entre 1024 y 1279 el sidebar
           se come 240px y cada tarjeta quedaba en ~235px, demasiado angosta para
           un monto de 14 caracteres en mono; ahí van 2 columnas. */}
+      <CardColapsable id="inicio.indicadores" titulo="Indicadores del mes" contentClassName="space-y-3">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {!m ? (
           <>
@@ -152,36 +153,32 @@ export default function DashboardPage() {
           <CostoItem label="Total" valor={formatMonto(m.costoTotalMes)} fuerte />
         </div>
       )}
+      </CardColapsable>
 
       {/* Ocupación + Reservas vs confirmaciones */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>Ocupación</CardTitle>
-              {serie && (
-                <p className="mt-0.5 text-[12px] text-muted">
-                  {formatNumero(serie.diasOcupados)} espacios·día ocupados de{' '}
-                  {formatNumero(serie.diasDisponibles)} disponibles
-                </p>
-              )}
-            </div>
-            <Segmented value={gran} onChange={setGran} />
-          </CardHeader>
-          <CardContent>
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-3">
+        <CardColapsable
+          id="inicio.ocupacion"
+          titulo="Ocupación"
+          className="lg:col-span-2"
+          subtitulo={
+            serie ? (
+              <>
+                {formatNumero(serie.diasOcupados)} espacios·día ocupados de{' '}
+                {formatNumero(serie.diasDisponibles)} disponibles
+              </>
+            ) : undefined
+          }
+          accion={<Segmented value={gran} onChange={setGran} />}
+        >
             {!serie ? (
               <div className="h-[180px] animate-pulse rounded bg-surface-2" />
             ) : (
               <OcupacionChart puntos={serie.puntos} />
             )}
-          </CardContent>
-        </Card>
+        </CardColapsable>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Tentativas vs confirmadas</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <CardColapsable id="inicio.tentativas-vs-confirmadas" titulo="Tentativas vs confirmadas">
             {!m ? (
               <div className="h-[150px] animate-pulse rounded bg-surface-2" />
             ) : (
@@ -197,18 +194,12 @@ export default function DashboardPage() {
                 </div>
               </>
             )}
-          </CardContent>
-        </Card>
+        </CardColapsable>
       </div>
 
       {/* Alertas + Mini-mapa */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Alertas</CardTitle>
-            <ConfigAlertas cfg={alertasCfg} />
-          </CardHeader>
-          <CardContent>
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-3">
+        <CardColapsable id="inicio.alertas" titulo="Alertas" accion={<ConfigAlertas cfg={alertasCfg} />}>
             {(() => {
               // Solo los tipos que el usuario dejó encendidos (todos por default).
               const visibles = (m?.alertas ?? []).filter((al) => alertasCfg.esVisible(al.tipo))
@@ -242,20 +233,21 @@ export default function DashboardPage() {
               </ul>
               )
             })()}
-          </CardContent>
-        </Card>
+        </CardColapsable>
 
-        <Card className="lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Tu red en el mapa</CardTitle>
+        <CardColapsable
+          id="inicio.mapa"
+          titulo="Tu red en el mapa"
+          className="lg:col-span-2"
+          accion={
             <Link
               href="/comercial"
               className="inline-flex items-center gap-1 text-[12px] font-medium text-info hover:underline"
             >
               Ver comercial <ArrowRight className="h-3.5 w-3.5" />
             </Link>
-          </CardHeader>
-          <CardContent>
+          }
+        >
             <div className="h-[460px] w-full overflow-hidden rounded border border-border">
               {sitios ? (
                 <MapView points={puntos} zoom={10.4} />
@@ -269,16 +261,11 @@ export default function DashboardPage() {
               <LeyendaPin color="#ef4444" label="Ocupado" />
               <LeyendaPin color="#f59e0b" label={SITIO_LABEL.RESERVADO} />
             </div>
-          </CardContent>
-        </Card>
+        </CardColapsable>
       </div>
 
       {/* Campañas por finalizar / recién finalizadas (revisión de ingresos) */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Campañas por finalizar</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <CardColapsable id="inicio.campanas-por-finalizar" titulo="Campañas por finalizar">
           {!campanas ? (
             <div className="h-20 animate-pulse rounded bg-surface-2" />
           ) : porFinalizar.length === 0 ? (
@@ -311,8 +298,7 @@ export default function DashboardPage() {
               ))}
             </ul>
           )}
-        </CardContent>
-      </Card>
+      </CardColapsable>
     </div>
   )
 }
