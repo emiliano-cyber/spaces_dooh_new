@@ -31,6 +31,7 @@ import { Modal } from '@/components/demo/ui/Modal'
 import { ConfirmDialog } from '@/components/demo/ui/ConfirmDialog'
 import { Button } from '@/components/demo/ui/Button'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
+import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { CRUDO_INVALIDO } from '@/lib/captura-cifra'
 import { FotoUploaderMock } from '@/components/demo/FotoUploaderMock'
 import { CalendarioDisponibilidad } from '@/components/demo/CalendarioDisponibilidad'
@@ -165,15 +166,30 @@ export function SiteFicha({
   // donde estaba, sin decir nada. La contraseña se pide DENTRO del
   // `ConfirmDialog`, que ya es el cuadro donde se confirma.
   const candado = useCandado()
+  // OBLIG-01 · el motivo de la pausa y el predio destino los exige el servidor
+  // (`app/api/sitios/[id]/pausa-legal/route.ts:18` y `.../reubicar/route.ts:19`).
+  // El botón ya no se apaga por ellos: se pulsa y se pinta el que falta.
+  const obPausa = useObligatorios({ motivoPausa }, ['motivoPausa'])
+  const obReubicar = useObligatorios({ predioDestino }, ['predioDestino'])
+  // Cerrar OLVIDA el intento: reabrir el cuadro vacío no debe llegar ya en rojo.
+  function cerrarPausa() {
+    setPausaOpen(false)
+    setMotivoPausa('')
+    obPausa.reiniciar()
+  }
+  function cerrarReubicar() {
+    setReubicarOpen(false)
+    setPredioDestino('')
+    obReubicar.reiniciar()
+  }
 
   async function reubicar() {
-    if (!sitio || !predioDestino) return
+    if (!obReubicar.validar() || !sitio) return
     setReubicando(true)
     try {
       const { otFolio } = await reubicarSitioApi(sitio.id, predioDestino)
       toast.success(otFolio ? `Pantalla reubicada · OT ${otFolio} generada` : 'Pantalla reubicada')
-      setReubicarOpen(false)
-      setPredioDestino('')
+      cerrarReubicar()
       onOpenChange(false)
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'No se pudo reubicar')
@@ -182,12 +198,11 @@ export function SiteFicha({
   }
 
   async function pausar() {
-    if (!sitio || !motivoPausa.trim()) return
+    if (!obPausa.validar() || !sitio) return
     setPausando(true)
     try {
       await pausarSitioLegalApi(sitio.id, motivoPausa.trim())
-      setPausaOpen(false)
-      setMotivoPausa('')
+      cerrarPausa()
       onOpenChange(false)
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'No se pudo pausar')
@@ -682,13 +697,13 @@ export function SiteFicha({
 
       <Modal
         open={pausaOpen}
-        onOpenChange={(v) => { if (!v) { setPausaOpen(false); setMotivoPausa('') } }}
+        onOpenChange={(v) => { if (!v) cerrarPausa() }}
         title="Pausar por situación legal"
         subtitle={sitio.nombre}
         footer={
           <div className="flex justify-end gap-2">
-            <Button variant="secondary" size="sm" onClick={() => { setPausaOpen(false); setMotivoPausa('') }}>Cancelar</Button>
-            <Button variant="danger" size="sm" disabled={pausando || !motivoPausa.trim()} onClick={pausar}>
+            <Button variant="secondary" size="sm" onClick={cerrarPausa}>Cancelar</Button>
+            <Button variant="danger" size="sm" disabled={pausando} onClick={pausar}>
               {pausando ? 'Pausando…' : 'Pausar'}
             </Button>
           </div>
@@ -698,8 +713,7 @@ export function SiteFicha({
           <p className="text-[12px] text-muted">
             La pantalla saldrá de la disponibilidad comercial (queda bloqueada) hasta que la reanudes.
           </p>
-          <label className="block">
-            <span className="mb-1 block text-[12px] font-medium text-ink">Motivo</span>
+          <Campo label="Motivo" obligatorio falta={obPausa.falta('motivoPausa')}>
             <textarea
               value={motivoPausa}
               onChange={(e) => setMotivoPausa(e.target.value)}
@@ -708,19 +722,19 @@ export function SiteFicha({
               className={inputCls}
               autoFocus
             />
-          </label>
+          </Campo>
         </div>
       </Modal>
 
       <Modal
         open={reubicarOpen}
-        onOpenChange={(v) => { if (!v) { setReubicarOpen(false); setPredioDestino('') } }}
+        onOpenChange={(v) => { if (!v) cerrarReubicar() }}
         title="Reubicar pantalla"
         subtitle={sitio.nombre}
         footer={
           <div className="flex justify-end gap-2">
-            <Button variant="secondary" size="sm" onClick={() => { setReubicarOpen(false); setPredioDestino('') }}>Cancelar</Button>
-            <Button size="sm" disabled={reubicando || !predioDestino} onClick={reubicar}>
+            <Button variant="secondary" size="sm" onClick={cerrarReubicar}>Cancelar</Button>
+            <Button size="sm" disabled={reubicando} onClick={reubicar}>
               {reubicando ? 'Reubicando…' : 'Reubicar'}
             </Button>
           </div>
@@ -730,15 +744,14 @@ export function SiteFicha({
           <p className="text-[12px] text-muted">
             Mueve la pantalla a otro predio. Se generará una OT de reubicación en Operaciones.
           </p>
-          <label className="block">
-            <span className="mb-1 block text-[12px] font-medium text-ink">Predio destino</span>
+          <Campo label="Predio destino" obligatorio falta={obReubicar.falta('predioDestino')}>
             <select value={predioDestino} onChange={(e) => setPredioDestino(e.target.value)} className={inputCls}>
               <option value="">— Elige el predio —</option>
               {(predios ?? [])
                 .filter((p) => p.id !== sitio.predioId)
                 .map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
             </select>
-          </label>
+          </Campo>
         </div>
       </Modal>
 
@@ -861,6 +874,7 @@ function ModalidadesDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
   }
 
   async function guardar() {
+    if (!obNuevas.validar()) return
     setEnviando(true)
     // Bloque sin `try`: `candado.ejecutar` DEVUELVE el fallo en vez de lanzarlo
     // (lo entrega por `alFallar`). Mismo criterio que `EditarSitioDialog`.
@@ -904,7 +918,15 @@ function ModalidadesDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
     setEnviando(false)
   }
 
-  const nuevaSinTarifa = nuevas.some((n) => n.tarifa.trim() === '' || !Number.isFinite(Number(n.tarifa)))
+  // OBLIG-01 · una unidad recién añadida necesita su tarifa (`modalidadSchema`,
+  // `lib/server/sitios-controller.ts:102-111`). Vacía ya no apaga el botón: se
+  // pulsa y se pinta en rojo la fila que falta. La que no se entiende ('NaN') sí
+  // lo apaga, porque eso es formato y no un hueco.
+  const obNuevas = useObligatorios(
+    Object.fromEntries(nuevas.map((n) => [n.unidad, n.tarifa])),
+    nuevas.map((n) => n.unidad),
+  )
+  const nuevaInvalida = nuevas.some((n) => n.tarifa.trim() !== '' && !Number.isFinite(Number(n.tarifa)))
   // Una tarifa YA puesta que no se entiende llega como 'NaN' (CampoCifra), y
   // `guardar` se la salta (`!Number.isFinite → continue`): se guardaría todo lo
   // demás y ESA tarifa se quedaría como estaba sin que nadie lo notara.
@@ -931,7 +953,7 @@ function ModalidadesDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
             disabled={
               enviando ||
               candado.enviando ||
-              nuevaSinTarifa ||
+              nuevaInvalida ||
               previaInvalida ||
               (candado.reautenticando && !candado.pass)
             }
@@ -997,8 +1019,19 @@ function ModalidadesDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
         })}
 
         {nuevas.map((n, i) => (
-          <div key={`nueva-${n.unidad}`} className="flex items-center gap-2">
-            <span className="w-44 shrink-0 text-[13px] capitalize text-ink">{nombreUnidad(n.unidad)}</span>
+          // Fila sin etiqueta de `Campo` (el nombre de la unidad hace de
+          // etiqueta a la izquierda): lleva el `data-falta` a mano, que es lo
+          // que pinta el borde rojo en `globals.css`.
+          <div
+            key={`nueva-${n.unidad}`}
+            data-falta={obNuevas.falta(n.unidad) ? 'true' : undefined}
+            className="flex items-center gap-2"
+          >
+            <span className={`w-44 shrink-0 text-[13px] capitalize ${obNuevas.falta(n.unidad) ? 'text-error' : 'text-ink'}`}>
+              {nombreUnidad(n.unidad)}
+              <span aria-hidden="true" className="ml-0.5 text-error">*</span>
+              <span className="sr-only"> (obligatorio)</span>
+            </span>
             <CampoCifra
               autoFocus
               placeholder="Tarifa"
@@ -1020,6 +1053,11 @@ function ModalidadesDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
           </div>
         ))}
 
+        {obNuevas.intento && obNuevas.faltan.length > 0 && (
+          <p role="alert" className="text-[11px] text-error">
+            Falta la tarifa de la unidad en rojo. Escríbela o quita la unidad.
+          </p>
+        )}
         {(previaInvalida || nuevas.some((n) => n.tarifa === CRUDO_INVALIDO)) && (
           <p className="text-[11px] text-error">
             Hay una tarifa en rojo que no se entiende: la coma separa miles y el punto, decimales (15,000.50).
@@ -1137,7 +1175,12 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
     }
   }, [open, digital, pantallasDm])
 
+  // OBLIG-01 · el nombre es el único obligatorio de la edición: el resto de
+  // campos admite quedarse vacío (se manda como null o no se manda).
+  const ob = useObligatorios({ nombre }, ['nombre'])
+
   async function guardar() {
+    if (!ob.validar()) return
     if (tarifa === CRUDO_INVALIDO || (digital && spotsPorHora === CRUDO_INVALIDO)) return
     setEnviando(true)
     // Bloque sin `try`: era uno, y el `catch` se retiró porque `candado.ejecutar`
@@ -1260,7 +1303,6 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
             disabled={
               enviando ||
               candado.enviando ||
-              !nombre.trim() ||
               // 'NaN' = la tarifa no se entiende (CampoCifra). Sin esto,
               // `Number(tarifa) || 0` la guardaría como CERO.
               tarifa === CRUDO_INVALIDO ||
@@ -1283,68 +1325,68 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
         {/* B38 · el campo, dentro del cuadro que ya existía. Arriba del todo a
             propósito: el formulario es largo y el pie está lejos. */}
         <PasoContrasena candado={candado} onEnter={() => void candado.reintentar()} />
-        <CampoEdit label="Nombre">
+        <Campo label="Nombre" obligatorio falta={ob.falta('nombre')}>
           <input value={nombre} onChange={(e) => setNombre(e.target.value)} className={inputCls} />
-        </CampoEdit>
+        </Campo>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <CampoEdit label="Tipo de medio">
+          <Campo label="Tipo de medio">
             <select value={tipoMedio} onChange={(e) => setTipoMedio(e.target.value as TipoMedio)} className={inputCls}>
               {TIPOS.map((t) => <option key={t} value={t}>{TIPO_MEDIO_LABEL[t]}</option>)}
             </select>
-          </CampoEdit>
-          <CampoEdit label="Disponibilidad">
+          </Campo>
+          <Campo label="Disponibilidad">
             <select value={estatusComercial} onChange={(e) => setEstatusComercial(e.target.value as Sitio['estatusComercial'])} className={inputCls}>
               {ESTATUS.map((s) => <option key={s.v} value={s.v}>{s.label}</option>)}
             </select>
-          </CampoEdit>
-          <CampoEdit label="Vista (dirección)">
+          </Campo>
+          <Campo label="Vista (dirección)">
             <select value={vista} onChange={(e) => setVista(e.target.value)} className={inputCls}>
               <option value="">— Sin definir —</option>
               {VISTAS_CARDINALES.map((d) => <option key={d} value={d}>{d}</option>)}
               {/* Conserva un valor previo que no esté en la rosa de los vientos */}
               {vista && !VISTAS_CARDINALES.includes(vista) && <option value={vista}>{vista}</option>}
             </select>
-          </CampoEdit>
+          </Campo>
         </div>
-        <CampoEdit label="Distrito / alcaldía">
+        <Campo label="Distrito / alcaldía">
           <input value={alcaldia} onChange={(e) => setAlcaldia(e.target.value)} className={inputCls} />
-        </CampoEdit>
-        <CampoEdit label="Dirección comercial">
+        </Campo>
+        <Campo label="Dirección comercial">
           <input value={direccionComercial} onChange={(e) => setDireccionComercial(e.target.value)} className={inputCls} />
-        </CampoEdit>
+        </Campo>
 
         {/* Características físicas de la pantalla (detalles editables) */}
         <div className="rounded-md border border-border bg-surface-2 p-3">
           <div className="mb-2 text-[12px] font-medium text-ink">Características</div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <CampoEdit label="Ancho (m)">
+            <Campo label="Ancho (m)">
               <input type="number" inputMode="decimal" min={0} value={ancho} onChange={(e) => setAncho(e.target.value)} className={`demo-num ${inputCls}`} />
-            </CampoEdit>
-            <CampoEdit label="Alto (m)">
+            </Campo>
+            <Campo label="Alto (m)">
               <input type="number" inputMode="decimal" min={0} value={alto} onChange={(e) => setAlto(e.target.value)} className={`demo-num ${inputCls}`} />
-            </CampoEdit>
-            <CampoEdit label="Caras">
+            </Campo>
+            <Campo label="Caras">
               <input type="number" inputMode="numeric" min={0} value={caras} onChange={(e) => setCaras(e.target.value)} className={`demo-num ${inputCls}`} />
-            </CampoEdit>
-            <CampoEdit label="Estructura">
+            </Campo>
+            <Campo label="Estructura">
               <input value={tipoEstructura} onChange={(e) => setTipoEstructura(e.target.value)} placeholder="unipolar, mupi…" className={inputCls} />
-            </CampoEdit>
-            <CampoEdit label="Tramo">
+            </Campo>
+            <Campo label="Tramo">
               <input value={tramo} onChange={(e) => setTramo(e.target.value)} className={inputCls} />
-            </CampoEdit>
-            <CampoEdit label="Iluminado">
+            </Campo>
+            <Campo label="Iluminado">
               <select value={iluminado ? 'si' : 'no'} onChange={(e) => setIluminado(e.target.value === 'si')} className={inputCls}>
                 <option value="si">Sí</option>
                 <option value="no">No</option>
               </select>
-            </CampoEdit>
+            </Campo>
           </div>
         </div>
 
         <div className="grid grid-cols-1 gap-3">
-          <CampoEdit label="Tarifa publicada (mensual)">
+          <Campo label="Tarifa publicada (mensual)">
             <CampoCifra valor={tarifa} onCambio={(crudo) => setTarifa(crudo)} className={`demo-num ${inputCls}`} />
-          </CampoEdit>
+          </Campo>
         </div>
 
         {/* Propietario/arrendador de la pantalla. La RENTA no se edita aquí: vive
@@ -1352,14 +1394,14 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
             fuente para el P&L. */}
         <div className="rounded-md border border-border bg-surface-2 p-3">
           <div className="mb-2 text-[12px] font-medium text-ink">Arrendador</div>
-          <CampoEdit label="Arrendador">
+          <Campo label="Arrendador">
             <select value={arrendadorSel} onChange={(e) => setArrendadorSel(e.target.value)} className={inputCls}>
               <option value="">— Sin asignar —</option>
               {(arrendadores ?? []).map((a) => (
                 <option key={a.id} value={a.id}>{a.nombre}</option>
               ))}
             </select>
-          </CampoEdit>
+          </Campo>
           <p className="mt-2 text-[11px] text-muted">
             La renta y su periodicidad viven en el contrato, no en la pantalla. El importe se puede
             corregir desde la tabla de Inventario; la periodicidad y la vigencia, en Arrendadores.
@@ -1371,7 +1413,7 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
             slots— sino política comercial: cuántos anunciantes conviven. */}
         <div className="rounded-md border border-border bg-surface-2 p-3">
           <div className="mb-2 text-[12px] font-medium text-ink">Cupo de clientes</div>
-          <CampoEdit label="Máximo de clientes distintos">
+          <Campo label="Máximo de clientes distintos">
             <input
               type="number"
               inputMode="numeric"
@@ -1381,7 +1423,7 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
               placeholder={cupoGlobal != null ? `Global: ${cupoGlobal}` : 'Sin límite'}
               className={`demo-num ${inputCls}`}
             />
-          </CampoEdit>
+          </Campo>
           <p className="mt-2 text-[11px] text-muted">
             Cuántos anunciantes distintos pueden compartir esta pantalla a la vez. Vacío ={' '}
             {cupoGlobal != null
@@ -1397,33 +1439,33 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
           <div className="rounded-md border border-border bg-surface-2 p-3">
             <div className="mb-2 text-[12px] font-medium text-ink">Especificaciones DOOH</div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <CampoEdit label="Cantidad de slots">
+              <Campo label="Cantidad de slots">
                 <input type="number" inputMode="numeric" min={0} value={slots} onChange={(e) => setSlots(e.target.value)} placeholder="Ej. 12" className={`demo-num ${inputCls}`} />
-              </CampoEdit>
-              <CampoEdit label="Duración por slot (s)">
+              </Campo>
+              <Campo label="Duración por slot (s)">
                 <input type="number" inputMode="numeric" min={0} value={duracionSlot} onChange={(e) => setDuracionSlot(e.target.value)} placeholder="Ej. 20" className={`demo-num ${inputCls}`} />
-              </CampoEdit>
-              <CampoEdit label="Slots por hora">
+              </Campo>
+              <Campo label="Slots por hora">
                 <CampoCifra decimales={0} valor={spotsPorHora} onCambio={(crudo) => setSpotsPorHora(crudo)} placeholder="Ej. 180" className={`demo-num ${inputCls}`} />
-              </CampoEdit>
-              <CampoEdit label="Resolución (px)">
+              </Campo>
+              <Campo label="Resolución (px)">
                 <input value={resolucionPx} onChange={(e) => setResolucionPx(e.target.value)} placeholder="1920x1080" className={inputCls} />
-              </CampoEdit>
-              <CampoEdit label="Contenido">
+              </Campo>
+              <Campo label="Contenido">
                 <select value={tipoContenido} onChange={(e) => setTipoContenido(e.target.value)} className={inputCls}>
                   <option value="">— Sin definir —</option>
                   <option value="VIDEO">Video</option>
                   <option value="IMAGEN">Imagen</option>
                 </select>
-              </CampoEdit>
-              <CampoEdit label="CMS">
+              </Campo>
+              <Campo label="CMS">
                 <select value={cms} onChange={(e) => setCms(e.target.value)} className={inputCls}>
                   <option value="">— Sin definir —</option>
                   {Object.entries(CMS_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                 </select>
-              </CampoEdit>
+              </Campo>
               {(cms === '' || cms === 'DOOHMAIN') && (
-                <CampoEdit label="Pantalla en DOOHmain">
+                <Campo label="Pantalla en DOOHmain">
                   <input
                     value={doohmainPantalla}
                     onChange={(e) => setDoohmainPantalla(e.target.value)}
@@ -1439,28 +1481,19 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
                       No se pudo leer la lista de DOOHmain ({pantallasDm.error}); escribe el nombre tal como aparece allí.
                     </span>
                   ) : null}
-                </CampoEdit>
+                </Campo>
               )}
-              <CampoEdit label="Horario">
+              <Campo label="Horario">
                 <input value={horario} onChange={(e) => setHorario(e.target.value)} placeholder="Ej. 06:00–24:00" className={inputCls} />
-              </CampoEdit>
+              </Campo>
             </div>
           </div>
         )}
-        <CampoEdit label="Notas">
+        <Campo label="Notas">
           <textarea value={notas} onChange={(e) => setNotas(e.target.value)} rows={2} className={inputCls} />
-        </CampoEdit>
+        </Campo>
       </div>
     </Modal>
-  )
-}
-
-function CampoEdit({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-[12px] font-medium text-ink">{label}</span>
-      {children}
-    </label>
   )
 }
 

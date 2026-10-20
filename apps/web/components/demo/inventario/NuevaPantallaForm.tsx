@@ -8,6 +8,7 @@ import { InlinePanel } from '@/components/demo/ui/InlinePanel'
 import { Tabs, TabPanel } from '@/components/demo/ui/Tabs'
 import { Button } from '@/components/demo/ui/Button'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
+import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { CRUDO_INVALIDO } from '@/lib/captura-cifra'
 import { cn } from '@/lib/cn'
 import { altaSitioApi } from '@/lib/data/sitios-api'
@@ -105,7 +106,22 @@ export function NuevaPantallaForm({
   // Los slots también: `Number(x) || 12` pondría el valor por omisión en vez
   // del tecleado.
   const cifraInvalida = [renta, tarifa, precioM2, totalSpots, spotsDisp].includes(CRUDO_INVALIDO)
-  const valido = !!nombre.trim() && !cvInvalido && !!imagen && !!arrendadorId && !!ubicacion && !cifraInvalida
+  // OBLIG-01: lo que falta se pinta en rojo al pulsar Guardar, en vez de dejar
+  // el botón muerto sin decir qué campo lo bloquea. El nombre lo exige el
+  // servidor (`app/api/sitios/route.ts`, «Falta nombre») y el arrendador
+  // `crearSitio` (ADR 0002); la ubicación, la imagen y el ID de AdMobilize los
+  // exige esta pantalla.
+  const ob = useObligatorios({ arrendadorId, nombre, lat, lng, imagen, admobilizeId }, [
+    'arrendadorId',
+    'nombre',
+    'lat',
+    'lng',
+    'imagen',
+    { campo: 'admobilizeId', si: cv },
+  ])
+  // Las dos coordenadas escritas pero que no son un lugar (fuera de rango, 0,0):
+  // es formato, no un hueco, así que lleva su propio mensaje y sí bloquea el botón.
+  const ubicacionInvalida = !!lat.trim() && !!lng.trim() && !ubicacion
 
   function toggleModalidad(m: string) {
     setModalidades((prev) => (prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m]))
@@ -129,7 +145,8 @@ export function NuevaPantallaForm({
   }
 
   async function submit() {
-    if (!valido) return
+    if (!ob.validar()) return
+    if (!ubicacion || cifraInvalida) return
     setEnviando(true)
     const digital = exhibicion === 'digital'
     const s = await altaSitioApi({
@@ -144,8 +161,8 @@ export function NuevaPantallaForm({
       direccionPredio: direccion.trim(),
       direccionComercial: direccion.trim(),
       distrito: '',
-      // `ubicacion` no puede ser null aquí: `valido` lo exige y el botón está
-      // deshabilitado sin él. El `??` es para el compilador, no una ruta viva.
+      // `ubicacion` no puede ser null aquí: `submit` sale antes sin ella. El
+      // `??` es para el compilador, no una ruta viva.
       lat: ubicacion?.lat ?? 0,
       lng: ubicacion?.lng ?? 0,
       ancho: 12.9,
@@ -179,11 +196,15 @@ export function NuevaPantallaForm({
 
   const footer = (
     <div className="flex items-center justify-between">
-      {cvInvalido ? (
-        <span className="text-[12px] text-error">ID AdMobilize requerido</span>
-      ) : !imagen ? (
+      {/* Los obligatorios viven en pestañas distintas y el rojo de una pestaña
+          cerrada no se ve: el pie dice en cuál está el que falta. */}
+      {ob.intento && cvInvalido ? (
+        <span className="text-[12px] text-error">ID AdMobilize requerido (pestaña IA/Vision)</span>
+      ) : ob.intento && !imagen ? (
         <span className="text-[12px] text-error">Imagen obligatoria (pestaña Imágenes)</span>
-      ) : !ubicacion ? (
+      ) : ob.intento && (!nombre.trim() || !arrendadorId) ? (
+        <span className="text-[12px] text-error">Faltan datos obligatorios (pestaña Básico)</span>
+      ) : (ob.intento && !ubicacion) || ubicacionInvalida ? (
         <span className="text-[12px] text-error">
           Latitud y longitud obligatorias (pestaña Ubicación)
         </span>
@@ -196,7 +217,7 @@ export function NuevaPantallaForm({
         {!inline && (
           <Button variant="secondary" size="sm" onClick={() => onOpenChange(false)}>Cancelar</Button>
         )}
-        <Button size="sm" disabled={!valido || enviando} onClick={submit}>
+        <Button size="sm" disabled={enviando || cifraInvalida || ubicacionInvalida} onClick={submit}>
           {enviando ? 'Guardando…' : 'Guardar pantalla'}
         </Button>
       </div>
@@ -216,7 +237,7 @@ export function NuevaPantallaForm({
         >
           <TabPanel value="basico" className="space-y-3 pt-3">
             <h3 className="text-base font-semibold text-ink">Información básica</h3>
-            <Campo label="Arrendador (dueño del espacio) *">
+            <Campo label="Arrendador (dueño del espacio)" obligatorio falta={ob.falta('arrendadorId')}>
               <select
                 className={inputCls}
                 value={arrendadorId}
@@ -232,7 +253,7 @@ export function NuevaPantallaForm({
                 ahí vive la tarifa, que es lo que ENTRA del cliente. Aquí la
                 pregunta es «¿a quién y cuánto le pago por este espacio?», que se
                 responde de una vez. Es el único costo de la pantalla (ADR 0006). */}
-            <Campo label="Renta al arrendador (opcional)">
+            <Campo label="Renta al arrendador">
               <CampoCifra
                 className={`demo-num ${inputCls}`}
                 valor={renta}
@@ -244,7 +265,7 @@ export function NuevaPantallaForm({
                 vacío y capturarlo después: el contrato queda pendiente en Arrendadores.
               </span>
             </Campo>
-            <Campo label="Nombre de la pantalla">
+            <Campo label="Nombre de la pantalla" obligatorio falta={ob.falta('nombre')}>
               <input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus />
             </Campo>
             <Campo label="Dirección">
@@ -262,8 +283,8 @@ export function NuevaPantallaForm({
               </span>
             </Campo>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Campo label="Latitud *"><input className={inputCls} inputMode="decimal" value={lat} onChange={(e) => setLat(e.target.value)} placeholder="Ej. 19.4326" /></Campo>
-              <Campo label="Longitud *"><input className={inputCls} inputMode="decimal" value={lng} onChange={(e) => setLng(e.target.value)} placeholder="Ej. -99.1332" /></Campo>
+              <Campo label="Latitud" obligatorio falta={ob.falta('lat')} error={ubicacionInvalida ? 'Coordenadas fuera de rango' : null}><input className={inputCls} inputMode="decimal" value={lat} onChange={(e) => setLat(e.target.value)} placeholder="Ej. 19.4326" /></Campo>
+              <Campo label="Longitud" obligatorio falta={ob.falta('lng')}><input className={inputCls} inputMode="decimal" value={lng} onChange={(e) => setLng(e.target.value)} placeholder="Ej. -99.1332" /></Campo>
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Campo label="Tipo de pantalla">
@@ -324,8 +345,8 @@ export function NuevaPantallaForm({
             </div>
             {cv && (
               <>
-                <Campo label="ID del dispositivo AdMobilize">
-                  <input className={cn(inputCls, cvInvalido && 'border-error')} value={admobilizeId} onChange={(e) => setAdmobilizeId(e.target.value)} placeholder="p. ej. ADM-00123" />
+                <Campo label="ID del dispositivo AdMobilize" obligatorio falta={ob.falta('admobilizeId')}>
+                  <input className={inputCls} value={admobilizeId} onChange={(e) => setAdmobilizeId(e.target.value)} placeholder="p. ej. ADM-00123" />
                   <span className="mt-1 block text-[11px] text-muted">Identificador único del dispositivo instalado en esta pantalla.</span>
                 </Campo>
                 <div className="rounded-md border border-border p-3">
@@ -360,19 +381,25 @@ export function NuevaPantallaForm({
 
           <TabPanel value="imagenes" className="space-y-3 pt-3">
             <h3 className="text-base font-semibold text-ink">Imágenes</h3>
-            <span className="block text-[12px] font-medium text-ink">
-              Imagen promocional <span className="text-error">*</span>
-            </span>
-            <p className="text-[11px] text-muted">Obligatoria · JPG o PNG · máximo 5MB</p>
-            {imagen && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={imagen} alt="preview" className="max-h-48 w-full rounded border border-border object-contain" />
-            )}
-            {imagenNombre && <p className="demo-num text-[11px] text-muted">{imagenNombre}</p>}
-            <label className="inline-flex cursor-pointer items-center gap-2 rounded border border-border-strong px-3 py-2 text-[13px] text-ink hover:bg-surface-2">
-              {imagen ? 'Cambiar imagen' : 'Subir imagen'}
-              <input type="file" accept="image/jpeg,image/png" onChange={onImagen} className="hidden" />
-            </label>
+            <Campo label="Imagen promocional" obligatorio falta={ob.falta('imagen')} como="div" className="space-y-3">
+              <p className="text-[11px] text-muted">JPG o PNG · máximo 5MB</p>
+              {imagen && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={imagen} alt="preview" className="max-h-48 w-full rounded border border-border object-contain" />
+              )}
+              {imagenNombre && <p className="demo-num text-[11px] text-muted">{imagenNombre}</p>}
+              {/* El <input> va oculto, así que el borde rojo de `[data-falta]` no
+                  lo vería nadie: se pinta el botón que sí se ve. */}
+              <label
+                className={cn(
+                  'inline-flex cursor-pointer items-center gap-2 rounded border border-border-strong px-3 py-2 text-[13px] text-ink hover:bg-surface-2',
+                  ob.falta('imagen') && 'border-error',
+                )}
+              >
+                {imagen ? 'Cambiar imagen' : 'Subir imagen'}
+                <input type="file" accept="image/jpeg,image/png" onChange={onImagen} className="hidden" />
+              </label>
+            </Campo>
           </TabPanel>
         </Tabs>
       </div>
@@ -423,14 +450,5 @@ export function NuevaPantallaForm({
       </Modal>
       {iaViewer}
     </>
-  )
-}
-
-function Campo({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-[12px] font-medium text-ink">{label}</span>
-      {children}
-    </label>
   )
 }
