@@ -149,6 +149,15 @@ describe('2 · la lista de pagos y el archivo', () => {
     expect(r.bytes.toString()).toBe('%PDF-1.4\n%%EOF\n')
     expect((await bajar(c, `/api/cobranzas/${cob}/abonos/${sin.id}/comprobante/`)).status).toBe(404)
   })
+
+  it('el archivo solo se alcanza por SU cobranza: con la de otra factura es 404', async () => {
+    const cobA = await cobranza(org, 1000)
+    const cobB = await cobranza(org, 1000)
+    await c.pedir(`/api/cobranzas/${cobA}/pagar/`, { cuerpo: { monto: 100, comprobanteUrl: PDF } })
+    const [a] = await abonos(cobA)
+    expect((await bajar(c, `/api/cobranzas/${cobB}/abonos/${a.id}/comprobante/`)).status).toBe(404)
+    expect((await bajar(c, `/api/cobranzas/${cobA}/abonos/${a.id}/comprobante/`)).status).toBe(200)
+  })
 })
 
 describe('3 · subirlo después', () => {

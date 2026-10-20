@@ -18,8 +18,8 @@ import { obtenerEntidad } from './entidades-repo'
 //  además acota el abono al saldo pendiente.
 // ============================================================================
 
-// COB-COMP · los mismos límites que el comprobante de un pago de renta.
-const comprobante = uploadZod(LIMITES.adjuntoPago.allowlist, LIMITES.adjuntoPago.maxMB)
+// COB-COMP · límites de renta; recortado ANTES: «␠data:…» se guardaba así y salía con Content-Type roto.
+const comprobante = z.string().trim().pipe(uploadZod(LIMITES.adjuntoPago.allowlist, LIMITES.adjuntoPago.maxMB))
 
 const pagoSchema = z.object({
   // Abono opcional (>0). Ausente/null = liquidar el saldo completo.

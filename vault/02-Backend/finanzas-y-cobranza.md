@@ -125,11 +125,11 @@ datos después, la factura emitida no cambia.
 > [!note] 2026-09-18 · la razón social que EMITE (`8c6002e7`)
 > `facturas.entidad_emisora_id` dice cuál de **mis** razones sociales emite el
 > comprobante. `POST /api/campanas/[id]/facturar` la recibe como
-> `entidadEmisoraId` (`finanzas-controller.ts:69`) y solo viaja al `insert`
+> `entidadEmisoraId` (`finanzas-controller.ts:120`) y solo viaja al `insert`
 > (`finanzas-repo.ts:209-211`): **no toca ningún importe**. Ausente o `null` =
 > «sin asignar», y el servidor no la adivina; la preselección por roles es solo
 > de la pantalla. El esquema de facturar ganó `.strict()`
-> (`finanzas-controller.ts:74-80`): un `monto` colado en el cuerpo ya no se
+> (`finanzas-controller.ts:125-131`): un `monto` colado en el cuerpo ya no se
 > ignora en silencio, es un 400. Ojo al nombre: `razon_social` de la factura es
 > la del **cliente**; la mía es `entidad_emisora_id` (`finanzas-repo.ts:30-33`).
 > Ver [[entidades-fiscales]] y [[multi-entidad-en-uso]].

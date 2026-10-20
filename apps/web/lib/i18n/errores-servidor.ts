@@ -89,7 +89,7 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   // 2 sitios · lib/server/clientes-controller.ts:116
   'Cliente no encontrado':
     'Client not found',
-  // 1 sitio · lib/server/finanzas-controller.ts:35
+  // 2 sitios · lib/server/finanzas-controller.ts:45 y :59
   'Cobranza no encontrada':
     'Receivable not found',
   // 1 sitio · lib/server/finanzas-controller.ts:65 (COB-COMP)

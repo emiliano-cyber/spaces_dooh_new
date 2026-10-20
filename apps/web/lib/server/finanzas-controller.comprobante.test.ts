@@ -64,6 +64,14 @@ describe('registrar el pago con comprobante', () => {
     expect(llamadas[0].args[2]).toMatchObject({ comprobanteUrl: PDF, usuarioId: 'u-1' })
   })
 
+  it('con espacios alrededor, se guarda RECORTADO (si no, se servía con Content-Type roto)', async () => {
+    await registrarPagoCtrl('cob-1', { monto: 100, comprobanteUrl: `  ${PDF}\n` }, 'u-1')
+    expect(llamadas[0].args[2]).toMatchObject({ comprobanteUrl: PDF })
+    llamadas.length = 0
+    await adjuntarComprobanteCtrl('cob-1', 'ab-1', { comprobanteUrl: ` ${PDF}` })
+    expect(llamadas[0].args[2]).toBe(PDF)
+  })
+
   it('sin comprobante, el repo recibe null (no se inventa nada)', async () => {
     await registrarPagoCtrl('cob-1', { monto: 100 }, 'u-1')
     expect(llamadas[0].args[2]).toMatchObject({ comprobanteUrl: null })

@@ -14,8 +14,8 @@ La entrada más reciente va arriba.
   **«Pagos y comprobantes»**: la lista de los pagos recibidos, con su fecha y
   quién los registró, donde se abre cada comprobante o se sube el que llegó
   después. Subirlo después no cambia el importe ni la fecha del pago. Es lo
-  mismo que ya tenían los pagos de renta a los arrendadores. *(Preparado en
-  su rama; espera la aprobación del dueño para publicarse.)*
+  mismo que ya tenían los pagos de renta a los arrendadores. *(Aprobado por el dueño el 19/10; sale en la
+  próxima versión.)*
 
 ## 2026-10-14
 
