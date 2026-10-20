@@ -64,3 +64,15 @@ a {
   0%   { transform: translateX(-100%); }
   100% { transform: translateX(400%); }
 }
+
+/* OBLIG-01 · el obligatorio que faltó al guardar se pinta en rojo. Lo marca
+   `Campo` (components/demo/ui/Campo.tsx) con `data-falta`, y aquí se colorea
+   el control que lleve dentro, sea cual sea: así un <select> o un CampoCifra no
+   necesitan saber nada. La especificidad (atributo + elemento) gana a las
+   clases de borde de Tailwind sin `!important`. */
+[data-falta] :is(input, select, textarea, [role='combobox']) {
+  border-color: var(--error);
+}
+[data-falta] :is(input, select, textarea, [role='combobox']):focus-visible {
+  --tw-ring-color: var(--error);
+}
