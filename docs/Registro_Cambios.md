@@ -5,6 +5,18 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-10-20
+
+- **En Clientes ya se ven las campañas y el pipeline de cada cliente.** Al
+  pulsar el nombre de un cliente se abre su ficha con dos partes. Arriba, su
+  **pipeline**: cuántas propuestas tiene en borrador, enviadas y aprobadas,
+  cuántas campañas en curso y terminadas, y cuánto dinero hay en cada paso
+  (con IVA), más lo que se perdió (propuestas rechazadas y campañas
+  canceladas). Abajo, la **lista de sus campañas** con su estado y en qué
+  etapa van; al pulsar una se abre esa campaña en Campañas. Si el cliente es
+  una agencia, también salen las propuestas que armó como agencia y las
+  campañas que salieron de ellas.
+
 ## 2026-10-14
 
 - **La documentación interna, al día con las versiones 0.11.4 a 0.11.9.** No

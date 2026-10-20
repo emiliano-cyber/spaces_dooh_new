@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-14
+actualizado: 2026-10-20
 tags: [frontend, modulos, pantallas, verde]
 archivos:
   - apps/web/app/(app)/(shell)/
@@ -15,6 +15,8 @@ archivos:
   - apps/web/app/(app)/(shell)/novedades/page.tsx
   - apps/web/app/(app)/(shell)/codigos-recuperacion/page.tsx
   - apps/web/app/(app)/(shell)/comercial-opex/page.tsx
+  - apps/web/lib/cliente-pipeline.ts
+  - apps/web/components/demo/clientes/FichaCliente.tsx
 ---
 
 # Módulos internos (dentro del shell)
@@ -33,7 +35,7 @@ archivos:
 | `/inventario` | Alta y carga masiva | `/api/sitios`, `/api/sitios/import` | `InventarioTabla`, `ImportarInventarioDialog`, `NuevaPantallaForm`, `ContratoWizard`, `AgregarInventario`, `InfoAnadidaModal` |
 | `/network` | Pantallas en red | `sitios.en_network` | — |
 | `/arrendadores` | Arrendadores, predios, contratos | `/api/arrendadores`, `/api/contratos` | `ContratoSheet`, `PagosRentaCard`, `CompromisoRentaCard`, `ConciliacionCard`, `PanelFirmas`, `ConstanciaFirmas`, `LicenciasCard`, `GestionRazonesSociales`, `BarraDocumento`, `BajaPropietarioDialog` |
-| `/clientes` | Clientes | `/api/clientes` | `ClientesBadge`, `BorrarClienteDialog` |
+| `/clientes` | Clientes — al pulsar el nombre, **ficha con su pipeline y sus campañas** (20/10) | `/api/clientes`; la ficha lee lo que ya trae `/api/estado` | `ClientesBadge`, `BorrarClienteDialog`, `FichaCliente`, `PipelineCliente`, `CampanasDelCliente` |
 | `/propuestas`, `/propuestas/[id]` | Propuestas, con **tarifa calculada** y **calculadora de spots** | `/api/propuestas`, `/api/rejilla/*`, `/api/volumen/escalas` | `AvisoFranjaCMS`, `MapView`, `CalculadoraSpotsLinea` (local de la página) |
 | `/captacion` | Captación (CAP-01) — **fuera del menú desde el 30/09** | `/api/captacion/*` | `Captacion` — ver [[02-Backend/captacion]] |
 | `/comercial-opex` | Comercial negociación: prospección de arrendadores — **maqueta**, sin API ni guardado | — | `ComercialOpex` — ver [[comercial-opex]] |
@@ -70,6 +72,29 @@ archivos:
 > `conHueco` (libre, o digital con slots). El resumen de arriba cuenta aparte
 > las estáticas libres y las digitales con lugar, con el total de slots.
 > Pruebas: `lib/data/derive.disponibilidad-slots.test.ts`.
+
+> [!note] 2026-10-20 · Clientes: el pipeline y las campañas de cada cliente
+> Pedido del dueño: «ver las campañas de cada cliente, ir a Campañas con esa
+> campaña abierta, y ver el pipeline». Pulsar el **nombre** en la tabla abre
+> `FichaCliente` (`components/demo/clientes/`), un modal con dos bloques. No hay
+> endpoint nuevo: lee `usePropuestas()` y `useCampanasResumen()`, que ya vienen
+> en `/api/estado`.
+>
+> - **Pipeline** — es el **comercial**, no el operativo. «Pipeline» se usa aquí
+>   para dos cosas: el operativo de UNA campaña (`ETAPAS_PIPELINE`,
+>   `lib/data/derive.ts:28`, reservada → facturada) y el embudo de propuestas
+>   de `funnelPropuestas` (`derive.ts:1089`, «valor de pipeline» = borrador +
+>   enviada). Por cliente tiene sentido el segundo, alargado con las campañas
+>   que salen de él: **Borrador → Enviada → Aprobada → Campaña en curso →
+>   Terminada**, con conteo y monto **con IVA** (propuesta `total`, campaña
+>   `presupuestoBruto`). Rechazadas y canceladas van aparte. Una aprobada que
+>   ya generó campaña cuenta **solo** en la campaña, para no sumar dos veces el
+>   mismo dinero. Una agencia ve también las propuestas que armó como
+>   agencia (`agenciaId`) y las campañas que nacieron de ellas. Lógica pura y
+>   probada: `lib/cliente-pipeline.ts` + `.test.ts`.
+> - **Campañas** — cada fila lleva su etapa operativa (`ETAPA_LABEL`) y enlaza a
+>   **`/campanas/<id>`**, la misma ruta dinámica que usa la lista de Campañas:
+>   aguanta recarga y no hizo falta tocar Campañas.
 >
 > **Lo que NO cuenta:** el cupo de clientes por pantalla (ADR 0008). Una digital
 > con slots libres pero con el cupo de anunciantes lleno sale con lugar aquí;
@@ -516,7 +541,7 @@ cambios sensibles. **No es decorativo**: es la salida de un `403
 En general está bien separada: los cálculos puros viven en `apps/web/lib/*.ts`
 con tests (`finanzas-calculo`, `reparto-creativos`, `renta-periodicidad`,
 `predio-cercania`, `contrato-vigencia`, `recordatorios-contratos`,
-`contrato-documento`).
+`contrato-documento`, `cliente-pipeline`).
 
 > [!note] Esto es un acierto, no un problema
 > Son funciones **puras** compartidas entre cliente y servidor, y el servidor las
