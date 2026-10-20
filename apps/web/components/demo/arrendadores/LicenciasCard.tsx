@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { ShieldCheck, Plus, Trash2, Loader2 } from 'lucide-react'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
+import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { StatusBadge, type Tono } from '@/components/demo/StatusBadge'
 import { useLicencias, formatFecha, diasHasta } from '@/lib/data/client'
 import { crearLicenciaApi, borrarLicenciaApi } from '@/lib/data/estado-api'
@@ -145,10 +146,15 @@ function AltaLicencia({
   const [vencimiento, setVencimiento] = useState('')
   const [guardando, setGuardando] = useState(false)
 
+  // OBLIG-01: tipo y vencimiento son los obligatorios del servidor
+  // (`licenciaSchema`, lib/server/arrendadores-controller.ts:451-461). El
+  // vencimiento ya no deshabilita el botón: se pulsa y se pinta en rojo.
+  const ob = useObligatorios({ tipo, vencimiento }, ['tipo', 'vencimiento'])
   const invertidas = !!expedicion && !!vencimiento && vencimiento < expedicion
 
   async function guardar() {
-    if (!vencimiento || invertidas || guardando) return
+    if (invertidas || guardando) return
+    if (!ob.validar()) return
     setGuardando(true)
     try {
       await crearLicenciaApi({
@@ -181,7 +187,7 @@ function AltaLicencia({
           </Button>
           <Button
             className="flex-1"
-            disabled={!vencimiento || invertidas || guardando}
+            disabled={invertidas || guardando}
             onClick={guardar}
           >
             {guardando ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Guardar
@@ -190,8 +196,7 @@ function AltaLicencia({
       }
     >
       <div className="space-y-3">
-        <label className="block">
-          <span className="mb-1 block text-[12px] text-muted">Tipo</span>
+        <Campo label="Tipo" obligatorio falta={ob.falta('tipo')}>
           <select className={inputCls} value={tipo} onChange={(e) => setTipo(e.target.value)}>
             {TIPOS.map((t) => (
               <option key={t} value={t}>
@@ -199,36 +204,35 @@ function AltaLicencia({
               </option>
             ))}
           </select>
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-[12px] text-muted">Folio (opcional)</span>
+        </Campo>
+        <Campo label="Folio">
           <input className={inputCls} value={folio} onChange={(e) => setFolio(e.target.value)} />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-[12px] text-muted">
-            Autoridad que la expide (opcional)
-          </span>
+        </Campo>
+        <Campo label="Autoridad que la expide">
           <input className={inputCls} value={autoridad} onChange={(e) => setAutoridad(e.target.value)} />
-        </label>
+        </Campo>
         <div className="grid grid-cols-2 gap-3">
-          <label className="block">
-            <span className="mb-1 block text-[12px] text-muted">Expedición (opcional)</span>
+          <Campo label="Expedición">
             <input
               type="date"
               className={inputCls}
               value={expedicion}
               onChange={(e) => setExpedicion(e.target.value)}
             />
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-[12px] text-muted">Vencimiento</span>
+          </Campo>
+          <Campo
+            label="Vencimiento"
+            obligatorio
+            falta={ob.falta('vencimiento')}
+            error={invertidas ? 'No puede ser anterior a la expedición' : null}
+          >
             <input
               type="date"
               className={inputCls}
               value={vencimiento}
               onChange={(e) => setVencimiento(e.target.value)}
             />
-          </label>
+          </Campo>
         </div>
         {invertidas && (
           <p className="rounded border border-error/40 bg-error-soft p-2 text-[12px] text-ink">
