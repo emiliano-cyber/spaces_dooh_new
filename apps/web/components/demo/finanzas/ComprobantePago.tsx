@@ -58,7 +58,7 @@ export function CampoComprobante({
   return (
     <div>
       <span className="mb-1 block text-[12px] font-medium text-ink">
-        Comprobante de pago <span className="font-normal text-muted">(opcional)</span>
+        Comprobante de pago
       </span>
       {nombre ? (
         <div className="flex items-center justify-between gap-2 rounded border border-border bg-surface-2 px-2.5 py-1.5">
