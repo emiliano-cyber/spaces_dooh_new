@@ -5,6 +5,39 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-10-20
+
+- **En Clientes ya se ven las campañas y el pipeline de cada cliente.** Al
+  pulsar el nombre de un cliente se abre su ficha con dos partes. Arriba, su
+  **pipeline**: cuántas propuestas tiene en borrador, enviadas y aprobadas,
+  cuántas campañas en curso y terminadas, y cuánto dinero hay en cada paso
+  (con IVA), más lo que se perdió (propuestas rechazadas y campañas
+  canceladas). Abajo, la **lista de sus campañas** con su estado y en qué
+  etapa van; al pulsar una se abre esa campaña en Campañas. Si el cliente es
+  una agencia, también salen las propuestas que armó como agencia y las
+  campañas que salieron de ellas.
+- **Los formularios dicen qué dato es obligatorio, y cuál faltó.** En todas las
+  ventanas de dar de alta o editar (pantallas, contratos, arrendadores,
+  propuestas, reservas, órdenes de trabajo, imprenta, almacén, facturas,
+  clientes, usuarios, captación, códigos, paquetes y más), los campos
+  obligatorios llevan un **asterisco rojo** y los opcionales solo su nombre
+  (desaparece el «(opcional)»). Si pulsas Guardar y falta un obligatorio, **ese
+  campo se pone en rojo con «Falta este dato» debajo** y no se guarda nada; al
+  escribirlo, el rojo se quita. Antes el botón de guardar se quedaba apagado
+  sin decir por qué, o el error llegaba después sin decir de qué campo.
+- **Reportar una incidencia ahora pide la descripción.** Antes, si se dejaba
+  vacía, se guardaba con un texto genérico.
+- *(Los formularios de Space Eyes se pasan a esta regla en una versión
+  posterior a la 0.12.0, la primera que los trae a `main`.)*
+- **Todas las pantallas se pueden plegar por secciones, como Arrendadores.**
+  En Dashboard, Inventario, Comercial, Clientes, Propuestas, Campañas,
+  Creativos, Operaciones, Finanzas, Reportes, Administración y el resto, cada
+  bloque con título se pliega o despliega con un clic en su encabezado, y sus
+  cifras principales siguen a la vista aunque esté plegado. **La aplicación
+  recuerda cómo lo dejaste**: al volver o recargar, lo plegado sigue plegado
+  (solo en ese navegador; no cambia nada para los demás). También Arrendadores
+  lo recuerda ahora, y las secciones de la ficha de campaña.
+
 ## 2026-10-19
 
 - **Space Eyes: el encuadre de un equipo solo lo fija el Dueño.** En g500
@@ -33,40 +66,6 @@ La entrada más reciente va arriba.
   después. Subirlo después no cambia el importe ni la fecha del pago. Es lo
   mismo que ya tenían los pagos de renta a los arrendadores. *(Aprobado por el dueño el 19/10; sale en la
   versión 0.12.0.)*
-## 2026-10-20
-
-- **En Clientes ya se ven las campañas y el pipeline de cada cliente.** Al
-  pulsar el nombre de un cliente se abre su ficha con dos partes. Arriba, su
-  **pipeline**: cuántas propuestas tiene en borrador, enviadas y aprobadas,
-  cuántas campañas en curso y terminadas, y cuánto dinero hay en cada paso
-  (con IVA), más lo que se perdió (propuestas rechazadas y campañas
-  canceladas). Abajo, la **lista de sus campañas** con su estado y en qué
-  etapa van; al pulsar una se abre esa campaña en Campañas. Si el cliente es
-  una agencia, también salen las propuestas que armó como agencia y las
-  campañas que salieron de ellas.
-## 2026-10-20
-
-- **Los formularios dicen qué dato es obligatorio, y cuál faltó.** En todas las
-  ventanas de dar de alta o editar (pantallas, contratos, arrendadores,
-  propuestas, reservas, órdenes de trabajo, imprenta, almacén, facturas,
-  clientes, usuarios, captación, códigos, paquetes y más), los campos
-  obligatorios llevan un **asterisco rojo** y los opcionales solo su nombre
-  (desaparece el «(opcional)»). Si pulsas Guardar y falta un obligatorio, **ese
-  campo se pone en rojo con «Falta este dato» debajo** y no se guarda nada; al
-  escribirlo, el rojo se quita. Antes el botón de guardar se quedaba apagado
-  sin decir por qué, o el error llegaba después sin decir de qué campo.
-- **Reportar una incidencia ahora pide la descripción.** Antes, si se dejaba
-  vacía, se guardaba con un texto genérico.
-- *(Los formularios de Space Eyes se pasan a esta regla en una versión
-  posterior a la 0.12.0, la primera que los trae a `main`.)*
-- **Todas las pantallas se pueden plegar por secciones, como Arrendadores.**
-  En Dashboard, Inventario, Comercial, Clientes, Propuestas, Campañas,
-  Creativos, Operaciones, Finanzas, Reportes, Administración y el resto, cada
-  bloque con título se pliega o despliega con un clic en su encabezado, y sus
-  cifras principales siguen a la vista aunque esté plegado. **La aplicación
-  recuerda cómo lo dejaste**: al volver o recargar, lo plegado sigue plegado
-  (solo en ese navegador; no cambia nada para los demás). También Arrendadores
-  lo recuerda ahora, y las secciones de la ficha de campaña.
 
 ## 2026-10-14
 

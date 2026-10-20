@@ -2350,6 +2350,47 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
   medido**; por lectura, sobreviviría. No es fuga entre organizaciones (tenant
   filtrado y RLS). Menor.
 
+> **2026-10-20 · supervisión de `integra/v0-12-0` (`434656b3` = `main` `7816e8e2` +
+> cinco ramas) para publicar `v0.12.0` — veredicto ÁMBAR, sin bloqueantes.** Medido en
+> el worktree `comprobante-cobranza`: ningún commit de las cinco ramas fuera
+> (`git log HEAD..<rama>` vacío en las cinco y en `origin/fix/space-eyes-fotos-rapidas`);
+> cero marcadores de conflicto; `PagoModal` fusionado bien (`finanzas/page.tsx:884-914`);
+> `rules-of-hooks` limpio en todos los `.tsx/.ts` del diff; 5 archivos unitarios
+> afectados 66/66; el guard del encuadre del proxy MUERDE (mutante `if (false && …)`
+> → 4 rojas, revertido). Typecheck, 3761 unitarias, build y e2e 1009/1010 los midió el
+> orquestador, no yo. No mirado en navegador.
+
+- ✅ **CERRADA el 20/10** (id por campaña, `campana.<id>.<sección>`): **B51 · La ficha de campaña ahora recuerda las secciones plegadas para TODAS las
+  campañas, y puede esconder un paso pendiente.** `Seccion`
+  (`app/(app)/(shell)/campanas/[id]/page.tsx:509-518`) abre según `estado ===
+  'pendiente'` y luego, en el efecto, la pliega si su `id` está en la lista; los `id`
+  son fijos (`campana.candado`, `campana.facturacion`…), no llevan el id de la campaña.
+  Escenario: alguien pliega «Candado» en una campaña ya cerrada; en la siguiente
+  campaña, donde el candado está PENDIENTE, la sección sale plegada. En `main` siempre
+  abría lo pendiente. **Cómo se cierra:** que lo pendiente ignore la preferencia, o
+  meter el id de la campaña en el `id`. **Quién:** técnica (Z10). **Si no antes del
+  14/10:** ya pasó; no rompe datos, puede hacer que un paso se pase por alto. Menor.
+- ✅ **CERRADA el 20/10** (bitácora con un solo 20/10 encima del 19/10; tablero sin clave duplicada y con línea en blanco entre recuadros): **B52 · Bitácora fuera de orden y tablero con frontmatter duplicado tras la
+  unión.** `docs/Registro_Cambios.md:8` `## 2026-10-19` va ARRIBA de dos `## 2026-10-20`
+  (`:36` y `:47`) y la cabecera del archivo dice «la más reciente va arriba»; además
+  `:36` va pegada a la lista sin línea en blanco. `vault/07-Agentes/tablero.md:4-5`
+  lleva `actualizado:` dos veces (clave YAML duplicada), y los recuadros de `:18`,
+  `:25` y `:30` van pegados sin línea en blanco, así que Obsidian los pinta como UNO.
+  Ninguna prueba lo ve (3761 en verde). **Quién:** docs. Menor.
+- ✅ **CERRADA el 20/10** (la comisión de agencia vuelve a ser opcional en Clientes y Comisiones; vacía se guarda como 0, como antes): **B53 · Obligatorios que el servidor no exige y antes no bloqueaban.** La comisión
+  de la agencia (`comisiones/page.tsx:140`, `clientes/page.tsx:315-317`): vaciada,
+  antes se guardaba como 0 (`Number('') || 0`); ahora sale «Falta este dato». La
+  descripción de la incidencia se pasó a obligatoria a propósito (bitácora `:58-59`).
+  Es la regla escrita en `convenciones.md` («lo que exige el servidor más lo que la
+  pantalla ya pedía»), y la comisión NO estaba en ninguna de las dos. Menor.
+- ✅ **CUBIERTA**: `update-eyes.sh` respalda MySQL y verifica el volcado ANTES de migrar, y restaura si la migración falla (guía 25, Paso 2); la 027 corre después de ese respaldo. **B54 · `027_fotos_de_vigilancia_derechas.sql` de Space Eye es idempotente pero NO
+  aditiva.** `UPDATE photos SET display_rotation = 0 WHERE source IN (…)`: pone a cero
+  un valor sin respaldo de lo que había. Sin vuelta atrás si algo de esas fotos sí
+  necesitaba el giro. La 026 sí es aditiva (`ADD COLUMN` dentro de `IF NOT EXISTS`).
+  **Cómo se cierra:** capturar antes `select id, display_rotation from photos where
+  source in (…) and display_rotation <> 0` en g500. **Quién:** quien corra
+  `update-eyes.sh`. Menor (son datos de visualización).
+
 ---
 
 ## C · Cerradas

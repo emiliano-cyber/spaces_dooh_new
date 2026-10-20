@@ -310,11 +310,10 @@ function ClienteDialog({ cliente, onClose }: { cliente?: Cliente; onClose: () =>
   // el usuario arreglaba uno, reenviaba, y descubría el otro (M1).
   //
   // Los OBLIGATORIOS (OBLIG-01) van aparte, con `useObligatorios`: el nombre es
-  // lo único que exige el servidor (`clientes-controller.ts:33`), y la comisión
-  // se pide solo a la agencia, que es la única a la que aplica.
-  const ob = useObligatorios({ nombre, comisionAgencia }, [
+  // lo único que exige el servidor (`clientes-controller.ts:33`). La comisión de
+  // la agencia NO: el servidor la acepta vacía y vacía se guardaba como 0 (B53).
+  const ob = useObligatorios({ nombre }, [
     'nombre',
-    { campo: 'comisionAgencia', si: tipo === 'AGENCIA' },
   ])
   const errores = {
     rfc: esRfcValido(rfc) ? null : 'RFC inválido. Formato SAT (p. ej. XAXX010101000)',
@@ -405,7 +404,7 @@ function ClienteDialog({ cliente, onClose }: { cliente?: Cliente; onClose: () =>
           </Campo>
           {/* La comisión es por AGENCIA; no aplica al cliente directo. */}
           {tipo === 'AGENCIA' && (
-            <Campo label="Comisión de la agencia (%)" obligatorio falta={ob.falta('comisionAgencia')}>
+            <Campo label="Comisión de la agencia (%)">
               <input className={inputCls} value={comisionAgencia} onChange={(e) => setComisionAgencia(e.target.value)} placeholder="0" />
             </Campo>
           )}

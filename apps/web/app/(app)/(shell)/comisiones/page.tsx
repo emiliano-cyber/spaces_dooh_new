@@ -137,7 +137,8 @@ function NuevaAgenciaDialog({ onClose }: { onClose: () => void }) {
   // OBLIG-01 · el nombre lo exige el servidor (`clientes-controller.ts:33`); la
   // comisión es el dato que define a una agencia, así que también se pide (un
   // 0 vale: es una comisión de cero, no un hueco).
-  const ob = useObligatorios({ nombre, comision }, ['nombre', 'comision'])
+  // Solo el nombre: la comisión vacía se guarda como 0, como siempre (B53).
+  const ob = useObligatorios({ nombre }, ['nombre'])
 
   async function guardar() {
     if (!ob.validar()) return
@@ -181,7 +182,7 @@ function NuevaAgenciaDialog({ onClose }: { onClose: () => void }) {
         <Campo label="Nombre de la agencia" obligatorio falta={ob.falta('nombre')}>
           <input className={fieldCls} value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus placeholder="p. ej. Andina Media" />
         </Campo>
-        <Campo label="Comisión de la agencia (%)" obligatorio falta={ob.falta('comision')}>
+        <Campo label="Comisión de la agencia (%)">
           <input className={`demo-num ${fieldCls}`} value={comision} onChange={(e) => setComision(e.target.value)} placeholder="0" />
         </Campo>
 

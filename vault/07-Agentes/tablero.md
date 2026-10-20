@@ -2,7 +2,6 @@
 tipo: tablero
 estado: verificado
 actualizado: 2026-10-20
-actualizado: 2026-10-20
 tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
@@ -22,11 +21,13 @@ archivos: []
 > movida a `docs/evidencias/25-despliegue-space-eyes-g500-20261019.txt`. Zonas: Z3 (José, en su rama)
 > y Z12 en REVISION por esta integración. **El despliegue en g500 son DOS pasos y los corre una
 > persona**: la `v0.11.10` por el camino de siempre y después `update-eyes.sh` en el droplet.
+
 > [!important] 2026-10-19 · **COB-COMP · Z7 + Z9 + Z12 en REVISION** · ROJO (R3 migración, R4 dinero)
 > Rama `feat/comprobante-cobranza`, salida de `main` (`7816e8e2`). Pedido del dueño: al registrar un
 > pago de cliente en Cobranza se puede adjuntar el comprobante, y subirlo después a un pago ya
 > registrado. Migración `20261019_cobranza_abono_comprobante.sql` (una columna en `cobranza_abonos`)
 > con **la forma aprobada por el dueño el 19/10**. Sin fusionar. Detalle en [[02-Backend/finanzas-y-cobranza]].
+
 > [!important] 2026-10-20 · **OBLIG-01 y PLEG-01 · campos obligatorios y secciones plegables en todos los módulos** · Z10 + Z12 en REVISION · VERDE (solo interfaz)
 > Rama `feat/campos-obligatorios`, salida de `main` (`7816e8e2`). `Campo` y `useObligatorios`
 > compartidos y ~60 formularios en ~45 archivos de casi todos los módulos; encima, rama `feat/secciones-colapsables`: cada sección de cada página se pliega y se recuerda (Space Eyes fuera hasta que
@@ -135,6 +136,7 @@ archivos: []
 > `grants-rol-app.e2e.test.ts` («si NO existe ninguno de los dos, ABORTA»),
 > que necesita `docker run`.
 >
+
 > [!warning] La base e2e tiene que tener un locale que sepa de acentos
 > Con `initdb --locale=C`, `upper('Pérez')` deja la `é` en minúscula y
 > `arrendador-duplicado.e2e.test.ts` falla **en falso**. Crear `spaces_e2e` con
@@ -201,6 +203,7 @@ archivos: []
 > `lib/server/db.ts` (solo comentarios), `docs/Registro_Cambios.md` y este
 > tablero.
 >
+
 > [!warning] Un reclamo que desde `main` NO se ve
 > La rama **`origin/feat/space-eyes-con-mejoras`** (último commit `c1a3ea6d`,
 > 01/10; **13 commits sin fusionar**) reclama en **su propia copia** de este
@@ -346,6 +349,7 @@ archivos: []
 > en la primera vuelta y la causa era una sola, anotada en
 > [[02-Backend/vendedor-en-propuesta]].
 >
+
 > [!danger] Y de paso: `main` tenia MARCADORES DE CONFLICTO commitados en `CLAUDE.md`
 > El merge `a9ec0cc` dejo un `<<<<<<< HEAD` / `=======` / `>>>>>>>` dentro del
 > bloque de recuentos de la bóveda, con dos cifras incompatibles a la vez.
@@ -585,6 +589,7 @@ archivos: []
 > **La parte (2) de B36 NO entró** —impedir el push a `estable` fuera de
 > `promover.yml`—: sigue sin decidirse y la aprobación del dueño fue solo para las
 > etiquetas.
+
 > [!success] 2026-09-25 · **LIMPIEZA: 57 ramas y 21 worktrees retirados**
 > El arbol tenia **60 ramas y 22 worktrees**. Solo **4 ramas** no estaban en
 > `main`, asi que el resto era etiqueta muerta de trabajos aterrizados hace

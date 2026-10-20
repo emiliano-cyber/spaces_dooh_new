@@ -196,7 +196,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
       <div className="flex flex-col gap-4">
       {/* Validación de publicación (verificar anuncios antes de salir al aire) */}
       <Seccion
-        id="campana.validacion"
+        id={`campana.${id}.validacion`}
         titulo="Validación de publicación"
         estado={!validacionAplica ? 'na' : validacionHecha ? 'hecho' : 'pendiente'}
       >
@@ -204,12 +204,12 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
       </Seccion>
 
       {/* Candado de facturación */}
-      <Seccion id="campana.candado" titulo="Candado de facturación" estado={candadoHecho ? 'hecho' : 'pendiente'}>
+      <Seccion id={`campana.${id}.candado`} titulo="Candado de facturación" estado={candadoHecho ? 'hecho' : 'pendiente'}>
         <CandadoPanel campanaId={id} />
       </Seccion>
 
       {/* Comercial (referencia) */}
-      <Seccion id="campana.comercial" titulo="Comercial" estado="hecho">
+      <Seccion id={`campana.${id}.comercial`} titulo="Comercial" estado="hecho">
         <dl className="space-y-2 text-[13px]">
           <Fila label="Subtotal (neto)" valor={c.presupuestoNeto ? formatMonto(c.presupuestoNeto) : '—'} mono />
           <Fila
@@ -224,14 +224,14 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
       </Seccion>
 
       {/* Datos de facturación: fiscales del cliente (auto-llenados) + contrato */}
-      <Seccion id="campana.facturacion" titulo="Datos de facturación" estado={fiscalHecho ? 'hecho' : 'pendiente'}>
+      <Seccion id={`campana.${id}.facturacion`} titulo="Datos de facturación" estado={fiscalHecho ? 'hecho' : 'pendiente'}>
         <DatosFacturacion campana={c} sinCard />
       </Seccion>
 
       {/* Rentabilidad (motor de costos: espacios + impresión + operación) */}
       {margen && (
         <Seccion
-          id="campana.rentabilidad"
+          id={`campana.${id}.rentabilidad`}
           titulo="Rentabilidad"
           // Un margen NEGATIVO no es una seccion "Completa": la campaña pierde
           // dinero. Estaba fijo en "hecho", asi que se veia el check verde de
@@ -286,7 +286,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
       {/* Reporte de cumplimiento (contratado vs entregado + testigos) */}
       {reporte && (
         <Seccion
-          id="campana.cumplimiento"
+          id={`campana.${id}.cumplimiento`}
           titulo="Reporte de cumplimiento"
           // "Completo" solo si se entrego todo lo contratado. Estaba fijo en
           // "hecho" y producia el sinsentido "Completo · 0% entregado" (A-3):
@@ -309,7 +309,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
 
       {/* Orden de compra del cliente (ODC) */}
       {odc && (
-        <Seccion id="campana.orden-compra" titulo="Orden de compra" estado="hecho">
+        <Seccion id={`campana.${id}.orden-compra`} titulo="Orden de compra" estado="hecho">
             <dl className="space-y-2 text-[13px]">
               <Fila label="Folio ODC" valor={odc.folio} mono />
               {odc.numeroOc && <Fila label="Número de OC (cliente)" valor={odc.numeroOc} mono />}
@@ -321,7 +321,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
       )}
 
       {/* Sitios (referencia) */}
-      <Seccion id="campana.sitios" titulo="Sitios de la campaña" estado="hecho">
+      <Seccion id={`campana.${id}.sitios`} titulo="Sitios de la campaña" estado="hecho">
           {misSitios.length === 0 ? (
             <p className="text-[13px] text-muted">Sin sitios asignados.</p>
           ) : (
@@ -366,7 +366,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
 
       {/* Imprenta — solo para campañas con medios fijos (OOH/híbrida). */}
       <Seccion
-        id="campana.imprenta"
+        id={`campana.${id}.imprenta`}
         titulo="Imprenta"
         icono={<Printer className="h-4 w-4 text-muted" />}
         estado={!tieneFija ? 'na' : misOis.length > 0 ? 'hecho' : 'pendiente'}
@@ -390,7 +390,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
 
       {/* Órdenes de trabajo */}
       <Seccion
-        id="campana.ots"
+        id={`campana.${id}.ots`}
         titulo="Órdenes de trabajo"
         icono={<ClipboardList className="h-4 w-4 text-muted" />}
         estado={otsPendientes ? 'pendiente' : 'hecho'}
@@ -419,7 +419,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
 
       {/* Creatividades — se pueden subir desde aquí, sin ir a Creativos. */}
       <Seccion
-        id="campana.creatividades"
+        id={`campana.${id}.creatividades`}
         titulo="Creatividades"
         estado={creativosHecho ? 'hecho' : 'pendiente'}
         accion={
@@ -452,7 +452,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
 
       {/* Evidencias fotográficas — de los medios FIJOS. */}
       <Seccion
-        id="campana.evidencias"
+        id={`campana.${id}.evidencias`}
         titulo="Evidencias fotográficas"
         icono={<Camera className="h-4 w-4 text-muted" />}
         estado={!tieneFija ? 'na' : misEvid.length > 0 ? 'hecho' : 'pendiente'}
@@ -464,7 +464,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
 
       {/* Proof of play — la prueba de los medios DIGITALES. */}
       <Seccion
-        id="campana.reproducciones"
+        id={`campana.${id}.reproducciones`}
         titulo="Reproducciones (proof of play)"
         icono={<MonitorPlay className="h-4 w-4 text-muted" />}
         estado={!tieneDigital ? 'na' : c.validacionEstatus === 'APROBADA' ? 'hecho' : 'pendiente'}
@@ -486,10 +486,11 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
 // la apertura inicial DEPENDE DEL ESTADO (pendiente abierta, hecha o «no aplica»
 // plegada), el chip Pendiente/Completo va pegado al título y la tarjeta lleva
 // `order-*` para subir las pendientes. Lo que sí comparte es la memoria del
-// plegado, con el mismo almacén (`lib/secciones-plegadas.ts`): el `id`
-// («campana.candado») es el mismo para TODAS las campañas, así que plegar una
-// sección la deja plegada en cualquier ficha. Solo se recuerda lo plegado: una
-// sección no recordada sigue abriéndose según su estado.
+// plegado, con el mismo almacén (`lib/secciones-plegadas.ts`). El `id` lleva LA
+// CAMPAÑA («campana.<id>.candado»): con uno común (B51, supervisión del 20/10),
+// plegar «Candado» en una campaña ya cerrada lo escondía en la siguiente, donde
+// estaba pendiente — y en esta ficha lo pendiente siempre se abría. Solo se
+// recuerda lo plegado: una sección no recordada sigue abriéndose según su estado.
 type EstadoSeccion = 'pendiente' | 'hecho' | 'na'
 function Seccion({
   id,
