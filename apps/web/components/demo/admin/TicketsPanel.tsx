@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { LifeBuoy, Plus, Loader2 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
+import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import {
   crearTicketApi,
   type Ticket,
@@ -72,6 +73,9 @@ export function TicketsPanel({ onToast }: { onToast: (m: string) => void }) {
   const [prioridad, setPrioridad] = useState<PrioridadTicket>('NORMAL')
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // OBLIG-01 · asunto y cuerpo, los dos que exige el servidor
+  // (`tickets-controller.ts:25-26`). La prioridad trae NORMAL de inicio.
+  const ob = useObligatorios({ asunto, cuerpo }, ['asunto', 'cuerpo'])
 
   async function cargar() {
     try {
@@ -96,13 +100,18 @@ export function TicketsPanel({ onToast }: { onToast: (m: string) => void }) {
     // Segunda barrera, no la única: el controlador (`tickets-controller.ts`,
     // `.strict()`) es quien de verdad decide. Esto solo evita el viaje de red
     // de un formulario que YA SABEMOS que el servidor va a rechazar.
-    if (!formularioValido(asunto, cuerpo)) return
+    //
+    // Los vacíos los pinta `ob.validar()` en rojo; `formularioValido` sigue
+    // siendo la regla probada en `tickets-ui.ts`.
+    const completos = ob.validar()
+    if (!completos || !formularioValido(asunto, cuerpo)) return
     setEnviando(true)
     setError(null)
     try {
       const nuevo = await crearTicketApi({ asunto: asunto.trim(), cuerpo: cuerpo.trim(), prioridad })
       setTickets((prev) => [nuevo, ...(prev ?? [])])
       setAsunto(''); setCuerpo(''); setPrioridad('NORMAL')
+      ob.reiniciar()
       setAbierto(false)
       onToast(`Ticket abierto: ${nuevo.folio}`)
     } catch (e) {
@@ -157,12 +166,10 @@ export function TicketsPanel({ onToast }: { onToast: (m: string) => void }) {
               </Button>
             ) : (
               <div className="space-y-2.5 rounded-md border border-border bg-bg p-3">
-                <div>
-                  <label className="mb-1 block text-[11px] text-muted">Asunto</label>
+                <Campo label="Asunto" obligatorio falta={ob.falta('asunto')}>
                   <input className={inputCls} value={asunto} onChange={(e) => setAsunto(e.target.value)} autoFocus />
-                </div>
-                <div>
-                  <label className="mb-1 block text-[11px] text-muted">Cuéntanos qué pasa</label>
+                </Campo>
+                <Campo label="Cuéntanos qué pasa" obligatorio falta={ob.falta('cuerpo')}>
                   <textarea
                     className={`${inputCls} h-auto py-2 leading-snug`}
                     rows={3}
@@ -170,9 +177,8 @@ export function TicketsPanel({ onToast }: { onToast: (m: string) => void }) {
                     value={cuerpo}
                     onChange={(e) => setCuerpo(e.target.value)}
                   />
-                </div>
-                <div>
-                  <label className="mb-1 block text-[11px] text-muted">Prioridad</label>
+                </Campo>
+                <Campo label="Prioridad">
                   <select
                     className={inputCls}
                     value={prioridad}
@@ -182,13 +188,13 @@ export function TicketsPanel({ onToast }: { onToast: (m: string) => void }) {
                       <option key={p} value={p}>{PRIORIDAD_LABEL[p]}</option>
                     ))}
                   </select>
-                </div>
+                </Campo>
                 {error && <p className="text-[12px] text-error">{error}</p>}
                 <div className="flex justify-end gap-2 pt-0.5">
-                  <Button size="sm" variant="secondary" onClick={() => { setAbierto(false); setError(null) }}>
+                  <Button size="sm" variant="secondary" onClick={() => { setAbierto(false); setError(null); ob.reiniciar() }}>
                     Cancelar
                   </Button>
-                  <Button size="sm" disabled={!formularioValido(asunto, cuerpo) || enviando} onClick={abrirTicket}>
+                  <Button size="sm" disabled={enviando} onClick={abrirTicket}>
                     {enviando && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                     Abrir ticket
                   </Button>

@@ -6,6 +6,7 @@ import { Percent, Handshake, ShieldCheck, ShieldAlert, Building2, Users, Plus } 
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
+import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { useClientes, type Cliente } from '@/lib/data/client'
 import { actualizarClienteApi, crearClienteApi } from '@/lib/data/estado-api'
@@ -135,9 +136,13 @@ function NuevaAgenciaDialog({ onClose }: { onClose: () => void }) {
   const [nota, setNota] = useState('')
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // OBLIG-01 · el nombre lo exige el servidor (`clientes-controller.ts:33`); la
+  // comisión es el dato que define a una agencia, así que también se pide (un
+  // 0 vale: es una comisión de cero, no un hueco).
+  const ob = useObligatorios({ nombre, comision }, ['nombre', 'comision'])
 
   async function guardar() {
-    if (!nombre.trim()) return
+    if (!ob.validar()) return
     setGuardando(true)
     setError(null)
     try {
@@ -167,7 +172,7 @@ function NuevaAgenciaDialog({ onClose }: { onClose: () => void }) {
           {error ? <span className="text-[12px] text-error">{error}</span> : <span />}
           <div className="flex gap-2">
             <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
-            <Button variant="success" size="sm" disabled={!nombre.trim() || guardando} onClick={guardar}>
+            <Button variant="success" size="sm" disabled={guardando} onClick={guardar}>
               {guardando ? 'Guardando…' : 'Crear agencia'}
             </Button>
           </div>
@@ -175,14 +180,12 @@ function NuevaAgenciaDialog({ onClose }: { onClose: () => void }) {
       }
     >
       <div className="space-y-3">
-        <label className="block">
-          <span className="mb-1 block text-[12px] font-medium text-ink">Nombre de la agencia</span>
+        <Campo label="Nombre de la agencia" obligatorio falta={ob.falta('nombre')}>
           <input className={fieldCls} value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus placeholder="p. ej. Andina Media" />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-[12px] font-medium text-ink">Comisión de la agencia (%)</span>
+        </Campo>
+        <Campo label="Comisión de la agencia (%)" obligatorio falta={ob.falta('comision')}>
           <input className={`demo-num ${fieldCls}`} value={comision} onChange={(e) => setComision(e.target.value)} placeholder="0" />
-        </label>
+        </Campo>
 
         <div className="rounded-md border border-border bg-surface-2 p-3">
           <label className="flex items-center gap-2 text-[13px] text-ink">

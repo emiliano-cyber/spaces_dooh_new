@@ -8,6 +8,7 @@ import { Button } from '@/components/demo/ui/Button'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
 import { CRUDO_INVALIDO } from '@/lib/captura-cifra'
 import { Modal } from '@/components/demo/ui/Modal'
+import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { Tabs, TabPanel } from '@/components/demo/ui/Tabs'
 import { ROLES, rolLabel } from '@/components/demo/shell/nav'
 import { useSesionCtx } from '@/components/demo/shell/SesionContext'
@@ -231,9 +232,21 @@ function CambiarPasswordModal({
   // el mismo modal, que es donde estás.
   const [reautenticando, setReautenticando] = useState(false)
   const [passActor, setPassActor] = useState('')
+  // OBLIG-01 · qué falta depende del paso en el que esté el cuadro: cambiar la
+  // propia pide las tres (el servidor exige `passwordActual`,
+  // `perfil-controller.ts:83`); restablecer la de otro solo pide la TUYA cuando
+  // el servidor reclama la reautenticación.
+  const pasoPropia = esYo && !reautenticando && !temporal
+  const ob = useObligatorios({ actual, nueva, confirmar, passActor }, [
+    { campo: 'actual', si: pasoPropia },
+    { campo: 'nueva', si: pasoPropia },
+    { campo: 'confirmar', si: pasoPropia },
+    { campo: 'passActor', si: reautenticando },
+  ])
 
   async function guardarPropia() {
     setError(null)
+    if (!ob.validar()) return
     if (nueva.length < 8) { setError('La contraseña debe tener al menos 8 caracteres, con letra y número.'); return }
     if (nueva !== confirmar) { setError('Las contraseñas no coinciden.'); return }
     if (!actual) { setError('Ingresa tu contraseña actual para confirmar.'); return }
@@ -273,7 +286,7 @@ function CambiarPasswordModal({
   // expirado entre las dos llamadas, por ejemplo— se muestra el motivo en vez de
   // reintentar en bucle.
   async function reautenticarYRestablecer() {
-    if (!passActor) { setError('Escribe tu contraseña para confirmar.'); return }
+    if (!ob.validar()) return
     setError(null)
     setEnviando(true)
     try {
@@ -301,14 +314,14 @@ function CambiarPasswordModal({
           ) : reautenticando ? (
             <>
               <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
-              <Button size="sm" disabled={enviando || !passActor} onClick={reautenticarYRestablecer}>
+              <Button size="sm" disabled={enviando} onClick={reautenticarYRestablecer}>
                 {enviando ? 'Confirmando…' : 'Confirmar y restablecer'}
               </Button>
             </>
           ) : esYo ? (
             <>
               <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
-              <Button size="sm" disabled={enviando || !nueva || !confirmar} onClick={guardarPropia}>
+              <Button size="sm" disabled={enviando} onClick={guardarPropia}>
                 {enviando ? 'Guardando…' : 'Guardar contraseña'}
               </Button>
             </>
@@ -343,22 +356,22 @@ function CambiarPasswordModal({
               Confirma con <b>tu</b> contraseña. Vas a cambiar el acceso de {usuario.nombre}, y la
               bitácora tiene que poder probar que fuiste tú.
             </p>
-            <Campo label="Tu contraseña">
+            <Campo label="Tu contraseña" obligatorio falta={ob.falta('passActor')}>
               <input type="password" className={inputCls} value={passActor}
                 onChange={(e) => setPassActor(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter' && passActor && !enviando) void reautenticarYRestablecer() }}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !enviando) void reautenticarYRestablecer() }}
                 autoComplete="current-password" autoFocus />
             </Campo>
           </>
         ) : esYo ? (
           <>
-            <Campo label="Contraseña actual">
+            <Campo label="Contraseña actual" obligatorio falta={ob.falta('actual')}>
               <input type="password" className={inputCls} value={actual} onChange={(e) => setActual(e.target.value)} autoComplete="current-password" autoFocus />
             </Campo>
-            <Campo label="Nueva contraseña">
+            <Campo label="Nueva contraseña" obligatorio falta={ob.falta('nueva')}>
               <input type="password" className={inputCls} value={nueva} onChange={(e) => setNueva(e.target.value)} placeholder={REGLA_PASSWORD} autoComplete="new-password" />
             </Campo>
-            <Campo label="Confirmar contraseña">
+            <Campo label="Confirmar contraseña" obligatorio falta={ob.falta('confirmar')}>
               <input type="password" className={inputCls} value={confirmar} onChange={(e) => setConfirmar(e.target.value)} autoComplete="new-password" />
             </Campo>
           </>
@@ -418,11 +431,22 @@ function InvitarModal({ open, onOpenChange, onInvitado }: { open: boolean; onOpe
   // el que exige el SERVIDOR (validarPassword: 8, con letra y número) — antes
   // pedía 6 aquí, así que una de 6 pasaba el formulario y el servidor la
   // rechazaba después con un mensaje que parecía salido de la nada.
-  const valido = !!nombre.trim() && !!email.trim() && (acceso !== 'password' || !validarPassword(password))
+  //
+  // OBLIG-01 · lo que exige el servidor (`usuarios-controller.ts:52-53`): nombre
+  // y correo; la contraseña solo con «fijar». Los vacíos ya NO deshabilitan el
+  // botón —se pulsa y se pinta en rojo lo que falta—; una contraseña ESCRITA que
+  // no cumple la regla sí, como antes.
+  const ob = useObligatorios({ nombre, email, password }, [
+    'nombre',
+    'email',
+    { campo: 'password', si: acceso === 'password' },
+  ])
+  const passwordInvalida = acceso === 'password' && !!password && !!validarPassword(password)
 
   function limpiar() {
     setNombre(''); setEmail(''); setCargo(''); setPassword(''); setRol(ROL_POR_OMISION)
     setAcceso('invitar'); setEnlace(null); setCopiado(false); setError(null)
+    ob.reiniciar()
   }
 
   function cerrar() {
@@ -431,6 +455,7 @@ function InvitarModal({ open, onOpenChange, onInvitado }: { open: boolean; onOpe
   }
 
   async function enviar() {
+    if (!ob.validar()) return
     if (!esEmailValido(email)) { setError(EMAIL_INVALIDO); return }
     setEnviando(true)
     setError(null)
@@ -478,7 +503,7 @@ function InvitarModal({ open, onOpenChange, onInvitado }: { open: boolean; onOpe
 
   const footer = enlace
     ? <div className="flex justify-end gap-2"><Button variant="success" size="sm" onClick={cerrar}>Listo</Button></div>
-    : <div className="flex justify-end gap-2"><Button variant="secondary" size="sm" onClick={cerrar}>Cancelar</Button><Button variant="success" size="sm" disabled={!valido || enviando} onClick={enviar}>{enviando ? 'Creando…' : acceso === 'invitar' ? 'Crear e invitar' : 'Crear usuario'}</Button></div>
+    : <div className="flex justify-end gap-2"><Button variant="secondary" size="sm" onClick={cerrar}>Cancelar</Button><Button variant="success" size="sm" disabled={passwordInvalida || enviando} onClick={enviar}>{enviando ? 'Creando…' : acceso === 'invitar' ? 'Crear e invitar' : 'Crear usuario'}</Button></div>
 
   return (
     <Modal open={open} onOpenChange={(v) => (v ? onOpenChange(true) : cerrar())} title="Crear usuario" subtitle={subtitulo} footer={footer}>
@@ -503,8 +528,8 @@ function InvitarModal({ open, onOpenChange, onInvitado }: { open: boolean; onOpe
         </div>
       ) : (
         <div className="space-y-3">
-          <Campo label="Nombre"><input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus /></Campo>
-          <Campo label="Correo"><input className={inputCls} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="correo@empresa.com" /></Campo>
+          <Campo label="Nombre" obligatorio falta={ob.falta('nombre')}><input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus /></Campo>
+          <Campo label="Correo" obligatorio falta={ob.falta('email')}><input className={inputCls} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="correo@empresa.com" /></Campo>
           <Campo label="Cargo"><input className={inputCls} value={cargo} onChange={(e) => setCargo(e.target.value)} /></Campo>
           <Campo label="Rol"><select className={inputCls} value={rol} onChange={(e) => setRol(e.target.value as RolDemo)}>{ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}</select></Campo>
           <fieldset className="space-y-1.5">
@@ -531,7 +556,7 @@ function InvitarModal({ open, onOpenChange, onInvitado }: { open: boolean; onOpe
               un campo gris que sigue ahí invita a preguntarse si hay que
               rellenarlo igual. */}
           {acceso === 'password' && (
-            <Campo label="Contraseña">
+            <Campo label="Contraseña" obligatorio falta={ob.falta('password')}>
               <input className={inputCls} type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={REGLA_PASSWORD} />
             </Campo>
           )}
@@ -1327,7 +1352,7 @@ function DatosFiscales({
           {campo('representanteLegal', 'Representante legal', 'Nombre de quien firma', 'Representante legal actualizado')}
         </div>
         {campo('domicilioFiscal', 'Domicilio fiscal', 'Calle, número, colonia, CP, ciudad, estado', 'Domicilio fiscal actualizado', true)}
-        {campo('datosConstitucion', 'Datos de constitución (opcional)',
+        {campo('datosConstitucion', 'Datos de constitución',
           'p. ej. escritura pública 12,345 del 3 de marzo de 2014, ante el notario 45 de Guadalajara, Jalisco',
           'Datos de constitución actualizados', true)}
         <span className="-mt-1 block text-[11px] text-muted">
@@ -1497,14 +1522,5 @@ function CorreoDeAvisos({
         </div>
       </Modal>
     </Card>
-  )
-}
-
-function Campo({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-[12px] font-medium text-ink">{label}</span>
-      {children}
-    </label>
   )
 }

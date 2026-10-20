@@ -14,6 +14,7 @@ import {
 } from '@/lib/data/rejilla-api'
 import { motivoFranjaInvalida, motivoTemporadaInvalida } from '@/lib/rejilla'
 import { Button } from '@/components/demo/ui/Button'
+import { useObligatorios } from '@/components/demo/ui/Campo'
 
 // ============================================================================
 //  El catálogo de FRANJAS y TEMPORADAS de la organización. ADR 0039, Fase 1.
@@ -41,6 +42,13 @@ export function GestionRejilla() {
   const [cargando, setCargando] = useState(true)
   const [nuevaF, setNuevaF] = useState({ ...vacioFranja })
   const [nuevaT, setNuevaT] = useState({ ...vacioTemporada })
+  // OBLIG-01 · lo que exige el servidor (`rejilla-controller.ts:41-58`). El
+  // orden no: trae 0. Las filas de alta van DENTRO de la tabla y sin etiqueta
+  // propia —la etiqueta es la cabecera de la columna—, así que no llevan
+  // `Campo`: el asterisco va en la cabecera y el rojo lo pone `globals.css`
+  // por el `data-falta` de la celda.
+  const obF = useObligatorios(nuevaF, ['nombre', 'horaInicio', 'horaFin'])
+  const obT = useObligatorios(nuevaT, ['nombre', 'desde', 'hasta'])
 
   const cargar = useCallback(async () => {
     try {
@@ -64,11 +72,13 @@ export function GestionRejilla() {
     // de baja—: si solo mirara las activas, se podría capturar una franja que se
     // solapa con una apagada y el choque saldría el día que alguien la
     // reactivara, sin saber desde cuándo.
+    const completos = obF.validar()
     const motivo = motivoFranjaInvalida({ id: '', ...nuevaF }, franjas)
-    if (motivo) return setError(motivo)
+    if (!completos || motivo) return setError(motivo)
     try {
       await guardarFranjaApi(nuevaF)
       setNuevaF({ ...vacioFranja })
+      obF.reiniciar()
       await cargar()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo guardar')
@@ -76,11 +86,13 @@ export function GestionRejilla() {
   }
 
   async function anadirTemporada() {
+    const completos = obT.validar()
     const motivo = motivoTemporadaInvalida({ id: '', ...nuevaT }, temporadas)
-    if (motivo) return setError(motivo)
+    if (!completos || motivo) return setError(motivo)
     try {
       await guardarTemporadaApi(nuevaT)
       setNuevaT({ ...vacioTemporada })
+      obT.reiniciar()
       await cargar()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo guardar')
@@ -121,9 +133,9 @@ export function GestionRejilla() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b text-left text-xs text-neutral-500">
-              <th className="py-1">Nombre</th>
-              <th>Desde</th>
-              <th>Hasta</th>
+              <th className="py-1">Nombre<Asterisco /></th>
+              <th>Desde<Asterisco /></th>
+              <th>Hasta<Asterisco /></th>
               <th>Orden</th>
               <th />
             </tr>
@@ -160,7 +172,7 @@ export function GestionRejilla() {
               </tr>
             ))}
             <tr>
-              <td className="py-2">
+              <td className="py-2" data-falta={obF.falta('nombre') || undefined}>
                 <input
                   aria-label="Nombre de la franja"
                   className="w-full rounded border px-2 py-1"
@@ -169,7 +181,7 @@ export function GestionRejilla() {
                   onChange={(e) => setNuevaF({ ...nuevaF, nombre: e.target.value })}
                 />
               </td>
-              <td>
+              <td data-falta={obF.falta('horaInicio') || undefined}>
                 <input
                   aria-label="Hora de inicio"
                   type="time"
@@ -178,7 +190,7 @@ export function GestionRejilla() {
                   onChange={(e) => setNuevaF({ ...nuevaF, horaInicio: e.target.value })}
                 />
               </td>
-              <td>
+              <td data-falta={obF.falta('horaFin') || undefined}>
                 <input
                   aria-label="Hora de fin"
                   type="time"
@@ -221,9 +233,9 @@ export function GestionRejilla() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b text-left text-xs text-neutral-500">
-              <th className="py-1">Nombre</th>
-              <th>Desde</th>
-              <th>Hasta</th>
+              <th className="py-1">Nombre<Asterisco /></th>
+              <th>Desde<Asterisco /></th>
+              <th>Hasta<Asterisco /></th>
               <th />
             </tr>
           </thead>
@@ -256,7 +268,7 @@ export function GestionRejilla() {
               </tr>
             ))}
             <tr>
-              <td className="py-2">
+              <td className="py-2" data-falta={obT.falta('nombre') || undefined}>
                 <input
                   aria-label="Nombre de la temporada"
                   className="w-full rounded border px-2 py-1"
@@ -265,7 +277,7 @@ export function GestionRejilla() {
                   onChange={(e) => setNuevaT({ ...nuevaT, nombre: e.target.value })}
                 />
               </td>
-              <td>
+              <td data-falta={obT.falta('desde') || undefined}>
                 <input
                   aria-label="Fecha de inicio"
                   type="date"
@@ -274,7 +286,7 @@ export function GestionRejilla() {
                   onChange={(e) => setNuevaT({ ...nuevaT, desde: e.target.value })}
                 />
               </td>
-              <td>
+              <td data-falta={obT.falta('hasta') || undefined}>
                 <input
                   aria-label="Fecha de fin"
                   type="date"
@@ -298,5 +310,15 @@ export function GestionRejilla() {
         </table>
       </section>
     </div>
+  )
+}
+
+/** OBLIG-01 · el asterisco de una cabecera de columna obligatoria. */
+function Asterisco() {
+  return (
+    <>
+      <span aria-hidden="true" className="ml-0.5 text-error">*</span>
+      <span className="sr-only"> (obligatorio)</span>
+    </>
   )
 }

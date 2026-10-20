@@ -18,6 +18,7 @@ import {
 } from '@/lib/codigo-promocional'
 import { Button } from '@/components/demo/ui/Button'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
+import { useObligatorios } from '@/components/demo/ui/Campo'
 import { propuestasParaAsignar, vigentesParaSelector } from '@/lib/codigo-aprobacion'
 import { usePropuestas, useClientes } from '@/lib/data/client'
 import { refrescarEstado } from '@/lib/data/estado-api'
@@ -92,6 +93,9 @@ export function GestionCodigos() {
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(true)
   const [nuevo, setNuevo] = useState({ ...vacio })
+  // OBLIG-01 · lo que exige el servidor (`codigos-controller.ts:47-50`): el
+  // código, el descuento y las dos fechas. El tope de usos no: vacío = sin tope.
+  const ob = useObligatorios(nuevo, ['codigo', 'descuentoPct', 'vigenteDesde', 'vigenteHasta'])
   // El cupón cuya fila tiene abierto el selector de propuestas, y la elegida.
   const [asignando, setAsignando] = useState<string | null>(null)
   const [propuestaSel, setPropuestaSel] = useState('')
@@ -116,6 +120,7 @@ export function GestionCodigos() {
   }, [cargar])
 
   async function anadir() {
+    const completos = ob.validar()
     // Se manda lo TECLEADO y no un `Number(...) || 0`: ese respaldo convertiría
     // «abc» en un cupón al 0 %, que la validación rechazaría con el mensaje
     // equivocado. Quien valida es `motivoCodigoInvalido`.
@@ -130,7 +135,7 @@ export function GestionCodigos() {
         nuevo.usosMaximos.trim() === '' ? null : (nuevo.usosMaximos as unknown as number),
     }
     const motivo = motivoCodigoInvalido(candidato, codigos)
-    if (motivo) return setError(motivo)
+    if (!completos || motivo) return setError(motivo)
     try {
       await guardarCodigoApi({
         codigo: candidato.codigo,
@@ -140,6 +145,7 @@ export function GestionCodigos() {
         usosMaximos: candidato.usosMaximos == null ? null : Number(nuevo.usosMaximos),
       })
       setNuevo({ ...vacio })
+      ob.reiniciar()
       setError(null)
       await cargar()
     } catch (e) {
@@ -363,8 +369,8 @@ export function GestionCodigos() {
           <Ticket className="h-4 w-4" /> Nuevo código
         </h3>
         <div className="flex flex-wrap items-end gap-3">
-          <label className="text-xs">
-            <span className="mb-0.5 block text-neutral-500">Código</span>
+          <label className="text-xs" data-falta={ob.falta('codigo') || undefined}>
+            <EtiquetaCompacta texto="Código" obligatorio falta={ob.falta('codigo')} />
             <input
               aria-label="Código"
               className={`${campo} w-36 font-mono uppercase`}
@@ -373,8 +379,8 @@ export function GestionCodigos() {
               onChange={(e) => setNuevo({ ...nuevo, codigo: e.target.value })}
             />
           </label>
-          <label className="text-xs">
-            <span className="mb-0.5 block text-neutral-500">Descuento (%)</span>
+          <label className="text-xs" data-falta={ob.falta('descuentoPct') || undefined}>
+            <EtiquetaCompacta texto="Descuento (%)" obligatorio falta={ob.falta('descuentoPct')} />
             <input
               aria-label="Descuento por ciento"
               type="number"
@@ -387,8 +393,8 @@ export function GestionCodigos() {
               onChange={(e) => setNuevo({ ...nuevo, descuentoPct: e.target.value })}
             />
           </label>
-          <label className="text-xs">
-            <span className="mb-0.5 block text-neutral-500">Vigente desde</span>
+          <label className="text-xs" data-falta={ob.falta('vigenteDesde') || undefined}>
+            <EtiquetaCompacta texto="Vigente desde" obligatorio falta={ob.falta('vigenteDesde')} />
             <input
               aria-label="Vigente desde"
               type="date"
@@ -397,8 +403,8 @@ export function GestionCodigos() {
               onChange={(e) => setNuevo({ ...nuevo, vigenteDesde: e.target.value })}
             />
           </label>
-          <label className="text-xs">
-            <span className="mb-0.5 block text-neutral-500">Vigente hasta</span>
+          <label className="text-xs" data-falta={ob.falta('vigenteHasta') || undefined}>
+            <EtiquetaCompacta texto="Vigente hasta" obligatorio falta={ob.falta('vigenteHasta')} />
             <input
               aria-label="Vigente hasta"
               type="date"
@@ -408,7 +414,7 @@ export function GestionCodigos() {
             />
           </label>
           <label className="text-xs">
-            <span className="mb-0.5 block text-neutral-500">Tope de usos</span>
+            <EtiquetaCompacta texto="Tope de usos" />
             {/* Entero, con coma de miles. Vacío sigue siendo SIN TOPE, y lo
                 que no se entiende llega como 'NaN', que `motivoCodigoInvalido`
                 rechaza («tiene que ser un numero entero»). */}
@@ -427,5 +433,24 @@ export function GestionCodigos() {
         </div>
       </section>
     </div>
+  )
+}
+
+// OBLIG-01 · la etiqueta de la fila de alta, con asterisco y en rojo si falta.
+// NO es el `Campo` compartido a propósito: la fila es `items-end` con anchos
+// fijos, y el «Falta este dato» que `Campo` pinta debajo subiría la casilla
+// que falta por encima de las demás. El borde rojo del control lo pone igual
+// `globals.css` por el `data-falta` del <label>; el motivo, el aviso de arriba.
+function EtiquetaCompacta({ texto, obligatorio = false, falta = false }: { texto: string; obligatorio?: boolean; falta?: boolean }) {
+  return (
+    <span className={`mb-0.5 block ${falta ? 'text-error' : 'text-neutral-500'}`}>
+      {texto}
+      {obligatorio && (
+        <>
+          <span aria-hidden="true" className="ml-0.5 text-error">*</span>
+          <span className="sr-only"> (obligatorio)</span>
+        </>
+      )}
+    </span>
   )
 }

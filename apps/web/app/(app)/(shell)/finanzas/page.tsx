@@ -7,6 +7,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/C
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
+import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { EmptyState } from '@/components/demo/EmptyState'
 import type { Cobranza, Factura, EstCobranza } from '@/lib/data/types'
 import {
@@ -531,6 +532,14 @@ function GenerarFacturaDialog({
   const meses = campana ? duracionMeses(campana.fechaInicio, campana.fechaFin) : 0
   const opciones = opcionesParcialidad(meses)
   const nCuotas = opciones.find((o) => o.periodicidad === periodicidad)?.cuotas ?? 0
+  // OBLIG-01 · con parcialidades, el servidor exige periodicidad y primer
+  // vencimiento (`finanzas-controller.ts:64` y `:69`). Sin cuotas no hay nada
+  // obligatorio: la emisora puede quedar «sin asignar» y el plazo siempre trae
+  // uno elegido. Va ANTES del `return null` porque es un hook.
+  const ob = useObligatorios({ periodicidad, primerVenc }, [
+    { campo: 'periodicidad', si: enCuotas },
+    { campo: 'primerVenc', si: enCuotas },
+  ])
 
   if (!campana) return null
 
@@ -539,6 +548,7 @@ function GenerarFacturaDialog({
   // pide, el paso aparece abajo con lo ya elegido intacto — plazo, emisora y
   // parcialidades se conservan, que es lo que hacía caro el rodeo viejo.
   function emitir() {
+    if (!ob.validar()) return
     return candado.ejecutar({
       guardar: () =>
         generarFacturaApi(
@@ -630,10 +640,7 @@ function GenerarFacturaDialog({
             servidor del presupuesto de la campaña y de la tasa del cliente.
             Emitir es zona R4 y lo único que este selector decide es el nombre
             que va arriba del documento. */}
-        <label className="block">
-          <span className="mb-1 block text-[12px] font-medium text-ink">
-            Con cuál de tus razones sociales se emite
-          </span>
+        <Campo label="Con cuál de tus razones sociales se emite">
           <select
             className="h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
             value={emisoraId}
@@ -660,7 +667,7 @@ function GenerarFacturaDialog({
               razón social que vende, o ninguna la tiene marcada.
             </p>
           ) : null}
-        </label>
+        </Campo>
 
         {/* Cobro en parcialidades. Las opciones y el nº de cuotas se DERIVAN de
             la duración de la campaña: solo se ofrece lo que da un número entero
@@ -689,26 +696,29 @@ function GenerarFacturaDialog({
               </label>
               {enCuotas && (
                 <div className="mt-2.5 space-y-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <select
-                      value={periodicidad}
-                      disabled={candado.reautenticando}
-                      onChange={(e) => setPeriodicidad(e.target.value as PeriodicidadCuota)}
-                      className="h-9 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink"
-                    >
-                      {opciones.map((o) => (
-                        <option key={o.periodicidad} value={o.periodicidad}>
-                          {o.cuotas} cuotas {PERIODICIDAD_LABEL[o.periodicidad]}
-                        </option>
-                      ))}
-                    </select>
-                    <span className="text-[12px] text-muted">desde</span>
-                    <input
-                      type="date" value={primerVenc}
-                      disabled={candado.reautenticando}
-                      onChange={(e) => setPrimerVenc(e.target.value)}
-                      className="h-9 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink"
-                    />
+                  <div className="flex flex-wrap items-start gap-2">
+                    <Campo label="Cuotas" obligatorio falta={ob.falta('periodicidad')}>
+                      <select
+                        value={periodicidad}
+                        disabled={candado.reautenticando}
+                        onChange={(e) => setPeriodicidad(e.target.value as PeriodicidadCuota)}
+                        className="h-9 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink"
+                      >
+                        {opciones.map((o) => (
+                          <option key={o.periodicidad} value={o.periodicidad}>
+                            {o.cuotas} cuotas {PERIODICIDAD_LABEL[o.periodicidad]}
+                          </option>
+                        ))}
+                      </select>
+                    </Campo>
+                    <Campo label="Primer vencimiento" obligatorio falta={ob.falta('primerVenc')}>
+                      <input
+                        type="date" value={primerVenc}
+                        disabled={candado.reautenticando}
+                        onChange={(e) => setPrimerVenc(e.target.value)}
+                        className="h-9 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink"
+                      />
+                    </Campo>
                   </div>
                   {campana.presupuestoBruto != null && nCuotas > 0 && (
                     <p className="text-[12px] text-muted">
@@ -854,8 +864,10 @@ function PagoModal({
       }
     >
       <div className="space-y-2">
-        <label className="block">
-          <span className="mb-1 block text-[12px] font-medium text-ink">Monto del abono</span>
+        {/* Sin asterisco a propósito: el servidor no exige monto ni fecha
+            (`finanzas-controller.ts:21` y `:25`, ausente = liquidar y hoy), y
+            los dos llegan ya rellenos con el saldo y la fecha de hoy. */}
+        <Campo label="Monto del abono">
           {/* Con coma de miles al teclear (CampoCifra). `monto` sigue siendo la
               cifra sin comas; si no se entiende llega 'NaN' y «Registrar
               abono» queda deshabilitado por el mismo `!num` de siempre. */}
@@ -867,9 +879,8 @@ function PagoModal({
             onCambio={(crudo) => setMonto(crudo)}
             className="h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-60"
           />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-[12px] font-medium text-ink">Fecha en que se recibió</span>
+        </Campo>
+        <Campo label="Fecha en que se recibió">
           <input
             type="date"
             value={fecha}
@@ -878,7 +889,7 @@ function PagoModal({
             onChange={(e) => setFecha(e.target.value)}
             className="h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-60"
           />
-        </label>
+        </Campo>
         {excede && (
           <p className="text-[12px] text-warning">
             ⚠ El monto excede el saldo ({formatMonto(cob.saldo)}). Solo se aplicará el saldo pendiente.

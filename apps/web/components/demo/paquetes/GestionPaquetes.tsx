@@ -12,6 +12,7 @@ import { motivoPaqueteInvalido, repartirPaquete } from '@/lib/paquete'
 import { useSitios } from '@/lib/data/client'
 import { Button } from '@/components/demo/ui/Button'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
+import { useObligatorios } from '@/components/demo/ui/Campo'
 
 // ============================================================================
 //  El CATÁLOGO DE PAQUETES CERRADOS de la organización. ADR 0039, Fase 4.
@@ -55,6 +56,10 @@ export function GestionPaquetes() {
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(true)
   const [nuevo, setNuevo] = useState({ ...vacio })
+  // OBLIG-01 · lo que exige el servidor (`paquetes-controller.ts:37-55`): el
+  // nombre, el precio y las pantallas. Que sean al menos dos lo dice
+  // `motivoPaqueteInvalido`; aquí solo se marca la lista VACÍA.
+  const ob = useObligatorios(nuevo, ['nombre', 'precioCerrado', 'sitios'])
 
   const cargar = useCallback(async () => {
     try {
@@ -102,6 +107,7 @@ export function GestionPaquetes() {
   )
 
   async function anadir() {
+    const completos = ob.validar()
     // Se manda lo TECLEADO y no un `Number(...) || 0`: ese respaldo convertiría
     // «abc» en un paquete de precio 0, que la validación rechazaría con el
     // mensaje equivocado. Quien valida es `motivoPaqueteInvalido`.
@@ -110,7 +116,7 @@ export function GestionPaquetes() {
       precioCerrado: nuevo.precioCerrado as unknown as number,
       sitios: nuevo.sitios,
     })
-    if (motivo) return setError(motivo)
+    if (!completos || motivo) return setError(motivo)
     try {
       await guardarPaqueteApi({
         nombre: nuevo.nombre.trim(),
@@ -120,6 +126,7 @@ export function GestionPaquetes() {
         sitios: nuevo.sitios,
       })
       setNuevo({ ...vacio })
+      ob.reiniciar()
       await cargar()
       setError(null)
     } catch (e) {
@@ -236,8 +243,8 @@ export function GestionPaquetes() {
           <Package className="h-4 w-4" /> Nuevo paquete
         </h3>
         <div className="flex flex-wrap items-end gap-3">
-          <label className="text-xs">
-            <span className="mb-0.5 block text-neutral-500">Nombre</span>
+          <label className="text-xs" data-falta={ob.falta('nombre') || undefined}>
+            <EtiquetaCompacta texto="Nombre" obligatorio falta={ob.falta('nombre')} />
             <input
               aria-label="Nombre del paquete"
               className="w-56 rounded border px-2 py-1 text-sm"
@@ -246,8 +253,8 @@ export function GestionPaquetes() {
               onChange={(e) => setNuevo({ ...nuevo, nombre: e.target.value })}
             />
           </label>
-          <label className="text-xs">
-            <span className="mb-0.5 block text-neutral-500">Precio del conjunto (pesos enteros)</span>
+          <label className="text-xs" data-falta={ob.falta('precioCerrado') || undefined}>
+            <EtiquetaCompacta texto="Precio del conjunto (pesos enteros)" obligatorio falta={ob.falta('precioCerrado')} />
             {/* Pesos ENTEROS (decimales 0): el reparto no admite centavos. Lo
                 que no se entiende llega como 'NaN' y `motivoPaqueteInvalido`
                 lo rechaza («tiene que ser un numero»). */}
@@ -280,11 +287,13 @@ export function GestionPaquetes() {
         </div>
 
         <div className="mt-3">
-          <p className="mb-1 text-xs text-neutral-500">
-            Pantallas del paquete (mínimo 2). Una propuesta solo puede aplicar este paquete si
+          <p className={`mb-1 text-xs ${ob.falta('sitios') ? 'text-error' : 'text-neutral-500'}`}>
+            Pantallas del paquete
+            <span aria-hidden="true" className="ml-0.5 text-error">*</span>
+            <span className="sr-only"> (obligatorio)</span> (mínimo 2). Una propuesta solo puede aplicar este paquete si
             tiene <b>exactamente</b> estas pantallas.
           </p>
-          <div className="max-h-56 overflow-auto rounded border p-2">
+          <div className={`max-h-56 overflow-auto rounded border p-2 ${ob.falta('sitios') ? 'border-error' : ''}`}>
             {(sitios ?? []).map((s) => (
               <label key={s.id} className="flex items-center gap-2 py-0.5 text-xs">
                 <input
@@ -341,5 +350,24 @@ export function GestionPaquetes() {
         )}
       </section>
     </div>
+  )
+}
+
+// OBLIG-01 · la etiqueta de la fila de alta, con asterisco y en rojo si falta.
+// NO es el `Campo` compartido a propósito: la fila es `items-end` con anchos
+// fijos, y el «Falta este dato» que `Campo` pinta debajo subiría la casilla
+// que falta por encima de las demás. El borde rojo del control lo pone igual
+// `globals.css` por el `data-falta` del <label>; el motivo, el aviso de arriba.
+function EtiquetaCompacta({ texto, obligatorio = false, falta = false }: { texto: string; obligatorio?: boolean; falta?: boolean }) {
+  return (
+    <span className={`mb-0.5 block ${falta ? 'text-error' : 'text-neutral-500'}`}>
+      {texto}
+      {obligatorio && (
+        <>
+          <span aria-hidden="true" className="ml-0.5 text-error">*</span>
+          <span className="sr-only"> (obligatorio)</span>
+        </>
+      )}
+    </span>
   )
 }

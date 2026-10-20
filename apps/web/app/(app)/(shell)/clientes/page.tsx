@@ -5,6 +5,7 @@ import { Plus, Pencil, Trash2, Building2, Handshake, ShieldCheck, ShieldAlert } 
 import { Card, CardContent } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
+import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { useClientes, useConfigNegocio, type Cliente } from '@/lib/data/client'
 import {
@@ -287,8 +288,19 @@ function ClienteDialog({ cliente, onClose }: { cliente?: Cliente; onClose: () =>
   // Se comprueba con los MISMOS helpers que el servidor (@/lib/validacion,
   // @/lib/rfc). Cuando la regla vivía duplicada, la UI daba por bueno lo que la
   // API rechazaba después con un 400 sin decir qué campo era.
+  //
+  // Cada motivo se pinta DEBAJO del campo que lo causa (`Campo error=`). Antes
+  // solo existía un mensaje suelto al pie del modal, así que con dos datos malos
+  // el usuario arreglaba uno, reenviaba, y descubría el otro (M1).
+  //
+  // Los OBLIGATORIOS (OBLIG-01) van aparte, con `useObligatorios`: el nombre es
+  // lo único que exige el servidor (`clientes-controller.ts:33`), y la comisión
+  // se pide solo a la agencia, que es la única a la que aplica.
+  const ob = useObligatorios({ nombre, comisionAgencia }, [
+    'nombre',
+    { campo: 'comisionAgencia', si: tipo === 'AGENCIA' },
+  ])
   const errores = {
-    nombre: nombre.trim() ? null : 'El nombre es obligatorio',
     rfc: esRfcValido(rfc) ? null : 'RFC inválido. Formato SAT (p. ej. XAXX010101000)',
     cpFiscal: esCpValido(cpFiscal) ? null : CP_INVALIDO,
     email: !email.trim() || esEmailValido(email) ? null : EMAIL_INVALIDO,
@@ -298,7 +310,8 @@ function ClienteDialog({ cliente, onClose }: { cliente?: Cliente; onClose: () =>
 
   async function guardar() {
     setIntento(true)
-    if (hayErrores) {
+    const completos = ob.validar()
+    if (!completos || hayErrores) {
       // Sin esto, el submit con datos malos no hacía NADA visible y el usuario
       // se quedaba pulsando el botón.
       setError('Revisa los campos marcados.')
@@ -357,7 +370,7 @@ function ClienteDialog({ cliente, onClose }: { cliente?: Cliente; onClose: () =>
       }
     >
       <div className="space-y-3">
-        <Campo label="Nombre del cliente" error={intento ? errores.nombre : null}>
+        <Campo label="Nombre del cliente" obligatorio falta={ob.falta('nombre')}>
           <input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus />
         </Campo>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -376,7 +389,7 @@ function ClienteDialog({ cliente, onClose }: { cliente?: Cliente; onClose: () =>
           </Campo>
           {/* La comisión es por AGENCIA; no aplica al cliente directo. */}
           {tipo === 'AGENCIA' && (
-            <Campo label="Comisión de la agencia (%)">
+            <Campo label="Comisión de la agencia (%)" obligatorio falta={ob.falta('comisionAgencia')}>
               <input className={inputCls} value={comisionAgencia} onChange={(e) => setComisionAgencia(e.target.value)} placeholder="0" />
             </Campo>
           )}
@@ -480,18 +493,5 @@ function ClienteDialog({ cliente, onClose }: { cliente?: Cliente; onClose: () =>
         </div>
       </div>
     </Modal>
-  )
-}
-
-// `error` pinta el motivo DEBAJO del campo que lo causa. Antes solo existía un
-// mensaje suelto al pie del modal, así que con dos datos malos el usuario
-// arreglaba uno, reenviaba, y descubría el otro (M1).
-function Campo({ label, children, error }: { label: string; children: React.ReactNode; error?: string | null }) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-[12px] font-medium text-ink">{label}</span>
-      {children}
-      {error ? <span className="mt-1 block text-[11px] text-error">{error}</span> : null}
-    </label>
   )
 }
