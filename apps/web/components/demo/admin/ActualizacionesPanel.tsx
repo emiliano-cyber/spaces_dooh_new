@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Download, Loader2, CheckCircle2, AlertTriangle, Info, History } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { ConfirmDialog } from '@/components/demo/ui/ConfirmDialog'
 import {
@@ -99,13 +99,11 @@ export function ActualizacionesPanel({ onToast }: { onToast: (m: string) => void
   // No cambia ningún permiso — el servidor sigue respondiendo 403 igual.
   if (status === 'sin-permiso') {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Download className="h-4 w-4 text-muted" /> Actualizaciones
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+      <CardColapsable
+        id="admin.actualizaciones"
+        titulo="Actualizaciones"
+        icono={<Download className="h-4 w-4 text-muted" />}
+      >
           {/* Este estado sale SOLO del GET (`cargar()`, arriba: 401/403 -> aqui) y
               el GET exige `administracion:ver` (`app/api/actualizaciones/route.ts`,
               `exigir('administracion', 'ver')`), nunca `aprobar` -- ese es del
@@ -118,19 +116,18 @@ export function ActualizacionesPanel({ onToast }: { onToast: (m: string) => void
             permiso de <b className="text-ink">Administración → ver</b>. Pídeselo a quien
             administre los roles y permisos de tu organización.
           </p>
-        </CardContent>
-      </Card>
+      </CardColapsable>
     )
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Download className="h-4 w-4 text-muted" /> Actualizaciones
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    <>
+    <CardColapsable
+      id="admin.actualizaciones"
+      titulo="Actualizaciones"
+      icono={<Download className="h-4 w-4 text-muted" />}
+      contentClassName="space-y-3"
+    >
         {status === 'cargando' ? (
           <div className="h-24 animate-pulse rounded bg-surface-2" />
         ) : status === 'error' || !estado ? (
@@ -222,8 +219,9 @@ export function ActualizacionesPanel({ onToast }: { onToast: (m: string) => void
             )}
           </>
         )}
-      </CardContent>
+    </CardColapsable>
 
+      {/* Fuera de la tarjeta: CardColapsable desmonta su contenido al plegar. */}
       {estado && (
         <ConfirmDialog
           open={confirmOpen}
@@ -237,6 +235,6 @@ export function ActualizacionesPanel({ onToast }: { onToast: (m: string) => void
           {textoConfirmarInstalar(estado)}
         </ConfirmDialog>
       )}
-    </Card>
+    </>
   )
 }

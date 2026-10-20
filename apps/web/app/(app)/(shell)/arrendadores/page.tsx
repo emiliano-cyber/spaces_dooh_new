@@ -6,6 +6,7 @@ import { Card } from '@/components/demo/ui/Card'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
+import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { ContratoSheet } from '@/components/demo/arrendadores/ContratoSheet'
 import { contratoSeleccionado } from '@/components/demo/arrendadores/seleccion'
@@ -320,6 +321,7 @@ export default function ArrendadoresPage() {
 
       {/* Contratos */}
       <CardColapsable
+        id="arrendadores.contratos"
         titulo="Contratos de arrendamiento"
         contentClassName="px-0 pb-0"
         accion={
@@ -501,11 +503,16 @@ function NuevoPropietarioDialog({ onClose, onToast }: { onClose: () => void; onT
   // enviar (y perder el resto del formulario de vista) es peor que verlo al
   // teclear. Misma expresión que usa el servidor: @/lib/rfc.
   const rfcMalo = rfc.trim() !== '' && !esRfcValido(rfc)
+  // OBLIG-01: el nombre es el único obligatorio (`crearSchema`,
+  // lib/server/arrendadores-controller.ts). Ya no deshabilita el botón: se
+  // pulsa, se pinta en rojo y no se manda nada.
+  const ob = useObligatorios({ nombre }, ['nombre'])
   // La razón social se guarda aparte, y sin ella el RFC fiscal no tiene dónde ir.
-  const puedeGuardar = !!nombre.trim() && !rfcMalo && !guardando
+  const puedeGuardar = !rfcMalo && !guardando
 
   async function guardar() {
     if (!puedeGuardar) return
+    if (!ob.validar()) return
     setGuardando(true)
     setError(null)
     try {
@@ -576,15 +583,14 @@ function NuevoPropietarioDialog({ onClose, onToast }: { onClose: () => void; onT
       }
     >
       <div className="space-y-3">
-        <label className="block">
-          <span className="mb-1 block text-[12px] font-medium text-ink">Nombre / razón social</span>
+        <Campo label="Nombre / razón social" obligatorio falta={ob.falta('nombre')}>
           <input
             className={cn(inputCls, nombreRepetido && 'border-accent')}
             value={nombre}
             onChange={(e) => { setNombre(e.target.value); setNombreRepetido(null) }}
             autoFocus
           />
-        </label>
+        </Campo>
         {nombreRepetido && (
           <div className="flex items-start gap-2 rounded border border-accent/50 bg-[#f59e0b0d] px-3 py-2 text-[12px] text-ink">
             <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#9a6700]" strokeWidth={2} />
@@ -599,8 +605,14 @@ function NuevoPropietarioDialog({ onClose, onToast }: { onClose: () => void; onT
           </div>
         )}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <label className="block">
-            <span className="mb-1 block text-[12px] font-medium text-ink">RFC</span>
+          <Campo
+            label="RFC"
+            error={
+              rfcMalo
+                ? 'Formato inválido. Son 3 letras (empresa) o 4 (persona), fecha AAMMDD y 3 caracteres de homoclave.'
+                : null
+            }
+          >
             <input
               className={cn(inputCls, rfcMalo && 'border-error focus-visible:ring-error')}
               value={rfc}
@@ -608,24 +620,15 @@ function NuevoPropietarioDialog({ onClose, onToast }: { onClose: () => void; onT
               placeholder="XAXX010101000"
               aria-invalid={rfcMalo}
             />
-            {rfcMalo && (
-              <span className="mt-1 block text-[11px] text-error">
-                Formato inválido. Son 3 letras (empresa) o 4 (persona), fecha AAMMDD y
-                3 caracteres de homoclave.
-              </span>
-            )}
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-[12px] font-medium text-ink">Teléfono</span>
+          </Campo>
+          <Campo label="Teléfono">
             <input className={inputCls} value={telefono} onChange={(e) => setTelefono(e.target.value)} />
-          </label>
+          </Campo>
         </div>
-        <label className="block">
-          <span className="mb-1 block text-[12px] font-medium text-ink">Correo</span>
+        <Campo label="Correo">
           <input className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="contacto@arrendador.com" />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-[12px] font-medium text-ink">Domicilio</span>
+        </Campo>
+        <Campo label="Domicilio">
           <input
             className={inputCls}
             value={direccion}
@@ -638,29 +641,27 @@ function NuevoPropietarioDialog({ onClose, onToast }: { onClose: () => void; onT
             El contrato de arrendamiento lo necesita para las notificaciones. Sin él,
             el documento sale con ese hueco en blanco.
           </span>
-        </label>
+        </Campo>
 
         {/* Datos fiscales — opcionales. Van a `arrendador_razon_social`, que es
             quien factura la renta; un arrendador puede tener varias. */}
         <div className="space-y-3 rounded-md border border-border bg-surface-2 p-3">
           <div>
-            <div className="text-[12px] font-medium text-ink">Datos fiscales (opcional)</div>
+            <div className="text-[12px] font-medium text-ink">Datos fiscales</div>
             <div className="text-[11px] text-muted">
               Es a quien se le factura la renta. Si lo dejas en blanco, el arrendador
               queda dado de alta igual y puedes capturarlo después desde su ficha.
             </div>
           </div>
-          <label className="block">
-            <span className="mb-1 block text-[12px] font-medium text-ink">Razón social</span>
+          <Campo label="Razón social">
             <input
               className={inputCls}
               value={razonSocial}
               onChange={(e) => setRazonSocial(e.target.value)}
               placeholder="Inmobiliaria Ejemplo SA de CV"
             />
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-[12px] font-medium text-ink">Régimen fiscal</span>
+          </Campo>
+          <Campo label="Régimen fiscal">
             <input
               className={inputCls}
               value={regimen}
@@ -673,7 +674,7 @@ function NuevoPropietarioDialog({ onClose, onToast }: { onClose: () => void; onT
                 Se habilita al capturar la razón social: el régimen es de ella.
               </span>
             )}
-          </label>
+          </Campo>
         </div>
       </div>
     </Modal>
@@ -711,7 +712,7 @@ function RazonesSocialesCard({
   if (todas.length === 0) return null
 
   return (
-    <CardColapsable titulo="Por razón social" contentClassName="px-0 pb-0">
+    <CardColapsable id="arrendadores.por-razon-social" titulo="Por razón social" contentClassName="px-0 pb-0">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-[13px]">
             <thead>
@@ -789,6 +790,7 @@ function RentabilidadCard({
   const totalMargen = totalIngreso - totalRenta
   return (
     <CardColapsable
+      id="arrendadores.rentabilidad"
       titulo="Rentabilidad por pantalla"
       subtitulo="Margen mensual = ingreso de reservas vigentes − renta del arrendador. Las de margen negativo son candidatas a renegociar o dar de baja."
       contentClassName="px-0 pb-0"
@@ -907,6 +909,7 @@ function PropietariosCard({
   return (
     <>
       <CardColapsable
+        id="arrendadores.lista"
         titulo="Arrendadores"
         subtitulo="Dueños de predio dados de alta."
         contentClassName="px-0 pb-0"

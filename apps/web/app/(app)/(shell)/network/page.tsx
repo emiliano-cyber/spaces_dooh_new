@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Network, Share2, Cpu, CheckCircle2 } from 'lucide-react'
 import { KPICard, KPICardSkeleton } from '@/components/demo/KPICard'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import {
   StatusBadge,
   SITIO_TONO,
@@ -53,6 +53,7 @@ export default function NetworkPage() {
       </div>
 
       {/* Indicadores */}
+      <CardColapsable id="network.indicadores" titulo="Indicadores">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {!sitios ? (
           <>
@@ -67,13 +68,10 @@ export default function NetworkPage() {
           </>
         )}
       </div>
+      </CardColapsable>
 
       {/* CMS utilizado */}
-      <Card>
-        <CardHeader>
-          <CardTitle>CMS utilizado en la Network</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <CardColapsable id="network.cms" titulo="CMS utilizado en la Network">
           {!sitios ? (
             <div className="h-10 animate-pulse rounded bg-surface-2" />
           ) : porCms.size === 0 ? (
@@ -90,15 +88,10 @@ export default function NetworkPage() {
                 ))}
             </div>
           )}
-        </CardContent>
-      </Card>
+      </CardColapsable>
 
       {/* Inventario y reglas de comercialización */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Reglas de comercialización por pantalla</CardTitle>
-        </CardHeader>
-        <CardContent className="px-0 pb-0">
+      <CardColapsable id="network.reglas" titulo="Reglas de comercialización por pantalla" contentClassName="px-0 pb-0">
           {!sitios ? (
             <div className="space-y-2 px-4 pb-4">
               {Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-10 animate-pulse rounded bg-surface-2" />)}
@@ -157,20 +150,17 @@ export default function NetworkPage() {
               </table>
             </div>
           )}
-        </CardContent>
-      </Card>
+      </CardColapsable>
 
       {/* Red de pantallas · catálogo de toda la plataforma (propias + de otros
           operadores). Solo lectura para las ajenas; los costos internos no se
           muestran. Las operaciones (propuestas/reservas) usan solo las propias. */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Red de pantallas · toda la plataforma</CardTitle>
-          <p className="mt-0.5 text-[12px] text-muted">
-            Catálogo de todas las pantallas registradas. Solo el operador dueño puede editarlas.
-          </p>
-        </CardHeader>
-        <CardContent className="px-0 pb-0">
+      <CardColapsable
+        id="network.red"
+        titulo="Red de pantallas · toda la plataforma"
+        subtitulo="Catálogo de todas las pantallas registradas. Solo el operador dueño puede editarlas."
+        contentClassName="px-0 pb-0"
+      >
           {!sitiosRed ? (
             <div className="space-y-2 px-4 pb-4">
               {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-10 animate-pulse rounded bg-surface-2" />)}
@@ -216,8 +206,7 @@ export default function NetworkPage() {
               </table>
             </div>
           )}
-        </CardContent>
-      </Card>
+      </CardColapsable>
 
       {toast && (
         <div className="fixed bottom-5 left-1/2 z-[60] -translate-x-1/2 rounded-md border border-border bg-ink px-4 py-2.5 text-[13px] text-white">

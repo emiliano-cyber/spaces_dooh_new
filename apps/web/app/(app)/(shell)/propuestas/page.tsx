@@ -5,7 +5,8 @@ import { conteo } from '@/lib/plural'
 import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { Plus, FileText, Send, Check, X, ChevronDown, ChevronRight, Monitor, Square, List, Map as MapIcon } from 'lucide-react'
-import { Card, CardContent } from '@/components/demo/ui/Card'
+import { Card } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { AvisoFranjaCMS } from '@/components/demo/rejilla/AvisoFranjaCMS'
 import { catalogoRejillaApi, type FranjaUI, type TemporadaUI } from '@/lib/data/rejilla-api'
 import { modalidadesDeSitio, tarifaCalculada } from '@/lib/tarifa-calculada'
@@ -29,6 +30,7 @@ import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
 import { ElegirClienteDialog } from '@/components/demo/propuestas/ElegirClienteDialog'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
+import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { CRUDO_INVALIDO } from '@/lib/captura-cifra'
 import { MapView } from '@/components/demo/MapView'
 import { pinTono } from '@/components/demo/StatusBadge'
@@ -119,17 +121,29 @@ export default function PropuestasPage() {
       ) : propuestas.length === 0 ? (
         <p className="py-10 text-center text-[13px] text-muted">Aún no hay propuestas.</p>
       ) : (
-        <ul className="space-y-3">
-          {propuestas.map((p) => (
-            <PropuestaCard
-              key={p.id}
-              p={p}
-              abierta={abierta === p.id}
-              onToggle={() => setAbierta(abierta === p.id ? null : p.id)}
-              puedeEditar={puedeEditar}
-            />
-          ))}
-        </ul>
+        // PLEG-02 · qué propuesta está desplegada vive en `abierta`, en esta
+        // página: plegar la lista y volver a abrirla la deja como estaba.
+        <CardColapsable
+          id="propuestas.lista"
+          titulo="Lista de propuestas"
+          resumen={
+            <span className="text-[12px] text-muted">
+              {propuestas.length} {propuestas.length === 1 ? 'propuesta' : 'propuestas'}
+            </span>
+          }
+        >
+          <ul className="space-y-3">
+            {propuestas.map((p) => (
+              <PropuestaCard
+                key={p.id}
+                p={p}
+                abierta={abierta === p.id}
+                onToggle={() => setAbierta(abierta === p.id ? null : p.id)}
+                puedeEditar={puedeEditar}
+              />
+            ))}
+          </ul>
+        </CardColapsable>
       )}
 
       {nuevoOpen && <NuevaPropuestaDialog onClose={() => setNuevoOpen(false)} />}
@@ -799,8 +813,15 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
   })()
   const errFormulario = errComision ?? errDuracion ?? errFechas ?? errCalculadora ?? errCifras
 
-  const valido =
-    !!nombre.trim() && !!fechaInicio && !!fechaFin && sel.size > 0 && !negociacionPendiente && !errFormulario
+  // OBLIG-01 · los obligatorios son los del servidor (`crearSchema`,
+  // propuestas-controller.ts:143-157): nombre, las dos fechas y al menos un
+  // sitio. NO deshabilitan el botón: se pulsa, se pinta en rojo el que falta y
+  // no se manda nada. Lo que sigue bloqueando es lo que no es «falta un dato».
+  const ob = useObligatorios(
+    { nombre, fechaInicio, fechaFin, sitios: [...sel] },
+    ['nombre', 'fechaInicio', 'fechaFin', 'sitios'],
+  )
+  const valido = !negociacionPendiente && !errFormulario
 
   function toggle(id: string) {
     setSel((prev) => {
@@ -811,7 +832,7 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
   }
 
   async function guardar() {
-    if (!valido) return
+    if (!ob.validar() || !valido) return
     setGuardando(true)
     setError(null)
     try {
@@ -907,7 +928,7 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
       }
     >
       <div className="space-y-3">
-        <Campo label="Nombre de la propuesta">
+        <Campo label="Nombre de la propuesta" obligatorio falta={ob.falta('nombre')}>
           <input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus />
         </Campo>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -959,7 +980,7 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
         )}
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Campo label="Desde"><input type="date" className={inputCls} value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} /></Campo>
+          <Campo label="Desde" obligatorio falta={ob.falta('fechaInicio')}><input type="date" className={inputCls} value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} /></Campo>
           <Campo label="Duración de la campaña">
             <div className="flex gap-2">
               <input
@@ -983,17 +1004,18 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
           </Campo>
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Campo label="Hasta (se calcula de la duración)">
+          <Campo label="Hasta (se calcula de la duración)" obligatorio falta={ob.falta('fechaFin')}>
             <input type="date" className={inputCls} value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} />
           </Campo>
           <Campo label="Comisión de la agencia (%)"><input className={inputCls} value={comision} onChange={(e) => setComision(e.target.value)} /></Campo>
         </div>
 
-        {/* Selección de sitios: dos vistas alternables (lista / mapa) */}
-        <div>
-          <div className="mb-1 flex items-center justify-between gap-2">
-            <span className="text-[12px] font-medium text-ink">Sitios ({sel.size})</span>
-            {/* Switch de vista */}
+        {/* Selección de sitios: dos vistas alternables (lista / mapa). `div` y no
+            `label`: dentro hay botones, y un <label> que los envuelve dispara el
+            primero al pulsar el texto. */}
+        <Campo como="div" className="relative" label={`Sitios (${sel.size})`} obligatorio falta={ob.falta('sitios')}>
+          {/* Switch de vista, a la altura de la etiqueta como antes */}
+          <div className="absolute -top-1 right-0">
             <div className="inline-flex overflow-hidden rounded-md border border-border-strong text-[11px]">
               <button
                 type="button"
@@ -1074,7 +1096,7 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
               </p>
             </>
           )}
-        </div>
+        </Campo>
 
         {/* Configuración por tiempo de cada sitio seleccionado */}
         {seleccionados.length > 0 && (
@@ -1577,15 +1599,6 @@ function Dato({ label, valor }: { label: string; valor: string }) {
   )
 }
 
-function Campo({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-[12px] font-medium text-ink">{label}</span>
-      {children}
-    </label>
-  )
-}
-
 // Tira de funnel comercial: enviadas → aprobadas → perdidas, win rate y pipeline.
 function FunnelStrip({ f }: { f: FunnelPropuestas }) {
   const winPct = f.winRate != null ? Math.round(f.winRate * 100) : null
@@ -1598,8 +1611,7 @@ function FunnelStrip({ f }: { f: FunnelPropuestas }) {
     </div>
   )
   return (
-    <Card>
-      <CardContent>
+    <CardColapsable id="propuestas.embudo" titulo="Embudo de propuestas">
         <div className="grid grid-cols-2 gap-4 py-1 lg:grid-cols-4">
           <Tile label="En pipeline" valor={formatMontoCorto(f.pipelineValue)} sub={`${enPipeline} propuesta${enPipeline === 1 ? '' : 's'} (borrador + enviada)`} />
           <Tile label="Ganado" tono="text-[#0f7a55]" valor={formatMontoCorto(f.ganadoValue)} sub={`${f.aprobadas} aprobada${f.aprobadas === 1 ? '' : 's'}`} />
@@ -1611,8 +1623,7 @@ function FunnelStrip({ f }: { f: FunnelPropuestas }) {
           <FunnelRow label="Aprobadas" n={f.aprobadas} bar={barra(f.aprobadas, 'bg-[#10b981]')} />
           <FunnelRow label="Perdidas" n={f.rechazadas} bar={barra(f.rechazadas, 'bg-[#ef4444]')} />
         </div>
-      </CardContent>
-    </Card>
+    </CardColapsable>
   )
 }
 

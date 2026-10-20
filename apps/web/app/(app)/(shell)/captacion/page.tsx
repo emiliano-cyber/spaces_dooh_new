@@ -1,7 +1,6 @@
 'use client'
 
 import { Target } from 'lucide-react'
-import { Card, CardContent } from '@/components/demo/ui/Card'
 import { Captacion } from '@/components/demo/captacion/Captacion'
 
 // CAP-01 · la bitácora de captación: cómo va cada cliente, arrendador, predio o
@@ -20,11 +19,11 @@ export default function CaptacionPage() {
           </p>
         </div>
       </header>
-      <Card>
-        <CardContent className="pt-6">
-          <Captacion />
-        </CardContent>
-      </Card>
+      {/* Sin tarjeta envolvente desde el 20/10: la tabla de prospectos es ahora
+          su propia tarjeta plegable dentro de `Captacion`, y una tarjeta dentro
+          de otra se leía como dos marcos. Pestañas y «Nuevo prospecto» quedan
+          a la vista, como en las demás pantallas. */}
+      <Captacion />
     </div>
   )
 }

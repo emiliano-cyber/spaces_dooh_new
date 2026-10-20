@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { AlertTriangle, BarChart3, CalendarSearch, Info, ServerCrash, TrendingUp } from 'lucide-react'
 import { cn } from '@/lib/cn'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/demo/ui/Card'
+import { Card, CardContent } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { KPICard, KPICardSkeleton } from '@/components/demo/KPICard'
 import { EmptyState } from '@/components/demo/EmptyState'
 import { formatMonto } from '@/lib/data/derive'
@@ -230,6 +231,7 @@ export default function ReportesPage() {
           importa de verdad: esto se presenta en un escenario. Mientras carga se
           pintan esqueletos y no ceros: un «$ 0.00» que luego cambia es una
           cifra falsa enseñada a una sala. */}
+      <CardColapsable id="reportes.indicadores" titulo="Indicadores del periodo">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {estado.fase === 'cargando' ? (
           <>
@@ -272,24 +274,22 @@ export default function ReportesPage() {
           </>
         ) : null}
       </div>
+      </CardColapsable>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <BarChart3 className="h-4 w-4 text-muted" />
-            <CardTitle>
-              {hayDatos
-                ? `Del ${reporte.desde} al ${reporte.hasta}`
-                : 'Resultado'}
-            </CardTitle>
-          </div>
-          {hayDatos ? (
+      {/* El título cambia con el periodo pero el `id` no: lo que se recuerda
+          es «tengo plegada la tabla», no «tengo plegado este rango». */}
+      <CardColapsable
+        id="reportes.resultado"
+        titulo={hayDatos ? `Del ${reporte.desde} al ${reporte.hasta}` : 'Resultado'}
+        icono={<BarChart3 className="h-4 w-4 text-muted" />}
+        resumen={
+          hayDatos ? (
             <span className="text-[11px] uppercase tracking-wide text-muted">
               {reporte.periodos.length} {reporte.periodos.length === 1 ? 'periodo' : 'periodos'}
             </span>
-          ) : null}
-        </CardHeader>
-        <CardContent>
+          ) : null
+        }
+      >
           {/* La rama del 501 («esta dimensión aún no está disponible») se
               retiró: las cinco dimensiones calculan desde el 18/09 y ese
               camino es inalcanzable — medido antes de borrarlo, ver la cabecera
@@ -368,8 +368,7 @@ export default function ReportesPage() {
           ) : (
             <EmptyState icon={CalendarSearch} titulo="Elige un periodo" detalle="El reporte se calcula al elegir las fechas." />
           )}
-        </CardContent>
-      </Card>
+      </CardColapsable>
     </div>
   )
 }

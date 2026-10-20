@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Modal } from '@/components/demo/ui/Modal'
 import { Button } from '@/components/demo/ui/Button'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
+import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { CRUDO_INVALIDO } from '@/lib/captura-cifra'
 import { cn } from '@/lib/cn'
 import { altaSitioApi } from '@/lib/data/sitios-api'
@@ -73,10 +74,19 @@ export function AltaSitioDialog({
   // La tarifa que no se entiende llega como 'NaN' (CampoCifra). Sin la última
   // condición, `Number(tarifa) || 0` daría de alta la pantalla con tarifa CERO
   // — que es lo que pasaba antes con «15,000» tecleado en este campo de texto.
-  const valido = nombre.trim() && distrito.trim() && direccionComercial.trim() && arrendadorId && tarifa !== CRUDO_INVALIDO
+  const tarifaInvalida = tarifa === CRUDO_INVALIDO
+  // OBLIG-01: el nombre lo exige el servidor (`app/api/sitios/route.ts`, «Falta
+  // nombre») y el arrendador `crearSitio` (ADR 0002); el distrito y la
+  // dirección comercial los exigía ya esta pantalla para habilitar «Crear».
+  const ob = useObligatorios({ arrendadorId, nombre, distrito, direccionComercial }, [
+    'arrendadorId',
+    'nombre',
+    'distrito',
+    'direccionComercial',
+  ])
 
   async function submit() {
-    if (!valido) return
+    if (!ob.validar() || tarifaInvalida) return
     setEnviando(true)
     const s = await altaSitioApi({
       nombre: nombre.trim(),
@@ -105,6 +115,7 @@ export function AltaSitioDialog({
     setDistrito('')
     setDireccionPredio('')
     setDireccionComercial('')
+    ob.reiniciar()
   }
 
   return (
@@ -118,7 +129,7 @@ export function AltaSitioDialog({
           <Button variant="secondary" size="sm" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button variant="success" size="sm" disabled={!valido || enviando} onClick={submit}>
+          <Button variant="success" size="sm" disabled={tarifaInvalida || enviando} onClick={submit}>
             {enviando ? 'Creando…' : 'Crear pantalla'}
           </Button>
         </div>
@@ -126,7 +137,7 @@ export function AltaSitioDialog({
     >
       <div className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
         <Seccion titulo="Identificación">
-          <Campo label="Arrendador (dueño del espacio) *">
+          <Campo label="Arrendador (dueño del espacio)" obligatorio falta={ob.falta('arrendadorId')}>
             <select className={inputCls} value={arrendadorId} onChange={(e) => setArrendadorId(e.target.value)}>
               <option value="">Elige un arrendador…</option>
               {(arrendadores ?? []).map((a) => (
@@ -134,7 +145,7 @@ export function AltaSitioDialog({
               ))}
             </select>
           </Campo>
-          <Campo label="Nombre">
+          <Campo label="Nombre" obligatorio falta={ob.falta('nombre')}>
             <input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="p. ej. Espectacular Av. Brasil" autoFocus />
           </Campo>
           <Campo label="Tipo / formato">
@@ -145,13 +156,13 @@ export function AltaSitioDialog({
         </Seccion>
 
         <Seccion titulo="Ubicación">
-          <Campo label="Distrito / plaza">
+          <Campo label="Distrito / plaza" obligatorio falta={ob.falta('distrito')}>
             <input className={inputCls} value={distrito} onChange={(e) => setDistrito(e.target.value)} placeholder="p. ej. Miraflores" />
           </Campo>
           <Campo label="Dirección del predio">
             <input className={inputCls} value={direccionPredio} onChange={(e) => setDireccionPredio(e.target.value)} placeholder="Dirección física" />
           </Campo>
-          <Campo label="Dirección comercial">
+          <Campo label="Dirección comercial" obligatorio falta={ob.falta('direccionComercial')}>
             <input className={inputCls} value={direccionComercial} onChange={(e) => setDireccionComercial(e.target.value)} placeholder="Dirección que se muestra" />
           </Campo>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -186,7 +197,7 @@ export function AltaSitioDialog({
           <Campo label="Tarifa publicada ($)">
             <CampoCifra className={inputCls} valor={tarifa} onCambio={(crudo) => setTarifa(crudo)} placeholder="Ej. 15000" />
           </Campo>
-          <Campo label="Regla de comercialización">
+          <Campo label="Regla de comercialización" como="div">
             <div className="flex gap-2">
               {(['TRADICIONAL', 'PROGRAMATICO'] as Comercializacion[]).map((c) => (
                 <button
@@ -226,13 +237,5 @@ function Seccion({ titulo, children }: { titulo: string; children: React.ReactNo
       <h4 className="text-[11px] font-medium uppercase tracking-wide text-muted">{titulo}</h4>
       {children}
     </div>
-  )
-}
-function Campo({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-[12px] font-medium text-ink">{label}</span>
-      {children}
-    </label>
   )
 }

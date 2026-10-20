@@ -11,6 +11,7 @@ import {
 } from '@/lib/data/programacion-api'
 import { etiquetaFranja } from '@/lib/franja-programada'
 import { Button } from '@/components/demo/ui/Button'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 
 // ============================================================================
 //  «Horario de transmisión»: junto a cada franja, qué campañas salen en ella.
@@ -88,18 +89,22 @@ export function ProgramacionPorFranja() {
   const activas = franjas.filter((f) => f.activo)
 
   return (
-    <section className="space-y-3">
-      <div>
-        <h2 className="mb-1 flex items-center gap-1.5 text-sm font-semibold">
-          <CalendarClock className="h-4 w-4" /> Horario de transmisión
-        </h2>
-        <p className="text-xs text-neutral-500">
+    // PLEG-02 · la tarjeta plegable va DENTRO del componente y no alrededor de
+    // él en la página: así plegarla no desmonta este estado (las campañas
+    // marcadas, la lectura ya hecha) y desplegarla no vuelve a pedirlo todo.
+    <CardColapsable
+      id="franjas-y-temporadas.programacion"
+      titulo="Horario de transmisión"
+      icono={<CalendarClock className="h-4 w-4" />}
+      subtitulo={
+        <>
           En qué franja <b>se transmite</b> cada campaña. No cambia ningún precio: lo vendido ya
           está en la campaña desde la propuesta. Puedes marcar varias campañas y programarlas de
           una vez; si alguna no se puede, no se programa ninguna.
-        </p>
-      </div>
-
+        </>
+      }
+      contentClassName="space-y-3"
+    >
       <AvisoFranjaCMS />
 
       {!puede && (
@@ -212,6 +217,6 @@ export function ProgramacionPorFranja() {
           )
         })}
       </ul>
-    </section>
+    </CardColapsable>
   )
 }

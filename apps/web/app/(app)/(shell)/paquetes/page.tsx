@@ -1,7 +1,6 @@
 'use client'
 
 import { Package } from 'lucide-react'
-import { Card, CardContent } from '@/components/demo/ui/Card'
 import { GestionPaquetes } from '@/components/demo/paquetes/GestionPaquetes'
 
 // ============================================================================
@@ -37,11 +36,8 @@ export default function PaquetesPage() {
           </p>
         </div>
       </header>
-      <Card>
-        <CardContent className="pt-6">
-          <GestionPaquetes />
-        </CardContent>
-      </Card>
+      {/* PLEG-02 · sin tarjeta envolvente: la lista trae la suya, plegable. */}
+      <GestionPaquetes />
     </div>
   )
 }

@@ -6,8 +6,10 @@ import Link from 'next/link'
 import { fechaLocalISO } from '@/lib/fecha-local'
 import { Smartphone, Calendar, User, Camera, ArrowRight, Plus, AlertTriangle } from 'lucide-react'
 import { Card } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
+import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import {
   StatusBadge,
   OT_TONO,
@@ -139,6 +141,22 @@ export default function OperacionesPage() {
         </div>
       )}
 
+      {/* PLEG-01 · la lista de OT se pliega entera, como las secciones de
+          Arrendadores. Los filtros van DENTRO porque solo filtran esta lista;
+          el aviso de SLA queda fuera, que es una alerta y no debe esconderse.
+          El filtro elegido vive en la página: sobrevive al plegado. */}
+      <CardColapsable
+        id="operaciones.lista"
+        titulo="Órdenes de trabajo"
+        contentClassName="space-y-4"
+        resumen={
+          ots ? (
+            <span className="demo-num text-[12px] text-muted">
+              {lista.length} de {ots.length}
+            </span>
+          ) : undefined
+        }
+      >
       {/* Filtros */}
       <div className="flex flex-wrap gap-1.5">
         {FILTROS.map((f) => (
@@ -250,6 +268,7 @@ export default function OperacionesPage() {
           })}
         </ul>
       )}
+      </CardColapsable>
     </div>
   )
 }
@@ -315,8 +334,16 @@ function NuevaOTModal({
     if (!tiposDisponibles.includes(tipo)) setTipo(tiposDisponibles[0])
   }, [tiposDisponibles, tipo])
 
+  // OBLIG-01 · los tres que exige el servidor (`ot-controller.ts:13-17`). El
+  // tipo nunca llega vacío (el selector no tiene opción en blanco), pero es
+  // obligatorio y lleva su asterisco.
+  const ob = useObligatorios(
+    { tipo, descripcion, fechaProg },
+    ['tipo', 'descripcion', 'fechaProg'],
+  )
+
   async function crear() {
-    if (!descripcion.trim() || !fechaProg) return
+    if (!ob.validar()) return
     setEnviando(true)
     try {
       await crearOTApi({
@@ -339,6 +366,7 @@ function NuevaOTModal({
       setCampanaId('')
       setFechaProg('')
       setAsignado('')
+      ob.reiniciar()
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'No se pudo crear la OT')
     }
@@ -354,7 +382,7 @@ function NuevaOTModal({
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="secondary" size="sm" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button variant="success" size="sm" disabled={!descripcion.trim() || !fechaProg || enviando} onClick={crear}>
+          <Button variant="success" size="sm" disabled={enviando} onClick={crear}>
             {enviando ? 'Creando…' : 'Crear OT'}
           </Button>
         </div>
@@ -363,18 +391,20 @@ function NuevaOTModal({
       <div className="space-y-3">
         {/* 1) Primero la campaña y su pantalla: de ahí depende qué tareas se pueden elegir. */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <label className="block">
-            <span className="mb-1 block text-[12px] font-medium text-ink">Campaña</span>
+          <Campo label="Campaña">
             <select className={sel} value={campanaId} onChange={(e) => onCampana(e.target.value)}>
               <option value="">— Sin campaña —</option>
               {campanas.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
             </select>
-          </label>
-          <label className="block">
-            <span className="mb-1 flex items-center gap-1.5 text-[12px] font-medium text-ink">
-              Pantalla
-              {campanaId && <span className="text-[10px] font-normal text-muted">(auto por campaña)</span>}
-            </span>
+          </Campo>
+          <Campo
+            label={
+              <>
+                Pantalla
+                {campanaId && <span className="ml-1.5 text-[10px] font-normal text-muted">(auto por campaña)</span>}
+              </>
+            }
+          >
             <select className={sel} value={sitioId} onChange={(e) => setSitioId(e.target.value)}>
               <option value="">— Sin pantalla —</option>
               {opcionesSitio.map((s) => (
@@ -386,52 +416,51 @@ function NuevaOTModal({
             {campanaId && sitiosDeCampana?.length === 0 && (
               <span className="mt-1 block text-[11px] text-muted">Esta campaña no tiene sitios reservados.</span>
             )}
-          </label>
+          </Campo>
         </div>
         {/* 2) Tipo de tarea, ya filtrado por el tipo de pantalla. */}
-        <label className="block">
-          <span className="mb-1 flex items-center gap-1.5 text-[12px] font-medium text-ink">
-            Tipo de tarea
-            {sitioId && (
-              <span className="text-[10px] font-normal text-muted">
-                (opciones de pantalla {digital ? 'digital' : 'fija'})
-              </span>
-            )}
-          </span>
+        <Campo
+          label={
+            <>
+              Tipo de tarea
+              {sitioId && (
+                <span className="ml-1.5 text-[10px] font-normal text-muted">
+                  (opciones de pantalla {digital ? 'digital' : 'fija'})
+                </span>
+              )}
+            </>
+          }
+          obligatorio
+          falta={ob.falta('tipo')}
+        >
           <select className={sel} value={tipo} onChange={(e) => setTipo(e.target.value as TipoOT)}>
             {tiposDisponibles.map((k) => <option key={k} value={k}>{TIPO_OT_LABEL[k]}</option>)}
           </select>
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-[12px] font-medium text-ink">Descripción</span>
+        </Campo>
+        <Campo label="Descripción" obligatorio falta={ob.falta('descripcion')}>
           <textarea
             className="min-h-[70px] w-full rounded border border-border-strong bg-surface px-3 py-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
             value={descripcion}
             onChange={(e) => setDescripcion(e.target.value)}
             placeholder="p. ej. Montaje de lona en espectacular…"
           />
-        </label>
+        </Campo>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <label className="block">
-            <span className="mb-1 block text-[12px] font-medium text-ink">Prioridad</span>
+          <Campo label="Prioridad">
             <select className={sel} value={prioridad} onChange={(e) => setPrioridad(e.target.value as Prioridad)}>
               {Object.entries(PRIORIDAD_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-[12px] font-medium text-ink">
-              Fecha compromiso <span className="text-error">*</span>
-            </span>
+          </Campo>
+          <Campo label="Fecha compromiso" obligatorio falta={ob.falta('fechaProg')}>
             <input type="date" className={sel} value={fechaProg} onChange={(e) => setFechaProg(e.target.value)} />
-          </label>
+          </Campo>
         </div>
-        <label className="block">
-          <span className="mb-1 block text-[12px] font-medium text-ink">Asignar a (responsable)</span>
+        <Campo label="Asignar a (responsable)">
           <select className={sel} value={asignado} onChange={(e) => setAsignado(e.target.value)}>
             <option value="">— Sin asignar —</option>
             {responsables.map((u) => <option key={u.id} value={u.id}>{u.nombre}</option>)}
           </select>
-        </label>
+        </Campo>
       </div>
     </Modal>
   )

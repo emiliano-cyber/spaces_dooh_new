@@ -44,6 +44,29 @@ La entrada más reciente va arriba.
   etapa van; al pulsar una se abre esa campaña en Campañas. Si el cliente es
   una agencia, también salen las propuestas que armó como agencia y las
   campañas que salieron de ellas.
+## 2026-10-20
+
+- **Los formularios dicen qué dato es obligatorio, y cuál faltó.** En todas las
+  ventanas de dar de alta o editar (pantallas, contratos, arrendadores,
+  propuestas, reservas, órdenes de trabajo, imprenta, almacén, facturas,
+  clientes, usuarios, captación, códigos, paquetes y más), los campos
+  obligatorios llevan un **asterisco rojo** y los opcionales solo su nombre
+  (desaparece el «(opcional)»). Si pulsas Guardar y falta un obligatorio, **ese
+  campo se pone en rojo con «Falta este dato» debajo** y no se guarda nada; al
+  escribirlo, el rojo se quita. Antes el botón de guardar se quedaba apagado
+  sin decir por qué, o el error llegaba después sin decir de qué campo.
+- **Reportar una incidencia ahora pide la descripción.** Antes, si se dejaba
+  vacía, se guardaba con un texto genérico.
+- *(Los formularios de Space Eyes se pasan a esta regla en cuanto aterrice su
+  versión 0.11.10.)*
+- **Todas las pantallas se pueden plegar por secciones, como Arrendadores.**
+  En Dashboard, Inventario, Comercial, Clientes, Propuestas, Campañas,
+  Creativos, Operaciones, Finanzas, Reportes, Administración y el resto, cada
+  bloque con título se pliega o despliega con un clic en su encabezado, y sus
+  cifras principales siguen a la vista aunque esté plegado. **La aplicación
+  recuerda cómo lo dejaste**: al volver o recargar, lo plegado sigue plegado
+  (solo en ese navegador; no cambia nada para los demás). También Arrendadores
+  lo recuerda ahora, y las secciones de la ficha de campaña.
 
 ## 2026-10-14
 

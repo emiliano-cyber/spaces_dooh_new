@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { useVistaCampanas } from '@/lib/campanas-vista'
 import { Card } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { EmptyState } from '@/components/demo/EmptyState'
 import {
@@ -100,16 +101,17 @@ export default function CampanasPage() {
 
       {/* Cola de validación de publicación */}
       {porValidar.length > 0 && (
-        <Card className="border-accent/50 bg-[#f59e0b08] p-4">
-          <div className="mb-2 flex items-center gap-2">
-            <ShieldCheck className="h-4 w-4 text-[#9a6700]" strokeWidth={1.75} />
-            <h2 className="text-[13px] font-semibold text-ink">
-              Por validar ({porValidar.length})
-            </h2>
-            <span className="text-[12px] text-muted">
-              · enviadas al dominio, esperan aprobación antes de publicar
-            </span>
-          </div>
+        // PLEG-01 · la cola se pliega como las secciones de Arrendadores. La
+        // LISTA de campañas de abajo no: ya tiene su vista compacta, minimizar
+        // y ocultar por campaña (`lib/campanas-vista.ts`), y otra tarjeta
+        // plegable alrededor sería un tercer mecanismo para lo mismo.
+        <CardColapsable
+          id="campanas.por-validar"
+          titulo={`Por validar (${porValidar.length})`}
+          icono={<ShieldCheck className="h-4 w-4 text-[#9a6700]" strokeWidth={1.75} />}
+          subtitulo="Enviadas al dominio, esperan aprobación antes de publicar"
+          className="border-accent/50 bg-[#f59e0b08]"
+        >
           <ul className="divide-y divide-border">
             {porValidar.map((c) => (
               <li key={c.id}>
@@ -130,7 +132,7 @@ export default function CampanasPage() {
               </li>
             ))}
           </ul>
-        </Card>
+        </CardColapsable>
       )}
 
       {/* Filtro / búsqueda de campañas */}

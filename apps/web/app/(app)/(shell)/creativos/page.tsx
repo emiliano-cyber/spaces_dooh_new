@@ -3,9 +3,10 @@
 import { toast } from 'sonner'
 import { useEffect, useRef, useState } from 'react'
 import { Images, Upload, Check, X, Clock, Code2, Eye, Download, RefreshCw, Trash2, AlertTriangle, Search } from 'lucide-react'
-import { Card } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
+import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { ConfirmDialog } from '@/components/demo/ui/ConfirmDialog'
 import { EmptyState } from '@/components/demo/EmptyState'
 import { usePuede } from '@/components/demo/shell/SesionContext'
@@ -244,6 +245,9 @@ function CampanaCard({
   const [codeOpen, setCodeOpen] = useState(false)
   const [codeNombre, setCodeNombre] = useState('')
   const [codigo, setCodigo] = useState('')
+  // OBLIG-01 · en el alta por código, el código es lo único obligatorio; el
+  // nombre cae a «Creativo (código)» (el servidor sí lo exige, y lo recibe así).
+  const ob = useObligatorios({ codigo }, ['codigo'])
   // Creativo cuyo HTML se está viendo en el modal (null = cerrado).
   const [verFuente, setVerFuente] = useState<Creatividad | null>(null)
   // La fuente se PIDE al abrir el modal. Antes venía dentro del payload de
@@ -308,7 +312,7 @@ function CampanaCard({
   }
 
   async function guardarCodigo() {
-    if (!codigo.trim()) return
+    if (!ob.validar()) return
     setSubiendo(true)
     try {
       await crearCreatividadApi({
@@ -320,6 +324,7 @@ function CampanaCard({
       setCodigo('')
       setCodeNombre('')
       setCodeOpen(false)
+      ob.reiniciar()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'No se pudo guardar')
     }
@@ -420,16 +425,20 @@ function CampanaCard({
     void guardarCreativos(reserva, creatividadId ? [{ creatividadId, veces: 1 }] : [])
   }
 
+  // PLEG-01 · cada campaña se pliega por separado y lo recuerda por su id. Los
+  // `input` de archivo van en `accion`, que no se desmonta al plegar: el de
+  // «Reemplazar» se dispara desde dentro del contenido. El alta por código
+  // sobrevive al plegado porque su texto vive en el estado de este componente,
+  // no en el contenido que se desmonta. Los diálogos quedan FUERA de la tarjeta.
   return (
-    <Card className="space-y-4 p-4">
-      <div className="flex items-center justify-between gap-2">
-        <div className="min-w-0">
-          <div className="truncate text-[14px] font-medium text-ink">{campana.nombre}</div>
-          <div className="demo-num text-[12px] text-muted">
-            {campana.folio} · {campana.tipoCampana}
-          </div>
-        </div>
-        {puede && (
+    <>
+    <CardColapsable
+      id={`creativos.campana.${campana.id}`}
+      titulo={campana.nombre}
+      subtitulo={<span className="demo-num">{campana.folio} · {campana.tipoCampana}</span>}
+      contentClassName="space-y-4"
+      accion={
+        puede ? (
           <div className="flex shrink-0 gap-2">
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile} />
             <input ref={reemplazarRef} type="file" accept="image/*" className="hidden" onChange={onReemplazoFile} />
@@ -440,28 +449,41 @@ function CampanaCard({
               <Code2 className="h-3.5 w-3.5" /> Código
             </Button>
           </div>
-        )}
-      </div>
+        ) : undefined
+      }
+    >
 
       {/* Alta por código (HTML/UTF) */}
       {puede && codeOpen && (
         <div className="space-y-2 rounded-md border border-border bg-surface-2 p-2.5">
-          <input
-            value={codeNombre}
-            onChange={(e) => setCodeNombre(e.target.value)}
-            placeholder="Nombre del creativo (opcional)"
-            className="h-8 w-full rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
-          />
-          <textarea
-            value={codigo}
-            onChange={(e) => setCodigo(e.target.value)}
-            placeholder="Pega aquí el código del creativo (HTML/UTF)…"
-            rows={5}
-            className="w-full rounded border border-border-strong bg-surface px-2 py-1.5 font-mono text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
-          />
+          <Campo label="Nombre del creativo">
+            <input
+              value={codeNombre}
+              onChange={(e) => setCodeNombre(e.target.value)}
+              className="h-8 w-full rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            />
+          </Campo>
+          <Campo label="Código" obligatorio falta={ob.falta('codigo')}>
+            <textarea
+              value={codigo}
+              onChange={(e) => setCodigo(e.target.value)}
+              placeholder="Pega aquí el código del creativo (HTML/UTF)…"
+              rows={5}
+              className="w-full rounded border border-border-strong bg-surface px-2 py-1.5 font-mono text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            />
+          </Campo>
           <div className="flex justify-end gap-2">
-            <Button size="sm" variant="secondary" onClick={() => setCodeOpen(false)}>Cancelar</Button>
-            <Button size="sm" disabled={!codigo.trim() || subiendo} onClick={guardarCodigo}>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                setCodeOpen(false)
+                ob.reiniciar()
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button size="sm" disabled={subiendo} onClick={guardarCodigo}>
               {subiendo ? 'Guardando…' : 'Guardar código'}
             </Button>
           </div>
@@ -698,6 +720,7 @@ function CampanaCard({
           </p>
         )}
       </div>
+    </CardColapsable>
 
       {/* Fuente HTML del creativo. Se pinta como texto ({fuente} en un <pre>, que
           React escapa), nunca como HTML: los creativos pueden venir de clientes
@@ -751,7 +774,7 @@ function CampanaCard({
         quitar de DOOHmain</span> (su API no lo permite): quedará marcado como “pendiente en DOOHmain”
         para que lo quites en su panel.
       </ConfirmDialog>
-    </Card>
+    </>
   )
 }
 

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { History, User, X } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { EmptyState } from '@/components/demo/EmptyState'
 import { Paginacion, usePaginacion } from '@/components/demo/ui/Paginacion'
 import { useAcciones, formatFechaHora } from '@/lib/data/client'
@@ -101,12 +101,16 @@ export default function ActividadPage() {
         )}
       </div>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center gap-2">
-          <History className="h-4 w-4 text-muted" />
-          <CardTitle>Registro de acciones</CardTitle>
-        </CardHeader>
-        <CardContent>
+      {/* `px-0 pb-0` y el relleno en un `div` propio: así la paginación sigue
+          a ras del borde de la tarjeta, como antes. La página actual vive en
+          `usePaginacion`, aquí arriba, así que plegar no la reinicia. */}
+      <CardColapsable
+        id="actividad.registro"
+        titulo="Registro de acciones"
+        icono={<History className="h-4 w-4 text-muted" />}
+        contentClassName="px-0 pb-0"
+      >
+        <div className="px-4 pb-4">
           {!acciones ? (
             <div className="space-y-2">
               {Array.from({ length: 5 }).map((_, i) => (
@@ -149,11 +153,11 @@ export default function ActividadPage() {
               ))}
             </ol>
           )}
-        </CardContent>
-        {/* Fuera del CardContent para que la línea superior del control quede a
+        </div>
+        {/* Fuera del relleno para que la línea superior del control quede a
             ras del borde de la tarjeta, como en el resto de tablas. */}
         <Paginacion {...pag} etiqueta="acciones" />
-      </Card>
+      </CardColapsable>
     </div>
   )
 }

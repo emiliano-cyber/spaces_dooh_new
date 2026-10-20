@@ -16,6 +16,7 @@ import { Modal } from '@/components/demo/ui/Modal'
 import { InlinePanel } from '@/components/demo/ui/InlinePanel'
 import { Button } from '@/components/demo/ui/Button'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
+import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { CRUDO_INVALIDO } from '@/lib/captura-cifra'
 import { InfoAnadidaModal } from './InfoAnadidaModal'
 import { cn } from '@/lib/cn'
@@ -140,9 +141,13 @@ export function ImportarInventarioDialog({
   // `Number` lo mandaría como NaN, que JSON convierte en null: el lote se
   // importaría SIN precio sin que nadie lo pidiera.
   const precioM2Invalido = precioM2 === CRUDO_INVALIDO
-  const listoParaImportar = !!filas && !!arrendadorId && !precioM2Invalido
+  // OBLIG-01: el arrendador y el archivo son obligatorios (`importSchema` en
+  // `lib/server/sitios-controller.ts:184-191`: `filas` min 1 y `arrendadorId`
+  // uuid). El botón ya no se apaga por ellos: se pulsa y se pinta el que falta.
+  const ob = useObligatorios({ arrendadorId, filas }, ['arrendadorId', 'filas'])
 
   function reset() {
+    ob.reiniciar()
     setFilas(null)
     setArchivoNombre('')
     setImagenes({})
@@ -195,7 +200,7 @@ export function ImportarInventarioDialog({
   }
 
   async function procesar() {
-    if (!filas) return
+    if (!ob.validar() || !filas) return
     setProcesando(true)
     // Envía las imágenes por nombre de archivo (sin extensión, minúsculas). El
     // servidor las asocia por nomenclatura: "codigo" (principal) o "codigo-N"
@@ -241,7 +246,7 @@ export function ImportarInventarioDialog({
         <Button variant="secondary" size="sm" onClick={() => { reset(); if (!inline) onOpenChange(false) }}>
           {inline ? 'Limpiar' : 'Cerrar'}
         </Button>
-        <Button size="sm" disabled={!listoParaImportar || procesando || !!summary} onClick={procesar}>
+        <Button size="sm" disabled={precioM2Invalido || procesando || !!summary} onClick={procesar}>
           {procesando ? 'Procesando…' : 'Procesar importación'}
         </Button>
       </div>
@@ -266,9 +271,20 @@ export function ImportarInventarioDialog({
         </div>
 
         {/* Arrendador de las pantallas (obligatorio — ADR 0002) */}
-        <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-surface px-3 py-2.5">
+        {/* No es un `Campo` porque el bloque es tarjeta (título a la izquierda,
+            selector a la derecha) y meterlo en uno lo rediseñaría. Lleva el
+            mismo asterisco y el mismo `data-falta`, que es lo que pinta el
+            <select> de rojo en `globals.css`. */}
+        <div
+          data-falta={ob.falta('arrendadorId') ? 'true' : undefined}
+          className="flex items-center justify-between gap-3 rounded-md border border-border bg-surface px-3 py-2.5"
+        >
           <div>
-            <div className="text-[13px] font-medium text-ink">Arrendador de estas pantallas</div>
+            <div className={cn('text-[13px] font-medium', ob.falta('arrendadorId') ? 'text-error' : 'text-ink')}>
+              Arrendador de estas pantallas
+              <span aria-hidden="true" className="ml-0.5 text-error">*</span>
+              <span className="sr-only"> (obligatorio)</span>
+            </div>
             <div className="text-[12px] text-muted">
               {predioNombre.trim()
                 ? 'El predio y su contrato se abrirán a nombre de este arrendador'
@@ -305,7 +321,7 @@ export function ImportarInventarioDialog({
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="text-[13px] font-medium text-ink">
-                Predio <span className="font-normal text-muted">(opcional)</span>
+                Predio
               </div>
               <div className="text-[12px] text-muted">
                 {predioNombre.trim()
@@ -425,8 +441,7 @@ export function ImportarInventarioDialog({
         </div>
 
         {/* Codificación */}
-        <label className="block">
-          <span className="mb-1 block text-[12px] font-medium text-ink">Codificación del archivo</span>
+        <Campo label="Codificación del archivo">
           <select className={inputCls} value={codificacion} onChange={(e) => setCodificacion(e.target.value)}>
             <option value="utf-8">UTF-8 (Universal)</option>
             <option value="latin1">Latin-1 / ISO-8859-1</option>
@@ -435,9 +450,11 @@ export function ImportarInventarioDialog({
           <span className="mt-1 block text-[11px] text-muted">
             El sistema intentará detectar automáticamente la codificación correcta si la seleccionada no funciona.
           </span>
-        </label>
+        </Campo>
 
-        {/* Zona drag-drop */}
+        {/* Zona drag-drop. El archivo es obligatorio; su <input> va oculto, así
+            que el rojo de `[data-falta]` se pinta en el borde de la zona. */}
+        <Campo label="Archivo" obligatorio falta={ob.falta('filas')} como="div">
         <label
           onDragOver={(e) => { e.preventDefault(); setArrastrando(true) }}
           onDragLeave={() => setArrastrando(false)}
@@ -449,7 +466,11 @@ export function ImportarInventarioDialog({
           }}
           className={cn(
             'flex cursor-pointer flex-col items-center justify-center gap-1 rounded-md border-2 border-dashed px-4 py-6 text-center transition-colors duration-150',
-            arrastrando ? 'border-accent bg-[#f59e0b0a]' : 'border-border-strong hover:bg-surface-2',
+            arrastrando
+              ? 'border-accent bg-[#f59e0b0a]'
+              : ob.falta('filas')
+                ? 'border-error hover:bg-surface-2'
+                : 'border-border-strong hover:bg-surface-2',
           )}
         >
           <Upload className="h-6 w-6 text-muted" />
@@ -461,10 +482,11 @@ export function ImportarInventarioDialog({
           </span>
           <input type="file" accept=".xlsx,.xls,.csv" onChange={onArchivo} className="hidden" />
         </label>
+        </Campo>
 
         {/* Imágenes en bulk */}
         <div>
-          <span className="mb-1 block text-[12px] font-medium text-ink">Imágenes (bulk, opcional)</span>
+          <span className="mb-1 block text-[12px] font-medium text-ink">Imágenes (bulk)</span>
           <label className="flex cursor-pointer items-center gap-2 rounded border border-dashed border-border-strong px-3 py-2 text-[13px] text-muted hover:bg-surface-2">
             <ImageIcon className="h-4 w-4" />
             {totalImagenes > 0 ? `${totalImagenes} imágenes cargadas` : 'Subir imágenes (JPG/PNG ≤5MB)'}
