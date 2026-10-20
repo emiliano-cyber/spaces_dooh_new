@@ -195,6 +195,7 @@ export function GestionRazonesSociales({
 
   return (
     <CardColapsable
+      id="arrendadores.razones-sociales"
       titulo="Razones sociales"
       subtitulo="A nombre de quién factura cada arrendador. Un mismo arrendador puede tener varias; el contrato elige cuál usa."
       contentClassName="space-y-4 pb-4"

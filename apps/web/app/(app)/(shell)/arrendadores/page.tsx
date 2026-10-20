@@ -321,6 +321,7 @@ export default function ArrendadoresPage() {
 
       {/* Contratos */}
       <CardColapsable
+        id="arrendadores.contratos"
         titulo="Contratos de arrendamiento"
         contentClassName="px-0 pb-0"
         accion={
@@ -711,7 +712,7 @@ function RazonesSocialesCard({
   if (todas.length === 0) return null
 
   return (
-    <CardColapsable titulo="Por razón social" contentClassName="px-0 pb-0">
+    <CardColapsable id="arrendadores.por-razon-social" titulo="Por razón social" contentClassName="px-0 pb-0">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-[13px]">
             <thead>
@@ -789,6 +790,7 @@ function RentabilidadCard({
   const totalMargen = totalIngreso - totalRenta
   return (
     <CardColapsable
+      id="arrendadores.rentabilidad"
       titulo="Rentabilidad por pantalla"
       subtitulo="Margen mensual = ingreso de reservas vigentes − renta del arrendador. Las de margen negativo son candidatas a renegociar o dar de baja."
       contentClassName="px-0 pb-0"
@@ -907,6 +909,7 @@ function PropietariosCard({
   return (
     <>
       <CardColapsable
+        id="arrendadores.lista"
         titulo="Arrendadores"
         subtitulo="Dueños de predio dados de alta."
         contentClassName="px-0 pb-0"

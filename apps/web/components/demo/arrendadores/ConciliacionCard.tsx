@@ -88,6 +88,7 @@ export function ConciliacionCard({
 
   return (
     <CardColapsable
+      id="arrendadores.cuadre"
       titulo="Cuadre de renta por arrendador"
       icono={<Scale className="h-4 w-4 text-muted" />}
       subtitulo="Qué se le debe a cada uno y qué ya se le pagó. Primero quien tiene vencidos."

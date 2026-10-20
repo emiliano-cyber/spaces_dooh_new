@@ -1,10 +1,11 @@
 'use client'
 
 import * as React from 'react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { Card, CardHeader, CardTitle, CardContent } from './Card'
+import { CLAVE_PLEGADAS, leerPlegadas, conPlegada } from '@/lib/secciones-plegadas'
 
 // ============================================================================
 //  Tarjeta con encabezado plegable. Mismo gesto que las secciones de la ficha
@@ -32,6 +33,7 @@ export function CardColapsable({
   subtitulo,
   resumen,
   accion,
+  id,
   defaultAbierto = true,
   className,
   headerClassName,
@@ -52,6 +54,10 @@ export function CardColapsable({
   // Botones propios de la sección (descargar, añadir…). Van fuera del área que
   // pliega: pulsarlos no debe cerrar la tarjeta.
   accion?: React.ReactNode
+  // PLEG-01 · con `id` (estable y único en la app, p. ej. «finanzas.cobranza»)
+  // la tarjeta RECUERDA si la persona la dejó plegada, en su navegador. Sin
+  // `id` se comporta como siempre: abierta al cargar.
+  id?: string
   defaultAbierto?: boolean
   className?: string
   headerClassName?: string
@@ -59,6 +65,30 @@ export function CardColapsable({
   children: React.ReactNode
 }) {
   const [abierto, setAbierto] = useState(defaultAbierto)
+  // Lo guardado se lee DESPUÉS de montar y no en el `useState`: el servidor no
+  // tiene localStorage, y leerlo en el primer render daría un HTML distinto al
+  // del cliente (error de hidratación). El precio es un parpadeo de un cuadro
+  // en las tarjetas que la persona dejó plegadas.
+  useEffect(() => {
+    if (!id) return
+    try {
+      if (leerPlegadas(localStorage.getItem(CLAVE_PLEGADAS)).includes(id)) setAbierto(false)
+    } catch {
+      // Modo privado o almacenamiento bloqueado: se queda como venía.
+    }
+  }, [id])
+
+  function alternar() {
+    const nuevo = !abierto
+    setAbierto(nuevo)
+    if (!id) return
+    try {
+      const lista = leerPlegadas(localStorage.getItem(CLAVE_PLEGADAS))
+      localStorage.setItem(CLAVE_PLEGADAS, JSON.stringify(conPlegada(lista, id, !nuevo)))
+    } catch {
+      // Sin almacenamiento la tarjeta se pliega igual; solo no lo recuerda.
+    }
+  }
   return (
     <Card className={className}>
       <CardHeader
@@ -66,7 +96,7 @@ export function CardColapsable({
           'flex cursor-pointer select-none flex-row flex-wrap items-center justify-between gap-2',
           headerClassName,
         )}
-        onClick={() => setAbierto((v) => !v)}
+        onClick={alternar}
       >
         <div className="min-w-0">
           <CardTitle className="flex min-w-0 items-center gap-1.5">
@@ -82,7 +112,7 @@ export function CardColapsable({
             type="button"
             aria-expanded={abierto}
             aria-label={`${abierto ? 'Minimizar' : 'Expandir'} ${titulo}`}
-            onClick={() => setAbierto((v) => !v)}
+            onClick={alternar}
             className="rounded text-muted transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
             <ChevronDown className={cn('h-4 w-4 transition-transform', abierto && 'rotate-180')} />
