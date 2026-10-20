@@ -5,6 +5,22 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-10-20
+
+- **Los formularios dicen qué dato es obligatorio, y cuál faltó.** En todas las
+  ventanas de dar de alta o editar (pantallas, contratos, arrendadores,
+  propuestas, reservas, órdenes de trabajo, imprenta, almacén, facturas,
+  clientes, usuarios, captación, códigos, paquetes y más), los campos
+  obligatorios llevan un **asterisco rojo** y los opcionales solo su nombre
+  (desaparece el «(opcional)»). Si pulsas Guardar y falta un obligatorio, **ese
+  campo se pone en rojo con «Falta este dato» debajo** y no se guarda nada; al
+  escribirlo, el rojo se quita. Antes el botón de guardar se quedaba apagado
+  sin decir por qué, o el error llegaba después sin decir de qué campo.
+- **Reportar una incidencia ahora pide la descripción.** Antes, si se dejaba
+  vacía, se guardaba con un texto genérico.
+- *(Los formularios de Space Eyes se pasan a esta regla en cuanto aterrice su
+  versión 0.11.10.)*
+
 ## 2026-10-14
 
 - **La documentación interna, al día con las versiones 0.11.4 a 0.11.9.** No

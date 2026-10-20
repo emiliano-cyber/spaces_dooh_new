@@ -1,10 +1,17 @@
 ---
 tipo: tablero
 estado: verificado
-actualizado: 2026-10-14
+actualizado: 2026-10-20
 tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
+
+> [!important] 2026-10-20 · **OBLIG-01 · campos obligatorios en todos los formularios** · Z10 + Z12 en REVISION · VERDE (solo interfaz)
+> Rama `feat/campos-obligatorios`, salida de `main` (`7816e8e2`). `Campo` y `useObligatorios`
+> compartidos y ~60 formularios en ~45 archivos de casi todos los módulos (Space Eyes fuera hasta que
+> aterrice `v0.11.10`). Sin servidor, sin migración, sin sesión. Choca en archivos con
+> `feat/clientes-campanas-pipeline` (`clientes/page.tsx`) y `feat/comprobante-cobranza`
+> (`finanzas/page.tsx`): se resuelve al fusionar la segunda. Regla en [[06-Operacion/convenciones]].
 
 > [!success] 2026-10-14 · **`v0.11.9` en `estable`** (run `38576580857`, digest `3f5d15ea…`; vuelta atrás `2207b6cd…`) tras llenarse el registro (`denied: quota exceeded`, run `38516330947`)
 > `v0.11.8` (cliente al generar campaña) salió en verde el 13/10; `v0.11.9` (rótulos «Comercial

@@ -18,7 +18,7 @@ import { camposFaltantes, type ReglaObligatorio } from '@/lib/campos-obligatorio
 //  guardar (`useObligatorios().validar()`): un formulario recién abierto lleno
 //  de rojo regaña por algo que la persona todavía no ha tenido ocasión de hacer.
 //
-//  El borde rojo del control lo pone `globals.css` (`[data-falta]`), así sirve
+//  El borde rojo del control lo pone `app/(app)/demo.css` (`[data-falta]`), así sirve
 //  igual para un <input>, un <select>, un <textarea> o un `CampoCifra` sin que
 //  cada uno tenga que enterarse.
 // ============================================================================

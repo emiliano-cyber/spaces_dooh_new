@@ -1,10 +1,12 @@
 ---
 tipo: operacion
 estado: verificado
-actualizado: 2026-10-08
+actualizado: 2026-10-20
 tags: [convenciones, estilo, pruebas]
 archivos:
   - apps/web/components/demo/ui/Button.tsx
+  - apps/web/components/demo/ui/Campo.tsx
+  - apps/web/lib/campos-obligatorios.ts
   - apps/web/lib/formato-numero.ts
   - apps/web/lib/formato-numero.guardia.test.ts
   - apps/web/lib/captura-cifra.ts
@@ -332,6 +334,35 @@ Las e2e:
 > unitarias sin despeinarse. **Todo lo que toque tenant o sesión necesita e2e.**
 
 Las semillas usan fechas **relativas a hoy** (`enDias()`), nunca literales.
+
+## Campos obligatorios en los formularios (OBLIG-01)
+
+> [!important] Regla del dueño, 2026-10-20
+> «En todos los formularios de añadir o editar pon un asterisco en los campos
+> obligatorios, y si son opcionales solo poner el nombre; si falta alguno de
+> los obligatorios, poner en rojo ese campo.»
+
+- **Todo campo de un alta o edición usa `Campo`**
+  (`components/demo/ui/Campo.tsx`). No se escriben etiquetas a mano ni se
+  crean `function Campo` locales: el 20/10 había trece copias y casi ninguna
+  decía qué era obligatorio.
+- **Obligatorio = lo que exige el servidor** (el zod del controller) **más lo
+  que la pantalla ya pedía para guardar.** Se comprueba en el código, no se
+  supone. Los condicionales van como `{ campo, si }` (p. ej. la comisión solo si
+  es AGENCIA).
+- **Opcional = solo el nombre.** Nada de «(opcional)», ni en etiquetas ni en
+  placeholders.
+- **`useObligatorios`**: al guardar, `if (!ob.validar()) return`. El botón NO
+  se deshabilita por un obligatorio vacío —deshabilitado, nadie ve cuál
+  falta—; sí por formato inválido, `enviando`, candado, etc.
+- **El rojo sale solo tras el primer intento**, nunca al abrir el formulario,
+  y se quita al escribir el dato.
+- El borde rojo lo pone `app/(app)/demo.css` (`.demo-root [data-falta] …`),
+  **después** del recoloreado de controles: en `globals.css` perdía la cascada
+  y solo se ponía roja la etiqueta. Lo mide
+  `components/demo/ui/campo-falta-css.test.ts`.
+- Celdas editables en tablas: asterisco en la cabecera de columna y rojo en la
+  celda, sin etiqueta encima.
 
 ## Color de los botones
 
