@@ -290,7 +290,7 @@ export async function generarFactura(
 export async function registrarPagoCobranza(
   cobranzaId: string,
   monto?: number | null,
-  opts: { fecha?: string | null; usuarioId?: string | null } = {},
+  opts: { fecha?: string | null; usuarioId?: string | null; comprobanteUrl?: string | null } = {},
 ) {
   const tenant = await tenantActual()
   return withTenantTx(async (cx) => {
@@ -323,10 +323,13 @@ export async function registrarPagoCobranza(
         where id=$1 and tenant_id=$4`,
       [cobranzaId, nuevoPagado, liquidado, tenant],
     )
+    // El comprobante (COB-COMP) entra en el MISMO renglón y la misma
+    // transacción que el abono: si algo falla, no queda un pago sin su recibo
+    // ni un recibo sin su pago.
     await cx.query(
-      `insert into cobranza_abonos (tenant_id, cobranza_id, monto, fecha, origen, usuario_id)
-       values ($1, $2, $3, $4, 'registro', $5)`,
-      [tenant, cobranzaId, abono, fecha, opts.usuarioId ?? null],
+      `insert into cobranza_abonos (tenant_id, cobranza_id, monto, fecha, origen, usuario_id, comprobante_url)
+       values ($1, $2, $3, $4, 'registro', $5, $6)`,
+      [tenant, cobranzaId, abono, fecha, opts.usuarioId ?? null, opts.comprobanteUrl ?? null],
     )
     // La factura queda PAGADA solo cuando no le queda ninguna parcialidad viva.
     // Con cobro único es equivalente a lo de antes; con parcialidades, marcarla al
@@ -352,6 +355,76 @@ export async function registrarPagoCobranza(
       liquidado,
     }
   })
+}
+
+// ─── El comprobante de cada abono (COB-COMP) ────────────────────────────────
+//
+// La lista NO lee `comprobante_url`, solo si hay uno: un PDF pesa MB, y el
+// 12/10 los listados de pantallas se volvieron lentos justo por traer las
+// fotos en el listado. El archivo se pide aparte, cuando alguien lo abre.
+//
+// Las tres van por `q` (con tenant) y además filtran `tenant_id` y la
+// cobranza: un abono solo se alcanza a través de la cobranza a la que
+// pertenece, y una cobranza de otra organización contesta como inexistente.
+
+export interface AbonoCobranza {
+  id: string
+  monto: number
+  /** AAAA-MM-DD. NULL solo en el rescate histórico de la migración 20261008. */
+  fecha: string | null
+  origen: 'registro' | 'historico'
+  registradoPor: string | null
+  tieneComprobante: boolean
+}
+
+export async function listarAbonosCobranza(cobranzaId: string): Promise<AbonoCobranza[] | null> {
+  const tenant = await tenantActual()
+  const cob = await q<{ id: string }>('select id from cobranzas where id = $1 and tenant_id = $2', [cobranzaId, tenant])
+  if (!cob[0]) return null
+  const filas = await q<any>(
+    `select x.id, x.monto, to_char(x.fecha, 'YYYY-MM-DD') as fecha, x.origen, u.nombre as registrado_por,
+            x.comprobante_url is not null as tiene_comprobante
+       from cobranza_abonos x
+       left join usuarios u on u.id = x.usuario_id
+      where x.cobranza_id = $1 and x.tenant_id = $2
+      order by x.fecha nulls first, x.creado_en`,
+    [cobranzaId, tenant],
+  )
+  return filas.map((r) => ({
+    id: r.id,
+    monto: Number(r.monto),
+    fecha: r.fecha,
+    origen: r.origen,
+    registradoPor: r.registrado_por ?? null,
+    tieneComprobante: r.tiene_comprobante === true,
+  }))
+}
+
+export async function adjuntarComprobanteAbono(
+  cobranzaId: string,
+  abonoId: string,
+  comprobanteUrl: string,
+): Promise<{ id: string; folio: string | null } | null> {
+  const tenant = await tenantActual()
+  const filas = await q<{ id: string; folio: string | null }>(
+    `update cobranza_abonos x set comprobante_url = $3
+       from cobranzas c
+       join facturas f on f.id = c.factura_id and f.tenant_id = c.tenant_id
+      where x.id = $1 and x.cobranza_id = $2 and x.tenant_id = $4
+        and c.id = x.cobranza_id and c.tenant_id = x.tenant_id
+     returning x.id, f.folio`,
+    [abonoId, cobranzaId, comprobanteUrl, tenant],
+  )
+  return filas[0] ?? null
+}
+
+export async function obtenerComprobanteAbono(cobranzaId: string, abonoId: string): Promise<string | null> {
+  const filas = await q<{ url: string | null }>(
+    `select comprobante_url as url from cobranza_abonos
+      where id = $1 and cobranza_id = $2 and tenant_id = $3`,
+    [abonoId, cobranzaId, await tenantActual()],
+  )
+  return filas[0]?.url ?? null
 }
 
 // ─── Finanzas por periodo (ADR 0046) ────────────────────────────────────────

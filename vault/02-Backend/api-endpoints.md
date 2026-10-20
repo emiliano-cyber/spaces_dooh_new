@@ -27,9 +27,10 @@ archivos:
   - apps/web/app/api/sitios/[id]/modalidades/route.ts
   - apps/web/app/api/sitios/[id]/rejilla/route.ts
   - apps/web/app/api/volumen/escalas/
+  - apps/web/app/api/cobranzas/[id]/abonos/
 ---
 
-# API — los 126 endpoints
+# API — los 142 endpoints (medidos el 2026-10-19 con `recuentos.mjs`)
 
 Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo el
 `basePath` `/spaces-dooh` (`apps/web/next.config.mjs:145`).
@@ -273,9 +274,12 @@ agrupa las cuatro pantallas en `lib/modulos.ts:77-83`.
 
 | Método | Path | Guard |
 |---|---|---|
-| POST | `/api/cobranzas/[id]/pagar` | **SENSIBLE** (06/10) acepta `fecha` (día en que entró el dinero, nunca futura); deja un renglón en `cobranza_abonos`; pagar lo ya pagado es 409 |
+| POST | `/api/cobranzas/[id]/pagar` | **SENSIBLE** (06/10) acepta `fecha` (día en que entró el dinero, nunca futura); deja un renglón en `cobranza_abonos`; pagar lo ya pagado es 409. (19/10) Acepta `comprobanteUrl` opcional (PDF/imagen, 5 MB), en el mismo renglón; inválido = 422 sin pago |
 | GET | `/api/finanzas/resumen` | exigir (`finanzas.ver`) | (06/10, ADR 0046) `?periodo=mes\|mes-anterior\|trimestre\|trimestre-anterior\|anio\|rango[&desde&hasta][&cliente]` → resumen del periodo y movimientos del estado de cuenta. Cliente ajeno = 404 |
 | POST | `/api/cobranzas/[id]/recordar` | exigir |
+| GET | `/api/cobranzas/[id]/abonos` | exigir (`finanzas.ver`) · (19/10, COB-COMP) los pagos de una cobranza con fecha, quién y `tieneComprobante`; **no** trae el archivo. Cobranza ajena = 404 |
+| PATCH | `/api/cobranzas/[id]/abonos/[abonoId]` | exigir (`finanzas.crear`) · (19/10) `{ comprobanteUrl }` adjunta o reemplaza el comprobante; cuerpo `.strict()`, no toca importe ni fecha; abono de otra cobranza = 404 |
+| GET | `/api/cobranzas/[id]/abonos/[abonoId]/comprobante` | exigir (`finanzas.ver`) · (19/10) sirve el archivo con su `Content-Type`, `no-store`; sin comprobante = 404 |
 | GET | `/api/reportes/rentabilidad` | (05/10) `finanzas:ver` — el reporte ya agregado en el servidor (`?dimension=&granularidad=&desde=&hasta=`), para no derivarlo en el navegador desde `/api/estado` — [[reportes-rentabilidad]] |
 
 ## Notificaciones e integraciones

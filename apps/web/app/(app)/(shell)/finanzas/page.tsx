@@ -20,6 +20,7 @@ import { etiquetaVencimiento, type TonoVencimiento } from '@/components/demo/fin
 import { ComprobanteDialog } from '@/components/demo/finanzas/ComprobanteDialog'
 import { TableroPeriodo } from '@/components/demo/finanzas/TableroPeriodo'
 import { EstadoCuenta } from '@/components/demo/finanzas/EstadoCuenta'
+import { CampoComprobante, PagosCobranzaModal } from '@/components/demo/finanzas/ComprobantePago'
 import { generarFacturaApi, recordarCobranzaApi, pagarCobranzaApi } from '@/lib/data/estado-api'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { useCandado, PasoContrasena } from '@/components/demo/ui/candado'
@@ -65,6 +66,7 @@ export default function FinanzasPage() {
   const [toast, setToast] = useState<string | null>(null)
   const [recordando, setRecordando] = useState<string | null>(null)
   const [pagoCob, setPagoCob] = useState<{ id: string; folio: string; saldo: number } | null>(null)
+  const [pagosDe, setPagosDe] = useState<{ id: string; folio: string } | null>(null)
 
   function notify(msg: string) {
     setToast(msg)
@@ -339,7 +341,7 @@ export default function FinanzasPage() {
                   {grupos.map((g) => {
                     const abierta = expandidas.has(g.factura?.id ?? '')
                     if (g.cuotas.length === 1) {
-                      return <FilaCuota key={g.cuotas[0].id} cob={g.cuotas[0]} fac={g.factura} entidades={entidades ?? []} cliNombre={cliNombre} puedeCobrar={puedeCobrar} recordando={recordando} onPagar={setPagoCob} onRecordar={recordar} />
+                      return <FilaCuota key={g.cuotas[0].id} cob={g.cuotas[0]} fac={g.factura} entidades={entidades ?? []} cliNombre={cliNombre} puedeCobrar={puedeCobrar} recordando={recordando} onPagar={setPagoCob} onVerPagos={setPagosDe} onRecordar={recordar} />
                     }
                     return (
                       <Fragment key={g.factura?.id ?? g.cuotas[0].id}>
@@ -384,7 +386,7 @@ export default function FinanzasPage() {
                             <StatusBadge tono={COBRANZA_TONO[g.estado]}>{COBRANZA_LABEL[g.estado]}</StatusBadge>
                           </td>
                         </tr>
-                        {abierta && g.cuotas.map((c) => <FilaCuota key={c.id} cob={c} fac={g.factura} entidades={entidades ?? []} sangrada cliNombre={cliNombre} puedeCobrar={puedeCobrar} recordando={recordando} onPagar={setPagoCob} onRecordar={recordar} />)}
+                        {abierta && g.cuotas.map((c) => <FilaCuota key={c.id} cob={c} fac={g.factura} entidades={entidades ?? []} sangrada cliNombre={cliNombre} puedeCobrar={puedeCobrar} recordando={recordando} onPagar={setPagoCob} onVerPagos={setPagosDe} onRecordar={recordar} />)}
                       </Fragment>
                     )
                   })}
@@ -440,6 +442,15 @@ export default function FinanzasPage() {
           cob={pagoCob}
           onClose={() => setPagoCob(null)}
           onDone={(msg) => { notify(msg); setPagoCob(null) }}
+        />
+      )}
+
+      {pagosDe && (
+        <PagosCobranzaModal
+          cobranzaId={pagosDe.id}
+          folio={pagosDe.folio}
+          puedeAdjuntar={puedeCobrar}
+          onClose={() => setPagosDe(null)}
         />
       )}
 
@@ -782,6 +793,9 @@ function PagoModal({
   // El DÍA en que entró el dinero (ADR 0046): por omisión hoy, y se puede
   // poner el de la transferencia de ayer. El servidor rechaza una fecha futura.
   const [fecha, setFecha] = useState(hoyLocal())
+  // COB-COMP · el recibo o la transferencia, opcional. Viaja en el MISMO
+  // registro del pago: o entran los dos o ninguno.
+  const [comprobante, setComprobante] = useState<{ url: string; nombre: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
   // B38 · `POST /api/cobranzas/:id/pagar` pasa por `exigirCambioSensible`
   // (`app/api/cobranzas/[id]/pagar/route.ts:15`). Este cuadro pintaba el 403 en
@@ -796,7 +810,7 @@ function PagoModal({
     setError(null)
     return candado.ejecutar({
       // total → liquida el saldo; parcial → el monto ingresado (el backend lo acota al saldo)
-      guardar: () => pagarCobranzaApi(cob.id, total ? undefined : num, fecha || undefined),
+      guardar: () => pagarCobranzaApi(cob.id, total ? undefined : num, fecha || undefined, comprobante?.url ?? null),
       alLograr: () => onDone(total || num >= cob.saldo ? 'Cobranza liquidada' : 'Abono registrado'),
       alFallar: setError,
       mensajeSiFalla: 'No se pudo registrar el pago',
@@ -879,6 +893,14 @@ function PagoModal({
             className="h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-60"
           />
         </label>
+        <CampoComprobante
+          nombre={comprobante?.nombre ?? null}
+          // Igual que el importe: mientras se teclea la contraseña se confirma
+          // lo que el servidor rechazó, no otra cosa.
+          disabled={candado.reautenticando}
+          onCambio={(url, nombre) => setComprobante({ url, nombre })}
+          onQuitar={() => setComprobante(null)}
+        />
         {excede && (
           <p className="text-[12px] text-warning">
             ⚠ El monto excede el saldo ({formatMonto(cob.saldo)}). Solo se aplicará el saldo pendiente.
@@ -912,7 +934,7 @@ const CLASE_TONO: Record<TonoVencimiento, string> = {
 // cada tecla del filtro. Sería justo lo contrario de lo que busca M7. Cuesta
 // cinco props y las vale.
 function FilaCuota({
-cob, fac, entidades, sangrada, cliNombre, puedeCobrar, recordando, onPagar, onRecordar,
+cob, fac, entidades, sangrada, cliNombre, puedeCobrar, recordando, onPagar, onVerPagos, onRecordar,
 }: {
 cob: Cobranza
 fac?: Factura
@@ -923,6 +945,7 @@ cliNombre: (id: string) => string
 puedeCobrar: boolean
 recordando: string | null
 onPagar: (c: { id: string; folio: string; saldo: number }) => void
+onVerPagos: (c: { id: string; folio: string }) => void
 onRecordar: (id: string) => void
 }) {
   const est = estadoCobranza(cob)
@@ -972,6 +995,17 @@ onRecordar: (id: string) => void
       <td className="px-4 py-2.5">
         <div className="flex flex-col items-start gap-1.5">
           <StatusBadge tono={COBRANZA_TONO[est]}>{COBRANZA_LABEL[est]}</StatusBadge>
+          {/* COB-COMP · los pagos ya recibidos y su comprobante. Se ve también
+              en una cobranza PAGADA: es justo cuando se busca el recibo. */}
+          {cob.montoPagado > 0 && (
+            <button
+              type="button"
+              onClick={() => onVerPagos({ id: cob.id, folio: fac?.folio ?? cob.id })}
+              className="inline-flex items-center gap-1 text-[11px] text-info hover:underline"
+            >
+              <Receipt className="h-3 w-3" /> Pagos y comprobantes
+            </button>
+          )}
           {est !== 'PAGADA' && puedeCobrar && (
             <div className="flex items-center gap-2">
               <button

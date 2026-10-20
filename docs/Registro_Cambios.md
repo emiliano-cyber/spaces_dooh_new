@@ -24,6 +24,15 @@ La entrada más reciente va arriba.
   no sirve, en vez de mostrar una que el equipo no puede alcanzar.
 - *(Trabajo de José. Va en la versión 0.11.10; para que el candado quede
   completo, en g500 hay que actualizar también el servidor de Space Eye.)*
+- **Cada pago de un cliente puede llevar su comprobante.** En Finanzas →
+  Cobranza, al **Registrar pago** hay un campo nuevo, **«Comprobante de
+  pago»**, para adjuntar el recibo o la transferencia (PDF o imagen, hasta
+  5 MB). Es opcional. Y en cada cobranza que ya tiene algo pagado aparece
+  **«Pagos y comprobantes»**: la lista de los pagos recibidos, con su fecha y
+  quién los registró, donde se abre cada comprobante o se sube el que llegó
+  después. Subirlo después no cambia el importe ni la fecha del pago. Es lo
+  mismo que ya tenían los pagos de renta a los arrendadores. *(Aprobado por el dueño el 19/10; sale en la
+  próxima versión.)*
 
 ## 2026-10-14
 

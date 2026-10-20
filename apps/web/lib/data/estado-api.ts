@@ -729,15 +729,57 @@ export async function generarFacturaApi(
 }
 
 // `fecha`: el DÍA en que entró el dinero, AAAA-MM-DD (ADR 0046). Ausente = hoy.
-export async function pagarCobranzaApi(cobranzaId: string, monto?: number, fecha?: string): Promise<void> {
+export async function pagarCobranzaApi(
+  cobranzaId: string,
+  monto?: number,
+  fecha?: string,
+  comprobanteUrl?: string | null,
+): Promise<void> {
   const r = await fetch(`${API}/cobranzas/${cobranzaId}/pagar/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ monto: monto ?? null, ...(fecha ? { fecha } : {}) }),
+    body: JSON.stringify({
+      monto: monto ?? null,
+      ...(fecha ? { fecha } : {}),
+      ...(comprobanteUrl ? { comprobanteUrl } : {}),
+    }),
   })
   const d = await r.json().catch(() => ({}))
   if (!r.ok) throw new Error(d.error ?? 'No se pudo registrar el pago')
   await refrescarEstado()
+}
+
+// ─── Los pagos de una cobranza y su comprobante (COB-COMP) ──────────────────
+// No viajan en el estado: se piden al abrir la lista de pagos de una cobranza.
+export interface AbonoCobranzaUI {
+  id: string
+  monto: number
+  fecha: string | null
+  origen: 'registro' | 'historico'
+  registradoPor: string | null
+  tieneComprobante: boolean
+}
+
+export async function listarAbonosApi(cobranzaId: string): Promise<AbonoCobranzaUI[]> {
+  const r = await fetch(`${API}/cobranzas/${cobranzaId}/abonos/`)
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudieron cargar los pagos')
+  return d as AbonoCobranzaUI[]
+}
+
+export async function adjuntarComprobanteAbonoApi(cobranzaId: string, abonoId: string, comprobanteUrl: string): Promise<void> {
+  const r = await fetch(`${API}/cobranzas/${cobranzaId}/abonos/${abonoId}/`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ comprobanteUrl }),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo guardar el comprobante')
+}
+
+// Liga para abrir el comprobante de un pago (se sirve por su ruta).
+export function urlComprobanteAbono(cobranzaId: string, abonoId: string): string {
+  return `${API}/cobranzas/${cobranzaId}/abonos/${abonoId}/comprobante/`
 }
 
 // Envía un recordatorio de cobro manual (notificación in-app al equipo).
