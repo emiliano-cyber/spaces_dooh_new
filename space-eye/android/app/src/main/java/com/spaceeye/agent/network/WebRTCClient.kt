@@ -468,6 +468,52 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
     private fun abrirSinVistaEnVivo(listo: (ImageCapture?) -> Unit) = abrirSinVistaEnVivo(false, listo)
 
     /**
+     * Lo que se dejo fijado en el vivo para este sitio (camera_ajustes del
+     * servidor): enfoque fijo en un punto (enfoque_fijo, enfoque_x, enfoque_y),
+     * compensacion de exposicion (exposicion) y balance de blancos (balance).
+     * Se aplica al abrir la camara SIN vivo (fotos y vigilancia) para que salgan
+     * como en el vivo; antes enfocaban y median la luz en automatico (12/10/2026).
+     */
+    @Volatile private var ajustesSitio: JSONObject? = null
+
+    fun setAjustesSitio(a: JSONObject?) { ajustesSitio = a }
+
+    private fun balanceDe(a: JSONObject?): Int = when (a?.optString("balance", "auto")) {
+        "incandescent" -> CaptureRequest.CONTROL_AWB_MODE_INCANDESCENT
+        "daylight" -> CaptureRequest.CONTROL_AWB_MODE_DAYLIGHT
+        "cloudy" -> CaptureRequest.CONTROL_AWB_MODE_CLOUDY_DAYLIGHT
+        "fluorescent" -> CaptureRequest.CONTROL_AWB_MODE_FLUORESCENT
+        else -> CaptureRequest.CONTROL_AWB_MODE_AUTO
+    }
+
+    /** Aplica los ajustes del sitio a una camara recien abierta. Lo que falle se ignora. */
+    @OptIn(markerClass = [ExperimentalCamera2Interop::class])
+    private fun aplicarAjustesSitio(cam: androidx.camera.core.Camera) {
+        val a = ajustesSitio ?: return
+        try {
+            if (a.optBoolean("enfoque_fijo")) {
+                val x = a.optDouble("enfoque_x", 0.5).toFloat().coerceIn(0f, 1f)
+                val y = a.optDouble("enfoque_y", 0.5).toFloat().coerceIn(0f, 1f)
+                val punto = SurfaceOrientedMeteringPointFactory(1f, 1f).createPoint(x, y)
+                cam.cameraControl.startFocusAndMetering(
+                    FocusMeteringAction.Builder(punto, FocusMeteringAction.FLAG_AF or FocusMeteringAction.FLAG_AE)
+                        .disableAutoCancel().build())
+            }
+            if (a.has("exposicion")) {
+                val r = cam.cameraInfo.exposureState.exposureCompensationRange
+                cam.cameraControl.setExposureCompensationIndex(a.optInt("exposicion", 0).coerceIn(r.lower, r.upper))
+            }
+            val awb = balanceDe(a)
+            if (awb != CaptureRequest.CONTROL_AWB_MODE_AUTO) {
+                Camera2CameraControl.from(cam.cameraControl).captureRequestOptions =
+                    CaptureRequestOptions.Builder().setCaptureRequestOption(CaptureRequest.CONTROL_AWB_MODE, awb).build()
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "no se pudieron aplicar los ajustes del sitio: ${e.message}")
+        }
+    }
+
+    /**
      * @param fijarExposicion al terminar de enfocar y medir la luz, fija la
      *   exposicion y el balance de blancos (solo la vigilancia). Si no, la camara
      *   reajusta el brillo de TODA la foto cada vez que el anuncio pasa de oscuro a
@@ -490,11 +536,17 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
                 h.startListening { _ -> }
                 auxiliar = h
                 vincular(h, { cam, ic ->
+                    // Enfoque, exposicion y balance del sitio ANTES de esperar a
+                    // que la camara se asiente: que converja ya con ellos.
+                    aplicarAjustesSitio(cam)
                     Handler(Looper.getMainLooper()).postDelayed({
                         if (fijarExposicion && auxiliar === h) {
                             try {
                                 Camera2CameraControl.from(cam.cameraControl).captureRequestOptions =
                                     CaptureRequestOptions.Builder()
+                                        // El balance del sitio se conserva al fijar: estas
+                                        // opciones reemplazan a las anteriores.
+                                        .setCaptureRequestOption(CaptureRequest.CONTROL_AWB_MODE, balanceDe(ajustesSitio))
                                         .setCaptureRequestOption(CaptureRequest.CONTROL_AE_LOCK, true)
                                         .setCaptureRequestOption(CaptureRequest.CONTROL_AWB_LOCK, true)
                                         .build()

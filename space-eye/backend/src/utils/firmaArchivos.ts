@@ -64,9 +64,16 @@ export function esRutaLocal(ruta: unknown): ruta is string {
  * Agrega vigencia y firma a una ruta de /storage. Si no es local se devuelve
  * intacta: en modo 'spaces' el archivo lo sirve DigitalOcean y esto no aplica.
  */
+// La vigencia se redondea hacia arriba al siguiente bloque de una hora: la misma
+// foto pedida varias veces en esa hora sale con la MISMA direccion, y asi el
+// navegador la toma de su cache. Con la vigencia al segundo cada visita era una
+// direccion nueva y la ficha volvia a bajar fotos de varios MB (g500, 11/10).
+// Dura entre `vigenciaS` y `vigenciaS` + 1 h; nunca menos de lo pedido.
+const BLOQUE_S = 3600;
+
 export function firmar(ruta: string, vigenciaS: number = VIGENCIA_S): string {
   if (!esRutaLocal(ruta)) return ruta;
-  const expira = Math.floor(Date.now() / 1000) + vigenciaS;
+  const expira = Math.ceil((Math.floor(Date.now() / 1000) + vigenciaS) / BLOQUE_S) * BLOQUE_S;
   return `${ruta}?exp=${expira}&sig=${calcular(ruta, expira)}`;
 }
 

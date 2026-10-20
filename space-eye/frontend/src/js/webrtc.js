@@ -61,7 +61,9 @@ class LiveStreamClient {
     } catch (e) { /* la pestaña ya se esta cerrando */ }
   }
 
-  async start() {
+  // `encuadre`: ver el comentario del START_STREAM de mas abajo.
+  async start(encuadre) {
+    this._encuadre = encuadre;
     this.socket = io('/dashboard', {
       auth: { token: localStorage.getItem('access_token') },
       transports: ['websocket', 'polling'],
@@ -195,10 +197,14 @@ class LiveStreamClient {
       }
     });
 
-    // Send START_STREAM command to device via API
+    // Send START_STREAM command to device via API. `encuadre` (opcional) abre
+    // la camara asi solo para esta vista, sin cambiar el encuadre del sitio.
     await API.post(`/api/devices/${this.deviceId}/command`, {
       command_type: 'START_STREAM',
-      payload: { session_id: Date.now().toString() },
+      payload: {
+        session_id: Date.now().toString(),
+        ...(this._encuadre ? { encuadre_temporal: this._encuadre } : {}),
+      },
     });
 
     console.log('[WebRTC] START_STREAM command sent');

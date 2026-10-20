@@ -19,7 +19,7 @@ set -uo pipefail
 export MSYS_NO_PATHCONV=1
 API=http://127.0.0.1:4200
 PI=pi-simulada-1
-VERSION="pi-agent 0.7.5"
+VERSION="pi-agent 0.7.6"
 WSL() { wsl.exe -d Ubuntu -- bash -lc "$1"; }
 LLAVE="$(WSL 'sed -n "s/^INSTANCIA_LLAVE=//p" ~/hijo/etc/eyes.env' | tr -d '\r')"
 se() { curl -s -H "Authorization: Bearer $LLAVE" -H 'Content-Type: application/json' "$@"; }

@@ -30,6 +30,14 @@ class DetectorApagada(val vistazos: Int = VISTAZOS) {
         const val VISTAZOS = 3
         const val BRILLO_MAX = 40.0
         const val DESVIACION_MAX = 14.0
+        /**
+         * De DIA una pantalla LED apagada no se ve negra: refleja el cielo y sale
+         * gris (brillo 64 medido en Santa Monica, 14-sep). Lo que si la delata es
+         * que queda PAREJA, sin nada de contenido: con esta desviacion (la misma
+         * de SaludAnalisis.UNIFORME) se da por apagada aunque no sea oscura.
+         * Ningun anuncio real baja de aqui (letras, bordes, fotos).
+         */
+        const val DESVIACION_PAREJA = 6.0
         const val FUERA_MIN = 45.0
         const val CLAVE = "pantalla_apagada"
 
@@ -102,7 +110,8 @@ class DetectorApagada(val vistazos: Int = VISTAZOS) {
         var nf = 0
         for (i in 0 until minOf(marco.size, fuera.size)) if (fuera[i]) { sf += (marco[i].toInt() and 0xff); nf++ }
         val brilloFuera = if (nf == 0) 0.0 else sf / nf
-        val oscura = brillo < BRILLO_MAX && desv < DESVIACION_MAX
+        // Negra (de noche o a la sombra) o pareja sin contenido (de dia, gris).
+        val oscura = (brillo < BRILLO_MAX && desv < DESVIACION_MAX) || desv < DESVIACION_PAREJA
         return Medida(oscura, brilloFuera > FUERA_MIN, brillo, brilloFuera)
     }
 

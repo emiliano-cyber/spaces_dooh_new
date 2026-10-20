@@ -5,6 +5,26 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-10-19
+
+- **Space Eyes: el encuadre de un equipo solo lo fija el Dueño.** En g500
+  varias personas movieron el zoom desde la vista en vivo y dejaron torcido el
+  encuadre de tres pantallas. Al cambiar el encuadre, el equipo olvida los
+  creativos que ya reconocía y pasa un día sin reconocer nada. Ahora fijar el
+  lente, el zoom, la orientación o las esquinas de la pantalla es solo del
+  Dueño. Los demás pueden seguir moviendo el zoom, la luz y el enfoque para
+  mirar, y la foto que piden sale como la ven, sin cambiar el sitio. En
+  Actividad queda quién fijó el encuadre de qué equipo.
+- **Space Eyes: «Ver con este lente» y «Ver nítido»** en la vista en vivo,
+  para mirar por otro lente sin fijarlo.
+- **Space Eyes: las campañas con el arte guardado como archivo ya llegan a los
+  equipos.** «Lanzamiento SpaceOs» nunca había llegado a PATRIOTISMO y
+  «Aceptamos g500» se había apagado sola; ninguna daba error.
+- **Space Eyes: «Agregar dispositivo» avisa** cuando la dirección del servidor
+  no sirve, en vez de mostrar una que el equipo no puede alcanzar.
+- *(Trabajo de José. Va en la versión 0.11.10; para que el candado quede
+  completo, en g500 hay que actualizar también el servidor de Space Eye.)*
+
 ## 2026-10-14
 
 - **La documentación interna, al día con las versiones 0.11.4 a 0.11.9.** No

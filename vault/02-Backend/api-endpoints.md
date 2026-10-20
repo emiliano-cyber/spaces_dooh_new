@@ -1,7 +1,7 @@
 ---
 tipo: referencia
 estado: verificado
-actualizado: 2026-10-14
+actualizado: 2026-10-19
 tags: [backend, api, endpoints]
 archivos:
   - apps/web/app/api/
@@ -312,7 +312,7 @@ Detalle en [[08-Manuales/manual-tecnico-space-eyes]].
 | GET | `/api/space-eyes/foto` | `inventario:ver` | Sirve la foto o su miniatura con `Cache-Control: private, max-age=3600` (`foto/route.ts:76`) |
 | GET | `/api/space-eyes/descarga/[tipo]` | `inventario:ver` | Descargas (álbum, kit) |
 | GET | `/api/space-eyes/alta` | `inventario:ver`, o `:crear` si pide testigo | Códigos de vinculación |
-| GET·POST·PUT·DELETE | `/api/space-eyes/se/[...ruta]` | `inventario:ver` al leer, `:crear` al escribir | Pasarela al API de Space Eye con la llave de la instancia |
+| GET·POST·PUT·DELETE | `/api/space-eyes/se/[...ruta]` | `inventario:ver` al leer, `:crear` al escribir; **fijar el encuadre** (`camera`, `stream-rotation` y `pantalla` de un equipo) solo el Dueño (19/10, `puedeEncuadrar`) | Pasarela al API de Space Eye con la llave de la instancia |
 
 Las **solicitudes de activación** que se ven arriba del módulo en el PADRE no
 son de aquí: vienen de `/flota/solicitudes.json`, del panel de flota (ver

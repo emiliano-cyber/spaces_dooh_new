@@ -12,7 +12,13 @@ const rutas = require('./rutas');
 const { Camara } = require('./camera');
 const { hayFfmpegVecino, rutaVecina } = require('./transmision');
 
-const SERVIDOR_POR_DEFECTO = 'http://159.203.188.58:4000';
+// SIN direccion por omision, a proposito (19-oct-2026). Aqui estaba la de
+// produccion de la flota propia: quien instalaba en el sitio de un cliente y
+// pulsaba Enter sin leer, daba de alta esa camara en la empresa equivocada —y
+// una camara en la empresa equivocada es justo lo que cada instancia existe
+// para impedir—. Ahora la direccion se pide y no se adivina: es la de Space Eye
+// de SU empresa, la que dice la pantalla «Agregar dispositivo».
+const SERVIDOR_POR_DEFECTO = '';
 const TAREA = 'SPACE EYE Agente';
 
 function preguntar(rl, texto, porDefecto) {
@@ -249,13 +255,24 @@ async function asistente() {
   let servidor, destino, usuario, clave;
   if (desatendido) {
     servidor = par.servidor || SERVIDOR_POR_DEFECTO;
+    if (!servidor) {
+      // Desatendida y sin --servidor: antes caia en la de produccion sin
+      // decirlo. Mejor no instalar que instalar en otra empresa.
+      console.log('\n  Falta --servidor: la direccion de Space Eye de tu empresa.');
+      console.log('  La dice la pantalla «Agregar dispositivo» de SPACE OS.');
+      return pausar();
+    }
     destino = par.camara;
     usuario = par.usuario || 'admin';
     clave = par.clave;
     console.log(`  Instalacion desatendida: camara ${destino}, usuario ${usuario}`);
   } else {
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-    servidor = await preguntar(rl, '  Servidor Space Eye', SERVIDOR_POR_DEFECTO);
+    // Se insiste hasta que la escriban: sin ella no hay a donde dar de alta.
+    console.log('  La direccion de Space Eye de tu empresa la dice la pantalla');
+    console.log('  «Agregar dispositivo» de SPACE OS (ej. https://empresa.space-os.io).');
+    servidor = '';
+    while (!servidor) servidor = await preguntar(rl, '  Direccion de Space Eye', SERVIDOR_POR_DEFECTO);
     destino = await preguntar(rl, '  IP de la camara en la red local', '192.168.1.64');
     usuario = await preguntar(rl, '  Usuario de la camara', 'admin');
     clave = await preguntar(rl, '  Clave de la camara');

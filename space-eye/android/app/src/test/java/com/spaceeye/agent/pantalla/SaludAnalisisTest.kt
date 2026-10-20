@@ -222,4 +222,75 @@ class SaludAnalisisTest {
     fun pocasTomasEsInconcluso() {
         assertEquals(Pantalla.INCONCLUSO, SaludAnalisis.analizar(dublan.take(3), 4, 6).pantalla)
     }
+
+    /**
+     * Pantalla apagada DE DIA (Tlalpan, 12/10/2026): no negra ni pareja, un
+     * degradado del reflejo del cielo con ruido del sensor, y las nubes le cambian
+     * la luz en 3 tomas (3 "cambios"). Antes salia INCONCLUSO para siempre.
+     */
+    private fun apagadaDeDia(n: Int = 12, w: Int = 192, h: Int = 136): List<Imagen> {
+        val r = Random(7)
+        return (0 until n).map { k ->
+            val nube = if (k in setOf(3, 7, 10)) 14.0 else 0.0
+            Imagen(DoubleArray(w * h) { i ->
+                val x = i % w; val y = i / w
+                70.0 + 40.0 * x / w + 15.0 * y / h + nube + r.nextGaussian() * 1.5
+            }, w, h)
+        }
+    }
+
+    @Test
+    fun apagadaDeDiaSinLoNormalNoSeAcusa() {
+        // Sin saber como se ve sana no se acusa, igual que antes. Y lo que antes
+        // pasaba: con las nubes (6 cambios) la vuelta se juzgaba por zonas y la
+        // pantalla apagada salia "bien". Es lo que la regla nueva corrige.
+        val r = SaludAnalisis.analizar(apagadaDeDia(), 4, 6)
+        assertTrue(r.pantalla != Pantalla.APAGADA)
+        assertTrue(r.cambios >= SaludAnalisis.CAMBIOS_PARA_ZONAS)
+    }
+
+    @Test
+    fun apagadaDeDiaConPocasNubesTambien() {
+        // Con 2 cambios (lo que se vio en Tlalpan) la vuelta salia INCONCLUSA.
+        // La luz sube en dos escalones (tomas 6 y 9): 2 cambios en la vuelta.
+        val r = Random(11)
+        val pocas = (0 until 12).map { k ->
+            val nube = if (k >= 9) 28.0 else if (k >= 6) 14.0 else 0.0
+            Imagen(DoubleArray(192 * 136) { i -> 70.0 + 40.0 * (i % 192) / 192 + 15.0 * (i / 192) / 136 + nube + r.nextGaussian() * 1.5 }, 192, 136)
+        }
+        val tex = SaludAnalisis.analizar(tlalpan, 4, 6).textura
+        assertEquals(Pantalla.INCONCLUSO, SaludAnalisis.analizar(pocas, 4, 6).pantalla)
+        assertEquals(Pantalla.APAGADA, SaludAnalisis.analizar(pocas, 4, 6, texturaNormal = tex).pantalla)
+    }
+
+    @Test
+    fun apagadaDeDiaConLoNormalDelSitioEsApagada() {
+        val sana = SaludAnalisis.analizar(tlalpan, 4, 6)
+        assertEquals(Pantalla.OK, sana.pantalla)
+        assertTrue("la pantalla con anuncios tiene bordes", sana.textura > 0)
+        val r = SaludAnalisis.analizar(apagadaDeDia(), 4, 6, texturaNormal = sana.textura)
+        assertEquals(Pantalla.APAGADA, r.pantalla)
+        assertTrue("el reflejo es liso: ${r.textura} vs ${sana.textura}", r.textura < SaludAnalisis.SIN_CONTENIDO * sana.textura)
+    }
+
+    @Test
+    fun conLoNormalUnaVueltaSanaSigueSana() {
+        // La regla nueva no puede tocar una vuelta con anuncios: ni la real de
+        // Tlalpan ni la de Manuel Dublan con sus franjas.
+        val tex = SaludAnalisis.analizar(tlalpan, 4, 6).textura
+        assertEquals(Pantalla.OK, SaludAnalisis.analizar(tlalpan, 4, 6, texturaNormal = tex).pantalla)
+        val texD = SaludAnalisis.analizar(dublan, 4, 6).textura
+        assertTrue(SaludAnalisis.analizar(dublan, 4, 6, texturaNormal = texD).pantalla != Pantalla.APAGADA)
+    }
+
+    @Test
+    fun losUmbralesDelSitioVienenDeLaWeb() {
+        // Mas exigente para contar un cambio = menos cambios; con la textura normal
+        // al doble de la real, la vuelta sana tampoco se acusa con 0.4 pero si con 0.8.
+        val base = SaludAnalisis.analizar(tlalpan, 4, 6)
+        val exigente = SaludAnalisis.analizar(tlalpan, 4, 6, cambioMinimo = 60.0)
+        assertTrue(exigente.cambios < base.cambios)
+        assertTrue(SaludAnalisis.analizar(tlalpan, 4, 6, texturaNormal = base.textura * 2).pantalla != Pantalla.APAGADA)
+        assertEquals(Pantalla.APAGADA, SaludAnalisis.analizar(tlalpan, 4, 6, texturaNormal = base.textura * 2, sinContenido = 0.8).pantalla)
+    }
 }

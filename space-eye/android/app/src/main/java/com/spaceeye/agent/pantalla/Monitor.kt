@@ -24,6 +24,8 @@ interface CamaraParaVigilar {
     fun ocupada(): Boolean
     /** Abre la camara con el encuadre del sitio y la deja lista. */
     suspend fun abrir(lente: String, zoom: Float): Boolean
+    /** Los ajustes finos del sitio (enfoque fijo, exposicion, balance) para la proxima apertura. */
+    fun ajustes(a: org.json.JSONObject?) {}
     /** Un JPEG tal como sale del sensor (sin girar), o null. */
     suspend fun tomar(): ByteArray?
     /** Gira el JPEG como las demas fotos del sitio, para subirlo. */
@@ -70,6 +72,11 @@ class Monitor(
         private const val CONFIG_CONTINUO_MS = HuellaConfig.PLAZO_MS
         private const val LOG_CONTINUO_MS = 60 * 60_000L
         private const val PAUSA_CONTINUO_MS = 5_000L
+        // Cada cuanto se mira, mientras se espera, si cambio la configuracion.
+        private const val PASO_ESPERA_MS = 30_000L
+        // Respiro minimo entre dos vueltas aunque el recorrido dure mas que la
+        // frecuencia: la camara se cierra y se reabre, y el telefono descansa.
+        private const val MINIMO_ENTRE_VUELTAS_MS = 20_000L
 
         val NOMBRES = mapOf(
             "zona_apagada" to "Posible gabinete apagado",
@@ -93,6 +100,12 @@ class Monitor(
     // Vueltas en que la pantalla se vio funcionando desde que se empezo a
     // aprender. La primera siempre es de aprendizaje.
     private var vueltasSalud = 0
+    /**
+     * La textura de bordes de ESTA pantalla en sus vueltas sanas (promedio movil).
+     * Con ella se reconoce la pantalla apagada de dia, que no se ve negra: ver
+     * SaludAnalisis.SIN_CONTENIDO. Vale para un encuadre; se olvida si cambia.
+     */
+    private var texturaNormal: Double? = null
 
     // Fotos de creativos nuevos que esperan su envio agrupado (envio_min).
     private val lote = LoteCreativos(dir) { System.currentTimeMillis() }
@@ -151,6 +164,7 @@ class Monitor(
         try { if (estadoArchivo.exists()) JSONObject(estadoArchivo.readText()).let {
             firmaSeguimiento = it.optString("firma"); desdeSeguimiento = it.optLong("desde")
             vueltasSalud = it.optInt("vueltas")
+            texturaNormal = it.optDouble("textura", Double.NaN).takeIf { t -> !t.isNaN() && t > 0 }
             it.optJSONObject("estado")?.let { e -> seguimiento.deJson(e) }
         } } catch (_: Exception) {}
 
@@ -162,7 +176,30 @@ class Monitor(
                 Log.e(TAG, "vuelta fallo: ${e.message}", e)
                 RemoteLog.warn(ctx, "monitor", "La vigilancia de la pantalla fallo: ${e.message}")
             }
-            delay(esperaMs)
+            esperarOAjuste(esperaMs)
+        }
+    }
+
+    /**
+     * Duerme hasta la siguiente vuelta, pero se despierta en cuanto cambia la
+     * configuracion en el panel (la huella llega con cada latido, cada minuto).
+     * Antes se dormia de corrido: si alguien bajaba la frecuencia de 1 hora a 5
+     * minutos, el equipo seguia esperando la hora entera y una falla puesta a
+     * proposito no se veia (Tlalpan, 12/10/2026). Despertar no gasta datos: solo
+     * compara la huella que ya trae el latido.
+     */
+    private suspend fun esperarOAjuste(esperaMs: Long) {
+        val huellaAntes = api.vigilancia
+        var queda = esperaMs
+        while (queda > 0) {
+            val paso = minOf(queda, PASO_ESPERA_MS)
+            delay(paso)
+            queda -= paso
+            val ahora = api.vigilancia
+            if (ahora != null && ahora != huellaAntes) {
+                Log.i(TAG, "la configuracion de vigilancia cambio: se revisa ya")
+                return
+            }
         }
     }
 
@@ -252,7 +289,14 @@ class Monitor(
         recorrido(r, geo, if (tocaC) cCfg else null, if (tocaS) sCfg else null, continuo, avisoCfg)
         if (tocaC) ultimaCreativos = ahora
         if (tocaS) ultimaSalud = ahora
-        return espera
+        // La frecuencia se cuenta de INICIO a inicio. Antes se esperaba la
+        // frecuencia completa DESPUES del recorrido (4.5 min): "cada 5 min" eran
+        // 9.5 y una falla, que se confirma en dos vueltas, tardaba 20 min en
+        // avisar (Tlalpan, 12/10/2026). Si el recorrido dura mas que la
+        // frecuencia, la siguiente empieza casi enseguida.
+        if (continuo) return espera
+        val transcurrido = System.currentTimeMillis() - ahora
+        return (espera - transcurrido).coerceAtLeast(MINIMO_ENTRE_VUELTAS_MS)
     }
 
     private suspend fun recorrido(r: JSONObject, geo: Geometria, cCfg: JSONObject?, sCfg: JSONObject?, continuo: Boolean = false,
@@ -298,6 +342,7 @@ class Monitor(
                     delay(pasoMs); continue
                 }
                 if (!abierta) {
+                    camara.ajustes(encuadre?.optJSONObject("camera_ajustes"))
                     abierta = camara.abrir(lente, zoom)
                     if (!abierta) { saltados++; delay(pasoMs); continue }
                     sesion++
@@ -330,11 +375,17 @@ class Monitor(
                         // Una campana vendida en SPACE OS: su prueba del dia sale al
                         // momento (aun aprendiendo) y NO es un creativo nuevo, asi que
                         // no gasta el tope de lo programatico.
-                        val camp = if (campanas.tamaño > 0) buscadorCampanas.buscar(rasgos, v.pantalla) else null
-                        if (camp != null) {
+                        // Todas las que coinciden: el mismo arte puede estar en dos
+                        // campanas de esta pantalla y cada una lleva su prueba.
+                        val halladas = if (campanas.tamaño > 0) buscadorCampanas.buscarTodas(rasgos, v.pantalla) else emptyList()
+                        if (halladas.isNotEmpty()) {
                             candidata = null
-                            if (campanas.pendiente(camp) && v.jpeg.isNotEmpty()) {
-                                subirCampana(evidencia.reducir(camara.enderezar(v.jpeg, giro)), camp)
+                            var fotoPrueba: ByteArray? = null
+                            for (camp in halladas) {
+                                if (campanas.pendiente(camp) && v.jpeg.isNotEmpty()) {
+                                    val foto = fotoPrueba ?: evidencia.reducir(camara.enderezar(v.jpeg, giro)).also { fotoPrueba = it }
+                                    subirCampana(foto, camp)
+                                }
                             }
                             if (id != null && puntos >= Reconocedor.UMBRAL) vistas.add(id)
                             // Que el catalogo la conozca: cuando la campana termine no
@@ -429,6 +480,7 @@ class Monitor(
             firmaSeguimiento = firmaEncuadre + "|" + desdeServidor
             desdeSeguimiento = System.currentTimeMillis()
             vueltasSalud = 0
+            texturaNormal = null
         }
         // "|fuera": las referencias viejas se tomaron con la pantalla incluida;
         // con este sufijo se vuelven a tomar solo con lo de alrededor.
@@ -442,7 +494,9 @@ class Monitor(
         val camaraEstado = revision.revisar(vistazos, geo)
         val excluir = geo.excluir + seguimiento.excluidas()
         val resultado = if (camaraEstado == Seguimiento.Camara.OK)
-            SaludAnalisis.analizar(vistazos.map { it.salud }, geo.filas, geo.columnas, excluir) else null
+            SaludAnalisis.analizar(vistazos.map { it.salud }, geo.filas, geo.columnas, excluir, texturaNormal,
+                cfg.optDouble("cambio_minimo", SaludAnalisis.CAMBIO_MINIMO).coerceIn(2.0, 30.0),
+                cfg.optDouble("sin_contenido", SaludAnalisis.SIN_CONTENIDO).coerceIn(0.1, 0.8)) else null
 
         val abiertas = mutableMapOf<String, Long>()
         cfg.optJSONArray("abiertas")?.let { a -> for (i in 0 until a.length()) a.getJSONObject(i).let { o ->
@@ -463,7 +517,14 @@ class Monitor(
             Seguimiento.Observacion(resultado, camaraEstado, geo.filas, geo.columnas),
             aprendiendo, silenciadas, cfg.optInt("restantes_hoy", 6))
 
-        if (resultado?.pantalla == SaludAnalisis.Pantalla.OK) vueltasSalud++
+        if (resultado?.pantalla == SaludAnalisis.Pantalla.OK) {
+            vueltasSalud++
+            // Lo normal de este sitio, solo con vueltas sanas y sin interrupciones.
+            if (!interrumpida && resultado.textura > 0) {
+                val t = resultado.textura
+                texturaNormal = texturaNormal?.let { it * 0.8 + t * 0.2 } ?: t
+            }
+        }
 
         val ultimo = vistazos.lastOrNull()
         for (e in eventos) {
@@ -519,6 +580,8 @@ class Monitor(
             .put("vistazos_usados", vistazos.size)
             .put("interrumpida", interrumpida)
             .put("cambios", resultado?.cambios ?: 0)
+            .put("textura", resultado?.textura?.let { Math.round(it * 100) / 100.0 } ?: 0.0)
+            .put("textura_normal", texturaNormal?.let { Math.round(it * 100) / 100.0 } ?: 0.0)
             .put("aprendiendo", aprendiendo)
             // Si Android le niega la camara en segundo plano, la vuelta no ve nada
             // y hay que decirlo: si no, el dashboard solo muestra "no se pudo juzgar".
@@ -540,7 +603,8 @@ class Monitor(
     private fun guardarEstado() {
         try {
             estadoArchivo.writeText(JSONObject().put("firma", firmaSeguimiento).put("desde", desdeSeguimiento)
-                .put("vueltas", vueltasSalud).put("estado", seguimiento.aJson()).toString())
+                .put("vueltas", vueltasSalud).put("textura", texturaNormal ?: 0.0)
+                .put("estado", seguimiento.aJson()).toString())
         } catch (_: Exception) {}
     }
 

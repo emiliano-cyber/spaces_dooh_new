@@ -21,7 +21,7 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/cn'
 import { Button } from '@/components/demo/ui/Button'
 import { seApi, ErrorSE } from '@/lib/data/space-eyes-se'
-import { VisorWhep } from '@/lib/space-eyes-whep'
+import { VisorWhep, type EncuadreTemporal } from '@/lib/space-eyes-whep'
 
 // ============================================================================
 //  Space Eyes — vista en vivo de un equipo.
@@ -52,6 +52,14 @@ const RETARDO_CONTROL_MS = 150
 export interface VistaEnVivoProps {
   equipo: { id: number; nombre: string; appVersion?: string | null; online: boolean }
   puedeOperar: boolean
+  /**
+   * Quién puede mover lo que la cámara VE: zoom, lente, color, enfoque,
+   * orientación. Solo el Dueño (`lib/roles.ts`). Separado de `puedeOperar`
+   * desde el 19/10/2026: con el permiso de operar bastaba, y varias personas
+   * dejaron torcido el encuadre de tres pantallas de G500 moviendo el zoom
+   * desde aquí. Mirar el vivo y pedir fotos sigue siendo de quien opera.
+   */
+  puedeEncuadrar: boolean
   /** Se pidió una foto con el disparador: la ficha puede ponerse a esperarla. */
   onFoto?: () => void
   /** Dentro del marco de Fotos de la ficha: sin borde propio y del mismo tamaño que la foto. */
@@ -141,7 +149,7 @@ function motivoDe(e: unknown, porDefecto: string): string {
   return e instanceof Error && e.message ? e.message : porDefecto
 }
 
-export function VistaEnVivo({ equipo, puedeOperar, onFoto, embebida = false }: VistaEnVivoProps) {
+export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embebida = false }: VistaEnVivoProps) {
   const id = equipo.id
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const clienteRef = useRef<VisorWhep | null>(null)
@@ -227,8 +235,8 @@ export function VistaEnVivo({ equipo, puedeOperar, onFoto, embebida = false }: V
   )
 
   // Lo último que se puso, para re-aplicarlo cuando la cámara ya esté lista.
-  const vivoRef = useRef({ zoom, exposicion, balance, enfoqueFijo, ajustes })
-  vivoRef.current = { zoom, exposicion, balance, enfoqueFijo, ajustes }
+  const vivoRef = useRef({ zoom, exposicion, balance, enfoqueFijo, ajustes, lente })
+  vivoRef.current = { zoom, exposicion, balance, enfoqueFijo, ajustes, lente }
   const guardadoRef = useRef(guardado)
   guardadoRef.current = guardado
 
@@ -236,6 +244,39 @@ export function VistaEnVivo({ equipo, puedeOperar, onFoto, embebida = false }: V
     timersRef.current.forEach((t) => clearTimeout(t))
     timersRef.current = []
   }
+
+  /**
+   * El encuadre que se está mirando, si no es el guardado del sitio.
+   *
+   * Viaja con la orden de abrir la vista y con la de la foto, y vale SOLO para
+   * esa vez: no se escribe en el equipo ni cambia lo que ven los demás. Es lo
+   * que permite mirar por el gran angular o más de cerca, y llevarse la foto
+   * así, sin tener que fijar el encuadre —que es lo que borra lo que el equipo
+   * aprendió de su pantalla y lo deja un día sin reconocer creativos—.
+   *
+   * Lee de los refs y no del estado porque lo usa `iniciar`, que se arma una
+   * vez: con el estado se mandaría el encuadre de cuando se montó la pantalla.
+   */
+  const encuadreDeAhora = useCallback((): EncuadreTemporal | undefined => {
+    const v = vivoRef.current
+    const g = guardadoRef.current
+    const a = cuerpoAjustes(v.ajustes) ?? {}
+    const extra = {
+      ...a,
+      ...(v.exposicion !== 0 ? { exposicion: v.exposicion } : {}),
+      ...(v.balance !== 'auto' ? { balance: v.balance } : {}),
+    }
+    const movido =
+      v.lente !== g.lente ||
+      Math.abs(v.zoom - g.zoom) > 0.001 ||
+      Math.abs(num(v.ajustes.centro_x, 0.5) - g.cx) > 0.001 ||
+      Math.abs(num(v.ajustes.centro_y, 0.5) - g.cy) > 0.001 ||
+      Math.abs(num(v.ajustes.brillo, 0) - g.brillo) > 0.001 ||
+      v.exposicion !== 0 ||
+      v.balance !== 'auto'
+    if (!movido) return undefined
+    return { zoom: v.zoom, lens: v.lente, ...(Object.keys(extra).length ? { ajustes: extra } : {}) }
+  }, [])
 
   // ─── Detener ─────────────────────────────────────────────────────────────
   const detener = useCallback(async (forzar = false) => {
@@ -269,7 +310,10 @@ export function VistaEnVivo({ equipo, puedeOperar, onFoto, embebida = false }: V
       const cliente = new VisorWhep(id, videoRef.current, perdida)
       clienteRef.current = cliente
       try {
-        await cliente.iniciar()
+        // Si el visor esta en otro lente o mas cerca que el encuadre guardado, la
+        // camara se abre ASI para esta vista, sin cambiar el del sitio. Con el
+        // encuadre guardado no se manda nada y el equipo abre como siempre.
+        await cliente.iniciar(encuadreDeAhora())
       } catch (e) {
         if (!esVigente()) return
         clienteRef.current = null
@@ -340,7 +384,7 @@ export function VistaEnVivo({ equipo, puedeOperar, onFoto, embebida = false }: V
         )
       }
     },
-    [id, detener, control, esRelay],
+    [id, detener, control, esRelay, encuadreDeAhora],
   )
 
   // ─── Salir de la página: que el equipo no siga transmitiendo solo ────────
@@ -402,21 +446,64 @@ export function VistaEnVivo({ equipo, puedeOperar, onFoto, embebida = false }: V
     }
     toast.success('Encuadre fijado: se aplica también a las fotos programadas')
     if (!reabrir) return
+    // Forzado: el encuadre nuevo es el de TODOS, así que la transmisión se
+    // reabre también para quien esté mirando.
+    await reabrirVisor(true)
+  }
 
-    // Se reabre sin apagar el visor, con un aviso encima: que no parezca caída.
+  /**
+   * Se reabre sin apagar el visor, con un aviso encima: que no parezca caída.
+   *
+   * `forzar` decide algo que se ve en la pantalla de OTRA persona. Forzado corta
+   * la transmisión para todos los que estén mirando, y eso solo es de recibo
+   * cuando el encuadre se está cambiando PARA todos (fijarlo). Quien solo quiere
+   * mirar de otra forma cierra sin forzar: si hay alguien más viendo, el
+   * servidor mantiene la transmisión y lo devuelve a ella —verá el encuadre de
+   * quien la abrió, y se le dice— en vez de arrancársela de las manos.
+   */
+  const reabrirVisor = async (forzar: boolean) => {
     setReencuadrando(true)
     try {
       turnoRef.current++
       limpiarTimers()
       const viejo = clienteRef.current
       clienteRef.current = null
-      // Forzado: el lente nuevo es otra cámara física, se reabre para todos.
-      await viejo?.detener(true)
+      await viejo?.detener(forzar)
       await new Promise((r) => setTimeout(r, RESPIRO_REABRIR_MS))
       await iniciar({ reabriendo: true })
     } finally {
       setReencuadrando(false)
     }
+  }
+
+  /**
+   * Mirar así de verdad, sin fijar nada. Dos casos lo piden, y los dos por el
+   * mismo motivo —la cámara se abre una vez y con un encuadre—:
+   *
+   *   · el LENTE, que es otra cámara física;
+   *   · el ACERCAMIENTO en los equipos que pasan por el servidor de medios (la
+   *     Raspberry fija el recorte al arrancar `rpicam-vid`), donde hasta que no
+   *     se reabre lo que se ve es la vista previa ampliada, no la imagen nítida.
+   *
+   * En los dos, la orden de abrir lleva el encuadre de esta vista
+   * (`encuadreDeAhora`), que no se guarda. Quien puede fijarlo no necesita
+   * esto: su botón es «Fijar encuadre», que además lo deja para todos.
+   */
+  const verAsi = async () => {
+    if (reencuadrando) return
+    await reabrirVisor(false)
+    if (clienteRef.current?.compartida) {
+      toast.info(
+        `${clienteRef.current.compartidaCon ?? 'Otra persona'} está viendo este equipo: la vista sigue con su encuadre. ` +
+          'La foto que pidas sí sale como la tienes puesta.',
+      )
+      return
+    }
+    toast.info(
+      cambioLente
+        ? 'Así se ve con este lente. No cambió el encuadre del sitio.'
+        : 'Ya se ve nítido a este acercamiento. No cambió el encuadre del sitio.',
+    )
   }
 
   // ─── Enfoque (teléfonos) ─────────────────────────────────────────────────
@@ -469,9 +556,24 @@ export function VistaEnVivo({ equipo, puedeOperar, onFoto, embebida = false }: V
     if (tomandoFoto) return
     setTomandoFoto(true)
     try {
+      // Si el visor esta movido, ESA foto sale como se ve, y el encuadre del
+      // sitio no se toca: `encuadre_temporal` vale para esta captura y no se
+      // escribe en ningun lado. Es lo que hace que no haga falta ser el Dueno
+      // para llevarse la foto que uno quiere -antes la unica forma de acercar
+      // una toma era pulsar «Fijar encuadre», que la cambia para todos y le
+      // tira al equipo el catalogo de creativos que aprendio-.
+      const temporal = encuadreDeAhora()
       await seApi(`devices/${id}/command`, {
         method: 'POST',
-        body: { command_type: 'TAKE_PHOTO', priority: 1, payload: { rotation: rotacion, site: equipo.nombre } },
+        body: {
+          command_type: 'TAKE_PHOTO',
+          priority: 1,
+          payload: {
+            rotation: rotacion,
+            site: equipo.nombre,
+            ...(temporal ? { encuadre_temporal: temporal } : {}),
+          },
+        },
       })
       toast.success('Foto pedida: llega en unos segundos')
       onFoto?.()
@@ -842,7 +944,30 @@ export function VistaEnVivo({ equipo, puedeOperar, onFoto, embebida = false }: V
                 </select>
               ) : null}
 
-              {puedeOperar ? (
+              {/* Quien no fija el encuadre puede MIRAR así: se reabre la vista
+                  y nada queda cambiado. Aparece cuando hace falta reabrir para
+                  verlo de verdad, que es la MISMA condición que usa «Fijar
+                  encuadre»: el lente —otra cámara física— y, en los equipos que
+                  pasan por el servidor de medios, el acercamiento, porque ahí el
+                  recorte se le da a la cámara al arrancar y hasta entonces lo
+                  que se ve es la vista previa ampliada. */}
+              {!puedeEncuadrar && (cambioLente || (esRelay && cambioRecorte)) ? (
+                <button
+                  type="button"
+                  onClick={verAsi}
+                  disabled={reencuadrando}
+                  className={cn(ctlBoton, 'bg-accent hover:bg-accent-hover disabled:opacity-40')}
+                  title={
+                    cambioLente
+                      ? 'Abre la vista con este lente. No cambia el encuadre del sitio.'
+                      : 'Abre la vista a este acercamiento, ya nítida. No cambia el encuadre del sitio.'
+                  }
+                >
+                  <Check className="h-3.5 w-3.5" />
+                  {reencuadrando ? 'Abriendo…' : cambioLente ? 'Ver con este lente' : 'Ver nítido'}
+                </button>
+              ) : null}
+              {puedeEncuadrar ? (
                 <button
                   type="button"
                   onClick={aplicarEncuadre}
@@ -859,7 +984,7 @@ export function VistaEnVivo({ equipo, puedeOperar, onFoto, embebida = false }: V
                   Descartar
                 </button>
               ) : null}
-              {puedeOperar && rotacion !== rotacionGuardada ? (
+              {puedeEncuadrar && rotacion !== rotacionGuardada ? (
                 <button
                   type="button"
                   onClick={fijarOrientacion}
@@ -877,8 +1002,19 @@ export function VistaEnVivo({ equipo, puedeOperar, onFoto, embebida = false }: V
               ) : null}
             </div>
 
+            {/* El pie explica los controles que se tienen delante, así que
+                quien no encuadra lee otro: el de antes hablaba de deslizadores
+                y de «Fijar encuadre» que ya no están. */}
             <p className="mt-2 text-[10.5px] leading-snug text-white/60">
-              {esRelay ? (
+              {!puedeEncuadrar ? (
+                <>
+                  Mueve el zoom, el lente, la luz y el enfoque a tu gusto y pide la foto:{' '}
+                  <strong>sale como la estás viendo</strong>.{' '}
+                  {esRelay ? 'Aquí el acercamiento es una vista previa: «Ver nítido» abre la imagen de verdad. ' : ''}
+                  Nada de esto se guarda, así que el encuadre del sitio no cambia —fijarlo para todos lo hace solo el
+                  Dueño, porque borra lo que el equipo aprendió de su pantalla—.
+                </>
+              ) : esRelay ? (
                 <>
                   Lo que ves al mover los deslizadores es una vista previa: el equipo no cambia hasta que pulses{' '}
                   <strong>Fijar encuadre</strong> (ahí la vista se reabre un segundo para traer la imagen nítida).
@@ -889,7 +1025,7 @@ export function VistaEnVivo({ equipo, puedeOperar, onFoto, embebida = false }: V
                   temporales: solo el zoom y el lente se guardan, al pulsar <strong>Fijar encuadre</strong>.
                 </>
               )}{' '}
-              La orientación fija es la que todos ven al abrir la vista.
+              {puedeEncuadrar ? 'La orientación fija es la que todos ven al abrir la vista.' : ''}
             </p>
           </div>
         ) : null}
