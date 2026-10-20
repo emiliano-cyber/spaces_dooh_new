@@ -41,7 +41,7 @@ export function PipelineCliente({
         </span>
       </div>
 
-      <ol className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+      <ol className="m-0 grid list-none grid-cols-2 gap-2 p-0 sm:grid-cols-5">
         {p.columnas.map((c, i) => (
           <li key={c.etapa} className="relative rounded-md border border-border bg-surface-2 px-3 py-2">
             <div className="text-[10px] font-medium uppercase tracking-wide text-muted">{c.label}</div>

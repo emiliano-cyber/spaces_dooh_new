@@ -37,7 +37,7 @@ export function CampanasDelCliente({
           Este cliente aún no tiene campañas.
         </p>
       ) : (
-        <ul className="divide-y divide-border rounded-md border border-border">
+        <ul className="m-0 list-none divide-y divide-border rounded-md border border-border p-0">
           {suyas.map((c) => {
             const r = porId.get(c.id)
             return (
@@ -50,7 +50,7 @@ export function CampanasDelCliente({
                   <div className="min-w-0">
                     <div className="truncate text-[13px] font-medium text-ink">{c.nombre}</div>
                     <div className="demo-num text-[11px] text-muted">
-                      {c.folio} · {formatFecha(c.fechaInicio)}–{formatFecha(c.fechaFin)}
+                      {c.folio ? <>{c.folio} · </> : null}{formatFecha(c.fechaInicio)}–{formatFecha(c.fechaFin)}
                       {r ? <> · {ETAPA_LABEL[r.etapa]}</> : null}
                     </div>
                   </div>
