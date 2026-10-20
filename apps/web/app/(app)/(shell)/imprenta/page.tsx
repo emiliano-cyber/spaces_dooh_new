@@ -5,6 +5,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { ArrowUpRight, Ruler, Plus, ChevronRight } from 'lucide-react'
 import { Card } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
@@ -74,6 +75,19 @@ export default function ImprentaPage() {
         )}
       </div>
 
+      {/* PLEG-01 · la página es una sola lista: se pliega entera, como las
+          secciones de Arrendadores. */}
+      <CardColapsable
+        id="imprenta.ordenes"
+        titulo="Órdenes de impresión"
+        resumen={
+          ois ? (
+            <span className="demo-num text-[12px] text-muted">
+              {oisVisibles.length} orden{oisVisibles.length === 1 ? '' : 'es'}
+            </span>
+          ) : undefined
+        }
+      >
       {!ois ? (
         <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, i) => (
@@ -175,6 +189,7 @@ export default function ImprentaPage() {
           })}
         </ul>
       )}
+      </CardColapsable>
 
       <NuevaOrdenDialog open={nueva} onClose={() => setNueva(false)} />
     </div>

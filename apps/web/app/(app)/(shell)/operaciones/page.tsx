@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { fechaLocalISO } from '@/lib/fecha-local'
 import { Smartphone, Calendar, User, Camera, ArrowRight, Plus, AlertTriangle } from 'lucide-react'
 import { Card } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
@@ -140,6 +141,22 @@ export default function OperacionesPage() {
         </div>
       )}
 
+      {/* PLEG-01 · la lista de OT se pliega entera, como las secciones de
+          Arrendadores. Los filtros van DENTRO porque solo filtran esta lista;
+          el aviso de SLA queda fuera, que es una alerta y no debe esconderse.
+          El filtro elegido vive en la página: sobrevive al plegado. */}
+      <CardColapsable
+        id="operaciones.lista"
+        titulo="Órdenes de trabajo"
+        contentClassName="space-y-4"
+        resumen={
+          ots ? (
+            <span className="demo-num text-[12px] text-muted">
+              {lista.length} de {ots.length}
+            </span>
+          ) : undefined
+        }
+      >
       {/* Filtros */}
       <div className="flex flex-wrap gap-1.5">
         {FILTROS.map((f) => (
@@ -251,6 +268,7 @@ export default function OperacionesPage() {
           })}
         </ul>
       )}
+      </CardColapsable>
     </div>
   )
 }

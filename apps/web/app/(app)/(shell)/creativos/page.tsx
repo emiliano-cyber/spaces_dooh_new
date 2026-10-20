@@ -3,7 +3,7 @@
 import { toast } from 'sonner'
 import { useEffect, useRef, useState } from 'react'
 import { Images, Upload, Check, X, Clock, Code2, Eye, Download, RefreshCw, Trash2, AlertTriangle, Search } from 'lucide-react'
-import { Card } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
@@ -425,16 +425,20 @@ function CampanaCard({
     void guardarCreativos(reserva, creatividadId ? [{ creatividadId, veces: 1 }] : [])
   }
 
+  // PLEG-01 · cada campaña se pliega por separado y lo recuerda por su id. Los
+  // `input` de archivo van en `accion`, que no se desmonta al plegar: el de
+  // «Reemplazar» se dispara desde dentro del contenido. El alta por código
+  // sobrevive al plegado porque su texto vive en el estado de este componente,
+  // no en el contenido que se desmonta. Los diálogos quedan FUERA de la tarjeta.
   return (
-    <Card className="space-y-4 p-4">
-      <div className="flex items-center justify-between gap-2">
-        <div className="min-w-0">
-          <div className="truncate text-[14px] font-medium text-ink">{campana.nombre}</div>
-          <div className="demo-num text-[12px] text-muted">
-            {campana.folio} · {campana.tipoCampana}
-          </div>
-        </div>
-        {puede && (
+    <>
+    <CardColapsable
+      id={`creativos.campana.${campana.id}`}
+      titulo={campana.nombre}
+      subtitulo={<span className="demo-num">{campana.folio} · {campana.tipoCampana}</span>}
+      contentClassName="space-y-4"
+      accion={
+        puede ? (
           <div className="flex shrink-0 gap-2">
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile} />
             <input ref={reemplazarRef} type="file" accept="image/*" className="hidden" onChange={onReemplazoFile} />
@@ -445,8 +449,9 @@ function CampanaCard({
               <Code2 className="h-3.5 w-3.5" /> Código
             </Button>
           </div>
-        )}
-      </div>
+        ) : undefined
+      }
+    >
 
       {/* Alta por código (HTML/UTF) */}
       {puede && codeOpen && (
@@ -715,6 +720,7 @@ function CampanaCard({
           </p>
         )}
       </div>
+    </CardColapsable>
 
       {/* Fuente HTML del creativo. Se pinta como texto ({fuente} en un <pre>, que
           React escapa), nunca como HTML: los creativos pueden venir de clientes
@@ -768,7 +774,7 @@ function CampanaCard({
         quitar de DOOHmain</span> (su API no lo permite): quedará marcado como “pendiente en DOOHmain”
         para que lo quites en su panel.
       </ConfirmDialog>
-    </Card>
+    </>
   )
 }
 

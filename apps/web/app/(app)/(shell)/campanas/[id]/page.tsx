@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, ExternalLink, Camera, Printer, ClipboardList, Cpu, MonitorPlay, ChevronDown, Check } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
+import { CLAVE_PLEGADAS, leerPlegadas, conPlegada } from '@/lib/secciones-plegadas'
 import { Breadcrumbs, type Crumb } from '@/components/demo/ui/Breadcrumbs'
 import { withTrail, trailFromLocation } from '@/lib/nav-trail'
 import { resumenReserva, etiquetaFrecuencia } from '@/lib/periodos'
@@ -183,14 +185,9 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
       )}
 
       {/* Pipeline (pieza estrella) */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Pipeline</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <PipelineView campanaId={id} />
-        </CardContent>
-      </Card>
+      <CardColapsable id="campana.pipeline" titulo="Pipeline">
+        <PipelineView campanaId={id} />
+      </CardColapsable>
 
       {/* PROG-01 · en qué franja se TRANSMITE (no toca lo vendido) */}
       <FranjaProgramadaCampana campanaId={id} />
@@ -199,6 +196,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
       <div className="flex flex-col gap-4">
       {/* Validación de publicación (verificar anuncios antes de salir al aire) */}
       <Seccion
+        id="campana.validacion"
         titulo="Validación de publicación"
         estado={!validacionAplica ? 'na' : validacionHecha ? 'hecho' : 'pendiente'}
       >
@@ -206,12 +204,12 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
       </Seccion>
 
       {/* Candado de facturación */}
-      <Seccion titulo="Candado de facturación" estado={candadoHecho ? 'hecho' : 'pendiente'}>
+      <Seccion id="campana.candado" titulo="Candado de facturación" estado={candadoHecho ? 'hecho' : 'pendiente'}>
         <CandadoPanel campanaId={id} />
       </Seccion>
 
       {/* Comercial (referencia) */}
-      <Seccion titulo="Comercial" estado="hecho">
+      <Seccion id="campana.comercial" titulo="Comercial" estado="hecho">
         <dl className="space-y-2 text-[13px]">
           <Fila label="Subtotal (neto)" valor={c.presupuestoNeto ? formatMonto(c.presupuestoNeto) : '—'} mono />
           <Fila
@@ -226,13 +224,14 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
       </Seccion>
 
       {/* Datos de facturación: fiscales del cliente (auto-llenados) + contrato */}
-      <Seccion titulo="Datos de facturación" estado={fiscalHecho ? 'hecho' : 'pendiente'}>
+      <Seccion id="campana.facturacion" titulo="Datos de facturación" estado={fiscalHecho ? 'hecho' : 'pendiente'}>
         <DatosFacturacion campana={c} sinCard />
       </Seccion>
 
       {/* Rentabilidad (motor de costos: espacios + impresión + operación) */}
       {margen && (
         <Seccion
+          id="campana.rentabilidad"
           titulo="Rentabilidad"
           // Un margen NEGATIVO no es una seccion "Completa": la campaña pierde
           // dinero. Estaba fijo en "hecho", asi que se veia el check verde de
@@ -287,6 +286,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
       {/* Reporte de cumplimiento (contratado vs entregado + testigos) */}
       {reporte && (
         <Seccion
+          id="campana.cumplimiento"
           titulo="Reporte de cumplimiento"
           // "Completo" solo si se entrego todo lo contratado. Estaba fijo en
           // "hecho" y producia el sinsentido "Completo · 0% entregado" (A-3):
@@ -309,7 +309,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
 
       {/* Orden de compra del cliente (ODC) */}
       {odc && (
-        <Seccion titulo="Orden de compra" estado="hecho">
+        <Seccion id="campana.orden-compra" titulo="Orden de compra" estado="hecho">
             <dl className="space-y-2 text-[13px]">
               <Fila label="Folio ODC" valor={odc.folio} mono />
               {odc.numeroOc && <Fila label="Número de OC (cliente)" valor={odc.numeroOc} mono />}
@@ -321,7 +321,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
       )}
 
       {/* Sitios (referencia) */}
-      <Seccion titulo="Sitios de la campaña" estado="hecho">
+      <Seccion id="campana.sitios" titulo="Sitios de la campaña" estado="hecho">
           {misSitios.length === 0 ? (
             <p className="text-[13px] text-muted">Sin sitios asignados.</p>
           ) : (
@@ -366,6 +366,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
 
       {/* Imprenta — solo para campañas con medios fijos (OOH/híbrida). */}
       <Seccion
+        id="campana.imprenta"
         titulo="Imprenta"
         icono={<Printer className="h-4 w-4 text-muted" />}
         estado={!tieneFija ? 'na' : misOis.length > 0 ? 'hecho' : 'pendiente'}
@@ -389,6 +390,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
 
       {/* Órdenes de trabajo */}
       <Seccion
+        id="campana.ots"
         titulo="Órdenes de trabajo"
         icono={<ClipboardList className="h-4 w-4 text-muted" />}
         estado={otsPendientes ? 'pendiente' : 'hecho'}
@@ -417,6 +419,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
 
       {/* Creatividades — se pueden subir desde aquí, sin ir a Creativos. */}
       <Seccion
+        id="campana.creatividades"
         titulo="Creatividades"
         estado={creativosHecho ? 'hecho' : 'pendiente'}
         accion={
@@ -449,6 +452,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
 
       {/* Evidencias fotográficas — de los medios FIJOS. */}
       <Seccion
+        id="campana.evidencias"
         titulo="Evidencias fotográficas"
         icono={<Camera className="h-4 w-4 text-muted" />}
         estado={!tieneFija ? 'na' : misEvid.length > 0 ? 'hecho' : 'pendiente'}
@@ -460,6 +464,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
 
       {/* Proof of play — la prueba de los medios DIGITALES. */}
       <Seccion
+        id="campana.reproducciones"
         titulo="Reproducciones (proof of play)"
         icono={<MonitorPlay className="h-4 w-4 text-muted" />}
         estado={!tieneDigital ? 'na' : c.validacionEstatus === 'APROBADA' ? 'hecho' : 'pendiente'}
@@ -476,14 +481,25 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
 // Sección colapsable de la ficha. Arranca abierta o minimizada según su estado
 // (las pendientes abiertas, las hechas o que no aplican minimizadas). El usuario
 // puede abrir/cerrar con clic en el encabezado.
+//
+// PLEG-01 · no se sustituyó por `CardColapsable` porque no es equivalente: aquí
+// la apertura inicial DEPENDE DEL ESTADO (pendiente abierta, hecha o «no aplica»
+// plegada), el chip Pendiente/Completo va pegado al título y la tarjeta lleva
+// `order-*` para subir las pendientes. Lo que sí comparte es la memoria del
+// plegado, con el mismo almacén (`lib/secciones-plegadas.ts`): el `id`
+// («campana.candado») es el mismo para TODAS las campañas, así que plegar una
+// sección la deja plegada en cualquier ficha. Solo se recuerda lo plegado: una
+// sección no recordada sigue abriéndose según su estado.
 type EstadoSeccion = 'pendiente' | 'hecho' | 'na'
 function Seccion({
+  id,
   titulo,
   icono,
   estado,
   accion,
   children,
 }: {
+  id: string
   titulo: string
   icono?: React.ReactNode
   estado: EstadoSeccion
@@ -491,6 +507,25 @@ function Seccion({
   children: React.ReactNode
 }) {
   const [abierto, setAbierto] = useState(estado === 'pendiente')
+  // Se lee DESPUÉS de montar, como en `CardColapsable`: el servidor no tiene
+  // localStorage y leerlo en el primer render rompería la hidratación.
+  useEffect(() => {
+    try {
+      if (leerPlegadas(localStorage.getItem(CLAVE_PLEGADAS)).includes(id)) setAbierto(false)
+    } catch {
+      // Modo privado o almacenamiento bloqueado: se queda según su estado.
+    }
+  }, [id])
+  function alternar() {
+    const nuevo = !abierto
+    setAbierto(nuevo)
+    try {
+      const lista = leerPlegadas(localStorage.getItem(CLAVE_PLEGADAS))
+      localStorage.setItem(CLAVE_PLEGADAS, JSON.stringify(conPlegada(lista, id, !nuevo)))
+    } catch {
+      // Sin almacenamiento se pliega igual; solo no lo recuerda.
+    }
+  }
   const chip =
     estado === 'hecho'
       ? { txt: 'Completo', cls: 'border-[#10b98140] text-[#0f7a55]' }
@@ -504,7 +539,7 @@ function Seccion({
     <Card className={orden}>
       <CardHeader
         className="flex cursor-pointer select-none flex-row items-center justify-between gap-2"
-        onClick={() => setAbierto((v) => !v)}
+        onClick={alternar}
       >
         <div className="flex min-w-0 items-center gap-2">
           {icono}
@@ -516,7 +551,7 @@ function Seccion({
         </div>
         <div className="flex shrink-0 items-center gap-2" onClick={(e) => e.stopPropagation()}>
           {accion}
-          <button type="button" aria-label={abierto ? 'Minimizar' : 'Expandir'} onClick={() => setAbierto((v) => !v)} className="text-muted hover:text-ink">
+          <button type="button" aria-label={abierto ? 'Minimizar' : 'Expandir'} onClick={alternar} className="text-muted hover:text-ink">
             <ChevronDown className={`h-4 w-4 transition-transform ${abierto ? 'rotate-180' : ''}`} />
           </button>
         </div>
