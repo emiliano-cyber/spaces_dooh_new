@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { conteo } from '@/lib/plural'
 import { CheckCircle2, Users, ShieldCheck, UserPlus, Building2, X, Plus, Check, Upload, Percent, MonitorPlay, KeyRound, Scale, AlertTriangle, Mail, CornerUpLeft, Loader2, Wrench, Save } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
 import { CRUDO_INVALIDO } from '@/lib/captura-cifra'
@@ -123,12 +123,14 @@ function Usuarios({ onToast }: { onToast: (m: string) => void }) {
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="inline-flex items-center gap-2"><Users className="h-4 w-4 text-muted" /> Equipo</CardTitle>
-        <Button variant="success" size="sm" onClick={() => setInvOpen(true)}><UserPlus className="h-3.5 w-3.5" /> Invitar usuario</Button>
-      </CardHeader>
-      <CardContent className="px-0 pb-0">
+    <>
+    <CardColapsable
+      id="admin.usuarios"
+      titulo="Equipo"
+      icono={<Users className="h-4 w-4 text-muted" />}
+      contentClassName="px-0 pb-0"
+      accion={<Button variant="success" size="sm" onClick={() => setInvOpen(true)}><UserPlus className="h-3.5 w-3.5" /> Invitar usuario</Button>}
+    >
         {!usuarios ? (
           <div className="space-y-2 px-4 pb-4">{Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-10 animate-pulse rounded bg-surface-2" />)}</div>
         ) : usuarios.length === 0 ? (
@@ -188,8 +190,11 @@ function Usuarios({ onToast }: { onToast: (m: string) => void }) {
             </table>
           </div>
         )}
-      </CardContent>
+    </CardColapsable>
 
+      {/* Los modales van FUERA de la tarjeta: CardColapsable desmonta su
+          contenido al plegar, e «Invitar usuario» está en el encabezado, así
+          que con la tarjeta plegada el modal no se abriría. */}
       <InvitarModal open={invOpen} onOpenChange={setInvOpen} onInvitado={(n, enviada) => { onToast(enviada ? `Invitación enviada a ${n}` : `Usuario ${n} creado`); cargar() }} />
 
       {passwordDe && (
@@ -200,7 +205,7 @@ function Usuarios({ onToast }: { onToast: (m: string) => void }) {
           onDone={() => { onToast(passwordDe.id === yo ? 'Tu contraseña se actualizó' : `Contraseña de ${passwordDe.nombre} actualizada`); setPasswordDe(null) }}
         />
       )}
-    </Card>
+    </>
   )
 }
 
@@ -613,9 +618,7 @@ function MatrizRoles() {
     !!data?.filas.some((r) => r.modulo === modulo && r.rol === rol && r.accion === cap)
 
   return (
-    <Card>
-      <CardHeader><CardTitle>Permisos por rol y módulo</CardTitle></CardHeader>
-      <CardContent className="px-0 pb-0">
+    <CardColapsable id="admin.permisos" titulo="Permisos por rol y módulo" contentClassName="px-0 pb-0">
         {data === undefined ? (
           <div className="h-32 animate-pulse rounded bg-surface-2 mx-4 mb-4" />
         ) : !data ? (
@@ -662,8 +665,7 @@ function MatrizRoles() {
           ))}
           <span>* el área no tiene API propia: su permiso lo aplica /api/estado</span>
         </div>
-      </CardContent>
-    </Card>
+    </CardColapsable>
   )
 }
 
@@ -837,9 +839,17 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
           contestaron. Consume /api/tickets (T5), no ConfigNegocio. */}
       <TicketsPanel onToast={onToast} />
 
-      <Card>
-        <CardHeader className="flex flex-row items-center gap-2"><Building2 className="h-4 w-4 text-muted" /><CardTitle>Identidad de la empresa</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
+      {/* PLEG-01 · las tarjetas de abajo se pliegan y DESMONTAN su contenido.
+          Lo que se teclea en ellas no se pierde al plegar: los campos de
+          «guardar al salir» (onBlur) se guardan antes, porque el clic en el
+          encabezado les quita el foco; y los borradores (IVA, plazo, tope)
+          viven en el estado de `Configuracion`, fuera de la tarjeta. */}
+      <CardColapsable
+        id="admin.config.identidad"
+        titulo="Identidad de la empresa"
+        icono={<Building2 className="h-4 w-4 text-muted" />}
+        contentClassName="space-y-4"
+      >
           {/* Logo */}
           <Campo label="Logo">
             {/* 80px de vista previa: el logo ahora sale en el menú, en el
@@ -935,17 +945,18 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
           <Campo label="Moneda">
             <div className="flex h-9 items-center rounded border border-border bg-surface-2 px-3 text-[13px] text-muted">$ · Peso mexicano (MXN)</div>
           </Campo>
-        </CardContent>
-      </Card>
+      </CardColapsable>
 
       <CorreoDeAvisos config={config} guardar={guardar} />
 
       <DatosFiscales config={config} setConfig={setConfig} guardar={guardar} />
 
       {/* IVA(s) con los que trabaja */}
-      <Card>
-        <CardHeader className="flex flex-row items-center gap-2"><Percent className="h-4 w-4 text-muted" /><CardTitle>IVA(s) con los que trabaja</CardTitle></CardHeader>
-        <CardContent>
+      <CardColapsable
+        id="admin.config.iva"
+        titulo="IVA(s) con los que trabaja"
+        icono={<Percent className="h-4 w-4 text-muted" />}
+      >
           <div className="flex flex-wrap items-center gap-2">
             {config.ivaTasas.map((p) => (
               <span key={p} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-2 px-2.5 py-1 text-[13px] text-ink">
@@ -966,13 +977,14 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
             </div>
           </div>
           <p className="mt-2 text-[11px] text-muted">Las tasas disponibles para facturar. El IVA aplicado se elige por cliente.</p>
-        </CardContent>
-      </Card>
+      </CardColapsable>
 
       {/* Reproducción digital (loop y spot) */}
-      <Card>
-        <CardHeader className="flex flex-row items-center gap-2"><MonitorPlay className="h-4 w-4 text-muted" /><CardTitle>Reproducción digital (loop)</CardTitle></CardHeader>
-        <CardContent>
+      <CardColapsable
+        id="admin.config.loop"
+        titulo="Reproducción digital (loop)"
+        icono={<MonitorPlay className="h-4 w-4 text-muted" />}
+      >
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <Campo label="Tamaño del loop (seg)">
               <input type="number" className={`demo-num ${inputCls}`} defaultValue={config.loopSeg}
@@ -999,16 +1011,17 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
               Se edita en cada pantalla, desde Inventario.
             </p>
           )}
-        </CardContent>
-      </Card>
+      </CardColapsable>
 
       {/* ADR 0008 · cupo de clientes por pantalla (default de la instalación).
           Vacío = sin límite, que es como nace: la regla se enciende capturando
           un número, nunca por desplegar. Cada pantalla puede sobrescribirlo
           desde su ficha en Comercial. */}
-      <Card>
-        <CardHeader className="flex flex-row items-center gap-2"><Users className="h-4 w-4 text-muted" /><CardTitle>Cupo de clientes por pantalla</CardTitle></CardHeader>
-        <CardContent>
+      <CardColapsable
+        id="admin.config.cupo-clientes"
+        titulo="Cupo de clientes por pantalla"
+        icono={<Users className="h-4 w-4 text-muted" />}
+      >
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <Campo label="Máximo de clientes (default)">
               <input
@@ -1036,16 +1049,17 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
             seguir metiendo campañas mientras le queden slots; el cupo solo frena al cliente nuevo. Cada
             pantalla puede llevar su propio valor desde su ficha en Comercial.
           </p>
-        </CardContent>
-      </Card>
+      </CardColapsable>
 
       {/* TOPE-01 · techo de descuento comercial de esta organización.
           100 % = sin tope, que es como nace: desplegar esto no invalida
           ninguna propuesta viva. Es el ÚNICO campo de esta pantalla que pide
           la contraseña, porque es el único que es un control y no un ajuste. */}
-      <Card>
-        <CardHeader className="flex flex-row items-center gap-2"><Percent className="h-4 w-4 text-muted" /><CardTitle>Tope de descuento comercial</CardTitle></CardHeader>
-        <CardContent>
+      <CardColapsable
+        id="admin.config.tope-descuento"
+        titulo="Tope de descuento comercial"
+        icono={<Percent className="h-4 w-4 text-muted" />}
+      >
           <div className="flex flex-wrap items-end gap-3">
             <Campo label="Descuento máximo (%)">
               <input
@@ -1077,8 +1091,7 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
             Cambiarlo pide tu contraseña: es el control que limita cuánto dinero se puede regalar en
             una venta, no un ajuste más.
           </p>
-        </CardContent>
-      </Card>
+      </CardColapsable>
       <DialogoCandado
         candado={candadoTope}
         titulo="Confirma el tope de descuento"
@@ -1086,9 +1099,7 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
         etiquetaConfirmar="Guardar tope"
       />
 
-      <Card>
-        <CardHeader><CardTitle>Plazos de cobranza (días)</CardTitle></CardHeader>
-        <CardContent>
+      <CardColapsable id="admin.config.plazos-cobranza" titulo="Plazos de cobranza (días)">
           <div className="flex flex-wrap items-center gap-2">
             {config.plazosCobranza.map((p) => (
               <span key={p} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-2 px-2.5 py-1 text-[13px] text-ink">
@@ -1106,8 +1117,7 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
               }}><Plus className="h-3.5 w-3.5" /> Agregar</Button>
             </div>
           </div>
-        </CardContent>
-      </Card>
+      </CardColapsable>
 
       {/* M15: esta tarjeta era un editor de texto libre que NO LEÍA NADIE — las
           OT sacan su tipo de un enum con reglas por tipo de pantalla. Aparecía
@@ -1115,9 +1125,7 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
           auditoría pidió sembrarla. Sembrarla habría sido peor: seguiría sin
           gobernar nada y encima parecería que sí. Ahora enseña lo que de verdad
           rige, en solo lectura. */}
-      <Card>
-        <CardHeader><CardTitle>Tipos de tarea de cuadrilla</CardTitle></CardHeader>
-        <CardContent>
+      <CardColapsable id="admin.config.tipos-tarea" titulo="Tipos de tarea de cuadrilla">
           <p className="mb-3 text-[13px] text-muted">
             Los fija el sistema, no se editan: cuáles aplican depende del tipo de pantalla y esa
             regla la comprueba el servidor al crear la orden.
@@ -1137,8 +1145,7 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
               )
             })}
           </ul>
-        </CardContent>
-      </Card>
+      </CardColapsable>
 
       <CostosOtCard config={config} guardar={guardar} />
     </div>
@@ -1206,12 +1213,12 @@ function CostosOtCard({
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center gap-2">
-        <Wrench className="h-4 w-4 text-muted" />
-        <CardTitle>Costo de mano de obra por tipo de orden de trabajo</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    <CardColapsable
+      id="admin.config.costos-ot"
+      titulo="Costo de mano de obra por tipo de orden de trabajo"
+      icono={<Wrench className="h-4 w-4 text-muted" />}
+      contentClassName="space-y-3"
+    >
         <p className="text-[12px] text-muted">
           Se usa para calcular el margen en el dashboard y en los reportes de rentabilidad.
           Deja un campo en blanco para que ese tipo use el valor de respaldo, el mismo que
@@ -1232,8 +1239,7 @@ function CostosOtCard({
         <Button size="sm" disabled={busy || !hayCambios || hayInvalido} onClick={guardarCostos}>
           <Save className="h-3.5 w-3.5" /> {busy ? 'Guardando…' : 'Guardar'}
         </Button>
-      </CardContent>
-    </Card>
+    </CardColapsable>
   )
 }
 
@@ -1326,12 +1332,12 @@ function DatosFiscales({
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center gap-2">
-        <Scale className="h-4 w-4 text-muted" />
-        <CardTitle>Datos fiscales para contratos</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <CardColapsable
+      id="admin.config.datos-fiscales"
+      titulo="Datos fiscales para contratos"
+      icono={<Scale className="h-4 w-4 text-muted" />}
+      contentClassName="space-y-4"
+    >
         <p className="text-[12px] text-muted">
           Con estos datos comparece tu empresa como <b>parte arrendataria</b> en los contratos
           de arrendamiento que genera el sistema. Se capturan una vez y valen para todos.
@@ -1359,8 +1365,7 @@ function DatosFiscales({
           El RFC es el de la razón social principal: cambiarlo aquí lo cambia también en «Razones sociales».
           La razón social se elige arriba, en «Identidad de la empresa».
         </span>
-      </CardContent>
-    </Card>
+    </CardColapsable>
   )
 }
 
@@ -1419,12 +1424,13 @@ function CorreoDeAvisos({
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center gap-2">
-        <Mail className="h-4 w-4 text-muted" />
-        <CardTitle>Correo de avisos</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    <>
+    <CardColapsable
+      id="admin.config.correo-avisos"
+      titulo="Correo de avisos"
+      icono={<Mail className="h-4 w-4 text-muted" />}
+      contentClassName="space-y-3"
+    >
         <Campo label="Correo de la organización">
           <div className="flex flex-col gap-2 sm:flex-row">
             <input
@@ -1463,8 +1469,9 @@ function CorreoDeAvisos({
             reciba no tendrá a quién contestarle.
           </p>
         )}
-      </CardContent>
+    </CardColapsable>
 
+      {/* Fuera de la tarjeta: CardColapsable desmonta su contenido al plegar. */}
       <Modal
         open={confirmando}
         onOpenChange={(v) => { if (!guardando) setConfirmando(v) }}
@@ -1521,6 +1528,6 @@ function CorreoDeAvisos({
           </p>
         </div>
       </Modal>
-    </Card>
+    </>
   )
 }

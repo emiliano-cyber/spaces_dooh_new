@@ -3,7 +3,7 @@
 import { toast } from 'sonner'
 import { Fragment, useMemo, useState } from 'react'
 import { CheckCircle2, ChevronRight, FileText, Lock, Receipt } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
@@ -174,12 +174,11 @@ export default function FinanzasPage() {
       <TableroPeriodo />
 
       {/* Listas para facturar */}
-      <Card>
-        <CardHeader className="flex flex-row items-center gap-2">
-          <Lock className="h-4 w-4 text-muted" />
-          <CardTitle>Listas para facturar</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <CardColapsable
+        id="finanzas.listas-para-facturar"
+        titulo="Listas para facturar"
+        icono={<Lock className="h-4 w-4 text-muted" />}
+      >
           {!resumen ? (
             <div className="h-16 animate-pulse rounded bg-surface-2" />
           ) : listas.length === 0 ? (
@@ -213,20 +212,21 @@ export default function FinanzasPage() {
               ))}
             </ul>
           )}
-        </CardContent>
-      </Card>
+      </CardColapsable>
 
       {/* Facturas emitidas */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Facturas</CardTitle>
+      <CardColapsable
+        id="finanzas.facturas"
+        titulo="Facturas"
+        contentClassName="px-0 pb-0"
+        resumen={
           <div className="flex gap-3 text-[11px]">
             <Conteo color="#0a66ff" label="Emitidas" n={cuentaFactura.EMITIDA} />
             <Conteo color="#10b981" label="Pagadas" n={cuentaFactura.PAGADA} />
             <Conteo color="#71717a" label="Anuladas" n={cuentaFactura.ANULADA} />
           </div>
-        </CardHeader>
-        <CardContent className="px-0 pb-0">
+        }
+      >
           {!facturas ? (
             <p className="px-4 pb-4 text-[13px] text-muted">Cargando…</p>
           ) : filasFactura.length === 0 ? (
@@ -286,8 +286,7 @@ export default function FinanzasPage() {
               </table>
             </div>
           )}
-        </CardContent>
-      </Card>
+      </CardColapsable>
 
       <ComprobanteDialog
         factura={(facturas ?? []).find((f) => f.id === verFactura) ?? null}
@@ -298,16 +297,18 @@ export default function FinanzasPage() {
       />
 
       {/* Cobranza */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Cobranza</CardTitle>
+      <CardColapsable
+        id="finanzas.cobranza"
+        titulo="Cobranza"
+        contentClassName="px-0 pb-0"
+        resumen={
           <div className="flex gap-3 text-[11px]">
             <Conteo color="#10b981" label="Al corriente" n={cuenta.AL_CORRIENTE} />
             <Conteo color="#f59e0b" label="Por vencer" n={cuenta.POR_VENCER} />
             <Conteo color="#ef4444" label="Vencida" n={cuenta.VENCIDA} />
           </div>
-        </CardHeader>
-        <CardContent className="px-0 pb-0">
+        }
+      >
           {!cobranzas || !facturas ? (
             <div className="space-y-2 px-4 pb-4">
               {Array.from({ length: 3 }).map((_, i) => (
@@ -393,8 +394,7 @@ export default function FinanzasPage() {
               </table>
             </div>
           )}
-        </CardContent>
-      </Card>
+      </CardColapsable>
 
       {/* Lo COMPROMETIDO: cuánto se paga por cada pantalla y cada cuánto, con
           todo normalizado a mes para poder compararlo y sumarlo. Va antes que

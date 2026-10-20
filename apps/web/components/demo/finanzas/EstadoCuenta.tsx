@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Download } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { cn } from '@/lib/cn'
 import { useCobranzas, useFacturas, usePagosRenta, formatMonto, formatFecha, useClientes } from '@/lib/data/client'
@@ -64,12 +64,14 @@ export function EstadoCuenta() {
   const r = datos?.resumen
 
   return (
-    <Card>
-      <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <CardTitle>Estado de cuenta</CardTitle>
-          <p className="mt-0.5 text-[12px] text-muted">{titular}{datos ? ` · ${datos.periodo.etiqueta}` : ''}</p>
-        </div>
+    // Mes, cliente y CSV van en `accion`, fuera de lo que se pliega: su estado
+    // vive en este componente, así que plegar no pierde lo elegido.
+    <CardColapsable
+      id="finanzas.estado-cuenta"
+      titulo="Estado de cuenta"
+      subtitulo={`${titular}${datos ? ` · ${datos.periodo.etiqueta}` : ''}`}
+      contentClassName="px-0 pb-0"
+      accion={
         <div className="flex flex-wrap items-center gap-1.5">
           {(['mes', 'mes-anterior'] as const).map((m) => (
             <button
@@ -98,8 +100,8 @@ export function EstadoCuenta() {
             <Download className="h-3.5 w-3.5" /> CSV
           </Button>
         </div>
-      </CardHeader>
-      <CardContent className="px-0 pb-0">
+      }
+    >
         {error ? (
           <p className="px-4 pb-4 text-[13px] text-error">{error}</p>
         ) : !r || !datos ? (
@@ -154,8 +156,7 @@ export function EstadoCuenta() {
             )}
           </>
         )}
-      </CardContent>
-    </Card>
+    </CardColapsable>
   )
 }
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { LifeBuoy, Plus, Loader2 } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import {
@@ -124,31 +124,29 @@ export function TicketsPanel({ onToast }: { onToast: (m: string) => void }) {
   // No cambia ningún permiso -- el servidor sigue respondiendo 403 igual.
   if (status === 'sin-permiso') {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <LifeBuoy className="h-4 w-4 text-muted" /> Soporte
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+      <CardColapsable
+        id="admin.soporte"
+        titulo="Soporte"
+        icono={<LifeBuoy className="h-4 w-4 text-muted" />}
+      >
           <p className="text-[12px] text-muted">
             Ver y abrir tickets de soporte está reservado a quien tenga el permiso de{' '}
             <b className="text-ink">Administración → ver</b>. Pídeselo a quien administre los
             roles y permisos de tu organización.
           </p>
-        </CardContent>
-      </Card>
+      </CardColapsable>
     )
   }
 
+  // El ticket a medio escribir vive en el estado de este componente, no en el
+  // contenido: plegar no lo borra.
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <LifeBuoy className="h-4 w-4 text-muted" /> Soporte
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    <CardColapsable
+      id="admin.soporte"
+      titulo="Soporte"
+      icono={<LifeBuoy className="h-4 w-4 text-muted" />}
+      contentClassName="space-y-3"
+    >
         {status === 'cargando' ? (
           <div className="h-24 animate-pulse rounded bg-surface-2" />
         ) : status === 'error' || !tickets ? (
@@ -240,7 +238,6 @@ export function TicketsPanel({ onToast }: { onToast: (m: string) => void }) {
             </ul>
           </>
         )}
-      </CardContent>
-    </Card>
+    </CardColapsable>
   )
 }

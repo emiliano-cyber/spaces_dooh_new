@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { Building2, UserCircle2, Save, KeyRound } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { useConfigNegocio } from '@/lib/data/client'
@@ -90,12 +90,14 @@ function EmpresaCard({ nombreActual }: { nombreActual: string }) {
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center gap-2">
-        <Building2 className="h-4 w-4 text-muted" />
-        <CardTitle>Empresa</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    // Lo tecleado vive en el estado de ESTE componente y no en el contenido
+    // plegable: plegar a medio escribir no lo borra.
+    <CardColapsable
+      id="configuracion.empresa"
+      titulo="Empresa"
+      icono={<Building2 className="h-4 w-4 text-muted" />}
+      contentClassName="space-y-3"
+    >
         <p className="text-[12px] text-muted">Este nombre aparece en el menú de la izquierda.</p>
         <Campo label="Nombre de la empresa" obligatorio falta={ob.falta('nombre')}>
           <input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} />
@@ -103,8 +105,7 @@ function EmpresaCard({ nombreActual }: { nombreActual: string }) {
         <Button size="sm" disabled={busy || nombre.trim() === nombreActual} onClick={guardar}>
           <Save className="h-3.5 w-3.5" /> {busy ? 'Guardando…' : 'Guardar'}
         </Button>
-      </CardContent>
-    </Card>
+    </CardColapsable>
   )
 }
 
@@ -174,12 +175,15 @@ function CuentaCard({ emailActual }: { emailActual: string }) {
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center gap-2">
-        <UserCircle2 className="h-4 w-4 text-muted" />
-        <CardTitle>Mi cuenta</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    // Con contraseña temporal va SIN `id`: no recuerda el plegado y abre
+    // siempre. Quien llega aquí redirigido (ADR 0009) no puede encontrarse
+    // cerrada justo la tarjeta que le devuelve el acceso.
+    <CardColapsable
+      id={sesion?.usuario.debeCambiarPassword ? undefined : 'configuracion.cuenta'}
+      titulo="Mi cuenta"
+      icono={<UserCircle2 className="h-4 w-4 text-muted" />}
+      contentClassName="space-y-3"
+    >
         <p className="text-[12px] text-muted">Cambia tu correo y/o contraseña. Solo afecta a tu cuenta.</p>
         <Campo label="Correo">
           <input type="email" className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tu@correo.com" />
@@ -206,7 +210,6 @@ function CuentaCard({ emailActual }: { emailActual: string }) {
         <Button size="sm" disabled={busy || !hayCambio} onClick={guardar}>
           <Save className="h-3.5 w-3.5" /> {busy ? 'Guardando…' : 'Guardar cambios'}
         </Button>
-      </CardContent>
-    </Card>
+    </CardColapsable>
   )
 }

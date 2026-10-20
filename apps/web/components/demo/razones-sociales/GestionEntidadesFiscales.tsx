@@ -6,7 +6,7 @@ import { AlertTriangle, Check, Pencil, Plus, RotateCcw, Trash2, X } from 'lucide
 import { cn } from '@/lib/cn'
 import { Button } from '@/components/demo/ui/Button'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
-import { Card, CardContent } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { crearEntidadApi, desactivarEntidadApi, editarEntidadApi } from '@/lib/data/estado-api'
 import type { RolCatalogo } from '@/lib/cuestionario-entidades'
 import {
@@ -311,6 +311,13 @@ export function GestionEntidadesFiscales({
         </div>
       )}
 
+      {/* Los avisos de arriba quedan FUERA a propósito: plegar la lista no debe
+          esconder que un papel se quedó sin dueño.
+          «Nueva razón social» va DENTRO y no en `accion`: abre el formulario
+          aquí mismo, y con la tarjeta plegada el clic no enseñaría nada. El
+          borrador vive en este componente, así que plegar a medio capturar
+          no lo pierde. */}
+      <CardColapsable id="razones-sociales.lista" titulo="Razones sociales" contentClassName="space-y-4">
       {puedeEditar && !creando && !editando && (
         <Button variant="success" size="sm" onClick={abrirAlta}>
           <Plus className="h-3.5 w-3.5" /> Nueva razón social
@@ -319,8 +326,7 @@ export function GestionEntidadesFiscales({
       {creando && formulario}
 
       {ordenadas.length === 0 && !creando ? (
-        <Card>
-          <CardContent className="space-y-2 pt-4">
+          <div className="space-y-2">
             <p className="text-[13px] text-ink">
               Todavía no hay ninguna razón social registrada.
             </p>
@@ -329,8 +335,7 @@ export function GestionEntidadesFiscales({
               activos, con cuál tramitas licencias y con cuál vendes. Pueden ser varias, y es lo
               normal.
             </p>
-          </CardContent>
-        </Card>
+          </div>
       ) : (
         <ul className="space-y-2">
           {ordenadas.map((e) =>
@@ -407,6 +412,7 @@ export function GestionEntidadesFiscales({
           )}
         </ul>
       )}
+      </CardColapsable>
     </div>
   )
 }

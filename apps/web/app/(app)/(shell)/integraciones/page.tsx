@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { Plug, Cpu, Activity } from 'lucide-react'
-import { Card, CardContent } from '@/components/demo/ui/Card'
+import { Card } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { formatNumero } from '@/lib/formato-numero'
 
@@ -57,6 +58,7 @@ export default function IntegracionesPage() {
         </div>
       )}
 
+      <CardColapsable id="integraciones.conectores" titulo="Conectores">
       {!items ? (
         <div className="h-40 animate-pulse rounded-md bg-surface-2" />
       ) : (
@@ -88,13 +90,15 @@ export default function IntegracionesPage() {
           ))}
         </div>
       )}
+      </CardColapsable>
 
-      {/* Prueba de AdMobilize (datos simulados) */}
-      <Card className="p-4">
-        <div className="mb-2 flex items-center gap-2">
-          <Cpu className="h-4 w-4 text-info" />
-          <span className="text-[14px] font-medium text-ink">Probar AdMobilize</span>
-        </div>
+      {/* Prueba de AdMobilize (datos simulados). El dispositivo y la última
+          consulta viven en la página, así que plegar no los pierde. */}
+      <CardColapsable
+        id="integraciones.probar-admobilize"
+        titulo="Probar AdMobilize"
+        icono={<Cpu className="h-4 w-4 text-info" />}
+      >
         <div className="flex flex-wrap items-end gap-2">
           <label className="block">
             <span className="mb-1 block text-[12px] font-medium text-ink">ID del dispositivo</span>
@@ -119,7 +123,7 @@ export default function IntegracionesPage() {
             )}
           </div>
         )}
-      </Card>
+      </CardColapsable>
     </div>
   )
 }

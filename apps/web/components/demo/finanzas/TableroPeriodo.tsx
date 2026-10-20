@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { AlertTriangle } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { cn } from '@/lib/cn'
 import { useCobranzas, useFacturas, usePagosRenta, formatMonto, formatFecha } from '@/lib/data/client'
 import type { TipoPeriodo } from '@/lib/finanzas-periodo'
@@ -64,14 +64,14 @@ export function TableroPeriodo() {
   const r = datos?.resumen
 
   return (
-    <Card>
-      <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <CardTitle>Resumen del periodo</CardTitle>
-          <p className="mt-0.5 text-[12px] text-muted">
-            {datos ? `${datos.periodo.etiqueta} · ${formatFecha(datos.periodo.desde)} a ${formatFecha(datos.periodo.hasta)}` : '—'}
-          </p>
-        </div>
+    // El selector de periodo va en `accion`, FUERA de lo que se pliega: el
+    // periodo elegido vive en este componente y no en el contenido, así que
+    // plegar y desplegar no lo pierde.
+    <CardColapsable
+      id="finanzas.resumen-periodo"
+      titulo="Resumen del periodo"
+      subtitulo={datos ? `${datos.periodo.etiqueta} · ${formatFecha(datos.periodo.desde)} a ${formatFecha(datos.periodo.hasta)}` : '—'}
+      accion={
         <div className="flex flex-wrap items-center gap-1.5">
           {OPCIONES_PERIODO.map((o) => (
             <button
@@ -95,8 +95,8 @@ export function TableroPeriodo() {
             </span>
           )}
         </div>
-      </CardHeader>
-      <CardContent>
+      }
+    >
         {!listo ? (
           <p className="text-[13px] text-muted">Elige la fecha de inicio y la de fin.</p>
         ) : error ? (
@@ -133,8 +133,7 @@ export function TableroPeriodo() {
             )}
           </div>
         )}
-      </CardContent>
-    </Card>
+    </CardColapsable>
   )
 }
 

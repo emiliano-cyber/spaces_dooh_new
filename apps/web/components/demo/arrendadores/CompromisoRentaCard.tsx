@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { StatusBadge, CONTRATO_TONO, CONTRATO_LABEL } from '@/components/demo/StatusBadge'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { useContratos, formatMonto, formatFecha, diasHasta, faltaEnContratos } from '@/lib/data/client'
@@ -27,14 +27,17 @@ export function CompromisoRentaCard() {
 
   if (!contratos) {
     return (
-      <Card>
-        <CardHeader><CardTitle>Renta comprometida</CardTitle></CardHeader>
-        <CardContent className="space-y-2">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-10 animate-pulse rounded bg-surface-2" />
-          ))}
-        </CardContent>
-      </Card>
+      // Mismo `id` y título que la tarjeta ya cargada: si la persona la dejó
+      // plegada, no debe abrirse mientras cargan los contratos.
+      <CardColapsable
+        id="finanzas.renta-comprometida"
+        titulo="Renta comprometida a arrendadores"
+        contentClassName="space-y-2"
+      >
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="h-10 animate-pulse rounded bg-surface-2" />
+        ))}
+      </CardColapsable>
     )
   }
 
@@ -57,14 +60,16 @@ export function CompromisoRentaCard() {
   )
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
-        <CardTitle>Renta comprometida a arrendadores</CardTitle>
+    <CardColapsable
+      id="finanzas.renta-comprometida"
+      titulo="Renta comprometida a arrendadores"
+      contentClassName="px-0 pb-0"
+      resumen={
         <span className="demo-num text-[13px] font-semibold text-ink">
           {formatMonto(totalMes)}<span className="text-[11px] font-normal text-muted">/mes</span>
         </span>
-      </CardHeader>
-      <CardContent className="px-0 pb-0">
+      }
+    >
         {orden.length === 0 ? (
           <p className="px-4 pb-4 text-[13px] text-muted">
             No hay contratos con importe capturado todavía.
@@ -158,7 +163,6 @@ export function CompromisoRentaCard() {
             devengan renta. Renuévalos en Arrendadores o quedarán sin cobertura.
           </p>
         )}
-      </CardContent>
-    </Card>
+    </CardColapsable>
   )
 }

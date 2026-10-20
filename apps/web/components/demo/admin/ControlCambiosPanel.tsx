@@ -3,7 +3,7 @@
 import { puedeVerControlCambios } from '@/lib/roles'
 import { useEffect, useState } from 'react'
 import { Lock, Unlock, Loader2, ShieldCheck, KeyRound } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { useSesionCtx } from '@/components/demo/shell/SesionContext'
@@ -107,14 +107,14 @@ export function ControlCambiosPanel({ onToast }: { onToast: (m: string) => void 
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          {activo ? <Lock className="h-4 w-4 text-success" /> : <Unlock className="h-4 w-4 text-muted" />}
-          Control de cambios
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    // La contraseña a medio teclear vive en el estado de este componente, no
+    // en el contenido: plegar no la borra.
+    <CardColapsable
+      id="admin.control-cambios"
+      titulo="Control de cambios"
+      icono={activo ? <Lock className="h-4 w-4 text-success" /> : <Unlock className="h-4 w-4 text-muted" />}
+      contentClassName="space-y-3"
+    >
         <p className="text-[13px] text-muted">
           Actívalo y los cambios que mueven dinero o el catálogo —tarifas, rentas, contratos, pagos,
           facturación y borrar pantallas, clientes o arrendadores— pedirán una contraseña: la propia
@@ -207,7 +207,6 @@ export function ControlCambiosPanel({ onToast }: { onToast: (m: string) => void 
             </div>
           )}
         </div>
-      </CardContent>
-    </Card>
+    </CardColapsable>
   )
 }

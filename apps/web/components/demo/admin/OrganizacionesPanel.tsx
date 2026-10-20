@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Building2, Check, LogIn, RotateCcw, Plus } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { validarPassword, REGLA_PASSWORD } from '@/lib/password'
@@ -63,12 +63,11 @@ export function OrganizacionesPanel() {
   // No cambia ningún permiso — el servidor sigue respondiendo 403 igual.
   if (estado === 'sin-permiso') {
     return (
-      <Card>
-        <CardHeader className="flex flex-row items-center gap-2">
-          <Building2 className="h-4 w-4 text-muted" />
-          <CardTitle>Organizaciones (CRMs)</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <CardColapsable
+        id="admin.organizaciones"
+        titulo="Organizaciones (CRMs)"
+        icono={<Building2 className="h-4 w-4 text-muted" />}
+      >
           <p className="text-[12px] text-muted">
             Crear organizaciones y cambiar entre ellas está reservado al
             <b className="text-ink"> administrador de la plataforma</b>. Tu usuario administra
@@ -76,18 +75,19 @@ export function OrganizacionesPanel() {
             <br />
             Si necesitas una organización nueva, pídesela a quien administre Space OS.
           </p>
-        </CardContent>
-      </Card>
+      </CardColapsable>
     )
   }
 
+  // OJO: el formulario de `NuevaOrganizacion` guarda lo tecleado en SU propio
+  // estado, que vive DENTRO del contenido plegable. Plegar la tarjeta con el
+  // alta a medias la desmonta y lo tecleado se pierde.
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center gap-2">
-        <Building2 className="h-4 w-4 text-muted" />
-        <CardTitle>Organizaciones (CRMs)</CardTitle>
-      </CardHeader>
-      <CardContent>
+    <CardColapsable
+      id="admin.organizaciones"
+      titulo="Organizaciones (CRMs)"
+      icono={<Building2 className="h-4 w-4 text-muted" />}
+    >
         {/* Antes esto mandaba a «Crear cuenta» del login. En producción ese
             botón NO EXISTE —el auto-registro está apagado a propósito— así que
             la instrucción llevaba a un callejón sin salida: no había ninguna
@@ -139,8 +139,7 @@ export function OrganizacionesPanel() {
             <RotateCcw className="h-3.5 w-3.5" /> Volver a mi CRM
           </Button>
         </div>
-      </CardContent>
-    </Card>
+    </CardColapsable>
   )
 }
 
