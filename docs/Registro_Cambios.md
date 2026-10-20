@@ -20,6 +20,14 @@ La entrada más reciente va arriba.
   vacía, se guardaba con un texto genérico.
 - *(Los formularios de Space Eyes se pasan a esta regla en cuanto aterrice su
   versión 0.11.10.)*
+- **Todas las pantallas se pueden plegar por secciones, como Arrendadores.**
+  En Dashboard, Inventario, Comercial, Clientes, Propuestas, Campañas,
+  Creativos, Operaciones, Finanzas, Reportes, Administración y el resto, cada
+  bloque con título se pliega o despliega con un clic en su encabezado, y sus
+  cifras principales siguen a la vista aunque esté plegado. **La aplicación
+  recuerda cómo lo dejaste**: al volver o recargar, lo plegado sigue plegado
+  (solo en ese navegador; no cambia nada para los demás). También Arrendadores
+  lo recuerda ahora, y las secciones de la ficha de campaña.
 
 ## 2026-10-14
 

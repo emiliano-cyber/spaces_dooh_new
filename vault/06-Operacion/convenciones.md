@@ -6,6 +6,8 @@ tags: [convenciones, estilo, pruebas]
 archivos:
   - apps/web/components/demo/ui/Button.tsx
   - apps/web/components/demo/ui/Campo.tsx
+  - apps/web/components/demo/ui/CardColapsable.tsx
+  - apps/web/lib/secciones-plegadas.ts
   - apps/web/lib/campos-obligatorios.ts
   - apps/web/lib/formato-numero.ts
   - apps/web/lib/formato-numero.guardia.test.ts
@@ -363,6 +365,33 @@ Las semillas usan fechas **relativas a hoy** (`enDias()`), nunca literales.
   `components/demo/ui/campo-falta-css.test.ts`.
 - Celdas editables en tablas: asterisco en la cabecera de columna y rojo en la
   celda, sin etiqueta encima.
+
+## Secciones plegables (PLEG-01)
+
+> [!important] Regla del dueño, 2026-10-20
+> «Así como Arrendadores, todos los módulos deben poderse colapsar para
+> cambiar la vista.»
+
+- **Toda sección con título de una página es un `CardColapsable`**
+  (`components/demo/ui/CardColapsable.tsx`) con `id` estable y único
+  `<modulo>.<seccion>` (`finanzas.cobranza`, `campana.candado`…). Con `id`, la
+  tarjeta **recuerda en el navegador** que la persona la dejó plegada
+  (`lib/secciones-plegadas.ts`, localStorage, try/catch). Un id repetido
+  pliega las dos a la vez al recargar: si hay una tarjeta por registro, el id
+  lleva el registro (`creativos.campana.<id>`).
+- **Botones de la sección en `accion`** (no pliegan), cifras en `resumen`
+  (siguen visibles plegada), explicación en `subtitulo`.
+- **No se pliegan:** el encabezado de la página con su botón principal,
+  pestañas, avisos que hay que leer, formularios y modales. Un modal que se
+  abre desde la cabecera va FUERA de la tarjeta: dentro, con la tarjeta
+  plegada, el botón no hace nada.
+- **El contenido se desmonta al plegar:** el estado que importa (filtros,
+  página, borradores) vive fuera de la tarjeta. Donde no es así, está
+  comentado (p. ej. «Nueva organización» en Administración).
+- La ficha de campaña conserva su `Seccion` propia (abre según su estado), con
+  la misma persistencia. La lista de Campañas conserva su vista compacta.
+- Rejillas con tarjetas lado a lado: `items-start`, o una tarjeta plegada se
+  estira a la altura de su vecina.
 
 ## Color de los botones
 
