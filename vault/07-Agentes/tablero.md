@@ -6,6 +6,14 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!warning] 2026-10-21, noche · **`v0.12.1` = Node 22** — rama `fix/node-22-parches-octubre` (Z12 + `Dockerfile` + workflows)
+> Node 20 quedó sin parches ante los diez CVE de Node del 21/10 (uno de ejecución de código en Brotli). Imagen
+> en `node:22.23.4-alpine3.23` y CI en 22; lo vigila `apps/web/lib/imagen-node-parcheado.test.ts` (rojo
+> demostrado: 5 de 8 antes del cambio). Sin migraciones. El aviso de PHP del mismo día **no aplica**: SPACE OS
+> no usa PHP. **Lo de servidor lo corre una persona**: PADRE (dos Node, nvm y `/usr/local/bin/node`), comprobar
+> PHP en cada droplet y reconstruir la imagen de Space Eye (José) — guía
+> `docs/evidencias/28-node-22-y-php-servidores-20261021.txt`. Versión elegida por el dueño: `v0.12.1`.
+
 > [!success] 2026-10-21 · **`v0.12.0` (la reescrita) en `estable`** — run `39659945269`, digest `16dc61d4…`; vuelta atrás `3f5d15ea…` (`v0.11.9`)
 > Etiqueta `v0.12.0` movida de `4a966305` a `fb93bd68` (decisión del dueño, aviso de abajo). CI de `main` en
 > verde en `fb93bd68`; release `39658437840` en verde (suite completa con e2e y publicación en `beta`,

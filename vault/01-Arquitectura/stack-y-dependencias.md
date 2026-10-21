@@ -85,10 +85,19 @@ npm workspaces + turbo. `package.json:26-29` declara `apps/*` y `packages/*`.
 >
 > | Workflow | node | Qué hace |
 > |---|---|---|
-> | `ci.yml:60` | **20** | typecheck → test → build |
-> | `ci.yml:228` | **20** | el trabajo `e2e` (desde el 07/09, `e126130d`) |
-> | `release.yml:152` | **20** | construye y publica la versión |
+> | `ci.yml:60` | **22** (era 20 hasta el 21/10) | typecheck → test → build |
+> | `ci.yml:228` | **22** (era 20 hasta el 21/10) | el trabajo `e2e` (desde el 07/09, `e126130d`) |
+> | `release.yml:152` | **22** (era 20 hasta el 21/10) | construye y publica la versión |
 > | `lockfile-check.yml:18` | **22** | vigila que el lockfile no derive |
+>
+> **2026-10-21 · los cuatro en 22, y la imagen en `node:22.23.4-alpine3.23`.**
+> Node 20 es fin de vida desde abril y ese día salieron diez CVE de Node —uno,
+> ejecución de código en el decodificador Brotli— **sin parche para 20.x**. El
+> porqué de la etiqueta exacta (versión completa, y Alpine 3.23 por la rueda de
+> psycopg) está en `apps/web/lib/imagen-node-parcheado.test.ts`, que además
+> falla si alguien vuelve a poner 20 o una etiqueta flotante. **El PADRE sigue en
+> node 20 hasta que una persona lo actualice** — guía
+> `docs/evidencias/28-node-22-y-php-servidores-20261021.txt`.
 >
 > **El que vigila el lockfile corre en una versión distinta de la que lo
 > produce.** Y el PADRE también corre node 20: por eso el 28/08 un `npm install`

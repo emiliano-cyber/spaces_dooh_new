@@ -814,6 +814,28 @@ Las tres variables tienen valor: `REGISTRY` y `REGISTRY_TIPO` desde el 31/08, y
 > compararía `desconocida` contra la versión promovida y fallaría siempre. El día
 > que DEMO se contenerice, la comprobación se vuelve estricta sola.
 
+> [!danger] 2026-10-21 · Node 20 sin parches: imagen y CI pasan a Node 22
+> Los avisos de seguridad de Node de octubre de 2026 traen diez CVE —el peor,
+> ejecución de código en el decodificador Brotli (CVE-2026-111497), y dos saltos
+> de la verificación del nombre en TLS— con parche para 22.x (**v22.23.4**), 24.x
+> y 26.x, y **ninguno para 20.x**, que es fin de vida desde abril. La imagen se
+> construía sobre `node:20-alpine` y el CI corría 20.
+>
+> - **Imagen:** `node:22.23.4-alpine3.23` en las tres etapas (`Dockerfile`).
+>   Alpine 3.23 a propósito: es la de `node:20-alpine`, y en la 3.24 Python es
+>   3.14, sin rueda de psycopg[binary] 3.2.3. Lo vigila
+>   `apps/web/lib/imagen-node-parcheado.test.ts`.
+> - **CI:** `ci.yml` y `release.yml` en `node-version: '22'`, como ya estaba
+>   `lockfile-check.yml`. Con eso el recuadro de abajo pierde hasta su premisa.
+> - **PADRE:** corre `next start` con el node **del anfitrión**, así que no lo
+>   arregla ninguna imagen. Hay **dos** instalaciones (nvm de root y
+>   `/usr/local/bin/node`, `infra/systemd/flota-reporte.service:48-54`) y se
+>   actualizan las dos. Lo corre una persona:
+>   `docs/evidencias/28-node-22-y-php-servidores-20261021.txt`.
+> - **PHP** (CVE-2026-109618/109619, el mismo día): **SPACE OS no usa PHP** —ni
+>   la imagen ni el repositorio—. La guía 28 incluye cómo comprobar que ningún
+>   droplet lo tenga instalado de antes.
+
 > [!warning] 2026-08-31 · «node 20 aquí, 22 en el CI» NO es cierto — la causa sigue sin identificar
 > El **efecto es real y está medido**: `npm install` en el PADRE poda entradas del
 > lockfile, y por eso la secuencia lleva el `git checkout --`. Lo que no se sostiene

@@ -7,6 +7,16 @@ La entrada más reciente va arriba.
 
 ## 2026-10-21
 
+- **v0.12.1 · la aplicación corre sobre una versión de Node con parches.** El
+  21 de octubre Node publicó diez fallos de seguridad, uno de ellos grave
+  (permite ejecutar código), y la versión que usábamos (Node 20) ya no recibe
+  parches. La imagen y las pruebas automáticas pasan a Node 22.23.4, que sí los
+  trae. No cambia nada en pantalla. El servidor PADRE, que no corre desde la
+  imagen, lo actualiza una persona con la guía
+  `docs/evidencias/28-node-22-y-php-servidores-20261021.txt`. El aviso de PHP
+  de ese mismo día no nos afecta: SPACE OS no usa PHP, y la guía incluye cómo
+  comprobar que ningún servidor lo tenga instalado.
+
 - **Las notificaciones se pueden borrar una por una.** En la campanita, cada
   aviso tiene ahora una **✕** a la derecha para quitarlo solo; «Borrar todas»
   sigue arriba para vaciar la lista de un golpe. Las que ya leíste se quedan en

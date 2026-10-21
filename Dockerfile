@@ -6,13 +6,13 @@
 # apps/web/next.config.mjs:17 apunta `outputFileTracingRoot` a `../../`. Desde
 # apps/web el artefacto saldria sin la mitad de sus paquetes.
 #
-# Node 20, el mismo que usa el CI (.github/workflows/ci.yml:60): la imagen no es
-# sitio para estrenar version de runtime.
+# Node 22.23.4 sobre Alpine 3.23, y POR QUE esa y no otra (Node 20 sin parches desde
+# el 21/10/2026, Python de Alpine 3.24): apps/web/lib/imagen-node-parcheado.test.ts
 
 # ---------------------------------------------------------------------------
 # deps — el arbol de dependencias, cacheado aparte del codigo
 # ---------------------------------------------------------------------------
-FROM node:20-alpine AS deps
+FROM node:22.23.4-alpine3.23 AS deps
 
 # Los binarios nativos de Next (SWC) y de turbo estan compilados contra glibc.
 # En Alpine, sin esta capa de compatibilidad, fallan al cargarse.
@@ -40,7 +40,7 @@ RUN npm ci
 # ---------------------------------------------------------------------------
 # build — el standalone de Next
 # ---------------------------------------------------------------------------
-FROM node:20-alpine AS build
+FROM node:22.23.4-alpine3.23 AS build
 
 RUN apk add --no-cache libc6-compat
 
@@ -61,7 +61,7 @@ RUN npx turbo run build --filter=web
 # ---------------------------------------------------------------------------
 # runtime — lo minimo para servir, sin repo y sin toolchain
 # ---------------------------------------------------------------------------
-FROM node:20-alpine AS runtime
+FROM node:22.23.4-alpine3.23 AS runtime
 
 WORKDIR /app
 
@@ -153,7 +153,7 @@ RUN apk add --no-cache python3
 COPY doohmain_sdk/requirements.txt /tmp/requirements-doohmain.txt
 
 #  `--only-binary=:all:` es un CONTRATO, no una optimizacion. Medido el
-#  2026-09-01 sobre este mismo `node:20-alpine`: psycopg[binary] 3.2.3 tiene
+#  2026-09-01 sobre `node:20-alpine` (Alpine 3.23, la misma de hoy): psycopg[binary] 3.2.3 tiene
 #  rueda musllinux y no hace falta compilar nada. El dia que una version deje de
 #  publicar rueda, este build FALLA -- que es lo que se quiere -- en vez de
 #  arrastrar gcc y postgresql-dev a la imagen en silencio.

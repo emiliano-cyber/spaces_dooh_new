@@ -149,7 +149,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       # NO SE PUBLICA UNA VERSIÓN SIN SUS NOTAS (pedido del dueño, 2026-10-01).

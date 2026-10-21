@@ -1,5 +1,15 @@
 [
   {
+    "version": "v0.12.1",
+    "fecha": "2026-10-21",
+    "items": [
+      {
+        "tipo": "CORREGIDO",
+        "texto": "Seguridad: la aplicación pasa a una versión de Node con los parches de seguridad publicados el 21 de octubre. La versión anterior ya no recibía parches. No cambia nada de lo que ves en pantalla."
+      }
+    ]
+  },
+  {
     "version": "v0.12.0",
     "fecha": "2026-10-21",
     "items": [
