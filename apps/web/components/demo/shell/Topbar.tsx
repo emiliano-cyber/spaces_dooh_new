@@ -10,7 +10,8 @@ import { useSesionCtx } from './SesionContext'
 import { useMenuMovil } from './MenuMovilContext'
 import { DesbloqueoCambios } from './DesbloqueoCambios'
 import { useNotificaciones } from '@/lib/data/client'
-import { marcarNotificacionLeidaApi, archivarTodasNotificacionesApi } from '@/lib/data/estado-api'
+import { marcarNotificacionLeidaApi, archivarTodasNotificacionesApi, borrarNotificacionApi } from '@/lib/data/estado-api'
+import { ItemNotificacion } from './ItemNotificacion'
 
 export function Topbar() {
   const router = useRouter()
@@ -100,32 +101,16 @@ export function Topbar() {
               {notificaciones.length === 0 ? (
                 <p className="px-2 py-4 text-center text-[12px] text-muted">Sin notificaciones</p>
               ) : (
+                // Cada aviso lleva su botón para borrarlo SOLO (NOTIF-USUARIO,
+                // 21/10); leer y borrar son de esta persona, no de toda la
+                // empresa. Ver `ItemNotificacion.tsx`.
                 notificaciones.slice(0, 30).map((n) => (
-                  <button
+                  <ItemNotificacion
                     key={n.id}
-                    type="button"
-                    onClick={() => abrirNotif(n.id, n.link)}
-                    className={`block w-full rounded px-2 py-2 text-left outline-none hover:bg-surface-2 ${n.leida ? 'opacity-60' : ''}`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`h-2 w-2 shrink-0 rounded-full ${
-                          n.nivel === 'ok' ? 'bg-success' : n.nivel === 'warn' ? 'bg-warning' : 'bg-info'
-                        } ${n.leida ? 'opacity-0' : ''}`}
-                      />
-                      <span className="text-[13px] font-medium text-ink">{n.titulo}</span>
-                    </div>
-                    {/* B6: `truncate` cortaba el detalle en «…el importe de la re…»
-                        y no había forma de ver el resto. Se deja en DOS líneas: la
-                        mayoría cabe entera, y el aviso sigue siendo una fila corta
-                        de lista y no un párrafo. El `title` da el texto íntegro al
-                        pasar el ratón, para el caso que aun así se pase. */}
-                    {n.detalle && (
-                      <div className="ml-4 line-clamp-2 text-[12px] text-muted" title={n.detalle}>
-                        {n.detalle}
-                      </div>
-                    )}
-                  </button>
+                    n={n}
+                    onAbrir={abrirNotif}
+                    onBorrar={(id) => { void borrarNotificacionApi(id) }}
+                  />
                 ))
               )}
             </DropdownMenu.Content>

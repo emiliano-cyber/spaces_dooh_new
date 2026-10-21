@@ -1,7 +1,7 @@
 ---
 tipo: referencia
 estado: verificado
-actualizado: 2026-10-19
+actualizado: 2026-10-21
 tags: [backend, api, endpoints]
 archivos:
   - apps/web/app/api/
@@ -30,7 +30,7 @@ archivos:
   - apps/web/app/api/cobranzas/[id]/abonos/
 ---
 
-# API — los 142 endpoints (medidos el 2026-10-19 con `recuentos.mjs`)
+# API — los 143 endpoints (medidos el 2026-10-21 con `recuentos.mjs`)
 
 Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo el
 `basePath` `/spaces-dooh` (`apps/web/next.config.mjs:145`).
@@ -286,9 +286,19 @@ agrupa las cuatro pantallas en `lib/modulos.ts:77-83`.
 
 | Método | Path | Guard |
 |---|---|---|
-| GET | `/api/notificaciones/nuevas` | exigir |
-| POST | `/api/notificaciones/[id]/leer` | exigir |
-| POST | `/api/notificaciones/archivar-todas` | exigir |
+| GET | `/api/notificaciones/nuevas` | exigir — sin lo que **esta persona** borró (21/10) |
+| POST | `/api/notificaciones/[id]/leer` | exigir — leída **para quien la lee**; 404 si es de otra empresa o el id no es uuid (21/10) |
+| DELETE | `/api/notificaciones/[id]` | exigir — **(21/10, nueva)** la quita de la bandeja de quien la borra; 404 igual que `leer` |
+| POST | `/api/notificaciones/archivar-todas` | exigir — vacía la bandeja de **quien la pulsa**, no la de toda la empresa (21/10) |
+
+> [!important] 2026-10-21 · NOTIF-USUARIO — leer y borrar son de CADA PERSONA
+> Hasta ese día `leer` y `archivar-todas` escribían `leida`/`archivada_en` en
+> la fila compartida de `notificaciones`: un vendedor que vaciaba su panel se lo
+> vaciaba al Dueño. Ahora escriben en `notificaciones_usuario` (ver
+> [[04-Datos/esquema]]) con el usuario de la **sesión**, y las lecturas
+> (`/api/estado` y `nuevas`) lo filtran por persona. Lo mide
+> `lib/test/notificaciones-por-usuario.e2e.test.ts`, con dos personas de la
+> misma empresa y una de otra.
 | GET | `/api/integraciones` | exigir |
 | GET | `/api/integraciones/doohmain/pantallas` | `inventario:ver` — las pantallas que ve la cuenta de DOOHmain, para la ficha; 200 con lista vacía y el motivo si DOOHmain no contesta (13/10) |
 

@@ -1,10 +1,11 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-10-19
+actualizado: 2026-10-21
 tags: [datos, esquema, er, postgres]
 archivos:
   - db/schema.sql
+  - db/migrations/20261021_notificaciones_por_usuario.sql
   - db/semilla-desarrollo.sql
   - db/migrations/
   - db/migrations/20260921_actualizaciones_instancia.sql
@@ -28,7 +29,9 @@ archivos:
 > [!important] 2026-10-05 · puesta al día — lo que abajo dice «pendiente» o «SIN FUSIONAR» YA ESTÁ en `main`
 > Medido hoy con `node scripts/recuentos.mjs` sobre el árbol de
 > `integra/riesgos-presentacion-14-oct` (salida de `main` en `09c65ca2`):
-> **59 tablas y 113 migraciones** (14/10: las cuatro migraciones del 11 al 13/10
+> **60 tablas y 115 migraciones** (21/10, con `notificaciones_usuario` y
+> `20261021_notificaciones_por_usuario.sql`; la tabla 60 es de verdad, no el
+> `if` de abajo) — antes **59 tablas y 113 migraciones** (14/10: las cuatro migraciones del 11 al 13/10
 > no crean tablas; el «60» que [[migraciones]] llegó a afirmar el 13/10 era un
 > `if` de un comentario contado como tabla por `recuentos.mjs`, ya corregido)
 > (07/10, con `contrato_cambios`; antes 58 y 108) (06/10, con `cobranza_abonos`; antes 57 y 106). `db/schema.sql` tiene **679 líneas**
@@ -559,7 +562,8 @@ erDiagram
 | `folios_consecutivos` | Sin tenant_id | Contador global |
 | `schema_migrations` | Sin tenant_id | Qué migraciones corrió **esta instancia**. Ver [[migraciones]] |
 | `acciones` | fail-closed | Bitácora append-only |
-| `notificaciones` | fail-closed | Dedupe por día |
+| `notificaciones` | fail-closed | Dedupe por día. **Una por empresa**: `leida` y `archivada_en` se siguen leyendo pero desde el 21/10 ya no se escriben (lo de cada persona va en la tabla de abajo). Lleva la única `(id, tenant_id)` para la FK compuesta |
+| `notificaciones_usuario` | fail-closed + FORCE | **(21/10, NOTIF-USUARIO)** Lo que UNA persona hizo con UN aviso: `leida_en`, `borrada_en` (oculta, no destruye). Clave `(notificacion_id, usuario_id)`; FK compuesta `(notificacion_id, tenant_id)` → `notificaciones` y `usuario_id` → `usuarios`, las dos `on delete cascade`; `check` de que al menos una fecha esté puesta (sin fila = sin leer y en la bandeja). Ver [[02-Backend/api-endpoints]] |
 
 ### Inventario
 `sitios`, `sitio_modalidades`, `predios`, `incidencias`, `licencias`,

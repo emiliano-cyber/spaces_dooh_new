@@ -125,7 +125,9 @@ export async function GET() {
       si('comercial', listarOrdenesCompra),
       // Notificaciones y config no son de módulo: las primeras son del propio
       // usuario y la segunda es la identidad del tenant que pinta el shell.
-      listarNotificaciones(),
+      // «Del propio usuario» es literal desde el 21/10 (NOTIF-USUARIO): leída y
+      // borrada son de quien pregunta, por eso va su id de la sesión.
+      listarNotificaciones(g.usuario.id),
       obtenerConfig(),
       si('arrendadores', listarPredios),
       si('arrendadores', listarRazonesSociales),

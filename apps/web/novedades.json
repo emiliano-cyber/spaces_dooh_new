@@ -4,6 +4,14 @@
     "fecha": "2026-10-21",
     "items": [
       {
+        "tipo": "NUEVO",
+        "texto": "Notificaciones: cada aviso de la campanita tiene una ✕ para borrarlo solo, además de «Borrar todas». Las que ya leíste se quedan en la lista, atenuadas, hasta que las borres."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "Tu campanita es tuya: lo que marcas como leído o borras ya no cambia la de tus compañeros. Lo que ya se había leído o borrado para todos antes de esta versión se queda como estaba."
+      },
+      {
         "tipo": "AJUSTADO",
         "texto": "Solo un Dueño puede restablecer la contraseña de otro Dueño. Un administrador lo sigue haciendo igual con el resto de los usuarios."
       },

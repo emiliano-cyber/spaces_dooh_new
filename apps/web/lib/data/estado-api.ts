@@ -110,6 +110,12 @@ export async function archivarTodasNotificacionesApi(): Promise<void> {
   const r = await fetch(`${API}/notificaciones/archivar-todas/`, { method: 'POST' })
   if (r.ok) await refrescarEstado()
 }
+// Quita UNA de la bandeja de quien la borra (NOTIF-USUARIO, 21/10). Como las
+// otras dos, solo la bandeja de esta persona: a los demás no les cambia nada.
+export async function borrarNotificacionApi(id: string): Promise<void> {
+  const r = await fetch(`${API}/notificaciones/${id}/`, { method: 'DELETE' })
+  if (r.ok) await refrescarEstado()
+}
 
 // ─── Propuestas (método del divisor) ─────────────────────────────────────────
 export async function crearPropuestaApi(input: {

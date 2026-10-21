@@ -53,6 +53,16 @@ describe('DELETE /api/notificaciones/[id] — borrar una', () => {
     expect(repo.borrarNotificacion).not.toHaveBeenCalled()
   })
 
+  it('si la base falla, contesta JSON con su mensaje, no un 500 vacío', async () => {
+    repo.borrarNotificacion.mockRejectedValue(new Error('se cayó la conexión'))
+    const r = await DELETE(req(), { params: { id: ID } })
+    expect(r.status).toBeGreaterThanOrEqual(500)
+    const cuerpo = await r.json()
+    expect(cuerpo.error).toBeTruthy()
+    // Y sin filtrar el texto interno del error.
+    expect(JSON.stringify(cuerpo)).not.toContain('se cayó la conexión')
+  })
+
   it('sin sesión, lo que diga exigir() y nada más', async () => {
     auth.exigir.mockResolvedValue({ ok: false, status: 401, error: 'No autenticado' })
     expect((await DELETE(req(), { params: { id: ID } })).status).toBe(401)

@@ -46,6 +46,7 @@ archivos:
   - db/migrations/20261006_precio_ajustado_por_gerente.sql
   - db/migrations/20261007_calculadora_spots.sql
   - db/migrations/20261019_cobranza_abono_comprobante.sql
+  - db/migrations/20261021_notificaciones_por_usuario.sql
 ---
 
 # Migraciones
@@ -53,7 +54,7 @@ archivos:
 > [!important] 2026-10-05 · puesta al día — ninguna de las de abajo está ya «sin fusionar»
 > Medido hoy con `node scripts/recuentos.mjs` sobre el árbol de
 > `integra/riesgos-presentacion-14-oct` (salida de `main` en `09c65ca2`):
-> **114 migraciones y 59 tablas** (19/10, con `20261019_cobranza_abono_comprobante.sql`; antes 113) —el «60» que decía aquí el 13/10 era falso:
+> **115 migraciones y 60 tablas** (21/10, con `20261021_notificaciones_por_usuario.sql`, que crea `notificaciones_usuario`: esta vez el 60 es una tabla de verdad) (19/10, 114 y 59, con `20261019_cobranza_abono_comprobante.sql`; antes 113) —el «60» que decía aquí el 13/10 era falso:
 > `recuentos.mjs` contaba como tabla la palabra `if` de un comentario de
 > `20261013_doohmain_seguimiento_unicas.sql`; corregido el 14/10 quitando los
 > comentarios antes de medir— (13/10, con `20261013_sitios_pantalla_doohmain.sql`; antes 112) (13/10, con `20261013_doohmain_seguimiento_unicas.sql`; antes 111) (12/10, con `20261012_razon_social_principal.sql`; antes 110) (07/10, con `20261011_contrato_cambios_solo_insercion.sql`; antes 109) (07/10, con `20261010_contrato_cambios.sql`; antes 108 y 58) (06/10, con `20261009_propuestas_fechas_estatus.sql`; antes 107) (06/10, con `20261008_cobranza_abonos.sql`). Es el recuento vigente; los de los recuadros
@@ -64,6 +65,7 @@ archivos:
 >
 > | Migración | Decía | Entró en `main` |
 > |---|---|---|
+> | `20261021_notificaciones_por_usuario.sql` | rama `feat/notificaciones-por-usuario`, **forma aprobada por el dueño el 21/10** (ROJO R3) | Sale en v0.12.1. Tabla `notificaciones_usuario` (leída y borrada por persona) y la única `notificaciones (id, tenant_id)` para su FK compuesta. Solo agrega: no rellena nada ni toca `leida`/`archivada_en`, que se siguen leyendo; el código anterior funciona con este esquema |
 > | `20261019_cobranza_abono_comprobante.sql` | rama `feat/comprobante-cobranza`, **forma aprobada por el dueño el 19/10** (ROJO R3/R4; sin fusionar todavía) | `4a966305` (21/10, merge de `integra/v0-12-0`; sale en v0.12.0). `cobranza_abonos.comprobante_url` (texto, nace vacía): el recibo o la transferencia de cada pago de cliente. Solo agrega la columna; RLS y permisos ya estaban |
 > | `20261013_sitios_pantalla_doohmain.sql` | rama `feat/doohmain-pantalla-por-sitio`, **forma aprobada por el dueño el 13/10** (la subió a `main` en `84b589f3`; sale en v0.11.7) | `sitios.doohmain_pantalla` (texto, sin espacios en los extremos, 1–120): a qué pantalla de DOOHmain se publica cada pantalla, capturada en la ficha (13/10) |
 > | `20261013_doohmain_seguimiento_unicas.sql` | rama `fix/doohmain-publicacion`, **forma aprobada por el dueño el 13/10** | identidad en `id` y las tres únicas que el SDK de DOOHmain necesita: `20260805` creaba las tablas sin ellas y `20260901` (`if not exists`) no hacía nada, así que publicar fallaba en toda base levantada desde el repo (13/10) |

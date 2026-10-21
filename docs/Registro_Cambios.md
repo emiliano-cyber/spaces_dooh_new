@@ -7,6 +7,16 @@ La entrada más reciente va arriba.
 
 ## 2026-10-21
 
+- **Las notificaciones se pueden borrar una por una.** En la campanita, cada
+  aviso tiene ahora una **✕** a la derecha para quitarlo solo; «Borrar todas»
+  sigue arriba para vaciar la lista de un golpe. Las que ya leíste se quedan en
+  la lista, atenuadas, hasta que las borres.
+- **Tu campanita es tuya.** Lo que marcas como leído o borras ya no le cambia
+  nada a tus compañeros. Antes, si alguien vaciaba su campanita, se la vaciaba a
+  toda la empresa, y lo que uno leía les aparecía como leído a los demás. Lo que
+  ya se había borrado o leído para todos antes de este cambio se queda como
+  estaba.
+
 Seis correcciones de seguridad que salieron de la revisión del 21 de octubre.
 Ninguna cambia cómo se usa la aplicación en el día a día.
 

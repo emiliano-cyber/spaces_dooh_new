@@ -179,6 +179,20 @@ es **422** con mensaje entendible (`uploads.ts:5-17`).
 cron usa **la misma regla** escrita en su propia sentencia
 (`app/api/recordatorios/route.ts`) precisamente para que no diverjan.
 
+> [!important] 2026-10-21 · NOTIF-USUARIO — la bandeja es de cada persona
+> La notificación sigue siendo **una por empresa** y `notificar()` no cambia.
+> Lo que cambia es lo que cada quien hace con ella: `marcarNotificacionLeida`,
+> `borrarNotificacion` (nueva) y `archivarTodasNotificaciones` escriben en
+> `notificaciones_usuario` y reciben el `usuarioId` de la ruta, que lo saca de la
+> sesión. Las lecturas (`listarNotificaciones`, `notificacionesDesde`) hacen
+> `left join` con esa tabla para el usuario y esconden lo que **él** borró.
+> «Leída» = la leyó él **o** está marcada con la columna vieja `leida`; lo
+> archivado para todos antes del 21/10 sigue oculto. Las tres escrituras son
+> `insert … select from notificaciones where id/tenant`: si el aviso es de otra
+> empresa no se inserta nada y la ruta da 404. Lo miden
+> `notificaciones-repo.archivar.test.ts` (forma de las sentencias) y
+> `lib/test/notificaciones-por-usuario.e2e.test.ts` (aislamiento real).
+
 ## `acciones-repo.ts` — bitácora
 
 `acciones (accion, entidad, usuario_id, usuario_nombre, timestamp)`.
