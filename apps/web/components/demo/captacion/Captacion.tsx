@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Plus, Clock, CheckCircle2, XCircle } from 'lucide-react'
 import { Button } from '@/components/demo/ui/Button'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Sheet } from '@/components/demo/ui/Sheet'
+import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { formatNumero } from '@/lib/formato-numero'
 import {
   ETAPAS,
@@ -79,8 +81,8 @@ const VISTAS = [
 // ─── Los campos propios de cada tipo ──────────────────────────────────────────
 // Son los mismos que acepta `captacion-controller.ts` (esquemas `.strict()`):
 // un campo de más sería un 400.
-type Campo = { clave: string; label: string; tipo: 'texto' | 'numero' | 'opciones'; opciones?: string[] }
-const CAMPOS: Record<TipoProspecto, Campo[]> = {
+type CampoDelTipo = { clave: string; label: string; tipo: 'texto' | 'numero' | 'opciones'; opciones?: string[] }
+const CAMPOS: Record<TipoProspecto, CampoDelTipo[]> = {
   CLIENTE: [
     { clave: 'rfc', label: 'RFC', tipo: 'texto' },
     { clave: 'razonSocial', label: 'Razón social', tipo: 'texto' },
@@ -144,10 +146,13 @@ function FormularioProspecto({
   valor,
   onChange,
   editando,
+  falta,
 }: {
   valor: ProspectoForm
   onChange: (f: ProspectoForm) => void
   editando: boolean
+  /** OBLIG-01 · qué obligatorio faltó al guardar (lo lleva `Captacion`). */
+  falta: (campo: string) => boolean
 }) {
   const set = (parcial: Partial<ProspectoForm>) => onChange({ ...valor, ...parcial })
   const setContacto = (k: string, v: string) => set({ contacto: { ...valor.contacto, [k]: v } })
@@ -156,9 +161,10 @@ function FormularioProspecto({
 
   return (
     <div className="space-y-4">
-      <div>
-        <span className={labelCls}>¿Qué estás captando?</span>
-        <div className="mt-1 flex flex-wrap gap-2">
+      {/* `div` y no `label`: dentro hay botones, y un <label> que los envuelve
+          dispara el primero al pulsar el texto. */}
+      <Campo label="¿Qué estás captando?" obligatorio falta={falta('tipo')} como="div">
+        <div className="flex flex-wrap gap-2">
           {TIPOS_PROSPECTO.map((t) => (
             <button
               key={t}
@@ -174,17 +180,17 @@ function FormularioProspecto({
           ))}
         </div>
         {editando && <p className="mt-1 text-[11px] text-ink-muted">El tipo no se cambia: decide qué registro se crea al aprobar.</p>}
-      </div>
+      </Campo>
 
-      <label className="block">
-        <span className={labelCls}>Nombre *</span>
+      <Campo label="Nombre" obligatorio falta={falta('nombre')}>
         <input className={inputCls} value={valor.nombre} maxLength={200}
           placeholder={valor.tipo === 'CLIENTE' ? 'Empresa o marca' : valor.tipo === 'PANTALLA' ? 'Nombre de la ubicación' : 'Nombre'}
           onChange={(e) => set({ nombre: e.target.value })} />
-      </label>
+      </Campo>
 
       <fieldset className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <legend className={`${labelCls} mb-1`}>
+        {/* El mismo estilo de etiqueta que `Campo`: es el título del grupo. */}
+        <legend className="mb-1 block text-[12px] font-medium text-ink">
           {valor.tipo === 'PREDIO' ? 'Dueño del terreno (se dará de alta como arrendador al aprobar)' : 'Contacto'}
         </legend>
         <input aria-label="Nombre del contacto" className={inputCls} placeholder="Nombre"
@@ -195,18 +201,21 @@ function FormularioProspecto({
           value={valor.contacto.email ?? ''} onChange={(e) => setContacto('email', e.target.value)} />
       </fieldset>
 
+      {/* Sin asterisco aunque el predio y la pantalla la necesiten: el
+          asterisco dice «no se guarda sin esto», y la dirección NO se exige al
+          guardar (`captacion-controller.ts:106`) sino al ENVIAR A REVISIÓN
+          (`faltantesParaRevision`, `lib/captacion.ts:137`). Es lo que promete
+          el subtítulo: «captura lo que tengas». */}
       {(conDireccion || valor.tipo === 'ARRENDADOR') && (
-        <label className="block">
-          <span className={labelCls}>Dirección{conDireccion ? ' *' : ''}</span>
+        <Campo label="Dirección">
           <input className={inputCls} value={valor.direccion ?? ''} maxLength={400}
             onChange={(e) => set({ direccion: e.target.value })} />
-        </label>
+        </Campo>
       )}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {CAMPOS[valor.tipo].map((c) => (
-          <label key={c.clave} className="block">
-            <span className={labelCls}>{c.label}</span>
+          <Campo key={c.clave} label={c.label}>
             {c.tipo === 'opciones' ? (
               <select className={inputCls} value={String(valor.datos[c.clave] ?? '')}
                 onChange={(e) => setDato(c.clave, e.target.value || null)}>
@@ -219,35 +228,31 @@ function FormularioProspecto({
               <input className={inputCls} type={c.tipo === 'numero' ? 'number' : 'text'} min={0}
                 value={String(valor.datos[c.clave] ?? '')} onChange={(e) => setDato(c.clave, e.target.value)} />
             )}
-          </label>
+          </Campo>
         ))}
       </div>
 
-      <label className="block">
-        <span className={labelCls}>Notas</span>
+      <Campo label="Notas">
         <textarea className={`${inputCls} h-20 py-2`} maxLength={2000} value={String(valor.datos.notas ?? '')}
           onChange={(e) => setDato('notas', e.target.value)} />
-      </label>
+      </Campo>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_180px]">
-        <label className="block">
-          <span className={labelCls}>Siguiente paso</span>
+        <Campo label="Siguiente paso">
           <input className={inputCls} value={valor.siguientePaso ?? ''} maxLength={300} placeholder="Ej. llamar para agendar visita"
             onChange={(e) => set({ siguientePaso: e.target.value })} />
-        </label>
-        <label className="block">
-          <span className={labelCls}>¿Para cuándo?</span>
+        </Campo>
+        <Campo label="¿Para cuándo?">
           <input type="date" className={inputCls} value={valor.siguientePasoFecha ?? ''}
             onChange={(e) => set({ siguientePasoFecha: e.target.value })} />
-        </label>
+        </Campo>
       </div>
 
       {!editando && (
-        <label className="block">
-          <span className={labelCls}>Primera nota de la bitácora</span>
+        <Campo label="Primera nota de la bitácora">
           <input className={inputCls} value={valor.nota ?? ''} maxLength={2000} placeholder="Cómo surgió este prospecto"
             onChange={(e) => set({ nota: e.target.value })} />
-        </label>
+        </Campo>
       )}
     </div>
   )
@@ -272,6 +277,8 @@ function Detalle({
   const [motivo, setMotivo] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [duplicado, setDuplicado] = useState(false)
+  // OBLIG-01 · el avance exige etapa y nota (`captacion-controller.ts:192-193`).
+  const ob = useObligatorios({ etapa, nota }, ['etapa', 'nota'])
 
   useEffect(() => {
     setEtapa(p.etapa)
@@ -287,12 +294,14 @@ function Detalle({
 
   async function avanzar() {
     setError(null)
+    if (!ob.validar()) return
     if (etapa === 'EN_REVISION' && p.etapa !== 'EN_REVISION' && faltan.length) {
       return setError(`Para enviarlo a revisión falta: ${faltan.join(', ')}`)
     }
     try {
       onCambio(await avanceApi(p.id, { etapa, nota, siguientePaso: siguiente || null, siguientePasoFecha: fecha || null }))
       setNota('')
+      ob.reiniciar()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo registrar el avance')
     }
@@ -400,13 +409,17 @@ function Detalle({
         <section className="space-y-2 rounded-md border border-border p-3">
           <h3 className="text-sm font-semibold">Registrar avance</h3>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-[200px_1fr]">
-            <select aria-label="Etapa" className={inputCls} value={etapa} onChange={(e) => setEtapa(e.target.value as Etapa)}>
-              {posibles.map((e) => (
-                <option key={e} value={e}>{e === p.etapa ? `${ETIQUETA_ETAPA[e]} (solo una nota)` : ETIQUETA_ETAPA[e]}</option>
-              ))}
-            </select>
-            <input aria-label="Qué pasó" className={inputCls} placeholder="Qué pasó" value={nota} maxLength={2000}
-              onChange={(e) => setNota(e.target.value)} />
+            <Campo label="Etapa" obligatorio falta={ob.falta('etapa')}>
+              <select className={inputCls} value={etapa} onChange={(e) => setEtapa(e.target.value as Etapa)}>
+                {posibles.map((e) => (
+                  <option key={e} value={e}>{e === p.etapa ? `${ETIQUETA_ETAPA[e]} (solo una nota)` : ETIQUETA_ETAPA[e]}</option>
+                ))}
+              </select>
+            </Campo>
+            <Campo label="Qué pasó" obligatorio falta={ob.falta('nota')}>
+              <input className={inputCls} placeholder="Qué pasó" value={nota} maxLength={2000}
+                onChange={(e) => setNota(e.target.value)} />
+            </Campo>
           </div>
           {p.etapa !== 'EN_REVISION' && (
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_180px]">
@@ -419,7 +432,7 @@ function Detalle({
           {etapa === 'EN_REVISION' && p.etapa !== 'EN_REVISION' && faltan.length > 0 && (
             <p className="text-xs text-amber-800">Para enviarlo a revisión falta: {faltan.join(', ')}.</p>
           )}
-          <Button size="sm" disabled={!nota.trim()} onClick={avanzar}>Guardar avance</Button>
+          <Button size="sm" onClick={avanzar}>Guardar avance</Button>
         </section>
       )}
 
@@ -456,6 +469,14 @@ export function Captacion() {
   const [abierto, setAbierto] = useState<ProspectoDetalle | null>(null)
   const [form, setForm] = useState<{ valor: ProspectoForm; id?: string } | null>(null)
   const [errorForm, setErrorForm] = useState<string | null>(null)
+  // OBLIG-01 · lo que el servidor exige al guardar (`captacion-controller.ts:103-104`):
+  // el tipo y el nombre. Lo demás se pide al enviarlo a revisión.
+  const ob = useObligatorios({ tipo: form?.valor.tipo, nombre: form?.valor.nombre }, ['tipo', 'nombre'])
+  const abrirForm = (f: { valor: ProspectoForm; id?: string }) => {
+    setErrorForm(null)
+    ob.reiniciar()
+    setForm(f)
+  }
 
   const [numPagina, setNumPagina] = useState(1)
 
@@ -495,6 +516,7 @@ export function Captacion() {
   async function guardar() {
     if (!form) return
     setErrorForm(null)
+    if (!ob.validar()) return
     try {
       const limpio = limpiar(form.valor)
       const p = form.id ? await editarProspectoApi(form.id, limpio) : await crearProspectoApi(limpio)
@@ -528,7 +550,7 @@ export function Captacion() {
             <option value="">Todos los tipos</option>
             {TIPOS_PROSPECTO.map((t) => <option key={t} value={t}>{ETIQUETA_TIPO[t]}</option>)}
           </select>
-          <Button variant="success" onClick={() => { setErrorForm(null); setForm({ valor: formVacio() }) }}>
+          <Button variant="success" onClick={() => abrirForm({ valor: formVacio() })}>
             <Plus className="mr-1 h-4 w-4" /> Nuevo prospecto
           </Button>
         </div>
@@ -538,6 +560,10 @@ export function Captacion() {
         <p className="text-xs text-ink-muted">Estos esperan a que un gerente, director o administrador los revise.</p>
       )}
 
+      {/* Plegable (pedido del 20/10). Solo la tabla: las pestañas, el filtro
+          por tipo, «Nuevo prospecto» y la página viven en ESTE componente,
+          fuera de la tarjeta, así que plegar y desplegar no los pierde. */}
+      <CardColapsable id="captacion.prospectos" titulo="Prospectos">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -584,6 +610,7 @@ export function Captacion() {
           </div>
         )}
       </div>
+      </CardColapsable>
 
       <Sheet
         open={!!form}
@@ -593,7 +620,7 @@ export function Captacion() {
         footer={
           <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={() => setForm(null)}>Cancelar</Button>
-            <Button disabled={!form?.valor.nombre.trim()} onClick={guardar}>Guardar</Button>
+            <Button onClick={guardar}>Guardar</Button>
           </div>
         }
       >
@@ -601,7 +628,7 @@ export function Captacion() {
           <p role="alert" className="mb-3 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800">{errorForm}</p>
         )}
         {form && (
-          <FormularioProspecto valor={form.valor} editando={!!form.id} onChange={(valor) => setForm({ ...form, valor })} />
+          <FormularioProspecto valor={form.valor} editando={!!form.id} falta={ob.falta} onChange={(valor) => setForm({ ...form, valor })} />
         )}
       </Sheet>
 
@@ -616,7 +643,7 @@ export function Captacion() {
             p={abierto}
             puedeAprobar={!!pagina?.puedeAprobar}
             onCambio={(p) => { setAbierto(p); void cargar() }}
-            onEditar={() => { setErrorForm(null); setForm({ valor: aForm(abierto), id: abierto.id }) }}
+            onEditar={() => abrirForm({ valor: aForm(abierto), id: abierto.id })}
           />
         )}
       </Sheet>

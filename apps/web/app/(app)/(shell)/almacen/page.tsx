@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { Warehouse, Plus, ArrowLeftRight, Loader2 } from 'lucide-react'
-import { Card, CardContent } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
+import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { useSitios } from '@/lib/data/client'
 import {
@@ -107,7 +108,9 @@ export default function AlmacenPage() {
         </div>
       )}
 
-      <Card className="overflow-hidden p-0">
+      {/* Plegable (pedido del 20/10). El filtro por tipo vive en la página,
+          fuera de la tarjeta: plegar y desplegar no lo pierde. */}
+      <CardColapsable id="almacen.articulos" titulo="Artículos" className="overflow-hidden" contentClassName="px-0 pb-0">
         {!activos ? (
           <div className="h-40 animate-pulse rounded-md bg-surface-2" />
         ) : activos.length === 0 ? (
@@ -159,7 +162,7 @@ export default function AlmacenPage() {
             </table>
           </div>
         )}
-      </Card>
+      </CardColapsable>
 
       {altaOpen && <AltaActivoModal onClose={() => setAltaOpen(false)} onCreado={() => { setAltaOpen(false); void cargar() }} />}
       {mover && (
@@ -183,9 +186,12 @@ function AltaActivoModal({ onClose, onCreado }: { onClose: () => void; onCreado:
   const [datos, setDatos] = useState<Record<CampoTipo, string>>({ marca: '', modelo: '', numeroSerie: '', placas: '' })
   const [busy, setBusy] = useState(false)
   const campos = camposDelTipo(tipoActivo)
+  // OBLIG-01 · los dos que exige el servidor (`almacen-controller.ts:32-33`).
+  // El tipo tiene DEFAULT allí y el selector nunca queda en blanco.
+  const ob = useObligatorios({ etiqueta, descripcion }, ['etiqueta', 'descripcion'])
 
   async function guardar() {
-    if (!etiqueta.trim() || !descripcion.trim()) { toast.error('Etiqueta y descripción son obligatorias'); return }
+    if (!ob.validar()) return
     setBusy(true)
     try {
       // Solo los campos que pide el tipo ELEGIDO: si alguien teclea placas y
@@ -213,15 +219,15 @@ function AltaActivoModal({ onClose, onCreado }: { onClose: () => void; onCreado:
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
-          <Button size="sm" disabled={busy || !etiqueta.trim() || !descripcion.trim()} onClick={guardar}>
+          <Button size="sm" disabled={busy} onClick={guardar}>
             {busy ? 'Guardando…' : 'Registrar'}
           </Button>
         </div>
       }
     >
       <div className="space-y-3">
-        <Campo label="Etiqueta / número de inventario"><input className={inputCls} value={etiqueta} onChange={(e) => setEtiqueta(e.target.value)} placeholder="Ej. INV-0231" autoFocus /></Campo>
-        <Campo label="Descripción"><input className={inputCls} value={descripcion} onChange={(e) => setDescripcion(e.target.value)} placeholder="Ej. Camioneta Nissan NP300 / Pantalla LED 4x3 m" /></Campo>
+        <Campo label="Etiqueta / número de inventario" obligatorio falta={ob.falta('etiqueta')}><input className={inputCls} value={etiqueta} onChange={(e) => setEtiqueta(e.target.value)} placeholder="Ej. INV-0231" autoFocus /></Campo>
+        <Campo label="Descripción" obligatorio falta={ob.falta('descripcion')}><input className={inputCls} value={descripcion} onChange={(e) => setDescripcion(e.target.value)} placeholder="Ej. Camioneta Nissan NP300 / Pantalla LED 4x3 m" /></Campo>
         <Campo label="Tipo">
           <select className={inputCls} value={tipoActivo} onChange={(e) => setTipoActivo(e.target.value as TipoActivo)}>
             {TIPOS_ACTIVO.map((t) => <option key={t} value={t}>{ETIQUETA_TIPO_ACTIVO[t]}</option>)}
@@ -230,7 +236,7 @@ function AltaActivoModal({ onClose, onCreado }: { onClose: () => void; onCreado:
         {campos.length > 0 && (
           <div className="grid gap-3 sm:grid-cols-2">
             {campos.map((c) => (
-              <Campo key={c} label={`${c === 'numeroSerie' && tipoActivo === 'VEHICULO' ? 'Número de serie (VIN)' : ETIQUETA_CAMPO[c]} (opcional)`}>
+              <Campo key={c} label={`${c === 'numeroSerie' && tipoActivo === 'VEHICULO' ? 'Número de serie (VIN)' : ETIQUETA_CAMPO[c]}`}>
                 <input
                   className={inputCls}
                   value={datos[c]}
@@ -242,8 +248,8 @@ function AltaActivoModal({ onClose, onCreado }: { onClose: () => void; onCreado:
             ))}
           </div>
         )}
-        <Campo label="Dónde se guarda (opcional)"><input className={inputCls} value={ubicacion} maxLength={200} onChange={(e) => setUbicacion(e.target.value)} placeholder="Ej. Bodega norte, anaquel 3" /></Campo>
-        <Campo label="Notas (opcional)"><textarea className={inputCls} rows={2} value={notas} onChange={(e) => setNotas(e.target.value)} /></Campo>
+        <Campo label="Dónde se guarda"><input className={inputCls} value={ubicacion} maxLength={200} onChange={(e) => setUbicacion(e.target.value)} placeholder="Ej. Bodega norte, anaquel 3" /></Campo>
+        <Campo label="Notas"><textarea className={inputCls} rows={2} value={notas} onChange={(e) => setNotas(e.target.value)} /></Campo>
       </div>
     </Modal>
   )
@@ -257,9 +263,12 @@ function MoverModal({
   const [motivo, setMotivo] = useState('')
   const [sitioId, setSitioId] = useState('')
   const [busy, setBusy] = useState(false)
+  // OBLIG-01 · el movimiento siempre, y la pantalla destino solo al instalar:
+  // es lo que exige la ruta (`api/almacen/[id]/movimiento/route.ts:25-27`).
+  const ob = useObligatorios({ tipo, sitioId }, ['tipo', { campo: 'sitioId', si: tipo === 'SALIDA' }])
 
   async function guardar() {
-    if (tipo === 'SALIDA' && !sitioId) { toast.error('Elige la pantalla destino'); return }
+    if (!ob.validar()) return
     setBusy(true)
     try {
       await moverActivoApi(activo.id, { tipo, motivo: motivo.trim() || null, sitioId: tipo === 'SALIDA' ? sitioId : null })
@@ -281,20 +290,20 @@ function MoverModal({
       }
     >
       <div className="space-y-3">
-        <Campo label="Movimiento">
+        <Campo label="Movimiento" obligatorio falta={ob.falta('tipo')}>
           <select className={inputCls} value={tipo} onChange={(e) => setTipo(e.target.value as TipoMovAlmacen)}>
             {opciones.map((o) => <option key={o} value={o}>{MOV_LABEL[o]}</option>)}
           </select>
         </Campo>
         {tipo === 'SALIDA' && (
-          <Campo label="Pantalla destino">
+          <Campo label="Pantalla destino" obligatorio falta={ob.falta('sitioId')}>
             <select className={inputCls} value={sitioId} onChange={(e) => setSitioId(e.target.value)}>
               <option value="">— Elige —</option>
               {sitios.map((s) => <option key={s.id} value={s.id}>{s.nombre}</option>)}
             </select>
           </Campo>
         )}
-        <Campo label="Motivo / nota (opcional)"><textarea className={inputCls} rows={2} value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Ej. Retiro por fin de contrato" /></Campo>
+        <Campo label="Motivo / nota"><textarea className={inputCls} rows={2} value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Ej. Retiro por fin de contrato" /></Campo>
       </div>
     </Modal>
   )
@@ -330,14 +339,5 @@ function PastillaTipo({ activa, onClick, label, cuenta }: { activa: boolean; onC
     >
       {label} <span className={activa ? 'opacity-80' : 'text-muted'}>{cuenta}</span>
     </button>
-  )
-}
-
-function Campo({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-[12px] font-medium text-ink">{label}</span>
-      {children}
-    </label>
   )
 }

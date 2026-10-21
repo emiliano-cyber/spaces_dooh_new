@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { Upload, Code2, Eye } from 'lucide-react'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
+import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { crearCreatividadApi } from '@/lib/data/estado-api'
 import { imagenAHtml, IMAGEN_CREATIVO_MAX_MB } from '@/lib/creativo-html'
@@ -31,6 +32,9 @@ export function AgregarCreativo({ campanaId }: { campanaId: string }) {
   const [codeNombre, setCodeNombre] = useState('')
   // Creativo en vista previa (null = modal cerrado).
   const [previa, setPrevia] = useState<Previa | null>(null)
+  // OBLIG-01 · al pegar código, el código es lo único obligatorio (sin él no
+  // hay creativo); el nombre cae a «Creativo (código)».
+  const ob = useObligatorios({ codigo }, ['codigo'])
 
   if (!puede) return null
 
@@ -53,7 +57,7 @@ export function AgregarCreativo({ campanaId }: { campanaId: string }) {
   }
 
   function previsualizarCodigo() {
-    if (!codigo.trim()) return
+    if (!ob.validar()) return
     setPrevia({ nombre: codeNombre.trim() || 'Creativo (código)', codigo })
   }
 
@@ -72,6 +76,7 @@ export function AgregarCreativo({ campanaId }: { campanaId: string }) {
       setCodigo('')
       setCodeNombre('')
       setCodeOpen(false)
+      ob.reiniciar()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'No se pudo subir')
     }
@@ -92,22 +97,34 @@ export function AgregarCreativo({ campanaId }: { campanaId: string }) {
 
       {codeOpen && (
         <div className="space-y-2 rounded-md border border-border bg-surface-2 p-2.5">
-          <input
-            value={codeNombre}
-            onChange={(e) => setCodeNombre(e.target.value)}
-            placeholder="Nombre del creativo (opcional)"
-            className="h-8 w-full rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
-          />
-          <textarea
-            value={codigo}
-            onChange={(e) => setCodigo(e.target.value)}
-            placeholder="Pega aquí el código del creativo (HTML/UTF)…"
-            rows={5}
-            className="w-full rounded border border-border-strong bg-surface px-2 py-1.5 font-mono text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
-          />
+          <Campo label="Nombre del creativo">
+            <input
+              value={codeNombre}
+              onChange={(e) => setCodeNombre(e.target.value)}
+              className="h-8 w-full rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            />
+          </Campo>
+          <Campo label="Código" obligatorio falta={ob.falta('codigo')}>
+            <textarea
+              value={codigo}
+              onChange={(e) => setCodigo(e.target.value)}
+              placeholder="Pega aquí el código del creativo (HTML/UTF)…"
+              rows={5}
+              className="w-full rounded border border-border-strong bg-surface px-2 py-1.5 font-mono text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            />
+          </Campo>
           <div className="flex justify-end gap-2">
-            <Button size="sm" variant="secondary" onClick={() => setCodeOpen(false)}>Cancelar</Button>
-            <Button size="sm" disabled={!codigo.trim() || subiendo} onClick={previsualizarCodigo}>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                setCodeOpen(false)
+                ob.reiniciar()
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button size="sm" disabled={subiendo} onClick={previsualizarCodigo}>
               <Eye className="h-3.5 w-3.5" /> Vista previa
             </Button>
           </div>

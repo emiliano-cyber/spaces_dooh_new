@@ -1,7 +1,6 @@
 'use client'
 
 import { Ticket } from 'lucide-react'
-import { Card, CardContent } from '@/components/demo/ui/Card'
 import { GestionCodigos } from '@/components/demo/codigos/GestionCodigos'
 
 // ============================================================================
@@ -41,11 +40,8 @@ export default function CodigosPromocionalesPage() {
           </p>
         </div>
       </header>
-      <Card>
-        <CardContent className="pt-6">
-          <GestionCodigos />
-        </CardContent>
-      </Card>
+      {/* PLEG-02 · sin tarjeta envolvente: la lista trae la suya, plegable. */}
+      <GestionCodigos />
     </div>
   )
 }

@@ -6,9 +6,10 @@ import { conteo } from '@/lib/plural'
 import { toast as sonner } from 'sonner'
 import { Search, SlidersHorizontal, MapPin, Check, CheckCircle2, CalendarClock, Plus, UserRound, Download } from 'lucide-react'
 import { MapView, type MapPoint } from '@/components/demo/MapView'
-import { Card } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
+import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { SiteFicha } from '@/components/demo/comercial/SiteFicha'
 import { ReservaDialog } from '@/components/demo/comercial/ReservaDialog'
 import { AltaSitioDialog } from '@/components/demo/comercial/AltaSitioDialog'
@@ -196,10 +197,14 @@ export default function ComercialPage() {
 
       {/* Reservas tentativas (Acto 3: confirmar / extender) */}
       {tentativas.length > 0 && (
-        <Card className="border-[#f59e0b40] bg-[#f59e0b0a] p-3">
-          <div className="mb-2 flex items-center gap-2 text-[13px] font-medium text-ink">
-            <CalendarClock className="h-4 w-4 text-warning" /> Reservas tentativas
-          </div>
+        <CardColapsable
+          id="comercial.tentativas"
+          titulo="Reservas tentativas"
+          icono={<CalendarClock className="h-4 w-4 text-warning" />}
+          className="border-[#f59e0b40] bg-[#f59e0b0a]"
+          headerClassName="px-3 pt-3 pb-2"
+          contentClassName="px-3 pb-3"
+        >
           <ul className="space-y-2">
             {tentativas.map((c) => {
               const rs = (reservas ?? []).filter((r) => r.campanaId === c.id && r.estatus === 'TENTATIVA')
@@ -232,7 +237,7 @@ export default function ComercialPage() {
               )
             })}
           </ul>
-        </Card>
+        </CardColapsable>
       )}
 
       {/* Filtros */}
@@ -277,21 +282,25 @@ export default function ComercialPage() {
       </div>
 
       {/* Lista + Mapa */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[440px_1fr]">
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[440px_1fr]">
         {/* Lista */}
-        <Card className="flex max-h-[560px] flex-col overflow-hidden">
-          <div className="flex items-center justify-between border-b border-border px-3 py-2 text-[12px] text-muted">
-            <span className="inline-flex items-center gap-1.5">
-              <SlidersHorizontal className="h-3.5 w-3.5" /> Inventario
-            </span>
-            <span className="inline-flex items-center gap-2">
-              <span>{conteo(filtrados.length, 'resultado')}</span>
-              {/* Baja lo que hay en pantalla, con los filtros aplicados. Aqui
+        {/* Plegable (pedido del 20/10). Filtros y selección viven en la página,
+            fuera de la tarjeta: plegar la lista no los pierde. */}
+        <CardColapsable
+          id="comercial.inventario"
+          titulo="Inventario"
+          icono={<SlidersHorizontal className="h-3.5 w-3.5 text-muted" />}
+          className="flex max-h-[560px] flex-col overflow-hidden"
+          headerClassName="border-b border-border px-3 py-2"
+          contentClassName="flex min-h-0 flex-1 flex-col px-0 pb-0"
+          resumen={<span className="text-[12px] text-muted">{conteo(filtrados.length, 'resultado')}</span>}
+          accion={
+              /* Baja lo que hay en pantalla, con los filtros aplicados. Aqui
                   eso es lo util: se filtra por zona o disponibilidad para armar
                   una propuesta, y el archivo tiene que ser ESE recorte, no el
                   inventario entero. Mismo formato que la plantilla de carga, asi
-                  que tambien sirve para editar en masa y volver a subirlo. */}
-              <span className="flex items-center gap-1 border-l border-border pl-2">
+                  que tambien sirve para editar en masa y volver a subirlo. */
+              <span className="flex items-center gap-1 text-[12px] text-muted">
                 <Download className="h-3.5 w-3.5" />
                 <button
                   onClick={() => bajarInventario('xlsx')}
@@ -310,8 +319,8 @@ export default function ComercialPage() {
                   CSV
                 </button>
               </span>
-            </span>
-          </div>
+          }
+        >
           <ul className="flex-1 overflow-y-auto">
             {!sitios ? (
               Array.from({ length: 8 }).map((_, i) => (
@@ -454,10 +463,10 @@ export default function ComercialPage() {
               </Button>
             </div>
           )}
-        </Card>
+        </CardColapsable>
 
         {/* Mapa */}
-        <Card className="overflow-hidden">
+        <CardColapsable id="comercial.mapa" titulo="Mapa" className="overflow-hidden" contentClassName="px-0 pb-0">
           <div className="h-[560px] w-full">
             {sitios ? (
               <MapView points={puntos} selectedId={activo} onSelect={abrirFicha} zoom={11} />
@@ -471,7 +480,7 @@ export default function ComercialPage() {
             <Pin color="#ef4444" label="Ocupado" />
             <Pin color="#f59e0b" label="Reservado · tentativo" />
           </div>
-        </Card>
+        </CardColapsable>
       </div>
 
       {/* Alta de pantalla */}
@@ -558,24 +567,32 @@ function ExtenderDialog({
   onDone: (nombre: string) => void
 }) {
   const [fin, setFin] = useState(isoDate(60))
+  // OBLIG-01 · la nueva fecha de fin es todo lo que pide el diálogo. Vacía,
+  // `new Date('')` reventaba al pasarla a ISO sin decir por qué.
+  const ob = useObligatorios({ fin }, ['fin'])
   if (!campana) return null
+  function cerrar() {
+    ob.reiniciar()
+    onClose()
+  }
   return (
     <Modal
       open={!!campana}
-      onOpenChange={(v) => !v && onClose()}
+      onOpenChange={(v) => !v && cerrar()}
       title="Extender campaña"
       subtitle={campana.nombre}
       footer={
         <div className="flex justify-end gap-2">
-          <Button variant="secondary" size="sm" onClick={onClose}>
+          <Button variant="secondary" size="sm" onClick={cerrar}>
             Cancelar
           </Button>
           <Button
             size="sm"
             onClick={async () => {
+              if (!ob.validar()) return
               await extenderCampanaApi(campana.id, new Date(fin).toISOString())
               onDone(campana.nombre)
-              onClose()
+              cerrar()
             }}
           >
             <CalendarClock className="h-3.5 w-3.5" /> Extender
@@ -583,17 +600,22 @@ function ExtenderDialog({
         </div>
       }
     >
-      <label className="block">
-        <span className="mb-1 flex items-center gap-1.5 text-[12px] font-medium text-ink">
-          <MapPin className="h-3.5 w-3.5 text-muted" /> Nueva fecha de fin
-        </span>
+      <Campo
+        label={
+          <span className="inline-flex items-center gap-1.5">
+            <MapPin className="h-3.5 w-3.5 text-muted" /> Nueva fecha de fin
+          </span>
+        }
+        obligatorio
+        falta={ob.falta('fin')}
+      >
         <input
           type="date"
           value={fin}
           onChange={(e) => setFin(e.target.value)}
           className="h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
         />
-      </label>
+      </Campo>
     </Modal>
   )
 }

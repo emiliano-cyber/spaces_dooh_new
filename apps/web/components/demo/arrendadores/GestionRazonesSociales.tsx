@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { Plus, Pencil, Trash2, Check, X, AlertTriangle } from 'lucide-react'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
+import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { cn } from '@/lib/cn'
 import { esRfcValido } from '@/lib/rfc'
 import {
@@ -72,27 +73,35 @@ export function GestionRazonesSociales({
   const [borrador, setBorrador] = useState<Borrador>(VACIO)
   const [ocupado, setOcupado] = useState(false)
 
+  // OBLIG-01: la razón social es obligatoria en el alta y en la edición
+  // (`razonSocial` min(1), lib/server/arrendadores-controller.ts:400 y :414).
+  const ob = useObligatorios({ razonSocial: borrador.razonSocial }, ['razonSocial'])
+
   function abrirEdicion(rs: RazonSocial) {
+    ob.reiniciar()
     setCreandoEn(null)
     setEditando(rs.id)
     setBorrador({ razonSocial: rs.razonSocial, rfc: rs.rfc ?? '', regimen: rs.regimen ?? '' })
   }
   function abrirAlta(arrendadorId: string) {
+    ob.reiniciar()
     setEditando(null)
     setCreandoEn(arrendadorId)
     setBorrador(VACIO)
   }
   function cerrar() {
+    ob.reiniciar()
     setEditando(null)
     setCreandoEn(null)
     setBorrador(VACIO)
   }
 
   const rfcInvalido = !esRfcValido(borrador.rfc)
-  const puedeGuardar = !!borrador.razonSocial.trim() && !rfcInvalido && !ocupado
+  const puedeGuardar = !rfcInvalido && !ocupado
 
   async function guardar() {
     if (!puedeGuardar) return
+    if (!ob.validar()) return
     setOcupado(true)
     try {
       const datos = {
@@ -140,8 +149,7 @@ export function GestionRazonesSociales({
   const formulario = (
     <div className="space-y-2 rounded border border-accent/40 bg-accent-soft p-2.5">
       <div className="grid gap-2 sm:grid-cols-3">
-        <label className="block">
-          <span className="mb-1 block text-[11px] text-muted">Razón social *</span>
+        <Campo label="Razón social" obligatorio falta={ob.falta('razonSocial')}>
           <input
             className={inputCls}
             value={borrador.razonSocial}
@@ -149,9 +157,8 @@ export function GestionRazonesSociales({
             placeholder="Nombre o denominación fiscal"
             autoFocus
           />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-[11px] text-muted">RFC</span>
+        </Campo>
+        <Campo label="RFC">
           <input
             className={cn(inputCls, 'demo-num uppercase', rfcInvalido && 'border-error')}
             value={borrador.rfc}
@@ -159,9 +166,8 @@ export function GestionRazonesSociales({
             placeholder="XAXX010101000"
             maxLength={13}
           />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-[11px] text-muted">Régimen fiscal</span>
+        </Campo>
+        <Campo label="Régimen fiscal">
           <input
             className={inputCls}
             value={borrador.regimen}
@@ -169,7 +175,7 @@ export function GestionRazonesSociales({
             placeholder="601 - General de Ley Personas Morales"
             maxLength={120}
           />
-        </label>
+        </Campo>
       </div>
       {rfcInvalido && (
         <p className="text-[11.5px] text-error">
@@ -189,6 +195,7 @@ export function GestionRazonesSociales({
 
   return (
     <CardColapsable
+      id="arrendadores.razones-sociales"
       titulo="Razones sociales"
       subtitulo="A nombre de quién factura cada arrendador. Un mismo arrendador puede tener varias; el contrato elige cuál usa."
       contentClassName="space-y-4 pb-4"

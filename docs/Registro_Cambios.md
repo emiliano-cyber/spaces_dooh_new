@@ -5,6 +5,68 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-10-20
+
+- **En Clientes ya se ven las campañas y el pipeline de cada cliente.** Al
+  pulsar el nombre de un cliente se abre su ficha con dos partes. Arriba, su
+  **pipeline**: cuántas propuestas tiene en borrador, enviadas y aprobadas,
+  cuántas campañas en curso y terminadas, y cuánto dinero hay en cada paso
+  (con IVA), más lo que se perdió (propuestas rechazadas y campañas
+  canceladas). Abajo, la **lista de sus campañas** con su estado y en qué
+  etapa van; al pulsar una se abre esa campaña en Campañas. Si el cliente es
+  una agencia, también salen las propuestas que armó como agencia y las
+  campañas que salieron de ellas.
+- **Los formularios dicen qué dato es obligatorio, y cuál faltó.** En todas las
+  ventanas de dar de alta o editar (pantallas, contratos, arrendadores,
+  propuestas, reservas, órdenes de trabajo, imprenta, almacén, facturas,
+  clientes, usuarios, captación, códigos, paquetes y más), los campos
+  obligatorios llevan un **asterisco rojo** y los opcionales solo su nombre
+  (desaparece el «(opcional)»). Si pulsas Guardar y falta un obligatorio, **ese
+  campo se pone en rojo con «Falta este dato» debajo** y no se guarda nada; al
+  escribirlo, el rojo se quita. Antes el botón de guardar se quedaba apagado
+  sin decir por qué, o el error llegaba después sin decir de qué campo.
+- **Reportar una incidencia ahora pide la descripción.** Antes, si se dejaba
+  vacía, se guardaba con un texto genérico.
+- *(Los formularios de Space Eyes se pasan a esta regla en una versión
+  posterior a la 0.12.0, la primera que los trae a `main`.)*
+- **Todas las pantallas se pueden plegar por secciones, como Arrendadores.**
+  En Dashboard, Inventario, Comercial, Clientes, Propuestas, Campañas,
+  Creativos, Operaciones, Finanzas, Reportes, Administración y el resto, cada
+  bloque con título se pliega o despliega con un clic en su encabezado, y sus
+  cifras principales siguen a la vista aunque esté plegado. **La aplicación
+  recuerda cómo lo dejaste**: al volver o recargar, lo plegado sigue plegado
+  (solo en ese navegador; no cambia nada para los demás). También Arrendadores
+  lo recuerda ahora, y las secciones de la ficha de campaña.
+
+## 2026-10-19
+
+- **Space Eyes: el encuadre de un equipo solo lo fija el Dueño.** En g500
+  varias personas movieron el zoom desde la vista en vivo y dejaron torcido el
+  encuadre de tres pantallas. Al cambiar el encuadre, el equipo olvida los
+  creativos que ya reconocía y pasa un día sin reconocer nada. Ahora fijar el
+  lente, el zoom, la orientación o las esquinas de la pantalla es solo del
+  Dueño. Los demás pueden seguir moviendo el zoom, la luz y el enfoque para
+  mirar, y la foto que piden sale como la ven, sin cambiar el sitio. En
+  Actividad queda quién fijó el encuadre de qué equipo.
+- **Space Eyes: «Ver con este lente» y «Ver nítido»** en la vista en vivo,
+  para mirar por otro lente sin fijarlo.
+- **Space Eyes: las campañas con el arte guardado como archivo ya llegan a los
+  equipos.** «Lanzamiento SpaceOs» nunca había llegado a PATRIOTISMO y
+  «Aceptamos g500» se había apagado sola; ninguna daba error.
+- **Space Eyes: «Agregar dispositivo» avisa** cuando la dirección del servidor
+  no sirve, en vez de mostrar una que el equipo no puede alcanzar.
+- *(Trabajo de José. Va en la versión 0.12.0; para que el candado quede
+  completo, en g500 hay que actualizar también el servidor de Space Eye.)*
+- **Cada pago de un cliente puede llevar su comprobante.** En Finanzas →
+  Cobranza, al **Registrar pago** hay un campo nuevo, **«Comprobante de
+  pago»**, para adjuntar el recibo o la transferencia (PDF o imagen, hasta
+  5 MB). Es opcional. Y en cada cobranza que ya tiene algo pagado aparece
+  **«Pagos y comprobantes»**: la lista de los pagos recibidos, con su fecha y
+  quién los registró, donde se abre cada comprobante o se sube el que llegó
+  después. Subirlo después no cambia el importe ni la fecha del pago. Es lo
+  mismo que ya tenían los pagos de renta a los arrendadores. *(Aprobado por el dueño el 19/10; sale en la
+  versión 0.12.0.)*
+
 ## 2026-10-14
 
 - **La documentación interna, al día con las versiones 0.11.4 a 0.11.9.** No

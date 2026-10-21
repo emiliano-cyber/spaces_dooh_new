@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { AvisoFranjaCMS } from '@/components/demo/rejilla/AvisoFranjaCMS'
 import {
   programacionApi,
@@ -86,11 +86,9 @@ export function FranjaProgramadaCampana({ campanaId }: { campanaId: string }) {
   }))
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Horario de transmisión</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3 text-[13px]">
+    // PLEG-01 · plegar NO pierde la franja elegida sin guardar: `eleccion` vive
+    // en este componente, que sigue montado; solo se desmonta el contenido.
+    <CardColapsable id="campana.horario" titulo="Horario de transmisión" contentClassName="space-y-3 text-[13px]">
         {error && (
           <p role="alert" className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-red-800">
             {error}
@@ -158,7 +156,6 @@ export function FranjaProgramadaCampana({ campanaId }: { campanaId: string }) {
           </>
         )}
         <AvisoFranjaCMS compacto />
-      </CardContent>
-    </Card>
+    </CardColapsable>
   )
 }

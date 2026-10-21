@@ -2,9 +2,10 @@
 
 import { useState } from 'react'
 import { Plus, Pencil, Trash2, Building2, Handshake, ShieldCheck, ShieldAlert } from 'lucide-react'
-import { Card, CardContent } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
+import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { useClientes, useConfigNegocio, type Cliente } from '@/lib/data/client'
 import {
@@ -17,6 +18,7 @@ import {
 import { desbloquearApi, esErrorDeDesbloqueo } from '@/lib/data/cambios-api'
 import { esEmailValido, esTelefonoValido, esCpValido, EMAIL_INVALIDO, TELEFONO_INVALIDO, CP_INVALIDO } from '@/lib/validacion'
 import { esRfcValido } from '@/lib/rfc'
+import { FichaCliente } from '@/components/demo/clientes/FichaCliente'
 
 const inputCls =
   'h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
@@ -41,6 +43,8 @@ export default function ClientesPage() {
   const [editar, setEditar] = useState<Cliente | null>(null)
   const [borrar, setBorrar] = useState<Cliente | null>(null)
   const [nuevoOpen, setNuevoOpen] = useState(false)
+  // Ficha con el pipeline y las campañas del cliente (20/10).
+  const [ver, setVer] = useState<Cliente | null>(null)
 
   return (
     <div className="w-full space-y-4">
@@ -61,8 +65,12 @@ export default function ClientesPage() {
       ) : clientes.length === 0 ? (
         <p className="py-10 text-center text-[13px] text-muted">Aún no hay clientes.</p>
       ) : (
-        <Card>
-          <CardContent className="p-0">
+        <CardColapsable
+          id="clientes.lista"
+          titulo="Lista de clientes"
+          resumen={<span className="text-[12px] text-muted">{clientes.length} {clientes.length === 1 ? 'cliente' : 'clientes'}</span>}
+          contentClassName="px-0 pb-0"
+        >
             {/* `overflow-x-auto` es el patrón de TODAS las demás tablas de la
                 aplicación (arrendadores, almacén, campañas, finanzas…): sin él,
                 una tabla de seis columnas en una pantalla estrecha no cabe, se
@@ -84,7 +92,16 @@ export default function ClientesPage() {
               <tbody>
                 {clientes.map((c) => (
                   <tr key={c.id} className="border-b border-border last:border-0">
-                    <td className="px-4 py-2.5 text-ink">{c.nombre}</td>
+                    <td className="px-4 py-2.5">
+                      <button
+                        type="button"
+                        onClick={() => setVer(c)}
+                        title="Ver pipeline y campañas"
+                        className="text-left text-ink hover:text-accent hover:underline"
+                      >
+                        {c.nombre}
+                      </button>
+                    </td>
                     <td className="demo-num px-4 py-2.5 text-muted">{c.rfc || '—'}</td>
                     <td className="px-4 py-2.5 text-muted">{c.razonSocial || '—'}</td>
                     <td className="px-4 py-2.5 text-muted">{c.tipo === 'AGENCIA' ? 'Agencia' : 'Directo'}</td>
@@ -122,13 +139,13 @@ export default function ClientesPage() {
                 </tbody>
               </table>
             </div>
-          </CardContent>
-        </Card>
+        </CardColapsable>
       )}
 
       {nuevoOpen && <ClienteDialog onClose={() => setNuevoOpen(false)} />}
       {editar && <ClienteDialog cliente={editar} onClose={() => setEditar(null)} />}
       {borrar && <BorrarClienteDialog cliente={borrar} onClose={() => setBorrar(null)} />}
+      {ver && <FichaCliente cliente={ver} onClose={() => setVer(null)} />}
     </div>
   )
 }
@@ -287,8 +304,18 @@ function ClienteDialog({ cliente, onClose }: { cliente?: Cliente; onClose: () =>
   // Se comprueba con los MISMOS helpers que el servidor (@/lib/validacion,
   // @/lib/rfc). Cuando la regla vivía duplicada, la UI daba por bueno lo que la
   // API rechazaba después con un 400 sin decir qué campo era.
+  //
+  // Cada motivo se pinta DEBAJO del campo que lo causa (`Campo error=`). Antes
+  // solo existía un mensaje suelto al pie del modal, así que con dos datos malos
+  // el usuario arreglaba uno, reenviaba, y descubría el otro (M1).
+  //
+  // Los OBLIGATORIOS (OBLIG-01) van aparte, con `useObligatorios`: el nombre es
+  // lo único que exige el servidor (`clientes-controller.ts:33`). La comisión de
+  // la agencia NO: el servidor la acepta vacía y vacía se guardaba como 0 (B53).
+  const ob = useObligatorios({ nombre }, [
+    'nombre',
+  ])
   const errores = {
-    nombre: nombre.trim() ? null : 'El nombre es obligatorio',
     rfc: esRfcValido(rfc) ? null : 'RFC inválido. Formato SAT (p. ej. XAXX010101000)',
     cpFiscal: esCpValido(cpFiscal) ? null : CP_INVALIDO,
     email: !email.trim() || esEmailValido(email) ? null : EMAIL_INVALIDO,
@@ -298,7 +325,8 @@ function ClienteDialog({ cliente, onClose }: { cliente?: Cliente; onClose: () =>
 
   async function guardar() {
     setIntento(true)
-    if (hayErrores) {
+    const completos = ob.validar()
+    if (!completos || hayErrores) {
       // Sin esto, el submit con datos malos no hacía NADA visible y el usuario
       // se quedaba pulsando el botón.
       setError('Revisa los campos marcados.')
@@ -357,7 +385,7 @@ function ClienteDialog({ cliente, onClose }: { cliente?: Cliente; onClose: () =>
       }
     >
       <div className="space-y-3">
-        <Campo label="Nombre del cliente" error={intento ? errores.nombre : null}>
+        <Campo label="Nombre del cliente" obligatorio falta={ob.falta('nombre')}>
           <input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus />
         </Campo>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -480,18 +508,5 @@ function ClienteDialog({ cliente, onClose }: { cliente?: Cliente; onClose: () =>
         </div>
       </div>
     </Modal>
-  )
-}
-
-// `error` pinta el motivo DEBAJO del campo que lo causa. Antes solo existía un
-// mensaje suelto al pie del modal, así que con dos datos malos el usuario
-// arreglaba uno, reenviaba, y descubría el otro (M1).
-function Campo({ label, children, error }: { label: string; children: React.ReactNode; error?: string | null }) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-[12px] font-medium text-ink">{label}</span>
-      {children}
-      {error ? <span className="mt-1 block text-[11px] text-error">{error}</span> : null}
-    </label>
   )
 }

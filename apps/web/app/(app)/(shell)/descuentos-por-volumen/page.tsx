@@ -1,7 +1,6 @@
 'use client'
 
 import { Layers } from 'lucide-react'
-import { Card, CardContent } from '@/components/demo/ui/Card'
 import { GestionVolumen } from '@/components/demo/volumen/GestionVolumen'
 
 // ============================================================================
@@ -36,11 +35,8 @@ export default function DescuentosPorVolumenPage() {
           </p>
         </div>
       </header>
-      <Card>
-        <CardContent className="pt-6">
-          <GestionVolumen />
-        </CardContent>
-      </Card>
+      {/* PLEG-02 · sin tarjeta envolvente: la escala trae la suya, plegable. */}
+      <GestionVolumen />
     </div>
   )
 }

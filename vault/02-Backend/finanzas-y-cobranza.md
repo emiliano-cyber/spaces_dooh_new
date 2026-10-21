@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-14
+actualizado: 2026-10-19
 tags: [backend, finanzas, facturacion, dinero, rojo]
 archivos:
   - apps/web/lib/server/finanzas-repo.ts
@@ -15,6 +15,8 @@ archivos:
   - apps/web/lib/finanzas-periodo.ts
   - apps/web/app/api/finanzas/resumen/route.ts
   - db/migrations/20261008_cobranza_abonos.sql
+  - db/migrations/20261019_cobranza_abono_comprobante.sql
+  - apps/web/components/demo/finanzas/ComprobantePago.tsx
   - db/migrations/20260921_restaura_contrasena_compartida_cambios.sql
 ---
 
@@ -123,11 +125,11 @@ datos después, la factura emitida no cambia.
 > [!note] 2026-09-18 · la razón social que EMITE (`8c6002e7`)
 > `facturas.entidad_emisora_id` dice cuál de **mis** razones sociales emite el
 > comprobante. `POST /api/campanas/[id]/facturar` la recibe como
-> `entidadEmisoraId` (`finanzas-controller.ts:69`) y solo viaja al `insert`
+> `entidadEmisoraId` (`finanzas-controller.ts:120`) y solo viaja al `insert`
 > (`finanzas-repo.ts:209-211`): **no toca ningún importe**. Ausente o `null` =
 > «sin asignar», y el servidor no la adivina; la preselección por roles es solo
 > de la pantalla. El esquema de facturar ganó `.strict()`
-> (`finanzas-controller.ts:74-80`): un `monto` colado en el cuerpo ya no se
+> (`finanzas-controller.ts:125-131`): un `monto` colado en el cuerpo ya no se
 > ignora en silencio, es un 400. Ojo al nombre: `razon_social` de la factura es
 > la del **cliente**; la mía es `entidad_emisora_id` (`finanzas-repo.ts:30-33`).
 > Ver [[entidades-fiscales]] y [[multi-entidad-en-uso]].
@@ -174,6 +176,43 @@ Lo que trajo, y lo que cerró de paso:
 Cobertura: `lib/finanzas-periodo.test.ts` (21, con cinco mutantes muertos),
 `vencimiento-cuota.test.ts`, `estado-cuenta-csv.test.ts` y la e2e
 `lib/test/finanzas-periodos.e2e.test.ts` (RLS, invariante, doble clic, rescate).
+
+## El comprobante de cada pago (19/10, COB-COMP)
+
+Pedido del dueño el 19/10: en Cobranza no había dónde subir el recibo o la
+transferencia del cliente, y en los pagos de renta sí
+(`pagos_renta.comprobante_url`). Desde `20261019_cobranza_abono_comprobante.sql`
+cada **abono** lleva su `comprobante_url` — en el abono y no en la cobranza,
+porque una cobranza se paga en varios abonos y el segundo recibo pisaría al
+primero.
+
+- **Al registrar el pago** (`POST /api/cobranzas/:id/pagar`) el cuerpo admite
+  `comprobanteUrl`: PDF, JPG, PNG o WEBP de hasta 5 MB
+  (`LIMITES.adjuntoPago`, los mismos que en renta). Se valida en el controller
+  **antes** de tocar la base, y se escribe en el **mismo `insert`** del abono:
+  un archivo inválido es un 422 y no deja el pago a medias.
+- **Después**: `PATCH /api/cobranzas/:id/abonos/:abonoId` con
+  `{ comprobanteUrl }` (`finanzas.crear`) adjunta o reemplaza. El cuerpo es
+  `.strict()`: no puede tocar importe ni fecha. No lleva candado, igual que los
+  adjuntos de renta: no mueve dinero. Queda en la bitácora como «Adjuntó
+  comprobante de pago». No hay «borrar»: lo equivocado se reemplaza.
+- **La lista** `GET /api/cobranzas/:id/abonos` (`finanzas.ver`) dice si hay
+  comprobante pero **no trae el archivo**; el archivo se sirve aparte por
+  `GET …/abonos/:abonoId/comprobante`, con su `Content-Type` y `no-store`.
+- Las tres consultas (`listarAbonosCobranza`, `adjuntarComprobanteAbono`,
+  `obtenerComprobanteAbono` en `finanzas-repo.ts`) van por `q` con tenant **y**
+  filtran `tenant_id` y la cobranza: un abono solo se alcanza por la cobranza a
+  la que pertenece.
+- En pantalla: el campo **«Comprobante de pago (opcional)»** en «Registrar
+  pago», y **«Pagos y comprobantes»** en cada cuota con algo pagado (también
+  pagada), con «Adjuntar» / «Reemplazar» por abono
+  (`components/demo/finanzas/ComprobantePago.tsx`).
+
+Cobertura: `lib/server/finanzas-controller.comprobante.test.ts` (validación;
+el repo no se llama con un archivo inválido) y la e2e
+`lib/test/comprobante-cobranza.e2e.test.ts` (el archivo en su abono, sin pago a
+medias, la lista sin el archivo, subirlo después sin tocar el saldo, abono de
+otra cobranza, otra organización y un VENDEDOR sin permiso).
 
 ## Cobranza y recordatorios
 

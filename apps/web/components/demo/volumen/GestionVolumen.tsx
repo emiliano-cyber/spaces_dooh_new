@@ -12,6 +12,8 @@ import { motivoTramoInvalido } from '@/lib/volumen'
 import { UNIDADES, unidadCorta } from '@/lib/periodos'
 import { Button } from '@/components/demo/ui/Button'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
+import { useObligatorios } from '@/components/demo/ui/Campo'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { formatNumero } from '@/lib/formato-numero'
 
 // ============================================================================
@@ -45,6 +47,11 @@ export function GestionVolumen() {
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(true)
   const [nuevo, setNuevo] = useState({ ...vacio })
+  // OBLIG-01 · los tres que exige el servidor (`volumen-controller.ts:36-44`).
+  // La fila de alta va DENTRO de la tabla y sin etiqueta propia —la etiqueta es
+  // la cabecera—, así que no lleva `Campo`: el asterisco va en la cabecera y el
+  // rojo lo pone `globals.css` por el `data-falta` de la celda.
+  const ob = useObligatorios(nuevo, ['unidad', 'desdeCantidad', 'descuentoPct'])
 
   const cargar = useCallback(async () => {
     try {
@@ -62,6 +69,7 @@ export function GestionVolumen() {
   }, [cargar])
 
   async function anadir() {
+    const completos = ob.validar()
     const candidato = {
       unidad: nuevo.unidad,
       // Se manda lo TECLEADO y no un `Number(...) || 0`: ese respaldo
@@ -71,7 +79,7 @@ export function GestionVolumen() {
       descuentoPct: nuevo.descuentoPct as unknown as number,
     }
     const motivo = motivoTramoInvalido({ id: '', ...candidato }, tramos)
-    if (motivo) return setError(motivo)
+    if (!completos || motivo) return setError(motivo)
     try {
       await guardarTramoVolumenApi({
         unidad: candidato.unidad,
@@ -79,6 +87,7 @@ export function GestionVolumen() {
         descuentoPct: Number(nuevo.descuentoPct),
       })
       setNuevo({ ...vacio, unidad: nuevo.unidad })
+      ob.reiniciar()
       await cargar()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo guardar')
@@ -115,18 +124,25 @@ export function GestionVolumen() {
         dejan al cliente pagando el <b>64 %</b>, no el 60 %.
       </div>
 
-      <section>
-        <h2 className="mb-1 text-sm font-semibold">Tramos por unidad de venta</h2>
-        <p className="mb-3 text-xs text-neutral-500">
-          Cada unidad tiene su propia escala, porque 50 spots y 50 meses no son la misma compra.
-          Los tramos tienen que <b>crecer</b>: comprar más nunca puede descontar menos.
-        </p>
+      {/* PLEG-02 · la escala se pliega; el aviso de arriba no, porque es lo
+          que hay que leer antes de capturar un tramo. Lo tecleado en la fila de
+          alta vive en el estado de este componente: plegar no lo borra. */}
+      <CardColapsable
+        id="descuentos-por-volumen.tramos"
+        titulo="Tramos por unidad de venta"
+        subtitulo={
+          <>
+            Cada unidad tiene su propia escala, porque 50 spots y 50 meses no son la misma compra.
+            Los tramos tienen que <b>crecer</b>: comprar más nunca puede descontar menos.
+          </>
+        }
+      >
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b text-left text-xs text-neutral-500">
-              <th className="py-1">Unidad</th>
-              <th>A partir de</th>
-              <th>Descuento</th>
+              <th className="py-1">Unidad<Asterisco /></th>
+              <th>A partir de<Asterisco /></th>
+              <th>Descuento<Asterisco /></th>
               <th />
             </tr>
           </thead>
@@ -163,7 +179,7 @@ export function GestionVolumen() {
               </tr>
             ))}
             <tr>
-              <td className="py-2">
+              <td className="py-2" data-falta={ob.falta('unidad') || undefined}>
                 <select
                   aria-label="Unidad de venta"
                   className="rounded border px-2 py-1"
@@ -177,7 +193,7 @@ export function GestionVolumen() {
                   ))}
                 </select>
               </td>
-              <td>
+              <td data-falta={ob.falta('desdeCantidad') || undefined}>
                 {/* Entera, con coma de miles. Lo que no se entiende llega como
                     'NaN' y `motivoTramoInvalido` lo rechaza como siempre. */}
                 <CampoCifra
@@ -190,7 +206,7 @@ export function GestionVolumen() {
                   onCambio={(crudo) => setNuevo({ ...nuevo, desdeCantidad: crudo })}
                 />
               </td>
-              <td>
+              <td data-falta={ob.falta('descuentoPct') || undefined}>
                 <input
                   aria-label="Descuento por ciento"
                   type="number"
@@ -216,7 +232,17 @@ export function GestionVolumen() {
             </tr>
           </tbody>
         </table>
-      </section>
+      </CardColapsable>
     </div>
+  )
+}
+
+/** OBLIG-01 · el asterisco de una cabecera de columna obligatoria. */
+function Asterisco() {
+  return (
+    <>
+      <span aria-hidden="true" className="ml-0.5 text-error">*</span>
+      <span className="sr-only"> (obligatorio)</span>
+    </>
   )
 }

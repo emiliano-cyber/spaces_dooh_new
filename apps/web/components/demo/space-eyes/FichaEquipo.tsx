@@ -23,6 +23,7 @@ import {
   Radio,
 } from 'lucide-react'
 import { cn } from '@/lib/cn'
+import { puedeEncuadrar } from '@/lib/roles'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
 import { actualizarSitioApi } from '@/lib/data/sitios-api'
@@ -40,7 +41,7 @@ import { PantallaConfig } from './PantallaConfig'
 import { CreativosConfig } from './CreativosConfig'
 import { EquipoAdmin } from './EquipoAdmin'
 import { Tabs, TabPanel } from '@/components/demo/ui/Tabs'
-import { usePuede } from '@/components/demo/shell/SesionContext'
+import { usePuede, useSesionCtx } from '@/components/demo/shell/SesionContext'
 import { formatNumero } from '@/lib/formato-numero'
 
 // ============================================================================
@@ -77,6 +78,14 @@ export function FichaEquipo({ id }: { id: number }) {
   // Quien puede operar el equipo (pedir fotos, vivo, cambiar ajustes): el mismo
   // permiso que exige la puerta /api/space-eyes/se para escribir.
   const puedeOperar = usePuede('inventario', 'crear')
+  // Y quien puede mover lo que la camara VE —lente, zoom, color, enfoque,
+  // orientacion y las esquinas de la pantalla—: solo el Dueno. No es un
+  // permiso del catalogo sino el rol, porque `inventario.crear` lo tienen
+  // tambien el administrador y operaciones, y fue justo con ese permiso que
+  // se torcio el encuadre de tres pantallas de G500. El porque esta en
+  // `lib/roles.ts`; la puerta del servidor exige lo mismo.
+  const { sesion } = useSesionCtx()
+  const puedeEncuadrarEquipo = puedeEncuadrar(sesion?.usuario?.rol)
   // Al guardar ajustes de pantalla o creativos, la vista de solo lectura se recarga.
   const [version, setVersion] = useState(0)
   const [captura, setCaptura] = useState<Captura>('quieto')
@@ -379,6 +388,7 @@ export function FichaEquipo({ id }: { id: number }) {
               embebida
               equipo={{ id: equipo.id, nombre: equipo.nombre, appVersion: equipo.versionApp, online: equipo.online }}
               puedeOperar={puedeOperar}
+              puedeEncuadrar={puedeEncuadrarEquipo}
               onFoto={() => { void traer() }}
             />
           ) : vista === 'comparar' ? (
@@ -639,7 +649,12 @@ export function FichaEquipo({ id }: { id: number }) {
       </TabPanel>
 
       <TabPanel value="pantalla" className="flex flex-col gap-4 pt-4">
-        <PantallaConfig equipoId={equipo.id} puedeOperar={puedeOperar} onCambio={() => setVersion((v) => v + 1)} />
+        <PantallaConfig
+          equipoId={equipo.id}
+          puedeOperar={puedeOperar}
+          puedeEncuadrar={puedeEncuadrarEquipo}
+          onCambio={() => setVersion((v) => v + 1)}
+        />
         {/* Lo que el equipo vio en su pantalla: fallas e historial (APK 0.15+) */}
         <PantallaYCreativos key={version} id={equipo.id} onAmpliar={setAmpliada} soloFallas />
       </TabPanel>
@@ -649,7 +664,12 @@ export function FichaEquipo({ id }: { id: number }) {
       </TabPanel>
 
       <TabPanel value="equipo" className="pt-4">
-        <EquipoAdmin equipoId={equipo.id} puedeOperar={puedeOperar} onCambio={() => { void traer() }} />
+        <EquipoAdmin
+          equipoId={equipo.id}
+          puedeOperar={puedeOperar}
+          puedeEncuadrar={puedeEncuadrarEquipo}
+          onCambio={() => { void traer() }}
+        />
       </TabPanel>
       </Tabs>
 

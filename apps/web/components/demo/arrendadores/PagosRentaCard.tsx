@@ -133,7 +133,7 @@ export function PagosRentaCard({
 
   if (cargando) {
     return (
-      <CardColapsable titulo={titulo} contentClassName="space-y-2">
+      <CardColapsable id={`renta.${titulo}`} titulo={titulo} contentClassName="space-y-2">
         {Array.from({ length: 3 }).map((_, i) => (
           <div key={i} className="h-10 animate-pulse rounded bg-surface-2" />
         ))}
@@ -174,6 +174,7 @@ export function PagosRentaCard({
   return (
     <>
     <CardColapsable
+      id={`renta.${titulo}`}
       titulo={titulo}
       contentClassName="px-0 pb-0"
       resumen={

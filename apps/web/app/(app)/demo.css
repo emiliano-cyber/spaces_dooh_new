@@ -200,6 +200,20 @@
   border-color: var(--border);
 }
 
+/* OBLIG-01 · el obligatorio que faltó al guardar, en rojo. Lo marca `Campo`
+   (components/demo/ui/Campo.tsx) con `data-falta`. Va AQUÍ y no en
+   globals.css, y DESPUÉS del recoloreado de arriba: allí tenía (0,1,1) y
+   `.demo-root textarea:not(:focus)` (0,2,1) le ganaba siempre, así que la
+   etiqueta salía roja y el borde no (visto en el navegador el 20/10). Con el
+   ancla `.demo-root` empata, y el orden decide. Lo mide
+   `components/demo/ui/campo-falta-css.test.ts`. */
+.demo-root [data-falta] :is(input, select, textarea, [role='combobox']) {
+  border-color: var(--error);
+}
+.demo-root [data-falta] :is(input, select, textarea, [role='combobox']):focus-visible {
+  --tw-ring-color: var(--error);
+}
+
 /* Datos numéricos técnicos (folios, IDs, montos, IPs) en la mono del sistema.
    `tabular-nums` es lo que de verdad importa en una columna de importes: sin
    ella los dígitos bailan de ancho y las cifras dejan de alinearse. */

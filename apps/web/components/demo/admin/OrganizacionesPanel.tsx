@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { Building2, Check, LogIn, RotateCcw, Plus } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
+import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { validarPassword, REGLA_PASSWORD } from '@/lib/password'
 
 const API = '/spaces-dooh/api'
@@ -62,12 +63,11 @@ export function OrganizacionesPanel() {
   // No cambia ningún permiso — el servidor sigue respondiendo 403 igual.
   if (estado === 'sin-permiso') {
     return (
-      <Card>
-        <CardHeader className="flex flex-row items-center gap-2">
-          <Building2 className="h-4 w-4 text-muted" />
-          <CardTitle>Organizaciones (CRMs)</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <CardColapsable
+        id="admin.organizaciones"
+        titulo="Organizaciones (CRMs)"
+        icono={<Building2 className="h-4 w-4 text-muted" />}
+      >
           <p className="text-[12px] text-muted">
             Crear organizaciones y cambiar entre ellas está reservado al
             <b className="text-ink"> administrador de la plataforma</b>. Tu usuario administra
@@ -75,18 +75,19 @@ export function OrganizacionesPanel() {
             <br />
             Si necesitas una organización nueva, pídesela a quien administre Space OS.
           </p>
-        </CardContent>
-      </Card>
+      </CardColapsable>
     )
   }
 
+  // OJO: el formulario de `NuevaOrganizacion` guarda lo tecleado en SU propio
+  // estado, que vive DENTRO del contenido plegable. Plegar la tarjeta con el
+  // alta a medias la desmonta y lo tecleado se pierde.
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center gap-2">
-        <Building2 className="h-4 w-4 text-muted" />
-        <CardTitle>Organizaciones (CRMs)</CardTitle>
-      </CardHeader>
-      <CardContent>
+    <CardColapsable
+      id="admin.organizaciones"
+      titulo="Organizaciones (CRMs)"
+      icono={<Building2 className="h-4 w-4 text-muted" />}
+    >
         {/* Antes esto mandaba a «Crear cuenta» del login. En producción ese
             botón NO EXISTE —el auto-registro está apagado a propósito— así que
             la instrucción llevaba a un callejón sin salida: no había ninguna
@@ -138,8 +139,7 @@ export function OrganizacionesPanel() {
             <RotateCcw className="h-3.5 w-3.5" /> Volver a mi CRM
           </Button>
         </div>
-      </CardContent>
-    </Card>
+    </CardColapsable>
   )
 }
 
@@ -178,9 +178,20 @@ function NuevaOrganizacion({ onCreada }: { onCreada: () => void }) {
   // aquí deja pasar algo que vuelve rechazado sin motivo aparente.
   // La misma funcion que corre el servidor: `length >= 8` dejaba pasar
   // «aaaaaaaa», que rebota con «debe incluir al menos un numero».
-  const valido = !!org.trim() && !!nombre.trim() && !!email.trim() && (conGoogle || !validarPassword(password))
+  //
+  // OBLIG-01 · los vacíos ya no deshabilitan el botón: se pulsa y se pinta en
+  // rojo lo que falta (`cuentas-controller.ts:29-35`). Una contraseña ESCRITA
+  // que no cumple la regla sí lo deshabilita, como antes.
+  const ob = useObligatorios({ org, nombre, email, password }, [
+    'org',
+    'nombre',
+    'email',
+    { campo: 'password', si: !conGoogle },
+  ])
+  const passwordInvalida = !conGoogle && !!password && !!validarPassword(password)
 
   async function crear() {
+    if (!ob.validar()) return
     setEnviando(true)
     setError(null)
     try {
@@ -201,6 +212,7 @@ function NuevaOrganizacion({ onCreada }: { onCreada: () => void }) {
       const d = await r.json().catch(() => ({}))
       if (!r.ok) throw new Error((d as { error?: string }).error ?? 'No se pudo crear la organización')
       setOrg(''); setNombre(''); setEmail(''); setPassword(''); setConGoogle(false)
+      ob.reiniciar()
       setAbierto(false)
       onCreada()
     } catch (e) {
@@ -225,19 +237,16 @@ function NuevaOrganizacion({ onCreada }: { onCreada: () => void }) {
   return (
     <div className="mb-3 space-y-2.5 rounded-md border border-border bg-bg p-3">
       <div className="text-[12px] font-medium text-ink">Nueva organización</div>
-      <div>
-        <label className="mb-1 block text-[11px] text-muted">Nombre de la organización</label>
+      <Campo label="Nombre de la organización" obligatorio falta={ob.falta('org')}>
         <input className={campoCls} value={org} onChange={(e) => setOrg(e.target.value)} placeholder="Mi Empresa SA de CV" autoFocus />
-      </div>
+      </Campo>
       <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-        <div>
-          <label className="mb-1 block text-[11px] text-muted">Nombre del Dueño</label>
+        <Campo label="Nombre del Dueño" obligatorio falta={ob.falta('nombre')}>
           <input className={campoCls} value={nombre} onChange={(e) => setNombre(e.target.value)} />
-        </div>
-        <div>
-          <label className="mb-1 block text-[11px] text-muted">Su correo</label>
+        </Campo>
+        <Campo label="Su correo" obligatorio falta={ob.falta('email')}>
           <input className={campoCls} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="correo@empresa.com" />
-        </div>
+        </Campo>
       </div>
 
       {googleDisponible && (
@@ -256,17 +265,16 @@ function NuevaOrganizacion({ onCreada }: { onCreada: () => void }) {
       {/* Desaparece —no se deshabilita— cuando entra con Google: un campo gris
           que sigue ahí invita a preguntarse si hay que rellenarlo igual. */}
       {!conGoogle && (
-        <div>
-          <label className="mb-1 block text-[11px] text-muted">Contraseña del Dueño</label>
+        <Campo label="Contraseña del Dueño" obligatorio falta={ob.falta('password')}>
           <input className={campoCls} type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={REGLA_PASSWORD} />
-        </div>
+        </Campo>
       )}
 
       {error && <p className="text-[12px] text-error">{error}</p>}
 
       <div className="flex justify-end gap-2 pt-0.5">
-        <Button size="sm" variant="secondary" onClick={() => { setAbierto(false); setError(null) }}>Cancelar</Button>
-        <Button variant="success" size="sm" disabled={!valido || enviando} onClick={crear}>
+        <Button size="sm" variant="secondary" onClick={() => { setAbierto(false); setError(null); ob.reiniciar() }}>Cancelar</Button>
+        <Button variant="success" size="sm" disabled={passwordInvalida || enviando} onClick={crear}>
           {enviando ? 'Creando…' : 'Crear organización'}
         </Button>
       </div>

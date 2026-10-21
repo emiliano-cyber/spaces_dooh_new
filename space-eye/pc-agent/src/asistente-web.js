@@ -178,6 +178,14 @@ function instalar(d) {
   // dueno y eso no se ve hasta dias despues, desde el dashboard, cuando ya nadie
   // esta en el sitio. El aviso de la pagina se calcula al abrirla y no puede
   // saber lo que se escribio despues.
+  // Sin direccion no hay a donde dar de alta. Antes habia una por omision -la
+  // de la flota propia- y el campo vacio instalaba la camara de un cliente en
+  // la empresa equivocada sin decir nada. Se comprueba aqui, con la persona
+  // delante, y no al arrancar el agente.
+  if (!String(d.servidor || '').trim()) {
+    return { error: 'Falta la direccion de Space Eye de tu empresa: la dice la pantalla "Agregar dispositivo" de SPACE OS.' };
+  }
+
   const aMano = String(d.testigo_alta || '').trim();
   if (aMano && !inst.pareceTestigo(aMano)) {
     return { error: `El testigo de alta "${inst.testigoParaVer(aMano)}" no tiene la forma que espera el servidor (se_...). Copialo completo o dejalo vacio.` };

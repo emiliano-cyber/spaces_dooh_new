@@ -67,12 +67,33 @@ export function createRoutes() {
   router.post('/api/devices/:id/command', requireUser, requireRole('admin', 'operator'), dashboard.sendCommand);
   // Fijar orientacion por defecto del stream (solo admin).
   router.put('/api/devices/:id/stream-rotation', requireUser, requireRole('admin'), copiarEdicionAV1, dashboard.setStreamRotation);
-  // Encuadre, color y enfoque: tambien el operador. Ajustar la vista de un sitio
-  // es operarlo, y dejarlo solo en manos de admin obligaba a que un operador
-  // pidiera ayuda para algo que hace desde el visor. La orientacion fija y la
-  // marca de datos SI siguen siendo de admin: se definen al instalar y cambian
-  // lo que ve todo el mundo.
-  router.put('/api/devices/:id/camera', requireUser, requireRole('admin', 'operator'), copiarEdicionAV1, dashboard.setCamera);
+  // Encuadre, zoom, color y enfoque: SOLO admin (19-oct-2026).
+  //
+  // Hasta hoy tambien podia el operador, con este argumento: "ajustar la vista
+  // de un sitio es operarlo, y dejarlo solo en manos de admin obliga a pedir
+  // ayuda para algo que se hace desde el visor". Lo que paso en G500 demuestra
+  // que el argumento no se sostiene: varias personas con acceso movieron el
+  // zoom desde el visor y dejaron el encuadre torcido en tres pantallas.
+  //
+  // No es un ajuste cosmetico que se deshace mirando. El catalogo de creativos
+  // que el equipo aprende VALE PARA UN ENCUADRE (Reconocedor.kt): al cambiar el
+  // lente, el zoom o las esquinas se tira entero y el sitio pasa un dia sin
+  // reconocer nada. Y si el nuevo encuadre deja la pantalla mas chica o mas
+  // borrosa, deja de reconocer para siempre, que es lo que se midio en
+  // AUTOPISTA y PATRIOTISMO. Un boton que cuesta un dia de vigilancia no puede
+  // estar al alcance de todo el que entra.
+  //
+  // Lo que el operador SIGUE pudiendo: mirar el vivo, pedir fotos, cambiar
+  // frecuencias y umbrales (salud, creativos) y cerrar fallas. Nada de eso
+  // toca lo que la camara ve.
+  router.put('/api/devices/:id/camera', requireUser, requireRole('admin'), copiarEdicionAV1, dashboard.setCamera);
+  // El control del vivo (zoom, enfoque, luz, color) SI lo puede usar el
+  // operador: es mirar. La app no guarda nada de eso y se acaba al cerrar la
+  // vista; y para que la foto salga como se ve, la orden lleva el encuadre de
+  // ESA captura (payload.encuadre_temporal en sendCommand), que tampoco se
+  // escribe en la base. Lo unico que aqui dejaba rastro -la exposicion y el
+  // balance, que se guardan en camera_ajustes- solo queda guardado si es admin
+  // (ver controlDeCamara).
   router.post('/api/devices/:id/camera-control', requireUser, requireRole('admin', 'operator'), dashboard.controlDeCamara);
   // Si el equipo ya empezo a transmitir (equipos que pasan por el servidor de medios).
   router.get('/api/devices/:id/stream-status', requireUser, dashboard.streamStatus);
@@ -84,7 +105,12 @@ export function createRoutes() {
 
   // Pantalla: esquinas, gabinetes, horario, y el monitoreo de fallas.
   router.get('/api/devices/:id/pantalla', requireUser, monitoreo.deEquipo);
-  router.put('/api/devices/:id/pantalla', requireUser, requireRole('admin', 'operator'), monitoreo.configurarPantalla);
+  // Marcar la pantalla es encuadrar: las 4 esquinas son lo que el equipo mira,
+  // y cambiarlas tira el catalogo igual que mover el zoom. Solo admin, por lo
+  // mismo que /camera.
+  router.put('/api/devices/:id/pantalla', requireUser, requireRole('admin'), monitoreo.configurarPantalla);
+  // Los umbrales y las frecuencias si son del operador: afinan la vigilancia,
+  // no cambian lo que la camara ve.
   router.put('/api/devices/:id/salud', requireUser, requireRole('admin', 'operator'), monitoreo.configurarSalud);
   router.get('/api/fallas', requireUser, monitoreo.listar);
   // Codigos de vinculacion: como entra un equipo nuevo a la empresa (021).

@@ -3,8 +3,9 @@
 import { puedeVerControlCambios } from '@/lib/roles'
 import { useEffect, useState } from 'react'
 import { Lock, Unlock, Loader2, ShieldCheck, KeyRound } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
+import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { useSesionCtx } from '@/components/demo/shell/SesionContext'
 import {
   estadoCambiosApi,
@@ -45,6 +46,9 @@ export function ControlCambiosPanel({ onToast }: { onToast: (m: string) => void 
   const [pass2, setPass2] = useState('')
   const [guardandoPass, setGuardandoPass] = useState(false)
   const [errorPass, setErrorPass] = useState<string | null>(null)
+  // OBLIG-01 · las dos, como ya exigía el botón: sin la repetición no se puede
+  // comprobar que la contraseña nueva es la que se quiso escribir.
+  const ob = useObligatorios({ pass, pass2 }, ['pass', 'pass2'])
 
   const refrescar = () =>
     estadoCambiosApi()
@@ -55,12 +59,14 @@ export function ControlCambiosPanel({ onToast }: { onToast: (m: string) => void 
 
   async function guardarContrasena() {
     setErrorPass(null)
+    if (!ob.validar()) return
     if (pass !== pass2) { setErrorPass('Las dos contraseñas no coinciden'); return }
     setGuardandoPass(true)
     try {
       await fijarContrasenaCambiosApi(pass)
       setPass('')
       setPass2('')
+      ob.reiniciar()
       setEditando(false)
       onToast(tieneContrasena ? 'Contraseña de cambios actualizada' : 'Contraseña de cambios asignada')
       await refrescar()
@@ -101,14 +107,14 @@ export function ControlCambiosPanel({ onToast }: { onToast: (m: string) => void 
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          {activo ? <Lock className="h-4 w-4 text-success" /> : <Unlock className="h-4 w-4 text-muted" />}
-          Control de cambios
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    // La contraseña a medio teclear vive en el estado de este componente, no
+    // en el contenido: plegar no la borra.
+    <CardColapsable
+      id="admin.control-cambios"
+      titulo="Control de cambios"
+      icono={activo ? <Lock className="h-4 w-4 text-success" /> : <Unlock className="h-4 w-4 text-muted" />}
+      contentClassName="space-y-3"
+    >
         <p className="text-[13px] text-muted">
           Actívalo y los cambios que mueven dinero o el catálogo —tarifas, rentas, contratos, pagos,
           facturación y borrar pantallas, clientes o arrendadores— pedirán una contraseña: la propia
@@ -162,10 +168,7 @@ export function ControlCambiosPanel({ onToast }: { onToast: (m: string) => void 
             </div>
           ) : (
             <div className="space-y-2">
-              <label className="block">
-                <span className="mb-1 block text-[12px] font-medium text-ink">
-                  Contraseña nueva ({REGLA_PASSWORD})
-                </span>
+              <Campo label={`Contraseña nueva (${REGLA_PASSWORD})`} obligatorio falta={ob.falta('pass')}>
                 <input
                   type="password"
                   value={pass}
@@ -173,9 +176,8 @@ export function ControlCambiosPanel({ onToast }: { onToast: (m: string) => void 
                   className={inputCls}
                   autoComplete="off"
                 />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-[12px] font-medium text-ink">Repetirla</span>
+              </Campo>
+              <Campo label="Repetirla" obligatorio falta={ob.falta('pass2')}>
                 <input
                   type="password"
                   value={pass2}
@@ -183,20 +185,20 @@ export function ControlCambiosPanel({ onToast }: { onToast: (m: string) => void 
                   className={inputCls}
                   autoComplete="off"
                 />
-              </label>
+              </Campo>
               {errorPass && <p className="text-[12px] text-error">{errorPass}</p>}
               <div className="flex gap-2">
                 <Button
                   size="sm"
                   onClick={guardarContrasena}
-                  disabled={guardandoPass || !pass || !pass2}
+                  disabled={guardandoPass}
                 >
                   {guardandoPass && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Guardar
                 </Button>
                 <Button
                   size="sm"
                   variant="secondary"
-                  onClick={() => { setEditando(false); setPass(''); setPass2(''); setErrorPass(null) }}
+                  onClick={() => { setEditando(false); setPass(''); setPass2(''); setErrorPass(null); ob.reiniciar() }}
                   disabled={guardandoPass}
                 >
                   Cancelar
@@ -205,7 +207,6 @@ export function ControlCambiosPanel({ onToast }: { onToast: (m: string) => void 
             </div>
           )}
         </div>
-      </CardContent>
-    </Card>
+    </CardColapsable>
   )
 }

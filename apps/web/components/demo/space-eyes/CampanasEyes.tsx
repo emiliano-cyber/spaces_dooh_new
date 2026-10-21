@@ -549,12 +549,24 @@ function TarjetaCampana({ campana: c, onEditar }: { campana: CampanaSE; onEditar
   const verifica = !!c.verification_enabled
   return (
     <div className="overflow-hidden rounded-md border border-border bg-surface">
-      <div className="flex aspect-video items-center justify-center bg-surface-2">
+      {/* La caja manda, el arte se acomoda dentro: todas las tarjetas miden lo
+          mismo venga el creativo horizontal o vertical. `aspect-video` sola no
+          alcanzaba —un creativo vertical estiraba la caja a su altura y esa
+          tarjeta salia del doble de alto que las demas—, porque el contenido
+          con altura propia le gana al alto que marca la proporcion. Por eso el
+          arte va `absolute`: deja de aportar altura. Y `object-contain` y no
+          `cover` porque es la imagen de REFERENCIA contra la que comparan las
+          camaras: recortarla seria ensenar algo que no es. */}
+      <div className="relative aspect-video overflow-hidden bg-surface-2">
         {img ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={img} alt={`Creatividad de ${c.name}`} className="h-full w-full object-contain" />
+          <img
+            src={img}
+            alt={`Creatividad de ${c.name}`}
+            className="absolute inset-0 h-full w-full object-contain"
+          />
         ) : (
-          <div className="flex flex-col items-center gap-1.5 px-4 text-center text-warning">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 px-4 text-center text-warning">
             <ImageIcon className="h-5 w-5" strokeWidth={1.4} />
             <span className="text-[12px]">Sin creatividad de referencia</span>
           </div>
@@ -563,7 +575,13 @@ function TarjetaCampana({ campana: c, onEditar }: { campana: CampanaSE; onEditar
 
       <div className="p-3">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="truncate text-[13px] font-medium text-ink">{c.name}</h3>
+          {/* Un `div` y no un `h3`: la regla `.demo-root h1,h2,h3` del sistema
+              pone la serif de titulos en negrita y le gana a `font-medium`, asi
+              que el nombre salia en una tipografia que no usa ninguna otra
+              tarjeta del modulo. El nombre de una campana es una etiqueta de
+              ficha, como el de un equipo, no un titulo de seccion: mismas
+              clases que esas. */}
+          <div className="truncate text-[13px] font-medium text-ink">{c.name}</div>
           <span
             className={cn(
               'shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-semibold',

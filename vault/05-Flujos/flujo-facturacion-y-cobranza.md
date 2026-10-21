@@ -1,7 +1,7 @@
 ---
 tipo: flujo
 estado: verificado
-actualizado: 2026-10-14
+actualizado: 2026-10-19
 tags: [flujo, finanzas, dinero, rojo]
 archivos:
   - apps/web/lib/server/finanzas-repo.ts
@@ -63,11 +63,11 @@ sequenceDiagram
 >   (`app/api/campanas/[id]/facturar/route.ts:20-21`).
 > - **El plazo ya no es 60/90/120 a fuego**: sale de la configuración de la
 >   organización (`plazosCobranzaDelTenant()`, `config-repo.ts:112`), que se lee
->   antes de validar (`finanzas-controller.ts:87`). 60/90/120 queda solo como
+>   antes de validar (`finanzas-controller.ts:138`). 60/90/120 queda solo como
 >   respaldo si la lista está vacía (`config-repo.ts:90`). Commit `b7ed5cb4`.
 > - **La factura lleva la razón social que la emite**: `entidadEmisoraId`,
 >   opcional y validada contra el tenant antes de emitir
->   (`finanzas-controller.ts:69-72` y `:102-106`), que viaja al `insert`
+>   (`finanzas-controller.ts:120-123` y `:153-157`), que viaja al `insert`
 >   (`finanzas-repo.ts:209`). No toca ningún importe. Commit `8c6002e7`.
 > - **El cuerpo es `.strict()`**: un `monto` o `subtotal` colado se rechaza con
 >   400 en vez de ignorarse en silencio. Los importes se derivan siempre en el
@@ -99,7 +99,7 @@ solo la suya. Además, el cliente necesita RFC y razón social (`:182`).
 ## Cobranza en parcialidades
 
 El plan **viaja en el mismo `POST` de facturar** (`plan: { periodicidad,
-primerVencimiento }`, `finanzas-controller.ts:50-60`); no es un paso aparte.
+primerVencimiento }`, `finanzas-controller.ts:101-111`); no es un paso aparte.
 Ni el número de cuotas ni los importes vienen del cliente: se derivan de la
 duración de la campaña (`finanzas-repo.ts:219-252`).
 

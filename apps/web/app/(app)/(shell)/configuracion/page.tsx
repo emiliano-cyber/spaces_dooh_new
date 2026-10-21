@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { Building2, UserCircle2, Save, KeyRound } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
+import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { useConfigNegocio } from '@/lib/data/client'
 import { refrescarEstado } from '@/lib/data/estado-api'
 import { useSesionCtx, usePuede } from '@/components/demo/shell/SesionContext'
@@ -65,9 +66,12 @@ function EmpresaCard({ nombreActual }: { nombreActual: string }) {
   const [nombre, setNombre] = useState(nombreActual)
   const [busy, setBusy] = useState(false)
   useEffect(() => { setNombre(nombreActual) }, [nombreActual])
+  // OBLIG-01 · el nombre vacío ya no deshabilita el botón: se pulsa y el campo
+  // se pinta en rojo, en vez de un aviso suelto que no dice dónde.
+  const ob = useObligatorios({ nombre }, ['nombre'])
 
   async function guardar() {
-    if (!nombre.trim()) { toast.error('El nombre de la empresa es requerido'); return }
+    if (!ob.validar()) return
     setBusy(true)
     try {
       const r = await fetch(`${API}/organizacion/`, {
@@ -86,22 +90,22 @@ function EmpresaCard({ nombreActual }: { nombreActual: string }) {
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center gap-2">
-        <Building2 className="h-4 w-4 text-muted" />
-        <CardTitle>Empresa</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    // Lo tecleado vive en el estado de ESTE componente y no en el contenido
+    // plegable: plegar a medio escribir no lo borra.
+    <CardColapsable
+      id="configuracion.empresa"
+      titulo="Empresa"
+      icono={<Building2 className="h-4 w-4 text-muted" />}
+      contentClassName="space-y-3"
+    >
         <p className="text-[12px] text-muted">Este nombre aparece en el menú de la izquierda.</p>
-        <label className="block">
-          <span className="mb-1 block text-[12px] font-medium text-ink">Nombre de la empresa</span>
+        <Campo label="Nombre de la empresa" obligatorio falta={ob.falta('nombre')}>
           <input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} />
-        </label>
-        <Button size="sm" disabled={busy || !nombre.trim() || nombre.trim() === nombreActual} onClick={guardar}>
+        </Campo>
+        <Button size="sm" disabled={busy || nombre.trim() === nombreActual} onClick={guardar}>
           <Save className="h-3.5 w-3.5" /> {busy ? 'Guardando…' : 'Guardar'}
         </Button>
-      </CardContent>
-    </Card>
+    </CardColapsable>
   )
 }
 
@@ -129,13 +133,18 @@ function CuentaCard({ emailActual }: { emailActual: string }) {
     cambiaEmail,
     cambiaPassword: password.length > 0,
   })
+  // OBLIG-01 · la contraseña actual solo es obligatoria cuando se ve: hay un
+  // cambio y no aplica la excepción del ADR 0018.
+  const ob = useObligatorios({ passwordActual }, [
+    { campo: 'passwordActual', si: hayCambio && !sinAnterior },
+  ])
 
   async function guardar() {
     if (cambiaEmail && !esEmailValido(email)) { toast.error(EMAIL_INVALIDO); return }
     if (password && password.length < 8) { toast.error('La contraseña debe tener al menos 8 caracteres'); return }
     // Cambiar correo o contraseña exige la contraseña actual (re-autenticación),
     // salvo la excepción del ADR 0018.
-    if (!sinAnterior && !passwordActual) { toast.error('Ingresa tu contraseña actual para confirmar'); return }
+    if (!ob.validar()) return
     setBusy(true)
     try {
       const r = await fetch(`${API}/perfil/`, {
@@ -154,6 +163,7 @@ function CuentaCard({ emailActual }: { emailActual: string }) {
       if (!r.ok) throw new Error((d as { error?: string }).error ?? 'No se pudo guardar')
       setPassword('')
       setPasswordActual('')
+      ob.reiniciar()
       // Releer la sesión ANTES del aviso: si venía con temporal, esto es lo que
       // baja la bandera y le devuelve el acceso al resto del sistema.
       await refrescar()
@@ -165,21 +175,22 @@ function CuentaCard({ emailActual }: { emailActual: string }) {
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center gap-2">
-        <UserCircle2 className="h-4 w-4 text-muted" />
-        <CardTitle>Mi cuenta</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    // Con contraseña temporal va SIN `id`: no recuerda el plegado y abre
+    // siempre. Quien llega aquí redirigido (ADR 0009) no puede encontrarse
+    // cerrada justo la tarjeta que le devuelve el acceso.
+    <CardColapsable
+      id={sesion?.usuario.debeCambiarPassword ? undefined : 'configuracion.cuenta'}
+      titulo="Mi cuenta"
+      icono={<UserCircle2 className="h-4 w-4 text-muted" />}
+      contentClassName="space-y-3"
+    >
         <p className="text-[12px] text-muted">Cambia tu correo y/o contraseña. Solo afecta a tu cuenta.</p>
-        <label className="block">
-          <span className="mb-1 block text-[12px] font-medium text-ink">Correo</span>
+        <Campo label="Correo">
           <input type="email" className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tu@correo.com" />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-[12px] font-medium text-ink">Nueva contraseña</span>
+        </Campo>
+        <Campo label="Nueva contraseña">
           <input type="password" className={inputCls} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Déjala en blanco para no cambiarla (mín. 8)" autoComplete="new-password" />
-        </label>
+        </Campo>
         {hayCambio && sinAnterior && (
           <p className="text-[12px] text-muted">
             Entraste con Google y aún no tienes contraseña propia, así que no hace
@@ -188,15 +199,17 @@ function CuentaCard({ emailActual }: { emailActual: string }) {
           </p>
         )}
         {hayCambio && !sinAnterior && (
-          <label className="block">
-            <span className="mb-1 block text-[12px] font-medium text-ink">Contraseña actual <span className="text-muted">(para confirmar)</span></span>
+          <Campo
+            label={<>Contraseña actual <span className="text-muted">(para confirmar)</span></>}
+            obligatorio
+            falta={ob.falta('passwordActual')}
+          >
             <input type="password" className={inputCls} value={passwordActual} onChange={(e) => setPasswordActual(e.target.value)} placeholder="Tu contraseña actual" autoComplete="current-password" />
-          </label>
+          </Campo>
         )}
         <Button size="sm" disabled={busy || !hayCambio} onClick={guardar}>
           <Save className="h-3.5 w-3.5" /> {busy ? 'Guardando…' : 'Guardar cambios'}
         </Button>
-      </CardContent>
-    </Card>
+    </CardColapsable>
   )
 }

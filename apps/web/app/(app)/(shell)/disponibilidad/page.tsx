@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { CalendarRange, Search, Info } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { SlotsBadge } from '@/components/demo/SlotsBadge'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { useDisponibilidad, type GranDisponibilidad, type EstadoCelda } from '@/lib/data/client'
 
 // Calendario de disponibilidad futura: responde "¿qué tengo libre en septiembre?".
@@ -175,17 +176,19 @@ export default function DisponibilidadPage() {
         </p>
       )}
 
-      {/* Rejilla */}
+      {/* Rejilla — plegable (pedido del 20/10). Los controles de arriba y la
+          búsqueda viven en la página, fuera de la tarjeta: plegar no los pierde. */}
+      <CardColapsable id="disponibilidad.calendario" titulo="Calendario por pantalla" contentClassName="px-0 pb-0">
       {!disp ? (
-        <div className="rounded-md border border-border bg-surface p-8 text-center text-[13px] text-muted">
+        <div className="border-t border-border p-8 text-center text-[13px] text-muted">
           Cargando disponibilidad…
         </div>
       ) : filas.length === 0 ? (
-        <div className="rounded-md border border-border bg-surface p-8 text-center text-[13px] text-muted">
+        <div className="border-t border-border p-8 text-center text-[13px] text-muted">
           Sin pantallas que coincidan.
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-md border border-border bg-surface">
+        <div className="overflow-x-auto border-t border-border">
           <table className="w-full border-collapse text-[12px]">
             <thead>
               <tr className="border-b border-border">
@@ -267,6 +270,7 @@ export default function DisponibilidadPage() {
           </table>
         </div>
       )}
+      </CardColapsable>
 
       {/* Leyenda */}
       <div className="flex flex-wrap items-center gap-4 text-[12px] text-muted">

@@ -5,8 +5,10 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { ArrowUpRight, Ruler, Plus, ChevronRight } from 'lucide-react'
 import { Card } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
+import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { EmptyState } from '@/components/demo/EmptyState'
 import { Stepper } from '@/components/demo/Stepper'
 import {
@@ -73,6 +75,19 @@ export default function ImprentaPage() {
         )}
       </div>
 
+      {/* PLEG-01 · la página es una sola lista: se pliega entera, como las
+          secciones de Arrendadores. */}
+      <CardColapsable
+        id="imprenta.ordenes"
+        titulo="Órdenes de impresión"
+        resumen={
+          ois ? (
+            <span className="demo-num text-[12px] text-muted">
+              {oisVisibles.length} orden{oisVisibles.length === 1 ? '' : 'es'}
+            </span>
+          ) : undefined
+        }
+      >
       {!ois ? (
         <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, i) => (
@@ -174,6 +189,7 @@ export default function ImprentaPage() {
           })}
         </ul>
       )}
+      </CardColapsable>
 
       <NuevaOrdenDialog open={nueva} onClose={() => setNueva(false)} />
     </div>
@@ -191,8 +207,12 @@ function NuevaOrdenDialog({ open, onClose }: { open: boolean; onClose: () => voi
   const [proveedor, setProveedor] = useState('')
   const [enviando, setEnviando] = useState(false)
 
+  // OBLIG-01 · la campaña es lo único que exige el servidor
+  // (`impresion-controller.ts:13`).
+  const ob = useObligatorios({ campanaId }, ['campanaId'])
+
   async function guardar() {
-    if (!campanaId) return
+    if (!ob.validar()) return
     setEnviando(true)
     try {
       await crearOrdenImpresionApi({
@@ -204,6 +224,7 @@ function NuevaOrdenDialog({ open, onClose }: { open: boolean; onClose: () => voi
         proveedor: proveedor.trim(),
       })
       setCampanaId(''); setSitioId(''); setMaterial(''); setAncho(''); setAlto(''); setProveedor('')
+      ob.reiniciar()
       onClose()
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'No se pudo crear la orden')
@@ -219,14 +240,14 @@ function NuevaOrdenDialog({ open, onClose }: { open: boolean; onClose: () => voi
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
-          <Button variant="success" size="sm" disabled={enviando || !campanaId} onClick={guardar}>
+          <Button variant="success" size="sm" disabled={enviando} onClick={guardar}>
             {enviando ? 'Creando…' : 'Crear orden'}
           </Button>
         </div>
       }
     >
       <div className="space-y-3">
-        <Campo label="Campaña">
+        <Campo label="Campaña" obligatorio falta={ob.falta('campanaId')}>
           <select
             value={campanaId}
             onChange={(e) => setCampanaId(e.target.value)}
@@ -240,7 +261,7 @@ function NuevaOrdenDialog({ open, onClose }: { open: boolean; onClose: () => voi
               ))}
           </select>
         </Campo>
-        <Campo label="Sitio (opcional)">
+        <Campo label="Sitio">
           <select
             value={sitioId}
             onChange={(e) => setSitioId(e.target.value)}
@@ -276,7 +297,7 @@ function NuevaOrdenDialog({ open, onClose }: { open: boolean; onClose: () => voi
             />
           </Campo>
         </div>
-        <Campo label="Proveedor (opcional)">
+        <Campo label="Proveedor">
           <input
             value={proveedor}
             onChange={(e) => setProveedor(e.target.value)}
@@ -287,14 +308,5 @@ function NuevaOrdenDialog({ open, onClose }: { open: boolean; onClose: () => voi
         <p className="text-[11px] text-muted">Deja ancho y alto en 0 para contenido digital.</p>
       </div>
     </Modal>
-  )
-}
-
-function Campo({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-[12px] font-medium text-ink">{label}</span>
-      {children}
-    </label>
   )
 }

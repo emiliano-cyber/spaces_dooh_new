@@ -43,6 +43,7 @@ import { desbloquearApi } from '@/lib/data/cambios-api'
 import { confirmarConCandado } from '@/lib/cambios-candado'
 import { CampoContrasena } from '@/components/demo/ui/CampoContrasena'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
+import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { useCandado, DialogoCandado } from '@/components/demo/ui/candado'
 import type { EntidadUI } from '@/components/demo/razones-sociales/gestion'
 import {
@@ -632,19 +633,28 @@ function CompletarContratoModal({
   const inicio = contrato.fechaInicio.slice(0, 10)
   const montoNum = Number(monto)
   // El servidor valida esto igual (zod + CHECK en la BD); aquí solo se avisa
-  // antes de gastar un viaje, y se deshabilita el botón para que no parezca que
-  // guardar "no hizo nada".
-  const faltante =
-    !arrendadorId ? 'Elige el arrendador: es de quien se renta el espacio.'
-    : !monto || !Number.isFinite(montoNum) || montoNum <= 0 ? 'Captura un importe de renta mayor que cero.'
-    : !fechaFin ? 'Captura hasta cuándo va el contrato.'
-    : fechaFin < inicio ? `La fecha de fin no puede ser anterior al inicio (${formatFecha(inicio)}).`
-    : null
+  // antes de gastar un viaje.
+  //
+  // OBLIG-01: antes `faltante` deshabilitaba el botón y lo explicaba en gris
+  // en el pie, así que con tres datos vacíos la persona leía solo el primero.
+  // Ahora el botón se pulsa y cada dato que falta se pinta en rojo en su campo.
+  // Lo obligatorio es lo que exige el CHECK `contrato_completo_ck`: arrendador,
+  // importe y fecha de fin (la periodicidad siempre trae valor).
+  const ob = useObligatorios({ arrendadorId, monto, fechaFin }, ['arrendadorId', 'monto', 'fechaFin'])
+  // Un importe que se entiende pero no es mayor que cero no está «vacío» (el 0
+  // es un dato) y aun así no vale: se dice en el mismo campo, tras el intento.
+  const montoMalo = !ob.faltan.includes('monto') && (!Number.isFinite(montoNum) || montoNum <= 0)
+  // Fechas invertidas: es un error de formato, no un faltante, y se ve al
+  // teclear. Este sí deshabilita el botón.
+  const fechasInvertidas = !!fechaFin && fechaFin < inicio
+  const faltante = ob.faltan.length > 0 || montoMalo || fechasInvertidas
 
   // Cerrar OLVIDA la contraseña. Este modal NO se desmonta al cerrarse —lo rinde
   // siempre `ContratoSheet` con `open={completarOpen}`—, así que sin esto lo
-  // tecleado se quedaría vivo en memoria hasta salir de la ficha.
+  // tecleado se quedaría vivo en memoria hasta salir de la ficha. Por lo mismo
+  // se olvida el intento de guardar: si no, el rojo reaparecería al reabrir.
   function cerrar() {
+    ob.reiniciar()
     setPass('')
     setReautenticando(false)
     setError(null)
@@ -652,7 +662,7 @@ function CompletarContratoModal({
   }
 
   async function guardar() {
-    if (faltante) return
+    if (!ob.validar() || faltante) return
     setEnviando(true)
     setError(null)
     const r = await confirmarConCandado({
@@ -708,7 +718,7 @@ function CompletarContratoModal({
           <Button
             size="sm"
             onClick={guardar}
-            disabled={enviando || !!faltante || (reautenticando && !pass)}
+            disabled={enviando || fechasInvertidas || (reautenticando && !pass)}
           >
             {enviando && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
             {reautenticando ? 'Confirmar y guardar' : 'Guardar contrato'}
@@ -717,8 +727,7 @@ function CompletarContratoModal({
       }
     >
       <div className="space-y-3">
-        <label className="block">
-          <span className="mb-1 block text-[12px] font-medium text-ink">Arrendador</span>
+        <Campo label="Arrendador" obligatorio falta={ob.falta('arrendadorId')}>
           <select
             className={inputCls}
             value={arrendadorId}
@@ -729,7 +738,7 @@ function CompletarContratoModal({
               <option key={a.id} value={a.id}>{a.nombre}</option>
             ))}
           </select>
-        </label>
+        </Campo>
 
         {/* Ficha del arrendador elegido: se ve ANTES de guardar, que es cuando
             todavía se puede cambiar de opinión o ir a capturar lo que falte. */}
@@ -761,19 +770,22 @@ function CompletarContratoModal({
         )}
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <label className="block">
-            <span className="mb-1 block text-[12px] font-medium text-ink">Importe de la renta</span>
+          <Campo
+            label="Importe de la renta"
+            obligatorio
+            falta={ob.falta('monto')}
+            error={ob.intento && montoMalo ? 'Captura un importe mayor que cero' : null}
+          >
             {/* Con coma de miles al teclear; lo que no se entiende llega como
-                'NaN' y `faltante` lo para con el `!Number.isFinite` de siempre. */}
+                'NaN', y `estaVacio` lo cuenta como dato que falta. */}
             <CampoCifra
               className={inputCls}
               valor={monto}
               onCambio={(crudo) => setMonto(crudo)}
               placeholder="0.00"
             />
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-[12px] font-medium text-ink">Cada cuándo se paga</span>
+          </Campo>
+          <Campo label="Cada cuándo se paga" obligatorio>
             <select
               className={inputCls}
               value={periodicidad}
@@ -783,12 +795,11 @@ function CompletarContratoModal({
                 <option key={p.value} value={p.value}>{p.label}</option>
               ))}
             </select>
-          </label>
+          </Campo>
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <label className="block">
-            <span className="mb-1 block text-[12px] font-medium text-ink">Desde</span>
+          <Campo label="Desde" como="div">
             {/* La fecha de inicio ya existe (la puso el sistema al abrir el
                 contrato) y NO se toca aquí: moverla recalcularía todo el
                 calendario de pagos. Se muestra para que la de fin se capture
@@ -796,9 +807,17 @@ function CompletarContratoModal({
             <div className="demo-num flex h-9 items-center rounded border border-border bg-surface-2 px-3 text-[13px] text-muted">
               {formatFecha(inicio)}
             </div>
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-[12px] font-medium text-ink">Hasta</span>
+          </Campo>
+          <Campo
+            label="Hasta"
+            obligatorio
+            falta={ob.falta('fechaFin')}
+            error={
+              fechasInvertidas
+                ? `No puede ser anterior al inicio (${formatFecha(inicio)})`
+                : null
+            }
+          >
             <input
               type="date"
               min={inicio}
@@ -806,7 +825,7 @@ function CompletarContratoModal({
               value={fechaFin}
               onChange={(e) => setFechaFin(e.target.value)}
             />
-          </label>
+          </Campo>
         </div>
 
         {/* CON QUÉ RAZÓN SOCIAL MÍA se paga esta renta. Va aquí, con el
@@ -814,10 +833,7 @@ function CompletarContratoModal({
             paga es tan parte de la renta como cuánto.
             NO bloquea el guardado — «sin asignar» es legítimo y todas las filas
             anteriores al 2026-09-17 están así. */}
-        <label className="block">
-          <span className="mb-1 block text-[12px] font-medium text-ink">
-            Con cuál de tus razones sociales se paga
-          </span>
+        <Campo label="Con cuál de tus razones sociales se paga">
           <select
             className={inputCls}
             value={entidadId}
@@ -841,7 +857,7 @@ function CompletarContratoModal({
               haya decidido con qué sociedad se paga.
             </p>
           ) : null}
-        </label>
+        </Campo>
 
         <p className="rounded border border-border bg-surface-2 p-2 text-[12px] text-muted">
           Al guardar, el contrato deja de estar incompleto: empieza a contar como costo de
@@ -861,19 +877,20 @@ function CompletarContratoModal({
               valor={pass}
               onChange={setPass}
               onEnter={() => {
-                if (!enviando && pass && !faltante) void guardar()
+                if (!enviando && pass) void guardar()
               }}
               deshabilitado={enviando}
             />
           </div>
         )}
 
-        {/* El aviso de lo que falta es informativo mientras se captura; el error
-            del servidor (p. ej. sesión bloqueada por control de cambios) manda. */}
+        {/* El error del servidor (p. ej. sesión bloqueada por control de
+            cambios) manda; si no, tras el intento se recuerda en rojo que hay
+            campos marcados. Cuál falta lo dice cada campo, no este pie. */}
         {error ? (
           <p className="text-[12px] text-error">{error}</p>
-        ) : faltante ? (
-          <p className="text-[12px] text-muted">{faltante}</p>
+        ) : ob.intento && faltante ? (
+          <p className="text-[12px] text-error">Revisa los campos marcados en rojo.</p>
         ) : null}
       </div>
     </Modal>
@@ -925,8 +942,9 @@ function AdjuntoInput({
   }
   const hayNuevo = !!valor
   return (
-    <div>
-      <span className="mb-1 block text-[12px] font-medium text-ink">{label}</span>
+    // `div` y no `label`: dentro hay botones (Quitar, Ver) y un <label> que los
+    // envuelve dispararía el primero al pulsar el texto.
+    <Campo label={label} como="div" error={err}>
       {hayNuevo ? (
         <div className="flex items-center justify-between gap-2 rounded border border-border bg-surface-2 px-2.5 py-1.5">
           <span className="flex min-w-0 items-center gap-1.5 text-[12px] text-ink">
@@ -966,8 +984,7 @@ function AdjuntoInput({
           {!urlActual && <span className="text-[12px] text-muted">Sin archivo</span>}
         </div>
       )}
-      {err && <p className="mt-1 text-[11px] text-error">{err}</p>}
-    </div>
+    </Campo>
   )
 }
 
@@ -1112,18 +1129,19 @@ function PagoModal({
           </p>
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <label className="block">
-              <span className="mb-1 block text-[12px] font-medium text-ink">Fecha de pago</span>
+            {/* OBLIG-01: todo opcional en el servidor (`fechaPago` y
+                `metodoPago` son `nullish`, arrendadores-controller.ts:352-353);
+                la fecha nace con hoy y el método con transferencia. */}
+            <Campo label="Fecha de pago">
               <input type="date" max={hoy} value={fechaPago} onChange={(e) => setFechaPago(e.target.value)} className={inputCls} />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-[12px] font-medium text-ink">Método de pago</span>
+            </Campo>
+            <Campo label="Método de pago">
               <select value={metodoPago} onChange={(e) => setMetodoPago(e.target.value)} className={inputCls}>
                 {METODOS_PAGO.map((m) => (
                   <option key={m} value={m}>{m.charAt(0) + m.slice(1).toLowerCase()}</option>
                 ))}
               </select>
-            </label>
+            </Campo>
           </div>
         )}
 
@@ -1144,16 +1162,14 @@ function PagoModal({
           onQuitar={() => { setComprobante(null); setBorrar((b) => ({ ...b, comprobante: true })) }}
         />
 
-        <label className="block">
-          <span className="mb-1 block text-[12px] font-medium text-ink">Observaciones</span>
+        <Campo label="Observaciones">
           <textarea
             className="min-h-[60px] w-full rounded border border-border-strong bg-surface px-3 py-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
             value={observaciones}
             onChange={(e) => setObservaciones(e.target.value)}
-            placeholder="Opcional"
             maxLength={500}
           />
-        </label>
+        </Campo>
         <p className="text-[12px] text-muted">PDF o imagen, hasta {MAX_ADJUNTO_MB} MB por archivo.</p>
 
         {/* El paso de la contraseña. Solo aparece cuando el servidor lo ha
@@ -1195,21 +1211,38 @@ function ReportarIncidenciaModal({
 }) {
   const [tipo, setTipo] = useState<TipoIncidencia>('LEGAL')
   const [desc, setDesc] = useState('')
+  // OBLIG-01: tipo y descripción son obligatorios en el servidor
+  // (`descripcion` min(1), lib/server/incidencias-controller.ts:13). Antes una
+  // descripción vacía se rellenaba en silencio con un texto genérico, así que
+  // el reporte llegaba sin decir qué pasó; ahora se pide, en rojo.
+  const ob = useObligatorios({ tipo, descripcion: desc }, ['tipo', 'descripcion'])
+  // Este cuadro no se desmonta al cerrarse: sin reiniciar, el rojo del intento
+  // anterior seguiría ahí al volver a abrirlo.
+  function cambiarAbierto(v: boolean) {
+    if (!v) ob.reiniciar()
+    onOpenChange(v)
+  }
   return (
     <Modal
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={cambiarAbierto}
       title="Reportar incidencia"
       subtitle={sitioNombre}
       footer={
         <div className="flex justify-end gap-2">
-          <Button variant="secondary" size="sm" onClick={() => onOpenChange(false)}>
+          <Button variant="secondary" size="sm" onClick={() => cambiarAbierto(false)}>
             Cancelar
           </Button>
           <Button
             variant="danger"
             size="sm"
-            onClick={() => onSubmit(tipo, desc.trim() || 'Incidencia reportada desde Arrendadores.')}
+            onClick={() => {
+              if (!ob.validar()) return
+              // El cuadro sigue montado tras enviar: se olvida el intento para
+              // que no reaparezca en rojo la próxima vez que se abra.
+              ob.reiniciar()
+              onSubmit(tipo, desc.trim())
+            }}
           >
             Reportar y bloquear sitio
           </Button>
@@ -1217,23 +1250,21 @@ function ReportarIncidenciaModal({
       }
     >
       <div className="space-y-3">
-        <label className="block">
-          <span className="mb-1 block text-[12px] font-medium text-ink">Tipo</span>
+        <Campo label="Tipo" obligatorio falta={ob.falta('tipo')}>
           <select className={inputCls} value={tipo} onChange={(e) => setTipo(e.target.value as TipoIncidencia)}>
             {TIPO_INC.map((t) => (
               <option key={t.value} value={t.value}>{t.label}</option>
             ))}
           </select>
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-[12px] font-medium text-ink">Descripción</span>
+        </Campo>
+        <Campo label="Descripción" obligatorio falta={ob.falta('descripcion')}>
           <textarea
             className="min-h-[80px] w-full rounded border border-border-strong bg-surface px-3 py-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
             value={desc}
             onChange={(e) => setDesc(e.target.value)}
             placeholder="Describe la incidencia…"
           />
-        </label>
+        </Campo>
         <p className="text-[12px] text-muted">
           Al reportar, el sitio pasa a <span className="font-medium text-error">bloqueado</span> y
           aparece en rojo en el mapa de Comercial al instante.

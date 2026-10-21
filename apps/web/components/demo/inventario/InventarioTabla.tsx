@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from 'react'
 import { Search, Cpu, Pencil, Loader2, CheckCircle2, UserPlus, Tag, X, Building2, Download } from 'lucide-react'
-import { Card } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
 import { CRUDO_INVALIDO } from '@/lib/captura-cifra'
@@ -316,23 +316,20 @@ export function InventarioTabla() {
 
   return (
     <>
-    <Card className="overflow-hidden p-0">
-      <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-2">
-        <div className="relative min-w-[200px] flex-1 sm:max-w-xs">
-          <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Buscar pantalla, código, distrito…"
-            className="h-9 w-full rounded border border-border-strong bg-surface pl-8 pr-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
-          />
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <span className="text-[12px] text-muted">{filtrados.length} de {sitios.length}</span>
-          {/* Descarga lo FILTRADO, no todo: si alguien buscó "Reforma" y pulsa
+    {/* Plegable (pedido del 20/10). El buscador `q` y la selección `sel` viven
+        en ESTE componente, fuera de la tarjeta, así que plegar y desplegar no
+        los pierde: solo se desmonta la tabla. */}
+    <CardColapsable
+      id="inventario.pantallas"
+      titulo="Pantallas"
+      className="overflow-hidden"
+      contentClassName="px-0 pb-0"
+      resumen={<span className="text-[12px] text-muted">{filtrados.length} de {sitios.length}</span>}
+      accion={
+          /* Descarga lo FILTRADO, no todo: si alguien buscó "Reforma" y pulsa
               descargar, espera esas pantallas. Con el buscador vacío `filtrados`
-              es el inventario completo, así que el caso normal no cambia. */}
-          <div className="flex items-center gap-1 border-l border-border pl-2">
+              es el inventario completo, así que el caso normal no cambia. */
+          <div className="flex items-center gap-1">
             <Download className="h-3.5 w-3.5 text-muted" />
             <button
               onClick={() => bajar('xlsx')}
@@ -351,6 +348,17 @@ export function InventarioTabla() {
               CSV
             </button>
           </div>
+      }
+    >
+      <div className="flex items-center justify-between gap-3 border-y border-border px-3 py-2">
+        <div className="relative min-w-[200px] flex-1 sm:max-w-xs">
+          <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Buscar pantalla, código, distrito…"
+            className="h-9 w-full rounded border border-border-strong bg-surface pl-8 pr-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          />
         </div>
       </div>
 
@@ -556,7 +564,7 @@ export function InventarioTabla() {
           </tbody>
         </table>
       </div>
-    </Card>
+    </CardColapsable>
 
     <SiteFicha sitio={activo} open={fichaOpen} onOpenChange={setFichaOpen} />
 

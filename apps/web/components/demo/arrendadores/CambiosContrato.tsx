@@ -6,6 +6,7 @@ import { Modal } from '@/components/demo/ui/Modal'
 import { Button } from '@/components/demo/ui/Button'
 import { CampoContrasena } from '@/components/demo/ui/CampoContrasena'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
+import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { CRUDO_INVALIDO } from '@/lib/captura-cifra'
 import {
   useArrendadores,
@@ -222,19 +223,37 @@ function EditarTerminosModal({
   if (f.autoRenovable !== inicial.autoRenovable) patch.autoRenovable = f.autoRenovable
   const hayCambios = Object.keys(patch).length > 0
 
-  const faltante =
-    !hayCambios ? 'Cambia al menos un dato.'
-    // Una cifra que CampoCifra no entiende llega como 'NaN': se dice así, y no
-    // con el «tiene que ser mayor que cero» o «no puede ser negativo» de abajo,
-    // que también la pararían pero diciendo otra cosa.
-    : f.montoRenta === CRUDO_INVALIDO || f.deposito === CRUDO_INVALIDO ? 'Corrige la cifra marcada en rojo.'
-    : !propuestoPor ? 'Elige quién propuso el cambio.'
-    : !f.arrendadorId ? 'Elige el arrendador.'
-    : !(Number(f.montoRenta) > 0) ? 'La renta tiene que ser mayor que cero.'
-    : !f.fechaFin ? 'Captura la fecha de fin.'
-    : f.fechaFin < f.fechaInicio ? 'La fecha de fin no puede ser anterior al inicio.'
-    : f.deposito !== '' && !(Number(f.deposito) >= 0) ? 'El depósito no puede ser negativo.'
-    : null
+  // OBLIG-01: antes un solo `faltante` deshabilitaba el botón y explicaba en
+  // gris, en el pie, SOLO el primer dato que faltaba. Ahora lo obligatorio no
+  // deshabilita: se pulsa y cada campo que falta se pinta en rojo.
+  // Obligatorios = los que ya exigía `faltante` (quién propuso, arrendador,
+  // renta y fin) más el inicio, que el PATCH rechaza vacío
+  // (`fechaInicio: z.string().min(1)`, lib/server/arrendadores-controller.ts:231).
+  const ob = useObligatorios(
+    {
+      propuestoPor,
+      arrendadorId: f.arrendadorId,
+      fechaInicio: f.fechaInicio,
+      fechaFin: f.fechaFin,
+      montoRenta: f.montoRenta,
+    },
+    ['propuestoPor', 'arrendadorId', 'fechaInicio', 'fechaFin', 'montoRenta'],
+  )
+  // Una cifra que CampoCifra no entiende llega como 'NaN': se dice así, y no
+  // con el «tiene que ser mayor que cero» o «no puede ser negativo» de abajo,
+  // que también la pararían pero diciendo otra cosa.
+  const rentaIlegible = f.montoRenta === CRUDO_INVALIDO
+  const depositoIlegible = f.deposito === CRUDO_INVALIDO
+  // Una renta que se entiende pero no es mayor que cero no está «vacía» (el 0
+  // es un dato) y aun así no vale: se dice en su campo tras el intento.
+  const rentaMala = !ob.faltan.includes('montoRenta') && !(Number(f.montoRenta) > 0)
+  const fechasInvertidas = !!f.fechaInicio && !!f.fechaFin && f.fechaFin < f.fechaInicio
+  const depositoNegativo = f.deposito !== '' && !depositoIlegible && !(Number(f.deposito) >= 0)
+  // Lo que SÍ deshabilita: no haber cambiado nada y los errores de formato,
+  // que se ven al teclear y no son «falta un dato».
+  const formatoMalo = rentaIlegible || depositoIlegible || fechasInvertidas || depositoNegativo
+  const bloqueado = !hayCambios || formatoMalo
+  const aviso = hayCambios && (formatoMalo || (ob.intento && (ob.faltan.length > 0 || rentaMala)))
 
   function cerrar() {
     setPass('')
@@ -242,7 +261,7 @@ function EditarTerminosModal({
   }
 
   async function guardar() {
-    if (faltante || !propuestoPor) return
+    if (!ob.validar() || bloqueado || rentaMala || !propuestoPor) return
     setEnviando(true)
     setError(null)
     const r = await confirmarConCandado({
@@ -275,11 +294,11 @@ function EditarTerminosModal({
       subtitle="Antes de firmarse. Cada cambio queda en el historial con quién lo pidió."
       footer={
         <div className="flex items-center justify-end gap-2">
-          {faltante && hayCambios && <span className="mr-auto text-[12px] text-muted">{faltante}</span>}
+          {aviso && <span className="mr-auto text-[12px] text-error">Revisa los campos marcados en rojo.</span>}
           <Button variant="secondary" size="sm" onClick={cerrar} disabled={enviando}>
             Cancelar
           </Button>
-          <Button size="sm" disabled={enviando || !!faltante || (reautenticando && !pass)} onClick={guardar}>
+          <Button size="sm" disabled={enviando || bloqueado || (reautenticando && !pass)} onClick={guardar}>
             {enviando && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
             {reautenticando ? 'Confirmar y guardar' : 'Guardar cambio'}
           </Button>
@@ -294,9 +313,8 @@ function EditarTerminosModal({
           </p>
         )}
 
-        <fieldset className="space-y-1">
-          <legend className="mb-1 text-[12px] text-muted">¿Quién propuso el cambio?</legend>
-          <div className="flex gap-4">
+        <Campo label="¿Quién propuso el cambio?" como="div" obligatorio falta={ob.falta('propuestoPor')}>
+          <div className="flex gap-4" role="radiogroup">
             {(['ARRENDADOR', 'ARRENDATARIO'] as const).map((p) => (
               <label key={p} className="flex items-center gap-1.5">
                 <input
@@ -310,10 +328,9 @@ function EditarTerminosModal({
               </label>
             ))}
           </div>
-        </fieldset>
+        </Campo>
 
-        <label className="block">
-          <span className="text-[12px] text-muted">Motivo (opcional)</span>
+        <Campo label="Motivo">
           <input
             className={inputCls}
             value={motivo}
@@ -322,11 +339,10 @@ function EditarTerminosModal({
             placeholder="Ej. pidió bajar la renta a cambio de un plazo más largo"
             disabled={enviando}
           />
-        </label>
+        </Campo>
 
         <div className="grid grid-cols-1 gap-3 border-t border-border pt-3 sm:grid-cols-2">
-          <label className="block sm:col-span-2">
-            <span className="text-[12px] text-muted">Arrendador</span>
+          <Campo label="Arrendador" obligatorio falta={ob.falta('arrendadorId')} className="sm:col-span-2">
             <select
               className={inputCls}
               value={f.arrendadorId}
@@ -339,9 +355,8 @@ function EditarTerminosModal({
                 </option>
               ))}
             </select>
-          </label>
-          <label className="block">
-            <span className="text-[12px] text-muted">Razón social del arrendador</span>
+          </Campo>
+          <Campo label="Razón social del arrendador">
             <select
               className={inputCls}
               value={f.razonSocialId}
@@ -355,9 +370,8 @@ function EditarTerminosModal({
                 </option>
               ))}
             </select>
-          </label>
-          <label className="block">
-            <span className="text-[12px] text-muted">La paga</span>
+          </Campo>
+          <Campo label="La paga">
             <select
               className={inputCls}
               value={f.entidadId}
@@ -370,24 +384,36 @@ function EditarTerminosModal({
                 </option>
               ))}
             </select>
-          </label>
-          <label className="block">
-            <span className="text-[12px] text-muted">Inicio</span>
+          </Campo>
+          <Campo label="Inicio" obligatorio falta={ob.falta('fechaInicio')}>
             <input type="date" className={inputCls} value={f.fechaInicio}
               onChange={(e) => poner('fechaInicio', e.target.value)} disabled={enviando} />
-          </label>
-          <label className="block">
-            <span className="text-[12px] text-muted">Fin</span>
+          </Campo>
+          <Campo
+            label="Fin"
+            obligatorio
+            falta={ob.falta('fechaFin')}
+            error={fechasInvertidas ? 'No puede ser anterior al inicio' : null}
+          >
             <input type="date" className={inputCls} value={f.fechaFin}
               onChange={(e) => poner('fechaFin', e.target.value)} disabled={enviando} />
-          </label>
-          <label className="block">
-            <span className="text-[12px] text-muted">Renta</span>
+          </Campo>
+          <Campo
+            label="Renta"
+            obligatorio
+            falta={ob.falta('montoRenta')}
+            error={
+              rentaIlegible
+                ? 'No se entiende la cifra'
+                : ob.intento && rentaMala
+                  ? 'Tiene que ser mayor que cero'
+                  : null
+            }
+          >
             <CampoCifra className={inputCls} valor={f.montoRenta}
               onCambio={(crudo) => poner('montoRenta', crudo)} disabled={enviando} />
-          </label>
-          <label className="block">
-            <span className="text-[12px] text-muted">Periodicidad</span>
+          </Campo>
+          <Campo label="Periodicidad" obligatorio>
             <select className={inputCls} value={f.periodicidad}
               onChange={(e) => poner('periodicidad', e.target.value)} disabled={enviando}>
               {PERIODICIDADES.map((p) => (
@@ -396,17 +422,24 @@ function EditarTerminosModal({
                 </option>
               ))}
             </select>
-          </label>
-          <label className="block">
-            <span className="text-[12px] text-muted">Moneda</span>
+          </Campo>
+          <Campo label="Moneda">
             <input className={inputCls} value={f.moneda}
               onChange={(e) => poner('moneda', e.target.value.toUpperCase())} disabled={enviando} />
-          </label>
-          <label className="block">
-            <span className="text-[12px] text-muted">Depósito (opcional)</span>
+          </Campo>
+          <Campo
+            label="Depósito"
+            error={
+              depositoIlegible
+                ? 'No se entiende la cifra'
+                : depositoNegativo
+                  ? 'No puede ser negativo'
+                  : null
+            }
+          >
             <CampoCifra className={inputCls} valor={f.deposito}
               onCambio={(crudo) => poner('deposito', crudo)} disabled={enviando} />
-          </label>
+          </Campo>
           <label className="flex items-center gap-2 sm:col-span-2">
             <input type="checkbox" checked={f.autoRenovable}
               onChange={(e) => poner('autoRenovable', e.target.checked)} disabled={enviando} />

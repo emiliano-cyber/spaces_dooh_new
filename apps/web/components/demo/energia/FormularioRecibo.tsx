@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Zap } from 'lucide-react'
 import { Button } from '@/components/demo/ui/Button'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
+import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import type { PuntoDeMedicion } from '@/lib/server/energia-repo'
 import { motivoInvalidoDelRecibo, type ReciboEnFormulario } from './captura'
 
@@ -49,6 +50,9 @@ export function FormularioRecibo({
     importe: '',
   })
   const [error, setError] = useState<string | null>(null)
+  // OBLIG-01 · lo que el servidor exige (`energia-controller.ts:170-188`): a qué
+  // predio o pantalla corresponde, el mes, los kWh y el importe. El medidor no.
+  const ob = useObligatorios({ ...recibo }, ['punto', 'periodo', 'kwh', 'importe'])
 
   const campo = (k: keyof ReciboEnFormulario) => (e: { target: { value: string } }) => {
     setRecibo((r) => ({ ...r, [k]: e.target.value }))
@@ -59,8 +63,9 @@ export function FormularioRecibo({
     // Se valida con el reloj INYECTADO desde aquí y no dentro de la función
     // pura: es lo que permite probar el rechazo del recibo del futuro sin
     // falsear el reloj del proceso.
+    const completos = ob.validar()
     const motivo = motivoInvalidoDelRecibo(recibo, new Date())
-    if (motivo) {
+    if (!completos || motivo) {
       setError(motivo)
       return
     }
@@ -69,12 +74,14 @@ export function FormularioRecibo({
       // Solo las cifras. Ver la cabecera: el predio y el mes se quedan porque
       // capturar es un lote, y el importe se va porque repetirlo no da error.
       setRecibo((r) => ({ ...r, medidor: '', kwh: '', importe: '' }))
+      // Y el rojo se apaga: los kWh y el importe quedan vacíos A PROPÓSITO para
+      // el siguiente recibo, no porque falten.
+      ob.reiniciar()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo guardar el recibo')
     }
   }
 
-  const etiqueta = 'mb-1 block text-[11px] uppercase tracking-wide text-muted'
   const entrada =
     'h-9 w-full rounded-md border border-border bg-surface px-2 text-[13px] text-ink outline-none focus:border-ink/40'
 
@@ -87,10 +94,7 @@ export function FormularioRecibo({
       }}
     >
       <div className="grid grid-cols-2 gap-2 lg:grid-cols-12">
-        <div className="col-span-2 lg:col-span-4">
-          <label className={etiqueta} htmlFor="recibo-punto">
-            Predio o pantalla
-          </label>
+        <Campo label="Predio o pantalla" obligatorio falta={ob.falta('punto')} className="col-span-2 lg:col-span-4">
           <select
             id="recibo-punto"
             className={entrada}
@@ -106,50 +110,37 @@ export function FormularioRecibo({
               </option>
             ))}
           </select>
-        </div>
+        </Campo>
 
-        <div className="lg:col-span-2">
-          <label className={etiqueta} htmlFor="recibo-mes">
-            Mes del recibo
-          </label>
+        <Campo label="Mes del recibo" obligatorio falta={ob.falta('periodo')} className="lg:col-span-2">
           {/* `type="month"` da `AAAA-MM`, que es exactamente lo que el
               controller normaliza al día 1. Un selector de día pediría elegir
               una fecha que la base no admite. */}
           <input id="recibo-mes" type="month" className={entrada} value={recibo.periodo} onChange={campo('periodo')} />
-        </div>
+        </Campo>
 
-        <div className="lg:col-span-2">
-          <label className={etiqueta} htmlFor="recibo-medidor">
-            Medidor
-          </label>
+        <Campo label="Medidor" className="lg:col-span-2">
           {/* Opcional: un predio con un solo medidor puede no tener el número
               anotado, y bloquear la captura por eso es fricción pura. Su razón
               de ser es poder capturar el SEGUNDO medidor del mismo mes. */}
           <input
             id="recibo-medidor"
             className={entrada}
-            placeholder="opcional"
             value={recibo.medidor ?? ''}
             onChange={campo('medidor')}
           />
-        </div>
+        </Campo>
 
-        <div className="lg:col-span-2">
-          <label className={etiqueta} htmlFor="recibo-kwh">
-            kWh
-          </label>
+        <Campo label="kWh" obligatorio falta={ob.falta('kwh')} className="lg:col-span-2">
           <CampoCifra
             id="recibo-kwh"
             className={entrada}
             valor={recibo.kwh}
             onCambio={(crudo) => campo('kwh')({ target: { value: crudo } })}
           />
-        </div>
+        </Campo>
 
-        <div className="lg:col-span-2">
-          <label className={etiqueta} htmlFor="recibo-importe">
-            Importe
-          </label>
+        <Campo label="Importe" obligatorio falta={ob.falta('importe')} className="lg:col-span-2">
           {/* Con coma de miles al teclear. Lo que no se entiende llega como
               'NaN' y `motivoInvalidoDelRecibo` lo para («tiene que ser un
               número»), igual que paraba cualquier texto antes. */}
@@ -159,7 +150,7 @@ export function FormularioRecibo({
             valor={recibo.importe}
             onCambio={(crudo) => campo('importe')({ target: { value: crudo } })}
           />
-        </div>
+        </Campo>
       </div>
 
       <div className="flex items-center gap-3">

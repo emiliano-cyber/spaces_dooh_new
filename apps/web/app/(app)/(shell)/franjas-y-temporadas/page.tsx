@@ -1,7 +1,6 @@
 'use client'
 
 import { Clock } from 'lucide-react'
-import { Card, CardContent } from '@/components/demo/ui/Card'
 import { GestionRejilla } from '@/components/demo/rejilla/GestionRejilla'
 import { ProgramacionPorFranja } from '@/components/demo/rejilla/ProgramacionPorFranja'
 
@@ -36,20 +35,14 @@ export default function FranjasYTemporadasPage() {
           </p>
         </div>
       </header>
-      <Card>
-        <CardContent className="pt-6">
-          <GestionRejilla />
-        </CardContent>
-      </Card>
+      {/* PLEG-02 · sin tarjeta envolvente: cada catálogo trae la suya,
+          plegable por separado. */}
+      <GestionRejilla />
       {/* PROG-01 (2026-09-30) · junto a cada franja, qué campañas se TRANSMITEN
           en ella. Tarjeta aparte y no dentro de la tabla de precios: programar
           no cambia ningún precio, y mezclarlo con el catálogo haría creer que
           sí. Lee con `comercial.ver` y escribe con `comercial.crear`. */}
-      <Card>
-        <CardContent className="pt-6">
-          <ProgramacionPorFranja />
-        </CardContent>
-      </Card>
+      <ProgramacionPorFranja />
     </div>
   )
 }

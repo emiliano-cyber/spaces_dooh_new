@@ -1,10 +1,14 @@
 ---
 tipo: operacion
 estado: verificado
-actualizado: 2026-10-08
+actualizado: 2026-10-20
 tags: [convenciones, estilo, pruebas]
 archivos:
   - apps/web/components/demo/ui/Button.tsx
+  - apps/web/components/demo/ui/Campo.tsx
+  - apps/web/components/demo/ui/CardColapsable.tsx
+  - apps/web/lib/secciones-plegadas.ts
+  - apps/web/lib/campos-obligatorios.ts
   - apps/web/lib/formato-numero.ts
   - apps/web/lib/formato-numero.guardia.test.ts
   - apps/web/lib/captura-cifra.ts
@@ -332,6 +336,62 @@ Las e2e:
 > unitarias sin despeinarse. **Todo lo que toque tenant o sesión necesita e2e.**
 
 Las semillas usan fechas **relativas a hoy** (`enDias()`), nunca literales.
+
+## Campos obligatorios en los formularios (OBLIG-01)
+
+> [!important] Regla del dueño, 2026-10-20
+> «En todos los formularios de añadir o editar pon un asterisco en los campos
+> obligatorios, y si son opcionales solo poner el nombre; si falta alguno de
+> los obligatorios, poner en rojo ese campo.»
+
+- **Todo campo de un alta o edición usa `Campo`**
+  (`components/demo/ui/Campo.tsx`). No se escriben etiquetas a mano ni se
+  crean `function Campo` locales: el 20/10 había trece copias y casi ninguna
+  decía qué era obligatorio.
+- **Obligatorio = lo que exige el servidor** (el zod del controller) **más lo
+  que la pantalla ya pedía para guardar.** Se comprueba en el código, no se
+  supone. Los condicionales van como `{ campo, si }` (p. ej. la comisión solo si
+  es AGENCIA).
+- **Opcional = solo el nombre.** Nada de «(opcional)», ni en etiquetas ni en
+  placeholders.
+- **`useObligatorios`**: al guardar, `if (!ob.validar()) return`. El botón NO
+  se deshabilita por un obligatorio vacío —deshabilitado, nadie ve cuál
+  falta—; sí por formato inválido, `enviando`, candado, etc.
+- **El rojo sale solo tras el primer intento**, nunca al abrir el formulario,
+  y se quita al escribir el dato.
+- El borde rojo lo pone `app/(app)/demo.css` (`.demo-root [data-falta] …`),
+  **después** del recoloreado de controles: en `globals.css` perdía la cascada
+  y solo se ponía roja la etiqueta. Lo mide
+  `components/demo/ui/campo-falta-css.test.ts`.
+- Celdas editables en tablas: asterisco en la cabecera de columna y rojo en la
+  celda, sin etiqueta encima.
+
+## Secciones plegables (PLEG-01)
+
+> [!important] Regla del dueño, 2026-10-20
+> «Así como Arrendadores, todos los módulos deben poderse colapsar para
+> cambiar la vista.»
+
+- **Toda sección con título de una página es un `CardColapsable`**
+  (`components/demo/ui/CardColapsable.tsx`) con `id` estable y único
+  `<modulo>.<seccion>` (`finanzas.cobranza`, `campana.candado`…). Con `id`, la
+  tarjeta **recuerda en el navegador** que la persona la dejó plegada
+  (`lib/secciones-plegadas.ts`, localStorage, try/catch). Un id repetido
+  pliega las dos a la vez al recargar: si hay una tarjeta por registro, el id
+  lleva el registro (`creativos.campana.<id>`).
+- **Botones de la sección en `accion`** (no pliegan), cifras en `resumen`
+  (siguen visibles plegada), explicación en `subtitulo`.
+- **No se pliegan:** el encabezado de la página con su botón principal,
+  pestañas, avisos que hay que leer, formularios y modales. Un modal que se
+  abre desde la cabecera va FUERA de la tarjeta: dentro, con la tarjeta
+  plegada, el botón no hace nada.
+- **El contenido se desmonta al plegar:** el estado que importa (filtros,
+  página, borradores) vive fuera de la tarjeta. Donde no es así, está
+  comentado (p. ej. «Nueva organización» en Administración).
+- La ficha de campaña conserva su `Seccion` propia (abre según su estado), con
+  la misma persistencia. La lista de Campañas conserva su vista compacta.
+- Rejillas con tarjetas lado a lado: `items-start`, o una tarjeta plegada se
+  estira a la altura de su vecina.
 
 ## Color de los botones
 

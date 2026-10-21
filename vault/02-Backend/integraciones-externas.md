@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-13
+actualizado: 2026-10-19
 tags: [backend, integraciones, terceros, cron]
 archivos:
   - apps/web/lib/server/doohmain.ts
@@ -12,6 +12,7 @@ archivos:
   - db/migrations/20261013_doohmain_seguimiento_unicas.sql
   - apps/web/lib/server/space-eye.ts
   - apps/web/app/api/space-eyes/
+  - apps/web/lib/roles.ts
   - apps/web/components/demo/space-eyes/
   - apps/web/lib/server/storage.ts
   - apps/web/lib/server/email.ts
@@ -151,6 +152,28 @@ hemos visto una respuesta con datos, así que no se interpreta nada todavía»*.
 > - El comentario de `pedirCaptura` que decía «lo ÚNICO que esta integración
 >   escribe» se corrigió, y el ADR pasó de **0041 a 0045** (chocaba con Google Maps).
 >
+> [!important] 2026-10-19 · **el encuadre que SE QUEDA, solo del Dueño** (rama `fix/space-eyes-fotos-rapidas` de José, `v0.11.10`)
+> En g500 varias personas movieron el zoom desde el visor y dejaron torcido el
+> encuadre de tres pantallas; el catálogo de creativos que cada equipo aprende
+> vale para UN encuadre, así que se tira entero al cambiarlo.
+>
+> - **La regla:** `puedeEncuadrar()` en `lib/roles.ts` (solo `DUENO`), con
+>   pruebas. La puerta `app/api/space-eyes/se/[...ruta]/route.ts` contesta
+>   **403** a quien no es Dueño en `POST/PUT/DELETE` de
+>   `devices/:id/(camera|stream-rotation|pantalla)` y lo deja en la bitácora.
+> - **El visor sigue siendo de quien opera:** `camera-control` de quien no
+>   encuadra se reenvía con `guardar: false` (exposición y balance no se quedan
+>   en el equipo), y la foto sale con `encuadre_temporal`, sin tocar el del sitio.
+> - **El candado real es éste, no el de Space Eye:** Space Eye exige
+>   `requireRole('admin')`, pero esta puerta le habla con la llave de la
+>   instancia, que es admin. Lo que necesita la pila nueva de Space Eye
+>   (`update-eyes.sh`, migraciones 026 y 027) es entender `guardar: false`.
+> - **OPERACIONES no tiene `inventario.crear`** (solo `ver`, desde
+>   `20260804_modulo_inventario.sql`): hoy no abre la vista en vivo. Pendiente
+>   aparte, pide migración.
+>
+> Despliegue y comprobaciones: `docs/evidencias/25-despliegue-space-eyes-g500-20261019.txt`.
+
 > **Lo que NO se pudo arreglar desde aquí:** que Space Eye se sirva por HTTPS
 > (servidor), y si la marca `escritura` de la llave alcanza solo la captura
 > —como afirma `infra/env/app.env.example`— o también las órdenes. Si fuera

@@ -3,10 +3,11 @@
 import { toast } from 'sonner'
 import { Fragment, useMemo, useState } from 'react'
 import { CheckCircle2, ChevronRight, FileText, Lock, Receipt } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
+import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { EmptyState } from '@/components/demo/EmptyState'
 import type { Cobranza, Factura, EstCobranza } from '@/lib/data/types'
 import {
@@ -20,6 +21,7 @@ import { etiquetaVencimiento, type TonoVencimiento } from '@/components/demo/fin
 import { ComprobanteDialog } from '@/components/demo/finanzas/ComprobanteDialog'
 import { TableroPeriodo } from '@/components/demo/finanzas/TableroPeriodo'
 import { EstadoCuenta } from '@/components/demo/finanzas/EstadoCuenta'
+import { CampoComprobante, PagosCobranzaModal } from '@/components/demo/finanzas/ComprobantePago'
 import { generarFacturaApi, recordarCobranzaApi, pagarCobranzaApi } from '@/lib/data/estado-api'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { useCandado, PasoContrasena } from '@/components/demo/ui/candado'
@@ -65,6 +67,7 @@ export default function FinanzasPage() {
   const [toast, setToast] = useState<string | null>(null)
   const [recordando, setRecordando] = useState<string | null>(null)
   const [pagoCob, setPagoCob] = useState<{ id: string; folio: string; saldo: number } | null>(null)
+  const [pagosDe, setPagosDe] = useState<{ id: string; folio: string } | null>(null)
 
   function notify(msg: string) {
     setToast(msg)
@@ -173,12 +176,11 @@ export default function FinanzasPage() {
       <TableroPeriodo />
 
       {/* Listas para facturar */}
-      <Card>
-        <CardHeader className="flex flex-row items-center gap-2">
-          <Lock className="h-4 w-4 text-muted" />
-          <CardTitle>Listas para facturar</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <CardColapsable
+        id="finanzas.listas-para-facturar"
+        titulo="Listas para facturar"
+        icono={<Lock className="h-4 w-4 text-muted" />}
+      >
           {!resumen ? (
             <div className="h-16 animate-pulse rounded bg-surface-2" />
           ) : listas.length === 0 ? (
@@ -212,20 +214,21 @@ export default function FinanzasPage() {
               ))}
             </ul>
           )}
-        </CardContent>
-      </Card>
+      </CardColapsable>
 
       {/* Facturas emitidas */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Facturas</CardTitle>
+      <CardColapsable
+        id="finanzas.facturas"
+        titulo="Facturas"
+        contentClassName="px-0 pb-0"
+        resumen={
           <div className="flex gap-3 text-[11px]">
             <Conteo color="#0a66ff" label="Emitidas" n={cuentaFactura.EMITIDA} />
             <Conteo color="#10b981" label="Pagadas" n={cuentaFactura.PAGADA} />
             <Conteo color="#71717a" label="Anuladas" n={cuentaFactura.ANULADA} />
           </div>
-        </CardHeader>
-        <CardContent className="px-0 pb-0">
+        }
+      >
           {!facturas ? (
             <p className="px-4 pb-4 text-[13px] text-muted">Cargando…</p>
           ) : filasFactura.length === 0 ? (
@@ -285,8 +288,7 @@ export default function FinanzasPage() {
               </table>
             </div>
           )}
-        </CardContent>
-      </Card>
+      </CardColapsable>
 
       <ComprobanteDialog
         factura={(facturas ?? []).find((f) => f.id === verFactura) ?? null}
@@ -297,16 +299,18 @@ export default function FinanzasPage() {
       />
 
       {/* Cobranza */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Cobranza</CardTitle>
+      <CardColapsable
+        id="finanzas.cobranza"
+        titulo="Cobranza"
+        contentClassName="px-0 pb-0"
+        resumen={
           <div className="flex gap-3 text-[11px]">
             <Conteo color="#10b981" label="Al corriente" n={cuenta.AL_CORRIENTE} />
             <Conteo color="#f59e0b" label="Por vencer" n={cuenta.POR_VENCER} />
             <Conteo color="#ef4444" label="Vencida" n={cuenta.VENCIDA} />
           </div>
-        </CardHeader>
-        <CardContent className="px-0 pb-0">
+        }
+      >
           {!cobranzas || !facturas ? (
             <div className="space-y-2 px-4 pb-4">
               {Array.from({ length: 3 }).map((_, i) => (
@@ -339,7 +343,7 @@ export default function FinanzasPage() {
                   {grupos.map((g) => {
                     const abierta = expandidas.has(g.factura?.id ?? '')
                     if (g.cuotas.length === 1) {
-                      return <FilaCuota key={g.cuotas[0].id} cob={g.cuotas[0]} fac={g.factura} entidades={entidades ?? []} cliNombre={cliNombre} puedeCobrar={puedeCobrar} recordando={recordando} onPagar={setPagoCob} onRecordar={recordar} />
+                      return <FilaCuota key={g.cuotas[0].id} cob={g.cuotas[0]} fac={g.factura} entidades={entidades ?? []} cliNombre={cliNombre} puedeCobrar={puedeCobrar} recordando={recordando} onPagar={setPagoCob} onVerPagos={setPagosDe} onRecordar={recordar} />
                     }
                     return (
                       <Fragment key={g.factura?.id ?? g.cuotas[0].id}>
@@ -384,7 +388,7 @@ export default function FinanzasPage() {
                             <StatusBadge tono={COBRANZA_TONO[g.estado]}>{COBRANZA_LABEL[g.estado]}</StatusBadge>
                           </td>
                         </tr>
-                        {abierta && g.cuotas.map((c) => <FilaCuota key={c.id} cob={c} fac={g.factura} entidades={entidades ?? []} sangrada cliNombre={cliNombre} puedeCobrar={puedeCobrar} recordando={recordando} onPagar={setPagoCob} onRecordar={recordar} />)}
+                        {abierta && g.cuotas.map((c) => <FilaCuota key={c.id} cob={c} fac={g.factura} entidades={entidades ?? []} sangrada cliNombre={cliNombre} puedeCobrar={puedeCobrar} recordando={recordando} onPagar={setPagoCob} onVerPagos={setPagosDe} onRecordar={recordar} />)}
                       </Fragment>
                     )
                   })}
@@ -392,8 +396,7 @@ export default function FinanzasPage() {
               </table>
             </div>
           )}
-        </CardContent>
-      </Card>
+      </CardColapsable>
 
       {/* Lo COMPROMETIDO: cuánto se paga por cada pantalla y cada cuánto, con
           todo normalizado a mes para poder compararlo y sumarlo. Va antes que
@@ -440,6 +443,15 @@ export default function FinanzasPage() {
           cob={pagoCob}
           onClose={() => setPagoCob(null)}
           onDone={(msg) => { notify(msg); setPagoCob(null) }}
+        />
+      )}
+
+      {pagosDe && (
+        <PagosCobranzaModal
+          cobranzaId={pagosDe.id}
+          folio={pagosDe.folio}
+          puedeAdjuntar={puedeCobrar}
+          onClose={() => setPagosDe(null)}
         />
       )}
 
@@ -531,6 +543,14 @@ function GenerarFacturaDialog({
   const meses = campana ? duracionMeses(campana.fechaInicio, campana.fechaFin) : 0
   const opciones = opcionesParcialidad(meses)
   const nCuotas = opciones.find((o) => o.periodicidad === periodicidad)?.cuotas ?? 0
+  // OBLIG-01 · con parcialidades, el servidor exige periodicidad y primer
+  // vencimiento (`finanzas-controller.ts:64` y `:69`). Sin cuotas no hay nada
+  // obligatorio: la emisora puede quedar «sin asignar» y el plazo siempre trae
+  // uno elegido. Va ANTES del `return null` porque es un hook.
+  const ob = useObligatorios({ periodicidad, primerVenc }, [
+    { campo: 'periodicidad', si: enCuotas },
+    { campo: 'primerVenc', si: enCuotas },
+  ])
 
   if (!campana) return null
 
@@ -539,6 +559,7 @@ function GenerarFacturaDialog({
   // pide, el paso aparece abajo con lo ya elegido intacto — plazo, emisora y
   // parcialidades se conservan, que es lo que hacía caro el rodeo viejo.
   function emitir() {
+    if (!ob.validar()) return
     return candado.ejecutar({
       guardar: () =>
         generarFacturaApi(
@@ -630,10 +651,7 @@ function GenerarFacturaDialog({
             servidor del presupuesto de la campaña y de la tasa del cliente.
             Emitir es zona R4 y lo único que este selector decide es el nombre
             que va arriba del documento. */}
-        <label className="block">
-          <span className="mb-1 block text-[12px] font-medium text-ink">
-            Con cuál de tus razones sociales se emite
-          </span>
+        <Campo label="Con cuál de tus razones sociales se emite">
           <select
             className="h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
             value={emisoraId}
@@ -660,7 +678,7 @@ function GenerarFacturaDialog({
               razón social que vende, o ninguna la tiene marcada.
             </p>
           ) : null}
-        </label>
+        </Campo>
 
         {/* Cobro en parcialidades. Las opciones y el nº de cuotas se DERIVAN de
             la duración de la campaña: solo se ofrece lo que da un número entero
@@ -689,26 +707,29 @@ function GenerarFacturaDialog({
               </label>
               {enCuotas && (
                 <div className="mt-2.5 space-y-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <select
-                      value={periodicidad}
-                      disabled={candado.reautenticando}
-                      onChange={(e) => setPeriodicidad(e.target.value as PeriodicidadCuota)}
-                      className="h-9 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink"
-                    >
-                      {opciones.map((o) => (
-                        <option key={o.periodicidad} value={o.periodicidad}>
-                          {o.cuotas} cuotas {PERIODICIDAD_LABEL[o.periodicidad]}
-                        </option>
-                      ))}
-                    </select>
-                    <span className="text-[12px] text-muted">desde</span>
-                    <input
-                      type="date" value={primerVenc}
-                      disabled={candado.reautenticando}
-                      onChange={(e) => setPrimerVenc(e.target.value)}
-                      className="h-9 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink"
-                    />
+                  <div className="flex flex-wrap items-start gap-2">
+                    <Campo label="Cuotas" obligatorio falta={ob.falta('periodicidad')}>
+                      <select
+                        value={periodicidad}
+                        disabled={candado.reautenticando}
+                        onChange={(e) => setPeriodicidad(e.target.value as PeriodicidadCuota)}
+                        className="h-9 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink"
+                      >
+                        {opciones.map((o) => (
+                          <option key={o.periodicidad} value={o.periodicidad}>
+                            {o.cuotas} cuotas {PERIODICIDAD_LABEL[o.periodicidad]}
+                          </option>
+                        ))}
+                      </select>
+                    </Campo>
+                    <Campo label="Primer vencimiento" obligatorio falta={ob.falta('primerVenc')}>
+                      <input
+                        type="date" value={primerVenc}
+                        disabled={candado.reautenticando}
+                        onChange={(e) => setPrimerVenc(e.target.value)}
+                        className="h-9 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink"
+                      />
+                    </Campo>
                   </div>
                   {campana.presupuestoBruto != null && nCuotas > 0 && (
                     <p className="text-[12px] text-muted">
@@ -782,6 +803,9 @@ function PagoModal({
   // El DÍA en que entró el dinero (ADR 0046): por omisión hoy, y se puede
   // poner el de la transferencia de ayer. El servidor rechaza una fecha futura.
   const [fecha, setFecha] = useState(hoyLocal())
+  // COB-COMP · el recibo o la transferencia, opcional. Viaja en el MISMO
+  // registro del pago: o entran los dos o ninguno.
+  const [comprobante, setComprobante] = useState<{ url: string; nombre: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
   // B38 · `POST /api/cobranzas/:id/pagar` pasa por `exigirCambioSensible`
   // (`app/api/cobranzas/[id]/pagar/route.ts:15`). Este cuadro pintaba el 403 en
@@ -796,7 +820,7 @@ function PagoModal({
     setError(null)
     return candado.ejecutar({
       // total → liquida el saldo; parcial → el monto ingresado (el backend lo acota al saldo)
-      guardar: () => pagarCobranzaApi(cob.id, total ? undefined : num, fecha || undefined),
+      guardar: () => pagarCobranzaApi(cob.id, total ? undefined : num, fecha || undefined, comprobante?.url ?? null),
       alLograr: () => onDone(total || num >= cob.saldo ? 'Cobranza liquidada' : 'Abono registrado'),
       alFallar: setError,
       mensajeSiFalla: 'No se pudo registrar el pago',
@@ -854,8 +878,10 @@ function PagoModal({
       }
     >
       <div className="space-y-2">
-        <label className="block">
-          <span className="mb-1 block text-[12px] font-medium text-ink">Monto del abono</span>
+        {/* Sin asterisco a propósito: el servidor no exige monto ni fecha
+            (`finanzas-controller.ts:21` y `:25`, ausente = liquidar y hoy), y
+            los dos llegan ya rellenos con el saldo y la fecha de hoy. */}
+        <Campo label="Monto del abono">
           {/* Con coma de miles al teclear (CampoCifra). `monto` sigue siendo la
               cifra sin comas; si no se entiende llega 'NaN' y «Registrar
               abono» queda deshabilitado por el mismo `!num` de siempre. */}
@@ -867,9 +893,8 @@ function PagoModal({
             onCambio={(crudo) => setMonto(crudo)}
             className="h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-60"
           />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-[12px] font-medium text-ink">Fecha en que se recibió</span>
+        </Campo>
+        <Campo label="Fecha en que se recibió">
           <input
             type="date"
             value={fecha}
@@ -878,7 +903,15 @@ function PagoModal({
             onChange={(e) => setFecha(e.target.value)}
             className="h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-60"
           />
-        </label>
+        </Campo>
+        <CampoComprobante
+          nombre={comprobante?.nombre ?? null}
+          // Igual que el importe: mientras se teclea la contraseña se confirma
+          // lo que el servidor rechazó, no otra cosa.
+          disabled={candado.reautenticando}
+          onCambio={(url, nombre) => setComprobante({ url, nombre })}
+          onQuitar={() => setComprobante(null)}
+        />
         {excede && (
           <p className="text-[12px] text-warning">
             ⚠ El monto excede el saldo ({formatMonto(cob.saldo)}). Solo se aplicará el saldo pendiente.
@@ -912,7 +945,7 @@ const CLASE_TONO: Record<TonoVencimiento, string> = {
 // cada tecla del filtro. Sería justo lo contrario de lo que busca M7. Cuesta
 // cinco props y las vale.
 function FilaCuota({
-cob, fac, entidades, sangrada, cliNombre, puedeCobrar, recordando, onPagar, onRecordar,
+cob, fac, entidades, sangrada, cliNombre, puedeCobrar, recordando, onPagar, onVerPagos, onRecordar,
 }: {
 cob: Cobranza
 fac?: Factura
@@ -923,6 +956,7 @@ cliNombre: (id: string) => string
 puedeCobrar: boolean
 recordando: string | null
 onPagar: (c: { id: string; folio: string; saldo: number }) => void
+onVerPagos: (c: { id: string; folio: string }) => void
 onRecordar: (id: string) => void
 }) {
   const est = estadoCobranza(cob)
@@ -972,6 +1006,17 @@ onRecordar: (id: string) => void
       <td className="px-4 py-2.5">
         <div className="flex flex-col items-start gap-1.5">
           <StatusBadge tono={COBRANZA_TONO[est]}>{COBRANZA_LABEL[est]}</StatusBadge>
+          {/* COB-COMP · los pagos ya recibidos y su comprobante. Se ve también
+              en una cobranza PAGADA: es justo cuando se busca el recibo. */}
+          {cob.montoPagado > 0 && (
+            <button
+              type="button"
+              onClick={() => onVerPagos({ id: cob.id, folio: fac?.folio ?? cob.id })}
+              className="inline-flex items-center gap-1 text-[11px] text-info hover:underline"
+            >
+              <Receipt className="h-3 w-3" /> Pagos y comprobantes
+            </button>
+          )}
           {est !== 'PAGADA' && puedeCobrar && (
             <div className="flex items-center gap-2">
               <button

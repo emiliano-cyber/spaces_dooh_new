@@ -243,8 +243,20 @@ export function AltaDispositivo() {
     void recargar()
   }
 
-  const comandoPi = generado?.servidor
-    ? `curl -fsSL ${generado.servidor}/instalar-pi.sh | sudo bash -s -- --servidor ${generado.servidor} --codigo ${generado.codigo}`
+  // La direccion que el equipo tiene que escribir sale de Space Eye
+  // (PUBLIC_BASE_URL de su pila, https://<EYES_DOMINIO>). Si esa instancia la
+  // tiene mal puesta llega una de loopback -127.0.0.1-, que es la que usan
+  // entre si las dos aplicaciones del droplet y NO sirve desde un sitio:
+  // dictarsela al tecnico es mandarlo a su propia PC. Paso en G500 el 13-oct,
+  // con el instalador del agente ya descargado y el tecnico delante.
+  //
+  // No se arregla aqui, que seria inventarse una segunda fuente para el mismo
+  // dato; se dice que falta, para que se corrija donde esta.
+  const servidorUtil =
+    !!generado?.servidor && !/^https?:\/\/(127\.0\.0\.1|localhost|\[::1\])([:/]|$)/i.test(generado.servidor)
+
+  const comandoPi = servidorUtil
+    ? `curl -fsSL ${generado!.servidor}/instalar-pi.sh | sudo bash -s -- --servidor ${generado!.servidor} --codigo ${generado!.codigo}`
     : ''
 
   const botonGenerar = (
@@ -509,12 +521,22 @@ export function AltaDispositivo() {
               ) : (
                 <>
                   <CodigoGrande v={generado} />
-                  <div className="flex flex-col gap-2 rounded-md bg-[#12100e] p-3">
-                    <code className="break-all font-mono text-[12px] text-[#e7e5e4]">{comandoPi}</code>
-                    <div>
-                      <Copiar texto={comandoPi} etiqueta="Copiar comando" />
+                  {/* Sin direccion util el comando saldria a medias y la
+                      Raspberry quedaria instalada apuntando a ningun sitio. */}
+                  {servidorUtil ? (
+                    <div className="flex flex-col gap-2 rounded-md bg-[#12100e] p-3">
+                      <code className="break-all font-mono text-[12px] text-[#e7e5e4]">{comandoPi}</code>
+                      <div>
+                        <Copiar texto={comandoPi} etiqueta="Copiar comando" />
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <p className="text-[12px] text-warning">
+                      Falta configurar la dirección pública de Space Eye de esta empresa (quedó apuntando al
+                      propio servidor): sin ella el comando instalaría la Raspberry contra una dirección que
+                      desde el sitio no existe.
+                    </p>
+                  )}
                 </>
               )}
             </div>
@@ -544,9 +566,15 @@ export function AltaDispositivo() {
             <Paso n={3}>La PC aparece en Equipos al terminar el asistente.</Paso>
           </ol>
           {generado ? <CodigoGrande v={generado} /> : botonGenerar}
-          {generado?.servidor && (
+          {generado && servidorUtil && (
             <p className="text-[12px] text-muted">
               Dirección del servidor de tu empresa (el asistente la pide): <span className="font-mono text-ink">{generado.servidor}</span>
+            </p>
+          )}
+          {generado && !servidorUtil && (
+            <p className="text-[12px] text-warning">
+              Falta configurar la dirección pública de Space Eye de esta empresa (quedó apuntando al
+              propio servidor): pídesela a quien lo administra antes de correr el asistente.
             </p>
           )}
         </section>

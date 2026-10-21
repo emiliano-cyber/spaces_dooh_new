@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Sparkles } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { NotasDeVersion } from '@/components/demo/novedades/NotasDeVersion'
 import { getNovedadesApi, type NovedadesDeLaInstancia } from '@/lib/data/novedades-api'
 
@@ -44,22 +44,26 @@ export default function NovedadesPage() {
         <p className="text-[13px] text-muted">Todavía no hay notas de versión.</p>
       ) : (
         datos.novedades.map((e) => (
-          <Card key={e.version}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <span className="demo-num">{e.version}</span>
-                <span className="text-[12px] font-normal text-muted">{e.fecha}</span>
+          // Un `id` por versión: plegar la v0.9 no debe plegar la que llegue
+          // después. La fecha y la marca «Instalada» van en `resumen`, que es
+          // donde CardColapsable pone las cifras del encabezado.
+          <CardColapsable
+            key={e.version}
+            id={`novedades.${e.version}`}
+            titulo={e.version}
+            resumen={
+              <span className="flex items-center gap-2">
+                <span className="text-[12px] text-muted">{e.fecha}</span>
                 {/* La que corre esta instancia: compara la ENTRADA, asi una
                     precandidata (v0.9.2-rc1) marca la de v0.9.2. */}
                 {datos.notas?.version === e.version && (
                   <span className="rounded bg-accent/10 px-1.5 py-0.5 text-[11px] font-semibold text-accent">Instalada</span>
                 )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <NotasDeVersion notas={e} />
-            </CardContent>
-          </Card>
+              </span>
+            }
+          >
+            <NotasDeVersion notas={e} />
+          </CardColapsable>
         ))
       )}
     </div>

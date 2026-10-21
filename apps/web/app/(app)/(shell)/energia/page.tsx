@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, CalendarSearch, CheckCircle2, Info, ServerCrash, Zap } from 'lucide-react'
 import { cn } from '@/lib/cn'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/demo/ui/Card'
+import { Card, CardContent } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { EmptyState } from '@/components/demo/EmptyState'
 import { FormularioRecibo } from '@/components/demo/energia/FormularioRecibo'
 import { RejillaCaptura } from '@/components/demo/energia/RejillaCaptura'
@@ -214,16 +215,21 @@ export default function EnergiaPage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-2">
-          <CardTitle>Qué está capturado y qué falta</CardTitle>
-          {tablero ? (
+      {/* Plegable (pedido del 20/10). La tarjeta de captura de arriba NO se
+          pliega: es un formulario, y plegarlo desmontaría un recibo a medio
+          teclear. Esta es solo lectura (más el borrado por fila). */}
+      <CardColapsable
+        id="energia.cobertura"
+        titulo="Qué está capturado y qué falta"
+        contentClassName="space-y-3"
+        resumen={
+          tablero ? (
             <span className="text-[11px] uppercase tracking-wide text-muted">
               {tablero.meses.length} {tablero.meses.length === 1 ? 'mes' : 'meses'}
             </span>
-          ) : null}
-        </CardHeader>
-        <CardContent className="space-y-3">
+          ) : null
+        }
+      >
           {/* El resumen va ARRIBA de la rejilla, no debajo: dice si las cifras
               que se están mirando son el total o solo una parte, y eso llega
               tarde puesto después de la tabla. */}
@@ -285,8 +291,7 @@ export default function EnergiaPage() {
           ) : vista === 'rejilla' && tablero ? (
             <RejillaCaptura tablero={tablero} onBorrar={borrar} />
           ) : null}
-        </CardContent>
-      </Card>
+      </CardColapsable>
     </div>
   )
 }

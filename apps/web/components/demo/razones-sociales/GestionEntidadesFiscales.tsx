@@ -5,7 +5,8 @@ import { toast } from 'sonner'
 import { AlertTriangle, Check, Pencil, Plus, RotateCcw, Trash2, X } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { Button } from '@/components/demo/ui/Button'
-import { Card, CardContent } from '@/components/demo/ui/Card'
+import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { crearEntidadApi, desactivarEntidadApi, editarEntidadApi } from '@/lib/data/estado-api'
 import type { RolCatalogo } from '@/lib/cuestionario-entidades'
 import {
@@ -78,13 +79,22 @@ export function GestionEntidadesFiscales({
     editando,
     catalogo: claves,
   })
+  // OBLIG-01 · la razón social es lo único obligatorio (`entidades-controller.ts:35`).
+  // Vacía, ya no se regaña al abrir el formulario ni se deshabilita el botón:
+  // se pulsa y el campo se pinta en rojo. Los OTROS motivos de
+  // `loQueFaltaEnElBorrador` —demasiado larga, duplicada— se siguen enseñando
+  // al teclear y siguen bloqueando, como antes.
+  const ob = useObligatorios({ razonSocial: borrador.razonSocial }, ['razonSocial'])
+  const motivo = ob.faltan.length > 0 ? null : falta
 
   function abrirAlta() {
+    ob.reiniciar()
     setEditando(null)
     setCreando(true)
     setBorrador(BORRADOR_VACIO)
   }
   function abrirEdicion(e: EntidadUI) {
+    ob.reiniciar()
     setCreando(false)
     setEditando(e.id)
     setBorrador({
@@ -97,6 +107,7 @@ export function GestionEntidadesFiscales({
     })
   }
   function cerrar() {
+    ob.reiniciar()
     setEditando(null)
     setCreando(false)
     setBorrador(BORRADOR_VACIO)
@@ -113,7 +124,8 @@ export function GestionEntidadesFiscales({
     // El aviso y el guard son la MISMA función que pinta el mensaje: no es una
     // validación duplicada, es la de antes de gastar el viaje. El servidor la
     // vuelve a hacer con la suya.
-    if (falta || ocupado) return
+    const completos = ob.validar()
+    if (!completos || falta || ocupado) return
     setOcupado(true)
     try {
       const datos = {
@@ -173,8 +185,7 @@ export function GestionEntidadesFiscales({
   const formulario = (
     <div className="space-y-3 rounded border border-accent/40 bg-accent-soft p-3">
       <div className="grid gap-2.5 sm:grid-cols-2">
-        <label className="block sm:col-span-2">
-          <span className="mb-1 block text-[11.5px] text-muted">Razón social *</span>
+        <Campo label="Razón social" obligatorio falta={ob.falta('razonSocial')} className="sm:col-span-2">
           <input
             className={inputCls}
             value={borrador.razonSocial}
@@ -182,9 +193,8 @@ export function GestionEntidadesFiscales({
             placeholder="Denominación fiscal, como aparece en la constancia"
             autoFocus
           />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-[11.5px] text-muted">RFC</span>
+        </Campo>
+        <Campo label="RFC">
           <input
             className={cn(inputCls, 'demo-num uppercase')}
             value={borrador.rfc}
@@ -192,9 +202,8 @@ export function GestionEntidadesFiscales({
             placeholder="XAXX010101000"
             maxLength={13}
           />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-[11.5px] text-muted">Régimen fiscal</span>
+        </Campo>
+        <Campo label="Régimen fiscal">
           <input
             className={inputCls}
             value={borrador.regimen}
@@ -202,9 +211,8 @@ export function GestionEntidadesFiscales({
             placeholder="601 - General de Ley Personas Morales"
             maxLength={120}
           />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-[11.5px] text-muted">CP fiscal</span>
+        </Campo>
+        <Campo label="CP fiscal">
           <input
             className={cn(inputCls, 'demo-num')}
             value={borrador.cpFiscal}
@@ -212,9 +220,8 @@ export function GestionEntidadesFiscales({
             placeholder="03100"
             maxLength={5}
           />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-[11.5px] text-muted">Serie de folios</span>
+        </Campo>
+        <Campo label="Serie de folios">
           <input
             className={cn(inputCls, 'uppercase')}
             value={borrador.serieFolios}
@@ -224,7 +231,7 @@ export function GestionEntidadesFiscales({
             placeholder="A"
             maxLength={20}
           />
-        </label>
+        </Campo>
       </div>
 
       <div>
@@ -260,13 +267,13 @@ export function GestionEntidadesFiscales({
         </p>
       </div>
 
-      {falta && (
+      {motivo && (
         <p role="alert" className="text-[12px] text-error">
-          {falta}
+          {motivo}
         </p>
       )}
       <div className="flex gap-2">
-        <Button size="sm" disabled={!!falta || ocupado} onClick={guardar}>
+        <Button size="sm" disabled={!!motivo || ocupado} onClick={guardar}>
           <Check className="h-3.5 w-3.5" /> {ocupado ? 'Guardando…' : 'Guardar'}
         </Button>
         <Button size="sm" variant="secondary" onClick={cerrar} disabled={ocupado}>
@@ -304,6 +311,13 @@ export function GestionEntidadesFiscales({
         </div>
       )}
 
+      {/* Los avisos de arriba quedan FUERA a propósito: plegar la lista no debe
+          esconder que un papel se quedó sin dueño.
+          «Nueva razón social» va DENTRO y no en `accion`: abre el formulario
+          aquí mismo, y con la tarjeta plegada el clic no enseñaría nada. El
+          borrador vive en este componente, así que plegar a medio capturar
+          no lo pierde. */}
+      <CardColapsable id="razones-sociales.lista" titulo="Razones sociales" contentClassName="space-y-4">
       {puedeEditar && !creando && !editando && (
         <Button variant="success" size="sm" onClick={abrirAlta}>
           <Plus className="h-3.5 w-3.5" /> Nueva razón social
@@ -312,8 +326,7 @@ export function GestionEntidadesFiscales({
       {creando && formulario}
 
       {ordenadas.length === 0 && !creando ? (
-        <Card>
-          <CardContent className="space-y-2 pt-4">
+          <div className="space-y-2">
             <p className="text-[13px] text-ink">
               Todavía no hay ninguna razón social registrada.
             </p>
@@ -322,8 +335,7 @@ export function GestionEntidadesFiscales({
               activos, con cuál tramitas licencias y con cuál vendes. Pueden ser varias, y es lo
               normal.
             </p>
-          </CardContent>
-        </Card>
+          </div>
       ) : (
         <ul className="space-y-2">
           {ordenadas.map((e) =>
@@ -400,6 +412,7 @@ export function GestionEntidadesFiscales({
           )}
         </ul>
       )}
+      </CardColapsable>
     </div>
   )
 }
