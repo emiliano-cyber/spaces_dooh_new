@@ -1,5 +1,31 @@
 [
   {
+    "version": "v0.12.1",
+    "fecha": "2026-10-21",
+    "items": [
+      {
+        "tipo": "AJUSTADO",
+        "texto": "Solo un Dueño puede restablecer la contraseña de otro Dueño. Un administrador lo sigue haciendo igual con el resto de los usuarios."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "Al cambiar tu contraseña o tu correo en Configuración, tu sesión se cierra en los demás equipos y navegadores donde la tuvieras abierta. La pantalla donde hiciste el cambio sigue abierta."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "Tras 10 contraseñas equivocadas para un mismo correo, esa cuenta no entra con contraseña durante 15 minutos, aunque los intentos vengan de equipos distintos. Entrar con Google o con un código de recuperación sigue funcionando, y un acceso correcto la pone a cero."
+      },
+      {
+        "tipo": "CORREGIDO",
+        "texto": "Los enlaces a contratos y órdenes de compra solo aceptan un archivo subido o una dirección web (http o https), y el botón «Volver» solo lleva a pantallas de la propia aplicación."
+      },
+      {
+        "tipo": "CORREGIDO",
+        "texto": "Correcciones de seguridad internas, sin cambios en cómo se usa la aplicación."
+      }
+    ]
+  },
+  {
     "version": "v0.12.0",
     "fecha": "2026-10-20",
     "items": [
