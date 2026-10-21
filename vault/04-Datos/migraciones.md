@@ -1,7 +1,7 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-10-19
+actualizado: 2026-10-21
 tags: [datos, migraciones, despliegue, rojo]
 archivos:
   - db/migrations/
@@ -45,6 +45,7 @@ archivos:
   - db/migrations/20261005_notas_de_version.sql
   - db/migrations/20261006_precio_ajustado_por_gerente.sql
   - db/migrations/20261007_calculadora_spots.sql
+  - db/migrations/20261019_cobranza_abono_comprobante.sql
 ---
 
 # Migraciones
@@ -63,7 +64,7 @@ archivos:
 >
 > | Migración | Decía | Entró en `main` |
 > |---|---|---|
-> | `20261019_cobranza_abono_comprobante.sql` | rama `feat/comprobante-cobranza`, **forma aprobada por el dueño el 19/10** (ROJO R3/R4; sin fusionar todavía) | `cobranza_abonos.comprobante_url` (texto, nace vacía): el recibo o la transferencia de cada pago de cliente. Solo agrega la columna; RLS y permisos ya estaban (19/10) |
+> | `20261019_cobranza_abono_comprobante.sql` | rama `feat/comprobante-cobranza`, **forma aprobada por el dueño el 19/10** (ROJO R3/R4; sin fusionar todavía) | `4a966305` (21/10, merge de `integra/v0-12-0`; sale en v0.12.0). `cobranza_abonos.comprobante_url` (texto, nace vacía): el recibo o la transferencia de cada pago de cliente. Solo agrega la columna; RLS y permisos ya estaban |
 > | `20261013_sitios_pantalla_doohmain.sql` | rama `feat/doohmain-pantalla-por-sitio`, **forma aprobada por el dueño el 13/10** (la subió a `main` en `84b589f3`; sale en v0.11.7) | `sitios.doohmain_pantalla` (texto, sin espacios en los extremos, 1–120): a qué pantalla de DOOHmain se publica cada pantalla, capturada en la ficha (13/10) |
 > | `20261013_doohmain_seguimiento_unicas.sql` | rama `fix/doohmain-publicacion`, **forma aprobada por el dueño el 13/10** | identidad en `id` y las tres únicas que el SDK de DOOHmain necesita: `20260805` creaba las tablas sin ellas y `20260901` (`if not exists`) no hacía nada, así que publicar fallaba en toda base levantada desde el repo (13/10) |
 > | `20261012_razon_social_principal.sql` | rama `feat/razon-social-principal`, **forma aprobada por el dueño el 12/10** | `tenants.entidad_principal_id`: la razón social de Identidad sale de «Razones sociales» (12/10) |
