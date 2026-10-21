@@ -10,6 +10,8 @@ archivos: []
 > `main` en `a752a33c` (CI del PR #98 en verde con Node 22, e2e incluidas); release `39689349345` en verde
 > —la primera imagen construida sobre `node:22.23.4-alpine3.23`, con la rueda de psycopg instalada—; smoke en
 > DEMO `metodos 200`. **Falta, y lo hace una persona:** instalarla en g500 y la guía 28 (PADRE, PHP, Space Eye).
+> **Aplazado por el dueño** (21/10): no se ejecuta aún en DigitalOcean. Registrado como pendiente **B55** en
+> `docs/Supervision/ABIERTOS.md`.
 
 > [!warning] 2026-10-21, noche · **`v0.12.1` = Node 22** — rama `fix/node-22-parches-octubre` (Z12 + `Dockerfile` + workflows)
 > Node 20 quedó sin parches ante los diez CVE de Node del 21/10 (uno de ejecución de código en Brotli). Imagen

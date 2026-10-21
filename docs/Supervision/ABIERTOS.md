@@ -1774,6 +1774,38 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
 
 ### B · ii — Críticas por CALENDARIO (no hay fallo silencioso; aprieta la fecha)
 
+#### B55 · 🔴 **ABIERTA (2026-10-21) · Node 22 y PHP en los servidores: la `v0.12.1` está en `estable`, pero NINGÚN servidor la tiene todavía**
+
+> El dueño decidió **no ejecutarlo aún en DigitalOcean** (21/10, noche). Queda aquí
+> hasta que se corra. Guía paso a paso:
+> `docs/evidencias/28-node-22-y-php-servidores-20261021.txt` (copia en Descargas).
+
+- **Qué es:** los avisos de seguridad de Node del 21/10 traen diez CVE —el peor,
+  ejecución de código en el decodificador Brotli (CVE-2026-111497)— **sin parche
+  para Node 20**, que era el de la imagen, el CI y el PADRE. El código ya está
+  arreglado: `main` `a752a33c`, imagen `node:22.23.4-alpine3.23`, `v0.12.1` en
+  `estable` (digest `aa990af6…`, promover `39690462023`; vuelta atrás `16dc61d4…`,
+  la `v0.12.0`). El aviso de PHP del mismo día (CVE-2026-109618/109619) **no
+  aplica al código**: SPACE OS no usa PHP.
+- **Lo que falta, y lo corre una persona** (pasos de la guía 28):
+  1. **Paso 0 · cada droplet (PADRE y g500):** comprobar que no haya PHP
+     instalado (`php -v`, `dpkg -l`). Si aparece, se avisa antes de tocar.
+  2. **Paso 1 · g500:** Administración → Actualizaciones → instalar `v0.12.1`;
+     `node -v` dentro del contenedor = `v22.23.4`. DEMO la toma sola con su cron.
+  3. **Paso 2 · PADRE:** las DOS instalaciones de Node (nvm de root y
+     `/usr/local/bin/node`) a 22.23.4, `npm ci`, build, reiniciar `spaces-web`,
+     `flota-panel` y `flota-reporte`. Hasta entonces **el PADRE sigue en Node 20
+     sin parches**, y la imagen no lo arregla porque corre `next start` en el
+     anfitrión.
+  4. **Paso 3 · Space Eye (José):** reconstruir `eyes-<versión>` con
+     `docker build --pull` y correr `update-eyes.sh` en g500.
+  5. **Paso 4 · máquina de desarrollo:** Node 24.16.0 → 24.22.1 o mayor.
+- **Por qué es por CALENDARIO:** no hay fallo silencioso, pero el riesgo crece cada
+  día que el PADRE y g500 sigan en Node 20 con los CVE ya publicados.
+- **Cómo se cierra:** tacharla con la salida de `node -v` en el PADRE (las dos
+  instalaciones) y en el contenedor de g500, y el resultado del paso 0 en cada
+  droplet.
+
 #### ~~B23 · 🟠 **El arreglo de los checksums funcionó, y por eso la base de demostración del SUMMIT dejó de aceptar migraciones.** Pasó de 0 divergencias a 80~~
 
 > ⚠️ **Su diagnóstico estaba INCOMPLETO. Ver [B35], del 2026-09-21:** la
