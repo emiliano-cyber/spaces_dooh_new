@@ -6,6 +6,15 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!success] 2026-10-21 · **`v0.12.0` (la reescrita) en `estable`** — run `39659945269`, digest `16dc61d4…`; vuelta atrás `3f5d15ea…` (`v0.11.9`)
+> Etiqueta `v0.12.0` movida de `4a966305` a `fb93bd68` (decisión del dueño, aviso de abajo). CI de `main` en
+> verde en `fb93bd68`; release `39658437840` en verde (suite completa con e2e y publicación en `beta`,
+> sobrescribiendo la imagen vieja); promoción `39659945269` en verde, con el smoke en DEMO `login 200 ·
+> metodos 200` y el digest sin cambiar al reetiquetar. Lo que el run **no** comprueba: qué versión corre DEMO
+> (sin `/api/version` con token, F6.1). **Falta, y lo hace una persona:** en g500, Administración →
+> Actualizaciones → Instalar, y después `update-eyes.sh` (guía 25). Guía de comprobación en
+> `C:\Users\Server\Downloads\27-publicar-v0.12.0-reescrita-20261021.txt`.
+
 > [!danger] 2026-10-21, tarde · **la `v0.12.0` SE REESCRIBE** — decisión del dueño
 > La `v0.12.0` del 20/10 (`4a966305`) se publicó en `beta` (run `39638469189`) pero **nunca se promovió ni
 > llegó a ningún cliente**: g500 y DEMO siguen en `v0.11.9`. El dueño decidió que lo del 21/10 —el lote de
