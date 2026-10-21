@@ -194,7 +194,12 @@ describe('el esquema base no trae la organización de nadie', () => {
     //     arrendamiento con quien los propuso (CONTRATO-CAMBIOS). Duodecima
     //     vez, y otra vez desde la corrida completa: las 9 e2e propias de la
     //     tarea estaban en verde.
-    expect(trasMigrar.tablas).toBe(59)
+    //   · 60 el 2026-10-21: `20261021_notificaciones_por_usuario.sql` anade
+    //     `notificaciones_usuario`, lo que cada persona hizo con cada aviso de la
+    //     campanita (NOTIF-USUARIO). Decimotercera vez, y otra vez desde la
+    //     corrida completa del CI: las 17 e2e propias de la tarea estaban en
+    //     verde (run 39656217384).
+    expect(trasMigrar.tablas).toBe(60)
     // Lo que de verdad importa: ni las migraciones resucitan al owner.
     expect(trasMigrar.tenants).toBe(0)
   })
