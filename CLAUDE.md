@@ -134,7 +134,7 @@ código, no de memoria:
 | Tablas | **60** | `vault/04-Datos/esquema.md` |
 | Migraciones | **115** | `vault/04-Datos/migraciones.md` |
 
-> Esos recuentos llevan fecha de validación **2026-10-21** (rama `feat/notificaciones-por-usuario` sobre `main` con el lote de seguridad de v0.12.1: una ruta —`DELETE /api/notificaciones/[id]`—, una tabla —`notificaciones_usuario`— y su migración. El 20/10 eran 142, 59 y 114, con la v0.12.0; las tablas eran 59 y no 60 porque hasta el 14/10 `recuentos.mjs` contaba un `if` de un comentario SQL como tabla —el 60 de hoy es una tabla de verdad—), medidos con
+> Esos recuentos llevan fecha de validación **2026-10-21** (rama `feat/notificaciones-por-usuario` sobre `main` con el lote de seguridad, todo dentro de la v0.12.0 reescrita el 21/10: una ruta —`DELETE /api/notificaciones/[id]`—, una tabla —`notificaciones_usuario`— y su migración. El 20/10 eran 142, 59 y 114, con la v0.12.0; las tablas eran 59 y no 60 porque hasta el 14/10 `recuentos.mjs` contaba un `if` de un comentario SQL como tabla —el 60 de hoy es una tabla de verdad—), medidos con
 > `node scripts/recuentos.mjs` sobre este árbol. Trátalos como una
 > afirmación con fecha, no como una verdad permanente — §5 explica cómo
 > reverificarlos.

@@ -1,6 +1,6 @@
 [
   {
-    "version": "v0.12.1",
+    "version": "v0.12.0",
     "fecha": "2026-10-21",
     "items": [
       {
@@ -30,13 +30,7 @@
       {
         "tipo": "CORREGIDO",
         "texto": "Correcciones de seguridad internas, sin cambios en cómo se usa la aplicación."
-      }
-    ]
-  },
-  {
-    "version": "v0.12.0",
-    "fecha": "2026-10-20",
-    "items": [
+      },
       {
         "tipo": "NUEVO",
         "texto": "Cobranza: al registrar un pago de cliente puedes adjuntar su comprobante (recibo o transferencia, PDF o imagen de hasta 5 MB). En cada cobranza con algo pagado, «Pagos y comprobantes» muestra los pagos recibidos con su fecha y quién los registró; ahí abres cada comprobante o subes el que llegó después, sin cambiar el importe ni la fecha del pago."
