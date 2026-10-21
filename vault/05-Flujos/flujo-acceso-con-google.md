@@ -51,7 +51,7 @@ cookies. Cero cambios en `exigir()`, en el middleware o en los **90** handlers.
 > con `usuarios.solo_google` (ADR 0028 · B3, `20260907_solo_google.sql`) **no
 > puede entrar con contraseña**: el login por contraseña la verifica y, si es
 > correcta, contesta 403 «Esta cuenta entra con Google»
-> (`app/api/auth/login/route.ts:89-105`). La contraseña sigue existiendo y
+> (`app/api/auth/login/route.ts:111-127`). La contraseña sigue existiendo y
 > sigue pidiéndose para los cambios sensibles; lo que deja de hacer es abrir
 > sesión. Detalle en [[flujo-login]].
 

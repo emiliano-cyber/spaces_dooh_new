@@ -5,6 +5,40 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-10-21
+
+Seis correcciones de seguridad que salieron de la revisión del 21 de octubre.
+Ninguna cambia cómo se usa la aplicación en el día a día.
+
+- **Un administrador ya no puede restablecer la contraseña de un Dueño.** Solo
+  otro Dueño puede hacerlo. Antes, un administrador podía ponerle una
+  contraseña temporal a un Dueño y entrar como él. Ahora el sistema contesta
+  «Solo un Dueño puede restablecer la contraseña de otro Dueño». Con el resto
+  de los usuarios, el administrador lo sigue haciendo igual.
+- **Cambiar tu contraseña o tu correo cierra tu sesión en los demás equipos.**
+  La pantalla donde hiciste el cambio sigue abierta; en cualquier otro
+  navegador o teléfono donde tuvieras la sesión abierta, hay que volver a
+  entrar. Es lo que se espera cuando alguien cambia su contraseña porque cree
+  que se la robaron.
+- **Demasiados intentos fallidos sobre una misma cuenta la bloquean 15
+  minutos.** Tras 10 contraseñas equivocadas para el mismo correo, aunque
+  vengan de equipos distintos, esa cuenta no entra con contraseña durante 15
+  minutos y la pantalla pide esperar. Entrar con Google o con un código de
+  recuperación sigue funcionando. Un acceso correcto vuelve a poner la cuenta a
+  cero.
+- **Los enlaces a contratos y órdenes de compra solo aceptan un archivo subido
+  o una dirección web (`http` o `https`).** Antes se podía guardar cualquier
+  texto ahí, y un texto preparado podía ejecutar código al pulsar «Ver
+  contrato».
+- **El botón «Volver» solo lleva a pantallas de la propia aplicación.** Un
+  enlace preparado podía convertirlo en una puerta a otro sitio.
+- **El recuadro que sale al pasar sobre una pantalla en el mapa muestra el
+  nombre tal como se escribió**, aunque lleve símbolos como `<` o `>`. Antes
+  esos símbolos se interpretaban, y un nombre preparado podía ejecutar código.
+- *(Por debajo, y sin nada que se vea: se apagó una función de Next.js para
+  redimensionar imágenes que la aplicación no usaba y que tenía un fallo de
+  seguridad grave.)*
+
 ## 2026-10-20
 
 - **En Clientes ya se ven las campañas y el pipeline de cada cliente.** Al

@@ -6,6 +6,7 @@ import { esEmailValido } from '@/lib/validacion'
 import {
   emailExiste,
   actualizarPerfil,
+  cerrarOtrasSesionesDeUsuario,
   passwordHashDe,
   tieneIdentidadVinculada,
 } from './usuarios-repo'
@@ -62,6 +63,8 @@ export type ContextoPerfil = {
   email: string
   debeCambiarPassword: boolean
   metodoSesion: 'password' | 'google'
+  /** La cookie de ESTA sesión: es la única que sobrevive al cambio. */
+  tokenSesion?: string | null
 }
 
 export async function actualizarPerfilCtrl(usuario: ContextoPerfil, body: unknown) {
@@ -102,5 +105,13 @@ export async function actualizarPerfilCtrl(usuario: ContextoPerfil, body: unknow
 
   const hubo = await actualizarPerfil(usuario.id, cambios)
   if (!hubo) throw new AppError('No hay cambios que guardar', 400)
+
+  // Cambiar la contraseña o el correo propios cierra las DEMÁS sesiones
+  // (SEG-21OCT, 21/10). Hasta ese día no cerraba ninguna: quien cambiaba su
+  // contraseña porque sospechaba de un robo dejaba la cookie robada entrando
+  // hasta 30 días. El correo cuenta igual porque es con lo que se recupera la
+  // cuenta. Va DESPUÉS de guardar: si el guardado fallara, la persona no
+  // perdería sus sesiones por un cambio que no ocurrió.
+  await cerrarOtrasSesionesDeUsuario(usuario.id, usuario.tokenSesion)
   return { ok: true }
 }

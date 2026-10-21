@@ -1,22 +1,35 @@
 import { NextResponse } from 'next/server'
 import { qRaw1 as q1, qConTenant } from '@/lib/server/db'
 import { verifyPassword, crearSesion, cookieSesion, cookieCsrf, nuevoCsrfToken, permisosDeRol } from '@/lib/server/auth'
-import { limitar, ipDe } from '@/lib/server/rate-limit'
+import { limitar, consultar, olvidar, ipDe } from '@/lib/server/rate-limit'
 import { respuestaError } from '@/lib/server/errores'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
+// Fallos por CUENTA (SEG-21OCT, 21/10). El límite por IP de abajo no frena a
+// quien cambia de dirección —un /64 de IPv6 son millones—, así que contra el
+// correo de una persona concreta no había tope. Éste cuenta solo los FALLOS, lo
+// vacía un login correcto, y cuenta igual un correo que no existe: si no, el
+// 429 diría qué correos tienen cuenta. Lo que cuesta, y se acepta: quien sabe
+// el correo de alguien puede dejarle la CONTRASEÑA sin servir durante la
+// ventana. Google y los códigos de recuperación no pasan por aquí.
+const FALLOS_POR_CUENTA = 10
+const VENTANA_CUENTA_MS = 15 * 60_000
+const claveCuenta = (email: string) => `login:cuenta:${email.trim().toLowerCase()}`
+
+function demasiados(retrySeg: number) {
+  return NextResponse.json(
+    { error: `Demasiados intentos. Espera ${retrySeg}s e intenta de nuevo.` },
+    { status: 429, headers: { 'Retry-After': String(retrySeg) } },
+  )
+}
+
 // POST /api/auth/login  { email, password } → set cookie + { usuario, permisos }
 export async function POST(req: Request) {
   // Anti fuerza bruta: máx. 10 intentos por IP cada 5 minutos.
   const lim = limitar(`login:${ipDe(req)}`, 10, 5 * 60_000)
-  if (!lim.ok) {
-    return NextResponse.json(
-      { error: `Demasiados intentos. Espera ${lim.retrySeg}s e intenta de nuevo.` },
-      { status: 429, headers: { 'Retry-After': String(lim.retrySeg) } },
-    )
-  }
+  if (!lim.ok) return demasiados(lim.retrySeg)
   let body: { email?: string; password?: string }
   try {
     body = await req.json()
@@ -24,9 +37,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Cuerpo inválido' }, { status: 400 })
   }
   const { email, password } = body
-  if (!email || !password) {
+  // `typeof` y no solo `!email`: un `{"email":5}` llegaba hasta `claveCuenta`,
+  // cuyo `.trim()` lanzaba FUERA del try de abajo, y Next contestaba un 500 sin
+  // cuerpo — el mismo fallo que se corrigió el 30/09 con la base caída.
+  if (typeof email !== 'string' || typeof password !== 'string' || !email || !password) {
     return NextResponse.json({ error: 'Correo y contraseña requeridos' }, { status: 400 })
   }
+  // Se mira ANTES de verificar la contraseña: con la cuenta bloqueada, ni la
+  // correcta entra, o el bloqueo solo frenaría al que se equivoca.
+  const cuenta = consultar(claveCuenta(email), FALLOS_POR_CUENTA)
+  if (!cuenta.ok) return demasiados(cuenta.retrySeg)
 
   // TODO lo que toca la base va dentro del try. El 2026-09-30, con Postgres
   // apagado, la consulta de abajo lanzaba fuera de cualquier try, la excepción
@@ -58,8 +78,10 @@ async function entrar(email: string, password: string): Promise<NextResponse> {
 
   const ok = u && u.activo && (await verifyPassword(password, u.password_hash))
   if (!u || !ok) {
+    limitar(claveCuenta(email), FALLOS_POR_CUENTA, VENTANA_CUENTA_MS)
     return NextResponse.json({ error: 'Correo o contraseña inválidos' }, { status: 401 })
   }
+  olvidar(claveCuenta(email))
 
   // ADR 0028 · B3 — esta cuenta no entra con contraseña.
   //

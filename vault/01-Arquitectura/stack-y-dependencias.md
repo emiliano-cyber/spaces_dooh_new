@@ -54,7 +54,7 @@ npm workspaces + turbo. `package.json:26-29` declara `apps/*` y `packages/*`.
 > `styled-jsx` (dependencia de Next) queda en la raíz y encuentra la copia
 > equivocada, produciendo `Cannot read properties of null (reading 'useContext')`
 > al renderizar en servidor. Hay además un alias de webpack para lo mismo en
-> `apps/web/next.config.mjs:250-256`. **No tocar ninguno de los dos por separado.**
+> `apps/web/next.config.mjs:253-259`. **No tocar ninguno de los dos por separado.**
 
 > [!important] El hoisting del monorepo condiciona el artefacto de build (13/08)
 > Desde F2.1 el build sale también en `output: 'standalone'`

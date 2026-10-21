@@ -78,7 +78,7 @@ archivos:
 > | `update.sh:74` (código 75, `flock`) | `infra/scripts/update.sh:75` |
 > | `next.config.mjs:17` (trazado desde la raíz) | `apps/web/next.config.mjs:124` (`outputFileTracingRoot`); `output: 'standalone'` en `:119` |
 > | `next.config.mjs:19-20` (`basePath`, `trailingSlash`) | `apps/web/next.config.mjs:145-146` |
-> | `next.config.mjs:51` (`HSTS`) | `apps/web/next.config.mjs:175-188` (comentario y la condición `process.env.HSTS === '1'`) |
+> | `next.config.mjs:51` (`HSTS`) | `apps/web/next.config.mjs:178-191` (comentario y la condición `process.env.HSTS === '1'`) |
 > | `space-os.io.conf:124` / `:188` | `infra/nginx/space-os.io.conf:133` (`space-os.io`) / `:213` (`demo.`); `prueba.` en `:288` |
 > | `ci.yml:74-75` («solo unitarias») | `ci.yml:81-82`, y ya **no** es todo: ver el punto 1 |
 > | `auth.ts:184-188` (`COOKIE_SECURE`) | `apps/web/lib/server/auth.ts:249-253` (`cookieSecure`) |
@@ -2212,7 +2212,7 @@ para el redirect URI de Google.
 | `NODE_ENV` | Modo, default de `Secure`, pool en dev | `lib/server/auth.ts:252` |
 | `COOKIE_SECURE` | Fuerza/apaga `Secure` en cookies | `lib/server/auth.ts:249-253` (`cookieSecure`) |
 | `APP_URL` | Base de enlaces en correos y de la invitación de usuarios | `app/api/auth/forgot/route.ts:50`, `app/api/usuarios/route.ts:30` |
-| `HSTS` | Activa Strict-Transport-Security. **Bandera de BUILD**, no de ejecución | `next.config.mjs:175-188` |
+| `HSTS` | Activa Strict-Transport-Security. **Bandera de BUILD**, no de ejecución | `next.config.mjs:178-191` |
 | `RESEND_API_KEY`, `EMAIL_FROM` | Correo saliente | `lib/server/email.ts` |
 | `RECORDATORIOS_TOKEN` | Autentica el cron; sin él la ruta da 503 | `app/api/recordatorios/route.ts` |
 | **`AUTOREGISTRO`** | **solo `'1'` enciende** el alta pública; **ausente = apagado**. Se lee en cada petición, no se hornea (F2.6, 14/08) | `lib/entorno.ts` · `app/api/signup/route.ts:21-26` |

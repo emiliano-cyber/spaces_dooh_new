@@ -262,6 +262,13 @@ pero nadie la enciende, y en la flota no puede encenderse por instancia
 > Comprobado el **2026-09-08** (`grep -rl SitiosMap --include=*.tsx`: solo se
 > encuentra a sí mismo). El resto de esta nota sigue con la fecha de su
 > frontmatter: lo que se revalidó ese día fue el mapa, no la nota entera.
+>
+> **Remedido el 2026-10-21** (SEG-21OCT): sigue sin montarlo nadie. Ese día se le
+> escapó el popup, que metía el nombre y la clave del sitio sin escapar en
+> `Popup.setHTML` — un XSS **latente** que no alcanzaba a nadie, pero que se
+> habría activado el día que alguien lo montara. El HTML lo arma ahora
+> `lib/popup-sitio.ts`, con su prueba. `MapView` no tenía el problema: escribe con
+> `textContent`.
 
 > [!warning] `components/demo/ui/` es de alto contacto
 > Lo importa casi todo. Un cambio de API en `Button` o `Modal` toca decenas de

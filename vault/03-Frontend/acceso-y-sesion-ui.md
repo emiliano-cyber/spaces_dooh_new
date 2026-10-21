@@ -185,10 +185,10 @@ redirección y la exención de render.
 > `20260907_solo_google.sql` — «en producción todavía nadie entra con Google» —
 > y era falso para el PADRE.
 >
-> **Desbloqueo sin desplegar**: entrar con contraseña. `login/route.ts:107` abre
+> **Desbloqueo sin desplegar**: entrar con contraseña. `login/route.ts:129` abre
 > la sesión con `metodo = 'password'` y `debeGuardarCodigos()` solo mira a quien
 > entró con Google. Solo falla si la cuenta tiene `solo_google` encendido: en ese
-> caso `login/route.ts:89-105` responde **403** con `soloGoogle: true` —después
+> caso `login/route.ts:111-127` responde **403** con `soloGoogle: true` —después
 > de verificar la contraseña, para no regalar enumeración—.
 
 La decisión vive en un `.ts` y no dentro del componente por una razón concreta:

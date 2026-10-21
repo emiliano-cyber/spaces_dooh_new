@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-14
+actualizado: 2026-10-21
 tags: [backend, auth, seguridad, rojo]
 archivos:
   - apps/web/lib/server/auth.ts
@@ -26,6 +26,13 @@ archivos:
   - db/migrations/20260819_semilla_rol_permisos.sql
   - db/migrations/20260825_sesion_metodo.sql
   - apps/web/lib/server/perfil-controller.ts
+  - apps/web/app/api/perfil/route.ts
+  - apps/web/app/api/auth/login/route.ts
+  - apps/web/lib/server/rate-limit.ts
+  - apps/web/lib/guardas-usuarios.ts
+  - apps/web/lib/server/login-limite-cuenta.test.ts
+  - apps/web/lib/server/perfil-cierra-sesiones.test.ts
+  - apps/web/lib/server/restablecer-dueno.test.ts
   - apps/web/lib/server/codigos-recuperacion.ts
   - apps/web/lib/server/codigos-recuperacion-repo.ts
   - apps/web/app/api/auth/codigo/route.ts
@@ -505,7 +512,7 @@ contraseña compartida — solo la propia prueba identidad. Es lo que protege
 
 > [!danger] INVARIANTE: todo usuario tiene `password_hash`
 > `cambios.ts:221-224` responde *«Tu usuario no tiene contraseña»* —desde el ADR
-> 0036, solo si **tampoco** hay compartida— y `perfil-controller.ts:82-90` exige
+> 0036, solo si **tampoco** hay compartida— y `perfil-controller.ts:85-93` exige
 > `passwordActual`. Un usuario con
 > `password_hash = null` **no puede** cambiar su correo, ni salir de
 > `debe_cambiar_password`: sigue encerrado sin salida por esas dos vías. **Desde
@@ -526,7 +533,7 @@ contraseña compartida — solo la propia prueba identidad. Es lo que protege
 > contraseña que **nadie ve**, y `PATCH /api/perfil` le pedía justo esa para poder
 > cambiarla. El ADR 0018 lo resolvió, y conviene leer la excepción entera antes de
 > tocar nada de aquí: son **cuatro condiciones que van juntas**
-> (`perfil-controller.ts:36-58`: el comentario y `puedeFijarSinAnterior()`), y cada una tapa un abuso distinto.
+> (`perfil-controller.ts:37-59`: el comentario y `puedeFijarSinAnterior()`), y cada una tapa un abuso distinto.
 >
 > | Condición | Qué impide |
 > |---|---|
@@ -583,13 +590,43 @@ algún día se escala a varias, deja de valer.
 
 | Ruta | Límite |
 |---|---|
-| login | 10 / 5 min por IP |
+| login | 10 / 5 min por IP **+ 10 fallos / 15 min por cuenta** (21/10, ver abajo) |
 | forgot | 5 / 15 min por IP + 3 / h por correo |
 | reset | 10 / 15 min |
 | signup | 5 / h por IP |
 | google/inicio | 10 / 5 min por IP |
 | desbloquear | 5 / 5 min por usuario+IP |
 | bootstrap | 10 / h por IP (`app/api/bootstrap/route.ts:64`) — **pasarse contesta 404**, no 429 |
+
+> [!important] 2026-10-21 · SEG-21OCT — el login también limita POR CUENTA
+> El de IP no frena a quien cambia de dirección (un /64 de IPv6 son millones),
+> así que contra el correo de una persona no había tope. Cubo nuevo
+> `login:cuenta:<correo en minúsculas y sin espacios>` (`app/api/auth/login/route.ts`):
+>
+> - cuenta **solo los fallos**: se mira con `consultar()` antes de verificar y se
+>   anota con `limitar()` solo en el 401; un login correcto lo vacía (`olvidar()`);
+> - con la cuenta bloqueada **ni la contraseña correcta entra** (429 con `Retry-After`);
+> - un correo que **no existe** se bloquea igual y con el mismo texto: si no, el
+>   429 diría qué correos tienen cuenta.
+>
+> **El precio, aceptado:** quien sabe el correo de alguien puede dejarle la
+> contraseña sin servir 15 minutos. Google y los códigos de recuperación no
+> pasan por aquí. Lo fija `lib/server/login-limite-cuenta.test.ts`, contra la
+> ruta real con la base simulada.
+
+> [!important] 2026-10-21 · SEG-21OCT — dos reglas nuevas de sesión y credenciales
+> - **Cambiar la contraseña o el correo propios cierra las DEMÁS sesiones**
+>   (`perfil-controller.ts` → `cerrarOtrasSesionesDeUsuario`, `usuarios-repo.ts`).
+>   Conserva la que hizo el cambio: `/api/perfil` le pasa su token de la cookie.
+>   Hasta ese día era el único de los tres caminos de cambio de contraseña que no
+>   cerraba ninguna (el restablecimiento y el enlace de recuperación sí). El
+>   `delete` usa `token is distinct from $2`: con `<>` y un token nulo no borraría
+>   nada, sin error.
+> - **La contraseña de un Dueño solo la restablece otro Dueño** (guard 4 en
+>   `lib/guardas-usuarios.ts`; el repo lo activa cuando se escribe un
+>   `passwordHash`). Antes ningún guard saltaba, porque restablecer no quita el
+>   rol, y la respuesta trae la temporal en claro: un administrador entraba como
+>   el Dueño. Ver [[02-Backend/roles-de-venta]].
 
 ## Con la base caída: 503 con JSON, nunca un 500 vacío
 

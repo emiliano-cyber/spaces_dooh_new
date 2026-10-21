@@ -239,7 +239,7 @@ function CambiarPasswordModal({
   const [passActor, setPassActor] = useState('')
   // OBLIG-01 · qué falta depende del paso en el que esté el cuadro: cambiar la
   // propia pide las tres (el servidor exige `passwordActual`,
-  // `perfil-controller.ts:83`); restablecer la de otro solo pide la TUYA cuando
+  // `perfil-controller.ts:86`); restablecer la de otro solo pide la TUYA cuando
   // el servidor reclama la reautenticación.
   const pasoPropia = esYo && !reautenticando && !temporal
   const ob = useObligatorios({ actual, nueva, confirmar, passActor }, [

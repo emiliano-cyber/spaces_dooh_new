@@ -1,7 +1,7 @@
 ---
 tipo: contrato
 estado: verificado
-actualizado: 2026-10-14
+actualizado: 2026-10-21
 tags: [backend, roles, permisos, rbac, enum, migraciones, dueno, guards, carrera]
 archivos:
   - db/migrations/20260929_roles_de_venta_enum.sql
@@ -204,9 +204,24 @@ Dueños y exige que gane exactamente una y quede uno. El mutante que quita el
 ### Un solo camino de escritura
 
 `actualizarUsuario` y `borrarUsuario` pasan los dos por `conGuardasDeDueno`, y
-`restablecerPasswordCtrl` también —aunque ahí los guards nunca salten—. Tener dos
-caminos de escritura sobre `usuarios` es exactamente como se cuela mañana uno que
-sí cambie el rol sin pasar por el guard.
+`restablecerPasswordCtrl` también. Tener dos caminos de escritura sobre
+`usuarios` es exactamente como se cuela mañana uno que sí cambie el rol sin
+pasar por el guard.
+
+> [!danger] 2026-10-21 · SEG-21OCT — «aunque ahí los guards nunca salten» ERA el hueco
+> Hasta ese día este párrafo decía que en el restablecimiento los guards nunca
+> saltan, y era cierto: restablecer no le quita el rol a nadie, y los tres guards
+> solo miran eso. Pero la respuesta trae la temporal **en claro**, así que un
+> administrador le restablecía la contraseña a un Dueño, entraba con ella, la
+> cambiaba en `/api/perfil` y **era el Dueño**. La misma toma de cuenta que el
+> guard 3 quiso cerrar, sin fabricarse ningún aliado.
+>
+> **Guard 4** (`rechazoDelCambio`): las credenciales de un Dueño solo las toca otro
+> Dueño → **403**, aunque esté desactivado. `actualizarUsuario` lo activa con
+> `credenciales: cambios.passwordHash !== undefined`, o sea por lo que se escribe
+> y no por quién llama. Mira el **rol** y no el permiso, como el guard 3. Lo fija
+> `lib/server/restablecer-dueno.test.ts`, que además comprueba que el rechazo
+> llega **antes** del `update`.
 
 El `actorRol` es **obligatorio y sin valor por omisión**, a propósito: viene de la
 sesión del servidor, nunca del cuerpo, y que el compilador lo pida es lo único que
@@ -326,7 +341,7 @@ Detalle en [[comercial-propuestas-campanas]].
 
 > [!note] 2026-10-05 · citas medidas hoy (ningún archivo de esta nota cambió desde el 01/10)
 > `ROL_POR_OMISION` en `apps/web/lib/roles.ts:80` y `puedeVerControlCambios` en
-> `:110`; `rechazoDelCambio` en `apps/web/lib/guardas-usuarios.ts:143`;
+> `:110`; `rechazoDelCambio` en `apps/web/lib/guardas-usuarios.ts:151`;
 > `conGuardasDeDueno` en `apps/web/lib/server/usuarios-repo.ts:161`, con el
 > `for update` en `:179`, `actualizarUsuario` en `:212` y `borrarUsuario` en
 > `:285`; `crearUsuarioCtrl` en `apps/web/lib/server/usuarios-controller.ts:105`;

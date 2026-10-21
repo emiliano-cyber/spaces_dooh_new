@@ -245,7 +245,10 @@ export async function actualizarUsuario(
   return conGuardasDeDueno(
     id,
     actorRol,
-    { rol: cambios.rol, activo: cambios.activo },
+    // `credenciales` sale de que se ESCRIBA un hash, no de quién llame: si un
+    // tercer camino de escritura le pasara `passwordHash` a esta función, el
+    // guard 4 lo vería igual que al restablecimiento.
+    { rol: cambios.rol, activo: cambios.activo, credenciales: cambios.passwordHash !== undefined },
     async (client, tenantId) => {
       const params = [...vals, id, tenantId]
       const filas = (
@@ -273,6 +276,25 @@ export async function actualizarUsuario(
 // si aquel devolvió un usuario, es de esta organización.
 export async function cerrarSesionesDeUsuario(usuarioId: string): Promise<number> {
   const filas = await qRaw('delete from sesiones where usuario_id = $1 returning token', [usuarioId])
+  return filas.length
+}
+
+// Igual que la de arriba, pero CONSERVA la sesión desde la que la persona hizo
+// el cambio (SEG-21OCT, 21/10). La usa el cambio de las credenciales PROPIAS:
+// quien cambia su contraseña porque sospecha que le robaron la cuenta necesita
+// que la cookie robada deje de servir, y no que lo echen a él en el mismo clic.
+//
+// `is distinct from` y no `<>`, a propósito: con un token nulo, `token <> null`
+// es null en cada fila y no borraría NINGUNA, sin error. Así, sin token actual
+// se borran todas, que es el lado seguro.
+export async function cerrarOtrasSesionesDeUsuario(
+  usuarioId: string,
+  tokenActual: string | null | undefined,
+): Promise<number> {
+  const filas = await qRaw(
+    'delete from sesiones where usuario_id = $1 and token is distinct from $2 returning token',
+    [usuarioId, tokenActual ?? null],
+  )
   return filas.length
 }
 

@@ -122,7 +122,7 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   // 1 sitio · lib/server/arrendadores-controller.ts:209
   'CURP inválida':
     'Invalid CURP',
-  // 1 sitio · lib/server/perfil-controller.ts:84
+  // 1 sitio · lib/server/perfil-controller.ts:87
   'Debes ingresar tu contraseña actual para confirmar el cambio':
     'You must enter your current password to confirm the change',
   // 1 sitio · lib/server/recibos-cfe/lector-pdf.ts:76
@@ -230,7 +230,7 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   // 2 sitios · lib/server/codigos-controller.ts:95
   'Ese codigo no existe en esta organizacion':
     'That code does not exist in this organization',
-  // 1 sitio · lib/server/perfil-controller.ts:94
+  // 1 sitio · lib/server/perfil-controller.ts:97
   'Ese correo ya está en uso':
     'That email is already in use',
   // 1 sitio · lib/server/cuentas-controller.ts:61
@@ -323,7 +323,7 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   // 1 sitio · lib/server/impresion-controller.ts:14
   'La campaña es requerida':
     'The campaign is required',
-  // 1 sitio · lib/server/perfil-controller.ts:88
+  // 1 sitio · lib/server/perfil-controller.ts:91
   'La contraseña actual no es correcta':
     'The current password is not correct',
   // 2 sitios · lib/server/arrendadores-controller.ts:180
@@ -410,7 +410,7 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   // 1 sitio · lib/server/ot-repo.ts (una OT cerrada ya no admite costo, 08/10)
   'Esta orden de trabajo ya está cerrada: su costo ya no se puede registrar ni cambiar.':
     'This work order is already closed: its cost can no longer be recorded or changed.',
-  // 2 sitios · lib/server/perfil-controller.ts:75
+  // 2 sitios · lib/server/perfil-controller.ts:78
   'No hay cambios que guardar':
     'There are no changes to save',
   // 1 sitio · lib/server/actualizaciones-repo.ts:47

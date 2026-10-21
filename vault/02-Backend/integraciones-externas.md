@@ -254,9 +254,19 @@ Credenciales **solo por env, nunca al cliente**.
 ## Almacenamiento S3
 
 `lib/server/storage.ts` — `PutObject` + URL firmada. Si no está configurado, el
-llamador cae a data URL en base de datos sin romperse. `next.config.mjs:148-159`
-(`images.remotePatterns`; los dos `hostname` en `:152` y `:156`) autoriza
-`*.digitaloceanspaces.com` y `*.cdn.digitaloceanspaces.com` en `next/image`.
+llamador cae a data URL en base de datos sin romperse.
+
+> [!danger] 2026-10-21 · SEG-21OCT — `next/image` ya NO autoriza Spaces, y el optimizador está apagado
+> Hasta ese día `next.config.mjs` traía `images.remotePatterns` con
+> `*.digitaloceanspaces.com` y `*.cdn.digitaloceanspaces.com`. El comodín es el
+> bucket de **cualquiera**, no el nuestro, y Next 14.2.29 tiene una ejecución
+> remota de código sin sesión en `/_next/image` al optimizar un AVIF
+> (GHSA-2xp9-vwfh-vxw4, sin parche en la rama 14). Ahora es
+> `images: { unoptimized: true }` y sin `remotePatterns` (`next.config.mjs:160-162`):
+> `/_next/image` responde 404 antes de pedir nada. Medido el 21/10 contra un
+> `next start`: `main` intentaba decodificar la imagen («isn't a valid image»),
+> la rama da 404. **Nada usaba `next/image`**, así que no se pierde nada; lo
+> fija `lib/imagenes-sin-optimizador.test.ts`.
 
 > [!warning] Esa cita estaba 94 líneas más arriba, y es el modo de fallo típico
 > Decía `next.config.mjs:22-33`. El archivo creció con la **CSP** del 26–28/08 y

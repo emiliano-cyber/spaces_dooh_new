@@ -93,7 +93,7 @@ Solo `sesiones.usuario_id` cascadea, y ahí la fila no significa nada sin su
 usuario.
 
 > [!important] Y hay una razón dura además de la coherencia
-> **`borrarUsuario()` existe y se usa** (`usuarios-repo.ts:285` al 14/10; decía
+> **`borrarUsuario()` existe y se usa** (`usuarios-repo.ts:307` al 14/10; decía
 > `:143`, el archivo creció). Con
 > `restrict`, el primer vendedor que hiciera una propuesta quedaría
 > **imborrable** y la pantalla de usuarios devolvería un 500 sin explicar por

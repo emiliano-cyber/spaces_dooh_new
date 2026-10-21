@@ -26,6 +26,12 @@
 //   3. NADIE puede nombrar a un Dueño salvo un Dueño. Ni cambiándole el rol a
 //      alguien ni dándolo de alta ya como Dueño.
 //
+//  Y una cuarta, de la auditoría de seguridad del 2026-10-21 (SEG-21OCT):
+//
+//   4. NADIE salvo un Dueño puede restablecer la contraseña de un Dueño. Sin
+//      ella, el administrador al que las tres de arriba le cierran el paso
+//      entraba COMO el Dueño con la temporal que el restablecimiento le da.
+//
 //  La segunda no se pidió, y es la que evita que dos Dueños se desactiven
 //  mutuamente y dejen la empresa sin quien reparta permisos ni cambie la
 //  configuración — un estado del que no se sale desde la aplicación.
@@ -52,6 +58,8 @@ export interface CambioPedido {
   rol?: string
   activo?: boolean
   borrado?: boolean
+  /** Le reescribe la contraseña a otra persona: el restablecimiento (ADR 0009). */
+  credenciales?: boolean
 }
 
 export interface EntradaGuarda {
@@ -148,6 +156,21 @@ export function rechazoDelCambio(e: EntradaGuarda): { status: number; mensaje: s
   if (e.objetivo.rol !== ROL_DUENO) {
     const nombrar = rechazoDeNombrarDueno(e.actorRol, e.cambio.rol)
     if (nombrar) return nombrar
+  }
+
+  // GUARD 4 · las credenciales de un Dueño solo las toca otro Dueño (SEG-21OCT,
+  // 21/10). Restablecer no le quita el rol a nadie, así que ninguno de los otros
+  // saltaba — y el restablecimiento devuelve la temporal EN CLARO a quien lo
+  // pide. Un administrador se la ponía al Dueño, entraba con ella, la cambiaba
+  // y ERA el Dueño: la toma de cuenta que el guard 3 quiso cerrar, sin necesidad
+  // de fabricarse un aliado. Mira el rol y no el permiso por lo mismo que el
+  // guard 3, y da igual que el Dueño esté desactivado: reactivarlo y entrar con
+  // la temporal sería la misma toma.
+  if (e.cambio.credenciales && e.objetivo.rol === ROL_DUENO && e.actorRol !== ROL_DUENO) {
+    return {
+      status: 403,
+      mensaje: 'Solo un Dueño puede restablecer la contraseña de otro Dueño.',
+    }
   }
 
   const pierdeElRol = dejaDeSerDueno(e.objetivo, e.cambio)

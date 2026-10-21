@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-10-21
 tags: [backend, infraestructura, transversal, rojo]
 archivos:
   - apps/web/lib/server/db.ts
@@ -152,7 +152,7 @@ Valida contra los **magic bytes** reales del contenido decodificado, no contra
 el MIME declarado en el data URL. Renombrar un `.exe` a `.jpg` se rechaza.
 Tipos posibles (`uploads.ts:19-24`): `image/jpeg`, `image/png`, `image/webp`,
 `image/svg+xml` y `application/pdf`; cada punto de subida elige su `allowlist`
-en `LIMITES` (`uploads.ts:209`). El SVG no tiene magic bytes (`:37`) y se
+en `LIMITES` (`uploads.ts:230`). El SVG no tiene magic bytes (`:37`) y se
 comprueba que el texto contenga una etiqueta `<svg` (`:147-148`). Todo rechazo
 es **422** con mensaje entendible (`uploads.ts:5-17`).
 
@@ -163,7 +163,15 @@ es **422** con mensaje entendible (`uploads.ts:5-17`).
 > [!danger] Punto único de validación
 > El hallazgo original era que 6 de 7 puntos de subida aceptaban cualquier data
 > URL de cualquier peso. Si añades un punto de subida nuevo, **tiene que pasar
-> por aquí** (`uploadZod` `:172`, `uploadOUrlZod` `:192`, `LIMITES` `:209`).
+> por aquí** (`uploadZod` `:172`, `uploadOUrlZod` `:204`, `LIMITES` `:230`).
+
+> [!important] 2026-10-21 · SEG-21OCT — `uploadOUrlZod` ya no deja pasar «cualquier cosa que no sea data URL»
+> Lo que no es un data URL tiene que ser `http(s)://…` y de 2048 caracteres como
+> mucho. Antes pasaba sin mirar, y esos campos (`contratoUrl`, `ocUrl`,
+> `documentoUrl`) se pintan como `href` de «Ver contrato»: un `javascript:…`
+> corría con la sesión de quien lo abría. Y el `data:` se compara ya sin
+> distinguir mayúsculas: un `DATA:text/html,…` se saltaba la lista blanca. Lo
+> fija `lib/server/uploads-enlaces.test.ts`.
 
 ## `notificaciones-repo.ts` — avisos in-app
 

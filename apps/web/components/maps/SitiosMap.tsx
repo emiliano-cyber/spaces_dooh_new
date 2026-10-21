@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import { htmlPopupSitio } from '@/lib/popup-sitio'
 
 export interface SitioFeature {
   type: 'Feature'
@@ -121,12 +122,12 @@ export default function SitiosMap({ sitios, onSitioClick, height = '400px' }: Pr
           el.addEventListener('mouseleave', () => { el.style.transform = 'scale(1)' })
           el.addEventListener('click', () => onClickRef.current(feature.properties.id))
 
-          const popup = new maplibregl.Popup({ closeButton: false, offset: 12 }).setHTML(`
-            <div style="font-family:system-ui;font-size:0.8rem;padding:4px 2px;min-width:140px">
-              <div style="font-weight:600;margin-bottom:2px">${feature.properties.nombre}</div>
-              <div style="color:#888;font-size:0.72rem">${feature.properties.claveInterna} · ${feature.properties.tipoMedio}</div>
-            </div>
-          `)
+          // Escapado ANTES de `setHTML` (SEG-21OCT): el nombre y la clave los
+          // captura cualquiera con permiso de inventario, y el saneador de
+          // MapLibre 5.24 se puede esquivar. Ver `lib/popup-sitio.ts`.
+          const popup = new maplibregl.Popup({ closeButton: false, offset: 12 }).setHTML(
+            htmlPopupSitio(feature.properties),
+          )
 
           const marker = new maplibregl.Marker({ element: el })
             .setLngLat([lng, lat])
