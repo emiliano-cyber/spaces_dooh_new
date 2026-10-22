@@ -6,6 +6,11 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!success] 2026-10-22, noche · **`v0.12.2` final en `estable`** — promover `39843781281`, digest `9cef7c6f…`; vuelta atrás: `v0.12.1` (`aa990af6…`)
+> Última reescritura, por decisión del dueño: + horario individual de la campaña en DOOHmain y el id de DOOHmain en
+> Inventario (PR #102, CI en verde con e2e). Etiqueta en `a2ba25db`; release en verde; smoke en DEMO `metodos 200`.
+> Lo siguiente va a la `v0.12.3`, que el dueño pidió NO publicar todavía (rama local `fix/creativos-rotacion-y-reemplazo`).
+
 > [!success] 2026-10-22, noche · **`v0.12.2` reescrita OTRA VEZ y en `estable`** — promover `39837582400`, digest `75e232f8…`; vuelta atrás: `v0.12.1` (`aa990af6…`)
 > Decisión del dueño: juntar también los creativos primero en la ficha de la campaña y la vista previa de lo que se manda
 > a DOOHmain (PR #101, CI en verde con e2e), y el aviso de la franja corregido. Etiqueta en `6cbb0fec`; release
