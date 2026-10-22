@@ -248,6 +248,29 @@ export function fechaFinDesde(fechaInicio: string, unidad: Unidad, cantidad: num
   return new Date(fin).toISOString().slice(0, 10)
 }
 
+/**
+ * v0.12.3 · la cuenta inversa de `fechaFinDesde`: de un rango escrito a mano a
+ * una duración. Pedido del dueño (22/10): «si alguien pone fecha a mano, se auto
+ * ponga lo de días o meses, etc., dependiendo el cálculo». La unidad MÁS GRANDE
+ * que cuadre exacta —meses de calendario, catorcenas, semanas— y si ninguna,
+ * días. Se comprueba con `fechaFinDesde` mismo, así la ida y vuelta da siempre la
+ * misma fecha y el formulario no se come lo que la persona escribió. `null` si el
+ * rango está incompleto o al revés.
+ */
+export function duracionDesdeFechas(
+  fechaInicio: string,
+  fechaFin: string,
+): { cantidad: number; unidad: Unidad } | null {
+  if (!fechaInicio || !fechaFin) return null
+  const dias = diasInclusivos(fechaInicio, fechaFin)
+  if (!(dias >= 1)) return null
+  for (const unidad of ['mensual', 'catorcenal', 'semanal'] as Unidad[]) {
+    const n = periodosEnRango(unidad, fechaInicio, fechaFin)
+    if (n != null && n >= 1 && fechaFinDesde(fechaInicio, unidad, n) === fechaFin) return { cantidad: n, unidad }
+  }
+  return { cantidad: dias, unidad: 'diaria' }
+}
+
 // Precio del ítem = tarifa por unidad × cantidad. Redondeado a entero (MXN/PEN
 // sin centavos, como el resto de precios de lista del sistema).
 export function precioItem(tarifaUnitaria: number, cantidad: number): number {

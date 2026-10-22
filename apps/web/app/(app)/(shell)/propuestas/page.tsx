@@ -67,6 +67,7 @@ import {
   precioItem,
   periodosEnRango,
   fechaFinDesde,
+  duracionDesdeFechas,
   esCantidadManual,
   type Unidad,
 } from '@/lib/periodos'
@@ -1004,8 +1005,27 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
           </Campo>
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Campo label="Hasta (se calcula de la duración)" obligatorio falta={ob.falta('fechaFin')}>
-            <input type="date" className={inputCls} value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} />
+          <Campo label="Hasta (se calcula de la duración, o escríbela)" obligatorio falta={ob.falta('fechaFin')}>
+            <input
+              type="date"
+              className={inputCls}
+              value={fechaFin}
+              onChange={(e) => {
+                // v0.12.3 · al escribir «Hasta» a mano, la duración se pone sola
+                // (meses, catorcenas, semanas o días, la que cuadre exacta).
+                // Antes se quedaba la duración vieja —«1 mes» con un rango de
+                // tres—. Como la ida y vuelta da la misma fecha
+                // (`duracionDesdeFechas`, con prueba), el efecto que recalcula
+                // «Hasta» no se come lo escrito.
+                const v = e.target.value
+                setFechaFin(v)
+                const d = duracionDesdeFechas(fechaInicio, v)
+                if (d) {
+                  setDuracionUnidad(d.unidad)
+                  setDuracionN(String(d.cantidad))
+                }
+              }}
+            />
           </Campo>
           <Campo label="Comisión de la agencia (%)"><input className={inputCls} value={comision} onChange={(e) => setComision(e.target.value)} /></Campo>
         </div>
