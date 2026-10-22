@@ -30,6 +30,18 @@
       {
         "tipo": "AJUSTADO",
         "texto": "En la ficha de la campaña, al enviar al dominio y al publicar, sale un recordatorio: no estar en la pantalla dentro del sitio de DOOHmain para permitir el proceso."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "Los creativos son lo primero de la ficha de la campaña y siempre están abiertos: se ven y se suben ahí mismo en cualquier momento, aunque la campaña ya esté cerrada."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Antes de publicar en DOOHmain se ve lo que se va a mandar: por cada pantalla, el creativo, el horario de la franja (o todo el día) y cuántas reproducciones por día y en toda la campaña."
+      },
+      {
+        "tipo": "CORREGIDO",
+        "texto": "El aviso de la franja horaria decía que no se envía al CMS; ahora dice que a DOOHmain sí se envía al publicar, y que en pantallas de otro CMS hay que programarla a mano."
       }
     ]
   },
