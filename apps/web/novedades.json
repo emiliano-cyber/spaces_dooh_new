@@ -22,6 +22,14 @@
       {
         "tipo": "AJUSTADO",
         "texto": "Para marcar «Responsable legal confirmado» hay que indicar antes qué contacto firma. Las ofertas al dueño van por versiones y no se borran: son la historia de la negociación."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Al publicar en DOOHmain se manda también cuántas reproducciones le tocan a cada pantalla en toda la campaña y los datos del cliente (RFC, razón social, dirección y si es directo o agencia). Si la campaña tiene franja de horario, se manda su horario y DOOHmain reparte las reproducciones dentro de él; si no, se manda lo mismo que antes."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "En la ficha de la campaña, al enviar al dominio y al publicar, sale un recordatorio: no estar en la pantalla dentro del sitio de DOOHmain para permitir el proceso."
       }
     ]
   },

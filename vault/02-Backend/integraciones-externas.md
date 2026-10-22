@@ -10,6 +10,10 @@ archivos:
   - db/migrations/20261013_sitios_pantalla_doohmain.sql
   - apps/web/components/demo/campanas/ValidacionPanel.tsx
   - apps/web/lib/doohmain-aviso.ts
+  - apps/web/lib/doohmain-programacion.ts
+  - doohmain_sdk/__main__.py
+  - doohmain_sdk/integration.py
+  - doohmain_sdk/client.py
   - db/migrations/20261013_doohmain_seguimiento_unicas.sql
   - apps/web/lib/server/space-eye.ts
   - apps/web/app/api/space-eyes/
@@ -59,6 +63,29 @@ flowchart LR
 > `DOOHMAIN_SDK_DIR`) y un mapa JSON (`DOOHMAIN_SCREEN_MAP`). No es entrada de
 > usuario, pero cualquier cambio aquí es zona ROJA. La idempotencia la resuelve
 > el SDK contra sus propias tablas.
+
+> [!important] 2026-10-22 · a DOOHmain le llega ya TODO lo que su API recibe
+> Pedido del dueño: mandar las reproducciones dentro de la franja si la campaña
+> tiene una, o el total del periodo, y los datos del cliente — **la franja SOLO si
+> existe; si no, lo de siempre**. Hasta hoy solo viajaban fechas, nombre del
+> cliente y `cant_day`. La regla está en `lib/doohmain-programacion.ts`, con prueba:
+> - `cant_day` = spots por día (como antes; null sin pauta) · `cant_total` = spots
+>   por día × días de la campaña (solo con pauta) · `auto_cant=1` solo con franja,
+>   para que DOOHmain reparta las del día dentro del horario;
+> - el horario va en el spot (`start_time`/`end_time`) y sale de la franja
+>   **programada** de la campaña (PROG-01) o, si no tiene, la **contratada** de esa
+>   pantalla (`reservas.franja_id`). Sin ninguna, no se manda;
+> - el cliente: `name`, `cuit` (RFC), `real_name` (razón social), `address` (del
+>   contacto, si la tiene) y `client_type` (Directo / Agencia: no guardamos giro).
+>   Se manda al crear y, con `update_client`, al re-publicar;
+> - no se mandan `cant_hour` ni `days` (no hay pauta por hora ni días en las franjas).
+> **Lo que contradice esto:** los comentarios de columna de `reservas.franja_id` y
+> `campanas.franja_programada_id` dicen que la franja «no viaja al CMS». Eran ciertos
+> hasta hoy y viven en migraciones ya aplicadas, que no se editan. **Y un límite:** un
+> arte que YA estaba publicado no se vuelve a mandar (`create_spot` no deduplica), así
+> que su horario no cambia al re-publicar; sí cambian las cantidades y el cliente.
+> Probado con el SDK contra una API y una base falsas (con y sin franja: sin ella, las
+> peticiones son idénticas a las de antes) y en `creativo-por-pantalla.e2e.test.ts`.
 
 > [!note] 2026-10-22 · el recordatorio de no tener la pantalla abierta en el sitio de DOOHmain
 > Pedido del dueño: en Campañas, al enviar al dominio y subir el creativo, recordar

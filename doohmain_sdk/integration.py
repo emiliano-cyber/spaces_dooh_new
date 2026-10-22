@@ -55,6 +55,9 @@ def ensure_campaign(
     fecha_fin: Any,
     *,
     cant_dia: int | None = None,
+    cant_total: int | None = None,
+    auto_cant: bool = False,
+    cliente: dict[str, str] | None = None,
     api: DOOHmainClient | None = None,
     db: Database | None = None,
 ) -> str:
@@ -62,6 +65,11 @@ def ensure_campaign(
 
     `cant_dia` es la programación: cuántas veces al día se muestra el spot. Se
     envía a DOOHmain como cuota diaria (`cant_day`). None = no se toca la cuota.
+
+    22/10 · y lo demás que la API recibe: `cant_total` (las del periodo
+    entero), `auto_cant` (repartirlas por hora dentro de la franja; solo se
+    enciende cuando hay franja) y los datos del `cliente` (cuit, real_name,
+    address, client_type). Cada uno solo si viene.
     """
     db = db or Database()
     api = api or DOOHmainClient()
@@ -76,6 +84,7 @@ def ensure_campaign(
             anunciante=anunciante,
             start_date=norm(fecha_inicio),
             end_date=norm(fecha_fin),
+            cliente=cliente,
         )
         auth = res.get("auth")
         if not auth:
@@ -100,10 +109,21 @@ def ensure_campaign(
     }
     if cant_dia is not None and cant_dia > 0:
         fields["cant_day"] = str(cant_dia)
+    if cant_total is not None and cant_total > 0:
+        fields["cant_total"] = str(cant_total)
+    if auto_cant:
+        fields["auto_cant"] = "1"
     try:
         api.update_campaign(auth, **fields)
     except DOOHmainError:
         pass
+    # El cliente, también al re-publicar: una campaña creada antes del 22/10 solo
+    # llevaba el nombre. Mismo criterio que arriba: no rompe la publicación.
+    if cliente and any(cliente.values()):
+        try:
+            api.update_client(auth, name=anunciante, **cliente)
+        except DOOHmainError:
+            pass
     return auth
 
 
@@ -149,17 +169,25 @@ def publish_spot(
     campaign_auth: str,
     media_id: int,
     *,
+    start_time: str | None = None,
+    end_time: str | None = None,
     api: DOOHmainClient | None = None,
     db: Database | None = None,
 ) -> str:
-    """Agrega el arte a la sublista de la pantalla, salvo que ya esté publicado."""
+    """Agrega el arte a la sublista de la pantalla, salvo que ya esté publicado.
+
+    22/10 · `start_time`/`end_time` (HH:mm) son la franja: solo vienen si la
+    campaña tiene una. OJO: un arte YA publicado no se vuelve a mandar
+    (create_spot no deduplica), así que su horario no cambia al re-publicar.
+    """
     db = db or Database()
     api = api or DOOHmainClient()
 
     if db.remote_list_element_exists(screen_name, list_name, media_id):
         return "already_published"
 
-    api.create_spot(screen_name, list_name, campaign_auth, media_id)
+    api.create_spot(screen_name, list_name, campaign_auth, media_id,
+                    start_time=start_time, end_time=end_time)
     db.remote_list_register(screen_name, list_name, campaign_auth, media_id)
     return "published"
 

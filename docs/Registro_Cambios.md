@@ -7,6 +7,16 @@ La entrada más reciente va arriba.
 
 ## 2026-10-22
 
+- **DOOHmain recibe ahora todos los datos de la campaña.** Al publicar, además
+  de las fechas y los spots por día, se manda **cuántas reproducciones en total**
+  le tocan a cada pantalla en toda la campaña y **los datos del cliente**: RFC,
+  razón social, dirección (si está en su contacto) y si es directo o agencia.
+  Si la campaña tiene una **franja de horario** —la programada o, si no, la
+  contratada en esa pantalla—, se manda también su horario y DOOHmain reparte las
+  reproducciones del día dentro de él. **Si no tiene franja, se manda lo mismo que
+  antes.** Un anuncio que ya estaba publicado no cambia de horario al volver a
+  publicar (DOOHmain no deja reemplazarlo); sí se actualizan las cantidades y el
+  cliente.
 - **Recordatorio al publicar en DOOHmain.** En la ficha de una campaña con
   pantallas digitales, debajo de «Enviar al dominio», «Aprobar publicación» y
   «Volver a publicar», y dentro de las ventanas que confirman la publicación,

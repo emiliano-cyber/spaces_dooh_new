@@ -73,6 +73,15 @@ def _build_parser() -> argparse.ArgumentParser:
     pub.add_argument("--list", required=True, dest="list_name")
     # Programación: spots/día → cuota diaria en DOOHmain (opcional).
     pub.add_argument("--cant-dia", type=int, default=None)
+    # 22/10 · lo demás que DOOHmain recibe. Todo opcional: ausente = lo de antes.
+    pub.add_argument("--cant-total", type=int, default=None)
+    pub.add_argument("--hora-inicio", default=None, help="HH:mm, solo si hay franja")
+    pub.add_argument("--hora-fin", default=None, help="HH:mm, solo si hay franja")
+    pub.add_argument("--auto-cant", action="store_true")
+    pub.add_argument("--cliente-rfc", default=None)
+    pub.add_argument("--cliente-razon-social", default=None)
+    pub.add_argument("--cliente-direccion", default=None)
+    pub.add_argument("--cliente-tipo", default=None)
 
     ret = sub.add_parser("retirar", help="Retira un creativo de DOOHmain (finish + limpia tracking)")
     ret.add_argument("--version", required=True)
@@ -147,16 +156,30 @@ def main(argv: list[str] | None = None) -> int:
             api = DOOHmainClient()
             db = Database()
             try:
+                cliente = {
+                    "cuit": args.cliente_rfc,
+                    "real_name": args.cliente_razon_social,
+                    "address": args.cliente_direccion,
+                    "client_type": args.cliente_tipo,
+                }
                 auth = integration.ensure_campaign(
                     args.version, args.anunciante, args.campana,
                     args.fecha_inicio, args.fecha_fin,
-                    cant_dia=args.cant_dia, api=api, db=db,
+                    cant_dia=args.cant_dia, cant_total=args.cant_total,
+                    auto_cant=args.auto_cant,
+                    cliente={k: v for k, v in cliente.items() if v},
+                    api=api, db=db,
                 )
                 media_id = integration.ensure_media(
                     args.filepath, args.version, api=api, db=db
                 )
+                # La franja va junta o no va: una hora sola no es un horario.
+                con_franja = bool(args.hora_inicio and args.hora_fin)
                 estado = integration.publish_spot(
-                    args.screen, args.list_name, auth, media_id, api=api, db=db
+                    args.screen, args.list_name, auth, media_id,
+                    start_time=args.hora_inicio if con_franja else None,
+                    end_time=args.hora_fin if con_franja else None,
+                    api=api, db=db,
                 )
             finally:
                 api.close()

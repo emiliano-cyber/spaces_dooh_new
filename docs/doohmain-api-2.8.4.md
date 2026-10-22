@@ -217,6 +217,11 @@ sondeo.
 **El `api_key` viaja como parámetro.** Si se manda por query string queda registrado
 en logs de acceso y proxies intermedios. Conviene enviarlo en el cuerpo por POST.
 
+**2026-10-22 · ya se mandan** `cant_total`, `auto_cant`, el horario del spot
+(`start_time`/`end_time`, solo si la campaña tiene franja) y todos los campos de
+`client`. Ver `apps/web/lib/doohmain-programacion.ts`. Lo de abajo es la nota
+original.
+
 **Huecos frente a SPACES OS.** `create_spot` exige un `list` (nombre de lista) que no
 existe como concepto en nuestro modelo. `upload` declara aceptar sólo imagen o video,
 no HTML. Los equipos se identifican por `name`, y no hay columna de id externo en

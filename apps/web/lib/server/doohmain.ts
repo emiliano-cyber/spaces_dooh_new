@@ -19,6 +19,12 @@ import { join } from 'node:path'
 import { q, q1 } from './db'
 import { esPantallaDigitalSql } from './pantalla-digital-sql'
 import { folioBase } from '../folio-venta'
+import {
+  clienteDoohmain,
+  programacionDoohmain,
+  type ClienteDoohmain,
+  type ProgramacionDoohmain,
+} from '../doohmain-programacion'
 
 const pexec = promisify(execFile)
 
@@ -47,6 +53,11 @@ export interface ResultadoPublicacion {
   // el resultado porque es la mitad de la trazabilidad: saber que algo se
   // publicó no dice cuánto se publicó, y es lo que se le factura al anunciante.
   cantDia?: number | null
+  // 22/10 · lo demás que viaja ahora: el total del periodo y, si la campaña
+  // tiene franja, su horario (`lib/doohmain-programacion.ts`).
+  cantTotal?: number | null
+  horaInicio?: string | null
+  horaFin?: string | null
   ok: boolean
   auth?: string
   mediaId?: number
@@ -153,6 +164,7 @@ function fecha(v: any): string {
 async function ejecutarPublish(args: {
   version: string; anunciante: string; campana: string; fi: string; ff: string
   filepath: string; screen: string; list: string; cantDia?: number | null
+  programacion: ProgramacionDoohmain; cliente: ClienteDoohmain
 }): Promise<any> {
   const cli = [
     '-m', 'doohmain_sdk', 'publish',
@@ -164,6 +176,18 @@ async function ejecutarPublish(args: {
   if (args.cantDia != null && args.cantDia > 0) {
     cli.push('--cant-dia', String(args.cantDia))
   }
+  // 22/10 · lo que la API recibe y no se mandaba. Cada bandera solo si hay
+  // dato: una ausente deja a DOOHmain como hasta hoy. La franja, SOLO si la
+  // campaña tiene una (pedido del dueño).
+  const p = args.programacion
+  if (p.cantTotal != null) cli.push('--cant-total', String(p.cantTotal))
+  if (p.horaInicio && p.horaFin) cli.push('--hora-inicio', p.horaInicio, '--hora-fin', p.horaFin)
+  if (p.autoCant) cli.push('--auto-cant')
+  const c = args.cliente
+  if (c.rfc) cli.push('--cliente-rfc', c.rfc)
+  if (c.razonSocial) cli.push('--cliente-razon-social', c.razonSocial)
+  if (c.direccion) cli.push('--cliente-direccion', c.direccion)
+  if (c.tipo) cli.push('--cliente-tipo', c.tipo)
   try {
     const { stdout } = await pexec(PY, cli, { cwd: SDK_DIR, timeout: 120000 })
     return JSON.parse(stdout.trim().split('\n').pop() || '{}')
@@ -295,8 +319,17 @@ export async function retirarCreativoEnDoohmain(
 export async function publicarCampanaEnDoohmain(campanaId: string): Promise<ResultadoPublicacion[]> {
   const camp = await q1<any>('select id, folio, nombre, cliente_id, fecha_inicio, fecha_fin from campanas where id=$1', [campanaId])
   if (!camp) return []
-  const cliente = await q1<any>('select nombre from clientes where id=$1', [camp.cliente_id])
-  const anunciante = cliente?.nombre ?? 'Sin cliente'
+  const cliente = await q1<any>(
+    'select nombre, rfc, razon_social, contacto, tipo from clientes where id=$1',
+    [camp.cliente_id],
+  )
+  // Todo lo que DOOHmain recibe del cliente (22/10), no solo el nombre.
+  const datosCliente = clienteDoohmain(
+    cliente
+      ? { nombre: cliente.nombre, rfc: cliente.rfc, razonSocial: cliente.razon_social, contacto: cliente.contacto, tipo: cliente.tipo }
+      : null,
+  )
+  const anunciante = datosCliente.nombre
 
   // Una fila por (pantalla × creativo asignado). El `join` contra
   // `creatividades` filtra por VALIDADA aquí mismo: un creativo asignado que
@@ -308,11 +341,20 @@ export async function publicarCampanaEnDoohmain(campanaId: string): Promise<Resu
     `select r.id as reserva_id, s.clave_interna, s.nombre as sitio_nombre,
             s.doohmain_pantalla, s.cms,
             r.spots_por_dia,
+            fh.hora_inicio as franja_inicio, fh.hora_fin as franja_fin,
             cr.id as creativo_id, cr.nombre as creativo_nombre,
             cr.archivo_url, cr.codigo, cr.formato,
             (e->>'veces')::int as veces
        from reservas r
        join sitios s on s.id = r.sitio_id
+       join campanas c on c.id = r.campana_id
+       -- La franja que viaja al CMS (22/10): la PROGRAMADA de la campaña
+       -- (PROG-01, en la que se transmite) y, si no tiene, la CONTRATADA de
+       -- esta pantalla (REJILLA-01). Sin ninguna, fh sale vacío y se manda
+       -- lo de siempre.
+       left join franjas_horarias fh
+              on fh.id = coalesce(c.franja_programada_id, r.franja_id)
+             and fh.tenant_id = r.tenant_id
        cross join lateral jsonb_array_elements(
               case when jsonb_typeof(r.creativos) = 'array' then r.creativos
                    else '[]'::jsonb end) e
@@ -415,9 +457,17 @@ export async function publicarCampanaEnDoohmain(campanaId: string): Promise<Resu
         : (Number.isFinite(Number(a.veces)) && Number(a.veces) > 0
             ? Number(a.veces)
             : Number(a.spots_por_dia))
+      const fi = fecha(camp.fecha_inicio)
+      const ff = fecha(camp.fecha_fin)
+      const programacion = programacionDoohmain({
+        cantDia,
+        fechaInicio: fi,
+        fechaFin: ff,
+        franja: a.franja_inicio && a.franja_fin ? { horaInicio: a.franja_inicio, horaFin: a.franja_fin } : null,
+      })
       const r = await ejecutarPublish({
         version: a.creativo_id, anunciante, campana: camp.nombre,
-        fi: fecha(camp.fecha_inicio), ff: fecha(camp.fecha_fin),
+        fi, ff, programacion, cliente: datosCliente,
         // FOLIO-VENTA (07/10) · la lista del CMS lleva el folio SIN tramo: una
         // campaña extendida (PR-2026-0042.1) sigue siendo la misma lista en el
         // reproductor, no una nueva junto a la vieja.
@@ -426,6 +476,7 @@ export async function publicarCampanaEnDoohmain(campanaId: string): Promise<Resu
       })
       out.push({
         creativoId: a.creativo_id, creativoNombre: a.creativo_nombre, sitio: a.clave_interna, screen, cantDia,
+        cantTotal: programacion.cantTotal, horaInicio: programacion.horaInicio, horaFin: programacion.horaFin,
         ok: r.ok === true, auth: r.auth, mediaId: r.media_id, estado: r.estado,
         error: r.ok === true ? undefined : r.error, category: r.category,
       })
