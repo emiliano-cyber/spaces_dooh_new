@@ -6,6 +6,12 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!success] 2026-10-22 · **`v0.12.2` en `estable`** — promover `39703631686`, digest `a027d1c3…`; vuelta atrás `aa990af6…` (`v0.12.1`)
+> `main` en `1e3d1117`; release `39702725639` en verde (suite completa con e2e y publicación en `beta`); smoke en DEMO
+> `metodos 200` y el digest sin cambiar al reetiquetar. Lleva NEG-01 (Comercial negociación) y su migración, que solo
+> agrega, más el Node 22 de la `v0.12.1`. **Falta, y lo hace una persona:** revisar la pantalla en DEMO e instalar en
+> g500 cuando el dueño lo decida; sigue pendiente lo de servidor de B55 (guía 28).
+
 > [!important] 2026-10-22 · **NEG-01 · Comercial negociación funcional** — rama `feat/comercial-negociacion`, PR #99 · ROJO R3 (migración, forma aprobada por el dueño el 21/10)
 > Deja de ser maqueta, ENCIMA de `prospectos` (ADR 0047): ficha con visibilidad cercana/media/lejana, medidas y
 > presupuesto; ubicación por buscador (Nominatim, por el servidor) + pin que confirma la persona; contactos,
