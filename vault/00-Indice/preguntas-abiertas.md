@@ -1,7 +1,7 @@
 ---
 tipo: preguntas
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-10-22
 tags: [preguntas, pendientes, riesgo]
 archivos:
   - apps/web/lib/server/
@@ -326,6 +326,17 @@ reconciliar? Ya hubo una divergencia de 27 columnas
 (`20260805_objetos_solo_en_prod.sql`).
 
 ### P22 · Google Maps en Comercial OPEX y en el alta de pantallas — PENDIENTE (01/10)
+
+> [!note] 2026-10-22 · dos de las cuatro preguntas ya tienen respuesta (NEG-01, ADR 0047)
+> - **¿Quién paga?** — **cada owner**, con su propia clave en el `.env` de su
+>   instancia (el dueño, 21/10). Sin clave, la búsqueda usa OpenStreetMap.
+> - **¿Se guardan las coordenadas de Google?** — no hace falta: se guarda el punto
+>   que **confirma la persona** en el mapa, con su origen y, si viene de Google, su
+>   `place_id` (lo único que sus términos dejan guardar sin caducidad).
+> Comercial negociación ya busca direcciones —con Nominatim, por el servidor— y fija
+> el pin. Lo que sigue abierto: el **alcance** (¿también el alta de pantallas?), los
+> **precios y el tope de gasto** de Google, y enchufar Google cuando un owner traiga
+> su clave. El ADR 0041 sigue en Propuesta. Ver [[03-Frontend/comercial-opex]].
 
 **Nada construido todavía, a propósito.** El dueño preguntó el 01/10 si se puede
 usar la API de Google Maps para Comercial OPEX y los mapas, y pidió dejarlo

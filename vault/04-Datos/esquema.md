@@ -1,10 +1,11 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-10-21
+actualizado: 2026-10-22
 tags: [datos, esquema, er, postgres]
 archivos:
   - db/schema.sql
+  - db/migrations/20261022_comercial_negociacion.sql
   - db/migrations/20261021_notificaciones_por_usuario.sql
   - db/semilla-desarrollo.sql
   - db/migrations/
@@ -29,6 +30,9 @@ archivos:
 > [!important] 2026-10-05 · puesta al día — lo que abajo dice «pendiente» o «SIN FUSIONAR» YA ESTÁ en `main`
 > Medido hoy con `node scripts/recuentos.mjs` sobre el árbol de
 > `integra/riesgos-presentacion-14-oct` (salida de `main` en `09c65ca2`):
+> **64 tablas y 116 migraciones** (22/10, con las cuatro de Comercial negociación
+> —`prospecto_contactos`, `prospecto_ofertas`, `prospecto_competencia`,
+> `prospecto_notas`— en `20261022_comercial_negociacion.sql`, NEG-01) — antes
 > **60 tablas y 115 migraciones** (21/10, con `notificaciones_usuario` y
 > `20261021_notificaciones_por_usuario.sql`; la tabla 60 es de verdad, no el
 > `if` de abajo) — antes **59 tablas y 113 migraciones** (14/10: las cuatro migraciones del 11 al 13/10
@@ -167,6 +171,27 @@ archivos:
 >   tenant_id)`. **Solo se añade**: la app tiene `select, insert` y nada más.
 >
 > RLS `enable` + `force` en las dos. Ver [[02-Backend/captacion]].
+
+> [!note] 2026-10-22 · CUATRO TABLAS NUEVAS y la ficha del espacio — NEG-01
+> `db/migrations/20261022_comercial_negociacion.sql` (forma aprobada por el dueño el
+> 21/10, [ADR 0047](../../docs/adr/0047-comercial-negociacion-encima-de-prospectos.md)).
+> Comercial negociación se monta ENCIMA de `prospectos`:
+> - **`prospectos`** gana 14 columnas opcionales: `tipo_espacio`, `etapa_responsable`
+>   (1..5), `visibilidad` (`CERCANA` · `MEDIA` · `LEJANA`), `ancho_m`, `alto_m`,
+>   `superficie_m2` (> 0), `presupuesto_min/max` (mín ≤ máx) y `_autoriza`, y la
+>   ubicación: `ubicacion_origen` (`GPS` · `PIN` · `BUSCADOR` — GPS en el CHECK pero
+>   pendiente en la API), `ubicacion_precision_m`, `ubicacion_place_id`,
+>   `ubicacion_fijada_por`, `ubicacion_fijada_en`. `lat`/`lng` ya existían.
+> - **`prospecto_avances`** gana `canal` (LLAMADA · VISITA · REUNION · CORREO ·
+>   WHATSAPP · OTRO) y `contacto_nombre` (copia del nombre, no FK).
+> - **`prospecto_contactos`** (varios por espacio, `es_legal` = quien firma),
+>   **`prospecto_ofertas`** (al DUEÑO del espacio: `version` única por espacio,
+>   importe > 0, plazo 1..240, estado ENVIADA · CONTRAOFERTA · RECHAZADA · ACEPTADA;
+>   **sin `delete`** para el rol de la app), **`prospecto_competencia`** y
+>   **`prospecto_notas`** (**solo `select, insert`**).
+> Las cuatro con FK compuesta `(prospecto_id, tenant_id)` → `prospectos (id,
+> tenant_id)`, índice `(tenant_id, prospecto_id)` y RLS `enable` + `force`. Ver
+> [[03-Frontend/comercial-opex]].
 
 > [!danger] 2026-09-28 · `codigos_promocionales` y `canjes_codigo` SIN FUSIONAR
 > Mismo caso que `escalas_volumen`, abajo: escritas y probadas contra bases

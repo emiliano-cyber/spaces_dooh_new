@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-10-22
 tags: [adr, decisiones, reglas-de-negocio]
 archivos:
   - docs/adr/
@@ -78,6 +78,7 @@ se escribe uno nuevo que lo reemplace (`~/.claude/skills/eng-architecture`).
 | 0040 | **Roles de venta y la autorización de descuentos** | Escrito «en diseño · nada construido · la migración espera aprobación» (29/09). **Desfase con el código:** las dos migraciones existen (`20260929_roles_de_venta_enum.sql` y `_matriz.sql`). El estado del documento no se actualizó — mismo vicio que el `0011` y el `0014` | Cuatro roles nuevos en `rol_demo` (`ADMINISTRADOR`, `DIRECTOR_COMERCIAL`, `GERENTE_VENTAS`, `VENDEDOR`, este último default de `usuarios.rol`); `COMERCIAL` se retira de uso. Ver [[02-Backend/roles-de-venta]] |
 | 0041 | **Google Maps solo donde aporta, con la clave en tiempo de ejecución** | **Propuesta** (01/10), pendiente del dueño | **Ninguno todavía**: no hay código de Google Maps en `apps/web` (búsqueda del 05/10). Complementa —no reemplaza— el `0030`. Pendiente también en [[preguntas-abiertas]] (P22) |
 | 0042 | **La calculadora de spots da la CANTIDAD; el precio sigue siendo el de la pantalla** | Aceptada (01/10) | Cuatro columnas en `propuesta_items` (`20261007_calculadora_spots.sql`); la prima del Roadblock solo con `comercial.aprobar`. Ver [[02-Backend/calculadora-de-spots]] |
+| 0047 | **Comercial negociación encima de `prospectos`, y la ubicación la confirma la persona** | Aceptada (21/10, el dueño; GPS pendiente el 22/10) | `20261022_comercial_negociacion.sql`: ficha en `prospectos` y cuatro tablas hijas; buscador Nominatim por el servidor (`lib/server/geo-buscar.ts`) mientras no haya clave de Google; se guarda el punto que confirma la persona. Toma el plan B del `0041` sin aceptarlo. Ver [[03-Frontend/comercial-opex]] |
 
 > [!danger] Cuatro de estos ADR se superaron entre sí en 48 horas — lee el estado, no el número
 > `0015` → `0016` → `0017` y `0020` → `0021` cambiaron de decisión **el mismo día

@@ -5,6 +5,35 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-10-22
+
+- **Comercial negociación ya guarda de verdad.** Hasta hoy la pantalla era una
+  maqueta con espacios de ejemplo; ahora cada espacio que se persigue (un muro,
+  una azotea, un terreno, una pantalla) se da de alta con **Nuevo espacio** y
+  todo lo que se le captura se queda:
+  - **la ficha**: qué tipo de espacio es, su **visibilidad** (cercana, media o
+    lejana), sus **medidas** —ancho y alto, con el área calculada sola, y la
+    superficie del terreno— y la renta que se está autorizado a ofrecer;
+  - **la ubicación**: se busca la dirección, se elige el resultado y se afina el
+    punto arrastrando el pin en el mapa. Lo que se guarda es el punto que tú
+    dejas marcado. Usar el GPS del teléfono queda pendiente;
+  - **los contactos** (el dueño, la apoderada, la vecina, el portero), marcando
+    quién firma;
+  - **las ofertas de renta** que se le hacen al dueño, por versiones, con su
+    estado (enviada, contraoferta, rechazada, aceptada). No se borran: son la
+    historia de la negociación;
+  - **la competencia**, **el historial de contactos** con el canal y con quién se
+    habló, y **notas adicionales** con autor y fecha, que no se editan ni se
+    borran.
+  La barra de «Búsqueda del responsable» ya se mueve con un clic, y el último
+  paso («Responsable legal confirmado») pide antes marcar qué contacto firma.
+  Cada vendedor ve y trabaja solo sus espacios; los gerentes, directores,
+  administradores y el Dueño ven los de todo el equipo. Por dentro es la misma
+  información que Captación: un espacio que se cierra se aprueba allí y nace como
+  predio con la ubicación que se le fijó.
+
+---
+
 ## 2026-10-21
 
 - **v0.12.1 · la aplicación corre sobre una versión de Node con parches.** El

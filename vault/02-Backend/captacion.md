@@ -1,7 +1,7 @@
 ---
 tipo: contrato
 estado: verificado
-actualizado: 2026-09-29
+actualizado: 2026-10-22
 tags: [backend, comercial, captacion, prospectos, bitacora, aprobacion, rls, concurrencia, permisos]
 archivos:
   - db/migrations/20260930_captacion.sql
@@ -28,6 +28,20 @@ archivos:
 > `prospecto_avances`, la API `/api/captacion/*`, la pantalla `/captacion` y el
 > módulo `captacion` de permisos **siguen**: volver es una línea, sin migración.
 > Una prueba de `nav.test.ts` fija que no está en el menú.
+
+> [!important] 2026-10-22 · Comercial negociación se monta ENCIMA de esto (NEG-01)
+> Decisión del dueño (21/10, [ADR 0047](../../docs/adr/0047-comercial-negociacion-encima-de-prospectos.md)):
+> un espacio en negociación es un prospecto `PREDIO` o `PANTALLA`, y
+> [[03-Frontend/comercial-opex]] es su pantalla. `20261022_comercial_negociacion.sql`
+> le añade a `prospectos` la ficha (tipo de espacio, búsqueda del responsable 1..5,
+> visibilidad, medidas, presupuesto, origen de la ubicación), a `prospecto_avances`
+> el canal y el contacto, y cuatro tablas hijas: `prospecto_contactos`,
+> `prospecto_ofertas`, `prospecto_competencia` y `prospecto_notas`. Rutas nuevas bajo
+> `/api/captacion/[id]/` (`ficha`, `contactos`, `ofertas`, `competencia`, `notas`),
+> con el mismo `soloDe` de aquí —exportado de `captacion-controller.ts` para que la
+> regla de quién ve qué sea UNA— y `GET /api/captacion?tipos=` para varios tipos.
+> El alta copia el contacto del `jsonb` como primer `prospecto_contactos`; el `jsonb`
+> se queda porque es el que leen `faltantesParaRevision` y el alta del registro.
 
 > [!important] De dónde sale
 > Pedido del dueño el **2026-09-29**, recorriendo el ensayo de g500 con un perfil

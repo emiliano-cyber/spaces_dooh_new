@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-20
+actualizado: 2026-10-22
 tags: [frontend, modulos, pantallas, verde]
 archivos:
   - apps/web/app/(app)/(shell)/
@@ -38,7 +38,7 @@ archivos:
 | `/clientes` | Clientes — al pulsar el nombre, **ficha con su pipeline y sus campañas** (20/10) | `/api/clientes`; la ficha lee lo que ya trae `/api/estado` | `ClientesBadge`, `BorrarClienteDialog`, `FichaCliente`, `PipelineCliente`, `CampanasDelCliente` |
 | `/propuestas`, `/propuestas/[id]` | Propuestas, con **tarifa calculada** y **calculadora de spots** | `/api/propuestas`, `/api/rejilla/*`, `/api/volumen/escalas` | `AvisoFranjaCMS`, `MapView`, `CalculadoraSpotsLinea` (local de la página) |
 | `/captacion` | Captación (CAP-01) — **fuera del menú desde el 30/09** | `/api/captacion/*` | `Captacion` — ver [[02-Backend/captacion]] |
-| `/comercial-opex` | Comercial negociación: prospección de arrendadores — **maqueta**, sin API ni guardado | — | `ComercialOpex` — ver [[comercial-opex]] |
+| `/comercial-opex` | Comercial negociación: prospección de arrendadores — **funcional desde NEG-01 (22/10)**, encima de Captación | `/api/captacion/*`, `/api/geo/buscar` | `ComercialOpex`, `SelectorUbicacion` — ver [[comercial-opex]] |
 | `/franjas-y-temporadas` | Catálogo de franjas y temporadas, y **horario de transmisión** | `/api/rejilla/*`, `/api/campanas/franja-programada` | `GestionRejilla`, `ProgramacionPorFranja` (PROG-01) |
 | `/descuentos-por-volumen` | Escala de volumen (VOL-01) | `/api/volumen/escalas` | `GestionVolumen` — ver [[02-Backend/descuento-por-volumen]] |
 | `/codigos-promocionales` | Códigos de negociación: cupones (COD-01) | `/api/codigos-promocionales` | `GestionCodigos` — ver [[02-Backend/codigo-promocional]] |
@@ -114,8 +114,9 @@ archivos:
 >   de quien entró con Google sin guardar sus códigos (`compuerta.ts`). Los
 >   códigos **no se piden al montar** —generarlos solos invalidaría los que ya
 >   tenía en papel—, y pedir un segundo lote exige contraseña.
-> - **`/comercial-opex`** es una maqueta: «por ahora solo será html sin
->   funciones». Sin API, sin guardado y sin mapa (`comercial-opex/page.tsx:4-18`).
+> - **`/comercial-opex`** fue maqueta hasta el 21/10 («por ahora solo será html sin
+>   funciones»). Desde NEG-01 guarda de verdad, con permiso de `captacion`, y su
+>   mapa es un selector de un pin, no el de pantallas. El GPS está pendiente.
 > - **En `/propuestas`**, la tarifa de cada línea sale de `tarifaCalculada()`
 >   (`lib/tarifa-calculada.ts`, importada en `propuestas/page.tsx:11` y usada en
 >   `:518-521`), y la cantidad de spots de una digital, de

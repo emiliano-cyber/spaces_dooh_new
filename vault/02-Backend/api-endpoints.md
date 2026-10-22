@@ -1,7 +1,7 @@
 ---
 tipo: referencia
 estado: verificado
-actualizado: 2026-10-21
+actualizado: 2026-10-22
 tags: [backend, api, endpoints]
 archivos:
   - apps/web/app/api/
@@ -28,9 +28,15 @@ archivos:
   - apps/web/app/api/sitios/[id]/rejilla/route.ts
   - apps/web/app/api/volumen/escalas/
   - apps/web/app/api/cobranzas/[id]/abonos/
+  - apps/web/app/api/geo/buscar/route.ts
 ---
 
-# API — los 143 endpoints (medidos el 2026-10-21 con `recuentos.mjs`)
+# API — los 152 endpoints (medidos el 2026-10-22 con `recuentos.mjs`)
+
+> **2026-10-22 · nueve rutas más (NEG-01, Comercial negociación):** ocho bajo
+> `/api/captacion/[id]/` —`ficha`, `contactos` y `contactos/[contactoId]`, `ofertas`
+> y `ofertas/[ofertaId]`, `competencia` y `competencia/[competidorId]`, `notas`— y
+> `GET /api/geo/buscar`. Están en la sección de captación. Antes eran 143.
 
 Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo el
 `basePath` `/spaces-dooh` (`apps/web/next.config.mjs:145`).
@@ -231,6 +237,21 @@ en `:230-237`) y **no** puede condicionarse a que la ruta
 | GET·PATCH | `/api/captacion/[id]` | (05/10) `captacion:ver` · `captacion:crear` |
 | POST | `/api/captacion/[id]/avances` | (05/10) `captacion:crear` |
 | POST | `/api/captacion/[id]/decision` | (05/10) `captacion:aprobar` — el segundo clic contesta 409: solo una petición reclama el prospecto |
+| PATCH | `/api/captacion/[id]/ficha` | (22/10, NEG-01) `captacion:crear` — tipo de espacio, búsqueda del responsable 1..5 (la 5 exige quien firme, 409), visibilidad, medidas, presupuesto y ubicación (`PIN`/`BUSCADOR`; `GPS` es 400: pendiente). Quien fija la ubicación sale de la sesión. En revisión o perdido, 409 — [[03-Frontend/comercial-opex]] |
+| POST | `/api/captacion/[id]/contactos` | (22/10) `captacion:crear` — `esLegal` marca a quien firma |
+| PATCH·DELETE | `/api/captacion/[id]/contactos/[contactoId]` | (22/10) `captacion:crear` — al único que firma en la etapa 5 no se le quita la firma ni se borra (409) |
+| POST | `/api/captacion/[id]/ofertas` | (22/10) `captacion:crear` — oferta de renta al DUEÑO; la versión la pone el servidor |
+| PATCH | `/api/captacion/[id]/ofertas/[ofertaId]` | (22/10) `captacion:crear` — solo estado y notas; aceptada y rechazada son finales (409). Sin DELETE (405) |
+| POST | `/api/captacion/[id]/competencia` | (22/10) `captacion:crear` |
+| PATCH·DELETE | `/api/captacion/[id]/competencia/[competidorId]` | (22/10) `captacion:crear` |
+| GET·POST | `/api/captacion/[id]/notas` | (22/10) `captacion:ver` · `captacion:crear` — solo se añaden; el autor sale de la sesión |
+| GET | `/api/geo/buscar` | (22/10) `captacion:ver` — `?q=` → candidatos de dirección. Pregunta a Nominatim POR EL SERVIDOR: 1/s global, 30 por persona cada 10 min, memoria 24 h; 400 si `q` < 3 letras, 429 al pasarse, 502 si el buscador falla (`lib/server/geo-buscar.ts`) |
+
+> En TODAS las rutas de `/api/captacion/[id]/…` un espacio de otro vendedor (sin
+> `captacion:aprobar`) o de otra organización es **404, no 403**, y un id que no
+> es uuid también: `soloDe()` de `captacion-controller.ts`, con el prospecto
+> bloqueado (`negociacion-repo.ts`). `GET /api/captacion` acepta además
+> `?tipos=PREDIO,PANTALLA`.
 
 ## Precios — la cadena del ADR 0039 (05/10)
 

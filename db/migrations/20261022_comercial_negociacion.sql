@@ -221,11 +221,13 @@ comment on table prospecto_notas is
 
 -- ─── El contacto único que ya tenían los prospectos pasa a ser el primero ───
 -- Solo si trae nombre y el prospecto todavía no tiene contactos: corrida dos
--- veces, no duplica.
+-- veces, no duplica. Teléfono y correo se RECORTAN al largo de los CHECK de
+-- arriba: el `jsonb` no tenía tope en la base, y un valor largo de antes haría
+-- caer la migración entera (y `update.sh` volvería atrás la versión).
 insert into prospecto_contactos (tenant_id, prospecto_id, nombre, telefono, email, creado_por, creado_en)
 select p.tenant_id, p.id, btrim(p.contacto->>'nombre'),
-       nullif(btrim(coalesce(p.contacto->>'telefono','')), ''),
-       nullif(btrim(coalesce(p.contacto->>'email','')), ''),
+       left(nullif(btrim(coalesce(p.contacto->>'telefono','')), ''), 40),
+       left(nullif(btrim(coalesce(p.contacto->>'email','')), ''), 200),
        p.usuario_id, p.creado_en
   from prospectos p
  where length(btrim(coalesce(p.contacto->>'nombre',''))) between 1 and 200
