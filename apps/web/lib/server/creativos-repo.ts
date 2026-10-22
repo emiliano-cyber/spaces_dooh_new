@@ -2,7 +2,7 @@ import 'server-only'
 import { pool, q, q1, fijarTenant } from './db'
 import { tenantActual } from './tenant'
 import { esPantallaDigitalSql } from './pantalla-digital-sql'
-import { asignacionDePantalla } from '@/lib/reparto-creativos'
+import { asignacionDePantalla, autollenadoDeSpot } from '@/lib/reparto-creativos'
 
 // ============================================================================
 //  lib/server/creativos-repo.ts — Creativos (imágenes) por campaña: alta,
@@ -65,9 +65,12 @@ export async function crearCreatividad(input: {
 
 // Aprueba o rechaza un creativo. Al rechazar se guarda el motivo; al aprobar se
 // limpia. Si se rechaza, se desasigna de cualquier spot que lo tuviera; si se
-// aprueba y queda como el ÚNICO aprobado de su campaña, se autoasigna.
+// aprueba, entra en la rotación de los spots digitales (`autoasignarRotacion`).
 export async function validarCreatividad(id: string, aprobar: boolean, motivo?: string | null) {
   const estatus = aprobar ? 'VALIDADA' : 'RECHAZADA'
+  // v0.12.3 · si YA estaba aprobado, volver a aprobarlo no añade nada nuevo a la
+  // rotación: los «aprobados de antes» lo incluyen.
+  const previo = await q1<{ estatus_validacion: string }>('select estatus_validacion from creatividades where id=$1', [id])
   const rows = await q(
     `update creatividades set estatus_validacion=$2, rechazado_motivo=$3 where id=$1 returning *`,
     [id, estatus, aprobar ? null : (motivo ?? null)],
@@ -97,7 +100,7 @@ export async function validarCreatividad(id: string, aprobar: boolean, motivo?: 
     return rowToCreatividad(rows[0])
   }
 
-  const autoasignadas = await autoasignarSiEsElUnico(campanaId)
+  const autoasignadas = await autoasignarRotacion(campanaId, id, previo?.estatus_validacion === 'VALIDADA')
   // `autoasignadas` viaja aparte del creativo para que la ruta pueda dejarlo en
   // bitácora A NOMBRE DE QUIEN APROBÓ. La asignación la calcula el sistema,
   // pero la provoca una persona con un clic, y en un historial que se usa como
@@ -105,50 +108,65 @@ export async function validarCreatividad(id: string, aprobar: boolean, motivo?: 
   return Object.assign(rowToCreatividad(rows[0]), { autoasignadas })
 }
 
-// ─── Autoasignación del creativo único (M14 / INC-02) ───────────────────────
+// ─── Autoasignación: los creativos aprobados ROTAN en cada spot ─────────────
 //
-// Cuando una campaña tiene EXACTAMENTE UN creativo aprobado, no hay nada que
-// decidir: esa pieza es la que va en todas sus pantallas. Pedirle al usuario
-// que la elija doce veces —una por pantalla— es pedirle que teclee la única
-// respuesta posible, y de ahí salían las campañas Publicadas con todos los
-// slots en «Sin asignar» que encontró la auditoría.
+// M14 / INC-02 (hasta el 22/10): con EXACTAMENTE UN creativo aprobado, ése iba
+// solo a todas las pantallas; con dos o más no se hacía nada, porque qué pieza
+// en qué pantalla «era una decisión de negocio». La decisión la tomó el dueño el
+// 2026-10-22 (v0.12.3): «debe de ser autoseleccionable ya que pueden ser varios
+// creativos» — TODOS los aprobados rotan en partes iguales.
 //
-// Con DOS o más NO se hace nada, y es lo importante: ahí sí hay una decisión de
-// negocio —qué pieza va en qué pantalla y con cuántos pases— y adivinarla sería
-// inventar. Esos casos siguen topando con el guard de `enviarADominio`.
-//
-// Solo toca las reservas DIGITALES que están VACÍAS. Una asignación puesta a
-// mano no se pisa nunca.
-async function autoasignarSiEsElUnico(campanaId: string): Promise<number> {
-  const aprobados = await q<{ id: string }>(
-    `select id from creatividades
-      where campana_id = $1 and estatus_validacion = 'VALIDADA' and retirado_en is null`,
+// La regla de cada spot está en `autollenadoDeSpot` (`lib/reparto-creativos.ts`,
+// con prueba): uno VACÍO recibe todos; uno con la rotación automática de antes
+// suma al nuevo; uno ajustado a mano no se toca. Solo reservas DIGITALES: una
+// lona no rota. El total que se reparte es `spots_por_dia` (sin pauta, una
+// marca de 1 por creativo), el mismo que el reparto de antes.
+async function autoasignarRotacion(campanaId: string, id: string, yaEstabaAprobado: boolean): Promise<number> {
+  const aprobados = (
+    await q<{ id: string }>(
+      `select id from creatividades
+        where campana_id = $1 and estatus_validacion = 'VALIDADA' and retirado_en is null
+        order by creado_en, id`,
+      [campanaId],
+    )
+  ).map((r) => String(r.id))
+  if (aprobados.length === 0) return 0
+  const antes = yaEstabaAprobado ? aprobados : aprobados.filter((x) => x !== id)
+
+  const reservas = await q<{ id: string; creativos: unknown; spots_por_dia: number | null }>(
+    `select r.id, r.creativos, r.spots_por_dia
+       from reservas r join sitios s on s.id = r.sitio_id
+      where r.campana_id = $1 and r.estatus <> 'CANCELADA' and ${esPantallaDigitalSql('s')}`,
     [campanaId],
   )
-  if (aprobados.length !== 1) return 0
-  const unico = aprobados[0].id
+  let asignadas = 0
+  for (const r of reservas) {
+    const actual = (Array.isArray(r.creativos) ? r.creativos : []).map((c: any) => ({
+      creatividadId: String(c?.creatividadId ?? ''),
+      veces: Number(c?.veces ?? 0),
+    }))
+    const nuevo = autollenadoDeSpot({
+      actual,
+      aprobadosAntes: antes,
+      aprobadosAhora: aprobados,
+      spots: r.spots_por_dia != null ? Number(r.spots_por_dia) : null,
+    })
+    if (!nuevo) continue
+    await q(`update reservas set creativos = $2::jsonb where id = $1`, [r.id, JSON.stringify(nuevo)])
+    asignadas++
+  }
+  return asignadas
+}
 
-  // `veces` = los spots de esa pantalla, porque al ser el único se lleva el
-  // loop entero. Es lo mismo que devolvería `asignacionDePantalla([unico], n)`,
-  // y se hace en SQL para no traer las reservas y volver a escribirlas una a
-  // una. En una fija (`spots_por_dia` nulo) va 1: una lona no se reparte.
-  const asignadas = await q<{ nombre: string }>(
-    `update reservas r
-        set creativos = jsonb_build_array(jsonb_build_object(
-              'creatividadId', $2::text,
-              'veces', greatest(coalesce(r.spots_por_dia, 1), 1)))
-       from sitios s
-      where s.id = r.sitio_id
-        and r.campana_id = $1
-        and r.estatus <> 'CANCELADA'
-        and ${esPantallaDigitalSql('s')}
-        and jsonb_array_length(
-              case when jsonb_typeof(r.creativos) = 'array' then r.creativos
-                   else '[]'::jsonb end) = 0
-      returning s.nombre`,
-    [campanaId, unico],
-  )
-  return asignadas.length
+/**
+ * ¿El creativo existe en ESTA organización? La RLS acota `creatividades`, y el
+ * `tenant_id` va además como segunda capa. Un id que no es uuid no llega a la
+ * base. Lo usan las rutas de borrar y reemplazar ANTES de tocar DOOHmain
+ * (v0.12.3): antes se retiraba en DOOHmain con cualquier id que llegara.
+ */
+export async function esCreativoPropio(id: string): Promise<boolean> {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return false
+  return !!(await q1('select 1 from creatividades where id = $1 and tenant_id = $2', [id, await tenantActual()]))
 }
 
 // Elimina un creativo: lo desasigna de cualquier spot y lo borra. Devuelve el

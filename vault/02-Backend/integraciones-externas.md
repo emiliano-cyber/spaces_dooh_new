@@ -69,6 +69,18 @@ flowchart LR
 > usuario, pero cualquier cambio aquí es zona ROJA. La idempotencia la resuelve
 > el SDK contra sus propias tablas.
 
+> [!warning] v0.12.3 (SIN PUBLICAR, 22/10) · el reemplazo de un creativo publicado
+> El dueño vio en DOOHmain «las 3 imágenes»: al reemplazar, el arte viejo **sigue en la
+> lista** de DOOHmain porque su API no deja quitar elementos; lo que se hace es finalizar
+> su campaña (fechas en el pasado, cuotas en 0) para que no se reproduzca. Ahora la
+> pantalla lo dice. Y dos defectos de la ruta `PUT/DELETE /api/creatividades/[id]`:
+> - si el creativo estaba publicado y DOOHmain **no confirmaba** el retiro, se reemplazaba
+>   igual y decía «Arte reemplazado»: el viejo podía seguir sonando. Ahora es 502 y no se
+>   toca nada (`estaPublicadoEnDoohmain`); uno nunca publicado se reemplaza sin preguntar;
+> - se retiraba en DOOHmain **antes** de comprobar que el creativo era de la organización:
+>   con un id ajeno se finalizaba su campaña y luego se contestaba 404. Ahora
+>   `esCreativoPropio` va primero.
+
 > [!important] 2026-10-22, noche · el horario INDIVIDUAL de la campaña, y el id que se usa en Inventario
 > - **Horario individual** (pedido del dueño, forma «horario + días» aprobada):
 >   `campanas.doohmain_hora_inicio/fin/dias` (`20261022_campana_horario_doohmain.sql`),

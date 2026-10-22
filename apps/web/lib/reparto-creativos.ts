@@ -46,6 +46,59 @@ export interface AsignacionSpot {
   veces: number
 }
 
+// ─── v0.12.3 · varios creativos en un spot ROTAN (pedido del dueño, 22/10) ──
+//
+// «Como eran 2 creativos para un spot debí seleccionar 2 de 1, pero debe de ser
+// autoseleccionable ya que pueden ser varios creativos.» Eligió que todos roten
+// en partes iguales.
+
+/**
+ * Cada creativo elegido ENTRA en el spot. Con spots de sobra se reparten como
+ * `repartirSpots`; con MENOS spots que creativos —el «2 de 1»— todos van con 1 y
+ * rotan, en vez de quedarse fuera los últimos (que es lo que hacía
+ * `asignacionDePantalla`, que sigue igual para el reparto masivo). Sin pauta
+ * (`spots` null o 0) va una marca de 1 por creativo: el CMS pone los que quepan.
+ */
+export function rotacionEnSpot(creatividadIds: string[], spots: number | null): AsignacionSpot[] {
+  const ids = (creatividadIds ?? []).filter(Boolean)
+  if (ids.length === 0) return []
+  const total = Math.floor(Number(spots))
+  if (!(total > 0) || total < ids.length) return ids.map((creatividadId) => ({ creatividadId, veces: 1 }))
+  const veces = repartirSpots(total, ids.length)
+  return ids.map((creatividadId, i) => ({ creatividadId, veces: veces[i] }))
+}
+
+const clave = (a: AsignacionSpot[]) =>
+  [...a].sort((x, y) => x.creatividadId.localeCompare(y.creatividadId)).map((x) => `${x.creatividadId}:${x.veces}`).join('|')
+
+/**
+ * ¿Este spot tiene EXACTAMENTE la rotación automática de esos creativos? Así se
+ * distingue lo que llenó el sistema de lo que ajustó una persona: si alguien
+ * cambió las veces a mano, ya no coincide y no se toca.
+ */
+export function esRotacionAutomatica(actual: AsignacionSpot[], ids: string[], spots: number | null): boolean {
+  return ids.length > 0 && clave(actual) === clave(rotacionEnSpot(ids, spots))
+}
+
+/**
+ * Qué recibe un spot DIGITAL al aprobar un creativo, o `null` si no se toca:
+ *  · vacío → todos los aprobados, rotando;
+ *  · con la rotación automática de los aprobados de ANTES → se suma el nuevo;
+ *  · ajustado a mano (otros creativos u otras veces) → null, no se pisa.
+ */
+export function autollenadoDeSpot(e: {
+  actual: AsignacionSpot[]
+  aprobadosAntes: string[]
+  aprobadosAhora: string[]
+  spots: number | null
+}): AsignacionSpot[] | null {
+  const nuevo = rotacionEnSpot(e.aprobadosAhora, e.spots)
+  if (nuevo.length === 0) return null
+  if (e.actual.length === 0) return nuevo
+  if (!esRotacionAutomatica(e.actual, e.aprobadosAntes, e.spots)) return null
+  return clave(e.actual) === clave(nuevo) ? null : nuevo
+}
+
 // La asignación completa de una pantalla.
 //
 // `spotsReservados` en null significa pantalla FIJA (una lona, no un loop): no

@@ -7,6 +7,20 @@ La entrada más reciente va arriba.
 
 ## 2026-10-22
 
+**Preparado para la v0.12.3 (todavía sin publicar):**
+
+- **Varios creativos en un mismo spot rotan solos.** En Creativos ya no hay que
+  escribir cuántas veces sale cada uno: se marca qué creativos van en cada spot y
+  se reparten en partes iguales. Si hay más creativos que spots, todos entran y se
+  turnan; ya no sale «2 de 1» en rojo. Al aprobar un creativo, los spots vacíos y
+  los que tenían el reparto automático lo suman solos; uno ajustado a mano se
+  respeta.
+- **Al reemplazar un creativo publicado se explica lo que pasa en DOOHmain.** El
+  arte anterior queda finalizado (no se reproduce), pero sigue apareciendo en la
+  lista de DOOHmain porque DOOHmain no deja quitarlo; por eso se veían tres
+  imágenes. Si DOOHmain no responde al finalizarlo, ya no se reemplaza a medias:
+  avisa y no cambia nada.
+
 - **Horario propio de cada campaña en DOOHmain.** En la ficha de la campaña,
   en «Lo que se manda a DOOHmain», se puede poner una hora de inicio, una de fin
   y, si se quiere, los días de la semana. Ese horario es el que se manda a

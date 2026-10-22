@@ -288,6 +288,20 @@ export async function consultarMetrics(
   return { ok: true, payload: r?.payload ?? r ?? {} }
 }
 
+/**
+ * ¿Este creativo llegó a publicarse en DOOHmain? El SDK registra una campaña
+ * remota por creativo (`doohmain_remote_campaigns.version` = id del creativo).
+ * v0.12.3: el reemplazo solo exige retirar el anterior si de verdad estaba
+ * publicado; uno que nunca salió se reemplaza aunque DOOHmain no responda.
+ */
+export async function estaPublicadoEnDoohmain(creativoId: string): Promise<boolean> {
+  const r = await q1<{ n: number }>(
+    'select 1 as n from doohmain_remote_campaigns where version = $1 and auth is not null',
+    [creativoId],
+  )
+  return !!r
+}
+
 // Retira un creativo de DOOHmain (al eliminarlo o antes de reemplazarlo):
 // finaliza su campaña (queda fuera del aire) y limpia el tracking. Nunca lanza.
 // `version` es el id del creativo (la misma clave con la que se publicó).

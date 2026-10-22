@@ -145,38 +145,43 @@ describe('1 · con UN solo creativo aprobado no hay nada que decidir', () => {
     expect(r.rows[0].usuario_nombre).not.toBe('Sistema')
   })
 
-  it('al aprobar un SEGUNDO creativo, el primero conserva su sitio y el nuevo no entra solo', async () => {
-    // Consecuencia deliberada, y conviene tenerla escrita porque no es obvia.
-    //
-    // Cuando se aprobó A era el único, así que ocupar el loop entero era la
-    // única respuesta posible. Al aprobar B la situación pasa a ser ambigua —
-    // qué pieza en qué pantalla y con cuántos pases— y ahí el sistema NO
-    // decide: ni adivina un reparto ni deshace el de A. Borrar lo de A para
-    // «dejarlo neutro» destruiría una asignación que era correcta, y repartir
-    // a medias entre las dos sería inventar una decisión de negocio.
-    //
-    // OJO CON EL EFECTO: B se queda sin salir en ninguna pantalla, y ya no como
-    // antes, cuando la publicación mandaba todo a todas partes. Quien apruebe
-    // una segunda pieza tiene que asignarla; la pantalla de Creativos lo enseña
-    // slot a slot con su contador de spots usados.
+  // v0.12.3 · DECISIÓN DEL DUEÑO (22/10): «debe de ser autoseleccionable ya que
+  // pueden ser varios creativos», y eligió que TODOS roten en partes iguales.
+  // Hasta aquí la regla era «exactamente uno» y con dos o más no se tocaba nada;
+  // estas dos pruebas fijaban ese comportamiento y se reescriben con el nuevo.
+  it('al aprobar un SEGUNDO creativo, entra en la rotación de los spots que llenó el sistema', async () => {
     const camp = await sembrarCampana()
     const a = await sembrarCreativo(camp, 'Pieza A')
     const b = await sembrarCreativo(camp, 'Pieza B')
     await aprobar(a)
     await aprobar(b)
-    expect((await asignaciones(camp))[0].creativos).toEqual([{ creatividadId: a, veces: 6 }])
+    expect((await asignaciones(camp))[0].creativos).toEqual([
+      { creatividadId: a, veces: 3 },
+      { creatividadId: b, veces: 3 },
+    ])
   })
 
-  it('un slot VACIADO a mano no se vuelve a llenar solo al aprobar otra pieza', async () => {
-    // Vaciar un slot es una decisión: «esta pantalla, por ahora, no lleva
-    // nada». Si al aprobar la siguiente pieza el sistema lo rellenara, estaría
-    // deshaciendo esa decisión en silencio — y como ya hay dos aprobadas, ni
-    // siquiera sabría cuál poner. La regla es «exactamente uno», no «al menos
-    // uno», y esta prueba es la que lo distingue.
+  it('con MENOS spots que creativos, todos entran y rotan: no hay que escribir «2 de 1»', async () => {
+    const camp = await sembrarCampana({ sitios: [{ id: org.sitioId, spots: 1 }] })
+    const a = await sembrarCreativo(camp, 'Rota A')
+    const b = await sembrarCreativo(camp, 'Rota B')
+    await aprobar(a)
+    await aprobar(b)
+    expect((await asignaciones(camp))[0].creativos).toEqual([
+      { creatividadId: a, veces: 1 },
+      { creatividadId: b, veces: 1 },
+    ])
+  })
+
+  it('un slot VACÍO —aunque se vaciara a mano— recibe todos los aprobados al aprobar el siguiente', async () => {
+    // Era la prueba de «un slot vaciado a mano no se vuelve a llenar». Con la
+    // regla nueva, el dueño eligió que un spot digital vacío reciba TODOS los
+    // aprobados: vacío ya no es una decisión que se respete, es un hueco que se
+    // llena. Lo que sigue sin pisarse es un reparto AJUSTADO a mano (abajo).
     const camp = await sembrarCampana({ sitios: [{ id: org.sitioId, spots: 6 }, { id: sitioB, spots: 10 }] })
     const a = await sembrarCreativo(camp, 'Pieza A')
     const b = await sembrarCreativo(camp, 'Pieza B')
-    await aprobar(a) // autoasigna A a las dos
+    await aprobar(a)
     const res = await poolTest().query(
       `select r.id from reservas r join sitios s on s.id=r.sitio_id
         where r.campana_id=$1 and s.nombre='Pantalla B'`,
@@ -184,11 +189,69 @@ describe('1 · con UN solo creativo aprobado no hay nada que decidir', () => {
     )
     await c.pedir(`/api/reservas/${res.rows[0].id}/creativo/`, { metodo: 'PATCH', cuerpo: { creativos: [] } })
 
-    await aprobar(b) // ya hay DOS aprobadas: no debe tocar nada
+    await aprobar(b)
 
     const porSitio = Object.fromEntries((await asignaciones(camp)).map((f) => [f.sitio, f.creativos]))
-    expect(porSitio['Pantalla B']).toEqual([])
-    expect(porSitio['Pantalla creativos']).toEqual([{ creatividadId: a, veces: 6 }])
+    expect(porSitio['Pantalla B']).toEqual([
+      { creatividadId: a, veces: 5 },
+      { creatividadId: b, veces: 5 },
+    ])
+    expect(porSitio['Pantalla creativos']).toEqual([
+      { creatividadId: a, veces: 3 },
+      { creatividadId: b, veces: 3 },
+    ])
+  })
+
+  it('reemplazar uno PUBLICADO con DOOHmain sin responder: 502 y no se reemplaza nada', async () => {
+    // v0.12.3 · antes el reemplazo seguía aunque DOOHmain no confirmara que
+    // finalizó el arte viejo, y la pantalla decía «Arte reemplazado». En el
+    // arnés el intérprete de DOOHmain no existe, así que retirar SIEMPRE falla:
+    // es exactamente el caso.
+    const camp = await sembrarCampana()
+    const cr = await sembrarCreativo(camp, 'Ya publicado')
+    await poolTest().query(
+      `insert into doohmain_remote_campaigns (version, auth, name, anunciante) values ($1,'AUTH-PRUEBA','x','x')`,
+      [cr],
+    )
+    const r = await c.pedir(`/api/creatividades/${cr}/`, {
+      metodo: 'PUT', cuerpo: { nombre: 'Nuevo arte', archivoUrl: 'data:image/png;base64,iVBORw0KGgo=', formato: 'png' },
+    })
+    expect(r.status, JSON.stringify(r.datos)).toBe(502)
+    expect(r.datos.error).toMatch(/No se reemplazó nada/)
+    const sigue = await poolTest().query('select nombre from creatividades where id=$1', [cr])
+    expect(sigue.rows[0].nombre).toBe('Ya publicado')
+  })
+
+  it('reemplazar uno que NUNCA se publicó no pregunta a DOOHmain: se reemplaza', async () => {
+    const camp = await sembrarCampana()
+    const cr = await sembrarCreativo(camp, 'Nunca publicado')
+    const r = await c.pedir(`/api/creatividades/${cr}/`, {
+      metodo: 'PUT', cuerpo: { nombre: 'Arte nuevo', archivoUrl: 'data:image/png;base64,iVBORw0KGgo=', formato: 'png' },
+    })
+    expect(r.status, JSON.stringify(r.datos)).toBe(200)
+    expect(r.datos.nombre).toBe('Arte nuevo')
+  })
+
+  it('borrar o reemplazar con un id que no es uuid es 404 antes de tocar DOOHmain', async () => {
+    expect((await c.pedir('/api/creatividades/no-es-uuid/', { metodo: 'DELETE' })).status).toBe(404)
+    expect(
+      (await c.pedir('/api/creatividades/00000000-0000-0000-0000-000000000000/', {
+        metodo: 'PUT', cuerpo: { nombre: 'x', archivoUrl: 'data:image/png;base64,iVBORw0KGgo=', formato: 'png' },
+      })).status,
+    ).toBe(404)
+  })
+
+  it('un reparto AJUSTADO a mano no se pisa al aprobar otro creativo', async () => {
+    const camp = await sembrarCampana({ sitios: [{ id: org.sitioId, spots: 6 }] })
+    const a = await sembrarCreativo(camp, 'Pieza A')
+    const b = await sembrarCreativo(camp, 'Pieza B')
+    await aprobar(a)
+    const res = await poolTest().query('select id from reservas where campana_id=$1', [camp])
+    await c.pedir(`/api/reservas/${res.rows[0].id}/creativo/`, {
+      metodo: 'PATCH', cuerpo: { creativos: [{ creatividadId: a, veces: 2 }] },
+    })
+    await aprobar(b)
+    expect((await asignaciones(camp))[0].creativos).toEqual([{ creatividadId: a, veces: 2 }])
   })
 
   it('no pisa una asignación puesta a mano', async () => {

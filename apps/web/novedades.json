@@ -1,5 +1,19 @@
 [
   {
+    "version": "v0.12.3",
+    "fecha": "2026-10-22",
+    "items": [
+      {
+        "tipo": "AJUSTADO",
+        "texto": "En Creativos, varios creativos en un mismo spot rotan solos en partes iguales: se marca cuáles van y ya no hay que escribir cuántas veces sale cada uno."
+      },
+      {
+        "tipo": "CORREGIDO",
+        "texto": "Al reemplazar un creativo publicado, si DOOHmain no confirma que finalizó el anterior, ya no se reemplaza a medias: avisa y no cambia nada. Y se explica que el arte anterior sigue en la lista de DOOHmain, finalizado, porque DOOHmain no deja quitarlo."
+      }
+    ]
+  },
+  {
     "version": "v0.12.2",
     "fecha": "2026-10-22",
     "items": [

@@ -44,7 +44,7 @@ archivos:
 | `/codigos-promocionales` | Códigos de negociación: cupones (COD-01) | `/api/codigos-promocionales` | `GestionCodigos` — ver [[02-Backend/codigo-promocional]] |
 | `/paquetes` | Paquetes cerrados (PAQ-01) | `/api/paquetes` | `GestionPaquetes` — ver [[02-Backend/paquete-cerrado]] |
 | `/campanas`, `/campanas/[id]` | Campañas | `/api/campanas/*` | `PipelineView`, `CandadoPanel`, `ValidacionPanel`, `PlaylogsPanel`, `DatosFacturacion`, `EvidenciaGaleria`, `AgregarCreativo`, `FranjaProgramadaCampana` (horario de transmisión, PROG-01), `ProgramacionDoohmain` (22/10: lo que se manda a DOOHmain antes de mandarlo). **Desde el 22/10 los Creativos son lo PRIMERO de la ficha**, siempre abiertos y fuera de las `Seccion` plegables: se ven y se suben en cualquier momento, aunque la campaña esté cerrada |
-| `/creativos` | Creativos | `/api/creatividades` | — |
+| `/creativos` | Creativos | `/api/creatividades` | — **v0.12.3 (sin publicar):** en un spot digital se MARCAN los creativos que van y rotan en partes iguales (`rotacionEnSpot`, `lib/reparto-creativos.ts`); ya no se escribe un número por creativo ni sale «2 de 1» en rojo. Al aprobar, un spot vacío recibe todos los aprobados y uno con la rotación automática suma al nuevo; uno ajustado a mano no se toca (`autollenadoDeSpot`, `autoasignarRotacion` en `creativos-repo.ts`). Sustituye la regla del «creativo único» de M14 por decisión del dueño (22/10) |
 | `/operaciones`, `/operaciones/ot/[id]` | Órdenes de trabajo | `/api/ot` | `OTVista` |
 | `/imprenta` | Imprenta | `/api/impresion` | — |
 | `/almacen` | Activos y traslados | `/api/almacen` | — |

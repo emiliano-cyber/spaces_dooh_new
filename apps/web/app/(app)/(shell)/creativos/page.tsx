@@ -22,6 +22,7 @@ import { imagenAHtml, IMAGEN_CREATIVO_MAX_MB } from '@/lib/creativo-html'
 import { soloDigitales } from '@/lib/creativos-digitales'
 import type { Campana, Creatividad, Reserva, Sitio, EstValidacionCreatividad } from '@/lib/data/types'
 import { formatNumero } from '@/lib/formato-numero'
+import { rotacionEnSpot } from '@/lib/reparto-creativos'
 
 // Si un creativo HTML es una imagen envuelta (ver imagenAHtml), devuelve su data
 // URL para mostrarlo como imagen en previews/miniaturas; si no, null.
@@ -388,10 +389,15 @@ function CampanaCard({
           codigo: imagenAHtml(dataUrl, f.name),
           formato: 'text/html',
         })
+        // v0.12.3 · el dueño vio en DOOHmain «las 3 imágenes»: el arte viejo
+        // SIGUE en la lista de DOOHmain, porque su API no deja quitarlo; lo que
+        // se hace es finalizar su campaña para que no se reproduzca. Se dice,
+        // para que no parezca que se subió de más.
         toast.success(
           res?.doohmain?.estado === 'retirado'
-            ? 'Arte reemplazado. El anterior se retiró de DOOHmain; apruébalo de nuevo para publicar el nuevo.'
+            ? 'Arte reemplazado. En DOOHmain el anterior quedó finalizado (no se reproduce), pero sigue en la lista porque DOOHmain no deja quitarlo; bórralo a mano en su panel si quieres. Aprueba el nuevo para publicarlo.'
             : 'Arte reemplazado. Apruébalo de nuevo para publicarlo.',
+          { duration: 10000 },
         )
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'No se pudo reemplazar')
@@ -413,11 +419,18 @@ function CampanaCard({
     setBusy(null)
   }
 
-  // Spot DIGITAL: ajusta cuántas veces se reproduce un creativo (0 = lo quita).
-  function setVeces(reserva: Reserva, creatividadId: string, veces: number) {
-    const otros = reserva.creativos.filter((c) => c.creatividadId !== creatividadId)
-    const next = veces > 0 ? [...otros, { creatividadId, veces }] : otros
-    void guardarCreativos(reserva, next)
+  // Spot DIGITAL (v0.12.3, pedido del dueño): se marca o se desmarca un creativo
+  // y las veces se calculan solas —todos los marcados rotan en partes iguales,
+  // `rotacionEnSpot`—. Antes había que escribir un número por creativo, y con
+  // dos creativos en un spot de 1 la cuenta «2 de 1» salía en rojo.
+  function alternarEnRotacion(reserva: Reserva, creatividadId: string) {
+    const marcados = new Set(reserva.creativos.map((c) => c.creatividadId))
+    if (marcados.has(creatividadId)) marcados.delete(creatividadId)
+    else marcados.add(creatividadId)
+    // El orden de los aprobados manda: así el reparto sale igual que el que hace
+    // el servidor al aprobar, y se sigue reconociendo como automático.
+    const ids = aprobados.map((cr) => cr.id).filter((id) => marcados.has(id))
+    void guardarCreativos(reserva, rotacionEnSpot(ids, reserva.spotsPorDia ?? null))
   }
 
   // Spot FIJO: una sola imagen (o ninguna).
@@ -641,17 +654,18 @@ function CampanaCard({
             {reservas.map((r) => {
               const sitio = sitios.find((s) => s.id === r.sitioId)
               const digital = r.spotsReservados != null
-              const usados = r.creativos.reduce((a, c) => a + c.veces, 0)
-              const excede = r.spotsReservados != null && usados > r.spotsReservados
               const unico = aprobados.find((cr) => cr.id === r.creativos[0]?.creatividadId)
               return (
                 <li key={r.id} className="rounded border border-border bg-surface p-2.5">
                   <div className="flex items-center justify-between gap-2">
                     <div className="truncate text-[13px] font-medium text-ink">{sitio?.nombre ?? 'Sitio'}</div>
                     {digital && (
-                      <div className="demo-num text-[11px] text-muted">
-                        <span className={excede ? 'font-semibold text-error' : 'text-ink'}>{formatNumero(usados)}</span>
-                        /{formatNumero(r.spotsReservados)} spots asignados
+                      <div className="text-[11px] text-muted">
+                        {r.creativos.length === 0
+                          ? 'Sin creativo'
+                          : r.creativos.length === 1
+                            ? '1 creativo'
+                            : `${r.creativos.length} creativos rotan`}
                       </div>
                     )}
                   </div>
@@ -659,31 +673,27 @@ function CampanaCard({
                   {aprobados.length === 0 ? (
                     <p className="mt-1 text-[11px] text-muted">Aprueba un creativo para asignarlo aquí.</p>
                   ) : digital ? (
-                    // Spot digital: cada creativo con cuántas veces se reproduce.
+                    // Spot digital: se marcan los creativos que van; rotan solos.
                     <div className="mt-2 space-y-1.5">
                       {aprobados.map((cr) => {
                         const veces = r.creativos.find((x) => x.creatividadId === cr.id)?.veces ?? 0
                         return (
-                          <div key={cr.id} className="flex items-center justify-between gap-2">
+                          <label key={cr.id} className="flex cursor-pointer items-center justify-between gap-2">
                             <div className="flex min-w-0 items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={veces > 0}
+                                disabled={!puede || busy === r.id}
+                                onChange={() => alternarEnRotacion(r, cr.id)}
+                                className="h-4 w-4 shrink-0"
+                              />
                               <Thumb cr={cr} className="h-7 w-7" />
                               <span className="truncate text-[12px] text-ink">{cr.nombre}</span>
                             </div>
-                            <div className="flex shrink-0 items-center gap-1">
-                              <input
-                                type="number"
-                                min={0}
-                                max={r.spotsReservados ?? undefined}
-                                value={veces}
-                                disabled={!puede || busy === r.id}
-                                onChange={(e) =>
-                                  setVeces(r, cr.id, Math.max(0, Math.round(Number(e.target.value) || 0)))
-                                }
-                                className="demo-num h-7 w-16 rounded border border-border-strong bg-surface px-2 text-right text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                              />
-                              <span className="text-[11px] text-muted">veces</span>
-                            </div>
-                          </div>
+                            {veces > 0 && r.spotsPorDia != null && (
+                              <span className="demo-num shrink-0 text-[11px] text-muted">×{formatNumero(veces)}</span>
+                            )}
+                          </label>
                         )
                       })}
                     </div>
