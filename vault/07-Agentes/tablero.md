@@ -12,7 +12,7 @@ archivos: []
 > ofertas al dueño, competencia, bitácora con canal y notas con autor. `20261022_comercial_negociacion.sql` solo
 > agrega (64 tablas, 116 migraciones, 152 rutas). **42 e2e en verde en el CI** (run `39698089041`) y 33 unitarias.
 > **Pendiente:** el GPS (dueño, 22/10); Google como buscador cuando un owner ponga su clave (P22); revisar la
-> pantalla con datos en DEMO (aquí no hay Postgres). **Sin fusionar ni publicar**: falta el visto bueno del dueño.
+> pantalla con datos en DEMO (aquí no hay Postgres). **El dueño eligió fusionar y publicarla como `v0.12.2`** (22/10).
 
 > [!success] 2026-10-21, noche · **`v0.12.1` en `estable`** — promover `39690462023`, digest `aa990af6…`; vuelta atrás `16dc61d4…` (`v0.12.0`)
 > `main` en `a752a33c` (CI del PR #98 en verde con Node 22, e2e incluidas); release `39689349345` en verde

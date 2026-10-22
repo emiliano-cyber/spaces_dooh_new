@@ -1,5 +1,31 @@
 [
   {
+    "version": "v0.12.2",
+    "fecha": "2026-10-22",
+    "items": [
+      {
+        "tipo": "NUEVO",
+        "texto": "Comercial negociación ya guarda de verdad: das de alta cada espacio que persigues (muro, azotea, terreno o pantalla) con su ficha, contactos, ofertas de renta al dueño, competencia, historial de contactos y notas."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Cada espacio tiene su visibilidad (cercana, media o lejana) y sus medidas: ancho y alto con el área calculada, y la superficie del terreno."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Ubicación de cada espacio: busca la dirección, elige el resultado y afina el punto arrastrando el pin en el mapa. Se guarda el punto que dejas marcado."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Notas adicionales en cada espacio, con quién las escribió y cuándo. No se editan ni se borran."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "Para marcar «Responsable legal confirmado» hay que indicar antes qué contacto firma. Las ofertas al dueño van por versiones y no se borran: son la historia de la negociación."
+      }
+    ]
+  },
+  {
     "version": "v0.12.1",
     "fecha": "2026-10-21",
     "items": [
