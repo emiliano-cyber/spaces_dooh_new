@@ -472,6 +472,45 @@ describe('4 · la publicación manda a cada pantalla LO SUYO', () => {
     ])
   })
 
+  it('el horario INDIVIDUAL de la campaña gana sobre la franja programada, con sus días', async () => {
+    // Pedido del dueño (22/10, noche): una franja de tiempo individual en la
+    // campaña que se mande a DOOHmain.
+    const camp = await sembrarCampana({ sitios: [{ id: org.sitioId, spots: 3 }] })
+    const prog = await franja('Programada que pierde', '18:00', '22:00')
+    await poolTest().query('update campanas set franja_programada_id=$1 where id=$2', [prog, camp])
+    await aprobar(await sembrarCreativo(camp, 'Con horario individual'))
+
+    const h = await c.pedir(`/api/campanas/${camp}/horario-doohmain/`, {
+      metodo: 'PATCH', cuerpo: { horario: { horaInicio: '07:30', horaFin: '09:00', dias: [5, 1, 3] } },
+    })
+    expect(h.status, JSON.stringify(h.datos)).toBe(200)
+
+    const v = await c.pedir(`/api/campanas/${camp}/programacion-doohmain/`)
+    expect(v.datos.horarioIndividual).toEqual({ horaInicio: '07:30', horaFin: '09:00', dias: [1, 3, 5] })
+    const [r] = await publicar(camp)
+    expect([r.horaInicio, r.horaFin]).toEqual(['07:30', '09:00'])
+
+    // Quitarlo devuelve a la programada.
+    expect((await c.pedir(`/api/campanas/${camp}/horario-doohmain/`, { metodo: 'PATCH', cuerpo: { horario: null } })).status).toBe(200)
+    const v2 = await c.pedir(`/api/campanas/${camp}/programacion-doohmain/`)
+    expect(v2.datos.horarioIndividual).toBeNull()
+    expect(v2.datos.filas[0].programacion.horaInicio).toBe('18:00')
+  })
+
+  it('el horario individual: lo que no se acepta', async () => {
+    const camp = await sembrarCampana()
+    const patch = (cuerpo: unknown) => c.pedir(`/api/campanas/${camp}/horario-doohmain/`, { metodo: 'PATCH', cuerpo })
+    expect((await patch({ horario: { horaInicio: '7:30', horaFin: '09:00' } })).status).toBe(400)
+    expect((await patch({ horario: { horaInicio: '09:00', horaFin: '09:00' } })).status).toBe(400)
+    expect((await patch({ horario: { horaInicio: '07:30', horaFin: '09:00', dias: [7] } })).status).toBe(400)
+    expect((await patch({ horario: { horaInicio: '07:30', horaFin: '09:00' }, extra: 1 })).status).toBe(400)
+    expect((await c.pedir('/api/campanas/no-es-uuid/horario-doohmain/', { metodo: 'PATCH', cuerpo: { horario: null } })).status).toBe(404)
+    // Y la base lo vuelve a exigir aunque alguien se salte la API.
+    await expect(
+      poolTest().query(`update campanas set doohmain_hora_inicio='07:30', doohmain_hora_fin=null where id=$1`, [camp]),
+    ).rejects.toThrow(/campanas_doohmain_horario_par_ck/)
+  })
+
   it('la vista previa: un id que no es uuid, o una campaña que no existe, es 404', async () => {
     expect((await c.pedir('/api/campanas/no-es-uuid/programacion-doohmain/')).status).toBe(404)
     expect((await c.pedir('/api/campanas/00000000-0000-0000-0000-000000000000/programacion-doohmain/')).status).toBe(404)

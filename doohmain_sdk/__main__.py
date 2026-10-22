@@ -77,6 +77,8 @@ def _build_parser() -> argparse.ArgumentParser:
     pub.add_argument("--cant-total", type=int, default=None)
     pub.add_argument("--hora-inicio", default=None, help="HH:mm, solo si hay franja")
     pub.add_argument("--hora-fin", default=None, help="HH:mm, solo si hay franja")
+    # 22/10 · días de la semana del horario individual, "1,2,3" (0 = domingo).
+    pub.add_argument("--dias", default=None, help="0..6 separados por coma; ausente = todos")
     pub.add_argument("--auto-cant", action="store_true")
     pub.add_argument("--cliente-rfc", default=None)
     pub.add_argument("--cliente-razon-social", default=None)
@@ -175,10 +177,16 @@ def main(argv: list[str] | None = None) -> int:
                 )
                 # La franja va junta o no va: una hora sola no es un horario.
                 con_franja = bool(args.hora_inicio and args.hora_fin)
+                dias = None
+                if con_franja and args.dias:
+                    dias = sorted({int(d) for d in args.dias.split(",") if d.strip() != ""})
+                    if any(d < 0 or d > 6 for d in dias):
+                        raise DOOHmainError(f"--dias fuera de 0..6: {args.dias!r}")
                 estado = integration.publish_spot(
                     args.screen, args.list_name, auth, media_id,
                     start_time=args.hora_inicio if con_franja else None,
                     end_time=args.hora_fin if con_franja else None,
+                    days=dias,
                     api=api, db=db,
                 )
             finally:

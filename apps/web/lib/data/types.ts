@@ -247,6 +247,10 @@ export interface Sitio {
   // servidor (DOOHMAIN_SCREEN_MAP / DOOHMAIN_DEFAULT_SCREEN). Opcional: los
   // datos de demostración del cliente no lo traen.
   doohmainPantalla?: string | null
+  // 22/10 · la que SE USA al publicar (ficha → mapa del servidor → por omisión)
+  // y de dónde sale. null en una pantalla de otro CMS o sin ninguna.
+  doohmainEfectiva?: string | null
+  doohmainOrigen?: 'ficha' | 'mapa' | 'servidor' | null
   predioId?: string | null // predio (inmueble) al que pertenece la pantalla (N pantallas : 1 predio)
   arrendadorId?: string | null // propietario/arrendador del inmueble (directo, sin contrato)
   /** @deprecated Fase 1: la renta vive en el contrato del predio. No usar en P&L/UI. */

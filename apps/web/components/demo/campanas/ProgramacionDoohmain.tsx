@@ -2,8 +2,14 @@
 
 import { useEffect, useState } from 'react'
 import { AlertTriangle, CalendarClock } from 'lucide-react'
-import { programacionDoohmainApi, type VistaPreviaDoohmain } from '@/lib/data/estado-api'
-import { textoHorario, textoReproducciones } from '@/lib/doohmain-programacion'
+import {
+  fijarHorarioDoohmainApi,
+  programacionDoohmainApi,
+  type VistaPreviaDoohmain,
+} from '@/lib/data/estado-api'
+import { motivoHorarioInvalido, textoHorario, textoReproducciones } from '@/lib/doohmain-programacion'
+import { usePuede } from '@/components/demo/shell/SesionContext'
+import { Button } from '@/components/demo/ui/Button'
 
 // ============================================================================
 //  ProgramacionDoohmain — lo que se le va a mandar a DOOHmain, ANTES de mandarlo.
@@ -26,6 +32,120 @@ import { textoHorario, textoReproducciones } from '@/lib/doohmain-programacion'
 const DESTINO: Record<string, string> = {
   otro_cms: 'No va a DOOHmain: la opera otro CMS',
   sin_pantalla: 'Sin pantalla de DOOHmain asignada',
+}
+
+// El orden en que se leen los días en México: de lunes a domingo. El valor es
+// el que recibe DOOHmain (0 = domingo).
+const DIAS: [number, string][] = [
+  [1, 'Lun'], [2, 'Mar'], [3, 'Mié'], [4, 'Jue'], [5, 'Vie'], [6, 'Sáb'], [0, 'Dom'],
+]
+
+const inputCls =
+  'h-8 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
+
+/**
+ * El horario INDIVIDUAL de la campaña (22/10, noche): «que en campaña se pueda
+ * poner una franja de tiempo individual que se mande a DOOHmain». Gana sobre la
+ * franja programada y la contratada. Sin días marcados, todos.
+ */
+function HorarioIndividual({
+  campanaId,
+  actual,
+  onGuardado,
+}: {
+  campanaId: string
+  actual: VistaPreviaDoohmain['horarioIndividual']
+  onGuardado: () => void
+}) {
+  const puede = usePuede('comercial', 'crear')
+  const [inicio, setInicio] = useState(actual?.horaInicio ?? '')
+  const [fin, setFin] = useState(actual?.horaFin ?? '')
+  const [dias, setDias] = useState<number[]>(actual?.dias ?? [])
+  const [error, setError] = useState<string | null>(null)
+  const [guardando, setGuardando] = useState(false)
+  useEffect(() => {
+    setInicio(actual?.horaInicio ?? '')
+    setFin(actual?.horaFin ?? '')
+    setDias(actual?.dias ?? [])
+  }, [actual?.horaInicio, actual?.horaFin, actual?.dias?.join(',')]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function guardar(horario: { horaInicio: string; horaFin: string; dias: number[] | null } | null) {
+    setError(null)
+    if (horario) {
+      const motivo = motivoHorarioInvalido(horario)
+      if (motivo) return setError(motivo)
+    }
+    setGuardando(true)
+    try {
+      await fijarHorarioDoohmainApi(campanaId, horario)
+      onGuardado()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo guardar')
+    }
+    setGuardando(false)
+  }
+
+  if (!puede) {
+    return actual ? (
+      <p className="m-0 mb-2 text-[12px] text-ink">
+        <span className="text-muted">Horario de la campaña:</span> {actual.horaInicio} a {actual.horaFin}
+      </p>
+    ) : null
+  }
+
+  return (
+    <div className="mb-3 rounded border border-border bg-surface p-2">
+      <div className="mb-1.5 text-[12px] font-medium text-ink">Horario de esta campaña en DOOHmain</div>
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="flex items-center gap-1 text-[12px] text-muted">
+          De
+          <input aria-label="Hora de inicio" type="time" className={inputCls} value={inicio} onChange={(e) => setInicio(e.target.value)} />
+        </label>
+        <label className="flex items-center gap-1 text-[12px] text-muted">
+          a
+          <input aria-label="Hora de fin" type="time" className={inputCls} value={fin} onChange={(e) => setFin(e.target.value)} />
+        </label>
+        <div className="flex flex-wrap gap-1" role="group" aria-label="Días de la semana">
+          {DIAS.map(([d, nombre]) => {
+            const marcado = dias.includes(d)
+            return (
+              <button
+                key={d}
+                type="button"
+                aria-pressed={marcado}
+                onClick={() => setDias(marcado ? dias.filter((x) => x !== d) : [...dias, d])}
+                className={`h-7 rounded border px-1.5 text-[11px] ${
+                  marcado ? 'border-accent bg-accent-soft font-medium text-ink' : 'border-border bg-surface text-muted'
+                }`}
+              >
+                {nombre}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+        <span className="text-[11px] text-muted">
+          Gana sobre la franja programada y la contratada. Sin días marcados, sale todos los días.
+        </span>
+        <div className="flex gap-1.5">
+          {actual && (
+            <Button size="sm" variant="secondary" disabled={guardando} onClick={() => void guardar(null)}>
+              Quitar
+            </Button>
+          )}
+          <Button
+            size="sm"
+            disabled={guardando || !inicio || !fin}
+            onClick={() => void guardar({ horaInicio: inicio, horaFin: fin, dias: dias.length ? dias : null })}
+          >
+            Guardar horario
+          </Button>
+        </div>
+      </div>
+      {error && <p className="m-0 mt-1 text-[12px] text-error">{error}</p>}
+    </div>
+  )
 }
 
 export function ProgramacionDoohmain({ campanaId, clave }: { campanaId: string; clave: string }) {
@@ -74,6 +194,8 @@ export function ProgramacionDoohmain({ campanaId, clave }: { campanaId: string; 
           La publicación en DOOHmain está apagada en esta instancia: esto es lo que se mandaría.
         </p>
       )}
+      <HorarioIndividual campanaId={campanaId} actual={v.horarioIndividual} onGuardado={() => setLectura((n) => n + 1)} />
+
       <p className="m-0 mb-2 text-[12px] text-ink">
         <span className="text-muted">Cliente:</span> {c.nombre}
         {datosCliente && <span className="text-muted"> · {datosCliente}</span>}

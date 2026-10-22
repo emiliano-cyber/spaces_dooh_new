@@ -42,6 +42,14 @@
       {
         "tipo": "CORREGIDO",
         "texto": "El aviso de la franja horaria decía que no se envía al CMS; ahora dice que a DOOHmain sí se envía al publicar, y que en pantallas de otro CMS hay que programarla a mano."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Cada campaña puede tener su propio horario en DOOHmain: hora de inicio, de fin y, si se quiere, los días de la semana. Manda sobre la franja programada o la contratada."
+      },
+      {
+        "tipo": "CORREGIDO",
+        "texto": "En Inventario se ve el id de DOOHmain de cada pantalla, también cuando lo pone el servidor: antes, al editar la pantalla, el campo salía vacío aunque ya tuviera uno."
       }
     ]
   },

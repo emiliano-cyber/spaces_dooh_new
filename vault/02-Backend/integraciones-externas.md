@@ -12,6 +12,9 @@ archivos:
   - apps/web/lib/doohmain-aviso.ts
   - apps/web/lib/doohmain-programacion.ts
   - apps/web/components/demo/campanas/ProgramacionDoohmain.tsx
+  - apps/web/lib/server/horario-doohmain.ts
+  - apps/web/app/api/campanas/[id]/horario-doohmain/route.ts
+  - db/migrations/20261022_campana_horario_doohmain.sql
   - apps/web/app/api/campanas/[id]/programacion-doohmain/route.ts
   - doohmain_sdk/__main__.py
   - doohmain_sdk/integration.py
@@ -65,6 +68,17 @@ flowchart LR
 > `DOOHMAIN_SDK_DIR`) y un mapa JSON (`DOOHMAIN_SCREEN_MAP`). No es entrada de
 > usuario, pero cualquier cambio aquí es zona ROJA. La idempotencia la resuelve
 > el SDK contra sus propias tablas.
+
+> [!important] 2026-10-22, noche · el horario INDIVIDUAL de la campaña, y el id que se usa en Inventario
+> - **Horario individual** (pedido del dueño, forma «horario + días» aprobada):
+>   `campanas.doohmain_hora_inicio/fin/dias` (`20261022_campana_horario_doohmain.sql`),
+>   se fija en la vista previa de la campaña con `PATCH …/horario-doohmain`. **Gana**
+>   sobre la programada y la contratada (`franjaQueViaja`); sus días viajan como
+>   `days` de `create_spot` (`--dias` del SDK). Probado contra un DOOHmain falso.
+> - **El id en Inventario:** `rowToSitio` añade `doohmainEfectiva` y `doohmainOrigen`
+>   (`pantallaDoohmainDe`, mismo orden que publica: ficha → `DOOHMAIN_SCREEN_MAP` →
+>   `DOOHMAIN_DEFAULT_SCREEN`). La tabla y la ficha lo enseñan; al editar, el campo
+>   vacío dice cuál se usa hoy. Era lo que el dueño veía «vacío y ya estaba».
 
 > [!tip] 2026-10-22, tarde · y se VE antes de mandarlo
 > Pedido del dueño: en la campaña, antes de subirla, ver las franjas y las

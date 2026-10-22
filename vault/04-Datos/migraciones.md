@@ -48,6 +48,7 @@ archivos:
   - db/migrations/20261019_cobranza_abono_comprobante.sql
   - db/migrations/20261021_notificaciones_por_usuario.sql
   - db/migrations/20261022_comercial_negociacion.sql
+  - db/migrations/20261022_campana_horario_doohmain.sql
 ---
 
 # Migraciones
@@ -55,7 +56,7 @@ archivos:
 > [!important] 2026-10-05 · puesta al día — ninguna de las de abajo está ya «sin fusionar»
 > Medido hoy con `node scripts/recuentos.mjs` sobre el árbol de
 > `integra/riesgos-presentacion-14-oct` (salida de `main` en `09c65ca2`):
-> **116 migraciones y 64 tablas** (22/10, con `20261022_comercial_negociacion.sql`, que crea las cuatro tablas de Comercial negociación) (21/10, 115 y 60, con `20261021_notificaciones_por_usuario.sql`, que crea `notificaciones_usuario`: esta vez el 60 es una tabla de verdad) (19/10, 114 y 59, con `20261019_cobranza_abono_comprobante.sql`; antes 113) —el «60» que decía aquí el 13/10 era falso:
+> **117 migraciones y 64 tablas** (22/10, con `20261022_campana_horario_doohmain.sql`, tres columnas en `campanas`) (22/10, 116 y 64, con `20261022_comercial_negociacion.sql`, que crea las cuatro tablas de Comercial negociación) (21/10, 115 y 60, con `20261021_notificaciones_por_usuario.sql`, que crea `notificaciones_usuario`: esta vez el 60 es una tabla de verdad) (19/10, 114 y 59, con `20261019_cobranza_abono_comprobante.sql`; antes 113) —el «60» que decía aquí el 13/10 era falso:
 > `recuentos.mjs` contaba como tabla la palabra `if` de un comentario de
 > `20261013_doohmain_seguimiento_unicas.sql`; corregido el 14/10 quitando los
 > comentarios antes de medir— (13/10, con `20261013_sitios_pantalla_doohmain.sql`; antes 112) (13/10, con `20261013_doohmain_seguimiento_unicas.sql`; antes 111) (12/10, con `20261012_razon_social_principal.sql`; antes 110) (07/10, con `20261011_contrato_cambios_solo_insercion.sql`; antes 109) (07/10, con `20261010_contrato_cambios.sql`; antes 108 y 58) (06/10, con `20261009_propuestas_fechas_estatus.sql`; antes 107) (06/10, con `20261008_cobranza_abonos.sql`). Es el recuento vigente; los de los recuadros
@@ -66,6 +67,7 @@ archivos:
 >
 > | Migración | Decía | Entró en `main` |
 > |---|---|---|
+> | `20261022_campana_horario_doohmain.sql` | rama `feat/horario-doohmain-e-ids`, **forma aprobada por el dueño el 22/10** («horario + días») | Sale en la **v0.12.2** (decisión del dueño). Solo agrega `campanas.doohmain_hora_inicio`, `doohmain_hora_fin` (text HH:mm, las dos o ninguna, distintas) y `doohmain_dias` (`smallint[]` 0..6, solo con horario). Sin permisos nuevos: `campanas` ya tiene `select, update` de tabla. Sin `@pg-min`. Ver [[02-Backend/integraciones-externas]] |
 > | `20261022_comercial_negociacion.sql` | rama `feat/comercial-negociacion`, **forma aprobada por el dueño el 21/10** (ROJO R3; [ADR 0047](../../docs/adr/0047-comercial-negociacion-encima-de-prospectos.md)) | Sale en la **v0.12.2** (22/10, el dueño eligió fusionar y publicar). Solo agrega: 14 columnas en `prospectos`, `canal` y `contacto_nombre` en `prospecto_avances`, y `prospecto_contactos`, `prospecto_ofertas` (sin `delete`), `prospecto_competencia`, `prospecto_notas` (solo `insert`), con FK compuesta con tenant y RLS forzada. Copia el contacto `jsonb` de cada prospecto como su primer contacto (idempotente). Sin `@pg-min`: nada de PG 15. 42 e2e en verde en el CI (run `39698089041`). Ver [[03-Frontend/comercial-opex]] |
 > | `20261021_notificaciones_por_usuario.sql` | rama `feat/notificaciones-por-usuario`, **forma aprobada por el dueño el 21/10** (ROJO R3) | Sale en la v0.12.0 (reescrita el 21/10: la del 20/10 nunca llegó a ningún cliente). Tabla `notificaciones_usuario` (leída y borrada por persona) y la única `notificaciones (id, tenant_id)` para su FK compuesta. Solo agrega: no rellena nada ni toca `leida`/`archivada_en`, que se siguen leyendo; el código anterior funciona con este esquema |
 > | `20261019_cobranza_abono_comprobante.sql` | rama `feat/comprobante-cobranza`, **forma aprobada por el dueño el 19/10** (ROJO R3/R4; sin fusionar todavía) | `4a966305` (21/10, merge de `integra/v0-12-0`; sale en v0.12.0). `cobranza_abonos.comprobante_url` (texto, nace vacía): el recibo o la transferencia de cada pago de cliente. Solo agrega la columna; RLS y permisos ya estaban |

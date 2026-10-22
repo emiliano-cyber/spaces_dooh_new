@@ -515,6 +515,17 @@ export function InventarioTabla() {
                         {s.computerVision && <Cpu className="h-3.5 w-3.5 shrink-0 text-info" />}
                       </div>
                       <div className="demo-num text-[11px] text-muted">{s.codigoProveedor}</div>
+                      {/* 22/10 · el id de DOOHmain que se usa al publicar, aunque
+                          venga del mapa del servidor y no esté en la ficha. */}
+                      {s.doohmainEfectiva && (
+                        <div
+                          className="demo-num text-[11px] text-muted"
+                          title={`Id en DOOHmain: ${s.doohmainEfectiva}${s.doohmainOrigen && s.doohmainOrigen !== 'ficha' ? ' (lo pone el servidor; no está escrito en la ficha)' : ''}`}
+                        >
+                          DOOHmain: <span className="text-ink">{s.doohmainEfectiva}</span>
+                          {s.doohmainOrigen && s.doohmainOrigen !== 'ficha' && ' · servidor'}
+                        </div>
+                      )}
                     </td>
                     <td className="px-3 py-2.5 text-muted">{etiquetaTipoMedio(s.tipoMedio)}</td>
                     <td className="px-3 py-2.5 text-muted">

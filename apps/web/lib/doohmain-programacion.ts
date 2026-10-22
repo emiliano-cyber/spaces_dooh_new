@@ -26,6 +26,8 @@
 export interface Franja {
   horaInicio: string
   horaFin: string
+  /** Días de la semana (0 = domingo … 6 = sábado). null o ausente = todos. */
+  dias?: number[] | null
 }
 
 export interface ProgramacionDoohmain {
@@ -33,7 +35,64 @@ export interface ProgramacionDoohmain {
   cantTotal: number | null
   horaInicio: string | null
   horaFin: string | null
+  /** Solo con el horario individual de la campaña; null = todos los días. */
+  dias: number[] | null
   autoCant: boolean
+}
+
+/**
+ * Qué horario viaja (22/10, noche): el INDIVIDUAL de la campaña —el que se pone
+ * a mano en su ficha, con días— gana sobre la franja programada o contratada.
+ * Las franjas del catálogo no tienen días: con ellas salen todos.
+ */
+export function franjaQueViaja(e: { individual: Franja | null; programadaOContratada: Franja | null }): Franja | null {
+  if (e.individual) return e.individual
+  if (e.programadaOContratada) return { ...e.programadaOContratada, dias: null }
+  return null
+}
+
+/** Por qué no se acepta un horario individual; null si vale. Lo usan la pantalla y el servidor. */
+export function motivoHorarioInvalido(h: { horaInicio: string; horaFin: string; dias: number[] | null }): string | null {
+  if (!HHMM.test(h.horaInicio) || !HHMM.test(h.horaFin)) return 'Las horas van como HH:mm, por ejemplo 07:30'
+  if (h.horaInicio === h.horaFin) return 'La hora de inicio y la de fin no pueden ser iguales'
+  if (h.dias) {
+    if (h.dias.length === 0) return 'Elige al menos un día, o ninguno para que sean todos'
+    if (h.dias.some((d) => !Number.isInteger(d) || d < 0 || d > 6)) return 'Ese día de la semana no existe'
+    if (new Set(h.dias).size !== h.dias.length) return 'Hay un día repetido'
+  }
+  return null
+}
+
+const NOMBRE_DIA = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb']
+
+/** Cómo se dice en Inventario de dónde sale el id de DOOHmain de una pantalla. */
+export function textoOrigenDoohmain(origen: 'ficha' | 'mapa' | 'servidor' | null): string {
+  if (origen === 'ficha') return 'escrita en esta ficha'
+  if (origen === 'mapa') return 'del mapa del servidor (no está escrita en la ficha)'
+  if (origen === 'servidor') return 'la pantalla por omisión del servidor (no está escrita en la ficha)'
+  return 'ninguna: al publicar, esta pantalla no recibiría nada'
+}
+
+/**
+ * El id de DOOHmain que SE USA para una pantalla, y de dónde sale: el de su
+ * ficha, el del mapa del servidor (`DOOHMAIN_SCREEN_MAP`) o la pantalla por
+ * omisión (`DOOHMAIN_DEFAULT_SCREEN`). Mismo orden que publica
+ * `lib/server/doohmain.ts`. Pedido del dueño (22/10): en Inventario, al editar
+ * una pantalla, el campo salía vacío aunque la pantalla «ya estaba» en DOOHmain
+ * por el mapa del servidor.
+ */
+export function pantallaDoohmainEfectiva(e: {
+  ficha: string | null
+  clave: string | null
+  mapa: Record<string, string>
+  porOmision: string | null
+}): { pantalla: string | null; origen: 'ficha' | 'mapa' | 'servidor' | null } {
+  const ficha = e.ficha?.trim()
+  if (ficha) return { pantalla: ficha, origen: 'ficha' }
+  const delMapa = e.clave ? e.mapa[e.clave] : undefined
+  if (delMapa) return { pantalla: delMapa, origen: 'mapa' }
+  if (e.porOmision) return { pantalla: e.porOmision, origen: 'servidor' }
+  return { pantalla: null, origen: null }
 }
 
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/
@@ -64,6 +123,7 @@ export function programacionDoohmain(e: {
     cantTotal: cantDia != null && dias > 0 ? cantDia * dias : null,
     horaInicio: franja?.horaInicio ?? null,
     horaFin: franja?.horaFin ?? null,
+    dias: franja?.dias && franja.dias.length ? [...franja.dias].sort((a, b) => a - b) : null,
     autoCant: franja != null && cantDia != null,
   }
 }
@@ -72,7 +132,9 @@ export function programacionDoohmain(e: {
 
 /** El horario que se manda: la franja, o que no hay y sale todo el día. */
 export function textoHorario(p: ProgramacionDoohmain): string {
-  return p.horaInicio && p.horaFin ? `${p.horaInicio} a ${p.horaFin}` : 'Todo el día (sin franja)'
+  if (!p.horaInicio || !p.horaFin) return 'Todo el día (sin franja)'
+  const dias = p.dias?.length ? ` · ${p.dias.map((d) => NOMBRE_DIA[d]).join(', ')}` : ''
+  return `${p.horaInicio} a ${p.horaFin}${dias}`
 }
 
 const miles = (n: number) => n.toLocaleString('es-MX')

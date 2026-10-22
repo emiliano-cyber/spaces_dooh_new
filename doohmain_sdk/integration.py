@@ -171,6 +171,7 @@ def publish_spot(
     *,
     start_time: str | None = None,
     end_time: str | None = None,
+    days: list[int] | None = None,
     api: DOOHmainClient | None = None,
     db: Database | None = None,
 ) -> str:
@@ -187,7 +188,7 @@ def publish_spot(
         return "already_published"
 
     api.create_spot(screen_name, list_name, campaign_auth, media_id,
-                    start_time=start_time, end_time=end_time)
+                    start_time=start_time, end_time=end_time, days=days)
     db.remote_list_register(screen_name, list_name, campaign_auth, media_id)
     return "published"
 

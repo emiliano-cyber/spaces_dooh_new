@@ -33,6 +33,7 @@ import { Button } from '@/components/demo/ui/Button'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { CRUDO_INVALIDO } from '@/lib/captura-cifra'
+import { textoOrigenDoohmain } from '@/lib/doohmain-programacion'
 import { FotoUploaderMock } from '@/components/demo/FotoUploaderMock'
 import { CalendarioDisponibilidad } from '@/components/demo/CalendarioDisponibilidad'
 import { SpaceEyeVision } from '@/components/demo/comercial/SpaceEyeVision'
@@ -461,11 +462,18 @@ export function SiteFicha({
               <Caracteristica icon={<Clock className="h-4 w-4" />} label="Horario" valor={sitio.horario ?? '—'} mono />
               <Caracteristica icon={<Monitor className="h-4 w-4" />} label="CMS" valor={sitio.cms ? CMS_LABEL[sitio.cms] : '—'} />
               {(!sitio.cms || sitio.cms === 'DOOHMAIN') && (
+                // 22/10 · el id que SE USA, aunque no esté escrito en la ficha:
+                // «La decide el servidor» escondía cuál, y una pantalla publicada
+                // por el mapa del servidor parecía no tener ninguno.
                 <Caracteristica
                   icon={<Monitor className="h-4 w-4" />}
-                  label="Pantalla en DOOHmain"
-                  valor={sitio.doohmainPantalla ?? 'La decide el servidor'}
-                  mono={!!sitio.doohmainPantalla}
+                  label="Id en DOOHmain"
+                  valor={
+                    sitio.doohmainEfectiva
+                      ? `${sitio.doohmainEfectiva} · ${textoOrigenDoohmain(sitio.doohmainOrigen ?? null)}`
+                      : textoOrigenDoohmain(null)
+                  }
+                  mono={!!sitio.doohmainEfectiva}
                 />
               )}
             </dl>
@@ -1465,14 +1473,27 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
                 </select>
               </Campo>
               {(cms === '' || cms === 'DOOHMAIN') && (
-                <Campo label="Pantalla en DOOHmain">
+                <Campo label="Id en DOOHmain">
                   <input
                     value={doohmainPantalla}
                     onChange={(e) => setDoohmainPantalla(e.target.value)}
                     list={`pantallas-doohmain-${sitio.id}`}
-                    placeholder="Vacío = la decide el servidor"
+                    placeholder={
+                      sitio.doohmainEfectiva && sitio.doohmainOrigen !== 'ficha'
+                        ? `Hoy se usa ${sitio.doohmainEfectiva} (${sitio.doohmainOrigen === 'mapa' ? 'mapa del servidor' : 'por omisión'})`
+                        : 'Vacío = la decide el servidor'
+                    }
                     className={inputCls}
                   />
+                  {/* 22/10 · el campo vacío NO significa que no tenga: decía «la
+                      decide el servidor» sin decir cuál, y se leía como que el id
+                      se había perdido. */}
+                  {!doohmainPantalla.trim() && sitio.doohmainEfectiva && sitio.doohmainOrigen !== 'ficha' && (
+                    <span className="mt-1 block text-[11px] text-muted">
+                      Al publicar se usa <span className="font-mono text-ink">{sitio.doohmainEfectiva}</span>,{' '}
+                      {textoOrigenDoohmain(sitio.doohmainOrigen ?? null)}. Escríbelo aquí para fijarlo en la ficha.
+                    </span>
+                  )}
                   <datalist id={`pantallas-doohmain-${sitio.id}`}>
                     {(pantallasDm?.pantallas ?? []).map((p) => <option key={p} value={p} />)}
                   </datalist>

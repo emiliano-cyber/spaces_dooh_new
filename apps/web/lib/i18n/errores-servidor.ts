@@ -508,6 +508,9 @@ export const CATALOGO_ERRORES: Record<string, string> = {
     'The value is not valid',
   'Ese prospecto no existe':
     'That prospect does not exist',
+  // 22/10 · el horario individual de una campaña en DOOHmain.
+  'Esa campaña no existe':
+    'That campaign does not exist',
   // NEG-01 · el buscador de direcciones de Comercial negociación (22/10).
   'Llevas muchas búsquedas seguidas: espera unos minutos':
     'You have run many searches in a row: wait a few minutes',

@@ -21,6 +21,22 @@ export type { VistaPreviaDoohmain }
  * pantalla, horario de la franja si la hay y reproducciones por día y en total.
  * Solo lee; no refresca el estado.
  */
+/** El horario INDIVIDUAL de la campaña en DOOHmain (22/10); `null` lo quita. */
+export async function fijarHorarioDoohmainApi(
+  campanaId: string,
+  horario: { horaInicio: string; horaFin: string; dias: number[] | null } | null,
+): Promise<void> {
+  const r = await fetch(`${API}/campanas/${campanaId}/horario-doohmain/`, {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ horario }),
+  })
+  if (!r.ok) {
+    const d = await r.json().catch(() => ({}))
+    throw new Error((d as { error?: string }).error ?? 'No se pudo guardar el horario')
+  }
+}
+
 export async function programacionDoohmainApi(
   campanaId: string,
 ): Promise<VistaPreviaDoohmain & { publicacionEncendida: boolean }> {

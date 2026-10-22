@@ -7,6 +7,15 @@ La entrada más reciente va arriba.
 
 ## 2026-10-22
 
+- **Horario propio de cada campaña en DOOHmain.** En la ficha de la campaña,
+  en «Lo que se manda a DOOHmain», se puede poner una hora de inicio, una de fin
+  y, si se quiere, los días de la semana. Ese horario es el que se manda a
+  DOOHmain y manda sobre la franja programada o la contratada. «Quitar» lo borra
+  y se vuelve a usar la franja.
+- **En Inventario se ve el id de DOOHmain de cada pantalla.** Antes, si la
+  pantalla se publicaba con el id que pone el servidor, al editarla el campo salía
+  vacío y parecía que no tenía. Ahora la tabla y la ficha enseñan el id que se usa
+  y dicen si está escrito en la ficha o lo pone el servidor.
 - **Los creativos, lo primero de la campaña.** En la ficha de cada campaña,
   los creativos ya salen arriba de todo, siempre abiertos: se ven y se suben
   ahí mismo en cuanto la campaña existe y en cualquier momento, aunque ya esté

@@ -12,6 +12,7 @@ import {
   type PredioDeCarga,
 } from './contratos-sitio'
 import type { PoolClient } from 'pg'
+import { pantallaDoohmainDe } from './doohmain'
 
 // ============================================================================
 //  lib/server/sitios-repo.ts — Persistencia de sitios + modalidades.
@@ -90,6 +91,15 @@ export function rowToSitio(r: any, modalidades: any[] = [], conMedia = true, rej
     enNetwork: !!r.en_network,
     cms: r.cms,
     doohmainPantalla: r.doohmain_pantalla ?? null,
+    // 22/10 · el id de DOOHmain que SE USA al publicar y de dónde sale (la
+    // ficha, el mapa del servidor o la pantalla por omisión). Solo en las que
+    // van a DOOHmain: una de otro CMS no publica por aquí. Sin esto, una
+    // pantalla publicada por el mapa se veía en Inventario con el campo vacío.
+    ...(() => {
+      if (r.cms && r.cms !== 'DOOHMAIN') return { doohmainEfectiva: null, doohmainOrigen: null }
+      const e = pantallaDoohmainDe({ doohmain_pantalla: r.doohmain_pantalla ?? null, clave_interna: r.clave_interna ?? null })
+      return { doohmainEfectiva: e.pantalla, doohmainOrigen: e.origen }
+    })(),
     predioId: r.predio_id ?? null,
     arrendadorId: r.arrendador_id ?? null,
     rentaArrendador: n(r.renta_arrendador),

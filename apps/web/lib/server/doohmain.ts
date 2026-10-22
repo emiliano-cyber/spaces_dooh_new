@@ -21,8 +21,11 @@ import { esPantallaDigitalSql } from './pantalla-digital-sql'
 import { folioBase } from '../folio-venta'
 import {
   clienteDoohmain,
+  franjaQueViaja,
+  pantallaDoohmainEfectiva,
   programacionDoohmain,
   type ClienteDoohmain,
+  type Franja,
   type ProgramacionDoohmain,
 } from '../doohmain-programacion'
 
@@ -31,6 +34,20 @@ const pexec = promisify(execFile)
 const PY = process.env.DOOHMAIN_PY || 'python'
 const SDK_DIR = process.env.DOOHMAIN_SDK_DIR || process.cwd()
 const DEFAULT_SCREEN = process.env.DOOHMAIN_DEFAULT_SCREEN || null
+
+/**
+ * El id de DOOHmain que se usa para una pantalla y de dónde sale (ficha, mapa
+ * del servidor o pantalla por omisión). Lo enseña Inventario (22/10): sin
+ * esto, una pantalla publicada por el mapa salía con el campo vacío.
+ */
+export function pantallaDoohmainDe(s: { doohmain_pantalla: string | null; clave_interna: string | null }) {
+  return pantallaDoohmainEfectiva({
+    ficha: s.doohmain_pantalla,
+    clave: s.clave_interna,
+    mapa: screenMap(),
+    porOmision: DEFAULT_SCREEN,
+  })
+}
 
 function screenMap(): Record<string, string> {
   try {
@@ -182,6 +199,8 @@ async function ejecutarPublish(args: {
   const p = args.programacion
   if (p.cantTotal != null) cli.push('--cant-total', String(p.cantTotal))
   if (p.horaInicio && p.horaFin) cli.push('--hora-inicio', p.horaInicio, '--hora-fin', p.horaFin)
+  // Los días solo existen con el horario individual de la campaña (22/10, noche).
+  if (p.horaInicio && p.horaFin && p.dias?.length) cli.push('--dias', p.dias.join(','))
   if (p.autoCant) cli.push('--auto-cant')
   const c = args.cliente
   if (c.rfc) cli.push('--cliente-rfc', c.rfc)
@@ -322,7 +341,12 @@ export async function retirarCreativoEnDoohmain(
 // lo que se va a mandar ANTES de mandarlo. Una sola consulta para las dos: una
 // vista previa con su propia copia del SQL acabaría enseñando otra cosa.
 async function leerPlan(campanaId: string) {
-  const camp = await q1<any>('select id, folio, nombre, cliente_id, fecha_inicio, fecha_fin from campanas where id=$1', [campanaId])
+  const camp = await q1<any>(
+    `select id, folio, nombre, cliente_id, fecha_inicio, fecha_fin,
+            doohmain_hora_inicio, doohmain_hora_fin, doohmain_dias
+       from campanas where id=$1`,
+    [campanaId],
+  )
   if (!camp) return null
   const cliente = await q1<any>(
     'select nombre, rfc, razon_social, contacto, tipo from clientes where id=$1',
@@ -396,7 +420,17 @@ async function leerPlan(campanaId: string) {
       order by s.nombre`,
     [campanaId],
   )
-  return { camp, datosCliente, asignaciones, huecos }
+  // El horario INDIVIDUAL de la campaña (22/10, noche): si lo tiene, gana sobre
+  // la franja programada o contratada de cada fila (`franjaQueViaja`).
+  const individual: Franja | null =
+    camp.doohmain_hora_inicio && camp.doohmain_hora_fin
+      ? {
+          horaInicio: camp.doohmain_hora_inicio,
+          horaFin: camp.doohmain_hora_fin,
+          dias: Array.isArray(camp.doohmain_dias) ? camp.doohmain_dias.map(Number) : null,
+        }
+      : null
+  return { camp, datosCliente, asignaciones, huecos, individual }
 }
 
 // `veces` manda: es lo que el reparto decidió para ESTA pantalla.
@@ -414,12 +448,16 @@ function cantDiaDe(a: { spots_por_dia: unknown; veces: unknown }): number | null
   return Number.isFinite(Number(a.veces)) && Number(a.veces) > 0 ? Number(a.veces) : Number(a.spots_por_dia)
 }
 
-function programacionDe(a: any, fi: string, ff: string): ProgramacionDoohmain {
+function programacionDe(a: any, fi: string, ff: string, individual: Franja | null): ProgramacionDoohmain {
   return programacionDoohmain({
     cantDia: cantDiaDe(a),
     fechaInicio: fi,
     fechaFin: ff,
-    franja: a.franja_inicio && a.franja_fin ? { horaInicio: a.franja_inicio, horaFin: a.franja_fin } : null,
+    franja: franjaQueViaja({
+      individual,
+      programadaOContratada:
+        a.franja_inicio && a.franja_fin ? { horaInicio: a.franja_inicio, horaFin: a.franja_fin } : null,
+    }),
   })
 }
 
@@ -440,6 +478,8 @@ export interface VistaPreviaDoohmain {
   fechaInicio: string
   fechaFin: string
   lista: string
+  /** El horario individual de la campaña, si tiene; gana sobre las franjas. */
+  horarioIndividual: Franja | null
   filas: FilaVistaPrevia[]
   /** Pantallas digitales sin ningún creativo aprobado: al publicar fallan. */
   sinCreativo: { sitio: string; sitioNombre: string }[]
@@ -454,7 +494,7 @@ export interface VistaPreviaDoohmain {
 export async function vistaPreviaDoohmain(campanaId: string): Promise<VistaPreviaDoohmain | null> {
   const plan = await leerPlan(campanaId)
   if (!plan) return null
-  const { camp, datosCliente, asignaciones, huecos } = plan
+  const { camp, datosCliente, asignaciones, huecos, individual } = plan
   const mapa = screenMap()
   const fi = fecha(camp.fecha_inicio)
   const ff = fecha(camp.fecha_fin)
@@ -463,6 +503,7 @@ export async function vistaPreviaDoohmain(campanaId: string): Promise<VistaPrevi
     fechaInicio: fi,
     fechaFin: ff,
     lista: folioBase(camp.folio),
+    horarioIndividual: individual,
     filas: asignaciones.map((a) => {
       const otro = a.cms && a.cms !== 'DOOHMAIN'
       const screen = otro ? null : (a.doohmain_pantalla ?? mapa[a.clave_interna] ?? DEFAULT_SCREEN ?? null)
@@ -473,7 +514,7 @@ export async function vistaPreviaDoohmain(campanaId: string): Promise<VistaPrevi
         screen,
         destino: otro ? 'otro_cms' : screen ? 'doohmain' : 'sin_pantalla',
         cms: a.cms ?? null,
-        programacion: programacionDe(a, fi, ff),
+        programacion: programacionDe(a, fi, ff, individual),
       }
     }),
     sinCreativo: huecos.map((h) => ({ sitio: h.clave_interna, sitioNombre: h.nombre })),
@@ -483,7 +524,7 @@ export async function vistaPreviaDoohmain(campanaId: string): Promise<VistaPrevi
 export async function publicarCampanaEnDoohmain(campanaId: string): Promise<ResultadoPublicacion[]> {
   const plan = await leerPlan(campanaId)
   if (!plan) return []
-  const { camp, datosCliente, asignaciones, huecos } = plan
+  const { camp, datosCliente, asignaciones, huecos, individual } = plan
   const anunciante = datosCliente.nombre
 
   const mapa = screenMap()
@@ -540,7 +581,7 @@ export async function publicarCampanaEnDoohmain(campanaId: string): Promise<Resu
       const cantDia = cantDiaDe(a)
       const fi = fecha(camp.fecha_inicio)
       const ff = fecha(camp.fecha_fin)
-      const programacion = programacionDe(a, fi, ff)
+      const programacion = programacionDe(a, fi, ff, individual)
       const r = await ejecutarPublish({
         version: a.creativo_id, anunciante, campana: camp.nombre,
         fi, ff, programacion, cliente: datosCliente,

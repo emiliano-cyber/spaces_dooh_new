@@ -31,7 +31,13 @@ archivos:
   - apps/web/app/api/geo/buscar/route.ts
 ---
 
-# API — los 153 endpoints (medidos el 2026-10-22 con `recuentos.mjs`)
+# API — los 154 endpoints (medidos el 2026-10-22 con `recuentos.mjs`)
+
+> **2026-10-22, noche · una más:** `PATCH /api/campanas/[id]/horario-doohmain`
+> (`comercial:crear`) — `{ horario: { horaInicio, horaFin, dias? } }` o
+> `{ horario: null }`: el horario INDIVIDUAL de la campaña en DOOHmain, que gana sobre
+> la franja programada y la contratada. HH:mm, distintas, días 0..6 sin repetir; 400
+> si no; 404 con id que no es uuid o de otra organización. Deja línea en Actividad.
 
 > **2026-10-22, tarde · una más:** `GET /api/campanas/[id]/programacion-doohmain`
 > (`comercial:ver`) — lo que se le va a mandar a DOOHmain SIN mandarlo: por
