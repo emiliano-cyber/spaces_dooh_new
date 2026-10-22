@@ -1,10 +1,16 @@
 ---
 tipo: tablero
 estado: verificado
-actualizado: 2026-10-21
+actualizado: 2026-10-22
 tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
+
+> [!success] 2026-10-22, noche · **`v0.12.3` en `estable`** — promover `39850257202`, digest `bd42588b…`; vuelta atrás: `v0.12.2` (`9cef7c6f…`)
+> Varios creativos rotan solos en un spot y el reemplazo ya no deja el arte viejo en DOOHmain; pantallas y lugares
+> propios (sin renta ni contrato, migración `20261022_pantallas_propias.sql`); la duración de la propuesta se calcula
+> al escribir la fecha a mano. PR #103, CI en verde con e2e; etiqueta en `0f5db3fa`; release `39848803011` en verde;
+> smoke en DEMO en verde. **Falta instalarla en g500** (y sigue pendiente B55: Node 22 en los servidores).
 
 > [!success] 2026-10-22, noche · **`v0.12.2` final en `estable`** — promover `39843781281`, digest `9cef7c6f…`; vuelta atrás: `v0.12.1` (`aa990af6…`)
 > Última reescritura, por decisión del dueño: + horario individual de la campaña en DOOHmain y el id de DOOHmain en
