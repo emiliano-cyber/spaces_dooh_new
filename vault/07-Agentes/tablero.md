@@ -6,6 +6,12 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!success] 2026-10-22, noche · **`v0.12.2` reescrita OTRA VEZ y en `estable`** — promover `39837582400`, digest `75e232f8…`; vuelta atrás: `v0.12.1` (`aa990af6…`)
+> Decisión del dueño: juntar también los creativos primero en la ficha de la campaña y la vista previa de lo que se manda
+> a DOOHmain (PR #101, CI en verde con e2e), y el aviso de la franja corregido. Etiqueta en `6cbb0fec`; release
+> `39836084285` en verde; smoke en DEMO `metodos 200`. **Mismo OJO que abajo:** lo que ya tuviera una `v0.12.2`
+> anterior no se ofrecerá esta.
+
 > [!success] 2026-10-22, tarde · **`v0.12.2` REESCRITA y en `estable`** — promover `39817897882`, digest `38789da0…`; vuelta atrás: `v0.12.1` (`aa990af6…`)
 > Decisión del dueño: juntar en la `v0.12.2` el aviso de no estar en la pantalla del sitio de DOOHmain y lo que ahora se
 > manda a DOOHmain (total de reproducciones, horario de la franja SOLO si la hay, datos del cliente). Etiqueta movida de
