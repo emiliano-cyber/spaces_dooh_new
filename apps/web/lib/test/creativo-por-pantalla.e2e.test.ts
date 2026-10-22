@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
 import { recrearEsquema, cerrarPool, poolTest } from './db-e2e'
 import { sembrarTenant, asegurarPermisos, PASSWORD_DEMO, enDias } from './semillas-e2e'
 import { arrancarServidor, pararServidor, Cliente } from './servidor-e2e'
+import { diasDeCampana } from '../doohmain-programacion'
 
 // ============================================================================
 //  M14 / INC-02 · qué pieza va en qué pantalla.
@@ -407,6 +408,60 @@ describe('4 · la publicación manda a cada pantalla LO SUYO', () => {
     expect(out.length).toBe(1)
     expect(out[0].creativoId).toBe(cr)
     expect(out[0].cantDia).toBeNull()
+  })
+
+  // 22/10 · lo demás que DOOHmain recibe: el total del periodo y, SOLO si la
+  // campaña tiene franja, su horario. Pedido del dueño: «la franja de tiempo
+  // solo la debe de mandar si es que tiene una; si no, mandamos lo que
+  // actualmente se manda». La regla está en `lib/doohmain-programacion.ts`;
+  // aquí se fija que el SQL encuentra la franja correcta.
+  const diasDe = async (campanaId: string) => {
+    const r = await poolTest().query(
+      `select to_char(fecha_inicio,'YYYY-MM-DD') fi, to_char(fecha_fin,'YYYY-MM-DD') ff from campanas where id=$1`,
+      [campanaId],
+    )
+    return diasDeCampana(r.rows[0].fi, r.rows[0].ff)
+  }
+  const franja = async (nombre: string, inicio: string, fin: string) =>
+    (await poolTest().query(
+      `insert into franjas_horarias (tenant_id, nombre, hora_inicio, hora_fin) values ($1,$2,$3,$4) returning id`,
+      [org.id, nombre, inicio, fin],
+    )).rows[0].id as string
+
+  it('sin franja: el horario NO viaja, y sí el total del periodo', async () => {
+    const camp = await sembrarCampana({ sitios: [{ id: org.sitioId, spots: 6 }] })
+    await aprobar(await sembrarCreativo(camp, 'Sin franja'))
+    const [r] = await publicar(camp)
+    expect(r.horaInicio).toBeNull()
+    expect(r.horaFin).toBeNull()
+    expect(r.cantDia).toBe(6)
+    expect(r.cantTotal).toBe(6 * (await diasDe(camp)))
+  })
+
+  it('con franja PROGRAMADA en la campaña: viaja su horario', async () => {
+    const camp = await sembrarCampana({ sitios: [{ id: org.sitioId, spots: 8 }] })
+    const prime = await franja('Prime programada', '18:00', '22:00')
+    await poolTest().query('update campanas set franja_programada_id=$1 where id=$2', [prime, camp])
+    await aprobar(await sembrarCreativo(camp, 'Con franja programada'))
+    const [r] = await publicar(camp)
+    expect([r.horaInicio, r.horaFin]).toEqual(['18:00', '22:00'])
+    expect(r.cantTotal).toBe(8 * (await diasDe(camp)))
+  })
+
+  it('sin programada, la CONTRATADA de la pantalla; y la programada gana si hay las dos', async () => {
+    const camp = await sembrarCampana({ sitios: [{ id: org.sitioId, spots: 4 }] })
+    const manana = await franja('Mañana contratada', '07:00', '10:00')
+    await poolTest().query('update reservas set franja_id=$1 where campana_id=$2', [manana, camp])
+    await aprobar(await sembrarCreativo(camp, 'Con franja contratada'))
+    let [r] = await publicar(camp)
+    expect([r.horaInicio, r.horaFin]).toEqual(['07:00', '10:00'])
+
+    const noche = await franja('Noche programada', '20:00', '23:00')
+    await poolTest().query('update campanas set franja_programada_id=$1 where id=$2', [noche, camp])
+    const re = await c.pedir(`/api/campanas/${camp}/reintentar-publicacion/`, { cuerpo: {} })
+    expect(re.status, JSON.stringify(re.datos)).toBe(200)
+    ;[r] = re.datos.doohmain
+    expect([r.horaInicio, r.horaFin]).toEqual(['20:00', '23:00'])
   })
 
   it('NO manda al aire una pieza que no está aprobada, aunque figure asignada', async () => {
