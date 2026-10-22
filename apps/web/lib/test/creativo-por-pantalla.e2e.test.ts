@@ -448,6 +448,35 @@ describe('4 · la publicación manda a cada pantalla LO SUYO', () => {
     expect(r.cantTotal).toBe(8 * (await diasDe(camp)))
   })
 
+  it('la VISTA PREVIA enseña lo mismo que luego se publica, sin publicar nada', async () => {
+    // Pedido del dueño (22/10): ver la franja y las repeticiones en la campaña
+    // ANTES de subirla. Sale de la misma consulta que publica (`leerPlan()`); si
+    // algún día se separaran, esta prueba es la que lo nota.
+    const camp = await sembrarCampana({ sitios: [{ id: org.sitioId, spots: 5 }] })
+    const tarde = await franja('Tarde vista previa', '15:00', '19:00')
+    await poolTest().query('update campanas set franja_programada_id=$1 where id=$2', [tarde, camp])
+    await aprobar(await sembrarCreativo(camp, 'Antes de publicar'))
+
+    const v = await c.pedir(`/api/campanas/${camp}/programacion-doohmain/`)
+    expect(v.status).toBe(200)
+    expect(v.datos.filas).toHaveLength(1)
+    const [f] = v.datos.filas
+    expect(f.creativoNombre).toBe('Antes de publicar')
+    expect([f.programacion.horaInicio, f.programacion.horaFin]).toEqual(['15:00', '19:00'])
+    expect(f.programacion.cantDia).toBe(5)
+    expect(v.datos.cliente.nombre).toBeTruthy()
+
+    const [r] = await publicar(camp)
+    expect([r.horaInicio, r.horaFin, r.cantDia, r.cantTotal]).toEqual([
+      f.programacion.horaInicio, f.programacion.horaFin, f.programacion.cantDia, f.programacion.cantTotal,
+    ])
+  })
+
+  it('la vista previa: un id que no es uuid, o una campaña que no existe, es 404', async () => {
+    expect((await c.pedir('/api/campanas/no-es-uuid/programacion-doohmain/')).status).toBe(404)
+    expect((await c.pedir('/api/campanas/00000000-0000-0000-0000-000000000000/programacion-doohmain/')).status).toBe(404)
+  })
+
   it('sin programada, la CONTRATADA de la pantalla; y la programada gana si hay las dos', async () => {
     const camp = await sembrarCampana({ sitios: [{ id: org.sitioId, spots: 4 }] })
     const manana = await franja('Mañana contratada', '07:00', '10:00')

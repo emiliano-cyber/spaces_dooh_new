@@ -1,7 +1,7 @@
 ---
 tipo: contrato
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-10-22
 tags: [backend, precios, tarifas, franjas, temporadas, propuestas, dinero, snapshot, rls, programacion]
 archivos:
   - db/migrations/20260928_rejilla_franja_temporada.sql
@@ -254,6 +254,16 @@ snapshot no se mueve ni en el precio, ni en el nombre, ni en el horario.
 ---
 
 ## La franja NO viaja al CMS, y el producto lo dice
+
+> [!warning] 2026-10-22 · YA NO ES ASÍ con DOOHmain — lo de abajo es la historia
+> Por pedido del dueño, al publicar en DOOHmain se manda el horario de la franja
+> (la programada de la campaña o, si no, la contratada) y las reproducciones; ver
+> [[integraciones-externas]] y `lib/doohmain-programacion.ts`. El aviso
+> `AVISO_FRANJA_NO_VIAJA_AL_CMS` se reescribió para decir las dos mitades: a
+> DOOHmain se envía; en una pantalla de OTRO CMS, o con un anuncio ya publicado,
+> sigue habiendo que programarla a mano. La constante conserva su nombre (la
+> congela el snapshot de cada propuesta). Las propuestas aceptadas antes del 22/10
+> guardan en su snapshot el texto viejo, que era cierto cuando se aceptaron.
 
 El SDK de DOOHmain acepta `--version --anunciante --campana --fecha-inicio
 --fecha-fin --filepath --screen --list --cant-dia`

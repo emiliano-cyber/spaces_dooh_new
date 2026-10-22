@@ -43,7 +43,7 @@ archivos:
 | `/descuentos-por-volumen` | Escala de volumen (VOL-01) | `/api/volumen/escalas` | `GestionVolumen` — ver [[02-Backend/descuento-por-volumen]] |
 | `/codigos-promocionales` | Códigos de negociación: cupones (COD-01) | `/api/codigos-promocionales` | `GestionCodigos` — ver [[02-Backend/codigo-promocional]] |
 | `/paquetes` | Paquetes cerrados (PAQ-01) | `/api/paquetes` | `GestionPaquetes` — ver [[02-Backend/paquete-cerrado]] |
-| `/campanas`, `/campanas/[id]` | Campañas | `/api/campanas/*` | `PipelineView`, `CandadoPanel`, `ValidacionPanel`, `PlaylogsPanel`, `DatosFacturacion`, `EvidenciaGaleria`, `AgregarCreativo`, `FranjaProgramadaCampana` (horario de transmisión, PROG-01) |
+| `/campanas`, `/campanas/[id]` | Campañas | `/api/campanas/*` | `PipelineView`, `CandadoPanel`, `ValidacionPanel`, `PlaylogsPanel`, `DatosFacturacion`, `EvidenciaGaleria`, `AgregarCreativo`, `FranjaProgramadaCampana` (horario de transmisión, PROG-01), `ProgramacionDoohmain` (22/10: lo que se manda a DOOHmain antes de mandarlo). **Desde el 22/10 los Creativos son lo PRIMERO de la ficha**, siempre abiertos y fuera de las `Seccion` plegables: se ven y se suben en cualquier momento, aunque la campaña esté cerrada |
 | `/creativos` | Creativos | `/api/creatividades` | — |
 | `/operaciones`, `/operaciones/ot/[id]` | Órdenes de trabajo | `/api/ot` | `OTVista` |
 | `/imprenta` | Imprenta | `/api/impresion` | — |

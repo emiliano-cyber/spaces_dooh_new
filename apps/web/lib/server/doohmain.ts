@@ -316,9 +316,14 @@ export async function retirarCreativoEnDoohmain(
 // publica su segmento digital.
 //
 // Nunca lanza: devuelve un resultado por (creativo × pantalla) publicado.
-export async function publicarCampanaEnDoohmain(campanaId: string): Promise<ResultadoPublicacion[]> {
+//
+// 22/10 · lo que se lee de la base está en `leerPlan()`, y lo usan DOS: esto,
+// que publica, y `vistaPreviaDoohmain()`, que enseña en la ficha de la campaña
+// lo que se va a mandar ANTES de mandarlo. Una sola consulta para las dos: una
+// vista previa con su propia copia del SQL acabaría enseñando otra cosa.
+async function leerPlan(campanaId: string) {
   const camp = await q1<any>('select id, folio, nombre, cliente_id, fecha_inicio, fecha_fin from campanas where id=$1', [campanaId])
-  if (!camp) return []
+  if (!camp) return null
   const cliente = await q1<any>(
     'select nombre, rfc, razon_social, contacto, tipo from clientes where id=$1',
     [camp.cliente_id],
@@ -329,7 +334,6 @@ export async function publicarCampanaEnDoohmain(campanaId: string): Promise<Resu
       ? { nombre: cliente.nombre, rfc: cliente.rfc, razonSocial: cliente.razon_social, contacto: cliente.contacto, tipo: cliente.tipo }
       : null,
   )
-  const anunciante = datosCliente.nombre
 
   // Una fila por (pantalla × creativo asignado). El `join` contra
   // `creatividades` filtra por VALIDADA aquí mismo: un creativo asignado que
@@ -392,6 +396,95 @@ export async function publicarCampanaEnDoohmain(campanaId: string): Promise<Resu
       order by s.nombre`,
     [campanaId],
   )
+  return { camp, datosCliente, asignaciones, huecos }
+}
+
+// `veces` manda: es lo que el reparto decidió para ESTA pantalla.
+//
+// Pero SOLO si la reserva tiene programación diaria contratada. Cuando
+// `spots_por_dia` es null no hay cuota pactada —así están hoy todas las
+// reservas de producción—, y ahí la asignación guarda `veces: 1` como
+// simple marca de «esta pieza va aquí». Mandar ese 1 como `--cant-dia`
+// sería IMPONER un pase al día donde antes no se mandaba la bandera y el
+// CMS ponía los que cupieran: pasaríamos de la pauta completa a uno.
+//
+// O sea: sin cuota contratada, no se dicta cuota. Igual que antes.
+function cantDiaDe(a: { spots_por_dia: unknown; veces: unknown }): number | null {
+  if (a.spots_por_dia == null) return null
+  return Number.isFinite(Number(a.veces)) && Number(a.veces) > 0 ? Number(a.veces) : Number(a.spots_por_dia)
+}
+
+function programacionDe(a: any, fi: string, ff: string): ProgramacionDoohmain {
+  return programacionDoohmain({
+    cantDia: cantDiaDe(a),
+    fechaInicio: fi,
+    fechaFin: ff,
+    franja: a.franja_inicio && a.franja_fin ? { horaInicio: a.franja_inicio, horaFin: a.franja_fin } : null,
+  })
+}
+
+export interface FilaVistaPrevia {
+  sitio: string
+  sitioNombre: string
+  creativoNombre: string
+  /** A qué pantalla de DOOHmain va; null si no va (otro CMS o sin pantalla). */
+  screen: string | null
+  /** `doohmain`: se publica · `otro_cms`: la opera otro CMS · `sin_pantalla`: no hay a dónde mandarla. */
+  destino: 'doohmain' | 'otro_cms' | 'sin_pantalla'
+  cms: string | null
+  programacion: ProgramacionDoohmain
+}
+
+export interface VistaPreviaDoohmain {
+  cliente: ClienteDoohmain
+  fechaInicio: string
+  fechaFin: string
+  lista: string
+  filas: FilaVistaPrevia[]
+  /** Pantallas digitales sin ningún creativo aprobado: al publicar fallan. */
+  sinCreativo: { sitio: string; sitioNombre: string }[]
+}
+
+/**
+ * Lo que se le va a mandar a DOOHmain, sin mandarlo: pantalla por pantalla, a
+ * qué pantalla de DOOHmain va, cuántas reproducciones (por día y en total) y
+ * en qué horario si la campaña tiene franja. Pedido del dueño (22/10): verlo en
+ * la campaña ANTES de subirla. No toca la red ni los archivos.
+ */
+export async function vistaPreviaDoohmain(campanaId: string): Promise<VistaPreviaDoohmain | null> {
+  const plan = await leerPlan(campanaId)
+  if (!plan) return null
+  const { camp, datosCliente, asignaciones, huecos } = plan
+  const mapa = screenMap()
+  const fi = fecha(camp.fecha_inicio)
+  const ff = fecha(camp.fecha_fin)
+  return {
+    cliente: datosCliente,
+    fechaInicio: fi,
+    fechaFin: ff,
+    lista: folioBase(camp.folio),
+    filas: asignaciones.map((a) => {
+      const otro = a.cms && a.cms !== 'DOOHMAIN'
+      const screen = otro ? null : (a.doohmain_pantalla ?? mapa[a.clave_interna] ?? DEFAULT_SCREEN ?? null)
+      return {
+        sitio: a.clave_interna,
+        sitioNombre: a.sitio_nombre,
+        creativoNombre: a.creativo_nombre,
+        screen,
+        destino: otro ? 'otro_cms' : screen ? 'doohmain' : 'sin_pantalla',
+        cms: a.cms ?? null,
+        programacion: programacionDe(a, fi, ff),
+      }
+    }),
+    sinCreativo: huecos.map((h) => ({ sitio: h.clave_interna, sitioNombre: h.nombre })),
+  }
+}
+
+export async function publicarCampanaEnDoohmain(campanaId: string): Promise<ResultadoPublicacion[]> {
+  const plan = await leerPlan(campanaId)
+  if (!plan) return []
+  const { camp, datosCliente, asignaciones, huecos } = plan
+  const anunciante = datosCliente.nombre
 
   const mapa = screenMap()
   const out: ResultadoPublicacion[] = []
@@ -442,29 +535,12 @@ export async function publicarCampanaEnDoohmain(campanaId: string): Promise<Resu
         out.push({ creativoId: a.creativo_id, creativoNombre: a.creativo_nombre, sitio: a.clave_interna, screen: null, ok: false, error: 'sitio sin pantalla DOOHmain mapeada', category: 'validation' })
         continue
       }
-      // `veces` manda: es lo que el reparto decidió para ESTA pantalla.
-      //
-      // Pero SOLO si la reserva tiene programación diaria contratada. Cuando
-      // `spots_por_dia` es null no hay cuota pactada —así están hoy todas las
-      // reservas de producción—, y ahí la asignación guarda `veces: 1` como
-      // simple marca de «esta pieza va aquí». Mandar ese 1 como `--cant-dia`
-      // sería IMPONER un pase al día donde antes no se mandaba la bandera y el
-      // CMS ponía los que cupieran: pasaríamos de la pauta completa a uno.
-      //
-      // O sea: sin cuota contratada, no se dicta cuota. Igual que antes.
-      const cantDia = a.spots_por_dia == null
-        ? null
-        : (Number.isFinite(Number(a.veces)) && Number(a.veces) > 0
-            ? Number(a.veces)
-            : Number(a.spots_por_dia))
+      // La cuota y la franja salen de `cantDiaDe()` y `programacionDe()`, las
+      // mismas que enseña la vista previa (ver arriba el porqué de la cuota).
+      const cantDia = cantDiaDe(a)
       const fi = fecha(camp.fecha_inicio)
       const ff = fecha(camp.fecha_fin)
-      const programacion = programacionDoohmain({
-        cantDia,
-        fechaInicio: fi,
-        fechaFin: ff,
-        franja: a.franja_inicio && a.franja_fin ? { horaInicio: a.franja_inicio, horaFin: a.franja_fin } : null,
-      })
+      const programacion = programacionDe(a, fi, ff)
       const r = await ejecutarPublish({
         version: a.creativo_id, anunciante, campana: camp.nombre,
         fi, ff, programacion, cliente: datosCliente,

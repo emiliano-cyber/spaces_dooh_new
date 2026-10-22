@@ -31,7 +31,14 @@ archivos:
   - apps/web/app/api/geo/buscar/route.ts
 ---
 
-# API — los 152 endpoints (medidos el 2026-10-22 con `recuentos.mjs`)
+# API — los 153 endpoints (medidos el 2026-10-22 con `recuentos.mjs`)
+
+> **2026-10-22, tarde · una más:** `GET /api/campanas/[id]/programacion-doohmain`
+> (`comercial:ver`) — lo que se le va a mandar a DOOHmain SIN mandarlo: por
+> pantalla, a qué pantalla de DOOHmain va, el creativo, el horario de la franja si
+> la hay y las reproducciones por día y en total, más el cliente. Sale de la misma
+> consulta que publica (`leerPlan()` en `lib/server/doohmain.ts`). Id que no es
+> uuid o campaña de otra organización: 404.
 
 > **2026-10-22 · nueve rutas más (NEG-01, Comercial negociación):** ocho bajo
 > `/api/captacion/[id]/` —`ficha`, `contactos` y `contactos/[contactoId]`, `ofertas`

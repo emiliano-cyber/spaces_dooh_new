@@ -7,6 +7,20 @@ La entrada más reciente va arriba.
 
 ## 2026-10-22
 
+- **Los creativos, lo primero de la campaña.** En la ficha de cada campaña,
+  los creativos ya salen arriba de todo, siempre abiertos: se ven y se suben
+  ahí mismo en cuanto la campaña existe y en cualquier momento, aunque ya esté
+  cerrada. Antes, cuando todos estaban aprobados, la sección se plegaba y se iba
+  al fondo.
+- **Antes de publicar en DOOHmain se ve lo que se va a mandar.** En «Validación
+  de publicación» hay un cuadro con cada pantalla: a qué pantalla de DOOHmain va,
+  con qué creativo, en qué horario (la franja, o «todo el día» si no tiene) y
+  cuántas reproducciones por día y en toda la campaña, además de los datos del
+  cliente. Si una pantalla no tiene pauta diaria, dice «las que quepan».
+- **El aviso de la franja horaria dice ahora la verdad.** Decía que la franja
+  no se envía al CMS; desde hoy, al publicar en DOOHmain sí se envía. Sigue
+  habiendo que programarla a mano en las pantallas de otro CMS o si el anuncio ya
+  estaba publicado.
 - **DOOHmain recibe ahora todos los datos de la campaña.** Al publicar, además
   de las fechas y los spots por día, se manda **cuántas reproducciones en total**
   le tocan a cada pantalla en toda la campaña y **los datos del cliente**: RFC,

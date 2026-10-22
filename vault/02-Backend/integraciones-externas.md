@@ -11,6 +11,8 @@ archivos:
   - apps/web/components/demo/campanas/ValidacionPanel.tsx
   - apps/web/lib/doohmain-aviso.ts
   - apps/web/lib/doohmain-programacion.ts
+  - apps/web/components/demo/campanas/ProgramacionDoohmain.tsx
+  - apps/web/app/api/campanas/[id]/programacion-doohmain/route.ts
   - doohmain_sdk/__main__.py
   - doohmain_sdk/integration.py
   - doohmain_sdk/client.py
@@ -63,6 +65,17 @@ flowchart LR
 > `DOOHMAIN_SDK_DIR`) y un mapa JSON (`DOOHMAIN_SCREEN_MAP`). No es entrada de
 > usuario, pero cualquier cambio aquí es zona ROJA. La idempotencia la resuelve
 > el SDK contra sus propias tablas.
+
+> [!tip] 2026-10-22, tarde · y se VE antes de mandarlo
+> Pedido del dueño: en la campaña, antes de subirla, ver las franjas y las
+> repeticiones. `ProgramacionDoohmain.tsx` (dentro de Validación de publicación)
+> lee `GET /api/campanas/[id]/programacion-doohmain`, que sale de `leerPlan()`: la
+> MISMA consulta que `publicarCampanaEnDoohmain`, para que la vista previa no
+> pueda enseñar otra cosa (lo fija una e2e de `creativo-por-pantalla`). Sin
+> pauta se lee «Las que quepan», no un cero. Y el aviso de la franja
+> (`AVISO_FRANJA_NO_VIAJA_AL_CMS`, `lib/rejilla.ts`) se reescribió: decía que la
+> franja no se envía al CMS, y desde hoy a DOOHmain sí; queda manual en otro CMS
+> y en un anuncio ya publicado.
 
 > [!important] 2026-10-22 · a DOOHmain le llega ya TODO lo que su API recibe
 > Pedido del dueño: mandar las reproducciones dentro de la franja si la campaña

@@ -80,9 +80,18 @@ export type TarifaResuelta = {
  * operador. Se declara aquí —y no suelto en cada pantalla— porque un texto
  * copiado en cinco sitios deja cuatro versiones viejas el día que cambie.
  */
+//
+// 22/10 · el texto CAMBIÓ porque cambió la verdad: desde ese día, al publicar en
+// DOOHmain se manda el horario de la franja (la programada de la campaña o, si
+// no hay, la contratada; `lib/doohmain-programacion.ts`). Lo que sigue sin
+// viajar —y por eso el aviso no desaparece— son las pantallas que opera OTRO
+// CMS y el horario de un anuncio que ya estaba publicado (DOOHmain no deja
+// reemplazarlo). El nombre de la constante se conserva: lo congela el snapshot
+// de cada propuesta y lo vigila `rejilla-aviso.test.ts`.
 export const AVISO_FRANJA_NO_VIAJA_AL_CMS =
-  'La franja horaria es un compromiso COMERCIAL: se cotiza y se cobra, pero NO se ' +
-  'envía al CMS. Quien opere la pantalla tiene que programarla manualmente.'
+  'La franja horaria es un compromiso comercial: se cotiza y se cobra. Al publicar en DOOHmain se envía su horario ' +
+  'a cada pantalla; en las pantallas que opera otro CMS, o si el anuncio ya estaba ' +
+  'publicado, quien opere la pantalla tiene que programarla manualmente.'
 
 const HORA_RE = /^([01]\d|2[0-3]):([0-5]\d)$/
 const FECHA_RE = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/

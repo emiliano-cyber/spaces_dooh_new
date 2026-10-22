@@ -27,7 +27,7 @@ cobranza.
 | Base de datos | PostgreSQL, `pg` directo (sin ORM) | `apps/web/lib/server/db.ts:2` |
 | Aislamiento | RLS de Postgres por `app.tenant_id` | `apps/web/lib/server/db.ts:59` (`fijarTenant`) y `:74` (`q`) |
 | Producción | **El PADRE `137.184.107.53` sirve `space-os.io`**, certificado propio hasta el **2026-11-23** con renovación automática. DEMO vive dentro de él (proceso `3001`, base `spaces_demo`) y desde el **31/08 se llama `prueba.space-os.io`** —en singular: es el `server_name` de `infra/nginx/space-os.io.conf:288`; esta celda decía `pruebas` hasta el 05/10— — nombre nuevo, no `demo.space-os.io`, que es solo la demostración ORIGINAL, la sirve la máquina vieja y **se eliminará** ([ADR 0024](../../docs/adr/0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md), que sustituye al 0021) | `infra/nginx/space-os.io.conf:133` (`space-os.io`), `:213` (`demo.`) y `:288` (`prueba.`) · [ADR 0017](../../docs/adr/0017-todo-se-concentra-en-el-padre.md) · [ADR 0024](../../docs/adr/0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md) · [ADR 0022](../../docs/adr/0022-instancia-dedicada-por-owner.md) |
-| Endpoints | **152** route handlers (22/10, con las nueve de Comercial negociación) | `apps/web/app/api/**/route.ts` |
+| Endpoints | **153** route handlers (22/10, con las nueve de Comercial negociación y la vista previa de DOOHmain) | `apps/web/app/api/**/route.ts` |
 | Tablas | **64** (22/10, con las cuatro de Comercial negociación) | [[esquema]] |
 | Migraciones | **116** (22/10, con `20261022_comercial_negociacion.sql`) | [[migraciones]] |
 | ADR | **47** (`0001`–`0047`) | `docs/adr/` · [[decisiones]] |
@@ -87,7 +87,7 @@ cobranza.
 - [[inventario-y-sitios]] — pantallas, modalidades, importación
 - [[arrendadores-y-contratos]] — predios, contratos, rentas, firmas
 - [[comercial-propuestas-campanas]] — propuestas, reservas, campañas
-- [[02-Backend/rejilla-franja-y-temporada]] — ADR 0039 Fase 1: el precio pasa a ser `f(pantalla, unidad, franja, fecha)`; el congelado, y por qué la franja NO viaja al CMS
+- [[02-Backend/rejilla-franja-y-temporada]] — ADR 0039 Fase 1: el precio pasa a ser `f(pantalla, unidad, franja, fecha)`; el congelado, y la franja en el CMS (desde el 22/10 viaja a DOOHmain al publicar; manual en otro CMS)
 - [[02-Backend/descuento-por-volumen]] — ADR 0039 Fase 2: «compra 50 spots y pagas 40». La escala cuelga de la organización y los tramos son PLANOS; el volumen cuenta contra el tope (decisión abierta); el servidor resuelve el porcentaje, no el navegador
 - [[02-Backend/codigo-promocional]] — ADR 0039 Fase 3: «usa este código y ten un 20 % adicional». La carrera del último uso la resuelve un `for update` sobre la fila del cupón; el canje se cuenta al APLICAR, no al aprobar; el cupón NO cuenta contra el tope (decisión abierta); y borrar el cupón no mueve una propuesta aprobada
 - [[02-Backend/paquete-cerrado]] — ADR 0039 Fase 4: «estas cinco pantallas, prime, un mes: 180 000». El único escalón que SUSTITUYE el precio en vez de modificarlo; el reparto a prorrata cuadra al peso por el método del mayor resto; el paquete es precio final (ni volumen ni cupón salvo bandera, que nace apagada); sale con RAYA del reporte publicada vs neta; y borrar el paquete no mueve una propuesta aprobada

@@ -5,6 +5,7 @@ import type { Campana, RolDemo } from './types'
 import { esErrorDeDesbloqueo } from '@/lib/cambios-candado'
 import type { ResultadoLote } from '@/lib/cambios-lote'
 import type { RespuestaPublicacion } from '@/lib/doohmain-resultado'
+import type { VistaPreviaDoohmain } from '@/lib/server/doohmain'
 
 // ============================================================================
 //  lib/data/estado-api.ts — Estado persistido (BD) → store, y mutaciones de
@@ -12,6 +13,22 @@ import type { RespuestaPublicacion } from '@/lib/doohmain-resultado'
 // ============================================================================
 
 const API = '/spaces-dooh/api'
+
+export type { VistaPreviaDoohmain }
+
+/**
+ * Lo que se le va a mandar a DOOHmain de una campaña, SIN mandarlo (22/10):
+ * pantalla, horario de la franja si la hay y reproducciones por día y en total.
+ * Solo lee; no refresca el estado.
+ */
+export async function programacionDoohmainApi(
+  campanaId: string,
+): Promise<VistaPreviaDoohmain & { publicacionEncendida: boolean }> {
+  const r = await fetch(`${API}/campanas/${campanaId}/programacion-doohmain/`)
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error((d as { error?: string }).error ?? 'No se pudo leer lo que se mandará a DOOHmain')
+  return d
+}
 
 // Hidrata el store con lo que vive en la BD (sitios, clientes, campañas, ...).
 //

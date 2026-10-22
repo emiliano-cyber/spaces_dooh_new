@@ -19,6 +19,7 @@ import type { Creatividad } from '@/lib/data/types'
 import { Button } from '@/components/demo/ui/Button'
 import { resumirPublicacion, type ResumenPublicacion, type RespuestaPublicacion } from '@/lib/doohmain-resultado'
 import { AVISO_PANTALLA_DOOHMAIN, mostrarAvisoPantallaDoohmain } from '@/lib/doohmain-aviso'
+import { ProgramacionDoohmain } from './ProgramacionDoohmain'
 
 // El recordatorio de no tener la pantalla abierta en el sitio de DOOHmain
 // (pedido del dueño, 22/10). Ámbar, como los demás avisos que piden hacer algo.
@@ -225,6 +226,19 @@ export function ValidacionPanel({ campanaId }: { campanaId: string }) {
             ) : null}
           </div>
         </div>
+      )}
+
+      {/* Lo que SE VA a mandar a DOOHmain, antes de mandarlo (22/10): horario de
+          la franja si la hay y reproducciones por día y en total. */}
+      {requiereCreativos && (
+        <ProgramacionDoohmain
+          campanaId={campanaId}
+          clave={[
+            c.validacionEstatus,
+            c.enviadaDominio,
+            creas.map((cr) => `${cr.id}:${cr.estatusValidacion}`).join(','),
+          ].join('|')}
+        />
       )}
 
       {/* Lo que respondió DOOHmain, pantalla por pantalla */}

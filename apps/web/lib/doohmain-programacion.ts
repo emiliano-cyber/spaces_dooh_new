@@ -68,6 +68,27 @@ export function programacionDoohmain(e: {
   }
 }
 
+// ─── Lo que la ficha de la campaña enseña ANTES de publicar (22/10) ────────
+
+/** El horario que se manda: la franja, o que no hay y sale todo el día. */
+export function textoHorario(p: ProgramacionDoohmain): string {
+  return p.horaInicio && p.horaFin ? `${p.horaInicio} a ${p.horaFin}` : 'Todo el día (sin franja)'
+}
+
+const miles = (n: number) => n.toLocaleString('es-MX')
+
+/**
+ * Las reproducciones, por día y en toda la campaña. Sin pauta contratada NO se
+ * pinta un cero —diría que no sale nunca—: se dice que DOOHmain pone las que
+ * quepan, que es lo que pasa.
+ */
+export function textoReproducciones(p: ProgramacionDoohmain): { porDia: string; total: string } {
+  return {
+    porDia: p.cantDia != null ? miles(p.cantDia) : 'Las que quepan',
+    total: p.cantTotal != null ? miles(p.cantTotal) : 'Las que quepan',
+  }
+}
+
 export interface ClienteDoohmain {
   nombre: string
   rfc: string | null

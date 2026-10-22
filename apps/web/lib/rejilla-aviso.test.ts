@@ -137,14 +137,14 @@ describe('5 · las pantallas de la franja PROGRAMADA montan su componente (PROG-
 describe('4 · lo que el aviso NO puede decir', () => {
   it('no promete que la franja se programe sola', () => {
     expect(AVISO_FRANJA_NO_VIAJA_AL_CMS).not.toMatch(/autom[áa]tic/i)
-    // TODA mención de enviar al CMS tiene que ir negada. Se comprueba contando,
-    // que es lo único que no se puede satisfacer con un lookahead mal puesto:
-    // una asercion de cadena mal acotada es el modo de fallo de esta familia y
-    // este repositorio ya lleva varias.
-    const menciones = AVISO_FRANJA_NO_VIAJA_AL_CMS.match(/env[íi]a al CMS/gi) ?? []
-    const negadas = AVISO_FRANJA_NO_VIAJA_AL_CMS.match(/\bNO se env[íi]a al CMS/gi) ?? []
-    expect(negadas.length).toBe(menciones.length)
-    expect(menciones.length).toBeGreaterThan(0)
+    // Hasta el 22/10 la franja no viajaba a ningún CMS, y esta prueba exigía que
+    // toda mención de enviarla fuera negada. Desde ese día SÍ viaja a DOOHmain al
+    // publicar (`lib/doohmain-programacion.ts`), así que el aviso tiene que decir
+    // las dos mitades: a DOOHmain se envía, y en OTRO CMS —o con un anuncio ya
+    // publicado— no. Decir solo la buena sería mentir por omisión al revés.
+    expect(AVISO_FRANJA_NO_VIAJA_AL_CMS).toMatch(/al publicar en DOOHmain se env[íi]a/i)
+    expect(AVISO_FRANJA_NO_VIAJA_AL_CMS).toMatch(/otro CMS/i)
+    expect(AVISO_FRANJA_NO_VIAJA_AL_CMS).toMatch(/ya estaba\s+publicado/i)
   })
 
   it('dice quién tiene que hacerlo, no solo que el sistema no lo hace', () => {

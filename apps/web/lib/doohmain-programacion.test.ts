@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { programacionDoohmain, clienteDoohmain, diasDeCampana } from './doohmain-programacion'
+import {
+  programacionDoohmain,
+  clienteDoohmain,
+  diasDeCampana,
+  textoHorario,
+  textoReproducciones,
+} from './doohmain-programacion'
 
 // ============================================================================
 //  Lo que se le manda a DOOHmain de cada pantalla: cuántas reproducciones, en
@@ -63,6 +69,30 @@ describe('con franja: el horario viaja, y las reproducciones caen dentro', () =>
     expect(p.horaInicio).toBeNull()
     expect(p.horaFin).toBeNull()
     expect(p.autoCant).toBe(false)
+  })
+})
+
+describe('lo que la ficha de la campaña enseña antes de publicar (22/10)', () => {
+  const p = (o: Partial<Parameters<typeof textoHorario>[0]> = {}) => ({
+    cantDia: null, cantTotal: null, horaInicio: null, horaFin: null, autoCant: false, ...o,
+  })
+
+  it('el horario: la franja si la hay; si no, que es todo el día', () => {
+    expect(textoHorario(p({ horaInicio: '18:00', horaFin: '22:00' }))).toBe('18:00 a 22:00')
+    expect(textoHorario(p())).toBe('Todo el día (sin franja)')
+  })
+
+  it('las reproducciones: por día y en toda la campaña', () => {
+    expect(textoReproducciones(p({ cantDia: 8, cantTotal: 240 }))).toEqual({ porDia: '8', total: '240' })
+  })
+
+  it('sin pauta contratada NO se pinta un cero: se dice que las pone DOOHmain', () => {
+    // Pintar «0» diría que no sale nunca, y sale las que quepan.
+    expect(textoReproducciones(p())).toEqual({ porDia: 'Las que quepan', total: 'Las que quepan' })
+  })
+
+  it('los miles llevan separador, para que 12000 no se lea 1200', () => {
+    expect(textoReproducciones(p({ cantDia: 400, cantTotal: 12000 })).total).toBe('12,000')
   })
 })
 

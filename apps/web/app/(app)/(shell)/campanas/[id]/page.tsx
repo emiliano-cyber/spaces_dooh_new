@@ -184,6 +184,49 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
         </div>
       )}
 
+      {/* Creativos — LO PRIMERO de la ficha (pedido del dueño, 22/10): verlos y
+          subirlos aquí mismo en cuanto la campaña existe, y en cualquier
+          momento, aunque ya se haya cerrado. Por eso NO es una `Seccion`: esas
+          se pliegan y se bajan al estar completas, y una campaña con todos sus
+          creativos aprobados los escondía al fondo y plegados. Aquí no se
+          pliega ni cambia de sitio. */}
+      <section
+        aria-labelledby={`creativos-${id}`}
+        className="rounded-md border border-border bg-surface p-4"
+      >
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h2 id={`creativos-${id}`} className="m-0 flex items-center gap-2 text-[15px] font-semibold text-ink">
+            Creativos
+            <StatusBadge tono={creativosHecho ? 'verde' : 'ambar'}>
+              {misCreas.length === 0 ? 'Sin creativos' : creativosHecho ? 'Todos aprobados' : 'Por aprobar'}
+            </StatusBadge>
+          </h2>
+          <Link
+            href={withTrail('/creativos', trail)}
+            className="inline-flex items-center gap-1 text-[12px] font-medium text-info hover:underline"
+          >
+            Gestionar <ExternalLink className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+        <div className="space-y-3">
+          {misCreas.length > 0 ? (
+            <ul className="m-0 list-none space-y-2 p-0">
+              {misCreas.map((cr) => (
+                <li key={cr.id} className="flex items-center justify-between text-[13px]">
+                  <span className="text-ink">{cr.nombre}</span>
+                  <StatusBadge tono={CREATIVIDAD_TONO[cr.estatusValidacion]}>
+                    {CREATIVIDAD_LABEL[cr.estatusValidacion]}
+                  </StatusBadge>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-[13px] text-muted">Aún no hay creativos. Súbelos aquí mismo.</p>
+          )}
+          <AgregarCreativo campanaId={id} />
+        </div>
+      </section>
+
       {/* Pipeline (pieza estrella) */}
       <CardColapsable id="campana.pipeline" titulo="Pipeline">
         <PipelineView campanaId={id} />
@@ -415,39 +458,6 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
                 ))}
               </ul>
             )}
-      </Seccion>
-
-      {/* Creatividades — se pueden subir desde aquí, sin ir a Creativos. */}
-      <Seccion
-        id={`campana.${id}.creatividades`}
-        titulo="Creatividades"
-        estado={creativosHecho ? 'hecho' : 'pendiente'}
-        accion={
-          <Link
-            href={withTrail('/creativos', trail)}
-            className="inline-flex items-center gap-1 text-[12px] font-medium text-info hover:underline"
-          >
-            Gestionar <ExternalLink className="h-3.5 w-3.5" />
-          </Link>
-        }
-      >
-        <div className="space-y-3">
-          {misCreas.length > 0 ? (
-            <ul className="space-y-2">
-              {misCreas.map((cr) => (
-                <li key={cr.id} className="flex items-center justify-between text-[13px]">
-                  <span className="text-ink">{cr.nombre}</span>
-                  <StatusBadge tono={CREATIVIDAD_TONO[cr.estatusValidacion]}>
-                    {CREATIVIDAD_LABEL[cr.estatusValidacion]}
-                  </StatusBadge>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-[13px] text-muted">Aún no hay creativos. Súbelos aquí mismo.</p>
-          )}
-          <AgregarCreativo campanaId={id} />
-        </div>
       </Seccion>
 
       {/* Evidencias fotográficas — de los medios FIJOS. */}
