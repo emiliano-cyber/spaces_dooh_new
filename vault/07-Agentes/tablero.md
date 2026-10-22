@@ -6,6 +6,13 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!success] 2026-10-22, tarde · **`v0.12.2` REESCRITA y en `estable`** — promover `39817897882`, digest `38789da0…`; vuelta atrás: `v0.12.1` (`aa990af6…`)
+> Decisión del dueño: juntar en la `v0.12.2` el aviso de no estar en la pantalla del sitio de DOOHmain y lo que ahora se
+> manda a DOOHmain (total de reproducciones, horario de la franja SOLO si la hay, datos del cliente). Etiqueta movida de
+> `1e3d1117` a `9fd94cbc` (CI del PR #100 en verde con e2e); release `39816391620` en verde; smoke en DEMO `metodos 200`.
+> **OJO:** la `v0.12.2` de la mañana (`a027d1c3…`) ya no existe como etiqueta; si DEMO o g500 la instalaron, siguen con
+> ella y NO se ofrecerán esta (mismo número). Comprobar en su panel de Actualizaciones.
+
 > [!success] 2026-10-22 · **`v0.12.2` en `estable`** — promover `39703631686`, digest `a027d1c3…`; vuelta atrás `aa990af6…` (`v0.12.1`)
 > `main` en `1e3d1117`; release `39702725639` en verde (suite completa con e2e y publicación en `beta`); smoke en DEMO
 > `metodos 200` y el digest sin cambiar al reetiquetar. Lleva NEG-01 (Comercial negociación) y su migración, que solo
