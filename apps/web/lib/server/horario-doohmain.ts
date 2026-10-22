@@ -43,7 +43,16 @@ export async function fijarHorarioDoohmainCtrl(
   body: unknown,
 ): Promise<{ horario: HorarioDoohmain | null; campana: string }> {
   const { horario } = validar(cuerpoSchema, body) as z.output<typeof cuerpoSchema>
-  const h = horario ? { horaInicio: horario.horaInicio, horaFin: horario.horaFin, dias: horario.dias?.length ? horario.dias : null } : null
+  // Los días se guardan ORDENADOS: el mismo horario marcado en otro orden es el
+  // mismo horario, y así se lee igual en la vista previa, en Actividad y en lo
+  // que se manda (la e2e lo cazó: guardaba [5,1,3]).
+  const h = horario
+    ? {
+        horaInicio: horario.horaInicio,
+        horaFin: horario.horaFin,
+        dias: horario.dias?.length ? [...horario.dias].sort((a, b) => a - b) : null,
+      }
+    : null
   if (h) {
     const motivo = motivoHorarioInvalido(h)
     if (motivo) throw new AppError(motivo, 400)
