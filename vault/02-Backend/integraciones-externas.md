@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-19
+actualizado: 2026-10-22
 tags: [backend, integraciones, terceros, cron]
 archivos:
   - apps/web/lib/server/doohmain.ts
@@ -9,6 +9,7 @@ archivos:
   - apps/web/app/api/integraciones/doohmain/pantallas/route.ts
   - db/migrations/20261013_sitios_pantalla_doohmain.sql
   - apps/web/components/demo/campanas/ValidacionPanel.tsx
+  - apps/web/lib/doohmain-aviso.ts
   - db/migrations/20261013_doohmain_seguimiento_unicas.sql
   - apps/web/lib/server/space-eye.ts
   - apps/web/app/api/space-eyes/
@@ -58,6 +59,16 @@ flowchart LR
 > `DOOHMAIN_SDK_DIR`) y un mapa JSON (`DOOHMAIN_SCREEN_MAP`). No es entrada de
 > usuario, pero cualquier cambio aquí es zona ROJA. La idempotencia la resuelve
 > el SDK contra sus propias tablas.
+
+> [!note] 2026-10-22 · el recordatorio de no tener la pantalla abierta en el sitio de DOOHmain
+> Pedido del dueño: en Campañas, al enviar al dominio y subir el creativo, recordar
+> que no se esté en la pantalla dentro del sitio de DOOHmain para permitir el
+> proceso. `ValidacionPanel.tsx` lo enseña en ámbar debajo de sus botones y dentro
+> de los dos diálogos que publican («Aprobar y publicar» y «Volver a publicar»).
+> El texto y la regla de cuándo se ve —una campaña DOOH o híbrida y alguien con
+> `comercial.crear`, en cualquier estado— están en `lib/doohmain-aviso.ts`, con
+> prueba. Es solo un aviso: la aplicación no puede saber si alguien tiene la
+> pantalla abierta en DOOHmain.
 
 > [!danger] 2026-10-13 · Hasta `20261013_doohmain_seguimiento_unicas.sql`, publicar FALLABA en toda base levantada desde el repo
 > `20260805_objetos_solo_en_prod.sql` creaba las tres tablas del SDK

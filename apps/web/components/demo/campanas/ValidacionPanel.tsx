@@ -18,6 +18,24 @@ import { enviarADominioApi, validarPublicacionApi, reintentarPublicacionApi, eli
 import type { Creatividad } from '@/lib/data/types'
 import { Button } from '@/components/demo/ui/Button'
 import { resumirPublicacion, type ResumenPublicacion, type RespuestaPublicacion } from '@/lib/doohmain-resultado'
+import { AVISO_PANTALLA_DOOHMAIN, mostrarAvisoPantallaDoohmain } from '@/lib/doohmain-aviso'
+
+// El recordatorio de no tener la pantalla abierta en el sitio de DOOHmain
+// (pedido del dueño, 22/10). Ámbar, como los demás avisos que piden hacer algo.
+function AvisoPantalla({ className }: { className?: string }) {
+  return (
+    <p
+      role="note"
+      className={cn(
+        'flex items-start gap-1.5 rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-[12px] text-amber-900',
+        className,
+      )}
+    >
+      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+      <span>{AVISO_PANTALLA_DOOHMAIN}</span>
+    </p>
+  )
+}
 
 // Panel de validación de publicación: se envía la campaña al dominio/CMS y un
 // revisor verifica la información de los anuncios antes de que salga al aire.
@@ -266,6 +284,13 @@ export function ValidacionPanel({ campanaId }: { campanaId: string }) {
         </div>
       )}
 
+      {mostrarAvisoPantallaDoohmain({
+        puede,
+        requiereCreativos,
+        enviadaDominio: c.enviadaDominio,
+        estatus: c.validacionEstatus,
+      }) && <AvisoPantalla className="mt-3" />}
+
       {!c.enviadaDominio && c.validacionEstatus === 'PENDIENTE' && (
         <p className="mt-3 flex items-start gap-1.5 text-[12px] text-muted">
           <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
@@ -309,6 +334,7 @@ export function ValidacionPanel({ campanaId }: { campanaId: string }) {
         </span>{' '}
         (la API de DOOHmain no lo permite): cualquier cambio posterior deberá hacerse{' '}
         <span className="text-ink">manualmente en el panel de DOOHmain</span>. ¿Continuar?
+        <AvisoPantalla className="mt-3" />
       </ConfirmDialog>
 
       <ConfirmDialog
@@ -326,6 +352,7 @@ export function ValidacionPanel({ campanaId }: { campanaId: string }) {
         Se manda otra vez a DOOHmain cada pantalla de la campaña con la pieza que tiene asignada{' '}
         <span className="font-medium text-ink">hoy</span>. Lo que ya está publicado no se duplica. La
         campaña no cambia de estado.
+        <AvisoPantalla className="mt-3" />
       </ConfirmDialog>
     </div>
   )

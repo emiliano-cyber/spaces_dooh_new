@@ -7,6 +7,14 @@ La entrada más reciente va arriba.
 
 ## 2026-10-22
 
+- **Recordatorio al publicar en DOOHmain.** En la ficha de una campaña con
+  pantallas digitales, debajo de «Enviar al dominio», «Aprobar publicación» y
+  «Volver a publicar», y dentro de las ventanas que confirman la publicación,
+  sale ahora en ámbar: *«Recuerda no estar en la pantalla dentro del sitio de
+  DOOHmain para permitir el proceso: ciérrala allí antes de enviar o
+  publicar.»* Es solo un recordatorio: la aplicación no puede ver si alguien
+  tiene la pantalla abierta en DOOHmain.
+
 - **Comercial negociación ya guarda de verdad.** Hasta hoy la pantalla era una
   maqueta con espacios de ejemplo; ahora cada espacio que se persigue (un muro,
   una azotea, un terreno, una pantalla) se da de alta con **Nuevo espacio** y
