@@ -214,7 +214,7 @@ describe('1 · con UN solo creativo aprobado no hay nada que decidir', () => {
       [cr],
     )
     const r = await c.pedir(`/api/creatividades/${cr}/`, {
-      metodo: 'PUT', cuerpo: { nombre: 'Nuevo arte', archivoUrl: 'data:image/png;base64,iVBORw0KGgo=', formato: 'png' },
+      metodo: 'PUT', cuerpo: { nombre: 'Nuevo arte', codigo: '<p>Arte nuevo</p>', formato: 'HTML' },
     })
     expect(r.status, JSON.stringify(r.datos)).toBe(502)
     expect(r.datos.error).toMatch(/No se reemplazó nada/)
@@ -226,7 +226,7 @@ describe('1 · con UN solo creativo aprobado no hay nada que decidir', () => {
     const camp = await sembrarCampana()
     const cr = await sembrarCreativo(camp, 'Nunca publicado')
     const r = await c.pedir(`/api/creatividades/${cr}/`, {
-      metodo: 'PUT', cuerpo: { nombre: 'Arte nuevo', archivoUrl: 'data:image/png;base64,iVBORw0KGgo=', formato: 'png' },
+      metodo: 'PUT', cuerpo: { nombre: 'Arte nuevo', codigo: '<p>Arte nuevo</p>', formato: 'HTML' },
     })
     expect(r.status, JSON.stringify(r.datos)).toBe(200)
     expect(r.datos.nombre).toBe('Arte nuevo')
@@ -236,7 +236,7 @@ describe('1 · con UN solo creativo aprobado no hay nada que decidir', () => {
     expect((await c.pedir('/api/creatividades/no-es-uuid/', { metodo: 'DELETE' })).status).toBe(404)
     expect(
       (await c.pedir('/api/creatividades/00000000-0000-0000-0000-000000000000/', {
-        metodo: 'PUT', cuerpo: { nombre: 'x', archivoUrl: 'data:image/png;base64,iVBORw0KGgo=', formato: 'png' },
+        metodo: 'PUT', cuerpo: { nombre: 'x', codigo: '<p>x</p>', formato: 'HTML' },
       })).status,
     ).toBe(404)
   })
@@ -437,13 +437,18 @@ describe('4 · la publicación manda a cada pantalla LO SUYO', () => {
     const camp = await sembrarCampana({ sitios: [{ id: org.sitioId, spots: 6 }, { id: sitioB, spots: 10 }] })
     const a = await sembrarCreativo(camp, 'Pieza A')
     const b = await sembrarCreativo(camp, 'Pieza B')
-    await aprobar(a); await aprobar(b) // A queda en las dos por autoasignación
+    // v0.12.3 · al aprobar B ya rota con A en las dos (decisión del dueño), así
+    // que la asignación se fija A MANO en cada una: la regla que esto vigila —una
+    // pieza que no está asignada a una pantalla no se le manda— no cambió.
+    await aprobar(a); await aprobar(b)
     const res = await poolTest().query(
-      `select r.id from reservas r join sitios s on s.id=r.sitio_id
-        where r.campana_id=$1 and s.nombre='Pantalla B'`, [camp],
+      `select r.id, s.nombre from reservas r join sitios s on s.id=r.sitio_id where r.campana_id=$1`, [camp],
     )
-    // En la B se cambia A por B.
-    await c.pedir(`/api/reservas/${res.rows[0].id}/creativo/`, {
+    const reservaDe = (nombre: string) => res.rows.find((r) => r.nombre === nombre).id
+    await c.pedir(`/api/reservas/${reservaDe('Pantalla creativos')}/creativo/`, {
+      metodo: 'PATCH', cuerpo: { creativos: [{ creatividadId: a, veces: 6 }] },
+    })
+    await c.pedir(`/api/reservas/${reservaDe('Pantalla B')}/creativo/`, {
       metodo: 'PATCH', cuerpo: { creativos: [{ creatividadId: b, veces: 10 }] },
     })
 
