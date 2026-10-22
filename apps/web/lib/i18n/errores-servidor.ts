@@ -508,6 +508,15 @@ export const CATALOGO_ERRORES: Record<string, string> = {
     'The value is not valid',
   'Ese prospecto no existe':
     'That prospect does not exist',
+  // NEG-01 · el buscador de direcciones de Comercial negociación (22/10).
+  'Llevas muchas búsquedas seguidas: espera unos minutos':
+    'You have run many searches in a row: wait a few minutes',
+  'Escribe una dirección de entre 3 y 200 letras':
+    'Enter an address between 3 and 200 characters long',
+  'El buscador está ocupado: vuelve a intentar en un segundo':
+    'The search is busy: try again in a second',
+  'El buscador de direcciones no respondió. Puedes marcar el punto directamente en el mapa':
+    'The address search did not respond. You can mark the point directly on the map',
   'Tu organizacion ya tiene razones sociales registradas, asi que el cuestionario ya se contesto. Para cambiarlas, usa la pantalla de Administracion.':
     'Your organization already has legal entities registered, so the questionnaire has already been answered. To change them, use the Settings screen.',
   'Las tarifas por unidad se guardan en su propia ruta (PATCH /api/sitios/:id/modalidades), que siempre pide la contraseña.':

@@ -199,7 +199,12 @@ describe('el esquema base no trae la organización de nadie', () => {
     //     campanita (NOTIF-USUARIO). Decimotercera vez, y otra vez desde la
     //     corrida completa del CI: las 17 e2e propias de la tarea estaban en
     //     verde (run 39656217384).
-    expect(trasMigrar.tablas).toBe(60)
+    //   · 64 el 2026-10-22: `20261022_comercial_negociacion.sql` anade CUATRO
+    //     --`prospecto_contactos`, `prospecto_ofertas`, `prospecto_competencia`
+    //     y `prospecto_notas`--, Comercial negociacion encima de `prospectos`
+    //     (NEG-01). Esta vez se subio a la vez que la migracion, no despues de
+    //     que el CI lo cazara.
+    expect(trasMigrar.tablas).toBe(64)
     // Lo que de verdad importa: ni las migraciones resucitan al owner.
     expect(trasMigrar.tenants).toBe(0)
   })
