@@ -15,6 +15,9 @@ export const dynamic = 'force-dynamic'
 const CAMPOS_SENSIBLES = [
   'tarifaPublicada', 'tarifaMensual', 'costoCompra', 'precioM2', 'tarifaImpresion',
   'arrendadorId', 'predioId',
+  // v0.12.3 · marcarla PROPIA quita su renta del costo y cancela su contrato
+  // pendiente: mueve el margen igual que cambiar el arrendador.
+  'propio',
 ]
 
 // PATCH /api/sitios/:id  → edición parcial. Body { toggleNetwork:true } alterna red.

@@ -863,8 +863,14 @@ export async function generarCampanaDesdePropuesta(
       // deja de salir inflado. Si falta cualquiera de los tres, nace INCOMPLETO
       // como hasta ahora — el CHECK `contrato_completo_ck` exige los cuatro
       // datos para cualquier estatus que afirme un acuerdo real.
+      // v0.12.3 · una pantalla PROPIA no tiene contrato que abrir ni que estirar:
+      // no se le paga renta a nadie, y el guard de abajo la da por cubierta.
+      const esPropia =
+        (await client.query('select propio from sitios where id = $1', [it.sitio_id])).rows[0]?.propio === true
       const rentaCompleta =
+        !esPropia &&
         it.renta_monto != null && it.renta_periodicidad != null && it.renta_arrendador_id != null
+      if (!esPropia) {
       await client.query(
         `insert into contratos_arrendamiento
            (id, sitio_id, arrendador_id, fecha_inicio, fecha_fin, monto_renta,
@@ -912,6 +918,7 @@ export async function generarCampanaDesdePropuesta(
             and (fecha_fin is null or fecha_fin < $2::date)`,
         [it.sitio_id, iso(it.fecha_fin)],
       )
+      }
 
       // ADR 0003: la pantalla no se vende con el contrato incompleto. El guard va
       // DESPUÉS del bloque de arriba a propósito: si la propuesta capturó la renta

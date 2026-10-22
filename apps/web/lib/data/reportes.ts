@@ -130,6 +130,8 @@ export interface FilaRentabilidad {
    */
   margenBrutoPct: number | null
   tieneContrato: boolean
+  /** v0.12.3 · la fila es una pantalla PROPIA: sin contrato es lo normal. */
+  propia?: boolean
   arrendador: string | null
   periodos: PeriodoFila[]
   /** Órdenes de trabajo del rango. Es un hecho del periodo en toda dimensión. */
@@ -572,6 +574,11 @@ export interface FacturaEmisora {
 
 export interface DatosRentabilidad extends DatosAtribucion {
   arrendadores: { id: string; nombre: string }[]
+  /**
+   * v0.12.3 · ids de las pantallas PROPIAS. Sin renta es lo esperado en ellas,
+   * así que su fila dice «propia» y no «sin contrato». Ausente = ninguna.
+   */
+  sitiosPropios?: string[]
   /** Ausente o vacío = no hay razones sociales: todo cae en «Sin asignar». */
   entidades?: EntidadReporte[]
   /** Ausente = ninguna campaña tiene emisora conocida. */
@@ -1674,6 +1681,7 @@ export function rentabilidadPorSitio(
   const m = matriz(datos, opts)
   const arrendadorDe = nombreArrendadorDe(datos)
   const filas: FilaRentabilidad[] = []
+  const propias = new Set(datos.sitiosPropios ?? [])
 
   for (const s of datos.sitios) {
     const periodos = periodosDe(m.buckets, m.porSitio.get(s.id)!)
@@ -1687,6 +1695,7 @@ export function rentabilidadPorSitio(
       detalle: s.claveInterna || s.codigoProveedor || '',
       ...t,
       tieneContrato: !!contrato,
+      propia: propias.has(s.id),
       arrendador: arrendadorDe(contrato),
       periodos,
       visitas,

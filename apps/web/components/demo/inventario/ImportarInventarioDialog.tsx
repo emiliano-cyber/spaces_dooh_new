@@ -64,6 +64,8 @@ export function ImportarInventarioDialog({
   const arrendadores = useArrendadores()
   const predios = usePredios()
   const [arrendadorId, setArrendadorId] = useState('')
+  // v0.12.3 · el lote son pantallas PROPIAS: sin arrendador ni contrato.
+  const [propio, setPropio] = useState(false)
   // Predio del lote (opcional): SOLO un nombre. Antes había una casilla «todas
   // están en el mismo predio» más un selector; se pedía al operador que
   // AFIRMARA algo que el propio archivo ya dice. Ahora se escribe el nombre y
@@ -94,7 +96,10 @@ export function ImportarInventarioDialog({
     .map((f) => f.codigo_proveedor)
 
   // Un predio pertenece a UN arrendador, así que solo se ofrecen los suyos.
-  const prediosDelArrendador = (predios ?? []).filter((p) => p.arrendadorId === arrendadorId)
+  // Un lugar PROPIO no tiene arrendador (v0.12.3): en un lote propio se ofrecen esos.
+  const prediosDelArrendador = (predios ?? []).filter((p) =>
+    propio ? !p.arrendadorId : p.arrendadorId === arrendadorId,
+  )
   // El nombre escrito puede ser uno que YA existe: entonces se reutiliza en vez
   // de dar de alta un duplicado. La comparación ignora mayúsculas y espacios,
   // que es como la gente escribe el mismo nombre dos veces.
@@ -144,7 +149,7 @@ export function ImportarInventarioDialog({
   // OBLIG-01: el arrendador y el archivo son obligatorios (`importSchema` en
   // `lib/server/sitios-controller.ts:184-191`: `filas` min 1 y `arrendadorId`
   // uuid). El botón ya no se apaga por ellos: se pulsa y se pinta el que falta.
-  const ob = useObligatorios({ arrendadorId, filas }, ['arrendadorId', 'filas'])
+  const ob = useObligatorios({ arrendadorId, filas }, [{ campo: 'arrendadorId', si: !propio }, 'filas'])
 
   function reset() {
     ob.reiniciar()
@@ -154,6 +159,7 @@ export function ImportarInventarioDialog({
     setSummary(null)
     setModo('ACTUALIZAR')
     setArrendadorId('')
+    setPropio(false)
     setPredioNombre('')
   }
 
@@ -216,7 +222,8 @@ export function ImportarInventarioDialog({
     try {
       const res = await importarSitiosApi({
         filas,
-        arrendadorId,
+        propio,
+        arrendadorId: propio ? null : arrendadorId,
         predio: predioDelLote,
         modoDuplicado: modo,
         precioM2: precioM2 ? Number(precioM2) : null,
@@ -236,7 +243,7 @@ export function ImportarInventarioDialog({
   const footer = (
     <div className="flex items-center justify-between">
       <span className="text-[12px] text-muted">
-        {filas && !arrendadorId
+        {filas && !propio && !arrendadorId
           ? 'Falta elegir el arrendador'
           : filas
             ? `${filas.length} filas leídas`
@@ -270,6 +277,19 @@ export function ImportarInventarioDialog({
           </a>
         </div>
 
+        {/* v0.12.3 · ¿son pantallas propias? Entonces no hay arrendador que elegir. */}
+        <label className="flex items-start gap-2 rounded-md border border-border bg-surface px-3 py-2.5 text-[13px] text-ink">
+          <input type="checkbox" className="mt-0.5" checked={propio} onChange={(e) => setPropio(e.target.checked)} />
+          <span>
+            <span className="font-medium">Son pantallas propias</span>
+            <span className="block text-[12px] text-muted">
+              De la empresa: sin renta ni contrato. Se pueden vender y su costo es solo luz y operación. Si les
+              pones un predio, será un lugar propio.
+            </span>
+          </span>
+        </label>
+
+        {!propio && (<>
         {/* Arrendador de las pantallas (obligatorio — ADR 0002) */}
         {/* No es un `Campo` porque el bloque es tarjeta (título a la izquierda,
             selector a la derecha) y meterlo en uno lo rediseñaría. Lleva el
@@ -314,6 +334,7 @@ export function ImportarInventarioDialog({
             </p>
           </div>
         )}
+        </>)}
 
         {/* Predio del lote (OPCIONAL — ADR 0004). Solo el nombre: que estén de
             verdad en el mismo sitio lo comprueba el archivo, no una casilla. */}

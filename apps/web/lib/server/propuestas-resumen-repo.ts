@@ -97,7 +97,7 @@ export async function filasPropuestasResumen(): Promise<{
 // su renta. `caras ?? 1` y el `null` de la renta se conservan igual que en
 // `rowToSitio` y `rowToContrato`: un contrato sin importe no es renta 0.
 export async function filasAtribucionRenta(): Promise<{
-  sitios: { id: string; predioId: string | null; caras: number }[]
+  sitios: { id: string; predioId: string | null; caras: number; propio?: boolean }[]
   contratos: {
     id: string
     sitioId: string | null
@@ -109,7 +109,7 @@ export async function filasAtribucionRenta(): Promise<{
 }> {
   const tenant = await tenantActual()
   const [sitios, contratos] = await Promise.all([
-    q<any>(`select s.id, s.predio_id, s.caras from sitios s where s.tenant_id = $1`, [tenant]),
+    q<any>(`select s.id, s.predio_id, s.caras, s.propio from sitios s where s.tenant_id = $1`, [tenant]),
     q<any>(
       `select c.id, c.sitio_id, c.predio_id, c.estatus, c.monto_renta, c.periodicidad
          from contratos_arrendamiento c
@@ -118,7 +118,7 @@ export async function filasAtribucionRenta(): Promise<{
     ),
   ])
   return {
-    sitios: sitios.map((r) => ({ id: r.id, predioId: r.predio_id ?? null, caras: r.caras ?? 1 })),
+    sitios: sitios.map((r) => ({ id: r.id, predioId: r.predio_id ?? null, caras: r.caras ?? 1, propio: r.propio === true })),
     contratos: contratos.map((r) => ({
       id: r.id,
       sitioId: r.sitio_id ?? null,

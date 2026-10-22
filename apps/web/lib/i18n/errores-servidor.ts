@@ -508,6 +508,13 @@ export const CATALOGO_ERRORES: Record<string, string> = {
     'The value is not valid',
   'Ese prospecto no existe':
     'That prospect does not exist',
+  // v0.12.3 · pantallas y lugares propios.
+  'El lugar elegido no existe o no es propio.':
+    'The chosen location does not exist or is not owned.',
+  '«Propia» es sí o no':
+    '«Owned» is yes or no',
+  'Esta pantalla tiene un contrato de renta vigente: termínalo en Arrendadores antes de marcarla como propia.':
+    'This screen has an active lease: end it in Landlords before marking it as owned.',
   // 22/10 · el horario individual de una campaña en DOOHmain.
   'Esa campaña no existe':
     'That campaign does not exist',

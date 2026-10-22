@@ -58,6 +58,8 @@ export function NuevaPantallaForm({
   // Tab 1
   const arrendadores = useArrendadores()
   const [arrendadorId, setArrendadorId] = useState('')
+  // v0.12.3 · pantalla PROPIA: sin arrendador ni renta; su costo es luz + operación.
+  const [propio, setPropio] = useState(false)
   const [renta, setRenta] = useState('')
   const [nombre, setNombre] = useState('')
   const [direccion, setDireccion] = useState('')
@@ -112,7 +114,8 @@ export function NuevaPantallaForm({
   // `crearSitio` (ADR 0002); la ubicación, la imagen y el ID de AdMobilize los
   // exige esta pantalla.
   const ob = useObligatorios({ arrendadorId, nombre, lat, lng, imagen, admobilizeId }, [
-    'arrendadorId',
+    // Una pantalla propia no tiene arrendador que elegir.
+    { campo: 'arrendadorId', si: !propio },
     'nombre',
     'lat',
     'lng',
@@ -151,10 +154,14 @@ export function NuevaPantallaForm({
     const digital = exhibicion === 'digital'
     const s = await altaSitioApi({
       nombre: nombre.trim(),
-      arrendadorId,
-      // Solo se manda si es un importe usable. Un 0 lo rechaza
-      // `contrato_monto_ck` y, peor, se leería como «este espacio es gratis».
-      rentaArrendador: Number(renta) > 0 ? Number(renta) : null,
+      ...(propio
+        ? { propio: true }
+        : {
+            arrendadorId,
+            // Solo se manda si es un importe usable. Un 0 lo rechaza
+            // `contrato_monto_ck` y, peor, se leería como «este espacio es gratis».
+            rentaArrendador: Number(renta) > 0 ? Number(renta) : null,
+          }),
       tipoMedio,
       exhibicion,
       esRotativo: digital,
@@ -178,7 +185,7 @@ export function NuevaPantallaForm({
       // Espejo de la renta, no un dato propio (ADR 0006): el costo de la pantalla
       // es lo que se le paga al arrendador. Se manda para que los lectores que
       // todavía leen `sitios.costo_compra` no vean un cero; la Fase 2 lo quita.
-      costoCompra: Number(renta) > 0 ? Number(renta) : 0,
+      costoCompra: !propio && Number(renta) > 0 ? Number(renta) : 0,
       caras: Number(caras) || 1,
       modalidades,
       duracionSpotSeg: Number(duracionSpot) || (digital ? 20 : null),
@@ -202,7 +209,7 @@ export function NuevaPantallaForm({
         <span className="text-[12px] text-error">ID AdMobilize requerido (pestaña IA/Vision)</span>
       ) : ob.intento && !imagen ? (
         <span className="text-[12px] text-error">Imagen obligatoria (pestaña Imágenes)</span>
-      ) : ob.intento && (!nombre.trim() || !arrendadorId) ? (
+      ) : ob.intento && (!nombre.trim() || (!propio && !arrendadorId)) ? (
         <span className="text-[12px] text-error">Faltan datos obligatorios (pestaña Básico)</span>
       ) : (ob.intento && !ubicacion) || ubicacionInvalida ? (
         <span className="text-[12px] text-error">
@@ -237,6 +244,17 @@ export function NuevaPantallaForm({
         >
           <TabPanel value="basico" className="space-y-3 pt-3">
             <h3 className="text-base font-semibold text-ink">Información básica</h3>
+            <label className="flex items-start gap-2 rounded border border-border bg-surface-2 p-2 text-[13px] text-ink">
+              <input type="checkbox" className="mt-0.5" checked={propio} onChange={(e) => setPropio(e.target.checked)} />
+              <span>
+                <span className="font-medium">Pantalla propia</span>
+                <span className="block text-[11px] text-muted">
+                  Es de la empresa: no se le paga renta a nadie. Se puede vender sin contrato y su costo es
+                  solo luz y operación.
+                </span>
+              </span>
+            </label>
+            {!propio && (<>
             <Campo label="Arrendador (dueño del espacio)" obligatorio falta={ob.falta('arrendadorId')}>
               <select
                 className={inputCls}
@@ -265,6 +283,7 @@ export function NuevaPantallaForm({
                 vacío y capturarlo después: el contrato queda pendiente en Arrendadores.
               </span>
             </Campo>
+            </>)}
             <Campo label="Nombre de la pantalla" obligatorio falta={ob.falta('nombre')}>
               <input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus />
             </Campo>

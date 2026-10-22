@@ -218,7 +218,7 @@ function FilaTabla({
                     <span className="block text-[11px] text-muted">
                       {[
                         fila.detalle || null,
-                        notaDeArrendador(dimension, fila.tieneContrato, fila.arrendador),
+                        notaDeArrendador(dimension, fila.tieneContrato, fila.arrendador, fila.propia === true),
                         // Las visitas por tipo van bajo el nombre y no en una
                         // columna: son un objeto tipo→conteo, y una columna con
                         // «Herrería 3 · Inspección 1» no se puede ordenar.

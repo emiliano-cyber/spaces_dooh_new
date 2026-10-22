@@ -247,6 +247,9 @@ export interface Sitio {
   // servidor (DOOHMAIN_SCREEN_MAP / DOOHMAIN_DEFAULT_SCREEN). Opcional: los
   // datos de demostración del cliente no lo traen.
   doohmainPantalla?: string | null
+  // v0.12.3 · de la organización: sin renta, sin arrendador y sin contrato. Se
+  // vende sin contrato y su costo es luz + operación.
+  propio?: boolean
   // 22/10 · la que SE USA al publicar (ficha → mapa del servidor → por omisión)
   // y de dónde sale. null en una pantalla de otro CMS o sin ninguna.
   doohmainEfectiva?: string | null

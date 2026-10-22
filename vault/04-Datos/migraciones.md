@@ -49,6 +49,7 @@ archivos:
   - db/migrations/20261021_notificaciones_por_usuario.sql
   - db/migrations/20261022_comercial_negociacion.sql
   - db/migrations/20261022_campana_horario_doohmain.sql
+  - db/migrations/20261022_pantallas_propias.sql
 ---
 
 # Migraciones
@@ -67,6 +68,7 @@ archivos:
 >
 > | Migración | Decía | Entró en `main` |
 > |---|---|---|
+> | `20261022_pantallas_propias.sql` | rama local `fix/creativos-rotacion-y-reemplazo`, **forma aprobada por el dueño el 22/10** (ROJO R3) | **v0.12.3, SIN publicar.** Agrega `sitios.propio` y `predios.propio` (default false) y quita el NOT NULL de `predios.arrendador_id` con `predios_propio_o_arrendador_ck`. Ninguna fila existente cambia. Ver [[02-Backend/arrendadores-y-contratos]] |
 > | `20261022_campana_horario_doohmain.sql` | rama `feat/horario-doohmain-e-ids`, **forma aprobada por el dueño el 22/10** («horario + días») | Sale en la **v0.12.2** (decisión del dueño). Solo agrega `campanas.doohmain_hora_inicio`, `doohmain_hora_fin` (text HH:mm, las dos o ninguna, distintas) y `doohmain_dias` (`smallint[]` 0..6, solo con horario). Sin permisos nuevos: `campanas` ya tiene `select, update` de tabla. Sin `@pg-min`. Ver [[02-Backend/integraciones-externas]] |
 > | `20261022_comercial_negociacion.sql` | rama `feat/comercial-negociacion`, **forma aprobada por el dueño el 21/10** (ROJO R3; [ADR 0047](../../docs/adr/0047-comercial-negociacion-encima-de-prospectos.md)) | Sale en la **v0.12.2** (22/10, el dueño eligió fusionar y publicar). Solo agrega: 14 columnas en `prospectos`, `canal` y `contacto_nombre` en `prospecto_avances`, y `prospecto_contactos`, `prospecto_ofertas` (sin `delete`), `prospecto_competencia`, `prospecto_notas` (solo `insert`), con FK compuesta con tenant y RLS forzada. Copia el contacto `jsonb` de cada prospecto como su primer contacto (idempotente). Sin `@pg-min`: nada de PG 15. 42 e2e en verde en el CI (run `39698089041`). Ver [[03-Frontend/comercial-opex]] |
 > | `20261021_notificaciones_por_usuario.sql` | rama `feat/notificaciones-por-usuario`, **forma aprobada por el dueño el 21/10** (ROJO R3) | Sale en la v0.12.0 (reescrita el 21/10: la del 20/10 nunca llegó a ningún cliente). Tabla `notificaciones_usuario` (leída y borrada por persona) y la única `notificaciones (id, tenant_id)` para su FK compuesta. Solo agrega: no rellena nada ni toca `leida`/`archivada_en`, que se siguen leyendo; el código anterior funciona con este esquema |

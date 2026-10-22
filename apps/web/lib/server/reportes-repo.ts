@@ -97,7 +97,7 @@ export async function datosRentabilidad(rango: RangoReporte): Promise<DatosRenta
     // Leerlo aquí invitaría a usarlo como si hablara de rentabilidad.
     q<any>(
       `select id, nombre, clave_interna, codigo_proveedor, caras, predio_id,
-              tipo_medio, es_rotativo, exhibicion, ancho, alto
+              tipo_medio, es_rotativo, exhibicion, ancho, alto, propio
          from sitios
         where tenant_id = $1`,
       [tenantId],
@@ -330,6 +330,8 @@ export async function datosRentabilidad(rango: RangoReporte): Promise<DatosRenta
     ])
 
   return {
+    // v0.12.3 · las PROPIAS, para que su fila diga «propia» y no «sin contrato».
+    sitiosPropios: sitios.filter((r) => r.propio === true).map((r) => String(r.id)),
     sitios: sitios.map((r) => ({
       id: r.id,
       nombre: r.nombre,

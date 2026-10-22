@@ -1212,7 +1212,7 @@ export function faltaEnContratos(contratos: ContratoIncompletoParcial[]): string
 const NO_ACREDITAN = new Set(['INCOMPLETO', 'CANCELADO'])
 
 export function sitiosSinContratoCompleto(
-  sitios: { id: string; predioId?: string | null }[],
+  sitios: { id: string; predioId?: string | null; propio?: boolean }[],
   contratos: { estatus: string; predioId?: string | null; sitioId: string }[],
 ): Set<string> {
   const prediosCubiertos = new Set<string>()
@@ -1224,6 +1224,9 @@ export function sitiosSinContratoCompleto(
   }
   const bloqueadas = new Set<string>()
   for (const s of sitios) {
+    // v0.12.3 · una pantalla PROPIA no tiene contrato que completar: está
+    // cubierta, igual que en `exigirContratoCompleto` del servidor.
+    if (s.propio === true) continue
     const cubierta =
       (s.predioId != null && prediosCubiertos.has(s.predioId)) || pantallasCubiertas.has(s.id)
     if (!cubierta) bloqueadas.add(s.id)

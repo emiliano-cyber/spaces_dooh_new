@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-07
+actualizado: 2026-10-22
 tags: [backend, arrendadores, contratos, dinero, rojo]
 archivos:
   - apps/web/lib/server/arrendadores-repo.ts
@@ -22,6 +22,26 @@ archivos:
 ---
 
 # Arrendadores y contratos
+
+> [!important] v0.12.3 (SIN PUBLICAR, 22/10) · pantallas y lugares PROPIOS
+> Pedido del dueño: pantallas o lugares propios, sin renta mensual; solo luz y
+> operación. Forma aprobada: `20261022_pantallas_propias.sql` agrega `sitios.propio`
+> y `predios.propio`, y relaja `predios.arrendador_id` (CHECK: propio o con
+> arrendador). Lo que cambia:
+> - **Alta**: «Pantalla propia» en Nueva pantalla y «Son pantallas propias» en la
+>   importación: no piden arrendador ni abren contrato; el predio de un lote propio
+>   nace propio (`resolverPredioPropio`).
+> - **Venta**: `exigirContratoCompleto` (y su espejo `sitiosSinContratoCompleto`) da
+>   por cubierta a una propia; `generarCampanaDesdePropuesta` no le abre contrato.
+> - **Marcar propia una existente** (`marcarPropio`, cambio sensible con contraseña):
+>   cancela su contrato INCOMPLETO; con uno vigente/por vencer/renovado es 409.
+> - **Costo**: renta 0; su costo real son los recibos de luz y las OT, que ya no
+>   dependían del contrato. En Inventario, Comercial, propuestas y Reportes dice
+>   «Propia» en vez de «sin contrato» o «Sin arrendador»; el tablero de propuestas la
+>   cuenta con costo 0, no «sin costo».
+> **Sin verificar contra Postgres**: `lib/test/pantallas-propias.e2e.test.ts` está
+> escrita pero no se ha corrido (la v0.12.3 no se sube todavía).
+
 
 > [!danger] Módulo de dinero
 > Casi todas sus mutaciones exigen **desbloqueo** (`SENSIBLE`). Los datos

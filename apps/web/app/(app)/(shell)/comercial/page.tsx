@@ -394,8 +394,9 @@ export default function ComercialPage() {
                       </div>
                       <div className="mt-1 inline-flex items-center gap-1.5 truncate text-[12px] text-muted">
                         <UserRound className="h-3.5 w-3.5 shrink-0" />
-                        <span className="truncate" title={propietarioPorSitio.get(s.id) ?? 'Sin arrendador'}>
-                          {propietarioPorSitio.get(s.id) ?? 'Sin arrendador'}
+                        {/* v0.12.3 · una propia no tiene arrendador, y no es un pendiente. */}
+                        <span className="truncate" title={s.propio ? 'Pantalla propia' : (propietarioPorSitio.get(s.id) ?? 'Sin arrendador')}>
+                          {s.propio ? 'Propia' : (propietarioPorSitio.get(s.id) ?? 'Sin arrendador')}
                         </span>
                       </div>
                     </button>

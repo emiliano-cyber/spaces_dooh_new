@@ -4,6 +4,14 @@
     "fecha": "2026-10-22",
     "items": [
       {
+        "tipo": "NUEVO",
+        "texto": "Pantallas y lugares propios: al dar de alta o importar se puede marcar «Pantalla propia». No pide arrendador ni contrato, se puede vender igual y su costo es solo luz y operación."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "En la propuesta, si escribes a mano la fecha «Hasta», la duración se pone sola: meses, catorcenas, semanas o días, la que cuadre exacta."
+      },
+      {
         "tipo": "AJUSTADO",
         "texto": "En Creativos, varios creativos en un mismo spot rotan solos en partes iguales: se marca cuáles van y ya no hay que escribir cuántas veces sale cada uno."
       },

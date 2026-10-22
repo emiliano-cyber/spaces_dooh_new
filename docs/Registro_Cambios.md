@@ -9,6 +9,16 @@ La entrada más reciente va arriba.
 
 **Preparado para la v0.12.3 (todavía sin publicar):**
 
+- **Pantallas y lugares propios.** Al dar de alta una pantalla (o al importar un
+  archivo) se puede marcar «Pantalla propia»: es de la empresa, no se le paga renta
+  a nadie, no pide arrendador ni abre contrato, y se puede vender igual. Su costo
+  es solo la luz y la operación. Una pantalla que ya existe se puede marcar propia
+  desde su ficha (pide tu contraseña); si tiene un contrato de renta vigente, hay
+  que terminarlo antes. En Inventario, Comercial, propuestas y Reportes sale
+  «Propia» en vez de «sin contrato».
+- **Las fechas de la propuesta se entienden solas.** Si escribes a mano la fecha
+  «Hasta», la duración se pone sola: meses, catorcenas, semanas o días, la que
+  cuadre exacta.
 - **Varios creativos en un mismo spot rotan solos.** En Creativos ya no hay que
   escribir cuántas veces sale cada uno: se marca qué creativos van en cada spot y
   se reparten en partes iguales. Si hay más creativos que spots, todos entran y se

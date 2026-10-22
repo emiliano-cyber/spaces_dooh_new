@@ -886,6 +886,19 @@ function CeldaTarifa({
 // arrendadores para asignar el dueño del inmueble sin abrir la ficha ni crear un
 // contrato. Persiste el vínculo directo (sitios.arrendador_id) vía PATCH. Muestra
 // con prioridad el arrendador directo; si no hay, cae al del contrato vigente.
+// v0.12.3 · la etiqueta de una pantalla propia en la columna de propietario.
+// Constante y no `function`: `candado-inventario-y-fichas.test.ts` recorta cada
+// celda hasta la siguiente `function` y cuenta sus `return (`; esta etiqueta no
+// edita nada y no debe contarse como rama de ninguna celda.
+const EtiquetaPropia = () => (
+  <span
+    className="inline-block rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[11px] font-medium text-emerald-800"
+    title="Pantalla propia: sin renta ni contrato; su costo es luz y operación"
+  >
+    Propia
+  </span>
+)
+
 function CeldaPropietario({
   sitio,
   arrendadores,
@@ -912,6 +925,13 @@ function CeldaPropietario({
 
   const nombreDirecto = sitio.arrendadorId ? arrById.get(sitio.arrendadorId) ?? null : null
   const display = nombreDirecto ?? propietarioContrato
+
+  // v0.12.3 · una pantalla PROPIA no tiene arrendador: no es «Sin arrendador»
+  // (un pendiente), es de la empresa. Se cambia desde su ficha. Esta rama NO
+  // edita nada —no pasa por el candado—, por eso va en su propio componente y
+  // no cuenta entre las tres ramas que `candado-inventario-y-fichas.test.ts`
+  // exige que abran el cuadro de la contraseña.
+  if (sitio.propio) return <EtiquetaPropia />
 
   async function elegir(e: React.ChangeEvent<HTMLSelectElement>) {
     const nuevo = e.target.value || null

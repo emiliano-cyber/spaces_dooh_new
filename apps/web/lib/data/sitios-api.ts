@@ -30,8 +30,10 @@ export async function altaSitioApi(input: unknown): Promise<Sitio> {
 
 export async function importarSitiosApi(args: {
   filas: unknown[]
-  // Arrendador dueño de todas las pantallas del archivo (ADR 0002).
-  arrendadorId: string
+  // Arrendador dueño de todas las pantallas del archivo (ADR 0002). null cuando
+  // el lote son pantallas PROPIAS (v0.12.3).
+  arrendadorId: string | null
+  propio?: boolean
   // Opcional: todas en el mismo predio. Existente o nuevo (ADR 0004).
   predio?: { id: string } | { nombre: string; direccion?: string | null } | null
   modoDuplicado: 'ACTUALIZAR' | 'NUEVA_VERSION'

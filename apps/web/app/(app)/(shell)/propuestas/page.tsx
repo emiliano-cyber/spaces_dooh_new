@@ -538,9 +538,11 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
     franjaId: '',
     tarifaManual: '',
     ...CALC_POR_OMISION,
+    // v0.12.3 · una pantalla PROPIA no lleva renta: ni autollenada de los campos
+    // viejos del sitio, ni costo en el margen de la propuesta.
     ...(({ monto, per, arr }) => ({
       rentaMonto: monto, rentaPeriodicidad: per, rentaArrendadorId: arr,
-    }))(rentaPrevia(s)),
+    }))(s.propio ? { monto: '', per: 'MENSUAL', arr: '' } : rentaPrevia(s)),
   }
 
   /**
@@ -1318,7 +1320,14 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                         </div>
                       )
                     })()}
-                    {!tieneContrato(s) && (
+                    {/* v0.12.3 · una pantalla PROPIA no tiene renta que pedir. */}
+                    {s.propio && (
+                      <div className="flex w-full items-center gap-2 rounded bg-surface-2 px-2 py-1.5 text-[11px] text-muted">
+                        <span className="font-medium">Pantalla propia</span>
+                        <span className="ml-auto">sin renta · su costo es luz y operación</span>
+                      </div>
+                    )}
+                    {!s.propio && !tieneContrato(s) && (
                       <div className="flex w-full flex-wrap items-center gap-2 rounded bg-surface-2 px-2 py-1.5">
                         <span className="text-[11px] font-medium text-muted">Renta al arrendador</span>
                         <select

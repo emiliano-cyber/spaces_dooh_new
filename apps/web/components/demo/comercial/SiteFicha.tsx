@@ -506,10 +506,23 @@ export function SiteFicha({
             <DatoComercial
               label="Renta al arrendador (mensual)"
               valor={
-                cargandoMargen ? '—' : margenSitio?.tieneContrato ? formatMonto(rentaMensual) : 'Sin contrato activo'
+                sitio.propio
+                  ? 'Propia: sin renta'
+                  : cargandoMargen ? '—' : margenSitio?.tieneContrato ? formatMonto(rentaMensual) : 'Sin contrato activo'
               }
             />
             {(() => {
+              // v0.12.3 · una pantalla PROPIA no paga renta: su costo es luz +
+              // operación, que no se conocen de antemano. El margen real sale en
+              // Reportes, donde sí entran los recibos de luz y las OT.
+              if (sitio.propio) {
+                return (
+                  <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-[12px] text-emerald-900">
+                    Pantalla propia: no se le paga renta a nadie. Su costo es la luz y la operación; el margen
+                    real lo ves en <b>Reportes</b>.
+                  </div>
+                )
+              }
               if (cargandoMargen) return null
               if (!margenSitio?.tieneContrato) {
                 return (
@@ -654,7 +667,11 @@ export function SiteFicha({
               )}
             </div>
           ) : (
-            <p className="text-[12px] text-muted">Sin arrendador ni renta registrados para este espacio.</p>
+            <p className="text-[12px] text-muted">
+              {sitio.propio
+                ? 'Pantalla propia: sin arrendador ni renta.'
+                : 'Sin arrendador ni renta registrados para este espacio.'}
+            </p>
           )}
         </div>
 
@@ -1134,6 +1151,8 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
   // el `.env` del servidor (DOOHMAIN_SCREEN_MAP). Las sugerencias son las
   // pantallas que ve la cuenta; si DOOHmain no contesta, se escribe a mano.
   const [doohmainPantalla, setDoohmainPantalla] = useState(sitio.doohmainPantalla ?? '')
+  // v0.12.3 · pantalla PROPIA (sin renta ni contrato). Es cambio sensible: mueve el costo.
+  const [propio, setPropio] = useState(sitio.propio === true)
   const [pantallasDm, setPantallasDm] = useState<{ habilitado: boolean; pantallas: string[]; error?: string } | null>(null)
   const [enviando, setEnviando] = useState(false)
   // B38 · el `guardar` de abajo manda un DIFF, así que solo dispara el candado
@@ -1170,6 +1189,7 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
     setHorario(sitio.horario ?? '')
     setCms(sitio.cms ?? '')
     setDoohmainPantalla(sitio.doohmainPantalla ?? '')
+    setPropio(sitio.propio === true)
   }, [sitio.id, open])
 
   // La lista se pide al abrir, y solo para pantallas digitales: es una llamada
@@ -1269,6 +1289,7 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
           cambios.doohmainPantalla = doohmainPantalla.trim() || null
         }
       }
+      if (propio !== (sitio.propio === true)) cambios.propio = propio
 
       if (Object.keys(cambios).length === 0) {
         onClose()
@@ -1333,6 +1354,18 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
         {/* B38 · el campo, dentro del cuadro que ya existía. Arriba del todo a
             propósito: el formulario es largo y el pie está lejos. */}
         <PasoContrasena candado={candado} onEnter={() => void candado.reintentar()} />
+        {/* v0.12.3 · pantalla PROPIA. Es un cambio sensible (pide contraseña):
+            quita la renta del costo y cancela su contrato pendiente. Si tiene
+            un contrato de renta vigente, el servidor pide terminarlo antes. */}
+        <label className="flex items-start gap-2 rounded border border-border bg-surface-2 p-2 text-[13px] text-ink">
+          <input type="checkbox" className="mt-0.5" checked={propio} onChange={(e) => setPropio(e.target.checked)} />
+          <span>
+            <span className="font-medium">Pantalla propia</span>
+            <span className="block text-[11px] text-muted">
+              De la empresa: sin renta ni contrato. Se vende sin contrato y su costo es luz y operación.
+            </span>
+          </span>
+        </label>
         <Campo label="Nombre" obligatorio falta={ob.falta('nombre')}>
           <input value={nombre} onChange={(e) => setNombre(e.target.value)} className={inputCls} />
         </Campo>

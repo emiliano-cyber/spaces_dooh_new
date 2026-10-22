@@ -438,8 +438,12 @@ export function notaDeArrendador(
   dimension: DimensionUI,
   tieneContrato: boolean,
   arrendador: string | null,
+  propia = false,
 ): string | null {
   if (FILAS_QUE_NO_SON_PANTALLAS.has(dimension)) return null
+  // v0.12.3 · una pantalla PROPIA no tiene contrato y no debe tenerlo: decir
+  // «sin contrato» señalaría un pendiente que no existe.
+  if (propia) return 'propia'
   return tieneContrato ? arrendador : 'sin contrato'
 }
 

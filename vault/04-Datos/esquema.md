@@ -7,6 +7,7 @@ archivos:
   - db/schema.sql
   - db/migrations/20261022_comercial_negociacion.sql
   - db/migrations/20261022_campana_horario_doohmain.sql
+  - db/migrations/20261022_pantallas_propias.sql
   - db/migrations/20261021_notificaciones_por_usuario.sql
   - db/semilla-desarrollo.sql
   - db/migrations/
