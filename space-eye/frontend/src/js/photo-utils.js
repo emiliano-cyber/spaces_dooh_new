@@ -111,6 +111,29 @@ function overlayInfoLines(photo, deviceName) {
 // manda derecha, y sin visor -el boton de foto a todas y las programadas- la
 // manda como sale del sensor. El archivo guardado NUNCA se toca: se gira solo al
 // mostrarla y al descargarla, para no recomprimir la evidencia.
+// De donde salio una foto, en palabras. El ENUM de `photos.source` tiene SIETE
+// valores (migracion 024) y la galeria solo nombraba tres: una prueba de
+// campana o una foto de falla se quedaban sin etiqueta, o -peor, en el modulo-
+// se presentaban como «programada», que es otra cosa.
+const ORIGENES_FOTO = {
+  manual: 'Manual',
+  scheduled: 'Programada',
+  on_demand: 'A peticion',
+  boot: 'Al encender',
+  creative_change: 'Creativo nuevo',
+  falla: 'Falla de pantalla',
+  campana: 'Campana',
+};
+
+// La prueba de una campana dice CUAL: sin el nombre, «Campana» no distingue
+// entre los dos creativos que una misma pantalla puede tener vendidos.
+function textoOrigenFoto(photo) {
+  if (!photo) return '';
+  const base = ORIGENES_FOTO[photo.source] || '';
+  if (photo.source === 'campana' && photo.campaign_name) return base + ' · ' + photo.campaign_name;
+  return base;
+}
+
 function giroDeFoto(photo) {
   const g = Number(photo && photo.display_rotation) || 0;
   return [90, 180, 270].includes(g) ? g : 0;
