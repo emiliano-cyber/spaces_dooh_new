@@ -1,7 +1,7 @@
 ---
 tipo: referencia
 estado: verificado
-actualizado: 2026-10-22
+actualizado: 2026-10-23
 tags: [backend, api, endpoints]
 archivos:
   - apps/web/app/api/
@@ -206,12 +206,13 @@ en `:230-237`) y **no** puede condicionarse a que la ruta
 | PATCH | `/api/arrendadores/[id]` | **SENSIBLE** |
 | DELETE | `/api/arrendadores/[id]` | **REAUTH** + `arrendadores:aprobar` |
 | POST | `/api/contratos` | **SENSIBLE** |
-| PATCH | `/api/contratos/[id]` | **SENSIBLE** (07/10) acepta `propuestoPor` (ARRENDADOR/ARRENDATARIO) y `motivo`; deja un renglón en `contrato_cambios` con el usuario de la sesión; si estaba enviado a firma, anula el envío |
+| PATCH | `/api/contratos/[id]` | **SENSIBLE** (07/10) acepta `propuestoPor` (ARRENDADOR/ARRENDATARIO) y `motivo`; deja un renglón en `contrato_cambios` con el usuario de la sesión; si estaba enviado a firma, anula el envío. **Firmado** (23/10): exige `motivo` (si no, 400) y archiva la versión firmada |
 | GET | `/api/contratos/[id]/cambios` | `arrendadores` ver (07/10): historial de cambios, del más nuevo al más viejo |
+| GET | `/api/contratos/[id]/versiones` | `arrendadores` ver (23/10): versiones firmadas archivadas; `?version=N` trae el texto exacto |
 | POST | `/api/contratos/[id]/cancelar` | **SENSIBLE** |
 | POST | `/api/contratos/[id]/renovar` | **SENSIBLE** |
 | GET | `/api/contratos/[id]/documento` | `arrendadores` **o** `finanzas` |
-| GET·POST | `/api/contratos/[id]/firma` | exigir |
+| GET·POST | `/api/contratos/[id]/firma` | exigir. GET trae `huellaDatos`; el POST `enviar` exige `huellaRevisada` (400 sin ella, 409 si los datos cambiaron) y archiva las firmas reales antes de reiniciarlas (23/10) |
 | PATCH | `/api/pagos-renta/[id]` | exigir |
 | POST | `/api/pagos-renta/[id]/pagar` | **SENSIBLE** |
 | GET | `/api/pagos-renta/[id]/adjunto/[tipo]` | exigir |

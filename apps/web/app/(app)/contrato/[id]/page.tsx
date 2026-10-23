@@ -1,12 +1,12 @@
 import { notFound } from 'next/navigation'
 import { exigir, tienePermiso } from '@/lib/server/auth'
-import { expedienteContrato } from '@/lib/server/contrato-expediente'
+import { datosContrato, expedienteContrato } from '@/lib/server/contrato-expediente'
 import { FALTA } from '@/lib/contrato-documento'
 import { BarraDocumento } from '@/components/demo/arrendadores/BarraDocumento'
 import { PanelFirmas } from '@/components/demo/arrendadores/PanelFirmas'
 import { ConstanciaFirmas, type FirmaConstancia } from '@/components/demo/arrendadores/ConstanciaFirmas'
 import { cn } from '@/lib/cn'
-import { firmasDeContrato } from '@/lib/server/firmas-repo'
+import { firmasDeContrato, huellaDatosContrato } from '@/lib/server/firmas-repo'
 import { obtenerConfig } from '@/lib/server/config-repo'
 
 export const runtime = 'nodejs'
@@ -73,6 +73,11 @@ export default async function ContratoDocumentoPage({ params }: { params: { id: 
   // aquí con permiso de solo `ver`.
   const incluirToken = await tienePermiso(g.usuario.rol, 'arrendadores', 'crear')
   const estadoFirmas = await firmasDeContrato(params.id, { incluirToken })
+  // Lo que el paso de revisión enseña antes de enviar a firma, con su huella:
+  // `enviarAFirma` la recalcula y no congela nada si los datos cambiaron
+  // mientras se revisaban (CONTRATO-FIRMADO-EDITABLE, 23/10).
+  const datos = await datosContrato(params.id)
+  const revision = datos ? { huella: huellaDatosContrato(datos), datos } : null
   // El logo es MEMBRETE: papelería, no contenido del contrato. Por eso se lee
   // aquí y no entra en `DocumentoContrato` — `documentoATexto()` es la cadena que
   // se SHA-256'ea al firmar, y meterle el logo invalidaría todas las firmas ya
@@ -167,6 +172,7 @@ export default async function ContratoDocumentoPage({ params }: { params: { id: 
           contratoId={params.id}
           inicial={estadoFirmas}
           hayFaltantes={doc.faltantes.length > 0}
+          revision={revision}
         />
 
         <p className="doc-aviso">

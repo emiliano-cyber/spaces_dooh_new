@@ -1,13 +1,14 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-10-22
+actualizado: 2026-10-23
 tags: [datos, esquema, er, postgres]
 archivos:
   - db/schema.sql
   - db/migrations/20261022_comercial_negociacion.sql
   - db/migrations/20261022_campana_horario_doohmain.sql
   - db/migrations/20261022_pantallas_propias.sql
+  - db/migrations/20261023_contrato_versiones_firmadas.sql
   - db/migrations/20261021_notificaciones_por_usuario.sql
   - db/semilla-desarrollo.sql
   - db/migrations/
@@ -641,6 +642,9 @@ erDiagram
 ### Comercial · fechas de estatus
 `propuestas.aprobada_en` y `propuestas.rechazada_en` (06/10, PROP-PER): cuándo se aprobó o rechazó, para el tablero por periodo.
 
+### Arrendadores · versiones firmadas archivadas
+`contrato_versiones_firmadas` (23/10, CONTRATO-FIRMADO-EDITABLE): cada versión firmada de un contrato que se dejó de usar al editarlo o reenviarlo a firma — `version` (1, 2… por contrato, único con `contrato_id`), el texto exacto (`documento_congelado`) y su `documento_hash`, la evidencia de cada firma en `firmas` (jsonb: parte, firmante, fecha, IP, navegador, hash), `motivo` y quién (`usuario_id` + `usuario_nombre` copiado). Solo se inserta: el `revoke` de update/delete/truncate va en la misma migración, y lo comprueba `has_table_privilege` en la e2e. `contrato_cambios.version_firmada` liga cada cambio con la versión que archivó. Ver [[02-Backend/arrendadores-y-contratos]].
+
 ### Arrendadores · historial de cambios del contrato
 `contrato_cambios` (07/10, CONTRATO-CAMBIOS): un renglón por edición que cambió algo — qué parte lo propuso (`propuesto_por`: ARRENDADOR / ARRENDATARIO, NULL si no es negociación), quién lo capturó (`usuario_id` + `usuario_nombre` copiado), el motivo, la lista `cambios` (jsonb, antes/después ya legibles) y si anuló un envío a firma (`envio_anulado`). Solo se inserta: el rol de la aplicación tiene `select, insert` y nada más **desde `20261011_contrato_cambios_solo_insercion.sql`** — la 20261010 lo afirmaba, pero el privilegio por omisión de `20260824_grants_tablas_futuras.sql` le seguía dando `update` y `delete`; lo comprueba `has_table_privilege` en la e2e. Ver [[02-Backend/arrendadores-y-contratos]].
 
@@ -734,7 +738,7 @@ Restricciones **UNIQUE globales** (sin tenant): `sitios.clave_interna`,
 | `usuarios` | `sesiones`, `identidades_externas`, `password_resets` |
 | `sitios` | `sitio_modalidades`, `incidencias` |
 | `campanas` | `reservas`, `creatividades`, `ordenes_compra`, `ordenes_impresion` |
-| `contratos_arrendamiento` | `pagos_renta`, `contrato_firmas`, `contrato_cambios` |
+| `contratos_arrendamiento` | `pagos_renta`, `contrato_firmas`, `contrato_cambios`, `contrato_versiones_firmadas` |
 | `propuestas` | `propuesta_items` |
 | `facturas` | `cobranzas` |
 | `cobranzas` | `cobranza_abonos` |

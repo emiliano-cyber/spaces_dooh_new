@@ -627,7 +627,35 @@ export interface CambioContratoUI {
   usuarioNombre: string
   cambios: { campo: string; etiqueta: string; antes: string | null; despues: string | null }[]
   envioAnulado: boolean
+  versionFirmada: number | null
   creadoEn: string
+}
+
+// Versiones firmadas que se dejaron de usar al editar o reenviar el contrato
+// (CONTRATO-FIRMADO-EDITABLE, 23/10), de la más nueva a la más vieja.
+export interface VersionFirmadaUI {
+  version: number
+  documentoHash: string
+  congeladoEn: string | null
+  archivadoEn: string
+  motivo: string | null
+  usuarioNombre: string | null
+  firmas: { parte: 'ARRENDADOR' | 'ARRENDATARIO'; nombreFirmante: string; firmadoEn: string | null; ip: string | null }[]
+  documento?: string
+}
+
+export async function versionesFirmadasApi(contratoId: string): Promise<VersionFirmadaUI[]> {
+  const r = await fetch(`${API}/contratos/${contratoId}/versiones/`, { cache: 'no-store' })
+  const d = await r.json().catch(() => [])
+  if (!r.ok) throw new Error((d as { error?: string }).error ?? 'No se pudieron leer las versiones firmadas')
+  return d as VersionFirmadaUI[]
+}
+
+export async function versionFirmadaApi(contratoId: string, version: number): Promise<VersionFirmadaUI> {
+  const r = await fetch(`${API}/contratos/${contratoId}/versiones/?version=${version}`, { cache: 'no-store' })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error((d as { error?: string }).error ?? 'No se pudo leer la versión firmada')
+  return d as VersionFirmadaUI
 }
 
 export async function cambiosDeContratoApi(contratoId: string): Promise<CambioContratoUI[]> {
@@ -637,9 +665,10 @@ export async function cambiosDeContratoApi(contratoId: string): Promise<CambioCo
   return d as CambioContratoUI[]
 }
 
-// Cómo va la firma del contrato, reducido a lo que decide si se puede editar:
-// `firmado` (alguien ya firmó: no se cambia) y `enviado` (hay enlace vivo: si
-// se cambia, el envío se anula). Lee el mismo GET que el panel de firmas.
+// Cómo va la firma del contrato, reducido a lo que decide CÓMO se edita:
+// `firmado` (alguien ya firmó: el cambio pide motivo y archiva esa versión) y
+// `enviado` (hay enlace vivo: si se cambia, el envío se anula). Lee el mismo
+// GET que el panel de firmas.
 export async function estadoFirmaContratoApi(
   contratoId: string,
 ): Promise<{ firmado: boolean; enviado: boolean }> {

@@ -224,6 +224,9 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   // 2 sitios · lib/server/rejilla-controller.ts:129
   'Esa temporada no existe en esta organización':
     'That season does not exist in this organization',
+  // 1 sitio · app/api/contratos/[id]/versiones/route.ts:24
+  'Esa versión firmada no existe':
+    'That signed version does not exist',
   // 1 sitio · lib/server/firmas-repo.ts:318
   'Escribe tu nombre completo para firmar.':
     'Type your full name to sign.',
@@ -263,9 +266,9 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   // 1 sitio · lib/server/arrendadores-controller.ts:310
   'Este contrato está incompleto: falta el arrendador, el importe de la renta y la periodicidad. Complétalo antes de renovarlo.':
     'This contract is incomplete: the landlord, the rent amount and the payment frequency are missing. Complete it before renewing it.',
-  // 1 sitio · lib/server/arrendadores-controller.ts:278
-  'Este contrato ya está firmado y su información no cambia: lo firmado dejaría de coincidir con lo acordado. Si hay que modificar las condiciones, crea un contrato nuevo.':
-    'This contract is already signed and its information does not change: what was signed would stop matching what was agreed. If the terms need changing, create a new contract.',
+  // 1 sitio · lib/server/arrendadores-controller.ts:295
+  'Este contrato ya está firmado. Escribe el motivo del cambio: la versión firmada se archivará y habrá que volver a firmarlo.':
+    'This contract is already signed. Write the reason for the change: the signed version will be archived and it will have to be signed again.',
   // 1 sitio · lib/server/firmas-repo.ts:316
   'Este contrato ya fue firmado con este enlace.':
     'This contract was already signed with this link.',
@@ -389,6 +392,9 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   // 3 sitios · lib/server/arrendadores-controller.ts:491
   'Licencia no encontrada':
     'Permit not found',
+  // 1 sitio · lib/server/firmas-repo.ts:229
+  'Los datos del contrato cambiaron mientras los revisabas. Recarga la página, revísalos otra vez y vuelve a enviarlo.':
+    'The contract details changed while you were reviewing them. Reload the page, review them again and send it again.',
   // 1 sitio · app/api/energia/recibos/route.ts:50
   'Manda los PDF como formulario, en el campo `archivos`.':
     'Send the PDFs as a form, in the `archivos` field.',
@@ -437,6 +443,12 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   // 1 sitio · lib/server/google-oauth.ts:202
   'No se pudo completar el acceso con Google.':
     'The Google sign-in could not be completed.',
+  // 1 sitio · lib/server/firmas-repo.ts:109
+  'No se encontró el texto firmado de este contrato; no se puede archivar su versión firmada.':
+    'The signed text of this contract was not found; its signed version cannot be archived.',
+  // 1 sitio · app/api/contratos/[id]/versiones/route.ts:22
+  'Versión inválida':
+    'Invalid version',
   // 1 sitio · lib/server/sitios-controller.ts:162
   'No se puede eliminar: la pantalla tiene reservas u órdenes asociadas.':
     'It cannot be deleted: the screen has bookings or orders attached.',

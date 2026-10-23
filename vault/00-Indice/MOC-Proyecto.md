@@ -1,7 +1,7 @@
 ---
 tipo: moc
 estado: verificado
-actualizado: 2026-10-22
+actualizado: 2026-10-23
 tags: [indice, entrada]
 archivos:
   - package.json
@@ -27,9 +27,9 @@ cobranza.
 | Base de datos | PostgreSQL, `pg` directo (sin ORM) | `apps/web/lib/server/db.ts:2` |
 | Aislamiento | RLS de Postgres por `app.tenant_id` | `apps/web/lib/server/db.ts:59` (`fijarTenant`) y `:74` (`q`) |
 | Producción | **El PADRE `137.184.107.53` sirve `space-os.io`**, certificado propio hasta el **2026-11-23** con renovación automática. DEMO vive dentro de él (proceso `3001`, base `spaces_demo`) y desde el **31/08 se llama `prueba.space-os.io`** —en singular: es el `server_name` de `infra/nginx/space-os.io.conf:288`; esta celda decía `pruebas` hasta el 05/10— — nombre nuevo, no `demo.space-os.io`, que es solo la demostración ORIGINAL, la sirve la máquina vieja y **se eliminará** ([ADR 0024](../../docs/adr/0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md), que sustituye al 0021) | `infra/nginx/space-os.io.conf:133` (`space-os.io`), `:213` (`demo.`) y `:288` (`prueba.`) · [ADR 0017](../../docs/adr/0017-todo-se-concentra-en-el-padre.md) · [ADR 0024](../../docs/adr/0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md) · [ADR 0022](../../docs/adr/0022-instancia-dedicada-por-owner.md) |
-| Endpoints | **154** route handlers (22/10, con las nueve de Comercial negociación, la vista previa de DOOHmain y el horario individual) | `apps/web/app/api/**/route.ts` |
-| Tablas | **64** (22/10, con las cuatro de Comercial negociación) | [[esquema]] |
-| Migraciones | **118** (22/10, con `20261022_comercial_negociacion.sql`, `_campana_horario_doohmain.sql` y `_pantallas_propias.sql`, esta última en la v0.12.3 sin publicar) | [[migraciones]] |
+| Endpoints | **155** route handlers (23/10, con `GET /api/contratos/[id]/versiones`; 154 el 22/10, con las nueve de Comercial negociación, la vista previa de DOOHmain y el horario individual) | `apps/web/app/api/**/route.ts` |
+| Tablas | **65** (23/10, con `contrato_versiones_firmadas`; 64 el 22/10, con las cuatro de Comercial negociación) | [[esquema]] |
+| Migraciones | **119** (23/10, con `20261023_contrato_versiones_firmadas.sql`, sin publicar; 118 el 22/10, con `20261022_comercial_negociacion.sql`, `_campana_horario_doohmain.sql` y `_pantallas_propias.sql`, esta última en la v0.12.3 sin publicar) | [[migraciones]] |
 | ADR | **47** (`0001`–`0047`) | `docs/adr/` · [[decisiones]] |
 
 > [!success] `demo.space-os.io` SE ELIMINARÁ — cerrado el 27/08 por el ADR 0024
