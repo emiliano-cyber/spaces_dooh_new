@@ -540,30 +540,39 @@ export async function marcarPropio(id: string, propio: boolean): Promise<any | n
   return withTenantTx(async (client) => {
     const { rows } = await client.query('select id from sitios where id = $1 and tenant_id = $2 for update', [id, tenant])
     if (!rows[0]) return null
-    if (propio) {
-      const vivo = await client.query(
-        `select 1 from contratos_arrendamiento c
-          where c.tenant_id = $2 and c.estatus in ('VIGENTE','POR_VENCER','RENOVADO')
-            and ((c.predio_id is null and c.sitio_id = $1)
-              or (c.predio_id is not null and c.predio_id = (select predio_id from sitios where id = $1)))
-          limit 1`,
-        [id, tenant],
-      )
-      if (vivo.rowCount) {
-        throw new AppError(
-          'Esta pantalla tiene un contrato de renta vigente: termínalo en Arrendadores antes de marcarla como propia.',
-          409,
-        )
-      }
-      await client.query(
-        `update contratos_arrendamiento set estatus = 'CANCELADO'
-          where tenant_id = $2 and estatus = 'INCOMPLETO' and predio_id is null and sitio_id = $1`,
-        [id, tenant],
-      )
-    }
-    await client.query('update sitios set propio = $3 where id = $1 and tenant_id = $2', [id, tenant, propio])
+    if (propio) await volverPropiaEnTx(client, tenant, id)
+    else await client.query('update sitios set propio = false where id = $1 and tenant_id = $2', [id, tenant])
     return true
   }).then(async (ok) => (ok ? getSitio(id) : null))
+}
+
+// La mitad «marcar propia» de `marcarPropio`, dentro de una transacción ajena.
+// Vive aparte porque la usan DOS altas: la ficha y la re-importación de un lote
+// propio sobre pantallas que ya existen. Antes de separarla, el import en modo
+// ACTUALIZAR pisaba los datos de la pantalla y se olvidaba de `propio`: el lote
+// decía «propias» y salían rentadas, con su contrato pendiente bloqueando la
+// venta. Una sola regla para las dos, o dirían cosas distintas.
+async function volverPropiaEnTx(client: PoolClient, tenant: string | null, id: string): Promise<void> {
+  const vivo = await client.query(
+    `select 1 from contratos_arrendamiento c
+      where c.tenant_id = $2 and c.estatus in ('VIGENTE','POR_VENCER','RENOVADO')
+        and ((c.predio_id is null and c.sitio_id = $1)
+          or (c.predio_id is not null and c.predio_id = (select predio_id from sitios where id = $1)))
+      limit 1`,
+    [id, tenant],
+  )
+  if (vivo.rowCount) {
+    throw new AppError(
+      'Esta pantalla tiene un contrato de renta vigente: termínalo en Arrendadores antes de marcarla como propia.',
+      409,
+    )
+  }
+  await client.query(
+    `update contratos_arrendamiento set estatus = 'CANCELADO'
+      where tenant_id = $2 and estatus = 'INCOMPLETO' and predio_id is null and sitio_id = $1`,
+    [id, tenant],
+  )
+  await client.query('update sitios set propio = true where id = $1 and tenant_id = $2', [id, tenant])
 }
 
 // ─── Modalidades por unidad de venta, DESDE LA FICHA ────────────────────────
@@ -748,7 +757,7 @@ export async function importarSitios(args: {
       }
       const conAdv = rows.some((r: any) => r.status === 'advertencia')
       const existente = p.codigo_proveedor
-        ? (await client.query('select id, fotos, imagen_promocional, tenant_id from sitios where codigo_proveedor=$1', [p.codigo_proveedor])).rows[0]
+        ? (await client.query('select id, fotos, imagen_promocional, tenant_id, propio from sitios where codigo_proveedor=$1', [p.codigo_proveedor])).rows[0]
         : null
       // Propiedad: si la pantalla ya existe y es de OTRO operador, no se puede
       // añadir ni sobreescribir — es de alguien más (red compartida con dueño).
@@ -776,7 +785,34 @@ export async function importarSitios(args: {
       const sufijoMod = rows.length > 1 ? ` (${rows.length} modalidades)` : ''
 
       if (existente && modoDuplicado === 'ACTUALIZAR') {
+        // Un lote PROPIA vale también para las que ya existían: se marcan con la
+        // misma regla que la ficha (`volverPropiaEnTx`). Va ANTES de pisar los
+        // datos para que una con renta vigente quede intacta entera, no a medias.
+        // La comprobación solo lee antes de lanzar, así que la transacción del
+        // lote sigue sana y las demás filas entran.
+        if (propio && existente.propio !== true) {
+          try {
+            await volverPropiaEnTx(client, yo, existente.id)
+          } catch (e) {
+            if (!(e instanceof AppError)) throw e
+            errores++
+            detalle.push({ codigo_proveedor: p.codigo_proveedor, status: 'error', mensaje: e.message })
+            continue
+          }
+        }
         await actualizarSitioCompleto(client, existente.id, base) // UPDATE en sitio (conserva reservas)
+        // Al revés NO se desmarca: volverla rentada exige elegir arrendador y
+        // abrir contrato, y eso es una decisión de su ficha, no de un Excel. Pero
+        // tampoco se calla: el lote decía «rentadas» y esta sigue siendo propia.
+        if (!propio && existente.propio === true) {
+          con_advertencias++
+          detalle.push({
+            codigo_proveedor: p.codigo_proveedor,
+            status: 'advertencia',
+            mensaje: `Actualizado${sufijoMod}${conImg}. Sigue como PROPIA: para que sea rentada, desmárcala en su ficha.`,
+          })
+          continue
+        }
         conAdv ? con_advertencias++ : actualizadas++
         detalle.push({ codigo_proveedor: p.codigo_proveedor, status: conAdv ? 'advertencia' : 'actualizado', mensaje: `Actualizado${sufijoMod}${conImg}` })
       } else {
