@@ -16,6 +16,7 @@ import {
   X,
 } from 'lucide-react'
 import { cn } from '@/lib/cn'
+import { ORIGENES_FOTO, selloDeFoto } from '@/lib/space-eyes-origenes'
 import { Button } from '@/components/demo/ui/Button'
 import { ConfirmDialog } from '@/components/demo/ui/ConfirmDialog'
 import { seApi, fotoSE, ErrorSE } from '@/lib/data/space-eyes-se'
@@ -53,6 +54,7 @@ interface FotoSE extends FotoConMarca {
   device_id: number
   thumbnail_path: string | null
   source: string | null
+  campaign_name: string | null
   verification_status: string | null
   is_correct: number | boolean | null
   gps_lat: number | string | null
@@ -73,15 +75,9 @@ interface Filtros {
 
 const SIN_FILTROS: Filtros = { desde: '', hasta: '', origen: '', equipo: '' }
 
-const ORIGENES: { valor: string; texto: string }[] = [
-  { valor: 'manual', texto: 'Manual' },
-  { valor: 'scheduled', texto: 'Programada' },
-  { valor: 'on_demand', texto: 'A petición' },
-  { valor: 'creative_change', texto: 'Creativo nuevo' },
-  { valor: 'falla', texto: 'Falla de pantalla' },
-  { valor: 'boot', texto: 'Al encender' },
-]
-const TEXTO_ORIGEN = Object.fromEntries(ORIGENES.map((o) => [o.valor, o.texto]))
+// El catálogo vive en lib/space-eyes-origenes: aquí faltaba 'campana', así que
+// una prueba de campaña no tenía etiqueta ni se podía filtrar.
+const ORIGENES = ORIGENES_FOTO
 
 const TEXTO_VERIFICACION: Record<string, string> = {
   pending: 'Sin verificar',
@@ -494,9 +490,9 @@ function Miniatura({ foto, onAbrir, onBorrar }: { foto: FotoSE; onAbrir: () => v
             </span>
           )}
         </button>
-        {foto.source && TEXTO_ORIGEN[foto.source] && (
-          <span className="pointer-events-none absolute left-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[10.5px] text-white backdrop-blur-sm">
-            {TEXTO_ORIGEN[foto.source]}
+        {selloDeFoto(foto.source, foto.campaign_name) && (
+          <span className="pointer-events-none absolute left-2 top-2 max-w-[calc(100%-1rem)] truncate rounded-full bg-black/60 px-2 py-0.5 text-[10.5px] text-white backdrop-blur-sm">
+            {selloDeFoto(foto.source, foto.campaign_name)}
           </span>
         )}
         <button

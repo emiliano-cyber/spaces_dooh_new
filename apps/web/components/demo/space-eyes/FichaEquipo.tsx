@@ -23,6 +23,7 @@ import {
   Radio,
 } from 'lucide-react'
 import { cn } from '@/lib/cn'
+import { selloDeFoto } from '@/lib/space-eyes-origenes'
 import { puedeEncuadrar } from '@/lib/roles'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
@@ -471,7 +472,7 @@ export function FichaEquipo({ id }: { id: number }) {
                     </span>
                     <div className="mt-1.5 text-[12px] tabular-nums text-white/90">
                       {vista === 'equipo'
-                        ? `${fechaHora(fotoEquipo?.tomadaEn ?? null)}${fotoEquipo?.origen ? ` · ${fotoEquipo.origen === 'on_demand' ? 'a demanda' : 'programada'}` : ''}`
+                        ? `${fechaHora(fotoEquipo?.tomadaEn ?? null)}${selloDeFoto(fotoEquipo?.origen, fotoEquipo?.campana) ? ` · ${selloDeFoto(fotoEquipo?.origen, fotoEquipo?.campana)}` : ''}`
                         : 'Subida a la galería de la pantalla'}
                     </div>
                   </div>

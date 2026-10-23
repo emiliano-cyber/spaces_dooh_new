@@ -38,6 +38,8 @@ export interface FotoEquipo {
   ancho: number | null
   alto: number | null
   origen: string | null
+  /** El nombre de la campaña cuando `origen` es 'campana'; si no, null. */
+  campana: string | null
   verificacionEstatus: string | null
   esCorrecta: boolean | null
   score: number | null

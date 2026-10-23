@@ -145,6 +145,10 @@ interface SEPhoto {
   verification_score: number | null
   /** Cuánto hay que girar la foto para verla derecha (la guarda el equipo). */
   display_rotation?: number | string | null
+  /** De dónde salió: scheduled, on_demand, campana, falla… (ENUM de Space Eye). */
+  source?: string | null
+  /** De QUÉ campaña es la prueba. Space Eye lo manda desde la migración 024. */
+  campaign_name?: string | null
 }
 
 // Devuelve la visión (cámara + IA) de la pantalla cuyo código de proveedor
@@ -249,6 +253,8 @@ export interface SEFotoModulo {
   ancho: number | null
   alto: number | null
   origen: string | null
+  /** El nombre de la campaña cuando `origen` es 'campana'; si no, null. */
+  campana: string | null
   verificacionEstatus: string | null
   esCorrecta: boolean | null
   score: number | null
@@ -409,7 +415,8 @@ export async function equipoDetalle(id: number): Promise<SEEquipoDetalle | null>
       tomadaEn: p.taken_at,
       ancho: p.width,
       alto: p.height,
-      origen: (p as any).source ?? null,
+      origen: p.source ?? null,
+      campana: p.campaign_name ?? null,
       verificacionEstatus: p.verification_status,
       esCorrecta: p.is_correct,
       score: p.verification_score != null ? Number(p.verification_score) : null,
