@@ -3,6 +3,15 @@
 import { useMemo, useRef, useState } from 'react'
 import { Search, Cpu, Pencil, Loader2, CheckCircle2, UserPlus, Tag, X, Building2, Download } from 'lucide-react'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
+import {
+  IndicadoresInventario,
+  ChipsFiltroInventario,
+  FILTROS_VACIOS,
+  claseContrato,
+  claseMedio,
+  tonoDisponibilidad,
+  type FiltrosInventario,
+} from '@/components/demo/inventario/ResumenInventario'
 import { Button } from '@/components/demo/ui/Button'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
 import { CRUDO_INVALIDO } from '@/lib/captura-cifra'
@@ -65,6 +74,9 @@ export function InventarioTabla() {
   // solo decide si se pinta el lápiz.
   const puedeEditarRenta = usePuede('arrendadores', 'crear')
   const [q, setQ] = useState('')
+  // Chips de filtro (26/10). Se suman al buscador sobre la MISMA `filtrados`:
+  // de ella dependen la descarga, «Seleccionar todo» y el cambio masivo.
+  const [filtros, setFiltros] = useState<FiltrosInventario>(FILTROS_VACIOS)
   const [activo, setActivo] = useState<Sitio | null>(null)
   const [fichaOpen, setFichaOpen] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
@@ -157,7 +169,16 @@ export function InventarioTabla() {
     return <div className="h-64 w-full animate-pulse rounded-md bg-surface-2" />
   }
 
+  // Misma resolución del contrato que la fila (`r` más abajo): del predio, o
+  // del sitio si es un contrato antiguo.
+  const tieneContrato = (s: Sitio) =>
+    !!(s.predioId ? rentaPorSitio.porPredio.get(s.predioId) : rentaPorSitio.porSitio.get(s.id))
+  const hayChips = !!(filtros.disp || filtros.medio || filtros.contrato)
+
   const filtrados = sitios.filter((s) => {
+    if (filtros.disp && tonoDisponibilidad(s) !== filtros.disp) return false
+    if (filtros.medio && claseMedio(s) !== filtros.medio) return false
+    if (filtros.contrato && claseContrato(s, tieneContrato(s)) !== filtros.contrato) return false
     if (!q) return true
     const t = `${s.nombre} ${s.codigoProveedor} ${s.alcaldia} ${s.ciudad}`.toLowerCase()
     return t.includes(q.toLowerCase())
@@ -316,6 +337,12 @@ export function InventarioTabla() {
 
   return (
     <>
+    {/* Indicadores (26/10): cuentas sobre el inventario COMPLETO que ya está en
+        memoria, como el resumen que ponen arriba los referentes (Broadsign,
+        HighSign). Solo se ven en la vista de lista: la página no monta esta
+        tabla en las vistas de alta. */}
+    <IndicadoresInventario sitios={sitios} tieneContrato={tieneContrato} />
+
     {/* Plegable (pedido del 20/10). El buscador `q` y la selección `sel` viven
         en ESTE componente, fuera de la tarjeta, así que plegar y desplegar no
         los pierde: solo se desmonta la tabla. */}
@@ -350,7 +377,7 @@ export function InventarioTabla() {
           </div>
       }
     >
-      <div className="flex items-center justify-between gap-3 border-y border-border px-3 py-2">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-y border-border px-3 py-2">
         <div className="relative min-w-[200px] flex-1 sm:max-w-xs">
           <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
           <input
@@ -360,6 +387,21 @@ export function InventarioTabla() {
             className="h-9 w-full rounded border border-border-strong bg-surface pl-8 pr-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
           />
         </div>
+        <ChipsFiltroInventario
+          sitios={sitios}
+          tieneContrato={tieneContrato}
+          filtros={filtros}
+          onCambio={setFiltros}
+        />
+        {hayChips && (
+          <button
+            type="button"
+            onClick={() => setFiltros(FILTROS_VACIOS)}
+            className="inline-flex items-center gap-1 rounded bg-transparent px-1.5 py-1 text-[12px] text-muted hover:text-ink"
+          >
+            <X className="h-3.5 w-3.5" /> Quitar filtros
+          </button>
+        )}
       </div>
 
       {/* Barra de cambio MASIVO de tarifa (sin Excel): aparece al seleccionar. */}
@@ -450,7 +492,7 @@ export function InventarioTabla() {
       )}
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[1000px] text-left text-[12px]">
+        <table className="w-full min-w-[920px] text-left text-[12px]">
           <thead>
             <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted">
               {puedeEditar && (
@@ -471,8 +513,9 @@ export function InventarioTabla() {
               <th className="px-3 py-2 text-right font-medium">Tarifa</th>
               <th className="px-3 py-2 font-medium">Disponibilidad</th>
               <th className="px-3 py-2 font-medium">Arrendador</th>
+              {/* «Cada cuándo» ya no es columna (26/10): repetía «Mensual» en
+                  todas las filas y se partía en dos renglones. Va bajo la renta. */}
               <th className="px-3 py-2 text-right font-medium">Renta</th>
-              <th className="px-3 py-2 font-medium">Cada cuándo</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -481,10 +524,12 @@ export function InventarioTabla() {
                 {/* Sin búsqueda activa el inventario está vacío de verdad; decir
                     "no coincide con la búsqueda" mandaba a limpiar un buscador
                     que ya estaba limpio (M2 de la auditoría). */}
-                <td colSpan={puedeEditar ? 10 : 9} className="px-3 py-10 text-center text-muted">
+                <td colSpan={puedeEditar ? 9 : 8} className="px-3 py-10 text-center text-muted">
                   {q
-                    ? `Ningún sitio coincide con «${q}».`
-                    : 'Todavía no hay pantallas en el inventario. Agrégalas una a una o por carga masiva.'}
+                    ? `Ningún sitio coincide con «${q}»${hayChips ? ' y los filtros elegidos' : ''}.`
+                    : hayChips
+                      ? 'Ninguna pantalla coincide con los filtros elegidos.'
+                      : 'Todavía no hay pantallas en el inventario. Agrégalas una a una o por carga masiva.'}
                 </td>
               </tr>
             ) : (
@@ -532,7 +577,7 @@ export function InventarioTabla() {
                       {ubicacion([s.alcaldia, s.ciudad]) || '—'}
                     </td>
                     <td className="px-3 py-2.5 text-muted">{medioLabel(s)}</td>
-                    <td className="px-3 py-2.5 text-right">
+                    <td className="whitespace-nowrap px-3 py-2.5 text-right">
                       <CeldaTarifa sitio={s} editable={puedeEditar} onSaved={notify} />
                     </td>
                     <td className="px-3 py-2.5">
@@ -554,7 +599,7 @@ export function InventarioTabla() {
                         onSaved={notify}
                       />
                     </td>
-                    <td className="demo-num px-3 py-2.5 text-right text-ink">
+                    <td className="demo-num whitespace-nowrap px-3 py-2.5 text-right text-ink">
                       <CeldaRenta
                         info={r ?? null}
                         sitioNombre={s.nombre}
@@ -564,9 +609,9 @@ export function InventarioTabla() {
                         editable={puedeEditarRenta}
                         onSaved={notify}
                       />
-                    </td>
-                    <td className="px-3 py-2.5 text-muted">
-                      {periodicidadEff ? periodicidadLabel(periodicidadEff) : '—'}
+                      {periodicidadEff && (
+                        <div className="font-sans text-[11px] text-muted">{periodicidadLabel(periodicidadEff)}</div>
+                      )}
                     </td>
                   </tr>
                 )
@@ -733,11 +778,15 @@ function CeldaRenta({
               ? `Renta del contrato del predio — la comparten ${hermanas} pantallas`
               : 'Editar la renta que se le paga al arrendador'
           }
-          className="group/ren demo-num ml-auto inline-flex items-center gap-1.5 rounded px-1.5 py-0.5 text-ink transition-colors hover:ring-1 hover:ring-border-strong"
+          // 26/10 · `whitespace-nowrap` para que «$» y la cifra no se partan en
+          // dos renglones, y `bg-transparent` porque sin preflight el <button>
+          // hereda el gris del sistema y la celda se veía como una pastilla más
+          // pesada que el dato. El lápiz y el contorno salen al pasar el ratón.
+          className="group/ren demo-num ml-auto inline-flex items-center gap-1.5 whitespace-nowrap rounded bg-transparent px-1.5 py-0.5 text-ink transition-colors hover:ring-1 hover:ring-border-strong"
         >
           {texto}
           {compartido && <Building2 className="h-3 w-3 shrink-0 text-muted" />}
-          <Pencil className="h-3 w-3 text-muted opacity-40 transition-opacity group-hover/ren:opacity-100" />
+          <Pencil className="h-3 w-3 text-muted opacity-0 transition-opacity group-hover/ren:opacity-100 group-focus-visible/ren:opacity-100" />
         </button>
         {dialogo}
       </>
@@ -845,10 +894,11 @@ function CeldaTarifa({
           type="button"
           onClick={abrir}
           title="Editar tarifa"
-          className="group/tar demo-num ml-auto inline-flex items-center gap-1.5 rounded px-1.5 py-0.5 text-ink transition-colors hover:ring-1 hover:ring-border-strong"
+          // Igual que en `CeldaRenta`: en una línea y sin el fondo del sistema.
+          className="group/tar demo-num ml-auto inline-flex items-center gap-1.5 whitespace-nowrap rounded bg-transparent px-1.5 py-0.5 text-ink transition-colors hover:ring-1 hover:ring-border-strong"
         >
           {formatMonto(sitio.tarifaMensual)}
-          <Pencil className="h-3 w-3 text-muted opacity-40 transition-opacity group-hover/tar:opacity-100" />
+          <Pencil className="h-3 w-3 text-muted opacity-0 transition-opacity group-hover/tar:opacity-100 group-focus-visible/tar:opacity-100" />
         </button>
         {dialogo}
       </>
@@ -890,14 +940,19 @@ function CeldaTarifa({
 // Constante y no `function`: `candado-inventario-y-fichas.test.ts` recorta cada
 // celda hasta la siguiente `function` y cuenta sus `return (`; esta etiqueta no
 // edita nada y no debe contarse como rama de ninguna celda.
+// 26/10 · `StatusBadge` verde en vez de los `emerald-*` sueltos: el mismo chip
+// que el resto de estados, con los tokens del proyecto.
 const EtiquetaPropia = () => (
-  <span
-    className="inline-block rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[11px] font-medium text-emerald-800"
-    title="Pantalla propia: sin renta ni contrato; su costo es luz y operación"
-  >
-    Propia
+  <span title="Pantalla propia: sin renta ni contrato; su costo es luz y operación">
+    <StatusBadge tono="verde">Propia</StatusBadge>
   </span>
 )
+
+// «Sin arrendador» es un PENDIENTE (falta saber a quién se le paga), así que se
+// pinta en ámbar y con la misma palabra en todas las ramas. Una de ellas decía
+// «arrendatario», que es quien renta el espacio, no su dueño. Constante por lo
+// mismo que `EtiquetaPropia`.
+const EtiquetaSinArrendador = () => <StatusBadge tono="ambar">Sin arrendador</StatusBadge>
 
 function CeldaPropietario({
   sitio,
@@ -952,7 +1007,7 @@ function CeldaPropietario({
     return display ? (
       <span className="text-ink">{display}</span>
     ) : (
-      <span className="text-muted">Sin arrendador</span>
+      <EtiquetaSinArrendador />
     )
   }
 
@@ -987,10 +1042,10 @@ function CeldaPropietario({
             e.stopPropagation()
             setEditando(true)
           }}
-          title="Asignar arrendatario"
-          className="group/prop inline-flex max-w-full items-center gap-1.5 rounded px-1.5 py-0.5 text-left transition-colors hover:ring-1 hover:ring-border-strong"
+          title="Asignar arrendador"
+          className="group/prop inline-flex max-w-full items-center gap-1.5 rounded bg-transparent px-1.5 py-0.5 text-left transition-colors hover:ring-1 hover:ring-border-strong"
         >
-          <span className={`truncate ${display ? 'text-ink' : 'text-muted'}`}>{display ?? 'Sin arrendatario'}</span>
+          {display ? <span className="truncate text-ink">{display}</span> : <EtiquetaSinArrendador />}
           {display ? (
             <Pencil className="h-3 w-3 shrink-0 text-muted opacity-40 transition-opacity group-hover/prop:opacity-100" />
           ) : (
@@ -1012,7 +1067,7 @@ function CeldaPropietario({
         onBlur={() => setEditando(false)}
         className="h-7 max-w-[190px] rounded border border-border-strong bg-surface px-1.5 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
       >
-        <option value="">— Sin arrendatario —</option>
+        <option value="">— Sin arrendador —</option>
         {arrendadores.map((a) => (
           <option key={a.id} value={a.id}>
             {a.nombre}

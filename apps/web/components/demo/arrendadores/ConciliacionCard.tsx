@@ -29,7 +29,7 @@ import { conciliacionRenta, type ConciliacionArrendador } from '@/lib/data/deriv
 
 function Importe({ monto, n, tono }: { monto: number; n: number; tono?: 'error' | 'warn' }) {
   if (!n) return <span className="text-muted">—</span>
-  const color = tono === 'error' ? 'text-error' : tono === 'warn' ? 'text-[#9a6700]' : 'text-ink'
+  const color = tono === 'error' ? 'text-error' : tono === 'warn' ? 'text-warning' : 'text-ink'
   return (
     <span className={color}>
       <span className="demo-num">{formatMonto(Math.round(monto))}</span>
@@ -58,7 +58,19 @@ export function ConciliacionCard({
 
   // `undefined` mientras el estado no ha hidratado: sin esto la tarjeta se
   // pintaría vacía un instante y parecería que no hay nada que cobrar.
-  if (!todosLosContratos || !pagosRenta) return null
+  // 26/10 · y en vez de no pintar nada, el esqueleto de las demás tarjetas: la
+  // sección ya no aparece de golpe a media lectura, empujando lo de abajo.
+  if (!todosLosContratos || !pagosRenta) {
+    return (
+      <Marco>
+        <div className="space-y-2 px-4 pb-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="h-8 animate-pulse rounded bg-surface-2" />
+          ))}
+        </div>
+      </Marco>
+    )
+  }
   const contratos = contratosVisibles ?? todosLosContratos
 
   const filas: ConciliacionArrendador[] = conciliacionRenta({
@@ -68,7 +80,18 @@ export function ConciliacionCard({
     sitios: sitios ?? [],
     arrendadores: arrendadores ?? [],
   } as any)
-  if (!filas.length) return null
+  // 26/10 · sin pagos la tarjeta se queda y lo dice. Antes devolvía `null` y la
+  // sección se esfumaba: no se distinguía «no hay nada que cuadrar» de «no
+  // cargó».
+  if (!filas.length) {
+    return (
+      <Marco>
+        <p className="px-4 pb-4 text-[13px] text-muted">
+          — Sin pagos de renta generados todavía: se calculan al capturar el importe del contrato.
+        </p>
+      </Marco>
+    )
+  }
 
   const alternar = (k: string) =>
     setAbiertos((prev) => {
@@ -87,13 +110,7 @@ export function ConciliacionCard({
   )
 
   return (
-    <CardColapsable
-      id="arrendadores.cuadre"
-      titulo="Cuadre de renta por arrendador"
-      icono={<Scale className="h-4 w-4 text-muted" />}
-      subtitulo="Qué se le debe a cada uno y qué ya se le pagó. Primero quien tiene vencidos."
-      contentClassName="px-0 pb-0"
-    >
+    <Marco>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-[13px]">
             <thead>
@@ -182,7 +199,7 @@ export function ConciliacionCard({
                 <td className="demo-num px-4 py-2.5 text-right text-error">
                   {formatMonto(Math.round(tot.vencido))}
                 </td>
-                <td className="demo-num px-4 py-2.5 text-right text-[#9a6700]">
+                <td className="demo-num px-4 py-2.5 text-right text-warning">
                   {formatMonto(Math.round(tot.pendiente))}
                 </td>
                 <td className="demo-num px-4 py-2.5 text-right text-ink">
@@ -193,6 +210,22 @@ export function ConciliacionCard({
             </tfoot>
           </table>
         </div>
+    </Marco>
+  )
+}
+
+// La tarjeta, en un solo sitio para sus tres estados (cargando, vacía y con
+// datos): el mismo `id` en los tres conserva el plegado guardado de cada uno.
+function Marco({ children }: { children: React.ReactNode }) {
+  return (
+    <CardColapsable
+      id="arrendadores.cuadre"
+      titulo="Cuadre de renta por arrendador"
+      icono={<Scale className="h-4 w-4 text-muted" />}
+      subtitulo="Qué se le debe a cada uno y qué ya se le pagó. Primero quien tiene vencidos."
+      contentClassName="px-0 pb-0"
+    >
+      {children}
     </CardColapsable>
   )
 }

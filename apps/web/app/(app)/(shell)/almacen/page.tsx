@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { Warehouse, Plus, ArrowLeftRight, Loader2 } from 'lucide-react'
+import { Warehouse, Plus, ArrowLeftRight, Loader2, MonitorCheck, Package, Truck } from 'lucide-react'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
+import { KPICard, KPICardSkeleton } from '@/components/demo/KPICard'
+import { StatusBadge, type Tono } from '@/components/demo/StatusBadge'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
@@ -32,11 +34,13 @@ import {
 const inputCls =
   'h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
 
-const ESTADO: Record<EstadoActivo, { label: string; cls: string }> = {
-  EN_ALMACEN: { label: 'En almacén', cls: 'border-border bg-surface-2 text-muted' },
-  INSTALADO: { label: 'Instalado', cls: 'border-[#10b98140] bg-[#10b9811a] text-[#0f7a55]' },
-  EN_TRASLADO: { label: 'En traslado', cls: 'border-[#f59e0b40] bg-[#f59e0b1a] text-[#9a6700]' },
-  BAJA: { label: 'Baja', cls: 'border-[#ef444440] bg-[#ef44441a] text-error' },
+// 26/10 · el tono de `StatusBadge` en vez de clases con hex sueltos: el mismo
+// semáforo que el resto de la aplicación.
+const ESTADO: Record<EstadoActivo, { label: string; tono: Tono }> = {
+  EN_ALMACEN: { label: 'En almacén', tono: 'neutro' },
+  INSTALADO: { label: 'Instalado', tono: 'verde' },
+  EN_TRASLADO: { label: 'En traslado', tono: 'ambar' },
+  BAJA: { label: 'Baja', tono: 'rojo' },
 }
 
 // Movimientos permitidos según el estado actual del activo.
@@ -65,18 +69,31 @@ export default function AlmacenPage() {
   const [filtroTipo, setFiltroTipo] = useState<TipoActivo | null>(null)
   const cuentas = useMemo(() => contarPorTipo(activos ?? []), [activos])
   const visibles = useMemo(() => filtrarPorTipo(activos ?? [], filtroTipo), [activos, filtroTipo])
+  // Conteo por estado para los indicadores. Solo cuenta lo ya cargado.
+  const porEstado = useMemo(() => {
+    const m: Record<EstadoActivo, number> = { EN_ALMACEN: 0, INSTALADO: 0, EN_TRASLADO: 0, BAJA: 0 }
+    for (const a of activos ?? []) m[a.estado] = (m[a.estado] ?? 0) + 1
+    return m
+  }, [activos])
 
   const nombreSitio = useCallback(
     (id: string | null) => (id ? sitios?.find((s) => s.id === id)?.nombre ?? '—' : '—'),
     [sitios],
   )
 
+  const [falloCarga, setFalloCarga] = useState<string | null>(null)
   const cargar = useCallback(async () => {
     try {
       const d = await getAlmacenApi()
+      setFalloCarga(null)
       setActivos(d.activos)
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'No se pudo cargar el almacén')
+      // 26/10 · el fallo se guarda además para PINTARLO: con la lista vacía y
+      // sin esto, la pantalla decía «Aún no hay artículos» —una afirmación
+      // falsa— en cuanto el aviso se desvanecía. El toast y la lista vacía se
+      // quedan como estaban.
+      setFalloCarga(e instanceof Error ? e.message : 'error desconocido')
       setActivos([])
     }
   }, [])
@@ -85,37 +102,77 @@ export default function AlmacenPage() {
   return (
     <div className="w-full space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-2 text-ink">
-            <Warehouse className="h-5 w-5" strokeWidth={1.75} />
-          </span>
-          <div>
-            <h1 className="text-2xl text-ink">Almacén</h1>
-            <p className="mt-1 text-[13px] text-muted">Vehículos, herramientas, pantallas, cámaras y demás artículos, y sus traslados.</p>
-          </div>
+        {/* 26/10 · sin la caja del icono, como el encabezado del Dashboard. */}
+        <div>
+          <h1 className="text-2xl text-ink">Almacén</h1>
+          <p className="mt-1 text-[13px] text-muted">Vehículos, herramientas, pantallas, cámaras y demás artículos, y sus traslados.</p>
         </div>
         {puedeEditar && (
           <Button variant="success" size="sm" onClick={() => setAltaOpen(true)}><Plus className="h-3.5 w-3.5" /> Registrar artículo</Button>
         )}
       </div>
 
-      {activos && activos.length > 0 && (
-        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filtrar por tipo">
-          <PastillaTipo activa={filtroTipo === null} onClick={() => setFiltroTipo(null)} label="Todos" cuenta={activos.length} />
-          {TIPOS_ACTIVO.filter((t) => cuentas[t] > 0).map((t) => (
-            <PastillaTipo key={t} activa={filtroTipo === t} onClick={() => setFiltroTipo(t)} label={ETIQUETA_TIPO_ACTIVO[t]} cuenta={cuentas[t]} />
-          ))}
-        </div>
+      {/* Indicadores (26/10): conteo por estado sobre la lista ya cargada.
+          Con error de carga no se pintan: cuatro ceros afirmarían un almacén
+          vacío que nadie ha comprobado. */}
+      {!falloCarga && (
+        <CardColapsable id="almacen.indicadores" titulo="Indicadores">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {!activos ? (
+              <>
+                <KPICardSkeleton /><KPICardSkeleton /><KPICardSkeleton /><KPICardSkeleton />
+              </>
+            ) : (
+              <>
+                <KPICard
+                  label="Artículos"
+                  value={String(activos.length)}
+                  sub={porEstado.BAJA ? `${porEstado.BAJA} dado${porEstado.BAJA === 1 ? '' : 's'} de baja` : 'ninguno dado de baja'}
+                  icon={<Warehouse className="h-4 w-4" />}
+                />
+                <KPICard label="Instalados" value={String(porEstado.INSTALADO)} sub="en una pantalla" tono={porEstado.INSTALADO ? 'verde' : 'neutro'} icon={<MonitorCheck className="h-4 w-4" />} />
+                <KPICard label="En almacén" value={String(porEstado.EN_ALMACEN)} sub="guardados en bodega" icon={<Package className="h-4 w-4" />} />
+                <KPICard label="En traslado" value={String(porEstado.EN_TRASLADO)} sub="en camino" tono={porEstado.EN_TRASLADO ? 'ambar' : 'neutro'} icon={<Truck className="h-4 w-4" />} />
+              </>
+            )}
+          </div>
+        </CardColapsable>
       )}
 
       {/* Plegable (pedido del 20/10). El filtro por tipo vive en la página,
-          fuera de la tarjeta: plegar y desplegar no lo pierde. */}
+          fuera de la tarjeta: plegar y desplegar no lo pierde.
+          26/10 · las pastillas se PINTAN dentro de la tarjeta, en la franja de
+          arriba como el buscador de Inventario; el estado `filtroTipo` sigue en
+          la página, así que plegar sigue sin perderlo. */}
       <CardColapsable id="almacen.articulos" titulo="Artículos" className="overflow-hidden" contentClassName="px-0 pb-0">
         {!activos ? (
           <div className="h-40 animate-pulse rounded-md bg-surface-2" />
+        ) : falloCarga ? (
+          // Un error de carga NO es un almacén vacío.
+          <div className="flex flex-col items-center gap-3 px-4 py-10 text-center text-[13px]">
+            <p className="text-error">No se pudo cargar el almacén — {falloCarga}</p>
+            <Button size="sm" variant="secondary" onClick={() => void cargar()}>Reintentar</Button>
+          </div>
         ) : activos.length === 0 ? (
-          <p className="px-4 py-10 text-center text-[13px] text-muted">Aún no hay activos registrados.</p>
+          <div className="flex flex-col items-center gap-3 px-4 py-10 text-center text-[13px] text-muted">
+            <p>
+              Aún no hay artículos. Registra vehículos, herramientas, pantallas o cámaras para seguir dónde
+              está cada uno.
+            </p>
+            {puedeEditar ? (
+              <Button variant="success" size="sm" onClick={() => setAltaOpen(true)}><Plus className="h-3.5 w-3.5" /> Registrar artículo</Button>
+            ) : (
+              <p className="text-[12px]">Pide a Operaciones que los registre.</p>
+            )}
+          </div>
         ) : (
+          <>
+          <div className="flex flex-wrap gap-1.5 border-y border-border px-4 py-2" role="group" aria-label="Filtrar por tipo">
+            <PastillaTipo activa={filtroTipo === null} onClick={() => setFiltroTipo(null)} label="Todos" cuenta={activos.length} />
+            {TIPOS_ACTIVO.filter((t) => cuentas[t] > 0).map((t) => (
+              <PastillaTipo key={t} activa={filtroTipo === t} onClick={() => setFiltroTipo(t)} label={ETIQUETA_TIPO_ACTIVO[t]} cuenta={cuentas[t]} />
+            ))}
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-[13px]">
               <thead>
@@ -137,12 +194,15 @@ export default function AlmacenPage() {
                     <td className="px-4 py-2.5 text-muted">{etiquetaTipoActivo(a.tipoActivo)}</td>
                     <td className="px-4 py-2.5 text-muted">{datosDelArticulo(a)}</td>
                     <td className="px-4 py-2.5">
-                      <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${ESTADO[a.estado].cls}`}>
-                        {ESTADO[a.estado].label}
-                      </span>
+                      <StatusBadge tono={ESTADO[a.estado].tono}>{ESTADO[a.estado].label}</StatusBadge>
                     </td>
-                    {/* Instalado → la pantalla donde está; si no, dónde se guarda (bodega). */}
-                    <td className="px-4 py-2.5 text-muted">{a.estado === 'INSTALADO' ? nombreSitio(a.sitioId) : a.ubicacion ?? '—'}</td>
+                    {/* Instalado → la pantalla donde está; si no, dónde se guarda (bodega).
+                        26/10 · con prefijo, porque las dos se veían igual y no
+                        se sabía si «Reforma» era una pantalla o una bodega. */}
+                    <td className="px-4 py-2.5 text-muted">
+                      <span className="text-[11px] text-muted">{a.estado === 'INSTALADO' ? 'En pantalla: ' : 'Bodega: '}</span>
+                      <span className="text-ink">{a.estado === 'INSTALADO' ? nombreSitio(a.sitioId) : a.ubicacion ?? '—'}</span>
+                    </td>
                     {puedeEditar && (
                       <td className="px-4 py-2.5 text-right">
                         {MOVS[a.estado].length > 0 && (
@@ -161,6 +221,7 @@ export default function AlmacenPage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </CardColapsable>
 
@@ -333,11 +394,13 @@ function PastillaTipo({ activa, onClick, label, cuenta }: { activa: boolean; onC
       type="button"
       aria-pressed={activa}
       onClick={onClick}
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px] ${
-        activa ? 'border-ink bg-ink text-surface' : 'border-border-strong bg-surface text-ink hover:bg-surface-2'
+      // 26/10 · el chip del Dashboard; el activo en acento suave y no en negro
+      // (`bg-ink`), un estilo que no existía en ningún otro módulo.
+      className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] ${
+        activa ? 'border-accent bg-accent-soft font-medium text-ink' : 'border-border bg-transparent text-muted hover:text-ink'
       }`}
     >
-      {label} <span className={activa ? 'opacity-80' : 'text-muted'}>{cuenta}</span>
+      {label} <span className="demo-num">({cuenta})</span>
     </button>
   )
 }

@@ -1,8 +1,9 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { CheckCircle2, Plus, FileSignature, Search, X, Download, Trash2, AlertTriangle } from 'lucide-react'
+import { CheckCircle2, Plus, FileSignature, Search, X, Download, Trash2, AlertTriangle, Wallet, CalendarClock } from 'lucide-react'
 import { Card } from '@/components/demo/ui/Card'
+import { KPICard, KPICardSkeleton } from '@/components/demo/KPICard'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
@@ -255,26 +256,64 @@ export default function ArrendadoresPage() {
         </div>
       </Card>
 
-      {/* Resumen */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        <Mini label="Arrendadores" valor={`${arrendadores?.length ?? '—'}`} />
-        <Mini label="Contratos" valor={`${contratos?.length ?? '—'}`} />
-        {/* B4: la salvedad («no incluye N contratos incompletos») estaba solo en
-            una nota al pie, así que el número se citaba fuera de contexto como si
-            fuera la renta real. Va pegada al propio KPI: quien lo lea de reojo se
-            entera igual. */}
-        <Mini
-          label="Renta mensual"
-          valor={contratos ? formatMonto(rentaMensual) : '—'}
-          nota={contratos && incompletos > 0 ? `+ ${incompletos} por capturar` : undefined}
-        />
-        <Mini label="Por vencer" valor={`${porVencer}`} tono={porVencer ? 'ambar' : undefined} />
-        <Mini label="Renta vencida" valor={`${rentaVencida}`} tono={rentaVencida ? 'rojo' : undefined} />
+      {/* Resumen — 26/10: `KPICard` en la fila de 4 del Dashboard, en vez de
+          la pieza `Mini` en 5 columnas. «Arrendadores» ya no gasta una tarjeta:
+          va en la aclaración de «Contratos». Mismas variables, cero cálculo
+          nuevo. */}
+      <CardColapsable id="arrendadores.indicadores" titulo="Indicadores" contentClassName="space-y-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {!contratos ? (
+          <>
+            <KPICardSkeleton />
+            <KPICardSkeleton />
+            <KPICardSkeleton />
+            <KPICardSkeleton />
+          </>
+        ) : (
+          <>
+            {/* B4: la salvedad («no incluye N contratos incompletos») estaba solo en
+                una nota al pie, así que el número se citaba fuera de contexto como si
+                fuera la renta real. Va pegada al propio KPI: quien lo lea de reojo se
+                entera igual. */}
+            <KPICard
+              label="Renta mensual"
+              value={formatMonto(rentaMensual)}
+              sub={
+                incompletos > 0
+                  ? `+ ${incompletos} por capturar`
+                  : `${activos.length} contrato${activos.length === 1 ? '' : 's'} activo${activos.length === 1 ? '' : 's'}`
+              }
+              tono={incompletos > 0 ? 'ambar' : 'neutro'}
+              icon={<Wallet className="h-4 w-4" />}
+            />
+            <KPICard
+              label="Contratos"
+              value={String(contratos.length)}
+              sub={`de ${arrendadores?.length ?? '—'} arrendador${arrendadores?.length === 1 ? '' : 'es'}`}
+              icon={<FileSignature className="h-4 w-4" />}
+            />
+            <KPICard
+              label="Por vencer"
+              value={String(porVencer)}
+              sub="contratos que hay que renovar o terminar"
+              tono={porVencer ? 'ambar' : 'neutro'}
+              icon={<CalendarClock className="h-4 w-4" />}
+            />
+            <KPICard
+              label="Renta vencida"
+              value={String(rentaVencida)}
+              sub="pagos de renta vencidos"
+              tono={rentaVencida ? 'rojo' : 'neutro'}
+              icon={<AlertTriangle className="h-4 w-4" />}
+            />
+          </>
+        )}
       </div>
       {incompletos > 0 && (
         // El total de arriba NO es el definitivo mientras haya pendientes: si no
         // se dice, se lee como la renta real y se subestima el costo.
-        <p className="-mt-1 text-[12px] text-muted">
+        // 26/10 · en la franja secundaria del Dashboard, dentro de la tarjeta.
+        <p className="rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px] text-muted">
           La renta mensual no incluye {incompletos} contrato{incompletos === 1 ? '' : 's'} incompleto
           {incompletos === 1 ? '' : 's'}
           {/* Qué falta se DERIVA de los contratos, no se supone: la mayoría de
@@ -284,40 +323,14 @@ export default function ArrendadoresPage() {
           es mayor.
         </p>
       )}
+      </CardColapsable>
 
-      {/* Propietarios: lista de arrendadores dados de alta (aparecen aquí aunque
-          todavía no tengan contrato) */}
-      {/* Contratos SIN filtrar, al contrario que el resto de la pantalla: esta
-          tarjeta ya no solo informa, tiene al lado el boton de dar de baja, y
-          su cifra responde «¿se puede dar de baja?». Con los filtrados, un
-          propietario con contratos vivos podia enseñar 0 y prometer una baja
-          que el servidor rechaza. */}
-      <PropietariosCard arrendadores={arrendadoresFiltrados} contratos={contratos ?? []} predios={predios} filtrado={hayFiltro(filtro)} onToast={notify} />
-
-      {/* Alta/edición de razones sociales por propietario. Va pegada a la lista
-          de propietarios porque es información SUYA; la tarjeta consolidada de
-          más abajo es otra cosa: el reporte de lo que se le debe a cada una. */}
-      <GestionRazonesSociales
-        arrendadores={arrendadoresFiltrados ?? []}
-        razones={razonesFiltradas ?? []}
-        contratosPorRazon={contratosPorRazon}
-        puedeEditar={puedeCrear}
-      />
-
-      {/* Rentabilidad por pantalla (P&L: ingreso de reservas activas − renta) */}
-      <RentabilidadCard margenes={margenesFiltrados} filtrado={hayFiltro(filtro)} />
-
-      {/* Cuadre de renta (R3.7): qué se le debe a cada propietario, desglosado
-          por emplazamiento. Antes solo se podía saber contrato por contrato. */}
-      <ConciliacionCard contratosVisibles={contratosFiltrados} />
-
-      {/* Consolidado por razón social (un propietario puede tener varias) */}
-      <RazonesSocialesCard
-        razones={razonesFiltradas ?? []}
-        contratos={contratosFiltrados ?? []}
-        pagos={pagosFiltrados ?? []}
-        nombreArr={nombreArr}
-      />
+      {/* 26/10 · ORDEN POR USO, como lo ponen los referentes del sector (lo que
+          vence y lo que se debe primero, el catálogo después): Contratos →
+          Pagos de renta → Cuadre → Rentabilidad → Arrendadores → Razones
+          sociales → Por razón social. Solo se movieron bloques: mismas props y
+          mismos `id`, así que el plegado que cada persona dejó guardado se
+          conserva. */}
 
       {/* Contratos */}
       <CardColapsable
@@ -395,10 +408,25 @@ export default function ArrendadoresPage() {
                           {c.montoRenta != null ? formatMonto(c.montoRenta) : <span className="text-muted">—</span>}
                         </td>
                         <td className="px-4 py-2.5 text-muted">{periodicidadLabel(c.periodicidad)}</td>
-                        <td className="demo-num px-4 py-2.5 text-muted">
-                          {c.fechaFin ? formatFecha(c.fechaFin) : '—'}
-                          {c.estatus === 'POR_VENCER' && (
-                            <span className="ml-1 text-[11px] text-warning">({dias}d)</span>
+                        <td className="whitespace-nowrap px-4 py-2.5 text-muted">
+                          {/* 26/10 · fecha y, a su derecha, la pastilla de días que
+                              usa el Dashboard. Antes solo POR_VENCER decía cuánto
+                              faltaba, como un «(Nd)» pegado. El texto de la
+                              pastilla lleva el significado; el color lo refuerza. */}
+                          <span className="demo-num">{c.fechaFin ? formatFecha(c.fechaFin) : '—'}</span>
+                          {c.fechaFin && (
+                            <span
+                              className={cn(
+                                'demo-num ml-2 inline-flex rounded-full border px-2 py-0.5 text-[11px]',
+                                c.estatus === 'VENCIDO'
+                                  ? 'border-error bg-error-soft text-error'
+                                  : c.estatus === 'POR_VENCER'
+                                    ? 'border-warning bg-warning-soft text-warning'
+                                    : 'border-border text-muted',
+                              )}
+                            >
+                              {dias < 0 ? `hace ${-dias} d` : dias === 0 ? 'hoy' : `en ${dias} d`}
+                            </span>
                           )}
                         </td>
                         <td className="px-4 py-2.5">
@@ -438,6 +466,40 @@ export default function ArrendadoresPage() {
       {/* Pagos de renta (compartido con Finanzas: es a la vez contrato y
           salida de dinero, y no debe divergir entre las dos pantallas) */}
       <PagosRentaCard onToast={notify} contratosVisibles={contratosFiltrados} />
+
+      {/* Cuadre de renta (R3.7): qué se le debe a cada propietario, desglosado
+          por emplazamiento. Antes solo se podía saber contrato por contrato. */}
+      <ConciliacionCard contratosVisibles={contratosFiltrados} />
+
+      {/* Rentabilidad por pantalla (P&L: ingreso de reservas activas − renta) */}
+      <RentabilidadCard margenes={margenesFiltrados} filtrado={hayFiltro(filtro)} />
+
+      {/* Propietarios: lista de arrendadores dados de alta (aparecen aquí aunque
+          todavía no tengan contrato) */}
+      {/* Contratos SIN filtrar, al contrario que el resto de la pantalla: esta
+          tarjeta ya no solo informa, tiene al lado el boton de dar de baja, y
+          su cifra responde «¿se puede dar de baja?». Con los filtrados, un
+          propietario con contratos vivos podia enseñar 0 y prometer una baja
+          que el servidor rechaza. */}
+      <PropietariosCard arrendadores={arrendadoresFiltrados} contratos={contratos ?? []} predios={predios} filtrado={hayFiltro(filtro)} onToast={notify} />
+
+      {/* Alta/edición de razones sociales por propietario. Va pegada a la lista
+          de propietarios porque es información SUYA; la tarjeta consolidada de
+          más abajo es otra cosa: el reporte de lo que se le debe a cada una. */}
+      <GestionRazonesSociales
+        arrendadores={arrendadoresFiltrados ?? []}
+        razones={razonesFiltradas ?? []}
+        contratosPorRazon={contratosPorRazon}
+        puedeEditar={puedeCrear}
+      />
+
+      {/* Consolidado por razón social (un propietario puede tener varias) */}
+      <RazonesSocialesCard
+        razones={razonesFiltradas ?? []}
+        contratos={contratosFiltrados ?? []}
+        pagos={pagosFiltrados ?? []}
+        nombreArr={nombreArr}
+      />
 
       <ContratoSheet contrato={sel} open={open} onOpenChange={setOpen} onToast={notify} />
       {nuevoOpen && (
@@ -592,8 +654,8 @@ function NuevoPropietarioDialog({ onClose, onToast }: { onClose: () => void; onT
           />
         </Campo>
         {nombreRepetido && (
-          <div className="flex items-start gap-2 rounded border border-accent/50 bg-[#f59e0b0d] px-3 py-2 text-[12px] text-ink">
-            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#9a6700]" strokeWidth={2} />
+          <div className="flex items-start gap-2 rounded border border-warning bg-warning-soft px-3 py-2 text-[12px] text-ink">
+            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" strokeWidth={2} />
             <span>
               {nombreRepetido}
               {' '}
@@ -709,10 +771,13 @@ function RazonesSocialesCard({
   const filas = razones.map((rs) => filaDe(rs.id, rs.razonSocial, rs.rfc, rs.arrendadorId))
   const sinRs = filaDe(null, 'Sin razón social', null, null)
   const todas = sinRs.total > 0 ? [...filas, sinRs] : filas
-  if (todas.length === 0) return null
-
+  // 26/10 · sin datos la tarjeta ya no desaparece: una sección que se esfuma no
+  // dice si está vacía o si no cargó. Se queda, con una línea que lo dice.
   return (
     <CardColapsable id="arrendadores.por-razon-social" titulo="Por razón social" contentClassName="px-0 pb-0">
+        {todas.length === 0 ? (
+          <p className="px-4 pb-4 text-[13px] text-muted">— Sin razones sociales dadas de alta.</p>
+        ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-[13px]">
             <thead>
@@ -740,7 +805,7 @@ function RazonesSocialesCard({
                   <td className="demo-num px-4 py-2.5 text-right text-ink">{formatMonto(Math.round(f.rentaMensual))}</td>
                   <td className="px-4 py-2.5 text-center">
                     {f.vencidos > 0 ? (
-                      <span className="inline-flex items-center rounded-full border border-[#ef444440] bg-[#ef44441a] px-2 py-0.5 text-[11px] font-medium text-error">{f.vencidos}</span>
+                      <StatusBadge tono="rojo">{f.vencidos}</StatusBadge>
                     ) : (
                       <span className="text-muted">0</span>
                     )}
@@ -750,24 +815,8 @@ function RazonesSocialesCard({
             </tbody>
           </table>
         </div>
-    </CardColapsable>
-  )
-}
-
-function Mini({ label, valor, tono, nota }: { label: string; valor: string; tono?: 'ambar' | 'rojo'; nota?: string }) {
-  return (
-    <div className="rounded-md border border-border bg-surface p-3">
-      <div className="text-[12px] text-muted">{label}</div>
-      <div
-        className={cn(
-          'demo-num mt-1 text-2xl font-semibold',
-          tono === 'rojo' ? 'text-error' : tono === 'ambar' ? 'text-warning' : 'text-ink',
         )}
-      >
-        {valor}
-      </div>
-      {nota && <div className="mt-0.5 text-[11px] text-warning">{nota}</div>}
-    </div>
+    </CardColapsable>
   )
 }
 
@@ -807,9 +856,11 @@ function RentabilidadCard({
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-[12px]">
+            {/* 26/10 · mismo cuerpo (13 px) y misma cabecera en versalitas que
+                las demás tablas del módulo. */}
+            <table className="w-full text-[13px]">
               <thead>
-                <tr className="border-b border-border text-left text-muted">
+                <tr className="border-b border-border text-left text-[11px] uppercase tracking-wide text-muted">
                   <th className="px-4 py-2 font-medium">Pantalla</th>
                   <th className="px-4 py-2 font-medium">Arrendador</th>
                   <th className="px-4 py-2 text-right font-medium">Ingreso/mes</th>
@@ -827,7 +878,7 @@ function RentabilidadCard({
                     <td className="px-4 py-2 text-muted">{m.arrendador ?? '—'}</td>
                     <td className="demo-num px-4 py-2 text-right text-ink">{formatMonto(m.ingresoMensual)}</td>
                     <td className="demo-num px-4 py-2 text-right text-muted">{m.rentaMensual ? formatMonto(m.rentaMensual) : '—'}</td>
-                    <td className={cn('demo-num px-4 py-2 text-right font-semibold', m.margenMensual < 0 ? 'text-error' : m.margenMensual > 0 ? 'text-[#0f7a55]' : 'text-muted')}>
+                    <td className={cn('demo-num px-4 py-2 text-right font-semibold', m.margenMensual < 0 ? 'text-error' : m.margenMensual > 0 ? 'text-success' : 'text-muted')}>
                       {formatMonto(m.margenMensual)}
                     </td>
                   </tr>
@@ -836,7 +887,7 @@ function RentabilidadCard({
                   <td className="px-4 py-2 text-ink" colSpan={2}>Total</td>
                   <td className="demo-num px-4 py-2 text-right text-ink">{formatMonto(totalIngreso)}</td>
                   <td className="demo-num px-4 py-2 text-right text-muted">{formatMonto(totalRenta)}</td>
-                  <td className={cn('demo-num px-4 py-2 text-right', totalMargen < 0 ? 'text-error' : 'text-[#0f7a55]')}>{formatMonto(totalMargen)}</td>
+                  <td className={cn('demo-num px-4 py-2 text-right', totalMargen < 0 ? 'text-error' : 'text-success')}>{formatMonto(totalMargen)}</td>
                 </tr>
               </tbody>
             </table>
@@ -972,7 +1023,7 @@ function PropietariosCard({
                               placeholder="XAXX010101000"
                             />
                           ) : (
-                            a.rfc || <span className="text-accent">Falta</span>
+                            a.rfc || <StatusBadge tono="ambar">Falta</StatusBadge>
                           )}
                         </td>
                         <td className="px-4 py-2.5 text-muted">
@@ -985,7 +1036,7 @@ function PropietariosCard({
                               autoFocus
                             />
                           ) : (
-                            a.direccion || <span className="text-accent">Falta</span>
+                            a.direccion || <StatusBadge tono="ambar">Falta</StatusBadge>
                           )}
                         </td>
                         <td className="px-4 py-2.5 text-muted">
