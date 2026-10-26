@@ -4,6 +4,7 @@ import { recrearEsquema, cerrarPool, poolTest } from './db-e2e'
 import { sembrarTenant, asegurarPermisos, PASSWORD_DEMO, enDias } from './semillas-e2e'
 import { arrancarServidor, pararServidor, Cliente, BASE } from './servidor-e2e'
 import { RUTA_RENTABILIDAD, DIMENSIONES_UI } from '@/components/demo/reportes/consulta'
+import { consultaPnlDelMes, pnlDesdeRespuesta } from '@/components/demo/inicio/pnl-del-mes'
 
 // ============================================================================
 //  La pantalla de reportes: la ruta que pide y el rol que la puede pedir.
@@ -238,5 +239,25 @@ describe('2 · un rol sin `finanzas.ver` no alcanza el reporte', () => {
     const r = await anonimo.pedir('/reportes/')
     expect(r.status).toBe(307)
     expect(r.ubicacion ?? '').toContain('/login')
+  })
+})
+
+// ─── 3 · el Dashboard pide su mes por la MISMA ruta (DASH-PERIODO, 26/10) ───
+// El ingreso, los costos y el margen de Inicio ya no se calculan en el
+// navegador: se piden aquí, con el mes en curso. La URL se IMPORTA de la
+// pantalla por lo mismo que `RUTA_RENTABILIDAD` arriba: si alguien la rompe,
+// el Dashboard enseñaría «no se pudo calcular» sin decir por qué.
+describe('3 · el Dashboard pide el mes en curso por esta ruta', () => {
+  it('la cadena EXACTA del Dashboard, desde el origen pelado, da totales al Dueño', async () => {
+    const r = await duenoCrudo.pedirCrudo(consultaPnlDelMes(new Date()))
+    expect(r.status, r.texto.slice(0, 300)).toBe(200)
+    expect(pnlDesdeRespuesta(r.status, JSON.parse(r.texto)).fase).toBe('datos')
+  })
+
+  it('NEGATIVO · al rol sin finanzas le da «sin acceso», no un mes en cero', async () => {
+    // `Cliente` antepone el basePath; se le quita a la cadena para pedir la misma.
+    const r = await comercial.pedir(consultaPnlDelMes(new Date()).replace(/^\/spaces-dooh/, ''))
+    expect(r.status).toBe(403)
+    expect(pnlDesdeRespuesta(r.status, r.datos)).toEqual({ fase: 'sin-acceso' })
   })
 })

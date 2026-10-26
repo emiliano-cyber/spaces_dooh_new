@@ -5,6 +5,23 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-10-26
+
+- **El Dashboard ya enseña el ingreso y el margen DEL MES.** Antes, «Ingreso
+  contratado del mes» sumaba todas las ventas confirmadas que han existido, y el
+  margen contaba la renta de una pantalla una vez por cada venta que tuvo. Ahora
+  las dos tarjetas dicen el mes («Ingreso de octubre», «Margen de octubre») y dan
+  exactamente la misma cifra que Reportes → Rentabilidad para ese mes: el ingreso
+  se reparte por los días que la campaña cae en el mes, la renta es la de todas
+  tus pantallas con contrato (vendidas o no, porque se paga igual) y se suma la
+  luz. La impresión se ve aparte y no entra en el margen. Un enlace «Ver por
+  pantalla» abre ese mismo mes en Reportes.
+- **Quien no tiene permiso de Finanzas ya no ve cifras falsas.** Un vendedor veía
+  «Por cobrar $0» y un margen de 100 % en verde porque esos datos no le llegan.
+  Ahora esas tarjetas dicen «—, requiere permiso de Finanzas».
+
+---
+
 ## 2026-10-22
 
 **Preparado para la v0.12.3 (todavía sin publicar):**

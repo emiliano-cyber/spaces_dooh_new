@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import {
@@ -15,7 +15,6 @@ import {
 } from 'lucide-react'
 import { useAlertasVisibles, TIPOS_ALERTA } from '@/lib/alertas-visibles'
 import { formatNumero } from '@/lib/formato-numero'
-import { conteo } from '@/lib/plural'
 import { KPICard, KPICardSkeleton } from '@/components/demo/KPICard'
 import { OcupacionChart, ReservasChart } from '@/components/demo/charts'
 import { MapView, type MapPoint } from '@/components/demo/MapView'
@@ -29,6 +28,13 @@ import {
   type Tono,
 } from '@/components/demo/StatusBadge'
 import { cn } from '@/lib/cn'
+import { usePuede } from '@/components/demo/shell/SesionContext'
+import {
+  consultaPnlDelMes,
+  pnlDesdeRespuesta,
+  rutaReportesDelMes,
+  type PnlDelMes,
+} from '@/components/demo/inicio/pnl-del-mes'
 import {
   useDashboard,
   useOcupacionSerie,
@@ -47,6 +53,27 @@ function margenTono(pct: number): Tono {
   return 'rojo'
 }
 
+// El estado de resultados del MES, pedido al motor de Reportes (DASH-PERIODO,
+// 26/10). Ver `components/demo/inicio/pnl-del-mes.ts` para el porqué.
+function usePnlDelMes(): PnlDelMes {
+  const [pnl, setPnl] = useState<PnlDelMes>({ fase: 'cargando' })
+  useEffect(() => {
+    const control = new AbortController()
+    void (async () => {
+      try {
+        const r = await fetch(consultaPnlDelMes(new Date()), { cache: 'no-store', signal: control.signal })
+        // `catch` propio: detrás de nginx un 500 puede venir en HTML.
+        const cuerpo = await r.json().catch(() => null)
+        if (!control.signal.aborted) setPnl(pnlDesdeRespuesta(r.status, cuerpo))
+      } catch {
+        if (!control.signal.aborted) setPnl(pnlDesdeRespuesta(0, null))
+      }
+    })()
+    return () => control.abort()
+  }, [])
+  return pnl
+}
+
 const GRANS: { value: Granularidad; label: string }[] = [
   { value: 'dia', label: 'Día' },
   { value: 'semana', label: 'Semana' },
@@ -61,6 +88,11 @@ export default function DashboardPage() {
   const campanas = useCampanas()
   const cfg = useConfigNegocio()
   const alertasCfg = useAlertasVisibles()
+  const pnl = usePnlDelMes()
+  // Sin `finanzas:ver`, `/api/estado` le manda las cobranzas vacías: «Por
+  // cobrar $0» sería una cifra falsa, no una oculta.
+  const veFinanzas = usePuede('finanzas', 'ver')
+  const mesActual = new Date().toLocaleDateString('es-MX', { month: 'long' })
 
   // Encabezado: razón social y nombre comercial salen de config_negocio
   // (Administración → Configuración). Solo se muestra el dato que esté cargado.
@@ -107,25 +139,51 @@ export default function DashboardPage() {
           </>
         ) : (
           <>
-            <KPICard
-              label="Ingreso contratado del mes"
-              value={formatMonto(m.ingresoMes)}
-              sub={conteo(m.reservasConfirmadas, 'reserva confirmada', 'reservas confirmadas')}
-              tono="azul"
-              icon={<TrendingUp className="h-4 w-4" />}
-            />
-            <KPICard
-              label="Margen"
-              value={`${m.margenPct.toFixed(0)}%`}
-              sub={`${formatMonto(m.margen)} · costo ${formatMonto(m.costoTotalMes)}`}
-              tono={margenTono(m.margenPct)}
-              icon={<Wallet className="h-4 w-4" />}
-            />
+            {/* Ingreso y margen DEL MES, del motor de Reportes. Sin permiso o con
+                error se dice, con una raya: un cero afirmaría un mes sin ventas. */}
+            {pnl.fase === 'cargando' ? (
+              <>
+                <KPICardSkeleton />
+                <KPICardSkeleton />
+              </>
+            ) : pnl.fase === 'datos' ? (
+              <>
+                <KPICard
+                  label={`Ingreso de ${mesActual}`}
+                  value={formatMonto(pnl.totales.ingreso)}
+                  sub="lo que se devenga este mes, prorrateado por días"
+                  tono="azul"
+                  icon={<TrendingUp className="h-4 w-4" />}
+                />
+                <KPICard
+                  label={`Margen de ${mesActual}`}
+                  value={pnl.totales.margenBrutoPct == null ? '—' : `${pnl.totales.margenBrutoPct.toFixed(0)}%`}
+                  sub={`${formatMonto(pnl.totales.margenBruto)} · costo ${formatMonto(pnl.totales.costoTotal)}`}
+                  tono={pnl.totales.margenBrutoPct == null ? 'neutro' : margenTono(pnl.totales.margenBrutoPct)}
+                  icon={<Wallet className="h-4 w-4" />}
+                />
+              </>
+            ) : (
+              <>
+                <KPICard
+                  label={`Ingreso de ${mesActual}`}
+                  value="—"
+                  sub={pnl.fase === 'sin-acceso' ? 'requiere permiso de Finanzas' : 'no se pudo calcular'}
+                  icon={<TrendingUp className="h-4 w-4" />}
+                />
+                <KPICard
+                  label={`Margen de ${mesActual}`}
+                  value="—"
+                  sub={pnl.fase === 'sin-acceso' ? 'requiere permiso de Finanzas' : 'no se pudo calcular'}
+                  icon={<Wallet className="h-4 w-4" />}
+                />
+              </>
+            )}
             <KPICard
               label="Por cobrar"
-              value={formatMonto(m.porCobrar)}
-              sub="facturas emitidas pendientes"
-              tono="ambar"
+              value={veFinanzas ? formatMonto(m.porCobrar) : '—'}
+              sub={veFinanzas ? 'facturas emitidas pendientes' : 'requiere permiso de Finanzas'}
+              tono={veFinanzas ? 'ambar' : 'neutro'}
               icon={<HandCoins className="h-4 w-4" />}
             />
             {/* % ponderado por capacidad: cada slot de una digital y cada cara
@@ -143,14 +201,20 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Desglose del costo del mes (motor de costos: espacios + impresión + operación) */}
-      {m && (
+      {/* Desglose del costo del mes: las tres fuentes del motor de Reportes
+          (renta, operación y luz) y, aparte, la impresión, que ese motor no
+          cuenta y por eso NO entra en el total ni en el margen. */}
+      {m && pnl.fase === 'datos' && (
         <div className="flex flex-wrap items-center gap-x-5 gap-y-1 rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px]">
-          <span className="font-medium text-ink">Costos del mes</span>
-          <CostoItem label="Espacios" valor={formatMonto(m.costoEspaciosMes)} />
-          <CostoItem label="Impresión" valor={formatMonto(m.costoImpresionMes)} />
-          <CostoItem label="Operación" valor={formatMonto(m.costoOperacionMes)} />
-          <CostoItem label="Total" valor={formatMonto(m.costoTotalMes)} fuerte />
+          <span className="font-medium text-ink">Costos de {mesActual}</span>
+          <CostoItem label="Renta" valor={formatMonto(pnl.totales.costoEspacio)} />
+          <CostoItem label="Operación" valor={formatMonto(pnl.totales.costoOperacion)} />
+          <CostoItem label="Luz" valor={formatMonto(pnl.totales.costoEnergia)} />
+          <CostoItem label="Total" valor={formatMonto(pnl.totales.costoTotal)} fuerte />
+          <CostoItem label="Impresión (aparte)" valor={formatMonto(m.costoImpresionMes)} />
+          <Link href={rutaReportesDelMes(new Date())} className="ml-auto text-accent hover:underline">
+            Ver por pantalla
+          </Link>
         </div>
       )}
       </CardColapsable>

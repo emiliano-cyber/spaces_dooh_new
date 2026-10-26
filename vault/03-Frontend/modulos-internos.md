@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-22
+actualizado: 2026-10-26
 tags: [frontend, modulos, pantallas, verde]
 archivos:
   - apps/web/app/(app)/(shell)/
@@ -27,7 +27,7 @@ archivos:
 
 | Ruta | Módulo | Backend | Componentes propios |
 |---|---|---|---|
-| `/inicio` | Tablero | `/api/estado` | `KPICard`, `charts` |
+| `/inicio` | Tablero | `/api/estado`; el ingreso, los costos y el margen del MES, de `/api/reportes/rentabilidad` (DASH-PERIODO, 26/10 — ver [[pantalla-reportes]]) | `KPICard`, `charts`, `components/demo/inicio/pnl-del-mes.ts` |
 | `/novedades` | Notas de cada versión instalada | `/api/novedades` | `NotasDeVersion` — **sin entrada en el menú**, a propósito |
 | `/actividad` | Bitácora | `acciones` | — |
 | `/comercial` | Buscador de inventario | `/api/sitios` | `SiteFicha`, `ReservaDialog`, `AltaSitioDialog`, `SpaceEyeVision` |

@@ -6,6 +6,12 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!important] 2026-10-26 · **DASH-PERIODO · ingreso, costos y margen del Dashboard, del mes** — rama `fix/dashboard-del-periodo` · ÁMBAR (cifras de dinero, solo lectura: sin migración, sin sesión, sin escritura)
+> Inicio pide el mes en curso a `/api/reportes/rentabilidad` en vez de calcularlo con `dashboardMetrics`, que sumaba
+> todo lo que ha existido. Decisión del dueño (26/10): la misma cifra que Reportes. Un rol sin finanzas ve «—», no $0.
+> **Sin zona:** `app/(app)/(shell)/inicio/`, `components/demo/inicio/` y `lib/data/derive.ts` (solo `dashboardMetrics`)
+> no caen en ninguna; más Z12 (bóveda y bitácora). **Reclamadas y LIBERADAS** al commitear.
+
 > [!success] 2026-10-22, noche · **`v0.12.3` en `estable`** — promover `39850257202`, digest `bd42588b…`; vuelta atrás: `v0.12.2` (`9cef7c6f…`)
 > Varios creativos rotan solos en un spot y el reemplazo ya no deja el arte viejo en DOOHmain; pantallas y lugares
 > propios (sin renta ni contrato, migración `20261022_pantallas_propias.sql`); la duración de la propuesta se calcula

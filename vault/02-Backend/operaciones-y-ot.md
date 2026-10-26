@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-14
+actualizado: 2026-10-26
 tags: [backend, operaciones, ot, imprenta, amarillo, almacen, checklist]
 archivos:
   - apps/web/lib/server/ot-repo.ts
@@ -167,7 +167,7 @@ mejor esfuerzo.
 Desde el **2026-09-17** el costo de mano de obra de una orden de trabajo sale de
 `config_negocio.costos_ot` (jsonb, una fila por tenant — ADR 0011) y se resuelve
 por tipo en `lib/costos-ot.ts`. Lo lee todo el que calcula margen:
-`dashboardMetrics` (`derive.ts:605`, el costo en `:640`), `margenCampana` (`derive.ts:739`, el costo en `:760`) —los dos por `costoEfectivoDeOt`, que prefiere el costo real— y los
+el Dashboard —desde el 26/10 por el motor de reportes, ya no por `dashboardMetrics`—, `margenCampana` (`derive.ts:739`, el costo en `:760`) —los dos por `costoEfectivoDeOt`, que prefiere el costo real— y los
 reportes de rentabilidad ([[reportes-rentabilidad]]).
 
 Antes era una constante en el archivo de derivados:
