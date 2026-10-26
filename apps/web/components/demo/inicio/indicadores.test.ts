@@ -100,6 +100,28 @@ describe('pipelineComercial', () => {
     ])
   })
 
+  it('NEGATIVO · un vendedor cuyo nombre no llega NO es «Sin vendedor»; quien está en sesión se reconoce', () => {
+    // Visto en el navegador el 26/10: la lista de usuarios solo viaja a quien ve
+    // `operaciones` (`app/api/estado/route.ts`), así que a un VENDEDOR le llega
+    // vacía y las tres propuestas, todas con vendedor, salían como «Sin
+    // vendedor». Afirmaba un dato falso.
+    const r = pipelineComercial(
+      [
+        p('1', 'APROBADA', { aprobadaEn: '2026-10-03T18:00:00Z', netoAprobado: 800, vendedorId: 'U1' }),
+        p('2', 'APROBADA', { aprobadaEn: '2026-10-04T18:00:00Z', netoAprobado: 300, vendedorId: 'U2' }),
+        p('3', 'APROBADA', { aprobadaEn: '2026-10-05T18:00:00Z', netoAprobado: 100, vendedorId: null }),
+      ] as any,
+      [],
+      HOY,
+      { id: 'U1', nombre: 'Ana' },
+    )
+    expect(r.porVendedor).toEqual([
+      { nombre: 'Ana', n: 1, valor: 800 },
+      { nombre: 'Otros vendedores', n: 1, valor: 300 },
+      { nombre: 'Sin vendedor', n: 1, valor: 100 },
+    ])
+  })
+
   it('NEGATIVO · una aprobada SIN fecha (anterior al 09/10) no cuenta como ganada este mes', () => {
     const r = pipelineComercial([p('1', 'APROBADA', { netoAprobado: 900 })] as any, usuarios, HOY)
     expect(r.ganadoMes).toEqual({ n: 0, valor: 0 })

@@ -130,8 +130,17 @@ export function pipelineComercial(
   }[],
   usuarios: { id: string; nombre: string }[],
   hoy: Date,
+  // Quien está en sesión. La lista de usuarios solo viaja a quien ve
+  // `operaciones` (`app/api/estado/route.ts`): a un VENDEDOR le llega vacía, y
+  // sin esto ni su propio nombre se resolvería.
+  yo?: { id: string; nombre: string } | null,
 ): PipelineComercial {
   const nombre = new Map(usuarios.map((u) => [u.id, u.nombre]))
+  if (yo) nombre.set(yo.id, yo.nombre)
+  // Con vendedor pero sin su nombre a la vista NO es «Sin vendedor»: esa
+  // etiqueta afirma que la propuesta no tiene, y sí tiene.
+  const etiqueta = (id: string | null | undefined) =>
+    !id ? 'Sin vendedor' : (nombre.get(id) ?? 'Otros vendedores')
   const abierto = { n: 0, valor: 0, enviadas: 0 }
   const ganadoMes = { n: 0, valor: 0 }
   const vend = new Map<string, { nombre: string; n: number; valor: number }>()
@@ -153,7 +162,7 @@ export function pipelineComercial(
         const valor = Number(p.netoAprobado) || Number(p.neto) || 0
         ganadoMes.n += 1
         ganadoMes.valor += valor
-        const nom = (p.vendedorId && nombre.get(p.vendedorId)) || 'Sin vendedor'
+        const nom = etiqueta(p.vendedorId)
         const v = vend.get(nom) ?? { nombre: nom, n: 0, valor: 0 }
         v.n += 1
         v.valor += valor

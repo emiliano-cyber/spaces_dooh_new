@@ -25,7 +25,7 @@ import { MapView, type MapPoint } from '@/components/demo/MapView'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { SITIO_LABEL, type Tono } from '@/components/demo/StatusBadge'
 import { cn } from '@/lib/cn'
-import { usePuede } from '@/components/demo/shell/SesionContext'
+import { usePuede, useSesionCtx } from '@/components/demo/shell/SesionContext'
 import {
   consultaPnlDelMes,
   consultaPrecioDelMes,
@@ -147,9 +147,10 @@ export default function DashboardPage() {
       label: s.nombre,
     })) ?? []
 
+  const yo = useSesionCtx().sesion?.usuario ?? null
   const pipeline = useMemo(
-    () => (propuestas ? pipelineComercial(propuestas, usuarios ?? [], hoy) : null),
-    [propuestas, usuarios, hoy],
+    () => (propuestas ? pipelineComercial(propuestas, usuarios ?? [], hoy, yo) : null),
+    [propuestas, usuarios, hoy, yo],
   )
   const antiguedad = useMemo(
     () => (cobranzas && facturas ? antiguedadCobranza(cobranzas, facturas, hoy) : null),
@@ -518,7 +519,7 @@ export default function DashboardPage() {
                 {/* Una barra por tramo, un solo color: es una comparación de
                     magnitudes, no de categorías. La etiqueta y el monto van en
                     texto, así que el color no carga el significado. */}
-                <ul className="space-y-1.5">
+                <ul className="list-none space-y-1.5 pl-0">
                   {antiguedad.tramos.map((t) => (
                     <li key={t.clave} title={`${t.label}: ${formatMonto(t.monto)} en ${conteo(t.n, 'cuota', 'cuotas')}`}>
                       <div className="flex items-center justify-between gap-2">
