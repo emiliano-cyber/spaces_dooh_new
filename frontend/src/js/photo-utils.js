@@ -209,3 +209,53 @@ function photoOverlayLines(photo, siteText) {
     : null;
   return [siteText || photo.device_name || 'SPACE EYE', dt, gps].filter(Boolean);
 }
+
+
+// ─── Creativos detectados que no trajeron foto ──────────────────────────────
+//
+// El catalogo de creativos y la galeria se llenan por caminos DISTINTOS: la
+// huella del creativo viaja siempre -32 bytes pegados al reporte de estado- y
+// la foto solo si el equipo podia tomarla. Un hallazgo sin foto es normal; lo
+// que no lo era es esconderlo sin decir nada, porque entonces el catalogo y la
+// galeria no cuadran y parece un error (TLALPAN, 23-oct-2026).
+//
+// Los motivos los guarda el servidor en device_creatives.sin_foto (migracion
+// 028). Primero lo que hay que atender, al final lo que es de esperarse.
+const MOTIVOS_SIN_FOTO = [
+  { clave: 'no_subio', texto: 'no se pudo subir' },
+  { clave: 'tope_del_dia', texto: 'se agoto el tope de fotos del dia' },
+  { clave: 'envio_agrupado', texto: 'esperan el envio agrupado' },
+  { clave: 'aprendizaje', texto: 'se aprendieron del loop' },
+  { clave: 'desconocido', texto: 'sin motivo registrado' },
+];
+
+/** Los hallazgos sin foto del catalogo, agrupados por motivo. */
+function contarSinFoto(filas) {
+  const cuenta = {};
+  for (const c of filas || []) {
+    if (c.thumbnail_path || c.storage_path) continue;
+    // Los viejos no traen motivo (la columna es nueva) y los aprendidos nunca se
+    // fotografian a proposito: ni unos ni otros son noticia.
+    const motivo = c.sin_foto ? String(c.sin_foto) : (c.aprendido ? 'aprendizaje' : 'desconocido');
+    cuenta[motivo] = (cuenta[motivo] || 0) + 1;
+  }
+  return cuenta;
+}
+
+/** Una linea que lo explique, o '' si todas tienen su foto (lo normal: sin ruido). */
+function textoSinFoto(cuenta) {
+  if (!cuenta) return '';
+  const conocidos = new Set(MOTIVOS_SIN_FOTO.map((m) => m.clave));
+  let total = 0;
+  const partes = [];
+  for (const m of MOTIVOS_SIN_FOTO) {
+    const n = cuenta[m.clave] || 0;
+    if (n > 0) { total += n; partes.push(n + ' ' + m.texto); }
+  }
+  // Un motivo que esta version no conozca suma al total aunque no se nombre: que
+  // el total cuadre importa mas, es lo que se mira primero.
+  for (const k of Object.keys(cuenta)) if (!conocidos.has(k) && cuenta[k] > 0) total += cuenta[k];
+  if (total === 0) return '';
+  const cabeza = total === 1 ? '1 detectado sin foto' : total + ' detectados sin foto';
+  return partes.length ? cabeza + ': ' + partes.join(', ') : cabeza;
+}
