@@ -1045,7 +1045,7 @@ onRecordar: (id: string) => void
             de la factura entera. */}
         {cob.monto != null ? formatMonto(cob.monto) : fac ? formatMonto(fac.monto) : '—'}
         {cob.montoPagado > 0 && est !== 'PAGADA' && fac && (
-          <div className="text-[11px] text-warning">saldo {formatMonto(saldoCobranza(cob, fac))}</div>
+          <div className="text-[11px] text-[#9a6700]">saldo {formatMonto(saldoCobranza(cob, fac))}</div>
         )}
       </td>
       <td className="demo-num hidden whitespace-nowrap px-4 py-2.5 align-top text-muted lg:table-cell">{cob.plazoDias} días</td>

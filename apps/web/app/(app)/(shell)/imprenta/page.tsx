@@ -224,7 +224,7 @@ export default function ImprentaPage() {
                   <span
                     className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${
                       o.pruebaColorAprobada
-                        ? 'border-transparent bg-success-soft text-success'
+                        ? 'border-transparent bg-success-soft text-[#0f7a55]'
                         : 'border-border text-muted'
                     }`}
                   >

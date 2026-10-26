@@ -95,6 +95,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
   // adelanta el aviso.
   const topeDescuento = config?.topeDescuentoPct ?? 100
   const puedeEditar = usePuede('comercial', 'crear')
+  const veRentas = usePuede('arrendadores', 'ver')
   const router = useRouter()
   const [generando, setGenerando] = useState(false)
   const [elegirCliente, setElegirCliente] = useState(false)
@@ -423,11 +424,17 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
               sub={comisionPct > 0 ? `después de ${comisionPct}% de comisión de agencia` : 'venta directa, sin comisión'}
               icon={<Coins className="h-4 w-4" />}
             />
+            {/* Sin `arrendadores:ver` los contratos llegan vacíos de
+                `/api/estado`: decirle a un vendedor «ninguna pantalla tiene renta
+                capturada» sería afirmar algo falso (lo cazó la validación del
+                26/10 con la propuesta PR-2026-0007, que sí tiene renta). */}
             <KPICard
               label="Renta de referencia"
-              value={sinContratoRenta === p.items.length ? '—' : formatMonto(rentaTotal)}
+              value={!veRentas || sinContratoRenta === p.items.length ? '—' : formatMonto(rentaTotal)}
               sub={
-                sinContratoRenta === p.items.length
+                !veRentas
+                  ? 'requiere permiso de Arrendadores'
+                  : sinContratoRenta === p.items.length
                   ? 'ninguna pantalla tiene renta capturada'
                   : `suma de las rentas de contrato${sinContratoRenta ? ` · ${sinContratoRenta} sin contrato` : ''}`
               }
@@ -916,7 +923,7 @@ function PasosEstatus({ estatus, conCampana }: { estatus: EstPropuesta; conCampa
                   : 'border-border text-muted',
             )}
           >
-            {x.hecho && <CheckIcon className="mr-0.5 inline h-3 w-3 text-success" />}
+            {x.hecho && <CheckIcon className="mr-0.5 inline h-3 w-3 text-[#0f7a55]" />}
             {x.label}
           </span>
         </li>

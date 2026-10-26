@@ -163,7 +163,7 @@ function Usuarios({ onToast }: { onToast: (m: string) => void }) {
           tono)}>
         <span aria-hidden="true" className={cn('h-1.5 w-1.5 rounded-full', u.activo ? 'bg-success' : 'bg-muted')} />
         {etiqueta}
-        <Interruptor aria-hidden="true" className={cn('h-3.5 w-3.5', u.activo ? 'text-success' : 'text-muted')} />
+        <Interruptor aria-hidden="true" className={cn('h-3.5 w-3.5', u.activo ? 'text-[#0f7a55]' : 'text-muted')} />
       </button>
     )
   }
@@ -417,7 +417,7 @@ function CambiarPasswordModal({
               {temporal}
             </div>
             <p className={FRANJA_AVISO}>
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[#9a6700]" />
               <span>
                 No se puede volver a ver: en la base solo queda su huella. Se cerraron las sesiones
                 abiertas de {usuario.nombre} y el sistema le pedirá cambiarla en cuanto entre.
@@ -585,7 +585,7 @@ function InvitarModal({ open, onOpenChange, onInvitado }: { open: boolean; onOpe
         <div className="space-y-3">
           {enlace.fallo ? (
             <p className={FRANJA_AVISO}>
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[#9a6700]" />
               La cuenta se creó, pero el correo no se pudo enviar. Pásale este enlace por otro medio.
             </p>
           ) : (
@@ -1238,7 +1238,7 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
                 return (
                   <li key={t} className="flex items-center justify-between rounded border border-border px-3 py-1.5 text-[13px] text-ink">
                     <span className="inline-flex items-center gap-2">
-                      <Check className="h-3.5 w-3.5 text-success" /> {TIPO_OT_LABEL[t]}
+                      <Check className="h-3.5 w-3.5 text-[#0f7a55]" /> {TIPO_OT_LABEL[t]}
                     </span>
                     <span className="text-[11px] text-muted">
                       {soloFija ? 'solo pantalla fija' : 'fija y digital'}

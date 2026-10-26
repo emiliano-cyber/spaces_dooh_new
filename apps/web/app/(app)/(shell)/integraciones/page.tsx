@@ -59,7 +59,7 @@ export default function IntegracionesPage() {
           arreglarlo: el nombre de cada variable ya no viaja al navegador. */}
       {items?.some((it) => !it.configurado) && (
         <div className={`flex items-start gap-2 rounded-md border px-4 py-2.5 text-[12px] ${TONO.aviso}`}>
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[#9a6700]" />
           <span>
             Hay conectores sin credenciales: devuelven datos <b>simulados</b> hasta que se
             configuren en el servidor.
@@ -158,7 +158,7 @@ export default function IntegracionesPage() {
             <Dato label="Ventana" valor={metricas.ventana} />
             {metricas.simulado && (
               <span className="inline-flex items-center gap-1.5 text-[11px] text-ink">
-                <AlertTriangle className="h-3.5 w-3.5 text-warning" /> Datos simulados (sin credenciales)
+                <AlertTriangle className="h-3.5 w-3.5 text-[#9a6700]" /> Datos simulados (sin credenciales)
               </span>
             )}
           </div>

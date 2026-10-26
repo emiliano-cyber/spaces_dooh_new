@@ -194,7 +194,7 @@ export default function OperacionesPage() {
             'flex items-start gap-2.5 rounded-md border border-transparent px-3 py-2.5 text-[13px]',
             vencidas.length > 0
               ? 'bg-error-soft text-error'
-              : 'bg-warning-soft text-warning',
+              : 'bg-warning-soft text-[#9a6700]',
           )}
         >
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.75} />
@@ -206,7 +206,7 @@ export default function OperacionesPage() {
             )}
             {vencidas.length > 0 && porVencer.length > 0 && <span className="text-muted"> · </span>}
             {porVencer.length > 0 && (
-              <span className="font-medium text-warning">
+              <span className="font-medium text-[#9a6700]">
                 {porVencer.length} por vencer
               </span>
             )}
@@ -321,7 +321,7 @@ export default function OperacionesPage() {
                       <span
                         className={cn(
                           'rounded-full border border-transparent px-2 py-0.5 text-[11px] font-medium',
-                          PRIORIDAD_TONO[o.prioridad] === 'rojo' ? 'bg-error-soft text-error' : 'bg-warning-soft text-warning',
+                          PRIORIDAD_TONO[o.prioridad] === 'rojo' ? 'bg-error-soft text-error' : 'bg-warning-soft text-[#9a6700]',
                         )}
                       >
                         {PRIORIDAD_LABEL[o.prioridad]}
@@ -344,7 +344,7 @@ export default function OperacionesPage() {
                       </span>
                     )}
                     {sla === 'POR_VENCER' && (
-                      <span className="rounded-full border border-transparent bg-warning-soft px-2 py-0.5 text-[11px] font-semibold text-warning">
+                      <span className="rounded-full border border-transparent bg-warning-soft px-2 py-0.5 text-[11px] font-semibold text-[#9a6700]">
                         Por vencer
                       </span>
                     )}

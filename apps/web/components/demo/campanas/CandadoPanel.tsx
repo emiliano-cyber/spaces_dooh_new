@@ -87,7 +87,7 @@ export function CandadoPanel({ campanaId }: { campanaId: string }) {
         ) : (
           <Lock className="h-4 w-4 text-muted" strokeWidth={1.75} />
         )}
-        <span className={cn('text-[13px] font-medium', abierto ? 'text-success' : 'text-muted')}>
+        <span className={cn('text-[13px] font-medium', abierto ? 'text-[#0f7a55]' : 'text-muted')}>
           {abierto ? 'Lista para facturar' : 'Cerrado: faltan condiciones por cumplir'}
         </span>
       </div>

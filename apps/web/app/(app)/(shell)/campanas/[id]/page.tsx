@@ -282,7 +282,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
           // pendiente para que la seccion se abra y ordene primero.
           estado={margen.margen >= 0 ? 'hecho' : 'pendiente'}
           accion={
-            <span className={`text-[13px] font-semibold ${margen.margen >= 0 ? 'text-success' : 'text-error'}`}>
+            <span className={`text-[13px] font-semibold ${margen.margen >= 0 ? 'text-[#0f7a55]' : 'text-error'}`}>
               Margen {margen.margenPct.toFixed(0)}%
             </span>
           }
@@ -308,7 +308,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
                   − Costo de espacios
                   {margen.costoEspacios > 0 && (
                     <span
-                      className="rounded-full border border-transparent bg-warning-soft px-1.5 py-0.5 text-[9px] font-medium text-warning"
+                      className="rounded-full border border-transparent bg-warning-soft px-1.5 py-0.5 text-[9px] font-medium text-[#9a6700]"
                       title="Costo de compra interno estimado — no está ligado a un contrato de arrendador vigente"
                     >
                       estimado
@@ -336,7 +336,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
           // el badge no describia el cumplimiento, solo decia que habia datos.
           estado={reporte.cumplimientoPct >= 100 ? 'hecho' : 'pendiente'}
           accion={
-            <span className={`text-[13px] font-semibold ${reporte.cumplimientoPct >= 100 ? 'text-success' : 'text-warning'}`}>
+            <span className={`text-[13px] font-semibold ${reporte.cumplimientoPct >= 100 ? 'text-[#0f7a55]' : 'text-[#9a6700]'}`}>
               {reporte.cumplimientoPct.toFixed(0)}% entregado
             </span>
           }
@@ -506,10 +506,10 @@ function Seccion({
   }
   const chip =
     estado === 'hecho'
-      ? { txt: 'Completo', cls: 'border-transparent bg-success-soft text-success' }
+      ? { txt: 'Completo', cls: 'border-transparent bg-success-soft text-[#0f7a55]' }
       : estado === 'na'
         ? { txt: 'No aplica', cls: 'border-border text-muted' }
-        : { txt: 'Pendiente', cls: 'border-transparent bg-warning-soft text-warning' }
+        : { txt: 'Pendiente', cls: 'border-transparent bg-warning-soft text-[#9a6700]' }
   // Orden visual: las pendientes suben, luego las completas y al final las que no
   // aplican (solo reordena la vista; el DOM/JSX no cambia).
   const orden = estado === 'pendiente' ? 'order-1' : estado === 'hecho' ? 'order-2' : 'order-3'

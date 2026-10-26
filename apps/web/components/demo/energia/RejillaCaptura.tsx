@@ -81,7 +81,7 @@ export function RejillaCaptura({
                     // El hueco se ve. No es decoración: es el único sitio de
                     // todo el producto donde este dato que falta se hace
                     // visible antes de convertirse en un margen falso.
-                    c.hueco && 'bg-warning-soft text-warning',
+                    c.hueco && 'bg-warning-soft text-[#9a6700]',
                   )}
                 >
                   {c.hueco ? (

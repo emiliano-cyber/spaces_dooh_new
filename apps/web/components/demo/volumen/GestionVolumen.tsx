@@ -176,7 +176,7 @@ export function GestionVolumen() {
           Cada unidad tiene su propia escala, porque 50 spots y 50 meses no son la misma compra.
           Los tramos tienen que <b>crecer</b>: comprar más nunca puede descontar menos.
         </p>
-        <div className="overflow-x-auto">
+        <div className="relative overflow-x-auto">
         <table className="w-full text-left text-[13px]">
           <thead>
             <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted">

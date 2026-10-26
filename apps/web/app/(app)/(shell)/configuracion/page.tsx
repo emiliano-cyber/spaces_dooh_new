@@ -51,7 +51,7 @@ export default function ConfiguracionPage() {
           aviso llegaba sin saber por qué se le había cerrado todo. */}
       {sesion?.usuario.debeCambiarPassword && (
         <div className={`flex items-start gap-2 rounded-md border px-3 py-2.5 text-[13px] ${TONO.aviso}`}>
-          <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+          <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-[#9a6700]" />
           <span>
             <b>Tu contraseña es temporal.</b> Cámbiala aquí abajo para volver a entrar al
             resto del sistema. Mientras tanto los demás módulos están cerrados, por

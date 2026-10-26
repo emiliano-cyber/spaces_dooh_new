@@ -123,7 +123,7 @@ export default function CampanasPage() {
         <CardColapsable
           id="campanas.por-validar"
           titulo={`Por validar (${porValidar.length})`}
-          icono={<ShieldCheck className="h-4 w-4 text-warning" strokeWidth={1.75} />}
+          icono={<ShieldCheck className="h-4 w-4 text-[#9a6700]" strokeWidth={1.75} />}
           subtitulo="Enviadas al dominio, esperan aprobación antes de publicar"
           className="border-accent bg-warning-soft"
         >
@@ -293,7 +293,7 @@ export default function CampanasPage() {
                         <div className="flex items-center gap-2">
                           <h3 className="m-0 text-[15px] font-semibold text-ink">{c.nombre}</h3>
                           {hilo && (
-                            <span className="rounded-full border border-transparent bg-warning-soft px-2 py-0.5 text-[11px] font-medium text-warning">
+                            <span className="rounded-full border border-transparent bg-warning-soft px-2 py-0.5 text-[11px] font-medium text-[#9a6700]">
                               hilo conductor
                             </span>
                           )}
@@ -347,7 +347,7 @@ export default function CampanasPage() {
                             etiqueta dejaba todo el significado al color. Cerrado
                             no se dice nada en la fila; el detalle lo explica. */}
                         {candado && (
-                          <span className="inline-flex items-center gap-1 text-[12px] font-medium text-success">
+                          <span className="inline-flex items-center gap-1 text-[12px] font-medium text-[#0f7a55]">
                             <LockOpen className="h-3.5 w-3.5" strokeWidth={1.75} /> Lista para facturar
                           </span>
                         )}
@@ -393,7 +393,7 @@ export default function CampanasPage() {
                                     done
                                       ? 'border-success bg-success text-white'
                                       : cur
-                                        ? 'border-accent bg-warning-soft text-warning'
+                                        ? 'border-accent bg-warning-soft text-[#9a6700]'
                                         : 'border-border bg-surface text-muted',
                                   )}
                                 >

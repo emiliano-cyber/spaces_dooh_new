@@ -29,7 +29,7 @@ import { conciliacionRenta, type ConciliacionArrendador } from '@/lib/data/deriv
 
 function Importe({ monto, n, tono }: { monto: number; n: number; tono?: 'error' | 'warn' }) {
   if (!n) return <span className="text-muted">—</span>
-  const color = tono === 'error' ? 'text-error' : tono === 'warn' ? 'text-warning' : 'text-ink'
+  const color = tono === 'error' ? 'text-error' : tono === 'warn' ? 'text-[#9a6700]' : 'text-ink'
   return (
     <span className={color}>
       <span className="demo-num">{formatMonto(Math.round(monto))}</span>
@@ -199,7 +199,7 @@ export function ConciliacionCard({
                 <td className="demo-num px-4 py-2.5 text-right text-error">
                   {formatMonto(Math.round(tot.vencido))}
                 </td>
-                <td className="demo-num px-4 py-2.5 text-right text-warning">
+                <td className="demo-num px-4 py-2.5 text-right text-[#9a6700]">
                   {formatMonto(Math.round(tot.pendiente))}
                 </td>
                 <td className="demo-num px-4 py-2.5 text-right text-ink">

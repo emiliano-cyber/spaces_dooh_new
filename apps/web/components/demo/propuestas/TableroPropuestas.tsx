@@ -76,20 +76,36 @@ export function TableroPropuestas() {
       }
       accion={
         <div className="flex flex-wrap items-center gap-1.5">
-          {OPCIONES_PERIODO.map((o) => (
-            <button
-              key={o.tipo}
-              type="button"
-              onClick={() => setTipo(o.tipo)}
-              aria-pressed={tipo === o.tipo}
-              className={cn(
-                'rounded border px-2.5 py-1 text-[12px] font-medium',
-                tipo === o.tipo ? 'border-accent bg-accent text-white' : 'border-border-strong bg-surface text-ink hover:bg-surface-2',
-              )}
-            >
-              {o.label}
-            </button>
-          ))}
+          {/* En un teléfono los seis botones desbordaban la página entera (516 px
+              de contenido en 380, medido por la validación del 26/10). Mismo
+              arreglo que `TableroPeriodo` de Finanzas: un `<select>` con las
+              MISMAS opciones y el MISMO `setTipo`; desde `sm`, el segmentado. */}
+          <select
+            value={tipo}
+            onChange={(e) => setTipo(e.target.value as TipoPeriodo)}
+            aria-label="Periodo"
+            className="h-8 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink sm:hidden"
+          >
+            {OPCIONES_PERIODO.map((o) => (
+              <option key={o.tipo} value={o.tipo}>{o.label}</option>
+            ))}
+          </select>
+          <div className="hidden flex-wrap items-center gap-1.5 sm:flex">
+            {OPCIONES_PERIODO.map((o) => (
+              <button
+                key={o.tipo}
+                type="button"
+                onClick={() => setTipo(o.tipo)}
+                aria-pressed={tipo === o.tipo}
+                className={cn(
+                  'rounded border px-2.5 py-1 text-[12px] font-medium',
+                  tipo === o.tipo ? 'border-accent bg-accent text-white' : 'border-border-strong bg-surface text-ink hover:bg-surface-2',
+                )}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
           {tipo === 'rango' && (
             <span className="flex items-center gap-1.5">
               <input type="date" className={inputFecha} value={desde} onChange={(e) => setDesde(e.target.value)} aria-label="Desde" />

@@ -421,7 +421,7 @@ export default function ArrendadoresPage() {
                                 c.estatus === 'VENCIDO'
                                   ? 'border-error bg-error-soft text-error'
                                   : c.estatus === 'POR_VENCER'
-                                    ? 'border-warning bg-warning-soft text-warning'
+                                    ? 'border-warning bg-warning-soft text-[#9a6700]'
                                     : 'border-border text-muted',
                               )}
                             >
@@ -655,7 +655,7 @@ function NuevoPropietarioDialog({ onClose, onToast }: { onClose: () => void; onT
         </Campo>
         {nombreRepetido && (
           <div className="flex items-start gap-2 rounded border border-warning bg-warning-soft px-3 py-2 text-[12px] text-ink">
-            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" strokeWidth={2} />
+            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#9a6700]" strokeWidth={2} />
             <span>
               {nombreRepetido}
               {' '}
@@ -878,7 +878,7 @@ function RentabilidadCard({
                     <td className="px-4 py-2 text-muted">{m.arrendador ?? '—'}</td>
                     <td className="demo-num px-4 py-2 text-right text-ink">{formatMonto(m.ingresoMensual)}</td>
                     <td className="demo-num px-4 py-2 text-right text-muted">{m.rentaMensual ? formatMonto(m.rentaMensual) : '—'}</td>
-                    <td className={cn('demo-num px-4 py-2 text-right font-semibold', m.margenMensual < 0 ? 'text-error' : m.margenMensual > 0 ? 'text-success' : 'text-muted')}>
+                    <td className={cn('demo-num px-4 py-2 text-right font-semibold', m.margenMensual < 0 ? 'text-error' : m.margenMensual > 0 ? 'text-[#0f7a55]' : 'text-muted')}>
                       {formatMonto(m.margenMensual)}
                     </td>
                   </tr>
@@ -887,7 +887,7 @@ function RentabilidadCard({
                   <td className="px-4 py-2 text-ink" colSpan={2}>Total</td>
                   <td className="demo-num px-4 py-2 text-right text-ink">{formatMonto(totalIngreso)}</td>
                   <td className="demo-num px-4 py-2 text-right text-muted">{formatMonto(totalRenta)}</td>
-                  <td className={cn('demo-num px-4 py-2 text-right', totalMargen < 0 ? 'text-error' : 'text-success')}>{formatMonto(totalMargen)}</td>
+                  <td className={cn('demo-num px-4 py-2 text-right', totalMargen < 0 ? 'text-error' : 'text-[#0f7a55]')}>{formatMonto(totalMargen)}</td>
                 </tr>
               </tbody>
             </table>

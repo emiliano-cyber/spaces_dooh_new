@@ -210,7 +210,7 @@ export function GestionRazonesSociales({
       subtitulo="A nombre de quién factura cada arrendador. Un mismo arrendador puede tener varias; el contrato elige cuál usa."
       resumen={
         sinRazon.length > 0 ? (
-          <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-warning">
+          <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-[#9a6700]">
             {sinRazon.length} sin razón social
           </span>
         ) : undefined
@@ -225,7 +225,7 @@ export function GestionRazonesSociales({
           <>
           {sinRazon.length > 0 && (
             <div className="rounded border border-border">
-              <p className="flex items-start gap-2 border-b border-border bg-surface-2 px-3 py-2 text-[12.5px] text-warning">
+              <p className="flex items-start gap-2 border-b border-border bg-surface-2 px-3 py-2 text-[12.5px] text-[#9a6700]">
                 <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                 Sin razón social, los contratos de estos arrendadores no podrán anclar
                 a quién se factura.
@@ -264,7 +264,7 @@ export function GestionRazonesSociales({
                   {creandoEn === a.id && formulario}
 
                   {suyas.length === 0 && creandoEn !== a.id ? (
-                    <p className="flex items-start gap-2 text-[12.5px] text-warning">
+                    <p className="flex items-start gap-2 text-[12.5px] text-[#9a6700]">
                       <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                       Sin razón social. Los contratos de este arrendador no podrán anclar
                       a quién se factura.
@@ -281,9 +281,9 @@ export function GestionRazonesSociales({
                           <div className="min-w-0">
                             <div className="text-[13px] text-ink">{rs.razonSocial}</div>
                             <div className="demo-num mt-0.5 text-[11.5px] text-muted">
-                              RFC: {rs.rfc || <span className="text-warning">falta</span>}
+                              RFC: {rs.rfc || <span className="text-[#9a6700]">falta</span>}
                               {' · '}
-                              Régimen: {rs.regimen || <span className="text-warning">falta</span>}
+                              Régimen: {rs.regimen || <span className="text-[#9a6700]">falta</span>}
                             </div>
                             {(contratosPorRazon.get(rs.id) ?? 0) > 0 && (
                               <div className="mt-0.5 text-[11.5px] text-muted">

@@ -169,7 +169,7 @@ export default function CodigosRecuperacion() {
             {pidePassword && (
               <form onSubmit={desbloquearYGenerar} className="space-y-3">
                 <p className={FRANJA_AVISO}>
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[#9a6700]" />
                   <span>
                     Teclea tu contraseña para confirmar. Los códigos que tengas guardados
                     <strong> dejarán de funcionar</strong> en cuanto se generen los nuevos.
@@ -237,7 +237,7 @@ export default function CodigosRecuperacion() {
           {codigos && (
             <>
               <p className={FRANJA_AVISO}>
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[#9a6700]" />
                 <span>
                   <strong>Se muestran una sola vez.</strong> Cópialos o imprímelos antes de
                   continuar: en cuanto salgas de esta pantalla no vuelven a mostrarse.

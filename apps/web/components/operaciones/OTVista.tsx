@@ -541,7 +541,7 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
             <ParOT etiqueta="Prioridad">
               <span
                 className={
-                  ot.prioridad === 'URGENTE' ? 'text-error' : ot.prioridad === 'ALTA' ? 'text-warning' : 'text-ink'
+                  ot.prioridad === 'URGENTE' ? 'text-error' : ot.prioridad === 'ALTA' ? 'text-[#9a6700]' : 'text-ink'
                 }
               >
                 {PRIORIDAD_LABEL_OT[ot.prioridad as string] ?? ot.prioridad}
@@ -557,7 +557,7 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
                 </span>
               )}
               {sla === 'POR_VENCER' && (
-                <span className="ml-1.5 rounded-full border border-transparent bg-warning-soft px-2 py-0.5 text-[11px] font-medium text-warning">
+                <span className="ml-1.5 rounded-full border border-transparent bg-warning-soft px-2 py-0.5 text-[11px] font-medium text-[#9a6700]">
                   Por vencer
                 </span>
               )}

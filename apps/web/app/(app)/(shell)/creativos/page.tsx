@@ -525,7 +525,7 @@ function CampanaCard({
         <span className="inline-flex flex-wrap items-center gap-1.5">
           <span className="demo-num">{[campana.folio, campana.tipoCampana].filter(Boolean).join(' · ')}</span>
           {pendientesAqui > 0 && (
-            <span className="rounded-full border border-transparent bg-warning-soft px-2 py-0.5 text-[11px] font-medium text-warning">
+            <span className="rounded-full border border-transparent bg-warning-soft px-2 py-0.5 text-[11px] font-medium text-[#9a6700]">
               {pendientesAqui} por aprobar
             </span>
           )}
@@ -649,7 +649,7 @@ function CampanaCard({
                   </div>
                   {cr.retiradoEn ? (
                     <div
-                      className="inline-flex items-center gap-1 rounded-full border border-transparent bg-warning-soft px-2 py-0.5 text-[10px] font-medium text-warning"
+                      className="inline-flex items-center gap-1 rounded-full border border-transparent bg-warning-soft px-2 py-0.5 text-[10px] font-medium text-[#9a6700]"
                       title="Retirado del sistema; su arte sigue en DOOHmain (quítalo en su panel)"
                     >
                       <AlertTriangle className="h-2.5 w-2.5" /> Retirado · pendiente en DOOHmain
@@ -677,20 +677,22 @@ function CampanaCard({
                       iconos con su nombre en `aria-label` y `title`. */}
                   {puede && !cr.retiradoEn && (
                     <div className="flex flex-wrap items-center gap-1">
-                      {/* Aprobar es definitivo: una vez aprobado, el botón ya no
-                          se ofrece hasta que se reemplace o elimine el creativo
-                          (al reemplazar vuelve a PENDIENTE). */}
-                      {cr.estatusValidacion !== 'VALIDADA' && (
-                        <Button
-                          size="sm"
-                          variant="primary"
-                          className="px-2"
-                          disabled={busy === cr.id}
-                          onClick={() => validar(cr.id, true)}
-                        >
-                          <Check className="h-3 w-3" /> Aprobar
-                        </Button>
-                      )}
+                      {/* Aprobar es definitivo: una vez aprobado, el botón queda
+                          deshabilitado hasta que se reemplace o elimine el creativo
+                          (al reemplazar vuelve a PENDIENTE). Se queda VISIBLE con su
+                          explicación en `title`: el rediseño del 26/10 lo había
+                          escondido y con él se perdía el porqué (lo cazó la
+                          validación). */}
+                      <Button
+                        size="sm"
+                        variant={cr.estatusValidacion === 'VALIDADA' ? 'secondary' : 'primary'}
+                        className="px-2"
+                        disabled={busy === cr.id || cr.estatusValidacion === 'VALIDADA'}
+                        title={cr.estatusValidacion === 'VALIDADA' ? 'El creativo ya fue aprobado — reemplázalo o elimínalo para cambiarlo' : undefined}
+                        onClick={() => validar(cr.id, true)}
+                      >
+                        <Check className="h-3 w-3" /> Aprobar
+                      </Button>
                       {/* Rechazar: se quita cuando el creativo ya fue aprobado. */}
                       {cr.estatusValidacion !== 'VALIDADA' && (
                         <Button
@@ -761,7 +763,7 @@ function CampanaCard({
                     <div className="truncate text-[13px] font-medium text-ink">{sitio?.nombre ?? 'Sitio'}</div>
                     {digital && (
                       r.creativos.length === 0 ? (
-                        <span className="shrink-0 rounded-full border border-transparent bg-warning-soft px-2 py-0.5 text-[11px] font-medium text-warning">
+                        <span className="shrink-0 rounded-full border border-transparent bg-warning-soft px-2 py-0.5 text-[11px] font-medium text-[#9a6700]">
                           Sin creativo
                         </span>
                       ) : (

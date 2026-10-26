@@ -57,17 +57,17 @@ export function ResumenCampana({ campanaId }: { campanaId: string }) {
       <Par
         etiqueta="Margen"
         valor={margen ? `${margen.margenPct.toFixed(0)}%` : '—'}
-        cls={margen ? (margen.margen >= 0 ? 'text-success' : 'text-error') : undefined}
+        cls={margen ? (margen.margen >= 0 ? 'text-[#0f7a55]' : 'text-error') : undefined}
       />
       <Par
         etiqueta="Entregado"
         valor={reporte ? `${reporte.cumplimientoPct.toFixed(0)}%` : '—'}
-        cls={reporte ? (reporte.cumplimientoPct >= 100 ? 'text-success' : 'text-warning') : undefined}
+        cls={reporte ? (reporte.cumplimientoPct >= 100 ? 'text-[#0f7a55]' : 'text-[#9a6700]') : undefined}
       />
       <Par
         etiqueta="Candado"
         valor={candado ? 'Lista para facturar' : 'Pendiente'}
-        cls={candado ? 'text-success' : 'text-warning'}
+        cls={candado ? 'text-[#0f7a55]' : 'text-[#9a6700]'}
         mono={false}
       />
       <Par

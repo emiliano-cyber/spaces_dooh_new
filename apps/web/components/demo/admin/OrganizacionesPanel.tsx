@@ -121,7 +121,7 @@ export function OrganizacionesPanel() {
                     <span className="truncate text-[13px] font-medium text-ink">{o.nombre}</span>
                     {esActivo && (
                       <Chip tono="exito">
-                        <Check className="h-3 w-3 text-success" /> Activo
+                        <Check className="h-3 w-3 text-[#0f7a55]" /> Activo
                       </Chip>
                     )}
                   </div>
