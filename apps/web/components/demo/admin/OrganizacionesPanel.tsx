@@ -5,6 +5,7 @@ import { Building2, Check, LogIn, RotateCcw, Plus } from 'lucide-react'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
+import { Chip } from './Chip'
 import { validarPassword, REGLA_PASSWORD } from '@/lib/password'
 
 const API = '/spaces-dooh/api'
@@ -61,12 +62,17 @@ export function OrganizacionesPanel() {
 
   // Sin permiso: se explica en vez de esfumarse, y se dice a quién pedírselo.
   // No cambia ningún permiso — el servidor sigue respondiendo 403 igual.
+  // Llega PLEGADA por omisión: a quien no la puede usar le basta el título y
+  // el subtítulo; la explicación está a un clic. Antes abría desplegada y
+  // encabezando Administración, que es lo primero que veía la Dueña.
   if (estado === 'sin-permiso') {
     return (
       <CardColapsable
         id="admin.organizaciones"
         titulo="Organizaciones (CRMs)"
         icono={<Building2 className="h-4 w-4 text-muted" />}
+        subtitulo="Reservado al administrador de la plataforma"
+        defaultAbierto={false}
       >
           <p className="text-[12px] text-muted">
             Crear organizaciones y cambiar entre ellas está reservado al
@@ -105,7 +111,7 @@ export function OrganizacionesPanel() {
         <NuevaOrganizacion onCreada={cargar} />
 
         {/* Lista de organizaciones */}
-        <ul className="divide-y divide-border rounded-md border border-border">
+        <ul className="m-0 list-none divide-y divide-border rounded-md border border-border p-0">
           {(orgs ?? []).map((o) => {
             const esActivo = o.id === activo
             return (
@@ -114,9 +120,9 @@ export function OrganizacionesPanel() {
                   <div className="flex items-center gap-2">
                     <span className="truncate text-[13px] font-medium text-ink">{o.nombre}</span>
                     {esActivo && (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-[#10b98140] px-2 py-0.5 text-[10.5px] font-medium text-[#0f7a55]">
-                        <Check className="h-3 w-3" /> Activo
-                      </span>
+                      <Chip tono="exito">
+                        <Check className="h-3 w-3 text-success" /> Activo
+                      </Chip>
                     )}
                   </div>
                   <div className="demo-num text-[11px] text-muted">{o.slug}</div>

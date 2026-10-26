@@ -3,8 +3,15 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
+import { AlertTriangle, Copy, KeyRound, RefreshCw } from 'lucide-react'
+import { Card, CardContent } from '@/components/demo/ui/Card'
+import { Button } from '@/components/demo/ui/Button'
+import { Campo } from '@/components/demo/ui/Campo'
+import { FRANJA_AVISO } from '@/components/demo/admin/Chip'
 
 const API = '/spaces-dooh/api'
+const inputCls =
+  'h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
 
 // ============================================================================
 //  La pantalla que enseña los códigos de recuperación.  (ADR 0028 · B2)
@@ -124,132 +131,169 @@ export default function CodigosRecuperacion() {
     }
   }
 
+  // ─── Solo presentación (rediseño del 26/10) ────────────────────────────────
+  // Hasta aquí, ni una línea cambió: el «no generar al montar», el reintento
+  // tras desbloquear, la casilla que habilita «Continuar» y la recarga
+  // completa son los de siempre. Lo de abajo solo los PINTA con las piezas de
+  // la app (Card, Button, Campo, tokens) en vez de HTML sin estilo, donde los
+  // botones nativos se leían como texto plano y la advertencia más seria del
+  // sistema pesaba lo mismo que el resto del párrafo.
+  //
+  // `Card` y no `CardColapsable`: es un paso obligado y no debe poder
+  // plegarse. Y sin botones de Descargar/Imprimir aunque los tengan GitHub y
+  // Google: serían una función nueva, no presentación (queda para el dueño).
   if (yaTenia && !codigos) {
     return (
-      <main style={{ maxWidth: '42rem', margin: '0 auto', padding: '2rem 1rem' }}>
-        <h1>Códigos de recuperación</h1>
-        <p>
-          Ya tienes tus códigos guardados. Si los perdiste, puedes generar otros: los
-          anteriores dejarán de funcionar.
-        </p>
-        {!pidePassword && (
-          <>
-            <button onClick={generar} disabled={ocupado}>
-              Generar códigos nuevos
-            </button>{' '}
-            <button onClick={() => router.push('/inicio')} disabled={ocupado}>
-              Volver
-            </button>
-          </>
-        )}
-
-        {pidePassword && (
-          <form onSubmit={desbloquearYGenerar}>
-            <p>
-              Teclea tu contraseña para confirmar. Los códigos que tengas guardados
-              <strong> dejarán de funcionar</strong> en cuanto se generen los nuevos.
+      <main className="mx-auto w-full max-w-xl space-y-4">
+        <div>
+          <h1 className="text-2xl text-ink">Códigos de recuperación</h1>
+          <p className="mt-1 text-[13px] text-muted">Tu forma de volver a entrar si algún día pierdes el acceso a tu cuenta.</p>
+        </div>
+        <Card>
+          <CardContent className="space-y-4 pt-4">
+            <p className="m-0 text-[13px] text-ink">
+              Ya tienes tus códigos guardados. Si los perdiste, puedes generar otros: los
+              anteriores dejarán de funcionar.
             </p>
-            <input
-              type="password"
-              value={password}
-              autoFocus
-              autoComplete="current-password"
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Tu contraseña"
-            />{' '}
-            <button type="submit" disabled={!password || ocupado}>
-              {ocupado ? 'Verificando…' : 'Confirmar y generar'}
-            </button>{' '}
-            <button
-              type="button"
-              onClick={() => {
-                setPidePassword(false)
-                setPassword('')
-              }}
-              disabled={ocupado}
-            >
-              Cancelar
-            </button>
-          </form>
-        )}
+            {!pidePassword && (
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" onClick={generar} disabled={ocupado}>
+                  <RefreshCw className="h-3.5 w-3.5" /> Generar códigos nuevos
+                </Button>
+                <Button size="sm" variant="secondary" onClick={() => router.push('/inicio')} disabled={ocupado}>
+                  Volver
+                </Button>
+              </div>
+            )}
+
+            {pidePassword && (
+              <form onSubmit={desbloquearYGenerar} className="space-y-3">
+                <p className={FRANJA_AVISO}>
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+                  <span>
+                    Teclea tu contraseña para confirmar. Los códigos que tengas guardados
+                    <strong> dejarán de funcionar</strong> en cuanto se generen los nuevos.
+                  </span>
+                </p>
+                <Campo label="Tu contraseña">
+                  <input
+                    type="password"
+                    className={inputCls}
+                    value={password}
+                    autoFocus
+                    autoComplete="current-password"
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Tu contraseña"
+                  />
+                </Campo>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" type="submit" disabled={!password || ocupado}>
+                    {ocupado ? 'Verificando…' : 'Confirmar y generar'}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    type="button"
+                    onClick={() => {
+                      setPidePassword(false)
+                      setPassword('')
+                    }}
+                    disabled={ocupado}
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </form>
+            )}
+          </CardContent>
+        </Card>
       </main>
     )
   }
 
   return (
-    <main style={{ maxWidth: '42rem', margin: '0 auto', padding: '2rem 1rem' }}>
-      <h1>Guarda tus códigos de recuperación</h1>
+    <main className="mx-auto w-full max-w-xl space-y-4">
+      <div>
+        <h1 className="text-2xl text-ink">Guarda tus códigos de recuperación</h1>
+        <p className="mt-1 text-[13px] text-muted">Tu forma de volver a entrar si algún día pierdes el acceso a tu cuenta.</p>
+      </div>
 
-      {!codigos && (
-        <>
-          <p>
-            Entras con Google, así que <strong>no tienes contraseña</strong> con la que
-            volver. Estos códigos son la única forma de entrar si algún día pierdes el
-            acceso a esa cuenta.
-          </p>
-          <p>Cada uno sirve <strong>una sola vez</strong>. Guárdalos donde no se pierdan.</p>
-          <button onClick={generar} disabled={ocupado}>
-            {ocupado ? 'Generando…' : 'Mostrar mis códigos'}
-          </button>
-        </>
-      )}
+      <Card>
+        <CardContent className="space-y-4 pt-4">
+          {!codigos && (
+            <>
+              <p className="m-0 text-[13px] text-ink">
+                Entras con Google, así que <strong>no tienes contraseña</strong> con la que
+                volver. Estos códigos son la única forma de entrar si algún día pierdes el
+                acceso a esa cuenta.
+              </p>
+              <p className="m-0 text-[13px] text-ink">Cada uno sirve <strong>una sola vez</strong>. Guárdalos donde no se pierdan.</p>
+              <Button size="sm" onClick={generar} disabled={ocupado}>
+                <KeyRound className="h-3.5 w-3.5" /> {ocupado ? 'Generando…' : 'Mostrar mis códigos'}
+              </Button>
+            </>
+          )}
 
-      {codigos && (
-        <>
-          <p>
-            <strong>Se muestran una sola vez.</strong> Cópialos o imprímelos antes de
-            continuar: en cuanto salgas de esta pantalla no vuelven a mostrarse.
-          </p>
+          {codigos && (
+            <>
+              <p className={FRANJA_AVISO}>
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+                <span>
+                  <strong>Se muestran una sola vez.</strong> Cópialos o imprímelos antes de
+                  continuar: en cuanto salgas de esta pantalla no vuelven a mostrarse.
+                </span>
+              </p>
 
-          <ul
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(2, 1fr)',
-              gap: '.4rem 1rem',
-              listStyle: 'none',
-              padding: '1rem',
-              border: '1px solid #8886',
-              borderRadius: 6,
-              fontFamily: 'ui-monospace, monospace',
-              fontSize: '1.05rem',
-              letterSpacing: '.04em',
-            }}
-          >
-            {codigos.map((c) => (
-              <li key={c}>{c}</li>
-            ))}
-          </ul>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[12px] font-medium text-ink">Tus {codigos.length} códigos</span>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => {
+                      navigator.clipboard?.writeText(codigos.join('\n')).then(
+                        () => toast.success('Copiados'),
+                        () => toast.error('No se pudieron copiar; cópialos a mano'),
+                      )
+                    }}
+                    disabled={ocupado}
+                  >
+                    <Copy className="h-3.5 w-3.5" /> Copiar
+                  </Button>
+                </div>
+                <ol className="m-0 grid list-none grid-cols-1 gap-2 rounded-md border border-border-strong bg-surface-2 p-4 sm:grid-cols-2">
+                  {codigos.map((c, i) => (
+                    <li key={c} className="flex items-baseline gap-2">
+                      <span className="demo-num w-5 shrink-0 text-right text-[11px] text-muted">{i + 1}</span>
+                      <span className="demo-num select-all text-[15px] tracking-wider text-ink">{c}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
 
-          <button
-            onClick={() => {
-              navigator.clipboard?.writeText(codigos.join('\n')).then(
-                () => toast.success('Copiados'),
-                () => toast.error('No se pudieron copiar; cópialos a mano'),
-              )
-            }}
-            disabled={ocupado}
-          >
-            Copiar
-          </button>
+              {/* La confirmación es un acto EXPLÍCITO. Sin esto, cerrar la pestaña
+                  dejaría al usuario dentro y sin códigos, creyendo que los tiene.
+                  Va como bloque con borde, como las opciones de acceso de
+                  Administración, para que no se pase por alto. */}
+              <label
+                className={`flex cursor-pointer items-start gap-2 rounded border p-3 text-[13px] text-ink ${guardados ? 'border-accent bg-bg' : 'border-border'}`}
+              >
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={guardados}
+                  onChange={(e) => setGuardados(e.target.checked)}
+                />
+                Ya los guardé en un lugar seguro
+              </label>
 
-          {/* La confirmación es un acto EXPLÍCITO. Sin esto, cerrar la pestaña
-              dejaría al usuario dentro y sin códigos, creyendo que los tiene. */}
-          <p style={{ marginTop: '1.5rem' }}>
-            <label>
-              <input
-                type="checkbox"
-                checked={guardados}
-                onChange={(e) => setGuardados(e.target.checked)}
-              />{' '}
-              Ya los guardé en un lugar seguro
-            </label>
-          </p>
-
-          <button onClick={confirmar} disabled={!guardados || ocupado}>
-            {ocupado ? 'Guardando…' : 'Continuar'}
-          </button>
-        </>
-      )}
+              <Button onClick={confirmar} disabled={!guardados || ocupado}>
+                {ocupado ? 'Guardando…' : 'Continuar'}
+              </Button>
+            </>
+          )}
+        </CardContent>
+      </Card>
     </main>
   )
 }

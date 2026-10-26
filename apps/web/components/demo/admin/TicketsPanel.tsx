@@ -12,6 +12,7 @@ import {
   type PrioridadTicket,
 } from '@/lib/data/tickets-api'
 import { textoDeEstado, formularioValido } from '@/components/demo/admin/tickets-ui'
+import { Chip, TONO, type Tono } from './Chip'
 
 // ============================================================================
 //  TicketsPanel — ADR 0038, tarea 7: el dueño de la instancia escribe una
@@ -30,9 +31,11 @@ import { textoDeEstado, formularioValido } from '@/components/demo/admin/tickets
 //  pantalla sirviendo solo para escribir a un buzón mudo.
 // ============================================================================
 
+// Tonos de `Chip.tsx`: `bg-success/10` no se genera sobre estos tokens (ver
+// su cabecera), y la franja y los chips de estado salían sin color.
 const TONO_CLASE = {
-  ok: 'border-success/30 bg-success/10 text-ink',
-  alerta: 'border-warning/40 bg-warning/10 text-ink',
+  ok: TONO.exito,
+  alerta: TONO.aviso,
   info: 'border-border bg-surface-2 text-ink',
 } as const
 
@@ -42,11 +45,11 @@ const ESTADO_LABEL: Record<EstadoTicket, string> = {
   RESUELTO: 'Resuelto',
   CERRADO: 'Cerrado',
 }
-const ESTADO_CLASE: Record<EstadoTicket, string> = {
-  ABIERTO: 'border-warning/40 bg-warning/10 text-ink',
-  EN_PROCESO: 'border-border bg-surface-2 text-ink',
-  RESUELTO: 'border-success/30 bg-success/10 text-ink',
-  CERRADO: 'border-border bg-surface-2 text-muted',
+const ESTADO_TONO: Record<EstadoTicket, Tono> = {
+  ABIERTO: 'aviso',
+  EN_PROCESO: 'neutro',
+  RESUELTO: 'exito',
+  CERRADO: 'neutro',
 }
 const PRIORIDAD_LABEL: Record<PrioridadTicket, string> = {
   BAJA: 'Baja',
@@ -200,7 +203,7 @@ export function TicketsPanel({ onToast }: { onToast: (m: string) => void }) {
               </div>
             )}
 
-            <ul className="space-y-2">
+            <ul className="m-0 list-none space-y-2 p-0">
               {tickets.length === 0 && !abierto && (
                 <li className="text-[12px] text-muted">Aquí verás tus tickets en cuanto abras el primero.</li>
               )}
@@ -209,9 +212,7 @@ export function TicketsPanel({ onToast }: { onToast: (m: string) => void }) {
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <span className="demo-num text-[11px] text-muted">{t.folio}</span>
-                      <span className={`rounded border px-1.5 py-0.5 text-[11px] ${ESTADO_CLASE[t.estado]}`}>
-                        {ESTADO_LABEL[t.estado]}
-                      </span>
+                      <Chip tono={ESTADO_TONO[t.estado]} punto>{ESTADO_LABEL[t.estado]}</Chip>
                       <span className="text-[11px] text-muted">{PRIORIDAD_LABEL[t.prioridad]}</span>
                     </div>
                     <span className="text-[11px] text-muted">{formatearFecha(t.creadoEn)}</span>

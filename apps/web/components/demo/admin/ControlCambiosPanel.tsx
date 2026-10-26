@@ -13,6 +13,7 @@ import {
   fijarContrasenaCambiosApi,
 } from '@/lib/data/cambios-api'
 import { REGLA_PASSWORD } from '@/lib/password'
+import { TONO } from './Chip'
 
 const inputCls =
   'h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
@@ -130,7 +131,7 @@ export function ControlCambiosPanel({ onToast }: { onToast: (m: string) => void 
           <div className="h-9 w-40 animate-pulse rounded bg-surface-2" />
         ) : activo ? (
           <>
-            <div className="flex items-center gap-2 rounded border border-success/30 bg-success/10 px-3 py-2 text-[12px] text-ink">
+            <div className={`flex items-center gap-2 rounded border px-3 py-2 text-[12px] ${TONO.exito}`}>
               <ShieldCheck className="h-4 w-4 shrink-0 text-success" />
               Activo. Al teclear una contraseña válida, la sesión queda desbloqueada {minutos} minutos
               y luego se vuelve a pedir.

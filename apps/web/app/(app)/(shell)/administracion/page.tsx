@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { conteo } from '@/lib/plural'
-import { CheckCircle2, Users, ShieldCheck, UserPlus, Building2, X, Plus, Check, Upload, Percent, MonitorPlay, KeyRound, Scale, AlertTriangle, Mail, CornerUpLeft, Loader2, Wrench, Save } from 'lucide-react'
+import { CheckCircle2, Users, ShieldCheck, UserPlus, Building2, X, Plus, Check, Upload, Percent, MonitorPlay, KeyRound, Scale, AlertTriangle, Mail, CornerUpLeft, Loader2, Wrench, Save, ToggleLeft, ToggleRight, CalendarClock, ListChecks } from 'lucide-react'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
@@ -29,6 +29,7 @@ import { OrganizacionesPanel } from '@/components/demo/admin/OrganizacionesPanel
 import { ControlCambiosPanel } from '@/components/demo/admin/ControlCambiosPanel'
 import { ActualizacionesPanel } from '@/components/demo/admin/ActualizacionesPanel'
 import { TicketsPanel } from '@/components/demo/admin/TicketsPanel'
+import { Chip, TONO, FRANJA_AVISO } from '@/components/demo/admin/Chip'
 import {
   listarUsuariosApi,
   invitarUsuarioApi,
@@ -62,9 +63,6 @@ export default function AdministracionPage() {
         <p className="mt-1 text-[13px] text-muted">Usuarios, roles y configuración del negocio</p>
       </div>
 
-      {/* Organizaciones (CRMs) — solo super-admin de plataforma */}
-      <OrganizacionesPanel />
-
       <Tabs
         defaultValue="usuarios"
         tabs={[
@@ -78,6 +76,11 @@ export default function AdministracionPage() {
         <TabPanel value="config" className="pt-4"><Configuracion onToast={notify} /></TabPanel>
       </Tabs>
 
+      {/* Organizaciones (CRMs) — solo super-admin de plataforma. Va AL FINAL y
+          no encabezando la página: a la Dueña le sale en su rama «sin
+          permiso», y lo primero que veía quien administra su negocio era lo
+          que NO puede hacer. Para el super-admin funciona igual, más abajo. */}
+      <OrganizacionesPanel />
       {toast && (
         <div className="fixed bottom-5 left-1/2 z-[60] -translate-x-1/2 rounded-md border border-border bg-ink px-4 py-2.5 text-[13px] text-white">
           <span className="inline-flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-success" /> {toast}</span>
@@ -122,6 +125,56 @@ function Usuarios({ onToast }: { onToast: (m: string) => void }) {
     await refrescarSiSoyYo(id)
   }
 
+  // Solo conteo de lo que ya está cargado: no es otra consulta.
+  const activos = usuarios?.filter((u) => u.activo).length ?? 0
+  const inactivos = (usuarios?.length ?? 0) - activos
+
+  // Los tres controles de una fila se pintan DOS veces —tabla desde `sm` y
+  // lista apilada en móvil, donde la tabla desbordaba y cortaba la columna de
+  // contraseña—, así que se escriben una sola vez aquí. Mismos manejadores y
+  // mismo `esYo` en las dos: lo único que cambia entre una y otra es dónde va
+  // cada control, nunca qué hace.
+  const controlRol = (u: UsuarioDemo, esYo: boolean) =>
+    esYo ? (
+      <span className="inline-flex items-center gap-1.5 text-[13px] text-ink"><ShieldCheck className="h-3.5 w-3.5 text-muted" /> {rolLabel(u.rol)}</span>
+    ) : (
+      <select value={u.rol} onChange={(e) => cambiarRol(u.id, e.target.value as RolDemo, u.nombre)}
+        aria-label={`Rol de ${u.nombre}`}
+        className="h-8 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent">
+        {ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+      </select>
+    )
+  // El estatus ES un botón que activa o desactiva con un clic (y sin
+  // confirmación: así lo decidió el dueño, no se cambia aquí). Antes se veía
+  // idéntico al chip de solo lectura de tu propia fila, así que nada avisaba
+  // de que pulsarlo dejaba a alguien fuera. Ahora lleva el icono del
+  // interruptor y el `title` dice lo que va a pasar; tu fila, que no se puede
+  // cambiar, queda como chip plano sin icono.
+  const controlEstatus = (u: UsuarioDemo, esYo: boolean) => {
+    const tono = u.activo ? TONO.exito : TONO.neutro
+    const etiqueta = u.activo ? 'Activo' : 'Inactivo'
+    if (esYo) return <Chip tono={u.activo ? 'exito' : 'neutro'} punto title="No puedes cambiar tu propio estatus">{etiqueta}</Chip>
+    const Interruptor = u.activo ? ToggleRight : ToggleLeft
+    return (
+      <button type="button" onClick={() => toggle(u.id, u.activo, u.nombre)}
+        title={u.activo ? `Pulsa para desactivar a ${u.nombre}` : `Pulsa para activar a ${u.nombre}`}
+        className={cn('m-0 inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-2 py-0.5 text-[12px] font-medium',
+          'transition-colors hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
+          tono)}>
+        <span aria-hidden="true" className={cn('h-1.5 w-1.5 rounded-full', u.activo ? 'bg-success' : 'bg-muted')} />
+        {etiqueta}
+        <Interruptor aria-hidden="true" className={cn('h-3.5 w-3.5', u.activo ? 'text-success' : 'text-muted')} />
+      </button>
+    )
+  }
+  const controlPassword = (u: UsuarioDemo, esYo: boolean) => (
+    <button type="button" onClick={() => setPasswordDe(u)}
+      className="m-0 inline-flex cursor-pointer items-center gap-1.5 rounded border border-border-strong bg-surface px-2 py-1 text-[12px] text-ink hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+      <KeyRound className="h-3.5 w-3.5 text-muted" /> {esYo ? 'Cambiar la mía' : 'Cambiar'}
+    </button>
+  )
+  const chipTu = <Chip tono="acento" className="px-1.5 text-[10px]">tú</Chip>
+
   return (
     <>
     <CardColapsable
@@ -129,6 +182,13 @@ function Usuarios({ onToast }: { onToast: (m: string) => void }) {
       titulo="Equipo"
       icono={<Users className="h-4 w-4 text-muted" />}
       contentClassName="px-0 pb-0"
+      resumen={usuarios && usuarios.length > 0 ? (
+        <div className="flex flex-wrap gap-1.5">
+          <Chip><span className="demo-num">{conteo(usuarios.length, 'usuario')}</span></Chip>
+          <Chip tono="exito" punto><span className="demo-num">{conteo(activos, 'activo')}</span></Chip>
+          {inactivos > 0 && <Chip punto><span className="demo-num">{conteo(inactivos, 'inactivo')}</span></Chip>}
+        </div>
+      ) : undefined}
       accion={<Button variant="success" size="sm" onClick={() => setInvOpen(true)}><UserPlus className="h-3.5 w-3.5" /> Invitar usuario</Button>}
     >
         {!usuarios ? (
@@ -136,7 +196,9 @@ function Usuarios({ onToast }: { onToast: (m: string) => void }) {
         ) : usuarios.length === 0 ? (
           <p className="px-4 pb-4 text-[13px] text-muted">Sin usuarios.</p>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* Desde `sm`: la tabla de siempre. */}
+          <div className="hidden overflow-x-auto sm:block">
             <table className="w-full text-left text-[13px]">
               <thead>
                 <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted">
@@ -154,41 +216,45 @@ function Usuarios({ onToast }: { onToast: (m: string) => void }) {
                       <td className="px-4 py-2.5">
                         <div className="flex items-center gap-2">
                           <span className="text-ink">{u.nombre}</span>
-                          {esYo && <span className="rounded-full border border-accent/50 bg-[#f59e0b1a] px-1.5 py-0.5 text-[10px] font-medium text-[#9a6700]">tú</span>}
+                          {esYo && chipTu}
                         </div>
                         <div className="demo-num text-[11px] text-muted">{u.email}</div>
                       </td>
-                      <td className="px-4 py-2.5">
-                        {esYo ? (
-                          <span className="inline-flex items-center gap-1.5 text-[13px] text-ink"><ShieldCheck className="h-3.5 w-3.5 text-muted" /> {rolLabel(u.rol)}</span>
-                        ) : (
-                          <select value={u.rol} onChange={(e) => cambiarRol(u.id, e.target.value as RolDemo, u.nombre)}
-                            className="h-8 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent">
-                            {ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
-                          </select>
-                        )}
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <button type="button" disabled={esYo} onClick={() => toggle(u.id, u.activo, u.nombre)}
-                          className={cn('inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[12px] font-medium',
-                            u.activo ? 'border-[#10b98140] bg-[#10b9811a] text-[#0f7a55]' : 'border-border bg-surface-2 text-muted',
-                            esYo ? 'cursor-default opacity-70' : 'hover:opacity-80')}>
-                          <span className={cn('h-1.5 w-1.5 rounded-full', u.activo ? 'bg-success' : 'bg-muted')} />
-                          {u.activo ? 'Activo' : 'Inactivo'}
-                        </button>
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <button type="button" onClick={() => setPasswordDe(u)}
-                          className="inline-flex items-center gap-1.5 rounded border border-border-strong px-2 py-1 text-[12px] text-ink hover:bg-surface-2">
-                          <KeyRound className="h-3.5 w-3.5 text-muted" /> {esYo ? 'Cambiar la mía' : 'Cambiar'}
-                        </button>
-                      </td>
+                      <td className="px-4 py-2.5">{controlRol(u, esYo)}</td>
+                      <td className="px-4 py-2.5">{controlEstatus(u, esYo)}</td>
+                      <td className="px-4 py-2.5">{controlPassword(u, esYo)}</td>
                     </tr>
                   )
                 })}
               </tbody>
             </table>
           </div>
+          {/* En móvil: una fila apilada por persona, al estilo de las listas
+              del Dashboard (dato a la izquierda, estatus a la derecha). */}
+          <ul className="m-0 list-none divide-y divide-border border-t border-border p-0 sm:hidden">
+            {usuarios.map((u) => {
+              const esYo = u.id === yo
+              return (
+                <li key={u.id} className="space-y-2 px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate text-[13px] text-ink">{u.nombre}</span>
+                        {esYo && chipTu}
+                      </div>
+                      <div className="demo-num truncate text-[11px] text-muted">{u.email}</div>
+                    </div>
+                    <div className="shrink-0">{controlEstatus(u, esYo)}</div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {controlRol(u, esYo)}
+                    {controlPassword(u, esYo)}
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+          </>
         )}
     </CardColapsable>
 
@@ -350,9 +416,12 @@ function CambiarPasswordModal({
             <div className="demo-num select-all rounded-md border border-border-strong bg-surface-2 px-3 py-2.5 text-center text-[15px] tracking-wider text-ink">
               {temporal}
             </div>
-            <p className="rounded-md border border-[#f59e0b40] bg-[#f59e0b0d] p-2.5 text-[12px] text-[#9a6700]">
-              No se puede volver a ver: en la base solo queda su huella. Se cerraron las sesiones
-              abiertas de {usuario.nombre} y el sistema le pedirá cambiarla en cuanto entre.
+            <p className={FRANJA_AVISO}>
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+              <span>
+                No se puede volver a ver: en la base solo queda su huella. Se cerraron las sesiones
+                abiertas de {usuario.nombre} y el sistema le pedirá cambiarla en cuanto entre.
+              </span>
             </p>
           </>
         ) : reautenticando ? (
@@ -515,8 +584,8 @@ function InvitarModal({ open, onOpenChange, onInvitado }: { open: boolean; onOpe
       {enlace ? (
         <div className="space-y-3">
           {enlace.fallo ? (
-            <p className="flex items-start gap-2 rounded border border-[#f59e0b40] bg-[#f59e0b0d] p-2.5 text-[12px] text-ink">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[#b45309]" />
+            <p className={FRANJA_AVISO}>
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
               La cuenta se creó, pero el correo no se pudo enviar. Pásale este enlace por otro medio.
             </p>
           ) : (
@@ -619,23 +688,35 @@ function MatrizRoles() {
 
   return (
     <CardColapsable id="admin.permisos" titulo="Permisos por rol y módulo" contentClassName="px-0 pb-0">
+        {/* La leyenda va ARRIBA (antes iba al pie, tras once filas): las
+            celdas son letras sueltas —V, C, A…— y sin la clave delante la
+            tabla no se puede leer. Mismo criterio que Stripe con sus roles. */}
+        <div className="mx-4 mb-3 flex flex-wrap gap-x-4 gap-y-1.5 rounded-md border border-border bg-surface-2 px-4 py-2 text-[11px] text-muted">
+          {CAPACIDADES.map((c) => (
+            <span key={c} className="inline-flex items-center gap-1.5"><CapChip cap={c} /> {CAP_LABEL[c]}</span>
+          ))}
+          <span>* el área no tiene API propia: su permiso lo aplica /api/estado</span>
+        </div>
         {data === undefined ? (
           <div className="h-32 animate-pulse rounded bg-surface-2 mx-4 mb-4" />
         ) : !data ? (
           <div className="px-4 py-6 text-[13px] text-muted">No se pudo cargar la matriz de permisos.</div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto border-t border-border">
             <table className="w-full text-left text-[13px]">
               <thead>
                 <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted">
-                  <th className="px-4 py-2 font-medium">Módulo · qué abre</th>
+                  {/* Primera columna fija: en móvil la tabla se desplaza a
+                      lo ancho y, sin esto, el nombre del módulo se iba con el
+                      scroll y quedaban columnas de letras sin saber de qué. */}
+                  <th className="sticky left-0 z-10 bg-surface px-4 py-2 font-medium">Módulo · qué abre</th>
                   {data.roles.map((r) => <th key={r.rol} className="px-3 py-2 text-center font-medium">{r.label}</th>)}
                 </tr>
               </thead>
               <tbody>
                 {data.modulos.map((mod) => (
                   <tr key={mod.key} className="border-b border-border last:border-0">
-                    <td className="px-4 py-2.5 align-top">
+                    <td className="sticky left-0 z-10 bg-surface px-4 py-2.5 align-top">
                       <div className="font-medium text-ink">{mod.label}</div>
                       {/* ADR 0010: qué áreas del producto abre esta casilla. La
                           matriz mostraba 8 módulos y parecía completa, pero
@@ -659,12 +740,6 @@ function MatrizRoles() {
             </table>
           </div>
         )}
-        <div className="flex flex-wrap gap-x-4 gap-y-1.5 border-t border-border px-4 py-2.5 text-[11px] text-muted">
-          {CAPACIDADES.map((c) => (
-            <span key={c} className="inline-flex items-center gap-1.5"><CapChip cap={c} /> {CAP_LABEL[c]}</span>
-          ))}
-          <span>* el área no tiene API propia: su permiso lo aplica /api/estado</span>
-        </div>
     </CardColapsable>
   )
 }
@@ -683,6 +758,15 @@ function CapChip({ cap }: { cap: Capacidad }) {
 const LOGO_TIPOS = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml']
 const LOGO_EXT = /\.(png|jpe?g|webp|svg)$/i
 const LOGO_MAX_MB = 2
+
+// Las cuatro familias de la pestaña Configuración, en el orden en que se
+// pintan. El `id` es el ancla de cada `<section>` (solo desplaza la vista).
+const FAMILIAS_CONFIG = [
+  { id: 'admin-cfg-empresa', label: 'Empresa' },
+  { id: 'admin-cfg-comercial', label: 'Comercial' },
+  { id: 'admin-cfg-operacion', label: 'Operación' },
+  { id: 'admin-cfg-instancia', label: 'Instancia' },
+] as const
 
 function leerDataUrl(f: File) {
   return new Promise<string>((resolve, reject) => {
@@ -828,326 +912,358 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
   const conSlotsPropios = digitales.filter((x) => (x.totalSpots ?? 0) > 0 && x.totalSpots !== spotsPorLoop)
 
   return (
-    <div className="space-y-4">
-      {/* ADR 0037: qué version corre esta instancia, qué hay disponible y
-          si el dueño la instala ahora o espera a la ventana automatica. Es
-          config de la INSTANCIA (el droplet), no del negocio del tenant, y
-          por eso va aparte de `ConfigNegocio` — no viaja en `guardar()`. */}
-      <ActualizacionesPanel onToast={onToast} />
+    <div className="space-y-6">
+      {/* Trece tarjetas en una columna eran ~2400 px de scroll y en un orden
+          que no seguía a nadie: lo de la INSTANCIA (actualizaciones, soporte)
+          iba antes que la identidad del negocio, y lo comercial mezclado con
+          lo operativo. Se agrupan en cuatro familias con un índice de anclas
+          arriba —solo desplazan la vista, no son rutas—. Los `id` de cada
+          `CardColapsable` NO cambian: son la clave con la que se recuerda
+          qué dejó plegado cada persona (PLEG-01). */}
+      <nav aria-label="Secciones de la configuración" className="flex flex-wrap items-center gap-1.5">
+        {FAMILIAS_CONFIG.map((f) => (
+          <a key={f.id} href={`#${f.id}`}
+            className="rounded-full border border-border bg-surface px-2.5 py-0.5 text-[12px] text-ink no-underline transition-colors hover:border-border-strong hover:bg-surface-2">
+            {f.label}
+          </a>
+        ))}
+      </nav>
 
-      {/* ADR 0038: el dueño escribe una incidencia a AS OOH y ve si ya se la
-          contestaron. Consume /api/tickets (T5), no ConfigNegocio. */}
-      <TicketsPanel onToast={onToast} />
-
-      {/* PLEG-01 · las tarjetas de abajo se pliegan y DESMONTAN su contenido.
-          Lo que se teclea en ellas no se pierde al plegar: los campos de
-          «guardar al salir» (onBlur) se guardan antes, porque el clic en el
-          encabezado les quita el foco; y los borradores (IVA, plazo, tope)
-          viven en el estado de `Configuracion`, fuera de la tarjeta. */}
-      <CardColapsable
-        id="admin.config.identidad"
-        titulo="Identidad de la empresa"
-        icono={<Building2 className="h-4 w-4 text-muted" />}
-        contentClassName="space-y-4"
-      >
-          {/* Logo */}
-          <Campo label="Logo">
-            {/* 80px de vista previa: el logo ahora sale en el menú, en el
-                portal del cliente y en los correos, así que quien lo sube tiene
-                que poder ver qué está subiendo. A 56 no se distinguía si el
-                recorte estaba bien. */}
-            <div className="flex items-center gap-3">
-              {/* El aviso va SOBRE la vista previa, que es donde está mirando
-                  quien acaba de elegir un archivo — no en una esquina de la
-                  pantalla. El logo viejo se atenúa detrás en vez de
-                  desaparecer: así se ve que sigue siendo el actual hasta que el
-                  nuevo termine de guardarse. */}
-              <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-surface-2">
-                {config.logoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={config.logoUrl}
-                    alt="logo"
-                    className={cn('h-full w-full object-contain', subiendoLogo && 'opacity-30')}
-                  />
-                ) : (
-                  <Building2 className={cn('h-6 w-6 text-muted', subiendoLogo && 'opacity-30')} />
-                )}
-                {subiendoLogo && (
-                  <span className="absolute inset-0 flex items-center justify-center">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted" />
-                  </span>
-                )}
-              </div>
-              <div className="flex gap-2">
-                <label
-                  className={cn(
-                    'inline-flex h-9 items-center gap-1.5 rounded border border-border-strong px-3 text-[13px] text-ink',
-                    subiendoLogo
-                      ? 'pointer-events-none opacity-60'
-                      : 'cursor-pointer hover:bg-surface-2',
-                  )}
-                >
-                  {subiendoLogo ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+      <section id="admin-cfg-empresa" aria-label="Empresa" className="scroll-mt-4 space-y-4">
+        <p className="m-0 text-[11px] font-medium uppercase tracking-wide text-muted">Empresa</p>
+        {/* PLEG-01 · las tarjetas de abajo se pliegan y DESMONTAN su contenido.
+            Lo que se teclea en ellas no se pierde al plegar: los campos de
+            «guardar al salir» (onBlur) se guardan antes, porque el clic en el
+            encabezado les quita el foco; y los borradores (IVA, plazo, tope)
+            viven en el estado de `Configuracion`, fuera de la tarjeta. */}
+        <CardColapsable
+          id="admin.config.identidad"
+          titulo="Identidad de la empresa"
+          icono={<Building2 className="h-4 w-4 text-muted" />}
+          contentClassName="space-y-4"
+        >
+            {/* Logo */}
+            <Campo label="Logo">
+              {/* 80px de vista previa: el logo ahora sale en el menú, en el
+                  portal del cliente y en los correos, así que quien lo sube tiene
+                  que poder ver qué está subiendo. A 56 no se distinguía si el
+                  recorte estaba bien. */}
+              <div className="flex items-center gap-3">
+                {/* El aviso va SOBRE la vista previa, que es donde está mirando
+                    quien acaba de elegir un archivo — no en una esquina de la
+                    pantalla. El logo viejo se atenúa detrás en vez de
+                    desaparecer: así se ve que sigue siendo el actual hasta que el
+                    nuevo termine de guardarse. */}
+                <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-surface-2">
+                  {config.logoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={config.logoUrl}
+                      alt="logo"
+                      className={cn('h-full w-full object-contain', subiendoLogo && 'opacity-30')}
+                    />
                   ) : (
-                    <Upload className="h-3.5 w-3.5" />
+                    <Building2 className={cn('h-6 w-6 text-muted', subiendoLogo && 'opacity-30')} />
                   )}
-                  {subiendoLogo ? 'Subiendo…' : 'Subir logo'}
-                  <input
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp,image/svg+xml,.png,.jpg,.jpeg,.webp,.svg"
-                    className="hidden"
-                    disabled={subiendoLogo}
-                    onChange={subirLogo}
-                  />
-                </label>
-                {config.logoUrl && (
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    disabled={subiendoLogo}
-                    onClick={() => guardar({ logoUrl: null }, 'Logo quitado')}
+                  {subiendoLogo && (
+                    <span className="absolute inset-0 flex items-center justify-center">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted" />
+                    </span>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <label
+                    className={cn(
+                      'inline-flex h-9 items-center gap-1.5 rounded border border-border-strong px-3 text-[13px] text-ink',
+                      subiendoLogo
+                        ? 'pointer-events-none opacity-60'
+                        : 'cursor-pointer hover:bg-surface-2',
+                    )}
                   >
-                    Quitar
-                  </Button>
-                )}
+                    {subiendoLogo ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Upload className="h-3.5 w-3.5" />
+                    )}
+                    {subiendoLogo ? 'Subiendo…' : 'Subir logo'}
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/svg+xml,.png,.jpg,.jpeg,.webp,.svg"
+                      className="hidden"
+                      disabled={subiendoLogo}
+                      onChange={subirLogo}
+                    />
+                  </label>
+                  {config.logoUrl && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      disabled={subiendoLogo}
+                      onClick={() => guardar({ logoUrl: null }, 'Logo quitado')}
+                    >
+                      Quitar
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <span className="mt-1 block text-[11px] text-muted">
+                Se usa en el menú lateral, en el contrato impreso, en la propuesta que ve
+                el cliente y en los correos de aviso. PNG, JPG, WebP o SVG, máx. {LOGO_MAX_MB} MB.
+              </span>
+            </Campo>
+
+            {/* ADR 0011: este campo escribe `tenants.nombre`, que es la ÚNICA
+                fuente del nombre de la organización. Antes escribía una fila
+                GLOBAL de config_negocio: renombrar tu empresa renombraba la que
+                leían todas las demás, y encima el sidebar (que sí leía el del
+                tenant) y esta pantalla mostraban cosas distintas. */}
+            {/* Nombre y Moneda comparten fila: la moneda es de solo lectura y
+                a ancho completo ocupaba una fila entera para un dato fijo. */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Campo label="Nombre de la empresa">
+              <input className={inputCls} value={config.nombreTenant}
+                onChange={(e) => setConfig({ ...config, nombreTenant: e.target.value })}
+                onBlur={(e) => guardar({ nombreTenant: e.target.value }, 'Nombre actualizado')} />
+              <span className="mt-1 block text-[11px] text-muted">
+                Es el que aparece en el menú lateral.
+              </span>
+            </Campo>
+            <Campo label="Moneda">
+              <div className="flex h-9 items-center rounded border border-border bg-surface-2 px-3 text-[13px] text-muted">$ · Peso mexicano (MXN)</div>
+            </Campo>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <RazonSocialPrincipal config={config} guardar={guardar} />
+              <Campo label="Nombre comercial">
+                <input className={inputCls} value={config.nombreComercial ?? ''} placeholder="p. ej. PIXELED"
+                  onChange={(e) => setConfig({ ...config, nombreComercial: e.target.value })}
+                  onBlur={(e) => guardar({ nombreComercial: e.target.value.trim() || null }, 'Nombre comercial actualizado')} />
+              </Campo>
+            </div>
+            <span className="-mt-2 block text-[11px] text-muted">Se muestran en el encabezado del Dashboard.</span>
+        </CardColapsable>
+
+        <DatosFiscales config={config} setConfig={setConfig} guardar={guardar} />
+
+        <CorreoDeAvisos config={config} guardar={guardar} />
+      </section>
+
+      <section id="admin-cfg-comercial" aria-label="Comercial" className="scroll-mt-4 space-y-4">
+        <p className="m-0 text-[11px] font-medium uppercase tracking-wide text-muted">Comercial</p>
+        {/* IVA(s) con los que trabaja */}
+        <CardColapsable
+          id="admin.config.iva"
+          titulo="IVA(s) con los que trabaja"
+          icono={<Percent className="h-4 w-4 text-muted" />}
+        >
+            <div className="flex flex-wrap items-center gap-2">
+              {config.ivaTasas.map((p) => (
+                <span key={p} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-2 px-2.5 py-1 text-[13px] text-ink">
+                  <span className="demo-num">{p}%</span>
+                  <button type="button" disabled={config.ivaTasas.length <= 1}
+                    onClick={() => guardar({ ivaTasas: config.ivaTasas.filter((x) => x !== p) })}
+                    className="m-0 inline-flex cursor-pointer border-0 bg-transparent p-0 text-muted hover:text-error disabled:cursor-default disabled:opacity-30"><X className="h-3.5 w-3.5" /></button>
+                </span>
+              ))}
+              <div className="inline-flex items-center gap-1">
+                <input type="number" value={nuevoIva} onChange={(e) => setNuevoIva(e.target.value)} placeholder="%"
+                  className="h-8 w-20 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent" />
+                <Button size="sm" variant="success" onClick={() => {
+                  const nx = Number(nuevoIva)
+                  if (nx >= 0 && !config.ivaTasas.includes(nx)) guardar({ ivaTasas: [...config.ivaTasas, nx].sort((a, b) => a - b) }, `IVA ${nx}% agregado`)
+                  setNuevoIva('')
+                }}><Plus className="h-3.5 w-3.5" /> Agregar</Button>
               </div>
             </div>
-            <span className="mt-1 block text-[11px] text-muted">
-              Se usa en el menú lateral, en el contrato impreso, en la propuesta que ve
-              el cliente y en los correos de aviso. PNG, JPG, WebP o SVG, máx. {LOGO_MAX_MB} MB.
-            </span>
-          </Campo>
+            <p className="mt-2 text-[11px] text-muted">Las tasas disponibles para facturar. El IVA aplicado se elige por cliente.</p>
+        </CardColapsable>
 
-          {/* ADR 0011: este campo escribe `tenants.nombre`, que es la ÚNICA
-              fuente del nombre de la organización. Antes escribía una fila
-              GLOBAL de config_negocio: renombrar tu empresa renombraba la que
-              leían todas las demás, y encima el sidebar (que sí leía el del
-              tenant) y esta pantalla mostraban cosas distintas. */}
-          <Campo label="Nombre de la empresa">
-            <input className={inputCls} value={config.nombreTenant}
-              onChange={(e) => setConfig({ ...config, nombreTenant: e.target.value })}
-              onBlur={(e) => guardar({ nombreTenant: e.target.value }, 'Nombre actualizado')} />
-            <span className="mt-1 block text-[11px] text-muted">
-              Es el que aparece en el menú lateral.
-            </span>
-          </Campo>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <RazonSocialPrincipal config={config} guardar={guardar} />
-            <Campo label="Nombre comercial">
-              <input className={inputCls} value={config.nombreComercial ?? ''} placeholder="p. ej. PIXELED"
-                onChange={(e) => setConfig({ ...config, nombreComercial: e.target.value })}
-                onBlur={(e) => guardar({ nombreComercial: e.target.value.trim() || null }, 'Nombre comercial actualizado')} />
-            </Campo>
-          </div>
-          <span className="-mt-2 block text-[11px] text-muted">Se muestran en el encabezado del Dashboard.</span>
-          <Campo label="Moneda">
-            <div className="flex h-9 items-center rounded border border-border bg-surface-2 px-3 text-[13px] text-muted">$ · Peso mexicano (MXN)</div>
-          </Campo>
-      </CardColapsable>
-
-      <CorreoDeAvisos config={config} guardar={guardar} />
-
-      <DatosFiscales config={config} setConfig={setConfig} guardar={guardar} />
-
-      {/* IVA(s) con los que trabaja */}
-      <CardColapsable
-        id="admin.config.iva"
-        titulo="IVA(s) con los que trabaja"
-        icono={<Percent className="h-4 w-4 text-muted" />}
-      >
-          <div className="flex flex-wrap items-center gap-2">
-            {config.ivaTasas.map((p) => (
-              <span key={p} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-2 px-2.5 py-1 text-[13px] text-ink">
-                <span className="demo-num">{p}%</span>
-                <button type="button" disabled={config.ivaTasas.length <= 1}
-                  onClick={() => guardar({ ivaTasas: config.ivaTasas.filter((x) => x !== p) })}
-                  className="text-muted hover:text-error disabled:opacity-30"><X className="h-3.5 w-3.5" /></button>
-              </span>
-            ))}
-            <div className="inline-flex items-center gap-1">
-              <input type="number" value={nuevoIva} onChange={(e) => setNuevoIva(e.target.value)} placeholder="%"
-                className="h-8 w-20 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent" />
-              <Button size="sm" variant="success" onClick={() => {
-                const nx = Number(nuevoIva)
-                if (nx >= 0 && !config.ivaTasas.includes(nx)) guardar({ ivaTasas: [...config.ivaTasas, nx].sort((a, b) => a - b) }, `IVA ${nx}% agregado`)
-                setNuevoIva('')
-              }}><Plus className="h-3.5 w-3.5" /> Agregar</Button>
+        <CardColapsable id="admin.config.plazos-cobranza" titulo="Plazos de cobranza (días)" icono={<CalendarClock className="h-4 w-4 text-muted" />}>
+            <div className="flex flex-wrap items-center gap-2">
+              {config.plazosCobranza.map((p) => (
+                <span key={p} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-2 px-2.5 py-1 text-[13px] text-ink">
+                  <span className="demo-num">{p}</span>
+                  <button type="button" onClick={() => guardar({ plazosCobranza: config.plazosCobranza.filter((x) => x !== p) })} className="m-0 inline-flex cursor-pointer border-0 bg-transparent p-0 text-muted hover:text-error"><X className="h-3.5 w-3.5" /></button>
+                </span>
+              ))}
+              <div className="inline-flex items-center gap-1">
+                <input type="number" value={nuevoPlazo} onChange={(e) => setNuevoPlazo(e.target.value)} placeholder="días"
+                  className="h-8 w-20 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent" />
+                <Button size="sm" variant="success" onClick={() => {
+                  const nx = Number(nuevoPlazo)
+                  if (nx > 0 && !config.plazosCobranza.includes(nx)) guardar({ plazosCobranza: [...config.plazosCobranza, nx].sort((a, b) => a - b) }, `Plazo ${nx} días agregado`)
+                  setNuevoPlazo('')
+                }}><Plus className="h-3.5 w-3.5" /> Agregar</Button>
+              </div>
             </div>
-          </div>
-          <p className="mt-2 text-[11px] text-muted">Las tasas disponibles para facturar. El IVA aplicado se elige por cliente.</p>
-      </CardColapsable>
+        </CardColapsable>
 
-      {/* Reproducción digital (loop y spot) */}
-      <CardColapsable
-        id="admin.config.loop"
-        titulo="Reproducción digital (loop)"
-        icono={<MonitorPlay className="h-4 w-4 text-muted" />}
-      >
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <Campo label="Tamaño del loop (seg)">
-              <input type="number" className={`demo-num ${inputCls}`} defaultValue={config.loopSeg}
-                onBlur={(e) => { const v = Math.max(1, Number(e.target.value) || 0); if (v !== config.loopSeg) guardar({ loopSeg: v }, 'Loop actualizado') }} />
-            </Campo>
-            <Campo label="Duración por slot (seg)">
-              <input type="number" className={`demo-num ${inputCls}`} defaultValue={config.spotSeg}
-                onBlur={(e) => { const v = Math.max(1, Number(e.target.value) || 0); if (v !== config.spotSeg) guardar({ spotSeg: v }, 'Slot actualizado') }} />
-            </Campo>
-            <Campo label="Slots por loop">
-              <div className="demo-num flex h-9 items-center rounded border border-border bg-surface-2 px-3 text-[13px] font-semibold text-ink">{spotsPorLoop}</div>
-            </Campo>
-          </div>
-          <p className="mt-2 text-[11px] text-muted">
-            Es la estructura de <b>referencia</b> (loop ÷ slot). Lo que se aparta en una campaña son los
-            slots que tiene cada pantalla, no éstos: una pantalla con su propio número manda sobre este
-            valor.
-          </p>
-          {conSlotsPropios.length > 0 && (
-            <p className="mt-1.5 text-[11px] text-muted">
-              <b className="text-ink">{conSlotsPropios.length}</b> de {conteo(digitales.length, 'pantalla')} digitales
-              tienen un número propio distinto de {spotsPorLoop}
-              {' '}({Array.from(new Set(conSlotsPropios.map((x) => x.totalSpots))).sort((a, b) => (a ?? 0) - (b ?? 0)).join(', ')} slots).
-              Se edita en cada pantalla, desde Inventario.
+        {/* TOPE-01 · techo de descuento comercial de esta organización.
+            100 % = sin tope, que es como nace: desplegar esto no invalida
+            ninguna propuesta viva. Es el ÚNICO campo de esta pantalla que pide
+            la contraseña, porque es el único que es un control y no un ajuste. */}
+        <CardColapsable
+          id="admin.config.tope-descuento"
+          titulo="Tope de descuento comercial"
+          icono={<Percent className="h-4 w-4 text-muted" />}
+        >
+            <div className="flex flex-wrap items-end gap-3">
+              <Campo label="Descuento máximo (%)">
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  className={`demo-num ${inputCls}`}
+                  value={topeInput}
+                  onChange={(e) => setTopeInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') guardarTope() }}
+                />
+              </Campo>
+              <Button
+                size="sm"
+                onClick={guardarTope}
+                disabled={candadoTope.enviando || Number(topeInput) === config.topeDescuentoPct}
+              >
+                {candadoTope.enviando && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Guardar tope
+              </Button>
+            </div>
+            <p className="mt-2 text-[11px] text-muted">
+              El descuento más alto que se puede aplicar a una propuesta. Por encima de este número la
+              propuesta <b>no se guarda</b> y quien vende ve cuál es el tope. Déjalo en <b>100</b> para no
+              limitar nada, que es como nace la organización. Lo que ya está pactado no cambia:
+              bajar el tope no toca las propuestas que ya lo superan, solo impide volver a teclear
+              ese descuento.
             </p>
-          )}
-      </CardColapsable>
+            <p className="mt-1.5 text-[11px] text-muted">
+              Cambiarlo pide tu contraseña: es el control que limita cuánto dinero se puede regalar en
+              una venta, no un ajuste más.
+            </p>
+        </CardColapsable>
+        <DialogoCandado
+          candado={candadoTope}
+          titulo="Confirma el tope de descuento"
+          subtitulo="Estás cambiando cuánto descuento puede aplicar tu equipo en una propuesta."
+          etiquetaConfirmar="Guardar tope"
+        />
 
-      {/* ADR 0008 · cupo de clientes por pantalla (default de la instalación).
-          Vacío = sin límite, que es como nace: la regla se enciende capturando
-          un número, nunca por desplegar. Cada pantalla puede sobrescribirlo
-          desde su ficha en Comercial. */}
-      <CardColapsable
-        id="admin.config.cupo-clientes"
-        titulo="Cupo de clientes por pantalla"
-        icono={<Users className="h-4 w-4 text-muted" />}
-      >
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <Campo label="Máximo de clientes (default)">
-              <input
-                type="number"
-                min={1}
-                placeholder="Sin límite"
-                className={`demo-num ${inputCls}`}
-                defaultValue={config.maxClientesPantalla ?? ''}
-                onBlur={(e) => {
-                  const txt = e.target.value.trim()
-                  const v = txt === '' ? null : Math.max(1, Math.round(Number(txt) || 1))
-                  if (v !== (config.maxClientesPantalla ?? null)) {
-                    guardar(
-                      { maxClientesPantalla: v },
-                      v == null ? 'Cupo de clientes desactivado' : `Cupo de clientes: ${v}`,
-                    )
-                  }
-                }}
-              />
-            </Campo>
-          </div>
-          <p className="mt-2 text-[11px] text-muted">
-            Cuántos anunciantes distintos pueden compartir una pantalla a la vez, además del límite de
-            slots. Déjalo vacío para no aplicar ningún cupo. Un cliente que ya está en la pantalla puede
-            seguir metiendo campañas mientras le queden slots; el cupo solo frena al cliente nuevo. Cada
-            pantalla puede llevar su propio valor desde su ficha en Comercial.
-          </p>
-      </CardColapsable>
-
-      {/* TOPE-01 · techo de descuento comercial de esta organización.
-          100 % = sin tope, que es como nace: desplegar esto no invalida
-          ninguna propuesta viva. Es el ÚNICO campo de esta pantalla que pide
-          la contraseña, porque es el único que es un control y no un ajuste. */}
-      <CardColapsable
-        id="admin.config.tope-descuento"
-        titulo="Tope de descuento comercial"
-        icono={<Percent className="h-4 w-4 text-muted" />}
-      >
-          <div className="flex flex-wrap items-end gap-3">
-            <Campo label="Descuento máximo (%)">
-              <input
-                type="number"
-                min={0}
-                max={100}
-                className={`demo-num ${inputCls}`}
-                value={topeInput}
-                onChange={(e) => setTopeInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') guardarTope() }}
-              />
-            </Campo>
-            <Button
-              size="sm"
-              onClick={guardarTope}
-              disabled={candadoTope.enviando || Number(topeInput) === config.topeDescuentoPct}
-            >
-              {candadoTope.enviando && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Guardar tope
-            </Button>
-          </div>
-          <p className="mt-2 text-[11px] text-muted">
-            El descuento más alto que se puede aplicar a una propuesta. Por encima de este número la
-            propuesta <b>no se guarda</b> y quien vende ve cuál es el tope. Déjalo en <b>100</b> para no
-            limitar nada, que es como nace la organización. Lo que ya está pactado no cambia:
-            bajar el tope no toca las propuestas que ya lo superan, solo impide volver a teclear
-            ese descuento.
-          </p>
-          <p className="mt-1.5 text-[11px] text-muted">
-            Cambiarlo pide tu contraseña: es el control que limita cuánto dinero se puede regalar en
-            una venta, no un ajuste más.
-          </p>
-      </CardColapsable>
-      <DialogoCandado
-        candado={candadoTope}
-        titulo="Confirma el tope de descuento"
-        subtitulo="Estás cambiando cuánto descuento puede aplicar tu equipo en una propuesta."
-        etiquetaConfirmar="Guardar tope"
-      />
-
-      <CardColapsable id="admin.config.plazos-cobranza" titulo="Plazos de cobranza (días)">
-          <div className="flex flex-wrap items-center gap-2">
-            {config.plazosCobranza.map((p) => (
-              <span key={p} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-2 px-2.5 py-1 text-[13px] text-ink">
-                <span className="demo-num">{p}</span>
-                <button type="button" onClick={() => guardar({ plazosCobranza: config.plazosCobranza.filter((x) => x !== p) })} className="text-muted hover:text-error"><X className="h-3.5 w-3.5" /></button>
-              </span>
-            ))}
-            <div className="inline-flex items-center gap-1">
-              <input type="number" value={nuevoPlazo} onChange={(e) => setNuevoPlazo(e.target.value)} placeholder="días"
-                className="h-8 w-20 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent" />
-              <Button size="sm" variant="success" onClick={() => {
-                const nx = Number(nuevoPlazo)
-                if (nx > 0 && !config.plazosCobranza.includes(nx)) guardar({ plazosCobranza: [...config.plazosCobranza, nx].sort((a, b) => a - b) }, `Plazo ${nx} días agregado`)
-                setNuevoPlazo('')
-              }}><Plus className="h-3.5 w-3.5" /> Agregar</Button>
+        {/* ADR 0008 · cupo de clientes por pantalla (default de la instalación).
+            Vacío = sin límite, que es como nace: la regla se enciende capturando
+            un número, nunca por desplegar. Cada pantalla puede sobrescribirlo
+            desde su ficha en Comercial. */}
+        <CardColapsable
+          id="admin.config.cupo-clientes"
+          titulo="Cupo de clientes por pantalla"
+          icono={<Users className="h-4 w-4 text-muted" />}
+        >
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <Campo label="Máximo de clientes (default)">
+                <input
+                  type="number"
+                  min={1}
+                  placeholder="Sin límite"
+                  className={`demo-num ${inputCls}`}
+                  defaultValue={config.maxClientesPantalla ?? ''}
+                  onBlur={(e) => {
+                    const txt = e.target.value.trim()
+                    const v = txt === '' ? null : Math.max(1, Math.round(Number(txt) || 1))
+                    if (v !== (config.maxClientesPantalla ?? null)) {
+                      guardar(
+                        { maxClientesPantalla: v },
+                        v == null ? 'Cupo de clientes desactivado' : `Cupo de clientes: ${v}`,
+                      )
+                    }
+                  }}
+                />
+              </Campo>
             </div>
-          </div>
-      </CardColapsable>
+            <p className="mt-2 text-[11px] text-muted">
+              Cuántos anunciantes distintos pueden compartir una pantalla a la vez, además del límite de
+              slots. Déjalo vacío para no aplicar ningún cupo. Un cliente que ya está en la pantalla puede
+              seguir metiendo campañas mientras le queden slots; el cupo solo frena al cliente nuevo. Cada
+              pantalla puede llevar su propio valor desde su ficha en Comercial.
+            </p>
+        </CardColapsable>
+      </section>
 
-      {/* M15: esta tarjeta era un editor de texto libre que NO LEÍA NADIE — las
-          OT sacan su tipo de un enum con reglas por tipo de pantalla. Aparecía
-          vacía mientras Operaciones tenía una OT de «Montaje de lona», y la
-          auditoría pidió sembrarla. Sembrarla habría sido peor: seguiría sin
-          gobernar nada y encima parecería que sí. Ahora enseña lo que de verdad
-          rige, en solo lectura. */}
-      <CardColapsable id="admin.config.tipos-tarea" titulo="Tipos de tarea de cuadrilla">
-          <p className="mb-3 text-[13px] text-muted">
-            Los fija el sistema, no se editan: cuáles aplican depende del tipo de pantalla y esa
-            regla la comprueba el servidor al crear la orden.
-          </p>
-          <ul className="space-y-1.5">
-            {tiposOtPara(null).map((t) => {
-              const soloFija = TIPO_OT_SOLO_FIJA.includes(t)
-              return (
-                <li key={t} className="flex items-center justify-between rounded border border-border px-3 py-1.5 text-[13px] text-ink">
-                  <span className="inline-flex items-center gap-2">
-                    <Check className="h-3.5 w-3.5 text-success" /> {TIPO_OT_LABEL[t]}
-                  </span>
-                  <span className="text-[11px] text-muted">
-                    {soloFija ? 'solo pantalla fija' : 'fija y digital'}
-                  </span>
-                </li>
-              )
-            })}
-          </ul>
-      </CardColapsable>
+      <section id="admin-cfg-operacion" aria-label="Operación" className="scroll-mt-4 space-y-4">
+        <p className="m-0 text-[11px] font-medium uppercase tracking-wide text-muted">Operación</p>
+        {/* Reproducción digital (loop y spot) */}
+        <CardColapsable
+          id="admin.config.loop"
+          titulo="Reproducción digital (loop)"
+          icono={<MonitorPlay className="h-4 w-4 text-muted" />}
+        >
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <Campo label="Tamaño del loop (seg)">
+                <input type="number" className={`demo-num ${inputCls}`} defaultValue={config.loopSeg}
+                  onBlur={(e) => { const v = Math.max(1, Number(e.target.value) || 0); if (v !== config.loopSeg) guardar({ loopSeg: v }, 'Loop actualizado') }} />
+              </Campo>
+              <Campo label="Duración por slot (seg)">
+                <input type="number" className={`demo-num ${inputCls}`} defaultValue={config.spotSeg}
+                  onBlur={(e) => { const v = Math.max(1, Number(e.target.value) || 0); if (v !== config.spotSeg) guardar({ spotSeg: v }, 'Slot actualizado') }} />
+              </Campo>
+              <Campo label="Slots por loop">
+                <div className="demo-num flex h-9 items-center rounded border border-border bg-surface-2 px-3 text-[13px] font-semibold text-ink">{spotsPorLoop}</div>
+              </Campo>
+            </div>
+            <p className="mt-2 text-[11px] text-muted">
+              Es la estructura de <b>referencia</b> (loop ÷ slot). Lo que se aparta en una campaña son los
+              slots que tiene cada pantalla, no éstos: una pantalla con su propio número manda sobre este
+              valor.
+            </p>
+            {conSlotsPropios.length > 0 && (
+              <p className="mt-1.5 text-[11px] text-muted">
+                <b className="text-ink">{conSlotsPropios.length}</b> de {conteo(digitales.length, 'pantalla')} digitales
+                tienen un número propio distinto de {spotsPorLoop}
+                {' '}({Array.from(new Set(conSlotsPropios.map((x) => x.totalSpots))).sort((a, b) => (a ?? 0) - (b ?? 0)).join(', ')} slots).
+                Se edita en cada pantalla, desde Inventario.
+              </p>
+            )}
+        </CardColapsable>
 
-      <CostosOtCard config={config} guardar={guardar} />
+        {/* M15: esta tarjeta era un editor de texto libre que NO LEÍA NADIE — las
+            OT sacan su tipo de un enum con reglas por tipo de pantalla. Aparecía
+            vacía mientras Operaciones tenía una OT de «Montaje de lona», y la
+            auditoría pidió sembrarla. Sembrarla habría sido peor: seguiría sin
+            gobernar nada y encima parecería que sí. Ahora enseña lo que de verdad
+            rige, en solo lectura. */}
+        <CardColapsable id="admin.config.tipos-tarea" titulo="Tipos de tarea de cuadrilla" icono={<ListChecks className="h-4 w-4 text-muted" />}>
+            <p className="mb-3 text-[13px] text-muted">
+              Los fija el sistema, no se editan: cuáles aplican depende del tipo de pantalla y esa
+              regla la comprueba el servidor al crear la orden.
+            </p>
+            <ul className="m-0 list-none space-y-1.5 p-0">
+              {tiposOtPara(null).map((t) => {
+                const soloFija = TIPO_OT_SOLO_FIJA.includes(t)
+                return (
+                  <li key={t} className="flex items-center justify-between rounded border border-border px-3 py-1.5 text-[13px] text-ink">
+                    <span className="inline-flex items-center gap-2">
+                      <Check className="h-3.5 w-3.5 text-success" /> {TIPO_OT_LABEL[t]}
+                    </span>
+                    <span className="text-[11px] text-muted">
+                      {soloFija ? 'solo pantalla fija' : 'fija y digital'}
+                    </span>
+                  </li>
+                )
+              })}
+            </ul>
+        </CardColapsable>
+
+        <CostosOtCard config={config} guardar={guardar} />
+      </section>
+
+      <section id="admin-cfg-instancia" aria-label="Instancia" className="scroll-mt-4 space-y-4">
+        <p className="m-0 text-[11px] font-medium uppercase tracking-wide text-muted">Instancia</p>
+        {/* ADR 0037: qué version corre esta instancia, qué hay disponible y
+            si el dueño la instala ahora o espera a la ventana automatica. Es
+            config de la INSTANCIA (el droplet), no del negocio del tenant, y
+            por eso va aparte de `ConfigNegocio` — no viaja en `guardar()`. */}
+        <ActualizacionesPanel onToast={onToast} />
+
+        {/* ADR 0038: el dueño escribe una incidencia a AS OOH y ve si ya se la
+            contestaron. Consume /api/tickets (T5), no ConfigNegocio. */}
+        <TicketsPanel onToast={onToast} />
+      </section>
     </div>
   )
 }
@@ -1344,7 +1460,7 @@ function DatosFiscales({
         </p>
 
         {faltan.length > 0 && (
-          <div className="flex items-start gap-2 rounded border border-warning/40 bg-warning/10 px-3 py-2 text-[12px] text-ink">
+          <div className={FRANJA_AVISO}>
             <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
             <span>
               Falta{faltan.length === 1 ? '' : 'n'} <b>{faltan.join(', ')}</b>. Sin esto el contrato
