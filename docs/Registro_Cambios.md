@@ -7,6 +7,25 @@ La entrada más reciente va arriba.
 
 ## 2026-10-26
 
+**Todas las pantallas (menos Space Eyes) tienen ahora el mismo diseño que el
+Dashboard.** Nada cambia en lo que hacen: los mismos botones, permisos,
+confirmaciones y cifras. Lo que cambia es cómo se ven:
+
+- Cada módulo abre con sus cifras clave arriba (por ejemplo, Operaciones:
+  abiertas, vencidas, por vencer y sin asignar; Finanzas: por cobrar, vencido,
+  facturado y cobrado).
+- Filtros en chips con su conteo, listas más compactas y «Ver todas (N)» en vez
+  de listas interminables (Operaciones ya no son 114 tarjetas seguidas).
+- Disponibilidad usa un solo código de color: libre sin relleno, apartada en
+  ámbar y ocupada en rojo. Antes el verde quería decir «libre» en un sitio y
+  «confirmada» en otro.
+- En el detalle de una propuesta se quitó una segunda cuenta de «bruto a total»
+  que no restaba el descuento comercial y no coincidía con la de arriba.
+- Se ve bien en el teléfono: Finanzas y Propuestas ya no se salen de la
+  pantalla.
+- Almacén distingue «no se pudo cargar» de «no hay nada», con un botón para
+  reintentar.
+
 **El Dashboard se rehízo con lo que ponen en su inicio otros programas de medios
 exteriores y los CRM:**
 

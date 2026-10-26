@@ -6,6 +6,15 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!important] 2026-10-26 · **DISEÑO-MOD · el resto de los módulos con el lenguaje del Dashboard** — rama `feat/diseno-modulos`, encima de `feat/dashboard-referentes` · ÁMBAR (solo presentación)
+> Cinco grupos (Comercial, Operaciones, Inventario, Finanzas y precio, Sistema), cada uno investigado, diseñado y
+> validado por agentes separados; un commit por grupo más dos de correcciones. Validación: el diff contra
+> `app/api`, `lib/**`, `db/**`, `middleware.ts` y las piezas compartidas del Dashboard está VACÍO; 3968 unitarias y
+> 1091 e2e en verde (la roja es `grants-rol-app`, Docker). Toca Z3, Z4, Z5, Z6, Z7, Z10 (no), Z2 solo en
+> `components/demo/admin/` (visual) y Z12. **Space Eyes (Z3, José) fuera.** **Reclamadas y LIBERADAS** al commitear.
+> Defectos de COMPORTAMIENTO que encontró la investigación y NO se tocaron (los decide el dueño): el Vendedor ve todo
+> bloqueado en Comercial (`sitiosSinContratoCompleto` sin contratos), y otros ocho en el informe de la sesión.
+
 > [!important] 2026-10-26 · **DASH-REF · el Dashboard con lo que ponen los referentes** — rama `feat/dashboard-referentes`, encima de `fix/dashboard-del-periodo` · ÁMBAR (solo lectura; sin migración ni sesión)
 > Por rol (finanzas vs ventas), pipeline con lo ganado en el mes y por vendedor, huecos y renovaciones, cobranza
 > por antigüedad, alertas rojas primero, tarifa cobrada y renta/ingreso, y el pin del mapa por lo de hoy.
