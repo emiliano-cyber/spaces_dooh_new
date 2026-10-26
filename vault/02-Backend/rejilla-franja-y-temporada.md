@@ -1,7 +1,7 @@
 ---
 tipo: contrato
 estado: verificado
-actualizado: 2026-10-22
+actualizado: 2026-10-26
 tags: [backend, precios, tarifas, franjas, temporadas, propuestas, dinero, snapshot, rls, programacion]
 archivos:
   - db/migrations/20260928_rejilla_franja_temporada.sql
@@ -365,6 +365,26 @@ llegó, y va por **ruta propia**, no por una cadena más en una lista blanca.
   la nota del principio—. Lo que pinta el cliente ya no es lo que manda.)*
 
 ---
+
+### La pantalla, rediseñada (26/10) — solo presentación
+
+`GestionRejilla.tsx` y `ProgramacionPorFranja.tsx`, sin tocar las validaciones
+(`motivoFranjaInvalida`/`motivoTemporadaInvalida`), «Dar de baja», la
+atomicidad de `programarFranjaApi` ni `NO_PROGRAMABLES`:
+
+- El aviso de CMS sale **completo** arriba y **compacto** dentro de «Horario de
+  transmisión» (`<AvisoFranjaCMS compacto />`): eran dos avisos grandes iguales
+  en la misma página. Los dos siguen pintados, que es lo que exige
+  `lib/rejilla-aviso.test.ts`. `AvisoFranjaCMS` no se re-tiñó: lo usan también
+  la propuesta y la liga pública, que son de otro grupo.
+- Subtítulos de una frase y la explicación en la franja secundaria (con tres
+  renglones de subtítulo el chevrón se caía debajo del texto).
+- Tablas con la cabecera común, horas en `demo-num`, fechas de temporada en
+  dd/mm/aaaa, columna **Estado** con `StatusBadge` (Activa / Dada de baja) además
+  del tachado, y la fila de alta con fondo propio.
+- Horario de transmisión: cada franja con su pastilla «N campañas» a la
+  derecha; sin franjas activas no se pinta la lista vacía (dejaba una raya
+  suelta); los avisos de discrepancia con la franja ámbar del proyecto.
 
 ## La franja PROGRAMADA — en qué horario se transmite (PROG-01, 2026-09-30)
 

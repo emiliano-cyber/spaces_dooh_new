@@ -2,8 +2,12 @@
 
 import { toast } from 'sonner'
 import { useEffect, useState } from 'react'
-import { Percent, Handshake, ShieldCheck, ShieldAlert, Building2, Users, Plus } from 'lucide-react'
+import { Handshake, ShieldCheck, ShieldAlert, Building2, Users, Plus } from 'lucide-react'
+import { cn } from '@/lib/cn'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
+import { EmptyState } from '@/components/demo/EmptyState'
+import { StatusBadge } from '@/components/demo/StatusBadge'
+import { ChipConteo } from '@/components/demo/finanzas/ChipConteo'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
@@ -26,25 +30,55 @@ export default function ComisionesPage() {
   const puede = usePuede('comercial', 'crear')
   const [nuevaOpen, setNuevaOpen] = useState(false)
 
+  const encabezado = (
+    // Encabezado con la forma del Dashboard (rediseño 2026-10-26): sin la caja
+    // de icono, que llevaba un azul con hex suelto.
+    <div>
+      <h1 className="text-2xl text-ink">Comisiones</h1>
+      <p className="mt-1 text-[13px] text-muted">
+        Ajusta la comisión por agencia y la agencia asignada a cada cliente.
+      </p>
+    </div>
+  )
+
   if (!clientes) {
-    return <div className="h-64 w-full animate-pulse rounded-md bg-surface-2" />
+    // Esqueleto con la forma de lo que va a llegar —la franja de conteos y las
+    // dos tarjetas—, no un bloque gris de 256 px sin forma.
+    return (
+      <div className="w-full space-y-4">
+        {encabezado}
+        <div className="h-6 w-80 max-w-full animate-pulse rounded bg-surface-2" />
+        <div className="h-40 w-full animate-pulse rounded-md bg-surface-2" />
+        <div className="h-40 w-full animate-pulse rounded-md bg-surface-2" />
+      </div>
+    )
   }
 
   const agencias = clientes.filter((c) => c.tipo === 'AGENCIA')
   const directos = clientes.filter((c) => c.tipo !== 'AGENCIA')
+  // Conteos para la franja de arriba. Son CONTEOS de lo que ya está en
+  // pantalla, no dinero: «sin agencia» es lo mismo que la fila pinta como
+  // «Directo» (la agencia asignada no está entre las agencias).
+  const sinValidar = agencias.filter((a) => a.tieneNegociacion && !a.negociacionValidada).length
+  const sinAgencia = directos.filter((c) => !agencias.some((a) => a.id === c.agenciaId)).length
 
   return (
     <div className="w-full space-y-4">
-      <div className="flex items-center gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[#0a66ff1a] text-info">
-          <Percent className="h-5 w-5" strokeWidth={1.75} />
-        </span>
-        <div>
-          <h1 className="text-2xl text-ink">Comisiones</h1>
-          <p className="text-[13px] text-muted">
-            Ajusta la comisión por agencia y la agencia asignada a cada cliente.
-          </p>
-        </div>
+      {encabezado}
+
+      {/* Rediseño del 2026-10-26 · lo que el dueño quiere saber antes de bajar
+          a las tablas: cuántas agencias hay, cuántas negociaciones faltan por
+          validar (bloquean propuestas) y cuántos clientes no tienen agencia.
+          Chips del Dashboard y no KPI grandes: aquí no hay dinero que medir. */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        <ChipConteo label="Agencias" n={agencias.length} />
+        <ChipConteo
+          label="Negociación sin validar"
+          n={sinValidar}
+          tono={sinValidar > 0 ? 'ambar' : 'neutro'}
+          title="Sin validar, no se pueden crear ni aprobar propuestas con esa agencia"
+        />
+        <ChipConteo label="Clientes sin agencia" n={sinAgencia} />
       </div>
 
       {/* Agencias: comisión + negociación */}
@@ -54,6 +88,7 @@ export default function ComisionesPage() {
         id="comisiones.agencias"
         titulo="Agencias y su comisión"
         icono={<Building2 className="h-4 w-4 text-muted" />}
+        contentClassName="px-0 pb-0"
         accion={
           puede && (
             <Button variant="success" size="sm" onClick={() => setNuevaOpen(true)}>
@@ -63,18 +98,23 @@ export default function ComisionesPage() {
         }
       >
           {agencias.length === 0 ? (
-            <p className="text-[13px] text-muted">
-              Aún no hay agencias. Usa «Nueva agencia» para crear una.
-            </p>
+            <div className="px-4 pb-4">
+              <EmptyState
+                icon={Building2}
+                titulo="Aún no hay agencias"
+                detalle={puede ? 'Usa «Nueva agencia» para crear una.' : 'Cuando se dé de alta una agencia aparecerá aquí.'}
+                className="py-8"
+              />
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-[13px]">
                 <thead>
-                  <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted">
-                    <th className="px-2 py-2 font-medium">Agencia</th>
-                    <th className="px-2 py-2 text-right font-medium">Comisión (%)</th>
-                    <th className="px-2 py-2 font-medium">Negociación</th>
-                    <th className="px-2 py-2 text-right font-medium">Clientes</th>
+                  <tr className={CABECERA}>
+                    <th className="px-4 py-2 font-medium">Agencia</th>
+                    <th className="px-4 py-2 text-right font-medium">Comisión</th>
+                    <th className="px-4 py-2 font-medium">Negociación</th>
+                    <th className="px-4 py-2 text-right font-medium">Clientes</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -97,17 +137,20 @@ export default function ComisionesPage() {
         id="comisiones.clientes"
         titulo="Clientes y su agencia"
         icono={<Users className="h-4 w-4 text-muted" />}
+        contentClassName="px-0 pb-0"
       >
           {directos.length === 0 ? (
-            <p className="text-[13px] text-muted">No hay clientes directos.</p>
+            <div className="px-4 pb-4">
+              <EmptyState icon={Users} titulo="No hay clientes directos" className="py-8" />
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-[13px]">
                 <thead>
-                  <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted">
-                    <th className="px-2 py-2 font-medium">Cliente</th>
-                    <th className="px-2 py-2 font-medium">Agencia</th>
-                    <th className="px-2 py-2 text-right font-medium">Comisión aplicada</th>
+                  <tr className={CABECERA}>
+                    <th className="px-4 py-2 font-medium">Cliente</th>
+                    <th className="px-4 py-2 font-medium">Agencia</th>
+                    <th className="px-4 py-2 text-right font-medium">Comisión aplicada</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -124,6 +167,9 @@ export default function ComisionesPage() {
     </div>
   )
 }
+
+// Cabecera de tabla común (rediseño 2026-10-26), la misma de Finanzas.
+const CABECERA = 'border-b border-border text-[11px] uppercase tracking-wide text-muted'
 
 // ─── Alta de agencia (cliente tipo AGENCIA) ──────────────────────────────────
 function NuevaAgenciaDialog({ onClose }: { onClose: () => void }) {
@@ -248,31 +294,52 @@ function AgenciaRow({
 
   return (
     <tr className="hover:bg-surface-2">
-      <td className="px-2 py-2.5 font-medium text-ink">{agencia.nombre}</td>
-      <td className="px-2 py-2.5">
+      <td className="px-4 py-2.5 font-medium text-ink">{agencia.nombre}</td>
+      <td className="px-4 py-2.5">
         <div className="flex items-center justify-end gap-2">
-          <input
-            className={`demo-num ${inputCls}`}
-            value={comision}
-            disabled={!puede || busy}
-            onChange={(e) => setComision(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && cambiado) guardar({ comisionAgenciaPct: Number(comision) || 0 }) }}
-          />
-          {puede && cambiado && (
-            <Button size="sm" disabled={busy} onClick={() => guardar({ comisionAgenciaPct: Number(comision) || 0 })}>
+          {/* El «%» va pegado al campo: el número solo no decía en qué unidad
+              estaba. Es texto al lado, no parte del valor: lo que se manda
+              sigue siendo `Number(comision) || 0`. */}
+          <span className="inline-flex items-center gap-1">
+            <input
+              className={`demo-num ${inputCls}`}
+              value={comision}
+              aria-label={`Comisión de ${agencia.nombre} (%)`}
+              disabled={!puede || busy}
+              onChange={(e) => setComision(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && cambiado) guardar({ comisionAgenciaPct: Number(comision) || 0 }) }}
+            />
+            <span className="text-[12px] text-muted">%</span>
+          </span>
+          {/* «Guardar» RESERVA su sitio aunque no haya cambios (`invisible`):
+              antes aparecía y desaparecía y la fila entera saltaba al teclear.
+              Sigue apareciendo solo para quien puede, y solo se pulsa con un
+              cambio — igual que cuando no se pintaba. */}
+          {puede && (
+            <Button
+              size="sm"
+              disabled={busy || !cambiado}
+              aria-hidden={!cambiado}
+              tabIndex={cambiado ? undefined : -1}
+              className={cn(!cambiado && 'invisible')}
+              onClick={() => guardar({ comisionAgenciaPct: Number(comision) || 0 })}
+            >
               {busy ? '…' : 'Guardar'}
             </Button>
           )}
         </div>
       </td>
-      <td className="px-2 py-2.5">
+      <td className="px-4 py-2.5">
+        {/* Rediseño del 2026-10-26 · el estado con el semáforo único de la
+            app (`StatusBadge`) en vez de texto con hex sueltos. Las acciones
+            son las mismas, a la derecha del chip. */}
         {!agencia.tieneNegociacion ? (
-          <span className="text-[12px] text-muted">Sin negociación</span>
+          <StatusBadge tono="neutro">Sin negociación</StatusBadge>
         ) : agencia.negociacionValidada ? (
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1 text-[12px] text-[#0f7a55]">
-              <ShieldCheck className="h-3.5 w-3.5" /> Validada
-            </span>
+            <StatusBadge tono="verde">
+              <ShieldCheck className="h-3 w-3" /> Validada
+            </StatusBadge>
             {puede && (
               <button
                 type="button"
@@ -286,9 +353,9 @@ function AgenciaRow({
           </div>
         ) : (
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1 text-[12px] text-[#9a6700]">
-              <ShieldAlert className="h-3.5 w-3.5" /> Sin validar
-            </span>
+            <StatusBadge tono="ambar">
+              <ShieldAlert className="h-3 w-3" /> Sin validar
+            </StatusBadge>
             {puede && (
               <Button size="sm" variant="primary" disabled={busy} onClick={() => guardar({ negociacionValidada: true })}>
                 <Handshake className="h-3.5 w-3.5" /> Validar
@@ -297,7 +364,7 @@ function AgenciaRow({
           </div>
         )}
       </td>
-      <td className="px-2 py-2.5 text-right text-muted">{clientesAsociados}</td>
+      <td className="demo-num px-4 py-2.5 text-right text-muted">{clientesAsociados}</td>
     </tr>
   )
 }
@@ -328,8 +395,8 @@ function ClienteRow({
 
   return (
     <tr className="hover:bg-surface-2">
-      <td className="px-2 py-2.5 font-medium text-ink">{cliente.nombre}</td>
-      <td className="px-2 py-2.5">
+      <td className="px-4 py-2.5 font-medium text-ink">{cliente.nombre}</td>
+      <td className="px-4 py-2.5">
         {puede ? (
           <select
             className={selectCls}
@@ -344,8 +411,12 @@ function ClienteRow({
           <span className="text-muted">{agencia?.nombre ?? 'Directo'}</span>
         )}
       </td>
-      <td className="demo-num px-2 py-2.5 text-right text-ink">
-        {agencia ? `${agencia.comisionAgenciaPct ?? 0}%` : '—'}
+      <td className="demo-num whitespace-nowrap px-4 py-2.5 text-right text-ink">
+        {/* La raya sola no decía por qué: es un cliente sin agencia, y por eso
+            no paga comisión. Misma condición de siempre (`agencia`). */}
+        {agencia ? `${agencia.comisionAgenciaPct ?? 0}%` : (
+          <span className="text-[12px] text-muted" title="Cliente sin agencia asignada">Directo · sin comisión</span>
+        )}
       </td>
     </tr>
   )

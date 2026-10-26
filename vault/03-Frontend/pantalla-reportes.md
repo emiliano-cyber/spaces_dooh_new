@@ -541,6 +541,30 @@ Finanzas», nunca un cero. «Por cobrar» se esconde igual con `usePuede('finanz
 'ver')`. Lo fija la §3 de `lib/test/reportes-acceso.e2e.test.ts`, con la URL
 importada del Dashboard.
 
+## La pantalla, rediseñada (26/10) — solo presentación
+
+Sin tocar `consulta.ts`, `estado.ts` ni `tabla.ts` (el Dashboard depende de
+`consulta.ts`), ni el `AbortController`, ni el tono de los avisos:
+
+- **Encabezado** como el del Dashboard (sin la caja de icono con hex).
+- **Filtros** en una sola fila bajo el título, **sin tarjeta propia**, con la
+  etiqueta a la izquierda de cada control (`FiltrosRentabilidad.tsx`). Mismo
+  `onCambio`; el `motivo` sigue pegado a los controles.
+- **KPI**: tres, en `grid-cols-1 md:grid-cols-3` y con icono: *Ingreso*
+  (sub = `subtituloDeConteo`), *Costo total* (sub con las tres fuentes, igual
+  que antes) y *Margen sobre ingreso* (valor en %, el monto debajo) — la forma
+  del KPI «Margen del mes» del Dashboard. «Margen» y «Margen sobre ingreso»
+  eran dos tarjetas para la misma idea. Mismos campos de `reporte.totales`.
+- **Fechas** en dd/mm/aaaa (`formatFecha`) en el título de la tabla y en el
+  vacío; la URL y los filtros siguen en ISO.
+- **Avisos**: los de tono `alerta` (ámbar) siempre a la vista en la franja
+  ámbar; los grises, plegados tras «Notas sobre estas cifras (N)» (un
+  `<details>`). Mismo texto; dentro de cada grupo, el orden de `avisosDelReporte`.
+- **Tabla** (`TablaRentabilidad.tsx`): el botón de cada cabecera fuerza
+  `text-[11px]` y la columna activa va en negrita además de la flecha; la
+  primera columna es `sticky left-0` para que en móvil no se pierda de qué
+  pantalla es la cifra.
+
 ## Relacionadas
 [[02-Backend/reportes-rentabilidad]] · [[02-Backend/reportes-dimensiones]] ·
 [[02-Backend/tarifa-publicada-vs-neta]] ·

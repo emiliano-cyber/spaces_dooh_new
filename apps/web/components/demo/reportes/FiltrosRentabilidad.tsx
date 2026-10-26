@@ -35,11 +35,15 @@ export function FiltrosRentabilidad({
   motivo: string | null
   onCambio: (f: FiltrosReporte) => void
 }) {
+  // Rediseño del 2026-10-26 · los controles van en UNA fila, con la etiqueta a
+  // su izquierda y no encima: la pantalla ya no los mete en una tarjeta propia
+  // y las etiquetas en mayúsculas sobre cada control duplicaban la altura. Los
+  // mismos `onCambio`, y el `motivo` sigue pegado a los controles.
   return (
     <div className="space-y-2">
-      <div className="flex flex-wrap items-end gap-3">
-        <label className="flex flex-col gap-1">
-          <span className="text-[11px] uppercase tracking-wide text-muted">Agrupar</span>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <label className="flex items-center gap-1.5">
+          <span className="text-[12px] text-muted">Agrupar</span>
           <select
             className={campoCls}
             value={filtros.dimension}
@@ -59,8 +63,8 @@ export function FiltrosRentabilidad({
           </select>
         </label>
 
-        <label className="flex flex-col gap-1">
-          <span className="text-[11px] uppercase tracking-wide text-muted">Desde</span>
+        <label className="flex items-center gap-1.5">
+          <span className="text-[12px] text-muted">Desde</span>
           <input
             type="date"
             className={campoCls}
@@ -69,8 +73,8 @@ export function FiltrosRentabilidad({
           />
         </label>
 
-        <label className="flex flex-col gap-1">
-          <span className="text-[11px] uppercase tracking-wide text-muted">Hasta</span>
+        <label className="flex items-center gap-1.5">
+          <span className="text-[12px] text-muted">Hasta</span>
           <input
             type="date"
             className={campoCls}
@@ -79,8 +83,8 @@ export function FiltrosRentabilidad({
           />
         </label>
 
-        <label className="flex flex-col gap-1">
-          <span className="text-[11px] uppercase tracking-wide text-muted">Periodos</span>
+        <label className="flex items-center gap-1.5">
+          <span className="text-[12px] text-muted">Periodos</span>
           <select
             className={campoCls}
             value={filtros.granularidad}

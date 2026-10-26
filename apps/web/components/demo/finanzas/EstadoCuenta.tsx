@@ -73,6 +73,20 @@ export function EstadoCuenta() {
       contentClassName="px-0 pb-0"
       accion={
         <div className="flex flex-wrap items-center gap-1.5">
+          {/* En un teléfono los dos botones, el selector de 14rem y el CSV no
+              cabían en la cabecera y empujaban el chevrón fuera de la pantalla
+              (medido a 390 px el 2026-10-26). Ahí el mes va en un `<select>`
+              con los MISMOS dos valores y el MISMO `setMes`, y el de cliente
+              se angosta; desde `sm`, como siempre. */}
+          <select
+            value={mes}
+            onChange={(e) => setMes(e.target.value as Mes)}
+            aria-label="Mes"
+            className="h-8 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink sm:hidden"
+          >
+            <option value="mes">Este mes</option>
+            <option value="mes-anterior">Mes pasado</option>
+          </select>
           {(['mes', 'mes-anterior'] as const).map((m) => (
             <button
               key={m}
@@ -80,7 +94,7 @@ export function EstadoCuenta() {
               onClick={() => setMes(m)}
               aria-pressed={mes === m}
               className={cn(
-                'rounded border px-2.5 py-1 text-[12px] font-medium',
+                'hidden rounded border px-2.5 py-1 text-[12px] font-medium sm:inline-block',
                 mes === m ? 'border-accent bg-accent text-white' : 'border-border-strong bg-surface text-ink hover:bg-surface-2',
               )}
             >
@@ -91,7 +105,7 @@ export function EstadoCuenta() {
             value={cliente}
             onChange={(e) => setCliente(e.target.value)}
             aria-label="Cliente"
-            className="h-8 max-w-[14rem] rounded border border-border-strong bg-surface px-2 text-[12px] text-ink"
+            className="h-8 max-w-[8.5rem] rounded border border-border-strong bg-surface px-2 text-[12px] text-ink sm:max-w-[14rem]"
           >
             <option value="">Todos los clientes</option>
             {(clientes ?? []).map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
@@ -108,11 +122,17 @@ export function EstadoCuenta() {
           <div className="mx-4 mb-4 h-24 animate-pulse rounded bg-surface-2" />
         ) : (
           <>
-            <dl className="grid grid-cols-2 gap-x-6 gap-y-1 px-4 pb-3 text-[13px] md:grid-cols-5">
+            {/* Rediseño del 2026-10-26 · la cuenta se lee como una ecuación en
+                la franja secundaria del Dashboard: inicio + facturado − cobrado
+                = cierre. Son las mismas cinco cifras del servidor; aquí no se
+                suma nada, solo se ponen en una línea. */}
+            <dl className="mx-4 mb-3 flex flex-wrap items-baseline gap-x-4 gap-y-1 rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px]">
               <Renglon k="Saldo al inicio" v={formatMonto(r.saldoInicial)} />
               <Renglon k="+ Facturado" v={formatMonto(r.facturado.monto)} />
               <Renglon k="− Cobrado" v={formatMonto(r.cobrado)} />
               <Renglon k="= Saldo al cierre" v={formatMonto(r.saldoFinal)} fuerte />
+              {/* `div` y no `span`: dentro de un `dl` solo valen `div`, `dt` y `dd`. */}
+              <div className="hidden text-muted sm:block" aria-hidden>·</div>
               <Renglon k={`Vencido al ${formatFecha(r.corte)}`} v={formatMonto(r.vencido.monto)} tono={r.vencido.monto > 0} />
             </dl>
             {datos.movimientos.length === 0 ? (
@@ -162,8 +182,8 @@ export function EstadoCuenta() {
 
 function Renglon({ k, v, fuerte, tono }: { k: string; v: string; fuerte?: boolean; tono?: boolean }) {
   return (
-    <div>
-      <dt className="text-[11px] text-muted">{k}</dt>
+    <div className="flex items-baseline gap-1.5 whitespace-nowrap">
+      <dt className="text-muted">{k}</dt>
       <dd className={cn('demo-num text-ink', fuerte && 'font-semibold', tono && 'text-error')}>{v}</dd>
     </div>
   )

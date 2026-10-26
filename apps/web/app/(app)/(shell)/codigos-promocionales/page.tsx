@@ -1,6 +1,5 @@
 'use client'
 
-import { Ticket } from 'lucide-react'
 import { GestionCodigos } from '@/components/demo/codigos/GestionCodigos'
 
 // ============================================================================
@@ -29,12 +28,14 @@ import { GestionCodigos } from '@/components/demo/codigos/GestionCodigos'
 // ============================================================================
 export default function CodigosPromocionalesPage() {
   return (
-    <div className="space-y-4">
-      <header className="flex items-center gap-2">
-        <Ticket className="h-5 w-5" />
+    <div className="w-full space-y-4">
+      {/* Encabezado con la forma del Dashboard (rediseño 2026-10-26): título
+          de 2xl y subtítulo en `text-muted`, sin el icono suelto ni la paleta
+          `neutral` de Tailwind, que no son tokens del proyecto. */}
+      <header>
         <div>
-          <h1 className="text-lg font-semibold">Códigos de negociación</h1>
-          <p className="text-xs text-neutral-500">
+          <h1 className="text-2xl text-ink">Códigos de negociación</h1>
+          <p className="mt-1 text-[13px] text-muted">
             Códigos con vencimiento y cupo que un vendedor aplica a una cotización. Los pone esta
             empresa y no se comparten con nadie más.
           </p>
