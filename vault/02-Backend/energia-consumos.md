@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-10-26
 tags: [backend, energia, luz, reportes, rentabilidad, captura, operaciones, dinero, rojo]
 archivos:
   - db/migrations/20260918_consumos_energia.sql
@@ -12,6 +12,7 @@ archivos:
   - apps/web/app/(app)/(shell)/energia/page.tsx
   - apps/web/components/demo/energia/captura.ts
   - apps/web/components/demo/energia/RejillaCaptura.tsx
+  - apps/web/components/demo/energia/IndicadoresEnergia.tsx
   - apps/web/components/demo/energia/FormularioRecibo.tsx
   - apps/web/lib/data/reportes.ts
   - apps/web/lib/data/derive.ts
@@ -251,6 +252,21 @@ teclear dos veces la misma cifra, y un importe repetido no da error.
 **Que se vea lo que falta**: la unidad es la **rejilla punto × mes**, no la lista
 de lo capturado. El hueco se pinta con **raya y fondo ámbar**; un «$0.00»
 afirmaría que ese mes no se gastó luz y una celda en blanco no diría nada.
+
+> [!note] 2026-10-26 · disposición de la pantalla (solo presentación)
+> De arriba abajo: título sin la caja del icono; **cuatro indicadores**
+> (`IndicadoresEnergia`: recibos capturados de esperados, faltan, importe y kWh
+> del periodo, sumados de las `celdas` del tablero; con error de carga, «—»);
+> el **periodo** Desde/Hasta en su propia fila —antes vivía dentro de la
+> tarjeta de captura y se leía como un campo del recibo—; la tarjeta «Capturar
+> un recibo» (sin plegar) y la rejilla plegable, con los textos largos de
+> `resumenDeCobertura` arriba como siempre. En la rejilla el borrado por medidor
+> es texto discreto con la papelera al pasar el ratón o enfocar (mismo
+> `ConfirmDialog`).
+>
+> **El fondo ámbar del hueco NO se veía.** La celda usaba `bg-warning/10`, y esa
+> clase no se genera: `--warning` es un color sin canales y Tailwind 3 no le
+> aplica opacidad. Desde el 26/10 es `bg-warning-soft`.
 
 > [!tip] `mesesDelRango()` y `puntoDeMedicion()` se IMPORTAN del motor
 > Con dos respuestas a «qué meses cubre este rango» o a «qué es un punto de

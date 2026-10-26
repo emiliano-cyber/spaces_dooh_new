@@ -29,7 +29,13 @@ archivos:
   - apps/web/lib/data/types.ts
   - apps/web/app/(app)/(shell)/propuestas/[id]/page.tsx
   - apps/web/app/(app)/(shell)/campanas/[id]/page.tsx
+  - apps/web/app/(app)/(shell)/campanas/page.tsx
+  - apps/web/app/(app)/(shell)/creativos/page.tsx
   - apps/web/components/demo/campanas/FranjaProgramadaCampana.tsx
+  - apps/web/components/demo/campanas/IndicadoresCampanas.tsx
+  - apps/web/components/demo/campanas/ResumenCampana.tsx
+  - apps/web/components/demo/campanas/ListasCampana.tsx
+  - apps/web/components/demo/campanas/CandadoPanel.tsx
   - apps/web/lib/server/programacion-repo.ts
   - apps/web/lib/server/contratos-sitio.ts
   - apps/web/lib/server/portal-repo.ts
@@ -519,6 +525,47 @@ Probado en `lib/periodos.cps-cpm.test.ts`, `lib/folio-venta.test.ts`,
 `lib/test/folio-venta-cpm.e2e.test.ts` (folio heredado, .1/.2, la carrera, la
 bitácora, CPM hasta la reserva y CPM rechazado en una fija). Ocho mutantes,
 todos muertos; el del folio heredado, contra build reconstruido.
+
+## Cómo se ven la lista y la ficha de campaña (rediseño del 26/10)
+
+Solo presentación, con el lenguaje del Dashboard (`inicio/page.tsx`). Ningún
+dato nuevo: todo sale de los hooks que las pantallas ya usaban.
+
+**Lista `/campanas`.** Abre con cuatro indicadores (`IndicadoresCampanas`):
+activas, por validar publicación, listas para facturar (candado abierto y ni
+completada ni cancelada) y contratado vigente (suma de `presupuestoBruto` de las
+activas; **«—» si ninguna tiene presupuesto**, nunca $0). La cola «Por validar»
+enseña 5 y «Ver todas (N)». El filtro de estado dice cuántas hay en cada uno.
+Cada tarjeta lleva la etapa en un chip («Confirmada · 2/9») y el candado
+**con texto** («Lista para facturar»); la línea «Etapa actual» sobre el pipeline
+se quitó porque repetía el chip. El presupuesto que falta es «—» con su motivo
+en `title`. `useVistaCampanas` (compacta, minimizar, ocultar) no cambió de
+significado.
+
+**Ficha `/campanas/[id]`.** Bajo el encabezado, una franja (`ResumenCampana`)
+con total, margen, % entregado, candado, OT abiertas de N y evidencias (solo si
+hay medio fijo). Es componente aparte y entra en la página con **una línea**,
+porque otra rama (la «Validación de publicación» siempre abierta, decisión del
+23/10) toca el mismo archivo. Las listas de Imprenta y OT de sus secciones son
+`ListasCampana` (`divide-y`, fecha compromiso y «Vencida» con `estadoSLAOT`,
+«Ver todas (N)» pasadas 5). `CandadoPanel` ya no pinta borde ni título propios
+—vive dentro de la sección «Candado de facturación», que los pone— y dice «se
+abre cuando se cumplen estas condiciones» en vez de «las tres». Las migas: en
+escritorio solo `Breadcrumbs`; el «← volver» queda para el teléfono.
+
+**`/creativos`.** Cuatro indicadores (por aprobar, aprobados, rechazados, spots
+sin creativo). Si hay campañas pero **ninguna digital**, el vacío lo dice y manda
+a Imprenta, en vez de pedir que se reserven sitios. El estado de cada creativo es
+el mismo chip (`StatusBadge` + `CREATIVIDAD_TONO`) que en la ficha, con el motivo
+del rechazo a la vista; las acciones caben en una fila (Reemplazar y Eliminar
+como iconos con `aria-label`); los spots son una lista con la pastilla «Sin
+creativo». El vacío con filtro trae «Limpiar filtros».
+
+> [!warning] Las clases `border-warning/40`, `bg-warning/10` y similares NO existen
+> Los colores del tema son `var(--warning)` sin canales, y Tailwind 3 no sabe
+> aplicarles opacidad: esas clases **no se generan** (medido en
+> `.next/static/css` el 26/10: cero apariciones). Para un tinte se usan los
+> `*-soft` (`bg-warning-soft`, `bg-success-soft`, `bg-error-soft`).
 
 ## Portal del cliente
 

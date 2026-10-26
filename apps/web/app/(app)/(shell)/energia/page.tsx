@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, CalendarSearch, CheckCircle2, Info, ServerCrash, Zap } from 'lucide-react'
 import { cn } from '@/lib/cn'
-import { Card, CardContent } from '@/components/demo/ui/Card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/demo/ui/Card'
+import { IndicadoresEnergia } from '@/components/demo/energia/IndicadoresEnergia'
+import { conteo } from '@/lib/plural'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { EmptyState } from '@/components/demo/EmptyState'
 import { FormularioRecibo } from '@/components/demo/energia/FormularioRecibo'
@@ -154,55 +156,70 @@ export default function EnergiaPage() {
 
   return (
     <div className="w-full space-y-4">
-      <div className="flex items-center gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[#f59e0b1a] text-warning">
-          <Zap className="h-5 w-5" strokeWidth={1.75} />
-        </span>
-        <div>
-          <h1 className="text-2xl text-ink">Consumo de luz</h1>
-          <p className="text-[13px] text-muted">
-            Un recibo por predio y por mes. Se reparte entre sus pantallas igual que la renta.
-          </p>
-        </div>
+      {/* Encabezado como el Dashboard: título y subtítulo, sin la caja ámbar
+          con el icono (era el único módulo que la llevaba). */}
+      <div>
+        <h1 className="text-2xl text-ink">Consumo de luz</h1>
+        <p className="mt-1 text-[13px] text-muted">
+          Un recibo por predio y por mes. Se reparte entre sus pantallas igual que la renta.
+        </p>
       </div>
 
-      <Card>
-        <CardContent className="pt-4">
-          <div className="mb-3 grid grid-cols-2 gap-2 lg:w-1/3">
-            <div>
-              <label className="mb-1 block text-[11px] uppercase tracking-wide text-muted" htmlFor="desde">
-                Desde
-              </label>
-              <input
-                id="desde"
-                type="date"
-                className="h-9 w-full rounded-md border border-border bg-surface px-2 text-[13px] text-ink"
-                value={rango.desde}
-                onChange={(e) => setRango((r) => ({ ...r, desde: e.target.value }))}
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-[11px] uppercase tracking-wide text-muted" htmlFor="hasta">
-                Hasta
-              </label>
-              <input
-                id="hasta"
-                type="date"
-                className="h-9 w-full rounded-md border border-border bg-surface px-2 text-[13px] text-ink"
-                value={rango.hasta}
-                onChange={(e) => setRango((r) => ({ ...r, hasta: e.target.value }))}
-              />
-            </div>
-          </div>
-          {motivo ? <p className="text-[12px] text-error">{motivo}</p> : null}
+      <IndicadoresEnergia tablero={tablero} cargando={cargando} errorCarga={errorCarga} />
 
+      {/* El periodo es un FILTRO de la rejilla y los indicadores, no un campo
+          del recibo: dentro de la tarjeta de captura se leía como un formulario
+          de cinco campos más dos fechas. Mismo `setRango` y mismos `id`. */}
+      <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
+        <span className="pb-2 text-[13px] font-medium text-ink">Periodo</span>
+        <div>
+          <label className="mb-1 block text-[11px] text-muted" htmlFor="desde">
+            Desde
+          </label>
+          <input
+            id="desde"
+            type="date"
+            className="h-9 w-full rounded-md border border-border bg-surface px-2 text-[13px] text-ink"
+            value={rango.desde}
+            onChange={(e) => setRango((r) => ({ ...r, desde: e.target.value }))}
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-[11px] text-muted" htmlFor="hasta">
+            Hasta
+          </label>
+          <input
+            id="hasta"
+            type="date"
+            className="h-9 w-full rounded-md border border-border bg-surface px-2 text-[13px] text-ink"
+            value={rango.hasta}
+            onChange={(e) => setRango((r) => ({ ...r, hasta: e.target.value }))}
+          />
+        </div>
+        {motivo ? <p className="m-0 basis-full text-[12px] text-error">{motivo}</p> : null}
+      </div>
+
+      {/* Con título, sin plegar (ver el comentario de la cobertura: plegarla
+          desmontaría un recibo a medio teclear). */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Capturar un recibo</CardTitle>
+        </CardHeader>
+        <CardContent>
           {tablero && tablero.puntos.length > 0 ? (
             <FormularioRecibo
               puntos={tablero.puntos}
               mesInicial={(tablero.meses[tablero.meses.length - 1] ?? '').slice(0, 7)}
               onGuardar={guardar}
             />
-          ) : null}
+          ) : (
+            // Con título, la tarjeta ya no puede quedar vacía sin decir por qué.
+            <p className="m-0 text-[12px] text-muted">
+              {cargando || (!tablero && !errorCarga)
+                ? 'Cargando los puntos de medición…'
+                : 'No hay dónde capturar todavía: el motivo está abajo.'}
+            </p>
+          )}
 
           {/* Subir el PDF va DEBAJO del formulario y no encima: quien tiene un
               recibo en la mano sigue teniendo el camino de teclearlo, que es el
@@ -224,8 +241,8 @@ export default function EnergiaPage() {
         contentClassName="space-y-3"
         resumen={
           tablero ? (
-            <span className="text-[11px] uppercase tracking-wide text-muted">
-              {tablero.meses.length} {tablero.meses.length === 1 ? 'mes' : 'meses'}
+            <span className="demo-num text-[12px] text-muted">
+              {conteo(tablero.meses.length, 'mes', 'meses')} · {conteo(tablero.puntos.length, 'punto', 'puntos')}
             </span>
           ) : null
         }
@@ -234,7 +251,7 @@ export default function EnergiaPage() {
               que se están mirando son el total o solo una parte, y eso llega
               tarde puesto después de la tabla. */}
           {resumen ? (
-            <ul className="space-y-1.5 rounded-md border border-dashed border-border bg-surface-2 px-3 py-2 text-[12px] text-muted">
+            <ul className="m-0 list-none space-y-1.5 rounded-md border border-dashed border-border bg-surface-2 px-3 py-2 text-[12px] text-muted">
               <li
                 className={cn(
                   'flex items-start gap-1.5',

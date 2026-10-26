@@ -12,7 +12,9 @@ import {
   ArrowLeft,
   AlertCircle,
 } from 'lucide-react'
-import { candadoDeSegmentos } from '@/lib/data/derive'
+import { candadoDeSegmentos, estadoSLAOT, formatFecha, formatFechaHora } from '@/lib/data/derive'
+import { TIPO_OT_LABEL } from '@/lib/tipos-ot'
+import { usePuede } from '@/components/demo/shell/SesionContext'
 import { FotoUploaderMock } from '@/components/demo/FotoUploaderMock'
 import { Button } from '@/components/demo/ui/Button'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
@@ -34,7 +36,7 @@ import {
   avisoAntesDeCerrar,
   textoCostoDeCerrada,
 } from '@/lib/costo-ot-captura'
-import type { FotoMeta, EstOT, ChecklistItem } from '@/lib/data/types'
+import type { FotoMeta, EstOT, ChecklistItem, TipoOT } from '@/lib/data/types'
 
 // blob: URL → data URL (base64) para que la foto persista en la BD.
 //
@@ -102,6 +104,9 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
   // tenants y preguntarla siempre sería fricción inventada. Si el servidor la
   // pide, `DialogoCandado` se abre solo con esta misma acción dentro.
   const candado = useCandado()
+  // Enlazar la campaña solo a quien puede verla (como en Imprenta). Fuera del
+  // shell (vista móvil) no hay sesión y diría que no, pero allí no se usa.
+  const puedeVerCampana = usePuede('comercial', 'ver')
   // Rastro de navegación ("cómo llegué aquí"). Por defecto, Operaciones.
   const [trail, setTrail] = useState<Crumb[]>([])
   useEffect(() => {
@@ -189,6 +194,9 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
   const puedeChecklist = ot.checklist.length > 0
   const puedeEditar = data.puedeEditar !== false
   const todoListo = checks.every(Boolean) && fotos.length > 0 && !!geo
+  // SLA del compromiso, con la MISMA regla que la lista de Operaciones
+  // (`estadoSLAOT`): solo para pintarlo en la franja de escritorio.
+  const sla = estadoSLAOT(ot)
 
   function alternarPunto(i: number, label: string) {
     if (!puedeEditar) return
@@ -490,44 +498,118 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
     return (
       <>
       <div className="w-full space-y-4">
-        {/* Migas: sigues en Operaciones; muestra cómo llegaste */}
+        {/* Migas: sigues en Operaciones; muestra cómo llegaste. En escritorio
+            solo las migas (el «← Operaciones» repetía la primera); el enlace
+            de volver queda para pantallas angostas. */}
         <div className="flex flex-wrap items-center gap-2">
           {volver.href && (
-            <Link href={volver.href} className="inline-flex items-center gap-1 text-[13px] font-medium text-info hover:underline">
+            <Link href={volver.href} className="inline-flex items-center gap-1 text-[13px] font-medium text-info hover:underline sm:hidden">
               <ArrowLeft className="h-3.5 w-3.5" /> {volver.label}
             </Link>
           )}
-          <span className="text-muted/50">·</span>
-          <Breadcrumbs items={[...trail, { label: ot.folio }]} />
+          <span className="hidden sm:contents"><Breadcrumbs items={[...trail, { label: ot.folio }]} /></span>
         </div>
 
-        <div className="flex flex-wrap items-start justify-between gap-2">
+        {/* Encabezado como el del resto de módulos: `h1 text-2xl` con lo que
+            se hace y el folio en el subtítulo, como el detalle de campaña. La
+            `cabecera` compartida se queda para la vista móvil. */}
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="demo-num text-[13px] font-semibold text-ink">{ot.folio}</div>
-            <div className="truncate text-[12px] text-muted">{sitio?.nombre ?? '—'}</div>
+            <h1 className="m-0 text-2xl text-ink">{ot.descripcion}</h1>
+            <p className="demo-num mt-1 text-[12px] text-muted">
+              {[ot.folio, sitio?.nombre].filter(Boolean).join(' · ')}
+            </p>
+            {sitio?.direccion && (
+              <p className="mt-0.5 inline-flex items-center gap-1 text-[12px] text-muted">
+                <MapPin className="h-3.5 w-3.5" /> {sitio.direccion}
+              </p>
+            )}
           </div>
           <StatusBadge tono={OT_TONO[ot.estatus as EstOT]}>{OT_LABEL[ot.estatus as EstOT]}</StatusBadge>
         </div>
 
-        {/* Ancho completo: en pantallas grandes se divide en dos columnas. */}
+        {/* Los datos de la lista —tipo, prioridad, compromiso y si va vencida—
+            también aquí, en la franja del Dashboard. Llegan en `ot` (la fila
+            completa de `rowToOT`); el que falte no se pinta. */}
+        <dl className="m-0 flex flex-wrap items-center gap-x-5 gap-y-1 rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px]">
+          {ot.tipo && (
+            <ParOT etiqueta="Tipo">
+              {TIPO_OT_LABEL[ot.tipo as TipoOT] ?? ot.tipo}
+            </ParOT>
+          )}
+          {ot.prioridad && (
+            <ParOT etiqueta="Prioridad">
+              <span
+                className={
+                  ot.prioridad === 'URGENTE' ? 'text-error' : ot.prioridad === 'ALTA' ? 'text-warning' : 'text-ink'
+                }
+              >
+                {PRIORIDAD_LABEL_OT[ot.prioridad as string] ?? ot.prioridad}
+              </span>
+            </ParOT>
+          )}
+          {ot.fechaProgramada && (
+            <ParOT etiqueta="Compromiso">
+              <span className="demo-num">{formatFecha(ot.fechaProgramada)}</span>
+              {sla === 'VENCIDA' && (
+                <span className="ml-1.5 rounded-full border border-transparent bg-error-soft px-2 py-0.5 text-[11px] font-medium text-error">
+                  Vencida
+                </span>
+              )}
+              {sla === 'POR_VENCER' && (
+                <span className="ml-1.5 rounded-full border border-transparent bg-warning-soft px-2 py-0.5 text-[11px] font-medium text-warning">
+                  Por vencer
+                </span>
+              )}
+            </ParOT>
+          )}
+          {responsable !== undefined && (
+            <ParOT etiqueta="Responsable">{responsable ?? 'Sin asignar'}</ParOT>
+          )}
+          {campana && (
+            <ParOT etiqueta="Campaña">
+              {/* Antes texto plano: desde la campaña se llegaba a la OT, pero
+                  no al revés. Con el permiso de verla, como en Imprenta. */}
+              {puedeVerCampana ? (
+                <Link href={`/campanas/${campana.id}`} className="font-medium text-info hover:underline">
+                  {campana.nombre}
+                </Link>
+              ) : (
+                campana.nombre
+              )}
+            </ParOT>
+          )}
+        </dl>
+
+        {/* Ancho completo: en pantallas grandes se divide en dos columnas. Cada
+            pieza va en su tarjeta, como Costo y Cerrar: antes Checklist, Foto
+            y Ubicación eran títulos sueltos junto a dos tarjetas. Se envuelven
+            AQUÍ y no dentro de las piezas, que comparte la vista móvil. */}
         <div className="w-full space-y-5">
-          {cabecera}
           {completada ? (
-            completadaView
+            <CompletadaView
+              candado={candadoOT}
+              evidenciaUrls={(evidencias ?? []).map((e) => e.fotoUrl)}
+              embedded
+              checklist={ot.checklist}
+              cerradaEn={ot.fechaCompletada ?? null}
+            />
           ) : puedeChecklist ? (
             <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start">
-              <div className="space-y-5">{checklistSection}</div>
               <div className="space-y-5">
-                {fotoSection}
-                {geoSection}
+                <div className={TARJETA}>{checklistSection}</div>
+              </div>
+              <div className="space-y-5">
+                <div className={TARJETA}>{fotoSection}</div>
+                <div className={TARJETA}>{geoSection}</div>
                 {cerrarBox}
               </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:items-start">
-              {fotoSection}
+              <div className={TARJETA}>{fotoSection}</div>
               <div className="space-y-5">
-                {geoSection}
+                <div className={TARJETA}>{geoSection}</div>
                 {cerrarBox}
               </div>
             </div>
@@ -596,7 +678,41 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
   )
 }
 
-function CompletadaView({ candado, evidenciaUrls }: { candado: boolean; evidenciaUrls: string[] }) {
+// Tarjeta de las piezas de la vista de escritorio (la misma de Costo y Cerrar).
+const TARJETA = 'rounded-md border border-border bg-surface p-3'
+
+const PRIORIDAD_LABEL_OT: Record<string, string> = {
+  BAJA: 'Baja',
+  NORMAL: 'Normal',
+  ALTA: 'Alta',
+  URGENTE: 'Urgente',
+}
+
+function ParOT({ etiqueta, children }: { etiqueta: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-baseline gap-1.5">
+      <dt className="text-muted">{etiqueta}</dt>
+      <dd className="m-0 font-medium text-ink">{children}</dd>
+    </div>
+  )
+}
+
+function CompletadaView({
+  candado,
+  evidenciaUrls,
+  embedded = false,
+  checklist,
+  cerradaEn,
+}: {
+  candado: boolean
+  evidenciaUrls: string[]
+  // Escritorio (`embedded`): quien mira no es la cuadrilla que acaba de
+  // cerrar, así que «Puedes cerrar esta ventana» no le dice nada. En su lugar
+  // ve qué se cumplió y cuándo se cerró. La vista móvil sigue igual.
+  embedded?: boolean
+  checklist?: ChecklistItem[]
+  cerradaEn?: string | null
+}) {
   const real = evidenciaUrls.filter((u) => u.startsWith('blob:') || u.startsWith('http') || u.startsWith('data:'))
   return (
     <div className="space-y-4">
@@ -604,7 +720,31 @@ function CompletadaView({ candado, evidenciaUrls }: { candado: boolean; evidenci
         <CheckCircle2 className="mb-2 h-9 w-9 text-success" />
         <p className="text-[15px] font-semibold text-ink">OT cerrada</p>
         <p className="mt-1 text-[13px] text-muted">La evidencia se envió al pipeline de la campaña.</p>
+        {embedded && cerradaEn && (
+          <p className="demo-num mt-1 text-[12px] text-muted">Cerrada el {formatFechaHora(cerradaEn)}</p>
+        )}
       </div>
+
+      {embedded && checklist && checklist.length > 0 && (
+        <div className={TARJETA}>
+          <h2 className="mb-2 mt-0 text-[13px] font-medium text-ink">Checklist cumplido</h2>
+          <ul className="m-0 list-none space-y-1.5 p-0">
+            {checklist.map((c, i) => (
+              <li key={i} className="flex items-center gap-2.5 text-[13px]">
+                <span
+                  className={cn(
+                    'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border',
+                    c.hecho ? 'border-success bg-success text-white' : 'border-border-strong',
+                  )}
+                >
+                  {c.hecho && <Check className="h-3 w-3" strokeWidth={3} />}
+                </span>
+                <span className={c.hecho ? 'text-ink' : 'text-muted'}>{c.label}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {candado && (
         <div className="flex items-center gap-2 rounded-md border border-success/40 bg-[#10b9810d] px-3 py-3">
@@ -618,9 +758,11 @@ function CompletadaView({ candado, evidenciaUrls }: { candado: boolean; evidenci
         <img src={real[0]} alt="evidencia" className="w-full rounded-md border border-border object-cover" />
       )}
 
-      <p className="text-center text-[12px] text-muted">
-        Puedes cerrar esta ventana. La evidencia ya quedó registrada.
-      </p>
+      {!embedded && (
+        <p className="text-center text-[12px] text-muted">
+          Puedes cerrar esta ventana. La evidencia ya quedó registrada.
+        </p>
+      )}
     </div>
   )
 }

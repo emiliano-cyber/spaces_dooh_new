@@ -4,8 +4,10 @@ import { toast } from 'sonner'
 import { useMemo, useState, useEffect } from 'react'
 import Link from 'next/link'
 import { fechaLocalISO } from '@/lib/fecha-local'
-import { Smartphone, Calendar, User, Camera, ArrowRight, Plus, AlertTriangle } from 'lucide-react'
-import { Card } from '@/components/demo/ui/Card'
+import { Calendar, User, Camera, Plus, AlertTriangle, ClipboardList } from 'lucide-react'
+import { EmptyState } from '@/components/demo/EmptyState'
+import { KPICard, KPICardSkeleton } from '@/components/demo/KPICard'
+import { formatNumero } from '@/lib/formato-numero'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
@@ -29,6 +31,7 @@ import {
   useUsuarios,
   formatFecha,
   estadoSLAOT,
+  otAbierta,
   type Prioridad,
   type EstOT,
 } from '@/lib/data/client'
@@ -71,6 +74,10 @@ const FILTROS: { value: EstOT | ''; label: string }[] = [
   { value: 'COMPLETADA', label: 'Completadas' },
 ]
 
+// Filas a la vista antes de «Ver todas (N)» (patrón del Dashboard): con 114 OT
+// la lista medía casi 20 000 px de alto.
+const OT_A_LA_VISTA = 25
+
 export default function OperacionesPage() {
   const ots = useOrdenesTrabajo()
   const sitios = useSitios()
@@ -83,10 +90,40 @@ export default function OperacionesPage() {
   const puedeCrear = usePuede('operaciones', 'crear')
   const [filtro, setFiltro] = useState<EstOT | ''>('')
   const [nuevaOpen, setNuevaOpen] = useState(false)
+  const [verTodas, setVerTodas] = useState(false)
 
   const lista = (ots ?? []).filter((o) => !filtro || o.estatus === filtro)
   const vencidas = (ots ?? []).filter((o) => estadoSLAOT(o) === 'VENCIDA')
   const porVencer = (ots ?? []).filter((o) => estadoSLAOT(o) === 'POR_VENCER')
+  const abiertas = (ots ?? []).filter(otAbierta)
+  const sinAsignar = abiertas.filter((o) => !o.asignadoAUserId)
+  const enProceso = abiertas.filter((o) => o.estatus === 'EN_PROCESO').length
+  // Conteo por estatus para los chips del filtro («Pendientes (3)», Jobber).
+  const porEstatus = new Map<string, number>()
+  for (const o of ots ?? []) porEstatus.set(o.estatus, (porEstatus.get(o.estatus) ?? 0) + 1)
+
+  // Orden de PRESENTACIÓN, sobre una copia (`.filter` ya la hizo): el store
+  // llega con las más viejas primero, y lo urgente quedaba enterrado bajo las
+  // completadas de 2025. Primero las abiertas, por fecha compromiso ascendente
+  // (lo vencido arriba; sin fecha al final de las abiertas); después las
+  // cerradas, de la más reciente a la más vieja. Mismo criterio que el
+  // listado de Campañas: el orden se decide en la pantalla, no en el store.
+  const ordenada = lista.sort((a, b) => {
+    const aa = otAbierta(a)
+    const ab = otAbierta(b)
+    if (aa !== ab) return aa ? -1 : 1
+    if (aa) {
+      if (!a.fechaProgramada || !b.fechaProgramada) {
+        return a.fechaProgramada ? -1 : b.fechaProgramada ? 1 : a.folio.localeCompare(b.folio)
+      }
+      return a.fechaProgramada.localeCompare(b.fechaProgramada) || a.folio.localeCompare(b.folio)
+    }
+    const fa = a.fechaProgramada ?? a.creadoEn
+    const fb = b.fechaProgramada ?? b.creadoEn
+    return fb.localeCompare(fa) || b.folio.localeCompare(a.folio)
+  })
+  const aLaVista = verTodas ? ordenada : ordenada.slice(0, OT_A_LA_VISTA)
+  const filtroLabel = FILTROS.find((f) => f.value === filtro)?.label ?? ''
 
   return (
     <div className="w-full space-y-4">
@@ -110,14 +147,54 @@ export default function OperacionesPage() {
         reservas={reservas ?? []}
       />
 
+      {/* Indicadores (lenguaje del Dashboard). Todo sale de `ots`, que ya está
+          cargado; «Sin asignar» es la bandeja Unassigned de ServiceTitan: lo
+          que no tiene responsable se ve sin buscarlo. */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {!ots ? (
+          <>
+            <KPICardSkeleton />
+            <KPICardSkeleton />
+            <KPICardSkeleton />
+            <KPICardSkeleton />
+          </>
+        ) : (
+          <>
+            <KPICard
+              label="Abiertas"
+              value={formatNumero(abiertas.length)}
+              sub={`${formatNumero(enProceso)} en proceso`}
+            />
+            <KPICard
+              label="Vencidas"
+              value={formatNumero(vencidas.length)}
+              sub="frenan el candado de facturación"
+              tono={vencidas.length > 0 ? 'rojo' : 'neutro'}
+            />
+            <KPICard
+              label="Por vencer"
+              value={formatNumero(porVencer.length)}
+              sub="compromiso en 2 días o menos"
+              tono={porVencer.length > 0 ? 'ambar' : 'neutro'}
+            />
+            <KPICard
+              label="Sin asignar"
+              value={formatNumero(sinAsignar.length)}
+              sub="abiertas sin responsable"
+              tono={sinAsignar.length > 0 ? 'ambar' : 'neutro'}
+            />
+          </>
+        )}
+      </div>
+
       {/* Banner de SLA: OT vencidas (compromiso pasado, aún abiertas) */}
       {(vencidas.length > 0 || porVencer.length > 0) && (
         <div
           className={cn(
-            'flex items-start gap-2.5 rounded-md border px-3 py-2.5 text-[13px]',
+            'flex items-start gap-2.5 rounded-md border border-transparent px-3 py-2.5 text-[13px]',
             vencidas.length > 0
-              ? 'border-[#ef444440] bg-[#ef44440d] text-error'
-              : 'border-[#f59e0b40] bg-[#f59e0b0d] text-[#9a6700]',
+              ? 'bg-error-soft text-error'
+              : 'bg-warning-soft text-warning',
           )}
         >
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.75} />
@@ -129,7 +206,7 @@ export default function OperacionesPage() {
             )}
             {vencidas.length > 0 && porVencer.length > 0 && <span className="text-muted"> · </span>}
             {porVencer.length > 0 && (
-              <span className="font-medium text-[#9a6700]">
+              <span className="font-medium text-warning">
                 {porVencer.length} por vencer
               </span>
             )}
@@ -157,7 +234,8 @@ export default function OperacionesPage() {
           ) : undefined
         }
       >
-      {/* Filtros */}
+      {/* Filtros, con el conteo de cada estado (mismos valores y mismo
+          `setFiltro` de siempre). */}
       <div className="flex flex-wrap gap-1.5">
         {FILTROS.map((f) => (
           <button
@@ -172,6 +250,11 @@ export default function OperacionesPage() {
             )}
           >
             {f.label}
+            {ots && (
+              <span className="demo-num ml-1 opacity-80">
+                ({formatNumero(f.value ? porEstatus.get(f.value) ?? 0 : ots.length)})
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -179,94 +262,120 @@ export default function OperacionesPage() {
       {!ots ? (
         <div className="space-y-3">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-24 animate-pulse rounded-md bg-surface-2" />
+            <div key={i} className="h-14 animate-pulse rounded-md bg-surface-2" />
           ))}
         </div>
       ) : lista.length === 0 ? (
-        <p className="py-10 text-center text-[13px] text-muted">No hay órdenes con ese filtro.</p>
+        // Dos vacíos distintos: con filtro lo que falla es el filtro; sin OT no
+        // hay nada que filtrar y decir «ese filtro» mandaba a revisar uno vacío.
+        filtro ? (
+          <EmptyState
+            icon={ClipboardList}
+            titulo={`Ninguna OT en «${filtroLabel}»`}
+            detalle="Las demás siguen en «Todas»."
+            accion={<Button variant="secondary" onClick={() => setFiltro('')}>Ver todas</Button>}
+          />
+        ) : (
+          <EmptyState
+            icon={ClipboardList}
+            titulo="Todavía no hay órdenes de trabajo"
+            detalle="Crea la primera con «Nueva OT»: se liga a una campaña y a su pantalla."
+            accion={
+              puedeCrear ? (
+                <Button variant="success" onClick={() => setNuevaOpen(true)}>
+                  <Plus className="h-3.5 w-3.5" /> Nueva OT
+                </Button>
+              ) : undefined
+            }
+          />
+        )
       ) : (
-        <ul className="space-y-3">
-          {lista.map((o) => {
+        <>
+        {/* Una fila densa por OT, toda ella enlace (antes, una tarjeta de
+            ~170 px con un botón «Abrir OT / Ver OT» en su propia fila). La URL
+            y el rastro son los mismos de siempre. */}
+        <ul className="m-0 list-none divide-y divide-border p-0">
+          {aLaVista.map((o) => {
             const sitio = sitios?.find((s) => s.id === o.sitioId)
+            const camp = o.campanaId ? campanas?.find((c) => c.id === o.campanaId) : undefined
             const nEvid = (evidencias ?? []).filter((e) => e.otId === o.id).length
             const abierta = o.estatus !== 'COMPLETADA' && o.estatus !== 'CANCELADA'
             const sla = estadoSLAOT(o)
             return (
               <li key={o.id}>
-                <Card className="p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="demo-num text-[12px] text-muted">{o.folio}</span>
-                        <span
-                          className={cn(
-                            'rounded-full border px-2 py-0.5 text-[10px] font-medium',
-                            PRIORIDAD_TONO[o.prioridad] === 'rojo' && 'border-[#ef444440] text-error',
-                            PRIORIDAD_TONO[o.prioridad] === 'ambar' && 'border-[#f59e0b40] text-[#9a6700]',
-                            PRIORIDAD_TONO[o.prioridad] === 'azul' && 'border-[#0a66ff40] text-info',
-                            PRIORIDAD_TONO[o.prioridad] === 'neutro' && 'border-border text-muted',
-                          )}
-                        >
-                          {PRIORIDAD_LABEL[o.prioridad]}
-                        </span>
-                      </div>
-                      <div className="mt-0.5 text-[14px] font-medium text-ink">
-                        {TIPO_OT_LABEL[o.tipo]}
-                      </div>
-                      <div className="text-[12px] text-muted">{sitio?.nombre ?? '—'}</div>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-1.5">
-                      {sla === 'VENCIDA' && (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-[#ef444440] px-2 py-0.5 text-[10px] font-semibold text-error">
-                          <AlertTriangle className="h-3 w-3" /> Vencida
-                        </span>
-                      )}
-                      {sla === 'POR_VENCER' && (
-                        <span className="rounded-full border border-[#f59e0b40] px-2 py-0.5 text-[10px] font-semibold text-[#9a6700]">
-                          Por vencer
-                        </span>
-                      )}
-                      <StatusBadge tono={OT_TONO[o.estatus]}>{OT_LABEL[o.estatus]}</StatusBadge>
+                <Link
+                  href={withTrail(`/operaciones/ot/${o.id}`, [{ label: 'Operaciones', href: '/operaciones' }])}
+                  title={abierta ? 'Abrir OT' : 'Ver OT'}
+                  className="-mx-2 flex flex-col gap-1.5 rounded px-2 py-2.5 hover:bg-surface-2 md:flex-row md:items-center md:justify-between md:gap-4"
+                >
+                  <div className="min-w-0">
+                    <div className="truncate text-[13px] font-medium text-ink">{TIPO_OT_LABEL[o.tipo]}</div>
+                    <div className="demo-num truncate text-[11px] text-muted">
+                      {[o.folio, sitio?.nombre, camp?.nombre].filter(Boolean).join(' · ')}
                     </div>
                   </div>
-
-                  <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12px] text-muted">
-                    <span className="inline-flex items-center gap-1.5">
-                      <User className="h-3.5 w-3.5" /> {nombreAsignado(o.asignadoAUserId)}
-                    </span>
+                  <div className="flex shrink-0 flex-wrap items-center gap-1.5 md:justify-end">
+                    {/* La prioridad solo cuando pide atención: «Normal» 114
+                        veces no dice nada. */}
+                    {(o.prioridad === 'ALTA' || o.prioridad === 'URGENTE') && (
+                      <span
+                        className={cn(
+                          'rounded-full border border-transparent px-2 py-0.5 text-[11px] font-medium',
+                          PRIORIDAD_TONO[o.prioridad] === 'rojo' ? 'bg-error-soft text-error' : 'bg-warning-soft text-warning',
+                        )}
+                      >
+                        {PRIORIDAD_LABEL[o.prioridad]}
+                      </span>
+                    )}
                     {o.fechaProgramada && (
                       <span
                         className={cn(
-                          'inline-flex items-center gap-1.5',
-                          sla === 'VENCIDA' && 'font-medium text-error',
+                          'demo-num inline-flex items-center gap-1 text-[12px]',
+                          sla === 'VENCIDA' ? 'font-medium text-error' : 'text-muted',
                         )}
+                        title="Fecha compromiso"
                       >
                         <Calendar className="h-3.5 w-3.5" /> {formatFecha(o.fechaProgramada)}
-                        {sla === 'VENCIDA' && ' · vencida'}
                       </span>
                     )}
+                    {sla === 'VENCIDA' && (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-transparent bg-error-soft px-2 py-0.5 text-[11px] font-semibold text-error">
+                        <AlertTriangle className="h-3 w-3" /> Vencida
+                      </span>
+                    )}
+                    {sla === 'POR_VENCER' && (
+                      <span className="rounded-full border border-transparent bg-warning-soft px-2 py-0.5 text-[11px] font-semibold text-warning">
+                        Por vencer
+                      </span>
+                    )}
+                    <StatusBadge tono={OT_TONO[o.estatus]}>{OT_LABEL[o.estatus]}</StatusBadge>
+                    <span className="inline-flex items-center gap-1 text-[12px] text-muted">
+                      <User className="h-3.5 w-3.5" /> {nombreAsignado(o.asignadoAUserId)}
+                    </span>
                     {nEvid > 0 && (
-                      <span className="inline-flex items-center gap-1.5">
-                        <Camera className="h-3.5 w-3.5" /> {nEvid} evidencia{nEvid === 1 ? '' : 's'}
+                      <span
+                        className="demo-num inline-flex items-center gap-1 text-[12px] text-muted"
+                        title={`${nEvid} evidencia${nEvid === 1 ? '' : 's'}`}
+                      >
+                        <Camera className="h-3.5 w-3.5" /> {nEvid}
                       </span>
                     )}
                   </div>
-
-                  <div className="mt-3 flex justify-end">
-                    <Link
-                      href={withTrail(`/operaciones/ot/${o.id}`, [{ label: 'Operaciones', href: '/operaciones' }])}
-                      className="inline-flex items-center gap-1.5 rounded border border-border-strong px-3 py-1.5 text-[12px] font-medium text-ink hover:bg-surface-2"
-                    >
-                      <Smartphone className="h-3.5 w-3.5" />
-                      {abierta ? 'Abrir OT' : 'Ver OT'}
-                      <ArrowRight className="h-3.5 w-3.5" />
-                    </Link>
-                  </div>
-                </Card>
+                </Link>
               </li>
             )
           })}
         </ul>
+        {ordenada.length > OT_A_LA_VISTA && (
+          <button
+            type="button"
+            onClick={() => setVerTodas((v) => !v)}
+            className="bg-transparent text-[12px] font-medium text-info hover:underline"
+          >
+            {verTodas ? 'Ver menos' : `Ver todas (${ordenada.length})`}
+          </button>
+        )}
+        </>
       )}
       </CardColapsable>
     </div>

@@ -81,7 +81,7 @@ export function RejillaCaptura({
                     // El hueco se ve. No es decoración: es el único sitio de
                     // todo el producto donde este dato que falta se hace
                     // visible antes de convertirse en un margen falso.
-                    c.hueco && 'bg-warning/10 text-warning',
+                    c.hueco && 'bg-warning-soft text-warning',
                   )}
                 >
                   {c.hueco ? (
@@ -96,15 +96,20 @@ export function RejillaCaptura({
                           un predio con dos medidores tiene dos recibos de
                           verdad, y esconderlo detrás de la suma haría imposible
                           saber cuál se capturó mal. */}
+                      {/* El medidor como texto discreto y la papelera solo al
+                          pasar el ratón o al enfocar: antes parecía una etiqueta
+                          gris y no una acción, y hacía la celda alta. Mismo
+                          `onClick` y mismo diálogo de confirmación (B32). */}
                       {c.recibos.map((r) => (
                         <button
                           key={r.id}
                           type="button"
                           onClick={() => setPorBorrar(r)}
-                          className="flex w-full items-center justify-end gap-1 text-[11px] text-muted hover:text-error"
+                          className="group flex w-full items-center justify-end gap-1 bg-transparent text-[11px] normal-case text-muted hover:text-error focus-visible:text-error"
                           title="Borrar este recibo"
+                          aria-label={`Borrar el recibo del medidor ${r.medidor ?? 'sin número'}`}
                         >
-                          <Trash2 className="h-3 w-3" />
+                          <Trash2 className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
                           {r.medidor ?? 'sin número'}
                         </button>
                       ))}

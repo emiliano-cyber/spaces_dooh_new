@@ -75,21 +75,20 @@ export function CandadoPanel({ campanaId }: { campanaId: string }) {
 
   const abierto = r.candado
 
+  // Sin borde ni título propios: el panel SOLO se monta dentro de la sección
+  // «Candado de facturación» de la ficha, que ya pone el título y la tarjeta.
+  // Antes se leía dos veces «Candado de facturación», con un borde dentro de
+  // otro. Se queda la línea de estado, con texto y no solo con color.
   return (
-    <div
-      className={cn(
-        'rounded-md border p-4',
-        abierto ? 'border-[#10b98140] bg-[#10b9810d]' : 'border-border bg-surface',
-      )}
-    >
+    <div>
       <div className="mb-3 flex items-center gap-2">
         {abierto ? (
           <LockOpen className="h-4 w-4 text-success" strokeWidth={1.75} />
         ) : (
           <Lock className="h-4 w-4 text-muted" strokeWidth={1.75} />
         )}
-        <span className="text-[13px] font-medium text-ink">
-          {abierto ? 'Lista para facturar' : 'Candado de facturación'}
+        <span className={cn('text-[13px] font-medium', abierto ? 'text-success' : 'text-muted')}>
+          {abierto ? 'Lista para facturar' : 'Cerrado: faltan condiciones por cumplir'}
         </span>
       </div>
       {/* Solo las condiciones que APLICAN a esta campaña. Antes se pintaban las
@@ -97,7 +96,7 @@ export function CandadoPanel({ campanaId }: { campanaId: string }) {
           con ✗ —evidencia física que una digital no tiene— junto a un candado
           "Completo": la contradicción visual del hallazgo C3. Los segmentos son
           los mismos que decide `candadoDeSegmentos` en derive.ts. */}
-      <ul className="space-y-2">
+      <ul className="m-0 list-none space-y-2 p-0">
         <Condicion ok={r.ocRecibida} label="Orden de compra recibida" />
         {exigeFisica && <Condicion ok={r.fotosComprobatorias} label="Fotografías comprobatorias" />}
         {exigeDigital && <Condicion ok={r.reportePublicacion} label="Reporte de publicación" />}
@@ -140,9 +139,11 @@ export function CandadoPanel({ campanaId }: { campanaId: string }) {
           </p>
         </div>
       )}
+      {/* Sin número fijo: decía «las tres condiciones» y solo se pintan las
+          que aplican (dos en una OOH o en una DOOH). */}
       {!abierto && (
         <p className="mt-3 text-[12px] text-muted">
-          El candado se enciende cuando se completan las tres condiciones.
+          El candado se abre cuando se cumplen estas condiciones.
         </p>
       )}
     </div>

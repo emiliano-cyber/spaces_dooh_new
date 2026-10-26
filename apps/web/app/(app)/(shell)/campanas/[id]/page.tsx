@@ -18,6 +18,8 @@ import { EvidenciaGaleria } from '@/components/demo/campanas/EvidenciaGaleria'
 import { PlaylogsPanel } from '@/components/demo/campanas/PlaylogsPanel'
 import { AgregarCreativo } from '@/components/demo/campanas/AgregarCreativo'
 import { FranjaProgramadaCampana } from '@/components/demo/campanas/FranjaProgramadaCampana'
+import { ResumenCampana } from '@/components/demo/campanas/ResumenCampana'
+import { ListaImpresionCampana, ListaOTCampana } from '@/components/demo/campanas/ListasCampana'
 import { formatNumero } from '@/lib/formato-numero'
 import {
   StatusBadge,
@@ -27,10 +29,6 @@ import {
   RESERVA_LABEL,
   CREATIVIDAD_TONO,
   CREATIVIDAD_LABEL,
-  IMPRESION_TONO,
-  IMPRESION_LABEL,
-  OT_TONO,
-  OT_LABEL,
 } from '@/components/demo/StatusBadge'
 import {
   useCampana,
@@ -133,14 +131,15 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
 
         <div className="min-w-0 flex-1 space-y-4">
       {/* Migas: de dónde vengo y cómo llegué a esta campaña */}
+      {/* En escritorio solo las migas: el «← Campañas» repetía la primera. El
+          enlace de volver queda para el teléfono, donde las migas se cortan. */}
       <div className="flex flex-wrap items-center gap-2">
         {volver.href && (
-          <Link href={volver.href} className="inline-flex items-center gap-1 text-[13px] font-medium text-info hover:underline">
+          <Link href={volver.href} className="inline-flex items-center gap-1 text-[13px] font-medium text-info hover:underline sm:hidden">
             <ArrowLeft className="h-3.5 w-3.5" /> {volver.label}
           </Link>
         )}
-        <span className="text-muted/50">·</span>
-        <Breadcrumbs items={[...trail, { label: c.nombre }]} />
+        <span className="hidden sm:contents"><Breadcrumbs items={[...trail, { label: c.nombre }]} /></span>
       </div>
 
       {/* Encabezado */}
@@ -148,7 +147,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
         <div>
           <h1 className="text-2xl text-ink">{c.nombre}</h1>
           <p className="demo-num mt-1 text-[12px] text-muted">
-            {c.folio} · {c.marca ?? ''} · {formatFecha(c.fechaInicio)}–{formatFecha(c.fechaFin)}
+            {[c.folio, c.marca, `${formatFecha(c.fechaInicio)}–${formatFecha(c.fechaFin)}`].filter(Boolean).join(' · ')}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -166,6 +165,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
           )}
         </div>
       </div>
+      <ResumenCampana campanaId={id} />
 
       {/* Aviso: pantallas con IA / medición de audiencia */}
       {sitiosIA.length > 0 && (
@@ -197,7 +197,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
         <div className="mb-3 flex items-center justify-between gap-2">
           <h2 id={`creativos-${id}`} className="m-0 flex items-center gap-2 text-[15px] font-semibold text-ink">
             Creativos
-            <StatusBadge tono={creativosHecho ? 'verde' : 'ambar'}>
+            <StatusBadge tono={creativosHecho ? 'verde' : !tieneDigital && misCreas.length === 0 ? 'neutro' : 'ambar'}>
               {misCreas.length === 0 ? 'Sin creativos' : creativosHecho ? 'Todos aprobados' : 'Por aprobar'}
             </StatusBadge>
           </h2>
@@ -282,7 +282,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
           // pendiente para que la seccion se abra y ordene primero.
           estado={margen.margen >= 0 ? 'hecho' : 'pendiente'}
           accion={
-            <span className={`text-[13px] font-semibold ${margen.margen >= 0 ? 'text-[#0f7a55]' : 'text-error'}`}>
+            <span className={`text-[13px] font-semibold ${margen.margen >= 0 ? 'text-success' : 'text-error'}`}>
               Margen {margen.margenPct.toFixed(0)}%
             </span>
           }
@@ -308,7 +308,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
                   − Costo de espacios
                   {margen.costoEspacios > 0 && (
                     <span
-                      className="rounded-full border border-[#f59e0b55] px-1.5 py-0.5 text-[9px] font-medium text-[#9a6700]"
+                      className="rounded-full border border-transparent bg-warning-soft px-1.5 py-0.5 text-[9px] font-medium text-warning"
                       title="Costo de compra interno estimado — no está ligado a un contrato de arrendador vigente"
                     >
                       estimado
@@ -336,7 +336,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
           // el badge no describia el cumplimiento, solo decia que habia datos.
           estado={reporte.cumplimientoPct >= 100 ? 'hecho' : 'pendiente'}
           accion={
-            <span className={`text-[13px] font-semibold ${reporte.cumplimientoPct >= 100 ? 'text-[#0f7a55]' : 'text-[#9a6700]'}`}>
+            <span className={`text-[13px] font-semibold ${reporte.cumplimientoPct >= 100 ? 'text-success' : 'text-warning'}`}>
               {reporte.cumplimientoPct.toFixed(0)}% entregado
             </span>
           }
@@ -414,21 +414,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
         icono={<Printer className="h-4 w-4 text-muted" />}
         estado={!tieneFija ? 'na' : misOis.length > 0 ? 'hecho' : 'pendiente'}
       >
-          {misOis.length === 0 ? (
-            <p className="text-[13px] text-muted">Sin órdenes de impresión.</p>
-          ) : (
-            <ul className="space-y-2">
-              {misOis.map((o) => (
-                <li key={o.id} className="flex items-center justify-between">
-                  <div className="min-w-0">
-                    <div className="demo-num truncate text-[12px] text-ink">{o.folio}</div>
-                    <div className="text-[11px] text-muted">{o.material}</div>
-                  </div>
-                  <StatusBadge tono={IMPRESION_TONO[o.estatus]}>{IMPRESION_LABEL[o.estatus]}</StatusBadge>
-                </li>
-              ))}
-            </ul>
-          )}
+          <ListaImpresionCampana ordenes={misOis} />
       </Seccion>
 
       {/* Órdenes de trabajo */}
@@ -438,26 +424,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
         icono={<ClipboardList className="h-4 w-4 text-muted" />}
         estado={otsPendientes ? 'pendiente' : 'hecho'}
       >
-            {misOts.length === 0 ? (
-              <p className="text-[13px] text-muted">Sin órdenes de trabajo.</p>
-            ) : (
-              <ul className="space-y-1">
-                {misOts.map((o) => (
-                  <li key={o.id}>
-                    <Link
-                      href={withTrail(`/operaciones/ot/${o.id}`, trailHaciaOT)}
-                      className="-mx-1 flex items-center justify-between rounded px-1 py-1.5 hover:bg-surface-2"
-                    >
-                      <div className="min-w-0">
-                        <div className="demo-num truncate text-[12px] text-ink">{o.folio}</div>
-                        <div className="text-[11px] text-muted">{o.descripcion}</div>
-                      </div>
-                      <StatusBadge tono={OT_TONO[o.estatus]}>{OT_LABEL[o.estatus]}</StatusBadge>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <ListaOTCampana ordenes={misOts} trail={trailHaciaOT} />
       </Seccion>
 
       {/* Evidencias fotográficas — de los medios FIJOS. */}
@@ -539,10 +506,10 @@ function Seccion({
   }
   const chip =
     estado === 'hecho'
-      ? { txt: 'Completo', cls: 'border-[#10b98140] text-[#0f7a55]' }
+      ? { txt: 'Completo', cls: 'border-transparent bg-success-soft text-success' }
       : estado === 'na'
         ? { txt: 'No aplica', cls: 'border-border text-muted' }
-        : { txt: 'Pendiente', cls: 'border-[#f59e0b40] text-[#9a6700]' }
+        : { txt: 'Pendiente', cls: 'border-transparent bg-warning-soft text-warning' }
   // Orden visual: las pendientes suben, luego las completas y al final las que no
   // aplican (solo reordena la vista; el DOM/JSX no cambia).
   const orden = estado === 'pendiente' ? 'order-1' : estado === 'hecho' ? 'order-2' : 'order-3'
@@ -555,7 +522,7 @@ function Seccion({
         <div className="flex min-w-0 items-center gap-2">
           {icono}
           <CardTitle>{titulo}</CardTitle>
-          <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${chip.cls}`}>
+          <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium ${chip.cls}`}>
             {estado === 'hecho' && <Check className="h-2.5 w-2.5" />}
             {chip.txt}
           </span>
