@@ -825,6 +825,10 @@
                     Todavía no ha detectado creativos nuevos.
                   </p>
                 </div>
+                <!-- La huella de un creativo viaja siempre; la foto, solo si el
+                     equipo podía tomarla. Sin esta línea, el catálogo y la
+                     galería no cuadran y parece un error. -->
+                <p x-show="leyendaSinFoto()" class="mt-2 text-[11px] text-neutral-500" x-text="leyendaSinFoto()"></p>
               </div>
             </div>
           </template>

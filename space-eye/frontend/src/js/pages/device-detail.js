@@ -313,6 +313,12 @@ function deviceDetail() {
       return (this.creativos?.creativos || []).filter((c) => c.photo_id && !c.descartado);
     },
 
+    // Los detectados que NO trajeron foto no caben en la cuadricula, pero
+    // callarlos deja el catalogo y la galeria sin cuadrar y sin explicacion.
+    leyendaSinFoto() {
+      return textoSinFoto(contarSinFoto(this.creativos?.creativos));
+    },
+
     async guardarCreativos(cambios) {
       this.guardandoCreativos = true;
       try {

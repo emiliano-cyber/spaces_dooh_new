@@ -6,7 +6,7 @@ import { deviceJwt } from '../utils/jwt';
 import { z } from 'zod';
 import { versionVigilancia } from '../utils/versionVigilancia';
 import { uploadPhoto } from '../services/photoStorage.service';
-import { configDe, registrarRecorrido, ligarFoto } from './creativos.controller';
+import { configDe, registrarRecorrido, ligarFoto, yaConocida, refrescarCreativo } from './creativos.controller';
 import { registrarResumen } from './monitoreo.controller';
 import { apkInfo } from '../utils/apkInfo';
 import { redis } from '../config/redis';
@@ -384,6 +384,46 @@ export async function uploadPhotoEndpoint(req: Request, res: Response) {
 
   // Multipart manda strings; solo "false"/"0" cuentan como no-quemada.
   const baked = !(meta.watermark_baked === 'false' || meta.watermark_baked === '0');
+
+  // ─── Un "creativo nuevo" que no lo es ────────────────────────────────────
+  //
+  // El equipo reconoce por esquinas (ORB) y el servidor por huella: son dos
+  // criterios y el segundo caza lo que al primero se le va. Una pantalla en
+  // blanco no tiene esquinas que casar, asi que el equipo la da por nueva cada
+  // vez que la ve, aunque su huella sea la misma de ayer. TLALPAN subio asi la
+  // pantalla apagada el 25 y el 26 de oct de 2026, a 7 y 14 bits de distancia
+  // con una tolerancia de 24, y las dos salieron en la galeria diciendo
+  // "Creativo nuevo".
+  //
+  // `registrarRecorrido` ya descartaba esas huellas para no ensuciar el
+  // catalogo, pero la foto entraba por aqui y se quedaba. Ahora pasa por la
+  // misma vara:
+  //   · si el creativo conocido YA tiene foto, esta no aporta nada y no se
+  //     guarda (es la que mentia en la galeria);
+  //   · si NO la tiene -el hallazgo se registro sin foto porque el equipo
+  //     estaba aprendiendo o sin tope- esta se queda como SU foto. La tarjeta
+  //     vacia consigue por fin su imagen.
+  if (meta.source === 'creative_change' && meta.phash) {
+    const conocida = await yaConocida(did, meta.phash).catch(() => null);
+    if (conocida && conocida.photo_id) {
+      await refrescarCreativo(did, conocida.phash).catch(() => null);
+      await pool.query(
+        `INSERT INTO device_logs (device_id, level, category, message) VALUES (?, 'info', 'creative', ?)`,
+        [did, `Foto de creativo descartada: ya conociamos esa huella (${conocida.bits} bits de diferencia)`]
+      ).catch(() => null);
+      return res.json({ ok: true, descartada: 'ya_conocido', bits: conocida.bits });
+    }
+    if (conocida) {
+      // Se liga al creativo que YA estaba, no a la huella de hoy: si no, el
+      // catalogo tendria dos fichas del mismo anuncio.
+      const r = await uploadPhoto({
+        deviceId: did, fileBuffer: req.file.buffer, mimetype: req.file.mimetype,
+        ...meta, watermark_baked: baked,
+      });
+      await ligarFoto(did, conocida.phash, r.photo_id).catch(() => null);
+      return res.json(r);
+    }
+  }
 
   // El reloj del equipo, medido con esta foto si la pidio una orden reciente
   // (ver utils/relojEquipo). Nunca tumba la subida.
