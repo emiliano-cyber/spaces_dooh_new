@@ -23,7 +23,8 @@ import { KPICard, KPICardSkeleton } from '@/components/demo/KPICard'
 import { OcupacionChart } from '@/components/demo/charts'
 import { MapView, type MapPoint } from '@/components/demo/MapView'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
-import { SITIO_LABEL, type Tono } from '@/components/demo/StatusBadge'
+import { type Tono } from '@/components/demo/StatusBadge'
+import { itemsEnPropuesta } from '@/lib/data/en-propuesta'
 import { cn } from '@/lib/cn'
 import { usePuede, useSesionCtx } from '@/components/demo/shell/SesionContext'
 import {
@@ -70,9 +71,14 @@ function margenTono(pct: number): Tono {
 // Una consulta al motor de Reportes para el mes en curso, traducida a lo que se
 // pinta. El ingreso y el margen salen de aquí desde DASH-PERIODO (26/10) y la
 // tarifa cobrada desde DASH-REF: ver `components/demo/inicio/pnl-del-mes.ts`.
-function useDelMotor<T>(url: string, traducir: (status: number, cuerpo: unknown) => T, inicial: T): T {
+//
+// `url` null = no se pide: el rol no ve Finanzas y el endpoint le contestaría
+// 403 (dos errores rojos en la consola de cada vendedor, visto al sembrar la
+// demo el 26/10). Su tablero no pinta estas cifras de todos modos.
+function useDelMotor<T>(url: string | null, traducir: (status: number, cuerpo: unknown) => T, inicial: T): T {
   const [v, setV] = useState<T>(inicial)
   useEffect(() => {
+    if (!url) return
     const control = new AbortController()
     void (async () => {
       try {
@@ -121,15 +127,14 @@ export default function DashboardPage() {
 
   const hoy = useMemo(() => new Date(), [])
   const mesActual = hoy.toLocaleDateString('es-MX', { month: 'long' })
-  const pnl = useDelMotor<PnlDelMes>(consultaPnlDelMes(hoy), pnlDesdeRespuesta, { fase: 'cargando' })
-  const precio = useDelMotor<PrecioDelMes>(consultaPrecioDelMes(hoy), precioDesdeRespuesta, { fase: 'cargando' })
-
   // ─── Por rol (DASH-REF, punto 2) ──────────────────────────────────────────
   // Sin `finanzas:ver`, `/api/estado` le manda vacías las cobranzas, los
   // contratos y las facturas, y el motor de Reportes le contesta 403. Enseñarle
   // esas tarjetas en cero sería mentirle: a VENTAS se le pinta su tablero
   // —pipeline, lo ganado y su tasa de cierre— y a DIRECCIÓN el de dinero.
   const veFinanzas = usePuede('finanzas', 'ver')
+  const pnl = useDelMotor<PnlDelMes>(veFinanzas ? consultaPnlDelMes(hoy) : null, pnlDesdeRespuesta, { fase: 'cargando' })
+  const precio = useDelMotor<PrecioDelMes>(veFinanzas ? consultaPrecioDelMes(hoy) : null, precioDesdeRespuesta, { fase: 'cargando' })
 
   const subtitulo = [
     cfg?.razonSocial ? `Razón social: ${cfg.razonSocial}` : null,
@@ -138,12 +143,15 @@ export default function DashboardPage() {
     .filter(Boolean)
     .join(' · ')
 
+  // TENT-PROP (26/10) · lo tentativo: lo que piden las propuestas abiertas.
+  const enVeremos = useMemo(() => itemsEnPropuesta(propuestas ?? [], clientes ?? []), [propuestas, clientes])
+
   const puntos: MapPoint[] =
     sitios?.map((s) => ({
       id: s.id,
       lat: s.lat,
       lng: s.lng,
-      tono: tonoPinHoy(s, reservas ?? [], hoy),
+      tono: tonoPinHoy(s, reservas ?? [], hoy, enVeremos),
       label: s.nombre,
     })) ?? []
 
@@ -159,9 +167,9 @@ export default function DashboardPage() {
   const huecos = useMemo(
     () =>
       sitios && reservas && campanas && clientes
-        ? huecosProximos({ sitios, reservas, campanas, clientes }, hoy)
+        ? huecosProximos({ sitios, reservas, campanas, clientes, enPropuesta: enVeremos }, hoy)
         : null,
-    [sitios, reservas, campanas, clientes, hoy],
+    [sitios, reservas, campanas, clientes, enVeremos, hoy],
   )
 
   const tasa = pipeline?.tasaCierre == null ? '—' : `${Math.round(pipeline.tasaCierre * 100)}%`
@@ -466,6 +474,11 @@ export default function DashboardPage() {
                         </Link>
                         {' · '}termina {formatFecha(h.fechaFin)}
                       </div>
+                      {/* TENT-PROP: quién ya la está pidiendo. No cierra el hueco
+                          (una propuesta puede no cerrarse), pero dice a quién llamar. */}
+                      {h.enPropuesta.length > 0 && (
+                        <div className="truncate text-[11px] text-[#9a6700]">En propuesta: {h.enPropuesta.join(', ')}</div>
+                      )}
                     </div>
                     <span
                       className={cn(
@@ -570,7 +583,8 @@ export default function DashboardPage() {
               <LeyendaPin color="#0a66ff" label="Digital" />
               <LeyendaPin color="#10b981" label="Libre hoy" />
               <LeyendaPin color="#ef4444" label="Ocupado hoy" />
-              <LeyendaPin color="#f59e0b" label={SITIO_LABEL.RESERVADO} />
+              {/* El ámbar es «en propuesta» desde TENT-PROP (ver `tonoPinHoy`). */}
+              <LeyendaPin color="#f59e0b" label="En propuesta" />
             </div>
         </CardColapsable>
       </div>

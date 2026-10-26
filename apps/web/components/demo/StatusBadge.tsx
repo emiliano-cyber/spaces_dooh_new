@@ -139,9 +139,12 @@ export function pinTono(s: {
 
 export const SITIO_LABEL: Record<EstComercial, string> = {
   DISPONIBLE: 'Disponible',
-  // Un sitio RESERVADO corresponde a una reserva TENTATIVA: se anota para que
-  // ambos vocabularios (sitio vs reserva) cuadren a la vista.
-  RESERVADO: 'Reservado · tentativo',
+  // RESERVADO lo pone el servidor al GENERAR la campaña desde una propuesta
+  // aprobada, «hasta la OC» (`campanas-repo.ts`): está vendido, no tentativo.
+  // Decía «Reservado · tentativo» de cuando se asociaba a la reserva
+  // TENTATIVA, que se retiró (TENT-PROP, 26/10): lo tentativo es ahora lo que
+  // está en una propuesta abierta (`lib/data/en-propuesta.ts`).
+  RESERVADO: 'Reservado · sin OC',
   OCUPADO: 'Ocupado',
   BLOQUEADO: 'Bloqueado',
   EN_MANTENIMIENTO: 'En mantenimiento',

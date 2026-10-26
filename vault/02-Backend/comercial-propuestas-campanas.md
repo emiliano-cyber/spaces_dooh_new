@@ -567,6 +567,52 @@ creativo». El vacío con filtro trae «Limpiar filtros».
 > `.next/static/css` el 26/10: cero apariciones). Para un tinte se usan los
 > `*-soft` (`bg-warning-soft`, `bg-success-soft`, `bg-error-soft`).
 
+## Lo tentativo es lo que está en una propuesta abierta (TENT-PROP, 26/10)
+
+> [!important] Regla del dueño, 2026-10-26
+> «Lo tentativo debe ser un spot o una pantalla fija que está en veremos en una
+> propuesta, es decir, solo es propuesta: aún no está aprobada ni creada la
+> campaña.» Y **solo avisa**: una pantalla en propuesta se puede seguir
+> cotizando y vendiendo a otro cliente; varias propuestas pueden competir por
+> ella. Bloquea solo lo confirmado.
+
+**Antes** «tentativo» era un estado de la reserva (`TENTATIVA`, con caducidad de
+7 días y botones Confirmar/Extender en Comercial). **Ningún flujo lo creaba**:
+reservar desde Comercial y generar la campaña insertan `CONFIRMADA`
+(`campanas-repo.ts`). Solo nacían tentativas por el `default 'TENTATIVA'` de la
+columna, y aun así el motor de Reportes las contaba como ingreso mientras la
+ocupación del Dashboard no.
+
+**Ahora:**
+
+- La regla vive una vez en `apps/web/lib/data/en-propuesta.ts`
+  (`itemsEnPropuesta`, `enPropuestaEntre`, `agruparPorPropuesta`): ítems de
+  propuestas en `BORRADOR` o `ENVIADA`, con folio, cliente, fechas y, en una
+  digital, los spots pedidos (`espacios_comprados ?? spots_por_dia`, la misma
+  precedencia con la que una aprobada reserva slots).
+- Disponibilidad: cada celda trae `enPropuesta` (no cambia `estado` ni los
+  conteos). Una libre que alguien pide sale «En propuesta» en ámbar punteado.
+- Comercial: la tarjeta «Reservas tentativas» pasó a «En propuesta» (una fila
+  por propuesta abierta con algo por delante, con enlace a la propuesta). El
+  indicador «Tentativas por confirmar» pasó a «En propuesta».
+- Ficha del sitio: el calendario pinta en ámbar los rangos de propuestas
+  abiertas.
+- Dashboard: el pin ámbar es «en propuesta hoy», y un hueco avisa los folios que
+  piden la cara.
+- Reportes: solo `CONFIRMADA` es venta (`cuentaComoVenta`, `lib/data/reportes.ts`).
+- `20261026_reserva_estatus_por_omision.sql`: la columna nace `CONFIRMADA` por
+  omisión. No toca filas ni el enum.
+- `sitios.estatus_comercial = 'RESERVADO'` **no es tentativo**: lo pone el
+  servidor al generar la campaña, «hasta la OC». Su etiqueta pasó de «Reservado ·
+  tentativo» a «Reservado · sin OC».
+
+> [!warning] «Extender campaña» quedó sin entrada en la interfaz
+> El diálogo vivía en la tarjeta de tentativas, que solo aparecía con reservas
+> TENTATIVA, así que **ya era inalcanzable** antes de este cambio aunque la API
+> (`/api/campanas/[id]/extender`) funcione. Se movió sin cambios a
+> `components/demo/campanas/ExtenderCampanaDialog.tsx` a la espera de que el
+> dueño decida dónde ofrecerlo.
+
 ## Portal del cliente
 
 `campanas.portal_token` + `portal_activo` habilitan `/portal/[token]`.

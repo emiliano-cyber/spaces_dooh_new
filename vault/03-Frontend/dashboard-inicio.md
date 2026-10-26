@@ -58,11 +58,13 @@ cierre es la de los últimos 90 días, y sin decisiones es `—`, no 0 %.
 
 **Hueco = la cara se queda vacía.** Una reserva confirmada que termina en los
 próximos 30 días deja hueco salvo que haya **relevo**: otra reserva viva
-(confirmada o apartada) en la misma pantalla que empiece a más tardar el día
+(no cancelada) en la misma pantalla que empiece a más tardar el día
 siguiente. En una fija vale cualquier campaña, porque la cara solo admite una;
 en una digital solo una del **mismo cliente**, porque las demás campañas al aire
 no ocupan los slots que se liberan. Digital aquí es `PANTALLA_DIGITAL`, la regla
-de booking (S0-3).
+de booking (S0-3). Una **propuesta abierta** que pide la cara no es relevo
+(TENT-PROP, 26/10: puede no cerrarse, y lo tentativo solo avisa): el hueco sigue
+y dice «En propuesta: PR-…», que es a quién llamar.
 
 **Alertas rojas primero.** `construirAlertas` las genera agrupadas por tipo
 —rentas, contratos, licencias, cobranza, incidencias, OT— y se cortaban en seis,
@@ -75,6 +77,10 @@ ocultar.
 columna guardada que no se recalcula cuando termina una reserva: un espectacular
 cuya campaña acabó ayer seguía en rojo. `tonoPinHoy` mira la reserva que cubre
 el día, con la regla de `sitiosOcupadosHoy`. El mapa bajó de 460 a 300 px.
+Desde TENT-PROP (26/10) el ámbar es «En propuesta»: libre hoy, pero una
+propuesta abierta la pide para hoy (antes era la reserva TENTATIVA, que nada
+creaba). Y a quien no ve Finanzas ya no se le piden las cifras al motor de
+Reportes: le contestaba 403 y ensuciaba su consola.
 
 **Tarifa cobrada, no «rendimiento sobre el 100 %».** El rendimiento del sector
 (ingreso contra la tarifa con toda la red llena) no se puede calcular honesto

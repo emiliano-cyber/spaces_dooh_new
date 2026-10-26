@@ -6,6 +6,13 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!important] 2026-10-26 · **TENT-PROP · lo tentativo es lo que está en una propuesta abierta** — rama `feat/tentativo-en-propuesta`, encima de `feat/diseno-modulos` · ROJO R3 + R4 (**aprobado por el dueño el 26/10**)
+> Regla del dueño: tentativo = pantalla/spot en una propuesta BORRADOR o ENVIADA; solo avisa, no bloquea. Se retira
+> la reserva TENTATIVA (ningún flujo la creaba): `lib/data/en-propuesta.ts`; Disponibilidad, Comercial, ficha del sitio
+> y Dashboard avisan «En propuesta»; Reportes cuenta solo CONFIRMADA (R4); `20261026_reserva_estatus_por_omision.sql`
+> cambia el default a CONFIRMADA (R3, no toca filas). Zonas: Z5, Z9, Z12, `lib/data` y Reportes (sin zona).
+> **Reclamadas y LIBERADAS** al commitear. Pendiente del dueño: dónde ofrecer «Extender campaña», que ya era inalcanzable.
+
 > [!important] 2026-10-26 · **DISEÑO-MOD · el resto de los módulos con el lenguaje del Dashboard** — rama `feat/diseno-modulos`, encima de `feat/dashboard-referentes` · ÁMBAR (solo presentación)
 > Cinco grupos (Comercial, Operaciones, Inventario, Finanzas y precio, Sistema), cada uno investigado, diseñado y
 > validado por agentes separados; un commit por grupo más dos de correcciones. Validación: el diff contra

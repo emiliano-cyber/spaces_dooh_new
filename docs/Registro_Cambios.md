@@ -7,6 +7,22 @@ La entrada más reciente va arriba.
 
 ## 2026-10-26
 
+**«Tentativo» ahora quiere decir «está en una propuesta».** Una pantalla fija o
+los spots de una digital son tentativos cuando están en una propuesta que todavía
+no se aprueba (en borrador o enviada). Es solo un aviso: la pantalla se puede
+seguir ofreciendo a otro cliente.
+
+- En Disponibilidad, una pantalla libre que alguien pide en una propuesta sale
+  «En propuesta», en ámbar; al pasar el ratón dice qué propuesta y qué cliente.
+- En Comercial, la tarjeta «En propuesta» lista las propuestas abiertas, con un
+  enlace a cada una (sustituye a «Reservas tentativas», que nunca aparecía).
+- En el calendario de la ficha de una pantalla y en el mapa del Dashboard, el
+  ámbar es «en propuesta».
+- En «Huecos y renovaciones» del Dashboard, si una cara que se queda libre ya
+  está en una propuesta, se dice cuál: es a quién llamar.
+- Reportes y el ingreso del mes cuentan solo lo vendido de verdad (confirmado).
+- El vendedor ya no ve errores en la consola al abrir el Dashboard.
+
 **Todas las pantallas (menos Space Eyes) tienen ahora el mismo diseño que el
 Dashboard.** Nada cambia en lo que hacen: los mismos botones, permisos,
 confirmaciones y cifras. Lo que cambia es cómo se ven:

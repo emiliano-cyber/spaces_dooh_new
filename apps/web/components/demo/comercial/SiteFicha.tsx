@@ -62,6 +62,8 @@ import { UNIDAD_LABEL } from '@/lib/periodos'
 const nombreUnidad = (u: string) => UNIDAD_LABEL[u] ?? u
 import {
   useReservas,
+  usePropuestas,
+  useClientes,
   useIncidencias,
   useContratos,
   useArrendadores,
@@ -75,6 +77,7 @@ import {
   type TipoMedio,
 } from '@/lib/data/client'
 import type { FotoMeta } from '@/lib/data/types'
+import { itemsEnPropuesta } from '@/lib/data/en-propuesta'
 import { periodicidadLabel } from '@/lib/renta-periodicidad'
 import { ubicacion } from '@/lib/ubicacion'
 import { etiquetaTipoMedio, TIPO_MEDIO_LABEL } from '@/lib/tipo-medio'
@@ -117,6 +120,8 @@ export function SiteFicha({
   onReservar?: (sitioId: string) => void
 }) {
   const reservas = useReservas()
+  const propuestas = usePropuestas()
+  const clientes = useClientes()
   const incidencias = useIncidencias()
   const contratos = useContratos()
   const arrendadores = useArrendadores()
@@ -283,14 +288,18 @@ export function SiteFicha({
 
   if (!sitio) return null
 
-  const rangos =
-    reservas
-      ?.filter((r) => r.sitioId === sitio.id && r.estatus !== 'CANCELADA')
-      .map((r) => ({
-        fechaInicio: r.fechaInicio,
-        fechaFin: r.fechaFin,
-        estatus: r.estatus === 'CONFIRMADA' ? ('CONFIRMADA' as const) : ('TENTATIVA' as const),
-      })) ?? []
+  // TENT-PROP (26/10) · en el calendario, lo vendido sale de las reservas y lo
+  // TENTATIVO de las propuestas abiertas que piden esta pantalla (ya no de la
+  // reserva TENTATIVA, que ningún flujo creaba). Una reserva no cancelada sigue
+  // pintándose como vendida: es lo que bloquea en el servidor.
+  const rangos = [
+    ...(reservas ?? [])
+      .filter((r) => r.sitioId === sitio.id && r.estatus !== 'CANCELADA')
+      .map((r) => ({ fechaInicio: r.fechaInicio, fechaFin: r.fechaFin, estatus: 'CONFIRMADA' as const })),
+    ...itemsEnPropuesta(propuestas ?? [], clientes ?? [])
+      .filter((x) => x.sitioId === sitio.id)
+      .map((x) => ({ fechaInicio: x.fechaInicio, fechaFin: x.fechaFin, estatus: 'TENTATIVA' as const, etiqueta: x.folio })),
+  ]
 
   const incidencia = incidencias?.find(
     (i) => i.sitioId === sitio.id && (i.estatus === 'ABIERTA' || i.estatus === 'EN_PROCESO'),

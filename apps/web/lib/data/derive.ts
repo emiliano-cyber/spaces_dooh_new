@@ -24,6 +24,7 @@ import type {
 } from './types'
 import { factorMensual, diasAvisoPago, diasCriticoPago } from '../renta-periodicidad'
 import { costoEfectivoDeOt } from '../costos-ot'
+import { itemsEnPropuesta, enPropuestaEntre, type ItemEnPropuesta } from './en-propuesta'
 
 // Orden canónico de las 10 etapas del pipeline (sección 7.4).
 export const ETAPAS_PIPELINE: EtapaPipeline[] = [
@@ -1657,6 +1658,10 @@ export interface CeldaDisponibilidad {
   // Lo que QUEDA por vender (solo digitales con capacidad declarada; nunca
   // negativo). Es la cifra que pide quien vende: con «3/10» había que restar.
   spotsLibres: number | null
+  // TENT-PROP (26/10) · las propuestas abiertas que piden esta pantalla en este
+  // periodo. Solo AVISA: no cambia `estado`, ni `libres`, ni `conHueco` (regla
+  // del dueño: lo tentativo no bloquea). Ver `lib/data/en-propuesta.ts`.
+  enPropuesta: ItemEnPropuesta[]
 }
 export interface PeriodoDisponibilidad {
   clave: string
@@ -1747,9 +1752,12 @@ export function disponibilidad(state: DemoState, opts: OpcionesDisponibilidad): 
   const desde = isNaN(base.getTime()) ? startOfToday() : base
   const periodos = construirPeriodos(desde, Math.max(1, opts.periodos), opts.gran)
 
-  // Bloquean inventario las reservas NO canceladas (tentativas vigentes +
-  // confirmadas). Las tentativas vencidas ya las caducó el servidor.
+  // Bloquean inventario las reservas NO canceladas, con la misma regla que el
+  // guard de colisión del servidor. Desde TENT-PROP (26/10) ningún flujo crea
+  // reservas TENTATIVA; lo tentativo es lo que está en una propuesta abierta,
+  // que va aparte (`enPropuesta`) y NO bloquea.
   const activas = state.reservas.filter((r) => r.estatus !== 'CANCELADA')
+  const enVeremos = itemsEnPropuesta(state.propuestas ?? [], state.clientes ?? [])
   const campanaNombre = new Map(state.campanas.map((c) => [c.id, c.nombre]))
   const porSitio = new Map<string, Reserva[]>()
   for (const r of activas) {
@@ -1792,7 +1800,8 @@ export function disponibilidad(state: DemoState, opts: OpcionesDisponibilidad): 
       if (estado === 'LIBRE') libres++
       if (estado !== 'OCUPADO') conHueco++
       const spotsLibres = spotsTotal != null ? Math.max(0, spotsTotal - spotsUsados) : null
-      return { estado, ocupantes, spotsUsados, spotsTotal, spotsLibres }
+      const enPropuesta = enPropuestaEntre(enVeremos, s.id, p.inicio, p.fin)
+      return { estado, ocupantes, spotsUsados, spotsTotal, spotsLibres, enPropuesta }
     })
     return {
       sitioId: s.id,

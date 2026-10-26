@@ -6,11 +6,14 @@ import { cn } from '@/lib/cn'
 import { SlotsBadge } from '@/components/demo/SlotsBadge'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { KPICard, KPICardSkeleton } from '@/components/demo/KPICard'
-import { useDisponibilidad, type GranDisponibilidad, type EstadoCelda } from '@/lib/data/client'
+import { useDisponibilidad, formatFecha, type GranDisponibilidad, type EstadoCelda } from '@/lib/data/client'
+import { conteo } from '@/lib/plural'
 
 // Calendario de disponibilidad futura: responde "¿qué tengo libre en septiembre?".
-// Cruza reservas vigentes (tentativas + confirmadas) contra una rejilla de
-// catorcenas o meses y pinta cada pantalla × periodo como libre / parcial / ocupado.
+// Cruza las reservas confirmadas contra una rejilla de catorcenas o meses y
+// pinta cada pantalla × periodo como libre / parcial / ocupado. Desde TENT-PROP
+// (26/10) avisa además qué está «en propuesta»: lo tentativo es lo que pide una
+// propuesta abierta (`lib/data/en-propuesta.ts`), y solo avisa, no bloquea.
 
 const selectCls =
   'h-9 rounded border border-border-strong bg-surface px-2.5 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
@@ -26,10 +29,11 @@ const TONO_CELDA: Record<EstadoCelda, string> = {
   PARCIAL: 'bg-warning-soft text-[#9a6700] border-border',
   OCUPADO: 'bg-error-soft text-error border-border',
 }
-// Solo tentativas: ámbar con borde punteado. Antes llevaba el mismo rosa que
-// «Ocupado» y solo lo distinguía el punteado. El texto ámbar es el oscuro del
-// Dashboard (`text-warning` sobre su tinte no se lee a 11 px).
-const TONO_TENTATIVA = 'bg-warning-soft text-[#9a6700] border-dashed border-warning'
+// En propuesta (TENT-PROP, 26/10): ámbar con borde punteado. Hasta hoy era el
+// tono de la reserva TENTATIVA, un estado que ningún flujo creaba; lo tentativo
+// es ahora lo que pide una propuesta abierta, y la celda sigue VENDIBLE. El
+// texto ámbar es el oscuro del Dashboard (`text-warning` no se lee a 11 px).
+const TONO_EN_PROPUESTA = 'bg-warning-soft text-[#9a6700] border-dashed border-warning'
 
 function hoyISO(): string {
   const d = new Date()
@@ -80,6 +84,10 @@ export default function DisponibilidadPage() {
       estaticas: estaticas.length,
       digitales: digitales.length,
       slots: digitales.reduce((acc, f) => acc + (f.celdas[0]?.spotsLibres ?? 0), 0),
+      // Pantallas que alguna propuesta abierta pide en el primer periodo, y
+      // cuántas propuestas distintas. NO resta de «libres»: no bloquea.
+      enPropuesta: disp.filas.filter((f) => (f.celdas[0]?.enPropuesta.length ?? 0) > 0).length,
+      propuestas: new Set(disp.filas.flatMap((f) => (f.celdas[0]?.enPropuesta ?? []).map((x) => x.propuestaId))).size,
     }
   }, [disp])
 
@@ -91,8 +99,9 @@ export default function DisponibilidadPage() {
       <div>
         <h1 className="text-2xl text-ink">Disponibilidad</h1>
         <p className="mt-1 text-[13px] text-muted">
-          Ocupación futura por catorcena o mes: cruza las reservas vigentes (tentativas y
-          confirmadas) contra el inventario para ver qué tienes libre más adelante.
+          Ocupación futura por catorcena o mes: cruza las reservas confirmadas contra el
+          inventario para ver qué tienes libre más adelante, y avisa qué está en una
+          propuesta abierta.
         </p>
       </div>
 
@@ -135,10 +144,14 @@ export default function DisponibilidadPage() {
                 icon={<LayoutGrid className="h-4 w-4" />}
               />
               <KPICard
-                label="Estáticas ocupadas o tentativas"
-                value={String(resumenPrimer.estaticas - resumenPrimer.libres)}
-                sub="las tentativas caducan solas a los 7 días y liberan el inventario"
-                tono={resumenPrimer.estaticas - resumenPrimer.libres > 0 ? 'ambar' : 'neutro'}
+                label="En propuesta"
+                value={String(resumenPrimer.enPropuesta)}
+                sub={
+                  resumenPrimer.enPropuesta > 0
+                    ? `pantallas que piden ${conteo(resumenPrimer.propuestas, 'propuesta abierta', 'propuestas abiertas')} · no bloquean`
+                    : 'ninguna propuesta abierta las pide'
+                }
+                tono={resumenPrimer.enPropuesta > 0 ? 'ambar' : 'neutro'}
                 icon={<Clock className="h-4 w-4" />}
               />
             </>
@@ -277,29 +290,33 @@ export default function DisponibilidadPage() {
                     </div>
                   </td>
                   {f.celdas.map((c, i) => {
-                    const soloTentativa =
-                      c.ocupantes.length > 0 && c.ocupantes.every((o) => o.estatus === 'TENTATIVA')
-                    const titulo =
+                    // En propuesta y todavía vendible: la celda lo avisa en ámbar
+                    // punteado. En una OCUPADA lo dice solo el `title`: ahí lo
+                    // que manda es que ya está vendida.
+                    const avisoPropuesta = c.enPropuesta.length > 0 && c.estado !== 'OCUPADO'
+                    const titulo = [
                       c.ocupantes.length > 0
                         ? c.ocupantes
-                            .map(
-                              (o) =>
-                                `${o.campana} (${o.estatus === 'TENTATIVA' ? 'tentativa' : 'confirmada'}${
-                                  o.spots != null ? `, ${o.spots} slots` : ''
-                                })`,
-                            )
+                            .map((o) => `${o.campana} (confirmada${o.spots != null ? `, ${o.spots} slots` : ''})`)
                             .join('\n') +
                           (c.spotsLibres != null ? `\nQuedan ${c.spotsLibres} de ${c.spotsTotal} slots` : '')
                         : c.spotsLibres != null
                           ? `Libre: ${c.spotsLibres} slots`
-                          : 'Libre'
+                          : 'Libre',
+                      ...c.enPropuesta.map(
+                        (x) =>
+                          `En propuesta ${x.folio}${x.clienteNombre ? ` · ${x.clienteNombre}` : ''} (${formatFecha(x.fechaInicio)} a ${formatFecha(x.fechaFin)}${
+                            x.spots != null ? `, ${x.spots} spots` : ''
+                          })`,
+                      ),
+                    ].join('\n')
                     return (
                       <td key={i} className="px-1 py-1 text-center">
                         <div
                           title={titulo}
                           className={cn(
                             'mx-auto flex h-8 min-w-[64px] items-center justify-center rounded border px-1 text-[11px] font-medium',
-                            soloTentativa ? TONO_TENTATIVA : TONO_CELDA[c.estado],
+                            avisoPropuesta ? TONO_EN_PROPUESTA : TONO_CELDA[c.estado],
                           )}
                         >
                           {f.digital && c.spotsLibres != null
@@ -307,12 +324,12 @@ export default function DisponibilidadPage() {
                               ? `${c.spotsLibres} ${c.spotsLibres === 1 ? 'libre' : 'libres'}`
                               : 'Lleno'
                             : c.estado === 'LIBRE'
-                            ? 'Libre'
+                            ? avisoPropuesta
+                              ? 'En propuesta'
+                              : 'Libre'
                             : f.digital
                               ? `${c.spotsUsados} usados`
-                              : soloTentativa
-                                ? 'Tentativa'
-                                : 'Ocupada'}
+                              : 'Ocupada'}
                         </div>
                       </td>
                     )
@@ -325,14 +342,15 @@ export default function DisponibilidadPage() {
       )}
       </CardColapsable>
 
-      {/* Leyenda: los mismos cuatro estados que pinta la rejilla. La nota de
-          caducidad de las tentativas vive ahora en su tarjeta de arriba. */}
+      {/* Leyenda: los mismos cuatro estados que pinta la rejilla. «En propuesta»
+          sustituye a «Tentativa» desde TENT-PROP (26/10). */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-muted">
         <span className="flex items-center gap-1.5">
           <span className={cn('inline-block h-3 w-4 rounded border', TONO_CELDA.LIBRE)} /> Libre
         </span>
         <span className="flex items-center gap-1.5">
-          <span className={cn('inline-block h-3 w-4 rounded border', TONO_TENTATIVA)} /> Tentativa
+          <span className={cn('inline-block h-3 w-4 rounded border', TONO_EN_PROPUESTA)} /> En propuesta
+          (libre, pero una propuesta abierta la pide)
         </span>
         <span className="flex items-center gap-1.5">
           <span className={cn('inline-block h-3 w-4 rounded border', TONO_CELDA.PARCIAL)} /> Parcial

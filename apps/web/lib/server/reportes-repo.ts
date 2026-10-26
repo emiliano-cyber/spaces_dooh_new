@@ -119,8 +119,8 @@ export async function datosRentabilidad(rango: RangoReporte): Promise<DatosRenta
     // si empieza dentro: una campaña anual toca todos los trimestres del año y
     // aporta su parte a cada uno.
     //
-    // El estatus NO se filtra aquí aunque se pudiera: la regla («CANCELADA no
-    // suma, TENTATIVA sí porque el lugar ya está apartado») vive en
+    // El estatus NO se filtra aquí aunque se pudiera: la regla (solo lo
+    // CONFIRMADO es venta, TENT-PROP del 26/10) vive en
     // `lib/data/reportes.ts`, una sola vez.
     q<any>(
       `select sitio_id, campana_id, precio, estatus,

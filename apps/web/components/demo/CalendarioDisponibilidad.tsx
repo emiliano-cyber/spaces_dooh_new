@@ -123,7 +123,7 @@ export function CalendarioDisponibilidad({
           <span className="h-2.5 w-2.5 rounded-sm bg-error" /> confirmada
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-sm bg-warning" /> tentativa
+          <span className="h-2.5 w-2.5 rounded-sm bg-warning" /> en propuesta
         </span>
       </div>
     </div>

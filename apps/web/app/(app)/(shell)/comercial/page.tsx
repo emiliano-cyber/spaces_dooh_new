@@ -4,14 +4,12 @@ import { useMemo, useState } from 'react'
 import { conteo } from '@/lib/plural'
 // Alias: `toast` ya es el estado del toast local de esta página.
 import { toast as sonner } from 'sonner'
-import { Search, SlidersHorizontal, MapPin, Check, CheckCircle2, CalendarClock, Plus, UserRound, Download, LayoutGrid, Lock } from 'lucide-react'
+import { Search, SlidersHorizontal, Check, CheckCircle2, FileText, Plus, UserRound, Download, LayoutGrid, Lock } from 'lucide-react'
 import { KPICard, KPICardSkeleton } from '@/components/demo/KPICard'
 import { disponibilidadFila } from '@/components/demo/comercial/disponibilidad-fila'
 import { MapView, type MapPoint } from '@/components/demo/MapView'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
-import { Modal } from '@/components/demo/ui/Modal'
-import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { SiteFicha } from '@/components/demo/comercial/SiteFicha'
 import { ReservaDialog } from '@/components/demo/comercial/ReservaDialog'
 import { AltaSitioDialog } from '@/components/demo/comercial/AltaSitioDialog'
@@ -24,7 +22,7 @@ import {
 } from '@/components/demo/StatusBadge'
 import { cn } from '@/lib/cn'
 import { descargarInventario } from '@/lib/inventario-export'
-import { confirmarReservaApi, extenderCampanaApi } from '@/lib/data/estado-api'
+import { itemsEnPropuesta, agruparPorPropuesta, type PropuestaEnVeremos } from '@/lib/data/en-propuesta'
 import Link from 'next/link'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { TIPO_MEDIO_LABEL } from '@/lib/tipo-medio'
@@ -33,11 +31,12 @@ import { formatNumero } from '@/lib/formato-numero'
 import {
   sitiosSinContratoCompleto,
   useSitios,
-  useReservas,
   useCampanas,
   useContratos,
   useArrendadores,
   useConfigNegocio,
+  usePropuestas,
+  useClientes,
   tarifaDeSitio,
   rangosDePrecio,
   formatMonto,
@@ -60,18 +59,15 @@ const LEYENDA_MAPA: { color: string; label: string }[] = [
   { color: '#f59e0b', label: SITIO_LABEL.RESERVADO },
 ]
 
-// Días que le quedan a una tentativa antes de caducar sola, desde `expiraEn`
-// (lo pone el servidor). Sin fecha, no se inventa: la pastilla no se pinta.
-function diasParaCaducar(expiraEn: string | null | undefined): number | null {
-  if (!expiraEn) return null
-  const t = new Date(expiraEn).getTime()
-  if (isNaN(t)) return null
-  return Math.max(0, Math.ceil((t - Date.now()) / 86_400_000))
+const ESTATUS_PROPUESTA_LABEL: Record<PropuestaEnVeremos['estatus'], string> = {
+  BORRADOR: 'Borrador',
+  ENVIADA: 'Enviada',
 }
 
 export default function ComercialPage() {
   const sitios = useSitios()
-  const reservas = useReservas()
+  const propuestas = usePropuestas()
+  const clientes = useClientes()
   const campanas = useCampanas()
   const contratos = useContratos()
   const arrendadores = useArrendadores()
@@ -113,7 +109,6 @@ export default function ComercialPage() {
   const [fichaOpen, setFichaOpen] = useState(false)
   const [reservaOpen, setReservaOpen] = useState(false)
   const [altaOpen, setAltaOpen] = useState(false)
-  const [extender, setExtender] = useState<{ id: string; nombre: string } | null>(null)
   const [toast, setToast] = useState<string | null>(null)
 
   // Generar el archivo es trabajo sincrono en el navegador y puede fallar con un
@@ -177,13 +172,18 @@ export default function ComercialPage() {
   const sitiosSeleccionados = (sitios ?? []).filter((s) => seleccion.has(s.id))
   const totalSel = sitiosSeleccionados.reduce((a, s) => a + tarifaDeSitio(s), 0)
 
-  // Campañas con reservas tentativas (para confirmar/extender — Acto 3).
-  const tentativas = useMemo(() => {
-    const ids = new Set(
-      (reservas ?? []).filter((r) => r.estatus === 'TENTATIVA').map((r) => r.campanaId),
-    )
-    return (campanas ?? []).filter((c) => ids.has(c.id))
-  }, [reservas, campanas])
+  // TENT-PROP (26/10) · lo tentativo son las pantallas que piden propuestas
+  // abiertas (borrador o enviada), no un estado de la reserva. Esta tarjeta era
+  // «Reservas tentativas» con Confirmar/Extender, y no podía aparecer nunca:
+  // ningún flujo creaba reservas TENTATIVA. Solo avisa: no bloquea vender.
+  const enVeremos = useMemo(() => {
+    const items = itemsEnPropuesta(propuestas ?? [], clientes ?? [])
+    const d = new Date()
+    const hoy = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    const props = agruparPorPropuesta(items, hoy)
+    const vivas = new Set(props.map((p) => p.propuestaId))
+    return { props, pantallas: new Set(items.filter((i) => vivas.has(i.propuestaId)).map((i) => i.sitioId)).size }
+  }, [propuestas, clientes])
 
   // Cifras de arriba (rediseño del 26/10), sobre lo YA cargado y con los
   // filtros aplicados. La regla de «libre» es la misma función que usa cada
@@ -199,9 +199,6 @@ export default function ComercialPage() {
       bloqueadas: filas.filter((x) => x.d.bloqueadaPorContrato).length,
     }
   }, [filtrados, sinContrato])
-  const montoTentativas = (reservas ?? [])
-    .filter((r) => r.estatus === 'TENTATIVA')
-    .reduce((a, r) => a + r.precio, 0)
   const filtrosActivos = [q, fTipo, fDistrito, fDisp, cortePrecio != null ? fPrecio : ''].filter(Boolean).length
   function limpiarFiltros() {
     setQ('')
@@ -223,11 +220,6 @@ export default function ComercialPage() {
   function abrirFicha(id: string) {
     setActivo(id)
     setFichaOpen(true)
-  }
-
-  async function confirmar(campId: string, nombre: string) {
-    await confirmarReservaApi(campId)
-    notify(`"${nombre}" confirmada · pines en ocupado`)
   }
 
   return (
@@ -276,11 +268,15 @@ export default function ComercialPage() {
               icon={<LayoutGrid className="h-4 w-4" />}
             />
             <KPICard
-              label="Tentativas por confirmar"
-              value={formatNumero(tentativas.length)}
-              sub={tentativas.length ? `${formatMonto(montoTentativas)}/mes · caducan solas a los 7 días` : 'ninguna reserva esperando'}
-              tono={tentativas.length ? 'ambar' : 'neutro'}
-              icon={<CalendarClock className="h-4 w-4" />}
+              label="En propuesta"
+              value={formatNumero(enVeremos.pantallas)}
+              sub={
+                enVeremos.props.length
+                  ? `pantallas en ${conteo(enVeremos.props.length, 'propuesta abierta', 'propuestas abiertas')} · no bloquean`
+                  : 'ninguna propuesta abierta'
+              }
+              tono={enVeremos.props.length ? 'ambar' : 'neutro'}
+              icon={<FileText className="h-4 w-4" />}
             />
             <KPICard
               label="Bloqueadas por contrato"
@@ -293,65 +289,38 @@ export default function ComercialPage() {
         )}
       </div>
 
-      {/* Reservas tentativas (Acto 3: confirmar / extender). Con el lenguaje
-          del Dashboard desde el 26/10: renglones en un `divide-y` y no
-          tarjetas dentro de la tarjeta, y el tinte ámbar con tokens. */}
-      {tentativas.length > 0 && (
+      {/* En propuesta (TENT-PROP, 26/10): las propuestas abiertas y qué
+          pantallas piden. Sustituye a «Reservas tentativas», que listaba un
+          estado de reserva que nada creaba. No hay Confirmar aquí: lo que
+          confirma una pantalla es aprobar la propuesta y generar la campaña,
+          y eso vive en Propuestas. */}
+      {enVeremos.props.length > 0 && (
         <CardColapsable
-          id="comercial.tentativas"
-          titulo="Reservas tentativas"
-          icono={<CalendarClock className="h-4 w-4 text-warning" />}
+          id="comercial.en-propuesta"
+          titulo="En propuesta"
+          subtitulo="pantallas que piden propuestas abiertas · avisan, no bloquean"
+          icono={<FileText className="h-4 w-4 text-[#9a6700]" />}
           className="bg-warning-soft"
           headerClassName="px-3 pt-3 pb-2"
           contentClassName="px-3 pb-2"
         >
           <ul className="m-0 list-none divide-y divide-border p-0">
-            {tentativas.map((c) => {
-              const rs = (reservas ?? []).filter((r) => r.campanaId === c.id && r.estatus === 'TENTATIVA')
-              const total = rs.reduce((a, r) => a + r.precio, 0)
-              // La que antes caduca manda: es cuando la campaña empieza a
-              // perder pantallas.
-              const dias = rs
-                .map((r) => diasParaCaducar(r.expiraEn))
-                .filter((d): d is number => d != null)
-                .sort((a, b) => a - b)[0]
-              return (
-                <li
-                  key={c.id}
-                  className="flex flex-wrap items-center justify-between gap-2 py-2"
-                >
-                  <div className="min-w-0">
-                    <div className="text-[13px] font-medium text-ink">{c.nombre}</div>
-                    <div className="demo-num text-[11px] text-muted">
-                      {conteo(rs.length, 'sitio')} · {formatMonto(total)}/mes ·{' '}
-                      {rs[0] ? `${formatFecha(rs[0].fechaInicio)}–${formatFecha(rs[0].fechaFin)}` : ''}
-                    </div>
+            {enVeremos.props.map((p) => (
+              <li key={p.propuestaId} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                <div className="min-w-0">
+                  <Link href={`/propuestas/${p.propuestaId}`} className="text-[13px] font-medium text-ink hover:underline">
+                    {p.folio}
+                  </Link>
+                  <span className="text-[13px] text-muted"> · {p.clienteNombre ?? 'sin cliente todavía'}</span>
+                  <div className="demo-num text-[11px] text-muted">
+                    {conteo(p.pantallas, 'pantalla')} · {formatFecha(p.desde)}–{formatFecha(p.hasta)}
                   </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    {dias != null && (
-                      <span
-                        className={cn(
-                          'shrink-0 rounded-full border bg-surface px-2 py-0.5 text-[12px] font-medium',
-                          dias <= 2 ? 'border-[#ef444440] text-error' : 'border-[#f59e0b40] text-[#9a6700]',
-                        )}
-                      >
-                        {dias === 0 ? 'caduca hoy' : `caduca en ${dias} d`}
-                      </span>
-                    )}
-                    {puedeCrear && (
-                      <>
-                        <Button size="sm" variant="secondary" onClick={() => setExtender({ id: c.id, nombre: c.nombre })}>
-                          Extender
-                        </Button>
-                        <Button size="sm" onClick={() => confirmar(c.id, c.nombre)}>
-                          <Check className="h-3.5 w-3.5" /> Confirmar
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </li>
-              )
-            })}
+                </div>
+                <span className="shrink-0 rounded-full border border-[#f59e0b40] bg-surface px-2 py-0.5 text-[12px] font-medium text-[#9a6700]">
+                  {ESTATUS_PROPUESTA_LABEL[p.estatus]}
+                </span>
+              </li>
+            ))}
           </ul>
         </CardColapsable>
       )}
@@ -675,13 +644,6 @@ export default function ComercialPage() {
         }}
       />
 
-      {/* Extender campaña */}
-      <ExtenderDialog
-        campana={extender}
-        onClose={() => setExtender(null)}
-        onDone={(nombre) => notify(`"${nombre}" extendida`)}
-      />
-
       {/* Toast */}
       {toast && (
         <div className="fixed bottom-5 left-1/2 z-[60] -translate-x-1/2 rounded-md border border-border bg-ink px-4 py-2.5 text-[13px] text-white">
@@ -700,74 +662,5 @@ function Pin({ color, label }: { color: string; label: string }) {
       <span className="h-2.5 w-2.5 rounded-full" style={{ background: color }} />
       {label}
     </span>
-  )
-}
-
-function isoDate(offsetDays: number): string {
-  const d = new Date()
-  d.setDate(d.getDate() + offsetDays)
-  return d.toISOString().slice(0, 10)
-}
-
-function ExtenderDialog({
-  campana,
-  onClose,
-  onDone,
-}: {
-  campana: { id: string; nombre: string } | null
-  onClose: () => void
-  onDone: (nombre: string) => void
-}) {
-  const [fin, setFin] = useState(isoDate(60))
-  // OBLIG-01 · la nueva fecha de fin es todo lo que pide el diálogo. Vacía,
-  // `new Date('')` reventaba al pasarla a ISO sin decir por qué.
-  const ob = useObligatorios({ fin }, ['fin'])
-  if (!campana) return null
-  function cerrar() {
-    ob.reiniciar()
-    onClose()
-  }
-  return (
-    <Modal
-      open={!!campana}
-      onOpenChange={(v) => !v && cerrar()}
-      title="Extender campaña"
-      subtitle={campana.nombre}
-      footer={
-        <div className="flex justify-end gap-2">
-          <Button variant="secondary" size="sm" onClick={cerrar}>
-            Cancelar
-          </Button>
-          <Button
-            size="sm"
-            onClick={async () => {
-              if (!ob.validar()) return
-              await extenderCampanaApi(campana.id, new Date(fin).toISOString())
-              onDone(campana.nombre)
-              cerrar()
-            }}
-          >
-            <CalendarClock className="h-3.5 w-3.5" /> Extender
-          </Button>
-        </div>
-      }
-    >
-      <Campo
-        label={
-          <span className="inline-flex items-center gap-1.5">
-            <MapPin className="h-3.5 w-3.5 text-muted" /> Nueva fecha de fin
-          </span>
-        }
-        obligatorio
-        falta={ob.falta('fin')}
-      >
-        <input
-          type="date"
-          value={fin}
-          onChange={(e) => setFin(e.target.value)}
-          className="h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
-        />
-      </Campo>
-    </Modal>
   )
 }

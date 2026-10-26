@@ -1,5 +1,6 @@
 import { saldoCobranza, type Alerta } from '@/lib/data/derive'
 import type { Tono } from '@/components/demo/StatusBadge'
+import { enPropuestaEntre, type ItemEnPropuesta } from '@/lib/data/en-propuesta'
 
 // ============================================================================
 //  components/demo/inicio/indicadores.ts — Lo que el Dashboard calcula del
@@ -187,14 +188,18 @@ export function pipelineComercial(
 // «gap alerts».
 //
 // Una reserva confirmada que termina en la ventana deja hueco salvo que haya
-// RELEVO — otra reserva viva (confirmada o apartada) en la misma pantalla que
-// empiece a más tardar el día siguiente y siga después:
+// RELEVO — otra reserva viva (no cancelada) en la misma pantalla que empiece
+// a más tardar el día siguiente y siga después:
 //   · en una FIJA, de cualquier campaña: la cara solo admite una;
 //   · en una DIGITAL, del MISMO cliente: los slots de una campaña no los
 //     ocupan las demás que ya estaban al aire, así que solo una renovación
 //     cierra el hueco.
 // Digital es `PANTALLA_DIGITAL`, la regla de booking (S0-3), no la de
 // presentación: un rotativo sobre estructura estática se vende como fijo.
+//
+// TENT-PROP (26/10) · una PROPUESTA abierta que pide la cara no es relevo:
+// puede no cerrarse, y lo tentativo solo avisa. El hueco sigue, pero lleva los
+// folios que la piden dentro de la ventana — que es exactamente a quién llamar.
 
 export const VENTANA_HUECOS_DIAS = 30
 
@@ -208,6 +213,8 @@ export interface Hueco {
   dias: number
   digital: boolean
   slots: number | null
+  /** Folios de propuestas abiertas que piden esta pantalla en la ventana tras el fin. */
+  enPropuesta: string[]
 }
 
 export function huecosProximos(
@@ -224,6 +231,8 @@ export function huecosProximos(
       estatus: string
       spotsReservados: number | null
     }[]
+    /** Lo que piden las propuestas abiertas (`itemsEnPropuesta`). Ausente = nada. */
+    enPropuesta?: ItemEnPropuesta[]
   },
   hoy: Date,
   ventanaDias: number = VENTANA_HUECOS_DIAS,
@@ -263,6 +272,9 @@ export function huecosProximos(
       dias,
       digital,
       slots: digital ? r.spotsReservados : null,
+      enPropuesta: enPropuestaEntre(datos.enPropuesta ?? [], s.id, isoDe(fin + 1), isoDe(fin + 1 + ventanaDias)).map(
+        (x) => x.folio,
+      ),
     })
   }
   return out.sort((a, b) => a.dias - b.dias || a.sitioNombre.localeCompare(b.sitioNombre))
@@ -282,25 +294,26 @@ export function ordenarAlertas<T extends Pick<Alerta, 'nivel'>>(alertas: T[]): T
 // ─── 8 · El pin del mapa, por lo que pasa HOY ──────────────────────────────
 // `pinTono` lee `sitios.estatus_comercial`, una columna guardada que no se
 // recalcula cuando una reserva termina: un espectacular cuya campaña acabó
-// ayer seguía en rojo. Aquí se mira la reserva que cubre el día, con la misma
-// regla que `sitiosOcupadosHoy` (confirmada = ocupada) y la tentativa en ámbar.
+// ayer seguía en rojo. Aquí se mira la reserva que cubre el día: vendida (no
+// cancelada, la regla del guard del servidor) en rojo. Y desde TENT-PROP
+// (26/10) el ámbar es «en propuesta»: libre hoy, pero una propuesta abierta la
+// pide para hoy. Antes era la reserva TENTATIVA, que ningún flujo creaba.
 export function tonoPinHoy(
   s: { id: string; tipoMedio: string; esRotativo: boolean; exhibicion: string },
   reservas: { sitioId: string; estatus: string; fechaInicio: string; fechaFin: string }[],
   hoy: Date,
+  enPropuesta: ItemEnPropuesta[] = [],
 ): Tono {
   const digital =
     s.tipoMedio === 'PANTALLA_DIGITAL' || s.esRotativo || s.exhibicion === 'digital' || s.exhibicion === 'rotativo'
   if (digital) return 'azul'
   const h = nHoy(hoy)
-  let apartada = false
   for (const r of reservas) {
     if (r.sitioId !== s.id || r.estatus === 'CANCELADA') continue
     if (nDia(r.fechaInicio) > h || nDia(r.fechaFin) < h) continue
-    if (r.estatus === 'CONFIRMADA') return 'rojo'
-    apartada = true
+    return 'rojo'
   }
-  return apartada ? 'ambar' : 'verde'
+  return enPropuestaEntre(enPropuesta, s.id, isoDe(h), isoDe(h)).length > 0 ? 'ambar' : 'verde'
 }
 
 // ─── 7 · Cuánto de la tarifa publicada se cobra ────────────────────────────

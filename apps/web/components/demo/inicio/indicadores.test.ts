@@ -169,7 +169,7 @@ describe('huecosProximos', () => {
     expect(h).toEqual([
       {
         sitioId: 'FIJA', sitioNombre: 'Espectacular Reforma', campanaId: 'C1', campanaNombre: 'Verano',
-        clienteNombre: 'Refrescos SA', fechaFin: '2026-11-05', dias: 10, digital: false, slots: null,
+        clienteNombre: 'Refrescos SA', fechaFin: '2026-11-05', dias: 10, digital: false, slots: null, enPropuesta: [],
       },
     ])
   })
@@ -182,15 +182,17 @@ describe('huecosProximos', () => {
     expect(h).toEqual([])
   })
 
-  it('NEGATIVO · una reserva TENTATIVA que ya apartó el relevo también cuenta', () => {
-    const h = huecosProximos(
-      datos([
-        r('R1', 'FIJA', 'C1', '2026-09-01', '2026-11-05'),
-        r('R2', 'FIJA', 'C2', '2026-11-06', '2026-12-31', { estatus: 'TENTATIVA' }),
-      ]),
-      HOY,
-    )
-    expect(h).toEqual([])
+  // TENT-PROP (26/10): lo tentativo es una propuesta abierta, y solo avisa.
+  // Una propuesta que pide la cara NO es relevo —puede no cerrarse—: el hueco
+  // sigue, pero dice quién la está pidiendo, que es justo a quién llamar.
+  it('NEGATIVO · una propuesta abierta no es relevo: sigue el hueco, con el folio que la pide', () => {
+    const enPropuesta = [
+      { sitioId: 'FIJA', propuestaId: 'P1', folio: 'PR-1', estatus: 'ENVIADA', clienteNombre: 'Banco SA', fechaInicio: '2026-11-06', fechaFin: '2026-12-31', spots: null },
+      // Pide la cara pero para DESPUÉS de la ventana del hueco: no se menciona.
+      { sitioId: 'FIJA', propuestaId: 'P2', folio: 'PR-2', estatus: 'BORRADOR', clienteNombre: null, fechaInicio: '2027-03-01', fechaFin: '2027-03-31', spots: null },
+    ]
+    const h = huecosProximos({ ...datos([r('R1', 'FIJA', 'C1', '2026-09-01', '2026-11-05')]), enPropuesta } as any, HOY)
+    expect(h.map((x) => [x.sitioId, x.enPropuesta])).toEqual([['FIJA', ['PR-1']]])
   })
 
   it('en una digital los slots que libera una campaña son un hueco aunque haya otras al aire', () => {
@@ -253,8 +255,13 @@ describe('tonoPinHoy', () => {
   it('fija con reserva confirmada que cubre hoy → ocupada (rojo)', () => {
     expect(tonoPinHoy(fija, [res('CONFIRMADA')] as any, HOY)).toBe('rojo')
   })
-  it('fija solo apartada hoy → ámbar', () => {
-    expect(tonoPinHoy(fija, [res('TENTATIVA')] as any, HOY)).toBe('ambar')
+  it('fija libre hoy pero en una propuesta abierta que cubre hoy → ámbar (en propuesta)', () => {
+    const enPropuesta = [{ sitioId: 'S', propuestaId: 'P', folio: 'PR-1', estatus: 'ENVIADA', clienteNombre: null, fechaInicio: '2026-10-20', fechaFin: '2026-11-20', spots: null }]
+    expect(tonoPinHoy(fija, [] as any, HOY, enPropuesta as any)).toBe('ambar')
+  })
+  it('NEGATIVO · confirmada manda sobre propuesta: si ya está vendida, rojo', () => {
+    const enPropuesta = [{ sitioId: 'S', propuestaId: 'P', folio: 'PR-1', estatus: 'ENVIADA', clienteNombre: null, fechaInicio: '2026-10-20', fechaFin: '2026-11-20', spots: null }]
+    expect(tonoPinHoy(fija, [res('CONFIRMADA')] as any, HOY, enPropuesta as any)).toBe('rojo')
   })
   it('NEGATIVO · una confirmada que ya terminó, o cancelada, no la ocupa', () => {
     expect(tonoPinHoy(fija, [res('CONFIRMADA', '2026-09-01', '2026-10-25'), res('CANCELADA')] as any, HOY)).toBe('verde')
