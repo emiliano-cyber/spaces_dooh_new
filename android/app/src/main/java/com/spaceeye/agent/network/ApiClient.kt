@@ -52,7 +52,11 @@ class ApiClient(ctx: Context) {
         watermarkBaked: Boolean = true,
         // Solo con source=creative_change: la huella del creativo que disparo la
         // foto, para que el dashboard muestre la imagen junto a su creativo.
-        phash: String? = null
+        phash: String? = null,
+        // Cuando se TOMO, si no es ahora mismo. Lo usa el envio agrupado de
+        // creativos, que guarda la foto y la manda horas despues: sin esto la
+        // foto quedaba fechada a la hora del envio.
+        takenAt: Long? = null
     ): Boolean {
         val token = tokenStore.getDeviceToken() ?: return false
 
@@ -66,7 +70,7 @@ class ApiClient(ctx: Context) {
                 "photo", "capture.jpg",
                 photoBytes.toRequestBody("image/jpeg".toMediaType())
             )
-            .addFormDataPart("taken_at", isoFormat.format(Date()))
+            .addFormDataPart("taken_at", isoFormat.format(takenAt?.let { Date(it) } ?: Date()))
             .addFormDataPart("source", source)
 
         commandId?.let { builder.addFormDataPart("command_id", it.toString()) }

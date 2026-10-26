@@ -117,13 +117,19 @@ class LoteCreativos(directorio: File, private val ahora: () -> Long) {
     /**
      * Manda lo que espera, una por creativo, mientras quede tope del dia. Lo que no
      * cabe (o no se pudo subir) se queda para el siguiente envio.
+     *
+     * `visto` es CUANDO se vio el creativo, no cuando sale la foto. Sin eso la
+     * foto llegaba fechada a la hora del envio y podian ser horas despues: en
+     * TLALPAN, que manda cada 8 h, un creativo detectado a las 5 de la tarde
+     * aparecia en la galeria a las 11 de la noche, y no habia forma de cruzarlo
+     * con su ficha del catalogo (23-oct-2026).
      */
-    fun enviar(restantes: Int, subir: (huella: String, jpeg: ByteArray) -> Boolean): Envio {
+    fun enviar(restantes: Int, subir: (huella: String, jpeg: ByteArray, visto: Long) -> Boolean): Envio {
         var quedaTope = restantes
         var enviadas = 0
         for ((h, jpeg) in pendientes()) {
             if (quedaTope <= 0) break
-            if (subir(h, jpeg)) {
+            if (subir(h, jpeg, items[h]?.primera ?: ahora())) {
                 quitar(h)
                 quedaTope--
                 enviadas++

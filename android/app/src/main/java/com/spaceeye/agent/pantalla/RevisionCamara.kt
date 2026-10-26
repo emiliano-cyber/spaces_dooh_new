@@ -45,6 +45,17 @@ class RevisionCamara(ctx: Context) {
         /** Escena casi lisa: lente tapada, sin luz, o todo negro. */
         private const val SIN_IMAGEN = 5.0
         private const val FRACCION_SIN_IMAGEN = 0.8
+        /**
+         * Si la pantalla ocupa mas que esto de la foto, afuera no queda nada
+         * fijo con que juzgar y no se opina. Antes, en ese caso, se comparaba la
+         * foto ENTERA -pantalla incluida-, y como el anuncio cambia por
+         * definicion, de noche (cuando lo unico que brilla es la pantalla) casi
+         * todos los puntos salian de el: la escena "se movia" sola. Le paso a
+         * TLALPAN las noches del 24, 25 y 26 de oct de 2026, tres fallas de
+         * "camara movida" seguidas que se "recuperaban" solas a las 8:15 de la
+         * mañana, con la luz del dia.
+         */
+        private const val CASI_TODA = 0.97
     }
 
     private val dir = File(ctx.filesDir, "pantalla").apply { mkdirs() }
@@ -71,6 +82,8 @@ class RevisionCamara(ctx: Context) {
             return Seguimiento.Camara.SIN_IMAGEN
         }
         val marco = vistazos[vistazos.size / 2].marco
+        // Sin nada fijo alrededor no hay forma honesta de juzgar la camara.
+        if (areaDeLaPantalla(geo) > CASI_TODA) return Seguimiento.Camara.INCONCLUSO
         val mascara = fueraDeLaPantalla(marco, geo)
         val actual = Vision.rasgos(marco, mascara)
         mascara?.release()
@@ -85,10 +98,30 @@ class RevisionCamara(ctx: Context) {
             if (n > mejor) { mejor = n; desplazamiento = d / marco.cols() }
         }
         if (mejor >= PUNTOS_MOVIDA && desplazamiento > MOVIDA) return Seguimiento.Camara.MOVIDA
+        // No se parece a NINGUNA referencia. Un giro real deja coincidencias
+        // -la escena sigue siendo la misma, corrida: el movimiento del 28-sep
+        // dejo 14-, asi que esto es otra luz, no otro encuadre: se aprende.
+        //
+        // La variante solo se guardaba por la rama del "todo bien", asi que una
+        // escena nocturna que no coincidia con nada no se podia aprender NUNCA:
+        // la misma vuelta que la rechazaba era la que le habria dado su
+        // referencia. Esa es la razon de que TLALPAN repitiera la falla las tres
+        // noches seguidas en vez de aprenderse la primera.
+        if (mejor < PUNTOS_MOVIDA) {
+            if (refs.size < VARIANTES) guardar(actual)
+            return Seguimiento.Camara.INCONCLUSO
+        }
         if (mejor < PUNTOS_CONFIABLES) return Seguimiento.Camara.INCONCLUSO
         if (mejor < VARIANTE_HASTA && refs.size < VARIANTES) guardar(actual)
         return Seguimiento.Camara.OK
     }
+
+    /** Cuanto de la foto ocupa la pantalla marcada (formula del cordon). */
+    private fun areaDeLaPantalla(geo: Geometria): Double = Math.abs((0 until 4).sumOf { i ->
+        val (x1, y1) = geo.esquinas[i]
+        val (x2, y2) = geo.esquinas[(i + 1) % 4]
+        x1 * y2 - x2 * y1
+    }) / 2
 
     /**
      * Mascara de lo que esta FUERA de la pantalla (un poco agrandada, para dejar
@@ -98,8 +131,11 @@ class RevisionCamara(ctx: Context) {
      * ventana con texto que tapaba parte del video, sus puntos se desplazaron
      * juntos y parecio que la camara entera se habia movido.
      *
-     * Si la pantalla llena casi toda la foto (TLALPAN), afuera no queda con que
-     * comparar: entonces se usa la foto entera, como antes.
+     * Si la pantalla llena casi toda la foto, afuera no queda con que comparar;
+     * ese caso lo ataja `revisar` antes de llegar aqui (CASI_TODA). Lo que NO se
+     * vuelve a hacer es comparar la foto entera: la pantalla cambia de anuncio
+     * por definicion y meterla en la referencia es pedirle a la camara que se
+     * mueva sola.
      */
     private fun fueraDeLaPantalla(marco: Mat, geo: Geometria): Mat? {
         val w = marco.cols().toDouble()
@@ -109,12 +145,6 @@ class RevisionCamara(ctx: Context) {
         val puntos = geo.esquinas.map { (x, y) ->
             org.opencv.core.Point((cx + (x - cx) * 1.08) * w, (cy + (y - cy) * 1.08) * h)
         }
-        // Area de la pantalla (formula del cordon) sobre el area de la foto.
-        val area = Math.abs((0 until 4).sumOf { i ->
-            val (x1, y1) = geo.esquinas[i]; val (x2, y2) = geo.esquinas[(i + 1) % 4]
-            x1 * y2 - x2 * y1
-        }) / 2
-        if (area > 0.8) return null
         val m = Mat(marco.rows(), marco.cols(), org.opencv.core.CvType.CV_8UC1, org.opencv.core.Scalar(255.0))
         val contorno = org.opencv.core.MatOfPoint(*puntos.toTypedArray())
         org.opencv.imgproc.Imgproc.fillConvexPoly(m, contorno, org.opencv.core.Scalar(0.0))
