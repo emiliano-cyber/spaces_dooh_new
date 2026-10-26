@@ -126,7 +126,7 @@ export function ProgramacionPorFranja() {
       )}
 
       {error && (
-        <p role="alert" className="rounded-md border border-error/30 bg-surface px-3 py-2 text-[13px] text-error">
+        <p role="alert" className="rounded-md border border-error bg-error-soft px-3 py-2 text-[13px] text-error">
           {error}
         </p>
       )}

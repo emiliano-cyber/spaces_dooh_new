@@ -225,7 +225,7 @@ export function GestionCodigos() {
       {error && (
         <p
           role="alert"
-          className="rounded-md border border-error/30 bg-surface px-3 py-2 text-[13px] text-error"
+          className="rounded-md border border-error bg-error-soft px-3 py-2 text-[13px] text-error"
         >
           {error}
         </p>
@@ -360,7 +360,7 @@ export function GestionCodigos() {
                 <Fragment key={c.id}>
                   {fila}
                   {asignando === c.id && (
-                    <tr className="bg-surface-2/40">
+                    <tr className="bg-surface-2">
                       <td colSpan={6} className="px-3 py-3">
                         {elegibles.length === 0 ? (
                           <p className="text-[12px] text-muted">

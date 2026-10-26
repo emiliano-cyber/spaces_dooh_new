@@ -125,7 +125,7 @@ export default function CampanasPage() {
           titulo={`Por validar (${porValidar.length})`}
           icono={<ShieldCheck className="h-4 w-4 text-warning" strokeWidth={1.75} />}
           subtitulo="Enviadas al dominio, esperan aprobación antes de publicar"
-          className="border-accent/50 bg-warning-soft"
+          className="border-accent bg-warning-soft"
         >
           {/* `list-none p-0 m-0`: el proyecto corre sin preflight
               (`tailwind.config.ts`), y sin esto cada `<ul>` pinta viñetas
@@ -285,7 +285,7 @@ export default function CampanasPage() {
                     className={cn(
                       minimizada ? 'px-4 py-2.5' : 'p-4',
                       'transition-colors duration-150 hover:border-border-strong',
-                      hilo && 'border-accent/60 bg-warning-soft',
+                      hilo && 'border-accent bg-warning-soft',
                     )}
                   >
                     <div className="flex flex-wrap items-start justify-between gap-3">
