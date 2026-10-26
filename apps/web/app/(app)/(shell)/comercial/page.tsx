@@ -4,7 +4,9 @@ import { useMemo, useState } from 'react'
 import { conteo } from '@/lib/plural'
 // Alias: `toast` ya es el estado del toast local de esta página.
 import { toast as sonner } from 'sonner'
-import { Search, SlidersHorizontal, MapPin, Check, CheckCircle2, CalendarClock, Plus, UserRound, Download } from 'lucide-react'
+import { Search, SlidersHorizontal, MapPin, Check, CheckCircle2, CalendarClock, Plus, UserRound, Download, LayoutGrid, Lock } from 'lucide-react'
+import { KPICard, KPICardSkeleton } from '@/components/demo/KPICard'
+import { disponibilidadFila } from '@/components/demo/comercial/disponibilidad-fila'
 import { MapView, type MapPoint } from '@/components/demo/MapView'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
@@ -18,6 +20,7 @@ import { ClientesBadge } from '@/components/demo/ClientesBadge'
 import {
   StatusBadge,
   pinTono,
+  SITIO_LABEL,
 } from '@/components/demo/StatusBadge'
 import { cn } from '@/lib/cn'
 import { descargarInventario } from '@/lib/inventario-export'
@@ -45,6 +48,26 @@ import {
 
 const selectCls =
   'h-9 rounded border border-border-strong bg-surface px-2.5 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
+
+// Leyenda del mapa en UN objeto del módulo, con los textos de `SITIO_LABEL`
+// (los mismos que dice la lista). Los colores son los de los pines de
+// `MapView` (`TONO_HEX`, que no se exporta y es del Dashboard, así que no se
+// toca): si cambian allá, hay que cambiarlos aquí.
+const LEYENDA_MAPA: { color: string; label: string }[] = [
+  { color: '#0a66ff', label: 'Digital' },
+  { color: '#10b981', label: SITIO_LABEL.DISPONIBLE },
+  { color: '#ef4444', label: `${SITIO_LABEL.OCUPADO} o ${SITIO_LABEL.BLOQUEADO.toLowerCase()}` },
+  { color: '#f59e0b', label: SITIO_LABEL.RESERVADO },
+]
+
+// Días que le quedan a una tentativa antes de caducar sola, desde `expiraEn`
+// (lo pone el servidor). Sin fecha, no se inventa: la pastilla no se pinta.
+function diasParaCaducar(expiraEn: string | null | undefined): number | null {
+  if (!expiraEn) return null
+  const t = new Date(expiraEn).getTime()
+  if (isNaN(t)) return null
+  return Math.max(0, Math.ceil((t - Date.now()) / 86_400_000))
+}
 
 export default function ComercialPage() {
   const sitios = useSitios()
@@ -162,6 +185,32 @@ export default function ComercialPage() {
     return (campanas ?? []).filter((c) => ids.has(c.id))
   }, [reservas, campanas])
 
+  // Cifras de arriba (rediseño del 26/10), sobre lo YA cargado y con los
+  // filtros aplicados. La regla de «libre» es la misma función que usa cada
+  // fila (`disponibilidadFila`), para que las tarjetas no contradigan a la
+  // lista de abajo.
+  const cifras = useMemo(() => {
+    const filas = filtrados.map((s) => ({ s, d: disponibilidadFila(s, sinContrato) }))
+    const digitales = filas.filter((x) => x.d.esDigital && x.s.spotsDisponibles != null)
+    return {
+      libres: filas.filter((x) => x.d.libre).length,
+      hayDigitales: filas.some((x) => x.d.esDigital),
+      slots: digitales.length ? digitales.reduce((a, x) => a + (x.s.spotsDisponibles ?? 0), 0) : null,
+      bloqueadas: filas.filter((x) => x.d.bloqueadaPorContrato).length,
+    }
+  }, [filtrados, sinContrato])
+  const montoTentativas = (reservas ?? [])
+    .filter((r) => r.estatus === 'TENTATIVA')
+    .reduce((a, r) => a + r.precio, 0)
+  const filtrosActivos = [q, fTipo, fDistrito, fDisp, cortePrecio != null ? fPrecio : ''].filter(Boolean).length
+  function limpiarFiltros() {
+    setQ('')
+    setFTipo('')
+    setFDistrito('')
+    setFDisp('')
+    setFPrecio('')
+  }
+
   function toggleSel(id: string) {
     setSeleccion((prev) => {
       const next = new Set(prev)
@@ -195,24 +244,81 @@ export default function ComercialPage() {
         )}
       </div>
 
-      {/* Reservas tentativas (Acto 3: confirmar / extender) */}
+      {/* Lo primero que necesita saber quien vende, sobre el recorte filtrado. */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {!sitios ? (
+          <>
+            <KPICardSkeleton />
+            <KPICardSkeleton />
+            <KPICardSkeleton />
+            <KPICardSkeleton />
+          </>
+        ) : (
+          <>
+            <KPICard
+              label="Libres para vender"
+              value={formatNumero(cifras.libres)}
+              sub={`de ${conteo(filtrados.length, 'pantalla')}${filtrosActivos ? ' filtradas' : ''}`}
+              tono={cifras.libres > 0 ? 'verde' : 'neutro'}
+              icon={<CheckCircle2 className="h-4 w-4" />}
+            />
+            <KPICard
+              label="Slots digitales libres"
+              value={cifras.slots == null ? '—' : formatNumero(cifras.slots)}
+              sub={
+                !cifras.hayDigitales
+                  ? 'no hay digitales en la vista'
+                  : cifras.slots == null
+                    ? 'las digitales no tienen slots capturados'
+                    : 'sumando las digitales de la vista'
+              }
+              tono="azul"
+              icon={<LayoutGrid className="h-4 w-4" />}
+            />
+            <KPICard
+              label="Tentativas por confirmar"
+              value={formatNumero(tentativas.length)}
+              sub={tentativas.length ? `${formatMonto(montoTentativas)}/mes · caducan solas a los 7 días` : 'ninguna reserva esperando'}
+              tono={tentativas.length ? 'ambar' : 'neutro'}
+              icon={<CalendarClock className="h-4 w-4" />}
+            />
+            <KPICard
+              label="Bloqueadas por contrato"
+              value={formatNumero(cifras.bloqueadas)}
+              sub={cifras.bloqueadas ? 'contrato incompleto: se arreglan en Arrendadores' : 'todas con contrato completo'}
+              tono={cifras.bloqueadas ? 'ambar' : 'neutro'}
+              icon={<Lock className="h-4 w-4" />}
+            />
+          </>
+        )}
+      </div>
+
+      {/* Reservas tentativas (Acto 3: confirmar / extender). Con el lenguaje
+          del Dashboard desde el 26/10: renglones en un `divide-y` y no
+          tarjetas dentro de la tarjeta, y el tinte ámbar con tokens. */}
       {tentativas.length > 0 && (
         <CardColapsable
           id="comercial.tentativas"
           titulo="Reservas tentativas"
           icono={<CalendarClock className="h-4 w-4 text-warning" />}
-          className="border-[#f59e0b40] bg-[#f59e0b0a]"
+          className="bg-warning-soft"
           headerClassName="px-3 pt-3 pb-2"
-          contentClassName="px-3 pb-3"
+          contentClassName="px-3 pb-2"
         >
-          <ul className="space-y-2">
+          <ul className="m-0 list-none divide-y divide-border p-0">
             {tentativas.map((c) => {
               const rs = (reservas ?? []).filter((r) => r.campanaId === c.id && r.estatus === 'TENTATIVA')
               const total = rs.reduce((a, r) => a + r.precio, 0)
+              // La que antes caduca manda: es cuando la campaña empieza a
+              // perder pantallas.
+              const dias = rs
+                .map((r) => diasParaCaducar(r.expiraEn))
+                .filter((d): d is number => d != null)
+                .sort((a, b) => a - b)[0]
               return (
                 <li
                   key={c.id}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded border border-border bg-surface px-3 py-2"
+                  className="flex flex-wrap items-center justify-between gap-2 py-2"
                 >
                   <div className="min-w-0">
                     <div className="text-[13px] font-medium text-ink">{c.nombre}</div>
@@ -221,7 +327,17 @@ export default function ComercialPage() {
                       {rs[0] ? `${formatFecha(rs[0].fechaInicio)}–${formatFecha(rs[0].fechaFin)}` : ''}
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {dias != null && (
+                      <span
+                        className={cn(
+                          'shrink-0 rounded-full border bg-surface px-2 py-0.5 text-[12px] font-medium',
+                          dias <= 2 ? 'border-[#ef444440] text-error' : 'border-[#f59e0b40] text-[#9a6700]',
+                        )}
+                      >
+                        {dias === 0 ? 'caduca hoy' : `caduca en ${dias} d`}
+                      </span>
+                    )}
                     {puedeCrear && (
                       <>
                         <Button size="sm" variant="secondary" onClick={() => setExtender({ id: c.id, nombre: c.nombre })}>
@@ -279,10 +395,22 @@ export default function ComercialPage() {
             ))}
           </select>
         )}
+        {/* Quita los cinco filtros de una vez; solo aparece si hay alguno. Un
+            corte de precio olvidado era el «0 resultados» que nadie entendía. */}
+        {filtrosActivos > 0 && (
+          <button
+            type="button"
+            onClick={limpiarFiltros}
+            className="h-9 rounded border border-border bg-transparent px-3 text-[13px] font-medium text-info hover:bg-surface-2"
+          >
+            Limpiar ({filtrosActivos})
+          </button>
+        )}
       </div>
 
-      {/* Lista + Mapa */}
-      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[440px_1fr]">
+      {/* Lista + Mapa. La columna de la lista crece hasta 520 px: a 440 el
+          renglón «código · alcaldía · tarifa» se partía en dos o tres líneas. */}
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(440px,520px)_1fr]">
         {/* Lista */}
         {/* Plegable (pedido del 20/10). Filtros y selección viven en la página,
             fuera de la tarjeta: plegar la lista no los pierde. */}
@@ -306,7 +434,7 @@ export default function ComercialPage() {
                   onClick={() => bajarInventario('xlsx')}
                   disabled={filtrados.length === 0}
                   title="Descargar estas pantallas en Excel"
-                  className="rounded px-1.5 py-0.5 font-medium text-ink hover:bg-surface-2 disabled:cursor-not-allowed disabled:text-muted"
+                  className="rounded border-0 bg-transparent px-1.5 py-0.5 font-medium text-ink hover:bg-surface-2 disabled:cursor-not-allowed disabled:text-muted"
                 >
                   Excel
                 </button>
@@ -314,14 +442,14 @@ export default function ComercialPage() {
                   onClick={() => bajarInventario('csv')}
                   disabled={filtrados.length === 0}
                   title="Descargar estas pantallas en CSV"
-                  className="rounded px-1.5 py-0.5 font-medium text-ink hover:bg-surface-2 disabled:cursor-not-allowed disabled:text-muted"
+                  className="rounded border-0 bg-transparent px-1.5 py-0.5 font-medium text-ink hover:bg-surface-2 disabled:cursor-not-allowed disabled:text-muted"
                 >
                   CSV
                 </button>
               </span>
           }
         >
-          <ul className="flex-1 overflow-y-auto">
+          <ul className="m-0 flex-1 list-none overflow-y-auto p-0">
             {!sitios ? (
               Array.from({ length: 8 }).map((_, i) => (
                 <li key={i} className="border-b border-border px-3 py-3">
@@ -331,26 +459,25 @@ export default function ComercialPage() {
               ))
             ) : filtrados.length === 0 ? (
               <li className="px-4 py-10 text-center text-[13px] text-muted">
-                Ningún sitio coincide con los filtros.
+                {/* Dice QUÉ filtros estorban, en vez de un «ninguno» a secas. */}
+                Ninguna pantalla cumple:{' '}
+                {[
+                  q && `«${q}»`,
+                  fTipo && `tipo «${TIPO_MEDIO_LABEL[fTipo as keyof typeof TIPO_MEDIO_LABEL] ?? fTipo}»`,
+                  fDistrito && fDistrito,
+                  fDisp && (fDisp === 'OCUPADO' ? 'no disponible' : fDisp.toLowerCase()),
+                  cortePrecio != null && `≤ ${formatMontoCorto(cortePrecio)}`,
+                ]
+                  .filter(Boolean)
+                  .join(' · ') || 'sin pantallas en el inventario'}
+                .{filtrosActivos > 0 && ' Quita un filtro o pulsa Limpiar.'}
               </li>
             ) : (
               filtrados.map((s) => {
-                // Ocupación de una pantalla DIGITAL = por slots: es seleccionable
-                // mientras le queden slots libres (sin importar el flag heredado),
-                // y deja de serlo cuando llega a 0. Las estáticas van por estatus.
-                const esDigital =
-                  s.tipoMedio === 'PANTALLA_DIGITAL' ||
-                  s.esRotativo ||
-                  s.exhibicion === 'digital' ||
-                  s.exhibicion === 'rotativo'
-                const slotsLibres = s.spotsDisponibles ?? s.totalSpots ?? null
-                const disponible = esDigital
-                  ? s.estatusComercial !== 'BLOQUEADO' && (slotsLibres == null || slotsLibres > 0)
-                  : s.estatusComercial === 'DISPONIBLE'
-                // Sin contrato completo no hay derecho que vender, aunque el
-                // inventario diga que está libre (ADR 0003).
-                const bloqueadaPorContrato = sinContrato.has(s.id)
-                const libre = disponible && !bloqueadaPorContrato
+                // La regla de qué se puede vender vive en `disponibilidadFila`
+                // (la misma que cuentan las tarjetas de arriba); sus comentarios
+                // explican el porqué de cada condición.
+                const { esDigital, bloqueadaPorContrato, libre } = disponibilidadFila(s, sinContrato)
                 const sel = seleccion.has(s.id)
                 return (
                   <li
@@ -366,7 +493,7 @@ export default function ComercialPage() {
                         onClick={() => toggleSel(s.id)}
                         className={cn(
                           'flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded border',
-                          sel ? 'border-accent bg-accent text-accent-fg' : 'border-border-strong',
+                          sel ? 'border-accent bg-accent text-accent-fg' : 'border-border-strong bg-surface',
                         )}
                         style={{ height: 18, width: 18 }}
                         aria-label={sel ? 'Quitar de selección' : 'Seleccionar para reservar'}
@@ -376,23 +503,36 @@ export default function ComercialPage() {
                     ) : (
                       <span className="h-[18px] w-[18px] shrink-0" />
                     )}
+                    {/* Fondo, borde y relleno explícitos: con `preflight: false`
+                        el botón pintaba el gris del navegador detrás del texto. */}
                     <button
                       type="button"
                       onClick={() => abrirFicha(s.id)}
-                      className="min-w-0 flex-1 text-left"
+                      className="min-w-0 flex-1 border-0 bg-transparent p-0 text-left"
                     >
                       {/* B2: los nombres largos se cortaban («AUTOPISTA MEX…») y no
                           había forma de leerlos enteros sin abrir la ficha. El
                           `title` los da al pasar el ratón; se deja el truncado
                           porque la tarjeta tiene que caber en la rejilla. */}
-                      <div className="truncate text-[15px] font-medium text-ink" title={s.nombre}>{s.nombre}</div>
-                      <div className="demo-num mt-0.5 text-[12.5px] text-muted">
-                        {s.codigoProveedor} · {ubicacion([s.alcaldia, s.ciudad])} · {formatMonto(tarifaDeSitio(s))}
-                        {esDigital && s.totalSpots == null && s.spotsPorHora != null && (
-                          <> · {formatNumero(s.spotsPorHora)} slots/h</>
-                        )}
+                      {/* Renglón 1: nombre y, a la derecha, la tarifa, que es lo
+                          que más se compara entre pantallas (antes iba al final
+                          del renglón gris). */}
+                      <div className="flex items-baseline justify-between gap-2">
+                        <div className="truncate text-[15px] font-medium text-ink" title={s.nombre}>{s.nombre}</div>
+                        <div className="demo-num shrink-0 text-[13px] font-medium text-ink">{formatMonto(tarifaDeSitio(s))}</div>
                       </div>
-                      <div className="mt-1 inline-flex items-center gap-1.5 truncate text-[12px] text-muted">
+                      {/* Renglón 2: código · alcaldía · propietario. La ciudad va
+                          en el `title`: en una red de una ciudad es redundante. */}
+                      <div
+                        className="mt-0.5 flex min-w-0 items-center gap-1 truncate text-[12px] text-muted"
+                        title={ubicacion([s.alcaldia, s.ciudad])}
+                      >
+                        <span className="demo-num shrink-0">{s.codigoProveedor}</span>
+                        {s.alcaldia && <span className="shrink-0">· {s.alcaldia}</span>}
+                        {esDigital && s.totalSpots == null && s.spotsPorHora != null && (
+                          <span className="demo-num shrink-0">· {formatNumero(s.spotsPorHora)} slots/h</span>
+                        )}
+                        <span className="shrink-0">·</span>
                         <UserRound className="h-3.5 w-3.5 shrink-0" />
                         {/* v0.12.3 · una propia no tiene arrendador, y no es un pendiente. */}
                         <span className="truncate" title={s.propio ? 'Pantalla propia' : (propietarioPorSitio.get(s.id) ?? 'Sin arrendador')}>
@@ -401,7 +541,9 @@ export default function ComercialPage() {
                       </div>
                     </button>
                     {/* Disponibilidad por spots: las digitales muestran X/12 y las
-                        fijas Disponible/No disponible. Sin estado "tentativo". */}
+                        fijas Disponible/No disponible. Sin estado "tentativo".
+                        (Desde el 26/10 el «No disponible» de una fija dice su
+                        motivo, que puede ser «Reservado · tentativo»: ver abajo.) */}
                     {esDigital && s.totalSpots != null && (
                       <SlotsBadge disponibles={s.spotsDisponibles ?? null} total={s.totalSpots} />
                     )}
@@ -442,8 +584,18 @@ export default function ComercialPage() {
                         </StatusBadge>
                       )
                     ) : (
+                      // El motivo del «no», con la etiqueta fina de
+                      // `SITIO_LABEL` (ocupado, bloqueado, en mantenimiento,
+                      // tentativo); mismo tono que antes. En una digital el «no»
+                      // es por slots, salvo que esté bloqueada.
                       <StatusBadge tono={libre ? 'verde' : 'rojo'}>
-                        {libre ? 'Disponible' : 'No disponible'}
+                        {libre
+                          ? 'Disponible'
+                          : esDigital
+                            ? s.estatusComercial === 'BLOQUEADO'
+                              ? SITIO_LABEL.BLOQUEADO
+                              : 'Sin slots libres'
+                            : SITIO_LABEL[s.estatusComercial]}
                       </StatusBadge>
                     )}
                   </li>
@@ -476,10 +628,9 @@ export default function ComercialPage() {
             )}
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-1.5 border-t border-border px-3 py-2 text-[11px] text-muted">
-            <Pin color="#0a66ff" label="Digital" />
-            <Pin color="#10b981" label="Disponible" />
-            <Pin color="#ef4444" label="Ocupado" />
-            <Pin color="#f59e0b" label="Reservado · tentativo" />
+            {LEYENDA_MAPA.map((x) => (
+              <Pin key={x.label} color={x.color} label={x.label} />
+            ))}
           </div>
         </CardColapsable>
       </div>

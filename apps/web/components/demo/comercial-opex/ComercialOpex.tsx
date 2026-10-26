@@ -20,6 +20,8 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/demo/ui/Button'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
+import { KPICard, KPICardSkeleton } from '@/components/demo/KPICard'
+import { formatFecha, formatMonto } from '@/lib/data/client'
 import { Sheet } from '@/components/demo/ui/Sheet'
 import { SelectorUbicacion, type Punto } from './SelectorUbicacion'
 import {
@@ -92,19 +94,20 @@ const inputCls =
   'h-9 w-full rounded border border-border-strong bg-surface px-2.5 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
 const labelCls = 'block text-[11px] font-medium text-muted'
 
-const pesos = (n: number) => '$' + n.toLocaleString('es-MX', { maximumFractionDigits: 2 })
-const fecha = (iso: string) =>
-  new Date(iso.length === 10 ? iso + 'T00:00:00Z' : iso).toLocaleDateString('es-MX', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    timeZone: iso.length === 10 ? 'UTC' : undefined,
-  })
+// Montos y fechas con el formato de toda la aplicación (26/10). Antes eran
+// propios («$1,234» y «12 oct 2026»). `formatFecha` respeta el día de una
+// fecha `YYYY-MM-DD` —la arma con la hora local, sin pasar por UTC—, que es lo
+// que el `timeZone: 'UTC'` de la versión anterior cuidaba; y como estos datos
+// llegan por fetch después de montar, no hay HTML del servidor que desajustar.
+const pesos = formatMonto
+const fecha = formatFecha
 const numeroO = (v: string): number | null => (v.trim() === '' ? null : Number(v))
 
+// Chips de estado con tokens; el ámbar y el verde del texto son los oscuros que
+// ya usan las pastillas del Dashboard (los tokens no se leen a 11 px).
 const COLOR_ESTADO: Record<EstadoEspacio, string> = {
-  negociacion: 'bg-amber-50 text-amber-900 border-amber-200',
-  activo: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+  negociacion: 'bg-warning-soft text-[#9a6700] border-[#f59e0b40]',
+  activo: 'bg-success-soft text-[#0f7a55] border-[#10b98140]',
   inactivo: 'bg-surface-2 text-muted border-border',
 }
 const ETIQUETA_ESTADO: Record<EstadoEspacio, string> = {
@@ -116,7 +119,7 @@ const ETIQUETA_ESTADO: Record<EstadoEspacio, string> = {
 function Estado({ etapa }: { etapa: Etapa }) {
   const e = estadoEspacio(etapa)
   return (
-    <span className={`inline-block shrink-0 rounded border px-1.5 py-0.5 text-[11px] font-medium ${COLOR_ESTADO[e]}`}>
+    <span className={`inline-block shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium ${COLOR_ESTADO[e]}`}>
       {ETIQUETA_ESTADO[e]}
     </span>
   )
@@ -133,9 +136,16 @@ function Etiqueta({ children }: { children: React.ReactNode }) {
 function Antiguedad({ p, hoy }: { p: Prospecto; hoy: Date }) {
   const d = diasSinContacto(p, hoy)
   // Sin bitácora NO se pinta un cero: se dice que no hay contacto.
-  if (d === null) return <span className="text-muted">Sin contacto</span>
+  // Desde el 26/10 es una pastilla a la derecha del nombre, como los días del
+  // Dashboard; en rojo solo la que se enfrió en negociación (Pipedrive «rotting»).
+  const pastilla = 'shrink-0 whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px]'
+  if (d === null) return <span className={`${pastilla} border-border text-muted`}>Sin contacto</span>
   const frio = estadoEspacio(p.etapa) === 'negociacion' && d > 30
-  return <span className={frio ? 'font-semibold text-red-600' : 'text-muted'}>{d === 0 ? 'hoy' : `hace ${d} d`}</span>
+  return (
+    <span className={`${pastilla} ${frio ? 'border-[#ef444440] font-semibold text-error' : 'border-border text-muted'}`}>
+      {d === 0 ? 'hoy' : `hace ${d} d`}
+    </span>
+  )
 }
 
 // Cada bloque se pliega con un clic en su encabezado; el navegador recuerda
@@ -359,7 +369,7 @@ function Ubicacion({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; 
           </Button>
         </form>
       )}
-      {aviso && <p className="m-0 mb-2 text-[12px] text-amber-800">{aviso}</p>}
+      {aviso && <p className="m-0 mb-2 text-[12px] text-[#9a6700]">{aviso}</p>}
       {candidatos && candidatos.length > 0 && (
         <ul className={`${LISTA} mb-2 divide-y divide-border rounded border border-border`}>
           {candidatos.map((c) => (
@@ -520,7 +530,7 @@ function Ofertas({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; pu
                 <tr key={o.id} className="border-t border-border align-top">
                   <td className="py-1.5 text-ink">v{o.version}</td>
                   <td className="py-1.5 text-muted">{fecha(o.fecha)}</td>
-                  <td className="py-1.5 font-medium text-ink">{pesos(o.importeMensual)}/mes</td>
+                  <td className="demo-num py-1.5 font-medium text-ink">{pesos(o.importeMensual)}/mes</td>
                   <td className="py-1.5 text-muted">{o.plazoMeses} meses</td>
                   <td className="py-1.5 text-ink">
                     {puede ? (
@@ -580,7 +590,7 @@ function Competencia({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion
       ) : (
         <ul className={`${LISTA} space-y-2`}>
           {p.competencia.map((c) => (
-            <li key={c.id} className="flex gap-2 rounded border-l-2 border-red-300 bg-surface-2 px-2.5 py-1.5">
+            <li key={c.id} className="flex gap-2 rounded border-l-2 border-error bg-surface-2 px-2.5 py-1.5">
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-baseline justify-between gap-x-2">
                   <span className="text-[13px] font-medium text-ink">{c.nombre}</span>
@@ -592,7 +602,7 @@ function Competencia({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion
                 <button
                   type="button"
                   aria-label={`Quitar a ${c.nombre}`}
-                  className="shrink-0 text-muted hover:text-red-700"
+                  className="shrink-0 border-0 bg-transparent p-0 text-muted hover:text-error"
                   onClick={() => void accion(() => borrarCompetidorApi(p.id, c.id))}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
@@ -814,7 +824,7 @@ function Detalle({ p, hoy, onCambio }: { p: ProspectoDetalle; hoy: Date; onCambi
       </div>
 
       {error && (
-        <p role="alert" className="m-0 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-[13px] text-red-800">
+        <p role="alert" className="m-0 rounded-md border border-border bg-error-soft px-3 py-2 text-[13px] text-error">
           {error}
         </p>
       )}
@@ -831,7 +841,7 @@ function Detalle({ p, hoy, onCambio }: { p: ProspectoDetalle; hoy: Date; onCambi
       </Bloque>
 
       {ultimo && (
-        <div className="rounded-md border border-accent/40 bg-accent-soft px-3 py-2 text-[13px]">
+        <div className="rounded-md border border-accent bg-accent-soft px-3 py-2 text-[13px]">
           <div className="font-medium text-ink">
             Último contacto{ultimo.contactoNombre ? `: ${ultimo.contactoNombre}` : ''}{' '}
             <span className="font-normal text-muted">
@@ -911,7 +921,7 @@ function Alta({ abierto, onCerrar, onCreado }: { abierto: boolean; onCerrar: () 
       }
     >
       {error && (
-        <p role="alert" className="mb-3 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800">
+        <p role="alert" className="mb-3 rounded-md border border-border bg-error-soft px-3 py-2 text-[13px] text-error">
           {error}
         </p>
       )}
@@ -995,47 +1005,169 @@ export function ComercialOpex({ hoyIso }: { hoyIso: string }) {
 
   const r = resumen(espacios ?? [], hoy)
 
+  // Filtros de la lista (rediseño del 26/10). En el navegador, sobre los
+  // espacios ya cargados; no cambian el resumen de arriba ni qué espacio se
+  // detalla (`espacioElegido` sigue mirando la lista completa).
+  const [busqueda, setBusqueda] = useState('')
+  const [filtro, setFiltro] = useState<'' | EstadoEspacio | 'frios'>('')
+  const esFrio = (e: Prospecto) => {
+    const d = diasSinContacto(e, hoy)
+    return estadoEspacio(e.etapa) === 'negociacion' && d !== null && d > 30
+  }
+  const visibles = useMemo(() => {
+    const t = busqueda.trim().toLowerCase()
+    return (espacios ?? []).filter(
+      (e) =>
+        (!filtro || (filtro === 'frios' ? esFrio(e) : estadoEspacio(e.etapa) === filtro)) &&
+        (!t || e.nombre.toLowerCase().includes(t) || (e.direccion ?? '').toLowerCase().includes(t)),
+    )
+  }, [espacios, busqueda, filtro, hoy]) // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
+      {/* Encabezado con el patrón del Dashboard, y «Nuevo espacio» arriba a la
+          derecha como «Nuevo cliente» (antes vivía dentro de la lista). */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl text-ink">Comercial negociación</h1>
+          <p className="mt-1 text-[13px] text-muted">
+            Prospección de arrendadores: los espacios que se están persiguiendo, quién manda en cada
+            uno y cómo va la negociación de su renta.
+          </p>
+        </div>
+        <Button size="sm" variant="success" onClick={() => setAlta(true)}>
+          <Plus className="h-3.5 w-3.5" /> Nuevo espacio
+        </Button>
+      </div>
+
       {error && (
-        <p role="alert" className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800">
+        <p role="alert" className="m-0 rounded-md border border-border bg-error-soft px-3 py-2 text-[13px] text-error">
           {error}
         </p>
       )}
 
-      <CardColapsable id="comercial-opex.resumen" titulo="Resumen">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {(
-            [
-              ['En seguimiento', r.total, 'text-ink'],
-              ['En negociación', r.enNegociacion, 'text-ink'],
-              ['Activos', r.activos, 'text-ink'],
-              ['Sin contacto +30 días', r.enfriados, r.enfriados ? 'text-red-600' : 'text-ink'],
-            ] as const
-          ).map(([etiqueta, valor, cls]) => (
-            <div key={etiqueta} className="rounded-md border border-border bg-surface px-3 py-2">
-              <div className="text-[11px] text-muted">{etiqueta}</div>
-              <div className={`text-2xl font-semibold ${cls}`}>{valor}</div>
-            </div>
-          ))}
-        </div>
-        {total > (espacios?.length ?? 0) && (
-          <p className="m-0 mt-2 text-[11px] text-muted">
-            Se muestran los {espacios?.length} con algo más reciente de {total}.
-          </p>
+      {/* El resumen como `KPICard`, con las mismas cuentas de `resumen()`. */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {espacios === null ? (
+          <>
+            <KPICardSkeleton />
+            <KPICardSkeleton />
+            <KPICardSkeleton />
+            <KPICardSkeleton />
+          </>
+        ) : (
+          <>
+            <KPICard
+              label="En seguimiento"
+              value={String(r.total)}
+              sub={
+                total > espacios.length
+                  ? `se muestran los ${espacios.length} con algo más reciente de ${total}`
+                  : 'predios y pantallas'
+              }
+              icon={<Building2 className="h-4 w-4" />}
+            />
+            <KPICard
+              label="En negociación"
+              value={String(r.enNegociacion)}
+              sub="todavía sin cerrar con el dueño"
+              tono={r.enNegociacion ? 'ambar' : 'neutro'}
+              icon={<Wallet className="h-4 w-4" />}
+            />
+            <KPICard
+              label="Activos"
+              value={String(r.activos)}
+              sub="negociación cerrada"
+              tono={r.activos ? 'verde' : 'neutro'}
+              icon={<ShieldCheck className="h-4 w-4" />}
+            />
+            <KPICard
+              label="Sin contacto +30 días"
+              value={String(r.enfriados)}
+              sub="en negociación y sin bitácora reciente"
+              tono={r.enfriados ? 'rojo' : 'neutro'}
+              icon={<Clock className="h-4 w-4" />}
+            />
+          </>
         )}
-      </CardColapsable>
+      </div>
 
       <div className="grid items-start gap-4 lg:grid-cols-[320px_1fr]">
-        <CardColapsable id="comercial-opex.espacios" titulo="Espacios en seguimiento" headerClassName="px-3 pt-3 pb-2" contentClassName="px-3 pb-3">
-          <div className="mb-2">
-            <Button size="sm" variant="success" className="w-full" onClick={() => setAlta(true)}>
-              <Plus className="mr-1 h-4 w-4" /> Nuevo espacio
-            </Button>
-          </div>
-          {espacios && espacios.length === 0 && <Vacio>Todavía no hay espacios. Da de alta el primero.</Vacio>}
-          <ul className={`${LISTA} space-y-1.5`}>
-            {(espacios ?? []).map((e) => {
+        <CardColapsable
+          id="comercial-opex.espacios"
+          titulo="Espacios en seguimiento"
+          resumen={
+            espacios && (busqueda.trim() || filtro) ? (
+              <span className="text-[12px] text-muted">
+                {visibles.length} de {espacios.length}
+              </span>
+            ) : undefined
+          }
+          headerClassName="px-3 pt-3 pb-2"
+          contentClassName="px-3 pb-3"
+        >
+          {/* Filtros: búsqueda y chips de estado. «Sin contacto +30 d» es el
+              mismo criterio que la tarjeta roja de arriba: así se ve cuáles son. */}
+          {espacios && espacios.length > 0 && (
+            <div className="mb-2 space-y-2">
+              <span className="relative block">
+                <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
+                <input
+                  aria-label="Buscar espacio"
+                  value={busqueda}
+                  onChange={(ev) => setBusqueda(ev.target.value)}
+                  placeholder="Nombre o dirección…"
+                  className={`${inputCls} h-8 pl-7 text-[12px]`}
+                />
+              </span>
+              <div className="flex flex-wrap gap-1" role="group" aria-label="Estado">
+                {(
+                  [
+                    ['', 'Todos', espacios.length],
+                    ['negociacion', 'En negociación', r.enNegociacion],
+                    ['activo', 'Activos', r.activos],
+                    ['inactivo', 'Inactivos', espacios.filter((e) => estadoEspacio(e.etapa) === 'inactivo').length],
+                    ['frios', 'Sin contacto +30 d', r.enfriados],
+                  ] as const
+                ).map(([valor, etiqueta, n]) => (
+                  <button
+                    key={valor || 'todos'}
+                    type="button"
+                    aria-pressed={filtro === valor}
+                    onClick={() => setFiltro(filtro === valor && valor ? '' : valor)}
+                    className={`rounded-full border px-2 py-0.5 text-[11px] transition-colors ${
+                      filtro === valor
+                        ? 'border-accent bg-accent-soft font-medium text-ink'
+                        : 'border-border bg-surface text-muted hover:text-ink'
+                    }`}
+                  >
+                    {etiqueta} <span className="demo-num">{n}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {espacios === null ? (
+            // Mientras carga: renglones en pulso, no una lista vacía que se
+            // confunde con «no hay nada».
+            <ul className={LISTA} aria-hidden>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <li key={i} className="border-b border-border py-2.5 last:border-0">
+                  <div className="h-3 w-40 animate-pulse rounded bg-surface-2" />
+                  <div className="mt-2 h-2.5 w-24 animate-pulse rounded bg-surface-2" />
+                </li>
+              ))}
+            </ul>
+          ) : espacios.length === 0 ? (
+            <Vacio>Todavía no hay espacios. Da de alta el primero con «Nuevo espacio».</Vacio>
+          ) : visibles.length === 0 ? (
+            <Vacio>Ningún espacio coincide. Quita el filtro para ver los {espacios.length}.</Vacio>
+          ) : (
+          // Renglones en un `divide-y` como las listas del Dashboard, no
+          // tarjetas con borde: el nombre a la izquierda y la antigüedad del
+          // último contacto como pastilla a la derecha.
+          <ul className={`${LISTA} divide-y divide-border`}>
+            {visibles.map((e) => {
               const activo = s?.id === e.id
               return (
                 <li key={e.id}>
@@ -1043,29 +1175,32 @@ export function ComercialOpex({ hoyIso }: { hoyIso: string }) {
                     type="button"
                     onClick={() => setElegido(e.id)}
                     aria-current={activo ? 'true' : undefined}
-                    className={`w-full rounded-md border px-3 py-2 text-left transition-colors ${
-                      activo ? 'border-accent bg-accent-soft' : 'border-border bg-surface hover:bg-surface-2'
+                    className={`-mx-1.5 my-0.5 w-[calc(100%+0.75rem)] rounded-md border-0 px-1.5 py-2 text-left transition-colors ${
+                      activo ? 'bg-accent-soft' : 'bg-transparent hover:bg-surface-2'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <span className="text-[13px] font-medium text-ink">{e.nombre}</span>
-                      <Estado etapa={e.etapa} />
+                      <span className="min-w-0 truncate text-[13px] font-medium text-ink" title={e.nombre}>
+                        {e.nombre}
+                      </span>
+                      <Antiguedad p={e} hoy={hoy} />
                     </div>
                     <div className="mt-0.5 truncate text-[11px] text-muted">
                       {[e.tipoEspacio, e.direccion].filter(Boolean).join(' · ') || '—'}
                     </div>
-                    <div className="mt-1 flex items-center justify-between text-[11px]">
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
+                      <Estado etapa={e.etapa} />
                       <span className="text-muted">
                         {e.vendedorNombre ?? '—'}
                         {e.visibilidad ? ` · ${ETIQUETA_VISIBILIDAD[e.visibilidad]}` : ''}
                       </span>
-                      <Antiguedad p={e} hoy={hoy} />
                     </div>
                   </button>
                 </li>
               )
             })}
           </ul>
+          )}
         </CardColapsable>
 
         {/* Un <div> y no <main>: la pantalla ya vive dentro del <main> del shell. */}
@@ -1079,7 +1214,24 @@ export function ComercialOpex({ hoyIso }: { hoyIso: string }) {
                 void cargar()
               }}
             />
-          ) : null}
+          ) : error ? null : espacios === null || s ? (
+            // Cargando la lista o el detalle del elegido. Con error no: el
+            // aviso de arriba ya lo dice y un pulso eterno mentiría.
+            <div className="h-64 animate-pulse rounded-md bg-surface-2" />
+          ) : (
+            // Sin espacios: la columna derecha ya no queda en blanco.
+            <div className="rounded-md border border-border bg-surface p-8 text-center">
+              <p className="m-0 text-[13px] text-muted">
+                Aquí verás el detalle de cada espacio: quién manda, la ficha, las ofertas al dueño y la
+                bitácora. Da de alta el primero para empezar.
+              </p>
+              <div className="mt-3">
+                <Button size="sm" variant="success" onClick={() => setAlta(true)}>
+                  <Plus className="h-3.5 w-3.5" /> Nuevo espacio
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

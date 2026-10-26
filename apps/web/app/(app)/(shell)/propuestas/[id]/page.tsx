@@ -9,15 +9,18 @@ import { AvisoFranjaCMS } from '@/components/demo/rejilla/AvisoFranjaCMS'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { KPICard } from '@/components/demo/KPICard'
+import { EST } from '@/components/demo/propuestas/estatus'
+import { cn } from '@/lib/cn'
 import {
   ArrowLeft,
   Wallet,
   Coins,
-  Receipt,
   MapPin,
   Monitor,
   Square,
   Building2,
+  CheckCircle2,
   Send,
   Check,
   X,
@@ -54,6 +57,7 @@ import {
 import {
   usePropuestas,
   useClientes,
+  useCampanas,
   useSitios,
   useContratos,
   useArrendadores,
@@ -69,17 +73,16 @@ function coordUtil(lat: number, lng: number): boolean {
   return Number.isFinite(lat) && Number.isFinite(lng) && !(lat === 0 && lng === 0)
 }
 
-const EST: Record<EstPropuesta, { label: string; cls: string }> = {
-  BORRADOR: { label: 'Borrador', cls: 'border-border text-muted' },
-  ENVIADA: { label: 'Enviada', cls: 'border-[#0a66ff40] text-info' },
-  APROBADA: { label: 'Aprobada', cls: 'border-[#10b98140] text-[#0f7a55]' },
-  RECHAZADA: { label: 'Rechazada', cls: 'border-[#ef444440] text-error' },
-}
+// La tabla de estatus (etiqueta y tono del chip) vive en
+// `components/demo/propuestas/estatus.ts`, compartida con la lista.
 
 export default function PropuestaDetallePage({ params }: { params: { id: string } }) {
   const id = params.id
   const propuestas = usePropuestas()
   const clientes = useClientes()
+  // Solo para pintar el paso «Campaña generada» de la barra de estado. No
+  // cambia qué botones se ofrecen (eso es el defecto D, decisión del dueño).
+  const campanas = useCampanas()
   const sitios = useSitios()
   const contratos = useContratos()
   const arrendadores = useArrendadores()
@@ -269,6 +272,9 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
     return { monto: con.montoRenta, periodicidad: con.periodicidad ?? '—', propietario: arr?.nombre ?? '—' }
   }
   const rentaTotal = p.items.reduce((s, it) => s + (rentaDe(it.sitioId)?.monto ?? 0), 0)
+  // Cuántas pantallas no tienen renta capturada: las mismas filas que la tabla
+  // de «Sitios y renta» pinta como «Sin contrato de renta».
+  const sinContratoRenta = p.items.filter((it) => rentaDe(it.sitioId) === null).length
 
   // Puntos del mapa: ubicación de cada pantalla de la propuesta.
   // Los sitios sin coordenadas llegan como (0,0) desde sitios-repo (`n(r.lat) ?? 0`),
@@ -312,15 +318,21 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
 
   return (
     <div className="w-full space-y-4">
-      {/* Migas */}
+      {/* Migas. Cuando el rastro es solo «Propuestas», las migas repetían el
+          enlace de volver («← Propuestas · Propuestas › …»): con un solo paso
+          basta el enlace. */}
       <div className="flex flex-wrap items-center gap-2">
         {volver.href && (
           <Link href={volver.href} className="inline-flex items-center gap-1 text-[13px] font-medium text-info hover:underline">
             <ArrowLeft className="h-3.5 w-3.5" /> {volver.label}
           </Link>
         )}
-        <span className="text-muted/50">·</span>
-        <Breadcrumbs items={[...trail, { label: p.nombre }]} />
+        {trail.length > 1 && (
+          <>
+            <span className="text-muted">·</span>
+            <Breadcrumbs items={[...trail, { label: p.nombre }]} />
+          </>
+        )}
       </div>
 
       {/* Encabezado: nombre de la campaña/propuesta + estatus + acciones */}
@@ -339,6 +351,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
             Folio interno: <span className="demo-num font-medium text-ink">{p.folio}</span>
             <span className="ml-1 text-muted">· el cliente accede solo por la liga (token)</span>
           </p>
+          <PasosEstatus estatus={p.estatus} conCampana={!!campanas?.some((c) => c.propuestaId === p.id)} />
         </div>
         <div className="flex flex-wrap gap-2">
           {/* Compartir + PDF (visibles siempre) */}
@@ -389,15 +402,57 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
           esta página y sobrevive a plegar; lo que se esté escribiendo en el
           bloque del código de negociación, no (es estado de ese componente). */}
       <CardColapsable id="propuesta.resumen-economico" titulo="Resumen económico">
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <Kpi icon={<Wallet className="h-4 w-4" />} tono="info" label="Total c/IVA" value={formatMonto(p.total)} />
-            <Kpi icon={<Coins className="h-4 w-4" />} tono="success" label="Neto propuesto" value={formatMonto(p.neto)} />
-            <Kpi icon={<Receipt className="h-4 w-4" />} tono="ambar" label={`IVA ${ivaPct}%`} value={formatMonto(p.iva)} />
-            <Kpi icon={<Building2 className="h-4 w-4" />} tono="neutro" label="Sitios" value={`${p.items.length}`} />
+          {/* KPIs con la `KPICard` del Dashboard (26/10). Mismas cifras que ya
+              estaban en la página: el total y el neto de la propuesta, la renta
+              de referencia que enseñaba «Sitios y renta» en su encabezado, y lo
+              aprobado de «Sobre lo aprobado». El IVA sigue en la escalera.
+              NO hay tarjeta de margen a propósito: la renta es la del contrato
+              en su propia periodicidad, sin prorratear a las fechas de la
+              propuesta, y restarla del neto daría una cifra nueva y engañosa. */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <KPICard
+              label="Total c/IVA"
+              value={formatMonto(p.total)}
+              sub={`lo que paga el cliente · ${conteo(p.items.length, 'sitio')}`}
+              tono="azul"
+              icon={<Wallet className="h-4 w-4" />}
+            />
+            <KPICard
+              label="Neto para el medio"
+              value={formatMonto(p.neto)}
+              sub={comisionPct > 0 ? `después de ${comisionPct}% de comisión de agencia` : 'venta directa, sin comisión'}
+              icon={<Coins className="h-4 w-4" />}
+            />
+            <KPICard
+              label="Renta de referencia"
+              value={sinContratoRenta === p.items.length ? '—' : formatMonto(rentaTotal)}
+              sub={
+                sinContratoRenta === p.items.length
+                  ? 'ninguna pantalla tiene renta capturada'
+                  : `suma de las rentas de contrato${sinContratoRenta ? ` · ${sinContratoRenta} sin contrato` : ''}`
+              }
+              icon={<Building2 className="h-4 w-4" />}
+            />
+            <KPICard
+              label="Aprobado"
+              value={p.itemsAprobados === 0 ? '—' : formatMonto(p.totalAprobado)}
+              sub={
+                p.itemsAprobados === 0
+                  ? `ningún sitio aprobado de ${p.items.length}`
+                  : `total c/IVA · ${p.itemsAprobados} de ${conteo(p.items.length, 'sitio')}`
+              }
+              tono={p.itemsAprobados === 0 ? 'neutro' : 'verde'}
+              icon={<CheckCircle2 className="h-4 w-4" />}
+            />
           </div>
 
           {/* Desglose con descuento comercial + editor */}
+          {/* Desde el 26/10 esta es la ÚNICA escalera de bruto a total de la
+              página: la de «Costo · método del divisor» repetía la cuenta, y
+              además sin el descuento comercial, así que se leían dos versiones
+              distintas de lo mismo. Esta es la completa. */}
           <div className="mt-4 grid gap-4 border-t border-border pt-4 lg:grid-cols-2">
+            <div className="space-y-3">
             <dl className="space-y-1.5 text-[13px]">
               <Fila label="Bruto (tarifa de lista)" valor={formatMonto(p.bruto)} />
               {/* PAQ-01 · EL PAQUETE VA PRIMERO Y NO ES UN DESCUENTO. Se pinta
@@ -406,8 +461,9 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                   arriba sigue mandando, y lo que pasa es que deja de mandar.
                   Sin este renglón la escalera no cuadra en pantalla, y una
                   cuenta que no da se lee como un defecto del sistema.
-                  Va en LOS DOS desgloses de esta página: el de «Resumen
-                  económico» y el de «Costo · método del divisor». */}
+                  Iba en LOS DOS desgloses de esta página hasta el 26/10, cuando
+                  quedó uno solo: el de «Resumen
+                  económico» (ver la nota de «Costo · método del divisor»). */}
               {p.paquete && (
                 <Fila
                   label={`Paquete "${p.paquete.nombre}" — precio del conjunto`}
@@ -443,16 +499,44 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                 />
               )}
               <Fila label="Base con descuento" valor={formatMonto(p.base)} />
-              <Fila label={`Comisión de agencia (${comisionPct}%)`} valor={`− ${formatMonto(p.base - p.neto)}`} />
+              <Fila label={`Comisión de agencia (${comisionPct}%) · divisor ×${p.divisor.toFixed(2)}`} valor={`− ${formatMonto(p.base - p.neto)}`} />
               <Fila label="Neto (para el medio)" valor={formatMonto(p.neto)} />
               <Fila label={`IVA ${ivaPct}%`} valor={formatMonto(p.iva)} />
               <div className="border-t border-border pt-1.5">
                 <Fila label="Total que paga el cliente" valor={formatMonto(p.total)} fuerte />
               </div>
             </dl>
+            {/* «Sobre lo aprobado», que vivía en la tarjeta del método del
+                divisor, como franja secundaria bajo la escalera. Mismas tres
+                cifras; con nada aprobado se dice en vez de pintar tres ceros. */}
+            <div className="rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px]">
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
+                <span className="font-medium text-ink">
+                  Sobre lo aprobado · {p.itemsAprobados}/{conteo(p.items.length, 'sitio')}
+                </span>
+                {p.itemsAprobados === 0 ? (
+                  <span className="text-muted">
+                    Aún no se aprueba ningún sitio{puedeEditar ? ': marca las casillas de la tabla «Sitios y renta»' : ''}.
+                  </span>
+                ) : (
+                  <>
+                    <span className="text-muted">
+                      Bruto <span className="demo-num text-ink">{formatMonto(p.brutoAprobado)}</span>
+                    </span>
+                    <span className="text-muted">
+                      Neto <span className="demo-num text-ink">{formatMonto(p.netoAprobado)}</span>
+                    </span>
+                    <span className="text-muted">
+                      Total <span className="demo-num font-semibold text-ink">{formatMonto(p.totalAprobado)}</span>
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+            </div>
 
             {puedeEditar && (
-              <div className="rounded-md border border-border bg-surface-2/40 p-3">
+              <div className="rounded-md border border-border bg-surface-2 p-3">
                 <div className="text-[12px] font-medium text-ink">Descuento comercial</div>
                 <p className="mt-0.5 text-[11px] text-muted">
                   Rebaja sobre la tarifa de lista (distinta de la comisión de agencia).
@@ -495,7 +579,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                 importe: solo se ELIGE uno del catálogo, y el precio sale de
                 ahí, del servidor y bajo RLS. */}
             {puedeEditar && (
-              <div className="rounded-md border border-border bg-surface-2/40 p-3">
+              <div className="rounded-md border border-border bg-surface-2 p-3">
                 <div className="text-[12px] font-medium text-ink">Paquete cerrado</div>
                 {p.paquete ? (
                   <>
@@ -513,11 +597,11 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                         cuadrar con lo que se cotizó, porque el precio NO baja y
                         eso es sorprendente. Callarlo sería mentir por omisión. */}
                     {p.paquete.avisoComposicion && (
-                      <p className="mt-1 rounded border border-warning/40 bg-warning/10 px-2 py-1 text-[11px] text-ink">
+                      <p className="mt-1 rounded border border-[#f59e0b40] bg-warning-soft px-2 py-1 text-[11px] text-ink">
                         {p.paquete.avisoComposicion}
                       </p>
                     )}
-                    <ul className="mt-1 text-[11px] text-muted">
+                    <ul className="m-0 mt-1 list-none p-0 text-[11px] text-muted">
                       {p.paquete.sitios.map((s) => (
                         <li key={s.sitioId}>
                           {sitios?.find((x) => x.id === s.sitioId)?.nombre ?? s.sitioId}:{' '}
@@ -778,85 +862,15 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
           )}
       </CardColapsable>
 
-      {/* Costo (método del divisor) */}
-      <CardColapsable
-        id="propuesta.costo"
-        titulo="Costo · método del divisor"
-        resumen={
-          <span className="text-[12px] text-muted">
-            Aprobado {p.itemsAprobados}/{conteo(p.items.length, 'sitio')}
-          </span>
-        }
-      >
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {/* Desglose */}
-            <dl className="space-y-2 text-[13px]">
-              <Fila label="Bruto (tarifa de lista)" valor={formatMonto(p.bruto)} />
-              {/* PAQ-01 · EL PAQUETE VA PRIMERO Y NO ES UN DESCUENTO. Se pinta
-                  como «precio del conjunto» y con el importe en positivo, no
-                  como una resta: llamarlo descuento haría creer que el bruto de
-                  arriba sigue mandando, y lo que pasa es que deja de mandar.
-                  Sin este renglón la escalera no cuadra en pantalla, y una
-                  cuenta que no da se lee como un defecto del sistema.
-                  Va en LOS DOS desgloses de esta página: el de «Resumen
-                  económico» y el de «Costo · método del divisor». */}
-              {p.paquete && (
-                <Fila
-                  label={`Paquete "${p.paquete.nombre}" — precio del conjunto`}
-                  valor={formatMonto(p.paquete.precio)}
-                />
-              )}
-              {/* VOL-01 · el renglón aparece SOLO cuando hay volumen, y tiene que
-                  aparecer: sin él la escalera no cuadra en pantalla —bruto menos
-                  descuento comercial no daría la base— y una cuenta que no da se
-                  lee como un defecto del sistema. */}
-              {p.descuentoVolumenMonto > 0 && (
-                <Fila
-                  label={`Descuento por volumen (${Math.round(p.descuentoVolumenPct * 10) / 10}%)`}
-                  valor={`− ${formatMonto(p.descuentoVolumenMonto)}`}
-                  tono="text-error"
-                />
-              )}
-              {/* La comisión se mide desde el bruto YA con el volumen quitado.
-                  Con `p.bruto` a secas, el descuento por volumen se contaría dos
-                  veces en esta columna: una en el renglón de arriba y otra
-                  dentro de éste. (Este bloque tampoco desglosa el descuento
-                  comercial — eso viene de antes y no se toca aquí.) */}
-              {p.codigoDescuentoMonto > 0 && (
-                <Fila
-                  label={`Código ${p.codigoTexto ?? ''} (${p.codigoDescuentoPct}%)${
-                    // COD-03 · el total INTERNO cuenta el cupón aunque esté
-                    // pendiente (es lo que se ofrece); el renglón avisa de que
-                    // el cliente todavía no lo ve.
-                    p.codigoEstado === 'PENDIENTE' ? ' · cupón pendiente de aprobación' : ''
-                  }`}
-                  valor={`− ${formatMonto(p.codigoDescuentoMonto)}`}
-                  tono="text-error"
-                />
-              )}
-              {/* Y la comisión se mide QUITANDO también el código, por el mismo
-                  motivo por el que la Fase 2 cambió `p.bruto` por
-                  `p.brutoConVolumen`: con el bruto a secas, el descuento del
-                  cupón se contaría DOS VECES en esta columna — una en el renglón
-                  de arriba y otra dentro de éste. */}
-              <Fila label={`Comisión de agencia (${comisionPct}%) · divisor ×${p.divisor.toFixed(2)}`} valor={`− ${formatMonto(p.brutoConVolumen - p.codigoDescuentoMonto - p.neto)}`} />
-              <Fila label="Neto (lo que recibe el medio)" valor={formatMonto(p.neto)} />
-              <Fila label={`IVA ${ivaPct}%`} valor={formatMonto(p.iva)} />
-              <div className="mt-1 border-t border-border pt-2">
-                <Fila label="Total que paga el cliente" valor={formatMonto(p.total)} fuerte />
-              </div>
-            </dl>
-            {/* Aprobado */}
-            <div className="rounded-md border border-[#10b98133] bg-[#10b9810d] p-3">
-              <div className="mb-2 text-[12px] font-medium text-ink">Sobre lo aprobado</div>
-              <dl className="space-y-2 text-[13px]">
-                <Fila label="Bruto aprobado" valor={formatMonto(p.brutoAprobado)} />
-                <Fila label="Neto aprobado" valor={formatMonto(p.netoAprobado)} />
-                <Fila label="Total aprobado" valor={formatMonto(p.totalAprobado)} fuerte />
-              </dl>
-            </div>
-          </div>
-      </CardColapsable>
+      {/* «Costo · método del divisor» se retiró el 26/10 (rediseño de módulos):
+          repetía la escalera de bruto a total de «Resumen económico», y su
+          «Sobre lo aprobado» pasó como franja debajo de aquella. Si alguien la
+          resucita, que lea lo que dejaron escrito sus comentarios: la comisión
+          se medía como `p.brutoConVolumen - p.codigoDescuentoMonto - p.neto`
+          porque con `p.bruto` a secas el descuento por volumen (VOL-01) y el
+          del cupón (COD-01) se contaban DOS VECES —una en su renglón y otra
+          dentro de la comisión—, y aun así NO quitaba el descuento comercial,
+          que es por qué no coincidía con la de arriba (`p.base - p.neto`). */}
     </div>
   )
 }
@@ -872,23 +886,42 @@ function Meta({ icon, label, value }: { icon?: React.ReactNode; label: string; v
   )
 }
 
-const KPI_TONO: Record<string, string> = {
-  info: 'bg-[#0a66ff1a] text-info',
-  success: 'bg-[#10b9811a] text-[#0f7a55]',
-  ambar: 'bg-[#f59e0b1a] text-[#9a6700]',
-  neutro: 'bg-surface-2 text-muted',
-}
-function Kpi({ icon, tono, label, value }: { icon: React.ReactNode; tono: string; label: string; value: string }) {
+// Barra de estado tipo «Path» (Salesforce/Pipedrive): en qué paso del ciclo va
+// la propuesta, de un vistazo. Pasos NO clicables a propósito: los cambios de
+// estatus siguen siendo los botones de arriba, con sus permisos y sus
+// confirmaciones. Solo pinta `p.estatus` y si ya existe la campaña.
+function PasosEstatus({ estatus, conCampana }: { estatus: EstPropuesta; conCampana: boolean }) {
+  const cerrada = estatus === 'APROBADA' || estatus === 'RECHAZADA'
+  const pasos: { label: string; hecho: boolean; actual: boolean; tono?: string }[] = [
+    { label: 'Borrador', hecho: estatus !== 'BORRADOR', actual: estatus === 'BORRADOR' },
+    { label: 'Enviada', hecho: cerrada, actual: estatus === 'ENVIADA' },
+    estatus === 'RECHAZADA'
+      ? { label: 'Rechazada', hecho: false, actual: true, tono: 'border-[#ef444440] text-error' }
+      : { label: 'Aprobada', hecho: conCampana, actual: estatus === 'APROBADA' && !conCampana },
+  ]
+  if (estatus === 'APROBADA') pasos.push({ label: 'Campaña generada', hecho: false, actual: conCampana })
   return (
-    <div className="flex items-center gap-3 rounded-md border border-border bg-surface p-3">
-      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md ${KPI_TONO[tono] ?? KPI_TONO.neutro}`}>
-        {icon}
-      </span>
-      <div className="min-w-0">
-        <div className="text-[10px] font-medium uppercase tracking-wide text-muted">{label}</div>
-        <div className="demo-num truncate text-[16px] font-semibold text-ink">{value}</div>
-      </div>
-    </div>
+    <ol className="m-0 mt-2 flex list-none flex-wrap items-center gap-1 p-0 text-[11px]" aria-label="Estado de la propuesta">
+      {pasos.map((x, i) => (
+        <li key={x.label} className="flex items-center gap-1">
+          {i > 0 && <ChevronRight className="h-3 w-3 text-muted" />}
+          <span
+            aria-current={x.actual ? 'step' : undefined}
+            className={cn(
+              'rounded-full border px-2 py-0.5',
+              x.actual
+                ? x.tono ?? 'border-accent bg-accent-soft font-medium text-ink'
+                : x.hecho
+                  ? 'border-border text-ink'
+                  : 'border-border text-muted',
+            )}
+          >
+            {x.hecho && <CheckIcon className="mr-0.5 inline h-3 w-3 text-success" />}
+            {x.label}
+          </span>
+        </li>
+      ))}
+    </ol>
   )
 }
 

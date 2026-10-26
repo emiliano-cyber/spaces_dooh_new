@@ -9,6 +9,9 @@ import { pipelineCliente, type EtapaClientePipeline } from '@/lib/cliente-pipeli
 // continuación, las campañas que salieron de ellas. Qué significa «pipeline»
 // aquí y por qué no es el operativo de Campañas: lib/cliente-pipeline.ts.
 
+// El verde oscuro (#0f7a55) se queda a propósito: `text-success` (#1da850) no
+// llega al contraste mínimo sobre el gris de la columna. Es el mismo verde de
+// los chips de estatus de Propuestas (`components/demo/propuestas/estatus.ts`).
 const TONO: Record<EtapaClientePipeline, string> = {
   BORRADOR: 'text-muted',
   ENVIADA: 'text-info',
@@ -36,7 +39,7 @@ export function PipelineCliente({
         <span className="text-[11px] text-muted">
           Montos con IVA · en pipeline{' '}
           <span className="demo-num font-medium text-ink">{formatMontoCorto(p.valorAbierto)}</span>
-          {' · '}win rate{' '}
+          {' · '}tasa de cierre histórica{' '}
           <span className="demo-num font-medium text-ink">{winPct != null ? `${winPct}%` : '—'}</span>
         </span>
       </div>
@@ -46,7 +49,11 @@ export function PipelineCliente({
           <li key={c.etapa} className="relative rounded-md border border-border bg-surface-2 px-3 py-2">
             <div className="text-[10px] font-medium uppercase tracking-wide text-muted">{c.label}</div>
             <div className={`demo-num text-[18px] font-semibold ${c.n === 0 ? 'text-muted' : TONO[c.etapa]}`}>{c.n}</div>
-            <div className="demo-num text-[11px] text-muted">{formatMontoCorto(c.monto)}</div>
+            {/* Una campaña «Sin presupuesto» suma 0: con campañas en la
+                columna y monto 0, «$0» afirmaría que valen cero. */}
+            <div className="demo-num text-[11px] text-muted" title={c.n > 0 && c.monto === 0 ? 'monto sin capturar' : undefined}>
+              {c.n > 0 && c.monto === 0 ? '—, sin monto' : formatMontoCorto(c.monto)}
+            </div>
             {i < p.columnas.length - 1 && (
               <ChevronRight
                 aria-hidden

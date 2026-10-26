@@ -1,10 +1,11 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarRange, Search, Info } from 'lucide-react'
+import { CalendarRange, Search, Monitor, LayoutGrid, Clock } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { SlotsBadge } from '@/components/demo/SlotsBadge'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
+import { KPICard, KPICardSkeleton } from '@/components/demo/KPICard'
 import { useDisponibilidad, type GranDisponibilidad, type EstadoCelda } from '@/lib/data/client'
 
 // Calendario de disponibilidad futura: responde "¿qué tengo libre en septiembre?".
@@ -14,11 +15,21 @@ import { useDisponibilidad, type GranDisponibilidad, type EstadoCelda } from '@/
 const selectCls =
   'h-9 rounded border border-border-strong bg-surface px-2.5 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
 
+// Código de color ÚNICO del grupo Comercial (rediseño del 26/10, tomado de
+// Broadsign): LIBRE va SIN relleno porque es el fondo de la rejilla —antes iba
+// en verde y el ojo se iba a lo que no importa—, PARCIAL y TENTATIVA en ámbar,
+// OCUPADO en rojo suave. El texto de la celda sigue diciendo el estado: el color
+// nunca carga el significado solo. `CalendarioDisponibilidad` usa el mismo
+// código, para que «verde» no signifique libre aquí y confirmada allá.
 const TONO_CELDA: Record<EstadoCelda, string> = {
-  LIBRE: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  PARCIAL: 'bg-amber-50 text-amber-700 border-amber-200',
-  OCUPADO: 'bg-rose-50 text-rose-700 border-rose-200',
+  LIBRE: 'bg-surface text-muted border-border',
+  PARCIAL: 'bg-warning-soft text-[#9a6700] border-border',
+  OCUPADO: 'bg-error-soft text-error border-border',
 }
+// Solo tentativas: ámbar con borde punteado. Antes llevaba el mismo rosa que
+// «Ocupado» y solo lo distinguía el punteado. El texto ámbar es el oscuro del
+// Dashboard (`text-warning` sobre su tinte no se lee a 11 px).
+const TONO_TENTATIVA = 'bg-warning-soft text-[#9a6700] border-dashed border-warning'
 
 function hoyISO(): string {
   const d = new Date()
@@ -73,81 +84,132 @@ export default function DisponibilidadPage() {
   }, [disp])
 
   return (
-    <div className="w-full space-y-4 p-6">
-      {/* Encabezado */}
-      <div className="flex items-center gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-2 text-ink">
-          <CalendarRange className="h-5 w-5" strokeWidth={1.75} />
-        </span>
-        <div>
-          <h1 className="text-lg font-semibold text-ink">Disponibilidad</h1>
-          <p className="text-[13px] text-muted">
-            Ocupación futura por catorcena o mes. Cruza reservas vigentes (tentativas y
-            confirmadas) contra el inventario para ver qué tienes libre más adelante.
-          </p>
-        </div>
+    // Sin el `p-6` propio: el shell ya pone el margen, y con los dos esta
+    // pantalla quedaba 17 px desalineada del resto y con margen doble en móvil.
+    <div className="w-full space-y-5">
+      {/* Encabezado con el patrón del Dashboard: título y una línea, sin icono. */}
+      <div>
+        <h1 className="text-2xl text-ink">Disponibilidad</h1>
+        <p className="mt-1 text-[13px] text-muted">
+          Ocupación futura por catorcena o mes: cruza las reservas vigentes (tentativas y
+          confirmadas) contra el inventario para ver qué tienes libre más adelante.
+        </p>
       </div>
 
-      {/* Controles */}
-      <div className="flex flex-wrap items-end gap-3">
-        <label className="flex flex-col gap-1 text-[12px] text-muted">
-          Desde
-          <input
-            type="date"
-            value={desde}
-            onChange={(e) => setDesde(e.target.value)}
-            className={selectCls}
-          />
-        </label>
+      {/* Lo que tengo libre en el PRIMER periodo, como tarjetas. Antes era una
+          frase gris y es justo la pregunta de la pantalla. Mismas cifras que
+          `resumenPrimer`: aquí no se recalcula nada. */}
+      {(!disp || resumenPrimer) && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {!resumenPrimer ? (
+            <>
+              <KPICardSkeleton />
+              <KPICardSkeleton />
+              <KPICardSkeleton />
+              <KPICardSkeleton />
+            </>
+          ) : (
+            <>
+              <KPICard
+                label="Estáticas libres"
+                value={`${resumenPrimer.libres} de ${resumenPrimer.estaticas}`}
+                sub={`en ${resumenPrimer.periodo}`}
+                tono={resumenPrimer.libres > 0 ? 'verde' : 'neutro'}
+                icon={<CalendarRange className="h-4 w-4" />}
+              />
+              <KPICard
+                label="Digitales con lugar"
+                value={String(resumenPrimer.digitales)}
+                sub={`no llenas en ${resumenPrimer.periodo}`}
+                tono="azul"
+                icon={<Monitor className="h-4 w-4" />}
+              />
+              <KPICard
+                label="Slots libres"
+                value={resumenPrimer.digitales > 0 ? String(resumenPrimer.slots) : '—'}
+                sub={
+                  resumenPrimer.digitales > 0
+                    ? 'sumando las digitales con lugar'
+                    : 'ninguna digital con lugar en el periodo'
+                }
+                icon={<LayoutGrid className="h-4 w-4" />}
+              />
+              <KPICard
+                label="Estáticas ocupadas o tentativas"
+                value={String(resumenPrimer.estaticas - resumenPrimer.libres)}
+                sub="las tentativas caducan solas a los 7 días y liberan el inventario"
+                tono={resumenPrimer.estaticas - resumenPrimer.libres > 0 ? 'ambar' : 'neutro'}
+                icon={<Clock className="h-4 w-4" />}
+              />
+            </>
+          )}
+        </div>
+      )}
 
-        <div className="flex flex-col gap-1 text-[12px] text-muted">
-          Vista
-          <div className="inline-flex rounded-md border border-border bg-surface p-0.5">
-            {(['catorcena', 'mes'] as GranDisponibilidad[]).map((g) => (
-              <button
-                key={g}
-                type="button"
-                onClick={() => setGran(g)}
-                className={cn(
-                  'rounded px-3 py-1.5 text-[13px] capitalize transition-colors duration-150',
-                  gran === g ? 'bg-surface-2 font-medium text-ink' : 'text-muted hover:text-ink',
-                )}
-              >
-                {g === 'catorcena' ? 'Catorcena' : 'Mes'}
-              </button>
-            ))}
-          </div>
+      {/* Controles en UNA fila: las etiquetas apiladas pasan a aria-label y
+          placeholder. Mismos estados y mismos efectos que antes. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          type="date"
+          aria-label="Desde"
+          title="Desde"
+          value={desde}
+          onChange={(e) => setDesde(e.target.value)}
+          className={selectCls}
+        />
+
+        <div className="inline-flex rounded-md border border-border bg-surface p-0.5" role="group" aria-label="Vista">
+          {(['catorcena', 'mes'] as GranDisponibilidad[]).map((g) => (
+            <button
+              key={g}
+              type="button"
+              onClick={() => setGran(g)}
+              className={cn(
+                // Fondo y borde explícitos: con `preflight: false` el botón
+                // hereda el gris del navegador.
+                'rounded border-0 px-3 py-1.5 text-[13px] capitalize transition-colors duration-150',
+                gran === g ? 'bg-surface-2 font-medium text-ink' : 'bg-transparent text-muted hover:text-ink',
+              )}
+            >
+              {g === 'catorcena' ? 'Catorcena' : 'Mes'}
+            </button>
+          ))}
         </div>
 
-        <label className="flex flex-col gap-1 text-[12px] text-muted">
-          Periodos
-          <select
-            value={nPeriodos}
-            onChange={(e) => setNPeriodos(Number(e.target.value))}
-            className={selectCls}
-          >
-            {[4, 6, 8, 12].map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </label>
+        <select
+          aria-label="Periodos"
+          title="Periodos a mostrar"
+          value={nPeriodos}
+          onChange={(e) => setNPeriodos(Number(e.target.value))}
+          className={selectCls}
+        >
+          {[4, 6, 8, 12].map((v) => (
+            <option key={v} value={v}>
+              {v} periodos
+            </option>
+          ))}
+        </select>
 
-        <label className="flex flex-col gap-1 text-[12px] text-muted">
-          Buscar pantalla
-          <span className="relative">
-            <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
-            <input
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-              placeholder="Nombre o clave…"
-              className={cn(selectCls, 'w-56 pl-7')}
-            />
-          </span>
-        </label>
+        <span className="relative">
+          <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
+          <input
+            aria-label="Buscar pantalla"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Buscar pantalla: nombre o clave…"
+            className={cn(selectCls, 'w-64 pl-7')}
+          />
+        </span>
 
-        <label className="flex items-center gap-2 pb-1.5 text-[13px] text-ink">
+        {/* Con aspecto de chip, pero sigue siendo la misma casilla. */}
+        <label
+          className={cn(
+            'flex h-9 cursor-pointer items-center gap-2 rounded-full border px-3 text-[13px] transition-colors',
+            soloDisponibles
+              ? 'border-accent bg-accent-soft text-ink'
+              : 'border-border bg-surface text-muted hover:text-ink',
+          )}
+        >
           <input
             type="checkbox"
             checked={soloDisponibles}
@@ -158,27 +220,14 @@ export default function DisponibilidadPage() {
         </label>
       </div>
 
-      {/* Resumen */}
-      {resumenPrimer && (
-        <p className="text-[13px] text-muted">
-          En <span className="font-medium text-ink">{resumenPrimer.periodo}</span>:{' '}
-          <span className="font-medium text-ink">{resumenPrimer.libres}</span> de{' '}
-          {resumenPrimer.estaticas} estáticas libres
-          {resumenPrimer.digitales > 0 && (
-            <>
-              {' '}y <span className="font-medium text-ink">{resumenPrimer.digitales}</span>{' '}
-              {resumenPrimer.digitales === 1 ? 'pantalla digital' : 'pantallas digitales'} con
-              lugar, <span className="font-medium text-ink">{resumenPrimer.slots}</span>{' '}
-              {resumenPrimer.slots === 1 ? 'slot libre' : 'slots libres'}
-            </>
-          )}
-          .
-        </p>
-      )}
-
       {/* Rejilla — plegable (pedido del 20/10). Los controles de arriba y la
           búsqueda viven en la página, fuera de la tarjeta: plegar no los pierde. */}
-      <CardColapsable id="disponibilidad.calendario" titulo="Calendario por pantalla" contentClassName="px-0 pb-0">
+      <CardColapsable
+        id="disponibilidad.calendario"
+        titulo="Calendario por pantalla"
+        subtitulo="Cada celda dice su estado; pasa el cursor para ver qué campaña la ocupa."
+        contentClassName="px-0 pb-0"
+      >
       {!disp ? (
         <div className="border-t border-border p-8 text-center text-[13px] text-muted">
           Cargando disponibilidad…
@@ -220,6 +269,11 @@ export default function DisponibilidadPage() {
                       ) : f.digital ? (
                         <span className="rounded bg-surface-2 px-1 text-[10px] text-muted">digital</span>
                       ) : null}
+                      {/* Cuánto del horizonte visible está libre (patrón LMX),
+                          contado de las celdas ya cargadas. */}
+                      <span className="demo-num rounded-full border border-border px-2 py-0.5 text-[11px] text-muted">
+                        {f.celdas.filter((c) => c.estado === 'LIBRE').length} de {f.celdas.length} libres
+                      </span>
                     </div>
                   </td>
                   {f.celdas.map((c, i) => {
@@ -245,8 +299,7 @@ export default function DisponibilidadPage() {
                           title={titulo}
                           className={cn(
                             'mx-auto flex h-8 min-w-[64px] items-center justify-center rounded border px-1 text-[11px] font-medium',
-                            TONO_CELDA[c.estado],
-                            soloTentativa && 'border-dashed',
+                            soloTentativa ? TONO_TENTATIVA : TONO_CELDA[c.estado],
                           )}
                         >
                           {f.digital && c.spotsLibres != null
@@ -254,12 +307,12 @@ export default function DisponibilidadPage() {
                               ? `${c.spotsLibres} ${c.spotsLibres === 1 ? 'libre' : 'libres'}`
                               : 'Lleno'
                             : c.estado === 'LIBRE'
-                            ? '·'
+                            ? 'Libre'
                             : f.digital
                               ? `${c.spotsUsados} usados`
                               : soloTentativa
-                                ? 'Tent.'
-                                : 'Ocup.'}
+                                ? 'Tentativa'
+                                : 'Ocupada'}
                         </div>
                       </td>
                     )
@@ -272,25 +325,21 @@ export default function DisponibilidadPage() {
       )}
       </CardColapsable>
 
-      {/* Leyenda */}
-      <div className="flex flex-wrap items-center gap-4 text-[12px] text-muted">
+      {/* Leyenda: los mismos cuatro estados que pinta la rejilla. La nota de
+          caducidad de las tentativas vive ahora en su tarjeta de arriba. */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-muted">
         <span className="flex items-center gap-1.5">
           <span className={cn('inline-block h-3 w-4 rounded border', TONO_CELDA.LIBRE)} /> Libre
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className={cn('inline-block h-3 w-4 rounded border', TONO_TENTATIVA)} /> Tentativa
         </span>
         <span className="flex items-center gap-1.5">
           <span className={cn('inline-block h-3 w-4 rounded border', TONO_CELDA.PARCIAL)} /> Parcial
           (digital: el número son los slots que quedan libres)
         </span>
         <span className="flex items-center gap-1.5">
-          <span className={cn('inline-block h-3 w-4 rounded border', TONO_CELDA.OCUPADO)} /> Ocupado
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="inline-block h-3 w-4 rounded border border-dashed border-rose-300" />{' '}
-          Borde punteado = solo tentativa
-        </span>
-        <span className="flex items-center gap-1.5">
-          <Info className="h-3.5 w-3.5" /> Las reservas tentativas caducan solas a los 7 días y
-          liberan el inventario.
+          <span className={cn('inline-block h-3 w-4 rounded border', TONO_CELDA.OCUPADO)} /> Ocupada
         </span>
       </div>
     </div>

@@ -7,6 +7,7 @@ import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Sheet } from '@/components/demo/ui/Sheet'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { formatNumero } from '@/lib/formato-numero'
+import { formatFecha } from '@/lib/data/client'
 import {
   ETAPAS,
   ETAPAS_DE_TRABAJO,
@@ -45,22 +46,26 @@ import {
 
 const inputCls =
   'h-9 w-full rounded border border-border-strong bg-surface px-2.5 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
-const labelCls = 'block text-xs font-medium text-ink-muted'
+const labelCls = 'block text-xs font-medium text-muted'
 
+// Cuatro tonos y no siete paletas (rediseño del 26/10): en trabajo (azul),
+// en revisión (ámbar), aprobado (verde), rechazado (rojo) o perdido (gris). El
+// nombre de la etapa va escrito en el chip; el color solo agrupa. Ámbar y
+// verde del texto son los oscuros de las pastillas del Dashboard.
 const COLOR_ETAPA: Record<Etapa, string> = {
-  PROSPECTO: 'bg-neutral-100 text-neutral-700',
-  CONTACTADO: 'bg-sky-50 text-sky-800',
-  VISITA: 'bg-indigo-50 text-indigo-800',
-  NEGOCIACION: 'bg-violet-50 text-violet-800',
-  EN_REVISION: 'bg-amber-50 text-amber-900',
-  APROBADO: 'bg-emerald-50 text-emerald-800',
-  RECHAZADO: 'bg-red-50 text-red-800',
-  PERDIDO: 'bg-neutral-100 text-neutral-500',
+  PROSPECTO: 'bg-surface-2 text-info border-border',
+  CONTACTADO: 'bg-accent-soft text-info border-border',
+  VISITA: 'bg-accent-soft text-info border-border',
+  NEGOCIACION: 'bg-accent-soft text-info border-border',
+  EN_REVISION: 'bg-warning-soft text-[#9a6700] border-[#f59e0b40]',
+  APROBADO: 'bg-success-soft text-[#0f7a55] border-[#10b98140]',
+  RECHAZADO: 'bg-error-soft text-error border-[#ef444440]',
+  PERDIDO: 'bg-surface-2 text-muted border-border',
 }
 
 function Etiqueta({ etapa }: { etapa: Etapa }) {
   return (
-    <span className={`inline-block rounded px-1.5 py-0.5 text-[11px] font-medium ${COLOR_ETAPA[etapa]}`}>
+    <span className={`inline-block whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-medium ${COLOR_ETAPA[etapa]}`}>
       {ETIQUETA_ETAPA[etapa]}
     </span>
   )
@@ -172,14 +177,14 @@ function FormularioProspecto({
               disabled={editando}
               onClick={() => set({ tipo: t, datos: {} })}
               className={`rounded border px-3 py-1.5 text-sm ${
-                valor.tipo === t ? 'border-accent bg-accent-soft text-ink' : 'border-border-strong text-ink-muted'
+                valor.tipo === t ? 'border-accent bg-accent-soft text-ink' : 'border-border-strong text-muted'
               } disabled:opacity-60`}
             >
               {ETIQUETA_TIPO[t]}
             </button>
           ))}
         </div>
-        {editando && <p className="mt-1 text-[11px] text-ink-muted">El tipo no se cambia: decide qué registro se crea al aprobar.</p>}
+        {editando && <p className="mt-1 text-[11px] text-muted">El tipo no se cambia: decide qué registro se crea al aprobar.</p>}
       </Campo>
 
       <Campo label="Nombre" obligatorio falta={falta('nombre')}>
@@ -336,7 +341,7 @@ function Detalle({
   return (
     <div className="space-y-5">
       {error && (
-        <p role="alert" className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800">
+        <p role="alert" className="rounded-md border border-border bg-error-soft px-3 py-2 text-[13px] text-error">
           {error}
         </p>
       )}
@@ -353,19 +358,19 @@ function Detalle({
         ))}
         {p.siguientePaso && (
           <div className="col-span-2"><span className={labelCls}>Siguiente paso</span>
-            {p.siguientePaso}{p.siguientePasoFecha ? ` · para el ${p.siguientePasoFecha}` : ''}
+            {p.siguientePaso}{p.siguientePasoFecha ? ` · para el ${formatFecha(p.siguientePasoFecha)}` : ''}
           </div>
         )}
         {typeof d.notas === 'string' && d.notas && (
           <div className="col-span-2 whitespace-pre-wrap"><span className={labelCls}>Notas</span>{d.notas}</div>
         )}
         {p.etapa === 'RECHAZADO' && p.motivoRechazo && (
-          <div className="col-span-2 rounded border border-red-200 bg-red-50 px-2 py-1.5 text-red-800">
+          <div className="col-span-2 rounded border border-border bg-error-soft px-2 py-1.5 text-error">
             <b>Rechazado{p.decididoPorNombre ? ` por ${p.decididoPorNombre}` : ''}:</b> {p.motivoRechazo}
           </div>
         )}
         {p.etapa === 'APROBADO' && (
-          <div className="col-span-2 rounded border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-emerald-900">
+          <div className="col-span-2 rounded border border-border bg-success-soft px-2 py-1.5 text-[#0f7a55]">
             <b>Aprobado{p.decididoPorNombre ? ` por ${p.decididoPorNombre}` : ''}.</b>{' '}
             {p.tipo === 'PANTALLA'
               ? 'Falta darla de alta en Inventario con sus medidas y tarifas.'
@@ -379,9 +384,9 @@ function Detalle({
       )}
 
       {puedeAprobar && p.etapa === 'EN_REVISION' && (
-        <section className="space-y-2 rounded-md border border-amber-300 bg-amber-50 p-3">
-          <h3 className="text-sm font-semibold text-amber-950">Revisión</h3>
-          <p className="text-xs text-amber-900">
+        <section className="space-y-2 rounded-md border border-[#f59e0b40] bg-warning-soft p-3">
+          <h3 className="text-sm font-semibold text-ink">Revisión</h3>
+          <p className="text-xs text-[#9a6700]">
             Al aprobar se da de alta{' '}
             {p.tipo === 'PREDIO' ? 'el predio (y su arrendador, si es nuevo)' : p.tipo === 'PANTALLA' ? 'nada todavía: la pantalla se completa en Inventario' : `el ${ETIQUETA_TIPO[p.tipo].toLowerCase()}`}.
           </p>
@@ -430,7 +435,7 @@ function Detalle({
             </div>
           )}
           {etapa === 'EN_REVISION' && p.etapa !== 'EN_REVISION' && faltan.length > 0 && (
-            <p className="text-xs text-amber-800">Para enviarlo a revisión falta: {faltan.join(', ')}.</p>
+            <p className="text-xs text-[#9a6700]">Para enviarlo a revisión falta: {faltan.join(', ')}.</p>
           )}
           <Button size="sm" onClick={avanzar}>Guardar avance</Button>
         </section>
@@ -438,11 +443,11 @@ function Detalle({
 
       <section>
         <h3 className="mb-2 text-sm font-semibold">Bitácora</h3>
-        <ol className="space-y-3 border-l border-border pl-4">
+        <ol className="m-0 list-none space-y-3 border-l border-border py-0 pl-4 pr-0">
           {[...p.avances].reverse().map((a) => (
             <li key={a.id} className="relative">
               <span className="absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full bg-accent" />
-              <div className="flex flex-wrap items-center gap-2 text-xs text-ink-muted">
+              <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
                 <span>{fechaHora(a.creadoEn)}</span>
                 <span>· {a.usuarioNombre ?? 'Usuario eliminado'}</span>
                 {a.etapaAnterior && a.etapaAnterior !== a.etapaNueva ? (
@@ -533,15 +538,18 @@ export function Captacion() {
   return (
     <div className="space-y-4">
       {error && (
-        <p role="alert" className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p>
+        <p role="alert" className="rounded-md border border-border bg-error-soft px-3 py-2 text-[13px] text-error">{error}</p>
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-1" role="tablist">
+        {/* Pestañas como chips (26/10). Fondo y borde explícitos: con
+            `preflight: false` el botón inactivo salía con el gris del
+            navegador. */}
+        <div className="flex flex-wrap gap-1.5" role="tablist">
           {VISTAS.map((v) => (
             <button key={v.clave} role="tab" aria-selected={vista === v.clave} type="button" onClick={() => { setVista(v.clave); setNumPagina(1) }}
-              className={`rounded px-3 py-1.5 text-sm ${vista === v.clave ? 'bg-accent-soft font-medium text-ink' : 'text-ink-muted hover:bg-surface-2'}`}>
-              {v.label} <span className="text-xs text-ink-muted">({cuenta(v.clave)})</span>
+              className={`rounded-full border px-3 py-1 text-[12px] transition-colors ${vista === v.clave ? 'border-accent bg-accent-soft font-medium text-ink' : 'border-border bg-transparent text-muted hover:text-ink'}`}>
+              {v.label} <span className="demo-num text-muted">{cuenta(v.clave)}</span>
             </button>
           ))}
         </div>
@@ -550,60 +558,88 @@ export function Captacion() {
             <option value="">Todos los tipos</option>
             {TIPOS_PROSPECTO.map((t) => <option key={t} value={t}>{ETIQUETA_TIPO[t]}</option>)}
           </select>
-          <Button variant="success" onClick={() => abrirForm({ valor: formVacio() })}>
+          <Button variant="success" className="whitespace-nowrap" onClick={() => abrirForm({ valor: formVacio() })}>
             <Plus className="mr-1 h-4 w-4" /> Nuevo prospecto
           </Button>
         </div>
       </div>
 
       {vista === 'revision' && pagina && !pagina.puedeAprobar && (
-        <p className="text-xs text-ink-muted">Estos esperan a que un gerente, director o administrador los revise.</p>
+        <p className="text-xs text-muted">Estos esperan a que un gerente, director o administrador los revise.</p>
       )}
 
       {/* Plegable (pedido del 20/10). Solo la tabla: las pestañas, el filtro
           por tipo, «Nuevo prospecto» y la página viven en ESTE componente,
           fuera de la tarjeta, así que plegar y desplegar no los pierde. */}
-      <CardColapsable id="captacion.prospectos" titulo="Prospectos">
+      {/* Tabla con el estilo de Clientes desde el 26/10: cabecera pequeña en
+          mayúsculas, celdas con `px-4` y bordes del token. */}
+      <CardColapsable id="captacion.prospectos" titulo="Prospectos" contentClassName="px-0 pb-0">
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-[13px]">
           <thead>
-            <tr className="border-b text-left text-xs text-ink-muted">
-              <th className="py-2">Nombre</th>
-              <th>Tipo</th>
-              <th>Etapa</th>
-              <th>Siguiente paso</th>
-              {pagina?.puedeAprobar && <th>Vendedor</th>}
-              <th>Actualizado</th>
+            <tr className="border-b border-border text-left text-[11px] uppercase tracking-wide text-muted">
+              <th className="px-4 py-2.5 font-medium">Nombre</th>
+              <th className="px-4 py-2.5 font-medium">Tipo</th>
+              <th className="px-4 py-2.5 font-medium">Etapa</th>
+              <th className="px-4 py-2.5 font-medium">Siguiente paso</th>
+              {pagina?.puedeAprobar && <th className="px-4 py-2.5 font-medium">Vendedor</th>}
+              <th className="px-4 py-2.5 font-medium">Actualizado</th>
             </tr>
           </thead>
           <tbody>
+            {!pagina && !error && (
+              // Mientras carga: renglones en pulso, no una tabla vacía muda.
+              Array.from({ length: 5 }).map((_, i) => (
+                <tr key={i} className="border-b border-border last:border-0">
+                  <td colSpan={6} className="px-4 py-3">
+                    <div className="h-3 w-48 animate-pulse rounded bg-surface-2" />
+                  </td>
+                </tr>
+              ))
+            )}
             {pagina && visibles.length === 0 && (
-              <tr><td colSpan={6} className="py-6 text-center text-ink-muted">
-                {vista === 'curso' ? 'No hay prospectos en curso. Da de alta el primero con «Nuevo prospecto».' : 'Nada por aquí.'}
+              <tr><td colSpan={6} className="px-4 py-8 text-center text-muted">
+                {vista === 'curso'
+                  ? 'No hay prospectos en curso. Da de alta el primero con «Nuevo prospecto».'
+                  : vista === 'revision'
+                    ? 'Nada espera aprobación.'
+                    : vista === 'cerrados'
+                      ? 'Aún no hay prospectos cerrados.'
+                      : 'Aún no hay prospectos.'}
               </td></tr>
             )}
             {visibles.map((p) => {
               const vencido = p.siguientePasoFecha && p.siguientePasoFecha < hoy && !etapaCerrada(p.etapa)
+              // Días de retraso, contados entre dos fechas YYYY-MM-DD (sin hora:
+              // no se mueven por zona horaria).
+              const diasVencido = vencido
+                ? Math.round((Date.parse(hoy) - Date.parse(p.siguientePasoFecha!)) / 86_400_000)
+                : 0
               return (
-                <tr key={p.id} className="cursor-pointer border-b hover:bg-surface-2" onClick={() => void abrir(p.id)}>
-                  <td className="py-2 font-medium text-ink">{p.nombre}</td>
-                  <td>{ETIQUETA_TIPO[p.tipo]}</td>
-                  <td><Etiqueta etapa={p.etapa} /></td>
-                  <td className={vencido ? 'text-red-700' : undefined}>
+                <tr key={p.id} className="cursor-pointer border-b border-border last:border-0 hover:bg-surface-2" onClick={() => void abrir(p.id)}>
+                  <td className="px-4 py-2.5 font-medium text-ink">{p.nombre}</td>
+                  <td className="px-4 py-2.5 text-muted">{ETIQUETA_TIPO[p.tipo]}</td>
+                  <td className="px-4 py-2.5"><Etiqueta etapa={p.etapa} /></td>
+                  <td className="px-4 py-2.5 text-ink">
                     {p.siguientePaso ?? '—'}
                     {p.siguientePasoFecha && (
-                      <span className="ml-1 inline-flex items-center gap-0.5 text-xs"><Clock className="h-3 w-3" />{p.siguientePasoFecha}</span>
+                      <span className="demo-num ml-1.5 inline-flex items-center gap-0.5 text-[12px] text-muted"><Clock className="h-3 w-3" />{formatFecha(p.siguientePasoFecha)}</span>
+                    )}
+                    {vencido && (
+                      <span className="ml-1.5 whitespace-nowrap rounded-full border border-[#ef444440] px-2 py-0.5 text-[11px] font-medium text-error">
+                        {diasVencido > 0 ? `vencido hace ${diasVencido} d` : 'vencido'}
+                      </span>
                     )}
                   </td>
-                  {pagina?.puedeAprobar && <td>{p.vendedorNombre ?? '—'}</td>}
-                  <td className="text-xs text-ink-muted">{fechaHora(p.actualizadoEn)}</td>
+                  {pagina?.puedeAprobar && <td className="px-4 py-2.5 text-muted">{p.vendedorNombre ?? '—'}</td>}
+                  <td className="demo-num px-4 py-2.5 text-[12px] text-muted">{fechaHora(p.actualizadoEn)}</td>
                 </tr>
               )
             })}
           </tbody>
         </table>
         {paginas > 1 && (
-          <div className="mt-2 flex items-center justify-end gap-2 text-xs text-ink-muted">
+          <div className="flex items-center justify-end gap-2 border-t border-border px-4 py-2 text-[12px] text-muted">
             <Button size="sm" variant="secondary" disabled={numPagina <= 1} onClick={() => setNumPagina(numPagina - 1)}>Anterior</Button>
             <span>Página {numPagina} de {paginas} · {formatNumero(pagina!.total)} prospectos</span>
             <Button size="sm" variant="secondary" disabled={numPagina >= paginas} onClick={() => setNumPagina(numPagina + 1)}>Siguiente</Button>
@@ -625,7 +661,7 @@ export function Captacion() {
         }
       >
         {errorForm && (
-          <p role="alert" className="mb-3 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800">{errorForm}</p>
+          <p role="alert" className="mb-3 rounded-md border border-border bg-error-soft px-3 py-2 text-[13px] text-error">{errorForm}</p>
         )}
         {form && (
           <FormularioProspecto valor={form.valor} editando={!!form.id} falta={ob.falta} onChange={(valor) => setForm({ ...form, valor })} />

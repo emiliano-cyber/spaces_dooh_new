@@ -1,7 +1,10 @@
 'use client'
 
-import { useState } from 'react'
-import { Plus, Pencil, Trash2, Building2, Handshake, ShieldCheck, ShieldAlert } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Plus, Pencil, Trash2, Building2, Handshake, ShieldCheck, ShieldAlert, Search } from 'lucide-react'
+import { cn } from '@/lib/cn'
+import { pipelineCliente } from '@/lib/cliente-pipeline'
+import { useCampanasResumen, usePropuestas, formatMontoCorto } from '@/lib/data/client'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
@@ -45,6 +48,47 @@ export default function ClientesPage() {
   const [nuevoOpen, setNuevoOpen] = useState(false)
   // Ficha con el pipeline y las campañas del cliente (20/10).
   const [ver, setVer] = useState<Cliente | null>(null)
+  // Filtros de la lista (26/10): en el navegador, sobre la lista ya cargada.
+  const [busqueda, setBusqueda] = useState('')
+  const [filtroTipo, setFiltroTipo] = useState<'' | (typeof TIPOS)[number]>('')
+
+  // Lo comercial de cada cliente, a la vista (patrón HubSpot/Attio): cuánto
+  // tiene en pipeline y cuántas campañas en curso. Las MISMAS cuentas que la
+  // ficha (`pipelineCliente`, con los mismos hooks de `FichaCliente`); aquí
+  // solo se enseñan en la fila. Sin endpoint nuevo.
+  const propuestas = usePropuestas()
+  const resumenCampanas = useCampanasResumen()
+  const comercialPorCliente = useMemo(() => {
+    if (!clientes || !propuestas || !resumenCampanas) return null
+    const campanas = resumenCampanas.map((r) => r.campana)
+    return new Map(
+      clientes.map((c) => {
+        const p = pipelineCliente(c.id, propuestas, campanas)
+        const col = (e: string) => p.columnas.find((x) => x.etapa === e)
+        return [
+          c.id,
+          {
+            valorAbierto: p.valorAbierto,
+            nAbiertas: (col('BORRADOR')?.n ?? 0) + (col('ENVIADA')?.n ?? 0),
+            enCurso: col('EN_CURSO')?.n ?? 0,
+          },
+        ] as const
+      }),
+    )
+  }, [clientes, propuestas, resumenCampanas])
+
+  const filtrados = useMemo(() => {
+    const t = busqueda.trim().toLowerCase()
+    return (clientes ?? []).filter(
+      (c) =>
+        (!filtroTipo || c.tipo === filtroTipo) &&
+        (!t ||
+          c.nombre.toLowerCase().includes(t) ||
+          (c.rfc ?? '').toLowerCase().includes(t) ||
+          (c.razonSocial ?? '').toLowerCase().includes(t)),
+    )
+  }, [clientes, busqueda, filtroTipo])
+  const hayFiltro = !!busqueda.trim() || !!filtroTipo
 
   return (
     <div className="w-full space-y-4">
@@ -63,14 +107,44 @@ export default function ClientesPage() {
       {!clientes ? (
         <div className="h-40 animate-pulse rounded-md bg-surface-2" />
       ) : clientes.length === 0 ? (
-        <p className="py-10 text-center text-[13px] text-muted">Aún no hay clientes.</p>
+        <p className="py-10 text-center text-[13px] text-muted">
+          Aún no hay clientes.{puedeEditar ? ' Da de alta el primero con «Nuevo cliente».' : ''}
+        </p>
       ) : (
         <CardColapsable
           id="clientes.lista"
           titulo="Lista de clientes"
-          resumen={<span className="text-[12px] text-muted">{clientes.length} {clientes.length === 1 ? 'cliente' : 'clientes'}</span>}
+          resumen={
+            <span className="text-[12px] text-muted">
+              {hayFiltro ? `${filtrados.length} de ${clientes.length}` : clientes.length}{' '}
+              {clientes.length === 1 ? 'cliente' : 'clientes'}
+            </span>
+          }
           contentClassName="px-0 pb-0"
         >
+            {/* Una fila de filtros: búsqueda y tipo. */}
+            <div className="flex flex-wrap items-center gap-2 border-t border-border px-4 py-2.5">
+              <span className="relative min-w-[200px] flex-1 sm:max-w-xs">
+                <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
+                <input
+                  aria-label="Buscar cliente"
+                  value={busqueda}
+                  onChange={(e) => setBusqueda(e.target.value)}
+                  placeholder="Nombre, RFC o razón social…"
+                  className="h-8 w-full rounded border border-border-strong bg-surface pl-7 pr-2.5 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                />
+              </span>
+              <select
+                aria-label="Tipo de cliente"
+                value={filtroTipo}
+                onChange={(e) => setFiltroTipo(e.target.value as typeof filtroTipo)}
+                className="h-8 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                <option value="">Directos y agencias</option>
+                <option value="DIRECTO">Solo directos</option>
+                <option value="AGENCIA">Solo agencias</option>
+              </select>
+            </div>
             {/* `overflow-x-auto` es el patrón de TODAS las demás tablas de la
                 aplicación (arrendadores, almacén, campañas, finanzas…): sin él,
                 una tabla de seis columnas en una pantalla estrecha no cabe, se
@@ -85,27 +159,93 @@ export default function ClientesPage() {
                   <th className="px-4 py-2.5">RFC</th>
                   <th className="px-4 py-2.5">Razón social</th>
                   <th className="px-4 py-2.5">Tipo</th>
+                  <th className="px-4 py-2.5 text-right">En pipeline</th>
+                  <th className="px-4 py-2.5 text-right">Campañas en curso</th>
                   <th className="px-4 py-2.5">Contacto</th>
                   {(puedeEditar || puedeBorrar) && <th className="px-4 py-2.5" />}
                 </tr>
               </thead>
               <tbody>
-                {clientes.map((c) => (
+                {filtrados.length === 0 && (
+                  <tr>
+                    <td colSpan={8} className="px-4 py-8 text-center text-[13px] text-muted">
+                      Ningún cliente coincide
+                      {busqueda.trim() ? ` con «${busqueda.trim()}»` : ''}
+                      {filtroTipo ? (filtroTipo === 'AGENCIA' ? ' entre las agencias' : ' entre los directos') : ''}. Quita el filtro para
+                      ver los {clientes.length}.
+                    </td>
+                  </tr>
+                )}
+                {filtrados.map((c) => {
+                  const com = comercialPorCliente?.get(c.id)
+                  return (
                   <tr key={c.id} className="border-b border-border last:border-0">
                     <td className="px-4 py-2.5">
+                      {/* Fondo, borde y relleno explícitos: con `preflight:
+                          false` el nombre salía sobre el gris del botón del
+                          navegador y no parecía un enlace (y es la única
+                          puerta a la ficha). */}
                       <button
                         type="button"
                         onClick={() => setVer(c)}
                         title="Ver pipeline y campañas"
-                        className="text-left text-ink hover:text-accent hover:underline"
+                        className="border-0 bg-transparent p-0 text-left font-medium text-ink hover:text-accent hover:underline"
                       >
                         {c.nombre}
                       </button>
                     </td>
                     <td className="demo-num px-4 py-2.5 text-muted">{c.rfc || '—'}</td>
                     <td className="px-4 py-2.5 text-muted">{c.razonSocial || '—'}</td>
-                    <td className="px-4 py-2.5 text-muted">{c.tipo === 'AGENCIA' ? 'Agencia' : 'Directo'}</td>
-                    <td className="px-4 py-2.5 text-muted">{c.contacto?.email || '—'}</td>
+                    <td className="px-4 py-2.5 text-muted">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {c.tipo === 'AGENCIA' ? 'Agencia' : 'Directo'}
+                        {/* Una agencia con negociación SIN validar no deja crear
+                            ni aprobar propuestas: se dice en la lista, no solo
+                            dentro del formulario. */}
+                        {c.tipo === 'AGENCIA' && c.tieneNegociacion && (
+                          <span
+                            className={cn(
+                              'whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px]',
+                              c.negociacionValidada
+                                ? 'border-[#10b98140] text-[#0f7a55]'
+                                : 'border-[#f59e0b40] text-[#9a6700]',
+                            )}
+                            title={
+                              c.negociacionValidada
+                                ? undefined
+                                : 'Mientras no esté validada, no se pueden crear ni aprobar propuestas con esta agencia.'
+                            }
+                          >
+                            {c.negociacionValidada ? 'Negociación validada' : 'Negociación sin validar'}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="demo-num px-4 py-2.5 text-right">
+                      {!com ? (
+                        <span className="text-muted">—</span>
+                      ) : com.nAbiertas === 0 ? (
+                        <span className="text-muted">—</span>
+                      ) : (
+                        <span title="Borrador + enviadas, con IVA">
+                          <span className="text-ink">{formatMontoCorto(com.valorAbierto)}</span>
+                          <span className="text-muted"> · {com.nAbiertas}</span>
+                        </span>
+                      )}
+                    </td>
+                    <td className={cn('demo-num px-4 py-2.5 text-right', com?.enCurso ? 'text-ink' : 'text-muted')}>
+                      {com ? com.enCurso : '—'}
+                    </td>
+                    <td className="px-4 py-2.5 text-muted">
+                      {c.contacto?.email || c.contacto?.telefono ? (
+                        <>
+                          {c.contacto?.email && <div className="truncate">{c.contacto.email}</div>}
+                          {c.contacto?.telefono && <div className="demo-num text-[12px]">{c.contacto.telefono}</div>}
+                        </>
+                      ) : (
+                        <span className="text-[12px]">Sin contacto</span>
+                      )}
+                    </td>
                     {(puedeEditar || puedeBorrar) && (
                       <td className="px-4 py-2.5 text-right">
                         <div className="inline-flex items-center gap-1.5">
@@ -115,7 +255,7 @@ export default function ClientesPage() {
                               onClick={() => setEditar(c)}
                               aria-label={`Editar ${c.nombre}`}
                               title="Editar cliente"
-                              className="inline-flex items-center rounded border border-border-strong px-2 py-1 text-[12px] text-ink hover:bg-surface-2"
+                              className="inline-flex items-center rounded border border-border-strong bg-surface px-2 py-1 text-[12px] text-ink hover:bg-surface-2"
                             >
                               <Pencil className="h-3.5 w-3.5" />
                             </button>
@@ -126,7 +266,7 @@ export default function ClientesPage() {
                               onClick={() => setBorrar(c)}
                               aria-label={`Borrar ${c.nombre}`}
                               title="Borrar cliente"
-                              className="inline-flex items-center gap-1 rounded border border-border-strong px-2 py-1 text-[12px] text-muted hover:border-error hover:text-error"
+                              className="inline-flex items-center gap-1 rounded border border-border-strong bg-surface px-2 py-1 text-[12px] text-muted hover:border-error hover:text-error"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
@@ -135,7 +275,8 @@ export default function ClientesPage() {
                       </td>
                     )}
                   </tr>
-                ))}
+                  )
+                })}
                 </tbody>
               </table>
             </div>
@@ -254,10 +395,10 @@ function BorrarClienteDialog({ cliente, onClose }: { cliente: Cliente; onClose: 
         )}
 
         {aviso && (
-          <p className="rounded border border-warning/40 bg-warning/10 px-3 py-2 text-ink">{aviso}</p>
+          <p className="rounded border border-[#f59e0b40] bg-warning-soft px-3 py-2 text-ink">{aviso}</p>
         )}
         {error && (
-          <p className="rounded border border-error/40 bg-error/10 px-3 py-2 text-error">{error}</p>
+          <p className="rounded border border-[#ef444440] bg-error-soft px-3 py-2 text-error">{error}</p>
         )}
       </div>
     </Modal>
