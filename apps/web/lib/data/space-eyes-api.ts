@@ -194,6 +194,8 @@ export interface CreativosEquipo {
   fotosHoy?: number
   maxDia?: number
   creativos?: Creativo[]
+  /** Los detectados que no trajeron foto, por motivo (ver space-eyes-sin-foto). */
+  sinFoto?: Record<string, number>
 }
 
 /** Lo que el equipo detecto mal en su pantalla, y su historial. */

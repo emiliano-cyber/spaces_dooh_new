@@ -1,4 +1,5 @@
 import 'server-only'
+import { contarSinFoto } from '@/lib/space-eyes-sin-foto'
 import { readFile } from 'node:fs/promises'
 import { giroDeFoto } from '@/lib/space-eyes-marca'
 import { licenciaIncluyeModulo } from '@/lib/licencia'
@@ -765,6 +766,16 @@ export interface SECreativosEquipo {
   maxDia: number
   /** Con foto, del más reciente al más viejo. */
   creativos: SECreativo[]
+  /**
+   * Los que se detectaron pero no trajeron foto, por motivo: cuántos son y por
+   * qué. El catálogo y la galería se llenan por caminos distintos —la huella
+   * del creativo viaja siempre, 32 bytes pegados al reporte de estado; la foto
+   * solo si el equipo podía tomarla— así que un hallazgo sin foto es normal y
+   * hasta ahora desaparecía de la pantalla sin decir nada. Quien contaba nueve
+   * creativos en el catálogo y veía cinco fotos no tenía forma de saber qué
+   * había pasado con las otras cuatro.
+   */
+  sinFoto: Record<string, number>
 }
 
 export async function creativosDeEquipo(id: number): Promise<SECreativosEquipo | null> {
@@ -789,6 +800,7 @@ export async function creativosDeEquipo(id: number): Promise<SECreativosEquipo |
         vistas: Number(c.vistas ?? 0),
         foto: urlDeFoto(String(c.thumbnail_path || c.storage_path)),
       })),
+    sinFoto: contarSinFoto(d.creativos ?? []),
   }
 }
 

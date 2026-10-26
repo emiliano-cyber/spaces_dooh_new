@@ -6,6 +6,7 @@ import { cn } from '@/lib/cn'
 import { Button } from '@/components/demo/ui/Button'
 import { ConfirmDialog } from '@/components/demo/ui/ConfirmDialog'
 import { seApi, fotoSE, ErrorSE } from '@/lib/data/space-eyes-se'
+import { contarSinFoto, textoSinFoto } from '@/lib/space-eyes-sin-foto'
 import { fechaHora, gigas, hace } from './piezas'
 
 // ============================================================================
@@ -50,6 +51,9 @@ type Creativo = {
   vistas: number
   thumbnail_path: string | null
   storage_path: string | null
+  // Por qué no trajo foto, si no la trajo (Space Eye, migración 028).
+  sin_foto?: string | null
+  aprendido?: number | boolean
 }
 type Resp = { config: Config | null; fotos_hoy: number; creativos: Creativo[] }
 
@@ -248,6 +252,9 @@ export function CreativosConfig({
   // Los que tienen foto son los hallazgos; los demás son el loop que se
   // aprendió (o huellas sin foto por el tope diario).
   const hallazgos = (datos.creativos ?? []).filter((c) => c.photo_id && !c.descartado)
+  // Los que se detectaron y no trajeron foto no caben en la cuadrícula, pero
+  // callarlos deja el catálogo y la galería sin cuadrar y sin explicación.
+  const leyendaSinFoto = textoSinFoto(contarSinFoto(datos.creativos))
   const finAprendizaje =
     cfg?.desde != null
       ? fechaHora(new Date(new Date(cfg.desde).getTime() + Number(cfg.aprendizaje_min ?? 120) * 60_000).toISOString())
@@ -446,6 +453,11 @@ export function CreativosConfig({
                   Todavía no ha detectado creativos nuevos.
                 </p>
               )}
+              {/* La huella de un creativo viaja siempre; la foto, solo si el
+                  equipo podía tomarla. Los hallazgos sin foto no caben en la
+                  cuadrícula, pero callarlos hace que el catálogo y la galería no
+                  cuadren sin explicación (TLALPAN, 23-oct-2026). */}
+              {leyendaSinFoto && <p className="mt-2 text-[11px] text-muted">{leyendaSinFoto}</p>}
             </div>
           </>
         )}
