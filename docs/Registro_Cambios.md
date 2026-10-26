@@ -7,6 +7,30 @@ La entrada más reciente va arriba.
 
 ## 2026-10-26
 
+**El Dashboard se rehízo con lo que ponen en su inicio otros programas de medios
+exteriores y los CRM:**
+
+- **Cada quien ve su tablero.** Quien ve Finanzas tiene arriba el ingreso, el
+  margen, lo ganado en el mes y la ocupación. Un vendedor tiene su pipeline
+  abierto, su tasa de cierre, lo ganado en el mes y la ocupación, en vez de
+  tarjetas de dinero vacías.
+- **Pipeline comercial** en lugar de «Tentativas vs confirmadas»: cuánto hay en
+  propuestas abiertas, cuánto se aprobó este mes, qué porcentaje de las
+  propuestas decididas en los últimos 90 días se ganó, y lo ganado por cada
+  vendedor.
+- **Huecos y renovaciones** en lugar de «Campañas por finalizar»: qué caras (o
+  slots de una pantalla digital) se quedan sin campaña en los próximos 30 días,
+  y qué cliente sale, para ofrecerle renovar. Si otra campaña ya tomó el lugar,
+  no aparece.
+- **Por cobrar por antigüedad**: el saldo repartido en sin vencer, 1–30, 31–60,
+  61–90 y más de 90 días, y cuánto está vencido.
+- **Alertas**: las urgentes van primero, hay un contador por tipo y un botón
+  «Ver todas». Las de licencias y permisos ya se pueden ocultar.
+- **Rendimiento**: la renta como porcentaje del ingreso del mes y cuánto de la
+  tarifa publicada se está cobrando.
+- **Mapa** más chico, y el color de cada espectacular dice si está ocupado,
+  apartado o libre HOY.
+
 - **El Dashboard ya enseña el ingreso y el margen DEL MES.** Antes, «Ingreso
   contratado del mes» sumaba todas las ventas confirmadas que han existido, y el
   margen contaba la renta de una pantalla una vez por cada venta que tuvo. Ahora

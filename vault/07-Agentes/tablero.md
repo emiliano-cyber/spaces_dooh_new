@@ -6,6 +6,13 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!important] 2026-10-26 · **DASH-REF · el Dashboard con lo que ponen los referentes** — rama `feat/dashboard-referentes`, encima de `fix/dashboard-del-periodo` · ÁMBAR (solo lectura; sin migración ni sesión)
+> Por rol (finanzas vs ventas), pipeline con lo ganado en el mes y por vendedor, huecos y renovaciones, cobranza
+> por antigüedad, alertas rojas primero, tarifa cobrada y renta/ingreso, y el pin del mapa por lo de hoy.
+> Toca `propuestas-repo.ts` (Z5) solo para LEER `aprobada_en`, `rechazada_en` y `usuario_id`; la liga pública no
+> los lleva (e2e). Más `lib/alertas-visibles.ts` (Z11), `inicio/` y `components/demo/inicio/` (sin zona) y Z12.
+> **Reclamadas y LIBERADAS** al commitear. Nota nueva: `vault/03-Frontend/dashboard-inicio.md`.
+
 > [!important] 2026-10-26 · **DASH-PERIODO · ingreso, costos y margen del Dashboard, del mes** — rama `fix/dashboard-del-periodo` · ÁMBAR (cifras de dinero, solo lectura: sin migración, sin sesión, sin escritura)
 > Inicio pide el mes en curso a `/api/reportes/rentabilidad` en vez de calcularlo con `dashboardMetrics`, que sumaba
 > todo lo que ha existido. Decisión del dueño (26/10): la misma cifra que Reportes. Un rol sin finanzas ve «—», no $0.

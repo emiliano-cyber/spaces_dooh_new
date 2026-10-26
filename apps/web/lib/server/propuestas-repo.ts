@@ -258,6 +258,13 @@ function armarPropuesta(p: any, items: any[]) {
     version,
     notas: p.notas ?? null,
     creadoEn: iso(p.creado_en),
+    // DASH-REF (26/10) · para el pipeline del Dashboard: lo ganado en el mes se
+    // mide por la fecha de aprobación, y el reparto por vendedor por quien la
+    // creó (`usuario_id`, 20260928_vendedor_en_propuesta.sql). La liga pública
+    // arma su respuesta campo por campo y NO los lleva.
+    aprobadaEn: p.aprobada_en ? iso(p.aprobada_en) : null,
+    rechazadaEn: p.rechazada_en ? iso(p.rechazada_en) : null,
+    vendedorId: p.usuario_id ?? null,
     // PAQ-01 · la parte del precio cerrado que le tocó a cada línea viaja CON
     // la línea. Sin ella la pantalla enseñaría el importe de lista junto a un
     // total que no lo suma, y eso se lee como un defecto del sistema.

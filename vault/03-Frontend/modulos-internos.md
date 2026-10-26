@@ -27,7 +27,7 @@ archivos:
 
 | Ruta | Módulo | Backend | Componentes propios |
 |---|---|---|---|
-| `/inicio` | Tablero | `/api/estado`; el ingreso, los costos y el margen del MES, de `/api/reportes/rentabilidad` (DASH-PERIODO, 26/10 — ver [[pantalla-reportes]]) | `KPICard`, `charts`, `components/demo/inicio/pnl-del-mes.ts` |
+| `/inicio` | Tablero — ver [[dashboard-inicio]] | `/api/estado`; el ingreso, los costos y el margen del MES, de `/api/reportes/rentabilidad` (DASH-PERIODO, 26/10) | `KPICard`, `charts`, `components/demo/inicio/pnl-del-mes.ts` |
 | `/novedades` | Notas de cada versión instalada | `/api/novedades` | `NotasDeVersion` — **sin entrada en el menú**, a propósito |
 | `/actividad` | Bitácora | `acciones` | — |
 | `/comercial` | Buscador de inventario | `/api/sitios` | `SiteFicha`, `ReservaDialog`, `AltaSitioDialog`, `SpaceEyeVision` |

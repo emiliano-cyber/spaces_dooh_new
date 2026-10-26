@@ -591,6 +591,11 @@ export interface Propuesta {
   version: number // versión de la propuesta (sube en cada renegociación)
   notas: string | null
   creadoEn: string
+  // DASH-REF (26/10) · opcionales: la liga pública no los manda. `null` en las
+  // aprobadas antes del 09/10, cuando la fecha no se guardaba.
+  aprobadaEn?: string | null
+  rechazadaEn?: string | null
+  vendedorId?: string | null
   items: PropuestaItem[]
   // Calculados con el método del divisor (server-side):
   bruto: number         // Σ precio de los items (tarifa de lista)

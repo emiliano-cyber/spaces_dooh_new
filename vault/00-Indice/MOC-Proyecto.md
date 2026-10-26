@@ -119,6 +119,7 @@ cobranza.
 - [[idiomas-es-en]] — la aplicación en español e inglés: cómo se detecta, cómo se cambia, y por qué el dinero no se mueve
 - [[modulos-internos]] — las pantallas del shell (eran 22 el 31/08; el recuento de hoy está en la propia nota)
 - [[03-Frontend/pantalla-reportes]] — la pantalla de reportes de rentabilidad
+- [[03-Frontend/dashboard-inicio]] — el Dashboard de inicio: de dónde sale cada número y quién lo ve
 - [[03-Frontend/comercial-opex]] — Comercial negociación (ruta `/comercial-opex`): prospección de arrendadores. Funcional desde NEG-01 (22/10), encima de Captación: ficha, visibilidad, medidas, ubicación (buscador + pin; GPS pendiente), contactos, ofertas al dueño, competencia y notas
 - [[paginas-publicas]] — portal, firma, propuesta compartible, OT móvil
 - [[estado-y-data-fetching]] — React Query, zustand, el parche de `fetch`

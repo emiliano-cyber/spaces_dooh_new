@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { rangoDelMesDe, consultaPnlDelMes, pnlDesdeRespuesta, rutaReportesDelMes } from './pnl-del-mes'
+import { rangoDelMesDe, consultaPnlDelMes, consultaPrecioDelMes, pnlDesdeRespuesta, rutaReportesDelMes } from './pnl-del-mes'
 
 // ============================================================================
 //  DASH-PERIODO (26/10) · El ingreso, los costos y el margen del Dashboard son
@@ -40,6 +40,13 @@ describe('consultaPnlDelMes · lo que se le pide al endpoint de Reportes', () =>
       desde: '2026-10-01',
       hasta: '2026-10-31',
     })
+  })
+})
+
+describe('consultaPrecioDelMes · la dimensión tarifa del mismo mes', () => {
+  it('mismo rango, dimensión tarifa', () => {
+    const p = new URLSearchParams(consultaPrecioDelMes(new Date(2026, 9, 26)).split('?')[1])
+    expect(Object.fromEntries(p)).toEqual({ dimension: 'tarifa', granularidad: 'mes', desde: '2026-10-01', hasta: '2026-10-31' })
   })
 })
 

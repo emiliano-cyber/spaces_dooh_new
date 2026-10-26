@@ -53,6 +53,12 @@ export function consultaPnlDelMes(hoy: Date): string {
   return construirConsulta({ dimension: 'trimestre', granularidad: 'mes', ...rangoDelMesDe(hoy) })
 }
 
+// DASH-REF (26/10) · y la dimensión `tarifa` del mismo mes: cuánto de la
+// tarifa publicada se cobró. Ver `precioDesdeRespuesta` en `indicadores.ts`.
+export function consultaPrecioDelMes(hoy: Date): string {
+  return construirConsulta({ dimension: 'tarifa', granularidad: 'mes', ...rangoDelMesDe(hoy) })
+}
+
 // El mismo mes abierto en Reportes, por pantalla: de dónde sale cada cifra. Sin
 // basePath, porque es para `next/link`, que lo pone solo.
 export function rutaReportesDelMes(hoy: Date): string {

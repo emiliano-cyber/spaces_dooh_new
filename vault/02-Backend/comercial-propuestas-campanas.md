@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-07
+actualizado: 2026-10-26
 tags: [backend, comercial, propuestas, campanas, amarillo, precio]
 archivos:
   - apps/web/lib/server/propuestas-repo.ts
@@ -180,6 +180,13 @@ porque anotarlo siempre haría inútil el filtro por persona de Actividad.
 
 El tenant de esas peticiones lo resuelve Postgres con
 `propuesta_tenant_por_token()`, nunca el cliente. Ver [[multi-tenancy-y-rls]].
+
+**DASH-REF (26/10).** `armarPropuesta` devuelve además `aprobadaEn`,
+`rechazadaEn` y `vendedorId` (de `usuario_id`), que el Dashboard usa para lo
+ganado en el mes y por vendedor ([[03-Frontend/dashboard-inicio]]). La liga
+pública arma su respuesta **campo por campo** en `obtenerPropuestaPublica`, así
+que no los lleva; lo fija la sección DASH-REF de
+`lib/test/vendedor-en-propuesta.e2e.test.ts`.
 
 ## Creativos
 

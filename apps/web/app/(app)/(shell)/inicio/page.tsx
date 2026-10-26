@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import {
@@ -12,38 +12,52 @@ import {
   ArrowRight,
   SlidersHorizontal,
   Check,
+  Trophy,
+  Briefcase,
+  Target,
 } from 'lucide-react'
 import { useAlertasVisibles, TIPOS_ALERTA } from '@/lib/alertas-visibles'
 import { formatNumero } from '@/lib/formato-numero'
+import { conteo } from '@/lib/plural'
 import { KPICard, KPICardSkeleton } from '@/components/demo/KPICard'
-import { OcupacionChart, ReservasChart } from '@/components/demo/charts'
+import { OcupacionChart } from '@/components/demo/charts'
 import { MapView, type MapPoint } from '@/components/demo/MapView'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
-import {
-  SITIO_TONO,
-  SITIO_LABEL,
-  pinTono,
-  CAMPANA_TONO,
-  CAMPANA_LABEL,
-  type Tono,
-} from '@/components/demo/StatusBadge'
+import { SITIO_LABEL, type Tono } from '@/components/demo/StatusBadge'
 import { cn } from '@/lib/cn'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import {
   consultaPnlDelMes,
+  consultaPrecioDelMes,
   pnlDesdeRespuesta,
   rutaReportesDelMes,
   type PnlDelMes,
 } from '@/components/demo/inicio/pnl-del-mes'
 import {
+  antiguedadCobranza,
+  pipelineComercial,
+  huecosProximos,
+  ordenarAlertas,
+  tonoPinHoy,
+  precioDesdeRespuesta,
+  VENTANA_HUECOS_DIAS,
+  VENTANA_TASA_DIAS,
+  type PrecioDelMes,
+} from '@/components/demo/inicio/indicadores'
+import {
   useDashboard,
   useOcupacionSerie,
   useSitios,
   useCampanas,
+  useClientes,
+  useReservas,
+  usePropuestas,
+  useFacturas,
+  useCobranzas,
+  useUsuarios,
   useConfigNegocio,
   formatMonto,
   formatFecha,
-  diasHasta,
   type Granularidad,
 } from '@/lib/data/client'
 
@@ -53,25 +67,28 @@ function margenTono(pct: number): Tono {
   return 'rojo'
 }
 
-// El estado de resultados del MES, pedido al motor de Reportes (DASH-PERIODO,
-// 26/10). Ver `components/demo/inicio/pnl-del-mes.ts` para el porqué.
-function usePnlDelMes(): PnlDelMes {
-  const [pnl, setPnl] = useState<PnlDelMes>({ fase: 'cargando' })
+// Una consulta al motor de Reportes para el mes en curso, traducida a lo que se
+// pinta. El ingreso y el margen salen de aquí desde DASH-PERIODO (26/10) y la
+// tarifa cobrada desde DASH-REF: ver `components/demo/inicio/pnl-del-mes.ts`.
+function useDelMotor<T>(url: string, traducir: (status: number, cuerpo: unknown) => T, inicial: T): T {
+  const [v, setV] = useState<T>(inicial)
   useEffect(() => {
     const control = new AbortController()
     void (async () => {
       try {
-        const r = await fetch(consultaPnlDelMes(new Date()), { cache: 'no-store', signal: control.signal })
+        const r = await fetch(url, { cache: 'no-store', signal: control.signal })
         // `catch` propio: detrás de nginx un 500 puede venir en HTML.
         const cuerpo = await r.json().catch(() => null)
-        if (!control.signal.aborted) setPnl(pnlDesdeRespuesta(r.status, cuerpo))
+        if (!control.signal.aborted) setV(traducir(r.status, cuerpo))
       } catch {
-        if (!control.signal.aborted) setPnl(pnlDesdeRespuesta(0, null))
+        if (!control.signal.aborted) setV(traducir(0, null))
       }
     })()
     return () => control.abort()
-  }, [])
-  return pnl
+    // `url` cambia solo al cambiar de mes; `traducir` es una función de módulo.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url])
+  return v
 }
 
 const GRANS: { value: Granularidad; label: string }[] = [
@@ -80,22 +97,40 @@ const GRANS: { value: Granularidad; label: string }[] = [
   { value: 'mes', label: 'Mes' },
 ]
 
+// Cuántas alertas se ven antes de «Ver todas». Antes era un corte duro en 6 sin
+// forma de ver el resto.
+const ALERTAS_A_LA_VISTA = 6
+const HUECOS_A_LA_VISTA = 8
+
 export default function DashboardPage() {
   const m = useDashboard()
   const sitios = useSitios()
   const [gran, setGran] = useState<Granularidad>('semana')
   const serie = useOcupacionSerie(gran)
   const campanas = useCampanas()
+  const clientes = useClientes()
+  const reservas = useReservas()
+  const propuestas = usePropuestas()
+  const facturas = useFacturas()
+  const cobranzas = useCobranzas()
+  const usuarios = useUsuarios()
   const cfg = useConfigNegocio()
   const alertasCfg = useAlertasVisibles()
-  const pnl = usePnlDelMes()
-  // Sin `finanzas:ver`, `/api/estado` le manda las cobranzas vacías: «Por
-  // cobrar $0» sería una cifra falsa, no una oculta.
-  const veFinanzas = usePuede('finanzas', 'ver')
-  const mesActual = new Date().toLocaleDateString('es-MX', { month: 'long' })
+  const [todasLasAlertas, setTodasLasAlertas] = useState(false)
+  const [todosLosHuecos, setTodosLosHuecos] = useState(false)
 
-  // Encabezado: razón social y nombre comercial salen de config_negocio
-  // (Administración → Configuración). Solo se muestra el dato que esté cargado.
+  const hoy = useMemo(() => new Date(), [])
+  const mesActual = hoy.toLocaleDateString('es-MX', { month: 'long' })
+  const pnl = useDelMotor<PnlDelMes>(consultaPnlDelMes(hoy), pnlDesdeRespuesta, { fase: 'cargando' })
+  const precio = useDelMotor<PrecioDelMes>(consultaPrecioDelMes(hoy), precioDesdeRespuesta, { fase: 'cargando' })
+
+  // ─── Por rol (DASH-REF, punto 2) ──────────────────────────────────────────
+  // Sin `finanzas:ver`, `/api/estado` le manda vacías las cobranzas, los
+  // contratos y las facturas, y el motor de Reportes le contesta 403. Enseñarle
+  // esas tarjetas en cero sería mentirle: a VENTAS se le pinta su tablero
+  // —pipeline, lo ganado y su tasa de cierre— y a DIRECCIÓN el de dinero.
+  const veFinanzas = usePuede('finanzas', 'ver')
+
   const subtitulo = [
     cfg?.razonSocial ? `Razón social: ${cfg.razonSocial}` : null,
     cfg?.nombreComercial ? `Nombre comercial: ${cfg.nombreComercial}` : null,
@@ -108,15 +143,27 @@ export default function DashboardPage() {
       id: s.id,
       lat: s.lat,
       lng: s.lng,
-      tono: pinTono(s),
+      tono: tonoPinHoy(s, reservas ?? [], hoy),
       label: s.nombre,
     })) ?? []
 
-  // Campañas que finalizan/finalizaron en una ventana corta (revisión de ingresos).
-  const porFinalizar = (campanas ?? [])
-    .map((c) => ({ c, dias: diasHasta(c.fechaFin) }))
-    .filter((x) => x.dias >= -7 && x.dias <= 14 && x.c.estadoComercial !== 'CANCELADA')
-    .sort((a, b) => a.dias - b.dias)
+  const pipeline = useMemo(
+    () => (propuestas ? pipelineComercial(propuestas, usuarios ?? [], hoy) : null),
+    [propuestas, usuarios, hoy],
+  )
+  const antiguedad = useMemo(
+    () => (cobranzas && facturas ? antiguedadCobranza(cobranzas, facturas, hoy) : null),
+    [cobranzas, facturas, hoy],
+  )
+  const huecos = useMemo(
+    () =>
+      sitios && reservas && campanas && clientes
+        ? huecosProximos({ sitios, reservas, campanas, clientes }, hoy)
+        : null,
+    [sitios, reservas, campanas, clientes, hoy],
+  )
+
+  const tasa = pipeline?.tasaCierre == null ? '—' : `${Math.round(pipeline.tasaCierre * 100)}%`
 
   return (
     <div className="w-full space-y-5">
@@ -130,7 +177,7 @@ export default function DashboardPage() {
           un monto de 14 caracteres en mono; ahí van 2 columnas. */}
       <CardColapsable id="inicio.indicadores" titulo="Indicadores del mes" contentClassName="space-y-3">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {!m ? (
+        {!m || !pipeline ? (
           <>
             <KPICardSkeleton />
             <KPICardSkeleton />
@@ -139,52 +186,60 @@ export default function DashboardPage() {
           </>
         ) : (
           <>
-            {/* Ingreso y margen DEL MES, del motor de Reportes. Sin permiso o con
-                error se dice, con una raya: un cero afirmaría un mes sin ventas. */}
-            {pnl.fase === 'cargando' ? (
-              <>
-                <KPICardSkeleton />
-                <KPICardSkeleton />
-              </>
-            ) : pnl.fase === 'datos' ? (
-              <>
-                <KPICard
-                  label={`Ingreso de ${mesActual}`}
-                  value={formatMonto(pnl.totales.ingreso)}
-                  sub="lo que se devenga este mes, prorrateado por días"
-                  tono="azul"
-                  icon={<TrendingUp className="h-4 w-4" />}
-                />
-                <KPICard
-                  label={`Margen de ${mesActual}`}
-                  value={pnl.totales.margenBrutoPct == null ? '—' : `${pnl.totales.margenBrutoPct.toFixed(0)}%`}
-                  sub={`${formatMonto(pnl.totales.margenBruto)} · costo ${formatMonto(pnl.totales.costoTotal)}`}
-                  tono={pnl.totales.margenBrutoPct == null ? 'neutro' : margenTono(pnl.totales.margenBrutoPct)}
-                  icon={<Wallet className="h-4 w-4" />}
-                />
-              </>
+            {veFinanzas ? (
+              // Ingreso y margen DEL MES, del motor de Reportes. Con error se
+              // dice, con una raya: un cero afirmaría un mes sin ventas.
+              pnl.fase === 'cargando' ? (
+                <>
+                  <KPICardSkeleton />
+                  <KPICardSkeleton />
+                </>
+              ) : pnl.fase === 'datos' ? (
+                <>
+                  <KPICard
+                    label={`Ingreso de ${mesActual}`}
+                    value={formatMonto(pnl.totales.ingreso)}
+                    sub="lo que se devenga este mes, prorrateado por días"
+                    tono="azul"
+                    icon={<TrendingUp className="h-4 w-4" />}
+                  />
+                  <KPICard
+                    label={`Margen de ${mesActual}`}
+                    value={pnl.totales.margenBrutoPct == null ? '—' : `${pnl.totales.margenBrutoPct.toFixed(0)}%`}
+                    sub={`${formatMonto(pnl.totales.margenBruto)} · costo ${formatMonto(pnl.totales.costoTotal)}`}
+                    tono={pnl.totales.margenBrutoPct == null ? 'neutro' : margenTono(pnl.totales.margenBrutoPct)}
+                    icon={<Wallet className="h-4 w-4" />}
+                  />
+                </>
+              ) : (
+                <>
+                  <KPICard label={`Ingreso de ${mesActual}`} value="—" sub={pnl.fase === 'sin-acceso' ? 'requiere permiso de Finanzas' : 'no se pudo calcular'} icon={<TrendingUp className="h-4 w-4" />} />
+                  <KPICard label={`Margen de ${mesActual}`} value="—" sub={pnl.fase === 'sin-acceso' ? 'requiere permiso de Finanzas' : 'no se pudo calcular'} icon={<Wallet className="h-4 w-4" />} />
+                </>
+              )
             ) : (
               <>
                 <KPICard
-                  label={`Ingreso de ${mesActual}`}
-                  value="—"
-                  sub={pnl.fase === 'sin-acceso' ? 'requiere permiso de Finanzas' : 'no se pudo calcular'}
-                  icon={<TrendingUp className="h-4 w-4" />}
+                  label="Pipeline abierto"
+                  value={formatMonto(pipeline.abierto.valor)}
+                  sub={`${conteo(pipeline.abierto.n, 'propuesta', 'propuestas')} · ${pipeline.abierto.enviadas} enviada${pipeline.abierto.enviadas === 1 ? '' : 's'}`}
+                  tono="ambar"
+                  icon={<Briefcase className="h-4 w-4" />}
                 />
                 <KPICard
-                  label={`Margen de ${mesActual}`}
-                  value="—"
-                  sub={pnl.fase === 'sin-acceso' ? 'requiere permiso de Finanzas' : 'no se pudo calcular'}
-                  icon={<Wallet className="h-4 w-4" />}
+                  label="Tasa de cierre"
+                  value={tasa}
+                  sub={`aprobadas de las decididas en ${VENTANA_TASA_DIAS} días`}
+                  icon={<Target className="h-4 w-4" />}
                 />
               </>
             )}
             <KPICard
-              label="Por cobrar"
-              value={veFinanzas ? formatMonto(m.porCobrar) : '—'}
-              sub={veFinanzas ? 'facturas emitidas pendientes' : 'requiere permiso de Finanzas'}
-              tono={veFinanzas ? 'ambar' : 'neutro'}
-              icon={<HandCoins className="h-4 w-4" />}
+              label={`Ganado en ${mesActual}`}
+              value={formatMonto(pipeline.ganadoMes.valor)}
+              sub={conteo(pipeline.ganadoMes.n, 'propuesta aprobada', 'propuestas aprobadas')}
+              tono="verde"
+              icon={<Trophy className="h-4 w-4" />}
             />
             {/* % ponderado por capacidad: cada slot de una digital y cada cara
                 de una fija cuentan como un espacio. El subtítulo lleva el dato
@@ -203,23 +258,47 @@ export default function DashboardPage() {
 
       {/* Desglose del costo del mes: las tres fuentes del motor de Reportes
           (renta, operación y luz) y, aparte, la impresión, que ese motor no
-          cuenta y por eso NO entra en el total ni en el margen. */}
-      {m && pnl.fase === 'datos' && (
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px]">
-          <span className="font-medium text-ink">Costos de {mesActual}</span>
-          <CostoItem label="Renta" valor={formatMonto(pnl.totales.costoEspacio)} />
-          <CostoItem label="Operación" valor={formatMonto(pnl.totales.costoOperacion)} />
-          <CostoItem label="Luz" valor={formatMonto(pnl.totales.costoEnergia)} />
-          <CostoItem label="Total" valor={formatMonto(pnl.totales.costoTotal)} fuerte />
-          <CostoItem label="Impresión (aparte)" valor={formatMonto(m.costoImpresionMes)} />
-          <Link href={rutaReportesDelMes(new Date())} className="ml-auto text-accent hover:underline">
-            Ver por pantalla
-          </Link>
+          cuenta y por eso NO entra en el total ni en el margen. Detrás, las dos
+          medidas del sector que el motor ya sabe dar: la renta como parte del
+          ingreso y cuánto de la tarifa publicada se cobra. */}
+      {m && veFinanzas && pnl.fase === 'datos' && (
+        <div className="space-y-1.5 rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px]">
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
+            <span className="font-medium text-ink">Costos de {mesActual}</span>
+            <CostoItem label="Renta" valor={formatMonto(pnl.totales.costoEspacio)} />
+            <CostoItem label="Operación" valor={formatMonto(pnl.totales.costoOperacion)} />
+            <CostoItem label="Luz" valor={formatMonto(pnl.totales.costoEnergia)} />
+            <CostoItem label="Total" valor={formatMonto(pnl.totales.costoTotal)} fuerte />
+            <CostoItem label="Impresión (aparte)" valor={formatMonto(m.costoImpresionMes)} />
+            <Link href={rutaReportesDelMes(hoy)} className="ml-auto text-accent hover:underline">
+              Ver por pantalla
+            </Link>
+          </div>
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
+            <span className="font-medium text-ink">Rendimiento</span>
+            <CostoItem
+              label="Renta / ingreso"
+              valor={pnl.totales.ingreso > 0 ? `${Math.round((pnl.totales.costoEspacio / pnl.totales.ingreso) * 100)}%` : '—'}
+            />
+            <CostoItem
+              label="Tarifa publicada cobrada"
+              valor={precio.fase === 'datos' ? `${precio.pct}%` : '—'}
+            />
+            <span className="text-muted">
+              {precio.fase === 'datos'
+                ? `de ${conteo(precio.conTarifa, 'venta con tarifa publicada', 'ventas con tarifa publicada')}${precio.sinTarifa ? ` · ${precio.sinTarifa} sin tarifa con qué comparar` : ''}`
+                : precio.fase === 'sin-datos'
+                  ? 'sin ventas con tarifa publicada este mes'
+                  : precio.fase === 'cargando'
+                    ? ''
+                    : 'no se pudo calcular'}
+            </span>
+          </div>
         </div>
       )}
       </CardColapsable>
 
-      {/* Ocupación + Reservas vs confirmaciones */}
+      {/* Ocupación + Pipeline comercial */}
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-3">
         <CardColapsable
           id="inicio.ocupacion"
@@ -242,32 +321,58 @@ export default function DashboardPage() {
             )}
         </CardColapsable>
 
-        <CardColapsable id="inicio.tentativas-vs-confirmadas" titulo="Tentativas vs confirmadas">
-            {!m ? (
-              <div className="h-[150px] animate-pulse rounded bg-surface-2" />
-            ) : (
-              <>
-                <ReservasChart tentativo={m.valorTentativo} confirmado={m.valorConfirmado} />
-                <div className="mt-3 grid grid-cols-2 gap-2 text-[12px]">
-                  <Leyenda
-                    color="#f59e0b"
-                    label={`Tentativas · ${m.propuestasAbiertas} propuesta${m.propuestasAbiertas === 1 ? '' : 's'} sin cerrar`}
-                    valor={formatMonto(m.valorTentativo)}
-                  />
-                  <Leyenda color="#10b981" label="Confirmadas" valor={formatMonto(m.valorConfirmado)} />
-                </div>
-              </>
-            )}
+        {/* Sustituye a «Tentativas vs confirmadas», que comparaba propuestas
+            abiertas contra el acumulado HISTÓRICO de reservas. */}
+        <CardColapsable
+          id="inicio.pipeline"
+          titulo="Pipeline comercial"
+          accion={
+            <Link href="/propuestas" className="inline-flex items-center gap-1 text-[12px] font-medium text-info hover:underline">
+              Propuestas <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          }
+        >
+          {!pipeline ? (
+            <div className="h-[150px] animate-pulse rounded bg-surface-2" />
+          ) : (
+            <div className="space-y-3 text-[12px]">
+              <div className="grid grid-cols-2 gap-3">
+                <Dato label="Abierto" valor={formatMonto(pipeline.abierto.valor)} sub={conteo(pipeline.abierto.n, 'propuesta', 'propuestas')} />
+                <Dato label={`Ganado en ${mesActual}`} valor={formatMonto(pipeline.ganadoMes.valor)} sub={conteo(pipeline.ganadoMes.n, 'aprobada', 'aprobadas')} />
+                <Dato label="Tasa de cierre" valor={tasa} sub={`últimos ${VENTANA_TASA_DIAS} días`} />
+              </div>
+              <div>
+                <div className="mb-1 font-medium text-ink">Ganado por vendedor</div>
+                {pipeline.porVendedor.length === 0 ? (
+                  <p className="text-muted">Nada aprobado en {mesActual} todavía.</p>
+                ) : (
+                  <ul className="space-y-1">
+                    {pipeline.porVendedor.map((v) => (
+                      <li key={v.nombre} className="flex items-center justify-between gap-2">
+                        <span className="truncate text-ink">{v.nombre}</span>
+                        <span className="demo-num shrink-0 text-muted">
+                          {formatMonto(v.valor)} · {v.n}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          )}
         </CardColapsable>
       </div>
 
-      {/* Alertas + Mini-mapa */}
+      {/* Alertas + Huecos y renovaciones */}
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-3">
         <CardColapsable id="inicio.alertas" titulo="Alertas" accion={<ConfigAlertas cfg={alertasCfg} />}>
             {(() => {
-              // Solo los tipos que el usuario dejó encendidos (todos por default).
-              const visibles = (m?.alertas ?? []).filter((al) => alertasCfg.esVisible(al.tipo))
               if (!m) return <div className="h-32 animate-pulse rounded bg-surface-2" />
+              // Solo los tipos encendidos, y las ROJAS primero: antes salían en
+              // el orden en que se generan —rentas, contratos, licencias,
+              // cobranza, incidencias, OT— y se cortaban en 6, así que las de
+              // renta empujaban fuera una factura vencida o una OT fuera de plazo.
+              const visibles = ordenarAlertas(m.alertas.filter((al) => alertasCfg.esVisible(al.tipo)))
               if (visibles.length === 0) {
                 return (
                   <p className="text-[13px] text-muted">
@@ -277,32 +382,173 @@ export default function DashboardPage() {
                   </p>
                 )
               }
+              const rojas = visibles.filter((a) => a.nivel === 'rojo').length
+              const porTipo = TIPOS_ALERTA.map((t) => ({ ...t, n: visibles.filter((a) => a.tipo === t.tipo).length })).filter((t) => t.n > 0)
+              const mostradas = todasLasAlertas ? visibles : visibles.slice(0, ALERTAS_A_LA_VISTA)
               return (
-              <ul className="space-y-2.5">
-                {visibles.slice(0, 6).map((al) => (
-                  <li key={al.id} className="flex items-start gap-2.5">
-                    <AlertTriangle
-                      className={cn(
-                        'mt-0.5 h-4 w-4 shrink-0',
-                        al.nivel === 'rojo' ? 'text-error' : 'text-warning',
-                      )}
-                      strokeWidth={1.75}
-                    />
-                    <div className="min-w-0">
-                      <div className="text-[13px] font-medium text-ink">{al.titulo}</div>
-                      <div className="text-[12px] text-muted">{al.detalle}</div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+              <div className="space-y-3">
+                <div className="flex flex-wrap gap-1.5 text-[11px]">
+                  {rojas > 0 && (
+                    <span className="rounded-full border border-[#ef444440] px-2 py-0.5 font-medium text-error">
+                      {conteo(rojas, 'urgente', 'urgentes')}
+                    </span>
+                  )}
+                  {porTipo.map((t) => (
+                    <span key={t.tipo} className="rounded-full border border-border px-2 py-0.5 text-muted">
+                      {t.label} · {t.n}
+                    </span>
+                  ))}
+                </div>
+                <ul className="space-y-2.5">
+                  {mostradas.map((al) => (
+                    <li key={al.id} className="flex items-start gap-2.5">
+                      <AlertTriangle
+                        className={cn(
+                          'mt-0.5 h-4 w-4 shrink-0',
+                          al.nivel === 'rojo' ? 'text-error' : 'text-warning',
+                        )}
+                        strokeWidth={1.75}
+                      />
+                      <div className="min-w-0">
+                        <div className="text-[13px] font-medium text-ink">{al.titulo}</div>
+                        <div className="text-[12px] text-muted">{al.detalle}</div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                {visibles.length > ALERTAS_A_LA_VISTA && (
+                  <button
+                    type="button"
+                    onClick={() => setTodasLasAlertas((v) => !v)}
+                    className="text-[12px] font-medium text-info hover:underline"
+                  >
+                    {todasLasAlertas ? 'Ver menos' : `Ver todas (${visibles.length})`}
+                  </button>
+                )}
+              </div>
               )
             })()}
         </CardColapsable>
 
+        {/* Sustituye a «Campañas por finalizar»: no basta con saber que una
+            campaña termina, hay que saber que la cara se queda VACÍA y a quién
+            ofrecerle renovar. Ver `huecosProximos`. */}
+        <CardColapsable
+          id="inicio.huecos"
+          titulo="Huecos y renovaciones"
+          className="lg:col-span-2"
+          subtitulo={`lo que se queda sin campaña en los próximos ${VENTANA_HUECOS_DIAS} días`}
+        >
+          {!huecos ? (
+            <div className="h-20 animate-pulse rounded bg-surface-2" />
+          ) : huecos.length === 0 ? (
+            <p className="text-[13px] text-muted">
+              Nada se queda libre en los próximos {VENTANA_HUECOS_DIAS} días.
+            </p>
+          ) : (
+            <>
+              <ul className="divide-y divide-border">
+                {(todosLosHuecos ? huecos : huecos.slice(0, HUECOS_A_LA_VISTA)).map((h) => (
+                  <li key={`${h.sitioId}-${h.campanaId}-${h.fechaFin}`} className="flex items-center justify-between gap-3 py-2">
+                    <div className="min-w-0">
+                      <div className="truncate text-[13px] text-ink">
+                        {h.sitioNombre}
+                        <span className="text-muted">
+                          {' · '}
+                          {h.digital ? (h.slots ? `${h.slots} slot${h.slots === 1 ? '' : 's'} libre${h.slots === 1 ? '' : 's'}` : 'slots libres') : 'cara libre'}
+                        </span>
+                      </div>
+                      <div className="demo-num truncate text-[11px] text-muted">
+                        Sale {h.clienteNombre ?? 'sin cliente'} ·{' '}
+                        <Link href={`/campanas/${h.campanaId}`} className="hover:underline">
+                          {h.campanaNombre}
+                        </Link>
+                        {' · '}termina {formatFecha(h.fechaFin)}
+                      </div>
+                    </div>
+                    <span
+                      className={cn(
+                        'shrink-0 rounded-full border px-2 py-0.5 text-[12px] font-medium',
+                        h.dias <= 7 ? 'border-[#ef444440] text-error' : 'border-[#f59e0b40] text-[#9a6700]',
+                      )}
+                    >
+                      {h.dias === 0 ? 'hoy' : `en ${h.dias} d`}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              {huecos.length > HUECOS_A_LA_VISTA && (
+                <button
+                  type="button"
+                  onClick={() => setTodosLosHuecos((v) => !v)}
+                  className="mt-2 text-[12px] font-medium text-info hover:underline"
+                >
+                  {todosLosHuecos ? 'Ver menos' : `Ver todos (${huecos.length})`}
+                </button>
+              )}
+            </>
+          )}
+        </CardColapsable>
+      </div>
+
+      {/* Cobranza por antigüedad (solo quien ve Finanzas) + mapa */}
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-3">
+        {veFinanzas && (
+          <CardColapsable
+            id="inicio.cobranza"
+            titulo="Por cobrar por antigüedad"
+            accion={
+              <Link href="/finanzas" className="inline-flex items-center gap-1 text-[12px] font-medium text-info hover:underline">
+                Finanzas <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            }
+          >
+            {!antiguedad ? (
+              <div className="h-32 animate-pulse rounded bg-surface-2" />
+            ) : antiguedad.total === 0 ? (
+              <p className="text-[13px] text-muted">No hay saldos por cobrar.</p>
+            ) : (
+              <div className="space-y-3 text-[12px]">
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="inline-flex items-center gap-1.5 text-muted">
+                    <HandCoins className="h-4 w-4" /> Total
+                  </span>
+                  <span className="demo-num text-[18px] text-ink">{formatMonto(antiguedad.total)}</span>
+                </div>
+                {/* Una barra por tramo, un solo color: es una comparación de
+                    magnitudes, no de categorías. La etiqueta y el monto van en
+                    texto, así que el color no carga el significado. */}
+                <ul className="space-y-1.5">
+                  {antiguedad.tramos.map((t) => (
+                    <li key={t.clave} title={`${t.label}: ${formatMonto(t.monto)} en ${conteo(t.n, 'cuota', 'cuotas')}`}>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className={cn(t.clave === 'corriente' ? 'text-muted' : 'text-ink')}>{t.label}</span>
+                        <span className="demo-num text-ink">{formatMonto(t.monto)}</span>
+                      </div>
+                      <div className="mt-0.5 h-1.5 w-full rounded-full bg-surface-2">
+                        <div
+                          className="h-1.5 rounded-full bg-info"
+                          style={{ width: `${antiguedad.total > 0 ? (t.monto / antiguedad.total) * 100 : 0}%` }}
+                        />
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-muted">
+                  Vencido: <span className="demo-num text-error">{formatMonto(antiguedad.vencido)}</span>
+                </p>
+              </div>
+            )}
+          </CardColapsable>
+        )}
+
+        {/* El mapa baja de 460 a 300 px: en la mañana importan más los números,
+            y el detalle está en Comercial. El pin sale de lo que pasa HOY
+            (`tonoPinHoy`), no del estatus guardado del sitio. */}
         <CardColapsable
           id="inicio.mapa"
           titulo="Tu red en el mapa"
-          className="lg:col-span-2"
+          className={veFinanzas ? 'lg:col-span-2' : 'lg:col-span-3'}
           accion={
             <Link
               href="/comercial"
@@ -312,7 +558,7 @@ export default function DashboardPage() {
             </Link>
           }
         >
-            <div className="h-[460px] w-full overflow-hidden rounded border border-border">
+            <div className="h-[300px] w-full overflow-hidden rounded border border-border">
               {sitios ? (
                 <MapView points={puntos} zoom={10.4} />
               ) : (
@@ -321,48 +567,12 @@ export default function DashboardPage() {
             </div>
             <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-[11px] text-muted">
               <LeyendaPin color="#0a66ff" label="Digital" />
-              <LeyendaPin color="#10b981" label="Disponible" />
-              <LeyendaPin color="#ef4444" label="Ocupado" />
+              <LeyendaPin color="#10b981" label="Libre hoy" />
+              <LeyendaPin color="#ef4444" label="Ocupado hoy" />
               <LeyendaPin color="#f59e0b" label={SITIO_LABEL.RESERVADO} />
             </div>
         </CardColapsable>
       </div>
-
-      {/* Campañas por finalizar / recién finalizadas (revisión de ingresos) */}
-      <CardColapsable id="inicio.campanas-por-finalizar" titulo="Campañas por finalizar">
-          {!campanas ? (
-            <div className="h-20 animate-pulse rounded bg-surface-2" />
-          ) : porFinalizar.length === 0 ? (
-            <p className="text-[13px] text-muted">Ninguna campaña finaliza en los próximos días.</p>
-          ) : (
-            <ul className="divide-y divide-border">
-              {porFinalizar.map(({ c, dias }) => (
-                <li key={c.id} className="flex items-center justify-between gap-3 py-2">
-                  <div className="min-w-0">
-                    <Link href={`/campanas/${c.id}`} className="truncate text-[13px] text-ink hover:underline">
-                      {c.nombre}
-                    </Link>
-                    <div className="demo-num text-[11px] text-muted">
-                      Finaliza {formatFecha(c.fechaFin)} ·{' '}
-                      {dias < 0 ? `terminó hace ${Math.abs(dias)} d` : dias === 0 ? 'hoy' : `en ${dias} d`}
-                    </div>
-                  </div>
-                  <span
-                    className={cn(
-                      'rounded-full border px-2 py-0.5 text-[12px] font-medium',
-                      CAMPANA_TONO[c.estadoComercial] === 'verde' && 'border-[#10b98140] text-[#0f7a55]',
-                      CAMPANA_TONO[c.estadoComercial] === 'azul' && 'border-[#0a66ff40] text-info',
-                      CAMPANA_TONO[c.estadoComercial] === 'ambar' && 'border-[#f59e0b40] text-[#9a6700]',
-                      CAMPANA_TONO[c.estadoComercial] === 'neutro' && 'border-border text-muted',
-                    )}
-                  >
-                    {CAMPANA_LABEL[c.estadoComercial]}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-      </CardColapsable>
     </div>
   )
 }
@@ -450,17 +660,14 @@ function Segmented({
   )
 }
 
-// Etiqueta y monto en dos renglones, no en una fila. En una sola fila el monto
-// (mono, ~100px) más la etiqueta no caben en los ~138px de media columna y se
-// salían encima de la leyenda vecina.
-function Leyenda({ color, label, valor }: { color: string; label: string; valor: string }) {
+// Etiqueta, monto y aclaración en renglones, no en una fila: en media columna
+// el monto en mono no cabe junto a la etiqueta.
+function Dato({ label, valor, sub }: { label: string; valor: string; sub: string }) {
   return (
     <div className="min-w-0">
-      <div className="flex items-center gap-1.5">
-        <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: color }} />
-        <span className="truncate text-muted">{label}</span>
-      </div>
-      <div className="demo-num mt-0.5 truncate text-ink">{valor}</div>
+      <div className="truncate text-muted">{label}</div>
+      <div className="demo-num mt-0.5 truncate text-[14px] text-ink">{valor}</div>
+      <div className="truncate text-[11px] text-muted">{sub}</div>
     </div>
   )
 }
