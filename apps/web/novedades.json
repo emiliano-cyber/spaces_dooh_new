@@ -1,5 +1,39 @@
 [
   {
+    "version": "v0.12.4",
+    "fecha": "2026-10-27",
+    "items": [
+      {
+        "tipo": "AJUSTADO",
+        "texto": "Nuevo diseño: todas las pantallas (menos Space Eyes) se ven como el Dashboard. Cada módulo abre con sus cifras clave arriba, filtros en chips con su conteo, listas más compactas y «Ver todas». Nada cambia en lo que hacen: los mismos botones, permisos y cifras."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "El Dashboard muestra lo de cada quien: quien ve Finanzas tiene el ingreso y el margen del mes; un vendedor, su pipeline abierto, su tasa de cierre y lo ganado. Además: huecos y renovaciones de los próximos 30 días, por cobrar por antigüedad y alertas ordenadas por urgencia."
+      },
+      {
+        "tipo": "CORREGIDO",
+        "texto": "El ingreso y el margen del Dashboard son los del mes y coinciden con Reportes → Rentabilidad. Antes el ingreso sumaba todas las ventas confirmadas y la renta se contaba una vez por venta."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "«Tentativo» ahora quiere decir «está en una propuesta». En Disponibilidad, una pantalla que alguien pidió en una propuesta abierta sale «En propuesta», en ámbar, con qué propuesta y qué cliente. Es solo un aviso: se puede seguir ofreciendo."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Un contrato firmado ya se puede cambiar: «Editar términos» pide el motivo, guarda la versión firmada en «Versiones firmadas anteriores» y lo vuelve a mandar a firma. Antes de enviar a firma se revisan los datos que va a llevar."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "«Pantalla propia» también en el alta desde Comercial, y al volver a importar pantallas propias que ya existían quedan como propias."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "En la ficha de campaña, «Validación de publicación» está siempre abierta, debajo de los creativos. Y si la campaña ya tiene franja horaria, no se le pone otro horario: se muestra qué franja se manda a DOOHmain."
+      }
+    ]
+  },
+  {
     "version": "v0.12.3",
     "fecha": "2026-10-22",
     "items": [
