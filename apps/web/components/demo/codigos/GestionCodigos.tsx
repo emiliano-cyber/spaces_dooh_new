@@ -21,7 +21,8 @@ import { CampoCifra } from '@/components/demo/ui/CampoCifra'
 import { useObligatorios } from '@/components/demo/ui/Campo'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { propuestasParaAsignar, vigentesParaSelector } from '@/lib/codigo-aprobacion'
-import { usePropuestas, useClientes } from '@/lib/data/client'
+import { usePropuestas, useClientes, formatFecha } from '@/lib/data/client'
+import { StatusBadge, type Tono } from '@/components/demo/StatusBadge'
 import { refrescarEstado } from '@/lib/data/estado-api'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 
@@ -68,18 +69,27 @@ const hoy = () => {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
 }
 
-/** 'AAAA-MM-DD' → 'DD/MM/AAAA', como se leen las fechas en el resto de la app. */
-const fecha = (iso: string) => (/^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso.split('-').reverse().join('/') : iso)
+/** 'AAAA-MM-DD' → 'DD/MM/AAAA', como se leen las fechas en el resto de la app.
+ *  Desde el 2026-10-26 con el `formatFecha` común, que la lee como fecha LOCAL;
+ *  lo que no tenga esa forma se pinta tal cual en vez de inventar una fecha. */
+const fecha = (iso: string) => (/^\d{4}-\d{2}-\d{2}$/.test(iso) ? formatFecha(iso) : iso)
 
-const ETIQUETA: Record<EstadoDelCodigo, { texto: string; clase: string }> = {
-  VIGENTE: { texto: 'Vigente', clase: 'border-[#10b98140] bg-[#e6f6ec] text-[#0f7a55]' },
-  PROXIMO: { texto: 'Próximo', clase: 'border-[#0a66ff33] bg-[#eef4ff] text-[#0a4fc4]' },
-  VENCIDO: { texto: 'Vencido', clase: 'border-neutral-300 bg-neutral-100 text-neutral-600' },
-  AGOTADO: { texto: 'Agotado', clase: 'border-[#f59e0b40] bg-[#fff7e6] text-[#9a6700]' },
+// Rediseño del 2026-10-26 · el estado con el semáforo único de la app
+// (`StatusBadge`) en vez de cuatro juegos de hex y de la paleta `neutral`.
+// Mismos textos; el estado lo sigue calculando `estadoDelCodigo`.
+const ETIQUETA: Record<EstadoDelCodigo, { texto: string; tono: Tono }> = {
+  VIGENTE: { texto: 'Vigente', tono: 'verde' },
+  PROXIMO: { texto: 'Próximo', tono: 'azul' },
+  VENCIDO: { texto: 'Vencido', tono: 'neutro' },
+  AGOTADO: { texto: 'Agotado', tono: 'ambar' },
 }
 
+// El orden de los chips de conteo del encabezado: lo que se puede usar hoy
+// primero.
+const ORDEN_ESTADOS: EstadoDelCodigo[] = ['VIGENTE', 'PROXIMO', 'AGOTADO', 'VENCIDO']
+
 const campo =
-  'h-9 rounded border border-[var(--border-input)] bg-surface px-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
+  'h-9 rounded border border-[var(--border-input)] bg-surface px-2 text-[13px] text-ink outline-none placeholder:text-muted focus-visible:ring-2 focus-visible:ring-accent'
 
 const vacio = {
   codigo: '',
@@ -195,20 +205,34 @@ export function GestionCodigos() {
   const nombreCliente = (id: string | null) =>
     (clientes ?? []).find((x) => x.id === id)?.nombre ?? 'sin cliente'
 
-  if (cargando) return <p className="text-sm text-neutral-500">Cargando los códigos…</p>
+  // Cuántos códigos hay en cada estado, con el MISMO `estadoDelCodigo(c, hoy())`
+  // que pinta cada fila: no hay una segunda regla que pueda divergir.
+  const porEstado: Record<EstadoDelCodigo, number> = { VIGENTE: 0, PROXIMO: 0, VENCIDO: 0, AGOTADO: 0 }
+  for (const c of codigos) porEstado[estadoDelCodigo(c, hoy())]++
+
+  // Esqueleto y no un «Cargando…» en texto (rediseño del 2026-10-26).
+  if (cargando) {
+    return (
+      <div className="space-y-4" aria-busy="true" aria-label="Cargando los códigos">
+        <div className="h-16 animate-pulse rounded-md bg-surface-2" />
+        <div className="h-40 animate-pulse rounded-md bg-surface-2" />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-4">
       {error && (
         <p
           role="alert"
-          className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800"
+          className="rounded-md border border-error bg-error-soft px-3 py-2 text-[13px] text-error"
         >
           {error}
         </p>
       )}
 
-      <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+      {/* La franja ámbar del proyecto (tokens del Dashboard); mismo texto. */}
+      <div className="rounded-md border border-[#f59e0b40] bg-warning-soft px-3 py-2 text-[12px] text-[#9a6700]">
         <b>El uso se cuenta cuando alguien aplica el código a una cotización, no cuando se cierra
         la venta.</b>{' '}
         Es lo que permite decirle al cliente «sí, tu código vale» en el momento en que lo teclea,
@@ -225,29 +249,49 @@ export function GestionCodigos() {
       <CardColapsable
         id="codigos-promocionales.lista"
         titulo="Códigos de esta empresa"
-        subtitulo={
-          <>
-            Las promociones las pone cada empresa: estos códigos no se comparten con nadie más. Los
-            dos extremos de la vigencia son <b>inclusivos</b> — «hasta el 30» incluye el 30. Dejar
-            el tope de usos vacío significa <b>sin tope</b>; entonces el único freno es la fecha.
-          </>
+        // Rediseño del 2026-10-26 · subtítulo de una frase: con dos renglones
+        // el chevrón de plegar se caía debajo del texto. La explicación entera
+        // va como primera línea del contenido.
+        subtitulo="Solo de esta empresa · vigencia inclusiva"
+        // Cuántos hay en cada estado, de un vistazo (como la lista de Shopify o
+        // las pestañas de Stripe, sin filtrar: es un conteo, no un filtro).
+        resumen={
+          codigos.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {ORDEN_ESTADOS.filter((e) => porEstado[e] > 0).map((e) => (
+                <span
+                  key={e}
+                  className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${CHIP_ESTADO[e]}`}
+                >
+                  {ETIQUETA_PLURAL[e]} · <span className="demo-num">{porEstado[e]}</span>
+                </span>
+              ))}
+            </div>
+          ) : null
         }
+        contentClassName="space-y-3"
       >
-        <table className="w-full text-sm">
+        <p className="rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px] text-muted">
+          Las promociones las pone cada empresa: estos códigos no se comparten con nadie más. Los
+          dos extremos de la vigencia son <b>inclusivos</b> — «hasta el 30» incluye el 30. Dejar
+          el tope de usos vacío significa <b>sin tope</b>; entonces el único freno es la fecha.
+        </p>
+        <div className="overflow-x-auto">
+        <table className="w-full text-left text-[13px]">
           <thead>
-            <tr className="border-b text-left text-xs text-neutral-500">
-              <th className="py-1.5 font-medium">Código</th>
-              <th className="font-medium">Estado</th>
-              <th className="font-medium">Descuento</th>
-              <th className="font-medium">Vigencia</th>
-              <th className="font-medium">Usos</th>
-              <th />
+            <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted">
+              <th className="px-3 py-2 font-medium">Código</th>
+              <th className="px-3 py-2 font-medium">Estado</th>
+              <th className="px-3 py-2 text-right font-medium">Descuento</th>
+              <th className="px-3 py-2 font-medium">Vigencia</th>
+              <th className="px-3 py-2 font-medium">Usos</th>
+              <th className="px-3 py-2" />
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-border">
             {codigos.length === 0 && (
               <tr>
-                <td colSpan={6} className="py-4 text-neutral-500">
+                <td colSpan={6} className="px-3 py-3 text-muted">
                   Todavía no hay ninguno. Sin códigos, todo se vende como hoy.
                 </td>
               </tr>
@@ -256,33 +300,34 @@ export function GestionCodigos() {
               const estado = estadoDelCodigo(c, hoy())
               const tope = c.usosMaximos
               const fila = (
-                <tr className="border-b align-middle">
-                  <td className="py-2.5 font-mono font-medium">{c.codigo}</td>
-                  <td>
-                    <span
-                      className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${ETIQUETA[estado].clase}`}
-                    >
+                <tr className="align-middle">
+                  <td className="px-3 py-2.5 font-mono font-medium text-ink">{c.codigo}</td>
+                  <td className="px-3 py-2.5">
+                    <StatusBadge tono={ETIQUETA[estado].tono} className="whitespace-nowrap">
                       {ETIQUETA[estado].texto}
-                    </span>
+                    </StatusBadge>
                   </td>
-                  <td className="font-medium">{c.descuentoPct} %</td>
-                  <td className={estado === 'VENCIDO' ? 'text-neutral-400' : undefined}>
+                  <td className="demo-num whitespace-nowrap px-3 py-2.5 text-right font-medium text-ink">{c.descuentoPct} %</td>
+                  <td className={`demo-num whitespace-nowrap px-3 py-2.5 ${estado === 'VENCIDO' ? 'text-muted' : 'text-ink'}`}>
                     {fecha(c.vigenteDesde)} → {fecha(c.vigenteHasta)}
                   </td>
-                  <td>
-                    <div className="text-[13px]">
-                      {c.usos} de {tope ?? '∞'}
+                  <td className="px-3 py-2.5">
+                    {/* «sin tope» en palabras: el «∞» no lo leía nadie igual.
+                        La barra es de UN color, como las del Dashboard: el
+                        estado (agotado) ya lo dice el chip. */}
+                    <div className="demo-num whitespace-nowrap text-[13px] text-ink">
+                      {c.usos} de {tope ?? 'sin tope'}
                     </div>
                     {tope != null && tope > 0 && (
-                      <div className="mt-1 h-1 w-20 overflow-hidden rounded bg-neutral-200" aria-hidden>
+                      <div className="mt-1 h-1.5 w-20 overflow-hidden rounded-full bg-surface-2" aria-hidden>
                         <div
-                          className={`h-full ${estado === 'AGOTADO' ? 'bg-[#f59e0b]' : 'bg-accent'}`}
+                          className="h-full rounded-full bg-info"
                           style={{ width: `${Math.min(100, (c.usos / tope) * 100)}%` }}
                         />
                       </div>
                     )}
                   </td>
-                  <td className="py-2 text-right">
+                  <td className="px-3 py-2 text-right">
                     <div className="inline-flex items-center gap-2">
                       {puedeAsignar && usables.has(c.id) && (
                         <Button
@@ -315,10 +360,10 @@ export function GestionCodigos() {
                 <Fragment key={c.id}>
                   {fila}
                   {asignando === c.id && (
-                    <tr className="border-b bg-surface-2/40">
+                    <tr className="bg-surface-2">
                       <td colSpan={6} className="px-3 py-3">
                         {elegibles.length === 0 ? (
-                          <p className="text-xs text-neutral-500">
+                          <p className="text-[12px] text-muted">
                             No hay propuestas a las que asignarlo: solo se puede en una propuesta en
                             borrador, enviada o rechazada, y que no lleve ya otro código.
                           </p>
@@ -326,7 +371,8 @@ export function GestionCodigos() {
                           <div className="flex flex-wrap items-center gap-2">
                             <select
                               aria-label={`Propuesta para ${c.codigo}`}
-                              className={`${campo} min-w-[22rem]`}
+                              // En un teléfono, a todo lo ancho: con `min-w-[22rem]` fijo desbordaba.
+                              className={`${campo} w-full sm:w-auto sm:min-w-[22rem]`}
                               value={propuestaSel}
                               onChange={(e) => setPropuestaSel(e.target.value)}
                             >
@@ -347,12 +393,12 @@ export function GestionCodigos() {
                             <Button size="sm" variant="ghost" onClick={() => setAsignando(null)}>
                               Cancelar
                             </Button>
-                            <p className="w-full text-xs text-neutral-500">
+                            <p className="w-full text-[12px] text-muted">
                               Consume un uso del código y queda <b>pendiente de aprobación</b>: el
                               cliente no lo ve hasta que un administrador o gerente lo apruebe desde
                               la propuesta.
                               {elegida?.estatus === 'RECHAZADA' && (
-                                <b className="text-amber-700">
+                                <b className="text-[#9a6700]">
                                   {' Esta propuesta está rechazada: asignarle el código la reactiva a borrador.'}
                                 </b>
                               )}
@@ -367,14 +413,17 @@ export function GestionCodigos() {
             })}
           </tbody>
         </table>
+        </div>
       </CardColapsable>
 
       {/* El alta va en su propia tarjeta, como «Nuevo paquete» en Paquetes
           cerrados: antes era un renglón de campos sin etiqueta al pie de la
           tabla, y no se distinguía qué columna era cada casilla. */}
-      <section className="rounded-md border bg-surface p-3">
-        <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold">
-          <Ticket className="h-4 w-4" /> Nuevo código
+      {/* Rediseño del 2026-10-26 · el mismo borde y relleno que las demás
+          tarjetas (tokens), sin plegar: es el alta, y se usa a la vista. */}
+      <section className="rounded-md border border-border bg-surface p-4">
+        <h3 className="mb-3 flex items-center gap-1.5 text-[14px] font-medium text-ink">
+          <Ticket className="h-4 w-4 text-muted" /> Nuevo código
         </h3>
         <div className="flex flex-wrap items-end gap-3">
           <label className="text-xs" data-falta={ob.falta('codigo') || undefined}>
@@ -444,6 +493,20 @@ export function GestionCodigos() {
   )
 }
 
+// Los chips de conteo del encabezado, con los bordes y textos del Dashboard.
+const CHIP_ESTADO: Record<EstadoDelCodigo, string> = {
+  VIGENTE: 'border-[#1da85040] text-[#146c39]',
+  PROXIMO: 'border-[#0a66ff40] text-[#0a4fcc]',
+  AGOTADO: 'border-[#f59e0b40] text-[#9a6700]',
+  VENCIDO: 'border-border text-muted',
+}
+const ETIQUETA_PLURAL: Record<EstadoDelCodigo, string> = {
+  VIGENTE: 'Vigentes',
+  PROXIMO: 'Próximos',
+  AGOTADO: 'Agotados',
+  VENCIDO: 'Vencidos',
+}
+
 // OBLIG-01 · la etiqueta de la fila de alta, con asterisco y en rojo si falta.
 // NO es el `Campo` compartido a propósito: la fila es `items-end` con anchos
 // fijos, y el «Falta este dato» que `Campo` pinta debajo subiría la casilla
@@ -451,7 +514,7 @@ export function GestionCodigos() {
 // `globals.css` por el `data-falta` del <label>; el motivo, el aviso de arriba.
 function EtiquetaCompacta({ texto, obligatorio = false, falta = false }: { texto: string; obligatorio?: boolean; falta?: boolean }) {
   return (
-    <span className={`mb-0.5 block ${falta ? 'text-error' : 'text-neutral-500'}`}>
+    <span className={`mb-0.5 block ${falta ? 'text-error' : 'text-muted'}`}>
       {texto}
       {obligatorio && (
         <>

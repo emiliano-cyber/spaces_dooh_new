@@ -9,7 +9,8 @@ import {
   type PaqueteUI,
 } from '@/lib/data/paquetes-api'
 import { motivoPaqueteInvalido, repartirPaquete } from '@/lib/paquete'
-import { useSitios } from '@/lib/data/client'
+import { useSitios, formatMonto } from '@/lib/data/client'
+import { StatusBadge } from '@/components/demo/StatusBadge'
 import { Button } from '@/components/demo/ui/Button'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
 import { useObligatorios } from '@/components/demo/ui/Campo'
@@ -49,7 +50,13 @@ import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 
 const vacio = { nombre: '', precioCerrado: '', admiteCodigo: false, sitios: [] as string[] }
 
-const pesos = (n: number) => `$${Math.round(n).toLocaleString('es-MX')}`
+// Pesos ENTEROS con el formato común de la app (`formatMonto`: «$ 180,000»).
+// Hasta el 2026-10-26 era un `pesos()` propio («$180,000»). Se conserva el
+// mismo redondeo a peso de la pantalla de antes —el precio y las partes del
+// reparto ya son enteros; la tarifa de lista puede traer centavos y se
+// enseñaba redondeada— y solo se quita el «.00», que en un precio que no
+// admite centavos sería ruido. NO toca `repartirPaquete`.
+const montoEntero = (n: number) => formatMonto(Math.round(n)).replace('.00', '')
 
 export function GestionPaquetes() {
   const sitios = useSitios()
@@ -153,17 +160,28 @@ export function GestionPaquetes() {
     }
   }
 
-  if (cargando) return <p className="text-sm text-neutral-500">Cargando los paquetes…</p>
+  // Esqueleto y no un «Cargando…» en texto (rediseño del 2026-10-26).
+  if (cargando) {
+    return (
+      <div className="space-y-4" aria-busy="true" aria-label="Cargando los paquetes">
+        <div className="h-20 animate-pulse rounded-md bg-surface-2" />
+        <div className="h-40 animate-pulse rounded-md bg-surface-2" />
+      </div>
+    )
+  }
+
+  const precio = Number(nuevo.precioCerrado)
 
   return (
     <div className="space-y-4">
       {error && (
-        <p role="alert" className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800">
+        <p role="alert" className="rounded-md border border-error bg-error-soft px-3 py-2 text-[13px] text-error">
           {error}
         </p>
       )}
 
-      <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+      {/* La franja ámbar del proyecto (tokens del Dashboard); mismo texto. */}
+      <div className="rounded-md border border-[#f59e0b40] bg-warning-soft px-3 py-2 text-[12px] text-[#9a6700]">
         <b>El precio del paquete SUSTITUYE la suma de las tarifas de lista: no la descuenta, la
         reemplaza.</b>{' '}
         Da igual lo que sumen las pantallas — se cobra el precio del paquete.
@@ -178,53 +196,78 @@ export function GestionPaquetes() {
 
       {/* PLEG-02 · la lista se pliega; el aviso de arriba y el alta de abajo
           no (el alta es un formulario y plegarlo borraría la vista de lo que se
-          está capturando). */}
+          está capturando).
+
+          Rediseño del 2026-10-26 · subtítulo de una frase y la explicación
+          como primera línea del contenido: con dos renglones de subtítulo el
+          chevrón de plegar se caía debajo del texto. */}
       <CardColapsable
         id="paquetes.lista"
         titulo="Paquetes de la organización"
-        subtitulo={
-          <>
-            El precio se reparte entre las pantallas <b>a prorrata de su tarifa de lista</b>, y la
-            suma de las partes da el precio del paquete <b>al peso</b>. Ese reparto es el ingreso
-            que el reporte de rentabilidad le atribuye a cada pantalla.
-          </>
-        }
+        subtitulo="Se reparte a prorrata de la tarifa de lista"
+        contentClassName="space-y-3"
       >
-        <table className="w-full text-sm">
+        <p className="rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px] text-muted">
+          El precio se reparte entre las pantallas <b>a prorrata de su tarifa de lista</b>, y la
+          suma de las partes da el precio del paquete <b>al peso</b>. Ese reparto es el ingreso
+          que el reporte de rentabilidad le atribuye a cada pantalla.
+        </p>
+        <div className="overflow-x-auto">
+        <table className="w-full text-left text-[13px]">
           <thead>
-            <tr className="border-b text-left text-xs text-neutral-500">
-              <th className="py-1">Paquete</th>
-              <th>Pantallas</th>
-              <th>Precio cerrado</th>
-              <th>¿Códigos?</th>
-              <th>En uso</th>
-              <th />
+            <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted">
+              <th className="px-3 py-2 font-medium">Paquete</th>
+              <th className="px-3 py-2 font-medium">Pantallas</th>
+              <th className="px-3 py-2 text-right font-medium">Precio cerrado</th>
+              <th className="px-3 py-2 font-medium">¿Códigos?</th>
+              <th className="px-3 py-2 text-right font-medium">En uso</th>
+              <th className="px-3 py-2" />
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-border">
             {paquetes.length === 0 && (
               <tr>
-                <td colSpan={6} className="py-3 text-neutral-500">
+                <td colSpan={6} className="px-3 py-2.5 text-muted">
                   Todavía no hay ninguno. Sin paquetes, todo se vende al precio de tarifa — que es
                   exactamente como funciona hoy.
                 </td>
               </tr>
             )}
             {paquetes.map((p) => (
-              <tr key={p.id} className={`border-b ${p.activo ? '' : 'text-neutral-400'}`}>
-                <td className="py-1.5">
-                  {p.nombre}
-                  {!p.activo && <span className="ml-1 text-xs">(desactivado)</span>}
+              <tr key={p.id} className={p.activo ? '' : 'text-muted'}>
+                <td className="px-3 py-2.5">
+                  <div className={p.activo ? 'font-medium text-ink' : ''}>{p.nombre}</div>
+                  {/* El estado con chip y palabra, no solo con el gris. */}
+                  <StatusBadge tono={p.activo ? 'verde' : 'neutro'} className="mt-1">
+                    {p.activo ? 'Activo' : 'Desactivado'}
+                  </StatusBadge>
                 </td>
-                <td title={p.sitios.map(nombreDe).join(' · ')}>{p.sitios.length}</td>
-                <td>{pesos(p.precioCerrado)}</td>
-                <td>{p.admiteCodigo ? 'Sí' : 'No — precio final'}</td>
-                <td>{p.aplicadoEn}</td>
-                <td className="space-x-3 text-right">
+                {/* Los nombres A LA VISTA, en una línea recortada; el `title`
+                    se queda para la lista completa. Antes solo estaban en el
+                    `title`, y en una pantalla táctil no se veían nunca. */}
+                <td className="max-w-[18rem] px-3 py-2.5" title={p.sitios.map(nombreDe).join(' · ')}>
+                  <div className="demo-num text-ink">{p.sitios.length} pantalla{p.sitios.length === 1 ? '' : 's'}</div>
+                  <div className="truncate text-[11px] text-muted">{p.sitios.map(nombreDe).join(' · ')}</div>
+                </td>
+                <td className="demo-num whitespace-nowrap px-3 py-2.5 text-right font-medium">{montoEntero(p.precioCerrado)}</td>
+                <td className="px-3 py-2.5">
+                  <span className="whitespace-nowrap rounded-full border border-border px-2 py-0.5 text-[11px] text-muted">
+                    {p.admiteCodigo ? 'Admite código' : 'Precio final'}
+                  </span>
+                </td>
+                <td className="px-3 py-2.5 text-right">
+                  <span
+                    className="demo-num whitespace-nowrap rounded-full border border-border px-2 py-0.5 text-[11px] text-muted"
+                    title="Propuestas que aplican este paquete"
+                  >
+                    En uso · {p.aplicadoEn}
+                  </span>
+                </td>
+                <td className="space-x-3 whitespace-nowrap px-3 py-2.5 text-right">
                   <button
                     type="button"
                     onClick={() => void alternarActivo(p)}
-                    className="text-xs hover:underline"
+                    className="text-[12px] font-medium text-info hover:underline"
                     title="Desactivar conserva la definición y deja de poder venderse. Lo ya cotizado y lo ya aprobado no se mueven."
                   >
                     {p.activo ? 'Desactivar' : 'Activar'}
@@ -244,24 +287,29 @@ export function GestionPaquetes() {
             ))}
           </tbody>
         </table>
+        </div>
       </CardColapsable>
 
-      <section className="rounded-md border bg-surface p-3">
-        <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold">
-          <Package className="h-4 w-4" /> Nuevo paquete
+      {/* Rediseño del 2026-10-26 · el formulario en el orden en que se piensa:
+          nombre y precio → pantallas → reparto previsto → «Crear paquete» AL
+          FINAL. El botón estaba arriba, antes de haber elegido pantallas. Es el
+          mismo `anadir()`. */}
+      <section className="rounded-md border border-border bg-surface p-4">
+        <h3 className="mb-3 flex items-center gap-1.5 text-[14px] font-medium text-ink">
+          <Package className="h-4 w-4 text-muted" /> Nuevo paquete
         </h3>
         <div className="flex flex-wrap items-end gap-3">
-          <label className="text-xs" data-falta={ob.falta('nombre') || undefined}>
+          <label className="text-[12px]" data-falta={ob.falta('nombre') || undefined}>
             <EtiquetaCompacta texto="Nombre" obligatorio falta={ob.falta('nombre')} />
             <input
               aria-label="Nombre del paquete"
-              className="w-56 rounded border px-2 py-1 text-sm"
-              placeholder="Paquete Periférico"
+              className={`${CAMPO} w-56`}
+              placeholder="p. ej. Paquete Periférico"
               value={nuevo.nombre}
               onChange={(e) => setNuevo({ ...nuevo, nombre: e.target.value })}
             />
           </label>
-          <label className="text-xs" data-falta={ob.falta('precioCerrado') || undefined}>
+          <label className="text-[12px]" data-falta={ob.falta('precioCerrado') || undefined}>
             <EtiquetaCompacta texto="Precio del conjunto (pesos enteros)" obligatorio falta={ob.falta('precioCerrado')} />
             {/* Pesos ENTEROS (decimales 0): el reparto no admite centavos. Lo
                 que no se entiende llega como 'NaN' y `motivoPaqueteInvalido`
@@ -269,13 +317,13 @@ export function GestionPaquetes() {
             <CampoCifra
               aria-label="Precio cerrado del paquete"
               decimales={0}
-              className="w-36 rounded border px-2 py-1 text-sm"
-              placeholder="180000"
+              className={`${CAMPO} demo-num w-36 text-right`}
+              placeholder="p. ej. 180,000"
               valor={nuevo.precioCerrado}
               onCambio={(crudo) => setNuevo({ ...nuevo, precioCerrado: crudo })}
             />
           </label>
-          <label className="flex items-center gap-1.5 text-xs">
+          <label className="flex h-9 items-center gap-1.5 text-[12px] text-ink">
             <input
               type="checkbox"
               aria-label="Admite código de negociación encima"
@@ -284,26 +332,21 @@ export function GestionPaquetes() {
             />
             Admite código de negociación encima
           </label>
-          <Button
-            type="button"
-            onClick={() => void anadir()}
-            size="sm"
-            variant="success"
-          >
-            <Plus className="h-3.5 w-3.5" /> Crear paquete
-          </Button>
         </div>
 
-        <div className="mt-3">
-          <p className={`mb-1 text-xs ${ob.falta('sitios') ? 'text-error' : 'text-neutral-500'}`}>
+        <div className="mt-4">
+          <p className={`mb-1 text-[12px] ${ob.falta('sitios') ? 'text-error' : 'text-muted'}`}>
             Pantallas del paquete
             <span aria-hidden="true" className="ml-0.5 text-error">*</span>
             <span className="sr-only"> (obligatorio)</span> (mínimo 2). Una propuesta solo puede aplicar este paquete si
             tiene <b>exactamente</b> estas pantallas.
+            <span className="ml-1 rounded-full border border-border px-2 py-0.5 text-[11px] text-muted">
+              <span className="demo-num">{nuevo.sitios.length}</span> elegida{nuevo.sitios.length === 1 ? '' : 's'}
+            </span>
           </p>
-          <div className={`max-h-56 overflow-auto rounded border p-2 ${ob.falta('sitios') ? 'border-error' : ''}`}>
+          <div className={`max-h-56 divide-y divide-border overflow-auto rounded-md border px-3 py-1 ${ob.falta('sitios') ? 'border-error' : 'border-border'}`}>
             {(sitios ?? []).map((s) => (
-              <label key={s.id} className="flex items-center gap-2 py-0.5 text-xs">
+              <label key={s.id} className="flex items-center gap-2 py-1.5 text-[13px] text-ink">
                 <input
                   type="checkbox"
                   checked={nuevo.sitios.includes(s.id)}
@@ -316,50 +359,90 @@ export function GestionPaquetes() {
                     })
                   }
                 />
-                {s.nombre}
-                <span className="text-neutral-400">{pesos(listaDe(s.id))} de lista</span>
+                <span className="min-w-0 flex-1 truncate">{s.nombre}</span>
+                <span className="demo-num shrink-0 text-[12px] text-muted">{montoEntero(listaDe(s.id))} de lista</span>
               </label>
             ))}
           </div>
         </div>
 
         {previsto && (
-          <div className="mt-3 rounded border border-blue-200 bg-blue-50 p-2 text-xs">
-            <p className="mb-1">
-              Suma de las tarifas de lista: <b>{pesos(sumaListas)}</b> · Precio del paquete:{' '}
-              <b>{pesos(Number(nuevo.precioCerrado))}</b>
+          // Rediseño del 2026-10-26 · el reparto previsto es LA pieza de esta
+          // pantalla y se leía como una nota azul. Ahora es una tabla de dinero:
+          // los MISMOS `previsto` y `sumaListas`, con el resumen arriba en la
+          // franja secundaria del Dashboard.
+          <div className="mt-4 space-y-2">
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-1 rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px]">
+              <span className="text-muted">
+                Lista <span className="demo-num text-ink">{montoEntero(sumaListas)}</span>
+              </span>
+              <span className="text-muted">
+                Paquete <span className="demo-num font-medium text-ink">{montoEntero(precio)}</span>
+              </span>
               {sumaListas > 0 && (
-                <>
-                  {' '}
-                  ·{' '}
-                  {Number(nuevo.precioCerrado) < sumaListas
-                    ? `se deja de cobrar ${pesos(sumaListas - Number(nuevo.precioCerrado))}`
-                    : `se cobra ${pesos(Number(nuevo.precioCerrado) - sumaListas)} POR ENCIMA de la lista`}
-                </>
+                <span className={precio < sumaListas ? 'text-muted' : 'font-medium text-[#9a6700]'}>
+                  {precio < sumaListas
+                    ? <>se deja de cobrar <span className="demo-num text-ink">{montoEntero(sumaListas - precio)}</span></>
+                    : <>se cobra <span className="demo-num">{montoEntero(precio - sumaListas)}</span> POR ENCIMA de la lista</>}
+                </span>
               )}
-            </p>
-            <p className="mb-1 text-neutral-600">
+            </div>
+            <p className="text-[12px] text-muted">
               Así se repartiría entre las pantallas — y esto es lo que el reporte de rentabilidad
               le atribuirá a cada una:
             </p>
-            <ul>
-              {previsto.map((x) => (
-                <li key={x.id}>
-                  {nombreDe(x.id)}: <b>{pesos(x.parte)}</b>{' '}
-                  <span className="text-neutral-400">(lista {pesos(x.lista)})</span>
-                </li>
-              ))}
-            </ul>
-            <p className="mt-1">
-              Suma de las partes:{' '}
-              <b>{pesos(previsto.reduce((s, x) => s + x.parte, 0))}</b> — cuadra al peso.
-            </p>
+            <div className="overflow-x-auto rounded-md border border-border">
+              <table className="w-full text-left text-[13px]">
+                <thead>
+                  <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted">
+                    <th className="px-3 py-2 font-medium">Pantalla</th>
+                    <th className="px-3 py-2 text-right font-medium">Lista</th>
+                    <th className="px-3 py-2 text-right font-medium">Parte del paquete</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {previsto.map((x) => (
+                    <tr key={x.id}>
+                      <td className="px-3 py-2 text-ink">{nombreDe(x.id)}</td>
+                      <td className="demo-num whitespace-nowrap px-3 py-2 text-right text-muted">{montoEntero(x.lista)}</td>
+                      <td className="demo-num whitespace-nowrap px-3 py-2 text-right font-medium text-ink">{montoEntero(x.parte)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-border-strong">
+                    <td className="px-3 py-2 font-medium text-ink" colSpan={2}>
+                      Suma de las partes <span className="font-normal text-muted">— cuadra al peso</span>
+                    </td>
+                    <td className="demo-num whitespace-nowrap px-3 py-2 text-right font-semibold text-ink">
+                      {montoEntero(previsto.reduce((s, x) => s + x.parte, 0))}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
           </div>
         )}
+
+        <div className="mt-4 flex justify-end">
+          <Button
+            type="button"
+            onClick={() => void anadir()}
+            size="sm"
+            variant="success"
+          >
+            <Plus className="h-3.5 w-3.5" /> Crear paquete
+          </Button>
+        </div>
       </section>
     </div>
   )
 }
+
+// Campos del alto y el borde del resto de los formularios (rediseño del
+// 2026-10-26); el `placeholder` en gris para que no se lea como un valor.
+const CAMPO =
+  'h-9 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink outline-none placeholder:text-muted focus-visible:ring-2 focus-visible:ring-accent'
 
 // OBLIG-01 · la etiqueta de la fila de alta, con asterisco y en rojo si falta.
 // NO es el `Campo` compartido a propósito: la fila es `items-end` con anchos
@@ -368,7 +451,7 @@ export function GestionPaquetes() {
 // `globals.css` por el `data-falta` del <label>; el motivo, el aviso de arriba.
 function EtiquetaCompacta({ texto, obligatorio = false, falta = false }: { texto: string; obligatorio?: boolean; falta?: boolean }) {
   return (
-    <span className={`mb-0.5 block ${falta ? 'text-error' : 'text-neutral-500'}`}>
+    <span className={`mb-0.5 block ${falta ? 'text-error' : 'text-muted'}`}>
       {texto}
       {obligatorio && (
         <>

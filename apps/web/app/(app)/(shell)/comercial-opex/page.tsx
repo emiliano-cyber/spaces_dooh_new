@@ -1,4 +1,3 @@
-import { Handshake } from 'lucide-react'
 import { ComercialOpex } from '@/components/demo/comercial-opex/ComercialOpex'
 
 // ============================================================================
@@ -13,22 +12,12 @@ import { ComercialOpex } from '@/components/demo/comercial-opex/ComercialOpex'
 //  Se queda como Server Component para fijar AQUÍ la fecha de hoy: si la
 //  calcularan el servidor y el navegador por separado, «hace N días» podía
 //  salir distinto a medianoche y React avisaría de una hidratación rota.
+//
+//  El encabezado (título y «Nuevo espacio») lo pinta `ComercialOpex` desde el
+//  rediseño del 26/10: el botón abre un Sheet cuyo estado vive ahí, y con el
+//  patrón del resto de módulos va arriba a la derecha, junto al título.
 // ============================================================================
 
 export default function ComercialOpexPage() {
-  return (
-    <div className="space-y-4">
-      <header className="flex items-start gap-2">
-        <Handshake className="mt-0.5 h-5 w-5 text-ink" />
-        <div className="min-w-0">
-          <h1 className="text-lg font-semibold text-ink">Comercial negociación</h1>
-          <p className="text-[12px] text-muted">
-            Prospección de arrendadores: los espacios que se están persiguiendo, quién manda en cada
-            uno y cómo va la negociación de su renta.
-          </p>
-        </div>
-      </header>
-      <ComercialOpex hoyIso={new Date().toISOString()} />
-    </div>
-  )
+  return <ComercialOpex hoyIso={new Date().toISOString()} />
 }

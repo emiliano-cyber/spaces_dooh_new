@@ -52,6 +52,14 @@ export function TableroPropuestas() {
 
   const r = datos?.resumen
   const conGanancia = datos?.conGanancia ?? false
+  // Ceros honestos (rediseño del 26/10). Si hay aprobadas pero NINGUNA trae su
+  // venta calculada (la tabla de abajo dice «—» en cada una), el total sale 0 y
+  // pintar «$ 0.00» afirmaría que se vendió cero. Solo cambia CÓMO se enseña:
+  // la cifra que manda el servidor no se toca.
+  const ventaSinCalcular =
+    !!r && r.aprobadas.n > 0 && r.aprobadas.venta === 0 && r.lista.length > 0 && r.lista.every((x) => x.venta === null)
+  const gananciaSinCalcular =
+    !!r && r.aprobadas.n > 0 && !r.aprobadas.ganancia && r.lista.length > 0 && r.lista.every((x) => x.ganancia === null)
 
   return (
     // PLEG-02 · el selector de periodo va en `accion` (fuera del área que
@@ -60,25 +68,44 @@ export function TableroPropuestas() {
     <CardColapsable
       id="propuestas.resumen"
       titulo="Resumen de propuestas"
+      // Plegado al entrar desde el 26/10: va debajo de la lista y es análisis
+      // por periodo; quien lo quiera lo abre con un clic.
+      defaultAbierto={false}
       subtitulo={
         datos ? `${datos.periodo.etiqueta} · ${formatFecha(datos.periodo.desde)} a ${formatFecha(datos.periodo.hasta)}` : '—'
       }
       accion={
         <div className="flex flex-wrap items-center gap-1.5">
-          {OPCIONES_PERIODO.map((o) => (
-            <button
-              key={o.tipo}
-              type="button"
-              onClick={() => setTipo(o.tipo)}
-              aria-pressed={tipo === o.tipo}
-              className={cn(
-                'rounded border px-2.5 py-1 text-[12px] font-medium',
-                tipo === o.tipo ? 'border-accent bg-accent text-white' : 'border-border-strong bg-surface text-ink hover:bg-surface-2',
-              )}
-            >
-              {o.label}
-            </button>
-          ))}
+          {/* En un teléfono los seis botones desbordaban la página entera (516 px
+              de contenido en 380, medido por la validación del 26/10). Mismo
+              arreglo que `TableroPeriodo` de Finanzas: un `<select>` con las
+              MISMAS opciones y el MISMO `setTipo`; desde `sm`, el segmentado. */}
+          <select
+            value={tipo}
+            onChange={(e) => setTipo(e.target.value as TipoPeriodo)}
+            aria-label="Periodo"
+            className="h-8 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink sm:hidden"
+          >
+            {OPCIONES_PERIODO.map((o) => (
+              <option key={o.tipo} value={o.tipo}>{o.label}</option>
+            ))}
+          </select>
+          <div className="hidden flex-wrap items-center gap-1.5 sm:flex">
+            {OPCIONES_PERIODO.map((o) => (
+              <button
+                key={o.tipo}
+                type="button"
+                onClick={() => setTipo(o.tipo)}
+                aria-pressed={tipo === o.tipo}
+                className={cn(
+                  'rounded border px-2.5 py-1 text-[12px] font-medium',
+                  tipo === o.tipo ? 'border-accent bg-accent text-white' : 'border-border-strong bg-surface text-ink hover:bg-surface-2',
+                )}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
           {tipo === 'rango' && (
             <span className="flex items-center gap-1.5">
               <input type="date" className={inputFecha} value={desde} onChange={(e) => setDesde(e.target.value)} aria-label="Desde" />
@@ -99,18 +126,33 @@ export function TableroPropuestas() {
           </div>
         ) : (
           <div className={cn('space-y-4', cargando && 'opacity-60')}>
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+            {/* Sin ganancia (quien no ve finanzas) son cuatro cifras: en una
+                rejilla de seis dejaban dos huecos vacíos a la derecha. */}
+            <div className={cn('grid grid-cols-2 gap-3', conGanancia ? 'md:grid-cols-3 xl:grid-cols-6' : 'md:grid-cols-4')}>
               <Cifra label="Generadas" valor={formatNumero(r.generadas)} pie="creadas en el periodo" />
-              <Cifra label="Aprobadas" valor={formatNumero(r.aprobadas.n)} pie={`venta ${formatMonto(r.aprobadas.venta)} sin IVA`} tono="ok" />
-              <Cifra label="Rechazadas" valor={formatNumero(r.rechazadas)} pie="en el periodo" tono={r.rechazadas > 0 ? 'error' : undefined} />
               <Cifra
-                label="Tasa de cierre"
+                label="Aprobadas"
+                valor={formatNumero(r.aprobadas.n)}
+                pie={ventaSinCalcular ? 'venta —, sin calcular en estas propuestas' : `venta ${formatMonto(r.aprobadas.venta)} sin IVA`}
+                tono="ok"
+              />
+              <Cifra label="Rechazadas" valor={formatNumero(r.rechazadas)} pie="en el periodo" tono={r.rechazadas > 0 ? 'error' : undefined} />
+              {/* «del periodo» en la etiqueta: arriba hay una tasa histórica y
+                  el Dashboard tiene otra de ventana fija, y sin decirlo se leían
+                  dos porcentajes distintos para la misma pregunta. */}
+              <Cifra
+                label="Tasa de cierre del periodo"
                 valor={r.tasaCierre === null ? '—' : pct(r.tasaCierre * 100)}
-                pie="aprobadas de las decididas"
+                pie="aprobadas de las decididas en este periodo"
               />
               {conGanancia && (
                 <>
-                  <Cifra label="Ganancia" valor={formatMonto(r.aprobadas.ganancia ?? 0)} pie={`margen ${pct(r.aprobadas.margenPct)}`} tono="ok" />
+                  <Cifra
+                    label="Ganancia"
+                    valor={gananciaSinCalcular ? '—' : formatMonto(r.aprobadas.ganancia ?? 0)}
+                    pie={gananciaSinCalcular ? 'sin calcular: falta la venta o la renta' : `margen ${pct(r.aprobadas.margenPct)}`}
+                    tono={gananciaSinCalcular ? undefined : 'ok'}
+                  />
                   <Cifra
                     label="Ganancia por aprobada"
                     valor={r.aprobadas.gananciaPromedio === null ? '—' : formatMonto(r.aprobadas.gananciaPromedio)}

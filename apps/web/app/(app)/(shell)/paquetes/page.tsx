@@ -1,6 +1,5 @@
 'use client'
 
-import { Package } from 'lucide-react'
 import { GestionPaquetes } from '@/components/demo/paquetes/GestionPaquetes'
 
 // ============================================================================
@@ -25,12 +24,14 @@ import { GestionPaquetes } from '@/components/demo/paquetes/GestionPaquetes'
 // ============================================================================
 export default function PaquetesPage() {
   return (
-    <div className="space-y-4">
-      <header className="flex items-center gap-2">
-        <Package className="h-5 w-5" />
+    <div className="w-full space-y-4">
+      {/* Encabezado con la forma del Dashboard (rediseño 2026-10-26): título
+          de 2xl y subtítulo en `text-muted`, sin el icono suelto ni la paleta
+          `neutral` de Tailwind, que no son tokens del proyecto. */}
+      <header>
         <div>
-          <h1 className="text-lg font-semibold">Paquetes cerrados</h1>
-          <p className="text-xs text-neutral-500">
+          <h1 className="text-2xl text-ink">Paquetes cerrados</h1>
+          <p className="mt-1 text-[13px] text-muted">
             Un conjunto de pantallas con un precio del conjunto. Sustituye la suma de sus tarifas
             de lista; no la descuenta.
           </p>

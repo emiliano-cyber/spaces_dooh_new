@@ -4,6 +4,7 @@ import { q1 } from './db'
 import { tenantActual } from './tenant'
 import { AppError, validar } from './errores'
 import { motivoHorarioInvalido } from '@/lib/doohmain-programacion'
+import { franjaDeCampana } from './franja-de-campana'
 
 // ============================================================================
 //  lib/server/horario-doohmain.ts — El horario INDIVIDUAL de una campaña en
@@ -56,6 +57,17 @@ export async function fijarHorarioDoohmainCtrl(
   if (h) {
     const motivo = motivoHorarioInvalido(h)
     if (motivo) throw new AppError(motivo, 400)
+    // Con franja, la campaña ya tiene su horario en DOOHmain: no lleva otro.
+    // Quitar (`horario: null`) sí se deja siempre, para que una campaña que ya
+    // tenía los dos —de antes de esta regla— pueda quedarse solo con la franja.
+    const f = await franjaDeCampana(campanaId, await tenantActual())
+    if (f) {
+      throw new AppError(
+        `Esta campaña ya tiene franja horaria (${f.nombre}, ${f.horaInicio} a ${f.horaFin}): ` +
+          'ese es el horario que se manda a DOOHmain y no lleva otro.',
+        409,
+      )
+    }
   }
   const r = await q1<{ nombre: string }>(
     `update campanas

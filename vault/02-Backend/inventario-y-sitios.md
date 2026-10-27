@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-22
+actualizado: 2026-10-23
 tags: [backend, inventario, sitios, amarillo]
 archivos:
   - apps/web/lib/server/sitios-repo.ts
@@ -35,8 +35,20 @@ archivos:
 >   dependían del contrato. En Inventario, Comercial, propuestas y Reportes dice
 >   «Propia» en vez de «sin contrato» o «Sin arrendador»; el tablero de propuestas la
 >   cuenta con costo 0, no «sin costo».
-> **Sin verificar contra Postgres**: `lib/test/pantallas-propias.e2e.test.ts` está
-> escrita pero no se ha corrido (la v0.12.3 no se sube todavía).
+> **Verificado contra Postgres el 23/10**: `lib/test/pantallas-propias.e2e.test.ts`,
+> 15 en verde, incluida la venta de punta a punta por `POST /api/reservar` (propia
+> sin contrato se vende; rentada incompleta o sin contrato es 409; la de otra
+> organización no se vende ni siendo propia allá).
+>
+> **23/10 · «propia» en TODAS las altas.** Faltaba en dos:
+> - **Alta manual desde Comercial** (`components/demo/comercial/AltaSitioDialog.tsx`)
+>   siempre exigía arrendador; ahora tiene la misma casilla que Nueva pantalla.
+> - **Re-importar en modo ACTUALIZAR** pisaba los datos de la pantalla existente y se
+>   olvidaba de `propio`. Ahora un lote propio la vuelve propia con la MISMA regla
+>   que la ficha (`volverPropiaEnTx`, compartida con `marcarPropio`): cancela su
+>   pendiente; con renta vigente la fila sale como error y la pantalla queda intacta.
+>   Un lote rentado NO desmarca una propia (eso exige arrendador, desde su ficha):
+>   la actualiza y lo avisa como advertencia.
 
 
 ## Modelo

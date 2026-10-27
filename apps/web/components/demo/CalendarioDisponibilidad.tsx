@@ -102,8 +102,13 @@ export function CalendarioDisponibilidad({
               key={i}
               className={cn(
                 'demo-num flex h-8 items-center justify-center rounded text-[12px]',
-                est === 'CONFIRMADA' && 'bg-[#10b9811a] text-[#0f7a55]',
-                est === 'TENTATIVA' && 'bg-[#f59e0b1a] text-[#9a6700]',
+                // Mismo código que la rejilla de Disponibilidad (26/10): ocupada
+                // en rojo suave y tentativa en ámbar. Antes la confirmada iba en
+                // VERDE, y verde es «libre» en el mapa y en Disponibilidad. El
+                // ámbar del texto es el oscuro del Dashboard: `text-warning`
+                // (#f59e0b) sobre su tinte no se lee a 12 px.
+                est === 'CONFIRMADA' && 'bg-error-soft text-error',
+                est === 'TENTATIVA' && 'bg-warning-soft text-[#9a6700]',
                 !est && 'text-ink',
                 esHoy && 'ring-1 ring-accent',
               )}
@@ -115,10 +120,10 @@ export function CalendarioDisponibilidad({
       </div>
       <div className="mt-3 flex items-center gap-4 text-[11px] text-muted">
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-sm bg-[#10b981]" /> confirmada
+          <span className="h-2.5 w-2.5 rounded-sm bg-error" /> confirmada
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-sm bg-[#f59e0b]" /> tentativa
+          <span className="h-2.5 w-2.5 rounded-sm bg-warning" /> en propuesta
         </span>
       </div>
     </div>

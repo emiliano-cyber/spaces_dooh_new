@@ -2,8 +2,13 @@
 
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { AlertTriangle, Check, Pencil, Plus, RotateCcw, Trash2, X } from 'lucide-react'
+import { AlertTriangle, Building2, Check, Pencil, Plus, RotateCcw, Trash2, X } from 'lucide-react'
+import Link from 'next/link'
 import { cn } from '@/lib/cn'
+import { useConfigNegocio } from '@/lib/data/client'
+import { conteo } from '@/lib/plural'
+import { EmptyState } from '@/components/demo/EmptyState'
+import { Chip, TONO } from '@/components/demo/admin/Chip'
 import { Button } from '@/components/demo/ui/Button'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
@@ -73,6 +78,13 @@ export function GestionEntidadesFiscales({
   const ordenadas = useMemo(() => entidadesOrdenadas(entidades), [entidades])
   const huerfanos = useMemo(() => rolesSinDueno(entidades, claves), [entidades, claves])
   const compartidos = useMemo(() => rolesCompartidos(entidades, claves), [entidades, claves])
+  // Solo para PINTAR cuál es la principal (la que sale en contratos y en el
+  // Dashboard). Se lee del store, que ya la trae; aquí no se cambia: eso vive
+  // en Administración → Configuración.
+  const principalId = useConfigNegocio()?.entidadPrincipalId ?? null
+  const activas = entidades.filter((e) => e.activo !== false).length
+  const deBaja = entidades.length - activas
+  const avisos = huerfanos.length + compartidos.length
 
   const falta = loQueFaltaEnElBorrador(borrador, {
     existentes: entidades,
@@ -183,7 +195,9 @@ export function GestionEntidadesFiscales({
   }
 
   const formulario = (
-    <div className="space-y-3 rounded border border-accent/40 bg-accent-soft p-3">
+    // `border-accent/40` no se generaba (ver la cabecera de `admin/Chip.tsx`):
+    // el borde sale del tono «acento», y el texto vuelve a `ink`.
+    <div className={cn('space-y-3 rounded border p-3', TONO.acento, 'text-ink')}>
       <div className="grid gap-2.5 sm:grid-cols-2">
         <Campo label="Razón social" obligatorio falta={ob.falta('razonSocial')} className="sm:col-span-2">
           <input
@@ -251,7 +265,7 @@ export function GestionEntidadesFiscales({
                 onClick={() => alternarRol(c.rol)}
                 aria-pressed={puesto}
                 className={cn(
-                  'rounded-full border px-2.5 py-1 text-[12px] transition-colors',
+                  'm-0 cursor-pointer rounded-full border px-2.5 py-1 text-[12px] transition-colors',
                   puesto
                     ? 'border-accent bg-accent text-white'
                     : 'border-border-strong bg-surface text-ink hover:border-accent',
@@ -287,7 +301,7 @@ export function GestionEntidadesFiscales({
     <div className="space-y-4">
       {/* Los dos avisos que se notan en OTRA pantalla y semanas después. */}
       {(huerfanos.length > 0 || compartidos.length > 0) && entidades.length > 0 && (
-        <div className="space-y-1.5 rounded-md border border-warning/40 bg-warning-soft p-3 text-[12.5px] text-ink">
+        <div className={cn('space-y-1.5 rounded-md border p-3 text-[12.5px]', TONO.aviso)}>
           {huerfanos.length > 0 && (
             <p className="flex gap-1.5">
               <AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0 text-warning" />
@@ -317,8 +331,21 @@ export function GestionEntidadesFiscales({
           aquí mismo, y con la tarjeta plegada el clic no enseñaría nada. El
           borrador vive en este componente, así que plegar a medio capturar
           no lo pierde. */}
-      <CardColapsable id="razones-sociales.lista" titulo="Razones sociales" contentClassName="space-y-4">
-      {puedeEditar && !creando && !editando && (
+      <CardColapsable
+        id="razones-sociales.lista"
+        titulo="Razones sociales"
+        contentClassName="space-y-4"
+        resumen={entidades.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5">
+            <Chip tono="exito" punto><span className="demo-num">{conteo(activas, 'activa')}</span></Chip>
+            <Chip punto><span className="demo-num">{deBaja}</span> de baja</Chip>
+            {/* El detalle de los avisos sigue FUERA de la tarjeta (ver arriba);
+                esto solo los cuenta para que se vean con la tarjeta plegada. */}
+            {avisos > 0 && <Chip tono="aviso"><span className="demo-num">{conteo(avisos, 'aviso')}</span></Chip>}
+          </div>
+        ) : undefined}
+      >
+      {puedeEditar && !creando && !editando && ordenadas.length > 0 && (
         <Button variant="success" size="sm" onClick={abrirAlta}>
           <Plus className="h-3.5 w-3.5" /> Nueva razón social
         </Button>
@@ -326,40 +353,59 @@ export function GestionEntidadesFiscales({
       {creando && formulario}
 
       {ordenadas.length === 0 && !creando ? (
-          <div className="space-y-2">
-            <p className="text-[13px] text-ink">
-              Todavía no hay ninguna razón social registrada.
-            </p>
-            <p className="text-[12.5px] text-muted">
-              Es la identidad fiscal del negocio: con cuál pagas las rentas, con cuál compras los
-              activos, con cuál tramitas licencias y con cuál vendes. Pueden ser varias, y es lo
-              normal.
-            </p>
-          </div>
+          // El vacío lleva sus dos salidas al lado: el mismo «Nueva razón
+          // social» de arriba y el cuestionario de bienvenida, que antes era
+          // un párrafo suelto debajo de la tarjeta, lejos del vacío.
+          <EmptyState
+            icon={Building2}
+            titulo="Todavía no hay ninguna razón social registrada."
+            detalle="Es la identidad fiscal del negocio: con cuál pagas las rentas, con cuál compras los activos, con cuál tramitas licencias y con cuál vendes. Pueden ser varias, y es lo normal."
+            className="py-8"
+            accion={
+              <div className="flex flex-col items-center gap-2">
+                {puedeEditar && (
+                  <Button variant="success" size="sm" onClick={abrirAlta}>
+                    <Plus className="h-3.5 w-3.5" /> Nueva razón social
+                  </Button>
+                )}
+                <p className="m-0 text-[12.5px] text-muted">
+                  Si prefieres capturarlas contestando tres preguntas, el{' '}
+                  <Link href="/bienvenida" className="text-muted underline hover:text-ink">
+                    cuestionario de bienvenida
+                  </Link>{' '}
+                  las crea de una vez con sus papeles.
+                </p>
+              </div>
+            }
+          />
       ) : (
-        <ul className="space-y-2">
+        // Lista del Dashboard: filas separadas por `divide-y`, sin la caja con
+        // borde dentro de otra caja, y SIN viñetas (`preflight` está apagado y
+        // un <ul> sin `list-none` pinta el «•» del navegador).
+        <ul className="m-0 list-none divide-y divide-border p-0">
           {ordenadas.map((e) =>
             editando === e.id ? (
-              <li key={e.id}>{formulario}</li>
+              <li key={e.id} className="py-3">{formulario}</li>
             ) : (
               <li
                 key={e.id}
                 className={cn(
-                  'rounded-md border border-border bg-surface p-3',
+                  'py-3 first:pt-0 last:pb-0',
                   e.activo === false && 'opacity-70',
                 )}
               >
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="text-[13.5px] font-medium text-ink">
-                      {e.razonSocial}
-                      {e.activo === false && (
-                        <span className="ml-2 rounded border border-border-strong px-1.5 py-px text-[11px] font-normal text-muted">
-                          Dada de baja
-                        </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-[13.5px] font-medium text-ink">{e.razonSocial}</span>
+                      {e.id === principalId && (
+                        <Chip tono="acento" title="Sale en contratos y en el Dashboard · se cambia en Administración → Configuración">
+                          Principal
+                        </Chip>
                       )}
-                    </p>
-                    <p className="mt-0.5 text-[12px] text-muted">
+                      {e.activo === false && <Chip>Dada de baja</Chip>}
+                    </div>
+                    <p className="m-0 mt-0.5 text-[12px] text-muted">
                       <span className="demo-num">{e.rfc || 'sin RFC'}</span>
                       {e.regimen ? ` · ${e.regimen}` : ''}
                       {e.cpFiscal ? ` · CP ${e.cpFiscal}` : ''}
@@ -372,7 +418,7 @@ export function GestionEntidadesFiscales({
                         (e.roles ?? []).map((r) => (
                           <span
                             key={r}
-                            className="rounded-full border border-border-strong px-2 py-px text-[11px] text-ink"
+                            className="rounded-full border border-border-strong px-2 py-0.5 text-[11px] text-ink"
                           >
                             {etiquetaDe(r)}
                           </span>
@@ -381,7 +427,7 @@ export function GestionEntidadesFiscales({
                     </div>
                   </div>
                   {puedeEditar && (
-                    <div className="flex shrink-0 gap-1.5">
+                    <div className="flex w-full shrink-0 flex-wrap gap-1.5 sm:w-auto">
                       <Button size="sm" variant="secondary" onClick={() => abrirEdicion(e)}>
                         <Pencil className="h-3.5 w-3.5" /> Editar
                       </Button>

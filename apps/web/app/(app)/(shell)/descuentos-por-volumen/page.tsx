@@ -1,6 +1,5 @@
 'use client'
 
-import { Layers } from 'lucide-react'
 import { GestionVolumen } from '@/components/demo/volumen/GestionVolumen'
 
 // ============================================================================
@@ -24,12 +23,14 @@ import { GestionVolumen } from '@/components/demo/volumen/GestionVolumen'
 // ============================================================================
 export default function DescuentosPorVolumenPage() {
   return (
-    <div className="space-y-4">
-      <header className="flex items-center gap-2">
-        <Layers className="h-5 w-5" />
+    <div className="w-full space-y-4">
+      {/* Encabezado con la forma del Dashboard (rediseño 2026-10-26): título
+          de 2xl y subtítulo en `text-muted`, sin el icono suelto ni la paleta
+          `neutral` de Tailwind, que no son tokens del proyecto. */}
+      <header>
         <div>
-          <h1 className="text-lg font-semibold">Descuentos por volumen</h1>
-          <p className="text-xs text-neutral-500">
+          <h1 className="text-2xl text-ink">Descuentos por volumen</h1>
+          <p className="mt-1 text-[13px] text-muted">
             Qué descuento gana quien compra mucho. Se captura una vez por unidad de venta y vale
             para todo el inventario.
           </p>

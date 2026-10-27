@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-06
+actualizado: 2026-10-26
 tags: [frontend, login, sesion, rojo]
 archivos:
   - apps/web/app/(app)/login/page.tsx
@@ -15,6 +15,8 @@ archivos:
   - apps/web/lib/server/errores.ts
   - apps/web/components/demo/ui/SelectorIdioma.tsx
   - apps/web/middleware.ts
+  - apps/web/app/(app)/(shell)/configuracion/page.tsx
+  - apps/web/app/(app)/(shell)/codigos-recuperacion/page.tsx
 ---
 
 # Acceso y sesión (UI)
@@ -157,6 +159,17 @@ Cuando un administrador restablece una contraseña, el usuario entra con
 > nunca**. Hoy se le lleva directo a su cuenta con un aviso
 > (`docs/Registro_Cambios.md`, 06/08). **Si añades un corte en el servidor,
 > añade la salida en la UI en el mismo commit.**
+
+**Disposición desde el 2026-10-26 (rediseño de presentación, sin cambio de
+flujo).** En `/configuracion` el aviso de contraseña temporal va arriba a ancho
+completo, y debajo «Mi cuenta» va **primero** (antes iba después de «Empresa»),
+con una franja de solo lectura que dice tu nombre, tu rol y si entraste con
+Google o con contraseña; la tarjeta sigue sin `id` cuando la contraseña es
+temporal, para que nunca llegue plegada. `/codigos-recuperacion` dejó de ser
+HTML sin estilo: tarjeta no plegable, botones `Button`, rejilla numerada de
+códigos y avisos en franja ámbar. El flujo es idéntico —nada se genera al
+montar, el 403 con `requiereDesbloqueo` pide la contraseña en el sitio, la
+casilla «Ya los guardé» habilita «Continuar» y se recarga entera a `/inicio`—.
 
 ## La compuerta del shell, y por qué la decisión salió del `.tsx`
 

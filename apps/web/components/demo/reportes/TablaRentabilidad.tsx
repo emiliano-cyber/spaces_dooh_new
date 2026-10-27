@@ -36,6 +36,12 @@ function Celda({ children, className }: { children: React.ReactNode; className?:
 // Rojo si pierde, verde si gana. El color lo pone quien pinta, no el
 // formateador (`formatMonto` ya mete los negativos entre paréntesis, que es la
 // convención contable: «$ -156,986.66» se lee mal en una columna de cifras).
+// La primera columna (el nombre) se queda FIJA al desplazar la tabla de lado:
+// en un teléfono, con nueve columnas, al llegar al margen ya no se sabía de qué
+// pantalla era la cifra. Lleva fondo propio para que las cifras no se
+// transparenten por debajo (rediseño del 2026-10-26).
+const FIJA = 'sticky left-0 z-[1] bg-surface'
+
 const tonoMargen = (n: number) => (n < 0 ? 'text-error' : n > 0 ? 'text-success' : 'text-ink')
 
 // Solo las columnas de margen se colorean. Pintar de rojo un costo alto diría
@@ -91,14 +97,18 @@ export function TablaRentabilidad({
                 // dos renglones, y una cifra partida no se lee de un vistazo
                 // —esto se presenta en un proyector—. La tabla ya tiene
                 // `overflow-x-auto`, así que el ancho que falte se desplaza.
-                className={cn('px-2 py-2 font-medium', c.numerica && 'whitespace-nowrap text-right')}
+                className={cn('px-2 py-2 font-medium', c.numerica && 'whitespace-nowrap text-right', c.clave === 'etiqueta' && FIJA)}
               >
                 <button
                   type="button"
                   onClick={() => onOrdenar(c.clave)}
                   className={cn(
-                    'inline-flex items-center gap-1 uppercase tracking-wide hover:text-ink',
-                    orden.columna === c.clave && 'text-ink',
+                    // `text-[11px]` también en el botón: sin él tomaba el tamaño
+                    // propio del botón y la cabecera se veía más grande que la
+                    // declarada en el `tr` (visto en pantalla el 2026-10-26).
+                    // La columna activa va en negrita además de la flecha.
+                    'inline-flex items-center gap-1 text-[11px] uppercase tracking-wide hover:text-ink',
+                    orden.columna === c.clave && 'font-semibold text-ink',
                   )}
                 >
                   {c.label}
@@ -143,7 +153,7 @@ export function TablaRentabilidad({
             {columnas.map((c) => {
               if (c.clave === 'etiqueta') {
                 return (
-                  <Celda key={c.clave} className="text-ink">
+                  <Celda key={c.clave} className={cn('text-ink', FIJA)}>
                     Total ({filas.length})
                   </Celda>
                 )
@@ -186,11 +196,11 @@ function FilaTabla({
   const hayDesglose = periodos.length > 1
   return (
     <>
-      <tr className="hover:bg-surface-2">
+      <tr className="group hover:bg-surface-2">
         {columnas.map((c) => {
           if (c.clave === 'etiqueta') {
             return (
-              <Celda key={c.clave}>
+              <Celda key={c.clave} className={cn(FIJA, 'group-hover:bg-surface-2')}>
                 <div className="flex items-start gap-1">
                   {/* El desglose se ofrece solo cuando hay más de un bucket: con
                       uno, la fila desplegable repetiría la fila de arriba. */}

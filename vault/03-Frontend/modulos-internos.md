@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-22
+actualizado: 2026-10-26
 tags: [frontend, modulos, pantallas, verde]
 archivos:
   - apps/web/app/(app)/(shell)/
@@ -27,12 +27,12 @@ archivos:
 
 | Ruta | Módulo | Backend | Componentes propios |
 |---|---|---|---|
-| `/inicio` | Tablero | `/api/estado` | `KPICard`, `charts` |
+| `/inicio` | Tablero — ver [[dashboard-inicio]] | `/api/estado`; el ingreso, los costos y el margen del MES, de `/api/reportes/rentabilidad` (DASH-PERIODO, 26/10) | `KPICard`, `charts`, `components/demo/inicio/pnl-del-mes.ts` |
 | `/novedades` | Notas de cada versión instalada | `/api/novedades` | `NotasDeVersion` — **sin entrada en el menú**, a propósito |
 | `/actividad` | Bitácora | `acciones` | — |
 | `/comercial` | Buscador de inventario | `/api/sitios` | `SiteFicha`, `ReservaDialog`, `AltaSitioDialog`, `SpaceEyeVision` |
 | `/disponibilidad` | Calendario — en las **digitales**, cada celda dice los **slots que quedan libres** (06/10) | `/api/sitios` | `SlotsBadge`; la rejilla es local de la página y la calcula `disponibilidad()` (`lib/data/derive.ts`) |
-| `/inventario` | Alta y carga masiva | `/api/sitios`, `/api/sitios/import` | `InventarioTabla`, `ImportarInventarioDialog`, `NuevaPantallaForm`, `ContratoWizard`, `AgregarInventario`, `InfoAnadidaModal`. **Desde el 22/10** la tabla y la ficha enseñan el **id de DOOHmain que se usa** al publicar y de dónde sale (ficha, mapa del servidor o por omisión): antes, una pantalla publicada por el mapa se veía con el campo vacío |
+| `/inventario` | Alta y carga masiva | `/api/sitios`, `/api/sitios/import` | `InventarioTabla`, `ResumenInventario` (indicadores y chips de filtro, 26/10), `ImportarInventarioDialog`, `NuevaPantallaForm`, `ContratoWizard`, `AgregarInventario`, `InfoAnadidaModal`. **Desde el 22/10** la tabla y la ficha enseñan el **id de DOOHmain que se usa** al publicar y de dónde sale (ficha, mapa del servidor o por omisión): antes, una pantalla publicada por el mapa se veía con el campo vacío |
 | `/network` | Pantallas en red | `sitios.en_network` | — |
 | `/arrendadores` | Arrendadores, predios, contratos | `/api/arrendadores`, `/api/contratos` | `ContratoSheet`, `PagosRentaCard`, `CompromisoRentaCard`, `ConciliacionCard`, `PanelFirmas`, `ConstanciaFirmas`, `LicenciasCard`, `GestionRazonesSociales`, `BarraDocumento`, `BajaPropietarioDialog` |
 | `/clientes` | Clientes — al pulsar el nombre, **ficha con su pipeline y sus campañas** (20/10) | `/api/clientes`; la ficha lee lo que ya trae `/api/estado` | `ClientesBadge`, `BorrarClienteDialog`, `FichaCliente`, `PipelineCliente`, `CampanasDelCliente` |
@@ -49,9 +49,9 @@ archivos:
 | `/imprenta` | Imprenta | `/api/impresion` | — |
 | `/almacen` | Activos y traslados | `/api/almacen` | — |
 | `/energia` | Consumo de luz | `/api/energia/consumos`, `/api/energia/recibos` | `FormularioRecibo`, `RejillaCaptura`, `SubirRecibos` |
-| `/finanzas` | Facturas y cobranza | `/api/campanas/[id]/facturar`, `/api/cobranzas/*` | — |
+| `/finanzas` | Facturas y cobranza | `/api/campanas/[id]/facturar`, `/api/cobranzas/*` | `TableroPeriodo` (KPI del periodo, 26/10), `EstadoCuenta`, `ChipConteo` — orden y disposición en [[finanzas-y-cobranza]] |
 | `/reportes` | Rentabilidad | `/api/reportes/rentabilidad` | `FiltrosRentabilidad`, `TablaRentabilidad` — ver [[pantalla-reportes]] |
-| `/comisiones` | Comisiones | derivado | — |
+| `/comisiones` | Comisiones | derivado | — · **desde el 26/10** con chips de conteo arriba (agencias, negociaciones sin validar, clientes sin agencia), la negociación con `StatusBadge` y «Directo · sin comisión» en vez de la raya sola. Solo presentación |
 | `/integraciones` | Estado de conectores | `/api/integraciones` | — |
 | `/razones-sociales` | Razones sociales propias (gestión) | `/api/entidades` | `GestionEntidadesFiscales` |
 | `/administracion` | Usuarios, permisos, organizaciones, actualizacion de la instancia | `/api/usuarios`, `/api/tenants`, `/api/actualizaciones` | `OrganizacionesPanel`, `ControlCambiosPanel`, `ActualizacionesPanel`, `permisos.ts` |
@@ -184,6 +184,113 @@ nadie ve. Ver [[flujo-acceso-con-google]].
 > `components/demo/campanas/CampanasNav.test.ts`, que rinde `CampanasNavVista`
 > —la parte sin estado— con `react-dom/server`. El clic y la hidratación no
 > los ve ninguna prueba (no hay jsdom, ver `vitest.config.ts`).
+
+## Grupo «Sistema»: disposición tras el rediseño del 2026-10-26
+
+Solo presentación, al lenguaje del Dashboard ([[dashboard-inicio]]); ningún
+fetch, permiso, confirmación ni nombre de campo cambió.
+
+- **`/administracion`** · *Usuarios*: resumen de chips (usuarios · activos ·
+  inactivos) en el encabezado; tabla desde `sm` y lista apilada en móvil, con
+  los MISMOS manejadores. El estatus parece un control (icono de interruptor y
+  `title`) y sigue aplicándose con un clic, **sin confirmación**; tu fila es un
+  chip plano. *Roles*: la leyenda V/C/A/F/$ va ARRIBA de la matriz y la primera
+  columna queda fija al desplazar. *Configuración*: índice de anclas y cuatro
+  familias — **Empresa** (Identidad, Datos fiscales, Correo de avisos) ·
+  **Comercial** (IVA, Plazos, Tope con su `DialogoCandado`, Cupo) ·
+  **Operación** (Loop, Tipos de tarea, Costos OT) · **Instancia**
+  (Actualizaciones, Soporte). Los `id` de `CardColapsable` no cambiaron.
+  *Organizaciones* pasa al final y, sin permiso, llega plegada.
+- **`/configuracion`**: a ancho completo; «Mi cuenta» primero (ver
+  [[acceso-y-sesion-ui]]) y «Empresa» a su lado en `lg`, con enlace a
+  Administración.
+- **`/integraciones`**: chips «N de M conectados» en el encabezado, un icono por
+  conector (el estado lo dice el chip), vacío con `EmptyState`, «Probar
+  AdMobilize» plegada por omisión, y una tarjeta «Dónde está lo demás» con
+  enlaces a `/campanas`, `/network` y `/administracion`.
+- **`/razones-sociales`**: lista `divide-y` sin viñetas, chip **Principal**
+  (lee `entidadPrincipalId` del store, solo lectura), chips de resumen y vacío
+  con «Nueva razón social» y el enlace a `/bienvenida`. La baja sigue **sin
+  confirmación**.
+- **`/actividad`**: filtros en franja dentro de la tarjeta, conteo en el
+  resumen, filas compactas agrupadas por día (solo de pintado, sobre la página
+  de `usePaginacion`), avatar de iniciales y hora como pastilla.
+- **`/novedades`**: solo la versión más nueva y la instalada llegan abiertas;
+  fecha con `formatFecha`, chips de conteo por tipo. `NotasDeVersion` pinta el
+  tipo como chip (se ve igual en Actualizaciones y en el diálogo de después de
+  instalar).
+- **`/codigos-recuperacion`**: tarjeta, `Button`, rejilla numerada; flujo
+  idéntico.
+
+> [!warning] `bg-success/10`, `border-warning/40` y compañía NO se generan
+> Los colores de `tailwind.config.ts` son `var(--x)` sin `<alpha-value>`, y
+> Tailwind 3.4 no sabe aplicarles el modificador de opacidad: la clase
+> desaparece sin aviso. Medido el 2026-10-26 con la CLI de Tailwind contra este
+> config. Los tonos del grupo viven en `components/demo/admin/Chip.tsx`
+> (`TONO`, `Chip`, `FRANJA_AVISO`): fondo `*-soft` y borde con `color-mix` del
+> token. Cualquier otra pantalla que use `/10`, `/30` o `/40` sobre un token
+> está pintando sin color.
+
+## Grupo «Comercial»: disposición tras el rediseño del 2026-10-26
+
+Solo presentación, al lenguaje del Dashboard; ningún fetch, permiso,
+confirmación, cálculo ni nombre de campo cambió.
+
+- **Código de color de disponibilidad, único en el grupo** (Broadsign):
+  **libre sin relleno**, **tentativa ámbar** (borde punteado), **ocupada rojo
+  suave**, parcial digital ámbar con el número. Lo aplican la rejilla de
+  `/disponibilidad` (`TONO_CELDA`, `TONO_TENTATIVA`) y
+  `CalendarioDisponibilidad` de la ficha del sitio, que antes pintaba la
+  confirmada en VERDE. El mapa (`MapView`, del Dashboard) no se tocó: ahí verde
+  sigue siendo «disponible». `SlotsBadge`: «lleno» y «capacidad» a tokens.
+- **`/comercial`**: cuatro `KPICard` sobre el recorte filtrado (libres para
+  vender, slots digitales libres, tentativas por confirmar, bloqueadas por
+  contrato). La regla de «libre» salió del `map` a
+  `components/demo/comercial/disponibilidad-fila.ts`, **copiada idéntica**, para
+  que tarjetas y casillas cuenten igual. Fila en dos renglones (nombre + tarifa
+  a la derecha; código · alcaldía · propietario), «No disponible» con su motivo
+  de `SITIO_LABEL`, «Limpiar (N)» en los filtros y vacío que dice qué filtro
+  estorba, tentativas en `divide-y` con «caduca en N d» (de `expiraEn`), leyenda
+  del mapa en un objeto `LEYENDA_MAPA`.
+- **`/disponibilidad`**: encabezado de patrón (sin `p-6` ni icono), cuatro
+  `KPICard` del primer periodo con las cifras de `resumenPrimer`, controles en
+  una fila, chip «N de M libres» por pantalla, celdas con texto («Libre»,
+  «Tentativa», «Ocupada»).
+- **`/propuestas`**: KPIs (pipeline, enviadas sin respuesta, ganado histórico,
+  **tasa de cierre histórica**) → lista con filtros (chips de estatus con conteo,
+  cliente, búsqueda) en `divide-y`, con fechas en la fila → «Resumen de
+  propuestas» debajo y **plegado al entrar**, con su «Tasa de cierre del
+  periodo». El «Embudo» dejó de ser tarjeta: sus cifras son las KPIs y sus barras
+  una franja dentro de la lista. Venta y ganancia del resumen dicen «—, sin
+  calcular» cuando hay aprobadas y ninguna trae la cifra (el 0 del servidor no se
+  toca). `EST` (chips de estatus) vive en `components/demo/propuestas/estatus.ts`.
+- **`/propuestas/[id]`**: cuatro `KPICard` (total c/IVA, neto, renta de
+  referencia, aprobado), barra de pasos Borrador → Enviada → Aprobada/Rechazada
+  (→ Campaña generada), migas sin repetir, y **una sola escalera** de bruto a
+  total: se retiró «Costo · método del divisor», que la duplicaba sin el
+  descuento comercial; su «Sobre lo aprobado» es una franja bajo la escalera y
+  con nada aprobado lo dice. **Sin tarjeta de margen** a propósito: la renta es
+  la del contrato sin prorratear a las fechas, y restarla daría una cifra nueva.
+- **`/clientes`**: columnas «En pipeline» y «Campañas en curso» con
+  `pipelineCliente` (los hooks de la ficha), chip de negociación de agencia,
+  búsqueda y filtro por tipo, contacto con correo y teléfono. En la ficha, «win
+  rate» → «tasa de cierre histórica» y «—, sin monto» en vez de «$0».
+- **`/comercial-opex`**: título y «Nuevo espacio» los pinta `ComercialOpex`
+  (patrón del resto), resumen en `KPICard`, esqueleto al cargar, columna derecha
+  con tarjeta cuando no hay espacios, búsqueda y chips de estado (incluido «Sin
+  contacto +30 d»), montos y fechas con `formatMonto`/`formatFecha`. Ver
+  [[comercial-opex]].
+- **`/captacion`** (fuera del menú): encabezado de patrón, `text-ink-muted`
+  (que no existe) → `text-muted`, pestañas como chips, tabla con el estilo de
+  Clientes, fechas con `formatFecha` y «vencido hace N d», renglones en pulso
+  al cargar, vacíos por pestaña, cuatro tonos de etapa.
+
+> [!warning] Defectos de COMPORTAMIENTO vistos y NO tocados (decisión del dueño)
+> El Vendedor sin `arrendadores:ver` ve todo «Contrato incompleto» en Comercial
+> (`sitiosSinContratoCompleto` recibe la lista vacía); Comercial y Disponibilidad
+> no coinciden en qué está libre hoy (flag del sitio vs. reservas); «Generar PDF»
+> no hace nada; el detalle ofrece «Generar campaña» aunque ya exista; el resumen
+> de propuestas recibe venta 0 con aprobadas.
 
 ## Componentes compartidos
 

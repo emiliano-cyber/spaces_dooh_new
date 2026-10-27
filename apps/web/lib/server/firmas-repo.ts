@@ -3,10 +3,11 @@ import { createHash, randomBytes } from 'crypto'
 import { pool, q, q1, fijarTenant, qRaw1, qConTenant } from './db'
 import { tenantActual } from './tenant'
 import { AppError } from './errores'
-import { expedienteContrato } from './contrato-expediente'
+import { datosContrato, expedienteContrato, type DatosContrato } from './contrato-expediente'
 import { JOIN_PRINCIPAL } from './config-repo'
-import { documentoATexto, fechaISO } from '@/lib/contrato-documento'
+import { documentoATexto, fechaISO, generarContrato } from '@/lib/contrato-documento'
 import { rutaLogo } from '@/lib/medios-url'
+import type { PoolClient } from 'pg'
 
 // ============================================================================
 //  lib/server/firmas-repo.ts — Firma electrónica simple del contrato.
@@ -26,6 +27,19 @@ import { rutaLogo } from '@/lib/medios-url'
 export const HASH_ALGO = 'sha256'
 export function hashDocumento(texto: string): string {
   return createHash(HASH_ALGO).update(texto, 'utf8').digest('hex')
+}
+
+// Huella de los DATOS que recita el contrato: el texto redactado sin fecha de
+// firma, sellado. Es lo que ata el paso de revisión al envío: la pantalla
+// enseña los datos con su huella, y `enviarAFirma` vuelve a calcularla con lo
+// que hay en la base en ese instante. Si alguien cambió el domicilio de la
+// empresa o la renta mientras la otra persona revisaba, no coinciden y no se
+// congela nada: se firmaría algo que nadie validó.
+//
+// Sin la fecha a propósito: la página la calcula en UTC y el congelado en hora
+// local, y con la fecha dentro la revisión fallaría sola unas horas al día.
+export function huellaDatosContrato(datos: DatosContrato): string {
+  return hashDocumento(documentoATexto(generarContrato({ ...datos, fechaFirma: null })))
 }
 
 const DIAS_VALIDEZ_TOKEN = 30
@@ -53,11 +67,149 @@ export interface FirmaVista {
 
 const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : (v as string | null))
 
+// ─── Archivar la versión firmada antes de anular sus firmas ─────────────────
+// CONTRATO-FIRMADO-EDITABLE (23/10). Las DOS salidas que anulan firmas —editar
+// un contrato firmado y volver a enviarlo a firma— pasan por aquí antes de
+// borrar nada. Hasta hoy `enviarAFirma` hacía `delete from contrato_firmas` a
+// secas y el expediente de evidencia de lo firmado se perdía sin rastro.
+//
+// Solo actúa si hay al menos una firma FIRMADA: un envío sin firmas no es una
+// versión firmada, es un borrador, y archivarlo llenaría la lista de ruido.
+// Devuelve el número de versión archivada, o null si no había nada que guardar.
+//
+// Va DENTRO de la transacción del llamador: si la edición o el reenvío revierte,
+// el archivo también, y no puede quedar archivada una versión que siguió viva.
+export async function archivarVersionFirmadaEnTx(
+  client: PoolClient,
+  args: {
+    tenantId: string | null
+    contratoId: string
+    motivo: string | null
+    usuario: { id: string; nombre: string } | null
+  },
+): Promise<number | null> {
+  const { tenantId, contratoId } = args
+  const { rows: firmadas } = await client.query(
+    `select parte, nombre_esperado, nombre_firmante, firmado_en, ip, user_agent, documento_hash, usuario_id
+       from contrato_firmas
+      where contrato_id = $1 and tenant_id = $2 and estatus = 'FIRMADA'
+      order by parte`,
+    [contratoId, tenantId],
+  )
+  if (!firmadas.length) return null
+  const { rows: c } = await client.query(
+    `select documento_congelado, documento_hash, congelado_en
+       from contratos_arrendamiento where id = $1 and tenant_id = $2 for update`,
+    [contratoId, tenantId],
+  )
+  // Una firma FIRMADA lleva el hash de lo que firmó (`contrato_firma_evidencia_ck`)
+  // y `editarContrato` solo descongela cuando no hay firmadas, así que el texto
+  // tiene que estar. Si no está, archivar a medias sería peor que no dejar seguir.
+  if (!c[0]?.documento_congelado || !c[0]?.documento_hash) {
+    throw new AppError('No se encontró el texto firmado de este contrato; no se puede archivar su versión firmada.', 409)
+  }
+  const { rows: v } = await client.query(
+    `insert into contrato_versiones_firmadas
+       (tenant_id, contrato_id, version, documento_congelado, documento_hash, congelado_en,
+        firmas, motivo, usuario_id, usuario_nombre)
+     select $1, $2,
+            coalesce((select max(version) from contrato_versiones_firmadas where contrato_id = $2), 0) + 1,
+            $3, $4, $5, $6::jsonb, $7, $8, $9
+     returning version`,
+    [
+      tenantId, contratoId, c[0].documento_congelado, c[0].documento_hash, c[0].congelado_en,
+      JSON.stringify(
+        firmadas.map((f) => ({
+          parte: f.parte,
+          nombreEsperado: f.nombre_esperado ?? null,
+          nombreFirmante: f.nombre_firmante,
+          firmadoEn: iso(f.firmado_en),
+          ip: f.ip ?? null,
+          userAgent: f.user_agent ?? null,
+          documentoHash: f.documento_hash,
+          usuarioId: f.usuario_id ?? null,
+        })),
+      ),
+      args.motivo?.trim() || null, args.usuario?.id ?? null, args.usuario?.nombre ?? null,
+    ],
+  )
+  return v[0].version as number
+}
+
+export interface VersionFirmada {
+  version: number
+  documentoHash: string
+  congeladoEn: string | null
+  archivadoEn: string
+  motivo: string | null
+  usuarioNombre: string | null
+  firmas: {
+    parte: Parte
+    nombreFirmante: string
+    firmadoEn: string | null
+    ip: string | null
+    userAgent: string | null
+    documentoHash: string
+  }[]
+  // El texto exacto solo se entrega cuando se pide una versión concreta: son
+  // varios KB por versión y la lista no lo necesita.
+  documento?: string
+}
+
+export async function versionesFirmadas(contratoId: string): Promise<VersionFirmada[]> {
+  const tenantId = await tenantActual()
+  const rows = await q<Record<string, any>>(
+    `select version, documento_hash, congelado_en, archivado_en, motivo, usuario_nombre, firmas
+       from contrato_versiones_firmadas
+      where contrato_id = $1 and tenant_id = $2
+      order by version desc`,
+    [contratoId, tenantId],
+  )
+  return rows.map((r) => ({
+    version: r.version,
+    documentoHash: r.documento_hash,
+    congeladoEn: iso(r.congelado_en),
+    archivadoEn: iso(r.archivado_en)!,
+    motivo: r.motivo ?? null,
+    usuarioNombre: r.usuario_nombre ?? null,
+    firmas: r.firmas,
+  }))
+}
+
+export async function versionFirmada(contratoId: string, version: number): Promise<VersionFirmada | null> {
+  const tenantId = await tenantActual()
+  const r = await q1<Record<string, any>>(
+    `select version, documento_hash, documento_congelado, congelado_en, archivado_en, motivo, usuario_nombre, firmas
+       from contrato_versiones_firmadas
+      where contrato_id = $1 and tenant_id = $2 and version = $3`,
+    [contratoId, tenantId, version],
+  )
+  if (!r) return null
+  return {
+    version: r.version,
+    documentoHash: r.documento_hash,
+    congeladoEn: iso(r.congelado_en),
+    archivadoEn: iso(r.archivado_en)!,
+    motivo: r.motivo ?? null,
+    usuarioNombre: r.usuario_nombre ?? null,
+    firmas: r.firmas,
+    documento: r.documento_congelado,
+  }
+}
+
 // ─── Congelar y abrir el proceso de firma ───────────────────────────────────
 // Renderiza el documento, lo sella y crea las dos firmas pendientes. Es
 // idempotente en el sentido de que RE-congelar reemplaza el texto y reinicia
 // las firmas: es lo que ocurre cuando se corrigió algo y se vuelve a enviar.
-export async function enviarAFirma(contratoId: string): Promise<{ token: string }> {
+//
+// `huellaRevisada` es la huella de los datos que la persona vio en el paso de
+// revisión (`huellaDatosContrato`). Si viene y no coincide con la de ahora, 409:
+// los datos cambiaron mientras se revisaban. `usuario` firma el archivo de la
+// versión firmada, si la había.
+export async function enviarAFirma(
+  contratoId: string,
+  opts: { huellaRevisada?: string | null; usuario?: { id: string; nombre: string } | null } = {},
+): Promise<{ token: string }> {
   const tenantId = await tenantActual()
   const client = await pool.connect()
   try {
@@ -71,6 +223,15 @@ export async function enviarAFirma(contratoId: string): Promise<{ token: string 
     const fechaCongelado = fechaISO(hoy)!
     const doc = await expedienteContrato(contratoId, fechaCongelado)
     if (!doc) throw new AppError('El contrato no existe.', 404)
+    if (opts.huellaRevisada != null) {
+      const datos = await datosContrato(contratoId)
+      if (!datos || huellaDatosContrato(datos) !== opts.huellaRevisada) {
+        throw new AppError(
+          'Los datos del contrato cambiaron mientras los revisabas. Recarga la página, revísalos otra vez y vuelve a enviarlo.',
+          409,
+        )
+      }
+    }
     if (doc.faltantes.length) {
       throw new AppError(
         `No se puede enviar a firma: faltan ${doc.faltantes.length} datos por capturar (${doc.faltantes.map((f) => f.etiqueta).join(', ')}).`,
@@ -81,6 +242,13 @@ export async function enviarAFirma(contratoId: string): Promise<{ token: string 
     const texto = documentoATexto(doc)
     const hash = hashDocumento(texto)
 
+    // Lo firmado se ARCHIVA antes de reenviar (23/10). El `delete` de abajo se
+    // llevaba la evidencia de las firmas reales sin dejar copia, y el `update`
+    // que sigue pisa el texto que firmaron: por eso va aquí, antes de los dos.
+    await archivarVersionFirmadaEnTx(client, {
+      tenantId, contratoId, motivo: 'Reenviado a firma', usuario: opts.usuario ?? null,
+    })
+
     const { rowCount } = await client.query(
       `update contratos_arrendamiento
           set documento_congelado = $2, documento_hash = $3, congelado_en = now()
@@ -90,6 +258,7 @@ export async function enviarAFirma(contratoId: string): Promise<{ token: string 
     if (!rowCount) throw new AppError('El contrato no existe.', 404)
 
     // Se reinician las firmas: el texto es nuevo, lo firmado antes ya no aplica.
+    // Lo firmado ya quedó archivado arriba, antes de pisar el texto.
     await client.query('delete from contrato_firmas where contrato_id = $1', [contratoId])
 
     const token = randomBytes(32).toString('hex')

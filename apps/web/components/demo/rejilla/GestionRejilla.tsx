@@ -16,6 +16,9 @@ import { motivoFranjaInvalida, motivoTemporadaInvalida } from '@/lib/rejilla'
 import { Button } from '@/components/demo/ui/Button'
 import { useObligatorios } from '@/components/demo/ui/Campo'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
+import { StatusBadge } from '@/components/demo/StatusBadge'
+import { cn } from '@/lib/cn'
+import { formatFecha } from '@/lib/data/client'
 
 // ============================================================================
 //  El catálogo de FRANJAS y TEMPORADAS de la organización. ADR 0039, Fase 1.
@@ -110,7 +113,17 @@ export function GestionRejilla() {
     }
   }
 
-  if (cargando) return <p className="text-sm text-neutral-500">Cargando el catálogo…</p>
+  // Esqueleto con la forma de lo que va a llegar (el aviso y las dos tablas),
+  // no un «Cargando…» en texto (rediseño del 2026-10-26).
+  if (cargando) {
+    return (
+      <div className="space-y-4" aria-busy="true" aria-label="Cargando el catálogo">
+        <div className="h-12 animate-pulse rounded-md bg-surface-2" />
+        <div className="h-40 animate-pulse rounded-md bg-surface-2" />
+        <div className="h-32 animate-pulse rounded-md bg-surface-2" />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-4">
@@ -119,51 +132,65 @@ export function GestionRejilla() {
       <AvisoFranjaCMS />
 
       {error && (
-        <p role="alert" className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800">
+        <p role="alert" className="rounded-md border border-error bg-error-soft px-3 py-2 text-[13px] text-error">
           {error}
         </p>
       )}
 
       {/* PLEG-02 · cada catálogo se pliega por separado. Lo capturado a medias
           en la fila de alta vive en el estado de ESTE componente, no en la
-          tarjeta: plegar y desplegar no lo borra. */}
+          tarjeta: plegar y desplegar no lo borra.
+
+          Rediseño del 2026-10-26 · el `subtitulo` es una frase corta y la
+          explicación completa va como primera línea del contenido, en la
+          franja secundaria del Dashboard: con dos o tres renglones de
+          subtítulo el chevrón de plegar se caía debajo del texto. */}
       <CardColapsable
         id="franjas-y-temporadas.franjas"
         titulo="Franjas horarias"
-        subtitulo={
-          <>
-            El fin es <b>exclusivo</b>: 06:00–10:00 y 10:00–14:00 se tocan y no se pisan. Dos
-            franjas no pueden solaparse — si pudieran, el precio de un spot a las 09:30 dependería
-            de un desempate que nadie decidió.
-          </>
-        }
+        subtitulo="Fin exclusivo · sin solapes"
+        contentClassName="space-y-3"
       >
-        <table className="w-full text-sm">
+        <p className={FRANJA_EXPLICACION}>
+          El fin es <b>exclusivo</b>: 06:00–10:00 y 10:00–14:00 se tocan y no se pisan. Dos
+          franjas no pueden solaparse — si pudieran, el precio de un spot a las 09:30 dependería
+          de un desempate que nadie decidió.
+        </p>
+        <div className="overflow-x-auto">
+        <table className="w-full text-left text-[13px]">
           <thead>
-            <tr className="border-b text-left text-xs text-neutral-500">
-              <th className="py-1">Nombre<Asterisco /></th>
-              <th>Desde<Asterisco /></th>
-              <th>Hasta<Asterisco /></th>
-              <th>Orden</th>
-              <th />
+            <tr className={CABECERA}>
+              <th className={TH}>Nombre<Asterisco /></th>
+              <th className={TH}>Desde<Asterisco /></th>
+              <th className={TH}>Hasta<Asterisco /></th>
+              <th className={TH}>Orden</th>
+              <th className={TH}>Estado</th>
+              <th className={TH} />
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-border">
             {franjas.length === 0 && (
               <tr>
-                <td colSpan={5} className="py-3 text-neutral-500">
+                <td colSpan={6} className={`${CELDA} text-muted`}>
                   Todavía no hay ninguna. Sin franjas, todo se vende con la tarifa base — que es
                   exactamente como funciona hoy.
                 </td>
               </tr>
             )}
             {franjas.map((f) => (
-              <tr key={f.id} className={'border-b ' + (f.activo ? '' : 'text-neutral-400 line-through')}>
-                <td className="py-1.5">{f.nombre}</td>
-                <td>{f.horaInicio}</td>
-                <td>{f.horaFin}</td>
-                <td>{f.orden}</td>
-                <td className="text-right">
+              <tr key={f.id} className={f.activo ? '' : 'text-muted line-through'}>
+                <td className={cn(CELDA, f.activo && 'text-ink')}>{f.nombre}</td>
+                <td className={cn(CELDA, 'demo-num')}>{f.horaInicio}</td>
+                <td className={cn(CELDA, 'demo-num')}>{f.horaFin}</td>
+                <td className={cn(CELDA, 'demo-num')}>{f.orden}</td>
+                {/* El estado también con palabras, no solo con el tachado: el
+                    tachado es estilo y se pierde al copiar o con un lector de
+                    pantalla. La pastilla es `inline-flex`, así que el tachado
+                    de la fila no la cruza. */}
+                <td className={CELDA}>
+                  <StatusBadge tono={f.activo ? 'verde' : 'neutro'}>{f.activo ? 'Activa' : 'Dada de baja'}</StatusBadge>
+                </td>
+                <td className={cn(CELDA, 'text-right')}>
                   {f.activo && (
                     <Button
                       type="button"
@@ -179,44 +206,47 @@ export function GestionRejilla() {
                 </td>
               </tr>
             ))}
-            <tr>
-              <td className="py-2" data-falta={obF.falta('nombre') || undefined}>
+            {/* La fila de ALTA, con fondo propio: no es una franja más del
+                catálogo y se leía como si lo fuera. */}
+            <tr className="bg-surface-2">
+              <td className={CELDA} data-falta={obF.falta('nombre') || undefined}>
                 <input
                   aria-label="Nombre de la franja"
-                  className="w-full rounded border px-2 py-1"
-                  placeholder="Prime"
+                  className={cn(CAMPO, 'w-full min-w-[8rem]')}
+                  placeholder="p. ej. Prime"
                   value={nuevaF.nombre}
                   onChange={(e) => setNuevaF({ ...nuevaF, nombre: e.target.value })}
                 />
               </td>
-              <td data-falta={obF.falta('horaInicio') || undefined}>
+              <td className={CELDA} data-falta={obF.falta('horaInicio') || undefined}>
                 <input
                   aria-label="Hora de inicio"
                   type="time"
-                  className="rounded border px-2 py-1"
+                  className={cn(CAMPO, 'demo-num')}
                   value={nuevaF.horaInicio}
                   onChange={(e) => setNuevaF({ ...nuevaF, horaInicio: e.target.value })}
                 />
               </td>
-              <td data-falta={obF.falta('horaFin') || undefined}>
+              <td className={CELDA} data-falta={obF.falta('horaFin') || undefined}>
                 <input
                   aria-label="Hora de fin"
                   type="time"
-                  className="rounded border px-2 py-1"
+                  className={cn(CAMPO, 'demo-num')}
                   value={nuevaF.horaFin}
                   onChange={(e) => setNuevaF({ ...nuevaF, horaFin: e.target.value })}
                 />
               </td>
-              <td>
+              <td className={CELDA}>
                 <input
                   aria-label="Orden"
                   type="number"
-                  className="w-16 rounded border px-2 py-1"
+                  className={cn(CAMPO, 'demo-num w-16')}
                   value={nuevaF.orden}
                   onChange={(e) => setNuevaF({ ...nuevaF, orden: Number(e.target.value) })}
                 />
               </td>
-              <td className="text-right">
+              <td className={CELDA} />
+              <td className={cn(CELDA, 'text-right')}>
                 <Button
                   type="button"
                   onClick={() => void anadirFranja()}
@@ -229,43 +259,50 @@ export function GestionRejilla() {
             </tr>
           </tbody>
         </table>
+        </div>
       </CardColapsable>
 
       <CardColapsable
         id="franjas-y-temporadas.temporadas"
         titulo="Temporadas"
-        subtitulo={
-          <>
-            Fechas <b>concretas</b>, con año: «Buen Fin 2026» y «Buen Fin 2027» son dos
-            temporadas, porque las fechas cambian cada año. Ambos extremos entran. Tampoco pueden
-            solaparse: si «Diciembre» y «Buen Fin» se pisan, hay que decidir qué precio manda esos
-            días.
-          </>
-        }
+        subtitulo="Fechas con año · ambos extremos entran"
+        contentClassName="space-y-3"
       >
-        <table className="w-full text-sm">
+        <p className={FRANJA_EXPLICACION}>
+          Fechas <b>concretas</b>, con año: «Buen Fin 2026» y «Buen Fin 2027» son dos
+          temporadas, porque las fechas cambian cada año. Ambos extremos entran. Tampoco pueden
+          solaparse: si «Diciembre» y «Buen Fin» se pisan, hay que decidir qué precio manda esos
+          días.
+        </p>
+        <div className="overflow-x-auto">
+        <table className="w-full text-left text-[13px]">
           <thead>
-            <tr className="border-b text-left text-xs text-neutral-500">
-              <th className="py-1">Nombre<Asterisco /></th>
-              <th>Desde<Asterisco /></th>
-              <th>Hasta<Asterisco /></th>
-              <th />
+            <tr className={CABECERA}>
+              <th className={TH}>Nombre<Asterisco /></th>
+              <th className={TH}>Desde<Asterisco /></th>
+              <th className={TH}>Hasta<Asterisco /></th>
+              <th className={TH}>Estado</th>
+              <th className={TH} />
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-border">
             {temporadas.length === 0 && (
               <tr>
-                <td colSpan={4} className="py-3 text-neutral-500">
+                <td colSpan={5} className={`${CELDA} text-muted`}>
                   Todavía no hay ninguna.
                 </td>
               </tr>
             )}
             {temporadas.map((t) => (
-              <tr key={t.id} className={'border-b ' + (t.activo ? '' : 'text-neutral-400 line-through')}>
-                <td className="py-1.5">{t.nombre}</td>
-                <td>{t.desde}</td>
-                <td>{t.hasta}</td>
-                <td className="text-right">
+              <tr key={t.id} className={t.activo ? '' : 'text-muted line-through'}>
+                <td className={cn(CELDA, t.activo && 'text-ink')}>{t.nombre}</td>
+                {/* dd/mm/aaaa como el resto de la app; llegaban en ISO. */}
+                <td className={cn(CELDA, 'demo-num whitespace-nowrap')}>{fechaCorta(t.desde)}</td>
+                <td className={cn(CELDA, 'demo-num whitespace-nowrap')}>{fechaCorta(t.hasta)}</td>
+                <td className={CELDA}>
+                  <StatusBadge tono={t.activo ? 'verde' : 'neutro'}>{t.activo ? 'Activa' : 'Dada de baja'}</StatusBadge>
+                </td>
+                <td className={cn(CELDA, 'text-right')}>
                   {t.activo && (
                     <Button
                       type="button"
@@ -280,35 +317,36 @@ export function GestionRejilla() {
                 </td>
               </tr>
             ))}
-            <tr>
-              <td className="py-2" data-falta={obT.falta('nombre') || undefined}>
+            <tr className="bg-surface-2">
+              <td className={CELDA} data-falta={obT.falta('nombre') || undefined}>
                 <input
                   aria-label="Nombre de la temporada"
-                  className="w-full rounded border px-2 py-1"
-                  placeholder="Buen Fin 2026"
+                  className={cn(CAMPO, 'w-full min-w-[8rem]')}
+                  placeholder="p. ej. Buen Fin 2026"
                   value={nuevaT.nombre}
                   onChange={(e) => setNuevaT({ ...nuevaT, nombre: e.target.value })}
                 />
               </td>
-              <td data-falta={obT.falta('desde') || undefined}>
+              <td className={CELDA} data-falta={obT.falta('desde') || undefined}>
                 <input
                   aria-label="Fecha de inicio"
                   type="date"
-                  className="rounded border px-2 py-1"
+                  className={cn(CAMPO, 'demo-num')}
                   value={nuevaT.desde}
                   onChange={(e) => setNuevaT({ ...nuevaT, desde: e.target.value })}
                 />
               </td>
-              <td data-falta={obT.falta('hasta') || undefined}>
+              <td className={CELDA} data-falta={obT.falta('hasta') || undefined}>
                 <input
                   aria-label="Fecha de fin"
                   type="date"
-                  className="rounded border px-2 py-1"
+                  className={cn(CAMPO, 'demo-num')}
                   value={nuevaT.hasta}
                   onChange={(e) => setNuevaT({ ...nuevaT, hasta: e.target.value })}
                 />
               </td>
-              <td className="text-right">
+              <td className={CELDA} />
+              <td className={cn(CELDA, 'text-right')}>
                 <Button
                   type="button"
                   onClick={() => void anadirTemporada()}
@@ -321,9 +359,28 @@ export function GestionRejilla() {
             </tr>
           </tbody>
         </table>
+        </div>
       </CardColapsable>
     </div>
   )
+}
+
+// Estilos comunes de tabla del rediseño del 2026-10-26 (los mismos de
+// Finanzas): cabecera en mayúsculas de 11 px, celdas con relleno, y campos del
+// alto y el borde del resto de los formularios.
+const CABECERA = 'border-b border-border text-[11px] uppercase tracking-wide text-muted'
+const CELDA = 'px-3 py-2.5'
+const TH = 'px-3 py-2 font-medium'
+const CAMPO =
+  'h-9 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink outline-none placeholder:text-muted focus-visible:ring-2 focus-visible:ring-accent'
+const FRANJA_EXPLICACION = 'rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px] text-muted'
+
+// La fecha de una temporada viene como `YYYY-MM-DD`. `formatFecha` la lee como
+// fecha LOCAL (sin el corrimiento de un día que daría `new Date(iso)` en
+// México). Si llegara vacía o en otro formato, se pinta tal cual en vez de
+// inventar una fecha.
+function fechaCorta(iso: string): string {
+  return /^\d{4}-\d{2}-\d{2}$/.test(iso) ? formatFecha(iso) : iso
 }
 
 /** OBLIG-01 · el asterisco de una cabecera de columna obligatoria. */

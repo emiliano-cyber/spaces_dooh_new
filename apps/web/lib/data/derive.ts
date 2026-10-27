@@ -24,6 +24,7 @@ import type {
 } from './types'
 import { factorMensual, diasAvisoPago, diasCriticoPago } from '../renta-periodicidad'
 import { costoEfectivoDeOt } from '../costos-ot'
+import { itemsEnPropuesta, enPropuestaEntre, type ItemEnPropuesta } from './en-propuesta'
 
 // Orden canónico de las 10 etapas del pipeline (sección 7.4).
 export const ETAPAS_PIPELINE: EtapaPipeline[] = [
@@ -290,15 +291,18 @@ export function totalizarMoneda(
 }
 
 export interface DashboardMetrics {
-  ingresoMes: number
-  // Motor de costos (3 fuentes) → costoTotalMes.
-  costoEspaciosMes: number   // costo del espacio = renta atribuida del predio (reemplaza costo de compra)
-  costoImpresionMes: number  // producción de lonas (órdenes de impresión)
-  costoOperacionMes: number  // mano de obra de cuadrilla (órdenes de trabajo)
-  costoTotalMes: number      // suma de los tres
+  // DASH-PERIODO (26/10) · Aquí ya NO hay ingreso, costo de espacios, costo de
+  // operación ni margen del mes. Se calculaban sobre todo lo que ha existido
+  // —el «ingreso del mes» era el acumulado histórico y la renta de una pantalla
+  // entraba una vez por cada reserva que tuvo— y un rol sin finanzas los veía
+  // en cero. Ahora el Dashboard se los pide al motor de Reportes
+  // (`components/demo/inicio/pnl-del-mes.ts`). Se quitaron en vez de dejarlos
+  // para que nadie vuelva a pintarlos creyendo que son del mes.
+  //
+  // Producción de lonas de las órdenes de impresión creadas ESTE MES. El motor
+  // de Reportes no cuenta la impresión, así que el Dashboard la enseña aparte.
+  costoImpresionMes: number
   costoRentaMes: number      // renta a arrendadores (gasto fijo, informativo)
-  margen: number // S/
-  margenPct: number // 0–100
   porCobrar: number
   // Ocupación de la red PONDERADA por capacidad: un slot digital y una cara fija
   // valen un espacio cada uno (ver `ocupacionRed`). No es el % de pantallas con
@@ -602,10 +606,11 @@ export function ocupacionRed(
   }
 }
 
-export function dashboardMetrics(state: DemoState): DashboardMetrics {
+export function dashboardMetrics(state: DemoState, hoy: Date = new Date()): DashboardMetrics {
   const confirmadas = state.reservas.filter((r) => r.estatus === 'CONFIRMADA')
-  const ingresoMes = confirmadas.reduce((s, r) => s + r.precio, 0)
-  const valorConfirmado = ingresoMes
+  // Lo vendido en reservas que siguen confirmadas, de TODO periodo. Es la barra
+  // «Confirmadas» de la gráfica de tentativas; no es el ingreso del mes.
+  const valorConfirmado = confirmadas.reduce((s, r) => s + r.precio, 0)
   // Lo tentativo es lo que está EN NEGOCIACIÓN: propuestas en borrador o
   // enviadas (pedido del 08/10). Antes eran las reservas TENTATIVA, que solo
   // viven un rato entre apartar y confirmar y casi siempre sumaban 0. Se suma
@@ -615,42 +620,26 @@ export function dashboardMetrics(state: DemoState): DashboardMetrics {
   const abiertas = (state.propuestas ?? []).filter((p) => p.estatus === 'BORRADOR' || p.estatus === 'ENVIADA')
   const valorTentativo = abiertas.reduce((s, p) => s + (Number(p.neto) || 0), 0)
 
-  // ── Motor de costos (3 fuentes) ──────────────────────────────────────────
+  // Impresión: costo de producir la lona por cada orden de impresión CREADA EN
+  // EL MES EN CURSO, según la tarifa de impresión del sitio (solo medios
+  // físicos). Hasta el 26/10 sumaba todas las órdenes que han existido.
+  //
+  // El mes se compara por las partes LOCALES de la fecha: `creadoEn` es un
+  // instante, y una orden de las 19:00 del día 31 en México ya es día 1 en UTC.
   const sitioPorId = new Map(state.sitios.map((s) => [s.id, s]))
-  // 1) Espacios: el costo del espacio es la RENTA atribuida del predio a cada
-  //    pantalla vendida (reserva CONFIRMADA). La renta REEMPLAZA al costo de
-  //    compra (un solo costo, sin doble conteo). Sin contrato activo ⇒ 0.
-  const rentaAtribuida = rentaAtribuidaPorSitio(state)
-  const costoEspaciosMes = confirmadas.reduce(
-    (sum, r) => sum + (rentaAtribuida.get(r.sitioId) ?? 0),
-    0,
-  )
-  // 2) Impresión: costo de producir la lona por cada orden de impresión, según
-  //    la tarifa de impresión del sitio (solo medios físicos).
-  const costoImpresionMes = state.ordenesImpresion.reduce(
-    (sum, oi) => sum + (sitioPorId.get(oi.sitioId ?? '')?.tarifaImpresion ?? 0),
-    0,
-  )
-  // 3) Operación: mano de obra de cuadrilla por cada orden de trabajo activa.
-  const otsOperativas = state.ordenesTrabajo.filter((o) => o.estatus !== 'CANCELADA')
-  //    El importe sale de la configuración del tenant POR TIPO de OT. Ya no es
-  //    `otsOperativas.length * 1500`: ese producto cobraba lo mismo por montar
-  //    una lona que por una inspección.
-  const costosOt = state.configNegocio?.costosOt
-  const costoOperacionMes = otsOperativas.reduce((sum, o) => sum + costoEfectivoDeOt(o, costosOt), 0)
-
-  const costoTotalMes = costoEspaciosMes + costoImpresionMes + costoOperacionMes
+  const delMes = (iso: string) => {
+    const d = new Date(iso)
+    return d.getFullYear() === hoy.getFullYear() && d.getMonth() === hoy.getMonth()
+  }
+  const costoImpresionMes = state.ordenesImpresion
+    .filter((oi) => delMes(oi.creadoEn))
+    .reduce((sum, oi) => sum + (sitioPorId.get(oi.sitioId ?? '')?.tarifaImpresion ?? 0), 0)
 
   // Renta a arrendadores: total BRUTO mensual de los contratos activos
-  // (informativo). El costo que ENTRA al margen es la renta ATRIBUIDA a las
-  // pantallas vendidas (costoEspaciosMes); este bruto NO se suma aparte para no
-  // duplicar (la renta ya es el costo del espacio).
+  // (informativo).
   const costoRentaMes = state.contratos
     .filter((c) => contratoActivo(c.estatus))
     .reduce((s, c) => s + rentaAMensual(c.montoRenta, c.periodicidad), 0)
-
-  const margen = ingresoMes - costoTotalMes
-  const margenPct = ingresoMes > 0 ? (margen / ingresoMes) * 100 : 0
 
   const porCobrar = state.cobranzas
     .filter((c) => estadoCobranza(c) !== 'PAGADA')
@@ -695,14 +684,8 @@ export function dashboardMetrics(state: DemoState): DashboardMetrics {
   const ocupacionPct = red.pct
 
   return {
-    ingresoMes,
-    costoEspaciosMes,
     costoImpresionMes,
-    costoOperacionMes,
-    costoTotalMes,
     costoRentaMes,
-    margen,
-    margenPct,
     porCobrar,
     ocupacionPct,
     sitiosOcupados,
@@ -1675,6 +1658,10 @@ export interface CeldaDisponibilidad {
   // Lo que QUEDA por vender (solo digitales con capacidad declarada; nunca
   // negativo). Es la cifra que pide quien vende: con «3/10» había que restar.
   spotsLibres: number | null
+  // TENT-PROP (26/10) · las propuestas abiertas que piden esta pantalla en este
+  // periodo. Solo AVISA: no cambia `estado`, ni `libres`, ni `conHueco` (regla
+  // del dueño: lo tentativo no bloquea). Ver `lib/data/en-propuesta.ts`.
+  enPropuesta: ItemEnPropuesta[]
 }
 export interface PeriodoDisponibilidad {
   clave: string
@@ -1765,9 +1752,12 @@ export function disponibilidad(state: DemoState, opts: OpcionesDisponibilidad): 
   const desde = isNaN(base.getTime()) ? startOfToday() : base
   const periodos = construirPeriodos(desde, Math.max(1, opts.periodos), opts.gran)
 
-  // Bloquean inventario las reservas NO canceladas (tentativas vigentes +
-  // confirmadas). Las tentativas vencidas ya las caducó el servidor.
+  // Bloquean inventario las reservas NO canceladas, con la misma regla que el
+  // guard de colisión del servidor. Desde TENT-PROP (26/10) ningún flujo crea
+  // reservas TENTATIVA; lo tentativo es lo que está en una propuesta abierta,
+  // que va aparte (`enPropuesta`) y NO bloquea.
   const activas = state.reservas.filter((r) => r.estatus !== 'CANCELADA')
+  const enVeremos = itemsEnPropuesta(state.propuestas ?? [], state.clientes ?? [])
   const campanaNombre = new Map(state.campanas.map((c) => [c.id, c.nombre]))
   const porSitio = new Map<string, Reserva[]>()
   for (const r of activas) {
@@ -1810,7 +1800,8 @@ export function disponibilidad(state: DemoState, opts: OpcionesDisponibilidad): 
       if (estado === 'LIBRE') libres++
       if (estado !== 'OCUPADO') conHueco++
       const spotsLibres = spotsTotal != null ? Math.max(0, spotsTotal - spotsUsados) : null
-      return { estado, ocupantes, spotsUsados, spotsTotal, spotsLibres }
+      const enPropuesta = enPropuestaEntre(enVeremos, s.id, p.inicio, p.fin)
+      return { estado, ocupantes, spotsUsados, spotsTotal, spotsLibres, enPropuesta }
     })
     return {
       sitioId: s.id,

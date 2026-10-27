@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { Fragment, useCallback, useEffect, useState } from 'react'
 import { Trash2, Plus } from 'lucide-react'
 import {
   escalasVolumenApi,
@@ -103,17 +103,48 @@ export function GestionVolumen() {
     }
   }
 
-  if (cargando) return <p className="text-sm text-neutral-500">Cargando la escala…</p>
+  // Esqueleto y no un «Cargando…» en texto (rediseño del 2026-10-26).
+  if (cargando) {
+    return (
+      <div className="space-y-4" aria-busy="true" aria-label="Cargando la escala">
+        <div className="h-16 animate-pulse rounded-md bg-surface-2" />
+        <div className="h-40 animate-pulse rounded-md bg-surface-2" />
+      </div>
+    )
+  }
+
+  // Rediseño del 2026-10-26 · la escala se lee POR UNIDAD, como se lee un
+  // tarifario: cada unidad es su propia escalera. Es solo cómo se pintan las
+  // MISMAS filas —agrupadas en el orden de `UNIDADES` y, dentro, de menor a
+  // mayor umbral—; no cambia la petición ni la validación. Una unidad que no
+  // esté en `UNIDADES` (no debería) sale al final con su clave, para no
+  // esconder un tramo.
+  const grupos = [
+    ...UNIDADES.map((u) => ({ unidad: u.unidad as string, label: u.label })),
+    ...[...new Set(tramos.map((t) => t.unidad))]
+      .filter((x) => !UNIDADES.some((u) => u.unidad === x))
+      .map((x) => ({ unidad: x, label: x })),
+  ]
+    .map((g) => ({
+      ...g,
+      tramos: tramos
+        .filter((t) => t.unidad === g.unidad)
+        .sort((a, b) => Number(a.desdeCantidad) - Number(b.desdeCantidad)),
+    }))
+    .filter((g) => g.tramos.length > 0)
 
   return (
     <div className="space-y-4">
       {error && (
-        <p role="alert" className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800">
+        <p role="alert" className="rounded-md border border-error bg-error-soft px-3 py-2 text-[13px] text-error">
           {error}
         </p>
       )}
 
-      <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+      {/* El aviso con la franja ámbar del proyecto (tokens del Dashboard y de
+          `StatusBadge`), el MISMO texto y las mismas negritas. Sigue fuera de
+          la tarjeta plegable. */}
+      <div className="rounded-md border border-[#f59e0b40] bg-warning-soft px-3 py-2 text-[12px] text-[#9a6700]">
         <b>El descuento se aplica sobre TODAS las unidades, no solo sobre las que pasan del
         umbral.</b>{' '}
         «A partir de 50 spots, 10 %» quiere decir que quien compra 50 paga los 50 con el 10 %
@@ -130,59 +161,79 @@ export function GestionVolumen() {
       <CardColapsable
         id="descuentos-por-volumen.tramos"
         titulo="Tramos por unidad de venta"
-        subtitulo={
-          <>
-            Cada unidad tiene su propia escala, porque 50 spots y 50 meses no son la misma compra.
-            Los tramos tienen que <b>crecer</b>: comprar más nunca puede descontar menos.
-          </>
+        subtitulo="Cada unidad tiene su propia escala"
+        // El modelo con su nombre corto, como lo llama Stripe en su selector
+        // de precios («volume» frente a «graduated»): el aviso de arriba
+        // explica qué quiere decir.
+        resumen={
+          <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted" title="El descuento del tramo alcanzado se aplica a TODAS las unidades">
+            Escala plana (volumen)
+          </span>
         }
+        contentClassName="space-y-3"
       >
-        <table className="w-full text-sm">
+        <p className="rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px] text-muted">
+          Cada unidad tiene su propia escala, porque 50 spots y 50 meses no son la misma compra.
+          Los tramos tienen que <b>crecer</b>: comprar más nunca puede descontar menos.
+        </p>
+        <div className="relative overflow-x-auto">
+        <table className="w-full text-left text-[13px]">
           <thead>
-            <tr className="border-b text-left text-xs text-neutral-500">
-              <th className="py-1">Unidad<Asterisco /></th>
-              <th>A partir de<Asterisco /></th>
-              <th>Descuento<Asterisco /></th>
-              <th />
+            <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted">
+              <th className="px-3 py-2 font-medium">Unidad<Asterisco /></th>
+              <th className="px-3 py-2 text-right font-medium">A partir de<Asterisco /></th>
+              <th className="px-3 py-2 text-right font-medium">Descuento<Asterisco /></th>
+              <th className="px-3 py-2" />
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-border">
             {tramos.length === 0 && (
               <tr>
-                <td colSpan={4} className="py-3 text-neutral-500">
+                <td colSpan={4} className="px-3 py-2.5 text-muted">
                   Todavía no hay ninguno. Sin tramos, todo se vende al precio de tarifa — que es
                   exactamente como funciona hoy.
                 </td>
               </tr>
             )}
-            {tramos.map((t) => (
-              <tr key={t.id} className="border-b">
-                <td className="py-1.5">
-                  {UNIDADES.find((u) => u.unidad === t.unidad)?.label ?? t.unidad}
-                </td>
-                <td>
-                  {formatNumero(t.desdeCantidad)} {unidadCorta(t.unidad, t.desdeCantidad)}
-                </td>
-                <td>{t.descuentoPct} %</td>
-                <td className="text-right">
-                  <Button
-                    type="button"
-                    onClick={() => void eliminar(t.id)}
-                    size="sm"
-                    variant="ghost"
-                    className="text-error hover:text-error"
-                    title="Eliminar: deja de aplicarse a partir de ahora. Lo ya cotizado y lo ya aprobado no se mueven."
-                  >
-                    <Trash2 className="h-3.5 w-3.5" /> Eliminar
-                  </Button>
-                </td>
-              </tr>
+            {grupos.map((g) => (
+              <Fragment key={g.unidad}>
+                <tr>
+                  <td colSpan={4} className="px-3 pb-1 pt-3 text-[12px] font-medium text-ink">
+                    {g.label}
+                    <span className="font-normal text-muted"> · {g.tramos.length} tramo{g.tramos.length === 1 ? '' : 's'}</span>
+                  </td>
+                </tr>
+                {g.tramos.map((t, i) => (
+                  <tr key={t.id}>
+                    <td className="px-3 py-2 pl-6 text-[12px] text-muted">Escalón {i + 1}</td>
+                    <td className="demo-num whitespace-nowrap px-3 py-2 text-right text-ink">
+                      desde {formatNumero(t.desdeCantidad)} {unidadCorta(t.unidad, t.desdeCantidad)}
+                    </td>
+                    <td className="demo-num whitespace-nowrap px-3 py-2 text-right font-medium text-ink">→ {t.descuentoPct} %</td>
+                    <td className="px-3 py-2 text-right">
+                      <Button
+                        type="button"
+                        onClick={() => void eliminar(t.id)}
+                        size="sm"
+                        variant="ghost"
+                        className="text-error hover:text-error"
+                        title="Eliminar: deja de aplicarse a partir de ahora. Lo ya cotizado y lo ya aprobado no se mueven."
+                      >
+                        <Trash2 className="h-3.5 w-3.5" /> Eliminar
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </Fragment>
             ))}
-            <tr>
-              <td className="py-2" data-falta={ob.falta('unidad') || undefined}>
+            {/* La fila de ALTA, con fondo propio para que no se lea como un
+                tramo más; los ejemplos dicen «p. ej.» y van en gris para que
+                no parezcan un valor ya capturado. */}
+            <tr className="bg-surface-2">
+              <td className="px-3 py-2.5" data-falta={ob.falta('unidad') || undefined}>
                 <select
                   aria-label="Unidad de venta"
-                  className="rounded border px-2 py-1"
+                  className={CAMPO}
                   value={nuevo.unidad}
                   onChange={(e) => setNuevo({ ...nuevo, unidad: e.target.value })}
                 >
@@ -193,33 +244,33 @@ export function GestionVolumen() {
                   ))}
                 </select>
               </td>
-              <td data-falta={ob.falta('desdeCantidad') || undefined}>
+              <td className="px-3 py-2.5 text-right" data-falta={ob.falta('desdeCantidad') || undefined}>
                 {/* Entera, con coma de miles. Lo que no se entiende llega como
                     'NaN' y `motivoTramoInvalido` lo rechaza como siempre. */}
                 <CampoCifra
                   aria-label="A partir de qué cantidad"
                   decimales={0}
                   mostrarError={false}
-                  className="w-24 rounded border px-2 py-1"
-                  placeholder="50"
+                  className={`${CAMPO} demo-num w-28 text-right`}
+                  placeholder="p. ej. 50"
                   valor={nuevo.desdeCantidad}
                   onCambio={(crudo) => setNuevo({ ...nuevo, desdeCantidad: crudo })}
                 />
               </td>
-              <td data-falta={ob.falta('descuentoPct') || undefined}>
+              <td className="px-3 py-2.5 text-right" data-falta={ob.falta('descuentoPct') || undefined}>
                 <input
                   aria-label="Descuento por ciento"
                   type="number"
                   min={0}
                   max={100}
                   step={0.5}
-                  className="w-24 rounded border px-2 py-1"
-                  placeholder="10"
+                  className={`${CAMPO} demo-num w-28 text-right`}
+                  placeholder="p. ej. 10"
                   value={nuevo.descuentoPct}
                   onChange={(e) => setNuevo({ ...nuevo, descuentoPct: e.target.value })}
                 />
               </td>
-              <td className="text-right">
+              <td className="px-3 py-2.5 text-right">
                 <Button
                   type="button"
                   onClick={() => void anadir()}
@@ -232,10 +283,16 @@ export function GestionVolumen() {
             </tr>
           </tbody>
         </table>
+        </div>
       </CardColapsable>
     </div>
   )
 }
+
+// Campos del alto y el borde del resto de los formularios (rediseño del
+// 2026-10-26); el `placeholder` en gris para que no se lea como un valor.
+const CAMPO =
+  'h-9 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink outline-none placeholder:text-muted focus-visible:ring-2 focus-visible:ring-accent'
 
 /** OBLIG-01 · el asterisco de una cabecera de columna obligatoria. */
 function Asterisco() {

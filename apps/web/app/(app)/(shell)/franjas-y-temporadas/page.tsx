@@ -1,6 +1,5 @@
 'use client'
 
-import { Clock } from 'lucide-react'
 import { GestionRejilla } from '@/components/demo/rejilla/GestionRejilla'
 import { ProgramacionPorFranja } from '@/components/demo/rejilla/ProgramacionPorFranja'
 
@@ -24,12 +23,14 @@ import { ProgramacionPorFranja } from '@/components/demo/rejilla/ProgramacionPor
 // ============================================================================
 export default function FranjasYTemporadasPage() {
   return (
-    <div className="space-y-4">
-      <header className="flex items-center gap-2">
-        <Clock className="h-5 w-5" />
+    <div className="w-full space-y-4">
+      {/* Encabezado con la forma del Dashboard (rediseño 2026-10-26): título
+          de 2xl y subtítulo en `text-muted`, sin el icono suelto ni la paleta
+          `neutral` de Tailwind, que no son tokens del proyecto. */}
+      <header>
         <div>
-          <h1 className="text-lg font-semibold">Franjas y temporadas</h1>
-          <p className="text-xs text-neutral-500">
+          <h1 className="text-2xl text-ink">Franjas y temporadas</h1>
+          <p className="mt-1 text-[13px] text-muted">
             Las dos dimensiones de la tarifa: la hora del día y la época del año. Se capturan una
             vez y valen para todo el inventario.
           </p>

@@ -6,6 +6,7 @@ import { Plus, Pencil, Trash2, Check, X, AlertTriangle } from 'lucide-react'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
+import { StatusBadge } from '@/components/demo/StatusBadge'
 import { cn } from '@/lib/cn'
 import { esRfcValido } from '@/lib/rfc'
 import {
@@ -193,11 +194,27 @@ export function GestionRazonesSociales({
     </div>
   )
 
+  // 26/10 · los arrendadores SIN razón social (y sin alta abierta) se juntan en
+  // una lista compacta, una fila cada uno. Antes cada uno ocupaba su propia caja
+  // con el mismo aviso repetido: con cuatro faltantes, la tarjeta gastaba
+  // ~400 px en decir cuatro veces lo mismo. El aviso va una sola vez.
+  const sinRazon = arrendadores.filter(
+    (a) => creandoEn !== a.id && !razones.some((r) => r.arrendadorId === a.id),
+  )
+  const conBloque = arrendadores.filter((a) => !sinRazon.includes(a))
+
   return (
     <CardColapsable
       id="arrendadores.razones-sociales"
       titulo="Razones sociales"
       subtitulo="A nombre de quién factura cada arrendador. Un mismo arrendador puede tener varias; el contrato elige cuál usa."
+      resumen={
+        sinRazon.length > 0 ? (
+          <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-[#9a6700]">
+            {sinRazon.length} sin razón social
+          </span>
+        ) : undefined
+      }
       contentClassName="space-y-4 pb-4"
     >
         {arrendadores.length === 0 ? (
@@ -205,7 +222,32 @@ export function GestionRazonesSociales({
             Aún no hay arrendadores dados de alta.
           </p>
         ) : (
-          arrendadores.map((a) => {
+          <>
+          {sinRazon.length > 0 && (
+            <div className="rounded border border-border">
+              <p className="flex items-start gap-2 border-b border-border bg-surface-2 px-3 py-2 text-[12.5px] text-[#9a6700]">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                Sin razón social, los contratos de estos arrendadores no podrán anclar
+                a quién se factura.
+              </p>
+              <ul className="divide-y divide-border">
+                {sinRazon.map((a) => (
+                  <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span className="truncate text-[13px] font-medium text-ink">{a.nombre}</span>
+                      <StatusBadge tono="ambar">Sin razón social</StatusBadge>
+                    </span>
+                    {puedeEditar && (
+                      <Button size="sm" variant="secondary" onClick={() => abrirAlta(a.id)}>
+                        Agregar →
+                      </Button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {conBloque.map((a) => {
             const suyas = razones.filter((r) => r.arrendadorId === a.id)
             return (
               <div key={a.id} className="rounded border border-border">
@@ -282,7 +324,8 @@ export function GestionRazonesSociales({
                 </div>
               </div>
             )
-          })
+          })}
+          </>
         )}
     </CardColapsable>
   )

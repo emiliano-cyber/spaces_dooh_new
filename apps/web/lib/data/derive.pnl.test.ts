@@ -70,21 +70,31 @@ describe('P&L renta = costo del espacio (atribución partes iguales, sin doble c
     expect(m.get('S3')).toBe(0)              // sin predio/contrato => 0 (sin fallback a costoCompra)
   })
 
-  it('dashboardMetrics usa la renta atribuida como costo del espacio (no el costoCompra)', () => {
-    const d = dashboardMetrics(escenario)
-    // Solo S1 está vendida (reserva CONFIRMADA) => costo del espacio = renta atribuida de S1 = 5 000.
-    expect(d.costoEspaciosMes).toBeCloseTo(5000, 6)
-    // El costoCompra (99999) NO se usa en ningún caso.
-    expect(d.costoEspaciosMes).not.toBeCloseTo(99999, 0)
-    // Margen = ingreso − (espacios + impresión + operación) = 8 000 − 5 000 = 3 000.
-    expect(d.ingresoMes).toBe(8000)
-    expect(d.costoImpresionMes).toBe(0)
-    expect(d.costoOperacionMes).toBe(0)
-    expect(d.margen).toBeCloseTo(3000, 6)
-    // Sin doble conteo: si se restara además la renta bruta (10 000) el margen sería −7 000.
-    expect(d.margen).not.toBeCloseTo(-7000, 0)
+  // DASH-PERIODO (26/10) · `dashboardMetrics` ya no da ingreso, costo de
+  // espacios ni margen: los daba sobre todo lo que ha existido —aquí habría
+  // dicho «ingreso del mes 8 000» por una reserva de 2020 a 2999— y el
+  // Dashboard los pide ahora al motor de Reportes. Que no vuelvan.
+  it('NEGATIVO · dashboardMetrics ya no expone ingreso ni margen sin periodo', () => {
+    const d = dashboardMetrics(escenario) as unknown as Record<string, unknown>
+    for (const campo of ['ingresoMes', 'costoEspaciosMes', 'costoOperacionMes', 'costoTotalMes', 'margen', 'margenPct']) {
+      expect(d, campo).not.toHaveProperty(campo)
+    }
     // costoRentaMes es informativo (bruto mensual de contratos activos) = 10 000.
     expect(d.costoRentaMes).toBeCloseTo(10000, 6)
+  })
+
+  it('la impresión es la de las órdenes creadas EN EL MES, no todas las que han existido', () => {
+    const conImpresion = {
+      ...escenario,
+      sitios: escenario.sitios.map((s: any) => ({ ...s, tarifaImpresion: 700 })),
+      ordenesImpresion: [
+        { id: 'OI1', sitioId: 'S1', creadoEn: new Date(2026, 9, 3, 12).toISOString() },
+        { id: 'OI2', sitioId: 'S2', creadoEn: new Date(2026, 9, 31, 20).toISOString() },
+        // De septiembre: hasta el 26/10 también se sumaba.
+        { id: 'OI3', sitioId: 'S1', creadoEn: new Date(2026, 8, 30, 12).toISOString() },
+      ],
+    }
+    expect(dashboardMetrics(conImpresion, new Date(2026, 9, 26)).costoImpresionMes).toBe(1400)
   })
 
   it('margenPorSitio: renta atribuida por pantalla y margen a mano', () => {

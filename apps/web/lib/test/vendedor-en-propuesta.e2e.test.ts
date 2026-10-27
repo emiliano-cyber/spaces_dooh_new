@@ -445,3 +445,38 @@ describe('la dimensión es parte del contrato, no un extra', () => {
     expect(JSON.stringify(r.datos)).not.toContain(datosAlfa.vendedorNombre)
   })
 })
+
+// ─── DASH-REF (26/10) · el Dashboard reparte lo ganado por vendedor ─────────
+// La propuesta viaja al navegador con `vendedorId` y sus fechas de decisión
+// para el pipeline de Inicio. La liga PÚBLICA es lo que lee el cliente final, y
+// ahí no tiene nada que hacer el id de un usuario interno.
+describe('DASH-REF · el vendedor y las fechas viajan al Dashboard, no a la liga pública', () => {
+  it('la propuesta en `/api/estado` trae `vendedorId` y `aprobadaEn`', async () => {
+    const r = await cVendedor.pedir('/api/propuestas/', {
+      cuerpo: {
+        nombre: 'Propuesta para el pipeline',
+        fechaInicio: enDias(1),
+        fechaFin: enDias(30),
+        items: [{ sitioId: datosAlfa.sitioId, precio: 10_000 }],
+      },
+    })
+    expect(r.status, JSON.stringify(r.datos)).toBe(201)
+    await poolTest().query(`update propuestas set estatus = 'APROBADA', aprobada_en = now() where id = $1`, [r.datos.id])
+    const e = await ca.pedir('/api/estado/')
+    const p = e.datos.propuestas.find((x: any) => x.id === r.datos.id)
+    expect(p.vendedorId).toBe(datosAlfa.vendedorId)
+    expect(typeof p.aprobadaEn).toBe('string')
+    expect(p.rechazadaEn).toBeNull()
+  })
+
+  it('NEGATIVO · la liga pública NO lleva el id del vendedor', async () => {
+    const f = await poolTest().query(
+      `select token_publico from propuestas where tenant_id = $1 and usuario_id = $2 and token_publico is not null limit 1`,
+      [alfa.id, datosAlfa.vendedorId],
+    )
+    const pub = await new Cliente().pedir(`/api/propuestas/publica/${f.rows[0].token_publico}/`)
+    expect(pub.status).toBe(200)
+    expect(JSON.stringify(pub.datos)).not.toContain(datosAlfa.vendedorId)
+    expect(pub.datos).not.toHaveProperty('vendedorId')
+  })
+})

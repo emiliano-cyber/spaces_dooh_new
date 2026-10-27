@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-22
+actualizado: 2026-10-26
 tags: [frontend, comercial, prospeccion, arrendadores, negociacion, ubicacion]
 archivos:
   - apps/web/app/(app)/(shell)/comercial-opex/page.tsx
@@ -65,8 +65,18 @@ fijó el vendedor.
 
 La forma de la maqueta, ahora con datos: las cuatro cifras arriba (en seguimiento,
 en negociación, activos, sin contacto +30 días), a la izquierda la lista de espacios
-(`GET /api/captacion?tipos=PREDIO,PANTALLA`) con **Nuevo espacio**, y a la derecha
-el detalle del elegido:
+(`GET /api/captacion?tipos=PREDIO,PANTALLA`), y a la derecha el detalle del elegido.
+
+**Desde el rediseño del 26/10** (solo presentación): el título y **Nuevo
+espacio** van arriba a la derecha y los pinta `ComercialOpex` (la página queda en
+`<ComercialOpex hoyIso=…/>`, todavía Server Component por la fecha); las cuatro
+cifras son `KPICard` (el «se muestran N de M» pasa a la aclaración de la
+primera); al cargar hay esqueletos; sin espacios, la columna derecha enseña una
+tarjeta con el mismo botón. La lista es un `divide-y` con la antigüedad del
+último contacto como pastilla (roja si se enfrió) y el estado como chip, con
+búsqueda y chips Todos · En negociación · Activos · Inactivos · Sin contacto
++30 d, filtrados en el navegador. Montos y fechas con `formatMonto` /
+`formatFecha`.
 
 | Bloque | Qué guarda | Ruta |
 |---|---|---|

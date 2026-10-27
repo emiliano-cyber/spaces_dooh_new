@@ -4,8 +4,10 @@ import { toast } from 'sonner'
 import { conteo } from '@/lib/plural'
 import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
-import { Plus, FileText, Send, Check, X, ChevronDown, ChevronRight, Monitor, Square, List, Map as MapIcon } from 'lucide-react'
-import { Card } from '@/components/demo/ui/Card'
+import { Plus, FileText, Send, Check, X, ChevronDown, ChevronRight, Monitor, Square, List, Map as MapIcon, Trophy, Target } from 'lucide-react'
+import { cn } from '@/lib/cn'
+import { KPICard, KPICardSkeleton } from '@/components/demo/KPICard'
+import { EST, ORDEN_ESTATUS } from '@/components/demo/propuestas/estatus'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { AvisoFranjaCMS } from '@/components/demo/rejilla/AvisoFranjaCMS'
 import { catalogoRejillaApi, type FranjaUI, type TemporadaUI } from '@/lib/data/rejilla-api'
@@ -50,6 +52,7 @@ import {
   cupoDePantalla,
   formatMonto,
   formatMontoCorto,
+  formatFecha,
   divisorDeComision,
   type Propuesta,
   type EstPropuesta,
@@ -84,22 +87,44 @@ const PERIODICIDADES_RENTA = PERIODICIDADES
 const inputCls =
   'h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
 
-const EST: Record<EstPropuesta, { label: string; cls: string }> = {
-  BORRADOR: { label: 'Borrador', cls: 'border-border text-muted' },
-  ENVIADA: { label: 'Enviada', cls: 'border-[#0a66ff40] text-info' },
-  APROBADA: { label: 'Aprobada', cls: 'border-[#10b98140] text-[#0f7a55]' },
-  RECHAZADA: { label: 'Rechazada', cls: 'border-[#ef444440] text-error' },
-}
+// La tabla de estatus vive en `components/demo/propuestas/estatus.ts`: la
+// comparten la lista y el detalle, que antes tenían cada uno su copia.
 
 export default function PropuestasPage() {
   const propuestas = usePropuestas()
   const funnel = useFunnelPropuestas()
+  const clientes = useClientes()
   const puedeEditar = usePuede('comercial', 'crear')
   const [nuevoOpen, setNuevoOpen] = useState(false)
   const [abierta, setAbierta] = useState<string | null>(null)
+  // Filtros de la lista (rediseño del 26/10). Filtran EN EL NAVEGADOR la lista
+  // que ya está cargada: no viajan al servidor ni cambian ninguna cifra de
+  // arriba, que sigue siendo de todas las propuestas.
+  const [filtroEstatus, setFiltroEstatus] = useState<EstPropuesta | ''>('')
+  const [filtroCliente, setFiltroCliente] = useState('')
+  const [busqueda, setBusqueda] = useState('')
+
+  const filtradas = useMemo(() => {
+    if (!propuestas) return []
+    const t = busqueda.trim().toLowerCase()
+    return propuestas.filter(
+      (p) =>
+        (!filtroEstatus || p.estatus === filtroEstatus) &&
+        (!filtroCliente || p.clienteId === filtroCliente || p.agenciaId === filtroCliente) &&
+        (!t || p.folio.toLowerCase().includes(t) || p.nombre.toLowerCase().includes(t)),
+    )
+  }, [propuestas, filtroEstatus, filtroCliente, busqueda])
+  const hayFiltro = !!filtroEstatus || !!filtroCliente || !!busqueda.trim()
+  const cuentaPor = (e: EstPropuesta) => (propuestas ?? []).filter((p) => p.estatus === e).length
+  // Solo los clientes que tienen alguna propuesta (como anunciante o agencia):
+  // el selector no ofrece opciones que siempre devolverían la lista vacía.
+  const clientesConPropuesta = useMemo(() => {
+    const ids = new Set((propuestas ?? []).flatMap((p) => [p.clienteId, p.agenciaId]).filter(Boolean))
+    return (clientes ?? []).filter((c) => ids.has(c.id)).sort((a, b) => a.nombre.localeCompare(b.nombre))
+  }, [propuestas, clientes])
 
   return (
-    <div className="w-full space-y-4">
+    <div className="w-full space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl text-ink">Propuestas</h1>
@@ -112,15 +137,62 @@ export default function PropuestasPage() {
         )}
       </div>
 
-      {/* Cómo va el periodo: generadas, aprobadas, rechazadas y ganancia (06/10). */}
-      <TableroPropuestas />
-
-      {funnel && funnel.total > 0 && <FunnelStrip f={funnel} />}
+      {/* Rediseño del 26/10: KPIs → lista → análisis. Las cuatro cifras del
+          antiguo «Embudo de propuestas» suben aquí como tarjetas, con las
+          mismas fuentes (`useFunnelPropuestas`). Son HISTÓRICAS —todas las
+          propuestas—, y así lo dicen: el Dashboard mide la tasa de cierre en
+          una ventana de días y el Resumen de abajo en el periodo elegido. */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {!funnel ? (
+          <>
+            <KPICardSkeleton />
+            <KPICardSkeleton />
+            <KPICardSkeleton />
+            <KPICardSkeleton />
+          </>
+        ) : (
+          <>
+            <KPICard
+              label="En pipeline"
+              value={formatMonto(funnel.pipelineValue)}
+              sub={`${conteo(funnel.borrador + funnel.enviadas, 'propuesta', 'propuestas')} en borrador o enviadas · total c/IVA`}
+              tono="ambar"
+              icon={<FileText className="h-4 w-4" />}
+            />
+            <KPICard
+              label="Enviadas sin respuesta"
+              value={formatNumero(funnel.enviadas)}
+              sub="esperan que el cliente apruebe o rechace"
+              tono={funnel.enviadas > 0 ? 'azul' : 'neutro'}
+              icon={<Send className="h-4 w-4" />}
+            />
+            <KPICard
+              label="Ganado (histórico)"
+              value={formatMonto(funnel.ganadoValue)}
+              sub={`${conteo(funnel.aprobadas, 'aprobada', 'aprobadas')} · perdido ${formatMontoCorto(funnel.perdidoValue)} en ${conteo(funnel.rechazadas, 'rechazada', 'rechazadas')}`}
+              tono="verde"
+              icon={<Trophy className="h-4 w-4" />}
+            />
+            <KPICard
+              label="Tasa de cierre histórica"
+              value={funnel.winRate != null ? `${Math.round(funnel.winRate * 100)}%` : '—'}
+              sub={
+                funnel.winRate != null
+                  ? `aprobadas sobre ${funnel.aprobadas + funnel.rechazadas} cerradas, desde siempre`
+                  : 'sin cierres aún'
+              }
+              icon={<Target className="h-4 w-4" />}
+            />
+          </>
+        )}
+      </div>
 
       {!propuestas ? (
         <div className="h-40 animate-pulse rounded-md bg-surface-2" />
       ) : propuestas.length === 0 ? (
-        <p className="py-10 text-center text-[13px] text-muted">Aún no hay propuestas.</p>
+        <p className="py-10 text-center text-[13px] text-muted">
+          Aún no hay propuestas.{puedeEditar ? ' Arma la primera con «Nueva propuesta».' : ''}
+        </p>
       ) : (
         // PLEG-02 · qué propuesta está desplegada vive en `abierta`, en esta
         // página: plegar la lista y volver a abrirla la deja como estaba.
@@ -129,26 +201,100 @@ export default function PropuestasPage() {
           titulo="Lista de propuestas"
           resumen={
             <span className="text-[12px] text-muted">
-              {propuestas.length} {propuestas.length === 1 ? 'propuesta' : 'propuestas'}
+              {hayFiltro ? `${filtradas.length} de ${propuestas.length}` : propuestas.length}{' '}
+              {propuestas.length === 1 ? 'propuesta' : 'propuestas'}
             </span>
           }
         >
-          <ul className="space-y-3">
-            {propuestas.map((p) => (
-              <PropuestaCard
-                key={p.id}
-                p={p}
-                abierta={abierta === p.id}
-                onToggle={() => setAbierta(abierta === p.id ? null : p.id)}
-                puedeEditar={puedeEditar}
+          {/* Filtros en una fila: estatus con su conteo, cliente y búsqueda. */}
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Estatus">
+              <ChipFiltro activo={!filtroEstatus} onClick={() => setFiltroEstatus('')}>
+                Todas <span className="demo-num">{propuestas.length}</span>
+              </ChipFiltro>
+              {ORDEN_ESTATUS.map((e) => (
+                <ChipFiltro key={e} activo={filtroEstatus === e} onClick={() => setFiltroEstatus(filtroEstatus === e ? '' : e)}>
+                  {EST[e].label} <span className="demo-num">{cuentaPor(e)}</span>
+                </ChipFiltro>
+              ))}
+            </div>
+            <div className="ml-auto flex flex-wrap items-center gap-2">
+              <select
+                aria-label="Cliente"
+                value={filtroCliente}
+                onChange={(e) => setFiltroCliente(e.target.value)}
+                className="h-8 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                <option value="">Todos los clientes</option>
+                {clientesConPropuesta.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nombre}
+                  </option>
+                ))}
+              </select>
+              <input
+                aria-label="Buscar propuesta"
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                placeholder="Folio o nombre…"
+                className="h-8 w-48 rounded border border-border-strong bg-surface px-2.5 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
               />
-            ))}
-          </ul>
+            </div>
+          </div>
+
+          {/* El embudo, ahora franja secundaria: sus cifras grandes subieron a
+              las tarjetas de arriba. */}
+          {funnel && funnel.total > 0 && <FunnelStrip f={funnel} />}
+
+          {filtradas.length === 0 ? (
+            <p className="py-8 text-center text-[13px] text-muted">
+              Ninguna propuesta
+              {filtroEstatus ? ` ${EST[filtroEstatus].label.toLowerCase()}` : ''}
+              {filtroCliente ? ` de ${clientes?.find((c) => c.id === filtroCliente)?.nombre ?? 'ese cliente'}` : ''}
+              {busqueda.trim() ? ` que coincida con «${busqueda.trim()}»` : ''}. Quita el filtro para ver las{' '}
+              {propuestas.length}.
+            </p>
+          ) : (
+            <ul className="m-0 list-none divide-y divide-border p-0">
+              {filtradas.map((p) => (
+                <PropuestaCard
+                  key={p.id}
+                  p={p}
+                  abierta={abierta === p.id}
+                  onToggle={() => setAbierta(abierta === p.id ? null : p.id)}
+                  puedeEditar={puedeEditar}
+                />
+              ))}
+            </ul>
+          )}
         </CardColapsable>
       )}
 
+      {/* Cómo va el periodo: generadas, aprobadas, rechazadas y ganancia (06/10).
+          Va DEBAJO de la lista desde el 26/10: es análisis, y la lista es lo
+          que se trabaja. */}
+      <TableroPropuestas />
+
       {nuevoOpen && <NuevaPropuestaDialog onClose={() => setNuevoOpen(false)} />}
     </div>
+  )
+}
+
+// Chip de filtro. Fondo y borde explícitos: con `preflight: false` un
+// `<button>` sin ellos sale con el gris del navegador.
+function ChipFiltro({ activo, onClick, children }: { activo: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={activo}
+      className={cn(
+        'inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[12px] transition-colors',
+        activo ? 'border-accent bg-accent-soft font-medium text-ink' : 'border-border bg-surface text-muted hover:text-ink',
+      )}
+    >
+      {children}
+    </button>
   )
 }
 
@@ -225,12 +371,27 @@ function PropuestaCard({
     try { await aprobarItemPropuestaApi(itemId, aprobado) } catch (e) { toast.error(e instanceof Error ? e.message : 'Error') }
   }
 
+  // Fechas de la propuesta (min/max de los items), igual que el detalle: en la
+  // fila no aparecían y son lo primero que se pregunta de una cotización.
+  const inicios = p.items.map((i) => i.fechaInicio).filter(Boolean).sort()
+  const fines = p.items.map((i) => i.fechaFin).filter(Boolean).sort()
+  const desde = inicios[0]
+  const hasta = fines.at(-1)
+
   return (
-    <li>
-      <Card className="p-4">
+    // Fila de lista con el lenguaje del Dashboard (26/10): renglón dentro de un
+    // `divide-y`, no una tarjeta apilada dentro de otra tarjeta.
+    <li className="py-3">
         <div className="flex flex-wrap items-start justify-between gap-2">
-          <button type="button" onClick={onToggle} className="flex min-w-0 items-center gap-2 text-left">
-            {abierta ? <ChevronDown className="h-4 w-4 text-muted" /> : <ChevronRight className="h-4 w-4 text-muted" />}
+          {/* Fondo, borde y relleno explícitos: con `preflight: false` el botón
+              pintaba el gris del navegador detrás de toda la fila. */}
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-expanded={abierta}
+            className="flex min-w-0 flex-1 items-start gap-2 border-0 bg-transparent p-0 text-left"
+          >
+            {abierta ? <ChevronDown className="mt-0.5 h-4 w-4 shrink-0 text-muted" /> : <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted" />}
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <span className="demo-num text-[12px] text-muted">{p.folio}</span>
@@ -259,6 +420,7 @@ function PropuestaCard({
               <div className="text-[12px] text-muted">
                 {cliente?.nombre ?? 'Sin cliente'}
                 {agencia ? <> · vía <span className="text-ink">{agencia.nombre}</span></> : ''}
+                {desde && hasta ? <> · <span className="demo-num">{formatFecha(desde)} – {formatFecha(hasta)}</span></> : ''}
                 {' '}· {conteo(p.items.length, 'sitio')}
               </div>
             </div>
@@ -279,23 +441,35 @@ function PropuestaCard({
 
         {abierta && (
           <div className="mt-3 space-y-3 border-t border-border pt-3">
-            {/* Presupuesto (método del divisor) */}
-            <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-[12px] sm:grid-cols-4">
-              <Dato label="Bruto (lista)" valor={formatMonto(p.bruto)} />
-              <Dato label={`Comisión ${(100 - p.divisor * 100).toFixed(0)}% · divisor ${p.divisor.toFixed(2)}`} valor={`× ${p.divisor.toFixed(2)}`} />
-              <Dato label="Neto propuesto" valor={formatMonto(p.neto)} />
-              <Dato label={`IVA ${p.bruto ? Math.round((p.iva / p.bruto) * 100) : 16}%`} valor={formatMonto(p.iva)} />
-            </div>
-            {/* Neto vs aprobado (aprobación granular) */}
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-[#10b98133] bg-[#10b9810d] px-3 py-2 text-[12px]">
-              <span className="font-medium text-ink">Aprobado · {p.itemsAprobados}/{conteo(p.items.length, 'sitio')}</span>
-              <span className="text-muted">
-                Neto aprobado <b className="demo-num text-[#0f7a55]">{formatMonto(p.netoAprobado)}</b>
-                {' '}de {formatMonto(p.neto)} · Total <b className="demo-num text-ink">{formatMonto(p.totalAprobado)}</b>
-              </span>
+            {/* Presupuesto (método del divisor) y lo aprobado, en UNA franja
+                secundaria como los desgloses del Dashboard (26/10). Mismos
+                valores y mismas etiquetas que las cuatro `Dato` y la franja
+                verde que había. */}
+            <div className="space-y-1 rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px]">
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
+                <Dato label="Bruto (lista)" valor={formatMonto(p.bruto)} />
+                <Dato label={`Comisión ${(100 - p.divisor * 100).toFixed(0)}% · divisor ${p.divisor.toFixed(2)}`} valor={`× ${p.divisor.toFixed(2)}`} />
+                <Dato label="Neto propuesto" valor={formatMonto(p.neto)} />
+                <Dato label={`IVA ${p.bruto ? Math.round((p.iva / p.bruto) * 100) : 16}%`} valor={formatMonto(p.iva)} />
+              </div>
+              {/* Neto vs aprobado (aprobación granular). Con nada aprobado se
+                  dice, en vez de enseñar tres ceros que parecen cifras. */}
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
+                <span className="font-medium text-ink">Aprobado · {p.itemsAprobados}/{conteo(p.items.length, 'sitio')}</span>
+                {p.itemsAprobados === 0 ? (
+                  <span className="text-muted">
+                    —, aún no se aprueba ningún sitio{puedeEditar ? ': marca las casillas de abajo' : ''}
+                  </span>
+                ) : (
+                  <span className="text-muted">
+                    Neto aprobado <b className="demo-num text-[#0f7a55]">{formatMonto(p.netoAprobado)}</b>
+                    {' '}de {formatMonto(p.neto)} · Total <b className="demo-num text-ink">{formatMonto(p.totalAprobado)}</b>
+                  </span>
+                )}
+              </div>
             </div>
             {/* Items con aprobación sitio por sitio */}
-            <ul className="divide-y divide-border rounded-md border border-border">
+            <ul className="m-0 list-none divide-y divide-border rounded-md border border-border p-0">
               {p.items.map((it) => {
                 const s = sitios?.find((x) => x.id === it.sitioId)
                 return (
@@ -364,7 +538,6 @@ function PropuestaCard({
             )}
           </div>
         )}
-      </Card>
       <ElegirClienteDialog
         open={elegirCliente}
         onOpenChange={setElegirCliente}
@@ -1628,40 +1801,26 @@ function Dato({ label, valor }: { label: string; valor: string }) {
   )
 }
 
-// Tira de funnel comercial: enviadas → aprobadas → perdidas, win rate y pipeline.
+// Tira de funnel comercial: enviadas → aprobadas → perdidas.
+// Desde el 26/10 es una franja secundaria DENTRO de la lista y no una tarjeta:
+// el pipeline, lo ganado y la tasa de cierre subieron a las `KPICard` de arriba
+// (eran las mismas cuatro cifras), y aquí queda solo el embudo en barras.
 function FunnelStrip({ f }: { f: FunnelPropuestas }) {
-  const winPct = f.winRate != null ? Math.round(f.winRate * 100) : null
-  const enPipeline = f.borrador + f.enviadas
   // Ancho relativo del embudo (enviadas alguna vez = base).
   const base = Math.max(1, f.enviadas + f.aprobadas + f.rechazadas)
   const barra = (n: number, cls: string) => (
-    <div className="h-2 rounded-full bg-surface-2">
-      <div className={`h-2 rounded-full ${cls}`} style={{ width: `${Math.round((n / base) * 100)}%` }} />
+    <div className="h-1.5 rounded-full bg-surface">
+      <div className={`h-1.5 rounded-full ${cls}`} style={{ width: `${Math.round((n / base) * 100)}%` }} />
     </div>
   )
   return (
-    <CardColapsable id="propuestas.embudo" titulo="Embudo de propuestas">
-        <div className="grid grid-cols-2 gap-4 py-1 lg:grid-cols-4">
-          <Tile label="En pipeline" valor={formatMontoCorto(f.pipelineValue)} sub={`${enPipeline} propuesta${enPipeline === 1 ? '' : 's'} (borrador + enviada)`} />
-          <Tile label="Ganado" tono="text-[#0f7a55]" valor={formatMontoCorto(f.ganadoValue)} sub={`${f.aprobadas} aprobada${f.aprobadas === 1 ? '' : 's'}`} />
-          <Tile label="Perdido" tono="text-error" valor={formatMontoCorto(f.perdidoValue)} sub={`${f.rechazadas} rechazada${f.rechazadas === 1 ? '' : 's'}`} />
-          <Tile label="Win rate" valor={winPct != null ? `${winPct}%` : '—'} sub={winPct != null ? `sobre ${f.aprobadas + f.rechazadas} cerradas` : 'sin cierres aún'} />
-        </div>
-        <div className="mt-3 space-y-1.5 border-t border-border pt-3">
-          <FunnelRow label="Enviadas" n={f.enviadas + f.aprobadas + f.rechazadas} bar={barra(f.enviadas + f.aprobadas + f.rechazadas, 'bg-info')} />
-          <FunnelRow label="Aprobadas" n={f.aprobadas} bar={barra(f.aprobadas, 'bg-[#10b981]')} />
-          <FunnelRow label="Perdidas" n={f.rechazadas} bar={barra(f.rechazadas, 'bg-[#ef4444]')} />
-        </div>
-    </CardColapsable>
-  )
-}
-
-function Tile({ label, valor, sub, tono }: { label: string; valor: string; sub?: string; tono?: string }) {
-  return (
-    <div>
-      <div className="text-[10px] font-medium uppercase tracking-wide text-muted">{label}</div>
-      <div className={`demo-num text-[20px] font-semibold ${tono ?? 'text-ink'}`}>{valor}</div>
-      {sub && <div className="text-[11px] text-muted">{sub}</div>}
+    <div className="mb-3 rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px]">
+      <div className="mb-1 font-medium text-ink">Embudo histórico</div>
+      <div className="grid gap-x-6 gap-y-1 sm:grid-cols-3">
+        <FunnelRow label="Enviadas" n={f.enviadas + f.aprobadas + f.rechazadas} bar={barra(f.enviadas + f.aprobadas + f.rechazadas, 'bg-info')} />
+        <FunnelRow label="Aprobadas" n={f.aprobadas} bar={barra(f.aprobadas, 'bg-success')} />
+        <FunnelRow label="Perdidas" n={f.rechazadas} bar={barra(f.rechazadas, 'bg-error')} />
+      </div>
     </div>
   )
 }

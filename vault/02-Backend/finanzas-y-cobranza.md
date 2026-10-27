@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-19
+actualizado: 2026-10-26
 tags: [backend, finanzas, facturacion, dinero, rojo]
 archivos:
   - apps/web/lib/server/finanzas-repo.ts
@@ -243,6 +243,42 @@ omisión de la columna).
 > `lib/data/types.ts` y `estado-api.ts`. Es solo el tipo —la columna es
 > `integer` y el valor llega validado—, con un cast comentado en los dos puntos
 > de paso.
+
+## La pantalla, rediseñada (26/10) — solo presentación
+
+Rediseño de la pantalla de Finanzas con el lenguaje del Dashboard
+([[dashboard-inicio]]). **No cambió ninguna cifra, ningún cálculo, permiso ni
+candado**: `GenerarFacturaDialog` y `PagoModal` no se tocaron por dentro.
+
+- **Resumen del periodo** (`components/demo/finanzas/TableroPeriodo.tsx`):
+  cuatro `KPICard` — *Por cobrar al cierre*, *Vencido* (en pesos, con «N
+  facturas al dd/mm» debajo), *Facturado* y *Cobrado*—; la renta baja a una
+  franja secundaria debajo. Antes eran seis tarjetas iguales. En un teléfono el
+  selector de periodo es un `<select>` con las **mismas** opciones
+  (`OPCIONES_PERIODO`) y el mismo `setTipo`; a 390 px los seis botones
+  sacaban el chevrón de la pantalla. Las fechas del rango van en el contenido
+  en móvil.
+- **Orden**: Resumen → Listas para facturar (solo si hay alguna; vacía baja al
+  final en una línea) → **Cobranza** → Facturas → Estado de cuenta → renta.
+  Cobranza va antes que Facturas porque es lo que pide acción.
+- **Cobranza**: chips de conteo del Dashboard (`ChipConteo.tsx`) con la
+  palabra «Cuotas» delante — cuenta **cuotas**, no facturas, y el resumen del
+  periodo cuenta facturas. Folio en una línea; «Emite: …» siempre visible bajo
+  el folio (el comentario de `FilaCuota` lo exige también en cuota única);
+  folio fiscal y RFC solo desde `xl`; Cliente desde `md` (debajo del folio en
+  móvil); Plazo desde `lg`. Los días a vencer son la pastilla del Dashboard con
+  el **mismo** texto de `etiquetaVencimiento`. «Registrar pago» pasa del verde
+  con hex al azul del sistema; mismos manejadores y mismo `disabled`.
+- **Facturas**: cabecera común, folio y monto sin partirse, `StatusBadge`
+  (Emitida azul, Pagada verde, Anulada neutra y tachada), folio fiscal y
+  emisora desde `lg`, diez filas y «Ver todas (N)», esqueleto al cargar.
+- **Estado de cuenta**: las cinco cifras como una ecuación en la franja
+  secundaria; en móvil el mes es un `<select>` con los mismos dos valores.
+
+Lo que **no** se hizo, y por qué: un total «por cobrar» en la tarjeta de
+Cobranza (sería una suma nueva hecha en el navegador; ya está en el KPI del
+resumen, que viene del servidor) y tocar `PagosRentaCard`/`CompromisoRentaCard`
+(son de [[arrendadores-y-contratos]]).
 
 ## Relacionadas
 [[flujo-facturacion-y-cobranza]] · [[comercial-propuestas-campanas]] ·

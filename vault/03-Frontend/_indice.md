@@ -1,7 +1,7 @@
 ---
 tipo: indice
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-10-26
 tags: [frontend, indice]
 archivos:
   - apps/web/app/
@@ -35,6 +35,7 @@ Router en uso**.
 | [[acceso-y-sesion-ui]] | Login, recuperar contraseña, autoregistro |
 | [[modulos-internos]] | Los 30 módulos dentro del shell (33 `page.tsx`) |
 | [[pantalla-reportes]] | El tablero de rentabilidad: el límite con el endpoint, el 501 y los vacíos |
+| [[dashboard-inicio]] | El Dashboard: el mes desde el motor de reportes, por rol, pipeline, huecos y cobranza por antigüedad |
 | [[comercial-opex]] | Prospección de arrendadores. **MAQUETA sin base**, y se solapa con Captación |
 | [[paginas-publicas]] | Portal, firma, propuesta compartible, OT móvil |
 | [[estado-y-data-fetching]] | React Query, zustand, el parche de `fetch` |

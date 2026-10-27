@@ -204,7 +204,11 @@ describe('el esquema base no trae la organización de nadie', () => {
     //     y `prospecto_notas`--, Comercial negociacion encima de `prospectos`
     //     (NEG-01). Esta vez se subio a la vez que la migracion, no despues de
     //     que el CI lo cazara.
-    expect(trasMigrar.tablas).toBe(64)
+    //   · 65 el 2026-10-23: `20261023_contrato_versiones_firmadas.sql` anade
+    //     `contrato_versiones_firmadas`, cada version firmada de un contrato
+    //     que se archivo al editarlo o reenviarlo a firma
+    //     (CONTRATO-FIRMADO-EDITABLE). Subido a la vez que la migracion.
+    expect(trasMigrar.tablas).toBe(65)
     // Lo que de verdad importa: ni las migraciones resucitan al owner.
     expect(trasMigrar.tenants).toBe(0)
   })

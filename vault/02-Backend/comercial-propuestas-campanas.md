@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-07
+actualizado: 2026-10-26
 tags: [backend, comercial, propuestas, campanas, amarillo, precio]
 archivos:
   - apps/web/lib/server/propuestas-repo.ts
@@ -29,7 +29,13 @@ archivos:
   - apps/web/lib/data/types.ts
   - apps/web/app/(app)/(shell)/propuestas/[id]/page.tsx
   - apps/web/app/(app)/(shell)/campanas/[id]/page.tsx
+  - apps/web/app/(app)/(shell)/campanas/page.tsx
+  - apps/web/app/(app)/(shell)/creativos/page.tsx
   - apps/web/components/demo/campanas/FranjaProgramadaCampana.tsx
+  - apps/web/components/demo/campanas/IndicadoresCampanas.tsx
+  - apps/web/components/demo/campanas/ResumenCampana.tsx
+  - apps/web/components/demo/campanas/ListasCampana.tsx
+  - apps/web/components/demo/campanas/CandadoPanel.tsx
   - apps/web/lib/server/programacion-repo.ts
   - apps/web/lib/server/contratos-sitio.ts
   - apps/web/lib/server/portal-repo.ts
@@ -180,6 +186,13 @@ porque anotarlo siempre haría inútil el filtro por persona de Actividad.
 
 El tenant de esas peticiones lo resuelve Postgres con
 `propuesta_tenant_por_token()`, nunca el cliente. Ver [[multi-tenancy-y-rls]].
+
+**DASH-REF (26/10).** `armarPropuesta` devuelve además `aprobadaEn`,
+`rechazadaEn` y `vendedorId` (de `usuario_id`), que el Dashboard usa para lo
+ganado en el mes y por vendedor ([[03-Frontend/dashboard-inicio]]). La liga
+pública arma su respuesta **campo por campo** en `obtenerPropuestaPublica`, así
+que no los lleva; lo fija la sección DASH-REF de
+`lib/test/vendedor-en-propuesta.e2e.test.ts`.
 
 ## Creativos
 
@@ -512,6 +525,93 @@ Probado en `lib/periodos.cps-cpm.test.ts`, `lib/folio-venta.test.ts`,
 `lib/test/folio-venta-cpm.e2e.test.ts` (folio heredado, .1/.2, la carrera, la
 bitácora, CPM hasta la reserva y CPM rechazado en una fija). Ocho mutantes,
 todos muertos; el del folio heredado, contra build reconstruido.
+
+## Cómo se ven la lista y la ficha de campaña (rediseño del 26/10)
+
+Solo presentación, con el lenguaje del Dashboard (`inicio/page.tsx`). Ningún
+dato nuevo: todo sale de los hooks que las pantallas ya usaban.
+
+**Lista `/campanas`.** Abre con cuatro indicadores (`IndicadoresCampanas`):
+activas, por validar publicación, listas para facturar (candado abierto y ni
+completada ni cancelada) y contratado vigente (suma de `presupuestoBruto` de las
+activas; **«—» si ninguna tiene presupuesto**, nunca $0). La cola «Por validar»
+enseña 5 y «Ver todas (N)». El filtro de estado dice cuántas hay en cada uno.
+Cada tarjeta lleva la etapa en un chip («Confirmada · 2/9») y el candado
+**con texto** («Lista para facturar»); la línea «Etapa actual» sobre el pipeline
+se quitó porque repetía el chip. El presupuesto que falta es «—» con su motivo
+en `title`. `useVistaCampanas` (compacta, minimizar, ocultar) no cambió de
+significado.
+
+**Ficha `/campanas/[id]`.** Bajo el encabezado, una franja (`ResumenCampana`)
+con total, margen, % entregado, candado, OT abiertas de N y evidencias (solo si
+hay medio fijo). Es componente aparte y entra en la página con **una línea**,
+porque otra rama (la «Validación de publicación» siempre abierta, decisión del
+23/10) toca el mismo archivo. Las listas de Imprenta y OT de sus secciones son
+`ListasCampana` (`divide-y`, fecha compromiso y «Vencida» con `estadoSLAOT`,
+«Ver todas (N)» pasadas 5). `CandadoPanel` ya no pinta borde ni título propios
+—vive dentro de la sección «Candado de facturación», que los pone— y dice «se
+abre cuando se cumplen estas condiciones» en vez de «las tres». Las migas: en
+escritorio solo `Breadcrumbs`; el «← volver» queda para el teléfono.
+
+**`/creativos`.** Cuatro indicadores (por aprobar, aprobados, rechazados, spots
+sin creativo). Si hay campañas pero **ninguna digital**, el vacío lo dice y manda
+a Imprenta, en vez de pedir que se reserven sitios. El estado de cada creativo es
+el mismo chip (`StatusBadge` + `CREATIVIDAD_TONO`) que en la ficha, con el motivo
+del rechazo a la vista; las acciones caben en una fila (Reemplazar y Eliminar
+como iconos con `aria-label`); los spots son una lista con la pastilla «Sin
+creativo». El vacío con filtro trae «Limpiar filtros».
+
+> [!warning] Las clases `border-warning/40`, `bg-warning/10` y similares NO existen
+> Los colores del tema son `var(--warning)` sin canales, y Tailwind 3 no sabe
+> aplicarles opacidad: esas clases **no se generan** (medido en
+> `.next/static/css` el 26/10: cero apariciones). Para un tinte se usan los
+> `*-soft` (`bg-warning-soft`, `bg-success-soft`, `bg-error-soft`).
+
+## Lo tentativo es lo que está en una propuesta abierta (TENT-PROP, 26/10)
+
+> [!important] Regla del dueño, 2026-10-26
+> «Lo tentativo debe ser un spot o una pantalla fija que está en veremos en una
+> propuesta, es decir, solo es propuesta: aún no está aprobada ni creada la
+> campaña.» Y **solo avisa**: una pantalla en propuesta se puede seguir
+> cotizando y vendiendo a otro cliente; varias propuestas pueden competir por
+> ella. Bloquea solo lo confirmado.
+
+**Antes** «tentativo» era un estado de la reserva (`TENTATIVA`, con caducidad de
+7 días y botones Confirmar/Extender en Comercial). **Ningún flujo lo creaba**:
+reservar desde Comercial y generar la campaña insertan `CONFIRMADA`
+(`campanas-repo.ts`). Solo nacían tentativas por el `default 'TENTATIVA'` de la
+columna, y aun así el motor de Reportes las contaba como ingreso mientras la
+ocupación del Dashboard no.
+
+**Ahora:**
+
+- La regla vive una vez en `apps/web/lib/data/en-propuesta.ts`
+  (`itemsEnPropuesta`, `enPropuestaEntre`, `agruparPorPropuesta`): ítems de
+  propuestas en `BORRADOR` o `ENVIADA`, con folio, cliente, fechas y, en una
+  digital, los spots pedidos (`espacios_comprados ?? spots_por_dia`, la misma
+  precedencia con la que una aprobada reserva slots).
+- Disponibilidad: cada celda trae `enPropuesta` (no cambia `estado` ni los
+  conteos). Una libre que alguien pide sale «En propuesta» en ámbar punteado.
+- Comercial: la tarjeta «Reservas tentativas» pasó a «En propuesta» (una fila
+  por propuesta abierta con algo por delante, con enlace a la propuesta). El
+  indicador «Tentativas por confirmar» pasó a «En propuesta».
+- Ficha del sitio: el calendario pinta en ámbar los rangos de propuestas
+  abiertas.
+- Dashboard: el pin ámbar es «en propuesta hoy», y un hueco avisa los folios que
+  piden la cara.
+- Reportes: solo `CONFIRMADA` es venta (`cuentaComoVenta`, `lib/data/reportes.ts`).
+- `20261026_reserva_estatus_por_omision.sql`: la columna nace `CONFIRMADA` por
+  omisión. No toca filas ni el enum.
+- `sitios.estatus_comercial = 'RESERVADO'` **no es tentativo**: lo pone el
+  servidor al generar la campaña, «hasta la OC». Su etiqueta pasó de «Reservado ·
+  tentativo» a «Reservado · sin OC».
+
+> [!warning] «Extender campaña» quedó sin entrada en la interfaz
+> El diálogo vivía en la tarjeta de tentativas, que solo aparecía con reservas
+> TENTATIVA, así que **ya era inalcanzable** antes de este cambio aunque la API
+> (`/api/campanas/[id]/extender`) funcione. Se movió sin cambios a
+> `components/demo/campanas/ExtenderCampanaDialog.tsx` a la espera de que el
+> dueño decida dónde ofrecerlo.
 
 ## Portal del cliente
 

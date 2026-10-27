@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-14
+actualizado: 2026-10-26
 tags: [backend, reportes, rentabilidad, finanzas, dinero, rojo]
 archivos:
   - apps/web/app/api/reportes/rentabilidad/route.ts
@@ -241,7 +241,7 @@ Deliberado, y conviene entenderlo antes de tocar el `where`:
   aplica ninguna regla de negocio. Ahí está el ahorro: reservas y órdenes de
   trabajo llegan ya recortadas al periodo.
 - **Las reglas de negocio las decide el motor puro.** Qué estatus de reserva
-  cuenta (`CANCELADA` no suma; `TENTATIVA` sí, el lugar ya está apartado), qué
+  cuenta (solo `CONFIRMADA` es venta desde TENT-PROP, 26/10: `cuentaComoVenta`; hasta ese día una `TENTATIVA` sumaba «porque el lugar ya está apartado», mientras la ocupación del Dashboard no la contaba), qué
   contrato está activo y cómo se atribuye la renta. Si el `where` repitiera esas
   reglas habría dos copias de cada una.
 

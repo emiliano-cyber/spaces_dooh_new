@@ -15,10 +15,21 @@ import { generarContrato, fechaISO, type DocumentoContrato } from '@/lib/contrat
 //  Es el mismo discriminador que usa el resto del módulo (ver derive.ts).
 // ============================================================================
 
+// Lo que el documento recita, SIN la fecha de firma. Va aparte del redactor
+// para que el paso de revisión previo al envío a firma (CONTRATO-FIRMADO-
+// EDITABLE, 23/10) enseñe y selle exactamente los mismos datos con los que se
+// va a congelar el texto, no una segunda consulta que podría decir otra cosa.
+export type DatosContrato = Omit<Parameters<typeof generarContrato>[0], 'fechaFirma'>
+
 export async function expedienteContrato(
   contratoId: string,
   fechaFirma: string,
 ): Promise<DocumentoContrato | null> {
+  const datos = await datosContrato(contratoId)
+  return datos ? generarContrato({ ...datos, fechaFirma }) : null
+}
+
+export async function datosContrato(contratoId: string): Promise<DatosContrato | null> {
   const tenantId = await tenantActual()
   const r = await q1<Record<string, any>>(
     `select c.fecha_inicio, c.fecha_fin, c.monto_renta, c.periodicidad, c.moneda,
@@ -53,7 +64,7 @@ export async function expedienteContrato(
   const esDePredio = r.predio_id != null
   const num = (x: unknown) => (x == null ? null : Number(x))
 
-  return generarContrato({
+  return {
     arrendatario: {
       // `razon_social` es el nombre legal; `nombre` es el comercial y sirve de
       // respaldo para que el documento no salga con un hueco donde va la parte.
@@ -96,6 +107,5 @@ export async function expedienteContrato(
       autoRenovable: !!r.auto_renovable,
       ciudadFirma: r.ciudad_firma ?? null,
     },
-    fechaFirma,
-  })
+  }
 }

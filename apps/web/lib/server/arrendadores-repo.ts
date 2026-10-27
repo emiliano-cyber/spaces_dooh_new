@@ -12,6 +12,7 @@ import { exigirArrendador, exigirSitioEnElPredio } from './contratos-sitio'
 import { sumarDias } from '../contrato-vigencia'
 import { rutaDocumentoContrato } from '../medios-url'
 import { diferenciasContrato, idsMencionados, type PartePropone } from '../contrato-cambios'
+import { archivarVersionFirmadaEnTx } from './firmas-repo'
 
 // ============================================================================
 //  lib/server/arrendadores-repo.ts — Arrendadores, contratos de arrendamiento
@@ -1161,21 +1162,24 @@ export async function editarContrato(id: string, patch: {
     if (!cur[0]) return { noEncontrado: true }
     if (cur[0].estatus === 'CANCELADO') return { cancelado: true }
 
-    // Un contrato YA FIRMADO no se modifica. Lo que se firmó es un texto
-    // concreto; cambiar sus términos después dejaría la firma respaldando algo
-    // que nadie aceptó. Si hay que cambiar condiciones, se hace otro contrato.
-    //
-    // El sistema ya sabía DETECTARLO —`firmasDeContrato` marca `invalidada`
-    // cuando el hash del documento de hoy no coincide con el que se firmó— pero
-    // solo después del hecho: la edición pasaba, la firma quedaba inválida y
-    // nadie se enteraba salvo que abriera el panel de firmas. Impedirlo antes es
-    // lo que convierte esa detección en una regla.
+    // Un contrato YA FIRMADO sí se modifica desde el 23/10 (CONTRATO-FIRMADO-
+    // EDITABLE, pedido del dueño), pero nunca en silencio. Lo que se firmó es un
+    // texto concreto, y cambiar sus términos deja esa firma respaldando algo que
+    // nadie aceptó. Por eso, si el cambio toca el texto:
+    //   · exige MOTIVO y sesión — sin ellos es `{ firmado: true }` (400): un
+    //     contrato firmado no cambia sin decir por qué ni quién;
+    //   · archiva la versión firmada entera (`archivarVersionFirmadaEnTx`) y
+    //     anula TODAS sus firmas, que se recaban otra vez con el texto nuevo.
+    // Hasta el 22/10 la regla era la contraria —409 y «haz otro contrato»—, y
+    // antes de esa, la edición pasaba y la firma quedaba «invalidada» sin que
+    // nadie se enterara. Las dos se descartan: la primera no dejaba corregir un
+    // contrato vivo, la segunda dejaba una firma muerta pareciendo viva.
     const { rows: firmadas } = await client.query(
       `select count(*)::int as n from contrato_firmas
         where contrato_id = $1 and estatus = 'FIRMADA'`,
       [id],
     )
-    if ((firmadas[0]?.n ?? 0) > 0) return { firmado: true }
+    const estabaFirmado = (firmadas[0]?.n ?? 0) > 0
 
     // Las dos referencias que trae el patch se validan CONTRA EL TENANT antes
     // de escribirlas. No basta con la FK ni con la RLS:
@@ -1303,8 +1307,8 @@ export async function editarContrato(id: string, patch: {
     }
     const cambios = diferenciasContrato(cur[0], patch, nombres)
 
-    // Si ya se había enviado a firma y nadie ha firmado (lo firmado se rechazó
-    // arriba), el texto congelado dejó de ser lo acordado y el arrendador podía
+    // Si ya se había enviado a firma (y si alguien firmó, su versión se archiva
+    // justo abajo), el texto congelado dejó de ser lo acordado y el arrendador podía
     // firmar desde su enlace la versión VIEJA: la firma salía «invalidada»
     // después, cuando ya no tenía arreglo. Ahora se anula el envío —se borran
     // las firmas pendientes con su enlace y se descongela el texto— y la
@@ -1313,11 +1317,23 @@ export async function editarContrato(id: string, patch: {
     // El PDF adjunto NO cuenta: `documentoATexto` no lo recita, así que subirlo
     // no cambia lo que se firma, y anular por eso obligaría al arrendador a
     // volver a firmar exactamente el mismo texto.
-    const envioAnulado =
-      cambios.some((c) => c.campo !== 'documentoUrl') && cur[0].documento_hash != null
+    const tocaElTexto = cambios.some((c) => c.campo !== 'documentoUrl')
+    // Firmado y el cambio toca el texto: sin motivo ni sesión no se sigue. Se
+    // mira DESPUÉS de calcular `cambios` para que adjuntar el PDF firmado —que
+    // no cambia lo que se firmó— siga sin pedir nada.
+    if (estabaFirmado && tocaElTexto && !(quien && quien.motivo?.trim())) return { firmado: true }
+    const versionFirmada =
+      estabaFirmado && tocaElTexto
+        ? await archivarVersionFirmadaEnTx(client, {
+            tenantId, contratoId: id, motivo: quien!.motivo!, usuario: { id: quien!.usuarioId, nombre: quien!.nombre },
+          })
+        : null
+    const envioAnulado = tocaElTexto && cur[0].documento_hash != null
     if (envioAnulado) {
+      // Las FIRMADAS solo llegan aquí si se acaban de archivar, así que se
+      // borran todas: con el texto nuevo, lo firmado antes ya no aplica.
       await client.query(
-        `delete from contrato_firmas where contrato_id = $1 and tenant_id = $2 and estatus <> 'FIRMADA'`,
+        `delete from contrato_firmas where contrato_id = $1 and tenant_id = $2`,
         [id, tenantId],
       )
       provided.push(['documento_congelado', null], ['documento_hash', null], ['congelado_en', null])
@@ -1325,10 +1341,10 @@ export async function editarContrato(id: string, patch: {
     if (cambios.length && quien) {
       await client.query(
         `insert into contrato_cambios
-           (tenant_id, contrato_id, propuesto_por, motivo, usuario_id, usuario_nombre, cambios, envio_anulado)
-         values ($1, $2, $3, $4, $5, $6, $7::jsonb, $8)`,
+           (tenant_id, contrato_id, propuesto_por, motivo, usuario_id, usuario_nombre, cambios, envio_anulado, version_firmada)
+         values ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9)`,
         [tenantId, id, quien.propuestoPor ?? null, quien.motivo?.trim() || null,
-         quien.usuarioId, quien.nombre, JSON.stringify(cambios), envioAnulado],
+         quien.usuarioId, quien.nombre, JSON.stringify(cambios), envioAnulado, versionFirmada],
       )
     }
 
@@ -1567,13 +1583,15 @@ export interface CambioContrato {
   usuarioNombre: string
   cambios: { campo: string; etiqueta: string; antes: string | null; despues: string | null }[]
   envioAnulado: boolean
+  // La versión firmada que este cambio archivó (el contrato estaba firmado).
+  versionFirmada: number | null
   creadoEn: string
 }
 
 export async function cambiosDeContrato(contratoId: string): Promise<CambioContrato[]> {
   const tenantId = await tenantActual()
   const rows = await q<Record<string, any>>(
-    `select id, propuesto_por, motivo, usuario_nombre, cambios, envio_anulado, creado_en
+    `select id, propuesto_por, motivo, usuario_nombre, cambios, envio_anulado, version_firmada, creado_en
        from contrato_cambios
       where contrato_id = $1 and tenant_id = $2
       order by creado_en desc, id`,
@@ -1586,6 +1604,7 @@ export async function cambiosDeContrato(contratoId: string): Promise<CambioContr
     usuarioNombre: r.usuario_nombre,
     cambios: Array.isArray(r.cambios) ? r.cambios : [],
     envioAnulado: !!r.envio_anulado,
+    versionFirmada: r.version_firmada ?? null,
     creadoEn: r.creado_en instanceof Date ? r.creado_en.toISOString() : String(r.creado_en),
   }))
 }

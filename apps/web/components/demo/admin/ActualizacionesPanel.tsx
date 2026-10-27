@@ -12,6 +12,7 @@ import {
 } from '@/lib/data/actualizaciones-api'
 import { textoDeEstado, textoConfirmarInstalar, tituloNotasDisponibles, avisoSinNotas } from '@/components/demo/admin/actualizaciones-ui'
 import { NotasDeVersion } from '@/components/demo/novedades/NotasDeVersion'
+import { TONO } from './Chip'
 
 // ============================================================================
 //  ActualizacionesPanel — ADR 0037: el dueño de la instancia ve qué versión
@@ -28,9 +29,12 @@ import { NotasDeVersion } from '@/components/demo/novedades/NotasDeVersion'
 // ============================================================================
 
 const TONO_ICONO = { ok: CheckCircle2, alerta: AlertTriangle, info: Info } as const
+// Con los tonos de `Chip.tsx` y no `bg-success/10`: esa clase no se genera
+// sobre estos tokens (ver la cabecera de `Chip.tsx`) y la franja salía sin
+// fondo ni borde de color.
 const TONO_CLASE = {
-  ok: 'border-success/30 bg-success/10 text-ink',
-  alerta: 'border-warning/40 bg-warning/10 text-ink',
+  ok: TONO.exito,
+  alerta: TONO.aviso,
   info: 'border-border bg-surface-2 text-ink',
 } as const
 const TONO_ICONO_CLASE = { ok: 'text-success', alerta: 'text-warning', info: 'text-muted' } as const
@@ -145,7 +149,9 @@ export function ActualizacionesPanel({ onToast }: { onToast: (m: string) => void
               )
             })()}
 
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[12px] text-muted sm:grid-cols-4">
+            {/* La franja de desglose del Dashboard: cuatro datos de una
+                línea, en vez de una rejilla suelta sin contorno. */}
+            <div className="flex flex-wrap gap-x-5 gap-y-1 rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px] text-muted">
               <span>
                 Instalada: <span className="demo-num text-ink">{estado.versionInstalada ?? '—'}</span>
               </span>

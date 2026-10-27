@@ -2,13 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { AlertTriangle, BarChart3, CalendarSearch, Info, ServerCrash, TrendingUp } from 'lucide-react'
-import { cn } from '@/lib/cn'
-import { Card, CardContent } from '@/components/demo/ui/Card'
+import { AlertTriangle, BarChart3, CalendarSearch, ChevronRight, Coins, Info, ServerCrash, TrendingUp, Wallet } from 'lucide-react'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { KPICard, KPICardSkeleton } from '@/components/demo/KPICard'
 import { EmptyState } from '@/components/demo/EmptyState'
-import { formatMonto } from '@/lib/data/derive'
+import { formatMonto, formatFecha } from '@/lib/data/derive'
 import type { ReporteRentabilidad } from '@/lib/data/reportes'
 import { FiltrosRentabilidad } from '@/components/demo/reportes/FiltrosRentabilidad'
 import { TablaRentabilidad } from '@/components/demo/reportes/TablaRentabilidad'
@@ -206,43 +204,61 @@ export default function ReportesPage() {
 
   const hayDatos = estado.fase === 'datos' && reporte
 
+  // Rediseño del 2026-10-26 · los avisos ÁMBAR (el periodo que no ha cerrado,
+  // los recibos que faltan) se quedan siempre a la vista; los grises —lo que el
+  // reporte no mide— se pliegan tras «Qué no mide este reporte (N)». Antes eran
+  // tres párrafos que empujaban la tabla. El tono y el texto siguen siendo los
+  // de `avisosDelReporte`, y dentro de cada grupo se respeta su orden.
+  const avisosAlerta = avisos.filter((a) => a.tono === 'alerta')
+  const avisosNota = avisos.filter((a) => a.tono !== 'alerta')
+
   return (
     <div className="w-full space-y-4">
-      <div className="flex items-center gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[#0a66ff1a] text-info">
-          <TrendingUp className="h-5 w-5" strokeWidth={1.75} />
-        </span>
-        <div>
-          <h1 className="text-2xl text-ink">Reportes de rentabilidad</h1>
-          <p className="text-[13px] text-muted">
-            Qué ingresa y qué cuesta cada pantalla en el periodo que elijas.
-          </p>
-        </div>
+      {/* Encabezado con la forma del Dashboard (rediseño 2026-10-26): sin la
+          caja de icono, que llevaba un azul con hex suelto. */}
+      <div>
+        <h1 className="text-2xl text-ink">Reportes de rentabilidad</h1>
+        <p className="mt-1 text-[13px] text-muted">
+          Qué ingresa y qué cuesta cada pantalla en el periodo que elijas.
+        </p>
       </div>
 
-      <Card>
-        <CardContent className="pt-4">
-          <FiltrosRentabilidad filtros={filtros} motivo={motivo} onCambio={cambiarFiltros} />
-        </CardContent>
-      </Card>
+      {/* Los filtros, como primera línea bajo el título y sin tarjeta propia:
+          eran tres bloques apilados antes del primer dato. */}
+      <FiltrosRentabilidad filtros={filtros} motivo={motivo} onCambio={cambiarFiltros} />
 
       {/* ─── Los KPI de cabecera ──────────────────────────────────────────────
           KPICard está pensada para leerse «a 3 metros (proyector)», y eso
           importa de verdad: esto se presenta en un escenario. Mientras carga se
           pintan esqueletos y no ceros: un «$ 0.00» que luego cambia es una
-          cifra falsa enseñada a una sala. */}
+          cifra falsa enseñada a una sala.
+
+          Desde el 2026-10-26 son TRES y con la forma del KPI «Margen del mes»
+          del Dashboard: el margen se lee en porcentaje y su monto va debajo.
+          «Margen» y «Margen sobre ingreso» eran dos tarjetas para la misma
+          idea. Son los mismos campos de `reporte.totales`; no se calcula nada. */}
       <CardColapsable id="reportes.indicadores" titulo="Indicadores del periodo">
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         {estado.fase === 'cargando' ? (
           <>
-            <KPICardSkeleton />
             <KPICardSkeleton />
             <KPICardSkeleton />
             <KPICardSkeleton />
           </>
         ) : hayDatos ? (
           <>
-            <KPICard label="Ingreso del periodo" value={formatMonto(reporte.totales.ingreso)} tono="azul" />
+            <KPICard
+              label="Ingreso del periodo"
+              value={formatMonto(reporte.totales.ingreso)}
+              /* La frase la decide `subtituloDeConteo`, en `tabla.ts`, y no este
+                 archivo: aquí dentro no la probaba nadie —vitest no monta jsdom—
+                 y por eso llegó a decir «4 razones sociales con movimiento» con
+                 una de ellas en cero, contando además «Sin asignar» como una
+                 sociedad más del cliente. */
+              sub={subtituloDeConteo(reporte.dimension, reporte.filas)}
+              tono="azul"
+              icon={<TrendingUp className="h-4 w-4" />}
+            />
             {/* Las TRES fuentes de costo, y las tres a la vista. El día que la
                 energía entró en `costoTotal` (2026-09-18) este subtítulo se
                 quedaba con dos: el KPI habría enseñado un total que no es la
@@ -252,24 +268,18 @@ export default function ReportesPage() {
               label="Costo total"
               value={formatMonto(reporte.totales.costoTotal)}
               sub={`Espacio ${formatMonto(reporte.totales.costoEspacio)} · Operación ${formatMonto(reporte.totales.costoOperacion)} · Luz ${formatMonto(reporte.totales.costoEnergia)}`}
-            />
-            <KPICard
-              label="Margen"
-              value={formatMonto(reporte.totales.margenBruto)}
-              tono={reporte.totales.margenBruto < 0 ? 'rojo' : 'verde'}
+              icon={<Coins className="h-4 w-4" />}
             />
             <KPICard
               label="Margen sobre ingreso"
               value={formatoPorcentaje(reporte.totales.margenBrutoPct)}
-              /* La frase la decide `subtituloDeConteo`, en `tabla.ts`, y no este
-                 archivo: aquí dentro no la probaba nadie —vitest no monta jsdom—
-                 y por eso llegó a decir «4 razones sociales con movimiento» con
-                 una de ellas en cero, contando además «Sin asignar» como una
-                 sociedad más del cliente. */
-              sub={subtituloDeConteo(reporte.dimension, reporte.filas)}
+              sub={`Margen ${formatMonto(reporte.totales.margenBruto)}`}
               tono={
-                reporte.totales.margenBrutoPct == null ? 'neutro' : reporte.totales.margenBrutoPct < 0 ? 'rojo' : 'verde'
+                reporte.totales.margenBrutoPct == null
+                  ? reporte.totales.margenBruto < 0 ? 'rojo' : 'neutro'
+                  : reporte.totales.margenBrutoPct < 0 ? 'rojo' : 'verde'
               }
+              icon={<Wallet className="h-4 w-4" />}
             />
           </>
         ) : null}
@@ -277,14 +287,16 @@ export default function ReportesPage() {
       </CardColapsable>
 
       {/* El título cambia con el periodo pero el `id` no: lo que se recuerda
-          es «tengo plegada la tabla», no «tengo plegado este rango». */}
+          es «tengo plegada la tabla», no «tengo plegado este rango». Las
+          fechas van en dd/mm/aaaa (`formatFecha`); la URL y los filtros siguen
+          en ISO. */}
       <CardColapsable
         id="reportes.resultado"
-        titulo={hayDatos ? `Del ${reporte.desde} al ${reporte.hasta}` : 'Resultado'}
+        titulo={hayDatos ? `Del ${formatFecha(reporte.desde)} al ${formatFecha(reporte.hasta)}` : 'Resultado'}
         icono={<BarChart3 className="h-4 w-4 text-muted" />}
         resumen={
           hayDatos ? (
-            <span className="text-[11px] uppercase tracking-wide text-muted">
+            <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted">
               {reporte.periodos.length} {reporte.periodos.length === 1 ? 'periodo' : 'periodos'}
             </span>
           ) : null
@@ -311,7 +323,7 @@ export default function ReportesPage() {
             <EmptyState
               icon={CalendarSearch}
               titulo="Sin movimiento en este periodo"
-              detalle={`Entre el ${filtros.desde} y el ${filtros.hasta} ninguna pantalla registró ingreso, renta ni órdenes de trabajo. Una pantalla sin nada de eso no aparece en el reporte; prueba con un rango más amplio.`}
+              detalle={`Entre el ${formatFecha(filtros.desde)} y el ${formatFecha(filtros.hasta)} ninguna pantalla registró ingreso, renta ni órdenes de trabajo. Una pantalla sin nada de eso no aparece en el reporte; prueba con un rango más amplio.`}
             />
           ) : hayDatos ? (
             <div className="space-y-3">
@@ -321,43 +333,53 @@ export default function ReportesPage() {
                   digitales y cuántas sin medidas quedaron fuera del ranking, con
                   la nota que redacta el propio motor— y la convención con la que
                   se contó el metro cuadrado: una cifra por metro cuadrado sin
-                  decir qué cuenta como metro cuadrado no se concilia con nada. */}
-              {avisos.length > 0 ? (
-                <ul className="space-y-1.5 rounded-md border border-dashed border-border bg-surface-2 px-3 py-2 text-[12px] text-muted">
-                  {avisos.map((a) => {
-                    // ÁMBAR con triángulo, o gris con la «i». La distinción no
-                    // es de estilo: los grises cuentan lo que el reporte no
-                    // mide, y los ámbar dicen que las cifras que se están
-                    // viendo TODAVÍA NO SON las definitivas —el periodo que no
-                    // ha cerrado, y los recibos de luz que faltan—. Sin eso, un
-                    // margen incompleto se lee como una pérdida real.
-                    //
-                    // El tono lo decide `avisosDelReporte` y NO este archivo.
-                    // Hasta el 2026-09-18 estaba escrito aquí como
-                    // `a.clave === 'periodo-en-curso'`, y `vitest.config.ts` no
-                    // monta jsdom a propósito: una decisión dentro de un `.tsx`
-                    // no la prueba nadie. Al llegar el segundo aviso que
-                    // necesita ámbar, esa condición habría crecido justo donde
-                    // ninguna prueba la ve.
-                    //
-                    // Y el ámbar no se gasta, que es la objeción de siempre en
-                    // este repo: los dos salen solo cuando hay algo que decir
-                    // —el rango toca el trimestre vivo, o falta algún recibo—,
-                    // así que sobre un reporte completo y cerrado la caja
-                    // vuelve a ser toda gris.
-                    const alerta = a.tono === 'alerta'
-                    const Icono = alerta ? AlertTriangle : Info
-                    return (
-                      <li
-                        key={a.clave}
-                        className={cn('flex items-start gap-1.5', alerta && 'font-medium text-warning')}
-                      >
-                        <Icono className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  decir qué cuenta como metro cuadrado no se concilia con nada.
+
+                  ÁMBAR con triángulo, o gris con la «i». La distinción no
+                  es de estilo: los grises cuentan lo que el reporte no
+                  mide, y los ámbar dicen que las cifras que se están
+                  viendo TODAVÍA NO SON las definitivas —el periodo que no
+                  ha cerrado, y los recibos de luz que faltan—. Sin eso, un
+                  margen incompleto se lee como una pérdida real.
+
+                  El tono lo decide `avisosDelReporte` y NO este archivo.
+                  Hasta el 2026-09-18 estaba escrito aquí como
+                  `a.clave === 'periodo-en-curso'`, y `vitest.config.ts` no
+                  monta jsdom a propósito: una decisión dentro de un `.tsx`
+                  no la prueba nadie. Al llegar el segundo aviso que
+                  necesita ámbar, esa condición habría crecido justo donde
+                  ninguna prueba la ve.
+
+                  Y el ámbar no se gasta, que es la objeción de siempre en
+                  este repo: los dos salen solo cuando hay algo que decir
+                  —el rango toca el trimestre vivo, o falta algún recibo—,
+                  así que sobre un reporte completo y cerrado la caja
+                  vuelve a ser toda gris. */}
+              {avisosAlerta.length > 0 ? (
+                <ul className="space-y-1.5 rounded-md border border-[#f59e0b40] bg-warning-soft px-3 py-2 text-[12px] font-medium text-[#9a6700]">
+                  {avisosAlerta.map((a) => (
+                    <li key={a.clave} className="flex items-start gap-1.5">
+                      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      <span>{a.texto}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {avisosNota.length > 0 ? (
+                <details className="group rounded-md border border-border bg-surface-2 px-3 py-2 text-[12px] text-muted">
+                  <summary className="flex cursor-pointer list-none items-center gap-1.5 font-medium text-ink [&::-webkit-details-marker]:hidden">
+                    <ChevronRight className="h-3.5 w-3.5 text-muted transition-transform group-open:rotate-90" />
+                    Notas sobre estas cifras ({avisosNota.length})
+                  </summary>
+                  <ul className="mt-2 space-y-1.5">
+                    {avisosNota.map((a) => (
+                      <li key={a.clave} className="flex items-start gap-1.5">
+                        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                         <span>{a.texto}</span>
                       </li>
-                    )
-                  })}
-                </ul>
+                    ))}
+                  </ul>
+                </details>
               ) : null}
               <TablaRentabilidad
                 reporte={reporte}

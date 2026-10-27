@@ -11,6 +11,9 @@ import { refrescarEstado } from '@/lib/data/estado-api'
 import { useSesionCtx, usePuede } from '@/components/demo/shell/SesionContext'
 import { esEmailValido, EMAIL_INVALIDO } from '@/lib/validacion'
 import { puedeFijarPasswordSinAnterior } from '@/lib/perfil-acceso'
+import { rolLabel } from '@/components/demo/shell/nav'
+import { Chip, TONO } from '@/components/demo/admin/Chip'
+import Link from 'next/link'
 
 const API = '/spaces-dooh/api'
 const inputCls =
@@ -33,7 +36,9 @@ export default function ConfiguracionPage() {
     usePuede('administracion', 'crear') && (rol === 'DUENO' || rol === 'ADMINISTRADOR')
 
   return (
-    <div className="w-full max-w-2xl space-y-4">
+    // A ancho completo como el resto de los módulos: con `max-w-2xl` la página
+    // se encogía a la izquierda y dejaba media pantalla vacía a 1440 px.
+    <div className="w-full space-y-4">
       <div>
         <h1 className="text-2xl text-ink">Configuración</h1>
         <p className="mt-1 text-[13px] text-muted">
@@ -45,8 +50,8 @@ export default function ConfiguracionPage() {
           aplicación (ADR 0009) y el usuario acaba aquí redirigido. Sin este
           aviso llegaba sin saber por qué se le había cerrado todo. */}
       {sesion?.usuario.debeCambiarPassword && (
-        <div className="flex items-start gap-2 rounded border border-[#f59e0b40] bg-warning-soft px-3 py-2.5 text-[13px] text-[#9a6700]">
-          <KeyRound className="mt-0.5 h-4 w-4 shrink-0" />
+        <div className={`flex items-start gap-2 rounded-md border px-3 py-2.5 text-[13px] ${TONO.aviso}`}>
+          <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-[#9a6700]" />
           <span>
             <b>Tu contraseña es temporal.</b> Cámbiala aquí abajo para volver a entrar al
             resto del sistema. Mientras tanto los demás módulos están cerrados, por
@@ -55,9 +60,13 @@ export default function ConfiguracionPage() {
         </div>
       )}
       {/* La configuración del negocio (empresa, IVA, loop, plazos…) es solo del
-          Dueño; los demás perfiles solo ven "Mi cuenta" (correo + contraseña). */}
-      {puedeEmpresa && <EmpresaCard nombreActual={config?.nombreTenant ?? ''} />}
-      <CuentaCard emailActual={sesion?.usuario.email ?? ''} />
+          Dueño; los demás perfiles solo ven "Mi cuenta" (correo + contraseña).
+          «Mi cuenta» va PRIMERO: es la que ven todos los roles y la que busca
+          quien llega redirigido con una contraseña temporal. */}
+      <div className="grid items-start gap-4 lg:grid-cols-2">
+        <CuentaCard emailActual={sesion?.usuario.email ?? ''} />
+        {puedeEmpresa && <EmpresaCard nombreActual={config?.nombreTenant ?? ''} />}
+      </div>
     </div>
   )
 }
@@ -98,7 +107,13 @@ function EmpresaCard({ nombreActual }: { nombreActual: string }) {
       icono={<Building2 className="h-4 w-4 text-muted" />}
       contentClassName="space-y-3"
     >
-        <p className="text-[12px] text-muted">Este nombre aparece en el menú de la izquierda.</p>
+        <p className="text-[12px] text-muted">
+          Este nombre aparece en el menú de la izquierda. También se cambia en{' '}
+          <Link href="/administracion" className="font-medium text-accent no-underline hover:underline">
+            Administración → Configuración
+          </Link>
+          , junto con el logo y los datos fiscales.
+        </p>
         <Campo label="Nombre de la empresa" obligatorio falta={ob.falta('nombre')}>
           <input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} />
         </Campo>
@@ -184,13 +199,26 @@ function CuentaCard({ emailActual }: { emailActual: string }) {
       icono={<UserCircle2 className="h-4 w-4 text-muted" />}
       contentClassName="space-y-3"
     >
+        {/* Quién eres, de solo lectura y con lo que la sesión ya trae: antes
+            «Mi cuenta» no decía ni tu nombre, ni tu rol, ni cómo entraste. */}
+        {sesion?.usuario && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px] text-muted">
+            <span className="font-medium text-ink">{sesion.usuario.nombre}</span>
+            <Chip tono="acento">{rolLabel(sesion.usuario.rol)}</Chip>
+            {sesion.usuario.metodoSesion && (
+              <span>{sesion.usuario.metodoSesion === 'google' ? 'Entraste con Google' : 'Entraste con contraseña'}</span>
+            )}
+          </div>
+        )}
         <p className="text-[12px] text-muted">Cambia tu correo y/o contraseña. Solo afecta a tu cuenta.</p>
-        <Campo label="Correo">
-          <input type="email" className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tu@correo.com" />
-        </Campo>
-        <Campo label="Nueva contraseña">
-          <input type="password" className={inputCls} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Déjala en blanco para no cambiarla (mín. 8)" autoComplete="new-password" />
-        </Campo>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Campo label="Correo">
+            <input type="email" className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tu@correo.com" />
+          </Campo>
+          <Campo label="Nueva contraseña">
+            <input type="password" className={inputCls} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Déjala en blanco para no cambiarla (mín. 8)" autoComplete="new-password" />
+          </Campo>
+        </div>
         {hayCambio && sinAnterior && (
           <p className="text-[12px] text-muted">
             Entraste con Google y aún no tienes contraseña propia, así que no hace

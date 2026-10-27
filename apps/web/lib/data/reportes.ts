@@ -1085,14 +1085,25 @@ interface Matriz {
  * ninguna vuelve a sumar: si cada una recalculara, cuatro dimensiones darían
  * cuatro cifras distintas del mismo mes.
  */
+// TENT-PROP (26/10) · solo lo CONFIRMADO es venta. Hasta hoy una reserva
+// TENTATIVA sumaba como ingreso («el lugar ya está apartado») mientras la
+// ocupación del Dashboard no la contaba: dos criterios para la misma reserva.
+// Decisión del dueño: lo tentativo es lo que está en una PROPUESTA abierta, y
+// una propuesta no es ingreso hasta aprobarse y generar su campaña (que nace
+// CONFIRMADA). Ningún flujo crea ya reservas TENTATIVA; si queda alguna
+// heredada, no infla el ingreso. Una sola regla para los cuatro recorridos de
+// reservas de este archivo.
+function cuentaComoVenta(r: { estatus: string }): boolean {
+  return r.estatus === 'CONFIRMADA'
+}
+
 function matriz(datos: DatosRentabilidad, opts: OpcionesReporte): Matriz {
   const buckets = bucketsDelRango(opts, opts.granularidad)
 
-  // Las que NO cuentan se descartan una sola vez, antes de los bucles:
-  // CANCELADA no suma (una reserva TENTATIVA sí, el lugar ya está apartado —
-  // misma regla que `clientesEnPantalla` en derive.ts).
+  // Las que NO cuentan se descartan una sola vez, antes de los bucles: solo
+  // suma lo confirmado (ver `cuentaComoVenta`).
   const reservasDe = agrupar(
-    datos.reservas.filter((r) => r.estatus !== 'CANCELADA'),
+    datos.reservas.filter(cuentaComoVenta),
     (r) => r.sitioId,
   )
   // Una OT sin `sitio_id` (la columna es nullable, `on delete set null`) no se
@@ -1227,7 +1238,7 @@ function matriz(datos: DatosRentabilidad, opts: OpcionesReporte): Matriz {
   const listaDeReserva = new Map<ReservaReporte, number>()
   const porTarifa: PorTarifa = { conTarifa: 0, sinTarifa: 0 }
   for (const r of datos.reservas) {
-    if (r.estatus === 'CANCELADA') continue
+    if (!cuentaComoVenta(r)) continue
     const e = r.campanaId ? tarifaDeCampana.get(r.campanaId)?.get(r.sitioId) : undefined
     if (e && e.neto === r.precio) {
       listaDeReserva.set(r, e.lista)
@@ -1269,7 +1280,7 @@ function matriz(datos: DatosRentabilidad, opts: OpcionesReporte): Matriz {
     dePropuestaSinVendedor: 0,
   }
   for (const r of datos.reservas) {
-    if (r.estatus === 'CANCELADA') continue
+    if (!cuentaComoVenta(r)) continue
     if (!r.campanaId || !vendedorDeCampana.has(r.campanaId)) {
       vendedorDeReserva.set(r, CLAVE_SIN_ASIGNAR)
       porVendedor.sinPropuesta += 1
@@ -1289,7 +1300,7 @@ function matriz(datos: DatosRentabilidad, opts: OpcionesReporte): Matriz {
   // buckets: dentro se contarían una vez por periodo que la reserva toca, y una
   // campaña anual saldría como doce reservas sin emisora.
   for (const r of datos.reservas) {
-    if (r.estatus === 'CANCELADA') continue
+    if (!cuentaComoVenta(r)) continue
     if (!entidadDeReserva(r.campanaId)) porEntidad.reservasSinEmisora += 1
   }
   for (const c of contratos) {

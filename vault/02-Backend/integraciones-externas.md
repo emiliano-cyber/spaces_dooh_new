@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-22
+actualizado: 2026-10-23
 tags: [backend, integraciones, terceros, cron]
 archivos:
   - apps/web/lib/server/doohmain.ts
@@ -87,6 +87,14 @@ flowchart LR
 >   se fija en la vista previa de la campaña con `PATCH …/horario-doohmain`. **Gana**
 >   sobre la programada y la contratada (`franjaQueViaja`); sus días viajan como
 >   `days` de `create_spot` (`--dias` del SDK). Probado contra un DOOHmain falso.
+> - **23/10 · solo para campañas SIN franja** (regla del dueño: «si la campaña ya
+>   tiene franja de horario no debe de tener la opción de añadir otra»). Con franja
+>   programada, o contratada en alguna reserva no cancelada (`franjaDeCampana` en
+>   `lib/server/franja-de-campana.ts`, misma precedencia que `leerPlan()`), el PATCH
+>   con horario es **409** que nombra la franja, y la vista previa trae
+>   `franjaCampana` para que el cuadro diga cuál viaja en vez de ofrecer otro.
+>   Quitar (`horario: null`) se deja siempre: una campaña que ya tenía los dos de
+>   antes —donde el individual sigue ganando— puede quedarse solo con la franja.
 > - **El id en Inventario:** `rowToSitio` añade `doohmainEfectiva` y `doohmainOrigen`
 >   (`pantallaDoohmainDe`, mismo orden que publica: ficha → `DOOHMAIN_SCREEN_MAP` →
 >   `DOOHMAIN_DEFAULT_SCREEN`). La tabla y la ficha lo enseñan; al editar, el campo

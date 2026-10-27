@@ -1,7 +1,7 @@
 ---
 tipo: contrato
 estado: verificado
-actualizado: 2026-10-14
+actualizado: 2026-10-26
 tags: [backend, precios, descuentos, volumen, propuestas, dinero, snapshot, rls]
 archivos:
   - apps/web/lib/periodos.ts
@@ -460,6 +460,20 @@ ya cuenta algo de la otra.
   de la pantalla está escrito, pero no se ha enseñado a nadie.
 
 ---
+
+## 11 · La pantalla, rediseñada (26/10) — solo presentación
+
+`components/demo/volumen/GestionVolumen.tsx`, sin tocar `motivoTramoInvalido`,
+el envío de lo tecleado, «Eliminar» ni el texto del aviso (el 64 %):
+
+- **La escala se lee por unidad**: las mismas filas, agrupadas en el orden de
+  `UNIDADES` y, dentro, de menor a mayor umbral, como escalones («desde 50
+  salidas → 10 %»). Es un agrupado de presentación; no cambia la petición.
+- Chip **«Escala plana (volumen)»** en el encabezado de la tarjeta, con el
+  vocabulario de Stripe para el modelo que el aviso explica.
+- Aviso con la franja ámbar del proyecto, fuera de lo plegable como siempre.
+- Fila de alta con fondo propio, campos `h-9` y ejemplos «p. ej. 50» en gris
+  para que no parezcan un valor capturado. Asterisco y `data-falta` intactos.
 
 ## Enlaces
 

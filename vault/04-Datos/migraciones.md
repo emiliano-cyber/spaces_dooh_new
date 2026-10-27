@@ -1,7 +1,7 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-10-22
+actualizado: 2026-10-26
 tags: [datos, migraciones, despliegue, rojo]
 archivos:
   - db/migrations/
@@ -50,6 +50,8 @@ archivos:
   - db/migrations/20261022_comercial_negociacion.sql
   - db/migrations/20261022_campana_horario_doohmain.sql
   - db/migrations/20261022_pantallas_propias.sql
+  - db/migrations/20261026_reserva_estatus_por_omision.sql
+  - db/migrations/20261023_contrato_versiones_firmadas.sql
 ---
 
 # Migraciones
@@ -68,6 +70,8 @@ archivos:
 >
 > | Migración | Decía | Entró en `main` |
 > |---|---|---|
+> | `20261026_reserva_estatus_por_omision.sql` | rama `feat/tentativo-en-propuesta` (TENT-PROP), **aprobada por el dueño el 26/10** (ROJO R3) | **Sin publicar.** Solo cambia el `default` de `reservas.estatus` de TENTATIVA a CONFIRMADA: lo tentativo ya no es un estado de la reserva sino lo que está en una propuesta abierta. No toca filas ni el enum. Ver [[02-Backend/comercial-propuestas-campanas]] |
+> | `20261023_contrato_versiones_firmadas.sql` | rama local `test/venta-propia-o-arrendada`, **diseño aprobado por el dueño el 23/10** (ROJO R3 y R4) | **SIN publicar.** Crea `contrato_versiones_firmadas` (solo select e insert para la aplicación, RLS forzada) y agrega `contrato_cambios.version_firmada`. No toca filas existentes. Ver [[02-Backend/arrendadores-y-contratos]] |
 > | `20261022_pantallas_propias.sql` | rama local `fix/creativos-rotacion-y-reemplazo`, **forma aprobada por el dueño el 22/10** (ROJO R3) | **v0.12.3, SIN publicar.** Agrega `sitios.propio` y `predios.propio` (default false) y quita el NOT NULL de `predios.arrendador_id` con `predios_propio_o_arrendador_ck`. Ninguna fila existente cambia. Ver [[02-Backend/arrendadores-y-contratos]] |
 > | `20261022_campana_horario_doohmain.sql` | rama `feat/horario-doohmain-e-ids`, **forma aprobada por el dueño el 22/10** («horario + días») | Sale en la **v0.12.2** (decisión del dueño). Solo agrega `campanas.doohmain_hora_inicio`, `doohmain_hora_fin` (text HH:mm, las dos o ninguna, distintas) y `doohmain_dias` (`smallint[]` 0..6, solo con horario). Sin permisos nuevos: `campanas` ya tiene `select, update` de tabla. Sin `@pg-min`. Ver [[02-Backend/integraciones-externas]] |
 > | `20261022_comercial_negociacion.sql` | rama `feat/comercial-negociacion`, **forma aprobada por el dueño el 21/10** (ROJO R3; [ADR 0047](../../docs/adr/0047-comercial-negociacion-encima-de-prospectos.md)) | Sale en la **v0.12.2** (22/10, el dueño eligió fusionar y publicar). Solo agrega: 14 columnas en `prospectos`, `canal` y `contacto_nombre` en `prospecto_avances`, y `prospecto_contactos`, `prospecto_ofertas` (sin `delete`), `prospecto_competencia`, `prospecto_notas` (solo `insert`), con FK compuesta con tenant y RLS forzada. Copia el contacto `jsonb` de cada prospecto como su primer contacto (idempotente). Sin `@pg-min`: nada de PG 15. 42 e2e en verde en el CI (run `39698089041`). Ver [[03-Frontend/comercial-opex]] |

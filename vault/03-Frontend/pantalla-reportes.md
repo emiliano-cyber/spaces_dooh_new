@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-10-26
 tags: [frontend, reportes, rentabilidad, finanzas, dinero]
 archivos:
   - apps/web/app/(app)/(shell)/reportes/page.tsx
@@ -10,6 +10,8 @@ archivos:
   - apps/web/components/demo/reportes/tabla.ts
   - apps/web/components/demo/reportes/tabla.dimensiones.test.ts
   - apps/web/components/demo/reportes/consulta.test.ts
+  - apps/web/components/demo/inicio/pnl-del-mes.ts
+  - apps/web/app/(app)/(shell)/inicio/page.tsx
   - apps/web/components/demo/reportes/FiltrosRentabilidad.tsx
   - apps/web/components/demo/reportes/TablaRentabilidad.tsx
   - apps/web/lib/modulos.ts
@@ -515,6 +517,53 @@ necesitas el número, córrelo.
 > crítico del módulo:** `/reportes` pasó de **110 kB** a **111 kB** con las
 > columnas por dimensión, y a **112 kB** con el aviso — contra 533 kB de
 > `/inicio`. Nada se colgó del store.
+
+## El Dashboard también pide aquí su mes (DASH-PERIODO, 2026-10-26)
+
+Hasta el 26/10 el Dashboard calculaba en el navegador su «Ingreso contratado del
+mes», sus costos y su margen (`dashboardMetrics`), y los tres estaban mal sin dar
+ningún error: el ingreso era el **acumulado histórico** de las reservas
+confirmadas, la renta de una pantalla entraba **una vez por cada reserva** que tuvo
+y la impresión y las OT eran todas las que han existido. Un vendedor, sin
+`finanzas:ver`, recibía esas tablas vacías y veía «margen 100 %» en verde.
+
+**Decisión del dueño (26/10):** un solo número para el mismo margen. Inicio pide
+`dimension=trimestre&granularidad=mes` con el mes en curso a esta misma ruta
+(`components/demo/inicio/pnl-del-mes.ts`), así que el margen de Inicio y el de
+Reportes para ese mes son la misma cifra. Trae el criterio del motor: ingreso
+prorrateado por días (las TENTATIVA cuentan, el lugar ya está apartado), renta de
+toda pantalla con contrato vigente aunque esté vacía, y la luz. **La impresión no
+está en el motor**: Inicio la enseña aparte, filtrada a las órdenes creadas en el
+mes, y no entra en el total ni en el margen.
+
+El permiso lo pone el endpoint: un 401/403 se pinta «—, requiere permiso de
+Finanzas», nunca un cero. «Por cobrar» se esconde igual con `usePuede('finanzas',
+'ver')`. Lo fija la §3 de `lib/test/reportes-acceso.e2e.test.ts`, con la URL
+importada del Dashboard.
+
+## La pantalla, rediseñada (26/10) — solo presentación
+
+Sin tocar `consulta.ts`, `estado.ts` ni `tabla.ts` (el Dashboard depende de
+`consulta.ts`), ni el `AbortController`, ni el tono de los avisos:
+
+- **Encabezado** como el del Dashboard (sin la caja de icono con hex).
+- **Filtros** en una sola fila bajo el título, **sin tarjeta propia**, con la
+  etiqueta a la izquierda de cada control (`FiltrosRentabilidad.tsx`). Mismo
+  `onCambio`; el `motivo` sigue pegado a los controles.
+- **KPI**: tres, en `grid-cols-1 md:grid-cols-3` y con icono: *Ingreso*
+  (sub = `subtituloDeConteo`), *Costo total* (sub con las tres fuentes, igual
+  que antes) y *Margen sobre ingreso* (valor en %, el monto debajo) — la forma
+  del KPI «Margen del mes» del Dashboard. «Margen» y «Margen sobre ingreso»
+  eran dos tarjetas para la misma idea. Mismos campos de `reporte.totales`.
+- **Fechas** en dd/mm/aaaa (`formatFecha`) en el título de la tabla y en el
+  vacío; la URL y los filtros siguen en ISO.
+- **Avisos**: los de tono `alerta` (ámbar) siempre a la vista en la franja
+  ámbar; los grises, plegados tras «Notas sobre estas cifras (N)» (un
+  `<details>`). Mismo texto; dentro de cada grupo, el orden de `avisosDelReporte`.
+- **Tabla** (`TablaRentabilidad.tsx`): el botón de cada cabecera fuerza
+  `text-[11px]` y la columna activa va en negrita además de la flecha; la
+  primera columna es `sticky left-0` para que en móvil no se pierda de qué
+  pantalla es la cifra.
 
 ## Relacionadas
 [[02-Backend/reportes-rentabilidad]] · [[02-Backend/reportes-dimensiones]] ·

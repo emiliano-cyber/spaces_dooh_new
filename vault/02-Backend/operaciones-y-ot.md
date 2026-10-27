@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-14
+actualizado: 2026-10-26
 tags: [backend, operaciones, ot, imprenta, amarillo, almacen, checklist]
 archivos:
   - apps/web/lib/server/ot-repo.ts
@@ -21,6 +21,8 @@ archivos:
   - apps/web/app/api/ot/[id]/checklist/route.ts
   - apps/web/lib/checklist-autoguardado.ts
   - apps/web/components/operaciones/OTVista.tsx
+  - apps/web/app/(app)/(shell)/operaciones/page.tsx
+  - apps/web/app/(app)/(shell)/imprenta/page.tsx
   - apps/web/lib/data/derive.ts
   - apps/web/lib/server/storage.ts
 ---
@@ -144,6 +146,32 @@ Con **prueba de color** aprobable (`prueba_color_url`,
 `prueba_color_aprobada`). Folio consecutivo `OI-2026-0001`
 (`impresion-repo.ts:14-16`, `folioDocumento('oi')`).
 
+## Cómo se ven las pantallas (rediseño del 26/10)
+
+Solo presentación, con el lenguaje del Dashboard. Mismos datos, mismos
+permisos, mismas acciones.
+
+- **`/operaciones`**: cuatro indicadores sobre el aviso de SLA —abiertas,
+  vencidas, por vencer y **sin asignar** (abiertas sin responsable)—. La lista
+  dejó de ser tarjetas de ~170 px: una fila `divide-y` por OT, toda ella enlace
+  a la misma URL con el mismo rastro, con tipo, `folio · sitio · campaña`,
+  prioridad (solo ALTA o URGENTE), fecha compromiso, Vencida/Por vencer,
+  estatus, responsable y evidencias. **Orden de presentación** (sobre la copia
+  filtrada, no en el store): abiertas por fecha compromiso ascendente, luego
+  cerradas de la más reciente a la más vieja; 25 a la vista y «Ver todas (N)».
+  Los chips de filtro llevan su conteo. Vacío con `EmptyState` distinto con y
+  sin filtro. `NuevaOTModal` no se tocó.
+- **`/operaciones/ot/[id]`** (`OTVista`, SOLO la rama `embedded`): `h1` con la
+  descripción y el folio en el subtítulo; una franja con tipo, prioridad,
+  compromiso (+Vencida/Por vencer), responsable y la **campaña como enlace**
+  (con `usePuede('comercial','ver')`); Checklist, Foto y Ubicación en tarjeta.
+  Cerrada, en escritorio se ve el checklist cumplido y la fecha de cierre en vez
+  de «Puedes cerrar esta ventana». **La vista móvil `/m/ot/[id]` no cambió.**
+- **`/imprenta`**: cuatro indicadores (en proceso, prueba de color pendiente,
+  en producción, listas para montaje) y una franja con el reparto por etapa. Cada
+  orden es una fila con el progreso en una barra de un color y «Paso N de 5»
+  (ya no el `Stepper` completo). El vacío trae «Nueva orden» si hay permiso.
+
 ## OT automáticas
 
 Ver [[arrendadores-y-contratos]]. Cancelar contrato → OT de retiro; alta de
@@ -167,7 +195,7 @@ mejor esfuerzo.
 Desde el **2026-09-17** el costo de mano de obra de una orden de trabajo sale de
 `config_negocio.costos_ot` (jsonb, una fila por tenant — ADR 0011) y se resuelve
 por tipo en `lib/costos-ot.ts`. Lo lee todo el que calcula margen:
-`dashboardMetrics` (`derive.ts:605`, el costo en `:640`), `margenCampana` (`derive.ts:739`, el costo en `:760`) —los dos por `costoEfectivoDeOt`, que prefiere el costo real— y los
+el Dashboard —desde el 26/10 por el motor de reportes, ya no por `dashboardMetrics`—, `margenCampana` (`derive.ts:739`, el costo en `:760`) —los dos por `costoEfectivoDeOt`, que prefiere el costo real— y los
 reportes de rentabilidad ([[reportes-rentabilidad]]).
 
 Antes era una constante en el archivo de derivados:

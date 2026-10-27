@@ -5,6 +5,136 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-10-27 · v0.12.4 (preparada, todavía sin publicar)
+
+Junta en una sola versión lo que se cuenta abajo en las entradas del 26 y del
+23/10: el **nuevo diseño** (el Dashboard y todos los módulos menos Space Eyes),
+«tentativo» como «está en una propuesta», el **contrato firmado que se puede
+cambiar**, «Pantalla propia» en todas las altas y la ficha de campaña con la
+validación siempre abierta. Trae dos cambios de base de datos, los dos aprobados
+por el dueño: las versiones firmadas de los contratos y que una reserva nazca
+confirmada por omisión.
+
+---
+
+## 2026-10-26
+
+**«Tentativo» ahora quiere decir «está en una propuesta».** Una pantalla fija o
+los spots de una digital son tentativos cuando están en una propuesta que todavía
+no se aprueba (en borrador o enviada). Es solo un aviso: la pantalla se puede
+seguir ofreciendo a otro cliente.
+
+- En Disponibilidad, una pantalla libre que alguien pide en una propuesta sale
+  «En propuesta», en ámbar; al pasar el ratón dice qué propuesta y qué cliente.
+- En Comercial, la tarjeta «En propuesta» lista las propuestas abiertas, con un
+  enlace a cada una (sustituye a «Reservas tentativas», que nunca aparecía).
+- En el calendario de la ficha de una pantalla y en el mapa del Dashboard, el
+  ámbar es «en propuesta».
+- En «Huecos y renovaciones» del Dashboard, si una cara que se queda libre ya
+  está en una propuesta, se dice cuál: es a quién llamar.
+- Reportes y el ingreso del mes cuentan solo lo vendido de verdad (confirmado).
+- El vendedor ya no ve errores en la consola al abrir el Dashboard.
+
+**Todas las pantallas (menos Space Eyes) tienen ahora el mismo diseño que el
+Dashboard.** Nada cambia en lo que hacen: los mismos botones, permisos,
+confirmaciones y cifras. Lo que cambia es cómo se ven:
+
+- Cada módulo abre con sus cifras clave arriba (por ejemplo, Operaciones:
+  abiertas, vencidas, por vencer y sin asignar; Finanzas: por cobrar, vencido,
+  facturado y cobrado).
+- Filtros en chips con su conteo, listas más compactas y «Ver todas (N)» en vez
+  de listas interminables (Operaciones ya no son 114 tarjetas seguidas).
+- Disponibilidad usa un solo código de color: libre sin relleno, apartada en
+  ámbar y ocupada en rojo. Antes el verde quería decir «libre» en un sitio y
+  «confirmada» en otro.
+- En el detalle de una propuesta se quitó una segunda cuenta de «bruto a total»
+  que no restaba el descuento comercial y no coincidía con la de arriba.
+- Se ve bien en el teléfono: Finanzas y Propuestas ya no se salen de la
+  pantalla.
+- Almacén distingue «no se pudo cargar» de «no hay nada», con un botón para
+  reintentar.
+
+**El Dashboard se rehízo con lo que ponen en su inicio otros programas de medios
+exteriores y los CRM:**
+
+- **Cada quien ve su tablero.** Quien ve Finanzas tiene arriba el ingreso, el
+  margen, lo ganado en el mes y la ocupación. Un vendedor tiene su pipeline
+  abierto, su tasa de cierre, lo ganado en el mes y la ocupación, en vez de
+  tarjetas de dinero vacías.
+- **Pipeline comercial** en lugar de «Tentativas vs confirmadas»: cuánto hay en
+  propuestas abiertas, cuánto se aprobó este mes, qué porcentaje de las
+  propuestas decididas en los últimos 90 días se ganó, y lo ganado por cada
+  vendedor.
+- **Huecos y renovaciones** en lugar de «Campañas por finalizar»: qué caras (o
+  slots de una pantalla digital) se quedan sin campaña en los próximos 30 días,
+  y qué cliente sale, para ofrecerle renovar. Si otra campaña ya tomó el lugar,
+  no aparece.
+- **Por cobrar por antigüedad**: el saldo repartido en sin vencer, 1–30, 31–60,
+  61–90 y más de 90 días, y cuánto está vencido.
+- **Alertas**: las urgentes van primero, hay un contador por tipo y un botón
+  «Ver todas». Las de licencias y permisos ya se pueden ocultar.
+- **Rendimiento**: la renta como porcentaje del ingreso del mes y cuánto de la
+  tarifa publicada se está cobrando.
+- **Mapa** más chico, y el color de cada espectacular dice si está ocupado,
+  apartado o libre HOY.
+
+- **El Dashboard ya enseña el ingreso y el margen DEL MES.** Antes, «Ingreso
+  contratado del mes» sumaba todas las ventas confirmadas que han existido, y el
+  margen contaba la renta de una pantalla una vez por cada venta que tuvo. Ahora
+  las dos tarjetas dicen el mes («Ingreso de octubre», «Margen de octubre») y dan
+  exactamente la misma cifra que Reportes → Rentabilidad para ese mes: el ingreso
+  se reparte por los días que la campaña cae en el mes, la renta es la de todas
+  tus pantallas con contrato (vendidas o no, porque se paga igual) y se suma la
+  luz. La impresión se ve aparte y no entra en el margen. Un enlace «Ver por
+  pantalla» abre ese mismo mes en Reportes.
+- **Quien no tiene permiso de Finanzas ya no ve cifras falsas.** Un vendedor veía
+  «Por cobrar $0» y un margen de 100 % en verde porque esos datos no le llegan.
+  Ahora esas tarjetas dicen «—, requiere permiso de Finanzas».
+
+---
+
+## 2026-10-23
+
+**Preparado (todavía sin publicar):**
+
+- **Un contrato firmado ya se puede cambiar.** Antes, en cuanto alguien lo
+  firmaba, sus términos no se podían tocar y había que hacer otro contrato. Ahora
+  «Editar términos» aparece también en los contratos firmados, aunque los hayan
+  firmado las dos partes. Hay que escribir el motivo. Al guardar, la versión
+  firmada se guarda tal cual —el texto y quién firmó, cuándo y desde dónde— en
+  «Versiones firmadas anteriores», las firmas se anulan y el contrato se vuelve a
+  enviar a firma con los datos nuevos.
+- **Antes de enviar a firma se revisan los datos.** «Enviar a firma» ya no
+  congela el contrato de golpe: primero enseña los datos actuales que va a llevar
+  —los de tu empresa, los del arrendador, el espacio y los términos— y solo al
+  confirmar «Los datos son correctos» se congela y se genera el enlace. Si alguien
+  cambió algún dato mientras lo revisabas, avisa y pide recargar.
+- **Volver a enviar a firma ya no borra lo firmado.** Antes, reenviar un contrato
+  firmado borraba sus firmas sin dejar copia. Ahora la versión firmada queda
+  guardada antes de reiniciarlas.
+- **«Pantalla propia» en todas las altas.** El alta de pantalla desde Comercial
+  ya ofrece «Pantalla propia», como la de Inventario. Y al volver a importar un
+  archivo de pantallas propias sobre pantallas que ya existían, ahora sí quedan
+  como propias (antes se actualizaban los datos y seguían rentadas). Si alguna
+  tiene un contrato de renta vigente, esa fila sale como error y no se toca.
+
+---
+
+## 2026-10-23 · Ficha de campaña: validación siempre abierta y un solo horario
+
+- **En la ficha de cada campaña, «Validación de publicación» está siempre
+  abierta**, justo debajo de los creativos, sea cual sea su estatus. Antes,
+  cuando ya estaba aprobada —o la campaña no tenía pantallas digitales— salía
+  plegada y al final de la página, y había que buscarla para ver lo que se manda
+  a DOOHmain o para volver a enviar.
+- **Si la campaña ya tiene franja horaria, no se le pone otro horario.** En «Lo
+  que se manda a DOOHmain», una campaña con franja programada —o con una franja
+  contratada en alguna pantalla— ya no muestra el cuadro para poner un horario
+  propio: dice qué franja se manda y su horario. Las campañas sin franja lo siguen
+  teniendo como antes.
+
+---
+
 ## 2026-10-22
 
 **Preparado para la v0.12.3 (todavía sin publicar):**

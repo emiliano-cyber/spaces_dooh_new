@@ -6,6 +6,35 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!important] 2026-10-26 · **TENT-PROP · lo tentativo es lo que está en una propuesta abierta** — rama `feat/tentativo-en-propuesta`, encima de `feat/diseno-modulos` · ROJO R3 + R4 (**aprobado por el dueño el 26/10**)
+> Regla del dueño: tentativo = pantalla/spot en una propuesta BORRADOR o ENVIADA; solo avisa, no bloquea. Se retira
+> la reserva TENTATIVA (ningún flujo la creaba): `lib/data/en-propuesta.ts`; Disponibilidad, Comercial, ficha del sitio
+> y Dashboard avisan «En propuesta»; Reportes cuenta solo CONFIRMADA (R4); `20261026_reserva_estatus_por_omision.sql`
+> cambia el default a CONFIRMADA (R3, no toca filas). Zonas: Z5, Z9, Z12, `lib/data` y Reportes (sin zona).
+> **Reclamadas y LIBERADAS** al commitear. Pendiente del dueño: dónde ofrecer «Extender campaña», que ya era inalcanzable.
+
+> [!important] 2026-10-26 · **DISEÑO-MOD · el resto de los módulos con el lenguaje del Dashboard** — rama `feat/diseno-modulos`, encima de `feat/dashboard-referentes` · ÁMBAR (solo presentación)
+> Cinco grupos (Comercial, Operaciones, Inventario, Finanzas y precio, Sistema), cada uno investigado, diseñado y
+> validado por agentes separados; un commit por grupo más dos de correcciones. Validación: el diff contra
+> `app/api`, `lib/**`, `db/**`, `middleware.ts` y las piezas compartidas del Dashboard está VACÍO; 3968 unitarias y
+> 1091 e2e en verde (la roja es `grants-rol-app`, Docker). Toca Z3, Z4, Z5, Z6, Z7, Z10 (no), Z2 solo en
+> `components/demo/admin/` (visual) y Z12. **Space Eyes (Z3, José) fuera.** **Reclamadas y LIBERADAS** al commitear.
+> Defectos de COMPORTAMIENTO que encontró la investigación y NO se tocaron (los decide el dueño): el Vendedor ve todo
+> bloqueado en Comercial (`sitiosSinContratoCompleto` sin contratos), y otros ocho en el informe de la sesión.
+
+> [!important] 2026-10-26 · **DASH-REF · el Dashboard con lo que ponen los referentes** — rama `feat/dashboard-referentes`, encima de `fix/dashboard-del-periodo` · ÁMBAR (solo lectura; sin migración ni sesión)
+> Por rol (finanzas vs ventas), pipeline con lo ganado en el mes y por vendedor, huecos y renovaciones, cobranza
+> por antigüedad, alertas rojas primero, tarifa cobrada y renta/ingreso, y el pin del mapa por lo de hoy.
+> Toca `propuestas-repo.ts` (Z5) solo para LEER `aprobada_en`, `rechazada_en` y `usuario_id`; la liga pública no
+> los lleva (e2e). Más `lib/alertas-visibles.ts` (Z11), `inicio/` y `components/demo/inicio/` (sin zona) y Z12.
+> **Reclamadas y LIBERADAS** al commitear. Nota nueva: `vault/03-Frontend/dashboard-inicio.md`.
+
+> [!important] 2026-10-26 · **DASH-PERIODO · ingreso, costos y margen del Dashboard, del mes** — rama `fix/dashboard-del-periodo` · ÁMBAR (cifras de dinero, solo lectura: sin migración, sin sesión, sin escritura)
+> Inicio pide el mes en curso a `/api/reportes/rentabilidad` en vez de calcularlo con `dashboardMetrics`, que sumaba
+> todo lo que ha existido. Decisión del dueño (26/10): la misma cifra que Reportes. Un rol sin finanzas ve «—», no $0.
+> **Sin zona:** `app/(app)/(shell)/inicio/`, `components/demo/inicio/` y `lib/data/derive.ts` (solo `dashboardMetrics`)
+> no caen en ninguna; más Z12 (bóveda y bitácora). **Reclamadas y LIBERADAS** al commitear.
+
 > [!success] 2026-10-22, noche · **`v0.12.3` en `estable`** — promover `39850257202`, digest `bd42588b…`; vuelta atrás: `v0.12.2` (`9cef7c6f…`)
 > Varios creativos rotan solos en un spot y el reemplazo ya no deja el arte viejo en DOOHmain; pantallas y lugares
 > propios (sin renta ni contrato, migración `20261022_pantallas_propias.sql`); la duración de la propuesta se calcula
