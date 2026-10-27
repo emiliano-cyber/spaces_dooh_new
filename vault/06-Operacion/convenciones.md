@@ -1,7 +1,7 @@
 ---
 tipo: operacion
 estado: verificado
-actualizado: 2026-10-20
+actualizado: 2026-10-23
 tags: [convenciones, estilo, pruebas]
 archivos:
   - apps/web/components/demo/ui/Button.tsx
@@ -390,6 +390,11 @@ Las semillas usan fechas **relativas a hoy** (`enDias()`), nunca literales.
   comentado (p. ej. «Nueva organización» en Administración).
 - La ficha de campaña conserva su `Seccion` propia (abre según su estado), con
   la misma persistencia. La lista de Campañas conserva su vista compacta.
+- **Excepciones de la ficha de campaña, por pedido del dueño: NO se pliegan ni
+  cambian de sitio.** Creativos (22/10), lo primero, y **Validación de
+  publicación** (23/10), justo debajo, abierta sea cual sea su estatus. Como
+  `Seccion` se plegaba al estar aprobada o «no aplica» y se iba al fondo,
+  escondiendo lo que se manda a DOOHmain y el botón «Enviar al dominio».
 - Rejillas con tarjetas lado a lado: `items-start`, o una tarjeta plegada se
   estira a la altura de su vecina.
 

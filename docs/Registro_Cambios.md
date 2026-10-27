@@ -5,6 +5,21 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-10-23 · Ficha de campaña: validación siempre abierta y un solo horario
+
+- **En la ficha de cada campaña, «Validación de publicación» está siempre
+  abierta**, justo debajo de los creativos, sea cual sea su estatus. Antes,
+  cuando ya estaba aprobada —o la campaña no tenía pantallas digitales— salía
+  plegada y al final de la página, y había que buscarla para ver lo que se manda
+  a DOOHmain o para volver a enviar.
+- **Si la campaña ya tiene franja horaria, no se le pone otro horario.** En «Lo
+  que se manda a DOOHmain», una campaña con franja programada —o con una franja
+  contratada en alguna pantalla— ya no muestra el cuadro para poner un horario
+  propio: dice qué franja se manda y su horario. Las campañas sin franja lo siguen
+  teniendo como antes.
+
+---
+
 ## 2026-10-22
 
 **Preparado para la v0.12.3 (todavía sin publicar):**

@@ -18,6 +18,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { q, q1 } from './db'
 import { esPantallaDigitalSql } from './pantalla-digital-sql'
+import { franjaDeCampana, type FranjaDeCampana } from './franja-de-campana'
 import { folioBase } from '../folio-venta'
 import {
   clienteDoohmain,
@@ -356,7 +357,7 @@ export async function retirarCreativoEnDoohmain(
 // vista previa con su propia copia del SQL acabaría enseñando otra cosa.
 async function leerPlan(campanaId: string) {
   const camp = await q1<any>(
-    `select id, folio, nombre, cliente_id, fecha_inicio, fecha_fin,
+    `select id, folio, nombre, cliente_id, fecha_inicio, fecha_fin, tenant_id,
             doohmain_hora_inicio, doohmain_hora_fin, doohmain_dias
        from campanas where id=$1`,
     [campanaId],
@@ -494,6 +495,11 @@ export interface VistaPreviaDoohmain {
   lista: string
   /** El horario individual de la campaña, si tiene; gana sobre las franjas. */
   horarioIndividual: Franja | null
+  /**
+   * La franja que la campaña YA tiene (programada o contratada). Con ella no se
+   * ofrece el horario individual (23/10): `fijarHorarioDoohmainCtrl` lo rechaza.
+   */
+  franjaCampana: FranjaDeCampana | null
   filas: FilaVistaPrevia[]
   /** Pantallas digitales sin ningún creativo aprobado: al publicar fallan. */
   sinCreativo: { sitio: string; sitioNombre: string }[]
@@ -518,6 +524,9 @@ export async function vistaPreviaDoohmain(campanaId: string): Promise<VistaPrevi
     fechaFin: ff,
     lista: folioBase(camp.folio),
     horarioIndividual: individual,
+    // El tenant de la PROPIA campaña, que la RLS ya dejó leer: este módulo no
+    // importa `tenant.ts` (ver `franja-de-campana.ts`).
+    franjaCampana: await franjaDeCampana(campanaId, camp.tenant_id),
     filas: asignaciones.map((a) => {
       const otro = a.cms && a.cms !== 'DOOHMAIN'
       const screen = otro ? null : (a.doohmain_pantalla ?? mapa[a.clave_interna] ?? DEFAULT_SCREEN ?? null)

@@ -45,16 +45,22 @@ const inputCls =
 
 /**
  * El horario INDIVIDUAL de la campaña (22/10, noche): «que en campaña se pueda
- * poner una franja de tiempo individual que se mande a DOOHmain». Gana sobre la
- * franja programada y la contratada. Sin días marcados, todos.
+ * poner una franja de tiempo individual que se mande a DOOHmain». Sin días
+ * marcados, todos. Desde el 23/10 solo se ofrece a una campaña SIN franja
+ * (programada o contratada); con franja, el cuadro dice cuál viaja.
  */
 function HorarioIndividual({
   campanaId,
   actual,
+  franja,
   onGuardado,
 }: {
   campanaId: string
   actual: VistaPreviaDoohmain['horarioIndividual']
+  // 23/10 · la franja que la campaña YA tiene. Con ella no se ofrece capturar
+  // otro horario: «si la campaña ya tiene franja de horario no debe de tener la
+  // opción de añadir otra». El servidor lo rechaza igual (409).
+  franja: VistaPreviaDoohmain['franjaCampana']
   onGuardado: () => void
 }) {
   const puede = usePuede('comercial', 'crear')
@@ -83,6 +89,34 @@ function HorarioIndividual({
       setError(e instanceof Error ? e.message : 'No se pudo guardar')
     }
     setGuardando(false)
+  }
+
+  if (franja) {
+    return (
+      <div className="mb-3 rounded border border-border bg-surface p-2 text-[12px] text-ink">
+        <span className="text-muted">
+          Horario en DOOHmain: la franja {franja.origen === 'programada' ? 'programada' : 'contratada'}
+        </span>{' '}
+        <b>{franja.nombre}</b>, {franja.horaInicio} a {franja.horaFin}. La campaña ya tiene franja, así que no lleva
+        otro horario.
+        {/* Una campaña que ya tenía los dos de antes de esta regla: se avisa y
+            solo se ofrece quitar el individual, que hoy es el que viaja. */}
+        {actual && (
+          <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
+            <span className="text-warning">
+              Tiene además un horario propio ({actual.horaInicio} a {actual.horaFin}), de antes, y es el que se
+              manda: quítalo para que viaje la franja.
+            </span>
+            {puede && (
+              <Button size="sm" variant="secondary" disabled={guardando} onClick={() => void guardar(null)}>
+                Quitar
+              </Button>
+            )}
+          </div>
+        )}
+        {error && <p className="m-0 mt-1 text-[12px] text-error">{error}</p>}
+      </div>
+    )
   }
 
   if (!puede) {
@@ -126,7 +160,7 @@ function HorarioIndividual({
       </div>
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
         <span className="text-[11px] text-muted">
-          Gana sobre la franja programada y la contratada. Sin días marcados, sale todos los días.
+          Solo para campañas sin franja horaria. Sin días marcados, sale todos los días.
         </span>
         <div className="flex gap-1.5">
           {actual && (
@@ -194,7 +228,12 @@ export function ProgramacionDoohmain({ campanaId, clave }: { campanaId: string; 
           La publicación en DOOHmain está apagada en esta instancia: esto es lo que se mandaría.
         </p>
       )}
-      <HorarioIndividual campanaId={campanaId} actual={v.horarioIndividual} onGuardado={() => setLectura((n) => n + 1)} />
+      <HorarioIndividual
+        campanaId={campanaId}
+        actual={v.horarioIndividual}
+        franja={v.franjaCampana}
+        onGuardado={() => setLectura((n) => n + 1)}
+      />
 
       <p className="m-0 mb-2 text-[12px] text-ink">
         <span className="text-muted">Cliente:</span> {c.nombre}

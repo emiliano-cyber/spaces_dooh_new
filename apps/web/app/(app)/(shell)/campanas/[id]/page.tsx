@@ -111,15 +111,6 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
   // real del servidor (finanzas-repo) sí la dejara facturar. Se llama a la regla
   // única en vez de reimplementarla aquí.
   const candadoHecho = candadoFacturacion(c)
-  // Que la validación APLIQUE depende solo del medio: toda campaña digital pasa
-  // por revisión antes de salir al aire. Antes esto exigía además
-  // `c.enviadaDominio`, y el resultado era el contrario del buscado: una campaña
-  // digital todavía sin enviar quedaba marcada "No aplica", que deja la sección
-  // PLEGADA y al final de la página (ver `Seccion`) — escondiendo justo el botón
-  // "Enviar al dominio" que hay que pulsar para que se publique en DOOHmain.
-  // No haberla enviado es el estado PENDIENTE, no un "no aplica".
-  const validacionAplica = tieneDigital
-  const validacionHecha = c.validacionEstatus === 'APROBADA'
   const creativosHecho = misCreas.length > 0 && misCreas.every((cr) => cr.estatusValidacion === 'VALIDADA')
   const otsPendientes = misOts.length === 0 || misOts.some((o) => !['COMPLETADA', 'CANCELADA', 'RECHAZADA'].includes(o.estatus))
   const cliFiscal = (clientes ?? []).find((x) => x.id === c.clienteId)
@@ -227,6 +218,18 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
         </div>
       </section>
 
+      {/* Validación de publicación — SIEMPRE abierta, sin importar el estatus
+          (pedido del dueño, 23/10). Era una `Seccion`: nacía abierta solo si
+          estaba pendiente, y aprobada —o en una campaña que no es digital— se
+          plegaba y se iba al fondo, escondiendo lo que se mandó a DOOHmain y el
+          botón para reenviar o bajar un creativo. (Ya pasó antes al revés: cuando
+          «aplicar» exigía `enviadaDominio`, una digital sin enviar quedaba como
+          «No aplica», plegada, y escondía el botón «Enviar al dominio».) Como
+          Creativos arriba, aquí no
+          se pliega ni cambia de sitio; `ValidacionPanel` trae su propio título y
+          su estatus. */}
+      <ValidacionPanel campanaId={id} />
+
       {/* Pipeline (pieza estrella) */}
       <CardColapsable id="campana.pipeline" titulo="Pipeline">
         <PipelineView campanaId={id} />
@@ -237,15 +240,6 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
 
       {/* Secciones plegables. Flex + `order` para subir las pendientes. */}
       <div className="flex flex-col gap-4">
-      {/* Validación de publicación (verificar anuncios antes de salir al aire) */}
-      <Seccion
-        id={`campana.${id}.validacion`}
-        titulo="Validación de publicación"
-        estado={!validacionAplica ? 'na' : validacionHecha ? 'hecho' : 'pendiente'}
-      >
-        <ValidacionPanel campanaId={id} />
-      </Seccion>
-
       {/* Candado de facturación */}
       <Seccion id={`campana.${id}.candado`} titulo="Candado de facturación" estado={candadoHecho ? 'hecho' : 'pendiente'}>
         <CandadoPanel campanaId={id} />
