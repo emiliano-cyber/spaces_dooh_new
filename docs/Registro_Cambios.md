@@ -5,6 +5,18 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-10-27 · v0.12.4 (preparada, todavía sin publicar)
+
+Junta en una sola versión lo que se cuenta abajo en las entradas del 26 y del
+23/10: el **nuevo diseño** (el Dashboard y todos los módulos menos Space Eyes),
+«tentativo» como «está en una propuesta», el **contrato firmado que se puede
+cambiar**, «Pantalla propia» en todas las altas y la ficha de campaña con la
+validación siempre abierta. Trae dos cambios de base de datos, los dos aprobados
+por el dueño: las versiones firmadas de los contratos y que una reserva nazca
+confirmada por omisión.
+
+---
+
 ## 2026-10-26
 
 **«Tentativo» ahora quiere decir «está en una propuesta».** Una pantalla fija o
