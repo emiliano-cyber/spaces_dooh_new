@@ -540,12 +540,10 @@ describe('4 · la publicación manda a cada pantalla LO SUYO', () => {
     ])
   })
 
-  it('el horario INDIVIDUAL de la campaña gana sobre la franja programada, con sus días', async () => {
+  it('el horario INDIVIDUAL de una campaña SIN franja viaja, con sus días', async () => {
     // Pedido del dueño (22/10, noche): una franja de tiempo individual en la
     // campaña que se mande a DOOHmain.
     const camp = await sembrarCampana({ sitios: [{ id: org.sitioId, spots: 3 }] })
-    const prog = await franja('Programada que pierde', '18:00', '22:00')
-    await poolTest().query('update campanas set franja_programada_id=$1 where id=$2', [prog, camp])
     await aprobar(await sembrarCreativo(camp, 'Con horario individual'))
 
     const h = await c.pedir(`/api/campanas/${camp}/horario-doohmain/`, {
@@ -555,14 +553,72 @@ describe('4 · la publicación manda a cada pantalla LO SUYO', () => {
 
     const v = await c.pedir(`/api/campanas/${camp}/programacion-doohmain/`)
     expect(v.datos.horarioIndividual).toEqual({ horaInicio: '07:30', horaFin: '09:00', dias: [1, 3, 5] })
+    expect(v.datos.franjaCampana).toBeNull()
     const [r] = await publicar(camp)
     expect([r.horaInicio, r.horaFin]).toEqual(['07:30', '09:00'])
 
-    // Quitarlo devuelve a la programada.
+    // Quitarlo devuelve a «todo el día».
     expect((await c.pedir(`/api/campanas/${camp}/horario-doohmain/`, { metodo: 'PATCH', cuerpo: { horario: null } })).status).toBe(200)
     const v2 = await c.pedir(`/api/campanas/${camp}/programacion-doohmain/`)
     expect(v2.datos.horarioIndividual).toBeNull()
-    expect(v2.datos.filas[0].programacion.horaInicio).toBe('18:00')
+    expect(v2.datos.filas[0].programacion.horaInicio).toBeNull()
+  })
+
+  // 23/10 · regla del dueño: «si la campaña ya tiene franja de horario no debe
+  // de tener la opción de añadir otra opción de horario». Hasta el 22/10 el
+  // individual se ponía encima de la franja y ganaba.
+  it('con franja PROGRAMADA no se le pone otro horario: 409 que la nombra, y no se guarda nada', async () => {
+    const camp = await sembrarCampana({ sitios: [{ id: org.sitioId, spots: 3 }] })
+    const prog = await franja('Prime que manda', '18:00', '22:00')
+    await poolTest().query('update campanas set franja_programada_id=$1 where id=$2', [prog, camp])
+    await aprobar(await sembrarCreativo(camp, 'Con franja programada y sin otro'))
+
+    const h = await c.pedir(`/api/campanas/${camp}/horario-doohmain/`, {
+      metodo: 'PATCH', cuerpo: { horario: { horaInicio: '07:30', horaFin: '09:00' } },
+    })
+    expect(h.status).toBe(409)
+    expect(h.datos.error).toMatch(/ya tiene franja horaria \(Prime que manda, 18:00 a 22:00\)/)
+
+    const v = await c.pedir(`/api/campanas/${camp}/programacion-doohmain/`)
+    expect(v.datos.horarioIndividual).toBeNull()
+    expect(v.datos.franjaCampana).toEqual({ nombre: 'Prime que manda', horaInicio: '18:00', horaFin: '22:00', origen: 'programada' })
+    const [r] = await publicar(camp)
+    expect([r.horaInicio, r.horaFin]).toEqual(['18:00', '22:00'])
+  })
+
+  it('con franja CONTRATADA en una pantalla tampoco', async () => {
+    const camp = await sembrarCampana({ sitios: [{ id: org.sitioId, spots: 3 }] })
+    const manana = await franja('Mañana que manda', '07:00', '10:00')
+    await poolTest().query('update reservas set franja_id=$1 where campana_id=$2', [manana, camp])
+    const h = await c.pedir(`/api/campanas/${camp}/horario-doohmain/`, {
+      metodo: 'PATCH', cuerpo: { horario: { horaInicio: '12:00', horaFin: '13:00' } },
+    })
+    expect(h.status).toBe(409)
+    const v = await c.pedir(`/api/campanas/${camp}/programacion-doohmain/`)
+    expect(v.datos.franjaCampana).toMatchObject({ nombre: 'Mañana que manda', origen: 'contratada' })
+  })
+
+  it('la franja de una reserva CANCELADA no cuenta', async () => {
+    const camp = await sembrarCampana({ sitios: [{ id: org.sitioId, spots: 3 }] })
+    const vieja = await franja('De una reserva cancelada', '07:00', '10:00')
+    await poolTest().query(`update reservas set franja_id=$1, estatus='CANCELADA' where campana_id=$2`, [vieja, camp])
+    const h = await c.pedir(`/api/campanas/${camp}/horario-doohmain/`, {
+      metodo: 'PATCH', cuerpo: { horario: { horaInicio: '12:00', horaFin: '13:00' } },
+    })
+    expect(h.status, JSON.stringify(h.datos)).toBe(200)
+  })
+
+  it('una campaña que ya tenía los DOS, de antes de la regla, puede quitar el individual y queda la franja', async () => {
+    const camp = await sembrarCampana({ sitios: [{ id: org.sitioId, spots: 3 }] })
+    const prog = await franja('Programada de antes', '18:00', '22:00')
+    await poolTest().query(
+      `update campanas set franja_programada_id=$1, doohmain_hora_inicio='07:30', doohmain_hora_fin='09:00' where id=$2`,
+      [prog, camp],
+    )
+    await aprobar(await sembrarCreativo(camp, 'Con los dos de antes'))
+    expect((await c.pedir(`/api/campanas/${camp}/horario-doohmain/`, { metodo: 'PATCH', cuerpo: { horario: null } })).status).toBe(200)
+    const [r] = await publicar(camp)
+    expect([r.horaInicio, r.horaFin]).toEqual(['18:00', '22:00'])
   })
 
   it('el horario individual: lo que no se acepta', async () => {
