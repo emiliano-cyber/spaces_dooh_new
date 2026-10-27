@@ -51,6 +51,10 @@ export function AltaSitioDialog({
 }) {
   const arrendadores = useArrendadores()
   const [arrendadorId, setArrendadorId] = useState('')
+  // v0.12.3 · pantalla PROPIA: sin arrendador ni renta, igual que en el alta de
+  // Inventario (`NuevaPantallaForm`). Esta era la única alta que no la ofrecía,
+  // así que desde Comercial una pantalla de la empresa solo podía nacer rentada.
+  const [propio, setPropio] = useState(false)
   const [nombre, setNombre] = useState('')
   const [tipoMedio, setTipoMedio] = useState<TipoMedio>('ESPECTACULAR')
   const [distrito, setDistrito] = useState('')
@@ -79,7 +83,8 @@ export function AltaSitioDialog({
   // nombre») y el arrendador `crearSitio` (ADR 0002); el distrito y la
   // dirección comercial los exigía ya esta pantalla para habilitar «Crear».
   const ob = useObligatorios({ arrendadorId, nombre, distrito, direccionComercial }, [
-    'arrendadorId',
+    // Una pantalla propia no tiene arrendador que elegir.
+    { campo: 'arrendadorId', si: !propio },
     'nombre',
     'distrito',
     'direccionComercial',
@@ -90,7 +95,7 @@ export function AltaSitioDialog({
     setEnviando(true)
     const s = await altaSitioApi({
       nombre: nombre.trim(),
-      arrendadorId,
+      ...(propio ? { propio: true } : { arrendadorId }),
       tipoMedio,
       distrito: distrito.trim(),
       direccionPredio: direccionPredio.trim() || direccionComercial.trim(),
@@ -111,6 +116,7 @@ export function AltaSitioDialog({
     onCreado(s)
     onOpenChange(false)
     setArrendadorId('')
+    setPropio(false)
     setNombre('')
     setDistrito('')
     setDireccionPredio('')
@@ -137,14 +143,26 @@ export function AltaSitioDialog({
     >
       <div className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
         <Seccion titulo="Identificación">
-          <Campo label="Arrendador (dueño del espacio)" obligatorio falta={ob.falta('arrendadorId')}>
-            <select className={inputCls} value={arrendadorId} onChange={(e) => setArrendadorId(e.target.value)}>
-              <option value="">Elige un arrendador…</option>
-              {(arrendadores ?? []).map((a) => (
-                <option key={a.id} value={a.id}>{a.nombre}</option>
-              ))}
-            </select>
-          </Campo>
+          <label className="flex items-start gap-2 rounded border border-border bg-surface-2 p-2 text-[13px] text-ink">
+            <input type="checkbox" className="mt-0.5" checked={propio} onChange={(e) => setPropio(e.target.checked)} />
+            <span>
+              <span className="font-medium">Pantalla propia</span>
+              <span className="block text-[11px] text-muted">
+                Es de la empresa: no se le paga renta a nadie. Se puede vender sin contrato y su costo es
+                solo luz y operación.
+              </span>
+            </span>
+          </label>
+          {!propio && (
+            <Campo label="Arrendador (dueño del espacio)" obligatorio falta={ob.falta('arrendadorId')}>
+              <select className={inputCls} value={arrendadorId} onChange={(e) => setArrendadorId(e.target.value)}>
+                <option value="">Elige un arrendador…</option>
+                {(arrendadores ?? []).map((a) => (
+                  <option key={a.id} value={a.id}>{a.nombre}</option>
+                ))}
+              </select>
+            </Campo>
+          )}
           <Campo label="Nombre" obligatorio falta={ob.falta('nombre')}>
             <input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="p. ej. Espectacular Av. Brasil" autoFocus />
           </Campo>

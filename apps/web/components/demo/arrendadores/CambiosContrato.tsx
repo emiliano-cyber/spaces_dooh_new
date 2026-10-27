@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { History, Loader2, Pencil } from 'lucide-react'
+import { FileSignature, History, Loader2, Pencil } from 'lucide-react'
 import { Modal } from '@/components/demo/ui/Modal'
 import { Button } from '@/components/demo/ui/Button'
 import { CampoContrasena } from '@/components/demo/ui/CampoContrasena'
@@ -19,7 +19,10 @@ import {
   editarContratoApi,
   cambiosDeContratoApi,
   estadoFirmaContratoApi,
+  versionesFirmadasApi,
+  versionFirmadaApi,
   type CambioContratoUI,
+  type VersionFirmadaUI,
 } from '@/lib/data/estado-api'
 import { PERIODICIDADES } from '@/lib/renta-periodicidad'
 import { valorParaMostrar } from '@/lib/contrato-cambios'
@@ -36,8 +39,9 @@ import { ROL_CONTRATO, opcionesDeAsignacion } from '@/components/demo/razones-so
 //  términos, no solo «completar lo que falta»— y la memoria de esa negociación.
 //
 //  Tres reglas que vienen del servidor y aquí solo se hacen visibles:
-//   · Firmado por cualquiera de las dos partes → no se edita (409). El botón ni
-//     aparece: enterarse al guardar es peor que no ofrecerlo.
+//   · Firmado por cualquiera de las dos partes → se edita CON MOTIVO (23/10):
+//     la versión firmada se archiva entera, las firmas se anulan y se vuelve a
+//     firmar. Hasta el 22/10 era 409 y el botón ni aparecía.
 //   · Enviado a firma y sin firmar → se puede, pero el enlace del arrendador
 //     deja de servir y hay que volver a enviarlo. Se avisa ANTES de guardar.
 //   · Quién capturó el cambio lo pone el servidor con la sesión. Aquí solo se
@@ -64,17 +68,20 @@ export function CambiosContrato({
 }) {
   const [historial, setHistorial] = useState<CambioContratoUI[] | null>(null)
   const [firma, setFirma] = useState<{ firmado: boolean; enviado: boolean } | null>(null)
+  const [versiones, setVersiones] = useState<VersionFirmadaUI[]>([])
   const [error, setError] = useState<string | null>(null)
   const [editando, setEditando] = useState(false)
 
   const cargar = useCallback(async () => {
     try {
-      const [h, f] = await Promise.all([
+      const [h, f, v] = await Promise.all([
         cambiosDeContratoApi(contrato.id),
         estadoFirmaContratoApi(contrato.id),
+        versionesFirmadasApi(contrato.id),
       ])
       setHistorial(h)
       setFirma(f)
+      setVersiones(v)
       setError(null)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo leer el historial')
@@ -87,8 +94,7 @@ export function CambiosContrato({
 
   // Un contrato INCOMPLETO tiene su propio formulario («Completar
   // información») y uno CANCELADO no se edita: se hace otro.
-  const editable =
-    firma != null && !firma.firmado && contrato.estatus !== 'CANCELADO' && contrato.estatus !== 'INCOMPLETO'
+  const editable = firma != null && contrato.estatus !== 'CANCELADO' && contrato.estatus !== 'INCOMPLETO'
 
   return (
     <div>
@@ -104,8 +110,8 @@ export function CambiosContrato({
       </div>
       {firma?.firmado && (
         <p className="mb-2 text-[12px] text-muted">
-          Ya está firmado, así que sus términos no cambian. Si hay que modificarlos, se hace un
-          contrato nuevo.
+          Ya está firmado. Si cambias sus términos, esta versión se archiva tal como se firmó y el
+          contrato se vuelve a firmar con los datos actuales.
         </p>
       )}
       {error && <p className="text-[12px] text-error">{error}</p>}
@@ -140,7 +146,11 @@ export function CambiosContrato({
                   </li>
                 ))}
               </ul>
-              {h.envioAnulado && (
+              {h.versionFirmada != null ? (
+                <p className="mt-1 text-[11.5px] text-warning">
+                  Estaba firmado: se archivó como versión firmada {h.versionFirmada} y se anularon sus firmas.
+                </p>
+              ) : h.envioAnulado && (
                 <p className="mt-1 text-[11.5px] text-warning">
                   Ya se había enviado a firma: ese enlace dejó de servir y hubo que reenviarlo.
                 </p>
@@ -150,10 +160,13 @@ export function CambiosContrato({
         </ol>
       )}
 
+      {versiones.length > 0 && <VersionesFirmadas contratoId={contrato.id} versiones={versiones} />}
+
       {editando && firma && (
         <EditarTerminosModal
           contrato={contrato}
           enviado={firma.enviado}
+          firmado={firma.firmado}
           onCerrar={() => setEditando(false)}
           onHecho={(msg) => {
             onToast(msg)
@@ -166,6 +179,74 @@ export function CambiosContrato({
   )
 }
 
+// ─── Versiones firmadas archivadas (23/10) ──────────────────────────────────
+// Lo que se firmó antes de cada edición o reenvío. Es evidencia: quién firmó,
+// cuándo, desde qué IP y el texto exacto, que se abre bajo demanda.
+function VersionesFirmadas({ contratoId, versiones }: { contratoId: string; versiones: VersionFirmadaUI[] }) {
+  const [abierta, setAbierta] = useState<VersionFirmadaUI | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  async function abrir(v: number) {
+    setError(null)
+    try {
+      setAbierta(await versionFirmadaApi(contratoId, v))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo leer la versión firmada')
+    }
+  }
+
+  return (
+    <div className="mt-3">
+      <h4 className="mb-2 flex items-center gap-1.5 text-[13px] font-medium text-ink">
+        <FileSignature className="h-3.5 w-3.5" /> Versiones firmadas anteriores
+      </h4>
+      <ol className="space-y-2">
+        {versiones.map((v) => (
+          <li key={v.version} className="rounded-md border border-border px-3 py-2 text-[12.5px]">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-2">
+              <span className="text-ink">
+                <b>Versión {v.version}</b>
+                <span className="text-muted"> · archivada {fechaHora(v.archivadoEn)}</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => void abrir(v.version)}
+                className="text-[12px] text-accent underline-offset-2 hover:underline"
+              >
+                Ver texto firmado
+              </button>
+            </div>
+            {v.motivo && (
+              <p className="mt-0.5 text-muted">
+                «{v.motivo}»{v.usuarioNombre ? ` · ${v.usuarioNombre}` : ''}
+              </p>
+            )}
+            <ul className="mt-1 space-y-0.5">
+              {v.firmas.map((f) => (
+                <li key={f.parte}>
+                  <span className="text-muted">{PARTE_LABEL[f.parte]}:</span> firmó <b>{f.nombreFirmante}</b>
+                  {f.firmadoEn ? ` el ${fechaHora(f.firmadoEn)}` : ''}
+                </li>
+              ))}
+            </ul>
+          </li>
+        ))}
+      </ol>
+      {error && <p className="mt-1 text-[12px] text-error">{error}</p>}
+      {abierta && (
+        <Modal
+          open
+          onOpenChange={(o) => (o ? undefined : setAbierta(null))}
+          title={`Versión firmada ${abierta.version}`}
+          subtitle={`Sello SHA-256: ${abierta.documentoHash}`}
+        >
+          <pre className="max-h-[60vh] overflow-auto whitespace-pre-wrap text-[12px] text-ink">{abierta.documento}</pre>
+        </Modal>
+      )}
+    </div>
+  )
+}
+
 // ─── El editor ──────────────────────────────────────────────────────────────
 // Manda SOLO lo que cambió. El servidor también compara y no anota lo que no
 // cambia, pero mandar el formulario entero haría que un «guardar» sin tocar
@@ -173,11 +254,15 @@ export function CambiosContrato({
 function EditarTerminosModal({
   contrato,
   enviado,
+  firmado,
   onCerrar,
   onHecho,
 }: {
   contrato: ContratoArrendamiento
   enviado: boolean
+  // Alguien ya firmó (23/10): el motivo pasa a ser obligatorio, porque el
+  // servidor archiva esa versión firmada y sin motivo responde 400.
+  firmado: boolean
   onCerrar: () => void
   onHecho: (msg: string) => void
 }) {
@@ -236,8 +321,9 @@ function EditarTerminosModal({
       fechaInicio: f.fechaInicio,
       fechaFin: f.fechaFin,
       montoRenta: f.montoRenta,
+      motivo: motivo.trim(),
     },
-    ['propuestoPor', 'arrendadorId', 'fechaInicio', 'fechaFin', 'montoRenta'],
+    ['propuestoPor', 'arrendadorId', 'fechaInicio', 'fechaFin', 'montoRenta', { campo: 'motivo', si: firmado }],
   )
   // Una cifra que CampoCifra no entiende llega como 'NaN': se dice así, y no
   // con el «tiene que ser mayor que cero» o «no puede ser negativo» de abajo,
@@ -274,7 +360,13 @@ function EditarTerminosModal({
     })
     if (r.estado === 'hecho') {
       setPass('')
-      onHecho(enviado ? 'Cambio guardado · vuelve a enviar el contrato a firma' : 'Cambio guardado en el historial')
+      onHecho(
+        firmado
+          ? 'Cambio guardado · la versión firmada quedó archivada; envía el contrato a firma otra vez'
+          : enviado
+            ? 'Cambio guardado · vuelve a enviar el contrato a firma'
+            : 'Cambio guardado en el historial',
+      )
     } else if (r.estado === 'falta-contrasena') {
       setError('Escribe tu contraseña para confirmar.')
     } else if (r.estado === 'pedir-contrasena') {
@@ -291,7 +383,11 @@ function EditarTerminosModal({
       open
       onOpenChange={(v) => (v ? undefined : cerrar())}
       title="Editar términos del contrato"
-      subtitle="Antes de firmarse. Cada cambio queda en el historial con quién lo pidió."
+      subtitle={
+        firmado
+          ? 'Ya firmado: la versión firmada se archiva y se vuelve a firmar.'
+          : 'Antes de firmarse. Cada cambio queda en el historial con quién lo pidió.'
+      }
       footer={
         <div className="flex items-center justify-end gap-2">
           {aviso && <span className="mr-auto text-[12px] text-error">Revisa los campos marcados en rojo.</span>}
@@ -306,7 +402,14 @@ function EditarTerminosModal({
       }
     >
       <div className="space-y-3 text-[13px]">
-        {enviado && (
+        {firmado ? (
+          <p className="rounded border border-warning/40 bg-warning-soft p-2 text-[12.5px] text-ink">
+            Este contrato <b>ya está firmado</b>. Si guardas un cambio, la versión firmada se
+            archiva tal como se firmó —texto y firmas— y las firmas actuales se anulan. Después
+            tendrás que enviarlo a firma otra vez, con los datos actuales, para que las dos partes
+            lo revisen y lo firmen de nuevo. Escribe el motivo: queda en el historial.
+          </p>
+        ) : enviado && (
           <p className="rounded border border-warning/40 bg-warning-soft p-2 text-[12.5px] text-ink">
             Este contrato <b>ya se envió a firma</b>. Si guardas un cambio, el enlace que tiene el
             arrendador deja de servir y tendrás que enviarlo otra vez con el texto nuevo.
@@ -330,7 +433,7 @@ function EditarTerminosModal({
           </div>
         </Campo>
 
-        <Campo label="Motivo">
+        <Campo label="Motivo" obligatorio={firmado} falta={ob.falta('motivo')}>
           <input
             className={inputCls}
             value={motivo}

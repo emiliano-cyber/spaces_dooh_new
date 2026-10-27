@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-22
+actualizado: 2026-10-23
 tags: [backend, arrendadores, contratos, dinero, rojo]
 archivos:
   - apps/web/lib/server/arrendadores-repo.ts
@@ -126,9 +126,34 @@ MISMA transacción que la edición, un renglón en `contrato_cambios` con:
 **Si estaba enviado a firma** (hay `documento_hash`) y nadie firmó, el cambio
 **anula el envío**: borra las firmas pendientes —con el token del arrendador— y
 descongela el texto. Antes el enlace seguía vivo y el arrendador podía firmar la
-versión vieja; la firma salía «invalidada» cuando ya no tenía arreglo. Lo
-firmado sigue sin poder cambiarse (409). Subir el **PDF** adjunto se anota pero **no** anula el envío:
+versión vieja; la firma salía «invalidada» cuando ya no tenía arreglo. Subir el **PDF** adjunto se anota pero **no** anula el envío:
 `documentoATexto` no lo recita, así que el texto que se firma no cambia.
+
+> [!danger] 23/10 · un contrato FIRMADO ya se puede cambiar (CONTRATO-FIRMADO-EDITABLE)
+> Pedido del dueño: cambiar un contrato aunque lo hayan firmado las dos partes, y
+> que la firma nueva lleve los datos ACTUALES de la empresa, revisados antes.
+> Hasta el 22/10 era 409 («haz otro contrato»). Ahora:
+> - **Editar un firmado exige motivo y sesión** (sin ellos, 400 y no se toca
+>   nada). Si el cambio toca el texto, `editarContrato` archiva la versión firmada
+>   (`archivarVersionFirmadaEnTx` en `firmas-repo.ts`) en la MISMA transacción,
+>   borra TODAS las firmas y descongela. `contrato_cambios.version_firmada` dice
+>   qué versión archivó. Adjuntar el PDF sigue sin pedir nada.
+> - **`contrato_versiones_firmadas`** (`20261023_contrato_versiones_firmadas.sql`):
+>   texto exacto, hash y evidencia de cada firma (jsonb). Solo select e insert para
+>   la aplicación, RLS forzada. `GET /api/contratos/[id]/versiones[?version=N]`.
+> - **Defecto que ya existía, arreglado:** `enviarAFirma` hacía `delete from
+>   contrato_firmas` a secas, y «Volver a enviar a firma» se llevaba la evidencia
+>   de las firmas reales. Ahora archiva antes de borrar (motivo «Reenviado a firma»).
+> - **Revisión antes de congelar:** el panel de firmas enseña los datos actuales
+>   (empresa, arrendador, espacio, términos) y manda su huella
+>   (`huellaDatosContrato`: el texto redactado SIN fecha, sellado). El POST de
+>   `enviar` la exige (400 sin ella) y `enviarAFirma` la recalcula: si los datos
+>   cambiaron mientras se revisaban, 409 y no congela. La huella va sin fecha
+>   porque la página la calcula en UTC y el congelado en hora local.
+>
+> Pruebas: `lib/test/contrato-firmado-editable.e2e.test.ts`, con firmas de
+> verdad (la interna con sesión y la del arrendador por su enlace público): 11,
+> rojas contra el código viejo y verdes con el nuevo.
 
 La pantalla es `components/demo/arrendadores/CambiosContrato.tsx`, dentro de
 `ContratoSheet`; el historial lo sirve `GET /api/contratos/[id]/cambios`

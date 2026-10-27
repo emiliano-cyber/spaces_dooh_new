@@ -81,6 +81,33 @@ exteriores y los CRM:**
 
 ---
 
+## 2026-10-23
+
+**Preparado (todavía sin publicar):**
+
+- **Un contrato firmado ya se puede cambiar.** Antes, en cuanto alguien lo
+  firmaba, sus términos no se podían tocar y había que hacer otro contrato. Ahora
+  «Editar términos» aparece también en los contratos firmados, aunque los hayan
+  firmado las dos partes. Hay que escribir el motivo. Al guardar, la versión
+  firmada se guarda tal cual —el texto y quién firmó, cuándo y desde dónde— en
+  «Versiones firmadas anteriores», las firmas se anulan y el contrato se vuelve a
+  enviar a firma con los datos nuevos.
+- **Antes de enviar a firma se revisan los datos.** «Enviar a firma» ya no
+  congela el contrato de golpe: primero enseña los datos actuales que va a llevar
+  —los de tu empresa, los del arrendador, el espacio y los términos— y solo al
+  confirmar «Los datos son correctos» se congela y se genera el enlace. Si alguien
+  cambió algún dato mientras lo revisabas, avisa y pide recargar.
+- **Volver a enviar a firma ya no borra lo firmado.** Antes, reenviar un contrato
+  firmado borraba sus firmas sin dejar copia. Ahora la versión firmada queda
+  guardada antes de reiniciarlas.
+- **«Pantalla propia» en todas las altas.** El alta de pantalla desde Comercial
+  ya ofrece «Pantalla propia», como la de Inventario. Y al volver a importar un
+  archivo de pantallas propias sobre pantallas que ya existían, ahora sí quedan
+  como propias (antes se actualizaban los datos y seguían rentadas). Si alguna
+  tiene un contrato de renta vigente, esa fila sale como error y no se toca.
+
+---
+
 ## 2026-10-22
 
 **Preparado para la v0.12.3 (todavía sin publicar):**

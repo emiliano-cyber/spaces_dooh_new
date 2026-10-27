@@ -289,11 +289,13 @@ export async function editarContratoCtrl(
     )
   }
   if ('cancelado' in r) throw new AppError('El contrato está CANCELADO; crea uno nuevo en su lugar', 409)
+  // Desde el 23/10 un contrato firmado SÍ se cambia, pero con motivo: la
+  // versión firmada se archiva y hay que firmar otra vez (`editarContrato`).
   if ('firmado' in r) {
     throw new AppError(
-      'Este contrato ya está firmado y su información no cambia: lo firmado dejaría de coincidir ' +
-        'con lo acordado. Si hay que modificar las condiciones, crea un contrato nuevo.',
-      409,
+      'Este contrato ya está firmado. Escribe el motivo del cambio: la versión firmada se archivará ' +
+        'y habrá que volver a firmarlo.',
+      400,
     )
   }
   return r.contrato

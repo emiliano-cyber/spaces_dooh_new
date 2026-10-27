@@ -130,11 +130,11 @@ código, no de memoria:
 | Framework | Next.js 14.2.29, App Router | `apps/web/package.json:17` |
 | Base de datos | PostgreSQL, `pg` directo (sin ORM) | `apps/web/lib/server/db.ts:2` |
 | Aislamiento | RLS de Postgres por `app.tenant_id` | `apps/web/lib/server/db.ts:60` y `:79` |
-| Endpoints | **154** route handlers | `apps/web/app/api/**/route.ts` |
-| Tablas | **64** | `vault/04-Datos/esquema.md` |
+| Endpoints | **155** route handlers | `apps/web/app/api/**/route.ts` |
+| Tablas | **65** | `vault/04-Datos/esquema.md` |
 | Migraciones | **119** | `vault/04-Datos/migraciones.md` |
 
-> Esos recuentos llevan fecha de validación **2026-10-22** (rama `feat/comercial-negociacion`, NEG-01: Comercial negociación deja de ser maqueta encima de `prospectos` — nueve rutas, cuatro tablas y su migración; y `GET /api/campanas/[id]/programacion-doohmain`, la vista previa de lo que se manda a DOOHmain; y el horario individual de la campaña, `PATCH …/horario-doohmain` con `20261022_campana_horario_doohmain.sql`. El 21/10 eran 143, 60 y 115) (21/10, rama `feat/notificaciones-por-usuario` sobre `main` con el lote de seguridad, todo dentro de la v0.12.0 reescrita el 21/10: una ruta —`DELETE /api/notificaciones/[id]`—, una tabla —`notificaciones_usuario`— y su migración. El 20/10 eran 142, 59 y 114, con la v0.12.0; las tablas eran 59 y no 60 porque hasta el 14/10 `recuentos.mjs` contaba un `if` de un comentario SQL como tabla —el 60 de hoy es una tabla de verdad—), medidos con
+> Esos recuentos llevan fecha de validación **2026-10-23** (rama `test/venta-propia-o-arrendada`, CONTRATO-FIRMADO-EDITABLE: `GET /api/contratos/[id]/versiones`, la tabla `contrato_versiones_firmadas` y su migración; el 22/10 eran 154, 64 y 118) (22/10, rama `feat/comercial-negociacion`, NEG-01: Comercial negociación deja de ser maqueta encima de `prospectos` — nueve rutas, cuatro tablas y su migración; y `GET /api/campanas/[id]/programacion-doohmain`, la vista previa de lo que se manda a DOOHmain; y el horario individual de la campaña, `PATCH …/horario-doohmain` con `20261022_campana_horario_doohmain.sql`. El 21/10 eran 143, 60 y 115) (21/10, rama `feat/notificaciones-por-usuario` sobre `main` con el lote de seguridad, todo dentro de la v0.12.0 reescrita el 21/10: una ruta —`DELETE /api/notificaciones/[id]`—, una tabla —`notificaciones_usuario`— y su migración. El 20/10 eran 142, 59 y 114, con la v0.12.0; las tablas eran 59 y no 60 porque hasta el 14/10 `recuentos.mjs` contaba un `if` de un comentario SQL como tabla —el 60 de hoy es una tabla de verdad—), medidos con
 > `node scripts/recuentos.mjs` sobre este árbol. Trátalos como una
 > afirmación con fecha, no como una verdad permanente — §5 explica cómo
 > reverificarlos.
