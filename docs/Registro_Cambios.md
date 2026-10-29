@@ -5,7 +5,7 @@ La entrada más reciente va arriba.
 
 ---
 
-## 2026-10-29 · DOOHmain: pausar creativos, su estado y el historial por pantalla (rama sin publicar)
+## 2026-10-29 · DOOHmain: pausar creativos, su estado y el historial por pantalla (entra en la v0.12.5, todavía sin publicar)
 
 Pedido del dueño: subir y bajar creativos, ver el historial de reproducción y
 tener un link de comprobación. Se revisó qué deja hacer la API de DOOHmain y se
