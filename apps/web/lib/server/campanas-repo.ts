@@ -10,6 +10,7 @@ import { esPantallaDigitalSql } from './pantalla-digital-sql'
 import { rutaArteCreativo } from '@/lib/medios-url'
 import { divisorDeComision } from '@/lib/data/derive'
 import { paqueteDeFila, repartirPaquete } from '@/lib/paquete'
+import { netosDelSnapshot } from '@/lib/neto-de-linea'
 import { AppError } from './errores'
 import { ordenInvertido } from './fechas'
 
@@ -683,16 +684,22 @@ export async function generarCampanaDesdePropuesta(
         : 1
   // EL REPARTO del precio cerrado entre las pantallas APROBADAS, con la misma
   // función pura que usó el snapshot. Es el respaldo para cuando no hay
-  // snapshot; el camino normal lee `netoDeSnap`, que ya lo trae congelado.
+  // snapshot; el camino normal lee `netoDeLinea` (B56), que ya lo trae congelado.
   const partesPaquete = paquete
     ? repartirPaquete(items.map((it: any) => Number(it.precio)), paquete.precio)
     : []
   // S0-1: economía congelada en la aceptación. Si existe, la campaña/factura la
   // heredan literalmente (nadie recalcula desde tarifas de lista).
+  //
+  // B56 (2026-10-29, aprobado por el dueño, R4) · el neto se empareja con SU
+  // LÍNEA, no con la pantalla. Antes era un Map por `sitioId`: con la misma
+  // pantalla dos veces (dos franjas o dos periodos) ganaba la ÚLTIMA entrada y
+  // las dos reservas se cobraban con ese neto. `netosDelSnapshot` usa el
+  // `itemId` de los snapshots nuevos y, en los viejos, solo desempata con lo
+  // que el snapshot guarda; si no puede, `null` → el cálculo de respaldo de
+  // abajo, nunca el neto de otra línea. Las campañas ya generadas no se tocan.
   const snap = (prop.snapshot_economico ?? null) as any
-  const netoDeSnap = new Map<string, number>(
-    (snap?.porSitio ?? []).map((x: any) => [x.sitioId as string, Number(x.neto)]),
-  )
+  const netoDeLinea = netosDelSnapshot(items, snap?.porSitio)
   const fechaInicio = items.map((i) => iso(i.fecha_inicio)).sort()[0]
   const fechaFin = items.map((i) => iso(i.fecha_fin)).sort().at(-1) as string
 
@@ -770,7 +777,7 @@ export async function generarCampanaDesdePropuesta(
       const baseSitio = paquete ? (partesPaquete[idxItem] ?? 0) : Number(it.precio)
       const volSitio = paquete ? 1 : factorVol
       const netoSitio =
-        netoDeSnap.get(it.sitio_id) ??
+        netoDeLinea[idxItem] ??
         Math.round(baseSitio * volSitio * factorDesc * factorCodigo * divisor)
       // La reserva hereda la contratación por tiempo del ítem (unidad, cantidad
       // de periodos y programación de spots), para que la campaña conserve cómo

@@ -515,6 +515,11 @@ export async function congelarSnapshotEconomico(propuestaId: string, tenantId?: 
     const volPct = Number(it.descuento_volumen_pct ?? 0)
     const factorVol = Number.isFinite(volPct) && volPct > 0 ? 1 - Math.min(volPct, 100) / 100 : 1
     return {
+      // B56 (2026-10-29) · LA IDENTIDAD DE LA LÍNEA. Sin ella, la misma
+      // pantalla dos veces (dos franjas o dos periodos) no se puede emparejar
+      // con su reserva, y `campanas-repo` cobraba en las dos el neto de la
+      // última (`lib/neto-de-linea.ts`).
+      itemId: it.id,
       sitioId: it.sitio_id,
       // `lista` sigue siendo el importe DE LISTA, sin el volumen. Si bajara, el
       // reporte de publicada contra neta compararía la neta con una «publicada»

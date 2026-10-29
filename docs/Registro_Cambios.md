@@ -24,6 +24,13 @@ publicada contra neta».** Si en una propuesta se vendían, por ejemplo, el hora
 prime y la madrugada de la misma pantalla, el reporte no sabía qué precio era de
 cuál y dejaba esa pantalla fuera de la comparación. Ahora distingue cada horario.
 
+**Al generar una campaña, cada pantalla se cobra a su precio aunque se repita.**
+Si una propuesta llevaba la misma pantalla dos veces (por ejemplo, el horario
+prime y la madrugada, o dos periodos), la campaña guardaba las dos con el precio
+de la última. Así se cobraba menos, o más, de lo cotizado. Ahora cada una lleva
+el suyo. Las campañas ya creadas no cambian. Hay una consulta para que el dueño
+revise si alguna quedó afectada.
+
 **Reportes: como máximo 24 meses por consulta.** Por decisión del dueño, el
 reporte de rentabilidad abarca hasta dos años de una vez. Si se eligen fechas más
 separadas, la pantalla lo avisa («El reporte abarca como máximo 24 meses por

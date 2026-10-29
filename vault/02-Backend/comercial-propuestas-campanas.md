@@ -18,6 +18,7 @@ archivos:
   - apps/web/app/api/propuestas/[id]/route.ts
   - db/migrations/20260928_tope_descuento_propuestas.sql
   - apps/web/lib/server/campanas-repo.ts
+  - apps/web/lib/neto-de-linea.ts
   - apps/web/lib/server/campanas-controller.ts
   - apps/web/lib/server/creativos-repo.ts
   - apps/web/lib/server/reservas-controller.ts
@@ -616,6 +617,30 @@ ocupación del Dashboard no.
 > (`/api/campanas/[id]/extender`) funcione. Se movió sin cambios a
 > `components/demo/campanas/ExtenderCampanaDialog.tsx` a la espera de que el
 > dueño decida dónde ofrecerlo.
+
+## Cada reserva hereda el neto de SU línea (B56, 29/10, R4 aprobado por el dueño)
+
+Al generar la campaña de una propuesta aprobada, el precio de cada reserva sale
+del neto congelado en `snapshot_economico.porSitio`. Hasta el 29/10
+`generarCampanaDesdePropuesta` (`lib/server/campanas-repo.ts`) lo buscaba en un
+`Map` **por pantalla**. Con la misma pantalla dos veces —dos franjas o dos
+periodos— ganaba la última entrada, y **las dos reservas se cobraban con ese
+neto** (prime 27 000 + madrugada 7 200 salían 7 200 + 7 200).
+
+Ahora lo empareja `netosDelSnapshot` (`lib/neto-de-linea.ts`, puro):
+
+- **Snapshots desde el 29/10:** por `porSitio[].itemId`, el id del ítem que
+  `congelarSnapshotEconomico` guarda en cada línea. Es lo que identifica la
+  línea de verdad.
+- **Snapshots anteriores** (inmutables, no se reescriben): pantalla única → su
+  neto, como siempre. Pantalla repetida → se desempata por `franja.id` y por la
+  lista (= `precio` del ítem). Si queda un solo neto, ése; si no, `null`.
+- `null` → el **cálculo de respaldo** de siempre (lista × volumen × descuento ×
+  código × comisión, o la parte del paquete). **Nunca el neto de otra línea.**
+
+Las campañas ya generadas **no se tocan**. Para encontrar las afectadas está el
+diagnóstico de solo lectura `docs/datos/20261029_diagnostico_neto_linea_repetida.sql`.
+Pruebas: `lib/neto-de-linea.test.ts`.
 
 ## Portal del cliente
 

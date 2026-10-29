@@ -10,9 +10,11 @@
 > **2026-10-29 · decisión del dueño y cierre de la auditoría del ADR 0039 Fase 1.**
 > **D6 decidida** (tope de 24 meses, implementado) y **B40 a B45 cerradas**, todas en la
 > rama `fix/abiertos-b41-b45-d6` (sin fusionar). B40 ya estaba resuelta en código
-> desde PRECIO-01 y solo faltaba tacharla. **Apareció una nueva de dinero que NO se
-> tocó**, anotada al pie de B42: `campanas-repo` guarda en las dos reservas el neto
-> de la última línea cuando una propuesta trae la misma pantalla dos veces.
+> desde PRECIO-01 y solo faltaba tacharla. **Apareció una nueva de dinero, B56**
+> (`campanas-repo` guardaba en las dos reservas el neto de la última línea cuando
+> una propuesta trae la misma pantalla dos veces): **el dueño aprobó arreglarla el
+> 29/10 y quedó cerrada ese día**. Las campañas ya generadas no se tocan; hay un
+> diagnóstico de solo lectura en `docs/datos/`.
 
 ~~**Veredicto vigente de la rama: 🔴 ROJO.**~~ **Superado el 2026-09-18, tarde.** Los
 dos motivos del rojo están cerrados y medidos:
@@ -734,15 +736,41 @@ calendario.
 > antes del arreglo (el de «misma franja dos veces» ya pasaba, es el negativo de
 > control). **No se construyó una propuesta de dos franjas contra Postgres.**
 >
-> **⚠️ Y apareció algo de DINERO que NO se tocó (R4):** `campanas-repo.ts`
-> construye `netoDeSnap` como un `Map` por `sitioId` solo (`:693-695`, usado en
-> `:773`), así que al generar la campaña de una propuesta con **dos franjas (o dos
-> periodos) de la misma pantalla, las dos reservas se guardan con el neto de la
-> ÚLTIMA línea**: lo que se factura no es lo que se cotizó. La nota
-> `tarifa-publicada-vs-neta.md` ya lo describía para los periodos, como hecho y no
-> como defecto. Con este arreglo el reporte lo sobrevive (la reserva de la primera
-> franja no casa con su neto y se declara sin tarifa), pero el importe de la
-> reserva sigue mal. **Pide ficha propia y aprobación del dueño**: es dinero.
+> **Y apareció algo de dinero:** `campanas-repo.ts` copiaba en las reservas el neto
+> de la última línea cuando la pantalla se repetía. Tiene ficha propia, **B56**,
+> cerrada el mismo 29/10 con aprobación del dueño.
+
+#### ~~B56 · 🔴 Una propuesta con la misma pantalla dos veces genera reservas con el neto de la ÚLTIMA línea~~
+
+> ✅ **Abierta y CERRADA el 2026-10-29 — aprobado por el dueño el 29/10 (R4).** Rama
+> `fix/abiertos-b41-b45-d6`, sin fusionar. Sin migración.
+
+- **Qué era:** `generarCampanaDesdePropuesta` (`lib/server/campanas-repo.ts`) armaba
+  `netoDeSnap` como un `Map` por `sitioId` sola. Con la misma pantalla dos veces en
+  la propuesta —dos franjas (prime y madrugada) o dos periodos—, el `Map` se quedaba
+  con la última entrada del snapshot y **las dos reservas se guardaban con ese
+  neto**. Ejemplo: prime 27 000 y madrugada 7 200 se facturaban como 7 200 + 7 200.
+  No daba error: el importe es plausible. Lo encontró B42 el mismo día.
+- **El arreglo:**
+  - `lib/neto-de-linea.ts` (nuevo, puro) · `netosDelSnapshot(items, porSitio)` da un
+    neto por ítem, o `null` si no se puede atribuir.
+  - **Qué identifica la línea:** `porSitio[].itemId`, el id del ítem de la propuesta,
+    que `congelarSnapshotEconomico` (`propuestas-repo.ts`) guarda **desde hoy**.
+  - **Snapshots viejos sin `itemId`** (no se reescriben, son inmutables): una sola
+    línea de esa pantalla → su neto, como siempre. Si la pantalla se repite, se
+    desempata con lo que el snapshot ya guarda: la franja congelada (`franja.id`)
+    y la lista (= `precio` del ítem). Si lo que queda señala **un solo** neto, ése
+    se usa. Si no, `null`, y la campaña cae a su **cálculo de respaldo**
+    (lista × volumen × descuento × código × comisión, o la parte del paquete),
+    nunca al neto de otra línea.
+  - `campanas-repo.ts` usa `netoDeLinea[idxItem] ?? <respaldo>`.
+- **Lo que NO se hizo, a propósito:** las campañas ya generadas no se tocan. Para
+  encontrarlas, el diagnóstico de solo lectura
+  `docs/datos/20261029_diagnostico_neto_linea_repetida.sql`, que corre el dueño.
+- **Con qué se midió:** `lib/neto-de-linea.test.ts`, 11 pruebas. Primero en ROJO
+  contra un esbozo con la regla vieja: «expected [7200, 7200] to deeply equal
+  [27000, 7200]», 8 de 11 en rojo. Después en verde. **No se generó una campaña
+  real contra Postgres**: falta la e2e en CI.
 
 - **Qué es:** la dimensión «tarifa publicada vs neta» del reporte se declara
   incapaz cuando la misma pantalla aparece dos veces en el congelado. La rejilla

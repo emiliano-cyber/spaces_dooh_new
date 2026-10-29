@@ -139,12 +139,14 @@ casarían con esa última entrada y la tarifa publicada saldría a la mitad.
 > franja** (dos periodos) siguen siendo `AMBIGUA`. Pruebas:
 > `reportes.tarifa.test.ts` (tres casos B42) y `reportes-repo.franja.test.ts`.
 >
-> **Residuo, y es de dinero:** `campanas-repo` sigue construyendo `netoDeSnap`
-> por `sitioId` solo, así que al generar la campaña de una propuesta con dos
-> franjas de la misma pantalla **las dos reservas se guardan con el neto de la
-> última línea**. El reporte lo sobrevive —la reserva de la primera franja no
-> casa con su neto congelado y se declara sin tarifa—, pero es lo que se factura.
-> No se tocó aquí (R4); está anotado en `docs/Supervision/ABIERTOS.md` B42.
+> **Y el defecto de dinero que esto destapó, cerrado el mismo día (B56, aprobado
+> por el dueño, R4):** `campanas-repo` ya no empareja el neto por pantalla sola.
+> `lib/neto-de-linea.ts` lo hace por la línea (`porSitio[].itemId` desde el 29/10).
+> En los snapshots viejos desempata por franja y lista, y si no puede, usa el
+> cálculo de respaldo. Desde ahora cada reserva lleva el neto de SU línea. Las
+> campañas generadas antes siguen como estaban: se detectan con
+> `docs/datos/20261029_diagnostico_neto_linea_repetida.sql`. El párrafo de arriba
+> («gana la última») describe lo que pasaba hasta el 29/10.
 
 > Este caso apareció **matando mutantes**, no leyendo: la primera versión de su
 > prueba pasaba con el centinela y sin él, porque el guard del precio ya la
