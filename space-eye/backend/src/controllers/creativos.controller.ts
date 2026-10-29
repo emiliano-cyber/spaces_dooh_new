@@ -371,6 +371,9 @@ export async function configurar(req: Request, res: Response) {
     tolerancia: z.number().int().min(0).max(128).optional(),
     // 0 = al momento; si no, juntas cada N minutos (el panel ofrece 2/4/8/12 h).
     envio_min: z.number().int().min(0).max(1440).optional(),
+    // Horas entre fotos del MISMO creativo (029). 0 = no repetir; el techo de
+    // una semana es para que nadie lo deje en un numero que no vuelve nunca.
+    refoto_h: z.number().int().min(0).max(168).optional(),
   });
 
   const parsed = schema.safeParse(req.body);
@@ -394,6 +397,7 @@ export async function configurar(req: Request, res: Response) {
   if (d.paso_seg !== undefined) { campos.push('creative_paso_seg = ?'); valores.push(d.paso_seg); }
   if (d.tolerancia !== undefined) { campos.push('creative_tolerancia = ?'); valores.push(d.tolerancia); }
   if (d.envio_min !== undefined) { campos.push('creative_envio_min = ?'); valores.push(d.envio_min); }
+  if (d.refoto_h !== undefined) { campos.push('creative_refoto_h = ?'); valores.push(d.refoto_h); }
 
   if (!campos.length) return res.status(400).json({ error: 'no_fields' });
 
