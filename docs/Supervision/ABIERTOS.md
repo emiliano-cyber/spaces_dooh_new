@@ -709,7 +709,33 @@ calendario.
 - **Declarado:** esto está **deducido leyendo el código, no medido**. No se construyó
   una propuesta de dos franjas para verlo salir del reporte.
 
-#### B43 · 🟠 El snapshot afirma una temporada aunque esa temporada no haya puesto el precio
+#### ~~B43 · 🟠 El snapshot afirma una temporada aunque esa temporada no haya puesto el precio~~
+
+> ✅ **CERRADA el 2026-10-29** (rama `fix/abiertos-b41-b45-d6`, sin fusionar) con el
+> **arreglo bueno**, que eligió el dueño: congelar la temporada que devuelve la
+> resolución, ahora que el servidor ya calcula (B40). Es dinero (el snapshot) y va
+> **sin migración**, aprobado por el dueño.
+> - `lib/tarifa-calculada.ts` · `TarifaCalculada` gana `temporadaQuePuso`: la
+>   temporada de la **fila ganadora** (`resolverTarifa().temporadaId`), `null` si
+>   ganó una fila sin temporada o la tarifa base. `temporadaId` sigue siendo la de
+>   la fecha, para no mover lo que ya la usa.
+> - `lib/server/propuestas-repo.ts` · `congelarSnapshotEconomico` ya no usa
+>   `temporadaDeFecha`: lee pantalla, modalidades, rejilla y temporadas con
+>   `datosParaTarifar` (`tarifas-repo.ts`, que acepta ahora el tenant de la liga
+>   pública) y congela `temporadaQuePuso` **solo si** la resolución da al centavo la
+>   `tarifa_unitaria` vendida. Si no —rejilla o temporadas movidas entre cotizar y
+>   aprobar, o un gerente que puso otro precio—, `temporada: null`.
+> - **Residuo declarado:** una línea de calculadora (ADR 0042) se tarifa desde la
+>   mensual repartida en el loop y no se puede recomprobar sin él; para ella se
+>   nombra la temporada solo si `precio_ajustado_por` es nulo.
+> - **Lo ya congelado no se reescribe** (`if (prop.snapshot_economico) return …`):
+>   las propuestas aprobadas antes de hoy conservan la temporada de la fecha.
+>
+> **Con qué se midió:** `propuestas-snapshot-franja.test.ts` §2b (4 negativas en
+> ROJO antes del arreglo: tarifa base en fecha del Buen Fin, gana la franja sin
+> temporada, precio de gerente, rejilla cambiada) y `tarifa-calculada.test.ts`
+> (`temporadaQuePuso`, en rojo antes). **No se midió contra Postgres** ni por la
+> liga pública de verdad: falta `rejilla-franja-temporada.e2e.test.ts` en CI.
 
 - **Qué es:** el congelado guarda `temporada: {id, nombre}` calculándola con la
   temporada que **cubre la fecha de inicio del ítem**, no con la que **ganó la

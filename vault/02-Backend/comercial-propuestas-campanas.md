@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-26
+actualizado: 2026-10-29
 tags: [backend, comercial, propuestas, campanas, amarillo, precio]
 archivos:
   - apps/web/lib/server/propuestas-repo.ts
@@ -376,6 +376,10 @@ mandaba el navegador y se podía cerrar un prime a 1 peso con un `curl`.
 - **El servidor la recalcula** en `crearPropuestaCtrl` con los datos de ESTA
   organización (`lib/server/tarifas-repo.ts`: pantallas, `sitio_modalidades`,
   `sitio_tarifas` y temporadas activas, bajo RLS **y** con `and tenant_id`).
+  *(2026-10-29, B43: el congelado del snapshot usa también estas dos piezas
+  —`datosParaTarifar`, que acepta el tenant de la liga pública, y
+  `tarifaCalculada().temporadaQuePuso`— para nombrar la temporada solo si fue
+  la que puso el precio; ver [[rejilla-franja-y-temporada]].)*
   Compara **al centavo** (`centavos`) y decide con `decidirPrecioItem`:
 
 | Precio enviado | Sin `comercial.aprobar` (VENDEDOR) | Con `comercial.aprobar` (GERENTE_VENTAS y superiores) |

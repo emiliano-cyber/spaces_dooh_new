@@ -12,6 +12,13 @@ Si el control de cambios está encendido, al añadir o dar de baja una franja o 
 temporada aparece un cuadro para escribir tu contraseña y confirmar. Antes salía
 un mensaje en rojo y no había forma de terminar el cambio desde esa pantalla.
 
+**Una propuesta aprobada solo nombra la temporada si fue la que puso el precio.**
+Antes, una venta hecha en fechas del Buen Fin pero cobrada a la tarifa normal
+quedaba guardada diciendo «Buen Fin», como si se hubiera cobrado ese precio.
+Ahora, al aprobar, la temporada solo se anota si de verdad fue su tarifa la que se
+cobró; si no, se deja en blanco. Las propuestas que ya estaban aprobadas no
+cambian.
+
 ---
 
 ## 2026-10-27 · v0.12.4 (preparada, todavía sin publicar)

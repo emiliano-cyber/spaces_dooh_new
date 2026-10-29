@@ -258,6 +258,22 @@ La temporada **no** se guarda en `propuesta_items`: se deduce de `fecha_inicio`.
 Copiarla ahí sería una segunda verdad que envejece. En el snapshot sí, porque ahí
 deja de ser un dato vivo.
 
+> [!important] 2026-10-29 · B43 · la temporada congelada es la que PUSO el precio
+> Hasta hoy `porSitio[].temporada` era `temporadaDeFecha(...)`: la que **cubre**
+> la fecha, ganara o no su fila. Una venta del Buen Fin a tarifa base quedaba
+> congelada diciendo «Buen Fin». Ahora `congelarSnapshotEconomico`
+> (`lib/server/propuestas-repo.ts`) resuelve con `tarifaCalculada` sobre
+> `datosParaTarifar` —lo mismo que usa el servidor al crear la propuesta— y guarda
+> `temporadaQuePuso` (la de la **fila ganadora**, campo nuevo de
+> `lib/tarifa-calculada.ts`), **solo si** esa resolución da exactamente la
+> `tarifa_unitaria` vendida. Si el dueño movió la rejilla o las temporadas entre
+> cotizar y aprobar, o un gerente puso otro precio, se congela `null`: callarse
+> antes que afirmar. Las líneas de calculadora (ADR 0042) no se pueden recomprobar
+> sin el loop: se nombra la temporada solo si nadie ajustó el precio. Sin
+> migración (decisión del dueño, 29/10). **Lo ya congelado no se reescribe**: un
+> snapshot es inmutable, así que las propuestas aprobadas antes del 29/10 siguen
+> con la temporada de la fecha. Prueba: `propuestas-snapshot-franja.test.ts` §2b.
+
 **Medido** en `rejilla-franja-temporada.e2e.test.ts` §5: se vende el prime a
 1 800, se aprueba, el dueño lo sube a 2 500 **y renombra la franja**, y el
 snapshot no se mueve ni en el precio, ni en el nombre, ni en el horario.
