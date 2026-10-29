@@ -10,6 +10,12 @@ archivos:
   - db/migrations/20261013_sitios_pantalla_doohmain.sql
   - apps/web/components/demo/campanas/ValidacionPanel.tsx
   - apps/web/lib/doohmain-aviso.ts
+  - apps/web/lib/doohmain-estado.ts
+  - apps/web/lib/server/playlogs-repo.ts
+  - apps/web/app/api/campanas/[id]/doohmain-estado/route.ts
+  - apps/web/app/api/creatividades/[id]/doohmain/route.ts
+  - apps/web/components/demo/campanas/CreativosEnDoohmain.tsx
+  - doohmain_sdk/integration.py
   - apps/web/lib/doohmain-programacion.ts
   - apps/web/components/demo/campanas/ProgramacionDoohmain.tsx
   - apps/web/lib/server/horario-doohmain.ts
@@ -232,6 +238,47 @@ flowchart LR
 
 `playlogs-repo.ts` guarda la respuesta **cruda** de la API a propósito: *«aún no
 hemos visto una respuesta con datos, así que no se interpreta nada todavía»*.
+
+> [!important] 2026-10-29 · lo que la API v2.8.4 permite y faltaba (DOOH-API, rama `feat/doohmain-api-completa`)
+> Pedido del dueño: subir y bajar creativos, historial de reproducción y link de
+> comprobación. Revisada la API acción por acción contra lo integrado:
+>
+> | Acción | Antes | Ahora |
+> |---|---|---|
+> | `upload` + `create_spot` | publicar | igual |
+> | `update_campaign` `status` | solo `finished` al retirar | **pausar / reanudar** (`pause`/`active`) |
+> | `get_campaigns` | en el cliente, sin uso | **estado en DOOHmain** de cada creativo |
+> | `get_stats` | proof of play por campaña | igual |
+> | `get_metrics` | en el SDK, sin ruta | **historial por pantalla**, `details` + `days` |
+> | `get_stats_by_screen` | no | no — guardarla pide ampliar el `check` de `doohmain_consultas_play.tipo` (migración, ROJO) y `get_metrics` ya cubre la pantalla |
+> | `update_client`, `get_screen_info`, `get_clients` | — | sin cambio |
+>
+> - **Bajar = pausar.** La API no deja quitar un arte de la lista (no hay
+>   `delete_spot` ni `delete_media`). `estado` del SDK (`cambiar_estado()` en
+>   `doohmain_sdk/integration.py`) hace `update_campaign` con `pause` o `active` y **no
+>   toca el registro**: el creativo sigue publicado y vuelve con su programación.
+>   `finished` no se acepta ahí: no tiene vuelta, y eso es el DELETE del creativo.
+>   Ruta: `POST /api/creatividades/[id]/doohmain`, con el mismo orden que el DELETE
+>   (propio ANTES de tocar DOOHmain).
+> - **Estado:** `GET /api/campanas/[id]/doohmain-estado` → `get_campaigns`, leído por
+>   `lib/doohmain-estado.ts`. Su forma no está documentada: lo que no se reconoce sale
+>   `null` («Sin confirmar»), nunca «al aire» por omisión.
+> - **Historial por pantalla:** `POST …/playlogs` con `tipo: 'pantallas'` → `get_metrics`
+>   de las pantallas donde de verdad se publicó (`doohmain_remote_lists`). Se guarda como
+>   `metrics` y **no enciende `reporte_publicacion`**: trae lo de otras campañas de esa
+>   pantalla, así que no prueba esta.
+> - Las tres consultas filtran el tenant **a mano** (`creatividades.tenant_id`): las
+>   tablas del SDK no tienen RLS. Prueba: `lib/test/doohmain-estado.e2e.test.ts`.
+> - **Link de comprobación: la API no lo tiene.** Habría que construirlo (página
+>   pública con token): es acceso sin sesión, ROJO, y espera decisión.
+> - La pantalla: «En DOOHmain ahora» y la pestaña «Historial de sus pantallas» dentro de
+>   «Reproducciones (proof of play)» (`CreativosEnDoohmain.tsx`, `PlaylogsPanel.tsx`).
+> - **Reemplazar un creativo APROBADO pide confirmación** (`creativos/page.tsx`, pedido
+>   del dueño): avisa que el arte anterior se baja solo (el PUT lo finaliza, como hasta
+>   hoy) y recuerda eliminar su campaña en el panel de DOOHmain. Hace falta porque la
+>   campaña nueva se crea con el MISMO nombre (`{anunciante} - {campaña}`) en la misma
+>   sublista (el folio): la anterior solo se distingue por estar finalizada. Un
+>   creativo no aprobado nunca se publicó y se reemplaza sin el aviso.
 
 ## Space Eye — verificación por cámara
 

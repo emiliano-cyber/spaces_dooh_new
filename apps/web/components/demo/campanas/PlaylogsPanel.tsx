@@ -4,7 +4,13 @@ import { useCallback, useEffect, useState } from 'react'
 import { MonitorPlay, Loader2, RefreshCw, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/demo/ui/Button'
 import { formatFechaHora } from '@/lib/data/client'
-import { playlogsDeCampanaApi, consultarPlaylogsApi, type ConsultaPlay } from '@/lib/data/playlogs-api'
+import {
+  playlogsDeCampanaApi,
+  consultarPlaylogsApi,
+  type ConsultaPlay,
+  type TipoConsultaPlay,
+} from '@/lib/data/playlogs-api'
+import { CreativosEnDoohmain } from './CreativosEnDoohmain'
 
 // ============================================================================
 //  Proof of play — reproducciones reportadas por DOOHmain.
@@ -44,6 +50,11 @@ export function PlaylogsPanel({
   )
   const [cargando, setCargando] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // 29/10 · por campaña (get_stats, la prueba de cobro) o por pantalla
+  // (get_metrics, todo lo que sonó en ellas). Cada vista enseña SU última
+  // consulta: mezclarlas pondría el historial de una pantalla donde se espera
+  // la prueba de esta campaña.
+  const [tipo, setTipo] = useState<TipoConsultaPlay>('campana')
 
   const cargar = useCallback(async () => {
     try {
@@ -61,7 +72,7 @@ export function PlaylogsPanel({
     setError(null)
     setCargando(true)
     try {
-      await consultarPlaylogsApi(campanaId, desde, hasta)
+      await consultarPlaylogsApi(campanaId, desde, hasta, tipo)
       await cargar()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo consultar')
@@ -69,7 +80,8 @@ export function PlaylogsPanel({
     setCargando(false)
   }
 
-  const ultima = consultas?.[0]
+  const deEsteTipo = consultas?.filter((c) => (tipo === 'pantallas' ? c.tipo === 'metrics' : c.tipo !== 'metrics'))
+  const ultima = deEsteTipo?.[0]
 
   return (
     <div className="space-y-3">
@@ -86,6 +98,34 @@ export function PlaylogsPanel({
         </p>
       ) : (
         <>
+          <CreativosEnDoohmain campanaId={campanaId} />
+
+          <div role="tablist" className="inline-flex rounded border border-border p-0.5 text-[12px]">
+            {([
+              ['campana', 'De esta campaña'],
+              ['pantallas', 'Historial de sus pantallas'],
+            ] as const).map(([v, etiqueta]) => (
+              <button
+                key={v}
+                type="button"
+                role="tab"
+                aria-selected={tipo === v}
+                onClick={() => setTipo(v)}
+                className={`rounded px-2.5 py-1 ${tipo === v ? 'bg-accent-soft text-ink' : 'text-muted hover:text-ink'}`}
+              >
+                {etiqueta}
+              </button>
+            ))}
+          </div>
+          {tipo === 'pantallas' && (
+            <p className="text-[12px] text-muted">
+              Todo lo que DOOHmain registró en las pantallas donde se publicó esta campaña, día por día. Incluye
+              otras campañas de esas pantallas: sirve para ver que estuvieron reproduciendo, pero{' '}
+              <span className="text-ink">no cuenta como prueba de esta campaña</span> ni abre el candado de
+              facturación.
+            </p>
+          )}
+
           <div className="flex flex-wrap items-end gap-2">
             <label className="block">
               <span className="mb-1 block text-[11px] text-muted">Desde</span>
@@ -146,13 +186,13 @@ export function PlaylogsPanel({
             </div>
           )}
 
-          {consultas && consultas.length > 1 && (
+          {deEsteTipo && deEsteTipo.length > 1 && (
             <details className="text-[12px]">
               <summary className="cursor-pointer text-muted hover:text-ink">
-                Consultas anteriores ({consultas.length - 1})
+                Consultas anteriores ({deEsteTipo.length - 1})
               </summary>
               <ul className="mt-2 space-y-1">
-                {consultas.slice(1).map((c) => (
+                {deEsteTipo.slice(1).map((c) => (
                   <li key={c.id} className="flex items-center justify-between gap-2 text-muted">
                     <span>{c.desde} a {c.hasta}</span>
                     <span>{c.error ? 'error' : c.vacio ? 'sin reproducciones' : 'con datos'}</span>

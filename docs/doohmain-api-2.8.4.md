@@ -222,6 +222,16 @@ en logs de acceso y proxies intermedios. Conviene enviarlo en el cuerpo por POST
 `client`. Ver `apps/web/lib/doohmain-programacion.ts`. Lo de abajo es la nota
 original.
 
+**2026-10-29 · lo que se usa de cada acción.** `upload`, `create_campaign`,
+`create_spot`, `update_campaign` (fechas, cuotas, y `status`: `finished` al
+retirar, `pause`/`active` para pausar y reanudar), `update_client`,
+`get_screen_list`, `get_campaigns` (estado en la ficha), `get_stats` (proof of
+play) y `get_metrics` (historial por pantalla). Sin uso: `get_clients`,
+`get_screen_info` y `get_stats_by_screen`. **No existen** en la API, y por eso no
+se pueden hacer: quitar un arte de una lista o borrarlo, editar un spot ya
+creado, descargar un arte y generar un enlace de comprobación. Detalle en
+`vault/02-Backend/integraciones-externas.md`.
+
 **Huecos frente a SPACES OS.** `create_spot` exige un `list` (nombre de lista) que no
 existe como concepto en nuestro modelo. `upload` declara aceptar sólo imagen o video,
 no HTML. Los equipos se identifican por `name`, y no hay columna de id externo en

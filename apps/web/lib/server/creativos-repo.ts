@@ -169,6 +169,17 @@ export async function esCreativoPropio(id: string): Promise<boolean> {
   return !!(await q1('select 1 from creatividades where id = $1 and tenant_id = $2', [id, await tenantActual()]))
 }
 
+// Igual que `esCreativoPropio`, pero devuelve el nombre (o null si no es de
+// esta organización) para el renglón de Actividad: un uuid ahí no dice nada.
+export async function nombreDeCreativoPropio(id: string): Promise<string | null> {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return null
+  const r = await q1<{ nombre: string }>(
+    'select nombre from creatividades where id = $1 and tenant_id = $2',
+    [id, await tenantActual()],
+  )
+  return r ? r.nombre : null
+}
+
 // Elimina un creativo: lo desasigna de cualquier spot y lo borra. Devuelve el
 // creativo eliminado (para que el llamador lo retire también de DOOHmain).
 export async function eliminarCreatividad(id: string) {

@@ -31,7 +31,18 @@ archivos:
   - apps/web/app/api/geo/buscar/route.ts
 ---
 
-# API — los 154 endpoints (medidos el 2026-10-22 con `recuentos.mjs`)
+# API — los 157 endpoints (medidos el 2026-10-29 con `recuentos.mjs`)
+
+> **2026-10-29 · dos más (DOOH-API, rama `feat/doohmain-api-completa`):**
+> `GET /api/campanas/[id]/doohmain-estado` (`comercial:ver`) — cada creativo publicado
+> de la campaña, sus pantallas de DOOHmain y su estado allí (`get_campaigns`): al
+> aire, en pausa, finalizada o `null` si no se sabe; y
+> `POST /api/creatividades/[id]/doohmain` (`comercial:crear`) — `{ accion: 'pausar' |
+> 'reanudar' }`: 400 con otra acción, 404 si no es de la organización, 409 si no está
+> publicado o la integración está apagada, 502 si DOOHmain no confirma. Y
+> `POST /api/campanas/[id]/playlogs` acepta `tipo: 'pantallas'` (historial por
+> pantalla, `get_metrics`). Ver [[integraciones-externas]]. Antes eran 155
+> (`integra/v0-12-5`).
 
 > **2026-10-22, noche · una más:** `PATCH /api/campanas/[id]/horario-doohmain`
 > (`comercial:crear`) — `{ horario: { horaInicio, horaFin, dias? } }` o
@@ -243,7 +254,9 @@ en `:230-237`) y **no** puede condicionarse a que la ruta
 | POST | `/api/campanas/[id]/reintentar-publicacion` | `comercial:crear` — vuelve a mandar a DOOHmain una publicación YA aprobada, sin cambiar la campaña (13/10); ver [[integraciones-externas]] |
 | POST | `/api/campanas/[id]/creativos/repartir` | exigir |
 | POST | `/api/campanas/[id]/enviar-dominio` | exigir |
-| GET·POST | `/api/campanas/[id]/playlogs` | exigir |
+| GET·POST | `/api/campanas/[id]/playlogs` | exigir — POST con `tipo: 'pantallas'` consulta `get_metrics` de las pantallas donde se publicó (29/10) |
+| GET | `/api/campanas/[id]/doohmain-estado` | `comercial:ver` — estado de cada creativo publicado en DOOHmain (29/10) |
+| POST | `/api/creatividades/[id]/doohmain` | `comercial:crear` — pausar o reanudar en DOOHmain (29/10) |
 | POST | `/api/campanas/[id]/facturar` | **SENSIBLE** |
 | GET · PUT | `/api/campanas/franja-programada` | `comercial:ver` · `comercial:aprobar` — la franja en que **se transmite** (PROG-01, 30/09), en bloque y atómico; ver [[rejilla-franja-y-temporada]] |
 | POST | `/api/ordenes-compra` | exigir |
