@@ -1,10 +1,57 @@
 # ADR 0041: Google Maps solo donde aporta, y con su clave en tiempo de ejecución
 
 - **Fecha:** 2026-10-01
-- **Estado:** Propuesta (pendiente del dueño)
+- **Estado:** **Aceptada en parte el 2026-10-29** — solo la ubicación en Comercial
+  negociación (ver «Lo que el dueño decidió el 2026-10-29» abajo). **El resto sigue en
+  Propuesta**, pendiente del dueño.
 - **Relacionado:** [ADR 0030](0030-el-basemap-de-la-flota-no-lleva-clave.md) — el basemap
   de la flota no lleva clave; este ADR **no lo reemplaza**, lo complementa.
   [ADR 0022](0022-instancia-dedicada-por-owner.md) — una imagen para toda la flota.
+
+## Lo que el dueño decidió el 2026-10-29 (Aceptada)
+
+En **Comercial negociación** la ubicación de cada espacio se pone **por coordenadas o por
+calle**, usando Google Maps «o mínimo para poner la ubicación correcta». Eligió esta forma:
+
+1. **Ya, sin clave y gratis:** se pueden **pegar coordenadas** (decimales o grados,
+   minutos y segundos) **o un enlace de Google Maps** (largo o corto `maps.app.goo.gl`),
+   y el pin del mapa se coloca ahí y se afina arrastrándolo, como antes. El mapa sigue
+   siendo MapLibre sobre OpenFreeMap (ADR 0030). Un enlace corto se sigue **en el
+   servidor**, solo hacia dominios de Google, con tiempo máximo.
+2. **Si el dueño de la instancia pone su clave de Google**, el buscador de calles usa
+   Google; **sin clave, sigue el de OpenStreetMap/Nominatim**. La clave entra en tiempo
+   de ejecución por el `app.env` de la instancia.
+
+**Cómo quedó construido** (rama `feat/ubicacion-coordenadas-google`):
+
+- La búsqueda de calles va **por el servidor** (`GET /api/geo/buscar`), así que se usa
+  la **Geocoding API** con una clave **de servidor**, `GOOGLE_MAPS_SERVIDOR_KEY`
+  (restringida en Google Cloud por la IP del servidor y por API), **no** la
+  `GOOGLE_MAPS_BROWSER_KEY` de la Decisión de abajo, que es para el día que haya un mapa
+  o un buscador de Google **en el navegador**. La clave nunca llega al navegador y **la
+  CSP no cambia**. Sin clave (vacía o ausente), la función de Google se apaga sola.
+- Lo que se guarda sigue siendo el punto que **confirma la persona** en el mapa; de un
+  candidato de Google se guarda además su `place_id` (lo único que sus términos dejan
+  guardar sin límite).
+- Detalle técnico en `vault/02-Backend/integraciones-externas.md` y
+  `vault/03-Frontend/comercial-opex.md`.
+
+**Lo que NO se decidió el 29/10 y sigue en Propuesta:**
+
+- Mapas de Google (mapa base, Places en el navegador, Street View) en **cualquier
+  pantalla**, incluida la propia Comercial negociación: no decidido.
+- El punto 2 de la Decisión (buscar la dirección **en el alta de pantallas y
+  predios**): no decidido; hoy solo Comercial negociación tiene el buscador.
+- Los **precios vigentes** de Google y el **tope de gasto** de cada cuenta: sin
+  verificar. (Quién paga ya lo había dicho el dueño el 21/10 —**cada owner**, con su
+  clave—, recogido en P22 de `vault/00-Indice/preguntas-abiertas.md`.)
+
+**Riesgo abierto, sin verificar:** los términos de Google Maps Platform restringen usar
+sus resultados junto a un mapa que no sea de Google. Aquí los candidatos de Google se
+muestran como **lista de texto** con «Resultados de Google», y el pin se pone sobre
+MapLibre. **Nadie ha confirmado que eso esté permitido**; hay que revisarlo con los
+términos vigentes antes de que un owner active su clave. Tampoco se ha probado con una
+clave real: las pruebas simulan las respuestas de Google.
 
 ## Contexto
 

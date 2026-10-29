@@ -259,7 +259,7 @@ en `:230-237`) y **no** puede condicionarse a que la ruta
 | POST | `/api/captacion/[id]/competencia` | (22/10) `captacion:crear` |
 | PATCH·DELETE | `/api/captacion/[id]/competencia/[competidorId]` | (22/10) `captacion:crear` |
 | GET·POST | `/api/captacion/[id]/notas` | (22/10) `captacion:ver` · `captacion:crear` — solo se añaden; el autor sale de la sesión |
-| GET | `/api/geo/buscar` | (22/10) `captacion:ver` — `?q=` → candidatos de dirección. Pregunta a Nominatim POR EL SERVIDOR: 1/s global, 30 por persona cada 10 min, memoria 24 h; 400 si `q` < 3 letras, 429 al pasarse, 502 si el buscador falla (`lib/server/geo-buscar.ts`) |
+| GET | `/api/geo/buscar` | (22/10) `captacion:ver` — `?q=` → candidatos de dirección. Pregunta a Nominatim POR EL SERVIDOR: 1/s global, 30 por persona cada 10 min, memoria 24 h; 400 si `q` < 3 letras, 429 al pasarse, 502 si el buscador falla (`lib/server/geo-buscar.ts`). **(29/10, UBIC-01)** Unas coordenadas o un enlace largo de Google Maps vuelven como UN punto sin salir a la red (`proveedor: coordenadas`/`enlace`); un enlace corto `maps.app.goo.gl` se sigue en el servidor (`lib/server/geo-enlace.ts`); otro dominio o coordenadas fuera de rango, 400. Con `GOOGLE_MAPS_SERVIDOR_KEY` las direcciones van a la Geocoding API de Google (`proveedor: google`, con `placeId`); sin ella, a Nominatim |
 
 > En TODAS las rutas de `/api/captacion/[id]/…` un espacio de otro vendedor (sin
 > `captacion:aprobar`) o de otra organización es **404, no 403**, y un id que no

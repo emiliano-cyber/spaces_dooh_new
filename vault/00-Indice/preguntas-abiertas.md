@@ -1,7 +1,7 @@
 ---
 tipo: preguntas
 estado: verificado
-actualizado: 2026-10-22
+actualizado: 2026-10-29
 tags: [preguntas, pendientes, riesgo]
 archivos:
   - apps/web/lib/server/
@@ -326,6 +326,16 @@ reconciliar? Ya hubo una divergencia de 27 columnas
 (`20260805_objetos_solo_en_prod.sql`).
 
 ### P22 · Google Maps en Comercial OPEX y en el alta de pantallas — PENDIENTE (01/10)
+
+> [!success] 2026-10-29 · Comercial negociación DECIDIDO (UBIC-01): ADR 0041 Aceptada en esa parte
+> El dueño decidió: la ubicación se pone **por coordenadas o por calle**. Ya, sin
+> clave: pegar coordenadas o un enlace de Google Maps (también `maps.app.goo.gl`,
+> que se sigue en el servidor) pone el pin. Con la clave del owner
+> (`GOOGLE_MAPS_SERVIDOR_KEY` en su `app.env`) el buscador de calles es el de
+> Google; sin ella, OpenStreetMap. **Sigue abierto:** mapas de Google en cualquier
+> pantalla, el alta de pantallas y predios, los precios y el tope de gasto, y si
+> mostrar candidatos de Google junto a un mapa que no es de Google cumple sus
+> términos. Detalle en `vault/03-Frontend/comercial-opex.md` (la nota enlazada abajo).
 
 > [!note] 2026-10-22 · dos de las cuatro preguntas ya tienen respuesta (NEG-01, ADR 0047)
 > - **¿Quién paga?** — **cada owner**, con su propia clave en el `.env` de su

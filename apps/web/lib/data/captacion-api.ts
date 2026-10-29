@@ -197,9 +197,14 @@ export interface CandidatoDireccion {
   nombre: string
   lat: number
   lng: number
+  /** Solo con el buscador de Google: lo que sus términos dejan guardar. */
+  placeId?: string
 }
 
-export async function buscarDireccionApi(q: string): Promise<{ proveedor: string; resultados: CandidatoDireccion[] }> {
+/** `coordenadas` y `enlace`: lo pegó la persona (UBIC-01), no salió de un buscador. */
+export type ProveedorGeo = 'osm' | 'google' | 'coordenadas' | 'enlace'
+
+export async function buscarDireccionApi(q: string): Promise<{ proveedor: ProveedorGeo; resultados: CandidatoDireccion[] }> {
   return leer(
     await fetch(`/spaces-dooh/api/geo/buscar/?${new URLSearchParams({ q })}`),
     'No se pudo buscar la dirección',

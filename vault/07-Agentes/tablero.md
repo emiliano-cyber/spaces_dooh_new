@@ -15,6 +15,14 @@ archivos: []
 > sin zona; alto contacto: `docs/Registro_Cambios.md` y este tablero. **Reclamadas y LIBERADAS** al commitear.
 > **Sin correr:** las e2e (aquí no hay Postgres): `folio-venta-cpm` §2 y §2b, `esquema-sin-owner` (66 tablas),
 > `aislamiento`, `grants-*` y `migraciones` las corre el CI.
+> [!important] 2026-10-29 · **UBIC-01 · la ubicación de Comercial negociación por coordenadas o por calle** — rama `feat/ubicacion-coordenadas-google`, desde `main` · ÁMBAR (sin sesión, sin tenant, sin migración, sin dinero)
+> Decisión del dueño (ADR 0041, aceptada en esa parte): pegar coordenadas o un enlace de Google Maps pone el pin; un
+> enlace corto lo sigue el servidor solo hacia Google; con `GOOGLE_MAPS_SERVIDOR_KEY` el buscador de calles es Google,
+> sin ella Nominatim. Toca Z11 (`lib/interpretar-ubicacion.ts`), `lib/server/geo-buscar.ts` y NUEVO `geo-enlace.ts`
+> (sin zona: NEG-01), `components/demo/comercial-opex/` (sin zona), `lib/data/captacion-api.ts`,
+> `lib/i18n/errores-servidor.ts` (catálogo), `infra/env/app.env.example`, y Z12 (ADR, bóveda, bitácora, este tablero).
+> **Reclamadas y LIBERADAS** al commitear. Sin e2e aquí (no hay Postgres): la e2e nueva de `negociacion.e2e.test.ts`
+> va al CI. Nadie lo probó con una clave real de Google ni con un enlace corto real.
 
 > [!important] 2026-10-26 · **TENT-PROP · lo tentativo es lo que está en una propuesta abierta** — rama `feat/tentativo-en-propuesta`, encima de `feat/diseno-modulos` · ROJO R3 + R4 (**aprobado por el dueño el 26/10**)
 > Regla del dueño: tentativo = pantalla/spot en una propuesta BORRADOR o ENVIADA; solo avisa, no bloquea. Se retira

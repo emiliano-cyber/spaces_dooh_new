@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: verificado
-actualizado: 2026-10-22
+actualizado: 2026-10-29
 tags: [adr, decisiones, reglas-de-negocio]
 archivos:
   - docs/adr/
@@ -76,7 +76,7 @@ se escribe uno nuevo que lo reemplace (`~/.claude/skills/eng-architecture`).
 | 0038 | **Los tickets de soporte viven en la instancia, y el panel los jala** | Aceptada (22/09) | Tabla `tickets` con `tenant_id` y RLS (`20260923_tickets.sql`), `app/api/tickets/`; el PADRE los lee agrupados por instancia en una pantalla hermana de `/flota/` |
 | 0039 | **La cadena de precio del spot**: franja, temporada, volumen, código y paquete | Escrito «aprobado para diseño · fases 1–4 una detrás de otra» (28/09). **Las cuatro fases tienen migración en el árbol**: `20260928_rejilla_franja_temporada.sql`, `_descuento_por_volumen.sql`, `_codigo_promocional.sql`, `_paquete_cerrado.sql` | [[02-Backend/rejilla-franja-y-temporada]] · [[02-Backend/descuento-por-volumen]] · [[02-Backend/codigo-promocional]] · [[02-Backend/paquete-cerrado]] |
 | 0040 | **Roles de venta y la autorización de descuentos** | Escrito «en diseño · nada construido · la migración espera aprobación» (29/09). **Desfase con el código:** las dos migraciones existen (`20260929_roles_de_venta_enum.sql` y `_matriz.sql`). El estado del documento no se actualizó — mismo vicio que el `0011` y el `0014` | Cuatro roles nuevos en `rol_demo` (`ADMINISTRADOR`, `DIRECTOR_COMERCIAL`, `GERENTE_VENTAS`, `VENDEDOR`, este último default de `usuarios.rol`); `COMERCIAL` se retira de uso. Ver [[02-Backend/roles-de-venta]] |
-| 0041 | **Google Maps solo donde aporta, con la clave en tiempo de ejecución** | **Propuesta** (01/10), pendiente del dueño | **Ninguno todavía**: no hay código de Google Maps en `apps/web` (búsqueda del 05/10). Complementa —no reemplaza— el `0030`. Pendiente también en [[preguntas-abiertas]] (P22) |
+| 0041 | **Google Maps solo donde aporta, con la clave en tiempo de ejecución** | **Aceptada en parte** (29/10, el dueño): solo la ubicación de Comercial negociación; el resto sigue en Propuesta | (29/10, UBIC-01) Pegar coordenadas o un enlace de Google Maps pone el pin (`lib/interpretar-ubicacion.ts`; los cortos los sigue `lib/server/geo-enlace.ts`), y con `GOOGLE_MAPS_SERVIDOR_KEY` el buscador de calles es la Geocoding API de Google, por el servidor (`lib/server/geo-buscar.ts`); sin clave, Nominatim. Ningún mapa de Google en pantalla. Complementa —no reemplaza— el `0030`. Pendiente también en [[preguntas-abiertas]] (P22) |
 | 0042 | **La calculadora de spots da la CANTIDAD; el precio sigue siendo el de la pantalla** | Aceptada (01/10) | Cuatro columnas en `propuesta_items` (`20261007_calculadora_spots.sql`); la prima del Roadblock solo con `comercial.aprobar`. Ver [[02-Backend/calculadora-de-spots]] |
 | 0047 | **Comercial negociación encima de `prospectos`, y la ubicación la confirma la persona** | Aceptada (21/10, el dueño; GPS pendiente el 22/10) | `20261022_comercial_negociacion.sql`: ficha en `prospectos` y cuatro tablas hijas; buscador Nominatim por el servidor (`lib/server/geo-buscar.ts`) mientras no haya clave de Google; se guarda el punto que confirma la persona. Toma el plan B del `0041` sin aceptarlo. Ver [[03-Frontend/comercial-opex]] |
 
