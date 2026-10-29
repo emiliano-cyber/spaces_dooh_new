@@ -5,7 +5,12 @@ La entrada más reciente va arriba.
 
 ---
 
-## 2026-10-29 · Preparado (todavía sin publicar)
+## 2026-10-29 · v0.12.5 (preparada, todavía sin publicar)
+
+Junta lo que sigue: extender campaña solo con contrato, la ubicación por
+coordenadas en Comercial negociación y las correcciones de precios y reportes.
+Trae un cambio de base de datos aprobado por el dueño (`campana_extensiones`).
+
 
 **Una campaña solo se extiende con un contrato nuevo.** Decisión del dueño:
 «Extender campaña» vuelve a estar a la mano, en la ficha de cada campaña, pero

@@ -1,5 +1,39 @@
 [
   {
+    "version": "v0.12.5",
+    "fecha": "2026-10-29",
+    "items": [
+      {
+        "tipo": "NUEVO",
+        "texto": "Extender una campaña ahora pide el contrato firmado de la extensión. En la ficha de la campaña, la tarjeta «Extensiones» tiene el botón «Extender campaña» y la lista de extensiones con su folio, fechas, quién la hizo y su contrato. El contrato original no se toca."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "En Comercial negociación la ubicación se pone pegando coordenadas (19.4326, -99.1332 o 19°25'57.4\"N 99°07'59.5\"W) o un enlace de Google Maps, también el corto del teléfono. El pin se pone ahí y se afina arrastrándolo."
+      },
+      {
+        "tipo": "CORREGIDO",
+        "texto": "Al generar una campaña desde una propuesta con la misma pantalla en dos horarios o dos periodos, cada reserva lleva el importe de su línea. Antes las dos tomaban el de la última. Las campañas ya generadas no cambian."
+      },
+      {
+        "tipo": "CORREGIDO",
+        "texto": "Una propuesta aprobada solo nombra la temporada si fue la que puso el precio."
+      },
+      {
+        "tipo": "CORREGIDO",
+        "texto": "Reportes: vender dos horarios de la misma pantalla ya no la saca de «tarifa publicada vs neta»."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "Franjas y temporadas pide la contraseña cuando el control de cambios está encendido, en vez de mostrar un error sin salida."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "El reporte de rentabilidad se pide de hasta 24 meses por consulta."
+      }
+    ]
+  },
+  {
     "version": "v0.12.4",
     "fecha": "2026-10-27",
     "items": [
