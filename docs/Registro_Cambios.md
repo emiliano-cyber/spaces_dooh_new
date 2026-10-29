@@ -5,6 +5,34 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-10-29 · Preparado (todavía sin publicar)
+
+**Una campaña solo se extiende con un contrato nuevo.** Decisión del dueño:
+«Extender campaña» vuelve a estar a la mano, en la ficha de cada campaña, pero
+para alargarla hay que adjuntar en ese mismo paso el contrato firmado de la
+extensión (en PDF).
+
+- En la ficha de la campaña hay una tarjeta nueva, **«Extensiones»**, con el
+  botón «Extender campaña». Pide la nueva fecha de fin y el contrato firmado;
+  sin el contrato no deja extender, y el sistema lo rechaza aunque se intente
+  por otro camino: «Para extender la campaña adjunta el contrato firmado de la
+  extensión».
+- Cada extensión queda en el expediente de la campaña: con qué folio quedó
+  (por ejemplo PR-2026-0042.1), de qué fecha a qué fecha, quién la hizo y su
+  contrato, que se puede abrir desde la misma tarjeta.
+- El contrato original del cliente no se toca: el de cada extensión se guarda
+  aparte.
+- La bitácora anota «Extendió campaña … hasta … con contrato».
+- Ya no se puede «extender» a la misma fecha que la campaña ya tiene: no
+  alargaría nada.
+- Una campaña que tiene extensiones no se puede borrar, para que sus contratos
+  firmados no se pierdan nunca.
+
+Trae un cambio de base de datos, aprobado por el dueño: una tabla nueva para las
+extensiones y sus contratos.
+
+---
+
 ## 2026-10-27 · v0.12.4 (preparada, todavía sin publicar)
 
 Junta en una sola versión lo que se cuenta abajo en las entradas del 26 y del

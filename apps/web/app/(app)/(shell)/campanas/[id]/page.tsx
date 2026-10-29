@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, ExternalLink, Camera, Printer, ClipboardList, Cpu, MonitorPlay, ChevronDown, Check } from 'lucide-react'
+import { ArrowLeft, ExternalLink, Camera, Printer, ClipboardList, Cpu, MonitorPlay, ChevronDown, Check, CalendarClock } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { CLAVE_PLEGADAS, leerPlegadas, conPlegada } from '@/lib/secciones-plegadas'
@@ -13,6 +13,7 @@ import { PipelineView } from '@/components/demo/campanas/PipelineView'
 import { CampanasNav } from '@/components/demo/campanas/CampanasNav'
 import { CandadoPanel } from '@/components/demo/campanas/CandadoPanel'
 import { DatosFacturacion } from '@/components/demo/campanas/DatosFacturacion'
+import { ExtensionesCampana } from '@/components/demo/campanas/ExtensionesCampana'
 import { ValidacionPanel } from '@/components/demo/campanas/ValidacionPanel'
 import { EvidenciaGaleria } from '@/components/demo/campanas/EvidenciaGaleria'
 import { PlaylogsPanel } from '@/components/demo/campanas/PlaylogsPanel'
@@ -237,6 +238,19 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
 
       {/* PROG-01 · en qué franja se TRANSMITE (no toca lo vendido) */}
       <FranjaProgramadaCampana campanaId={id} />
+
+      {/* EXT-CONTRATO (29/10, decisión del dueño) · «Extender campaña» vuelve a
+          ofrecerse aquí, y solo con el contrato firmado de la extensión. No es
+          una `Seccion`: esas llevan chip Pendiente/Completo, y extender es
+          opcional — «Completo» sobre una campaña sin extensiones diría algo que
+          no es. Como el Pipeline, se pliega y se recuerda, pero no se reordena. */}
+      <CardColapsable
+        id={`campana.${id}.extensiones`}
+        titulo="Extensiones"
+        icono={<CalendarClock className="h-4 w-4 text-muted" />}
+      >
+        <ExtensionesCampana campana={c} />
+      </CardColapsable>
 
       {/* Secciones plegables. Flex + `order` para subir las pendientes. */}
       <div className="flex flex-col gap-4">

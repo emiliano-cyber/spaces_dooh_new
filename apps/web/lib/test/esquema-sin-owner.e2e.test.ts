@@ -208,7 +208,11 @@ describe('el esquema base no trae la organización de nadie', () => {
     //     `contrato_versiones_firmadas`, cada version firmada de un contrato
     //     que se archivo al editarlo o reenviarlo a firma
     //     (CONTRATO-FIRMADO-EDITABLE). Subido a la vez que la migracion.
-    expect(trasMigrar.tablas).toBe(65)
+    //   · 66 el 2026-10-29: `20261029_campana_extensiones.sql` anade
+    //     `campana_extensiones`, cada extension de una campana con el contrato
+    //     firmado que la respalda (EXT-CONTRATO). Subido a la vez que la
+    //     migracion; aqui no hay Postgres, lo confirma el CI.
+    expect(trasMigrar.tablas).toBe(66)
     // Lo que de verdad importa: ni las migraciones resucitan al owner.
     expect(trasMigrar.tenants).toBe(0)
   })

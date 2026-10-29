@@ -1,8 +1,8 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-26
-tags: [backend, comercial, propuestas, campanas, amarillo, precio]
+actualizado: 2026-10-29
+tags: [backend, comercial, propuestas, campanas, amarillo, precio, extension, contrato]
 archivos:
   - apps/web/lib/server/propuestas-repo.ts
   - apps/web/lib/server/propuestas-controller.ts
@@ -26,6 +26,9 @@ archivos:
   - apps/web/lib/folio-venta.ts
   - apps/web/lib/modalidades.ts
   - apps/web/app/api/campanas/[id]/extender/route.ts
+  - db/migrations/20261029_campana_extensiones.sql
+  - apps/web/components/demo/campanas/ExtenderCampanaDialog.tsx
+  - apps/web/components/demo/campanas/ExtensionesCampana.tsx
   - apps/web/lib/data/types.ts
   - apps/web/app/(app)/(shell)/propuestas/[id]/page.tsx
   - apps/web/app/(app)/(shell)/campanas/[id]/page.tsx
@@ -59,7 +62,7 @@ Ver «CPS, CPM y el folio de venta» más abajo.
 
 | Archivo | Líneas | Responsabilidad |
 |---|---|---|
-| `campanas-repo.ts` | 1392 | Clientes, campañas, reservas, confirmar/extender |
+| `campanas-repo.ts` | 1541 | Clientes, campañas, reservas, confirmar/extender (con contrato) |
 | `propuestas-repo.ts` | 1461 | Propuestas, ítems, liga pública, aceptación |
 | `lib/descuento.ts` | 321 | Descuento válido **y bajo el tope**, y el texto de bitácora (puro, con tests) |
 | `creativos-repo.ts` | 366 | Alta, validación y asignación de creativos |
@@ -508,9 +511,9 @@ se alarga la campaña, añadir un .1». Decisiones del dueño, el 07/10:
   folio propio (`folioCampana`).
 - **Extender le suma un tramo** en el MISMO `update` que alarga la fecha,
   calculado por la base con la fecha que la fila tiene al escribir. Repetir la
-  misma fecha no sube el tramo. La bitácora deja «Extendió campaña
-  PR-2026-0042.1 hasta 2026-12-31»: leídas en orden, las entradas dicen qué
-  cubre cada tramo.
+  misma fecha no sube el tramo (y desde EXT-CONTRATO, 29/10, se rechaza con
+  400). La bitácora deja «Extendió campaña PR-2026-0042.1 hasta 2026-12-31 con
+  contrato»: leídas en orden, las entradas dicen qué cubre cada tramo.
 - **Lo que apareció al hacerlo:** `extenderCampana` leía la fecha y escribía en
   dos pasos, así que dos extensiones a la vez podían **acortar** la campaña (la
   de 60 días pisando a la de 90). El `update` ahora exige `fecha_fin <= nueva`;
@@ -606,12 +609,58 @@ ocupación del Dashboard no.
   servidor al generar la campaña, «hasta la OC». Su etiqueta pasó de «Reservado ·
   tentativo» a «Reservado · sin OC».
 
-> [!warning] «Extender campaña» quedó sin entrada en la interfaz
+> [!note] «Extender campaña» quedó sin entrada en la interfaz (26/10) — resuelto el 29/10
 > El diálogo vivía en la tarjeta de tentativas, que solo aparecía con reservas
-> TENTATIVA, así que **ya era inalcanzable** antes de este cambio aunque la API
-> (`/api/campanas/[id]/extender`) funcione. Se movió sin cambios a
-> `components/demo/campanas/ExtenderCampanaDialog.tsx` a la espera de que el
-> dueño decida dónde ofrecerlo.
+> TENTATIVA, así que **ya era inalcanzable**. El dueño decidió el 29/10 dónde
+> ofrecerlo y con qué condición: ver la sección siguiente.
+
+## Extender solo con contrato nuevo (EXT-CONTRATO, 29/10)
+
+Regla del dueño: **una campaña no se extiende sin un contrato nuevo.** Es ROJO
+R4 (cambia la fecha fin y lo que se factura) y R3 (tabla nueva), los dos
+aprobados por el dueño el 29/10.
+
+- **El contrato es obligatorio en el mismo paso.** `POST
+  /api/campanas/[id]/extender` pide `{ fechaFin, contratoUrl }`. Sin
+  `contratoUrl` (o vacío) responde **422** «Para extender la campaña adjunta el
+  contrato firmado de la extensión», con su traducción en
+  `lib/i18n/errores-servidor.ts`. El archivo pasa por el mismo validador que el
+  contrato del cliente (`LIMITES.contratoPdf`: PDF de hasta 10 MB, bytes
+  verificados). El chequeo vive en `extenderCampanaCtrl`
+  (`campanas-controller.ts`), antes de zod para que el mensaje no lleve el
+  nombre del campo delante.
+- **Dónde vive el contrato: `campana_extensiones`, no `campanas.contrato_url`.**
+  Esa columna es UNA por campaña y `guardarContratoCampana` la sobrescribe:
+  escribir ahí el de la extensión borraba el original. `acciones` es texto y
+  `ordenes_compra` son OC con folio y monto (finanzas). La tabla nueva
+  (`20261029_campana_extensiones.sql`) guarda una fila por extensión: folio del
+  tramo que abrió, fecha de y hasta, el PDF y quién. **Solo inserción** (sin
+  update ni delete para el rol de la app), RLS forzada, y `campana_id` **on
+  delete restrict**: una campaña con extensiones no se puede borrar, los
+  contratos no se pierden nunca (decisión del dueño).
+- **Una sola transacción.** `extenderCampana` hacía tres `q()` sueltos; ahora
+  lee con `for update`, escribe fecha y tramo, inserta la extensión, alarga las
+  reservas y recalcula el presupuesto dentro del mismo `begin … commit`. Si algo
+  falla no queda una campaña extendida (que factura más) sin su contrato.
+- **La misma fecha ya no es una extensión**: antes pasaba sin subir el tramo;
+  ahora es 400, porque dejaría un contrato firmado que no alarga nada. El
+  `where` del update pasó de `fecha_fin <= $2` a `fecha_fin < $2`.
+- **La ficha** (`campanas/[id]/page.tsx`) monta la tarjeta «Extensiones»
+  (`ExtensionesCampana.tsx`): el botón «Extender campaña» (quien tiene
+  `comercial:crear`, y no en una cancelada) abre `ExtenderCampanaDialog` con la
+  fecha y el PDF obligatorios —la subida es la de «Contrato del cliente»: data
+  URL leída en el navegador—, y debajo la lista de extensiones con su contrato,
+  de `GET /api/campanas/[id]/extender` (`comercial:ver`).
+- Las extensiones de antes del 29/10 no tienen fila: no pedían contrato, y su
+  rastro está solo en la bitácora.
+
+Probado en `lib/server/campanas-extender.test.ts` (422 sin contrato, vacío o
+imagen; el mensaje traducido) y `lib/server/campanas-repo.extender.test.ts`
+(la fila con sus datos, el orden dentro de la transacción, `for update`,
+rollback sin fila en el 409). Contra Postgres, la §2b de
+`lib/test/folio-venta-cpm.e2e.test.ts` (sin contrato nada cambia; con contrato
+la fila y el original intacto; restrict; permisos de solo inserción) —
+**escrita y no corrida aquí**: en esta máquina no hay Postgres, la corre el CI.
 
 ## Portal del cliente
 

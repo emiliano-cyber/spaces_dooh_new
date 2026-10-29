@@ -1103,16 +1103,36 @@ export async function reintentarPublicacionApi(
   return d
 }
 
-export async function extenderCampanaApi(campanaId: string, fechaFin: string): Promise<Campana> {
+// EXT-CONTRATO (29/10) · extender exige el contrato firmado de la extensión
+// (PDF en data URL, como el contrato del cliente); sin él el servidor da 422.
+export async function extenderCampanaApi(campanaId: string, fechaFin: string, contratoUrl: string): Promise<Campana> {
   const r = await fetch(`${API}/campanas/${campanaId}/extender/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ fechaFin }),
+    body: JSON.stringify({ fechaFin, contratoUrl }),
   })
-  const d = await r.json()
+  const d = await r.json().catch(() => ({}))
   if (!r.ok) throw new Error(d.error ?? 'No se pudo extender')
   await refrescarEstado()
   return d
+}
+
+export interface ExtensionCampana {
+  id: string
+  folio: string
+  fechaFinAnterior: string
+  fechaFinNueva: string
+  contratoUrl: string
+  usuarioNombre: string | null
+  creadoEn: string
+}
+
+// Las extensiones de la campaña con su contrato, la más reciente primero.
+export async function extensionesCampanaApi(campanaId: string): Promise<ExtensionCampana[]> {
+  const r = await fetch(`${API}/campanas/${campanaId}/extender/`, { cache: 'no-store' })
+  const d = await r.json().catch(() => [])
+  if (!r.ok) throw new Error((d as { error?: string }).error ?? 'No se pudieron leer las extensiones')
+  return d as ExtensionCampana[]
 }
 
 // ─── Licencias y permisos ───────────────────────────────────────────────────

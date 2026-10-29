@@ -9,6 +9,7 @@ import {
   enviarADominio,
   campanaParaReintentarPublicacion,
   extenderCampana,
+  extensionesCampana,
   guardarContratoCampana,
   ValidacionError,
 } from './campanas-repo'
@@ -71,11 +72,38 @@ export async function reintentarPublicacionCtrl(id: string) {
 // guard vive en `extenderCampana`.
 const extenderSchema = z.object({ fechaFin: fechaZod('Falta la fecha fin') })
 
-export async function extenderCampanaCtrl(id: string, body: unknown) {
+// EXT-CONTRATO (29/10, regla del dueño, ROJO R4 aprobado) · una campaña NO se
+// extiende sin un contrato nuevo: el firmado de la extensión viene en el MISMO
+// paso o no hay extensión. Se exige aquí y no solo en la pantalla porque la API
+// se puede llamar sin pasar por ella. Mismo formato y límites que el contrato
+// del cliente (`contratoSchema`, abajo): PDF de hasta 10 MB, bytes verificados.
+//
+// El «falta» va con su propio mensaje y ANTES de zod a propósito: `validar`
+// antepone el nombre del campo («contratoUrl: …»), y lo que tiene que leer
+// quien extiende es qué le falta, no cómo se llama la variable. El texto va
+// literal en el `new AppError` para que el catálogo de I18N-05 lo encuentre.
+const contratoExtensionSchema = z.object({
+  contratoUrl: uploadOUrlZod(LIMITES.contratoPdf.allowlist, LIMITES.contratoPdf.maxMB, 'contratoUrl'),
+})
+
+export async function extenderCampanaCtrl(
+  id: string,
+  body: unknown,
+  usuario: { id: string; nombre: string } | null,
+) {
   const d = validar(extenderSchema, body ?? {})
-  const c = await extenderCampana(id, d.fechaFin)
+  const crudo = (body as { contratoUrl?: unknown } | null)?.contratoUrl
+  if (typeof crudo !== 'string' || crudo.trim() === '') {
+    throw new AppError('Para extender la campaña adjunta el contrato firmado de la extensión', 422)
+  }
+  const { contratoUrl } = validar(contratoExtensionSchema, { contratoUrl: crudo })
+  const c = await extenderCampana(id, d.fechaFin, contratoUrl, usuario)
   if (!c) throw new AppError('Campaña no encontrada', 404)
   return c
+}
+
+export async function extensionesCampanaCtrl(id: string) {
+  return extensionesCampana(id)
 }
 
 // La OC del cliente llega como PDF o imagen en base64 (o como URL ya hospedada).

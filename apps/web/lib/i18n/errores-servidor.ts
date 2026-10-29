@@ -84,6 +84,9 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   // 8 sitios · lib/server/campanas-controller.ts:24
   'Otra persona acaba de extender esta campaña más lejos. Recarga para ver la fecha nueva.':
     'Someone else just extended this campaign further. Reload to see the new date.',
+  // 1 sitio · lib/server/campanas-controller.ts (EXT-CONTRATO, 29/10)
+  'Para extender la campaña adjunta el contrato firmado de la extensión':
+    "To extend the campaign, attach the extension's signed contract",
   'Campaña no encontrada':
     'Campaign not found',
   // 2 sitios · lib/server/clientes-controller.ts:116

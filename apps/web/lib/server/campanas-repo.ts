@@ -11,7 +11,7 @@ import { rutaArteCreativo } from '@/lib/medios-url'
 import { divisorDeComision } from '@/lib/data/derive'
 import { paqueteDeFila, repartirPaquete } from '@/lib/paquete'
 import { AppError } from './errores'
-import { ordenInvertido } from './fechas'
+import { diaComparable } from './fechas'
 
 // ============================================================================
 //  lib/server/campanas-repo.ts — Clientes, campañas, reservas + flujos
@@ -1076,63 +1076,147 @@ export async function confirmarReserva(campanaId: string) {
 // La comprobacion vive aqui y no en el controlador porque el controlador no
 // conoce la fecha EFECTIVA: solo ve la que le mandan. Mismo reparto que UX-01 en
 // los contratos.
-export async function extenderCampana(campanaId: string, nuevaFechaFin: string) {
+//
+// EXT-CONTRATO (29/10, regla del dueño, ROJO R4 aprobado): no se extiende sin
+// el contrato firmado de la extensión. El controlador exige que venga; aquí se
+// guarda en `campana_extensiones` (una fila por extensión, solo inserción) y NO
+// en `campanas.contrato_url`, que es UNA columna: escribirlo ahí borraría el
+// contrato original del cliente. Y todo va en UNA transacción: antes eran tres
+// `q()` sueltos, y con el contrato aparte eso podía dejar una campaña extendida
+// —que factura más— sin el contrato que la respalda.
+export async function extenderCampana(
+  campanaId: string,
+  nuevaFechaFin: string,
+  contratoUrl: string,
+  usuario: { id: string; nombre: string } | null,
+) {
   const tenantId = await tenantActual()
-  // `and tenant_id` como segunda capa sobre la RLS, aqui y en los dos updates.
-  const actual = await q<{ fecha_fin: unknown }>(
-    'select fecha_fin from campanas where id=$1 and tenant_id=$2',
+  const client = await pool.connect()
+  try {
+    await client.query('begin')
+    await fijarTenant(client)
+    // `and tenant_id` como segunda capa sobre la RLS, aqui y en los updates.
+    // `for update`: con la fila bloqueada desde la lectura, dos extensiones a
+    // la vez quedan en serie y la segunda ve la fecha y el tramo de la primera.
+    const actual = (
+      await client.query('select fecha_fin from campanas where id=$1 and tenant_id=$2 for update', [
+        campanaId,
+        tenantId,
+      ])
+    ).rows as { fecha_fin: unknown }[]
+    if (!actual[0]) {
+      await client.query('rollback')
+      return null
+    }
+    const finActual = String(iso(actual[0].fecha_fin) ?? '').slice(0, 10)
+
+    // Se compara por CALENDARIO (`diaComparable`). Como texto, '2026-9-1' sale
+    // MAYOR que '2026-10-01' y un acortamiento real pasaria: ese fallo ya se pago
+    // una vez en el alta de contrato.
+    //
+    // Y la MISMA fecha tambien se rechaza desde EXT-CONTRATO: antes pasaba (no
+    // acorta), pero ahora dejaria en el expediente una «extension» con contrato
+    // firmado que no alarga nada.
+    const a = finActual ? diaComparable(finActual) : null
+    const b = diaComparable(nuevaFechaFin)
+    if (a != null && b != null && b <= a) {
+      throw new AppError(
+        `Esta campana llega hasta el ${finActual}. Extender solo puede alargarla: ` +
+          `elige una fecha posterior.`,
+        400,
+      )
+    }
+
+    // FOLIO-VENTA (07/10) · alargar le suma un tramo al folio: PR-2026-0042 →
+    // .1 → .2. Lo calcula la base en el MISMO update, comparando con la fecha
+    // que la fila tiene al escribir.
+    //
+    // Y el `fecha_fin < $2` del where es la ultima red: si aun asi la fila ya
+    // llega hasta esa fecha o mas lejos, escribir la nuestra la acortaria o
+    // duplicaria la extension. Sin fila escrita no se toca nada mas.
+    //
+    // Las barras van DOBLES porque esto es una plantilla de JS: con una sola,
+    // `'\.'` llega a Postgres como `'.'` —«cualquier carácter»— y PR-2026-0042
+    // se leería como si ya trajera el tramo «2».
+    const escrita = (
+      await client.query(
+        `update campanas
+            set folio = case
+                  when fecha_fin is null or fecha_fin >= $2::date then folio
+                  when folio ~ '\\.[0-9]+$'
+                    then regexp_replace(folio, '\\.[0-9]+$', '') || '.' ||
+                         (substring(folio from '\\.([0-9]+)$')::int + 1)
+                  else folio || '.1'
+                end,
+                fecha_fin = $2
+          where id = $1 and tenant_id = $3
+            and (fecha_fin is null or fecha_fin < $2::date)
+          returning id, folio`,
+        [campanaId, nuevaFechaFin, tenantId],
+      )
+    ).rows as { id: string; folio: string | null }[]
+    if (!escrita[0]) {
+      throw new AppError('Otra persona acaba de extender esta campaña más lejos. Recarga para ver la fecha nueva.', 409)
+    }
+
+    // El folio que se guarda es el del tramo que ESTA extension abrio (el que
+    // devolvio el update), para que el expediente diga qué contrato cubre qué
+    // tramo. El nombre del usuario se copia: puede darse de baja (`set null`).
+    await client.query(
+      `insert into campana_extensiones
+         (tenant_id, campana_id, folio, fecha_fin_anterior, fecha_fin_nueva, contrato_url, usuario_id, usuario_nombre)
+       values ($1, $2, $3, $4::date, $5::date, $6, $7, $8)`,
+      [
+        tenantId,
+        campanaId,
+        escrita[0].folio ?? '',
+        finActual,
+        nuevaFechaFin,
+        contratoUrl,
+        usuario?.id ?? null,
+        usuario?.nombre ?? null,
+      ],
+    )
+    await client.query(`update reservas set fecha_fin=$2 where campana_id=$1 and tenant_id=$3`, [
+      campanaId,
+      nuevaFechaFin,
+      tenantId,
+    ])
+    await recalcularPresupuesto(client, campanaId)
+    // Releer ANTES del commit: el GUC app.tenant_id es TRANSACTION-local y tras
+    // el commit la RLS fail-closed devolveria 0 filas (ver `confirmarReserva`).
+    const camp = (await client.query('select * from campanas where id=$1 and tenant_id=$2', [campanaId, tenantId]))
+      .rows[0]
+    await client.query('commit')
+    return camp ? rowToCampana(camp) : null
+  } catch (e) {
+    await client.query('rollback')
+    throw e
+  } finally {
+    client.release()
+  }
+}
+
+// EXT-CONTRATO (29/10) · las extensiones de una campaña, la más reciente
+// primero, con su contrato. Es lo que la ficha enseña como expediente.
+export async function extensionesCampana(campanaId: string) {
+  const tenantId = await tenantActual()
+  const rows = await q<any>(
+    `select id, folio, fecha_fin_anterior, fecha_fin_nueva, contrato_url, usuario_nombre, creado_en
+       from campana_extensiones
+      where campana_id = $1 and tenant_id = $2
+      order by creado_en desc`,
     [campanaId, tenantId],
   )
-  if (!actual[0]) return null
-  const finActual = String(iso(actual[0].fecha_fin) ?? '').slice(0, 10)
-
-  // `ordenInvertido` compara por CALENDARIO. Como texto, '2026-9-1' sale MAYOR
-  // que '2026-10-01' y un acortamiento real pasaria: ese fallo ya se pago una
-  // vez en el alta de contrato.
-  if (finActual && ordenInvertido(finActual, nuevaFechaFin)) {
-    throw new AppError(
-      `Esta campana llega hasta el ${finActual}. Extender solo puede alargarla: ` +
-        `elige esa fecha o una posterior.`,
-      400,
-    )
-  }
-
-  // FOLIO-VENTA (07/10) · alargar le suma un tramo al folio: PR-2026-0042 →
-  // .1 → .2. Lo calcula la base en el MISMO update, comparando con la fecha
-  // que la fila tiene al escribir: dos extensiones a la vez quedan en serie por
-  // el candado de la fila y la segunda ve el .1 de la primera. Calcularlo aquí
-  // con la fecha leída arriba dejaría que las dos escribieran .1. Repetir la
-  // misma fecha no alarga nada y no sube el tramo.
-  //
-  // Y el `fecha_fin <= $2` del where cierra la carrera que el guard de arriba
-  // no ve: si otra extensión la llevó MÁS LEJOS entre la lectura y este update,
-  // escribir la nuestra la acortaría. Sin fila escrita no se toca nada más.
-  //
-  // Las barras van DOBLES porque esto es una plantilla de JS: con una sola,
-  // `'\.'` llega a Postgres como `'.'` —«cualquier carácter»— y PR-2026-0042
-  // se leería como si ya trajera el tramo «2».
-  const escrita = await q<{ id: string }>(
-    `update campanas
-        set folio = case
-              when fecha_fin is null or fecha_fin >= $2::date then folio
-              when folio ~ '\\.[0-9]+$'
-                then regexp_replace(folio, '\\.[0-9]+$', '') || '.' ||
-                     (substring(folio from '\\.([0-9]+)$')::int + 1)
-              else folio || '.1'
-            end,
-            fecha_fin = $2
-      where id = $1 and tenant_id = $3
-        and (fecha_fin is null or fecha_fin <= $2::date)
-      returning id`,
-    [campanaId, nuevaFechaFin, tenantId],
-  )
-  if (!escrita[0]) {
-    throw new AppError('Otra persona acaba de extender esta campaña más lejos. Recarga para ver la fecha nueva.', 409)
-  }
-  await q(`update reservas set fecha_fin=$2 where campana_id=$1 and tenant_id=$3`, [campanaId, nuevaFechaFin, tenantId])
-  await recalcularPresupuesto(null, campanaId)
-  const rows = await q('select * from campanas where id=$1 and tenant_id=$2', [campanaId, tenantId])
-  return rows[0] ? rowToCampana(rows[0]) : null
+  return rows.map((r) => ({
+    id: r.id as string,
+    folio: r.folio as string,
+    fechaFinAnterior: String(iso(r.fecha_fin_anterior) ?? '').slice(0, 10),
+    fechaFinNueva: String(iso(r.fecha_fin_nueva) ?? '').slice(0, 10),
+    contratoUrl: r.contrato_url as string,
+    usuarioNombre: (r.usuario_nombre as string | null) ?? null,
+    creadoEn: iso(r.creado_en) as string,
+  }))
 }
 
 // ─── Validación de publicación ──────────────────────────────────────────────
