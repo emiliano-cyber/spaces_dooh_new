@@ -275,18 +275,48 @@ export async function consultarStats(
   return { ok: true, payload: r?.payload ?? r ?? {} }
 }
 
-// Métricas de una o varias pantallas.
+// Métricas de una o varias pantallas: el historial día por día de lo que sonó
+// en ellas (29/10). `details` y no `full`: sumadas no dejan ver qué pasó cada
+// día, que es lo que se pide al revisar una pantalla.
 export async function consultarMetrics(
   pantallas: string[], desde: string, hasta: string,
 ): Promise<RespuestaPlay> {
   if (!doohmainHabilitado()) return { ok: false, payload: {}, error: 'La integración con DOOHmain está apagada' }
   if (!pantallas.length) return { ok: false, payload: {}, error: 'Sin pantallas que consultar' }
   const cli = ['-m', 'doohmain_sdk', 'metrics', '--start-date', desde, '--end-date', hasta,
-               '--type', 'full', '--zoom', 'days']
+               '--type', 'details', '--zoom', 'days']
   for (const s of pantallas) cli.push('--screen', s)
   const r = await ejecutarSdk(cli)
   if (r?.ok === false) return { ok: false, payload: {}, error: r.error ?? 'DOOHmain no respondió' }
   return { ok: true, payload: r?.payload ?? r ?? {} }
+}
+
+// Cómo está cada campaña en DOOHmain (`get_campaigns`), payload crudo: lo
+// interpreta `lib/doohmain-estado.ts`, que dice «no se sabe» ante lo que no
+// reconoce. Solo lectura.
+export async function consultarCampanasDoohmain(auths: string[]): Promise<RespuestaPlay> {
+  if (!doohmainHabilitado()) return { ok: false, payload: {}, error: 'La integración con DOOHmain está apagada' }
+  if (!auths.length) return { ok: false, payload: {}, error: 'Sin campañas publicadas en DOOHmain' }
+  const cli = ['-m', 'doohmain_sdk', 'campanas']
+  for (const a of auths) cli.push('--auth', a)
+  const r = await ejecutarSdk(cli)
+  if (r?.ok === false) return { ok: false, payload: {}, error: r.error ?? 'DOOHmain no respondió' }
+  return { ok: true, payload: r?.payload ?? {} }
+}
+
+/**
+ * Pausa (`pause`) o reanuda (`active`) un creativo en DOOHmain (29/10): la
+ * única forma REVERSIBLE de bajarlo del aire, porque la API no deja quitar el
+ * arte de la lista. A diferencia de `retirarCreativoEnDoohmain`, no toca el
+ * registro del SDK: el creativo sigue publicado y se puede reanudar.
+ * Nunca lanza.
+ */
+export async function cambiarEstadoEnDoohmain(
+  creativoId: string,
+  status: 'pause' | 'active',
+): Promise<{ ok: boolean; estado?: string; error?: string; category?: string }> {
+  if (!doohmainHabilitado()) return { ok: false, error: 'La integración con DOOHmain está apagada' }
+  return ejecutarSdk(['-m', 'doohmain_sdk', 'estado', '--version', creativoId, '--status', status])
 }
 
 /**

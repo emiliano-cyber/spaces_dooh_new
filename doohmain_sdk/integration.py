@@ -199,6 +199,42 @@ def update_campaign(auth: str, *, api: DOOHmainClient | None = None, **fields: A
     return api.update_campaign(auth, **fields)
 
 
+ESTADOS_REVERSIBLES = ("pause", "active")
+
+
+def cambiar_estado(
+    version: str,
+    status: str,
+    *,
+    api: DOOHmainClient | None = None,
+    db: Database | None = None,
+) -> str:
+    """Pausa ('pause') o reanuda ('active') la campaña de un creativo publicado.
+
+    Es la única forma REVERSIBLE de bajar un creativo del aire: la API no deja
+    quitar el arte de la lista. A diferencia de `retirar_creativo`, NO toca el
+    tracking, así que el creativo sigue publicado y se puede reanudar. 'finished'
+    no se admite aquí a propósito: no tiene vuelta, y eso ya es retirar.
+    """
+    if status not in ESTADOS_REVERSIBLES:
+        raise DOOHmainError(
+            f"Estado no admitido: {status!r} (solo pause o active)",
+            category=ErrorCategory.VALIDATION,
+        )
+    db = db or Database()
+    api = api or DOOHmainClient()
+
+    row = db.remote_campaign_get(version)
+    auth = row.get("auth") if row else None
+    if not auth:
+        raise DOOHmainError(
+            "El creativo no está publicado en DOOHmain",
+            category=ErrorCategory.VALIDATION,
+        )
+    api.update_campaign(auth, status=status)
+    return status
+
+
 def retirar_creativo(
     version: str,
     *,

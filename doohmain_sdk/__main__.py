@@ -88,6 +88,14 @@ def _build_parser() -> argparse.ArgumentParser:
     ret = sub.add_parser("retirar", help="Retira un creativo de DOOHmain (finish + limpia tracking)")
     ret.add_argument("--version", required=True)
 
+    # 29/10 · pausar / reanudar: reversible, a diferencia de `retirar`.
+    es = sub.add_parser("estado", help="Pausa o reanuda la campaña de un creativo publicado")
+    es.add_argument("--version", required=True)
+    es.add_argument("--status", required=True, choices=["pause", "active"])
+
+    ca = sub.add_parser("campanas", help="Estado de campañas en DOOHmain (payload crudo)")
+    ca.add_argument("--auth", action="append", required=True, help="auth de campaña (repetible)")
+
     # Proof of play. Devuelven el payload CRUDO de DOOHmain, sin interpretarlo:
     # todavía no hemos visto una respuesta con datos (hasta hoy siempre `[]`,
     # porque nada ha salido al aire), así que inventarse su forma aquí sería
@@ -143,6 +151,14 @@ def main(argv: list[str] | None = None) -> int:
         if args.cmd == "retirar":
             estado = integration.retirar_creativo(args.version)
             return _emit_ok({"estado": estado})
+
+        if args.cmd == "estado":
+            estado = integration.cambiar_estado(args.version, args.status)
+            return _emit_ok({"estado": estado})
+
+        if args.cmd == "campanas":
+            with DOOHmainClient() as api:
+                return _emit_ok({"payload": api.get_campaigns(args.auth)})
 
         if args.cmd == "stats":
             with DOOHmainClient() as api:

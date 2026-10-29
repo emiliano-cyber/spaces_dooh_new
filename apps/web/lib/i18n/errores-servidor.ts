@@ -263,6 +263,8 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   // 1 sitio · app/api/campanas/[id]/playlogs/route.ts:43
   'Esta campaña no está publicada en DOOHmain: no hay reproducciones que consultar.':
     'This campaign is not published on DOOHmain: there are no plays to look up.',
+  'Esta campaña no está publicada en ninguna pantalla de DOOHmain.':
+    'This campaign is not published on any DOOHmain screen.',
   // 1 sitio · lib/server/ot-repo.ts:176
   'Esta orden de trabajo ya está cerrada: su checklist ya no se puede cambiar':
     'This work order is already closed: its checklist can no longer be changed',

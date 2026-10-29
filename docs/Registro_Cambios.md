@@ -5,6 +5,32 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-10-29 · DOOHmain: pausar creativos, su estado y el historial por pantalla (rama sin publicar)
+
+Pedido del dueño: subir y bajar creativos, ver el historial de reproducción y
+tener un link de comprobación. Se revisó qué deja hacer la API de DOOHmain y se
+integró lo que faltaba. Está en la ficha de cada campaña, en «Reproducciones
+(proof of play)».
+
+- **«En DOOHmain ahora».** Cada anuncio publicado aparece con las pantallas de
+  DOOHmain donde está y cómo lo ve DOOHmain en este momento: «Al aire», «En
+  pausa», «Finalizada» o «Sin confirmar» si DOOHmain no contesta.
+- **Pausar y reanudar.** Un anuncio se puede bajar del aire con «Pausar» y
+  volver a subir con «Reanudar», sin perderlo ni repetir la publicación. Es la
+  única forma de bajarlo que tiene vuelta: DOOHmain no deja quitar un anuncio de
+  su lista. Quitarlo para siempre sigue siendo la papelera del panel de
+  validación. La bitácora anota «Pausó creativo en DOOHmain» o «Reanudó…».
+- **Historial de sus pantallas.** Una pestaña nueva pide a DOOHmain lo que se
+  reprodujo, día por día, en las pantallas donde está la campaña. Ojo: incluye
+  también otras campañas de esas pantallas, así que sirve para ver que la
+  pantalla estuvo funcionando, pero **no cuenta como prueba de esta campaña** ni
+  la deja lista para facturar. Para eso sigue la pestaña «De esta campaña».
+- **El link de comprobación no lo da DOOHmain.** Su API no tiene nada para
+  compartir un reporte. Se puede construir aquí, pero es una página que se abre
+  sin iniciar sesión, y eso espera la decisión del dueño.
+
+---
+
 ## 2026-10-29 · v0.12.5 (preparada, todavía sin publicar)
 
 Junta lo que sigue: extender campaña solo con contrato, la ubicación por
