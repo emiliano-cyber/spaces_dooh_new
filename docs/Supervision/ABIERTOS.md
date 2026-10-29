@@ -442,7 +442,24 @@ archivo dentro de la pregunta.
 
 ---
 
-### D6 · El reporte no limita cuántos meses se le pueden pedir de una vez. ¿Se le pone un tope?
+### ~~D6 · El reporte no limita cuántos meses se le pueden pedir de una vez. ¿Se le pone un tope?~~
+
+> ✅ **DECIDIDA el 2026-10-29 por el dueño: tope de 24 MESES por consulta** (la ficha
+> recomendaba 36; el dueño eligió 24). **Implementada el mismo día** (rama
+> `fix/abiertos-b41-b45-d6`, sin fusionar):
+> - `lib/data/reportes.ts` · `TOPE_MESES_REPORTE = 24`, `excedeTopeDeMeses(desde, hasta)`
+>   y `MSJ_TOPE_MESES_REPORTE`, en el motor puro para que la usen los dos lados.
+> - `lib/server/reportes-controller.ts` · `validarConsultaRentabilidad` rechaza con
+>   **400** y «El reporte abarca como máximo 24 meses por consulta. Acorta el rango de
+>   fechas.» **antes de leer la base**; traducida en `lib/i18n/errores-servidor.ts`.
+> - `components/demo/reportes/consulta.ts` · `motivoInvalido` devuelve la misma frase,
+>   así que la pantalla de Reportes la pinta junto a los filtros y `debePedir` no
+>   manda la consulta.
+>
+> **Con qué se midió:** `lib/server/reportes-controller.tope-meses.test.ts` (8) y
+> `components/demo/reportes/consulta.tope-meses.test.ts` (3), en ROJO antes del
+> arreglo; incluyen el 29 de febrero y fechas sin cero a la izquierda. **No se vio
+> en el navegador.**
 
 - **Bloquea:** nada. Es un riesgo de producción, no un trabajo detenido.
 - **Por qué importa:** el reporte construye una casilla por pantalla y por periodo.

@@ -74,6 +74,44 @@ export type DimensionReporte = (typeof DIMENSIONES_REPORTE)[number]
 // la consulta sin límite que este endpoint viene a evitar.
 export type GranularidadReporte = 'mes' | 'trimestre'
 
+// ─── D6 · EL TOPE DE MESES POR CONSULTA — decisión del dueño, 2026-10-29 ────
+//
+// El reporte construye una casilla por pantalla y por periodo: con 500
+// pantallas y cinco años son 30 000, y quien lo pide se queda mirando una
+// pantalla cargando, sin aviso. El dueño eligió **24 meses** (la ficha
+// recomendaba 36). Se declara AQUÍ, en el módulo puro, porque lo usan los dos
+// lados: el controller rechaza con un 400 antes de tocar la base, y la pantalla
+// (`components/demo/reportes/consulta.ts`) no deja pedirlo. Dos reglas
+// divergen, y aquí divergir es rechazar en un lado lo que el otro acepta.
+export const TOPE_MESES_REPORTE = 24
+
+/**
+ * La frase que lee la persona. El controller la lanza LITERAL (así la ve el
+ * catálogo de traducciones, `lib/i18n/errores-servidor.ts`) y una prueba
+ * comprueba que es esta misma.
+ */
+export const MSJ_TOPE_MESES_REPORTE =
+  'El reporte abarca como máximo 24 meses por consulta. Acorta el rango de fechas.'
+
+/**
+ * ¿El rango pasa del tope? `hasta` tiene que caer ANTES de `desde + 24 meses`:
+ * del 1/ene/2024 al 31/dic/2025 son 24 meses justos y entran; un día más, no.
+ *
+ * Se calcula con `Date.UTC` sobre las partes, no con `new Date('AAAA-MM-DD')`
+ * (un instante UTC que en México cae el día anterior). El 29 de febrero más 24
+ * meses desborda al 1 de marzo, que es justo el límite exclusivo correcto.
+ * Acepta mes y día sin cero a la izquierda, como `motivoInvalido`. Una fecha
+ * que no se entiende NO excede: de eso ya se queja la validación de formato.
+ */
+export function excedeTopeDeMeses(desde: string, hasta: string): boolean {
+  const partes = (v: string) => /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(String(v ?? '').trim())
+  const d = partes(desde)
+  const h = partes(hasta)
+  if (!d || !h) return false
+  const limite = Date.UTC(Number(d[1]), Number(d[2]) - 1 + TOPE_MESES_REPORTE, Number(d[3]))
+  return Date.UTC(Number(h[1]), Number(h[2]) - 1, Number(h[3])) >= limite
+}
+
 export interface RangoReporte {
   /** `YYYY-MM-DD`, inclusive. */
   desde: string

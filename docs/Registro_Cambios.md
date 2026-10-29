@@ -24,6 +24,12 @@ publicada contra neta».** Si en una propuesta se vendían, por ejemplo, el hora
 prime y la madrugada de la misma pantalla, el reporte no sabía qué precio era de
 cuál y dejaba esa pantalla fuera de la comparación. Ahora distingue cada horario.
 
+**Reportes: como máximo 24 meses por consulta.** Por decisión del dueño, el
+reporte de rentabilidad abarca hasta dos años de una vez. Si se eligen fechas más
+separadas, la pantalla lo avisa («El reporte abarca como máximo 24 meses por
+consulta. Acorta el rango de fechas.») y no lo calcula; así un inventario grande
+no deja la pantalla cargando sin fin.
+
 ---
 
 ## 2026-10-27 · v0.12.4 (preparada, todavía sin publicar)
