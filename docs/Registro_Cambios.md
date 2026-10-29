@@ -5,6 +5,15 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-10-29 · Preparado (todavía sin publicar)
+
+**Franjas y temporadas ya pide la contraseña cuando tu organización la exige.**
+Si el control de cambios está encendido, al añadir o dar de baja una franja o una
+temporada aparece un cuadro para escribir tu contraseña y confirmar. Antes salía
+un mensaje en rojo y no había forma de terminar el cambio desde esa pantalla.
+
+---
+
 ## 2026-10-27 · v0.12.4 (preparada, todavía sin publicar)
 
 Junta en una sola versión lo que se cuenta abajo en las entradas del 26 y del

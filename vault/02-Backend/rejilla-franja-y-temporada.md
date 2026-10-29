@@ -1,7 +1,7 @@
 ---
 tipo: contrato
 estado: verificado
-actualizado: 2026-10-26
+actualizado: 2026-10-29
 tags: [backend, precios, tarifas, franjas, temporadas, propuestas, dinero, snapshot, rls, programacion]
 archivos:
   - db/migrations/20260928_rejilla_franja_temporada.sql
@@ -339,6 +339,15 @@ El candado es **exactamente** el de `PATCH /api/sitios/:id/modalidades` —
 `exigirCambioSensible` y no `exigirReautenticacionSiempre`— porque es el mismo
 dinero. Pedir aquí más que para la tarifa escalar sería una incoherencia, y las
 incoherencias se acaban resolviendo por el lado malo.
+
+> [!note] 2026-10-29 · B41 · la pantalla del catálogo ya pide la contraseña
+> `/franjas-y-temporadas` (`GestionRejilla.tsx`) escribía contra las rutas
+> sensibles de arriba **sin montar el candado**: con `exigir_reautenticacion`
+> encendido el dueño veía el 403 en rojo y ningún sitio donde teclear la
+> contraseña. Ahora sus tres acciones (alta de franja, alta de temporada, dar de
+> baja) pasan por `useCandado().ejecutar` y el 403 abre un `DialogoCandado`
+> atado a esa acción; un fallo que no es el candado sigue en el hueco de error
+> de la pantalla. Prueba: `components/demo/rejilla/GestionRejilla.candado.test.ts`.
 
 Y se sigue el camino que aquella ruta dejó marcado en su cabecera: *«el día que
 llegue otra tarifa por unidad —un recargo por franja— nadie se acordará»*. Pues

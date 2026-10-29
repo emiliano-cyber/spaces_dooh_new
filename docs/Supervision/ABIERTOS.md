@@ -638,7 +638,19 @@ calendario.
   toca este camino— pero **la Fase 3 no se puede construir bien encima**, y ése es
   todo el motivo de esta auditoría.
 
-#### B41 · 🟠 La pantalla donde se configuran las franjas se queda sin salida cuando el candado de cambios está encendido
+#### ~~B41 · 🟠 La pantalla donde se configuran las franjas se queda sin salida cuando el candado de cambios está encendido~~
+
+> ✅ **CERRADA el 2026-10-29** (rama `fix/abiertos-b41-b45-d6`, sin fusionar), como
+> decía la ficha. `components/demo/rejilla/GestionRejilla.tsx` monta `useCandado()`
+> y un `DialogoCandado` —sus botones son de un clic, sin cuadro propio, así que se
+> aplica la regla de `ui/candado.tsx`: el 403 abre uno atado a esa acción—, y sus
+> tres manejadores (`anadirFranja`, `anadirTemporada`, `darDeBaja`) pasan por
+> `candado.ejecutar`, con `alFallar → setError` para lo que no es el candado.
+> **Con qué se midió:** `components/demo/rejilla/GestionRejilla.candado.test.ts`,
+> 5 pruebas; las 3 que leen el fuente salieron en ROJO antes del arreglo y las 2
+> que corren `confirmarConCandado` con el `rejilla-api` real y `fetch` espiado
+> comprueban que el 403 llega como «pide la contraseña» y que el desbloqueo va
+> primero. **Lo que NO se midió:** no hay navegador; no se vio el cuadro abrirse.
 
 - **Qué es:** `/franjas-y-temporadas` escribe contra rutas marcadas como cambio
   sensible, pero **no monta el cuadro de contraseña**. Su hermana de la ficha de
