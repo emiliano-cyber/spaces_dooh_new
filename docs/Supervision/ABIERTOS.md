@@ -739,7 +739,26 @@ calendario.
 - **Si no se cierra antes del 14/10:** solo muerde en organizaciones que hayan
   capturado temporadas. Si el 14/10 se enseña una temporada, muerde ese día.
 
-#### B44 · 🟡 Dos consultas nuevas por `id` no llevan el `and tenant_id` que la cabecera de su propio archivo promete
+#### ~~B44 · 🟡 Dos consultas nuevas por `id` no llevan el `and tenant_id` que la cabecera de su propio archivo promete~~
+
+> ✅ **CERRADA el 2026-10-29** (rama `fix/abiertos-b41-b45-d6`, sin fusionar), con la
+> opción que la ficha llamaba la barata: añadir el filtro. Las líneas habían
+> derivado; reubicadas hoy:
+> - `lib/server/rejilla-repo.ts` · `rejillaDeSitio` → `where t.sitio_id = $1 and t.tenant_id = $2`,
+>   y la lectura de la pantalla en `actualizarRejilla` → `from sitios where id = $1 and tenant_id = $2`.
+> - `lib/server/sitios-repo.ts` · `getSitio`: **eran tres, no una** —la pantalla
+>   (`select * from sitios where id = $1`), sus modalidades y su rejilla—; las tres
+>   llevan ahora `and tenant_id`.
+> - `lib/server/propuestas-repo.ts` · las temporadas de `congelarSnapshotEconomico` →
+>   `where activo = true and tenant_id = $1`, con el tenant de la liga pública cuando
+>   se aprueba por ella y el de la sesión si no.
+>
+> **Con qué se midió:** 7 pruebas nuevas del SQL (`rejilla-repo.test.ts`,
+> `sitios-repo.rejilla.test.ts` §3, `propuestas-snapshot-franja.test.ts` §3), las 7
+> en ROJO antes del arreglo. **Lo que NO se midió:** las unitarias simulan la base y
+> no ven la RLS; aquí no hay Postgres. Hay que correr en CI
+> `rejilla-franja-temporada.e2e.test.ts`, `precio-ajustado.e2e.test.ts` y
+> `aislamiento.e2e.test.ts` antes de fusionar.
 
 - **Qué es:** la convención del repositorio —y la cabecera de `rejilla-repo.ts`—
   exigen `and tenant_id = $n` como segunda capa sobre la RLS en toda operación por

@@ -210,6 +210,22 @@ describe('3 · el SQL — segunda capa sobre la RLS', () => {
     expect(t).toBeDefined()
     expect(t).toMatch(/order by desde/)
   })
+
+  it('B44 · las temporadas se leen con `and tenant_id` — el de la sesión', async () => {
+    // Hasta el 29/10 era `where activo = true` a secas: la RLS cortaba, pero el
+    // día que falle, la temporada de otra organización le pondría nombre a
+    // este congelado.
+    await congelarSnapshotEconomico('P1')
+    const c = consultas.find((x) => /from temporadas/.test(x.sql))!
+    expect(c.sql.replace(/\s+/g, ' ')).toMatch(/where activo = true and tenant_id = \$1/)
+    expect(c.params).toEqual(['T1'])
+  })
+
+  it('B44 · por la liga PÚBLICA, el tenant es el que se pasa, no el de una sesión', async () => {
+    await congelarSnapshotEconomico('P1', 'T-PUBLICO')
+    const c = consultas.find((x) => /from temporadas/.test(x.sql))!
+    expect(c.params).toEqual(['T-PUBLICO'])
+  })
 })
 
 describe('4 · el fuente, para lo que no se puede simular', () => {

@@ -396,9 +396,14 @@ export async function congelarSnapshotEconomico(propuestaId: string, tenantId?: 
   // donde vive esa regla. Ordenadas por `desde` porque `temporadaDeFecha`
   // devuelve la primera que cubre: con el solape prohibido no puede haber dos,
   // pero si datos viejos las trajeran, que gane siempre la misma.
+  //
+  // B44 (2026-10-29) · con `and tenant_id` como segunda capa sobre la RLS. Por
+  // la liga pública el tenant es el que se pasa; desde una ruta con sesión, el
+  // de la sesión.
   const temporadas = await qS<any>(
     `select id, nombre, to_char(desde,'YYYY-MM-DD') as desde, to_char(hasta,'YYYY-MM-DD') as hasta
-       from temporadas where activo = true order by desde asc, id asc`,
+       from temporadas where activo = true and tenant_id = $1 order by desde asc, id asc`,
+    [tenantId ?? (await tenantActual())],
   )
   const temporadasRej = temporadas.map((t) => ({
     id: String(t.id),

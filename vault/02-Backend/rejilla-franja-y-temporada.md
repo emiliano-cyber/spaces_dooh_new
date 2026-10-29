@@ -154,6 +154,17 @@ Tres motivos, y el tercero decide:
 Con tabla aparte, el invariante «lo que no tiene franja se vende como siempre»
 deja de ser una convención del código y pasa a ser **estructural**.
 
+> [!note] 2026-10-29 · B44 · las lecturas por id ya llevan `and tenant_id`
+> La cabecera de `rejilla-repo.ts` prometía la segunda capa sobre la RLS en toda
+> operación por id y cuatro lecturas no la llevaban. Ahora sí: `rejillaDeSitio`
+> (`where t.sitio_id = $1 and t.tenant_id = $2`), la lectura de la pantalla en
+> `actualizarRejilla`, las tres de `getSitio` en `sitios-repo.ts` (pantalla,
+> modalidades y rejilla) y las temporadas de `congelarSnapshotEconomico` en
+> `propuestas-repo.ts` (con el tenant de la liga pública cuando se aprueba por
+> ella). Pruebas unitarias del SQL en `rejilla-repo.test.ts`,
+> `sitios-repo.rejilla.test.ts` y `propuestas-snapshot-franja.test.ts` §3; **la
+> RLS de verdad solo la ven las e2e** (`rejilla-franja-temporada.e2e.test.ts`).
+
 ### Las FK a franja y temporada son COMPUESTAS `(id, tenant_id)`
 
 Al revés que `propuestas.usuario_id` del mismo día, y el motivo es que **aquí el

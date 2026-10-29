@@ -225,9 +225,11 @@ export async function rejillaDeSitio(sitioId: string): Promise<FilaRejillaFila[]
        from sitio_tarifas t
        left join franjas_horarias f on f.id = t.franja_id    and f.tenant_id = t.tenant_id
        left join temporadas       e on e.id = t.temporada_id and e.tenant_id = t.tenant_id
-      where t.sitio_id = $1
+      where t.sitio_id = $1 and t.tenant_id = $2
       order by t.unidad asc, f.orden asc nulls first, e.desde asc nulls first`,
-    [sitioId],
+    // B44 (2026-10-29) · la segunda capa que la cabecera promete: hasta hoy
+    // esta lectura por id iba con la RLS sola.
+    [sitioId, await tenantActual()],
   )
   return filas.map((r) => ({
     unidad: r.unidad,
@@ -294,9 +296,12 @@ export async function actualizarRejilla(
 ): Promise<FilaRejillaFila[] | null> {
   // La lectura pasa por `q`, o sea bajo RLS: una pantalla de otra organización
   // simplemente no aparece, y entonces no se escribe nada.
+  // Y `and tenant_id` como segunda capa (B44, 2026-10-29): el tenant de la
+  // escritura sale de ESTA fila, así que leerla de otra organización el día
+  // que la RLS falle colgaría la tarifa de la pantalla ajena.
   const sitio = await q1<{ id: string; tenant_id: string }>(
-    'select id, tenant_id from sitios where id = $1',
-    [sitioId],
+    'select id, tenant_id from sitios where id = $1 and tenant_id = $2',
+    [sitioId, await tenantActual()],
   )
   if (!sitio) return null
 
