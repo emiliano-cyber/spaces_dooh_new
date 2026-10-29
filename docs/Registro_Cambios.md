@@ -25,6 +25,11 @@ integró lo que faltaba. Está en la ficha de cada campaña, en «Reproducciones
   también otras campañas de esas pantallas, así que sirve para ver que la
   pantalla estuvo funcionando, pero **no cuenta como prueba de esta campaña** ni
   la deja lista para facturar. Para eso sigue la pestaña «De esta campaña».
+- **Recordatorio al reemplazar un anuncio aprobado.** Antes de elegir el arte
+  nuevo, un aviso explica que el anterior se baja del aire en DOOHmain solo y
+  recuerda **eliminar la campaña anterior en el panel de DOOHmain**: no se puede
+  borrar desde aquí y la nueva lleva el mismo nombre (la anterior es la que
+  aparece como finalizada). El mensaje de «Arte reemplazado» lo repite.
 - **El link de comprobación no lo da DOOHmain.** Su API no tiene nada para
   compartir un reporte. Se puede construir aquí, pero es una página que se abre
   sin iniciar sesión, y eso espera la decisión del dueño.

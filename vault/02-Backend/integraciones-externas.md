@@ -273,6 +273,12 @@ hemos visto una respuesta con datos, así que no se interpreta nada todavía»*.
 >   pública con token): es acceso sin sesión, ROJO, y espera decisión.
 > - La pantalla: «En DOOHmain ahora» y la pestaña «Historial de sus pantallas» dentro de
 >   «Reproducciones (proof of play)» (`CreativosEnDoohmain.tsx`, `PlaylogsPanel.tsx`).
+> - **Reemplazar un creativo APROBADO pide confirmación** (`creativos/page.tsx`, pedido
+>   del dueño): avisa que el arte anterior se baja solo (el PUT lo finaliza, como hasta
+>   hoy) y recuerda eliminar su campaña en el panel de DOOHmain. Hace falta porque la
+>   campaña nueva se crea con el MISMO nombre (`{anunciante} - {campaña}`) en la misma
+>   sublista (el folio): la anterior solo se distingue por estar finalizada. Un
+>   creativo no aprobado nunca se publicó y se reemplaza sin el aviso.
 
 ## Space Eye — verificación por cámara
 
