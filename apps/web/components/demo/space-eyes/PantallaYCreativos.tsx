@@ -239,26 +239,48 @@ export function PantallaYCreativos({
         <div className="p-3">
           {lista.length > 0 ? (
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6">
+              {/* Dos tomas cuando las hay —cómo apareció y cómo se ve hoy—, y
+                  cada una abre la suya. Por eso la tarjeta ya no es un botón
+                  entero: un botón dentro de otro no es HTML válido. */}
               {lista.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => c.foto && onAmpliar(c.foto)}
-                  className="overflow-hidden rounded-md border border-border text-left hover:border-accent"
-                >
-                  <div className="aspect-[4/3] bg-surface-2">
-                    {c.foto && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={c.foto} alt="Creativo detectado" className="h-full w-full object-contain" />
+                <div key={c.id} className="overflow-hidden rounded-md border border-border hover:border-accent">
+                  <div className="flex aspect-[4/3] bg-surface-2">
+                    <button
+                      type="button"
+                      onClick={() => c.foto && onAmpliar(c.foto)}
+                      className={`relative h-full ${c.fotoHoy ? 'w-1/2' : 'w-full'}`}
+                    >
+                      {c.foto && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={c.foto} alt="Creativo al aparecer" className="h-full w-full object-contain" />
+                      )}
+                      {c.fotoHoy && (
+                        <span className="absolute inset-x-0 bottom-0 bg-black/55 py-0.5 text-center text-[10px] text-white">
+                          Apareció {fechaHora(c.primeraVez)}
+                        </span>
+                      )}
+                    </button>
+                    {c.fotoHoy && (
+                      <button
+                        type="button"
+                        onClick={() => onAmpliar(c.fotoHoy as string)}
+                        className="relative h-full w-1/2"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={c.fotoHoy} alt="El mismo creativo hoy" className="h-full w-full object-contain" />
+                        <span className="absolute inset-x-0 bottom-0 bg-black/55 py-0.5 text-center text-[10px] text-white">
+                          Ahora · {fechaHora(c.fotoHoyEn ?? c.ultimaVez)}
+                        </span>
+                      </button>
                     )}
                   </div>
-                  <div className="border-t border-border px-2 py-1.5 text-[11px]">
+                  <div className="border-t border-border px-2 py-1.5 text-left text-[11px]">
                     <div className="text-ink">Apareció {fechaHora(c.primeraVez)}</div>
                     <div className="text-muted">
                       Visto <span className="tabular-nums">{c.vistas}</span> veces · último {hace(c.ultimaVez)}
                     </div>
                   </div>
-                </button>
+                </div>
               ))}
             </div>
           ) : (

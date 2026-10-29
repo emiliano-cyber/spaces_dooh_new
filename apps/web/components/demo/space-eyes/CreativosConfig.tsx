@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { AlertTriangle, Info, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { Button } from '@/components/demo/ui/Button'
@@ -54,6 +54,12 @@ type Creativo = {
   // Por qué no trajo foto, si no la trajo (Space Eye, migración 028).
   sin_foto?: string | null
   aprendido?: number | boolean
+  // La segunda toma del MISMO creativo: cómo se ve hoy, no cómo apareció
+  // (Space Eye, migración 029). Falta mientras solo haya una foto, y en un
+  // Space Eye anterior a esa migración.
+  ultima_thumbnail_path?: string | null
+  ultima_storage_path?: string | null
+  ultima_taken_at?: string | null
 }
 type Resp = { config: Config | null; fotos_hoy: number; creativos: Creativo[] }
 
@@ -408,24 +414,50 @@ export function CreativosConfig({
                   {hallazgos.map((c) => {
                     const mini = fotoSE(c.thumbnail_path || c.storage_path)
                     const grande = fotoSE(c.storage_path || c.thumbnail_path)
+                    // La segunda toma, si ya la hay: el mismo anuncio hoy.
+                    const miniHoy = fotoSE(c.ultima_thumbnail_path || c.ultima_storage_path)
+                    const grandeHoy = fotoSE(c.ultima_storage_path || c.ultima_thumbnail_path)
                     const imagen = mini ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={mini} alt="Creativo detectado" className="h-full w-full object-contain" />
+                      <img src={mini} alt="Creativo al aparecer" className="h-full w-full object-contain" />
                     ) : null
-                    return (
-                      <div key={c.id} className="overflow-hidden rounded-md border border-border">
-                        {onAmpliar && grande ? (
+                    // Una toma ocupa la tarjeta entera; dos la parten por la
+                    // mitad, cada una con su pie. Sin el pie, las dos imágenes
+                    // de una pantalla que no cambió parecen un error de la ficha.
+                    const toma = (img: ReactNode, url: string | null, pie: string, mitad: boolean) => (
+                      <div className={`relative h-full ${mitad ? 'w-1/2' : 'w-full'}`}>
+                        {onAmpliar && url ? (
                           <button
                             type="button"
-                            onClick={() => onAmpliar(grande)}
-                            className="block aspect-[4/3] w-full bg-surface-2"
+                            onClick={() => onAmpliar(url)}
+                            className="block h-full w-full bg-surface-2"
                             title="Ver en grande"
                           >
-                            {imagen}
+                            {img}
                           </button>
                         ) : (
-                          <div className="aspect-[4/3] bg-surface-2">{imagen}</div>
+                          <div className="h-full bg-surface-2">{img}</div>
                         )}
+                        {mitad && (
+                          <span className="pointer-events-none absolute inset-x-0 bottom-0 bg-black/55 py-0.5 text-center text-[10px] text-white">
+                            {pie}
+                          </span>
+                        )}
+                      </div>
+                    )
+                    return (
+                      <div key={c.id} className="overflow-hidden rounded-md border border-border">
+                        <div className="flex aspect-[4/3] w-full">
+                          {toma(imagen, grande, `Apareció ${fechaHora(c.primera_vez)}`, !!miniHoy)}
+                          {miniHoy &&
+                            toma(
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={miniHoy} alt="El mismo creativo hoy" className="h-full w-full object-contain" />,
+                              grandeHoy,
+                              `Ahora · ${fechaHora(c.ultima_taken_at ?? c.ultima_vez)}`,
+                              true,
+                            )}
+                        </div>
                         <div className="border-t border-border px-2 py-1.5 text-[11px]">
                           <div className="text-ink">Apareció {fechaHora(c.primera_vez)}</div>
                           <div className="text-muted">
