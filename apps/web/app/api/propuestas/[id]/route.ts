@@ -5,6 +5,7 @@ import { exigir } from '@/lib/server/auth'
 import {
   cambiarEstatusPropuesta,
   actualizarPropuesta,
+  borrarPropuestaBorrador,
   PropuestaError,
   PropuestaCeroError,
   CodigoPendienteError,
@@ -171,5 +172,22 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       { error: e instanceof Error ? e.message : 'No se pudo actualizar' },
       { status: 400 },
     )
+  }
+}
+
+// DELETE /api/propuestas/[id] → borra un BORRADOR (PROP-COMPLETA, 29/10, R5
+// aprobado por el dueño). Enviada o aprobada → 409 con la frase que dice qué
+// hacer. Ver `borrarPropuestaBorrador`.
+export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
+  const g = await exigir('comercial', 'crear')
+  if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
+  try {
+    const b = await borrarPropuestaBorrador(params.id)
+    if (!b) return NextResponse.json({ error: 'Propuesta no encontrada' }, { status: 404 })
+    await registrarAccion(g.usuario, `Borró el borrador de propuesta ${b.folio}`, b.nombre)
+    return NextResponse.json({ ok: true })
+  } catch (e) {
+    if (e instanceof PropuestaError) return NextResponse.json({ error: e.message }, { status: 409 })
+    return NextResponse.json({ error: 'No se pudo borrar la propuesta' }, { status: 500 })
   }
 }

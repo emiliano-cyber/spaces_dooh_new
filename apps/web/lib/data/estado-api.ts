@@ -229,6 +229,14 @@ export async function actualizarPropuestaApi(
   await refrescarEstado()
 }
 
+// PROP-COMPLETA (29/10) · borra un BORRADOR (las demás dan 409).
+export async function borrarPropuestaApi(id: string): Promise<void> {
+  const r = await fetch(`${API}/propuestas/${id}/`, { method: 'DELETE' })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo borrar la propuesta')
+  await refrescarEstado()
+}
+
 // PROP-COMPLETA (29/10) · «Enviar»: manda la liga por correo y deja la
 // propuesta ENVIADA. `correo: 'no_configurado'` = solo cambió el estatus.
 export async function enviarPropuestaApi(

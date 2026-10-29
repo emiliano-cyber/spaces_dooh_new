@@ -1341,6 +1341,57 @@ export async function crearPropuesta(input: PropuestaInput) {
   }
 }
 
+// PROP-COMPLETA (29/10) · BORRAR una propuesta. Decisión del dueño (R5): solo
+// un BORRADOR. Una enviada ya está en manos del cliente —tiene su liga— y lo
+// que procede es RECHAZARLA, que deja rastro; una aprobada es un contrato.
+//
+// Lo que se lleva el borrado, todo por `on delete cascade`: sus líneas
+// (`propuesta_items`), el canje del cupón (`canjes_codigo`) y la aplicación del
+// paquete (`paquete_aplicaciones`). Que el canje se vaya ES devolver el uso: los
+// usos de un cupón son `count(*)` de sus canjes, no un contador aparte.
+//
+// En UNA transacción y con la fila bloqueada: si alguien la envía o la aprueba
+// a la vez, gana el primero y el segundo lee el estatus nuevo. El `estatus` va
+// también en el `delete` como segunda red. Una campaña que apunte a ella
+// (imposible hoy para un borrador) se rechaza en vez de quedarse huérfana.
+// El folio NO se reutiliza: queda un hueco en la serie, y es lo correcto.
+export async function borrarPropuestaBorrador(id: string): Promise<{ folio: string; nombre: string } | null> {
+  const tenant = await tenantActual()
+  const client = await pool.connect()
+  try {
+    await client.query('begin')
+    await fijarTenant(client)
+    const p = (
+      await client.query(
+        'select estatus, folio, nombre from propuestas where id=$1 and tenant_id=$2 for update',
+        [id, tenant],
+      )
+    ).rows[0]
+    if (!p) {
+      await client.query('rollback')
+      return null
+    }
+    if (p.estatus !== 'BORRADOR') {
+      throw new PropuestaError('Solo se borra un borrador. Una propuesta enviada se rechaza; una aprobada no se toca.')
+    }
+    const camp = (
+      await client.query('select 1 from campanas where propuesta_id=$1 and tenant_id=$2 limit 1', [id, tenant])
+    ).rows[0]
+    if (camp) throw new PropuestaError('Esta propuesta ya tiene campaña; no se puede borrar')
+    const del = await client.query(
+      `delete from propuestas where id=$1 and tenant_id=$2 and estatus='BORRADOR' returning folio, nombre`,
+      [id, tenant],
+    )
+    await client.query('commit')
+    return del.rows[0] ?? null
+  } catch (e) {
+    await client.query('rollback').catch(() => {})
+    throw e
+  } finally {
+    client.release()
+  }
+}
+
 // Aprobación granular: aprueba/desaprueba un sitio (item) de la propuesta y
 // devuelve la propuesta recompuesta (con los totales aprobados al día).
 export async function aprobarItem(itemId: string, aprobado: boolean) {

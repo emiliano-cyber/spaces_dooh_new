@@ -721,6 +721,16 @@ Decisiones del dueño del 29/10. Migración
   `lib/test/propuesta-vigencia.e2e.test.ts` (incluye R2: la plantilla y los días
   de una organización no se cuelan en otra).
 
+## Borrar un borrador (PROP-COMPLETA, 29/10 · R5 aprobado)
+
+`DELETE /api/propuestas/[id]` → `borrarPropuestaBorrador`. **Solo BORRADOR**:
+una enviada se rechaza (el cliente ya tiene la liga) y una aprobada no se toca
+(409 con esa frase). En una transacción con la fila bloqueada y `estatus` en el
+`delete` como segunda red. Se van por `cascade` las líneas, el canje del cupón
+—y con él **el uso vuelve**: los usos son `count(*)` de `canjes_codigo`— y la
+aplicación del paquete. El folio no se reutiliza (queda un hueco en la serie).
+Pruebas: `lib/test/propuestas-gestion.e2e.test.ts`.
+
 ## Enviar por correo (PROP-COMPLETA, 29/10)
 
 «Enviar» ya no es solo un cambio de estatus: abre un diálogo con el correo del

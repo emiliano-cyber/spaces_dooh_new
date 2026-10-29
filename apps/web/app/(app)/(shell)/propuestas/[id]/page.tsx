@@ -29,6 +29,7 @@ import {
   Link2,
   FileDown,
   Check as CheckIcon,
+  Trash2,
 } from 'lucide-react'
 import { Card } from '@/components/demo/ui/Card'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
@@ -40,6 +41,7 @@ import { trailFromLocation } from '@/lib/nav-trail'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import {
   cambiarEstatusPropuestaApi,
+  borrarPropuestaApi,
   aprobarItemPropuestaApi,
   generarCampanaDesdePropuestaApi,
   actualizarPropuestaApi,
@@ -302,6 +304,18 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
       toast.error(e instanceof Error ? e.message : 'Error')
     }
   }
+  // PROP-COMPLETA · borrar un BORRADOR (decisión del dueño). Se confirma porque
+  // no tiene vuelta atrás; el servidor rechaza cualquier otro estatus.
+  async function borrar() {
+    if (!window.confirm(`¿Borrar el borrador «${p!.nombre}»? No se puede deshacer.`)) return
+    try {
+      await borrarPropuestaApi(id)
+      toast.success('Borrador borrado')
+      router.push('/propuestas')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Error')
+    }
+  }
   async function aprobar(itemId: string, aprobado: boolean) {
     try { await aprobarItemPropuestaApi(itemId, aprobado) } catch (e) { toast.error(e instanceof Error ? e.message : 'Error') }
   }
@@ -391,6 +405,11 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
               <Button size="sm" onClick={() => cambiar('APROBADA')}><Check className="h-3.5 w-3.5" /> Aprobar</Button>
               <Button size="sm" variant="danger" onClick={() => cambiar('RECHAZADA')}><X className="h-3.5 w-3.5" /> Rechazar</Button>
             </>
+          )}
+          {puedeEditar && p.estatus === 'BORRADOR' && (
+            <Button size="sm" variant="ghost" onClick={borrar} title="Solo los borradores se pueden borrar">
+              <Trash2 className="h-3.5 w-3.5" /> Borrar
+            </Button>
           )}
           {puedeEditar && p.estatus === 'APROBADA' && (
             <Button size="sm" disabled={generando} onClick={() => void generarCampana()}>
