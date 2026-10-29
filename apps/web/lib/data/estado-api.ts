@@ -173,7 +173,7 @@ export async function crearPropuestaApi(input: {
     primaRoadblockPct?: number | null
   }[]
   notas?: string | null
-}): Promise<void> {
+}): Promise<{ id: string | null }> {
   const r = await fetch(`${API}/propuestas/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -182,6 +182,8 @@ export async function crearPropuestaApi(input: {
   const d = await r.json().catch(() => ({}))
   if (!r.ok) throw new Error(d.error ?? 'No se pudo crear la propuesta')
   await refrescarEstado()
+  // PROP-COMPLETA · el id, para abrir la copia recién duplicada.
+  return { id: typeof d.id === 'string' ? d.id : null }
 }
 
 // Error con bandera para que el UI reconfirme una aprobación en $0 (S1-2).
@@ -226,6 +228,28 @@ export async function actualizarPropuestaApi(
   })
   const d = await r.json().catch(() => ({}))
   if (!r.ok) throw new Error(d.error ?? 'No se pudo actualizar la propuesta')
+  await refrescarEstado()
+}
+
+// PROP-COMPLETA (29/10) · agrega sitios (misma forma que el alta) y quita uno.
+export async function agregarSitiosPropuestaApi(
+  id: string,
+  items: Parameters<typeof crearPropuestaApi>[0]['items'],
+): Promise<void> {
+  const r = await fetch(`${API}/propuestas/${id}/items/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ items }),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudieron agregar los sitios')
+  await refrescarEstado()
+}
+
+export async function quitarSitioPropuestaApi(itemId: string): Promise<void> {
+  const r = await fetch(`${API}/propuestas/items/${itemId}/`, { method: 'DELETE' })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo quitar el sitio')
   await refrescarEstado()
 }
 

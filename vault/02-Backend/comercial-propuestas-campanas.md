@@ -721,6 +721,29 @@ Decisiones del dueño del 29/10. Migración
   `lib/test/propuesta-vigencia.e2e.test.ts` (incluye R2: la plantilla y los días
   de una organización no se cuelan en otra).
 
+## Agregar, quitar y duplicar (PROP-COMPLETA, 29/10)
+
+- **Agregar sitios** — `POST /api/propuestas/[id]/items` → `agregarSitiosCtrl`.
+  BORRADOR o ENVIADA (en ENVIADA **sube la versión**). Las líneas usan el
+  periodo de la propuesta (`rangoDePropuesta`) y pasan por `prepararLineas`, la
+  MISMA función del alta (franja, volumen, calculadora, tarifa del servidor y
+  permiso de `comercial.aprobar`): un sitio agregado no es otra puerta para B40.
+  El INSERT de la línea es uno (`insertarItem`), compartido con el alta.
+- **Quitar** — `DELETE /api/propuestas/items/[id]` → `quitarItem`. Mismos
+  estatus, sube versión en ENVIADA, **nunca el último sitio** (409). Con la fila
+  de la propuesta bloqueada para que dos no quiten a la vez el penúltimo.
+- Ni agregar ni quitar recalculan el paquete aplicado: su precio no se mueve y
+  `avisoPaqueteIncompleto` avisa (PAQ-01).
+- **Duplicar** — solo del lado de la pantalla: la ficha abre
+  `/propuestas?duplicar=<id>` y el formulario de alta se precarga (cliente,
+  agencia, comisión, periodo, notas y, por pantalla, unidad, franja,
+  programación y calculadora). **No** copia tarifa manual, prima de Roadblock ni
+  cupón: la copia se cotiza a la tarifa de hoy. Una pantalla repetida en la
+  original entra una vez. «Agregar sitios» usa el mismo formulario
+  (`?agregar=<id>`), con nombre, cliente, fechas y comisión fijos.
+- Pruebas: `lib/test/propuestas-gestion.e2e.test.ts` (incluye la vendedora a
+  1 peso por la puerta nueva → 403, y R2).
+
 ## Borrar un borrador (PROP-COMPLETA, 29/10 · R5 aprobado)
 
 `DELETE /api/propuestas/[id]` → `borrarPropuestaBorrador`. **Solo BORRADOR**:

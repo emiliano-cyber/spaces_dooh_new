@@ -69,6 +69,19 @@ export const SIN_TRADUCIR: readonly string[] = []
 // 115 mensajes de `new AppError('...')` + 27 del embudo, del mapa de
 // Postgres, de zod y de las constantes compartidas.
 export const CATALOGO_ERRORES: Record<string, string> = {
+  // PROP-COMPLETA (29/10) · enviar, borrar, agregar y quitar sitios, vigencia.
+  'Propuesta no encontrada':
+    'Proposal not found',
+  'Solo se agregan sitios a una propuesta en borrador o enviada':
+    'Sites can only be added to a draft or sent proposal',
+  'Sitio de la propuesta no encontrado':
+    'Proposal site not found',
+  'Solo se envía una propuesta en borrador o ya enviada':
+    'Only a draft or already sent proposal can be sent',
+  'Esta propuesta no tiene liga; vuelve a guardarla':
+    'This proposal has no link; save it again',
+  'No se pudo enviar el correo. La propuesta no cambió: inténtalo de nuevo o copia la liga y mándala tú.':
+    'The email could not be sent. The proposal did not change: try again or copy the link and send it yourself.',
   // 1 sitio · lib/server/arrendadores-controller.ts:376
   'Adjunto inválido':
     'Invalid attachment',
@@ -638,6 +651,11 @@ export const CAMPO_EN: Record<string, string> = {
 // patron y se conserva tal cual. Son los de `mapaZodEs`
 // (`lib/server/errores.ts`), uno por uno.
 export const PATRONES_ERROR: ReadonlyArray<{ re: RegExp; en: string }> = [
+  // PROP-COMPLETA (29/10) · la liga de una propuesta vencida lleva la fecha.
+  {
+    re: /^Esta propuesta venció el (\d{2}\/\d{2}\/\d{4})\. Pide una actualizada a quien te la envió\.$/,
+    en: 'This proposal expired on $1. Ask whoever sent it for an updated one.',
+  },
   { re: /^Debe tener al menos (\d+) caracteres$/, en: 'Must be at least $1 characters' },
   { re: /^No puede tener más de (\d+) caracteres$/, en: 'Must not have more than $1 characters' },
   { re: /^Agrega al menos (\d+)$/, en: 'Add at least $1' },

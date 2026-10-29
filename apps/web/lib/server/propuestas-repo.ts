@@ -1221,6 +1221,66 @@ export function validarRangoFechas(inicio?: string | null, fin?: string | null) 
   }
 }
 
+// Una línea de propuesta, tal como la dejó el controller (precio, volumen y
+// tarifa ya resueltos por el servidor). La comparten el alta y, desde el 29/10,
+// agregar sitios a una propuesta ya creada: el INSERT es UNO, con sus
+// normalizaciones y sus comentarios, y no puede haber una segunda copia que se
+// olvide de una columna (PROP-COMPLETA).
+type ItemInput = PropuestaInput['items'][number]
+async function insertarItem(
+  client: { query: (sql: string, params?: unknown[]) => Promise<unknown> },
+  propuestaId: string,
+  fechaInicio: string,
+  fechaFin: string,
+  it: ItemInput,
+  tId: string | null,
+  vendedorId: string | null,
+) {
+  await client.query(
+    `insert into propuesta_items
+       (propuesta_id, sitio_id, fecha_inicio, fecha_fin, precio, unidad, cantidad, tarifa_unitaria, spots_por_dia, tenant_id,
+        renta_monto, renta_periodicidad, renta_arrendador_id, franja_id,
+        descuento_volumen_pct, volumen_desde, tarifa_calculada, precio_ajustado_por,
+        espacios_comprados, horas_dia, roadblock, prima_roadblock_pct)
+     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::periodicidad_pago,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)`,
+    [
+      propuestaId, it.sitioId, fechaInicio, fechaFin, it.precio ?? 0,
+      it.unidad ?? 'mensual', it.cantidad ?? 1, it.tarifaUnitaria ?? (it.precio ?? 0),
+      it.spotsPorDia ?? null, tId,
+      // Renta al propietario (opcional). El CHECK `propuesta_items_renta_ck`
+      // exige importe y periodicidad juntos, así que se normaliza a null si
+      // falta cualquiera de los dos en vez de dejar que reviente la BD.
+      it.rentaMonto != null && it.rentaPeriodicidad ? it.rentaMonto : null,
+      it.rentaMonto != null && it.rentaPeriodicidad ? it.rentaPeriodicidad : null,
+      it.rentaArrendadorId ?? null,
+      // REJILLA-01 · la franja CONTRATADA. Ya validada contra el catálogo
+      // activo de esta organización en el controller; aquí la red de
+      // seguridad es `propuesta_items_franja_fkey`, que es COMPUESTA con el
+      // tenant y por tanto no se puede eludir olvidándose de validar.
+      it.franjaId ?? null,
+      // VOL-01 · el porcentaje y el umbral se guardan JUNTOS y con un
+      // respaldo explícito. Un porcentaje sin su umbral es un descuento que
+      // nadie puede auditar; el `?? 0` de aquí es el único legítimo de la
+      // pareja, porque 0 SÍ significa «sin volumen» en esta columna.
+      it.descuentoVolumenPct ?? 0,
+      it.volumenDesde ?? null,
+      // PRECIO-01 · la tarifa calculada por el servidor, y QUIÉN se apartó
+      // de ella: el usuario de la SESIÓN (`vendedorId`, la misma cookie),
+      // y solo cuando el controller lo marcó como ajuste. A la tarifa
+      // queda `null`: no hay nada que atribuir.
+      it.tarifaCalculada ?? null,
+      it.precioAjustado ? vendedorId : null,
+      // ADR 0042 · la calculadora. Los CHECK de 20261007 son la red: un
+      // Roadblock sin espacios o una prima sin Roadblock revientan aquí
+      // aunque un controller futuro se olvidara de validar.
+      it.espaciosComprados ?? null,
+      it.horasDia ?? null,
+      it.roadblock === true,
+      it.primaRoadblockPct ?? null,
+    ],
+  )
+}
+
 export async function crearPropuesta(input: PropuestaInput) {
   validarRangoFechas(input.fechaInicio, input.fechaFin)
   // Gate de negociación: la agencia debe tener su negociación validada.
@@ -1284,49 +1344,7 @@ export async function crearPropuesta(input: PropuestaInput) {
     }
     const tId = await tenantActual()
     for (const it of input.items) {
-      await client.query(
-        `insert into propuesta_items
-           (propuesta_id, sitio_id, fecha_inicio, fecha_fin, precio, unidad, cantidad, tarifa_unitaria, spots_por_dia, tenant_id,
-            renta_monto, renta_periodicidad, renta_arrendador_id, franja_id,
-            descuento_volumen_pct, volumen_desde, tarifa_calculada, precio_ajustado_por,
-            espacios_comprados, horas_dia, roadblock, prima_roadblock_pct)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::periodicidad_pago,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)`,
-        [
-          prop.id, it.sitioId, input.fechaInicio, input.fechaFin, it.precio ?? 0,
-          it.unidad ?? 'mensual', it.cantidad ?? 1, it.tarifaUnitaria ?? (it.precio ?? 0),
-          it.spotsPorDia ?? null, tId,
-          // Renta al propietario (opcional). El CHECK `propuesta_items_renta_ck`
-          // exige importe y periodicidad juntos, así que se normaliza a null si
-          // falta cualquiera de los dos en vez de dejar que reviente la BD.
-          it.rentaMonto != null && it.rentaPeriodicidad ? it.rentaMonto : null,
-          it.rentaMonto != null && it.rentaPeriodicidad ? it.rentaPeriodicidad : null,
-          it.rentaArrendadorId ?? null,
-          // REJILLA-01 · la franja CONTRATADA. Ya validada contra el catálogo
-          // activo de esta organización en el controller; aquí la red de
-          // seguridad es `propuesta_items_franja_fkey`, que es COMPUESTA con el
-          // tenant y por tanto no se puede eludir olvidándose de validar.
-          it.franjaId ?? null,
-          // VOL-01 · el porcentaje y el umbral se guardan JUNTOS y con un
-          // respaldo explícito. Un porcentaje sin su umbral es un descuento que
-          // nadie puede auditar; el `?? 0` de aquí es el único legítimo de la
-          // pareja, porque 0 SÍ significa «sin volumen» en esta columna.
-          it.descuentoVolumenPct ?? 0,
-          it.volumenDesde ?? null,
-          // PRECIO-01 · la tarifa calculada por el servidor, y QUIÉN se apartó
-          // de ella: el usuario de la SESIÓN (`vendedorId`, la misma cookie),
-          // y solo cuando el controller lo marcó como ajuste. A la tarifa
-          // queda `null`: no hay nada que atribuir.
-          it.tarifaCalculada ?? null,
-          it.precioAjustado ? vendedorId : null,
-          // ADR 0042 · la calculadora. Los CHECK de 20261007 son la red: un
-          // Roadblock sin espacios o una prima sin Roadblock revientan aquí
-          // aunque un controller futuro se olvidara de validar.
-          it.espaciosComprados ?? null,
-          it.horasDia ?? null,
-          it.roadblock === true,
-          it.primaRoadblockPct ?? null,
-        ],
-      )
+      await insertarItem(client, prop.id, input.fechaInicio, input.fechaFin, it, tId, vendedorId)
     }
     const items = (
       await client.query('select * from propuesta_items where propuesta_id=$1', [prop.id])
@@ -1384,6 +1402,130 @@ export async function borrarPropuestaBorrador(id: string): Promise<{ folio: stri
     )
     await client.query('commit')
     return del.rows[0] ?? null
+  } catch (e) {
+    await client.query('rollback').catch(() => {})
+    throw e
+  } finally {
+    client.release()
+  }
+}
+
+// ─── PROP-COMPLETA (29/10) · agregar y quitar sitios ────────────────────────
+// Decisión del dueño: se puede en BORRADOR y en ENVIADA; en ENVIADA cambia lo
+// que el cliente tiene delante, así que SUBE LA VERSIÓN (renegociación), igual
+// que el descuento. Una APROBADA es inmutable (va como adenda) y una RECHAZADA
+// se reactiva por otro camino (el cupón), no tocándole las pantallas.
+//
+// Lo que NO se recalcula, a propósito: el paquete aplicado se queda con su
+// precio y su composición congelada, y `avisoPaqueteIncompleto` ya avisa en
+// cuanto la propuesta deja de cuadrar con él (PAQ-01: «se avisa y el precio no
+// se mueve»). El cupón es un porcentaje y se aplica solo a la base nueva.
+const EDITABLES_SITIOS = ['BORRADOR', 'ENVIADA']
+
+/** El estatus y el periodo de una propuesta (el de sus líneas). */
+export async function rangoDePropuesta(
+  id: string,
+): Promise<{ estatus: string; fechaInicio: string; fechaFin: string } | null> {
+  const r = await q1<any>(
+    `select p.estatus,
+            to_char(min(i.fecha_inicio), 'YYYY-MM-DD') as fecha_inicio,
+            to_char(max(i.fecha_fin), 'YYYY-MM-DD') as fecha_fin
+       from propuestas p
+       left join propuesta_items i on i.propuesta_id = p.id and i.tenant_id = p.tenant_id
+      where p.id = $1 and p.tenant_id = $2
+      group by p.estatus`,
+    [id, await tenantActual()],
+  )
+  if (!r) return null
+  if (!r.fecha_inicio || !r.fecha_fin) throw new PropuestaError('La propuesta no tiene periodo: no tiene sitios')
+  return { estatus: r.estatus, fechaInicio: r.fecha_inicio, fechaFin: r.fecha_fin }
+}
+
+async function armarEnTx(client: { query: (sql: string, params?: unknown[]) => Promise<any> }, id: string) {
+  const p = (
+    await client.query(
+      'select p.*, (select iva_pct from clientes c where c.id = p.cliente_id) as cliente_iva from propuestas p where p.id=$1',
+      [id],
+    )
+  ).rows[0]
+  const items = (await client.query('select * from propuesta_items where propuesta_id=$1 order by creado_en asc', [id])).rows
+  return armarPropuesta(p, items)
+}
+
+export async function agregarItems(
+  propuestaId: string,
+  items: PropuestaInput['items'],
+  rango: { fechaInicio: string; fechaFin: string },
+) {
+  const tenant = await tenantActual()
+  const vendedorId = (await usuarioActual())?.id ?? null
+  const client = await pool.connect()
+  try {
+    await client.query('begin')
+    await fijarTenant(client)
+    // La fila bloqueada: si alguien la aprueba a la vez, gana el primero y el
+    // segundo lee el estatus nuevo.
+    const p = (
+      await client.query('select estatus from propuestas where id=$1 and tenant_id=$2 for update', [propuestaId, tenant])
+    ).rows[0]
+    if (!p) {
+      await client.query('rollback')
+      return null
+    }
+    if (!EDITABLES_SITIOS.includes(p.estatus)) {
+      throw new PropuestaError('Solo se agregan sitios a una propuesta en borrador o enviada')
+    }
+    for (const it of items) {
+      await insertarItem(client, propuestaId, rango.fechaInicio, rango.fechaFin, it, tenant, vendedorId)
+    }
+    if (p.estatus === 'ENVIADA') {
+      await client.query('update propuestas set version = version + 1 where id=$1 and tenant_id=$2', [propuestaId, tenant])
+    }
+    const armada = await armarEnTx(client, propuestaId)
+    await client.query('commit')
+    return armada
+  } catch (e) {
+    await client.query('rollback').catch(() => {})
+    throw e
+  } finally {
+    client.release()
+  }
+}
+
+export async function quitarItem(itemId: string) {
+  const tenant = await tenantActual()
+  const client = await pool.connect()
+  try {
+    await client.query('begin')
+    await fijarTenant(client)
+    const it = (
+      await client.query('select propuesta_id from propuesta_items where id=$1 and tenant_id=$2', [itemId, tenant])
+    ).rows[0]
+    if (!it) {
+      await client.query('rollback')
+      return null
+    }
+    const p = (
+      await client.query('select estatus from propuestas where id=$1 and tenant_id=$2 for update', [it.propuesta_id, tenant])
+    ).rows[0]
+    if (!p || !EDITABLES_SITIOS.includes(p.estatus)) {
+      throw new PropuestaError('Solo se quitan sitios de una propuesta en borrador o enviada')
+    }
+    // Con la fila de la propuesta bloqueada, nadie más quita a la vez: el
+    // conteo no puede cambiar debajo.
+    const n = Number(
+      (await client.query('select count(*) as n from propuesta_items where propuesta_id=$1', [it.propuesta_id])).rows[0].n,
+    )
+    if (n <= 1) {
+      throw new PropuestaError('Una propuesta necesita al menos un sitio. Si ya no sirve, bórrala o recházala.')
+    }
+    await client.query('delete from propuesta_items where id=$1 and tenant_id=$2', [itemId, tenant])
+    if (p.estatus === 'ENVIADA') {
+      await client.query('update propuestas set version = version + 1 where id=$1 and tenant_id=$2', [it.propuesta_id, tenant])
+    }
+    const armada = await armarEnTx(client, it.propuesta_id)
+    await client.query('commit')
+    return armada
   } catch (e) {
     await client.query('rollback').catch(() => {})
     throw e
