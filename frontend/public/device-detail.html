@@ -808,8 +808,20 @@
                 <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
                   <template x-for="c in creativosConFoto()" :key="c.id">
                     <div class="relative group border border-neutral-200 rounded-md overflow-hidden">
-                      <div class="aspect-[4/3] bg-neutral-100">
-                        <img :src="c.thumbnail_path" class="w-full h-full object-contain" alt="Creativo detectado">
+                      <!-- Dos tomas cuando las hay: como aparecio y como se ve
+                           hoy. Con una sola, la de siempre a lo ancho. -->
+                      <div class="aspect-[4/3] bg-neutral-100 flex">
+                        <div class="relative h-full" :class="c.ultima_thumbnail_path ? 'w-1/2 border-r border-white/60' : 'w-full'">
+                          <img :src="c.thumbnail_path" class="w-full h-full object-contain" alt="Creativo al aparecer">
+                          <span x-show="c.ultima_thumbnail_path"
+                                class="absolute bottom-0 inset-x-0 bg-black/55 text-white text-[10px] text-center py-0.5"
+                                x-text="'Apareció ' + fechaCorta(c.primera_vez)"></span>
+                        </div>
+                        <div x-show="c.ultima_thumbnail_path" class="relative w-1/2 h-full">
+                          <img :src="c.ultima_thumbnail_path" class="w-full h-full object-contain" alt="El mismo creativo hoy">
+                          <span class="absolute bottom-0 inset-x-0 bg-black/55 text-white text-[10px] text-center py-0.5"
+                                x-text="'Ahora · ' + fechaCorta(c.ultima_taken_at)"></span>
+                        </div>
                       </div>
                       <div class="px-2.5 py-2 border-t border-neutral-200">
                         <p class="text-xs">Apareció <span class="font-mono" x-text="fechaCorta(c.primera_vez)"></span></p>
