@@ -19,6 +19,11 @@ Ahora, al aprobar, la temporada solo se anota si de verdad fue su tarifa la que 
 cobró; si no, se deja en blanco. Las propuestas que ya estaban aprobadas no
 cambian.
 
+**Reportes: vender dos horarios de la misma pantalla ya no la saca de «tarifa
+publicada contra neta».** Si en una propuesta se vendían, por ejemplo, el horario
+prime y la madrugada de la misma pantalla, el reporte no sabía qué precio era de
+cuál y dejaba esa pantalla fuera de la comparación. Ahora distingue cada horario.
+
 ---
 
 ## 2026-10-27 · v0.12.4 (preparada, todavía sin publicar)

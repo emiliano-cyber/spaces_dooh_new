@@ -1,7 +1,7 @@
 ---
 tipo: contrato
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-10-29
 tags: [backend, reportes, rentabilidad, tarifas, propuestas, dinero, snapshot]
 archivos:
   - apps/web/lib/data/reportes.ts
@@ -128,6 +128,23 @@ No es teórico: `campanas-repo` construye su `netoDeSnap` como un Map por
 pantalla, así que con la pantalla repetida **gana la última** y las dos reservas
 se guardan con el neto del segundo ítem. Sin el centinela de ambigüedad las dos
 casarían con esa última entrada y la tarifa publicada saldría a la mitad.
+
+> [!important] 2026-10-29 · B42 · la llave es (pantalla, FRANJA), no la pantalla sola
+> Con la rejilla, la pantalla repetida sale sobre todo de vender **dos franjas**
+> de la misma pantalla —el prime y la madrugada—, y la llave por `sitioId` la
+> sacaba entera del reporte. Ahora `matriz()` (`lib/data/reportes.ts`, `llaveTarifa`)
+> busca por `sitioId|franjaId`: el borde (`reportes-repo.ts`) pasa
+> `porSitio[].franja.id` del snapshot como `franjaId` y `reservas.franja_id`, que
+> la reserva hereda del ítem. Dos líneas de la misma pantalla **y la misma
+> franja** (dos periodos) siguen siendo `AMBIGUA`. Pruebas:
+> `reportes.tarifa.test.ts` (tres casos B42) y `reportes-repo.franja.test.ts`.
+>
+> **Residuo, y es de dinero:** `campanas-repo` sigue construyendo `netoDeSnap`
+> por `sitioId` solo, así que al generar la campaña de una propuesta con dos
+> franjas de la misma pantalla **las dos reservas se guardan con el neto de la
+> última línea**. El reporte lo sobrevive —la reserva de la primera franja no
+> casa con su neto congelado y se declara sin tarifa—, pero es lo que se factura.
+> No se tocó aquí (R4); está anotado en `docs/Supervision/ABIERTOS.md` B42.
 
 > Este caso apareció **matando mutantes**, no leyendo: la primera versión de su
 > prueba pasaba con el centinela y sin él, porque el guard del precio ya la

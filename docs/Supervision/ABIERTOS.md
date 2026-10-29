@@ -681,7 +681,32 @@ calendario.
   enciende, la pantalla nueva de la Fase 1 es la única del producto donde el dueño
   no puede dar de alta nada y no se le dice por qué.
 
-#### B42 · 🟠 Vender dos franjas de la misma pantalla en una propuesta saca esa pantalla del reporte de tarifas
+#### ~~B42 · 🟠 Vender dos franjas de la misma pantalla en una propuesta saca esa pantalla del reporte de tarifas~~
+
+> ✅ **CERRADA el 2026-10-29** (rama `fix/abiertos-b41-b45-d6`, sin fusionar), como
+> decía la ficha. Las líneas habían derivado (`AMBIGUA` estaba en ~:1197 y el tipo
+> en ~:420); reubicadas:
+> - `lib/data/reportes.ts` · `matriz()` desempata con `llaveTarifa(sitioId, franjaId)`
+>   en vez de `sitioId`; `TarifaPublicada.porSitio[]` y `ReservaReporte` ganan
+>   `franjaId`. Misma pantalla **y misma franja** dos veces sigue siendo `AMBIGUA`.
+> - `lib/server/reportes-repo.ts` · el borde pasa `porSitio[].franja.id` del snapshot
+>   como `franjaId` (`null` en snapshots anteriores a la Fase 1) y lee
+>   `reservas.franja_id`, que la reserva hereda del ítem.
+>
+> **Con qué se midió:** `lib/data/reportes.tarifa.test.ts` (3 casos B42) y
+> `lib/server/reportes-repo.franja.test.ts` (3, el puente); 5 de los 6 en ROJO
+> antes del arreglo (el de «misma franja dos veces» ya pasaba, es el negativo de
+> control). **No se construyó una propuesta de dos franjas contra Postgres.**
+>
+> **⚠️ Y apareció algo de DINERO que NO se tocó (R4):** `campanas-repo.ts`
+> construye `netoDeSnap` como un `Map` por `sitioId` solo (`:693-695`, usado en
+> `:773`), así que al generar la campaña de una propuesta con **dos franjas (o dos
+> periodos) de la misma pantalla, las dos reservas se guardan con el neto de la
+> ÚLTIMA línea**: lo que se factura no es lo que se cotizó. La nota
+> `tarifa-publicada-vs-neta.md` ya lo describía para los periodos, como hecho y no
+> como defecto. Con este arreglo el reporte lo sobrevive (la reserva de la primera
+> franja no casa con su neto y se declara sin tarifa), pero el importe de la
+> reserva sigue mal. **Pide ficha propia y aprobación del dueño**: es dinero.
 
 - **Qué es:** la dimensión «tarifa publicada vs neta» del reporte se declara
   incapaz cuando la misma pantalla aparece dos veces en el congelado. La rejilla

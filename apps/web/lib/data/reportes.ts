@@ -419,6 +419,12 @@ export interface TarifaPublicada {
   /** `lista` y `neto` por pantalla, tal como se congelaron. */
   porSitio: {
     sitioId: string
+    /**
+     * B42 (2026-10-29) · la franja congelada de esta línea (`franja.id` del
+     * snapshot), o `null` si se vendió todo el día o el snapshot es anterior a
+     * la Fase 1. Desempata dos franjas de la MISMA pantalla.
+     */
+    franjaId?: string | null
     lista: number
     neto: number
     /**
@@ -508,6 +514,12 @@ interface ReservaReporte {
    * y eso se declara, no se esconde.
    */
   campanaId?: string | null
+  /**
+   * B42 (2026-10-29) · la franja horaria contratada, heredada del ítem de la
+   * propuesta. Junto con `sitioId` es la llave con la que se busca la tarifa
+   * publicada congelada. `null`/ausente = todo el día.
+   */
+  franjaId?: string | null
   precio: number
   estatus: string
   fechaInicio: string
@@ -1210,12 +1222,23 @@ function matriz(datos: DatosRentabilidad, opts: OpcionesReporte): Matriz {
   // estado: para este reporte los dos casos son la misma cosa —no se sabe con
   // qué comparar—, y la cobertura ya cuenta y explica el hueco.
   const DE_PAQUETE = null
+  //
+  // B42 (2026-10-29) · LA LLAVE ES (pantalla, franja), NO LA PANTALLA SOLA. Con
+  // la rejilla, la misma pantalla aparece dos veces en el snapshot sobre todo
+  // por DOS FRANJAS —el prime y la madrugada—, que es justo la venta que la
+  // Fase 1 existe para hacer posible, y la llave por pantalla la declaraba
+  // ambigua entera. La franja ya viaja congelada en cada línea y la reserva la
+  // hereda del ítem, así que distingue sin elegir nada. Dos líneas de la misma
+  // pantalla Y la misma franja (dos periodos) siguen siendo AMBIGUA: ahí el
+  // dato sigue sin decir cuál es cuál.
+  const llaveTarifa = (sitioId: string, franjaId: string | null | undefined) => `${sitioId}|${franjaId ?? ''}`
   const tarifaDeCampana = new Map<string, Map<string, { lista: number; neto: number } | null>>()
   for (const t of datos.tarifasPublicadas ?? []) {
     const porSitioTarifa = new Map<string, { lista: number; neto: number } | null>()
     for (const e of t.porSitio ?? []) {
       const entrada = e.dePaquete === true ? DE_PAQUETE : { lista: e.lista, neto: e.neto }
-      porSitioTarifa.set(e.sitioId, porSitioTarifa.has(e.sitioId) ? AMBIGUA : entrada)
+      const llave = llaveTarifa(e.sitioId, e.franjaId)
+      porSitioTarifa.set(llave, porSitioTarifa.has(llave) ? AMBIGUA : entrada)
     }
     tarifaDeCampana.set(t.campanaId, porSitioTarifa)
   }
@@ -1239,7 +1262,7 @@ function matriz(datos: DatosRentabilidad, opts: OpcionesReporte): Matriz {
   const porTarifa: PorTarifa = { conTarifa: 0, sinTarifa: 0 }
   for (const r of datos.reservas) {
     if (!cuentaComoVenta(r)) continue
-    const e = r.campanaId ? tarifaDeCampana.get(r.campanaId)?.get(r.sitioId) : undefined
+    const e = r.campanaId ? tarifaDeCampana.get(r.campanaId)?.get(llaveTarifa(r.sitioId, r.franjaId)) : undefined
     if (e && e.neto === r.precio) {
       listaDeReserva.set(r, e.lista)
       porTarifa.conTarifa += 1

@@ -123,7 +123,7 @@ export async function datosRentabilidad(rango: RangoReporte): Promise<DatosRenta
     // CONFIRMADO es venta, TENT-PROP del 26/10) vive en
     // `lib/data/reportes.ts`, una sola vez.
     q<any>(
-      `select sitio_id, campana_id, precio, estatus,
+      `select sitio_id, campana_id, precio, estatus, franja_id,
               to_char(fecha_inicio, 'YYYY-MM-DD') as fecha_inicio,
               to_char(fecha_fin,    'YYYY-MM-DD') as fecha_fin
          from reservas
@@ -392,6 +392,12 @@ export async function datosRentabilidad(rango: RangoReporte): Promise<DatosRenta
           porSitio: porSitio
             .map((e: any) => ({
               sitioId: e?.sitioId,
+              // B42 (2026-10-29) · la franja congelada de ESTA línea, para que
+              // el motor desempate por (pantalla, franja): vender el prime y la
+              // madrugada de la misma pantalla sacaba la pantalla entera del
+              // reporte. Un snapshot anterior a la Fase 1 no la trae → `null`,
+              // que casa con la reserva sin franja de entonces.
+              franjaId: typeof e?.franja?.id === 'string' ? e.franja.id : null,
               lista: Number(e?.lista),
               neto: Number(e?.neto),
               // PAQ-01 (ADR 0039, Fase 4) · esta pantalla se vendió dentro de un
@@ -433,6 +439,8 @@ export async function datosRentabilidad(rango: RangoReporte): Promise<DatosRenta
     reservas: reservas.map((r) => ({
       sitioId: r.sitio_id,
       campanaId: r.campana_id ?? null,
+      // B42 · heredada del ítem de la propuesta (`campanas-repo.ts`).
+      franjaId: r.franja_id ?? null,
       precio: num(r.precio),
       estatus: r.estatus,
       fechaInicio: r.fecha_inicio,

@@ -536,6 +536,9 @@ las franjas a quien no tiene `precios.ver`, porque un nombre no es un precio.
   la ficha o por API. El importador sigue escribiendo solo `sitio_modalidades`.
 - **El reporte `tarifa` (publicada vs neta) todavía no distingue por franja.**
   Lee del snapshot, que ya la trae congelada, pero no la usa como dimensión.
+  *(2026-10-29, B42: sí la usa para DESEMPATAR — dos franjas de la misma
+  pantalla ya no sacan la pantalla del reporte; ver [[tarifa-publicada-vs-neta]].
+  Como dimensión propia, sigue sin existir.)*
 - Si la flota llega a PostgreSQL 15, el solape podría cerrarse también en el
   esquema.
 
