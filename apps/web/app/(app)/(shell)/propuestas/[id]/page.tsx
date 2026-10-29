@@ -229,9 +229,12 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
     void copiar(`${window.location.origin}/spaces-dooh/p/${p.tokenPublico}`, setCopiado, 'Liga de la propuesta copiada')
   }
 
-  // Generar PDF: por ahora no hace nada (placeholder de UI).
+  // PROP-COMPLETA (29/10) · «Generar PDF» abre el documento imprimible en otra
+  // pestaña (`app/(app)/propuesta/[id]`): la vista del CLIENTE con membrete,
+  // fotos, mapa, QR y condiciones, lista para «Imprimir → Guardar como PDF».
+  // Hasta hoy el botón no hacía nada.
   function generarPdf() {
-    /* TODO: generación de PDF de la propuesta */
+    window.open(`${window.location.origin}/spaces-dooh/propuesta/${id}/`, '_blank', 'noopener')
   }
 
   // Rastro de navegación (cómo llegué); por defecto, Propuestas.

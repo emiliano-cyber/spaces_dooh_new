@@ -730,7 +730,11 @@ export async function congelarSnapshotEconomico(propuestaId: string, tenantId?: 
 // Lectura pública (sin auth) de una propuesta por su CÓDIGO: acepta el id (UUID)
 // o el folio (p. ej. PR-A0BC4F). Datos de solo lectura para una liga
 // compartible. Incluye nombres de cliente/agencia y de cada sitio.
-export async function obtenerPropuestaPublica(codigo: string) {
+// `conFotos` (PROP-COMPLETA, 29/10) añade la PRIMERA foto de cada pantalla, y
+// solo la pide el documento imprimible (`app/(app)/propuesta/[id]`). La liga
+// pública NO: las fotos son data URLs dentro de `sitios.fotos` y pesan cientos
+// de kB cada una (ver `app/api/sitios/[id]/media`).
+export async function obtenerPropuestaPublica(codigo: string, opts: { conFotos?: boolean } = {}) {
   const cod = (codigo ?? '').trim()
   if (!cod) return null
 
@@ -808,6 +812,7 @@ export async function obtenerPropuestaPublica(codigo: string) {
     ? await qPub<any>(
         `select id, nombre, alcaldia, tipo_medio, lat, lng,
                 direccion, plaza_ciudad, ciudad, estado
+                ${opts.conFotos ? ', fotos[1] as foto' : ''}
            from sitios where id = any($1::uuid[])`,
         [sitioIds],
       )
@@ -900,6 +905,8 @@ export async function obtenerPropuestaPublica(codigo: string) {
         franjaId: it.franjaId,
         franjaNombre: it.franjaNombre,
         franjaHorario: it.franjaHorario,
+        // Solo con `conFotos`; la liga pública no lo trae.
+        ...(opts.conFotos ? { foto: (s?.foto as string | null) ?? null } : {}),
       }
     }),
   }

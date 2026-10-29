@@ -218,3 +218,38 @@ describe('quitar sitios', () => {
     expect(await cuenta('select count(*) n from propuesta_items where propuesta_id=$1', [p.id])).toBe(2)
   })
 })
+
+describe('el documento imprimible (Generar PDF)', () => {
+  it('abre con el folio, las pantallas y las condiciones de la propuesta', async () => {
+    const p = await crear(ca, alfa.sitioId, 'Propuesta para imprimir')
+    await ca.pedir(`/api/propuestas/${p.id}/`, { metodo: 'PATCH', cuerpo: { condiciones: 'Pago a 15 días.' } })
+    const folio = (await poolTest().query('select folio from propuestas where id=$1', [p.id])).rows[0].folio
+    const r = await ca.pedir(`/propuesta/${p.id}/`)
+    expect(r.status).toBe(200)
+    const html = String(r.datos)
+    expect(html).toContain(folio)
+    expect(html).toContain('Propuesta para imprimir')
+    expect(html).toContain('Pago a 15 días.')
+  })
+
+  it('COD-03 · un cupón PENDIENTE no sale en el documento del cliente', async () => {
+    await poolTest().query(
+      `insert into codigos_promocionales (tenant_id, codigo, descuento_pct, vigente_desde, vigente_hasta, usos_maximos)
+       values ($1,'DOCPEND',10,$2::date,$3::date,null)`,
+      [alfa.id, enDias(-5), enDias(30)],
+    )
+    const p = await crear(ca, alfa.sitioId)
+    const ap = await ca.pedir(`/api/propuestas/${p.id}/codigo/`, { cuerpo: { codigo: 'DOCPEND' } })
+    expect(ap.status, JSON.stringify(ap.datos)).toBe(200)
+    const r = await ca.pedir(`/propuesta/${p.id}/`)
+    expect(r.status).toBe(200)
+    expect(String(r.datos)).not.toContain('DOCPEND')
+  })
+
+  it('R2 · beta no abre el documento de una propuesta de alfa', async () => {
+    const p = await crear(ca, alfa.sitioId, 'Documento privado de alfa')
+    const r = await cb.pedir(`/propuesta/${p.id}/`)
+    expect(r.status).toBe(404)
+    expect(String(r.datos)).not.toContain('Documento privado de alfa')
+  })
+})

@@ -48,6 +48,8 @@ archivos:
   - apps/web/lib/propuesta-vigencia.ts
   - apps/web/components/demo/propuestas/BloqueCondicionesVigencia.tsx
   - apps/web/app/(app)/p/[id]/page.tsx
+  - apps/web/app/(app)/propuesta/[id]/page.tsx
+  - apps/web/components/demo/propuestas/DocumentoPropuestaCliente.tsx
   - apps/web/app/api/propuestas/[id]/route.ts
 ---
 
@@ -720,6 +722,24 @@ Decisiones del dueño del 29/10. Migración
 - Pruebas: `lib/propuesta-vigencia.test.ts` y
   `lib/test/propuesta-vigencia.e2e.test.ts` (incluye R2: la plantilla y los días
   de una organización no se cuelan en otra).
+
+## El documento imprimible: «Generar PDF» (PROP-COMPLETA, 29/10)
+
+«Generar PDF» abre `app/(app)/propuesta/[id]` en otra pestaña: fuera de
+(shell), como el contrato, y se guarda como PDF desde el diálogo de impresión
+(sin librería en el servidor). Se arma con la **vista del cliente**
+(`obtenerPropuestaPublica(token, { conFotos: true })`): sin tarifas internas y
+**sin el cupón pendiente** (COD-03). Lleva membrete, pantallas con su primera
+foto, mapa (`MapView imprimible`: `preserveDrawingBuffer`, sin él el lienzo
+WebGL sale en blanco), la misma escalera de importes que la liga, condiciones,
+la liga con QR y el espacio de aceptación (o el sello si ya se aceptó). La liga
+pública NO carga fotos (pesan). R2: el token se busca con el tenant de la
+sesión; otra organización recibe 404. Pruebas en
+`lib/test/propuestas-gestion.e2e.test.ts`. Revisado en el navegador el 29/10
+(Chrome, `next start` contra Postgres local): foto, mapa con mosaicos, QR,
+condiciones y escalera. **No se revisó la salida impresa** (vista previa de
+impresión ni PDF guardado): el lienzo del mapa depende de
+`preserveDrawingBuffer` y eso solo se ve imprimiendo.
 
 ## Agregar, quitar y duplicar (PROP-COMPLETA, 29/10)
 
