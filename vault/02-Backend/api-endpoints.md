@@ -1,7 +1,7 @@
 ---
 tipo: referencia
 estado: verificado
-actualizado: 2026-10-23
+actualizado: 2026-10-29
 tags: [backend, api, endpoints]
 archivos:
   - apps/web/app/api/
@@ -237,7 +237,7 @@ en `:230-237`) y **no** puede condicionarse a que la ruta
 | GET | `/api/creativos/[id]/arte` | exigir |
 | POST | `/api/campanas/[id]/confirmar` | exigir |
 | POST | `/api/campanas/[id]/contrato` | exigir |
-| POST | `/api/campanas/[id]/extender` | exigir |
+| GET·POST | `/api/campanas/[id]/extender` | GET `comercial:ver` (las extensiones con su contrato) · POST `comercial:crear`, `{ fechaFin, contratoUrl }`: sin el contrato firmado de la extensión, 422 (EXT-CONTRATO, 29/10); ver [[comercial-propuestas-campanas]] |
 | POST | `/api/campanas/[id]/oc` | exigir |
 | POST | `/api/campanas/[id]/validar` | exigir |
 | POST | `/api/campanas/[id]/reintentar-publicacion` | `comercial:crear` — vuelve a mandar a DOOHmain una publicación YA aprobada, sin cambiar la campaña (13/10); ver [[integraciones-externas]] |

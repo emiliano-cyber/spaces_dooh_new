@@ -1,17 +1,27 @@
 ---
 tipo: tablero
 estado: verificado
-actualizado: 2026-10-22
+actualizado: 2026-10-29
 tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
+
+> [!important] 2026-10-29 · **EXT-CONTRATO · «Extender campaña» solo con contrato nuevo** — rama `feat/extender-con-contrato` · ROJO R4 + R3 (**aprobados por el dueño el 29/10**, migración en forma restrict)
+> La extensión vuelve a la ficha de la campaña (tarjeta «Extensiones») y exige el PDF firmado de la extensión en el
+> mismo paso; sin él, 422. El contrato va a `campana_extensiones` (`20261029_campana_extensiones.sql`, solo inserción,
+> RLS forzada, `campana_id` on delete restrict), no a `campanas.contrato_url`, que es una sola columna. `extenderCampana`
+> pasa a UNA transacción. Zonas: Z5 (`campanas-repo`, `campanas-controller`, `/api/campanas/[id]/extender`,
+> `components/demo/campanas/`, ficha), Z9 (migración), Z12; `lib/data/estado-api.ts` y `lib/i18n/errores-servidor.ts`
+> sin zona; alto contacto: `docs/Registro_Cambios.md` y este tablero. **Reclamadas y LIBERADAS** al commitear.
+> **Sin correr:** las e2e (aquí no hay Postgres): `folio-venta-cpm` §2 y §2b, `esquema-sin-owner` (66 tablas),
+> `aislamiento`, `grants-*` y `migraciones` las corre el CI.
 
 > [!important] 2026-10-26 · **TENT-PROP · lo tentativo es lo que está en una propuesta abierta** — rama `feat/tentativo-en-propuesta`, encima de `feat/diseno-modulos` · ROJO R3 + R4 (**aprobado por el dueño el 26/10**)
 > Regla del dueño: tentativo = pantalla/spot en una propuesta BORRADOR o ENVIADA; solo avisa, no bloquea. Se retira
 > la reserva TENTATIVA (ningún flujo la creaba): `lib/data/en-propuesta.ts`; Disponibilidad, Comercial, ficha del sitio
 > y Dashboard avisan «En propuesta»; Reportes cuenta solo CONFIRMADA (R4); `20261026_reserva_estatus_por_omision.sql`
 > cambia el default a CONFIRMADA (R3, no toca filas). Zonas: Z5, Z9, Z12, `lib/data` y Reportes (sin zona).
-> **Reclamadas y LIBERADAS** al commitear. Pendiente del dueño: dónde ofrecer «Extender campaña», que ya era inalcanzable.
+> **Reclamadas y LIBERADAS** al commitear. Pendiente del dueño: dónde ofrecer «Extender campaña», que ya era inalcanzable (**decidido el 29/10: EXT-CONTRATO, arriba**).
 
 > [!important] 2026-10-26 · **DISEÑO-MOD · el resto de los módulos con el lenguaje del Dashboard** — rama `feat/diseno-modulos`, encima de `feat/dashboard-referentes` · ÁMBAR (solo presentación)
 > Cinco grupos (Comercial, Operaciones, Inventario, Finanzas y precio, Sistema), cada uno investigado, diseñado y
