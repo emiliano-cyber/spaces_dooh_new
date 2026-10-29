@@ -232,6 +232,12 @@ se pueden hacer: quitar un arte de una lista o borrarlo, editar un spot ya
 creado, descargar un arte y generar un enlace de comprobación. Detalle en
 `vault/02-Backend/integraciones-externas.md`.
 
+**2026-10-29 · respuestas reales** (pantalla de pruebas). `get_campaigns`
+devuelve `{"campaigns": {"<auth>": {...}}}` —envuelto, no con el auth en la raíz
+como dice arriba—, con `status`, `start_date`, `end_date`, las cuotas como texto y
+`deleted`. `get_stats` y `get_metrics` sin datos devuelven `{"stats": []}` y
+`{"metrics": []}`. `create_spot` sin `list` responde «Debe pasar nombre de la lista».
+
 **Huecos frente a SPACES OS.** `create_spot` exige un `list` (nombre de lista) que no
 existe como concepto en nuestro modelo. `upload` declara aceptar sólo imagen o video,
 no HTML. Los equipos se identifican por `name`, y no hay columna de id externo en

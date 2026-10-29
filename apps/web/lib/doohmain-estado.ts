@@ -36,9 +36,12 @@ const texto = (v: unknown): string | null => (typeof v === 'string' && v.trim() 
 
 export function estadoDeCampanaRemota(payload: unknown, auth: string): CampanaRemota {
   const raiz = objeto(payload)
-  // `create_campaign` responde envuelto en `success` (ver client.py); se acepta
-  // igual aquí por si `get_campaigns` hace lo mismo.
-  const datos = objeto(raiz?.[auth]) ?? objeto(objeto(raiz?.success)?.[auth])
+  // 29/10, contra adv_004: DOOHmain contesta `{ campaigns: { <auth>: {...} } }`,
+  // envuelto, aunque el PDF diga «el key es el auth». Con solo las dos formas de
+  // abajo, la ficha decía «Sin confirmar» siempre — la pausa funcionaba y no se
+  // veía. Las otras dos se quedan: `create_campaign` sí responde en `success`.
+  const datos =
+    objeto(objeto(raiz?.campaigns)?.[auth]) ?? objeto(raiz?.[auth]) ?? objeto(objeto(raiz?.success)?.[auth])
   if (!datos) return { estado: null, inicio: null, fin: null }
   const status = texto(datos.status)?.toLowerCase() ?? null
   return {

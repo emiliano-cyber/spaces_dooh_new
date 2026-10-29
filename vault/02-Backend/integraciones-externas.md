@@ -261,8 +261,19 @@ hemos visto una respuesta con datos, así que no se interpreta nada todavía»*.
 >   Ruta: `POST /api/creatividades/[id]/doohmain`, con el mismo orden que el DELETE
 >   (propio ANTES de tocar DOOHmain).
 > - **Estado:** `GET /api/campanas/[id]/doohmain-estado` → `get_campaigns`, leído por
->   `lib/doohmain-estado.ts`. Su forma no está documentada: lo que no se reconoce sale
->   `null` («Sin confirmar»), nunca «al aire» por omisión.
+>   `lib/doohmain-estado.ts`. Lo que no se reconoce sale `null` («Sin confirmar»),
+>   nunca «al aire» por omisión. **Ojo con la forma:** DOOHmain contesta envuelto,
+>   `{ campaigns: { <auth>: { status, start_date, end_date, … } } }`, no indexado por
+>   `auth` en la raíz como dice el PDF. Visto el 29/10 contra la pantalla de pruebas
+>   `adv_004`: la primera versión no lo leía y la ficha decía «Sin confirmar» aunque la
+>   pausa sí llegaba.
+> - **Probado contra DOOHmain real el 29/10** (pantalla de pruebas, base local):
+>   publicar, pausar (`status` pasa a `pause` en DOOHmain), reanudar (`active`),
+>   `get_stats` y `get_metrics` (responden `{ stats: [] }` y `{ metrics: [] }` sin
+>   reproducciones aún) y reemplazar: quedan DOS campañas con el mismo nombre en la
+>   misma lista, la vieja `finished` con fechas del 2000 y la nueva `active`. Una
+>   campaña SIN folio publica con la lista vacía y DOOHmain responde «Debe pasar
+>   nombre de la lista» (las de una propuesta siempre traen folio).
 > - **Historial por pantalla:** `POST …/playlogs` con `tipo: 'pantallas'` → `get_metrics`
 >   de las pantallas donde de verdad se publicó (`doohmain_remote_lists`). Se guarda como
 >   `metrics` y **no enciende `reporte_publicacion`**: trae lo de otras campañas de esa

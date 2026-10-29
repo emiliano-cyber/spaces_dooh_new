@@ -21,6 +21,21 @@ describe('estadoDeCampanaRemota', () => {
     })
   })
 
+  it('lee la respuesta REAL de get_campaigns, envuelta en `campaigns` (29/10, adv_004)', () => {
+    // Copiada de DOOHmain, recortada: así contesta de verdad, y no como dice el PDF.
+    const p = {
+      campaigns: {
+        '8377994cd2562c42642b878a3dc208b6': {
+          name: 'Cliente local - Prueba SPACE OS', start_date: '2026-10-29',
+          end_date: '2026-11-05', status: 'active', cant_day: '0', deleted: '0',
+        },
+      },
+    }
+    expect(estadoDeCampanaRemota(p, '8377994cd2562c42642b878a3dc208b6')).toEqual({
+      estado: 'active', inicio: '2026-10-29', fin: '2026-11-05',
+    })
+  })
+
   it('acepta la envoltura `success`, igual que create_campaign', () => {
     const p = { success: { AUTH1: { status: 'pause' } } }
     expect(estadoDeCampanaRemota(p, 'AUTH1').estado).toBe('pause')
