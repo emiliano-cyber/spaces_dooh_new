@@ -347,10 +347,10 @@ campaña y **no se elige aquí**. `campanas.franja_programada_id` es en qué
 horario **se transmite**, y la escribe solo
 `PUT /api/campanas/franja-programada` (`comercial.aprobar`, en bloque y atómico).
 Programar no toca precio, snapshot ni reservas; si difiere de lo contratado,
-se **avisa** y no se bloquea (decisión pendiente del dueño). En la ficha lo
-enseña `FranjaProgramadaCampana`, montado con una línea bajo el Pipeline.
-**Sin fusionar**: la columna espera la aprobación del dueño. Detalle completo en
-[[rejilla-franja-y-temporada]].
+se **avisa** y no se bloquea — **decidido por el dueño el 29/10: solo avisar**.
+En la ficha lo enseña `FranjaProgramadaCampana`, montado con una línea bajo el
+Pipeline. Está en `main` desde `16c4d367` (antes decía «sin fusionar»,
+comprobado el 29/10). Detalle completo en [[rejilla-franja-y-temporada]].
 
 ## El cupón aplicado necesita aprobación (COD-03, 30/09)
 

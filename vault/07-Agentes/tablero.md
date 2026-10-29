@@ -12,7 +12,12 @@ archivos: []
 > vendedor sobrevive a su borrado (P19). Migración `20261029_propuestas_condiciones_vigencia_vendedor.sql`. Zonas
 > **RECLAMADAS**: Z5 (`propuestas-*`, rutas `/api/propuestas/**`, pantallas de propuestas, `/p/[id]`), Z9 (migración),
 > Z12 (bóveda, bitácora, ABIERTOS), `config-repo` y Administración (plantilla de condiciones y días), reportes
-> (`reportes-repo`, `propuestas-resumen-repo`, `inicio/indicadores.ts`, solo el nombre del vendedor).
+> (`reportes-repo`, `propuestas-resumen-repo`, `inicio/indicadores.ts`, solo el nombre del vendedor). Además tocó
+> `lib/server/email.ts` (`cc`), `components/demo/MapView.tsx` (prop `imprimible`), `lib/i18n/errores-servidor.ts` y
+> `novedades.json` (dentro de v0.12.5, decisión del dueño). **LIBERADAS** al commitear (29/10). Verificado: `npm test`
+> entero, e2e de vigencia, gestión, vendedor y migraciones contra Postgres 16 local, y la pantalla en Chrome. **Sin
+> verificar:** el correo contra un Resend real y la salida impresa del documento. Hallazgo nuevo: B57 (un usuario con
+> bitácora no se puede borrar).
 
 > [!important] 2026-10-29 · **EXT-CONTRATO · «Extender campaña» solo con contrato nuevo** — rama `feat/extender-con-contrato` · ROJO R4 + R3 (**aprobados por el dueño el 29/10**, migración en forma restrict)
 > La extensión vuelve a la ficha de la campaña (tarjeta «Extensiones») y exige el PDF firmado de la extensión en el

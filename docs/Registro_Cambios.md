@@ -11,6 +11,49 @@ Junta lo que sigue: extender campaña solo con contrato, la ubicación por
 coordenadas en Comercial negociación y las correcciones de precios y reportes.
 Trae un cambio de base de datos aprobado por el dueño (`campana_extensiones`).
 
+**Propuestas, completas.** Decisiones del dueño del 29/10, una por una. Trae un
+segundo cambio de base de datos, también aprobado: las condiciones, la vigencia
+y el nombre del vendedor de cada propuesta.
+
+- **«Generar PDF» ya funciona.** Antes el botón no hacía nada. Ahora abre, en
+  otra pestaña, el documento que se le entrega al cliente: el logo de la
+  organización, las pantallas con su foto, el mapa, los importes (los mismos que
+  ve el cliente en su liga), los términos y condiciones, y la liga con un código
+  QR para aceptarla en línea. Se guarda como PDF con «Imprimir». Si hay un código
+  de negociación que todavía no se aprueba, el documento no lo enseña, igual que
+  la liga.
+- **«Enviar» manda la propuesta por correo.** Pide el correo del cliente (lo
+  propone del contacto del cliente) y un mensaje opcional, y manda la liga. Quien
+  la envía recibe copia; si el cliente responde, le contesta al correo de la
+  organización. Si el correo no sale, la propuesta no cambia y se puede
+  reintentar. En una instalación sin correo configurado, solo la marca como
+  enviada y avisa de que la liga hay que mandarla a mano. Una propuesta ya
+  enviada se puede **reenviar**.
+- **Vigencia.** Al enviarla, la propuesta vale **30 días** (cada organización lo
+  cambia en Administración → «Propuestas: vigencia y condiciones»). El último día
+  todavía vale. Vencida, el cliente ve «venció el …» y ya no puede aceptarla; por
+  dentro se le pone otra fecha en la ficha o se reenvía, y vuelve a valer. Las
+  propuestas enviadas antes de hoy no tienen vigencia y se siguen aceptando como
+  siempre.
+- **Términos y condiciones.** En Administración se escribe una plantilla; cada
+  propuesta nueva la copia y se puede ajustar en su ficha («Condiciones y
+  vigencia»). Cambiar la plantilla no toca las propuestas ya creadas. Salen en el
+  documento y en la liga, antes del botón de aceptar.
+- **Agregar y quitar pantallas** a una propuesta en borrador o enviada. Las
+  nuevas se cotizan con las fechas de la propuesta y con la tarifa de hoy, con las
+  mismas reglas que al crearla (un vendedor no puede poner otro precio). Si ya
+  estaba enviada, sube de versión. No se puede quitar la última pantalla.
+- **Duplicar:** crea una propuesta nueva con las mismas pantallas, cliente y
+  fechas, cotizada con la tarifa de hoy y sin el código de negociación.
+- **Borrar** un borrador. Las enviadas no se borran (se rechazan) y las
+  aprobadas no se tocan. Si el borrador tenía un código de negociación, su uso se
+  devuelve.
+- **El vendedor que se va no pierde sus ventas.** Si se borra a un usuario, sus
+  propuestas conservan su nombre, y Reportes y el Dashboard lo siguen nombrando en
+  vez de mandar su dinero a «Sin vendedor».
+- Decidido sin cambiar nada: si una campaña se programa en un horario distinto
+  del que se vendió, el sistema **solo avisa**, como hasta ahora.
+
 
 **Una campaña solo se extiende con un contrato nuevo.** Decisión del dueño:
 «Extender campaña» vuelve a estar a la mano, en la ficha de cada campaña, pero

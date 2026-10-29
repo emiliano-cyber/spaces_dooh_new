@@ -34,7 +34,7 @@ archivos:
 > [!important] 2026-10-05 · puesta al día — lo que abajo dice «pendiente» o «SIN FUSIONAR» YA ESTÁ en `main`
 > Medido hoy con `node scripts/recuentos.mjs` sobre el árbol de
 > `integra/riesgos-presentacion-14-oct` (salida de `main` en `09c65ca2`):
-> **66 tablas y 121 migraciones** (29/10, con `20261029_campana_extensiones.sql`, que crea `campana_extensiones`, EXT-CONTRATO) — antes **64 tablas y 117 migraciones** (22/10, la 117 es `20261022_campana_horario_doohmain.sql`, tres columnas en `campanas` sin tabla nueva; con las cuatro de Comercial negociación
+> **66 tablas y 122 migraciones** (29/10, con `20261029_propuestas_condiciones_vigencia_vendedor.sql`: cinco columnas en `propuestas` y `config_negocio`, ninguna tabla) — antes **66 y 121** (29/10, con `20261029_campana_extensiones.sql`, que crea `campana_extensiones`, EXT-CONTRATO) — antes **64 tablas y 117 migraciones** (22/10, la 117 es `20261022_campana_horario_doohmain.sql`, tres columnas en `campanas` sin tabla nueva; con las cuatro de Comercial negociación
 > —`prospecto_contactos`, `prospecto_ofertas`, `prospecto_competencia`,
 > `prospecto_notas`— en `20261022_comercial_negociacion.sql`, NEG-01) — antes
 > **60 tablas y 115 migraciones** (21/10, con `notificaciones_usuario` y
