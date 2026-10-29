@@ -7,6 +7,13 @@
 > **Nace el 2026-09-18**, sobre `integra/entidades-y-reportes` medida en el worktree
 > `.claude/worktrees/entidades`. Fecha dura: **2026-10-14, OOH SUMMIT** — 26 días.
 
+> **2026-10-29 · decisión del dueño y cierre de la auditoría del ADR 0039 Fase 1.**
+> **D6 decidida** (tope de 24 meses, implementado) y **B40 a B45 cerradas**, todas en la
+> rama `fix/abiertos-b41-b45-d6` (sin fusionar). B40 ya estaba resuelta en código
+> desde PRECIO-01 y solo faltaba tacharla. **Apareció una nueva de dinero que NO se
+> tocó**, anotada al pie de B42: `campanas-repo` guarda en las dos reservas el neto
+> de la última línea cuando una propuesta trae la misma pantalla dos veces.
+
 ~~**Veredicto vigente de la rama: 🔴 ROJO.**~~ **Superado el 2026-09-18, tarde.** Los
 dos motivos del rojo están cerrados y medidos:
 
@@ -608,7 +615,19 @@ calendario.
 
 ### B · i — Críticas por SEVERIDAD (fallo silencioso · dato que miente)
 
-#### B40 · 🔴 El servidor NO comprueba que el precio vendido salga de la rejilla · **es la que importa de las seis**
+#### ~~B40 · 🔴 El servidor NO comprueba que el precio vendido salga de la rejilla · **es la que importa de las seis**~~
+
+> ✅ **CERRADA — tachada el 2026-10-29, medida en `main` @ `cb86b7f6`.** El arreglo
+> del 01/10 (PRECIO-01) ya no está «sin fusionar»: vive en `main`.
+> `apps/web/lib/server/propuestas-controller.ts:10` importa `tarifaCalculada` de
+> `@/lib/tarifa-calculada`; `:388` la recalcula en el servidor por línea (y
+> `tarifaBaseCalculadora` para las de calculadora, ADR 0042) con los datos de
+> `datosParaTarifar` (`:350`); y sin `comercial.aprobar` un precio distinto da
+> **403** sin escribir nada (`:420`, y `:416` cuando no hay tarifa calculable).
+> **Pruebas que lo cubren:** `lib/server/propuestas-precio.test.ts:142` («VENDEDOR a
+> 1 peso → 403… el repo no se llama») y `:159` (el prime a tarifa base), y contra
+> Postgres `lib/test/precio-ajustado.e2e.test.ts:184` y `:202`. Desde el 29/10 el
+> congelado usa la misma función para nombrar la temporada (B43).
 
 > **2026-10-01 · cerrada para la TARIFA BASE (PRECIO-01, rama
 > `feat/precio-ajustado-por-gerente`, sin fusionar).** El dueño decidió la

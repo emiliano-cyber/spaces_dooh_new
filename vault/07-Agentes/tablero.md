@@ -1,7 +1,7 @@
 ---
 tipo: tablero
 estado: verificado
-actualizado: 2026-10-22
+actualizado: 2026-10-29
 tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
@@ -9,7 +9,10 @@ archivos: []
 > [!important] 2026-10-29 · **ABIERTOS B41–B45 y D6** — rama `fix/abiertos-b41-b45-d6`, desde `main` @ `cb86b7f6` · ROJO R2 (B44, segunda capa de tenant) + R4 (B43, el snapshot; **aprobado por el dueño el 29/10, sin migración**)
 > Cierra seis fichas de `docs/Supervision/ABIERTOS.md`, un commit por ficha, y tacha B40 (ya resuelta por PRECIO-01).
 > Zonas: Z3 (`sitios-repo`, la rejilla), Z5 (`propuestas-repo`, `tarifas-repo`), Z12 (bóveda, bitácora, ABIERTOS), y sin
-> zona `lib/data/reportes.ts`, `reportes-*`, `lib/i18n/errores-servidor.ts` y la pantalla de Reportes. **TOMADAS.**
+> zona `lib/data/reportes.ts`, `reportes-*`, `lib/i18n/errores-servidor.ts` y la pantalla de Reportes. **Reclamadas y
+> LIBERADAS** al commitear. Typecheck limpio y unitarias en verde; **sin e2e** (aquí no hay Postgres): antes de fusionar,
+> CI con `rejilla-franja-temporada`, `precio-ajustado`, `reportes-rentabilidad` y `aislamiento`. Encontrado y NO tocado
+> (R4): `campanas-repo` arma `netoDeSnap` por pantalla sola (ABIERTOS, al pie de B42).
 
 > [!important] 2026-10-26 · **TENT-PROP · lo tentativo es lo que está en una propuesta abierta** — rama `feat/tentativo-en-propuesta`, encima de `feat/diseno-modulos` · ROJO R3 + R4 (**aprobado por el dueño el 26/10**)
 > Regla del dueño: tentativo = pantalla/spot en una propuesta BORRADOR o ENVIADA; solo avisa, no bloquea. Se retira
