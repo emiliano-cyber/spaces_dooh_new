@@ -42,6 +42,9 @@ export async function enviarEmail(opts: {
   // Ausente = canal de SISTEMA (`EMAIL_FROM` a secas).
   from?: string
   replyTo?: string | null
+  // PROP-COMPLETA (29/10) · copia. La usa el envío de propuestas para que el
+  // vendedor tenga en su buzón lo que se le mandó al cliente.
+  cc?: string | null
 }): Promise<void> {
   if (!emailHabilitado()) throw new Error('email_no_configurado')
   const r = await fetch('https://api.resend.com/emails', {
@@ -58,6 +61,8 @@ export async function enviarEmail(opts: {
       // Se omite si no hay: mandar `reply_to: null` hace que Resend responda
       // 422 en vez de ignorarlo.
       ...(opts.replyTo ? { reply_to: opts.replyTo } : {}),
+      // Igual que `reply_to`: ausente si no hay, nunca `null`.
+      ...(opts.cc ? { cc: opts.cc } : {}),
     }),
   })
   if (!r.ok) {

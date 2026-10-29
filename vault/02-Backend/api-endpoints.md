@@ -22,6 +22,7 @@ archivos:
   - apps/web/app/api/energia/
   - apps/web/app/api/paquetes/
   - apps/web/app/api/propuestas/[id]/paquete/route.ts
+  - apps/web/app/api/propuestas/[id]/enviar/route.ts
   - apps/web/app/api/rejilla/
   - apps/web/app/api/reportes/rentabilidad/route.ts
   - apps/web/app/api/sitios/[id]/modalidades/route.ts
@@ -226,6 +227,7 @@ en `:230-237`) y **no** puede condicionarse a que la ruta
 | DELETE | `/api/clientes/[id]` | **REAUTH** + `comercial:aprobar` |
 | GET | `/api/propuestas/resumen` | exigir (`comercial:ver`); costo y ganancia solo con `finanzas:ver` | (06/10, PROP-PER) tablero por periodo: generadas, aprobadas, rechazadas, tasa de cierre, ganancia (venta − renta del contrato) |
 | POST | `/api/propuestas` · PATCH `/api/propuestas/[id]` | exigir (`comercial:crear`). Desde `17fbd252` (01/10) el `POST` **recalcula la tarifa** de cada línea en el servidor; un precio distinto al centavo exige además `comercial:aprobar` del rol de la sesión, o 403 y no se guarda nada |
+| POST | `/api/propuestas/[id]/enviar` | (29/10, PROP-COMPLETA) `comercial:crear`. Cuerpo `{ para, mensaje? }`. Manda la liga por correo (canal de operación, copia a quien envía) y **después** deja la propuesta ENVIADA; si Resend falla, 502 y no cambia nada; sin correo configurado solo cambia el estatus (`correo: 'no_configurado'`). Vale para BORRADOR y ENVIADA (reenviar); lo demás 409 — `lib/server/propuestas-envio.ts` |
 | POST · DELETE | `/api/propuestas/[id]/paquete` | (05/10) `comercial:crear` — aplicar o quitar un paquete cerrado; el cuerpo lleva **solo** `paqueteId`, el precio lo copia el servidor bajo RLS — [[paquete-cerrado]] |
 | PATCH | `/api/propuestas/items/[id]` | exigir |
 | POST | `/api/propuestas/[id]/generar-campana` | exigir (`comercial:crear`). (13/10) Cuerpo opcional `{ clienteId }` (UUID, si no 400): pone el cliente a una APROBADA que no lo tenía —solo anunciante de esta organización y con el mismo IVA del snapshot; si no, 409— y genera |

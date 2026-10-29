@@ -49,6 +49,7 @@ import {
 import { BloqueCodigoPropuesta } from '@/components/demo/codigos/BloqueCodigoPropuesta'
 import { ElegirClienteDialog } from '@/components/demo/propuestas/ElegirClienteDialog'
 import { BloqueCondicionesVigencia } from '@/components/demo/propuestas/BloqueCondicionesVigencia'
+import { EnviarPropuestaDialog } from '@/components/demo/propuestas/EnviarPropuestaDialog'
 import {
   paquetesApi,
   aplicarPaqueteApi,
@@ -100,6 +101,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
   const router = useRouter()
   const [generando, setGenerando] = useState(false)
   const [elegirCliente, setElegirCliente] = useState(false)
+  const [enviarAbierto, setEnviarAbierto] = useState(false)
   const [copiado, setCopiado] = useState(false)
   const [descInput, setDescInput] = useState('0.00')
   const [guardandoDesc, setGuardandoDesc] = useState(false)
@@ -377,8 +379,12 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
           </Button>
 
           {/* Acciones de estatus (solo edición) */}
-          {puedeEditar && p.estatus === 'BORRADOR' && (
-            <Button size="sm" variant="primary" onClick={() => cambiar('ENVIADA')}><Send className="h-3.5 w-3.5" /> Enviar</Button>
+          {/* PROP-COMPLETA · «Enviar» manda la liga por correo (y la deja
+              ENVIADA); en una ya enviada es «Reenviar» (decisión del dueño). */}
+          {puedeEditar && (p.estatus === 'BORRADOR' || p.estatus === 'ENVIADA') && (
+            <Button size="sm" variant={p.estatus === 'BORRADOR' ? 'primary' : 'secondary'} onClick={() => setEnviarAbierto(true)}>
+              <Send className="h-3.5 w-3.5" /> {p.estatus === 'BORRADOR' ? 'Enviar' : 'Reenviar'}
+            </Button>
           )}
           {puedeEditar && (p.estatus === 'ENVIADA' || p.estatus === 'BORRADOR') && (
             <>
@@ -393,6 +399,15 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
           )}
         </div>
       </div>
+
+      <EnviarPropuestaDialog
+        open={enviarAbierto}
+        onOpenChange={setEnviarAbierto}
+        propuestaId={p.id}
+        correoCliente={cliente?.contacto?.email ?? null}
+        reenvio={p.estatus === 'ENVIADA'}
+        onSinCorreo={copiarLiga}
+      />
 
       <ElegirClienteDialog
         open={elegirCliente}

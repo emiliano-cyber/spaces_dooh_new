@@ -229,6 +229,23 @@ export async function actualizarPropuestaApi(
   await refrescarEstado()
 }
 
+// PROP-COMPLETA (29/10) · «Enviar»: manda la liga por correo y deja la
+// propuesta ENVIADA. `correo: 'no_configurado'` = solo cambió el estatus.
+export async function enviarPropuestaApi(
+  id: string,
+  input: { para: string; mensaje?: string | null },
+): Promise<{ correo: 'enviado' | 'no_configurado' }> {
+  const r = await fetch(`${API}/propuestas/${id}/enviar/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo enviar la propuesta')
+  await refrescarEstado()
+  return { correo: d.correo === 'enviado' ? 'enviado' : 'no_configurado' }
+}
+
 // Genera una campaña a partir de una propuesta aprobada (solo sitios aprobados).
 // `clienteId`: solo si la propuesta se aprobó sin cliente; el servidor lo pone
 // antes de generar.

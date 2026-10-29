@@ -721,6 +721,18 @@ Decisiones del dueño del 29/10. Migración
   `lib/test/propuesta-vigencia.e2e.test.ts` (incluye R2: la plantilla y los días
   de una organización no se cuelan en otra).
 
+## Enviar por correo (PROP-COMPLETA, 29/10)
+
+«Enviar» ya no es solo un cambio de estatus: abre un diálogo con el correo del
+contacto del cliente y un mensaje opcional, y `POST /api/propuestas/[id]/enviar`
+(`lib/server/propuestas-envio.ts`) manda **la liga, no los importes** —los
+importes viven en la liga, que sabe si el cupón está pendiente y si venció—
+por el canal de OPERACIÓN, con copia a quien envía. **El orden es la regla:**
+primero el correo, después ENVIADA; un Resend caído da 502 y la propuesta no
+cambia. Sin correo configurado solo cambia el estatus y la pantalla copia la
+liga. En una ENVIADA el botón es «Reenviar» (renueva la vigencia si venció).
+Pruebas: `lib/server/propuestas-envio.test.ts` (el 502 se comprobó por mutación).
+
 ## Portal del cliente
 
 `campanas.portal_token` + `portal_activo` habilitan `/portal/[token]`.
