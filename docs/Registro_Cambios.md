@@ -5,6 +5,32 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-10-29 · Preparado (todavía sin publicar)
+
+**En Comercial negociación, la ubicación de un espacio se pone por coordenadas o
+por calle.** Decisión del dueño. En el bloque «Ubicación» de cada espacio, la caja
+de búsqueda (el botón ahora dice «Ubicar») acepta, además de una dirección:
+
+- **Coordenadas**, como las copia Google Maps: `19.4326, -99.1332` o
+  `19°25'57.4"N 99°07'59.5"W`. El pin se pone ahí al instante, sin buscar nada.
+- **Un enlace de Google Maps**, el largo que sale en el navegador o el corto que
+  da «Compartir» en el teléfono (`maps.app.goo.gl/…`).
+
+Después se afina arrastrando el pin y se guarda, como antes. Esto funciona en
+todas las instalaciones, **sin clave y sin costo**. Si las coordenadas están fuera
+de rango (por ejemplo, pegadas al revés) o el enlace no es de Google Maps, la
+pantalla lo dice en vez de poner el pin en otro lado.
+
+**El buscador de calles puede ser el de Google** si el dueño de la instalación
+pone su propia clave de Google en la configuración del servidor
+(`GOOGLE_MAPS_SERVIDOR_KEY`). Sin clave sigue el de OpenStreetMap, como hasta
+ahora. La clave se queda en el servidor: nunca llega al navegador. **Todavía nadie
+lo ha probado con una clave real de Google**, y falta revisar sus condiciones de
+uso antes de encenderlo. Los mapas siguen siendo los de siempre: no se decidió
+poner mapas de Google en ninguna pantalla.
+
+---
+
 ## 2026-10-27 · v0.12.4 (preparada, todavía sin publicar)
 
 Junta en una sola versión lo que se cuenta abajo en las entradas del 26 y del

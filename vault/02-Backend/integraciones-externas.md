@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-23
+actualizado: 2026-10-29
 tags: [backend, integraciones, terceros, cron]
 archivos:
   - apps/web/lib/server/doohmain.ts
@@ -32,6 +32,9 @@ archivos:
   - apps/web/lib/email-remitente.ts
   - apps/web/next.config.mjs
   - infra/env/app.env.example
+  - apps/web/lib/interpretar-ubicacion.ts
+  - apps/web/lib/server/geo-buscar.ts
+  - apps/web/lib/server/geo-enlace.ts
 ---
 
 # Integraciones externas
@@ -48,6 +51,49 @@ sin romperse.
 | DOOHmain | `DOOHMAIN_PUBLISH_ENABLED=1` | Detrás de flag |
 | Space Eye | `spaceEyeHabilitado()` — URL + credenciales | Configurable |
 | AdMobilize, CMS, PAC CFDI | `lib/server/integraciones.ts` | **Modo demo simulado** |
+| Buscador de calles (Comercial negociación) | `GOOGLE_MAPS_SERVIDOR_KEY` — con ella Google, sin ella OpenStreetMap | **Sin clave en la flota** (29/10): Nominatim |
+
+## Buscador de calles y enlaces de Google Maps (UBIC-01, 29/10)
+
+Decisión del dueño del 2026-10-29 (ADR 0041, ya **Aceptada** en esta parte): en
+Comercial negociación la ubicación se pone **por coordenadas o por calle**.
+Todo corre en el **servidor**, detrás de `GET /api/geo/buscar` con el permiso
+`captacion:ver`; el navegador no habla con Google ni con OpenStreetMap, así que
+**la CSP no cambia** y la clave **no llega nunca al navegador**.
+
+| Lo que se pega | Quién lo resuelve | Sale a la red |
+|---|---|---|
+| Coordenadas (decimales, grados/minutos/segundos) | `lib/interpretar-ubicacion.ts`, puro, en el navegador **y** otra vez en el servidor | No |
+| Enlace largo de Google Maps (`/@lat,lng`, `/place/…`, `!3d…!4d…`, `?q=`, `?query=`, `?ll=`) | El mismo módulo: las coordenadas van en la URL | No |
+| Enlace corto (`maps.app.goo.gl/…`, `goo.gl/maps/…`) | `lib/server/geo-enlace.ts` | Sí: solo a esos dos hosts, por https |
+| Una dirección | `lib/server/geo-buscar.ts` | Sí: Google con clave, Nominatim sin ella |
+
+**El proveedor se elige en cada búsqueda** leyendo `GOOGLE_MAPS_SERVIDOR_KEY` del
+`app.env` de la instancia (vacía o con espacios = sin clave). Es tiempo de
+ejecución, como `GOOGLE_OAUTH`: la misma imagen sirve con clave y sin ella. Es una
+clave **de servidor** (en Google Cloud: restringida por la IP del servidor y solo a
+la **Geocoding API**), no la «de navegador» restringida por dominio que el ADR 0041
+describe para el día que haya mapas de Google en pantalla. **Nadie la ha probado con
+una clave real**: las pruebas simulan las respuestas de Google.
+
+- Con Google **no** se aplica la espera de 1/s (es la política de Nominatim); el
+  gasto lo acotan el tope de 30 búsquedas por persona cada 10 min, la memoria de
+  24 h (por proveedor) y el tope de gasto que el owner ponga en su cuenta.
+- Un `REQUEST_DENIED` u `OVER_QUERY_LIMIT` es un **502 con frase** que dice «revisa
+  la clave»; **no** se cae a OpenStreetMap a escondidas, y el mensaje de Google no
+  se reenvía (puede traer la clave).
+- **Seguir un enlace corto es SSRF en potencia**, y por eso: solo se pide un enlace
+  corto de Google por https (lista cerrada de hosts, sin usuario ni puerto); las
+  redirecciones se siguen a mano (`redirect: 'manual'`) y cada salto se revisa; un
+  destino de Google Maps se **lee** sin pedirlo; cualquier otro destino se corta sin
+  pedirlo; máximo 5 saltos y 6 s por salto; no se lee el cuerpo. Cada enlace corto
+  cuenta para el tope por persona.
+- **Términos de Google:** de sus resultados solo se guarda sin límite el `place_id`
+  (va a `prospectos.ubicacion_place_id` cuando la persona elige un candidato de
+  Google y no mueve el pin). Las coordenadas que se guardan son las que la persona
+  confirma en el mapa. **Queda por verificar** si mostrar un candidato de Google
+  sobre el mapa MapLibre (no de Google) cumple sus términos: el ADR lo deja escrito
+  como riesgo abierto.
 
 ## DOOHmain — publicación en pantallas
 

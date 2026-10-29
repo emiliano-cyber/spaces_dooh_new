@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-26
+actualizado: 2026-10-29
 tags: [frontend, comercial, prospeccion, arrendadores, negociacion, ubicacion]
 archivos:
   - apps/web/app/(app)/(shell)/comercial-opex/page.tsx
@@ -15,6 +15,10 @@ archivos:
   - apps/web/lib/server/negociacion-controller.ts
   - apps/web/lib/server/geo-buscar.ts
   - apps/web/lib/server/geo-buscar.test.ts
+  - apps/web/lib/server/geo-enlace.ts
+  - apps/web/lib/server/geo-enlace.test.ts
+  - apps/web/lib/interpretar-ubicacion.ts
+  - apps/web/lib/interpretar-ubicacion.test.ts
   - apps/web/lib/data/captacion-api.ts
   - apps/web/app/api/captacion/[id]/ficha/route.ts
   - apps/web/app/api/captacion/[id]/contactos/route.ts
@@ -82,7 +86,7 @@ búsqueda y chips Todos · En negociación · Activos · Inactivos · Sin contac
 |---|---|---|
 | Búsqueda del responsable | La etapa 1..5, con un clic en la barra de pasos | `PATCH …/ficha` |
 | Ficha técnica | Tipo de espacio, **visibilidad**, ancho, alto (el área se calcula), superficie, renta autorizada mín/máx y quién autoriza | `PATCH …/ficha` |
-| Ubicación | Buscar la dirección → elegir un candidato → afinar el pin → guardar | `GET /api/geo/buscar` + `PATCH …/ficha` |
+| Ubicación | Buscar la dirección **o pegar coordenadas / un enlace de Google Maps** (29/10) → afinar el pin → guardar | `GET /api/geo/buscar` + `PATCH …/ficha` |
 | Responsables y contactos | Varios; «Firma» marca a quien firma | `…/contactos` |
 | Ofertas de renta al arrendador | v1, v2…: renta, plazo, estado y notas | `…/ofertas` |
 | Competencia | Quién más ofrece y desde cuándo | `…/competencia` |
@@ -112,6 +116,30 @@ bloqueado, así que dos pestañas no pueden dejarla mintiendo entre las dos. Cad
 cambio de etapa deja su línea en la bitácora.
 
 ## La ubicación: la confirma la persona
+
+> [!important] 2026-10-29 · por coordenadas o por calle (UBIC-01, decisión del dueño)
+> La caja de búsqueda acepta ahora tres cosas, y el botón dice **Ubicar**:
+> - **Coordenadas**: `19.4326, -99.1332` (coma, punto y coma o espacio), con coma
+>   decimal si van separadas por `;` (`19,4326; -99,1332`), con letra de hemisferio
+>   (`19.4326 N, 99.1332 W`, la `O` de Oeste vale) y en grados/minutos/segundos como
+>   las copia Google Maps (`19°25'57.4"N 99°07'59.5"W`, también `′ ″` y minutos
+>   decimales). Tienen que llevar **decimales**: con dos enteros, «Calle 5, 123» sería
+>   un pin en el océano. Fuera de rango (lat ±90, lng ±180) o el (0,0) se **dice**, no
+>   se voltea.
+> - **Un enlace largo de Google Maps** (`/maps/@lat,lng`, `/maps/place/…/@…`, `?q=`,
+>   `?query=`, `?ll=`, `/maps/search/lat,lng`, dominios de país como `.com.mx`, y
+>   pegado dentro de un texto): se lee de la URL; si trae `!3d…!4d…` manda ese (el
+>   lugar), no el `@` (el centro de la vista).
+> - **Un enlace corto** (`maps.app.goo.gl/…`, `goo.gl/maps/…`): lo sigue el servidor
+>   (`lib/server/geo-enlace.ts`), solo hacia Google, con tiempo máximo.
+>
+> Lo decide `lib/interpretar-ubicacion.ts`, puro: en el navegador pone el pin **sin
+> red**, y el servidor lo vuelve a interpretar sin fiarse. Coordenadas y enlaces se
+> guardan con origen `PIN` (los fija la persona; un origen nuevo exigiría tocar el
+> CHECK de `prospectos`, o sea migración). Otro dominio es 400. Y **con la clave del
+> owner** (`GOOGLE_MAPS_SERVIDOR_KEY`) las direcciones van a Google; de un candidato
+> de Google se guarda su `place_id` si el pin no se mueve. Detalle de la
+> integración en `vault/02-Backend/integraciones-externas.md`.
 
 - **El buscador** (`lib/server/geo-buscar.ts`) pregunta a **Nominatim**
   (OpenStreetMap) **por el servidor**: su política pide una consulta por segundo en
@@ -170,8 +198,10 @@ trabaja solo **sus** espacios, y uno ajeno es **404** en todas las rutas hijas. 
 ## Lo que NO se hizo
 
 - **El GPS** — pendiente, arriba.
-- **Google como buscador** — espera a que cada owner ponga su clave (ADR 0041, P22 en
-  [[preguntas-abiertas]]).
+- **Google como buscador** — **ya está construido** (29/10, UBIC-01) y se enciende
+  cuando el owner pone `GOOGLE_MAPS_SERVIDOR_KEY`; **nadie lo ha probado con una clave
+  real** (ADR 0041, P22 en [[preguntas-abiertas]]). Mapas de Google en pantalla: no
+  decididos.
 - **Fotos, video y documentos del espacio.** La maqueta los pintaba con datos de
   ejemplo; se quitaron hasta que haya dónde subirlos.
 - **Convertir un espacio cerrado en predio desde aquí**: se aprueba en Captación, que

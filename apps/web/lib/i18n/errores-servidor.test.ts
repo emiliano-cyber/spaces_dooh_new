@@ -344,6 +344,21 @@ describe('GUARDIA · ningun mensaje de error puede quedarse fuera EN SILENCIO', 
       'La prima de Roadblock solo aplica a una línea marcada como Roadblock.',
       'Con esos espacios y esas horas no sale ni un spot al día.',
       'La línea no tiene días: revisa las fechas.',
+      // UBIC-01 · los motivos de `lib/interpretar-ubicacion.ts` y las
+      // constantes de `lib/server/geo-enlace.ts`, que viajan por variable
+      // (`AppError(i.motivo)`, `AppError(NO_LLEVA)`). Que no estén muertas lo
+      // vigilan `interpretar-ubicacion.test.ts` y `geo-enlace.test.ts`
+      // («los motivos llegan traducidos»).
+      'Ese enlace no lleva a un lugar de Google Maps',
+      'Ese enlace de Google Maps no trae coordenadas. En Google Maps toca el lugar, copia las coordenadas que salen arriba y pégalas aquí',
+      'Escribe una dirección, pega unas coordenadas (19.4326, -99.1332) o un enlace de Google Maps',
+      'Solo se aceptan enlaces de Google Maps (google.com/maps o maps.app.goo.gl)',
+      'Ese enlace corto no es de Google Maps, o le falta el final',
+      'La latitud va de -90 a 90. ¿Están al revés? Primero va la latitud (en México, alrededor de 14 a 33)',
+      'La longitud va de -180 a 180',
+      'El punto (0, 0) está en el mar: no es una ubicación',
+      'Los minutos y los segundos van de 0 a 59',
+      'Primero va la latitud (N o S) y después la longitud (E u O)',
     ])
     const muertas = Object.keys(CATALOGO_ERRORES).filter(
       (k) => !vivos.has(k) && !EXENTAS.has(k),
