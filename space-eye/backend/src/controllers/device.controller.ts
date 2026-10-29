@@ -6,7 +6,7 @@ import { deviceJwt } from '../utils/jwt';
 import { z } from 'zod';
 import { versionVigilancia } from '../utils/versionVigilancia';
 import { uploadPhoto } from '../services/photoStorage.service';
-import { configDe, registrarRecorrido, ligarFoto, yaConocida, refrescarCreativo } from './creativos.controller';
+import { configDe, registrarRecorrido, ligarFoto, yaConocida, refrescarCreativo, tocaRefoto } from './creativos.controller';
 import { registrarResumen } from './monitoreo.controller';
 import { apkInfo } from '../utils/apkInfo';
 import { redis } from '../config/redis';
@@ -403,17 +403,24 @@ export async function uploadPhotoEndpoint(req: Request, res: Response) {
   //   · si NO la tiene -el hallazgo se registro sin foto porque el equipo
   //     estaba aprendiendo o sin tope- esta se queda como SU foto. La tarjeta
   //     vacia consigue por fin su imagen.
+  //
+  // Con una excepcion, que es lo que pidio el dueno el 29-oct-2026: una foto
+  // cada tantas horas SI se acepta, aunque el creativo sea conocido, para que
+  // su ficha pueda ensenar como se ve AHORA y no solo como aparecio. Lo que no
+  // se acepta es la misma pantalla una y otra vez. Quien pone el plazo es
+  // `creative_refoto_h` (029); con 0, se descarta siempre, como antes.
   if (meta.source === 'creative_change' && meta.phash) {
     const conocida = await yaConocida(did, meta.phash).catch(() => null);
-    if (conocida && conocida.photo_id) {
-      await refrescarCreativo(did, conocida.phash).catch(() => null);
-      await pool.query(
-        `INSERT INTO device_logs (device_id, level, category, message) VALUES (?, 'info', 'creative', ?)`,
-        [did, `Foto de creativo descartada: ya conociamos esa huella (${conocida.bits} bits de diferencia)`]
-      ).catch(() => null);
-      return res.json({ ok: true, descartada: 'ya_conocido', bits: conocida.bits });
-    }
     if (conocida) {
+      const cfg = await configDe(did).catch(() => null);
+      if (!tocaRefoto(conocida, cfg?.refoto_h ?? 24)) {
+        await refrescarCreativo(did, conocida.phash).catch(() => null);
+        await pool.query(
+          `INSERT INTO device_logs (device_id, level, category, message) VALUES (?, 'info', 'creative', ?)`,
+          [did, `Foto de creativo descartada: ya conociamos esa huella (${conocida.bits} bits de diferencia)`]
+        ).catch(() => null);
+        return res.json({ ok: true, descartada: 'ya_conocido', bits: conocida.bits });
+      }
       // Se liga al creativo que YA estaba, no a la huella de hoy: si no, el
       // catalogo tendria dos fichas del mismo anuncio.
       const r = await uploadPhoto({

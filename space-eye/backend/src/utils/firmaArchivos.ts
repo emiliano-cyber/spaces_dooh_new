@@ -80,7 +80,13 @@ export function firmar(ruta: string, vigenciaS: number = VIGENCIA_S): string {
 /** Firma, sobre un objeto, los campos de ruta que existan. Devuelve uno nuevo. */
 export function firmarCampos<T extends Record<string, any>>(fila: T): T {
   if (!fila || typeof fila !== 'object') return fila;
-  const campos = ['storage_path', 'thumbnail_path', 'creative_path', 'aligned_path', 'diff_path'];
+  // `ultima_*`: la segunda foto de un creativo, la de "asi se ve ahora" (029).
+  // Van en la MISMA fila que las del hallazgo, asi que si no se firman aqui la
+  // ficha las pide sin firma y /storage contesta 403.
+  const campos = [
+    'storage_path', 'thumbnail_path', 'creative_path', 'aligned_path', 'diff_path',
+    'ultima_storage_path', 'ultima_thumbnail_path',
+  ];
   let copia: T | null = null;
   for (const campo of campos) {
     if (esRutaLocal(fila[campo])) {
