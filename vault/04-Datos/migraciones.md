@@ -50,6 +50,7 @@ archivos:
   - db/migrations/20261022_comercial_negociacion.sql
   - db/migrations/20261022_campana_horario_doohmain.sql
   - db/migrations/20261022_pantallas_propias.sql
+  - db/migrations/20261029_propuestas_condiciones_vigencia_vendedor.sql
   - db/migrations/20261029_campana_extensiones.sql
   - db/migrations/20261026_reserva_estatus_por_omision.sql
   - db/migrations/20261023_contrato_versiones_firmadas.sql
@@ -71,6 +72,7 @@ archivos:
 >
 > | Migración | Decía | Entró en `main` |
 > |---|---|---|
+> | `20261029_propuestas_condiciones_vigencia_vendedor.sql` | rama `feat/propuestas-completas` (PROP-COMPLETA + P19), **aprobada por el dueño el 29/10** (ROJO R3) | **Sin publicar.** Cinco columnas, ninguna tabla: `config_negocio.condiciones_propuesta` y `vigencia_propuesta_dias` (30, check 1–365); `propuestas.condiciones`, `vigente_hasta` y `vendedor_nombre`. Rellena `vendedor_nombre` de las propuestas que ya tenían vendedor; no toca importes ni estatus. Ver [[02-Backend/comercial-propuestas-campanas]] y [[02-Backend/vendedor-en-propuesta]] |
 > | `20261029_campana_extensiones.sql` | rama `feat/extender-con-contrato` (EXT-CONTRATO), **aprobada por el dueño el 29/10** (ROJO R3, forma restrict; y R4) | **Sin publicar.** Crea `campana_extensiones` (solo select e insert para la aplicación, RLS forzada, `campana_id` on delete restrict): el contrato firmado de cada extensión de campaña, sin sobrescribir `campanas.contrato_url`. No toca filas existentes. Ver [[02-Backend/comercial-propuestas-campanas]] |
 > | `20261026_reserva_estatus_por_omision.sql` | rama `feat/tentativo-en-propuesta` (TENT-PROP), **aprobada por el dueño el 26/10** (ROJO R3) | **Sin publicar.** Solo cambia el `default` de `reservas.estatus` de TENTATIVA a CONFIRMADA: lo tentativo ya no es un estado de la reserva sino lo que está en una propuesta abierta. No toca filas ni el enum. Ver [[02-Backend/comercial-propuestas-campanas]] |
 > | `20261023_contrato_versiones_firmadas.sql` | rama local `test/venta-propia-o-arrendada`, **diseño aprobado por el dueño el 23/10** (ROJO R3 y R4) | **SIN publicar.** Crea `contrato_versiones_firmadas` (solo select e insert para la aplicación, RLS forzada) y agrega `contrato_cambios.version_firmada`. No toca filas existentes. Ver [[02-Backend/arrendadores-y-contratos]] |

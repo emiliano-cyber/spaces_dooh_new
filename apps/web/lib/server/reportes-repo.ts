@@ -3,6 +3,7 @@ import { q } from './db'
 import { tenantActual } from './tenant'
 import { costosOtDelTenant } from './config-repo'
 import type { DatosRentabilidad, RangoReporte } from '@/lib/data/reportes'
+import { vendedoresConBajas } from '@/lib/vendedor-de-baja'
 
 // ============================================================================
 //  lib/server/reportes-repo.ts — El SQL de los reportes. Solo el SQL.
@@ -315,7 +316,9 @@ export async function datosRentabilidad(rango: RangoReporte): Promise<DatosRenta
     // `where`: la RLS ya corta, pero un join sin filtro es la forma en que una
     // consulta se salta la segunda capa sin que nada falle.
     q<any>(
-      `select c.id as campana_id, p.usuario_id
+      // P19 (29/10) · y el NOMBRE congelado: si el usuario se borró, es lo
+      // único que dice quién vendió (`lib/vendedor-de-baja.ts`).
+      `select c.id as campana_id, p.usuario_id, p.vendedor_nombre
          from campanas c
          join propuestas p
            on p.id = c.propuesta_id
@@ -423,19 +426,20 @@ export async function datosRentabilidad(rango: RangoReporte): Promise<DatosRenta
         }
       })
       .filter((t) => t.porSitio.length > 0),
-    vendedores: vendedores.map((r) => ({
-      id: r.id,
-      nombre: r.nombre,
-      cargo: r.cargo ?? null,
-    })),
-    vendedorDeCampana: vendedorDeCampana.map((r) => ({
-      campanaId: r.campana_id,
-      // `?? null` y no el valor crudo: el driver entrega `null` para una columna
-      // vacía, pero un `undefined` haría que `usuarioId` desapareciera del
-      // objeto y `vendedorDeCampana.has()` seguiría diciendo que sí — que es
-      // justo la distinción que separa el histórico de lo nacido en Comercial.
-      usuarioId: r.usuario_id ?? null,
-    })),
+    // P19 (29/10) · `vendedoresConBajas` añade una fila por cada vendedor
+    // BORRADO que dejó su nombre en la propuesta. Devuelve `usuarioId: null`
+    // —nunca `undefined`— en las históricas: un `undefined` haría que
+    // `usuarioId` desapareciera del objeto y `vendedorDeCampana.has()` seguiría
+    // diciendo que sí, que es justo la distinción que separa el histórico de lo
+    // nacido en Comercial.
+    ...vendedoresConBajas(
+      vendedores.map((r) => ({ id: r.id, nombre: r.nombre, cargo: r.cargo ?? null })),
+      vendedorDeCampana.map((r) => ({
+        campana_id: r.campana_id,
+        usuario_id: r.usuario_id ?? null,
+        vendedor_nombre: r.vendedor_nombre ?? null,
+      })),
+    ),
     reservas: reservas.map((r) => ({
       sitioId: r.sitio_id,
       campanaId: r.campana_id ?? null,

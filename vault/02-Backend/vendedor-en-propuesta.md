@@ -1,7 +1,7 @@
 ---
 tipo: contrato
 estado: verificado
-actualizado: 2026-10-14
+actualizado: 2026-10-29
 tags: [backend, reportes, rentabilidad, propuestas, usuarios, vendedores, dinero, rojo, r2]
 archivos:
   - db/migrations/20260928_vendedor_en_propuesta.sql
@@ -16,6 +16,10 @@ archivos:
   - apps/web/lib/test/vendedor-en-propuesta.e2e.test.ts
   - apps/web/lib/server/usuarios-repo.ts
   - apps/web/lib/server/campanas-repo.ts
+  - db/migrations/20261029_propuestas_condiciones_vigencia_vendedor.sql
+  - apps/web/lib/vendedor-de-baja.ts
+  - apps/web/lib/server/propuestas-resumen-repo.ts
+  - apps/web/components/demo/inicio/indicadores.ts
 ---
 
 # El vendedor de una propuesta, y la octava dimensión
@@ -154,6 +158,17 @@ dueño de la tabla y elude la RLS**. Aquí **no se sigue**, con el motivo escrit
 > `(id, tenant_id)`. Está en [[00-Indice/preguntas-abiertas]].
 
 ---
+
+> [!success] 2026-10-29 · P19 · el vendedor BORRADO conserva su nombre
+> Decisión del dueño. `propuestas.vendedor_nombre` se escribe en el mismo
+> INSERT que `usuario_id`, de `usuarioActual()` (nunca del cuerpo). Cuando el
+> usuario se borra, `reportes-repo.ts` lo convierte en un vendedor sintético
+> `baja:<nombre>` con el cargo «Ya no está en la organización»
+> (`lib/vendedor-de-baja.ts`), así que `lib/data/reportes.ts` no cambia: sigue
+> atribuyendo por id. El tablero por periodo (`propuestas-resumen-repo.ts`) y el
+> Dashboard (`indicadores.ts`) usan el mismo nombre. La migración rellenó el
+> nombre de las propuestas que ya tenían vendedor; las históricas siguen
+> siendo «Sin vendedor».
 
 ## 2 · El histórico, que es lo que hay que hacer bien
 

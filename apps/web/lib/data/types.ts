@@ -596,6 +596,16 @@ export interface Propuesta {
   aprobadaEn?: string | null
   rechazadaEn?: string | null
   vendedorId?: string | null
+  // P19 (29/10) · el nombre del vendedor congelado al crear: sobrevive al
+  // borrado del usuario.
+  vendedorNombre?: string | null
+  // PROP-COMPLETA (29/10) · términos de ESTA propuesta (copiados de la
+  // plantilla al crear) y su vigencia. `vigenteHasta` se pone al enviar; null =
+  // sin vigencia (todo lo enviado antes del 29/10). `vencida` lo calcula el
+  // servidor con `lib/propuesta-vigencia.ts`.
+  condiciones?: string | null
+  vigenteHasta?: string | null
+  vencida?: boolean
   items: PropuestaItem[]
   // Calculados con el método del divisor (server-side):
   bruto: number         // Σ precio de los items (tarifa de lista)

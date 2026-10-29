@@ -27,6 +27,7 @@ import {
   repartirPaquete,
 } from '@/lib/paquete'
 import { rutaLogo } from '@/lib/medios-url'
+import { fechaDia, propuestaVencida } from '@/lib/propuesta-vigencia'
 
 /**
  * Forma del JSON de `snapshot_economico`. Ausente en los congelados hasta el
@@ -267,6 +268,14 @@ function armarPropuesta(p: any, items: any[]) {
     aprobadaEn: p.aprobada_en ? iso(p.aprobada_en) : null,
     rechazadaEn: p.rechazada_en ? iso(p.rechazada_en) : null,
     vendedorId: p.usuario_id ?? null,
+    // P19 · el nombre congelado al crear; sobrevive al borrado del usuario.
+    vendedorNombre: p.vendedor_nombre ?? null,
+    // PROP-COMPLETA (29/10) · las condiciones de ESTA propuesta y hasta cuándo
+    // se puede aceptar. `vencida` sale de `lib/propuesta-vigencia.ts`, la misma
+    // función que usa la liga pública para negarse a aceptar.
+    condiciones: p.condiciones ?? null,
+    vigenteHasta: fechaDia(p.vigente_hasta),
+    vencida: propuestaVencida(fechaDia(p.vigente_hasta)),
     // PAQ-01 · la parte del precio cerrado que le tocó a cada línea viaja CON
     // la línea. Sin ella la pantalla enseñaría el importe de lista junto a un
     // total que no lo suma, y eso se lee como un defecto del sistema.
@@ -1224,12 +1233,26 @@ export async function crearPropuesta(input: PropuestaInput) {
     // `null` cuando no hay sesión —hoy imposible por `exigir()` en el route,
     // pero un alta futura por un trabajo programado no tendría cookie— y eso es
     // exactamente lo que el reporte sabe pintar: «Sin vendedor», nunca un cero.
-    const vendedorId = (await usuarioActual())?.id ?? null
+    //
+    // P19 (29/10) · y su NOMBRE, de la misma sesión y en el mismo INSERT. Es lo
+    // que sobrevive si el usuario se borra (`usuario_id` es `on delete set
+    // null`): sin él, sus ventas se volvían «Sin vendedor», indistinguibles de
+    // las históricas. Decisión del dueño: conservar quién vendió.
+    const vendedor = await usuarioActual()
+    const vendedorId = vendedor?.id ?? null
+    const tenantProp = await tenantActual()
+    // PROP-COMPLETA (29/10) · las condiciones se COPIAN de la plantilla de la
+    // organización: cambiarla mañana no puede reescribir lo ya enviado. Se leen
+    // con este mismo cliente, ya con el tenant fijado y con `tenant_id` como
+    // segunda capa.
+    const plantilla =
+      (await client.query('select condiciones_propuesta from config_negocio where tenant_id=$1', [tenantProp]))
+        .rows[0]?.condiciones_propuesta ?? null
     const prop = (
       await client.query(
-        `insert into propuestas (folio, cliente_id, agencia_id, nombre, comision_pct, notas, token_publico, usuario_id, tenant_id)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$9) returning *`,
-        [await folio(), input.clienteId ?? null, input.agenciaId ?? null, input.nombre, input.comisionPct ?? 0, input.notas ?? null, tokenPublico(), vendedorId, await tenantActual()],
+        `insert into propuestas (folio, cliente_id, agencia_id, nombre, comision_pct, notas, token_publico, usuario_id, vendedor_nombre, condiciones, tenant_id)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) returning *`,
+        [await folio(), input.clienteId ?? null, input.agenciaId ?? null, input.nombre, input.comisionPct ?? 0, input.notas ?? null, tokenPublico(), vendedorId, vendedor?.nombre ?? null, plantilla, tenantProp],
       )
     ).rows[0]
     // Siempre asociar la agencia con el cliente: si la propuesta lleva cliente y

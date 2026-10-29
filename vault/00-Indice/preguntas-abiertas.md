@@ -534,7 +534,16 @@ coincidir. **¿Se extrae a una constante compartida?**
 Habla de `apps/api` (Fastify+Prisma), `/var/www/spaces-dooh` y despliegue
 automático en cada push. **¿Se reescribe o se marca como histórico?**
 
-### P19 · El vendedor que se va, ¿se lleva su atribución? (VEND-01, 2026-09-28)
+### P19 · ~~El vendedor que se va, ¿se lleva su atribución?~~ **RESUELTA el 29/10** (VEND-01, 2026-09-28)
+
+> [!success] 2026-10-29 · decisión del dueño: **conservar el nombre**
+> `propuestas.vendedor_nombre` (`20261029_propuestas_condiciones_vigencia_vendedor.sql`)
+> se estampa al crear, de la sesión, y se rellenó para las propuestas que ya
+> tenían vendedor. Borrado el usuario, el reporte lo nombra con una fila de
+> baja (`lib/vendedor-de-baja.ts`) y el Dashboard también. Las históricas sin
+> `usuario_id` siguen en «Sin vendedor»: no se inventa. Rama
+> `feat/propuestas-completas`.
+
 
 `propuestas.usuario_id` es **`on delete set null`** —el criterio de las otras
 cinco FK hacia `usuarios`, y lo único que deja que `borrarUsuario()` siga
