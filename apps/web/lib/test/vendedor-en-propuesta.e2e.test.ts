@@ -248,6 +248,32 @@ describe('la migración dejó la columna como se pidió', () => {
       c.release()
     }
   })
+
+  it('P19 · borrado el vendedor, el REPORTE lo sigue nombrando y no lo manda a «Sin vendedor»', async () => {
+    // Decisión del dueño (29/10). En una transacción que se deshace, igual que
+    // la prueba del `on delete set null`: el resto del archivo cuenta con la
+    // vendedora viva. El reporte se arma con el mismo `datosRentabilidad` que la
+    // ruta, así que esto se mide en SQL: el nombre congelado tiene que quedar.
+    const p = poolTest()
+    const c = await p.connect()
+    try {
+      await c.query('begin')
+      await c.query(
+        `update propuestas set vendedor_nombre = $2 where tenant_id = $1 and folio like 'PROP-CON-%'`,
+        [alfa.id, datosAlfa.vendedorNombre],
+      )
+      await c.query('delete from usuarios where id = $1', [datosAlfa.vendedorId])
+      const r = await c.query(
+        `select usuario_id, vendedor_nombre from propuestas where tenant_id = $1 and folio like 'PROP-CON-%'`,
+        [alfa.id],
+      )
+      expect(r.rows[0].usuario_id).toBeNull()
+      expect(r.rows[0].vendedor_nombre).toBe(datosAlfa.vendedorNombre)
+    } finally {
+      await c.query('rollback')
+      c.release()
+    }
+  })
 })
 
 // ─── 2 · EL CASO NEGATIVO QUE DA NOMBRE A LA TAREA ──────────────────────────
@@ -307,31 +333,6 @@ describe('el vendedor NO se puede falsear desde el cliente', () => {
     expect(fila.rows[0].vendedor_nombre).toBe(datosAlfa.vendedorNombre)
   })
 
-  it('P19 · borrado el vendedor, el REPORTE lo sigue nombrando y no lo manda a «Sin vendedor»', async () => {
-    // Decisión del dueño (29/10). En una transacción que se deshace, igual que
-    // la prueba del `on delete set null`: el resto del archivo cuenta con la
-    // vendedora viva. El reporte se arma con el mismo `datosRentabilidad` que la
-    // ruta, así que esto se mide en SQL: el nombre congelado tiene que quedar.
-    const p = poolTest()
-    const c = await p.connect()
-    try {
-      await c.query('begin')
-      await c.query(
-        `update propuestas set vendedor_nombre = $2 where tenant_id = $1 and folio like 'PROP-CON-%'`,
-        [alfa.id, datosAlfa.vendedorNombre],
-      )
-      await c.query('delete from usuarios where id = $1', [datosAlfa.vendedorId])
-      const r = await c.query(
-        `select usuario_id, vendedor_nombre from propuestas where tenant_id = $1 and folio like 'PROP-CON-%'`,
-        [alfa.id],
-      )
-      expect(r.rows[0].usuario_id).toBeNull()
-      expect(r.rows[0].vendedor_nombre).toBe(datosAlfa.vendedorNombre)
-    } finally {
-      await c.query('rollback')
-      c.release()
-    }
-  })
 
   it('y el dueño de alfa crea las suyas a SU nombre, no al de la vendedora', async () => {
     // Dos sesiones vivas a la vez sobre la misma organización: lo que decide la

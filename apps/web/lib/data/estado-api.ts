@@ -210,7 +210,14 @@ export async function cambiarEstatusPropuestaApi(
 // Actualiza el descuento comercial / nombre / notas (renegociación → sube versión).
 export async function actualizarPropuestaApi(
   id: string,
-  input: { descuentoPct?: number; nombre?: string; notas?: string | null },
+  input: {
+    descuentoPct?: number
+    nombre?: string
+    notas?: string | null
+    // PROP-COMPLETA (29/10) · términos y vigencia de ESTA propuesta.
+    condiciones?: string | null
+    vigenteHasta?: string | null
+  },
 ): Promise<void> {
   const r = await fetch(`${API}/propuestas/${id}/`, {
     method: 'PATCH',

@@ -58,6 +58,17 @@ const configSchema = z
       .number()
       .min(0, 'El tope de descuento no puede ser negativo')
       .max(100, 'El tope de descuento no puede pasar de 100 %'),
+    // PROP-COMPLETA (29/10) · plantilla de términos y condiciones que se COPIA
+    // a cada propuesta nueva (cambiarla no toca las ya creadas). `null` o vacía
+    // = sin condiciones. Tope generoso pero finito: viaja en cada propuesta.
+    condicionesPropuesta: z.string().max(8000, 'Las condiciones no pueden pasar de 8000 caracteres').nullable(),
+    // Días de vigencia que se le dan a una propuesta al enviarla. 30 por
+    // omisión (decisión del dueño); el CHECK de la columna exige 1–365.
+    vigenciaPropuestaDias: z.coerce
+      .number()
+      .int('La vigencia debe ser un número entero de días')
+      .min(1, 'La vigencia debe ser de al menos 1 día')
+      .max(365, 'La vigencia no puede pasar de 365 días'),
     // Correo de la organización para los avisos de OPERACIÓN (Reply-To).
     // `null` = quitarlo, igual que el logo. La cadena vacía se normaliza a null
     // más abajo: un input que se vacía manda '', y guardar '' haría que el
@@ -159,6 +170,8 @@ export async function PATCH(req: Request) {
     logoUrl: 'logo_url', ivaTasas: 'iva_tasas', loopSeg: 'loop_seg', spotSeg: 'spot_seg',
     maxClientesPantalla: 'max_clientes_pantalla',
     topeDescuentoPct: 'tope_descuento_pct',
+    condicionesPropuesta: 'condiciones_propuesta',
+    vigenciaPropuestaDias: 'vigencia_propuesta_dias',
     emailRemitente: 'email_remitente',
     costosOt: 'costos_ot',
   }
@@ -166,6 +179,9 @@ export async function PATCH(req: Request) {
   // Reply-To vacío es una cabecera rota, y el CHECK de la columna la rechaza
   // (acepta null o una dirección con forma, nada intermedio).
   if (b.emailRemitente === '') b.emailRemitente = null
+  // Igual con las condiciones: vaciar el cuadro es quitarlas, y una cadena de
+  // puros espacios se copiaría a cada propuesta como un bloque en blanco.
+  if (typeof b.condicionesPropuesta === 'string' && !b.condicionesPropuesta.trim()) b.condicionesPropuesta = null
   // El mapa de costos entra a una columna jsonb, así que viaja como texto JSON
   // y SANEADO: `sanearCostosOt` descarta las claves que no son del enum y los
   // importes no utilizables (null = «quitar este tipo»). Se sanea también aquí

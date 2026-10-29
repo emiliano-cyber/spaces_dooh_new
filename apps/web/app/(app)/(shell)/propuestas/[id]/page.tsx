@@ -48,6 +48,7 @@ import {
 } from '@/lib/data/estado-api'
 import { BloqueCodigoPropuesta } from '@/components/demo/codigos/BloqueCodigoPropuesta'
 import { ElegirClienteDialog } from '@/components/demo/propuestas/ElegirClienteDialog'
+import { BloqueCondicionesVigencia } from '@/components/demo/propuestas/BloqueCondicionesVigencia'
 import {
   paquetesApi,
   aplicarPaqueteApi,
@@ -345,6 +346,18 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
             {p.version > 1 && (
               <span className="rounded-full border border-border px-2 py-0.5 text-[11px] font-medium text-muted" title="Versión (sube en cada renegociación)">
                 v{p.version}
+              </span>
+            )}
+            {/* PROP-COMPLETA · la vigencia solo importa mientras el cliente
+                puede aceptar: en una aprobada o rechazada sería ruido. */}
+            {p.vigenteHasta && (p.estatus === 'ENVIADA' || p.estatus === 'BORRADOR') && (
+              <span
+                className={cn(
+                  'rounded-full border px-2 py-0.5 text-[11px] font-medium',
+                  p.vencida ? 'border-[#ef444440] text-error' : 'border-border text-muted',
+                )}
+              >
+                {p.vencida ? `Vencida el ${formatFecha(p.vigenteHasta)}` : `Válida hasta ${formatFecha(p.vigenteHasta)}`}
               </span>
             )}
           </div>
@@ -846,6 +859,18 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
               )}
             </div>
           )}
+      </CardColapsable>
+
+      {/* PROP-COMPLETA (29/10) · lo que el cliente lee además de los
+          importes: hasta cuándo puede aceptar y en qué términos. */}
+      <CardColapsable id="propuesta.condiciones" titulo="Condiciones y vigencia">
+        <BloqueCondicionesVigencia
+          propuestaId={p.id}
+          condiciones={p.condiciones ?? null}
+          vigenteHasta={p.vigenteHasta ?? null}
+          vencida={!!p.vencida}
+          editable={puedeEditar && p.estatus !== 'APROBADA'}
+        />
       </CardColapsable>
 
       {/* Mapa con la ubicación de las pantallas. PLEG-02 · plegado, el mapa se

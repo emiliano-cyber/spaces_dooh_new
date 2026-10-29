@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { conteo } from '@/lib/plural'
-import { CheckCircle2, Users, ShieldCheck, UserPlus, Building2, X, Plus, Check, Upload, Percent, MonitorPlay, KeyRound, Scale, AlertTriangle, Mail, CornerUpLeft, Loader2, Wrench, Save, ToggleLeft, ToggleRight, CalendarClock, ListChecks } from 'lucide-react'
+import { CheckCircle2, Users, ShieldCheck, UserPlus, Building2, X, Plus, Check, Upload, Percent, MonitorPlay, KeyRound, Scale, AlertTriangle, Mail, FileText, CornerUpLeft, Loader2, Wrench, Save, ToggleLeft, ToggleRight, CalendarClock, ListChecks } from 'lucide-react'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
@@ -1183,6 +1183,8 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
               pantalla puede llevar su propio valor desde su ficha en Comercial.
             </p>
         </CardColapsable>
+
+        <PropuestasDocumento config={config} guardar={guardar} />
       </section>
 
       <section id="admin-cfg-operacion" aria-label="Operación" className="scroll-mt-4 space-y-4">
@@ -1497,6 +1499,82 @@ function DatosFiscales({
 // lo sepa va a buscar los envíos en la bandeja de enviados de esta cuenta y no
 // los va a encontrar. Una nota al pie de un formulario no se lee; un modal que
 // hay que confirmar, sí.
+// PROP-COMPLETA (29/10) · lo que cada propuesta nueva hereda de la organización:
+// la PLANTILLA de condiciones (se copia al crear; cambiarla aquí no toca las ya
+// creadas) y los días de vigencia que se le dan al enviarla (30 por omisión,
+// decisión del dueño). Las dos se ajustan después en cada propuesta.
+function PropuestasDocumento({
+  config,
+  guardar,
+}: {
+  config: ConfigNegocio
+  guardar: (cambios: Partial<ConfigNegocio>, msg?: string) => Promise<boolean>
+}) {
+  const actual = config.condicionesPropuesta ?? ''
+  const [texto, setTexto] = useState(actual)
+  const [guardando, setGuardando] = useState(false)
+  useEffect(() => { setTexto(config.condicionesPropuesta ?? '') }, [config.condicionesPropuesta])
+  const dias = config.vigenciaPropuestaDias ?? 30
+
+  return (
+    <CardColapsable
+      id="admin.config.propuestas"
+      titulo="Propuestas: vigencia y condiciones"
+      icono={<FileText className="h-4 w-4 text-muted" />}
+      contentClassName="space-y-3"
+    >
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <Campo label="Vigencia (días)">
+          <input
+            type="number"
+            min={1}
+            max={365}
+            className={`demo-num ${inputCls}`}
+            defaultValue={dias}
+            onBlur={(e) => {
+              const v = Math.round(Number(e.target.value))
+              if (!Number.isFinite(v) || v < 1 || v > 365) {
+                e.target.value = String(dias)
+                return
+              }
+              if (v !== dias) void guardar({ vigenciaPropuestaDias: v }, `Vigencia de propuestas: ${v} días`)
+            }}
+          />
+        </Campo>
+      </div>
+      <p className="text-[11px] text-muted">
+        Se cuentan desde que la propuesta se <b>envía</b>. Vencida, el cliente ya no puede aceptarla desde su
+        liga; por dentro se le pone otra fecha o se vuelve a enviar.
+      </p>
+      <Campo label="Plantilla de términos y condiciones">
+        <textarea
+          className={`${inputCls} h-auto py-2`}
+          rows={6}
+          maxLength={8000}
+          placeholder="Sin condiciones: las propuestas no llevan este bloque."
+          value={texto}
+          onChange={(e) => setTexto(e.target.value)}
+        />
+      </Campo>
+      <div className="flex items-center gap-2">
+        <Button
+          size="sm"
+          variant="secondary"
+          disabled={guardando || texto.trim() === actual.trim()}
+          onClick={async () => {
+            setGuardando(true)
+            await guardar({ condicionesPropuesta: texto.trim() || null }, 'Plantilla de condiciones guardada')
+            setGuardando(false)
+          }}
+        >
+          <Check className="h-3.5 w-3.5" /> {guardando ? 'Guardando…' : 'Guardar plantilla'}
+        </Button>
+        <span className="text-[11px] text-muted">Se copia a cada propuesta nueva; las ya creadas conservan las suyas.</span>
+      </div>
+    </CardColapsable>
+  )
+}
+
 function CorreoDeAvisos({
   config,
   guardar,

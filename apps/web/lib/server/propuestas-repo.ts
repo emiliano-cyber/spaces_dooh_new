@@ -1,6 +1,6 @@
 import 'server-only'
 import { DescuentoSobreTope, descuentoDePropuestaDentroDelTope, mensajeTopeVigente, MSJ_TOPE_VIGENTE_PUBLICO, topeDescuentoValido } from '@/lib/descuento'
-import { topeDescuentoDelTenant } from './config-repo'
+import { topeDescuentoDelTenant, vigenciaPropuestaDelTenant } from './config-repo'
 import { randomBytes } from 'crypto'
 import { q, q1, pool, fijarTenant, fijarTenantExplicito, qConTenant, qRaw1 } from './db'
 import { tenantActual } from './tenant'
@@ -867,6 +867,12 @@ export async function obtenerPropuestaPublica(codigo: string) {
     iva: armado.iva,
     total: armado.total,
     itemsAprobados: armado.itemsAprobados,
+    // PROP-COMPLETA (29/10) · hasta cuándo puede aceptar, si ya venció (la
+    // pantalla lo dice y esconde el botón; quien se NIEGA es
+    // `aceptarPropuestaPublica`) y las condiciones que firma.
+    vigenteHasta: armado.vigenteHasta,
+    vencida: armado.vencida,
+    condiciones: armado.condiciones,
     items: armado.items.map((it) => {
       const s = byId.get(it.sitioId)
       return {
@@ -937,7 +943,9 @@ export async function aceptarPropuestaPublica(
   const p = (
     await qConTenant<any>(
       tenantId,
-      `select id, tenant_id, folio, nombre, estatus, aceptado_en, aceptado_por
+      `select id, tenant_id, folio, nombre, estatus, aceptado_en, aceptado_por,
+              to_char(vigente_hasta, 'DD/MM/YYYY') as vigente_hasta_txt,
+              (vigente_hasta < current_date) as vencida
          from propuestas where token_publico = $1 limit 1`,
       [cod],
     )
@@ -959,6 +967,16 @@ export async function aceptarPropuestaPublica(
   }
   if (p.estatus === 'RECHAZADA') {
     throw new PropuestaError('Esta propuesta ya no está vigente')
+  }
+  // PROP-COMPLETA (29/10) · decisión del dueño: vencida, la liga NO deja
+  // aceptar. Se decide en la BASE (`vigente_hasta < current_date`) y no con el
+  // reloj de quien llama, y va DESPUÉS del idempotente de arriba: una propuesta
+  // ya aceptada sigue diciendo que se aceptó aunque hoy esté fuera de fecha.
+  // `vigente_hasta` nulo (todo lo enviado antes del 29/10) no vence nunca.
+  if (p.vencida === true) {
+    throw new PropuestaVencidaError(
+      `Esta propuesta venció el ${p.vigente_hasta_txt}. Pide una actualizada a quien te la envió.`,
+    )
   }
 
   const client = await pool.connect()
@@ -1417,7 +1435,16 @@ export async function asignarClienteAPropuestaAprobada(propuestaId: string, clie
 // el descuento de una propuesta ya ENVIADA, sube la versión (renegociación).
 export async function actualizarPropuesta(
   id: string,
-  input: { descuentoPct?: number; nombre?: string; notas?: string | null },
+  input: {
+    descuentoPct?: number
+    nombre?: string
+    notas?: string | null
+    // PROP-COMPLETA (29/10) · los términos de ESTA propuesta y su vigencia.
+    // No suben versión: no cambian el precio. La fecha ya viene validada
+    // (`AAAA-MM-DD`) por la ruta; `null` la quita (sin vigencia).
+    condiciones?: string | null
+    vigenteHasta?: string | null
+  },
 ): Promise<PropuestaActualizada | null> {
   const cur = await q1<any>(
     // PAQ-01 · las columnas del paquete entran en esta lectura porque deciden
@@ -1494,6 +1521,8 @@ export async function actualizarPropuesta(
   }
   if (input.nombre != null) { sets.push(`nombre=$${i++}`); vals.push(input.nombre) }
   if (input.notas !== undefined) { sets.push(`notas=$${i++}`); vals.push(input.notas) }
+  if (input.condiciones !== undefined) { sets.push(`condiciones=$${i++}`); vals.push(input.condiciones) }
+  if (input.vigenteHasta !== undefined) { sets.push(`vigente_hasta=$${i++}::date`); vals.push(input.vigenteHasta) }
   if (subeVersion) sets.push('version = version + 1')
   if (sets.length) await q(`update propuestas set ${sets.join(', ')} where id=$1`, vals)
 
@@ -1508,6 +1537,10 @@ export async function actualizarPropuesta(
 // S1-2: aprobar una propuesta con Total $0 (p. ej. descuento 100%) exige
 // confirmación explícita. El route la mapea a un aviso; el UI reconfirma.
 export class PropuestaCeroError extends PropuestaError {}
+
+// PROP-COMPLETA (29/10) · aceptar por la liga una propuesta vencida. Es un
+// `PropuestaError` para que la ruta pública lo conteste 409 como los demás.
+export class PropuestaVencidaError extends PropuestaError {}
 
 // COD-03 · aprobar por dentro con el cupón PENDIENTE. Clase propia para que la
 // ruta lo mapee a 409 sin cambiar el 400 que hoy devuelven los demás
@@ -1666,6 +1699,13 @@ export async function cambiarEstatusPropuesta(
       await q('update propuesta_items set aprobado=true where propuesta_id=$1', [id])
     }
   }
+  // PROP-COMPLETA (29/10) · al ENVIAR se le pone la vigencia: hoy + los días de
+  // la organización (30 por omisión). Al enviar y no al crear, porque un
+  // borrador que pasa dos semanas en el cajón no debe llegar al cliente con la
+  // mitad de su vigencia gastada. Una fecha ya puesta y vigente se respeta (la
+  // pudo alargar alguien a mano); reenviar una VENCIDA la renueva, que es lo
+  // que significa volver a mandarla. Solo se lee la configuración al enviar.
+  const diasVigencia = estatus === 'ENVIADA' ? await vigenciaPropuestaDelTenant() : 0
   // COD-03 · la segunda red de la regla de arriba, y la que de verdad cierra la
   // carrera: entre la comprobación y este update, alguien pudo aplicar un
   // cupón (el canje bloquea la fila y lo deja PENDIENTE). Con la condición en
@@ -1678,11 +1718,15 @@ export async function cambiarEstatusPropuesta(
             -- borra la del que se deja (una rechazada que se aprueba es una
             -- aprobada, no las dos cosas).
             aprobada_en  = case when $2::text = 'APROBADA'  then coalesce(aprobada_en, now()) else null end,
-            rechazada_en = case when $2::text = 'RECHAZADA' then coalesce(rechazada_en, now()) else null end
+            rechazada_en = case when $2::text = 'RECHAZADA' then coalesce(rechazada_en, now()) else null end,
+            vigente_hasta = case
+              when $2::text = 'ENVIADA' and (vigente_hasta is null or vigente_hasta < current_date)
+                then current_date + $3::int
+              else vigente_hasta end
       where id=$1
         and ($2::text <> 'APROBADA' or codigo_estado is distinct from 'PENDIENTE')
       returning *`,
-    [id, estatus],
+    [id, estatus, diasVigencia],
   )
   if (!rows.length) {
     if (estatus === 'APROBADA') {

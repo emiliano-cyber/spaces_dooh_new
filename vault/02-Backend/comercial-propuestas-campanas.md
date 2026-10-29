@@ -44,6 +44,11 @@ archivos:
   - apps/web/lib/server/contratos-sitio.ts
   - apps/web/lib/server/portal-repo.ts
   - apps/web/lib/server/paquetes-repo.ts
+  - db/migrations/20261029_propuestas_condiciones_vigencia_vendedor.sql
+  - apps/web/lib/propuesta-vigencia.ts
+  - apps/web/components/demo/propuestas/BloqueCondicionesVigencia.tsx
+  - apps/web/app/(app)/p/[id]/page.tsx
+  - apps/web/app/api/propuestas/[id]/route.ts
 ---
 
 # Comercial: propuestas, reservas y campañas
@@ -690,6 +695,31 @@ Ahora lo empareja `netosDelSnapshot` (`lib/neto-de-linea.ts`, puro):
 Las campañas ya generadas **no se tocan**. Para encontrar las afectadas está el
 diagnóstico de solo lectura `docs/datos/20261029_diagnostico_neto_linea_repetida.sql`.
 Pruebas: `lib/neto-de-linea.test.ts`.
+
+## Vigencia y condiciones (PROP-COMPLETA, 29/10)
+
+Decisiones del dueño del 29/10. Migración
+`20261029_propuestas_condiciones_vigencia_vendedor.sql`.
+
+- **Vigencia.** `propuestas.vigente_hasta` la pone `cambiarEstatusPropuesta`
+  al pasar a **ENVIADA**: `current_date + config_negocio.vigencia_propuesta_dias`
+  (30 por omisión, 1–365, en Administración → «Propuestas: vigencia y
+  condiciones»). Una fecha vigente se respeta; **reenviar una vencida la
+  renueva**. Se edita por dentro con `PATCH /api/propuestas/[id]`
+  `{ vigenteHasta }` (fecha validada; no sube versión).
+- **Vencida, la liga no acepta.** `aceptarPropuestaPublica` lo decide en la
+  base (`vigente_hasta < current_date`), después del idempotente (una ya
+  aceptada sigue diciendo que se aceptó) → `PropuestaVencidaError`, 409. **El
+  último día todavía vale.** `null` = sin vigencia: todo lo enviado antes del
+  29/10 se sigue aceptando como siempre. La liga y la ficha lo avisan con
+  `lib/propuesta-vigencia.ts`, la misma regla.
+- **Condiciones.** `config_negocio.condiciones_propuesta` es una PLANTILLA que
+  `crearPropuesta` **copia** a `propuestas.condiciones`: cambiarla no toca las ya
+  creadas. Se editan por propuesta en la ficha («Condiciones y vigencia») y
+  salen en la liga pública antes del botón de aceptar. Vaciarlas las quita.
+- Pruebas: `lib/propuesta-vigencia.test.ts` y
+  `lib/test/propuesta-vigencia.e2e.test.ts` (incluye R2: la plantilla y los días
+  de una organización no se cuelan en otra).
 
 ## Portal del cliente
 
