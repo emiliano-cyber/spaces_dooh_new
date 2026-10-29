@@ -16,8 +16,10 @@ import {
   desactivarTemporada,
   rejillaDeSitio,
   actualizarRejilla,
+  exhibicionDeSitio,
   type CambiosRejilla,
 } from './rejilla-repo'
+import { motivoModalidadInvalida } from '@/lib/modalidades'
 
 // ============================================================================
 //  lib/server/rejilla-controller.ts — La forma de entrada del catálogo de
@@ -229,6 +231,21 @@ export async function actualizarRejillaCtrl(sitioId: string, body: unknown) {
         `La combinación ${r.unidad} viene a la vez para guardar y para quitar.`,
         400,
       )
+    }
+  }
+
+  // B45 (2026-10-29) · la UNIDAD se valida con la MISMA regla que las
+  // modalidades de la pantalla (`sitios-controller.ts`): una unidad inventada,
+  // o un spot en una pantalla fija, no entra. Antes solo se pedía «un texto de
+  // hasta 40», y la tabla no tiene CHECK: un `curl` escribía basura en una
+  // tabla de precios. Solo lo que se GUARDA: una baja con unidad basura es la
+  // única forma de limpiar lo que ya se escribió antes de esta validación.
+  if (guardar.length) {
+    const sitio = await exhibicionDeSitio(sitioId)
+    if (!sitio) throw new AppError('Esa pantalla no existe', 404)
+    for (const g of guardar) {
+      const motivo = motivoModalidadInvalida(g.unidad, sitio.exhibicion)
+      if (motivo) throw new AppError(motivo, 400)
     }
   }
 

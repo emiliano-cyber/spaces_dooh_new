@@ -15,6 +15,7 @@ archivos: []
 > sin zona; alto contacto: `docs/Registro_Cambios.md` y este tablero. **Reclamadas y LIBERADAS** al commitear.
 > **Sin correr:** las e2e (aquí no hay Postgres): `folio-venta-cpm` §2 y §2b, `esquema-sin-owner` (66 tablas),
 > `aislamiento`, `grants-*` y `migraciones` las corre el CI.
+
 > [!important] 2026-10-29 · **UBIC-01 · la ubicación de Comercial negociación por coordenadas o por calle** — rama `feat/ubicacion-coordenadas-google`, desde `main` · ÁMBAR (sin sesión, sin tenant, sin migración, sin dinero)
 > Decisión del dueño (ADR 0041, aceptada en esa parte): pegar coordenadas o un enlace de Google Maps pone el pin; un
 > enlace corto lo sigue el servidor solo hacia Google; con `GOOGLE_MAPS_SERVIDOR_KEY` el buscador de calles es Google,
@@ -23,6 +24,15 @@ archivos: []
 > `lib/i18n/errores-servidor.ts` (catálogo), `infra/env/app.env.example`, y Z12 (ADR, bóveda, bitácora, este tablero).
 > **Reclamadas y LIBERADAS** al commitear. Sin e2e aquí (no hay Postgres): la e2e nueva de `negociacion.e2e.test.ts`
 > va al CI. Nadie lo probó con una clave real de Google ni con un enlace corto real.
+
+> [!important] 2026-10-29 · **ABIERTOS B41–B45 y D6** — rama `fix/abiertos-b41-b45-d6`, desde `main` @ `cb86b7f6` · ROJO R2 (B44, segunda capa de tenant) + R4 (B43, el snapshot; **aprobado por el dueño el 29/10, sin migración**)
+> Cierra seis fichas de `docs/Supervision/ABIERTOS.md`, un commit por ficha, y tacha B40 (ya resuelta por PRECIO-01).
+> Zonas: Z3 (`sitios-repo`, la rejilla), Z5 (`propuestas-repo`, `tarifas-repo`), Z12 (bóveda, bitácora, ABIERTOS), y sin
+> zona `lib/data/reportes.ts`, `reportes-*`, `lib/i18n/errores-servidor.ts` y la pantalla de Reportes. **Reclamadas y
+> LIBERADAS** al commitear. Typecheck limpio y unitarias en verde; **sin e2e** (aquí no hay Postgres): antes de fusionar,
+> CI con `rejilla-franja-temporada`, `precio-ajustado`, `reportes-rentabilidad` y `aislamiento`. Y **B56** (R4,
+> **aprobado por el dueño el 29/10**): `campanas-repo` (Z5) empareja el neto por la línea del snapshot, no solo por la
+> pantalla (`lib/neto-de-linea.ts`). Reclamada y LIBERADA en su commit; e2e en CI: `flujo-critico`, `paquete-cerrado`, `descuento-volumen`, `codigo-promocional`.
 
 > [!important] 2026-10-26 · **TENT-PROP · lo tentativo es lo que está en una propuesta abierta** — rama `feat/tentativo-en-propuesta`, encima de `feat/diseno-modulos` · ROJO R3 + R4 (**aprobado por el dueño el 26/10**)
 > Regla del dueño: tentativo = pantalla/spot en una propuesta BORRADOR o ENVIADA; solo avisa, no bloquea. Se retira

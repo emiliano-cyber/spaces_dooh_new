@@ -332,6 +332,9 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   // 1 sitio · lib/server/perfil-controller.ts:91
   'La contraseña actual no es correcta':
     'The current password is not correct',
+  // 1 sitio · lib/server/reportes-controller.ts (D6, 2026-10-29)
+  'El reporte abarca como máximo 24 meses por consulta. Acorta el rango de fechas.':
+    'The report covers at most 24 months per query. Shorten the date range.',
   // 2 sitios · lib/server/arrendadores-controller.ts:180
   'La fecha de fin no puede ser anterior a la de inicio':
     'The end date cannot be earlier than the start date',

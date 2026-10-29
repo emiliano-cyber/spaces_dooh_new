@@ -18,6 +18,7 @@ archivos:
   - apps/web/app/api/propuestas/[id]/route.ts
   - db/migrations/20260928_tope_descuento_propuestas.sql
   - apps/web/lib/server/campanas-repo.ts
+  - apps/web/lib/neto-de-linea.ts
   - apps/web/lib/server/campanas-controller.ts
   - apps/web/lib/server/creativos-repo.ts
   - apps/web/lib/server/reservas-controller.ts
@@ -379,6 +380,10 @@ mandaba el navegador y se podía cerrar un prime a 1 peso con un `curl`.
 - **El servidor la recalcula** en `crearPropuestaCtrl` con los datos de ESTA
   organización (`lib/server/tarifas-repo.ts`: pantallas, `sitio_modalidades`,
   `sitio_tarifas` y temporadas activas, bajo RLS **y** con `and tenant_id`).
+  *(2026-10-29, B43: el congelado del snapshot usa también estas dos piezas
+  —`datosParaTarifar`, que acepta el tenant de la liga pública, y
+  `tarifaCalculada().temporadaQuePuso`— para nombrar la temporada solo si fue
+  la que puso el precio; ver [[rejilla-franja-y-temporada]].)*
   Compara **al centavo** (`centavos`) y decide con `decidirPrecioItem`:
 
 | Precio enviado | Sin `comercial.aprobar` (VENDEDOR) | Con `comercial.aprobar` (GERENTE_VENTAS y superiores) |
@@ -661,6 +666,30 @@ rollback sin fila en el 409). Contra Postgres, la §2b de
 `lib/test/folio-venta-cpm.e2e.test.ts` (sin contrato nada cambia; con contrato
 la fila y el original intacto; restrict; permisos de solo inserción) —
 **escrita y no corrida aquí**: en esta máquina no hay Postgres, la corre el CI.
+
+## Cada reserva hereda el neto de SU línea (B56, 29/10, R4 aprobado por el dueño)
+
+Al generar la campaña de una propuesta aprobada, el precio de cada reserva sale
+del neto congelado en `snapshot_economico.porSitio`. Hasta el 29/10
+`generarCampanaDesdePropuesta` (`lib/server/campanas-repo.ts`) lo buscaba en un
+`Map` **por pantalla**. Con la misma pantalla dos veces —dos franjas o dos
+periodos— ganaba la última entrada, y **las dos reservas se cobraban con ese
+neto** (prime 27 000 + madrugada 7 200 salían 7 200 + 7 200).
+
+Ahora lo empareja `netosDelSnapshot` (`lib/neto-de-linea.ts`, puro):
+
+- **Snapshots desde el 29/10:** por `porSitio[].itemId`, el id del ítem que
+  `congelarSnapshotEconomico` guarda en cada línea. Es lo que identifica la
+  línea de verdad.
+- **Snapshots anteriores** (inmutables, no se reescriben): pantalla única → su
+  neto, como siempre. Pantalla repetida → se desempata por `franja.id` y por la
+  lista (= `precio` del ítem). Si queda un solo neto, ése; si no, `null`.
+- `null` → el **cálculo de respaldo** de siempre (lista × volumen × descuento ×
+  código × comisión, o la parte del paquete). **Nunca el neto de otra línea.**
+
+Las campañas ya generadas **no se tocan**. Para encontrar las afectadas está el
+diagnóstico de solo lectura `docs/datos/20261029_diagnostico_neto_linea_repetida.sql`.
+Pruebas: `lib/neto-de-linea.test.ts`.
 
 ## Portal del cliente
 

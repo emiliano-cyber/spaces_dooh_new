@@ -347,10 +347,20 @@ export async function listarSitiosRed(): Promise<any[]> {
 }
 
 export async function getSitio(id: string): Promise<any | null> {
-  const r = await q1('select * from sitios where id = $1', [id])
+  // B44 (2026-10-29) · las tres lecturas por id llevan `and tenant_id` como
+  // segunda capa sobre la RLS. Con la RLS sola, el día que falle, la rejilla de
+  // otra organización le pondría el precio a esta pantalla sin dar error.
+  const tenant = await tenantActual()
+  const r = await q1('select * from sitios where id = $1 and tenant_id = $2', [id, tenant])
   if (!r) return null
-  const mods = await q('select unidad, tarifa_publicada, costo_compra from sitio_modalidades where sitio_id=$1', [id])
-  const rej = await q('select unidad, franja_id, temporada_id, tarifa_publicada from sitio_tarifas where sitio_id=$1', [id])
+  const mods = await q(
+    'select unidad, tarifa_publicada, costo_compra from sitio_modalidades where sitio_id=$1 and tenant_id=$2',
+    [id, tenant],
+  )
+  const rej = await q(
+    'select unidad, franja_id, temporada_id, tarifa_publicada from sitio_tarifas where sitio_id=$1 and tenant_id=$2',
+    [id, tenant],
+  )
   return rowToSitio(r, mods, true, rej)
 }
 

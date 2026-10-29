@@ -53,6 +53,36 @@ lo ha probado con una clave real de Google**, y falta revisar sus condiciones de
 uso antes de encenderlo. Los mapas siguen siendo los de siempre: no se decidió
 poner mapas de Google en ninguna pantalla.
 
+**Franjas y temporadas ya pide la contraseña cuando tu organización la exige.**
+Si el control de cambios está encendido, al añadir o dar de baja una franja o una
+temporada aparece un cuadro para escribir tu contraseña y confirmar. Antes salía
+un mensaje en rojo y no había forma de terminar el cambio desde esa pantalla.
+
+**Una propuesta aprobada solo nombra la temporada si fue la que puso el precio.**
+Antes, una venta hecha en fechas del Buen Fin pero cobrada a la tarifa normal
+quedaba guardada diciendo «Buen Fin», como si se hubiera cobrado ese precio.
+Ahora, al aprobar, la temporada solo se anota si de verdad fue su tarifa la que se
+cobró; si no, se deja en blanco. Las propuestas que ya estaban aprobadas no
+cambian.
+
+**Reportes: vender dos horarios de la misma pantalla ya no la saca de «tarifa
+publicada contra neta».** Si en una propuesta se vendían, por ejemplo, el horario
+prime y la madrugada de la misma pantalla, el reporte no sabía qué precio era de
+cuál y dejaba esa pantalla fuera de la comparación. Ahora distingue cada horario.
+
+**Al generar una campaña, cada pantalla se cobra a su precio aunque se repita.**
+Si una propuesta llevaba la misma pantalla dos veces (por ejemplo, el horario
+prime y la madrugada, o dos periodos), la campaña guardaba las dos con el precio
+de la última. Así se cobraba menos, o más, de lo cotizado. Ahora cada una lleva
+el suyo. Las campañas ya creadas no cambian. Hay una consulta para que el dueño
+revise si alguna quedó afectada.
+
+**Reportes: como máximo 24 meses por consulta.** Por decisión del dueño, el
+reporte de rentabilidad abarca hasta dos años de una vez. Si se eligen fechas más
+separadas, la pantalla lo avisa («El reporte abarca como máximo 24 meses por
+consulta. Acorta el rango de fechas.») y no lo calcula; así un inventario grande
+no deja la pantalla cargando sin fin.
+
 ---
 
 ## 2026-10-27 · v0.12.4 (preparada, todavía sin publicar)

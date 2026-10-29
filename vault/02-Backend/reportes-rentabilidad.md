@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-26
+actualizado: 2026-10-29
 tags: [backend, reportes, rentabilidad, finanzas, dinero, rojo]
 archivos:
   - apps/web/app/api/reportes/rentabilidad/route.ts
@@ -122,6 +122,19 @@ GET /api/reportes/rentabilidad?dimension=sitio&granularidad=mes
 Las fechas **no tienen valor por omisión** a propósito. Un rango por omisión
 sobre historia de años es una consulta sin límite disfrazada de comodidad, que
 es exactamente el problema del que este endpoint nace.
+
+> [!important] 2026-10-29 · D6 · TOPE DE 24 MESES por consulta (decisión del dueño)
+> El reporte arma una casilla por pantalla y por periodo; con 500 pantallas y
+> cinco años son 30 000. Ahora un rango de más de 24 meses se rechaza con **400**
+> y la frase «El reporte abarca como máximo 24 meses por consulta. Acorta el
+> rango de fechas.» (traducida en `lib/i18n/errores-servidor.ts`), **antes de
+> tocar la base** (`validarConsultaRentabilidad`). La regla vive una sola vez en
+> el motor puro —`TOPE_MESES_REPORTE`, `excedeTopeDeMeses` y
+> `MSJ_TOPE_MESES_REPORTE` en `lib/data/reportes.ts`— y la usa también la
+> pantalla: `motivoInvalido` (`components/demo/reportes/consulta.ts`) devuelve la
+> misma frase y `debePedir` no manda la consulta. Cuenta: `hasta` antes de
+> `desde + 24 meses` (1/ene/2024 → 31/dic/2025 entra; un día más, no). Pruebas:
+> `reportes-controller.tope-meses.test.ts` y `consulta.tope-meses.test.ts`.
 
 El rango invertido se rechaza con 400, y se detecta con `diaComparable`
 (`lib/server/fechas.ts`) y no comparando texto: `2026-9-1` va antes que

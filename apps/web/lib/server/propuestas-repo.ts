@@ -7,7 +7,9 @@ import { tenantActual } from './tenant'
 import { usuarioActual } from './auth'
 import { folioDocumento } from './folios'
 import { divisorDeComision } from '@/lib/data/derive'
-import { AVISO_FRANJA_NO_VIAJA_AL_CMS, temporadaDeFecha } from '@/lib/rejilla'
+import { AVISO_FRANJA_NO_VIAJA_AL_CMS } from '@/lib/rejilla'
+import { centavos, tarifaCalculada } from '@/lib/tarifa-calculada'
+import { datosParaTarifar } from './tarifas-repo'
 import { volumenDeLineas } from '@/lib/volumen'
 import { montoDescuentoCodigo } from '@/lib/codigo-promocional'
 import {
@@ -390,22 +392,53 @@ export async function congelarSnapshotEconomico(propuestaId: string, tenantId?: 
     ? aprob
     : await qS<any>(`${SEL_ITEMS} where i.propuesta_id=$1`, [propuestaId])
 
-  // Las temporadas VIGENTES de la organización, para deducir cuál cubría la
-  // fecha de cada ítem. Se leen todas —son pocas por construcción, una decena
-  // al año— y la resolución la hace `lib/rejilla.ts`, que es el único sitio
-  // donde vive esa regla. Ordenadas por `desde` porque `temporadaDeFecha`
-  // devuelve la primera que cubre: con el solape prohibido no puede haber dos,
-  // pero si datos viejos las trajeran, que gane siempre la misma.
-  const temporadas = await qS<any>(
-    `select id, nombre, to_char(desde,'YYYY-MM-DD') as desde, to_char(hasta,'YYYY-MM-DD') as hasta
-       from temporadas where activo = true order by desde asc, id asc`,
+  // B43 (2026-10-29) · LA TEMPORADA QUE PUSO EL PRECIO, no la que cubre la
+  // fecha. Hasta hoy aquí se guardaba `temporadaDeFecha(...)`: una venta del 14
+  // de noviembre a tarifa base quedaba congelada diciendo «Buen Fin», y seis
+  // meses después eso se lee como «se cobró el precio del Buen Fin». No se
+  // cobró. Decisión del dueño: congelar la temporada que devuelve la
+  // RESOLUCIÓN, con la MISMA `tarifaCalculada` con la que el servidor fija la
+  // tarifa al crear la propuesta (PRECIO-01, B40) y sobre los mismos datos
+  // (`datosParaTarifar`: pantalla, modalidades, rejilla y temporadas activas,
+  // las cuatro con `and tenant_id`).
+  //
+  // Se resuelve AL APROBAR porque `propuesta_items` no guarda la temporada y
+  // añadirla exigiría una migración, que el dueño no pidió. Por eso la
+  // resolución solo se cree si da EXACTAMENTE el precio unitario que se vendió:
+  // si el dueño movió la rejilla o las temporadas entre cotizar y aprobar, o un
+  // gerente puso otro precio, la temporada de hoy ya no explica ese precio y se
+  // congela `null`. Callarse es correcto; afirmar lo que no se sabe, no.
+  //
+  // El PRECIO no se lee de aquí: `lista`, `neto` y `tarifaUnitaria` siguen
+  // saliendo del ítem. La rejilla solo decide qué NOMBRE se le pone.
+  const datosTarifa = await datosParaTarifar(
+    usar.map((it) => String(it.sitio_id)),
+    tenantId,
   )
-  const temporadasRej = temporadas.map((t) => ({
-    id: String(t.id),
-    nombre: String(t.nombre),
-    desde: String(t.desde),
-    hasta: String(t.hasta),
-  }))
+  const temporadaQuePusoElPrecio = (it: any): { id: string; nombre: string } | null => {
+    // ADR 0042 · una línea de calculadora se tarifa desde la MENSUAL de la
+    // pantalla repartida en el loop; su precio por spot no es comparable con
+    // la fila de la rejilla. Para ella se nombra la temporada solo si nadie
+    // ajustó el precio (una prima de Roadblock también es un ajuste), y se
+    // declara como residuo: no se puede volver a comprobar sin el loop.
+    const deCalculadora = it.espacios_comprados != null
+    const r = tarifaCalculada({
+      sitio: datosTarifa.sitios.get(String(it.sitio_id)) ?? {},
+      unidad: deCalculadora ? 'mensual' : String(it.unidad ?? 'mensual'),
+      franjaId: it.franja_id ?? null,
+      temporadas: datosTarifa.temporadas,
+      fechaInicio: String(iso(it.fecha_inicio) ?? '').slice(0, 10),
+    })
+    if (!r.temporadaQuePuso) return null
+    if (deCalculadora) {
+      if (it.precio_ajustado_por != null) return null
+    } else {
+      const vendida = it.tarifa_unitaria != null ? Number(it.tarifa_unitaria) : Number(it.precio)
+      if (centavos(r.tarifa) !== centavos(vendida)) return null
+    }
+    const t = datosTarifa.temporadas.find((x) => x.id === r.temporadaQuePuso)
+    return t ? { id: t.id, nombre: t.nombre } : null
+  }
 
   const comisionPct = Number(prop.comision_pct)
   const descuentoPct = prop.descuento_pct != null ? Number(prop.descuento_pct) : 0
@@ -472,17 +505,21 @@ export async function congelarSnapshotEconomico(propuestaId: string, tenantId?: 
   const iva = Math.round(base * (ivaPct / 100))
   const total = base + iva
   const porSitio = usar.map((it, idx) => {
-    // La temporada se DEDUCE de la fecha de inicio del ítem y no se guarda en
-    // `propuesta_items`: ahí sería una segunda verdad que envejece. Aquí sí se
-    // guarda, porque aquí deja de ser un dato vivo y pasa a ser un hecho.
-    const tempId = temporadaDeFecha(temporadasRej, String(iso(it.fecha_inicio) ?? '').slice(0, 10))
-    const temp = tempId ? temporadasRej.find((t) => t.id === tempId) : null
+    // La temporada no se guarda en `propuesta_items`: ahí sería una segunda
+    // verdad que envejece. Aquí sí se guarda, porque aquí deja de ser un dato
+    // vivo y pasa a ser un hecho — y por eso es la que PUSO el precio (B43).
+    const temp = temporadaQuePusoElPrecio(it)
     // El volumen de ESTA línea. Se lee con guarda porque `numeric` de Postgres
     // admite NaN: sin ella, una fila corrupta dejaría el neto de la propuesta
     // en NaN y la aprobación contestaría 200 OK.
     const volPct = Number(it.descuento_volumen_pct ?? 0)
     const factorVol = Number.isFinite(volPct) && volPct > 0 ? 1 - Math.min(volPct, 100) / 100 : 1
     return {
+      // B56 (2026-10-29) · LA IDENTIDAD DE LA LÍNEA. Sin ella, la misma
+      // pantalla dos veces (dos franjas o dos periodos) no se puede emparejar
+      // con su reserva, y `campanas-repo` cobraba en las dos el neto de la
+      // última (`lib/neto-de-linea.ts`).
+      itemId: it.id,
       sitioId: it.sitio_id,
       // `lista` sigue siendo el importe DE LISTA, sin el volumen. Si bajara, el
       // reporte de publicada contra neta compararía la neta con una «publicada»
