@@ -5,6 +5,34 @@
     "items": [
       {
         "tipo": "NUEVO",
+        "texto": "«Generar PDF» de una propuesta abre el documento para el cliente: pantallas con foto, mapa, importes, términos y condiciones, y la liga con su código QR. Se guarda como PDF desde «Imprimir»."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "«Enviar» manda la propuesta por correo al cliente, con un mensaje opcional y copia para ti. En una propuesta ya enviada el botón es «Reenviar»."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Las propuestas tienen vigencia: al enviarlas valen 30 días (cada organización lo cambia en Administración). Vencida, el cliente ya no puede aceptarla desde su liga; por dentro se le pone otra fecha o se reenvía."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Términos y condiciones en las propuestas: una plantilla en Administración que cada propuesta copia al crearse y se puede ajustar en su ficha."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "A una propuesta en borrador o enviada se le pueden agregar y quitar pantallas. Si ya estaba enviada, sube de versión."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "«Duplicar» crea una propuesta nueva con las mismas pantallas y el mismo cliente, cotizada con la tarifa de hoy. «Borrar» quita un borrador (y devuelve el uso del código de negociación, si tenía)."
+      },
+      {
+        "tipo": "CORREGIDO",
+        "texto": "Si se borra a un vendedor, sus ventas siguen saliendo a su nombre en Reportes y en el Dashboard, en vez de pasar a «Sin vendedor»."
+      },
+      {
+        "tipo": "NUEVO",
         "texto": "Extender una campaña ahora pide el contrato firmado de la extensión. En la ficha de la campaña, la tarjeta «Extensiones» tiene el botón «Extender campaña» y la lista de extensiones con su folio, fechas, quién la hizo y su contrato. El contrato original no se toca."
       },
       {

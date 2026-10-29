@@ -131,7 +131,15 @@ archivo dentro de la pregunta.
 
 ---
 
-### D11 · La rejilla de precios deja que el precio se decida en el navegador del vendedor. Antes de meter descuentos por volumen y códigos promocionales, ¿se pasa el cálculo al servidor?
+### ~~D11 · La rejilla de precios deja que el precio se decida en el navegador del vendedor. Antes de meter descuentos por volumen y códigos promocionales, ¿se pasa el cálculo al servidor?~~
+
+> ✅ **CONTESTADA y CONSTRUIDA — tachada el 2026-10-29.** El dueño eligió la (a)
+> el 01/10 (PRECIO-01): el servidor calcula la tarifa y solo `comercial.aprobar`
+> pone otra. Está en `main` y medido en B40 (tachada el mismo día). Desde el 29/10
+> agregar sitios a una propuesta ya creada pasa por la misma función
+> (`prepararLineas`), con su prueba de la vendedora a 1 peso → 403
+> (`lib/test/propuestas-gestion.e2e.test.ts`). Lo de abajo se conserva como historia.
+
 
 - **Bloquea:** el **código promocional con vencimiento y tope de usos** (la fase 3) no
   se puede construir honestamente hasta que esto se decida: un cupón cuyo descuento y
@@ -2354,6 +2362,22 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
   que el dueño no puede ajustar, y el reporte usa los de respaldo sin que se vea.
 
 ### B · iii — Menores, para que no se pierdan
+
+- **B57 · 🟠 ABIERTA (2026-10-29) · Un usuario que ya usó el sistema NO se puede
+  borrar: la bitácora lo impide.** Encontrada escribiendo la prueba de P19.
+  `acciones.usuario_id` es `on delete set null` y `acciones` es solo-inserción
+  (`20260629_bitacora_append_only.sql`): borrar al usuario intenta poner su id en
+  null en cada línea de su bitácora, el disparador lo rechaza («bitacora es
+  append-only: UPDATE no permitido sobre acciones») y `borrarUsuario`
+  (`usuarios-repo.ts:307`) falla entero. Medido contra Postgres 16 en
+  `vendedor-en-propuesta.e2e.test.ts`: con una sola acción registrada el `delete`
+  revienta. **Consecuencia:** en la práctica solo se borra a quien nunca hizo nada;
+  a los demás se les desactiva (`activo = false`), que no toca nada. **P19 sigue
+  valiendo** para el día que el borrado funcione, pero hoy casi nunca se dispara.
+  **Quién la cierra:** decisión del dueño — o el borrado de usuarios pasa a ser
+  baja lógica siempre (y el botón lo dice), o la FK de `acciones` deja de tocar
+  la fila (guardar el id sin FK, como ya guarda el nombre). Ninguna de las dos se
+  hizo sin preguntar.
 
 - **B27 · La pantalla de reportes ignora la querystring, así que un reporte no se
   puede compartir por enlace.** `reportes/page.tsx:72-76` inicializa el estado con

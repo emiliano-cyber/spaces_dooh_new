@@ -173,7 +173,7 @@ export async function crearPropuestaApi(input: {
     primaRoadblockPct?: number | null
   }[]
   notas?: string | null
-}): Promise<void> {
+}): Promise<{ id: string | null }> {
   const r = await fetch(`${API}/propuestas/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -182,6 +182,8 @@ export async function crearPropuestaApi(input: {
   const d = await r.json().catch(() => ({}))
   if (!r.ok) throw new Error(d.error ?? 'No se pudo crear la propuesta')
   await refrescarEstado()
+  // PROP-COMPLETA · el id, para abrir la copia recién duplicada.
+  return { id: typeof d.id === 'string' ? d.id : null }
 }
 
 // Error con bandera para que el UI reconfirme una aprobación en $0 (S1-2).
@@ -210,7 +212,14 @@ export async function cambiarEstatusPropuestaApi(
 // Actualiza el descuento comercial / nombre / notas (renegociación → sube versión).
 export async function actualizarPropuestaApi(
   id: string,
-  input: { descuentoPct?: number; nombre?: string; notas?: string | null },
+  input: {
+    descuentoPct?: number
+    nombre?: string
+    notas?: string | null
+    // PROP-COMPLETA (29/10) · términos y vigencia de ESTA propuesta.
+    condiciones?: string | null
+    vigenteHasta?: string | null
+  },
 ): Promise<void> {
   const r = await fetch(`${API}/propuestas/${id}/`, {
     method: 'PATCH',
@@ -220,6 +229,53 @@ export async function actualizarPropuestaApi(
   const d = await r.json().catch(() => ({}))
   if (!r.ok) throw new Error(d.error ?? 'No se pudo actualizar la propuesta')
   await refrescarEstado()
+}
+
+// PROP-COMPLETA (29/10) · agrega sitios (misma forma que el alta) y quita uno.
+export async function agregarSitiosPropuestaApi(
+  id: string,
+  items: Parameters<typeof crearPropuestaApi>[0]['items'],
+): Promise<void> {
+  const r = await fetch(`${API}/propuestas/${id}/items/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ items }),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudieron agregar los sitios')
+  await refrescarEstado()
+}
+
+export async function quitarSitioPropuestaApi(itemId: string): Promise<void> {
+  const r = await fetch(`${API}/propuestas/items/${itemId}/`, { method: 'DELETE' })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo quitar el sitio')
+  await refrescarEstado()
+}
+
+// PROP-COMPLETA (29/10) · borra un BORRADOR (las demás dan 409).
+export async function borrarPropuestaApi(id: string): Promise<void> {
+  const r = await fetch(`${API}/propuestas/${id}/`, { method: 'DELETE' })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo borrar la propuesta')
+  await refrescarEstado()
+}
+
+// PROP-COMPLETA (29/10) · «Enviar»: manda la liga por correo y deja la
+// propuesta ENVIADA. `correo: 'no_configurado'` = solo cambió el estatus.
+export async function enviarPropuestaApi(
+  id: string,
+  input: { para: string; mensaje?: string | null },
+): Promise<{ correo: 'enviado' | 'no_configurado' }> {
+  const r = await fetch(`${API}/propuestas/${id}/enviar/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo enviar la propuesta')
+  await refrescarEstado()
+  return { correo: d.correo === 'enviado' ? 'enviado' : 'no_configurado' }
 }
 
 // Genera una campaña a partir de una propuesta aprobada (solo sitios aprobados).

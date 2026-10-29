@@ -2,7 +2,7 @@
 
 import { toast } from 'sonner'
 import { conteo } from '@/lib/plural'
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import { Plus, FileText, Send, Check, X, ChevronDown, ChevronRight, Monitor, Square, List, Map as MapIcon, Trophy, Target } from 'lucide-react'
 import { cn } from '@/lib/cn'
@@ -61,7 +61,7 @@ import {
 import { useRouter } from 'next/navigation'
 import { ArrowUpRight } from 'lucide-react'
 import { withTrail } from '@/lib/nav-trail'
-import { crearPropuestaApi, cambiarEstatusPropuestaApi, aprobarItemPropuestaApi, generarCampanaDesdePropuestaApi, ConfirmacionCeroError } from '@/lib/data/estado-api'
+import { crearPropuestaApi, agregarSitiosPropuestaApi, cambiarEstatusPropuestaApi, aprobarItemPropuestaApi, generarCampanaDesdePropuestaApi, ConfirmacionCeroError } from '@/lib/data/estado-api'
 import {
   UNIDADES,
   unidadCorta,
@@ -96,6 +96,35 @@ export default function PropuestasPage() {
   const clientes = useClientes()
   const puedeEditar = usePuede('comercial', 'crear')
   const [nuevoOpen, setNuevoOpen] = useState(false)
+  const router = useRouter()
+  // PROP-COMPLETA (29/10) · «Agregar sitios» y «Duplicar» se piden desde la
+  // ficha con `?agregar=<id>` / `?duplicar=<id>` y abren ESTE formulario
+  // precargado: el formulario es el único sitio que sabe cotizar una línea
+  // (tarifa, franja, calculadora, renta), y una segunda copia divergiría.
+  const [modo, setModo] = useState<ModoDialogo | null>(null)
+  const pedido = useRef<{ tipo: 'agregar' | 'duplicar'; id: string } | null | undefined>(undefined)
+  useEffect(() => {
+    if (pedido.current === undefined) {
+      const q = new URLSearchParams(window.location.search)
+      const ag = q.get('agregar')
+      const du = q.get('duplicar')
+      pedido.current = ag ? { tipo: 'agregar', id: ag } : du ? { tipo: 'duplicar', id: du } : null
+    }
+    const ped = pedido.current
+    if (!ped || !propuestas) return
+    pedido.current = null
+    const base = propuestas.find((x) => x.id === ped.id)
+    if (base) setModo({ tipo: ped.tipo, propuesta: base })
+    else toast.error('No se encontró la propuesta')
+  }, [propuestas])
+  function cerrarModo(nuevaId?: string | null) {
+    const m = modo
+    setModo(null)
+    if (!m) return
+    // Se vuelve a la ficha: a la de siempre al agregar, a la copia al duplicar
+    // (si se creó). Cancelar un duplicado vuelve a la original.
+    router.push(`/propuestas/${nuevaId ?? m.propuesta.id}`)
+  }
   const [abierta, setAbierta] = useState<string | null>(null)
   // Filtros de la lista (rediseño del 26/10). Filtran EN EL NAVEGADOR la lista
   // que ya está cargada: no viajan al servidor ni cambian ninguna cifra de
@@ -276,6 +305,7 @@ export default function PropuestasPage() {
       <TableroPropuestas />
 
       {nuevoOpen && <NuevaPropuestaDialog onClose={() => setNuevoOpen(false)} />}
+      {modo && <NuevaPropuestaDialog modo={modo} onClose={cerrarModo} />}
     </div>
   )
 }
@@ -549,17 +579,38 @@ function PropuestaCard({
 }
 
 // ─── Nueva propuesta (builder con divisor en vivo) ───────────────────────────
-function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
+/** PROP-COMPLETA (29/10) · con qué se abre el formulario además de «nueva». */
+type ModoDialogo = { tipo: 'agregar' | 'duplicar'; propuesta: Propuesta }
+
+// El periodo de una propuesta = el de sus líneas (el alta usa uno solo).
+const periodoDe = (p: Propuesta) => ({
+  desde: p.items.map((i) => String(i.fechaInicio).slice(0, 10)).sort()[0] ?? '',
+  hasta: p.items.map((i) => String(i.fechaFin).slice(0, 10)).sort().at(-1) ?? '',
+})
+
+function NuevaPropuestaDialog({
+  onClose,
+  modo,
+}: {
+  onClose: (nuevaId?: string | null) => void
+  modo?: ModoDialogo
+}) {
+  const base = modo?.propuesta ?? null
+  const agregando = modo?.tipo === 'agregar'
+  const periodoBase = base ? periodoDe(base) : { desde: '', hasta: '' }
+  const duracionBase = base ? duracionDesdeFechas(periodoBase.desde, periodoBase.hasta) : null
   const clientes = useClientes()
   const sitios = useSitios()
   // Para la captura de renta: saber qué pantalla ya tiene contrato y a qué
   // propietarios se puede asignar.
   const contratos = useContratos()
   const arrendadores = useArrendadores()
-  const [clienteId, setClienteId] = useState('')
-  const [agenciaId, setAgenciaId] = useState('')
-  const [nombre, setNombre] = useState('')
-  const [comision, setComision] = useState('0')
+  const [clienteId, setClienteId] = useState(base?.clienteId ?? '')
+  const [agenciaId, setAgenciaId] = useState(base?.agenciaId ?? '')
+  // Al agregar, el nombre no se edita (no se pinta) pero cuenta como «tiene
+  // nombre» para los obligatorios. Al duplicar se marca como copia.
+  const [nombre, setNombre] = useState(!base ? '' : agregando ? base.nombre : `${base.nombre} (copia)`)
+  const [comision, setComision] = useState(base ? String(base.comisionPct ?? 0) : '0')
 
   // Agencias = clientes tipo AGENCIA (una agencia se asocia a un cliente directo).
   const agencias = (clientes ?? []).filter((c) => c.tipo === 'AGENCIA')
@@ -570,14 +621,21 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
     const ag = clientes?.find((c) => c.id === agId)
     setComision(String(ag?.comisionAgenciaPct ?? 0))
   }
-  const [fechaInicio, setFechaInicio] = useState('')
-  const [fechaFin, setFechaFin] = useState('')
+  const [fechaInicio, setFechaInicio] = useState(periodoBase.desde)
+  const [fechaFin, setFechaFin] = useState(periodoBase.hasta)
   // Duración de la campaña: N + unidad. Con la fecha "Desde" completa la fecha
   // "Hasta" automáticamente, con la MISMA cuenta que el precio: meses de
   // calendario desde el 2026-10-02 (`lib/periodos.ts`), semanas de 7 y catorcenas de 14.
-  const [duracionN, setDuracionN] = useState('1')
-  const [duracionUnidad, setDuracionUnidad] = useState<Unidad>('mensual')
-  const [sel, setSel] = useState<Set<string>>(new Set())
+  const [duracionN, setDuracionN] = useState(duracionBase ? String(duracionBase.cantidad) : '1')
+  const [duracionUnidad, setDuracionUnidad] = useState<Unidad>(duracionBase?.unidad ?? 'mensual')
+  // Al duplicar se parte de las mismas pantallas (una vez cada una: si la
+  // original repetía pantalla con dos franjas, la copia trae la primera).
+  const [sel, setSel] = useState<Set<string>>(
+    () => new Set(modo?.tipo === 'duplicar' ? base!.items.map((i) => i.sitioId) : []),
+  )
+  // PROP-COMPLETA · con un periodo precargado, la primera pasada del efecto de
+  // abajo no debe reescribir «Hasta» (la duración puede no cuadrar exacta).
+  const respetarFin = useRef(!!base)
   // Cómo elegir los sitios: lista (por default) o mapa. Se alterna con el switch.
   const [vistaSitios, setVistaSitios] = useState<'lista' | 'mapa'>('lista')
   // Zona dibujada en el mapa (polígono [lng,lat][]) o null si no hay. Cuando hay
@@ -592,6 +650,10 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
   // algo, así que al teclear -2 la fecha vieja se quedaba en pantalla y parecía
   // que el sistema había aceptado la duración negativa (C-2 de la auditoría).
   useEffect(() => {
+    if (respetarFin.current) {
+      respetarFin.current = false
+      return
+    }
     const n = parseInt(duracionN, 10)
     if (!fechaInicio || !Number.isFinite(n) || n <= 0) {
       setFechaFin('')
@@ -917,6 +979,34 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
     setCfg((prev) => ({ ...prev, [id]: { ...base, ...prev[id], ...patch } }))
   }
 
+  // PROP-COMPLETA · al DUPLICAR, cada pantalla arranca con CÓMO se contrató en
+  // la original: unidad, franja, programación y los parámetros de la
+  // calculadora. NO se copian la tarifa manual ni la prima del Roadblock: la
+  // copia se cotiza a la tarifa de HOY (decisión del dueño), y un ajuste de
+  // gerente se vuelve a decidir. Una vez, cuando ya están los sitios.
+  const precargado = useRef(false)
+  useEffect(() => {
+    if (precargado.current || modo?.tipo !== 'duplicar' || !sitios) return
+    precargado.current = true
+    const vistos = new Set<string>()
+    for (const it of base!.items) {
+      if (vistos.has(it.sitioId)) continue
+      vistos.add(it.sitioId)
+      const calc = it.espaciosComprados != null || !!it.roadblock
+      setCfgSitio(it.sitioId, {
+        unidad: it.unidad as Unidad,
+        franjaId: it.franjaId ?? '',
+        spotsPorDia: it.spotsPorDia != null && !calc ? String(it.spotsPorDia) : '',
+        cantidadManual: it.cantidad || 1,
+        manual: it.unidad === 'spot' && !calc,
+        espacios: it.espaciosComprados != null ? String(it.espaciosComprados) : '',
+        horasDia: it.horasDia != null ? String(it.horasDia) : '',
+        roadblock: !!it.roadblock,
+      })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sitios])
+
   const seleccionados = (sitios ?? []).filter((s) => sel.has(s.id))
   const bruto = seleccionados.reduce((acc, s) => acc + precioDe(s), 0)
   // VOL-01 · la PREVISTA del volumen, línea a línea y con el mismo redondeo que
@@ -938,7 +1028,9 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
   const total = brutoConVolumen + iva
   // Gate de negociación: si la agencia tiene negociación sin validar, se bloquea.
   const agenciaSel = clientes?.find((c) => c.id === agenciaId)
-  const negociacionPendiente = !!agenciaSel?.tieneNegociacion && !agenciaSel?.negociacionValidada
+  // Al AGREGAR sitios la agencia ya pasó el filtro al crear la propuesta, y el
+  // servidor no lo vuelve a pedir: no se bloquea aquí lo que allá se acepta.
+  const negociacionPendiente = !agregando && !!agenciaSel?.tieneNegociacion && !agenciaSel?.negociacionValidada
 
   // Validación de dominio en el CLIENTE, con el mismo criterio que el servidor
   // (propuestas-controller: comisión 0–100, fechaFin ≥ fechaInicio). El servidor
@@ -1012,14 +1104,7 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
     setGuardando(true)
     setError(null)
     try {
-      await crearPropuestaApi({
-        clienteId: clienteId || null,
-        agenciaId: agenciaId || null,
-        nombre: nombre.trim(),
-        comisionPct: Number(comision) || 0,
-        fechaInicio,
-        fechaFin,
-        items: seleccionados.map((s) => {
+      const items = seleccionados.map((s) => {
           const c = cfgDe(s)
           const spots = parseInt(c.spotsPorDia, 10)
           const renta = Number(c.rentaMonto) || 0
@@ -1056,9 +1141,28 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
             rentaPeriodicidad: renta > 0 ? c.rentaPeriodicidad : null,
             rentaArrendadorId: renta > 0 && c.rentaArrendadorId ? c.rentaArrendadorId : null,
           }
-        }),
+        })
+      // PROP-COMPLETA · agregar: solo las líneas, con el periodo de la propuesta
+      // (lo pone el servidor). Nueva o duplicada: el alta de siempre.
+      if (agregando) {
+        await agregarSitiosPropuestaApi(base!.id, items)
+        toast.success(`${conteo(items.length, 'sitio')} agregado${items.length === 1 ? '' : 's'}`)
+        onClose()
+        return
+      }
+      const creada = await crearPropuestaApi({
+        clienteId: clienteId || null,
+        agenciaId: agenciaId || null,
+        nombre: nombre.trim(),
+        comisionPct: Number(comision) || 0,
+        fechaInicio,
+        fechaFin,
+        // Al duplicar viajan también las notas; las condiciones las pone la
+        // plantilla vigente, como a toda propuesta nueva.
+        ...(modo?.tipo === 'duplicar' ? { notas: base!.notas ?? null } : {}),
+        items,
       })
-      onClose()
+      onClose(creada.id)
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'No se pudo crear la propuesta'
       setError(msg)
@@ -1072,8 +1176,16 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
       open
       onOpenChange={(v) => !v && onClose()}
       size="lg"
-      title="Nueva propuesta"
-      subtitle="Selecciona sitios; el método del divisor calcula bruto → neto"
+      title={agregando ? `Agregar sitios a «${base!.nombre}»` : modo?.tipo === 'duplicar' ? 'Duplicar propuesta' : 'Nueva propuesta'}
+      subtitle={
+        agregando
+          ? base!.estatus === 'ENVIADA'
+            ? 'Ya está enviada: agregar sitios sube la versión (renegociación).'
+            : 'Se cotizan con el periodo de la propuesta.'
+          : modo?.tipo === 'duplicar'
+            ? 'Mismos sitios y contratación; los precios se calculan con la tarifa de hoy.'
+            : 'Selecciona sitios; el método del divisor calcula bruto → neto'
+      }
       footer={
         <div className="flex items-center justify-between">
           {/* El error del servidor manda; si no lo hay, se avisa del problema de
@@ -1095,115 +1207,127 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
             </span>
           )}
           <div className="flex gap-2">
-            <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
+            <Button variant="secondary" size="sm" onClick={() => onClose()}>Cancelar</Button>
             <Button variant="success" size="sm" disabled={!valido || guardando} onClick={guardar}>
-              {guardando ? 'Guardando…' : 'Crear propuesta'}
+              {guardando ? 'Guardando…' : agregando ? 'Agregar sitios' : 'Crear propuesta'}
             </Button>
           </div>
         </div>
       }
     >
       <div className="space-y-3">
-        <Campo label="Nombre de la propuesta" obligatorio falta={ob.falta('nombre')}>
-          <input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus />
-        </Campo>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Campo label="Cliente">
-            <select
-              className={inputCls}
-              value={clienteId}
-              onChange={(e) => {
-                const id = e.target.value
-                setClienteId(id)
-                // Precarga la agencia asociada al cliente; la comisión viene de ella.
-                const c = clientes?.find((x) => x.id === id)
-                if (c?.agenciaId) aplicarAgencia(c.agenciaId)
-              }}
-            >
-              <option value="">— Sin cliente —</option>
-              {/* Solo clientes directos como anunciante; las agencias van aparte. */}
-              {clientes?.filter((c) => c.tipo !== 'AGENCIA').map((c) => (
-                <option key={c.id} value={c.id}>{c.nombre}</option>
-              ))}
-            </select>
+        {/* PROP-COMPLETA · al AGREGAR sitios, nombre, cliente, agencia, fechas y
+            comisión son los de la propuesta y no se tocan aquí. */}
+        {agregando ? (
+          <p className="rounded-md border border-border bg-surface-2 px-3 py-2 text-[12px] text-muted">
+            Periodo de la propuesta: <b className="text-ink">{formatFecha(fechaInicio)} – {formatFecha(fechaFin)}</b>.
+            Los sitios nuevos se cotizan con esas fechas y con la tarifa de hoy.
+          </p>
+        ) : (
+          <>
+          <Campo label="Nombre de la propuesta" obligatorio falta={ob.falta('nombre')}>
+            <input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus />
           </Campo>
-          <Campo label="Agencia">
-            {agencias.length === 0 ? (
-              <div className="flex h-9 items-center rounded border border-dashed border-border-strong px-3 text-[12px] text-muted">
-                Crea un cliente tipo «Agencia» para asociarla
-              </div>
-            ) : (
-              <select className={inputCls} value={agenciaId} onChange={(e) => aplicarAgencia(e.target.value)}>
-                <option value="">— Sin agencia (directo) —</option>
-                {agencias.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Campo label="Cliente">
+              <select
+                className={inputCls}
+                value={clienteId}
+                onChange={(e) => {
+                  const id = e.target.value
+                  setClienteId(id)
+                  // Precarga la agencia asociada al cliente; la comisión viene de ella.
+                  const c = clientes?.find((x) => x.id === id)
+                  if (c?.agenciaId) aplicarAgencia(c.agenciaId)
+                }}
+              >
+                <option value="">— Sin cliente —</option>
+                {/* Solo clientes directos como anunciante; las agencias van aparte. */}
+                {clientes?.filter((c) => c.tipo !== 'AGENCIA').map((c) => (
+                  <option key={c.id} value={c.id}>{c.nombre}</option>
+                ))}
               </select>
-            )}
-          </Campo>
-        </div>
-        {/* Aviso de negociación sin validar (bloquea crear la propuesta) */}
-        {negociacionPendiente && (
-          <div className="flex items-start gap-2 rounded-md border border-[#f59e0b40] bg-[#f59e0b0d] p-2.5 text-[12px]">
-            <span className="mt-0.5 text-[#9a6700]">⚠</span>
-            <div>
-              <div className="font-medium text-ink">
-                La negociación con «{agenciaSel?.nombre}» no está validada
-              </div>
-              <div className="text-muted">
-                Valida la negociación de la agencia en Clientes para poder crear la propuesta.
-              </div>
-            </div>
+            </Campo>
+            <Campo label="Agencia">
+              {agencias.length === 0 ? (
+                <div className="flex h-9 items-center rounded border border-dashed border-border-strong px-3 text-[12px] text-muted">
+                  Crea un cliente tipo «Agencia» para asociarla
+                </div>
+              ) : (
+                <select className={inputCls} value={agenciaId} onChange={(e) => aplicarAgencia(e.target.value)}>
+                  <option value="">— Sin agencia (directo) —</option>
+                  {agencias.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
+                </select>
+              )}
+            </Campo>
           </div>
-        )}
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Campo label="Desde" obligatorio falta={ob.falta('fechaInicio')}><input type="date" className={inputCls} value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} /></Campo>
-          <Campo label="Duración de la campaña">
-            <div className="flex gap-2">
-              <input
-                type="number"
-                min={1}
-                className={`${inputCls} w-20`}
-                value={duracionN}
-                onChange={(e) => setDuracionN(e.target.value)}
-              />
-              <select className={inputCls} value={duracionUnidad} onChange={(e) => setDuracionUnidad(e.target.value as Unidad)}>
-                {UNIDADES.filter((u) => !esCantidadManual(u.unidad)).map((u) => {
-                  const n = parseInt(duracionN, 10) || 1
-                  return (
-                    <option key={u.unidad} value={u.unidad}>
-                      {unidadCorta(u.unidad, n)}
-                    </option>
-                  )
-                })}
-              </select>
+          {/* Aviso de negociación sin validar (bloquea crear la propuesta) */}
+          {negociacionPendiente && (
+            <div className="flex items-start gap-2 rounded-md border border-[#f59e0b40] bg-[#f59e0b0d] p-2.5 text-[12px]">
+              <span className="mt-0.5 text-[#9a6700]">⚠</span>
+              <div>
+                <div className="font-medium text-ink">
+                  La negociación con «{agenciaSel?.nombre}» no está validada
+                </div>
+                <div className="text-muted">
+                  Valida la negociación de la agencia en Clientes para poder crear la propuesta.
+                </div>
+              </div>
             </div>
-          </Campo>
-        </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Campo label="Hasta (se calcula de la duración, o escríbela)" obligatorio falta={ob.falta('fechaFin')}>
-            <input
-              type="date"
-              className={inputCls}
-              value={fechaFin}
-              onChange={(e) => {
-                // v0.12.3 · al escribir «Hasta» a mano, la duración se pone sola
-                // (meses, catorcenas, semanas o días, la que cuadre exacta).
-                // Antes se quedaba la duración vieja —«1 mes» con un rango de
-                // tres—. Como la ida y vuelta da la misma fecha
-                // (`duracionDesdeFechas`, con prueba), el efecto que recalcula
-                // «Hasta» no se come lo escrito.
-                const v = e.target.value
-                setFechaFin(v)
-                const d = duracionDesdeFechas(fechaInicio, v)
-                if (d) {
-                  setDuracionUnidad(d.unidad)
-                  setDuracionN(String(d.cantidad))
-                }
-              }}
-            />
-          </Campo>
-          <Campo label="Comisión de la agencia (%)"><input className={inputCls} value={comision} onChange={(e) => setComision(e.target.value)} /></Campo>
-        </div>
+          )}
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Campo label="Desde" obligatorio falta={ob.falta('fechaInicio')}><input type="date" className={inputCls} value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} /></Campo>
+            <Campo label="Duración de la campaña">
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  min={1}
+                  className={`${inputCls} w-20`}
+                  value={duracionN}
+                  onChange={(e) => setDuracionN(e.target.value)}
+                />
+                <select className={inputCls} value={duracionUnidad} onChange={(e) => setDuracionUnidad(e.target.value as Unidad)}>
+                  {UNIDADES.filter((u) => !esCantidadManual(u.unidad)).map((u) => {
+                    const n = parseInt(duracionN, 10) || 1
+                    return (
+                      <option key={u.unidad} value={u.unidad}>
+                        {unidadCorta(u.unidad, n)}
+                      </option>
+                    )
+                  })}
+                </select>
+              </div>
+            </Campo>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Campo label="Hasta (se calcula de la duración, o escríbela)" obligatorio falta={ob.falta('fechaFin')}>
+              <input
+                type="date"
+                className={inputCls}
+                value={fechaFin}
+                onChange={(e) => {
+                  // v0.12.3 · al escribir «Hasta» a mano, la duración se pone sola
+                  // (meses, catorcenas, semanas o días, la que cuadre exacta).
+                  // Antes se quedaba la duración vieja —«1 mes» con un rango de
+                  // tres—. Como la ida y vuelta da la misma fecha
+                  // (`duracionDesdeFechas`, con prueba), el efecto que recalcula
+                  // «Hasta» no se come lo escrito.
+                  const v = e.target.value
+                  setFechaFin(v)
+                  const d = duracionDesdeFechas(fechaInicio, v)
+                  if (d) {
+                    setDuracionUnidad(d.unidad)
+                    setDuracionN(String(d.cantidad))
+                  }
+                }}
+              />
+            </Campo>
+            <Campo label="Comisión de la agencia (%)"><input className={inputCls} value={comision} onChange={(e) => setComision(e.target.value)} /></Campo>
+          </div>
+
+          </>
+        )}
 
         {/* Selección de sitios: dos vistas alternables (lista / mapa). `div` y no
             `label`: dentro hay botones, y un <label> que los envuelve dispara el
@@ -1246,6 +1370,9 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                     <span className="flex min-w-0 items-center gap-2">
                       <input type="checkbox" checked={sel.has(s.id)} onChange={() => toggle(s.id)} className="h-4 w-4 shrink-0 accent-[var(--accent)]" />
                       <span className="truncate text-ink">{s.nombre}</span>
+                      {agregando && base!.items.some((i) => i.sitioId === s.id) && (
+                        <span className="shrink-0 text-[10px] text-muted">ya en la propuesta</span>
+                      )}
                       <span
                         className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium leading-none ${
                           digital

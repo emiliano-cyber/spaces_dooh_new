@@ -126,6 +126,9 @@ export function pipelineComercial(
     neto: number
     netoAprobado?: number
     vendedorId?: string | null
+    // P19 (29/10) · el nombre congelado en la propuesta: sobrevive al borrado
+    // del usuario y sirve cuando la lista de usuarios no llega.
+    vendedorNombre?: string | null
     aprobadaEn?: string | null
     rechazadaEn?: string | null
   }[],
@@ -140,8 +143,10 @@ export function pipelineComercial(
   if (yo) nombre.set(yo.id, yo.nombre)
   // Con vendedor pero sin su nombre a la vista NO es «Sin vendedor»: esa
   // etiqueta afirma que la propuesta no tiene, y sí tiene.
-  const etiqueta = (id: string | null | undefined) =>
-    !id ? 'Sin vendedor' : (nombre.get(id) ?? 'Otros vendedores')
+  // P19 · y sin id pero con el nombre congelado tampoco: el vendedor se borró,
+  // y la propuesta sabe quién era.
+  const etiqueta = (id: string | null | undefined, congelado?: string | null) =>
+    (id ? nombre.get(id) : undefined) ?? (congelado?.trim() || (id ? 'Otros vendedores' : 'Sin vendedor'))
   const abierto = { n: 0, valor: 0, enviadas: 0 }
   const ganadoMes = { n: 0, valor: 0 }
   const vend = new Map<string, { nombre: string; n: number; valor: number }>()
@@ -163,7 +168,7 @@ export function pipelineComercial(
         const valor = Number(p.netoAprobado) || Number(p.neto) || 0
         ganadoMes.n += 1
         ganadoMes.valor += valor
-        const nom = etiqueta(p.vendedorId)
+        const nom = etiqueta(p.vendedorId, p.vendedorNombre)
         const v = vend.get(nom) ?? { nombre: nom, n: 0, valor: 0 }
         v.n += 1
         v.valor += valor

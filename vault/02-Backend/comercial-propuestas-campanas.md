@@ -44,6 +44,13 @@ archivos:
   - apps/web/lib/server/contratos-sitio.ts
   - apps/web/lib/server/portal-repo.ts
   - apps/web/lib/server/paquetes-repo.ts
+  - db/migrations/20261029_propuestas_condiciones_vigencia_vendedor.sql
+  - apps/web/lib/propuesta-vigencia.ts
+  - apps/web/components/demo/propuestas/BloqueCondicionesVigencia.tsx
+  - apps/web/app/(app)/p/[id]/page.tsx
+  - apps/web/app/(app)/propuesta/[id]/page.tsx
+  - apps/web/components/demo/propuestas/DocumentoPropuestaCliente.tsx
+  - apps/web/app/api/propuestas/[id]/route.ts
 ---
 
 # Comercial: propuestas, reservas y campañas
@@ -340,10 +347,10 @@ campaña y **no se elige aquí**. `campanas.franja_programada_id` es en qué
 horario **se transmite**, y la escribe solo
 `PUT /api/campanas/franja-programada` (`comercial.aprobar`, en bloque y atómico).
 Programar no toca precio, snapshot ni reservas; si difiere de lo contratado,
-se **avisa** y no se bloquea (decisión pendiente del dueño). En la ficha lo
-enseña `FranjaProgramadaCampana`, montado con una línea bajo el Pipeline.
-**Sin fusionar**: la columna espera la aprobación del dueño. Detalle completo en
-[[rejilla-franja-y-temporada]].
+se **avisa** y no se bloquea — **decidido por el dueño el 29/10: solo avisar**.
+En la ficha lo enseña `FranjaProgramadaCampana`, montado con una línea bajo el
+Pipeline. Está en `main` desde `16c4d367` (antes decía «sin fusionar»,
+comprobado el 29/10). Detalle completo en [[rejilla-franja-y-temporada]].
 
 ## El cupón aplicado necesita aprobación (COD-03, 30/09)
 
@@ -690,6 +697,94 @@ Ahora lo empareja `netosDelSnapshot` (`lib/neto-de-linea.ts`, puro):
 Las campañas ya generadas **no se tocan**. Para encontrar las afectadas está el
 diagnóstico de solo lectura `docs/datos/20261029_diagnostico_neto_linea_repetida.sql`.
 Pruebas: `lib/neto-de-linea.test.ts`.
+
+## Vigencia y condiciones (PROP-COMPLETA, 29/10)
+
+Decisiones del dueño del 29/10. Migración
+`20261029_propuestas_condiciones_vigencia_vendedor.sql`.
+
+- **Vigencia.** `propuestas.vigente_hasta` la pone `cambiarEstatusPropuesta`
+  al pasar a **ENVIADA**: `current_date + config_negocio.vigencia_propuesta_dias`
+  (30 por omisión, 1–365, en Administración → «Propuestas: vigencia y
+  condiciones»). Una fecha vigente se respeta; **reenviar una vencida la
+  renueva**. Se edita por dentro con `PATCH /api/propuestas/[id]`
+  `{ vigenteHasta }` (fecha validada; no sube versión).
+- **Vencida, la liga no acepta.** `aceptarPropuestaPublica` lo decide en la
+  base (`vigente_hasta < current_date`), después del idempotente (una ya
+  aceptada sigue diciendo que se aceptó) → `PropuestaVencidaError`, 409. **El
+  último día todavía vale.** `null` = sin vigencia: todo lo enviado antes del
+  29/10 se sigue aceptando como siempre. La liga y la ficha lo avisan con
+  `lib/propuesta-vigencia.ts`, la misma regla.
+- **Condiciones.** `config_negocio.condiciones_propuesta` es una PLANTILLA que
+  `crearPropuesta` **copia** a `propuestas.condiciones`: cambiarla no toca las ya
+  creadas. Se editan por propuesta en la ficha («Condiciones y vigencia») y
+  salen en la liga pública antes del botón de aceptar. Vaciarlas las quita.
+- Pruebas: `lib/propuesta-vigencia.test.ts` y
+  `lib/test/propuesta-vigencia.e2e.test.ts` (incluye R2: la plantilla y los días
+  de una organización no se cuelan en otra).
+
+## El documento imprimible: «Generar PDF» (PROP-COMPLETA, 29/10)
+
+«Generar PDF» abre `app/(app)/propuesta/[id]` en otra pestaña: fuera de
+(shell), como el contrato, y se guarda como PDF desde el diálogo de impresión
+(sin librería en el servidor). Se arma con la **vista del cliente**
+(`obtenerPropuestaPublica(token, { conFotos: true })`): sin tarifas internas y
+**sin el cupón pendiente** (COD-03). Lleva membrete, pantallas con su primera
+foto, mapa (`MapView imprimible`: `preserveDrawingBuffer`, sin él el lienzo
+WebGL sale en blanco), la misma escalera de importes que la liga, condiciones,
+la liga con QR y el espacio de aceptación (o el sello si ya se aceptó). La liga
+pública NO carga fotos (pesan). R2: el token se busca con el tenant de la
+sesión; otra organización recibe 404. Pruebas en
+`lib/test/propuestas-gestion.e2e.test.ts`. Revisado en el navegador el 29/10
+(Chrome, `next start` contra Postgres local): foto, mapa con mosaicos, QR,
+condiciones y escalera. **No se revisó la salida impresa** (vista previa de
+impresión ni PDF guardado): el lienzo del mapa depende de
+`preserveDrawingBuffer` y eso solo se ve imprimiendo.
+
+## Agregar, quitar y duplicar (PROP-COMPLETA, 29/10)
+
+- **Agregar sitios** — `POST /api/propuestas/[id]/items` → `agregarSitiosCtrl`.
+  BORRADOR o ENVIADA (en ENVIADA **sube la versión**). Las líneas usan el
+  periodo de la propuesta (`rangoDePropuesta`) y pasan por `prepararLineas`, la
+  MISMA función del alta (franja, volumen, calculadora, tarifa del servidor y
+  permiso de `comercial.aprobar`): un sitio agregado no es otra puerta para B40.
+  El INSERT de la línea es uno (`insertarItem`), compartido con el alta.
+- **Quitar** — `DELETE /api/propuestas/items/[id]` → `quitarItem`. Mismos
+  estatus, sube versión en ENVIADA, **nunca el último sitio** (409). Con la fila
+  de la propuesta bloqueada para que dos no quiten a la vez el penúltimo.
+- Ni agregar ni quitar recalculan el paquete aplicado: su precio no se mueve y
+  `avisoPaqueteIncompleto` avisa (PAQ-01).
+- **Duplicar** — solo del lado de la pantalla: la ficha abre
+  `/propuestas?duplicar=<id>` y el formulario de alta se precarga (cliente,
+  agencia, comisión, periodo, notas y, por pantalla, unidad, franja,
+  programación y calculadora). **No** copia tarifa manual, prima de Roadblock ni
+  cupón: la copia se cotiza a la tarifa de hoy. Una pantalla repetida en la
+  original entra una vez. «Agregar sitios» usa el mismo formulario
+  (`?agregar=<id>`), con nombre, cliente, fechas y comisión fijos.
+- Pruebas: `lib/test/propuestas-gestion.e2e.test.ts` (incluye la vendedora a
+  1 peso por la puerta nueva → 403, y R2).
+
+## Borrar un borrador (PROP-COMPLETA, 29/10 · R5 aprobado)
+
+`DELETE /api/propuestas/[id]` → `borrarPropuestaBorrador`. **Solo BORRADOR**:
+una enviada se rechaza (el cliente ya tiene la liga) y una aprobada no se toca
+(409 con esa frase). En una transacción con la fila bloqueada y `estatus` en el
+`delete` como segunda red. Se van por `cascade` las líneas, el canje del cupón
+—y con él **el uso vuelve**: los usos son `count(*)` de `canjes_codigo`— y la
+aplicación del paquete. El folio no se reutiliza (queda un hueco en la serie).
+Pruebas: `lib/test/propuestas-gestion.e2e.test.ts`.
+
+## Enviar por correo (PROP-COMPLETA, 29/10)
+
+«Enviar» ya no es solo un cambio de estatus: abre un diálogo con el correo del
+contacto del cliente y un mensaje opcional, y `POST /api/propuestas/[id]/enviar`
+(`lib/server/propuestas-envio.ts`) manda **la liga, no los importes** —los
+importes viven en la liga, que sabe si el cupón está pendiente y si venció—
+por el canal de OPERACIÓN, con copia a quien envía. **El orden es la regla:**
+primero el correo, después ENVIADA; un Resend caído da 502 y la propuesta no
+cambia. Sin correo configurado solo cambia el estatus y la pantalla copia la
+liga. En una ENVIADA el botón es «Reenviar» (renueva la vigencia si venció).
+Pruebas: `lib/server/propuestas-envio.test.ts` (el 502 se comprobó por mutación).
 
 ## Portal del cliente
 

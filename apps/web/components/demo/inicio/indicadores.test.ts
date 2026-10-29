@@ -122,6 +122,26 @@ describe('pipelineComercial', () => {
     ])
   })
 
+  it('P19 · el vendedor BORRADO sale con el nombre que la propuesta congeló', () => {
+    // Decisión del dueño (29/10): `usuario_id` queda en null al borrar al
+    // usuario, pero `vendedor_nombre` se conserva. Sin nombre congelado sigue
+    // siendo «Sin vendedor»: la histórica no sabe de quién es.
+    const r = pipelineComercial(
+      [
+        p('1', 'APROBADA', { aprobadaEn: '2026-10-03T18:00:00Z', netoAprobado: 800, vendedorId: null, vendedorNombre: 'Carla' }),
+        p('2', 'APROBADA', { aprobadaEn: '2026-10-04T18:00:00Z', netoAprobado: 300, vendedorId: 'U2', vendedorNombre: 'Beto' }),
+        p('3', 'APROBADA', { aprobadaEn: '2026-10-05T18:00:00Z', netoAprobado: 100, vendedorId: null, vendedorNombre: null }),
+      ] as any,
+      [],
+      HOY,
+    )
+    expect(r.porVendedor).toEqual([
+      { nombre: 'Carla', n: 1, valor: 800 },
+      { nombre: 'Beto', n: 1, valor: 300 },
+      { nombre: 'Sin vendedor', n: 1, valor: 100 },
+    ])
+  })
+
   it('NEGATIVO · una aprobada SIN fecha (anterior al 09/10) no cuenta como ganada este mes', () => {
     const r = pipelineComercial([p('1', 'APROBADA', { netoAprobado: 900 })] as any, usuarios, HOY)
     expect(r.ganadoMes).toEqual({ n: 0, valor: 0 })

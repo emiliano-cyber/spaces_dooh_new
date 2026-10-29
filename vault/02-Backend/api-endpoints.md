@@ -22,6 +22,8 @@ archivos:
   - apps/web/app/api/energia/
   - apps/web/app/api/paquetes/
   - apps/web/app/api/propuestas/[id]/paquete/route.ts
+  - apps/web/app/api/propuestas/[id]/enviar/route.ts
+  - apps/web/app/api/propuestas/[id]/items/route.ts
   - apps/web/app/api/rejilla/
   - apps/web/app/api/reportes/rentabilidad/route.ts
   - apps/web/app/api/sitios/[id]/modalidades/route.ts
@@ -31,7 +33,7 @@ archivos:
   - apps/web/app/api/geo/buscar/route.ts
 ---
 
-# API — los 157 endpoints (medidos el 2026-10-29 con `recuentos.mjs`)
+# API — los 159 endpoints (medidos el 2026-10-29 con `recuentos.mjs`)
 
 > **2026-10-29 · dos más (DOOH-API, rama `feat/doohmain-api-completa`):**
 > `GET /api/campanas/[id]/doohmain-estado` (`comercial:ver`) — cada creativo publicado
@@ -237,6 +239,10 @@ en `:230-237`) y **no** puede condicionarse a que la ruta
 | DELETE | `/api/clientes/[id]` | **REAUTH** + `comercial:aprobar` |
 | GET | `/api/propuestas/resumen` | exigir (`comercial:ver`); costo y ganancia solo con `finanzas:ver` | (06/10, PROP-PER) tablero por periodo: generadas, aprobadas, rechazadas, tasa de cierre, ganancia (venta − renta del contrato) |
 | POST | `/api/propuestas` · PATCH `/api/propuestas/[id]` | exigir (`comercial:crear`). Desde `17fbd252` (01/10) el `POST` **recalcula la tarifa** de cada línea en el servidor; un precio distinto al centavo exige además `comercial:aprobar` del rol de la sesión, o 403 y no se guarda nada |
+| POST | `/api/propuestas/[id]/items` | (29/10, PROP-COMPLETA) `comercial:crear`. Agrega sitios a una BORRADOR o ENVIADA (sube versión) con el periodo de la propuesta; cuerpo `{ items }` como el alta y la MISMA tarifa del servidor (403 si una vendedora se aparta); otro estatus → 409 |
+| DELETE | `/api/propuestas/items/[id]` | (29/10, PROP-COMPLETA) `comercial:crear`. Quita un sitio (BORRADOR o ENVIADA, sube versión); nunca el último (409); de otra organización → 404 |
+| DELETE | `/api/propuestas/[id]` | (29/10, PROP-COMPLETA, R5) `comercial:crear`. Borra un **BORRADOR** con sus líneas y su canje (devuelve el uso del cupón); otro estatus o con campaña → 409; de otra organización → 404 |
+| POST | `/api/propuestas/[id]/enviar` | (29/10, PROP-COMPLETA) `comercial:crear`. Cuerpo `{ para, mensaje? }`. Manda la liga por correo (canal de operación, copia a quien envía) y **después** deja la propuesta ENVIADA; si Resend falla, 502 y no cambia nada; sin correo configurado solo cambia el estatus (`correo: 'no_configurado'`). Vale para BORRADOR y ENVIADA (reenviar); lo demás 409 — `lib/server/propuestas-envio.ts` |
 | POST · DELETE | `/api/propuestas/[id]/paquete` | (05/10) `comercial:crear` — aplicar o quitar un paquete cerrado; el cuerpo lleva **solo** `paqueteId`, el precio lo copia el servidor bajo RLS — [[paquete-cerrado]] |
 | PATCH | `/api/propuestas/items/[id]` | exigir |
 | POST | `/api/propuestas/[id]/generar-campana` | exigir (`comercial:crear`). (13/10) Cuerpo opcional `{ clienteId }` (UUID, si no 400): pone el cliente a una APROBADA que no lo tenía —solo anunciante de esta organización y con el mismo IVA del snapshot; si no, 409— y genera |

@@ -118,6 +118,7 @@ export function MapView({
   autoFit = true,
   permitirDibujo = false,
   onZonaChange,
+  imprimible = false,
 }: {
   points: MapPoint[]
   selectedId?: string | null
@@ -130,6 +131,11 @@ export function MapView({
   // al limpiarlo, notifica null. Apagada por default (no afecta otros usos).
   permitirDibujo?: boolean
   onZonaChange?: (poligono: [number, number][] | null) => void
+  // PROP-COMPLETA (29/10) · para el documento imprimible de la propuesta. Sin
+  // `preserveDrawingBuffer` el navegador imprime el lienzo WebGL EN BLANCO: el
+  // búfer se borra después de cada cuadro y la impresión llega tarde. Cuesta
+  // algo de rendimiento, por eso solo se enciende donde se imprime.
+  imprimible?: boolean
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
@@ -167,6 +173,7 @@ export function MapView({
       center: CENTRO_POR_DEFECTO,
       zoom,
       attributionControl: { compact: true },
+      ...(imprimible ? { canvasContextAttributes: { preserveDrawingBuffer: true } } : {}),
     })
     // Al cambiar el zoom mostramos/ocultamos los nombres automáticamente.
     map.on('zoom', aplicarVisibilidadLabels)

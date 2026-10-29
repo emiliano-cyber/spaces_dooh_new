@@ -4,6 +4,7 @@ import { AppError } from './errores'
 import { tenantActual } from './tenant'
 import { sanearCostosOt } from '../costos-ot'
 import { topeDescuentoValido, TOPE_DESCUENTO_RESPALDO } from '../descuento'
+import { vigenciaDiasValida } from '../propuesta-vigencia'
 
 // ============================================================================
 //  lib/server/config-repo.ts — Configuración del negocio. UNA FILA POR TENANT
@@ -55,6 +56,12 @@ export function rowToConfig(r: any) {
     // casos manda el respaldo del 100 %, que es el comportamiento de siempre —
     // NUNCA 0, que apagaría los descuentos de esa organización en silencio.
     topeDescuentoPct: topeDescuentoValido(r.tope_descuento_pct),
+    // PROP-COMPLETA (29/10) · la plantilla de condiciones que se copia a cada
+    // propuesta nueva, y los días de vigencia que se le dan al enviarla. Los
+    // días se sanean como el tope: sin la migración o con basura, los 30 de
+    // siempre (decisión del dueño), nunca 0.
+    condicionesPropuesta: r.condiciones_propuesta ?? null,
+    vigenciaPropuestaDias: vigenciaDiasValida(r.vigencia_propuesta_dias),
     // Costo de mano de obra por TIPO de OT. Se SANEA al leer, no solo al
     // escribir: la columna es jsonb y puede traer lo que le dejaran antes de
     // que existiera el saneo (o lo que meta una corrección a mano en la base).
@@ -176,6 +183,12 @@ export async function costosOtDelTenant() {
 // fallo peor que el que se está corrigiendo.
 export async function topeDescuentoDelTenant(): Promise<number> {
   return topeDescuentoValido((await obtenerConfigRow()).tope_descuento_pct)
+}
+
+// PROP-COMPLETA (29/10) · los días de vigencia que esta organización le da a
+// una propuesta al enviarla. Por `obtenerConfigRow()` —con tenant— como el tope.
+export async function vigenciaPropuestaDelTenant(): Promise<number> {
+  return vigenciaDiasValida((await obtenerConfigRow()).vigencia_propuesta_dias)
 }
 
 export { TOPE_DESCUENTO_RESPALDO }
