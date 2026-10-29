@@ -349,6 +349,15 @@ incoherencias se acaban resolviendo por el lado malo.
 > atado a esa acción; un fallo que no es el candado sigue en el hueco de error
 > de la pantalla. Prueba: `components/demo/rejilla/GestionRejilla.candado.test.ts`.
 
+> [!note] 2026-10-29 · B45 · la UNIDAD de cada fila se valida como en modalidades
+> `actualizarRejillaCtrl` (`lib/server/rejilla-controller.ts`) lee la exhibición
+> de la pantalla con `exhibicionDeSitio` (`rejilla-repo.ts`, por `id` y con
+> `and tenant_id`) y pasa cada unidad a **guardar** por
+> `motivoModalidadInvalida`, la misma regla que `PATCH …/modalidades`: una unidad
+> inventada o un spot en una pantalla fija dan 400 sin escribir. Las **bajas** no
+> se validan, a propósito: son la única forma de limpiar la basura escrita antes.
+> Prueba: `rejilla-controller.test.ts` §3.
+
 Y se sigue el camino que aquella ruta dejó marcado en su cabecera: *«el día que
 llegue otra tarifa por unidad —un recargo por franja— nadie se acordará»*. Pues
 llegó, y va por **ruta propia**, no por una cadena más en una lista blanca.

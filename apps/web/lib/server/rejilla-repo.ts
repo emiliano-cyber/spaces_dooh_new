@@ -239,6 +239,19 @@ export async function rejillaDeSitio(sitioId: string): Promise<FilaRejillaFila[]
   }))
 }
 
+/**
+ * B45 · la exhibición de una pantalla, para validar la UNIDAD de cada fila de
+ * rejilla con la misma regla que las modalidades (`motivoModalidadInvalida`).
+ * `null` si la pantalla no existe para esta organización. Por `id`, así que
+ * lleva `and tenant_id` como segunda capa sobre la RLS.
+ */
+export async function exhibicionDeSitio(sitioId: string): Promise<{ exhibicion: string | null } | null> {
+  return q1<{ exhibicion: string | null }>(
+    'select exhibicion from sitios where id = $1 and tenant_id = $2',
+    [sitioId, await tenantActual()],
+  )
+}
+
 export type CambiosRejilla = {
   guardar: {
     unidad: string

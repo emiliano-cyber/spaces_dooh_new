@@ -760,7 +760,20 @@ calendario.
 - **Quién puede cerrarla:** técnica.
 - **Si no se cierra antes del 14/10:** no pasa nada el 14/10.
 
-#### B45 · 🟡 La ruta de la rejilla acepta cualquier «unidad de venta»; la de las modalidades no
+#### ~~B45 · 🟡 La ruta de la rejilla acepta cualquier «unidad de venta»; la de las modalidades no~~
+
+> ✅ **CERRADA el 2026-10-29** (rama `fix/abiertos-b41-b45-d6`, sin fusionar).
+> `lib/server/rejilla-controller.ts` importa `motivoModalidadInvalida` de
+> `@/lib/modalidades` y, antes de escribir, valida cada unidad a **guardar**
+> contra la exhibición de la pantalla, que lee `exhibicionDeSitio`
+> (`lib/server/rejilla-repo.ts`, `where id = $1 and tenant_id = $2`). Pantalla
+> inexistente o ajena → 404 sin escribir. **Una diferencia deliberada con la ficha:**
+> las bajas (`quitar`) NO se validan, porque son la única forma de limpiar una fila
+> con unidad basura escrita antes de hoy. **Con qué se midió:**
+> `lib/server/rejilla-controller.test.ts` §3, 5 pruebas; las 3 negativas salieron
+> en ROJO antes del arreglo. Las e2e de la rejilla usan `spot` sobre una pantalla
+> `digital` (`semillas-e2e.ts`), así que no deberían cambiar; **no se corrieron
+> aquí** (sin Postgres).
 
 - **Qué es:** asimetría de validación entre las dos rutas que escriben precios de la
   misma pantalla.
