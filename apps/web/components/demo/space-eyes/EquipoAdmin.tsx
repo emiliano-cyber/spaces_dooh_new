@@ -54,6 +54,11 @@ type Equipo = {
   app_actualiza_motivo?: string | null
   last_seen_at: string | null
   camera_ajustes: string | Ajustes | null
+  // El perfil de noche y su tramo (Space Eye, migración 030). El servidor
+  // encima estos ajustes sobre los de arriba dentro del tramo.
+  camera_ajustes_noche?: string | Ajustes | null
+  noche_inicio?: string | null
+  noche_fin?: string | null
   photo_rotation: number | null
 }
 type Estado = {
@@ -121,6 +126,25 @@ function leerAjustes(v: Equipo['camera_ajustes']): Ajustes {
   } catch {
     return {}
   }
+}
+
+type Noche = { activo: boolean; inicio: string; fin: string; brillo: number }
+
+/**
+ * El tramo de noche guardado, o el de siempre si no hay nada puesto.
+ *
+ * Las tres piezas van juntas: un perfil sin horas —o al revés— no es un tramo
+ * y el servidor lo ignoraría sin decir nada. MySQL devuelve las columnas TIME
+ * como «19:00:00», de ahí el recorte.
+ */
+function leerNoche(equipo: Equipo): Noche {
+  const vacio: Noche = { activo: false, inicio: '19:00', fin: '07:00', brillo: -1 }
+  const aj = leerAjustes(equipo.camera_ajustes_noche ?? null)
+  const hora = (v: string | null | undefined) => (v ? String(v).slice(0, 5) : null)
+  const ini = hora(equipo.noche_inicio)
+  const fin = hora(equipo.noche_fin)
+  if (!Object.keys(aj).length || !ini || !fin) return vacio
+  return { activo: true, inicio: ini, fin, brillo: Number(aj.brillo ?? 0) }
 }
 
 type Mensaje = { tipo: 'ok' | 'error'; texto: string } | null
@@ -566,6 +590,7 @@ function AjustesImagen({
   const [aj, setAj] = useState<Ajustes>(inicial)
   const [wbManual, setWbManual] = useState(inicial.awb_rojo != null && inicial.awb_azul != null)
   const [expManual, setExpManual] = useState(Number(inicial.obturador) > 0)
+  const [noche, setNoche] = useState<Noche>(() => leerNoche(equipo))
   const [giro, setGiro] = useState<number>(((Number(equipo.photo_rotation) % 360) + 360) % 360 || 0)
   const [guardando, setGuardando] = useState(false)
   const [probando, setProbando] = useState(false)
@@ -620,11 +645,26 @@ function AjustesImagen({
     return Object.keys(a).length ? a : null
   }
 
+  // Las tres piezas del tramo viajan juntas, y en null lo apagan.
+  function cuerpoNoche() {
+    if (!noche.activo || !noche.inicio || !noche.fin) {
+      return { ajustes_noche: null, noche_inicio: null, noche_fin: null }
+    }
+    return {
+      ajustes_noche: { brillo: Number(noche.brillo) || 0 },
+      noche_inicio: noche.inicio,
+      noche_fin: noche.fin,
+    }
+  }
+
   async function guardar(): Promise<boolean> {
     setGuardando(true)
     setMsg(null)
     try {
-      await seApi(`devices/${equipo.id}/camera`, { method: 'PUT', body: { ajustes: cuerpo(), photo_rotation: giro } })
+      await seApi(`devices/${equipo.id}/camera`, {
+        method: 'PUT',
+        body: { ajustes: cuerpo(), photo_rotation: giro, ...cuerpoNoche() },
+      })
       await onGuardado()
       setMsg({ tipo: 'ok', texto: 'Ajustes guardados: se aplican a todas las fotos del equipo.' })
       return true
@@ -745,6 +785,70 @@ function AjustesImagen({
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {CONTROLES.map((c) => deslizador(c.campo, c.nombre, c.min, c.max, 0.05, c.pordefecto))}
+            </div>
+
+            {/* El brillo por horario. El mismo ajuste no sirve a las 3 de la
+                tarde y a las 9 de la noche, cuando el LED es lo único que
+                alumbra la escena: de día la foto sale bien y de noche quemada.
+                Antes había que entrar dos veces al día a mover el control a
+                mano, y no lo hacía nadie. */}
+            <div className="border-t border-border pt-4">
+              <label className="flex items-center gap-2 text-[12px] text-ink">
+                <input
+                  type="checkbox"
+                  checked={noche.activo}
+                  disabled={!puedeEncuadrar}
+                  onChange={(e) => setNoche((v) => ({ ...v, activo: e.target.checked }))}
+                />
+                Cambiar el brillo de noche automáticamente
+              </label>
+              {noche.activo && (
+                <div className="mt-3">
+                  <div className="grid grid-cols-2 gap-4">
+                    <label className="block">
+                      <span className="mb-1 block text-[12px] text-muted">Desde</span>
+                      <input
+                        type="time"
+                        className={CAMPO}
+                        value={noche.inicio}
+                        disabled={!puedeEncuadrar}
+                        onChange={(e) => setNoche((v) => ({ ...v, inicio: e.target.value }))}
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-1 block text-[12px] text-muted">Hasta</span>
+                      <input
+                        type="time"
+                        className={CAMPO}
+                        value={noche.fin}
+                        disabled={!puedeEncuadrar}
+                        onChange={(e) => setNoche((v) => ({ ...v, fin: e.target.value }))}
+                      />
+                    </label>
+                  </div>
+                  <label className="mt-3 block">
+                    <span className="mb-1 flex justify-between text-[12px] text-muted">
+                      <span>Brillo en ese tramo</span>
+                      <span className="tabular-nums text-ink">{noche.brillo.toFixed(2)}</span>
+                    </span>
+                    <input
+                      type="range"
+                      min={-1}
+                      max={1}
+                      step={0.05}
+                      className="w-full"
+                      value={noche.brillo}
+                      disabled={!puedeEncuadrar}
+                      onChange={(e) => setNoche((v) => ({ ...v, brillo: Number(e.target.value) }))}
+                    />
+                  </label>
+                  <p className="mt-1 text-[11px] text-muted">
+                    Es la hora del sitio, no la del servidor, y puede cruzar la medianoche. Solo cambia el brillo: el
+                    encuadre y el balance de blancos siguen siendo los de arriba. Aplica a la vista en vivo y a todas
+                    las fotos, incluidas las programadas.
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="border-t border-border pt-4">
