@@ -140,6 +140,17 @@ export async function registrarRecorrido(
   const cfg = await configDe(deviceId);
   const tolerancia = cfg?.tolerancia ?? 24;
 
+  // A los creativos que no tienen foto se les busca una entre las que el equipo
+  // ya subio y nadie llego a usar. No cuesta datos -esas fotos estan guardadas y
+  // pagadas- y es lo unico que puede darle cara a un creativo que el equipo ya
+  // no va a volver a fotografiar, porque su ORB lo reconoce sin dudar.
+  //
+  // Va AQUI y no al final a proposito: abajo hay un `return` para los recorridos
+  // sin creativos nuevos, y esos son casi todos -TLALPAN reporta "0 nuevos" en
+  // practicamente cada vuelta-. Puesto despues, el sitio que mas lo necesita
+  // seria justo el que nunca lo ejecutaria.
+  await adoptarHuerfanas(deviceId, tolerancia).catch(() => null);
+
   // Las vistas se buscan por PARECIDO, no por igualdad. El equipo reconoce con
   // tolerancia y reporta la huella de su vistazo, que casi nunca coincide bit a
   // bit con la del catalogo; con un `IN (...)` exacto el creativo nunca se
@@ -197,6 +208,109 @@ export async function registrarRecorrido(
     );
     catalogo.push(h);
   }
+}
+
+/** Un creativo del catalogo que todavia no tiene imagen que ensenar. */
+export type SinFoto = { phash: string };
+/** Una foto que llego con su huella y que ningun creativo esta usando. */
+export type Huerfana = { id: number; phash: string; taken_at: string | null };
+/** A que creativo le toca cada foto rescatada. */
+export type Adopcion = { phash: string; primera: number; ultima: number | null };
+
+/**
+ * Reparte las fotos sueltas entre los creativos que no tienen ninguna.
+ *
+ * Pura y exportada a proposito: es la parte que puede equivocarse en silencio.
+ * Colgarle a un creativo la foto de OTRO anuncio seria peor que dejarlo sin
+ * foto -el dashboard ensenaria como evidencia algo que nunca estuvo en esa
+ * pantalla-, asi que cada creativo se queda con la foto MAS PARECIDA, no con la
+ * primera que pase la tolerancia, y ninguna foto se usa dos veces.
+ *
+ * De las que le tocan a un creativo, la mas vieja es `primera` (la evidencia
+ * del hallazgo, que es lo que la tarjeta ensena como "aparecio") y la mas nueva
+ * es `ultima`, que es justo el par que la 029 sabe pintar.
+ */
+export function casarHuerfanas(
+  creativos: SinFoto[], fotos: Huerfana[], tolerancia: number
+): Adopcion[] {
+  const libres = [...fotos];
+  const salida: Adopcion[] = [];
+  for (const c of creativos) {
+    const suyas = libres
+      .map((f) => ({ f, bits: distancia(c.phash, f.phash) }))
+      .filter((x) => x.bits <= tolerancia);
+    if (!suyas.length) continue;
+    // La mas parecida manda; a igualdad de bits, la mas antigua.
+    const mejor = suyas.reduce((m, x) => (x.bits < m.bits ? x : m), suyas[0]).bits;
+    const delCreativo = suyas.filter((x) => x.bits === mejor).map((x) => x.f);
+    const orden = [...delCreativo].sort((a, b) => String(a.taken_at ?? '').localeCompare(String(b.taken_at ?? '')));
+    const primera = orden[0];
+    const ultima = orden.length > 1 ? orden[orden.length - 1] : null;
+    salida.push({ phash: c.phash, primera: primera.id, ultima: ultima ? ultima.id : null });
+    for (const f of orden) {
+      const i = libres.indexOf(f);
+      if (i >= 0) libres.splice(i, 1);
+    }
+  }
+  return salida;
+}
+
+/**
+ * Le busca foto a los creativos del sitio que no tienen ninguna, entre las que
+ * ya estan guardadas sin que nadie las use.
+ *
+ * Las dos cosas se llenan por caminos distintos -la huella viaja siempre, la
+ * foto solo cuando el equipo puede tomarla- y hay tres formas de que una foto
+ * quede sin dueno: el creativo se registro mientras el equipo aprendia (y el
+ * aprendizaje no fotografia), la foto llego de una huella que el servidor ya
+ * conocia y se descarto al ligarla, o alguien volvio a marcar la pantalla y el
+ * catalogo se borro con `DELETE FROM device_creatives` (configurarPantalla),
+ * que suelta todas sus fotos de golpe. En g500, el 29-oct-2026, eran 71 de 130.
+ */
+export async function adoptarHuerfanas(deviceId: number, tolerancia: number): Promise<number> {
+  const [pendientes] = await pool.query<any[]>(
+    `SELECT phash FROM device_creatives
+      WHERE device_id = ? AND photo_id IS NULL AND descartado = 0`,
+    [deviceId]
+  );
+  if (!(pendientes as any[]).length) return 0;
+
+  // Sueltas: ni como foto del hallazgo ni como la de hoy. El tope es para que
+  // un sitio con años de fotos no se traiga la galeria entera a memoria.
+  const [sueltas] = await pool.query<any[]>(
+    `SELECT p.id, p.phash, p.taken_at
+       FROM photos p
+       LEFT JOIN device_creatives c1 ON c1.photo_id = p.id
+       LEFT JOIN device_creatives c2 ON c2.photo_id_ultima = p.id
+      WHERE p.device_id = ? AND p.source = 'creative_change' AND p.phash IS NOT NULL
+        AND c1.photo_id IS NULL AND c2.photo_id_ultima IS NULL
+      ORDER BY p.taken_at DESC
+      LIMIT 500`,
+    [deviceId]
+  );
+  if (!(sueltas as any[]).length) return 0;
+
+  const adopciones = casarHuerfanas(
+    (pendientes as any[]).map((f) => ({ phash: String(f.phash) })),
+    (sueltas as any[]).map((f) => ({ id: Number(f.id), phash: String(f.phash), taken_at: f.taken_at })),
+    tolerancia
+  );
+
+  for (const a of adopciones) {
+    await pool.query(
+      `UPDATE device_creatives
+          SET photo_id = ?, photo_id_ultima = ?, sin_foto = NULL
+        WHERE device_id = ? AND phash = ? AND photo_id IS NULL`,
+      [a.primera, a.ultima, deviceId, a.phash]
+    ).catch(() => null);
+  }
+  if (adopciones.length) {
+    await pool.query(
+      `INSERT INTO device_logs (device_id, level, category, message) VALUES (?, 'info', 'creative', ?)`,
+      [deviceId, `${adopciones.length} creativo(s) sin foto recuperaron la suya de entre las ya subidas`]
+    ).catch(() => null);
+  }
+  return adopciones.length;
 }
 
 /**

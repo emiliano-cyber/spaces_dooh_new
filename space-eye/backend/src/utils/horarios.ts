@@ -208,3 +208,27 @@ export function proximoDisparo(schedule: any, yaDisparo: boolean): Date | null {
       return null;
   }
 }
+
+/**
+ * Si el reloj de `tz` esta dentro del tramo [ini, fin) en ese instante.
+ *
+ * El tramo puede cruzar la medianoche —"19:00" a "07:00" es lo normal para la
+ * noche de un espectacular— y entonces vale desde `ini` hasta el final del dia
+ * y desde el principio del siguiente hasta `fin`. Compara horas de pared, no
+ * instantes: la pregunta es "que hora es ALLA", no cuanto falta.
+ *
+ * `ini` y `fin` aceptan "HH:MM" y tambien el "HH:MM:SS" con que MySQL devuelve
+ * una columna TIME.
+ */
+export function enTramo(ahora: Date, ini: string, fin: string, tz: string): boolean {
+  const a = hhmm((ini || '').slice(0, 5));
+  const b = hhmm((fin || '').slice(0, 5));
+  if (!a || !b) return false;
+  const desde = a.h * 60 + a.m;
+  const hasta = b.h * 60 + b.m;
+  // Tramo vacio: un sitio que empieza y acaba a la misma hora no tiene noche.
+  if (desde === hasta) return false;
+  const q = partes(ahora, tz);
+  const min = q.hora * 60 + q.min;
+  return desde < hasta ? min >= desde && min < hasta : min >= desde || min < hasta;
+}
