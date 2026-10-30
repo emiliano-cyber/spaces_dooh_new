@@ -69,6 +69,19 @@ export const SIN_TRADUCIR: readonly string[] = []
 // 115 mensajes de `new AppError('...')` + 27 del embudo, del mapa de
 // Postgres, de zod y de las constantes compartidas.
 export const CATALOGO_ERRORES: Record<string, string> = {
+  // PROP-COMPLETA (29/10) · enviar, borrar, agregar y quitar sitios, vigencia.
+  'Propuesta no encontrada':
+    'Proposal not found',
+  'Solo se agregan sitios a una propuesta en borrador o enviada':
+    'Sites can only be added to a draft or sent proposal',
+  'Sitio de la propuesta no encontrado':
+    'Proposal site not found',
+  'Solo se envía una propuesta en borrador o ya enviada':
+    'Only a draft or already sent proposal can be sent',
+  'Esta propuesta no tiene liga; vuelve a guardarla':
+    'This proposal has no link; save it again',
+  'No se pudo enviar el correo. La propuesta no cambió: inténtalo de nuevo o copia la liga y mándala tú.':
+    'The email could not be sent. The proposal did not change: try again or copy the link and send it yourself.',
   // 1 sitio · lib/server/arrendadores-controller.ts:376
   'Adjunto inválido':
     'Invalid attachment',
@@ -84,6 +97,9 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   // 8 sitios · lib/server/campanas-controller.ts:24
   'Otra persona acaba de extender esta campaña más lejos. Recarga para ver la fecha nueva.':
     'Someone else just extended this campaign further. Reload to see the new date.',
+  // 1 sitio · lib/server/campanas-controller.ts (EXT-CONTRATO, 29/10)
+  'Para extender la campaña adjunta el contrato firmado de la extensión':
+    "To extend the campaign, attach the extension's signed contract",
   'Campaña no encontrada':
     'Campaign not found',
   // 2 sitios · lib/server/clientes-controller.ts:116
@@ -260,6 +276,8 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   // 1 sitio · app/api/campanas/[id]/playlogs/route.ts:43
   'Esta campaña no está publicada en DOOHmain: no hay reproducciones que consultar.':
     'This campaign is not published on DOOHmain: there are no plays to look up.',
+  'Esta campaña no está publicada en ninguna pantalla de DOOHmain.':
+    'This campaign is not published on any DOOHmain screen.',
   // 1 sitio · lib/server/ot-repo.ts:176
   'Esta orden de trabajo ya está cerrada: su checklist ya no se puede cambiar':
     'This work order is already closed: its checklist can no longer be changed',
@@ -329,6 +347,9 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   // 1 sitio · lib/server/perfil-controller.ts:91
   'La contraseña actual no es correcta':
     'The current password is not correct',
+  // 1 sitio · lib/server/reportes-controller.ts (D6, 2026-10-29)
+  'El reporte abarca como máximo 24 meses por consulta. Acorta el rango de fechas.':
+    'The report covers at most 24 months per query. Shorten the date range.',
   // 2 sitios · lib/server/arrendadores-controller.ts:180
   'La fecha de fin no puede ser anterior a la de inicio':
     'The end date cannot be earlier than the start date',
@@ -539,6 +560,33 @@ export const CATALOGO_ERRORES: Record<string, string> = {
     'The search is busy: try again in a second',
   'El buscador de direcciones no respondió. Puedes marcar el punto directamente en el mapa':
     'The address search did not respond. You can mark the point directly on the map',
+  // UBIC-01 · coordenadas, enlaces de Google Maps y el buscador de Google (29/10).
+  'El buscador de Google no respondió. Puedes pegar coordenadas o marcar el punto en el mapa':
+    'The Google search did not respond. You can paste coordinates or mark the point on the map',
+  'El buscador de Google rechazó la búsqueda (revisa la clave de Google de la instancia). Puedes pegar coordenadas o marcar el punto en el mapa':
+    "Google's search rejected the request (check this instance's Google key). You can paste coordinates or mark the point on the map",
+  'No se pudo abrir el enlace de Google Maps. Pega las coordenadas o marca el punto directamente en el mapa':
+    'The Google Maps link could not be opened. Paste the coordinates or mark the point directly on the map',
+  'Ese enlace no lleva a un lugar de Google Maps':
+    'That link does not lead to a Google Maps place',
+  'Ese enlace de Google Maps no trae coordenadas. En Google Maps toca el lugar, copia las coordenadas que salen arriba y pégalas aquí':
+    'That Google Maps link has no coordinates. In Google Maps tap the place, copy the coordinates shown at the top and paste them here',
+  'Escribe una dirección, pega unas coordenadas (19.4326, -99.1332) o un enlace de Google Maps':
+    'Enter an address, paste coordinates (19.4326, -99.1332) or a Google Maps link',
+  'Solo se aceptan enlaces de Google Maps (google.com/maps o maps.app.goo.gl)':
+    'Only Google Maps links are accepted (google.com/maps or maps.app.goo.gl)',
+  'Ese enlace corto no es de Google Maps, o le falta el final':
+    'That short link is not from Google Maps, or its ending is missing',
+  'La latitud va de -90 a 90. ¿Están al revés? Primero va la latitud (en México, alrededor de 14 a 33)':
+    'Latitude goes from -90 to 90. Are they reversed? Latitude comes first (in Mexico, around 14 to 33)',
+  'La longitud va de -180 a 180':
+    'Longitude goes from -180 to 180',
+  'El punto (0, 0) está en el mar: no es una ubicación':
+    'The point (0, 0) is in the ocean: it is not a location',
+  'Los minutos y los segundos van de 0 a 59':
+    'Minutes and seconds go from 0 to 59',
+  'Primero va la latitud (N o S) y después la longitud (E u O)':
+    'Latitude (N or S) comes first, then longitude (E or W)',
   'Tu organizacion ya tiene razones sociales registradas, asi que el cuestionario ya se contesto. Para cambiarlas, usa la pantalla de Administracion.':
     'Your organization already has legal entities registered, so the questionnaire has already been answered. To change them, use the Settings screen.',
   'Las tarifas por unidad se guardan en su propia ruta (PATCH /api/sitios/:id/modalidades), que siempre pide la contraseña.':
@@ -605,6 +653,11 @@ export const CAMPO_EN: Record<string, string> = {
 // patron y se conserva tal cual. Son los de `mapaZodEs`
 // (`lib/server/errores.ts`), uno por uno.
 export const PATRONES_ERROR: ReadonlyArray<{ re: RegExp; en: string }> = [
+  // PROP-COMPLETA (29/10) · la liga de una propuesta vencida lleva la fecha.
+  {
+    re: /^Esta propuesta venció el (\d{2}\/\d{2}\/\d{4})\. Pide una actualizada a quien te la envió\.$/,
+    en: 'This proposal expired on $1. Ask whoever sent it for an updated one.',
+  },
   { re: /^Debe tener al menos (\d+) caracteres$/, en: 'Must be at least $1 characters' },
   { re: /^No puede tener más de (\d+) caracteres$/, en: 'Must not have more than $1 characters' },
   { re: /^Agrega al menos (\d+)$/, en: 'Add at least $1' },

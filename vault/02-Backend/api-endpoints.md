@@ -1,7 +1,7 @@
 ---
 tipo: referencia
 estado: verificado
-actualizado: 2026-10-23
+actualizado: 2026-10-29
 tags: [backend, api, endpoints]
 archivos:
   - apps/web/app/api/
@@ -22,6 +22,8 @@ archivos:
   - apps/web/app/api/energia/
   - apps/web/app/api/paquetes/
   - apps/web/app/api/propuestas/[id]/paquete/route.ts
+  - apps/web/app/api/propuestas/[id]/enviar/route.ts
+  - apps/web/app/api/propuestas/[id]/items/route.ts
   - apps/web/app/api/rejilla/
   - apps/web/app/api/reportes/rentabilidad/route.ts
   - apps/web/app/api/sitios/[id]/modalidades/route.ts
@@ -31,7 +33,18 @@ archivos:
   - apps/web/app/api/geo/buscar/route.ts
 ---
 
-# API — los 154 endpoints (medidos el 2026-10-22 con `recuentos.mjs`)
+# API — los 159 endpoints (medidos el 2026-10-29 con `recuentos.mjs`)
+
+> **2026-10-29 · dos más (DOOH-API, rama `feat/doohmain-api-completa`):**
+> `GET /api/campanas/[id]/doohmain-estado` (`comercial:ver`) — cada creativo publicado
+> de la campaña, sus pantallas de DOOHmain y su estado allí (`get_campaigns`): al
+> aire, en pausa, finalizada o `null` si no se sabe; y
+> `POST /api/creatividades/[id]/doohmain` (`comercial:crear`) — `{ accion: 'pausar' |
+> 'reanudar' }`: 400 con otra acción, 404 si no es de la organización, 409 si no está
+> publicado o la integración está apagada, 502 si DOOHmain no confirma. Y
+> `POST /api/campanas/[id]/playlogs` acepta `tipo: 'pantallas'` (historial por
+> pantalla, `get_metrics`). Ver [[integraciones-externas]]. Antes eran 155
+> (`integra/v0-12-5`).
 
 > **2026-10-22, noche · una más:** `PATCH /api/campanas/[id]/horario-doohmain`
 > (`comercial:crear`) — `{ horario: { horaInicio, horaFin, dias? } }` o
@@ -226,6 +239,10 @@ en `:230-237`) y **no** puede condicionarse a que la ruta
 | DELETE | `/api/clientes/[id]` | **REAUTH** + `comercial:aprobar` |
 | GET | `/api/propuestas/resumen` | exigir (`comercial:ver`); costo y ganancia solo con `finanzas:ver` | (06/10, PROP-PER) tablero por periodo: generadas, aprobadas, rechazadas, tasa de cierre, ganancia (venta − renta del contrato) |
 | POST | `/api/propuestas` · PATCH `/api/propuestas/[id]` | exigir (`comercial:crear`). Desde `17fbd252` (01/10) el `POST` **recalcula la tarifa** de cada línea en el servidor; un precio distinto al centavo exige además `comercial:aprobar` del rol de la sesión, o 403 y no se guarda nada |
+| POST | `/api/propuestas/[id]/items` | (29/10, PROP-COMPLETA) `comercial:crear`. Agrega sitios a una BORRADOR o ENVIADA (sube versión) con el periodo de la propuesta; cuerpo `{ items }` como el alta y la MISMA tarifa del servidor (403 si una vendedora se aparta); otro estatus → 409 |
+| DELETE | `/api/propuestas/items/[id]` | (29/10, PROP-COMPLETA) `comercial:crear`. Quita un sitio (BORRADOR o ENVIADA, sube versión); nunca el último (409); de otra organización → 404 |
+| DELETE | `/api/propuestas/[id]` | (29/10, PROP-COMPLETA, R5) `comercial:crear`. Borra un **BORRADOR** con sus líneas y su canje (devuelve el uso del cupón); otro estatus o con campaña → 409; de otra organización → 404 |
+| POST | `/api/propuestas/[id]/enviar` | (29/10, PROP-COMPLETA) `comercial:crear`. Cuerpo `{ para, mensaje? }`. Manda la liga por correo (canal de operación, copia a quien envía) y **después** deja la propuesta ENVIADA; si Resend falla, 502 y no cambia nada; sin correo configurado solo cambia el estatus (`correo: 'no_configurado'`). Vale para BORRADOR y ENVIADA (reenviar); lo demás 409 — `lib/server/propuestas-envio.ts` |
 | POST · DELETE | `/api/propuestas/[id]/paquete` | (05/10) `comercial:crear` — aplicar o quitar un paquete cerrado; el cuerpo lleva **solo** `paqueteId`, el precio lo copia el servidor bajo RLS — [[paquete-cerrado]] |
 | PATCH | `/api/propuestas/items/[id]` | exigir |
 | POST | `/api/propuestas/[id]/generar-campana` | exigir (`comercial:crear`). (13/10) Cuerpo opcional `{ clienteId }` (UUID, si no 400): pone el cliente a una APROBADA que no lo tenía —solo anunciante de esta organización y con el mismo IVA del snapshot; si no, 409— y genera |
@@ -237,13 +254,15 @@ en `:230-237`) y **no** puede condicionarse a que la ruta
 | GET | `/api/creativos/[id]/arte` | exigir |
 | POST | `/api/campanas/[id]/confirmar` | exigir |
 | POST | `/api/campanas/[id]/contrato` | exigir |
-| POST | `/api/campanas/[id]/extender` | exigir |
+| GET·POST | `/api/campanas/[id]/extender` | GET `comercial:ver` (las extensiones con su contrato) · POST `comercial:crear`, `{ fechaFin, contratoUrl }`: sin el contrato firmado de la extensión, 422 (EXT-CONTRATO, 29/10); ver [[comercial-propuestas-campanas]] |
 | POST | `/api/campanas/[id]/oc` | exigir |
 | POST | `/api/campanas/[id]/validar` | exigir |
 | POST | `/api/campanas/[id]/reintentar-publicacion` | `comercial:crear` — vuelve a mandar a DOOHmain una publicación YA aprobada, sin cambiar la campaña (13/10); ver [[integraciones-externas]] |
 | POST | `/api/campanas/[id]/creativos/repartir` | exigir |
 | POST | `/api/campanas/[id]/enviar-dominio` | exigir |
-| GET·POST | `/api/campanas/[id]/playlogs` | exigir |
+| GET·POST | `/api/campanas/[id]/playlogs` | exigir — POST con `tipo: 'pantallas'` consulta `get_metrics` de las pantallas donde se publicó (29/10) |
+| GET | `/api/campanas/[id]/doohmain-estado` | `comercial:ver` — estado de cada creativo publicado en DOOHmain (29/10) |
+| POST | `/api/creatividades/[id]/doohmain` | `comercial:crear` — pausar o reanudar en DOOHmain (29/10) |
 | POST | `/api/campanas/[id]/facturar` | **SENSIBLE** |
 | GET · PUT | `/api/campanas/franja-programada` | `comercial:ver` · `comercial:aprobar` — la franja en que **se transmite** (PROG-01, 30/09), en bloque y atómico; ver [[rejilla-franja-y-temporada]] |
 | POST | `/api/ordenes-compra` | exigir |
@@ -259,7 +278,7 @@ en `:230-237`) y **no** puede condicionarse a que la ruta
 | POST | `/api/captacion/[id]/competencia` | (22/10) `captacion:crear` |
 | PATCH·DELETE | `/api/captacion/[id]/competencia/[competidorId]` | (22/10) `captacion:crear` |
 | GET·POST | `/api/captacion/[id]/notas` | (22/10) `captacion:ver` · `captacion:crear` — solo se añaden; el autor sale de la sesión |
-| GET | `/api/geo/buscar` | (22/10) `captacion:ver` — `?q=` → candidatos de dirección. Pregunta a Nominatim POR EL SERVIDOR: 1/s global, 30 por persona cada 10 min, memoria 24 h; 400 si `q` < 3 letras, 429 al pasarse, 502 si el buscador falla (`lib/server/geo-buscar.ts`) |
+| GET | `/api/geo/buscar` | (22/10) `captacion:ver` — `?q=` → candidatos de dirección. Pregunta a Nominatim POR EL SERVIDOR: 1/s global, 30 por persona cada 10 min, memoria 24 h; 400 si `q` < 3 letras, 429 al pasarse, 502 si el buscador falla (`lib/server/geo-buscar.ts`). **(29/10, UBIC-01)** Unas coordenadas o un enlace largo de Google Maps vuelven como UN punto sin salir a la red (`proveedor: coordenadas`/`enlace`); un enlace corto `maps.app.goo.gl` se sigue en el servidor (`lib/server/geo-enlace.ts`); otro dominio o coordenadas fuera de rango, 400. Con `GOOGLE_MAPS_SERVIDOR_KEY` las direcciones van a la Geocoding API de Google (`proveedor: google`, con `placeId`); sin ella, a Nominatim |
 
 > En TODAS las rutas de `/api/captacion/[id]/…` un espacio de otro vendedor (sin
 > `captacion:aprobar`) o de otra organización es **404, no 403**, y un id que no

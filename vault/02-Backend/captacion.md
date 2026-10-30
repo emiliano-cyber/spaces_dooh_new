@@ -1,7 +1,7 @@
 ---
 tipo: contrato
 estado: verificado
-actualizado: 2026-10-22
+actualizado: 2026-10-29
 tags: [backend, comercial, captacion, prospectos, bitacora, aprobacion, rls, concurrencia, permisos]
 archivos:
   - db/migrations/20260930_captacion.sql
@@ -42,6 +42,16 @@ archivos:
 > regla de quién ve qué sea UNA— y `GET /api/captacion?tipos=` para varios tipos.
 > El alta copia el contacto del `jsonb` como primer `prospecto_contactos`; el `jsonb`
 > se queda porque es el que leen `faltantesParaRevision` y el alta del registro.
+
+> [!note] 2026-10-29 · la ubicación, por coordenadas o por calle (UBIC-01, ADR 0041 en parte)
+> Sin migración ni cambio de esquema: `prospectos.ubicacion_origen` sigue admitiendo
+> `PIN`/`BUSCADOR`/`GPS`. Unas coordenadas o un enlace de Google Maps pegados se
+> guardan como `PIN` (los fija la persona), y un candidato del buscador de Google
+> como `BUSCADOR` con su `ubicacion_place_id`. `GET /api/geo/buscar` interpreta lo
+> pegado antes de salir a la red (`lib/interpretar-ubicacion.ts`), sigue los enlaces
+> cortos en el servidor (`lib/server/geo-enlace.ts`) y, con
+> `GOOGLE_MAPS_SERVIDOR_KEY`, busca calles en Google en vez de Nominatim. Detalle en
+> la nota de Comercial negociación.
 
 > [!important] De dónde sale
 > Pedido del dueño el **2026-09-29**, recorriendo el ensayo de g500 con un perfil

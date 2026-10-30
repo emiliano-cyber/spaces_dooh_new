@@ -29,6 +29,9 @@ import {
   Link2,
   FileDown,
   Check as CheckIcon,
+  Trash2,
+  Copy,
+  Plus,
 } from 'lucide-react'
 import { Card } from '@/components/demo/ui/Card'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
@@ -40,6 +43,8 @@ import { trailFromLocation } from '@/lib/nav-trail'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import {
   cambiarEstatusPropuestaApi,
+  borrarPropuestaApi,
+  quitarSitioPropuestaApi,
   aprobarItemPropuestaApi,
   generarCampanaDesdePropuestaApi,
   actualizarPropuestaApi,
@@ -48,6 +53,8 @@ import {
 } from '@/lib/data/estado-api'
 import { BloqueCodigoPropuesta } from '@/components/demo/codigos/BloqueCodigoPropuesta'
 import { ElegirClienteDialog } from '@/components/demo/propuestas/ElegirClienteDialog'
+import { BloqueCondicionesVigencia } from '@/components/demo/propuestas/BloqueCondicionesVigencia'
+import { EnviarPropuestaDialog } from '@/components/demo/propuestas/EnviarPropuestaDialog'
 import {
   paquetesApi,
   aplicarPaqueteApi,
@@ -99,6 +106,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
   const router = useRouter()
   const [generando, setGenerando] = useState(false)
   const [elegirCliente, setElegirCliente] = useState(false)
+  const [enviarAbierto, setEnviarAbierto] = useState(false)
   const [copiado, setCopiado] = useState(false)
   const [descInput, setDescInput] = useState('0.00')
   const [guardandoDesc, setGuardandoDesc] = useState(false)
@@ -221,9 +229,12 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
     void copiar(`${window.location.origin}/spaces-dooh/p/${p.tokenPublico}`, setCopiado, 'Liga de la propuesta copiada')
   }
 
-  // Generar PDF: por ahora no hace nada (placeholder de UI).
+  // PROP-COMPLETA (29/10) · «Generar PDF» abre el documento imprimible en otra
+  // pestaña (`app/(app)/propuesta/[id]`): la vista del CLIENTE con membrete,
+  // fotos, mapa, QR y condiciones, lista para «Imprimir → Guardar como PDF».
+  // Hasta hoy el botón no hacía nada.
   function generarPdf() {
-    /* TODO: generación de PDF de la propuesta */
+    window.open(`${window.location.origin}/spaces-dooh/propuesta/${id}/`, '_blank', 'noopener')
   }
 
   // Rastro de navegación (cómo llegué); por defecto, Propuestas.
@@ -255,6 +266,8 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
   const ivaPct = p.base ? Math.round((p.iva / p.base) * 100) : 16
   const comisionPct = Math.round(100 - p.divisor * 100)
   const editable = p.estatus !== 'APROBADA' && p.estatus !== 'RECHAZADA'
+  // PROP-COMPLETA · las pantallas se agregan o quitan en BORRADOR y ENVIADA.
+  const sitiosEditables = p.estatus === 'BORRADOR' || p.estatus === 'ENVIADA'
 
   // Fechas de la propuesta (min/max de los items).
   const fechas = p.items.map((i) => i.fechaInicio).filter(Boolean).sort()
@@ -296,6 +309,30 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
         if (window.confirm(`${e.message}\n\n¿Aprobar de todas formas?`)) return cambiar(estatus, true)
         return
       }
+      toast.error(e instanceof Error ? e.message : 'Error')
+    }
+  }
+  // PROP-COMPLETA · borrar un BORRADOR (decisión del dueño). Se confirma porque
+  // no tiene vuelta atrás; el servidor rechaza cualquier otro estatus.
+  async function borrar() {
+    if (!window.confirm(`¿Borrar el borrador «${p!.nombre}»? No se puede deshacer.`)) return
+    try {
+      await borrarPropuestaApi(id)
+      toast.success('Borrador borrado')
+      router.push('/propuestas')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Error')
+    }
+  }
+  // PROP-COMPLETA · quitar un sitio (BORRADOR o ENVIADA; nunca el último). En
+  // una enviada sube la versión, y se dice antes de hacerlo.
+  async function quitarSitio(itemId: string, nombreSitio: string) {
+    const aviso = p!.estatus === 'ENVIADA' ? ' La propuesta ya está enviada: subirá de versión.' : ''
+    if (!window.confirm(`¿Quitar «${nombreSitio}» de la propuesta?${aviso}`)) return
+    try {
+      await quitarSitioPropuestaApi(itemId)
+      toast.success('Sitio quitado')
+    } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Error')
     }
   }
@@ -347,6 +384,18 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                 v{p.version}
               </span>
             )}
+            {/* PROP-COMPLETA · la vigencia solo importa mientras el cliente
+                puede aceptar: en una aprobada o rechazada sería ruido. */}
+            {p.vigenteHasta && (p.estatus === 'ENVIADA' || p.estatus === 'BORRADOR') && (
+              <span
+                className={cn(
+                  'rounded-full border px-2 py-0.5 text-[11px] font-medium',
+                  p.vencida ? 'border-[#ef444440] text-error' : 'border-border text-muted',
+                )}
+              >
+                {p.vencida ? `Vencida el ${formatFecha(p.vigenteHasta)}` : `Válida hasta ${formatFecha(p.vigenteHasta)}`}
+              </span>
+            )}
           </div>
           <p className="mt-1 text-[12px] text-muted">
             Folio interno: <span className="demo-num font-medium text-ink">{p.folio}</span>
@@ -359,19 +408,35 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
           <Button size="sm" variant="secondary" onClick={copiarLiga}>
             {copiado ? <><CheckIcon className="h-3.5 w-3.5 text-success" /> ¡Copiado!</> : <><Link2 className="h-3.5 w-3.5" /> Copiar liga</>}
           </Button>
+          {/* PROP-COMPLETA · duplicar abre el formulario de alta precargado
+              (mismos sitios y contratación, tarifa de hoy, sin cupón). */}
+          {puedeEditar && (
+            <Button size="sm" variant="secondary" onClick={() => router.push(`/propuestas?duplicar=${p.id}`)}>
+              <Copy className="h-3.5 w-3.5" /> Duplicar
+            </Button>
+          )}
           <Button size="sm" variant="secondary" onClick={generarPdf}>
             <FileDown className="h-3.5 w-3.5" /> Generar PDF
           </Button>
 
           {/* Acciones de estatus (solo edición) */}
-          {puedeEditar && p.estatus === 'BORRADOR' && (
-            <Button size="sm" variant="primary" onClick={() => cambiar('ENVIADA')}><Send className="h-3.5 w-3.5" /> Enviar</Button>
+          {/* PROP-COMPLETA · «Enviar» manda la liga por correo (y la deja
+              ENVIADA); en una ya enviada es «Reenviar» (decisión del dueño). */}
+          {puedeEditar && (p.estatus === 'BORRADOR' || p.estatus === 'ENVIADA') && (
+            <Button size="sm" variant={p.estatus === 'BORRADOR' ? 'primary' : 'secondary'} onClick={() => setEnviarAbierto(true)}>
+              <Send className="h-3.5 w-3.5" /> {p.estatus === 'BORRADOR' ? 'Enviar' : 'Reenviar'}
+            </Button>
           )}
           {puedeEditar && (p.estatus === 'ENVIADA' || p.estatus === 'BORRADOR') && (
             <>
               <Button size="sm" onClick={() => cambiar('APROBADA')}><Check className="h-3.5 w-3.5" /> Aprobar</Button>
               <Button size="sm" variant="danger" onClick={() => cambiar('RECHAZADA')}><X className="h-3.5 w-3.5" /> Rechazar</Button>
             </>
+          )}
+          {puedeEditar && p.estatus === 'BORRADOR' && (
+            <Button size="sm" variant="ghost" onClick={borrar} title="Solo los borradores se pueden borrar">
+              <Trash2 className="h-3.5 w-3.5" /> Borrar
+            </Button>
           )}
           {puedeEditar && p.estatus === 'APROBADA' && (
             <Button size="sm" disabled={generando} onClick={() => void generarCampana()}>
@@ -380,6 +445,15 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
           )}
         </div>
       </div>
+
+      <EnviarPropuestaDialog
+        open={enviarAbierto}
+        onOpenChange={setEnviarAbierto}
+        propuestaId={p.id}
+        correoCliente={cliente?.contacto?.email ?? null}
+        reenvio={p.estatus === 'ENVIADA'}
+        onSinCorreo={copiarLiga}
+      />
 
       <ElegirClienteDialog
         open={elegirCliente}
@@ -696,6 +770,18 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
           </span>
         }
       >
+          {/* PROP-COMPLETA · agregar sitios (BORRADOR o ENVIADA). Abre el
+              formulario de alta en modo «agregar», con el periodo de la propuesta. */}
+          {puedeEditar && sitiosEditables && (
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <Button size="sm" variant="secondary" onClick={() => router.push(`/propuestas?agregar=${p.id}`)}>
+                <Plus className="h-3.5 w-3.5" /> Agregar sitios
+              </Button>
+              {p.estatus === 'ENVIADA' && (
+                <span className="text-[11px] text-muted">Ya está enviada: agregar o quitar sitios sube la versión.</span>
+              )}
+            </div>
+          )}
           {p.items.length === 0 ? (
             <p className="text-[13px] text-muted">Esta propuesta no tiene sitios.</p>
           ) : (
@@ -713,6 +799,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                     <th className="py-2 pr-3 font-medium">Contratación</th>
                     <th className="py-2 pr-3 text-right font-medium">Precio propuesta</th>
                     <th className="py-2 pl-3 text-right font-medium">Aprobado</th>
+                    {puedeEditar && sitiosEditables && p.items.length > 1 && <th className="py-2 pl-2" aria-label="Quitar" />}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -827,6 +914,20 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                             <X className="ml-auto h-4 w-4 text-muted" />
                           )}
                         </td>
+                        {/* Nunca el último: sin sitios no hay periodo ni importe. */}
+                        {puedeEditar && sitiosEditables && p.items.length > 1 && (
+                          <td className="py-2.5 pl-2 text-right">
+                            <button
+                              type="button"
+                              onClick={() => quitarSitio(it.id, s?.nombre ?? 'este sitio')}
+                              className="rounded p-1 text-muted hover:bg-surface-2 hover:text-error"
+                              aria-label={`Quitar ${s?.nombre ?? 'sitio'}`}
+                              title="Quitar de la propuesta"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </td>
+                        )}
                       </tr>
                     )
                   })}
@@ -846,6 +947,18 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
               )}
             </div>
           )}
+      </CardColapsable>
+
+      {/* PROP-COMPLETA (29/10) · lo que el cliente lee además de los
+          importes: hasta cuándo puede aceptar y en qué términos. */}
+      <CardColapsable id="propuesta.condiciones" titulo="Condiciones y vigencia">
+        <BloqueCondicionesVigencia
+          propuestaId={p.id}
+          condiciones={p.condiciones ?? null}
+          vigenteHasta={p.vigenteHasta ?? null}
+          vencida={!!p.vencida}
+          editable={puedeEditar && p.estatus !== 'APROBADA'}
+        />
       </CardColapsable>
 
       {/* Mapa con la ubicación de las pantallas. PLEG-02 · plegado, el mapa se

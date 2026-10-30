@@ -3,6 +3,7 @@ import { q } from './db'
 import { tenantActual } from './tenant'
 import { costosOtDelTenant } from './config-repo'
 import type { DatosRentabilidad, RangoReporte } from '@/lib/data/reportes'
+import { vendedoresConBajas } from '@/lib/vendedor-de-baja'
 
 // ============================================================================
 //  lib/server/reportes-repo.ts — El SQL de los reportes. Solo el SQL.
@@ -123,7 +124,7 @@ export async function datosRentabilidad(rango: RangoReporte): Promise<DatosRenta
     // CONFIRMADO es venta, TENT-PROP del 26/10) vive en
     // `lib/data/reportes.ts`, una sola vez.
     q<any>(
-      `select sitio_id, campana_id, precio, estatus,
+      `select sitio_id, campana_id, precio, estatus, franja_id,
               to_char(fecha_inicio, 'YYYY-MM-DD') as fecha_inicio,
               to_char(fecha_fin,    'YYYY-MM-DD') as fecha_fin
          from reservas
@@ -315,7 +316,9 @@ export async function datosRentabilidad(rango: RangoReporte): Promise<DatosRenta
     // `where`: la RLS ya corta, pero un join sin filtro es la forma en que una
     // consulta se salta la segunda capa sin que nada falle.
     q<any>(
-      `select c.id as campana_id, p.usuario_id
+      // P19 (29/10) · y el NOMBRE congelado: si el usuario se borró, es lo
+      // único que dice quién vendió (`lib/vendedor-de-baja.ts`).
+      `select c.id as campana_id, p.usuario_id, p.vendedor_nombre
          from campanas c
          join propuestas p
            on p.id = c.propuesta_id
@@ -392,6 +395,12 @@ export async function datosRentabilidad(rango: RangoReporte): Promise<DatosRenta
           porSitio: porSitio
             .map((e: any) => ({
               sitioId: e?.sitioId,
+              // B42 (2026-10-29) · la franja congelada de ESTA línea, para que
+              // el motor desempate por (pantalla, franja): vender el prime y la
+              // madrugada de la misma pantalla sacaba la pantalla entera del
+              // reporte. Un snapshot anterior a la Fase 1 no la trae → `null`,
+              // que casa con la reserva sin franja de entonces.
+              franjaId: typeof e?.franja?.id === 'string' ? e.franja.id : null,
               lista: Number(e?.lista),
               neto: Number(e?.neto),
               // PAQ-01 (ADR 0039, Fase 4) · esta pantalla se vendió dentro de un
@@ -417,22 +426,25 @@ export async function datosRentabilidad(rango: RangoReporte): Promise<DatosRenta
         }
       })
       .filter((t) => t.porSitio.length > 0),
-    vendedores: vendedores.map((r) => ({
-      id: r.id,
-      nombre: r.nombre,
-      cargo: r.cargo ?? null,
-    })),
-    vendedorDeCampana: vendedorDeCampana.map((r) => ({
-      campanaId: r.campana_id,
-      // `?? null` y no el valor crudo: el driver entrega `null` para una columna
-      // vacía, pero un `undefined` haría que `usuarioId` desapareciera del
-      // objeto y `vendedorDeCampana.has()` seguiría diciendo que sí — que es
-      // justo la distinción que separa el histórico de lo nacido en Comercial.
-      usuarioId: r.usuario_id ?? null,
-    })),
+    // P19 (29/10) · `vendedoresConBajas` añade una fila por cada vendedor
+    // BORRADO que dejó su nombre en la propuesta. Devuelve `usuarioId: null`
+    // —nunca `undefined`— en las históricas: un `undefined` haría que
+    // `usuarioId` desapareciera del objeto y `vendedorDeCampana.has()` seguiría
+    // diciendo que sí, que es justo la distinción que separa el histórico de lo
+    // nacido en Comercial.
+    ...vendedoresConBajas(
+      vendedores.map((r) => ({ id: r.id, nombre: r.nombre, cargo: r.cargo ?? null })),
+      vendedorDeCampana.map((r) => ({
+        campana_id: r.campana_id,
+        usuario_id: r.usuario_id ?? null,
+        vendedor_nombre: r.vendedor_nombre ?? null,
+      })),
+    ),
     reservas: reservas.map((r) => ({
       sitioId: r.sitio_id,
       campanaId: r.campana_id ?? null,
+      // B42 · heredada del ítem de la propuesta (`campanas-repo.ts`).
+      franjaId: r.franja_id ?? null,
       precio: num(r.precio),
       estatus: r.estatus,
       fechaInicio: r.fecha_inicio,

@@ -347,6 +347,8 @@ function CampanaCard({
   const [reemplazarId, setReemplazarId] = useState<string | null>(null)
   // Creativo cuya eliminación se está confirmando (null = cerrado).
   const [confirmarEliminar, setConfirmarEliminar] = useState<Creatividad | null>(null)
+  // Creativo aprobado cuyo reemplazo se está confirmando (recordatorio DOOHmain).
+  const [confirmarReemplazo, setConfirmarReemplazo] = useState<Creatividad | null>(null)
 
   // Aprobados y asignables: excluye los retirados (siguen en DOOHmain, pero ya no
   // se pueden asignar a spots desde aquí).
@@ -436,7 +438,23 @@ function CampanaCard({
   }
 
   // Reemplaza el arte de un creativo: abre el selector de imagen.
+  //
+  // 29/10 · pedido del dueño: si el creativo ya está aprobado (y por tanto
+  // puede estar publicado en DOOHmain), ANTES de elegir el arte nuevo se avisa
+  // que el anterior se baja del aire solo y se recuerda eliminar su campaña
+  // en el panel de DOOHmain: la API no deja quitarla desde aquí, y la nueva
+  // lleva el mismo nombre, así que en la lista quedarían las dos.
   function pedirReemplazo(cr: Creatividad) {
+    if (cr.estatusValidacion === 'VALIDADA') {
+      setConfirmarReemplazo(cr)
+      return
+    }
+    abrirSelectorReemplazo(cr)
+  }
+
+  // Síncrono a propósito: el navegador solo abre el selector de archivos si
+  // el `click()` sale del mismo gesto del usuario (el botón o la confirmación).
+  function abrirSelectorReemplazo(cr: Creatividad) {
     setReemplazarId(cr.id)
     reemplazarRef.current?.click()
   }
@@ -466,7 +484,7 @@ function CampanaCard({
         // para que no parezca que se subió de más.
         toast.success(
           res?.doohmain?.estado === 'retirado'
-            ? 'Arte reemplazado. En DOOHmain el anterior quedó finalizado (no se reproduce), pero sigue en la lista porque DOOHmain no deja quitarlo; bórralo a mano en su panel si quieres. Aprueba el nuevo para publicarlo.'
+            ? 'Arte reemplazado. En DOOHmain el anterior ya no se reproduce, pero sigue en la lista: elimina la campaña anterior en su panel (la que aparece como finalizada). Aprueba el nuevo para publicarlo.'
             : 'Arte reemplazado. Apruébalo de nuevo para publicarlo.',
           { duration: 10000 },
         )
@@ -887,6 +905,31 @@ function CampanaCard({
         publicado, su campaña se finaliza, pero <span className="text-ink">el arte no se puede
         quitar de DOOHmain</span> (su API no lo permite): quedará marcado como “pendiente en DOOHmain”
         para que lo quites en su panel.
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={confirmarReemplazo !== null}
+        onOpenChange={(v) => !v && setConfirmarReemplazo(null)}
+        title="Reemplazar el arte"
+        confirmLabel="Elegir el arte nuevo"
+        variant="primary"
+        onConfirm={() => {
+          const cr = confirmarReemplazo
+          setConfirmarReemplazo(null)
+          if (cr) abrirSelectorReemplazo(cr)
+        }}
+      >
+        <p>
+          Si <span className="font-medium text-ink">“{confirmarReemplazo?.nombre}”</span> ya está
+          publicado, al reemplazarlo{' '}
+          <span className="text-ink">se manda a DOOHmain la orden de bajar el arte anterior</span>: deja
+          de reproducirse en todas sus pantallas. El nuevo queda pendiente hasta que lo apruebes.
+        </p>
+        <p className="mt-2 rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-[12px] text-amber-900">
+          <span className="font-medium">Recordatorio:</span> después entra al panel de DOOHmain y{' '}
+          <span className="font-medium">elimina la campaña anterior</span>. DOOHmain no deja borrarla
+          desde aquí, y la nueva lleva el mismo nombre: la anterior es la que aparece como finalizada.
+        </p>
       </ConfirmDialog>
     </>
   )

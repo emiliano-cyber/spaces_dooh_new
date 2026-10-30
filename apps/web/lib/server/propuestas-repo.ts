@@ -1,13 +1,15 @@
 import 'server-only'
 import { DescuentoSobreTope, descuentoDePropuestaDentroDelTope, mensajeTopeVigente, MSJ_TOPE_VIGENTE_PUBLICO, topeDescuentoValido } from '@/lib/descuento'
-import { topeDescuentoDelTenant } from './config-repo'
+import { topeDescuentoDelTenant, vigenciaPropuestaDelTenant } from './config-repo'
 import { randomBytes } from 'crypto'
 import { q, q1, pool, fijarTenant, fijarTenantExplicito, qConTenant, qRaw1 } from './db'
 import { tenantActual } from './tenant'
 import { usuarioActual } from './auth'
 import { folioDocumento } from './folios'
 import { divisorDeComision } from '@/lib/data/derive'
-import { AVISO_FRANJA_NO_VIAJA_AL_CMS, temporadaDeFecha } from '@/lib/rejilla'
+import { AVISO_FRANJA_NO_VIAJA_AL_CMS } from '@/lib/rejilla'
+import { centavos, tarifaCalculada } from '@/lib/tarifa-calculada'
+import { datosParaTarifar } from './tarifas-repo'
 import { volumenDeLineas } from '@/lib/volumen'
 import { montoDescuentoCodigo } from '@/lib/codigo-promocional'
 import {
@@ -25,6 +27,7 @@ import {
   repartirPaquete,
 } from '@/lib/paquete'
 import { rutaLogo } from '@/lib/medios-url'
+import { fechaDia, propuestaVencida } from '@/lib/propuesta-vigencia'
 
 /**
  * Forma del JSON de `snapshot_economico`. Ausente en los congelados hasta el
@@ -265,6 +268,14 @@ function armarPropuesta(p: any, items: any[]) {
     aprobadaEn: p.aprobada_en ? iso(p.aprobada_en) : null,
     rechazadaEn: p.rechazada_en ? iso(p.rechazada_en) : null,
     vendedorId: p.usuario_id ?? null,
+    // P19 · el nombre congelado al crear; sobrevive al borrado del usuario.
+    vendedorNombre: p.vendedor_nombre ?? null,
+    // PROP-COMPLETA (29/10) · las condiciones de ESTA propuesta y hasta cuándo
+    // se puede aceptar. `vencida` sale de `lib/propuesta-vigencia.ts`, la misma
+    // función que usa la liga pública para negarse a aceptar.
+    condiciones: p.condiciones ?? null,
+    vigenteHasta: fechaDia(p.vigente_hasta),
+    vencida: propuestaVencida(fechaDia(p.vigente_hasta)),
     // PAQ-01 · la parte del precio cerrado que le tocó a cada línea viaja CON
     // la línea. Sin ella la pantalla enseñaría el importe de lista junto a un
     // total que no lo suma, y eso se lee como un defecto del sistema.
@@ -390,22 +401,53 @@ export async function congelarSnapshotEconomico(propuestaId: string, tenantId?: 
     ? aprob
     : await qS<any>(`${SEL_ITEMS} where i.propuesta_id=$1`, [propuestaId])
 
-  // Las temporadas VIGENTES de la organización, para deducir cuál cubría la
-  // fecha de cada ítem. Se leen todas —son pocas por construcción, una decena
-  // al año— y la resolución la hace `lib/rejilla.ts`, que es el único sitio
-  // donde vive esa regla. Ordenadas por `desde` porque `temporadaDeFecha`
-  // devuelve la primera que cubre: con el solape prohibido no puede haber dos,
-  // pero si datos viejos las trajeran, que gane siempre la misma.
-  const temporadas = await qS<any>(
-    `select id, nombre, to_char(desde,'YYYY-MM-DD') as desde, to_char(hasta,'YYYY-MM-DD') as hasta
-       from temporadas where activo = true order by desde asc, id asc`,
+  // B43 (2026-10-29) · LA TEMPORADA QUE PUSO EL PRECIO, no la que cubre la
+  // fecha. Hasta hoy aquí se guardaba `temporadaDeFecha(...)`: una venta del 14
+  // de noviembre a tarifa base quedaba congelada diciendo «Buen Fin», y seis
+  // meses después eso se lee como «se cobró el precio del Buen Fin». No se
+  // cobró. Decisión del dueño: congelar la temporada que devuelve la
+  // RESOLUCIÓN, con la MISMA `tarifaCalculada` con la que el servidor fija la
+  // tarifa al crear la propuesta (PRECIO-01, B40) y sobre los mismos datos
+  // (`datosParaTarifar`: pantalla, modalidades, rejilla y temporadas activas,
+  // las cuatro con `and tenant_id`).
+  //
+  // Se resuelve AL APROBAR porque `propuesta_items` no guarda la temporada y
+  // añadirla exigiría una migración, que el dueño no pidió. Por eso la
+  // resolución solo se cree si da EXACTAMENTE el precio unitario que se vendió:
+  // si el dueño movió la rejilla o las temporadas entre cotizar y aprobar, o un
+  // gerente puso otro precio, la temporada de hoy ya no explica ese precio y se
+  // congela `null`. Callarse es correcto; afirmar lo que no se sabe, no.
+  //
+  // El PRECIO no se lee de aquí: `lista`, `neto` y `tarifaUnitaria` siguen
+  // saliendo del ítem. La rejilla solo decide qué NOMBRE se le pone.
+  const datosTarifa = await datosParaTarifar(
+    usar.map((it) => String(it.sitio_id)),
+    tenantId,
   )
-  const temporadasRej = temporadas.map((t) => ({
-    id: String(t.id),
-    nombre: String(t.nombre),
-    desde: String(t.desde),
-    hasta: String(t.hasta),
-  }))
+  const temporadaQuePusoElPrecio = (it: any): { id: string; nombre: string } | null => {
+    // ADR 0042 · una línea de calculadora se tarifa desde la MENSUAL de la
+    // pantalla repartida en el loop; su precio por spot no es comparable con
+    // la fila de la rejilla. Para ella se nombra la temporada solo si nadie
+    // ajustó el precio (una prima de Roadblock también es un ajuste), y se
+    // declara como residuo: no se puede volver a comprobar sin el loop.
+    const deCalculadora = it.espacios_comprados != null
+    const r = tarifaCalculada({
+      sitio: datosTarifa.sitios.get(String(it.sitio_id)) ?? {},
+      unidad: deCalculadora ? 'mensual' : String(it.unidad ?? 'mensual'),
+      franjaId: it.franja_id ?? null,
+      temporadas: datosTarifa.temporadas,
+      fechaInicio: String(iso(it.fecha_inicio) ?? '').slice(0, 10),
+    })
+    if (!r.temporadaQuePuso) return null
+    if (deCalculadora) {
+      if (it.precio_ajustado_por != null) return null
+    } else {
+      const vendida = it.tarifa_unitaria != null ? Number(it.tarifa_unitaria) : Number(it.precio)
+      if (centavos(r.tarifa) !== centavos(vendida)) return null
+    }
+    const t = datosTarifa.temporadas.find((x) => x.id === r.temporadaQuePuso)
+    return t ? { id: t.id, nombre: t.nombre } : null
+  }
 
   const comisionPct = Number(prop.comision_pct)
   const descuentoPct = prop.descuento_pct != null ? Number(prop.descuento_pct) : 0
@@ -472,17 +514,21 @@ export async function congelarSnapshotEconomico(propuestaId: string, tenantId?: 
   const iva = Math.round(base * (ivaPct / 100))
   const total = base + iva
   const porSitio = usar.map((it, idx) => {
-    // La temporada se DEDUCE de la fecha de inicio del ítem y no se guarda en
-    // `propuesta_items`: ahí sería una segunda verdad que envejece. Aquí sí se
-    // guarda, porque aquí deja de ser un dato vivo y pasa a ser un hecho.
-    const tempId = temporadaDeFecha(temporadasRej, String(iso(it.fecha_inicio) ?? '').slice(0, 10))
-    const temp = tempId ? temporadasRej.find((t) => t.id === tempId) : null
+    // La temporada no se guarda en `propuesta_items`: ahí sería una segunda
+    // verdad que envejece. Aquí sí se guarda, porque aquí deja de ser un dato
+    // vivo y pasa a ser un hecho — y por eso es la que PUSO el precio (B43).
+    const temp = temporadaQuePusoElPrecio(it)
     // El volumen de ESTA línea. Se lee con guarda porque `numeric` de Postgres
     // admite NaN: sin ella, una fila corrupta dejaría el neto de la propuesta
     // en NaN y la aprobación contestaría 200 OK.
     const volPct = Number(it.descuento_volumen_pct ?? 0)
     const factorVol = Number.isFinite(volPct) && volPct > 0 ? 1 - Math.min(volPct, 100) / 100 : 1
     return {
+      // B56 (2026-10-29) · LA IDENTIDAD DE LA LÍNEA. Sin ella, la misma
+      // pantalla dos veces (dos franjas o dos periodos) no se puede emparejar
+      // con su reserva, y `campanas-repo` cobraba en las dos el neto de la
+      // última (`lib/neto-de-linea.ts`).
+      itemId: it.id,
       sitioId: it.sitio_id,
       // `lista` sigue siendo el importe DE LISTA, sin el volumen. Si bajara, el
       // reporte de publicada contra neta compararía la neta con una «publicada»
@@ -684,7 +730,11 @@ export async function congelarSnapshotEconomico(propuestaId: string, tenantId?: 
 // Lectura pública (sin auth) de una propuesta por su CÓDIGO: acepta el id (UUID)
 // o el folio (p. ej. PR-A0BC4F). Datos de solo lectura para una liga
 // compartible. Incluye nombres de cliente/agencia y de cada sitio.
-export async function obtenerPropuestaPublica(codigo: string) {
+// `conFotos` (PROP-COMPLETA, 29/10) añade la PRIMERA foto de cada pantalla, y
+// solo la pide el documento imprimible (`app/(app)/propuesta/[id]`). La liga
+// pública NO: las fotos son data URLs dentro de `sitios.fotos` y pesan cientos
+// de kB cada una (ver `app/api/sitios/[id]/media`).
+export async function obtenerPropuestaPublica(codigo: string, opts: { conFotos?: boolean } = {}) {
   const cod = (codigo ?? '').trim()
   if (!cod) return null
 
@@ -762,6 +812,7 @@ export async function obtenerPropuestaPublica(codigo: string) {
     ? await qPub<any>(
         `select id, nombre, alcaldia, tipo_medio, lat, lng,
                 direccion, plaza_ciudad, ciudad, estado
+                ${opts.conFotos ? ', fotos[1] as foto' : ''}
            from sitios where id = any($1::uuid[])`,
         [sitioIds],
       )
@@ -821,6 +872,12 @@ export async function obtenerPropuestaPublica(codigo: string) {
     iva: armado.iva,
     total: armado.total,
     itemsAprobados: armado.itemsAprobados,
+    // PROP-COMPLETA (29/10) · hasta cuándo puede aceptar, si ya venció (la
+    // pantalla lo dice y esconde el botón; quien se NIEGA es
+    // `aceptarPropuestaPublica`) y las condiciones que firma.
+    vigenteHasta: armado.vigenteHasta,
+    vencida: armado.vencida,
+    condiciones: armado.condiciones,
     items: armado.items.map((it) => {
       const s = byId.get(it.sitioId)
       return {
@@ -848,6 +905,8 @@ export async function obtenerPropuestaPublica(codigo: string) {
         franjaId: it.franjaId,
         franjaNombre: it.franjaNombre,
         franjaHorario: it.franjaHorario,
+        // Solo con `conFotos`; la liga pública no lo trae.
+        ...(opts.conFotos ? { foto: (s?.foto as string | null) ?? null } : {}),
       }
     }),
   }
@@ -891,7 +950,9 @@ export async function aceptarPropuestaPublica(
   const p = (
     await qConTenant<any>(
       tenantId,
-      `select id, tenant_id, folio, nombre, estatus, aceptado_en, aceptado_por
+      `select id, tenant_id, folio, nombre, estatus, aceptado_en, aceptado_por,
+              to_char(vigente_hasta, 'DD/MM/YYYY') as vigente_hasta_txt,
+              (vigente_hasta < current_date) as vencida
          from propuestas where token_publico = $1 limit 1`,
       [cod],
     )
@@ -913,6 +974,16 @@ export async function aceptarPropuestaPublica(
   }
   if (p.estatus === 'RECHAZADA') {
     throw new PropuestaError('Esta propuesta ya no está vigente')
+  }
+  // PROP-COMPLETA (29/10) · decisión del dueño: vencida, la liga NO deja
+  // aceptar. Se decide en la BASE (`vigente_hasta < current_date`) y no con el
+  // reloj de quien llama, y va DESPUÉS del idempotente de arriba: una propuesta
+  // ya aceptada sigue diciendo que se aceptó aunque hoy esté fuera de fecha.
+  // `vigente_hasta` nulo (todo lo enviado antes del 29/10) no vence nunca.
+  if (p.vencida === true) {
+    throw new PropuestaVencidaError(
+      `Esta propuesta venció el ${p.vigente_hasta_txt}. Pide una actualizada a quien te la envió.`,
+    )
   }
 
   const client = await pool.connect()
@@ -1157,6 +1228,66 @@ export function validarRangoFechas(inicio?: string | null, fin?: string | null) 
   }
 }
 
+// Una línea de propuesta, tal como la dejó el controller (precio, volumen y
+// tarifa ya resueltos por el servidor). La comparten el alta y, desde el 29/10,
+// agregar sitios a una propuesta ya creada: el INSERT es UNO, con sus
+// normalizaciones y sus comentarios, y no puede haber una segunda copia que se
+// olvide de una columna (PROP-COMPLETA).
+type ItemInput = PropuestaInput['items'][number]
+async function insertarItem(
+  client: { query: (sql: string, params?: unknown[]) => Promise<unknown> },
+  propuestaId: string,
+  fechaInicio: string,
+  fechaFin: string,
+  it: ItemInput,
+  tId: string | null,
+  vendedorId: string | null,
+) {
+  await client.query(
+    `insert into propuesta_items
+       (propuesta_id, sitio_id, fecha_inicio, fecha_fin, precio, unidad, cantidad, tarifa_unitaria, spots_por_dia, tenant_id,
+        renta_monto, renta_periodicidad, renta_arrendador_id, franja_id,
+        descuento_volumen_pct, volumen_desde, tarifa_calculada, precio_ajustado_por,
+        espacios_comprados, horas_dia, roadblock, prima_roadblock_pct)
+     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::periodicidad_pago,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)`,
+    [
+      propuestaId, it.sitioId, fechaInicio, fechaFin, it.precio ?? 0,
+      it.unidad ?? 'mensual', it.cantidad ?? 1, it.tarifaUnitaria ?? (it.precio ?? 0),
+      it.spotsPorDia ?? null, tId,
+      // Renta al propietario (opcional). El CHECK `propuesta_items_renta_ck`
+      // exige importe y periodicidad juntos, así que se normaliza a null si
+      // falta cualquiera de los dos en vez de dejar que reviente la BD.
+      it.rentaMonto != null && it.rentaPeriodicidad ? it.rentaMonto : null,
+      it.rentaMonto != null && it.rentaPeriodicidad ? it.rentaPeriodicidad : null,
+      it.rentaArrendadorId ?? null,
+      // REJILLA-01 · la franja CONTRATADA. Ya validada contra el catálogo
+      // activo de esta organización en el controller; aquí la red de
+      // seguridad es `propuesta_items_franja_fkey`, que es COMPUESTA con el
+      // tenant y por tanto no se puede eludir olvidándose de validar.
+      it.franjaId ?? null,
+      // VOL-01 · el porcentaje y el umbral se guardan JUNTOS y con un
+      // respaldo explícito. Un porcentaje sin su umbral es un descuento que
+      // nadie puede auditar; el `?? 0` de aquí es el único legítimo de la
+      // pareja, porque 0 SÍ significa «sin volumen» en esta columna.
+      it.descuentoVolumenPct ?? 0,
+      it.volumenDesde ?? null,
+      // PRECIO-01 · la tarifa calculada por el servidor, y QUIÉN se apartó
+      // de ella: el usuario de la SESIÓN (`vendedorId`, la misma cookie),
+      // y solo cuando el controller lo marcó como ajuste. A la tarifa
+      // queda `null`: no hay nada que atribuir.
+      it.tarifaCalculada ?? null,
+      it.precioAjustado ? vendedorId : null,
+      // ADR 0042 · la calculadora. Los CHECK de 20261007 son la red: un
+      // Roadblock sin espacios o una prima sin Roadblock revientan aquí
+      // aunque un controller futuro se olvidara de validar.
+      it.espaciosComprados ?? null,
+      it.horasDia ?? null,
+      it.roadblock === true,
+      it.primaRoadblockPct ?? null,
+    ],
+  )
+}
+
 export async function crearPropuesta(input: PropuestaInput) {
   validarRangoFechas(input.fechaInicio, input.fechaFin)
   // Gate de negociación: la agencia debe tener su negociación validada.
@@ -1187,12 +1318,26 @@ export async function crearPropuesta(input: PropuestaInput) {
     // `null` cuando no hay sesión —hoy imposible por `exigir()` en el route,
     // pero un alta futura por un trabajo programado no tendría cookie— y eso es
     // exactamente lo que el reporte sabe pintar: «Sin vendedor», nunca un cero.
-    const vendedorId = (await usuarioActual())?.id ?? null
+    //
+    // P19 (29/10) · y su NOMBRE, de la misma sesión y en el mismo INSERT. Es lo
+    // que sobrevive si el usuario se borra (`usuario_id` es `on delete set
+    // null`): sin él, sus ventas se volvían «Sin vendedor», indistinguibles de
+    // las históricas. Decisión del dueño: conservar quién vendió.
+    const vendedor = await usuarioActual()
+    const vendedorId = vendedor?.id ?? null
+    const tenantProp = await tenantActual()
+    // PROP-COMPLETA (29/10) · las condiciones se COPIAN de la plantilla de la
+    // organización: cambiarla mañana no puede reescribir lo ya enviado. Se leen
+    // con este mismo cliente, ya con el tenant fijado y con `tenant_id` como
+    // segunda capa.
+    const plantilla =
+      (await client.query('select condiciones_propuesta from config_negocio where tenant_id=$1', [tenantProp]))
+        .rows[0]?.condiciones_propuesta ?? null
     const prop = (
       await client.query(
-        `insert into propuestas (folio, cliente_id, agencia_id, nombre, comision_pct, notas, token_publico, usuario_id, tenant_id)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$9) returning *`,
-        [await folio(), input.clienteId ?? null, input.agenciaId ?? null, input.nombre, input.comisionPct ?? 0, input.notas ?? null, tokenPublico(), vendedorId, await tenantActual()],
+        `insert into propuestas (folio, cliente_id, agencia_id, nombre, comision_pct, notas, token_publico, usuario_id, vendedor_nombre, condiciones, tenant_id)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) returning *`,
+        [await folio(), input.clienteId ?? null, input.agenciaId ?? null, input.nombre, input.comisionPct ?? 0, input.notas ?? null, tokenPublico(), vendedorId, vendedor?.nombre ?? null, plantilla, tenantProp],
       )
     ).rows[0]
     // Siempre asociar la agencia con el cliente: si la propuesta lleva cliente y
@@ -1206,49 +1351,7 @@ export async function crearPropuesta(input: PropuestaInput) {
     }
     const tId = await tenantActual()
     for (const it of input.items) {
-      await client.query(
-        `insert into propuesta_items
-           (propuesta_id, sitio_id, fecha_inicio, fecha_fin, precio, unidad, cantidad, tarifa_unitaria, spots_por_dia, tenant_id,
-            renta_monto, renta_periodicidad, renta_arrendador_id, franja_id,
-            descuento_volumen_pct, volumen_desde, tarifa_calculada, precio_ajustado_por,
-            espacios_comprados, horas_dia, roadblock, prima_roadblock_pct)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::periodicidad_pago,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)`,
-        [
-          prop.id, it.sitioId, input.fechaInicio, input.fechaFin, it.precio ?? 0,
-          it.unidad ?? 'mensual', it.cantidad ?? 1, it.tarifaUnitaria ?? (it.precio ?? 0),
-          it.spotsPorDia ?? null, tId,
-          // Renta al propietario (opcional). El CHECK `propuesta_items_renta_ck`
-          // exige importe y periodicidad juntos, así que se normaliza a null si
-          // falta cualquiera de los dos en vez de dejar que reviente la BD.
-          it.rentaMonto != null && it.rentaPeriodicidad ? it.rentaMonto : null,
-          it.rentaMonto != null && it.rentaPeriodicidad ? it.rentaPeriodicidad : null,
-          it.rentaArrendadorId ?? null,
-          // REJILLA-01 · la franja CONTRATADA. Ya validada contra el catálogo
-          // activo de esta organización en el controller; aquí la red de
-          // seguridad es `propuesta_items_franja_fkey`, que es COMPUESTA con el
-          // tenant y por tanto no se puede eludir olvidándose de validar.
-          it.franjaId ?? null,
-          // VOL-01 · el porcentaje y el umbral se guardan JUNTOS y con un
-          // respaldo explícito. Un porcentaje sin su umbral es un descuento que
-          // nadie puede auditar; el `?? 0` de aquí es el único legítimo de la
-          // pareja, porque 0 SÍ significa «sin volumen» en esta columna.
-          it.descuentoVolumenPct ?? 0,
-          it.volumenDesde ?? null,
-          // PRECIO-01 · la tarifa calculada por el servidor, y QUIÉN se apartó
-          // de ella: el usuario de la SESIÓN (`vendedorId`, la misma cookie),
-          // y solo cuando el controller lo marcó como ajuste. A la tarifa
-          // queda `null`: no hay nada que atribuir.
-          it.tarifaCalculada ?? null,
-          it.precioAjustado ? vendedorId : null,
-          // ADR 0042 · la calculadora. Los CHECK de 20261007 son la red: un
-          // Roadblock sin espacios o una prima sin Roadblock revientan aquí
-          // aunque un controller futuro se olvidara de validar.
-          it.espaciosComprados ?? null,
-          it.horasDia ?? null,
-          it.roadblock === true,
-          it.primaRoadblockPct ?? null,
-        ],
-      )
+      await insertarItem(client, prop.id, input.fechaInicio, input.fechaFin, it, tId, vendedorId)
     }
     const items = (
       await client.query('select * from propuesta_items where propuesta_id=$1', [prop.id])
@@ -1257,6 +1360,181 @@ export async function crearPropuesta(input: PropuestaInput) {
     return armarPropuesta(prop, items)
   } catch (e) {
     await client.query('rollback')
+    throw e
+  } finally {
+    client.release()
+  }
+}
+
+// PROP-COMPLETA (29/10) · BORRAR una propuesta. Decisión del dueño (R5): solo
+// un BORRADOR. Una enviada ya está en manos del cliente —tiene su liga— y lo
+// que procede es RECHAZARLA, que deja rastro; una aprobada es un contrato.
+//
+// Lo que se lleva el borrado, todo por `on delete cascade`: sus líneas
+// (`propuesta_items`), el canje del cupón (`canjes_codigo`) y la aplicación del
+// paquete (`paquete_aplicaciones`). Que el canje se vaya ES devolver el uso: los
+// usos de un cupón son `count(*)` de sus canjes, no un contador aparte.
+//
+// En UNA transacción y con la fila bloqueada: si alguien la envía o la aprueba
+// a la vez, gana el primero y el segundo lee el estatus nuevo. El `estatus` va
+// también en el `delete` como segunda red. Una campaña que apunte a ella
+// (imposible hoy para un borrador) se rechaza en vez de quedarse huérfana.
+// El folio NO se reutiliza: queda un hueco en la serie, y es lo correcto.
+export async function borrarPropuestaBorrador(id: string): Promise<{ folio: string; nombre: string } | null> {
+  const tenant = await tenantActual()
+  const client = await pool.connect()
+  try {
+    await client.query('begin')
+    await fijarTenant(client)
+    const p = (
+      await client.query(
+        'select estatus, folio, nombre from propuestas where id=$1 and tenant_id=$2 for update',
+        [id, tenant],
+      )
+    ).rows[0]
+    if (!p) {
+      await client.query('rollback')
+      return null
+    }
+    if (p.estatus !== 'BORRADOR') {
+      throw new PropuestaError('Solo se borra un borrador. Una propuesta enviada se rechaza; una aprobada no se toca.')
+    }
+    const camp = (
+      await client.query('select 1 from campanas where propuesta_id=$1 and tenant_id=$2 limit 1', [id, tenant])
+    ).rows[0]
+    if (camp) throw new PropuestaError('Esta propuesta ya tiene campaña; no se puede borrar')
+    const del = await client.query(
+      `delete from propuestas where id=$1 and tenant_id=$2 and estatus='BORRADOR' returning folio, nombre`,
+      [id, tenant],
+    )
+    await client.query('commit')
+    return del.rows[0] ?? null
+  } catch (e) {
+    await client.query('rollback').catch(() => {})
+    throw e
+  } finally {
+    client.release()
+  }
+}
+
+// ─── PROP-COMPLETA (29/10) · agregar y quitar sitios ────────────────────────
+// Decisión del dueño: se puede en BORRADOR y en ENVIADA; en ENVIADA cambia lo
+// que el cliente tiene delante, así que SUBE LA VERSIÓN (renegociación), igual
+// que el descuento. Una APROBADA es inmutable (va como adenda) y una RECHAZADA
+// se reactiva por otro camino (el cupón), no tocándole las pantallas.
+//
+// Lo que NO se recalcula, a propósito: el paquete aplicado se queda con su
+// precio y su composición congelada, y `avisoPaqueteIncompleto` ya avisa en
+// cuanto la propuesta deja de cuadrar con él (PAQ-01: «se avisa y el precio no
+// se mueve»). El cupón es un porcentaje y se aplica solo a la base nueva.
+const EDITABLES_SITIOS = ['BORRADOR', 'ENVIADA']
+
+/** El estatus y el periodo de una propuesta (el de sus líneas). */
+export async function rangoDePropuesta(
+  id: string,
+): Promise<{ estatus: string; fechaInicio: string; fechaFin: string } | null> {
+  const r = await q1<any>(
+    `select p.estatus,
+            to_char(min(i.fecha_inicio), 'YYYY-MM-DD') as fecha_inicio,
+            to_char(max(i.fecha_fin), 'YYYY-MM-DD') as fecha_fin
+       from propuestas p
+       left join propuesta_items i on i.propuesta_id = p.id and i.tenant_id = p.tenant_id
+      where p.id = $1 and p.tenant_id = $2
+      group by p.estatus`,
+    [id, await tenantActual()],
+  )
+  if (!r) return null
+  if (!r.fecha_inicio || !r.fecha_fin) throw new PropuestaError('La propuesta no tiene periodo: no tiene sitios')
+  return { estatus: r.estatus, fechaInicio: r.fecha_inicio, fechaFin: r.fecha_fin }
+}
+
+async function armarEnTx(client: { query: (sql: string, params?: unknown[]) => Promise<any> }, id: string) {
+  const p = (
+    await client.query(
+      'select p.*, (select iva_pct from clientes c where c.id = p.cliente_id) as cliente_iva from propuestas p where p.id=$1',
+      [id],
+    )
+  ).rows[0]
+  const items = (await client.query('select * from propuesta_items where propuesta_id=$1 order by creado_en asc', [id])).rows
+  return armarPropuesta(p, items)
+}
+
+export async function agregarItems(
+  propuestaId: string,
+  items: PropuestaInput['items'],
+  rango: { fechaInicio: string; fechaFin: string },
+) {
+  const tenant = await tenantActual()
+  const vendedorId = (await usuarioActual())?.id ?? null
+  const client = await pool.connect()
+  try {
+    await client.query('begin')
+    await fijarTenant(client)
+    // La fila bloqueada: si alguien la aprueba a la vez, gana el primero y el
+    // segundo lee el estatus nuevo.
+    const p = (
+      await client.query('select estatus from propuestas where id=$1 and tenant_id=$2 for update', [propuestaId, tenant])
+    ).rows[0]
+    if (!p) {
+      await client.query('rollback')
+      return null
+    }
+    if (!EDITABLES_SITIOS.includes(p.estatus)) {
+      throw new PropuestaError('Solo se agregan sitios a una propuesta en borrador o enviada')
+    }
+    for (const it of items) {
+      await insertarItem(client, propuestaId, rango.fechaInicio, rango.fechaFin, it, tenant, vendedorId)
+    }
+    if (p.estatus === 'ENVIADA') {
+      await client.query('update propuestas set version = version + 1 where id=$1 and tenant_id=$2', [propuestaId, tenant])
+    }
+    const armada = await armarEnTx(client, propuestaId)
+    await client.query('commit')
+    return armada
+  } catch (e) {
+    await client.query('rollback').catch(() => {})
+    throw e
+  } finally {
+    client.release()
+  }
+}
+
+export async function quitarItem(itemId: string) {
+  const tenant = await tenantActual()
+  const client = await pool.connect()
+  try {
+    await client.query('begin')
+    await fijarTenant(client)
+    const it = (
+      await client.query('select propuesta_id from propuesta_items where id=$1 and tenant_id=$2', [itemId, tenant])
+    ).rows[0]
+    if (!it) {
+      await client.query('rollback')
+      return null
+    }
+    const p = (
+      await client.query('select estatus from propuestas where id=$1 and tenant_id=$2 for update', [it.propuesta_id, tenant])
+    ).rows[0]
+    if (!p || !EDITABLES_SITIOS.includes(p.estatus)) {
+      throw new PropuestaError('Solo se quitan sitios de una propuesta en borrador o enviada')
+    }
+    // Con la fila de la propuesta bloqueada, nadie más quita a la vez: el
+    // conteo no puede cambiar debajo.
+    const n = Number(
+      (await client.query('select count(*) as n from propuesta_items where propuesta_id=$1', [it.propuesta_id])).rows[0].n,
+    )
+    if (n <= 1) {
+      throw new PropuestaError('Una propuesta necesita al menos un sitio. Si ya no sirve, bórrala o recházala.')
+    }
+    await client.query('delete from propuesta_items where id=$1 and tenant_id=$2', [itemId, tenant])
+    if (p.estatus === 'ENVIADA') {
+      await client.query('update propuestas set version = version + 1 where id=$1 and tenant_id=$2', [it.propuesta_id, tenant])
+    }
+    const armada = await armarEnTx(client, it.propuesta_id)
+    await client.query('commit')
+    return armada
+  } catch (e) {
+    await client.query('rollback').catch(() => {})
     throw e
   } finally {
     client.release()
@@ -1357,7 +1635,16 @@ export async function asignarClienteAPropuestaAprobada(propuestaId: string, clie
 // el descuento de una propuesta ya ENVIADA, sube la versión (renegociación).
 export async function actualizarPropuesta(
   id: string,
-  input: { descuentoPct?: number; nombre?: string; notas?: string | null },
+  input: {
+    descuentoPct?: number
+    nombre?: string
+    notas?: string | null
+    // PROP-COMPLETA (29/10) · los términos de ESTA propuesta y su vigencia.
+    // No suben versión: no cambian el precio. La fecha ya viene validada
+    // (`AAAA-MM-DD`) por la ruta; `null` la quita (sin vigencia).
+    condiciones?: string | null
+    vigenteHasta?: string | null
+  },
 ): Promise<PropuestaActualizada | null> {
   const cur = await q1<any>(
     // PAQ-01 · las columnas del paquete entran en esta lectura porque deciden
@@ -1434,6 +1721,8 @@ export async function actualizarPropuesta(
   }
   if (input.nombre != null) { sets.push(`nombre=$${i++}`); vals.push(input.nombre) }
   if (input.notas !== undefined) { sets.push(`notas=$${i++}`); vals.push(input.notas) }
+  if (input.condiciones !== undefined) { sets.push(`condiciones=$${i++}`); vals.push(input.condiciones) }
+  if (input.vigenteHasta !== undefined) { sets.push(`vigente_hasta=$${i++}::date`); vals.push(input.vigenteHasta) }
   if (subeVersion) sets.push('version = version + 1')
   if (sets.length) await q(`update propuestas set ${sets.join(', ')} where id=$1`, vals)
 
@@ -1448,6 +1737,10 @@ export async function actualizarPropuesta(
 // S1-2: aprobar una propuesta con Total $0 (p. ej. descuento 100%) exige
 // confirmación explícita. El route la mapea a un aviso; el UI reconfirma.
 export class PropuestaCeroError extends PropuestaError {}
+
+// PROP-COMPLETA (29/10) · aceptar por la liga una propuesta vencida. Es un
+// `PropuestaError` para que la ruta pública lo conteste 409 como los demás.
+export class PropuestaVencidaError extends PropuestaError {}
 
 // COD-03 · aprobar por dentro con el cupón PENDIENTE. Clase propia para que la
 // ruta lo mapee a 409 sin cambiar el 400 que hoy devuelven los demás
@@ -1606,6 +1899,13 @@ export async function cambiarEstatusPropuesta(
       await q('update propuesta_items set aprobado=true where propuesta_id=$1', [id])
     }
   }
+  // PROP-COMPLETA (29/10) · al ENVIAR se le pone la vigencia: hoy + los días de
+  // la organización (30 por omisión). Al enviar y no al crear, porque un
+  // borrador que pasa dos semanas en el cajón no debe llegar al cliente con la
+  // mitad de su vigencia gastada. Una fecha ya puesta y vigente se respeta (la
+  // pudo alargar alguien a mano); reenviar una VENCIDA la renueva, que es lo
+  // que significa volver a mandarla. Solo se lee la configuración al enviar.
+  const diasVigencia = estatus === 'ENVIADA' ? await vigenciaPropuestaDelTenant() : 0
   // COD-03 · la segunda red de la regla de arriba, y la que de verdad cierra la
   // carrera: entre la comprobación y este update, alguien pudo aplicar un
   // cupón (el canje bloquea la fila y lo deja PENDIENTE). Con la condición en
@@ -1618,11 +1918,15 @@ export async function cambiarEstatusPropuesta(
             -- borra la del que se deja (una rechazada que se aprueba es una
             -- aprobada, no las dos cosas).
             aprobada_en  = case when $2::text = 'APROBADA'  then coalesce(aprobada_en, now()) else null end,
-            rechazada_en = case when $2::text = 'RECHAZADA' then coalesce(rechazada_en, now()) else null end
+            rechazada_en = case when $2::text = 'RECHAZADA' then coalesce(rechazada_en, now()) else null end,
+            vigente_hasta = case
+              when $2::text = 'ENVIADA' and (vigente_hasta is null or vigente_hasta < current_date)
+                then current_date + $3::int
+              else vigente_hasta end
       where id=$1
         and ($2::text <> 'APROBADA' or codigo_estado is distinct from 'PENDIENTE')
       returning *`,
-    [id, estatus],
+    [id, estatus, diasVigencia],
   )
   if (!rows.length) {
     if (estatus === 'APROBADA') {

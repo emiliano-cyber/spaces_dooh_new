@@ -5,6 +5,170 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-10-29 · DOOHmain: pausar creativos, su estado y el historial por pantalla (entra en la v0.12.5, todavía sin publicar)
+
+Pedido del dueño: subir y bajar creativos, ver el historial de reproducción y
+tener un link de comprobación. Se revisó qué deja hacer la API de DOOHmain y se
+integró lo que faltaba. Está en la ficha de cada campaña, en «Reproducciones
+(proof of play)».
+
+- **«En DOOHmain ahora».** Cada anuncio publicado aparece con las pantallas de
+  DOOHmain donde está y cómo lo ve DOOHmain en este momento: «Al aire», «En
+  pausa», «Programada» (todavía no empieza), «Terminó» (ya pasó su fecha fin),
+  «Finalizada», «Eliminada en DOOHmain» o «No está en DOOHmain» si la borraron
+  en su panel, y «Sin confirmar» si DOOHmain no contesta. Probado contra una
+  pantalla de pruebas real: DOOHmain sigue diciendo «activa» a una campaña
+  vencida o que aún no empieza, así que esas dos se calculan con las fechas.
+  Solo se ofrece «Pausar» o «Reanudar» donde sirve de algo.
+- **Pausar y reanudar.** Un anuncio se puede bajar del aire con «Pausar» y
+  volver a subir con «Reanudar», sin perderlo ni repetir la publicación. Es la
+  única forma de bajarlo que tiene vuelta: DOOHmain no deja quitar un anuncio de
+  su lista. Quitarlo para siempre sigue siendo la papelera del panel de
+  validación. La bitácora anota «Pausó creativo en DOOHmain» o «Reanudó…».
+- **Historial de sus pantallas.** Una pestaña nueva pide a DOOHmain lo que se
+  reprodujo, día por día, en las pantallas donde está la campaña. Ojo: incluye
+  también otras campañas de esas pantallas, así que sirve para ver que la
+  pantalla estuvo funcionando, pero **no cuenta como prueba de esta campaña** ni
+  la deja lista para facturar. Para eso sigue la pestaña «De esta campaña».
+- **Recordatorio al reemplazar un anuncio aprobado.** Antes de elegir el arte
+  nuevo, un aviso explica que el anterior se baja del aire en DOOHmain solo y
+  recuerda **eliminar la campaña anterior en el panel de DOOHmain**: no se puede
+  borrar desde aquí y la nueva lleva el mismo nombre (la anterior es la que
+  aparece como finalizada). El mensaje de «Arte reemplazado» lo repite.
+- **El link de comprobación no lo da DOOHmain.** Su API no tiene nada para
+  compartir un reporte. Se puede construir aquí, pero es una página que se abre
+  sin iniciar sesión, y eso espera la decisión del dueño.
+
+---
+
+## 2026-10-29 · v0.12.5 (preparada, todavía sin publicar)
+
+Junta lo que sigue: extender campaña solo con contrato, la ubicación por
+coordenadas en Comercial negociación y las correcciones de precios y reportes.
+Trae un cambio de base de datos aprobado por el dueño (`campana_extensiones`).
+
+**Propuestas, completas.** Decisiones del dueño del 29/10, una por una. Trae un
+segundo cambio de base de datos, también aprobado: las condiciones, la vigencia
+y el nombre del vendedor de cada propuesta.
+
+- **«Generar PDF» ya funciona.** Antes el botón no hacía nada. Ahora abre, en
+  otra pestaña, el documento que se le entrega al cliente: el logo de la
+  organización, las pantallas con su foto, el mapa, los importes (los mismos que
+  ve el cliente en su liga), los términos y condiciones, y la liga con un código
+  QR para aceptarla en línea. Se guarda como PDF con «Imprimir». Si hay un código
+  de negociación que todavía no se aprueba, el documento no lo enseña, igual que
+  la liga.
+- **«Enviar» manda la propuesta por correo.** Pide el correo del cliente (lo
+  propone del contacto del cliente) y un mensaje opcional, y manda la liga. Quien
+  la envía recibe copia; si el cliente responde, le contesta al correo de la
+  organización. Si el correo no sale, la propuesta no cambia y se puede
+  reintentar. En una instalación sin correo configurado, solo la marca como
+  enviada y avisa de que la liga hay que mandarla a mano. Una propuesta ya
+  enviada se puede **reenviar**.
+- **Vigencia.** Al enviarla, la propuesta vale **30 días** (cada organización lo
+  cambia en Administración → «Propuestas: vigencia y condiciones»). El último día
+  todavía vale. Vencida, el cliente ve «venció el …» y ya no puede aceptarla; por
+  dentro se le pone otra fecha en la ficha o se reenvía, y vuelve a valer. Las
+  propuestas enviadas antes de hoy no tienen vigencia y se siguen aceptando como
+  siempre.
+- **Términos y condiciones.** En Administración se escribe una plantilla; cada
+  propuesta nueva la copia y se puede ajustar en su ficha («Condiciones y
+  vigencia»). Cambiar la plantilla no toca las propuestas ya creadas. Salen en el
+  documento y en la liga, antes del botón de aceptar.
+- **Agregar y quitar pantallas** a una propuesta en borrador o enviada. Las
+  nuevas se cotizan con las fechas de la propuesta y con la tarifa de hoy, con las
+  mismas reglas que al crearla (un vendedor no puede poner otro precio). Si ya
+  estaba enviada, sube de versión. No se puede quitar la última pantalla.
+- **Duplicar:** crea una propuesta nueva con las mismas pantallas, cliente y
+  fechas, cotizada con la tarifa de hoy y sin el código de negociación.
+- **Borrar** un borrador. Las enviadas no se borran (se rechazan) y las
+  aprobadas no se tocan. Si el borrador tenía un código de negociación, su uso se
+  devuelve.
+- **El vendedor que se va no pierde sus ventas.** Si se borra a un usuario, sus
+  propuestas conservan su nombre, y Reportes y el Dashboard lo siguen nombrando en
+  vez de mandar su dinero a «Sin vendedor».
+- Decidido sin cambiar nada: si una campaña se programa en un horario distinto
+  del que se vendió, el sistema **solo avisa**, como hasta ahora.
+
+
+**Una campaña solo se extiende con un contrato nuevo.** Decisión del dueño:
+«Extender campaña» vuelve a estar a la mano, en la ficha de cada campaña, pero
+para alargarla hay que adjuntar en ese mismo paso el contrato firmado de la
+extensión (en PDF).
+
+- En la ficha de la campaña hay una tarjeta nueva, **«Extensiones»**, con el
+  botón «Extender campaña». Pide la nueva fecha de fin y el contrato firmado;
+  sin el contrato no deja extender, y el sistema lo rechaza aunque se intente
+  por otro camino: «Para extender la campaña adjunta el contrato firmado de la
+  extensión».
+- Cada extensión queda en el expediente de la campaña: con qué folio quedó
+  (por ejemplo PR-2026-0042.1), de qué fecha a qué fecha, quién la hizo y su
+  contrato, que se puede abrir desde la misma tarjeta.
+- El contrato original del cliente no se toca: el de cada extensión se guarda
+  aparte.
+- La bitácora anota «Extendió campaña … hasta … con contrato».
+- Ya no se puede «extender» a la misma fecha que la campaña ya tiene: no
+  alargaría nada.
+- Una campaña que tiene extensiones no se puede borrar, para que sus contratos
+  firmados no se pierdan nunca.
+
+Trae un cambio de base de datos, aprobado por el dueño: una tabla nueva para las
+extensiones y sus contratos.
+
+**En Comercial negociación, la ubicación de un espacio se pone por coordenadas o
+por calle.** Decisión del dueño. En el bloque «Ubicación» de cada espacio, la caja
+de búsqueda (el botón ahora dice «Ubicar») acepta, además de una dirección:
+
+- **Coordenadas**, como las copia Google Maps: `19.4326, -99.1332` o
+  `19°25'57.4"N 99°07'59.5"W`. El pin se pone ahí al instante, sin buscar nada.
+- **Un enlace de Google Maps**, el largo que sale en el navegador o el corto que
+  da «Compartir» en el teléfono (`maps.app.goo.gl/…`).
+
+Después se afina arrastrando el pin y se guarda, como antes. Esto funciona en
+todas las instalaciones, **sin clave y sin costo**. Si las coordenadas están fuera
+de rango (por ejemplo, pegadas al revés) o el enlace no es de Google Maps, la
+pantalla lo dice en vez de poner el pin en otro lado.
+
+**El buscador de calles puede ser el de Google** si el dueño de la instalación
+pone su propia clave de Google en la configuración del servidor
+(`GOOGLE_MAPS_SERVIDOR_KEY`). Sin clave sigue el de OpenStreetMap, como hasta
+ahora. La clave se queda en el servidor: nunca llega al navegador. **Todavía nadie
+lo ha probado con una clave real de Google**, y falta revisar sus condiciones de
+uso antes de encenderlo. Los mapas siguen siendo los de siempre: no se decidió
+poner mapas de Google en ninguna pantalla.
+
+**Franjas y temporadas ya pide la contraseña cuando tu organización la exige.**
+Si el control de cambios está encendido, al añadir o dar de baja una franja o una
+temporada aparece un cuadro para escribir tu contraseña y confirmar. Antes salía
+un mensaje en rojo y no había forma de terminar el cambio desde esa pantalla.
+
+**Una propuesta aprobada solo nombra la temporada si fue la que puso el precio.**
+Antes, una venta hecha en fechas del Buen Fin pero cobrada a la tarifa normal
+quedaba guardada diciendo «Buen Fin», como si se hubiera cobrado ese precio.
+Ahora, al aprobar, la temporada solo se anota si de verdad fue su tarifa la que se
+cobró; si no, se deja en blanco. Las propuestas que ya estaban aprobadas no
+cambian.
+
+**Reportes: vender dos horarios de la misma pantalla ya no la saca de «tarifa
+publicada contra neta».** Si en una propuesta se vendían, por ejemplo, el horario
+prime y la madrugada de la misma pantalla, el reporte no sabía qué precio era de
+cuál y dejaba esa pantalla fuera de la comparación. Ahora distingue cada horario.
+
+**Al generar una campaña, cada pantalla se cobra a su precio aunque se repita.**
+Si una propuesta llevaba la misma pantalla dos veces (por ejemplo, el horario
+prime y la madrugada, o dos periodos), la campaña guardaba las dos con el precio
+de la última. Así se cobraba menos, o más, de lo cotizado. Ahora cada una lleva
+el suyo. Las campañas ya creadas no cambian. Hay una consulta para que el dueño
+revise si alguna quedó afectada.
+
+**Reportes: como máximo 24 meses por consulta.** Por decisión del dueño, el
+reporte de rentabilidad abarca hasta dos años de una vez. Si se eligen fechas más
+separadas, la pantalla lo avisa («El reporte abarca como máximo 24 meses por
+consulta. Acorta el rango de fechas.») y no lo calcula; así un inventario grande
+no deja la pantalla cargando sin fin.
+
+---
+
 ## 2026-10-27 · v0.12.4 (preparada, todavía sin publicar)
 
 Junta en una sola versión lo que se cuenta abajo en las entradas del 26 y del

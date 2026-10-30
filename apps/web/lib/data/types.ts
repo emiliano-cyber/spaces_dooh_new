@@ -596,6 +596,16 @@ export interface Propuesta {
   aprobadaEn?: string | null
   rechazadaEn?: string | null
   vendedorId?: string | null
+  // P19 (29/10) · el nombre del vendedor congelado al crear: sobrevive al
+  // borrado del usuario.
+  vendedorNombre?: string | null
+  // PROP-COMPLETA (29/10) · términos de ESTA propuesta (copiados de la
+  // plantilla al crear) y su vigencia. `vigenteHasta` se pone al enviar; null =
+  // sin vigencia (todo lo enviado antes del 29/10). `vencida` lo calcula el
+  // servidor con `lib/propuesta-vigencia.ts`.
+  condiciones?: string | null
+  vigenteHasta?: string | null
+  vencida?: boolean
   items: PropuestaItem[]
   // Calculados con el método del divisor (server-side):
   bruto: number         // Σ precio de los items (tarifa de lista)
@@ -930,6 +940,10 @@ export interface ConfigNegocio {
   // /api/estado a TODOS los roles a propósito: quien vende necesita saber su
   // techo para que el formulario lo diga antes de mandar, no después.
   topeDescuentoPct: number
+  // PROP-COMPLETA (29/10) · plantilla de condiciones que se copia a cada
+  // propuesta nueva, y días de vigencia que se le dan al enviarla (30).
+  condicionesPropuesta?: string | null
+  vigenciaPropuestaDias?: number
   // Costo de mano de obra por TIPO de orden de trabajo. Objeto VACÍO = esta
   // organización no ha configurado ninguno, y entonces manda el respaldo de
   // `lib/costos-ot.ts`. Un tipo ausente cae al respaldo, nunca a 0.

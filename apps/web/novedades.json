@@ -1,5 +1,79 @@
 [
   {
+    "version": "v0.12.5",
+    "fecha": "2026-10-29",
+    "items": [
+      {
+        "tipo": "NUEVO",
+        "texto": "«Generar PDF» de una propuesta abre el documento para el cliente: pantallas con foto, mapa, importes, términos y condiciones, y la liga con su código QR. Se guarda como PDF desde «Imprimir»."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "«Enviar» manda la propuesta por correo al cliente, con un mensaje opcional y copia para ti. En una propuesta ya enviada el botón es «Reenviar»."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Las propuestas tienen vigencia: al enviarlas valen 30 días (cada organización lo cambia en Administración). Vencida, el cliente ya no puede aceptarla desde su liga; por dentro se le pone otra fecha o se reenvía."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Términos y condiciones en las propuestas: una plantilla en Administración que cada propuesta copia al crearse y se puede ajustar en su ficha."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "A una propuesta en borrador o enviada se le pueden agregar y quitar pantallas. Si ya estaba enviada, sube de versión."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "«Duplicar» crea una propuesta nueva con las mismas pantallas y el mismo cliente, cotizada con la tarifa de hoy. «Borrar» quita un borrador (y devuelve el uso del código de negociación, si tenía)."
+      },
+      {
+        "tipo": "CORREGIDO",
+        "texto": "Si se borra a un vendedor, sus ventas siguen saliendo a su nombre en Reportes y en el Dashboard, en vez de pasar a «Sin vendedor»."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Extender una campaña ahora pide el contrato firmado de la extensión. En la ficha de la campaña, la tarjeta «Extensiones» tiene el botón «Extender campaña» y la lista de extensiones con su folio, fechas, quién la hizo y su contrato. El contrato original no se toca."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "En Comercial negociación la ubicación se pone pegando coordenadas (19.4326, -99.1332 o 19°25'57.4\"N 99°07'59.5\"W) o un enlace de Google Maps, también el corto del teléfono. El pin se pone ahí y se afina arrastrándolo."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "En la ficha de la campaña, «Reproducciones» muestra cada anuncio publicado con sus pantallas de DOOHmain y cómo está allí: al aire, en pausa, programado, terminado o finalizado (y si lo borraron en DOOHmain, también lo dice). Un anuncio se puede pausar y reanudar sin perderlo ni volver a publicarlo."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Pestaña «Historial de sus pantallas»: lo que DOOHmain registró día por día en las pantallas de la campaña. Incluye otras campañas de esas pantallas, así que no cuenta como prueba de esta ni la deja lista para facturar."
+      },
+      {
+        "tipo": "CORREGIDO",
+        "texto": "Al generar una campaña desde una propuesta con la misma pantalla en dos horarios o dos periodos, cada reserva lleva el importe de su línea. Antes las dos tomaban el de la última. Las campañas ya generadas no cambian."
+      },
+      {
+        "tipo": "CORREGIDO",
+        "texto": "Una propuesta aprobada solo nombra la temporada si fue la que puso el precio."
+      },
+      {
+        "tipo": "CORREGIDO",
+        "texto": "Reportes: vender dos horarios de la misma pantalla ya no la saca de «tarifa publicada vs neta»."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "Reemplazar un anuncio aprobado avisa antes que el anterior se baja del aire en DOOHmain y recuerda eliminar su campaña en el panel de DOOHmain (la que aparece como finalizada)."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "Franjas y temporadas pide la contraseña cuando el control de cambios está encendido, en vez de mostrar un error sin salida."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "El reporte de rentabilidad se pide de hasta 24 meses por consulta."
+      }
+    ]
+  },
+  {
     "version": "v0.12.4",
     "fecha": "2026-10-27",
     "items": [

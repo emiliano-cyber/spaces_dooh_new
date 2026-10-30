@@ -1,10 +1,11 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-10-23
+actualizado: 2026-10-29
 tags: [datos, esquema, er, postgres]
 archivos:
   - db/schema.sql
+  - db/migrations/20261029_campana_extensiones.sql
   - db/migrations/20261022_comercial_negociacion.sql
   - db/migrations/20261022_campana_horario_doohmain.sql
   - db/migrations/20261022_pantallas_propias.sql
@@ -33,7 +34,7 @@ archivos:
 > [!important] 2026-10-05 · puesta al día — lo que abajo dice «pendiente» o «SIN FUSIONAR» YA ESTÁ en `main`
 > Medido hoy con `node scripts/recuentos.mjs` sobre el árbol de
 > `integra/riesgos-presentacion-14-oct` (salida de `main` en `09c65ca2`):
-> **64 tablas y 117 migraciones** (22/10, la 117 es `20261022_campana_horario_doohmain.sql`, tres columnas en `campanas` sin tabla nueva; con las cuatro de Comercial negociación
+> **66 tablas y 122 migraciones** (29/10, con `20261029_propuestas_condiciones_vigencia_vendedor.sql`: cinco columnas en `propuestas` y `config_negocio`, ninguna tabla) — antes **66 y 121** (29/10, con `20261029_campana_extensiones.sql`, que crea `campana_extensiones`, EXT-CONTRATO) — antes **64 tablas y 117 migraciones** (22/10, la 117 es `20261022_campana_horario_doohmain.sql`, tres columnas en `campanas` sin tabla nueva; con las cuatro de Comercial negociación
 > —`prospecto_contactos`, `prospecto_ofertas`, `prospecto_competencia`,
 > `prospecto_notas`— en `20261022_comercial_negociacion.sql`, NEG-01) — antes
 > **60 tablas y 115 migraciones** (21/10, con `notificaciones_usuario` y
@@ -642,6 +643,9 @@ erDiagram
 ### Comercial · fechas de estatus
 `propuestas.aprobada_en` y `propuestas.rechazada_en` (06/10, PROP-PER): cuándo se aprobó o rechazó, para el tablero por periodo.
 
+### Comercial · extensiones de campaña con su contrato
+`campana_extensiones` (29/10, EXT-CONTRATO, aprobada por el dueño en forma restrict): una fila por extensión de una campaña — el `folio` con el tramo que abrió (FOLIO-VENTA, `.1`, `.2`…), `fecha_fin_anterior` y `fecha_fin_nueva` (CHECK: la nueva es posterior), `contrato_url` (el PDF firmado de la extensión, obligatorio y no vacío) y quién (`usuario_id` + `usuario_nombre` copiado). `campana_id` es **on delete restrict**: una campaña con extensiones no se puede borrar, los contratos no se pierden. Solo se inserta (el `revoke` de update/delete/truncate va en la misma migración) y RLS forzada. Existe porque `campanas.contrato_url` es una sola columna y escribir ahí el contrato de la extensión borraba el original. Ver [[02-Backend/comercial-propuestas-campanas]].
+
 ### Arrendadores · versiones firmadas archivadas
 `contrato_versiones_firmadas` (23/10, CONTRATO-FIRMADO-EDITABLE): cada versión firmada de un contrato que se dejó de usar al editarlo o reenviarlo a firma — `version` (1, 2… por contrato, único con `contrato_id`), el texto exacto (`documento_congelado`) y su `documento_hash`, la evidencia de cada firma en `firmas` (jsonb: parte, firmante, fecha, IP, navegador, hash), `motivo` y quién (`usuario_id` + `usuario_nombre` copiado). Solo se inserta: el `revoke` de update/delete/truncate va en la misma migración, y lo comprueba `has_table_privilege` en la e2e. `contrato_cambios.version_firmada` liga cada cambio con la versión que archivó. Ver [[02-Backend/arrendadores-y-contratos]].
 
@@ -737,7 +741,7 @@ Restricciones **UNIQUE globales** (sin tenant): `sitios.clave_interna`,
 |---|---|
 | `usuarios` | `sesiones`, `identidades_externas`, `password_resets` |
 | `sitios` | `sitio_modalidades`, `incidencias` |
-| `campanas` | `reservas`, `creatividades`, `ordenes_compra`, `ordenes_impresion` |
+| `campanas` | `reservas`, `creatividades`, `ordenes_compra`, `ordenes_impresion`, `campana_extensiones` (**restrict**: no borra, impide borrar) |
 | `contratos_arrendamiento` | `pagos_renta`, `contrato_firmas`, `contrato_cambios`, `contrato_versiones_firmadas` |
 | `propuestas` | `propuesta_items` |
 | `facturas` | `cobranzas` |

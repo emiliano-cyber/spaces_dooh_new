@@ -1,7 +1,7 @@
 ---
 tipo: moc
 estado: verificado
-actualizado: 2026-10-23
+actualizado: 2026-10-29
 tags: [indice, entrada]
 archivos:
   - package.json
@@ -27,9 +27,9 @@ cobranza.
 | Base de datos | PostgreSQL, `pg` directo (sin ORM) | `apps/web/lib/server/db.ts:2` |
 | Aislamiento | RLS de Postgres por `app.tenant_id` | `apps/web/lib/server/db.ts:59` (`fijarTenant`) y `:74` (`q`) |
 | Producción | **El PADRE `137.184.107.53` sirve `space-os.io`**, certificado propio hasta el **2026-11-23** con renovación automática. DEMO vive dentro de él (proceso `3001`, base `spaces_demo`) y desde el **31/08 se llama `prueba.space-os.io`** —en singular: es el `server_name` de `infra/nginx/space-os.io.conf:288`; esta celda decía `pruebas` hasta el 05/10— — nombre nuevo, no `demo.space-os.io`, que es solo la demostración ORIGINAL, la sirve la máquina vieja y **se eliminará** ([ADR 0024](../../docs/adr/0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md), que sustituye al 0021) | `infra/nginx/space-os.io.conf:133` (`space-os.io`), `:213` (`demo.`) y `:288` (`prueba.`) · [ADR 0017](../../docs/adr/0017-todo-se-concentra-en-el-padre.md) · [ADR 0024](../../docs/adr/0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md) · [ADR 0022](../../docs/adr/0022-instancia-dedicada-por-owner.md) |
-| Endpoints | **155** route handlers (23/10, con `GET /api/contratos/[id]/versiones`; 154 el 22/10, con las nueve de Comercial negociación, la vista previa de DOOHmain y el horario individual) | `apps/web/app/api/**/route.ts` |
-| Tablas | **65** (23/10, con `contrato_versiones_firmadas`; 64 el 22/10, con las cuatro de Comercial negociación) | [[esquema]] |
-| Migraciones | **120** (27/10, la integracion de la v0.12.4: `20261023_contrato_versiones_firmadas.sql` y `20261026_reserva_estatus_por_omision.sql`, TENT-PROP; 118 el 22/10, con `20261022_comercial_negociacion.sql`, `_campana_horario_doohmain.sql` y `_pantallas_propias.sql`) | [[migraciones]] |
+| Endpoints | **159** route handlers (29/10, DOOH-API: `GET /api/campanas/[id]/doohmain-estado` y `POST /api/creatividades/[id]/doohmain`, y PROP-COMPLETA: `POST /api/propuestas/[id]/enviar` y `POST /api/propuestas/[id]/items`; 155 el 23/10, con `GET /api/contratos/[id]/versiones`; 154 el 22/10, con las nueve de Comercial negociación, la vista previa de DOOHmain y el horario individual) | `apps/web/app/api/**/route.ts` |
+| Tablas | **66** (29/10, con `campana_extensiones`, EXT-CONTRATO; 65 el 23/10, con `contrato_versiones_firmadas`; 64 el 22/10, con las cuatro de Comercial negociación) | [[esquema]] |
+| Migraciones | **122** (29/10, con `20261029_propuestas_condiciones_vigencia_vendedor.sql`, PROP-COMPLETA; 121 con `20261029_campana_extensiones.sql`, EXT-CONTRATO; 120 el 27/10, la integracion de la v0.12.4: `20261023_contrato_versiones_firmadas.sql` y `20261026_reserva_estatus_por_omision.sql`, TENT-PROP; 118 el 22/10, con `20261022_comercial_negociacion.sql`, `_campana_horario_doohmain.sql` y `_pantallas_propias.sql`) | [[migraciones]] |
 | ADR | **47** (`0001`–`0047`) | `docs/adr/` · [[decisiones]] |
 
 > [!success] `demo.space-os.io` SE ELIMINARÁ — cerrado el 27/08 por el ADR 0024
@@ -154,7 +154,8 @@ cobranza.
   cuando el `=` de la consulta va percent-encoded
 - [[auditoria-cuatro-rojo-20260820]] — auditoría de los cuatro ROJO del 20/08
 - [[_plantilla-diaria]] — plantilla del diario
-- [[2026-10-07]] — **última entrada**: las cinco ramas del 06/10 en `main`, los cambios de contrato antes de firmar, las licencias de Space Eyes para José y las notas de `v0.10.0`
+- [[2026-10-29]] — **última entrada**: DOOHmain probado contra una pantalla real (pausa, estado, historial, reemplazo), sus dos defectos de estatus, y PROP-COMPLETA integrada en la v0.12.5
+- [[2026-10-07]] — las cinco ramas del 06/10 en `main`, los cambios de contrato antes de firmar, las licencias de Space Eyes para José y las notas de `v0.10.0`
 - [[2026-10-06]] — seis ramas esperando al dueño (invitación, finanzas por periodo, tablero de propuestas, Space Eyes, slots libres, descuento 0.00) y el entorno local de pruebas
 - [[2026-10-05]] — auditoría de la bóveda, cuatro riesgos y la bóveda al día para el 14/10
 - [[2026-10-02]] — el registro lleno y el PADRE en blanco

@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-23
+actualizado: 2026-10-29
 tags: [backend, integraciones, terceros, cron]
 archivos:
   - apps/web/lib/server/doohmain.ts
@@ -10,6 +10,12 @@ archivos:
   - db/migrations/20261013_sitios_pantalla_doohmain.sql
   - apps/web/components/demo/campanas/ValidacionPanel.tsx
   - apps/web/lib/doohmain-aviso.ts
+  - apps/web/lib/doohmain-estado.ts
+  - apps/web/lib/server/playlogs-repo.ts
+  - apps/web/app/api/campanas/[id]/doohmain-estado/route.ts
+  - apps/web/app/api/creatividades/[id]/doohmain/route.ts
+  - apps/web/components/demo/campanas/CreativosEnDoohmain.tsx
+  - doohmain_sdk/integration.py
   - apps/web/lib/doohmain-programacion.ts
   - apps/web/components/demo/campanas/ProgramacionDoohmain.tsx
   - apps/web/lib/server/horario-doohmain.ts
@@ -32,6 +38,9 @@ archivos:
   - apps/web/lib/email-remitente.ts
   - apps/web/next.config.mjs
   - infra/env/app.env.example
+  - apps/web/lib/interpretar-ubicacion.ts
+  - apps/web/lib/server/geo-buscar.ts
+  - apps/web/lib/server/geo-enlace.ts
 ---
 
 # Integraciones externas
@@ -48,6 +57,49 @@ sin romperse.
 | DOOHmain | `DOOHMAIN_PUBLISH_ENABLED=1` | Detrás de flag |
 | Space Eye | `spaceEyeHabilitado()` — URL + credenciales | Configurable |
 | AdMobilize, CMS, PAC CFDI | `lib/server/integraciones.ts` | **Modo demo simulado** |
+| Buscador de calles (Comercial negociación) | `GOOGLE_MAPS_SERVIDOR_KEY` — con ella Google, sin ella OpenStreetMap | **Sin clave en la flota** (29/10): Nominatim |
+
+## Buscador de calles y enlaces de Google Maps (UBIC-01, 29/10)
+
+Decisión del dueño del 2026-10-29 (ADR 0041, ya **Aceptada** en esta parte): en
+Comercial negociación la ubicación se pone **por coordenadas o por calle**.
+Todo corre en el **servidor**, detrás de `GET /api/geo/buscar` con el permiso
+`captacion:ver`; el navegador no habla con Google ni con OpenStreetMap, así que
+**la CSP no cambia** y la clave **no llega nunca al navegador**.
+
+| Lo que se pega | Quién lo resuelve | Sale a la red |
+|---|---|---|
+| Coordenadas (decimales, grados/minutos/segundos) | `lib/interpretar-ubicacion.ts`, puro, en el navegador **y** otra vez en el servidor | No |
+| Enlace largo de Google Maps (`/@lat,lng`, `/place/…`, `!3d…!4d…`, `?q=`, `?query=`, `?ll=`) | El mismo módulo: las coordenadas van en la URL | No |
+| Enlace corto (`maps.app.goo.gl/…`, `goo.gl/maps/…`) | `lib/server/geo-enlace.ts` | Sí: solo a esos dos hosts, por https |
+| Una dirección | `lib/server/geo-buscar.ts` | Sí: Google con clave, Nominatim sin ella |
+
+**El proveedor se elige en cada búsqueda** leyendo `GOOGLE_MAPS_SERVIDOR_KEY` del
+`app.env` de la instancia (vacía o con espacios = sin clave). Es tiempo de
+ejecución, como `GOOGLE_OAUTH`: la misma imagen sirve con clave y sin ella. Es una
+clave **de servidor** (en Google Cloud: restringida por la IP del servidor y solo a
+la **Geocoding API**), no la «de navegador» restringida por dominio que el ADR 0041
+describe para el día que haya mapas de Google en pantalla. **Nadie la ha probado con
+una clave real**: las pruebas simulan las respuestas de Google.
+
+- Con Google **no** se aplica la espera de 1/s (es la política de Nominatim); el
+  gasto lo acotan el tope de 30 búsquedas por persona cada 10 min, la memoria de
+  24 h (por proveedor) y el tope de gasto que el owner ponga en su cuenta.
+- Un `REQUEST_DENIED` u `OVER_QUERY_LIMIT` es un **502 con frase** que dice «revisa
+  la clave»; **no** se cae a OpenStreetMap a escondidas, y el mensaje de Google no
+  se reenvía (puede traer la clave).
+- **Seguir un enlace corto es SSRF en potencia**, y por eso: solo se pide un enlace
+  corto de Google por https (lista cerrada de hosts, sin usuario ni puerto); las
+  redirecciones se siguen a mano (`redirect: 'manual'`) y cada salto se revisa; un
+  destino de Google Maps se **lee** sin pedirlo; cualquier otro destino se corta sin
+  pedirlo; máximo 5 saltos y 6 s por salto; no se lee el cuerpo. Cada enlace corto
+  cuenta para el tope por persona.
+- **Términos de Google:** de sus resultados solo se guarda sin límite el `place_id`
+  (va a `prospectos.ubicacion_place_id` cuando la persona elige un candidato de
+  Google y no mueve el pin). Las coordenadas que se guardan son las que la persona
+  confirma en el mapa. **Queda por verificar** si mostrar un candidato de Google
+  sobre el mapa MapLibre (no de Google) cumple sus términos: el ADR lo deja escrito
+  como riesgo abierto.
 
 ## DOOHmain — publicación en pantallas
 
@@ -186,6 +238,66 @@ flowchart LR
 
 `playlogs-repo.ts` guarda la respuesta **cruda** de la API a propósito: *«aún no
 hemos visto una respuesta con datos, así que no se interpreta nada todavía»*.
+
+> [!important] 2026-10-29 · lo que la API v2.8.4 permite y faltaba (DOOH-API, rama `feat/doohmain-api-completa`)
+> Pedido del dueño: subir y bajar creativos, historial de reproducción y link de
+> comprobación. Revisada la API acción por acción contra lo integrado:
+>
+> | Acción | Antes | Ahora |
+> |---|---|---|
+> | `upload` + `create_spot` | publicar | igual |
+> | `update_campaign` `status` | solo `finished` al retirar | **pausar / reanudar** (`pause`/`active`) |
+> | `get_campaigns` | en el cliente, sin uso | **estado en DOOHmain** de cada creativo |
+> | `get_stats` | proof of play por campaña | igual |
+> | `get_metrics` | en el SDK, sin ruta | **historial por pantalla**, `details` + `days` |
+> | `get_stats_by_screen` | no | no — guardarla pide ampliar el `check` de `doohmain_consultas_play.tipo` (migración, ROJO) y `get_metrics` ya cubre la pantalla |
+> | `update_client`, `get_screen_info`, `get_clients` | — | sin cambio |
+>
+> - **Bajar = pausar.** La API no deja quitar un arte de la lista (no hay
+>   `delete_spot` ni `delete_media`). `estado` del SDK (`cambiar_estado()` en
+>   `doohmain_sdk/integration.py`) hace `update_campaign` con `pause` o `active` y **no
+>   toca el registro**: el creativo sigue publicado y vuelve con su programación.
+>   `finished` no se acepta ahí: no tiene vuelta, y eso es el DELETE del creativo.
+>   Ruta: `POST /api/creatividades/[id]/doohmain`, con el mismo orden que el DELETE
+>   (propio ANTES de tocar DOOHmain).
+> - **Estado:** `GET /api/campanas/[id]/doohmain-estado` → `get_campaigns`, leído por
+>   `lib/doohmain-estado.ts`. Lo que no se reconoce sale `null` («Sin confirmar»),
+>   nunca «al aire» por omisión. **Ojo con la forma:** DOOHmain contesta envuelto,
+>   `{ campaigns: { <auth>: { status, start_date, end_date, … } } }`, no indexado por
+>   `auth` en la raíz como dice el PDF. Visto el 29/10 contra la pantalla de pruebas
+>   `adv_004`: la primera versión no lo leía y la ficha decía «Sin confirmar» aunque la
+>   pausa sí llegaba.
+> - **El `status` no sigue a las fechas.** Medido contra `adv_004`: con el fin en el
+>   pasado o el inicio en el futuro, DOOHmain sigue diciendo `active`. El estado que se
+>   enseña lo corrige `estadoDeCampanaRemota(payload, auth, hoy)` con la fecha de
+>   México (`hoyEnMexico()`): `vencida` («Terminó») y `programada`. Solo se corrige
+>   un `active`; una pausa se enseña aunque esté vencida. `deleted: "1"` es
+>   `eliminada`, y un auth que no viene en `{ campaigns: [] }` es `no_encontrada`
+>   (DOOHmain responde `[]` para un auth que no tiene) — distinto de `null`, que es
+>   «no contestó». Los botones salen de `accionesDoohmain()`.
+> - **Probado contra DOOHmain real el 29/10** (pantalla de pruebas, base local):
+>   publicar, pausar (`status` pasa a `pause` en DOOHmain), reanudar (`active`),
+>   `get_stats` y `get_metrics` (responden `{ stats: [] }` y `{ metrics: [] }` sin
+>   reproducciones aún) y reemplazar: quedan DOS campañas con el mismo nombre en la
+>   misma lista, la vieja `finished` con fechas del 2000 y la nueva `active`. Una
+>   campaña SIN folio publica con la lista vacía y DOOHmain responde «Debe pasar
+>   nombre de la lista» (las de una propuesta siempre traen folio).
+> - **Historial por pantalla:** `POST …/playlogs` con `tipo: 'pantallas'` → `get_metrics`
+>   de las pantallas donde de verdad se publicó (`doohmain_remote_lists`). Se guarda como
+>   `metrics` y **no enciende `reporte_publicacion`**: trae lo de otras campañas de esa
+>   pantalla, así que no prueba esta.
+> - Las tres consultas filtran el tenant **a mano** (`creatividades.tenant_id`): las
+>   tablas del SDK no tienen RLS. Prueba: `lib/test/doohmain-estado.e2e.test.ts`.
+> - **Link de comprobación: la API no lo tiene.** Habría que construirlo (página
+>   pública con token): es acceso sin sesión, ROJO, y espera decisión.
+> - La pantalla: «En DOOHmain ahora» y la pestaña «Historial de sus pantallas» dentro de
+>   «Reproducciones (proof of play)» (`CreativosEnDoohmain.tsx`, `PlaylogsPanel.tsx`).
+> - **Reemplazar un creativo APROBADO pide confirmación** (`creativos/page.tsx`, pedido
+>   del dueño): avisa que el arte anterior se baja solo (el PUT lo finaliza, como hasta
+>   hoy) y recuerda eliminar su campaña en el panel de DOOHmain. Hace falta porque la
+>   campaña nueva se crea con el MISMO nombre (`{anunciante} - {campaña}`) en la misma
+>   sublista (el folio): la anterior solo se distingue por estar finalizada. Un
+>   creativo no aprobado nunca se publicó y se reemplaza sin el aviso.
 
 ## Space Eye — verificación por cámara
 

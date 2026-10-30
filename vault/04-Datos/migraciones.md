@@ -1,7 +1,7 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-10-26
+actualizado: 2026-10-29
 tags: [datos, migraciones, despliegue, rojo]
 archivos:
   - db/migrations/
@@ -50,6 +50,8 @@ archivos:
   - db/migrations/20261022_comercial_negociacion.sql
   - db/migrations/20261022_campana_horario_doohmain.sql
   - db/migrations/20261022_pantallas_propias.sql
+  - db/migrations/20261029_propuestas_condiciones_vigencia_vendedor.sql
+  - db/migrations/20261029_campana_extensiones.sql
   - db/migrations/20261026_reserva_estatus_por_omision.sql
   - db/migrations/20261023_contrato_versiones_firmadas.sql
 ---
@@ -59,7 +61,7 @@ archivos:
 > [!important] 2026-10-05 · puesta al día — ninguna de las de abajo está ya «sin fusionar»
 > Medido hoy con `node scripts/recuentos.mjs` sobre el árbol de
 > `integra/riesgos-presentacion-14-oct` (salida de `main` en `09c65ca2`):
-> **117 migraciones y 64 tablas** (22/10, con `20261022_campana_horario_doohmain.sql`, tres columnas en `campanas`) (22/10, 116 y 64, con `20261022_comercial_negociacion.sql`, que crea las cuatro tablas de Comercial negociación) (21/10, 115 y 60, con `20261021_notificaciones_por_usuario.sql`, que crea `notificaciones_usuario`: esta vez el 60 es una tabla de verdad) (19/10, 114 y 59, con `20261019_cobranza_abono_comprobante.sql`; antes 113) —el «60» que decía aquí el 13/10 era falso:
+> **122 migraciones y 66 tablas** (29/10, con `20261029_propuestas_condiciones_vigencia_vendedor.sql`, cinco columnas y ninguna tabla) (29/10, 121, con `20261029_campana_extensiones.sql`, que crea `campana_extensiones`) (22/10, 117 y 64, con `20261022_campana_horario_doohmain.sql`, tres columnas en `campanas`) (22/10, 116 y 64, con `20261022_comercial_negociacion.sql`, que crea las cuatro tablas de Comercial negociación) (21/10, 115 y 60, con `20261021_notificaciones_por_usuario.sql`, que crea `notificaciones_usuario`: esta vez el 60 es una tabla de verdad) (19/10, 114 y 59, con `20261019_cobranza_abono_comprobante.sql`; antes 113) —el «60» que decía aquí el 13/10 era falso:
 > `recuentos.mjs` contaba como tabla la palabra `if` de un comentario de
 > `20261013_doohmain_seguimiento_unicas.sql`; corregido el 14/10 quitando los
 > comentarios antes de medir— (13/10, con `20261013_sitios_pantalla_doohmain.sql`; antes 112) (13/10, con `20261013_doohmain_seguimiento_unicas.sql`; antes 111) (12/10, con `20261012_razon_social_principal.sql`; antes 110) (07/10, con `20261011_contrato_cambios_solo_insercion.sql`; antes 109) (07/10, con `20261010_contrato_cambios.sql`; antes 108 y 58) (06/10, con `20261009_propuestas_fechas_estatus.sql`; antes 107) (06/10, con `20261008_cobranza_abonos.sql`). Es el recuento vigente; los de los recuadros
@@ -70,6 +72,8 @@ archivos:
 >
 > | Migración | Decía | Entró en `main` |
 > |---|---|---|
+> | `20261029_propuestas_condiciones_vigencia_vendedor.sql` | rama `feat/propuestas-completas` (PROP-COMPLETA + P19), **aprobada por el dueño el 29/10** (ROJO R3) | **Sin publicar.** Cinco columnas, ninguna tabla: `config_negocio.condiciones_propuesta` y `vigencia_propuesta_dias` (30, check 1–365); `propuestas.condiciones`, `vigente_hasta` y `vendedor_nombre`. Rellena `vendedor_nombre` de las propuestas que ya tenían vendedor; no toca importes ni estatus. Ver [[02-Backend/comercial-propuestas-campanas]] y [[02-Backend/vendedor-en-propuesta]] |
+> | `20261029_campana_extensiones.sql` | rama `feat/extender-con-contrato` (EXT-CONTRATO), **aprobada por el dueño el 29/10** (ROJO R3, forma restrict; y R4) | **Sin publicar.** Crea `campana_extensiones` (solo select e insert para la aplicación, RLS forzada, `campana_id` on delete restrict): el contrato firmado de cada extensión de campaña, sin sobrescribir `campanas.contrato_url`. No toca filas existentes. Ver [[02-Backend/comercial-propuestas-campanas]] |
 > | `20261026_reserva_estatus_por_omision.sql` | rama `feat/tentativo-en-propuesta` (TENT-PROP), **aprobada por el dueño el 26/10** (ROJO R3) | **Sin publicar.** Solo cambia el `default` de `reservas.estatus` de TENTATIVA a CONFIRMADA: lo tentativo ya no es un estado de la reserva sino lo que está en una propuesta abierta. No toca filas ni el enum. Ver [[02-Backend/comercial-propuestas-campanas]] |
 > | `20261023_contrato_versiones_firmadas.sql` | rama local `test/venta-propia-o-arrendada`, **diseño aprobado por el dueño el 23/10** (ROJO R3 y R4) | **SIN publicar.** Crea `contrato_versiones_firmadas` (solo select e insert para la aplicación, RLS forzada) y agrega `contrato_cambios.version_firmada`. No toca filas existentes. Ver [[02-Backend/arrendadores-y-contratos]] |
 > | `20261022_pantallas_propias.sql` | rama local `fix/creativos-rotacion-y-reemplazo`, **forma aprobada por el dueño el 22/10** (ROJO R3) | **v0.12.3, SIN publicar.** Agrega `sitios.propio` y `predios.propio` (default false) y quita el NOT NULL de `predios.arrendador_id` con `predios_propio_o_arrendador_ck`. Ninguna fila existente cambia. Ver [[02-Backend/arrendadores-y-contratos]] |

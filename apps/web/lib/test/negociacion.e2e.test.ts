@@ -492,4 +492,18 @@ describe('11 · el buscador de direcciones', () => {
   it('con sesión, una consulta demasiado corta es 400 sin salir a la red', async () => {
     expect((await vendedor.pedir('/api/geo/buscar/?q=a')).status).toBe(400)
   })
+
+  // UBIC-01 (29/10): coordenadas y enlaces largos de Google Maps se contestan
+  // en el servidor sin salir a la red; un enlace de otro dominio, 400.
+  it('unas coordenadas pegadas vuelven como UN punto, sin buscador', async () => {
+    const r = await vendedor.pedir(`/api/geo/buscar/?${new URLSearchParams({ q: '19.4326, -99.1332' })}`)
+    expect(r.status).toBe(200)
+    expect(r.datos.proveedor).toBe('coordenadas')
+    expect(r.datos.resultados).toEqual([expect.objectContaining({ lat: 19.4326, lng: -99.1332 })])
+  })
+
+  it('un enlace que no es de Google Maps es 400', async () => {
+    const q = 'https://evil.example/maps/@19.4326,-99.1332,17z'
+    expect((await vendedor.pedir(`/api/geo/buscar/?${new URLSearchParams({ q })}`)).status).toBe(400)
+  })
 })

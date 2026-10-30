@@ -358,6 +358,64 @@
   @page { size: letter; margin: 2.5cm; }
 }
 
+/* ── Documento de la PROPUESTA (PROP-COMPLETA, 29/10) ─────────────────────
+   La misma hoja carta que el contrato, pero comercial: letra sin remates,
+   texto a la izquierda y tablas. El papel lo lee un cliente, no un notario. */
+.demo-root .doc-comercial {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 10pt; line-height: 1.5; text-align: left; hyphens: manual;
+}
+.demo-root .doc-comercial .doc-titulo { text-align: left; text-transform: none; font-size: 16pt; margin: 0 0 12px; }
+.demo-root .doc-comercial .doc-h2 { text-align: left; font-size: 9.5pt; color: #555; margin: 22px 0 8px; }
+.demo-root .doc-cabecera {
+  display: flex; justify-content: space-between; align-items: center; gap: 16px;
+  padding-bottom: 12px; margin-bottom: 18px; border-bottom: 1px solid #e5e5e5;
+}
+.demo-root .doc-cabecera-org { display: flex; align-items: center; gap: 12px; }
+.demo-root .doc-cabecera-folio { text-align: right; }
+.demo-root .doc-chico { font-size: 8.5pt; color: #555; }
+.demo-root .doc-num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.demo-root .doc-der { text-align: right; }
+.demo-root .doc-datos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 0 0 6px; }
+.demo-root .doc-datos dt { font-size: 8pt; color: #666; text-transform: uppercase; letter-spacing: .04em; }
+.demo-root .doc-datos dd { margin: 0; font-weight: 600; }
+.demo-root .doc-tabla { width: 100%; border-collapse: collapse; }
+.demo-root .doc-tabla th {
+  font-size: 8pt; color: #666; text-transform: uppercase; letter-spacing: .04em; text-align: left;
+  border-bottom: 1px solid #ccc; padding: 4px 6px;
+}
+.demo-root .doc-tabla td { border-bottom: 1px solid #eee; padding: 8px 6px; vertical-align: top; }
+.demo-root .doc-tabla tr { page-break-inside: avoid; break-inside: avoid; }
+.demo-root .doc-foto-celda { width: 2.6cm; }
+.demo-root .doc-foto { width: 2.4cm; height: 1.6cm; object-fit: cover; border-radius: 3px; display: block; }
+.demo-root .doc-foto-vacia {
+  display: flex; align-items: center; justify-content: center;
+  background: #f4f4f2; color: #999; font-size: 7.5pt;
+}
+.demo-root .doc-mapa {
+  height: 8cm; border: 1px solid #ddd; border-radius: 4px; overflow: hidden;
+  page-break-inside: avoid; break-inside: avoid;
+}
+.demo-root .doc-escalera { margin: 0; max-width: 11cm; margin-left: auto; }
+.demo-root .doc-escalera-fila { display: flex; justify-content: space-between; gap: 16px; padding: 2px 0; }
+.demo-root .doc-escalera-fila dd { margin: 0; }
+.demo-root .doc-escalera-total { border-top: 1px solid #111; margin-top: 4px; padding-top: 6px; font-weight: 700; font-size: 11pt; }
+.demo-root .doc-condiciones { white-space: pre-wrap; font-size: 9pt; }
+.demo-root .doc-qr-caja {
+  display: flex; gap: 14px; align-items: center; margin-top: 18px; padding: 10px;
+  border: 1px solid #e5e5e5; border-radius: 4px; page-break-inside: avoid; break-inside: avoid;
+}
+.demo-root .doc-qr { width: 2.8cm; height: 2.8cm; flex-shrink: 0; }
+.demo-root .doc-qr svg { width: 100%; height: 100%; }
+.demo-root .doc-liga { word-break: break-all; font-family: ui-monospace, monospace; }
+.demo-root .doc-comercial .doc-firmas { grid-template-columns: 1fr; max-width: 9cm; margin-top: 1.4cm; }
+@media print {
+  /* El mapa y las fotos son color: sin esto el navegador los aclara. */
+  .demo-root .doc-mapa, .demo-root .doc-foto { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  /* Los controles del mapa (zoom, atribución compacta) no van al papel. */
+  .demo-root .doc-mapa .maplibregl-ctrl-top-right { display: none; }
+}
+
 /* ── Firma del contrato ──────────────────────────────────────────────────── */
 .demo-root .doc-congelado {
   white-space: pre-wrap; word-wrap: break-word;

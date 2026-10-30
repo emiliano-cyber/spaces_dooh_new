@@ -1,7 +1,7 @@
 ---
 tipo: preguntas
 estado: verificado
-actualizado: 2026-10-22
+actualizado: 2026-10-29
 tags: [preguntas, pendientes, riesgo]
 archivos:
   - apps/web/lib/server/
@@ -327,6 +327,16 @@ reconciliar? Ya hubo una divergencia de 27 columnas
 
 ### P22 · Google Maps en Comercial OPEX y en el alta de pantallas — PENDIENTE (01/10)
 
+> [!success] 2026-10-29 · Comercial negociación DECIDIDO (UBIC-01): ADR 0041 Aceptada en esa parte
+> El dueño decidió: la ubicación se pone **por coordenadas o por calle**. Ya, sin
+> clave: pegar coordenadas o un enlace de Google Maps (también `maps.app.goo.gl`,
+> que se sigue en el servidor) pone el pin. Con la clave del owner
+> (`GOOGLE_MAPS_SERVIDOR_KEY` en su `app.env`) el buscador de calles es el de
+> Google; sin ella, OpenStreetMap. **Sigue abierto:** mapas de Google en cualquier
+> pantalla, el alta de pantallas y predios, los precios y el tope de gasto, y si
+> mostrar candidatos de Google junto a un mapa que no es de Google cumple sus
+> términos. Detalle en `vault/03-Frontend/comercial-opex.md` (la nota enlazada abajo).
+
 > [!note] 2026-10-22 · dos de las cuatro preguntas ya tienen respuesta (NEG-01, ADR 0047)
 > - **¿Quién paga?** — **cada owner**, con su propia clave en el `.env` de su
 >   instancia (el dueño, 21/10). Sin clave, la búsqueda usa OpenStreetMap.
@@ -524,7 +534,16 @@ coincidir. **¿Se extrae a una constante compartida?**
 Habla de `apps/api` (Fastify+Prisma), `/var/www/spaces-dooh` y despliegue
 automático en cada push. **¿Se reescribe o se marca como histórico?**
 
-### P19 · El vendedor que se va, ¿se lleva su atribución? (VEND-01, 2026-09-28)
+### P19 · ~~El vendedor que se va, ¿se lleva su atribución?~~ **RESUELTA el 29/10** (VEND-01, 2026-09-28)
+
+> [!success] 2026-10-29 · decisión del dueño: **conservar el nombre**
+> `propuestas.vendedor_nombre` (`20261029_propuestas_condiciones_vigencia_vendedor.sql`)
+> se estampa al crear, de la sesión, y se rellenó para las propuestas que ya
+> tenían vendedor. Borrado el usuario, el reporte lo nombra con una fila de
+> baja (`lib/vendedor-de-baja.ts`) y el Dashboard también. Las históricas sin
+> `usuario_id` siguen en «Sin vendedor»: no se inventa. Rama
+> `feat/propuestas-completas`.
+
 
 `propuestas.usuario_id` es **`on delete set null`** —el criterio de las otras
 cinco FK hacia `usuarios`, y lo único que deja que `borrarUsuario()` siga

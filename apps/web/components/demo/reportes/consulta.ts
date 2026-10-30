@@ -1,5 +1,6 @@
 import { etiquetaBucket } from '@/lib/data/derive'
 import { diaComparable, esFechaValida, ordenInvertido } from '@/lib/server/fechas'
+import { excedeTopeDeMeses, MSJ_TOPE_MESES_REPORTE } from '@/lib/data/reportes'
 
 // ============================================================================
 //  components/demo/reportes/consulta.ts — Qué se le pide al endpoint.
@@ -203,6 +204,10 @@ export function motivoInvalido(f: FiltrosReporte): string | null {
     return 'Usa fechas con formato AAAA-MM-DD'
   }
   if (ordenInvertido(desde, hasta)) return 'La fecha de fin no puede ser anterior a la de inicio'
+  // D6 · decisión del dueño (29/10): tope de 24 meses. La MISMA regla y la
+  // MISMA frase que el controller: con esto `debePedir` no manda la consulta y
+  // la frase sale junto a los filtros, en vez de un 400 después de esperar.
+  if (excedeTopeDeMeses(desde, hasta)) return MSJ_TOPE_MESES_REPORTE
   return null
 }
 

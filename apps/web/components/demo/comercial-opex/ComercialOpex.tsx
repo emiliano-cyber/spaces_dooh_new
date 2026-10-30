@@ -40,12 +40,14 @@ import {
   prospectoApi,
   prospectosApi,
   type CandidatoDireccion,
+  type ProveedorGeo,
   type FichaForm,
   type Prospecto,
   type ProspectoDetalle,
 } from '@/lib/data/captacion-api'
 import { ETAPAS_DE_TRABAJO, ETIQUETA_ETAPA, etapaCerrada, type Etapa } from '@/lib/captacion'
 import { diasSinContacto, espacioElegido, iniciales, resumen } from '@/lib/comercial-opex'
+import { interpretarUbicacion } from '@/lib/interpretar-ubicacion'
 import {
   CANALES,
   ESTADOS_OFERTA,
@@ -324,23 +326,55 @@ function Ubicacion({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; 
   const guardado: Punto | null = p.lat != null && p.lng != null ? { lat: p.lat, lng: p.lng } : null
   const [punto, setPunto] = useState<Punto | null>(guardado)
   const [origen, setOrigen] = useState<'PIN' | 'BUSCADOR'>('PIN')
+  // Solo con el buscador de Google; se pierde en cuanto el pin se mueve.
+  const [placeId, setPlaceId] = useState<string | null>(null)
   const [q, setQ] = useState(p.direccion ?? '')
   const [candidatos, setCandidatos] = useState<CandidatoDireccion[] | null>(null)
+  const [proveedor, setProveedor] = useState<ProveedorGeo | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
+  const [nota, setNota] = useState<string | null>(null)
   useEffect(() => {
     setPunto(guardado)
     setCandidatos(null)
     setAviso(null)
+    setNota(null)
   }, [p.id, p.lat, p.lng]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const cambiado = punto && (!guardado || punto.lat !== guardado.lat || punto.lng !== guardado.lng)
 
+  // UBIC-01 (29/10): coordenadas o un enlace de Google Maps ponen el pin
+  // directo. El origen es PIN —lo fija la persona, no un buscador— y no hay
+  // otro valor sin migración (el CHECK de `prospectos` admite PIN, BUSCADOR y
+  // GPS).
+  function ponerPin(lat: number, lng: number, deEnlace: boolean) {
+    setPunto({ lat, lng })
+    setOrigen('PIN')
+    setPlaceId(null)
+    setCandidatos(null)
+    setNota(
+      `${deEnlace ? 'Pin en el punto del enlace' : 'Pin en esas coordenadas'}. Arrástralo para afinarlo y guarda la ubicación.`,
+    )
+  }
+
   async function buscar() {
     setAviso(null)
+    setNota(null)
+    // Lo que se puede resolver sin red se resuelve aquí: unas coordenadas o un
+    // enlace largo no tienen por qué gastar el tope de búsquedas.
+    const i = interpretarUbicacion(q)
+    if (i.tipo === 'punto') return ponerPin(i.lat, i.lng, i.fuente === 'enlace')
+    if (i.tipo === 'invalido') {
+      setCandidatos(null)
+      return setAviso(i.motivo)
+    }
     try {
       const r = await buscarDireccionApi(q)
+      if ((r.proveedor === 'enlace' || r.proveedor === 'coordenadas') && r.resultados[0]) {
+        return ponerPin(r.resultados[0].lat, r.resultados[0].lng, r.proveedor === 'enlace')
+      }
+      setProveedor(r.proveedor)
       setCandidatos(r.resultados)
-      if (!r.resultados.length) setAviso('No se encontró esa dirección. Marca el punto directamente en el mapa.')
+      if (!r.resultados.length) setAviso('No se encontró esa dirección. Pega coordenadas o marca el punto en el mapa.')
     } catch (e) {
       setAviso(e instanceof Error ? e.message : 'No se pudo buscar')
     }
@@ -357,37 +391,52 @@ function Ubicacion({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; 
           }}
         >
           <input
-            aria-label="Buscar dirección"
+            aria-label="Buscar dirección, coordenadas o enlace de Google Maps"
             className={inputCls}
             value={q}
-            maxLength={200}
-            placeholder="Calle, número, colonia, ciudad"
+            maxLength={2000}
+            placeholder="Calle y número, coordenadas o enlace de Google Maps"
             onChange={(e) => setQ(e.target.value)}
           />
           <Button size="sm" variant="secondary" type="submit" disabled={q.trim().length < 3}>
-            <Search className="mr-1 h-3.5 w-3.5" /> Buscar
+            <Search className="mr-1 h-3.5 w-3.5" /> Ubicar
           </Button>
         </form>
       )}
+      {puede && !aviso && !nota && !candidatos && (
+        <p className="m-0 mb-2 text-[11px] text-muted">
+          También puedes pegar coordenadas (19.4326, -99.1332 o 19°25&apos;57&quot;N 99°07&apos;59&quot;W) o un enlace de
+          Google Maps. Después arrastra el pin para afinarlo.
+        </p>
+      )}
       {aviso && <p className="m-0 mb-2 text-[12px] text-[#9a6700]">{aviso}</p>}
+      {nota && <p className="m-0 mb-2 text-[12px] text-muted">{nota}</p>}
       {candidatos && candidatos.length > 0 && (
-        <ul className={`${LISTA} mb-2 divide-y divide-border rounded border border-border`}>
-          {candidatos.map((c) => (
-            <li key={`${c.lat},${c.lng}`}>
-              <button
-                type="button"
-                className="w-full px-2.5 py-1.5 text-left text-[12px] text-ink hover:bg-surface-2"
-                onClick={() => {
-                  setPunto({ lat: c.lat, lng: c.lng })
-                  setOrigen('BUSCADOR')
-                  setCandidatos(null)
-                }}
-              >
-                {c.nombre}
-              </button>
-            </li>
-          ))}
-        </ul>
+        <div className="mb-2">
+          <ul className={`${LISTA} divide-y divide-border rounded border border-border`}>
+            {candidatos.map((c) => (
+              <li key={`${c.lat},${c.lng}`}>
+                <button
+                  type="button"
+                  className="w-full px-2.5 py-1.5 text-left text-[12px] text-ink hover:bg-surface-2"
+                  onClick={() => {
+                    setPunto({ lat: c.lat, lng: c.lng })
+                    setOrigen('BUSCADOR')
+                    setPlaceId(c.placeId ?? null)
+                    setCandidatos(null)
+                    setNota('Arrastra el pin para afinarlo y guarda la ubicación.')
+                  }}
+                >
+                  {c.nombre}
+                </button>
+              </li>
+            ))}
+          </ul>
+          {/* Las dos fuentes piden que se diga de dónde salen los resultados. */}
+          <p className="m-0 mt-1 text-right text-[10px] text-muted">
+            {proveedor === 'google' ? 'Resultados de Google' : 'Resultados de © OpenStreetMap'}
+          </p>
+        </div>
       )}
       <SelectorUbicacion
         punto={punto}
@@ -395,6 +444,7 @@ function Ubicacion({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; 
           if (!puede) return
           setPunto(nuevo)
           setOrigen('PIN')
+          setPlaceId(null)
         }}
       />
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted">
@@ -410,7 +460,11 @@ function Ubicacion({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; 
           <Button
             size="sm"
             onClick={() =>
-              void accion(() => fichaApi(p.id, { ubicacion: { lat: punto!.lat, lng: punto!.lng, origen, placeId: null } }))
+              void accion(() =>
+                fichaApi(p.id, {
+                  ubicacion: { lat: punto!.lat, lng: punto!.lng, origen, placeId: origen === 'BUSCADOR' ? placeId : null },
+                }),
+              )
             }
           >
             Guardar ubicación

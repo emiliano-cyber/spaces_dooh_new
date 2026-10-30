@@ -1,6 +1,6 @@
 import 'server-only'
 import { z } from 'zod'
-import { validar } from './errores'
+import { AppError, validar } from './errores'
 import { fechaZod, diaComparable } from './fechas'
 import { datosRentabilidad } from './reportes-repo'
 import {
@@ -13,6 +13,7 @@ import {
   rentabilidadPorTarifa,
   rentabilidadPorVendedor,
   DIMENSIONES_REPORTE,
+  excedeTopeDeMeses,
   type DatosRentabilidad,
   type GranularidadReporte,
   type RangoReporte,
@@ -102,7 +103,15 @@ const consultaSchema = z
   })
 
 export function validarConsultaRentabilidad(params: unknown): ConsultaRentabilidad {
-  return validar(consultaSchema, params)
+  const consulta = validar(consultaSchema, params)
+  // D6 · decisión del dueño (29/10): tope de 24 meses por consulta, ANTES de
+  // tocar la base. El texto va LITERAL para que el catálogo de traducciones lo
+  // vea; `reportes-controller.tope-meses.test.ts` comprueba que es el mismo
+  // `MSJ_TOPE_MESES_REPORTE` que pinta la pantalla.
+  if (excedeTopeDeMeses(consulta.desde, consulta.hasta)) {
+    throw new AppError('El reporte abarca como máximo 24 meses por consulta. Acorta el rango de fechas.', 400)
+  }
+  return consulta
 }
 
 type MotorRentabilidad = (

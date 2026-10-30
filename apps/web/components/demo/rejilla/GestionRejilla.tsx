@@ -14,6 +14,7 @@ import {
 } from '@/lib/data/rejilla-api'
 import { motivoFranjaInvalida, motivoTemporadaInvalida } from '@/lib/rejilla'
 import { Button } from '@/components/demo/ui/Button'
+import { useCandado, DialogoCandado } from '@/components/demo/ui/candado'
 import { useObligatorios } from '@/components/demo/ui/Campo'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { StatusBadge } from '@/components/demo/StatusBadge'
@@ -34,6 +35,17 @@ import { formatFecha } from '@/lib/data/client'
 //  lo que hace: una franja vendida no se puede borrar
 //  (`propuesta_items_franja_fkey` es `on delete restrict`) y lo contratado sigue
 //  en pie. Llamarlo «Eliminar» prometería algo que no pasa.
+//
+//  ─── EL CANDADO DE CAMBIOS (B41, 2026-10-29) ──────────────────────────────
+//  Las seis rutas que usa esta pantalla pasan por `exigirCambioSensible`. Hasta
+//  el 29/10 los tres manejadores hacían `setError(e.message)` y punto: con
+//  `exigir_reautenticacion` encendido, el dueño veía el 403 en rojo y NINGÚN
+//  sitio donde teclear la contraseña. Era la única pantalla del producto sin
+//  salida. Los botones son de UN CLIC —no hay cuadro propio—, así que se aplica
+//  la regla de `ui/candado.tsx`: el 403 ABRE un cuadro atado a esa acción
+//  exacta (`DialogoCandado`), y confirmar REPITE esa acción, no la relee del
+//  formulario. Un fallo que no es el candado (un solape, un 500) sigue saliendo
+//  en el hueco de error de siempre, por `alFallar`.
 // ============================================================================
 
 const vacioFranja = { nombre: '', horaInicio: '', horaFin: '', orden: 0 }
@@ -53,6 +65,7 @@ export function GestionRejilla() {
   // por el `data-falta` de la celda.
   const obF = useObligatorios(nuevaF, ['nombre', 'horaInicio', 'horaFin'])
   const obT = useObligatorios(nuevaT, ['nombre', 'desde', 'hasta'])
+  const candado = useCandado()
 
   const cargar = useCallback(async () => {
     try {
@@ -79,38 +92,48 @@ export function GestionRejilla() {
     const completos = obF.validar()
     const motivo = motivoFranjaInvalida({ id: '', ...nuevaF }, franjas)
     if (!completos || motivo) return setError(motivo)
-    try {
-      await guardarFranjaApi(nuevaF)
-      setNuevaF({ ...vacioFranja })
-      obF.reiniciar()
-      await cargar()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo guardar')
-    }
+    // La franja se copia AQUÍ: si el candado pide la contraseña, lo que se
+    // repite es ESTE alta, aunque el usuario toque la fila mientras teclea.
+    const franja = { ...nuevaF }
+    setError(null)
+    await candado.ejecutar({
+      guardar: () => guardarFranjaApi(franja),
+      alLograr: () => {
+        setNuevaF({ ...vacioFranja })
+        obF.reiniciar()
+        void cargar()
+      },
+      alFallar: (m) => setError(m),
+      mensajeSiFalla: 'No se pudo guardar',
+    })
   }
 
   async function anadirTemporada() {
     const completos = obT.validar()
     const motivo = motivoTemporadaInvalida({ id: '', ...nuevaT }, temporadas)
     if (!completos || motivo) return setError(motivo)
-    try {
-      await guardarTemporadaApi(nuevaT)
-      setNuevaT({ ...vacioTemporada })
-      obT.reiniciar()
-      await cargar()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo guardar')
-    }
+    const temporada = { ...nuevaT }
+    setError(null)
+    await candado.ejecutar({
+      guardar: () => guardarTemporadaApi(temporada),
+      alLograr: () => {
+        setNuevaT({ ...vacioTemporada })
+        obT.reiniciar()
+        void cargar()
+      },
+      alFallar: (m) => setError(m),
+      mensajeSiFalla: 'No se pudo guardar',
+    })
   }
 
   async function darDeBaja(tipo: 'franja' | 'temporada', id: string) {
-    try {
-      if (tipo === 'franja') await bajaFranjaApi(id)
-      else await bajaTemporadaApi(id)
-      await cargar()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo dar de baja')
-    }
+    setError(null)
+    await candado.ejecutar({
+      guardar: () => (tipo === 'franja' ? bajaFranjaApi(id) : bajaTemporadaApi(id)),
+      alLograr: () => void cargar(),
+      alFallar: (m) => setError(m),
+      mensajeSiFalla: 'No se pudo dar de baja',
+    })
   }
 
   // Esqueleto con la forma de lo que va a llegar (el aviso y las dos tablas),
@@ -130,6 +153,13 @@ export function GestionRejilla() {
       {/* Va ARRIBA del todo, antes de que nadie capture nada: el dueño tiene que
           saber qué NO hace el sistema antes de montar su tabla de precios. */}
       <AvisoFranjaCMS />
+
+      <DialogoCandado
+        candado={candado}
+        titulo="Confirma con tu contraseña"
+        subtitulo="Franjas y temporadas son precio: tu organización pide la contraseña para cambiarlas."
+        etiquetaConfirmar="Confirmar y guardar"
+      />
 
       {error && (
         <p role="alert" className="rounded-md border border-error bg-error-soft px-3 py-2 text-[13px] text-error">

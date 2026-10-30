@@ -74,6 +74,44 @@ export type DimensionReporte = (typeof DIMENSIONES_REPORTE)[number]
 // la consulta sin límite que este endpoint viene a evitar.
 export type GranularidadReporte = 'mes' | 'trimestre'
 
+// ─── D6 · EL TOPE DE MESES POR CONSULTA — decisión del dueño, 2026-10-29 ────
+//
+// El reporte construye una casilla por pantalla y por periodo: con 500
+// pantallas y cinco años son 30 000, y quien lo pide se queda mirando una
+// pantalla cargando, sin aviso. El dueño eligió **24 meses** (la ficha
+// recomendaba 36). Se declara AQUÍ, en el módulo puro, porque lo usan los dos
+// lados: el controller rechaza con un 400 antes de tocar la base, y la pantalla
+// (`components/demo/reportes/consulta.ts`) no deja pedirlo. Dos reglas
+// divergen, y aquí divergir es rechazar en un lado lo que el otro acepta.
+export const TOPE_MESES_REPORTE = 24
+
+/**
+ * La frase que lee la persona. El controller la lanza LITERAL (así la ve el
+ * catálogo de traducciones, `lib/i18n/errores-servidor.ts`) y una prueba
+ * comprueba que es esta misma.
+ */
+export const MSJ_TOPE_MESES_REPORTE =
+  'El reporte abarca como máximo 24 meses por consulta. Acorta el rango de fechas.'
+
+/**
+ * ¿El rango pasa del tope? `hasta` tiene que caer ANTES de `desde + 24 meses`:
+ * del 1/ene/2024 al 31/dic/2025 son 24 meses justos y entran; un día más, no.
+ *
+ * Se calcula con `Date.UTC` sobre las partes, no con `new Date('AAAA-MM-DD')`
+ * (un instante UTC que en México cae el día anterior). El 29 de febrero más 24
+ * meses desborda al 1 de marzo, que es justo el límite exclusivo correcto.
+ * Acepta mes y día sin cero a la izquierda, como `motivoInvalido`. Una fecha
+ * que no se entiende NO excede: de eso ya se queja la validación de formato.
+ */
+export function excedeTopeDeMeses(desde: string, hasta: string): boolean {
+  const partes = (v: string) => /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(String(v ?? '').trim())
+  const d = partes(desde)
+  const h = partes(hasta)
+  if (!d || !h) return false
+  const limite = Date.UTC(Number(d[1]), Number(d[2]) - 1 + TOPE_MESES_REPORTE, Number(d[3]))
+  return Date.UTC(Number(h[1]), Number(h[2]) - 1, Number(h[3])) >= limite
+}
+
 export interface RangoReporte {
   /** `YYYY-MM-DD`, inclusive. */
   desde: string
@@ -419,6 +457,12 @@ export interface TarifaPublicada {
   /** `lista` y `neto` por pantalla, tal como se congelaron. */
   porSitio: {
     sitioId: string
+    /**
+     * B42 (2026-10-29) · la franja congelada de esta línea (`franja.id` del
+     * snapshot), o `null` si se vendió todo el día o el snapshot es anterior a
+     * la Fase 1. Desempata dos franjas de la MISMA pantalla.
+     */
+    franjaId?: string | null
     lista: number
     neto: number
     /**
@@ -508,6 +552,12 @@ interface ReservaReporte {
    * y eso se declara, no se esconde.
    */
   campanaId?: string | null
+  /**
+   * B42 (2026-10-29) · la franja horaria contratada, heredada del ítem de la
+   * propuesta. Junto con `sitioId` es la llave con la que se busca la tarifa
+   * publicada congelada. `null`/ausente = todo el día.
+   */
+  franjaId?: string | null
   precio: number
   estatus: string
   fechaInicio: string
@@ -1210,12 +1260,23 @@ function matriz(datos: DatosRentabilidad, opts: OpcionesReporte): Matriz {
   // estado: para este reporte los dos casos son la misma cosa —no se sabe con
   // qué comparar—, y la cobertura ya cuenta y explica el hueco.
   const DE_PAQUETE = null
+  //
+  // B42 (2026-10-29) · LA LLAVE ES (pantalla, franja), NO LA PANTALLA SOLA. Con
+  // la rejilla, la misma pantalla aparece dos veces en el snapshot sobre todo
+  // por DOS FRANJAS —el prime y la madrugada—, que es justo la venta que la
+  // Fase 1 existe para hacer posible, y la llave por pantalla la declaraba
+  // ambigua entera. La franja ya viaja congelada en cada línea y la reserva la
+  // hereda del ítem, así que distingue sin elegir nada. Dos líneas de la misma
+  // pantalla Y la misma franja (dos periodos) siguen siendo AMBIGUA: ahí el
+  // dato sigue sin decir cuál es cuál.
+  const llaveTarifa = (sitioId: string, franjaId: string | null | undefined) => `${sitioId}|${franjaId ?? ''}`
   const tarifaDeCampana = new Map<string, Map<string, { lista: number; neto: number } | null>>()
   for (const t of datos.tarifasPublicadas ?? []) {
     const porSitioTarifa = new Map<string, { lista: number; neto: number } | null>()
     for (const e of t.porSitio ?? []) {
       const entrada = e.dePaquete === true ? DE_PAQUETE : { lista: e.lista, neto: e.neto }
-      porSitioTarifa.set(e.sitioId, porSitioTarifa.has(e.sitioId) ? AMBIGUA : entrada)
+      const llave = llaveTarifa(e.sitioId, e.franjaId)
+      porSitioTarifa.set(llave, porSitioTarifa.has(llave) ? AMBIGUA : entrada)
     }
     tarifaDeCampana.set(t.campanaId, porSitioTarifa)
   }
@@ -1239,7 +1300,7 @@ function matriz(datos: DatosRentabilidad, opts: OpcionesReporte): Matriz {
   const porTarifa: PorTarifa = { conTarifa: 0, sinTarifa: 0 }
   for (const r of datos.reservas) {
     if (!cuentaComoVenta(r)) continue
-    const e = r.campanaId ? tarifaDeCampana.get(r.campanaId)?.get(r.sitioId) : undefined
+    const e = r.campanaId ? tarifaDeCampana.get(r.campanaId)?.get(llaveTarifa(r.sitioId, r.franjaId)) : undefined
     if (e && e.neto === r.precio) {
       listaDeReserva.set(r, e.lista)
       porTarifa.conTarifa += 1

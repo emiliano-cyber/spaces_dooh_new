@@ -7,6 +7,15 @@
 > **Nace el 2026-09-18**, sobre `integra/entidades-y-reportes` medida en el worktree
 > `.claude/worktrees/entidades`. Fecha dura: **2026-10-14, OOH SUMMIT** — 26 días.
 
+> **2026-10-29 · decisión del dueño y cierre de la auditoría del ADR 0039 Fase 1.**
+> **D6 decidida** (tope de 24 meses, implementado) y **B40 a B45 cerradas**, todas en la
+> rama `fix/abiertos-b41-b45-d6` (sin fusionar). B40 ya estaba resuelta en código
+> desde PRECIO-01 y solo faltaba tacharla. **Apareció una nueva de dinero, B56**
+> (`campanas-repo` guardaba en las dos reservas el neto de la última línea cuando
+> una propuesta trae la misma pantalla dos veces): **el dueño aprobó arreglarla el
+> 29/10 y quedó cerrada ese día**. Las campañas ya generadas no se tocan; hay un
+> diagnóstico de solo lectura en `docs/datos/`.
+
 ~~**Veredicto vigente de la rama: 🔴 ROJO.**~~ **Superado el 2026-09-18, tarde.** Los
 dos motivos del rojo están cerrados y medidos:
 
@@ -122,7 +131,15 @@ archivo dentro de la pregunta.
 
 ---
 
-### D11 · La rejilla de precios deja que el precio se decida en el navegador del vendedor. Antes de meter descuentos por volumen y códigos promocionales, ¿se pasa el cálculo al servidor?
+### ~~D11 · La rejilla de precios deja que el precio se decida en el navegador del vendedor. Antes de meter descuentos por volumen y códigos promocionales, ¿se pasa el cálculo al servidor?~~
+
+> ✅ **CONTESTADA y CONSTRUIDA — tachada el 2026-10-29.** El dueño eligió la (a)
+> el 01/10 (PRECIO-01): el servidor calcula la tarifa y solo `comercial.aprobar`
+> pone otra. Está en `main` y medido en B40 (tachada el mismo día). Desde el 29/10
+> agregar sitios a una propuesta ya creada pasa por la misma función
+> (`prepararLineas`), con su prueba de la vendedora a 1 peso → 403
+> (`lib/test/propuestas-gestion.e2e.test.ts`). Lo de abajo se conserva como historia.
+
 
 - **Bloquea:** el **código promocional con vencimiento y tope de usos** (la fase 3) no
   se puede construir honestamente hasta que esto se decida: un cupón cuyo descuento y
@@ -442,7 +459,24 @@ archivo dentro de la pregunta.
 
 ---
 
-### D6 · El reporte no limita cuántos meses se le pueden pedir de una vez. ¿Se le pone un tope?
+### ~~D6 · El reporte no limita cuántos meses se le pueden pedir de una vez. ¿Se le pone un tope?~~
+
+> ✅ **DECIDIDA el 2026-10-29 por el dueño: tope de 24 MESES por consulta** (la ficha
+> recomendaba 36; el dueño eligió 24). **Implementada el mismo día** (rama
+> `fix/abiertos-b41-b45-d6`, sin fusionar):
+> - `lib/data/reportes.ts` · `TOPE_MESES_REPORTE = 24`, `excedeTopeDeMeses(desde, hasta)`
+>   y `MSJ_TOPE_MESES_REPORTE`, en el motor puro para que la usen los dos lados.
+> - `lib/server/reportes-controller.ts` · `validarConsultaRentabilidad` rechaza con
+>   **400** y «El reporte abarca como máximo 24 meses por consulta. Acorta el rango de
+>   fechas.» **antes de leer la base**; traducida en `lib/i18n/errores-servidor.ts`.
+> - `components/demo/reportes/consulta.ts` · `motivoInvalido` devuelve la misma frase,
+>   así que la pantalla de Reportes la pinta junto a los filtros y `debePedir` no
+>   manda la consulta.
+>
+> **Con qué se midió:** `lib/server/reportes-controller.tope-meses.test.ts` (8) y
+> `components/demo/reportes/consulta.tope-meses.test.ts` (3), en ROJO antes del
+> arreglo; incluyen el 29 de febrero y fechas sin cero a la izquierda. **No se vio
+> en el navegador.**
 
 - **Bloquea:** nada. Es un riesgo de producción, no un trabajo detenido.
 - **Por qué importa:** el reporte construye una casilla por pantalla y por periodo.
@@ -591,7 +625,19 @@ calendario.
 
 ### B · i — Críticas por SEVERIDAD (fallo silencioso · dato que miente)
 
-#### B40 · 🔴 El servidor NO comprueba que el precio vendido salga de la rejilla · **es la que importa de las seis**
+#### ~~B40 · 🔴 El servidor NO comprueba que el precio vendido salga de la rejilla · **es la que importa de las seis**~~
+
+> ✅ **CERRADA — tachada el 2026-10-29, medida en `main` @ `cb86b7f6`.** El arreglo
+> del 01/10 (PRECIO-01) ya no está «sin fusionar»: vive en `main`.
+> `apps/web/lib/server/propuestas-controller.ts:10` importa `tarifaCalculada` de
+> `@/lib/tarifa-calculada`; `:388` la recalcula en el servidor por línea (y
+> `tarifaBaseCalculadora` para las de calculadora, ADR 0042) con los datos de
+> `datosParaTarifar` (`:350`); y sin `comercial.aprobar` un precio distinto da
+> **403** sin escribir nada (`:420`, y `:416` cuando no hay tarifa calculable).
+> **Pruebas que lo cubren:** `lib/server/propuestas-precio.test.ts:142` («VENDEDOR a
+> 1 peso → 403… el repo no se llama») y `:159` (el prime a tarifa base), y contra
+> Postgres `lib/test/precio-ajustado.e2e.test.ts:184` y `:202`. Desde el 29/10 el
+> congelado usa la misma función para nombrar la temporada (B43).
 
 > **2026-10-01 · cerrada para la TARIFA BASE (PRECIO-01, rama
 > `feat/precio-ajustado-por-gerente`, sin fusionar).** El dueño decidió la
@@ -638,7 +684,19 @@ calendario.
   toca este camino— pero **la Fase 3 no se puede construir bien encima**, y ése es
   todo el motivo de esta auditoría.
 
-#### B41 · 🟠 La pantalla donde se configuran las franjas se queda sin salida cuando el candado de cambios está encendido
+#### ~~B41 · 🟠 La pantalla donde se configuran las franjas se queda sin salida cuando el candado de cambios está encendido~~
+
+> ✅ **CERRADA el 2026-10-29** (rama `fix/abiertos-b41-b45-d6`, sin fusionar), como
+> decía la ficha. `components/demo/rejilla/GestionRejilla.tsx` monta `useCandado()`
+> y un `DialogoCandado` —sus botones son de un clic, sin cuadro propio, así que se
+> aplica la regla de `ui/candado.tsx`: el 403 abre uno atado a esa acción—, y sus
+> tres manejadores (`anadirFranja`, `anadirTemporada`, `darDeBaja`) pasan por
+> `candado.ejecutar`, con `alFallar → setError` para lo que no es el candado.
+> **Con qué se midió:** `components/demo/rejilla/GestionRejilla.candado.test.ts`,
+> 5 pruebas; las 3 que leen el fuente salieron en ROJO antes del arreglo y las 2
+> que corren `confirmarConCandado` con el `rejilla-api` real y `fetch` espiado
+> comprueban que el 403 llega como «pide la contraseña» y que el desbloqueo va
+> primero. **Lo que NO se midió:** no hay navegador; no se vio el cuadro abrirse.
 
 - **Qué es:** `/franjas-y-temporadas` escribe contra rutas marcadas como cambio
   sensible, pero **no monta el cuadro de contraseña**. Su hermana de la ficha de
@@ -669,7 +727,58 @@ calendario.
   enciende, la pantalla nueva de la Fase 1 es la única del producto donde el dueño
   no puede dar de alta nada y no se le dice por qué.
 
-#### B42 · 🟠 Vender dos franjas de la misma pantalla en una propuesta saca esa pantalla del reporte de tarifas
+#### ~~B42 · 🟠 Vender dos franjas de la misma pantalla en una propuesta saca esa pantalla del reporte de tarifas~~
+
+> ✅ **CERRADA el 2026-10-29** (rama `fix/abiertos-b41-b45-d6`, sin fusionar), como
+> decía la ficha. Las líneas habían derivado (`AMBIGUA` estaba en ~:1197 y el tipo
+> en ~:420); reubicadas:
+> - `lib/data/reportes.ts` · `matriz()` desempata con `llaveTarifa(sitioId, franjaId)`
+>   en vez de `sitioId`; `TarifaPublicada.porSitio[]` y `ReservaReporte` ganan
+>   `franjaId`. Misma pantalla **y misma franja** dos veces sigue siendo `AMBIGUA`.
+> - `lib/server/reportes-repo.ts` · el borde pasa `porSitio[].franja.id` del snapshot
+>   como `franjaId` (`null` en snapshots anteriores a la Fase 1) y lee
+>   `reservas.franja_id`, que la reserva hereda del ítem.
+>
+> **Con qué se midió:** `lib/data/reportes.tarifa.test.ts` (3 casos B42) y
+> `lib/server/reportes-repo.franja.test.ts` (3, el puente); 5 de los 6 en ROJO
+> antes del arreglo (el de «misma franja dos veces» ya pasaba, es el negativo de
+> control). **No se construyó una propuesta de dos franjas contra Postgres.**
+>
+> **Y apareció algo de dinero:** `campanas-repo.ts` copiaba en las reservas el neto
+> de la última línea cuando la pantalla se repetía. Tiene ficha propia, **B56**,
+> cerrada el mismo 29/10 con aprobación del dueño.
+
+#### ~~B56 · 🔴 Una propuesta con la misma pantalla dos veces genera reservas con el neto de la ÚLTIMA línea~~
+
+> ✅ **Abierta y CERRADA el 2026-10-29 — aprobado por el dueño el 29/10 (R4).** Rama
+> `fix/abiertos-b41-b45-d6`, sin fusionar. Sin migración.
+
+- **Qué era:** `generarCampanaDesdePropuesta` (`lib/server/campanas-repo.ts`) armaba
+  `netoDeSnap` como un `Map` por `sitioId` sola. Con la misma pantalla dos veces en
+  la propuesta —dos franjas (prime y madrugada) o dos periodos—, el `Map` se quedaba
+  con la última entrada del snapshot y **las dos reservas se guardaban con ese
+  neto**. Ejemplo: prime 27 000 y madrugada 7 200 se facturaban como 7 200 + 7 200.
+  No daba error: el importe es plausible. Lo encontró B42 el mismo día.
+- **El arreglo:**
+  - `lib/neto-de-linea.ts` (nuevo, puro) · `netosDelSnapshot(items, porSitio)` da un
+    neto por ítem, o `null` si no se puede atribuir.
+  - **Qué identifica la línea:** `porSitio[].itemId`, el id del ítem de la propuesta,
+    que `congelarSnapshotEconomico` (`propuestas-repo.ts`) guarda **desde hoy**.
+  - **Snapshots viejos sin `itemId`** (no se reescriben, son inmutables): una sola
+    línea de esa pantalla → su neto, como siempre. Si la pantalla se repite, se
+    desempata con lo que el snapshot ya guarda: la franja congelada (`franja.id`)
+    y la lista (= `precio` del ítem). Si lo que queda señala **un solo** neto, ése
+    se usa. Si no, `null`, y la campaña cae a su **cálculo de respaldo**
+    (lista × volumen × descuento × código × comisión, o la parte del paquete),
+    nunca al neto de otra línea.
+  - `campanas-repo.ts` usa `netoDeLinea[idxItem] ?? <respaldo>`.
+- **Lo que NO se hizo, a propósito:** las campañas ya generadas no se tocan. Para
+  encontrarlas, el diagnóstico de solo lectura
+  `docs/datos/20261029_diagnostico_neto_linea_repetida.sql`, que corre el dueño.
+- **Con qué se midió:** `lib/neto-de-linea.test.ts`, 11 pruebas. Primero en ROJO
+  contra un esbozo con la regla vieja: «expected [7200, 7200] to deeply equal
+  [27000, 7200]», 8 de 11 en rojo. Después en verde. **No se generó una campaña
+  real contra Postgres**: falta la e2e en CI.
 
 - **Qué es:** la dimensión «tarifa publicada vs neta» del reporte se declara
   incapaz cuando la misma pantalla aparece dos veces en el congelado. La rejilla
@@ -697,7 +806,33 @@ calendario.
 - **Declarado:** esto está **deducido leyendo el código, no medido**. No se construyó
   una propuesta de dos franjas para verlo salir del reporte.
 
-#### B43 · 🟠 El snapshot afirma una temporada aunque esa temporada no haya puesto el precio
+#### ~~B43 · 🟠 El snapshot afirma una temporada aunque esa temporada no haya puesto el precio~~
+
+> ✅ **CERRADA el 2026-10-29** (rama `fix/abiertos-b41-b45-d6`, sin fusionar) con el
+> **arreglo bueno**, que eligió el dueño: congelar la temporada que devuelve la
+> resolución, ahora que el servidor ya calcula (B40). Es dinero (el snapshot) y va
+> **sin migración**, aprobado por el dueño.
+> - `lib/tarifa-calculada.ts` · `TarifaCalculada` gana `temporadaQuePuso`: la
+>   temporada de la **fila ganadora** (`resolverTarifa().temporadaId`), `null` si
+>   ganó una fila sin temporada o la tarifa base. `temporadaId` sigue siendo la de
+>   la fecha, para no mover lo que ya la usa.
+> - `lib/server/propuestas-repo.ts` · `congelarSnapshotEconomico` ya no usa
+>   `temporadaDeFecha`: lee pantalla, modalidades, rejilla y temporadas con
+>   `datosParaTarifar` (`tarifas-repo.ts`, que acepta ahora el tenant de la liga
+>   pública) y congela `temporadaQuePuso` **solo si** la resolución da al centavo la
+>   `tarifa_unitaria` vendida. Si no —rejilla o temporadas movidas entre cotizar y
+>   aprobar, o un gerente que puso otro precio—, `temporada: null`.
+> - **Residuo declarado:** una línea de calculadora (ADR 0042) se tarifa desde la
+>   mensual repartida en el loop y no se puede recomprobar sin él; para ella se
+>   nombra la temporada solo si `precio_ajustado_por` es nulo.
+> - **Lo ya congelado no se reescribe** (`if (prop.snapshot_economico) return …`):
+>   las propuestas aprobadas antes de hoy conservan la temporada de la fecha.
+>
+> **Con qué se midió:** `propuestas-snapshot-franja.test.ts` §2b (4 negativas en
+> ROJO antes del arreglo: tarifa base en fecha del Buen Fin, gana la franja sin
+> temporada, precio de gerente, rejilla cambiada) y `tarifa-calculada.test.ts`
+> (`temporadaQuePuso`, en rojo antes). **No se midió contra Postgres** ni por la
+> liga pública de verdad: falta `rejilla-franja-temporada.e2e.test.ts` en CI.
 
 - **Qué es:** el congelado guarda `temporada: {id, nombre}` calculándola con la
   temporada que **cubre la fecha de inicio del ítem**, no con la que **ganó la
@@ -727,7 +862,26 @@ calendario.
 - **Si no se cierra antes del 14/10:** solo muerde en organizaciones que hayan
   capturado temporadas. Si el 14/10 se enseña una temporada, muerde ese día.
 
-#### B44 · 🟡 Dos consultas nuevas por `id` no llevan el `and tenant_id` que la cabecera de su propio archivo promete
+#### ~~B44 · 🟡 Dos consultas nuevas por `id` no llevan el `and tenant_id` que la cabecera de su propio archivo promete~~
+
+> ✅ **CERRADA el 2026-10-29** (rama `fix/abiertos-b41-b45-d6`, sin fusionar), con la
+> opción que la ficha llamaba la barata: añadir el filtro. Las líneas habían
+> derivado; reubicadas hoy:
+> - `lib/server/rejilla-repo.ts` · `rejillaDeSitio` → `where t.sitio_id = $1 and t.tenant_id = $2`,
+>   y la lectura de la pantalla en `actualizarRejilla` → `from sitios where id = $1 and tenant_id = $2`.
+> - `lib/server/sitios-repo.ts` · `getSitio`: **eran tres, no una** —la pantalla
+>   (`select * from sitios where id = $1`), sus modalidades y su rejilla—; las tres
+>   llevan ahora `and tenant_id`.
+> - `lib/server/propuestas-repo.ts` · las temporadas de `congelarSnapshotEconomico` →
+>   `where activo = true and tenant_id = $1`, con el tenant de la liga pública cuando
+>   se aprueba por ella y el de la sesión si no.
+>
+> **Con qué se midió:** 7 pruebas nuevas del SQL (`rejilla-repo.test.ts`,
+> `sitios-repo.rejilla.test.ts` §3, `propuestas-snapshot-franja.test.ts` §3), las 7
+> en ROJO antes del arreglo. **Lo que NO se midió:** las unitarias simulan la base y
+> no ven la RLS; aquí no hay Postgres. Hay que correr en CI
+> `rejilla-franja-temporada.e2e.test.ts`, `precio-ajustado.e2e.test.ts` y
+> `aislamiento.e2e.test.ts` antes de fusionar.
 
 - **Qué es:** la convención del repositorio —y la cabecera de `rejilla-repo.ts`—
   exigen `and tenant_id = $n` como segunda capa sobre la RLS en toda operación por
@@ -748,7 +902,20 @@ calendario.
 - **Quién puede cerrarla:** técnica.
 - **Si no se cierra antes del 14/10:** no pasa nada el 14/10.
 
-#### B45 · 🟡 La ruta de la rejilla acepta cualquier «unidad de venta»; la de las modalidades no
+#### ~~B45 · 🟡 La ruta de la rejilla acepta cualquier «unidad de venta»; la de las modalidades no~~
+
+> ✅ **CERRADA el 2026-10-29** (rama `fix/abiertos-b41-b45-d6`, sin fusionar).
+> `lib/server/rejilla-controller.ts` importa `motivoModalidadInvalida` de
+> `@/lib/modalidades` y, antes de escribir, valida cada unidad a **guardar**
+> contra la exhibición de la pantalla, que lee `exhibicionDeSitio`
+> (`lib/server/rejilla-repo.ts`, `where id = $1 and tenant_id = $2`). Pantalla
+> inexistente o ajena → 404 sin escribir. **Una diferencia deliberada con la ficha:**
+> las bajas (`quitar`) NO se validan, porque son la única forma de limpiar una fila
+> con unidad basura escrita antes de hoy. **Con qué se midió:**
+> `lib/server/rejilla-controller.test.ts` §3, 5 pruebas; las 3 negativas salieron
+> en ROJO antes del arreglo. Las e2e de la rejilla usan `spot` sobre una pantalla
+> `digital` (`semillas-e2e.ts`), así que no deberían cambiar; **no se corrieron
+> aquí** (sin Postgres).
 
 - **Qué es:** asimetría de validación entre las dos rutas que escriben precios de la
   misma pantalla.
@@ -2195,6 +2362,22 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
   que el dueño no puede ajustar, y el reporte usa los de respaldo sin que se vea.
 
 ### B · iii — Menores, para que no se pierdan
+
+- **B57 · 🟠 ABIERTA (2026-10-29) · Un usuario que ya usó el sistema NO se puede
+  borrar: la bitácora lo impide.** Encontrada escribiendo la prueba de P19.
+  `acciones.usuario_id` es `on delete set null` y `acciones` es solo-inserción
+  (`20260629_bitacora_append_only.sql`): borrar al usuario intenta poner su id en
+  null en cada línea de su bitácora, el disparador lo rechaza («bitacora es
+  append-only: UPDATE no permitido sobre acciones») y `borrarUsuario`
+  (`usuarios-repo.ts:307`) falla entero. Medido contra Postgres 16 en
+  `vendedor-en-propuesta.e2e.test.ts`: con una sola acción registrada el `delete`
+  revienta. **Consecuencia:** en la práctica solo se borra a quien nunca hizo nada;
+  a los demás se les desactiva (`activo = false`), que no toca nada. **P19 sigue
+  valiendo** para el día que el borrado funcione, pero hoy casi nunca se dispara.
+  **Quién la cierra:** decisión del dueño — o el borrado de usuarios pasa a ser
+  baja lógica siempre (y el botón lo dice), o la FK de `acciones` deja de tocar
+  la fila (guardar el id sin FK, como ya guarda el nombre). Ninguna de las dos se
+  hizo sin preguntar.
 
 - **B27 · La pantalla de reportes ignora la querystring, así que un reporte no se
   puede compartir por enlace.** `reportes/page.tsx:72-76` inicializa el estado con

@@ -83,6 +83,12 @@ interface PropuestaPub {
   iva: number
   total: number
   itemsAprobados: number
+  // PROP-COMPLETA (29/10) · hasta cuándo se puede aceptar y en qué términos.
+  // Opcionales: un servidor anterior no los manda, y entonces la liga se ve
+  // como antes (sin vigencia ni condiciones).
+  vigenteHasta?: string | null
+  vencida?: boolean
+  condiciones?: string | null
   items: ItemPub[]
 }
 
@@ -154,7 +160,10 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
   // Estado de aceptación: local (recién aceptada) o el que trae la propuesta.
   const aceptada =
     aceptadaLocal ?? (p.aceptadoEn ? { aceptadoEn: p.aceptadoEn, aceptadoPor: p.aceptadoPor ?? '' } : null)
-  const puedeAceptar = !aceptada && p.estatus === 'ENVIADA'
+  // PROP-COMPLETA · vencida, el botón no se ofrece: el servidor la rechazaría
+  // igual (`aceptarPropuestaPublica`), y es mejor decirlo antes de que teclee.
+  const vencida = !aceptada && p.estatus === 'ENVIADA' && !!p.vencida
+  const puedeAceptar = !aceptada && p.estatus === 'ENVIADA' && !vencida
   const desde = p.items.map((i) => i.fechaInicio).filter(Boolean).sort()[0]
   const hasta = p.items.map((i) => i.fechaFin).filter(Boolean).sort().at(-1)
 
@@ -202,7 +211,9 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
               <CheckCircle2 className="h-3.5 w-3.5" /> Aceptada
             </span>
           ) : (
-            <span className="text-[12px] text-muted">{puedeAceptar ? 'Pendiente de tu aprobación' : 'Solo lectura'}</span>
+            <span className="text-[12px] text-muted">
+              {puedeAceptar ? 'Pendiente de tu aprobación' : vencida ? 'Propuesta vencida' : 'Solo lectura'}
+            </span>
           )}
         </div>
       </header>
@@ -211,7 +222,15 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
         {/* Nombre + folio */}
         <div>
           <h1 className="text-2xl text-ink">{p.nombre}</h1>
-          <p className="demo-num mt-1 text-[12px] text-muted">{p.folio}</p>
+          <p className="demo-num mt-1 text-[12px] text-muted">
+            {p.folio}
+            {p.vigenteHasta && p.estatus === 'ENVIADA' && !aceptada && (
+              <span className={vencida ? 'text-error' : ''}>
+                {' · '}
+                {vencida ? `venció el ${formatFecha(p.vigenteHasta)}` : `válida hasta el ${formatFecha(p.vigenteHasta)}`}
+              </span>
+            )}
+          </p>
         </div>
 
         {/* Metadatos */}
@@ -393,6 +412,19 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
           </CardContent>
         </Card>
 
+        {/* PROP-COMPLETA (29/10) · los términos que el cliente acepta junto con
+            el total. Antes del botón, a propósito: se aceptan después de leerlos. */}
+        {p.condiciones && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Términos y condiciones</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="whitespace-pre-wrap text-[13px] text-ink">{p.condiciones}</p>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Aceptación del cliente (cierra el loop de venta) */}
         {aceptada ? (
           <Card className="border-[#10b98140] bg-[#10b9810d]">
@@ -431,6 +463,15 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
                 </Button>
               </div>
               {errorAcep && <p className="mt-2 text-[12px] text-error">{errorAcep}</p>}
+            </CardContent>
+          </Card>
+        ) : vencida ? (
+          <Card className="border-[#ef444440]">
+            <CardContent>
+              <p className="py-1 text-[13px] text-ink">
+                Esta propuesta venció el {formatFecha(p.vigenteHasta as string)} y ya no se puede aceptar desde
+                aquí. Pide una actualizada a quien te la envió.
+              </p>
             </CardContent>
           </Card>
         ) : null}

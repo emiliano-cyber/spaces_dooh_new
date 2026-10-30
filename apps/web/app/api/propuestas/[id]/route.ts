@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server'
+import { z } from 'zod'
 import { AppError } from '@/lib/server/errores'
 import { exigir } from '@/lib/server/auth'
 import {
   cambiarEstatusPropuesta,
   actualizarPropuesta,
+  borrarPropuestaBorrador,
   PropuestaError,
   PropuestaCeroError,
   CodigoPendienteError,
@@ -17,6 +19,22 @@ import { textoBitacoraPropuesta } from '@/lib/descuento'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
+// PROP-COMPLETA (29/10) · forma de los dos campos del documento. La fecha va
+// como `AAAA-MM-DD` (lo que da un <input type=date>) y se valida que exista: un
+// «2026-02-31» llegaría a Postgres como un 500 en vez de una frase.
+const camposDocumento = z.object({
+  condiciones: z.string().max(8000, 'Las condiciones no pueden pasar de 8000 caracteres').nullish(),
+  vigenteHasta: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'La vigencia debe ser una fecha AAAA-MM-DD')
+    .refine((s) => {
+      const [a, m, d] = s.split('-').map(Number)
+      const f = new Date(a, m - 1, d)
+      return f.getFullYear() === a && f.getMonth() === m - 1 && f.getDate() === d
+    }, 'La fecha de vigencia no existe')
+    .nullish(),
+})
+
 // PATCH /api/propuestas/[id] → cambia el estatus (enviar/aprobar/rechazar).
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   const g = await exigir('comercial', 'crear')
@@ -25,12 +43,25 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
   // Actualización de campos editables (descuento comercial / nombre / notas),
   // sin cambio de estatus. Sube versión si renegocia una propuesta ya enviada.
-  if (body.estatus == null && (body.descuentoPct != null || body.nombre != null || body.notas !== undefined)) {
+  // PROP-COMPLETA (29/10) · y las condiciones y la vigencia de ESTA propuesta.
+  if (
+    body.estatus == null &&
+    (body.descuentoPct != null || body.nombre != null || body.notas !== undefined ||
+      body.condiciones !== undefined || body.vigenteHasta !== undefined)
+  ) {
+    const extra = camposDocumento.safeParse({ condiciones: body.condiciones, vigenteHasta: body.vigenteHasta })
+    if (!extra.success) {
+      return NextResponse.json({ error: extra.error.issues[0]?.message ?? 'Datos inválidos' }, { status: 400 })
+    }
     try {
       const res = await actualizarPropuesta(params.id, {
         descuentoPct: body.descuentoPct,
         nombre: body.nombre,
         notas: body.notas,
+        // Vaciar el cuadro es QUITAR las condiciones, no guardar espacios.
+        condiciones:
+          extra.data.condiciones === undefined ? undefined : extra.data.condiciones?.trim() || null,
+        vigenteHasta: extra.data.vigenteHasta,
       })
       if (!res) return NextResponse.json({ error: 'Propuesta no encontrada' }, { status: 404 })
       const prop = res.propuesta
@@ -141,5 +172,22 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       { error: e instanceof Error ? e.message : 'No se pudo actualizar' },
       { status: 400 },
     )
+  }
+}
+
+// DELETE /api/propuestas/[id] → borra un BORRADOR (PROP-COMPLETA, 29/10, R5
+// aprobado por el dueño). Enviada o aprobada → 409 con la frase que dice qué
+// hacer. Ver `borrarPropuestaBorrador`.
+export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
+  const g = await exigir('comercial', 'crear')
+  if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
+  try {
+    const b = await borrarPropuestaBorrador(params.id)
+    if (!b) return NextResponse.json({ error: 'Propuesta no encontrada' }, { status: 404 })
+    await registrarAccion(g.usuario, `Borró el borrador de propuesta ${b.folio}`, b.nombre)
+    return NextResponse.json({ ok: true })
+  } catch (e) {
+    if (e instanceof PropuestaError) return NextResponse.json({ error: e.message }, { status: 409 })
+    return NextResponse.json({ error: 'No se pudo borrar la propuesta' }, { status: 500 })
   }
 }

@@ -68,6 +68,14 @@ export type TarifaCalculada = {
   /** La temporada que cubría la fecha de inicio, o null. */
   temporadaId: string | null
   /**
+   * B43 · la temporada de la fila GANADORA de la rejilla, o null si el precio
+   * lo puso una fila sin temporada o la tarifa base. NO es lo mismo que
+   * `temporadaId`: el Buen Fin puede cubrir la fecha y no haber tocado el
+   * precio. Es la que se congela en el snapshot, porque el snapshot afirma qué
+   * puso el precio, y una temporada que solo cubría la fecha no lo puso.
+   */
+  temporadaQuePuso: string | null
+  /**
    * ¿Hay de verdad una tarifa de la que salga este número?
    *
    * `false` cuando la pantalla no tiene ninguna tarifa capturada (0), o cuando
@@ -108,9 +116,9 @@ export function tarifaCalculada(e: {
   const filas = (e.sitio.rejilla ?? []).filter((f) => f.unidad === e.unidad)
   const r = filas.length
     ? resolverTarifa({ tarifaBase: base, rejilla: filas, franjaId: e.franjaId || null, temporadaId })
-    : { tarifa: Number(base), origen: 'modalidad' as const }
+    : { tarifa: Number(base), origen: 'modalidad' as const, temporadaId: null }
   const calculable = r.origen !== 'modalidad' ? true : !!propia && r.tarifa > 0
-  return { tarifa: r.tarifa, origen: r.origen, temporadaId, calculable }
+  return { tarifa: r.tarifa, origen: r.origen, temporadaId, temporadaQuePuso: r.temporadaId ?? null, calculable }
 }
 
 /**
