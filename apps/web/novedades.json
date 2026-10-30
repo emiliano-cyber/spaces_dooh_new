@@ -41,7 +41,7 @@
       },
       {
         "tipo": "NUEVO",
-        "texto": "En la ficha de la campaña, «Reproducciones» muestra cada anuncio publicado con sus pantallas de DOOHmain y cómo está allí: al aire, en pausa o finalizado. Un anuncio se puede pausar y reanudar sin perderlo ni volver a publicarlo."
+        "texto": "En la ficha de la campaña, «Reproducciones» muestra cada anuncio publicado con sus pantallas de DOOHmain y cómo está allí: al aire, en pausa, programado, terminado o finalizado (y si lo borraron en DOOHmain, también lo dice). Un anuncio se puede pausar y reanudar sin perderlo ni volver a publicarlo."
       },
       {
         "tipo": "NUEVO",

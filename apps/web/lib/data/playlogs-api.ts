@@ -1,4 +1,5 @@
 'use client'
+import type { EstadoRemoto } from '@/lib/doohmain-estado'
 
 // ============================================================================
 //  lib/data/playlogs-api.ts — Proof of play (reproducciones en DOOHmain).
@@ -62,7 +63,7 @@ export interface CreativoEnDoohmain {
   auth: string
   pantallas: string[]
   /** null = no se sabe (DOOHmain no contestó o no lo reconocemos). */
-  estado: 'active' | 'pause' | 'finished' | 'pending' | null
+  estado: EstadoRemoto | null
   inicio: string | null
   fin: string | null
 }

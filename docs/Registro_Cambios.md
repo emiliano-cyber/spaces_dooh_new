@@ -14,7 +14,12 @@ integró lo que faltaba. Está en la ficha de cada campaña, en «Reproducciones
 
 - **«En DOOHmain ahora».** Cada anuncio publicado aparece con las pantallas de
   DOOHmain donde está y cómo lo ve DOOHmain en este momento: «Al aire», «En
-  pausa», «Finalizada» o «Sin confirmar» si DOOHmain no contesta.
+  pausa», «Programada» (todavía no empieza), «Terminó» (ya pasó su fecha fin),
+  «Finalizada», «Eliminada en DOOHmain» o «No está en DOOHmain» si la borraron
+  en su panel, y «Sin confirmar» si DOOHmain no contesta. Probado contra una
+  pantalla de pruebas real: DOOHmain sigue diciendo «activa» a una campaña
+  vencida o que aún no empieza, así que esas dos se calculan con las fechas.
+  Solo se ofrece «Pausar» o «Reanudar» donde sirve de algo.
 - **Pausar y reanudar.** Un anuncio se puede bajar del aire con «Pausar» y
   volver a subir con «Reanudar», sin perderlo ni repetir la publicación. Es la
   única forma de bajarlo que tiene vuelta: DOOHmain no deja quitar un anuncio de

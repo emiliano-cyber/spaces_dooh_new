@@ -267,6 +267,14 @@ hemos visto una respuesta con datos, así que no se interpreta nada todavía»*.
 >   `auth` en la raíz como dice el PDF. Visto el 29/10 contra la pantalla de pruebas
 >   `adv_004`: la primera versión no lo leía y la ficha decía «Sin confirmar» aunque la
 >   pausa sí llegaba.
+> - **El `status` no sigue a las fechas.** Medido contra `adv_004`: con el fin en el
+>   pasado o el inicio en el futuro, DOOHmain sigue diciendo `active`. El estado que se
+>   enseña lo corrige `estadoDeCampanaRemota(payload, auth, hoy)` con la fecha de
+>   México (`hoyEnMexico()`): `vencida` («Terminó») y `programada`. Solo se corrige
+>   un `active`; una pausa se enseña aunque esté vencida. `deleted: "1"` es
+>   `eliminada`, y un auth que no viene en `{ campaigns: [] }` es `no_encontrada`
+>   (DOOHmain responde `[]` para un auth que no tiene) — distinto de `null`, que es
+>   «no contestó». Los botones salen de `accionesDoohmain()`.
 > - **Probado contra DOOHmain real el 29/10** (pantalla de pruebas, base local):
 >   publicar, pausar (`status` pasa a `pause` en DOOHmain), reanudar (`active`),
 >   `get_stats` y `get_metrics` (responden `{ stats: [] }` y `{ metrics: [] }` sin

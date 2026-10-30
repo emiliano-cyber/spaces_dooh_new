@@ -7,7 +7,7 @@ import { StatusBadge, type Tono } from '@/components/demo/StatusBadge'
 import { Button } from '@/components/demo/ui/Button'
 import { ConfirmDialog } from '@/components/demo/ui/ConfirmDialog'
 import { usePuede } from '@/components/demo/shell/SesionContext'
-import { ETIQUETA_ESTADO_REMOTO } from '@/lib/doohmain-estado'
+import { ETIQUETA_ESTADO_REMOTO, accionesDoohmain } from '@/lib/doohmain-estado'
 import {
   estadoDoohmainApi,
   cambiarEstadoDoohmainApi,
@@ -24,7 +24,9 @@ import {
 //  papelera del panel de validación, que finaliza su campaña.
 //
 //  Un estado que DOOHmain no devolvió o que no reconocemos sale «Sin
-//  confirmar» y se ofrecen las dos acciones: no se adivina «al aire».
+//  confirmar» y se ofrecen las dos acciones: no se adivina «al aire». Qué
+//  botones lleva cada estado lo decide `accionesDoohmain()`: un «Terminó» o un
+//  «Eliminada» no ofrecen reanudar, porque reanudar no los vuelve al aire.
 // ============================================================================
 
 const TONO: Record<NonNullable<CreativoEnDoohmain['estado']>, Tono> = {
@@ -32,6 +34,10 @@ const TONO: Record<NonNullable<CreativoEnDoohmain['estado']>, Tono> = {
   pause: 'ambar',
   finished: 'neutro',
   pending: 'azul',
+  vencida: 'neutro',
+  programada: 'azul',
+  eliminada: 'rojo',
+  no_encontrada: 'rojo',
 }
 
 export function CreativosEnDoohmain({ campanaId }: { campanaId: string }) {
@@ -103,14 +109,14 @@ export function CreativosEnDoohmain({ campanaId }: { campanaId: string }) {
             <StatusBadge tono={cr.estado ? TONO[cr.estado] : 'neutro'} className="px-1.5 py-0 text-[10px]">
               {cr.estado ? ETIQUETA_ESTADO_REMOTO[cr.estado] : 'Sin confirmar'}
             </StatusBadge>
-            {puede && cr.estado !== 'finished' && (
+            {puede && accionesDoohmain(cr.estado).length > 0 && (
               <div className="flex gap-1">
-                {cr.estado !== 'pause' && (
+                {accionesDoohmain(cr.estado).includes('pausar') && (
                   <Button size="sm" variant="secondary" onClick={() => setConfirmar({ cr, accion: 'pausar' })}>
                     <Pause className="h-3.5 w-3.5" /> Pausar
                   </Button>
                 )}
-                {cr.estado !== 'active' && (
+                {accionesDoohmain(cr.estado).includes('reanudar') && (
                   <Button size="sm" variant="secondary" onClick={() => setConfirmar({ cr, accion: 'reanudar' })}>
                     <Play className="h-3.5 w-3.5" /> Reanudar
                   </Button>

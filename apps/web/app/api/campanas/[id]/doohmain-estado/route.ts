@@ -3,7 +3,7 @@ import { exigir } from '@/lib/server/auth'
 import { respuestaError } from '@/lib/server/errores'
 import { creativosPublicadosDeCampana } from '@/lib/server/playlogs-repo'
 import { consultarCampanasDoohmain, doohmainHabilitado } from '@/lib/server/doohmain'
-import { estadoDeCampanaRemota } from '@/lib/doohmain-estado'
+import { estadoDeCampanaRemota, hoyEnMexico } from '@/lib/doohmain-estado'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -28,11 +28,12 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       })
     }
     const r = await consultarCampanasDoohmain(creativos.map((c) => c.auth))
+    const hoy = hoyEnMexico()
     return NextResponse.json({
       habilitado: true,
       creativos: creativos.map((c) => ({
         ...c,
-        ...(r.ok ? estadoDeCampanaRemota(r.payload, c.auth) : { estado: null, inicio: null, fin: null }),
+        ...(r.ok ? estadoDeCampanaRemota(r.payload, c.auth, hoy) : { estado: null, inicio: null, fin: null }),
       })),
       error: r.ok ? null : (r.error ?? 'DOOHmain no respondió'),
     })
