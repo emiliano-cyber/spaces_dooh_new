@@ -59,6 +59,9 @@ function deviceDetail() {
     // y "Descartar" no tenia a donde volver.
     savedCentro: { x: 0.5, y: 0.5 },
     savedBrillo: 0,
+    // Perfil de noche de la camara (migracion 030). El servidor lo encima
+    // sobre los ajustes del sitio dentro del tramo; aqui solo se edita.
+    noche: { activo: false, inicio: '19:00', fin: '07:00', brillo: -1 },
     isAdmin: false,     // solo admin puede fijar la orientacion / overlay
     // Quien puede cambiar FRECUENCIAS y UMBRALES de la vigilancia. El operador
     // tambien: afinan como se vigila, no cambian lo que la camara ve.
@@ -236,6 +239,7 @@ function deviceDetail() {
           y: Number(this.ajustes.centro_y ?? 0.5),
         };
         this.savedBrillo = Number(this.ajustes.brillo ?? 0);
+        this.noche = this._leerNoche();
         this.manualWb = this.ajustes.awb_rojo != null && this.ajustes.awb_azul != null;
         this.exposicionManual = Number(this.ajustes.obturador) > 0;
         // Enfoque fijo del sitio: si esta guardado, el visor arranca bloqueado
@@ -724,6 +728,7 @@ function deviceDetail() {
           lens: this.lens,
           zoom: Number(this.zoom) || 0,
           ajustes: this._cuerpoAjustes(),
+          ...this._cuerpoNoche(),
         });
         this.savedLens = this.lens;
         this.savedZoom = Number(this.zoom) || 0;
@@ -906,6 +911,37 @@ function deviceDetail() {
       this.showToast('Ajustes en blanco. Guarda para que el equipo los tome.', 'info');
     },
 
+    // Lo guardado en el equipo, o el tramo de siempre si no hay nada puesto.
+    // Las tres piezas van juntas: un perfil sin horas -o al reves- no es un
+    // tramo, y el servidor lo ignoraria sin decir nada.
+    _leerNoche() {
+      const vacio = { activo: false, inicio: '19:00', fin: '07:00', brillo: -1 };
+      if (!this.device) return vacio;
+      // MySQL devuelve las columnas TIME como "19:00:00".
+      const hora = (v) => (v ? String(v).slice(0, 5) : null);
+      let aj = null;
+      try {
+        aj = typeof this.device.camera_ajustes_noche === 'string'
+          ? JSON.parse(this.device.camera_ajustes_noche || 'null')
+          : this.device.camera_ajustes_noche;
+      } catch (_) { aj = null; }
+      const ini = hora(this.device.noche_inicio);
+      const fin = hora(this.device.noche_fin);
+      if (!aj || !ini || !fin) return vacio;
+      return { activo: true, inicio: ini, fin, brillo: Number(aj.brillo ?? 0) };
+    },
+
+    _cuerpoNoche() {
+      if (!this.noche.activo || !this.noche.inicio || !this.noche.fin) {
+        return { ajustes_noche: null, noche_inicio: null, noche_fin: null };
+      }
+      return {
+        ajustes_noche: { brillo: Number(this.noche.brillo) || 0 },
+        noche_inicio: this.noche.inicio,
+        noche_fin: this.noche.fin,
+      };
+    },
+
     _cuerpoAjustes() {
       const a = { ...this.ajustes };
       // Sin las dos ganancias no se manda ninguna: el agente las ignora sueltas.
@@ -922,7 +958,7 @@ function deviceDetail() {
       if (this.guardandoAjustes) return;
       this.guardandoAjustes = true;
       try {
-        await API.put(`/api/devices/${this.deviceId}/camera`, { ajustes: this._cuerpoAjustes() });
+        await API.put(`/api/devices/${this.deviceId}/camera`, { ajustes: this._cuerpoAjustes(), ...this._cuerpoNoche() });
         this.showToast('Ajustes guardados: se aplican a todas las fotos del equipo', 'success');
         return true;
       } catch (err) {
