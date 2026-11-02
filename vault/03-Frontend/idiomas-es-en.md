@@ -986,6 +986,56 @@ cambiado**.
   valores cambiados**, y ningún texto español retirado se quedó sin clave que lo
   pinte.
 
+### Lote catálogos
+
+**2026-11-02, rama `feat/ingles-operaciones`** (sale de `integra/ingles`). Es la
+parte de «catálogos de precio» del lote «operaciones, clientes y catálogos»; la
+de operaciones y la de clientes **no** van en esta entrega (ver abajo). El inglés
+sigue APAGADO; en español no cambia ni una letra.
+
+**Pantallas cubiertas:** `/paquetes` (`GestionPaquetes`), `/franjas-y-temporadas`
+(`GestionRejilla` y el horario de transmisión, `ProgramacionPorFranja`), el
+cuadro «Tarifas por franja y temporada» de la ficha de pantalla (`RejillaDialog`)
+y `/descuentos-por-volumen` (`GestionVolumen`).
+
+- **193 claves** en `lib/i18n/textos/catalogos.ts` (`catalogos.*`), esparcidas en
+  `diccionario.ts` y añadidas a `costura.test.ts`. Instantánea y guardias de forma
+  en `textos/catalogos.test.ts`. Los títulos de página reutilizan las claves del
+  menú (`nav.paquetes`…): la página se llama como la entrada que lleva a ella.
+- **Los motivos de rechazo** de `lib/paquete.ts`, `lib/rejilla.ts` y
+  `lib/volumen.ts` (los que la pantalla enseña ANTES de mandar, y que el servidor
+  manda igual) ganaron `idioma` con `'es'` por omisión. El servidor no lo pasa.
+  `textos/catalogos.fuentes.test.ts` recorre sus 27 ramas (el español del
+  diccionario es el literal del módulo) y fija qué clave usa cada aviso que no se
+  rinde (el toast de «Tarifas por franja guardadas», los `mensajeSiFalla`, los
+  `catch`).
+- **Dinero, fechas y cifras:** `formatMonto(n, idioma)` en el reparto del paquete;
+  `formatFecha(iso, idioma)` en las temporadas; los ejemplos «180,000» y
+  «15,000.50» entran por hueco (ningún diccionario lleva cifras). La unidad de
+  venta se pinta en español como siempre y en inglés con `etiquetaUnidad`.
+- **Español idéntico, medido:** `pantallas-catalogos.test.ts` rinde 15 estados
+  (con `useState` forzado) y con `I18N_VOLCAR` vuelca su HTML; antes y después de
+  tocar los componentes, `diff -rq` vacío (15/15). El rojo antes de implementar:
+  16 de 32 pruebas.
+
+**Términos nuevos** (decisión del agente; el dueño puede cambiarlos; tabla en
+`docs/i18n/revision-catalogos.md`): precio cerrado → *fixed price* · a prorrata /
+reparto / parte → *pro rata / split / bundle share* · dar de baja (franja,
+temporada) → **retire / Retired** (baja lógica) · tramo / escalón / escala plana →
+*tier / step / flat scale* · rejilla → *rate grid* · programar → *schedule* ·
+se transmite → *airs* · tarifa de lista → *list rate*.
+
+**Sigue en español:** los avisos «se vendió como X y se programa en Y» que manda
+el servidor (`a.texto`), los mensajes del servidor (I18N-05) y la etiqueta de una
+unidad que no está en `UNIDADES` (es el dato).
+
+> [!warning] Lo que falta del lote: operaciones y clientes
+> Operaciones (OT, almacén, imprenta, creativos, disponibilidad, el Dashboard y
+> `SlotsBadge`/`ClientesBadge`/`CalendarioDisponibilidad`), Clientes, Comisiones,
+> Captación, Energía y Reportes **no se tocaron**: siguen en español. Hay
+> borradores de diccionario y de pruebas de pantalla sin conectar a ningún
+> componente; no están en la rama.
+
 ## Enlaces
 
 - [[acceso-y-sesion-ui]] — la pantalla de entrar, que es la traducida

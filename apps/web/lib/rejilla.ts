@@ -159,19 +159,28 @@ function seCruzan(a: [number, number], b: [number, number]): boolean {
  * un desempate que nadie decidió — y el invariante de congelar no salva de eso,
  * congelaría un precio inexplicable.
  */
+// I18N (lote catalogos, 2026-11-02) · `idioma` es el ULTIMO parametro y vale
+// 'es' por omision: el servidor (el controlador, que es quien manda) no lo
+// pasa y sigue devolviendo el literal de siempre. La pantalla pasa el suyo; en
+// ingles el texto sale de `catalogos.motivo.*` y `textos/catalogos.test.ts`
+// ata el espanol del diccionario a estos literales.
 export function motivoFranjaInvalida(
   franja: FranjaHoraria,
   otras: FranjaHoraria[],
+  idioma: Idioma = 'es',
 ): string | null {
+  const en = idioma !== 'es'
   const nombre = String(franja.nombre ?? '').trim()
-  if (!nombre) return 'La franja necesita un nombre.'
+  if (!nombre) return en ? traducir(idioma, 'catalogos.motivo.franja.nombre') : 'La franja necesita un nombre.'
 
   const ini = minutosDeHora(franja.horaInicio)
   const fin = minutosDeHora(franja.horaFin)
   if (ini === null || fin === null) {
+    if (en) return traducir(idioma, 'catalogos.motivo.franja.hora', { nombre })
     return `Hora no válida en "${nombre}": se escribe HH:MM en 24 horas, de 00:00 a 23:59.`
   }
   if (ini === fin) {
+    if (en) return traducir(idioma, 'catalogos.motivo.franja.misma-hora', { nombre })
     return `La franja "${nombre}" empieza y termina a la misma hora: no cubre nada.`
   }
 
@@ -183,6 +192,12 @@ export function motivoFranjaInvalida(
     if (oi === null || of === null || oi === of) continue
     const suyos = tramos(oi, of)
     if (mios.some((a) => suyos.some((b) => seCruzan(a, b)))) {
+      if (en) {
+        return traducir(idioma, 'catalogos.motivo.franja.solape', {
+          nombre, inicio: franja.horaInicio, fin: franja.horaFin,
+          otra: otra.nombre, otraInicio: otra.horaInicio, otraFin: otra.horaFin,
+        })
+      }
       return `La franja "${nombre}" (${franja.horaInicio}–${franja.horaFin}) se solapa con "${otra.nombre}" (${otra.horaInicio}–${otra.horaFin}).`
     }
   }
@@ -204,16 +219,20 @@ export function motivoFranjaInvalida(
 export function motivoTemporadaInvalida(
   temporada: Temporada,
   otras: Temporada[],
+  idioma: Idioma = 'es',
 ): string | null {
+  const en = idioma !== 'es'
   const nombre = String(temporada.nombre ?? '').trim()
-  if (!nombre) return 'La temporada necesita un nombre.'
+  if (!nombre) return en ? traducir(idioma, 'catalogos.motivo.temporada.nombre') : 'La temporada necesita un nombre.'
 
   const desde = String(temporada.desde ?? '').trim()
   const hasta = String(temporada.hasta ?? '').trim()
   if (!FECHA_RE.test(desde) || !FECHA_RE.test(hasta)) {
+    if (en) return traducir(idioma, 'catalogos.motivo.temporada.fecha', { nombre })
     return `Fecha no válida en "${nombre}": se escribe AAAA-MM-DD.`
   }
   if (hasta < desde) {
+    if (en) return traducir(idioma, 'catalogos.motivo.temporada.al-reves', { nombre })
     return `La temporada "${nombre}" termina antes de empezar.`
   }
 
@@ -221,6 +240,11 @@ export function motivoTemporadaInvalida(
     if (otra.id === temporada.id) continue
     if (!FECHA_RE.test(otra.desde) || !FECHA_RE.test(otra.hasta)) continue
     if (desde <= otra.hasta && otra.desde <= hasta) {
+      if (en) {
+        return traducir(idioma, 'catalogos.motivo.temporada.solape', {
+          nombre, desde, hasta, otra: otra.nombre, otraDesde: otra.desde, otraHasta: otra.hasta,
+        })
+      }
       return `La temporada "${nombre}" (${desde} a ${hasta}) se solapa con "${otra.nombre}" (${otra.desde} a ${otra.hasta}).`
     }
   }
