@@ -76,11 +76,11 @@ vi.mock('@/components/demo/ui/CardColapsable', () => ({
       p.accion as never, p.children as never),
 }))
 
-const datos = vi.hoisted(() => ({ disponibilidad: undefined as unknown, puede: true, sitios: [] as unknown[] }))
+const datos = vi.hoisted(() => ({ disponibilidad: undefined as unknown, puede: true, sitios: [] as unknown[], ois: undefined as unknown, campanas: [] as unknown[] }))
 vi.mock('@/components/demo/shell/SesionContext', () => ({ usePuede: () => datos.puede }))
 vi.mock('@/lib/data/client', async (importOriginal) => {
   const real = await importOriginal<typeof import('@/lib/data/client')>()
-  return { ...real, useDisponibilidad: () => datos.disponibilidad, useSitios: () => datos.sitios }
+  return { ...real, useDisponibilidad: () => datos.disponibilidad, useSitios: () => datos.sitios, useOrdenesImpresion: () => datos.ois, useCampanas: () => datos.campanas }
 })
 
 beforeEach(() => {
@@ -89,6 +89,8 @@ beforeEach(() => {
   datos.disponibilidad = DISPONIBILIDAD
   datos.puede = true
   datos.sitios = [{ id: 's1', nombre: 'Muro Reforma' }]
+  datos.ois = OIS
+  datos.campanas = [{ id: 'c1', nombre: 'Verano', tipoCampana: 'OOH' }, { id: 'c2', nombre: 'Red', tipoCampana: 'DOOH' }]
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(new Date(2026, 1, 15, 12))
 })
@@ -141,6 +143,16 @@ const ACTIVOS = [
   activo('4', { tipoActivo: null, estado: 'EN_TRASLADO' }),
 ]
 
+// ─── Datos: imprenta ────────────────────────────────────────────────────────
+const oi = (id: string, extra: Record<string, unknown>) => ({
+  id, folio: 'OI-' + id, campanaId: 'c1', sitioId: 's1', material: 'Frontlit 13 oz', alto: 3, ancho: 6, estatus: 'EN_PRODUCCION',
+  proveedor: 'Grafica Sur', pruebaColorUrl: null, pruebaColorAprobada: false, creadoEn: '2026-01-01', ...extra,
+})
+const OIS = [
+  oi('1', {}),
+  oi('2', { estatus: 'LISTO_MONTAJE', pruebaColorAprobada: true, material: '', alto: 0, ancho: 0, campanaId: 'zz', proveedor: null }),
+]
+
 // ─── El arnes ───────────────────────────────────────────────────────────────
 function pintar(idioma: Idioma, el: ReactElement): string {
   return renderToStaticMarkup(createElement(ProveedorIdioma, { idioma, puedeElegir: true }, el))
@@ -160,6 +172,7 @@ function enesimo(componente: string, pred: (v: unknown) => boolean, n = 1) {
 }
 const forzar = (si: Forzado['si'], valor: unknown) => forzado.cola.push({ si, valor })
 
+const imprenta = async () => (await import('../../app/(app)/(shell)/imprenta/page')).default
 const almacen = async () => (await import('../../app/(app)/(shell)/almacen/page')).default
 const disponibilidad = async () => (await import('../../app/(app)/(shell)/disponibilidad/page')).default
 
@@ -335,6 +348,47 @@ const ESTADOS: Estado[] = [
     ingles: [
       'Move item', 'INV-2 · Articulo 2', 'Movement', 'Install on a screen', 'Mark in transit', 'Retire',
       'Destination screen', '— Choose —', 'Reason / note', 'placeholder="E.g. Removed at the end of the contract"', 'Record movement',
+    ],
+  },
+  {
+    nombre: 'imprenta · dos ordenes, una lista para montaje',
+    pintar: async (idioma) => pintar(idioma, createElement(await imprenta())),
+    espanol: [
+      'Imprenta', 'Órdenes de impresión · del arte al montaje', 'Nueva orden', 'En proceso', 'aún no están listas para montaje',
+      'Prueba de color pendiente', 'sin aprobar', 'En producción', 'en producción o ya impresas', 'Listas para montaje',
+      'pasan a una OT', 'Arte recibido <span', 'Órdenes de impresión', '2 ordenes', 'Campaña: Verano', 'Sin campaña',
+      'Sin material', 'Contenido digital', 'Paso 3 de 5', 'Paso 5 de 5',
+      'title="Arte recibido → Validado → En producción → Impreso → Listo para montaje"', 'Prueba de color: Pendiente',
+      'Prueba de color: Aprobada', 'Aprobar prueba', 'Avanzar',
+    ],
+    ingles: [
+      'Printing', 'Print orders · from artwork to installation', 'New order', 'In progress', 'not ready to install yet',
+      'Color proof pending', 'not approved', 'In production', 'in production or already printed', 'Ready to install',
+      'they move on to a work order', 'Artwork received <span', 'Print orders', '2 orders', 'Campaign: Verano', 'No campaign',
+      'No material', 'Digital content', 'Step 3 of 5', 'Step 5 of 5',
+      'title="Artwork received → Approved → In production → Printed → Ready to install"', 'Color proof: Pending',
+      'Color proof: Approved', 'Approve proof', 'Advance',
+    ],
+  },
+  {
+    nombre: 'imprenta · sin ordenes, con el alta abierta',
+    pintar: async (idioma) => {
+      datos.ois = [OIS[0]]
+      datos.campanas = [{ id: 'c1', nombre: 'Verano', tipoCampana: 'DOOH' }]
+      forzar(enesimo('ImprentaPage', (v) => v === false), true) // nueva
+      return pintar(idioma, createElement(await imprenta()))
+    },
+    espanol: [
+      'Sin órdenes de impresión', 'Crea una orden ligada a una campaña fija (OOH/híbrida) para llevar el proceso del arte al montaje.',
+      'Nueva orden de impresión', 'Selecciona una campaña…', 'Sitio', 'Material', 'placeholder="Lona front, vinil, contenido digital…"',
+      'Ancho (m)', 'Alto (m)', 'Proveedor', 'placeholder="Imprenta proveedora"', 'Deja ancho y alto en 0 para contenido digital.',
+      'Crear orden', '0 ordenes',
+    ],
+    ingles: [
+      'No print orders', 'Create an order linked to a fixed campaign (OOH/hybrid) to track the process from artwork to installation.',
+      'New print order', 'Select a campaign…', 'Site', 'Material', 'placeholder="Front-lit vinyl, vinyl, digital content…"',
+      'Width (m)', 'Height (m)', 'Supplier', 'placeholder="Print shop"', 'Leave width and height at 0 for digital content.',
+      'Create order', '0 orders',
     ],
   },
 ]

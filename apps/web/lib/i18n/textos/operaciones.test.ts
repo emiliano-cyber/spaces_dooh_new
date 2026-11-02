@@ -30,6 +30,8 @@ describe('diccionario de OPERACIONES · el ingles no esta en espanol', () => {
     'operaciones.slots.slots', // idem
     'operaciones.disponibilidad.digital', // «digital» es igual en ingles
     'operaciones.disponibilidad.en-propuesta-spots', // «, {n} spots»: spot no se traduce
+    'operaciones.imprenta.error', // «Error» es igual en ingles
+    'operaciones.imprenta.campo.material', // «Material» tambien
   ])
 
   it('ninguna entrada inglesa es igual a la espanola, salvo las declaradas', () => {
