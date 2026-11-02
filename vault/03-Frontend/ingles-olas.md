@@ -85,10 +85,10 @@ traductor  ──►  validador  ──►  ¿VERDE?  ──sí──►  se jun
 
 | Lote | Rama | Estado |
 |---|---|---|
-| Catálogos de precio (paquetes, franjas y temporadas, volumen) | `feat/ingles-operaciones` | Traducido. Validador: **ÁMBAR**, con 4 correcciones medias; en segunda vuelta |
+| Catálogos de precio (paquetes, franjas y temporadas, volumen) | `feat/ingles-operaciones` | **VERDE** (2.ª). Integrado en `integra/ingles` (85a8ee67). Incluye el aviso de `CampoCifra` en inglés para toda la app |
 | Space Eyes | `feat/ingles-space-eyes` | Traduciendo |
 | Inventario y arrendadores | `feat/ingles-inventario-arrendadores` | Traduciendo. El texto legal del contrato NO se traduce: va ligado al hash de las firmas |
-| Administración, cuenta y shell | `feat/ingles-administracion` | Traduciendo |
+| Administración, cuenta y shell | `feat/ingles-administracion` | Traducido (698 claves). En validación |
 | Operaciones y clientes (incluido el Dashboard) | `feat/ingles-operaciones-clientes` | Traduciendo. El primer intento se cortó por el límite de uso; este parte de sus borradores |
 
 ### Ola 4 · Lo que sale del servidor (en curso)
@@ -96,7 +96,7 @@ traductor  ──►  validador  ──►  ¿VERDE?  ──sí──►  se jun
 | Lote | Rama | Estado |
 |---|---|---|
 | Plantillas de error con huecos y motivos compartidos con el servidor | `feat/ingles-servidor` | Traduciendo |
-| «pesos» en redacción neutra (español **e** inglés) | por crear | Espera a que catálogos se junte, porque toca los mismos archivos |
+| «pesos» en redacción neutra (español **e** inglés) | `feat/pesos-neutral` | En curso. Es el único cambio autorizado del español |
 
 ### Ola 5 · Cierre (por lanzar)
 
