@@ -466,6 +466,8 @@ const PANTALLAS: Pantalla[] = [
       // Costura: `textoOrigenDoohmain`, `etiquetaUnidad` y `periodicidadLabel` con el idioma.
       'scr_9 · from the server map (not entered on the profile)',
       'CPS · cost per play', 'Monthly',
+      // La unidad de la tarifa publicada es un dato («mensual»): en ingles, su nombre.
+      'Published rate (monthly)',
     ],
   },
   {

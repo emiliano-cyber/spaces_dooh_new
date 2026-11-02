@@ -561,7 +561,21 @@ export function SiteFicha({
         <div>
           <h4 className="mb-2 text-[13px] font-medium text-ink">{t('comercial.ficha.datos-comerciales')}</h4>
           <div className="space-y-2">
-            <DatoComercial label={t('comercial.ficha.tarifa-publicada', { unidad: sitio.unidad })} valor={formatMonto(sitio.tarifaPublicada)} />
+            {/* `sitio.unidad` es el CODIGO de la unidad («mensual») y en espanol se
+                pinta tal cual, como siempre. En otro idioma, su nombre en
+                minusculas («monthly»); las que llevan sigla («CPS · …») se
+                dejan como estan (costura, 2026-11-02). */}
+            <DatoComercial
+              label={t('comercial.ficha.tarifa-publicada', {
+                unidad:
+                  idioma === 'es'
+                    ? sitio.unidad
+                    : etiquetaUnidad(sitio.unidad, idioma).includes('·')
+                    ? etiquetaUnidad(sitio.unidad, idioma)
+                    : etiquetaUnidad(sitio.unidad, idioma).toLowerCase(),
+              })}
+              valor={formatMonto(sitio.tarifaPublicada)}
+            />
             {/* El costo es la renta ATRIBUIDA a esta pantalla, la misma cifra que
                 usa el P&L (`rentaAtribuidaPorSitio`, vía useMargenPorSitio). Antes
                 aquí se restaba `costoCompra`, que nadie más usaba: la ficha y el
