@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { createHash } from 'node:crypto'
-import { generarContrato, numeroALetras, fechaEnLetra, fechaISO, documentoATexto, FALTA } from './contrato-documento'
+import { generarContrato, numeroALetras, fechaEnLetra, fechaISO, documentoATexto, FALTA, hashParaCotejar } from './contrato-documento'
 
 describe('numeroALetras', () => {
   // El importe en letra es el que prevalece si discrepa de la cifra, así que
@@ -300,5 +300,48 @@ describe('documentoATexto (lo que se sella con SHA-256)', () => {
     expect(t).toContain('PRIMERA. OBJETO.')
     expect(t).toContain('EL ARRENDADOR:')
     expect(t).toContain('EL ARRENDATARIO:')
+  })
+})
+
+// ─── ADR 0048 · un contrato YA CONGELADO se regenera como se firmó ──────────
+//
+// Hasta el 02/11 la letra decía «PESOS … M.N.» para CUALQUIER moneda. Un
+// contrato con `moneda = 'USD'` (de cuando existía el selector, antes del
+// 30/09) que se congeló entonces tiene sellado ese texto. Si al revisar sus
+// firmas se regenerara con la letra nueva («DÓLARES … USD»), el hash no
+// coincidiría y sus firmas aparecerían ALTERADAS sin que nadie tocara nada.
+//
+// El hash de abajo NO se calculó con este código: se calculó con la versión
+// anterior (`27047bfe:apps/web/lib/contrato-documento.ts`) sobre el mismo
+// expediente en USD. Es la foto de lo que se firmó.
+const HASH_USD_FIRMADO_ANTES = 'c1e903d40c35ec24dc02ae17dbb8e1aaee24006440c4c3fd61b2a3f8ad5a9d3d'
+
+describe('hashParaCotejar · lo congelado antes del ADR 0048 conserva su hash', () => {
+  const usd = { ...completo, terminos: { ...completo.terminos, moneda: 'USD' } }
+  const sha = (t: string) => createHash('sha256').update(t, 'utf8').digest('hex')
+
+  it('la regla anterior reproduce BYTE A BYTE el texto que se firmó', () => {
+    expect(sha(documentoATexto(generarContrato({ ...usd, letra: 'pesos-siempre' })))).toBe(HASH_USD_FIRMADO_ANTES)
+  })
+
+  it('un USD congelado con la regla vieja NO aparece como alterado', () => {
+    expect(hashParaCotejar(usd, HASH_USD_FIRMADO_ANTES, sha)).toBe(HASH_USD_FIRMADO_ANTES)
+  })
+
+  it('NEGATIVO · si cambia un dato, sigue apareciendo como alterado (la compatibilidad no ciega)', () => {
+    const tocado = { ...usd, terminos: { ...usd.terminos, montoRenta: 26000 } }
+    expect(hashParaCotejar(tocado, HASH_USD_FIRMADO_ANTES, sha)).not.toBe(HASH_USD_FIRMADO_ANTES)
+  })
+
+  it('lo que se congele desde hoy usa la letra en su moneda, y es lo que se coteja', () => {
+    const nuevo = sha(documentoATexto(generarContrato(usd)))
+    expect(nuevo).not.toBe(HASH_USD_FIRMADO_ANTES)
+    expect(hashParaCotejar(usd, nuevo, sha)).toBe(nuevo)
+  })
+
+  it('en MXN las dos reglas son la misma: nada cambia para los contratos en pesos', () => {
+    expect(documentoATexto(generarContrato({ ...completo, letra: 'pesos-siempre' }))).toBe(
+      documentoATexto(generarContrato(completo)),
+    )
   })
 })

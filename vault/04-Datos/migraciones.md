@@ -1457,7 +1457,14 @@ select moneda, count(*) from tenants group by moneda;          -- una sola fila,
 select c.tenant_id, c.moneda, t.moneda
   from config_negocio c join tenants t on t.id = c.tenant_id
  where c.moneda is distinct from t.moneda;                      -- la migración las alinea
+select count(*) from contratos_arrendamiento
+ where moneda = 'USD' and congelado_en is not null;             -- contratos USD ya congelados
 ```
+
+La última no la usa la migración: cuenta los contratos cuyo texto firmado lleva
+la letra vieja («PESOS … M.N.» en un contrato USD). La app los coteja con esa
+regla y no aparecen alterados (ver [[02-Backend/arrendadores-y-contratos]]),
+pero conviene saber cuántos hay.
 
 Si la primera da algo que no sea **una** fila en `MXN` o `USD`, la migración
 **se para** (paso 0) con un mensaje y no aplica nada: hay que decidir la moneda

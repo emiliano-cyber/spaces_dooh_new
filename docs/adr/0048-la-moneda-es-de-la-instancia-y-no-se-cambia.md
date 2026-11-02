@@ -64,13 +64,52 @@ campañas, facturas y contratos) y `config_negocio.moneda` (que nadie leía para
   migración de datos**: convertir importes con un tipo de cambio decidido por alguien, en una
   corrección de `docs/datos/` con su rollback, deshabilitando el trigger a propósito. Es el camino
   que debe tener algo así.
-- La app lee la moneda de la base en cada página (layout raíz) y en cada ruta que escribe
-  importes. No se cachea: una instancia sin organización todavía no tiene moneda, y una caché
-  puesta antes del bootstrap pintaría pesos en una instancia USD hasta reiniciar.
-- Si la base no contesta al pintar una página, la página falla en vez de caer a MXN.
-- `formatMonto(n, idioma?)` acepta el idioma opcional; las pantallas que no lo pasan siguen
-  escribiendo el símbolo español. Una pantalla traducida que quiera `MX$`/`$` en inglés le pasa el
-  idioma.
+- **Una por proceso, en `globalThis`.** El build empaqueta `lib/i18n/dinero.ts` varias veces (una
+  copia para las rutas de `app/api`, otra para el layout y las páginas). Con un valor de módulo,
+  fijarla en el layout no la fijaba para una ruta (lo midió el validador el 02/11). Por eso vive en
+  `globalThis`: todas las copias leen la misma.
+- **Dónde se lee.** `monedaDeLaInstancia()` (`lib/server/moneda-instancia.ts`) la lee de la base y
+  la **cachea por proceso** en cuanto existe una organización. El punto común es `tenantActual()`:
+  casi toda petición con sesión pasa por ahí, y no hay una envoltura de handlers en el repo (ruta por
+  ruta eran ~60, medido con un grafo de imports). La piden además el layout raíz (también las
+  páginas públicas), el documento imprimible de la propuesta y las rutas que escriben importes. Sin
+  organizaciones no se cachea; el alta la recuerda en cuanto crea la primera. **Tras una corrección
+  de datos que cambie la moneda hay que reiniciar la aplicación.**
+- **Fail-closed** (confirmado por el dueño el 02/11). Si la base no contesta al pintar una página,
+  la página falla en vez de caer a MXN, y `app/global-error.tsx` enseña una página propia en
+  español («El sistema no está disponible en este momento») en vez de la 500 genérica de Next.
+- **Solo el bootstrap elige.** `/api/signup` (anónimo, con `AUTOREGISTRO=1`) rechaza `moneda` con
+  400 aunque la instancia esté vacía; sin ella hereda la de la instancia o, si no hay, MXN.
+  `/api/tenants` hereda y rechaza otra. En `provision-instancia.sh`, `--moneda` sin `--bootstrap`
+  para con salida 64 en vez de ignorarse.
+- `formatMonto(n, idioma?)` acepta el idioma opcional, pero **en esta rama ninguna pantalla lo
+  pasa**: `MX$` en las pantallas en inglés lo decidió el dueño para otra tarea (02/11), para no
+  chocar con la traducción. Hoy todas escriben el símbolo español.
+
+## Compatibilidad: los contratos ya firmados
+
+Hasta el 02/11 la cantidad con letra decía «PESOS … M.N.» fuera cual fuera la moneda del
+contrato. Desde este ADR dice «DÓLARES … /100 USD» en un contrato en USD. Pero el texto de un
+contrato **congelado** está sellado con SHA-256, y `firmasDeContrato` (`firmas-repo.ts`) lo
+vuelve a generar para compararlo: un contrato en USD congelado antes (de cuando existía el
+selector, antes del 30/09) habría aparecido con sus firmas **alteradas** sin que nadie tocara nada.
+
+**Decisión: lo congelado se regenera byte a byte como se firmó.** `generarContrato` acepta
+`letra: 'en-su-moneda' | 'pesos-siempre'`, y `hashParaCotejar` (`lib/contrato-documento.ts`)
+coteja así: genera con la regla de hoy; si no coincide con el hash guardado, genera con la regla
+anterior; y solo si **esa** coincide devuelve su hash.
+
+- **Por contenido y no por fecha de corte**, porque el código no puede saber cuándo llegó esta
+  versión a cada instancia.
+- **No ciega la detección:** si cambia un dato, cambian los dos textos y ninguno coincide (lo prueba
+  `contrato-documento.test.ts` y la e2e «FIRMAS» de `moneda-instancia.e2e.test.ts`).
+- **No perdona lo nuevo:** un contrato congelado con la regla de hoy nunca coincide con la anterior,
+  porque difieren justo en la letra.
+- En MXN las dos reglas dan el mismo texto: nada cambia para los contratos en pesos.
+- Lo que se congele (o se reenvíe a firma) desde hoy usa la letra en su moneda.
+
+Antes de desplegar, medir en cada base cuántos contratos están en este caso:
+`select count(*) from contratos_arrendamiento where moneda='USD' and congelado_en is not null`.
 
 ## Lo que NO decide
 
@@ -78,4 +117,13 @@ campañas, facturas y contratos) y `config_negocio.moneda` (que nadie leía para
 - Las columnas `moneda` de campañas, facturas y contratos (default heredado `'PEN'`, luego `'MXN'`)
   siguen como almacén histórico; no se tocan.
 - Los recibos de luz de CFE son, por naturaleza, mexicanos: en una instancia USD su importe se
-  pintaría con el símbolo de dólar. No aplica a ninguna instancia hoy; queda anotado.
+  pintaría con el símbolo de dólar. **El dueño decidió no tocarlos por ahora (02/11)**: dará más
+  tipos de recibo después. No aplica a ninguna instancia hoy.
+- `MX$` en las pantallas en inglés: otra tarea (decisión del dueño, 02/11).
+
+## Revisión independiente
+
+El validador dio ÁMBAR el 02/11 (`docs/Supervision/moneda-por-instancia.md`). Las correcciones que
+pidió —la compatibilidad de las firmas, la moneda en las rutas, el documento de la propuesta, las
+pruebas que faltaban, el signup, `--moneda` sin `--bootstrap` y `app/global-error.tsx`— están en la
+segunda vuelta de la rama.

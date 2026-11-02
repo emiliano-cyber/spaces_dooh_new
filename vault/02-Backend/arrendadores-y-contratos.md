@@ -34,6 +34,14 @@ archivos:
 > sigue la moneda del contrato: `DÓLARES … /100 USD` en vez de `PESOS … M.N.`
 > (`numeroALetras` en `lib/contrato-documento.ts`; en MXN el texto que se firma
 > no cambia). Ver [[03-Frontend/idiomas-es-en]] §7.
+>
+> **Lo ya firmado no cambia.** Hasta el 02/11 la letra decía «PESOS … M.N.» para
+> cualquier moneda. `firmasDeContrato` (`firmas-repo.ts`) coteja lo congelado con
+> `hashParaCotejar` (`lib/contrato-documento.ts`): la regla de hoy y, si no
+> coincide, la anterior (`letra: 'pesos-siempre'`). Así un contrato en USD
+> congelado antes no aparece con sus firmas alteradas, y un dato tocado se sigue
+> detectando. Medir antes de desplegar:
+> `select count(*) from contratos_arrendamiento where moneda='USD' and congelado_en is not null`.
 
 > [!important] v0.12.3 (SIN PUBLICAR, 22/10) · pantallas y lugares PROPIOS
 > Pedido del dueño: pantallas o lugares propios, sin renta mensual; solo luz y
