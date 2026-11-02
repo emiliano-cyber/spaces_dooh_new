@@ -5,6 +5,7 @@ import { Modal } from '@/components/demo/ui/Modal'
 import { Button } from '@/components/demo/ui/Button'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import type { Cliente } from '@/lib/data/types'
+import { useTexto } from '@/lib/i18n/contexto'
 
 // Una propuesta se puede aprobar sin cliente, pero sin él no se genera la
 // campaña (no habría a quién facturar), y aprobada ya no se edita. Este diálogo
@@ -22,6 +23,7 @@ export function ElegirClienteDialog({
   clientes: Cliente[] | undefined
   onElegir: (clienteId: string) => Promise<void>
 }) {
+  const t = useTexto()
   const [clienteId, setClienteId] = useState('')
   const [enviando, setEnviando] = useState(false)
   // OBLIG-01 · el cliente es lo único que pide el diálogo: sin él no hay a quién
@@ -53,33 +55,33 @@ export function ElegirClienteDialog({
     <Modal
       open={open}
       onOpenChange={onOpenChange}
-      title="¿A qué cliente se le factura?"
-      subtitle="La propuesta se aprobó sin cliente. Elígelo para generar la campaña; después ya no se cambia."
+      title={t('propuestas.elegir-cliente.titulo')}
+      subtitle={t('propuestas.elegir-cliente.subtitulo')}
       footer={
         <div className="flex justify-end gap-2">
-          <Button variant="secondary" size="sm" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button variant="secondary" size="sm" onClick={() => onOpenChange(false)}>{t('comun.cancelar')}</Button>
           <Button size="sm" disabled={enviando || anunciantes.length === 0} onClick={() => void confirmar()}>
-            {enviando ? 'Generando…' : 'Poner cliente y generar campaña'}
+            {enviando ? t('propuestas.comun.generando') : t('propuestas.elegir-cliente.confirmar')}
           </Button>
         </div>
       }
     >
       {anunciantes.length === 0 ? (
         <p className="text-[13px] text-muted">
-          No hay clientes. Créalo primero en Clientes y vuelve a esta propuesta.
+          {t('propuestas.elegir-cliente.sin-clientes')}
         </p>
       ) : (
-        <Campo label="Cliente" obligatorio falta={ob.falta('clienteId')}>
+        <Campo label={t('propuestas.comun.cliente')} obligatorio falta={ob.falta('clienteId')}>
           <select
             className="h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
             value={clienteId}
             onChange={(e) => setClienteId(e.target.value)}
             autoFocus
           >
-            <option value="">— Elige el cliente —</option>
+            <option value="">{t('propuestas.elegir-cliente.elige')}</option>
             {anunciantes.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.nombre}{c.ivaPct !== 16 ? ` (IVA ${c.ivaPct} %)` : ''}
+                {c.nombre}{c.ivaPct !== 16 ? t('propuestas.elegir-cliente.iva', { pct: c.ivaPct }) : ''}
               </option>
             ))}
           </select>

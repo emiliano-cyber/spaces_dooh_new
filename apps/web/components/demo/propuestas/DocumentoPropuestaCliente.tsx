@@ -5,6 +5,7 @@ import Link from 'next/link'
 import qrcode from 'qrcode-generator'
 import { Printer, ArrowLeft } from 'lucide-react'
 import { MapView, type MapPoint } from '@/components/demo/MapView'
+import { useTexto } from '@/lib/i18n/contexto'
 
 // ============================================================================
 //  Las piezas INTERACTIVAS del documento imprimible de la propuesta
@@ -15,18 +16,19 @@ import { MapView, type MapPoint } from '@/components/demo/MapView'
 // ============================================================================
 
 export function BarraDocumentoPropuesta({ volverA }: { volverA: string }) {
+  const t = useTexto()
   return (
     <div className="doc-no-print doc-barra">
       <div className="doc-barra-fila">
         {/* `Link` y no <a>: pone el basePath (/spaces-dooh) solo. */}
         <Link href={volverA} className="inline-flex items-center gap-1 text-[12px] font-medium text-[#0a66ff] hover:underline">
-          <ArrowLeft className="h-3.5 w-3.5" /> Volver a la propuesta
+          <ArrowLeft className="h-3.5 w-3.5" /> {t('propuestas.documento.volver')}
         </Link>
         <button type="button" onClick={() => window.print()} className="doc-btn">
-          <Printer className="h-3.5 w-3.5" /> Imprimir o guardar como PDF
+          <Printer className="h-3.5 w-3.5" /> {t('propuestas.documento.imprimir')}
         </button>
         <span className="doc-barra-nota">
-          En el diálogo de impresión elige «Guardar como PDF». Espera a que cargue el mapa antes de imprimir.
+          {t('propuestas.documento.imprimir.nota')}
         </span>
       </div>
     </div>
@@ -42,6 +44,7 @@ export function MapaDocumento({ puntos }: { puntos: MapPoint[] }) {
 }
 
 export function LigaConQr({ token, aceptable }: { token: string; aceptable: boolean }) {
+  const t = useTexto()
   const [liga, setLiga] = useState('')
   useEffect(() => {
     // Con barra final: la app corre con `trailingSlash` (ver `lib/medios-url.ts`).
@@ -60,11 +63,11 @@ export function LigaConQr({ token, aceptable }: { token: string; aceptable: bool
       {/* El SVG lo arma la librería con nuestra propia liga: no hay HTML ajeno. */}
       <div className="doc-qr" dangerouslySetInnerHTML={{ __html: svg }} />
       <div>
-        <p className="doc-p doc-strong">{aceptable ? 'Acéptala en línea' : 'Consúltala en línea'}</p>
+        <p className="doc-p doc-strong">{aceptable ? t('propuestas.documento.qr.acepta') : t('propuestas.documento.qr.consulta')}</p>
         <p className="doc-p doc-chico">
           {aceptable
-            ? 'Escanea el código o abre esta dirección para revisar la propuesta y aceptarla:'
-            : 'Escanea el código o abre esta dirección para consultar la propuesta:'}
+            ? t('propuestas.documento.qr.acepta.texto')
+            : t('propuestas.documento.qr.consulta.texto')}
         </p>
         <p className="doc-p doc-chico doc-liga">{liga}</p>
       </div>

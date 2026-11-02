@@ -3,11 +3,13 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Radio, ArrowRight, KeyRound } from 'lucide-react'
+import { useTexto } from '@/lib/i18n/contexto'
 
 // Entrada pública por CÓDIGO (estilo Hivestack): el cliente teclea el código de
 // su propuesta (folio, p. ej. PR-A0BC4F) y se abre la vista de solo lectura.
 export default function IngresarCodigoPropuestaPage() {
   const router = useRouter()
+  const t = useTexto()
   const [codigo, setCodigo] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [verificando, setVerificando] = useState(false)
@@ -21,13 +23,13 @@ export default function IngresarCodigoPropuestaPage() {
     try {
       const r = await fetch(`/spaces-dooh/api/propuestas/publica/${encodeURIComponent(cod)}/`, { cache: 'no-store' })
       if (!r.ok) {
-        setError('No encontramos ninguna propuesta con ese código. Revísalo e inténtalo de nuevo.')
+        setError(t('propuestas.publica.no-encontrada'))
         setVerificando(false)
         return
       }
       router.push(`/p/${encodeURIComponent(cod)}`)
     } catch {
-      setError('No se pudo verificar el código. Inténtalo de nuevo.')
+      setError(t('propuestas.publica.error'))
       setVerificando(false)
     }
   }
@@ -41,7 +43,7 @@ export default function IngresarCodigoPropuestaPage() {
           </span>
           <div className="leading-tight">
             <div className="font-display text-[15px] font-bold text-ink">Spaces</div>
-            <div className="text-[10px] text-muted">Propuestas comerciales</div>
+            <div className="text-[10px] text-muted">{t('propuestas.publica.marca')}</div>
           </div>
         </div>
       </header>
@@ -52,9 +54,9 @@ export default function IngresarCodigoPropuestaPage() {
             <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-[#0a66ff1a] text-info">
               <KeyRound className="h-5 w-5" />
             </span>
-            <h1 className="text-lg font-semibold text-ink">Ver tu propuesta</h1>
+            <h1 className="text-lg font-semibold text-ink">{t('propuestas.publica.titulo')}</h1>
             <p className="mt-1 text-[13px] text-muted">
-              Ingresa el código que te compartimos para ver tu propuesta.
+              {t('propuestas.publica.subtitulo')}
             </p>
           </div>
 
@@ -62,7 +64,7 @@ export default function IngresarCodigoPropuestaPage() {
             <input
               value={codigo}
               onChange={(e) => setCodigo(e.target.value)}
-              placeholder="p. ej. PR-A0BC4F"
+              placeholder={t('propuestas.publica.ejemplo')}
               autoFocus
               className="demo-num h-11 w-full rounded-md border border-border-strong bg-surface px-3 text-center text-[15px] tracking-wide text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
             />
@@ -72,14 +74,14 @@ export default function IngresarCodigoPropuestaPage() {
               disabled={!codigo.trim() || verificando}
               className="inline-flex h-11 w-full items-center justify-center gap-1.5 rounded-md bg-accent text-[14px] font-medium text-accent-fg transition-opacity hover:opacity-90 disabled:opacity-50"
             >
-              {verificando ? 'Verificando…' : <>Ver propuesta <ArrowRight className="h-4 w-4" /></>}
+              {verificando ? t('propuestas.publica.verificando') : <>{t('propuestas.publica.ver')} <ArrowRight className="h-4 w-4" /></>}
             </button>
           </form>
         </div>
       </main>
 
       <footer className="py-4 text-center text-[11px] text-muted">
-        Spaces · propuestas comerciales · acceso de solo lectura por código
+        {t('propuestas.publica.pie')}
       </footer>
     </div>
   )

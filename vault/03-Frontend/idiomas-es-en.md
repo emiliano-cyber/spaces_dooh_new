@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-11-02
 tags: [frontend, i18n, idiomas, ingles, dinero]
 archivos:
   - apps/web/lib/i18n/idiomas.ts
@@ -17,6 +17,11 @@ archivos:
   - scripts/i18n-inventario.mjs
   - apps/web/lib/i18n/errores-servidor.ts
   - apps/web/components/demo/inventario/ContratoWizard.tsx
+  - apps/web/lib/i18n/textos/propuestas.ts
+  - apps/web/lib/i18n/nodos.ts
+  - apps/web/lib/i18n/pantallas-propuestas.test.ts
+  - apps/web/components/demo/propuestas/estatus.ts
+  - docs/i18n/revision-propuestas.md
 ---
 
 # La aplicación en dos idiomas (I18N-01)
@@ -365,6 +370,13 @@ mapa de Postgres, de los motivos de zod y de las constantes compartidas.
 
 ## 9 · Lo que falta, contado
 
+> [!note] 2026-11-02 · tras el lote piloto de PROPUESTAS (§11)
+> `node scripts/i18n-inventario.mjs` en la rama `feat/ingles-propuestas`:
+> **antes 149 archivos / ~2204 textos; después 142 / ~2035**. Lo que el
+> inventario sigue contando en los archivos del lote (7 + 1 + 1) son falsos
+> positivos —clases de Tailwind como `space-y-3 text-[13px]`—, comprobado
+> uno por uno. Las cifras de la tabla de abajo son las del 30/09.
+
 ```
 node scripts/i18n-inventario.mjs            # resumen por área
 node scripts/i18n-inventario.mjs --detalle  # archivo por archivo
@@ -410,6 +422,119 @@ original) ni con el menú colapsado.
 - **Los 28 sitios que dependen del valor en ejecución no se midieron uno por
   uno**: se sabe que se traducen *si* el texto está catalogado, no cuántos lo
   están de hecho en cada camino.
+
+## 11 · Lote piloto: PROPUESTAS (2026-11-02, rama `feat/ingles-propuestas`)
+
+El primer lote de pantallas de negocio. **El inglés sigue APAGADO**
+(`IDIOMA_INGLES` no se tocó): esto deja la traducción lista para cuando se
+encienda, y en español no cambia ni una letra.
+
+**Pantallas cubiertas:** la lista de propuestas (con la fila desplegada, el
+embudo y los filtros), el formulario de alta / duplicar / agregar sitios con la
+calculadora de spots, la ficha de la propuesta, el bloque del código de
+negociación, condiciones y vigencia, enviar por correo, elegir cliente, el
+tablero por periodo, la entrada pública por código (`/propuesta`) y el documento
+imprimible (`/propuesta/[id]`, que es un Server Component).
+
+### Lo que se añadió al mecanismo, y por qué
+
+- **Un archivo de textos por área**: `lib/i18n/textos/propuestas.ts` exporta
+  `ES_PROPUESTAS` (`as const`) y `EN_PROPUESTAS: Record<ClavePropuestas, string>`.
+  `diccionario.ts` los esparce dentro de `ES` y `EN`. `ClaveTexto` sigue saliendo
+  de `ES` y una clave inglesa que falte sigue sin compilar. El motivo es de
+  integración: cada lote lo hace un agente en su rama, y todos escribiendo en el
+  mismo objeto serían conflictos en las mismas líneas en cada merge.
+- **`interpolarNodos()`** (`lib/i18n/nodos.ts`): huecos `{nombre}` que reciben un
+  ELEMENTO (un `<b>`, un `<span>` con el importe). Sin esto, una frase con una
+  negrita en medio había que partirla en trozos, y eso congela el orden de la
+  frase española en el inglés. Prueba en `nodos.test.ts`.
+- **El Server Component** (`app/(app)/propuesta/[id]/page.tsx`) traduce con
+  `traducir(idiomaDeLaPeticion(), clave)`: la MISMA función que decide el idioma
+  del layout raíz. No hay segundo mecanismo.
+- **`CLAVE_ESTATUS`** en `components/demo/propuestas/estatus.ts`: la clave de cada
+  estatus. `EST[e].label` se queda como la verdad en español y una prueba exige
+  que el diccionario lo reproduzca, igual que el menú con `nav.ts`.
+
+### Cómo se demostró que el español no cambió
+
+`lib/i18n/pantallas-propuestas.test.ts` rinde **20 estados de pantalla** con
+`renderToStaticMarkup`. Para rendir lo que solo aparece tras un clic (el diálogo
+de alta, una fila desplegada, el tablero con datos) la prueba **fuerza el valor
+inicial de `useState`** —no hay jsdom—, y lo explica en su cabecera. El HTML
+español de los 20 estados se volcó **antes** de tocar los componentes y
+**después**, y los 20 archivos salieron **idénticos byte a byte** (`diff -rq`).
+La prueba que queda en el repositorio comprueba (a) frases españolas presentes
+en `es`, (b) ninguna de ellas en `en`, y además barre el diccionario entero del
+lote contra el HTML inglés de todas las pantallas.
+
+### El dinero y las fechas NO se movieron, a propósito
+
+Los importes siguen pasando por `formatMonto` y las fechas por `formatFecha`
+(`lib/data/derive.ts`), en los dos idiomas. Cambiarlos a `formatearDinero` /
+`formatearFecha` (`dinero.ts`) habría cambiado el español: `formatMonto` escribe
+`$ 1,234.50` (con espacio) y `formatearDinero(…, 'es')` escribe `$1,234.50`; la
+fecha pasaría de `01/12/2026` a `01 dic 2026`. Así que **en inglés los importes
+salen todavía como `$ 1,234.50`**, no `MX$1,234.50`. Es decisión pendiente para
+el lote que ataque `derive.ts`, no un descuido. El diccionario no lleva ninguna
+cifra: los importes entran por hueco.
+
+### Glosario (obligatorio para los lotes siguientes)
+
+| Español | Inglés |
+|---|---|
+| campaña | campaign |
+| propuesta | proposal |
+| sitio | site |
+| pantalla | screen |
+| arrendador / propietario | landlord |
+| cliente | client |
+| anunciante | advertiser |
+| agencia | agency |
+| OT / orden de trabajo | work order |
+| cobranza | collections |
+| tarifa | rate |
+| vigencia | validity (period) / valid until |
+| vendedor | sales rep |
+| cupón / código promocional / **código de negociación** | promo code |
+| borrador / enviada / aprobada / rechazada | draft / sent / approved / rejected |
+| enviar / reenviar | send / resend |
+| liga | link |
+| folio | ref. / reference |
+| bruto / neto | gross / net |
+| IVA · c/IVA · sin IVA | VAT · incl. VAT · excl. VAT |
+| comisión de agencia | agency commission |
+| descuento comercial / por volumen | commercial discount / volume discount |
+| paquete cerrado | bundle (como el menú, «Bundles») |
+| franja | daypart (como el menú) |
+| renta | rent |
+| predio | property |
+| prima (de Roadblock) | premium |
+| salidas / pases | plays |
+| millares / impactos | thousands / impressions |
+| embudo / tasa de cierre | funnel / close rate |
+| ganancia / margen | profit / margin |
+| Administración (el módulo) | Settings (como el menú) |
+| DOOH, spot, Roadblock, loop, Space Eyes | no se traducen |
+
+> [!warning] Choque con el menú: «Códigos de negociación»
+> El menú (`nav.codigos-promocionales`) dice **«Negotiation codes»** y el glosario
+> obligatorio de este lote dice **promo code**. Se siguió el glosario en las
+> pantallas de propuestas; **el menú no se tocó** (no era de este lote). Uno de
+> los dos tiene que ceder, y es decisión del dueño.
+
+### Lo que sigue en español dentro de estas pantallas (y no es de este lote)
+
+Textos que llegan de módulos compartidos, que se traducen en su propio lote:
+las unidades y sus abreviaturas (`UNIDADES`, `unidadCorta`, `resumenContratacion`,
+`etiquetaFrecuencia` de `lib/periodos.ts`), `etiquetaCalculadora` y el motivo de
+rechazo de la calculadora (`lib/calculadora-spots.ts`), las periodicidades de
+renta (`lib/renta-periodicidad.ts`), la etiqueta del estado del cupón
+(`etiquetaEstadoCodigo`, `lib/codigo-aprobacion.ts`), el aviso de la franja
+(`AVISO_FRANJA_NO_VIAJA_AL_CMS`, `AvisoFranjaCMS`), los periodos del tablero
+(`OPCIONES_PERIODO` de Finanzas y la `etiqueta` que manda el servidor), el
+botón «Dibujar zona» de `MapView`, `formatMontoCorto` y los mensajes del
+servidor (I18N-05). La periodicidad del contrato se pinta en minúsculas desde el
+dato (`mensual`).
 
 ## Enlaces
 

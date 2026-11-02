@@ -1,4 +1,5 @@
 import type { EstPropuesta } from '@/lib/data/client'
+import type { ClaveTexto } from '@/lib/i18n/diccionario'
 
 // ============================================================================
 //  Etiqueta y tono del chip de estatus de una propuesta.
@@ -19,6 +20,20 @@ export const EST: Record<EstPropuesta, { label: string; cls: string }> = {
   ENVIADA: { label: 'Enviada', cls: 'border-[#0a66ff40] text-info' },
   APROBADA: { label: 'Aprobada', cls: 'border-[#10b98140] text-[#0f7a55]' },
   RECHAZADA: { label: 'Rechazada', cls: 'border-[#ef444440] text-error' },
+}
+
+/**
+ * La clave del diccionario de cada estatus (lote de ingles, 2026-11-02). Las
+ * pantallas pintan `t(CLAVE_ESTATUS[e])` y no `EST[e].label`, que se queda
+ * como la verdad en espanol: `pantallas-propuestas.test.ts` exige que el
+ * espanol del diccionario reproduzca EXACTAMENTE este `label`, igual que se
+ * hace con el menu y `nav.ts`.
+ */
+export const CLAVE_ESTATUS: Record<EstPropuesta, ClaveTexto> = {
+  BORRADOR: 'propuestas.estatus.borrador',
+  ENVIADA: 'propuestas.estatus.enviada',
+  APROBADA: 'propuestas.estatus.aprobada',
+  RECHAZADA: 'propuestas.estatus.rechazada',
 }
 
 /** El orden de los chips de filtro de la lista: el del ciclo de vida. */

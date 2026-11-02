@@ -9,6 +9,7 @@ import type { TipoPeriodo } from '@/lib/finanzas-periodo'
 import { OPCIONES_PERIODO } from '@/components/demo/finanzas/TableroPeriodo'
 import { resumenPropuestasApi, type RespuestaResumenPropuestas } from '@/lib/data/propuestas-resumen-api'
 import { formatNumero } from '@/lib/formato-numero'
+import { useTexto } from '@/lib/i18n/contexto'
 
 // ============================================================================
 //  El tablero de propuestas por periodo (PROP-PER, 06/10).
@@ -25,6 +26,7 @@ const inputFecha =
 const pct = (v: number | null) => (v === null ? '—' : `${Math.round(v * 10) / 10} %`)
 
 export function TableroPropuestas() {
+  const t = useTexto()
   const [tipo, setTipo] = useState<TipoPeriodo>('mes')
   const [desde, setDesde] = useState('')
   const [hasta, setHasta] = useState('')
@@ -45,7 +47,10 @@ export function TableroPropuestas() {
     setError(null)
     resumenPropuestasApi({ periodo: tipo, desde, hasta })
       .then((d) => { if (vivo) setDatos(d) })
-      .catch((e) => { if (vivo) setError(e instanceof Error ? e.message : 'No se pudo calcular el tablero') })
+      // Sin mensaje propio se guarda '' y el texto se pone AL PINTAR: asi el
+      // efecto no depende de `t` y no se vuelve a pedir el tablero al cambiar
+      // de idioma.
+      .catch((e) => { if (vivo) setError(e instanceof Error ? e.message : '') })
       .finally(() => { if (vivo) setCargando(false) })
     return () => { vivo = false }
   }, [tipo, desde, hasta, listo, propuestas])
@@ -67,12 +72,18 @@ export function TableroPropuestas() {
     // desplegar no devuelve el periodo a «mes».
     <CardColapsable
       id="propuestas.resumen"
-      titulo="Resumen de propuestas"
+      titulo={t('propuestas.tablero.titulo')}
       // Plegado al entrar desde el 26/10: va debajo de la lista y es análisis
       // por periodo; quien lo quiera lo abre con un clic.
       defaultAbierto={false}
       subtitulo={
-        datos ? `${datos.periodo.etiqueta} · ${formatFecha(datos.periodo.desde)} a ${formatFecha(datos.periodo.hasta)}` : '—'
+        datos
+          ? t('propuestas.tablero.subtitulo', {
+              periodo: datos.periodo.etiqueta,
+              desde: formatFecha(datos.periodo.desde),
+              hasta: formatFecha(datos.periodo.hasta),
+            })
+          : '—'
       }
       accion={
         <div className="flex flex-wrap items-center gap-1.5">
@@ -83,7 +94,7 @@ export function TableroPropuestas() {
           <select
             value={tipo}
             onChange={(e) => setTipo(e.target.value as TipoPeriodo)}
-            aria-label="Periodo"
+            aria-label={t('propuestas.tablero.periodo')}
             className="h-8 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink sm:hidden"
           >
             {OPCIONES_PERIODO.map((o) => (
@@ -108,18 +119,18 @@ export function TableroPropuestas() {
           </div>
           {tipo === 'rango' && (
             <span className="flex items-center gap-1.5">
-              <input type="date" className={inputFecha} value={desde} onChange={(e) => setDesde(e.target.value)} aria-label="Desde" />
-              <span className="text-[12px] text-muted">a</span>
-              <input type="date" className={inputFecha} value={hasta} onChange={(e) => setHasta(e.target.value)} aria-label="Hasta" />
+              <input type="date" className={inputFecha} value={desde} onChange={(e) => setDesde(e.target.value)} aria-label={t('propuestas.comun.desde')} />
+              <span className="text-[12px] text-muted">{t('propuestas.tablero.a')}</span>
+              <input type="date" className={inputFecha} value={hasta} onChange={(e) => setHasta(e.target.value)} aria-label={t('propuestas.comun.hasta')} />
             </span>
           )}
         </div>
       }
     >
         {!listo ? (
-          <p className="text-[13px] text-muted">Elige la fecha de inicio y la de fin.</p>
-        ) : error ? (
-          <p className="text-[13px] text-error">{error}</p>
+          <p className="text-[13px] text-muted">{t('propuestas.tablero.elige-fechas')}</p>
+        ) : error !== null ? (
+          <p className="text-[13px] text-error">{error || t('propuestas.tablero.error')}</p>
         ) : !r ? (
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
             {Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-16 animate-pulse rounded bg-surface-2" />)}
@@ -129,34 +140,42 @@ export function TableroPropuestas() {
             {/* Sin ganancia (quien no ve finanzas) son cuatro cifras: en una
                 rejilla de seis dejaban dos huecos vacíos a la derecha. */}
             <div className={cn('grid grid-cols-2 gap-3', conGanancia ? 'md:grid-cols-3 xl:grid-cols-6' : 'md:grid-cols-4')}>
-              <Cifra label="Generadas" valor={formatNumero(r.generadas)} pie="creadas en el periodo" />
+              <Cifra label={t('propuestas.tablero.generadas')} valor={formatNumero(r.generadas)} pie={t('propuestas.tablero.generadas.pie')} />
               <Cifra
-                label="Aprobadas"
+                label={t('propuestas.tablero.aprobadas')}
                 valor={formatNumero(r.aprobadas.n)}
-                pie={ventaSinCalcular ? 'venta —, sin calcular en estas propuestas' : `venta ${formatMonto(r.aprobadas.venta)} sin IVA`}
+                pie={
+                  ventaSinCalcular
+                    ? t('propuestas.tablero.aprobadas.sin-venta')
+                    : t('propuestas.tablero.aprobadas.venta', { monto: formatMonto(r.aprobadas.venta) })
+                }
                 tono="ok"
               />
-              <Cifra label="Rechazadas" valor={formatNumero(r.rechazadas)} pie="en el periodo" tono={r.rechazadas > 0 ? 'error' : undefined} />
+              <Cifra label={t('propuestas.tablero.rechazadas')} valor={formatNumero(r.rechazadas)} pie={t('propuestas.tablero.rechazadas.pie')} tono={r.rechazadas > 0 ? 'error' : undefined} />
               {/* «del periodo» en la etiqueta: arriba hay una tasa histórica y
                   el Dashboard tiene otra de ventana fija, y sin decirlo se leían
                   dos porcentajes distintos para la misma pregunta. */}
               <Cifra
-                label="Tasa de cierre del periodo"
+                label={t('propuestas.tablero.tasa')}
                 valor={r.tasaCierre === null ? '—' : pct(r.tasaCierre * 100)}
-                pie="aprobadas de las decididas en este periodo"
+                pie={t('propuestas.tablero.tasa.pie')}
               />
               {conGanancia && (
                 <>
                   <Cifra
-                    label="Ganancia"
+                    label={t('propuestas.tablero.ganancia')}
                     valor={gananciaSinCalcular ? '—' : formatMonto(r.aprobadas.ganancia ?? 0)}
-                    pie={gananciaSinCalcular ? 'sin calcular: falta la venta o la renta' : `margen ${pct(r.aprobadas.margenPct)}`}
+                    pie={
+                      gananciaSinCalcular
+                        ? t('propuestas.tablero.ganancia.sin-calcular')
+                        : t('propuestas.tablero.ganancia.margen', { pct: pct(r.aprobadas.margenPct) })
+                    }
                     tono={gananciaSinCalcular ? undefined : 'ok'}
                   />
                   <Cifra
-                    label="Ganancia por aprobada"
+                    label={t('propuestas.tablero.ganancia-por-aprobada')}
                     valor={r.aprobadas.gananciaPromedio === null ? '—' : formatMonto(r.aprobadas.gananciaPromedio)}
-                    pie="venta − renta de las pantallas"
+                    pie={t('propuestas.tablero.ganancia-por-aprobada.pie')}
                   />
                 </>
               )}
@@ -165,8 +184,9 @@ export function TableroPropuestas() {
             {conGanancia && r.aprobadas.sinCosto > 0 && (
               <p className="flex items-start gap-1.5 text-[11px] text-muted">
                 <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
-                {r.aprobadas.sinCosto === 1 ? '1 aprobada tiene' : `${r.aprobadas.sinCosto} aprobadas tienen`} alguna pantalla
-                sin contrato de renta vigente: cuentan en la venta, pero no en la ganancia.
+                {t(r.aprobadas.sinCosto === 1 ? 'propuestas.tablero.sin-costo.uno' : 'propuestas.tablero.sin-costo.otros', {
+                  n: r.aprobadas.sinCosto,
+                })}
               </p>
             )}
 
@@ -175,12 +195,12 @@ export function TableroPropuestas() {
                 <table className="w-full text-left text-[13px]">
                   <thead>
                     <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted">
-                      <th className="py-2 pr-4 font-medium">Vendedor</th>
-                      <th className="py-2 pr-4 text-right font-medium">Generadas</th>
-                      <th className="py-2 pr-4 text-right font-medium">Aprobadas</th>
-                      <th className="py-2 pr-4 text-right font-medium">Rechazadas</th>
-                      <th className="py-2 pr-4 text-right font-medium">Venta sin IVA</th>
-                      {conGanancia && <th className="py-2 text-right font-medium">Ganancia</th>}
+                      <th className="py-2 pr-4 font-medium">{t('propuestas.tablero.col.vendedor')}</th>
+                      <th className="py-2 pr-4 text-right font-medium">{t('propuestas.tablero.generadas')}</th>
+                      <th className="py-2 pr-4 text-right font-medium">{t('propuestas.tablero.aprobadas')}</th>
+                      <th className="py-2 pr-4 text-right font-medium">{t('propuestas.tablero.rechazadas')}</th>
+                      <th className="py-2 pr-4 text-right font-medium">{t('propuestas.tablero.col.venta')}</th>
+                      {conGanancia && <th className="py-2 text-right font-medium">{t('propuestas.tablero.ganancia')}</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -201,18 +221,18 @@ export function TableroPropuestas() {
 
             {r.lista.length > 0 && (
               <div>
-                <div className="mb-1 text-[11px] uppercase tracking-wide text-muted">Aprobadas del periodo</div>
+                <div className="mb-1 text-[11px] uppercase tracking-wide text-muted">{t('propuestas.tablero.aprobadas-periodo')}</div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-[13px]">
                     <thead>
                       <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted">
-                        <th className="py-2 pr-4 font-medium">Folio</th>
-                        <th className="py-2 pr-4 font-medium">Propuesta</th>
-                        <th className="py-2 pr-4 font-medium">Vendedor</th>
-                        <th className="py-2 pr-4 font-medium">Aprobada</th>
-                        <th className="py-2 pr-4 text-right font-medium">Venta sin IVA</th>
-                        {conGanancia && <th className="py-2 pr-4 text-right font-medium">Renta</th>}
-                        {conGanancia && <th className="py-2 text-right font-medium">Ganancia</th>}
+                        <th className="py-2 pr-4 font-medium">{t('propuestas.tablero.col.folio')}</th>
+                        <th className="py-2 pr-4 font-medium">{t('propuestas.tablero.col.propuesta')}</th>
+                        <th className="py-2 pr-4 font-medium">{t('propuestas.tablero.col.vendedor')}</th>
+                        <th className="py-2 pr-4 font-medium">{t('propuestas.tablero.col.aprobada')}</th>
+                        <th className="py-2 pr-4 text-right font-medium">{t('propuestas.tablero.col.venta')}</th>
+                        {conGanancia && <th className="py-2 pr-4 text-right font-medium">{t('propuestas.tablero.col.renta')}</th>}
+                        {conGanancia && <th className="py-2 text-right font-medium">{t('propuestas.tablero.ganancia')}</th>}
                       </tr>
                     </thead>
                     <tbody>
@@ -223,7 +243,7 @@ export function TableroPropuestas() {
                           <td className="py-2 pr-4 text-muted">{x.vendedor ?? '—'}</td>
                           <td className="demo-num py-2 pr-4 text-muted">{formatFecha(x.aprobada)}</td>
                           <td className="demo-num py-2 pr-4 text-right text-ink">{x.venta === null ? '—' : formatMonto(x.venta)}</td>
-                          {conGanancia && <td className="demo-num py-2 pr-4 text-right text-muted">{x.costoRenta === null ? 'sin contrato' : formatMonto(x.costoRenta)}</td>}
+                          {conGanancia && <td className="demo-num py-2 pr-4 text-right text-muted">{x.costoRenta === null ? t('propuestas.tablero.sin-contrato') : formatMonto(x.costoRenta)}</td>}
                           {conGanancia && (
                             <td className={cn('demo-num py-2 text-right', x.ganancia !== null && x.ganancia < 0 ? 'text-error' : 'text-ink')}>
                               {x.ganancia === null ? '—' : formatMonto(x.ganancia)}
@@ -234,7 +254,7 @@ export function TableroPropuestas() {
                     </tbody>
                   </table>
                 </div>
-                {r.lista.length > 10 && <p className="mt-1 text-[11px] text-muted">Y {r.lista.length - 10} más.</p>}
+                {r.lista.length > 10 && <p className="mt-1 text-[11px] text-muted">{t('propuestas.tablero.mas', { n: r.lista.length - 10 })}</p>}
               </div>
             )}
           </div>

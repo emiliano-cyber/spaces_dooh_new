@@ -6,6 +6,8 @@ import { obtenerPropuestaPublica } from '@/lib/server/propuestas-repo'
 import { formatFecha, formatFechaHora, formatMonto } from '@/lib/data/derive'
 import { ubicacion } from '@/lib/ubicacion'
 import { AVISO_FRANJA_NO_VIAJA_AL_CMS } from '@/lib/rejilla'
+import { idiomaDeLaPeticion } from '@/lib/i18n/servidor'
+import { traducir, type ClaveTexto } from '@/lib/i18n/diccionario'
 import {
   BarraDocumentoPropuesta,
   LigaConQr,
@@ -34,9 +36,15 @@ const fotoUsable = (f: unknown): f is string =>
   typeof f === 'string' && (f.startsWith('data:image/') || f.startsWith('https://'))
 
 export default async function DocumentoPropuestaPage({ params }: { params: { id: string } }) {
+  // El idioma de un Server Component lo decide `idiomaDeLaPeticion()`, el
+  // MISMO que usa el layout raiz: no hay una segunda regla. Aqui no hay
+  // contexto de React del que leer `useTexto()`, asi que se traduce directo
+  // con `traducir()`.
+  const idioma = idiomaDeLaPeticion()
+  const t = (clave: ClaveTexto, valores?: Record<string, string | number>) => traducir(idioma, clave, valores)
   const g = await exigir('comercial', 'ver')
   if (!g.ok) {
-    return <div className="mx-auto max-w-2xl p-10 text-[14px] text-ink">No tienes permiso para ver esta propuesta.</div>
+    return <div className="mx-auto max-w-2xl p-10 text-[14px] text-ink">{t('propuestas.documento.sin-permiso')}</div>
   }
   // El token por el id y CON el tenant de la sesión (R2): un id de otra
   // organización no encuentra fila, y entonces es un 404 como cualquier otro.
@@ -73,7 +81,7 @@ export default async function DocumentoPropuestaPage({ params }: { params: { id:
             <span className="doc-strong">{p.orgNombre ?? ''}</span>
           </div>
           <div className="doc-cabecera-folio">
-            <div className="doc-chico">PROPUESTA COMERCIAL</div>
+            <div className="doc-chico">{t('propuestas.documento.encabezado')}</div>
             <div className="doc-strong">{p.folio}{p.version > 1 ? ` · v${p.version}` : ''}</div>
           </div>
         </header>
@@ -81,30 +89,32 @@ export default async function DocumentoPropuestaPage({ params }: { params: { id:
         <h1 className="doc-titulo">{p.nombre}</h1>
 
         <dl className="doc-datos">
-          <div><dt>Para</dt><dd>{p.clienteNombre ?? '—'}{p.agenciaNombre ? ` · vía ${p.agenciaNombre}` : ''}</dd></div>
-          <div><dt>Periodo</dt><dd>{desde && hasta ? `${formatFecha(desde)} – ${formatFecha(hasta)}` : '—'}</dd></div>
+          <div><dt>{t('propuestas.documento.para')}</dt><dd>{p.clienteNombre ?? '—'}{p.agenciaNombre ? t('propuestas.comun.via', { agencia: p.agenciaNombre }) : ''}</dd></div>
+          <div><dt>{t('propuestas.documento.periodo')}</dt><dd>{desde && hasta ? `${formatFecha(desde)} – ${formatFecha(hasta)}` : '—'}</dd></div>
           <div>
-            <dt>Vigencia</dt>
+            <dt>{t('propuestas.documento.vigencia')}</dt>
             <dd>
               {p.aceptadoEn
-                ? `Aceptada el ${formatFechaHora(p.aceptadoEn)}`
+                ? t('propuestas.documento.aceptada', { fecha: formatFechaHora(p.aceptadoEn) })
                 : p.vigenteHasta
-                  ? `${p.vencida ? 'Venció el' : 'Válida hasta el'} ${formatFecha(p.vigenteHasta)}`
+                  ? t(p.vencida ? 'propuestas.documento.vencio' : 'propuestas.documento.valida-hasta', {
+                      fecha: formatFecha(p.vigenteHasta),
+                    })
                   : p.estatus === 'BORRADOR'
-                    ? 'Se fija al enviarla'
+                    ? t('propuestas.documento.se-fija')
                     : '—'}
             </dd>
           </div>
         </dl>
 
-        <h2 className="doc-h2">PANTALLAS</h2>
+        <h2 className="doc-h2">{t('propuestas.documento.pantallas')}</h2>
         <table className="doc-tabla">
           <thead>
             <tr>
               <th>#</th>
               <th />
-              <th>Pantalla y ubicación</th>
-              <th className="doc-der">Importe</th>
+              <th>{t('propuestas.documento.col.pantalla')}</th>
+              <th className="doc-der">{t('propuestas.documento.col.importe')}</th>
             </tr>
           </thead>
           <tbody>
@@ -119,7 +129,7 @@ export default async function DocumentoPropuestaPage({ params }: { params: { id:
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={foto} alt="" className="doc-foto" />
                     ) : (
-                      <div className="doc-foto doc-foto-vacia">Sin foto</div>
+                      <div className="doc-foto doc-foto-vacia">{t('propuestas.documento.sin-foto')}</div>
                     )}
                   </td>
                   <td>
@@ -128,7 +138,7 @@ export default async function DocumentoPropuestaPage({ params }: { params: { id:
                     {zona && <div className="doc-chico">{zona}</div>}
                     <div className="doc-chico">
                       {formatFecha(String(it.fechaInicio).slice(0, 10))} – {formatFecha(String(it.fechaFin).slice(0, 10))}
-                      {it.franjaId ? ` · ${it.franjaNombre ?? 'Franja'}${it.franjaHorario ? ` ${it.franjaHorario}` : ''}` : ''}
+                      {it.franjaId ? ` · ${it.franjaNombre ?? t('propuestas.documento.franja')}${it.franjaHorario ? ` ${it.franjaHorario}` : ''}` : ''}
                     </div>
                   </td>
                   <td className="doc-der doc-num">{formatMonto(it.precio)}</td>
@@ -142,11 +152,11 @@ export default async function DocumentoPropuestaPage({ params }: { params: { id:
 
         {puntos.length > 0 && (
           <>
-            <h2 className="doc-h2">UBICACIÓN</h2>
+            <h2 className="doc-h2">{t('propuestas.documento.ubicacion')}</h2>
             <MapaDocumento puntos={puntos} />
             {puntos.length < p.items.length && (
               <p className="doc-p doc-chico">
-                {p.items.length - puntos.length} pantalla(s) sin coordenadas; su dirección está en la tabla.
+                {t('propuestas.documento.sin-coords', { n: p.items.length - puntos.length })}
               </p>
             )}
           </>
@@ -154,36 +164,36 @@ export default async function DocumentoPropuestaPage({ params }: { params: { id:
 
         {/* La MISMA escalera que la liga (`/p/[id]`), renglón por renglón: el
             cliente no puede leer dos cuentas distintas de la misma propuesta. */}
-        <h2 className="doc-h2">IMPORTE</h2>
+        <h2 className="doc-h2">{t('propuestas.documento.importe')}</h2>
         <dl className="doc-escalera">
-          <Fila label="Bruto (tarifa de lista)" valor={formatMonto(p.bruto)} />
+          <Fila label={t('propuestas.comun.bruto-lista')} valor={formatMonto(p.bruto)} />
           {p.paquete && (
-            <Fila label={`Paquete "${p.paquete.nombre}" — precio del conjunto`} valor={formatMonto(p.paquete.precio)} />
+            <Fila label={t('propuestas.comun.paquete-conjunto', { nombre: p.paquete.nombre })} valor={formatMonto(p.paquete.precio)} />
           )}
           {(p.descuentoVolumenMonto ?? 0) > 0 && (
             <Fila
-              label={`Descuento por volumen (${Math.round((p.descuentoVolumenPct ?? 0) * 10) / 10}%)`}
+              label={t('propuestas.comun.descuento-volumen', { pct: Math.round((p.descuentoVolumenPct ?? 0) * 10) / 10 })}
               valor={`− ${formatMonto(p.descuentoVolumenMonto ?? 0)}`}
             />
           )}
           {p.descuentoMonto > 0 && (
-            <Fila label={`Descuento (${p.descuentoPct}%)`} valor={`− ${formatMonto(p.descuentoMonto)}`} />
+            <Fila label={t('propuestas.documento.descuento', { pct: p.descuentoPct })} valor={`− ${formatMonto(p.descuentoMonto)}`} />
           )}
           {(p.codigoDescuentoMonto ?? 0) > 0 && (
             <Fila
-              label={`Código ${p.codigoTexto ?? ''} (${p.codigoDescuentoPct ?? 0}%)`}
+              label={t('propuestas.comun.codigo-pct', { codigo: p.codigoTexto ?? '', pct: p.codigoDescuentoPct ?? 0 })}
               valor={`− ${formatMonto(p.codigoDescuentoMonto ?? 0)}`}
             />
           )}
-          <Fila label={`Comisión de agencia (${comisionPct}%)`} valor={`− ${formatMonto(p.base - p.neto)}`} />
-          <Fila label="Neto" valor={formatMonto(p.neto)} />
-          <Fila label={`IVA ${ivaPct}%`} valor={formatMonto(p.iva)} />
-          <Fila label="Total" valor={formatMonto(p.total)} fuerte />
+          <Fila label={t('propuestas.documento.comision', { pct: comisionPct })} valor={`− ${formatMonto(p.base - p.neto)}`} />
+          <Fila label={t('propuestas.comun.neto')} valor={formatMonto(p.neto)} />
+          <Fila label={t('propuestas.comun.iva', { pct: ivaPct })} valor={formatMonto(p.iva)} />
+          <Fila label={t('propuestas.comun.total')} valor={formatMonto(p.total)} fuerte />
         </dl>
 
         {p.condiciones && (
           <section className="doc-bloque">
-            <h2 className="doc-h2">TÉRMINOS Y CONDICIONES</h2>
+            <h2 className="doc-h2">{t('propuestas.documento.terminos')}</h2>
             <p className="doc-p doc-condiciones">{p.condiciones}</p>
           </section>
         )}
@@ -197,15 +207,15 @@ export default async function DocumentoPropuestaPage({ params }: { params: { id:
           <div className="doc-firma">
             {p.aceptadoEn ? (
               <div className="doc-sello">
-                <p className="doc-sello-titulo">ACEPTADA EN LÍNEA</p>
+                <p className="doc-sello-titulo">{t('propuestas.documento.aceptada-en-linea')}</p>
                 <p className="doc-sello-nombre">{p.aceptadoPor ?? ''}</p>
                 <p className="doc-sello-fecha">{formatFechaHora(p.aceptadoEn)}</p>
               </div>
             ) : (
               <div className="doc-linea" />
             )}
-            <p className="doc-firma-rol">ACEPTA EL CLIENTE</p>
-            <p className="doc-firma-nombre">Nombre, firma y fecha</p>
+            <p className="doc-firma-rol">{t('propuestas.documento.acepta-cliente')}</p>
+            <p className="doc-firma-nombre">{t('propuestas.documento.firma')}</p>
           </div>
         </div>
       </article>

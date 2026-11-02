@@ -1,4 +1,5 @@
 import { IDIOMA_POR_OMISION, type Idioma } from './idiomas'
+import { ES_PROPUESTAS, EN_PROPUESTAS } from './textos/propuestas'
 
 // ============================================================================
 //  lib/i18n/diccionario.ts — LOS TEXTOS, Y LA CONVENCION DE CLAVES.
@@ -206,6 +207,17 @@ const ES = {
   'nav.razones-sociales': 'Razones sociales',
   'nav.actividad': 'Actividad',
   'nav.administracion': 'Administración',
+
+  // ── Un archivo por area (`lib/i18n/textos/`) ──
+  // Desde el lote piloto de propuestas (2026-11-02) cada area trae sus textos
+  // en su propio archivo, y aqui solo se juntan. El motivo es de integracion:
+  // los lotes los hacen agentes en ramas distintas, y si todos escribieran en
+  // este objeto cada merge seria un conflicto en las mismas lineas. Al
+  // esparcirlos AQUI, `ClaveTexto` sigue saliendo de `ES` y la regla 3 se
+  // mantiene entera: cada archivo declara su ingles como
+  // `Record<ClaveDeSuArea, string>`, asi que una clave inglesa que falte sigue
+  // siendo un error de compilacion, solo que en el archivo del area.
+  ...ES_PROPUESTAS,
 } as const
 
 export type ClaveTexto = keyof typeof ES
@@ -348,6 +360,8 @@ const EN: Record<ClaveTexto, string> = {
   'nav.razones-sociales': 'Legal entities',
   'nav.actividad': 'Activity',
   'nav.administracion': 'Settings',
+
+  ...EN_PROPUESTAS,
 }
 
 export const DICCIONARIOS: Record<Idioma, Record<ClaveTexto, string>> = {

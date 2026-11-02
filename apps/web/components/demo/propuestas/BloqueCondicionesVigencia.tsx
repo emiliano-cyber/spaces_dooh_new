@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/demo/ui/Button'
 import { actualizarPropuestaApi } from '@/lib/data/estado-api'
 import { formatFecha } from '@/lib/data/client'
+import { useTexto } from '@/lib/i18n/contexto'
 
 // ============================================================================
 //  Condiciones y vigencia de UNA propuesta (PROP-COMPLETA, decisión del dueño
@@ -37,6 +38,7 @@ export function BloqueCondicionesVigencia({
   vencida: boolean
   editable: boolean
 }) {
+  const t = useTexto()
   const [texto, setTexto] = useState(condiciones ?? '')
   const [fecha, setFecha] = useState(vigenteHasta ?? '')
   const [guardando, setGuardando] = useState(false)
@@ -55,9 +57,9 @@ export function BloqueCondicionesVigencia({
         ...(cambioTexto ? { condiciones: texto.trim() || null } : {}),
         ...(cambioFecha ? { vigenteHasta: fecha || null } : {}),
       })
-      toast.success('Condiciones y vigencia guardadas')
+      toast.success(t('propuestas.condiciones.guardadas'))
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Error')
+      toast.error(e instanceof Error ? e.message : t('propuestas.comun.error'))
     } finally {
       setGuardando(false)
     }
@@ -66,18 +68,18 @@ export function BloqueCondicionesVigencia({
   return (
     <div className="space-y-3 text-[13px]">
       <div>
-        <div className="text-[12px] font-medium text-ink">Vigencia</div>
+        <div className="text-[12px] font-medium text-ink">{t('propuestas.condiciones.vigencia')}</div>
         <p className="mt-0.5 text-[11px] text-muted">
           {vigenteHasta
             ? vencida
-              ? `Venció el ${formatFecha(vigenteHasta)}: la liga ya no deja aceptarla. Pon otra fecha o vuelve a enviarla.`
-              : `El cliente puede aceptarla hasta el ${formatFecha(vigenteHasta)} (ese día incluido).`
-            : 'Se pone sola al enviarla, con los días que tu organización tiene en Administración.'}
+              ? t('propuestas.condiciones.vencio', { fecha: formatFecha(vigenteHasta) })
+              : t('propuestas.condiciones.hasta', { fecha: formatFecha(vigenteHasta) })
+            : t('propuestas.condiciones.sin-vigencia')}
         </p>
         {editable && (
           <input
             type="date"
-            aria-label="Válida hasta"
+            aria-label={t('propuestas.condiciones.valida-hasta')}
             value={fecha}
             onChange={(e) => setFecha(e.target.value)}
             className={`mt-2 h-9 ${cls}`}
@@ -86,29 +88,28 @@ export function BloqueCondicionesVigencia({
       </div>
 
       <div>
-        <div className="text-[12px] font-medium text-ink">Términos y condiciones</div>
+        <div className="text-[12px] font-medium text-ink">{t('propuestas.condiciones.terminos')}</div>
         <p className="mt-0.5 text-[11px] text-muted">
-          Salen al final del documento y en la liga del cliente. Nacen de la plantilla de Administración; lo que cambies
-          aquí vale solo para esta propuesta.
+          {t('propuestas.condiciones.terminos.ayuda')}
         </p>
         {editable ? (
           <textarea
-            aria-label="Términos y condiciones"
+            aria-label={t('propuestas.condiciones.terminos')}
             value={texto}
             onChange={(e) => setTexto(e.target.value)}
             rows={5}
             maxLength={8000}
-            placeholder="Sin condiciones: el documento no lleva este bloque."
+            placeholder={t('propuestas.condiciones.terminos.ejemplo')}
             className={`mt-2 w-full py-2 ${cls}`}
           />
         ) : (
-          <p className="mt-2 whitespace-pre-wrap text-[12px] text-ink">{condiciones || 'Sin condiciones.'}</p>
+          <p className="mt-2 whitespace-pre-wrap text-[12px] text-ink">{condiciones || t('propuestas.condiciones.sin-terminos')}</p>
         )}
       </div>
 
       {editable && (
         <Button size="sm" onClick={guardar} disabled={guardando || (!cambioTexto && !cambioFecha)}>
-          {guardando ? 'Guardando…' : 'Guardar'}
+          {guardando ? t('propuestas.comun.guardando') : t('comun.guardar')}
         </Button>
       )}
     </div>
