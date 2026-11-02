@@ -321,7 +321,11 @@ export function GestionCodigos() {
                         La barra es de UN color, como las del Dashboard: el
                         estado (agotado) ya lo dice el chip. */}
                     <div className="demo-num whitespace-nowrap text-[13px] text-ink">
-                      {t('codigos.usos', { usos: c.usos, tope: tope ?? t('codigos.sin-tope') })}
+                      {/* Sin tope, en ingles «3 (no cap)» y no «3 of no cap»; el
+                          español sigue diciendo «3 de sin tope», como siempre. */}
+                      {tope == null
+                        ? t('codigos.usos.sin-tope', { usos: c.usos })
+                        : t('codigos.usos', { usos: c.usos, tope })}
                     </div>
                     {tope != null && tope > 0 && (
                       <div className="mt-1 h-1.5 w-20 overflow-hidden rounded-full bg-surface-2" aria-hidden>

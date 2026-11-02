@@ -362,7 +362,15 @@ export function SiteFicha({
           </Button>
         ) : (
           <p className="text-center text-[12px] text-muted">
-            {t('comercial.ficha.no-reservable', { estatus: t(CLAVE_SITIO_ESTATUS[sitio.estatusComercial]).toLowerCase() })}
+            {/* Minúsculas SOLO en español («Sitio ocupado · …», como siempre): en
+                inglés el estatus va tal cual y entre paréntesis, porque en
+                minúsculas «Booked · no PO» pintaba «no po». */}
+            {t('comercial.ficha.no-reservable', {
+              estatus:
+                idioma === 'es'
+                  ? t(CLAVE_SITIO_ESTATUS[sitio.estatusComercial]).toLowerCase()
+                  : t(CLAVE_SITIO_ESTATUS[sitio.estatusComercial]),
+            })}
           </p>
         )
       }
@@ -1539,7 +1547,7 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
             })}
             {sitio.clientesActivos != null &&
               sitio.clientesActivos > 0 &&
-              interpolarNodos(t('comercial.editar.cupo.ahora'), {
+              interpolarNodos(t(sitio.clientesActivos === 1 ? 'comercial.editar.cupo.ahora.uno' : 'comercial.editar.cupo.ahora.otros'), {
                 n: <span className="demo-num font-medium text-ink">{sitio.clientesActivos}</span>,
               })}
           </p>

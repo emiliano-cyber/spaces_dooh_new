@@ -60,6 +60,7 @@ exports[`diccionario de codigos · instantanea > el ESPANOL no cambia sin que se
   "codigos.pct": "{pct} %",
   "codigos.sin-tope": "sin tope",
   "codigos.usos": "{usos} de {tope}",
+  "codigos.usos.sin-tope": "{usos} de sin tope",
 }
 `;
 
@@ -95,11 +96,11 @@ exports[`diccionario de codigos · instantanea > el INGLES tampoco 1`] = `
   "codigos.error.eliminar": "Could not delete",
   "codigos.error.guardar": "Could not save",
   "codigos.error.leer": "Could not load the negotiation codes",
-  "codigos.estado.agotado": "Used up",
+  "codigos.estado.agotado": "Limit reached",
   "codigos.estado.proximo": "Upcoming",
   "codigos.estado.vencido": "Expired",
   "codigos.estado.vigente": "Active",
-  "codigos.estados.agotados": "Used up",
+  "codigos.estados.agotados": "Limit reached",
   "codigos.estados.proximos": "Upcoming",
   "codigos.estados.vencidos": "Expired",
   "codigos.estados.vigentes": "Active",
@@ -123,5 +124,6 @@ exports[`diccionario de codigos · instantanea > el INGLES tampoco 1`] = `
   "codigos.pct": "{pct}%",
   "codigos.sin-tope": "no cap",
   "codigos.usos": "{usos} of {tope}",
+  "codigos.usos.sin-tope": "{usos} (no cap)",
 }
 `;

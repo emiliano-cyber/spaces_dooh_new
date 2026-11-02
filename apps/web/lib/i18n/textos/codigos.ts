@@ -66,6 +66,7 @@ export const ES_CODIGOS = {
   'codigos.lista.vacia': 'Todavía no hay ninguno. Sin códigos, todo se vende como hoy.',
   'codigos.pct': '{pct} %',
   'codigos.usos': '{usos} de {tope}',
+  'codigos.usos.sin-tope': '{usos} de sin tope',
   'codigos.sin-tope': 'sin tope',
   'codigos.asignar-a-propuesta': 'Asignar a propuesta',
   'codigos.eliminar.ayuda':
@@ -108,10 +109,10 @@ export const EN_CODIGOS: Record<ClaveCodigos, string> = {
   'codigos.estado.vigente': 'Active',
   'codigos.estado.proximo': 'Upcoming',
   'codigos.estado.vencido': 'Expired',
-  'codigos.estado.agotado': 'Used up',
+  'codigos.estado.agotado': 'Limit reached',
   'codigos.estados.vigentes': 'Active',
   'codigos.estados.proximos': 'Upcoming',
-  'codigos.estados.agotados': 'Used up',
+  'codigos.estados.agotados': 'Limit reached',
   'codigos.estados.vencidos': 'Expired',
 
   'codigos.error.leer': 'Could not load the negotiation codes',
@@ -145,6 +146,7 @@ export const EN_CODIGOS: Record<ClaveCodigos, string> = {
   'codigos.lista.vacia': 'None yet. Without negotiation codes, everything sells as it does today.',
   'codigos.pct': '{pct}%',
   'codigos.usos': '{usos} of {tope}',
+  'codigos.usos.sin-tope': '{usos} (no cap)',
   'codigos.sin-tope': 'no cap',
   'codigos.asignar-a-propuesta': 'Assign to proposal',
   'codigos.eliminar.ayuda':

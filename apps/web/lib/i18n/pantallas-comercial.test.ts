@@ -369,7 +369,7 @@ const PANTALLAS: Pantalla[] = [
       'Ninguna pantalla cumple: «zzz» · tipo «Mural» · no disponible. Quita un filtro o pulsa Limpiar.',
       '0 resultados',
     ],
-    ingles: ['Clear (3)', 'No screen matches'],
+    ingles: ['Clear (3)', 'No screens match', 'click Clear'],
   },
   {
     nombre: 'comercial · sin propuestas abiertas ni digitales con slots',
@@ -457,7 +457,7 @@ const PANTALLAS: Pantalla[] = [
       'Coordenadas',
       'Disponibilidad',
     ],
-    ingles: ['Book this site', 'Gallery', 'Commercial data', 'Rates by daypart', 'Landlord and rent', 'Jan 1, 2026', 'North'],
+    ingles: ['Book this site', 'Gallery', 'Commercial data', 'Rates per daypart', 'Landlord and rent', 'Jan 1, 2026', 'North'],
   },
   {
     nombre: 'ficha de una pantalla propia en pausa legal, con incidencia',
@@ -484,7 +484,7 @@ const PANTALLAS: Pantalla[] = [
       'Sin tarifas por unidad. Se vende solo con la tarifa publicada de arriba; para cotizar por spot, hora o programático hay que añadirlas aquí.',
       'Pantalla propia: sin arrendador ni renta.',
     ],
-    ingles: ['Site occupied · not available to book', 'Paused for legal reasons', 'Active incident', 'Owned: no rent', 'Southeast'],
+    ingles: ['Not available to book (status: Occupied)', 'Paused for legal reasons', 'Active incident', 'Owned: no rent', 'Southeast'],
   },
   {
     nombre: 'ficha de una pantalla sin contrato',
@@ -500,7 +500,7 @@ const PANTALLAS: Pantalla[] = [
       'Sin arrendador ni renta registrados para este espacio.',
       'No',
     ],
-    ingles: ['No active contract', 'No landlord or rent on record for this space.'],
+    ingles: ['No active contract', 'No landlord or rent on record for this space.', 'Not available to book (status: Booked · no PO)'],
   },
   {
     nombre: 'ficha con sus cuadros abiertos (editar, tarifas, pausa, reubicar, eliminar)',
@@ -568,7 +568,7 @@ const PANTALLAS: Pantalla[] = [
       'Se elimina la pantalla y deja de poder reservarse. Sus reservas y su historial quedan como estén: ',
       'esta acción no se puede deshacer',
     ],
-    ingles: ['Edit screen', 'Rates by sales unit', 'Pause for legal reasons', 'Relocate screen', 'Delete screen', 'Save changes'],
+    ingles: ['Edit screen', 'Rates per sales unit', ' It currently has ', 'Display address', 'Pause for legal reasons', 'Relocate screen', 'Delete screen', 'Save changes'],
   },
   {
     nombre: 'alta de pantalla',
@@ -652,7 +652,7 @@ const PANTALLAS: Pantalla[] = [
       'de 6 slots',
       'Quedan ',
     ],
-    ingles: ['Book sites', '2 sites selected', 'Monthly total', 'Book (tentative)', '2 screens have reached their client cap'],
+    ingles: ['Book sites', '2 sites selected', 'Monthly total', 'Book (tentative)', '2 screens have reached their client cap', 'cap of 1 client on those dates, taken by Bebidas Sur', '(reference value, set in Settings)'],
   },
   {
     nombre: 'reservar una pantalla con slots propios',
@@ -866,7 +866,7 @@ const PANTALLAS: Pantalla[] = [
       'Agregar nota',
       'Usuario eliminado · 01/10/2026',
     ],
-    ingles: ['Commercial negotiation', 'New space', 'Spaces being tracked', 'Finding the decision-maker', 'Last contact: Sra. Carmen', 'Next step:', 'Technical profile', 'Sep 15, 2026'],
+    ingles: ['Lease negotiation', 'New space', 'Spaces being tracked', 'Finding the decision-maker', 'Last contact: Sra. Carmen', 'Next step:', 'Spec sheet', 'Sep 15, 2026'],
   },
   {
     nombre: 'comercial negociacion · sin espacios, con el alta abierta',
@@ -918,7 +918,7 @@ const PANTALLAS: Pantalla[] = [
       'Sin contactos registrados.',
       'Sin notas todavía.',
     ],
-    ingles: ['0 of 2', 'No space matches.', 'Inactive', 'No notes yet.'],
+    ingles: ['0 of 2', 'No spaces match.', 'Inactive', 'No notes yet.'],
   },
   {
     nombre: 'codigos · la lista, con el selector de propuesta abierto',
@@ -987,7 +987,8 @@ const PANTALLAS: Pantalla[] = [
       '20%',
       'Jan 1, 2020 → Dec 31, 2099',
       '40 of 100',
-      '0 of no cap',
+      '0 (no cap)',
+      'Limit reached',
       'PR-0003 — Verano · Refrescos del Norte · rejected',
       'New negotiation code',
       'Add negotiation code',
@@ -1122,6 +1123,7 @@ const COMUNES = new Set<string>([
   'Video', // igual en los dos idiomas
   'Don Pepe', // dato
   'No', // «No» tambien es ingles
+  'Mural', // igual en ingles (decision del orquestador, 2026-11-02)
   'Propia', // tambien esta dentro del nombre del sitio de prueba, «Azotea Propia»
   ' slots/h', // «slots» no se traduce
   ' slots',

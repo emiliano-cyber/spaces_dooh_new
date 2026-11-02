@@ -37,6 +37,7 @@ describe('diccionario de comercial · el ingles no esta en espanol', () => {
     'comercial.editar.cupo.global-ph', // «Global: {n}»
     'comercial.reserva.cliente-ej', // «Seguros Andinos», nombre propio de ejemplo
     'comercial.negociacion.canal.whatsapp', // marca
+    'comercial.tipo-medio.mural', // «Mural» tambien es ingles (decision del orquestador, 2026-11-02)
   ])
 
   it('ninguna entrada inglesa es igual a la espanola, salvo las declaradas', () => {

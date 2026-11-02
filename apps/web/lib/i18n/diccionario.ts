@@ -347,7 +347,7 @@ const EN: Record<ClaveTexto, string> = {
   'nav.disponibilidad': 'Availability',
   'nav.propuestas': 'Proposals',
   'nav.captacion': 'Prospecting',
-  'nav.comercial-opex': 'Commercial negotiation',
+  'nav.comercial-opex': 'Lease negotiation',
   'nav.franjas-y-temporadas': 'Dayparts and seasons',
   'nav.descuentos-por-volumen': 'Volume discounts',
   'nav.codigos-promocionales': 'Negotiation codes',

@@ -591,11 +591,11 @@ tarifas por unidad, pausa legal, reubicar y eliminar), el alta de pantalla, la
 reserva y la visión de Space Eye; Comercial negociación (`ComercialOpex`) entera,
 y los Códigos de negociación (`/codigos-promocionales` y `GestionCodigos`).
 
-- **557 claves** en dos archivos: `lib/i18n/textos/comercial.ts` (499,
-  `comercial.*`) y `textos/codigos.ts` (58, `codigos.*`), esparcidos en
+- **559 claves** en dos archivos: `lib/i18n/textos/comercial.ts` (500,
+  `comercial.*`) y `textos/codigos.ts` (59, `codigos.*`), esparcidos en
   `diccionario.ts`. Cada uno con su instantánea (`comercial.test.ts`,
   `codigos.test.ts`), que además exige que ningún inglés sea igual al español
-  (salvo 10 declaradas), que no lleve acentos, que los huecos coincidan y que no
+  (salvo 11 declaradas), que no lleve acentos, que los huecos coincidan y que no
   haya espacio antes de «%».
 - **Espejos de etiquetas compartidas.** `SITIO_LABEL`, `CONTRATO_LABEL`,
   `PAGO_LABEL`, `TIPO_MEDIO_LABEL`, `ETIQUETA_ETAPA` y las etiquetas de
@@ -615,13 +615,27 @@ y los Códigos de negociación (`/codigos-promocionales` y `GestionCodigos`).
 corridas). Con `VOLCAR_HTML=<carpeta>` escribe el HTML español de cada estado: se
 volcó antes de tocar los componentes y después, y `diff -rq` salió vacío (23/23).
 
-**Glosario añadido** (además del de arriba): reserva → **booking** (reservar →
-*book*, tentativa → *tentative*) · ficha → **profile** · Comercial (el módulo) →
-*Sales*, como el menú · prospección → *prospecting* · predio → *property* ·
-Valla → *Hoarding* (para revisar) · Espectacular → *Billboard* · fija →
-*static* · catorcenal → *per 14-day period* · cupo de clientes → *client cap* ·
-tope de usos → *usage cap* · vigente/próximo/vencido/agotado (códigos) →
-*active / upcoming / expired / used up*.
+**Glosario añadido** (además del de arriba; segunda vuelta del 2026-11-02 con
+las decisiones del orquestador, que el dueño puede cambiar): reserva →
+**booking** (reservar → *book*, tentativa → *tentative*; el estatus reservado /
+reservada → **Booked**, igual en el lote de campañas) · ficha → **profile**,
+pero ficha técnica → **Spec sheet** · Comercial (el módulo) → *Sales*, como el
+menú · Comercial negociación / OPEX → **Lease negotiation** (también
+`nav.comercial-opex`, solo el `en`) · prospección → *prospecting* · predio →
+*property* · Valla → **Poster panel** · Mural → *Mural* · Espectacular →
+*Billboard* · fija → *static* · catorcenal → **every two weeks** (catorcena →
+*two-week period(s)*) · cupo de clientes → *client cap* · tope de usos → *usage
+cap* (sin tope: «3 (no cap)») · vigente/próximo/vencido/agotado (códigos) →
+*active / upcoming / expired / limit reached* · siempre «Click», nunca «Tap» ni
+«press».
+
+> [!note] Segunda vuelta (validación ÁMBAR, `docs/i18n/validacion-comercial.md`)
+> Se aplicaron los 4 hallazgos medios y los bajos. El estatus del sitio va en
+> minúsculas **solo en español** («Sitio reservado · sin oc · …», como
+> siempre); en inglés «Not available to book (status: Booked · no PO)». El
+> nombre por omisión de una reserva sin nombre se sigue guardando en el idioma
+> de quien la crea, como en los otros lotes. Español: 23/23 estados idénticos
+> otra vez.
 
 **Sigue en español dentro de estas pantallas** (de otros lotes): `UNIDAD_LABEL`
 (`lib/periodos.ts`, el nombre de la unidad en las tarifas), `periodicidadLabel`,
