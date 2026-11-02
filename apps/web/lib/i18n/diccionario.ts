@@ -6,6 +6,7 @@ import { ES_FINANZAS, EN_FINANZAS } from './textos/finanzas'
 import { ES_COMERCIAL, EN_COMERCIAL } from './textos/comercial'
 import { ES_CODIGOS, EN_CODIGOS } from './textos/codigos'
 import { ES_CATALOGOS, EN_CATALOGOS } from './textos/catalogos'
+import { ES_OPERACIONES2, EN_OPERACIONES2 } from './textos/operaciones2'
 
 // ============================================================================
 //  lib/i18n/diccionario.ts — LOS TEXTOS, Y LA CONVENCION DE CLAVES.
@@ -230,6 +231,7 @@ const ES = {
   ...ES_COMERCIAL,
   ...ES_CODIGOS,
   ...ES_CATALOGOS,
+  ...ES_OPERACIONES2,
 } as const
 
 export type ClaveTexto = keyof typeof ES
@@ -380,6 +382,7 @@ const EN: Record<ClaveTexto, string> = {
   ...EN_COMERCIAL,
   ...EN_CODIGOS,
   ...EN_CATALOGOS,
+  ...EN_OPERACIONES2,
 }
 
 export const DICCIONARIOS: Record<Idioma, Record<ClaveTexto, string>> = {
