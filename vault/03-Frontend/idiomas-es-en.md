@@ -652,8 +652,8 @@ plural invertido) mueren los siete.
 thousand impressions; millar → **thousand** invariable («2 thousand × …»); catorcena
 → **two-week period(s)** (no «14-day»: «3 14-day periods» se lee «314»); catorcenal →
 **every two weeks**; quincenal → **twice a month** (no «biweekly», que en EE. UU. es
-ambiguo); por hora → **per hour**; bimestral → every 2 months; semestral → every 6
-months; espacio del loop → loop slot; prima → premium; zona (del mapa) → area,
+ambiguo); por hora → **per hour**; bimestral → every two months; semestral → every
+six months (en letra desde el retoque de la costura); espacio del loop → loop slot; prima → premium; zona (del mapa) → area,
 como el «Draw area» del piloto, y el verbo del mapa es siempre **click**, nunca
 «tap»; selector de periodo → **This month / Last month / This quarter / Last
 quarter / This year / Custom range** (Finanzas lo hereda cuando le toque);
@@ -746,7 +746,8 @@ tendrían que recibir el idioma.
 > `resumenReserva` y `etiquetaFrecuencia` (ficha), `textoHorario` y
 > `textoReproducciones` (`ProgramacionDoohmain`), `AvisoFranjaCMS`, la etiqueta
 > del periodo (`TableroPeriodo`, `EstadoCuenta`), `etiquetaAsignacion` y
-> `opcionesDeAsignacion`, el emisor y la fecha de `armarComprobante`, y además
+> `opcionesDeAsignacion`, el emisor de `armarComprobante` y la fecha en
+> `ComprobanteDialog`, y además
 > la columna «La emite» de `armarListaFacturas`, que no estaba en esta lista.
 > Siguen en español: los avisos de franja que manda el servidor, el CSV del
 > estado de cuenta, `PipelineView`/`Stepper`, `KPICard`, `EmptyState`,
@@ -868,7 +869,7 @@ salvo ocho textos declarados con su motivo (Folio, Vigencia, Vencido, Por
 vencer, Plazo, Horario, Desde, Comercial: significan otra cosa en cada
 pantalla); ningún apóstrofo recto; ninguna periodicidad fuera del glosario.
 Se unificó «Cada cuándo se paga» → *Payment frequency*; las cuotas de Finanzas →
-*twice-monthly / every 2 months / every 6 months / yearly*; el apóstrofo →
+*twice-monthly / every two months / every six months / yearly*; el apóstrofo →
 tipográfico (’) en propuestas y compartidos, como los otros cuatro; y las fotos
 del candado → *proof photos* también en Finanzas. «Booked», «negotiation code»,
 «Internal ref.», «Invoice no.» y «Click» ya eran uniformes (medido).
@@ -899,6 +900,37 @@ manda a DOOHmain, un estado nuevo del rango a mano).
 Y comparando los diccionarios enteros (`DICCIONARIOS`) antes y después: 17
 claves nuevas, 6 retiradas, 32 con el inglés cambiado y **0 con el español
 cambiado**.
+
+#### Retoques tras la validación (VERDE con 11 menores, `docs/i18n/validacion-costura.md`)
+
+- **El estado de cuenta vacío con un rango a mano** decía en inglés «No invoices
+  or payments in Jan 5, 2026 to Mar 9, 2026.». Ahora, solo en inglés y solo con
+  rango, `finanzas.estado-cuenta.vacio-rango`: «No invoices or payments from
+  {desde} to {hasta}.». El español sigue con la clave de siempre.
+- **Lo que rodea al selector de periodo**, con una sola fuente
+  (decisión del orquestador): el aria, el «Elige la fecha de inicio y la de
+  fin.» y desde / a / hasta pasan a `compartidos.periodo.aria/.elige/.desde/
+  .hasta/.a`. Desaparecen `finanzas.periodo.aria/.elige`,
+  `finanzas.comun.desde/.hasta/.a` y `propuestas.tablero.periodo/.a/.elige-fechas`.
+- **Los dos mutantes que sobrevivían mueren.** M1b, con un estado nuevo de
+  Comercial con un sitio sin id de DOOHmain. M5b, con la tercera gemela «qué
+  clave usa cada aviso» en `textos/comercial.test.ts` (SiteFicha, la página de
+  Comercial y `GestionCodigos`).
+- **Decisiones del orquestador sobre el glosario** (el dueño puede cambiarlas):
+  la sección «Comercial» de importes de la ficha de campaña es **Pricing**; las
+  periodicidades van **siempre en letra** («every two months», «every six
+  months», «twice-monthly»); «in thousands» se queda (expresión fija de una
+  unidad de tabla).
+- **Forma:** «Don’t have an account?» en el diccionario base; «Bundle
+  “{nombre}”»; «internal ref.» en minúscula a media frase. `costura.test.ts`
+  mira ahora `DICCIONARIOS.en` ENTERO (no solo los seis lotes) y gana tres
+  guardias: comillas rectas que abren, «Internal ref.» a media frase y «every
+  <cifra>».
+- **Español, otra vez medido:** 109 estados (23 + 6 + 56 + 24) con las fuentes
+  de `integra/ingles` y con las de HEAD, mismas pruebas: `diff -rq` vacío.
+  `DICCIONARIOS.es` frente a `f2e0a15f`: 23 claves nuevas, 14 retiradas, **0
+  valores cambiados**, y ningún texto español retirado se quedó sin clave que lo
+  pinte.
 
 ## Enlaces
 

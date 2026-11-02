@@ -62,8 +62,8 @@ y `textos/compartidos.test.ts`) se conservan.
 |---|---|---|---|
 | `propuestas.alta.renta.cada-cuando` | How often it is paid | Payment frequency | el mismo campo es «Payment frequency» en la ficha del sitio (`comercial.ficha.periodicidad`) |
 | `finanzas.parcialidad.quincenal` | {n} semi-monthly installments | {n} twice-monthly installments | glosario: quincenal → twice a month |
-| `finanzas.parcialidad.bimestral` | {n} installments every two months | {n} installments every 2 months | como `compartidos.periodicidad.bimestral` |
-| `finanzas.parcialidad.semestral` | {n} semiannual installments | {n} installments every 6 months | como `compartidos.periodicidad.semestral` |
+| `finanzas.parcialidad.bimestral` | {n} installments every two months | {n} installments every two months | se quedó igual: en letra, decisión del orquestador tras la validación |
+| `finanzas.parcialidad.semestral` | {n} semiannual installments | {n} installments every six months | glosario; en letra (retoque) |
 | `finanzas.parcialidad.anual` | {n} annual installments | {n} yearly installments | como `compartidos.periodicidad.anual` («Yearly») |
 | `finanzas.listas.vacio` | … billing lock (PO + photos + report) … | … billing lock (PO + proof photos + report) … | las condiciones del candado son «Proof photos» en la ficha de campaña |
 | `compartidos.calc.motivo.sin-loop` | … on the screen's page … | … on the screen’s profile … | ficha → profile (glosario de comercial) y apóstrofo |
@@ -102,7 +102,7 @@ con su motivo:
 | Plazo | Payment terms / Term | cobranza / oferta de renta |
 | Horario | Schedule / Operating hours | lo que se manda a DOOHmain / horario del sitio |
 | Desde | From / Since | rango de fechas / la competencia está ahí desde |
-| Comercial | Commercial / Sales | sección de importes de la campaña / el módulo (como el menú) |
+| Comercial | Pricing / Sales | sección de importes de la campaña («Pricing», retoque) / el módulo (como el menú) |
 
 ## 4 · Funciones conectadas al idioma
 
@@ -165,3 +165,31 @@ no pasan el idioma y siguen en español: `'es'` por omisión.
 - **El CSV del estado de cuenta y su nombre de archivo**: es un archivo que se
   descarga, no pantalla; decidir su idioma es otra decisión.
 - **El dinero** (`formatMonto`): la rama de la moneda.
+
+## 8 · Retoques tras la validación (VERDE con 11 menores)
+
+Informe: `docs/i18n/validacion-costura.md`. Todos los hallazgos de severidad
+baja y las cuatro decisiones de glosario del orquestador.
+
+| hallazgo | qué se hizo | prueba |
+|---|---|---|
+| `finanzas.estado-cuenta.vacio` con un rango a mano («in Jan 5, 2026 to …») | clave nueva `finanzas.estado-cuenta.vacio-rango`: es «Sin facturas ni pagos del {desde} al {hasta}.» (no se pinta en español), en «No invoices or payments from {desde} to {hasta}.»; solo en inglés y solo con rango | estado nuevo en `pantallas-campanas-finanzas.test.ts`, rojo antes |
+| M1b sobrevivía (`textoOrigenDoohmain(null, idioma)`) | estado nuevo de Comercial: sitio digital sin id de DOOHmain | con el mutante, 3 rojas |
+| M5b sobrevivía (toast de Comercial) | tercera gemela en `textos/comercial.test.ts` (SiteFicha, página de Comercial, `GestionCodigos`) | M5b, el plural de la descarga invertido y la rama «reactivada» invertida mueren los tres |
+| textos alrededor del selector duplicados | `compartidos.periodo.aria/.elige/.desde/.hasta/.a`; retiradas `finanzas.periodo.aria/.elige`, `finanzas.comun.desde/.hasta/.a`, `propuestas.tablero.periodo/.a/.elige-fechas` | `textos/finanzas.test.ts`, roja antes |
+| cabecera de `textos/finanzas.ts` | ya no dice que `OPCIONES_PERIODO` vive ahí | — |
+| `login.no-tienes-cuenta` con apóstrofo recto | «Don’t have an account? »; `costura.test.ts` mira `DICCIONARIOS.en` entero | roja antes |
+| `propuestas.comun.paquete-conjunto` con comillas rectas | «Bundle “{nombre}” — bundle price»; guardia de comillas | roja antes |
+| «Internal ref.» a media frase | «internal ref.» en `campanas.lista.buscar` y `campanas.extender.nota`; guardia | roja antes |
+| sangría en `ComprobanteDialog` | reformateado; el HTML no cambia | — |
+| bóveda: la fecha del comprobante | «el emisor de `armarComprobante` y la fecha en `ComprobanteDialog`» | — |
+| «Commercial» como encabezado | **Pricing** (decisión del orquestador); la excepción de `costura.test.ts` sigue (el módulo es «Sales») con el motivo nuevo | lista inglesa de la ficha |
+| «in thousands» | se queda (decisión del orquestador) | — |
+| periodicidades en cifra | en letra: `compartidos.periodicidad.bimestral/.semestral` «Every two months» / «Every six months», cuotas «every two months» / «every six months»; guardia «every <cifra>» | roja antes |
+
+**Español:** 109 estados (23 + 6 + 56 + 24) volcados con las fuentes de
+`integra/ingles` (`f2e0a15f`) y con las de HEAD, con las mismas pruebas:
+`diff -rq` vacío. `DICCIONARIOS.es` frente a `f2e0a15f`: 23 claves nuevas, 14
+retiradas, 0 valores cambiados, y cada valor español retirado sigue existiendo
+bajo otra clave. Frente a `36d7a210` (antes de estos retoques): 6 nuevas, 8
+retiradas, 0 español cambiado, 9 con el inglés cambiado.
