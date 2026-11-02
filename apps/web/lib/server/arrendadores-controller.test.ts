@@ -41,6 +41,10 @@ const eventos = {
 }
 vi.mock('./operaciones-eventos', () => eventos)
 
+// ADR 0048 · la moneda de la instancia, controlable desde cada prueba.
+const moneda = { monedaDeLaInstancia: vi.fn(async () => 'MXN') }
+vi.mock('./moneda-instancia', () => moneda)
+
 const {
   crearContratoCtrl, agregarPantallaAPredioCtrl, iniciarRenovacionCtrl,
   registrarPagoRentaCtrl, adjuntarAPagoCtrl, obtenerAdjuntoPagoCtrl,
@@ -383,5 +387,42 @@ describe('editarContratoCtrl — quién propuso el cambio', () => {
       'C1', { fechaFin: '2027-12-31' },
       { usuarioId: 'U1', nombre: 'Ana López', propuestoPor: null, motivo: null },
     )
+  })
+})
+
+// ─── ADR 0048 · un contrato va en la moneda de la INSTANCIA ─────────────────
+// El importe de un contrato se pinta con la moneda de la instancia: uno en
+// otra moneda se leeria mal, sin error. Estas matan el mutante que anula
+// `exigirMonedaDeLaInstancia` en el alta o en la edicion.
+describe('ADR 0048 · contratos en otra moneda', () => {
+  const PREDIO = { direccion: 'Calle 1', nombre: 'Predio 1' }
+
+  it('NEGATIVO · el alta con otra moneda es 400 y no llega al repo', async () => {
+    await expect(
+      crearContratoCtrl({ arrendador: ARR, predio: PREDIO, contrato: { ...CONTRATO, moneda: 'USD' }, sitio: SITIO }),
+    ).rejects.toMatchObject({ status: 400, message: 'Un contrato va en la moneda de la instancia: no se puede capturar en otra' })
+    expect(repo.crearContratoConSitio).not.toHaveBeenCalled()
+  })
+
+  it('el alta con la moneda de la instancia, o sin moneda, pasa', async () => {
+    await crearContratoCtrl({ arrendador: ARR, predio: PREDIO, contrato: { ...CONTRATO, moneda: 'MXN' }, sitio: SITIO })
+    await crearContratoCtrl({ arrendador: ARR, predio: PREDIO, contrato: CONTRATO, sitio: SITIO })
+    expect(repo.crearContratoConSitio).toHaveBeenCalledTimes(2)
+  })
+
+  it('en una instancia USD el que se rechaza es el MXN', async () => {
+    moneda.monedaDeLaInstancia.mockResolvedValue('USD')
+    try {
+      await expect(
+        crearContratoCtrl({ arrendador: ARR, predio: PREDIO, contrato: { ...CONTRATO, moneda: 'MXN' }, sitio: SITIO }),
+      ).rejects.toMatchObject({ status: 400 })
+    } finally {
+      moneda.monedaDeLaInstancia.mockResolvedValue('MXN')
+    }
+  })
+
+  it('NEGATIVO · editar un contrato a otra moneda es 400 y no llega al repo', async () => {
+    await expect(editarContratoCtrl('C1', { moneda: 'USD' })).rejects.toMatchObject({ status: 400 })
+    expect(repo.editarContrato).not.toHaveBeenCalled()
   })
 })

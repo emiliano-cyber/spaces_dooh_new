@@ -58,6 +58,10 @@ vi.mock('next/headers', () => ({
   }),
 }))
 
+// ADR 0048 · el layout raiz lee de la base la moneda de la instancia. Aqui no
+// hay base, y lo que se mide es el idioma: se le da la de por omision.
+vi.mock('../server/moneda-instancia', () => ({ monedaDeLaInstancia: async () => 'MXN' }))
+
 beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))
   // Estas pruebas describen el producto CON el ingles encendido. Desde el
@@ -268,7 +272,8 @@ async function pintarRaiz(cookie: string | null, accept: string | null): Promise
   // Component), y `createElement(RootLayout, { children: null })` dispara
   // `react/no-children-prop` en `next lint` — que corre dentro de
   // `npm run build`, asi que la prueba pasaba en verde y tumbaba el build.
-  return renderToStaticMarkup(RootLayout({ children: null }))
+  // Desde el ADR 0048 es ASINCRONO (lee la moneda de la instancia): se espera.
+  return renderToStaticMarkup(await RootLayout({ children: null }))
 }
 
 describe('el layout raiz decide el idioma y lo DECLARA en el <html>', () => {
@@ -316,7 +321,7 @@ describe('con el ingles APAGADO (omision desde el 2026-09-30)', () => {
     cabeceras.accept = 'en-US,en;q=0.9'
     const { default: RootLayout } = await import('../../app/layout')
     const { default: LoginPage } = await import('../../app/(app)/login/page')
-    const html = renderToStaticMarkup(RootLayout({ children: createElement(LoginPage) }))
+    const html = renderToStaticMarkup(await RootLayout({ children: createElement(LoginPage) }))
     expect(html).toMatch(/<html[^>]*lang="es"/)
     expect(html).not.toMatch(/<select[^>]*aria-label="(Cambiar idioma|Change language)"/i)
     expect(html).not.toMatch(/English/)
@@ -328,7 +333,7 @@ describe('con el ingles APAGADO (omision desde el 2026-09-30)', () => {
     cabeceras.accept = null
     const { default: RootLayout } = await import('../../app/layout')
     const { default: LoginPage } = await import('../../app/(app)/login/page')
-    const html = renderToStaticMarkup(RootLayout({ children: createElement(LoginPage) }))
+    const html = renderToStaticMarkup(await RootLayout({ children: createElement(LoginPage) }))
     expect(html).toMatch(/<select/)
     expect(html).toMatch(/English/)
   })

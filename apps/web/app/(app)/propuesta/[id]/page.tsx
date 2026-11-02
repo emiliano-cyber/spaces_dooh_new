@@ -8,6 +8,7 @@ import { ubicacion } from '@/lib/ubicacion'
 import { avisoFranja } from '@/lib/rejilla'
 import { idiomaDeLaPeticion } from '@/lib/i18n/servidor'
 import { traducir, type ClaveTexto } from '@/lib/i18n/diccionario'
+import { monedaDeLaInstancia } from '@/lib/server/moneda-instancia'
 import {
   BarraDocumentoPropuesta,
   LigaConQr,
@@ -42,6 +43,10 @@ export default async function DocumentoPropuestaPage({ params }: { params: { id:
   // con `traducir()`.
   const idioma = idiomaDeLaPeticion()
   const t = (clave: ClaveTexto, valores?: Record<string, string | number>) => traducir(idioma, clave, valores)
+  // ADR 0048 · los importes van en la moneda de la INSTANCIA. Se pide aqui y
+  // no se confia en el layout: Next arma layout y pagina en paralelo, y en un
+  // proceso recien arrancado el layout podria no haberla fijado todavia.
+  await monedaDeLaInstancia()
   const g = await exigir('comercial', 'ver')
   if (!g.ok) {
     return <div className="mx-auto max-w-2xl p-10 text-[14px] text-ink">{t('propuestas.documento.sin-permiso')}</div>

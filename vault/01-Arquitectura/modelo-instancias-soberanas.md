@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: en-curso
-actualizado: 2026-10-05
+actualizado: 2026-11-02
 tags: [instancias, despliegue, padre, demo, flota, costos, plan, licencia]
 archivos:
   - docs/Plan_Instancias_Soberanas_v2.md
@@ -27,6 +27,31 @@ archivos:
 ---
 
 # Modelo de instancias soberanas — avance de la corrección
+
+> [!danger] 2026-11-02 · la MONEDA se elige al dar de alta la instancia, y es para siempre
+> [ADR 0048](../../docs/adr/0048-la-moneda-es-de-la-instancia-y-no-se-cambia.md).
+> Cada instancia trabaja en **MXN o USD**. Se elige en el paso del bootstrap:
+>
+> ```
+> provision-instancia.sh … --bootstrap --moneda USD --confirmar
+> ```
+>
+> El guion la valida antes de tocar el servidor (otra cosa → salida 64) y la
+> manda en el cuerpo de `POST /api/bootstrap`; la app la vuelve a validar
+> (`lib/server/moneda-alta.ts`) y la escribe en `tenants.moneda`. **Sin la
+> bandera, MXN**, que es en lo que se quedan todas las instancias que ya
+> existían. **No es una variable del `.env`**: el `.env` se relee en cada
+> arranque y se puede editar, y la moneda no. Las organizaciones que nazcan
+> después en la misma instancia heredan la suya, y `/api/signup` (anónimo) no
+> puede elegirla nunca. `--moneda` fuera de la corrida de `--bootstrap` para el
+> guion con salida 64 en vez de ignorarse.
+>
+> Después **no se cambia**: lo impiden la base
+> (`20261102_moneda_inmutable_por_instancia.sql`, ver [[04-Datos/esquema]]) y la
+> API (`PATCH /api/config` rechaza `moneda`). Lo cuenta
+> `docs/runbook-alta-de-owner.md` §6, y lo prueban
+> `infra/scripts/pruebas-provision.sh` (escenarios «ADR 0048») y
+> `apps/web/lib/test/bootstrap.e2e.test.ts`.
 
 > [!important] 2026-10-05 · revalidada contra el código — qué se corrigió
 > 1. **Frontmatter.** Listaba `.github/workflows/deploy.yml` e

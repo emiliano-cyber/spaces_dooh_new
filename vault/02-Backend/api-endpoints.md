@@ -1,7 +1,7 @@
 ---
 tipo: referencia
 estado: verificado
-actualizado: 2026-10-29
+actualizado: 2026-11-02
 tags: [backend, api, endpoints]
 archivos:
   - apps/web/app/api/
@@ -128,7 +128,7 @@ Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo el
 | GET | `/api/auth/google/inicio` | PÚBLICO | 302 a Google; 503 si apagado |
 | GET | `/api/auth/google/callback` | PÚBLICO | Canjea código, abre sesión |
 | POST | `/api/signup` | PÚBLICO | 503 salvo `AUTOREGISTRO=1` (fail-closed desde el 14/08; se lee al arrancar, no en el build) |
-| POST | `/api/bootstrap` | PÚBLICO | **De un solo uso.** 404 —nunca 401— si falta `BOOTSTRAP_TOKEN`, si no coincide, si `tenants` ya tiene algo o si se pasa de 10/h por IP. 201 solo con los tres cerrojos abiertos |
+| POST | `/api/bootstrap` | PÚBLICO | **De un solo uso.** 404 —nunca 401— si falta `BOOTSTRAP_TOKEN`, si no coincide, si `tenants` ya tiene algo o si se pasa de 10/h por IP. 201 solo con los tres cerrojos abiertos. **Desde el 02/11 (ADR 0048) el cuerpo admite `moneda: 'MXN' | 'USD'`** —la de la instancia, para siempre; sin ella MXN; cualquier otra, 400 sin crear nada (`lib/server/moneda-alta.ts`) |
 | POST | `/api/auth/codigo` | PÚBLICO | (05/10) Entrar con un **código de recuperación** (ADR 0028). Sin correo: el código identifica al usuario. **5/15min por IP**, más estricto que el login; la sesión se abre como `password`, no `google`. No está en la lista de exentos de CSRF, pero quien llega aquí no trae cookie de sesión y el middleware solo exige CSRF si la hay (`middleware.ts:134-135`) |
 | PATCH | `/api/perfil` | usuarioActual | Exige `passwordActual` |
 | POST | `/api/perfil/codigos-recuperacion` | usuarioActual; el **segundo** lote, además **REAUTH** | (05/10) Genera el lote y lo devuelve en claro **una vez** (`no-store`); `?ya=1` confirma que se guardaron. Resuelve con `usuarioActual()` y no con `exigir()` porque es la **salida** del corte de `exigir()` (`auth.ts:230-237`). Regenerar invalida los anteriores y va por `exigirReautenticacionSiempre()` |
@@ -145,7 +145,7 @@ Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo el
 | GET·POST | `/api/tenants` | exigir | el admin acepta `entraConGoogle` |
 | POST | `/api/tenant-activo` | exigir | Cambio de CRM del super-admin |
 | PATCH | `/api/organizacion` | exigir | |
-| GET·PATCH | `/api/config` | exigir | Desde el 12/10 el `PATCH` toma `entidadPrincipalId` (uuid de una de [[entidades-fiscales]]) y **rechaza `razonSocial`** con 400 por el `.strict()` (`config/route.ts:92-94`) |
+| GET·PATCH | `/api/config` | exigir | Desde el 12/10 el `PATCH` toma `entidadPrincipalId` (uuid de una de [[entidades-fiscales]]) y **rechaza `razonSocial`** con 400 por el `.strict()` (`config/route.ts:92-94`). **Desde el 02/11 (ADR 0048) rechaza `moneda` con 400**, sea cual sea el valor y antes de guardar nada: la moneda de la instancia no se cambia |
 | GET·PUT | `/api/cambios` | exigir | Interruptor de reautenticación |
 | POST·DELETE | `/api/cambios/desbloquear` | exigir | |
 | GET | `/api/estado` | exigir | Devuelve **todo** el tenant. Desde el 08/10 incluye `usuarios` (id, nombre, rol, activo; sin correo) para nombrar al responsable de cada OT — [[operaciones-y-ot]] |

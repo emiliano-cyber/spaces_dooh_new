@@ -1,6 +1,6 @@
 'use client'
 
-import { MONEDA } from '@/lib/i18n/dinero'
+import { monedaInstancia } from '@/lib/i18n/dinero'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { UserRound, FileText, Monitor, Check, ChevronLeft, ChevronRight, Loader2, Paperclip, X } from 'lucide-react'
@@ -117,9 +117,10 @@ export function ContratoWizard({
   const [fechaFin, setFechaFin] = useState('')
   const [renta, setRenta] = useState('')
   const [periodicidad, setPeriodicidad] = useState('MENSUAL')
-  // Una sola moneda en todo el producto (30/09). Sale de la MISMA constante que
-  // usa el formato del dinero: dos declaraciones divergen, una no puede.
-  const moneda = MONEDA
+  // Una sola moneda por instancia (30/09; por instancia desde el ADR 0048, 02/11).
+  // Sale del MISMO sitio que usa el formato del dinero: dos fuentes divergen,
+  // una no puede.
+  const moneda = monedaInstancia()
   const [autoRenovable, setAutoRenovable] = useState(false)
   const [documento, setDocumento] = useState<string | null>(null) // PDF en base64 (data URL)
   const [docNombre, setDocNombre] = useState<string | null>(null)

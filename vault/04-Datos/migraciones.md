@@ -1,7 +1,7 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-10-29
+actualizado: 2026-11-02
 tags: [datos, migraciones, despliegue, rojo]
 archivos:
   - db/migrations/
@@ -50,6 +50,7 @@ archivos:
   - db/migrations/20261022_comercial_negociacion.sql
   - db/migrations/20261022_campana_horario_doohmain.sql
   - db/migrations/20261022_pantallas_propias.sql
+  - db/migrations/20261102_moneda_inmutable_por_instancia.sql
   - db/migrations/20261029_propuestas_condiciones_vigencia_vendedor.sql
   - db/migrations/20261029_campana_extensiones.sql
   - db/migrations/20261026_reserva_estatus_por_omision.sql
@@ -61,7 +62,7 @@ archivos:
 > [!important] 2026-10-05 · puesta al día — ninguna de las de abajo está ya «sin fusionar»
 > Medido hoy con `node scripts/recuentos.mjs` sobre el árbol de
 > `integra/riesgos-presentacion-14-oct` (salida de `main` en `09c65ca2`):
-> **122 migraciones y 66 tablas** (29/10, con `20261029_propuestas_condiciones_vigencia_vendedor.sql`, cinco columnas y ninguna tabla) (29/10, 121, con `20261029_campana_extensiones.sql`, que crea `campana_extensiones`) (22/10, 117 y 64, con `20261022_campana_horario_doohmain.sql`, tres columnas en `campanas`) (22/10, 116 y 64, con `20261022_comercial_negociacion.sql`, que crea las cuatro tablas de Comercial negociación) (21/10, 115 y 60, con `20261021_notificaciones_por_usuario.sql`, que crea `notificaciones_usuario`: esta vez el 60 es una tabla de verdad) (19/10, 114 y 59, con `20261019_cobranza_abono_comprobante.sql`; antes 113) —el «60» que decía aquí el 13/10 era falso:
+> **123 migraciones y 66 tablas** (02/11, con `20261102_moneda_inmutable_por_instancia.sql`, ninguna tabla) (29/10, 122, con `20261029_propuestas_condiciones_vigencia_vendedor.sql`, cinco columnas y ninguna tabla) (29/10, 121, con `20261029_campana_extensiones.sql`, que crea `campana_extensiones`) (22/10, 117 y 64, con `20261022_campana_horario_doohmain.sql`, tres columnas en `campanas`) (22/10, 116 y 64, con `20261022_comercial_negociacion.sql`, que crea las cuatro tablas de Comercial negociación) (21/10, 115 y 60, con `20261021_notificaciones_por_usuario.sql`, que crea `notificaciones_usuario`: esta vez el 60 es una tabla de verdad) (19/10, 114 y 59, con `20261019_cobranza_abono_comprobante.sql`; antes 113) —el «60» que decía aquí el 13/10 era falso:
 > `recuentos.mjs` contaba como tabla la palabra `if` de un comentario de
 > `20261013_doohmain_seguimiento_unicas.sql`; corregido el 14/10 quitando los
 > comentarios antes de medir— (13/10, con `20261013_sitios_pantalla_doohmain.sql`; antes 112) (13/10, con `20261013_doohmain_seguimiento_unicas.sql`; antes 111) (12/10, con `20261012_razon_social_principal.sql`; antes 110) (07/10, con `20261011_contrato_cambios_solo_insercion.sql`; antes 109) (07/10, con `20261010_contrato_cambios.sql`; antes 108 y 58) (06/10, con `20261009_propuestas_fechas_estatus.sql`; antes 107) (06/10, con `20261008_cobranza_abonos.sql`). Es el recuento vigente; los de los recuadros
@@ -72,6 +73,7 @@ archivos:
 >
 > | Migración | Decía | Entró en `main` |
 > |---|---|---|
+> | `20261102_moneda_inmutable_por_instancia.sql` | rama `feat/moneda-por-instancia` (ADR 0048), **aprobada por el dueño el 02/11** (ROJO R3 y R4) | **Sin publicar.** Ninguna tabla ni columna. Comprueba ANTES de restringir (para con un mensaje si hay organizaciones fuera de MXN/USD o dos monedas en la base; no corrige a ciegas), alinea `config_negocio.moneda` con su organización, pone `check (moneda in ('MXN','USD'))` en `tenants` y `config_negocio` y cuatro triggers: la moneda no se cambia, una sola por instancia, y `config_negocio` la copia de su organización al nacer. Ver [[04-Datos/esquema]] (Triggers) y [[03-Frontend/idiomas-es-en]] §7 |
 > | `20261029_propuestas_condiciones_vigencia_vendedor.sql` | rama `feat/propuestas-completas` (PROP-COMPLETA + P19), **aprobada por el dueño el 29/10** (ROJO R3) | **Sin publicar.** Cinco columnas, ninguna tabla: `config_negocio.condiciones_propuesta` y `vigencia_propuesta_dias` (30, check 1–365); `propuestas.condiciones`, `vigente_hasta` y `vendedor_nombre`. Rellena `vendedor_nombre` de las propuestas que ya tenían vendedor; no toca importes ni estatus. Ver [[02-Backend/comercial-propuestas-campanas]] y [[02-Backend/vendedor-en-propuesta]] |
 > | `20261029_campana_extensiones.sql` | rama `feat/extender-con-contrato` (EXT-CONTRATO), **aprobada por el dueño el 29/10** (ROJO R3, forma restrict; y R4) | **Sin publicar.** Crea `campana_extensiones` (solo select e insert para la aplicación, RLS forzada, `campana_id` on delete restrict): el contrato firmado de cada extensión de campaña, sin sobrescribir `campanas.contrato_url`. No toca filas existentes. Ver [[02-Backend/comercial-propuestas-campanas]] |
 > | `20261026_reserva_estatus_por_omision.sql` | rama `feat/tentativo-en-propuesta` (TENT-PROP), **aprobada por el dueño el 26/10** (ROJO R3) | **Sin publicar.** Solo cambia el `default` de `reservas.estatus` de TENTATIVA a CONFIRMADA: lo tentativo ya no es un estado de la reserva sino lo que está en una propuesta abierta. No toca filas ni el enum. Ver [[02-Backend/comercial-propuestas-campanas]] |
@@ -1440,3 +1442,36 @@ de entidades añadía en paralelo. Si la necesitas, cuéntala, no la copies.
 >
 > Runner ×2 contra base desechable: **94 aplicadas** en la primera pasada, **0**
 > en la segunda, sin divergencia de checksum. Ver [[02-Backend/costo-real-de-ot]].
+
+## `20261102_moneda_inmutable_por_instancia.sql` — la moneda de la instancia no se cambia (02/11, ADR 0048)
+
+Decisión del dueño (02/11): cada instancia trabaja en **MXN o USD**, se elige al
+crearla y **no se puede cambiar**. Los importes guardados no llevan moneda
+propia: cambiarla los reinterpretaría sin convertirlos.
+
+**Antes de aplicarla en una instancia con datos**, que la corra una persona
+(lectura, no cambia nada):
+
+```sql
+select moneda, count(*) from tenants group by moneda;          -- una sola fila, MXN
+select c.tenant_id, c.moneda, t.moneda
+  from config_negocio c join tenants t on t.id = c.tenant_id
+ where c.moneda is distinct from t.moneda;                      -- la migración las alinea
+select count(*) from contratos_arrendamiento
+ where moneda = 'USD' and congelado_en is not null;             -- contratos USD ya congelados
+```
+
+La última no la usa la migración: cuenta los contratos cuyo texto firmado lleva
+la letra vieja («PESOS … M.N.» en un contrato USD). La app los coteja con esa
+regla y no aparecen alterados (ver [[02-Backend/arrendadores-y-contratos]]),
+pero conviene saber cuántos hay.
+
+Si la primera da algo que no sea **una** fila en `MXN` o `USD`, la migración
+**se para** (paso 0) con un mensaje y no aplica nada: hay que decidir la moneda
+y corregirla en `docs/datos/` con su rollback. Es a propósito: elegir la moneda
+de una organización es justo la decisión que esta migración protege.
+
+Medido el 02/11 sobre la base de integración (`recrearEsquema()`, que aplica
+las migraciones sobre una base con organización, como el droplet): todas en
+`MXN`, cuatro triggers creados, y aplicarla dos veces no cambia nada
+(`apps/web/lib/test/moneda-instancia.e2e.test.ts`).

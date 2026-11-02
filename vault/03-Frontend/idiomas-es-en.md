@@ -7,6 +7,9 @@ archivos:
   - apps/web/lib/i18n/idiomas.ts
   - apps/web/lib/i18n/diccionario.ts
   - apps/web/lib/i18n/dinero.ts
+  - apps/web/lib/i18n/moneda-cliente.tsx
+  - apps/web/lib/server/moneda-instancia.ts
+  - apps/web/lib/server/moneda-alta.ts
   - apps/web/lib/i18n/servidor.ts
   - apps/web/lib/i18n/contexto.tsx
   - apps/web/app/layout.tsx
@@ -203,35 +206,86 @@ Hay dos arneses encima:
 
 ## 7 · El dinero
 
-> [!danger] EL IDIOMA NO TOCA EL DINERO
-> Decisión del dueño (30/09, literal): **«el sistema se rige 100 % en pesos
-> mexicanos por ahora, después lo moveremos»**.
+> [!danger] EL IDIOMA NO TOCA EL DINERO — y desde el 02/11 la MONEDA es de la INSTANCIA
+> Decisión del dueño (30/09): «el sistema se rige 100 % en pesos mexicanos por
+> ahora, después lo moveremos». **El «después» llegó el 2026-11-02**
+> ([ADR 0048](../../docs/adr/0048-la-moneda-es-de-la-instancia-y-no-se-cambia.md)):
+> cada instancia trabaja en **MXN o USD**, se elige **al crearla** y **no se
+> puede cambiar**. Las que ya existían se quedan en MXN.
 
-La moneda se declara **una sola vez**: `MONEDA = 'MXN'` en `lib/i18n/dinero.ts`.
-`formatearDinero(monto, idioma)` **no acepta moneda como parámetro** — no se
-puede pasar la equivocada si no se puede pasar.
+**De dónde sale la moneda.** Ya no hay constante: `MONEDA = 'MXN'` desapareció.
+La moneda vive en `tenants.moneda` (`config_negocio.moneda` es su espejo) y
+la app la guarda en `lib/i18n/dinero.ts` (`monedaInstancia()`), **en `globalThis`
+y no en un `let` del módulo**: el build empaqueta ese archivo varias veces (una
+copia para las rutas de `app/api`, otra para el layout y las páginas; lo midió el
+validador el 02/11), y con un `let` fijarla en el layout no la fijaba para una
+ruta. La escriben solo dos sitios —lo vigila una guardia, y otra prueba que dos
+copias del módulo ven la misma—:
 
-Lo único que cambia con el idioma es la escritura:
+- **Servidor:** `monedaDeLaInstancia()` (`lib/server/moneda-instancia.ts`), que
+  lee `select moneda from tenants order by creado_en limit 1` con `qRaw1`
+  (`tenants` no tiene RLS fail-closed; es correcto aquí). La llaman el **layout
+  raíz** (`app/layout.tsx`), el **documento imprimible de la propuesta**, las
+  **rutas que escriben importes** y, como punto común, **`tenantActual()`**
+  (`lib/server/tenant.ts`): casi toda petición con sesión pasa por ahí, y no hay
+  envoltura de handlers en el repo. **Se cachea por proceso** en cuanto existe
+  una organización (es inmutable); sin organizaciones no, y el alta la recuerda
+  al crear la primera. Tras una corrección de datos que cambie la moneda, hay
+  que reiniciar la aplicación.
+- **Navegador:** `ProveedorMoneda` (`lib/i18n/moneda-cliente.tsx`), montado en
+  el layout raíz, la fija **durante el render** —no en un efecto— para que el
+  primer `formatMonto` del SSR y de la hidratación ya la vean.
 
-```
-formatearDinero(1234.5, 'es')  ->  $1,234.50
-formatearDinero(1234.5, 'en')  ->  MX$1,234.50
-```
+Que sea un global de módulo es seguro **solo porque es de la instancia**: la base
+impide dos monedas en la misma (`tenants_moneda_unica`), así que todas las
+peticiones escriben el mismo valor. El idioma, que sí cambia por petición, sigue
+siendo parámetro.
 
-Y eso explica por qué **no se fuerza el locale mexicano en la rama inglesa**: en
-`es-MX` el peso se escribe `$`, que un lector anglosajón lee como **dólar**; en
-`en-US`, ICU escribe `MX$`. **El inglés desambigua la moneda en vez de
-oscurecerla.**
+**El símbolo.** El `$` a secas es la moneda local del lector:
 
-La prueba negativa obligatoria (`dinero.test.ts`) verifica, para ocho importes,
-que **el número que se lee de vuelta es idéntico en los dos idiomas** y que
-ninguno menciona otra divisa. Más dos guardias que recorren **todo `apps/web`**:
+| | español | inglés |
+|---|---|---|
+| **MXN** | `$1,234.50` (igual que antes) | `MX$1,234.50` |
+| **USD** | `US$1,234.50` | `$1,234.50` |
 
-1. Todo `style: 'currency'` declara `currency: 'MXN'` (o la constante).
-2. Ningún `currency:` se decide con un ternario sobre el idioma o el locale.
-3. Y **ningún diccionario puede llevar dinero dentro**: ni un símbolo, ni un
-   código, ni una cifra con separador de miles. Una cifra escrita en un
-   diccionario es una cifra que nadie recalcula.
+`formatearDinero(monto, idioma, decimales?)` **sigue sin aceptar moneda** — el
+tercer parámetro son solo los decimales, con valor por omisión
+(`formatearDinero.length` sigue siendo 2). `formatMonto(n, idioma?)` y
+`formatMontoCorto(n, idioma?)` (`lib/data/derive.ts`) conservan su estilo
+(`$ 1,234.50`, negativos entre paréntesis) y solo cambian el símbolo; el idioma
+es opcional y las ~250 llamadas que no lo pasan escriben el símbolo español.
+`simboloMoneda(idioma?)` y `nombreMoneda(idioma?)` sirven a quien pinta el
+símbolo suelto (un adorno de campo, la ficha de Administración).
+
+**Medido, no supuesto:** `dinero.test.ts` y `derive.formato-moneda.test.ts`
+llevan una copia LITERAL de la implementación anterior y comparan, en una
+instancia MXN, **más de 2000 importes** (bordes y pseudoaleatorios con semilla
+fija) en los dos idiomas: `formatearDinero`, `formatearDineroRedondo`,
+`formatMonto` y `formatMontoCorto` salen **idénticos** carácter por carácter.
+
+La prueba negativa obligatoria (`dinero.test.ts`) verifica, para cada moneda y
+ocho importes, que **el número que se lee de vuelta es idéntico en los dos
+idiomas**; que una instancia MXN nunca dice `USD`/`US$` y una USD nunca dice
+`MXN`/`MX$`; y que fijar una moneda que no es MXN ni USD **lanza** en vez de
+caer a MXN. Las guardias que recorren **todo `apps/web`**:
+
+1. `style: 'currency'` **solo existe en `dinero.ts`**, y ahí con
+   `currency: monedaInstancia()`. Hasta el 02/11 se admitía `currency: 'MXN'`
+   en cualquier archivo; ya no (había cuatro en `lib/data/reportes.ts` y uno en
+   `components/demo/energia/captura.ts`, que ahora usan `formatearDinero*`).
+2. Ningún archivo escribe una moneda a mano en un `currency:`.
+3. Ningún `currency:` se decide con un ternario sobre el idioma o el locale.
+4. Solo `moneda-instancia.ts` y `moneda-cliente.tsx` llaman
+   `fijarMonedaInstancia`.
+5. Y **ningún diccionario puede llevar dinero dentro**: ni un símbolo, ni un
+   código, ni una cifra con separador de miles.
+
+**Inmutable en dos capas** (ver [[04-Datos/migraciones]] y
+[[04-Datos/esquema]]): la migración `20261102_moneda_inmutable_por_instancia.sql`
+(CHECK + triggers) y la API (`PATCH /api/config` rechaza `moneda` con 400; el
+alta y la edición de contratos rechazan otra moneda). Cómo se elige al crear:
+`provision-instancia.sh --moneda MXN|USD` → `POST /api/bootstrap`
+(`lib/server/moneda-alta.ts`), ver [[01-Arquitectura/modelo-instancias-soberanas]].
 
 > [!warning] Hallazgo que contradice el «100 % en pesos», y hay que decidirlo
 > Medido el 30/09, **el código de hoy no es de una sola moneda**:

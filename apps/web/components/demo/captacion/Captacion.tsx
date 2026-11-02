@@ -8,6 +8,7 @@ import { Sheet } from '@/components/demo/ui/Sheet'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { formatNumero } from '@/lib/formato-numero'
 import { formatFecha } from '@/lib/data/client'
+import { monedaInstancia } from '@/lib/i18n/dinero'
 import {
   ETAPAS,
   ETAPAS_DE_TRABAJO,
@@ -92,22 +93,27 @@ const CAMPOS: Record<TipoProspecto, CampoDelTipo[]> = {
     { clave: 'rfc', label: 'RFC', tipo: 'texto' },
     { clave: 'razonSocial', label: 'Razón social', tipo: 'texto' },
     { clave: 'giro', label: 'Giro', tipo: 'texto' },
-    { clave: 'presupuesto', label: 'Presupuesto estimado (MXN)', tipo: 'numero' },
+    { clave: 'presupuesto', label: 'Presupuesto estimado ({moneda})', tipo: 'numero' },
   ],
   ARRENDADOR: [{ clave: 'rfc', label: 'RFC', tipo: 'texto' }],
   PREDIO: [
     { clave: 'tipoUbicacion', label: 'Tipo de ubicación (azotea, terreno…)', tipo: 'texto' },
     { clave: 'm2', label: 'Metros cuadrados', tipo: 'numero' },
-    { clave: 'rentaPedida', label: 'Renta que piden (MXN / mes)', tipo: 'numero' },
+    { clave: 'rentaPedida', label: 'Renta que piden ({moneda} / mes)', tipo: 'numero' },
   ],
   PANTALLA: [
     { clave: 'tipoPantalla', label: 'Tipo', tipo: 'opciones', opciones: ['DIGITAL', 'ESTATICA'] },
     { clave: 'anchoM', label: 'Ancho (m)', tipo: 'numero' },
     { clave: 'altoM', label: 'Alto (m)', tipo: 'numero' },
     { clave: 'caras', label: 'Caras', tipo: 'numero' },
-    { clave: 'rentaPedida', label: 'Renta que piden (MXN / mes)', tipo: 'numero' },
+    { clave: 'rentaPedida', label: 'Renta que piden ({moneda} / mes)', tipo: 'numero' },
   ],
 }
+
+// ADR 0048 · `{moneda}` se rellena AL PINTAR con la de la instancia. Este mapa
+// es de modulo y se evalua al importar, ANTES de que `ProveedorMoneda` la fije:
+// llamar a `monedaInstancia()` aqui arriba habria congelado siempre MXN.
+const etiquetaCampo = (c: CampoDelTipo) => c.label.replace('{moneda}', monedaInstancia())
 
 const formVacio = (tipo: TipoProspecto = 'CLIENTE'): ProspectoForm => ({
   tipo,
@@ -220,7 +226,7 @@ function FormularioProspecto({
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {CAMPOS[valor.tipo].map((c) => (
-          <Campo key={c.clave} label={c.label}>
+          <Campo key={c.clave} label={etiquetaCampo(c)}>
             {c.tipo === 'opciones' ? (
               <select className={inputCls} value={String(valor.datos[c.clave] ?? '')}
                 onChange={(e) => setDato(c.clave, e.target.value || null)}>
@@ -354,7 +360,7 @@ function Detalle({
         </div>
         <div><span className={labelCls}>Dirección</span>{p.direccion ?? '—'}</div>
         {datosVisibles.map((c) => (
-          <div key={c.clave}><span className={labelCls}>{c.label}</span>{String(d[c.clave])}</div>
+          <div key={c.clave}><span className={labelCls}>{etiquetaCampo(c)}</span>{String(d[c.clave])}</div>
         ))}
         {p.siguientePaso && (
           <div className="col-span-2"><span className={labelCls}>Siguiente paso</span>

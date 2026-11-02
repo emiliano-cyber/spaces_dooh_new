@@ -1,6 +1,7 @@
 import type { Factura, EstFactura } from '@/lib/data/types'
 import { traducir } from '@/lib/i18n/diccionario'
 import type { Idioma } from '@/lib/i18n/idiomas'
+import { monedaInstancia } from '@/lib/i18n/dinero'
 
 // ============================================================================
 //  components/demo/finanzas/comprobante.ts — el documento de una factura.
@@ -82,7 +83,8 @@ export function armarComprobante(
       subtotal,
       iva,
       total,
-      moneda: f.moneda || 'MXN',
+      // Sin moneda en la factura, la de la instancia (ADR 0048). Era 'MXN'.
+      moneda: f.moneda || monedaInstancia(),
       // Si los tres números no suman, el documento lo DICE en vez de callarse.
       // `crearFactura` los calcula para que cuadren exactamente, así que un
       // descuadre significa que algo los tocó después — y eso hay que verlo,

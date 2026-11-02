@@ -1,6 +1,7 @@
 import { esFechaValida, ordenInvertido } from '@/lib/server/fechas'
 import type { CeldaCaptura, TableroConsumos } from '@/lib/server/energia-controller'
 import type { ConsumoEnergia, PuntoDeMedicion } from '@/lib/server/energia-repo'
+import { formatearDinero } from '@/lib/i18n/dinero'
 
 // ============================================================================
 //  components/demo/energia/captura.ts — Lo que decide la pantalla de captura.
@@ -179,7 +180,7 @@ export interface ResumenCobertura {
 }
 
 const pesos = (n: number) =>
-  n.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 2 })
+  formatearDinero(n, 'es', { maximumFractionDigits: 2 })
 
 /**
  * Lo que hay que decir encima de la rejilla, y en qué tono.

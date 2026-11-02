@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-23
+actualizado: 2026-11-02
 tags: [backend, arrendadores, contratos, dinero, rojo]
 archivos:
   - apps/web/lib/server/arrendadores-repo.ts
@@ -22,6 +22,26 @@ archivos:
 ---
 
 # Arrendadores y contratos
+
+> [!important] 2026-11-02 · un contrato va en la moneda de la INSTANCIA (ADR 0048)
+> El alta (`crearContratoCtrl`) y la edición (`editarContratoCtrl`) de
+> `lib/server/arrendadores-controller.ts` rechazan con 400 una `moneda` distinta
+> de la de la instancia; sin `moneda`, el repo pone la de la instancia por SQL
+> (`coalesce($8, (select moneda from tenants …))` en `arrendadores-repo.ts`, que
+> antes decía `?? 'MXN'`). La pantalla de Cambios de contrato
+> (`CambiosContrato.tsx`) ya no deja escribir la moneda: era un texto libre que
+> aceptaba cualquier código. En el documento del contrato, la cantidad con letra
+> sigue la moneda del contrato: `DÓLARES … /100 USD` en vez de `PESOS … M.N.`
+> (`numeroALetras` en `lib/contrato-documento.ts`; en MXN el texto que se firma
+> no cambia). Ver [[03-Frontend/idiomas-es-en]] §7.
+>
+> **Lo ya firmado no cambia.** Hasta el 02/11 la letra decía «PESOS … M.N.» para
+> cualquier moneda. `firmasDeContrato` (`firmas-repo.ts`) coteja lo congelado con
+> `hashParaCotejar` (`lib/contrato-documento.ts`): la regla de hoy y, si no
+> coincide, la anterior (`letra: 'pesos-siempre'`). Así un contrato en USD
+> congelado antes no aparece con sus firmas alteradas, y un dato tocado se sigue
+> detectando. Medir antes de desplegar:
+> `select count(*) from contratos_arrendamiento where moneda='USD' and congelado_en is not null`.
 
 > [!important] v0.12.3 (SIN PUBLICAR, 22/10) · pantallas y lugares PROPIOS
 > Pedido del dueño: pantallas o lugares propios, sin renta mensual; solo luz y

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
+import { simboloMoneda } from '@/lib/i18n/dinero'
 import Link from 'next/link'
 import {
   Radio,
@@ -303,7 +304,7 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
           una caja con un 0 dentro y nada más se lee como «no he escrito nada». */}
       {ot.costoReal != null && (
         <p className="text-[12px] text-muted">
-          Guardado: <span className="demo-num">${Number(ot.costoReal).toLocaleString('es-MX')}</span>
+          Guardado: <span className="demo-num">{simboloMoneda()}{Number(ot.costoReal).toLocaleString('es-MX')}</span>
           {Number(ot.costoReal) === 0 && ' — esta visita está capturada como que no costó nada.'}
         </p>
       )}

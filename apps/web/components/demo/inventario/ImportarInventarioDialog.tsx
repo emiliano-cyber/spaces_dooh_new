@@ -1,6 +1,7 @@
 'use client'
 
 import { toast } from 'sonner'
+import { simboloMoneda } from '@/lib/i18n/dinero'
 import { conteo } from '@/lib/plural'
 import { useMemo, useState } from 'react'
 import {
@@ -417,7 +418,7 @@ export function ImportarInventarioDialog({
             <div className="text-[12px] text-muted">Este valor se aplicará a todas las pantallas estáticas</div>
           </div>
           <div className="flex items-center gap-1">
-            <span className="text-[13px] text-muted">$</span>
+            <span className="text-[13px] text-muted">{simboloMoneda()}</span>
             <CampoCifra
               valor={precioM2}
               onCambio={(crudo) => setPrecioM2(crudo)}

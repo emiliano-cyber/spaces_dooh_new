@@ -13,6 +13,8 @@ import {
 } from '@/lib/server/propuestas-repo'
 import { generarCampanaDesdePropuesta, PropuestaCampanaError } from '@/lib/server/campanas-repo'
 import { registrarAccion } from '@/lib/server/acciones-repo'
+import { monedaDeLaInstancia } from '@/lib/server/moneda-instancia'
+import { simboloMoneda } from '@/lib/i18n/dinero'
 import { notificar } from '@/lib/server/notificaciones-repo'
 import { textoBitacoraPropuesta } from '@/lib/descuento'
 
@@ -93,7 +95,10 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     if (!prop) return NextResponse.json({ error: 'Propuesta no encontrada' }, { status: 404 })
     // S0-1/S1-2: al aprobar se congela el snapshot económico; queda en bitácora
     // con versión y total (y la marca de $0 si aplica el guardarraíl).
-    const totalTxt = `$${Math.round(prop.total).toLocaleString('es-MX')}`
+    // ADR 0048 · el importe de la bitacora lleva el simbolo de la moneda de la
+    // instancia; en servidor hay que pedirla antes de escribirlo.
+    await monedaDeLaInstancia()
+    const totalTxt = `${simboloMoneda()}${Math.round(prop.total).toLocaleString('es-MX')}`
     const accionTxt =
       prop.estatus !== 'APROBADA'
         ? `Propuesta → ${prop.estatus}`

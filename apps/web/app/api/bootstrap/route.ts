@@ -132,6 +132,8 @@ export async function POST(req: Request) {
     const res = await registrarCuentaCtrl(await req.json().catch(() => ({})), {
       debeCambiarPassword: true,
       entraConGoogle: true,
+      // ADR 0048 · esta es la UNICA puerta que elige la moneda de la instancia.
+      eligeMoneda: true,
     })
     return NextResponse.json(res, { status: 201, headers: { 'cache-control': 'no-store' } })
   } catch (e) {

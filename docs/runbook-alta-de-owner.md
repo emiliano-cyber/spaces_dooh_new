@@ -169,8 +169,19 @@ Al terminar, comprueba `login 200`.
 ```bash
 infra/scripts/provision-instancia.sh \
   --host <ip> --dominio <dominio> --instancia <nombre> \
-  --email <correo-del-dueño> --bootstrap --confirmar
+  --email <correo-del-dueño> --bootstrap --moneda MXN --confirmar
 ```
+
+> [!danger] `--moneda MXN|USD` se decide AQUÍ y es para siempre (ADR 0048, 02/11)
+> Es la moneda de **toda la instancia**: la base no deja cambiarla después
+> (`20261102_moneda_inmutable_por_instancia.sql`), porque los importes
+> guardados no llevan moneda propia. Sin la bandera, **MXN**. Pregúntale al
+> owner en qué moneda factura **antes** de correr este paso. Cualquier otro
+> valor (`EUR`, `usd` en minúsculas) para el guion antes de tocar el servidor.
+> Cambiarla después ya no es un ajuste: es una corrección de datos con tipo de
+> cambio, en `docs/datos/`, y después hay que reiniciar la aplicación (la
+> moneda se cachea por proceso). `--moneda` solo vale junto con `--bootstrap`:
+> en otra corrida el guion para con salida 64.
 
 Llama a `POST /api/bootstrap` **desde el propio servidor, por loopback**: el
 token no cruza internet y funciona aunque el DNS aún no haya propagado del todo.

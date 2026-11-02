@@ -5,7 +5,7 @@ import { q } from '@/lib/server/db'
 import { tenantActual } from '@/lib/server/tenant'
 import { registrarAccion } from '@/lib/server/acciones-repo'
 import { obtenerConfigRow, obtenerConfigAdmin, guardarIdentidadFiscal } from '@/lib/server/config-repo'
-import { respuestaError, validar } from '@/lib/server/errores'
+import { AppError, respuestaError, validar } from '@/lib/server/errores'
 import { exigirDesbloqueo, respuestaDesbloqueo } from '@/lib/server/cambios'
 import { LIMITES, uploadZod } from '@/lib/server/uploads'
 import { rfcTenant, textoTenant } from '@/lib/server/config-fiscal'
@@ -27,7 +27,11 @@ const logo = uploadZod(LIMITES.logoEmpresa.allowlist, LIMITES.logoEmpresa.maxMB)
 const configSchema = z
   .object({
     nombreTenant: z.string().trim().min(1).max(120),
-    moneda: z.string().trim().min(1).max(10),
+    // ADR 0048 · la moneda NO se cambia por aqui ni por ningun sitio: se eligio
+    // al crear la instancia. El campo se ACEPTA en el esquema solo para poder
+    // rechazarlo con un mensaje que diga por que; sin el, `.strict()` daria un
+    // «campo desconocido» que no explica nada.
+    moneda: z.unknown(),
     plazosCobranza: z.array(z.coerce.number().int().min(0).max(365)),
     // `tiposTarea` se retiró (M15): la columna `config_negocio.tipos_tarea`
     // sigue en la base pero NADIE la lee — los tipos de OT salen del enum de
@@ -134,6 +138,18 @@ export async function PATCH(req: Request) {
   try {
   const b = validar(configSchema, await req.json().catch(() => ({}))) as Record<string, unknown>
 
+  // ─── ADR 0048 · LA MONEDA NO SE CAMBIA ─────────────────────────────────────
+  //
+  // Antes de guardar NADA, y sea cual sea el valor —tambien el mismo que ya
+  // tiene—: aceptar «el mismo» haria que un cliente que lo manda por costumbre
+  // funcionara hasta el dia en que mande otro, y ese dia se enteraria por un
+  // 400 en una pantalla que antes guardaba. Los importes guardados no llevan
+  // moneda propia; cambiarla los reinterpretaria sin convertirlos. La base lo
+  // impide tambien (`20261102_moneda_inmutable_por_instancia.sql`).
+  if (b.moneda !== undefined) {
+    throw new AppError('La moneda no se puede cambiar: se eligió al crear la instancia y los importes guardados no la llevan', 400)
+  }
+
   // ─── TOPE-01 · subir el techo de descuento PIDE LA CONTRASEÑA ─────────────
   //
   // El tope es el CONTROL, no el dato. Sin esto, quien puede administrar la
@@ -165,7 +181,6 @@ export async function PATCH(req: Request) {
   // en las dos tablas es lo que hacía que el sidebar y Configuración dijeran
   // cosas distintas (M5).
   const map: Record<string, string> = {
-    moneda: 'moneda',
     plazosCobranza: 'plazos_cobranza',
     logoUrl: 'logo_url', ivaTasas: 'iva_tasas', loopSeg: 'loop_seg', spotSeg: 'spot_seg',
     maxClientesPantalla: 'max_clientes_pantalla',

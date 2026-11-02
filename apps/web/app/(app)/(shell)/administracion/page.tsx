@@ -19,6 +19,7 @@ import {
   type Capacidad,
 } from '@/components/demo/admin/permisos'
 import { cn } from '@/lib/cn'
+import { simboloMoneda, nombreMoneda } from '@/lib/i18n/dinero'
 import { esEmailValido, EMAIL_INVALIDO } from '@/lib/validacion'
 import { restablecerPasswordApi, desbloquearApi, esErrorDeDesbloqueo } from '@/lib/data/cambios-api'
 import { areasDeModulo } from '@/lib/modulos'
@@ -1028,8 +1029,14 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
                 Es el que aparece en el menú lateral.
               </span>
             </Campo>
+            {/* ADR 0048: la moneda es la de la INSTANCIA, se eligio al crearla y
+                no se puede cambiar. Antes decia «Peso mexicano (MXN)» escrito a
+                mano, que en una instancia en dolares habria mentido. */}
             <Campo label="Moneda">
-              <div className="flex h-9 items-center rounded border border-border bg-surface-2 px-3 text-[13px] text-muted">$ · Peso mexicano (MXN)</div>
+              <div className="flex h-9 items-center rounded border border-border bg-surface-2 px-3 text-[13px] text-muted">{simboloMoneda()} · {nombreMoneda()}</div>
+              <span className="mt-1 block text-[11px] text-muted">
+                Se eligió al crear la instancia y no se puede cambiar.
+              </span>
             </Campo>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

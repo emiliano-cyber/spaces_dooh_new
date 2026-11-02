@@ -155,11 +155,21 @@ function apocopar(s: string): string {
   return s === 'UNO' ? 'UN' : s.replace(/ UNO$/, ' UN')
 }
 
-export function numeroALetras(monto: number): string {
+// ADR 0048 · la letra va en la moneda del importe. Hasta el 02/11 decia PESOS
+// siempre, y en un contrato la letra es la que prevalece sobre la cifra: un
+// contrato en dolares habria dicho una cosa en numero y otra en letra. Sin
+// moneda, MXN, que es lo de siempre (y el texto que se firma no cambia).
+const LETRA_MONEDA: Record<string, { uno: string; varios: string; cierre: string }> = {
+  MXN: { uno: 'PESO', varios: 'PESOS', cierre: 'M.N.' },
+  USD: { uno: 'DÓLAR', varios: 'DÓLARES', cierre: 'USD' },
+}
+
+export function numeroALetras(monto: number, moneda: string = 'MXN'): string {
+  const m = LETRA_MONEDA[moneda] ?? LETRA_MONEDA.MXN
   const entero = Math.floor(Math.abs(monto))
   const centavos = Math.round((Math.abs(monto) - entero) * 100)
   const cent = String(centavos).padStart(2, '0')
-  if (entero === 0) return `CERO PESOS ${cent}/100 M.N.`
+  if (entero === 0) return `CERO ${m.varios} ${cent}/100 ${m.cierre}`
 
   const millones = Math.floor(entero / 1_000_000)
   const miles = Math.floor((entero % 1_000_000) / 1000)
@@ -172,8 +182,8 @@ export function numeroALetras(monto: number): string {
   else if (miles > 1) partes.push(`${apocopar(centenasALetras(miles))} MIL`)
   if (resto) partes.push(apocopar(centenasALetras(resto)))
 
-  const plural = entero === 1 ? 'PESO' : 'PESOS'
-  return `${partes.join(' ')} ${plural} ${cent}/100 M.N.`
+  const plural = entero === 1 ? m.uno : m.varios
+  return `${partes.join(' ')} ${plural} ${cent}/100 ${m.cierre}`
 }
 
 // Serializa el documento a texto plano. Es LO QUE SE FIRMA: sobre esta cadena
@@ -225,10 +235,19 @@ export function fechaEnLetra(iso: string | null): string {
   return `${d} de ${MESES[m - 1]} de ${a}`
 }
 
-function importe(n: number | null, moneda: string): string {
+/**
+ * Cómo se escribe la cantidad con letra. `'en-su-moneda'` es la regla desde el
+ * ADR 0048 (02/11): «DÓLARES … /100 USD» para un contrato en USD.
+ * `'pesos-siempre'` es la regla ANTERIOR —«PESOS … M.N.» fuera cual fuera la
+ * moneda— y existe solo para REGENERAR, byte a byte, lo que se congeló con ella
+ * (ver `hashParaCotejar`). En MXN las dos dan el mismo texto.
+ */
+export type ReglaLetra = 'en-su-moneda' | 'pesos-siempre'
+
+function importe(n: number | null, moneda: string, letra: ReglaLetra): string {
   if (n == null) return FALTA
   const cifra = n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  return `$${cifra} ${moneda} (${numeroALetras(n)})`
+  return `$${cifra} ${moneda} (${numeroALetras(n, letra === 'pesos-siempre' ? 'MXN' : moneda)})`
 }
 
 const v = (x: string | null | undefined): string => (x && String(x).trim() ? String(x).trim() : FALTA)
@@ -240,8 +259,11 @@ export function generarContrato(args: {
   espacio: DatosEspacio
   terminos: DatosTerminos
   fechaFirma: string | null
+  /** Solo para regenerar lo congelado antes del ADR 0048. Por omisión, la regla de hoy. */
+  letra?: ReglaLetra
 }): DocumentoContrato {
   const { arrendatario, arrendador, espacio, terminos, fechaFirma } = args
+  const letra: ReglaLetra = args.letra ?? 'en-su-moneda'
   const faltantes: Faltante[] = []
   const exigir = (valor: string | number | null | undefined, etiqueta: string, donde: string) => {
     if (valor == null || String(valor).trim() === '') faltantes.push({ etiqueta, donde })
@@ -310,7 +332,7 @@ export function generarContrato(args: {
   ])
 
   const parrafosRenta = [
-    `${ATA} pagará a ${ARR} la cantidad de ${importe(terminos.montoRenta, terminos.moneda)} ` +
+    `${ATA} pagará a ${ARR} la cantidad de ${importe(terminos.montoRenta, terminos.moneda, letra)} ` +
       `${cada}, por concepto de renta de EL ESPACIO.`,
     `El pago se realizará ${terminos.diaPago ? `dentro de los primeros ${terminos.diaPago} días naturales de cada periodo` : 'dentro de los primeros cinco (5) días naturales de cada periodo'}, ` +
       `mediante transferencia electrónica a la cuenta que ${ARR} designe por escrito. ${ARR} se obliga a ` +
@@ -325,7 +347,7 @@ export function generarContrato(args: {
   if (terminos.deposito != null && terminos.deposito > 0) {
     parrafosRenta.push(
       `A la firma de este contrato, ${ATA} entrega a ${ARR} la cantidad de ` +
-        `${importe(terminos.deposito, terminos.moneda)} por concepto de depósito en garantía, que será ` +
+        `${importe(terminos.deposito, terminos.moneda, letra)} por concepto de depósito en garantía, que será ` +
         `devuelta dentro de los treinta (30) días naturales siguientes a la terminación del contrato, ` +
         `previa verificación del estado de EL ESPACIO.`,
     )
@@ -459,4 +481,32 @@ export function generarContrato(args: {
     ],
     faltantes,
   }
+}
+
+// ─── ADR 0048 · cotejar un contrato YA CONGELADO ───────────────────────────
+//
+// El hash con el que se compara lo firmado tiene que salir del MISMO texto que
+// se firmó. Hasta el 02/11 la letra decía «PESOS … M.N.» para cualquier moneda,
+// así que un contrato en USD congelado entonces tiene sellado ESE texto; con la
+// letra nueva su hash ya no coincidiría y sus firmas aparecerían alteradas sin
+// que nadie tocara nada (`firmas-repo.ts`, `firmasDeContrato`).
+//
+// Por qué por CONTENIDO y no por una fecha de corte: no hay forma de saber en
+// el código cuándo llegó esta versión a cada instancia. Se regenera con la
+// regla de hoy; si no coincide, con la anterior; y solo si ESA coincide se
+// devuelve su hash. No ciega la detección: un dato tocado cambia los dos textos
+// y ninguno coincide. Y no puede «perdonar» un contrato congelado con la regla
+// nueva, porque la anterior nunca produce su texto (difieren en la letra).
+//
+// `hash` se inyecta para que este archivo, que también usa el navegador, no
+// arrastre `node:crypto`.
+export function hashParaCotejar(
+  args: Parameters<typeof generarContrato>[0],
+  hashGuardado: string | null,
+  hash: (texto: string) => string,
+): string {
+  const hoy = hash(documentoATexto(generarContrato({ ...args, letra: 'en-su-moneda' })))
+  if (!hashGuardado || hoy === hashGuardado) return hoy
+  const antes = hash(documentoATexto(generarContrato({ ...args, letra: 'pesos-siempre' })))
+  return antes === hashGuardado ? antes : hoy
 }

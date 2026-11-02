@@ -50,7 +50,7 @@ vi.mock('./db', () => ({
   qConTenant: vi.fn(async () => []),
 }))
 vi.mock('./tenant', () => ({ tenantActual: async () => TENANT }))
-vi.mock('./contrato-expediente', () => ({ expedienteContrato: vi.fn(async () => null) }))
+vi.mock('./contrato-expediente', () => ({ expedienteContrato: vi.fn(async () => null), datosContrato: vi.fn(async () => null) }))
 
 const { firmasDeContrato } = await import('./firmas-repo')
 
