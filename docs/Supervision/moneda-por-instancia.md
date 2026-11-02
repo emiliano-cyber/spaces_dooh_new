@@ -210,3 +210,71 @@ La letra del contrato en MXN no cambia. Cambia para contratos en USD: es el hall
 
 Y además, por el hallazgo 1: **¿qué se hace con los contratos firmados en USD de una instancia
 MXN, si existen?** Primero hay que medirlo en g500 y DEMO.
+
+---
+
+## Segunda pasada (2026-11-02, sobre e72a410d..92668a45)
+
+Revisé `git diff e72a410d..HEAD`: los commits 33178ab6 (firmas), 9bba1659 (`globalThis` + `tenantActual`), d48f44eb (solo el bootstrap elige la moneda; `--moneda` exige `--bootstrap`) y 92668a45 (`global-error.tsx`). fa0664a5 es el informe de la primera pasada.
+
+### Veredicto: VERDE
+
+Las cuatro correcciones de la primera pasada están hechas y las comprobé por mi cuenta: comparaciones mecánicas contra el código real de 27047bfe, dos mutantes con un build por mutante y el error global visto en un navegador real. Quedan tres observaciones de severidad baja que no bloquean (al final).
+
+### 1 · Firmas (`hashParaCotejar`, `lib/contrato-documento.ts:501-512`; `firmas-repo.ts:333-343`)
+Probé contra el texto real de 27047bfe. Saqué el `contrato-documento.ts` de 27047bfe con `git archive` a un espejo y lo importé junto al nuevo. Fueron 3240 contratos: MXN, USD, PEN y `''`; renta de 0 a 999 999 999.99 y nula; depósito nulo, 0 o con decimales; con y sin fecha de firma; además de 3000 al azar.
+
+- **La regla vieja regenera byte a byte lo de 27047bfe**, en todas las monedas.
+- **En MXN, PEN y `''`, las dos reglas dan el mismo texto**, idéntico al viejo, en todos los casos.
+- **Un contrato USD congelado con el texto de 27047bfe no queda invalidado.** `hashParaCotejar(datos, sha256(texto_27047bfe))` devuelve ese mismo hash en los 3240 casos. Hay 1090 contratos USD cuya letra cambia con la regla nueva, y aun así cotejan.
+- **No abre huecos.** Probé 12 960 alteraciones: renta +1, depósito +10, otro nombre de arrendador, y cambiar la moneda USD↔MXN. Ninguna devuelve el hash guardado, ni cuando el congelado es de la regla vieja ni cuando es de la nueva. La regla vieja no puede «perdonar» un congelado nuevo en USD: su letra dice PESOS y la nueva DÓLARES, y la cifra lleva el código de moneda.
+  - La única excepción son 8 casos sin renta y sin depósito, en los que cambiar la moneda no cambia el texto: la moneda no aparece en ningún sitio. Eso ya era así en 27047bfe, no lo introduce este cambio.
+- Mutante MA (abajo): quitar el recurso a la regla vieja lo detecta la e2e.
+
+### 2 · La moneda en `globalThis`, cacheada y fijada por `tenantActual`
+- **¿Se mezcla entre bases o tenants en las e2e?** No. `vitest.e2e.config.ts` no desactiva el aislamiento por archivo, y cada archivo arranca y para su propio `next start` (`servidor-e2e.ts:31` y `:119`). Dentro de un mismo proceso solo hay una moneda por base, y la base impide que haya dos.
+  - Lo que sí puede pasar dentro de un archivo es que la base se vacíe con `vaciarTenants` y la caché se quede con la moneda anterior hasta el siguiente alta. En producción no ocurre, porque nunca se vacía `tenants`.
+- **¿La caché se queda vieja tras el bootstrap?** No. Sin organizaciones no se cachea (`moneda-instancia.ts:69-72`), y el alta la fija después del commit (`cuentas-controller.ts:106`). Lo confirma el mutante MB.
+- **¿Hay rutas que formatean sin pasar por `tenantActual`?** Las rutas que formatean dinero en el servidor son siete (`grep` sobre `lib/server` y `app/api`). Todas piden la moneda explícitamente, y ahora también `reportes/rentabilidad` y la página de la propuesta.
+  - Además `q()` pasa por `tenantActual`, que la fija, y `globalThis` la comparte entre las copias del módulo.
+  - Un grafo de imports da 158 rutas que alcanzan `dinero.ts`; todas alcanzan también `tenant.ts` o `moneda-instancia.ts`. No es una prueba de ejecución, pero no encontré ningún camino sin cubrir.
+  - El hueco que queda es teórico: la primera petición de un proceso recién arrancado, si es una ruta pública sin consultas que formatee dinero en el servidor. No encontré ninguna.
+- **¿Es aceptable reiniciar tras una corrección de datos?** Sí. Es inmutable por diseño y corregirla ya exige apagar el trigger a propósito. Está documentado en `moneda-instancia.ts` y en el ADR. Conviene que la ficha de esa corrección en `docs/datos/` lleve el reinicio como paso obligatorio.
+
+### 3 · Signup sin moneda
+El rechazo está en el controlador (`registrarCuentaCtrl`) y llega antes de cualquier consulta. La prueba unitaria basta para esa lógica. Lo que no cubre es el cableado: si alguien pasara `eligeMoneda: true` en `app/api/signup/route.ts`, ninguna prueba lo vería. **Severidad baja**, y además está apagado por omisión (`AUTOREGISTRO`).
+
+### 4 · `app/global-error.tsx`, verificado de verdad
+Levanté un `next start -p 3399` del build actual con `DATABASE_URL` apuntando a `127.0.0.1:1`, es decir, sin base. Lo abrí en Chrome (chrome-devtools, contexto aislado):
+- `/spaces-dooh/login/` → el árbol de accesibilidad muestra el título «El sistema no está disponible en este momento», el párrafo en español y el botón «Intentar de nuevo».
+- `/spaces-dooh/ruta-que-no-existe/` → redirige a `/login/` y muestra la misma página propia.
+
+Después cerré la pestaña y detuve el servidor; el puerto 3399 quedó libre.
+
+### 5 · Mutantes, uno por build
+La secuencia fue mutar → `npm run build` → e2e → restaurar → `npm run build`.
+
+| # | Mutante | e2e | Resultado |
+|---|---|---|---|
+| MA | `hashParaCotejar` devuelve siempre la regla de hoy (`contrato-documento.ts:511`) | `moneda-instancia` | **MUERE**: «el hash vigente es el que se firmo, y ninguna firma queda invalidada» |
+| MB | Caché vieja tras el bootstrap: cachear también sin organización y quitar el `recordar…` del alta | `bootstrap` | **MUERE**: «`US$` de verdad en el HTML del documento» |
+
+Los archivos restaurados son idénticos byte a byte a la copia de antes de mutar (`cmp`). Build final: `BUILD_ID ynndxvUA7vZpjKCkwy64-`.
+
+### 6 · El español MXN sigue idéntico
+Repetí la comparación de la primera pasada con el código nuevo, ya con `globalThis`: **318 214 comparaciones, 0 diferencias** en español, en inglés y en la cantidad con letra.
+
+### 7 · Cifras
+- `npm run typecheck` → limpio.
+- `npm test` → **324 archivos, 4325 pruebas, todas en verde**.
+- `npm run build` → rc=0.
+- e2e completa → **85 archivos: 83 en verde, 1 omitido, 1 en rojo. Pruebas: 1186 en verde, 21 omitidas, 1 en rojo.** La roja es `grants-rol-app` (`ECONNREFUSED`, necesita Docker y esta máquina no lo tiene; es el mismo fallo del entorno que en la primera pasada). `login-sin-base`, `moneda-instancia`, `bootstrap` y `aislamiento` pasan.
+- `pruebas-provision.sh` → **40 escenarios, 143 comprobaciones, 0 fallos**, incluido «`--moneda` sin `--bootstrap` se para».
+- `recuentos.mjs` cuadra con CLAUDE.md: 1610 enlaces, 112 notas, 123 migraciones, 159 endpoints.
+- `aislamiento.e2e` y `servidor-e2e.ts` sin tocar. Ningún `desktop.ini` añadido. Ninguna migración editada.
+- No usé `git stash`. Postgres está detenido y `git status` limpio, aparte de este informe y los `desktop.ini` sin versionar.
+
+### Observaciones que quedan (baja, no bloquean)
+1. **La pantalla del contrato muestra otra letra que la firmada.** `app/(app)/contrato/[id]/page.tsx:67` regenera el documento con la regla de hoy. Para un contrato USD congelado antes del ADR, la pantalla muestra «DÓLARES … USD» mientras el texto firmado (`documento_congelado`) dice «PESOS … M.N.». La firma no aparece alterada, que era lo grave. Esta pantalla ya regeneraba el documento con la fecha de hoy, así que no es nuevo en su forma.
+2. **Nada prueba el cableado de `/api/signup`** (punto 3).
+3. **El reinicio tras una corrección de datos** tiene que ir escrito como paso en la plantilla de `docs/datos/` que cambie una moneda (punto 2).
