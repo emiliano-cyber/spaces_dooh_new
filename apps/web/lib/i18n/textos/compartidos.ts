@@ -154,6 +154,22 @@ export const ES_COMPARTIDOS = {
   'compartidos.candado.pide': 'Tu organización pide la contraseña para confirmar los cambios sensibles.',
   'compartidos.candado.falta': 'Escribe tu contraseña para confirmar.',
   'compartidos.candado.confirmar': 'Confirmar',
+
+  // ── lib/captura-cifra.ts · los motivos de CampoCifra (lote catalogos) ──
+  // El espanol es el literal del modulo; las cifras de ejemplo van por hueco.
+  'compartidos.cifra.forma': 'Escribe solo cifras: la coma separa miles y el punto, decimales. Ejemplo: {ejemplo}',
+  'compartidos.cifra.comas': 'Las comas van cada tres cifras, como en {ejemplo}. Si querías decimales, usa punto: {decimal}',
+  'compartidos.cifra.europeo': 'Aquí el punto es decimal y la coma separa miles: escribe {ejemplo}',
+  'compartidos.cifra.puntos': 'Solo puede haber un punto, y es el decimal. Para miles usa coma: {ejemplo}',
+  'compartidos.cifra.vacia': 'Escribe una cifra',
+  'compartidos.cifra.punto-decimal': 'En México el punto es decimal: «{texto}» sería {decimal}. Para {miles} escribe {sinComas} o {miles}',
+  'compartidos.cifra.enteras': 'Solo cifras enteras, sin decimales',
+  'compartidos.cifra.max-decimales.uno': 'Máximo {n} decimal',
+  'compartidos.cifra.max-decimales.otros': 'Máximo {n} decimales',
+  'compartidos.cifra.grande': 'Esa cifra es demasiado grande',
+  'compartidos.cifra.negativo': 'No puede ser negativo',
+  'compartidos.cifra.menor': 'No puede ser menor que {n}',
+  'compartidos.cifra.mayor': 'No puede ser mayor que {n}',
 } as const
 
 export type ClaveCompartidos = keyof typeof ES_COMPARTIDOS
@@ -281,4 +297,19 @@ export const EN_COMPARTIDOS: Record<ClaveCompartidos, string> = {
   'compartidos.candado.pide': 'Your organization requires your password to confirm sensitive changes.',
   'compartidos.candado.falta': 'Enter your password to confirm.',
   'compartidos.candado.confirmar': 'Confirm',
+
+  // ── lib/captura-cifra.ts · los motivos de CampoCifra (lote catalogos) ──
+  'compartidos.cifra.forma': 'Enter digits only: the comma separates thousands and the period, decimals. Example: {ejemplo}',
+  'compartidos.cifra.comas': 'Commas go every three digits, as in {ejemplo}. If you meant decimals, use a period: {decimal}',
+  'compartidos.cifra.europeo': 'Here the period is the decimal point and the comma separates thousands: enter {ejemplo}',
+  'compartidos.cifra.puntos': 'There can be only one period, and it is the decimal point. For thousands use a comma: {ejemplo}',
+  'compartidos.cifra.vacia': 'Enter a number',
+  'compartidos.cifra.punto-decimal': 'Here the period is the decimal point: “{texto}” would be {decimal}. For {miles} enter {sinComas} or {miles}',
+  'compartidos.cifra.enteras': 'Whole numbers only, no decimals',
+  'compartidos.cifra.max-decimales.uno': 'At most {n} decimal place',
+  'compartidos.cifra.max-decimales.otros': 'At most {n} decimal places',
+  'compartidos.cifra.grande': 'That number is too large',
+  'compartidos.cifra.negativo': 'It cannot be negative',
+  'compartidos.cifra.menor': 'It cannot be less than {n}',
+  'compartidos.cifra.mayor': 'It cannot be greater than {n}',
 }

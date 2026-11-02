@@ -256,6 +256,7 @@ export function GestionVolumen() {
                   aria-label={t('catalogos.volumen.cantidad.aria')}
                   decimales={0}
                   mostrarError={false}
+                  idioma={idioma}
                   className={`${CAMPO} demo-num w-28 text-right`}
                   placeholder={t('catalogos.volumen.cantidad.placeholder')}
                   valor={nuevo.desdeCantidad}

@@ -218,7 +218,7 @@ const PANTALLAS: Pantalla[] = [
       '<b>exactly</b> these screens',
       'Create bundle',
       '>0</span> selected',
-      'MX$ 60,000 list',
+      'MX$ 60,000 at list',
       ' (required)',
     ],
   },
@@ -259,9 +259,11 @@ const PANTALLAS: Pantalla[] = [
     ingles: [
       'Active',
       'Deactivated',
-      '2 screens',
-      '1 screen',
-      'Takes codes',
+      '>2 screens</div>',
+      '>1 screen</div>',
+      'Takes negotiation codes',
+      'Negotiation codes',
+      'MX$ 10,000</span> below list',
       'Final price',
       'In use · 3',
       'Deactivate',
@@ -283,7 +285,7 @@ const PANTALLAS: Pantalla[] = [
       return pintar(idioma, createElement(GestionPaquetes))
     },
     espanol: ['>1</span> elegida', 'se cobra ', ' POR ENCIMA de la lista'],
-    ingles: ['>1</span> selected', 'is billed', 'ABOVE the list'],
+    ingles: ['>1</span> selected', '</span> ABOVE list'],
   },
 
   // ── Franjas y temporadas ──
@@ -368,7 +370,7 @@ const PANTALLAS: Pantalla[] = [
       'Dar de baja',
       '13/11/2026',
     ],
-    ingles: ['Active', 'Retired', 'Retire', 'Nov 13, 2026'],
+    ingles: ['>Active<', '>Deactivated<', '</svg> Deactivate</button>', 'Nov 13, 2026'],
   },
 
   // ── Horario de transmision ──
@@ -424,12 +426,13 @@ const PANTALLAS: Pantalla[] = [
       'Programar  en Tarde',
     ],
     ingles: [
-      '1 campaign',
-      '0 campaigns',
+      '>1 campaign</span>',
+      '>0 campaigns</span>',
       'No campaign airs in this daypart.',
       'aria-label="Remove CA-0001 · Verano from Prime"',
-      'Schedule campaigns in Prime (1 selected)',
-      'Schedule campaigns in Mañana (2 selected)',
+      'Schedule campaigns in Prime (1 selected)</summary>',
+      'Schedule campaigns in Mañana (2 selected)</summary>',
+      'Schedule in Tarde</button>',
       '(now in Mañana)',
       'Schedule 1 in Prime',
     ],
@@ -484,6 +487,8 @@ const PANTALLAS: Pantalla[] = [
       'aria-label="Franja de la nueva tarifa"',
       'aria-label="Temporada de la nueva tarifa"',
       'aria-label="Tarifa de la nueva fila"',
+      'title="Escribe solo cifras: la coma separa miles y el punto, decimales. Ejemplo: 212,500.50"',
+      '>programatico</option>',
     ],
     ingles: [
       'A rate in red cannot be read: the comma separates thousands and the period, decimals (15,000.50).',
@@ -494,6 +499,8 @@ const PANTALLAS: Pantalla[] = [
       'aria-label="Keep"',
       'Unit…',
       'Monthly',
+      'title="Enter digits only: the comma separates thousands and the period, decimals. Example: 212,500.50"',
+      '>Programmatic</option>',
     ],
   },
   {
@@ -588,7 +595,7 @@ const PANTALLAS: Pantalla[] = [
       'title="Eliminar: deja de aplicarse a partir de ahora. Lo ya cotizado y lo ya aprobado no se mueven."',
       'trimestral',
     ],
-    ingles: [' · 2 tiers', ' · 1 tier', 'Step 1', 'from 50 plays', 'from 3 months', '→ 10%'],
+    ingles: [' · 2 tiers</span>', ' · 1 tier</span>', 'Step 1<', 'from 50 plays', 'from 3 months', '→ 10%'],
   },
 ]
 

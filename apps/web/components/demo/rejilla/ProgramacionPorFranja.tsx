@@ -228,7 +228,9 @@ export function ProgramacionPorFranja() {
                     size="sm"
                     className="mt-2"
                   >
-                    {t('catalogos.programacion.boton', { n: sel.length || '', franja: f.nombre })}
+                    {sel.length
+                      ? t('catalogos.programacion.boton', { n: sel.length, franja: f.nombre })
+                      : t('catalogos.programacion.boton.vacio', { franja: f.nombre })}
                   </Button>
                 </details>
               )}

@@ -146,3 +146,59 @@ describe('catalogos · los avisos que no se rinden usan su clave', () => {
     expect(leer('components/demo/volumen/GestionVolumen.tsx')).toMatch(/motivoTramoInvalido\(\{ id: '', \.\.\.candidato \}, tramos, idioma\)/)
   })
 })
+
+// ============================================================================
+//  `leerCifra` (el motivo que pinta CampoCifra en `title` y aviso): segunda
+//  vuelta del validador. En espanol, el literal de siempre para quien no pasa
+//  idioma; en ingles, su clave `compartidos.cifra.*`.
+// ============================================================================
+import { leerCifra } from '@/lib/captura-cifra'
+
+describe('captura-cifra · los motivos, rama por rama', () => {
+  const CASOS_CIFRA: [string, string, Parameters<typeof leerCifra>[1], ClaveTexto][] = [
+    ['letras', 'abc', { decimales: 2 }, 'compartidos.cifra.forma'],
+    ['solo signo', '-', { decimales: 2 }, 'compartidos.cifra.forma'],
+    ['vacio obligatorio', '', { decimales: 2, permiteVacio: false }, 'compartidos.cifra.vacia'],
+    ['europeo', '2.500,50', { decimales: 2 }, 'compartidos.cifra.europeo'],
+    ['dos puntos', '1.2.3', { decimales: 2 }, 'compartidos.cifra.puntos'],
+    ['comas mal', '2,50', { decimales: 2 }, 'compartidos.cifra.comas'],
+    ['punto de miles', '2.500', { decimales: 2 }, 'compartidos.cifra.punto-decimal'],
+    ['enteras', '2.5', { decimales: 0 }, 'compartidos.cifra.enteras'],
+    ['un decimal', '2.55', { decimales: 1 }, 'compartidos.cifra.max-decimales.uno'],
+    ['dos decimales', '2.5555', { decimales: 2 }, 'compartidos.cifra.max-decimales.otros'],
+    ['grande', '9'.repeat(30), { decimales: 2 }, 'compartidos.cifra.grande'],
+    ['negativo', '-5', { decimales: 2, minimo: 0 }, 'compartidos.cifra.negativo'],
+    ['menor', '5', { decimales: 2, minimo: 1000 }, 'compartidos.cifra.menor'],
+    ['mayor', '5000', { decimales: 2, maximo: 1000 }, 'compartidos.cifra.mayor'],
+  ]
+  for (const [nombre, texto, opciones, clave] of CASOS_CIFRA) {
+    it(nombre, () => {
+      const es = leerCifra(texto, opciones)
+      const es2 = leerCifra(texto, { ...opciones, idioma: 'es' })
+      const en = leerCifra(texto, { ...opciones, idioma: 'en' })
+      if (es.ok || es2.ok || en.ok) throw new Error('tenia que rechazarse')
+      expect(es2.error).toBe(es.error)
+      // El ingles es la clave que toca, con los huecos rellenos.
+      expect(en.error).not.toBe(es.error)
+      expect(en.error).not.toMatch(/\{\w+\}|[áéíóúñ]/)
+      // Y sale de SU clave: el texto fijo de la clave (sin huecos) esta dentro.
+      const fijo = traducir('en', clave).split(/\{\w+\}/).sort((x, y) => y.length - x.length)[0]
+      expect(en.error).toContain(fijo.trim())
+    })
+  }
+  it('el espanol del diccionario reproduce los literales del modulo', () => {
+    const e = (t: string, o: Parameters<typeof leerCifra>[1]) => {
+      const l = leerCifra(t, o)
+      return l.ok ? '' : l.error
+    }
+    expect(e('abc', { decimales: 2 })).toBe(traducir('es', 'compartidos.cifra.forma', { ejemplo: '212,500.50' }))
+    expect(e('2,50', { decimales: 2 })).toBe(traducir('es', 'compartidos.cifra.comas', { ejemplo: '212,500', decimal: '2.50' }))
+    expect(e('2.500,50', { decimales: 2 })).toBe(traducir('es', 'compartidos.cifra.europeo', { ejemplo: '2,500.50' }))
+    expect(e('1.2.3', { decimales: 2 })).toBe(traducir('es', 'compartidos.cifra.puntos', { ejemplo: '1,234,567' }))
+    expect(e('2.500', { decimales: 2 })).toBe(
+      traducir('es', 'compartidos.cifra.punto-decimal', { texto: '2.500', decimal: '2.5', miles: '2,500', sinComas: '2500' }),
+    )
+    expect(e('2.55', { decimales: 1 })).toBe(traducir('es', 'compartidos.cifra.max-decimales.uno', { n: 1 }))
+    expect(e('5', { decimales: 2, minimo: 1000 })).toBe(traducir('es', 'compartidos.cifra.menor', { n: '1,000' }))
+  })
+})

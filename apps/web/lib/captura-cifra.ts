@@ -29,6 +29,9 @@
 //     `1e5`, ni `0x10`, ni `Infinity`, ni espacios dentro.
 // ============================================================================
 
+import { traducir, type ClaveTexto } from './i18n/diccionario'
+import type { Idioma } from './i18n/idiomas'
+
 export type LecturaCifra = { ok: true; valor: number | null } | { ok: false; error: string }
 
 export interface OpcionesCifra {
@@ -40,6 +43,13 @@ export interface OpcionesCifra {
   maximo?: number
   /** Por defecto `true`: el vacío se lee como `null`. */
   permiteVacio?: boolean
+  /**
+   * I18N (lote catalogos, 2026-11-02) · el idioma del MOTIVO de rechazo. Por
+   * omision 'es', y en espanol devuelve los literales de siempre: los
+   * llamadores que no lo pasan (otros lotes, `costo-ot-captura`) no cambian.
+   * Las cifras de ejemplo van por hueco: ningun diccionario lleva miles.
+   */
+  idioma?: Idioma
 }
 
 const MSJ_FORMA = 'Escribe solo cifras: la coma separa miles y el punto, decimales. Ejemplo: 212,500.50'
@@ -49,12 +59,15 @@ const MSJ_PUNTOS = 'Solo puede haber un punto, y es el decimal. Para miles usa c
 
 /** Del texto tecleado a la cifra. Ver las reglas en la cabecera. */
 export function leerCifra(texto: string, opciones: OpcionesCifra): LecturaCifra {
-  const { decimales, minimo, maximo, permiteVacio = true } = opciones
+  const { decimales, minimo, maximo, permiteVacio = true, idioma = 'es' } = opciones
+  const m = (literal: string, clave: ClaveTexto, valores?: Record<string, string | number>) =>
+    idioma === 'es' ? literal : traducir(idioma, clave, valores)
+  const forma = () => m(MSJ_FORMA, 'compartidos.cifra.forma', { ejemplo: '212,500.50' })
   let t = texto.trim()
   if (t.startsWith('$')) t = t.slice(1).trim()
 
   if (t === '') {
-    return permiteVacio ? { ok: true, valor: null } : { ok: false, error: 'Escribe una cifra' }
+    return permiteVacio ? { ok: true, valor: null } : { ok: false, error: m('Escribe una cifra', 'compartidos.cifra.vacia') }
   }
 
   let negativo = false
@@ -62,16 +75,16 @@ export function leerCifra(texto: string, opciones: OpcionesCifra): LecturaCifra 
     negativo = true
     t = t.slice(1)
   }
-  if (t === '') return { ok: false, error: MSJ_FORMA }
+  if (t === '') return { ok: false, error: forma() }
 
   // Solo cifras, comas y puntos. Esto deja fuera 'Infinity', '1e5', '0x10',
   // '1 200', un segundo signo o un segundo '$' — todo lo que `Number()`
   // aceptaría (o casi) y que en un campo de importe no significa nada.
-  if (/[^\d,.]/.test(t)) return { ok: false, error: MSJ_FORMA }
+  if (/[^\d,.]/.test(t)) return { ok: false, error: forma() }
 
   const punto = t.indexOf('.')
-  if (punto !== -1 && t.lastIndexOf(',') > punto) return { ok: false, error: MSJ_EUROPEO }
-  if (punto !== -1 && t.indexOf('.', punto + 1) !== -1) return { ok: false, error: MSJ_PUNTOS }
+  if (punto !== -1 && t.lastIndexOf(',') > punto) return { ok: false, error: m(MSJ_EUROPEO, 'compartidos.cifra.europeo', { ejemplo: '2,500.50' }) }
+  if (punto !== -1 && t.indexOf('.', punto + 1) !== -1) return { ok: false, error: m(MSJ_PUNTOS, 'compartidos.cifra.puntos', { ejemplo: '1,234,567' }) }
 
   const ent = punto === -1 ? t : t.slice(0, punto)
   const frac = punto === -1 ? '' : t.slice(punto + 1)
@@ -79,22 +92,33 @@ export function leerCifra(texto: string, opciones: OpcionesCifra): LecturaCifra 
   // La primera cifra de un grupo con comas no puede ser 0: «0,500» es 0.5 en
   // Europa, y aceptarlo como 500 sería adivinar.
   if (ent.includes(',') && !/^[1-9]\d{0,2}(,\d{3})+$/.test(ent)) {
-    return { ok: false, error: MSJ_COMAS }
+    return { ok: false, error: m(MSJ_COMAS, 'compartidos.cifra.comas', { ejemplo: '212,500', decimal: '2.50' }) }
   }
   const digitos = ent.replace(/,/g, '')
-  if (digitos === '' && frac === '') return { ok: false, error: MSJ_FORMA }
+  if (digitos === '' && frac === '') return { ok: false, error: forma() }
 
   if (frac.length > decimales) {
     if (frac.length === 3 && decimales < 3 && !ent.includes(',') && /^\d{1,3}$/.test(digitos)) {
       const miles = `${digitos}${frac}`.replace(/^0+(?=\d)/, '')
       return {
         ok: false,
-        error: `En México el punto es decimal: «${t}» sería ${digitos}.${frac.replace(/0+$/, '') || '0'}. Para ${ponerComas(miles)} escribe ${miles} o ${ponerComas(miles)}`,
+        error: m(
+          `En México el punto es decimal: «${t}» sería ${digitos}.${frac.replace(/0+$/, '') || '0'}. Para ${ponerComas(miles)} escribe ${miles} o ${ponerComas(miles)}`,
+          'compartidos.cifra.punto-decimal',
+          { texto: t, decimal: `${digitos}.${frac.replace(/0+$/, '') || '0'}`, miles: ponerComas(miles), sinComas: miles },
+        ),
       }
     }
     return {
       ok: false,
-      error: decimales === 0 ? 'Solo cifras enteras, sin decimales' : `Máximo ${decimales} ${decimales === 1 ? 'decimal' : 'decimales'}`,
+      error:
+        decimales === 0
+          ? m('Solo cifras enteras, sin decimales', 'compartidos.cifra.enteras')
+          : m(
+              `Máximo ${decimales} ${decimales === 1 ? 'decimal' : 'decimales'}`,
+              decimales === 1 ? 'compartidos.cifra.max-decimales.uno' : 'compartidos.cifra.max-decimales.otros',
+              { n: decimales },
+            ),
     }
   }
 
@@ -102,16 +126,22 @@ export function leerCifra(texto: string, opciones: OpcionesCifra): LecturaCifra 
   // Más allá de MAX_SAFE_INTEGER, `Number` redondea en silencio (y con 400
   // cifras da Infinity): el importe guardado no sería el tecleado.
   if (!Number.isFinite(v) || v > Number.MAX_SAFE_INTEGER) {
-    return { ok: false, error: 'Esa cifra es demasiado grande' }
+    return { ok: false, error: m('Esa cifra es demasiado grande', 'compartidos.cifra.grande') }
   }
   if (negativo) v = -v
   if (v === 0) v = 0 // sin -0
 
   if (minimo != null && v < minimo) {
-    return { ok: false, error: minimo === 0 ? 'No puede ser negativo' : `No puede ser menor que ${ponerComas(String(minimo))}` }
+    return {
+      ok: false,
+      error:
+        minimo === 0
+          ? m('No puede ser negativo', 'compartidos.cifra.negativo')
+          : m(`No puede ser menor que ${ponerComas(String(minimo))}`, 'compartidos.cifra.menor', { n: ponerComas(String(minimo)) }),
+    }
   }
   if (maximo != null && v > maximo) {
-    return { ok: false, error: `No puede ser mayor que ${ponerComas(String(maximo))}` }
+    return { ok: false, error: m(`No puede ser mayor que ${ponerComas(String(maximo))}`, 'compartidos.cifra.mayor', { n: ponerComas(String(maximo)) }) }
   }
   return { ok: true, valor: v }
 }

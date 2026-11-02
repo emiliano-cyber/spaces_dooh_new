@@ -63,7 +63,10 @@ export function RejillaDialog({
   const { idioma, t } = useIdioma()
   // La unidad se pinta como el DATO en espanol (`capitalize` la pone en
   // mayuscula, como siempre) y con su nombre en ingles.
-  const unidadVisible = (u: string) => (idioma === 'es' ? u : etiquetaUnidad(u, idioma))
+  // `programatico` es unidad de venta pero no esta en `UNIDADES` (no tiene
+  // cantidad que contar): su nombre ingles es el de Comercial.
+  const unidadVisible = (u: string) =>
+    idioma === 'es' ? u : u === 'programatico' ? t('comercial.comun.programatico') : etiquetaUnidad(u, idioma)
   const [franjas, setFranjas] = useState<FranjaUI[]>([])
   const [temporadas, setTemporadas] = useState<TemporadaUI[]>([])
   const [filas, setFilas] = useState<FilaRejillaUI[]>([])
@@ -247,6 +250,7 @@ export function RejillaDialog({
                         valor={tarifas[k] ?? ''}
                         disabled={fuera}
                         mostrarError={false}
+                        idioma={idioma}
                         onCambio={(crudo) => setTarifas({ ...tarifas, [k]: crudo })}
                       />
                     </td>
@@ -318,6 +322,7 @@ export function RejillaDialog({
                       className="h-7 w-24 rounded border border-border-strong bg-surface px-2 text-right"
                       valor={nueva.tarifa}
                       mostrarError={false}
+                      idioma={idioma}
                       onCambio={(crudo) => setNueva({ ...nueva, tarifa: crudo })}
                     />
                   </td>

@@ -998,7 +998,7 @@ sigue APAGADO; en español no cambia ni una letra.
 cuadro «Tarifas por franja y temporada» de la ficha de pantalla (`RejillaDialog`)
 y `/descuentos-por-volumen` (`GestionVolumen`).
 
-- **193 claves** en `lib/i18n/textos/catalogos.ts` (`catalogos.*`), esparcidas en
+- **194 claves** en `lib/i18n/textos/catalogos.ts` (`catalogos.*`), esparcidas en
   `diccionario.ts` y añadidas a `costura.test.ts`. Instantánea y guardias de forma
   en `textos/catalogos.test.ts`. Los títulos de página reutilizan las claves del
   menú (`nav.paquetes`…): la página se llama como la entrada que lleva a ella.
@@ -1021,13 +1021,37 @@ y `/descuentos-por-volumen` (`GestionVolumen`).
 **Términos nuevos** (decisión del agente; el dueño puede cambiarlos; tabla en
 `docs/i18n/revision-catalogos.md`): precio cerrado → *fixed price* · a prorrata /
 reparto / parte → *pro rata / split / bundle share* · dar de baja (franja,
-temporada) → **retire / Retired** (baja lógica) · tramo / escalón / escala plana →
+temporada) → **deactivate / Deactivated** (baja lógica; decisión del orquestador en
+la segunda vuelta, igual que Campañas y compartidos) · tramo / escalón / escala plana →
 *tier / step / flat scale* · rejilla → *rate grid* · programar → *schedule* ·
-se transmite → *airs* · tarifa de lista → *list rate*.
+se transmite → *airs* · horario de transmisión → *Broadcast schedule* (como
+Campañas) · tarifa de lista → *list rate* · ¿Códigos? / Admite código → *Negotiation
+codes* / *Takes negotiation codes* (orquestador). Los errores van sin contracciones
+(«Could not…», «cannot»), como el resto de lotes. 194 claves (una más: el botón «Programar» sin marcadas, que en inglés ya no arrastra el doble espacio).
 
 **Sigue en español:** los avisos «se vendió como X y se programa en Y» que manda
-el servidor (`a.texto`), los mensajes del servidor (I18N-05) y la etiqueta de una
-unidad que no está en `UNIDADES` (es el dato).
+el servidor (`a.texto`) y los mensajes del servidor (I18N-05). En el cuadro de
+tarifas, la unidad en español se pinta como el dato (`spot`, `programatico`) y en
+inglés con su etiqueta (*CPS · cost per play*, *Programmatic*): aceptado así por el
+orquestador. `programatico` es una unidad de venta (`lib/modalidades.ts`) que no
+está en `UNIDADES`; en inglés usa `comercial.comun.programatico`.
+
+> [!note] Segunda vuelta (validador ÁMBAR, `docs/i18n/validacion-catalogos.md`)
+> - **`CampoCifra` y `lib/captura-cifra.ts`:** el motivo de rechazo (el `title`
+>   «Escribe solo cifras…» y sus hermanos) salía en español en la pantalla inglesa.
+>   `leerCifra` acepta `idioma` en sus opciones con `'es'` por omisión (los
+>   literales no cambian) y las claves viven en `compartidos.cifra.*`, con las
+>   cifras de ejemplo por hueco. `CampoCifra` toma el idioma de su prop o, sin
+>   ella, el de la pantalla (`useIdioma`, que fuera del proveedor es `'es'`): así
+>   el barrido de compartidos de Campañas y Finanzas, que lo cazó al aparecer las
+>   claves, queda en verde. El HTML español de los 79 estados de Propuestas,
+>   compartidos y Campañas y Finanzas salió idéntico con y sin el cambio.
+> - Los singulares de la prueba de pantallas se comprueban con su etiqueta de
+>   cierre (« · 1 tier</span>»): invertir el plural ya cae sin la instantánea.
+> - **«pesos» en el texto** («Precio del conjunto (pesos enteros)», «al peso», «to
+>   the peso», «whole number of pesos»): es falso en una instancia USD (ADR 0048),
+>   en los dos idiomas. **No se tocó**: redactarlo neutro es una tarea aparte.
+> - Español: los 15 estados, idénticos otra vez.
 
 > [!warning] Lo que falta del lote: operaciones y clientes
 > Operaciones (OT, almacén, imprenta, creativos, disponibilidad, el Dashboard y

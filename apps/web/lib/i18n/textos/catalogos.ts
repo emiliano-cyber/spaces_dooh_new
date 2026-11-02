@@ -173,6 +173,7 @@ export const ES_CATALOGOS = {
   'catalogos.programacion.marcadas.otros': ' ({n} marcadas)',
   'catalogos.programacion.hoy-en': '(hoy en {franja})',
   'catalogos.programacion.boton': 'Programar {n} en {franja}',
+  'catalogos.programacion.boton.vacio': 'Programar  en {franja}',
 
   // ── Tarifas por franja y temporada de UNA pantalla ──
   'catalogos.tarifas.no-leer': 'No se pudo leer la rejilla',
@@ -283,8 +284,8 @@ export const EN_CATALOGOS: Record<ClaveCatalogos, string> = {
   'catalogos.comun.anadir': 'Add',
   'catalogos.comun.eliminar': 'Delete',
   'catalogos.comun.activa': 'Active',
-  'catalogos.comun.dada-de-baja': 'Retired',
-  'catalogos.comun.dar-de-baja': 'Retire',
+  'catalogos.comun.dada-de-baja': 'Deactivated',
+  'catalogos.comun.dar-de-baja': 'Deactivate',
   'catalogos.comun.unidad': 'Unit',
   'catalogos.comun.franja': 'Daypart',
   'catalogos.comun.temporada': 'Season',
@@ -312,15 +313,15 @@ export const EN_CATALOGOS: Record<ClaveCatalogos, string> = {
     'And {negrita}: the split is recalculated among the remaining screens and the proposal says so.',
   'catalogos.paquetes.aviso.quitar.negrita': 'removing a screen from an already quoted proposal does NOT lower the price',
   'catalogos.paquetes.lista.titulo': 'Bundles in your organization',
-  'catalogos.paquetes.lista.subtitulo': 'Split pro rata to the list rate',
+  'catalogos.paquetes.lista.subtitulo': 'Split pro rata by list rate',
   'catalogos.paquetes.lista.explicacion':
     'The price is split among the screens {prorrata}, and the shares add up to the bundle price {peso}. That split is the revenue the profitability report assigns to each screen.',
-  'catalogos.paquetes.lista.explicacion.prorrata': 'pro rata to their list rate',
+  'catalogos.paquetes.lista.explicacion.prorrata': 'in proportion to their list rate',
   'catalogos.paquetes.lista.explicacion.peso': 'to the peso',
   'catalogos.paquetes.col.paquete': 'Bundle',
   'catalogos.paquetes.col.pantallas': 'Screens',
   'catalogos.paquetes.col.precio': 'Fixed price',
-  'catalogos.paquetes.col.codigos': 'Codes?',
+  'catalogos.paquetes.col.codigos': 'Negotiation codes',
   'catalogos.paquetes.col.en-uso': 'In use',
   'catalogos.paquetes.vacio':
     'None yet. Without bundles, everything sells at the list rate — which is exactly how it works today.',
@@ -328,7 +329,7 @@ export const EN_CATALOGOS: Record<ClaveCatalogos, string> = {
   'catalogos.paquetes.desactivado': 'Deactivated',
   'catalogos.paquetes.pantallas.uno': '{n} screen',
   'catalogos.paquetes.pantallas.otros': '{n} screens',
-  'catalogos.paquetes.admite-codigo': 'Takes codes',
+  'catalogos.paquetes.admite-codigo': 'Takes negotiation codes',
   'catalogos.paquetes.precio-final': 'Final price',
   'catalogos.paquetes.en-uso.title': 'Proposals that use this bundle',
   'catalogos.paquetes.en-uso': 'In use · {n}',
@@ -351,11 +352,11 @@ export const EN_CATALOGOS: Record<ClaveCatalogos, string> = {
   'catalogos.paquetes.minimo.exactamente': 'exactly',
   'catalogos.paquetes.elegidas.uno': '{n} selected',
   'catalogos.paquetes.elegidas.otros': '{n} selected',
-  'catalogos.paquetes.de-lista': '{monto} list',
+  'catalogos.paquetes.de-lista': '{monto} at list',
   'catalogos.paquetes.resumen.lista': 'List {monto}',
   'catalogos.paquetes.resumen.paquete': 'Bundle {monto}',
-  'catalogos.paquetes.resumen.deja-de-cobrar': '{monto} is not billed',
-  'catalogos.paquetes.resumen.por-encima': '{monto} is billed ABOVE the list',
+  'catalogos.paquetes.resumen.deja-de-cobrar': '{monto} below list',
+  'catalogos.paquetes.resumen.por-encima': '{monto} ABOVE list',
   'catalogos.paquetes.reparto.intro':
     'This is how it would be split among the screens — and what the profitability report will assign to each one:',
   'catalogos.paquetes.reparto.pantalla': 'Screen',
@@ -369,7 +370,7 @@ export const EN_CATALOGOS: Record<ClaveCatalogos, string> = {
   'catalogos.rejilla.descripcion':
     'The two dimensions of the rate: the time of day and the time of year. They are entered once and apply to the whole inventory.',
   'catalogos.rejilla.no-leer': 'Could not load the catalog',
-  'catalogos.rejilla.no-dar-de-baja': 'Could not retire it',
+  'catalogos.rejilla.no-dar-de-baja': 'Could not deactivate',
   'catalogos.rejilla.cargando': 'Loading the catalog',
   'catalogos.rejilla.candado.titulo': 'Confirm with your password',
   'catalogos.rejilla.candado.subtitulo':
@@ -383,7 +384,7 @@ export const EN_CATALOGOS: Record<ClaveCatalogos, string> = {
   'catalogos.rejilla.col.orden': 'Order',
   'catalogos.rejilla.franjas.vacio':
     'None yet. Without dayparts, everything sells at the base rate — which is exactly how it works today.',
-  'catalogos.rejilla.dar-de-baja.title': 'Retire: it is no longer offered, and what is already booked stays in place',
+  'catalogos.rejilla.dar-de-baja.title': 'Deactivate: it is no longer offered, and what is already booked stays in place',
   'catalogos.rejilla.franja.nombre.aria': 'Daypart name',
   'catalogos.rejilla.franja.nombre.placeholder': 'e.g. Prime',
   'catalogos.rejilla.franja.inicio.aria': 'Start time',
@@ -406,21 +407,22 @@ export const EN_CATALOGOS: Record<ClaveCatalogos, string> = {
   'catalogos.programacion.titulo': 'Broadcast schedule',
   'catalogos.programacion.subtitulo': 'No price changes',
   'catalogos.programacion.explicacion':
-    'Which daypart each campaign {negrita} in. No price changes: what was sold is already in the campaign since the proposal. You can select several campaigns and schedule them at once; if any of them can’t be scheduled, none is.',
+    'Which daypart each campaign {negrita} in. No price changes: what was sold already came into the campaign from the proposal. You can select several campaigns and schedule them at once; if any of them can’t be scheduled, none is.',
   'catalogos.programacion.explicacion.negrita': 'airs',
   'catalogos.programacion.sin-permiso':
-    'Only the sales manager, the sales director and management can schedule broadcasts. Here you see how it stands.',
+    'Only the sales manager, the sales director and management can schedule broadcasts. You can view the current schedule here.',
   'catalogos.programacion.sin-franjas': 'Add at least one daypart above to schedule campaigns in it.',
   'catalogos.programacion.campanas.uno': '{n} campaign',
   'catalogos.programacion.campanas.otros': '{n} campaigns',
   'catalogos.programacion.ninguna': 'No campaign airs in this daypart.',
   'catalogos.programacion.quitar.aria': 'Remove {campana} from {franja}',
-  'catalogos.programacion.quitar.title': 'Remove from this daypart (what was sold is not touched)',
+  'catalogos.programacion.quitar.title': 'Remove from this daypart (doesn’t affect what was sold)',
   'catalogos.programacion.programar-en': 'Schedule campaigns in {franja}',
   'catalogos.programacion.marcadas.uno': ' ({n} selected)',
   'catalogos.programacion.marcadas.otros': ' ({n} selected)',
   'catalogos.programacion.hoy-en': '(now in {franja})',
   'catalogos.programacion.boton': 'Schedule {n} in {franja}',
+  'catalogos.programacion.boton.vacio': 'Schedule in {franja}',
 
   // ── Tarifas por franja y temporada de UNA pantalla ──
   'catalogos.tarifas.no-leer': 'Could not load the rate grid',
@@ -446,7 +448,7 @@ export const EN_CATALOGOS: Record<ClaveCatalogos, string> = {
 
   // ── Descuentos por volumen ──
   'catalogos.volumen.descripcion':
-    'What discount someone buying a lot gets. It is entered once per sales unit and applies to the whole inventory.',
+    'The discount a high-volume buyer gets. It is entered once per sales unit and applies to the whole inventory.',
   'catalogos.volumen.no-leer': 'Could not load the scale',
   'catalogos.volumen.cargando': 'Loading the scale',
   'catalogos.volumen.aviso.todas': 'The discount applies to ALL units, not only to those above the threshold.',
@@ -483,7 +485,7 @@ export const EN_CATALOGOS: Record<ClaveCatalogos, string> = {
 
   // ── Motivos de rechazo ──
   'catalogos.motivo.paquete.nombre': 'The bundle needs a name.',
-  'catalogos.motivo.paquete.nombre-largo': 'The bundle name can’t be longer than 120 characters.',
+  'catalogos.motivo.paquete.nombre-largo': 'The bundle name cannot be longer than 120 characters.',
   'catalogos.motivo.paquete.precio-numero': 'The bundle price has to be a number.',
   'catalogos.motivo.paquete.precio-cero': 'A bundle price has to be greater than 0: a free bundle is not a bundle.',
   'catalogos.motivo.paquete.precio-entero':
@@ -508,11 +510,11 @@ export const EN_CATALOGOS: Record<ClaveCatalogos, string> = {
     'A volume tier starts at 2 units or more; “from 1” would lower the whole rate card.',
   'catalogos.motivo.tramo.pct-numero': 'The discount has to be a number.',
   'catalogos.motivo.tramo.pct-cero': 'A tier’s discount has to be greater than 0%: a tier at 0% does nothing.',
-  'catalogos.motivo.tramo.pct-cien': 'A tier’s discount can’t exceed 100%.',
+  'catalogos.motivo.tramo.pct-cien': 'A tier’s discount cannot exceed 100%.',
   'catalogos.motivo.tramo.mismo-umbral':
     'There is already a tier from {n} for this unit ({pct}%). Two tiers with the same threshold are two prices for the same purchase.',
   'catalogos.motivo.tramo.mas-y-menos':
-    'Buying more can’t discount less: the tier from {otroDesde} already gives {otroPct}% and this one, from {n}, would give {pct}%.',
+    'Buying more cannot discount less: the tier from {otroDesde} already gives {otroPct}% and this one, from {n}, would give {pct}%.',
   'catalogos.motivo.tramo.menos-y-mas':
-    'Buying more can’t discount less: the tier from {otroDesde} gives {otroPct}% and this one, from {n}, would give {pct}%.',
+    'Buying more cannot discount less: the tier from {otroDesde} gives {otroPct}% and this one, from {n}, would give {pct}%.',
 }

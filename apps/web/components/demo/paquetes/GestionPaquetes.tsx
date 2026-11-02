@@ -322,6 +322,7 @@ export function GestionPaquetes() {
             <CampoCifra
               aria-label={t('catalogos.paquetes.precio.aria')}
               decimales={0}
+              idioma={idioma}
               className={`${CAMPO} demo-num w-36 text-right`}
               placeholder={t('catalogos.paquetes.precio.placeholder', { ejemplo: '180,000' })}
               valor={nuevo.precioCerrado}
