@@ -1095,22 +1095,34 @@ el menú) · prospecto → *prospect* · bitácora → *log* · comisión → *c
 *negotiation validated* (validar → *Validate*) · razón social → *legal name* ·
 C.P. fiscal → *tax ZIP code* · uso de CFDI → *CFDI use* · tasa de cierre →
 *close rate* · embudo → *funnel* · disponibilidad → **availability** ·
-catorcena → *two-week period* · hueco libre → *free space* · almacén →
-**warehouse** · bodega → *depot* · dar de baja (un artículo) → **Retire**, igual
-que la baja lógica de franjas y temporadas del lote de catálogos; el estado
-«Baja» → *Decommissioned*, como el del sitio · traslado → *transit* · imprenta
+catorcena → *two-week period* · solo con hueco libre → *Only with
+availability* · almacén → **warehouse** · bodega → *depot* · dar de baja (un
+artículo) → **Decommission** (el KPI «{n} decommissioned», el estado
+*Decommissioned*), como el sitio de Comercial. **No** es la baja lógica de
+catálogos («Deactivate»): en el almacén la baja es definitiva
+(`MOVS.BAJA = []`), y así lo declara la costura · traslado → *transit* · imprenta
 → **Printing** (el módulo; el proveedor que imprime → *print shop*) · prueba de
 color → *color proof* · montaje → *installation*. Pendientes de decidir para los
 submódulos que faltan: recibo de luz → *electricity bill*, consumo →
 *consumption* (el menú ya dice «Power usage»), rentabilidad → *profitability*.
+La ruta de la ayuda del IVA se escribe «Settings → Business settings», como el
+lote de administración. El mes de Disponibilidad va con el año entero, «Mar
+2026» («Mar 26» se lee como «26 de marzo»).
 
-**Costura.** Cinco españoles nuevos que se dicen distinto a propósito, cada uno
+**Segunda vuelta** (validación ÁMBAR,
+`docs/i18n/validacion-clientes-operaciones.md`): se aplicaron los 4 hallazgos
+medios (la baja, un solo nombre para ella, la prueba de clave de los avisos de
+almacén e imprenta —M4a y M4c ahora mueren— y «Mar 2026») y los 10 bajos.
+Español otra vez medido: 37/37 estados idénticos a `2e622add`.
+
+**Costura.** Siete españoles nuevos que se dicen distinto a propósito, cada uno
 con su motivo en `DISTINTOS_A_PROPOSITO`: «Aprobada» (estatus frente a la
 columna con fecha «Approved on»), «RFC» (cabecera corta frente a «RFC (tax
 ID)»), «Validada» y «Validar» (un creativo revisado frente a una negociación
 validada), «Vista» (hacia dónde mira una cara frente al selector de la
-rejilla) y «Movimiento» (renglón del estado de cuenta frente a traslado del
-almacén).
+rejilla), «Movimiento» (renglón del estado de cuenta frente a traslado del
+almacén) y «Dar de baja» (la baja lógica de catálogos, «Deactivate», frente a la
+definitiva de un artículo del almacén, «Decommission»).
 
 ## Enlaces
 

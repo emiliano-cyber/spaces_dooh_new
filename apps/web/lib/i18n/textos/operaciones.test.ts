@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { ES_OPERACIONES, EN_OPERACIONES } from './operaciones'
 import { DICCIONARIOS } from '../diccionario'
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
 
 // ============================================================================
 //  EL DICCIONARIO DE OPERACIONES, CONGELADO.
@@ -89,5 +91,37 @@ describe('diccionario de OPERACIONES · los espejos reproducen EXACTAMENTE su mo
     for (const [k, v] of Object.entries(ETIQUETA_CAMPO)) {
       expect(ES[`operaciones.almacen.campo.${k.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase())}`]).toBe(v)
     }
+  })
+})
+
+// ============================================================================
+//  QUE CLAVE usa cada aviso que NO se rinde (toasts y errores de un `catch`).
+// ----------------------------------------------------------------------------
+//  Mismo patron que `textos/clientes.test.ts` y `finanzas.test.ts`. La
+//  validacion del lote demostro que sin esto sobrevivian M4a (el toast de
+//  mover usaba el de registrar) y M4c (el de avanzar una orden usaba el de
+//  crearla). Se lee el fuente: cada llamada a la API y, en su `then` o en el
+//  `catch` que la sigue, su clave, sin otra API en medio.
+// ============================================================================
+describe('operaciones · los avisos que no se rinden usan su clave', () => {
+  const leer = (r: string) => readFileSync(path.join(__dirname, '../../..', r), 'utf8')
+  const fija = (f: string, api: string, clave: string) => {
+    const re = new RegExp(`\\b${api}\\((?:(?!Api\\()[\\s\\S])*?t\\('${clave.replace(/\./g, '\\.')}'\\)`)
+    expect(f, `${api} → ${clave}`).toMatch(re)
+  }
+
+  it('almacen: cargar, registrar y mover avisan cada uno lo suyo, al lograrlo y al fallar', () => {
+    const f = leer('app/(app)/(shell)/almacen/page.tsx')
+    fija(f, 'getAlmacenApi', 'operaciones.almacen.no-cargar')
+    // Exito y fallo, en ese orden: el toast de exito va antes que el del catch.
+    expect(f).toMatch(/await crearActivoApi\([\s\S]*?\}\)\s*\n\s*toast\.success\(t\('operaciones\.almacen\.alta\.registrado'\)\)[\s\S]*?toast\.error\(e instanceof Error \? e\.message : t\('operaciones\.almacen\.alta\.no-registrar'\)\)/)
+    expect(f).toMatch(/await moverActivoApi\([^\n]*\)\s*\n\s*toast\.success\(t\('operaciones\.almacen\.mover\.registrado'\)\)\s*\n\s*onHecho\(\)\s*\n\s*\} catch \(e\) \{\s*\n\s*toast\.error\(e instanceof Error \? e\.message : t\('operaciones\.almacen\.mover\.no-mover'\)\)/)
+  })
+
+  it('imprenta: avanzar, aprobar la prueba y crear la orden', () => {
+    const f = leer('app/(app)/(shell)/imprenta/page.tsx')
+    expect(f).toMatch(/await avanzarOrdenImpresionApi\(id\)\s*\n\s*\} catch \(e\) \{\s*\n\s*toast\.error\(e instanceof Error \? e\.message : t\('operaciones\.imprenta\.no-avanzar'\)\)/)
+    expect(f).toMatch(/await aprobarPruebaColorApi\(o\.id, true\) \} catch \(e\) \{ toast\.error\(e instanceof Error \? e\.message : t\('operaciones\.imprenta\.error'\)\)/)
+    fija(f, 'crearOrdenImpresionApi', 'operaciones.imprenta.no-crear')
   })
 })

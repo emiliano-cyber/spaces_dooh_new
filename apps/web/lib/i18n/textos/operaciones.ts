@@ -15,10 +15,11 @@
 //
 //  GLOSARIO de este archivo (ademas del comun): disponibilidad → availability
 //  · almacen → warehouse · imprenta → printing (el proveedor: print shop) ·
-//  catorcena → two-week period · hueco libre → free space · cupo de clientes
-//  → client cap · dar de baja (un articulo del almacen) → retire, igual que la
-//  baja logica de franjas y temporadas: el articulo deja de contar y su
-//  historial se queda.
+//  catorcena → two-week period · hueco libre → availability · cupo de
+//  clientes → client cap · dar de baja (un articulo del almacen) →
+//  Decommission / decommissioned / Decommissioned, como el sitio de Comercial.
+//  NO es la baja logica de catalogos («Deactivate»): en el almacen la baja es
+//  definitiva (`MOVS.BAJA = []`), y `costura.test.ts` lo declara.
 // ============================================================================
 
 export const ES_OPERACIONES = {
@@ -222,9 +223,9 @@ export const EN_OPERACIONES: Record<ClaveOperaciones, string> = {
   'operaciones.slots.libres-de': '{disp} of {total} slots free',
   'operaciones.slots.total': '{total} slots',
   'operaciones.slots.slots': 'slots',
-  'operaciones.clientes-badge.libres': '{libres} of {cupo} client places open',
+  'operaciones.clientes-badge.libres': '{libres} of {cupo} client openings left',
   'operaciones.clientes-badge.lleno':
-    'Client cap reached: {cupo} clients. Only campaigns from the clients already on it are accepted.',
+    'Client cap reached: {cupo} clients. Only campaigns from clients already on this screen are accepted.',
   'operaciones.clientes-badge.clientes': 'clients',
   'operaciones.calendario.anterior': 'Previous month',
   'operaciones.calendario.siguiente': 'Next month',
@@ -235,7 +236,7 @@ export const EN_OPERACIONES: Record<ClaveOperaciones, string> = {
   'operaciones.disponibilidad.titulo': 'Availability',
   'operaciones.disponibilidad.descripcion':
     'Future occupancy by two-week period or month: it checks confirmed bookings against the inventory to show what you have free ahead, and flags what is in an open proposal.',
-  'operaciones.disponibilidad.kpi.estaticas': 'Free static sites',
+  'operaciones.disponibilidad.kpi.estaticas': 'Free static screens',
   'operaciones.disponibilidad.kpi.de': '{n} of {total}',
   'operaciones.disponibilidad.kpi.en-periodo': 'in {periodo}',
   'operaciones.disponibilidad.kpi.digitales': 'Digital screens with room',
@@ -244,8 +245,8 @@ export const EN_OPERACIONES: Record<ClaveOperaciones, string> = {
   'operaciones.disponibilidad.kpi.sumando': 'across the digital screens with room',
   'operaciones.disponibilidad.kpi.ninguna-digital': 'no digital screen has room in the period',
   'operaciones.disponibilidad.kpi.en-propuesta': 'In a proposal',
-  'operaciones.disponibilidad.kpi.piden.uno': 'screens requested by {n} open proposal · they don’t block',
-  'operaciones.disponibilidad.kpi.piden.otros': 'screens requested by {n} open proposals · they don’t block',
+  'operaciones.disponibilidad.kpi.piden.uno': 'screens requested by {n} open proposal · not blocking',
+  'operaciones.disponibilidad.kpi.piden.otros': 'screens requested by {n} open proposals · not blocking',
   'operaciones.disponibilidad.kpi.ninguna-pide': 'no open proposal requests them',
   'operaciones.disponibilidad.desde': 'From',
   'operaciones.disponibilidad.vista': 'View',
@@ -256,7 +257,7 @@ export const EN_OPERACIONES: Record<ClaveOperaciones, string> = {
   'operaciones.disponibilidad.n-periodos': '{n} periods',
   'operaciones.disponibilidad.buscar-aria': 'Search screen',
   'operaciones.disponibilidad.buscar': 'Search screen: name or code…',
-  'operaciones.disponibilidad.solo-hueco': 'Only with free space',
+  'operaciones.disponibilidad.solo-hueco': 'Only with availability',
   'operaciones.disponibilidad.calendario': 'Calendar by screen',
   'operaciones.disponibilidad.calendario-sub':
     'Each cell shows its status; hover over it to see which campaign takes it.',
@@ -293,7 +294,7 @@ export const EN_OPERACIONES: Record<ClaveOperaciones, string> = {
   'operaciones.almacen.mov.entrada': 'Return to warehouse',
   'operaciones.almacen.mov.salida': 'Install on a screen',
   'operaciones.almacen.mov.traslado': 'Mark in transit',
-  'operaciones.almacen.mov.baja': 'Retire',
+  'operaciones.almacen.mov.baja': 'Decommission',
   'operaciones.almacen.tipo.vehiculo': 'Vehicle / van',
   'operaciones.almacen.tipo.herramienta': 'Tool',
   'operaciones.almacen.tipo.pantalla': 'Screen',
@@ -311,9 +312,9 @@ export const EN_OPERACIONES: Record<ClaveOperaciones, string> = {
   'operaciones.almacen.error-desconocido': 'unknown error',
   'operaciones.almacen.indicadores': 'Indicators',
   'operaciones.almacen.kpi.articulos': 'Items',
-  'operaciones.almacen.kpi.baja.uno': '{n} retired',
-  'operaciones.almacen.kpi.baja.otros': '{n} retired',
-  'operaciones.almacen.kpi.ninguno-baja': 'none retired',
+  'operaciones.almacen.kpi.baja.uno': '{n} decommissioned',
+  'operaciones.almacen.kpi.baja.otros': '{n} decommissioned',
+  'operaciones.almacen.kpi.ninguno-baja': 'none decommissioned',
   'operaciones.almacen.kpi.instalados': 'Installed',
   'operaciones.almacen.kpi.en-pantalla': 'on a screen',
   'operaciones.almacen.kpi.en-almacen': 'In warehouse',

@@ -1,6 +1,6 @@
 # Tabla de revisión · lote de inglés «operaciones y clientes», ámbito clientes
 
-Generada el 2026-11-02 a partir de `apps/web/lib/i18n/textos/clientes.ts` y de
+Generada el 2026-11-02 (regenerada tras la segunda vuelta de la validación ÁMBAR) a partir de `apps/web/lib/i18n/textos/clientes.ts` y de
 los usos en el código (búsqueda literal de la clave). **220 claves**
 `clientes.*`. Pantallas: `/clientes` (con su ficha: pipeline y campañas del
 cliente), `/comisiones` y `/captacion`.
@@ -55,7 +55,7 @@ cliente), `/comisiones` y `/captacion`.
 | `clientes.col.pipeline` | `app/(app)/(shell)/clientes/page.tsx:165` | rótulo / encabezado | En pipeline | In pipeline |
 | `clientes.col.en-curso` | `app/(app)/(shell)/clientes/page.tsx:166` | rótulo / encabezado | Campañas en curso | Active campaigns |
 | `clientes.col.contacto` | `app/(app)/(shell)/clientes/page.tsx:167` | rótulo / encabezado | Contacto | Contact |
-| `clientes.filtro.ninguno` | `app/(app)/(shell)/clientes/page.tsx:175` | texto en pantalla | Ningún cliente coincide{busqueda}{tipo}. Quita el filtro para ver los {n}. | No client matches{busqueda}{tipo}. Clear the filter to see all {n}. |
+| `clientes.filtro.ninguno` | `app/(app)/(shell)/clientes/page.tsx:175` | texto en pantalla | Ningún cliente coincide{busqueda}{tipo}. Quita el filtro para ver los {n}. | No clients match{busqueda}{tipo}. Clear the filter to see all {n}. |
 | `clientes.filtro.con` | `app/(app)/(shell)/clientes/page.tsx:176` | texto en pantalla | ␣con «{texto}» | ␣“{texto}” |
 | `clientes.filtro.entre-agencias` | `app/(app)/(shell)/clientes/page.tsx:178` | etiqueta de un valor (mapa de claves) | ␣entre las agencias | ␣among agencies |
 | `clientes.filtro.entre-directos` | `app/(app)/(shell)/clientes/page.tsx:178` | etiqueta de un valor (mapa de claves) | ␣entre los directos | ␣among direct clients |
@@ -92,7 +92,7 @@ cliente), `/comisiones` y `/captacion`.
 | `clientes.form.telefono` | `app/(app)/(shell)/clientes/page.tsx:556` | rótulo / encabezado | Teléfono | Phone |
 | `clientes.form.comision` | `app/(app)/(shell)/clientes/page.tsx:561`<br>`app/(app)/(shell)/comisiones/page.tsx:234` | rótulo / encabezado | Comisión de la agencia (%) | Agency commission (%) |
 | `clientes.form.iva` | `app/(app)/(shell)/clientes/page.tsx:566` | rótulo / encabezado | IVA (%) | VAT (%) |
-| `clientes.form.iva.ayuda` | `app/(app)/(shell)/clientes/page.tsx:571` | texto en pantalla | Se elige del catálogo de IVAs (Administración → Configuración). Se aplica al facturar y al presupuesto de sus campañas. | Chosen from the VAT catalog (Settings → Configuration). Applied when invoicing and to the budget of their campaigns. |
+| `clientes.form.iva.ayuda` | `app/(app)/(shell)/clientes/page.tsx:571` | texto en pantalla | Se elige del catálogo de IVAs (Administración → Configuración). Se aplica al facturar y al presupuesto de sus campañas. | Chosen from the VAT catalog (Settings → Business settings). Applied when invoicing and to the budget of their campaigns. |
 | `clientes.form.negociacion` | `app/(app)/(shell)/clientes/page.tsx:579` | texto en pantalla | Negociación con la agencia | Negotiation with the agency |
 | `clientes.form.hay-negociacion` | `app/(app)/(shell)/clientes/page.tsx:591`<br>`app/(app)/(shell)/comisiones/page.tsx:246` | texto en pantalla | ¿Hay negociación con la agencia? | Is there a negotiation with the agency? |
 | `clientes.form.terminos` | `app/(app)/(shell)/clientes/page.tsx:596` | rótulo / encabezado | Términos de la negociación | Negotiation terms |
@@ -184,7 +184,7 @@ cliente), `/comisiones` y `/captacion`.
 | `clientes.captacion.form.nombre` | `components/demo/captacion/Captacion.tsx:215`<br>`components/demo/captacion/Captacion.tsx:217`<br>`components/demo/captacion/Captacion.tsx:226` | rótulo / encabezado · texto de ejemplo (placeholder) · etiqueta accesible (aria-label) | Nombre | Name |
 | `clientes.captacion.form.nombre.empresa` | `components/demo/captacion/Captacion.tsx:217` | texto de ejemplo (placeholder) | Empresa o marca | Company or brand |
 | `clientes.captacion.form.nombre.ubicacion` | `components/demo/captacion/Captacion.tsx:217` | texto de ejemplo (placeholder) | Nombre de la ubicación | Location name |
-| `clientes.captacion.form.dueno` | `components/demo/captacion/Captacion.tsx:224` | texto en pantalla | Dueño del terreno (se dará de alta como arrendador al aprobar) | Land owner (added as a landlord on approval) |
+| `clientes.captacion.form.dueno` | `components/demo/captacion/Captacion.tsx:224` | texto en pantalla | Dueño del terreno (se dará de alta como arrendador al aprobar) | Landowner (added as a landlord on approval) |
 | `clientes.captacion.form.contacto` | `components/demo/captacion/Captacion.tsx:224`<br>`components/demo/captacion/Captacion.tsx:378` | texto en pantalla | Contacto | Contact |
 | `clientes.captacion.form.contacto.nombre` | `components/demo/captacion/Captacion.tsx:226` | etiqueta accesible (aria-label) | Nombre del contacto | Contact name |
 | `clientes.captacion.form.telefono` | `components/demo/captacion/Captacion.tsx:228` | etiqueta accesible (aria-label) | Teléfono | Phone |
@@ -201,7 +201,7 @@ cliente), `/comisiones` y `/captacion`.
 | `clientes.captacion.falta.dueno` | `lib/captacion.ts:152` | texto en pantalla | el dueño: un arrendador existente o el nombre y teléfono del contacto | the owner: an existing landlord or the contact’s name and phone |
 | `clientes.captacion.para-revision` | `components/demo/captacion/Captacion.tsx:330` | mensaje de error | Para enviarlo a revisión falta: {faltan} | To send it for review, it still needs: {faltan} |
 | `clientes.captacion.para-revision.punto` | `components/demo/captacion/Captacion.tsx:467` | texto en pantalla | Para enviarlo a revisión falta: {faltan}. | To send it for review, it still needs: {faltan}. |
-| `clientes.captacion.error.avance` | `components/demo/captacion/Captacion.tsx:337` | mensaje de error | No se pudo registrar el avance | The update could not be recorded |
+| `clientes.captacion.error.avance` | `components/demo/captacion/Captacion.tsx:337` | mensaje de error | No se pudo registrar el avance | Progress could not be logged |
 | `clientes.captacion.error.aprobar` | `components/demo/captacion/Captacion.tsx:350` | mensaje de error | No se pudo aprobar | Could not approve |
 | `clientes.captacion.error.rechazar` | `components/demo/captacion/Captacion.tsx:360` | mensaje de error | No se pudo rechazar | Could not reject |
 | `clientes.captacion.error.leer` | `components/demo/captacion/Captacion.tsx:527` | mensaje de error | No se pudieron leer los prospectos | The prospects could not be loaded |
@@ -225,11 +225,11 @@ cliente), `/comisiones` y `/captacion`.
 | `clientes.captacion.otro-distinto` | `components/demo/captacion/Captacion.tsx:428` | texto en pantalla | Es otro distinto: aprobar de todos modos | It’s a different one: approve anyway |
 | `clientes.captacion.motivo` | `components/demo/captacion/Captacion.tsx:433` | texto de ejemplo (placeholder) | Motivo del rechazo (lo lee el vendedor) | Reason for rejection (the sales rep reads it) |
 | `clientes.captacion.rechazar` | `components/demo/captacion/Captacion.tsx:436` | texto en pantalla | Rechazar | Reject |
-| `clientes.captacion.avance` | `components/demo/captacion/Captacion.tsx:444` | texto en pantalla | Registrar avance | Record update |
+| `clientes.captacion.avance` | `components/demo/captacion/Captacion.tsx:444` | texto en pantalla | Registrar avance | Log progress |
 | `clientes.captacion.solo-nota` | `components/demo/captacion/Captacion.tsx:449` | opción de lista | {etapa} (solo una nota) | {etapa} (note only) |
 | `clientes.captacion.que-paso` | `components/demo/captacion/Captacion.tsx:453`<br>`components/demo/captacion/Captacion.tsx:454` | rótulo / encabezado · texto de ejemplo (placeholder) | Qué pasó | What happened |
 | `clientes.captacion.fecha-siguiente` | `components/demo/captacion/Captacion.tsx:462` | etiqueta accesible (aria-label) | Fecha del siguiente paso | Next step date |
-| `clientes.captacion.guardar-avance` | `components/demo/captacion/Captacion.tsx:469` | texto en pantalla | Guardar avance | Save update |
+| `clientes.captacion.guardar-avance` | `components/demo/captacion/Captacion.tsx:469` | texto en pantalla | Guardar avance | Save progress |
 | `clientes.captacion.bitacora` | `components/demo/captacion/Captacion.tsx:474` | texto en pantalla | Bitácora | Log |
 | `clientes.captacion.usuario-eliminado` | `components/demo/captacion/Captacion.tsx:481` | texto en pantalla | Usuario eliminado | Deleted user |
 | `clientes.captacion.todos-los-tipos` | `components/demo/captacion/Captacion.tsx:588` | opción de lista | Todos los tipos | All types |
@@ -246,7 +246,7 @@ cliente), `/comisiones` y `/captacion`.
 | `clientes.captacion.vacia.revision` | `components/demo/captacion/Captacion.tsx:635` | texto en pantalla | Nada espera aprobación. | Nothing is waiting for approval. |
 | `clientes.captacion.vacia.cerrados` | `components/demo/captacion/Captacion.tsx:637` | texto en pantalla | Aún no hay prospectos cerrados. | No closed prospects yet. |
 | `clientes.captacion.vacia.todos` | `components/demo/captacion/Captacion.tsx:638` | texto en pantalla | Aún no hay prospectos. | No prospects yet. |
-| `clientes.captacion.vencido-hace` | `components/demo/captacion/Captacion.tsx:660` | texto en pantalla | vencido hace {n} d | overdue by {n} d |
+| `clientes.captacion.vencido-hace` | `components/demo/captacion/Captacion.tsx:660` | texto en pantalla | vencido hace {n} d | {n}d overdue |
 | `clientes.captacion.vencido` | `components/demo/captacion/Captacion.tsx:660` | texto en pantalla | vencido | overdue |
 | `clientes.captacion.anterior` | `components/demo/captacion/Captacion.tsx:673` | texto en pantalla | Anterior | Previous |
 | `clientes.captacion.pagina` | `components/demo/captacion/Captacion.tsx:674` | texto en pantalla | Página {n} de {paginas} · {total} prospectos | Page {n} of {paginas} · {total} prospects |

@@ -42,8 +42,10 @@ import { leerDinero } from './simbolo-en-pantalla'
 //  comprueban: salen traducidos y el barrido con el diccionario de compartidos
 //  (al final del archivo) los vigila. Siguen en espanol, y no se comprueban,
 //  los motivos de `lib/negociacion.ts` y de `lib/codigo-promocional.ts`,
-//  `SlotsBadge`, `ClientesBadge`, `CalendarioDisponibilidad`,
-//  `FotoUploaderMock` y `RejillaDialog`. Los mensajes del servidor van por I18N-05.
+//  `FotoUploaderMock` y `RejillaDialog`. `SlotsBadge`, `ClientesBadge` y
+//  `CalendarioDisponibilidad` ya salen traducidos (lote operaciones y clientes,
+//  2026-11-02), pero los vigila `pantallas-operaciones.test.ts`, no esta. Los
+//  mensajes del servidor van por I18N-05.
 // ============================================================================
 
 const forzado = vi.hoisted(() => ({

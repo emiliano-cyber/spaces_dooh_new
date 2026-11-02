@@ -1,6 +1,6 @@
 # Tabla de revisión · lote de inglés «operaciones y clientes», ámbito operaciones
 
-Generada el 2026-11-02 a partir de `apps/web/lib/i18n/textos/operaciones.ts` y
+Generada el 2026-11-02 (regenerada tras la segunda vuelta de la validación ÁMBAR) a partir de `apps/web/lib/i18n/textos/operaciones.ts` y
 de los usos en el código (búsqueda literal de la clave). **177 claves**
 `operaciones.*`. Pantallas: `/disponibilidad` con las piezas compartidas
 `SlotsBadge`, `ClientesBadge` y `CalendarioDisponibilidad` (que pinta también
@@ -33,62 +33,62 @@ Consumo de luz (`/energia`) y Reportes (`/reportes`).
 | `operaciones.slots.libres-de` | `components/demo/SlotsBadge.tsx:46` | título / tooltip | {disp} de {total} slots libres | {disp} of {total} slots free |
 | `operaciones.slots.total` | `components/demo/SlotsBadge.tsx:46` | título / tooltip | {total} slots | {total} slots |
 | `operaciones.slots.slots` | `components/demo/SlotsBadge.tsx:50` | texto en pantalla | slots | slots |
-| `operaciones.clientes-badge.libres` | `components/demo/ClientesBadge.tsx:39` | texto en pantalla | {libres} de {cupo} lugares de cliente libres | {libres} of {cupo} client places open |
-| `operaciones.clientes-badge.lleno` | `components/demo/ClientesBadge.tsx:40` | texto en pantalla | Cupo lleno: {cupo} clientes. Solo admite campañas de los que ya están. | Client cap reached: {cupo} clients. Only campaigns from the clients already on it are accepted. |
+| `operaciones.clientes-badge.libres` | `components/demo/ClientesBadge.tsx:39` | texto en pantalla | {libres} de {cupo} lugares de cliente libres | {libres} of {cupo} client openings left |
+| `operaciones.clientes-badge.lleno` | `components/demo/ClientesBadge.tsx:40` | texto en pantalla | Cupo lleno: {cupo} clientes. Solo admite campañas de los que ya están. | Client cap reached: {cupo} clients. Only campaigns from clients already on this screen are accepted. |
 | `operaciones.clientes-badge.clientes` | `components/demo/ClientesBadge.tsx:47` | texto en pantalla | clientes | clients |
 | `operaciones.calendario.anterior` | `components/demo/CalendarioDisponibilidad.tsx:75` | etiqueta accesible (aria-label) | Mes anterior | Previous month |
 | `operaciones.calendario.siguiente` | `components/demo/CalendarioDisponibilidad.tsx:88` | etiqueta accesible (aria-label) | Mes siguiente | Next month |
 | `operaciones.calendario.dias` | `components/demo/CalendarioDisponibilidad.tsx:94` | texto en pantalla | L,M,M,J,V,S,D | M,T,W,T,F,S,S |
 | `operaciones.calendario.confirmada` | `components/demo/CalendarioDisponibilidad.tsx:127` | texto en pantalla | confirmada | confirmed |
 | `operaciones.calendario.en-propuesta` | `components/demo/CalendarioDisponibilidad.tsx:130` | texto en pantalla | en propuesta | in a proposal |
-| `operaciones.disponibilidad.titulo` | `app/(app)/(shell)/disponibilidad/page.tsx:114` | texto en pantalla | Disponibilidad | Availability |
-| `operaciones.disponibilidad.descripcion` | `app/(app)/(shell)/disponibilidad/page.tsx:116` | texto en pantalla | Ocupación futura por catorcena o mes: cruza las reservas confirmadas contra el inventario para ver qué tienes libre más adelante, y avisa qué está en una propuesta abierta. | Future occupancy by two-week period or month: it checks confirmed bookings against the inventory to show what you have free ahead, and flags what is in an open proposal. |
-| `operaciones.disponibilidad.kpi.estaticas` | `app/(app)/(shell)/disponibilidad/page.tsx:135` | rótulo / encabezado | Estáticas libres | Free static sites |
-| `operaciones.disponibilidad.kpi.de` | `app/(app)/(shell)/disponibilidad/page.tsx:136` | texto en pantalla | {n} de {total} | {n} of {total} |
-| `operaciones.disponibilidad.kpi.en-periodo` | `app/(app)/(shell)/disponibilidad/page.tsx:137` | texto en pantalla | en {periodo} | in {periodo} |
-| `operaciones.disponibilidad.kpi.digitales` | `app/(app)/(shell)/disponibilidad/page.tsx:142` | rótulo / encabezado | Digitales con lugar | Digital screens with room |
-| `operaciones.disponibilidad.kpi.no-llenas` | `app/(app)/(shell)/disponibilidad/page.tsx:144` | texto en pantalla | no llenas en {periodo} | not full in {periodo} |
-| `operaciones.disponibilidad.kpi.slots` | `app/(app)/(shell)/disponibilidad/page.tsx:149` | rótulo / encabezado | Slots libres | Free slots |
-| `operaciones.disponibilidad.kpi.sumando` | `app/(app)/(shell)/disponibilidad/page.tsx:153` | texto en pantalla | sumando las digitales con lugar | across the digital screens with room |
-| `operaciones.disponibilidad.kpi.ninguna-digital` | `app/(app)/(shell)/disponibilidad/page.tsx:154` | texto en pantalla | ninguna digital con lugar en el periodo | no digital screen has room in the period |
-| `operaciones.disponibilidad.kpi.en-propuesta` | `app/(app)/(shell)/disponibilidad/page.tsx:159` | rótulo / encabezado | En propuesta | In a proposal |
-| `operaciones.disponibilidad.kpi.piden.uno` | `app/(app)/(shell)/disponibilidad/page.tsx:165` | texto en pantalla | pantallas que piden {n} propuesta abierta · no bloquean | screens requested by {n} open proposal · they don’t block |
-| `operaciones.disponibilidad.kpi.piden.otros` | `app/(app)/(shell)/disponibilidad/page.tsx:166` | etiqueta de un valor (mapa de claves) | pantallas que piden {n} propuestas abiertas · no bloquean | screens requested by {n} open proposals · they don’t block |
-| `operaciones.disponibilidad.kpi.ninguna-pide` | `app/(app)/(shell)/disponibilidad/page.tsx:169` | texto en pantalla | ninguna propuesta abierta las pide | no open proposal requests them |
-| `operaciones.disponibilidad.desde` | `app/(app)/(shell)/disponibilidad/page.tsx:184`<br>`app/(app)/(shell)/disponibilidad/page.tsx:185` | etiqueta accesible (aria-label) · título / tooltip | Desde | From |
-| `operaciones.disponibilidad.vista` | `app/(app)/(shell)/disponibilidad/page.tsx:191` | etiqueta accesible (aria-label) | Vista | View |
-| `operaciones.disponibilidad.catorcena` | `app/(app)/(shell)/disponibilidad/page.tsx:204` | texto en pantalla | Catorcena | Two-week period |
-| `operaciones.disponibilidad.mes` | `app/(app)/(shell)/disponibilidad/page.tsx:204` | texto en pantalla | Mes | Month |
-| `operaciones.disponibilidad.periodos` | `app/(app)/(shell)/disponibilidad/page.tsx:210` | etiqueta accesible (aria-label) | Periodos | Periods |
-| `operaciones.disponibilidad.periodos-title` | `app/(app)/(shell)/disponibilidad/page.tsx:211` | título / tooltip | Periodos a mostrar | Periods to show |
-| `operaciones.disponibilidad.n-periodos` | `app/(app)/(shell)/disponibilidad/page.tsx:218` | texto en pantalla | {n} periodos | {n} periods |
-| `operaciones.disponibilidad.buscar-aria` | `app/(app)/(shell)/disponibilidad/page.tsx:226` | etiqueta accesible (aria-label) | Buscar pantalla | Search screen |
-| `operaciones.disponibilidad.buscar` | `app/(app)/(shell)/disponibilidad/page.tsx:229` | texto de ejemplo (placeholder) | Buscar pantalla: nombre o clave… | Search screen: name or code… |
-| `operaciones.disponibilidad.solo-hueco` | `app/(app)/(shell)/disponibilidad/page.tsx:249` | texto en pantalla | Solo con hueco libre | Only with free space |
-| `operaciones.disponibilidad.calendario` | `app/(app)/(shell)/disponibilidad/page.tsx:257` | rótulo / encabezado | Calendario por pantalla | Calendar by screen |
-| `operaciones.disponibilidad.calendario-sub` | `app/(app)/(shell)/disponibilidad/page.tsx:258` | rótulo / encabezado | Cada celda dice su estado; pasa el cursor para ver qué campaña la ocupa. | Each cell shows its status; hover over it to see which campaign takes it. |
-| `operaciones.disponibilidad.cargando` | `app/(app)/(shell)/disponibilidad/page.tsx:263` | texto en pantalla | Cargando disponibilidad… | Loading availability… |
-| `operaciones.disponibilidad.sin-coincidencias` | `app/(app)/(shell)/disponibilidad/page.tsx:267` | texto en pantalla | Sin pantallas que coincidan. | No matching screens. |
-| `operaciones.disponibilidad.pantalla` | `app/(app)/(shell)/disponibilidad/page.tsx:275` | texto en pantalla | Pantalla | Screen |
-| `operaciones.disponibilidad.digital` | `app/(app)/(shell)/disponibilidad/page.tsx:300` | texto en pantalla | digital | digital |
-| `operaciones.disponibilidad.libres-de` | `app/(app)/(shell)/disponibilidad/page.tsx:305` | texto en pantalla | {n} de {total} libres | {n} of {total} free |
-| `operaciones.disponibilidad.ocupante` | `app/(app)/(shell)/disponibilidad/page.tsx:320` | texto en pantalla | {campana} (confirmada) | {campana} (confirmed) |
-| `operaciones.disponibilidad.ocupante-slots` | `app/(app)/(shell)/disponibilidad/page.tsx:319` | texto en pantalla | {campana} (confirmada, {spots} slots) | {campana} (confirmed, {spots} slots) |
-| `operaciones.disponibilidad.quedan` | `app/(app)/(shell)/disponibilidad/page.tsx:324` | texto en pantalla | Quedan {libres} de {total} slots | {libres} of {total} slots left |
-| `operaciones.disponibilidad.libre-slots` | `app/(app)/(shell)/disponibilidad/page.tsx:327` | texto en pantalla | Libre: {n} slots | Free: {n} slots |
-| `operaciones.disponibilidad.libre` | `app/(app)/(shell)/disponibilidad/page.tsx:328`<br>`app/(app)/(shell)/disponibilidad/page.tsx:360` | texto en pantalla | Libre | Free |
-| `operaciones.disponibilidad.en-propuesta-titulo` | `app/(app)/(shell)/disponibilidad/page.tsx:330` | texto en pantalla | En propuesta {folio}{cliente} ({desde} a {hasta}{spots}) | In proposal {folio}{cliente} ({desde} to {hasta}{spots}) |
-| `operaciones.disponibilidad.en-propuesta-spots` | `app/(app)/(shell)/disponibilidad/page.tsx:335` | texto en pantalla | , {n} spots | , {n} spots |
-| `operaciones.disponibilidad.celda.libres.uno` | `app/(app)/(shell)/disponibilidad/page.tsx:352` | texto en pantalla | {n} libre | {n} free |
-| `operaciones.disponibilidad.celda.libres.otros` | `app/(app)/(shell)/disponibilidad/page.tsx:353` | etiqueta de un valor (mapa de claves) | {n} libres | {n} free |
-| `operaciones.disponibilidad.celda.lleno` | `app/(app)/(shell)/disponibilidad/page.tsx:356` | texto en pantalla | Lleno | Full |
-| `operaciones.disponibilidad.celda.en-propuesta` | `app/(app)/(shell)/disponibilidad/page.tsx:359` | texto en pantalla | En propuesta | In a proposal |
-| `operaciones.disponibilidad.celda.usados` | `app/(app)/(shell)/disponibilidad/page.tsx:362` | texto en pantalla | {n} usados | {n} used |
-| `operaciones.disponibilidad.celda.ocupada` | `app/(app)/(shell)/disponibilidad/page.tsx:363` | texto en pantalla | Ocupada | Occupied |
-| `operaciones.disponibilidad.leyenda.libre` | `app/(app)/(shell)/disponibilidad/page.tsx:380` | texto en pantalla | Libre | Free |
-| `operaciones.disponibilidad.leyenda.en-propuesta` | `app/(app)/(shell)/disponibilidad/page.tsx:383` | texto en pantalla | En propuesta (libre, pero una propuesta abierta la pide) | In a proposal (free, but an open proposal requests it) |
-| `operaciones.disponibilidad.leyenda.parcial` | `app/(app)/(shell)/disponibilidad/page.tsx:386` | texto en pantalla | Parcial (digital: el número son los slots que quedan libres) | Partial (digital: the number is the slots still free) |
-| `operaciones.disponibilidad.leyenda.ocupada` | `app/(app)/(shell)/disponibilidad/page.tsx:389` | texto en pantalla | Ocupada | Occupied |
+| `operaciones.disponibilidad.titulo` | `app/(app)/(shell)/disponibilidad/page.tsx:115` | texto en pantalla | Disponibilidad | Availability |
+| `operaciones.disponibilidad.descripcion` | `app/(app)/(shell)/disponibilidad/page.tsx:117` | texto en pantalla | Ocupación futura por catorcena o mes: cruza las reservas confirmadas contra el inventario para ver qué tienes libre más adelante, y avisa qué está en una propuesta abierta. | Future occupancy by two-week period or month: it checks confirmed bookings against the inventory to show what you have free ahead, and flags what is in an open proposal. |
+| `operaciones.disponibilidad.kpi.estaticas` | `app/(app)/(shell)/disponibilidad/page.tsx:136` | rótulo / encabezado | Estáticas libres | Free static screens |
+| `operaciones.disponibilidad.kpi.de` | `app/(app)/(shell)/disponibilidad/page.tsx:137` | texto en pantalla | {n} de {total} | {n} of {total} |
+| `operaciones.disponibilidad.kpi.en-periodo` | `app/(app)/(shell)/disponibilidad/page.tsx:138` | texto en pantalla | en {periodo} | in {periodo} |
+| `operaciones.disponibilidad.kpi.digitales` | `app/(app)/(shell)/disponibilidad/page.tsx:143` | rótulo / encabezado | Digitales con lugar | Digital screens with room |
+| `operaciones.disponibilidad.kpi.no-llenas` | `app/(app)/(shell)/disponibilidad/page.tsx:145` | texto en pantalla | no llenas en {periodo} | not full in {periodo} |
+| `operaciones.disponibilidad.kpi.slots` | `app/(app)/(shell)/disponibilidad/page.tsx:150` | rótulo / encabezado | Slots libres | Free slots |
+| `operaciones.disponibilidad.kpi.sumando` | `app/(app)/(shell)/disponibilidad/page.tsx:154` | texto en pantalla | sumando las digitales con lugar | across the digital screens with room |
+| `operaciones.disponibilidad.kpi.ninguna-digital` | `app/(app)/(shell)/disponibilidad/page.tsx:155` | texto en pantalla | ninguna digital con lugar en el periodo | no digital screen has room in the period |
+| `operaciones.disponibilidad.kpi.en-propuesta` | `app/(app)/(shell)/disponibilidad/page.tsx:160` | rótulo / encabezado | En propuesta | In a proposal |
+| `operaciones.disponibilidad.kpi.piden.uno` | `app/(app)/(shell)/disponibilidad/page.tsx:166` | texto en pantalla | pantallas que piden {n} propuesta abierta · no bloquean | screens requested by {n} open proposal · not blocking |
+| `operaciones.disponibilidad.kpi.piden.otros` | `app/(app)/(shell)/disponibilidad/page.tsx:167` | etiqueta de un valor (mapa de claves) | pantallas que piden {n} propuestas abiertas · no bloquean | screens requested by {n} open proposals · not blocking |
+| `operaciones.disponibilidad.kpi.ninguna-pide` | `app/(app)/(shell)/disponibilidad/page.tsx:170` | texto en pantalla | ninguna propuesta abierta las pide | no open proposal requests them |
+| `operaciones.disponibilidad.desde` | `app/(app)/(shell)/disponibilidad/page.tsx:185`<br>`app/(app)/(shell)/disponibilidad/page.tsx:186` | etiqueta accesible (aria-label) · título / tooltip | Desde | From |
+| `operaciones.disponibilidad.vista` | `app/(app)/(shell)/disponibilidad/page.tsx:192` | etiqueta accesible (aria-label) | Vista | View |
+| `operaciones.disponibilidad.catorcena` | `app/(app)/(shell)/disponibilidad/page.tsx:205` | texto en pantalla | Catorcena | Two-week period |
+| `operaciones.disponibilidad.mes` | `app/(app)/(shell)/disponibilidad/page.tsx:205` | texto en pantalla | Mes | Month |
+| `operaciones.disponibilidad.periodos` | `app/(app)/(shell)/disponibilidad/page.tsx:211` | etiqueta accesible (aria-label) | Periodos | Periods |
+| `operaciones.disponibilidad.periodos-title` | `app/(app)/(shell)/disponibilidad/page.tsx:212` | título / tooltip | Periodos a mostrar | Periods to show |
+| `operaciones.disponibilidad.n-periodos` | `app/(app)/(shell)/disponibilidad/page.tsx:219` | texto en pantalla | {n} periodos | {n} periods |
+| `operaciones.disponibilidad.buscar-aria` | `app/(app)/(shell)/disponibilidad/page.tsx:227` | etiqueta accesible (aria-label) | Buscar pantalla | Search screen |
+| `operaciones.disponibilidad.buscar` | `app/(app)/(shell)/disponibilidad/page.tsx:230` | texto de ejemplo (placeholder) | Buscar pantalla: nombre o clave… | Search screen: name or code… |
+| `operaciones.disponibilidad.solo-hueco` | `app/(app)/(shell)/disponibilidad/page.tsx:250` | texto en pantalla | Solo con hueco libre | Only with availability |
+| `operaciones.disponibilidad.calendario` | `app/(app)/(shell)/disponibilidad/page.tsx:258` | rótulo / encabezado | Calendario por pantalla | Calendar by screen |
+| `operaciones.disponibilidad.calendario-sub` | `app/(app)/(shell)/disponibilidad/page.tsx:259` | rótulo / encabezado | Cada celda dice su estado; pasa el cursor para ver qué campaña la ocupa. | Each cell shows its status; hover over it to see which campaign takes it. |
+| `operaciones.disponibilidad.cargando` | `app/(app)/(shell)/disponibilidad/page.tsx:264` | texto en pantalla | Cargando disponibilidad… | Loading availability… |
+| `operaciones.disponibilidad.sin-coincidencias` | `app/(app)/(shell)/disponibilidad/page.tsx:268` | texto en pantalla | Sin pantallas que coincidan. | No matching screens. |
+| `operaciones.disponibilidad.pantalla` | `app/(app)/(shell)/disponibilidad/page.tsx:276` | texto en pantalla | Pantalla | Screen |
+| `operaciones.disponibilidad.digital` | `app/(app)/(shell)/disponibilidad/page.tsx:301` | texto en pantalla | digital | digital |
+| `operaciones.disponibilidad.libres-de` | `app/(app)/(shell)/disponibilidad/page.tsx:306` | texto en pantalla | {n} de {total} libres | {n} of {total} free |
+| `operaciones.disponibilidad.ocupante` | `app/(app)/(shell)/disponibilidad/page.tsx:321` | texto en pantalla | {campana} (confirmada) | {campana} (confirmed) |
+| `operaciones.disponibilidad.ocupante-slots` | `app/(app)/(shell)/disponibilidad/page.tsx:320` | texto en pantalla | {campana} (confirmada, {spots} slots) | {campana} (confirmed, {spots} slots) |
+| `operaciones.disponibilidad.quedan` | `app/(app)/(shell)/disponibilidad/page.tsx:325` | texto en pantalla | Quedan {libres} de {total} slots | {libres} of {total} slots left |
+| `operaciones.disponibilidad.libre-slots` | `app/(app)/(shell)/disponibilidad/page.tsx:328` | texto en pantalla | Libre: {n} slots | Free: {n} slots |
+| `operaciones.disponibilidad.libre` | `app/(app)/(shell)/disponibilidad/page.tsx:329`<br>`app/(app)/(shell)/disponibilidad/page.tsx:361` | texto en pantalla | Libre | Free |
+| `operaciones.disponibilidad.en-propuesta-titulo` | `app/(app)/(shell)/disponibilidad/page.tsx:331` | texto en pantalla | En propuesta {folio}{cliente} ({desde} a {hasta}{spots}) | In proposal {folio}{cliente} ({desde} to {hasta}{spots}) |
+| `operaciones.disponibilidad.en-propuesta-spots` | `app/(app)/(shell)/disponibilidad/page.tsx:336` | texto en pantalla | , {n} spots | , {n} spots |
+| `operaciones.disponibilidad.celda.libres.uno` | `app/(app)/(shell)/disponibilidad/page.tsx:353` | texto en pantalla | {n} libre | {n} free |
+| `operaciones.disponibilidad.celda.libres.otros` | `app/(app)/(shell)/disponibilidad/page.tsx:354` | etiqueta de un valor (mapa de claves) | {n} libres | {n} free |
+| `operaciones.disponibilidad.celda.lleno` | `app/(app)/(shell)/disponibilidad/page.tsx:357` | texto en pantalla | Lleno | Full |
+| `operaciones.disponibilidad.celda.en-propuesta` | `app/(app)/(shell)/disponibilidad/page.tsx:360` | texto en pantalla | En propuesta | In a proposal |
+| `operaciones.disponibilidad.celda.usados` | `app/(app)/(shell)/disponibilidad/page.tsx:363` | texto en pantalla | {n} usados | {n} used |
+| `operaciones.disponibilidad.celda.ocupada` | `app/(app)/(shell)/disponibilidad/page.tsx:364` | texto en pantalla | Ocupada | Occupied |
+| `operaciones.disponibilidad.leyenda.libre` | `app/(app)/(shell)/disponibilidad/page.tsx:381` | texto en pantalla | Libre | Free |
+| `operaciones.disponibilidad.leyenda.en-propuesta` | `app/(app)/(shell)/disponibilidad/page.tsx:384` | texto en pantalla | En propuesta (libre, pero una propuesta abierta la pide) | In a proposal (free, but an open proposal requests it) |
+| `operaciones.disponibilidad.leyenda.parcial` | `app/(app)/(shell)/disponibilidad/page.tsx:387` | texto en pantalla | Parcial (digital: el número son los slots que quedan libres) | Partial (digital: the number is the slots still free) |
+| `operaciones.disponibilidad.leyenda.ocupada` | `app/(app)/(shell)/disponibilidad/page.tsx:390` | texto en pantalla | Ocupada | Occupied |
 | `operaciones.almacen.titulo` | `app/(app)/(shell)/almacen/page.tsx:137` | texto en pantalla | Almacén | Warehouse |
 | `operaciones.almacen.descripcion` | `app/(app)/(shell)/almacen/page.tsx:138` | texto en pantalla | Vehículos, herramientas, pantallas, cámaras y demás artículos, y sus traslados. | Vehicles, tools, screens, cameras and other items, and their transfers. |
 | `operaciones.almacen.registrar-articulo` | `app/(app)/(shell)/almacen/page.tsx:141`<br>`app/(app)/(shell)/almacen/page.tsx:196`<br>`app/(app)/(shell)/almacen/page.tsx:313` | texto en pantalla · título / tooltip | Registrar artículo | Register item |
@@ -99,7 +99,7 @@ Consumo de luz (`/energia`) y Reportes (`/reportes`).
 | `operaciones.almacen.mov.entrada` | `app/(app)/(shell)/almacen/page.tsx:83` | etiqueta de un valor (mapa de claves) | Regresar a almacén | Return to warehouse |
 | `operaciones.almacen.mov.salida` | `app/(app)/(shell)/almacen/page.tsx:84` | etiqueta de un valor (mapa de claves) | Instalar en pantalla | Install on a screen |
 | `operaciones.almacen.mov.traslado` | `app/(app)/(shell)/almacen/page.tsx:85` | etiqueta de un valor (mapa de claves) | Marcar en traslado | Mark in transit |
-| `operaciones.almacen.mov.baja` | `app/(app)/(shell)/almacen/page.tsx:86` | etiqueta de un valor (mapa de claves) | Dar de baja | Retire |
+| `operaciones.almacen.mov.baja` | `app/(app)/(shell)/almacen/page.tsx:86` | etiqueta de un valor (mapa de claves) | Dar de baja | Decommission |
 | `operaciones.almacen.tipo.vehiculo` | `app/(app)/(shell)/almacen/page.tsx:41` | etiqueta de un valor (mapa de claves) | Vehículo / camioneta | Vehicle / van |
 | `operaciones.almacen.tipo.herramienta` | `app/(app)/(shell)/almacen/page.tsx:42` | etiqueta de un valor (mapa de claves) | Herramienta | Tool |
 | `operaciones.almacen.tipo.pantalla` | `app/(app)/(shell)/almacen/page.tsx:43` | etiqueta de un valor (mapa de claves) | Pantalla | Screen |
@@ -117,9 +117,9 @@ Consumo de luz (`/energia`) y Reportes (`/reportes`).
 | `operaciones.almacen.error-desconocido` | `app/(app)/(shell)/almacen/page.tsx:126` | mensaje de error | error desconocido | unknown error |
 | `operaciones.almacen.indicadores` | `app/(app)/(shell)/almacen/page.tsx:149` | rótulo / encabezado | Indicadores | Indicators |
 | `operaciones.almacen.kpi.articulos` | `app/(app)/(shell)/almacen/page.tsx:158` | rótulo / encabezado | Artículos | Items |
-| `operaciones.almacen.kpi.baja.uno` | `app/(app)/(shell)/almacen/page.tsx:162` | etiqueta de un valor (mapa de claves) | {n} dado de baja | {n} retired |
-| `operaciones.almacen.kpi.baja.otros` | `app/(app)/(shell)/almacen/page.tsx:162` | etiqueta de un valor (mapa de claves) | {n} dados de baja | {n} retired |
-| `operaciones.almacen.kpi.ninguno-baja` | `app/(app)/(shell)/almacen/page.tsx:163` | texto en pantalla | ninguno dado de baja | none retired |
+| `operaciones.almacen.kpi.baja.uno` | `app/(app)/(shell)/almacen/page.tsx:162` | etiqueta de un valor (mapa de claves) | {n} dado de baja | {n} decommissioned |
+| `operaciones.almacen.kpi.baja.otros` | `app/(app)/(shell)/almacen/page.tsx:162` | etiqueta de un valor (mapa de claves) | {n} dados de baja | {n} decommissioned |
+| `operaciones.almacen.kpi.ninguno-baja` | `app/(app)/(shell)/almacen/page.tsx:163` | texto en pantalla | ninguno dado de baja | none decommissioned |
 | `operaciones.almacen.kpi.instalados` | `app/(app)/(shell)/almacen/page.tsx:167` | rótulo / encabezado | Instalados | Installed |
 | `operaciones.almacen.kpi.en-pantalla` | `app/(app)/(shell)/almacen/page.tsx:167` | rótulo / encabezado | en una pantalla | on a screen |
 | `operaciones.almacen.kpi.en-almacen` | `app/(app)/(shell)/almacen/page.tsx:168` | rótulo / encabezado | En almacén | In warehouse |

@@ -39,11 +39,12 @@ const TONO_EN_PROPUESTA = 'bg-warning-soft text-[#9a6700] border-dashed border-w
 // La etiqueta de cada periodo la arma `lib/data/derive.ts` en espanol
 // («1/3–14/3», «mar 26»). En ingles se rehace AQUI con las mismas fechas
 // (`inicio` y `fin`), en el orden y con los nombres de `en-US`; el espanol
-// sigue siendo la etiqueta de siempre.
+// sigue siendo la etiqueta de siempre. El mes va con el ano entero («Mar 2026»):
+// «Mar 26» se lee en ingles como «26 de marzo» (validacion del lote).
 function etiquetaPeriodo(p: { label: string; inicio: string; fin: string }, gran: GranDisponibilidad, idioma: Idioma): string {
   if (idioma === 'es') return p.label
   const [y, m, d] = p.inicio.split('-').map(Number)
-  if (gran === 'mes') return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+  if (gran === 'mes') return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
   const [, m2, d2] = p.fin.split('-').map(Number)
   return `${m}/${d}–${m2}/${d2}`
 }

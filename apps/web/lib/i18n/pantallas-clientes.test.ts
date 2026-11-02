@@ -211,7 +211,7 @@ const ESTADOS: Estado[] = [
       return pintar(idioma, createElement(await clientesPagina()))
     },
     espanol: ['0 de 5', 'Ningún cliente coincide con «zzz» entre las agencias. Quita el filtro para ver los 5.'],
-    ingles: ['0 of 5', 'No client matches “zzz” among agencies. Clear the filter to see all 5.'],
+    ingles: ['0 of 5', 'No clients match “zzz” among agencies. Clear the filter to see all 5.'],
   },
   {
     nombre: 'clientes · alta de una agencia con negociacion',
@@ -353,7 +353,7 @@ const ESTADOS: Estado[] = [
     ingles: [
       'Clients, landlords, properties and screens being worked on, each with its log. When one is ready it is sent for review, and once approved it is added.',
       'In progress', 'Pending approval', 'Closed', 'All types', 'New prospect', 'Prospects', 'Next step', 'Updated',
-      'Contacted', 'Visit', 'Property', 'overdue by', 'Previous', 'Page 1 of 3 · 60 prospects',
+      'Contacted', 'Visit', 'Property', 'd overdue', 'Previous', 'Page 1 of 3 · 60 prospects',
     ],
   },
   {
@@ -390,7 +390,7 @@ const ESTADOS: Estado[] = [
     ],
     ingles: [
       'Enter what you have; the minimum needed for review is asked for when you send it.', 'What are you prospecting?',
-      'Land owner (added as a landlord on approval)', 'Contact name', 'Address', 'Location type (rooftop, lot…)',
+      'Landowner (added as a landlord on approval)', 'Contact name', 'Address', 'Location type (rooftop, lot…)',
       'Square meters', 'Asking rent (MXN / month)', 'Notes', 'E.g. call to schedule a visit', 'By when?',
       'First log note', 'How this prospect came up', 'Landlord', 'Screen',
     ],
@@ -418,9 +418,9 @@ const ESTADOS: Estado[] = [
       'Guardar avance', 'Bitácora', 'Usuario eliminado', 'Visita (solo una nota)', 'Tiene vista',
     ],
     ingles: [
-      'Stage', 'Sales rep', 'Contact', ' · by Feb 1, 2026', 'Edit details', 'Record update', 'What happened',
+      'Stage', 'Sales rep', 'Contact', ' · by Feb 1, 2026', 'Edit details', 'Log progress', 'What happened',
       'Next step date', 'To send it for review, it still needs: the address, the owner: an existing landlord or the contact’s name and phone.',
-      'Save update', 'Log', 'Deleted user', 'Visit (note only)', 'Tiene vista',
+      'Save progress', 'Log', 'Deleted user', 'Visit (note only)', 'Tiene vista',
     ],
   },
   {

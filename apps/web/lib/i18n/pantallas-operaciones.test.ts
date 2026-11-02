@@ -202,7 +202,7 @@ const ESTADOS: Estado[] = [
       '>L</div>', '>J</div>', '> confirmada</span>', '> en propuesta</span>',
     ],
     ingles: [
-      'title="2 of 6 slots free"', 'title="8 slots"', '</svg><span class="demo-num">2/6</span>slots</span>', 'title="2 of 3 client places open"',
+      'title="2 of 6 slots free"', 'title="8 slots"', '</svg><span class="demo-num">2/6</span>slots</span>', 'title="2 of 3 client openings left"',
       'Client cap reached: 3 clients.', 'clients</span>', 'aria-label="Previous month"', 'aria-label="Next month"',
       'February 2026', '>T</div>', '>W</div>', '> confirmed</span>', '> in a proposal</span>',
     ],
@@ -223,9 +223,9 @@ const ESTADOS: Estado[] = [
       'Parcial (digital: el número son los slots que quedan libres)',
     ],
     ingles: [
-      'Availability', 'Free static sites', '1 of 2', 'in 3/1–3/14', 'not full in 3/1–3/14', 'Digital screens with room',
-      'Free slots', 'across the digital screens with room', 'screens requested by 1 open proposal · they don’t block',
-      '>digital<', 'aria-label="From"', 'aria-label="View"', '>Two-week period<', '>Month<', '8 periods', 'Only with free space',
+      'Availability', 'Free static screens', '1 of 2', 'in 3/1–3/14', 'not full in 3/1–3/14', 'Digital screens with room',
+      'Free slots', 'across the digital screens with room', 'screens requested by 1 open proposal · not blocking',
+      '>digital<', 'aria-label="From"', 'aria-label="View"', '>Two-week period<', '>Month<', '8 periods', 'Only with availability',
       'Calendar by screen', '>3/1–3/14<', '1 of 2 free', 'Verano (confirmed)', 'Otoño (confirmed, 5 slots)\n1 of 6 slots left',
       'In proposal PR-0001 · Refresco Azul (Mar 1, 2026 to Mar 14, 2026, 2 spots)', '>1 free<', '>Full<', '>Occupied<',
       '>2 used<', '>Free<', 'In a proposal (free, but an open proposal requests it)',
@@ -244,7 +244,7 @@ const ESTADOS: Estado[] = [
       return pintar(idioma, createElement(await disponibilidad()))
     },
     espanol: ['en mar 26', '>mar 26<', 'ninguna digital con lugar en el periodo', 'ninguna propuesta abierta las pide'],
-    ingles: ['in Mar 26', '>Mar 26<', 'no digital screen has room in the period', 'no open proposal requests them'],
+    ingles: ['in Mar 2026', '>Mar 2026<', 'no digital screen has room in the period', 'no open proposal requests them'],
   },
   {
     nombre: 'disponibilidad · cargando',
@@ -282,7 +282,7 @@ const ESTADOS: Estado[] = [
     ],
     ingles: [
       'Warehouse', 'Vehicles, tools, screens, cameras and other items, and their transfers.', 'Register item',
-      'Indicators', 'Items', '1 retired', 'on a screen', 'In warehouse', 'stored in a depot', 'In transit', 'on the way',
+      'Indicators', 'Items', '1 decommissioned', 'on a screen', 'In warehouse', 'stored in a depot', 'In transit', 'on the way',
       'aria-label="Filter by type"', 'All <span class="demo-num">(4)</span>', 'Vehicle / van <span', 'Screen <span',
       'Other <span', 'Tag', 'Description', 'Details', 'Status', 'Location', '>Grua<', 'Nissan NP300 · S/N VIN9 · Plate ABC-1',
       '>Installed<', '>Decommissioned<', 'On screen: ', 'Depot: ', '> Move<',
@@ -301,7 +301,7 @@ const ESTADOS: Estado[] = [
       'Aún no hay artículos. Registra vehículos, herramientas, pantallas o cámaras para seguir dónde está cada uno.',
       'ninguno dado de baja', 'Pide a Operaciones que los registre.',
     ],
-    ingles: ['No items yet. Register vehicles, tools, screens or cameras to track where each one is.', 'none retired', 'Ask Operations to register them.'],
+    ingles: ['No items yet. Register vehicles, tools, screens or cameras to track where each one is.', 'none decommissioned', 'Ask Operations to register them.'],
   },
   {
     nombre: 'almacen · fallo de carga',
@@ -346,7 +346,7 @@ const ESTADOS: Estado[] = [
       'Pantalla destino', '— Elige —', 'Motivo / nota', 'placeholder="Ej. Retiro por fin de contrato"', 'Registrar movimiento',
     ],
     ingles: [
-      'Move item', 'INV-2 · Articulo 2', 'Movement', 'Install on a screen', 'Mark in transit', 'Retire',
+      'Move item', 'INV-2 · Articulo 2', 'Movement', 'Install on a screen', 'Mark in transit', 'Decommission',
       'Destination screen', '— Choose —', 'Reason / note', 'placeholder="E.g. Removed at the end of the contract"', 'Record movement',
     ],
   },
