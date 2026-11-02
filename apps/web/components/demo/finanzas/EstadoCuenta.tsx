@@ -7,7 +7,7 @@ import { Button } from '@/components/demo/ui/Button'
 import { cn } from '@/lib/cn'
 import { useCobranzas, useFacturas, usePagosRenta, formatMonto, formatFecha, useClientes } from '@/lib/data/client'
 import { resumenFinanzasApi, type RespuestaResumen } from '@/lib/data/finanzas-periodo-api'
-import { etiquetaPeriodo } from '@/lib/finanzas-periodo'
+import { esEtiquetaRango, etiquetaPeriodo } from '@/lib/finanzas-periodo'
 import { csvEstadoCuenta } from './estado-cuenta-csv'
 import { useIdioma } from '@/lib/i18n/contexto'
 import { CLAVE_PERIODO } from './etiquetas'
@@ -141,11 +141,21 @@ export function EstadoCuenta() {
               <Renglon k={t('finanzas.estado-cuenta.vencido-al', { fecha: formatFecha(r.corte, idioma) })} v={formatMonto(r.vencido.monto)} tono={r.vencido.monto > 0} />
             </dl>
             {datos.movimientos.length === 0 ? (
-              <p className="border-t border-border px-4 py-4 text-[13px] text-muted">{t('finanzas.estado-cuenta.vacio', {
-                // En espanol, en minusculas a media frase («en noviembre 2026»);
-                // en ingles el mes va con mayuscula y «Q4» no se baja.
-                periodo: idioma === 'es' ? datos.periodo.etiqueta.toLowerCase() : etiquetaPeriodo(datos.periodo, idioma),
-              })}</p>
+              <p className="border-t border-border px-4 py-4 text-[13px] text-muted">
+                {idioma !== 'es' && esEtiquetaRango(datos.periodo.etiqueta)
+                  ? // Con un rango a mano, «in {periodo}» saldria «in Jan 5, 2026
+                    // to Mar 9, 2026», que no se dice: el rango lleva su frase.
+                    t('finanzas.estado-cuenta.vacio-rango', {
+                      desde: formatFecha(datos.periodo.desde, idioma),
+                      hasta: formatFecha(datos.periodo.hasta, idioma),
+                    })
+                  : t('finanzas.estado-cuenta.vacio', {
+                      // En espanol, en minusculas a media frase («en noviembre
+                      // 2026»), como siempre; en ingles el mes va con mayuscula
+                      // y «Q4» no se baja.
+                      periodo: idioma === 'es' ? datos.periodo.etiqueta.toLowerCase() : etiquetaPeriodo(datos.periodo, idioma),
+                    })}
+              </p>
             ) : (
               <div className="overflow-x-auto border-t border-border">
                 <table className="w-full text-left text-[13px]">

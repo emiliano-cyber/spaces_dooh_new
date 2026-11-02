@@ -1048,6 +1048,23 @@ const PANTALLAS: Pantalla[] = [
     // Costura: el emisor de `armarComprobante` y la fecha, en ingles.
     ingles: ['The amounts on this payment receipt do not add up', 'Unassigned', 'Oct 1, 2026'],
   },
+  {
+    // Retoque de la costura (validador): con un rango a mano, «in {periodo}»
+    // salia «No invoices or payments in Jan 5, 2026 to Mar 9, 2026.». El
+    // espanol sigue como siempre (la etiqueta del servidor en minusculas).
+    nombre: 'estado de cuenta sin movimientos, con un rango a mano',
+    pintar: async (idioma) => {
+      const { EstadoCuenta } = await import('../../components/demo/finanzas/EstadoCuenta')
+      forzar(esNull, {
+        ...RESUMEN_FIN,
+        movimientos: [],
+        periodo: { desde: '2026-01-05', hasta: '2026-03-09', etiqueta: '2026-01-05 a 2026-03-09' },
+      })
+      return pintar(idioma, createElement(EstadoCuenta))
+    },
+    espanol: ['Sin facturas ni pagos en 2026-01-05 a 2026-03-09.'],
+    ingles: ['No invoices or payments from Jan 5, 2026 to Mar 9, 2026.'],
+  },
 ]
 
 describe('lote CAMPANAS y FINANZAS · en ESPANOL sale el texto de siempre', () => {

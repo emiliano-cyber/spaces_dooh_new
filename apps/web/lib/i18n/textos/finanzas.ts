@@ -168,6 +168,9 @@ export const ES_FINANZAS = {
   'finanzas.estado-cuenta.saldo-cierre': '= Saldo al cierre',
   'finanzas.estado-cuenta.vencido-al': 'Vencido al {fecha}',
   'finanzas.estado-cuenta.vacio': 'Sin facturas ni pagos en {periodo}.',
+  // Solo en ingles con un rango a mano (en espanol se usa la de arriba, con la
+  // etiqueta del servidor tal cual: el espanol no cambia).
+  'finanzas.estado-cuenta.vacio-rango': 'Sin facturas ni pagos del {desde} al {hasta}.',
   'finanzas.estado-cuenta.col.fecha': 'Fecha',
   'finanzas.estado-cuenta.col.movimiento': 'Movimiento',
   'finanzas.estado-cuenta.col.cargo': 'Cargo',
@@ -362,6 +365,7 @@ export const EN_FINANZAS: Record<ClaveFinanzas, string> = {
   'finanzas.estado-cuenta.saldo-cierre': '= Closing balance',
   'finanzas.estado-cuenta.vencido-al': 'Overdue as of {fecha}',
   'finanzas.estado-cuenta.vacio': 'No invoices or payments in {periodo}.',
+  'finanzas.estado-cuenta.vacio-rango': 'No invoices or payments from {desde} to {hasta}.',
   'finanzas.estado-cuenta.col.fecha': 'Date',
   'finanzas.estado-cuenta.col.movimiento': 'Transaction',
   'finanzas.estado-cuenta.col.cargo': 'Charge',
