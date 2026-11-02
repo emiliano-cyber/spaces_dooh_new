@@ -27,6 +27,15 @@ archivos:
   - apps/web/lib/data/derive.ts
   - apps/web/lib/data/derive.fecha-idioma.test.ts
   - apps/web/components/demo/MapView.tsx
+  - apps/web/lib/i18n/textos/compartidos.ts
+  - apps/web/lib/i18n/textos/costura.test.ts
+  - apps/web/lib/doohmain-programacion.ts
+  - apps/web/lib/periodos.ts
+  - apps/web/components/demo/razones-sociales/asignacion.ts
+  - apps/web/components/demo/finanzas/etiquetas.ts
+  - apps/web/components/demo/finanzas/comprobante.ts
+  - apps/web/components/demo/finanzas/facturas-lista.ts
+  - docs/i18n/revision-costura.md
 ---
 
 # La aplicación en dos idiomas (I18N-01)
@@ -560,6 +569,12 @@ de las dos es el de siempre, aunque diga «1 pantallas»).
 
 ### Lo que sigue en español dentro de estas pantallas (y no es de este lote)
 
+> [!success] Resuelto por el lote de compartidos y la costura (2026-11-02)
+> Todo lo de esta lista que era de un módulo compartido sale traducido desde el
+> lote de compartidos; la costura cerró el selector de periodo (una sola fuente
+> de claves). Siguen en español `formatMontoCorto` (no tiene texto; la moneda es
+> otra tarea) y los mensajes del servidor (I18N-05). Ver «Costura» abajo.
+
 Textos que llegan de módulos compartidos, que se traducen en su propio lote:
 las unidades y sus abreviaturas (`UNIDADES`, `unidadCorta`, `resumenContratacion`,
 `etiquetaFrecuencia` de `lib/periodos.ts`), `etiquetaCalculadora` y el motivo de
@@ -649,6 +664,11 @@ en español sigue saliendo del dato (`mensual`); el servidor (`resolverCalculado
 `MSJ_APROBAR_CON_PENDIENTE`, los textos de Actividad de `codigo-aprobacion.ts`) y el
 selector de periodo de **Finanzas** (`TableroPeriodo`), que es de su lote. La tabla
 de revisión está en `docs/i18n/revision-compartidos.md`.
+
+> [!success] Costura (2026-11-02) · el selector de Finanzas ya usa estas claves
+> `CLAVE_PERIODO` apunta a `compartidos.periodo.*`, las `finanzas.periodo.<tipo>`
+> desaparecieron, y Finanzas pinta la etiqueta del servidor con `etiquetaPeriodo`.
+
 ### Lote campañas y finanzas
 
 **2026-11-02, rama `feat/ingles-campanas-finanzas`.** El inglés sigue APAGADO;
@@ -721,6 +741,18 @@ ya pintan con `CLAVE_PERIODO` (claves `finanzas.periodo.*`), y las llamadas a
 `resumenReserva`, `etiquetaFrecuencia` (ficha de campaña) y a
 `textoHorario`/`textoReproducciones` (`ProgramacionDoohmain`) son las que
 tendrían que recibir el idioma.
+
+> [!success] Costura (2026-11-02) · resuelto
+> `resumenReserva` y `etiquetaFrecuencia` (ficha), `textoHorario` y
+> `textoReproducciones` (`ProgramacionDoohmain`), `AvisoFranjaCMS`, la etiqueta
+> del periodo (`TableroPeriodo`, `EstadoCuenta`), `etiquetaAsignacion` y
+> `opcionesDeAsignacion`, el emisor y la fecha de `armarComprobante`, y además
+> la columna «La emite» de `armarListaFacturas`, que no estaba en esta lista.
+> Siguen en español: los avisos de franja que manda el servidor, el CSV del
+> estado de cuenta, `PipelineView`/`Stepper`, `KPICard`, `EmptyState`,
+> `ConfirmDialog`, `PasoContrasena`, `PagosRentaCard`, `CompromisoRentaCard` y
+> los mensajes del servidor. Detalle en «Costura».
+
 ### Lote comercial
 
 **2026-11-02, rama `feat/ingles-comercial`** (sale de `integra/ingles`). El inglés
@@ -787,6 +819,86 @@ revisión / perdido» y los `title` de los pasos), el motivo de
 `FotoUploaderMock`, `RejillaDialog`, el candado y el « (obligatorio)» de `Campo`;
 la unidad de la tarifa publicada (`sitio.unidad`, un dato: «mensual»), y los
 mensajes del servidor (I18N-05). El dinero sigue por `formatMonto` (otra tarea).
+
+> [!success] Costura (2026-11-02) · resuelto
+> `UNIDAD_LABEL` (ahora `etiquetaUnidad`), `periodicidadLabel`,
+> `textoOrigenDoohmain`, la unidad de la tarifa publicada, el candado y el
+> « (obligatorio)» de `Campo` (ya traducidos por compartidos; la prueba dejó de
+> saltárselos) y el plural de `cupo.ahora` («1 client.» está en la lista). Siguen
+> en español los motivos de `lib/negociacion.ts`, el de `interpretarUbicacion`,
+> `SlotsBadge`, `ClientesBadge`, `CalendarioDisponibilidad`, `FotoUploaderMock`,
+> `RejillaDialog` y los mensajes del servidor.
+
+### Costura
+
+**2026-11-02, rama `feat/ingles-costura`** (sale de `integra/ingles`, que junta
+los cuatro lotes). El inglés sigue APAGADO; en español no cambia ni una letra.
+Cada lote se hizo en su rama sin ver a los demás: la costura los cose. Tabla de
+revisión en `docs/i18n/revision-costura.md`.
+
+**1 · Una sola fuente para el selector de periodo.** Finanzas tenía
+`finanzas.periodo.<tipo>` y compartidos `compartidos.periodo.<tipo>` para las
+mismas seis opciones. `CLAVE_PERIODO` (`components/demo/finanzas/etiquetas.ts`)
+apunta ahora a las compartidas, las de Finanzas desaparecen y el tablero de
+Propuestas usa `CLAVE_PERIODO`. Las dos pruebas de paridad con
+`OPCIONES_PERIODO` se conservan; una tercera exige la fuente única.
+
+**2 · El idioma conectado a lo que ya lo aceptaba, o lo acepta desde hoy.**
+Mismo patrón que compartidos: último parámetro `idioma` con `'es'` por
+omisión, el español devuelve el literal de siempre y el inglés va a
+`textos/compartidos.ts`, cuyo español `compartidos.test.ts` ata al módulo.
+
+| Función | Ganó `idioma` | Quién lo pasa ahora |
+|---|---|---|
+| `resumenReserva` (`lib/periodos.ts`) | sí (solo la unidad; el importe sigue por `formatMonto`) | ficha de campaña |
+| `etiquetaFrecuencia` | ya lo tenía | ficha de campaña |
+| `textoHorario`, `textoReproducciones`, `textoOrigenDoohmain` (`lib/doohmain-programacion.ts`) | sí | `ProgramacionDoohmain`, `SiteFicha` |
+| `etiquetaUnidad`, `periodicidadLabel` | ya lo tenían | `SiteFicha` (sustituye a `UNIDAD_LABEL`; también la unidad de la tarifa publicada) |
+| `etiquetaPeriodo` | ya lo tenía | `TableroPeriodo`, `EstadoCuenta` (con rango a mano, el subtítulo inglés no repite las fechas) |
+| `etiquetaAsignacion`, `opcionesDeAsignacion` | sí | Finanzas (cobranza y generar factura) |
+| `armarComprobante`, `armarListaFacturas` | sí | `ComprobanteDialog` (y la fecha con `formatFecha` en inglés), Finanzas |
+| `etiquetaEstadoCodigo`, `avisoFranja`/`AvisoFranjaCMS` | ya lo tenían | ya estaban conectados: nada que hacer |
+
+Arrendadores e Inventario siguen llamándolas sin idioma: no son de ningún lote
+traducido, y el `'es'` por omisión las deja como estaban.
+
+**3 · Lo mismo dicho de la misma manera.** `textos/costura.test.ts` mira los
+seis diccionarios juntos: el mismo español en dos lotes lleva el mismo inglés,
+salvo ocho textos declarados con su motivo (Folio, Vigencia, Vencido, Por
+vencer, Plazo, Horario, Desde, Comercial: significan otra cosa en cada
+pantalla); ningún apóstrofo recto; ninguna periodicidad fuera del glosario.
+Se unificó «Cada cuándo se paga» → *Payment frequency*; las cuotas de Finanzas →
+*twice-monthly / every 2 months / every 6 months / yearly*; el apóstrofo →
+tipográfico (’) en propuestas y compartidos, como los otros cuatro; y las fotos
+del candado → *proof photos* también en Finanzas. «Booked», «negotiation code»,
+«Internal ref.», «Invoice no.» y «Click» ya eran uniformes (medido).
+
+**4 · Los avisos de Campañas que no se rinden.** `textos/campanas.test.ts` lee
+el fuente de `ValidacionPanel` y `CreativosEnDoohmain` y fija qué clave usa cada
+rama, como la gemela de Finanzas. M12 (retirado ↔ bajado) **muere**, y también
+invertir el plural de «publicada» y cambiar «pausado» por «reanudado».
+
+**5 · El plural de Comercial.** « client.» en la lista inglesa del cuadro de
+editar: invertir `cupo.ahora.uno/.otros` («1 clients.») ya cae.
+
+**Las pruebas de pantallas vigilan ahora los módulos compartidos.** Campañas y
+Finanzas, y Comercial, ganan el segundo barrido con el diccionario de
+compartidos que ya tenía Propuestas, y dejan de quitar antes del barrido el aviso
+de la franja, el horario de DOOHmain, el origen del id y el « (obligatorio)».
+Ese barrido encontró la columna «La emite», que no estaba en ninguna lista.
+
+**El español, medido.** Las pruebas de pantallas de propuestas y compartidos
+ganan `I18N_VOLCAR` (como la de campañas). Se volcó el HTML español de los
+**107 estados** (23 + 6 + 55 + 23) con las fuentes de `integra/ingles` y con las
+de la costura, con las mismas pruebas: `diff -rq` **vacío**. Contra la línea
+base volcada antes de tocar nada, propuestas, compartidos y comercial salen
+idénticos; en campañas y finanzas solo cambian los estados cuyos DATOS de
+prueba se ampliaron (la reserva con 12 pases al día, una fila más en lo que se
+manda a DOOHmain, un estado nuevo del rango a mano).
+
+Y comparando los diccionarios enteros (`DICCIONARIOS`) antes y después: 17
+claves nuevas, 6 retiradas, 32 con el inglés cambiado y **0 con el español
+cambiado**.
 
 ## Enlaces
 
