@@ -20,6 +20,9 @@ import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { StatusBadge } from '@/components/demo/StatusBadge'
 import { cn } from '@/lib/cn'
 import { formatFecha } from '@/lib/data/client'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { interpolarNodos } from '@/lib/i18n/nodos'
+import type { Idioma } from '@/lib/i18n/idiomas'
 
 // ============================================================================
 //  El catálogo de FRANJAS y TEMPORADAS de la organización. ADR 0039, Fase 1.
@@ -52,6 +55,9 @@ const vacioFranja = { nombre: '', horaInicio: '', horaFin: '', orden: 0 }
 const vacioTemporada = { nombre: '', desde: '', hasta: '' }
 
 export function GestionRejilla() {
+  const { idioma, t } = useIdioma()
+  // Dentro del map de las temporadas, «t» es la temporada.
+  const tx = t
   const [franjas, setFranjas] = useState<FranjaUI[]>([])
   const [temporadas, setTemporadas] = useState<TemporadaUI[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -74,7 +80,7 @@ export function GestionRejilla() {
       setTemporadas(d.temporadas)
       setError(null)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo leer el catálogo')
+      setError(e instanceof Error ? e.message : t('catalogos.rejilla.no-leer'))
     } finally {
       setCargando(false)
     }
@@ -90,7 +96,7 @@ export function GestionRejilla() {
     // solapa con una apagada y el choque saldría el día que alguien la
     // reactivara, sin saber desde cuándo.
     const completos = obF.validar()
-    const motivo = motivoFranjaInvalida({ id: '', ...nuevaF }, franjas)
+    const motivo = motivoFranjaInvalida({ id: '', ...nuevaF }, franjas, idioma)
     if (!completos || motivo) return setError(motivo)
     // La franja se copia AQUÍ: si el candado pide la contraseña, lo que se
     // repite es ESTE alta, aunque el usuario toque la fila mientras teclea.
@@ -104,13 +110,13 @@ export function GestionRejilla() {
         void cargar()
       },
       alFallar: (m) => setError(m),
-      mensajeSiFalla: 'No se pudo guardar',
+      mensajeSiFalla: t('catalogos.comun.no-guardar'),
     })
   }
 
   async function anadirTemporada() {
     const completos = obT.validar()
-    const motivo = motivoTemporadaInvalida({ id: '', ...nuevaT }, temporadas)
+    const motivo = motivoTemporadaInvalida({ id: '', ...nuevaT }, temporadas, idioma)
     if (!completos || motivo) return setError(motivo)
     const temporada = { ...nuevaT }
     setError(null)
@@ -122,7 +128,7 @@ export function GestionRejilla() {
         void cargar()
       },
       alFallar: (m) => setError(m),
-      mensajeSiFalla: 'No se pudo guardar',
+      mensajeSiFalla: t('catalogos.comun.no-guardar'),
     })
   }
 
@@ -132,7 +138,7 @@ export function GestionRejilla() {
       guardar: () => (tipo === 'franja' ? bajaFranjaApi(id) : bajaTemporadaApi(id)),
       alLograr: () => void cargar(),
       alFallar: (m) => setError(m),
-      mensajeSiFalla: 'No se pudo dar de baja',
+      mensajeSiFalla: t('catalogos.rejilla.no-dar-de-baja'),
     })
   }
 
@@ -140,7 +146,7 @@ export function GestionRejilla() {
   // no un «Cargando…» en texto (rediseño del 2026-10-26).
   if (cargando) {
     return (
-      <div className="space-y-4" aria-busy="true" aria-label="Cargando el catálogo">
+      <div className="space-y-4" aria-busy="true" aria-label={t('catalogos.rejilla.cargando')}>
         <div className="h-12 animate-pulse rounded-md bg-surface-2" />
         <div className="h-40 animate-pulse rounded-md bg-surface-2" />
         <div className="h-32 animate-pulse rounded-md bg-surface-2" />
@@ -156,9 +162,9 @@ export function GestionRejilla() {
 
       <DialogoCandado
         candado={candado}
-        titulo="Confirma con tu contraseña"
-        subtitulo="Franjas y temporadas son precio: tu organización pide la contraseña para cambiarlas."
-        etiquetaConfirmar="Confirmar y guardar"
+        titulo={t('catalogos.rejilla.candado.titulo')}
+        subtitulo={t('catalogos.rejilla.candado.subtitulo')}
+        etiquetaConfirmar={t('catalogos.rejilla.candado.confirmar')}
       />
 
       {error && (
@@ -177,24 +183,24 @@ export function GestionRejilla() {
           subtítulo el chevrón de plegar se caía debajo del texto. */}
       <CardColapsable
         id="franjas-y-temporadas.franjas"
-        titulo="Franjas horarias"
-        subtitulo="Fin exclusivo · sin solapes"
+        titulo={t('catalogos.rejilla.franjas.titulo')}
+        subtitulo={t('catalogos.rejilla.franjas.subtitulo')}
         contentClassName="space-y-3"
       >
         <p className={FRANJA_EXPLICACION}>
-          El fin es <b>exclusivo</b>: 06:00–10:00 y 10:00–14:00 se tocan y no se pisan. Dos
-          franjas no pueden solaparse — si pudieran, el precio de un spot a las 09:30 dependería
-          de un desempate que nadie decidió.
+          {interpolarNodos(t('catalogos.rejilla.franjas.explicacion'), {
+            exclusivo: <b>{t('catalogos.rejilla.franjas.explicacion.exclusivo')}</b>,
+          })}
         </p>
         <div className="overflow-x-auto">
         <table className="w-full text-left text-[13px]">
           <thead>
             <tr className={CABECERA}>
-              <th className={TH}>Nombre<Asterisco /></th>
-              <th className={TH}>Desde<Asterisco /></th>
-              <th className={TH}>Hasta<Asterisco /></th>
-              <th className={TH}>Orden</th>
-              <th className={TH}>Estado</th>
+              <th className={TH}>{t('catalogos.comun.nombre')}<Asterisco /></th>
+              <th className={TH}>{t('catalogos.comun.desde')}<Asterisco /></th>
+              <th className={TH}>{t('catalogos.comun.hasta')}<Asterisco /></th>
+              <th className={TH}>{t('catalogos.rejilla.col.orden')}</th>
+              <th className={TH}>{t('catalogos.comun.estado')}</th>
               <th className={TH} />
             </tr>
           </thead>
@@ -202,8 +208,7 @@ export function GestionRejilla() {
             {franjas.length === 0 && (
               <tr>
                 <td colSpan={6} className={`${CELDA} text-muted`}>
-                  Todavía no hay ninguna. Sin franjas, todo se vende con la tarifa base — que es
-                  exactamente como funciona hoy.
+                  {t('catalogos.rejilla.franjas.vacio')}
                 </td>
               </tr>
             )}
@@ -218,7 +223,7 @@ export function GestionRejilla() {
                     pantalla. La pastilla es `inline-flex`, así que el tachado
                     de la fila no la cruza. */}
                 <td className={CELDA}>
-                  <StatusBadge tono={f.activo ? 'verde' : 'neutro'}>{f.activo ? 'Activa' : 'Dada de baja'}</StatusBadge>
+                  <StatusBadge tono={f.activo ? 'verde' : 'neutro'}>{f.activo ? t('catalogos.comun.activa') : t('catalogos.comun.dada-de-baja')}</StatusBadge>
                 </td>
                 <td className={cn(CELDA, 'text-right')}>
                   {f.activo && (
@@ -228,9 +233,9 @@ export function GestionRejilla() {
                       size="sm"
                       variant="ghost"
                       className="text-error hover:text-error"
-                      title="Dar de baja: deja de ofrecerse, y lo ya contratado sigue en pie"
+                      title={t('catalogos.rejilla.dar-de-baja.title')}
                     >
-                      <Trash2 className="h-3.5 w-3.5" /> Dar de baja
+                      <Trash2 className="h-3.5 w-3.5" /> {t('catalogos.comun.dar-de-baja')}
                     </Button>
                   )}
                 </td>
@@ -241,16 +246,16 @@ export function GestionRejilla() {
             <tr className="bg-surface-2">
               <td className={CELDA} data-falta={obF.falta('nombre') || undefined}>
                 <input
-                  aria-label="Nombre de la franja"
+                  aria-label={t('catalogos.rejilla.franja.nombre.aria')}
                   className={cn(CAMPO, 'w-full min-w-[8rem]')}
-                  placeholder="p. ej. Prime"
+                  placeholder={t('catalogos.rejilla.franja.nombre.placeholder')}
                   value={nuevaF.nombre}
                   onChange={(e) => setNuevaF({ ...nuevaF, nombre: e.target.value })}
                 />
               </td>
               <td className={CELDA} data-falta={obF.falta('horaInicio') || undefined}>
                 <input
-                  aria-label="Hora de inicio"
+                  aria-label={t('catalogos.rejilla.franja.inicio.aria')}
                   type="time"
                   className={cn(CAMPO, 'demo-num')}
                   value={nuevaF.horaInicio}
@@ -259,7 +264,7 @@ export function GestionRejilla() {
               </td>
               <td className={CELDA} data-falta={obF.falta('horaFin') || undefined}>
                 <input
-                  aria-label="Hora de fin"
+                  aria-label={t('catalogos.rejilla.franja.fin.aria')}
                   type="time"
                   className={cn(CAMPO, 'demo-num')}
                   value={nuevaF.horaFin}
@@ -268,7 +273,7 @@ export function GestionRejilla() {
               </td>
               <td className={CELDA}>
                 <input
-                  aria-label="Orden"
+                  aria-label={t('catalogos.rejilla.col.orden')}
                   type="number"
                   className={cn(CAMPO, 'demo-num w-16')}
                   value={nuevaF.orden}
@@ -283,7 +288,7 @@ export function GestionRejilla() {
                   size="sm"
                   variant="success"
                 >
-                  <Plus className="h-3.5 w-3.5" /> Añadir
+                  <Plus className="h-3.5 w-3.5" /> {t('catalogos.comun.anadir')}
                 </Button>
               </td>
             </tr>
@@ -294,24 +299,23 @@ export function GestionRejilla() {
 
       <CardColapsable
         id="franjas-y-temporadas.temporadas"
-        titulo="Temporadas"
-        subtitulo="Fechas con año · ambos extremos entran"
+        titulo={t('catalogos.rejilla.temporadas.titulo')}
+        subtitulo={t('catalogos.rejilla.temporadas.subtitulo')}
         contentClassName="space-y-3"
       >
         <p className={FRANJA_EXPLICACION}>
-          Fechas <b>concretas</b>, con año: «Buen Fin 2026» y «Buen Fin 2027» son dos
-          temporadas, porque las fechas cambian cada año. Ambos extremos entran. Tampoco pueden
-          solaparse: si «Diciembre» y «Buen Fin» se pisan, hay que decidir qué precio manda esos
-          días.
+          {interpolarNodos(t('catalogos.rejilla.temporadas.explicacion'), {
+            concretas: <b>{t('catalogos.rejilla.temporadas.explicacion.concretas')}</b>,
+          })}
         </p>
         <div className="overflow-x-auto">
         <table className="w-full text-left text-[13px]">
           <thead>
             <tr className={CABECERA}>
-              <th className={TH}>Nombre<Asterisco /></th>
-              <th className={TH}>Desde<Asterisco /></th>
-              <th className={TH}>Hasta<Asterisco /></th>
-              <th className={TH}>Estado</th>
+              <th className={TH}>{t('catalogos.comun.nombre')}<Asterisco /></th>
+              <th className={TH}>{t('catalogos.comun.desde')}<Asterisco /></th>
+              <th className={TH}>{t('catalogos.comun.hasta')}<Asterisco /></th>
+              <th className={TH}>{t('catalogos.comun.estado')}</th>
               <th className={TH} />
             </tr>
           </thead>
@@ -319,7 +323,7 @@ export function GestionRejilla() {
             {temporadas.length === 0 && (
               <tr>
                 <td colSpan={5} className={`${CELDA} text-muted`}>
-                  Todavía no hay ninguna.
+                  {t('catalogos.rejilla.temporadas.vacio')}
                 </td>
               </tr>
             )}
@@ -327,10 +331,10 @@ export function GestionRejilla() {
               <tr key={t.id} className={t.activo ? '' : 'text-muted line-through'}>
                 <td className={cn(CELDA, t.activo && 'text-ink')}>{t.nombre}</td>
                 {/* dd/mm/aaaa como el resto de la app; llegaban en ISO. */}
-                <td className={cn(CELDA, 'demo-num whitespace-nowrap')}>{fechaCorta(t.desde)}</td>
-                <td className={cn(CELDA, 'demo-num whitespace-nowrap')}>{fechaCorta(t.hasta)}</td>
+                <td className={cn(CELDA, 'demo-num whitespace-nowrap')}>{fechaCorta(t.desde, idioma)}</td>
+                <td className={cn(CELDA, 'demo-num whitespace-nowrap')}>{fechaCorta(t.hasta, idioma)}</td>
                 <td className={CELDA}>
-                  <StatusBadge tono={t.activo ? 'verde' : 'neutro'}>{t.activo ? 'Activa' : 'Dada de baja'}</StatusBadge>
+                  <StatusBadge tono={t.activo ? 'verde' : 'neutro'}>{t.activo ? tx('catalogos.comun.activa') : tx('catalogos.comun.dada-de-baja')}</StatusBadge>
                 </td>
                 <td className={cn(CELDA, 'text-right')}>
                   {t.activo && (
@@ -341,7 +345,7 @@ export function GestionRejilla() {
                       variant="ghost"
                       className="text-error hover:text-error"
                     >
-                      <Trash2 className="h-3.5 w-3.5" /> Dar de baja
+                      <Trash2 className="h-3.5 w-3.5" /> {tx('catalogos.comun.dar-de-baja')}
                     </Button>
                   )}
                 </td>
@@ -350,16 +354,16 @@ export function GestionRejilla() {
             <tr className="bg-surface-2">
               <td className={CELDA} data-falta={obT.falta('nombre') || undefined}>
                 <input
-                  aria-label="Nombre de la temporada"
+                  aria-label={t('catalogos.rejilla.temporada.nombre.aria')}
                   className={cn(CAMPO, 'w-full min-w-[8rem]')}
-                  placeholder="p. ej. Buen Fin 2026"
+                  placeholder={t('catalogos.rejilla.temporada.nombre.placeholder')}
                   value={nuevaT.nombre}
                   onChange={(e) => setNuevaT({ ...nuevaT, nombre: e.target.value })}
                 />
               </td>
               <td className={CELDA} data-falta={obT.falta('desde') || undefined}>
                 <input
-                  aria-label="Fecha de inicio"
+                  aria-label={t('catalogos.rejilla.temporada.inicio.aria')}
                   type="date"
                   className={cn(CAMPO, 'demo-num')}
                   value={nuevaT.desde}
@@ -368,7 +372,7 @@ export function GestionRejilla() {
               </td>
               <td className={CELDA} data-falta={obT.falta('hasta') || undefined}>
                 <input
-                  aria-label="Fecha de fin"
+                  aria-label={t('catalogos.rejilla.temporada.fin.aria')}
                   type="date"
                   className={cn(CAMPO, 'demo-num')}
                   value={nuevaT.hasta}
@@ -383,7 +387,7 @@ export function GestionRejilla() {
                   size="sm"
                   variant="success"
                 >
-                  <Plus className="h-3.5 w-3.5" /> Añadir
+                  <Plus className="h-3.5 w-3.5" /> {t('catalogos.comun.anadir')}
                 </Button>
               </td>
             </tr>
@@ -409,16 +413,17 @@ const FRANJA_EXPLICACION = 'rounded-md border border-border bg-surface-2 px-4 py
 // fecha LOCAL (sin el corrimiento de un día que daría `new Date(iso)` en
 // México). Si llegara vacía o en otro formato, se pinta tal cual en vez de
 // inventar una fecha.
-function fechaCorta(iso: string): string {
-  return /^\d{4}-\d{2}-\d{2}$/.test(iso) ? formatFecha(iso) : iso
+function fechaCorta(iso: string, idioma: Idioma = 'es'): string {
+  return /^\d{4}-\d{2}-\d{2}$/.test(iso) ? formatFecha(iso, idioma) : iso
 }
 
 /** OBLIG-01 · el asterisco de una cabecera de columna obligatoria. */
 function Asterisco() {
+  const t = useIdioma().t
   return (
     <>
       <span aria-hidden="true" className="ml-0.5 text-error">*</span>
-      <span className="sr-only"> (obligatorio)</span>
+      <span className="sr-only">{t('compartidos.campo.obligatorio')}</span>
     </>
   )
 }

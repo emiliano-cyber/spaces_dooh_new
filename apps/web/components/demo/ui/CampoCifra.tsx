@@ -1,6 +1,8 @@
 'use client'
 
 import * as React from 'react'
+import type { Idioma } from '@/lib/i18n/idiomas'
+import { useIdioma } from '@/lib/i18n/contexto'
 import {
   leerCifra,
   crudoDeLectura,
@@ -53,6 +55,12 @@ export interface CampoCifraProps extends AtributosInput {
   permiteVacio?: boolean
   /** Pinta el motivo del rechazo debajo del campo. Por defecto sí. */
   mostrarError?: boolean
+  /**
+   * I18N · idioma del motivo de rechazo (`title` y aviso). Sin él, el de la
+   * pantalla (`useIdioma`, que fuera del proveedor es 'es'): en español sale
+   * el literal de siempre en todos los formularios que usan este campo.
+   */
+  idioma?: Idioma
 }
 
 function aCrudo(valor: string | number | null | undefined): string {
@@ -68,14 +76,18 @@ export function CampoCifra({
   maximo,
   permiteVacio,
   mostrarError = true,
+  idioma: idiomaProp,
   onBlur,
   ...resto
 }: CampoCifraProps) {
+  const idiomaPantalla = useIdioma().idioma
+  const idioma = idiomaProp ?? idiomaPantalla
   const opciones: OpcionesCifra = {
     decimales,
     minimo: minimo ?? undefined,
     maximo,
     permiteVacio,
+    idioma,
   }
   const crudoProp = aCrudo(valor)
   const [texto, setTexto] = React.useState(() => textoDesdeCrudo(crudoProp))

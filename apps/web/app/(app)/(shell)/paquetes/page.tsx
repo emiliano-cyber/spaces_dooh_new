@@ -1,6 +1,7 @@
 'use client'
 
 import { GestionPaquetes } from '@/components/demo/paquetes/GestionPaquetes'
+import { useTexto } from '@/lib/i18n/contexto'
 
 // ============================================================================
 //  /paquetes — «estas cinco pantallas, prime, un mes: 180 000».
@@ -23,6 +24,7 @@ import { GestionPaquetes } from '@/components/demo/paquetes/GestionPaquetes'
 //  existiera esta pantalla.
 // ============================================================================
 export default function PaquetesPage() {
+  const t = useTexto()
   return (
     <div className="w-full space-y-4">
       {/* Encabezado con la forma del Dashboard (rediseño 2026-10-26): título
@@ -30,10 +32,9 @@ export default function PaquetesPage() {
           `neutral` de Tailwind, que no son tokens del proyecto. */}
       <header>
         <div>
-          <h1 className="text-2xl text-ink">Paquetes cerrados</h1>
+          <h1 className="text-2xl text-ink">{t('nav.paquetes')}</h1>
           <p className="mt-1 text-[13px] text-muted">
-            Un conjunto de pantallas con un precio del conjunto. Sustituye la suma de sus tarifas
-            de lista; no la descuenta.
+            {t('catalogos.paquetes.descripcion')}
           </p>
         </div>
       </header>

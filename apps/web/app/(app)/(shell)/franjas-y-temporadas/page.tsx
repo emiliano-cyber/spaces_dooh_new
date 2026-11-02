@@ -2,6 +2,7 @@
 
 import { GestionRejilla } from '@/components/demo/rejilla/GestionRejilla'
 import { ProgramacionPorFranja } from '@/components/demo/rejilla/ProgramacionPorFranja'
+import { useTexto } from '@/lib/i18n/contexto'
 
 // ============================================================================
 //  /franjas-y-temporadas — las dos dimensiones de la tarifa base.
@@ -22,6 +23,7 @@ import { ProgramacionPorFranja } from '@/components/demo/rejilla/ProgramacionPor
 //  exactamente como funcionaba antes de que existiera.
 // ============================================================================
 export default function FranjasYTemporadasPage() {
+  const t = useTexto()
   return (
     <div className="w-full space-y-4">
       {/* Encabezado con la forma del Dashboard (rediseño 2026-10-26): título
@@ -29,10 +31,9 @@ export default function FranjasYTemporadasPage() {
           `neutral` de Tailwind, que no son tokens del proyecto. */}
       <header>
         <div>
-          <h1 className="text-2xl text-ink">Franjas y temporadas</h1>
+          <h1 className="text-2xl text-ink">{t('nav.franjas-y-temporadas')}</h1>
           <p className="mt-1 text-[13px] text-muted">
-            Las dos dimensiones de la tarifa: la hora del día y la época del año. Se capturan una
-            vez y valen para todo el inventario.
+            {t('catalogos.rejilla.descripcion')}
           </p>
         </div>
       </header>
