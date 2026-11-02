@@ -81,7 +81,7 @@ export default function NetworkPage() {
           </>
         ) : (
           <>
-            <KPICard label={t('admin.network.en-network')} value={formatNumero(enNetwork.length)} sub={t('admin.network.de-espacios', { total: formatNumero(total) })} tono="verde" icon={<Share2 className="h-4 w-4" />} />
+            <KPICard label={t('admin.network.en-network')} value={formatNumero(enNetwork.length)} sub={t(total === 1 ? 'admin.network.de-espacios.uno' : 'admin.network.de-espacios.otros', { total: formatNumero(total) })} tono="verde" icon={<Share2 className="h-4 w-4" />} />
             <KPICard label={t('admin.network.sin-compartir')} value={formatNumero(total - enNetwork.length)} sub={t('admin.network.disponibles')} icon={<Network className="h-4 w-4" />} />
             <KPICard label={t('admin.network.programaticos')} value={formatNumero(programaticos)} sub={t('admin.network.automatizada')} tono="ambar" icon={<Cpu className="h-4 w-4" />} />
             <KPICard label={t('admin.network.tradicionales')} value={formatNumero(tradicionales)} sub={t('admin.network.directa')} tono="neutro" icon={<Handshake className="h-4 w-4" />} />

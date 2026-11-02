@@ -1,7 +1,7 @@
 # Tabla de revisión · lote de inglés «administración (ámbito `admin`)»
 
 Generada el 2026-11-02 a partir de `apps/web/lib/i18n/textos/admin.ts` y de los usos en el código
-(búsqueda literal de la clave). **525 claves.** Rama `feat/ingles-administracion`.
+(búsqueda literal de la clave). **532 claves.** Rama `feat/ingles-administracion`.
 
 **Pantallas:** Administración (usuarios, roles y permisos, control de cambios, configuración del negocio y de la instancia, organizaciones, actualizaciones, soporte), Configuración (Mi cuenta / Empresa), Integraciones, Network, Novedades, Actividad y Razones sociales.
 
@@ -34,7 +34,7 @@ Generada el 2026-11-02 a partir de `apps/web/lib/i18n/textos/admin.ts` y de los 
 | `admin.rol.gerente_ventas` | clave armada en el código (prefijo + valor) | Gerente de ventas | Sales manager |
 | `admin.rol.vendedor` | clave armada en el código (prefijo + valor) | Vendedor | Sales rep |
 | `admin.rol.operaciones` | clave armada en el código (prefijo + valor) | Operaciones | Operations |
-| `admin.rol.imprenta` | clave armada en el código (prefijo + valor) | Imprenta | Printing |
+| `admin.rol.imprenta` | clave armada en el código (prefijo + valor) | Imprenta | Print shop |
 | `admin.rol.finanzas` | clave armada en el código (prefijo + valor) | Finanzas | Finance |
 | `admin.tipo-ot.montaje-lona` | clave armada en el código (prefijo + valor) | Montaje de lona | Vinyl installation |
 | `admin.tipo-ot.montaje-digital` | clave armada en el código (prefijo + valor) | Montaje digital | Digital installation |
@@ -49,7 +49,7 @@ Generada el 2026-11-02 a partir de `apps/web/lib/i18n/textos/admin.ts` y de los 
 | `admin.cap.crear` | `components/demo/admin/permisos.ts:53` | Crear | Create |
 | `admin.cap.aprobar` | `components/demo/admin/permisos.ts:54` | Aprobar | Approve |
 | `admin.cap.facturar` | `components/demo/admin/permisos.ts:55` | Facturar | Invoice |
-| `admin.cap.costear` | `components/demo/admin/permisos.ts:56` | Costear | Cost |
+| `admin.cap.costear` | `components/demo/admin/permisos.ts:56` | Costear | Costing |
 | `admin.modulo.dashboard` | clave armada en el código (prefijo + valor) | Dashboard | Dashboard |
 | `admin.modulo.comercial` | clave armada en el código (prefijo + valor) | Comercial | Sales |
 | `admin.modulo.arrendadores` | clave armada en el código (prefijo + valor) | Arrendadores | Landlords |
@@ -67,16 +67,16 @@ Generada el 2026-11-02 a partir de `apps/web/lib/i18n/textos/admin.ts` y de los 
 | `admin.comun.activo` | `app/(app)/(shell)/administracion/page.tsx:166`<br>`components/demo/admin/OrganizacionesPanel.tsx:127` | Activo | Active |
 | `admin.comun.inactivo` | `app/(app)/(shell)/administracion/page.tsx:166` | Inactivo | Inactive |
 | `admin.comun.no-se-pudo-guardar` | `app/(app)/(shell)/administracion/page.tsx:886`<br>`app/(app)/(shell)/configuracion/page.tsx:94`<br>`app/(app)/(shell)/configuracion/page.tsx:183` | No se pudo guardar | Could not save |
-| `admin.comun.n-de` | `app/(app)/(shell)/actividad/page.tsx:86`<br>`app/(app)/(shell)/integraciones/page.tsx:83` | {n} de {total} | {n} of {total} |
+| `admin.comun.n-de` | `app/(app)/(shell)/actividad/page.tsx:86`<br>`app/(app)/(shell)/integraciones/page.tsx:90` | {n} de {total} | {n} of {total} |
 | `admin.titulo` | `app/(app)/(shell)/administracion/page.tsx:68` | Administración | Settings |
 | `admin.subtitulo` | `app/(app)/(shell)/administracion/page.tsx:69` | Usuarios, roles y configuración del negocio | Users, roles and business settings |
 | `admin.tab.usuarios` | `app/(app)/(shell)/administracion/page.tsx:75` | Usuarios | Users |
 | `admin.tab.roles` | `app/(app)/(shell)/administracion/page.tsx:76` | Roles y permisos | Roles and permissions |
-| `admin.tab.config` | `app/(app)/(shell)/administracion/page.tsx:77` | Configuración | Configuration |
+| `admin.tab.config` | `app/(app)/(shell)/administracion/page.tsx:77` | Configuración | Business settings |
 | `admin.usuarios.toast.rol` | `app/(app)/(shell)/administracion/page.tsx:124` | {nombre}: rol cambiado a {rol} | {nombre}: role changed to {rol} |
 | `admin.usuarios.toast.desactivado` | `app/(app)/(shell)/administracion/page.tsx:130` | {nombre}: desactivado | {nombre}: deactivated |
 | `admin.usuarios.toast.activado` | `app/(app)/(shell)/administracion/page.tsx:130` | {nombre}: activado | {nombre}: activated |
-| `admin.usuarios.rol-de` | `app/(app)/(shell)/administracion/page.tsx:153` | Rol de {nombre} | Role of {nombre} |
+| `admin.usuarios.rol-de` | `app/(app)/(shell)/administracion/page.tsx:153` | Rol de {nombre} | {nombre}’s role |
 | `admin.usuarios.estatus-propio` | `app/(app)/(shell)/administracion/page.tsx:167` | No puedes cambiar tu propio estatus | You can’t change your own status |
 | `admin.usuarios.pulsa-desactivar` | `app/(app)/(shell)/administracion/page.tsx:171` | Pulsa para desactivar a {nombre} | Click to deactivate {nombre} |
 | `admin.usuarios.pulsa-activar` | `app/(app)/(shell)/administracion/page.tsx:171` | Pulsa para activar a {nombre} | Click to activate {nombre} |
@@ -184,12 +184,12 @@ Generada el 2026-11-02 a partir de `apps/web/lib/i18n/textos/admin.ts` y de los 
 | `admin.cfg.familia.comercial` | `app/(app)/(shell)/administracion/page.tsx:795`<br>`app/(app)/(shell)/administracion/page.tsx:1088`<br>`app/(app)/(shell)/administracion/page.tsx:1089` | Comercial | Sales |
 | `admin.cfg.familia.operacion` | `app/(app)/(shell)/administracion/page.tsx:796`<br>`app/(app)/(shell)/administracion/page.tsx:1219`<br>`app/(app)/(shell)/administracion/page.tsx:1220` | Operación | Operations |
 | `admin.cfg.familia.instancia` | `app/(app)/(shell)/administracion/page.tsx:797`<br>`app/(app)/(shell)/administracion/page.tsx:1287`<br>`app/(app)/(shell)/administracion/page.tsx:1288` | Instancia | Instance |
-| `admin.cfg.secciones` | `app/(app)/(shell)/administracion/page.tsx:955` | Secciones de la configuración | Configuration sections |
+| `admin.cfg.secciones` | `app/(app)/(shell)/administracion/page.tsx:955` | Secciones de la configuración | Business settings sections |
 | `admin.tope.invalido` | `app/(app)/(shell)/administracion/page.tsx:855` | El tope de descuento tiene que ser un número entre 0 y 100 | The discount cap has to be a number between 0 and 100 |
 | `admin.tope.sin-tope` | `app/(app)/(shell)/administracion/page.tsx:862` | Sin tope de descuento | No discount cap |
 | `admin.tope.toast` | `app/(app)/(shell)/administracion/page.tsx:862` | Tope de descuento: {v} % | Discount cap: {v}% |
 | `admin.tope.error` | `app/(app)/(shell)/administracion/page.tsx:864` | No se pudo guardar el tope de descuento | The discount cap could not be saved |
-| `admin.tope.titulo` | `app/(app)/(shell)/administracion/page.tsx:1144` | Tope de descuento comercial | Commercial discount cap |
+| `admin.tope.titulo` | `app/(app)/(shell)/administracion/page.tsx:1144` | Tope de descuento comercial | Sales discount cap |
 | `admin.tope.maximo` | `app/(app)/(shell)/administracion/page.tsx:1148` | Descuento máximo (%) | Maximum discount (%) |
 | `admin.tope.guardar` | `app/(app)/(shell)/administracion/page.tsx:1164`<br>`app/(app)/(shell)/administracion/page.tsx:1178` | Guardar tope | Save cap |
 | `admin.tope.explica` | `app/(app)/(shell)/administracion/page.tsx:1168` | El descuento más alto que se puede aplicar a una propuesta. Por encima de este número la propuesta {noSeGuarda} y quien vende ve cuál es el tope. Déjalo en {cien} para no limitar nada, que es como nace la organización. Lo que ya está pactado no cambia: bajar el tope no toca las propuestas que ya lo superan, solo impide volver a teclear ese descuento. | The highest discount that can be applied to a proposal. Above this number the proposal {noSeGuarda}, and the sales rep sees what the cap is. Leave it at {cien} to limit nothing, which is how the organization starts. What has already been agreed doesn’t change: lowering the cap doesn’t touch proposals that already exceed it, it only prevents typing that discount again. |
@@ -299,16 +299,16 @@ Generada el 2026-11-02 a partir de `apps/web/lib/i18n/textos/admin.ts` y de los 
 | `admin.correo.modal.respuestas` | `app/(app)/(shell)/administracion/page.tsx:1723` | las respuestas llegan aquí | replies arrive here |
 | `admin.correo.modal.dns` | `app/(app)/(shell)/administracion/page.tsx:1731` | Es así porque para enviar desde tu propio dominio hace falta autorizarlo en los registros DNS de ese dominio. Sin esa autorización, un correo que dijera venir de tu dominio lo marcarían como suplantación y acabaría en spam. {avisanos} | That’s because sending from your own domain requires authorizing it in that domain’s DNS records. Without that authorization, an email claiming to come from your domain would be flagged as spoofing and end up in spam. {avisanos} |
 | `admin.correo.modal.avisanos` | `app/(app)/(shell)/administracion/page.tsx:1731` | Si quieres que salgan desde tu dominio, avísanos y lo configuramos. | If you want them to go out from your domain, let us know and we’ll set it up. |
-| `admin.correo.modal.afecta` | `app/(app)/(shell)/administracion/page.tsx:1738` | Afecta a los avisos de operación —hoy, el resumen diario de contratos que necesitan atención—. Las contraseñas y las invitaciones seguirán saliendo del correo de la plataforma. | It affects operations notices —today, the daily summary of contracts that need attention—. Passwords and invitations will keep going out from the platform’s email. |
+| `admin.correo.modal.afecta` | `app/(app)/(shell)/administracion/page.tsx:1738` | Afecta a los avisos de operación —hoy, el resumen diario de contratos que necesitan atención—. Las contraseñas y las invitaciones seguirán saliendo del correo de la plataforma. | It affects operations notices (currently, the daily summary of contracts that need attention). Passwords and invitations will keep going out from the platform’s email. |
 | `admin.correo.modal.revisa` | `app/(app)/(shell)/administracion/page.tsx:1743` | Revisa que esté bien escrita: si la dirección no existe, las respuestas de tus clientes se pierden sin que nadie se entere. | Check that it’s spelled correctly: if the address doesn’t exist, your clients’ replies get lost without anyone noticing. |
-| `admin.orgs.titulo` | `components/demo/admin/OrganizacionesPanel.tsx:75`<br>`components/demo/admin/OrganizacionesPanel.tsx:97` | Organizaciones (CRMs) | Organizations (CRMs) |
+| `admin.orgs.titulo` | `components/demo/admin/OrganizacionesPanel.tsx:75`<br>`components/demo/admin/OrganizacionesPanel.tsx:97` | Organizaciones (CRMs) | Platform organizations |
 | `admin.orgs.reservado` | `components/demo/admin/OrganizacionesPanel.tsx:77` | Reservado al administrador de la plataforma | Reserved for the platform administrator |
 | `admin.orgs.reservado-texto` | `components/demo/admin/OrganizacionesPanel.tsx:81` | Crear organizaciones y cambiar entre ellas está reservado al{admin}. Tu usuario administra su propia organización, no el conjunto. | Creating organizations and switching between them is reserved for the{admin}. Your user manages its own organization, not the whole set. |
 | `admin.orgs.admin-plataforma` | `components/demo/admin/OrganizacionesPanel.tsx:82` | ␣administrador de la plataforma | ␣platform administrator |
 | `admin.orgs.pidesela` | `components/demo/admin/OrganizacionesPanel.tsx:85` | Si necesitas una organización nueva, pídesela a quien administre Space OS. | If you need a new organization, ask whoever administers Space OS. |
-| `admin.orgs.entrar` | `components/demo/admin/OrganizacionesPanel.tsx:135` | Entrar | Enter |
+| `admin.orgs.entrar` | `components/demo/admin/OrganizacionesPanel.tsx:135` | Entrar | Switch to |
 | `admin.orgs.sin-orgs` | `components/demo/admin/OrganizacionesPanel.tsx:142` | Sin organizaciones. | No organizations. |
-| `admin.orgs.volver` | `components/demo/admin/OrganizacionesPanel.tsx:148` | Volver a mi CRM | Back to my CRM |
+| `admin.orgs.volver` | `components/demo/admin/OrganizacionesPanel.tsx:148` | Volver a mi CRM | Back to my organization |
 | `admin.orgs.error` | `components/demo/admin/OrganizacionesPanel.tsx:223`<br>`components/demo/admin/OrganizacionesPanel.tsx:229` | No se pudo crear la organización | The organization could not be created |
 | `admin.orgs.nueva` | `components/demo/admin/OrganizacionesPanel.tsx:241`<br>`components/demo/admin/OrganizacionesPanel.tsx:249` | Nueva organización | New organization |
 | `admin.orgs.nombre` | `components/demo/admin/OrganizacionesPanel.tsx:250` | Nombre de la organización | Organization name |
@@ -349,20 +349,20 @@ Generada el 2026-11-02 a partir de `apps/web/lib/i18n/textos/admin.ts` y de los 
 | `admin.act.estado.aprobada` | `components/demo/admin/actualizaciones-ui.ts:88` | Aprobaste {version}: se instalará en los próximos minutos, o de madrugada ({hora}) a más tardar. | You approved {version}: it will be installed in the next few minutes, or overnight ({hora}) at the latest. |
 | `admin.act.estado.esperando` | `components/demo/admin/actualizaciones-ui.ts:94` | Hay una versión nueva disponible: {version}. Esperando tu aprobación para instalarla. | A new version is available: {version}. Waiting for your approval to install it. |
 | `admin.act.la-disponible` | `components/demo/admin/actualizaciones-ui.ts:110`<br>`components/demo/admin/actualizaciones-ui.ts:132`<br>`components/demo/admin/actualizaciones-ui.ts:140` | la versión disponible | the available version |
-| `admin.act.mig.sin-contar` | `components/demo/admin/actualizaciones-ui.ts:114` | No se pudo contar cuántas migraciones trae | It couldn’t be counted how many migrations it brings |
-| `admin.act.mig.ninguna` | `components/demo/admin/actualizaciones-ui.ts:116` | No trae migraciones pendientes | It brings no pending migrations |
-| `admin.act.mig.uno` | `components/demo/admin/actualizaciones-ui.ts:117` | Trae {n} migración pendiente | It brings {n} pending migration |
-| `admin.act.mig.otros` | `components/demo/admin/actualizaciones-ui.ts:117` | Trae {n} migraciones pendientes | It brings {n} pending migrations |
+| `admin.act.mig.sin-contar` | `components/demo/admin/actualizaciones-ui.ts:114` | No se pudo contar cuántas migraciones trae | Couldn’t count how many migrations it includes |
+| `admin.act.mig.ninguna` | `components/demo/admin/actualizaciones-ui.ts:116` | No trae migraciones pendientes | It includes no pending migrations |
+| `admin.act.mig.uno` | `components/demo/admin/actualizaciones-ui.ts:117` | Trae {n} migración pendiente | It includes {n} pending migration |
+| `admin.act.mig.otros` | `components/demo/admin/actualizaciones-ui.ts:117` | Trae {n} migraciones pendientes | It includes {n} pending migrations |
 | `admin.act.confirmar` | `components/demo/admin/actualizaciones-ui.ts:119` | Vas a instalar {version}. {migraciones}.{sinNotas} El servicio se corta mientras dura la instalación. | You’re about to install {version}. {migraciones}.{sinNotas} The service goes down while the installation runs. |
-| `admin.act.confirmar-sin-notas` | `components/demo/admin/actualizaciones-ui.ts:118` | ␣No llegaron sus notas: no sabes qué trae. | ␣Its notes didn’t arrive: you don’t know what it brings. |
-| `admin.act.aviso-sin-notas` | `components/demo/admin/actualizaciones-ui.ts:133` | No llegaron las notas de {version}, así que aquí no puedes ver qué trae. Avisa a soporte antes de aprobarla: casi siempre es el actualizador del servidor, no la versión. | The notes for {version} didn’t arrive, so you can’t see here what it brings. Let support know before approving it: it’s almost always the server’s updater, not the version. |
-| `admin.act.que-trae` | `components/demo/admin/actualizaciones-ui.ts:140` | Qué trae {version} | What {version} brings |
+| `admin.act.confirmar-sin-notas` | `components/demo/admin/actualizaciones-ui.ts:118` | ␣No llegaron sus notas: no sabes qué trae. | ␣Its notes didn’t arrive: you don’t know what’s in it. |
+| `admin.act.aviso-sin-notas` | `components/demo/admin/actualizaciones-ui.ts:133` | No llegaron las notas de {version}, así que aquí no puedes ver qué trae. Avisa a soporte antes de aprobarla: casi siempre es el actualizador del servidor, no la versión. | The notes for {version} didn’t arrive, so you can’t see here what’s in it. Let support know before approving it: it’s almost always the server’s updater, not the version. |
+| `admin.act.que-trae` | `components/demo/admin/actualizaciones-ui.ts:140` | Qué trae {version} | What’s in {version} |
 | `admin.tickets.estado.abierto` | `components/demo/admin/TicketsPanel.tsx:49` | Abierto | Open |
 | `admin.tickets.estado.en-proceso` | `components/demo/admin/TicketsPanel.tsx:50` | En proceso | In progress |
 | `admin.tickets.estado.resuelto` | `components/demo/admin/TicketsPanel.tsx:51` | Resuelto | Resolved |
 | `admin.tickets.estado.cerrado` | `components/demo/admin/TicketsPanel.tsx:52` | Cerrado | Closed |
 | `admin.tickets.prioridad.baja` | `components/demo/admin/TicketsPanel.tsx:61` | Baja | Low |
-| `admin.tickets.prioridad.normal` | `components/demo/admin/TicketsPanel.tsx:62` | Normal | Normal priority |
+| `admin.tickets.prioridad.normal` | `components/demo/admin/TicketsPanel.tsx:62` | Normal | Normal |
 | `admin.tickets.prioridad.alta` | `components/demo/admin/TicketsPanel.tsx:63` | Alta | High |
 | `admin.tickets.prioridad.urgente` | `components/demo/admin/TicketsPanel.tsx:64` | Urgente | Urgent |
 | `admin.tickets.toast.abierto` | `components/demo/admin/TicketsPanel.tsx:128` | Ticket abierto: {folio} | Ticket opened: {folio} |
@@ -398,7 +398,7 @@ Generada el 2026-11-02 a partir de `apps/web/lib/i18n/textos/admin.ts` y de los 
 | `admin.novedades.n-ajustes.otros` | clave armada en el código (prefijo + valor) | {n} ajustes | {n} adjustments |
 | `admin.novedades.n-correcciones.uno` | clave armada en el código (prefijo + valor) | {n} corrección | {n} fix |
 | `admin.novedades.n-correcciones.otros` | clave armada en el código (prefijo + valor) | {n} correcciones | {n} fixes |
-| `admin.cuenta.titulo` | `app/(app)/(shell)/configuracion/page.tsx:46` | Configuración | Configuration |
+| `admin.cuenta.titulo` | `app/(app)/(shell)/configuracion/page.tsx:46` | Configuración | Account settings |
 | `admin.cuenta.sub.empresa` | `app/(app)/(shell)/configuracion/page.tsx:48` | Nombre de la empresa y datos de tu cuenta. | Company name and your account details. |
 | `admin.cuenta.sub.cuenta` | `app/(app)/(shell)/configuracion/page.tsx:48` | Cambia el correo y la contraseña de tu cuenta. | Change your account’s email and password. |
 | `admin.cuenta.temporal` | `app/(app)/(shell)/configuracion/page.tsx:59` | {tuContrasena} Cámbiala aquí abajo para volver a entrar al resto del sistema. Mientras tanto los demás módulos están cerrados, por seguridad: una contraseña temporal la conoce quien te la entregó. | {tuContrasena} Change it below to get back into the rest of the system. In the meantime the other modules are closed, for security: a temporary password is known by whoever gave it to you. |
@@ -407,7 +407,7 @@ Generada el 2026-11-02 a partir de `apps/web/lib/i18n/textos/admin.ts` y de los 
 | `admin.cuenta.error` | `app/(app)/(shell)/configuracion/page.tsx:98`<br>`app/(app)/(shell)/configuracion/page.tsx:192` | Error | Error |
 | `admin.cuenta.empresa.titulo` | `app/(app)/(shell)/configuracion/page.tsx:108` | Empresa | Company |
 | `admin.cuenta.empresa.ayuda` | `app/(app)/(shell)/configuracion/page.tsx:113` | Este nombre aparece en el menú de la izquierda. También se cambia en {enlace}, junto con el logo y los datos fiscales. | This name appears in the menu on the left. It can also be changed in {enlace}, along with the logo and the tax details. |
-| `admin.cuenta.empresa.enlace` | `app/(app)/(shell)/configuracion/page.tsx:116` | Administración → Configuración | Settings → Configuration |
+| `admin.cuenta.empresa.enlace` | `app/(app)/(shell)/configuracion/page.tsx:116` | Administración → Configuración | Settings → Business settings |
 | `admin.cuenta.corta` | `app/(app)/(shell)/configuracion/page.tsx:164` | La contraseña debe tener al menos 8 caracteres | The password must be at least 8 characters long |
 | `admin.cuenta.toast` | `app/(app)/(shell)/configuracion/page.tsx:190` | Cuenta actualizada | Account updated |
 | `admin.cuenta.mi-cuenta` | `app/(app)/(shell)/configuracion/page.tsx:203` | Mi cuenta | My account |
@@ -417,48 +417,55 @@ Generada el 2026-11-02 a partir de `apps/web/lib/i18n/textos/admin.ts` y de los 
 | `admin.cuenta.correo` | `app/(app)/(shell)/configuracion/page.tsx:220` | Correo | Email |
 | `admin.cuenta.correo-ejemplo` | `app/(app)/(shell)/configuracion/page.tsx:221` | tu@correo.com | you@email.com |
 | `admin.cuenta.nueva` | `app/(app)/(shell)/configuracion/page.tsx:223` | Nueva contraseña | New password |
-| `admin.cuenta.nueva-ayuda` | `app/(app)/(shell)/configuracion/page.tsx:224` | Déjala en blanco para no cambiarla (mín. 8) | Leave it blank to keep it (at least 8) |
+| `admin.cuenta.nueva-ayuda` | `app/(app)/(shell)/configuracion/page.tsx:224` | Déjala en blanco para no cambiarla (mín. 8) | Leave it blank to keep it (at least 8 characters) |
 | `admin.cuenta.sin-anterior` | `app/(app)/(shell)/configuracion/page.tsx:229` | Entraste con Google y aún no tienes contraseña propia, así que no hace falta la anterior. Al guardarla podrás usarla también para confirmar cambios sensibles. | You signed in with Google and don’t have a password of your own yet, so the previous one isn’t needed. Once saved, you can also use it to confirm sensitive changes. |
 | `admin.cuenta.actual` | `app/(app)/(shell)/configuracion/page.tsx:234` | Contraseña actual | Current password |
 | `admin.cuenta.para-confirmar` | `app/(app)/(shell)/configuracion/page.tsx:234` | (para confirmar) | (to confirm) |
 | `admin.cuenta.actual-ejemplo` | `app/(app)/(shell)/configuracion/page.tsx:238` | Tu contraseña actual | Your current password |
 | `admin.cuenta.guardar-cambios` | `app/(app)/(shell)/configuracion/page.tsx:242` | Guardar cambios | Save changes |
-| `admin.integ.titulo` | `app/(app)/(shell)/integraciones/page.tsx:56` | Integraciones | Integrations |
-| `admin.integ.subtitulo` | `app/(app)/(shell)/integraciones/page.tsx:57` | Conectores externos · listos para enchufar credenciales | External connectors · ready to plug in credentials |
-| `admin.integ.aviso` | `app/(app)/(shell)/integraciones/page.tsx:68` | Hay conectores sin credenciales: devuelven datos {simulados} hasta que se configuren en el servidor. | Some connectors have no credentials: they return {simulados} data until they’re configured on the server. |
-| `admin.integ.simulados` | `app/(app)/(shell)/integraciones/page.tsx:68` | simulados | simulated |
-| `admin.integ.conectores` | `app/(app)/(shell)/integraciones/page.tsx:77` | Conectores | Connectors |
-| `admin.integ.conectados.uno` | `app/(app)/(shell)/integraciones/page.tsx:82` | {cifras} conectado | {cifras} connected |
-| `admin.integ.conectados.otros` | `app/(app)/(shell)/integraciones/page.tsx:82` | {cifras} conectados | {cifras} connected |
-| `admin.integ.sin-credenciales-n` | `app/(app)/(shell)/integraciones/page.tsx:87` | {n} sin credenciales | {n} without credentials |
-| `admin.integ.vacio` | `app/(app)/(shell)/integraciones/page.tsx:100` | No hay conectores que mostrar | There are no connectors to show |
-| `admin.integ.vacio-detalle` | `app/(app)/(shell)/integraciones/page.tsx:101` | Si esperabas verlos, puede que la consulta haya fallado: recarga la página. | If you expected to see them, the request may have failed: reload the page. |
-| `admin.integ.conectado` | `app/(app)/(shell)/integraciones/page.tsx:118` | Conectado | Connected |
-| `admin.integ.sin-credenciales` | `app/(app)/(shell)/integraciones/page.tsx:118` | Sin credenciales | No credentials |
-| `admin.integ.cargadas` | `app/(app)/(shell)/integraciones/page.tsx:124` | Credenciales cargadas · responde el proveedor real. | Credentials loaded · the real provider responds. |
-| `admin.integ.simula` | `app/(app)/(shell)/integraciones/page.tsx:125` | Devuelve datos simulados. | Returns simulated data. |
-| `admin.integ.probar` | `app/(app)/(shell)/integraciones/page.tsx:140` | Probar AdMobilize | Test AdMobilize |
-| `admin.integ.probar-sub` | `app/(app)/(shell)/integraciones/page.tsx:142` | Diagnóstico · devuelve datos simulados sin credenciales | Diagnostics · returns simulated data without credentials |
-| `admin.integ.dispositivo` | `app/(app)/(shell)/integraciones/page.tsx:147` | ID del dispositivo | Device ID |
-| `admin.integ.consultando` | `app/(app)/(shell)/integraciones/page.tsx:155` | Consultando… | Querying… |
-| `admin.integ.consultar` | `app/(app)/(shell)/integraciones/page.tsx:155` | Consultar métricas | Query metrics |
-| `admin.integ.vehiculos` | `app/(app)/(shell)/integraciones/page.tsx:160` | Vehículos | Vehicles |
-| `admin.integ.personas` | `app/(app)/(shell)/integraciones/page.tsx:161` | Personas | People |
-| `admin.integ.velocidad` | `app/(app)/(shell)/integraciones/page.tsx:162` | Vel. prom. | Avg. speed |
-| `admin.integ.ventana` | `app/(app)/(shell)/integraciones/page.tsx:163` | Ventana | Window |
-| `admin.integ.datos-simulados` | `app/(app)/(shell)/integraciones/page.tsx:166` | Datos simulados (sin credenciales) | Simulated data (no credentials) |
-| `admin.integ.donde` | `app/(app)/(shell)/integraciones/page.tsx:176` | Dónde está lo demás | Where everything else is |
-| `admin.integ.donde.doohmain` | `app/(app)/(shell)/integraciones/page.tsx:204` | Publicación en DOOHmain | Publishing to DOOHmain |
-| `admin.integ.donde.doohmain-detalle` | `app/(app)/(shell)/integraciones/page.tsx:204` | Desde la ficha de cada campaña | From each campaign’s profile |
-| `admin.integ.donde.cms` | `app/(app)/(shell)/integraciones/page.tsx:205` | CMS de cada pantalla | Each screen’s CMS |
-| `admin.integ.donde.cms-detalle` | `app/(app)/(shell)/integraciones/page.tsx:205` | En Network, pantalla por pantalla | In Network, screen by screen |
-| `admin.integ.donde.actualizaciones` | `app/(app)/(shell)/integraciones/page.tsx:206` | Actualizaciones de SPACE OS | SPACE OS updates |
-| `admin.integ.donde.actualizaciones-detalle` | `app/(app)/(shell)/integraciones/page.tsx:206` | En Administración → Configuración → Instancia | In Settings → Configuration → Instance |
+| `admin.integ.titulo` | `app/(app)/(shell)/integraciones/page.tsx:63` | Integraciones | Integrations |
+| `admin.integ.subtitulo` | `app/(app)/(shell)/integraciones/page.tsx:64` | Conectores externos · listos para enchufar credenciales | External connectors · ready to plug in credentials |
+| `admin.integ.aviso` | `app/(app)/(shell)/integraciones/page.tsx:75` | Hay conectores sin credenciales: devuelven datos {simulados} hasta que se configuren en el servidor. | Some connectors have no credentials: they return {simulados} data until they’re configured on the server. |
+| `admin.integ.simulados` | `app/(app)/(shell)/integraciones/page.tsx:75` | simulados | simulated |
+| `admin.integ.conectores` | `app/(app)/(shell)/integraciones/page.tsx:84` | Conectores | Connectors |
+| `admin.integ.conectados.uno` | `app/(app)/(shell)/integraciones/page.tsx:89` | {cifras} conectado | {cifras} connected |
+| `admin.integ.conectados.otros` | `app/(app)/(shell)/integraciones/page.tsx:89` | {cifras} conectados | {cifras} connected |
+| `admin.integ.sin-credenciales-n` | `app/(app)/(shell)/integraciones/page.tsx:94` | {n} sin credenciales | {n} without credentials |
+| `admin.integ.vacio` | `app/(app)/(shell)/integraciones/page.tsx:107` | No hay conectores que mostrar | There are no connectors to show |
+| `admin.integ.vacio-detalle` | `app/(app)/(shell)/integraciones/page.tsx:108` | Si esperabas verlos, puede que la consulta haya fallado: recarga la página. | If you expected to see them, the request may have failed: reload the page. |
+| `admin.integ.conector.admobilize.nombre` | clave armada en el código (prefijo + valor) | AdMobilize (Computer Vision) | AdMobilize (computer vision) |
+| `admin.integ.conector.admobilize.descripcion` | clave armada en el código (prefijo + valor) | Conteo de audiencia y vehículos por dispositivo de visión. | Audience and vehicle counts per vision device. |
+| `admin.integ.conector.cms.nombre` | clave armada en el código (prefijo + valor) | CMS / players DOOH | CMS / DOOH players |
+| `admin.integ.conector.cms.descripcion` | clave armada en el código (prefijo + valor) | Publicar contenido y traer proof-of-play (Broadsign, Doohmain, etc.). | Publish content and pull proof of play (Broadsign, DOOHmain, etc.). |
+| `admin.integ.conector.cfdi.nombre` | clave armada en el código (prefijo + valor) | Facturación fiscal (CFDI / SUNAT) | Tax invoicing (CFDI / SUNAT) |
+| `admin.integ.conector.cfdi.descripcion` | clave armada en el código (prefijo + valor) | Timbrado fiscal de facturas por país (PAC en MX / SUNAT en PE). | Tax stamping of invoices by country (PAC in Mexico / SUNAT in Peru). |
+| `admin.integ.conectado` | `app/(app)/(shell)/integraciones/page.tsx:125` | Conectado | Connected |
+| `admin.integ.sin-credenciales` | `app/(app)/(shell)/integraciones/page.tsx:125` | Sin credenciales | No credentials |
+| `admin.integ.cargadas` | `app/(app)/(shell)/integraciones/page.tsx:131` | Credenciales cargadas · responde el proveedor real. | Credentials loaded · the real provider responds. |
+| `admin.integ.simula` | `app/(app)/(shell)/integraciones/page.tsx:132` | Devuelve datos simulados. | Returns simulated data. |
+| `admin.integ.probar` | `app/(app)/(shell)/integraciones/page.tsx:147` | Probar AdMobilize | Test AdMobilize |
+| `admin.integ.probar-sub` | `app/(app)/(shell)/integraciones/page.tsx:149` | Diagnóstico · devuelve datos simulados sin credenciales | Diagnostics · returns simulated data without credentials |
+| `admin.integ.dispositivo` | `app/(app)/(shell)/integraciones/page.tsx:154` | ID del dispositivo | Device ID |
+| `admin.integ.consultando` | `app/(app)/(shell)/integraciones/page.tsx:162` | Consultando… | Querying… |
+| `admin.integ.consultar` | `app/(app)/(shell)/integraciones/page.tsx:162` | Consultar métricas | Query metrics |
+| `admin.integ.vehiculos` | `app/(app)/(shell)/integraciones/page.tsx:167` | Vehículos | Vehicles |
+| `admin.integ.personas` | `app/(app)/(shell)/integraciones/page.tsx:168` | Personas | People |
+| `admin.integ.velocidad` | `app/(app)/(shell)/integraciones/page.tsx:169` | Vel. prom. | Avg. speed |
+| `admin.integ.ventana` | `app/(app)/(shell)/integraciones/page.tsx:170` | Ventana | Window |
+| `admin.integ.datos-simulados` | `app/(app)/(shell)/integraciones/page.tsx:173` | Datos simulados (sin credenciales) | Simulated data (no credentials) |
+| `admin.integ.donde` | `app/(app)/(shell)/integraciones/page.tsx:183` | Dónde está lo demás | Where everything else is |
+| `admin.integ.donde.doohmain` | `app/(app)/(shell)/integraciones/page.tsx:211` | Publicación en DOOHmain | Publishing to DOOHmain |
+| `admin.integ.donde.doohmain-detalle` | `app/(app)/(shell)/integraciones/page.tsx:211` | Desde la ficha de cada campaña | From each campaign’s profile |
+| `admin.integ.donde.cms` | `app/(app)/(shell)/integraciones/page.tsx:212` | CMS de cada pantalla | Each screen’s CMS |
+| `admin.integ.donde.cms-detalle` | `app/(app)/(shell)/integraciones/page.tsx:212` | En Network, pantalla por pantalla | In Network, screen by screen |
+| `admin.integ.donde.actualizaciones` | `app/(app)/(shell)/integraciones/page.tsx:213` | Actualizaciones de SPACE OS | SPACE OS updates |
+| `admin.integ.donde.actualizaciones-detalle` | `app/(app)/(shell)/integraciones/page.tsx:213` | En Administración → Configuración → Instancia | In Settings → Business settings → Instance |
 | `admin.network.cms-otros` | `app/(app)/(shell)/network/page.tsx:38` | Otros | Other |
 | `admin.network.subtitulo` | `app/(app)/(shell)/network/page.tsx:68` | Inventario sin vender compartible a la Network · decides qué espacios incluir | Unsold inventory that can be shared to the Network · you decide which spaces to include |
 | `admin.network.indicadores` | `app/(app)/(shell)/network/page.tsx:76` | Indicadores | Indicators |
 | `admin.network.en-network` | `app/(app)/(shell)/network/page.tsx:84`<br>`app/(app)/(shell)/network/page.tsx:129` | En la Network | On the Network |
-| `admin.network.de-espacios` | `app/(app)/(shell)/network/page.tsx:84` | de {total} espacios | of {total} spaces |
+| `admin.network.de-espacios.uno` | `app/(app)/(shell)/network/page.tsx:84` | de {total} espacios | of {total} space |
+| `admin.network.de-espacios.otros` | `app/(app)/(shell)/network/page.tsx:84` | de {total} espacios | of {total} spaces |
 | `admin.network.sin-compartir` | `app/(app)/(shell)/network/page.tsx:85`<br>`app/(app)/(shell)/network/page.tsx:132` | Sin compartir | Not shared |
 | `admin.network.disponibles` | `app/(app)/(shell)/network/page.tsx:85` | disponibles para la Network | available for the Network |
 | `admin.network.programaticos` | `app/(app)/(shell)/network/page.tsx:86` | Programáticos | Programmatic |
@@ -475,7 +482,7 @@ Generada el 2026-11-02 a partir de `apps/web/lib/i18n/textos/admin.ts` y de los 
 | `admin.network.col.comercializacion` | `app/(app)/(shell)/network/page.tsx:149` | Comercialización | Sales model |
 | `admin.network.col.estatus` | `app/(app)/(shell)/network/page.tsx:151` | Estatus | Status |
 | `admin.network.col.en-network` | `app/(app)/(shell)/network/page.tsx:152` | En Network | On the Network |
-| `admin.network.ninguna` | `app/(app)/(shell)/network/page.tsx:159` | Ninguna pantalla coincide con el filtro. | No screen matches the filter. |
+| `admin.network.ninguna` | `app/(app)/(shell)/network/page.tsx:159` | Ninguna pantalla coincide con el filtro. | No screens match the filter. |
 | `admin.network.compartir` | `app/(app)/(shell)/network/page.tsx:192` | Compartir {nombre} a la Network | Share {nombre} to the Network |
 | `admin.network.toast.quitada` | `app/(app)/(shell)/network/page.tsx:195` | {nombre} quitada de la Network | {nombre} removed from the Network |
 | `admin.network.toast.compartida` | `app/(app)/(shell)/network/page.tsx:195` | {nombre} compartida a la Network | {nombre} shared to the Network |
@@ -493,8 +500,8 @@ Generada el 2026-11-02 a partir de `apps/web/lib/i18n/textos/admin.ts` y de los 
 | `admin.network.tuya` | `app/(app)/(shell)/network/page.tsx:267` | Tuya | Yours |
 | `admin.network.otro-operador` | `app/(app)/(shell)/network/page.tsx:269` | Otro operador | Another operator |
 | `admin.actividad.titulo` | `app/(app)/(shell)/actividad/page.tsx:65` | Actividad | Activity log |
-| `admin.actividad.subtitulo` | `app/(app)/(shell)/actividad/page.tsx:67` | Bitácora de acciones · quién hizo qué y cuándo | Log of actions · who did what and when |
-| `admin.actividad.registro` | `app/(app)/(shell)/actividad/page.tsx:81` | Registro de acciones | Action log |
+| `admin.actividad.subtitulo` | `app/(app)/(shell)/actividad/page.tsx:67` | Bitácora de acciones · quién hizo qué y cuándo | Who did what and when |
+| `admin.actividad.registro` | `app/(app)/(shell)/actividad/page.tsx:81` | Registro de acciones | Actions |
 | `admin.actividad.fecha` | `app/(app)/(shell)/actividad/page.tsx:94` | Fecha | Date |
 | `admin.actividad.hora` | `app/(app)/(shell)/actividad/page.tsx:98` | Hora | Time |
 | `admin.actividad.toda-hora` | `app/(app)/(shell)/actividad/page.tsx:100` | Toda hora | Any time |
@@ -503,7 +510,7 @@ Generada el 2026-11-02 a partir de `apps/web/lib/i18n/textos/admin.ts` y de los 
 | `admin.actividad.limpiar` | `app/(app)/(shell)/actividad/page.tsx:119` | Limpiar | Clear |
 | `admin.actividad.vacio` | `app/(app)/(shell)/actividad/page.tsx:133` | Sin actividad todavía | No activity yet |
 | `admin.actividad.vacio-detalle` | `app/(app)/(shell)/actividad/page.tsx:134` | Las acciones (reservar, confirmar, cerrar OT, facturar…) aparecerán aquí con su usuario y fecha. | Actions (booking, confirming, closing work orders, invoicing…) will show up here with their user and date. |
-| `admin.actividad.sin-coincidencias` | `app/(app)/(shell)/actividad/page.tsx:140` | Ninguna acción coincide con los filtros. | No action matches the filters. |
+| `admin.actividad.sin-coincidencias` | `app/(app)/(shell)/actividad/page.tsx:140` | Ninguna acción coincide con los filtros. | No actions match the filters. |
 | `admin.actividad.limpiar-filtros` | `app/(app)/(shell)/actividad/page.tsx:144` | Limpiar filtros | Clear filters |
 | `admin.actividad.acciones` | `app/(app)/(shell)/actividad/page.tsx:190` | acciones | actions |
 | `admin.actividad.hoy` | `app/(app)/(shell)/actividad/page.tsx:162` | Hoy | Today |
@@ -511,7 +518,7 @@ Generada el 2026-11-02 a partir de `apps/web/lib/i18n/textos/admin.ts` y de los 
 | `admin.razones.sin-acceso` | `app/(app)/(shell)/razones-sociales/page.tsx:69` | Tu rol no tiene acceso a la administración de la organización. | Your role doesn’t have access to the organization’s administration. |
 | `admin.razones.error` | `app/(app)/(shell)/razones-sociales/page.tsx:70`<br>`app/(app)/(shell)/razones-sociales/page.tsx:77` | No se pudieron cargar las razones sociales | The legal entities could not be loaded |
 | `admin.razones.titulo` | `app/(app)/(shell)/razones-sociales/page.tsx:92`<br>`components/demo/razones-sociales/GestionEntidadesFiscales.tsx:335` | Razones sociales | Legal entities |
-| `admin.razones.subtitulo` | `app/(app)/(shell)/razones-sociales/page.tsx:94` | Las de tu empresa · con cuál pagas las rentas, compras los activos, tramitas licencias y vendes | Your company’s · which one pays the rents, buys the assets, handles permits and sells |
+| `admin.razones.subtitulo` | `app/(app)/(shell)/razones-sociales/page.tsx:94` | Las de tu empresa · con cuál pagas las rentas, compras los activos, tramitas licencias y vendes | Your company’s legal entities · which one pays rent, buys assets, handles permits and sells |
 | `admin.razones.toast.agregada` | `components/demo/razones-sociales/GestionEntidadesFiscales.tsx:158` | Razón social agregada | Legal entity added |
 | `admin.razones.toast.actualizada` | `components/demo/razones-sociales/GestionEntidadesFiscales.tsx:161` | Razón social actualizada | Legal entity updated |
 | `admin.razones.toast.baja` | `components/demo/razones-sociales/GestionEntidadesFiscales.tsx:178` | Razón social dada de baja · los documentos que la nombran se conservan | Legal entity deactivated · the documents that name it are kept |
@@ -521,12 +528,12 @@ Generada el 2026-11-02 a partir de `apps/web/lib/i18n/textos/admin.ts` y de los 
 | `admin.razones.razon-social` | `components/demo/razones-sociales/GestionEntidadesFiscales.tsx:205` | Razón social | Legal name |
 | `admin.razones.razon-ejemplo` | `components/demo/razones-sociales/GestionEntidadesFiscales.tsx:210` | Denominación fiscal, como aparece en la constancia | Registered name, as it appears on the tax certificate |
 | `admin.razones.regimen` | `components/demo/razones-sociales/GestionEntidadesFiscales.tsx:223` | Régimen fiscal | Tax regime |
-| `admin.razones.cp` | `components/demo/razones-sociales/GestionEntidadesFiscales.tsx:232` | CP fiscal | Tax ZIP code |
+| `admin.razones.cp` | `components/demo/razones-sociales/GestionEntidadesFiscales.tsx:232` | CP fiscal | Tax postal code |
 | `admin.razones.serie` | `components/demo/razones-sociales/GestionEntidadesFiscales.tsx:241` | Serie de folios | Invoice series |
 | `admin.razones.papel` | `components/demo/razones-sociales/GestionEntidadesFiscales.tsx:256` | Qué papel juega esta razón social | What role this legal entity plays |
 | `admin.razones.sin-papel-ok` | `components/demo/razones-sociales/GestionEntidadesFiscales.tsx:283` | Sin ningún papel también se guarda: cuál juega se puede decidir después. | It can be saved with no role too: which one it plays can be decided later. |
 | `admin.razones.huerfanos` | `components/demo/razones-sociales/GestionEntidadesFiscales.tsx:312` | Ninguna razón social activa tiene {papeles}. Los documentos de ese tipo van a nacer sin razón social hasta que se lo asignes a alguna. | No active legal entity has {papeles}. Documents of that type will be created without a legal entity until you assign it to one. |
-| `admin.razones.compartidos` | `components/demo/razones-sociales/GestionEntidadesFiscales.tsx:320` | {papeles} lo tienen dos o más. Cuando hay varias con el mismo papel el sistema no propone ninguna, así que habrá que elegirla a mano en cada contrato o comprobante. | {papeles} is held by two or more. When several share the same role the system doesn’t suggest any, so it has to be chosen by hand on each contract or receipt. |
+| `admin.razones.compartidos` | `components/demo/razones-sociales/GestionEntidadesFiscales.tsx:320` | {papeles} lo tienen dos o más. Cuando hay varias con el mismo papel el sistema no propone ninguna, así que habrá que elegirla a mano en cada contrato o comprobante. | Held by two or more legal entities: {papeles}. When several share the same role the system doesn’t suggest any, so it has to be chosen by hand on each contract or receipt. |
 | `admin.razones.n-activas.uno` | `components/demo/razones-sociales/GestionEntidadesFiscales.tsx:339` | {n} activa | {n} active |
 | `admin.razones.n-activas.otros` | `components/demo/razones-sociales/GestionEntidadesFiscales.tsx:339` | {n} activas | {n} active |
 | `admin.razones.de-baja` | `components/demo/razones-sociales/GestionEntidadesFiscales.tsx:340` | {n} de baja | {n} deactivated |
@@ -537,11 +544,11 @@ Generada el 2026-11-02 a partir de `apps/web/lib/i18n/textos/admin.ts` y de los 
 | `admin.razones.vacio-detalle` | `components/demo/razones-sociales/GestionEntidadesFiscales.tsx:361` | Es la identidad fiscal del negocio: con cuál pagas las rentas, con cuál compras los activos, con cuál tramitas licencias y con cuál vendes. Pueden ser varias, y es lo normal. | It’s the business’s tax identity: which one pays the rents, which one buys the assets, which one handles permits and which one sells. There can be several, and that’s normal. |
 | `admin.razones.cuestionario` | `components/demo/razones-sociales/GestionEntidadesFiscales.tsx:371` | Si prefieres capturarlas contestando tres preguntas, el {enlace} las crea de una vez con sus papeles. | If you’d rather enter them by answering three questions, the {enlace} creates them all at once with their roles. |
 | `admin.razones.cuestionario-enlace` | `components/demo/razones-sociales/GestionEntidadesFiscales.tsx:374` | cuestionario de bienvenida | welcome questionnaire |
-| `admin.razones.principal-title` | `components/demo/razones-sociales/GestionEntidadesFiscales.tsx:403` | Sale en contratos y en el Dashboard · se cambia en Administración → Configuración | Shown on contracts and on the Dashboard · changed in Settings → Configuration |
+| `admin.razones.principal-title` | `components/demo/razones-sociales/GestionEntidadesFiscales.tsx:403` | Sale en contratos y en el Dashboard · se cambia en Administración → Configuración | Shown on contracts and on the Dashboard · changed in Settings → Business settings |
 | `admin.razones.principal` | `components/demo/razones-sociales/GestionEntidadesFiscales.tsx:404` | Principal | Main |
 | `admin.razones.dada-de-baja` | `components/demo/razones-sociales/GestionEntidadesFiscales.tsx:407` | Dada de baja | Deactivated |
 | `admin.razones.sin-rfc` | `components/demo/razones-sociales/GestionEntidadesFiscales.tsx:410` | sin RFC | no RFC |
-| `admin.razones.cp-n` | `components/demo/razones-sociales/GestionEntidadesFiscales.tsx:412` | ␣· CP {cp} | ␣· ZIP {cp} |
+| `admin.razones.cp-n` | `components/demo/razones-sociales/GestionEntidadesFiscales.tsx:412` | ␣· CP {cp} | ␣· Postal code {cp} |
 | `admin.razones.serie-n` | `components/demo/razones-sociales/GestionEntidadesFiscales.tsx:413` | ␣· serie {serie} | ␣· series {serie} |
 | `admin.razones.sin-papel` | `components/demo/razones-sociales/GestionEntidadesFiscales.tsx:417` | Sin papel asignado | No role assigned |
 | `admin.razones.editar` | `components/demo/razones-sociales/GestionEntidadesFiscales.tsx:433` | Editar | Edit |

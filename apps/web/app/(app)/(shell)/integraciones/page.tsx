@@ -9,9 +9,9 @@ import { Button } from '@/components/demo/ui/Button'
 import { formatNumero } from '@/lib/formato-numero'
 import { EmptyState } from '@/components/demo/EmptyState'
 import { Chip, TONO } from '@/components/demo/admin/Chip'
-import { useTexto } from '@/lib/i18n/contexto'
+import { useIdioma } from '@/lib/i18n/contexto'
 import { interpolarNodos } from '@/lib/i18n/nodos'
-import type { ClaveTexto } from '@/lib/i18n/diccionario'
+import { DICCIONARIOS, type ClaveTexto } from '@/lib/i18n/diccionario'
 
 const API = '/spaces-dooh/api/integraciones'
 
@@ -27,7 +27,14 @@ export default function IntegracionesPage() {
   const [device, setDevice] = useState('ADM-00123')
   const [metricas, setMetricas] = useState<any>(null)
   const [probando, setProbando] = useState(false)
-  const t = useTexto()
+  const { t, idioma } = useIdioma()
+  // El nombre y la descripcion de cada conector los manda el servidor en
+  // espanol (`estadoIntegraciones`): en espanol se pinta lo que llega; en otro
+  // idioma, `admin.integ.conector.<clave>.*` si existe (como `admin.modulo.*`).
+  const delConector = (it: Estado, campo: 'nombre' | 'descripcion') => {
+    const k = `admin.integ.conector.${it.clave}.${campo}`
+    return idioma !== 'es' && k in DICCIONARIOS.es ? t(k as ClaveTexto) : it[campo]
+  }
 
   useEffect(() => {
     fetch(`${API}/`, { cache: 'no-store' })
@@ -112,13 +119,13 @@ export default function IntegracionesPage() {
                     {/* El icono distingue el conector, no su estado: va en
                         gris y el estado lo dice el chip, con texto. */}
                     <Icono className="h-4 w-4 shrink-0 text-muted" />
-                    <span className="text-[14px] font-medium text-ink">{it.nombre}</span>
+                    <span className="text-[14px] font-medium text-ink">{delConector(it, 'nombre')}</span>
                   </div>
                   <Chip tono={it.configurado ? 'exito' : 'aviso'} punto>
                     {it.configurado ? t('admin.integ.conectado') : t('admin.integ.sin-credenciales')}
                   </Chip>
                 </div>
-                <p className="mt-1.5 text-[12px] text-muted">{it.descripcion}</p>
+                <p className="mt-1.5 text-[12px] text-muted">{delConector(it, 'descripcion')}</p>
                 <p className="mt-2 text-[11px] text-muted">
                   {it.configurado
                     ? t('admin.integ.cargadas')

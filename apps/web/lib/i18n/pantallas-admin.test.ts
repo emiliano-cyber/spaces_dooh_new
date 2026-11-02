@@ -308,24 +308,24 @@ const PANTALLAS: Pantalla[] = [
       'Organizaciones (CRMs)', 'Nueva organización', 'Entrar', 'Volver a mi CRM',
     ],
     ingles: [
-      'Settings', 'Users, roles and business settings', 'Roles and permissions', 'Configuration', 'Team', '3 users',
+      'Settings', 'Users, roles and business settings', 'Roles and permissions', 'Business settings', 'Team', '3 users',
       '2 active', '1 inactive', 'Invite user', 'you', 'Change mine', 'You can’t change your own status',
-      'Click to deactivate Beto Ventas', 'Role of Beto Ventas', 'Owner', 'Sales rep', 'Sales director',
+      'Click to deactivate Beto Ventas', 'Beto Ventas’s role', 'Owner', 'Sales rep', 'Sales director',
       'Change control', 'It applies to you too.', 'Turn off change control',
       'On. After a valid password is typed, the session stays unlocked for 15 minutes and then asks again.',
       'Permissions by role and module', 'Pricing and discounts', 'View', 'Create', 'Cost', 'Clients', 'Proposals',
       'Company identity', 'Upload logo', 'Company name', 'Currency', 'Legal name', 'Trade name',
       'Tax details for contracts', 'lessee', 'RFC (tax ID), Tax address, Legal representative</b> are missing.',
-      'Notification email', 'VAT rates you work with', 'Payment terms (days)', 'Commercial discount cap',
+      'Notification email', 'VAT rates you work with', 'Payment terms (days)', 'Sales discount cap',
       'is not saved', 'Client cap per screen', 'Proposals: validity and terms', 'Digital playback (loop)',
       '</b> of 1 digital screen has its own number other than 6 (8 slots).',
       'Crew task types', 'Vinyl installation', 'Removal', 'static screen only', 'static and digital',
       'Labor cost by work order type', 'Uses the fallback', 'Preventive maintenance',
       'Updates', 'A new version is available: v0.12.5. Waiting for your approval to install it.',
-      'Installed:', 'What v0.12.5 brings', 'New', 'Fixed', 'Install v0.12.5',
+      'Installed:', 'What’s in v0.12.5', 'New', 'Fixed', 'Install v0.12.5',
       'Support', 'You have 1 ticket waiting for a reply.', 'New ticket', 'Open', 'Resolved', 'High',
       'Reply from AS OOH · ', 'Waiting for a reply from AS OOH.',
-      'Organizations (CRMs)', 'New organization', 'Enter', 'Back to my CRM',
+      'Platform organizations', 'New organization', 'Switch to', 'Back to my organization',
     ],
   },
   {
@@ -527,7 +527,7 @@ const PANTALLAS: Pantalla[] = [
     ],
     ingles: [
       'Company name and your account details.', 'Your password is temporary.', 'My account', 'Owner',
-      'You signed in with Google', 'Save changes', 'Company', 'Settings → Configuration', 'Company name',
+      'You signed in with Google', 'Save changes', 'Company', 'Settings → Business settings', 'Company name',
     ],
   },
   {
@@ -544,17 +544,19 @@ const PANTALLAS: Pantalla[] = [
     nombre: 'integraciones · conectores y metricas',
     pintar: async (i) => {
       const P = (await import('../../app/(app)/(shell)/integraciones/page')).default
+      // Los conectores REALES del servidor (nombre y descripcion en espanol):
+      // un dato inventado taparia que se pintan sin traducir (validacion, hallazgo 2).
+      const { estadoIntegraciones } = await import('../server/integraciones')
+      const reales = estadoIntegraciones().map((c, n) => ({ ...c, configurado: n === 0 }))
       return pintar(i, createElement(P), [
-        f('IntegracionesPage', 0, [
-          { clave: 'admobilize', nombre: 'AdMobilize', descripcion: 'Audiencias', configurado: true },
-          { clave: 'cfdi', nombre: 'CFDI', descripcion: 'Facturas', configurado: false },
-        ]),
+        f('IntegracionesPage', 0, reales),
         f('IntegracionesPage', 2, { vehiculos: 1200, personas: 300, velocidadPromedioKmh: 30, ventana: '1h', simulado: true }),
       ])
     },
     espanol: [
       'Integraciones', 'Conectores externos · listos para enchufar credenciales', 'Hay conectores sin credenciales: devuelven datos ',
-      'simulados', 'Conectores', '1 de 2', ' conectado', ' sin credenciales', 'Conectado', 'Sin credenciales',
+      'simulados', 'Conectores', '1 de 3', ' conectado', 'Conteo de audiencia y vehículos por dispositivo de visión.',
+      'Facturación fiscal (CFDI / SUNAT)', 'Timbrado fiscal de facturas por país', 'Publicar contenido y traer proof-of-play', ' sin credenciales', 'Conectado', 'Sin credenciales',
       'Credenciales cargadas · responde el proveedor real.', 'Devuelve datos simulados.', 'Probar AdMobilize',
       'Diagnóstico · devuelve datos simulados sin credenciales', 'ID del dispositivo', 'Consultar métricas', 'Vehículos',
       'Personas', 'Vel. prom.', 'Ventana', 'Datos simulados (sin credenciales)', 'Dónde está lo demás',
@@ -562,9 +564,10 @@ const PANTALLAS: Pantalla[] = [
       'Actualizaciones de SPACE OS', 'En Administración → Configuración → Instancia',
     ],
     ingles: [
-      'Integrations', 'Some connectors have no credentials', 'Connectors', '1 of 2', ' connected', ' without credentials',
+      'Integrations', 'Some connectors have no credentials', 'Connectors', '1 of 3', ' connected',
+      'Audience and vehicle counts per vision device.', 'Tax invoicing (CFDI / SUNAT)', 'CMS / DOOH players', ' without credentials',
       'No credentials', 'Test AdMobilize', 'Device ID', 'Query metrics', 'Vehicles', 'Where everything else is',
-      'Publishing to DOOHmain', 'In Settings → Configuration → Instance',
+      'Publishing to DOOHmain', 'In Settings → Business settings → Instance',
     ],
   },
   {
@@ -607,7 +610,7 @@ const PANTALLAS: Pantalla[] = [
       return pintar(i, createElement(P), [f('NetworkPage', 1, 'si')])
     },
     espanol: ['— ningún espacio digital compartido aún.', 'Ninguna pantalla coincide con el filtro.', 'Todas las pantallas de la red son tuyas (1); aquí aparecerán las de otros operadores.', 'Ver todas (1) →'],
-    ingles: ['— no digital space shared yet.', 'No screen matches the filter.', 'All the screens in the network are yours (1)', 'See all (1) →'],
+    ingles: ['— no digital space shared yet.', 'No screens match the filter.', 'All the screens in the network are yours (1)', 'See all (1) →'],
   },
   {
     nombre: 'network · red vacia',
@@ -650,9 +653,9 @@ const PANTALLAS: Pantalla[] = [
     },
     espanol: [
       'Actividad', 'Bitácora de acciones · quién hizo qué y cuándo', 'Registro de acciones', '3 de 3', 'Fecha', 'Hora',
-      'Toda hora', 'Quién', 'Todos', 'Hoy', 'Ayer', ' acciones',
+      'Toda hora', 'Quién', 'Todos', 'Hoy', 'Ayer',
     ],
-    ingles: ['Activity log', 'Log of actions · who did what and when', 'Action log', '3 of 3', 'Date', 'Time', 'Any time', 'Who', 'All', 'Today', 'Yesterday', ' actions'],
+    ingles: ['Activity log', 'Who did what and when', 'Actions', '3 of 3', 'Date', 'Time', 'Any time', 'Who', 'All', 'Today', 'Yesterday'],
   },
   {
     nombre: 'actividad · sin coincidencias y vacia',
@@ -664,7 +667,7 @@ const PANTALLAS: Pantalla[] = [
       return a + b
     },
     espanol: ['Ninguna acción coincide con los filtros.', 'Limpiar filtros', 'Limpiar', 'Sin actividad todavía', 'Las acciones (reservar, confirmar, cerrar OT, facturar…) aparecerán aquí con su usuario y fecha.'],
-    ingles: ['No action matches the filters.', 'Clear filters', 'Clear', 'No activity yet'],
+    ingles: ['No actions match the filters.', 'Clear filters', 'Clear', 'No activity yet'],
   },
   {
     nombre: 'razones sociales · lista con avisos',
@@ -680,8 +683,8 @@ const PANTALLAS: Pantalla[] = [
       ' · CP 03100', ' · serie A', 'Sin papel asignado', 'Editar', 'Reactivar', 'Dar de baja',
     ],
     ingles: [
-      'Legal entities', 'No active legal entity has ', ' is held by two or more.', '2 active', ' deactivated', '2 warnings',
-      'New legal entity', 'Main', 'Deactivated', 'no RFC', ' · ZIP 03100', ' · series A', 'No role assigned', 'Edit', 'Reactivate', 'Deactivate',
+      'Legal entities', 'No active legal entity has ', 'Held by two or more legal entities: ', '2 active', ' deactivated', '2 warnings',
+      'New legal entity', 'Main', 'Deactivated', 'no RFC', ' · Postal code 03100', ' · series A', 'No role assigned', 'Edit', 'Reactivate', 'Deactivate',
     ],
   },
   {
@@ -700,7 +703,7 @@ const PANTALLAS: Pantalla[] = [
       'Ya tienes «Medios Norte SA», que es la misma razon social escrita de otra forma.',
     ],
     ingles: [
-      'Legal name', 'Registered name, as it appears on the tax certificate', 'Tax regime', 'Tax ZIP code', 'Invoice series',
+      'Legal name', 'Registered name, as it appears on the tax certificate', 'Tax regime', 'Tax postal code', 'Invoice series',
       'What role this legal entity plays', 'You already have “Medios Norte SA”, which is the same legal entity written differently.',
     ],
   },

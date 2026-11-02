@@ -33,6 +33,7 @@ const IGUALES = new Set([
   'admin.logo.campo', // «Logo»
   'admin.cuenta.error', // «Error»
   'admin.network.no', // «No»
+  'admin.tickets.prioridad.normal', // «Normal» (validacion: «Normal priority» esquivaba esta guardia)
 ])
 
 describe('diccionario de administracion · el ingles no esta en espanol', () => {
@@ -93,6 +94,16 @@ describe('diccionario de administracion · el espanol reproduce EXACTAMENTE su m
       expect(ES[k]).toBe(label)
       expect(etiquetaTipoOt(tipo as never)).toBe(label)
       expect(etiquetaTipoOt(tipo as never, 'en')).toBe(EN_ADMIN[k as keyof typeof EN_ADMIN])
+    }
+  })
+
+  it('conectores de Integraciones: su espanol es el que manda el servidor', async () => {
+    const { estadoIntegraciones } = await import('../../server/integraciones')
+    const conectores = estadoIntegraciones()
+    expect(conectores.length).toBeGreaterThan(0)
+    for (const c of conectores) {
+      expect(ES[`admin.integ.conector.${c.clave}.nombre`]).toBe(c.nombre)
+      expect(ES[`admin.integ.conector.${c.clave}.descripcion`]).toBe(c.descripcion)
     }
   })
 
@@ -160,7 +171,7 @@ describe('administracion · las frases de `actualizaciones-ui` y `tickets-ui` en
   it('en ingles, sin una palabra espanola y con su plural', async () => {
     const a = await import('../../../components/demo/admin/actualizaciones-ui')
     expect(a.textoConfirmarInstalar({ ...base, migracionesPendientes: 3, notasDisponibles: {} } as never, 'en')).toBe(
-      'You’re about to install v2. It brings 3 pending migrations. The service goes down while the installation runs.',
+      'You’re about to install v2. It includes 3 pending migrations. The service goes down while the installation runs.',
     )
     expect(a.textoDeEstado({ ...base, aprobadoDigest: 'd1' } as never, 'en').texto).toBe(
       'What you approved is no longer what’s available: a newer version came out, v2. Approve again to install it.',
@@ -169,7 +180,7 @@ describe('administracion · las frases de `actualizaciones-ui` y `tickets-ui` en
       'Up to date: running v1, the same one that is available.',
     )
     expect(a.avisoSinNotas(base as never, 'en')).toMatch(/^The notes for v2 didn’t arrive/)
-    expect(a.tituloNotasDisponibles({ ...base, versionDisponible: null } as never, 'en')).toBe('What the available version brings')
+    expect(a.tituloNotasDisponibles({ ...base, versionDisponible: null } as never, 'en')).toBe('What’s in the available version')
     const tk = await import('../../../components/demo/admin/tickets-ui')
     expect(tk.textoDeEstado([{ respuesta: null }] as never, 'en').texto).toBe('You have 1 ticket waiting for a reply.')
     expect(tk.textoDeEstado([] as never, 'en').texto).toBe('You haven’t opened any support tickets yet.')

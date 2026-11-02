@@ -172,7 +172,7 @@ export type ClaveCuenta = keyof typeof ES_CUENTA
 
 export const EN_CUENTA: Record<ClaveCuenta, string> = {
   'cuenta.comun.enlace-invalido': 'Invalid link',
-  'cuenta.comun.ir-inicio': 'Go to home',
+  'cuenta.comun.ir-inicio': 'Go to the home page',
   'cuenta.comun.nueva-contrasena': 'New password',
   'cuenta.comun.confirmar-contrasena': 'Confirm password',
   'cuenta.comun.no-coinciden': 'The passwords don’t match.',
@@ -232,8 +232,7 @@ export const EN_CUENTA: Record<ClaveCuenta, string> = {
   'cuenta.recuperar.error': 'The password could not be reset',
 
   'cuenta.bienvenida.titulo': 'Before you start',
-  'cuenta.bienvenida.intro':
-    'Three questions about your company’s legal entities. With them the system knows in whose name a rent is paid and who issues a receipt.',
+  'cuenta.bienvenida.intro': 'Three questions about your company’s legal entities. With them the system knows who pays each rent and who issues invoices.',
   'cuenta.bienvenida.error.cargar': 'The questionnaire could not be loaded',
   'cuenta.bienvenida.ya.uno':
     'Your company already has one legal entity registered, so this questionnaire has already been answered.',
@@ -246,7 +245,7 @@ export const EN_CUENTA: Record<ClaveCuenta, string> = {
   'cuenta.cuestionario.p1': 'Does your company have several legal entities?',
   'cuenta.cuestionario.p1.ayuda':
     'Most media companies split their operations across several. If you have only one, this saves you the rest.',
-  'cuenta.cuestionario.p2': 'Are operations under the same legal entity that sells or invoices the sales?',
+  'cuenta.cuestionario.p2': 'Do operations run under the same legal entity that sells or invoices?',
   'cuenta.cuestionario.p2.ayuda':
     'They usually match, which is why we ask: if that’s your case, the next step asks you for one thing less.',
   'cuenta.cuestionario.p3.una': 'Enter your legal entity',
@@ -285,10 +284,8 @@ export const EN_CUENTA: Record<ClaveCuenta, string> = {
   'cuenta.publica.kpi.sitios': 'Sites',
   'cuenta.publica.sitios': 'Sites in the proposal',
   'cuenta.publica.sin-ubicacion': 'Location not entered',
-  'cuenta.publica.mapa.parcial.uno':
-    '{faltan} of {n} screen has no coordinates entered; its address is in the list of sites.',
-  'cuenta.publica.mapa.parcial.otros':
-    '{faltan} of {n} screens have no coordinates entered; their address is in the list of sites.',
+  'cuenta.publica.mapa.parcial.uno': 'Screens without coordinates: {faltan} of {n}. Their addresses are in the list of sites.',
+  'cuenta.publica.mapa.parcial.otros': 'Screens without coordinates: {faltan} of {n}. Their addresses are in the list of sites.',
   'cuenta.publica.mapa.ninguna':
     'The screens in this proposal don’t have coordinates entered yet. Check the address of each one in the list of sites.',
   'cuenta.publica.aceptada.titulo': 'Proposal accepted',

@@ -19,6 +19,7 @@ import { ubicacion } from '@/lib/ubicacion'
 import { etiquetaTipoMedio } from '@/lib/tipo-medio'
 import { useIdioma } from '@/lib/i18n/contexto'
 import { claveTipoMedio } from '@/components/demo/comercial/claves'
+import { CLAVE_ETAPA } from '@/components/demo/campanas/etiquetas'
 
 export default function PortalPage({ params }: { params: { token: string } }) {
   const campanas = useCampanas()
@@ -113,7 +114,13 @@ export default function PortalPage({ params }: { params: { token: string } }) {
             {pipeline && (
               <span className="inline-flex items-center gap-1.5">
                 <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-                {pipeline.pasos[pipeline.index]?.label}
+                {/* La etapa la arma `usePipeline` en espanol (`ETAPA_LABEL`); en
+                    otro idioma, por `CLAVE_ETAPA`, como `PipelineView`. */}
+                {(() => {
+                  const paso = pipeline.pasos[pipeline.index]
+                  if (!paso) return null
+                  return idioma === 'es' ? paso.label : t(CLAVE_ETAPA[paso.key])
+                })()}
               </span>
             )}
           </div>

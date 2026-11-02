@@ -374,7 +374,9 @@ const EN: Record<ClaveTexto, string> = {
   'nav.comisiones': 'Commissions',
   'nav.integraciones': 'Integrations',
   'nav.razones-sociales': 'Legal entities',
-  'nav.actividad': 'Activity',
+  // «Activity log», como el titulo de la pagina (decision del orquestador,
+  // 2026-11-02, segunda vuelta del lote de administracion).
+  'nav.actividad': 'Activity log',
   'nav.administracion': 'Settings',
 
   ...EN_PROPUESTAS,

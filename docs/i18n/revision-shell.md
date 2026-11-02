@@ -46,7 +46,7 @@ Generada el 2026-11-02 a partir de `apps/web/lib/i18n/textos/shell.ts` y de los 
 | `shell.topbar.borrar-todas` | `components/demo/shell/Topbar.tsx:101` | Borrar todas | Clear all |
 | `shell.topbar.sin-notificaciones` | `components/demo/shell/Topbar.tsx:107` | Sin notificaciones | No notifications |
 | `shell.topbar.cuenta` | `components/demo/shell/Topbar.tsx:133` | Cuenta | Account |
-| `shell.topbar.configuracion` | `components/demo/shell/Topbar.tsx:156` | Configuración | Configuration |
+| `shell.topbar.configuracion` | `components/demo/shell/Topbar.tsx:156` | Configuración | Account settings |
 | `shell.topbar.codigos` | `components/demo/shell/Topbar.tsx:169` | Códigos de recuperación | Recovery codes |
 | `shell.topbar.cerrar-sesion` | `components/demo/shell/Topbar.tsx:176` | Cerrar sesión | Sign out |
 | `shell.notificacion.borrar-aria` | `components/demo/shell/ItemNotificacion.tsx:65` | Borrar la notificación {titulo} | Delete the notification {titulo} |

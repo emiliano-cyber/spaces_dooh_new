@@ -28,8 +28,8 @@ Generada el 2026-11-02 a partir de `apps/web/lib/i18n/textos/cuenta.ts` y de los
 
 | clave | archivo:línea donde se usa | español | inglés |
 |---|---|---|---|
-| `cuenta.comun.enlace-invalido` | `app/(app)/p/[id]/page.tsx:155`<br>`app/(app)/portal/[token]/page.tsx:57` | Enlace no válido | Invalid link |
-| `cuenta.comun.ir-inicio` | `app/(app)/bienvenida/page.tsx:94`<br>`app/(app)/bienvenida/page.tsx:142` | Ir al inicio | Go to home |
+| `cuenta.comun.enlace-invalido` | `app/(app)/p/[id]/page.tsx:155`<br>`app/(app)/portal/[token]/page.tsx:58` | Enlace no válido | Invalid link |
+| `cuenta.comun.ir-inicio` | `app/(app)/bienvenida/page.tsx:94`<br>`app/(app)/bienvenida/page.tsx:142` | Ir al inicio | Go to the home page |
 | `cuenta.comun.nueva-contrasena` | `app/(app)/recuperar/[token]/page.tsx:124` | Nueva contraseña | New password |
 | `cuenta.comun.confirmar-contrasena` | `app/(app)/recuperar/[token]/page.tsx:128` | Confirmar contraseña | Confirm password |
 | `cuenta.comun.no-coinciden` | `app/(app)/recuperar/[token]/page.tsx:55` | Las contraseñas no coinciden. | The passwords don’t match. |
@@ -81,7 +81,7 @@ Generada el 2026-11-02 a partir de `apps/web/lib/i18n/textos/cuenta.ts` y de los
 | `cuenta.recuperar.guardando` | `app/(app)/recuperar/[token]/page.tsx:134` | Guardando… | Saving… |
 | `cuenta.recuperar.error` | `app/(app)/recuperar/[token]/page.tsx:64`<br>`app/(app)/recuperar/[token]/page.tsx:67` | No se pudo restablecer la contraseña | The password could not be reset |
 | `cuenta.bienvenida.titulo` | `app/(app)/bienvenida/page.tsx:81` | Antes de empezar | Before you start |
-| `cuenta.bienvenida.intro` | `app/(app)/bienvenida/page.tsx:83` | Tres preguntas sobre las razones sociales de tu empresa. Con ellas el sistema sabe a nombre de quién se paga una renta y quién emite un comprobante. | Three questions about your company’s legal entities. With them the system knows in whose name a rent is paid and who issues a receipt. |
+| `cuenta.bienvenida.intro` | `app/(app)/bienvenida/page.tsx:83` | Tres preguntas sobre las razones sociales de tu empresa. Con ellas el sistema sabe a nombre de quién se paga una renta y quién emite un comprobante. | Three questions about your company’s legal entities. With them the system knows who pays each rent and who issues invoices. |
 | `cuenta.bienvenida.error.cargar` | `app/(app)/bienvenida/page.tsx:63`<br>`app/(app)/bienvenida/page.tsx:68` | No se pudo cargar el cuestionario | The questionnaire could not be loaded |
 | `cuenta.bienvenida.ya.uno` | `app/(app)/bienvenida/page.tsx:108` | Tu empresa ya tiene una razón social registrada, así que este cuestionario ya se contestó. | Your company already has one legal entity registered, so this questionnaire has already been answered. |
 | `cuenta.bienvenida.ya.otros` | `app/(app)/bienvenida/page.tsx:109` | Tu empresa ya tiene {n} razones sociales registradas, así que este cuestionario ya se contestó. | Your company already has {n} legal entities registered, so this questionnaire has already been answered. |
@@ -91,7 +91,7 @@ Generada el 2026-11-02 a partir de `apps/web/lib/i18n/textos/cuenta.ts` y de los
 | `cuenta.bienvenida.ir-razones` | `app/(app)/bienvenida/page.tsx:139` | Ir a Razones sociales | Go to Legal entities |
 | `cuenta.cuestionario.p1` | `components/demo/bienvenida/CuestionarioRazonesSociales.tsx:125` | ¿Tu empresa tiene varias razones sociales? | Does your company have several legal entities? |
 | `cuenta.cuestionario.p1.ayuda` | `components/demo/bienvenida/CuestionarioRazonesSociales.tsx:126` | Casi todas las empresas de medios reparten su operación entre varias. Si tienes una sola, con esto te ahorras el resto. | Most media companies split their operations across several. If you have only one, this saves you the rest. |
-| `cuenta.cuestionario.p2` | `components/demo/bienvenida/CuestionarioRazonesSociales.tsx:142` | ¿La operación está en la misma razón social que comercializa o factura las ventas? | Are operations under the same legal entity that sells or invoices the sales? |
+| `cuenta.cuestionario.p2` | `components/demo/bienvenida/CuestionarioRazonesSociales.tsx:142` | ¿La operación está en la misma razón social que comercializa o factura las ventas? | Do operations run under the same legal entity that sells or invoices? |
 | `cuenta.cuestionario.p2.ayuda` | `components/demo/bienvenida/CuestionarioRazonesSociales.tsx:143` | Suelen coincidir, y por eso se pregunta: si es tu caso, el paso siguiente te pide un dato menos. | They usually match, which is why we ask: if that’s your case, the next step asks you for one thing less. |
 | `cuenta.cuestionario.p3.una` | `components/demo/bienvenida/CuestionarioRazonesSociales.tsx:159` | Indica tu razón social | Enter your legal entity |
 | `cuenta.cuestionario.p3.varias` | `components/demo/bienvenida/CuestionarioRazonesSociales.tsx:160` | Indica las razones sociales para cada rol dentro de tu empresa | Enter the legal entity for each role within your company |
@@ -108,13 +108,13 @@ Generada el 2026-11-02 a partir de `apps/web/lib/i18n/textos/cuenta.ts` y de los
 | `cuenta.cuestionario.contesta` | `components/demo/bienvenida/CuestionarioRazonesSociales.tsx:98` | Contesta las preguntas antes de continuar. | Answer the questions before you continue. |
 | `cuenta.cuestionario.error.guardar` | `components/demo/bienvenida/CuestionarioRazonesSociales.tsx:109` | No se pudo guardar el cuestionario | The questionnaire could not be saved |
 | `cuenta.cuestionario.listo` | `components/demo/bienvenida/CuestionarioRazonesSociales.tsx:110` | Listo: {resumen} | Done: {resumen} |
-| `cuenta.portal.no-corresponde` | `app/(app)/portal/[token]/page.tsx:59` | Este enlace de portal no corresponde a ninguna campaña activa. | This portal link doesn’t match any active campaign. |
-| `cuenta.portal.subtitulo` | `app/(app)/portal/[token]/page.tsx:97` | Portal del cliente | Client portal |
-| `cuenta.portal.seguimiento` | `app/(app)/portal/[token]/page.tsx:100` | Seguimiento de campaña | Campaign tracking |
-| `cuenta.portal.avance` | `app/(app)/portal/[token]/page.tsx:125` | Avance de tu campaña | Your campaign’s progress |
-| `cuenta.portal.ubicaciones` | `app/(app)/portal/[token]/page.tsx:135` | Ubicaciones | Locations |
-| `cuenta.portal.evidencias` | `app/(app)/portal/[token]/page.tsx:157` | Evidencias de instalación | Installation evidence |
-| `cuenta.portal.pie` | `app/(app)/portal/[token]/page.tsx:172` | {org} · portal de seguimiento | {org} · tracking portal |
+| `cuenta.portal.no-corresponde` | `app/(app)/portal/[token]/page.tsx:60` | Este enlace de portal no corresponde a ninguna campaña activa. | This portal link doesn’t match any active campaign. |
+| `cuenta.portal.subtitulo` | `app/(app)/portal/[token]/page.tsx:98` | Portal del cliente | Client portal |
+| `cuenta.portal.seguimiento` | `app/(app)/portal/[token]/page.tsx:101` | Seguimiento de campaña | Campaign tracking |
+| `cuenta.portal.avance` | `app/(app)/portal/[token]/page.tsx:132` | Avance de tu campaña | Your campaign’s progress |
+| `cuenta.portal.ubicaciones` | `app/(app)/portal/[token]/page.tsx:142` | Ubicaciones | Locations |
+| `cuenta.portal.evidencias` | `app/(app)/portal/[token]/page.tsx:164` | Evidencias de instalación | Installation evidence |
+| `cuenta.portal.pie` | `app/(app)/portal/[token]/page.tsx:179` | {org} · portal de seguimiento | {org} · tracking portal |
 | `cuenta.publica.no-corresponde` | `app/(app)/p/[id]/page.tsx:156` | Esta liga no corresponde a ninguna propuesta. | This link doesn’t match any proposal. |
 | `cuenta.publica.subtitulo` | `app/(app)/p/[id]/page.tsx:210` | Propuesta comercial | Sales proposal |
 | `cuenta.publica.aceptada` | `app/(app)/p/[id]/page.tsx:215` | Aceptada | Accepted |
@@ -126,8 +126,8 @@ Generada el 2026-11-02 a partir de `apps/web/lib/i18n/textos/cuenta.ts` y de los
 | `cuenta.publica.kpi.sitios` | `app/(app)/p/[id]/page.tsx:259` | Sitios | Sites |
 | `cuenta.publica.sitios` | `app/(app)/p/[id]/page.tsx:266` | Sitios de la propuesta | Sites in the proposal |
 | `cuenta.publica.sin-ubicacion` | `app/(app)/p/[id]/page.tsx:294` | Ubicación no capturada | Location not entered |
-| `cuenta.publica.mapa.parcial.uno` | `app/(app)/p/[id]/page.tsx:342` | {faltan} de {n} pantalla no tienen coordenadas registradas; su dirección está en la lista de sitios. | {faltan} of {n} screen has no coordinates entered; its address is in the list of sites. |
-| `cuenta.publica.mapa.parcial.otros` | `app/(app)/p/[id]/page.tsx:342` | {faltan} de {n} pantallas no tienen coordenadas registradas; su dirección está en la lista de sitios. | {faltan} of {n} screens have no coordinates entered; their address is in the list of sites. |
+| `cuenta.publica.mapa.parcial.uno` | `app/(app)/p/[id]/page.tsx:342` | {faltan} de {n} pantalla no tienen coordenadas registradas; su dirección está en la lista de sitios. | Screens without coordinates: {faltan} of {n}. Their addresses are in the list of sites. |
+| `cuenta.publica.mapa.parcial.otros` | `app/(app)/p/[id]/page.tsx:342` | {faltan} de {n} pantallas no tienen coordenadas registradas; su dirección está en la lista de sitios. | Screens without coordinates: {faltan} of {n}. Their addresses are in the list of sites. |
 | `cuenta.publica.mapa.ninguna` | `app/(app)/p/[id]/page.tsx:351` | Las pantallas de esta propuesta aún no tienen coordenadas registradas. Consulta la dirección de cada una en la lista de sitios. | The screens in this proposal don’t have coordinates entered yet. Check the address of each one in the list of sites. |
 | `cuenta.publica.aceptada.titulo` | `app/(app)/p/[id]/page.tsx:440` | Propuesta aceptada | Proposal accepted |
 | `cuenta.publica.aceptada.detalle` | `app/(app)/p/[id]/page.tsx:444` | Aceptada el {fecha}. El equipo comercial fue notificado. | Accepted on {fecha}. The sales team was notified. |

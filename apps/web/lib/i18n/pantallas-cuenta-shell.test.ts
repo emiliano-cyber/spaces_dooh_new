@@ -290,7 +290,7 @@ const PANTALLAS: Pantalla[] = [
       'Clear all',
       'aria-label="Delete the notification Pago registrado"',
       'title="Delete this notification"',
-      'Configuration',
+      'Account settings',
       'Recovery codes',
       'Sign out',
     ],
@@ -664,7 +664,7 @@ const PANTALLAS: Pantalla[] = [
     ],
     ingles: [
       'Before you start',
-      'Three questions about your company’s legal entities. With them the system knows in whose name a rent is paid and who issues a receipt.',
+      'Three questions about your company’s legal entities. With them the system knows who pays each rent and who issues invoices.',
       'Loading…',
     ],
   },
@@ -704,7 +704,7 @@ const PANTALLAS: Pantalla[] = [
       ' (deactivated)',
       'To change them, add another one or deactivate one, go to',
       'Go to Legal entities',
-      'Go to home',
+      'Go to the home page',
     ],
   },
   {
@@ -766,7 +766,7 @@ const PANTALLAS: Pantalla[] = [
       'Se crearán 2 razones sociales:',
     ],
     ingles: [
-      'Are operations under the same legal entity that sells or invoices the sales?',
+      'Do operations run under the same legal entity that sells or invoices?',
       'They usually match, which is why we ask: if that’s your case, the next step asks you for one thing less.',
       'Enter the legal entity for each role within your company',
       'One legal entity can hold several roles: type the same name and they are grouped into one. Leave blank whatever you don’t know yet.',
@@ -795,8 +795,12 @@ const PANTALLAS: Pantalla[] = [
       'Pantalla digital · Cuauhtémoc, CDMX',
       'Evidencias de instalación',
       'Medios SA · portal de seguimiento',
+      // La etapa actual junto a las fechas (validacion, hallazgo 1): sale de
+      // `usePipeline` en espanol y en ingles va por `CLAVE_ETAPA`.
+      '<span class="h-1.5 w-1.5 rounded-full bg-accent"></span>Confirmada',
     ],
     ingles: [
+      '<span class="h-1.5 w-1.5 rounded-full bg-accent"></span>Confirmed',
       'Client portal',
       'Campaign tracking',
       'Nov 1, 2026 – Nov 30, 2026',
@@ -876,7 +880,7 @@ const PANTALLAS: Pantalla[] = [
       'Sites in the proposal',
       'Location not entered',
       'Screen locations',
-      '1 of 2 screens have no coordinates entered; their address is in the list of sites.',
+      'Screens without coordinates: 1 of 2. Their addresses are in the list of sites.',
       'Gross (list rate)',
       'Volume discount (2.5%)',
       'Discount (5%)',

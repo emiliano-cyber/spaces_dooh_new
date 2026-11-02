@@ -138,7 +138,7 @@ export const EN_SHELL: Record<ClaveShell, string> = {
   'shell.topbar.sin-notificaciones': 'No notifications',
   'shell.topbar.cuenta': 'Account',
   // Igual que `admin.cuenta.titulo` (la pantalla a la que lleva).
-  'shell.topbar.configuracion': 'Configuration',
+  'shell.topbar.configuracion': 'Account settings',
   'shell.topbar.codigos': 'Recovery codes',
   'shell.topbar.cerrar-sesion': 'Sign out',
 

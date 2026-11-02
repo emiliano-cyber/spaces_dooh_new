@@ -546,7 +546,7 @@ exports[`diccionario de campanas · instantanea > el INGLES tampoco 1`] = `
   "campanas.facturacion.clientes": "Clients",
   "campanas.facturacion.completa": "Complete the RFC and legal name in {clientes} to be able to invoice this campaign.",
   "campanas.facturacion.contrato": "Client contract",
-  "campanas.facturacion.cp": "Tax ZIP code",
+  "campanas.facturacion.cp": "Tax postal code",
   "campanas.facturacion.falta": "— missing —",
   "campanas.facturacion.faltan": "Tax details missing",
   "campanas.facturacion.iva": "VAT",

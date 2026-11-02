@@ -1004,7 +1004,7 @@ banda de la licencia, las novedades de la versión, el error de carga, el módul
 en construcción, y las piezas compartidas `ConfirmDialog` (sus rótulos por
 omisión), `FotoUploaderMock`, `PipelineView` y `disponibilidadInventario`.
 
-**Mecanismo.** Tres archivos: `textos/admin.ts` (525 claves), `textos/cuenta.ts`
+**Mecanismo.** Tres archivos: `textos/admin.ts` (532 claves), `textos/cuenta.ts`
 (115) y `textos/shell.ts` (58), esparcidos en `diccionario.ts` y añadidos a
 `costura.test.ts`. Instantáneas y guardias en `textos/admin.test.ts` y
 `textos/cuenta.test.ts` (este último cubre también `shell`), que además leen el
@@ -1038,24 +1038,33 @@ Actividad no cambien entre corridas.
 
 **Términos nuevos** (decisiones del traductor; el dueño puede cambiarlas):
 Administración → *Settings* (el título; su pestaña «Configuración» →
-*Configuration*) · organización → *organization* · ticket → *ticket* (soporte →
+**Business settings**, y la configuración de la cuenta del usuario, página y
+menú de usuario → **Account settings**: ya no queda ningún «Settings →
+Configuration») · organización → *organization* · ticket → *ticket* (soporte →
 *Support*) · control de cambios → *change control* (activar/desactivar → *turn
 on/off*) · actualizaciones → *updates* (instalada/disponible → *installed /
 available*) · razón social → *legal entity*, su nombre → *legal name*, la
 principal → *Main*, dar de baja → *deactivate*, papel → *role* · códigos de
 recuperación → *recovery codes* · bienvenida → *welcome* (el cuestionario →
 *welcome questionnaire*) · novedades → *What’s new* (notas de versión →
-*release notes*) · actividad → *Activity log* · Dueño (rol) → *Owner* ·
+*release notes*) · actividad → **Activity log**, también en el menú
+(`nav.actividad`, solo el `en`) · Dueño (rol) → *Owner* · Imprenta como rol →
+**Print shop** (el módulo sigue *Printing*) · Organizaciones (CRMs) →
+**Platform organizations** (es el panel del super-admin con las organizaciones
+—*tenants*— del servidor; «CRM» no le dice nada a quien compra) · código
+postal → **Postal code** (también `campanas.facturacion.cp`) ·
 Administrador → *Administrator* · Director comercial → *Sales director* ·
 Gerente de ventas → *Sales manager* · instancia → *instance* · parte
 arrendataria → *lessee* · cupo de clientes → *client cap* · tope de descuento →
 *discount cap* · plazos de cobranza → *Payment terms* · tipos de tarea de
 cuadrilla → *crew task types* · mano de obra → *labor* · domicilio fiscal →
 *tax address* · RFC → *RFC (tax ID)*, como en Campañas · capacidades de la
-matriz → *View / Create / Approve / Invoice / Cost*. Tres excepciones nuevas en
+matriz → *View / Create / Approve / Invoice / Costing*. Tres excepciones nuevas en
 `costura.test.ts`: «Actualizar» (*Refresh* / *Update*), «Baja»
 (*Decommissioned* / *Low*, la prioridad de un ticket) y «Cargo» (*Charge* /
-*Job title*).
+*Job title*); en la segunda vuelta, «Configuración», «Imprenta» y «Entrar»
+(*Sign in* / *Switch to*). Desde la segunda vuelta `costura.test.ts` compara
+también contra el diccionario BASE (`nav.*`, login, comunes).
 
 **Sigue en español, a propósito:** los registros de Actividad (`a.accion`, son
 bitácora), las notas de cada versión (las escribe un desarrollador: son dato),
@@ -1069,6 +1078,24 @@ no era de este lote, aunque Actividad ya le pasa su etiqueta traducida), las
 tablas de etiquetas de `StatusBadge.tsx` (cada lote las traduce en su punto de
 uso con sus espejos) y los mensajes del servidor (I18N-05). Tablas de revisión:
 `docs/i18n/revision-admin.md`, `revision-cuenta.md` y `revision-shell.md`.
+
+#### Segunda vuelta (validador ÁMBAR, `docs/i18n/validacion-administracion.md`)
+
+- **Los 4 medios:** la etapa del portal del cliente pasa por `CLAVE_ETAPA` (y
+  el estado de la prueba la lista); los conectores de Integraciones se
+  traducen por `admin.integ.conector.<clave>.nombre/.descripcion` solo en
+  inglés —el servidor sigue mandando su español, que una prueba ata a
+  `estadoIntegraciones()`— y la prueba usa los conectores REALES; «Normal»
+  (no «Normal priority»), declarado igual; el subtítulo de Razones sociales ya
+  no queda colgando.
+- **Los bajos, todos:** «of {total} space(s)», la frase del mapa de la liga
+  pública, «Held by two or more legal entities: …», «What’s in» / «includes»
+  en vez de «brings», «No screens match», «No actions match», «Who did what
+  and when» / «Actions», «{nombre}’s role», «(at least 8 characters)», «Sales
+  discount cap», «Switch to», el inciso entre paréntesis, la pregunta 2 del
+  cuestionario, «who issues invoices» y «Go to the home page».
+- **Español, otra vez medido:** 60 de 60 estados idénticos frente a
+  `ec427a66` (`diff -rq` vacío).
 
 ## Enlaces
 
