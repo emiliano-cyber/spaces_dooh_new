@@ -5,6 +5,9 @@ import { ES_CAMPANAS, EN_CAMPANAS } from './campanas'
 import { ES_FINANZAS, EN_FINANZAS } from './finanzas'
 import { ES_COMERCIAL, EN_COMERCIAL } from './comercial'
 import { ES_CODIGOS, EN_CODIGOS } from './codigos'
+import { ES_ADMIN, EN_ADMIN } from './admin'
+import { ES_CUENTA, EN_CUENTA } from './cuenta'
+import { ES_SHELL, EN_SHELL } from './shell'
 import { DICCIONARIOS } from '../diccionario'
 
 // ============================================================================
@@ -25,12 +28,18 @@ const LOTES: [string, Record<string, string>, Record<string, string>][] = [
   ['finanzas', ES_FINANZAS, EN_FINANZAS],
   ['comercial', ES_COMERCIAL, EN_COMERCIAL],
   ['codigos', ES_CODIGOS, EN_CODIGOS],
+  ['admin', ES_ADMIN, EN_ADMIN],
+  ['cuenta', ES_CUENTA, EN_CUENTA],
+  ['shell', ES_SHELL, EN_SHELL],
 ]
 
 // El mismo espanol que en ingles se dice distinto A PROPOSITO, porque en cada
 // pantalla significa otra cosa. Cada entrada dice por que; una divergencia que
 // no este aqui es un descuido de un lote y la prueba la enseña.
 const DISTINTOS_A_PROPOSITO: Record<string, string> = {
+  Actualizar: 'refrescar una lista («Refresh») frente a guardar un correo ya escrito («Update»), en Administracion',
+  Baja: 'el estatus de un sitio dado de baja («Decommissioned») frente a la prioridad de un ticket de soporte («Low»)',
+  Cargo: 'un cargo contable del estado de cuenta («Charge») frente al puesto de un usuario («Job title»)',
   Comercial: 'en la ficha de campaña es la seccion de importes («Pricing», decision del orquestador); el modulo es «Sales», como el menu',
   Desde: 'un periodo de fechas («From») frente a la competencia del espacio, que esta ahi «desde» («Since»)',
   Folio: 'glosario: «Internal ref.» en propuestas y campañas, «Invoice no.» en una factura',

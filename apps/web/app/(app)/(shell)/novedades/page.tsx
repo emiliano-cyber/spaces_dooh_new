@@ -7,7 +7,9 @@ import { NotasDeVersion } from '@/components/demo/novedades/NotasDeVersion'
 import { getNovedadesApi, type NovedadesDeLaInstancia } from '@/lib/data/novedades-api'
 import type { EntradaNovedades, TipoNovedad } from '@/lib/novedades'
 import { formatFecha } from '@/lib/data/client'
-import { conteo } from '@/lib/plural'
+import { formatNumero } from '@/lib/formato-numero'
+import { useIdioma } from '@/lib/i18n/contexto'
+import type { ClaveTexto } from '@/lib/i18n/diccionario'
 import { EmptyState } from '@/components/demo/EmptyState'
 import { Chip } from '@/components/demo/admin/Chip'
 
@@ -27,6 +29,7 @@ import { Chip } from '@/components/demo/admin/Chip'
 export default function NovedadesPage() {
   const [datos, setDatos] = useState<NovedadesDeLaInstancia | null>(null)
   const [error, setError] = useState(false)
+  const { t, idioma } = useIdioma()
 
   useEffect(() => {
     getNovedadesApi().then(setDatos).catch(() => setError(true))
@@ -37,23 +40,23 @@ export default function NovedadesPage() {
       {/* Encabezado como el de los demás módulos (`text-2xl`, sin icono). */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl text-ink">Novedades</h1>
-          <p className="mt-1 text-[13px] text-muted">Lo que trajo cada versión de SPACE OS, de la más nueva a la más vieja.</p>
+          <h1 className="text-2xl text-ink">{t('admin.novedades.titulo')}</h1>
+          <p className="mt-1 text-[13px] text-muted">{t('admin.novedades.subtitulo')}</p>
         </div>
         {datos?.version && (
           <Chip tono="acento" className="mt-1">
-            Versión instalada: <span className="demo-num">{datos.version}</span>
+            {t('admin.novedades.version-instalada')} <span className="demo-num">{datos.version}</span>
           </Chip>
         )}
       </div>
 
       <div className="max-w-4xl space-y-4">
       {error ? (
-        <EmptyState icon={Sparkles} titulo="No se pudieron cargar las novedades." />
+        <EmptyState icon={Sparkles} titulo={t('admin.novedades.error')} />
       ) : !datos ? (
         <div className="h-24 animate-pulse rounded bg-surface-2" />
       ) : datos.novedades.length === 0 ? (
-        <EmptyState icon={Sparkles} titulo="Todavía no hay notas de versión." />
+        <EmptyState icon={Sparkles} titulo={t('admin.novedades.vacio')} />
       ) : (
         datos.novedades.map((e, i) => {
           // La que corre esta instancia: compara la ENTRADA, asi una
@@ -74,9 +77,9 @@ export default function NovedadesPage() {
             defaultAbierto={i === 0 || instalada}
             resumen={
               <span className="flex flex-wrap items-center justify-end gap-1.5">
-                <span className="demo-num text-[12px] text-muted">{formatFecha(e.fecha)}</span>
-                {instalada && <Chip tono="acento">Instalada</Chip>}
-                {conteosDe(e.items).map((c) => (
+                <span className="demo-num text-[12px] text-muted">{formatFecha(e.fecha, idioma)}</span>
+                {instalada && <Chip tono="acento">{t('admin.novedades.instalada')}</Chip>}
+                {conteosDe(e.items, t).map((c) => (
                   <Chip key={c}><span className="demo-num">{c}</span></Chip>
                 ))}
               </span>
@@ -95,11 +98,18 @@ export default function NovedadesPage() {
 // «3 nuevas · 2 ajustes · 1 corrección», contados sobre los items de la
 // versión. No usa `agruparPorTipo` (ni lo cambia): solo cuenta, y en el mismo
 // orden Nuevo → Ajustado → Corregido.
-function conteosDe(items: EntradaNovedades['items']): string[] {
+function conteosDe(
+  items: EntradaNovedades['items'],
+  tr: (clave: ClaveTexto, valores?: Record<string, string | number>) => string,
+): string[] {
   const n = (t: TipoNovedad) => items.filter((x) => x.tipo === t).length
+  // El plural, con `.uno`/`.otros` (I18N, 2026-11-02): el espanol es el de
+  // `conteo()` de siempre («1 nueva», «2 ajustes», «1 corrección»).
+  const contar = (c: number, base: 'nuevas' | 'ajustes' | 'correcciones') =>
+    tr(`admin.novedades.n-${base}.${Math.abs(c) === 1 ? 'uno' : 'otros'}` as ClaveTexto, { n: formatNumero(c) })
   return [
-    n('NUEVO') > 0 ? conteo(n('NUEVO'), 'nueva') : null,
-    n('AJUSTADO') > 0 ? conteo(n('AJUSTADO'), 'ajuste') : null,
-    n('CORREGIDO') > 0 ? conteo(n('CORREGIDO'), 'corrección', 'correcciones') : null,
+    n('NUEVO') > 0 ? contar(n('NUEVO'), 'nuevas') : null,
+    n('AJUSTADO') > 0 ? contar(n('AJUSTADO'), 'ajustes') : null,
+    n('CORREGIDO') > 0 ? contar(n('CORREGIDO'), 'correcciones') : null,
   ].filter((x): x is string => x !== null)
 }
