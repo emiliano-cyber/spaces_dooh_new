@@ -287,7 +287,7 @@ const EN: Record<ClaveTexto, string> = {
 
   'login.olvidaste': 'Forgot your password?',
   'login.ya-tienes-cuenta': 'Already have an account? ',
-  'login.no-tienes-cuenta': "Don't have an account? ",
+  'login.no-tienes-cuenta': 'Don’t have an account? ',
   'login.volver': '← Back to ',
   'login.volver.enlace': 'sign in',
   'login.enlace-dev': 'Link (development only):',

@@ -573,7 +573,7 @@ export const EN_PROPUESTAS: Record<ClavePropuestas, string> = {
   'propuestas.comun.neto': 'Net',
   'propuestas.comun.total': 'Total',
   'propuestas.comun.bruto-lista': 'Gross (list rate)',
-  'propuestas.comun.paquete-conjunto': 'Bundle "{nombre}" — bundle price',
+  'propuestas.comun.paquete-conjunto': 'Bundle “{nombre}” — bundle price',
   'propuestas.comun.descuento-volumen': 'Volume discount ({pct}%)',
   'propuestas.comun.codigo-pct': 'Negotiation code {codigo} ({pct}%)',
   'propuestas.comun.pct': '{pct}%',

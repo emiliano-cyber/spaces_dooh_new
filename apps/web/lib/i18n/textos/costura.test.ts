@@ -5,6 +5,7 @@ import { ES_CAMPANAS, EN_CAMPANAS } from './campanas'
 import { ES_FINANZAS, EN_FINANZAS } from './finanzas'
 import { ES_COMERCIAL, EN_COMERCIAL } from './comercial'
 import { ES_CODIGOS, EN_CODIGOS } from './codigos'
+import { DICCIONARIOS } from '../diccionario'
 
 // ============================================================================
 //  LA COSTURA DE LOS LOTES DEL INGLES (2026-11-02).
@@ -30,7 +31,7 @@ const LOTES: [string, Record<string, string>, Record<string, string>][] = [
 // pantalla significa otra cosa. Cada entrada dice por que; una divergencia que
 // no este aqui es un descuido de un lote y la prueba la enseña.
 const DISTINTOS_A_PROPOSITO: Record<string, string> = {
-  Comercial: 'en la ficha de campaña es la seccion de importes («Commercial»); el modulo es «Sales», como el menu',
+  Comercial: 'en la ficha de campaña es la seccion de importes («Pricing», decision del orquestador); el modulo es «Sales», como el menu',
   Desde: 'un periodo de fechas («From») frente a la competencia del espacio, que esta ahi «desde» («Since»)',
   Folio: 'glosario: «Internal ref.» en propuestas y campañas, «Invoice no.» en una factura',
   Horario: 'el horario que se manda a DOOHmain («Schedule») frente al horario de operacion del sitio («Operating hours»)',
@@ -66,22 +67,36 @@ describe('costura · los lotes dicen lo mismo de la misma manera', () => {
     expect(Object.keys(DISTINTOS_A_PROPOSITO).filter((t) => !textos.has(t))).toEqual([])
   })
 
-  it('el apostrofo ingles es el tipografico (’), como las comillas “ ” de todos los lotes', () => {
+  // El diccionario ENTERO, no solo los seis lotes: el base de `diccionario.ts`
+  // (login, menu, errores) tenia un «Don't» que la prueba de los lotes no veia
+  // (validacion de la costura).
+  const TODO_EN = Object.entries(DICCIONARIOS.en as Record<string, string>)
+
+  it('el apostrofo ingles es el tipografico (’), en TODO el diccionario', () => {
     // Propuestas y compartidos escribian «can't» y los otros cuatro «can’t».
-    const rectos = LOTES.flatMap(([lote, , en]) =>
-      Object.entries(en)
-        .filter(([, v]) => /[A-Za-z]'[A-Za-z]/.test(v))
-        .map(([k]) => `${lote}:${k}`),
-    )
-    expect(rectos).toEqual([])
+    // Las coordenadas (19°25'57"N) no cuentan: van entre cifras.
+    expect(TODO_EN.filter(([, v]) => /[A-Za-z]'[A-Za-z]/.test(v)).map(([k]) => k)).toEqual([])
+  })
+
+  it('las comillas inglesas son las tipograficas “ ”, en TODO el diccionario', () => {
+    // Una comilla recta que ABRE (al principio o tras un espacio). Los
+    // segundos de las coordenadas (57"N) van pegados a una cifra.
+    expect(TODO_EN.filter(([, v]) => /(^|[\s(])"/.test(v)).map(([k]) => k)).toEqual([])
+  })
+
+  it('«internal ref.» va en minuscula a media frase (es un termino, no un nombre)', () => {
+    expect(TODO_EN.filter(([, v]) => /[a-z,;] Internal ref\./.test(v)).map(([k]) => k)).toEqual([])
   })
 
   it('las periodicidades siguen el glosario (quincenal = twice a month, sin «biweekly» ni «semi-»)', () => {
-    const malas = LOTES.flatMap(([lote, , en]) =>
-      Object.entries(en)
-        .filter(([, v]) => /\bbi-?weekly\b|\bsemi-?monthly\b|\bsemiannual\b|\bbimonthly\b/i.test(v))
-        .map(([k]) => `${lote}:${k}`),
-    )
-    expect(malas).toEqual([])
+    const malas = TODO_EN.filter(([, v]) => /\bbi-?weekly\b|\bsemi-?monthly\b|\bsemiannual\b|\bbimonthly\b/i.test(v))
+    expect(malas.map(([k]) => k)).toEqual([])
+  })
+
+  it('las periodicidades van SIEMPRE en letra: «every two months», nunca «every 2 months»', () => {
+    // Decision del orquestador tras la validacion: el glosario ya decia «every
+    // two weeks» y la costura habia dejado «every 2 months» / «every 6 months».
+    const malas = TODO_EN.filter(([, v]) => /\bevery \d|\b\d+-(week|month|day)\b/i.test(v))
+    expect(malas.map(([k]) => k)).toEqual([])
   })
 })

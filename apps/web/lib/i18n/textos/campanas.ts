@@ -584,7 +584,7 @@ export const EN_CAMPANAS: Record<ClaveCampanas, string> = {
   'campanas.lista.por-validar.titulo': 'To review ({n})',
   'campanas.lista.por-validar.sub': 'Submitted for publishing, awaiting approval before going live',
   'campanas.lista.validar': 'Review',
-  'campanas.lista.buscar': 'Search by name, Internal ref. or client…',
+  'campanas.lista.buscar': 'Search by name, internal ref. or client…',
   'campanas.lista.todos-estados': 'All statuses',
   'campanas.lista.compacta.volver': 'Show each campaign’s pipeline again',
   'campanas.lista.compacta.esconder': 'Hide the pipelines: one row per campaign',
@@ -642,7 +642,9 @@ export const EN_CAMPANAS: Record<ClaveCampanas, string> = {
   'campanas.ficha.pipeline': 'Pipeline',
   'campanas.ficha.extensiones': 'Extensions',
   'campanas.ficha.candado': 'Billing lock',
-  'campanas.ficha.comercial': 'Commercial',
+  // «Pricing» (decision del orquestador, 2026-11-02): es la seccion de
+  // importes; «Commercial» a secas no se entiende como encabezado.
+  'campanas.ficha.comercial': 'Pricing',
   'campanas.ficha.subtotal-neto': 'Subtotal (net)',
   'campanas.ficha.iva-pct': 'VAT ({pct}%)',
   'campanas.ficha.agencia': 'Agency',
@@ -785,7 +787,7 @@ export const EN_CAMPANAS: Record<ClaveCampanas, string> = {
   'campanas.extender.quitar': 'Remove contract',
   'campanas.extender.adjuntar': 'Attach contract (PDF)',
   'campanas.extender.nota':
-    'Without the signed extension contract the campaign can’t be extended. It is kept in the campaign file together with the Internal ref. of the new segment; the client’s original contract is not touched.',
+    'Without the signed extension contract the campaign can’t be extended. It is kept in the campaign file together with the internal ref. of the new segment; the client’s original contract is not touched.',
   'campanas.extensiones.termina': 'Ends on {fecha}. To extend it you need the signed extension contract.',
   'campanas.extensiones.vacio': 'No extensions with a contract.',
   'campanas.extensiones.hecha': '{nombre} extended',

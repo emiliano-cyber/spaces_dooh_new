@@ -613,7 +613,7 @@ exports[`diccionario de propuestas · instantanea > el INGLES tampoco 1`] = `
   "propuestas.comun.hasta": "To",
   "propuestas.comun.iva": "VAT {pct}%",
   "propuestas.comun.neto": "Net",
-  "propuestas.comun.paquete-conjunto": "Bundle "{nombre}" — bundle price",
+  "propuestas.comun.paquete-conjunto": "Bundle “{nombre}” — bundle price",
   "propuestas.comun.pct": "{pct}%",
   "propuestas.comun.quitando": "Removing…",
   "propuestas.comun.rechazar": "Reject",

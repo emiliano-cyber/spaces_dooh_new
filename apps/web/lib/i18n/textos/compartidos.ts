@@ -215,9 +215,9 @@ export const EN_COMPARTIDOS: Record<ClaveCompartidos, string> = {
   'compartidos.periodicidad.catorcenal': 'Every two weeks',
   'compartidos.periodicidad.quincenal': 'Twice a month',
   'compartidos.periodicidad.mensual': 'Monthly',
-  'compartidos.periodicidad.bimestral': 'Every 2 months',
+  'compartidos.periodicidad.bimestral': 'Every two months',
   'compartidos.periodicidad.trimestral': 'Quarterly',
-  'compartidos.periodicidad.semestral': 'Every 6 months',
+  'compartidos.periodicidad.semestral': 'Every six months',
   'compartidos.periodicidad.anual': 'Yearly',
 
   'compartidos.codigo.pendiente': 'Pending approval',

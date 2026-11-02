@@ -318,7 +318,7 @@ const PANTALLAS: Pantalla[] = [
       'Ocultar de mi lista (solo en este navegador; la campaña sigue igual para todos)', 'Reservada', 'OC recibida',
       'Sin presupuesto capturado en la propuesta', 'Ver pipeline', 'CA-010 · HIBRIDA',
     ],
-    ingles: ['CA-010 · Hybrid', 'demo storyline', 'Campaigns', 'Ready to invoice', 'To review (6)', 'Search by name, Internal ref. or client…', 'View pipeline', 'Jan 1, 2026–Jun 30, 2026'],
+    ingles: ['CA-010 · Hybrid', 'demo storyline', 'Campaigns', 'Ready to invoice', 'To review (6)', 'Search by name, internal ref. or client…', 'View pipeline', 'Jan 1, 2026–Jun 30, 2026'],
   },
   {
     nombre: 'lista filtrada sin resultados (texto y estado)',
@@ -413,6 +413,8 @@ const PANTALLAS: Pantalla[] = [
       'Campaign sites', 'Work orders', 'Photo evidence', 'Plays (proof of play)', 'Campaigns (10)', 'Jan 1, 2026–Jun 30, 2026',
       // Costura: `resumenReserva` y `etiquetaFrecuencia` (lib/periodos.ts) con el idioma.
       'Cuauhtémoc · 1 month · ', '12 plays per day',
+      // «Pricing» para la seccion «Comercial» (decision del orquestador).
+      'Pricing',
     ],
   },
   {
