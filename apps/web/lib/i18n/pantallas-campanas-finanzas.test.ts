@@ -830,8 +830,13 @@ const PANTALLAS: Pantalla[] = [
       'Pagada', 'Facturas', 'Emitidas', 'Pagadas', 'Anuladas', 'Emitida', 'Campaña', 'La emite',
       'Ver el comprobante', 'Anulada', 'Ver todas (11)', 'Estado de cuenta', 'Todos los clientes', 'Mes', 'CSV',
       'Comprobante F-000', 'La recibe', 'Uso: ', 'Serie', 'Fecha de emisión', 'Subtotal', 'Imprimir', 'Cerrar',
+      'Emite: Sin asignar',
     ],
-    ingles: ['Collections', 'Invoices', 'Account statement', 'Payment receipt F-000', 'Invoice no.', 'CFDI UUID', 'Payment terms', 'Payments and proof of payment', 'Billed to', 'CFDI use: G03', 'Installment 1 of 2', '2 sent', '1 sent', 'Show all (11)'],
+    ingles: [
+      'Collections', 'Invoices', 'Account statement', 'Payment receipt F-000', 'Invoice no.', 'CFDI UUID', 'Payment terms', 'Payments and proof of payment', 'Billed to', 'CFDI use: G03', 'Installment 1 of 2', '2 sent', '1 sent', 'Show all (11)',
+      // Costura: `etiquetaAsignacion` con el idioma.
+      'Issued by: Unassigned',
+    ],
   },
   {
     nombre: 'finanzas vacia',
@@ -874,9 +879,13 @@ const PANTALLAS: Pantalla[] = [
       'la factura se emite igual y queda «sin asignar».', 'Cobrar en parcialidades', '· campaña de 6 meses',
       'Cuotas', '6 cuotas mensuales', '3 cuotas bimestrales', 'Primer vencimiento', '6 cuotas de',
       '(la última ajusta el redondeo) · suman', 'Plazo de cobranza (informativo con parcialidades)', '60 días', '90 días',
-      'Emitir factura', 'Cancelar',
+      'Emitir factura', 'Cancelar', 'Sin asignar…',
     ],
-    ingles: ['Issue invoice', 'Bill in installments', '6 monthly installments', 'Payment terms (for reference only when billing in installments)'],
+    ingles: [
+      'Issue invoice', 'Bill in installments', '6 monthly installments', 'Payment terms (for reference only when billing in installments)',
+      // Costura: `opcionesDeAsignacion` con el idioma.
+      'Unassigned…',
+    ],
   },
   {
     nombre: 'generar factura de una campana de un mes',
@@ -1029,8 +1038,11 @@ const PANTALLAS: Pantalla[] = [
     },
     espanol: [
       'Los importes de este comprobante no cuadran: el subtotal más el IVA no da el total.', 'Revísalo antes de entregarlo.',
+      // El emisor sin asignar y la fecha tal cual la guarda la factura.
+      'Sin asignar', '2026-10-01',
     ],
-    ingles: ['The amounts on this payment receipt do not add up'],
+    // Costura: el emisor de `armarComprobante` y la fecha, en ingles.
+    ingles: ['The amounts on this payment receipt do not add up', 'Unassigned', 'Oct 1, 2026'],
   },
 ]
 

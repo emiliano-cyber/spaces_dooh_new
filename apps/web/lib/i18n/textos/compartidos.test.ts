@@ -6,6 +6,7 @@ import { AVISO_FRANJA_NO_VIAJA_AL_CMS } from '../../rejilla'
 import { OPCIONES_PERIODO } from '../../../components/demo/finanzas/TableroPeriodo'
 import { NOMBRE_DIA, textoHorario, textoReproducciones, textoOrigenDoohmain } from '../../doohmain-programacion'
 import { traducir } from '../diccionario'
+import { ETIQUETA_SIN_ASIGNAR, etiquetaAsignacion } from '../../../components/demo/razones-sociales/asignacion'
 
 // ============================================================================
 //  EL DICCIONARIO DE LOS MODULOS COMPARTIDOS, CONGELADO.
@@ -80,6 +81,13 @@ describe('diccionario compartidos · el espanol reproduce las tablas de su modul
 
   it('AVISO_FRANJA_NO_VIAJA_AL_CMS', () => {
     expect(ES_COMPARTIDOS['compartidos.franja.aviso']).toBe(AVISO_FRANJA_NO_VIAJA_AL_CMS)
+  })
+
+  it('los textos de `razones-sociales/asignacion.ts` (costura)', () => {
+    expect(ES_COMPARTIDOS['compartidos.asignacion.sin-asignar']).toBe(ETIQUETA_SIN_ASIGNAR)
+    const baja = { id: 'a', razonSocial: 'AS Media', activo: false } as never
+    expect(traducir('es', 'compartidos.asignacion.baja', { nombre: 'AS Media' })).toBe(etiquetaAsignacion([baja], 'a'))
+    expect(ES_COMPARTIDOS['compartidos.asignacion.no-disponible']).toBe(etiquetaAsignacion([], 'zz'))
   })
 
   it('los textos de `lib/doohmain-programacion.ts` (costura)', () => {

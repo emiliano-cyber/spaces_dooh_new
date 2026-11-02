@@ -2,6 +2,9 @@
 
 exports[`diccionario compartidos · instantanea > el ESPANOL no cambia sin que se vea 1`] = `
 {
+  "compartidos.asignacion.baja": "{nombre} (dada de baja)",
+  "compartidos.asignacion.no-disponible": "Razon social no disponible",
+  "compartidos.asignacion.sin-asignar": "Sin asignar",
   "compartidos.calc.espacios.otros": "{n} espacios del loop",
   "compartidos.calc.espacios.uno": "{n} espacio del loop",
   "compartidos.calc.horas": "{h} h al día",
@@ -93,6 +96,9 @@ exports[`diccionario compartidos · instantanea > el ESPANOL no cambia sin que s
 
 exports[`diccionario compartidos · instantanea > el INGLES tampoco 1`] = `
 {
+  "compartidos.asignacion.baja": "{nombre} (deactivated)",
+  "compartidos.asignacion.no-disponible": "Legal entity not available",
+  "compartidos.asignacion.sin-asignar": "Unassigned",
   "compartidos.calc.espacios.otros": "{n} loop slots",
   "compartidos.calc.espacios.uno": "{n} loop slot",
   "compartidos.calc.horas": "{h} h per day",

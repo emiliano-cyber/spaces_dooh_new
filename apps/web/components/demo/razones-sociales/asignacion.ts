@@ -1,5 +1,7 @@
 import { emisorPorOmision } from '@/lib/cuestionario-entidades'
 import type { EntidadUI } from './gestion'
+import { traducir } from '@/lib/i18n/diccionario'
+import type { Idioma } from '@/lib/i18n/idiomas'
 
 // ============================================================================
 //  A qué razón social se asigna un contrato y un comprobante.
@@ -34,6 +36,16 @@ export const SIN_ASIGNAR = ''
 /** El texto que se PINTA cuando falta. No se esconde el hueco: las filas
  *  anteriores al 17/09 están así y no se sabe de quién son. */
 export const ETIQUETA_SIN_ASIGNAR = 'Sin asignar'
+
+// I18N (costura, 2026-11-02) · `opcionesDeAsignacion` y `etiquetaAsignacion`
+// llevan `idioma` al final con 'es' por omision: Arrendadores (que no es de
+// ningun lote traducido) y el servidor no lo pasan y no cambian. En espanol se
+// arma con los literales de aqui; en otro idioma, con `compartidos.asignacion.*`,
+// cuyo espanol `textos/compartidos.test.ts` ata a estos.
+const sinAsignarEn = (idioma: Idioma) =>
+  idioma === 'es' ? ETIQUETA_SIN_ASIGNAR : traducir(idioma, 'compartidos.asignacion.sin-asignar')
+const dadaDeBaja = (nombre: string, idioma: Idioma) =>
+  idioma === 'es' ? `${nombre} (dada de baja)` : traducir(idioma, 'compartidos.asignacion.baja', { nombre })
 
 export interface OpcionAsignacion {
   valor: string
@@ -89,6 +101,7 @@ export function opcionesDeAsignacion(
   entidades: EntidadUI[] | null | undefined,
   rol: string,
   guardado?: string | null,
+  idioma: Idioma = 'es',
 ): OpcionAsignacion[] {
   const lista = (entidades ?? []).filter(Boolean)
   const actual = String(guardado ?? '').trim()
@@ -103,10 +116,10 @@ export function opcionesDeAsignacion(
     )
 
   return [
-    { valor: SIN_ASIGNAR, etiqueta: `${ETIQUETA_SIN_ASIGNAR}…`, recomendada: false },
+    { valor: SIN_ASIGNAR, etiqueta: `${sinAsignarEn(idioma)}…`, recomendada: false },
     ...visibles.map((e) => ({
       valor: e.id,
-      etiqueta: e.activo === false ? `${e.razonSocial} (dada de baja)` : e.razonSocial,
+      etiqueta: e.activo === false ? dadaDeBaja(e.razonSocial, idioma) : e.razonSocial,
       recomendada: e.id === recomendada,
     })),
   ]
@@ -124,9 +137,10 @@ export function opcionesDeAsignacion(
 export function etiquetaAsignacion(
   entidades: EntidadUI[] | null | undefined,
   id: string | null | undefined,
+  idioma: Idioma = 'es',
 ): string {
-  if (sinAsignar(id)) return ETIQUETA_SIN_ASIGNAR
+  if (sinAsignar(id)) return sinAsignarEn(idioma)
   const suya = (entidades ?? []).find((e) => e && e.id === String(id).trim())
-  if (!suya) return 'Razon social no disponible'
-  return suya.activo === false ? `${suya.razonSocial} (dada de baja)` : suya.razonSocial
+  if (!suya) return idioma === 'es' ? 'Razon social no disponible' : traducir(idioma, 'compartidos.asignacion.no-disponible')
+  return suya.activo === false ? dadaDeBaja(suya.razonSocial, idioma) : suya.razonSocial
 }

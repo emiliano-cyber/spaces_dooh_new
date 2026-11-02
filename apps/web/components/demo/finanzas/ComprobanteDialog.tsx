@@ -5,7 +5,8 @@ import { Modal } from '@/components/demo/ui/Modal'
 import { Button } from '@/components/demo/ui/Button'
 import { armarComprobante } from './comprobante'
 import type { Factura } from '@/lib/data/types'
-import { useTexto } from '@/lib/i18n/contexto'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { formatFecha } from '@/lib/data/derive'
 
 // ============================================================================
 //  El comprobante de una factura, en pantalla y listo para imprimir.
@@ -39,9 +40,9 @@ export function ComprobanteDialog({
   onOpenChange: (v: boolean) => void
   formatMonto: (n: number) => string
 }) {
-  const t = useTexto()
+  const { t, idioma } = useIdioma()
   if (!factura) return null
-  const c = armarComprobante(factura, campanas, entidades)
+  const c = armarComprobante(factura, campanas, entidades, idioma)
 
   return (
     <Modal
@@ -87,7 +88,13 @@ export function ComprobanteDialog({
             <Linea etiqueta={t('finanzas.comun.folio')} valor={c.folio} />
             <Linea etiqueta={t('finanzas.comprobante.serie')} valor={c.serie} />
             <Linea etiqueta={t('finanzas.comun.folio-fiscal')} valor={c.folioFiscal} />
-            <Linea etiqueta={t('finanzas.comprobante.fecha')} valor={c.fechaEmision} />
+            {/* La fecha va como la guarda la factura (AAAA-MM-DD); en espanol se pinta
+              asi, como siempre. En ingles con `formatFecha` (costura): el lector
+              de EE. UU. no lee fechas ISO en un recibo. */}
+          <Linea
+            etiqueta={t('finanzas.comprobante.fecha')}
+            valor={idioma === 'es' ? c.fechaEmision : formatFecha(c.fechaEmision, idioma)}
+          />
             <Linea etiqueta={t('finanzas.comun.campana')} valor={c.campana} />
           </div>
 

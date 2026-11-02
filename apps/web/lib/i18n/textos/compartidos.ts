@@ -125,6 +125,12 @@ export const ES_COMPARTIDOS = {
   'compartidos.dia.5': 'vie',
   'compartidos.dia.6': 'sáb',
 
+  // ── A que razon social se asigna (`razones-sociales/asignacion.ts`) ──
+  // Costura (2026-11-02). Literal del modulo, sin acento incluido.
+  'compartidos.asignacion.sin-asignar': 'Sin asignar',
+  'compartidos.asignacion.baja': '{nombre} (dada de baja)',
+  'compartidos.asignacion.no-disponible': 'Razon social no disponible',
+
   // ── La barra de dibujo del mapa (`MapView`) ──
   'compartidos.mapa.cerrar-zona': 'Cerrar zona ({n})',
   'compartidos.mapa.limpiar-zona': 'Limpiar zona',
@@ -242,6 +248,12 @@ export const EN_COMPARTIDOS: Record<ClaveCompartidos, string> = {
   'compartidos.dia.4': 'Thu',
   'compartidos.dia.5': 'Fri',
   'compartidos.dia.6': 'Sat',
+
+  // «Unassigned», como el selector de Comercial (`comercial.editar.sin-asignar`);
+  // razon social → legal entity, como Finanzas.
+  'compartidos.asignacion.sin-asignar': 'Unassigned',
+  'compartidos.asignacion.baja': '{nombre} (deactivated)',
+  'compartidos.asignacion.no-disponible': 'Legal entity not available',
 
   'compartidos.mapa.cerrar-zona': 'Close area ({n})',
   'compartidos.mapa.limpiar-zona': 'Clear area',

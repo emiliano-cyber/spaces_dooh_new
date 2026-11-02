@@ -152,8 +152,9 @@ export default function FinanzasPage() {
         // lo delato el typecheck al enchufarlo. Se traduce aqui y no se
         // ensancha el tipo del modulo, que asi sirve para cualquier catalogo.
         (entidades ?? []).map((e) => ({ id: e.id, nombre: e.razonSocial })),
+        idioma,
       ),
-    [facturas, clientes, resumen, entidades],
+    [facturas, clientes, resumen, entidades, idioma],
   )
   const cuentaFactura = useMemo(() => cuentaPorEstatus(facturas), [facturas])
   const [verFactura, setVerFactura] = useState<string | null>(null)
@@ -307,7 +308,7 @@ export default function FinanzasPage() {
                                 anteriores al 2026-09-17 están «sin asignar» y
                                 no se sabe a nombre de quién salieron. */}
                             <div className="text-[11px] text-muted">
-                              {t('finanzas.cobranza.emite', { entidad: etiquetaAsignacion(entidades ?? [], g.factura?.entidadEmisoraId) })}
+                              {t('finanzas.cobranza.emite', { entidad: etiquetaAsignacion(entidades ?? [], g.factura?.entidadEmisoraId, idioma) })}
                             </div>
                           </td>
                           <td className="hidden px-4 py-2.5 align-top xl:table-cell">
@@ -539,7 +540,7 @@ function GenerarFacturaDialog({
   onClose: () => void
   onDone: (folio: string) => void
 }) {
-  const t = useTexto()
+  const { t, idioma } = useIdioma()
   // CFG-01 · los plazos los pone la ORGANIZACIÓN, no el código. Estaban a fuego
   // (`([60, 90, 120] as const).map(...)`) mientras Administración dejaba
   // capturarlos: quien configuraba 45 días no veía el botón, y si llegaba a
@@ -715,7 +716,7 @@ function GenerarFacturaDialog({
             // confirmar es la emisión que el servidor rechazó, no otra.
             disabled={candado.reautenticando}
           >
-            {opcionesDeAsignacion(entidades, ROL_COMPROBANTE).map((o) => (
+            {opcionesDeAsignacion(entidades, ROL_COMPROBANTE, undefined, idioma).map((o) => (
               <option key={o.valor || 'sin-asignar'} value={o.valor}>
                 {o.etiqueta}
                 {o.recomendada ? t('finanzas.factura.la-que-vende') : ''}
@@ -1041,7 +1042,7 @@ onRecordar: (id: string) => void
                 se veia en las de parcialidades. MEDIDO el 2026-09-18 mirando la
                 pantalla, no leyendo el codigo. */}
             <div className="text-[11px] text-muted">
-              {t('finanzas.cobranza.emite', { entidad: etiquetaAsignacion(entidades, fac?.entidadEmisoraId) })}
+              {t('finanzas.cobranza.emite', { entidad: etiquetaAsignacion(entidades, fac?.entidadEmisoraId, idioma) })}
             </div>
           </>
         )}
