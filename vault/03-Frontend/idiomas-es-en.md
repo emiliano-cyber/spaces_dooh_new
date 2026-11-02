@@ -318,6 +318,40 @@ caer a MXN. Las guardias que recorren **todo `apps/web`**:
 5. Y **ningún diccionario puede llevar dinero dentro**: ni un símbolo, ni un
    código, ni una cifra con separador de miles.
 
+> [!important] 2026-11-02 · los textos ya no dan por hecho el PESO (rama `feat/pesos-neutral`)
+> Con la moneda de la instancia, «pesos enteros», «al peso» y «whole number of
+> pesos» eran falsos en una instancia USD. **Única excepción autorizada** al
+> «el español se queda tal cual» ([[ingles-olas]] §3). Redacción neutra, la
+> misma en los dos idiomas: **«cantidad entera» / «whole amount»**, **«sin
+> centavos» / «no cents»** y **«al centavo» / «to the cent»**. Las cuatro
+> claves de `lib/i18n/textos/catalogos.ts` que cambiaron:
+>
+> | Clave | Español | Inglés |
+> |---|---|---|
+> | `catalogos.paquetes.precio` | Precio del conjunto (cantidad entera, sin centavos) | Price for the set (whole amount, no cents) |
+> | `catalogos.paquetes.lista.explicacion.peso` | al centavo | to the cent |
+> | `catalogos.paquetes.reparto.cuadra` | — cuadra al centavo | — adds up to the cent |
+> | `catalogos.motivo.paquete.precio-entero` | El precio del paquete tiene que ser una cantidad entera: el reparto… | The bundle price has to be a whole amount: the split… |
+>
+> La última es también el literal de `motivoPaqueteInvalido` (`lib/paquete.ts`),
+> que el servidor manda tal cual: cambiaron juntos. No está en
+> `errores-servidor.ts` (llega por `AppError(motivo)` sin entrada propia).
+> El nombre de clave `…explicacion.peso` y su hueco `{peso}` se quedan: son
+> identificadores, no texto.
+>
+> **No se tocó, a propósito:** la cantidad con letra del contrato (ya depende de
+> la moneda y va ligada al hash de las firmas), los recibos de CFE,
+> `nombreMoneda()` («Peso mexicano (MXN)» es correcto: sale de la moneda), el
+> «En México el punto…» de `captura-cifra` (formato de número, no moneda),
+> comentarios, migraciones, semillas y nombres de pruebas.
+>
+> **Medido:** el HTML español de los 124 estados de las cinco pruebas de
+> pantallas (`I18N_VOLCAR` / `VOLCAR_HTML`), antes y después, solo difiere en
+> tres estados de Paquetes y solo en esas frases; `DICCIONARIOS.es` solo
+> cambia en esas cuatro claves. Y lo vigila una guardia
+> (`textos/costura.test.ts`): **ningún diccionario, en ningún idioma, nombra
+> pesos, «M.N.» ni dólares** fuera de los huecos.
+
 **Inmutable en dos capas** (ver [[04-Datos/migraciones]] y
 [[04-Datos/esquema]]): la migración `20261102_moneda_inmutable_por_instancia.sql`
 (CHECK + triggers) y la API (`PATCH /api/config` rechaza `moneda` con 400; el
@@ -1088,7 +1122,18 @@ está en `UNIDADES`; en inglés usa `comercial.comun.programatico`.
 >   cierre (« · 1 tier</span>»): invertir el plural ya cae sin la instantánea.
 > - **«pesos» en el texto** («Precio del conjunto (pesos enteros)», «al peso», «to
 >   the peso», «whole number of pesos»): es falso en una instancia USD (ADR 0048),
->   en los dos idiomas. **No se tocó**: redactarlo neutro es una tarea aparte.
+>   en los dos idiomas. ~~No se tocó: redactarlo neutro es una tarea aparte.~~
+>   **Hecho el 02/11** (`feat/pesos-neutral`): «cantidad entera», «sin
+>   centavos», «al centavo» / «whole amount», «no cents», «to the cent». Ver §7.
+> - **Los tres menores del validador, cerrados el 02/11** (`feat/pesos-neutral`):
+>   las seis claves `compartidos.cifra.*` que no estaban atadas a su literal
+>   (`vacia`, `enteras`, `max-decimales.otros`, `grande`, `negativo`, `mayor`) ya
+>   lo están en `catalogos.fuentes.test.ts` (el mutante «No puede ser negativa»
+>   muere); `compartidos.cifra.mayor` dice en inglés «Must not be greater than
+>   {n}», como el patrón del servidor, y `costura.test.ts` exige que todo motivo
+>   con cifra que también conoce `errores-servidor.ts` se traduzca igual (salvo
+>   los de la calculadora, que divergen en nueve claves y son de la ola 4); y la
+>   cabecera de `catalogos.ts` dice «deactivate / Deactivated».
 > - Español: los 15 estados, idénticos otra vez.
 
 > [!warning] Lo que falta del lote: operaciones y clientes

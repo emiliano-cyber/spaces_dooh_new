@@ -20,8 +20,8 @@
 //
 //  GLOSARIO DEL LOTE: paquete cerrado → bundle · precio cerrado → fixed price ·
 //  a prorrata → pro rata · reparto → split · parte del paquete → bundle share ·
-//  franja → daypart · temporada → season · dar de baja / dada de baja → retire
-//  / Retired (es baja LOGICA: «delete» prometeria lo que no pasa) · tramo →
+//  franja → daypart · temporada → season · dar de baja / dada de baja →
+//  deactivate / Deactivated (es baja LOGICA: «delete» prometeria lo que no pasa) · tramo →
 //  tier · escalon → step · escala plana → flat scale · rejilla → rate grid ·
 //  programar (el horario) → schedule · horario de transmision → broadcast
 //  schedule · tarifa de lista → list rate. Porcentajes sin espacio («10%»).
@@ -68,7 +68,7 @@ export const ES_CATALOGOS = {
   'catalogos.paquetes.lista.explicacion':
     'El precio se reparte entre las pantallas {prorrata}, y la suma de las partes da el precio del paquete {peso}. Ese reparto es el ingreso que el reporte de rentabilidad le atribuye a cada pantalla.',
   'catalogos.paquetes.lista.explicacion.prorrata': 'a prorrata de su tarifa de lista',
-  'catalogos.paquetes.lista.explicacion.peso': 'al peso',
+  'catalogos.paquetes.lista.explicacion.peso': 'al centavo',
   'catalogos.paquetes.col.paquete': 'Paquete',
   'catalogos.paquetes.col.pantallas': 'Pantallas',
   'catalogos.paquetes.col.precio': 'Precio cerrado',
@@ -93,7 +93,7 @@ export const ES_CATALOGOS = {
   'catalogos.paquetes.nuevo': 'Nuevo paquete',
   'catalogos.paquetes.nombre.aria': 'Nombre del paquete',
   'catalogos.paquetes.nombre.placeholder': 'p. ej. Paquete Periférico',
-  'catalogos.paquetes.precio': 'Precio del conjunto (pesos enteros)',
+  'catalogos.paquetes.precio': 'Precio del conjunto (cantidad entera, sin centavos)',
   'catalogos.paquetes.precio.aria': 'Precio cerrado del paquete',
   'catalogos.paquetes.precio.placeholder': 'p. ej. {ejemplo}',
   'catalogos.paquetes.admite-codigo-encima': 'Admite código de negociación encima',
@@ -114,7 +114,7 @@ export const ES_CATALOGOS = {
   'catalogos.paquetes.reparto.lista': 'Lista',
   'catalogos.paquetes.reparto.parte': 'Parte del paquete',
   'catalogos.paquetes.reparto.suma': 'Suma de las partes {cuadra}',
-  'catalogos.paquetes.reparto.cuadra': '— cuadra al peso',
+  'catalogos.paquetes.reparto.cuadra': '— cuadra al centavo',
   'catalogos.paquetes.crear': 'Crear paquete',
 
   // ── Franjas y temporadas ──
@@ -242,7 +242,7 @@ export const ES_CATALOGOS = {
   'catalogos.motivo.paquete.precio-cero':
     'El precio de un paquete tiene que ser mayor que 0: un paquete gratis no es un paquete.',
   'catalogos.motivo.paquete.precio-entero':
-    'El precio del paquete tiene que ser un numero entero de pesos: el reparto entre las pantallas no admite centavos.',
+    'El precio del paquete tiene que ser una cantidad entera: el reparto entre las pantallas no admite centavos.',
   'catalogos.motivo.paquete.dos-pantallas':
     'Un paquete necesita al menos 2 pantallas; con una sola, eso es una tarifa y va en la ficha de la pantalla.',
   'catalogos.motivo.paquete.repetida': 'Hay una pantalla repetida en el paquete.',
@@ -317,7 +317,7 @@ export const EN_CATALOGOS: Record<ClaveCatalogos, string> = {
   'catalogos.paquetes.lista.explicacion':
     'The price is split among the screens {prorrata}, and the shares add up to the bundle price {peso}. That split is the revenue the profitability report assigns to each screen.',
   'catalogos.paquetes.lista.explicacion.prorrata': 'in proportion to their list rate',
-  'catalogos.paquetes.lista.explicacion.peso': 'to the peso',
+  'catalogos.paquetes.lista.explicacion.peso': 'to the cent',
   'catalogos.paquetes.col.paquete': 'Bundle',
   'catalogos.paquetes.col.pantallas': 'Screens',
   'catalogos.paquetes.col.precio': 'Fixed price',
@@ -342,7 +342,7 @@ export const EN_CATALOGOS: Record<ClaveCatalogos, string> = {
   'catalogos.paquetes.nuevo': 'New bundle',
   'catalogos.paquetes.nombre.aria': 'Bundle name',
   'catalogos.paquetes.nombre.placeholder': 'e.g. Outer ring bundle',
-  'catalogos.paquetes.precio': 'Price for the set (whole pesos)',
+  'catalogos.paquetes.precio': 'Price for the set (whole amount, no cents)',
   'catalogos.paquetes.precio.aria': 'Bundle fixed price',
   'catalogos.paquetes.precio.placeholder': 'e.g. {ejemplo}',
   'catalogos.paquetes.admite-codigo-encima': 'Takes a negotiation code on top',
@@ -363,7 +363,7 @@ export const EN_CATALOGOS: Record<ClaveCatalogos, string> = {
   'catalogos.paquetes.reparto.lista': 'List',
   'catalogos.paquetes.reparto.parte': 'Bundle share',
   'catalogos.paquetes.reparto.suma': 'Sum of the shares {cuadra}',
-  'catalogos.paquetes.reparto.cuadra': '— adds up to the peso',
+  'catalogos.paquetes.reparto.cuadra': '— adds up to the cent',
   'catalogos.paquetes.crear': 'Create bundle',
 
   // ── Franjas y temporadas ──
@@ -489,7 +489,7 @@ export const EN_CATALOGOS: Record<ClaveCatalogos, string> = {
   'catalogos.motivo.paquete.precio-numero': 'The bundle price has to be a number.',
   'catalogos.motivo.paquete.precio-cero': 'A bundle price has to be greater than 0: a free bundle is not a bundle.',
   'catalogos.motivo.paquete.precio-entero':
-    'The bundle price has to be a whole number of pesos: the split among the screens does not allow cents.',
+    'The bundle price has to be a whole amount: the split among the screens does not allow cents.',
   'catalogos.motivo.paquete.dos-pantallas':
     'A bundle needs at least 2 screens; with only one, that is a rate and it goes on the screen’s profile.',
   'catalogos.motivo.paquete.repetida': 'A screen is repeated in the bundle.',

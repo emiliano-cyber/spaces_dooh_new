@@ -7,6 +7,7 @@ import { ES_COMERCIAL, EN_COMERCIAL } from './comercial'
 import { ES_CODIGOS, EN_CODIGOS } from './codigos'
 import { ES_CATALOGOS, EN_CATALOGOS } from './catalogos'
 import { DICCIONARIOS } from '../diccionario'
+import { traducirError } from '../errores-servidor'
 
 // ============================================================================
 //  LA COSTURA DE LOS LOTES DEL INGLES (2026-11-02).
@@ -100,5 +101,46 @@ describe('costura · los lotes dicen lo mismo de la misma manera', () => {
     // two weeks» y la costura habia dejado «every 2 months» / «every 6 months».
     const malas = TODO_EN.filter(([, v]) => /\bevery \d|\b\d+-(week|month|day)\b/i.test(v))
     expect(malas.map(([k]) => k)).toEqual([])
+  })
+
+  it('ningun texto da por hecho el peso: la moneda es de la instancia (ADR 0048)', () => {
+    // «Precio del conjunto (pesos enteros)», «cuadra al peso», «whole number of
+    // pesos»… eran falsos en una instancia en dolares. Se dice neutro: «cantidad
+    // entera», «sin centavos», «al centavo». El nombre de la moneda sale de
+    // `nombreMoneda()`, nunca de un diccionario.
+    // Los huecos no cuentan: `{peso}` es el nombre de una pieza, no texto.
+    const malas = (['es', 'en'] as const).flatMap((idioma) =>
+      Object.entries(DICCIONARIOS[idioma] as Record<string, string>)
+        .filter(([, v]) => /\bpesos?\b|\bM\.N\.|\bd[oó]lar(es)?\b|\bdollars?\b/i.test(v.replace(/\{\w+\}/g, '')))
+        .map(([k]) => `${idioma}:${k}`),
+    )
+    expect(malas).toEqual([])
+  })
+
+  it('un motivo con cifra que tambien manda el servidor se dice igual en el campo y en el error', () => {
+    // «No puede ser mayor que {n}» lo pinta CampoCifra y lo manda zod: el campo
+    // decia «It cannot be greater than» y el servidor «Must not be greater
+    // than» (validador de catalogos). Se rellenan los huecos con una cifra y,
+    // si el servidor conoce el espanol, el ingles tiene que ser el suyo.
+    //
+    // Solo los que llevan HUECO, que son los que van por `PATRONES_ERROR`. Y sin
+    // los motivos de la calculadora (`compartidos.calc.motivo.*` y
+    // `propuestas.calc.*`): el servidor y la pantalla aun los dicen distinto en
+    // nueve claves (medido el 02/11), y unificarlos es de la ola 4 («lo que
+    // sale del servidor»), no de esta prueba. Cuando se unifiquen, se quita la
+    // excepcion.
+    const ES = DICCIONARIOS.es as Record<string, string>
+    const EN = DICCIONARIOS.en as Record<string, string>
+    const rellenar = (t: string) => t.replace(/\{\w+\}/g, '1000')
+    const distintos: string[] = []
+    for (const clave of Object.keys(ES)) {
+      if (!/\{\w+\}/.test(ES[clave])) continue
+      if (clave.startsWith('compartidos.calc.motivo.') || clave.startsWith('propuestas.calc.')) continue
+      const es = rellenar(ES[clave])
+      const delServidor = traducirError(es, 'en')
+      if (delServidor === es) continue
+      if (rellenar(EN[clave]) !== delServidor) distintos.push(`${clave}: «${rellenar(EN[clave])}» / servidor «${delServidor}»`)
+    }
+    expect(distintos).toEqual([])
   })
 })

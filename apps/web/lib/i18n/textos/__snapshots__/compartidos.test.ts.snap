@@ -145,7 +145,7 @@ exports[`diccionario compartidos · instantanea > el INGLES tampoco 1`] = `
   "compartidos.cifra.grande": "That number is too large",
   "compartidos.cifra.max-decimales.otros": "At most {n} decimal places",
   "compartidos.cifra.max-decimales.uno": "At most {n} decimal place",
-  "compartidos.cifra.mayor": "It cannot be greater than {n}",
+  "compartidos.cifra.mayor": "Must not be greater than {n}",
   "compartidos.cifra.menor": "It cannot be less than {n}",
   "compartidos.cifra.negativo": "It cannot be negative",
   "compartidos.cifra.punto-decimal": "Here the period is the decimal point: “{texto}” would be {decimal}. For {miles} enter {sinComas} or {miles}",

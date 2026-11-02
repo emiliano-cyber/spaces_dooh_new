@@ -5,6 +5,32 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-02 · Paquetes: los textos ya no dan por hecho que se cobra en pesos (sin publicar)
+
+Ahora que una instancia puede trabajar en dólares, cuatro textos de la pantalla
+de **Paquetes** decían algo falso en esa instancia, porque hablaban de pesos. Se
+reescribieron sin nombrar la moneda, en español y en inglés. Es el único cambio
+de texto en español que el dueño autorizó en la traducción al inglés.
+
+- «Precio del conjunto (pesos enteros)» → **«Precio del conjunto (cantidad
+  entera, sin centavos)»**.
+- «la suma de las partes da el precio del paquete al peso» → **«… al centavo»**.
+- «Suma de las partes — cuadra al peso» → **«— cuadra al centavo»**.
+- El aviso al guardar un paquete con centavos: «tiene que ser un numero entero
+  de pesos» → **«tiene que ser una cantidad entera»** (el resto de la frase
+  sigue igual: el reparto entre las pantallas no admite centavos).
+
+Lo demás del español no cambió: se comparó el HTML de todas las pantallas
+traducidas antes y después, y solo cambian esas frases. La cantidad con letra
+de los contratos («… PESOS 00/100 M.N.») y los recibos de CFE se quedan como
+están, a propósito.
+
+Además, en inglés, el aviso «no puede ser mayor que…» de un campo de cifra ahora
+dice lo mismo que el mismo aviso cuando lo manda el servidor («Must not be
+greater than…»).
+
+---
+
 ## 2026-11-02 · La moneda de cada instancia: pesos o dólares, elegida al crearla y para siempre (sin publicar)
 
 Decisión del dueño: una instancia trabaja en **pesos mexicanos (MXN)** o en

@@ -278,7 +278,7 @@ export function motivoPaqueteInvalido(p: PaqueteCandidato, idioma: Idioma = 'es'
   }
   if (!Number.isInteger(precio)) {
     return m(
-      'El precio del paquete tiene que ser un numero entero de pesos: el reparto entre las pantallas no admite centavos.',
+      'El precio del paquete tiene que ser una cantidad entera: el reparto entre las pantallas no admite centavos.',
       'catalogos.motivo.paquete.precio-entero',
     )
   }
