@@ -986,6 +986,103 @@ cambiado**.
   valores cambiados**, y ningún texto español retirado se quedó sin clave que lo
   pinte.
 
+### Lote inventario y arrendadores
+
+**2026-11-02, rama `feat/ingles-inventario-arrendadores`** (sale de
+`integra/ingles`, ec427a66). El inglés sigue APAGADO; en español no cambia ni una
+letra. Tablas de revisión en `docs/i18n/revision-inventario.md` y
+`docs/i18n/revision-arrendadores.md`.
+
+**Pantallas cubiertas:** `/inventario` (la tabla con indicadores y chips, el
+cambio masivo de tarifa y de renta, las celdas editables y sus cuadros de
+contraseña, el asistente «Contrato + pantalla», el alta manual y la carga
+masiva con su resumen y la «Información añadida»); `/arrendadores` (filtros,
+indicadores, contratos, pagos de renta, cuadre, rentabilidad, la lista con su
+alta y su baja, las razones sociales del arrendador y el consolidado), la ficha
+del contrato con sus cuadros (completar, quién paga, registrar pago y adjuntos,
+reportar incidencia, renovar), los cambios al contrato y las versiones firmadas,
+licencias y permisos; lo que RODEA al documento del contrato (`/contrato/[id]`:
+la barra y el panel de firmas), la firma pública (`/firmar/[token]`) y la página
+`/razones-sociales`. `CompromisoRentaCard` y `PagosRentaCard` también salen en
+Finanzas.
+
+- **761 claves** en dos archivos: `lib/i18n/textos/inventario.ts` (354,
+  `inventario.*`) y `textos/arrendadores.ts` (407, `arrendadores.*`),
+  esparcidos en `diccionario.ts`, cada uno con su instantánea y las guardias
+  de siempre (inglés ≠ español salvo las declaradas, sin acentos, huecos
+  iguales, sin espacio antes de «%», sin comillas ni apóstrofos rectos, sin
+  «tap»/«press»). `costura.test.ts` mira ahora ocho lotes.
+- **Espejos con prueba de paridad.** `medioLabel`, `disponibilidadInventario`,
+  `textoVencimiento`, `faltaEnContratos`, `LICENCIA_LABEL` y el «Sin arrendador
+  asignado» de `conciliacionRenta` NO se tocaron: `components/demo/inventario/
+  etiquetas.ts` y `components/demo/arrendadores/etiquetas.ts` repiten su
+  decisión con claves, y `textos/inventario.test.ts` / `textos/arrendadores.test.ts`
+  exigen que en español digan exactamente lo mismo, caso por caso. Los estatus
+  del contrato, del pago y del sitio y los tipos de medio reutilizan las claves
+  de Comercial (`comercial/claves.ts`).
+- **Qué clave usa cada aviso** (la cuarta y quinta gemelas): las dos pruebas de
+  textos leen el fuente y fijan la rama de cada toast que no se rinde (tarifa ↔
+  renta en el cambio masivo, predio / asignada / creados en el asistente,
+  adjuntos ↔ pago, firmado / enviado / historial al editar términos…).
+- **El `id` de `PagosRentaCard` no cambia con el idioma**: es la clave donde se
+  guarda si está plegada; con el título por omisión se queda en español y solo
+  se traduce lo que se pinta.
+
+> [!danger] EL CONTRATO NO SE TRADUCE
+> Ni su texto (`lib/contrato-documento.ts`), ni la cantidad con letra, ni lo que
+> entra en el hash de las firmas, ni **lo que se imprime con él**: los
+> encabezados DECLARACIONES / CLÁUSULAS, los sellos «FIRMADO ELECTRÓNICAMENTE» /
+> «FIRMA INVALIDADA» con su fecha, la **constancia de firma electrónica**
+> (`ConstanciaFirmas.tsx`, intacto) y el aviso de borrador. Un contrato en
+> español con la constancia en inglés sería un papel en dos idiomas, y la
+> constancia es la prueba de lo que se firmó. Se traduce lo que rodea al
+> documento en pantalla y no sale en el papel (`doc-no-print`): la barra y el
+> panel de firmas. La firma pública traduce su interfaz con
+> `idiomaDeLaPeticion()` (el aviso de enlace no válido) y el contexto (el resto);
+> el texto congelado que se firma se pinta tal cual. Lo fijan
+> `textos/arrendadores.test.ts` («el documento del contrato sigue en español») y
+> el estado del documento en la prueba de pantallas. Las pruebas de firmas
+> (`contrato-documento`, `firmas-repo.*`) siguen en verde sin tocarlas.
+
+**Cómo se demostró el español idéntico:** `lib/i18n/pantallas-inventario-arrendadores.test.ts`
+rinde **81 estados**. Fuerza `useState` por **componente y ordinal** (el nombre
+de la función que llama, leído de la pila, y el número de llamada): aquí hay
+demasiados `useState(false)` seguidos para acertar por orden de render. Con
+`I18N_VOLCAR=<carpeta>` vuelca el HTML español: se volcó con la prueba final y
+los componentes de ec427a66 (`git checkout` de los 22 archivos, sin tocar el
+resto) y con los del lote, y `diff -rq` salió **vacío (81/81)**.
+`I18N_VOLCAR_EN` vuelca el inglés para revisarlo a ojo.
+
+**Glosario añadido** (decisiones del traductor, el dueño puede cambiarlas):
+contrato → **contract** (y **lease agreement** cuando dice «contrato de
+arrendamiento», en títulos) · renta → *rent* · depósito (en garantía) →
+**security deposit** · conciliación / cuadre de renta → **rent reconciliation**
+· licencia / permiso → *license* / **permit** · firma → *signature* (firmar →
+*sign*) · constancia → **certificate** (no se usa: la constancia no se traduce)
+· arrendataria (nosotros) → **lessee** · predio → *property* · emplazamiento →
+**location** · pantalla suelta → *individual screen* · razón social (del
+arrendador) → *legal name*; «Razones sociales» → *Legal entities* (como ya decía
+otro lote) · régimen fiscal → *tax regime* · domicilio → *address* · domicilio
+fiscal → *tax address* · alta manual → **manual entry** · carga masiva → **bulk
+upload** · dar de baja → **deactivate** · congelar (el documento) → *freeze* ·
+sello SHA-256 → *SHA-256 seal* · vence (un contrato) → *Expires* frente a vence
+(un pago) → *Due* · próximo (pago) → *Next* · actualizar (en la carga) → *Update*.
+Las tres últimas entran en `DISTINTOS_A_PROPOSITO` de la costura.
+
+**Sigue en español dentro de estas pantallas, a propósito o de otro módulo:** el
+documento del contrato y lo que se imprime con él (arriba); `lote.frase()`
+(`lib/cambios-lote.ts`) dentro del aviso del cambio masivo a medias; el motivo
+de `pantallasFueraDelGrupo` (`lib/predio-cercania.ts`); qué falta y dónde en la
+barra del documento (`f.etiqueta` / `f.donde`, del redactor del contrato); la
+etiqueta de cada campo en el historial de cambios y `valorParaMostrar`
+(`lib/contrato-cambios.ts`); el error de formato de `CampoCifra`
+(`lib/captura-cifra.ts`); `Paginacion` («de»); los nombres de columna de la
+plantilla (`renta_arrendador`, `costo_compra`, la hoja «Sitios»); la unidad de
+cada modalidad en «Información añadida» (un dato); el importe que recita el
+paso de revisión de firmas (`$10,000.00 MXN`, es el dato que se congela);
+`GestionEntidadesFiscales` (la gestión dentro de `/razones-sociales`, que no
+estaba en la lista del lote) y los mensajes del servidor (I18N-05).
+
 ## Enlaces
 
 - [[acceso-y-sesion-ui]] — la pantalla de entrar, que es la traducida
