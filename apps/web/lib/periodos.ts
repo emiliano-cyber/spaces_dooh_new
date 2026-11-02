@@ -12,6 +12,8 @@
 
 import { formatMonto } from '@/lib/data/derive'
 import { formatNumero } from '@/lib/formato-numero'
+import { traducir, type ClaveTexto } from '@/lib/i18n/diccionario'
+import type { Idioma } from '@/lib/i18n/idiomas'
 
 export type Unidad = 'mensual' | 'catorcenal' | 'semanal' | 'diaria' | 'spot' | 'hora' | 'cpm'
 
@@ -62,9 +64,27 @@ const UNIDAD_PLURAL: Record<string, string> = Object.fromEntries(
 
 // Nombre de la unidad concordado con la cantidad ("1 mes", "2 meses"). Cero va
 // en plural, como se dice: "0 meses".
-export function unidadCorta(unidad: string, cantidad: number): string {
-  const tabla = Math.abs(cantidad) === 1 ? UNIDAD_CORTA : UNIDAD_PLURAL
+//
+// I18N (lote compartidos, 2026-11-02) · `idioma` va con `'es'` por omisión: el
+// servidor, el PDF y todas las pantallas que no lo pasan siguen leyendo estas
+// tablas tal cual. Solo el inglés va al diccionario
+// (`compartidos.unidad.<u>.uno/.otros`), y `textos/compartidos.test.ts` exige
+// que el español del diccionario sea EXACTAMENTE el de `UNIDADES`.
+export function unidadCorta(unidad: string, cantidad: number, idioma: Idioma = 'es'): string {
+  const uno = Math.abs(cantidad) === 1
+  if (idioma !== 'es') {
+    if (!UNIDAD_CORTA[unidad]) return unidad
+    return traducir(idioma, `compartidos.unidad.${unidad}.${uno ? 'uno' : 'otros'}` as ClaveTexto)
+  }
+  const tabla = uno ? UNIDAD_CORTA : UNIDAD_PLURAL
   return tabla[unidad] ?? unidad
+}
+
+/** El nombre de la unidad para un selector («Mensual», «CPS · costo por salida»). */
+export function etiquetaUnidad(unidad: string, idioma: Idioma = 'es'): string {
+  if (!UNIDAD_LABEL[unidad]) return unidad
+  if (idioma === 'es') return UNIDAD_LABEL[unidad]
+  return traducir(idioma, `compartidos.unidad.${unidad}` as ClaveTexto)
 }
 
 // ─── Cómo se CUENTA lo que se vendió ────────────────────────────────────────
@@ -91,9 +111,9 @@ export function unidadCorta(unidad: string, cantidad: number): string {
 // leer mal; «50 spots · 12 spots» sí.
 
 /** `50 spots` · `1 mes` · `3 meses`. El QUÉ, sin el precio. */
-export function etiquetaCantidad(unidad: string, cantidad: number): string {
+export function etiquetaCantidad(unidad: string, cantidad: number, idioma: Idioma = 'es'): string {
   const n = Number(cantidad) || 0
-  return `${n.toLocaleString('es-MX', { maximumFractionDigits: 2 })} ${unidadCorta(unidad, n)}`
+  return `${n.toLocaleString('es-MX', { maximumFractionDigits: 2 })} ${unidadCorta(unidad, n, idioma)}`
 }
 
 /**
@@ -107,12 +127,15 @@ export function etiquetaCantidad(unidad: string, cantidad: number): string {
  * NO acepta `spotsPorDia`, y eso es la mitad del guard: la programación no entra
  * en el precio, y un parámetro que no existe no se puede colar por error.
  */
-export function resumenContratacion(c: {
-  unidad: string
-  cantidad: number
-  tarifaUnitaria?: number | null
-}): string {
-  const etiqueta = etiquetaCantidad(c.unidad, c.cantidad)
+export function resumenContratacion(
+  c: {
+    unidad: string
+    cantidad: number
+    tarifaUnitaria?: number | null
+  },
+  idioma: Idioma = 'es',
+): string {
+  const etiqueta = etiquetaCantidad(c.unidad, c.cantidad, idioma)
   const tarifa = Number(c.tarifaUnitaria ?? 0)
   if (!Number.isFinite(tarifa) || tarifa <= 0) return etiqueta
   return `${etiqueta} × ${formatMonto(tarifa)}`
@@ -148,11 +171,13 @@ export function resumenReserva(r: { unidad: string; cantidad: number; precio: nu
  * toda la producción de hoy, y un «0 pases al día» afirmaría que la pieza no
  * sale nunca, que es lo contrario de «no se capturó».
  */
-export function etiquetaFrecuencia(spotsPorDia: number | null | undefined): string | null {
+export function etiquetaFrecuencia(spotsPorDia: number | null | undefined, idioma: Idioma = 'es'): string | null {
   const n = Number(spotsPorDia ?? 0)
   if (!Number.isFinite(n) || n <= 0) return null
   // Con coma de miles: una digital pasa de 6,000 pases al día.
-  return `${formatNumero(n)} ${n === 1 ? 'pase' : 'pases'} al día`
+  return traducir(idioma, n === 1 ? 'compartidos.frecuencia.uno' : 'compartidos.frecuencia.otros', {
+    n: formatNumero(n),
+  })
 }
 
 // Días inclusivos entre dos fechas 'YYYY-MM-DD' (14→20 son 7 días).

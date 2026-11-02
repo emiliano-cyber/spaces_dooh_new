@@ -31,6 +31,10 @@
 //  «hoy» entra como parámetro (lo pone el servidor, en la zona de la base).
 // ============================================================================
 
+import { traducir } from './i18n/diccionario'
+import type { Idioma } from './i18n/idiomas'
+import { formatFecha } from './data/derive'
+
 export type TipoPeriodo = 'mes' | 'mes-anterior' | 'trimestre' | 'trimestre-anterior' | 'anio' | 'rango'
 
 export interface Periodo {
@@ -121,6 +125,36 @@ export function periodoDe(
       return { desde, hasta, etiqueta: `${desde} a ${hasta}` }
     }
   }
+}
+
+/**
+ * La etiqueta del periodo en un idioma (lote compartidos, 2026-11-02).
+ *
+ * La arma el SERVIDOR (`periodoDe`) en espanol y viaja en la respuesta; en
+ * espanol se pinta TAL CUAL llega. En otro idioma se rearma desde la propia
+ * etiqueta, que tiene solo cuatro formas («Noviembre 2026», «4.º trimestre
+ * 2026», «2026», «AAAA-MM-DD a AAAA-MM-DD»): asi no hace falta que el servidor
+ * sepa el idioma ni que la respuesta cambie de forma. Lo que no reconoce se
+ * deja como llego, en vez de inventar.
+ */
+export function etiquetaPeriodo(p: { etiqueta: string }, idioma: Idioma = 'es'): string {
+  const e = p.etiqueta
+  if (idioma === 'es') return e
+  const mes = /^(\S+) (\d{4})$/.exec(e)
+  if (mes && MESES.includes(mes[1])) {
+    const fecha = new Date(Date.UTC(Number(mes[2]), MESES.indexOf(mes[1]), 1))
+    return fecha.toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+  }
+  const trimestre = /^(\d)\.º trimestre (\d{4})$/.exec(e)
+  if (trimestre) return traducir(idioma, 'compartidos.periodo.etiqueta.trimestre', { n: trimestre[1], anio: trimestre[2] })
+  const rango = /^(\d{4}-\d{2}-\d{2}) a (\d{4}-\d{2}-\d{2})$/.exec(e)
+  if (rango) {
+    return traducir(idioma, 'compartidos.periodo.etiqueta.rango', {
+      desde: formatFecha(rango[1], idioma),
+      hasta: formatFecha(rango[2], idioma),
+    })
+  }
+  return e
 }
 
 // Las cuotas y abonos de facturas ANULADAS no cuentan para nada: una factura

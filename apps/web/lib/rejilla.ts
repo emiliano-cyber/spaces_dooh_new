@@ -20,6 +20,9 @@
 //  divergir significa cobrar un precio que nadie decidió.
 // ============================================================================
 
+import { traducir } from './i18n/diccionario'
+import type { Idioma } from './i18n/idiomas'
+
 /** Una franja horaria de la organización. `HH:MM` en 24 h, fin EXCLUSIVO. */
 export type FranjaHoraria = {
   id: string
@@ -92,6 +95,17 @@ export const AVISO_FRANJA_NO_VIAJA_AL_CMS =
   'La franja horaria es un compromiso comercial: se cotiza y se cobra. Al publicar en DOOHmain se envía su horario ' +
   'a cada pantalla; en las pantallas que opera otro CMS, o si el anuncio ya estaba ' +
   'publicado, quien opere la pantalla tiene que programarla manualmente.'
+
+/**
+ * El aviso en un idioma. La CONSTANTE de arriba se queda en espanol y es la que
+ * se congela en el snapshot de la propuesta (`propuestas-repo.ts`): un
+ * documento ya guardado no cambia de idioma porque alguien cambie el suyo.
+ * Las pantallas piden esta funcion; sin idioma devuelve la constante tal cual
+ * (lo vigilan `textos/compartidos.test.ts` y `compartidos-idioma.test.ts`).
+ */
+export function avisoFranja(idioma: Idioma = 'es'): string {
+  return idioma === 'es' ? AVISO_FRANJA_NO_VIAJA_AL_CMS : traducir(idioma, 'compartidos.franja.aviso')
+}
 
 const HORA_RE = /^([01]\d|2[0-3]):([0-5]\d)$/
 const FECHA_RE = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/
