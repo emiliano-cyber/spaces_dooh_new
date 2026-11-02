@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest'
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
 import { ES_CAMPANAS, EN_CAMPANAS } from './campanas'
 import { DICCIONARIOS, type ClaveTexto } from '../diccionario'
 import {
@@ -112,5 +114,54 @@ describe('diccionario de campanas · el espanol reproduce EXACTAMENTE su modulo'
 
   it('AVISO_PANTALLA_DOOHMAIN', () => {
     expect(es('campanas.validacion.aviso-pantalla')).toBe(AVISO_PANTALLA_DOOHMAIN)
+  })
+})
+
+// ============================================================================
+//  QUE CLAVE usa cada aviso emergente que NO se rinde (costura, 2026-11-02).
+// ----------------------------------------------------------------------------
+//  La gemela de la de `textos/finanzas.test.ts`. El validador del lote
+//  (docs/i18n/validacion-campanas-finanzas.md §5, M12) cambio en
+//  `ValidacionPanel` el aviso de «retirado» por el de «bajado» y sobrevivio a
+//  la suite entera: un toast no sale en `renderToStaticMarkup`, y la
+//  instantanea fija el VALOR de la clave, no QUE clave elige cada rama. Se lee
+//  el fuente y se fija la rama del ternario.
+// ============================================================================
+describe('campanas · los avisos que no se rinden usan su clave', () => {
+  const leer = (archivo: string) =>
+    readFileSync(path.join(__dirname, '../../../components/demo/campanas', archivo), 'utf8').replace(/\r\n/g, '\n')
+  const validacion = leer('ValidacionPanel.tsx')
+  const creativos = leer('CreativosEnDoohmain.tsx')
+
+  it('bajar un creativo: «retirado» si queda pendiente en DOOHmain, «bajado» si no', () => {
+    expect(validacion).toMatch(
+      /res\?\.pendienteEnDoohmain\s*\n\s*\? t\('campanas\.validacion\.retirado\.toast', \{ nombre: cr\.nombre \}\)\s*\n\s*: t\('campanas\.validacion\.bajado\.toast', \{ nombre: cr\.nombre \}\)/,
+    )
+    expect(validacion).toMatch(/e\.message : t\('campanas\.validacion\.no-bajar'\)/)
+  })
+
+  it('publicar: el singular con 1 y el plural con el resto, en publicada y en parcial', () => {
+    expect(validacion).toMatch(
+      /t\(publicadas === 1 \? 'campanas\.validacion\.toast\.publicada\.uno' : 'campanas\.validacion\.toast\.publicada\.otros'/,
+    )
+    expect(validacion).toMatch(
+      /t\(res\.fallidas === 1 \? 'campanas\.validacion\.toast\.parcial\.uno' : 'campanas\.validacion\.toast\.parcial\.otros'/,
+    )
+    // Ninguna publicada (todas de otro CMS) avisa «ninguna», y el error, error.
+    expect(validacion).toMatch(/res\.filas\.length === res\.omitidas\) toast\.info\(t\('campanas\.validacion\.toast\.ninguna'\)\)/)
+    expect(validacion).toMatch(/res\.tipo === 'error'\) toast\.error\(t\('campanas\.validacion\.toast\.error'\)\)/)
+  })
+
+  it('los fallos de enviar, validar y republicar avisan cada uno el suyo', () => {
+    expect(validacion).toMatch(/await enviarADominioApi\(campanaId\)\s*\n\s*\} catch \(e\) \{\s*\n\s*toast\.error\(e instanceof Error \? e\.message : t\('campanas\.validacion\.no-enviar'\)\)/)
+    expect(validacion).toMatch(/mostrarPublicacion\(r\.doohmain\)\s*\n\s*\} catch \(e\) \{\s*\n\s*toast\.error\(e instanceof Error \? e\.message : t\('campanas\.validacion\.no-validar'\)\)/)
+    expect(validacion).toMatch(/reintentarPublicacionApi\(campanaId\)\)\.doohmain\)\s*\n\s*\} catch \(e\) \{\s*\n\s*toast\.error\(e instanceof Error \? e\.message : t\('campanas\.validacion\.no-republicar'\)\)/)
+  })
+
+  it('creativos en DOOHmain: «pausado» al pausar y «reanudado» al reanudar, no al reves', () => {
+    expect(creativos).toMatch(
+      /confirmar\.accion === 'pausar'\s*\n\s*\? t\('campanas\.doohmain-ahora\.pausado', \{ nombre: confirmar\.cr\.nombre \}\)\s*\n\s*: t\('campanas\.doohmain-ahora\.reanudado', \{ nombre: confirmar\.cr\.nombre \}\)/,
+    )
+    expect(creativos).toMatch(/e\.message : t\('campanas\.doohmain-ahora\.no-cambiar'\)/)
   })
 })
