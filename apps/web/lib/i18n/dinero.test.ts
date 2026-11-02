@@ -73,6 +73,33 @@ describe('LA MONEDA DE LA INSTANCIA · una sola, elegida al nacer', () => {
     },
   )
 
+  it('DOS COPIAS del modulo ven la MISMA moneda (el build empaqueta dinero.ts varias veces)', async () => {
+    // El validador lo midio el 02/11: las rutas de `app/api` llevan una copia de
+    // este archivo y el layout otra. Con un `let` de modulo, fijarla en una no la
+    // fijaba en la otra y `/api/reportes/rentabilidad` pintaba «$» en una
+    // instancia en dolares. Aqui se reproduce con dos importaciones frescas.
+    const { vi } = await import('vitest')
+    vi.resetModules()
+    const copiaA = await import('./dinero')
+    vi.resetModules()
+    const copiaB = await import('./dinero')
+    expect(copiaA).not.toBe(copiaB) // de verdad son dos instancias del modulo
+    copiaA.fijarMonedaInstancia('USD')
+    expect(copiaB.monedaInstancia()).toBe('USD')
+    expect(copiaB.formatearDinero(1, 'es')).toBe('US$1.00')
+    copiaB.fijarMonedaInstancia('MXN')
+    expect(copiaA.monedaInstancia()).toBe('MXN')
+  })
+
+  it('el punto comun del servidor la fija: `tenantActual()` llama a `monedaDeLaInstancia()`', () => {
+    // Sin envoltura de handlers en el repo, casi toda peticion con sesion pasa
+    // por `tenantActual`. Si alguien quita esta llamada, una ruta que formatea
+    // en un proceso recien arrancado vuelve a pintar el simbolo por omision.
+    const src = readFileSync(path.join(__dirname, '..', 'server', 'tenant.ts'), 'utf8')
+    const cuerpo = src.slice(src.indexOf('export const tenantActual'), src.indexOf('export async function hayAlgunTenant'))
+    expect(cuerpo).toMatch(/await monedaDeLaInstancia\(\)/)
+  })
+
   it('hay un locale por idioma, y el locale NO es una moneda', () => {
     expect(LOCALE_DE_IDIOMA.es).toBe('es-MX')
     expect(LOCALE_DE_IDIOMA.en).toBe('en-US')

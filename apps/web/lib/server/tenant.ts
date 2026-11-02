@@ -7,6 +7,7 @@ import { cookies } from 'next/headers'
 import { qRaw as q, qRaw1 as q1 } from './db'
 import { usuarioActual } from './auth'
 import { MONEDA_POR_OMISION, type Moneda } from '@/lib/i18n/dinero'
+import { monedaDeLaInstancia } from './moneda-instancia'
 
 // ============================================================================
 //  lib/server/tenant.ts — Multi-tenant a nivel aplicación.
@@ -32,6 +33,11 @@ export const tenantPlataforma = cache(async (): Promise<string | null> => {
 
 // Tenant activo de la request (memoizado). Null solo si no hay sesión.
 export const tenantActual = cache(async (): Promise<string | null> => {
+  // ADR 0048 · el PUNTO COMUN donde se fija la moneda de la instancia para el
+  // servidor: casi toda peticion con sesion pasa por aqui antes de formatear un
+  // importe. Va cacheada por proceso (`moneda-instancia.ts`): una consulta la
+  // primera vez, ninguna despues.
+  await monedaDeLaInstancia()
   const u = await usuarioActual()
   if (!u) return null
   const override = cookies().get(TENANT_COOKIE)?.value

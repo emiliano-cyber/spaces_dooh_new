@@ -75,16 +75,31 @@ export function esMoneda(x: unknown): x is Moneda {
   return typeof x === 'string' && (MONEDAS as readonly string[]).includes(x)
 }
 
-// EL UNICO SITIO. Todo lo demas de este archivo cuelga de esta variable. La
+// EL UNICO SITIO. Todo lo demas de este archivo cuelga de este valor. Lo
 // escribe `fijarMonedaInstancia` y nadie mas.
-let monedaVigente: Moneda = MONEDA_POR_OMISION
+//
+// Vive en `globalThis` y no en un `let` del modulo, y es a proposito: el build
+// de Next empaqueta ESTE archivo varias veces —una copia para las rutas de
+// `app/api`, otra para las paginas de servidor y el layout, otra para el SSR—
+// (medido por el validador el 02/11: ids 60046 y 66224). Con un `let`, fijar la
+// moneda en el layout no la fijaba para una ruta, y `/api/reportes/rentabilidad`
+// escribia «$» en una instancia en dolares. `globalThis` es uno por proceso (y
+// en el navegador, `window`), asi que todas las copias leen el mismo valor.
+const CLAVE = Symbol.for('space-os.moneda-instancia')
+type ConMoneda = { [CLAVE]?: Moneda }
+const almacen = globalThis as unknown as ConMoneda
 
 /**
  * La moneda de ESTA instancia. La leen los formateadores y quien tenga que
  * estampar o rotular un importe (el alta de contrato, el comprobante).
  */
 export function monedaInstancia(): Moneda {
-  return monedaVigente
+  return almacen[CLAVE] ?? MONEDA_POR_OMISION
+}
+
+/** ¿Ya la fijo alguien en este proceso? Lo usa el lector del servidor para no repetir la consulta. */
+export function monedaInstanciaFijada(): boolean {
+  return almacen[CLAVE] !== undefined
 }
 
 /**
@@ -98,7 +113,7 @@ export function fijarMonedaInstancia(m: string): void {
   if (!esMoneda(m)) {
     throw new Error(`Moneda de instancia no soportada: ${JSON.stringify(m)} (solo ${MONEDAS.join(' o ')})`)
   }
-  monedaVigente = m
+  almacen[CLAVE] = m
 }
 
 // Los locales de FORMATEO. No son monedas y no hay que confundirlos: el locale
@@ -125,11 +140,11 @@ const NOMBRE: Record<Idioma, Record<Moneda, string>> = {
 
 /** El simbolo de la moneda de la instancia, para quien lo pinta suelto (`$ 1,234.50`). */
 export function simboloMoneda(idioma: Idioma = 'es'): string {
-  return SIMBOLO[idioma][monedaVigente]
+  return SIMBOLO[idioma][monedaInstancia()]
 }
 
 /** «Peso mexicano (MXN)» / «Dólar estadounidense (USD)», en el idioma de quien mira. */
-export function nombreMoneda(idioma: Idioma = 'es', moneda: Moneda = monedaVigente): string {
+export function nombreMoneda(idioma: Idioma = 'es', moneda: Moneda = monedaInstancia()): string {
   return NOMBRE[idioma][moneda]
 }
 
@@ -170,7 +185,7 @@ export function formatearDinero(
     minimumFractionDigits: decimales.minimumFractionDigits,
     maximumFractionDigits: decimales.maximumFractionDigits,
   }).formatToParts(monto)
-  const simbolo = SIMBOLO[idioma][monedaVigente]
+  const simbolo = SIMBOLO[idioma][monedaInstancia()]
   return partes
     // El espacio que ICU pone entre «USD» y la cifra sobra con el simbolo: en
     // estos dos locales, un literal en blanco solo aparece junto a la moneda.

@@ -206,16 +206,23 @@ Hay dos arneses encima:
 
 **De dónde sale la moneda.** Ya no hay constante: `MONEDA = 'MXN'` desapareció.
 La moneda vive en `tenants.moneda` (`config_negocio.moneda` es su espejo) y
-la app la deja en UNA variable de módulo de `lib/i18n/dinero.ts`
-(`monedaInstancia()`). La escriben solo dos sitios —lo vigila una guardia—:
+la app la guarda en `lib/i18n/dinero.ts` (`monedaInstancia()`), **en `globalThis`
+y no en un `let` del módulo**: el build empaqueta ese archivo varias veces (una
+copia para las rutas de `app/api`, otra para el layout y las páginas; lo midió el
+validador el 02/11), y con un `let` fijarla en el layout no la fijaba para una
+ruta. La escriben solo dos sitios —lo vigila una guardia, y otra prueba que dos
+copias del módulo ven la misma—:
 
 - **Servidor:** `monedaDeLaInstancia()` (`lib/server/moneda-instancia.ts`), que
   lee `select moneda from tenants order by creado_en limit 1` con `qRaw1`
   (`tenants` no tiene RLS fail-closed; es correcto aquí). La llaman el **layout
-  raíz** (`app/layout.tsx`), el **documento imprimible de la propuesta** y las
-  **rutas que escriben importes** en la bitácora o en un aviso. Cada una la
-  pide: Next arma layout y página en paralelo y en capas de módulos distintas.
-  **No se cachea**: una instancia sin organización todavía no tiene moneda.
+  raíz** (`app/layout.tsx`), el **documento imprimible de la propuesta**, las
+  **rutas que escriben importes** y, como punto común, **`tenantActual()`**
+  (`lib/server/tenant.ts`): casi toda petición con sesión pasa por ahí, y no hay
+  envoltura de handlers en el repo. **Se cachea por proceso** en cuanto existe
+  una organización (es inmutable); sin organizaciones no, y el alta la recuerda
+  al crear la primera. Tras una corrección de datos que cambie la moneda, hay
+  que reiniciar la aplicación.
 - **Navegador:** `ProveedorMoneda` (`lib/i18n/moneda-cliente.tsx`), montado en
   el layout raíz, la fija **durante el render** —no en un efecto— para que el
   primer `formatMonto` del SSR y de la hidratación ya la vean.

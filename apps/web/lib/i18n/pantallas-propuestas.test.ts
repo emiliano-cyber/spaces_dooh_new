@@ -179,6 +179,8 @@ vi.mock('@/lib/data/client', async (importOriginal) => {
 vi.mock('@/lib/server/auth', () => ({ exigir: async () => ({ ok: true }) }))
 vi.mock('@/lib/server/db', () => ({ q1: async () => ({ token_publico: 'tok' }) }))
 vi.mock('@/lib/server/tenant', () => ({ tenantActual: async () => 't1' }))
+// ADR 0048 · el documento imprimible pide la moneda de la instancia a la base.
+vi.mock('@/lib/server/moneda-instancia', () => ({ monedaDeLaInstancia: async () => 'MXN' }))
 vi.mock('@/lib/server/propuestas-repo', () => ({
   obtenerPropuestaPublica: async () => ({
     ...PROPUESTA, orgNombre: 'Medios SA', orgLogoUrl: null, clienteNombre: 'Refrescos del Norte',
