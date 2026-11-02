@@ -11,7 +11,7 @@ import {
   type CodigoDePropuestaUI,
 } from '@/lib/data/codigo-aprobacion-api'
 import { admiteCupon, etiquetaEstadoCodigo, vigentesParaSelector } from '@/lib/codigo-aprobacion'
-import { useTexto } from '@/lib/i18n/contexto'
+import { useIdioma } from '@/lib/i18n/contexto'
 import { interpolarNodos } from '@/lib/i18n/nodos'
 
 // ============================================================================
@@ -63,7 +63,7 @@ export function BloqueCodigoPropuesta({
   codigoEstado,
   puedeEditar,
 }: Props) {
-  const t = useTexto()
+  const { t, idioma } = useIdioma()
   const [info, setInfo] = useState<CodigoDePropuestaUI | null>(null)
   const [catalogo, setCatalogo] = useState<CodigoPromocionalUI[]>([])
   const [codInput, setCodInput] = useState('')
@@ -97,7 +97,7 @@ export function BloqueCodigoPropuesta({
   }, [])
 
   const estado = info?.codigoEstado ?? codigoEstado ?? null
-  const etiqueta = etiquetaEstadoCodigo(estado, info?.codigoAprobadoPor ?? null)
+  const etiqueta = etiquetaEstadoCodigo(estado, info?.codigoAprobadoPor ?? null, idioma)
   const admite = admiteCupon(estatus)
   const puedeDecidir = info?.puedeAprobarCodigo === true && estado === 'PENDIENTE' && admite
   const vigentes = vigentesParaSelector(catalogo, hoyLocal())

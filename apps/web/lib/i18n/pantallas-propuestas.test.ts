@@ -29,12 +29,16 @@ import type { Idioma } from './idiomas'
 //  predicado casa con el valor inicial de la llamada, se usa ese. Todo lo demas
 //  es el `useState` de React sin tocar.
 //
-//  ─── LO QUE NO VE, DICHO SIN ADORNOS ───────────────────────────────────────
+//  ─── LOS MODULOS COMPARTIDOS (lote «compartidos», 2026-11-02) ─────────────
 //
-//  Los textos que llegan de modulos COMPARTIDOS fuera del lote
-//  (`lib/periodos.ts`, `lib/codigo-aprobacion.ts`, `AvisoFranjaCMS`,
-//  `OPCIONES_PERIODO`…) siguen en espanol y NO se comprueban aqui: son de otro
-//  lote. Los mensajes de error que manda el servidor van por I18N-05.
+//  Los textos que llegan de modulos compartidos (`lib/periodos.ts`,
+//  `lib/codigo-aprobacion.ts`, `AvisoFranjaCMS`, `OPCIONES_PERIODO`, las
+//  periodicidades de renta, la calculadora) ya se traducen, y se comprueban
+//  aqui de dos formas: frases suyas en las listas de cada pantalla, y un
+//  segundo barrido con el diccionario entero de `textos/compartidos.ts`. Lo
+//  que `MapView` y los controles de `components/demo/ui/` pintan se mide en
+//  `pantallas-compartidos.test.ts`, porque aqui el mapa va sustituido. Los
+//  mensajes de error que manda el servidor van por I18N-05.
 // ============================================================================
 
 const forzado = vi.hoisted(() => ({
@@ -157,7 +161,7 @@ const FUNNEL = {
   ganadoValue: 8000, perdidoValue: 3000, winRate: 0.5, conversion: 0.5,
 }
 
-const datos = vi.hoisted(() => ({ propuestas: [] as unknown[] }))
+const datos = vi.hoisted(() => ({ propuestas: [] as unknown[], contratos: [] as unknown[] }))
 vi.mock('@/lib/data/client', async (importOriginal) => {
   const real = await importOriginal<typeof import('@/lib/data/client')>()
   return {
@@ -167,7 +171,7 @@ vi.mock('@/lib/data/client', async (importOriginal) => {
     useClientes: () => CLIENTES,
     useSitios: () => [SITIO_DIGITAL, SITIO_FIJO],
     useCampanas: () => [],
-    useContratos: () => [],
+    useContratos: () => datos.contratos,
     useArrendadores: () => [{ id: 'ar1', nombre: 'Don Pepe' }],
     useReservas: () => [],
     useConfigNegocio: () => ({ topeDescuentoPct: 30, spotSeg: 10 }),
@@ -197,6 +201,7 @@ beforeEach(() => {
   process.env.IDIOMA_INGLES = '1'
   forzado.cola = []
   datos.propuestas = [PROPUESTA]
+  datos.contratos = []
   vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))
 })
 
@@ -305,6 +310,11 @@ const PANTALLAS: Pantalla[] = [
     },
     espanol: [
       'Duplicar propuesta',
+      // Lote compartidos
+      'CPS · costo por salida',
+      'Catorcenal (cada 14 días)',
+      'title="Nº de salidas"',
+      '>semana<',
       'Mismos sitios y contratación; los precios se calculan con la tarifa de hoy.',
       'La negociación con «Agencia Uno» no está validada',
       'Valida la negociación de la agencia en Clientes para poder crear la propuesta.',
@@ -319,7 +329,11 @@ const PANTALLAS: Pantalla[] = [
       'Fija · sin spots',
       'Sitios (2)',
     ],
-    ingles: ['Duplicate proposal', 'Per-site booking', 'Spot calculator', 'Rent to landlord'],
+    ingles: [
+      'Duplicate proposal', 'Per-site booking', 'Spot calculator', 'Rent to landlord',
+      // Lote compartidos: unidades, periodicidad de renta y el titulo de la cantidad.
+      'CPS · cost per play', 'Every 14 days', 'title="No. of plays"', '>week<',
+    ],
   },
   {
     nombre: 'agregar sitios a una propuesta',
@@ -437,8 +451,9 @@ const PANTALLAS: Pantalla[] = [
       'Mientras esté pendiente, la propuesta no se puede aprobar por dentro.',
       'Quitar código',
       'Quitarlo devuelve su uso al cupón.',
+      'Pendiente de aprobación', // lote compartidos: `etiquetaEstadoCodigo`
     ],
-    ingles: ['Negotiation code', 'Remove code', '<b>20%</b> off, locked in'],
+    ingles: ['Negotiation code', 'Remove code', '<b>20%</b> off, locked in', 'Pending approval'],
   },
   {
     nombre: 'bloque del codigo promocional, sin codigo y rechazada',
@@ -531,7 +546,7 @@ const PANTALLAS: Pantalla[] = [
     pintar: async (idioma) => {
       const { TableroPropuestas } = await import('../../components/demo/propuestas/TableroPropuestas')
       forzar(esNull, {
-        periodo: { etiqueta: 'Este mes', desde: '2026-11-01', hasta: '2026-11-30' },
+        periodo: { etiqueta: 'Noviembre 2026', desde: '2026-11-01', hasta: '2026-11-30' },
         conGanancia: true,
         resumen: {
           generadas: 3, rechazadas: 1, tasaCierre: 0.5,
@@ -558,8 +573,17 @@ const PANTALLAS: Pantalla[] = [
       'Venta sin IVA',
       'Aprobadas del periodo',
       'sin contrato',
+      // Lote compartidos: `OPCIONES_PERIODO` y la etiqueta del periodo.
+      'Este mes',
+      'Mes pasado',
+      'Trimestre pasado',
+      'Rango',
+      'Noviembre 2026 · ',
     ],
-    ingles: ['Proposal summary', 'Sales rep', 'Sales excl. VAT', 'Approved on', 'Nov 2, 2026', 'Internal ref.'],
+    ingles: [
+      'Proposal summary', 'Sales rep', 'Sales excl. VAT', 'Approved on', 'Nov 2, 2026', 'Internal ref.',
+      'This month', 'Last month', 'Last quarter', 'Range', 'November 2026 · Nov 1, 2026',
+    ],
   },
   {
     nombre: 'entrada publica por codigo',
@@ -636,8 +660,12 @@ const PANTALLAS: Pantalla[] = [
       'TÉRMINOS Y CONDICIONES',
       'ACEPTA EL CLIENTE',
       'Nombre, firma y fecha',
+      'La franja horaria es un compromiso comercial: se cotiza y se cobra.', // lote compartidos
     ],
-    ingles: ['COMMERCIAL PROPOSAL', 'SCREENS', 'CLIENT ACCEPTANCE', 'Valid until Dec 1, 2026', 'Prepared for'],
+    ingles: [
+      'COMMERCIAL PROPOSAL', 'SCREENS', 'CLIENT ACCEPTANCE', 'Valid until Dec 1, 2026', 'Prepared for',
+      'The daypart is a commercial commitment: it is quoted and billed.',
+    ],
   },
   {
     nombre: 'lista filtrada sin resultados',
@@ -737,6 +765,44 @@ const PANTALLAS: Pantalla[] = [
     ingles: ['Generate campaign', 'Approved'],
   },
   {
+    // Lote COMPARTIDOS: una ficha cuyas lineas pasan por `lib/periodos.ts`
+    // (la contratacion y la frecuencia), por `etiquetaCalculadora` y por la
+    // periodicidad del contrato de renta.
+    nombre: 'ficha con lineas de la calculadora y renta',
+    pintar: async (idioma) => {
+      const { default: Ficha } = await import('../../app/(app)/(shell)/propuestas/[id]/page')
+      datos.contratos = [{ sitioId: 's1', montoRenta: 500, periodicidad: 'mensual', arrendadorId: 'ar1' }]
+      datos.propuestas = [
+        { ...PROPUESTA, paquete: null, codigoTexto: null, codigoEstado: null,
+          items: [
+            { ...ITEM_BASE, id: 'i3', sitioId: 's1', unidad: 'spot', cantidad: 50, tarifaUnitaria: 20, precio: 1000,
+              aprobado: true, espaciosComprados: 8, horasDia: 18, roadblock: true, primaRoadblockPct: 25, spotsPorDia: 12 },
+            { ...ITEM_BASE, id: 'i4', sitioId: 's2', unidad: 'cpm', cantidad: 1, tarifaUnitaria: 0, precio: 5000,
+              aprobado: false, espaciosComprados: 1, horasDia: null, spotsPorDia: 1 },
+          ] },
+      ]
+      return pintar(idioma, createElement(Ficha, { params: { id: 'p1' } }))
+    },
+    espanol: [
+      '50 salidas × $ 20.00',
+      '1 millar',
+      'Roadblock · 8 espacios del loop · 18 h al día · prima 25 %',
+      '1 espacio del loop',
+      '12 pases al día',
+      '1 pase al día',
+      '$ 500.00 · mensual',
+    ],
+    ingles: [
+      '50 plays × $ 20.00',
+      '1 thousand',
+      'Roadblock · 8 loop slots · 18 h per day · premium 25%',
+      '1 loop slot',
+      '12 plays per day',
+      '1 play per day',
+      '$ 500.00 · monthly',
+    ],
+  },
+  {
     nombre: 'ficha de una propuesta que no existe',
     pintar: async (idioma) => {
       const { default: Ficha } = await import('../../app/(app)/(shell)/propuestas/[id]/page')
@@ -788,10 +854,6 @@ describe('lote PROPUESTAS · barrido con el diccionario entero', () => {
       const visibles = [...crudo.matchAll(/(?:title|aria-label|placeholder|alt)="([^"]*)"/g)].map((m) => m[1])
       html += texto(crudo.replace(/<[^>]*>/g, '\n') + '\n' + visibles.join('\n'))
     }
-    // El aviso de la franja sale de `lib/rejilla.ts`, que es de otro lote, y
-    // dice «pantalla»: se quita para no confundirlo con un `t()` olvidado.
-    const { AVISO_FRANJA_NO_VIAJA_AL_CMS } = await import('../rejilla')
-    html = html.split(AVISO_FRANJA_NO_VIAJA_AL_CMS).join('\n')
     const culpables: string[] = []
     for (const [clave, es] of Object.entries(ES_PROPUESTAS)) {
       const en = EN_PROPUESTAS[clave as keyof typeof EN_PROPUESTAS]
@@ -802,6 +864,38 @@ describe('lote PROPUESTAS · barrido con el diccionario entero', () => {
         // El codigo de ejemplo coincide con el del dato de prueba.
         if (clave === 'propuestas.codigo.ejemplo') continue
         if (html.includes(t)) culpables.push(`${clave} · «${t}»`)
+      }
+    }
+    expect(culpables).toEqual([])
+  })
+
+  it('ninguna frase espanola de los MODULOS COMPARTIDOS aparece en las pantallas en ingles', async () => {
+    // Lote compartidos (2026-11-02). Mismo barrido, con el diccionario de
+    // `textos/compartidos.ts`. Aqui los textos son CORTOS («Mensual», «Rango»,
+    // «semana»), asi que el umbral baja a 4 letras y se busca la palabra
+    // ENTERA: «Rango» no debe casar dentro de «Arrangement», pero «semana»
+    // suelta en un `<option>` si tiene que caer.
+    const { ES_COMPARTIDOS, EN_COMPARTIDOS } = await import('./textos/compartidos')
+    let html = ''
+    for (const p of PANTALLAS) {
+      forzado.cola = []
+      datos.propuestas = [PROPUESTA]
+      datos.contratos = []
+      const crudo = await p.pintar('en')
+      const visibles = [...crudo.matchAll(/(?:title|aria-label|placeholder|alt)="([^"]*)"/g)].map((m) => m[1])
+      html += texto(crudo.replace(/<[^>]*>/g, '\n') + '\n' + visibles.join('\n'))
+    }
+    // Las condiciones del dato de prueba («Pago a 30 días.») las escribe quien
+    // vende: son DATO, no interfaz, y no se traducen.
+    html = html.split('Pago a 30 días.').join('\n')
+    const escapar = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const culpables: string[] = []
+    for (const [clave, es] of Object.entries(ES_COMPARTIDOS)) {
+      const en = EN_COMPARTIDOS[clave as keyof typeof EN_COMPARTIDOS]
+      for (const trozo of es.split(/\{\w+\}/)) {
+        const t = trozo.trim()
+        if (t.length < 4 || en.includes(t)) continue
+        if (new RegExp(`(^|[^\\p{L}])${escapar(t)}($|[^\\p{L}])`, 'u').test(html)) culpables.push(`${clave} · «${t}»`)
       }
     }
     expect(culpables).toEqual([])

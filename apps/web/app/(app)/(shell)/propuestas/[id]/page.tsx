@@ -6,6 +6,7 @@ import { conteo } from '@/lib/plural'
 import { useIdioma, useTexto } from '@/lib/i18n/contexto'
 import { interpolarNodos } from '@/lib/i18n/nodos'
 import { resumenContratacion, etiquetaFrecuencia } from '@/lib/periodos'
+import { periodicidadLabel } from '@/lib/renta-periodicidad'
 import { etiquetaCalculadora } from '@/lib/calculadora-spots'
 import { AvisoFranjaCMS } from '@/components/demo/rejilla/AvisoFranjaCMS'
 import { useEffect, useState } from 'react'
@@ -881,7 +882,10 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                             <>
                               <div className="text-ink">{renta.propietario}</div>
                               <div className="demo-num text-[11px] text-muted">
-                                {formatMonto(renta.monto)} · {renta.periodicidad}
+                                {/* En espanol, el dato tal cual (`mensual`), como siempre. En
+                                    ingles no se puede: es una palabra espanola. Se traduce y se
+                                    deja en minusculas, igual que se ve en espanol. */}
+                                {formatMonto(renta.monto)} · {idioma === 'es' ? renta.periodicidad : periodicidadLabel(renta.periodicidad, '—', idioma).toLowerCase()}
                               </div>
                             </>
                           ) : (
@@ -897,11 +901,14 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                             una decisión escrita aquí dentro no la ve nadie. */}
                         <td className="py-2.5 pr-3">
                           <div className="demo-num text-ink">
-                            {resumenContratacion({
-                              unidad: it.unidad,
-                              cantidad: it.cantidad,
-                              tarifaUnitaria: it.tarifaUnitaria,
-                            })}
+                            {resumenContratacion(
+                              {
+                                unidad: it.unidad,
+                                cantidad: it.cantidad,
+                                tarifaUnitaria: it.tarifaUnitaria,
+                              },
+                              idioma,
+                            )}
                           </div>
                           {/* PRECIO-01 · la tarifa se apartó de la calculada.
                               Solo en esta pantalla INTERNA: la liga del
@@ -923,11 +930,11 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                               del loop, horas al día y, si lo es, Roadblock y su
                               prima. Solo aquí, en la pantalla INTERNA: la liga
                               del cliente enseña el precio final. */}
-                          {etiquetaCalculadora(it) && (
-                            <div className="text-[11px] text-muted">{etiquetaCalculadora(it)}</div>
+                          {etiquetaCalculadora(it, idioma) && (
+                            <div className="text-[11px] text-muted">{etiquetaCalculadora(it, idioma)}</div>
                           )}
-                          {etiquetaFrecuencia(it.spotsPorDia) && (
-                            <div className="text-[11px] text-muted">{etiquetaFrecuencia(it.spotsPorDia)}</div>
+                          {etiquetaFrecuencia(it.spotsPorDia, idioma) && (
+                            <div className="text-[11px] text-muted">{etiquetaFrecuencia(it.spotsPorDia, idioma)}</div>
                           )}
                           {/* REJILLA-01 · la franja CONTRATADA. Se pinta el
                               nombre CON su horario a propósito: «Prime» a secas

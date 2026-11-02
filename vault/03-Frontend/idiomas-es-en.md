@@ -579,6 +579,61 @@ la MISMA clave que la ayuda de «Nueva propuesta» que lo nombra
 (`propuestas.alta.mapa.dibujar`): si se tradujeran por separado, la ayuda
 mandaría a pulsar un rótulo que no está en pantalla. Español idéntico.
 
+### Lote compartidos
+
+(2026-11-02, rama `feat/ingles-compartidos`.) Los textos de módulos COMPARTIDOS
+que la lista de arriba dejaba en español dentro de Propuestas. **El inglés sigue
+apagado** y el español no cambia ni una letra.
+
+**El mecanismo es el mismo, con una regla más:** las funciones de `lib/` que
+devuelven texto ganaron un último parámetro `idioma` con **`'es'` por omisión**,
+así que el servidor, el PDF, los correos y las pantallas de otros módulos (que no
+lo pasan) siguen en español sin tocarlos. Textos en
+`lib/i18n/textos/compartidos.ts` (72 claves `compartidos.<módulo>.<elemento>`),
+esparcidos en `diccionario.ts` como los de propuestas.
+
+| Módulo | Qué se hizo |
+|---|---|
+| `lib/periodos.ts` | `unidadCorta`, `etiquetaCantidad`, `resumenContratacion`, `etiquetaFrecuencia` aceptan `idioma`; nueva `etiquetaUnidad(u, idioma)` para el selector. En español siguen leyendo `UNIDADES` |
+| `lib/calculadora-spots.ts` | `etiquetaCalculadora(p, idioma)` y `previsualizarCalculadora(e, idioma)`. `resolverCalculadora` (servidor) sigue en español; la frase «la cantidad no cuadra» solo la usa él y no entró al diccionario |
+| `lib/renta-periodicidad.ts` | `periodicidadLabel(p, vacío, idioma)` |
+| `lib/codigo-aprobacion.ts` | `etiquetaEstadoCodigo(e, quién, idioma)` |
+| `lib/rejilla.ts` | `avisoFranja(idioma)`. La **constante** `AVISO_FRANJA_NO_VIAJA_AL_CMS` se queda en español: es la que se congela en el snapshot de la propuesta |
+| `lib/finanzas-periodo.ts` | `etiquetaPeriodo(p, idioma)`: la etiqueta la manda el servidor en español y en inglés se **rearma desde ella** («Noviembre 2026» → «November 2026», «4.º trimestre 2026» → «Q4 2026», el rango con `formatFecha`). Lo que no reconoce se deja como llegó |
+| `OPCIONES_PERIODO` | se queda en `TableroPeriodo.tsx` (Finanzas no es de este lote); el tablero de propuestas usa `compartidos.periodo.<tipo>` |
+| `MapView`, `Campo`, `CampoContrasena`, `Breadcrumbs`, `candado`, `AvisoFranjaCMS` | `useTexto()` / `useIdioma()`. `AvisoFranjaCMS` pasa a `'use client'` (todos sus llamadores ya lo eran). `Modal` y `Sheet` no tienen texto propio |
+| `formatMontoCorto` | **no se tocó**: no tiene texto («k» y «M» no son palabras) y la moneda es otra tarea |
+
+**Cómo se demostró que el español no cambió.** Antes de tocar nada se volcó el HTML
+español de **27 estados**: los 21 de `pantallas-propuestas.test.ts` (uno nuevo, la
+ficha con líneas de la calculadora y una renta) y 6 piezas sueltas de la nueva
+`pantallas-compartidos.test.ts` (el mapa dibujando y con la zona cerrada, `Campo`,
+migas, el cuadro del candado y el aviso). Después del cambio: **idénticos byte a
+byte**. Para que así fuera, «Cerrar zona ({n})» va con `interpolarNodos` (la cifra
+sigue siendo su propio nodo, como antes). Además, donde el módulo conserva su tabla
+española, `textos/compartidos.test.ts` exige que el diccionario diga exactamente lo
+mismo (como el menú con `nav.ts`), y guarda la instantánea de los dos idiomas.
+
+**Lo que miden las pruebas en inglés.** `pantallas-propuestas.test.ts` lleva frases
+de estos módulos en las listas de cada pantalla y un **segundo barrido** con el
+diccionario de compartidos entero (umbral de 4 letras y palabra completa, porque
+aquí los textos son cortos: «Rango», «semana»). Se quitó la excepción que el piloto
+hacía con el aviso de la franja: ya está traducido. Siete mutantes (quitar el
+`idioma` en tres llamadas, el «(obligatorio)» a mano, dos letras del español y el
+plural invertido) mueren los siete.
+
+**Términos nuevos** (además del glosario de arriba): CPS · cost per play; CPM ·
+cost per thousand impressions; catorcena → 14-day period; catorcenal → every 14
+days; quincenal → twice a month; bimestral → every 2 months; semestral → every 6
+months; espacio del loop → loop slot; prima → premium; zona (del mapa) → area,
+como el «Draw area» del piloto; trimestre → quarter (etiqueta «Q4 2026»).
+
+**Lo que sigue en español, a propósito:** la periodicidad del contrato en la ficha
+en español sigue saliendo del dato (`mensual`); el servidor (`resolverCalculadora`,
+`MSJ_APROBAR_CON_PENDIENTE`, los textos de Actividad de `codigo-aprobacion.ts`) y el
+selector de periodo de **Finanzas** (`TableroPeriodo`), que es de su lote. La tabla
+de revisión está en `docs/i18n/revision-compartidos.md`.
+
 ## Enlaces
 
 - [[acceso-y-sesion-ui]] — la pantalla de entrar, que es la traducida

@@ -67,6 +67,7 @@ import { crearPropuestaApi, agregarSitiosPropuestaApi, cambiarEstatusPropuestaAp
 import {
   UNIDADES,
   unidadCorta,
+  etiquetaUnidad,
   cantidadEfectiva,
   diasInclusivos,
   precioItem,
@@ -76,7 +77,7 @@ import {
   esCantidadManual,
   type Unidad,
 } from '@/lib/periodos'
-import { PERIODICIDADES, factorMensual } from '@/lib/renta-periodicidad'
+import { PERIODICIDADES, factorMensual, periodicidadLabel } from '@/lib/renta-periodicidad'
 import { formatNumero } from '@/lib/formato-numero'
 
 // Periodicidades de la renta al propietario (enum `periodicidad_pago` en la BD)
@@ -897,7 +898,7 @@ function NuevaPropuestaDialog({
       horasDia: num(c.horasDia),
       roadblock: c.roadblock,
       primaRoadblockPct: c.roadblock ? primaDe(s) : null,
-    })
+    }, idioma)
   }
 
   // ADR 0043 · la tarifa BASE de una línea: con calculadora, la tarifa mensual
@@ -1357,7 +1358,7 @@ function NuevaPropuestaDialog({
                     const n = parseInt(duracionN, 10) || 1
                     return (
                       <option key={u.unidad} value={u.unidad}>
-                        {unidadCorta(u.unidad, n)}
+                        {unidadCorta(u.unidad, n, idioma)}
                       </option>
                     )
                   })}
@@ -1522,7 +1523,7 @@ function NuevaPropuestaDialog({
                     >
                       {mods.map((m) => (
                         <option key={m.unidad} value={m.unidad}>
-                          {UNIDADES.find((u) => u.unidad === m.unidad)?.label ?? m.unidad}
+                          {etiquetaUnidad(m.unidad, idioma)}
                         </option>
                       ))}
                     </select>
@@ -1575,12 +1576,12 @@ function NuevaPropuestaDialog({
                         title={
                           c.unidad === 'cpm'
                             ? t('propuestas.alta.cpm.titulo', { mil: (1000).toLocaleString('es-MX') })
-                            : t('propuestas.alta.cantidad.titulo', { unidad: unidadCorta(c.unidad, 2) })
+                            : t('propuestas.alta.cantidad.titulo', { unidad: unidadCorta(c.unidad, 2, idioma) })
                         }
                       />
                     ) : (
                       <span className="whitespace-nowrap text-muted" title={t('propuestas.alta.periodos.titulo')}>
-                        {periodos} {unidadCorta(c.unidad, periodos)}
+                        {periodos} {unidadCorta(c.unidad, periodos, idioma)}
                       </span>
                     )}
                     {/* CPS-CPM · el CPM se captura en MILLARES. Se escribe a cuántos
@@ -1737,7 +1738,7 @@ function NuevaPropuestaDialog({
                           title={t('propuestas.alta.renta.cada-cuando')}
                         >
                           {PERIODICIDADES_RENTA.map((x) => (
-                            <option key={x.value} value={x.value}>{x.label}</option>
+                            <option key={x.value} value={x.value}>{periodicidadLabel(x.value, '—', idioma)}</option>
                           ))}
                         </select>
                         {/* El aviso iba en gris al final de la fila y pasaba

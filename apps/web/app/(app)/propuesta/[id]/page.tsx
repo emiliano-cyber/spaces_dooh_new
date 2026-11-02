@@ -5,7 +5,7 @@ import { tenantActual } from '@/lib/server/tenant'
 import { obtenerPropuestaPublica } from '@/lib/server/propuestas-repo'
 import { formatFecha, formatFechaHora, formatMonto } from '@/lib/data/derive'
 import { ubicacion } from '@/lib/ubicacion'
-import { AVISO_FRANJA_NO_VIAJA_AL_CMS } from '@/lib/rejilla'
+import { avisoFranja } from '@/lib/rejilla'
 import { idiomaDeLaPeticion } from '@/lib/i18n/servidor'
 import { traducir, type ClaveTexto } from '@/lib/i18n/diccionario'
 import {
@@ -148,7 +148,7 @@ export default async function DocumentoPropuestaPage({ params }: { params: { id:
           </tbody>
         </table>
         {/* REJILLA-01 · el mismo aviso que la liga: es el documento que firma. */}
-        {p.items.some((it) => it.franjaId) && <p className="doc-p doc-chico">{AVISO_FRANJA_NO_VIAJA_AL_CMS}</p>}
+        {p.items.some((it) => it.franjaId) && <p className="doc-p doc-chico">{avisoFranja(idioma)}</p>}
 
         {puntos.length > 0 && (
           <>

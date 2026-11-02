@@ -5,11 +5,12 @@ import { AlertTriangle } from 'lucide-react'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { cn } from '@/lib/cn'
 import { formatMonto, formatFecha, usePropuestas } from '@/lib/data/client'
-import type { TipoPeriodo } from '@/lib/finanzas-periodo'
+import { etiquetaPeriodo, type TipoPeriodo } from '@/lib/finanzas-periodo'
 import { OPCIONES_PERIODO } from '@/components/demo/finanzas/TableroPeriodo'
 import { resumenPropuestasApi, type RespuestaResumenPropuestas } from '@/lib/data/propuestas-resumen-api'
 import { formatNumero } from '@/lib/formato-numero'
 import { useIdioma } from '@/lib/i18n/contexto'
+import type { ClaveTexto } from '@/lib/i18n/diccionario'
 
 // ============================================================================
 //  El tablero de propuestas por periodo (PROP-PER, 06/10).
@@ -79,7 +80,7 @@ export function TableroPropuestas() {
       subtitulo={
         datos
           ? t('propuestas.tablero.subtitulo', {
-              periodo: datos.periodo.etiqueta,
+              periodo: etiquetaPeriodo(datos.periodo, idioma),
               desde: formatFecha(datos.periodo.desde, idioma),
               hasta: formatFecha(datos.periodo.hasta, idioma),
             })
@@ -98,7 +99,7 @@ export function TableroPropuestas() {
             className="h-8 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink sm:hidden"
           >
             {OPCIONES_PERIODO.map((o) => (
-              <option key={o.tipo} value={o.tipo}>{o.label}</option>
+              <option key={o.tipo} value={o.tipo}>{t(`compartidos.periodo.${o.tipo}` as ClaveTexto)}</option>
             ))}
           </select>
           <div className="hidden flex-wrap items-center gap-1.5 sm:flex">
@@ -113,7 +114,7 @@ export function TableroPropuestas() {
                   tipo === o.tipo ? 'border-accent bg-accent text-white' : 'border-border-strong bg-surface text-ink hover:bg-surface-2',
                 )}
               >
-                {o.label}
+                {t(`compartidos.periodo.${o.tipo}` as ClaveTexto)}
               </button>
             ))}
           </div>
