@@ -1,7 +1,7 @@
 # Tabla de revisión · lote de inglés «inventario y arrendadores» · Inventario
 
 Generada el 2026-11-02 a partir de `apps/web/lib/i18n/textos/inventario.ts` y de los usos en
-el código (búsqueda literal de la clave). **354 claves** (`inventario.*`).
+el código (búsqueda literal de la clave). Regenerada en la segunda vuelta (hallazgos del validador, decisiones del dueño y del orquestador). **360 claves** (`inventario.*`).
 
 - **español** es la copia literal de lo que decía el componente antes del lote,
   comprobado comparando el HTML rendido de **81 estados de pantalla** con los
@@ -47,7 +47,7 @@ el código (búsqueda literal de la clave). **354 claves** (`inventario.*`).
 | `inventario.toast.con-advertencias` | `app/(app)/(shell)/inventario/page.tsx:169` | texto en pantalla | {n} con advertencias | {n} with warnings |
 | `inventario.toast.sin-cambios` | `app/(app)/(shell)/inventario/page.tsx:171` | aviso emergente | sin cambios | no changes |
 | `inventario.indicadores` | `components/demo/inventario/ResumenInventario.tsx:91`<br>`app/(app)/(shell)/arrendadores/page.tsx:264` | título | Indicadores | Indicators |
-| `inventario.kpi.pantallas` | `components/demo/inventario/ResumenInventario.tsx:96`<br>`components/demo/inventario/InventarioTabla.tsx:388` | rótulo · título | Pantallas | Screens |
+| `inventario.kpi.pantallas` | `components/demo/inventario/ResumenInventario.tsx:96`<br>`components/demo/inventario/InventarioTabla.tsx:408` | rótulo · título | Pantallas | Screens |
 | `inventario.kpi.medios` | `components/demo/inventario/ResumenInventario.tsx:98` | subtítulo | {digitales} digitales · {fijas} fijas | {digitales} digital · {fijas} static |
 | `inventario.kpi.disponibles` | `components/demo/inventario/ResumenInventario.tsx:105` | rótulo | Disponibles | Available |
 | `inventario.kpi.disponibles.sub` | `components/demo/inventario/ResumenInventario.tsx:110` | subtítulo | de {total} | of {total} |
@@ -56,7 +56,7 @@ el código (búsqueda literal de la clave). **354 claves** (`inventario.*`).
 | `inventario.kpi.sin-contrato.sub` | `components/demo/inventario/ResumenInventario.tsx:118` | subtítulo | captúralo en Arrendadores | add it in Landlords |
 | `inventario.kpi.sin-contrato.ninguno` | `components/demo/inventario/ResumenInventario.tsx:118` | subtítulo | todas tienen contrato o son propias | all have a contract or are owned |
 | `inventario.kpi.propias` | `components/demo/inventario/ResumenInventario.tsx:123` | rótulo | Propias | Owned |
-| `inventario.kpi.propias.sub` | `components/demo/inventario/ResumenInventario.tsx:125` | subtítulo | sin renta: su costo es luz y operación | no rent: its costs are electricity and operations |
+| `inventario.kpi.propias.sub` | `components/demo/inventario/ResumenInventario.tsx:125` | subtítulo | sin renta: su costo es luz y operación | no rent: their only costs are electricity and operations |
 | `inventario.disp.verde` | `components/demo/inventario/ResumenInventario.tsx:53` | texto en pantalla | Disponible | Available |
 | `inventario.disp.ambar` | `components/demo/inventario/ResumenInventario.tsx:54` | texto en pantalla | Con slots vendidos | With slots sold |
 | `inventario.disp.rojo` | `components/demo/inventario/ResumenInventario.tsx:55` | texto en pantalla | Ocupada | Occupied |
@@ -65,7 +65,7 @@ el código (búsqueda literal de la clave). **354 claves** (`inventario.*`).
 | `inventario.chips.medio` | `components/demo/inventario/ResumenInventario.tsx:202` | título | Medio | Medium |
 | `inventario.chips.contrato` | `components/demo/inventario/ResumenInventario.tsx:210` | título | Contrato | Contract |
 | `inventario.chips.con-contrato` | `components/demo/inventario/ResumenInventario.tsx:212` | texto en pantalla | Con contrato | With contract |
-| `inventario.chips.propia` | `components/demo/inventario/ResumenInventario.tsx:218`<br>`components/demo/inventario/InventarioTabla.tsx:993` | texto en pantalla | Propia | Owned |
+| `inventario.chips.propia` | `components/demo/inventario/ResumenInventario.tsx:218`<br>`components/demo/inventario/InventarioTabla.tsx:1013` | texto en pantalla | Propia | Owned |
 | `inventario.medio.digital` | `components/demo/inventario/ResumenInventario.tsx:204`<br>`components/demo/inventario/etiquetas.ts:26` | texto en pantalla · etiqueta de un valor (mapa de claves) | Digital | Digital |
 | `inventario.medio.fija` | `components/demo/inventario/ResumenInventario.tsx:207`<br>`components/demo/inventario/etiquetas.ts:26` | texto en pantalla · etiqueta de un valor (mapa de claves) | Fija | Static |
 | `inventario.disponibilidad.sin-slots` | `components/demo/inventario/etiquetas.ts:41` | etiqueta de un valor (mapa de claves) | Sin slots capturados | No slots entered |
@@ -73,94 +73,99 @@ el código (búsqueda literal de la clave). **354 claves** (`inventario.*`).
 | `inventario.disponibilidad.libres` | `components/demo/inventario/etiquetas.ts:43` | etiqueta de un valor (mapa de claves) | {libres} de {total} libres | {libres} of {total} free |
 | `inventario.disponibilidad.ocupado` | `components/demo/inventario/etiquetas.ts:46` | etiqueta de un valor (mapa de claves) | Ocupado | Occupied |
 | `inventario.disponibilidad.disponible` | `components/demo/inventario/etiquetas.ts:46` | etiqueta de un valor (mapa de claves) | Disponible | Available |
-| `inventario.lote.base` | `components/demo/inventario/InventarioTabla.tsx:57` | texto en pantalla | Este cambio es sensible: tu organización pide que vuelvas a identificarte. | This change is sensitive: your organization asks you to confirm your identity again. |
-| `inventario.lote.uno-uno` | `components/demo/inventario/InventarioTabla.tsx:63` | texto en pantalla | {frase} Confirmar aplica SOLO la que falta; la que ya cambió no se vuelve a tocar. {base} | {frase} Confirming applies ONLY the one left; the one already changed is not touched again. {base} |
-| `inventario.lote.uno-otros` | `components/demo/inventario/InventarioTabla.tsx:63` | texto en pantalla | {frase} Confirmar aplica SOLO la que falta; las {ya} que ya cambiaron no se vuelven a tocar. {base} | {frase} Confirming applies ONLY the one left; the {ya} already changed are not touched again. {base} |
-| `inventario.lote.otros-uno` | `components/demo/inventario/InventarioTabla.tsx:64` | texto en pantalla | {frase} Confirmar aplica SOLO las {faltan} que faltan; la que ya cambió no se vuelve a tocar. {base} | {frase} Confirming applies ONLY the {faltan} left; the one already changed is not touched again. {base} |
-| `inventario.lote.otros-otros` | `components/demo/inventario/InventarioTabla.tsx:64` | texto en pantalla | {frase} Confirmar aplica SOLO las {faltan} que faltan; las {ya} que ya cambiaron no se vuelven a tocar. {base} | {frase} Confirming applies ONLY the {faltan} left; the {ya} already changed are not touched again. {base} |
-| `inventario.tabla.no-archivo` | `components/demo/inventario/InventarioTabla.tsx:117` | aviso emergente | No se pudo generar el archivo. Prueba a filtrar para descargar menos pantallas. | Could not generate the file. Try filtering to download fewer screens. |
-| `inventario.tabla.cifra-ilegible` | `components/demo/inventario/InventarioTabla.tsx:220` | aviso emergente | La cifra no se entiende: la coma separa miles y el punto, decimales ({ejemplo}) | The figure can’t be read: the comma separates thousands and the period, decimals ({ejemplo}) |
-| `inventario.tabla.numero-valido` | `components/demo/inventario/InventarioTabla.tsx:225` | aviso emergente | Escribe un número válido | Enter a valid number |
-| `inventario.tabla.renta-negativa` | `components/demo/inventario/InventarioTabla.tsx:229` | aviso emergente | La renta no puede ser negativa | Rent can’t be negative |
-| `inventario.tabla.tarifa-negativa` | `components/demo/inventario/InventarioTabla.tsx:229` | aviso emergente | La tarifa no puede ser negativa | The rate can’t be negative |
-| `inventario.tabla.fijar-tarifa-en` | `components/demo/inventario/InventarioTabla.tsx:243` | texto en pantalla | fijar la tarifa en {monto} | set the rate to {monto} |
-| `inventario.tabla.ajustar-tarifa` | `components/demo/inventario/InventarioTabla.tsx:244` | texto en pantalla | ajustar la tarifa {pct}% | adjust the rate by {pct}% |
-| `inventario.tabla.aplicar-pantallas.uno` | `components/demo/inventario/InventarioTabla.tsx:247` | confirmación del navegador | ¿Aplicar «{resumen}» a {n} pantalla? | Apply “{resumen}” to {n} screen? |
-| `inventario.tabla.aplicar-pantallas.otros` | `components/demo/inventario/InventarioTabla.tsx:247` | confirmación del navegador | ¿Aplicar «{resumen}» a {n} pantallas? | Apply “{resumen}” to {n} screens? |
-| `inventario.tabla.tarifa-actualizada.uno` | `components/demo/inventario/InventarioTabla.tsx:270` | aviso emergente | Tarifa actualizada en {n} pantalla | Rate updated on {n} screen |
-| `inventario.tabla.tarifa-actualizada.otros` | `components/demo/inventario/InventarioTabla.tsx:270` | aviso emergente | Tarifa actualizada en {n} pantallas | Rate updated on {n} screens |
-| `inventario.tabla.no-masivo` | `components/demo/inventario/InventarioTabla.tsx:280` | aviso emergente | No se pudo aplicar el cambio masivo | Could not apply the bulk change |
-| `inventario.tabla.renta-mayor-cero` | `components/demo/inventario/InventarioTabla.tsx:297`<br>`components/demo/inventario/InventarioTabla.tsx:763` | aviso emergente | La renta debe ser mayor que cero | Rent must be greater than zero |
-| `inventario.tabla.sin-contrato-masivo` | `components/demo/inventario/InventarioTabla.tsx:310` | aviso emergente | Esas pantallas no tienen contrato todavía: captura la renta en Arrendadores. | Those screens don’t have a contract yet: enter the rent in Landlords. |
-| `inventario.tabla.sin-importe-masivo` | `components/demo/inventario/InventarioTabla.tsx:311` | aviso emergente | No hay rentas que ajustar (las seleccionadas no tienen importe capturado). | There are no rents to adjust (the selected ones have no amount entered). |
-| `inventario.tabla.fijar-renta-en` | `components/demo/inventario/InventarioTabla.tsx:319` | texto en pantalla | fijar la renta en {monto} | set the rent to {monto} |
-| `inventario.tabla.ajustar-renta` | `components/demo/inventario/InventarioTabla.tsx:320` | texto en pantalla | ajustar la renta {pct}% | adjust the rent by {pct}% |
-| `inventario.tabla.aplicar-contratos.uno` | `components/demo/inventario/InventarioTabla.tsx:324` | texto en pantalla | ¿Aplicar «{resumen}» a {n} contrato? | Apply “{resumen}” to {n} contract? |
-| `inventario.tabla.aplicar-contratos.otros` | `components/demo/inventario/InventarioTabla.tsx:324` | texto en pantalla | ¿Aplicar «{resumen}» a {n} contratos? | Apply “{resumen}” to {n} contracts? |
-| `inventario.tabla.alcance-extra.uno` | `components/demo/inventario/InventarioTabla.tsx:327` | texto en pantalla | OJO: son contratos de predio compartidos. El cambio alcanza también a {n} pantalla que NO seleccionaste. | CAREFUL: these are shared property contracts. The change also reaches {n} screen you did NOT select. |
-| `inventario.tabla.alcance-extra.otros` | `components/demo/inventario/InventarioTabla.tsx:327` | texto en pantalla | OJO: son contratos de predio compartidos. El cambio alcanza también a {n} pantallas que NO seleccionaste. | CAREFUL: these are shared property contracts. The change also reaches {n} screens you did NOT select. |
-| `inventario.tabla.omitir-sin-contrato.uno` | `components/demo/inventario/InventarioTabla.tsx:333` | texto en pantalla | {n} pantalla sin contrato se omitirá. | {n} screen without a contract will be skipped. |
-| `inventario.tabla.omitir-sin-contrato.otros` | `components/demo/inventario/InventarioTabla.tsx:333` | texto en pantalla | {n} pantallas sin contrato se omitirán. | {n} screens without a contract will be skipped. |
-| `inventario.tabla.omitir-sin-importe.uno` | `components/demo/inventario/InventarioTabla.tsx:341` | texto en pantalla | {n} contrato sin importe capturado se omitirá: no hay sobre qué aplicar el porcentaje. | {n} contract without an amount will be skipped: there is nothing to apply the percentage to. |
-| `inventario.tabla.omitir-sin-importe.otros` | `components/demo/inventario/InventarioTabla.tsx:342` | texto en pantalla | {n} contratos sin importe capturado se omitirán: no hay sobre qué aplicar el porcentaje. | {n} contracts without an amount will be skipped: there is nothing to apply the percentage to. |
-| `inventario.tabla.renta-actualizada.uno` | `components/demo/inventario/InventarioTabla.tsx:363` | aviso emergente | Renta actualizada en {n} contrato | Rent updated on {n} contract |
-| `inventario.tabla.renta-actualizada.otros` | `components/demo/inventario/InventarioTabla.tsx:363` | aviso emergente | Renta actualizada en {n} contratos | Rent updated on {n} contracts |
-| `inventario.tabla.no-masivo-renta` | `components/demo/inventario/InventarioTabla.tsx:370` | aviso emergente | No se pudo aplicar el cambio masivo de renta | Could not apply the bulk rent change |
-| `inventario.tabla.de` | `components/demo/inventario/InventarioTabla.tsx:391` | texto en pantalla | {n} de {total} | {n} of {total} |
-| `inventario.tabla.excel-title` | `components/demo/inventario/InventarioTabla.tsx:401` | título / tooltip | Descargar en Excel, con el mismo formato que la plantilla de carga | Download in Excel, in the same format as the upload template |
-| `inventario.tabla.csv-title` | `components/demo/inventario/InventarioTabla.tsx:409` | título / tooltip | Descargar en CSV, con el mismo formato que la plantilla de carga | Download in CSV, in the same format as the upload template |
-| `inventario.tabla.buscar` | `components/demo/inventario/InventarioTabla.tsx:423` | texto de ejemplo (placeholder) | Buscar pantalla, código, distrito… | Search screen, code, district… |
-| `inventario.tabla.quitar-filtros` | `components/demo/inventario/InventarioTabla.tsx:439` | texto en pantalla | Quitar filtros | Clear filters |
-| `inventario.tabla.seleccionadas.uno` | `components/demo/inventario/InventarioTabla.tsx:449` | texto en pantalla | {n} seleccionada | {n} selected |
-| `inventario.tabla.seleccionadas.otros` | `components/demo/inventario/InventarioTabla.tsx:449` | texto en pantalla | {n} seleccionadas | {n} selected |
-| `inventario.tabla.tarifa` | `components/demo/inventario/InventarioTabla.tsx:462`<br>`components/demo/inventario/InventarioTabla.tsx:550` | texto en pantalla · cabecera de columna | Tarifa | Rate |
-| `inventario.tabla.renta` | `components/demo/inventario/InventarioTabla.tsx:469`<br>`components/demo/inventario/InventarioTabla.tsx:555` | texto en pantalla · cabecera de columna | Renta | Rent |
-| `inventario.tabla.fijar-renta` | `components/demo/inventario/InventarioTabla.tsx:480` | texto en pantalla | Fijar renta | Set rent |
-| `inventario.tabla.fijar-tarifa` | `components/demo/inventario/InventarioTabla.tsx:480` | texto en pantalla | Fijar tarifa | Set rate |
-| `inventario.tabla.ajustar` | `components/demo/inventario/InventarioTabla.tsx:487` | texto en pantalla | Ajustar % | Adjust (%) |
-| `inventario.tabla.ph-ajuste` | `components/demo/inventario/InventarioTabla.tsx:502` | texto en pantalla | p. ej. 10 o -5 | e.g. 10 or -5 |
-| `inventario.tabla.ph-renta` | `components/demo/inventario/InventarioTabla.tsx:503` | texto en pantalla | Nueva renta | New rent |
-| `inventario.tabla.ph-tarifa` | `components/demo/inventario/InventarioTabla.tsx:503` | texto en pantalla | Nueva tarifa | New rate |
-| `inventario.tabla.aplicando` | `components/demo/inventario/InventarioTabla.tsx:519` | texto en pantalla | Aplicando… | Applying… |
-| `inventario.tabla.aplicar` | `components/demo/inventario/InventarioTabla.tsx:519` | texto en pantalla | Aplicar | Apply |
-| `inventario.tabla.limpiar` | `components/demo/inventario/InventarioTabla.tsx:526`<br>`components/demo/inventario/ImportarInventarioDialog.tsx:259`<br>`app/(app)/(shell)/arrendadores/page.tsx:253` | texto en pantalla · botón | Limpiar | Clear |
-| `inventario.tabla.seleccionar-todo` | `components/demo/inventario/InventarioTabla.tsx:541` | título / tooltip | Seleccionar todo | Select all |
-| `inventario.tabla.col.pantalla` | `components/demo/inventario/InventarioTabla.tsx:546` | cabecera de columna | Pantalla | Screen |
-| `inventario.tabla.col.tipo` | `components/demo/inventario/InventarioTabla.tsx:547`<br>`components/demo/inventario/ContratoWizard.tsx:666` | cabecera de columna · rótulo | Tipo | Type |
-| `inventario.tabla.col.ubicacion` | `components/demo/inventario/InventarioTabla.tsx:548`<br>`components/demo/inventario/ContratoWizard.tsx:674` | cabecera de columna · rótulo | Ubicación | Location |
-| `inventario.tabla.col.medio` | `components/demo/inventario/InventarioTabla.tsx:549`<br>`components/demo/inventario/ContratoWizard.tsx:672` | cabecera de columna · rótulo | Medio | Medium |
-| `inventario.tabla.col.disponibilidad` | `components/demo/inventario/InventarioTabla.tsx:551` | cabecera de columna | Disponibilidad | Availability |
-| `inventario.tabla.col.arrendador` | `components/demo/inventario/InventarioTabla.tsx:552` | cabecera de columna | Arrendador | Landlord |
-| `inventario.tabla.vacio.busqueda` | `components/demo/inventario/InventarioTabla.tsx:566` | texto en pantalla | Ningún sitio coincide con «{q}». | No site matches “{q}”. |
-| `inventario.tabla.vacio.busqueda-filtros` | `components/demo/inventario/InventarioTabla.tsx:566` | texto en pantalla | Ningún sitio coincide con «{q}» y los filtros elegidos. | No site matches “{q}” and the chosen filters. |
-| `inventario.tabla.vacio.filtros` | `components/demo/inventario/InventarioTabla.tsx:568` | texto en pantalla | Ninguna pantalla coincide con los filtros elegidos. | No screen matches the chosen filters. |
-| `inventario.tabla.vacio.inventario` | `components/demo/inventario/InventarioTabla.tsx:569` | texto en pantalla | Todavía no hay pantallas en el inventario. Agrégalas una a una o por carga masiva. | There are no screens in the inventory yet. Add them one by one or by bulk upload. |
-| `inventario.tabla.doohmain-title` | `components/demo/inventario/InventarioTabla.tsx:608` | texto en pantalla | Id en DOOHmain: {id} | DOOHmain ID: {id} |
-| `inventario.tabla.doohmain-title-servidor` | `components/demo/inventario/InventarioTabla.tsx:607` | texto en pantalla | Id en DOOHmain: {id} (lo pone el servidor; no está escrito en la ficha) | DOOHmain ID: {id} (set by the server; not written in the profile) |
-| `inventario.tabla.doohmain-servidor` | `components/demo/inventario/InventarioTabla.tsx:613` | texto en pantalla | ␣· servidor | ␣· server |
-| `inventario.tabla.confirma` | `components/demo/inventario/InventarioTabla.tsx:679`<br>`components/demo/inventario/InventarioTabla.tsx:806`<br>`components/demo/inventario/InventarioTabla.tsx:927`<br>`components/demo/inventario/InventarioTabla.tsx:1072`<br>`components/demo/arrendadores/ContratoSheet.tsx:388`<br>`components/demo/arrendadores/PagosRentaCard.tsx:327` | título | Confirma con tu contraseña | Confirm with your password |
-| `inventario.tabla.confirmar-aplicar` | `components/demo/inventario/InventarioTabla.tsx:681` | subtítulo | Confirmar y aplicar | Confirm and apply |
-| `inventario.renta.ilegible` | `components/demo/inventario/InventarioTabla.tsx:755` | aviso emergente | La renta no se entiende: no se guardó. La coma separa miles y el punto, decimales. | The rent can’t be read: it wasn’t saved. The comma separates thousands and the period, decimals. |
-| `inventario.renta.compartida-confirm` | `components/demo/inventario/InventarioTabla.tsx:767` | confirmación del navegador | Esta renta es del contrato del predio y la comparten {n} pantallas. Cambiarla a {monto} aplica a todas. ¿Continuar? | This rent belongs to the property’s contract and is shared by {n} screens. Changing it to {monto} applies to all of them. Continue? |
-| `inventario.renta.predio-actualizada` | `components/demo/inventario/InventarioTabla.tsx:781` | aviso emergente | Renta del predio actualizada ({n} pantallas) | Property rent updated ({n} screens) |
-| `inventario.renta.actualizada` | `components/demo/inventario/InventarioTabla.tsx:782` | aviso emergente | Renta de "{nombre}" actualizada | Rent for “{nombre}” updated |
-| `inventario.renta.no-actualizar` | `components/demo/inventario/InventarioTabla.tsx:785` | aviso emergente | No se pudo actualizar la renta | Could not update the rent |
-| `inventario.renta.sensible` | `components/demo/inventario/InventarioTabla.tsx:807` | título | Cambiar la renta de "{nombre}" es un cambio sensible: tu organización pide que vuelvas a identificarte. | Changing the rent for “{nombre}” is a sensitive change: your organization asks you to confirm your identity again. |
-| `inventario.renta.title-compartida` | `components/demo/inventario/InventarioTabla.tsx:820` | texto en pantalla | Renta del contrato del predio — la comparten {n} pantallas | Property contract rent — shared by {n} screens |
-| `inventario.renta.title` | `components/demo/inventario/InventarioTabla.tsx:821` | texto en pantalla | Editar la renta que se le paga al arrendador | Edit the rent paid to the landlord |
-| `inventario.tarifa.ilegible` | `components/demo/inventario/InventarioTabla.tsx:894` | aviso emergente | La tarifa no se entiende: no se guardó. La coma separa miles y el punto, decimales. | The rate can’t be read: it wasn’t saved. The comma separates thousands and the period, decimals. |
-| `inventario.tarifa.actualizada` | `components/demo/inventario/InventarioTabla.tsx:905` | aviso emergente | Tarifa de "{nombre}" actualizada | Rate for “{nombre}” updated |
-| `inventario.tarifa.no-actualizar` | `components/demo/inventario/InventarioTabla.tsx:907` | aviso emergente | No se pudo actualizar la tarifa | Could not update the rate |
-| `inventario.tarifa.sensible` | `components/demo/inventario/InventarioTabla.tsx:928` | título | Cambiar la tarifa de "{nombre}" es un cambio sensible: tu organización pide que vuelvas a identificarte. | Changing the rate for “{nombre}” is a sensitive change: your organization asks you to confirm your identity again. |
-| `inventario.tarifa.title` | `components/demo/inventario/InventarioTabla.tsx:939` | título / tooltip | Editar tarifa | Edit rate |
-| `inventario.propia.title` | `components/demo/inventario/InventarioTabla.tsx:992` | título / tooltip | Pantalla propia: sin renta ni contrato; su costo es luz y operación | Owned screen: no rent or contract; its costs are electricity and operations |
-| `inventario.sin-arrendador` | `components/demo/inventario/InventarioTabla.tsx:1001` | texto en pantalla | Sin arrendador | No landlord |
-| `inventario.sin-arrendador.opcion` | `components/demo/inventario/InventarioTabla.tsx:1121` | opción de un selector | — Sin arrendador — | — No landlord — |
-| `inventario.arrendador.actualizado` | `components/demo/inventario/InventarioTabla.tsx:1048` | aviso emergente | Arrendador actualizado en "{nombre}" | Landlord updated on “{nombre}” |
-| `inventario.arrendador.quitado` | `components/demo/inventario/InventarioTabla.tsx:1049` | aviso emergente | Arrendador quitado de "{nombre}" | Landlord removed from “{nombre}” |
-| `inventario.arrendador.no-actualizar` | `components/demo/inventario/InventarioTabla.tsx:1052` | aviso emergente | No se pudo actualizar el arrendador | Could not update the landlord |
-| `inventario.arrendador.sensible` | `components/demo/inventario/InventarioTabla.tsx:1073` | título | Cambiar el arrendador de "{nombre}" es un cambio sensible: decide a quién se le paga la renta, así que tu organización pide que vuelvas a identificarte. | Changing the landlord of “{nombre}” is a sensitive change: it decides who the rent is paid to, so your organization asks you to confirm your identity again. |
-| `inventario.arrendador.asignar` | `components/demo/inventario/InventarioTabla.tsx:1096` | título / tooltip | Asignar arrendador | Assign landlord |
+| `inventario.lote.base` | `components/demo/inventario/InventarioTabla.tsx:72` | texto en pantalla | Este cambio es sensible: tu organización pide que vuelvas a identificarte. | This change is sensitive: your organization asks you to confirm your identity again. |
+| `inventario.lote.uno-uno` | `components/demo/inventario/InventarioTabla.tsx:78` | texto en pantalla | {frase} Confirmar aplica SOLO la que falta; la que ya cambió no se vuelve a tocar. {base} | {frase} Confirming applies ONLY the one left; the one already changed is not touched again. {base} |
+| `inventario.lote.uno-otros` | `components/demo/inventario/InventarioTabla.tsx:78` | texto en pantalla | {frase} Confirmar aplica SOLO la que falta; las {ya} que ya cambiaron no se vuelven a tocar. {base} | {frase} Confirming applies ONLY the one left; the {ya} already changed are not touched again. {base} |
+| `inventario.lote.otros-uno` | `components/demo/inventario/InventarioTabla.tsx:79` | texto en pantalla | {frase} Confirmar aplica SOLO las {faltan} que faltan; la que ya cambió no se vuelve a tocar. {base} | {frase} Confirming applies ONLY the {faltan} left; the one already changed is not touched again. {base} |
+| `inventario.lote.otros-otros` | `components/demo/inventario/InventarioTabla.tsx:79` | texto en pantalla | {frase} Confirmar aplica SOLO las {faltan} que faltan; las {ya} que ya cambiaron no se vuelven a tocar. {base} | {frase} Confirming applies ONLY the {faltan} left; the {ya} already changed are not touched again. {base} |
+| `inventario.lote.frase` | `components/demo/inventario/InventarioTabla.tsx:69` | texto en pantalla | Se aplicó en {ya} de {total} {unidad}; {faltan} sin cambiar. | Applied to {ya} of {total} {unidad}; {faltan} unchanged. |
+| `inventario.lote.unidad.pantalla` | `components/demo/inventario/InventarioTabla.tsx:67` | texto en pantalla | pantalla | screen |
+| `inventario.lote.unidad.pantallas` | `components/demo/inventario/InventarioTabla.tsx:67` | texto en pantalla | pantallas | screens |
+| `inventario.lote.unidad.contrato` | `components/demo/inventario/InventarioTabla.tsx:68` | texto en pantalla | contrato | contract |
+| `inventario.lote.unidad.contratos` | `components/demo/inventario/InventarioTabla.tsx:68` | texto en pantalla | contratos | contracts |
+| `inventario.tabla.no-archivo` | `components/demo/inventario/InventarioTabla.tsx:134` | aviso emergente | No se pudo generar el archivo. Prueba a filtrar para descargar menos pantallas. | Could not generate the file. Try filtering to download fewer screens. |
+| `inventario.tabla.cifra-ilegible` | `components/demo/inventario/InventarioTabla.tsx:237` | aviso emergente | La cifra no se entiende: la coma separa miles y el punto, decimales ({ejemplo}) | The figure can’t be read: the comma separates thousands and the period, decimals ({ejemplo}) |
+| `inventario.tabla.numero-valido` | `components/demo/inventario/InventarioTabla.tsx:242` | aviso emergente | Escribe un número válido | Enter a valid number |
+| `inventario.tabla.renta-negativa` | `components/demo/inventario/InventarioTabla.tsx:246` | aviso emergente | La renta no puede ser negativa | Rent can’t be negative |
+| `inventario.tabla.tarifa-negativa` | `components/demo/inventario/InventarioTabla.tsx:246` | aviso emergente | La tarifa no puede ser negativa | The rate can’t be negative |
+| `inventario.tabla.fijar-tarifa-en` | `components/demo/inventario/InventarioTabla.tsx:260` | texto en pantalla | fijar la tarifa en {monto} | set the rate to {monto} |
+| `inventario.tabla.ajustar-tarifa` | `components/demo/inventario/InventarioTabla.tsx:261` | texto en pantalla | ajustar la tarifa {pct}% | adjust the rate by {pct}% |
+| `inventario.tabla.aplicar-pantallas.uno` | `components/demo/inventario/InventarioTabla.tsx:264` | confirmación del navegador | ¿Aplicar «{resumen}» a {n} pantalla? | Apply “{resumen}” to {n} screen? |
+| `inventario.tabla.aplicar-pantallas.otros` | `components/demo/inventario/InventarioTabla.tsx:264` | confirmación del navegador | ¿Aplicar «{resumen}» a {n} pantallas? | Apply “{resumen}” to {n} screens? |
+| `inventario.tabla.tarifa-actualizada.uno` | `components/demo/inventario/InventarioTabla.tsx:288` | aviso emergente | Tarifa actualizada en {n} pantalla | Rate updated on {n} screen |
+| `inventario.tabla.tarifa-actualizada.otros` | `components/demo/inventario/InventarioTabla.tsx:288` | aviso emergente | Tarifa actualizada en {n} pantallas | Rate updated on {n} screens |
+| `inventario.tabla.no-masivo` | `components/demo/inventario/InventarioTabla.tsx:299` | aviso emergente | No se pudo aplicar el cambio masivo | Could not apply the bulk change |
+| `inventario.tabla.renta-mayor-cero` | `components/demo/inventario/InventarioTabla.tsx:316`<br>`components/demo/inventario/InventarioTabla.tsx:783` | aviso emergente | La renta debe ser mayor que cero | Rent must be greater than zero |
+| `inventario.tabla.sin-contrato-masivo` | `components/demo/inventario/InventarioTabla.tsx:329` | aviso emergente | Esas pantallas no tienen contrato todavía: captura la renta en Arrendadores. | Those screens don’t have a contract yet: enter the rent in Landlords. |
+| `inventario.tabla.sin-importe-masivo` | `components/demo/inventario/InventarioTabla.tsx:330` | aviso emergente | No hay rentas que ajustar (las seleccionadas no tienen importe capturado). | There are no rents to adjust (the selected ones have no amount entered). |
+| `inventario.tabla.fijar-renta-en` | `components/demo/inventario/InventarioTabla.tsx:338` | texto en pantalla | fijar la renta en {monto} | set the rent to {monto} |
+| `inventario.tabla.ajustar-renta` | `components/demo/inventario/InventarioTabla.tsx:339` | texto en pantalla | ajustar la renta {pct}% | adjust the rent by {pct}% |
+| `inventario.tabla.aplicar-contratos.uno` | `components/demo/inventario/InventarioTabla.tsx:343` | texto en pantalla | ¿Aplicar «{resumen}» a {n} contrato? | Apply “{resumen}” to {n} contract? |
+| `inventario.tabla.aplicar-contratos.otros` | `components/demo/inventario/InventarioTabla.tsx:343` | texto en pantalla | ¿Aplicar «{resumen}» a {n} contratos? | Apply “{resumen}” to {n} contracts? |
+| `inventario.tabla.alcance-extra.uno` | `components/demo/inventario/InventarioTabla.tsx:346` | texto en pantalla | OJO: son contratos de predio compartidos. El cambio alcanza también a {n} pantalla que NO seleccionaste. | CAREFUL: these are shared property contracts. The change also reaches {n} screen you did NOT select. |
+| `inventario.tabla.alcance-extra.otros` | `components/demo/inventario/InventarioTabla.tsx:346` | texto en pantalla | OJO: son contratos de predio compartidos. El cambio alcanza también a {n} pantallas que NO seleccionaste. | CAREFUL: these are shared property contracts. The change also reaches {n} screens you did NOT select. |
+| `inventario.tabla.omitir-sin-contrato.uno` | `components/demo/inventario/InventarioTabla.tsx:352` | texto en pantalla | {n} pantalla sin contrato se omitirá. | {n} screen without a contract will be skipped. |
+| `inventario.tabla.omitir-sin-contrato.otros` | `components/demo/inventario/InventarioTabla.tsx:352` | texto en pantalla | {n} pantallas sin contrato se omitirán. | {n} screens without a contract will be skipped. |
+| `inventario.tabla.omitir-sin-importe.uno` | `components/demo/inventario/InventarioTabla.tsx:360` | texto en pantalla | {n} contrato sin importe capturado se omitirá: no hay sobre qué aplicar el porcentaje. | {n} contract without an amount will be skipped: there is nothing to apply the percentage to. |
+| `inventario.tabla.omitir-sin-importe.otros` | `components/demo/inventario/InventarioTabla.tsx:361` | texto en pantalla | {n} contratos sin importe capturado se omitirán: no hay sobre qué aplicar el porcentaje. | {n} contracts without an amount will be skipped: there is nothing to apply the percentage to. |
+| `inventario.tabla.renta-actualizada.uno` | `components/demo/inventario/InventarioTabla.tsx:383` | aviso emergente | Renta actualizada en {n} contrato | Rent updated on {n} contract |
+| `inventario.tabla.renta-actualizada.otros` | `components/demo/inventario/InventarioTabla.tsx:383` | aviso emergente | Renta actualizada en {n} contratos | Rent updated on {n} contracts |
+| `inventario.tabla.no-masivo-renta` | `components/demo/inventario/InventarioTabla.tsx:390` | aviso emergente | No se pudo aplicar el cambio masivo de renta | Could not apply the bulk rent change |
+| `inventario.tabla.de` | `components/demo/inventario/InventarioTabla.tsx:411` | texto en pantalla | {n} de {total} | {n} of {total} |
+| `inventario.tabla.excel-title` | `components/demo/inventario/InventarioTabla.tsx:421` | título / tooltip | Descargar en Excel, con el mismo formato que la plantilla de carga | Download in Excel, in the same format as the upload template |
+| `inventario.tabla.csv-title` | `components/demo/inventario/InventarioTabla.tsx:429` | título / tooltip | Descargar en CSV, con el mismo formato que la plantilla de carga | Download in CSV, in the same format as the upload template |
+| `inventario.tabla.buscar` | `components/demo/inventario/InventarioTabla.tsx:443` | texto de ejemplo (placeholder) | Buscar pantalla, código, distrito… | Search screen, code, district… |
+| `inventario.tabla.quitar-filtros` | `components/demo/inventario/InventarioTabla.tsx:459` | texto en pantalla | Quitar filtros | Clear filters |
+| `inventario.tabla.seleccionadas.uno` | `components/demo/inventario/InventarioTabla.tsx:469` | texto en pantalla | {n} seleccionada | {n} selected |
+| `inventario.tabla.seleccionadas.otros` | `components/demo/inventario/InventarioTabla.tsx:469` | texto en pantalla | {n} seleccionadas | {n} selected |
+| `inventario.tabla.tarifa` | `components/demo/inventario/InventarioTabla.tsx:482`<br>`components/demo/inventario/InventarioTabla.tsx:570` | texto en pantalla · cabecera de columna | Tarifa | Rate |
+| `inventario.tabla.renta` | `components/demo/inventario/InventarioTabla.tsx:489`<br>`components/demo/inventario/InventarioTabla.tsx:575` | texto en pantalla · cabecera de columna | Renta | Rent |
+| `inventario.tabla.fijar-renta` | `components/demo/inventario/InventarioTabla.tsx:500` | texto en pantalla | Fijar renta | Set rent |
+| `inventario.tabla.fijar-tarifa` | `components/demo/inventario/InventarioTabla.tsx:500` | texto en pantalla | Fijar tarifa | Set rate |
+| `inventario.tabla.ajustar` | `components/demo/inventario/InventarioTabla.tsx:507` | texto en pantalla | Ajustar % | Adjust (%) |
+| `inventario.tabla.ph-ajuste` | `components/demo/inventario/InventarioTabla.tsx:522` | texto en pantalla | p. ej. 10 o -5 | e.g. 10 or -5 |
+| `inventario.tabla.ph-renta` | `components/demo/inventario/InventarioTabla.tsx:523` | texto en pantalla | Nueva renta | New rent |
+| `inventario.tabla.ph-tarifa` | `components/demo/inventario/InventarioTabla.tsx:523` | texto en pantalla | Nueva tarifa | New rate |
+| `inventario.tabla.aplicando` | `components/demo/inventario/InventarioTabla.tsx:539` | texto en pantalla | Aplicando… | Applying… |
+| `inventario.tabla.aplicar` | `components/demo/inventario/InventarioTabla.tsx:539` | texto en pantalla | Aplicar | Apply |
+| `inventario.tabla.limpiar` | `components/demo/inventario/InventarioTabla.tsx:546`<br>`components/demo/inventario/ImportarInventarioDialog.tsx:259`<br>`app/(app)/(shell)/arrendadores/page.tsx:253` | texto en pantalla · botón | Limpiar | Clear |
+| `inventario.tabla.seleccionar-todo` | `components/demo/inventario/InventarioTabla.tsx:561` | título / tooltip | Seleccionar todo | Select all |
+| `inventario.tabla.col.pantalla` | `components/demo/inventario/InventarioTabla.tsx:566` | cabecera de columna | Pantalla | Screen |
+| `inventario.tabla.col.tipo` | `components/demo/inventario/InventarioTabla.tsx:567`<br>`components/demo/inventario/ContratoWizard.tsx:666` | cabecera de columna · rótulo | Tipo | Type |
+| `inventario.tabla.col.ubicacion` | `components/demo/inventario/InventarioTabla.tsx:568`<br>`components/demo/inventario/ContratoWizard.tsx:674` | cabecera de columna · rótulo | Ubicación | Location |
+| `inventario.tabla.col.medio` | `components/demo/inventario/InventarioTabla.tsx:569`<br>`components/demo/inventario/ContratoWizard.tsx:672` | cabecera de columna · rótulo | Medio | Medium |
+| `inventario.tabla.col.disponibilidad` | `components/demo/inventario/InventarioTabla.tsx:571` | cabecera de columna | Disponibilidad | Availability |
+| `inventario.tabla.col.arrendador` | `components/demo/inventario/InventarioTabla.tsx:572` | cabecera de columna | Arrendador | Landlord |
+| `inventario.tabla.vacio.busqueda` | `components/demo/inventario/InventarioTabla.tsx:586` | texto en pantalla | Ningún sitio coincide con «{q}». | No sites match “{q}”. |
+| `inventario.tabla.vacio.busqueda-filtros` | `components/demo/inventario/InventarioTabla.tsx:586` | texto en pantalla | Ningún sitio coincide con «{q}» y los filtros elegidos. | No sites match “{q}” and the chosen filters. |
+| `inventario.tabla.vacio.filtros` | `components/demo/inventario/InventarioTabla.tsx:588` | texto en pantalla | Ninguna pantalla coincide con los filtros elegidos. | No screens match the chosen filters. |
+| `inventario.tabla.vacio.inventario` | `components/demo/inventario/InventarioTabla.tsx:589` | texto en pantalla | Todavía no hay pantallas en el inventario. Agrégalas una a una o por carga masiva. | There are no screens in the inventory yet. Add them one by one or by bulk upload. |
+| `inventario.tabla.doohmain-title` | `components/demo/inventario/InventarioTabla.tsx:628` | texto en pantalla | Id en DOOHmain: {id} | DOOHmain ID: {id} |
+| `inventario.tabla.doohmain-title-servidor` | `components/demo/inventario/InventarioTabla.tsx:627` | texto en pantalla | Id en DOOHmain: {id} (lo pone el servidor; no está escrito en la ficha) | DOOHmain ID: {id} (set by the server; not written in the profile) |
+| `inventario.tabla.doohmain-servidor` | `components/demo/inventario/InventarioTabla.tsx:633` | texto en pantalla | ␣· servidor | ␣· server |
+| `inventario.tabla.confirma` | `components/demo/inventario/InventarioTabla.tsx:699`<br>`components/demo/inventario/InventarioTabla.tsx:826`<br>`components/demo/inventario/InventarioTabla.tsx:947`<br>`components/demo/inventario/InventarioTabla.tsx:1092`<br>`components/demo/arrendadores/ContratoSheet.tsx:388`<br>`components/demo/arrendadores/PagosRentaCard.tsx:327` | título | Confirma con tu contraseña | Confirm with your password |
+| `inventario.tabla.confirmar-aplicar` | `components/demo/inventario/InventarioTabla.tsx:701` | subtítulo | Confirmar y aplicar | Confirm and apply |
+| `inventario.renta.ilegible` | `components/demo/inventario/InventarioTabla.tsx:775` | aviso emergente | La renta no se entiende: no se guardó. La coma separa miles y el punto, decimales. | The rent can’t be read: it wasn’t saved. The comma separates thousands and the period, decimals. |
+| `inventario.renta.compartida-confirm` | `components/demo/inventario/InventarioTabla.tsx:787` | confirmación del navegador | Esta renta es del contrato del predio y la comparten {n} pantallas. Cambiarla a {monto} aplica a todas. ¿Continuar? | This rent belongs to the property’s contract and is shared by {n} screens. Changing it to {monto} applies to all of them. Continue? |
+| `inventario.renta.predio-actualizada` | `components/demo/inventario/InventarioTabla.tsx:801` | aviso emergente | Renta del predio actualizada ({n} pantallas) | Property rent updated ({n} screens) |
+| `inventario.renta.actualizada` | `components/demo/inventario/InventarioTabla.tsx:802` | aviso emergente | Renta de "{nombre}" actualizada | Rent for “{nombre}” updated |
+| `inventario.renta.no-actualizar` | `components/demo/inventario/InventarioTabla.tsx:805` | aviso emergente | No se pudo actualizar la renta | Could not update the rent |
+| `inventario.renta.sensible` | `components/demo/inventario/InventarioTabla.tsx:827` | título | Cambiar la renta de "{nombre}" es un cambio sensible: tu organización pide que vuelvas a identificarte. | Changing the rent for “{nombre}” is a sensitive change: your organization asks you to confirm your identity again. |
+| `inventario.renta.title-compartida` | `components/demo/inventario/InventarioTabla.tsx:840` | texto en pantalla | Renta del contrato del predio — la comparten {n} pantallas | Property contract rent — shared by {n} screens |
+| `inventario.renta.title` | `components/demo/inventario/InventarioTabla.tsx:841` | texto en pantalla | Editar la renta que se le paga al arrendador | Edit the rent paid to the landlord |
+| `inventario.tarifa.ilegible` | `components/demo/inventario/InventarioTabla.tsx:914` | aviso emergente | La tarifa no se entiende: no se guardó. La coma separa miles y el punto, decimales. | The rate can’t be read: it wasn’t saved. The comma separates thousands and the period, decimals. |
+| `inventario.tarifa.actualizada` | `components/demo/inventario/InventarioTabla.tsx:925` | aviso emergente | Tarifa de "{nombre}" actualizada | Rate for “{nombre}” updated |
+| `inventario.tarifa.no-actualizar` | `components/demo/inventario/InventarioTabla.tsx:927` | aviso emergente | No se pudo actualizar la tarifa | Could not update the rate |
+| `inventario.tarifa.sensible` | `components/demo/inventario/InventarioTabla.tsx:948` | título | Cambiar la tarifa de "{nombre}" es un cambio sensible: tu organización pide que vuelvas a identificarte. | Changing the rate for “{nombre}” is a sensitive change: your organization asks you to confirm your identity again. |
+| `inventario.tarifa.title` | `components/demo/inventario/InventarioTabla.tsx:959` | título / tooltip | Editar tarifa | Edit rate |
+| `inventario.propia.title` | `components/demo/inventario/InventarioTabla.tsx:1012` | título / tooltip | Pantalla propia: sin renta ni contrato; su costo es luz y operación | Owned screen: no rent or contract; its costs are electricity and operations |
+| `inventario.sin-arrendador` | `components/demo/inventario/InventarioTabla.tsx:1021` | texto en pantalla | Sin arrendador | No landlord |
+| `inventario.sin-arrendador.opcion` | `components/demo/inventario/InventarioTabla.tsx:1141` | opción de un selector | — Sin arrendador — | — No landlord — |
+| `inventario.arrendador.actualizado` | `components/demo/inventario/InventarioTabla.tsx:1068` | aviso emergente | Arrendador actualizado en "{nombre}" | Landlord updated on “{nombre}” |
+| `inventario.arrendador.quitado` | `components/demo/inventario/InventarioTabla.tsx:1069` | aviso emergente | Arrendador quitado de "{nombre}" | Landlord removed from “{nombre}” |
+| `inventario.arrendador.no-actualizar` | `components/demo/inventario/InventarioTabla.tsx:1072` | aviso emergente | No se pudo actualizar el arrendador | Could not update the landlord |
+| `inventario.arrendador.sensible` | `components/demo/inventario/InventarioTabla.tsx:1093` | título | Cambiar el arrendador de "{nombre}" es un cambio sensible: decide a quién se le paga la renta, así que tu organización pide que vuelvas a identificarte. | Changing the landlord of “{nombre}” is a sensitive change: it decides who the rent is paid to, so your organization asks you to confirm your identity again. |
+| `inventario.arrendador.asignar` | `components/demo/inventario/InventarioTabla.tsx:1116` | título / tooltip | Asignar arrendador | Assign landlord |
 | `inventario.wizard.paso.arrendador` | `components/demo/inventario/ContratoWizard.tsx:48` | texto en pantalla | Arrendador y predio | Landlord and property |
 | `inventario.wizard.paso.contrato` | `components/demo/inventario/ContratoWizard.tsx:49` | texto en pantalla | Contrato | Contract |
 | `inventario.wizard.paso.pantalla` | `components/demo/inventario/ContratoWizard.tsx:50` | texto en pantalla | Pantalla | Screen |
@@ -207,9 +212,9 @@ el código (búsqueda literal de la clave). **354 claves** (`inventario.*`).
 | `inventario.wizard.inicio-vigencia` | `components/demo/inventario/ContratoWizard.tsx:526` | rótulo | Inicio de vigencia | Start date |
 | `inventario.wizard.fin-vigencia` | `components/demo/inventario/ContratoWizard.tsx:546` | rótulo | Fin de vigencia | End date |
 | `inventario.wizard.historial` | `components/demo/inventario/ContratoWizard.tsx:538` | texto en pantalla | Este espacio estuvo arrendado hasta el {fin}. El contrato nuevo empieza el {desde} o después. | This space was leased until {fin}. The new contract starts on {desde} or later. |
-| `inventario.wizard.no-antes-inicio` | `components/demo/inventario/ContratoWizard.tsx:549`<br>`components/demo/arrendadores/CambiosContrato.tsx:510` | mensaje de error | No puede ser anterior al inicio | Can’t be earlier than the start |
+| `inventario.wizard.no-antes-inicio` | `components/demo/inventario/ContratoWizard.tsx:549`<br>`components/demo/arrendadores/CambiosContrato.tsx:514` | mensaje de error | No puede ser anterior al inicio | Can’t be earlier than the start |
 | `inventario.wizard.renta` | `components/demo/inventario/ContratoWizard.tsx:554` | rótulo | Renta | Rent |
-| `inventario.wizard.cifra` | `components/demo/inventario/ContratoWizard.tsx:557`<br>`components/demo/inventario/ContratoWizard.tsx:698`<br>`components/demo/arrendadores/CambiosContrato.tsx:521`<br>`components/demo/arrendadores/CambiosContrato.tsx:551` | mensaje de error | No se entiende la cifra | The figure can’t be read |
+| `inventario.wizard.cifra` | `components/demo/inventario/ContratoWizard.tsx:557`<br>`components/demo/inventario/ContratoWizard.tsx:698`<br>`components/demo/arrendadores/CambiosContrato.tsx:525`<br>`components/demo/arrendadores/CambiosContrato.tsx:555` | mensaje de error | No se entiende la cifra | The figure can’t be read |
 | `inventario.wizard.periodicidad` | `components/demo/inventario/ContratoWizard.tsx:561` | rótulo | Periodicidad del pago | Payment frequency |
 | `inventario.wizard.renovacion` | `components/demo/inventario/ContratoWizard.tsx:587` | texto en pantalla | Renovación automática | Automatic renewal |
 | `inventario.wizard.documento` | `components/demo/inventario/ContratoWizard.tsx:592` | rótulo | Documento del contrato (PDF) | Contract document (PDF) |
@@ -278,7 +283,7 @@ el código (búsqueda literal de la clave). **354 claves** (`inventario.*`).
 | `inventario.alta.res-alto` | `components/demo/inventario/NuevaPantallaForm.tsx:334` | texto de ejemplo (placeholder) | Resolución alto (px) | Resolution height (px) |
 | `inventario.alta.modalidades` | `components/demo/inventario/NuevaPantallaForm.tsx:338` | texto en pantalla | Modalidades de contratación | Sales modes |
 | `inventario.alta.config-slots` | `components/demo/inventario/NuevaPantallaForm.tsx:349` | texto en pantalla | Configuración de slots | Slot setup |
-| `inventario.alta.total-slots` | `components/demo/inventario/NuevaPantallaForm.tsx:352` | texto de ejemplo (placeholder) | Total slots | Slots in total |
+| `inventario.alta.total-slots` | `components/demo/inventario/NuevaPantallaForm.tsx:352` | texto de ejemplo (placeholder) | Total slots | Total slots |
 | `inventario.alta.slots-disponibles` | `components/demo/inventario/NuevaPantallaForm.tsx:353` | texto de ejemplo (placeholder) | Slots disponibles | Available slots |
 | `inventario.alta.admobilize` | `components/demo/inventario/NuevaPantallaForm.tsx:361` | texto en pantalla | {marca} permite detectar y contabilizar vehículos y personas que pasan frente a la pantalla utilizando tecnología de Computer Vision. | {marca} detects and counts the vehicles and people passing in front of the screen using Computer Vision technology. |
 | `inventario.alta.cv` | `components/demo/inventario/NuevaPantallaForm.tsx:367` | texto en pantalla | Esta pantalla cuenta con tecnología de Computer Vision (IA) | This screen has Computer Vision (AI) technology |
@@ -354,7 +359,8 @@ el código (búsqueda literal de la clave). **354 claves** (`inventario.*`).
 | `inventario.carga.subir-imagenes` | `components/demo/inventario/ImportarInventarioDialog.tsx:519` | texto en pantalla | Subir imágenes (JPG/PNG ≤5MB) | Upload images (JPG/PNG ≤5MB) |
 | `inventario.carga.nombra` | `components/demo/inventario/ImportarInventarioDialog.tsx:523` | texto en pantalla | Nombra cada archivo con el {codigo}: {a} (principal) o {b}, {c}… para varias por pantalla. | Name each file with the {codigo}: {a} (main) or {b}, {c}… for several per screen. |
 | `inventario.carga.codigo-proveedor` | `components/demo/inventario/ImportarInventarioDialog.tsx:524` | texto en pantalla | código de proveedor | supplier code |
-| `inventario.carga.duplicados` | `components/demo/inventario/ImportarInventarioDialog.tsx:537` | texto en pantalla | {n} código(s) ya existen | {n} code(s) already exist |
+| `inventario.carga.duplicados.uno` | `components/demo/inventario/ImportarInventarioDialog.tsx:537` | texto en pantalla | {n} código(s) ya existen | {n} code already exists |
+| `inventario.carga.duplicados.otros` | `components/demo/inventario/ImportarInventarioDialog.tsx:537` | texto en pantalla | {n} código(s) ya existen | {n} codes already exist |
 | `inventario.carga.como-proceder` | `components/demo/inventario/ImportarInventarioDialog.tsx:539` | texto en pantalla | Elige cómo proceder antes de importar: | Choose how to proceed before importing: |
 | `inventario.carga.actualizar` | `components/demo/inventario/ImportarInventarioDialog.tsx:543` | texto en pantalla | {accion} campos modificados (conserva la imagen anterior si no se sube una nueva) | {accion} the changed fields (keeps the previous image if no new one is uploaded) |
 | `inventario.carga.actualizar-accion` | `components/demo/inventario/ImportarInventarioDialog.tsx:543` | texto en pantalla | Actualizar | Update |

@@ -1,7 +1,7 @@
 # Tabla de revisión · lote de inglés «inventario y arrendadores» · Arrendadores, contratos y firma
 
 Generada el 2026-11-02 a partir de `apps/web/lib/i18n/textos/arrendadores.ts` y de los usos en
-el código (búsqueda literal de la clave). **407 claves** (`arrendadores.*`).
+el código (búsqueda literal de la clave). Regenerada en la segunda vuelta (hallazgos del validador, decisiones del dueño y del orquestador). **447 claves** (`arrendadores.*`).
 
 - **español** es la copia literal de lo que decía el componente antes del lote,
   comprobado comparando el HTML rendido de **81 estados de pantalla** con los
@@ -25,20 +25,19 @@ el código (búsqueda literal de la clave). **407 claves** (`arrendadores.*`).
   `compartidos.candado.*`, `compartidos.periodicidad.*` vía
   `periodicidadLabel`, `finanzas.pago.*`, `finanzas.comun.dias`,
   `propuestas.documento.imprimir`, `campanas.comun.total`) no salen aquí.
-- **El contrato NO se traduce**: ni `lib/contrato-documento.ts`, ni la cantidad
-  con letra, ni nada de lo que entra en el hash de las firmas, ni lo que se
-  imprime con el documento (encabezados DECLARACIONES / CLÁUSULAS, los sellos
-  «FIRMADO ELECTRÓNICAMENTE» / «FIRMA INVALIDADA», la constancia de firma
-  electrónica y el aviso de borrador). Lo prueban `textos/arrendadores.test.ts`
-  y el estado «documento del contrato» de la prueba de pantallas (en inglés, el
-  documento sale en español y la barra y el panel en inglés).
+- **El contrato NO se traduce**: ni `lib/contrato-documento.ts` (una huella sha256 en
+  `textos/arrendadores.test.ts` lo fija byte a byte), ni la cantidad con letra, ni nada
+  de lo que entra en el hash de las firmas, ni el bloque de firmas con sus sellos, ni
+  el aviso de borrador. **La constancia de firma electrónica SÍ** (decisión del dueño,
+  2026-11-02): no entra en ningún hash —se sella `documentoATexto(generarContrato(…))`—
+  ni se guarda como texto; llega con el idioma de la petición como prop.
 
 | clave | archivo:línea donde se usa | qué es | español | inglés |
 |---|---|---|---|---|
 | `arrendadores.titulo` | `app/(app)/(shell)/arrendadores/page.tsx:194`<br>`app/(app)/(shell)/arrendadores/page.tsx:976` | título | Arrendadores | Landlords |
-| `arrendadores.comun.arrendador` | `app/(app)/(shell)/arrendadores/page.tsx:371`<br>`app/(app)/(shell)/arrendadores/page.tsx:796`<br>`app/(app)/(shell)/arrendadores/page.tsx:876`<br>`app/(app)/(shell)/arrendadores/page.tsx:1000`<br>`components/demo/arrendadores/ContratoSheet.tsx:329`<br>`components/demo/arrendadores/ContratoSheet.tsx:740`<br>`components/demo/arrendadores/CambiosContrato.tsx:459` | cabecera de columna · texto en pantalla · rótulo | Arrendador | Landlord |
+| `arrendadores.comun.arrendador` | `app/(app)/(shell)/arrendadores/page.tsx:371`<br>`app/(app)/(shell)/arrendadores/page.tsx:796`<br>`app/(app)/(shell)/arrendadores/page.tsx:876`<br>`app/(app)/(shell)/arrendadores/page.tsx:1000`<br>`components/demo/arrendadores/ContratoSheet.tsx:329`<br>`components/demo/arrendadores/ContratoSheet.tsx:740`<br>`components/demo/arrendadores/CambiosContrato.tsx:463` | cabecera de columna · texto en pantalla · rótulo | Arrendador | Landlord |
 | `arrendadores.comun.pantalla` | `app/(app)/(shell)/arrendadores/page.tsx:875`<br>`components/demo/arrendadores/PagosRentaCard.tsx:248`<br>`components/demo/arrendadores/CompromisoRentaCard.tsx:86` | cabecera de columna | Pantalla | Screen |
-| `arrendadores.comun.renta` | `app/(app)/(shell)/arrendadores/page.tsx:373`<br>`components/demo/arrendadores/CambiosContrato.tsx:516`<br>`components/demo/arrendadores/PanelFirmas.tsx:328`<br>`components/demo/arrendadores/PagosRentaCard.tsx:249`<br>`components/demo/arrendadores/CompromisoRentaCard.tsx:87` | cabecera de columna · rótulo · texto en pantalla | Renta | Rent |
+| `arrendadores.comun.renta` | `app/(app)/(shell)/arrendadores/page.tsx:373`<br>`components/demo/arrendadores/CambiosContrato.tsx:520`<br>`components/demo/arrendadores/PanelFirmas.tsx:328`<br>`components/demo/arrendadores/PagosRentaCard.tsx:249`<br>`components/demo/arrendadores/CompromisoRentaCard.tsx:87` | cabecera de columna · rótulo · texto en pantalla | Renta | Rent |
 | `arrendadores.comun.contratos` | `app/(app)/(shell)/arrendadores/page.tsx:291`<br>`app/(app)/(shell)/arrendadores/page.tsx:797`<br>`app/(app)/(shell)/arrendadores/page.tsx:1007` | rótulo · cabecera de columna | Contratos | Contracts |
 | `arrendadores.comun.predios` | `app/(app)/(shell)/arrendadores/page.tsx:798`<br>`app/(app)/(shell)/arrendadores/page.tsx:1008` | cabecera de columna | Predios | Properties |
 | `arrendadores.comun.estatus` | `app/(app)/(shell)/arrendadores/page.tsx:376`<br>`components/demo/arrendadores/PagosRentaCard.tsx:252`<br>`components/demo/arrendadores/CompromisoRentaCard.tsx:91` | cabecera de columna | Estatus | Status |
@@ -54,15 +53,15 @@ el código (búsqueda literal de la clave). **407 claves** (`arrendadores.*`).
 | `arrendadores.comun.completar-informacion` | `components/demo/arrendadores/ContratoSheet.tsx:164`<br>`components/demo/arrendadores/CompromisoRentaCard.tsx:165` | botón · texto en pantalla | Completar información | Complete information |
 | `arrendadores.comun.agregar` | `components/demo/arrendadores/GestionRazonesSociales.tsx:261`<br>`components/demo/arrendadores/LicenciasCard.tsx:80` | botón | Agregar | Add |
 | `arrendadores.comun.no-guardar-contrato` | `components/demo/arrendadores/ContratoSheet.tsx:693` | mensaje de error | No se pudo guardar el contrato | Could not save the contract |
-| `arrendadores.comun.revisa-rojo` | `components/demo/arrendadores/ContratoSheet.tsx:899`<br>`components/demo/arrendadores/CambiosContrato.tsx:408` | texto en pantalla | Revisa los campos marcados en rojo. | Review the fields marked in red. |
-| `arrendadores.comun.sin-razon` | `app/(app)/(shell)/arrendadores/page.tsx:782`<br>`components/demo/arrendadores/CambiosContrato.tsx:480`<br>`components/demo/arrendadores/GestionRazonesSociales.tsx:241` | texto en pantalla · opción de un selector | Sin razón social | No legal name |
-| `arrendadores.comun.la-paga` | `components/demo/arrendadores/ContratoSheet.tsx:213`<br>`components/demo/arrendadores/CambiosContrato.tsx:488` | texto en pantalla · rótulo | La paga | Paid by |
-| `arrendadores.comun.la-que-arrienda` | `components/demo/arrendadores/ContratoSheet.tsx:523`<br>`components/demo/arrendadores/ContratoSheet.tsx:853` | opción de un selector | ␣— la que arrienda | ␣— the one that leases |
+| `arrendadores.comun.revisa-rojo` | `components/demo/arrendadores/ContratoSheet.tsx:899`<br>`components/demo/arrendadores/CambiosContrato.tsx:412` | texto en pantalla | Revisa los campos marcados en rojo. | Review the fields marked in red. |
+| `arrendadores.comun.sin-razon` | `app/(app)/(shell)/arrendadores/page.tsx:782`<br>`components/demo/arrendadores/CambiosContrato.tsx:484`<br>`components/demo/arrendadores/GestionRazonesSociales.tsx:241` | texto en pantalla · opción de un selector | Sin razón social | No legal name |
+| `arrendadores.comun.la-paga` | `components/demo/arrendadores/ContratoSheet.tsx:213`<br>`components/demo/arrendadores/CambiosContrato.tsx:492` | texto en pantalla · rótulo | La paga | Paid by |
+| `arrendadores.comun.la-que-arrienda` | `components/demo/arrendadores/ContratoSheet.tsx:523`<br>`components/demo/arrendadores/ContratoSheet.tsx:853` | opción de un selector | ␣— la que arrienda | ␣— recommended |
 | `arrendadores.comun.con-cual-se-paga` | `components/demo/arrendadores/ContratoSheet.tsx:499`<br>`components/demo/arrendadores/ContratoSheet.tsx:844` | título / tooltip · rótulo | Con cuál de tus razones sociales se paga | Which of your legal entities pays it |
-| `arrendadores.comun.periodicidad` | `components/demo/arrendadores/ContratoSheet.tsx:188`<br>`components/demo/arrendadores/CambiosContrato.tsx:530`<br>`components/demo/arrendadores/PanelFirmas.tsx:330` | rótulo · texto en pantalla | Periodicidad | Frequency |
+| `arrendadores.comun.periodicidad` | `components/demo/arrendadores/ContratoSheet.tsx:188`<br>`components/demo/arrendadores/CambiosContrato.tsx:534`<br>`components/demo/arrendadores/PanelFirmas.tsx:330` | rótulo · texto en pantalla | Periodicidad | Frequency |
 | `arrendadores.comun.vigencia` | `components/demo/arrendadores/ContratoSheet.tsx:197`<br>`components/demo/arrendadores/PanelFirmas.tsx:338` | rótulo · texto en pantalla | Vigencia | Term |
-| `arrendadores.comun.deposito` | `components/demo/arrendadores/CambiosContrato.tsx:548`<br>`components/demo/arrendadores/PanelFirmas.tsx:341` | rótulo · texto en pantalla | Depósito | Security deposit |
-| `arrendadores.comun.motivo` | `components/demo/arrendadores/CambiosContrato.tsx:148`<br>`components/demo/arrendadores/CambiosContrato.tsx:232` | texto en pantalla | «{motivo}» | “{motivo}” |
+| `arrendadores.comun.deposito` | `components/demo/arrendadores/CambiosContrato.tsx:552`<br>`components/demo/arrendadores/PanelFirmas.tsx:341` | rótulo · texto en pantalla | Depósito | Security deposit |
+| `arrendadores.comun.motivo` | `components/demo/arrendadores/CambiosContrato.tsx:148`<br>`components/demo/arrendadores/CambiosContrato.tsx:236` | texto en pantalla | «{motivo}» | “{motivo}” |
 | `arrendadores.comun.hoy` | `app/(app)/(shell)/arrendadores/page.tsx:438` | texto en pantalla | hoy | today |
 | `arrendadores.comun.en-dias` | `app/(app)/(shell)/arrendadores/page.tsx:439` | texto en pantalla | en {n} d | in {n} d |
 | `arrendadores.comun.mes` | `components/demo/arrendadores/CompromisoRentaCard.tsx:73` | texto en pantalla | /mes | /mo |
@@ -103,14 +102,14 @@ el código (búsqueda literal de la clave). **407 claves** (`arrendadores.*`).
 | `arrendadores.incompletos.falta.uno` | `app/(app)/(shell)/arrendadores/page.tsx:324` | texto en pantalla | La renta mensual no incluye {n} contrato incompleto: falta capturar {falta}, así que el costo real es mayor. | The monthly rent doesn’t include {n} incomplete contract (still missing: {falta}), so the real cost is higher. |
 | `arrendadores.incompletos.falta.otros` | `app/(app)/(shell)/arrendadores/page.tsx:324` | texto en pantalla | La renta mensual no incluye {n} contratos incompletos: falta capturar {falta}, así que el costo real es mayor. | The monthly rent doesn’t include {n} incomplete contracts (still missing: {falta}), so the real cost is higher. |
 | `arrendadores.contratos.titulo` | `app/(app)/(shell)/arrendadores/page.tsx:343` | título | Contratos de arrendamiento | Lease agreements |
-| `arrendadores.contratos.excel` | `app/(app)/(shell)/arrendadores/page.tsx:356` | texto en pantalla | Vigentes en Excel | Active ones in Excel |
+| `arrendadores.contratos.excel` | `app/(app)/(shell)/arrendadores/page.tsx:356` | texto en pantalla | Vigentes en Excel | Export active (Excel) |
 | `arrendadores.contratos.excel-title` | `app/(app)/(shell)/arrendadores/page.tsx:354` | título / tooltip | Descargar los contratos vigentes en Excel | Download the active contracts in Excel |
 | `arrendadores.contratos.sitio` | `app/(app)/(shell)/arrendadores/page.tsx:372` | cabecera de columna | Sitio | Site |
 | `arrendadores.contratos.vendida-en` | `app/(app)/(shell)/arrendadores/page.tsx:407` | texto en pantalla | Vendida en {lista} | Sold in {lista} |
 | `arrendadores.contratos.vendida-item` | `app/(app)/(shell)/arrendadores/page.tsx:408` | texto en pantalla | «{nombre}» | “{nombre}” |
 | `arrendadores.nuevo-contrato.titulo` | `app/(app)/(shell)/arrendadores/page.tsx:524` | título / tooltip | Nuevo contrato de arrendamiento | New lease agreement |
 | `arrendadores.nuevo-contrato.sub` | `app/(app)/(shell)/arrendadores/page.tsx:525` | título / tooltip | Arrendador → contrato (fechas pasadas permitidas) → pantalla | Landlord → contract (past dates allowed) → screen |
-| `arrendadores.alta.razon-fallo` | `app/(app)/(shell)/arrendadores/page.tsx:617` | aviso emergente | Arrendador creado, pero su razón social no: {error}. Agrégala desde su ficha. | Landlord created, but not its legal name: {error}. Add it from its profile. |
+| `arrendadores.alta.razon-fallo` | `app/(app)/(shell)/arrendadores/page.tsx:617` | aviso emergente | Arrendador creado, pero su razón social no: {error}. Agrégala desde su ficha. | Landlord created, but not their legal name: {error}. Add it from their profile. |
 | `arrendadores.alta.error-desconocido` | `app/(app)/(shell)/arrendadores/page.tsx:618` | aviso emergente | error desconocido | unknown error |
 | `arrendadores.alta.agregado` | `app/(app)/(shell)/arrendadores/page.tsx:625` | aviso emergente | Propietario agregado | Landlord added |
 | `arrendadores.alta.sub` | `app/(app)/(shell)/arrendadores/page.tsx:646` | título / tooltip | Alta de arrendador (dueño del predio) | Add a landlord (owner of the property) |
@@ -120,14 +119,14 @@ el código (búsqueda literal de la clave). **407 claves** (`arrendadores.*`).
 | `arrendadores.alta.domicilio-ph` | `app/(app)/(shell)/arrendadores/page.tsx:709` | texto de ejemplo (placeholder) | Calle, número, colonia, CP, ciudad, estado | Street, number, neighborhood, ZIP code, city, state |
 | `arrendadores.alta.domicilio-ayuda` | `app/(app)/(shell)/arrendadores/page.tsx:714` | texto en pantalla | El contrato de arrendamiento lo necesita para las notificaciones. Sin él, el documento sale con ese hueco en blanco. | The lease agreement needs it for notices. Without it, the document comes out with that gap left blank. |
 | `arrendadores.alta.fiscales` | `app/(app)/(shell)/arrendadores/page.tsx:722` | texto en pantalla | Datos fiscales | Tax details |
-| `arrendadores.alta.fiscales-ayuda` | `app/(app)/(shell)/arrendadores/page.tsx:724` | texto en pantalla | Es a quien se le factura la renta. Si lo dejas en blanco, el arrendador queda dado de alta igual y puedes capturarlo después desde su ficha. | It’s who the rent is invoiced to. If you leave it blank, the landlord is added anyway and you can enter it later from its profile. |
+| `arrendadores.alta.fiscales-ayuda` | `app/(app)/(shell)/arrendadores/page.tsx:724` | texto en pantalla | Es a quien se le factura la renta. Si lo dejas en blanco, el arrendador queda dado de alta igual y puedes capturarlo después desde su ficha. | It’s who the rent is invoiced to. If you leave it blank, the landlord is added anyway and you can enter it later from their profile. |
 | `arrendadores.alta.regimen-ayuda` | `app/(app)/(shell)/arrendadores/page.tsx:745` | texto en pantalla | Se habilita al capturar la razón social: el régimen es de ella. | It’s enabled once you enter the legal name: the regime belongs to it. |
 | `arrendadores.por-razon.titulo` | `app/(app)/(shell)/arrendadores/page.tsx:787` | título | Por razón social | By legal name |
 | `arrendadores.por-razon.vacio` | `app/(app)/(shell)/arrendadores/page.tsx:789` | texto en pantalla | — Sin razones sociales dadas de alta. | — No legal names added. |
 | `arrendadores.por-razon.pagos-vencidos` | `app/(app)/(shell)/arrendadores/page.tsx:800` | cabecera de columna | Pagos vencidos | Overdue payments |
 | `arrendadores.rentabilidad.titulo` | `app/(app)/(shell)/arrendadores/page.tsx:854` | título | Rentabilidad por pantalla | Profitability by screen |
 | `arrendadores.rentabilidad.sub` | `app/(app)/(shell)/arrendadores/page.tsx:855` | título | Margen mensual = ingreso de reservas vigentes − renta del arrendador. Las de margen negativo son candidatas a renegociar o dar de baja. | Monthly margin = revenue from active bookings − landlord rent. Those with a negative margin are candidates to renegotiate or drop. |
-| `arrendadores.rentabilidad.sin-filtro` | `app/(app)/(shell)/arrendadores/page.tsx:865` | texto en pantalla | Ninguna pantalla coincide con el filtro. | No screen matches the filter. |
+| `arrendadores.rentabilidad.sin-filtro` | `app/(app)/(shell)/arrendadores/page.tsx:865` | texto en pantalla | Ninguna pantalla coincide con el filtro. | No screens match the filter. |
 | `arrendadores.rentabilidad.vacio` | `app/(app)/(shell)/arrendadores/page.tsx:866` | texto en pantalla | Sin contratos ni reservas activas todavía. | No contracts or active bookings yet. |
 | `arrendadores.rentabilidad.ingreso` | `app/(app)/(shell)/arrendadores/page.tsx:877` | cabecera de columna | Ingreso/mes | Revenue/mo |
 | `arrendadores.rentabilidad.renta` | `app/(app)/(shell)/arrendadores/page.tsx:878` | cabecera de columna | Renta/mes | Rent/mo |
@@ -136,7 +135,7 @@ el código (búsqueda literal de la clave). **407 claves** (`arrendadores.*`).
 | `arrendadores.lista.rfc-malo` | `app/(app)/(shell)/arrendadores/page.tsx:955` | aviso emergente | El RFC no tiene un formato válido | The RFC doesn’t have a valid format |
 | `arrendadores.lista.actualizado` | `app/(app)/(shell)/arrendadores/page.tsx:964` | aviso emergente | Propietario actualizado | Landlord updated |
 | `arrendadores.lista.sub` | `app/(app)/(shell)/arrendadores/page.tsx:977` | título | Dueños de predio dados de alta. | Property owners on record. |
-| `arrendadores.lista.sin-filtro` | `app/(app)/(shell)/arrendadores/page.tsx:992` | texto en pantalla | Ningún arrendador coincide con el filtro. | No landlord matches the filter. |
+| `arrendadores.lista.sin-filtro` | `app/(app)/(shell)/arrendadores/page.tsx:992` | texto en pantalla | Ningún arrendador coincide con el filtro. | No landlords match the filter. |
 | `arrendadores.lista.vacio` | `app/(app)/(shell)/arrendadores/page.tsx:993` | texto en pantalla | Aún no hay arrendadores. Usa {boton} para dar de alta uno. | There are no landlords yet. Use {boton} to add one. |
 | `arrendadores.lista.vacio-boton` | `app/(app)/(shell)/arrendadores/page.tsx:993` | texto en pantalla | “Nuevo arrendador” | “New landlord” |
 | `arrendadores.lista.contacto` | `app/(app)/(shell)/arrendadores/page.tsx:1006` | cabecera de columna | Contacto | Contact |
@@ -171,8 +170,8 @@ el código (búsqueda literal de la clave). **407 claves** (`arrendadores.*`).
 | `arrendadores.razones.aviso-uno` | `components/demo/arrendadores/GestionRazonesSociales.tsx:272` | texto en pantalla | Sin razón social. Los contratos de este arrendador no podrán anclar a quién se factura. | No legal name. This landlord’s contracts can’t pin down who is invoiced. |
 | `arrendadores.razones.regimen` | `components/demo/arrendadores/GestionRazonesSociales.tsx:288` | texto en pantalla | Régimen: | Regime: |
 | `arrendadores.razones.falta` | `components/demo/arrendadores/GestionRazonesSociales.tsx:286`<br>`components/demo/arrendadores/GestionRazonesSociales.tsx:288` | texto en pantalla | falta | missing |
-| `arrendadores.razones.facturan.uno` | `components/demo/arrendadores/GestionRazonesSociales.tsx:294` | texto en pantalla | {n} contrato factura aquí | {n} contract invoices here |
-| `arrendadores.razones.facturan.otros` | `components/demo/arrendadores/GestionRazonesSociales.tsx:295` | texto en pantalla | {n} contratos facturan aquí | {n} contracts invoice here |
+| `arrendadores.razones.facturan.uno` | `components/demo/arrendadores/GestionRazonesSociales.tsx:294` | texto en pantalla | {n} contrato factura aquí | {n} contract billed to this name |
+| `arrendadores.razones.facturan.otros` | `components/demo/arrendadores/GestionRazonesSociales.tsx:295` | texto en pantalla | {n} contratos facturan aquí | {n} contracts billed to this name |
 | `arrendadores.razones.no-borrar` | `components/demo/arrendadores/GestionRazonesSociales.tsx:316` | texto en pantalla | Hay contratos que facturan a esta razón social | There are contracts invoiced to this legal name |
 | `arrendadores.incidencia.legal` | `components/demo/arrendadores/etiquetas.ts:54` | etiqueta de un valor (mapa de claves) | Legal / permiso | Legal / permit |
 | `arrendadores.incidencia.mantenimiento` | `components/demo/arrendadores/etiquetas.ts:55` | etiqueta de un valor (mapa de claves) | Mantenimiento | Maintenance |
@@ -191,7 +190,7 @@ el código (búsqueda literal de la clave). **407 claves** (`arrendadores.*`).
 | `arrendadores.ficha.por-definir` | `components/demo/arrendadores/ContratoSheet.tsx:197` | rótulo | por definir | to be defined |
 | `arrendadores.ficha.tiempo-restante` | `components/demo/arrendadores/ContratoSheet.tsx:199` | rótulo | Tiempo restante | Time remaining |
 | `arrendadores.ficha.vencido` | `components/demo/arrendadores/ContratoSheet.tsx:200` | texto en pantalla | Vencido | Expired |
-| `arrendadores.ficha.renovacion` | `components/demo/arrendadores/ContratoSheet.tsx:202`<br>`components/demo/arrendadores/CambiosContrato.tsx:563` | rótulo · texto en pantalla | Renovación automática | Automatic renewal |
+| `arrendadores.ficha.renovacion` | `components/demo/arrendadores/ContratoSheet.tsx:202`<br>`components/demo/arrendadores/CambiosContrato.tsx:567` | rótulo · texto en pantalla | Renovación automática | Automatic renewal |
 | `arrendadores.ficha.cambiar` | `components/demo/arrendadores/ContratoSheet.tsx:221` | texto en pantalla | Cambiar | Change |
 | `arrendadores.ficha.generar` | `components/demo/arrendadores/ContratoSheet.tsx:236` | texto en pantalla | Generar contrato | Generate contract |
 | `arrendadores.ficha.ver-firmado` | `components/demo/arrendadores/ContratoSheet.tsx:248` | texto en pantalla | Ver documento firmado (PDF) | View signed document (PDF) |
@@ -201,7 +200,7 @@ el código (búsqueda literal de la clave). **407 claves** (`arrendadores.*`).
 | `arrendadores.ficha.comprobante` | `components/demo/arrendadores/ContratoSheet.tsx:304` | texto en pantalla | Comprobante | Proof of payment |
 | `arrendadores.ficha.adjuntos` | `components/demo/arrendadores/ContratoSheet.tsx:314` | botón | Adjuntos | Attachments |
 | `arrendadores.ficha.registrar` | `components/demo/arrendadores/ContratoSheet.tsx:316` | texto en pantalla | Registrar | Record |
-| `arrendadores.ficha.ruc` | `components/demo/arrendadores/ContratoSheet.tsx:332` | rótulo | RUC | Tax ID (RUC) |
+| `arrendadores.ficha.ruc` | `components/demo/arrendadores/ContratoSheet.tsx:332` | rótulo | RUC | RUC (tax ID) |
 | `arrendadores.ficha.correo` | `components/demo/arrendadores/ContratoSheet.tsx:333`<br>`components/demo/arrendadores/ContratoSheet.tsx:761` | rótulo | Correo | Email |
 | `arrendadores.ficha.incidencia-reportada` | `components/demo/arrendadores/ContratoSheet.tsx:348` | aviso emergente | Incidencia reportada · {nombre} bloqueado en Comercial | Incident reported · {nombre} blocked in Sales |
 | `arrendadores.ficha.renovar-sensible` | `components/demo/arrendadores/ContratoSheet.tsx:389` | título | Renovar un contrato es un cambio sensible: tu organización pide que vuelvas a identificarte. | Renewing a contract is a sensitive change: your organization asks you to confirm your identity again. |
@@ -218,7 +217,7 @@ el código (búsqueda literal de la clave). **407 claves** (`arrendadores.*`).
 | `arrendadores.completar.sub` | `components/demo/arrendadores/ContratoSheet.tsx:722` | título / tooltip | Los cuatro datos que faltan para que cuente como acuerdo real | The four details missing for it to count as a real agreement |
 | `arrendadores.completar.guardar` | `components/demo/arrendadores/ContratoSheet.tsx:734` | texto en pantalla | Guardar contrato | Save contract |
 | `arrendadores.completar.elige` | `components/demo/arrendadores/ContratoSheet.tsx:746` | opción de un selector | Elige el arrendador… | Choose the landlord… |
-| `arrendadores.completar.varias` | `components/demo/arrendadores/ContratoSheet.tsx:766` | texto en pantalla | Tiene {n} razones sociales; se muestra la primera. Cuál factura este contrato se elige en su ficha. | It has {n} legal names; the first one is shown. Which one invoices this contract is chosen in its profile. |
+| `arrendadores.completar.varias` | `components/demo/arrendadores/ContratoSheet.tsx:766` | texto en pantalla | Tiene {n} razones sociales; se muestra la primera. Cuál factura este contrato se elige en su ficha. | It has {n} legal names; the first one is shown. Choose which one this contract is billed to in their profile. |
 | `arrendadores.completar.le-falta` | `components/demo/arrendadores/ContratoSheet.tsx:773` | texto en pantalla | Le falta {lista}. Puedes guardar el contrato igual, pero sin eso no se le podrá facturar la renta cuando toque pagarle. | It’s missing {lista}. You can save the contract anyway, but without it the rent can’t be invoiced when it’s time to pay. |
 | `arrendadores.completar.importe` | `components/demo/arrendadores/ContratoSheet.tsx:782` | rótulo | Importe de la renta | Rent amount |
 | `arrendadores.completar.importe-cero` | `components/demo/arrendadores/ContratoSheet.tsx:785` | mensaje de error | Captura un importe mayor que cero | Enter an amount greater than zero |
@@ -260,8 +259,8 @@ el código (búsqueda literal de la clave). **407 claves** (`arrendadores.*`).
 | `arrendadores.incidencia.descripcion-ph` | `components/demo/arrendadores/ContratoSheet.tsx:1277` | texto de ejemplo (placeholder) | Describe la incidencia… | Describe the incident… |
 | `arrendadores.incidencia.aviso` | `components/demo/arrendadores/ContratoSheet.tsx:1281` | texto en pantalla | Al reportar, el sitio pasa a {bloqueado} y aparece en rojo en el mapa de Comercial al instante. | When you report it, the site becomes {bloqueado} and shows up in red on the Sales map instantly. |
 | `arrendadores.incidencia.bloqueado` | `components/demo/arrendadores/ContratoSheet.tsx:1282` | texto en pantalla | bloqueado | blocked |
-| `arrendadores.parte.arrendador` | `components/demo/arrendadores/PanelFirmas.tsx:310`<br>`components/demo/arrendadores/etiquetas.ts:73` | texto en pantalla · etiqueta de un valor (mapa de claves) | El arrendador | The landlord |
-| `arrendadores.parte.arrendatario` | `components/demo/arrendadores/etiquetas.ts:74` | etiqueta de un valor (mapa de claves) | Nosotros | Us |
+| `arrendadores.parte.arrendador` | `components/demo/arrendadores/PanelFirmas.tsx:310`<br>`components/demo/arrendadores/etiquetas.ts:111` | texto en pantalla · etiqueta de un valor (mapa de claves) | El arrendador | The landlord |
+| `arrendadores.parte.arrendatario` | `components/demo/arrendadores/etiquetas.ts:112` | etiqueta de un valor (mapa de claves) | Nosotros | Us |
 | `arrendadores.cambios.no-historial` | `components/demo/arrendadores/CambiosContrato.tsx:96` | mensaje de error | No se pudo leer el historial | Could not read the history |
 | `arrendadores.cambios.titulo` | `components/demo/arrendadores/CambiosContrato.tsx:112` | texto en pantalla | Cambios al contrato | Contract changes |
 | `arrendadores.cambios.editar` | `components/demo/arrendadores/CambiosContrato.tsx:116` | botón | Editar términos | Edit terms |
@@ -270,42 +269,42 @@ el código (búsqueda literal de la clave). **407 claves** (`arrendadores.*`).
 | `arrendadores.cambios.lo-propuso` | `components/demo/arrendadores/CambiosContrato.tsx:137` | texto en pantalla | Lo propuso {parte} | Proposed by {parte} |
 | `arrendadores.cambios.interna` | `components/demo/arrendadores/CambiosContrato.tsx:142` | texto en pantalla | Captura interna | Internal entry |
 | `arrendadores.cambios.registro` | `components/demo/arrendadores/CambiosContrato.tsx:144` | texto en pantalla | ␣· lo registró {nombre} | ␣· recorded by {nombre} |
-| `arrendadores.cambios.vacio-valor` | `components/demo/arrendadores/CambiosContrato.tsx:153`<br>`components/demo/arrendadores/CambiosContrato.tsx:155` | texto en pantalla | vacío | empty |
-| `arrendadores.cambios.archivada` | `components/demo/arrendadores/CambiosContrato.tsx:161` | texto en pantalla | Estaba firmado: se archivó como versión firmada {n} y se anularon sus firmas. | It was signed: it was archived as signed version {n} and its signatures were voided. |
-| `arrendadores.cambios.envio-anulado` | `components/demo/arrendadores/CambiosContrato.tsx:165` | texto en pantalla | Ya se había enviado a firma: ese enlace dejó de servir y hubo que reenviarlo. | It had already been sent for signature: that link stopped working and had to be sent again. |
-| `arrendadores.versiones.no-leer` | `components/demo/arrendadores/CambiosContrato.tsx:205` | mensaje de error | No se pudo leer la versión firmada | Could not read the signed version |
-| `arrendadores.versiones.titulo` | `components/demo/arrendadores/CambiosContrato.tsx:212` | texto en pantalla | Versiones firmadas anteriores | Previous signed versions |
-| `arrendadores.versiones.version` | `components/demo/arrendadores/CambiosContrato.tsx:219` | texto en pantalla | Versión {n} | Version {n} |
-| `arrendadores.versiones.archivada` | `components/demo/arrendadores/CambiosContrato.tsx:220` | texto en pantalla | ␣· archivada {fecha} | ␣· archived {fecha} |
-| `arrendadores.versiones.ver` | `components/demo/arrendadores/CambiosContrato.tsx:227` | texto en pantalla | Ver texto firmado | View signed text |
-| `arrendadores.versiones.firmo` | `components/demo/arrendadores/CambiosContrato.tsx:238` | texto en pantalla | {parte} firmó {nombre} | {parte} signed by {nombre} |
-| `arrendadores.versiones.firmo-el` | `components/demo/arrendadores/CambiosContrato.tsx:238` | texto en pantalla | {parte} firmó {nombre} el {fecha} | {parte} signed by {nombre} on {fecha} |
-| `arrendadores.versiones.modal` | `components/demo/arrendadores/CambiosContrato.tsx:254` | título / tooltip | Versión firmada {n} | Signed version {n} |
-| `arrendadores.versiones.sello` | `components/demo/arrendadores/CambiosContrato.tsx:255` | título / tooltip | Sello SHA-256: {hash} | SHA-256 seal: {hash} |
-| `arrendadores.editar.no-guardar` | `components/demo/arrendadores/CambiosContrato.tsx:374` | mensaje de error | No se pudo guardar el cambio | Could not save the change |
-| `arrendadores.editar.hecho-firmado` | `components/demo/arrendadores/CambiosContrato.tsx:380` | aviso emergente | Cambio guardado · la versión firmada quedó archivada; envía el contrato a firma otra vez | Change saved · the signed version was archived; send the contract for signature again |
-| `arrendadores.editar.hecho-enviado` | `components/demo/arrendadores/CambiosContrato.tsx:382` | texto en pantalla | Cambio guardado · vuelve a enviar el contrato a firma | Change saved · send the contract for signature again |
-| `arrendadores.editar.hecho` | `components/demo/arrendadores/CambiosContrato.tsx:383` | texto en pantalla | Cambio guardado en el historial | Change saved in the history |
-| `arrendadores.editar.titulo` | `components/demo/arrendadores/CambiosContrato.tsx:400` | título / tooltip | Editar términos del contrato | Edit contract terms |
-| `arrendadores.editar.sub-firmado` | `components/demo/arrendadores/CambiosContrato.tsx:403` | subtítulo | Ya firmado: la versión firmada se archiva y se vuelve a firmar. | Already signed: the signed version is archived and it is signed again. |
-| `arrendadores.editar.sub` | `components/demo/arrendadores/CambiosContrato.tsx:404` | subtítulo | Antes de firmarse. Cada cambio queda en el historial con quién lo pidió. | Before signing. Each change stays in the history with who asked for it. |
-| `arrendadores.editar.guardar` | `components/demo/arrendadores/CambiosContrato.tsx:414` | botón | Guardar cambio | Save change |
-| `arrendadores.editar.aviso-firmado` | `components/demo/arrendadores/CambiosContrato.tsx:422` | texto en pantalla | Este contrato {firmado}. Si guardas un cambio, la versión firmada se archiva tal como se firmó —texto y firmas— y las firmas actuales se anulan. Después tendrás que enviarlo a firma otra vez, con los datos actuales, para que las dos partes lo revisen y lo firmen de nuevo. Escribe el motivo: queda en el historial. | This contract {firmado}. If you save a change, the signed version is archived exactly as it was signed —text and signatures— and the current signatures are voided. Then you’ll have to send it for signature again, with the current data, so both parties review it and sign it again. Write the reason: it stays in the history. |
-| `arrendadores.editar.aviso-firmado-b` | `components/demo/arrendadores/CambiosContrato.tsx:422` | texto en pantalla | ya está firmado | is already signed |
-| `arrendadores.editar.aviso-enviado` | `components/demo/arrendadores/CambiosContrato.tsx:426` | texto en pantalla | Este contrato {enviado}. Si guardas un cambio, el enlace que tiene el arrendador deja de servir y tendrás que enviarlo otra vez con el texto nuevo. | This contract {enviado}. If you save a change, the link the landlord has stops working and you’ll have to send it again with the new text. |
-| `arrendadores.editar.aviso-enviado-b` | `components/demo/arrendadores/CambiosContrato.tsx:426` | texto en pantalla | ya se envió a firma | was already sent for signature |
-| `arrendadores.editar.quien` | `components/demo/arrendadores/CambiosContrato.tsx:430` | rótulo | ¿Quién propuso el cambio? | Who proposed the change? |
-| `arrendadores.editar.motivo` | `components/demo/arrendadores/CambiosContrato.tsx:447` | rótulo | Motivo | Reason |
-| `arrendadores.editar.motivo-ph` | `components/demo/arrendadores/CambiosContrato.tsx:453` | texto de ejemplo (placeholder) | Ej. pidió bajar la renta a cambio de un plazo más largo | E.g. asked to lower the rent in exchange for a longer term |
-| `arrendadores.editar.razon-arrendador` | `components/demo/arrendadores/CambiosContrato.tsx:473` | rótulo | Razón social del arrendador | Landlord’s legal name |
-| `arrendadores.editar.inicio` | `components/demo/arrendadores/CambiosContrato.tsx:502` | rótulo | Inicio | Start |
-| `arrendadores.editar.fin` | `components/demo/arrendadores/CambiosContrato.tsx:507` | rótulo | Fin | End |
-| `arrendadores.editar.mayor-cero` | `components/demo/arrendadores/CambiosContrato.tsx:523` | texto en pantalla | Tiene que ser mayor que cero | It must be greater than zero |
-| `arrendadores.editar.moneda` | `components/demo/arrendadores/CambiosContrato.tsx:544` | rótulo | Moneda | Currency |
-| `arrendadores.editar.negativo` | `components/demo/arrendadores/CambiosContrato.tsx:553` | texto en pantalla | No puede ser negativo | Can’t be negative |
+| `arrendadores.cambios.vacio-valor` | `components/demo/arrendadores/CambiosContrato.tsx:157`<br>`components/demo/arrendadores/CambiosContrato.tsx:159` | texto en pantalla | vacío | empty |
+| `arrendadores.cambios.archivada` | `components/demo/arrendadores/CambiosContrato.tsx:165` | texto en pantalla | Estaba firmado: se archivó como versión firmada {n} y se anularon sus firmas. | It was signed: it was archived as signed version {n} and its signatures were voided. |
+| `arrendadores.cambios.envio-anulado` | `components/demo/arrendadores/CambiosContrato.tsx:169` | texto en pantalla | Ya se había enviado a firma: ese enlace dejó de servir y hubo que reenviarlo. | It had already been sent for signature: that link stopped working and had to be sent again. |
+| `arrendadores.versiones.no-leer` | `components/demo/arrendadores/CambiosContrato.tsx:209` | mensaje de error | No se pudo leer la versión firmada | Could not read the signed version |
+| `arrendadores.versiones.titulo` | `components/demo/arrendadores/CambiosContrato.tsx:216` | texto en pantalla | Versiones firmadas anteriores | Previous signed versions |
+| `arrendadores.versiones.version` | `components/demo/arrendadores/CambiosContrato.tsx:223` | texto en pantalla | Versión {n} | Version {n} |
+| `arrendadores.versiones.archivada` | `components/demo/arrendadores/CambiosContrato.tsx:224` | texto en pantalla | ␣· archivada {fecha} | ␣· archived {fecha} |
+| `arrendadores.versiones.ver` | `components/demo/arrendadores/CambiosContrato.tsx:231` | texto en pantalla | Ver texto firmado | View signed text |
+| `arrendadores.versiones.firmo` | `components/demo/arrendadores/CambiosContrato.tsx:242` | texto en pantalla | {parte} firmó {nombre} | {parte} signed by {nombre} |
+| `arrendadores.versiones.firmo-el` | `components/demo/arrendadores/CambiosContrato.tsx:242` | texto en pantalla | {parte} firmó {nombre} el {fecha} | {parte} signed by {nombre} on {fecha} |
+| `arrendadores.versiones.modal` | `components/demo/arrendadores/CambiosContrato.tsx:258` | título / tooltip | Versión firmada {n} | Signed version {n} |
+| `arrendadores.versiones.sello` | `components/demo/arrendadores/CambiosContrato.tsx:259` | título / tooltip | Sello SHA-256: {hash} | SHA-256 seal: {hash} |
+| `arrendadores.editar.no-guardar` | `components/demo/arrendadores/CambiosContrato.tsx:378` | mensaje de error | No se pudo guardar el cambio | Could not save the change |
+| `arrendadores.editar.hecho-firmado` | `components/demo/arrendadores/CambiosContrato.tsx:384` | aviso emergente | Cambio guardado · la versión firmada quedó archivada; envía el contrato a firma otra vez | Change saved · the signed version was archived; send the contract for signature again |
+| `arrendadores.editar.hecho-enviado` | `components/demo/arrendadores/CambiosContrato.tsx:386` | texto en pantalla | Cambio guardado · vuelve a enviar el contrato a firma | Change saved · send the contract for signature again |
+| `arrendadores.editar.hecho` | `components/demo/arrendadores/CambiosContrato.tsx:387` | texto en pantalla | Cambio guardado en el historial | Change saved in the history |
+| `arrendadores.editar.titulo` | `components/demo/arrendadores/CambiosContrato.tsx:404` | título / tooltip | Editar términos del contrato | Edit contract terms |
+| `arrendadores.editar.sub-firmado` | `components/demo/arrendadores/CambiosContrato.tsx:407` | subtítulo | Ya firmado: la versión firmada se archiva y se vuelve a firmar. | Already signed: the signed version is archived and it is signed again. |
+| `arrendadores.editar.sub` | `components/demo/arrendadores/CambiosContrato.tsx:408` | subtítulo | Antes de firmarse. Cada cambio queda en el historial con quién lo pidió. | Before signing. Each change stays in the history with who asked for it. |
+| `arrendadores.editar.guardar` | `components/demo/arrendadores/CambiosContrato.tsx:418` | botón | Guardar cambio | Save change |
+| `arrendadores.editar.aviso-firmado` | `components/demo/arrendadores/CambiosContrato.tsx:426` | texto en pantalla | Este contrato {firmado}. Si guardas un cambio, la versión firmada se archiva tal como se firmó —texto y firmas— y las firmas actuales se anulan. Después tendrás que enviarlo a firma otra vez, con los datos actuales, para que las dos partes lo revisen y lo firmen de nuevo. Escribe el motivo: queda en el historial. | This contract {firmado}. If you save a change, the signed version is archived exactly as it was signed —text and signatures— and the current signatures are voided. Then you’ll have to send it for signature again, with the current data, so both parties review and re-sign it. Write the reason: it stays in the history. |
+| `arrendadores.editar.aviso-firmado-b` | `components/demo/arrendadores/CambiosContrato.tsx:426` | texto en pantalla | ya está firmado | is already signed |
+| `arrendadores.editar.aviso-enviado` | `components/demo/arrendadores/CambiosContrato.tsx:430` | texto en pantalla | Este contrato {enviado}. Si guardas un cambio, el enlace que tiene el arrendador deja de servir y tendrás que enviarlo otra vez con el texto nuevo. | This contract {enviado}. If you save a change, the link the landlord has stops working and you’ll have to send it again with the new text. |
+| `arrendadores.editar.aviso-enviado-b` | `components/demo/arrendadores/CambiosContrato.tsx:430` | texto en pantalla | ya se envió a firma | was already sent for signature |
+| `arrendadores.editar.quien` | `components/demo/arrendadores/CambiosContrato.tsx:434` | rótulo | ¿Quién propuso el cambio? | Who proposed the change? |
+| `arrendadores.editar.motivo` | `components/demo/arrendadores/CambiosContrato.tsx:451` | rótulo | Motivo | Reason |
+| `arrendadores.editar.motivo-ph` | `components/demo/arrendadores/CambiosContrato.tsx:457` | texto de ejemplo (placeholder) | Ej. pidió bajar la renta a cambio de un plazo más largo | E.g. asked to lower the rent in exchange for a longer term |
+| `arrendadores.editar.razon-arrendador` | `components/demo/arrendadores/CambiosContrato.tsx:477` | rótulo | Razón social del arrendador | Landlord’s legal name |
+| `arrendadores.editar.inicio` | `components/demo/arrendadores/CambiosContrato.tsx:506` | rótulo | Inicio | Start |
+| `arrendadores.editar.fin` | `components/demo/arrendadores/CambiosContrato.tsx:511` | rótulo | Fin | End |
+| `arrendadores.editar.mayor-cero` | `components/demo/arrendadores/CambiosContrato.tsx:527` | texto en pantalla | Tiene que ser mayor que cero | It must be greater than zero |
+| `arrendadores.editar.moneda` | `components/demo/arrendadores/CambiosContrato.tsx:548` | rótulo | Moneda | Currency |
+| `arrendadores.editar.negativo` | `components/demo/arrendadores/CambiosContrato.tsx:557` | texto en pantalla | No puede ser negativo | Can’t be negative |
 | `arrendadores.licencias.vencio` | `components/demo/arrendadores/LicenciasCard.tsx:43` | texto en pantalla | Venció hace {n} d | Expired {n} d ago |
 | `arrendadores.licencias.vence-en` | `components/demo/arrendadores/LicenciasCard.tsx:44`<br>`components/demo/arrendadores/LicenciasCard.tsx:45` | texto en pantalla | Vence en {n} d | Expires in {n} d |
-| `arrendadores.licencias.vigente` | `components/demo/arrendadores/LicenciasCard.tsx:46` | texto en pantalla | Vigente | Active |
+| `arrendadores.licencias.vigente` | `components/demo/arrendadores/LicenciasCard.tsx:46` | texto en pantalla | Vigente | Valid |
 | `arrendadores.licencias.titulo` | `components/demo/arrendadores/LicenciasCard.tsx:77` | texto en pantalla | Licencias y permisos | Permits and licenses |
 | `arrendadores.licencias.amparan` | `components/demo/arrendadores/LicenciasCard.tsx:86` | texto en pantalla | Amparan a todas las pantallas de este predio. | They cover all the screens on this property. |
 | `arrendadores.licencias.vacio` | `components/demo/arrendadores/LicenciasCard.tsx:92` | texto en pantalla | Sin licencias registradas. Al capturar la vigencia, el sistema avisa con {n} días de anticipación. | No permits recorded. Once the expiration date is entered, the system warns {n} days ahead. |
@@ -328,13 +327,13 @@ el código (búsqueda literal de la clave). **407 claves** (`arrendadores.*`).
 | `arrendadores.cuadre.titulo` | `components/demo/arrendadores/ConciliacionCard.tsx:231` | título | Cuadre de renta por arrendador | Rent reconciliation by landlord |
 | `arrendadores.cuadre.sub` | `components/demo/arrendadores/ConciliacionCard.tsx:233` | título | Qué se le debe a cada uno y qué ya se le pagó. Primero quien tiene vencidos. | What is owed to each one and what has already been paid. Those with overdue payments first. |
 | `arrendadores.cuadre.vacio` | `components/demo/arrendadores/ConciliacionCard.tsx:93` | texto en pantalla | — Sin pagos de renta generados todavía: se calculan al capturar el importe del contrato. | — No rent payments generated yet: they are calculated when the contract amount is entered. |
-| `arrendadores.cuadre.col.arrendador` | `components/demo/arrendadores/ConciliacionCard.tsx:121` | cabecera de columna | Arrendador / emplazamiento | Landlord / location |
+| `arrendadores.cuadre.col.arrendador` | `components/demo/arrendadores/ConciliacionCard.tsx:121` | cabecera de columna | Arrendador / emplazamiento | Landlord / placement |
 | `arrendadores.cuadre.col.vencido` | `components/demo/arrendadores/ConciliacionCard.tsx:122` | cabecera de columna | Vencido | Overdue |
 | `arrendadores.cuadre.col.pendiente` | `components/demo/arrendadores/ConciliacionCard.tsx:123` | cabecera de columna | Pendiente | Pending |
 | `arrendadores.cuadre.col.pagado` | `components/demo/arrendadores/ConciliacionCard.tsx:124` | cabecera de columna | Pagado | Paid |
 | `arrendadores.cuadre.col.proximo` | `components/demo/arrendadores/ConciliacionCard.tsx:125` | cabecera de columna | Próximo | Next |
-| `arrendadores.cuadre.emplazamientos.uno` | `components/demo/arrendadores/ConciliacionCard.tsx:154` | texto en pantalla | {n} emplazamiento | {n} location |
-| `arrendadores.cuadre.emplazamientos.otros` | `components/demo/arrendadores/ConciliacionCard.tsx:154` | texto en pantalla | {n} emplazamientos | {n} locations |
+| `arrendadores.cuadre.emplazamientos.uno` | `components/demo/arrendadores/ConciliacionCard.tsx:154` | texto en pantalla | {n} emplazamiento | {n} placement |
+| `arrendadores.cuadre.emplazamientos.otros` | `components/demo/arrendadores/ConciliacionCard.tsx:154` | texto en pantalla | {n} emplazamientos | {n} placements |
 | `arrendadores.cuadre.predio` | `components/demo/arrendadores/ConciliacionCard.tsx:179` | texto en pantalla | Predio | Property |
 | `arrendadores.cuadre.suelta` | `components/demo/arrendadores/ConciliacionCard.tsx:179` | texto en pantalla | Pantalla suelta | Individual screen |
 | `arrendadores.cuadre.contratos.uno` | `components/demo/arrendadores/ConciliacionCard.tsx:180` | texto en pantalla | {n} contrato | {n} contract |
@@ -384,7 +383,7 @@ el código (búsqueda literal de la clave). **407 claves** (`arrendadores.*`).
 | `arrendadores.firmas.congelado` | `components/demo/arrendadores/PanelFirmas.tsx:149` | texto en pantalla | Documento congelado el {fecha}. Sello SHA-256: {hash} | Document frozen on {fecha}. SHA-256 seal: {hash} |
 | `arrendadores.firmas.ya-tiene` | `components/demo/arrendadores/PanelFirmas.tsx:161` | texto en pantalla | {titulo} Si hay que modificar renta, vigencia o cualquier otra condición, edítalo desde «Editar términos» en su ficha: esta versión se archiva tal como se firmó —texto y firmas— y el contrato se vuelve a enviar a firma con los datos actuales. | {titulo} If the rent, the term or any other condition has to change, edit it from “Edit terms” in its profile: this version is archived exactly as it was signed —text and signatures— and the contract is sent for signature again with the current data. |
 | `arrendadores.firmas.ya-tiene-titulo` | `components/demo/arrendadores/PanelFirmas.tsx:161` | texto en pantalla | Este contrato ya tiene firmas. | This contract already has signatures. |
-| `arrendadores.firmas.desfasado` | `components/demo/arrendadores/PanelFirmas.tsx:169` | texto en pantalla | {titulo} Las firmas ya no corresponden al texto actual. Vuelve a enviar a firma para sellar la versión nueva y recabar las firmas otra vez. | {titulo} The signatures no longer match the current text. Send it for signature again to seal the new version and collect the signatures again. |
+| `arrendadores.firmas.desfasado` | `components/demo/arrendadores/PanelFirmas.tsx:169` | texto en pantalla | {titulo} Las firmas ya no corresponden al texto actual. Vuelve a enviar a firma para sellar la versión nueva y recabar las firmas otra vez. | {titulo} The signatures no longer match the current text. Send it for signature again to seal the new version and collect new signatures. |
 | `arrendadores.firmas.desfasado-titulo` | `components/demo/arrendadores/PanelFirmas.tsx:169` | texto en pantalla | El contrato cambió después de congelarse. | The contract changed after it was frozen. |
 | `arrendadores.firmas.invalidada` | `components/demo/arrendadores/PanelFirmas.tsx:184` | texto en pantalla | Firma invalidada (el documento cambió) | Signature invalidated (the document changed) |
 | `arrendadores.firmas.firmada` | `components/demo/arrendadores/PanelFirmas.tsx:188` | texto en pantalla | Firmada | Signed |
@@ -408,17 +407,57 @@ el código (búsqueda literal de la clave). **407 claves** (`arrendadores.*`).
 | `arrendadores.revision.terminos` | `components/demo/arrendadores/PanelFirmas.tsx:326` | texto en pantalla | Términos | Terms |
 | `arrendadores.revision.rango` | `components/demo/arrendadores/PanelFirmas.tsx:339` | texto en pantalla | {desde} a {hasta} | {desde} to {hasta} |
 | `arrendadores.revision.titulo` | `components/demo/arrendadores/PanelFirmas.tsx:348` | texto en pantalla | Revisa los datos que llevará el contrato | Review the data the contract will include |
-| `arrendadores.revision.nota` | `components/demo/arrendadores/PanelFirmas.tsx:351` | texto en pantalla | Son los datos actuales. Si alguno está mal, corrígelo antes de enviar: los de tu empresa en Administración, los del arrendador en su ficha y los términos con «Editar términos». | This is the current data. If anything is wrong, fix it before sending: your company’s in Settings, the landlord’s in its profile and the terms with “Edit terms”. |
+| `arrendadores.revision.nota` | `components/demo/arrendadores/PanelFirmas.tsx:351` | texto en pantalla | Son los datos actuales. Si alguno está mal, corrígelo antes de enviar: los de tu empresa en Administración, los del arrendador en su ficha y los términos con «Editar términos». | This is the current data. If anything is wrong, fix it before sending: your company’s in Settings, the landlord’s in their profile and the terms with “Edit terms”. |
 | `arrendadores.revision.fila` | `components/demo/arrendadores/PanelFirmas.tsx:360` | texto en pantalla | {campo}: {valor} | {campo}: {valor} |
 | `arrendadores.revision.sin-capturar` | `components/demo/arrendadores/PanelFirmas.tsx:362` | texto en pantalla | sin capturar | not entered |
 | `arrendadores.revision.congelando` | `components/demo/arrendadores/PanelFirmas.tsx:375` | botón | Congelando… | Freezing… |
 | `arrendadores.revision.correctos` | `components/demo/arrendadores/PanelFirmas.tsx:375` | botón | Los datos son correctos, enviar a firma | The data is correct, send for signature |
 | `arrendadores.revision.corregir` | `components/demo/arrendadores/PanelFirmas.tsx:384` | texto en pantalla | Corregir antes | Fix it first |
-| `arrendadores.barra.nota` | `components/demo/arrendadores/BarraDocumento.tsx:28` | texto en pantalla | En el diálogo de impresión elige «Guardar como PDF» como destino. | In the print dialog choose “Save as PDF” as the destination. |
-| `arrendadores.barra.faltan.uno` | `components/demo/arrendadores/BarraDocumento.tsx:36` | texto en pantalla | Faltan {n} dato por capturar. | {n} field is missing. |
-| `arrendadores.barra.faltan.otros` | `components/demo/arrendadores/BarraDocumento.tsx:36` | texto en pantalla | Faltan {n} datos por capturar. | {n} fields are missing. |
-| `arrendadores.barra.en-blanco` | `components/demo/arrendadores/BarraDocumento.tsx:37` | texto en pantalla | El documento los deja marcados en blanco en vez de inventarlos. | The document leaves them marked blank instead of making them up. |
-| `arrendadores.barra.en` | `components/demo/arrendadores/BarraDocumento.tsx:40` | texto en pantalla | En {donde}: | In {donde}: |
+| `arrendadores.constancia.titulo` | `components/demo/arrendadores/ConstanciaFirmas.tsx:71` | título | Constancia de firma electrónica | Electronic signature certificate |
+| `arrendadores.constancia.alerta` | `components/demo/arrendadores/ConstanciaFirmas.tsx:75` | texto en pantalla | ATENCIÓN: el contrato fue modificado después de firmarse. Las firmas marcadas abajo no corresponden al texto de este documento y no deben tenerse por válidas. | WARNING: the contract was modified after it was signed. The signatures marked below don’t match the text of this document and must not be considered valid. |
+| `arrendadores.constancia.intro` | `components/demo/arrendadores/ConstanciaFirmas.tsx:80` | texto en pantalla | Este documento fue sellado el {fecha} y firmado electrónicamente por las partes que se indican. El sello SHA-256 permite verificar que el texto no ha sido alterado desde su firma. | This document was sealed on {fecha} and electronically signed by the parties listed. The SHA-256 seal makes it possible to verify that the text hasn’t been altered since it was signed. |
+| `arrendadores.constancia.parte.arrendador` | `components/demo/arrendadores/ConstanciaFirmas.tsx:35` | texto en pantalla | EL ARRENDADOR | THE LANDLORD |
+| `arrendadores.constancia.parte.arrendatario` | `components/demo/arrendadores/ConstanciaFirmas.tsx:36` | texto en pantalla | EL ARRENDATARIO | THE LESSEE |
+| `arrendadores.constancia.invalidada` | `components/demo/arrendadores/ConstanciaFirmas.tsx:92` | texto en pantalla | ␣— FIRMA INVALIDADA | ␣— SIGNATURE INVALIDATED |
+| `arrendadores.constancia.fecha` | `components/demo/arrendadores/ConstanciaFirmas.tsx:95` | texto en pantalla | Fecha y hora: {fecha} | Date and time: {fecha} |
+| `arrendadores.constancia.ip` | `components/demo/arrendadores/ConstanciaFirmas.tsx:96` | texto en pantalla | Dirección IP: {ip} | IP address: {ip} |
+| `arrendadores.constancia.ip-no` | `components/demo/arrendadores/ConstanciaFirmas.tsx:96` | texto en pantalla | no registrada | not recorded |
+| `arrendadores.constancia.navegador` | `components/demo/arrendadores/ConstanciaFirmas.tsx:98` | texto en pantalla | Navegador: {navegador} | Browser: {navegador} |
+| `arrendadores.constancia.navegador-no` | `components/demo/arrendadores/ConstanciaFirmas.tsx:98` | texto en pantalla | no registrado | not recorded |
+| `arrendadores.constancia.sello` | `components/demo/arrendadores/ConstanciaFirmas.tsx:101` | texto en pantalla | Sello del documento firmado: {hash} | Seal of the signed document: {hash} |
+| `arrendadores.constancia.nota` | `components/demo/arrendadores/ConstanciaFirmas.tsx:110` | texto en pantalla | Firma electrónica simple. La dirección IP y el navegador son datos que aporta el propio equipo del firmante y se conservan como indicios; no constituyen por sí solos prueba de identidad. Esta constancia no incluye certificado de e.firma del SAT ni constancia de conservación NOM-151. | Simple electronic signature. The IP address and the browser are data supplied by the signer’s own device and are kept as indications; on their own they are not proof of identity. This certificate doesn’t include an e.firma certificate from the SAT or a NOM-151 preservation certificate. |
+| `arrendadores.campo.arrendador-id` | `components/demo/arrendadores/etiquetas.ts:74` | etiqueta de un valor (mapa de claves) | Arrendador | Landlord |
+| `arrendadores.campo.razon-social-id` | `components/demo/arrendadores/etiquetas.ts:75` | etiqueta de un valor (mapa de claves) | Razón social del arrendador | Landlord’s legal name |
+| `arrendadores.campo.entidad-id` | `components/demo/arrendadores/etiquetas.ts:76` | etiqueta de un valor (mapa de claves) | Razón social que paga | Paying legal entity |
+| `arrendadores.campo.fecha-inicio` | `components/demo/arrendadores/etiquetas.ts:77` | etiqueta de un valor (mapa de claves) | Fecha de inicio | Start date |
+| `arrendadores.campo.fecha-fin` | `components/demo/arrendadores/etiquetas.ts:78` | etiqueta de un valor (mapa de claves) | Fecha de fin | End date |
+| `arrendadores.campo.monto-renta` | `components/demo/arrendadores/etiquetas.ts:79` | etiqueta de un valor (mapa de claves) | Renta | Rent |
+| `arrendadores.campo.periodicidad` | `components/demo/arrendadores/etiquetas.ts:80` | etiqueta de un valor (mapa de claves) | Periodicidad | Frequency |
+| `arrendadores.campo.moneda` | `components/demo/arrendadores/etiquetas.ts:81` | etiqueta de un valor (mapa de claves) | Moneda | Currency |
+| `arrendadores.campo.deposito` | `components/demo/arrendadores/etiquetas.ts:82` | etiqueta de un valor (mapa de claves) | Depósito | Security deposit |
+| `arrendadores.campo.auto-renovable` | `components/demo/arrendadores/etiquetas.ts:83` | etiqueta de un valor (mapa de claves) | Renovación automática | Automatic renewal |
+| `arrendadores.campo.documento-url` | `components/demo/arrendadores/etiquetas.ts:84` | etiqueta de un valor (mapa de claves) | PDF del contrato | Contract PDF |
+| `arrendadores.faltante.razon-empresa` | `components/demo/arrendadores/etiquetas.ts:90` | etiqueta de un valor (mapa de claves) | Razón social de tu empresa | Your company’s legal name |
+| `arrendadores.faltante.rfc-empresa` | `components/demo/arrendadores/etiquetas.ts:91` | etiqueta de un valor (mapa de claves) | RFC de tu empresa | Your company’s RFC (tax ID) |
+| `arrendadores.faltante.domicilio-empresa` | `components/demo/arrendadores/etiquetas.ts:92` | etiqueta de un valor (mapa de claves) | Domicilio fiscal de tu empresa | Your company’s tax address |
+| `arrendadores.faltante.representante` | `components/demo/arrendadores/etiquetas.ts:93` | etiqueta de un valor (mapa de claves) | Representante legal de tu empresa | Your company’s legal representative |
+| `arrendadores.faltante.nombre-arrendador` | `components/demo/arrendadores/etiquetas.ts:94` | etiqueta de un valor (mapa de claves) | Nombre del arrendador | Landlord’s name |
+| `arrendadores.faltante.rfc-arrendador` | `components/demo/arrendadores/etiquetas.ts:95` | etiqueta de un valor (mapa de claves) | RFC del arrendador | Landlord’s RFC (tax ID) |
+| `arrendadores.faltante.domicilio-arrendador` | `components/demo/arrendadores/etiquetas.ts:96` | etiqueta de un valor (mapa de claves) | Domicilio del arrendador | Landlord’s address |
+| `arrendadores.faltante.direccion-espacio` | `components/demo/arrendadores/etiquetas.ts:97` | etiqueta de un valor (mapa de claves) | Dirección del espacio | Address of the space |
+| `arrendadores.faltante.fecha-inicio` | `components/demo/arrendadores/etiquetas.ts:98` | etiqueta de un valor (mapa de claves) | Fecha de inicio | Start date |
+| `arrendadores.faltante.fecha-fin` | `components/demo/arrendadores/etiquetas.ts:99` | etiqueta de un valor (mapa de claves) | Fecha de fin | End date |
+| `arrendadores.faltante.importe` | `components/demo/arrendadores/etiquetas.ts:100` | etiqueta de un valor (mapa de claves) | Importe de la renta | Rent amount |
+| `arrendadores.faltante.periodicidad` | `components/demo/arrendadores/etiquetas.ts:101` | etiqueta de un valor (mapa de claves) | Periodicidad del pago | Payment frequency |
+| `arrendadores.donde.admin` | `components/demo/arrendadores/etiquetas.ts:104` | etiqueta de un valor (mapa de claves) | Administración › Datos fiscales de la empresa | Settings › Company tax details |
+| `arrendadores.donde.ficha` | `components/demo/arrendadores/etiquetas.ts:105` | etiqueta de un valor (mapa de claves) | Arrendadores › ficha del arrendador | Landlords › landlord profile |
+| `arrendadores.donde.contrato` | `components/demo/arrendadores/etiquetas.ts:106` | etiqueta de un valor (mapa de claves) | la ficha de este contrato | this contract’s profile |
+| `arrendadores.donde.inventario` | `components/demo/arrendadores/etiquetas.ts:107` | etiqueta de un valor (mapa de claves) | Inventario › ficha de la pantalla o del predio | Inventory › screen or property profile |
+| `arrendadores.barra.nota` | `components/demo/arrendadores/BarraDocumento.tsx:32` | texto en pantalla | En el diálogo de impresión elige «Guardar como PDF» como destino. | In the print dialog choose “Save as PDF” as the destination. |
+| `arrendadores.barra.faltan.uno` | `components/demo/arrendadores/BarraDocumento.tsx:40` | texto en pantalla | Faltan {n} dato por capturar. | {n} field is missing. |
+| `arrendadores.barra.faltan.otros` | `components/demo/arrendadores/BarraDocumento.tsx:40` | texto en pantalla | Faltan {n} datos por capturar. | {n} fields are missing. |
+| `arrendadores.barra.en-blanco` | `components/demo/arrendadores/BarraDocumento.tsx:41` | texto en pantalla | El documento los deja marcados en blanco en vez de inventarlos. | The document leaves them marked blank instead of making them up. |
+| `arrendadores.barra.en` | `components/demo/arrendadores/BarraDocumento.tsx:44` | texto en pantalla | En {donde}: | In {donde}: |
 | `arrendadores.documento.sin-permiso` | `app/(app)/contrato/[id]/page.tsx:65` | texto en pantalla | No tienes permiso para ver este contrato. | You don’t have permission to view this contract. |
 | `arrendadores.documento.falta-title` | `app/(app)/contrato/[id]/page.tsx:50` | título / tooltip | Dato pendiente de capturar | Data still to be entered |
 | `arrendadores.publica.no-valido` | `app/(app)/firmar/[token]/page.tsx:21` | título | Enlace no válido | Invalid link |
