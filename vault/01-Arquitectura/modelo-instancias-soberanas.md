@@ -42,7 +42,9 @@ archivos:
 > bandera, MXN**, que es en lo que se quedan todas las instancias que ya
 > existían. **No es una variable del `.env`**: el `.env` se relee en cada
 > arranque y se puede editar, y la moneda no. Las organizaciones que nazcan
-> después en la misma instancia heredan la suya.
+> después en la misma instancia heredan la suya, y `/api/signup` (anónimo) no
+> puede elegirla nunca. `--moneda` fuera de la corrida de `--bootstrap` para el
+> guion con salida 64 en vez de ignorarse.
 >
 > Después **no se cambia**: lo impiden la base
 > (`20261102_moneda_inmutable_por_instancia.sql`, ver [[04-Datos/esquema]]) y la

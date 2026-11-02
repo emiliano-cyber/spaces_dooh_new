@@ -91,6 +91,7 @@ EMITIR_CERT=0
 BOOTSTRAP=0
 # ADR 0048 · la moneda de la instancia. Solo la usa --bootstrap.
 MONEDA="MXN"
+MONEDA_DADA=0
 # Region y tamano solo se usan con --crear-droplet. Se dejan como variables de
 # entorno y sin valor por defecto quemado: son decisiones de cuenta, no del
 # script.
@@ -189,7 +190,7 @@ while [[ $# -gt 0 ]]; do
     --dry-run)             CONFIRMAR=0; shift ;;
     --emitir-certificado)  EMITIR_CERT=1; shift ;;
     --bootstrap)           BOOTSTRAP=1; shift ;;
-    --moneda)              MONEDA="${2:-}"; shift 2 ;;
+    --moneda)              MONEDA="${2:-}"; MONEDA_DADA=1; shift 2 ;;
     --sin-respaldo-remoto) SIN_RESPALDO_REMOTO=1; shift ;;
     --con-eyes)            CON_EYES=1; shift ;;
     -h|--ayuda|--help)     uso; exit 0 ;;
@@ -209,6 +210,14 @@ case "$MONEDA" in
      echo "           La moneda de una instancia no se puede cambiar despues (ADR 0048)." >&2
      exit "$EX_USO" ;;
 esac
+# Y solo con --bootstrap. Sin el, la bandera no haria nada: el operador
+# creeria haber elegido dolares y la instancia naceria en el paso siguiente
+# con lo que mande ESA corrida. Se para en vez de ignorarla.
+if [[ "$MONEDA_DADA" -eq 1 && "$BOOTSTRAP" -eq 0 ]]; then
+  echo "provision: --moneda solo vale junto con --bootstrap: es ahi donde se elige la moneda de la instancia." >&2
+  echo "           Pasala en la corrida de --bootstrap (ADR 0048)." >&2
+  exit "$EX_USO"
+fi
 
 # Fail-closed, y el mismo patron que el guard del arnes de pruebas: lo que se
 # evita no es la decision, es el DESCUIDO. Una instancia de cliente sin respaldo

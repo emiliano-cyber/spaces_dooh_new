@@ -76,6 +76,8 @@ export const CATALOGO_ERRORES: Record<string, string> = {
     'The instance currency is already set: a new organization is created in the same currency as the others',
   'La moneda no se puede cambiar: se eligió al crear la instancia y los importes guardados no la llevan':
     'The currency cannot be changed: it was chosen when the instance was created, and stored amounts do not carry it',
+  'La moneda de la instancia solo se elige al darla de alta':
+    'The instance currency can only be chosen when the instance is created',
   'Un contrato va en la moneda de la instancia: no se puede capturar en otra':
     'A contract is in the instance currency: it cannot be entered in another one',
   // PROP-COMPLETA (29/10) · enviar, borrar, agregar y quitar sitios, vigencia.

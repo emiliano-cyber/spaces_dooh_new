@@ -179,7 +179,9 @@ infra/scripts/provision-instancia.sh \
 > owner en qué moneda factura **antes** de correr este paso. Cualquier otro
 > valor (`EUR`, `usd` en minúsculas) para el guion antes de tocar el servidor.
 > Cambiarla después ya no es un ajuste: es una corrección de datos con tipo de
-> cambio, en `docs/datos/`.
+> cambio, en `docs/datos/`, y después hay que reiniciar la aplicación (la
+> moneda se cachea por proceso). `--moneda` solo vale junto con `--bootstrap`:
+> en otra corrida el guion para con salida 64.
 
 Llama a `POST /api/bootstrap` **desde el propio servidor, por loopback**: el
 token no cruza internet y funciona aunque el DNS aún no haya propagado del todo.

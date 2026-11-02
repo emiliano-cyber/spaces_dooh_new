@@ -618,6 +618,14 @@ dice 'tiene que ser MXN o USD'
 no_hubo 'cuerpo-bootstrap'
 limpiar
 
+escenario 'ADR 0048 · --moneda sin --bootstrap se para, no se ignora'
+preparar
+correr -- --host "$IP" --dominio "$DOM" --instancia p --moneda USD --confirmar
+codigo_es 64
+dice 'solo vale junto con --bootstrap'
+no_hubo 'cuerpo-bootstrap'
+limpiar
+
 escenario 'ADR 0048 · usd en minusculas tambien se para (no se adivina)'
 preparar
 correr D_CODIGO_BOOT=201 --   --host "$IP" --dominio "$DOM" --instancia p --email a@ejemplo.com --bootstrap --moneda usd --confirmar

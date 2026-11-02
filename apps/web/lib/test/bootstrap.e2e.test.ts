@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import bcrypt from 'bcryptjs'
 import { recrearEsquema, cerrarPool, poolTest, URL_APP } from './db-e2e'
 import { asegurarPermisos, sembrarTenant, PASSWORD_DEMO } from './semillas-e2e'
 import { arrancarServidor, pararServidor, Cliente, BASE } from './servidor-e2e'
@@ -327,12 +328,32 @@ describe('F5.2 · con token configurado', () => {
     expect(await monedas()).toEqual({ tenants: ['USD'], config: ['USD'] })
   })
 
-  it('ADR 0048 · y la app la pinta en dolares: el layout raiz la lee de la base', async () => {
-    // La pagina de entrar no tiene importes, pero el layout raiz SI corre
-    // `monedaDeLaInstancia()` en cada peticion. Si fallara con una instancia
-    // USD, esta pagina daria 500.
-    const r = await fetch(`${BASE}/login/`)
+  it('ADR 0048 · y la app la pinta en dolares: `US$` de verdad en el HTML del documento', async () => {
+    // Se mide un importe pintado por el SERVIDOR en el documento imprimible de
+    // la propuesta —lo que se le entrega al cliente—, no solo un 200. Se entra
+    // con una cuenta con contrasena sembrada en la organizacion USD: el Duenio
+    // del bootstrap entra solo con Google y nace obligado a poner la suya.
+    const t = (await poolTest().query('select id from tenants limit 1')).rows[0].id
+    await poolTest().query(
+      `insert into usuarios (nombre, email, rol, password_hash, activo, tenant_id)
+       values ('Gerente USD', 'gerente-usd@ejemplo.com', 'DUENO', $1, true, $2)`,
+      [await bcrypt.hash(PASSWORD, 4), t],
+    )
+    const p = await poolTest().query(
+      `insert into propuestas (folio, nombre, tenant_id, token_publico)
+       values ('P-USD-E2E', 'Propuesta en dolares', $1, 'token-propuesta-usd-e2e-0048') returning id`,
+      [t],
+    )
+    const c = new Cliente()
+    await c.entrar('gerente-usd@ejemplo.com', PASSWORD)
+    const r = await c.pedir(`/propuesta/${p.rows[0].id}/`)
     expect(r.status).toBe(200)
+    const html = String(r.datos)
+    expect(html).toContain('US$ 0.00')
+    // Y ni un importe con el `$` a secas, que un lector mexicano leeria como peso.
+    expect(html).not.toMatch(/[^S]\$ \d/)
+    // Se deja la base como estaba: `vaciarTenants()` no borra propuestas.
+    await poolTest().query('delete from propuestas where id = $1', [p.rows[0].id])
   })
 
   it('NEGATIVO ADR 0048 · con `moneda: EUR` es un 400 y NO nace nada', async () => {
