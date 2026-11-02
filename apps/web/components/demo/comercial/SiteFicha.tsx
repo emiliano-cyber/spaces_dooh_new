@@ -525,8 +525,8 @@ export function SiteFicha({
                   label={t('comercial.ficha.id-doohmain')}
                   valor={
                     sitio.doohmainEfectiva
-                      ? `${sitio.doohmainEfectiva} · ${textoOrigenDoohmain(sitio.doohmainOrigen ?? null)}`
-                      : textoOrigenDoohmain(null)
+                      ? `${sitio.doohmainEfectiva} · ${textoOrigenDoohmain(sitio.doohmainOrigen ?? null, idioma)}`
+                      : textoOrigenDoohmain(null, idioma)
                   }
                   mono={!!sitio.doohmainEfectiva}
                 />
@@ -1185,7 +1185,7 @@ function ModalidadesDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
 }
 
 function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boolean; onClose: () => void }) {
-  const t = useTexto()
+  const { t, idioma } = useIdioma()
   // Una pantalla digital tiene inventario de slots editable.
   const digital =
     sitio.esRotativo ||
@@ -1607,7 +1607,7 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
                     <span className="mt-1 block text-[11px] text-muted">
                       {interpolarNodos(t('comercial.editar.doohmain.al-publicar'), {
                         id: <span className="font-mono text-ink">{sitio.doohmainEfectiva}</span>,
-                        origen: textoOrigenDoohmain(sitio.doohmainOrigen ?? null),
+                        origen: textoOrigenDoohmain(sitio.doohmainOrigen ?? null, idioma),
                       })}
                     </span>
                   )}

@@ -209,3 +209,44 @@ describe('el cliente', () => {
     expect(clienteDoohmain(null).nombre).toBe('Sin cliente')
   })
 })
+
+// Costura del ingles (2026-11-02): las pantallas de Campanas y Comercial ya
+// estaban traducidas, pero estos textos salen de aqui y llegaban en espanol.
+// `idioma` va con 'es' por omision: el servidor y el CLI no cambian.
+describe('los textos de la ficha, en ingles', () => {
+  const p = (o: Partial<Parameters<typeof textoHorario>[0]> = {}) => ({
+    cantDia: null, cantTotal: null, horaInicio: null, horaFin: null, dias: null, autoCant: false, ...o,
+  })
+
+  it('el horario, con sus dias, y el «todo el dia»', () => {
+    expect(textoHorario(p({ horaInicio: '07:30', horaFin: '09:00', dias: [1, 2, 3, 4, 5] }), 'en')).toBe(
+      '07:30 to 09:00 · Mon, Tue, Wed, Thu, Fri',
+    )
+    expect(textoHorario(p({ horaInicio: '18:00', horaFin: '22:00', dias: [0, 6] }), 'en')).toBe('18:00 to 22:00 · Sun, Sat')
+    expect(textoHorario(p(), 'en')).toBe('All day (no daypart)')
+  })
+
+  it('las reproducciones sin pauta', () => {
+    expect(textoReproducciones(p(), 'en')).toEqual({ porDia: 'As many as fit', total: 'As many as fit' })
+    expect(textoReproducciones(p({ cantDia: 400, cantTotal: 12000 }), 'en')).toEqual({ porDia: '400', total: '12,000' })
+  })
+
+  it('el origen del id de DOOHmain', () => {
+    expect(textoOrigenDoohmain('ficha', 'en')).toBe('entered on this profile')
+    expect(textoOrigenDoohmain('mapa', 'en')).toBe('from the server map (not entered on the profile)')
+    expect(textoOrigenDoohmain('servidor', 'en')).toBe('the server’s default screen (not entered on the profile)')
+    expect(textoOrigenDoohmain(null, 'en')).toBe('none: when publishing, this screen would receive nothing')
+  })
+
+  it('en espanol, letra por letra lo de siempre', () => {
+    expect(textoHorario(p({ horaInicio: '07:30', horaFin: '09:00', dias: [1, 2, 3, 4, 5] }), 'es')).toBe(
+      '07:30 a 09:00 · lun, mar, mié, jue, vie',
+    )
+    expect(textoHorario(p(), 'es')).toBe('Todo el día (sin franja)')
+    expect(textoReproducciones(p(), 'es')).toEqual({ porDia: 'Las que quepan', total: 'Las que quepan' })
+    expect(textoOrigenDoohmain('ficha', 'es')).toBe('escrita en esta ficha')
+    expect(textoOrigenDoohmain('mapa', 'es')).toBe('del mapa del servidor (no está escrita en la ficha)')
+    expect(textoOrigenDoohmain('servidor', 'es')).toBe('la pantalla por omisión del servidor (no está escrita en la ficha)')
+    expect(textoOrigenDoohmain(null, 'es')).toBe('ninguna: al publicar, esta pantalla no recibiría nada')
+  })
+})

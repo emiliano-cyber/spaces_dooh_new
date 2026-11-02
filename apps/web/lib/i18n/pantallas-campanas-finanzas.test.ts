@@ -510,10 +510,20 @@ const PANTALLAS: Pantalla[] = [
     nombre: 'lo que se manda a DOOHmain (con franja y horario propio)',
     pintar: async (idioma) => {
       const { ProgramacionDoohmain } = await import('../../components/demo/campanas/ProgramacionDoohmain')
-      forzar(esNull, VISTA_DOOHMAIN)
+      // Costura: una fila mas, sin pauta y con horario y dias, para que se
+      // pinten los tres textos de `lib/doohmain-programacion.ts`.
+      forzar(esNull, {
+        ...VISTA_DOOHMAIN,
+        filas: [
+          ...VISTA_DOOHMAIN.filas,
+          { sitio: 's5', sitioNombre: 'Pantalla Reforma', destino: 'doohmain', screen: 'scr-5', creativoNombre: 'Arte 2',
+            programacion: { cantDia: null, cantTotal: null, horaInicio: '07:30', horaFin: '09:00', dias: [1, 2], autoCant: false } },
+        ],
+      })
       return pintar(idioma, createElement(ProgramacionDoohmain, { campanaId: 'c1', clave: 'k' }))
     },
     espanol: [
+      'Todo el día (sin franja)', '07:30 a 09:00 · lun, mar', 'Las que quepan',
       'Lo que se manda a DOOHmain', 'Actualizar',
       'La publicación en DOOHmain está apagada en esta instancia: esto es lo que se mandaría.',
       'Horario en DOOHmain: la franja programada', 'La campaña ya tiene franja, así que no lleva',
@@ -525,7 +535,10 @@ const PANTALLAS: Pantalla[] = [
       'Del 2026-01-01 al 2026-06-30. Si la campaña tiene franja, DOOHmain reparte las del día dentro de ese',
       'horario. Un anuncio ya publicado no cambia de horario al volver a publicar.',
     ],
-    ingles: ['What gets sent to DOOHmain', 'Refresh', 'Per day'],
+    ingles: [
+      'What gets sent to DOOHmain', 'Refresh', 'Per day',
+      'All day (no daypart)', '07:30 to 09:00 · Mon, Tue', 'As many as fit',
+    ],
   },
   {
     nombre: 'lo que se manda a DOOHmain (sin franja, el horario propio editable)',
@@ -1070,16 +1083,12 @@ describe('lote CAMPANAS y FINANZAS · barrido con el diccionario entero', () => 
       const visibles = [...crudo.matchAll(/(?:title|aria-label|placeholder|alt)="([^"]*)"/g)].map((m) => m[1])
       html += texto(crudo.replace(/<[^>]*>/g, '\n') + '\n' + visibles.join('\n'))
     }
-    // El aviso de la franja sale de `lib/rejilla.ts`, que es de otro lote.
-    const { AVISO_FRANJA_NO_VIAJA_AL_CMS } = await import('../rejilla')
-    html = html.split(AVISO_FRANJA_NO_VIAJA_AL_CMS).join('\n')
-    // Lo mismo con el horario que escribe `lib/doohmain-programacion.ts`
-    // («Todo el día (sin franja)») y con los nombres de los datos de prueba.
-    const { textoHorario } = await import('../doohmain-programacion')
-    const ajenos = [
-      textoHorario({ cantDia: null, cantTotal: null, horaInicio: null, horaFin: null, dias: null, autoCant: false }),
-      'Pantalla Reforma', 'Pantalla Sur', 'Pantalla Norte', 'Pantalla Oriente',
-    ]
+    // Costura (2026-11-02): ya NO se quitan el aviso de la franja
+    // (`AvisoFranjaCMS`) ni el horario de `lib/doohmain-programacion.ts`
+    // («Todo el día (sin franja)»): los dos salen traducidos y, si alguien
+    // vuelve a pintarlos sin idioma, este barrido lo ve. Solo se quitan los
+    // nombres de los datos de prueba.
+    const ajenos = ['Pantalla Reforma', 'Pantalla Sur', 'Pantalla Norte', 'Pantalla Oriente']
     for (const a of ajenos) html = html.split(a).join('\n')
     const culpables: string[] = []
     const pares: [Record<string, string>, Record<string, string>][] = [

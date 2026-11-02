@@ -107,6 +107,24 @@ export const ES_COMPARTIDOS = {
   'compartidos.periodo.etiqueta.trimestre': '{n}.º trimestre {anio}',
   'compartidos.periodo.etiqueta.rango': '{desde} a {hasta}',
 
+  // ── Lo que se manda a DOOHmain (`lib/doohmain-programacion.ts`) ──
+  // Costura (2026-11-02). El espanol es el literal del modulo.
+  'compartidos.doohmain.todo-el-dia': 'Todo el día (sin franja)',
+  'compartidos.doohmain.horario': '{desde} a {hasta}',
+  'compartidos.doohmain.las-que-quepan': 'Las que quepan',
+  'compartidos.doohmain.origen.ficha': 'escrita en esta ficha',
+  'compartidos.doohmain.origen.mapa': 'del mapa del servidor (no está escrita en la ficha)',
+  'compartidos.doohmain.origen.servidor': 'la pantalla por omisión del servidor (no está escrita en la ficha)',
+  'compartidos.doohmain.origen.ninguna': 'ninguna: al publicar, esta pantalla no recibiría nada',
+  // Los dias abreviados de `NOMBRE_DIA` (0 = domingo), en minusculas.
+  'compartidos.dia.0': 'dom',
+  'compartidos.dia.1': 'lun',
+  'compartidos.dia.2': 'mar',
+  'compartidos.dia.3': 'mié',
+  'compartidos.dia.4': 'jue',
+  'compartidos.dia.5': 'vie',
+  'compartidos.dia.6': 'sáb',
+
   // ── La barra de dibujo del mapa (`MapView`) ──
   'compartidos.mapa.cerrar-zona': 'Cerrar zona ({n})',
   'compartidos.mapa.limpiar-zona': 'Limpiar zona',
@@ -208,6 +226,22 @@ export const EN_COMPARTIDOS: Record<ClaveCompartidos, string> = {
   'compartidos.periodo.rango': 'Custom range',
   'compartidos.periodo.etiqueta.trimestre': 'Q{n} {anio}',
   'compartidos.periodo.etiqueta.rango': '{desde} to {hasta}',
+
+  // «daypart», como el glosario; «profile» es la ficha (lote comercial).
+  'compartidos.doohmain.todo-el-dia': 'All day (no daypart)',
+  'compartidos.doohmain.horario': '{desde} to {hasta}',
+  'compartidos.doohmain.las-que-quepan': 'As many as fit',
+  'compartidos.doohmain.origen.ficha': 'entered on this profile',
+  'compartidos.doohmain.origen.mapa': 'from the server map (not entered on the profile)',
+  'compartidos.doohmain.origen.servidor': 'the server’s default screen (not entered on the profile)',
+  'compartidos.doohmain.origen.ninguna': 'none: when publishing, this screen would receive nothing',
+  'compartidos.dia.0': 'Sun',
+  'compartidos.dia.1': 'Mon',
+  'compartidos.dia.2': 'Tue',
+  'compartidos.dia.3': 'Wed',
+  'compartidos.dia.4': 'Thu',
+  'compartidos.dia.5': 'Fri',
+  'compartidos.dia.6': 'Sat',
 
   'compartidos.mapa.cerrar-zona': 'Close area ({n})',
   'compartidos.mapa.limpiar-zona': 'Clear area',

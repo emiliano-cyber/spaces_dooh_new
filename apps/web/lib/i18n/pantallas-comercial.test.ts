@@ -426,6 +426,7 @@ const PANTALLAS: Pantalla[] = [
       'Duración por slot',
       'Horario',
       'Id en DOOHmain',
+      'scr_9 · del mapa del servidor (no está escrita en la ficha)',
       'Comercialización',
       'Tradicional',
       'En Network',
@@ -457,7 +458,11 @@ const PANTALLAS: Pantalla[] = [
       'Coordenadas',
       'Disponibilidad',
     ],
-    ingles: ['Book this site', 'Gallery', 'Commercial data', 'Rates per daypart', 'Landlord and rent', 'Jan 1, 2026', 'North'],
+    ingles: [
+      'Book this site', 'Gallery', 'Commercial data', 'Rates per daypart', 'Landlord and rent', 'Jan 1, 2026', 'North',
+      // Costura: `textoOrigenDoohmain` con el idioma.
+      'scr_9 · from the server map (not entered on the profile)',
+    ],
   },
   {
     nombre: 'ficha de una pantalla propia en pausa legal, con incidencia',
@@ -568,7 +573,11 @@ const PANTALLAS: Pantalla[] = [
       'Se elimina la pantalla y deja de poder reservarse. Sus reservas y su historial quedan como estén: ',
       'esta acción no se puede deshacer',
     ],
-    ingles: ['Edit screen', 'Rates per sales unit', ' It currently has ', 'Display address', 'Pause for legal reasons', 'Relocate screen', 'Delete screen', 'Save changes'],
+    ingles: [
+      'Edit screen', 'Rates per sales unit', ' It currently has ', 'Display address', 'Pause for legal reasons', 'Relocate screen', 'Delete screen', 'Save changes',
+      // Costura: el origen del id de DOOHmain, en ingles.
+      ', from the server map (not entered on the profile). Enter it here to pin it on the profile.',
+    ],
   },
   {
     nombre: 'alta de pantalla',
@@ -1091,13 +1100,8 @@ describe('lote COMERCIAL · barrido con el diccionario entero', () => {
       const visibles = [...crudo.matchAll(/(?:title|aria-label|placeholder|alt)="([^"]*)"/g)].map((m) => m[1])
       html += texto(crudo.replace(/<[^>]*>/g, '\n') + '\n' + visibles.join('\n'))
     }
-    // `textoOrigenDoohmain` (`lib/doohmain-programacion.ts`) es de otro lote y
-    // dice «mapa del servidor»: se quita para no confundirlo con un `t()`
-    // olvidado, igual que el piloto quita el aviso de la franja.
-    const { textoOrigenDoohmain } = await import('../doohmain-programacion')
-    for (const o of ['ficha', 'mapa', 'servidor', null] as const) {
-      html = html.split(textoOrigenDoohmain(o)).join('\n')
-    }
+    // Costura (2026-11-02): `textoOrigenDoohmain` ya recibe el idioma, asi que
+    // su «mapa del servidor» ya NO se quita: si vuelve en espanol, cae aqui.
     // « (obligatorio)» lo pinta TAMBIEN `Campo` (`components/demo/ui/Campo.tsx`),
     // que es de otro lote: con el texto no se distingue cual de los dos lo dejo.
     // Las dos claves del lote se comprueban en la instantanea del diccionario.

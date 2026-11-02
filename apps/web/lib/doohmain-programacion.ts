@@ -23,6 +23,9 @@
 //   · `days`        → no se manda: las franjas no tienen días de la semana.
 // ============================================================================
 
+import { traducir, type ClaveTexto } from './i18n/diccionario'
+import type { Idioma } from './i18n/idiomas'
+
 export interface Franja {
   horaInicio: string
   horaFin: string
@@ -63,10 +66,23 @@ export function motivoHorarioInvalido(h: { horaInicio: string; horaFin: string; 
   return null
 }
 
-const NOMBRE_DIA = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb']
+export const NOMBRE_DIA = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb']
+
+// I18N (costura, 2026-11-02) · los textos que pinta la ficha llevan `idioma`
+// con 'es' por omisión, como los de `lib/periodos.ts`: el servidor y el CLI no
+// lo pasan y no cambian. En español se devuelve el literal de siempre; solo el
+// otro idioma va al diccionario (`compartidos.doohmain.*`), y
+// `textos/compartidos.test.ts` exige que el español de allí sea este.
+const ORIGEN_DOOHMAIN: Record<'ficha' | 'mapa' | 'servidor' | 'ninguna', ClaveTexto> = {
+  ficha: 'compartidos.doohmain.origen.ficha',
+  mapa: 'compartidos.doohmain.origen.mapa',
+  servidor: 'compartidos.doohmain.origen.servidor',
+  ninguna: 'compartidos.doohmain.origen.ninguna',
+}
 
 /** Cómo se dice en Inventario de dónde sale el id de DOOHmain de una pantalla. */
-export function textoOrigenDoohmain(origen: 'ficha' | 'mapa' | 'servidor' | null): string {
+export function textoOrigenDoohmain(origen: 'ficha' | 'mapa' | 'servidor' | null, idioma: Idioma = 'es'): string {
+  if (idioma !== 'es') return traducir(idioma, ORIGEN_DOOHMAIN[origen ?? 'ninguna'])
   if (origen === 'ficha') return 'escrita en esta ficha'
   if (origen === 'mapa') return 'del mapa del servidor (no está escrita en la ficha)'
   if (origen === 'servidor') return 'la pantalla por omisión del servidor (no está escrita en la ficha)'
@@ -131,7 +147,14 @@ export function programacionDoohmain(e: {
 // ─── Lo que la ficha de la campaña enseña ANTES de publicar (22/10) ────────
 
 /** El horario que se manda: la franja, o que no hay y sale todo el día. */
-export function textoHorario(p: ProgramacionDoohmain): string {
+export function textoHorario(p: ProgramacionDoohmain, idioma: Idioma = 'es'): string {
+  if (idioma !== 'es') {
+    if (!p.horaInicio || !p.horaFin) return traducir(idioma, 'compartidos.doohmain.todo-el-dia')
+    const diasEn = p.dias?.length
+      ? ` · ${p.dias.map((d) => traducir(idioma, `compartidos.dia.${d}` as ClaveTexto)).join(', ')}`
+      : ''
+    return traducir(idioma, 'compartidos.doohmain.horario', { desde: p.horaInicio, hasta: p.horaFin }) + diasEn
+  }
   if (!p.horaInicio || !p.horaFin) return 'Todo el día (sin franja)'
   const dias = p.dias?.length ? ` · ${p.dias.map((d) => NOMBRE_DIA[d]).join(', ')}` : ''
   return `${p.horaInicio} a ${p.horaFin}${dias}`
@@ -144,10 +167,11 @@ const miles = (n: number) => n.toLocaleString('es-MX')
  * pinta un cero —diría que no sale nunca—: se dice que DOOHmain pone las que
  * quepan, que es lo que pasa.
  */
-export function textoReproducciones(p: ProgramacionDoohmain): { porDia: string; total: string } {
+export function textoReproducciones(p: ProgramacionDoohmain, idioma: Idioma = 'es'): { porDia: string; total: string } {
+  const quepan = idioma === 'es' ? 'Las que quepan' : traducir(idioma, 'compartidos.doohmain.las-que-quepan')
   return {
-    porDia: p.cantDia != null ? miles(p.cantDia) : 'Las que quepan',
-    total: p.cantTotal != null ? miles(p.cantTotal) : 'Las que quepan',
+    porDia: p.cantDia != null ? miles(p.cantDia) : quepan,
+    total: p.cantTotal != null ? miles(p.cantTotal) : quepan,
   }
 }
 

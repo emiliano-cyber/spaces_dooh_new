@@ -11,7 +11,7 @@ import { motivoHorarioInvalido, textoHorario, textoReproducciones } from '@/lib/
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { Button } from '@/components/demo/ui/Button'
 import type { ClaveTexto } from '@/lib/i18n/diccionario'
-import { useTexto } from '@/lib/i18n/contexto'
+import { useIdioma, useTexto } from '@/lib/i18n/contexto'
 import { interpolarNodos } from '@/lib/i18n/nodos'
 
 // ============================================================================
@@ -194,7 +194,7 @@ function HorarioIndividual({
 }
 
 export function ProgramacionDoohmain({ campanaId, clave }: { campanaId: string; clave: string }) {
-  const t = useTexto()
+  const { t, idioma } = useIdioma()
   const [v, setV] = useState<(VistaPreviaDoohmain & { publicacionEncendida: boolean }) | null>(null)
   const [error, setError] = useState<string | null>(null)
   // La franja programada se cambia en otro cuadro de la ficha y no llega en
@@ -270,7 +270,7 @@ export function ProgramacionDoohmain({ campanaId, clave }: { campanaId: string; 
             </thead>
             <tbody>
               {v.filas.map((f, i) => {
-                const n = textoReproducciones(f.programacion)
+                const n = textoReproducciones(f.programacion, idioma)
                 return (
                   <tr key={`${f.sitio}-${f.creativoNombre}-${i}`} className="border-t border-border align-top">
                     <td className="py-1.5 pr-2 text-ink">
@@ -280,7 +280,7 @@ export function ProgramacionDoohmain({ campanaId, clave }: { campanaId: string; 
                       </div>
                     </td>
                     <td className="py-1.5 pr-2 text-ink">{f.creativoNombre}</td>
-                    <td className="py-1.5 pr-2 text-ink">{textoHorario(f.programacion)}</td>
+                    <td className="py-1.5 pr-2 text-ink">{textoHorario(f.programacion, idioma)}</td>
                     <td className="demo-num py-1.5 pr-2 text-right text-ink">{n.porDia}</td>
                     <td className="demo-num py-1.5 text-right font-medium text-ink">{n.total}</td>
                   </tr>

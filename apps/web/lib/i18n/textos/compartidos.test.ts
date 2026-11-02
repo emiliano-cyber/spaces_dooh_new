@@ -4,6 +4,8 @@ import { UNIDADES } from '../../periodos'
 import { PERIODICIDAD_RENTA_LABEL, PERIODICIDAD_VALUES } from '../../renta-periodicidad'
 import { AVISO_FRANJA_NO_VIAJA_AL_CMS } from '../../rejilla'
 import { OPCIONES_PERIODO } from '../../../components/demo/finanzas/TableroPeriodo'
+import { NOMBRE_DIA, textoHorario, textoReproducciones, textoOrigenDoohmain } from '../../doohmain-programacion'
+import { traducir } from '../diccionario'
 
 // ============================================================================
 //  EL DICCIONARIO DE LOS MODULOS COMPARTIDOS, CONGELADO.
@@ -78,5 +80,18 @@ describe('diccionario compartidos · el espanol reproduce las tablas de su modul
 
   it('AVISO_FRANJA_NO_VIAJA_AL_CMS', () => {
     expect(ES_COMPARTIDOS['compartidos.franja.aviso']).toBe(AVISO_FRANJA_NO_VIAJA_AL_CMS)
+  })
+
+  it('los textos de `lib/doohmain-programacion.ts` (costura)', () => {
+    const es = ES_COMPARTIDOS as Record<string, string>
+    NOMBRE_DIA.forEach((d, i) => expect(es[`compartidos.dia.${i}`]).toBe(d))
+    const vacia = { cantDia: null, cantTotal: null, horaInicio: null, horaFin: null, dias: null, autoCant: false }
+    expect(ES_COMPARTIDOS['compartidos.doohmain.todo-el-dia']).toBe(textoHorario(vacia))
+    expect(ES_COMPARTIDOS['compartidos.doohmain.las-que-quepan']).toBe(textoReproducciones(vacia).porDia)
+    expect(traducir('es', 'compartidos.doohmain.horario', { desde: '07:00', hasta: '09:00' })).toBe(
+      textoHorario({ ...vacia, horaInicio: '07:00', horaFin: '09:00' }),
+    )
+    const origenes = { ficha: 'ficha', mapa: 'mapa', servidor: 'servidor', ninguna: null } as const
+    for (const [k, o] of Object.entries(origenes)) expect(es[`compartidos.doohmain.origen.${k}`]).toBe(textoOrigenDoohmain(o))
   })
 })
