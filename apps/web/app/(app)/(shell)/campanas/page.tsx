@@ -430,7 +430,7 @@ export default function CampanasPage() {
                         «Sin presupuesto» en mono como si fuera un valor. */}
                     <div className="mt-2 flex items-center justify-end gap-4">
                       {c.presupuestoBruto ? (
-                        <span className="demo-num text-[13px] text-ink">{formatMonto(c.presupuestoBruto)}</span>
+                        <span className="demo-num text-[13px] text-ink">{formatMonto(c.presupuestoBruto, idioma)}</span>
                       ) : (
                         <span className="text-[13px] text-muted" title={t('campanas.comun.sin-presupuesto')}>—</span>
                       )}

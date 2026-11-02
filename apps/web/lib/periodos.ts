@@ -138,7 +138,7 @@ export function resumenContratacion(
   const etiqueta = etiquetaCantidad(c.unidad, c.cantidad, idioma)
   const tarifa = Number(c.tarifaUnitaria ?? 0)
   if (!Number.isFinite(tarifa) || tarifa <= 0) return etiqueta
-  return `${etiqueta} × ${formatMonto(tarifa)}`
+  return `${etiqueta} × ${formatMonto(tarifa, idioma)}`
 }
 
 /**
@@ -157,11 +157,13 @@ export function resumenContratacion(
  * Sustituye al `{precio}/mes` que la ficha de campaña pintaba para TODA reserva,
  * incluidas las vendidas por spot: un sufijo fijo sobre un campo variable.
  *
- * `idioma` (costura, 2026-11-02) solo cambia la unidad; el importe sigue por
- * `formatMonto`, como en `resumenContratacion`.
+ * `idioma` (costura, 2026-11-02) cambia la unidad y, desde la decision del
+ * dueno del mismo 02/11, el SIMBOLO del importe (`formatMonto(n, idioma)`: en
+ * ingles una instancia MXN escribe `MX$`). La cifra es la misma. Sin idioma
+ * sale el espanol de siempre, que es lo que reciben los documentos.
  */
 export function resumenReserva(r: { unidad: string; cantidad: number; precio: number }, idioma: Idioma = 'es'): string {
-  return `${etiquetaCantidad(r.unidad, r.cantidad, idioma)} · ${formatMonto(Number(r.precio) || 0)}`
+  return `${etiquetaCantidad(r.unidad, r.cantidad, idioma)} · ${formatMonto(Number(r.precio) || 0, idioma)}`
 }
 
 /**

@@ -163,14 +163,14 @@ export function TableroPeriodo() {
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <KPICard
                 label={t('finanzas.periodo.por-cobrar')}
-                value={formatMonto(r.saldoFinal)}
-                sub={t('finanzas.periodo.al-inicio', { monto: formatMonto(r.saldoInicial) })}
+                value={formatMonto(r.saldoFinal, idioma)}
+                sub={t('finanzas.periodo.al-inicio', { monto: formatMonto(r.saldoInicial, idioma) })}
                 tono="azul"
                 icon={<HandCoins className="h-4 w-4" />}
               />
               <KPICard
                 label={t('finanzas.periodo.vencido')}
-                value={formatMonto(r.vencido.monto)}
+                value={formatMonto(r.vencido.monto, idioma)}
                 sub={t(r.vencido.facturas === 1 ? 'finanzas.periodo.vencido.sub.uno' : 'finanzas.periodo.vencido.sub.otros', {
                   n: r.vencido.facturas,
                   fecha: formatFecha(r.corte, idioma),
@@ -180,7 +180,7 @@ export function TableroPeriodo() {
               />
               <KPICard
                 label={t('finanzas.periodo.facturado')}
-                value={formatMonto(r.facturado.monto)}
+                value={formatMonto(r.facturado.monto, idioma)}
                 sub={t(r.facturado.facturas === 1 ? 'finanzas.periodo.facturas.uno' : 'finanzas.periodo.facturas.otros', {
                   n: r.facturado.facturas,
                 })}
@@ -188,7 +188,7 @@ export function TableroPeriodo() {
               />
               <KPICard
                 label={t('finanzas.periodo.cobrado')}
-                value={formatMonto(r.cobrado)}
+                value={formatMonto(r.cobrado, idioma)}
                 sub={t('finanzas.periodo.cobrado.sub')}
                 tono="verde"
                 icon={<Wallet className="h-4 w-4" />}
@@ -201,14 +201,14 @@ export function TableroPeriodo() {
                 <span className="font-medium text-ink">{t('finanzas.periodo.renta')}</span>
                 <span className="text-muted">
                   {interpolarNodos(t('finanzas.periodo.renta.pagada'), {
-                    monto: <span className="demo-num text-ink">{formatMonto(r.renta.pagada)}</span>,
+                    monto: <span className="demo-num text-ink">{formatMonto(r.renta.pagada, idioma)}</span>,
                   })}
                 </span>
                 <span className="text-muted">
                   {interpolarNodos(t('finanzas.periodo.renta.por-pagar'), {
                     monto: (
                       <span className={cn('demo-num', r.renta.porPagar > 0 ? 'font-medium text-[#9a6700]' : 'text-ink')}>
-                        {formatMonto(r.renta.porPagar)}
+                        {formatMonto(r.renta.porPagar, idioma)}
                       </span>
                     ),
                   })}
@@ -218,7 +218,7 @@ export function TableroPeriodo() {
             {r.abonosSinFecha > 0 && (
               <p className="flex items-start gap-1.5 text-[11px] text-muted">
                 <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
-                {t('finanzas.periodo.sin-fecha', { monto: formatMonto(r.abonosSinFecha) })}
+                {t('finanzas.periodo.sin-fecha', { monto: formatMonto(r.abonosSinFecha, idioma) })}
               </p>
             )}
           </div>

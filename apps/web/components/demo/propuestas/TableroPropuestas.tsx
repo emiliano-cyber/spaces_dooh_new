@@ -153,7 +153,7 @@ export function TableroPropuestas() {
                 pie={
                   ventaSinCalcular
                     ? t('propuestas.tablero.aprobadas.sin-venta')
-                    : t('propuestas.tablero.aprobadas.venta', { monto: formatMonto(r.aprobadas.venta) })
+                    : t('propuestas.tablero.aprobadas.venta', { monto: formatMonto(r.aprobadas.venta, idioma) })
                 }
                 tono="ok"
               />
@@ -170,7 +170,7 @@ export function TableroPropuestas() {
                 <>
                   <Cifra
                     label={t('propuestas.tablero.ganancia')}
-                    valor={gananciaSinCalcular ? '—' : formatMonto(r.aprobadas.ganancia ?? 0)}
+                    valor={gananciaSinCalcular ? '—' : formatMonto(r.aprobadas.ganancia ?? 0, idioma)}
                     pie={
                       gananciaSinCalcular
                         ? t('propuestas.tablero.ganancia.sin-calcular')
@@ -180,7 +180,7 @@ export function TableroPropuestas() {
                   />
                   <Cifra
                     label={t('propuestas.tablero.ganancia-por-aprobada')}
-                    valor={r.aprobadas.gananciaPromedio === null ? '—' : formatMonto(r.aprobadas.gananciaPromedio)}
+                    valor={r.aprobadas.gananciaPromedio === null ? '—' : formatMonto(r.aprobadas.gananciaPromedio, idioma)}
                     pie={t('propuestas.tablero.ganancia-por-aprobada.pie')}
                   />
                 </>
@@ -216,8 +216,8 @@ export function TableroPropuestas() {
                         <td className="demo-num py-2 pr-4 text-right text-muted">{formatNumero(v.generadas)}</td>
                         <td className="demo-num py-2 pr-4 text-right text-ink">{formatNumero(v.aprobadas)}</td>
                         <td className="demo-num py-2 pr-4 text-right text-muted">{formatNumero(v.rechazadas)}</td>
-                        <td className="demo-num py-2 pr-4 text-right text-ink">{formatMonto(v.venta)}</td>
-                        {conGanancia && <td className="demo-num py-2 text-right text-ink">{formatMonto(v.ganancia ?? 0)}</td>}
+                        <td className="demo-num py-2 pr-4 text-right text-ink">{formatMonto(v.venta, idioma)}</td>
+                        {conGanancia && <td className="demo-num py-2 text-right text-ink">{formatMonto(v.ganancia ?? 0, idioma)}</td>}
                       </tr>
                     ))}
                   </tbody>
@@ -248,11 +248,11 @@ export function TableroPropuestas() {
                           <td className="py-2 pr-4 text-ink">{x.nombre}</td>
                           <td className="py-2 pr-4 text-muted">{x.vendedor ?? '—'}</td>
                           <td className="demo-num py-2 pr-4 text-muted">{formatFecha(x.aprobada, idioma)}</td>
-                          <td className="demo-num py-2 pr-4 text-right text-ink">{x.venta === null ? '—' : formatMonto(x.venta)}</td>
-                          {conGanancia && <td className="demo-num py-2 pr-4 text-right text-muted">{x.costoRenta === null ? t('propuestas.tablero.sin-contrato') : formatMonto(x.costoRenta)}</td>}
+                          <td className="demo-num py-2 pr-4 text-right text-ink">{x.venta === null ? '—' : formatMonto(x.venta, idioma)}</td>
+                          {conGanancia && <td className="demo-num py-2 pr-4 text-right text-muted">{x.costoRenta === null ? t('propuestas.tablero.sin-contrato') : formatMonto(x.costoRenta, idioma)}</td>}
                           {conGanancia && (
                             <td className={cn('demo-num py-2 text-right', x.ganancia !== null && x.ganancia < 0 ? 'text-error' : 'text-ink')}>
-                              {x.ganancia === null ? '—' : formatMonto(x.ganancia)}
+                              {x.ganancia === null ? '—' : formatMonto(x.ganancia, idioma)}
                             </td>
                           )}
                         </tr>

@@ -146,7 +146,7 @@ export default async function DocumentoPropuestaPage({ params }: { params: { id:
                       {it.franjaId ? ` · ${it.franjaNombre ?? t('propuestas.documento.franja')}${it.franjaHorario ? ` ${it.franjaHorario}` : ''}` : ''}
                     </div>
                   </td>
-                  <td className="doc-der doc-num">{formatMonto(it.precio)}</td>
+                  <td className="doc-der doc-num">{formatMonto(it.precio, idioma)}</td>
                 </tr>
               )
             })}
@@ -171,29 +171,29 @@ export default async function DocumentoPropuestaPage({ params }: { params: { id:
             cliente no puede leer dos cuentas distintas de la misma propuesta. */}
         <h2 className="doc-h2">{t('propuestas.documento.importe')}</h2>
         <dl className="doc-escalera">
-          <Fila label={t('propuestas.comun.bruto-lista')} valor={formatMonto(p.bruto)} />
+          <Fila label={t('propuestas.comun.bruto-lista')} valor={formatMonto(p.bruto, idioma)} />
           {p.paquete && (
-            <Fila label={t('propuestas.comun.paquete-conjunto', { nombre: p.paquete.nombre })} valor={formatMonto(p.paquete.precio)} />
+            <Fila label={t('propuestas.comun.paquete-conjunto', { nombre: p.paquete.nombre })} valor={formatMonto(p.paquete.precio, idioma)} />
           )}
           {(p.descuentoVolumenMonto ?? 0) > 0 && (
             <Fila
               label={t('propuestas.comun.descuento-volumen', { pct: Math.round((p.descuentoVolumenPct ?? 0) * 10) / 10 })}
-              valor={`− ${formatMonto(p.descuentoVolumenMonto ?? 0)}`}
+              valor={`− ${formatMonto(p.descuentoVolumenMonto ?? 0, idioma)}`}
             />
           )}
           {p.descuentoMonto > 0 && (
-            <Fila label={t('propuestas.documento.descuento', { pct: p.descuentoPct })} valor={`− ${formatMonto(p.descuentoMonto)}`} />
+            <Fila label={t('propuestas.documento.descuento', { pct: p.descuentoPct })} valor={`− ${formatMonto(p.descuentoMonto, idioma)}`} />
           )}
           {(p.codigoDescuentoMonto ?? 0) > 0 && (
             <Fila
               label={t('propuestas.comun.codigo-pct', { codigo: p.codigoTexto ?? '', pct: p.codigoDescuentoPct ?? 0 })}
-              valor={`− ${formatMonto(p.codigoDescuentoMonto ?? 0)}`}
+              valor={`− ${formatMonto(p.codigoDescuentoMonto ?? 0, idioma)}`}
             />
           )}
-          <Fila label={t('propuestas.documento.comision', { pct: comisionPct })} valor={`− ${formatMonto(p.base - p.neto)}`} />
-          <Fila label={t('propuestas.comun.neto')} valor={formatMonto(p.neto)} />
-          <Fila label={t('propuestas.comun.iva', { pct: ivaPct })} valor={formatMonto(p.iva)} />
-          <Fila label={t('propuestas.comun.total')} valor={formatMonto(p.total)} fuerte />
+          <Fila label={t('propuestas.documento.comision', { pct: comisionPct })} valor={`− ${formatMonto(p.base - p.neto, idioma)}`} />
+          <Fila label={t('propuestas.comun.neto')} valor={formatMonto(p.neto, idioma)} />
+          <Fila label={t('propuestas.comun.iva', { pct: ivaPct })} valor={formatMonto(p.iva, idioma)} />
+          <Fila label={t('propuestas.comun.total')} valor={formatMonto(p.total, idioma)} fuerte />
         </dl>
 
         {p.condiciones && (

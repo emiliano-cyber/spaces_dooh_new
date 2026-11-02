@@ -167,7 +167,7 @@ export function PagosCobranzaModal({
           {abonos.map((a) => (
             <li key={a.id} className="flex items-center justify-between gap-3 py-2">
               <div className="min-w-0">
-                <div className="demo-num text-[13px] text-ink">{formatMonto(a.monto)}</div>
+                <div className="demo-num text-[13px] text-ink">{formatMonto(a.monto, idioma)}</div>
                 <div className="text-[11px] text-muted">
                   {/* Lo rescatado por la migración del 08/10 es aproximado: un
                       solo renglón por lo ya cobrado, y a veces sin fecha. */}

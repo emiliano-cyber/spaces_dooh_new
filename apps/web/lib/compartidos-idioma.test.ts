@@ -4,6 +4,7 @@ import {
   unidadCorta,
   etiquetaCantidad,
   resumenContratacion,
+  resumenReserva,
   etiquetaFrecuencia,
   UNIDADES,
 } from './periodos'
@@ -55,10 +56,15 @@ describe('periodos · en ingles', () => {
 
   it('la cantidad, la contratacion y la frecuencia', () => {
     expect(etiquetaCantidad('cpm', 2500, 'en')).toBe('2,500 thousand')
-    expect(resumenContratacion({ unidad: 'cpm', cantidad: 2, tarifaUnitaria: 1000 }, 'en')).toBe('2 thousand × $ 1,000.00')
+    expect(resumenContratacion({ unidad: 'cpm', cantidad: 2, tarifaUnitaria: 1000 }, 'en')).toBe('2 thousand × MX$ 1,000.00')
     expect(etiquetaCantidad('mensual', 1, 'en')).toBe('1 month')
-    // El importe NO se toca: sale por `formatMonto`, igual que en espanol.
-    expect(resumenContratacion({ unidad: 'spot', cantidad: 50, tarifaUnitaria: 1200 }, 'en')).toBe('50 plays × $ 1,200.00')
+    // El importe sale por `formatMonto` con el MISMO idioma: la cifra igual que
+    // en espanol, y el simbolo el del lector (dueno, 2026-11-02): en una
+    // instancia MXN el ingles escribe `MX$`, nunca un `$` que se lea dolar.
+    expect(resumenContratacion({ unidad: 'spot', cantidad: 50, tarifaUnitaria: 1200 }, 'en')).toBe('50 plays × MX$ 1,200.00')
+    expect(resumenContratacion({ unidad: 'spot', cantidad: 50, tarifaUnitaria: 1200 })).toBe('50 salidas × $ 1,200.00')
+    expect(resumenReserva({ unidad: 'mensual', cantidad: 1, precio: 9000 }, 'en')).toBe('1 month · MX$ 9,000.00')
+    expect(resumenReserva({ unidad: 'mensual', cantidad: 1, precio: 9000 })).toBe('1 mes · $ 9,000.00')
     expect(resumenContratacion({ unidad: 'spot', cantidad: 50, tarifaUnitaria: 0 }, 'en')).toBe('50 plays')
     expect(etiquetaFrecuencia(1, 'en')).toBe('1 play per day')
     expect(etiquetaFrecuencia(12, 'en')).toBe('12 plays per day')

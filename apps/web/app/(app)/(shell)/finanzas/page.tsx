@@ -18,7 +18,7 @@ import { cn } from '@/lib/cn'
 import { armarListaFacturas, cuentaPorEstatus } from '@/components/demo/finanzas/facturas-lista'
 import { etiquetaVencimiento, type TonoVencimiento } from '@/components/demo/finanzas/vencimiento-cuota'
 import { CLAVE_COBRANZA, CLAVE_PARCIALIDAD, textoVencimiento } from '@/components/demo/finanzas/etiquetas'
-import { useIdioma, useTexto } from '@/lib/i18n/contexto'
+import { useIdioma } from '@/lib/i18n/contexto'
 import { interpolarNodos } from '@/lib/i18n/nodos'
 import { ComprobanteDialog } from '@/components/demo/finanzas/ComprobanteDialog'
 import { TableroPeriodo } from '@/components/demo/finanzas/TableroPeriodo'
@@ -205,7 +205,7 @@ export default function FinanzasPage() {
                   <div className="text-[13px] font-medium text-ink">{r.campana.nombre}</div>
                   <div className="demo-num text-[11px] text-muted">
                     {r.clienteNombre} ·{' '}
-                    {r.campana.presupuestoBruto ? t('finanzas.listas.iva-inc', { monto: formatMonto(r.campana.presupuestoBruto) }) : '—'}
+                    {r.campana.presupuestoBruto ? t('finanzas.listas.iva-inc', { monto: formatMonto(r.campana.presupuestoBruto, idioma) }) : '—'}
                   </div>
                 </div>
                 {puedeFacturar ? (
@@ -319,7 +319,7 @@ export default function FinanzasPage() {
                           </td>
                           <td className="hidden px-4 py-2.5 align-top text-muted md:table-cell">{g.factura ? cliNombre(g.factura.clienteId) : '—'}</td>
                           <td className="demo-num whitespace-nowrap px-4 py-2.5 text-right align-top text-ink">
-                            {formatMonto(g.total)}
+                            {formatMonto(g.total, idioma)}
                             <div className="text-[11px] text-muted">
                               {t('finanzas.cobranza.cuotas-pagadas', { pagadas: g.pagadas, total: g.cuotas.length })}
                             </div>
@@ -405,7 +405,7 @@ export default function FinanzasPage() {
                       <td className="px-4 py-2.5 text-muted">{f.cliente}</td>
                       <td className="px-4 py-2.5 text-muted">{f.campana}</td>
                       <td className="hidden px-4 py-2.5 text-muted lg:table-cell">{f.emisora}</td>
-                      <td className="demo-num whitespace-nowrap px-4 py-2.5 text-right text-ink">{formatMonto(f.monto)}</td>
+                      <td className="demo-num whitespace-nowrap px-4 py-2.5 text-right text-ink">{formatMonto(f.monto, idioma)}</td>
                       <td className="px-4 py-2.5">
                         {/* El semáforo único de la app (`StatusBadge`) en vez de
                             un chip con hex propios. La anulada conserva el
@@ -677,7 +677,7 @@ function GenerarFacturaDialog({
           <div className="flex items-center justify-between">
             <span className="text-muted">{t('finanzas.comun.subtotal-neto')}</span>
             <span className="demo-num text-ink">
-              {campana.presupuestoNeto ? formatMonto(campana.presupuestoNeto) : '—'}
+              {campana.presupuestoNeto ? formatMonto(campana.presupuestoNeto, idioma) : '—'}
             </span>
           </div>
           <div className="mt-1 flex items-center justify-between">
@@ -690,14 +690,14 @@ function GenerarFacturaDialog({
             </span>
             <span className="demo-num text-ink">
               {campana.presupuestoNeto != null && campana.presupuestoBruto != null
-                ? formatMonto(campana.presupuestoBruto - campana.presupuestoNeto)
+                ? formatMonto(campana.presupuestoBruto - campana.presupuestoNeto, idioma)
                 : '—'}
             </span>
           </div>
           <div className="mt-1.5 flex items-center justify-between border-t border-border pt-1.5">
             <span className="font-medium text-ink">{t('finanzas.comun.total')}</span>
             <span className="demo-num font-semibold text-ink">
-              {campana.presupuestoBruto ? formatMonto(campana.presupuestoBruto) : '—'}
+              {campana.presupuestoBruto ? formatMonto(campana.presupuestoBruto, idioma) : '—'}
             </span>
           </div>
         </div>
@@ -792,10 +792,10 @@ function GenerarFacturaDialog({
                         n: nCuotas,
                         monto: (
                           <span className="demo-num font-medium text-ink">
-                            {formatMonto(repartirCuotas(campana.presupuestoBruto, nCuotas)[0])}
+                            {formatMonto(repartirCuotas(campana.presupuestoBruto, nCuotas)[0], idioma)}
                           </span>
                         ),
-                        total: <span className="demo-num text-ink">{formatMonto(campana.presupuestoBruto)}</span>,
+                        total: <span className="demo-num text-ink">{formatMonto(campana.presupuestoBruto, idioma)}</span>,
                       })}
                     </p>
                   )}
@@ -857,7 +857,7 @@ function PagoModal({
   onClose: () => void
   onDone: (msg: string) => void
 }) {
-  const t = useTexto()
+  const { t, idioma } = useIdioma()
   const [monto, setMonto] = useState(String(Math.round(cob.saldo * 100) / 100))
   // El DÍA en que entró el dinero (ADR 0046): por omisión hoy, y se puede
   // poner el de la transferencia de ayer. El servidor rechaza una fecha futura.
@@ -891,7 +891,7 @@ function PagoModal({
       open
       onOpenChange={(v) => !v && onClose()}
       title={t('finanzas.pago.titulo')}
-      subtitle={t('finanzas.pago.subtitulo', { folio: cob.folio, saldo: formatMonto(cob.saldo) })}
+      subtitle={t('finanzas.pago.subtitulo', { folio: cob.folio, saldo: formatMonto(cob.saldo, idioma) })}
       footer={
         <div className="flex items-center justify-between">
           {error ? <span className="text-[12px] text-error">{error}</span> : <span />}
@@ -973,7 +973,7 @@ function PagoModal({
         />
         {excede && (
           <p className="text-[12px] text-warning">
-            {t('finanzas.pago.excede', { saldo: formatMonto(cob.saldo) })}
+            {t('finanzas.pago.excede', { saldo: formatMonto(cob.saldo, idioma) })}
           </p>
         )}
         <p className="text-[11px] text-muted">
@@ -1061,9 +1061,9 @@ onRecordar: (id: string) => void
       <td className="demo-num whitespace-nowrap px-4 py-2.5 text-right align-top text-ink">
         {/* Con parcialidades, el importe de la fila es el de LA CUOTA, no el
             de la factura entera. */}
-        {cob.monto != null ? formatMonto(cob.monto) : fac ? formatMonto(fac.monto) : '—'}
+        {cob.monto != null ? formatMonto(cob.monto, idioma) : fac ? formatMonto(fac.monto, idioma) : '—'}
         {cob.montoPagado > 0 && est !== 'PAGADA' && fac && (
-          <div className="text-[11px] text-[#9a6700]">{t('finanzas.cobranza.saldo', { monto: formatMonto(saldoCobranza(cob, fac)) })}</div>
+          <div className="text-[11px] text-[#9a6700]">{t('finanzas.cobranza.saldo', { monto: formatMonto(saldoCobranza(cob, fac), idioma) })}</div>
         )}
       </td>
       <td className="demo-num hidden whitespace-nowrap px-4 py-2.5 align-top text-muted lg:table-cell">{t('finanzas.comun.dias', { n: cob.plazoDias })}</td>

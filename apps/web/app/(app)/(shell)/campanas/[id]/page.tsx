@@ -268,15 +268,15 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
       {/* Comercial (referencia) */}
       <Seccion id={`campana.${id}.comercial`} titulo={t('campanas.ficha.comercial')} estado="hecho">
         <dl className="space-y-2 text-[13px]">
-          <Fila label={t('campanas.ficha.subtotal-neto')} valor={c.presupuestoNeto ? formatMonto(c.presupuestoNeto) : '—'} mono />
+          <Fila label={t('campanas.ficha.subtotal-neto')} valor={c.presupuestoNeto ? formatMonto(c.presupuestoNeto, idioma) : '—'} mono />
           <Fila
             label={t('campanas.ficha.iva-pct', {
               pct: c.presupuestoNeto ? Math.round(((c.presupuestoBruto ?? 0) - c.presupuestoNeto) / c.presupuestoNeto * 100) : 16,
             })}
-            valor={c.presupuestoNeto != null && c.presupuestoBruto != null ? formatMonto(c.presupuestoBruto - c.presupuestoNeto) : '—'}
+            valor={c.presupuestoNeto != null && c.presupuestoBruto != null ? formatMonto(c.presupuestoBruto - c.presupuestoNeto, idioma) : '—'}
             mono
           />
-          <Fila label={t('campanas.comun.total')} valor={c.presupuestoBruto ? formatMonto(c.presupuestoBruto) : '—'} mono />
+          <Fila label={t('campanas.comun.total')} valor={c.presupuestoBruto ? formatMonto(c.presupuestoBruto, idioma) : '—'} mono />
           <Fila label={t('campanas.ficha.agencia')} valor={c.agencia ?? t('campanas.ficha.directo')} />
           <Fila label={t('campanas.ficha.oc-recibida')} valor={c.ocRecibida ? t('campanas.ficha.si') : t('campanas.ficha.no')} />
         </dl>
@@ -315,10 +315,10 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
                       {t('campanas.ficha.snapshot')}
                     </span>
                   </dt>
-                  <dd className="demo-num font-medium text-ink">{formatMonto(c.presupuestoBruto)}</dd>
+                  <dd className="demo-num font-medium text-ink">{formatMonto(c.presupuestoBruto, idioma)}</dd>
                 </div>
               ) : null}
-              <Fila label={t('campanas.ficha.ingreso')} valor={formatMonto(margen.ingreso)} mono />
+              <Fila label={t('campanas.ficha.ingreso')} valor={formatMonto(margen.ingreso, idioma)} mono />
               <div className="flex items-center justify-between gap-3">
                 <dt className="flex items-center gap-1.5 text-muted">
                   {t('campanas.ficha.costo-espacios')}
@@ -331,12 +331,12 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
                     </span>
                   )}
                 </dt>
-                <dd className="demo-num text-ink">{formatMonto(margen.costoEspacios)}</dd>
+                <dd className="demo-num text-ink">{formatMonto(margen.costoEspacios, idioma)}</dd>
               </div>
-              <Fila label={t('campanas.ficha.costo-impresion')} valor={formatMonto(margen.costoImpresion)} mono />
-              <Fila label={t('campanas.ficha.costo-operacion')} valor={formatMonto(margen.costoOperacion)} mono />
+              <Fila label={t('campanas.ficha.costo-impresion')} valor={formatMonto(margen.costoImpresion, idioma)} mono />
+              <Fila label={t('campanas.ficha.costo-operacion')} valor={formatMonto(margen.costoOperacion, idioma)} mono />
               <div className="mt-1 border-t border-border pt-2">
-                <Fila label={t('campanas.comun.margen')} valor={formatMonto(margen.margen)} mono />
+                <Fila label={t('campanas.comun.margen')} valor={formatMonto(margen.margen, idioma)} mono />
               </div>
             </dl>
         </Seccion>
@@ -372,7 +372,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
             <dl className="space-y-2 text-[13px]">
               <Fila label={t('campanas.ficha.folio-odc')} valor={odc.folio} mono />
               {odc.numeroOc && <Fila label={t('campanas.ficha.numero-oc')} valor={odc.numeroOc} mono />}
-              <Fila label={t('campanas.comun.monto')} valor={formatMonto(odc.monto)} mono />
+              <Fila label={t('campanas.comun.monto')} valor={formatMonto(odc.monto, idioma)} mono />
               <Fila label={t('campanas.comun.fecha')} valor={formatFecha(odc.fecha, idioma)} />
               {odc.documentoUrl && <Fila label={t('campanas.ficha.documento')} valor={odc.documentoUrl} />}
             </dl>

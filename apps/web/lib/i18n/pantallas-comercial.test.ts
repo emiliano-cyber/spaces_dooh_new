@@ -1,10 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { createElement, type ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { ProveedorIdioma } from './contexto'
 import type { Idioma } from './idiomas'
+import { MONEDAS, fijarMonedaInstancia } from './dinero'
+import { leerDinero } from './simbolo-en-pantalla'
 
 // ============================================================================
 //  I18N · LOTE «COMERCIAL», RENDIDO DE VERDAD EN LOS DOS IDIOMAS.
@@ -1232,4 +1234,33 @@ describe('costura · los MODULOS COMPARTIDOS en las pantallas de Comercial', () 
     }
     expect(culpables).toEqual([])
   })
+})
+
+// ─── El dinero: el simbolo de la moneda de la INSTANCIA (dueno, 2026-11-02) ──
+//
+// En ingles, una instancia MXN escribe `MX$` y una USD `$`; en espanol, MXN
+// `$` y USD `US$` (la tabla de `lib/i18n/dinero.ts`). Antes de este cambio las
+// pantallas traducidas llamaban `formatMonto(n)` sin idioma y el ingles de una
+// instancia MXN escribia `$`: un lector anglosajon lo lee como dolares. Se
+// mira el HTML pintado, con las DOS monedas y en los DOS idiomas, y se exige
+// que haya importes que mirar (un arnes que no encuentra ninguno no prueba
+// nada).
+describe('lote COMERCIAL · cada importe lleva el simbolo de la moneda de la instancia', () => {
+  afterEach(() => fijarMonedaInstancia('MXN'))
+  const vistos: Record<string, number> = {}
+  for (const moneda of MONEDAS) {
+    for (const idioma of ['es', 'en'] as const) {
+      PANTALLAS.forEach((p) => {
+        it(`${moneda} · ${idioma} · ${p.nombre}`, async () => {
+          fijarMonedaInstancia(moneda)
+          const { importes, ajenos } = leerDinero(texto(await p.pintar(idioma)), idioma, moneda)
+          vistos[`${moneda}-${idioma}`] = (vistos[`${moneda}-${idioma}`] ?? 0) + importes
+          expect(ajenos).toEqual([])
+        })
+      })
+      it(`${moneda} · ${idioma} · el arnes encontro importes que mirar`, () => {
+        expect(vistos[`${moneda}-${idioma}`] ?? 0).toBeGreaterThan(0)
+      })
+    }
+  }
 })

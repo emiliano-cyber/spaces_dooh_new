@@ -643,7 +643,7 @@ function Ofertas({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; pu
                 <tr key={o.id} className="border-t border-border align-top">
                   <td className="py-1.5 text-ink">v{o.version}</td>
                   <td className="py-1.5 text-muted">{fecha(o.fecha, idioma)}</td>
-                  <td className="demo-num py-1.5 font-medium text-ink">{t('comercial.negociacion.ofertas.por-mes', { monto: pesos(o.importeMensual) })}</td>
+                  <td className="demo-num py-1.5 font-medium text-ink">{t('comercial.negociacion.ofertas.por-mes', { monto: pesos(o.importeMensual, idioma) })}</td>
                   <td className="py-1.5 text-muted">
                     {t(o.plazoMeses === 1 ? 'comercial.negociacion.ofertas.meses.uno' : 'comercial.negociacion.ofertas.meses.otros', { n: o.plazoMeses })}
                   </td>

@@ -574,7 +574,7 @@ export function SiteFicha({
                     ? etiquetaUnidad(sitio.unidad, idioma)
                     : etiquetaUnidad(sitio.unidad, idioma).toLowerCase(),
               })}
-              valor={formatMonto(sitio.tarifaPublicada)}
+              valor={formatMonto(sitio.tarifaPublicada, idioma)}
             />
             {/* El costo es la renta ATRIBUIDA a esta pantalla, la misma cifra que
                 usa el P&L (`rentaAtribuidaPorSitio`, vía useMargenPorSitio). Antes
@@ -585,7 +585,7 @@ export function SiteFicha({
               valor={
                 sitio.propio
                   ? t('comercial.ficha.propia-sin-renta')
-                  : cargandoMargen ? '—' : margenSitio?.tieneContrato ? formatMonto(rentaMensual) : t('comercial.ficha.sin-contrato-activo')
+                  : cargandoMargen ? '—' : margenSitio?.tieneContrato ? formatMonto(rentaMensual, idioma) : t('comercial.ficha.sin-contrato-activo')
               }
             />
             {(() => {
@@ -616,7 +616,7 @@ export function SiteFicha({
                 <div className="flex items-center justify-between rounded-md border border-border bg-surface-2 px-3 py-2">
                   <span className="text-[12px] text-muted">{t('comercial.ficha.margen')}</span>
                   <span className={`demo-num text-sm font-semibold ${color}`}>
-                    {formatMonto(margen)} · {pct.toFixed(0)}%
+                    {formatMonto(margen, idioma)} · {pct.toFixed(0)}%
                   </span>
                 </div>
               )
@@ -650,7 +650,7 @@ export function SiteFicha({
                   {modalidades.map((m, i) => (
                     <li key={i} className="flex items-center justify-between px-3 py-1.5 text-[12px]">
                       <span className="capitalize text-ink">{nombreUnidad(m.unidad, idioma)}</span>
-                      <span className="demo-num text-muted">{formatMonto(m.tarifaPublicada)}</span>
+                      <span className="demo-num text-muted">{formatMonto(m.tarifaPublicada, idioma)}</span>
                     </li>
                   ))}
                 </ul>
@@ -711,7 +711,7 @@ export function SiteFicha({
               </div>
 
               <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-[13px]">
-                <Caracteristica icon={<Wallet className="h-4 w-4" />} label={t('comercial.ficha.renta')} valor={rentaEfectiva != null ? formatMonto(rentaEfectiva) : '—'} mono />
+                <Caracteristica icon={<Wallet className="h-4 w-4" />} label={t('comercial.ficha.renta')} valor={rentaEfectiva != null ? formatMonto(rentaEfectiva, idioma) : '—'} mono />
                 <Caracteristica icon={<Repeat className="h-4 w-4" />} label={t('comercial.ficha.periodicidad')} valor={periodicidadEfectiva ? periodicidadLabel(periodicidadEfectiva, '—', idioma) : '—'} />
                 {contrato && (
                   <Caracteristica

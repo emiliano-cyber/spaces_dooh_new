@@ -257,6 +257,44 @@ es opcional y las ~250 llamadas que no lo pasan escriben el símbolo español.
 `simboloMoneda(idioma?)` y `nombreMoneda(idioma?)` sirven a quien pinta el
 símbolo suelto (un adorno de campo, la ficha de Administración).
 
+> [!important] 2026-11-02 · las pantallas en inglés YA pasan su idioma al dinero
+> Decisión del dueño: **en inglés, el dinero se escribe con el símbolo de la
+> moneda de la instancia, sin ambigüedad**. Hasta ese día las pantallas
+> traducidas llamaban `formatMonto(n)` **sin idioma**, así que el inglés de una
+> instancia MXN escribía `$ 1,000.00` — que un lector anglosajón lee como
+> dólares — y el de una USD, `US$`. Ahora cada llamada de las pantallas
+> traducidas recibe el idioma de la pantalla (`useIdioma()` en el cliente,
+> `idiomaDeLaPeticion()` en el servidor):
+>
+> - **Conectadas:** propuestas (lista, alta, duplicar, agregar sitios, ficha,
+>   tablero, calculadora y el **documento imprimible**
+>   `app/(app)/propuesta/[id]/page.tsx`), campañas (lista, ficha, indicadores,
+>   resumen), finanzas (página, estado de cuenta, tablero del periodo,
+>   comprobante de pago y su diálogo), comercial (página, ficha del sitio,
+>   reserva, Comercial negociación). Y `resumenContratacion` y
+>   `resumenReserva` (`lib/periodos.ts`), que ya recibían `idioma`, se lo pasan
+>   también al importe. Códigos no pinta importes (solo porcentajes).
+> - **NO cambian, a propósito:** correos, CSV, el PDF de contrato, la cantidad
+>   con letra (está ligada al hash de las firmas) y los textos de bitácora que
+>   arman las rutas de `app/api` y `lib/tarifa-calculada.ts`: siguen en español.
+> - **Quedan para su lote** (aún sin traducir, siguen con el símbolo español):
+>   inicio, inventario, arrendadores, clientes, reportes, network, paquetes,
+>   energía, operaciones (OT), administración, Space Eyes y la página pública
+>   `app/(app)/p/[id]`.
+>
+> **Medido, no supuesto.** `pantallas-propuestas`, `pantallas-campanas-finanzas`
+> y `pantallas-comercial` (`.test.ts`) pintan cada estado con **las dos
+> monedas y en los dos idiomas** y leen el HTML con `leerDinero`
+> (`lib/i18n/simbolo-en-pantalla.ts`): ningún importe puede llevar otro símbolo
+> que el de la tabla, y el arnés exige haber encontrado importes. En rojo antes
+> del cambio: **88** pruebas (44 estados en inglés × 2 monedas; el español
+> pasaba ya con las dos), más **2** que afirmaban el `$` viejo en inglés
+> (`pantallas-propuestas` y `compartidos-idioma.test.ts`). `pantallas-compartidos`
+> no lleva la comprobación porque no pinta ningún importe (medido: cero).
+> Y el español quedó **idéntico**: el HTML español de los 109
+> estados de las cuatro pruebas de pantallas (`I18N_VOLCAR` / `VOLCAR_HTML`),
+> volcado antes y después, da `diff -rq` vacío.
+
 **Medido, no supuesto:** `dinero.test.ts` y `derive.formato-moneda.test.ts`
 llevan una copia LITERAL de la implementación anterior y comparan, en una
 instancia MXN, **más de 2000 importes** (bordes y pseudoaleatorios con semilla

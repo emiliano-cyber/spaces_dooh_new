@@ -132,13 +132,13 @@ export function EstadoCuenta() {
                 = cierre. Son las mismas cinco cifras del servidor; aquí no se
                 suma nada, solo se ponen en una línea. */}
             <dl className="mx-4 mb-3 flex flex-wrap items-baseline gap-x-4 gap-y-1 rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px]">
-              <Renglon k={t('finanzas.estado-cuenta.saldo-inicio')} v={formatMonto(r.saldoInicial)} />
-              <Renglon k={t('finanzas.estado-cuenta.facturado')} v={formatMonto(r.facturado.monto)} />
-              <Renglon k={t('finanzas.estado-cuenta.cobrado')} v={formatMonto(r.cobrado)} />
-              <Renglon k={t('finanzas.estado-cuenta.saldo-cierre')} v={formatMonto(r.saldoFinal)} fuerte />
+              <Renglon k={t('finanzas.estado-cuenta.saldo-inicio')} v={formatMonto(r.saldoInicial, idioma)} />
+              <Renglon k={t('finanzas.estado-cuenta.facturado')} v={formatMonto(r.facturado.monto, idioma)} />
+              <Renglon k={t('finanzas.estado-cuenta.cobrado')} v={formatMonto(r.cobrado, idioma)} />
+              <Renglon k={t('finanzas.estado-cuenta.saldo-cierre')} v={formatMonto(r.saldoFinal, idioma)} fuerte />
               {/* `div` y no `span`: dentro de un `dl` solo valen `div`, `dt` y `dd`. */}
               <div className="hidden text-muted sm:block" aria-hidden>·</div>
-              <Renglon k={t('finanzas.estado-cuenta.vencido-al', { fecha: formatFecha(r.corte, idioma) })} v={formatMonto(r.vencido.monto)} tono={r.vencido.monto > 0} />
+              <Renglon k={t('finanzas.estado-cuenta.vencido-al', { fecha: formatFecha(r.corte, idioma) })} v={formatMonto(r.vencido.monto, idioma)} tono={r.vencido.monto > 0} />
             </dl>
             {datos.movimientos.length === 0 ? (
               <p className="border-t border-border px-4 py-4 text-[13px] text-muted">
@@ -184,9 +184,9 @@ export function EstadoCuenta() {
                         </td>
                         <td className="demo-num px-4 py-2 text-ink">{m.folio}</td>
                         {!cliente && <td className="px-4 py-2 text-muted">{nombreCliente(m.clienteId)}</td>}
-                        <td className="demo-num px-4 py-2 text-right text-ink">{m.cargo ? formatMonto(m.cargo) : ''}</td>
-                        <td className="demo-num px-4 py-2 text-right text-success">{m.abono ? formatMonto(m.abono) : ''}</td>
-                        <td className="demo-num px-4 py-2 text-right text-ink">{formatMonto(m.saldo)}</td>
+                        <td className="demo-num px-4 py-2 text-right text-ink">{m.cargo ? formatMonto(m.cargo, idioma) : ''}</td>
+                        <td className="demo-num px-4 py-2 text-right text-success">{m.abono ? formatMonto(m.abono, idioma) : ''}</td>
+                        <td className="demo-num px-4 py-2 text-right text-ink">{formatMonto(m.saldo, idioma)}</td>
                       </tr>
                     ))}
                   </tbody>

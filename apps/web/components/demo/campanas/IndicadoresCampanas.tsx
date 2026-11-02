@@ -3,7 +3,7 @@
 import { KPICard, KPICardSkeleton } from '@/components/demo/KPICard'
 import { formatMonto, type CampanaResumen } from '@/lib/data/client'
 import { formatNumero } from '@/lib/formato-numero'
-import { useTexto } from '@/lib/i18n/contexto'
+import { useIdioma } from '@/lib/i18n/contexto'
 
 // ============================================================================
 //  Fila de indicadores del listado de Campañas — el lenguaje del Dashboard
@@ -22,7 +22,7 @@ export function IndicadoresCampanas({
   campanas: CampanaResumen[] | undefined
   porValidar: number
 }) {
-  const t = useTexto()
+  const { t, idioma } = useIdioma()
   if (!campanas) {
     return (
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -73,7 +73,7 @@ export function IndicadoresCampanas({
           un $0 afirmaría que se venden gratis. */}
       <KPICard
         label={t('campanas.kpi.contratado')}
-        value={conPresupuesto.length === 0 ? '—' : formatMonto(contratado)}
+        value={conPresupuesto.length === 0 ? '—' : formatMonto(contratado, idioma)}
         sub={
           activas.length === 0
             ? t('campanas.kpi.contratado.sin-activas')

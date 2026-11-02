@@ -94,7 +94,7 @@ const inputCls =
 // comparten la lista y el detalle, que antes tenían cada uno su copia.
 
 export default function PropuestasPage() {
-  const t = useTexto()
+  const { t, idioma } = useIdioma()
   const propuestas = usePropuestas()
   const funnel = useFunnelPropuestas()
   const clientes = useClientes()
@@ -188,7 +188,7 @@ export default function PropuestasPage() {
           <>
             <KPICard
               label={t('propuestas.lista.kpi.pipeline')}
-              value={formatMonto(funnel.pipelineValue)}
+              value={formatMonto(funnel.pipelineValue, idioma)}
               sub={t('propuestas.lista.kpi.pipeline.sub', {
                 propuestas: conteo(
                   funnel.borrador + funnel.enviadas,
@@ -208,10 +208,10 @@ export default function PropuestasPage() {
             />
             <KPICard
               label={t('propuestas.lista.kpi.ganado')}
-              value={formatMonto(funnel.ganadoValue)}
+              value={formatMonto(funnel.ganadoValue, idioma)}
               sub={t('propuestas.lista.kpi.ganado.sub', {
                 aprobadas: conteo(funnel.aprobadas, t('propuestas.unidad.aprobada'), t('propuestas.unidad.aprobadas')),
-                perdido: formatMontoCorto(funnel.perdidoValue),
+                perdido: formatMontoCorto(funnel.perdidoValue, idioma),
                 rechazadas: conteo(funnel.rechazadas, t('propuestas.unidad.rechazada'), t('propuestas.unidad.rechazadas')),
               })}
               tono="verde"
@@ -490,7 +490,7 @@ function PropuestaCard({
           </button>
           <div className="flex items-center gap-3">
             <div className="text-right">
-              <div className="demo-num text-[15px] font-semibold text-ink">{formatMonto(p.total)}</div>
+              <div className="demo-num text-[15px] font-semibold text-ink">{formatMonto(p.total, idioma)}</div>
               <div className="text-[11px] text-muted">{t('propuestas.comun.total-con-iva')}</div>
             </div>
             <Link
@@ -510,13 +510,13 @@ function PropuestaCard({
                 verde que había. */}
             <div className="space-y-1 rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px]">
               <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
-                <Dato label={t('propuestas.fila.bruto-lista')} valor={formatMonto(p.bruto)} />
+                <Dato label={t('propuestas.fila.bruto-lista')} valor={formatMonto(p.bruto, idioma)} />
                 <Dato
                   label={t('propuestas.fila.comision', { pct: (100 - p.divisor * 100).toFixed(0), divisor: p.divisor.toFixed(2) })}
                   valor={`× ${p.divisor.toFixed(2)}`}
                 />
-                <Dato label={t('propuestas.fila.neto-propuesto')} valor={formatMonto(p.neto)} />
-                <Dato label={t('propuestas.comun.iva', { pct: p.bruto ? Math.round((p.iva / p.bruto) * 100) : 16 })} valor={formatMonto(p.iva)} />
+                <Dato label={t('propuestas.fila.neto-propuesto')} valor={formatMonto(p.neto, idioma)} />
+                <Dato label={t('propuestas.comun.iva', { pct: p.bruto ? Math.round((p.iva / p.bruto) * 100) : 16 })} valor={formatMonto(p.iva, idioma)} />
               </div>
               {/* Neto vs aprobado (aprobación granular). Con nada aprobado se
                   dice, en vez de enseñar tres ceros que parecen cifras. */}
@@ -533,9 +533,9 @@ function PropuestaCard({
                 ) : (
                   <span className="text-muted">
                     {interpolarNodos(t('propuestas.fila.neto-aprobado'), {
-                      aprobado: <b className="demo-num text-[#0f7a55]">{formatMonto(p.netoAprobado)}</b>,
-                      neto: formatMonto(p.neto),
-                      total: <b className="demo-num text-ink">{formatMonto(p.totalAprobado)}</b>,
+                      aprobado: <b className="demo-num text-[#0f7a55]">{formatMonto(p.netoAprobado, idioma)}</b>,
+                      neto: formatMonto(p.neto, idioma),
+                      total: <b className="demo-num text-ink">{formatMonto(p.totalAprobado, idioma)}</b>,
                     })}
                   </span>
                 )}
@@ -574,7 +574,7 @@ function PropuestaCard({
                         </span>
                       )}
                     </label>
-                    <span className="demo-num text-muted">{formatMonto(it.precio)}</span>
+                    <span className="demo-num text-muted">{formatMonto(it.precio, idioma)}</span>
                   </li>
                 )
               })}
@@ -1257,13 +1257,13 @@ function NuevaPropuestaDialog({
               {volumenMonto > 0 && (
                 <>
                   {interpolarNodos(t('propuestas.alta.pie.volumen'), {
-                    monto: <b className="demo-num text-ink">− {formatMonto(volumenMonto)}</b>,
+                    monto: <b className="demo-num text-ink">− {formatMonto(volumenMonto, idioma)}</b>,
                   })}
                   {' · '}
                 </>
               )}
               {interpolarNodos(t('propuestas.alta.pie.total'), {
-                total: <b className="demo-num text-ink">{formatMonto(total)}</b>,
+                total: <b className="demo-num text-ink">{formatMonto(total, idioma)}</b>,
               })}
             </span>
           )}
@@ -1450,7 +1450,7 @@ function NuevaPropuestaDialog({
                         {digital ? t('propuestas.comun.digital') : t('propuestas.comun.fija')}
                       </span>
                     </span>
-                    <span className="demo-num shrink-0 text-muted">{sel.has(s.id) ? formatMonto(precioDe(s)) : ''}</span>
+                    <span className="demo-num shrink-0 text-muted">{sel.has(s.id) ? formatMonto(precioDe(s), idioma) : ''}</span>
                   </label>
                 )
               })}
@@ -1639,7 +1639,7 @@ function NuevaPropuestaDialog({
                           />
                           {ajustada && (
                             <span className="text-[10px] font-medium text-[#9a6700]">
-                              {t('propuestas.alta.tarifa.calculada', { monto: calc.calculable ? formatMonto(calc.tarifa) : '—' })}
+                              {t('propuestas.alta.tarifa.calculada', { monto: calc.calculable ? formatMonto(calc.tarifa, idioma) : '—' })}
                             </span>
                           )}
                         </span>
@@ -1649,12 +1649,12 @@ function NuevaPropuestaDialog({
                           title={t('propuestas.alta.tarifa.sistema')}
                         >
                           {calc.calculable
-                            ? t('propuestas.alta.tarifa.monto', { monto: formatMonto(calc.tarifa) })
+                            ? t('propuestas.alta.tarifa.monto', { monto: formatMonto(calc.tarifa, idioma) })
                             : t('propuestas.alta.tarifa.pide-gerente')}
                         </span>
                       )
                     })()}
-                    <span className="demo-num w-24 text-right font-medium text-ink">{formatMonto(precioDe(s))}</span>
+                    <span className="demo-num w-24 text-right font-medium text-ink">{formatMonto(precioDe(s), idioma)}</span>
 
                     {/* ADR 0042 · la CALCULADORA DE SPOTS. Solo en pantalla
                         digital vendida por spot. Da la CANTIDAD y, desde el ADR
@@ -1692,12 +1692,12 @@ function NuevaPropuestaDialog({
                         <div className="flex w-full items-center gap-2 rounded bg-surface-2 px-2 py-1.5 text-[11px] text-muted">
                           <span className="font-medium">{t('propuestas.alta.renta.titulo')}</span>
                           <span className="text-ink">
-                            {formatMonto(cv.montoRenta ?? 0)} {String(cv.periodicidad ?? '').toLowerCase()}
+                            {formatMonto(cv.montoRenta ?? 0, idioma)} {String(cv.periodicidad ?? '').toLowerCase()}
                           </span>
                           <span className="ml-auto">
                             {t('propuestas.alta.renta.pactada', {
                               predio: cv.predioId ? t('propuestas.alta.renta.pactada.predio') : '',
-                              costo: formatMonto(mes),
+                              costo: formatMonto(mes, idioma),
                             })}
                           </span>
                         </div>
@@ -1750,8 +1750,8 @@ function NuevaPropuestaDialog({
                           {rentaSospechosa(s) ? (
                             <span className="font-medium text-warning">
                               {t('propuestas.alta.renta.sospechosa', {
-                                renta: formatMonto(Number(c.rentaMonto)),
-                                precio: formatMonto(precioDe(s)),
+                                renta: formatMonto(Number(c.rentaMonto), idioma),
+                                precio: formatMonto(precioDe(s), idioma),
                               })}
                             </span>
                           ) : rentaIncompleta(s) ? (
@@ -1762,7 +1762,7 @@ function NuevaPropuestaDialog({
                             </span>
                           ) : Number(c.rentaMonto) > 0 ? (
                             <span className="text-muted">
-                              {t('propuestas.alta.renta.completo', { costo: formatMonto(rentaMensualDe(s)) })}
+                              {t('propuestas.alta.renta.completo', { costo: formatMonto(rentaMensualDe(s), idioma) })}
                             </span>
                           ) : (
                             <span className="text-muted">
@@ -1784,10 +1784,10 @@ function NuevaPropuestaDialog({
 
         {/* Resumen del divisor en vivo */}
         <div className="grid grid-cols-2 gap-x-6 gap-y-1 rounded-md border border-border bg-surface-2 p-3 text-[12px] sm:grid-cols-4">
-          <Dato label={t('propuestas.comun.bruto')} valor={formatMonto(bruto)} />
+          <Dato label={t('propuestas.comun.bruto')} valor={formatMonto(bruto, idioma)} />
           <Dato label={t('propuestas.alta.divisor', { pct: comision || 0 })} valor={`× ${divisor.toFixed(2)}`} />
-          <Dato label={t('propuestas.comun.neto')} valor={formatMonto(neto)} />
-          <Dato label={t('propuestas.comun.iva', { pct: ivaPctSel })} valor={formatMonto(iva)} />
+          <Dato label={t('propuestas.comun.neto')} valor={formatMonto(neto, idioma)} />
+          <Dato label={t('propuestas.comun.iva', { pct: ivaPctSel })} valor={formatMonto(iva, idioma)} />
         </div>
       </div>
     </Modal>
@@ -1850,7 +1850,7 @@ function CalculadoraSpotsLinea({
   puedePrima: boolean
   cambiar: (patch: Partial<CfgCalculadora>) => void
 }) {
-  const t = useTexto()
+  const { t, idioma } = useIdioma()
   const total = Number(sitio.totalSpots ?? 0)
   const libres = sitio.spotsDisponibles
   const horasMax = horasPorOmision({ franja, horario: sitio.horario })
@@ -1979,22 +1979,22 @@ function CalculadoraSpotsLinea({
                   {resultado.roadblock && ingresoHora != null ? (
                     <>
                       {interpolarNodos(t('propuestas.calc.rb.hora'), {
-                        tarifa: formatMonto(tarifaMensual),
+                        tarifa: formatMonto(tarifaMensual, idioma),
                         loop: resultado.loop,
                         horas: fmtNum(horasMes),
-                        ingreso: formatMonto(ingresoHora),
+                        ingreso: formatMonto(ingresoHora, idioma),
                         prima:
                           prima > 0
                             ? t('propuestas.calc.rb.prima', {
                                 pct: fmtNum(prima),
-                                monto: formatMonto(ingresoHora * (1 + prima / 100)),
+                                monto: formatMonto(ingresoHora * (1 + prima / 100), idioma),
                               })
                             : '',
                         spots: formatNumero(spotsHoraRB),
                         precio: (
                           <b className="text-ink">
                             {t('propuestas.calc.por-spot', {
-                              monto: formatMonto(prima > 0 ? tarifaConPrima(tarifaSpot.tarifa, prima) : tarifaSpot.tarifa),
+                              monto: formatMonto(prima > 0 ? tarifaConPrima(tarifaSpot.tarifa, prima) : tarifaSpot.tarifa, idioma),
                             })}
                           </b>
                         ),
@@ -2003,10 +2003,10 @@ function CalculadoraSpotsLinea({
                   ) : (
                     <>
                       {interpolarNodos(t('propuestas.calc.mensual'), {
-                        tarifa: formatMonto(tarifaMensual),
+                        tarifa: formatMonto(tarifaMensual, idioma),
                         spots: fmtNum(rotacionesPorHora(resultado.loop, duracionSeg) * horario.horas * DIAS_DEL_MES, 0),
                         precio: (
-                          <b className="text-ink">{t('propuestas.calc.por-spot', { monto: formatMonto(tarifaSpot.tarifa) })}</b>
+                          <b className="text-ink">{t('propuestas.calc.por-spot', { monto: formatMonto(tarifaSpot.tarifa, idioma) })}</b>
                         ),
                       })}
                     </>

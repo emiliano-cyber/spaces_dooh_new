@@ -7,6 +7,7 @@ import { armarComprobante } from './comprobante'
 import type { Factura } from '@/lib/data/types'
 import { useIdioma } from '@/lib/i18n/contexto'
 import { formatFecha } from '@/lib/data/derive'
+import type { Idioma } from '@/lib/i18n/idiomas'
 
 // ============================================================================
 //  El comprobante de una factura, en pantalla y listo para imprimir.
@@ -38,7 +39,7 @@ export function ComprobanteDialog({
   campanas: { id: string; nombre: string }[]
   entidades: { id: string; razonSocial: string; rfc: string | null }[]
   onOpenChange: (v: boolean) => void
-  formatMonto: (n: number) => string
+  formatMonto: (n: number, idioma?: Idioma) => string
 }) {
   const { t, idioma } = useIdioma()
   if (!factura) return null
@@ -99,12 +100,12 @@ export function ComprobanteDialog({
           </div>
 
           <div className="doc-bloque border-t border-border pt-3">
-            <Linea etiqueta={t('finanzas.comprobante.subtotal')} valor={formatMonto(c.importes.subtotal)} />
-            <Linea etiqueta={t('finanzas.comprobante.iva')} valor={formatMonto(c.importes.iva)} />
+            <Linea etiqueta={t('finanzas.comprobante.subtotal')} valor={formatMonto(c.importes.subtotal, idioma)} />
+            <Linea etiqueta={t('finanzas.comprobante.iva')} valor={formatMonto(c.importes.iva, idioma)} />
             <div className="flex justify-between gap-4 border-t border-border pt-2 text-[15px]">
               <span className="font-semibold text-ink">{t('finanzas.comun.total')}</span>
               <span className="demo-num font-semibold text-ink">
-                {formatMonto(c.importes.total)} {c.importes.moneda}
+                {formatMonto(c.importes.total, idioma)} {c.importes.moneda}
               </span>
             </div>
           </div>

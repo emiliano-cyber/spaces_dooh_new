@@ -12,7 +12,7 @@ import {
 } from '@/lib/data/client'
 import { formatNumero } from '@/lib/formato-numero'
 import { cn } from '@/lib/cn'
-import { useTexto } from '@/lib/i18n/contexto'
+import { useIdioma } from '@/lib/i18n/contexto'
 
 // ============================================================================
 //  Franja de resumen bajo el encabezado de la campaña — la franja secundaria
@@ -34,7 +34,7 @@ import { useTexto } from '@/lib/i18n/contexto'
 // ============================================================================
 
 export function ResumenCampana({ campanaId }: { campanaId: string }) {
-  const t = useTexto()
+  const { t, idioma } = useIdioma()
   const c = useCampana(campanaId)
   const ots = useOrdenesTrabajo()
   const evidencias = useEvidencias()
@@ -53,7 +53,7 @@ export function ResumenCampana({ campanaId }: { campanaId: string }) {
     <dl className="m-0 flex flex-wrap items-center gap-x-5 gap-y-1 rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px]">
       <Par
         etiqueta={t('campanas.comun.total')}
-        valor={c.presupuestoBruto ? formatMonto(c.presupuestoBruto) : '—'}
+        valor={c.presupuestoBruto ? formatMonto(c.presupuestoBruto, idioma) : '—'}
         title={c.presupuestoBruto ? undefined : t('campanas.comun.sin-presupuesto')}
       />
       <Par

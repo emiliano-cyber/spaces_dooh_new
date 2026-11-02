@@ -388,7 +388,7 @@ export default function ComercialPage() {
             <option value="">{t('comercial.pagina.filtro.precio')}</option>
             {rangosPrecio.map((c) => (
               <option key={c} value={c}>
-                ≤ {formatMontoCorto(c)}
+                ≤ {formatMontoCorto(c, idioma)}
               </option>
             ))}
           </select>
@@ -476,7 +476,7 @@ export default function ComercialPage() {
                           : fDisp === 'DISPONIBLE' || fDisp === 'BLOQUEADO'
                             ? t(CLAVE_SITIO_ESTATUS[fDisp]).toLowerCase()
                             : fDisp.toLowerCase()),
-                      cortePrecio != null && `≤ ${formatMontoCorto(cortePrecio)}`,
+                      cortePrecio != null && `≤ ${formatMontoCorto(cortePrecio, idioma)}`,
                     ]
                       .filter(Boolean)
                       .join(' · ') || t('comercial.pagina.vacio.inventario-vacio'),
@@ -530,7 +530,7 @@ export default function ComercialPage() {
                           del renglón gris). */}
                       <div className="flex items-baseline justify-between gap-2">
                         <div className="truncate text-[15px] font-medium text-ink" title={s.nombre}>{s.nombre}</div>
-                        <div className="demo-num shrink-0 text-[13px] font-medium text-ink">{formatMonto(tarifaDeSitio(s))}</div>
+                        <div className="demo-num shrink-0 text-[13px] font-medium text-ink">{formatMonto(tarifaDeSitio(s), idioma)}</div>
                       </div>
                       {/* Renglón 2: código · alcaldía · propietario. La ciudad va
                           en el `title`: en una red de una ciudad es redundante. */}
@@ -621,7 +621,7 @@ export default function ComercialPage() {
               <div className="text-[12px] text-muted">
                 {interpolarNodos(t('comercial.pagina.seleccion'), {
                   n: seleccion.size,
-                  total: <span className="demo-num font-medium text-ink">{formatMonto(totalSel)}</span>,
+                  total: <span className="demo-num font-medium text-ink">{formatMonto(totalSel, idioma)}</span>,
                 })}
               </div>
               <Button size="sm" onClick={() => setReservaOpen(true)}>

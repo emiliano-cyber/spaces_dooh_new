@@ -9,7 +9,7 @@ import { CampoCifra } from '@/components/demo/ui/CampoCifra'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { reservarApi } from '@/lib/data/estado-api'
 import { formatNumero } from '@/lib/formato-numero'
-import { useTexto } from '@/lib/i18n/contexto'
+import { useIdioma } from '@/lib/i18n/contexto'
 import { interpolarNodos } from '@/lib/i18n/nodos'
 import type { ClaveTexto } from '@/lib/i18n/diccionario'
 import {
@@ -67,7 +67,7 @@ export function ReservaDialog({
   sitios: Sitio[]
   onReserved: (campanaId: string, nombre: string) => void
 }) {
-  const t = useTexto()
+  const { t, idioma } = useIdioma()
   const [cliente, setCliente] = useState('')
   const [nombre, setNombre] = useState('')
   const [inicio, setInicio] = useState(isoDate(7))
@@ -181,7 +181,7 @@ export function ReservaDialog({
         <div className="flex items-center justify-between">
           <div className="text-[12px] text-muted">
             {interpolarNodos(t('comercial.reserva.total'), {
-              monto: <span className="demo-num font-semibold text-ink">{formatMonto(total)}</span>,
+              monto: <span className="demo-num font-semibold text-ink">{formatMonto(total, idioma)}</span>,
             })}
             {totalSpotsReservados > 0 && (
               <>
@@ -317,7 +317,7 @@ export function ReservaDialog({
                 <li key={s.id} className="space-y-1">
                   <div className="flex items-center justify-between">
                     <span className="truncate text-ink">{s.nombre}</span>
-                    <span className="demo-num text-muted">{formatMonto(tarifaDeSitio(s))}</span>
+                    <span className="demo-num text-muted">{formatMonto(tarifaDeSitio(s), idioma)}</span>
                   </div>
                   {digital && (
                     <div className="flex items-center justify-between gap-2 pl-1">

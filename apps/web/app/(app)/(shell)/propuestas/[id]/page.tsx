@@ -189,7 +189,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
     setGuardandoPaq(true)
     try {
       const r = await aplicarPaqueteApi(id, paqSel)
-      toast.success(t('propuestas.ficha.paquete.aplicado', { nombre: r.nombre, precio: formatMonto(r.precio) }))
+      toast.success(t('propuestas.ficha.paquete.aplicado', { nombre: r.nombre, precio: formatMonto(r.precio, idioma) }))
       setPaqSel('')
       await refrescarEstado()
     } catch (e) {
@@ -504,14 +504,14 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <KPICard
               label={t('propuestas.ficha.kpi.total')}
-              value={formatMonto(p.total)}
+              value={formatMonto(p.total, idioma)}
               sub={t('propuestas.ficha.kpi.total.sub', { sitios: nSitios(p.items.length) })}
               tono="azul"
               icon={<Wallet className="h-4 w-4" />}
             />
             <KPICard
               label={t('propuestas.ficha.kpi.neto')}
-              value={formatMonto(p.neto)}
+              value={formatMonto(p.neto, idioma)}
               sub={
                 comisionPct > 0
                   ? t('propuestas.ficha.kpi.neto.sub', { pct: comisionPct })
@@ -525,7 +525,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                 26/10 con la propuesta PR-2026-0007, que sí tiene renta). */}
             <KPICard
               label={t('propuestas.ficha.kpi.renta')}
-              value={!veRentas || sinContratoRenta === p.items.length ? '—' : formatMonto(rentaTotal)}
+              value={!veRentas || sinContratoRenta === p.items.length ? '—' : formatMonto(rentaTotal, idioma)}
               sub={
                 !veRentas
                   ? t('propuestas.ficha.kpi.renta.sin-permiso')
@@ -539,7 +539,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
             />
             <KPICard
               label={t('propuestas.ficha.kpi.aprobado')}
-              value={p.itemsAprobados === 0 ? '—' : formatMonto(p.totalAprobado)}
+              value={p.itemsAprobados === 0 ? '—' : formatMonto(p.totalAprobado, idioma)}
               sub={
                 p.itemsAprobados === 0
                   ? t('propuestas.ficha.kpi.aprobado.ninguno', { n: p.items.length })
@@ -558,7 +558,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
           <div className="mt-4 grid gap-4 border-t border-border pt-4 lg:grid-cols-2">
             <div className="space-y-3">
             <dl className="space-y-1.5 text-[13px]">
-              <Fila label={t('propuestas.comun.bruto-lista')} valor={formatMonto(p.bruto)} />
+              <Fila label={t('propuestas.comun.bruto-lista')} valor={formatMonto(p.bruto, idioma)} />
               {/* PAQ-01 · EL PAQUETE VA PRIMERO Y NO ES UN DESCUENTO. Se pinta
                   como «precio del conjunto» y con el importe en positivo, no
                   como una resta: llamarlo descuento haría creer que el bruto de
@@ -571,7 +571,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
               {p.paquete && (
                 <Fila
                   label={t('propuestas.comun.paquete-conjunto', { nombre: p.paquete.nombre })}
-                  valor={formatMonto(p.paquete.precio)}
+                  valor={formatMonto(p.paquete.precio, idioma)}
                 />
               )}
               {/* VOL-01 · el renglón aparece SOLO cuando hay volumen, y tiene que
@@ -581,11 +581,11 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
               {p.descuentoVolumenMonto > 0 && (
                 <Fila
                   label={t('propuestas.comun.descuento-volumen', { pct: Math.round(p.descuentoVolumenPct * 10) / 10 })}
-                  valor={`− ${formatMonto(p.descuentoVolumenMonto)}`}
+                  valor={`− ${formatMonto(p.descuentoVolumenMonto, idioma)}`}
                   tono="text-error"
                 />
               )}
-              <Fila label={t('propuestas.ficha.descuento-comercial-pct', { pct: pctConDosDecimales(p.descuentoPct) })} valor={p.descuentoMonto ? `− ${formatMonto(p.descuentoMonto)}` : '—'} tono={p.descuentoMonto ? 'text-error' : undefined} />
+              <Fila label={t('propuestas.ficha.descuento-comercial-pct', { pct: pctConDosDecimales(p.descuentoPct) })} valor={p.descuentoMonto ? `− ${formatMonto(p.descuentoMonto, idioma)}` : '—'} tono={p.descuentoMonto ? 'text-error' : undefined} />
               {/* COD-01 · el renglón aparece SOLO cuando hay código, y tiene que
                   aparecer con SU NOMBRE: un descuento sin decir de qué cupón salió
                   no se puede explicar seis meses después, y sin él la escalera no
@@ -598,16 +598,16 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                     // el cliente todavía no lo ve.
                     p.codigoEstado === 'PENDIENTE' ? t('propuestas.ficha.codigo-pendiente') : ''
                   }`}
-                  valor={`− ${formatMonto(p.codigoDescuentoMonto)}`}
+                  valor={`− ${formatMonto(p.codigoDescuentoMonto, idioma)}`}
                   tono="text-error"
                 />
               )}
-              <Fila label={t('propuestas.ficha.base')} valor={formatMonto(p.base)} />
-              <Fila label={t('propuestas.ficha.comision', { pct: comisionPct, divisor: p.divisor.toFixed(2) })} valor={`− ${formatMonto(p.base - p.neto)}`} />
-              <Fila label={t('propuestas.ficha.neto')} valor={formatMonto(p.neto)} />
-              <Fila label={t('propuestas.comun.iva', { pct: ivaPct })} valor={formatMonto(p.iva)} />
+              <Fila label={t('propuestas.ficha.base')} valor={formatMonto(p.base, idioma)} />
+              <Fila label={t('propuestas.ficha.comision', { pct: comisionPct, divisor: p.divisor.toFixed(2) })} valor={`− ${formatMonto(p.base - p.neto, idioma)}`} />
+              <Fila label={t('propuestas.ficha.neto')} valor={formatMonto(p.neto, idioma)} />
+              <Fila label={t('propuestas.comun.iva', { pct: ivaPct })} valor={formatMonto(p.iva, idioma)} />
               <div className="border-t border-border pt-1.5">
-                <Fila label={t('propuestas.ficha.total')} valor={formatMonto(p.total)} fuerte />
+                <Fila label={t('propuestas.ficha.total')} valor={formatMonto(p.total, idioma)} fuerte />
               </div>
             </dl>
             {/* «Sobre lo aprobado», que vivía en la tarjeta del método del
@@ -628,17 +628,17 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                   <>
                     <span className="text-muted">
                       {interpolarNodos(t('propuestas.ficha.aprobado.bruto'), {
-                        monto: <span className="demo-num text-ink">{formatMonto(p.brutoAprobado)}</span>,
+                        monto: <span className="demo-num text-ink">{formatMonto(p.brutoAprobado, idioma)}</span>,
                       })}
                     </span>
                     <span className="text-muted">
                       {interpolarNodos(t('propuestas.ficha.aprobado.neto'), {
-                        monto: <span className="demo-num text-ink">{formatMonto(p.netoAprobado)}</span>,
+                        monto: <span className="demo-num text-ink">{formatMonto(p.netoAprobado, idioma)}</span>,
                       })}
                     </span>
                     <span className="text-muted">
                       {interpolarNodos(t('propuestas.ficha.aprobado.total'), {
-                        monto: <span className="demo-num font-semibold text-ink">{formatMonto(p.totalAprobado)}</span>,
+                        monto: <span className="demo-num font-semibold text-ink">{formatMonto(p.totalAprobado, idioma)}</span>,
                       })}
                     </span>
                   </>
@@ -701,7 +701,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                     <p className="mt-0.5 text-[11px] text-muted">
                       {interpolarNodos(t('propuestas.ficha.paquete.vendido'), {
                         nombre: <b>{p.paquete.nombre}</b>,
-                        precio: <b>{formatMonto(p.paquete.precio)}</b>,
+                        precio: <b>{formatMonto(p.paquete.precio, idioma)}</b>,
                       })}
                       {' '}
                       {p.paquete.admiteCodigo
@@ -721,7 +721,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                       {p.paquete.sitios.map((s) => (
                         <li key={s.sitioId}>
                           {sitios?.find((x) => x.id === s.sitioId)?.nombre ?? s.sitioId}:{' '}
-                          {formatMonto(s.parte)}
+                          {formatMonto(s.parte, idioma)}
                         </li>
                       ))}
                     </ul>
@@ -761,7 +761,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                             <option key={x.id} value={x.id}>
                               {t(x.sitios.length === 1 ? 'propuestas.ficha.paquete.opcion.uno' : 'propuestas.ficha.paquete.opcion.otros', {
                                 nombre: x.nombre,
-                                precio: formatMonto(x.precioCerrado),
+                                precio: formatMonto(x.precioCerrado, idioma),
                                 n: x.sitios.length,
                               })}
                             </option>
@@ -806,7 +806,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
         resumen={
           <span className="text-[12px] text-muted">
             {interpolarNodos(t('propuestas.ficha.sitios.renta-total'), {
-              monto: <b className="demo-num text-ink">{formatMonto(rentaTotal)}</b>,
+              monto: <b className="demo-num text-ink">{formatMonto(rentaTotal, idioma)}</b>,
             })}
           </span>
         }
@@ -885,7 +885,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                                 {/* En espanol, el dato tal cual (`mensual`), como siempre. En
                                     ingles no se puede: es una palabra espanola. Se traduce y se
                                     deja en minusculas, igual que se ve en espanol. */}
-                                {formatMonto(renta.monto)} · {idioma === 'es' ? renta.periodicidad : periodicidadLabel(renta.periodicidad, '—', idioma).toLowerCase()}
+                                {formatMonto(renta.monto, idioma)} · {idioma === 'es' ? renta.periodicidad : periodicidadLabel(renta.periodicidad, '—', idioma).toLowerCase()}
                               </div>
                             </>
                           ) : (
@@ -920,7 +920,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                               {t('propuestas.ficha.tabla.ajustada', {
                                 tarifa:
                                   it.tarifaCalculada != null
-                                    ? t('propuestas.ficha.tabla.tarifa-calculada', { monto: formatMonto(it.tarifaCalculada) })
+                                    ? t('propuestas.ficha.tabla.tarifa-calculada', { monto: formatMonto(it.tarifaCalculada, idioma) })
                                     : t('propuestas.ficha.tabla.sin-tarifa-calculada'),
                                 quien: it.precioAjustadoPorNombre ?? t('propuestas.ficha.tabla.usuario-baja'),
                               })}
@@ -950,7 +950,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                             </div>
                           )}
                         </td>
-                        <td className="demo-num py-2.5 pr-3 text-right text-ink">{formatMonto(it.precio)}</td>
+                        <td className="demo-num py-2.5 pr-3 text-right text-ink">{formatMonto(it.precio, idioma)}</td>
                         <td className="py-2.5 pl-3 text-right">
                           {puedeEditar ? (
                             <input

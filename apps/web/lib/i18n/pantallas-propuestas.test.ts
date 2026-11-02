@@ -1,8 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { createElement, type ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { ProveedorIdioma } from './contexto'
 import type { Idioma } from './idiomas'
+import { MONEDAS, fijarMonedaInstancia } from './dinero'
+import { leerDinero } from './simbolo-en-pantalla'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 
@@ -839,13 +841,13 @@ const PANTALLAS: Pantalla[] = [
       '$ 500.00 · mensual',
     ],
     ingles: [
-      '50 plays × $ 20.00',
+      '50 plays × MX$ 20.00',
       '1 thousand',
       'Roadblock · 8 loop slots · 18 h per day · premium 25%',
       '1 loop slot',
       '12 plays per day',
       '1 play per day',
-      '$ 500.00 · monthly',
+      'MX$ 500.00 · monthly',
     ],
   },
   {
@@ -978,3 +980,32 @@ const COMUNES = new Set<string>([
   'Divisor (0%)', // «divisor» es el nombre del metodo, igual en los dos
   'Combo — ', // el nombre del paquete es un dato
 ])
+
+// ─── El dinero: el simbolo de la moneda de la INSTANCIA (dueno, 2026-11-02) ──
+//
+// En ingles, una instancia MXN escribe `MX$` y una USD `$`; en espanol, MXN
+// `$` y USD `US$` (la tabla de `lib/i18n/dinero.ts`). Antes de este cambio las
+// pantallas traducidas llamaban `formatMonto(n)` sin idioma y el ingles de una
+// instancia MXN escribia `$`: un lector anglosajon lo lee como dolares. Se
+// mira el HTML pintado, con las DOS monedas y en los DOS idiomas, y se exige
+// que haya importes que mirar (un arnes que no encuentra ninguno no prueba
+// nada).
+describe('lote PROPUESTAS · cada importe lleva el simbolo de la moneda de la instancia', () => {
+  afterEach(() => fijarMonedaInstancia('MXN'))
+  const vistos: Record<string, number> = {}
+  for (const moneda of MONEDAS) {
+    for (const idioma of ['es', 'en'] as const) {
+      PANTALLAS.forEach((p) => {
+        it(`${moneda} · ${idioma} · ${p.nombre}`, async () => {
+          fijarMonedaInstancia(moneda)
+          const { importes, ajenos } = leerDinero(texto(await p.pintar(idioma)), idioma, moneda)
+          vistos[`${moneda}-${idioma}`] = (vistos[`${moneda}-${idioma}`] ?? 0) + importes
+          expect(ajenos).toEqual([])
+        })
+      })
+      it(`${moneda} · ${idioma} · el arnes encontro importes que mirar`, () => {
+        expect(vistos[`${moneda}-${idioma}`] ?? 0).toBeGreaterThan(0)
+      })
+    }
+  }
+})
