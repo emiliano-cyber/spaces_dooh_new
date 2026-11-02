@@ -9,7 +9,9 @@ import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { useConfigNegocio } from '@/lib/data/client'
 import { refrescarEstado } from '@/lib/data/estado-api'
 import { useSesionCtx, usePuede } from '@/components/demo/shell/SesionContext'
-import { esEmailValido, EMAIL_INVALIDO } from '@/lib/validacion'
+import { esEmailValido } from '@/lib/validacion'
+import { useIdioma, useTexto } from '@/lib/i18n/contexto'
+import { interpolarNodos } from '@/lib/i18n/nodos'
 import { puedeFijarPasswordSinAnterior } from '@/lib/perfil-acceso'
 import { rolLabel } from '@/components/demo/shell/nav'
 import { Chip, TONO } from '@/components/demo/admin/Chip'
@@ -34,15 +36,16 @@ export default function ConfiguracionPage() {
   const rol = sesion?.usuario.rol
   const puedeEmpresa =
     usePuede('administracion', 'crear') && (rol === 'DUENO' || rol === 'ADMINISTRADOR')
+  const t = useTexto()
 
   return (
     // A ancho completo como el resto de los módulos: con `max-w-2xl` la página
     // se encogía a la izquierda y dejaba media pantalla vacía a 1440 px.
     <div className="w-full space-y-4">
       <div>
-        <h1 className="text-2xl text-ink">Configuración</h1>
+        <h1 className="text-2xl text-ink">{t('admin.cuenta.titulo')}</h1>
         <p className="mt-1 text-[13px] text-muted">
-          {puedeEmpresa ? 'Nombre de la empresa y datos de tu cuenta.' : 'Cambia el correo y la contraseña de tu cuenta.'}
+          {puedeEmpresa ? t('admin.cuenta.sub.empresa') : t('admin.cuenta.sub.cuenta')}
         </p>
       </div>
 
@@ -53,9 +56,7 @@ export default function ConfiguracionPage() {
         <div className={`flex items-start gap-2 rounded-md border px-3 py-2.5 text-[13px] ${TONO.aviso}`}>
           <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-[#9a6700]" />
           <span>
-            <b>Tu contraseña es temporal.</b> Cámbiala aquí abajo para volver a entrar al
-            resto del sistema. Mientras tanto los demás módulos están cerrados, por
-            seguridad: una contraseña temporal la conoce quien te la entregó.
+            {interpolarNodos(t('admin.cuenta.temporal'), { tuContrasena: <b>{t('admin.cuenta.temporal-negrita')}</b> })}
           </span>
         </div>
       )}
@@ -78,6 +79,7 @@ function EmpresaCard({ nombreActual }: { nombreActual: string }) {
   // OBLIG-01 · el nombre vacío ya no deshabilita el botón: se pulsa y el campo
   // se pinta en rojo, en vez de un aviso suelto que no dice dónde.
   const ob = useObligatorios({ nombre }, ['nombre'])
+  const t = useTexto()
 
   async function guardar() {
     if (!ob.validar()) return
@@ -89,11 +91,11 @@ function EmpresaCard({ nombreActual }: { nombreActual: string }) {
         body: JSON.stringify({ nombre: nombre.trim() }),
       })
       const d = await r.json().catch(() => ({}))
-      if (!r.ok) throw new Error((d as { error?: string }).error ?? 'No se pudo guardar')
+      if (!r.ok) throw new Error((d as { error?: string }).error ?? t('admin.comun.no-se-pudo-guardar'))
       await refrescarEstado() // refresca el sidebar con el nuevo nombre
-      toast.success('Nombre de la empresa actualizado')
+      toast.success(t('admin.cuenta.empresa.toast'))
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Error')
+      toast.error(e instanceof Error ? e.message : t('admin.cuenta.error'))
     }
     setBusy(false)
   }
@@ -103,22 +105,24 @@ function EmpresaCard({ nombreActual }: { nombreActual: string }) {
     // plegable: plegar a medio escribir no lo borra.
     <CardColapsable
       id="configuracion.empresa"
-      titulo="Empresa"
+      titulo={t('admin.cuenta.empresa.titulo')}
       icono={<Building2 className="h-4 w-4 text-muted" />}
       contentClassName="space-y-3"
     >
         <p className="text-[12px] text-muted">
-          Este nombre aparece en el menú de la izquierda. También se cambia en{' '}
-          <Link href="/administracion" className="font-medium text-accent no-underline hover:underline">
-            Administración → Configuración
-          </Link>
-          , junto con el logo y los datos fiscales.
+          {interpolarNodos(t('admin.cuenta.empresa.ayuda'), {
+            enlace: (
+              <Link href="/administracion" className="font-medium text-accent no-underline hover:underline">
+                {t('admin.cuenta.empresa.enlace')}
+              </Link>
+            ),
+          })}
         </p>
-        <Campo label="Nombre de la empresa" obligatorio falta={ob.falta('nombre')}>
+        <Campo label={t('admin.identidad.nombre')} obligatorio falta={ob.falta('nombre')}>
           <input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} />
         </Campo>
         <Button size="sm" disabled={busy || nombre.trim() === nombreActual} onClick={guardar}>
-          <Save className="h-3.5 w-3.5" /> {busy ? 'Guardando…' : 'Guardar'}
+          <Save className="h-3.5 w-3.5" /> {busy ? t('admin.comun.guardando') : t('comun.guardar')}
         </Button>
     </CardColapsable>
   )
@@ -134,6 +138,7 @@ function CuentaCard({ emailActual }: { emailActual: string }) {
   // todo, pero la sesión del cliente seguía diciendo «temporal» —se leyó al
   // montar— y la compuerta lo devolvía aquí una y otra vez.
   const { sesion, refrescar } = useSesionCtx()
+  const { t, idioma } = useIdioma()
   useEffect(() => { setEmail(emailActual) }, [emailActual])
 
   const cambiaEmail = !!email.trim() && email.trim().toLowerCase() !== emailActual.toLowerCase()
@@ -155,8 +160,8 @@ function CuentaCard({ emailActual }: { emailActual: string }) {
   ])
 
   async function guardar() {
-    if (cambiaEmail && !esEmailValido(email)) { toast.error(EMAIL_INVALIDO); return }
-    if (password && password.length < 8) { toast.error('La contraseña debe tener al menos 8 caracteres'); return }
+    if (cambiaEmail && !esEmailValido(email)) { toast.error(t('validacion.email')); return }
+    if (password && password.length < 8) { toast.error(t('admin.cuenta.corta')); return }
     // Cambiar correo o contraseña exige la contraseña actual (re-autenticación),
     // salvo la excepción del ADR 0018.
     if (!ob.validar()) return
@@ -175,16 +180,16 @@ function CuentaCard({ emailActual }: { emailActual: string }) {
         }),
       })
       const d = await r.json().catch(() => ({}))
-      if (!r.ok) throw new Error((d as { error?: string }).error ?? 'No se pudo guardar')
+      if (!r.ok) throw new Error((d as { error?: string }).error ?? t('admin.comun.no-se-pudo-guardar'))
       setPassword('')
       setPasswordActual('')
       ob.reiniciar()
       // Releer la sesión ANTES del aviso: si venía con temporal, esto es lo que
       // baja la bandera y le devuelve el acceso al resto del sistema.
       await refrescar()
-      toast.success('Cuenta actualizada')
+      toast.success(t('admin.cuenta.toast'))
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Error')
+      toast.error(e instanceof Error ? e.message : t('admin.cuenta.error'))
     }
     setBusy(false)
   }
@@ -195,7 +200,7 @@ function CuentaCard({ emailActual }: { emailActual: string }) {
     // cerrada justo la tarjeta que le devuelve el acceso.
     <CardColapsable
       id={sesion?.usuario.debeCambiarPassword ? undefined : 'configuracion.cuenta'}
-      titulo="Mi cuenta"
+      titulo={t('admin.cuenta.mi-cuenta')}
       icono={<UserCircle2 className="h-4 w-4 text-muted" />}
       contentClassName="space-y-3"
     >
@@ -204,39 +209,37 @@ function CuentaCard({ emailActual }: { emailActual: string }) {
         {sesion?.usuario && (
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px] text-muted">
             <span className="font-medium text-ink">{sesion.usuario.nombre}</span>
-            <Chip tono="acento">{rolLabel(sesion.usuario.rol)}</Chip>
+            <Chip tono="acento">{rolLabel(sesion.usuario.rol, idioma)}</Chip>
             {sesion.usuario.metodoSesion && (
-              <span>{sesion.usuario.metodoSesion === 'google' ? 'Entraste con Google' : 'Entraste con contraseña'}</span>
+              <span>{sesion.usuario.metodoSesion === 'google' ? t('admin.cuenta.con-google') : t('admin.cuenta.con-contrasena')}</span>
             )}
           </div>
         )}
-        <p className="text-[12px] text-muted">Cambia tu correo y/o contraseña. Solo afecta a tu cuenta.</p>
+        <p className="text-[12px] text-muted">{t('admin.cuenta.ayuda')}</p>
         <div className="grid gap-3 sm:grid-cols-2">
-          <Campo label="Correo">
-            <input type="email" className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tu@correo.com" />
+          <Campo label={t('admin.cuenta.correo')}>
+            <input type="email" className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t('admin.cuenta.correo-ejemplo')} />
           </Campo>
-          <Campo label="Nueva contraseña">
-            <input type="password" className={inputCls} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Déjala en blanco para no cambiarla (mín. 8)" autoComplete="new-password" />
+          <Campo label={t('admin.cuenta.nueva')}>
+            <input type="password" className={inputCls} value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t('admin.cuenta.nueva-ayuda')} autoComplete="new-password" />
           </Campo>
         </div>
         {hayCambio && sinAnterior && (
           <p className="text-[12px] text-muted">
-            Entraste con Google y aún no tienes contraseña propia, así que no hace
-            falta la anterior. Al guardarla podrás usarla también para confirmar
-            cambios sensibles.
+            {t('admin.cuenta.sin-anterior')}
           </p>
         )}
         {hayCambio && !sinAnterior && (
           <Campo
-            label={<>Contraseña actual <span className="text-muted">(para confirmar)</span></>}
+            label={<>{t('admin.cuenta.actual')} <span className="text-muted">{t('admin.cuenta.para-confirmar')}</span></>}
             obligatorio
             falta={ob.falta('passwordActual')}
           >
-            <input type="password" className={inputCls} value={passwordActual} onChange={(e) => setPasswordActual(e.target.value)} placeholder="Tu contraseña actual" autoComplete="current-password" />
+            <input type="password" className={inputCls} value={passwordActual} onChange={(e) => setPasswordActual(e.target.value)} placeholder={t('admin.cuenta.actual-ejemplo')} autoComplete="current-password" />
           </Campo>
         )}
         <Button size="sm" disabled={busy || !hayCambio} onClick={guardar}>
-          <Save className="h-3.5 w-3.5" /> {busy ? 'Guardando…' : 'Guardar cambios'}
+          <Save className="h-3.5 w-3.5" /> {busy ? t('admin.comun.guardando') : t('admin.cuenta.guardar-cambios')}
         </Button>
     </CardColapsable>
   )

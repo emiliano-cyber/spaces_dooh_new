@@ -6,6 +6,9 @@ import { ES_FINANZAS, EN_FINANZAS } from './textos/finanzas'
 import { ES_COMERCIAL, EN_COMERCIAL } from './textos/comercial'
 import { ES_CODIGOS, EN_CODIGOS } from './textos/codigos'
 import { ES_CATALOGOS, EN_CATALOGOS } from './textos/catalogos'
+import { ES_ADMIN, EN_ADMIN } from './textos/admin'
+import { ES_CUENTA, EN_CUENTA } from './textos/cuenta'
+import { ES_SHELL, EN_SHELL } from './textos/shell'
 
 // ============================================================================
 //  lib/i18n/diccionario.ts — LOS TEXTOS, Y LA CONVENCION DE CLAVES.
@@ -230,6 +233,9 @@ const ES = {
   ...ES_COMERCIAL,
   ...ES_CODIGOS,
   ...ES_CATALOGOS,
+  ...ES_ADMIN,
+  ...ES_CUENTA,
+  ...ES_SHELL,
 } as const
 
 export type ClaveTexto = keyof typeof ES
@@ -370,7 +376,9 @@ const EN: Record<ClaveTexto, string> = {
   'nav.comisiones': 'Commissions',
   'nav.integraciones': 'Integrations',
   'nav.razones-sociales': 'Legal entities',
-  'nav.actividad': 'Activity',
+  // «Activity log», como el titulo de la pagina (decision del orquestador,
+  // 2026-11-02, segunda vuelta del lote de administracion).
+  'nav.actividad': 'Activity log',
   'nav.administracion': 'Settings',
 
   ...EN_PROPUESTAS,
@@ -380,6 +388,9 @@ const EN: Record<ClaveTexto, string> = {
   ...EN_COMERCIAL,
   ...EN_CODIGOS,
   ...EN_CATALOGOS,
+  ...EN_ADMIN,
+  ...EN_CUENTA,
+  ...EN_SHELL,
 }
 
 export const DICCIONARIOS: Record<Idioma, Record<ClaveTexto, string>> = {

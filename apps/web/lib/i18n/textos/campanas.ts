@@ -757,7 +757,7 @@ export const EN_CAMPANAS: Record<ClaveCampanas, string> = {
   'campanas.facturacion.razon-social': 'Legal name',
   'campanas.facturacion.rfc': 'RFC (tax ID)',
   'campanas.facturacion.regimen': 'Tax regime',
-  'campanas.facturacion.cp': 'Tax ZIP code',
+  'campanas.facturacion.cp': 'Tax postal code',
   'campanas.facturacion.uso': 'CFDI use',
   'campanas.facturacion.iva': 'VAT',
   'campanas.facturacion.completa': 'Complete the RFC and legal name in {clientes} to be able to invoice this campaign.',

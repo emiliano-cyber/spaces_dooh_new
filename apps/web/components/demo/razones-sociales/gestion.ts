@@ -1,5 +1,7 @@
 import { LIMITE_RAZON_SOCIAL, claveRazonSocial } from '@/lib/cuestionario-entidades'
 import { esRfcValido } from '@/lib/rfc'
+import type { Idioma } from '@/lib/i18n/idiomas'
+import { traducir, type ClaveTexto } from '@/lib/i18n/diccionario'
 
 // ============================================================================
 //  La lógica de la pantalla de razones sociales, FUERA del `.tsx`.
@@ -64,14 +66,20 @@ export interface ContextoBorrador {
  * ya pasó en este repositorio con el RFC, cuando la pantalla llevaba una COPIA
  * de la expresión y el servidor la endureció (ver `GestionRazonesSociales.tsx`).
  */
+//
+// I18N (lote administracion, 2026-11-02) · `idioma` con `'es'` por omision: el
+// espanol (sin acentos, como se pinta hoy) vive en `admin.razones.falta.*`, y
+// las pruebas de este archivo siguen leyendo el de siempre.
 export function loQueFaltaEnElBorrador(
   borrador: BorradorEntidad,
   ctx: ContextoBorrador,
+  idioma: Idioma = 'es',
 ): string | null {
+  const t = (k: ClaveTexto, v?: Record<string, string | number>) => traducir(idioma, k, v)
   const nombre = String(borrador?.razonSocial ?? '').trim()
-  if (!nombre) return 'Captura la razon social: es el nombre con el que la empresa firma y factura.'
+  if (!nombre) return t('admin.razones.falta.nombre')
   if (nombre.length > LIMITE_RAZON_SOCIAL) {
-    return `La razon social no puede pasar de ${LIMITE_RAZON_SOCIAL} caracteres.`
+    return t('admin.razones.falta.largo', { n: LIMITE_RAZON_SOCIAL })
   }
 
   // El duplicado se busca por CLAVE, no por texto: «ACME, S.A. de C.V.» y
@@ -93,8 +101,8 @@ export function loQueFaltaEnElBorrador(
     // duplicado dejaría al owner con dos filas para una sola sociedad y sin
     // forma de saber cuál de las dos pagan sus contratos.
     return choque.activo === false
-      ? `Ya tienes «${choque.razonSocial}», que es la misma razon social y esta dada de baja. Reactivala en vez de crear otra.`
-      : `Ya tienes «${choque.razonSocial}», que es la misma razon social escrita de otra forma.`
+      ? t('admin.razones.falta.baja', { nombre: choque.razonSocial })
+      : t('admin.razones.falta.duplicada', { nombre: choque.razonSocial })
   }
 
   const rfc = String(borrador?.rfc ?? '').trim()
@@ -102,7 +110,7 @@ export function loQueFaltaEnElBorrador(
   // aquí obligaría a ir a buscar al contador antes de poder guardar nada. Lo
   // que no puede es estar mal escrito.
   if (rfc && !esRfcValido(rfc)) {
-    return `El RFC «${rfc}» no tiene una forma valida. Dejalo vacio si todavia no lo tienes.`
+    return t('admin.razones.falta.rfc', { rfc })
   }
 
   // El catálogo llega por parámetro y no como constante: `rol` es texto con una
@@ -116,7 +124,7 @@ export function loQueFaltaEnElBorrador(
     .map((r) => String(r).trim().toUpperCase())
     .find((r) => r && !validos.has(r))
   if (intruso) {
-    return `El papel «${intruso}» no existe. Los que hay son: ${[...validos].join(', ')}.`
+    return t('admin.razones.falta.papel', { papel: intruso, validos: [...validos].join(', ') })
   }
 
   // Sin ningún rol SÍ se guarda: cuál papel juega una sociedad se puede decidir

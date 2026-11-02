@@ -6,6 +6,9 @@ import { ES_FINANZAS, EN_FINANZAS } from './finanzas'
 import { ES_COMERCIAL, EN_COMERCIAL } from './comercial'
 import { ES_CODIGOS, EN_CODIGOS } from './codigos'
 import { ES_CATALOGOS, EN_CATALOGOS } from './catalogos'
+import { ES_ADMIN, EN_ADMIN } from './admin'
+import { ES_CUENTA, EN_CUENTA } from './cuenta'
+import { ES_SHELL, EN_SHELL } from './shell'
 import { DICCIONARIOS } from '../diccionario'
 
 // ============================================================================
@@ -27,14 +30,44 @@ const LOTES: [string, Record<string, string>, Record<string, string>][] = [
   ['comercial', ES_COMERCIAL, EN_COMERCIAL],
   ['codigos', ES_CODIGOS, EN_CODIGOS],
   ['catalogos', ES_CATALOGOS, EN_CATALOGOS],
+  ['admin', ES_ADMIN, EN_ADMIN],
+  ['cuenta', ES_CUENTA, EN_CUENTA],
+  ['shell', ES_SHELL, EN_SHELL],
+  // El diccionario BASE de `diccionario.ts` (login, menu `nav.*`, comunes):
+  // lo que no es de ningun lote. Sin el, el menu podia decir «Activity» y el
+  // titulo de la misma pagina «Activity log» sin que nadie lo viera
+  // (validacion del lote de administracion, 2026-11-02).
+  ['base', ...baseDelDiccionario()],
 ]
+
+function baseDelDiccionario(): [Record<string, string>, Record<string, string>] {
+  const deLotes = new Set(
+    [ES_PROPUESTAS, ES_COMPARTIDOS, ES_CAMPANAS, ES_FINANZAS, ES_COMERCIAL, ES_CODIGOS, ES_CATALOGOS, ES_ADMIN, ES_CUENTA, ES_SHELL].flatMap((o) => Object.keys(o)),
+  )
+  const es: Record<string, string> = {}
+  const en: Record<string, string> = {}
+  for (const [k, v] of Object.entries(DICCIONARIOS.es as Record<string, string>)) {
+    if (deLotes.has(k)) continue
+    es[k] = v
+    en[k] = (DICCIONARIOS.en as Record<string, string>)[k]
+  }
+  return [es, en]
+}
 
 // El mismo espanol que en ingles se dice distinto A PROPOSITO, porque en cada
 // pantalla significa otra cosa. Cada entrada dice por que; una divergencia que
 // no este aqui es un descuido de un lote y la prueba la enseña.
 const DISTINTOS_A_PROPOSITO: Record<string, string> = {
+  '{n} pantalla': 'en el loop de Administracion la frase cuenta solo las pantallas digitales y el adjetivo vive dentro de la clave en ingles («{n} digital screen»); en paquetes son pantallas a secas (aparecio al juntar admin con catalogos, 2026-11-02)',
+  '{n} pantallas': 'lo mismo que «{n} pantalla», en plural',
+  Actualizar: 'refrescar una lista («Refresh») frente a guardar un correo ya escrito («Update»), en Administracion',
+  Baja: 'el estatus de un sitio dado de baja («Decommissioned») frente a la prioridad de un ticket de soporte («Low»)',
+  Cargo: 'un cargo contable del estado de cuenta («Charge») frente al puesto de un usuario («Job title»)',
+  Configuración: 'la pestaña de configuracion del negocio en Administracion («Business settings») frente a la de la cuenta del usuario («Account settings»), decision del orquestador',
+  Imprenta: 'el modulo y la seccion de la ficha («Printing») frente al rol de una persona («Print shop»), decision del orquestador',
   Comercial: 'en la ficha de campaña es la seccion de importes («Pricing», decision del orquestador); el modulo es «Sales», como el menu',
   Desde: 'un periodo de fechas («From») frente a la competencia del espacio, que esta ahi «desde» («Since»)',
+  Entrar: 'iniciar sesion («Sign in», login) frente a cambiar a otra organizacion («Switch to», Administracion)',
   Folio: 'glosario: «Internal ref.» en propuestas y campañas, «Invoice no.» en una factura',
   Horario: 'el horario que se manda a DOOHmain («Schedule») frente al horario de operacion del sitio («Operating hours»)',
   Plazo: 'el plazo de cobranza («Payment terms») frente al plazo de una oferta de renta («Term»)',

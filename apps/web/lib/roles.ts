@@ -1,4 +1,6 @@
 import type { RolDemo } from './data/types'
+import type { Idioma } from './i18n/idiomas'
+import { traducir, type ClaveTexto } from './i18n/diccionario'
 
 // ============================================================================
 //  lib/roles.ts — El catálogo de roles, declarado UNA sola vez.
@@ -84,8 +86,17 @@ export const ROL_POR_OMISION: RolDemo = 'VENDEDOR'
  * caso de los retirados: una pantalla que pinte un usuario viejo no debe
  * romperse ni enseñar «undefined».
  */
-export function rolLabel(rol: RolDemo): string {
-  return ROLES_ASIGNABLES.find((r) => r.value === rol)?.label ?? rol
+//
+// I18N (lote administracion, 2026-11-02) · `idioma` con `'es'` por omision: el
+// servidor (la matriz de permisos) y cualquier llamador que no lo pase siguen
+// leyendo `ROLES_ASIGNABLES`, que es la verdad en espanol. En otro idioma se va
+// a `admin.rol.<valor>`; `textos/admin.test.ts` exige que el espanol de esas
+// claves sea IDENTICO al de esta lista.
+export function rolLabel(rol: RolDemo, idioma: Idioma = 'es'): string {
+  const fila = ROLES_ASIGNABLES.find((r) => r.value === rol)
+  if (!fila) return rol
+  if (idioma === 'es') return fila.label
+  return traducir(idioma, `admin.rol.${rol.toLowerCase()}` as ClaveTexto)
 }
 
 /**

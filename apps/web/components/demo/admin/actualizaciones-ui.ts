@@ -1,5 +1,7 @@
 import type { EstadoActualizacion } from '@/lib/data/actualizaciones-api'
-import { conteo } from '@/lib/plural'
+import { formatNumero } from '@/lib/formato-numero'
+import type { Idioma } from '@/lib/i18n/idiomas'
+import { traducir, type ClaveTexto } from '@/lib/i18n/diccionario'
 
 // ============================================================================
 //  actualizaciones-ui.ts — Las frases y el tono de la tarjeta de
@@ -38,54 +40,58 @@ const HORA_VENTANA_AUTOMATICA = '04:17'
 //     una CADUCA (digest que ya no es el disponible) — ese es el caso
 //     negativo que el ADR 0037 existe para impedir: pintarla como "ya
 //     aprobaste" dejaria esperando algo que nunca va a pasar.
-export function textoDeEstado(e: EstadoActualizacion): { tono: TonoEstado; texto: string } {
+// I18N (lote administracion, 2026-11-02) · cada funcion gana un ultimo
+// parametro `idioma` con `'es'` por omision; el espanol es el de siempre, ahora
+// en `textos/admin.ts` (`admin.act.*`), y las pruebas de este archivo no cambian.
+export function textoDeEstado(e: EstadoActualizacion, idioma: Idioma = 'es'): { tono: TonoEstado; texto: string } {
+  const t = (k: ClaveTexto, v?: Record<string, string | number>) => traducir(idioma, k, v)
   if (!e.comprobadoEn) {
     return {
       tono: 'info',
-      texto: 'Esta instancia todavía no se ha comprobado contra el registro: no se sabe si hay una versión nueva.',
+      texto: t('admin.act.estado.sin-comprobar'),
     }
   }
 
   if (!e.digestDisponible) {
     return {
       tono: 'alerta',
-      texto: 'Se comprobó contra el registro, pero el actualizador no pudo leer el digest de la imagen: no hay nada que aprobar y esta instancia no puede instalar una versión nueva hasta que se revise. Avisa a quien opera el servidor.',
+      texto: t('admin.act.estado.sin-digest'),
     }
   }
 
   if (!e.hayNovedad) {
     return {
       tono: 'ok',
-      texto: `Al día: corre ${e.versionInstalada ?? 'la versión instalada'}, la misma que hay disponible.`,
+      texto: t('admin.act.estado.al-dia', { version: e.versionInstalada ?? t('admin.act.estado.la-instalada') }),
     }
   }
 
-  const version = e.versionDisponible ?? 'una versión nueva'
+  const version = e.versionDisponible ?? t('admin.act.estado.una-nueva')
 
   if (e.modo === 'automatica') {
     return {
       tono: 'info',
-      texto: `Hay ${version} disponible. Se instalará sola en la próxima ventana automática, de madrugada (${HORA_VENTANA_AUTOMATICA}).`,
+      texto: t('admin.act.estado.automatica', { version, hora: HORA_VENTANA_AUTOMATICA }),
     }
   }
 
   if (e.aprobadoDigest && e.aprobadoDigest !== e.digestDisponible) {
     return {
       tono: 'alerta',
-      texto: `Lo que aprobaste ya no es lo disponible: salió una versión más nueva, ${version}. Aprueba de nuevo para instalarla.`,
+      texto: t('admin.act.estado.otra-aprobada', { version }),
     }
   }
 
   if (e.aprobadoDigest && e.aprobadoDigest === e.digestDisponible) {
     return {
       tono: 'info',
-      texto: `Aprobaste ${version}: se instalará en los próximos minutos, o de madrugada (${HORA_VENTANA_AUTOMATICA}) a más tardar.`,
+      texto: t('admin.act.estado.aprobada', { version, hora: HORA_VENTANA_AUTOMATICA }),
     }
   }
 
   return {
     tono: 'alerta',
-    texto: `Hay una versión nueva disponible: ${version}. Esperando tu aprobación para instalarla.`,
+    texto: t('admin.act.estado.esperando', { version }),
   }
 }
 
@@ -99,17 +105,18 @@ export function textoDeEstado(e: EstadoActualizacion): { tono: TonoEstado; texto
 // pendientes" cuando lo cierto era que nadie las pudo contar (la sonda no
 // llego a escribir `migraciones_pendientes`). Decir que no hay ninguna es
 // exactamente lo que hace que alguien pulse sin pensarlo.
-export function textoConfirmarInstalar(e: EstadoActualizacion): string {
-  const version = e.versionDisponible ?? 'la versión disponible'
+export function textoConfirmarInstalar(e: EstadoActualizacion, idioma: Idioma = 'es'): string {
+  const t = (k: ClaveTexto, v?: Record<string, string | number>) => traducir(idioma, k, v)
+  const version = e.versionDisponible ?? t('admin.act.la-disponible')
   const n = e.migracionesPendientes
   const migraciones =
     n == null
-      ? 'No se pudo contar cuántas migraciones trae'
+      ? t('admin.act.mig.sin-contar')
       : n === 0
-        ? 'No trae migraciones pendientes'
-        : `Trae ${conteo(n, 'migración', 'migraciones')} pendiente${n === 1 ? '' : 's'}`
-  const sinNotas = e.notasDisponibles ? '' : ' No llegaron sus notas: no sabes qué trae.'
-  return `Vas a instalar ${version}. ${migraciones}.${sinNotas} El servicio se corta mientras dura la instalación.`
+        ? t('admin.act.mig.ninguna')
+        : t(Math.abs(n) === 1 ? 'admin.act.mig.uno' : 'admin.act.mig.otros', { n: formatNumero(n) })
+  const sinNotas = e.notasDisponibles ? '' : t('admin.act.confirmar-sin-notas')
+  return t('admin.act.confirmar', { version, migraciones, sinNotas })
 }
 
 // El aviso cuando la versión disponible llega SIN notas (08/10). No es «una
@@ -120,15 +127,15 @@ export function textoConfirmarInstalar(e: EstadoActualizacion): string {
 // 23/09 y la tarjeta dijo «Esta versión no trae notas» desde el 05/10 sin que
 // nadie lo viera. No bloquea el botón a propósito: un arreglo urgente tiene
 // que poder instalarse aunque las notas fallen. Lo decide quien lo lee.
-export function avisoSinNotas(e: EstadoActualizacion): string | null {
+export function avisoSinNotas(e: EstadoActualizacion, idioma: Idioma = 'es'): string | null {
   if (!e.hayNovedad || e.notasDisponibles) return null
-  const version = e.versionDisponible ?? 'la versión disponible'
-  return `No llegaron las notas de ${version}, así que aquí no puedes ver qué trae. Avisa a soporte antes de aprobarla: casi siempre es el actualizador del servidor, no la versión.`
+  const version = e.versionDisponible ?? traducir(idioma, 'admin.act.la-disponible')
+  return traducir(idioma, 'admin.act.aviso-sin-notas', { version })
 }
 
 // El titulo de las notas que acompanan al boton de instalar (pedido del
 // dueno, 2026-10-01): el Dueno y el Administrador ven QUE trae la version
 // ANTES de aprobarla. Sin nombre de version no se inventa uno.
-export function tituloNotasDisponibles(e: EstadoActualizacion): string {
-  return `Qué trae ${e.versionDisponible ?? 'la versión disponible'}`
+export function tituloNotasDisponibles(e: EstadoActualizacion, idioma: Idioma = 'es'): string {
+  return traducir(idioma, 'admin.act.que-trae', { version: e.versionDisponible ?? traducir(idioma, 'admin.act.la-disponible') })
 }

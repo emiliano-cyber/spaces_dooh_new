@@ -7,6 +7,8 @@ import { Button } from '@/components/demo/ui/Button'
 import { Card, CardContent } from '@/components/demo/ui/Card'
 import { CuestionarioRazonesSociales } from '@/components/demo/bienvenida/CuestionarioRazonesSociales'
 import type { RolCatalogo, EntidadConRoles } from '@/lib/cuestionario-entidades'
+import { useTexto } from '@/lib/i18n/contexto'
+import { interpolarNodos } from '@/lib/i18n/nodos'
 
 const API = '/spaces-dooh/api'
 
@@ -41,6 +43,7 @@ export default function Bienvenida() {
   const router = useRouter()
   const [estado, setEstado] = useState<Estado | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const t = useTexto()
 
   useEffect(() => {
     let vivo = true
@@ -57,12 +60,12 @@ export default function Bienvenida() {
         const d = await r.json().catch(() => ({}))
         if (!vivo) return
         if (!r.ok) {
-          setError(d?.error ?? 'No se pudo cargar el cuestionario')
+          setError(d?.error ?? t('cuenta.bienvenida.error.cargar'))
           return
         }
         setEstado(d as Estado)
       } catch {
-        if (vivo) setError('No se pudo cargar el cuestionario')
+        if (vivo) setError(t('cuenta.bienvenida.error.cargar'))
       }
     })()
     return () => {
@@ -75,10 +78,9 @@ export default function Bienvenida() {
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-10">
       <header className="mb-8">
-        <h1 className="font-display text-2xl text-ink">Antes de empezar</h1>
+        <h1 className="font-display text-2xl text-ink">{t('cuenta.bienvenida.titulo')}</h1>
         <p className="mt-2 text-sm leading-relaxed text-muted">
-          Tres preguntas sobre las razones sociales de tu empresa. Con ellas el sistema sabe a
-          nombre de quién se paga una renta y quién emite un comprobante.
+          {t('cuenta.bienvenida.intro')}
         </p>
       </header>
 
@@ -89,24 +91,22 @@ export default function Bienvenida() {
               {error}
             </p>
             <Button variant="secondary" onClick={alInicio}>
-              Ir al inicio
+              {t('cuenta.comun.ir-inicio')}
             </Button>
           </CardContent>
         </Card>
       )}
 
-      {!error && !estado && <p className="text-sm text-muted">Cargando…</p>}
+      {!error && !estado && <p className="text-sm text-muted">{t('comun.cargando')}</p>}
 
       {/* Ya contestado: no se vuelve a ofrecer, y se dice dónde se cambia. */}
       {estado && !estado.pendiente && (
         <Card>
           <CardContent className="space-y-4 pt-4">
             <p className="text-sm text-ink">
-              Tu empresa ya tiene{' '}
               {estado.totalEntidades === 1
-                ? 'una razón social registrada'
-                : `${estado.totalEntidades} razones sociales registradas`}
-              , así que este cuestionario ya se contestó.
+                ? t('cuenta.bienvenida.ya.uno')
+                : t('cuenta.bienvenida.ya.otros', { n: estado.totalEntidades })}
             </p>
             {estado.entidades.length > 0 && (
               <ul className="space-y-1 rounded border border-border bg-surface-2 p-3 text-[13px]">
@@ -115,8 +115,8 @@ export default function Bienvenida() {
                     <span className="font-medium text-ink">{e.razonSocial}</span>
                     <span className="text-muted">
                       {' '}
-                      — {e.roles.length ? e.roles.join(', ') : 'sin roles'}
-                      {e.activo === false ? ' (dada de baja)' : ''}
+                      — {e.roles.length ? e.roles.join(', ') : t('cuenta.bienvenida.sin-roles')}
+                      {e.activo === false ? t('cuenta.bienvenida.de-baja') : ''}
                     </span>
                   </li>
                 ))}
@@ -127,17 +127,19 @@ export default function Bienvenida() {
                 dueño pidió la pantalla el 2026-09-18. Ahora manda donde de
                 verdad están, y con un enlace en vez de una indicación. */}
             <p className="text-[13px] text-muted">
-              Para cambiarlas, añadir otra o dar una de baja, ve a{' '}
-              <Link href="/razones-sociales" className="underline hover:text-ink">
-                Razones sociales
-              </Link>
-              .
+              {interpolarNodos(t('cuenta.bienvenida.cambiar'), {
+                enlace: (
+                  <Link href="/razones-sociales" className="underline hover:text-ink">
+                    {t('nav.razones-sociales')}
+                  </Link>
+                ),
+              })}
             </p>
             <Button variant="secondary" onClick={() => router.push('/razones-sociales')}>
-              Ir a Razones sociales
+              {t('cuenta.bienvenida.ir-razones')}
             </Button>
             <Button variant="secondary" onClick={alInicio}>
-              Ir al inicio
+              {t('cuenta.comun.ir-inicio')}
             </Button>
           </CardContent>
         </Card>

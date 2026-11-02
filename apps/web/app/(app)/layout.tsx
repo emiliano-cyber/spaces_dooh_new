@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import { Toaster } from 'sonner'
 import { IndicadorCarga } from '@/components/demo/ui/IndicadorCarga'
 import { nombreDeMarca } from '@/lib/entorno'
+import { traducir } from '@/lib/i18n/diccionario'
+import { idiomaDeLaPeticion } from '@/lib/i18n/servidor'
 import './demo.css'
 
 // Layout raíz de la demo. Aquí viven: los tokens SET (vía .demo-root), la fuente
@@ -57,7 +59,8 @@ export function generateMetadata(): Metadata {
     // que sí puede saber es de qué instancia es (M5 no lo contemplaba porque
     // entonces había una sola instancia para todos).
     title: marca,
-    description: 'Gestión de espacios publicitarios DOOH',
+    // En el idioma de la peticion, como el layout raiz.
+    description: traducir(idiomaDeLaPeticion(), 'shell.meta.descripcion'),
   }
 }
 

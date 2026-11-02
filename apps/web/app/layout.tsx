@@ -7,10 +7,17 @@ import { inglesActivo } from '@/lib/i18n/idiomas'
 import { ProveedorIdioma } from '@/lib/i18n/contexto'
 import { ProveedorMoneda } from '@/lib/i18n/moneda-cliente'
 import { monedaDeLaInstancia } from '@/lib/server/moneda-instancia'
+import { traducir } from '@/lib/i18n/diccionario'
 
-export const metadata: Metadata = {
-  title: 'Spaces DOOH',
-  description: 'Gestión de espacios publicitarios DOOH',
+// `generateMetadata` y no un `metadata` fijo: la descripcion sale en el idioma
+// de la peticion (lote de administracion, cuenta y shell, 2026-11-02). Este
+// layout ya lee la cookie para el <html lang>, asi que no se vuelve dinamico
+// nada que no lo fuera. El titulo es la marca y no se traduce.
+export function generateMetadata(): Metadata {
+  return {
+    title: 'Spaces DOOH',
+    description: traducir(idiomaDeLaPeticion(), 'shell.meta.descripcion'),
+  }
 }
 
 // ── El sistema Institucional: Source Serif 4 + Inter ────────────────────────

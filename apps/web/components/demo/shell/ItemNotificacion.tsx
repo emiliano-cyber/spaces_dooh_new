@@ -1,6 +1,7 @@
 'use client'
 
 import { X } from 'lucide-react'
+import { useTexto } from '@/lib/i18n/contexto'
 
 // ============================================================================
 //  Un aviso de la campanita, con su botón para borrarlo SOLO (NOTIF-USUARIO).
@@ -31,6 +32,7 @@ export function ItemNotificacion({
   onAbrir: (id: string, link: string | null) => void
   onBorrar: (id: string) => void
 }) {
+  const t = useTexto()
   return (
     <div className={`group flex items-start gap-1 rounded hover:bg-surface-2 ${n.leida ? 'opacity-60' : ''}`}>
       <button
@@ -60,8 +62,8 @@ export function ItemNotificacion({
       <button
         type="button"
         onClick={() => onBorrar(n.id)}
-        aria-label={`Borrar la notificación ${n.titulo}`}
-        title="Borrar esta notificación"
+        aria-label={t('shell.notificacion.borrar-aria', { titulo: n.titulo })}
+        title={t('shell.notificacion.borrar-title')}
         className="mt-1.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted transition-colors hover:bg-surface hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
       >
         <X className="h-3.5 w-3.5" />
