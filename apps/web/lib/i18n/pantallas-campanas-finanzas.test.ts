@@ -188,8 +188,9 @@ vi.mock('@/lib/data/client', async (importOriginal) => {
     useCampanas: () => datos.campanas,
     useCampanasResumen: () => datos.resumen,
     useClientes: () => [CLIENTE],
+    // `spotsPorDia: 12` (costura): para que la ficha pinte `etiquetaFrecuencia`.
     useReservas: () => [
-      { id: 'r1', campanaId: 'c1', sitioId: 's1', unidad: 'mensual', cantidad: 1, precio: 1000, spotsPorDia: null, estatus: 'CONFIRMADA' },
+      { id: 'r1', campanaId: 'c1', sitioId: 's1', unidad: 'mensual', cantidad: 1, precio: 1000, spotsPorDia: 12, estatus: 'CONFIRMADA' },
     ],
     useSitios: () => [{ id: 's1', nombre: 'Pantalla Reforma', alcaldia: 'Cuauhtémoc', computerVision: true, admobilizeId: 'AM-1' }],
     useCreatividades: () => datos.creas,
@@ -402,10 +403,13 @@ const PANTALLAS: Pantalla[] = [
       'Fecha compromiso', 'Evidencias fotográficas', 'Aún sin fotografías', 'Las evidencias se suben al cerrar la OT móvil.',
       'Reproducciones (proof of play)', 'Margen', 'Entregado', 'Candado', '6 abiertas de 6', 'Evidencias',
       'Campañas (10)', 'Ocultar el menú de campañas', 'Ocultar', 'Otras campañas', 'Minimizar',
+      'Cuauhtémoc · 1 mes · ', '12 pases al día',
     ],
     ingles: [
       'Client portal', 'Billing lock', 'Publication review', 'Profitability', 'Delivery report', 'Purchase order',
       'Campaign sites', 'Work orders', 'Photo evidence', 'Plays (proof of play)', 'Campaigns (10)', 'Jan 1, 2026–Jun 30, 2026',
+      // Costura: `resumenReserva` y `etiquetaFrecuencia` (lib/periodos.ts) con el idioma.
+      'Cuauhtémoc · 1 month · ', '12 plays per day',
     ],
   },
   {

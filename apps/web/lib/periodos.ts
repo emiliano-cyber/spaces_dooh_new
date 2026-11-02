@@ -156,9 +156,12 @@ export function resumenContratacion(
  *
  * Sustituye al `{precio}/mes` que la ficha de campaña pintaba para TODA reserva,
  * incluidas las vendidas por spot: un sufijo fijo sobre un campo variable.
+ *
+ * `idioma` (costura, 2026-11-02) solo cambia la unidad; el importe sigue por
+ * `formatMonto`, como en `resumenContratacion`.
  */
-export function resumenReserva(r: { unidad: string; cantidad: number; precio: number }): string {
-  return `${etiquetaCantidad(r.unidad, r.cantidad)} · ${formatMonto(Number(r.precio) || 0)}`
+export function resumenReserva(r: { unidad: string; cantidad: number; precio: number }, idioma: Idioma = 'es'): string {
+  return `${etiquetaCantidad(r.unidad, r.cantidad, idioma)} · ${formatMonto(Number(r.precio) || 0)}`
 }
 
 /**

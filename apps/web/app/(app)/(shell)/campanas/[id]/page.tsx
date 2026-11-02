@@ -403,14 +403,14 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
                         unidad: reserva.unidad,
                         cantidad: reserva.cantidad,
                         precio: reserva.precio,
-                      })}
+                      }, idioma)}
                     </div>
                     {/* La programación, con OTRO vocabulario: «pases al día», no
                         «spots». `cantidad` y `spotsPorDia` son dos números
                         distintos y fundirlos fue DATA-02. */}
-                    {etiquetaFrecuencia(reserva.spotsPorDia) && (
+                    {etiquetaFrecuencia(reserva.spotsPorDia, idioma) && (
                       <div className="text-[11px] text-muted">
-                        {etiquetaFrecuencia(reserva.spotsPorDia)}
+                        {etiquetaFrecuencia(reserva.spotsPorDia, idioma)}
                       </div>
                     )}
                   </div>
