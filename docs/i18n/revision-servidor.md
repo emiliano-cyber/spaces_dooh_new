@@ -117,6 +117,22 @@ cambian; al de la calculadora solo se le añadió el hueco `$5` («ninguna» →
 | periodo pagado | `{ yaPagado: 'sin fecha' }` (`arrendadores-repo.ts`) | sin fecha → no date |
 | cantidad enviada | `e.cantidadEnviada ?? 'ninguna'` (`calculadora-spots.ts`) | ninguna → none |
 
+## Calculadora: el inglés del servidor, unificado con el de la pantalla
+
+| clave de la pantalla | inglés que decía el servidor | inglés que dice ahora (el de la pantalla) |
+|---|---|---|
+| `compartidos.calc.motivo.sin-loop` | The screen does not record how many slots its loop has; enter it on its record before using the calculator. | This screen’s number of loop slots hasn’t been entered; add it on the screen’s profile before using the calculator. |
+| `compartidos.calc.motivo.roadblock-todos` | A Roadblock buys all $1 slots of the loop, not $2. | A Roadblock buys every loop slot ($1), not $2. |
+| `compartidos.calc.motivo.rango-prima` | The Roadblock premium goes from 0 to 100 %. | The Roadblock premium goes from 0 to 100%. |
+| `compartidos.calc.motivo.horas` | Hours per day go from more than 0 to $1: more hours than the screen broadcasts would be spots that never air. | Hours per day must be greater than 0 and at most $1: hours beyond what the screen broadcasts would be spots that never play. |
+| `compartidos.calc.motivo.cero-spots` | With those slots and hours not even one spot a day comes out. | With these slots and hours, not a single spot would play per day. |
+| `compartidos.calc.motivo.roadblock-libres` | A Roadblock needs all $1 loop slots free, and the screen has $2. | A Roadblock needs every loop slot free ($1); the screen has $2 free. |
+| `compartidos.calc.motivo.pocos-libres.uno` / `.otros` | You ask for $1 loop slots and the screen only has $2 free. | You’re asking for $1 loop {1\|slot\|slots} and the screen only has $2 free. |
+| `propuestas.calc.prima.no-puede` | Only a manager or above can put a premium on a Roadblock. | Only a manager or above can add a premium to a Roadblock. |
+
+Al juntar con `feat/pesos-neutral`, se quita la excepción de
+`compartidos.calc.motivo.*` y `propuestas.calc.*` de su prueba de `costura.test.ts`.
+
 ## Lo que NO se tradujo, y por qué
 
 | texto | por qué |

@@ -275,3 +275,39 @@ describe('aprobar con el cupon pendiente: el cliente reconoce la bandera de la r
     expect(otro.message).toBe('Otra cosa')
   })
 })
+
+// ─── Pantalla y servidor: el MISMO español lleva el MISMO inglés ────────────
+//
+// Encontrado desde la tarea de «pesos» (rama `feat/pesos-neutral`): los
+// motivos de la calculadora salían con un inglés en la pantalla
+// (`compartidos.calc.motivo.*`, validado por los lotes de compartidos y
+// propuestas) y con OTRO en el servidor (el catálogo y los patrones de
+// I18N-05 / ADR 0042). Manda el de la pantalla. Se rellenan los huecos con
+// valores de ejemplo y se compara con lo que da `traducirError`.
+describe('pantalla y servidor dicen el mismo ingles para el mismo español', () => {
+  it('cada clave del diccionario cuyo español lanza el servidor', async () => {
+    const { DICCIONARIOS } = await import('../diccionario')
+    const es = DICCIONARIOS.es as Record<string, string>
+    const en = DICCIONARIOS.en as Record<string, string>
+    const valores = { total: 8, espacios: 3, libres: 2, max: '18', n: 4 }
+    const rellenar = (s: string) => s.replace(/\{(\w+)\}/g, (_, k: string) => String((valores as Record<string, unknown>)[k] ?? `{${k}}`))
+    const distintos: string[] = []
+    for (const k of Object.keys(es)) {
+      const frase = rellenar(es[k])
+      if (/\{\w+\}/.test(frase)) continue
+      const delServidor = traducirError(frase, 'en')
+      if (delServidor === frase) continue // el servidor no la conoce: no hay dos ingleses
+      // `.uno` y `.otros` llevan el mismo español en algunos motivos; con
+      // varios, el bueno es el plural.
+      if (k.endsWith('.uno') && es[k.replace(/\.uno$/, '.otros')] === es[k]) continue
+      if (delServidor !== rellenar(en[k])) distintos.push(`${k}: «${rellenar(en[k])}» ≠ «${delServidor}»`)
+    }
+    expect(distintos).toEqual([])
+  })
+
+  it('y el plural de «pocos libres» lo elige el patron, como la pantalla', async () => {
+    const { traducir } = await import('../diccionario')
+    const uno = traducir('es', 'compartidos.calc.motivo.pocos-libres.uno', { espacios: 1, libres: 0 })
+    expect(traducirError(uno, 'en')).toBe(traducir('en', 'compartidos.calc.motivo.pocos-libres.uno', { espacios: 1, libres: 0 }))
+  })
+})

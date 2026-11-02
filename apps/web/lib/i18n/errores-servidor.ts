@@ -340,17 +340,17 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   'La calculadora de spots necesita la tarifa por spot de la línea.':
     "The spot calculator needs the line's per-spot rate.",
   'Solo un gerente o superior puede poner prima a un Roadblock.':
-    'Only a manager or above can put a premium on a Roadblock.',
+    'Only a manager or above can add a premium to a Roadblock.',
   'La calculadora de spots solo aplica a pantallas digitales vendidas por spot.':
     'The spot calculator only applies to digital screens sold per spot.',
   'La pantalla no tiene capturado cuántos espacios tiene su loop; captúralo en su ficha antes de usar la calculadora.':
-    'The screen does not record how many slots its loop has; enter it on its record before using the calculator.',
+    'This screen’s number of loop slots hasn’t been entered; add it on the screen’s profile before using the calculator.',
   'La prima de Roadblock va de 0 a 100 %.':
-    'The Roadblock premium goes from 0 to 100 %.',
+    'The Roadblock premium goes from 0 to 100%.',
   'La prima de Roadblock solo aplica a una línea marcada como Roadblock.':
     'The Roadblock premium only applies to a line marked as Roadblock.',
   'Con esos espacios y esas horas no sale ni un spot al día.':
-    'With those slots and hours not even one spot a day comes out.',
+    'With these slots and hours, not a single spot would play per day.',
   'La línea no tiene días: revisa las fechas.':
     'The line has no days: check the dates.',
   // 1 sitio · lib/server/impresion-controller.ts:14
@@ -818,11 +818,11 @@ export const PATRONES_ERROR: ReadonlyArray<PatronError> = [
   // ADR 0042 · los de `resolverCalculadora` (`lib/calculadora-spots.ts`): el
   // número sale de la pantalla y de la línea, no del esquema, pero el problema
   // es el mismo — no cabe en un catálogo de frases.
-  { re: /^Un Roadblock compra los (\d+) espacios del loop, no (\d+)\.$/, en: 'A Roadblock buys all $1 slots of the loop, not $2.' },
+  { re: /^Un Roadblock compra los (\d+) espacios del loop, no (\d+)\.$/, en: 'A Roadblock buys every loop slot ($1), not $2.' },
   { re: /^Los espacios del loop van de 1 a (\d+)\.$/, en: 'Loop slots go from 1 to $1.' },
   {
     re: /^Las horas al día van de más de 0 a ([\d.,]+): más horas de las que transmite la pantalla serían spots que no salen\.$/,
-    en: 'Hours per day go from more than 0 to $1: more hours than the screen broadcasts would be spots that never air.',
+    en: 'Hours per day must be greater than 0 and at most $1: hours beyond what the screen broadcasts would be spots that never play.',
   },
   {
     re: /^La cantidad de spots no cuadra con la calculadora: con (\d+) espacios, ([\d.,]+) h al día y (\d+) días son (\d+) spots, no (.+)\.$/,
@@ -832,9 +832,9 @@ export const PATRONES_ERROR: ReadonlyArray<PatronError> = [
   },
   {
     re: /^Un Roadblock necesita los (\d+) espacios del loop libres, y la pantalla tiene (\d+)\.$/,
-    en: 'A Roadblock needs all $1 loop slots free, and the screen has $2.',
+    en: 'A Roadblock needs every loop slot free ($1); the screen has $2 free.',
   },
-  { re: /^Pides (\d+) espacios del loop y la pantalla solo tiene (\d+) libres\.$/, en: 'You ask for $1 loop slots and the screen only has $2 free.' },
+  { re: /^Pides (\d+) espacios del loop y la pantalla solo tiene (\d+) libres\.$/, en: 'You’re asking for $1 loop {1|slot|slots} and the screen only has $2 free.' },
   // 2026-10-05 · regla 2 del ADR 0039, las dos direcciones: el canje sobre un
   // paquete de precio final (`canjearCodigo`) y el paquete sobre un cupón ya
   // canjeado (`aplicarPaquete`). Llevan el nombre del paquete y del cupón, y

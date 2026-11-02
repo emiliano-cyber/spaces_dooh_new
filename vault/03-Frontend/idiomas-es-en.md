@@ -1119,6 +1119,16 @@ necesita fecha de inicio y de fin», y `Periodo` en `CAMPO_EN`.
 > `textoAccionProgramacion` se GUARDAN en `acciones`: son la bitácora. Siguen
 > en español (§8, «lo que es REGISTRO se queda en español»).
 
+**Pantalla y servidor, el mismo inglés** (lo encontró la tarea de «pesos»,
+`feat/pesos-neutral`): ocho motivos de la calculadora (`compartidos.calc.motivo.*`
+y `propuestas.calc.prima.no-puede`) decían el mismo español con un inglés en la
+pantalla y otro en el catálogo y los patrones del servidor. Manda el de la
+pantalla, que validaron compartidos y propuestas; «pocos libres» elige además el
+plural con `{1|slot|slots}`. Prueba en `textos/servidor.test.ts` («pantalla y
+servidor dicen el mismo inglés»), que recorre el diccionario ENTERO. **Al juntar
+con `feat/pesos-neutral`, se quita la excepción de `compartidos.calc.motivo.*` y
+`propuestas.calc.*` de su prueba de `costura.test.ts`.**
+
 **Términos nuevos:** responsable legal → *legal representative* (como
 `comercial.negociacion.responsable.5`); búsqueda del responsable → *finding
 the decision-maker*; predio → *property*; recibo de CFE → *CFE bill*; tanda →
