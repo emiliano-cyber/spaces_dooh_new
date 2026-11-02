@@ -579,6 +579,59 @@ la MISMA clave que la ayuda de «Nueva propuesta» que lo nombra
 (`propuestas.alta.mapa.dibujar`): si se tradujeran por separado, la ayuda
 mandaría a pulsar un rótulo que no está en pantalla. Español idéntico.
 
+### Lote comercial
+
+**2026-11-02, rama `feat/ingles-comercial`** (sale de `integra/ingles`). El inglés
+sigue APAGADO; en español no cambia ni una letra.
+
+**Pantallas cubiertas:** `/comercial` (lista, KPI, filtros, «En propuesta»,
+mapa y su leyenda) con la ficha del sitio (`SiteFicha`: características,
+datos comerciales, arrendador y renta, ubicación, y los cuadros de editar,
+tarifas por unidad, pausa legal, reubicar y eliminar), el alta de pantalla, la
+reserva y la visión de Space Eye; Comercial negociación (`ComercialOpex`) entera,
+y los Códigos de negociación (`/codigos-promocionales` y `GestionCodigos`).
+
+- **557 claves** en dos archivos: `lib/i18n/textos/comercial.ts` (499,
+  `comercial.*`) y `textos/codigos.ts` (58, `codigos.*`), esparcidos en
+  `diccionario.ts`. Cada uno con su instantánea (`comercial.test.ts`,
+  `codigos.test.ts`), que además exige que ningún inglés sea igual al español
+  (salvo 10 declaradas), que no lleve acentos, que los huecos coincidan y que no
+  haya espacio antes de «%».
+- **Espejos de etiquetas compartidas.** `SITIO_LABEL`, `CONTRATO_LABEL`,
+  `PAGO_LABEL`, `TIPO_MEDIO_LABEL`, `ETIQUETA_ETAPA` y las etiquetas de
+  `lib/negociacion.ts` NO se tocaron. Las pantallas del lote pintan una clave por
+  valor (`components/demo/comercial/claves.ts` y los `CLAVE_*` de
+  `ComercialOpex.tsx`), y `pantallas-comercial.test.ts` exige que su español
+  reproduzca EXACTAMENTE la etiqueta original. Si el lote de esos módulos crea
+  sus propias claves, estas se pueden sustituir sin tocar el español.
+- **Lo que se guarda no se traduce.** Las vistas cardinales (`Norte`…) siguen
+  guardándose en español: solo se traduce lo que se pinta. El nombre por
+  omisión de una reserva sin nombre sí sale en el idioma de quien la crea
+  («X — campaign»).
+
+**Cómo se demostró el español idéntico:** `pantallas-comercial.test.ts` rinde
+**23 estados** (con `useState` forzado, como el piloto, y el reloj fijo con
+`vi.setSystemTime` para que «hace 2 h» y la hora de la foto no cambien entre
+corridas). Con `VOLCAR_HTML=<carpeta>` escribe el HTML español de cada estado: se
+volcó antes de tocar los componentes y después, y `diff -rq` salió vacío (23/23).
+
+**Glosario añadido** (además del de arriba): reserva → **booking** (reservar →
+*book*, tentativa → *tentative*) · ficha → **profile** · Comercial (el módulo) →
+*Sales*, como el menú · prospección → *prospecting* · predio → *property* ·
+Valla → *Hoarding* (para revisar) · Espectacular → *Billboard* · fija →
+*static* · catorcenal → *per 14-day period* · cupo de clientes → *client cap* ·
+tope de usos → *usage cap* · vigente/próximo/vencido/agotado (códigos) →
+*active / upcoming / expired / used up*.
+
+**Sigue en español dentro de estas pantallas** (de otros lotes): `UNIDAD_LABEL`
+(`lib/periodos.ts`, el nombre de la unidad en las tarifas), `periodicidadLabel`,
+`textoOrigenDoohmain`, los motivos de `lib/negociacion.ts` (el aviso de «está en
+revisión / perdido» y los `title` de los pasos), el motivo de
+`interpretarUbicacion`, `SlotsBadge`, `ClientesBadge`, `CalendarioDisponibilidad`,
+`FotoUploaderMock`, `RejillaDialog`, el candado y el « (obligatorio)» de `Campo`;
+la unidad de la tarifa publicada (`sitio.unidad`, un dato: «mensual»), y los
+mensajes del servidor (I18N-05). El dinero sigue por `formatMonto` (otra tarea).
+
 ## Enlaces
 
 - [[acceso-y-sesion-ui]] — la pantalla de entrar, que es la traducida
