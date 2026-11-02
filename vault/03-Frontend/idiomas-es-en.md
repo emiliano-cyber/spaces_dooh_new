@@ -22,6 +22,11 @@ archivos:
   - apps/web/lib/i18n/pantallas-propuestas.test.ts
   - apps/web/components/demo/propuestas/estatus.ts
   - docs/i18n/revision-propuestas.md
+  - docs/i18n/validacion-propuestas.md
+  - apps/web/lib/i18n/textos/propuestas.test.ts
+  - apps/web/lib/data/derive.ts
+  - apps/web/lib/data/derive.fecha-idioma.test.ts
+  - apps/web/components/demo/MapView.tsx
 ---
 
 # La aplicación en dos idiomas (I18N-01)
@@ -467,16 +472,38 @@ La prueba que queda en el repositorio comprueba (a) frases españolas presentes
 en `es`, (b) ninguna de ellas en `en`, y además barre el diccionario entero del
 lote contra el HTML inglés de todas las pantallas.
 
-### El dinero y las fechas NO se movieron, a propósito
+> [!important] 2026-11-02, segunda vuelta · el diccionario entero, CONGELADO
+> El validador (`docs/i18n/validacion-propuestas.md` §5) midió que **121 de 437
+> claves no salen en ninguno de los 20 estados** (avisos emergentes,
+> `window.confirm`, el Roadblock, los singulares) y que 3 de 8 mutantes
+> sobrevivían. Desde la segunda vuelta, `lib/i18n/textos/propuestas.test.ts`
+> guarda una **instantánea de las 440 entradas en los dos idiomas** y exige que
+> ninguna inglesa sea igual a la española (salvo 6 declaradas) ni lleve acentos.
+> Los tres mutantes que sobrevivían (es de `tablero.sin-costo.uno`, es de
+> `calc.rb.prima`, en de `calc.rb.prima` en español) **mueren** con ella. Cambiar
+> un texto a propósito obliga a regenerarla (`npx vitest run -u`) y el diff de
+> `__snapshots__/` enseña qué cambió. Tras la segunda vuelta se volvió a volcar el
+> HTML español de los 20 estados: **idéntico** al de `main`.
 
-Los importes siguen pasando por `formatMonto` y las fechas por `formatFecha`
-(`lib/data/derive.ts`), en los dos idiomas. Cambiarlos a `formatearDinero` /
-`formatearFecha` (`dinero.ts`) habría cambiado el español: `formatMonto` escribe
-`$ 1,234.50` (con espacio) y `formatearDinero(…, 'es')` escribe `$1,234.50`; la
-fecha pasaría de `01/12/2026` a `01 dic 2026`. Así que **en inglés los importes
-salen todavía como `$ 1,234.50`**, no `MX$1,234.50`. Es decisión pendiente para
-el lote que ataque `derive.ts`, no un descuido. El diccionario no lleva ninguna
-cifra: los importes entran por hueco.
+### Las fechas SÍ cambian de formato; el dinero NO se toca
+
+**Fechas (decisión del dueño, 2026-11-02).** `formatFecha` y `formatFechaHora`
+(`lib/data/derive.ts`) aceptan un segundo parámetro `idioma` con **`'es'` por
+omisión**. La rama española es la de siempre, así que los ~80 llamadores que no
+lo pasan pintan exactamente lo mismo (`01/12/2026`, `01/12/2026 15:45`). En
+inglés salen **«Dec 1, 2026»** y **«Dec 1, 2026, 3:45 PM»**: `01/12/2026` un
+lector de EE. UU. lo lee como 12 de enero. Una fecha inválida en inglés da «—»
+(`Intl` lanzaría). Lo fija `derive.fecha-idioma.test.ts` (4 rojas sin el cambio).
+Las pantallas del lote pasan el idioma del contexto (`useIdioma()`), y el
+documento imprimible el de `idiomaDeLaPeticion()`. **No se usó `formatearFecha`
+de `dinero.ts`**: su español es «01 dic 2026», o sea que habría cambiado el
+español.
+
+**Dinero: NO se toca en este lote (decisión del dueño, 2026-11-02).** Los
+importes siguen por `formatMonto`: en inglés salen todavía como `$ 1,234.50`. El
+dueño pidió que la moneda (MXN o USD) **se elija al crear una instancia nueva**;
+eso es una tarea aparte y ROJA (dinero), no un retoque de traducción. El
+diccionario no lleva ninguna cifra: los importes entran por hueco.
 
 ### Glosario (obligatorio para los lotes siguientes)
 
@@ -495,11 +522,11 @@ cifra: los importes entran por hueco.
 | tarifa | rate |
 | vigencia | validity (period) / valid until |
 | vendedor | sales rep |
-| cupón / código promocional / **código de negociación** | promo code |
+| cupón / código promocional / código de negociación | **negotiation code** (dueño, 2026-11-02; como el menú «Negotiation codes») |
 | borrador / enviada / aprobada / rechazada | draft / sent / approved / rejected |
 | enviar / reenviar | send / resend |
 | liga | link |
-| folio | ref. / reference |
+| folio / referencia | **Internal ref.** — un solo término en todo el lote (dueño, 2026-11-02) |
 | bruto / neto | gross / net |
 | IVA · c/IVA · sin IVA | VAT · incl. VAT · excl. VAT |
 | comisión de agencia | agency commission |
@@ -510,17 +537,26 @@ cifra: los importes entran por hueco.
 | predio | property |
 | prima (de Roadblock) | premium |
 | salidas / pases | plays |
+| rotaciones / spots por hora del loop | **loops/h** (dueño, 2026-11-02) |
 | millares / impactos | thousands / impressions |
 | embudo / tasa de cierre | funnel / close rate |
 | ganancia / margen | profit / margin |
-| Administración (el módulo) | Settings (como el menú) |
+| Administración (el módulo) | Settings (como el menú). **Nunca como sujeto que actúa**: «Administración tiene que subir el tope» → «an admin has to raise the cap in Settings» |
+| IVA / porcentajes | sin espacio en inglés: «20%», «VAT 16%» (el español conserva el «20 %» que ya tenía) |
 | DOOH, spot, Roadblock, loop, Space Eyes | no se traducen |
 
-> [!warning] Choque con el menú: «Códigos de negociación»
-> El menú (`nav.codigos-promocionales`) dice **«Negotiation codes»** y el glosario
-> obligatorio de este lote dice **promo code**. Se siguió el glosario en las
-> pantallas de propuestas; **el menú no se tocó** (no era de este lote). Uno de
-> los dos tiene que ceder, y es decisión del dueño.
+> [!success] 2026-11-02 · el choque con el menú está resuelto
+> En la primera vuelta el lote decía «promo code» y el menú «Negotiation codes».
+> **Decidió el dueño: «negotiation code»**, como el menú. Las frases de «devolver
+> el uso» se reescribieron para que tengan sentido con un solo término («the use
+> it consumed is available again»), y el renglón del desglose ya no repite el
+> término («Negotiation code VERANO20 (20%) · pending approval»).
+
+**Estilo:** todo en sentence case (rótulos, botones, cabeceras y frases), como el
+menú. Solo van en mayúsculas las cabeceras que ya lo estaban en español (el
+documento imprimible). Contadores: nada de «1 of 2 screens have…» ni «The 1
+screen…»; donde el inglés necesita singular hay claves `.uno/.otros` (el español
+de las dos es el de siempre, aunque diga «1 pantallas»).
 
 ### Lo que sigue en español dentro de estas pantallas (y no es de este lote)
 
@@ -532,9 +568,16 @@ renta (`lib/renta-periodicidad.ts`), la etiqueta del estado del cupón
 (`etiquetaEstadoCodigo`, `lib/codigo-aprobacion.ts`), el aviso de la franja
 (`AVISO_FRANJA_NO_VIAJA_AL_CMS`, `AvisoFranjaCMS`), los periodos del tablero
 (`OPCIONES_PERIODO` de Finanzas y la `etiqueta` que manda el servidor), el
-botón «Dibujar zona» de `MapView`, `formatMontoCorto` y los mensajes del
-servidor (I18N-05). La periodicidad del contrato se pinta en minúsculas desde el
-dato (`mensual`).
+el resto de la barra de dibujo de `MapView` («Cerrar zona», «Limpiar zona»,
+«Cancelar» y la indicación), `formatMontoCorto`, el « (obligatorio)» para lector
+de pantalla de `components/demo/ui/Campo.tsx:58` (lo encontró el validador; no
+estaba declarado) y los mensajes del servidor (I18N-05). La periodicidad del
+contrato se pinta en minúsculas desde el dato (`mensual`).
+
+El botón **«Dibujar zona»** de `MapView` SÍ se tradujo en la segunda vuelta, con
+la MISMA clave que la ayuda de «Nueva propuesta» que lo nombra
+(`propuestas.alta.mapa.dibujar`): si se tradujeran por separado, la ayuda
+mandaría a pulsar un rótulo que no está en pantalla. Español idéntico.
 
 ## Enlaces
 

@@ -90,15 +90,15 @@ export default async function DocumentoPropuestaPage({ params }: { params: { id:
 
         <dl className="doc-datos">
           <div><dt>{t('propuestas.documento.para')}</dt><dd>{p.clienteNombre ?? '—'}{p.agenciaNombre ? t('propuestas.comun.via', { agencia: p.agenciaNombre }) : ''}</dd></div>
-          <div><dt>{t('propuestas.documento.periodo')}</dt><dd>{desde && hasta ? `${formatFecha(desde)} – ${formatFecha(hasta)}` : '—'}</dd></div>
+          <div><dt>{t('propuestas.documento.periodo')}</dt><dd>{desde && hasta ? `${formatFecha(desde, idioma)} – ${formatFecha(hasta, idioma)}` : '—'}</dd></div>
           <div>
             <dt>{t('propuestas.documento.vigencia')}</dt>
             <dd>
               {p.aceptadoEn
-                ? t('propuestas.documento.aceptada', { fecha: formatFechaHora(p.aceptadoEn) })
+                ? t('propuestas.documento.aceptada', { fecha: formatFechaHora(p.aceptadoEn, idioma) })
                 : p.vigenteHasta
                   ? t(p.vencida ? 'propuestas.documento.vencio' : 'propuestas.documento.valida-hasta', {
-                      fecha: formatFecha(p.vigenteHasta),
+                      fecha: formatFecha(p.vigenteHasta, idioma),
                     })
                   : p.estatus === 'BORRADOR'
                     ? t('propuestas.documento.se-fija')
@@ -137,7 +137,7 @@ export default async function DocumentoPropuestaPage({ params }: { params: { id:
                     {it.direccion && <div className="doc-chico">{it.direccion}</div>}
                     {zona && <div className="doc-chico">{zona}</div>}
                     <div className="doc-chico">
-                      {formatFecha(String(it.fechaInicio).slice(0, 10))} – {formatFecha(String(it.fechaFin).slice(0, 10))}
+                      {formatFecha(String(it.fechaInicio).slice(0, 10), idioma)} – {formatFecha(String(it.fechaFin).slice(0, 10), idioma)}
                       {it.franjaId ? ` · ${it.franjaNombre ?? t('propuestas.documento.franja')}${it.franjaHorario ? ` ${it.franjaHorario}` : ''}` : ''}
                     </div>
                   </td>
@@ -209,7 +209,7 @@ export default async function DocumentoPropuestaPage({ params }: { params: { id:
               <div className="doc-sello">
                 <p className="doc-sello-titulo">{t('propuestas.documento.aceptada-en-linea')}</p>
                 <p className="doc-sello-nombre">{p.aceptadoPor ?? ''}</p>
-                <p className="doc-sello-fecha">{formatFechaHora(p.aceptadoEn)}</p>
+                <p className="doc-sello-fecha">{formatFechaHora(p.aceptadoEn, idioma)}</p>
               </div>
             ) : (
               <div className="doc-linea" />

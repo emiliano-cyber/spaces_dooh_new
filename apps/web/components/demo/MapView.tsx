@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useTexto } from '@/lib/i18n/contexto'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { puntoUtil } from '@/lib/coordenadas'
@@ -137,6 +138,7 @@ export function MapView({
   // algo de rendimiento, por eso solo se enciende donde se imprime.
   imprimible?: boolean
 }) {
+  const t = useTexto()
   const containerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const markersRef = useRef<Map<string, maplibregl.Marker>>(new Map())
@@ -400,7 +402,10 @@ export function MapView({
           <div className="pointer-events-auto flex gap-1">
             {!dibujando && !zonaCerrada && (
               <button type="button" onClick={iniciarDibujo} className={btnCls}>
-                Dibujar zona
+                {/* Misma clave que la ayuda de «Nueva propuesta», que nombra este
+                    boton: si se tradujeran por separado, la ayuda mandaria a
+                    pulsar un rotulo que no esta en pantalla. */}
+                {t('propuestas.alta.mapa.dibujar')}
               </button>
             )}
             {dibujando && (

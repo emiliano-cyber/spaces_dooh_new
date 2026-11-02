@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/demo/ui/Button'
 import { actualizarPropuestaApi } from '@/lib/data/estado-api'
 import { formatFecha } from '@/lib/data/client'
-import { useTexto } from '@/lib/i18n/contexto'
+import { useIdioma } from '@/lib/i18n/contexto'
 
 // ============================================================================
 //  Condiciones y vigencia de UNA propuesta (PROP-COMPLETA, decisión del dueño
@@ -38,7 +38,7 @@ export function BloqueCondicionesVigencia({
   vencida: boolean
   editable: boolean
 }) {
-  const t = useTexto()
+  const { t, idioma } = useIdioma()
   const [texto, setTexto] = useState(condiciones ?? '')
   const [fecha, setFecha] = useState(vigenteHasta ?? '')
   const [guardando, setGuardando] = useState(false)
@@ -72,8 +72,8 @@ export function BloqueCondicionesVigencia({
         <p className="mt-0.5 text-[11px] text-muted">
           {vigenteHasta
             ? vencida
-              ? t('propuestas.condiciones.vencio', { fecha: formatFecha(vigenteHasta) })
-              : t('propuestas.condiciones.hasta', { fecha: formatFecha(vigenteHasta) })
+              ? t('propuestas.condiciones.vencio', { fecha: formatFecha(vigenteHasta, idioma) })
+              : t('propuestas.condiciones.hasta', { fecha: formatFecha(vigenteHasta, idioma) })
             : t('propuestas.condiciones.sin-vigencia')}
         </p>
         {editable && (

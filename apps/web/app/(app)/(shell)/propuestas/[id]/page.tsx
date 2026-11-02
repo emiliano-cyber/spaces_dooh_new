@@ -3,7 +3,7 @@
 import { toast } from 'sonner'
 import { pctConDosDecimales } from '@/lib/descuento-comercial'
 import { conteo } from '@/lib/plural'
-import { useTexto } from '@/lib/i18n/contexto'
+import { useIdioma, useTexto } from '@/lib/i18n/contexto'
 import { interpolarNodos } from '@/lib/i18n/nodos'
 import { resumenContratacion, etiquetaFrecuencia } from '@/lib/periodos'
 import { etiquetaCalculadora } from '@/lib/calculadora-spots'
@@ -87,7 +87,7 @@ function coordUtil(lat: number, lng: number): boolean {
 
 export default function PropuestaDetallePage({ params }: { params: { id: string } }) {
   const id = params.id
-  const t = useTexto()
+  const { t, idioma } = useIdioma()
   // Los conteos («2 sitios») con las palabras del idioma vigente. `conteo()`
   // pone la cifra y elige singular o plural; el espanol sale identico.
   const nSitios = (n: number) => conteo(n, t('propuestas.unidad.sitio'), t('propuestas.unidad.sitios'))
@@ -402,8 +402,8 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                 )}
               >
                 {p.vencida
-                  ? t('propuestas.ficha.vencida', { fecha: formatFecha(p.vigenteHasta) })
-                  : t('propuestas.ficha.valida-hasta', { fecha: formatFecha(p.vigenteHasta) })}
+                  ? t('propuestas.ficha.vencida', { fecha: formatFecha(p.vigenteHasta, idioma) })
+                  : t('propuestas.ficha.valida-hasta', { fecha: formatFecha(p.vigenteHasta, idioma) })}
               </span>
             )}
           </div>
@@ -482,7 +482,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
       <Card className="overflow-hidden p-0">
         <div className="grid grid-cols-2 divide-x divide-y divide-border sm:grid-cols-4 sm:divide-y-0">
           <Meta icon={<CalendarDays className="h-4 w-4" />} label={t('propuestas.ficha.meta.fechas')}
-            value={desde && hasta ? `${formatFecha(desde)} – ${formatFecha(hasta)}` : '—'} />
+            value={desde && hasta ? `${formatFecha(desde, idioma)} – ${formatFecha(hasta, idioma)}` : '—'} />
           <Meta label={t('propuestas.ficha.meta.anunciante')} value={cliente?.nombre ?? t('propuestas.comun.sin-cliente')} />
           <Meta label={t('propuestas.comun.agencia')} value={agencia?.nombre ?? t('propuestas.ficha.meta.directa')} />
           <Meta label={t('propuestas.ficha.meta.comision')} value={`${comisionPct}%`} />
@@ -657,7 +657,9 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                       algo. Escribir «máximo 100 %» en una organización sin tope
                       sería ruido, y peor: enseñaría un límite donde no lo hay. */}
                   {topeDescuento < 100 && (
-                    <>{interpolarNodos(t('propuestas.ficha.descuento.tope-aviso'), { tope: <b>{topeDescuento} %</b> })}</>
+                    <>{interpolarNodos(t('propuestas.ficha.descuento.tope-aviso'), {
+                      tope: <b>{t('propuestas.comun.pct', { pct: topeDescuento })}</b>,
+                    })}</>
                   )}
                 </p>
                 {editable ? (
@@ -756,7 +758,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                           <option value="">{t('propuestas.ficha.paquete.elige-opcion')}</option>
                           {catalogoPaq.map((x) => (
                             <option key={x.id} value={x.id}>
-                              {t('propuestas.ficha.paquete.opcion', {
+                              {t(x.sitios.length === 1 ? 'propuestas.ficha.paquete.opcion.uno' : 'propuestas.ficha.paquete.opcion.otros', {
                                 nombre: x.nombre,
                                 precio: formatMonto(x.precioCerrado),
                                 n: x.sitios.length,
@@ -1015,10 +1017,9 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
               <div className="flex h-full items-center justify-center px-4 text-center text-[13px] text-muted">
                 {sitios === undefined
                   ? t('propuestas.ficha.mapa.cargando')
-                  : t(
-                      p.items.length === 1 ? 'propuestas.ficha.mapa.sin-coords.uno' : 'propuestas.ficha.mapa.sin-coords.otros',
-                      { n: p.items.length },
-                    )}
+                  : p.items.length === 1
+                    ? t('propuestas.ficha.mapa.sin-coords.uno')
+                    : t('propuestas.ficha.mapa.sin-coords.otros', { n: p.items.length })}
               </div>
             )}
           </div>

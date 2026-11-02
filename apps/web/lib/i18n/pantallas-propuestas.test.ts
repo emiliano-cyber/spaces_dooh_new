@@ -269,7 +269,7 @@ const PANTALLAS: Pantalla[] = [
       'Rechazar',
       'Resumen de propuestas',
     ],
-    ingles: ['New proposal', 'Proposal list', 'All clients', 'Historical funnel', 'Promo code pending'],
+    ingles: ['New proposal', 'Proposal list', 'All clients', 'Historical funnel', 'Negotiation code pending', 'Nov 1, 2026 – Nov 30, 2026'],
   },
   {
     nombre: 'nueva propuesta (el dialogo de alta)',
@@ -403,7 +403,19 @@ const PANTALLAS: Pantalla[] = [
       'Borrador',
       'Enviada',
     ],
-    ingles: ['Internal ref.:', 'Copy link', 'Financial summary', 'Sites and rent', 'Draft', 'Sent'],
+    ingles: [
+      'Internal ref.:',
+      'Copy link',
+      'Financial summary',
+      'Sites and rent',
+      'Draft',
+      'Sent',
+      // Fecha en formato ingles, sin ambiguedad (decision del dueno, 2026-11-02).
+      'Valid until Dec 1, 2026',
+      'Negotiation code VERANO20 (20%) · pending approval',
+      'to go higher, an admin has to raise the cap in Settings',
+      'Screens without coordinates (not shown on the map): 1 of 2 screens.',
+    ],
   },
   {
     nombre: 'bloque del codigo promocional, pendiente',
@@ -426,7 +438,7 @@ const PANTALLAS: Pantalla[] = [
       'Quitar código',
       'Quitarlo devuelve su uso al cupón.',
     ],
-    ingles: ['Promo code', 'Remove code'],
+    ingles: ['Negotiation code', 'Remove code', '<b>20%</b> off, locked in'],
   },
   {
     nombre: 'bloque del codigo promocional, sin codigo y rechazada',
@@ -470,7 +482,7 @@ const PANTALLAS: Pantalla[] = [
       'Sin condiciones: el documento no lleva este bloque.',
       'Guardar',
     ],
-    ingles: ['Validity', 'Terms and conditions'],
+    ingles: ['Validity', 'Terms and conditions', 'The client can accept it until Dec 1, 2026 (inclusive).'],
   },
   {
     nombre: 'enviar propuesta',
@@ -512,7 +524,7 @@ const PANTALLAS: Pantalla[] = [
       '— Elige el cliente —',
       'Refrescos del Norte (IVA 8 %)',
     ],
-    ingles: ['Which client is billed?', 'Set client and generate campaign'],
+    ingles: ['Which client should be billed?', 'Set client and generate campaign'],
   },
   {
     nombre: 'tablero de propuestas por periodo',
@@ -547,7 +559,7 @@ const PANTALLAS: Pantalla[] = [
       'Aprobadas del periodo',
       'sin contrato',
     ],
-    ingles: ['Proposal summary', 'Sales rep', 'Sales excl. VAT'],
+    ingles: ['Proposal summary', 'Sales rep', 'Sales excl. VAT', 'Approved on', 'Nov 2, 2026', 'Internal ref.'],
   },
   {
     nombre: 'entrada publica por codigo',
@@ -625,7 +637,7 @@ const PANTALLAS: Pantalla[] = [
       'ACEPTA EL CLIENTE',
       'Nombre, firma y fecha',
     ],
-    ingles: ['COMMERCIAL PROPOSAL', 'SCREENS', 'CLIENT ACCEPTANCE'],
+    ingles: ['COMMERCIAL PROPOSAL', 'SCREENS', 'CLIENT ACCEPTANCE', 'Valid until Dec 1, 2026', 'Prepared for'],
   },
   {
     nombre: 'lista filtrada sin resultados',
@@ -676,7 +688,7 @@ const PANTALLAS: Pantalla[] = [
       'Programación que sale de la calculadora',
       'Salidas que salen de la calculadora de abajo',
     ],
-    ingles: ['Loop slots', 'Hours per day'],
+    ingles: ['Loop slots', 'Hours per day', 'loops/h'],
   },
   {
     nombre: 'ficha de un borrador vencido, con catalogo de paquetes',

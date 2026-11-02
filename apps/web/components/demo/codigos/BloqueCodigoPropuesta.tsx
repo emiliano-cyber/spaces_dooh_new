@@ -214,7 +214,7 @@ export function BloqueCodigoPropuesta({
           <p className="mt-0.5 text-[11px] text-muted">
             {interpolarNodos(t('propuestas.codigo.lleva'), {
               codigo: <b className="font-mono">{codigoTexto}</b>,
-              pct: <b>{codigoDescuentoPct} %</b>,
+              pct: <b>{t('propuestas.comun.pct', { pct: codigoDescuentoPct })}</b>,
             })}
           </p>
           {estado === 'PENDIENTE' && (

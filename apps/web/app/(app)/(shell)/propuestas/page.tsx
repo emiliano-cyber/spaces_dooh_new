@@ -2,7 +2,7 @@
 
 import { toast } from 'sonner'
 import { conteo, plural } from '@/lib/plural'
-import { useTexto } from '@/lib/i18n/contexto'
+import { useIdioma, useTexto } from '@/lib/i18n/contexto'
 import { interpolarNodos } from '@/lib/i18n/nodos'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import Link from 'next/link'
@@ -358,7 +358,7 @@ function ChipFiltro({ activo, onClick, children }: { activo: boolean; onClick: (
 function PropuestaCard({
   p, abierta, onToggle, puedeEditar,
 }: { p: Propuesta; abierta: boolean; onToggle: () => void; puedeEditar: boolean }) {
-  const t = useTexto()
+  const { t, idioma } = useIdioma()
   const nSitios = (n: number) => conteo(n, t('propuestas.unidad.sitio'), t('propuestas.unidad.sitios'))
   const clientes = useClientes()
   const sitios = useSitios()
@@ -482,7 +482,7 @@ function PropuestaCard({
                 {agencia
                   ? interpolarNodos(t('propuestas.comun.via'), { agencia: <span className="text-ink">{agencia.nombre}</span> })
                   : ''}
-                {desde && hasta ? <> · <span className="demo-num">{formatFecha(desde)} – {formatFecha(hasta)}</span></> : ''}
+                {desde && hasta ? <> · <span className="demo-num">{formatFecha(desde, idioma)} – {formatFecha(hasta, idioma)}</span></> : ''}
                 {' '}· {nSitios(p.items.length)}
               </div>
             </div>
@@ -638,7 +638,7 @@ function NuevaPropuestaDialog({
   onClose: (nuevaId?: string | null) => void
   modo?: ModoDialogo
 }) {
-  const t = useTexto()
+  const { t, idioma } = useIdioma()
   const base = modo?.propuesta ?? null
   const agregando = modo?.tipo === 'agregar'
   const periodoBase = base ? periodoDe(base) : { desde: '', hasta: '' }
@@ -1285,7 +1285,7 @@ function NuevaPropuestaDialog({
         {agregando ? (
           <p className="rounded-md border border-border bg-surface-2 px-3 py-2 text-[12px] text-muted">
             {interpolarNodos(t('propuestas.alta.periodo'), {
-              periodo: <b className="text-ink">{formatFecha(fechaInicio)} – {formatFecha(fechaFin)}</b>,
+              periodo: <b className="text-ink">{formatFecha(fechaInicio, idioma)} – {formatFecha(fechaFin, idioma)}</b>,
             })}
           </p>
         ) : (
@@ -1550,7 +1550,11 @@ function NuevaPropuestaDialog({
                         (digital por spot) o manual (spot/hora/cpm) */}
                     {usaCalcDe(s) ? (
                       <span className="demo-num whitespace-nowrap text-muted" title={t('propuestas.alta.salidas.titulo')}>
-                        {t('propuestas.alta.salidas', { n: calcDe(s)?.ok ? cantidadDe(s).toLocaleString('es-MX') : '—' })}
+                        {calcDe(s)?.ok
+                          ? t(cantidadDe(s) === 1 ? 'propuestas.alta.salidas.uno' : 'propuestas.alta.salidas.otros', {
+                              n: cantidadDe(s).toLocaleString('es-MX'),
+                            })
+                          : t('propuestas.alta.salidas.otros', { n: '—' })}
                       </span>
                     ) : esManual ? (
                       // Entera y con coma de miles (2,500 millares). Vacío

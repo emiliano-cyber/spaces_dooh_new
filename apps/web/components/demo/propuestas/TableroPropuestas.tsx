@@ -9,7 +9,7 @@ import type { TipoPeriodo } from '@/lib/finanzas-periodo'
 import { OPCIONES_PERIODO } from '@/components/demo/finanzas/TableroPeriodo'
 import { resumenPropuestasApi, type RespuestaResumenPropuestas } from '@/lib/data/propuestas-resumen-api'
 import { formatNumero } from '@/lib/formato-numero'
-import { useTexto } from '@/lib/i18n/contexto'
+import { useIdioma } from '@/lib/i18n/contexto'
 
 // ============================================================================
 //  El tablero de propuestas por periodo (PROP-PER, 06/10).
@@ -26,7 +26,7 @@ const inputFecha =
 const pct = (v: number | null) => (v === null ? '—' : `${Math.round(v * 10) / 10} %`)
 
 export function TableroPropuestas() {
-  const t = useTexto()
+  const { t, idioma } = useIdioma()
   const [tipo, setTipo] = useState<TipoPeriodo>('mes')
   const [desde, setDesde] = useState('')
   const [hasta, setHasta] = useState('')
@@ -80,8 +80,8 @@ export function TableroPropuestas() {
         datos
           ? t('propuestas.tablero.subtitulo', {
               periodo: datos.periodo.etiqueta,
-              desde: formatFecha(datos.periodo.desde),
-              hasta: formatFecha(datos.periodo.hasta),
+              desde: formatFecha(datos.periodo.desde, idioma),
+              hasta: formatFecha(datos.periodo.hasta, idioma),
             })
           : '—'
       }
@@ -241,7 +241,7 @@ export function TableroPropuestas() {
                           <td className="demo-num py-2 pr-4 text-ink">{x.folio}</td>
                           <td className="py-2 pr-4 text-ink">{x.nombre}</td>
                           <td className="py-2 pr-4 text-muted">{x.vendedor ?? '—'}</td>
-                          <td className="demo-num py-2 pr-4 text-muted">{formatFecha(x.aprobada)}</td>
+                          <td className="demo-num py-2 pr-4 text-muted">{formatFecha(x.aprobada, idioma)}</td>
                           <td className="demo-num py-2 pr-4 text-right text-ink">{x.venta === null ? '—' : formatMonto(x.venta)}</td>
                           {conGanancia && <td className="demo-num py-2 pr-4 text-right text-muted">{x.costoRenta === null ? t('propuestas.tablero.sin-contrato') : formatMonto(x.costoRenta)}</td>}
                           {conGanancia && (
