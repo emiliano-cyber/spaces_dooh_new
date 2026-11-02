@@ -177,3 +177,74 @@ Corrí los mutantes contra `lib/i18n`, `components/demo/campanas`, `components/d
 5. **Plazo de cobranza → «Collection term».** Se entiende y es coherente con «collections». En facturación de EE. UU. lo habitual es «Payment terms».
 6. **«Hilo conductor» de la demo → «common thread».** Ver §1. Como etiqueta en inglés no funciona; proponer «demo storyline» o «featured».
 7. **Testigos y fotografías comprobatorias → «Proof photos».** Los dos sitios usan el mismo término. Si en el negocio son lo mismo, está bien; si no, conviene separarlos.
+
+---
+
+## Segunda pasada (2026-11-02): `git diff 614b6480..HEAD`, commits `b2913ba1` y `cb7c1c1a`
+
+### Veredicto: **VERDE**
+
+Lo verifiqué todo por mi cuenta, sin apoyarme en lo que dice el commit:
+
+- los 18 hallazgos de la primera vuelta y el de «HIBRIDA» están resueltos, y las frases nuevas tienen sentido en el HTML inglés rendido;
+- se cumplen todas las decisiones del orquestador;
+- el español sigue idéntico a `integra/ingles` (54 de 54 estados);
+- typecheck y unitarias están en verde, y M7 ahora muere.
+
+Quedan dos observaciones de severidad baja que no bloquean (ver el final de esta sección).
+
+### 1 · Hallazgos y decisiones, vistos en el render inglés
+
+| hallazgo / decisión | estado | cómo se lee ahora |
+|---|---|---|
+| enviada al dominio → «Submitted for publishing» | cumplido | Sale en el pipeline, el KPI («submitted for publishing»), la cola («Submitted for publishing, awaiting approval before going live»), los botones «Submit for publishing» y «Fix and resubmit for publishing», el error y la ficha («Submitted for publishing (CMS)»). No queda ningún «domain» en los dos diccionarios. **El dominio es el CMS de destino, y no siempre es DOOHmain:** `campanas-repo.ts:1238` dice «envía la campaña al dominio/CMS», y la validación ya distingue pantallas «la opera Broadsign / otro CMS». |
+| comprobante de la factura frente a adjunto | cumplido | El comprobante de la factura es «Payment receipt F-000», con «Payment receipt. It is NOT a CFDI…», «View the payment receipt» y «The amounts on this payment receipt…». El adjunto es «Proof of payment» en el título, la columna y «No proof of payment», y el botón es «Payments and proof of payment». Ya no queda ningún «receipt» suelto. |
+| folio de factura → «Invoice no.»; folio de campaña → «Internal ref.» | cumplido, y cada término en su sitio | `finanzas.comun.folio` = «Invoice no.». Se usa en las tablas de cobranza y de facturas (`finanzas/page.tsx:268/379`), en la columna del estado de cuenta, donde los movimientos son facturas y sus pagos (`EstadoCuenta.tsx:151`), y en la línea del comprobante de la factura (`ComprobanteDialog.tsx:87`). Las cuatro son folios de factura. Lo de campañas sigue diciendo «Internal ref.»: la búsqueda («Search by name, Internal ref. or client…»), la extensión («…the Internal ref. of the new segment») y la OC («Internal PO ref.»). |
+| folio fiscal → «CFDI UUID» | cumplido | Columnas y comprobante. No queda «Tax UUID». |
+| plazo de cobranza → «Payment terms» | cumplido | Columna de cobranza, campo de la factura y «Payment terms (for reference only when billing in installments)». |
+| hilo conductor → «demo storyline» | cumplido | Insignia de la campaña de demostración. |
+| testigos → «Proof photos» | cumplido | Sin cambios respecto a la primera vuelta, porque ya estaba así. |
+| Reservada → «Booked» | cumplido | «Booked · 1/10» en el pipeline. Ver la observación 2. |
+| selector de periodo | cumplido | This month / Last month / This quarter / Last quarter / This year / Custom range, en el resumen del periodo y en el estado de cuenta. |
+| «Pay in full» | resuelto | «Record full payment». El toast dice «Paid in full». |
+| «bimonthly» | resuelto | «{n} installments every two months». |
+| «PO Internal ref.» | resuelto | «Internal PO ref.» |
+| «Received by» / «Use:» | resuelto | «Billed to» · «CFDI use: G03» |
+| «6 open of 6» | resuelto | «6 of 6 open» |
+| bajas (subtítulo, aprobados, no-validar, Airs, pestaña, la que vende, al cubrir, opening) | resueltas | «Every campaign’s path through the company · live pipeline» · «You have 1 approved creative ready.» / «You have 2 approved creatives ready.» · «Could not save the publication review» · «Airs during» · «Screen history» · « — selling entity» · «this item is marked Paid and reminders stop» · «opening: {monto}» |
+| HIBRIDA | resuelto | En inglés, «CA-010 · Hybrid». En español sale el valor crudo «CA-010 · HIBRIDA», lo exige la prueba de pantalla y `campanas.test.ts` lo compara con el enum. OOH y DOOH son siglas y salen iguales en los dos idiomas (declaradas). El tipo es un enum de la base (`db/schema.sql:47`: `'OOH','DOOH','HIBRIDA'`), así que el mapa no puede quedarse sin clave. |
+
+### 2 · Español intacto: VERIFICADO otra vez, mecánicamente
+
+- **Render.** Volví a rendir los 54 estados en español con los componentes de HEAD y los comparé con el volcado de la primera vuelta, que se hizo con los componentes de `integra/ingles`. Resultado: **54 de 54 idénticos** (`cmp`).
+- **Diccionario.** La instantánea española solo **añade** las tres claves `campanas.tipo.*`, y su valor es el enum crudo. Ningún valor español existente cambió; todas las líneas modificadas de las instantáneas son del bloque inglés.
+- **Código.** El único cambio en componentes es `campanas/page.tsx:145`, y su español lo cubre el render.
+
+### 3 · Pruebas (corridas por mí)
+
+```
+cd apps/web && npm run typecheck   →  tsc --noEmit, sin errores
+cd apps/web && npm test            →  Test Files 324 passed (324) · Tests 4383 passed (4383)
+```
+
+| # | mutante | resultado |
+|---|---|---|
+| M7 | el toast de liquidar usa la clave del abono (`finanzas/page.tsx:882`) | **MUERE** (prueba nueva de `textos/finanzas.test.ts`) |
+| M8 | `en` de `campanas.tipo.hibrida` = «HIBRIDA» | **MUERE** (3 rojas) |
+| M9 | `es` de `campanas.tipo.hibrida` = «Híbrida» | **MUERE** (3 rojas, incluida la que exige el valor crudo) |
+| M10 | la lista pinta `c.tipoCampana` crudo otra vez | **MUERE** (pantalla inglesa) |
+| M11 | el recordatorio de cobro avisa con la clave del error | **MUERE** (prueba nueva) |
+| M12 | en `ValidacionPanel.tsx:139` se cambia el toast de «retirado» por el de «bajado» | **SOBREVIVE** (4383 en verde) |
+
+Restauré cada uno con `git checkout -- .`. El árbol quedó limpio salvo esta sección.
+
+### 4 · Reglas
+
+- **Archivos.** `git diff --name-status 614b6480..HEAD` no toca `middleware.ts`, `nav.ts`, `db/schema.sql`, migraciones, `app/api`, `next.config.mjs` ni `idiomas.ts`. `IDIOMA_INGLES` solo aparece en el texto de este informe.
+- **Dinero.** No se añadió ninguna cifra ni símbolo de moneda al diccionario.
+- **`desktop.ini`.** Los commits nuevos no añaden ninguno. El índice sigue con los 14 de `vault/`, que ya existían antes del lote.
+
+### Observaciones (baja, no bloquean)
+
+1. **M12.** La prueba nueva fija qué clave usa cada aviso que no se rinde, **pero solo en `finanzas/page.tsx`**. En Campañas, los toasts que no se rinden (`ValidacionPanel`: retirado / bajado, publicada / parcial; `CreativosEnDoohmain`: pausado / reanudado) siguen sin esa protección. Antes del lote tampoco la tenían, así que no es una regresión. Si se quiere cerrar, la prueba gemela es barata.
+2. **«Booked» frente a «Confirmed».** En el pipeline, «Booked» (reservada) va antes que «Confirmed». En inglés comercial «booked» suele implicar que ya está cerrado, así que alguien podría leer las dos etapas como lo mismo. Es la decisión tomada y se aplica de forma coherente. Si molesta, la alternativa es «On hold» o «Reserved», pero eso lo decide el dueño.
