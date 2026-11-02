@@ -534,7 +534,7 @@ export function ImportarInventarioDialog({
           <div className="rounded-md border border-[#f59e0b40] bg-[#f59e0b0a] p-3">
             <div className="mb-2 flex items-center gap-2 text-[13px] font-medium text-ink">
               <AlertTriangle className="h-4 w-4 text-warning" />
-              {t('inventario.carga.duplicados', { n: duplicados.length })}
+              {t(duplicados.length === 1 ? 'inventario.carga.duplicados.uno' : 'inventario.carga.duplicados.otros', { n: duplicados.length })}
             </div>
             <p className="mb-2 text-[12px] text-muted">{t('inventario.carga.como-proceder')}</p>
             <div className="space-y-1.5">

@@ -69,6 +69,44 @@ export const CLAVE_METODO_PAGO: Record<string, ClaveTexto> = {
   OTRO: 'arrendadores.metodo.otro',
 }
 
+/** La etiqueta de cada campo del historial (`CAMPOS`, lib/contrato-cambios.ts). */
+export const CLAVE_CAMPO_CONTRATO: Record<string, ClaveTexto> = {
+  arrendadorId: 'arrendadores.campo.arrendador-id',
+  razonSocialId: 'arrendadores.campo.razon-social-id',
+  entidadId: 'arrendadores.campo.entidad-id',
+  fechaInicio: 'arrendadores.campo.fecha-inicio',
+  fechaFin: 'arrendadores.campo.fecha-fin',
+  montoRenta: 'arrendadores.campo.monto-renta',
+  periodicidad: 'arrendadores.campo.periodicidad',
+  moneda: 'arrendadores.campo.moneda',
+  deposito: 'arrendadores.campo.deposito',
+  autoRenovable: 'arrendadores.campo.auto-renovable',
+  documentoUrl: 'arrendadores.campo.documento-url',
+}
+
+/** Lo que falta en el documento y DONDE se captura, tal como lo redacta
+ *  `lib/contrato-documento.ts` (que no se toca): la barra los traduce. */
+export const CLAVE_FALTANTE_DOC: Record<string, ClaveTexto> = {
+  'Razón social de tu empresa': 'arrendadores.faltante.razon-empresa',
+  'RFC de tu empresa': 'arrendadores.faltante.rfc-empresa',
+  'Domicilio fiscal de tu empresa': 'arrendadores.faltante.domicilio-empresa',
+  'Representante legal de tu empresa': 'arrendadores.faltante.representante',
+  'Nombre del arrendador': 'arrendadores.faltante.nombre-arrendador',
+  'RFC del arrendador': 'arrendadores.faltante.rfc-arrendador',
+  'Domicilio del arrendador': 'arrendadores.faltante.domicilio-arrendador',
+  'Dirección del espacio': 'arrendadores.faltante.direccion-espacio',
+  'Fecha de inicio': 'arrendadores.faltante.fecha-inicio',
+  'Fecha de fin': 'arrendadores.faltante.fecha-fin',
+  'Importe de la renta': 'arrendadores.faltante.importe',
+  'Periodicidad del pago': 'arrendadores.faltante.periodicidad',
+}
+export const CLAVE_DONDE_DOC: Record<string, ClaveTexto> = {
+  'Administración › Datos fiscales de la empresa': 'arrendadores.donde.admin',
+  'Arrendadores › ficha del arrendador': 'arrendadores.donde.ficha',
+  'la ficha de este contrato': 'arrendadores.donde.contrato',
+  'Inventario › ficha de la pantalla o del predio': 'arrendadores.donde.inventario',
+}
+
 export const CLAVE_PARTE: Record<'ARRENDADOR' | 'ARRENDATARIO', ClaveTexto> = {
   ARRENDADOR: 'arrendadores.parte.arrendador',
   ARRENDATARIO: 'arrendadores.parte.arrendatario',

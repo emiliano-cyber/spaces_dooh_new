@@ -1,11 +1,15 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
+import { createHash } from 'node:crypto'
 import { ES_ARRENDADORES, EN_ARRENDADORES } from './arrendadores'
 import { traducir, type ClaveTexto } from '../diccionario'
 import { textoVencimiento } from '@/lib/renta-periodicidad'
 import { faltaEnContratos, LICENCIA_LABEL } from '@/lib/data/derive'
 import {
+  CLAVE_CAMPO_CONTRATO,
+  CLAVE_DONDE_DOC,
+  CLAVE_FALTANTE_DOC,
   CLAVE_LICENCIA,
   textoFaltaEnContratos,
   textoVencimientoRel,
@@ -90,6 +94,21 @@ describe('diccionario de arrendadores · el espanol reproduce EXACTAMENTE su mod
     for (const [k, v] of Object.entries(LICENCIA_LABEL)) expect(t(CLAVE_LICENCIA[k])).toBe(v)
   })
 
+  it('la etiqueta de cada campo del historial dice lo mismo que `CAMPOS` (lib/contrato-cambios.ts)', () => {
+    const fuente = leer('lib/contrato-cambios.ts')
+    const campos = [...fuente.matchAll(/\{ campo: '(\w+)', columna: '\w+', etiqueta: '([^']+)'/g)]
+    expect(campos.map((m) => m[1]).sort()).toEqual(Object.keys(CLAVE_CAMPO_CONTRATO).sort())
+    for (const [, campo, etiqueta] of campos) expect(t(CLAVE_CAMPO_CONTRATO[campo])).toBe(etiqueta)
+  })
+
+  it('lo que falta y donde, como lo redacta `lib/contrato-documento.ts`', () => {
+    const doc = leer('lib/contrato-documento.ts')
+    for (const [es, clave] of Object.entries({ ...CLAVE_FALTANTE_DOC, ...CLAVE_DONDE_DOC })) {
+      expect(t(clave)).toBe(es)
+      expect(doc).toContain(`'${es}'`)
+    }
+  })
+
   it('el grupo sin arrendador del cuadre se llama como en `conciliacionRenta`', () => {
     expect(leer('lib/data/derive.ts')).toContain(`'${t('arrendadores.cuadre.sin-arrendador')}'`)
   })
@@ -163,8 +182,31 @@ describe('arrendadores · el documento del contrato sigue en espanol', () => {
     expect(doc).not.toMatch(/i18n/)
   })
 
-  it('la constancia de firma y el sello del documento no usan el diccionario', () => {
-    expect(leer('components/demo/arrendadores/ConstanciaFirmas.tsx')).not.toMatch(/i18n|traducir|useTexto|useIdioma/)
+  it('el redactor sigue INTACTO: el mismo contenido que en ec427a66, byte a byte', () => {
+    // Su texto, la cantidad con letra y lo que entra en el hash de las firmas
+    // viven aqui. Cambiar este archivo es cambiar lo que se firma: si alguien lo
+    // edita a proposito, esta huella se actualiza en el mismo commit y se ve.
+    const huella = createHash('sha256').update(leer('lib/contrato-documento.ts')).digest('hex')
+    expect(huella).toBe('662e1799f5af778c73462ef6d858fce09adc8b7270339e99cde5595c4a3cbcc4')
+  })
+
+  it('el hash de las firmas es el del documento, no el de la constancia', () => {
+    const repo = leer('lib/server/firmas-repo.ts')
+    expect(repo).toMatch(/hashDocumento\(documentoATexto\(generarContrato\(/)
+    expect(repo).not.toMatch(/ConstanciaFirmas|constancia/i)
+  })
+
+  it('la constancia (decision del dueño, 2026-11-02) se pinta en el idioma configurado', () => {
+    const constancia = leer('components/demo/arrendadores/ConstanciaFirmas.tsx')
+    // Por clave, con el idioma que llega como prop desde la pagina…
+    expect(constancia).toMatch(/traducir\(idioma, clave, valores\)/)
+    expect(constancia).not.toMatch(/>\s*Constancia de firma electrónica\s*</)
+    expect(leer('app/(app)/contrato/[id]/page.tsx')).toMatch(/<ConstanciaFirmas estado=\{estadoFirmas\} idioma=\{idiomaDeLaPeticion\(\)\} \/>/)
+    // …y en espanol dice lo de siempre.
+    expect(traducir('es', 'arrendadores.constancia.titulo')).toBe('Constancia de firma electrónica')
+  })
+
+  it('el documento y su bloque de firmas siguen en espanol', () => {
     const pagina = leer('app/(app)/contrato/[id]/page.tsx')
     expect(pagina).toContain(`'FIRMADO ELECTRÓNICAMENTE'`)
     expect(pagina).toContain('<h2 className="doc-h2">DECLARACIONES</h2>')

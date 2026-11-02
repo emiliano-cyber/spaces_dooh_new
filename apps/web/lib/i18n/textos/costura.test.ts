@@ -37,6 +37,7 @@ const LOTES: [string, Record<string, string>, Record<string, string>][] = [
 const DISTINTOS_A_PROPOSITO: Record<string, string> = {
   Actualizar: 'refrescar lo que dice DOOHmain («Refresh») frente a actualizar las pantallas que ya existen en una carga masiva («Update»)',
   Próximo: 'un codigo que aun no entra en vigor («Upcoming») frente al siguiente pago de renta del cuadre («Next»)',
+  Vigente: 'un permiso o licencia vigente («Valid», decision del orquestador) frente a un contrato o codigo vigente («Active»)',
   Vence: 'una cuota o un pago («Due») frente a un contrato que caduca («Expires»)',
   Comercial: 'en la ficha de campaña es la seccion de importes («Pricing», decision del orquestador); el modulo es «Sales», como el menu',
   Desde: 'un periodo de fechas («From») frente a la competencia del espacio, que esta ahi «desde» («Since»)',

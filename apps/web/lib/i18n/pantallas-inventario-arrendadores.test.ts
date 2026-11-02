@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { ProveedorIdioma } from './contexto'
+import { huellasDeFormatoEspanol } from './guardias-ingles'
 import type { Idioma } from './idiomas'
 
 // ============================================================================
@@ -33,14 +34,15 @@ import type { Idioma } from './idiomas'
 //  ─── EL ESPANOL IDENTICO ───────────────────────────────────────────────────
 //  Con `I18N_VOLCAR=<carpeta>` se escribe el HTML ESPANOL de cada estado. Se
 //  volco con los componentes de antes del lote y con los de despues, y se
-//  compararon con `diff -rq` (ver `docs/i18n/revision-inventario-arrendadores.md`).
+//  compararon con `diff -rq` (ver `docs/i18n/revision-inventario.md` y `revision-arrendadores.md`).
 //
 //  ─── LO QUE NO SE TRADUCE, A PROPOSITO ─────────────────────────────────────
 //  El documento del contrato (`lib/contrato-documento.ts`), su cantidad con
-//  letra, lo que entra en el hash de las firmas y lo que se IMPRIME con el (los
-//  encabezados del documento, los sellos de firma, la constancia y el aviso de
-//  borrador): es un documento legal en espanol. Lo que lo rodea en pantalla
-//  (la barra, el panel de firmas, la firma publica) si.
+//  letra, lo que entra en el hash de las firmas y lo que forma parte del texto
+//  impreso (encabezados, bloque de firmas con sus sellos, aviso de borrador):
+//  es un documento legal en espanol. Lo que lo rodea si se traduce: la barra,
+//  el panel de firmas, la firma publica y —decision del dueño, 2026-11-02— la
+//  constancia de firma electronica, que no entra en ningun hash.
 // ============================================================================
 
 const forzado = vi.hoisted(() => ({
@@ -145,7 +147,7 @@ vi.mock('@/lib/server/contrato-expediente', () => ({
     clausulas: [{ ordinal: 'PRIMERA', titulo: 'Objeto', parrafos: ['EL ARRENDADOR da en arrendamiento EL ESPACIO.'] }],
     lugarYFecha: 'Ciudad de México, a 2 de noviembre de 2026.',
     firmas: [{ rol: 'EL ARRENDADOR', nombre: 'Don Pepe' }, { rol: 'EL ARRENDATARIO', nombre: 'Medios SA' }],
-    faltantes: [{ etiqueta: 'RFC del arrendador', donde: 'Arrendadores' }],
+    faltantes: [{ etiqueta: 'RFC del arrendador', donde: 'Arrendadores › ficha del arrendador' }],
   }),
 }))
 vi.mock('@/lib/server/firmas-repo', () => ({
@@ -430,7 +432,7 @@ const PANTALLAS: Pantalla[] = [
       return pintar(idioma, createElement(await tabla()))
     },
     espanol: ['Ningún sitio coincide con «zzz» y los filtros elegidos.', 'Quitar filtros'],
-    ingles: ['No site matches “zzz” and the chosen filters.', 'Clear filters'],
+    ingles: ['No sites match “zzz” and the chosen filters.', 'Clear filters'],
   },
   {
     nombre: 'inventario · solo filtros sin resultados',
@@ -439,7 +441,7 @@ const PANTALLAS: Pantalla[] = [
       return pintar(idioma, createElement(await tabla()))
     },
     espanol: ['Ninguna pantalla coincide con los filtros elegidos.'],
-    ingles: ['No screen matches the chosen filters.'],
+    ingles: ['No screens match the chosen filters.'],
   },
   {
     nombre: 'inventario · vacío',
@@ -613,7 +615,7 @@ const PANTALLAS: Pantalla[] = [
     ingles: [
       'New screen', 'Basics', 'Specifications', 'Prices', 'Images', 'Basic information', 'Owned screen',
       'Landlord (space owner)', 'Choose a landlord…', 'Rent to landlord', 'Static (printed)', 'Latitude', 'Longitude',
-      'Every two weeks', 'Slots in total', 'Promotional image', 'Upload image', 'Save screen',
+      'Every two weeks', 'Total slots', 'Promotional image', 'Upload image', 'Save screen',
     ],
   },
   {
@@ -726,7 +728,7 @@ const PANTALLAS: Pantalla[] = [
       'Elige cómo proceder antes de importar:', 'Actualizar', 'campos modificados', 'Crear nueva', 'con sufijo -v2, -v3…',
       'Vista previa', 'válida', 'advertencia', '3 filas leídas', 'Cerrar',
     ],
-    ingles: ['One screen doesn’t seem to be on this property.', '1 code(s) already exist', 'Preview', 'valid', 'warning', '3 rows read', 'Close'],
+    ingles: ['One screen doesn’t seem to be on this property.', '1 code already exists', 'Preview', 'valid', 'warning', '3 rows read', 'Close'],
   },
   {
     nombre: 'carga masiva · predio existente, varias lejos',
@@ -815,7 +817,7 @@ const PANTALLAS: Pantalla[] = [
     ],
     ingles: [
       'Landlords', 'New landlord', 'New contract', 'All landlords', 'Contracts: all', 'Expiring soon', 'Incomplete', 'Monthly rent',
-      '+ 1 to enter', 'from 2 landlords', 'Overdue rent', 'Lease agreements', 'Active ones in Excel', 'Site', 'Frequency', 'Expires',
+      '+ 1 to enter', 'from 2 landlords', 'Overdue rent', 'Lease agreements', 'Export active (Excel)', 'Site', 'Frequency', 'Expires',
       'To be defined', 'Sold in “Navidad”', 'in 29 d', '670 d ago', 'Complete', 'Rent payments', '1 overdue', 'to pay',
       '8 days ago', 'in 2 days', 'Scheduled', 'Paid', 'Record payment', 'Rent reconciliation by landlord', 'Profitability by screen',
       'Revenue/mo', 'Rent/mo', 'Margin/mo', 'no rent contract', 'Address', 'Contact', 'Properties', 'Missing', 'Deactivate',
@@ -831,7 +833,7 @@ const PANTALLAS: Pantalla[] = [
     espanol: [
       '0 de 3 contratos', 'Limpiar', 'Ningún arrendador coincide con el filtro.', 'Ninguna pantalla coincide con el filtro.',
     ],
-    ingles: ['0 of 3 contracts', 'Clear', 'No landlord matches the filter.', 'No screen matches the filter.'],
+    ingles: ['0 of 3 contracts', 'Clear', 'No landlords match the filter.', 'No screens match the filter.'],
   },
   {
     nombre: 'arrendadores · vacía',
@@ -976,7 +978,7 @@ const PANTALLAS: Pantalla[] = [
       return pintar(idioma, createElement(H, { contrato: CONTRATOS[0] as never, open: true, onOpenChange: () => {}, onToast: () => {} }))
     },
     espanol: ['Renovar', 'Por vencer', 'Disponible', 'mensual', '29 días', 'Sí', 'Ver documento firmado (PDF)', 'Factura', 'Comprobante', 'Adjuntos', 'Registrar', 'Licencias y permisos', 'Amparan a todas las pantallas de este predio.', 'Licencia municipal', 'vence ', 'Vence en 18 d', 'Venció hace 32 d', 'Vigente', 'Dictamen estructural'],
-    ingles: ['Renew', 'monthly', '29 days', 'Yes', 'View signed document (PDF)', 'Invoice', 'Proof of payment', 'Attachments', 'Permits and licenses', 'Municipal license', 'Expires in 18 d', 'Expired 32 d ago', 'Active'],
+    ingles: ['Renew', 'monthly', '29 days', 'Yes', 'View signed document (PDF)', 'Invoice', 'Proof of payment', 'Attachments', 'Permits and licenses', 'Municipal license', 'Expires in 18 d', 'Expired 32 d ago', 'Valid'],
   },
   {
     nombre: 'ficha del contrato · vencido',
@@ -1167,7 +1169,7 @@ const PANTALLAS: Pantalla[] = [
       return pintar(idioma, createElement(ConciliacionCard))
     },
     espanol: ['Arrendador / emplazamiento', 'Predio', 'contrato', 'Vencido', 'Pendiente', 'Pagado', 'Próximo', 'Total'],
-    ingles: ['Landlord / location', 'Property', '1 contract', 'Overdue', 'Pending', 'Paid', 'Next'],
+    ingles: ['Landlord / placement', '1 placement', 'Property', '1 contract', 'Overdue', 'Pending', 'Paid', 'Next'],
   },
   {
     nombre: 'pagos de renta · contratos sin importe',
@@ -1277,19 +1279,26 @@ const PANTALLAS: Pantalla[] = [
     nombre: 'barra del documento con faltantes',
     pintar: async (idioma) => {
       const { BarraDocumento } = await import('../../components/demo/arrendadores/BarraDocumento')
-      return pintar(idioma, createElement(BarraDocumento, { faltantes: [{ etiqueta: 'RFC del arrendador', donde: 'Arrendadores' }, { etiqueta: 'Domicilio', donde: 'Arrendadores' }] }))
+      return pintar(idioma, createElement(BarraDocumento, {
+        faltantes: [
+          { etiqueta: 'RFC del arrendador', donde: 'Arrendadores › ficha del arrendador' },
+          { etiqueta: 'Domicilio del arrendador', donde: 'Arrendadores › ficha del arrendador' },
+          // Uno que la barra no conoce: se pinta tal cual en los dos idiomas.
+          { etiqueta: 'Otro dato', donde: 'Otra sección' },
+        ],
+      }))
     },
-    espanol: ['Imprimir o guardar como PDF', 'En el diálogo de impresión elige «Guardar como PDF» como destino.', 'Faltan 2 datos por capturar.', 'El documento los deja marcados en blanco en vez de inventarlos.', 'En Arrendadores:'],
-    ingles: ['Print or save as PDF', '2 fields are missing.', 'In Arrendadores:'],
+    espanol: ['Imprimir o guardar como PDF', 'En el diálogo de impresión elige «Guardar como PDF» como destino.', 'Faltan 3 datos por capturar.', 'El documento los deja marcados en blanco en vez de inventarlos.', 'En Arrendadores › ficha del arrendador:', 'Domicilio del arrendador'],
+    ingles: ['Print or save as PDF', '3 fields are missing.', 'In Landlords › landlord profile:', 'Landlord’s RFC (tax ID)', 'Landlord’s address', 'In Otra sección:', 'Otro dato'],
   },
   {
     nombre: 'barra del documento con un faltante',
     pintar: async (idioma) => {
       const { BarraDocumento } = await import('../../components/demo/arrendadores/BarraDocumento')
-      return pintar(idioma, createElement(BarraDocumento, { faltantes: [{ etiqueta: 'Domicilio', donde: 'Administración' }] }))
+      return pintar(idioma, createElement(BarraDocumento, { faltantes: [{ etiqueta: 'Domicilio fiscal de tu empresa', donde: 'Administración › Datos fiscales de la empresa' }] }))
     },
     espanol: ['Faltan 1 dato por capturar.'],
-    ingles: ['1 field is missing.'],
+    ingles: ['1 field is missing.', 'In Settings › Company tax details:', 'Your company’s tax address'],
   },
   {
     nombre: 'documento del contrato (Server Component)',
@@ -1299,12 +1308,21 @@ const PANTALLAS: Pantalla[] = [
       return pintar(idioma, await Doc({ params: { id: 'c1' } }))
     },
     espanol: [
-      'CONTRATO DE ARRENDAMIENTO', 'DECLARACIONES', 'CLÁUSULAS', 'FIRMA INVALIDADA', 'EL ARRENDADOR', 'Constancia de firma electrónica',
+      'CONTRATO DE ARRENDAMIENTO', 'DECLARACIONES', 'CLÁUSULAS', 'FIRMA INVALIDADA', 'EL ARRENDADOR',
       'Documento generado automáticamente por SPACE OS', 'Imprimir o guardar como PDF', 'Firma del contrato',
+      // La constancia (decision del dueño, 2026-11-02: en el idioma configurado)
+      'Constancia de firma electrónica', 'ATENCIÓN: el contrato fue modificado después de firmarse.',
+      ' — FIRMA INVALIDADA', 'Fecha y hora: ', 'Dirección IP: 10.0.0.1', 'Navegador: Mozilla/5.0',
+      'Sello del documento firmado: h-viejo', 'Firma electrónica simple.', 'Este documento fue sellado el ',
     ],
-    // El documento y lo que se imprime con el se quedan en espanol: solo lo
-    // que lo rodea (la barra, el panel) cambia.
-    ingles: ['CONTRATO DE ARRENDAMIENTO', 'DECLARACIONES', 'CLÁUSULAS', 'FIRMA INVALIDADA', 'Constancia de firma electrónica', 'Print or save as PDF', 'Contract signature'],
+    // El documento se queda en espanol; lo que lo rodea —la barra, el panel y
+    // la constancia— cambia.
+    ingles: [
+      'CONTRATO DE ARRENDAMIENTO', 'DECLARACIONES', 'CLÁUSULAS', 'FIRMA INVALIDADA', 'Print or save as PDF', 'Contract signature',
+      'Electronic signature certificate', 'WARNING: the contract was modified after it was signed.', 'THE LESSEE',
+      ' — SIGNATURE INVALIDATED', 'Date and time: October 20, 2026', 'IP address: 10.0.0.1', 'Browser: Mozilla/5.0',
+      'Seal of the signed document: h-viejo', 'Simple electronic signature.', 'This document was sealed on October 19, 2026',
+    ],
   },
   {
     nombre: 'documento del contrato · sin permiso',
@@ -1426,12 +1444,13 @@ const COMUNES = new Set<string>([
   'Longitud', // esta dentro de «Longitude»
   'Mural', // igual en ingles (decision del lote de Comercial)
   'RFC: IPE800101AB1', // «RFC» no se traduce
-  'RUC', // esta dentro de «Tax ID (RUC)»
+  'RUC', // esta dentro de «RUC (tax ID)»
   'contacto@arrendador.com', // ejemplo de correo
   '601 — General de Ley Personas Morales', // regimen del SAT: un dato
   '601 - General de Ley Personas Morales',
   // El documento del contrato y lo que se imprime con el: espanol en los dos idiomas.
-  'CONTRATO DE ARRENDAMIENTO', 'DECLARACIONES', 'CLÁUSULAS', 'FIRMA INVALIDADA', 'EL ARRENDADOR', 'Constancia de firma electrónica',
+  // (la constancia de firma ya no: se traduce, decision del dueño del 2026-11-02)
+  'CONTRATO DE ARRENDAMIENTO', 'DECLARACIONES', 'CLÁUSULAS', 'FIRMA INVALIDADA', 'EL ARRENDADOR',
   'Documento generado automáticamente por SPACE OS',
   'Sello SHA-256: hhh',
 ])
@@ -1453,6 +1472,58 @@ describe('lote INVENTARIO Y ARRENDADORES · en INGLES no queda ninguna frase esp
   })
 })
 
+// Lo que va en espanol POR DISENO se quita antes de los barridos del ingles.
+function sinLoQueEsEspanolPorDiseno(crudo: string): string {
+  return (
+    crudo
+      // el texto congelado que se firma
+      .replace(/<pre class="doc-congelado">[\s\S]*?<\/pre>/g, '')
+      // el documento del contrato (texto, encabezados y bloque de firmas con sus
+      // sellos) hasta la constancia o el panel de firmas, que SI se traducen
+      .replace(/<article class="doc-hoja">[\s\S]*?(?=<section class="doc-(?:constancia|panel-firma))/g, '')
+      // el aviso de borrador, que se imprime con el documento
+      .replace(/<p class="doc-aviso">[\s\S]*?<\/p>/g, '')
+      // el error de formato de `CampoCifra` (`lib/captura-cifra.ts`, otro lote)
+      .replace(/Escribe solo cifras: la coma separa miles y el punto, decimales\. Ejemplo: [\d,.]+/g, '')
+  )
+}
+
+async function pintarTodasEnIngles(): Promise<string[]> {
+  const htmls: string[] = []
+  for (const p of PANTALLAS) {
+    forzado.cola = []
+    sesion.rol = 'DUENO'
+    sesion.puede = true
+    servidor.permiso = true
+    servidor.firma = null
+    datos.sitios = SITIOS
+    datos.contratos = CONTRATOS
+    datos.arrendadores = ARRENDADORES
+    datos.pagos = PAGOS
+    datos.licencias = LICENCIAS
+    htmls.push(sinLoQueEsEspanolPorDiseno(await p.pintar('en')))
+  }
+  return htmls
+}
+
+describe('lote INVENTARIO Y ARRENDADORES · en ingles, ni dinero sin MX$ ni fechas dd/mm/aaaa', () => {
+  // Segunda vuelta (validador, medio 1, mutante 5): quitar el idioma a un
+  // `formatMonto` o a un `formatFecha` no deja ninguna frase espanola, asi que
+  // el barrido de frases no lo veia. Esta guardia (`lib/i18n/guardias-ingles.ts`,
+  // para cualquier lote) busca las dos huellas.
+  it('ningun estado ingles las lleva, salvo lo declarado', async () => {
+    const htmls = await pintarTodasEnIngles()
+    const huellas = htmls.flatMap((h, i) =>
+      huellasDeFormatoEspanol(h, {
+        // El importe que recita el paso de revision de firmas («$10,000.00 MXN»)
+        // es el DATO que se congela con el contrato, no un formato de la interfaz.
+        permitidos: [/\$[\d,.]+ MXN/],
+      }).map((x) => `${PANTALLAS[i].nombre}: ${x}`),
+    )
+    expect(huellas).toEqual([])
+  })
+})
+
 async function htmlInglesDeTodas(): Promise<string> {
   let html = ''
   for (const p of PANTALLAS) {
@@ -1467,21 +1538,7 @@ async function htmlInglesDeTodas(): Promise<string> {
     datos.pagos = PAGOS
     datos.licencias = LICENCIAS
     const crudo = await p.pintar('en')
-    // El documento del contrato va en espanol por diseno: se quita antes del
-    // barrido (todo lo que esta dentro de `doc-hoja` menos el panel de firmas
-    // no se lee aqui; el panel y la barra si).
-    const sinDocumento = crudo
-      // el texto congelado que se firma
-      .replace(/<pre class="doc-congelado">[\s\S]*?<\/pre>/g, '')
-      // el documento del contrato hasta el panel de firmas, la constancia y el
-      // aviso de borrador: todo eso se imprime y es el documento legal
-      .replace(/<article class="doc-hoja">[\s\S]*?(?=<section class="doc-panel-firma)/g, '')
-      .replace(/<section class="doc-constancia">[\s\S]*?<\/section>/g, '')
-      .replace(/<p class="doc-aviso">[\s\S]*?<\/p>/g, '')
-      // QUE falta y DONDE lo redacta `lib/contrato-documento.ts` (no se toca)
-      .replace(/<span class="doc-barra-donde">[\s\S]*?<\/ul>/g, '')
-      // el error de formato de `CampoCifra` (`lib/captura-cifra.ts`, otro lote)
-      .replace(/Escribe solo cifras: la coma separa miles y el punto, decimales\. Ejemplo: [\d,.]+/g, '')
+    const sinDocumento = sinLoQueEsEspanolPorDiseno(crudo)
     const visibles = [...sinDocumento.matchAll(/(?:title|aria-label|placeholder|alt)="([^"]*)"/g)].map((m) => m[1])
     html += texto(sinDocumento.replace(/<[^>]*>/g, '\n') + '\n' + visibles.join('\n'))
   }

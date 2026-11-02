@@ -171,7 +171,9 @@ export default async function ContratoDocumentoPage({ params }: { params: { id: 
 
         {/* Constancia: ESTO SÍ SE IMPRIME. Es lo que hace del PDF un documento
             probatorio y no solo una copia bonita del texto. */}
-        <ConstanciaFirmas estado={estadoFirmas} />
+        {/* Decision del dueño (2026-11-02): en el idioma configurado. No entra en
+            ningun hash; el documento de arriba sigue en espanol. */}
+        <ConstanciaFirmas estado={estadoFirmas} idioma={idiomaDeLaPeticion()} />
 
         <PanelFirmas
           contratoId={params.id}

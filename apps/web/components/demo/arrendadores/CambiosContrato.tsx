@@ -33,7 +33,7 @@ import { monedaInstancia } from '@/lib/i18n/dinero'
 import { useIdioma } from '@/lib/i18n/contexto'
 import { interpolarNodos } from '@/lib/i18n/nodos'
 import type { Idioma } from '@/lib/i18n/idiomas'
-import { CLAVE_PARTE } from '@/components/demo/arrendadores/etiquetas'
+import { CLAVE_CAMPO_CONTRATO, CLAVE_PARTE } from '@/components/demo/arrendadores/etiquetas'
 
 // ============================================================================
 //  CONTRATO-CAMBIOS (07/10) · cambiar un contrato ANTES de firmarlo, diciendo
@@ -149,10 +149,14 @@ export function CambiosContrato({
               <ul className="mt-1 space-y-0.5">
                 {h.cambios.map((c) => (
                   <li key={c.campo}>
-                    <span className="text-muted">{c.etiqueta}:</span>{' '}
-                    <span className="line-through decoration-muted">{valorParaMostrar(c.campo, c.antes) ?? t('arrendadores.cambios.vacio-valor')}</span>
+                    {/* La etiqueta viene GUARDADA en espanol con cada cambio; en ingles se
+                        pinta la del campo, que es estable. Uno desconocido, tal cual. */}
+                    <span className="text-muted">
+                      {idioma !== 'es' && CLAVE_CAMPO_CONTRATO[c.campo] ? t(CLAVE_CAMPO_CONTRATO[c.campo]) : c.etiqueta}:
+                    </span>{' '}
+                    <span className="line-through decoration-muted">{valorParaMostrar(c.campo, c.antes, idioma) ?? t('arrendadores.cambios.vacio-valor')}</span>
                     {' → '}
-                    <b className="text-ink">{valorParaMostrar(c.campo, c.despues) ?? t('arrendadores.cambios.vacio-valor')}</b>
+                    <b className="text-ink">{valorParaMostrar(c.campo, c.despues, idioma) ?? t('arrendadores.cambios.vacio-valor')}</b>
                   </li>
                 ))}
               </ul>

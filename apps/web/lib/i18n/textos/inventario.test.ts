@@ -6,6 +6,7 @@ import { traducir, type ClaveTexto } from '../diccionario'
 import { medioLabel } from '@/lib/data/derive'
 import { disponibilidadInventario } from '@/components/demo/StatusBadge'
 import { textoDisponibilidad, textoMedio } from '@/components/demo/inventario/etiquetas'
+import { crearLote } from '@/lib/cambios-lote'
 
 // ============================================================================
 //  EL DICCIONARIO DE INVENTARIO ENTERO, CONGELADO — y atado a sus fuentes.
@@ -30,6 +31,7 @@ describe('diccionario de inventario · el ingles no esta en espanol', () => {
   // Las que coinciden A PROPOSITO en los dos idiomas.
   const IGUALES = new Set([
     'inventario.medio.digital', // «Digital»
+    'inventario.alta.total-slots', // «Total slots» (validador, segunda vuelta)
   ])
 
   it('ninguna entrada inglesa es igual a la espanola, salvo las declaradas', () => {
@@ -66,6 +68,33 @@ describe('diccionario de inventario · el ingles no esta en espanol', () => {
 
 describe('diccionario de inventario · el espanol reproduce EXACTAMENTE su modulo', () => {
   const t = (clave: ClaveTexto, valores?: Record<string, string | number>) => traducir('es', clave, valores)
+
+  it('la frase del lote a medias dice lo mismo que `crearLote().frase()`', async () => {
+    // Segunda vuelta (validador, medio 2): se arma con claves en el componente.
+    const casos: [number, number, 'pantalla' | 'contrato'][] = [[1, 0, 'pantalla'], [3, 2, 'pantalla'], [1, 0, 'contrato'], [2, 1, 'contrato']]
+    for (const [total, ok, unidad] of casos) {
+      const items = Array.from({ length: total }, (_, i) => i)
+      const lote = crearLote({
+        items,
+        aplicar: async (xs) => ({ ok, fallidas: xs.length - ok, pendientes: xs.slice(ok), requiereDesbloqueo: false }),
+        unidad,
+        unidadPlural: `${unidad}s`,
+      })
+      await lote.paso().catch(() => {})
+      const nombre = t(
+        unidad === 'pantalla'
+          ? total === 1 ? 'inventario.lote.unidad.pantalla' : 'inventario.lote.unidad.pantallas'
+          : total === 1 ? 'inventario.lote.unidad.contrato' : 'inventario.lote.unidad.contratos',
+      )
+      expect(t('inventario.lote.frase', { ya: lote.aplicadas(), total, faltan: lote.pendientes(), unidad: nombre })).toBe(lote.frase())
+    }
+  })
+
+  it('la tabla arma esa frase con claves y no pinta `lote.frase()`', () => {
+    const tabla = readFileSync(path.join(__dirname, '../../../components/demo/inventario/InventarioTabla.tsx'), 'utf8')
+    expect(tabla).toMatch(/frase: fraseDeLote\(lote, unidad, t\)/)
+    expect(tabla).not.toMatch(/frase: lote\.frase\(\)/)
+  })
 
   it('textoMedio dice lo mismo que `medioLabel`', () => {
     const casos = [

@@ -51,9 +51,24 @@ import {
  */
 //
 // I18N (2026-11-02) · la frase va ENTERA en el diccionario, una por cada
-// combinacion de singular y plural. `lote.frase()` (`lib/cambios-lote.ts`) se
-// queda en espanol: es del modulo de lotes, no de esta pantalla.
-function avisoDeLote(lote: Lote | null, t: (clave: ClaveTexto, v?: Record<string, string | number>) => string): string {
+// combinacion de singular y plural.
+//
+// Segunda vuelta (validador, medio 2): `lote.frase()` (`lib/cambios-lote.ts`)
+// devuelve espanol y se colaba entera en el cuadro ingles. Se arma aqui con
+// claves desde los mismos numeros —aplicadas, pendientes, total— y la misma
+// unidad, sin tocar `lib/`; `textos/inventario.test.ts` exige que en espanol
+// salga EXACTAMENTE `lote.frase()`.
+type T = (clave: ClaveTexto, v?: Record<string, string | number>) => string
+type UnidadLote = 'pantalla' | 'contrato'
+function fraseDeLote(lote: Lote, unidad: UnidadLote, t: T): string {
+  const total = lote.total()
+  const clave: ClaveTexto =
+    unidad === 'pantalla'
+      ? total === 1 ? 'inventario.lote.unidad.pantalla' : 'inventario.lote.unidad.pantallas'
+      : total === 1 ? 'inventario.lote.unidad.contrato' : 'inventario.lote.unidad.contratos'
+  return t('inventario.lote.frase', { ya: lote.aplicadas(), total, faltan: lote.pendientes(), unidad: t(clave) })
+}
+function avisoDeLote(lote: Lote | null, unidad: UnidadLote, t: T): string {
   const base = t('inventario.lote.base')
   if (!lote || lote.aplicadas() === 0) return base
   const faltan = lote.pendientes()
@@ -62,7 +77,7 @@ function avisoDeLote(lote: Lote | null, t: (clave: ClaveTexto, v?: Record<string
     faltan === 1
       ? ya === 1 ? 'inventario.lote.uno-uno' : 'inventario.lote.uno-otros'
       : ya === 1 ? 'inventario.lote.otros-uno' : 'inventario.lote.otros-otros'
-  return t(clave, { frase: lote.frase(), faltan, ya, base })
+  return t(clave, { frase: fraseDeLote(lote, unidad, t), faltan, ya, base })
 }
 
 // Tabla del inventario completo con columnas (incluye propietario, renta y
@@ -106,6 +121,8 @@ export function InventarioTabla() {
   // mismo cierre y tiene que ver la lista YA RECORTADA: lo que se aplicó en el
   // primer intento no se vuelve a mandar. Ver `lib/cambios-lote.ts`.
   const loteRef = useRef<Lote | null>(null)
+  // De que es el lote en curso, para poder nombrar su unidad en el aviso.
+  const unidadLoteRef = useRef<UnidadLote>('pantalla')
 
   // Generar el archivo es trabajo sincrono en el navegador y puede fallar (un
   // inventario enorme agota memoria). Sin este catch el error moria en la
@@ -263,6 +280,7 @@ export function InventarioTabla() {
       unidadPlural: 'pantallas',
     })
     loteRef.current = lote
+    unidadLoteRef.current = 'pantalla'
     await candado.ejecutar({
       guardar: lote.paso,
       alLograr: () => {
@@ -275,8 +293,9 @@ export function InventarioTabla() {
       },
       // Sin el cuadro a la vista este aviso es la ÚNICA salida que tiene el
       // fallo, y ya lleva la cuenta de cuántas sí se aplicaron: `lote.paso()`
-      // lanza esa frase, no un texto genérico.
-      alFallar: (m) => notify(m),
+      // lanza esa frase, no un texto genérico. En el idioma de quien mira: si es
+      // la frase del lote, se arma con claves.
+      alFallar: (m) => notify(m === lote.frase() ? fraseDeLote(lote, 'pantalla', t) : m),
       mensajeSiFalla: t('inventario.tabla.no-masivo'),
     })
     setAplicando(false)
@@ -356,6 +375,7 @@ export function InventarioTabla() {
       unidadPlural: 'contratos',
     })
     loteRef.current = lote
+    unidadLoteRef.current = 'contrato'
     await candado.ejecutar({
       guardar: lote.paso,
       alLograr: () => {
@@ -366,7 +386,7 @@ export function InventarioTabla() {
         )
         limpiarSel()
       },
-      alFallar: (m) => notify(m),
+      alFallar: (m) => notify(m === lote.frase() ? fraseDeLote(lote, 'contrato', t) : m),
       mensajeSiFalla: t('inventario.tabla.no-masivo-renta'),
     })
     setAplicando(false)
@@ -677,7 +697,7 @@ export function InventarioTabla() {
     <DialogoCandado
       candado={candado}
       titulo={t('inventario.tabla.confirma')}
-      subtitulo={avisoDeLote(loteRef.current, t)}
+      subtitulo={avisoDeLote(loteRef.current, unidadLoteRef.current, t)}
       etiquetaConfirmar={t('inventario.tabla.confirmar-aplicar')}
     />
 
