@@ -108,10 +108,10 @@ describe('calculadora · el motivo de rechazo', () => {
       'Loop slots go from 1 to 8.',
     )
     expect(motivo(previsualizarCalculadora({ ...LINEA, libres: 1 } as never, 'en'))).toBe(
-      "You're asking for 2 loop slots and the screen only has 1 free.",
+      "You’re asking for 2 loop slots and the screen only has 1 free.",
     )
     expect(motivo(previsualizarCalculadora({ ...LINEA, espaciosComprados: 1, libres: 0 } as never, 'en'))).toBe(
-      "You're asking for 1 loop slot and the screen only has 0 free.",
+      "You’re asking for 1 loop slot and the screen only has 0 free.",
     )
     expect(motivo(previsualizarCalculadora({ ...LINEA, digital: false } as never, 'en'))).toBe(
       'The spot calculator only applies to digital screens sold per spot.',
