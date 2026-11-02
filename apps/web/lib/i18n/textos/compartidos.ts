@@ -131,9 +131,11 @@ export const EN_COMPARTIDOS: Record<ClaveCompartidos, string> = {
   'compartidos.unidad.mensual': 'Monthly',
   'compartidos.unidad.mensual.uno': 'month',
   'compartidos.unidad.mensual.otros': 'months',
-  'compartidos.unidad.catorcenal': 'Every 14 days',
-  'compartidos.unidad.catorcenal.uno': '14-day period',
-  'compartidos.unidad.catorcenal.otros': '14-day periods',
+  // «two-week» y no «14-day»: «3 14-day periods» pega dos cifras y se lee
+  // «314». Ni «biweekly», que en EE. UU. tambien quiere decir dos por semana.
+  'compartidos.unidad.catorcenal': 'Every two weeks',
+  'compartidos.unidad.catorcenal.uno': 'two-week period',
+  'compartidos.unidad.catorcenal.otros': 'two-week periods',
   'compartidos.unidad.semanal': 'Weekly',
   'compartidos.unidad.semanal.uno': 'week',
   'compartidos.unidad.semanal.otros': 'weeks',
@@ -143,12 +145,14 @@ export const EN_COMPARTIDOS: Record<ClaveCompartidos, string> = {
   'compartidos.unidad.spot': 'CPS · cost per play',
   'compartidos.unidad.spot.uno': 'play',
   'compartidos.unidad.spot.otros': 'plays',
-  'compartidos.unidad.hora': 'Hourly',
+  'compartidos.unidad.hora': 'Per hour',
   'compartidos.unidad.hora.uno': 'hour',
   'compartidos.unidad.hora.otros': 'hours',
   'compartidos.unidad.cpm': 'CPM · cost per thousand impressions',
+  // Invariable tras un numero («2 thousand»), como el piloto
+  // (`propuestas.alta.cpm.equivale`: «thousand = {n} impressions»).
   'compartidos.unidad.cpm.uno': 'thousand',
-  'compartidos.unidad.cpm.otros': 'thousands',
+  'compartidos.unidad.cpm.otros': 'thousand',
 
   'compartidos.frecuencia.uno': '{n} play per day',
   'compartidos.frecuencia.otros': '{n} plays per day',
@@ -160,7 +164,7 @@ export const EN_COMPARTIDOS: Record<ClaveCompartidos, string> = {
 
   'compartidos.calc.motivo.solo-digital': 'The spot calculator only applies to digital screens sold per spot.',
   'compartidos.calc.motivo.sin-loop':
-    "The screen doesn't have its number of loop slots entered; enter it on the screen's page before using the calculator.",
+    "This screen's number of loop slots hasn't been entered; add it on the screen's page before using the calculator.",
   // «every loop slot ({total})» y no «all {total} loop slots»: con un loop de
   // uno, el plural se leeria mal y aqui no hay contador que lo elija.
   'compartidos.calc.motivo.roadblock-todos': 'A Roadblock buys every loop slot ({total}), not {espacios}.',
@@ -168,16 +172,16 @@ export const EN_COMPARTIDOS: Record<ClaveCompartidos, string> = {
   'compartidos.calc.motivo.rango-prima': 'The Roadblock premium goes from 0 to 100%.',
   'compartidos.calc.motivo.prima-sin-roadblock': 'The Roadblock premium only applies to a line marked as Roadblock.',
   'compartidos.calc.motivo.horas':
-    'Hours per day go from more than 0 up to {max}: more hours than the screen broadcasts would be spots that never play.',
+    'Hours per day must be greater than 0 and at most {max}: hours beyond what the screen broadcasts would be spots that never play.',
   'compartidos.calc.motivo.sin-dias': 'The line has no days: check the dates.',
-  'compartidos.calc.motivo.cero-spots': 'With those slots and those hours, not a single spot plays in a day.',
-  'compartidos.calc.motivo.roadblock-libres': 'A Roadblock needs every loop slot free ({total}), and the screen has {libres}.',
+  'compartidos.calc.motivo.cero-spots': 'With these slots and hours, not a single spot would play per day.',
+  'compartidos.calc.motivo.roadblock-libres': 'A Roadblock needs every loop slot free ({total}); the screen has {libres} free.',
   'compartidos.calc.motivo.pocos-libres.uno': "You're asking for {espacios} loop slot and the screen only has {libres} free.",
   'compartidos.calc.motivo.pocos-libres.otros': "You're asking for {espacios} loop slots and the screen only has {libres} free.",
 
   'compartidos.periodicidad.diaria': 'Daily',
   'compartidos.periodicidad.semanal': 'Weekly',
-  'compartidos.periodicidad.catorcenal': 'Every 14 days',
+  'compartidos.periodicidad.catorcenal': 'Every two weeks',
   'compartidos.periodicidad.quincenal': 'Twice a month',
   'compartidos.periodicidad.mensual': 'Monthly',
   'compartidos.periodicidad.bimestral': 'Every 2 months',
@@ -194,18 +198,21 @@ export const EN_COMPARTIDOS: Record<ClaveCompartidos, string> = {
     'to each screen; on screens run by another CMS, or if the ad was already published, whoever operates the ' +
     'screen has to schedule it manually.',
 
+  // «This quarter» y no «Quarter»: junto a «Last quarter», el suelto no dice
+  // que es el trimestre EN CURSO, que es lo que da `periodoDe('trimestre')`.
   'compartidos.periodo.mes': 'This month',
   'compartidos.periodo.mes-anterior': 'Last month',
-  'compartidos.periodo.trimestre': 'Quarter',
+  'compartidos.periodo.trimestre': 'This quarter',
   'compartidos.periodo.trimestre-anterior': 'Last quarter',
-  'compartidos.periodo.anio': 'Year',
-  'compartidos.periodo.rango': 'Range',
+  'compartidos.periodo.anio': 'This year',
+  'compartidos.periodo.rango': 'Custom range',
   'compartidos.periodo.etiqueta.trimestre': 'Q{n} {anio}',
   'compartidos.periodo.etiqueta.rango': '{desde} to {hasta}',
 
   'compartidos.mapa.cerrar-zona': 'Close area ({n})',
   'compartidos.mapa.limpiar-zona': 'Clear area',
-  'compartidos.mapa.indicacion': 'Tap the map to mark the area (min. 3 points)',
+  // «Click», como la ayuda del mismo mapa en el alta (`propuestas.alta.mapa.ayuda`).
+  'compartidos.mapa.indicacion': 'Click the map to mark the area (at least 3 points)',
   'compartidos.mapa.sin-ubicacion.uno': '1 screen with no location entered',
   'compartidos.mapa.sin-ubicacion.otros': '{n} screens with no location entered',
 

@@ -106,7 +106,7 @@ const PIEZAS: Pieza[] = [
       'Toca el mapa para marcar la zona (mín. 3 puntos)',
       'pantallas sin ubicación capturada',
     ],
-    ingles: ['Close area (3)', 'Cancel', 'Tap the map to mark the area (min. 3 points)', 'screens with no location entered'],
+    ingles: ['Close area (3)', 'Cancel', 'Click the map to mark the area (at least 3 points)', 'screens with no location entered'],
   },
   {
     nombre: 'mapa · zona cerrada, una pantalla sin ubicacion',

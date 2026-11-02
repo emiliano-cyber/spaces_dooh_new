@@ -332,7 +332,7 @@ const PANTALLAS: Pantalla[] = [
     ingles: [
       'Duplicate proposal', 'Per-site booking', 'Spot calculator', 'Rent to landlord',
       // Lote compartidos: unidades, periodicidad de renta y el titulo de la cantidad.
-      'CPS · cost per play', 'Every 14 days', 'title="No. of plays"', '>week<',
+      'CPS · cost per play', 'Every two weeks', 'title="No. of plays"', '>week<',
     ],
   },
   {
@@ -582,7 +582,8 @@ const PANTALLAS: Pantalla[] = [
     ],
     ingles: [
       'Proposal summary', 'Sales rep', 'Sales excl. VAT', 'Approved on', 'Nov 2, 2026', 'Internal ref.',
-      'This month', 'Last month', 'Last quarter', 'Range', 'November 2026 · Nov 1, 2026',
+      'This month', 'Last month', 'This quarter', 'Last quarter', 'This year', 'Custom range',
+      'November 2026 · Nov 1, 2026',
     ],
   },
   {
@@ -689,6 +690,47 @@ const PANTALLAS: Pantalla[] = [
     },
     espanol: ['Aún no hay propuestas. Arma la primera con «Nueva propuesta».'],
     ingles: ['No proposals yet.'],
+  },
+  {
+    // Segunda vuelta (validador, M10): ningun estado enseñaba un motivo de
+    // rechazo de la calculadora, asi que quitar el `idioma` de
+    // `previsualizarCalculadora` en el alta sobrevivia. Una linea pide 9
+    // espacios a una pantalla de 8.
+    nombre: 'calculadora de spots con una linea invalida',
+    pintar: async (idioma) => {
+      const { default: Pagina } = await import('../../app/(app)/(shell)/propuestas/page')
+      forzar(esNull, { tipo: 'duplicar', propuesta: PROPUESTA })
+      forzar((v) => !!v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v as object).length === 0, {
+        s1: {
+          unidad: 'spot', cantidadManual: 1, spotsPorDia: '', rentaMonto: '', rentaPeriodicidad: 'MENSUAL',
+          rentaArrendadorId: '', franjaId: '', tarifaManual: '', manual: false, espacios: '9', horasDia: '',
+          roadblock: false, prima: '',
+        },
+      })
+      return pintar(idioma, createElement(Pagina))
+    },
+    espanol: ['Los espacios del loop van de 1 a 8.'],
+    ingles: ['Loop slots go from 1 to 8.'],
+  },
+  {
+    // Segunda vuelta: con un rango a mano la etiqueta YA son las fechas; en
+    // ingles se pintan una vez, en espanol como siempre.
+    nombre: 'tablero de propuestas con un rango a mano',
+    pintar: async (idioma) => {
+      const { TableroPropuestas } = await import('../../components/demo/propuestas/TableroPropuestas')
+      forzar(esNull, {
+        periodo: { etiqueta: '2026-01-05 a 2026-03-09', desde: '2026-01-05', hasta: '2026-03-09' },
+        conGanancia: false,
+        resumen: {
+          generadas: 0, rechazadas: 0, tasaCierre: null,
+          aprobadas: { n: 0, venta: 0, ganancia: null, margenPct: null, gananciaPromedio: null, sinCosto: 0 },
+          porVendedor: [], lista: [],
+        },
+      })
+      return pintar(idioma, createElement(TableroPropuestas))
+    },
+    espanol: ['2026-01-05 a 2026-03-09 · 05/01/2026 a 09/03/2026'],
+    ingles: ['Jan 5, 2026 to Mar 9, 2026'],
   },
   {
     nombre: 'calculadora de spots encendida',
@@ -899,6 +941,15 @@ describe('lote PROPUESTAS · barrido con el diccionario entero', () => {
       }
     }
     expect(culpables).toEqual([])
+  })
+
+  it('con un rango a mano, el subtitulo ingles no repite las fechas', async () => {
+    // Segunda vuelta (validador): la etiqueta del rango YA son las fechas, y el
+    // subtitulo las repetia identicas en ingles.
+    const p = PANTALLAS.find((x) => x.nombre === 'tablero de propuestas con un rango a mano')!
+    forzado.cola = []
+    const html = texto(await p.pintar('en'))
+    expect(html).not.toContain('Mar 9, 2026 · Jan 5, 2026')
   })
 
   it('el espanol de los estatus reproduce EXACTAMENTE el label de `estatus.ts`', async () => {

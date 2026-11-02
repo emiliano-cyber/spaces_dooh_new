@@ -41,8 +41,11 @@ describe('periodos · en ingles', () => {
     expect(unidadCorta('spot', 2, 'en')).toBe('plays')
     expect(unidadCorta('spot', 1, 'en')).toBe('play')
     expect(unidadCorta('mensual', 3, 'en')).toBe('months')
-    expect(unidadCorta('catorcenal', 1, 'en')).toBe('14-day period')
-    expect(unidadCorta('cpm', 2, 'en')).toBe('thousands')
+    expect(unidadCorta('catorcenal', 1, 'en')).toBe('two-week period')
+    expect(unidadCorta('catorcenal', 3, 'en')).toBe('two-week periods')
+    // «thousand» es invariable tras un numero: «2 thousand», no «2 thousands».
+    expect(unidadCorta('cpm', 2, 'en')).toBe('thousand')
+    expect(etiquetaUnidad('hora', 'en')).toBe('Per hour')
     expect(etiquetaUnidad('spot', 'en')).toBe('CPS · cost per play')
     expect(etiquetaUnidad('mensual', 'en')).toBe('Monthly')
     // Una unidad que no esta en la tabla sale tal cual, en los dos idiomas.
@@ -51,7 +54,8 @@ describe('periodos · en ingles', () => {
   })
 
   it('la cantidad, la contratacion y la frecuencia', () => {
-    expect(etiquetaCantidad('cpm', 2500, 'en')).toBe('2,500 thousands')
+    expect(etiquetaCantidad('cpm', 2500, 'en')).toBe('2,500 thousand')
+    expect(resumenContratacion({ unidad: 'cpm', cantidad: 2, tarifaUnitaria: 1000 }, 'en')).toBe('2 thousand × $ 1,000.00')
     expect(etiquetaCantidad('mensual', 1, 'en')).toBe('1 month')
     // El importe NO se toca: sale por `formatMonto`, igual que en espanol.
     expect(resumenContratacion({ unidad: 'spot', cantidad: 50, tarifaUnitaria: 1200 }, 'en')).toBe('50 plays × $ 1,200.00')
@@ -113,10 +117,10 @@ describe('calculadora · el motivo de rechazo', () => {
       'The spot calculator only applies to digital screens sold per spot.',
     )
     expect(motivo(previsualizarCalculadora({ ...LINEA, horasDia: 30 } as never, 'en'))).toBe(
-      'Hours per day go from more than 0 up to 18: more hours than the screen broadcasts would be spots that never play.',
+      'Hours per day must be greater than 0 and at most 18: hours beyond what the screen broadcasts would be spots that never play.',
     )
     expect(motivo(previsualizarCalculadora({ ...LINEA, roadblock: true, libres: 3, espaciosComprados: 8 } as never, 'en'))).toBe(
-      'A Roadblock needs every loop slot free (8), and the screen has 3.',
+      'A Roadblock needs every loop slot free (8); the screen has 3 free.',
     )
   })
 })
@@ -130,7 +134,8 @@ describe('periodicidades de renta', () => {
 
   it('en ingles', () => {
     expect(periodicidadLabel('mensual', '—', 'en')).toBe('Monthly')
-    expect(periodicidadLabel('CATORCENAL', '—', 'en')).toBe('Every 14 days')
+    expect(periodicidadLabel('CATORCENAL', '—', 'en')).toBe('Every two weeks')
+    expect(periodicidadLabel('QUINCENAL', '—', 'en')).toBe('Twice a month')
     expect(periodicidadLabel(null, '—', 'en')).toBe('—')
   })
 })

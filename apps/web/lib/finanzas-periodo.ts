@@ -127,6 +127,13 @@ export function periodoDe(
   }
 }
 
+const RANGO_ETIQUETA = /^(\d{4}-\d{2}-\d{2}) a (\d{4}-\d{2}-\d{2})$/
+
+/** La etiqueta de un rango a mano («AAAA-MM-DD a AAAA-MM-DD»): ya son las fechas. */
+export function esEtiquetaRango(etiqueta: string): boolean {
+  return RANGO_ETIQUETA.test(etiqueta)
+}
+
 /**
  * La etiqueta del periodo en un idioma (lote compartidos, 2026-11-02).
  *
@@ -147,7 +154,7 @@ export function etiquetaPeriodo(p: { etiqueta: string }, idioma: Idioma = 'es'):
   }
   const trimestre = /^(\d)\.º trimestre (\d{4})$/.exec(e)
   if (trimestre) return traducir(idioma, 'compartidos.periodo.etiqueta.trimestre', { n: trimestre[1], anio: trimestre[2] })
-  const rango = /^(\d{4}-\d{2}-\d{2}) a (\d{4}-\d{2}-\d{2})$/.exec(e)
+  const rango = RANGO_ETIQUETA.exec(e)
   if (rango) {
     return traducir(idioma, 'compartidos.periodo.etiqueta.rango', {
       desde: formatFecha(rango[1], idioma),

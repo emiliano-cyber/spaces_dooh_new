@@ -5,7 +5,7 @@ import { AlertTriangle } from 'lucide-react'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { cn } from '@/lib/cn'
 import { formatMonto, formatFecha, usePropuestas } from '@/lib/data/client'
-import { etiquetaPeriodo, type TipoPeriodo } from '@/lib/finanzas-periodo'
+import { esEtiquetaRango, etiquetaPeriodo, type TipoPeriodo } from '@/lib/finanzas-periodo'
 import { OPCIONES_PERIODO } from '@/components/demo/finanzas/TableroPeriodo'
 import { resumenPropuestasApi, type RespuestaResumenPropuestas } from '@/lib/data/propuestas-resumen-api'
 import { formatNumero } from '@/lib/formato-numero'
@@ -78,7 +78,12 @@ export function TableroPropuestas() {
       // por periodo; quien lo quiera lo abre con un clic.
       defaultAbierto={false}
       subtitulo={
-        datos
+        // Con un rango a mano la etiqueta YA son las fechas: en ingles saldrian
+        // dos veces identicas («Jan 5, 2026 to Mar 9, 2026 · Jan 5, 2026 to
+        // Mar 9, 2026»), asi que se pintan una. El espanol queda como siempre.
+        datos && idioma !== 'es' && esEtiquetaRango(datos.periodo.etiqueta)
+          ? etiquetaPeriodo(datos.periodo, idioma)
+          : datos
           ? t('propuestas.tablero.subtitulo', {
               periodo: etiquetaPeriodo(datos.periodo, idioma),
               desde: formatFecha(datos.periodo.desde, idioma),

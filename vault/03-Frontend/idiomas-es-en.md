@@ -538,7 +538,7 @@ diccionario no lleva ninguna cifra: los importes entran por hueco.
 | prima (de Roadblock) | premium |
 | salidas / pases | plays |
 | rotaciones / spots por hora del loop | **loops/h** (dueño, 2026-11-02) |
-| millares / impactos | thousands / impressions |
+| millar / millares (CPM) · impactos | **thousand**, invariable tras un número: «2 thousand», nunca «2 thousands» (orquestador, 2026-11-02) · impressions |
 | embudo / tasa de cierre | funnel / close rate |
 | ganancia / margen | profit / margin |
 | Administración (el módulo) | Settings (como el menú). **Nunca como sujeto que actúa**: «Administración tiene que subir el tope» → «an admin has to raise the cap in Settings» |
@@ -622,11 +622,27 @@ hacía con el aviso de la franja: ya está traducido. Siete mutantes (quitar el
 `idioma` en tres llamadas, el «(obligatorio)» a mano, dos letras del español y el
 plural invertido) mueren los siete.
 
-**Términos nuevos** (además del glosario de arriba): CPS · cost per play; CPM ·
-cost per thousand impressions; catorcena → 14-day period; catorcenal → every 14
-days; quincenal → twice a month; bimestral → every 2 months; semestral → every 6
+> [!important] 2026-11-02, segunda vuelta · validador ÁMBAR (`docs/i18n/validacion-compartidos.md`)
+> **El mutante M10 sobrevivía:** ningún estado enseñaba un motivo de rechazo de la
+> calculadora, así que quitar el `idioma` de `previsualizarCalculadora` en el alta
+> no lo veía nadie. Ahora hay un estado con una línea inválida (9 espacios en una
+> pantalla de 8) que espera «Loop slots go from 1 to 8.», y M10 **muere**. Otro
+> estado nuevo, el tablero con un rango a mano: en inglés el subtítulo ya no repite
+> las fechas (la etiqueta del rango YA son las fechas); en español sigue como
+> siempre. Se volvió a volcar el HTML español, ahora de **29 estados**, con las
+> fuentes de `integra/ingles` y con las nuevas: **idénticos byte a byte**.
+
+**Términos nuevos** (además del glosario de arriba; decisiones del orquestador del
+2026-11-02, el dueño puede cambiarlas): CPS · cost per play; CPM · cost per
+thousand impressions; millar → **thousand** invariable («2 thousand × …»); catorcena
+→ **two-week period(s)** (no «14-day»: «3 14-day periods» se lee «314»); catorcenal →
+**every two weeks**; quincenal → **twice a month** (no «biweekly», que en EE. UU. es
+ambiguo); por hora → **per hour**; bimestral → every 2 months; semestral → every 6
 months; espacio del loop → loop slot; prima → premium; zona (del mapa) → area,
-como el «Draw area» del piloto; trimestre → quarter (etiqueta «Q4 2026»).
+como el «Draw area» del piloto, y el verbo del mapa es siempre **click**, nunca
+«tap»; selector de periodo → **This month / Last month / This quarter / Last
+quarter / This year / Custom range** (Finanzas lo hereda cuando le toque);
+trimestre → quarter (etiqueta «Q4 2026»).
 
 **Lo que sigue en español, a propósito:** la periodicidad del contrato en la ficha
 en español sigue saliendo del dato (`mensual`); el servidor (`resolverCalculadora`,
