@@ -3,6 +3,8 @@ import { ES_PROPUESTAS, EN_PROPUESTAS } from './textos/propuestas'
 import { ES_COMPARTIDOS, EN_COMPARTIDOS } from './textos/compartidos'
 import { ES_CAMPANAS, EN_CAMPANAS } from './textos/campanas'
 import { ES_FINANZAS, EN_FINANZAS } from './textos/finanzas'
+import { ES_COMERCIAL, EN_COMERCIAL } from './textos/comercial'
+import { ES_CODIGOS, EN_CODIGOS } from './textos/codigos'
 
 // ============================================================================
 //  lib/i18n/diccionario.ts — LOS TEXTOS, Y LA CONVENCION DE CLAVES.
@@ -224,6 +226,8 @@ const ES = {
   ...ES_COMPARTIDOS,
   ...ES_CAMPANAS,
   ...ES_FINANZAS,
+  ...ES_COMERCIAL,
+  ...ES_CODIGOS,
 } as const
 
 export type ClaveTexto = keyof typeof ES
@@ -349,7 +353,7 @@ const EN: Record<ClaveTexto, string> = {
   'nav.disponibilidad': 'Availability',
   'nav.propuestas': 'Proposals',
   'nav.captacion': 'Prospecting',
-  'nav.comercial-opex': 'Commercial negotiation',
+  'nav.comercial-opex': 'Lease negotiation',
   'nav.franjas-y-temporadas': 'Dayparts and seasons',
   'nav.descuentos-por-volumen': 'Volume discounts',
   'nav.codigos-promocionales': 'Negotiation codes',
@@ -371,6 +375,8 @@ const EN: Record<ClaveTexto, string> = {
   ...EN_COMPARTIDOS,
   ...EN_CAMPANAS,
   ...EN_FINANZAS,
+  ...EN_COMERCIAL,
+  ...EN_CODIGOS,
 }
 
 export const DICCIONARIOS: Record<Idioma, Record<ClaveTexto, string>> = {
