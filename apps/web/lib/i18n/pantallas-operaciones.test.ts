@@ -76,11 +76,11 @@ vi.mock('@/components/demo/ui/CardColapsable', () => ({
       p.accion as never, p.children as never),
 }))
 
-const datos = vi.hoisted(() => ({ disponibilidad: undefined as unknown, puede: true }))
+const datos = vi.hoisted(() => ({ disponibilidad: undefined as unknown, puede: true, sitios: [] as unknown[] }))
 vi.mock('@/components/demo/shell/SesionContext', () => ({ usePuede: () => datos.puede }))
 vi.mock('@/lib/data/client', async (importOriginal) => {
   const real = await importOriginal<typeof import('@/lib/data/client')>()
-  return { ...real, useDisponibilidad: () => datos.disponibilidad }
+  return { ...real, useDisponibilidad: () => datos.disponibilidad, useSitios: () => datos.sitios }
 })
 
 beforeEach(() => {
@@ -88,6 +88,7 @@ beforeEach(() => {
   forzado.cola = []
   datos.disponibilidad = DISPONIBILIDAD
   datos.puede = true
+  datos.sitios = [{ id: 's1', nombre: 'Muro Reforma' }]
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(new Date(2026, 1, 15, 12))
 })
@@ -128,6 +129,18 @@ const DISPONIBILIDAD = {
   ],
 }
 
+// ─── Datos: almacen ─────────────────────────────────────────────────────────
+const activo = (id: string, extra: Record<string, unknown>) => ({
+  id, etiqueta: 'INV-' + id, descripcion: 'Articulo ' + id, tipoActivo: 'PANTALLA', estado: 'EN_ALMACEN', sitioId: null,
+  ubicacion: 'Norte', marca: null, modelo: null, numeroSerie: null, placas: null, notas: null, ...extra,
+})
+const ACTIVOS = [
+  activo('1', { tipoActivo: 'VEHICULO', estado: 'INSTALADO', sitioId: 's1', marca: 'Nissan', modelo: 'NP300', numeroSerie: 'VIN9', placas: 'ABC-1' }),
+  activo('2', {}),
+  activo('3', { tipoActivo: 'Grua', estado: 'BAJA' }),
+  activo('4', { tipoActivo: null, estado: 'EN_TRASLADO' }),
+]
+
 // ─── El arnes ───────────────────────────────────────────────────────────────
 function pintar(idioma: Idioma, el: ReactElement): string {
   return renderToStaticMarkup(createElement(ProveedorIdioma, { idioma, puedeElegir: true }, el))
@@ -147,6 +160,7 @@ function enesimo(componente: string, pred: (v: unknown) => boolean, n = 1) {
 }
 const forzar = (si: Forzado['si'], valor: unknown) => forzado.cola.push({ si, valor })
 
+const almacen = async () => (await import('../../app/(app)/(shell)/almacen/page')).default
 const disponibilidad = async () => (await import('../../app/(app)/(shell)/disponibilidad/page')).default
 
 type Estado = { nombre: string; pintar: (idioma: Idioma) => Promise<string>; espanol: string[]; ingles: string[] }
@@ -237,6 +251,91 @@ const ESTADOS: Estado[] = [
     },
     espanol: ['Sin pantallas que coincidan.'],
     ingles: ['No matching screens.'],
+  },
+  {
+    nombre: 'almacen · la lista con los cuatro estados',
+    pintar: async (idioma) => {
+      // Los articulos llegan por un `fetch` en un efecto: se fuerza el estado.
+      forzar(enesimo('AlmacenPage', (v) => v === null), ACTIVOS)
+      return pintar(idioma, createElement(await almacen()))
+    },
+    espanol: [
+      'Almacén', 'Vehículos, herramientas, pantallas, cámaras y demás artículos, y sus traslados.', 'Registrar artículo',
+      'Indicadores', 'Artículos', '1 dado de baja', 'Instalados', 'en una pantalla', 'En almacén', 'guardados en bodega',
+      'En traslado', 'en camino', 'aria-label="Filtrar por tipo"', 'Todos <span class="demo-num">(4)</span>',
+      'Vehículo / camioneta <span', 'Pantalla <span', 'Otro <span', 'Etiqueta', 'Descripción', 'Datos', 'Estado',
+      'Ubicación', '>Vehículo / camioneta<', '>Grua<', '>Otro<', 'Nissan NP300 · S/N VIN9 · Placas ABC-1', '>Instalado<',
+      '>Baja<', 'En pantalla: ', 'Bodega: ', '> Mover<',
+    ],
+    ingles: [
+      'Warehouse', 'Vehicles, tools, screens, cameras and other items, and their transfers.', 'Register item',
+      'Indicators', 'Items', '1 retired', 'on a screen', 'In warehouse', 'stored in a depot', 'In transit', 'on the way',
+      'aria-label="Filter by type"', 'All <span class="demo-num">(4)</span>', 'Vehicle / van <span', 'Screen <span',
+      'Other <span', 'Tag', 'Description', 'Details', 'Status', 'Location', '>Grua<', 'Nissan NP300 · S/N VIN9 · Plate ABC-1',
+      '>Installed<', '>Decommissioned<', 'On screen: ', 'Depot: ', '> Move<',
+    ],
+  },
+  {
+    nombre: 'almacen · vacio, con permiso y sin el',
+    pintar: async (idioma) => {
+      forzar(enesimo('AlmacenPage', (v) => v === null), [])
+      const con = pintar(idioma, createElement(await almacen()))
+      datos.puede = false
+      forzar(enesimo('AlmacenPage', (v) => v === null), [])
+      return con + pintar(idioma, createElement(await almacen()))
+    },
+    espanol: [
+      'Aún no hay artículos. Registra vehículos, herramientas, pantallas o cámaras para seguir dónde está cada uno.',
+      'ninguno dado de baja', 'Pide a Operaciones que los registre.',
+    ],
+    ingles: ['No items yet. Register vehicles, tools, screens or cameras to track where each one is.', 'none retired', 'Ask Operations to register them.'],
+  },
+  {
+    nombre: 'almacen · fallo de carga',
+    pintar: async (idioma) => {
+      forzar(enesimo('AlmacenPage', (v) => v === null), [])
+      forzar(enesimo('AlmacenPage', (v) => v === null, 3), 'red caida') // falloCarga, tras mover y filtroTipo
+      return pintar(idioma, createElement(await almacen()))
+    },
+    espanol: ['No se pudo cargar el almacén — red caida', 'Reintentar'],
+    ingles: ['The warehouse could not be loaded — red caida', 'Retry'],
+  },
+  {
+    nombre: 'almacen · registrar un vehiculo',
+    pintar: async (idioma) => {
+      forzar(enesimo('AlmacenPage', (v) => v === null), ACTIVOS)
+      forzar(enesimo('AlmacenPage', (v) => v === false), true) // altaOpen
+      forzar(enesimo('AltaActivoModal', (v) => v === 'PANTALLA'), 'VEHICULO')
+      return pintar(idioma, createElement(await almacen()))
+    },
+    espanol: [
+      'Entra al almacén', 'Etiqueta / número de inventario', 'placeholder="Ej. INV-0231"',
+      'placeholder="Ej. Camioneta Nissan NP300 / Pantalla LED 4x3 m"', 'Equipo electrónico', 'Marca', 'Modelo',
+      'Número de serie (VIN)', 'Placas', 'placeholder="Ej. Nissan / Hikvision"', 'placeholder="Ej. ABC-1234"',
+      'Dónde se guarda', 'placeholder="Ej. Bodega norte, anaquel 3"', 'Notas', '>Registrar<', 'Cancelar',
+    ],
+    ingles: [
+      'It goes into the warehouse', 'Tag / inventory number', 'placeholder="E.g. INV-0231"',
+      'placeholder="E.g. Nissan NP300 van / 4x3 m LED screen"', 'Electronic equipment', 'Brand', 'Model',
+      'Serial number (VIN)', 'License plate', 'placeholder="E.g. Nissan / Hikvision"', 'placeholder="E.g. ABC-1234"',
+      'Where it is stored', 'placeholder="E.g. North depot, shelf 3"', 'Notes', '>Register<', 'Cancel',
+    ],
+  },
+  {
+    nombre: 'almacen · mover un articulo a una pantalla',
+    pintar: async (idioma) => {
+      forzar(enesimo('AlmacenPage', (v) => v === null), ACTIVOS)
+      forzar(enesimo('AlmacenPage', (v) => v === null), ACTIVOS[1]) // mover
+      return pintar(idioma, createElement(await almacen()))
+    },
+    espanol: [
+      'Mover activo', 'INV-2 · Articulo 2', 'Movimiento', 'Instalar en pantalla', 'Marcar en traslado', 'Dar de baja',
+      'Pantalla destino', '— Elige —', 'Motivo / nota', 'placeholder="Ej. Retiro por fin de contrato"', 'Registrar movimiento',
+    ],
+    ingles: [
+      'Move item', 'INV-2 · Articulo 2', 'Movement', 'Install on a screen', 'Mark in transit', 'Retire',
+      'Destination screen', '— Choose —', 'Reason / note', 'placeholder="E.g. Removed at the end of the contract"', 'Record movement',
+    ],
   },
 ]
 

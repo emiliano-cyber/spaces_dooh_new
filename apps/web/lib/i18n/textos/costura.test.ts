@@ -43,6 +43,7 @@ const DISTINTOS_A_PROPOSITO: Record<string, string> = {
   Desde: 'un periodo de fechas («From») frente a la competencia del espacio, que esta ahi «desde» («Since»)',
   Folio: 'glosario: «Internal ref.» en propuestas y campañas, «Invoice no.» en una factura',
   Horario: 'el horario que se manda a DOOHmain («Schedule») frente al horario de operacion del sitio («Operating hours»)',
+  Movimiento: 'un renglon del estado de cuenta («Transaction») frente al traslado fisico de un articulo del almacen («Movement»)',
   Plazo: 'el plazo de cobranza («Payment terms») frente al plazo de una oferta de renta («Term»)',
   'Por vencer': 'una cuota que vence pronto («Due soon») frente a un contrato que caduca («Expiring soon»)',
   Vencido: 'un pago atrasado («Overdue») frente a un contrato o codigo caducado («Expired»)',

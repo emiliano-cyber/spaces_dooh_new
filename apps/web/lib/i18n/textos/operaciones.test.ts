@@ -73,3 +73,19 @@ describe('diccionario de OPERACIONES · el ingles no esta en espanol', () => {
     }
   })
 })
+
+describe('diccionario de OPERACIONES · los espejos reproducen EXACTAMENTE su modulo', () => {
+  // `almacen/page.tsx` traduce `ETIQUETA_TIPO_ACTIVO` y `ETIQUETA_CAMPO` con
+  // claves que siguen el nombre del valor (VEHICULO → `tipo.vehiculo`,
+  // numeroSerie → `campo.numero-serie`). Los mapas no se exportan (un
+  // `page.tsx` de Next no puede), asi que la regla se comprueba aqui.
+  it('los tipos de articulo y sus campos (`lib/almacen-tipos.ts`)', async () => {
+    const { ETIQUETA_TIPO_ACTIVO, ETIQUETA_CAMPO } = await import('../../almacen-tipos')
+    for (const [k, v] of Object.entries(ETIQUETA_TIPO_ACTIVO)) {
+      expect(ES[`operaciones.almacen.tipo.${k.toLowerCase()}`]).toBe(v)
+    }
+    for (const [k, v] of Object.entries(ETIQUETA_CAMPO)) {
+      expect(ES[`operaciones.almacen.campo.${k.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase())}`]).toBe(v)
+    }
+  })
+})
