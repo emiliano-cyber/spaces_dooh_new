@@ -161,3 +161,92 @@ La comprobación de §2b cubre hoy ese hueco. Pero es de este informe, no del re
 3. **folio → «ref.» / «reference».** Conviven «Internal ref.:», «Ref.» (columna) y «Reference or name…» (búsqueda). Es aceptable, pero conviene elegir una forma visible.
 4. **«rotations/h»** para rotaciones del loop. En DOOH también se usa «loops/h» o «plays/h». Es discutible, no un error.
 5. **Formato de fecha y de moneda en inglés** (`DD/MM/AAAA`, `$ 1,234.50`). Ya está anotado como pendiente. Debe resolverse antes de encender `IDIOMA_INGLES`, no después.
+
+---
+
+## Segunda pasada (2026-11-02): `git diff bea649a8..HEAD`, commits `103d86ab`, `f7cc4767`, `2bfd1102`
+
+### Veredicto: **ÁMBAR**
+
+**El contenido está en VERDE.** Lo verifiqué todo por mi cuenta:
+- los hallazgos de la primera vuelta están resueltos y las frases nuevas tienen sentido en su contexto;
+- el español sigue idéntico a `main`;
+- las fechas en español no cambian en ninguna parte de la app;
+- `formatMonto` no se tocó;
+- todas las pruebas están en verde y los 3 mutantes que sobrevivían ahora mueren.
+
+**Lo que impide integrar tal cual es basura en el commit, no la traducción.** `2bfd1102` commitea **296 archivos `desktop.ini`** de OneDrive (`[.ShellClassInfo] IconResource=C:\Program Files\…`). **190 de ellos están dentro de `apps/web/app/api/**`**, que es zona prohibida para este lote. `main` ya arrastraba 14. No se ejecutan, pero ensucian el repositorio y el diff de la revisión.
+
+**Corrección obligatoria antes del merge:** sacar del índice los `desktop.ini` que añade la rama (`git diff --name-only bea649a8..HEAD | grep 'desktop.ini$'` → `git rm --cached`) y añadir `desktop.ini` a `.gitignore`. Con eso el veredicto pasa a VERDE.
+
+### 1 · Hallazgos de la primera vuelta
+
+Comprobé los cambios en el diccionario y en el HTML inglés rendido de los 20 estados:
+
+| hallazgo | estado | cómo se lee ahora en pantalla |
+|---|---|---|
+| `descuento.tope-aviso` | resuelto | «Your organization allows up to **30%**; to go higher, an admin has to raise the cap in Settings.» |
+| `mapa.parcial` | resuelto | «Screens without coordinates (not shown on the map): 1 of 2 screens.» Es correcto con cualquier n. Repite «screens» dos veces: menor, aceptable. |
+| `mapa.sin-coords.uno` | resuelto | «The only screen in this proposal has no coordinates entered.» El español pasa a la cifra literal «Ninguna de las 1 pantalla…», que es exactamente lo que `main` pintaba con n=1. |
+| `alta.mapa.ayuda` / botón de `MapView` | resuelto | El botón de `MapView` usa la MISMA clave (`MapView.tsx:405`). Su español «Dibujar zona» es idéntico al literal de `main` (`MapView.tsx:403`), así que el resto de la app no cambia. Ahora dice «Click a point». |
+| `ficha.codigo-pendiente` | resuelto | «Negotiation code VERANO20 (20%) · pending approval» |
+| `tablero.ganancia-por-aprobada` | resuelto | «Profit per approved proposal» |
+| `%` con espacio | resuelto | Se usa `{pct}%` en todo el inglés. La nueva clave `comun.pct` cubre los `<b>{x} %</b>` que estaban en JSX; en español sigue «{pct} %». |
+| Las ~20 de severidad baja | resueltas | «$ 3k lost on 1 rejected», «sales not calculated…», «Approved on», «Prepared for», «Which client should be billed?», «Click», «Enter a reason…», «bundle price», «electricity and operations», «thousand = … impressions», «spots per advertiser per month» y «see all proposals ({n})». El comentario de cabecera ya dice sentence case. |
+| «Devolver el uso» | resuelto, con sentido | Toast: «Negotiation code removed; the use it consumed is available again». Ayuda: «Removing it gives the use back (it no longer counts against the code's limit).» Explicación: «Applying it consumes one of its uses (removing it gives it back)…» Ninguna dice ya que el código se devuelve el uso a sí mismo. |
+| Nuevas `.uno` / `.otros` | correctas | `alta.salidas.uno/.otros` dan «1 play» / «97,200 plays»; `paquete.opcion.uno/.otros` dan «1 screen» / «2 screens». En los dos casos el español queda igual en ambas formas («salidas», «pantallas»), que es lo que hacía `main`. |
+
+**Mi opinión sobre «spots/h» en el Roadblock: es correcto dejarlo.**
+- `rotacionesHora` es cuántas veces se reproduce el LOOP en una hora, así que «loops/h» es exacto.
+- `spotsHoraRB = Math.floor(SEGUNDOS_POR_HORA / duracionSeg)` (`propuestas/page.tsx:1862`) cuenta SPOTS por hora: un Roadblock compra todos los espacios del loop. Ponerle «loops/h» daría un número falso con su unidad.
+
+La decisión del dueño («spots por hora del loop → loops/h») se aplica bien solo a la primera cifra.
+
+### 2 · Español intacto: VERIFICADO otra vez, mecánicamente
+
+- **Render.** Volví a rendir los 20 estados en español con los componentes de `main` (espejo temporal, ya borrado) y con los de la rama: **20/20 idénticos** con `cmp`.
+- **Diccionario contra el código de `main`.** Ahora hay 440 claves y comparé sus fragmentos contra los 11 archivos de `main` más `MapView.tsx`. Las 13 que no aparecen literales son las mismas 13 frases compuestas que ya reconcilié en la primera vuelta. `sin-coords.uno` ahora es literal y coincide con la salida de `main` para n=1. Los huecos y los bordes son iguales entre `es` y `en` en las 440.
+- **`formatFecha` / `formatFechaHora` en TODA la app.** El diff de `derive.ts` solo añade el parámetro `idioma = 'es'` y la rama `en`; la rama española no se tocó.
+  - Busqué los usos por referencia: `ComercialOpex.tsx:105` (`const fecha = formatFecha`) siempre llama con un solo argumento.
+  - No hay ningún `.map(formatFecha)` ni nada parecido.
+  - Además comparé la función de `main` (extraída con `git show`) con la de la rama, sin idioma y con `'es'`: 11 entradas raras más una fecha cada 7 h durante 2025–2026, en formato ISO y en fecha sola. **0 diferencias.**
+  - En inglés: `Dec 1, 2026` y `Dec 1, 2026, 3:45 PM`.
+- **Moneda.** `git diff main...HEAD` no toca `formatMonto`, `formato-numero.ts` ni `dinero.ts`. Los importes en inglés siguen saliendo como `$ 1,234.50`, que es lo esperado.
+
+### 3 · Glosario en el inglés
+
+- En `EN_PROPUESTAS` no hay ningún «promo», «coupon», «rotation» ni «Ref.» suelto.
+- En los componentes del lote no hay «promo code».
+- «Folio» se traduce como **«Internal ref.»** en los tres sitios: la búsqueda («Internal ref. or name…»), la ficha («Internal ref.:») y la columna del tablero.
+- Quedan «Reference rent» y «Total ref. rent», pero traducen «renta de referencia», no el folio. Son correctas; si al dueño le chocan junto a «Internal ref.», podrían pasar a «Est. rent». Eso es decisión suya, no un defecto.
+- Sigue en español lo ya declarado de los módulos compartidos («Este mes», «1 mes», «No. of salidas») y el « (obligatorio)» de `Campo` que solo oye el lector de pantalla. No bloquea mientras el inglés esté apagado.
+
+### 4 · Pruebas (corridas por mí)
+
+```
+cd apps/web && npm run typecheck   →  tsc --noEmit, sin errores
+cd apps/web && npm test            →  Test Files 321 passed (321) · Tests 4244 passed (4244)
+```
+
+Mutantes contra `lib/i18n/` y `lib/data/derive.fecha-idioma.test.ts`:
+
+| # | mutante | resultado |
+|---|---|---|
+| M6 | `es` de `tablero.sin-costo.uno`: «algúna» | **MUERE** (instantánea ES) |
+| M7 | `es` de `calc.rb.prima`: `{pct}%` | **MUERE** (instantánea ES) |
+| M8 | `en` de `calc.rb.prima` puesto en español | **MUERE** (instantánea EN + «el inglés no está en español») |
+| M9 | `en` de `alta.salidas.uno` = «{n} salidas» | **MUERE** (2 rojas) |
+| M10 | `es` de `mapa.sin-coords.uno`: «de la 1 pantalla» | **MUERE** |
+| M11 | rama española de `formatFecha`: `dd-mm-aaaa` | **MUERE** (6 rojas en `derive.fecha-idioma` y en las pantallas) |
+
+Todos se restauraron con `git checkout`.
+
+**Aviso menor.** Cuando falla la prueba de instantánea, vitest reescribe `__snapshots__/propuestas.test.ts.snap` con LF y git lo marca como modificado aunque el contenido sea el mismo (`core.autocrlf=true`). Lo restauré. Conviene añadir `*.snap text eol=lf` a `.gitattributes` para que no confunda a nadie.
+
+El árbol quedó limpio salvo este informe.
+
+### 5 · Reglas
+
+- **Dinero en el diccionario.** No hay `$`, códigos de moneda ni importes. Las cifras que quedan no son dinero y ya existían, más el literal «1» de `sin-coords.uno`, que es copia del texto de `main`.
+- **Archivos prohibidos, código.** Sin contar los `desktop.ini`, el diff solo toca los archivos del lote, `MapView.tsx`, `lib/data/derive.ts` (más su prueba nueva), las pruebas e instantáneas de i18n, la revisión, este informe y la nota de la bóveda. Nada en `middleware.ts`, `nav.ts`, `db/schema.sql`, migraciones, `next.config.mjs`, `idiomas.ts` ni `IDIOMA_INGLES`.
+- **Archivos prohibidos, basura.** Los **190 `desktop.ini` dentro de `app/api/`** sí entran en zona prohibida aunque no sean rutas. Ver el veredicto.
