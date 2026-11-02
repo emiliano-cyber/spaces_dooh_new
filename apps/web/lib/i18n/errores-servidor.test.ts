@@ -270,7 +270,7 @@ describe('GUARDIA · ningun mensaje de error puede quedarse fuera EN SILENCIO', 
       let m: RegExpExecArray | null
       while ((m = re.exec(src)) !== null) {
         const resto = src.slice(m.index + m[0].length)
-        if (/^\s*`/.test(resto)) continue // plantilla: declarada en SIN_TRADUCIR
+        if (/^\s*`/.test(resto)) continue // plantilla: la vigila errores-servidor-plantillas.test.ts (lote servidor)
         const texto = leerConcatenacion(resto)
         if (texto === null) continue // identificador o compuesto con variable
         const linea = src.slice(0, m.index).split('\n').length
