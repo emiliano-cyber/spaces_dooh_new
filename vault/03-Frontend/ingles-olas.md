@@ -86,17 +86,18 @@ traductor  ──►  validador  ──►  ¿VERDE?  ──sí──►  se jun
 | Lote | Rama | Estado |
 |---|---|---|
 | Catálogos de precio (paquetes, franjas y temporadas, volumen) | `feat/ingles-operaciones` | **VERDE** (2.ª). Integrado en `integra/ingles` (85a8ee67). Incluye el aviso de `CampoCifra` en inglés para toda la app |
-| Space Eyes | `feat/ingles-space-eyes` | Traduciendo |
-| Inventario y arrendadores | `feat/ingles-inventario-arrendadores` | Traduciendo. El texto legal del contrato NO se traduce: va ligado al hash de las firmas |
-| Administración, cuenta y shell | `feat/ingles-administracion` | Traducido (698 claves). En validación |
-| Operaciones y clientes (incluido el Dashboard) | `feat/ingles-operaciones-clientes` | Traduciendo. El primer intento se cortó por el límite de uso; este parte de sus borradores |
+| Space Eyes | `feat/ingles-space-eyes` | Traducido (984 claves). Validador: **ÁMBAR** (5 medios); en 2.ª vuelta. «Vincular» se queda igual en los dos idiomas: la app Android solo está en español (dueño, 02/11) |
+| Inventario y arrendadores | `feat/ingles-inventario-arrendadores` | Traducido (761 claves). Validador: **ÁMBAR** (3 medios, nada en contratos); en 2.ª vuelta. El texto legal del contrato NO se traduce (hash de las firmas); la constancia de firmas va en el idioma configurado (dueño, 02/11) |
+| Administración, cuenta y shell | `feat/ingles-administracion` | **VERDE** (2.ª). Integrado (bb365fa3). 705 claves |
+| Clientes, comisiones, captación, disponibilidad, almacén, imprenta | `feat/ingles-operaciones-clientes` | Traducido (397 claves). En validación |
+| Operaciones y OT, creativos, Dashboard, energía, reportes | `feat/ingles-operaciones-2` | Traduciendo. El Dashboard: solo textos, diseño intacto |
 
 ### Ola 4 · Lo que sale del servidor (en curso)
 
 | Lote | Rama | Estado |
 |---|---|---|
 | Plantillas de error con huecos y motivos compartidos con el servidor | `feat/ingles-servidor` | Traduciendo |
-| «pesos» en redacción neutra (español **e** inglés) | `feat/pesos-neutral` | En curso. Es el único cambio autorizado del español |
+| «pesos» en redacción neutra (español **e** inglés) | `feat/pesos-neutral` | Hecho (4 claves de Paquetes). En validación. Es el único cambio autorizado del español |
 
 ### Ola 5 · Cierre (por lanzar)
 
