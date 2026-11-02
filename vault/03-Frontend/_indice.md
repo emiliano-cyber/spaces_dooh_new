@@ -40,6 +40,7 @@ Router en uso**.
 | [[paginas-publicas]] | Portal, firma, propuesta compartible, OT móvil |
 | [[estado-y-data-fetching]] | React Query, zustand, el parche de `fetch` |
 | [[idiomas-es-en]] | La aplicacion en espanol e ingles: deteccion, cambio manual, el dinero |
+| [[ingles-olas]] | El tablero de la version en ingles: olas, ramas, veredictos y pendientes |
 
 ## Los tres niveles de layout
 

@@ -1026,6 +1026,7 @@ cambiado**.
 
 ## Enlaces
 
+- [[ingles-olas]] — el tablero de la traducción: qué lote, en qué rama, qué validador y qué falta
 - [[acceso-y-sesion-ui]] — la pantalla de entrar, que es la traducida
 - [[shell-y-navegacion]] — el menú lateral
 - [[convenciones]] — el español como idioma del código
