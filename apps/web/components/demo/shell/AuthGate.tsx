@@ -8,6 +8,7 @@ import { refrescarEstado } from '@/lib/data/estado-api'
 import { useSesionCtx } from './SesionContext'
 import { NAV } from './nav'
 import { decidirPantalla, salidaObligatoria } from './compuerta'
+import { useTexto } from '@/lib/i18n/contexto'
 
 // Compuerta del shell basada en la sesión REAL (/api/auth/me).
 //  - Sin sesión → /demo/login
@@ -34,7 +35,8 @@ function Cargando() {
 // Fallo al cargar el estado. Se muestra en vez de los módulos vacíos: un "0 de
 // 0" es indistinguible de "no tienes datos" y manda al usuario a buscar el
 // problema en sus filtros. Con reintento, para no obligar a recargar la página.
-function ErrorDeCarga() {
+export function ErrorDeCarga() {
+  const t = useTexto()
   const [reintentando, setReintentando] = useState(false)
   async function reintentar() {
     setReintentando(true)
@@ -45,9 +47,9 @@ function ErrorDeCarga() {
   return (
     <div className="flex h-full items-center justify-center">
       <div className="max-w-sm text-center">
-        <p className="text-[15px] font-medium text-ink">No se pudieron cargar los datos</p>
+        <p className="text-[15px] font-medium text-ink">{t('shell.carga.titulo')}</p>
         <p className="mt-1 text-[13px] text-muted">
-          La información no llegó del servidor. No es que no existan datos: no se pudieron leer.
+          {t('shell.carga.detalle')}
         </p>
         <button
           type="button"
@@ -55,7 +57,7 @@ function ErrorDeCarga() {
           disabled={reintentando}
           className="mt-4 rounded-md border border-border px-3 py-1.5 text-[13px] text-ink hover:bg-bg disabled:opacity-60"
         >
-          {reintentando ? 'Reintentando…' : 'Reintentar'}
+          {reintentando ? t('shell.carga.reintentando') : t('shell.carga.reintentar')}
         </button>
       </div>
     </div>

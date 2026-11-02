@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { SpaceOsMark } from '@/components/demo/ui/SpaceOsMark'
 import { ATAJOS_404 } from '@/lib/atajos-404'
+import { traducir, DICCIONARIOS, type ClaveTexto } from '@/lib/i18n/diccionario'
+import { idiomaDeLaPeticion } from '@/lib/i18n/servidor'
 import './(app)/demo.css'
 
 // ============================================================================
@@ -34,20 +36,24 @@ import './(app)/demo.css'
 // ============================================================================
 
 export default function NotFound() {
+  // El idioma, como el del layout raiz: esta pantalla ya cuelga de el y no
+  // anade nada dinamico que no estuviera (el layout raiz ya lee la cookie).
+  const idioma = idiomaDeLaPeticion()
+  const t = (clave: ClaveTexto) => traducir(idioma, clave)
   return (
     <div className="demo-root flex min-h-screen flex-col items-center justify-center px-6 py-12 text-center">
       <SpaceOsMark className="h-10 w-10" />
       <p className="demo-num mt-6 text-[12px] font-medium uppercase tracking-widest text-muted">
         Error 404
       </p>
-      <h1 className="mt-2 text-2xl text-ink">Esta página no existe</h1>
+      <h1 className="mt-2 text-2xl text-ink">{t('shell.404.titulo')}</h1>
       <p className="mt-2 max-w-sm text-[13px] text-muted">
-        La dirección es incorrecta o el registro que buscas ya no está disponible.
+        {t('shell.404.detalle')}
       </p>
 
-      <nav aria-label="Ir a otra sección" className="mt-8 w-full max-w-lg">
+      <nav aria-label={t('shell.404.otra-seccion')} className="mt-8 w-full max-w-lg">
         <p className="text-[12px] font-medium uppercase tracking-widest text-muted">
-          Ir a otra sección
+          {t('shell.404.otra-seccion')}
         </p>
         {/* `list-none` explícito: dentro de `.demo-root` los <li> conservan su
             viñeta y salían tres puntos sueltos a la izquierda de las tarjetas. */}
@@ -61,7 +67,9 @@ export default function NotFound() {
                   className="flex h-full flex-col items-center justify-center gap-1.5 rounded border border-border bg-surface px-3 py-4 text-[13px] text-ink hover:border-border-strong hover:bg-surface-2"
                 >
                   <Icono className="h-4 w-4 text-muted" aria-hidden="true" />
-                  {atajo.label}
+                  {/* El rotulo del menu, por su clave (`nav.<key>`), como el
+                      Sidebar: si la clave no existe se pinta el de `NAV`. */}
+                  {`nav.${atajo.key}` in DICCIONARIOS[idioma] ? t(`nav.${atajo.key}` as ClaveTexto) : atajo.label}
                 </Link>
               </li>
             )
@@ -73,7 +81,7 @@ export default function NotFound() {
         href="/inicio"
         className="mt-8 inline-flex h-9 items-center rounded border border-border-strong bg-surface px-4 text-[13px] font-medium text-ink hover:bg-surface-2"
       >
-        Volver al inicio
+        {t('shell.404.volver')}
       </Link>
     </div>
   )

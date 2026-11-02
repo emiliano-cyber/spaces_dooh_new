@@ -8,6 +8,8 @@ import { Card, CardContent } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
 import { Campo } from '@/components/demo/ui/Campo'
 import { FRANJA_AVISO } from '@/components/demo/admin/Chip'
+import { useTexto } from '@/lib/i18n/contexto'
+import { interpolarNodos } from '@/lib/i18n/nodos'
 
 const API = '/spaces-dooh/api'
 const inputCls =
@@ -47,6 +49,7 @@ export default function CodigosRecuperacion() {
   const [yaTenia, setYaTenia] = useState(false)
   const [pidePassword, setPidePassword] = useState(false)
   const [password, setPassword] = useState('')
+  const t = useTexto()
 
   // Si llega alguien que ya los confirmó, no tiene nada que hacer aquí.
   useEffect(() => {
@@ -80,7 +83,7 @@ export default function CodigosRecuperacion() {
         setPidePassword(true)
         return
       }
-      if (!r.ok) throw new Error(d?.error ?? 'No se pudieron generar')
+      if (!r.ok) throw new Error(d?.error ?? t('cuenta.codigos.error.generar'))
       setCodigos(d.codigos)
       setPidePassword(false)
       setPassword('')
@@ -102,7 +105,7 @@ export default function CodigosRecuperacion() {
         body: JSON.stringify({ password }),
       })
       const d = await r.json().catch(() => ({}))
-      if (!r.ok) throw new Error(d?.error ?? 'No se pudo verificar la contraseña')
+      if (!r.ok) throw new Error(d?.error ?? t('cuenta.codigos.error.verificar'))
     } catch (e) {
       toast.error((e as Error).message)
       setOcupado(false)
@@ -120,7 +123,7 @@ export default function CodigosRecuperacion() {
         headers: { 'Content-Type': 'application/json' },
         body: '{}',
       })
-      if (!r.ok) throw new Error('No se pudo confirmar')
+      if (!r.ok) throw new Error(t('cuenta.codigos.error.confirmar'))
       // Recarga completa y no `router.push`: la sesión que tiene el cliente en
       // memoria dice todavía que faltan los códigos, y con ella el guard de la
       // interfaz lo devolvería aquí en cuanto navegara.
@@ -146,22 +149,21 @@ export default function CodigosRecuperacion() {
     return (
       <main className="mx-auto w-full max-w-xl space-y-4">
         <div>
-          <h1 className="text-2xl text-ink">Códigos de recuperación</h1>
-          <p className="mt-1 text-[13px] text-muted">Tu forma de volver a entrar si algún día pierdes el acceso a tu cuenta.</p>
+          <h1 className="text-2xl text-ink">{t('cuenta.codigos.titulo')}</h1>
+          <p className="mt-1 text-[13px] text-muted">{t('cuenta.codigos.subtitulo')}</p>
         </div>
         <Card>
           <CardContent className="space-y-4 pt-4">
             <p className="m-0 text-[13px] text-ink">
-              Ya tienes tus códigos guardados. Si los perdiste, puedes generar otros: los
-              anteriores dejarán de funcionar.
+              {t('cuenta.codigos.ya-tienes')}
             </p>
             {!pidePassword && (
               <div className="flex flex-wrap gap-2">
                 <Button size="sm" onClick={generar} disabled={ocupado}>
-                  <RefreshCw className="h-3.5 w-3.5" /> Generar códigos nuevos
+                  <RefreshCw className="h-3.5 w-3.5" /> {t('cuenta.codigos.generar-nuevos')}
                 </Button>
                 <Button size="sm" variant="secondary" onClick={() => router.push('/inicio')} disabled={ocupado}>
-                  Volver
+                  {t('cuenta.codigos.volver')}
                 </Button>
               </div>
             )}
@@ -171,11 +173,10 @@ export default function CodigosRecuperacion() {
                 <p className={FRANJA_AVISO}>
                   <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[#9a6700]" />
                   <span>
-                    Teclea tu contraseña para confirmar. Los códigos que tengas guardados
-                    <strong> dejarán de funcionar</strong> en cuanto se generen los nuevos.
+                    {interpolarNodos(t('cuenta.codigos.teclea'), { dejaran: <strong>{t('cuenta.codigos.teclea.dejaran')}</strong> })}
                   </span>
                 </p>
-                <Campo label="Tu contraseña">
+                <Campo label={t('cuenta.codigos.tu-contrasena')}>
                   <input
                     type="password"
                     className={inputCls}
@@ -183,12 +184,12 @@ export default function CodigosRecuperacion() {
                     autoFocus
                     autoComplete="current-password"
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Tu contraseña"
+                    placeholder={t('cuenta.codigos.tu-contrasena')}
                   />
                 </Campo>
                 <div className="flex flex-wrap gap-2">
                   <Button size="sm" type="submit" disabled={!password || ocupado}>
-                    {ocupado ? 'Verificando…' : 'Confirmar y generar'}
+                    {ocupado ? t('cuenta.codigos.verificando') : t('cuenta.codigos.confirmar-generar')}
                   </Button>
                   <Button
                     size="sm"
@@ -200,7 +201,7 @@ export default function CodigosRecuperacion() {
                     }}
                     disabled={ocupado}
                   >
-                    Cancelar
+                    {t('comun.cancelar')}
                   </Button>
                 </div>
               </form>
@@ -214,8 +215,8 @@ export default function CodigosRecuperacion() {
   return (
     <main className="mx-auto w-full max-w-xl space-y-4">
       <div>
-        <h1 className="text-2xl text-ink">Guarda tus códigos de recuperación</h1>
-        <p className="mt-1 text-[13px] text-muted">Tu forma de volver a entrar si algún día pierdes el acceso a tu cuenta.</p>
+        <h1 className="text-2xl text-ink">{t('cuenta.codigos.titulo.guardar')}</h1>
+        <p className="mt-1 text-[13px] text-muted">{t('cuenta.codigos.subtitulo')}</p>
       </div>
 
       <Card>
@@ -223,13 +224,11 @@ export default function CodigosRecuperacion() {
           {!codigos && (
             <>
               <p className="m-0 text-[13px] text-ink">
-                Entras con Google, así que <strong>no tienes contraseña</strong> con la que
-                volver. Estos códigos son la única forma de entrar si algún día pierdes el
-                acceso a esa cuenta.
+                {interpolarNodos(t('cuenta.codigos.google'), { sin: <strong>{t('cuenta.codigos.google.sin')}</strong> })}
               </p>
-              <p className="m-0 text-[13px] text-ink">Cada uno sirve <strong>una sola vez</strong>. Guárdalos donde no se pierdan.</p>
+              <p className="m-0 text-[13px] text-ink">{interpolarNodos(t('cuenta.codigos.una-vez'), { vez: <strong>{t('cuenta.codigos.una-vez.vez')}</strong> })}</p>
               <Button size="sm" onClick={generar} disabled={ocupado}>
-                <KeyRound className="h-3.5 w-3.5" /> {ocupado ? 'Generando…' : 'Mostrar mis códigos'}
+                <KeyRound className="h-3.5 w-3.5" /> {ocupado ? t('cuenta.codigos.generando') : t('cuenta.codigos.mostrar')}
               </Button>
             </>
           )}
@@ -239,26 +238,25 @@ export default function CodigosRecuperacion() {
               <p className={FRANJA_AVISO}>
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[#9a6700]" />
                 <span>
-                  <strong>Se muestran una sola vez.</strong> Cópialos o imprímelos antes de
-                  continuar: en cuanto salgas de esta pantalla no vuelven a mostrarse.
+                  {interpolarNodos(t('cuenta.codigos.aviso'), { una: <strong>{t('cuenta.codigos.aviso.una')}</strong> })}
                 </span>
               </p>
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[12px] font-medium text-ink">Tus {codigos.length} códigos</span>
+                  <span className="text-[12px] font-medium text-ink">{t(codigos.length === 1 ? 'cuenta.codigos.tus.uno' : 'cuenta.codigos.tus.otros', { n: codigos.length })}</span>
                   <Button
                     size="sm"
                     variant="secondary"
                     onClick={() => {
                       navigator.clipboard?.writeText(codigos.join('\n')).then(
-                        () => toast.success('Copiados'),
-                        () => toast.error('No se pudieron copiar; cópialos a mano'),
+                        () => toast.success(t('cuenta.codigos.copiados')),
+                        () => toast.error(t('cuenta.codigos.no-copiados')),
                       )
                     }}
                     disabled={ocupado}
                   >
-                    <Copy className="h-3.5 w-3.5" /> Copiar
+                    <Copy className="h-3.5 w-3.5" /> {t('cuenta.codigos.copiar')}
                   </Button>
                 </div>
                 <ol className="m-0 grid list-none grid-cols-1 gap-2 rounded-md border border-border-strong bg-surface-2 p-4 sm:grid-cols-2">
@@ -284,11 +282,11 @@ export default function CodigosRecuperacion() {
                   checked={guardados}
                   onChange={(e) => setGuardados(e.target.checked)}
                 />
-                Ya los guardé en un lugar seguro
+                {t('cuenta.codigos.ya-guarde')}
               </label>
 
               <Button onClick={confirmar} disabled={!guardados || ocupado}>
-                {ocupado ? 'Guardando…' : 'Continuar'}
+                {ocupado ? t('cuenta.codigos.guardando') : t('cuenta.codigos.continuar')}
               </Button>
             </>
           )}

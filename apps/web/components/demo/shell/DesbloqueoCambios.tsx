@@ -6,6 +6,8 @@ import { Modal } from '@/components/demo/ui/Modal'
 import { Button } from '@/components/demo/ui/Button'
 import { cn } from '@/lib/cn'
 import { estadoCambiosApi, desbloquearApi, bloquearApi } from '@/lib/data/cambios-api'
+import { useTexto } from '@/lib/i18n/contexto'
+import { interpolarNodos } from '@/lib/i18n/nodos'
 
 // ============================================================================
 //  Botón de la barra superior para desbloquear los cambios sensibles.
@@ -26,6 +28,7 @@ function minutosRestantes(hasta: string | null): number {
 }
 
 export function DesbloqueoCambios() {
+  const t = useTexto()
   const [requiere, setRequiere] = useState(false)
   const [hasta, setHasta] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
@@ -68,7 +71,7 @@ export function DesbloqueoCambios() {
       setPass('')
       setOpen(false)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo desbloquear')
+      setError(e instanceof Error ? e.message : t('shell.candado.error'))
     }
     setEnviando(false)
   }
@@ -85,8 +88,8 @@ export function DesbloqueoCambios() {
         onClick={() => (abierto ? void bloquear() : setOpen(true))}
         title={
           abierto
-            ? `Cambios desbloqueados ${restan} min más · clic para bloquear`
-            : 'Los cambios de dinero y catálogo necesitan una contraseña'
+            ? t('shell.candado.title.abierto', { min: restan })
+            : t('shell.candado.title.cerrado')
         }
         className={cn(
           'inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[12px] transition-colors',
@@ -96,32 +99,29 @@ export function DesbloqueoCambios() {
         )}
       >
         {abierto ? <Unlock className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
-        <span className="hidden sm:inline">{abierto ? `Desbloqueado ${restan} min` : 'Cambios bloqueados'}</span>
+        <span className="hidden sm:inline">{abierto ? t('shell.candado.abierto', { min: restan }) : t('shell.candado.cerrado')}</span>
       </button>
 
       <Modal
         open={open}
         onOpenChange={(v) => { setOpen(v); if (!v) { setPass(''); setError(null) } }}
-        title="Desbloquear cambios"
-        subtitle="Tu contraseña, o la del control de cambios"
+        title={t('shell.candado.titulo')}
+        subtitle={t('shell.candado.subtitulo')}
         footer={
           <div className="flex justify-end gap-2">
-            <Button variant="secondary" size="sm" onClick={() => setOpen(false)} disabled={enviando}>Cancelar</Button>
+            <Button variant="secondary" size="sm" onClick={() => setOpen(false)} disabled={enviando}>{t('comun.cancelar')}</Button>
             <Button size="sm" onClick={desbloquear} disabled={enviando || !pass}>
-              {enviando && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Desbloquear
+              {enviando && <Loader2 className="h-3.5 w-3.5 animate-spin" />} {t('shell.candado.desbloquear')}
             </Button>
           </div>
         }
       >
         <div className="space-y-3">
           <p className="text-[13px] text-muted">
-            Los cambios que mueven dinero o el catálogo —tarifas, rentas, contratos, pagos,
-            facturación y borrados— necesitan una contraseña. Sirve <b>tu propia contraseña de
-            acceso</b>, o la contraseña del control de cambios que haya asignado el Dueño. Al
-            teclear cualquiera de las dos quedas desbloqueado un rato y no te la vuelve a pedir.
+            {interpolarNodos(t('shell.candado.explicacion'), { propia: <b>{t('shell.candado.explicacion.propia')}</b> })}
           </p>
           <label className="block">
-            <span className="mb-1 block text-[12px] font-medium text-ink">Contraseña</span>
+            <span className="mb-1 block text-[12px] font-medium text-ink">{t('shell.candado.contrasena')}</span>
             <input
               type="password"
               value={pass}
