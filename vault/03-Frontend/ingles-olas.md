@@ -95,7 +95,7 @@ traductor  ──►  validador  ──►  ¿VERDE?  ──sí──►  se jun
 
 | Lote | Rama | Estado |
 |---|---|---|
-| Plantillas de error con huecos y motivos compartidos con el servidor | `feat/ingles-servidor` | Traduciendo |
+| Plantillas de error con huecos y motivos compartidos con el servidor | `feat/ingles-servidor` | Traducido, por validar: 44 plantillas por patrón y 31 claves (`docs/i18n/revision-servidor.md`). Quedan ~108 mensajes por variable para la ola siguiente |
 | «pesos» en redacción neutra (español **e** inglés) | por crear | Espera a que catálogos se junte, porque toca los mismos archivos |
 
 ### Ola 5 · Cierre (por lanzar)
