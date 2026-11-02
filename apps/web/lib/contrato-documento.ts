@@ -155,11 +155,21 @@ function apocopar(s: string): string {
   return s === 'UNO' ? 'UN' : s.replace(/ UNO$/, ' UN')
 }
 
-export function numeroALetras(monto: number): string {
+// ADR 0048 · la letra va en la moneda del importe. Hasta el 02/11 decia PESOS
+// siempre, y en un contrato la letra es la que prevalece sobre la cifra: un
+// contrato en dolares habria dicho una cosa en numero y otra en letra. Sin
+// moneda, MXN, que es lo de siempre (y el texto que se firma no cambia).
+const LETRA_MONEDA: Record<string, { uno: string; varios: string; cierre: string }> = {
+  MXN: { uno: 'PESO', varios: 'PESOS', cierre: 'M.N.' },
+  USD: { uno: 'DÓLAR', varios: 'DÓLARES', cierre: 'USD' },
+}
+
+export function numeroALetras(monto: number, moneda: string = 'MXN'): string {
+  const m = LETRA_MONEDA[moneda] ?? LETRA_MONEDA.MXN
   const entero = Math.floor(Math.abs(monto))
   const centavos = Math.round((Math.abs(monto) - entero) * 100)
   const cent = String(centavos).padStart(2, '0')
-  if (entero === 0) return `CERO PESOS ${cent}/100 M.N.`
+  if (entero === 0) return `CERO ${m.varios} ${cent}/100 ${m.cierre}`
 
   const millones = Math.floor(entero / 1_000_000)
   const miles = Math.floor((entero % 1_000_000) / 1000)
@@ -172,8 +182,8 @@ export function numeroALetras(monto: number): string {
   else if (miles > 1) partes.push(`${apocopar(centenasALetras(miles))} MIL`)
   if (resto) partes.push(apocopar(centenasALetras(resto)))
 
-  const plural = entero === 1 ? 'PESO' : 'PESOS'
-  return `${partes.join(' ')} ${plural} ${cent}/100 M.N.`
+  const plural = entero === 1 ? m.uno : m.varios
+  return `${partes.join(' ')} ${plural} ${cent}/100 ${m.cierre}`
 }
 
 // Serializa el documento a texto plano. Es LO QUE SE FIRMA: sobre esta cadena
@@ -228,7 +238,7 @@ export function fechaEnLetra(iso: string | null): string {
 function importe(n: number | null, moneda: string): string {
   if (n == null) return FALTA
   const cifra = n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  return `$${cifra} ${moneda} (${numeroALetras(n)})`
+  return `$${cifra} ${moneda} (${numeroALetras(n, moneda)})`
 }
 
 const v = (x: string | null | undefined): string => (x && String(x).trim() ? String(x).trim() : FALTA)

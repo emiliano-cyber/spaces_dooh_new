@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useRef, useState } from 'react'
+import { simboloMoneda } from '@/lib/i18n/dinero'
 import { Search, Cpu, Pencil, Loader2, CheckCircle2, UserPlus, Tag, X, Building2, Download } from 'lucide-react'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import {
@@ -795,7 +796,7 @@ function CeldaRenta({
 
   return (
     <span className="inline-flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-      <span className="text-[12px] text-muted">$</span>
+      <span className="text-[12px] text-muted">{simboloMoneda()}</span>
       <CampoCifra
         autoFocus
         valor={val}
@@ -907,7 +908,7 @@ function CeldaTarifa({
 
   return (
     <span className="inline-flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-      <span className="text-[12px] text-muted">$</span>
+      <span className="text-[12px] text-muted">{simboloMoneda()}</span>
       <CampoCifra
         autoFocus
         valor={val}

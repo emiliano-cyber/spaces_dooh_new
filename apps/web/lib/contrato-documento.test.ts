@@ -28,6 +28,29 @@ describe('numeroALetras', () => {
     // Un centavo suelto debe quedar 01/100, no 1/100.
     expect(numeroALetras(5.01)).toContain('01/100')
   })
+
+  // ADR 0048 · un contrato de una instancia en dolares no puede decir «PESOS»
+  // en la letra, que es la que prevalece sobre la cifra.
+  it('en MXN —dicho o por omision— es exactamente lo de siempre', () => {
+    expect(numeroALetras(1234.5, 'MXN')).toBe(numeroALetras(1234.5))
+    expect(numeroALetras(1, 'MXN')).toBe('UN PESO 00/100 M.N.')
+  })
+
+  it('en USD dice DOLARES y cierra con USD, no con M.N.', () => {
+    expect(numeroALetras(1234.5, 'USD')).toBe('MIL DOSCIENTOS TREINTA Y CUATRO DÓLARES 50/100 USD')
+    expect(numeroALetras(1, 'USD')).toBe('UN DÓLAR 00/100 USD')
+    expect(numeroALetras(0, 'USD')).toBe('CERO DÓLARES 00/100 USD')
+    for (const n of [0, 1, 21, 1000, 1_000_000.5]) {
+      expect(numeroALetras(n, 'USD')).not.toMatch(/PESO|M\.N\./)
+    }
+  })
+
+  it('el contrato de un USD escribe la letra en dolares', () => {
+    const doc = documentoATexto(generarContrato({ ...completo, terminos: { ...completo.terminos, moneda: 'USD' } }))
+    expect(doc).toContain('USD (')
+    expect(doc).toMatch(/DÓLARES \d{2}\/100 USD\)/)
+    expect(doc).not.toMatch(/PESOS/)
+  })
 })
 
 describe('fechaISO', () => {
