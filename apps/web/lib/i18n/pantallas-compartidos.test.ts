@@ -126,6 +126,10 @@ const PIEZAS: Pieza[] = [
     nombre: 'campo obligatorio que falta',
     pintar: async (idioma) => {
       const { Campo } = await import('../../components/demo/ui/Campo')
+      // `children` va en las props a proposito: el tipo de `Campo` lo exige ahi,
+      // y pasarlo como tercer argumento de createElement no tipa. Sin este
+      // permiso `next build` (que corre ESLint sobre todo el arbol) no compila.
+      // eslint-disable-next-line react/no-children-prop
       return pintar(idioma, createElement(Campo, { label: 'X', obligatorio: true, falta: true, children: createElement('input') }))
     },
     espanol: [' (obligatorio)', 'Falta este dato'],
