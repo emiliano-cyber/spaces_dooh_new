@@ -27,12 +27,13 @@ import { periodicidadLabel } from '@/lib/renta-periodicidad'
 import { planearRentaMasiva } from '@/lib/renta-masiva'
 import { descargarInventario } from '@/lib/inventario-export'
 import { ubicacion } from '@/lib/ubicacion'
-import { etiquetaTipoMedio } from '@/lib/tipo-medio'
+import { useIdioma } from '@/lib/i18n/contexto'
+import type { ClaveTexto } from '@/lib/i18n/diccionario'
+import { textoDisponibilidad, textoMedio, textoTipoMedio } from '@/components/demo/inventario/etiquetas'
 import {
   useSitios,
   useContratos,
   useArrendadores,
-  medioLabel,
   formatMonto,
   type Sitio,
 } from '@/lib/data/client'
@@ -48,15 +49,20 @@ import {
  * el número sería exactamente el defecto que B38 vino a cerrar, movido de sitio:
  * el usuario teclearía la contraseña creyendo que no ha cambiado nada.
  */
-function avisoDeLote(lote: Lote | null): string {
-  const base = 'Este cambio es sensible: tu organización pide que vuelvas a identificarte.'
+//
+// I18N (2026-11-02) · la frase va ENTERA en el diccionario, una por cada
+// combinacion de singular y plural. `lote.frase()` (`lib/cambios-lote.ts`) se
+// queda en espanol: es del modulo de lotes, no de esta pantalla.
+function avisoDeLote(lote: Lote | null, t: (clave: ClaveTexto, v?: Record<string, string | number>) => string): string {
+  const base = t('inventario.lote.base')
   if (!lote || lote.aplicadas() === 0) return base
   const faltan = lote.pendientes()
   const ya = lote.aplicadas()
-  return (
-    `${lote.frase()} Confirmar aplica SOLO ${faltan === 1 ? 'la que falta' : `las ${faltan} que faltan`}; ` +
-    `${ya === 1 ? 'la que ya cambió no se vuelve' : `las ${ya} que ya cambiaron no se vuelven`} a tocar. ${base}`
-  )
+  const clave: ClaveTexto =
+    faltan === 1
+      ? ya === 1 ? 'inventario.lote.uno-uno' : 'inventario.lote.uno-otros'
+      : ya === 1 ? 'inventario.lote.otros-uno' : 'inventario.lote.otros-otros'
+  return t(clave, { frase: lote.frase(), faltan, ya, base })
 }
 
 // Tabla del inventario completo con columnas (incluye propietario, renta y
@@ -66,6 +72,7 @@ export function InventarioTabla() {
   const contratos = useContratos()
   const arrendadores = useArrendadores()
   const puedeEditar = usePuede('comercial', 'crear')
+  const { idioma, t } = useIdioma()
   // La renta al arrendador se rige por OTRO permiso, no por el de Comercial.
   // Es dinero que sale hacia el propietario, no un precio de venta: quien
   // comercializa no debería poder cambiar lo que se le paga al dueño del
@@ -107,7 +114,7 @@ export function InventarioTabla() {
     try {
       descargarInventario(filtrados, formato)
     } catch {
-      notify('No se pudo generar el archivo. Prueba a filtrar para descargar menos pantallas.')
+      notify(t('inventario.tabla.no-archivo'))
     }
   }
 
@@ -210,16 +217,16 @@ export function InventarioTabla() {
     // `replace` de abajo, que lo dejaría en '' → Number('') = 0 → «fijar la
     // tarifa en $0» a todo el lote.
     if (valorTarifa === CRUDO_INVALIDO) {
-      notify('La cifra no se entiende: la coma separa miles y el punto, decimales (15,000.50)')
+      notify(t('inventario.tabla.cifra-ilegible', { ejemplo: '15,000.50' }))
       return
     }
     const num = Number(valorTarifa.replace(/[^\d.-]/g, ''))
     if (!Number.isFinite(num)) {
-      notify('Escribe un número válido')
+      notify(t('inventario.tabla.numero-valido'))
       return
     }
     if (modoTarifa === 'fijar' && num < 0) {
-      notify(campoMasivo === 'renta' ? 'La renta no puede ser negativa' : 'La tarifa no puede ser negativa')
+      notify(campoMasivo === 'renta' ? t('inventario.tabla.renta-negativa') : t('inventario.tabla.tarifa-negativa'))
       return
     }
     const objetivos = filtrados.filter((s) => sel.has(s.id))
@@ -233,9 +240,17 @@ export function InventarioTabla() {
     })
     const resumen =
       modoTarifa === 'fijar'
-        ? `fijar la tarifa en ${formatMonto(num)}`
-        : `ajustar la tarifa ${num >= 0 ? '+' : ''}${num}%`
-    if (!window.confirm(`¿Aplicar «${resumen}» a ${objetivos.length} pantalla${objetivos.length === 1 ? '' : 's'}?`)) return
+        ? t('inventario.tabla.fijar-tarifa-en', { monto: formatMonto(num, idioma) })
+        : t('inventario.tabla.ajustar-tarifa', { pct: `${num >= 0 ? '+' : ''}${num}` })
+    if (
+      !window.confirm(
+        t(objetivos.length === 1 ? 'inventario.tabla.aplicar-pantallas.uno' : 'inventario.tabla.aplicar-pantallas.otros', {
+          resumen,
+          n: objetivos.length,
+        }),
+      )
+    )
+      return
     setAplicando(true)
     // B38 · antes esto era un `try/catch {}` que decía «No se pudo aplicar el
     // cambio masivo» y se comía el motivo. Con el control de cambios encendido
@@ -251,14 +266,18 @@ export function InventarioTabla() {
     await candado.ejecutar({
       guardar: lote.paso,
       alLograr: () => {
-        notify(`Tarifa actualizada en ${lote.aplicadas()} pantalla${lote.aplicadas() === 1 ? '' : 's'}`)
+        notify(
+          t(lote.aplicadas() === 1 ? 'inventario.tabla.tarifa-actualizada.uno' : 'inventario.tabla.tarifa-actualizada.otros', {
+            n: lote.aplicadas(),
+          }),
+        )
         limpiarSel()
       },
       // Sin el cuadro a la vista este aviso es la ÚNICA salida que tiene el
       // fallo, y ya lleva la cuenta de cuántas sí se aplicaron: `lote.paso()`
       // lanza esa frase, no un texto genérico.
       alFallar: (m) => notify(m),
-      mensajeSiFalla: 'No se pudo aplicar el cambio masivo',
+      mensajeSiFalla: t('inventario.tabla.no-masivo'),
     })
     setAplicando(false)
   }
@@ -275,7 +294,7 @@ export function InventarioTabla() {
     if (modoTarifa === 'fijar' && num <= 0) {
       // Un 0 se leería como «estos espacios son gratis» y además lo rechaza
       // `contrato_monto_ck`.
-      notify('La renta debe ser mayor que cero')
+      notify(t('inventario.tabla.renta-mayor-cero'))
       return
     }
     // El reparto sobre contratos (deduplicación y alcance real) vive en
@@ -288,8 +307,8 @@ export function InventarioTabla() {
     if (plan.cambios.length === 0) {
       notify(
         plan.sinContrato > 0
-          ? 'Esas pantallas no tienen contrato todavía: captura la renta en Arrendadores.'
-          : 'No hay rentas que ajustar (las seleccionadas no tienen importe capturado).',
+          ? t('inventario.tabla.sin-contrato-masivo')
+          : t('inventario.tabla.sin-importe-masivo'),
       )
       return
     }
@@ -297,19 +316,32 @@ export function InventarioTabla() {
     const n = plan.cambios.length
     const resumen =
       modoTarifa === 'fijar'
-        ? `fijar la renta en ${formatMonto(num)}`
-        : `ajustar la renta ${num >= 0 ? '+' : ''}${num}%`
+        ? t('inventario.tabla.fijar-renta-en', { monto: formatMonto(num, idioma) })
+        : t('inventario.tabla.ajustar-renta', { pct: `${num >= 0 ? '+' : ''}${num}` })
+    // Cada parrafo es una frase entera del diccionario; se separan con una
+    // linea en blanco, como antes.
     const aviso =
-      `¿Aplicar «${resumen}» a ${n} contrato${n === 1 ? '' : 's'}?` +
+      t(n === 1 ? 'inventario.tabla.aplicar-contratos.uno' : 'inventario.tabla.aplicar-contratos.otros', { resumen, n }) +
       (plan.alcanceExtra > 0
-        ? `\n\nOJO: son contratos de predio compartidos. El cambio alcanza también a ` +
-          `${plan.alcanceExtra} pantalla${plan.alcanceExtra === 1 ? '' : 's'} que NO seleccionaste.`
+        ? '\n\n' +
+          t(plan.alcanceExtra === 1 ? 'inventario.tabla.alcance-extra.uno' : 'inventario.tabla.alcance-extra.otros', {
+            n: plan.alcanceExtra,
+          })
         : '') +
       (plan.sinContrato > 0
-        ? `\n\n${plan.sinContrato} pantalla${plan.sinContrato === 1 ? '' : 's'} sin contrato se omitirá${plan.sinContrato === 1 ? '' : 'n'}.`
+        ? '\n\n' +
+          t(plan.sinContrato === 1 ? 'inventario.tabla.omitir-sin-contrato.uno' : 'inventario.tabla.omitir-sin-contrato.otros', {
+            n: plan.sinContrato,
+          })
         : '') +
       (plan.omitidosSinImporte > 0
-        ? `\n\n${plan.omitidosSinImporte} contrato${plan.omitidosSinImporte === 1 ? '' : 's'} sin importe capturado se omitirá${plan.omitidosSinImporte === 1 ? '' : 'n'}: no hay sobre qué aplicar el porcentaje.`
+        ? '\n\n' +
+          t(
+            plan.omitidosSinImporte === 1
+              ? 'inventario.tabla.omitir-sin-importe.uno'
+              : 'inventario.tabla.omitir-sin-importe.otros',
+            { n: plan.omitidosSinImporte },
+          )
         : '')
     if (!window.confirm(aviso)) return
 
@@ -327,11 +359,15 @@ export function InventarioTabla() {
     await candado.ejecutar({
       guardar: lote.paso,
       alLograr: () => {
-        notify(`Renta actualizada en ${lote.aplicadas()} contrato${lote.aplicadas() === 1 ? '' : 's'}`)
+        notify(
+          t(lote.aplicadas() === 1 ? 'inventario.tabla.renta-actualizada.uno' : 'inventario.tabla.renta-actualizada.otros', {
+            n: lote.aplicadas(),
+          }),
+        )
         limpiarSel()
       },
       alFallar: (m) => notify(m),
-      mensajeSiFalla: 'No se pudo aplicar el cambio masivo de renta',
+      mensajeSiFalla: t('inventario.tabla.no-masivo-renta'),
     })
     setAplicando(false)
   }
@@ -349,10 +385,10 @@ export function InventarioTabla() {
         los pierde: solo se desmonta la tabla. */}
     <CardColapsable
       id="inventario.pantallas"
-      titulo="Pantallas"
+      titulo={t('inventario.kpi.pantallas')}
       className="overflow-hidden"
       contentClassName="px-0 pb-0"
-      resumen={<span className="text-[12px] text-muted">{filtrados.length} de {sitios.length}</span>}
+      resumen={<span className="text-[12px] text-muted">{t('inventario.tabla.de', { n: filtrados.length, total: sitios.length })}</span>}
       accion={
           /* Descarga lo FILTRADO, no todo: si alguien buscó "Reforma" y pulsa
               descargar, espera esas pantallas. Con el buscador vacío `filtrados`
@@ -362,7 +398,7 @@ export function InventarioTabla() {
             <button
               onClick={() => bajar('xlsx')}
               disabled={filtrados.length === 0}
-              title="Descargar en Excel, con el mismo formato que la plantilla de carga"
+              title={t('inventario.tabla.excel-title')}
               className="rounded px-1.5 py-1 text-[12px] font-medium text-ink hover:bg-surface-2 disabled:cursor-not-allowed disabled:text-muted"
             >
               Excel
@@ -370,7 +406,7 @@ export function InventarioTabla() {
             <button
               onClick={() => bajar('csv')}
               disabled={filtrados.length === 0}
-              title="Descargar en CSV, con el mismo formato que la plantilla de carga"
+              title={t('inventario.tabla.csv-title')}
               className="rounded px-1.5 py-1 text-[12px] font-medium text-ink hover:bg-surface-2 disabled:cursor-not-allowed disabled:text-muted"
             >
               CSV
@@ -384,7 +420,7 @@ export function InventarioTabla() {
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Buscar pantalla, código, distrito…"
+            placeholder={t('inventario.tabla.buscar')}
             className="h-9 w-full rounded border border-border-strong bg-surface pl-8 pr-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
           />
         </div>
@@ -400,7 +436,7 @@ export function InventarioTabla() {
             onClick={() => setFiltros(FILTROS_VACIOS)}
             className="inline-flex items-center gap-1 rounded bg-transparent px-1.5 py-1 text-[12px] text-muted hover:text-ink"
           >
-            <X className="h-3.5 w-3.5" /> Quitar filtros
+            <X className="h-3.5 w-3.5" /> {t('inventario.tabla.quitar-filtros')}
           </button>
         )}
       </div>
@@ -410,7 +446,7 @@ export function InventarioTabla() {
         <div className="flex flex-wrap items-center gap-2 border-b border-border bg-accent-soft px-3 py-2 text-[12px]">
           <span className="inline-flex items-center gap-1.5 font-medium text-ink">
             <Tag className="h-3.5 w-3.5 text-info" />
-            {sel.size} seleccionada{sel.size === 1 ? '' : 's'}
+            {t(sel.size === 1 ? 'inventario.tabla.seleccionadas.uno' : 'inventario.tabla.seleccionadas.otros', { n: sel.size })}
           </span>
           {/* QUÉ se edita. La tarifa es lo que ENTRA del cliente y la renta lo
               que SALE hacia el arrendador: se eligen aparte para que nadie
@@ -423,14 +459,14 @@ export function InventarioTabla() {
                 onClick={() => setCampoMasivo('tarifa')}
                 className={`px-2 py-1 font-medium transition-colors ${campoMasivo === 'tarifa' ? 'bg-accent text-white' : 'text-muted hover:bg-surface-2'}`}
               >
-                Tarifa
+                {t('inventario.tabla.tarifa')}
               </button>
               <button
                 type="button"
                 onClick={() => setCampoMasivo('renta')}
                 className={`border-l border-border-strong px-2 py-1 font-medium transition-colors ${campoMasivo === 'renta' ? 'bg-accent text-white' : 'text-muted hover:bg-surface-2'}`}
               >
-                Renta
+                {t('inventario.tabla.renta')}
               </button>
             </div>
           )}
@@ -441,18 +477,18 @@ export function InventarioTabla() {
               onClick={() => setModoTarifa('fijar')}
               className={`px-2 py-1 font-medium transition-colors ${modoTarifa === 'fijar' ? 'bg-accent text-white' : 'text-muted hover:bg-surface-2'}`}
             >
-              {campoMasivo === 'renta' ? 'Fijar renta' : 'Fijar tarifa'}
+              {campoMasivo === 'renta' ? t('inventario.tabla.fijar-renta') : t('inventario.tabla.fijar-tarifa')}
             </button>
             <button
               type="button"
               onClick={() => setModoTarifa('ajustar')}
               className={`border-l border-border-strong px-2 py-1 font-medium transition-colors ${modoTarifa === 'ajustar' ? 'bg-accent text-white' : 'text-muted hover:bg-surface-2'}`}
             >
-              Ajustar %
+              {t('inventario.tabla.ajustar')}
             </button>
           </div>
           <div className="inline-flex items-center gap-1">
-            <span className="text-muted">{modoTarifa === 'fijar' ? '$' : ''}</span>
+            <span className="text-muted">{modoTarifa === 'fijar' ? simboloMoneda(idioma) : ''}</span>
             {/* Fijar = importe (sin negativos); Ajustar = porcentaje, que puede
                 ser negativo. El mismo campo, con coma de miles al teclear. */}
             <CampoCifra
@@ -463,8 +499,8 @@ export function InventarioTabla() {
               onKeyDown={(e) => { if (e.key === 'Enter') void aplicarMasivo() }}
               placeholder={
                 modoTarifa === 'ajustar'
-                  ? 'p. ej. 10 o -5'
-                  : campoMasivo === 'renta' ? 'Nueva renta' : 'Nueva tarifa'
+                  ? t('inventario.tabla.ph-ajuste')
+                  : campoMasivo === 'renta' ? t('inventario.tabla.ph-renta') : t('inventario.tabla.ph-tarifa')
               }
               className="h-8 w-32 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
             />
@@ -480,14 +516,14 @@ export function InventarioTabla() {
             disabled={aplicando || candado.reautenticando || !valorTarifa.trim()}
           >
             {aplicando ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-            {aplicando ? 'Aplicando…' : 'Aplicar'}
+            {aplicando ? t('inventario.tabla.aplicando') : t('inventario.tabla.aplicar')}
           </Button>
           <button
             type="button"
             onClick={limpiarSel}
             className="inline-flex items-center gap-1 rounded px-1.5 py-1 text-muted hover:text-ink"
           >
-            <X className="h-3.5 w-3.5" /> Limpiar
+            <X className="h-3.5 w-3.5" /> {t('inventario.tabla.limpiar')}
           </button>
         </div>
       )}
@@ -502,21 +538,21 @@ export function InventarioTabla() {
                     type="checkbox"
                     checked={todosSel}
                     onChange={toggleTodos}
-                    title="Seleccionar todo"
+                    title={t('inventario.tabla.seleccionar-todo')}
                     className="h-4 w-4 accent-[var(--accent)]"
                   />
                 </th>
               )}
-              <th className="px-3 py-2 font-medium">Pantalla</th>
-              <th className="px-3 py-2 font-medium">Tipo</th>
-              <th className="px-3 py-2 font-medium">Ubicación</th>
-              <th className="px-3 py-2 font-medium">Medio</th>
-              <th className="px-3 py-2 text-right font-medium">Tarifa</th>
-              <th className="px-3 py-2 font-medium">Disponibilidad</th>
-              <th className="px-3 py-2 font-medium">Arrendador</th>
+              <th className="px-3 py-2 font-medium">{t('inventario.tabla.col.pantalla')}</th>
+              <th className="px-3 py-2 font-medium">{t('inventario.tabla.col.tipo')}</th>
+              <th className="px-3 py-2 font-medium">{t('inventario.tabla.col.ubicacion')}</th>
+              <th className="px-3 py-2 font-medium">{t('inventario.tabla.col.medio')}</th>
+              <th className="px-3 py-2 text-right font-medium">{t('inventario.tabla.tarifa')}</th>
+              <th className="px-3 py-2 font-medium">{t('inventario.tabla.col.disponibilidad')}</th>
+              <th className="px-3 py-2 font-medium">{t('inventario.tabla.col.arrendador')}</th>
               {/* «Cada cuándo» ya no es columna (26/10): repetía «Mensual» en
                   todas las filas y se partía en dos renglones. Va bajo la renta. */}
-              <th className="px-3 py-2 text-right font-medium">Renta</th>
+              <th className="px-3 py-2 text-right font-medium">{t('inventario.tabla.renta')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -527,10 +563,10 @@ export function InventarioTabla() {
                     que ya estaba limpio (M2 de la auditoría). */}
                 <td colSpan={puedeEditar ? 9 : 8} className="px-3 py-10 text-center text-muted">
                   {q
-                    ? `Ningún sitio coincide con «${q}»${hayChips ? ' y los filtros elegidos' : ''}.`
+                    ? t(hayChips ? 'inventario.tabla.vacio.busqueda-filtros' : 'inventario.tabla.vacio.busqueda', { q })
                     : hayChips
-                      ? 'Ninguna pantalla coincide con los filtros elegidos.'
-                      : 'Todavía no hay pantallas en el inventario. Agrégalas una a una o por carga masiva.'}
+                      ? t('inventario.tabla.vacio.filtros')
+                      : t('inventario.tabla.vacio.inventario')}
                 </td>
               </tr>
             ) : (
@@ -566,18 +602,23 @@ export function InventarioTabla() {
                       {s.doohmainEfectiva && (
                         <div
                           className="demo-num text-[11px] text-muted"
-                          title={`Id en DOOHmain: ${s.doohmainEfectiva}${s.doohmainOrigen && s.doohmainOrigen !== 'ficha' ? ' (lo pone el servidor; no está escrito en la ficha)' : ''}`}
+                          title={t(
+                            s.doohmainOrigen && s.doohmainOrigen !== 'ficha'
+                              ? 'inventario.tabla.doohmain-title-servidor'
+                              : 'inventario.tabla.doohmain-title',
+                            { id: s.doohmainEfectiva },
+                          )}
                         >
                           DOOHmain: <span className="text-ink">{s.doohmainEfectiva}</span>
-                          {s.doohmainOrigen && s.doohmainOrigen !== 'ficha' && ' · servidor'}
+                          {s.doohmainOrigen && s.doohmainOrigen !== 'ficha' && t('inventario.tabla.doohmain-servidor')}
                         </div>
                       )}
                     </td>
-                    <td className="px-3 py-2.5 text-muted">{etiquetaTipoMedio(s.tipoMedio)}</td>
+                    <td className="px-3 py-2.5 text-muted">{textoTipoMedio(s.tipoMedio, t)}</td>
                     <td className="px-3 py-2.5 text-muted">
                       {ubicacion([s.alcaldia, s.ciudad]) || '—'}
                     </td>
-                    <td className="px-3 py-2.5 text-muted">{medioLabel(s)}</td>
+                    <td className="px-3 py-2.5 text-muted">{textoMedio(s, t)}</td>
                     <td className="whitespace-nowrap px-3 py-2.5 text-right">
                       <CeldaTarifa sitio={s} editable={puedeEditar} onSaved={notify} />
                     </td>
@@ -587,7 +628,7 @@ export function InventarioTabla() {
                           una fija basta con si se puede vender o no. */}
                       {(() => {
                         const d = disponibilidadInventario(s)
-                        return <StatusBadge tono={d.tono}>{d.texto}</StatusBadge>
+                        return <StatusBadge tono={d.tono}>{textoDisponibilidad(s, t)}</StatusBadge>
                       })()}
                     </td>
                     <td className="px-3 py-2.5">
@@ -611,7 +652,7 @@ export function InventarioTabla() {
                         onSaved={notify}
                       />
                       {periodicidadEff && (
-                        <div className="font-sans text-[11px] text-muted">{periodicidadLabel(periodicidadEff)}</div>
+                        <div className="font-sans text-[11px] text-muted">{periodicidadLabel(periodicidadEff, '—', idioma)}</div>
                       )}
                     </td>
                   </tr>
@@ -635,9 +676,9 @@ export function InventarioTabla() {
         aplicaron YA y cuántas faltan. Reintentar manda solo las que faltan. */}
     <DialogoCandado
       candado={candado}
-      titulo="Confirma con tu contraseña"
-      subtitulo={avisoDeLote(loteRef.current)}
-      etiquetaConfirmar="Confirmar y aplicar"
+      titulo={t('inventario.tabla.confirma')}
+      subtitulo={avisoDeLote(loteRef.current, t)}
+      etiquetaConfirmar={t('inventario.tabla.confirmar-aplicar')}
     />
 
     {toast && (
@@ -689,9 +730,10 @@ function CeldaRenta({
   // como un aviso que se desvanece, y sin ningún sitio donde teclear la clave:
   // el camino directo quedaba muerto igual. El 403 abre un cuadro.
   const candado = useCandado()
+  const { idioma, t } = useIdioma()
 
   const renta = info?.renta ?? 0
-  const texto = info && info.renta > 0 ? formatMonto(info.renta) : '—'
+  const texto = info && info.renta > 0 ? formatMonto(info.renta, idioma) : '—'
   // Un contrato de predio con varias caras: cambiar su renta las toca todas.
   const compartido = !!info?.dePredio && hermanas > 1
 
@@ -710,7 +752,7 @@ function CeldaRenta({
     // convertiría en 0. Se dice y no se guarda nada.
     if (val === CRUDO_INVALIDO) {
       setEditando(false)
-      onSaved('La renta no se entiende: no se guardó. La coma separa miles y el punto, decimales.')
+      onSaved(t('inventario.renta.ilegible'))
       return
     }
     const num = Number(val.replace(/[^\d.]/g, ''))
@@ -718,12 +760,11 @@ function CeldaRenta({
     // «el espacio es gratis». Sin cambio real tampoco se manda nada.
     if (!Number.isFinite(num) || num <= 0 || num === renta) {
       setEditando(false)
-      if (Number.isFinite(num) && num <= 0) onSaved('La renta debe ser mayor que cero')
+      if (Number.isFinite(num) && num <= 0) onSaved(t('inventario.tabla.renta-mayor-cero'))
       return
     }
     if (compartido && !window.confirm(
-      `Esta renta es del contrato del predio y la comparten ${hermanas} pantallas. ` +
-      `Cambiarla a ${formatMonto(num)} aplica a todas. ¿Continuar?`,
+      t('inventario.renta.compartida-confirm', { n: hermanas, monto: formatMonto(num, idioma) }),
     )) {
       setEditando(false)
       return
@@ -737,11 +778,11 @@ function CeldaRenta({
       alLograr: () =>
         onSaved(
           compartido
-            ? `Renta del predio actualizada (${hermanas} pantallas)`
-            : `Renta de "${sitioNombre}" actualizada`,
+            ? t('inventario.renta.predio-actualizada', { n: hermanas })
+            : t('inventario.renta.actualizada', { nombre: sitioNombre }),
         ),
       alFallar: (m) => onSaved(m),
-      mensajeSiFalla: 'No se pudo actualizar la renta',
+      mensajeSiFalla: t('inventario.renta.no-actualizar'),
     })
     setSaving(false)
     setEditando(false)
@@ -762,9 +803,9 @@ function CeldaRenta({
   const dialogo = (
     <DialogoCandado
       candado={candado}
-      titulo="Confirma con tu contraseña"
-      subtitulo={`Cambiar la renta de "${sitioNombre}" es un cambio sensible: tu organización pide que vuelvas a identificarte.`}
-      etiquetaConfirmar="Confirmar y guardar"
+      titulo={t('inventario.tabla.confirma')}
+      subtitulo={t('inventario.renta.sensible', { nombre: sitioNombre })}
+      etiquetaConfirmar={t('comercial.comun.confirmar-guardar')}
     />
   )
 
@@ -776,8 +817,8 @@ function CeldaRenta({
           onClick={abrir}
           title={
             compartido
-              ? `Renta del contrato del predio — la comparten ${hermanas} pantallas`
-              : 'Editar la renta que se le paga al arrendador'
+              ? t('inventario.renta.title-compartida', { n: hermanas })
+              : t('inventario.renta.title')
           }
           // 26/10 · `whitespace-nowrap` para que «$» y la cifra no se partan en
           // dos renglones, y `bg-transparent` porque sin preflight el <button>
@@ -796,7 +837,7 @@ function CeldaRenta({
 
   return (
     <span className="inline-flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-      <span className="text-[12px] text-muted">{simboloMoneda()}</span>
+      <span className="text-[12px] text-muted">{simboloMoneda(idioma)}</span>
       <CampoCifra
         autoFocus
         valor={val}
@@ -829,6 +870,7 @@ function CeldaTarifa({
   const [saving, setSaving] = useState(false)
   // Evita doble guardado cuando Enter/Escape ya resolvieron y el blur dispara otra vez.
   const resueltoRef = useRef(false)
+  const { idioma, t } = useIdioma()
   // B38 · la tarifa es uno de los campos que `PATCH /api/sitios/:id` declara
   // sensibles (`app/api/sitios/[id]/route.ts:15-19`), así que el servidor pide
   // la contraseña. Esta celda tenía el defecto en su forma más cara: un
@@ -849,7 +891,7 @@ function CeldaTarifa({
     // '' y de ahí a una tarifa de CERO guardada en silencio.
     if (val === CRUDO_INVALIDO) {
       setEditando(false)
-      onSaved('La tarifa no se entiende: no se guardó. La coma separa miles y el punto, decimales.')
+      onSaved(t('inventario.tarifa.ilegible'))
       return
     }
     const num = Number(val.replace(/[^\d.]/g, ''))
@@ -860,9 +902,9 @@ function CeldaTarifa({
     setSaving(true)
     await candado.ejecutar({
       guardar: () => actualizarSitioApi(sitio.id, { tarifaMensual: num }),
-      alLograr: () => onSaved(`Tarifa de "${sitio.nombre}" actualizada`),
+      alLograr: () => onSaved(t('inventario.tarifa.actualizada', { nombre: sitio.nombre })),
       alFallar: (m) => onSaved(m),
-      mensajeSiFalla: 'No se pudo actualizar la tarifa',
+      mensajeSiFalla: t('inventario.tarifa.no-actualizar'),
     })
     setSaving(false)
     setEditando(false)
@@ -874,7 +916,7 @@ function CeldaTarifa({
   }
 
   if (!editable) {
-    return <span className="demo-num text-ink">{formatMonto(sitio.tarifaMensual)}</span>
+    return <span className="demo-num text-ink">{formatMonto(sitio.tarifaMensual, idioma)}</span>
   }
 
   // En las dos ramas, por lo mismo que en `CeldaRenta`: cuando llega el 403 la
@@ -882,9 +924,9 @@ function CeldaTarifa({
   const dialogo = (
     <DialogoCandado
       candado={candado}
-      titulo="Confirma con tu contraseña"
-      subtitulo={`Cambiar la tarifa de "${sitio.nombre}" es un cambio sensible: tu organización pide que vuelvas a identificarte.`}
-      etiquetaConfirmar="Confirmar y guardar"
+      titulo={t('inventario.tabla.confirma')}
+      subtitulo={t('inventario.tarifa.sensible', { nombre: sitio.nombre })}
+      etiquetaConfirmar={t('comercial.comun.confirmar-guardar')}
     />
   )
 
@@ -894,11 +936,11 @@ function CeldaTarifa({
         <button
           type="button"
           onClick={abrir}
-          title="Editar tarifa"
+          title={t('inventario.tarifa.title')}
           // Igual que en `CeldaRenta`: en una línea y sin el fondo del sistema.
           className="group/tar demo-num ml-auto inline-flex items-center gap-1.5 whitespace-nowrap rounded bg-transparent px-1.5 py-0.5 text-ink transition-colors hover:ring-1 hover:ring-border-strong"
         >
-          {formatMonto(sitio.tarifaMensual)}
+          {formatMonto(sitio.tarifaMensual, idioma)}
           <Pencil className="h-3 w-3 text-muted opacity-0 transition-opacity group-hover/tar:opacity-100 group-focus-visible/tar:opacity-100" />
         </button>
         {dialogo}
@@ -908,7 +950,7 @@ function CeldaTarifa({
 
   return (
     <span className="inline-flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-      <span className="text-[12px] text-muted">{simboloMoneda()}</span>
+      <span className="text-[12px] text-muted">{simboloMoneda(idioma)}</span>
       <CampoCifra
         autoFocus
         valor={val}
@@ -943,17 +985,20 @@ function CeldaTarifa({
 // edita nada y no debe contarse como rama de ninguna celda.
 // 26/10 · `StatusBadge` verde en vez de los `emerald-*` sueltos: el mismo chip
 // que el resto de estados, con los tokens del proyecto.
-const EtiquetaPropia = () => (
-  <span title="Pantalla propia: sin renta ni contrato; su costo es luz y operación">
-    <StatusBadge tono="verde">Propia</StatusBadge>
-  </span>
-)
+// I18N: el traductor entra como argumento de una funcion inmediata y no con un
+// `return` propio, por la misma prueba que cuenta los `return (` de cada celda.
+const EtiquetaPropia = () =>
+  ((t: ReturnType<typeof useIdioma>['t']) => (
+    <span title={t('inventario.propia.title')}>
+      <StatusBadge tono="verde">{t('inventario.chips.propia')}</StatusBadge>
+    </span>
+  ))(useIdioma().t)
 
 // «Sin arrendador» es un PENDIENTE (falta saber a quién se le paga), así que se
 // pinta en ámbar y con la misma palabra en todas las ramas. Una de ellas decía
 // «arrendatario», que es quien renta el espacio, no su dueño. Constante por lo
 // mismo que `EtiquetaPropia`.
-const EtiquetaSinArrendador = () => <StatusBadge tono="ambar">Sin arrendador</StatusBadge>
+const EtiquetaSinArrendador = () => <StatusBadge tono="ambar">{useIdioma().t('inventario.sin-arrendador')}</StatusBadge>
 
 function CeldaPropietario({
   sitio,
@@ -978,6 +1023,7 @@ function CeldaPropietario({
   // levantaba el error, así que decía «Arrendador actualizado» sin haberlo
   // cambiado. Ver el comentario de `actualizarSitioApi`.
   const candado = useCandado()
+  const { t } = useIdioma()
 
   const nombreDirecto = sitio.arrendadorId ? arrById.get(sitio.arrendadorId) ?? null : null
   const display = nombreDirecto ?? propietarioContrato
@@ -997,9 +1043,13 @@ function CeldaPropietario({
     await candado.ejecutar({
       guardar: () => actualizarSitioApi(sitio.id, { arrendadorId: nuevo }),
       alLograr: () =>
-        onSaved(nuevo ? `Arrendador actualizado en "${sitio.nombre}"` : `Arrendador quitado de "${sitio.nombre}"`),
+        onSaved(
+          nuevo
+            ? t('inventario.arrendador.actualizado', { nombre: sitio.nombre })
+            : t('inventario.arrendador.quitado', { nombre: sitio.nombre }),
+        ),
       alFallar: (m) => onSaved(m),
-      mensajeSiFalla: 'No se pudo actualizar el arrendador',
+      mensajeSiFalla: t('inventario.arrendador.no-actualizar'),
     })
     setSaving(false)
   }
@@ -1019,16 +1069,16 @@ function CeldaPropietario({
   const dialogo = (
     <DialogoCandado
       candado={candado}
-      titulo="Confirma con tu contraseña"
-      subtitulo={`Cambiar el arrendador de "${sitio.nombre}" es un cambio sensible: decide a quién se le paga la renta, así que tu organización pide que vuelvas a identificarte.`}
-      etiquetaConfirmar="Confirmar y guardar"
+      titulo={t('inventario.tabla.confirma')}
+      subtitulo={t('inventario.arrendador.sensible', { nombre: sitio.nombre })}
+      etiquetaConfirmar={t('comercial.comun.confirmar-guardar')}
     />
   )
 
   if (saving) {
     return (
       <span className="inline-flex items-center gap-1.5 text-muted">
-        <Loader2 className="h-3.5 w-3.5 animate-spin" /> Guardando…
+        <Loader2 className="h-3.5 w-3.5 animate-spin" /> {t('comercial.comun.guardando')}
         {dialogo}
       </span>
     )
@@ -1043,7 +1093,7 @@ function CeldaPropietario({
             e.stopPropagation()
             setEditando(true)
           }}
-          title="Asignar arrendador"
+          title={t('inventario.arrendador.asignar')}
           className="group/prop inline-flex max-w-full items-center gap-1.5 rounded bg-transparent px-1.5 py-0.5 text-left transition-colors hover:ring-1 hover:ring-border-strong"
         >
           {display ? <span className="truncate text-ink">{display}</span> : <EtiquetaSinArrendador />}
@@ -1068,7 +1118,7 @@ function CeldaPropietario({
         onBlur={() => setEditando(false)}
         className="h-7 max-w-[190px] rounded border border-border-strong bg-surface px-1.5 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
       >
-        <option value="">— Sin arrendador —</option>
+        <option value="">{t('inventario.sin-arrendador.opcion')}</option>
         {arrendadores.map((a) => (
           <option key={a.id} value={a.id}>
             {a.nombre}

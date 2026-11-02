@@ -11,12 +11,13 @@ import { Button } from '@/components/demo/ui/Button'
 import {
   StatusBadge,
   CONTRATO_TONO,
-  CONTRATO_LABEL,
   PAGO_TONO,
-  PAGO_LABEL,
   SITIO_TONO,
-  SITIO_LABEL,
 } from '@/components/demo/StatusBadge'
+import { CLAVE_CONTRATO_ESTATUS, CLAVE_PAGO_ESTATUS, CLAVE_SITIO_ESTATUS } from '@/components/demo/comercial/claves'
+import { CLAVE_INCIDENCIA, CLAVE_METODO_PAGO } from '@/components/demo/arrendadores/etiquetas'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { interpolarNodos } from '@/lib/i18n/nodos'
 import {
   useArrendadores,
   useRazonesSociales,
@@ -54,14 +55,15 @@ import {
   opcionesDeAsignacion,
 } from '@/components/demo/razones-sociales/asignacion'
 
-const TIPO_INC: { value: TipoIncidencia; label: string }[] = [
-  { value: 'LEGAL', label: 'Legal / permiso' },
-  { value: 'MANTENIMIENTO', label: 'Mantenimiento' },
-  { value: 'VANDALISMO', label: 'Vandalismo' },
-  { value: 'CLIMA', label: 'Clima' },
-  { value: 'SUSPENSION_OPERATIVA', label: 'Suspensión operativa' },
-  { value: 'ACCIDENTE', label: 'Accidente' },
-  { value: 'OTRO', label: 'Otro' },
+// I18N (2026-11-02) · la etiqueta sale de `CLAVE_INCIDENCIA` (arrendadores/etiquetas.ts).
+const TIPO_INC: { value: TipoIncidencia }[] = [
+  { value: 'LEGAL' },
+  { value: 'MANTENIMIENTO' },
+  { value: 'VANDALISMO' },
+  { value: 'CLIMA' },
+  { value: 'SUSPENSION_OPERATIVA' },
+  { value: 'ACCIDENTE' },
+  { value: 'OTRO' },
 ]
 
 const inputCls =
@@ -92,6 +94,7 @@ export function ContratoSheet({
   // hooks tienen que ejecutarse en el mismo orden en todos los renders y este
   // componente se rinde también sin contrato.
   const candado = useCandado()
+  const { idioma, t } = useIdioma()
 
   if (!contrato) return null
   const arrendador = arrendadores?.find((a) => a.id === contrato.arrendadorId)
@@ -104,12 +107,12 @@ export function ContratoSheet({
       <Sheet
         open={open}
         onOpenChange={onOpenChange}
-        title={arrendador?.nombre ?? 'Contrato'}
+        title={arrendador?.nombre ?? t('arrendadores.ficha.contrato')}
         subtitle={sitio ? `${sitio.nombre} · ${sitio.alcaldia}` : undefined}
         footer={
           <div className="flex gap-2">
             <Button variant="secondary" className="flex-1" onClick={() => setIncOpen(true)}>
-              <AlertTriangle className="h-4 w-4" /> Reportar incidencia
+              <AlertTriangle className="h-4 w-4" /> {t('arrendadores.ficha.reportar')}
             </Button>
             {/* ADR 0001: un contrato INCOMPLETO no se renueva (no hay acuerdo
                 que extender). Además su `dias` es 0 por no tener fecha de fin,
@@ -136,13 +139,13 @@ export function ContratoSheet({
                 onClick={() =>
                   void candado.ejecutar({
                     guardar: () => iniciarRenovacionApi(contrato.id),
-                    alLograr: () => onToast('Renovación iniciada'),
+                    alLograr: () => onToast(t('arrendadores.ficha.renovacion-iniciada')),
                     alFallar: (m) => onToast(m),
-                    mensajeSiFalla: 'No se pudo iniciar la renovación',
+                    mensajeSiFalla: t('arrendadores.ficha.no-renovar'),
                   })
                 }
               >
-                <RefreshCw className="h-4 w-4" /> Renovar
+                <RefreshCw className="h-4 w-4" /> {t('arrendadores.ficha.renovar')}
               </Button>
             )}
           </div>
@@ -152,45 +155,51 @@ export function ContratoSheet({
           {contrato.estatus === 'INCOMPLETO' && (
             <div className="rounded border border-warning/40 bg-warning-soft p-2.5 text-[12.5px] text-ink">
               <p>
-                Este contrato se abrió automáticamente al vender la pantalla, para que no
-                quedara sin registro. Falta capturar el arrendador, el importe de la renta,
-                la periodicidad y la fecha de fin. Mientras tanto no cuenta como costo en el
-                P&amp;L ni genera calendario de pagos.
+                {t('arrendadores.ficha.incompleto')}
               </p>
               {/* El aviso decía qué faltaba pero no dejaba hacer nada al
                   respecto: había que salir a buscar dónde se editaba. La acción
                   va aquí, pegada al problema que describe. */}
               <Button size="sm" className="mt-2" onClick={() => setCompletarOpen(true)}>
-                <FileText className="h-3.5 w-3.5" /> Completar información
+                <FileText className="h-3.5 w-3.5" /> {t('arrendadores.comun.completar-informacion')}
               </Button>
             </div>
           )}
           <div className="flex flex-wrap gap-2">
             <StatusBadge tono={CONTRATO_TONO[contrato.estatus]}>
-              {CONTRATO_LABEL[contrato.estatus]}
+              {t(CLAVE_CONTRATO_ESTATUS[contrato.estatus])}
             </StatusBadge>
             {sitio && (
               <StatusBadge tono={SITIO_TONO[sitio.estatusComercial]}>
-                {SITIO_LABEL[sitio.estatusComercial]}
+                {t(CLAVE_SITIO_ESTATUS[sitio.estatusComercial])}
               </StatusBadge>
             )}
           </div>
 
           {/* Contrato */}
           <div>
-            <h4 className="mb-2 text-[13px] font-medium text-ink">Contrato de arrendamiento</h4>
+            <h4 className="mb-2 text-[13px] font-medium text-ink">{t('arrendadores.ficha.contrato-arrendamiento')}</h4>
             <dl className="space-y-2 text-[13px]">
               {/* Contrato INCOMPLETO (ADR 0001): estos campos aún no existen.
                   Se marcan como pendientes en vez de mostrar 0 o una fecha
                   inventada, que se leerían como dato real. */}
-              <Fila label="Renta mensual" valor={contrato.montoRenta != null ? formatMonto(contrato.montoRenta) : 'Por definir'} mono />
-              <Fila label="Periodicidad" valor={contrato.periodicidad ? contrato.periodicidad.toLowerCase() : 'Por definir'} />
-              <Fila label="Vigencia" valor={`${formatFecha(contrato.fechaInicio)} – ${contrato.fechaFin ? formatFecha(contrato.fechaFin) : 'por definir'}`} mono />
+              <Fila label={t('arrendadores.comun.renta-mensual')} valor={contrato.montoRenta != null ? formatMonto(contrato.montoRenta, idioma) : t('arrendadores.comun.por-definir')} mono />
               <Fila
-                label="Tiempo restante"
-                valor={!contrato.fechaFin ? '—' : dias < 0 ? 'Vencido' : `${dias} días`}
+                label={t('arrendadores.comun.periodicidad')}
+                valor={
+                  contrato.periodicidad
+                    ? idioma === 'es'
+                      ? contrato.periodicidad.toLowerCase()
+                      : periodicidadLabel(contrato.periodicidad, '—', idioma).toLowerCase()
+                    : t('arrendadores.comun.por-definir')
+                }
               />
-              <Fila label="Renovación automática" valor={contrato.autoRenovable ? 'Sí' : 'No'} />
+              <Fila label={t('arrendadores.comun.vigencia')} valor={`${formatFecha(contrato.fechaInicio, idioma)} – ${contrato.fechaFin ? formatFecha(contrato.fechaFin, idioma) : t('arrendadores.ficha.por-definir')}`} mono />
+              <Fila
+                label={t('arrendadores.ficha.tiempo-restante')}
+                valor={!contrato.fechaFin ? '—' : dias < 0 ? t('arrendadores.ficha.vencido') : t('finanzas.comun.dias', { n: dias })}
+              />
+              <Fila label={t('arrendadores.ficha.renovacion')} valor={contrato.autoRenovable ? t('comercial.comun.si') : t('comercial.comun.no')} />
               {/* Cuál de MIS razones sociales paga esta renta. Se PINTA el
                   hueco: todas las filas anteriores al 2026-09-17 están «sin
                   asignar» y no se sabe de quién son. Esconderlo sería
@@ -201,15 +210,15 @@ export function ContratoSheet({
                   inmensa mayoría— no tendría ninguna forma de asignar su razón
                   social. Se vio al mirar la pantalla, no leyendo el código. */}
               <div className="flex items-center justify-between">
-                <dt className="text-muted">La paga</dt>
+                <dt className="text-muted">{t('arrendadores.comun.la-paga')}</dt>
                 <dd className="flex items-center gap-2 text-ink">
-                  {etiquetaAsignacion(entidades ?? [], contrato.entidadId)}
+                  {etiquetaAsignacion(entidades ?? [], contrato.entidadId, idioma)}
                   <button
                     type="button"
                     onClick={() => setPagadoraOpen(true)}
                     className="text-[12px] text-accent underline-offset-2 hover:underline"
                   >
-                    Cambiar
+                    {t('arrendadores.ficha.cambiar')}
                   </button>
                 </dd>
               </div>
@@ -224,7 +233,7 @@ export function ContratoSheet({
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 rounded border border-border px-2.5 py-1.5 text-[12px] text-info hover:bg-surface-2"
               >
-                <FileText className="h-3.5 w-3.5" /> Generar contrato
+                <FileText className="h-3.5 w-3.5" /> {t('arrendadores.ficha.generar')}
               </a>
               {/* Documento FIRMADO que se subió, si lo hay. Es otra cosa: uno es
                   el borrador que produce el sistema, el otro el papel firmado. */}
@@ -236,7 +245,7 @@ export function ContratoSheet({
                   download="contrato.pdf"
                   className="inline-flex items-center gap-1.5 rounded border border-border px-2.5 py-1.5 text-[12px] text-info hover:bg-surface-2"
                 >
-                  <FileText className="h-3.5 w-3.5" /> Ver documento firmado (PDF)
+                  <FileText className="h-3.5 w-3.5" /> {t('arrendadores.ficha.ver-firmado')}
                 </a>
               )}
             </div>
@@ -258,9 +267,9 @@ export function ContratoSheet({
 
           {/* Pagos de renta */}
           <div>
-            <h4 className="mb-2 text-[13px] font-medium text-ink">Pagos de renta</h4>
+            <h4 className="mb-2 text-[13px] font-medium text-ink">{t('arrendadores.ficha.pagos')}</h4>
             {misPagos.length === 0 ? (
-              <p className="text-[12px] text-muted">Sin pagos registrados.</p>
+              <p className="text-[12px] text-muted">{t('arrendadores.ficha.sin-pagos')}</p>
             ) : (
               <ul className="divide-y divide-border rounded-md border border-border">
                 {misPagos.map((p) => (
@@ -270,8 +279,8 @@ export function ContratoSheet({
                           cruda («2026-07-16») junto a otras vistas que ya usaban
                           dd/mm/aaaa (M8). El `capitalize` sobraba — era de cuando
                           esto guardaba «agosto 2026». */}
-                      <div className="text-[13px] text-ink">{formatFecha(p.periodo)}</div>
-                      <div className="demo-num text-[11px] text-muted">{formatMonto(p.monto)}</div>
+                      <div className="text-[13px] text-ink">{formatFecha(p.periodo, idioma)}</div>
+                      <div className="demo-num text-[11px] text-muted">{formatMonto(p.monto, idioma)}</div>
                       {/* Qué documentos respaldan el pago (el archivo se pide por su ruta). */}
                       {(p.tieneFactura || p.tieneComprobante) && (
                         <div className="mt-1 flex flex-wrap items-center gap-2">
@@ -282,7 +291,7 @@ export function ContratoSheet({
                               rel="noopener noreferrer"
                               className="inline-flex items-center gap-1 text-[11px] text-info hover:underline"
                             >
-                              <FileText className="h-3 w-3" /> Factura
+                              <FileText className="h-3 w-3" /> {t('arrendadores.ficha.factura')}
                             </a>
                           )}
                           {p.tieneComprobante && (
@@ -292,19 +301,19 @@ export function ContratoSheet({
                               rel="noopener noreferrer"
                               className="inline-flex items-center gap-1 text-[11px] text-info hover:underline"
                             >
-                              <FileText className="h-3 w-3" /> Comprobante
+                              <FileText className="h-3 w-3" /> {t('arrendadores.ficha.comprobante')}
                             </a>
                           )}
                         </div>
                       )}
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
-                      <StatusBadge tono={PAGO_TONO[p.estatus]}>{PAGO_LABEL[p.estatus]}</StatusBadge>
+                      <StatusBadge tono={PAGO_TONO[p.estatus]}>{t(CLAVE_PAGO_ESTATUS[p.estatus])}</StatusBadge>
                       <Button size="sm" variant="secondary" onClick={() => setPagoActivo(p)}>
                         {p.estatus === 'PAGADO' ? (
-                          <><Paperclip className="h-3.5 w-3.5" /> Adjuntos</>
+                          <><Paperclip className="h-3.5 w-3.5" /> {t('arrendadores.ficha.adjuntos')}</>
                         ) : (
-                          'Registrar'
+                          t('arrendadores.ficha.registrar')
                         )}
                       </Button>
                     </div>
@@ -317,12 +326,12 @@ export function ContratoSheet({
           {/* Arrendador */}
           <div>
             <h4 className="mb-2 flex items-center gap-1.5 text-[13px] font-medium text-ink">
-              <Building2 className="h-3.5 w-3.5 text-muted" /> Arrendador
+              <Building2 className="h-3.5 w-3.5 text-muted" /> {t('arrendadores.comun.arrendador')}
             </h4>
             <dl className="space-y-2 text-[13px]">
-              <Fila label="RUC" valor={arrendador?.rfc ?? '—'} mono />
-              <Fila label="Correo" valor={arrendador?.email ?? '—'} />
-              <Fila label="Teléfono" valor={arrendador?.telefono ?? '—'} />
+              <Fila label={t('arrendadores.ficha.ruc')} valor={arrendador?.rfc ?? '—'} mono />
+              <Fila label={t('arrendadores.ficha.correo')} valor={arrendador?.email ?? '—'} />
+              <Fila label={t('inventario.wizard.telefono')} valor={arrendador?.telefono ?? '—'} />
             </dl>
           </div>
         </div>
@@ -336,7 +345,7 @@ export function ContratoSheet({
           sitioNombre={sitio.nombre}
           onSubmit={async (tipo, descripcion) => {
             await reportarIncidenciaApi({ sitioId: sitio.id, tipo, descripcion })
-            onToast(`Incidencia reportada · ${sitio.nombre} bloqueado en Comercial`)
+            onToast(t('arrendadores.ficha.incidencia-reportada', { nombre: sitio.nombre }))
             setIncOpen(false)
           }}
         />
@@ -376,9 +385,9 @@ export function ContratoSheet({
           la pide. Es la misma regla, con distinto envase. */}
       <DialogoCandado
         candado={candado}
-        titulo="Confirma con tu contraseña"
-        subtitulo="Renovar un contrato es un cambio sensible: tu organización pide que vuelvas a identificarte."
-        etiquetaConfirmar="Confirmar y renovar"
+        titulo={t('inventario.tabla.confirma')}
+        subtitulo={t('arrendadores.ficha.renovar-sensible')}
+        etiquetaConfirmar={t('arrendadores.comun.confirmar-renovar')}
       />
     </>
   )
@@ -436,6 +445,7 @@ function RazonSocialQuePagaModal({
   // tenants, así que pedirla siempre sería fricción inventada.
   const [reautenticando, setReautenticando] = useState(false)
   const [pass, setPass] = useState('')
+  const { idioma, t } = useIdioma()
 
   // Cerrar OLVIDA la contraseña. Este modal no se desmonta al cerrarse —lo rinde
   // siempre `ContratoSheet` con `open={pagadoraOpen}`—, así que sin esto lo
@@ -458,17 +468,17 @@ function RazonSocialQuePagaModal({
       // Cadena vacía = «sin asignar», y viaja como `null` explícito: es lo que
       // el PATCH entiende por DESASIGNAR.
       guardar: () => editarContratoApi(contrato.id, { entidadId: elegida || null }),
-      mensajeSiFalla: 'No se pudo guardar',
+      mensajeSiFalla: t('comercial.comun.no-se-pudo-guardar'),
     })
     if (r.estado === 'hecho') {
       onHecho(
         elegida
-          ? 'Razón social asignada al contrato'
-          : 'El contrato quedó sin razón social asignada',
+          ? t('arrendadores.pagadora.asignada')
+          : t('arrendadores.pagadora.sin'),
       )
       cerrar()
     } else if (r.estado === 'falta-contrasena') {
-      setError('Escribe tu contraseña para confirmar.')
+      setError(t('compartidos.candado.falta'))
     } else if (r.estado === 'pedir-contrasena') {
       // Se entra (o se sigue) en el paso de la contraseña. Lo elegido en el
       // selector se conserva: volver atrás obligaría a repetirlo.
@@ -486,16 +496,16 @@ function RazonSocialQuePagaModal({
       // Cerrar por la X o por Escape pasa por el mismo sitio que «Cancelar»: si
       // no, esos dos caminos dejarían la contraseña puesta.
       onOpenChange={(v) => (v ? onOpenChange(true) : cerrar())}
-      title="Con cuál de tus razones sociales se paga"
-      subtitle="Solo cambia a nombre de quién sale esta renta. No toca el importe."
+      title={t('arrendadores.comun.con-cual-se-paga')}
+      subtitle={t('arrendadores.pagadora.sub')}
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="secondary" size="sm" onClick={cerrar} disabled={enviando}>
-            Cancelar
+            {t('comun.cancelar')}
           </Button>
           <Button size="sm" disabled={enviando || (reautenticando && !pass)} onClick={guardar}>
             {enviando && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-            {reautenticando ? 'Confirmar y guardar' : 'Guardar'}
+            {reautenticando ? t('comercial.comun.confirmar-guardar') : t('comun.guardar')}
           </Button>
         </div>
       }
@@ -507,28 +517,27 @@ function RazonSocialQuePagaModal({
           onChange={(e) => setElegida(e.target.value)}
           disabled={enviando}
         >
-          {opcionesDeAsignacion(entidades, ROL_CONTRATO, contrato.entidadId).map((o) => (
+          {opcionesDeAsignacion(entidades, ROL_CONTRATO, contrato.entidadId, idioma).map((o) => (
             <option key={o.valor || 'sin-asignar'} value={o.valor}>
               {o.etiqueta}
-              {o.recomendada ? ' — la que arrienda' : ''}
+              {o.recomendada ? t('arrendadores.comun.la-que-arrienda') : ''}
             </option>
           ))}
         </select>
         {entidades.length === 0 && (
           <p className="text-[12px] text-muted">
-            Todavía no tienes razones sociales capturadas. Se dan de alta en Razones sociales.
+            {t('arrendadores.pagadora.sin-entidades')}
           </p>
         )}
         {elegida === SIN_ASIGNAR && entidades.length > 0 && (
           <p className="text-[12px] text-muted">
-            Dejarlo sin asignar es legítimo: el contrato es un acuerdo real aunque todavía no se
-            haya decidido con qué sociedad se paga.
+            {t('arrendadores.pagadora.sin-asignar')}
           </p>
         )}
         {reautenticando && (
           <div className="space-y-2 border-t border-border pt-2">
             <p className="text-[12px] text-muted">
-              Tu organización pide la contraseña para confirmar los cambios sensibles.
+              {t('compartidos.candado.pide')}
             </p>
             <CampoContrasena
               valor={pass}
@@ -586,6 +595,7 @@ function CompletarContratoModal({
   const arrendadores = useArrendadores()
   const razones = useRazonesSociales()
   const entidades = useEntidadesFiscales()
+  const { idioma, t } = useIdioma()
   // Se prellena con lo que YA tenga: un contrato puede estar incompleto por
   // faltarle solo la fecha de fin, y volver a pedir el resto sería absurdo.
   const [arrendadorId, setArrendadorId] = useState(contrato.arrendadorId ?? '')
@@ -624,9 +634,9 @@ function CompletarContratoModal({
   // devolvería estos contratos al limbo del que este formulario los saca.
   const faltaFiscal = elegido
     ? [
-        !razonPrincipal ? 'razón social' : null,
-        !(razonPrincipal?.rfc ?? elegido.rfc) ? 'RFC' : null,
-        !razonPrincipal?.regimen ? 'régimen fiscal' : null,
+        !razonPrincipal ? t('arrendadores.completar.falta-razon') : null,
+        !(razonPrincipal?.rfc ?? elegido.rfc) ? t('arrendadores.completar.falta-rfc') : null,
+        !razonPrincipal?.regimen ? t('arrendadores.completar.falta-regimen') : null,
       ].filter(Boolean) as string[]
     : []
 
@@ -680,16 +690,16 @@ function CompletarContratoModal({
           // entonces no se podría quitar una vez puesta.
           entidadId: entidadId || null,
         }),
-      mensajeSiFalla: 'No se pudo guardar el contrato',
+      mensajeSiFalla: t('arrendadores.comun.no-guardar-contrato'),
     })
     if (r.estado === 'hecho') {
       // Al quedar completo el servidor recalcula el estatus por fechas y genera
       // el calendario de pagos, así que conviene decirlo: es la consecuencia
       // visible que el usuario va a buscar después.
-      onHecho('Contrato completado · se generó su calendario de pagos')
+      onHecho(t('arrendadores.completar.hecho'))
       cerrar()
     } else if (r.estado === 'falta-contrasena') {
-      setError('Escribe tu contraseña para confirmar.')
+      setError(t('compartidos.candado.falta'))
     } else if (r.estado === 'pedir-contrasena') {
       // Se entra (o se sigue) en el paso de la contraseña. Los cuatro datos ya
       // capturados se conservan: volver atrás obligaría a repetirlos, que es
@@ -708,12 +718,12 @@ function CompletarContratoModal({
       // Cerrar por la X o por Escape pasa por el mismo sitio que «Cancelar»: si
       // no, esos dos caminos dejarían la contraseña puesta.
       onOpenChange={(v) => (v ? onOpenChange(true) : cerrar())}
-      title="Completar contrato de arrendamiento"
-      subtitle="Los cuatro datos que faltan para que cuente como acuerdo real"
+      title={t('arrendadores.completar.titulo')}
+      subtitle={t('arrendadores.completar.sub')}
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="secondary" size="sm" onClick={cerrar} disabled={enviando}>
-            Cancelar
+            {t('comun.cancelar')}
           </Button>
           <Button
             size="sm"
@@ -721,19 +731,19 @@ function CompletarContratoModal({
             disabled={enviando || fechasInvertidas || (reautenticando && !pass)}
           >
             {enviando && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-            {reautenticando ? 'Confirmar y guardar' : 'Guardar contrato'}
+            {reautenticando ? t('comercial.comun.confirmar-guardar') : t('arrendadores.completar.guardar')}
           </Button>
         </div>
       }
     >
       <div className="space-y-3">
-        <Campo label="Arrendador" obligatorio falta={ob.falta('arrendadorId')}>
+        <Campo label={t('arrendadores.comun.arrendador')} obligatorio falta={ob.falta('arrendadorId')}>
           <select
             className={inputCls}
             value={arrendadorId}
             onChange={(e) => setArrendadorId(e.target.value)}
           >
-            <option value="">Elige el arrendador…</option>
+            <option value="">{t('arrendadores.completar.elige')}</option>
             {(arrendadores ?? []).map((a) => (
               <option key={a.id} value={a.id}>{a.nombre}</option>
             ))}
@@ -745,24 +755,22 @@ function CompletarContratoModal({
         {elegido && (
           <div className="rounded-md border border-border bg-surface-2 p-2.5 text-[12px]">
             <div className="grid grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-2">
-              <DatoArrendador etiqueta="Razón social" valor={razonPrincipal?.razonSocial} />
-              <DatoArrendador etiqueta="RFC" valor={razonPrincipal?.rfc ?? elegido.rfc} mono />
-              <DatoArrendador etiqueta="Régimen fiscal" valor={razonPrincipal?.regimen} />
-              <DatoArrendador etiqueta="Correo" valor={elegido.email} />
-              <DatoArrendador etiqueta="Teléfono" valor={elegido.telefono} />
+              <DatoArrendador etiqueta={t('arrendadores.comun.razon-social')} valor={razonPrincipal?.razonSocial} />
+              <DatoArrendador etiqueta={t('inventario.wizard.rfc')} valor={razonPrincipal?.rfc ?? elegido.rfc} mono />
+              <DatoArrendador etiqueta={t('arrendadores.comun.regimen')} valor={razonPrincipal?.regimen} />
+              <DatoArrendador etiqueta={t('arrendadores.ficha.correo')} valor={elegido.email} />
+              <DatoArrendador etiqueta={t('inventario.wizard.telefono')} valor={elegido.telefono} />
             </div>
             {razonesDelElegido.length > 1 && (
               <p className="mt-1.5 text-[11px] text-muted">
-                Tiene {razonesDelElegido.length} razones sociales; se muestra la primera.
-                Cuál factura este contrato se elige en su ficha.
+                {t('arrendadores.completar.varias', { n: razonesDelElegido.length })}
               </p>
             )}
             {faltaFiscal.length > 0 && (
               <p className="mt-2 flex gap-1.5 border-t border-border pt-2 text-[11px] text-[#9a6700]">
                 <AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0 text-warning" />
                 <span>
-                  Le falta {faltaFiscal.join(', ')}. Puedes guardar el contrato igual, pero
-                  sin eso no se le podrá facturar la renta cuando toque pagarle.
+                  {t('arrendadores.completar.le-falta', { lista: faltaFiscal.join(', ') })}
                 </span>
               </p>
             )}
@@ -771,10 +779,10 @@ function CompletarContratoModal({
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Campo
-            label="Importe de la renta"
+            label={t('arrendadores.completar.importe')}
             obligatorio
             falta={ob.falta('monto')}
-            error={ob.intento && montoMalo ? 'Captura un importe mayor que cero' : null}
+            error={ob.intento && montoMalo ? t('arrendadores.completar.importe-cero') : null}
           >
             {/* Con coma de miles al teclear; lo que no se entiende llega como
                 'NaN', y `estaVacio` lo cuenta como dato que falta. */}
@@ -785,36 +793,36 @@ function CompletarContratoModal({
               placeholder="0.00"
             />
           </Campo>
-          <Campo label="Cada cuándo se paga" obligatorio>
+          <Campo label={t('arrendadores.completar.cada-cuando')} obligatorio>
             <select
               className={inputCls}
               value={periodicidad}
               onChange={(e) => setPeriodicidad(e.target.value)}
             >
               {PERIODICIDADES.map((p) => (
-                <option key={p.value} value={p.value}>{p.label}</option>
+                <option key={p.value} value={p.value}>{idioma === 'es' ? p.label : periodicidadLabel(p.value, '—', idioma)}</option>
               ))}
             </select>
           </Campo>
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Campo label="Desde" como="div">
+          <Campo label={t('arrendadores.completar.desde')} como="div">
             {/* La fecha de inicio ya existe (la puso el sistema al abrir el
                 contrato) y NO se toca aquí: moverla recalcularía todo el
                 calendario de pagos. Se muestra para que la de fin se capture
                 con referencia. */}
             <div className="demo-num flex h-9 items-center rounded border border-border bg-surface-2 px-3 text-[13px] text-muted">
-              {formatFecha(inicio)}
+              {formatFecha(inicio, idioma)}
             </div>
           </Campo>
           <Campo
-            label="Hasta"
+            label={t('arrendadores.completar.hasta')}
             obligatorio
             falta={ob.falta('fechaFin')}
             error={
               fechasInvertidas
-                ? `No puede ser anterior al inicio (${formatFecha(inicio)})`
+                ? t('arrendadores.completar.antes-inicio', { fecha: formatFecha(inicio, idioma) })
                 : null
             }
           >
@@ -833,36 +841,34 @@ function CompletarContratoModal({
             paga es tan parte de la renta como cuánto.
             NO bloquea el guardado — «sin asignar» es legítimo y todas las filas
             anteriores al 2026-09-17 están así. */}
-        <Campo label="Con cuál de tus razones sociales se paga">
+        <Campo label={t('arrendadores.comun.con-cual-se-paga')}>
           <select
             className={inputCls}
             value={entidadId}
             onChange={(e) => setEntidadId(e.target.value)}
           >
-            {opcionesDeAsignacion(entidades ?? [], ROL_CONTRATO, contrato.entidadId).map((o) => (
+            {opcionesDeAsignacion(entidades ?? [], ROL_CONTRATO, contrato.entidadId, idioma).map((o) => (
               <option key={o.valor || 'sin-asignar'} value={o.valor}>
                 {o.etiqueta}
-                {o.recomendada ? ' — la que arrienda' : ''}
+                {o.recomendada ? t('arrendadores.comun.la-que-arrienda') : ''}
               </option>
             ))}
           </select>
           {(entidades ?? []).length === 0 ? (
             <p className="mt-1 text-[11.5px] text-muted">
-              Todavía no tienes razones sociales capturadas. Se pueden dar de alta en Razones
-              sociales, y el contrato se guarda igual mientras tanto.
+              {t('arrendadores.completar.sin-entidades')}
             </p>
           ) : entidadId === SIN_ASIGNAR ? (
             <p className="mt-1 text-[11.5px] text-muted">
-              Se puede dejar sin asignar: el contrato es un acuerdo real aunque todavía no se
-              haya decidido con qué sociedad se paga.
+              {t('arrendadores.completar.sin-asignar')}
             </p>
           ) : null}
         </Campo>
 
         <p className="rounded border border-border bg-surface-2 p-2 text-[12px] text-muted">
-          Al guardar, el contrato deja de estar incompleto: empieza a contar como costo de
-          renta en el P&amp;L y se genera su calendario de pagos
-          {periodicidad ? ` ${periodicidadLabel(periodicidad).toLowerCase()}` : ''}.
+          {periodicidad
+            ? t('arrendadores.completar.al-guardar-per', { periodicidad: periodicidadLabel(periodicidad, '—', idioma).toLowerCase() })
+            : t('arrendadores.completar.al-guardar')}
         </p>
 
         {/* El paso de la contraseña. Solo aparece cuando el servidor lo ha
@@ -871,7 +877,7 @@ function CompletarContratoModal({
         {reautenticando && (
           <div className="space-y-2 border-t border-border pt-2">
             <p className="text-[12px] text-muted">
-              Tu organización pide la contraseña para confirmar los cambios sensibles.
+              {t('compartidos.candado.pide')}
             </p>
             <CampoContrasena
               valor={pass}
@@ -890,7 +896,7 @@ function CompletarContratoModal({
         {error ? (
           <p className="text-[12px] text-error">{error}</p>
         ) : ob.intento && faltante ? (
-          <p className="text-[12px] text-error">Revisa los campos marcados en rojo.</p>
+          <p className="text-[12px] text-error">{t('arrendadores.comun.revisa-rojo')}</p>
         ) : null}
       </div>
     </Modal>
@@ -921,23 +927,24 @@ function AdjuntoInput({
   onQuitar: () => void
 }) {
   const [err, setErr] = useState<string | null>(null)
+  const { t } = useIdioma()
   function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]
     if (!f) return
     setErr(null)
     if (!TIPOS_OK.includes(f.type)) {
-      setErr('Debe ser un PDF o una imagen (PNG, JPG o WebP)')
+      setErr(t('arrendadores.adjunto.tipo'))
       e.target.value = ''
       return
     }
     if (f.size > MAX_ADJUNTO_MB * 1024 * 1024) {
-      setErr(`El archivo supera ${MAX_ADJUNTO_MB} MB`)
+      setErr(t('arrendadores.adjunto.tamano', { mb: MAX_ADJUNTO_MB }))
       e.target.value = ''
       return
     }
     const reader = new FileReader()
     reader.onload = () => onCambio(reader.result as string, f.name)
-    reader.onerror = () => setErr('No se pudo leer el archivo')
+    reader.onerror = () => setErr(t('arrendadores.adjunto.leer'))
     reader.readAsDataURL(f)
   }
   const hayNuevo = !!valor
@@ -949,9 +956,9 @@ function AdjuntoInput({
         <div className="flex items-center justify-between gap-2 rounded border border-border bg-surface-2 px-2.5 py-1.5">
           <span className="flex min-w-0 items-center gap-1.5 text-[12px] text-ink">
             <Paperclip className="h-3.5 w-3.5 shrink-0 text-muted" />
-            <span className="truncate">{nombre ?? 'Archivo listo'}</span>
+            <span className="truncate">{nombre ?? t('arrendadores.adjunto.listo')}</span>
           </span>
-          <button type="button" onClick={onQuitar} className="shrink-0 text-muted hover:text-ink" aria-label="Quitar">
+          <button type="button" onClick={onQuitar} className="shrink-0 text-muted hover:text-ink" aria-label={t('arrendadores.adjunto.quitar')}>
             <X className="h-3.5 w-3.5" />
           </button>
         </div>
@@ -959,7 +966,7 @@ function AdjuntoInput({
         <div className="flex items-center gap-2">
           <label className="inline-flex cursor-pointer items-center gap-1.5 rounded border border-border px-2.5 py-1.5 text-[12px] text-ink hover:bg-surface-2">
             <Paperclip className="h-3.5 w-3.5 text-muted" />
-            {urlActual ? 'Reemplazar' : 'Adjuntar'}
+            {urlActual ? t('arrendadores.adjunto.reemplazar') : t('arrendadores.adjunto.adjuntar')}
             <input type="file" accept=".pdf,image/png,image/jpeg,image/webp" onChange={onFile} className="hidden" />
           </label>
           {urlActual && (
@@ -970,18 +977,18 @@ function AdjuntoInput({
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 text-[12px] text-info hover:underline"
               >
-                <FileText className="h-3.5 w-3.5" /> Ver
+                <FileText className="h-3.5 w-3.5" /> {t('arrendadores.adjunto.ver')}
               </a>
               <button
                 type="button"
                 onClick={onQuitar}
                 className="text-[12px] text-muted hover:text-error"
               >
-                Quitar
+                {t('arrendadores.adjunto.quitar')}
               </button>
             </>
           )}
-          {!urlActual && <span className="text-[12px] text-muted">Sin archivo</span>}
+          {!urlActual && <span className="text-[12px] text-muted">{t('inventario.carga.sin-archivo')}</span>}
         </div>
       )}
     </Campo>
@@ -1039,6 +1046,7 @@ function PagoModal({
   // tenants, así que pedirla siempre sería fricción inventada.
   const [reautenticando, setReautenticando] = useState(false)
   const [pass, setPass] = useState('')
+  const { idioma, t } = useIdioma()
 
   const facturaGuardada = pago.tieneFactura && !borrar.factura ? urlAdjuntoPago(pago.id, 'factura') : null
   const comprobanteGuardado =
@@ -1077,13 +1085,13 @@ function PagoModal({
               comprobanteUrl: comprobante?.url ?? null,
               observaciones: observaciones.trim() || null,
             }),
-      mensajeSiFalla: 'No se pudo guardar',
+      mensajeSiFalla: t('comercial.comun.no-se-pudo-guardar'),
     })
     if (r.estado === 'hecho') {
-      onHecho(yaPagado ? 'Adjuntos guardados' : 'Pago registrado')
+      onHecho(yaPagado ? t('arrendadores.pago.adjuntos-guardados') : t('arrendadores.pago.registrado'))
       cerrar()
     } else if (r.estado === 'falta-contrasena') {
-      setError('Escribe tu contraseña para confirmar.')
+      setError(t('compartidos.candado.falta'))
     } else if (r.estado === 'pedir-contrasena') {
       // Se entra (o se sigue) en el paso de la contraseña. La fecha, el método y
       // los adjuntos ya elegidos se conservan: perderlos obligaría a volver a
@@ -1102,20 +1110,20 @@ function PagoModal({
       // Cerrar por la X o por Escape pasa por el mismo sitio que «Cancelar»: si
       // no, esos dos caminos dejarían la contraseña puesta.
       onOpenChange={(v) => (v ? onOpenChange(true) : cerrar())}
-      title={yaPagado ? 'Adjuntos del pago' : 'Registrar pago'}
-      subtitle={`${formatFecha(pago.periodo)} · ${formatMonto(pago.monto)}`}
+      title={yaPagado ? t('arrendadores.pago.adjuntos-titulo') : t('finanzas.pago.titulo')}
+      subtitle={`${formatFecha(pago.periodo, idioma)} · ${formatMonto(pago.monto, idioma)}`}
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="secondary" size="sm" onClick={cerrar} disabled={enviando}>
-            Cancelar
+            {t('comun.cancelar')}
           </Button>
           <Button size="sm" onClick={guardar} disabled={enviando || (reautenticando && !pass)}>
             {enviando && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
             {reautenticando
-              ? 'Confirmar y guardar'
+              ? t('comercial.comun.confirmar-guardar')
               : yaPagado
-                ? 'Guardar adjuntos'
-                : 'Registrar pago'}
+                ? t('arrendadores.pago.guardar-adjuntos')
+                : t('finanzas.pago.titulo')}
           </Button>
         </div>
       }
@@ -1123,22 +1131,25 @@ function PagoModal({
       <div className="space-y-3">
         {yaPagado ? (
           <p className="rounded border border-border bg-surface-2 p-2 text-[12px] text-muted">
-            Pagado el {pago.fechaPago ? formatFecha(pago.fechaPago) : '—'}
-            {pago.metodoPago ? ` · ${pago.metodoPago.toLowerCase()}` : ''}. Aquí solo se adjuntan los
-            documentos: el pago no se vuelve a registrar.
+            {t('arrendadores.pago.pagado-el', {
+              fecha: pago.fechaPago ? formatFecha(pago.fechaPago, idioma) : '—',
+              metodo: pago.metodoPago
+                ? ` · ${(idioma === 'es' || !CLAVE_METODO_PAGO[pago.metodoPago] ? pago.metodoPago : t(CLAVE_METODO_PAGO[pago.metodoPago])).toLowerCase()}`
+                : '',
+            })}
           </p>
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {/* OBLIG-01: todo opcional en el servidor (`fechaPago` y
                 `metodoPago` son `nullish`, arrendadores-controller.ts:352-353);
                 la fecha nace con hoy y el método con transferencia. */}
-            <Campo label="Fecha de pago">
+            <Campo label={t('arrendadores.pago.fecha')}>
               <input type="date" max={hoy} value={fechaPago} onChange={(e) => setFechaPago(e.target.value)} className={inputCls} />
             </Campo>
-            <Campo label="Método de pago">
+            <Campo label={t('arrendadores.pago.metodo')}>
               <select value={metodoPago} onChange={(e) => setMetodoPago(e.target.value)} className={inputCls}>
                 {METODOS_PAGO.map((m) => (
-                  <option key={m} value={m}>{m.charAt(0) + m.slice(1).toLowerCase()}</option>
+                  <option key={m} value={m}>{t(CLAVE_METODO_PAGO[m])}</option>
                 ))}
               </select>
             </Campo>
@@ -1146,7 +1157,7 @@ function PagoModal({
         )}
 
         <AdjuntoInput
-          label="Factura del arrendador"
+          label={t('arrendadores.pago.factura')}
           valor={factura?.url ?? null}
           nombre={factura?.nombre ?? null}
           urlActual={facturaGuardada}
@@ -1154,7 +1165,7 @@ function PagoModal({
           onQuitar={() => { setFactura(null); setBorrar((b) => ({ ...b, factura: true })) }}
         />
         <AdjuntoInput
-          label="Comprobante de pago"
+          label={t('arrendadores.pago.comprobante')}
           valor={comprobante?.url ?? null}
           nombre={comprobante?.nombre ?? null}
           urlActual={comprobanteGuardado}
@@ -1162,7 +1173,7 @@ function PagoModal({
           onQuitar={() => { setComprobante(null); setBorrar((b) => ({ ...b, comprobante: true })) }}
         />
 
-        <Campo label="Observaciones">
+        <Campo label={t('arrendadores.pago.observaciones')}>
           <textarea
             className="min-h-[60px] w-full rounded border border-border-strong bg-surface px-3 py-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
             value={observaciones}
@@ -1170,14 +1181,14 @@ function PagoModal({
             maxLength={500}
           />
         </Campo>
-        <p className="text-[12px] text-muted">PDF o imagen, hasta {MAX_ADJUNTO_MB} MB por archivo.</p>
+        <p className="text-[12px] text-muted">{t('arrendadores.pago.formato', { mb: MAX_ADJUNTO_MB })}</p>
 
         {/* El paso de la contraseña. Solo aparece cuando el servidor lo ha
             pedido — con el control de cambios apagado no se ve nunca. */}
         {reautenticando && (
           <div className="space-y-2 border-t border-border pt-2">
             <p className="text-[12px] text-muted">
-              Tu organización pide la contraseña para confirmar los cambios sensibles.
+              {t('compartidos.candado.pide')}
             </p>
             <CampoContrasena
               valor={pass}
@@ -1211,6 +1222,7 @@ function ReportarIncidenciaModal({
 }) {
   const [tipo, setTipo] = useState<TipoIncidencia>('LEGAL')
   const [desc, setDesc] = useState('')
+  const { t } = useIdioma()
   // OBLIG-01: tipo y descripción son obligatorios en el servidor
   // (`descripcion` min(1), lib/server/incidencias-controller.ts:13). Antes una
   // descripción vacía se rellenaba en silencio con un texto genérico, así que
@@ -1226,12 +1238,12 @@ function ReportarIncidenciaModal({
     <Modal
       open={open}
       onOpenChange={cambiarAbierto}
-      title="Reportar incidencia"
+      title={t('arrendadores.ficha.reportar')}
       subtitle={sitioNombre}
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="secondary" size="sm" onClick={() => cambiarAbierto(false)}>
-            Cancelar
+            {t('comun.cancelar')}
           </Button>
           <Button
             variant="danger"
@@ -1244,30 +1256,31 @@ function ReportarIncidenciaModal({
               onSubmit(tipo, desc.trim())
             }}
           >
-            Reportar y bloquear sitio
+            {t('arrendadores.incidencia.bloquear')}
           </Button>
         </div>
       }
     >
       <div className="space-y-3">
-        <Campo label="Tipo" obligatorio falta={ob.falta('tipo')}>
+        <Campo label={t('arrendadores.incidencia.tipo')} obligatorio falta={ob.falta('tipo')}>
           <select className={inputCls} value={tipo} onChange={(e) => setTipo(e.target.value as TipoIncidencia)}>
-            {TIPO_INC.map((t) => (
-              <option key={t.value} value={t.value}>{t.label}</option>
+            {TIPO_INC.map((x) => (
+              <option key={x.value} value={x.value}>{t(CLAVE_INCIDENCIA[x.value])}</option>
             ))}
           </select>
         </Campo>
-        <Campo label="Descripción" obligatorio falta={ob.falta('descripcion')}>
+        <Campo label={t('arrendadores.incidencia.descripcion')} obligatorio falta={ob.falta('descripcion')}>
           <textarea
             className="min-h-[80px] w-full rounded border border-border-strong bg-surface px-3 py-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
             value={desc}
             onChange={(e) => setDesc(e.target.value)}
-            placeholder="Describe la incidencia…"
+            placeholder={t('arrendadores.incidencia.descripcion-ph')}
           />
         </Campo>
         <p className="text-[12px] text-muted">
-          Al reportar, el sitio pasa a <span className="font-medium text-error">bloqueado</span> y
-          aparece en rojo en el mapa de Comercial al instante.
+          {interpolarNodos(t('arrendadores.incidencia.aviso'), {
+            bloqueado: <span className="font-medium text-error">{t('arrendadores.incidencia.bloqueado')}</span>,
+          })}
         </p>
       </div>
     </Modal>

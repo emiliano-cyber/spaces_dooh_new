@@ -13,6 +13,7 @@ import {
   type ContratoArrendamiento,
 } from '@/lib/data/client'
 import { conciliacionRenta, type ConciliacionArrendador } from '@/lib/data/derive'
+import { useIdioma } from '@/lib/i18n/contexto'
 
 // ============================================================================
 //  Cuadre de renta: qué se le debe a cada propietario y qué ya se le pagó.
@@ -28,11 +29,12 @@ import { conciliacionRenta, type ConciliacionArrendador } from '@/lib/data/deriv
 // ============================================================================
 
 function Importe({ monto, n, tono }: { monto: number; n: number; tono?: 'error' | 'warn' }) {
+  const { idioma } = useIdioma()
   if (!n) return <span className="text-muted">—</span>
   const color = tono === 'error' ? 'text-error' : tono === 'warn' ? 'text-[#9a6700]' : 'text-ink'
   return (
     <span className={color}>
-      <span className="demo-num">{formatMonto(Math.round(monto))}</span>
+      <span className="demo-num">{formatMonto(Math.round(monto), idioma)}</span>
       <span className="ml-1 text-[11px] text-muted">({n})</span>
     </span>
   )
@@ -55,6 +57,7 @@ export function ConciliacionCard({
   const sitios = useSitios()
   const arrendadores = useArrendadores()
   const [abiertos, setAbiertos] = useState<Set<string>>(new Set())
+  const { idioma, t } = useIdioma()
 
   // `undefined` mientras el estado no ha hidratado: sin esto la tarjeta se
   // pintaría vacía un instante y parecería que no hay nada que cobrar.
@@ -87,7 +90,7 @@ export function ConciliacionCard({
     return (
       <Marco>
         <p className="px-4 pb-4 text-[13px] text-muted">
-          — Sin pagos de renta generados todavía: se calculan al capturar el importe del contrato.
+          {t('arrendadores.cuadre.vacio')}
         </p>
       </Marco>
     )
@@ -115,11 +118,11 @@ export function ConciliacionCard({
           <table className="w-full text-left text-[13px]">
             <thead>
               <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted">
-                <th className="px-4 py-2 font-medium">Arrendador / emplazamiento</th>
-                <th className="px-4 py-2 text-right font-medium">Vencido</th>
-                <th className="px-4 py-2 text-right font-medium">Pendiente</th>
-                <th className="px-4 py-2 text-right font-medium">Pagado</th>
-                <th className="px-4 py-2 text-center font-medium">Próximo</th>
+                <th className="px-4 py-2 font-medium">{t('arrendadores.cuadre.col.arrendador')}</th>
+                <th className="px-4 py-2 text-right font-medium">{t('arrendadores.cuadre.col.vencido')}</th>
+                <th className="px-4 py-2 text-right font-medium">{t('arrendadores.cuadre.col.pendiente')}</th>
+                <th className="px-4 py-2 text-right font-medium">{t('arrendadores.cuadre.col.pagado')}</th>
+                <th className="px-4 py-2 text-center font-medium">{t('arrendadores.cuadre.col.proximo')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -144,11 +147,13 @@ export function ConciliacionCard({
                           ) : (
                             <ChevronRight className="h-3.5 w-3.5 text-muted" />
                           )}
-                          {f.arrendador}
+                          {/* El nombre del grupo sin arrendador lo pone `conciliacionRenta` en espanol. */}
+                          {!f.arrendadorId && idioma !== 'es' ? t('arrendadores.cuadre.sin-arrendador') : f.arrendador}
                         </button>
                         <div className="ml-4.5 text-[11px] text-muted">
-                          {f.emplazamientos.length}{' '}
-                          {f.emplazamientos.length === 1 ? 'emplazamiento' : 'emplazamientos'}
+                          {t(f.emplazamientos.length === 1 ? 'arrendadores.cuadre.emplazamientos.uno' : 'arrendadores.cuadre.emplazamientos.otros', {
+                            n: f.emplazamientos.length,
+                          })}
                         </div>
                       </td>
                       <td className="px-4 py-2.5 text-right">
@@ -171,8 +176,10 @@ export function ConciliacionCard({
                           <td className="py-2 pl-10 pr-4">
                             <div className="text-[12.5px] text-ink">{e.nombre}</div>
                             <div className="text-[11px] text-muted">
-                              {e.tipo === 'PREDIO' ? 'Predio' : 'Pantalla suelta'} ·{' '}
-                              {e.contratos} {e.contratos === 1 ? 'contrato' : 'contratos'}
+                              {e.tipo === 'PREDIO' ? t('arrendadores.cuadre.predio') : t('arrendadores.cuadre.suelta')} ·{' '}
+                              {t(e.contratos === 1 ? 'arrendadores.cuadre.contratos.uno' : 'arrendadores.cuadre.contratos.otros', {
+                                n: e.contratos,
+                              })}
                             </div>
                           </td>
                           <td className="px-4 py-2 text-right">
@@ -195,15 +202,15 @@ export function ConciliacionCard({
             </tbody>
             <tfoot>
               <tr className="border-t border-border-strong bg-surface-2 text-[12.5px] font-medium">
-                <td className="px-4 py-2.5 text-ink">Total</td>
+                <td className="px-4 py-2.5 text-ink">{t('campanas.comun.total')}</td>
                 <td className="demo-num px-4 py-2.5 text-right text-error">
-                  {formatMonto(Math.round(tot.vencido))}
+                  {formatMonto(Math.round(tot.vencido), idioma)}
                 </td>
                 <td className="demo-num px-4 py-2.5 text-right text-[#9a6700]">
-                  {formatMonto(Math.round(tot.pendiente))}
+                  {formatMonto(Math.round(tot.pendiente), idioma)}
                 </td>
                 <td className="demo-num px-4 py-2.5 text-right text-ink">
-                  {formatMonto(Math.round(tot.pagado))}
+                  {formatMonto(Math.round(tot.pagado), idioma)}
                 </td>
                 <td />
               </tr>
@@ -217,12 +224,13 @@ export function ConciliacionCard({
 // La tarjeta, en un solo sitio para sus tres estados (cargando, vacía y con
 // datos): el mismo `id` en los tres conserva el plegado guardado de cada uno.
 function Marco({ children }: { children: React.ReactNode }) {
+  const { t } = useIdioma()
   return (
     <CardColapsable
       id="arrendadores.cuadre"
-      titulo="Cuadre de renta por arrendador"
+      titulo={t('arrendadores.cuadre.titulo')}
       icono={<Scale className="h-4 w-4 text-muted" />}
-      subtitulo="Qué se le debe a cada uno y qué ya se le pagó. Primero quien tiene vencidos."
+      subtitulo={t('arrendadores.cuadre.sub')}
       contentClassName="px-0 pb-0"
     >
       {children}

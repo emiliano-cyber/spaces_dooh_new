@@ -5,6 +5,8 @@ import { ES_CAMPANAS, EN_CAMPANAS } from './campanas'
 import { ES_FINANZAS, EN_FINANZAS } from './finanzas'
 import { ES_COMERCIAL, EN_COMERCIAL } from './comercial'
 import { ES_CODIGOS, EN_CODIGOS } from './codigos'
+import { ES_INVENTARIO, EN_INVENTARIO } from './inventario'
+import { ES_ARRENDADORES, EN_ARRENDADORES } from './arrendadores'
 import { DICCIONARIOS } from '../diccionario'
 
 // ============================================================================
@@ -25,12 +27,17 @@ const LOTES: [string, Record<string, string>, Record<string, string>][] = [
   ['finanzas', ES_FINANZAS, EN_FINANZAS],
   ['comercial', ES_COMERCIAL, EN_COMERCIAL],
   ['codigos', ES_CODIGOS, EN_CODIGOS],
+  ['inventario', ES_INVENTARIO, EN_INVENTARIO],
+  ['arrendadores', ES_ARRENDADORES, EN_ARRENDADORES],
 ]
 
 // El mismo espanol que en ingles se dice distinto A PROPOSITO, porque en cada
 // pantalla significa otra cosa. Cada entrada dice por que; una divergencia que
 // no este aqui es un descuido de un lote y la prueba la enseña.
 const DISTINTOS_A_PROPOSITO: Record<string, string> = {
+  Actualizar: 'refrescar lo que dice DOOHmain («Refresh») frente a actualizar las pantallas que ya existen en una carga masiva («Update»)',
+  Próximo: 'un codigo que aun no entra en vigor («Upcoming») frente al siguiente pago de renta del cuadre («Next»)',
+  Vence: 'una cuota o un pago («Due») frente a un contrato que caduca («Expires»)',
   Comercial: 'en la ficha de campaña es la seccion de importes («Pricing», decision del orquestador); el modulo es «Sales», como el menu',
   Desde: 'un periodo de fechas («From») frente a la competencia del espacio, que esta ahi «desde» («Since»)',
   Folio: 'glosario: «Internal ref.» en propuestas y campañas, «Invoice no.» en una factura',

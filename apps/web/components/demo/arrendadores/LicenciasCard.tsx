@@ -8,7 +8,10 @@ import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { StatusBadge, type Tono } from '@/components/demo/StatusBadge'
 import { useLicencias, formatFecha, diasHasta } from '@/lib/data/client'
 import { crearLicenciaApi, borrarLicenciaApi } from '@/lib/data/estado-api'
-import { LICENCIA_LABEL, DIAS_AVISO_LICENCIA } from '@/lib/data/derive'
+import { DIAS_AVISO_LICENCIA } from '@/lib/data/derive'
+import { useIdioma } from '@/lib/i18n/contexto'
+import type { ClaveTexto } from '@/lib/i18n/diccionario'
+import { CLAVE_LICENCIA } from '@/components/demo/arrendadores/etiquetas'
 
 // ============================================================================
 //  Licencias y permisos de un emplazamiento.
@@ -32,13 +35,19 @@ const inputCls =
 // Mismo criterio que las alertas de `derive.ts`, para que la ficha y el tablero
 // nunca se contradigan: vencido o a 30 días → rojo; dentro del margen de aviso →
 // ámbar; más lejos → verde.
-function vigencia(fechaVencimiento: string): { tono: Tono; texto: string } {
+function vigencia(
+  fechaVencimiento: string,
+  t: (clave: ClaveTexto, v?: Record<string, string | number>) => string,
+): { tono: Tono; texto: string } {
   const dias = diasHasta(fechaVencimiento)
-  if (dias < 0) return { tono: 'rojo', texto: `Venció hace ${Math.abs(dias)} d` }
-  if (dias <= 30) return { tono: 'rojo', texto: `Vence en ${dias} d` }
-  if (dias <= DIAS_AVISO_LICENCIA) return { tono: 'ambar', texto: `Vence en ${dias} d` }
-  return { tono: 'verde', texto: 'Vigente' }
+  if (dias < 0) return { tono: 'rojo', texto: t('arrendadores.licencias.vencio', { n: Math.abs(dias) }) }
+  if (dias <= 30) return { tono: 'rojo', texto: t('arrendadores.licencias.vence-en', { n: dias }) }
+  if (dias <= DIAS_AVISO_LICENCIA) return { tono: 'ambar', texto: t('arrendadores.licencias.vence-en', { n: dias }) }
+  return { tono: 'verde', texto: t('arrendadores.licencias.vigente') }
 }
+
+// `LICENCIA_LABEL` (derive.ts) en el idioma de quien mira; uno desconocido es «Permiso».
+const claveLicencia = (tipo: string): ClaveTexto => CLAVE_LICENCIA[tipo] ?? 'arrendadores.licencia.otro'
 
 export function LicenciasCard({
   predioId,
@@ -51,6 +60,7 @@ export function LicenciasCard({
 }) {
   const licencias = useLicencias()
   const [abrir, setAbrir] = useState(false)
+  const { idioma, t } = useIdioma()
 
   // Manda el predio: si la pantalla pertenece a uno, el permiso lo ampara a él.
   const anclaje = predioId ? { predioId } : sitioId ? { sitioId } : null
@@ -64,28 +74,27 @@ export function LicenciasCard({
     <section>
       <div className="mb-2 flex items-center justify-between">
         <h4 className="flex items-center gap-1.5 text-[13px] font-medium text-ink">
-          <ShieldCheck className="h-4 w-4 text-muted" /> Licencias y permisos
+          <ShieldCheck className="h-4 w-4 text-muted" /> {t('arrendadores.licencias.titulo')}
         </h4>
         <Button variant="success" className="h-7 px-2 text-[12px]" onClick={() => setAbrir(true)}>
-          <Plus className="h-3.5 w-3.5" /> Agregar
+          <Plus className="h-3.5 w-3.5" /> {t('arrendadores.comun.agregar')}
         </Button>
       </div>
 
       {predioId && mias.length > 0 && (
         <p className="mb-2 text-[11.5px] text-muted">
-          Amparan a todas las pantallas de este predio.
+          {t('arrendadores.licencias.amparan')}
         </p>
       )}
 
       {!mias.length ? (
         <p className="rounded border border-dashed border-border-strong p-2.5 text-[12.5px] text-muted">
-          Sin licencias registradas. Al capturar la vigencia, el sistema avisa con{' '}
-          {DIAS_AVISO_LICENCIA} días de anticipación.
+          {t('arrendadores.licencias.vacio', { n: DIAS_AVISO_LICENCIA })}
         </p>
       ) : (
         <ul className="space-y-1.5">
           {mias.map((l) => {
-            const v = vigencia(l.fechaVencimiento)
+            const v = vigencia(l.fechaVencimiento, t)
             return (
               <li
                 key={l.id}
@@ -93,24 +102,24 @@ export function LicenciasCard({
               >
                 <div className="min-w-0">
                   <p className="truncate text-[12.5px] text-ink">
-                    {LICENCIA_LABEL[l.tipo] ?? 'Permiso'}
+                    {t(claveLicencia(l.tipo))}
                     {l.folio ? ` · ${l.folio}` : ''}
                   </p>
                   <p className="truncate text-[11.5px] text-muted">
                     {l.autoridad ? `${l.autoridad} · ` : ''}
-                    vence {formatFecha(l.fechaVencimiento)}
+                    {t('arrendadores.licencias.vence', { fecha: formatFecha(l.fechaVencimiento, idioma) })}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5">
                   <StatusBadge tono={v.tono}>{v.texto}</StatusBadge>
                   <button
                     type="button"
-                    aria-label="Borrar licencia"
+                    aria-label={t('arrendadores.licencias.borrar')}
                     className="rounded p-1 text-muted hover:text-error"
                     onClick={async () => {
                       try {
                         await borrarLicenciaApi(l.id)
-                        onToast('Licencia borrada')
+                        onToast(t('arrendadores.licencias.borrada'))
                       } catch (e) {
                         onToast((e as Error).message)
                       }
@@ -145,6 +154,7 @@ function AltaLicencia({
   const [expedicion, setExpedicion] = useState('')
   const [vencimiento, setVencimiento] = useState('')
   const [guardando, setGuardando] = useState(false)
+  const { t } = useIdioma()
 
   // OBLIG-01: tipo y vencimiento son los obligatorios del servidor
   // (`licenciaSchema`, lib/server/arrendadores-controller.ts:451-461). El
@@ -165,7 +175,7 @@ function AltaLicencia({
         fechaExpedicion: expedicion || null,
         fechaVencimiento: vencimiento,
       })
-      onToast('Licencia registrada')
+      onToast(t('arrendadores.licencias.registrada'))
       onCerrar()
     } catch (e) {
       onToast((e as Error).message)
@@ -178,41 +188,41 @@ function AltaLicencia({
     <Modal
       open
       onOpenChange={onCerrar}
-      title="Registrar licencia o permiso"
-      subtitle="La fecha de vencimiento es lo que dispara el aviso"
+      title={t('arrendadores.licencias.alta')}
+      subtitle={t('arrendadores.licencias.alta-sub')}
       footer={
         <div className="flex gap-2">
           <Button variant="secondary" className="flex-1" onClick={onCerrar}>
-            Cancelar
+            {t('comun.cancelar')}
           </Button>
           <Button
             className="flex-1"
             disabled={invertidas || guardando}
             onClick={guardar}
           >
-            {guardando ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Guardar
+            {guardando ? <Loader2 className="h-4 w-4 animate-spin" /> : null} {t('comun.guardar')}
           </Button>
         </div>
       }
     >
       <div className="space-y-3">
-        <Campo label="Tipo" obligatorio falta={ob.falta('tipo')}>
+        <Campo label={t('arrendadores.incidencia.tipo')} obligatorio falta={ob.falta('tipo')}>
           <select className={inputCls} value={tipo} onChange={(e) => setTipo(e.target.value)}>
-            {TIPOS.map((t) => (
-              <option key={t} value={t}>
-                {LICENCIA_LABEL[t]}
+            {TIPOS.map((tipoLic) => (
+              <option key={tipoLic} value={tipoLic}>
+                {t(claveLicencia(tipoLic))}
               </option>
             ))}
           </select>
         </Campo>
-        <Campo label="Folio">
+        <Campo label={t('arrendadores.licencias.folio')}>
           <input className={inputCls} value={folio} onChange={(e) => setFolio(e.target.value)} />
         </Campo>
-        <Campo label="Autoridad que la expide">
+        <Campo label={t('arrendadores.licencias.autoridad')}>
           <input className={inputCls} value={autoridad} onChange={(e) => setAutoridad(e.target.value)} />
         </Campo>
         <div className="grid grid-cols-2 gap-3">
-          <Campo label="Expedición">
+          <Campo label={t('arrendadores.licencias.expedicion')}>
             <input
               type="date"
               className={inputCls}
@@ -221,10 +231,10 @@ function AltaLicencia({
             />
           </Campo>
           <Campo
-            label="Vencimiento"
+            label={t('arrendadores.licencias.vencimiento')}
             obligatorio
             falta={ob.falta('vencimiento')}
-            error={invertidas ? 'No puede ser anterior a la expedición' : null}
+            error={invertidas ? t('arrendadores.licencias.antes-expedicion') : null}
           >
             <input
               type="date"
@@ -236,7 +246,7 @@ function AltaLicencia({
         </div>
         {invertidas && (
           <p className="rounded border border-error/40 bg-error-soft p-2 text-[12px] text-ink">
-            La licencia no puede vencer antes de expedirse.
+            {t('arrendadores.licencias.invertidas')}
           </p>
         )}
       </div>

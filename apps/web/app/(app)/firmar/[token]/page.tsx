@@ -1,5 +1,7 @@
 import { firmaPorToken } from '@/lib/server/firmas-repo'
 import { FirmaPublica } from '@/components/demo/arrendadores/FirmaPublica'
+import { traducir } from '@/lib/i18n/diccionario'
+import { idiomaDeLaPeticion } from '@/lib/i18n/servidor'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -8,15 +10,17 @@ export const dynamic = 'force-dynamic'
 // por un enlace con token y solo ve el documento que le toca firmar.
 export default async function FirmarPage({ params }: { params: { token: string } }) {
   const f = await firmaPorToken(params.token)
+  // I18N (2026-11-02) · el aviso va en el idioma de la peticion (quien abre el
+  // enlace no tiene cuenta). El documento que firma sigue en espanol.
+  const idioma = idiomaDeLaPeticion()
 
   if (!f) {
     return (
       <div className="doc-wrap">
         <div className="doc-hoja doc-aviso-caja">
-          <h1 className="doc-titulo">Enlace no válido</h1>
+          <h1 className="doc-titulo">{traducir(idioma, 'arrendadores.publica.no-valido')}</h1>
           <p className="doc-p">
-            Este enlace de firma no existe o fue reemplazado por uno nuevo. Pide al
-            remitente que te envíe el enlace vigente.
+            {traducir(idioma, 'arrendadores.publica.no-valido-texto')}
           </p>
         </div>
       </div>
