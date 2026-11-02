@@ -13,6 +13,14 @@
 #    provision-instancia.sh --host <ip|dns> --dominio <dominio> --emitir-certificado --confirmar
 #    provision-instancia.sh --host <ip|dns> --dominio <dominio> --instancia <nombre> \
 #                           --email <correo-del-dueno> --bootstrap --confirmar
+#                           [--moneda MXN|USD]
+#
+#  ─── La moneda (ADR 0048) ─────────────────────────────────────────────────
+#  `--moneda MXN|USD` va con `--bootstrap` y decide en que moneda trabaja la
+#  instancia PARA SIEMPRE: la base no deja cambiarla despues. Sin la bandera,
+#  MXN. Es un parametro de ESTA corrida y no una variable del `.env`: el `.env`
+#  se relee en cada arranque y se puede editar, y una moneda que pareciera
+#  editable ahi y no lo fuera en la base seria una trampa.
 #
 #  NADA se ejecuta sin `--confirmar`. Sin esa bandera el script se comporta
 #  como `--dry-run` aunque no se pida: aprovisionar es crear una base y un
@@ -81,6 +89,8 @@ CREAR_DROPLET=0
 CONFIRMAR=0
 EMITIR_CERT=0
 BOOTSTRAP=0
+# ADR 0048 · la moneda de la instancia. Solo la usa --bootstrap.
+MONEDA="MXN"
 # Region y tamano solo se usan con --crear-droplet. Se dejan como variables de
 # entorno y sin valor por defecto quemado: son decisiones de cuenta, no del
 # script.
@@ -163,7 +173,7 @@ LOGS_BUCKET="${LOGS_BUCKET:-}"
 # No hay valor por defecto que lo permita: tiene que teclearlo una persona.
 SIN_RESPALDO_REMOTO=0
 
-uso() { sed -n '2,44p' "$0"; }
+uso() { sed -n '2,52p' "$0"; }
 
 # Space Eyes dentro de la instancia (ADR 0045). Va en las DOS corridas: la del
 # aprovisionamiento y la de --emitir-certificado (el certificado lleva eyes.<dominio>).
@@ -179,6 +189,7 @@ while [[ $# -gt 0 ]]; do
     --dry-run)             CONFIRMAR=0; shift ;;
     --emitir-certificado)  EMITIR_CERT=1; shift ;;
     --bootstrap)           BOOTSTRAP=1; shift ;;
+    --moneda)              MONEDA="${2:-}"; shift 2 ;;
     --sin-respaldo-remoto) SIN_RESPALDO_REMOTO=1; shift ;;
     --con-eyes)            CON_EYES=1; shift ;;
     -h|--ayuda|--help)     uso; exit 0 ;;
@@ -188,6 +199,16 @@ done
 
 # ─── Validacion ─────────────────────────────────────────────────────────────
 [[ -n "$DOMINIO" ]] || { echo "provision: falta --dominio" >&2; exit "$EX_USO"; }
+
+# ADR 0048 · antes de tocar NADA: una moneda mal escrita no puede llegar a la
+# puerta de un solo uso. Si llegara, la aplicacion la rechaza con 400 -- pero
+# mejor que el operador lo lea aqui, sin ssh de por medio.
+case "$MONEDA" in
+  MXN|USD) ;;
+  *) echo "provision: --moneda '$MONEDA' no vale: tiene que ser MXN o USD (en mayusculas)." >&2
+     echo "           La moneda de una instancia no se puede cambiar despues (ADR 0048)." >&2
+     exit "$EX_USO" ;;
+esac
 
 # Fail-closed, y el mismo patron que el guard del arnes de pruebas: lo que se
 # evita no es la decision, es el DESCUIDO. Una instancia de cliente sin respaldo
@@ -566,6 +587,7 @@ if [[ "$BOOTSTRAP" -eq 1 ]]; then
   echo "  La organizacion no lleva contrasena: el Dueño entra con Google."
   echo "    dominio:  https://$DOMINIO/spaces-dooh/login/"
   echo "    correo:   $EMAIL_DUENO   <-- tiene que ser su cuenta de Google"
+  echo "    moneda:   $MONEDA   <-- NO se podra cambiar despues (ADR 0048)"
   echo ""
   echo "  La primera vez que entre, la aplicacion le enseñara sus codigos de"
   echo "  recuperacion y le pedira que ponga su propia contrasena. Esa"
@@ -596,7 +618,7 @@ if [[ "$BOOTSTRAP" -eq 1 ]]; then
     -H 'Content-Type: application/json' \
     -H \"x-bootstrap-token: \$(sed -n 's/^BOOTSTRAP_TOKEN=//p' /etc/space-os/app.env)\" \
     --data-binary @-" <<JSON
-{"organizacion":"$INSTANCIA","nombre":"Dueno","email":"$EMAIL_DUENO"}
+{"organizacion":"$INSTANCIA","nombre":"Dueno","email":"$EMAIL_DUENO","moneda":"$MONEDA"}
 JSON
 )"
   set -e

@@ -6,6 +6,7 @@ import { cookies } from 'next/headers'
 // Solo leen `tenants`, que NO tiene RLS. `usuarios` SÍ es fail-closed: ver la cabecera.
 import { qRaw as q, qRaw1 as q1 } from './db'
 import { usuarioActual } from './auth'
+import { MONEDA_POR_OMISION, type Moneda } from '@/lib/i18n/dinero'
 
 // ============================================================================
 //  lib/server/tenant.ts — Multi-tenant a nivel aplicación.
@@ -86,10 +87,15 @@ export async function listarTenants(): Promise<TenantRow[]> {
 // No se duplica la función. Duplicarla habría separado en dos sitios la lógica
 // que resuelve el choque de slug, y ese es el error que `cuentas-controller.ts:36-40`
 // documenta como «la forma segura de que las tres divergieran».
+//
+// ADR 0048: `moneda` es la de la INSTANCIA y se escribe AQUI, al nacer, porque
+// despues la base no deja cambiarla. La decide `crearOrgConDueno` (la primera
+// organizacion la elige; las demas heredan la de la instancia).
 export async function crearTenant(
   nombre: string,
   slug: string,
   client?: PoolClient,
+  moneda: Moneda = MONEDA_POR_OMISION,
 ): Promise<TenantRow> {
   const base = slug.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'crm'
   const uno = async (texto: string, params: unknown[]) =>
@@ -100,8 +106,8 @@ export async function crearTenant(
     s = `${base}-${i}`
   }
   const row = await uno(
-    'insert into tenants (nombre, slug) values ($1,$2) returning id, nombre, slug, creado_en',
-    [nombre.trim(), s],
+    'insert into tenants (nombre, slug, moneda) values ($1,$2,$3) returning id, nombre, slug, creado_en',
+    [nombre.trim(), s, moneda],
   )
   return { id: row.id, nombre: row.nombre, slug: row.slug, creadoEn: row.creado_en }
 }

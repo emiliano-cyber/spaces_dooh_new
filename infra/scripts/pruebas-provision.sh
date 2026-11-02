@@ -591,6 +591,40 @@ no_hubo '"password"'
 hubo '"email":"a@ejemplo.com"'
 limpiar
 
+# ============================================================================
+#  ADR 0048 · la moneda de la instancia se elige en el bootstrap y NO se cambia
+# ============================================================================
+escenario 'ADR 0048 · sin --moneda el cuerpo pide MXN, y la pantalla lo avisa'
+preparar
+correr D_CODIGO_BOOT=201 --   --host "$IP" --dominio "$DOM" --instancia p --email a@ejemplo.com --bootstrap --confirmar
+codigo_es 0
+hubo '"moneda":"MXN"'
+dice 'NO se podra cambiar'
+limpiar
+
+escenario 'ADR 0048 · --moneda USD viaja en el cuerpo del POST'
+preparar
+correr D_CODIGO_BOOT=201 --   --host "$IP" --dominio "$DOM" --instancia p --email a@ejemplo.com --bootstrap --moneda USD --confirmar
+codigo_es 0
+hubo '"moneda":"USD"'
+no_hubo '"moneda":"MXN"'
+limpiar
+
+escenario 'ADR 0048 · --moneda EUR se para ANTES de tocar el servidor'
+preparar
+correr D_CODIGO_BOOT=201 --   --host "$IP" --dominio "$DOM" --instancia p --email a@ejemplo.com --bootstrap --moneda EUR --confirmar
+codigo_es 64
+dice 'tiene que ser MXN o USD'
+no_hubo 'cuerpo-bootstrap'
+limpiar
+
+escenario 'ADR 0048 · usd en minusculas tambien se para (no se adivina)'
+preparar
+correr D_CODIGO_BOOT=201 --   --host "$IP" --dominio "$DOM" --instancia p --email a@ejemplo.com --bootstrap --moneda usd --confirmar
+codigo_es 64
+no_hubo 'cuerpo-bootstrap'
+limpiar
+
 escenario '36d · con 201 SI lo afirma, y sale bien'
 preparar
 correr D_CODIGO_BOOT=201 -- \

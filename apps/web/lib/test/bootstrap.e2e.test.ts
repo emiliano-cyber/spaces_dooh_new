@@ -294,6 +294,68 @@ describe('F5.2 · con token configurado', () => {
     expect(r.status).toBe(404)
     expect(await cuantosTenants()).toBe(1)
   })
+
+  // ─── ADR 0048 · la moneda se elige AQUI, y solo aqui ──────────────────────
+  //
+  // La puerta de un solo uso es el unico momento en que la moneda de una
+  // instancia se decide. Despues la base no deja cambiarla
+  // (`moneda-instancia.e2e.test.ts`), asi que lo que entre aqui es para siempre.
+  async function monedas(): Promise<{ tenants: string[]; config: string[] }> {
+    const t = await poolTest().query('select moneda from tenants')
+    // La fila de configuracion la crea la app al primer acceso
+    // (`obtenerConfigRow`) con los DEFAULT de la tabla — o sea, 'MXN'. Se
+    // imita aqui con ese INSERT pelado: lo que se mide es que el espejo la
+    // corrija a la de la organizacion.
+    await poolTest().query(
+      'insert into config_negocio (tenant_id) select id from tenants on conflict (tenant_id) do nothing',
+    )
+    const c = await poolTest().query('select moneda from config_negocio')
+    return { tenants: t.rows.map((r) => r.moneda), config: c.rows.map((r) => r.moneda) }
+  }
+
+  it('ADR 0048 · sin `moneda` la instancia nace en MXN', async () => {
+    await vaciarTenants()
+    expect((await llamarBootstrap({ token: TOKEN })).status).toBe(201)
+    expect(await monedas()).toEqual({ tenants: ['MXN'], config: ['MXN'] })
+  })
+
+  it('ADR 0048 · con `moneda: USD` nace en USD, y su configuracion tambien', async () => {
+    await vaciarTenants()
+    const r = await llamarBootstrap({ token: TOKEN, cuerpoPropio: { ...cuerpo(), moneda: 'USD' } })
+    expect(r.datos?.error).toBeUndefined()
+    expect(r.status).toBe(201)
+    expect(await monedas()).toEqual({ tenants: ['USD'], config: ['USD'] })
+  })
+
+  it('ADR 0048 · y la app la pinta en dolares: el layout raiz la lee de la base', async () => {
+    // La pagina de entrar no tiene importes, pero el layout raiz SI corre
+    // `monedaDeLaInstancia()` en cada peticion. Si fallara con una instancia
+    // USD, esta pagina daria 500.
+    const r = await fetch(`${BASE}/login/`)
+    expect(r.status).toBe(200)
+  })
+
+  it('NEGATIVO ADR 0048 · con `moneda: EUR` es un 400 y NO nace nada', async () => {
+    await vaciarTenants()
+    const r = await llamarBootstrap({ token: TOKEN, cuerpoPropio: { ...cuerpo(), moneda: 'EUR' } })
+    expect(r.status).toBe(400)
+    expect(JSON.stringify(r.datos)).toContain('MXN o USD')
+    expect(await cuantosTenants()).toBe(0)
+    expect(await cuantosUsuarios()).toBe(0)
+  })
+
+  it('NEGATIVO ADR 0048 · `usd` en minusculas tampoco: no se adivina', async () => {
+    await vaciarTenants()
+    const r = await llamarBootstrap({ token: TOKEN, cuerpoPropio: { ...cuerpo(), moneda: 'usd' } })
+    expect(r.status).toBe(400)
+    expect(await cuantosTenants()).toBe(0)
+  })
+
+  it('(se deja la base como la dejaba el caso anterior: una organizacion en MXN)', async () => {
+    await vaciarTenants()
+    expect((await llamarBootstrap({ token: TOKEN })).status).toBe(201)
+    expect(await cuantosTenants()).toBe(1)
+  })
 })
 
 // ─── 2 · La exención de CSRF, acotada ───────────────────────────────────────

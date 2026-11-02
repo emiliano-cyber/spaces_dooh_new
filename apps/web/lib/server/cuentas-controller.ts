@@ -7,6 +7,8 @@ import { esEmailValido } from '@/lib/validacion'
 import { crearTenant } from './tenant'
 import { withTxBootstrap } from './db'
 import { crearUsuario, emailExiste } from './usuarios-repo'
+import type { Moneda } from '@/lib/i18n/dinero'
+import { monedaPedida, resolverMonedaDeAlta } from './moneda-alta'
 
 // ============================================================================
 //  lib/server/cuentas-controller.ts — Alta de organizaciones (CRM) + su Dueño.
@@ -23,6 +25,8 @@ const signupSchema = z.object({
   // cuando no se entra con Google -- pero la exige el resolutor compartido, que
   // es donde vive esa regla para las TRES altas.
   password: z.string().optional(),
+  // ADR 0048 · MXN o USD. Solo decide en la PRIMERA organizacion de la instancia.
+  moneda: z.unknown().optional(),
 })
 
 const orgSchema = z.object({
@@ -36,6 +40,8 @@ const orgSchema = z.object({
     entraConGoogle: z.boolean().optional(),
     cargo: z.string().trim().optional(),
   }),
+  // ADR 0048 · se acepta para poder RECHAZAR una distinta a la de la instancia.
+  moneda: z.unknown().optional(),
 })
 
 // Exportada desde el ADR 0012: el alta de empresa con Google la reutiliza en
@@ -55,6 +61,8 @@ export async function crearOrgConDueno(args: {
   // ADR 0028: la contrasena de esta cuenta NO abre la puerta. Lo enciende el
   // bootstrap de una instancia, donde el Dueno entra solo con Google.
   soloGoogle?: boolean
+  // ADR 0048 · la moneda pedida, ya validada. Ver `resolverMonedaDeAlta`.
+  moneda?: Moneda
 }) {
   const errPass = validarPassword(args.password)
   if (errPass) throw new AppError(errPass, 400)
@@ -72,7 +80,10 @@ export async function crearOrgConDueno(args: {
   // La forma de retorno NO cambia (`{ tenant, usuario }`): devolver la URL está
   // descartado (§4, T5 del plan).
   return withTxBootstrap(async ({ client, fijarTenant }) => {
-    const tenant = await crearTenant(args.org, args.slug ?? args.org, client)
+    // Dentro de la transaccion: la lectura y el INSERT van juntos.
+    const { rows } = await client.query('select moneda from tenants order by creado_en asc limit 1')
+    const moneda = resolverMonedaDeAlta(args.moneda, rows[0]?.moneda ?? null)
+    const tenant = await crearTenant(args.org, args.slug ?? args.org, client, moneda)
     await fijarTenant(tenant.id)
     const usuario = await crearUsuario(
       {
@@ -101,6 +112,7 @@ export async function registrarCuentaCtrl(
   opciones?: { debeCambiarPassword?: boolean; entraConGoogle?: boolean },
 ) {
   const d = validar(signupSchema, body)
+  const moneda = monedaPedida(d.moneda)
 
   // A3.1 — quien nace entrando con Google NO trae contraseña, y mandar una se
   // RECHAZA en vez de ignorarse. Ignorarla sería lo peor de los dos mundos: una
@@ -129,12 +141,14 @@ export async function registrarCuentaCtrl(
     org: d.organizacion, nombre: d.nombre, email: d.email, password: r.password,
     debeCambiarPassword: opciones?.debeCambiarPassword,
     soloGoogle: opciones?.entraConGoogle,
+    moneda,
   })
 }
 
 // Alta de CRM por super-admin (nombre/slug + objeto admin).
 export async function crearOrganizacionCtrl(body: unknown) {
   const d = validar(orgSchema, body)
+  const moneda = monedaPedida(d.moneda)
   // El Dueño de la organización nueva puede nacer entrando con Google, igual
   // que un usuario suelto (ADR 0012, enmienda E1). Misma resolución para las
   // dos altas, para que no diverjan.
@@ -152,5 +166,6 @@ export async function crearOrganizacionCtrl(body: unknown) {
     email: d.admin.email,
     password: r.password,
     cargo: d.admin.cargo,
+    moneda,
   })
 }

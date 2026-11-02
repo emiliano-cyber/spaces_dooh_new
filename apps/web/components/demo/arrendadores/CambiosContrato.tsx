@@ -29,6 +29,7 @@ import { valorParaMostrar } from '@/lib/contrato-cambios'
 import { desbloquearApi } from '@/lib/data/cambios-api'
 import { confirmarConCandado } from '@/lib/cambios-candado'
 import { ROL_CONTRATO, opcionesDeAsignacion } from '@/components/demo/razones-sociales/asignacion'
+import { monedaInstancia } from '@/lib/i18n/dinero'
 
 // ============================================================================
 //  CONTRATO-CAMBIOS (07/10) · cambiar un contrato ANTES de firmarlo, diciendo
@@ -278,7 +279,7 @@ function EditarTerminosModal({
     fechaFin: contrato.fechaFin ? contrato.fechaFin.slice(0, 10) : '',
     montoRenta: contrato.montoRenta != null ? String(contrato.montoRenta) : '',
     periodicidad: contrato.periodicidad ?? 'MENSUAL',
-    moneda: contrato.moneda ?? 'MXN',
+    moneda: contrato.moneda ?? monedaInstancia(),
     deposito: contrato.deposito != null ? String(contrato.deposito) : '',
     autoRenovable: contrato.autoRenovable,
   }
@@ -526,9 +527,12 @@ function EditarTerminosModal({
               ))}
             </select>
           </Campo>
+          {/* ADR 0048 · la moneda NO se edita: es la de la instancia. Era un
+              campo de texto libre que aceptaba cualquier codigo, y el importe
+              se seguia pintando con la moneda de la instancia. El servidor
+              rechaza otra (`arrendadores-controller.ts`). */}
           <Campo label="Moneda">
-            <input className={inputCls} value={f.moneda}
-              onChange={(e) => poner('moneda', e.target.value.toUpperCase())} disabled={enviando} />
+            <div className={`${inputCls} flex items-center bg-surface-2 text-muted`}>{f.moneda}</div>
           </Campo>
           <Campo
             label="Depósito"
