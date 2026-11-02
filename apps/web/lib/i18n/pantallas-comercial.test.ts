@@ -1052,6 +1052,19 @@ const PANTALLAS: Pantalla[] = [
     ],
     ingles: ['Negotiation codes'],
   },
+  {
+    // Retoque de la costura (validador, mutante M1b): ningun estado tenia un
+    // sitio digital SIN id de DOOHmain, asi que quitar el `idioma` de
+    // `textoOrigenDoohmain(null, idioma)` en `SiteFicha` no lo veia nadie.
+    nombre: 'ficha de una pantalla digital sin id de DOOHmain',
+    pintar: async (idioma) => {
+      const Ficha = await ficha()
+      const sitio = { ...SITIO_DIGITAL, id: 's9', doohmainEfectiva: null, doohmainOrigen: null }
+      return pintar(idioma, createElement(Ficha, { sitio: sitio as never, open: true, onOpenChange: () => {} }))
+    },
+    espanol: ['ninguna: al publicar, esta pantalla no recibiría nada'],
+    ingles: ['none: when publishing, this screen would receive nothing'],
+  },
 ]
 
 // Con `VOLCAR_HTML=<carpeta>`, el HTML espanol de cada estado a disco: es lo
