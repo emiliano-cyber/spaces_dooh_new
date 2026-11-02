@@ -230,7 +230,7 @@ type Accion = (fn: () => Promise<ProspectoDetalle>) => Promise<boolean>
 
 // ─── La búsqueda del responsable ────────────────────────────────────────────
 function Pasos({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; puede: boolean }) {
-  const t = useTexto()
+  const { t, idioma } = useIdioma()
   const etapa = p.etapaResponsable ?? 0
   return (
     <ol className={`${LISTA} flex flex-wrap items-start gap-y-2`} aria-label={t('comercial.negociacion.responsable')}>
@@ -241,7 +241,7 @@ function Pasos({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; pued
         const n = i + 1
         const hecho = n < etapa
         const actual = n === etapa
-        const motivo = motivoEtapaResponsable(n, p.contactos)
+        const motivo = motivoEtapaResponsable(n, p.contactos, idioma)
         return (
           <li key={clave} className="flex items-start">
             <button
@@ -409,7 +409,7 @@ function Ubicacion({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; 
     setNota(null)
     // Lo que se puede resolver sin red se resuelve aquí: unas coordenadas o un
     // enlace largo no tienen por qué gastar el tope de búsquedas.
-    const i = interpretarUbicacion(q)
+    const i = interpretarUbicacion(q, idioma)
     if (i.tipo === 'punto') return ponerPin(i.lat, i.lng, i.fuente === 'enlace')
     if (i.tipo === 'invalido') {
       setCandidatos(null)
@@ -955,7 +955,7 @@ function Detalle({ p, hoy, onCambio }: { p: ProspectoDetalle; hoy: Date; onCambi
       )}
       {!puedeFicha && (
         <p className="m-0 rounded-md border border-border bg-surface-2 px-3 py-2 text-[12px] text-muted">
-          {motivoEdicion(p.etapa, 'ficha')}
+          {motivoEdicion(p.etapa, 'ficha', idioma)}
         </p>
       )}
 

@@ -1,4 +1,5 @@
 import { IDIOMA_POR_OMISION, type Idioma } from './idiomas'
+import { ES_SERVIDOR, EN_SERVIDOR, type ClaveServidor } from './textos/servidor'
 
 // ============================================================================
 //  lib/i18n/errores-servidor.ts — LOS ERRORES DEL SERVIDOR, EN DOS IDIOMAS.
@@ -581,7 +582,7 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   'Ese enlace no lleva a un lugar de Google Maps':
     'That link does not lead to a Google Maps place',
   'Ese enlace de Google Maps no trae coordenadas. En Google Maps toca el lugar, copia las coordenadas que salen arriba y pégalas aquí':
-    'That Google Maps link has no coordinates. In Google Maps tap the place, copy the coordinates shown at the top and paste them here',
+    'That Google Maps link has no coordinates. In Google Maps click the place, copy the coordinates shown at the top and paste them here',
   'Escribe una dirección, pega unas coordenadas (19.4326, -99.1332) o un enlace de Google Maps':
     'Enter an address, paste coordinates (19.4326, -99.1332) or a Google Maps link',
   'Solo se aceptan enlaces de Google Maps (google.com/maps o maps.app.goo.gl)':
@@ -617,6 +618,27 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   'La contraseña no puede contener espacios':
     'The password cannot contain spaces',
 }
+
+
+// ─── Los motivos de `lib/` que comparten servidor y pantalla ────────────────
+//
+// Lote servidor (2026-11-02). Las reglas puras de `lib/negociacion.ts`,
+// `motivoHorarioInvalido`, `interpretarUbicacion` y `MSJ_APROBAR_CON_PENDIENTE`
+// devuelven una frase que la pantalla PINTA y que el servidor LANZA por
+// variable (`new AppError(motivo)`). El ingles se escribe una sola vez, en el
+// diccionario (`textos/servidor.ts`), y de ahi sale este catalogo: asi el mismo
+// fallo dice lo mismo lo detecte el navegador o el servidor.
+//
+// Va APARTE de `CATALOGO_ERRORES` a proposito: aquel lo vigila la guardia de
+// entradas muertas de `errores-servidor.test.ts`, que solo ve literales; estas
+// viajan por variable y su prueba es `textos/servidor.test.ts`. Se excluyen las
+// que llevan huecos `{…}` (el aviso de la franja no es un error y se arma en
+// el servidor con el idioma de la peticion).
+export const CATALOGO_LIB: Record<string, string> = Object.fromEntries(
+  (Object.keys(ES_SERVIDOR) as ClaveServidor[])
+    .filter((k) => !ES_SERVIDOR[k].includes('{'))
+    .map((k) => [ES_SERVIDOR[k], EN_SERVIDOR[k]]),
+)
 
 
 // ─── Las etiquetas de campo ─────────────────────────────────────────────────
@@ -995,7 +1017,7 @@ function armar(p: PatronError, grupos: string[]): string {
 
 // Una pieza suelta: el motivo, sin la etiqueta de campo delante.
 function traducirMotivo(motivo: string): string {
-  const exacto = CATALOGO_ERRORES[motivo]
+  const exacto = CATALOGO_ERRORES[motivo] ?? CATALOGO_LIB[motivo]
   if (exacto !== undefined) return exacto
   for (const p of PATRONES_ERROR) {
     const m = p.re.exec(motivo)
@@ -1015,7 +1037,7 @@ export function traducirError(mensaje: string, idioma: Idioma): string {
   if (typeof mensaje !== 'string') return SIN_MENSAJE
   if (idioma === IDIOMA_POR_OMISION) return mensaje
 
-  const exacto = CATALOGO_ERRORES[mensaje]
+  const exacto = CATALOGO_ERRORES[mensaje] ?? CATALOGO_LIB[mensaje]
   if (exacto !== undefined) return exacto
 
   // `Campo: motivo`. Se parte SOLO si la izquierda es una etiqueta de campo

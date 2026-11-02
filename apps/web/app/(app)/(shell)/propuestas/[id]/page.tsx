@@ -53,6 +53,7 @@ import {
   actualizarPropuestaApi,
   refrescarEstado,
   ConfirmacionCeroError,
+  CodigoPendienteApiError,
 } from '@/lib/data/estado-api'
 import { BloqueCodigoPropuesta } from '@/components/demo/codigos/BloqueCodigoPropuesta'
 import { ElegirClienteDialog } from '@/components/demo/propuestas/ElegirClienteDialog'
@@ -318,6 +319,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
         if (window.confirm(`${e.message}\n\n${t('propuestas.comun.aprobar-igual')}`)) return cambiar(estatus, true)
         return
       }
+      if (e instanceof CodigoPendienteApiError) return void toast.error(t('servidor.codigo.aprobar-con-pendiente'))
       toast.error(e instanceof Error ? e.message : t('propuestas.comun.error'))
     }
   }

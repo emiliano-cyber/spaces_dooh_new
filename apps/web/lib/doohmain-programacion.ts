@@ -54,14 +54,23 @@ export function franjaQueViaja(e: { individual: Franja | null; programadaOContra
   return null
 }
 
-/** Por qué no se acepta un horario individual; null si vale. Lo usan la pantalla y el servidor. */
-export function motivoHorarioInvalido(h: { horaInicio: string; horaFin: string; dias: number[] | null }): string | null {
-  if (!HHMM.test(h.horaInicio) || !HHMM.test(h.horaFin)) return 'Las horas van como HH:mm, por ejemplo 07:30'
-  if (h.horaInicio === h.horaFin) return 'La hora de inicio y la de fin no pueden ser iguales'
+/**
+ * Por qué no se acepta un horario individual; null si vale. Lo usan la pantalla y el servidor.
+ *
+ * I18N (lote servidor, 2026-11-02) · `idioma` con 'es' por omisión: el servidor
+ * no lo pasa (su `AppError` lo traduce I18N-05) y la pantalla le pasa el suyo.
+ */
+export function motivoHorarioInvalido(
+  h: { horaInicio: string; horaFin: string; dias: number[] | null },
+  idioma: Idioma = 'es',
+): string | null {
+  const m = (es: string, clave: ClaveTexto) => (idioma === 'es' ? es : traducir(idioma, clave))
+  if (!HHMM.test(h.horaInicio) || !HHMM.test(h.horaFin)) return m('Las horas van como HH:mm, por ejemplo 07:30', 'servidor.horario.formato')
+  if (h.horaInicio === h.horaFin) return m('La hora de inicio y la de fin no pueden ser iguales', 'servidor.horario.iguales')
   if (h.dias) {
-    if (h.dias.length === 0) return 'Elige al menos un día, o ninguno para que sean todos'
-    if (h.dias.some((d) => !Number.isInteger(d) || d < 0 || d > 6)) return 'Ese día de la semana no existe'
-    if (new Set(h.dias).size !== h.dias.length) return 'Hay un día repetido'
+    if (h.dias.length === 0) return m('Elige al menos un día, o ninguno para que sean todos', 'servidor.horario.sin-dias')
+    if (h.dias.some((d) => !Number.isInteger(d) || d < 0 || d > 6)) return m('Ese día de la semana no existe', 'servidor.horario.dia-no-existe')
+    if (new Set(h.dias).size !== h.dias.length) return m('Hay un día repetido', 'servidor.horario.dia-repetido')
   }
   return null
 }

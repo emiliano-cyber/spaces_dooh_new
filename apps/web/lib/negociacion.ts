@@ -15,6 +15,17 @@
 // ============================================================================
 
 import type { Etapa } from './captacion'
+import { traducir, type ClaveTexto } from './i18n/diccionario'
+import type { Idioma } from './i18n/idiomas'
+
+// I18N (lote servidor, 2026-11-02) · los motivos llevan `idioma` con 'es' por
+// omision, como `textoOrigenDoohmain`: el servidor no lo pasa y sigue lanzando
+// el español de siempre (que `respuestaError()` traduce por I18N-05); la
+// pantalla le pasa el suyo. En español se devuelve el LITERAL de aqui; solo el
+// otro idioma va al diccionario (`servidor.negociacion.*`), y
+// `textos/servidor.test.ts` exige que el español de alli sea este.
+const enIdioma = (idioma: Idioma, es: string, clave: ClaveTexto) =>
+  idioma === 'es' ? es : traducir(idioma, clave)
 
 export const VISIBILIDADES = ['CERCANA', 'MEDIA', 'LEJANA'] as const
 export type Visibilidad = (typeof VISIBILIDADES)[number]
@@ -69,12 +80,20 @@ export type OrigenUbicacion = (typeof ORIGENES_UBICACION)[number] | 'GPS'
  * legal confirmado»— exige al menos un contacto que firme: si no, la etapa
  * está mintiendo, que es justo lo que la maqueta ya ataba con una prueba.
  */
-export function motivoEtapaResponsable(etapa: number, contactos: { esLegal: boolean }[]): string | null {
+export function motivoEtapaResponsable(
+  etapa: number,
+  contactos: { esLegal: boolean }[],
+  idioma: Idioma = 'es',
+): string | null {
   if (!Number.isInteger(etapa) || etapa < 1 || etapa > ETAPAS_RESPONSABLE.length) {
-    return 'Esa etapa de la búsqueda del responsable no existe'
+    return enIdioma(idioma, 'Esa etapa de la búsqueda del responsable no existe', 'servidor.negociacion.etapa-no-existe')
   }
   if (etapa === 5 && !contactos.some((c) => c.esLegal)) {
-    return 'Para confirmar al responsable legal, marca primero qué contacto firma'
+    return enIdioma(
+      idioma,
+      'Para confirmar al responsable legal, marca primero qué contacto firma',
+      'servidor.negociacion.falta-quien-firma',
+    )
   }
   return null
 }
@@ -88,17 +107,24 @@ export function motivoQuitarLegal(
   etapa: number | null,
   contactos: { id: string; esLegal: boolean }[],
   id: string,
+  idioma: Idioma = 'es',
 ): string | null {
   if (etapa !== 5) return null
   const c = contactos.find((x) => x.id === id)
   if (!c?.esLegal) return null
   if (contactos.some((x) => x.id !== id && x.esLegal)) return null
-  return 'Es quien firma y el responsable legal ya está confirmado: marca antes a otro contacto que firme, o baja la etapa'
+  return enIdioma(
+    idioma,
+    'Es quien firma y el responsable legal ya está confirmado: marca antes a otro contacto que firme, o baja la etapa',
+    'servidor.negociacion.quitar-quien-firma',
+  )
 }
 
 /** El mínimo no puede pasar del máximo; con un solo extremo, vale. */
-export function motivoPresupuesto(min: number | null, max: number | null): string | null {
-  if (min != null && max != null && min > max) return 'El mínimo del presupuesto no puede ser mayor que el máximo'
+export function motivoPresupuesto(min: number | null, max: number | null, idioma: Idioma = 'es'): string | null {
+  if (min != null && max != null && min > max) {
+    return enIdioma(idioma, 'El mínimo del presupuesto no puede ser mayor que el máximo', 'servidor.negociacion.presupuesto')
+  }
   return null
 }
 
@@ -108,9 +134,15 @@ export function siguienteVersion(ofertas: { version: number }[]): number {
 }
 
 /** Aceptada y rechazada son finales; quedarse igual (corregir la nota) siempre vale. */
-export function motivoCambioOferta(actual: EstadoOferta, nuevo: EstadoOferta): string | null {
+export function motivoCambioOferta(actual: EstadoOferta, nuevo: EstadoOferta, idioma: Idioma = 'es'): string | null {
   if (actual === nuevo) return null
   if (actual === 'ACEPTADA' || actual === 'RECHAZADA') {
+    if (idioma !== 'es') {
+      return traducir(
+        idioma,
+        actual === 'ACEPTADA' ? 'servidor.negociacion.oferta-cerrada.aceptada' : 'servidor.negociacion.oferta-cerrada.rechazada',
+      )
+    }
     return `Esa oferta ya está ${ETIQUETA_OFERTA[actual].toLowerCase()}: haz una nueva versión`
   }
   return null
@@ -126,11 +158,13 @@ export function motivoCambioOferta(actual: EstadoOferta, nuevo: EstadoOferta): s
  *  · `notas`: siempre. Una nota sobre un espacio perdido («retomar si lo
  *    revenden») es justo para lo que sirven.
  */
-export function motivoEdicion(etapa: Etapa, que: 'ficha' | 'hijos' | 'notas'): string | null {
+export function motivoEdicion(etapa: Etapa, que: 'ficha' | 'hijos' | 'notas', idioma: Idioma = 'es'): string | null {
   if (que === 'notas') return null
-  if (etapa === 'PERDIDO') return 'El espacio está perdido: ya solo admite notas'
+  if (etapa === 'PERDIDO') {
+    return enIdioma(idioma, 'El espacio está perdido: ya solo admite notas', 'servidor.negociacion.perdido')
+  }
   if (que === 'ficha' && etapa === 'EN_REVISION') {
-    return 'Está en revisión: espera la decisión antes de cambiar la ficha'
+    return enIdioma(idioma, 'Está en revisión: espera la decisión antes de cambiar la ficha', 'servidor.negociacion.en-revision')
   }
   return null
 }
