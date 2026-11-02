@@ -1,7 +1,7 @@
 ---
 tipo: preguntas
 estado: verificado
-actualizado: 2026-10-29
+actualizado: 2026-11-02
 tags: [preguntas, pendientes, riesgo]
 archivos:
   - apps/web/lib/server/
@@ -58,6 +58,13 @@ archivos:
 > > propósito: se cerró la puerta de entrada, no el almacén. Medido en ese
 > > commit: ni un USD ni un PEN en la base del 5433. Las citas de arriba
 > > (`:498-501`) describen el código ANTES de ese commit y se dejan como historia.
+>
+> > [!success] Y el 2026-11-02 el «después lo moveremos» llegó — ADR 0048
+> > La moneda pasa a ser **de la instancia**: MXN o USD, elegida al crearla y
+> > **sin poder cambiarse** (la base y la API lo impiden). `MONEDA` dejó de ser
+> > una constante: `monedaInstancia()` en `lib/i18n/dinero.ts`. La pregunta de
+> > arriba queda cerrada del lado bueno: **una** moneda por instancia, nunca
+> > «la del dato». Ver [[03-Frontend/idiomas-es-en]] §7.
 
 
 > [!danger] 2026-08-24 · P1 dejó de ser una pregunta: la cerraron los hechos

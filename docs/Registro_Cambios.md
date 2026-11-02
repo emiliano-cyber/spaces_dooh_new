@@ -5,6 +5,37 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-02 · La moneda de cada instancia: pesos o dólares, elegida al crearla y para siempre (sin publicar)
+
+Decisión del dueño: una instancia trabaja en **pesos mexicanos (MXN)** o en
+**dólares (USD)**. Se elige **una sola vez, al crearla**, y después **no se puede
+cambiar**, por seguridad. Las instancias que ya existen se quedan en pesos y se
+ven exactamente igual que antes.
+
+- **Por qué no se puede cambiar.** Los importes que ya están guardados
+  (contratos, propuestas, cobranza) son solo números: no dicen en qué moneda
+  están. Si se cambiara la moneda, «$10,000 pesos» pasaría a leerse como
+  «$10,000 dólares» sin convertir nada. Por eso lo impiden dos cosas a la vez:
+  la base de datos y la aplicación. Cambiarla a la fuerza ya no es un ajuste: es
+  una corrección de datos con tipo de cambio, que se decide aparte.
+- **Cómo se ve.** En una instancia en pesos todo sigue igual: `$ 1,234.50`. En
+  una en dólares, en español se escribe `US$ 1,234.50` para que nadie lo lea
+  como pesos. El documento de la propuesta que se le da al cliente, los avisos y
+  la bitácora usan la moneda de la instancia. Un contrato en dólares dice
+  «DÓLARES … USD» en la cantidad con letra, no «PESOS … M.N.».
+- **Administración → Identidad** muestra la moneda de la instancia (antes decía
+  «Peso mexicano» escrito a mano) y avisa de que no se puede cambiar.
+- **Cambios de contrato** ya no deja escribir otra moneda: el campo se muestra y
+  no se edita. Un contrato va siempre en la moneda de la instancia.
+- **Captación** dice «Presupuesto estimado (USD)» en una instancia en dólares.
+- **Quien da de alta una instancia** elige la moneda con `--moneda MXN` o
+  `--moneda USD` en el último paso (`--bootstrap`). Si no la pone, pesos. Ver
+  `docs/runbook-alta-de-owner.md` §6.
+
+Detalle técnico: ADR 0048 y `vault/03-Frontend/idiomas-es-en.md` §7.
+
+---
+
 ## 2026-10-29 · DOOHmain: pausar creativos, su estado y el historial por pantalla (entra en la v0.12.5, todavía sin publicar)
 
 Pedido del dueño: subir y bajar creativos, ver el historial de reproducción y
