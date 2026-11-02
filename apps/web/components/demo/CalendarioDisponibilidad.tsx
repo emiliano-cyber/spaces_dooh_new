@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/cn'
+import { useIdioma } from '@/lib/i18n/contexto'
 
 // ============================================================================
 //  CalendarioDisponibilidad — grilla mensual que pinta los días según reservas
@@ -33,6 +34,7 @@ export function CalendarioDisponibilidad({
   rangos: RangoOcupacion[]
   className?: string
 }) {
+  const { t, idioma } = useIdioma()
   const hoy = new Date()
   const [offset, setOffset] = useState(0)
   const base = new Date(hoy.getFullYear(), hoy.getMonth() + offset, 1)
@@ -70,24 +72,26 @@ export function CalendarioDisponibilidad({
           type="button"
           onClick={() => setOffset((o) => o - 1)}
           className="flex h-7 w-7 items-center justify-center rounded border border-border text-muted hover:bg-surface-2"
-          aria-label="Mes anterior"
+          aria-label={t('operaciones.calendario.anterior')}
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
         <span className="text-[13px] font-medium capitalize text-ink">
-          {MESES[month]} {year}
+          {/* En ingles el nombre del mes lo da `Intl` (`en-US`); el espanol sigue
+              saliendo de `MESES`, como siempre. */}
+          {idioma === 'en' ? new Intl.DateTimeFormat('en-US', { month: 'long' }).format(base) : MESES[month]} {year}
         </span>
         <button
           type="button"
           onClick={() => setOffset((o) => o + 1)}
           className="flex h-7 w-7 items-center justify-center rounded border border-border text-muted hover:bg-surface-2"
-          aria-label="Mes siguiente"
+          aria-label={t('operaciones.calendario.siguiente')}
         >
           <ChevronRight className="h-4 w-4" />
         </button>
       </div>
       <div className="grid grid-cols-7 gap-1">
-        {DIAS.map((d, i) => (
+        {(idioma === 'es' ? DIAS : t('operaciones.calendario.dias').split(',')).map((d, i) => (
           <div key={i} className="pb-1 text-center text-[10px] font-medium text-muted">
             {d}
           </div>
@@ -120,10 +124,10 @@ export function CalendarioDisponibilidad({
       </div>
       <div className="mt-3 flex items-center gap-4 text-[11px] text-muted">
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-sm bg-error" /> confirmada
+          <span className="h-2.5 w-2.5 rounded-sm bg-error" /> {t('operaciones.calendario.confirmada')}
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-sm bg-warning" /> en propuesta
+          <span className="h-2.5 w-2.5 rounded-sm bg-warning" /> {t('operaciones.calendario.en-propuesta')}
         </span>
       </div>
     </div>

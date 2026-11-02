@@ -1,5 +1,6 @@
 import { LayoutGrid } from 'lucide-react'
 import { cn } from '@/lib/cn'
+import { useTexto } from '@/lib/i18n/contexto'
 
 // Indicador destacado de slots de una pantalla digital. Con `disponibles` colorea
 // según cuántos quedan (verde = holgado, ámbar = pocos, rojo = lleno); sin él
@@ -13,6 +14,7 @@ export function SlotsBadge({
   total: number | null
   className?: string
 }) {
+  const t = useTexto()
   if (total == null) return null
   const disp = disponibles ?? null
   const tono =
@@ -41,11 +43,11 @@ export function SlotsBadge({
         estilo,
         className,
       )}
-      title={disp != null ? `${disp} de ${total} slots libres` : `${total} slots`}
+      title={disp != null ? t('operaciones.slots.libres-de', { disp, total }) : t('operaciones.slots.total', { total })}
     >
       <LayoutGrid className="h-3 w-3" strokeWidth={2} />
       <span className="demo-num">{disp != null ? `${disp}/${total}` : total}</span>
-      slots
+      {t('operaciones.slots.slots')}
     </span>
   )
 }

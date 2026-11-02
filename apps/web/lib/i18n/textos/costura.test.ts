@@ -6,6 +6,7 @@ import { ES_FINANZAS, EN_FINANZAS } from './finanzas'
 import { ES_COMERCIAL, EN_COMERCIAL } from './comercial'
 import { ES_CODIGOS, EN_CODIGOS } from './codigos'
 import { ES_CLIENTES, EN_CLIENTES } from './clientes'
+import { ES_OPERACIONES, EN_OPERACIONES } from './operaciones'
 import { DICCIONARIOS } from '../diccionario'
 
 // ============================================================================
@@ -27,6 +28,7 @@ const LOTES: [string, Record<string, string>, Record<string, string>][] = [
   ['comercial', ES_COMERCIAL, EN_COMERCIAL],
   ['codigos', ES_CODIGOS, EN_CODIGOS],
   ['clientes', ES_CLIENTES, EN_CLIENTES],
+  ['operaciones', ES_OPERACIONES, EN_OPERACIONES],
 ]
 
 // El mismo espanol que en ingles se dice distinto A PROPOSITO, porque en cada
@@ -44,6 +46,7 @@ const DISTINTOS_A_PROPOSITO: Record<string, string> = {
   Plazo: 'el plazo de cobranza («Payment terms») frente al plazo de una oferta de renta («Term»)',
   'Por vencer': 'una cuota que vence pronto («Due soon») frente a un contrato que caduca («Expiring soon»)',
   Vencido: 'un pago atrasado («Overdue») frente a un contrato o codigo caducado («Expired»)',
+  Vista: 'hacia donde mira una cara del sitio («Facing») frente al selector de vista de la rejilla de Disponibilidad, catorcena o mes («View»)',
   Vigencia: 'glosario: la vigencia de una propuesta o codigo («Validity») frente al plazo de un contrato («Term»)',
 }
 
