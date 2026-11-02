@@ -2,8 +2,8 @@
 
 import { KPICard, KPICardSkeleton } from '@/components/demo/KPICard'
 import { formatMonto, type CampanaResumen } from '@/lib/data/client'
-import { conteo } from '@/lib/plural'
 import { formatNumero } from '@/lib/formato-numero'
+import { useTexto } from '@/lib/i18n/contexto'
 
 // ============================================================================
 //  Fila de indicadores del listado de Campañas — el lenguaje del Dashboard
@@ -22,6 +22,7 @@ export function IndicadoresCampanas({
   campanas: CampanaResumen[] | undefined
   porValidar: number
 }) {
+  const t = useTexto()
   if (!campanas) {
     return (
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -49,34 +50,41 @@ export function IndicadoresCampanas({
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
       <KPICard
-        label="Activas"
+        label={t('campanas.kpi.activas')}
         value={formatNumero(activas.length)}
-        sub={`${conteo(confirmadas, 'confirmada', 'confirmadas')} por arrancar`}
+        sub={t(confirmadas === 1 ? 'campanas.kpi.activas.sub.uno' : 'campanas.kpi.activas.sub.otros', {
+          n: formatNumero(confirmadas),
+        })}
         tono={activas.length > 0 ? 'verde' : 'neutro'}
       />
       <KPICard
-        label="Por validar publicación"
+        label={t('campanas.kpi.por-validar')}
         value={formatNumero(porValidar)}
-        sub="enviadas al dominio"
+        sub={t('campanas.kpi.por-validar.sub')}
         tono={porValidar > 0 ? 'ambar' : 'neutro'}
       />
       <KPICard
-        label="Listas para facturar"
+        label={t('campanas.kpi.listas')}
         value={formatNumero(listas)}
-        sub="candado abierto"
+        sub={t('campanas.kpi.listas.sub')}
         tono={listas > 0 ? 'verde' : 'neutro'}
       />
       {/* Si ninguna activa tiene presupuesto capturado, una raya con el motivo:
           un $0 afirmaría que se venden gratis. */}
       <KPICard
-        label="Contratado vigente"
+        label={t('campanas.kpi.contratado')}
         value={conPresupuesto.length === 0 ? '—' : formatMonto(contratado)}
         sub={
           activas.length === 0
-            ? 'sin campañas activas'
+            ? t('campanas.kpi.contratado.sin-activas')
             : sinPresupuesto > 0
-              ? `${conteo(sinPresupuesto, 'activa', 'activas')} sin presupuesto capturado`
-              : 'de las campañas activas'
+              ? t(
+                  sinPresupuesto === 1
+                    ? 'campanas.kpi.contratado.sin-presupuesto.uno'
+                    : 'campanas.kpi.contratado.sin-presupuesto.otros',
+                  { n: formatNumero(sinPresupuesto) },
+                )
+              : t('campanas.kpi.contratado.sub')
         }
       />
     </div>

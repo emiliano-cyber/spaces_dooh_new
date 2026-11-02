@@ -29,7 +29,6 @@ import { cn } from '@/lib/cn'
 import {
   useCampanas,
   useCampanasResumen,
-  ETAPA_LABEL,
   etapasPipeline,
   vigenciaCampana,
   estadoContradiceFechas,
@@ -37,11 +36,14 @@ import {
   formatFecha,
 } from '@/lib/data/client'
 import { IndicadoresCampanas } from '@/components/demo/campanas/IndicadoresCampanas'
+import { CLAVE_ESTADO_CAMPANA, CLAVE_ETAPA } from '@/components/demo/campanas/etiquetas'
+import { useIdioma } from '@/lib/i18n/contexto'
 
 // Filas de la cola «Por validar» a la vista antes de «Ver todas (N)».
 const POR_VALIDAR_A_LA_VISTA = 5
 
 export default function CampanasPage() {
+  const { t, idioma } = useIdioma()
   const campanas = useCampanasResumen()
   const todas = useCampanas()
 
@@ -104,9 +106,9 @@ export default function CampanasPage() {
   return (
     <div className="w-full space-y-4">
       <div>
-        <h1 className="text-2xl text-ink">Campañas</h1>
+        <h1 className="text-2xl text-ink">{t('campanas.lista.titulo')}</h1>
         <p className="mt-1 text-[13px] text-muted">
-          Cada campaña viaja sola por la empresa · pipeline en vivo
+          {t('campanas.lista.subtitulo')}
         </p>
       </div>
 
@@ -122,9 +124,9 @@ export default function CampanasPage() {
         // plegable alrededor sería un tercer mecanismo para lo mismo.
         <CardColapsable
           id="campanas.por-validar"
-          titulo={`Por validar (${porValidar.length})`}
+          titulo={t('campanas.lista.por-validar.titulo', { n: porValidar.length })}
           icono={<ShieldCheck className="h-4 w-4 text-[#9a6700]" strokeWidth={1.75} />}
-          subtitulo="Enviadas al dominio, esperan aprobación antes de publicar"
+          subtitulo={t('campanas.lista.por-validar.sub')}
           className="border-accent bg-warning-soft"
         >
           {/* `list-none p-0 m-0`: el proyecto corre sin preflight
@@ -144,7 +146,7 @@ export default function CampanasPage() {
                     </div>
                   </div>
                   <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border px-2 py-0.5 text-[11px] font-medium text-info">
-                    Validar <ArrowRight className="h-3 w-3" />
+                    {t('campanas.lista.validar')} <ArrowRight className="h-3 w-3" />
                   </span>
                 </Link>
               </li>
@@ -157,7 +159,7 @@ export default function CampanasPage() {
               onClick={() => setTodasPorValidar((v) => !v)}
               className="mt-2 bg-transparent text-[12px] font-medium text-info hover:underline"
             >
-              {todasPorValidar ? 'Ver menos' : `Ver todas (${porValidar.length})`}
+              {todasPorValidar ? t('campanas.comun.ver-menos') : t('campanas.comun.ver-todas', { n: porValidar.length })}
             </button>
           )}
         </CardColapsable>
@@ -175,7 +177,7 @@ export default function CampanasPage() {
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Buscar por nombre, folio o cliente…"
+            placeholder={t('campanas.lista.buscar')}
             className="h-9 w-full rounded border border-border-strong bg-surface pl-9 pr-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
           />
         </div>
@@ -184,10 +186,10 @@ export default function CampanasPage() {
           onChange={(e) => setEstado(e.target.value)}
           className="h-9 rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >
-          <option value="">Todos los estados</option>
-          {Object.entries(CAMPANA_LABEL).map(([k, label]) => (
+          <option value="">{t('campanas.lista.todos-estados')}</option>
+          {(Object.keys(CAMPANA_LABEL) as (keyof typeof CAMPANA_LABEL)[]).map((k) => (
             <option key={k} value={k}>
-              {label} ({porEstado.get(k) ?? 0})
+              {t(CLAVE_ESTADO_CAMPANA[k])} ({porEstado.get(k) ?? 0})
             </option>
           ))}
         </select>
@@ -196,22 +198,22 @@ export default function CampanasPage() {
           size="sm"
           onClick={alternarCompacta}
           aria-pressed={vista.compacta}
-          title={vista.compacta ? 'Volver a mostrar el pipeline de cada campaña' : 'Esconder los pipelines: una fila por campaña'}
+          title={vista.compacta ? t('campanas.lista.compacta.volver') : t('campanas.lista.compacta.esconder')}
         >
           {vista.compacta ? (
-            <><Maximize2 className="mr-1 h-3.5 w-3.5" /> Mostrar pipelines</>
+            <><Maximize2 className="mr-1 h-3.5 w-3.5" /> {t('campanas.lista.mostrar-pipelines')}</>
           ) : (
-            <><Minimize2 className="mr-1 h-3.5 w-3.5" /> Vista compacta</>
+            <><Minimize2 className="mr-1 h-3.5 w-3.5" /> {t('campanas.lista.vista-compacta')}</>
           )}
         </Button>
         {ocultasAqui > 0 && (
           <Button variant="secondary" size="sm" onClick={mostrarTodas}>
-            <Eye className="mr-1 h-3.5 w-3.5" /> Mostrar ocultas ({ocultasAqui})
+            <Eye className="mr-1 h-3.5 w-3.5" /> {t('campanas.lista.mostrar-ocultas', { n: ocultasAqui })}
           </Button>
         )}
         {campanas && (
           <span className="demo-num ml-auto text-[12px] text-muted">
-            {visibles.length} de {campanas.length}
+            {t('campanas.lista.conteo', { visibles: visibles.length, total: campanas.length })}
           </span>
         )}
       </div>
@@ -233,11 +235,18 @@ export default function CampanasPage() {
         hayFiltro ? (
           <EmptyState
             icon={Search}
-            titulo="Ninguna campaña coincide con la búsqueda"
+            titulo={t('campanas.lista.sin-resultados.titulo')}
             detalle={
               term
-                ? `No hay resultados para «${q.trim()}»${estado ? ` en estado ${CAMPANA_LABEL[estado as keyof typeof CAMPANA_LABEL]}` : ''}.`
-                : `No hay campañas en estado ${CAMPANA_LABEL[estado as keyof typeof CAMPANA_LABEL]}.`
+                ? estado
+                  ? t('campanas.lista.sin-resultados.texto-estado', {
+                      q: q.trim(),
+                      estado: t(CLAVE_ESTADO_CAMPANA[estado as keyof typeof CAMPANA_LABEL]),
+                    })
+                  : t('campanas.lista.sin-resultados.texto', { q: q.trim() })
+                : t('campanas.lista.sin-resultados.estado', {
+                    estado: t(CLAVE_ESTADO_CAMPANA[estado as keyof typeof CAMPANA_LABEL]),
+                  })
             }
             accion={
               <Button
@@ -247,18 +256,18 @@ export default function CampanasPage() {
                   setEstado('')
                 }}
               >
-                Limpiar filtros
+                {t('campanas.lista.limpiar')}
               </Button>
             }
           />
         ) : (
           <EmptyState
             icon={Megaphone}
-            titulo="Todavía no hay campañas"
-            detalle="Las campañas se generan al aprobar una propuesta. Crea una propuesta y apruébala para verla aquí."
+            titulo={t('campanas.lista.vacia.titulo')}
+            detalle={t('campanas.lista.vacia.texto')}
             accion={
               <Link href="/propuestas">
-                <Button>Ir a Propuestas</Button>
+                <Button>{t('campanas.lista.vacia.ir')}</Button>
               </Link>
             }
           />
@@ -269,9 +278,9 @@ export default function CampanasPage() {
            escondidas por uno mismo. */
         <EmptyState
           icon={EyeOff}
-          titulo="Ocultaste todas las campañas de esta vista"
-          detalle="Ocultar solo las quita de tu lista en este navegador: siguen activas para todos."
-          accion={<Button onClick={mostrarTodas}>Mostrar ocultas ({ocultasAqui})</Button>}
+          titulo={t('campanas.lista.ocultas.titulo')}
+          detalle={t('campanas.lista.ocultas.texto')}
+          accion={<Button onClick={mostrarTodas}>{t('campanas.lista.mostrar-ocultas', { n: ocultasAqui })}</Button>}
         />
       ) : (
         <ul className={cn('m-0 list-none p-0', vista.compacta ? 'space-y-1.5' : 'space-y-3')}>
@@ -294,7 +303,7 @@ export default function CampanasPage() {
                           <h3 className="m-0 text-[15px] font-semibold text-ink">{c.nombre}</h3>
                           {hilo && (
                             <span className="rounded-full border border-transparent bg-warning-soft px-2 py-0.5 text-[11px] font-medium text-[#9a6700]">
-                              hilo conductor
+                              {t('campanas.lista.hilo')}
                             </span>
                           )}
                         </div>
@@ -304,7 +313,7 @@ export default function CampanasPage() {
                           {[
                             c.folio,
                             clienteNombre,
-                            `${formatFecha(c.fechaInicio)}–${formatFecha(c.fechaFin)}`,
+                            `${formatFecha(c.fechaInicio, idioma)}–${formatFecha(c.fechaFin, idioma)}`,
                           ]
                             .filter(Boolean)
                             .join(' · ')}
@@ -314,10 +323,10 @@ export default function CampanasPage() {
                         {/* La etapa, en un chip, SIEMPRE en la cabecera: ya no se
                             repite en una línea «Etapa actual» sobre el pipeline. */}
                         <span className="demo-num rounded-full border border-border px-2 py-0.5 text-[11px] text-muted">
-                          {ETAPA_LABEL[etapa]} · {index + 1}/{totalPasos}
+                          {t(CLAVE_ETAPA[etapa])} · {index + 1}/{totalPasos}
                         </span>
                         <StatusBadge tono={CAMPANA_TONO[c.estadoComercial]}>
-                          {CAMPANA_LABEL[c.estadoComercial]}
+                          {t(CLAVE_ESTADO_CAMPANA[c.estadoComercial])}
                         </StatusBadge>
                         {/* Antes había aquí un SEGUNDO distintivo del mismo peso
                             visual —«Vencida» / «Aún vigente»— junto al estado.
@@ -336,11 +345,11 @@ export default function CampanasPage() {
                             className="text-[11px] text-muted"
                             title={
                               vigenciaCampana(c) === 'vencida'
-                                ? 'El periodo contratado ya terminó.'
-                                : 'Se marcó como completada antes de que terminara su periodo.'
+                                ? t('campanas.lista.vencida.title')
+                                : t('campanas.lista.antes.title')
                             }
                           >
-                            {vigenciaCampana(c) === 'vencida' ? '· periodo terminado' : '· cerrada antes de tiempo'}
+                            {vigenciaCampana(c) === 'vencida' ? t('campanas.lista.vencida') : t('campanas.lista.antes')}
                           </span>
                         )}
                         {/* El candado con TEXTO: un icono gris o verde sin
@@ -348,7 +357,7 @@ export default function CampanasPage() {
                             no se dice nada en la fila; el detalle lo explica. */}
                         {candado && (
                           <span className="inline-flex items-center gap-1 text-[12px] font-medium text-[#0f7a55]">
-                            <LockOpen className="h-3.5 w-3.5" strokeWidth={1.75} /> Lista para facturar
+                            <LockOpen className="h-3.5 w-3.5" strokeWidth={1.75} /> {t('campanas.comun.lista-facturar')}
                           </span>
                         )}
                         {/* En vista compacta minimizar una sola no tiene
@@ -357,8 +366,8 @@ export default function CampanasPage() {
                           <button
                             type="button"
                             onClick={sinNavegar(() => alternarMinimizada(c.id))}
-                            aria-label={minimizada ? 'Mostrar el pipeline' : 'Minimizar'}
-                            title={minimizada ? 'Mostrar el pipeline' : 'Minimizar esta campaña'}
+                            aria-label={minimizada ? t('campanas.lista.mostrar-pipeline') : t('campanas.comun.minimizar')}
+                            title={minimizada ? t('campanas.lista.mostrar-pipeline') : t('campanas.lista.minimizar.title')}
                             className="rounded p-1 text-muted hover:bg-surface-2 hover:text-ink"
                           >
                             {minimizada ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
@@ -367,8 +376,8 @@ export default function CampanasPage() {
                         <button
                           type="button"
                           onClick={sinNavegar(() => alternarOculta(c.id))}
-                          aria-label="Ocultar de mi lista"
-                          title="Ocultar de mi lista (solo en este navegador; la campaña sigue igual para todos)"
+                          aria-label={t('campanas.lista.ocultar')}
+                          title={t('campanas.lista.ocultar.title')}
                           className="rounded p-1 text-muted hover:bg-surface-2 hover:text-ink"
                         >
                           <EyeOff className="h-4 w-4" />
@@ -405,7 +414,7 @@ export default function CampanasPage() {
                                     cur ? 'font-medium text-ink' : done ? 'text-ink' : 'text-muted',
                                   )}
                                 >
-                                  {ETAPA_LABEL[e]}
+                                  {t(CLAVE_ETAPA[e])}
                                 </span>
                               </div>
                               {i < arr.length - 1 && (
@@ -423,10 +432,10 @@ export default function CampanasPage() {
                       {c.presupuestoBruto ? (
                         <span className="demo-num text-[13px] text-ink">{formatMonto(c.presupuestoBruto)}</span>
                       ) : (
-                        <span className="text-[13px] text-muted" title="Sin presupuesto capturado en la propuesta">—</span>
+                        <span className="text-[13px] text-muted" title={t('campanas.comun.sin-presupuesto')}>—</span>
                       )}
                       <span className="inline-flex items-center gap-1 text-[12px] font-medium text-info">
-                        Ver pipeline <ArrowRight className="h-3.5 w-3.5" />
+                        {t('campanas.lista.ver-pipeline')} <ArrowRight className="h-3.5 w-3.5" />
                       </span>
                     </div>
                     </>)}

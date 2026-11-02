@@ -8,6 +8,9 @@ import { cn } from '@/lib/cn'
 import { useCobranzas, useFacturas, usePagosRenta, formatMonto, formatFecha } from '@/lib/data/client'
 import type { TipoPeriodo } from '@/lib/finanzas-periodo'
 import { resumenFinanzasApi, type RespuestaResumen } from '@/lib/data/finanzas-periodo-api'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { interpolarNodos } from '@/lib/i18n/nodos'
+import { CLAVE_PERIODO } from './etiquetas'
 
 // ============================================================================
 //  El tablero de Finanzas por periodo (06/10, ADR 0046).
@@ -32,6 +35,7 @@ const inputFecha =
   'h-8 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
 
 export function TableroPeriodo() {
+  const { t, idioma } = useIdioma()
   const [tipo, setTipo] = useState<TipoPeriodo>('mes')
   const [desde, setDesde] = useState('')
   const [hasta, setHasta] = useState('')
@@ -57,9 +61,10 @@ export function TableroPeriodo() {
     setError(null)
     resumenFinanzasApi({ periodo: tipo, desde, hasta })
       .then((d) => { if (vivo) setDatos(d) })
-      .catch((e) => { if (vivo) setError(e instanceof Error ? e.message : 'No se pudo calcular el periodo') })
+      .catch((e) => { if (vivo) setError(e instanceof Error ? e.message : t('finanzas.periodo.no-calcular')) })
       .finally(() => { if (vivo) setCargando(false) })
     return () => { vivo = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tipo, desde, hasta, listo, cobranzas, facturas, rentas])
 
   const r = datos?.resumen
@@ -71,9 +76,9 @@ export function TableroPeriodo() {
   // tecleen.
   const fechasRango = (
     <>
-      <input type="date" className={inputFecha} value={desde} onChange={(e) => setDesde(e.target.value)} aria-label="Desde" />
-      <span className="text-[12px] text-muted">a</span>
-      <input type="date" className={inputFecha} value={hasta} onChange={(e) => setHasta(e.target.value)} aria-label="Hasta" />
+      <input type="date" className={inputFecha} value={desde} onChange={(e) => setDesde(e.target.value)} aria-label={t('finanzas.comun.desde')} />
+      <span className="text-[12px] text-muted">{t('finanzas.comun.a')}</span>
+      <input type="date" className={inputFecha} value={hasta} onChange={(e) => setHasta(e.target.value)} aria-label={t('finanzas.comun.hasta')} />
     </>
   )
 
@@ -83,8 +88,16 @@ export function TableroPeriodo() {
     // plegar y desplegar no lo pierde.
     <CardColapsable
       id="finanzas.resumen-periodo"
-      titulo="Resumen del periodo"
-      subtitulo={datos ? `${datos.periodo.etiqueta} · ${formatFecha(datos.periodo.desde)} a ${formatFecha(datos.periodo.hasta)}` : '—'}
+      titulo={t('finanzas.periodo.titulo')}
+      subtitulo={
+        datos
+          ? t('finanzas.periodo.subtitulo', {
+              etiqueta: datos.periodo.etiqueta,
+              desde: formatFecha(datos.periodo.desde, idioma),
+              hasta: formatFecha(datos.periodo.hasta, idioma),
+            })
+          : '—'
+      }
       accion={
         <div className="flex flex-wrap items-center gap-1.5">
           {/* En un teléfono los seis botones no caben en la cabecera: «Trimestre
@@ -94,11 +107,11 @@ export function TableroPeriodo() {
           <select
             value={tipo}
             onChange={(e) => setTipo(e.target.value as TipoPeriodo)}
-            aria-label="Periodo"
+            aria-label={t('finanzas.periodo.aria')}
             className="h-8 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink sm:hidden"
           >
             {OPCIONES_PERIODO.map((o) => (
-              <option key={o.tipo} value={o.tipo}>{o.label}</option>
+              <option key={o.tipo} value={o.tipo}>{t(CLAVE_PERIODO[o.tipo])}</option>
             ))}
           </select>
           <div className="hidden flex-wrap items-center gap-1.5 sm:flex">
@@ -113,7 +126,7 @@ export function TableroPeriodo() {
                   tipo === o.tipo ? 'border-accent bg-accent text-white' : 'border-border-strong bg-surface text-ink hover:bg-surface-2',
                 )}
               >
-                {o.label}
+                {t(CLAVE_PERIODO[o.tipo])}
               </button>
             ))}
           </div>
@@ -123,7 +136,7 @@ export function TableroPeriodo() {
     >
         {tipo === 'rango' && <div className="mb-3 flex items-center gap-1.5 sm:hidden">{fechasRango}</div>}
         {!listo ? (
-          <p className="text-[13px] text-muted">Elige la fecha de inicio y la de fin.</p>
+          <p className="text-[13px] text-muted">{t('finanzas.periodo.elige')}</p>
         ) : error ? (
           <p className="text-[13px] text-error">{error}</p>
         ) : !r ? (
@@ -143,29 +156,34 @@ export function TableroPeriodo() {
                 no se suma ni se redondea nada. */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <KPICard
-                label="Por cobrar al cierre"
+                label={t('finanzas.periodo.por-cobrar')}
                 value={formatMonto(r.saldoFinal)}
-                sub={`al inicio: ${formatMonto(r.saldoInicial)}`}
+                sub={t('finanzas.periodo.al-inicio', { monto: formatMonto(r.saldoInicial) })}
                 tono="azul"
                 icon={<HandCoins className="h-4 w-4" />}
               />
               <KPICard
-                label="Vencido"
+                label={t('finanzas.periodo.vencido')}
                 value={formatMonto(r.vencido.monto)}
-                sub={`${r.vencido.facturas} factura${r.vencido.facturas === 1 ? '' : 's'} al ${formatFecha(r.corte)}`}
+                sub={t(r.vencido.facturas === 1 ? 'finanzas.periodo.vencido.sub.uno' : 'finanzas.periodo.vencido.sub.otros', {
+                  n: r.vencido.facturas,
+                  fecha: formatFecha(r.corte, idioma),
+                })}
                 tono={r.vencido.facturas > 0 ? 'rojo' : 'neutro'}
                 icon={<AlertTriangle className="h-4 w-4" />}
               />
               <KPICard
-                label="Facturado"
+                label={t('finanzas.periodo.facturado')}
                 value={formatMonto(r.facturado.monto)}
-                sub={`${r.facturado.facturas} factura${r.facturado.facturas === 1 ? '' : 's'}`}
+                sub={t(r.facturado.facturas === 1 ? 'finanzas.periodo.facturas.uno' : 'finanzas.periodo.facturas.otros', {
+                  n: r.facturado.facturas,
+                })}
                 icon={<Receipt className="h-4 w-4" />}
               />
               <KPICard
-                label="Cobrado"
+                label={t('finanzas.periodo.cobrado')}
                 value={formatMonto(r.cobrado)}
-                sub="pagos recibidos en el periodo"
+                sub={t('finanzas.periodo.cobrado.sub')}
                 tono="verde"
                 icon={<Wallet className="h-4 w-4" />}
               />
@@ -174,23 +192,27 @@ export function TableroPeriodo() {
               // La renta es lo que SALE: va como desglose, en la franja
               // secundaria del Dashboard. Lo pendiente se tiñe de ámbar.
               <div className="flex flex-wrap items-center gap-x-5 gap-y-1 rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px]">
-                <span className="font-medium text-ink">Renta a propietarios</span>
+                <span className="font-medium text-ink">{t('finanzas.periodo.renta')}</span>
                 <span className="text-muted">
-                  Pagada <span className="demo-num text-ink">{formatMonto(r.renta.pagada)}</span>
+                  {interpolarNodos(t('finanzas.periodo.renta.pagada'), {
+                    monto: <span className="demo-num text-ink">{formatMonto(r.renta.pagada)}</span>,
+                  })}
                 </span>
                 <span className="text-muted">
-                  Por pagar del periodo{' '}
-                  <span className={cn('demo-num', r.renta.porPagar > 0 ? 'font-medium text-[#9a6700]' : 'text-ink')}>
-                    {formatMonto(r.renta.porPagar)}
-                  </span>
+                  {interpolarNodos(t('finanzas.periodo.renta.por-pagar'), {
+                    monto: (
+                      <span className={cn('demo-num', r.renta.porPagar > 0 ? 'font-medium text-[#9a6700]' : 'text-ink')}>
+                        {formatMonto(r.renta.porPagar)}
+                      </span>
+                    ),
+                  })}
                 </span>
               </div>
             )}
             {r.abonosSinFecha > 0 && (
               <p className="flex items-start gap-1.5 text-[11px] text-muted">
                 <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
-                {formatMonto(r.abonosSinFecha)} de lo cobrado son pagos de antes de que el sistema guardara la fecha de
-                cada pago: se fecharon con la fecha de su factura, así que su mes es aproximado.
+                {t('finanzas.periodo.sin-fecha', { monto: formatMonto(r.abonosSinFecha) })}
               </p>
             )}
           </div>

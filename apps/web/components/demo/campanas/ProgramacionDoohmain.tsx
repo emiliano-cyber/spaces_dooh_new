@@ -10,6 +10,9 @@ import {
 import { motivoHorarioInvalido, textoHorario, textoReproducciones } from '@/lib/doohmain-programacion'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { Button } from '@/components/demo/ui/Button'
+import type { ClaveTexto } from '@/lib/i18n/diccionario'
+import { useTexto } from '@/lib/i18n/contexto'
+import { interpolarNodos } from '@/lib/i18n/nodos'
 
 // ============================================================================
 //  ProgramacionDoohmain — lo que se le va a mandar a DOOHmain, ANTES de mandarlo.
@@ -29,15 +32,17 @@ import { Button } from '@/components/demo/ui/Button'
 //  estado de la validación) y hace que se vuelva a leer.
 // ============================================================================
 
-const DESTINO: Record<string, string> = {
-  otro_cms: 'No va a DOOHmain: la opera otro CMS',
-  sin_pantalla: 'Sin pantalla de DOOHmain asignada',
+const DESTINO: Record<string, ClaveTexto> = {
+  otro_cms: 'campanas.doohmain.destino.otro-cms',
+  sin_pantalla: 'campanas.doohmain.destino.sin-pantalla',
 }
 
 // El orden en que se leen los días en México: de lunes a domingo. El valor es
 // el que recibe DOOHmain (0 = domingo).
-const DIAS: [number, string][] = [
-  [1, 'Lun'], [2, 'Mar'], [3, 'Mié'], [4, 'Jue'], [5, 'Vie'], [6, 'Sáb'], [0, 'Dom'],
+const DIAS: [number, ClaveTexto][] = [
+  [1, 'campanas.doohmain.dia.1'], [2, 'campanas.doohmain.dia.2'], [3, 'campanas.doohmain.dia.3'],
+  [4, 'campanas.doohmain.dia.4'], [5, 'campanas.doohmain.dia.5'], [6, 'campanas.doohmain.dia.6'],
+  [0, 'campanas.doohmain.dia.0'],
 ]
 
 const inputCls =
@@ -63,6 +68,7 @@ function HorarioIndividual({
   franja: VistaPreviaDoohmain['franjaCampana']
   onGuardado: () => void
 }) {
+  const t = useTexto()
   const puede = usePuede('comercial', 'crear')
   const [inicio, setInicio] = useState(actual?.horaInicio ?? '')
   const [fin, setFin] = useState(actual?.horaFin ?? '')
@@ -86,7 +92,7 @@ function HorarioIndividual({
       await fijarHorarioDoohmainApi(campanaId, horario)
       onGuardado()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo guardar')
+      setError(e instanceof Error ? e.message : t('campanas.doohmain.no-guardar'))
     }
     setGuardando(false)
   }
@@ -95,21 +101,25 @@ function HorarioIndividual({
     return (
       <div className="mb-3 rounded border border-border bg-surface p-2 text-[12px] text-ink">
         <span className="text-muted">
-          Horario en DOOHmain: la franja {franja.origen === 'programada' ? 'programada' : 'contratada'}
+          {franja.origen === 'programada'
+            ? t('campanas.doohmain.franja.programada')
+            : t('campanas.doohmain.franja.contratada')}
         </span>{' '}
-        <b>{franja.nombre}</b>, {franja.horaInicio} a {franja.horaFin}. La campaña ya tiene franja, así que no lleva
-        otro horario.
+        {interpolarNodos(t('campanas.doohmain.franja.texto'), {
+          nombre: <b>{franja.nombre}</b>,
+          inicio: franja.horaInicio,
+          fin: franja.horaFin,
+        })}
         {/* Una campaña que ya tenía los dos de antes de esta regla: se avisa y
             solo se ofrece quitar el individual, que hoy es el que viaja. */}
         {actual && (
           <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
             <span className="text-warning">
-              Tiene además un horario propio ({actual.horaInicio} a {actual.horaFin}), de antes, y es el que se
-              manda: quítalo para que viaje la franja.
+              {t('campanas.doohmain.franja.ademas', { inicio: actual.horaInicio, fin: actual.horaFin })}
             </span>
             {puede && (
               <Button size="sm" variant="secondary" disabled={guardando} onClick={() => void guardar(null)}>
-                Quitar
+                {t('campanas.doohmain.quitar')}
               </Button>
             )}
           </div>
@@ -122,24 +132,25 @@ function HorarioIndividual({
   if (!puede) {
     return actual ? (
       <p className="m-0 mb-2 text-[12px] text-ink">
-        <span className="text-muted">Horario de la campaña:</span> {actual.horaInicio} a {actual.horaFin}
+        <span className="text-muted">{t('campanas.doohmain.horario-campana')}</span>{' '}
+        {t('campanas.comun.rango-horas', { inicio: actual.horaInicio, fin: actual.horaFin })}
       </p>
     ) : null
   }
 
   return (
     <div className="mb-3 rounded border border-border bg-surface p-2">
-      <div className="mb-1.5 text-[12px] font-medium text-ink">Horario de esta campaña en DOOHmain</div>
+      <div className="mb-1.5 text-[12px] font-medium text-ink">{t('campanas.doohmain.horario.titulo')}</div>
       <div className="flex flex-wrap items-center gap-2">
         <label className="flex items-center gap-1 text-[12px] text-muted">
-          De
-          <input aria-label="Hora de inicio" type="time" className={inputCls} value={inicio} onChange={(e) => setInicio(e.target.value)} />
+          {t('campanas.doohmain.horario.de')}
+          <input aria-label={t('campanas.doohmain.horario.inicio')} type="time" className={inputCls} value={inicio} onChange={(e) => setInicio(e.target.value)} />
         </label>
         <label className="flex items-center gap-1 text-[12px] text-muted">
-          a
-          <input aria-label="Hora de fin" type="time" className={inputCls} value={fin} onChange={(e) => setFin(e.target.value)} />
+          {t('campanas.doohmain.horario.a')}
+          <input aria-label={t('campanas.doohmain.horario.fin')} type="time" className={inputCls} value={fin} onChange={(e) => setFin(e.target.value)} />
         </label>
-        <div className="flex flex-wrap gap-1" role="group" aria-label="Días de la semana">
+        <div className="flex flex-wrap gap-1" role="group" aria-label={t('campanas.doohmain.horario.dias')}>
           {DIAS.map(([d, nombre]) => {
             const marcado = dias.includes(d)
             return (
@@ -152,7 +163,7 @@ function HorarioIndividual({
                   marcado ? 'border-accent bg-accent-soft font-medium text-ink' : 'border-border bg-surface text-muted'
                 }`}
               >
-                {nombre}
+                {t(nombre)}
               </button>
             )
           })}
@@ -160,12 +171,12 @@ function HorarioIndividual({
       </div>
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
         <span className="text-[11px] text-muted">
-          Solo para campañas sin franja horaria. Sin días marcados, sale todos los días.
+          {t('campanas.doohmain.horario.nota')}
         </span>
         <div className="flex gap-1.5">
           {actual && (
             <Button size="sm" variant="secondary" disabled={guardando} onClick={() => void guardar(null)}>
-              Quitar
+              {t('campanas.doohmain.quitar')}
             </Button>
           )}
           <Button
@@ -173,7 +184,7 @@ function HorarioIndividual({
             disabled={guardando || !inicio || !fin}
             onClick={() => void guardar({ horaInicio: inicio, horaFin: fin, dias: dias.length ? dias : null })}
           >
-            Guardar horario
+            {t('campanas.doohmain.horario.guardar')}
           </Button>
         </div>
       </div>
@@ -183,6 +194,7 @@ function HorarioIndividual({
 }
 
 export function ProgramacionDoohmain({ campanaId, clave }: { campanaId: string; clave: string }) {
+  const t = useTexto()
   const [v, setV] = useState<(VistaPreviaDoohmain & { publicacionEncendida: boolean }) | null>(null)
   const [error, setError] = useState<string | null>(null)
   // La franja programada se cambia en otro cuadro de la ficha y no llega en
@@ -197,10 +209,11 @@ export function ProgramacionDoohmain({ campanaId, clave }: { campanaId: string; 
         setV(d)
         setError(null)
       })
-      .catch((e) => vivo && setError(e instanceof Error ? e.message : 'No se pudo leer'))
+      .catch((e) => vivo && setError(e instanceof Error ? e.message : t('campanas.doohmain.no-leer')))
     return () => {
       vivo = false
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [campanaId, clave, lectura])
 
   if (error) return <p className="mt-3 text-[12px] text-error">{error}</p>
@@ -213,19 +226,19 @@ export function ProgramacionDoohmain({ campanaId, clave }: { campanaId: string; 
     <div className="mt-3 rounded-md border border-border bg-surface-2/40 p-3">
       <div className="mb-2 flex items-center justify-between gap-2">
         <span className="flex items-center gap-1.5 text-[13px] font-medium text-ink">
-          <CalendarClock className="h-4 w-4 text-muted" /> Lo que se manda a DOOHmain
+          <CalendarClock className="h-4 w-4 text-muted" /> {t('campanas.doohmain.titulo')}
         </span>
         <button
           type="button"
           onClick={() => setLectura((n) => n + 1)}
           className="text-[11px] font-medium text-info hover:underline"
         >
-          Actualizar
+          {t('campanas.doohmain.actualizar')}
         </button>
       </div>
       {!v.publicacionEncendida && (
         <p className="mb-2 text-[11px] text-muted">
-          La publicación en DOOHmain está apagada en esta instancia: esto es lo que se mandaría.
+          {t('campanas.doohmain.apagada')}
         </p>
       )}
       <HorarioIndividual
@@ -236,23 +249,23 @@ export function ProgramacionDoohmain({ campanaId, clave }: { campanaId: string; 
       />
 
       <p className="m-0 mb-2 text-[12px] text-ink">
-        <span className="text-muted">Cliente:</span> {c.nombre}
+        <span className="text-muted">{t('campanas.doohmain.cliente')}</span> {c.nombre}
         {datosCliente && <span className="text-muted"> · {datosCliente}</span>}
-        <span className="text-muted"> · lista {v.lista}</span>
+        <span className="text-muted">{t('campanas.doohmain.lista', { lista: v.lista })}</span>
       </p>
 
       {v.filas.length === 0 && v.sinCreativo.length === 0 ? (
-        <p className="m-0 text-[12px] text-muted">Esta campaña no tiene pantallas digitales que mandar.</p>
+        <p className="m-0 text-[12px] text-muted">{t('campanas.doohmain.sin-pantallas')}</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-[12px]">
             <thead className="text-left text-[11px] text-muted">
               <tr>
-                <th className="pb-1 pr-2 font-medium">Pantalla</th>
-                <th className="pb-1 pr-2 font-medium">Creativo</th>
-                <th className="pb-1 pr-2 font-medium">Horario</th>
-                <th className="pb-1 pr-2 text-right font-medium">Por día</th>
-                <th className="pb-1 text-right font-medium">Total campaña</th>
+                <th className="pb-1 pr-2 font-medium">{t('campanas.doohmain.col.pantalla')}</th>
+                <th className="pb-1 pr-2 font-medium">{t('campanas.doohmain.col.creativo')}</th>
+                <th className="pb-1 pr-2 font-medium">{t('campanas.doohmain.col.horario')}</th>
+                <th className="pb-1 pr-2 text-right font-medium">{t('campanas.doohmain.col.por-dia')}</th>
+                <th className="pb-1 text-right font-medium">{t('campanas.doohmain.col.total')}</th>
               </tr>
             </thead>
             <tbody>
@@ -263,7 +276,7 @@ export function ProgramacionDoohmain({ campanaId, clave }: { campanaId: string; 
                     <td className="py-1.5 pr-2 text-ink">
                       {f.sitioNombre}
                       <div className="text-[11px] text-muted">
-                        {f.destino === 'doohmain' ? `→ ${f.screen}` : DESTINO[f.destino]}
+                        {f.destino === 'doohmain' ? `→ ${f.screen}` : DESTINO[f.destino] ? t(DESTINO[f.destino]) : undefined}
                       </div>
                     </td>
                     <td className="py-1.5 pr-2 text-ink">{f.creativoNombre}</td>
@@ -278,7 +291,7 @@ export function ProgramacionDoohmain({ campanaId, clave }: { campanaId: string; 
                   <td className="py-1.5 pr-2 text-ink">{h.sitioNombre}</td>
                   <td colSpan={4} className="py-1.5 text-amber-800">
                     <AlertTriangle className="mr-1 inline h-3.5 w-3.5" />
-                    Sin creativo aprobado asignado: al publicar, esta pantalla no recibe nada.
+                    {t('campanas.doohmain.sin-creativo')}
                   </td>
                 </tr>
               ))}
@@ -287,8 +300,7 @@ export function ProgramacionDoohmain({ campanaId, clave }: { campanaId: string; 
         </div>
       )}
       <p className="m-0 mt-2 text-[11px] text-muted">
-        Del {v.fechaInicio} al {v.fechaFin}. Si la campaña tiene franja, DOOHmain reparte las del día dentro de ese
-        horario. Un anuncio ya publicado no cambia de horario al volver a publicar.
+        {t('campanas.doohmain.pie', { inicio: v.fechaInicio, fin: v.fechaFin })}
       </p>
     </div>
   )

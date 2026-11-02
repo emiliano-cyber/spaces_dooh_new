@@ -8,6 +8,8 @@ import { usePuede } from '@/components/demo/shell/SesionContext'
 import { ExtenderCampanaDialog } from '@/components/demo/campanas/ExtenderCampanaDialog'
 import { extensionesCampanaApi, type ExtensionCampana } from '@/lib/data/estado-api'
 import { formatFecha } from '@/lib/data/client'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { interpolarNodos } from '@/lib/i18n/nodos'
 
 // ============================================================================
 //  ExtensionesCampana — EXT-CONTRATO (29/10). En la ficha de la campaña: el
@@ -26,6 +28,7 @@ export function ExtensionesCampana({
   campana: { id: string; nombre: string; fechaFin: string | null; estadoComercial: string }
 }) {
   const puede = usePuede('comercial', 'crear')
+  const { t, idioma } = useIdioma()
   const [lista, setLista] = useState<ExtensionCampana[] | null>(null)
   const [abierto, setAbierto] = useState(false)
 
@@ -47,12 +50,15 @@ export function ExtensionesCampana({
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="m-0 text-[13px] text-muted">
-          Termina el <span className="demo-num text-ink">{campana.fechaFin ? formatFecha(campana.fechaFin) : '—'}</span>.
-          Para alargarla hace falta el contrato firmado de la extensión.
+          {interpolarNodos(t('campanas.extensiones.termina'), {
+            fecha: (
+              <span className="demo-num text-ink">{campana.fechaFin ? formatFecha(campana.fechaFin, idioma) : '—'}</span>
+            ),
+          })}
         </p>
         {sePuedeExtender && (
           <Button size="sm" onClick={() => setAbierto(true)}>
-            <CalendarClock className="h-3.5 w-3.5" /> Extender campaña
+            <CalendarClock className="h-3.5 w-3.5" /> {t('campanas.extender.titulo')}
           </Button>
         )}
       </div>
@@ -60,7 +66,7 @@ export function ExtensionesCampana({
       {lista === null ? (
         <div className="h-10 w-full animate-pulse rounded bg-surface-2" />
       ) : lista.length === 0 ? (
-        <p className="m-0 text-[13px] text-muted">Sin extensiones con contrato.</p>
+        <p className="m-0 text-[13px] text-muted">{t('campanas.extensiones.vacio')}</p>
       ) : (
         <ul className="m-0 list-none divide-y divide-border p-0">
           {lista.map((x) => (
@@ -69,7 +75,7 @@ export function ExtensionesCampana({
                 <div className="demo-num font-medium text-ink">{x.folio}</div>
                 <div className="text-[12px] text-muted">
                   <span className="demo-num">
-                    {formatFecha(x.fechaFinAnterior)} → {formatFecha(x.fechaFinNueva)}
+                    {formatFecha(x.fechaFinAnterior, idioma)} → {formatFecha(x.fechaFinNueva, idioma)}
                   </span>
                   {x.usuarioNombre ? ` · ${x.usuarioNombre}` : ''}
                 </div>
@@ -80,7 +86,7 @@ export function ExtensionesCampana({
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-[12px] font-medium text-info hover:underline"
               >
-                Ver contrato <ExternalLink className="h-3.5 w-3.5" />
+                {t('campanas.comun.ver-contrato')} <ExternalLink className="h-3.5 w-3.5" />
               </a>
             </li>
           ))}
@@ -94,7 +100,7 @@ export function ExtensionesCampana({
           campana={{ id: campana.id, nombre: campana.nombre, fechaFin: campana.fechaFin }}
           onClose={() => setAbierto(false)}
           onDone={(nombre) => {
-            toast.success(`${nombre} extendida`)
+            toast.success(t('campanas.extensiones.hecha', { nombre }))
             void cargar()
           }}
         />

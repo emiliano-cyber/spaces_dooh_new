@@ -5,6 +5,7 @@ import { Modal } from '@/components/demo/ui/Modal'
 import { Button } from '@/components/demo/ui/Button'
 import { armarComprobante } from './comprobante'
 import type { Factura } from '@/lib/data/types'
+import { useTexto } from '@/lib/i18n/contexto'
 
 // ============================================================================
 //  El comprobante de una factura, en pantalla y listo para imprimir.
@@ -38,6 +39,7 @@ export function ComprobanteDialog({
   onOpenChange: (v: boolean) => void
   formatMonto: (n: number) => string
 }) {
+  const t = useTexto()
   if (!factura) return null
   const c = armarComprobante(factura, campanas, entidades)
 
@@ -45,16 +47,16 @@ export function ComprobanteDialog({
     <Modal
       open={!!factura}
       onOpenChange={onOpenChange}
-      title={`Comprobante ${c.folio}`}
+      title={t('finanzas.comprobante.titulo', { folio: c.folio })}
       subtitle={c.campana}
       size="lg"
       footer={
         <div className="doc-no-print flex justify-end gap-2">
           <Button variant="secondary" size="sm" onClick={() => onOpenChange(false)}>
-            Cerrar
+            {t('finanzas.comprobante.cerrar')}
           </Button>
           <Button size="sm" onClick={() => window.print()}>
-            <Printer className="h-4 w-4" /> Imprimir
+            <Printer className="h-4 w-4" /> {t('finanzas.comprobante.imprimir')}
           </Button>
         </div>
       }
@@ -66,34 +68,34 @@ export function ComprobanteDialog({
           <div className="doc-bloque grid gap-4 sm:grid-cols-2">
             <div>
               <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted">
-                La emite
+                {t('finanzas.comun.la-emite')}
               </div>
               <div className="font-medium text-ink">{c.emisor.razonSocial}</div>
               <div className="demo-num text-muted">RFC {c.emisor.rfc}</div>
             </div>
             <div>
               <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted">
-                La recibe
+                {t('finanzas.comprobante.la-recibe')}
               </div>
               <div className="font-medium text-ink">{c.receptor.razonSocial}</div>
               <div className="demo-num text-muted">RFC {c.receptor.rfc}</div>
-              <div className="text-muted">Uso: {c.receptor.usoCfdi}</div>
+              <div className="text-muted">{t('finanzas.comprobante.uso', { uso: c.receptor.usoCfdi })}</div>
             </div>
           </div>
 
           <div className="doc-bloque border-t border-border pt-3">
-            <Linea etiqueta="Folio" valor={c.folio} />
-            <Linea etiqueta="Serie" valor={c.serie} />
-            <Linea etiqueta="Folio fiscal" valor={c.folioFiscal} />
-            <Linea etiqueta="Fecha de emisión" valor={c.fechaEmision} />
-            <Linea etiqueta="Campaña" valor={c.campana} />
+            <Linea etiqueta={t('finanzas.comun.folio')} valor={c.folio} />
+            <Linea etiqueta={t('finanzas.comprobante.serie')} valor={c.serie} />
+            <Linea etiqueta={t('finanzas.comun.folio-fiscal')} valor={c.folioFiscal} />
+            <Linea etiqueta={t('finanzas.comprobante.fecha')} valor={c.fechaEmision} />
+            <Linea etiqueta={t('finanzas.comun.campana')} valor={c.campana} />
           </div>
 
           <div className="doc-bloque border-t border-border pt-3">
-            <Linea etiqueta="Subtotal" valor={formatMonto(c.importes.subtotal)} />
-            <Linea etiqueta="IVA" valor={formatMonto(c.importes.iva)} />
+            <Linea etiqueta={t('finanzas.comprobante.subtotal')} valor={formatMonto(c.importes.subtotal)} />
+            <Linea etiqueta={t('finanzas.comprobante.iva')} valor={formatMonto(c.importes.iva)} />
             <div className="flex justify-between gap-4 border-t border-border pt-2 text-[15px]">
-              <span className="font-semibold text-ink">Total</span>
+              <span className="font-semibold text-ink">{t('finanzas.comun.total')}</span>
               <span className="demo-num font-semibold text-ink">
                 {formatMonto(c.importes.total)} {c.importes.moneda}
               </span>
@@ -105,8 +107,7 @@ export function ComprobanteDialog({
               el cliente, sumando la columna. */}
           {!c.importes.cuadra && (
             <p className="doc-bloque rounded-md border border-[#f59e0b] bg-[#f59e0b1a] px-3 py-2 text-[12px] text-ink">
-              Los importes de este comprobante no cuadran: el subtotal más el IVA no da el total.
-              Revísalo antes de entregarlo.
+              {t('finanzas.comprobante.no-cuadra')}
             </p>
           )}
 
@@ -114,7 +115,9 @@ export function ComprobanteDialog({
               CFDI y no lo es hace que alguien lo archive como si sirviera para
               deducir, y se entere en la declaración. */}
           <p className="doc-bloque border-t border-border pt-3 text-[11px] leading-relaxed text-muted">
-            {c.aviso}
+            {/* `c.aviso` es `AVISO_NO_ES_CFDI`; su clave lo reproduce letra por
+                letra (lo vigila `textos/finanzas.test.ts`). */}
+            {t('finanzas.comprobante.aviso')}
           </p>
         </article>
       </div>
