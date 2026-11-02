@@ -263,7 +263,7 @@ export const EN_FINANZAS: Record<ClaveFinanzas, string> = {
   'finanzas.recordatorio.no-enviar': 'Could not send the reminder',
   'finanzas.listas.titulo': 'Ready to invoice',
   'finanzas.listas.vacio':
-    'Nothing to invoice right now. When a campaign completes its billing lock (PO + photos + report) it will show up here.',
+    'Nothing to invoice right now. When a campaign completes its billing lock (PO + proof photos + report) it will show up here.',
   'finanzas.listas.iva-inc': '{monto} · incl. VAT',
   'finanzas.listas.generar': 'Generate invoice',
   'finanzas.listas.requiere': 'Ready · requires Finance',

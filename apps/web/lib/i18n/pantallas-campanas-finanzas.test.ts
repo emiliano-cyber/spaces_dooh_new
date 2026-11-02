@@ -855,7 +855,8 @@ const PANTALLAS: Pantalla[] = [
       'Aquí aparecerán en cuanto emitas la primera desde «Listas para facturar».',
       'Nada por facturar ahora. Cuando una campaña complete su candado (OC + fotos + reporte) aparecerá aquí.',
     ],
-    ingles: ['No invoices yet', 'Nothing to invoice right now.'],
+    // «proof photos», como la condicion del candado en la ficha (costura).
+    ingles: ['No invoices yet', 'Nothing to invoice right now.', '(PO + proof photos + report)'],
   },
   {
     nombre: 'finanzas sin permiso de facturar',

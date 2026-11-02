@@ -286,7 +286,7 @@ exports[`diccionario de finanzas · instantanea > el INGLES tampoco 1`] = `
   "finanzas.listas.iva-inc": "{monto} · incl. VAT",
   "finanzas.listas.requiere": "Ready · requires Finance",
   "finanzas.listas.titulo": "Ready to invoice",
-  "finanzas.listas.vacio": "Nothing to invoice right now. When a campaign completes its billing lock (PO + photos + report) it will show up here.",
+  "finanzas.listas.vacio": "Nothing to invoice right now. When a campaign completes its billing lock (PO + proof photos + report) it will show up here.",
   "finanzas.pago.abono-registrado": "Partial payment recorded",
   "finanzas.pago.al-cubrir": "When the full balance is covered, this item is marked {pagada} and reminders stop.",
   "finanzas.pago.confirmar": "Confirm and record",
