@@ -5,6 +5,7 @@ import { ES_CAMPANAS, EN_CAMPANAS } from './campanas'
 import { ES_FINANZAS, EN_FINANZAS } from './finanzas'
 import { ES_COMERCIAL, EN_COMERCIAL } from './comercial'
 import { ES_CODIGOS, EN_CODIGOS } from './codigos'
+import { ES_CLIENTES, EN_CLIENTES } from './clientes'
 import { DICCIONARIOS } from '../diccionario'
 
 // ============================================================================
@@ -25,12 +26,17 @@ const LOTES: [string, Record<string, string>, Record<string, string>][] = [
   ['finanzas', ES_FINANZAS, EN_FINANZAS],
   ['comercial', ES_COMERCIAL, EN_COMERCIAL],
   ['codigos', ES_CODIGOS, EN_CODIGOS],
+  ['clientes', ES_CLIENTES, EN_CLIENTES],
 ]
 
 // El mismo espanol que en ingles se dice distinto A PROPOSITO, porque en cada
 // pantalla significa otra cosa. Cada entrada dice por que; una divergencia que
 // no este aqui es un descuido de un lote y la prueba la enseña.
 const DISTINTOS_A_PROPOSITO: Record<string, string> = {
+  Aprobada: 'el estatus de una propuesta o la columna del pipeline del cliente («Approved») frente a la columna del tablero de Propuestas que lleva la FECHA de aprobacion («Approved on»)',
+  RFC: 'la cabecera de tabla o el rotulo del campo («RFC», el glosario no lo traduce) frente a la ficha de facturacion, que lo explica («RFC (tax ID)»)',
+  Validada: 'un creativo revisado y aceptado («Approved») frente a la negociacion con una agencia, que se valida («Validated»)',
+  Validar: 'el boton de Campañas que abre la revision de creativos («Review») frente al que valida la negociacion de una agencia («Validate»)',
   Comercial: 'en la ficha de campaña es la seccion de importes («Pricing», decision del orquestador); el modulo es «Sales», como el menu',
   Desde: 'un periodo de fechas («From») frente a la competencia del espacio, que esta ahi «desde» («Since»)',
   Folio: 'glosario: «Internal ref.» en propuestas y campañas, «Invoice no.» en una factura',
