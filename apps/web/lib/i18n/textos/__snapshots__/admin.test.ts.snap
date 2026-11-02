@@ -723,7 +723,7 @@ exports[`diccionario de administracion · instantanea > el INGLES tampoco 1`] = 
   "admin.fiscal.constitucion-ejemplo": "e.g. public deed {escritura} dated March 3, 2014, before notary public 45 of Guadalajara, Jalisco",
   "admin.fiscal.constitucion-toast": "Incorporation details updated",
   "admin.fiscal.domicilio": "Tax address",
-  "admin.fiscal.domicilio-ejemplo": "Street, number, neighborhood, ZIP code, city, state",
+  "admin.fiscal.domicilio-ejemplo": "Street, number, neighborhood, postal code, city, state",
   "admin.fiscal.domicilio-toast": "Tax address updated",
   "admin.fiscal.elige": "Choose the company’s legal entity",
   "admin.fiscal.falta.otros": "{campos} are missing. Without them the contract comes out with gaps and can’t be sent for signature.",

@@ -245,3 +245,105 @@ El árbol quedó limpio salvo este informe: `git status --short` no muestra nada
 6. **Organizaciones → «Organizations (CRMs)».** ¿Se queda «CRMs» en inglés? Para el comprador, una organización no es un CRM.
 7. **«Change control»** (control de cambios) y **«lessee»** (parte arrendataria) son correctos; los dejo anotados por si se prefiere «Approval lock» o «tenant».
 8. **Los conectores de Integraciones:** ¿se traducen por clave, como los módulos de la matriz, o se declaran «dato del servidor» que sigue en español? Es el hallazgo 2 de §1.
+
+---
+
+## Segunda pasada (2026-11-02): `git diff 819ed60f..HEAD`, commits `0e5c989e` (este informe) y `7408b398`
+
+### Veredicto: **VERDE**
+
+- Los 4 hallazgos medios y los bajos de la tabla de §1 están resueltos, y las frases nuevas tienen sentido en su contexto. Las leí en el HTML inglés rendido de los 60 estados.
+- Las cinco decisiones del orquestador están aplicadas.
+- El español sigue idéntico, verificado de forma mecánica, también en el portal y en los conectores.
+- Typecheck y unitarias en verde; 5 de los 6 mutantes mueren. El que sobrevive es de severidad baja.
+- Queda **un resto de severidad baja, que no bloquea:** el ejemplo del domicilio todavía dice «ZIP code».
+
+### 1 · Hallazgos de la primera vuelta, en pantalla
+
+| hallazgo | estado | cómo se lee ahora (render inglés) |
+|---|---|---|
+| Etapa del portal en español | resuelto (`portal/[token]/page.tsx:117-123`) | «Nov 1, 2026 – Nov 30, 2026 · **Confirmed**». Usa `CLAVE_ETAPA`, como `PipelineView`. |
+| Conectores de Integraciones | resuelto | «AdMobilize (computer vision)» · «Audience and vehicle counts per vision device.» · «CMS / DOOH players» · «Tax invoicing (CFDI / SUNAT)». La prueba usa ahora los conectores REALES de `estadoIntegraciones()` y no un dato inventado, y `admin.test.ts` exige que el `es` de `admin.integ.conector.*` sea el que manda el servidor. |
+| «Normal priority» | resuelto | «Low / Normal / High / Urgent» y el chip «TK-2 · Resolved · Normal». La clave está declarada en `IGUALES`. |
+| Subtítulo de Razones sociales | resuelto | «Your company’s legal entities · which one pays rent, buys assets, handles permits and sells» |
+| Plurales | resueltos | «of **1 space**» / «of 2 spaces», con `.uno/.otros` cuyo `es` es el de siempre. «Screens without coordinates: 1 of 2. Their addresses are in the list of sites.» «Held by two or more legal entities: Ventas.» |
+| Resto de los bajos | resueltos | «Couldn’t count how many migrations it includes», «What’s in v0.12.5», «No screens match the filter.», «No actions match the filters.», «Who did what and when» / «Actions», «Beto Ventas’s role», «(at least 8 characters)», «Sales discount cap», «Switch to», «(currently, the daily summary…)», «Do operations run under the same legal entity that sells or invoices?», «…who pays each rent and who issues invoices.», «Go to the home page». |
+
+**Decisiones del orquestador, comprobadas en el render:**
+
+- **Business settings / Account settings.**
+  - La pestaña de Administración dice «Business settings», y su `aria-label` «Business settings sections».
+  - La página `/configuracion` y el enlace del menú de usuario dicen «Account settings».
+  - No queda **ningún** «Settings → Configuration» en todo el diccionario (grep sobre `DICCIONARIOS.en`).
+  - Las tres rutas son ahora «Settings → Business settings» (y «… → Instance»). Se lee algo redundante, pero es lo decidido y cuadra con la navegación real.
+- **Activity log:** lo dicen `nav.actividad` (menú, atajos del 404 y área de la matriz: «Integrations · Legal entities · Activity log*») y el título de la página.
+- **Print shop:** solo el rol (`admin.rol.imprenta`). El módulo (`nav.imprenta`, `admin.modulo.imprenta`) y la sección de la ficha siguen en «Printing», como pide la excepción declarada.
+- **Costing:** la leyenda de la matriz dice «$ Costing».
+- **Postal code:** «Tax postal code» y « · Postal code 03100».
+  - **Resto (baja):** `admin.fiscal.domicilio-ejemplo` (`admin.ts:978`), el placeholder del domicilio fiscal, sigue en «Street, number, neighborhood, **ZIP code**, city, state». Propuesto: «…, postal code, city, state».
+
+**Lo que había que mirar con atención:**
+
+- **«Platform organizations» / «Back to my organization»: tienen sentido.**
+  - El panel lo usa el administrador de la plataforma para crear organizaciones y entrar en ellas. A quien no lo es le sale «Reserved for the platform administrator» bajo el mismo título, y es coherente.
+  - «Back to my organization» es justo lo que hace el botón: volver a la organización propia después de «Switch to» otra.
+  - Además quitan «CRM», que en inglés se lee como la herramienta y no como el cliente.
+  - El español («Organizaciones (CRMs)», «Volver a mi CRM») no cambia.
+- **`campanas.facturacion.cp`, el cambio fuera del lote: justificado.**
+  - Su español, «CP fiscal», es el mismo que el de `admin.razones.cp`, y la costura exige el mismo inglés.
+  - Solo cambia el `en` («Tax ZIP code» → «Tax postal code»), y la instantánea de campañas solo cambia en esa línea.
+  - Se pinta en `DatosFacturacion.tsx:75`. El español del lote aprobado no se toca.
+- **Las 3 excepciones nuevas de la costura: justificadas.**
+  - **Configuración:** la configuración del negocio frente a la cuenta del usuario. Son dos páginas distintas, por decisión del orquestador.
+  - **Imprenta:** el módulo y la sección frente al rol de una persona. Es una actividad frente a quien la hace.
+  - **Entrar:** «Sign in» en el login frente a «Switch to» una organización. Son homónimas.
+- **La costura compara ahora contra el diccionario base.**
+  - `baseDelDiccionario()` toma las claves de `DICCIONARIOS` que no son de ningún lote y las mete como un lote más, `base`.
+  - Comprobado con un mutante (N5, abajo): si `nav.actividad` vuelve a «Activity», la costura se pone en rojo.
+
+### 2 · Español intacto: VERIFICADO otra vez, mecánicamente
+
+- **Los 60 estados.** Repetí el procedimiento de §3 con las pruebas de HEAD, que traen fixtures nuevos: los conectores reales y la etapa del portal.
+  1. Volqué el HTML español con HEAD.
+  2. Devolví los 43 archivos de código del diff (`ec427a66..HEAD`, todos menos `lib/i18n/**`) a `ec427a66`, exporté a mano `ErrorDeCarga` en la copia vieja y volví a volcar.
+  3. `diff -rq`: **28/28 y 32/32 idénticos**.
+  4. Restauré con `git checkout HEAD --pathspec-from-file=…`, y `git status` quedó vacío.
+- **Portal.** El HTML español del estado del portal (`26-es.html`) sigue pintando «Confirmada», idéntico al del código viejo, que pintaba `paso.label`.
+- **Conectores.** El HTML español de «integraciones · conectores y metricas» pinta lo que manda el servidor: «Conteo de audiencia y vehículos por dispositivo de visión.», «CMS / players DOOH», «Facturación fiscal (CFDI / SUNAT)». Es idéntico al del código viejo, que pintaba `it.nombre` / `it.descripcion`. En español, `delConector` nunca consulta el diccionario (`idioma !== 'es' && …`).
+- **Network.** El español sigue diciendo «de 1 espacios», como siempre: el plural es solo del inglés.
+- **Diccionario.** En el bloque `ES_*` solo cambian:
+  - las 6 claves nuevas de conectores, cuyo texto es el del servidor y lo ata `admin.test.ts`;
+  - `de-espacios`, que se parte en `.uno/.otros` con el mismo texto.
+
+  Ningún valor `es` existente cambió.
+
+### 3 · Pruebas (corridas por mí)
+
+```
+cd apps/web && npm run typecheck   →  tsc --noEmit, sin errores
+cd apps/web && npm test            →  Test Files 338 passed (338) · Tests 4776 passed (4776)
+```
+
+La primera corrida completa dio 5 rojas, todas `Test timed out in 5000ms`, en archivos de pantallas de otros lotes y en «administracion · todo cargado». Era carga de la máquina, con otros agentes en paralelo. `npx vitest run lib/i18n` da 22 archivos y 649/649 en verde, y la segunda corrida completa salió entera en verde (la cifra de arriba).
+
+Corrí los mutantes contra `npx vitest run lib/i18n`. Restauré cada uno con `git checkout -- lib app components pages` y comprobé `git status` vacío después de cada uno:
+
+| # | mutante | resultado |
+|---|---|---|
+| N1 | el portal vuelve a pintar `paso.label` | **MUERE** («cuenta · portal del cliente») |
+| N2 | Integraciones vuelve a pintar `it[campo]` siempre | **MUERE** (2 rojas: el estado y el barrido del diccionario) |
+| N3 | el `es` de `admin.integ.conector.cfdi.nombre` sin la tilde | **MUERE** (instantánea ES + «su español es el que manda el servidor») |
+| N4 | Network usa siempre `de-espacios.otros` («of 1 spaces») | **SOBREVIVE** |
+| N5 | `nav.actividad` vuelve a «Activity» | **MUERE** (la costura, ahora con el diccionario base) |
+| N6 | `admin.tickets.prioridad.normal` vuelve a «Normal priority» | **MUERE** (instantáneas ES/EN, por la entrada de `IGUALES`) |
+
+**N4, severidad baja.** El estado «network · red solo propia y filtro vacío» (total = 1) sí se rinde: lo vi a ojo, sale «of 1 space». Pero su lista `ingles` no lo exige. Ojo al cerrarlo: añadir «of 1 space» no basta, porque es subcadena de «of 1 spaces». Hay que exigir el texto con su cierre, p. ej. `'>of 1 space<'` sobre el HTML crudo. No bloquea.
+
+El árbol quedó limpio salvo esta sección del informe. El archivo ya está commiteado en `0e5c989e`, así que la sección queda como modificación sin commitear; no hay más cambios. Borré el volcado inglés y las copias de las pruebas.
+
+### 4 · Reglas
+
+- `git diff --name-only 819ed60f..HEAD` no toca `middleware.ts`, `nav.ts`, `lib/modulos.ts`, el esquema, las migraciones, `app/api/**` ni ningún `package.json`. Fuera del lote solo cambia `textos/campanas.ts` (un valor `en`) y su instantánea, que está justificado arriba.
+- El cambio en `diccionario.ts` es solo el valor inglés de `nav.actividad`.
+- **`desktop.ini`:** 0 en el diff.
+- **En las claves nuevas y cambiadas:** ni dinero ni acentos en el inglés, ni comillas o apóstrofos rectos. La costura completa sigue en verde.

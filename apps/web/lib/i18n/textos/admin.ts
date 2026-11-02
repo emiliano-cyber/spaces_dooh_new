@@ -975,7 +975,7 @@ export const EN_ADMIN: Record<ClaveAdmin, string> = {
   'admin.fiscal.rfc-toast': 'RFC updated',
   'admin.fiscal.representante-ejemplo': 'Name of the signatory',
   'admin.fiscal.representante-toast': 'Legal representative updated',
-  'admin.fiscal.domicilio-ejemplo': 'Street, number, neighborhood, ZIP code, city, state',
+  'admin.fiscal.domicilio-ejemplo': 'Street, number, neighborhood, postal code, city, state',
   'admin.fiscal.domicilio-toast': 'Tax address updated',
   'admin.fiscal.constitucion': 'Incorporation details',
   'admin.fiscal.constitucion-ejemplo':
