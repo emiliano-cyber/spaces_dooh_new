@@ -88,13 +88,13 @@ export function ComprobanteDialog({
             <Linea etiqueta={t('finanzas.comun.folio')} valor={c.folio} />
             <Linea etiqueta={t('finanzas.comprobante.serie')} valor={c.serie} />
             <Linea etiqueta={t('finanzas.comun.folio-fiscal')} valor={c.folioFiscal} />
-            {/* La fecha va como la guarda la factura (AAAA-MM-DD); en espanol se pinta
-              asi, como siempre. En ingles con `formatFecha` (costura): el lector
-              de EE. UU. no lee fechas ISO en un recibo. */}
-          <Linea
-            etiqueta={t('finanzas.comprobante.fecha')}
-            valor={idioma === 'es' ? c.fechaEmision : formatFecha(c.fechaEmision, idioma)}
-          />
+            {/* La fecha va como la guarda la factura (AAAA-MM-DD); en espanol se
+                pinta asi, como siempre. En ingles con `formatFecha` (costura): el
+                lector de EE. UU. no lee fechas ISO en un recibo. */}
+            <Linea
+              etiqueta={t('finanzas.comprobante.fecha')}
+              valor={idioma === 'es' ? c.fechaEmision : formatFecha(c.fechaEmision, idioma)}
+            />
             <Linea etiqueta={t('finanzas.comun.campana')} valor={c.campana} />
           </div>
 
