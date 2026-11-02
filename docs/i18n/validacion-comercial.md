@@ -178,3 +178,83 @@ El árbol quedó limpio salvo este informe (`git status --short` sin nada fuera 
 6. **ficha → «profile».** Funciona («raise their cap from their profile», «pin it on the profile»), pero para la ficha técnica del predio queda mejor «spec sheet» (§1). Hay que decidir si «profile» se queda para la ficha de la pantalla.
 7. **El nombre por omisión de una reserva se guarda en el idioma de quien la crea.** ¿Se acepta, o debe guardarse siempre «— campaña», como la vista cardinal? Es lo único del lote que escribe datos según el idioma.
 8. Sin objeción, por si se quieren revisar: «Facing» (correcto en OOH), «Road segment» (tramo), «Supplier code» y «Client cap / Usage cap».
+
+---
+
+## Segunda pasada (2026-11-02): `git diff de7ad5f3..HEAD`, commits `a66fad44` (este informe) y `0a8afe61`
+
+### Veredicto: **VERDE**
+
+- Todos los hallazgos de la tabla de §1 están resueltos y las frases nuevas tienen sentido en su contexto real. Las leí en el HTML inglés rendido de los 23 estados.
+- Las decisiones del orquestador están aplicadas.
+- El español sigue idéntico, verificado de forma mecánica.
+- Typecheck y unitarias en verde; los mutantes de los puntos nuevos mueren salvo uno de severidad baja (ver §3).
+- No se coló ningún archivo prohibido ni ningún `desktop.ini`.
+
+### 1 · Hallazgos de la primera vuelta, en pantalla
+
+| hallazgo | estado | cómo se lee ahora (render inglés) |
+|---|---|---|
+| `tarifas.fija` | resuelto | «…so it is only sold monthly or every two weeks.» |
+| `ficha.no-reservable` | resuelto, en los dos idiomas | **en:** «Not available to book (status: Booked · no PO)», «(status: Occupied)», «(status: Available)». **es (sin cambios):** «Sitio reservado · sin oc · no disponible para reservar», «Sitio ocupado · …», «Sitio disponible · …». Las minúsculas se aplican solo cuando `idioma === 'es'` (`SiteFicha.tsx:368-372`); `idioma` sale de `useIdioma()` (`:139`). |
+| `codigos.usos` sin tope | resuelto | «0 (no cap)», «3 (no cap)». Los que tienen tope siguen igual: «40 of 100», «2 of 2». Clave nueva `codigos.usos.sin-tope`; su `es` «{usos} de sin tope» es exactamente lo que pintaba `{c.usos} de {tope ?? 'sin tope'}` (`GestionCodigos.tsx:319` de la base). |
+| `quitar-filtro` | resuelto | «No screens match: “zzz” · type “Mural” · not available. Remove a filter or click Clear.» |
+| `cupo.ahora` → `.uno/.otros` | resuelto | «…while slots remain. It currently has **1** client.» (n=1). La forma `.otros` es «clients». Las dos `es` son «Ahora mismo tiene {n}.», idénticas al literal de siempre. |
+| `sin-cupo.fila.uno/.otros` | resuelto | «Pantalla Reforma — cap of 1 client on those dates, taken by Bebidas Sur». Los huecos son los mismos que en `es`. |
+| `sin-cupo.ayuda` | resuelto | «Remove the screen(s) above, change the dates, or raise the cap from each screen’s profile.» Sirve para 1 y para varias pantallas. |
+| Resto de los bajos | resueltos | «fix them in Landlords», «No spaces match.», «(reference value, set in Settings)», «Rates per unit / per daypart / per sales unit», «Spec sheet» / «Save spec sheet» (también en `alta.subtitulo` y `detalle.vacio`), «E.g. Rooftop Insurgentes 1420», comillas “…” en `alta-hecha`, `reservados` («Sites booked for “…”») y `reanudar-confirmar`, «showing the most recently active 2 of 5», «Display address». |
+
+**Decisiones del orquestador, comprobadas:**
+
+- Comercial negociación: `comercial.negociacion.titulo` y `nav.comercial-opex` (en) dicen **«Lease negotiation»**. Se cambió `diccionario.ts:350`, no `nav.ts`.
+- Valla → **«Poster panel»**. Mural → **«Mural»**: queda declarado como entrada idéntica permitida en `comercial.test.ts` y en `COMUNES`.
+- Sitio reservado → «Booked». El lote de campañas también dice ahora `campanas.etapa.reservada: 'Booked'` (`feat/ingles-campanas-finanzas`, `cb7c1c1a`, `textos/campanas.ts:532`), así que la nota de la bóveda dice la verdad.
+- Agotado → **«Limit reached»** (chip y filtro).
+- Ficha técnica → «Spec sheet»; ficha → «profile».
+- El nombre por omisión de la reserva se sigue guardando en el idioma de quien la crea (`ReservaDialog.tsx:157`). Es decisión tomada y está anotada en la bóveda.
+- En el HTML inglés de los 23 estados quedan **0** apariciones de «Commercial negotiation», «Hoarding», «Wall mural», «Used up», «Technical profile», «14-day», «press » y «Tap ».
+- La nota de la bóveda ya no fija «per 14-day period»: ahora dice «every two weeks» y «two-week period(s)».
+
+### 2 · Español intacto: VERIFICADO otra vez, mecánicamente
+
+- **Render.** Rehíce el espejo con los 8 archivos del lote tal como están en la base de la rama (`27047bfe`, `git merge-base integra/ingles HEAD`). Entre la base y la punta de `integra/ingles` estos archivos no cambian. Rendí los 23 estados en español con los componentes viejos y con los de la rama: **23/23 idénticos** con `diff -rq`. Para confirmar que el espejo se usaba, cambié «sin tope» en el `GestionCodigos` viejo: 2 archivos pasaron a diferir. Lo restauré. Después borré el espejo y las copias de la prueba.
+- **Diccionario contra el código viejo.** Ahora hay **559 claves**: las 557 de antes, menos `cupo.ahora`, más `cupo.ahora.uno`, `cupo.ahora.otros` y `codigos.usos.sin-tope`.
+  - **550** valores `es` aparecen literales en el código viejo.
+  - Las 9 restantes son las 8 frases compuestas de la primera vuelta, sin cambios, más `codigos.usos.sin-tope`. Las reconcilié arriba.
+  - Ningún valor `es` de las claves previas cambió: el diff del bloque `ES_*` solo parte `cupo.ahora` en dos, con el mismo texto.
+- **Huecos y bordes:** 0 diferencias entre `es` y `en` en las 559 claves.
+- **Lo demás:**
+  - 0 acentos en el inglés.
+  - 11 valores iguales en los dos idiomas: los 10 de antes más `tipo-medio.mural`.
+  - Ningún `$`, `MXN` ni `USD`.
+  - Ningún `{x} %` con espacio en el inglés.
+
+### 3 · Pruebas (corridas por mí)
+
+```
+cd apps/web && npm run typecheck   →  tsc --noEmit, sin errores
+cd apps/web && npm test            →  Test Files 324 passed (324) · Tests 4305 passed (4305)
+```
+
+La cifra de pruebas no cambia respecto de la primera vuelta. La segunda vuelta no añade pruebas nuevas: amplía las listas de frases de `pantallas-comercial.test.ts` y las instantáneas.
+
+Corrí los mutantes contra `npx vitest run lib/i18n` (248 pruebas). Restauré cada uno con `git checkout -- lib/i18n components/demo` y comprobé `git status` vacío después de cada uno:
+
+| # | mutante | resultado |
+|---|---|---|
+| M7 | `no-reservable`: minúsculas también en inglés (lo de antes) | **MUERE** (2 rojas: «…sin contrato» y «…propia en pausa», en inglés) |
+| M8 | `no-reservable`: sin minúsculas en español | **MUERE** (2 rojas en español) |
+| M9 | `es` de `codigos.usos.sin-tope` = «{usos} sin tope» | **MUERE** (render en español + instantánea ES) |
+| M10 | `GestionCodigos` vuelve a usar siempre `codigos.usos` | **MUERE** (2 rojas: español e inglés) |
+| M11 | `cupo.ahora` usa siempre `.otros` («1 clients») | **SOBREVIVE** |
+
+**M11, severidad baja.** La lista inglesa del estado solo exige `' It currently has '`, sin el sustantivo. Si alguien pisa la rama singular, ninguna prueba lo ve. Lo comprobé a ojo en el render: con n=1 sale «It currently has 1 client.». Para cerrarlo basta añadir `'1 client.'` (o la frase entera) a `ingles` del estado «ficha con sus cuadros abiertos». No bloquea.
+
+El árbol quedó limpio salvo esta sección del informe.
+
+### 4 · Reglas
+
+- `git diff de7ad5f3..HEAD --name-only` y `git diff 27047bfe..HEAD --name-only` no tocan `nav.ts` (0 coincidencias), `middleware.ts`, `db/schema.sql`, migraciones, `app/api/**`, `next.config.mjs`, `idiomas.ts` ni ningún `package.json`. En `diccionario.ts` solo cambia el valor inglés de `nav.comercial-opex`.
+- **`desktop.ini`:** 0 en el diff y 0 en `git ls-files`.
+- `IDIOMA_INGLES` sigue apareciendo solo en la prueba.
+- **Datos guardados:** la vista cardinal sigue guardando el valor español, y el nombre por omisión de la reserva va en el idioma de quien la crea, que es lo decidido.
