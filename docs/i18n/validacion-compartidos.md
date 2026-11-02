@@ -156,3 +156,77 @@ cd apps/web && npm test            →  Test Files 324 passed (324) · Tests 428
 4. **«Por hora» → «Hourly» o «Per hour»** en el selector de modalidad (ver §1).
 5. **Selector de periodo:** «This quarter / This year / Custom range» en vez de «Quarter / Year / Range». Afectará también a Finanzas (`TableroPeriodo`) cuando le toque su lote, así que conviene fijarlo ya.
 6. **Verbo del mapa:** «Click» (escritorio, como el piloto) o «Tap». Que sea uno solo en toda la app.
+
+---
+
+## Segunda pasada (2026-11-02): `git diff f4f7f367..HEAD`, commits `1d0c5bf4` y `5b63c171`
+
+### Veredicto: **VERDE**
+
+Todos los hallazgos de severidad media y baja de la §1 están resueltos, y las frases nuevas tienen sentido en su contexto. El español no cambió en ninguna entrada, el M10 ahora muere y las reglas se cumplen.
+
+### 1 · Hallazgos de la primera vuelta
+
+| hallazgo | ahora | ¿resuelto? |
+|---|---|---|
+| `unidad.cpm.otros` «thousands» | `thousand` → «2,500 thousand», «2 thousand × $ 1,000.00» (las dos tienen prueba en `compartidos-idioma.test.ts`). Coincide con el `alta.cpm.equivale` del piloto | sí |
+| catorcena «14-day period(s)» | `two-week period(s)`; unidad y periodicidad `Every two weeks` → «3 two-week periods», «$ 500.00 · every two weeks» en la ficha | sí, según el glosario fijado |
+| selector «Quarter / Year / Range» | `This quarter`, `This year`, `Custom range`, con `This month` / `Last month` / `Last quarter` como antes | sí |
+| `unidad.hora` «Hourly» | `Per hour` | sí |
+| `calc.motivo.sin-loop`, `.horas`, `.roadblock-libres`, `.cero-spots` | las cuatro redacciones que propuse, palabra por palabra; «the screen has 3 free» lleva ya el «free» | sí |
+| mapa «Tap» | «Click the map to mark the area (at least 3 points)». No queda ningún «Tap» en `lib/i18n/textos/` | sí |
+| subtítulo del tablero con rango repetido | ver abajo | sí |
+| M10 sobrevivía | estado nuevo «calculadora de spots con una linea invalida» que espera «Loop slots go from 1 to 8.» | sí: muere |
+| `quincenal` | se queda «Twice a month» | sí, según el glosario fijado |
+| los dos informativos (plural con `n` fraccionario, fecha imposible en el rango) | sin cambios | no exigidos: no se alcanzan con datos reales |
+
+**`esEtiquetaRango()` y `TableroPropuestas`.** `esEtiquetaRango` es la MISMA regex que ya usaba `etiquetaPeriodo`, sacada a una constante (`RANGO_ETIQUETA`). El atajo del subtítulo se toma solo con `datos && idioma !== 'es' && esEtiquetaRango(...)`. Con `'es'` la condición es falsa siempre, de modo que la rama española es **la misma expresión** de `f4f7f367`, para cualquier etiqueta. Con `datos` nulo sigue saliendo «—».
+
+En inglés y con un rango, el subtítulo pinta una sola vez «Jan 5, 2026 to Mar 9, 2026». En cualquier otro periodo sale el subtítulo de siempre. Las nuevas pruebas fijan el español «2026-01-05 a 2026-03-09 · 05/01/2026 a 09/03/2026» y comprueban que el inglés no repite las fechas.
+
+### 2 · Español intacto: VERIFICADO otra vez, mecánicamente
+
+- **El diccionario:** el bloque `ES_COMPARTIDOS` es **idéntico** entre `f4f7f367` y `HEAD` (`diff` vacío). Todas las líneas borradas de `compartidos.ts` son de `EN_COMPARTIDOS`.
+- **Las funciones:** repetí el arnés de la primera vuelta, el viejo de `integra/ingles` contra el nuevo, sin idioma y con `'es'`, y lo amplié con `finanzas-periodo.ts`:
+  - `etiquetaPeriodo` sin idioma y con `'es'` devuelve la etiqueta tal cual en 9 entradas: las cuatro formas, rangos imposibles, minúsculas, cadena vacía, `x a y` y un espacio al final.
+  - `periodoDe` viejo y nuevo son idénticos en 5 fechas de hoy (incluido el 29/02) × 6 tipos × 4 formas del rango.
+  - `esEtiquetaRango` funciona en los dos sentidos.
+
+  ```
+  COMPARACIONES 2905728 (las de la primera vuelta) + finanzas-periodo · Tests 7 passed (7)
+  ```
+
+  Después borré el espejo.
+- **Los llamadores del servidor:** no cambió ninguno en estos commits. El diff solo toca `TableroPropuestas.tsx`, `finanzas-periodo.ts`, `compartidos.ts`, las pruebas, la instantánea y los documentos.
+- Ningún valor `en` lleva acentos ni ñ.
+
+### 3 · Pruebas
+
+```
+cd apps/web && npm run typecheck   →  tsc --noEmit, sin errores
+cd apps/web && npm test            →  Test Files 324 passed (324) · Tests 4287 passed (4287)
+```
+
+Mutantes, con la suite entera por cada uno, y restaurados después:
+
+| # | mutante | resultado |
+|---|---|---|
+| M10 | sin `idioma` en `previsualizarCalculadora` (`propuestas/page.tsx:901`) | **muere** (2 rojas). Antes sobrevivía |
+| M12 | el atajo del rango también en español (quitar `idioma !== 'es'`) | **muere** (1) |
+| M13 | sin el atajo (el inglés vuelve a repetir las fechas) | **muere** (1) |
+| M14 | `cpm.otros` otra vez «thousands» | **muere** (3) |
+| M15 | el mapa otra vez «Tap» | **muere** (2) |
+| M16 | `RANGO_ETIQUETA` rota («a» → «al») | **muere** (1) |
+
+`git status` limpio después de restaurar, salvo este informe.
+
+### 4 · Reglas
+
+- `git diff --name-only f4f7f367..HEAD` no toca `middleware.ts`, `nav.ts`, `db/schema.sql`, `db/migrations/`, `app/api/`, `next.config.mjs`, `idiomas.ts` ni ningún `package.json`.
+- **Ningún `desktop.ini`** en los dos commits.
+- `compartidos.ts` sigue sin dinero ni símbolos de moneda.
+- El glosario de la bóveda (§11) recoge las decisiones del orquestador, «thousand» invariable incluido.
+
+### Lo que queda para el dueño
+
+Nada bloqueante. Las decisiones de glosario de la §6 las fijó el orquestador y el dueño puede cambiarlas: la bóveda lo dice así.
