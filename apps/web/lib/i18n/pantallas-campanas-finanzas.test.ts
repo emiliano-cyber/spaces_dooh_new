@@ -36,10 +36,13 @@ import type { Idioma } from './idiomas'
 //
 //  ─── LO QUE NO VE ──────────────────────────────────────────────────────────
 //
-//  Los textos de modulos COMPARTIDOS fuera del lote (`lib/periodos.ts`,
-//  `lib/doohmain-*.ts`, `lib/franja-programada.ts`, `AvisoFranjaCMS`,
-//  `vencimiento`… ver la nota de la boveda §11) siguen en espanol y no se
-//  comprueban aqui. Los mensajes del servidor van por I18N-05.
+//  Desde la costura (2026-11-02) la reserva y su frecuencia (`lib/periodos.ts`),
+//  el horario de DOOHmain, `AvisoFranjaCMS`, la etiqueta del periodo y el «Sin
+//  asignar» de las razones sociales SI se comprueban: el barrido con el
+//  diccionario de compartidos (al final del archivo) los vigila. Siguen en
+//  espanol los avisos de franja que manda el servidor, `PipelineView`,
+//  `KPICard`, `EmptyState`, `ConfirmDialog` y el CSV del estado de cuenta (ver
+//  la nota de la boveda §11). Los mensajes del servidor van por I18N-05.
 // ============================================================================
 
 type Forzado = { si: (inicial: unknown, pila: string) => boolean; valor: unknown; fijo?: boolean }

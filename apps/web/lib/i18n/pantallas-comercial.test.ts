@@ -35,12 +35,13 @@ import type { Idioma } from './idiomas'
 //  se compararon con `diff -r` (ver `docs/i18n/revision-comercial.md`).
 //
 //  ─── LO QUE NO VE ──────────────────────────────────────────────────────────
-//  Los textos de modulos COMPARTIDOS fuera del lote siguen en espanol y no se
-//  comprueban aqui: `UNIDAD_LABEL` (`lib/periodos.ts`), `periodicidadLabel`,
-//  `textoOrigenDoohmain`, los motivos de `lib/negociacion.ts` y de
-//  `lib/codigo-promocional.ts`, `SlotsBadge`, `ClientesBadge`,
-//  `CalendarioDisponibilidad`, `FotoUploaderMock`, `RejillaDialog`, el candado
-//  y el « (obligatorio)» de `Campo`. Los mensajes del servidor van por I18N-05.
+//  Desde la costura (2026-11-02) las unidades, `periodicidadLabel`,
+//  `textoOrigenDoohmain`, el candado y el « (obligatorio)» de `Campo` SI se
+//  comprueban: salen traducidos y el barrido con el diccionario de compartidos
+//  (al final del archivo) los vigila. Siguen en espanol, y no se comprueban,
+//  los motivos de `lib/negociacion.ts` y de `lib/codigo-promocional.ts`,
+//  `SlotsBadge`, `ClientesBadge`, `CalendarioDisponibilidad`,
+//  `FotoUploaderMock` y `RejillaDialog`. Los mensajes del servidor van por I18N-05.
 // ============================================================================
 
 const forzado = vi.hoisted(() => ({
@@ -1109,13 +1110,10 @@ describe('lote COMERCIAL · barrido con el diccionario entero', () => {
     }
     // Costura (2026-11-02): `textoOrigenDoohmain` ya recibe el idioma, asi que
     // su «mapa del servidor» ya NO se quita: si vuelve en espanol, cae aqui.
-    // « (obligatorio)» lo pinta TAMBIEN `Campo` (`components/demo/ui/Campo.tsx`),
-    // que es de otro lote: con el texto no se distingue cual de los dos lo dejo.
-    // Las dos claves del lote se comprueban en la instantanea del diccionario.
-    const DEL_CAMPO_COMPARTIDO = new Set(['comercial.comun.obligatorio', 'codigos.obligatorio'])
+    // Y el « (obligatorio)» ya no se salta: `Campo` lo traduce desde el lote de
+    // compartidos, asi que en ingles no debe quedar ninguno, sea de quien sea.
     const culpables: string[] = []
     for (const [clave, es] of Object.entries(ES)) {
-      if (DEL_CAMPO_COMPARTIDO.has(clave)) continue
       const en = EN[clave]
       for (const trozo of es.split(/\{\w+\}/)) {
         const t = trozo.trim()
