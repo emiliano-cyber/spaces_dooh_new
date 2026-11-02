@@ -42,7 +42,8 @@ const datos = vi.hoisted(() => ({
   evidencias: [] as unknown[],
   reservas: [] as unknown[],
   usuarios: [] as unknown[],
-  creativos: [] as unknown[],
+  creativos: undefined as unknown,
+  clientes: [] as unknown[],
   puede: true,
 }))
 
@@ -78,8 +79,9 @@ vi.mock('@/components/demo/ui/ConfirmDialog', () => ({
       createElement('button', null, p.confirmLabel ?? 'Confirmar')) : null,
 }))
 vi.mock('@/components/demo/ui/CardColapsable', () => ({
-  CardColapsable: (p: { titulo: string; resumen?: unknown; children?: unknown }) =>
-    createElement('section', null, createElement('h3', null, p.titulo), p.resumen as never, p.children as never),
+  CardColapsable: (p: { titulo: string; subtitulo?: unknown; resumen?: unknown; accion?: unknown; children?: unknown }) =>
+    createElement('section', null, createElement('h3', null, p.titulo), p.subtitulo as never, p.resumen as never,
+      p.accion as never, p.children as never),
 }))
 vi.mock('@/components/demo/shell/SesionContext', () => ({ usePuede: () => datos.puede }))
 vi.mock('@/lib/data/client', async (importOriginal) => {
@@ -92,7 +94,8 @@ vi.mock('@/lib/data/client', async (importOriginal) => {
     useEvidencias: () => datos.evidencias,
     useReservas: () => datos.reservas,
     useUsuarios: () => datos.usuarios,
-    useCreativos: () => datos.creativos,
+    useCreatividades: () => datos.creativos,
+    useClientes: () => datos.clientes,
   }
 })
 
@@ -105,7 +108,8 @@ beforeEach(() => {
   datos.evidencias = []
   datos.reservas = []
   datos.usuarios = []
-  datos.creativos = []
+  datos.creativos = undefined
+  datos.clientes = []
   datos.puede = true
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(new Date(2026, 10, 2, 12))
@@ -424,7 +428,174 @@ export const ESTADOS_OT: Estado[] = [
   },
 ]
 
-const ESTADOS: Estado[] = [...ESTADOS_OT]
+// ─── Creativos ──────────────────────────────────────────────────────────────
+const SITIOS_CREA = [
+  { id: 'd1', nombre: 'Pantalla Reforma', tipoMedio: 'PANTALLA_DIGITAL' },
+  { id: 'd2', nombre: 'Pantalla Sur', tipoMedio: 'PANTALLA_DIGITAL' },
+  { id: 'f1', nombre: 'Valla Norte', tipoMedio: 'VALLA' },
+]
+const camp = (id: string, nombre: string) => ({ id, nombre, folio: `CA-${id}`, tipoCampana: 'DIGITAL', clienteId: 'k1', creadoEn: `2026-10-0${id.length}` })
+const reserva = (id: string, campanaId: string, sitioId: string, extra: Record<string, unknown> = {}) => ({
+  id, campanaId, sitioId, spotsReservados: 2, spotsPorDia: 100, creativos: [], ...extra,
+})
+const crea = (id: string, campanaId: string, extra: Record<string, unknown> = {}) => ({
+  id, campanaId, nombre: `arte-${id}.png`, estatusValidacion: 'PENDIENTE', retiradoEn: null, rechazadoMotivo: null,
+  formato: 'image/png', archivoUrl: `/arte/${id}`, esImagen: true, codigo: null, ...extra,
+})
+const CAMPANAS_CREA = [camp('c1', 'Verano'), camp('c22', 'Otoño'), camp('c333', 'Invierno')]
+const RESERVAS_CREA = [
+  reserva('r1', 'c1', 'd1', { creativos: [{ creatividadId: 'k2', veces: 50 }, { creatividadId: 'k5', veces: 50 }] }),
+  reserva('r2', 'c1', 'd2', { spotsReservados: null }),
+  reserva('r3', 'c1', 'd1'),
+  reserva('r4', 'c22', 'd2'),
+]
+const CREAS = [
+  crea('k1', 'c1', { formato: 'text/html', esImagen: false }),
+  crea('k2', 'c1', { estatusValidacion: 'VALIDADA' }),
+  crea('k3', 'c1', { estatusValidacion: 'RECHAZADA', rechazadoMotivo: 'motivo-del-cliente' }),
+  crea('k4', 'c1', { estatusValidacion: 'VALIDADA', retiradoEn: '2026-10-10' }),
+  crea('k5', 'c1', { estatusValidacion: 'VALIDADA' }),
+  crea('k6', 'c333', { estatusValidacion: 'VALIDADA' }),
+]
+const creativos = async () => (await import('../../app/(app)/(shell)/creativos/page')).default
+const conCreativos = () => {
+  datos.campanas = CAMPANAS_CREA
+  datos.reservas = RESERVAS_CREA
+  datos.sitios = SITIOS_CREA
+  datos.creativos = CREAS
+  datos.clientes = [{ id: 'k1', nombre: 'Cliente Uno' }]
+}
+
+export const ESTADOS_CREATIVOS: Estado[] = [
+  {
+    nombre: 'creativos · con campañas, alta por código abierta',
+    pintar: async (idioma) => {
+      conCreativos()
+      forzar(enesimo('CampanaCard', esFalse, 2), true) // codeOpen (la primera tarjeta)
+      return pintar(idioma, createElement(await creativos()))
+    },
+    espanol: [
+      'Creativos', 'Sube y aprueba las imágenes de cada campaña, y asigna cuál va en cada slot reservado.',
+      'Por aprobar', 'frenan la publicación', 'Aprobados', 'listos para asignar', 'Rechazados', 'hay que reemplazarlos',
+      'Spots sin creativo', 'de 4 spots reservados', 'placeholder="Buscar por campaña, folio, cliente o nombre del creativo…"',
+      'Todos los creativos', 'Con pendientes de aprobar', 'Con aprobados', 'Con rechazados', 'Sin creativos todavía', '3 de 3',
+      '1 por aprobar', '1/3 spots con creativo', ' Imagen</button>', ' Código</button>', 'Nombre del creativo',
+      'placeholder="Pega aquí el código del creativo (HTML/UTF)…"', 'Cancelar', 'Guardar código', 'Creativos (5)',
+      ' código</span>', 'title="Retirado del sistema; su arte sigue en DOOHmain (quítalo en su panel)"',
+      'Retirado · pendiente en DOOHmain', ' Ver HTML</button>',
+      'title="El creativo ya fue aprobado — reemplázalo o elimínalo para cambiarlo"', ' Aprobar</button>', ' Rechazar</button>',
+      'aria-label="Reemplazar el arte de arte-k1.png"', 'title="Reemplazar el arte"', 'aria-label="Eliminar arte-k1.png"',
+      'title="Eliminar"', '>Pendiente<', '>Aprobado<', '>Rechazado<', 'motivo-del-cliente', 'Slots reservados (3)',
+      '2 creativos rotan', 'Sin creativo', 'Creativo del sitio', '>Sin asignar<', 'Sin creativos. Sube una imagen para aprobarla.',
+      'Aprueba un creativo para asignarlo aquí.', 'Aprueba al menos un creativo para poder asignarlo a los slots.',
+      'Creativos (1)', 'Slots reservados (0)', 'Sin slots reservados todavía.',
+    ],
+    ingles: [
+      'Creatives', 'Upload and approve each campaign’s images, and assign which one goes in each booked slot.',
+      'Pending approval', 'they hold back publishing', '>Approved<', 'ready to assign', '>Rejected<', 'they need to be replaced',
+      'Spots with no creative', 'of 4 booked spots', 'placeholder="Search by campaign, internal ref., client or creative name…"',
+      'All creatives', 'With creatives pending approval', 'No creatives yet', '3 of 3', '1 pending approval',
+      '1/3 spots with a creative', ' Image</button>', ' Code</button>', 'Creative name', 'Save code', 'Creatives (5)',
+      ' code</span>', 'Withdrawn · pending in DOOHmain', ' View HTML</button>', ' Approve</button>', ' Reject</button>',
+      'aria-label="Replace the artwork of arte-k1.png"', 'aria-label="Delete arte-k1.png"', 'title="Delete"', '>Pending<',
+      'Booked slots (3)', '2 creatives rotate', 'No creative', 'Site creative', '>Unassigned<',
+      'No creatives. Upload an image to approve it.', 'Approve a creative to assign it here.',
+      'Approve at least one creative to be able to assign it to the slots.', 'No booked slots yet.',
+    ],
+  },
+  {
+    nombre: 'creativos · guardando, un spot con un creativo y la fuente cargando',
+    pintar: async (idioma) => {
+      conCreativos()
+      datos.reservas = [reserva('r1', 'c1', 'd1', { creativos: [{ creatividadId: 'k2', veces: 1 }] })]
+      datos.campanas = [camp('c1', 'Verano')]
+      forzar(enesimo('CampanaCard', esFalse, 1), true) // subiendo
+      forzar(enesimo('CampanaCard', esFalse, 1), true) // codeOpen
+      forzar(enesimo('CampanaCard', esNull, 1), CREAS[0]) // verFuente (busy va antes que codeOpen)
+      forzar(enesimo('CampanaCard', esFalse, 1), true) // cargandoFuente (intento va antes que verFuente)
+      return pintar(idioma, createElement(await creativos()))
+    },
+    espanol: ['Guardando…', '1 creativo', 'text/html · cargando…', 'Cargando la fuente…', ' Descargar .html</button>', 'Cerrar'],
+    ingles: ['Saving…', '1 creative', 'text/html · loading…', 'Loading the source…', ' Download .html</button>', 'Close'],
+  },
+  {
+    nombre: 'creativos · la fuente no se pudo cargar y los dos diálogos',
+    pintar: async (idioma) => {
+      conCreativos()
+      datos.campanas = [camp('c1', 'Verano')]
+      forzar(enesimo('CampanaCard', esNull, 2), { ...CREAS[0], formato: null }) // verFuente
+      forzar(enesimo('CampanaCard', esNull, 3), CREAS[0]) // confirmarEliminar (tras fuente y reemplazarId)
+      forzar(enesimo('CampanaCard', esNull, 1), CREAS[1]) // confirmarReemplazo
+      return pintar(idioma, createElement(await creativos()))
+    },
+    espanol: [
+      'HTML · 0 caracteres', 'No se pudo cargar la fuente de este creativo.', 'Eliminar creativo', 'Sí, eliminar',
+      '¿Seguro que quieres bajar <span class="font-medium text-ink">“arte-k1.png”</span>? Si ya está publicado, su campaña se finaliza, pero <span class="text-ink">el arte no se puede quitar de DOOHmain</span> (su API no lo permite): quedará marcado como “pendiente en DOOHmain” para que lo quites en su panel.',
+      'Reemplazar el arte', 'Elegir el arte nuevo',
+      'Si <span class="font-medium text-ink">“arte-k2.png”</span> ya está publicado, al reemplazarlo <span class="text-ink">se manda a DOOHmain la orden de bajar el arte anterior</span>: deja de reproducirse en todas sus pantallas. El nuevo queda pendiente hasta que lo apruebes.',
+      '<span class="font-medium">Recordatorio:</span> después entra al panel de DOOHmain y <span class="font-medium">elimina la campaña anterior</span>. DOOHmain no deja borrarla desde aquí, y la nueva lleva el mismo nombre: la anterior es la que aparece como finalizada.',
+    ],
+    ingles: [
+      'HTML · 0 characters', 'Could not load this creative’s source.', 'Delete creative', 'Yes, delete',
+      'Are you sure you want to take down <span class="font-medium text-ink">“arte-k1.png”</span>?',
+      '<span class="text-ink">the artwork cannot be removed from DOOHmain</span>', 'Replace the artwork', 'Choose the new artwork',
+      'replacing it <span class="text-ink">sends DOOHmain the order to take down the previous artwork</span>: it stops playing',
+      '<span class="font-medium">Reminder:</span> afterwards, go to the DOOHmain panel and <span class="font-medium">delete the previous campaign</span>.',
+    ],
+  },
+  {
+    nombre: 'creativos · ninguna coincide',
+    pintar: async (idioma) => {
+      conCreativos()
+      forzar(enesimo('CreativosPage', esCadenaVacia, 1), 'zzz') // q: una busqueda que no encuentra nada
+      return pintar(idioma, createElement(await creativos()))
+    },
+    espanol: ['Ninguna campaña coincide', 'Prueba con otro texto de búsqueda o quita el filtro de estado.', 'Limpiar filtros', '0 de 3'],
+    ingles: ['No campaign matches', 'Try a different search or remove the status filter.', 'Clear filters', '0 of 3'],
+  },
+  {
+    nombre: 'creativos · sin campañas',
+    pintar: async (idioma) => {
+      conCreativos()
+      datos.campanas = []
+      return pintar(idioma, createElement(await creativos()))
+    },
+    espanol: ['Sin campañas con slots o creativos', 'Reserva sitios en Comercial o sube un creativo para gestionarlos aquí.'],
+    ingles: ['No campaigns with slots or creatives', 'Book sites in Sales or upload a creative to manage them here.'],
+  },
+  {
+    nombre: 'creativos · una campaña solo de medios fijos',
+    pintar: async (idioma) => {
+      conCreativos()
+      datos.campanas = [camp('c1', 'Verano')]
+      datos.reservas = [reserva('r1', 'c1', 'f1')]
+      return pintar(idioma, createElement(await creativos()))
+    },
+    espanol: [
+      'Ninguna campaña tiene pantallas digitales',
+      'Aquí solo se gestionan los creativos de pantallas digitales. Tus 1 campaña son de medios fijos: su arte se lleva en Imprenta.',
+      'Ir a Imprenta',
+    ],
+    ingles: [
+      'No campaign has digital screens',
+      'Only creatives for digital screens are managed here. Your 1 campaign is on static media: its artwork is handled in Printing.',
+      'Go to Printing',
+    ],
+  },
+  {
+    nombre: 'creativos · dos campañas solo de medios fijos',
+    pintar: async (idioma) => {
+      conCreativos()
+      datos.campanas = [camp('c1', 'Verano'), camp('c22', 'Otoño')]
+      datos.reservas = [reserva('r1', 'c1', 'f1'), reserva('r2', 'c22', 'f1')]
+      return pintar(idioma, createElement(await creativos()))
+    },
+    espanol: ['Tus 2 campañas son de medios fijos: su arte se lleva en Imprenta.'],
+    ingles: ['Your 2 campaigns are on static media: their artwork is handled in Printing.'],
+  },
+]
+
+const ESTADOS: Estado[] = [...ESTADOS_OT, ...ESTADOS_CREATIVOS]
 
 describe('lote OPERACIONES (parte 2) · en ESPANOL sale el texto de siempre', () => {
   ESTADOS.forEach((p, i) => {
@@ -446,6 +617,7 @@ describe('lote OPERACIONES (parte 2) · en ESPANOL sale el texto de siempre', ()
 const COMUNES = new Set<string>([
   'Luisa Campo', 'Revisar estructura 1', 'OT-1 · Pantalla Reforma', 'Av. Reforma 1', 'Verano', 'Pantalla Reforma · Digital',
   'Inspección de estructura y herrajes', 'Normal', '>Checklist<',
+  'motivo-del-cliente',
 ])
 
 describe('lote OPERACIONES (parte 2) · en INGLES no queda ninguna frase espanola del lote', () => {
@@ -484,7 +656,7 @@ describe('lote OPERACIONES (parte 2) · barrido con el diccionario entero', () =
       html += texto(crudo.replace(/<[^>]*>/g, '\n') + '\n' + visibles.join('\n'))
     }
     // Los datos de prueba y los puntos del checklist (son datos) no son texto de la interfaz.
-    for (const a of ['Inspección de estructura y herrajes', 'Montaje / ejecución', 'Revisar estructura', 'Pantalla Reforma', 'Valla Sur', 'Verano', 'Otoño', 'Luisa Campo', 'error-del-servidor']) {
+    for (const a of ['Inspección de estructura y herrajes', 'Montaje / ejecución', 'Revisar estructura', 'Pantalla Reforma', 'Pantalla Sur', 'Valla Sur', 'Valla Norte', 'Verano', 'Otoño', 'Invierno', 'Luisa Campo', 'error-del-servidor', 'motivo-del-cliente', 'Cliente Uno']) {
       html = html.split(a).join('\n')
     }
     return html

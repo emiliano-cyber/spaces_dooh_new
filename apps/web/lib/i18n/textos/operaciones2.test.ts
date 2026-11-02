@@ -144,4 +144,25 @@ describe('operaciones (parte 2) · los avisos que no se rinden usan su clave', (
     expect(s).toMatch(/mensajeSiFalla: t\('operaciones2\.ficha\.no-guardar-costo'\)/)
     expect(s).toMatch(/leerCostoOt\(costoTexto, idioma\)/)
   })
+
+  it('creativos: cada toast, el `prompt` y su rama', () => {
+    const s = leer('app/(app)/(shell)/creativos/page.tsx')
+    expect(s.match(/toast\.error\(t\('operaciones2\.creativos\.imagen-supera', \{ mb: IMAGEN_CREATIVO_MAX_MB \}\)\)/g)).toHaveLength(2)
+    expect(s).toMatch(/err\.message : t\('operaciones2\.creativos\.no-subir'\)/)
+    expect(s).toMatch(/err\.message : t\('operaciones2\.creativos\.no-guardar'\)/)
+    expect(s).toMatch(/window\.prompt\(t\('operaciones2\.creativos\.motivo-rechazo'\)\)/)
+    expect(s).toMatch(/e\.message : t\('operaciones2\.creativos\.no-validar'\)/)
+    expect(s).toMatch(/pendienteEnDoohmain\s*\n\s*\? t\('operaciones2\.creativos\.retirado-doohmain', \{ nombre: cr\.nombre \}\)\s*\n\s*: t\('operaciones2\.creativos\.eliminado', \{ nombre: cr\.nombre \}\)/)
+    expect(s).toMatch(/e\.message : t\('operaciones2\.creativos\.no-eliminar'\)/)
+    expect(s).toMatch(/estado === 'retirado'\s*\n\s*\? t\('operaciones2\.creativos\.reemplazado-doohmain'\)\s*\n\s*: t\('operaciones2\.creativos\.reemplazado'\)/)
+    expect(s).toMatch(/err\.message : t\('operaciones2\.creativos\.no-reemplazar'\)/)
+    expect(s).toMatch(/e\.message : t\('operaciones2\.creativos\.no-asignar'\)/)
+    // El nombre por omision de un creativo por codigo es un DATO: no se traduce.
+    expect(s).toContain("codeNombre.trim() || 'Creativo (código)'")
+  })
+
+  it('creativos: el espanol de los estados es el de la tabla `label` de la pantalla', () => {
+    expect([ES['operaciones2.creativos.estado.pendiente'], ES['operaciones2.creativos.estado.validada'], ES['operaciones2.creativos.estado.rechazada']])
+      .toEqual(['Pendiente', 'Aprobado', 'Rechazado'])
+  })
 })
