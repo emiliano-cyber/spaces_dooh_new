@@ -24,6 +24,7 @@ import type {
 } from './types'
 import { factorMensual, diasAvisoPago, diasCriticoPago } from '../renta-periodicidad'
 import { costoEfectivoDeOt } from '../costos-ot'
+import type { Idioma } from '../i18n/idiomas'
 import { itemsEnPropuesta, enPropuestaEntre, type ItemEnPropuesta } from './en-propuesta'
 
 // Orden canónico de las 10 etapas del pipeline (sección 7.4).
@@ -1482,21 +1483,45 @@ export function formatMontoCorto(n: number): string {
 // justo en medianoche UTC: las 18:00 de México); la solución de raíz es que el
 // driver devuelva las columnas `date` como texto plano, y entonces caen en la
 // primera rama.
-export function formatFecha(iso: string): string {
+//
+// IDIOMA (lote de ingles, decision del dueno del 2026-11-02): en ingles la
+// fecha cambia de FORMATO, no de dia. `01/12/2026` un lector de EE. UU. lo lee
+// como 12 de enero; por eso en `en` sale «Dec 1, 2026», que no admite dos
+// lecturas. El segundo parametro va con 'es' POR OMISION y la rama espanola es
+// la de siempre, linea por linea: los ~80 llamadores que no pasan idioma pintan
+// exactamente lo mismo que antes (`derive.fecha-idioma.test.ts` lo fija).
+// La medianoche local de arriba vale igual para las dos ramas: se construye
+// el mismo `Date` y solo cambia como se escribe.
+export function formatFecha(iso: string, idioma: Idioma = 'es'): string {
   const soloFecha = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso)
   const d = soloFecha
     ? new Date(Number(soloFecha[1]), Number(soloFecha[2]) - 1, Number(soloFecha[3]))
     : new Date(iso)
+  if (idioma === 'en') {
+    // `Intl` LANZA con una fecha invalida; la rama espanola pintaba «NaN/…».
+    if (isNaN(d.getTime())) return '—'
+    return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(d)
+  }
   const dd = String(d.getDate()).padStart(2, '0')
   const mm = String(d.getMonth() + 1).padStart(2, '0')
   return `${dd}/${mm}/${d.getFullYear()}`
 }
 
 // dd/mm/yyyy HH:mm — para timestamps (fecha de creación / subida de imágenes).
-export function formatFechaHora(iso: string): string {
+// En ingles, «Dec 1, 2026, 3:45 PM» (mismo criterio que `formatFecha`).
+export function formatFechaHora(iso: string, idioma: Idioma = 'es'): string {
   if (!iso) return '—'
   const d = new Date(iso)
   if (isNaN(d.getTime())) return '—'
+  if (idioma === 'en') {
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    }).format(d)
+  }
   const dd = String(d.getDate()).padStart(2, '0')
   const mm = String(d.getMonth() + 1).padStart(2, '0')
   const hh = String(d.getHours()).padStart(2, '0')
