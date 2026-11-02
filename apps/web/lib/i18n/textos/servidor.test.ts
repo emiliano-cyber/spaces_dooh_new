@@ -15,6 +15,7 @@ import { motivoHorarioInvalido } from '../../doohmain-programacion'
 import { interpretarUbicacion } from '../../interpretar-ubicacion'
 import { avisosDeProgramacion } from '../../franja-programada'
 import { MSJ_APROBAR_CON_PENDIENTE } from '../../codigo-aprobacion'
+import { periodoDe } from '../../finanzas-periodo'
 
 // ============================================================================
 //  LOTE SERVIDOR · LOS MOTIVOS QUE COMPARTEN SERVIDOR Y PANTALLA, CONGELADOS.
@@ -126,6 +127,22 @@ describe('diccionario servidor · el español es el del modulo, letra por letra'
 
   it('MSJ_APROBAR_CON_PENDIENTE', () => {
     expect(ES['servidor.codigo.aprobar-con-pendiente']).toBe(MSJ_APROBAR_CON_PENDIENTE)
+  })
+
+  it('el periodo: el rango sin fechas y los mensajes de los esquemas', () => {
+    expect(() => periodoDe('rango', '2026-11-02', {})).toThrow(ES['servidor.periodo.rango'])
+    for (const archivo of ['lib/server/finanzas-controller.ts', 'lib/server/propuestas-resumen-controller.ts']) {
+      const src = readFileSync(path.join(__dirname, '../../..', archivo), 'utf8')
+      expect(src).toContain(`'${ES['servidor.periodo.invalido']}'`)
+    }
+    const fin = readFileSync(path.join(__dirname, '../../..', 'lib/server/finanzas-controller.ts'), 'utf8')
+    expect(fin).toContain(`uuid('${ES['servidor.periodo.cliente-invalido']}')`)
+  })
+
+  it('y por el embudo: con la etiqueta de campo delante, como los arma validar()', () => {
+    expect(traducirError('Periodo: Periodo inválido', 'en')).toBe('Period: Invalid period')
+    expect(traducirError('Cliente: Cliente inválido', 'en')).toBe('Client: Invalid client')
+    expect(traducirError('Periodo: Periodo inválido', 'es')).toBe('Periodo: Periodo inválido')
   })
 })
 

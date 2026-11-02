@@ -68,6 +68,13 @@ export const ES_SERVIDOR = {
   // ── El cupon pendiente (`MSJ_APROBAR_CON_PENDIENTE`, `lib/codigo-aprobacion.ts`) ──
   'servidor.codigo.aprobar-con-pendiente':
     'Primero aprueba o rechaza el código promocional: está pendiente de aprobación y el cliente todavía no lo ve.',
+
+  // ── El periodo de los tableros (`periodoDe` y los esquemas que lo leen) ──
+  // Viajan por variable (`AppError(e.message)`) o como motivo de zod: la
+  // guardia de literales no los ve.
+  'servidor.periodo.invalido': 'Periodo inválido',
+  'servidor.periodo.rango': 'El rango necesita fecha de inicio y de fin (AAAA-MM-DD)',
+  'servidor.periodo.cliente-invalido': 'Cliente inválido',
 } as const
 
 export type ClaveServidor = keyof typeof ES_SERVIDOR
@@ -111,4 +118,8 @@ export const EN_SERVIDOR: Record<ClaveServidor, string> = {
 
   'servidor.codigo.aprobar-con-pendiente':
     'First approve or reject the negotiation code: it is pending approval and the client cannot see it yet.',
+
+  'servidor.periodo.invalido': 'Invalid period',
+  'servidor.periodo.rango': 'The range needs a start date and an end date (YYYY-MM-DD)',
+  'servidor.periodo.cliente-invalido': 'Invalid client',
 }

@@ -677,6 +677,9 @@ export const CAMPO_EN: Record<string, string> = {
   'Logo': 'Logo',
   'Archivo': 'File',
   'Código': 'Code',
+  // Lote servidor (02/11) · `periodo` no esta en `CAMPO_ES`: `humanizarCampo`
+  // lo deja en «Periodo», y sin esto «Periodo: Periodo inválido» no se partia.
+  'Periodo': 'Period',
 }
 
 
