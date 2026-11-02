@@ -8,6 +8,9 @@ import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { CRUDO_INVALIDO } from '@/lib/captura-cifra'
 import { cn } from '@/lib/cn'
 import { altaSitioApi } from '@/lib/data/sitios-api'
+import { useTexto } from '@/lib/i18n/contexto'
+import type { ClaveTexto } from '@/lib/i18n/diccionario'
+import { CLAVE_TIPO_MEDIO } from '@/components/demo/comercial/claves'
 import {
   useArrendadores,
   type Sitio,
@@ -24,20 +27,23 @@ import {
 const inputCls =
   'h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
 
-const TIPOS: { v: TipoMedio; label: string }[] = [
-  { v: 'ESPECTACULAR', label: 'Espectacular' },
-  { v: 'PANTALLA_DIGITAL', label: 'Pantalla digital' },
-  { v: 'VALLA', label: 'Valla' },
-  { v: 'MOBILIARIO_URBANO', label: 'Mobiliario urbano' },
-  { v: 'PUENTE_PEATONAL', label: 'Puente peatonal' },
-  { v: 'MURAL', label: 'Mural' },
-  { v: 'OTRO', label: 'Otro' },
+// Los mismos textos que `TIPO_MEDIO_LABEL`, por sus claves de traducción
+// (`components/demo/comercial/claves.ts`); el orden es el de este alta.
+const TIPOS: { v: TipoMedio; label: ClaveTexto }[] = [
+  { v: 'ESPECTACULAR', label: CLAVE_TIPO_MEDIO.ESPECTACULAR },
+  { v: 'PANTALLA_DIGITAL', label: CLAVE_TIPO_MEDIO.PANTALLA_DIGITAL },
+  { v: 'VALLA', label: CLAVE_TIPO_MEDIO.VALLA },
+  { v: 'MOBILIARIO_URBANO', label: CLAVE_TIPO_MEDIO.MOBILIARIO_URBANO },
+  { v: 'PUENTE_PEATONAL', label: CLAVE_TIPO_MEDIO.PUENTE_PEATONAL },
+  { v: 'MURAL', label: CLAVE_TIPO_MEDIO.MURAL },
+  { v: 'OTRO', label: CLAVE_TIPO_MEDIO.OTRO },
 ]
-const CMS_OPC: { v: CMS; label: string }[] = [
+// Las marcas no se traducen; «Otros» sí.
+const CMS_OPC: { v: CMS; label: string | ClaveTexto; clave?: boolean }[] = [
   { v: 'BROADSIGN', label: 'Broadsign' },
   { v: 'INVIDIS', label: 'Invidis' },
   { v: 'DOOHMAIN', label: 'Doohmain' },
-  { v: 'OTRO', label: 'Otros' },
+  { v: 'OTRO', label: 'comercial.comun.cms-otro', clave: true },
 ]
 
 export function AltaSitioDialog({
@@ -49,6 +55,7 @@ export function AltaSitioDialog({
   onOpenChange: (v: boolean) => void
   onCreado: (s: Sitio) => void
 }) {
+  const t = useTexto()
   const arrendadores = useArrendadores()
   const [arrendadorId, setArrendadorId] = useState('')
   // v0.12.3 · pantalla PROPIA: sin arrendador ni renta, igual que en el alta de
@@ -128,94 +135,93 @@ export function AltaSitioDialog({
     <Modal
       open={open}
       onOpenChange={onOpenChange}
-      title="Alta de pantalla"
-      subtitle="Registra una nueva ubicación en tu inventario"
+      title={t('comercial.alta.titulo')}
+      subtitle={t('comercial.alta.subtitulo')}
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="secondary" size="sm" onClick={() => onOpenChange(false)}>
-            Cancelar
+            {t('comun.cancelar')}
           </Button>
           <Button variant="success" size="sm" disabled={tarifaInvalida || enviando} onClick={submit}>
-            {enviando ? 'Creando…' : 'Crear pantalla'}
+            {enviando ? t('comercial.alta.creando') : t('comercial.alta.crear')}
           </Button>
         </div>
       }
     >
       <div className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
-        <Seccion titulo="Identificación">
+        <Seccion titulo={t('comercial.alta.identificacion')}>
           <label className="flex items-start gap-2 rounded border border-border bg-surface-2 p-2 text-[13px] text-ink">
             <input type="checkbox" className="mt-0.5" checked={propio} onChange={(e) => setPropio(e.target.checked)} />
             <span>
-              <span className="font-medium">Pantalla propia</span>
+              <span className="font-medium">{t('comercial.comun.pantalla-propia')}</span>
               <span className="block text-[11px] text-muted">
-                Es de la empresa: no se le paga renta a nadie. Se puede vender sin contrato y su costo es
-                solo luz y operación.
+                {t('comercial.alta.propia.ayuda')}
               </span>
             </span>
           </label>
           {!propio && (
-            <Campo label="Arrendador (dueño del espacio)" obligatorio falta={ob.falta('arrendadorId')}>
+            <Campo label={t('comercial.alta.arrendador')} obligatorio falta={ob.falta('arrendadorId')}>
               <select className={inputCls} value={arrendadorId} onChange={(e) => setArrendadorId(e.target.value)}>
-                <option value="">Elige un arrendador…</option>
+                <option value="">{t('comercial.alta.elige-arrendador')}</option>
                 {(arrendadores ?? []).map((a) => (
                   <option key={a.id} value={a.id}>{a.nombre}</option>
                 ))}
               </select>
             </Campo>
           )}
-          <Campo label="Nombre" obligatorio falta={ob.falta('nombre')}>
-            <input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="p. ej. Espectacular Av. Brasil" autoFocus />
+          <Campo label={t('comercial.comun.nombre')} obligatorio falta={ob.falta('nombre')}>
+            <input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder={t('comercial.comun.p-ej', { valor: t('comercial.alta.nombre-ej') })} autoFocus />
           </Campo>
-          <Campo label="Tipo / formato">
+          <Campo label={t('comercial.alta.tipo')}>
             <select className={inputCls} value={tipoMedio} onChange={(e) => setTipoMedio(e.target.value as TipoMedio)}>
-              {TIPOS.map((t) => <option key={t.v} value={t.v}>{t.label}</option>)}
+              {TIPOS.map((tm) => <option key={tm.v} value={tm.v}>{t(tm.label)}</option>)}
             </select>
           </Campo>
         </Seccion>
 
-        <Seccion titulo="Ubicación">
-          <Campo label="Distrito / plaza" obligatorio falta={ob.falta('distrito')}>
-            <input className={inputCls} value={distrito} onChange={(e) => setDistrito(e.target.value)} placeholder="p. ej. Miraflores" />
+        <Seccion titulo={t('comercial.comun.ubicacion')}>
+          <Campo label={t('comercial.alta.distrito')} obligatorio falta={ob.falta('distrito')}>
+            <input className={inputCls} value={distrito} onChange={(e) => setDistrito(e.target.value)} placeholder={t('comercial.comun.p-ej', { valor: 'Miraflores' })} />
           </Campo>
-          <Campo label="Dirección del predio">
-            <input className={inputCls} value={direccionPredio} onChange={(e) => setDireccionPredio(e.target.value)} placeholder="Dirección física" />
+          <Campo label={t('comercial.comun.direccion-predio')}>
+            <input className={inputCls} value={direccionPredio} onChange={(e) => setDireccionPredio(e.target.value)} placeholder={t('comercial.alta.direccion-fisica')} />
           </Campo>
-          <Campo label="Dirección comercial" obligatorio falta={ob.falta('direccionComercial')}>
-            <input className={inputCls} value={direccionComercial} onChange={(e) => setDireccionComercial(e.target.value)} placeholder="Dirección que se muestra" />
+          <Campo label={t('comercial.comun.direccion-comercial')} obligatorio falta={ob.falta('direccionComercial')}>
+            <input className={inputCls} value={direccionComercial} onChange={(e) => setDireccionComercial(e.target.value)} placeholder={t('comercial.alta.direccion-mostrada')} />
           </Campo>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Campo label="Latitud"><input className={inputCls} inputMode="decimal" value={lat} onChange={(e) => setLat(e.target.value)} placeholder="Ej. -12.0900" /></Campo>
-            <Campo label="Longitud"><input className={inputCls} inputMode="decimal" value={lng} onChange={(e) => setLng(e.target.value)} placeholder="Ej. -77.0400" /></Campo>
+            <Campo label={t('comercial.alta.latitud')}><input className={inputCls} inputMode="decimal" value={lat} onChange={(e) => setLat(e.target.value)} placeholder={t('comercial.comun.ej', { valor: '-12.0900' })} /></Campo>
+            <Campo label={t('comercial.alta.longitud')}><input className={inputCls} inputMode="decimal" value={lng} onChange={(e) => setLng(e.target.value)} placeholder={t('comercial.comun.ej', { valor: '-77.0400' })} /></Campo>
           </div>
         </Seccion>
 
-        <Seccion titulo="Características del espacio">
+        <Seccion titulo={t('comercial.alta.caracteristicas')}>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Campo label="Ancho (m)"><input className={inputCls} inputMode="decimal" value={ancho} onChange={(e) => setAncho(e.target.value)} placeholder="Ej. 12.9" /></Campo>
-            <Campo label="Alto (m)"><input className={inputCls} inputMode="decimal" value={alto} onChange={(e) => setAlto(e.target.value)} placeholder="Ej. 7.2" /></Campo>
+            <Campo label={t('comercial.comun.ancho')}><input className={inputCls} inputMode="decimal" value={ancho} onChange={(e) => setAncho(e.target.value)} placeholder={t('comercial.comun.ej', { valor: '12.9' })} /></Campo>
+            <Campo label={t('comercial.comun.alto')}><input className={inputCls} inputMode="decimal" value={alto} onChange={(e) => setAlto(e.target.value)} placeholder={t('comercial.comun.ej', { valor: '7.2' })} /></Campo>
           </div>
           {digital && (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Campo label="Resolución (px)"><input className={inputCls} value={resolucionPx} onChange={(e) => setResolucionPx(e.target.value)} placeholder="1920x1080" /></Campo>
-              <Campo label="Tipo de contenido">
+              <Campo label={t('comercial.comun.resolucion-px')}><input className={inputCls} value={resolucionPx} onChange={(e) => setResolucionPx(e.target.value)} placeholder="1920x1080" /></Campo>
+              <Campo label={t('comercial.alta.tipo-contenido')}>
                 <select className={inputCls} value={tipoContenido} onChange={(e) => setTipoContenido(e.target.value as TipoContenido)}>
-                  <option value="VIDEO">Video</option>
-                  <option value="IMAGEN">Imagen</option>
+                  <option value="VIDEO">{t('comercial.comun.video')}</option>
+                  <option value="IMAGEN">{t('comercial.comun.imagen')}</option>
                 </select>
               </Campo>
             </div>
           )}
           <label className="flex items-center gap-2 text-[13px] text-ink">
             <input type="checkbox" checked={iluminado} onChange={(e) => setIluminado(e.target.checked)} className="h-4 w-4 accent-[var(--accent)]" />
-            Cuenta con iluminación
+            {t('comercial.alta.iluminacion')}
           </label>
         </Seccion>
 
-        <Seccion titulo="Comercialización">
-          <Campo label="Tarifa publicada ($)">
-            <CampoCifra className={inputCls} valor={tarifa} onCambio={(crudo) => setTarifa(crudo)} placeholder="Ej. 15000" />
+        <Seccion titulo={t('comercial.comun.comercializacion')}>
+          <Campo label={t('comercial.alta.tarifa', { simbolo: '$' })}>
+            <CampoCifra className={inputCls} valor={tarifa} onCambio={(crudo) => setTarifa(crudo)} placeholder={t('comercial.comun.ej', { valor: '15000' })} />
           </Campo>
-          <Campo label="Regla de comercialización" como="div">
+          <Campo label={t('comercial.alta.regla')} como="div">
             <div className="flex gap-2">
               {(['TRADICIONAL', 'PROGRAMATICO'] as Comercializacion[]).map((c) => (
                 <button
@@ -227,7 +233,7 @@ export function AltaSitioDialog({
                     comercializacion === c ? 'border-accent bg-[#f59e0b1a] text-ink' : 'border-border-strong text-muted hover:bg-surface-2',
                   )}
                 >
-                  {c === 'TRADICIONAL' ? 'Tradicional' : 'Programático'}
+                  {c === 'TRADICIONAL' ? t('comercial.comun.tradicional') : t('comercial.comun.programatico')}
                 </button>
               ))}
             </div>
@@ -235,13 +241,13 @@ export function AltaSitioDialog({
           {digital && (
             <Campo label="CMS">
               <select className={inputCls} value={cms} onChange={(e) => setCms(e.target.value as CMS)}>
-                {CMS_OPC.map((c) => <option key={c.v} value={c.v}>{c.label}</option>)}
+                {CMS_OPC.map((c) => <option key={c.v} value={c.v}>{c.clave ? t(c.label as ClaveTexto) : c.label}</option>)}
               </select>
             </Campo>
           )}
           <label className="flex items-center gap-2 text-[13px] text-ink">
             <input type="checkbox" checked={enNetwork} onChange={(e) => setEnNetwork(e.target.checked)} className="h-4 w-4 accent-[var(--accent)]" />
-            Compartir a la Network (inventario no vendido)
+            {t('comercial.alta.network')}
           </label>
         </Seccion>
       </div>
