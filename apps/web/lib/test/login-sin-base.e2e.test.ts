@@ -107,6 +107,28 @@ describe('login con la base caída (next start real)', () => {
     expect(await r.json()).toEqual({ error: MENSAJE })
   })
 
+  // ADR 0048 · el layout raiz lee de la base la moneda de la instancia y, si no
+  // contesta, FALLA (fail-closed: pintar pesos en una instancia en dolares es
+  // el error que se evita). Lo que se mide aqui es que ese fallo se vea como una
+  // pagina PROPIA en espanol (`app/global-error.tsx`), no la 500 generica de
+  // Next en ingles, y que no ensene nada de la conexion.
+  //
+  // Lo que se puede medir sin navegador: Next 14 NO pinta `global-error` en el
+  // HTML del servidor. Manda un cascaron de error que declara cual es el
+  // componente de error global, y el navegador lo monta al hidratar. Asi que se
+  // comprueba que el cascaron apunta al NUESTRO (el trozo `app/global-error-…`,
+  // que sin el archivo no existe: Next usa el suyo, interno). El texto del
+  // componente lo mide `lib/global-error.test.ts`.
+  it.each(['/login/', '/ruta-que-no-existe/'])('GET %s con la base caida sirve el error global PROPIO', async (ruta) => {
+    // Siguiendo redirecciones: sin sesion, el middleware manda la ruta que no
+    // existe a /login, y es ESA pagina la que ve la persona.
+    const r = await fetch(`${BASE}${ruta}`)
+    const html = await r.text()
+    expect(html).toMatch(/static\/chunks\/app\/global-error-[\w-]+\.js/)
+    expect(html).toContain('globalErrorComponent')
+    expect(html).not.toMatch(/ECONNREFUSED|127\.0\.0\.1|spaces_app|spaces_sin_base/)
+  })
+
   it('y lo que no toca la base sigue igual: /api/auth/metodos da 200', async () => {
     const r = await fetch(`${BASE}/api/auth/metodos/`)
     expect(r.status).toBe(200)

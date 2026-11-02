@@ -23,14 +23,27 @@ ven exactamente igual que antes.
   como pesos. El documento de la propuesta que se le da al cliente, los avisos y
   la bitácora usan la moneda de la instancia. Un contrato en dólares dice
   «DÓLARES … USD» en la cantidad con letra, no «PESOS … M.N.».
+- **Los contratos ya firmados no cambian.** Si un contrato en dólares se firmó
+  antes de este cambio (cuando su letra todavía decía «PESOS»), sus firmas
+  siguen apareciendo como válidas: el sistema lo revisa con la regla con la que
+  se firmó. Si alguien cambia un dato de ese contrato, se sigue avisando.
+- **Si la base de datos no responde**, la aplicación muestra una página propia
+  en español («El sistema no está disponible en este momento», con un botón
+  para reintentar) en lugar de una pantalla de error en inglés. No muestra los
+  importes con una moneda adivinada.
+- **El registro abierto no elige la moneda.** Solo quien da de alta la
+  instancia la elige; las organizaciones que se creen después usan la misma.
 - **Administración → Identidad** muestra la moneda de la instancia (antes decía
   «Peso mexicano» escrito a mano) y avisa de que no se puede cambiar.
 - **Cambios de contrato** ya no deja escribir otra moneda: el campo se muestra y
   no se edita. Un contrato va siempre en la moneda de la instancia.
 - **Captación** dice «Presupuesto estimado (USD)» en una instancia en dólares.
 - **Quien da de alta una instancia** elige la moneda con `--moneda MXN` o
-  `--moneda USD` en el último paso (`--bootstrap`). Si no la pone, pesos. Ver
+  `--moneda USD` en el último paso (`--bootstrap`). Si no la pone, pesos. Si la
+  pone en otro paso, el guion se para y lo avisa. Ver
   `docs/runbook-alta-de-owner.md` §6.
+- En las pantallas en inglés el símbolo sigue siendo el de siempre; mostrar
+  «MX$» en inglés se hará en otra tarea.
 
 Detalle técnico: ADR 0048 y `vault/03-Frontend/idiomas-es-en.md` §7.
 
