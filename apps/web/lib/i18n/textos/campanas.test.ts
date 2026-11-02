@@ -10,6 +10,7 @@ import {
   IMPRESION_LABEL,
 } from '@/components/demo/StatusBadge'
 import { ETAPA_LABEL } from '@/lib/data/derive'
+import type { TipoCampana } from '@/lib/data/types'
 import { ETIQUETA_ESTADO_REMOTO } from '@/lib/doohmain-estado'
 import { AVISO_PANTALLA_DOOHMAIN } from '@/lib/doohmain-aviso'
 import {
@@ -21,6 +22,7 @@ import {
   CLAVE_OT,
   CLAVE_IMPRESION,
   CLAVE_ESTADO_REMOTO,
+  CLAVE_TIPO_CAMPANA,
 } from '@/components/demo/campanas/etiquetas'
 
 // ============================================================================
@@ -55,6 +57,8 @@ describe('diccionario de campanas · el ingles no esta en espanol', () => {
     'campanas.ficha.pipeline', // «Pipeline», el nombre del modulo
     'campanas.ficha.no', // «No»
     'campanas.ficha.snapshot', // termino ya en ingles en la pantalla espanola
+    'campanas.tipo.ooh', // siglas del medio, iguales en los dos
+    'campanas.tipo.dooh',
   ])
 
   it('ninguna entrada inglesa es igual a la espanola, salvo las declaradas', () => {
@@ -101,6 +105,10 @@ describe('diccionario de campanas · el espanol reproduce EXACTAMENTE su modulo'
       for (const k of Object.keys(fuente)) expect(es(claves[k])).toBe(fuente[k])
     })
   }
+
+  it('el tipo de campana en espanol es el valor crudo que se pintaba', () => {
+    for (const tipo of ['OOH', 'DOOH', 'HIBRIDA'] as TipoCampana[]) expect(es(CLAVE_TIPO_CAMPANA[tipo])).toBe(tipo)
+  })
 
   it('AVISO_PANTALLA_DOOHMAIN', () => {
     expect(es('campanas.validacion.aviso-pantalla')).toBe(AVISO_PANTALLA_DOOHMAIN)

@@ -594,7 +594,7 @@ Finanzas: la página (listas para facturar, cobranza agrupada por factura,
 facturas), generar factura con parcialidades, registrar pago, pagos y
 comprobantes, el estado de cuenta, el resumen del periodo y el comprobante.
 
-**Mecanismo, igual que el piloto:** `lib/i18n/textos/campanas.ts` (393 claves) y
+**Mecanismo, igual que el piloto:** `lib/i18n/textos/campanas.ts` (396 claves) y
 `textos/finanzas.ts` (175), esparcidos en `diccionario.ts`, cada uno con su
 instantánea (`textos/*.test.ts`). Las etiquetas de estado cuya verdad está en
 un módulo compartido que el lote NO toca (`CAMPANA_LABEL`, `ETAPA_LABEL`,
@@ -614,12 +614,25 @@ contra el HTML inglés de todas las pantallas.
 
 **Términos nuevos** (tabla completa en `docs/i18n/revision-campanas-finanzas.md`):
 candado de facturación → *billing lock* · lista para facturar → *ready to
-invoice* · OC → *PO* · validación de publicación → *publication review* ·
-evidencia → **evidence** (física; lo digital sigue *proof of play*) · cuotas /
-parcialidades → *installments* · abono → *partial payment* · saldo → *balance* ·
-folio fiscal → *Tax UUID* · razón social → *legal name* / *legal entity* ·
-selector de periodo → *This month / Last month / This quarter / Last quarter /
-This year / Custom range* (glosario del lote de compartidos).
+invoice* · OC → *PO* · enviada al dominio → *submitted for publishing* (el
+«dominio» es el CMS de destino, no siempre DOOHmain) · validación de publicación
+→ *publication review* · evidencia → **evidence** (física; lo digital sigue
+*proof of play*) · testigos = fotografías comprobatorias → *proof photos* (en
+el código son lo mismo) · cuotas / parcialidades → *installments* · abono →
+*partial payment* · liquidar → *record full payment* · saldo → *balance* · folio
+de factura → *Invoice no.* (*Internal ref.* solo para propuestas y campañas) ·
+folio fiscal → *CFDI UUID* · comprobante de la factura → *payment receipt*;
+el archivo adjunto de un pago → *proof of payment* · plazo de cobranza →
+*payment terms* · hilo conductor → *demo storyline* · etapa reservada →
+*Booked* (como Comercial) · HIBRIDA → *Hybrid* · razón social → *legal name* /
+*legal entity* · selector de periodo → *This month / Last month / This quarter
+/ Last quarter / This year / Custom range* (glosario del lote de compartidos).
+
+**Segunda vuelta (validador ÁMBAR, `docs/i18n/validacion-campanas-finanzas.md`):**
+los 6 hallazgos medios y los 12 bajos aplicados. El mutante M7 (el aviso de
+liquidar con la clave del abono) sobrevivía: ahora lo mata
+`textos/finanzas.test.ts`, que lee del fuente QUÉ clave usa cada aviso que no
+se rinde. El español se volvió a medir: 54 de 54 estados idénticos.
 
 **Sigue en español dentro de estas pantallas (otro lote o el servidor):**
 `resumenReserva` y `etiquetaFrecuencia` (`lib/periodos.ts`), `textoHorario` y

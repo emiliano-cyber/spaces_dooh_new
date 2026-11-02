@@ -1,8 +1,8 @@
 # Tabla de revisión · lote de inglés «campañas y finanzas»
 
-Generada el 2026-11-02 a partir de `apps/web/lib/i18n/textos/campanas.ts` (393
+Generada el 2026-11-02 a partir de `apps/web/lib/i18n/textos/campanas.ts` (396
 claves) y `apps/web/lib/i18n/textos/finanzas.ts` (175 claves) y de los usos en el
-código (búsqueda literal de la clave). **568 claves.** Rama
+código (búsqueda literal de la clave). **571 claves.** Regenerada en la segunda vuelta (correcciones del validador, `docs/i18n/validacion-campanas-finanzas.md`, y decisiones del orquestador). Rama
 `feat/ingles-campanas-finanzas`, sobre `integra/ingles` (27047bfe).
 
 - **español** es la copia literal de lo que decía el componente antes del lote.
@@ -31,26 +31,31 @@ código (búsqueda literal de la clave). **568 claves.** Rama
 |---|---|---|
 | candado de facturación | billing lock | «Candado» suelto en la franja de resumen: «Lock» |
 | lista para facturar | ready to invoice | |
-| OC / orden de compra | PO / purchase order | «Folio ODC» → «PO Internal ref.» |
-| enviada al dominio | sent to the domain | |
+| OC / orden de compra | PO / purchase order | «Folio ODC» → «Internal PO ref.» |
+| enviada al dominio | **submitted for publishing** | el «dominio» es el CMS de destino (DOOHmain u otro, p. ej. Broadsign): no siempre es DOOHmain |
 | validación de publicación | publication review | «Validar» → «Review» |
 | evidencia(s) fotográfica(s) | photo evidence | **elegido «evidence»** para lo físico; lo digital sigue «proof of play» |
-| testigos (fotos) / fotografías comprobatorias | proof photos | |
+| testigos (fotos) / fotografías comprobatorias | proof photos | en el código son lo mismo: `testigos` cuenta las evidencias de las OT y `derive.ts:92` dice «fotos comprobatorias = testigos de la OT de montaje» |
 | reproducciones | plays | como «salidas/pases» del glosario |
 | reporte de cumplimiento / entregado | delivery report / delivered | |
 | rentabilidad / margen | profitability / margin | |
 | horario de transmisión | broadcast schedule | «Se transmite en» → «Airs in» |
-| cuota / parcialidades | installment(s) | «Cobrar en parcialidades» → «Bill in installments» |
+| cuota / parcialidades | installment(s) | «Cobrar en parcialidades» → «Bill in installments»; bimestral → «every two months» |
 | abono | partial payment (botón) · payment (columna) | |
-| liquidar total | pay in full | |
+| liquidar total | **record full payment** (botón) · «Paid in full» (aviso) | quien lo pulsa registra el cobro, no paga |
 | saldo / cargo | balance / charge | |
 | al corriente · por vencer · vencida | current · due soon · overdue | |
 | emitida · anulada | issued · voided | |
-| plazo de cobranza | collection term | |
+| plazo de cobranza | **payment terms** | |
 | razón social | legal name (del cliente) · legal entity (las mías, como el menú) | |
-| folio fiscal | Tax UUID | es el UUID del CFDI; «folio» a secas sigue «Internal ref.» |
+| folio de una factura | **Invoice no.** | «Internal ref.» queda solo para el folio interno de propuestas y campañas |
+| folio fiscal | **CFDI UUID** | |
+| comprobante (de la factura) | **payment receipt** | el documento imprimible; «La recibe» → «Billed to» |
+| comprobante (de un pago, el archivo adjunto) | **proof of payment** | |
 | régimen fiscal · CP fiscal · uso CFDI · RFC | tax regime · tax ZIP code · CFDI use · RFC (tax ID) | |
-| hilo conductor | common thread | |
+| hilo conductor | **demo storyline** | es la insignia fija de la campaña del guion de la demostración (`camp-telco`, «Telco Andina») |
+| reservada (etapa) | **Booked** | alineado con el lote de comercial (book / booking) |
+| tipo de campaña HIBRIDA | Hybrid | el español sigue siendo el valor crudo «HIBRIDA» |
 | selector de periodo | This month · Last month · This quarter · Last quarter · This year · Custom range | glosario del lote de compartidos |
 
 | clave | archivo:línea donde se usa | español | inglés |
@@ -72,60 +77,63 @@ código (búsqueda literal de la clave). **568 claves.** Rama
 | `campanas.comun.leer-archivo` | `components/demo/campanas/ExtenderCampanaDialog.tsx:78` | No se pudo leer el archivo | Could not read the file |
 | `campanas.comun.rango-horas` | `components/demo/campanas/ProgramacionDoohmain.tsx:136` | {inicio} a {fin} | {inicio} to {fin} |
 | `campanas.comun.error` | `components/demo/campanas/ValidacionPanel.tsx:493` | Error | Error |
-| `campanas.estado.draft` | `components/demo/campanas/etiquetas.ts:27` | Borrador | Draft |
-| `campanas.estado.cotizacion` | `components/demo/campanas/etiquetas.ts:28` | Cotización | Quote |
-| `campanas.estado.confirmada` | `components/demo/campanas/etiquetas.ts:29` | Confirmada | Confirmed |
-| `campanas.estado.activa` | `components/demo/campanas/etiquetas.ts:30` | Activa | Active |
-| `campanas.estado.completada` | `components/demo/campanas/etiquetas.ts:31` | Completada | Completed |
-| `campanas.estado.cancelada` | `components/demo/campanas/etiquetas.ts:32` | Cancelada | Cancelled |
-| `campanas.estado.lista-facturar` | `components/demo/campanas/etiquetas.ts:33` | Lista para facturar | Ready to invoice |
-| `campanas.etapa.reservada` | `components/demo/campanas/etiquetas.ts:37` | Reservada | Reserved |
-| `campanas.etapa.confirmada` | `components/demo/campanas/etiquetas.ts:38` | Confirmada | Confirmed |
-| `campanas.etapa.oc-recibida` | `components/demo/campanas/etiquetas.ts:39` | OC recibida | PO received |
-| `campanas.etapa.creativo-recibido` | `components/demo/campanas/etiquetas.ts:40` | Creativo recibido | Creative received |
-| `campanas.etapa.creativo-validado` | `components/demo/campanas/etiquetas.ts:41` | Creativo validado | Creative approved |
-| `campanas.etapa.enviada-dominio` | `components/demo/campanas/etiquetas.ts:42` | Enviada al dominio | Sent to the domain |
-| `campanas.etapa.publicada` | `components/demo/campanas/etiquetas.ts:43` | Publicada | Published |
-| `campanas.etapa.en-imprenta` | `components/demo/campanas/etiquetas.ts:44` | En imprenta | At the printer |
-| `campanas.etapa.en-produccion` | `components/demo/campanas/etiquetas.ts:45` | En producción | In production |
-| `campanas.etapa.instalada` | `components/demo/campanas/etiquetas.ts:46` | Instalada / al aire | Installed / on air |
-| `campanas.etapa.reporte-generado` | `components/demo/campanas/etiquetas.ts:47` | Reporte generado | Report generated |
-| `campanas.etapa.lista-facturar` | `components/demo/campanas/etiquetas.ts:48` | Lista para facturar | Ready to invoice |
-| `campanas.etapa.facturada` | `components/demo/campanas/etiquetas.ts:49` | Facturada | Invoiced |
-| `campanas.validacion-pub.pendiente` | `components/demo/campanas/etiquetas.ts:53` | Pendiente de validar | Pending review |
-| `campanas.validacion-pub.aprobada` | `components/demo/campanas/etiquetas.ts:54` | Publicación aprobada | Publication approved |
-| `campanas.validacion-pub.rechazada` | `components/demo/campanas/etiquetas.ts:55` | Publicación rechazada | Publication rejected |
-| `campanas.creatividad.pendiente` | `components/demo/campanas/etiquetas.ts:59` | Pendiente | Pending |
-| `campanas.creatividad.validada` | `components/demo/campanas/etiquetas.ts:60` | Validada | Approved |
-| `campanas.creatividad.rechazada` | `components/demo/campanas/etiquetas.ts:61` | Rechazada | Rejected |
-| `campanas.reserva.tentativa` | `components/demo/campanas/etiquetas.ts:65` | Tentativa | Tentative |
-| `campanas.reserva.confirmada` | `components/demo/campanas/etiquetas.ts:66` | Confirmada | Confirmed |
-| `campanas.reserva.cancelada` | `components/demo/campanas/etiquetas.ts:67` | Cancelada | Cancelled |
-| `campanas.ot.pendiente` | `components/demo/campanas/etiquetas.ts:71` | Pendiente | Pending |
-| `campanas.ot.asignada` | `components/demo/campanas/etiquetas.ts:72` | Asignada | Assigned |
-| `campanas.ot.en-proceso` | `components/demo/campanas/etiquetas.ts:73` | En proceso | In progress |
-| `campanas.ot.bloqueada` | `components/demo/campanas/etiquetas.ts:74` | Bloqueada | Blocked |
-| `campanas.ot.en-revision` | `components/demo/campanas/etiquetas.ts:75` | En revisión | In review |
-| `campanas.ot.completada` | `components/demo/campanas/etiquetas.ts:76` | Completada | Completed |
-| `campanas.ot.rechazada` | `components/demo/campanas/etiquetas.ts:77` | Rechazada | Rejected |
-| `campanas.ot.cancelada` | `components/demo/campanas/etiquetas.ts:78` | Cancelada | Cancelled |
-| `campanas.impresion.arte-recibido` | `components/demo/campanas/etiquetas.ts:82` | Arte recibido | Artwork received |
-| `campanas.impresion.validado` | `components/demo/campanas/etiquetas.ts:83` | Validado | Approved |
-| `campanas.impresion.en-produccion` | `components/demo/campanas/etiquetas.ts:84` | En producción | In production |
-| `campanas.impresion.impreso` | `components/demo/campanas/etiquetas.ts:85` | Impreso | Printed |
-| `campanas.impresion.listo-montaje` | `components/demo/campanas/etiquetas.ts:86` | Listo para montaje | Ready to install |
-| `campanas.remoto.active` | `components/demo/campanas/etiquetas.ts:90` | Al aire | On air |
-| `campanas.remoto.pause` | `components/demo/campanas/etiquetas.ts:91` | En pausa | Paused |
-| `campanas.remoto.finished` | `components/demo/campanas/etiquetas.ts:92` | Finalizada | Finished |
-| `campanas.remoto.pending` | `components/demo/campanas/etiquetas.ts:93` | Pendiente | Pending |
-| `campanas.remoto.vencida` | `components/demo/campanas/etiquetas.ts:94` | Terminó | Ended |
-| `campanas.remoto.programada` | `components/demo/campanas/etiquetas.ts:95` | Programada | Scheduled |
-| `campanas.remoto.eliminada` | `components/demo/campanas/etiquetas.ts:96` | Eliminada en DOOHmain | Deleted in DOOHmain |
-| `campanas.remoto.no-encontrada` | `components/demo/campanas/etiquetas.ts:97` | No está en DOOHmain | Not in DOOHmain |
+| `campanas.estado.draft` | `components/demo/campanas/etiquetas.ts:35` | Borrador | Draft |
+| `campanas.estado.cotizacion` | `components/demo/campanas/etiquetas.ts:36` | Cotización | Quote |
+| `campanas.estado.confirmada` | `components/demo/campanas/etiquetas.ts:37` | Confirmada | Confirmed |
+| `campanas.estado.activa` | `components/demo/campanas/etiquetas.ts:38` | Activa | Active |
+| `campanas.estado.completada` | `components/demo/campanas/etiquetas.ts:39` | Completada | Completed |
+| `campanas.estado.cancelada` | `components/demo/campanas/etiquetas.ts:40` | Cancelada | Cancelled |
+| `campanas.estado.lista-facturar` | `components/demo/campanas/etiquetas.ts:41` | Lista para facturar | Ready to invoice |
+| `campanas.etapa.reservada` | `components/demo/campanas/etiquetas.ts:45` | Reservada | Booked |
+| `campanas.etapa.confirmada` | `components/demo/campanas/etiquetas.ts:46` | Confirmada | Confirmed |
+| `campanas.etapa.oc-recibida` | `components/demo/campanas/etiquetas.ts:47` | OC recibida | PO received |
+| `campanas.etapa.creativo-recibido` | `components/demo/campanas/etiquetas.ts:48` | Creativo recibido | Creative received |
+| `campanas.etapa.creativo-validado` | `components/demo/campanas/etiquetas.ts:49` | Creativo validado | Creative approved |
+| `campanas.etapa.enviada-dominio` | `components/demo/campanas/etiquetas.ts:50` | Enviada al dominio | Submitted for publishing |
+| `campanas.etapa.publicada` | `components/demo/campanas/etiquetas.ts:51` | Publicada | Published |
+| `campanas.etapa.en-imprenta` | `components/demo/campanas/etiquetas.ts:52` | En imprenta | At the printer |
+| `campanas.etapa.en-produccion` | `components/demo/campanas/etiquetas.ts:53` | En producción | In production |
+| `campanas.etapa.instalada` | `components/demo/campanas/etiquetas.ts:54` | Instalada / al aire | Installed / on air |
+| `campanas.etapa.reporte-generado` | `components/demo/campanas/etiquetas.ts:55` | Reporte generado | Report generated |
+| `campanas.etapa.lista-facturar` | `components/demo/campanas/etiquetas.ts:56` | Lista para facturar | Ready to invoice |
+| `campanas.etapa.facturada` | `components/demo/campanas/etiquetas.ts:57` | Facturada | Invoiced |
+| `campanas.validacion-pub.pendiente` | `components/demo/campanas/etiquetas.ts:61` | Pendiente de validar | Pending review |
+| `campanas.validacion-pub.aprobada` | `components/demo/campanas/etiquetas.ts:62` | Publicación aprobada | Publication approved |
+| `campanas.validacion-pub.rechazada` | `components/demo/campanas/etiquetas.ts:63` | Publicación rechazada | Publication rejected |
+| `campanas.creatividad.pendiente` | `components/demo/campanas/etiquetas.ts:67` | Pendiente | Pending |
+| `campanas.creatividad.validada` | `components/demo/campanas/etiquetas.ts:68` | Validada | Approved |
+| `campanas.creatividad.rechazada` | `components/demo/campanas/etiquetas.ts:69` | Rechazada | Rejected |
+| `campanas.reserva.tentativa` | `components/demo/campanas/etiquetas.ts:73` | Tentativa | Tentative |
+| `campanas.reserva.confirmada` | `components/demo/campanas/etiquetas.ts:74` | Confirmada | Confirmed |
+| `campanas.reserva.cancelada` | `components/demo/campanas/etiquetas.ts:75` | Cancelada | Cancelled |
+| `campanas.ot.pendiente` | `components/demo/campanas/etiquetas.ts:79` | Pendiente | Pending |
+| `campanas.ot.asignada` | `components/demo/campanas/etiquetas.ts:80` | Asignada | Assigned |
+| `campanas.ot.en-proceso` | `components/demo/campanas/etiquetas.ts:81` | En proceso | In progress |
+| `campanas.ot.bloqueada` | `components/demo/campanas/etiquetas.ts:82` | Bloqueada | Blocked |
+| `campanas.ot.en-revision` | `components/demo/campanas/etiquetas.ts:83` | En revisión | In review |
+| `campanas.ot.completada` | `components/demo/campanas/etiquetas.ts:84` | Completada | Completed |
+| `campanas.ot.rechazada` | `components/demo/campanas/etiquetas.ts:85` | Rechazada | Rejected |
+| `campanas.ot.cancelada` | `components/demo/campanas/etiquetas.ts:86` | Cancelada | Cancelled |
+| `campanas.impresion.arte-recibido` | `components/demo/campanas/etiquetas.ts:90` | Arte recibido | Artwork received |
+| `campanas.impresion.validado` | `components/demo/campanas/etiquetas.ts:91` | Validado | Approved |
+| `campanas.impresion.en-produccion` | `components/demo/campanas/etiquetas.ts:92` | En producción | In production |
+| `campanas.impresion.impreso` | `components/demo/campanas/etiquetas.ts:93` | Impreso | Printed |
+| `campanas.impresion.listo-montaje` | `components/demo/campanas/etiquetas.ts:94` | Listo para montaje | Ready to install |
+| `campanas.remoto.active` | `components/demo/campanas/etiquetas.ts:98` | Al aire | On air |
+| `campanas.remoto.pause` | `components/demo/campanas/etiquetas.ts:99` | En pausa | Paused |
+| `campanas.remoto.finished` | `components/demo/campanas/etiquetas.ts:100` | Finalizada | Finished |
+| `campanas.remoto.pending` | `components/demo/campanas/etiquetas.ts:101` | Pendiente | Pending |
+| `campanas.remoto.vencida` | `components/demo/campanas/etiquetas.ts:102` | Terminó | Ended |
+| `campanas.remoto.programada` | `components/demo/campanas/etiquetas.ts:103` | Programada | Scheduled |
+| `campanas.remoto.eliminada` | `components/demo/campanas/etiquetas.ts:104` | Eliminada en DOOHmain | Deleted in DOOHmain |
+| `campanas.remoto.no-encontrada` | `components/demo/campanas/etiquetas.ts:105` | No está en DOOHmain | Not in DOOHmain |
+| `campanas.tipo.ooh` | `components/demo/campanas/etiquetas.ts:29` | OOH | OOH |
+| `campanas.tipo.dooh` | `components/demo/campanas/etiquetas.ts:30` | DOOH | DOOH |
+| `campanas.tipo.hibrida` | `components/demo/campanas/etiquetas.ts:31` | HIBRIDA | Hybrid |
 | `campanas.lista.titulo` | `app/(app)/(shell)/campanas/page.tsx:109`<br>`app/(app)/(shell)/campanas/[id]/page.tsx:70`<br>`app/(app)/(shell)/campanas/[id]/page.tsx:73` | Campañas | Campaigns |
-| `campanas.lista.subtitulo` | `app/(app)/(shell)/campanas/page.tsx:111` | Cada campaña viaja sola por la empresa · pipeline en vivo | Each campaign moves through the company on its own · live pipeline |
+| `campanas.lista.subtitulo` | `app/(app)/(shell)/campanas/page.tsx:111` | Cada campaña viaja sola por la empresa · pipeline en vivo | Every campaign’s path through the company · live pipeline |
 | `campanas.lista.por-validar.titulo` | `app/(app)/(shell)/campanas/page.tsx:127` | Por validar ({n}) | To review ({n}) |
-| `campanas.lista.por-validar.sub` | `app/(app)/(shell)/campanas/page.tsx:129` | Enviadas al dominio, esperan aprobación antes de publicar | Sent to the domain, awaiting approval before publishing |
+| `campanas.lista.por-validar.sub` | `app/(app)/(shell)/campanas/page.tsx:129` | Enviadas al dominio, esperan aprobación antes de publicar | Submitted for publishing, awaiting approval before going live |
 | `campanas.lista.validar` | `app/(app)/(shell)/campanas/page.tsx:149` | Validar | Review |
 | `campanas.lista.buscar` | `app/(app)/(shell)/campanas/page.tsx:180` | Buscar por nombre, folio o cliente… | Search by name, Internal ref. or client… |
 | `campanas.lista.todos-estados` | `app/(app)/(shell)/campanas/page.tsx:189` | Todos los estados | All statuses |
@@ -145,7 +153,7 @@ código (búsqueda literal de la clave). **568 claves.** Rama
 | `campanas.lista.vacia.ir` | `app/(app)/(shell)/campanas/page.tsx:270` | Ir a Propuestas | Go to Proposals |
 | `campanas.lista.ocultas.titulo` | `app/(app)/(shell)/campanas/page.tsx:281` | Ocultaste todas las campañas de esta vista | You hid every campaign in this view |
 | `campanas.lista.ocultas.texto` | `app/(app)/(shell)/campanas/page.tsx:282` | Ocultar solo las quita de tu lista en este navegador: siguen activas para todos. | Hiding only removes them from your list in this browser: they stay active for everyone. |
-| `campanas.lista.hilo` | `app/(app)/(shell)/campanas/page.tsx:306` | hilo conductor | common thread |
+| `campanas.lista.hilo` | `app/(app)/(shell)/campanas/page.tsx:306` | hilo conductor | demo storyline |
 | `campanas.lista.vencida.title` | `app/(app)/(shell)/campanas/page.tsx:348` | El periodo contratado ya terminó. | The booked period has already ended. |
 | `campanas.lista.antes.title` | `app/(app)/(shell)/campanas/page.tsx:349` | Se marcó como completada antes de que terminara su periodo. | It was marked as completed before its period ended. |
 | `campanas.lista.vencida` | `app/(app)/(shell)/campanas/page.tsx:352` | · periodo terminado | · period ended |
@@ -159,7 +167,7 @@ código (búsqueda literal de la clave). **568 claves.** Rama
 | `campanas.kpi.activas.sub.uno` | `components/demo/campanas/IndicadoresCampanas.tsx:55` | {n} confirmada por arrancar | {n} confirmed, yet to start |
 | `campanas.kpi.activas.sub.otros` | `components/demo/campanas/IndicadoresCampanas.tsx:55` | {n} confirmadas por arrancar | {n} confirmed, yet to start |
 | `campanas.kpi.por-validar` | `components/demo/campanas/IndicadoresCampanas.tsx:61` | Por validar publicación | Awaiting publication review |
-| `campanas.kpi.por-validar.sub` | `components/demo/campanas/IndicadoresCampanas.tsx:63` | enviadas al dominio | sent to the domain |
+| `campanas.kpi.por-validar.sub` | `components/demo/campanas/IndicadoresCampanas.tsx:63` | enviadas al dominio | submitted for publishing |
 | `campanas.kpi.listas` | `components/demo/campanas/IndicadoresCampanas.tsx:67` | Listas para facturar | Ready to invoice |
 | `campanas.kpi.listas.sub` | `components/demo/campanas/IndicadoresCampanas.tsx:69` | candado abierto | billing lock open |
 | `campanas.kpi.contratado` | `components/demo/campanas/IndicadoresCampanas.tsx:75` | Contratado vigente | Active booked value |
@@ -208,7 +216,7 @@ código (búsqueda literal de la clave). **568 claves.** Rama
 | `campanas.ficha.testigos` | `app/(app)/(shell)/campanas/[id]/page.tsx:363` | Testigos (fotos) | Proof photos |
 | `campanas.ficha.dias-contratados` | `app/(app)/(shell)/campanas/[id]/page.tsx:364` | Días contratados | Days booked |
 | `campanas.ficha.orden-compra` | `app/(app)/(shell)/campanas/[id]/page.tsx:371` | Orden de compra | Purchase order |
-| `campanas.ficha.folio-odc` | `app/(app)/(shell)/campanas/[id]/page.tsx:373` | Folio ODC | PO Internal ref. |
+| `campanas.ficha.folio-odc` | `app/(app)/(shell)/campanas/[id]/page.tsx:373` | Folio ODC | Internal PO ref. |
 | `campanas.ficha.numero-oc` | `app/(app)/(shell)/campanas/[id]/page.tsx:374` | Número de OC (cliente) | PO number (client) |
 | `campanas.ficha.documento` | `app/(app)/(shell)/campanas/[id]/page.tsx:377` | Documento | Document |
 | `campanas.ficha.sitios` | `app/(app)/(shell)/campanas/[id]/page.tsx:383` | Sitios de la campaña | Campaign sites |
@@ -223,8 +231,8 @@ código (búsqueda literal de la clave). **568 claves.** Rama
 | `campanas.resumen.entregado` | `components/demo/campanas/ResumenCampana.tsx:65` | Entregado | Delivered |
 | `campanas.resumen.candado` | `components/demo/campanas/ResumenCampana.tsx:70` | Candado | Lock |
 | `campanas.resumen.ot` | `components/demo/campanas/ResumenCampana.tsx:76` | OT | Work orders |
-| `campanas.resumen.ot.uno` | `components/demo/campanas/ResumenCampana.tsx:80` | {n} abierta de {total} | {n} open of {total} |
-| `campanas.resumen.ot.otros` | `components/demo/campanas/ResumenCampana.tsx:80` | {n} abiertas de {total} | {n} open of {total} |
+| `campanas.resumen.ot.uno` | `components/demo/campanas/ResumenCampana.tsx:80` | {n} abierta de {total} | {n} of {total} open |
+| `campanas.resumen.ot.otros` | `components/demo/campanas/ResumenCampana.tsx:80` | {n} abiertas de {total} | {n} of {total} open |
 | `campanas.resumen.evidencias` | `components/demo/campanas/ResumenCampana.tsx:86` | Evidencias | Evidence |
 | `campanas.menu.mostrar` | `components/demo/campanas/CampanasNav.tsx:68` | Mostrar el menú de campañas | Show the campaign menu |
 | `campanas.menu.ocultar` | `components/demo/campanas/CampanasNav.tsx:68` | Ocultar el menú de campañas | Hide the campaign menu |
@@ -320,7 +328,7 @@ código (búsqueda literal de la clave). **568 claves.** Rama
 | `campanas.horario.todo-el-dia` | `components/demo/campanas/FranjaProgramadaCampana.tsx:89` | Todo el día | All day |
 | `campanas.horario.titulo` | `components/demo/campanas/FranjaProgramadaCampana.tsx:96` | Horario de transmisión | Broadcast schedule |
 | `campanas.horario.vendida` | `components/demo/campanas/FranjaProgramadaCampana.tsx:106` | Vendida (no cambia aquí) | Sold (doesn’t change here) |
-| `campanas.horario.se-transmite` | `components/demo/campanas/FranjaProgramadaCampana.tsx:114` | Se transmite en | Airs in |
+| `campanas.horario.se-transmite` | `components/demo/campanas/FranjaProgramadaCampana.tsx:114` | Se transmite en | Airs during |
 | `campanas.horario.dada-de-baja` | `components/demo/campanas/FranjaProgramadaCampana.tsx:117` | ␣(dada de baja) | ␣(deactivated) |
 | `campanas.horario.sin-franja` | `components/demo/campanas/FranjaProgramadaCampana.tsx:118`<br>`components/demo/campanas/FranjaProgramadaCampana.tsx:135` | Sin franja programada | No daypart scheduled |
 | `campanas.horario.sin-permiso` | `components/demo/campanas/FranjaProgramadaCampana.tsx:125` | Solo el gerente de ventas, el director comercial y la dirección pueden cambiar el horario de transmisión. | Only the sales manager, the sales director and management can change the broadcast schedule. |
@@ -333,7 +341,7 @@ código (búsqueda literal de la clave). **568 claves.** Rama
 | `campanas.playlogs.intro` | `components/demo/campanas/PlaylogsPanel.tsx:92` | Cuántas veces se reprodujo el creativo en las pantallas digitales, según lo que reporta DOOHmain. Es la prueba que respalda lo que se le cobra al anunciante, así que se muestra exactamente lo que responde el proveedor. | How many times the creative played on the digital screens, as reported by DOOHmain. It is the proof behind what the advertiser is charged, so it shows exactly what the provider returns. |
 | `campanas.playlogs.no-publicada` | `components/demo/campanas/PlaylogsPanel.tsx:97` | Esta campaña no está publicada en DOOHmain, así que no hay reproducciones que consultar. Las pantallas fijas se comprueban con las evidencias fotográficas. | This campaign is not published in DOOHmain, so there are no plays to query. Static screens are verified with photo evidence. |
 | `campanas.playlogs.tab.campana` | `components/demo/campanas/PlaylogsPanel.tsx:105` | De esta campaña | This campaign |
-| `campanas.playlogs.tab.pantallas` | `components/demo/campanas/PlaylogsPanel.tsx:106` | Historial de sus pantallas | History of its screens |
+| `campanas.playlogs.tab.pantallas` | `components/demo/campanas/PlaylogsPanel.tsx:106` | Historial de sus pantallas | Screen history |
 | `campanas.playlogs.pantallas.texto` | `components/demo/campanas/PlaylogsPanel.tsx:122` | Todo lo que DOOHmain registró en las pantallas donde se publicó esta campaña, día por día. Incluye otras campañas de esas pantallas: sirve para ver que estuvieron reproduciendo, pero {noCuenta} ni abre el candado de facturación. | Everything DOOHmain recorded on the screens where this campaign was published, day by day. It includes other campaigns on those screens: it shows that they were playing, but {noCuenta} and does not open the billing lock. |
 | `campanas.playlogs.pantallas.no-cuenta` | `components/demo/campanas/PlaylogsPanel.tsx:123` | no cuenta como prueba de esta campaña | does not count as proof for this campaign |
 | `campanas.playlogs.desde` | `components/demo/campanas/PlaylogsPanel.tsx:130` | Desde | From |
@@ -388,9 +396,9 @@ código (búsqueda literal de la clave). **568 claves.** Rama
 | `campanas.doohmain.sin-creativo` | `components/demo/campanas/ProgramacionDoohmain.tsx:294` | Sin creativo aprobado asignado: al publicar, esta pantalla no recibe nada. | No approved creative assigned: when publishing, this screen receives nothing. |
 | `campanas.doohmain.pie` | `components/demo/campanas/ProgramacionDoohmain.tsx:303` | Del {inicio} al {fin}. Si la campaña tiene franja, DOOHmain reparte las del día dentro de ese horario. Un anuncio ya publicado no cambia de horario al volver a publicar. | From {inicio} to {fin}. If the campaign has a daypart, DOOHmain spreads the day’s plays within that schedule. An ad that is already published keeps its schedule when published again. |
 | `campanas.validacion.aviso-pantalla` | `components/demo/campanas/ValidacionPanel.tsx:41` | Recuerda no estar en la pantalla dentro del sitio de DOOHmain para permitir el proceso: ciérrala allí antes de enviar o publicar. | Remember not to have the screen open on the DOOHmain site so the process can run: close it there before sending or publishing. |
-| `campanas.validacion.no-enviar` | `components/demo/campanas/ValidacionPanel.tsx:74` | No se pudo enviar al dominio | Could not send to the domain |
+| `campanas.validacion.no-enviar` | `components/demo/campanas/ValidacionPanel.tsx:74` | No se pudo enviar al dominio | Could not submit for publishing |
 | `campanas.validacion.motivo-prompt` | `components/demo/campanas/ValidacionPanel.tsx:82` | Motivo del rechazo (qué corregir en los anuncios): | Reason for rejection (what to fix in the ads): |
-| `campanas.validacion.no-validar` | `components/demo/campanas/ValidacionPanel.tsx:93` | No se pudo validar la publicación | Could not review the publication |
+| `campanas.validacion.no-validar` | `components/demo/campanas/ValidacionPanel.tsx:93` | No se pudo validar la publicación | Could not save the publication review |
 | `campanas.validacion.toast.ninguna` | `components/demo/campanas/ValidacionPanel.tsx:103` | Ninguna pantalla de esta campaña va a DOOHmain | None of this campaign’s screens go to DOOHmain |
 | `campanas.validacion.toast.publicada.uno` | `components/demo/campanas/ValidacionPanel.tsx:106` | Publicada en DOOHmain: {n} pantalla(s) | Published in DOOHmain: {n} screen |
 | `campanas.validacion.toast.publicada.otros` | `components/demo/campanas/ValidacionPanel.tsx:106` | Publicada en DOOHmain: {n} pantalla(s) | Published in DOOHmain: {n} screens |
@@ -402,7 +410,7 @@ código (búsqueda literal de la clave). **568 claves.** Rama
 | `campanas.validacion.bajado.toast` | `components/demo/campanas/ValidacionPanel.tsx:140` | “{nombre}” se bajó | “{nombre}” was removed |
 | `campanas.validacion.no-bajar` | `components/demo/campanas/ValidacionPanel.tsx:144` | No se pudo bajar el creativo | Could not remove the creative |
 | `campanas.validacion.titulo` | `components/demo/campanas/ValidacionPanel.tsx:162` | Validación de publicación | Publication review |
-| `campanas.validacion.enviada` | `components/demo/campanas/ValidacionPanel.tsx:171` | Enviada al dominio / CMS | Sent to the domain / CMS |
+| `campanas.validacion.enviada` | `components/demo/campanas/ValidacionPanel.tsx:171` | Enviada al dominio / CMS | Submitted for publishing (CMS) |
 | `campanas.validacion.anuncios` | `components/demo/campanas/ValidacionPanel.tsx:175` | Anuncios cargados ({validadas}/{total} validados) | Ads loaded ({validadas}/{total} approved) |
 | `campanas.validacion.informacion` | `components/demo/campanas/ValidacionPanel.tsx:184` | Información de los anuncios | Ad details |
 | `campanas.validacion.retirado.title` | `components/demo/campanas/ValidacionPanel.tsx:201` | Retirado; su arte sigue en DOOHmain (quítalo en su panel) | Withdrawn; its artwork is still in DOOHmain (remove it in its panel) |
@@ -412,15 +420,15 @@ código (búsqueda literal de la clave). **568 claves.** Rama
 | `campanas.validacion.sello.rechazada` | `components/demo/campanas/ValidacionPanel.tsx:238` | Rechazada por {por} · {fecha} | Rejected by {por} · {fecha} |
 | `campanas.validacion.motivo` | `components/demo/campanas/ValidacionPanel.tsx:243` | Motivo: {motivo} | Reason: {motivo} |
 | `campanas.validacion.enviando` | `components/demo/campanas/ValidacionPanel.tsx:278` | Enviando… | Sending… |
-| `campanas.validacion.corregir` | `components/demo/campanas/ValidacionPanel.tsx:280` | Corregir y reenviar al dominio | Fix and resend to the domain |
-| `campanas.validacion.enviar` | `components/demo/campanas/ValidacionPanel.tsx:281` | Enviar al dominio | Send to the domain |
+| `campanas.validacion.corregir` | `components/demo/campanas/ValidacionPanel.tsx:280` | Corregir y reenviar al dominio | Fix and resubmit for publishing |
+| `campanas.validacion.enviar` | `components/demo/campanas/ValidacionPanel.tsx:281` | Enviar al dominio | Submit for publishing |
 | `campanas.validacion.aprobar` | `components/demo/campanas/ValidacionPanel.tsx:292` | Aprobar publicación | Approve publication |
 | `campanas.validacion.rechazar` | `components/demo/campanas/ValidacionPanel.tsx:302` | Rechazar | Reject |
 | `campanas.validacion.publicando` | `components/demo/campanas/ValidacionPanel.tsx:317` | Publicando… | Publishing… |
 | `campanas.validacion.republicar` | `components/demo/campanas/ValidacionPanel.tsx:317`<br>`components/demo/campanas/ValidacionPanel.tsx:381` | Volver a publicar en DOOHmain | Publish again in DOOHmain |
-| `campanas.validacion.pendiente.sin` | `components/demo/campanas/ValidacionPanel.tsx:336` | Aprobar los creativos no los sube a DOOHmain. Envía la campaña al dominio y apruébala aquí: el arte se publica en DOOHmain al aprobar la publicación. | Approving the creatives does not upload them to DOOHmain. Send the campaign to the domain and approve it here: the artwork is published in DOOHmain when the publication is approved. |
-| `campanas.validacion.pendiente.uno` | `components/demo/campanas/ValidacionPanel.tsx:338` | Aprobar los creativos no los sube a DOOHmain. Tienes {n} aprobado listo. Envía la campaña al dominio y apruébala aquí: el arte se publica en DOOHmain al aprobar la publicación. | Approving the creatives does not upload them to DOOHmain. You have {n} approved and ready. Send the campaign to the domain and approve it here: the artwork is published in DOOHmain when the publication is approved. |
-| `campanas.validacion.pendiente.otros` | `components/demo/campanas/ValidacionPanel.tsx:339` | Aprobar los creativos no los sube a DOOHmain. Tienes {n} aprobados listos. Envía la campaña al dominio y apruébala aquí: el arte se publica en DOOHmain al aprobar la publicación. | Approving the creatives does not upload them to DOOHmain. You have {n} approved and ready. Send the campaign to the domain and approve it here: the artwork is published in DOOHmain when the publication is approved. |
+| `campanas.validacion.pendiente.sin` | `components/demo/campanas/ValidacionPanel.tsx:336` | Aprobar los creativos no los sube a DOOHmain. Envía la campaña al dominio y apruébala aquí: el arte se publica en DOOHmain al aprobar la publicación. | Approving the creatives does not upload them to DOOHmain. Submit the campaign for publishing and approve it here: the artwork is published in DOOHmain when the publication is approved. |
+| `campanas.validacion.pendiente.uno` | `components/demo/campanas/ValidacionPanel.tsx:338` | Aprobar los creativos no los sube a DOOHmain. Tienes {n} aprobado listo. Envía la campaña al dominio y apruébala aquí: el arte se publica en DOOHmain al aprobar la publicación. | Approving the creatives does not upload them to DOOHmain. You have {n} approved creative ready. Submit the campaign for publishing and approve it here: the artwork is published in DOOHmain when the publication is approved. |
+| `campanas.validacion.pendiente.otros` | `components/demo/campanas/ValidacionPanel.tsx:339` | Aprobar los creativos no los sube a DOOHmain. Tienes {n} aprobados listos. Envía la campaña al dominio y apruébala aquí: el arte se publica en DOOHmain al aprobar la publicación. | Approving the creatives does not upload them to DOOHmain. You have {n} approved creatives ready. Submit the campaign for publishing and approve it here: the artwork is published in DOOHmain when the publication is approved. |
 | `campanas.validacion.bajar.titulo` | `components/demo/campanas/ValidacionPanel.tsx:349` | Bajar creativo | Remove creative |
 | `campanas.validacion.bajar.si` | `components/demo/campanas/ValidacionPanel.tsx:350` | Sí, bajar | Yes, remove |
 | `campanas.validacion.bajar.texto` | `components/demo/campanas/ValidacionPanel.tsx:354` | ¿Seguro que quieres bajar {nombre}? Si estaba publicado, su campaña se finaliza, pero {arte}(su API no lo permite): quedará marcado como “pendiente en DOOHmain”. | Are you sure you want to remove {nombre}? If it was published, its campaign is ended, but {arte} (its API does not allow it): it will be marked as “pending in DOOHmain”. |
@@ -450,8 +458,8 @@ código (búsqueda literal de la clave). **568 claves.** Rama
 | `campanas.validacion.resultado.sin-pantalla` | `components/demo/campanas/ValidacionPanel.tsx:484` | sin pantalla en DOOHmain | no screen in DOOHmain |
 | `finanzas.comun.ver-menos` | `app/(app)/(shell)/finanzas/page.tsx:435` | Ver menos | Show less |
 | `finanzas.comun.ver-todas` | `app/(app)/(shell)/finanzas/page.tsx:435` | Ver todas ({n}) | Show all ({n}) |
-| `finanzas.comun.folio` | `app/(app)/(shell)/finanzas/page.tsx:268`<br>`app/(app)/(shell)/finanzas/page.tsx:379`<br>`components/demo/finanzas/ComprobanteDialog.tsx:87`<br>`components/demo/finanzas/EstadoCuenta.tsx:151` | Folio | Internal ref. |
-| `finanzas.comun.folio-fiscal` | `app/(app)/(shell)/finanzas/page.tsx:272`<br>`app/(app)/(shell)/finanzas/page.tsx:380`<br>`components/demo/finanzas/ComprobanteDialog.tsx:89` | Folio fiscal | Tax UUID |
+| `finanzas.comun.folio` | `app/(app)/(shell)/finanzas/page.tsx:268`<br>`app/(app)/(shell)/finanzas/page.tsx:379`<br>`components/demo/finanzas/ComprobanteDialog.tsx:87`<br>`components/demo/finanzas/EstadoCuenta.tsx:151` | Folio | Invoice no. |
+| `finanzas.comun.folio-fiscal` | `app/(app)/(shell)/finanzas/page.tsx:272`<br>`app/(app)/(shell)/finanzas/page.tsx:380`<br>`components/demo/finanzas/ComprobanteDialog.tsx:89` | Folio fiscal | CFDI UUID |
 | `finanzas.comun.cliente` | `app/(app)/(shell)/finanzas/page.tsx:273`<br>`app/(app)/(shell)/finanzas/page.tsx:382`<br>`components/demo/finanzas/EstadoCuenta.tsx:111`<br>`components/demo/finanzas/EstadoCuenta.tsx:152` | Cliente | Client |
 | `finanzas.comun.monto` | `app/(app)/(shell)/finanzas/page.tsx:274`<br>`app/(app)/(shell)/finanzas/page.tsx:385` | Monto | Amount |
 | `finanzas.comun.campana` | `app/(app)/(shell)/finanzas/page.tsx:383`<br>`components/demo/finanzas/ComprobanteDialog.tsx:91` | Campaña | Campaign |
@@ -477,7 +485,7 @@ código (búsqueda literal de la clave). **568 claves.** Rama
 | `finanzas.periodo.rango` | `components/demo/finanzas/etiquetas.ts:29` | Rango | Custom range |
 | `finanzas.parcialidad.quincenal` | `components/demo/finanzas/etiquetas.ts:34` | {n} cuotas quincenales | {n} semi-monthly installments |
 | `finanzas.parcialidad.mensual` | `components/demo/finanzas/etiquetas.ts:35` | {n} cuotas mensuales | {n} monthly installments |
-| `finanzas.parcialidad.bimestral` | `components/demo/finanzas/etiquetas.ts:36` | {n} cuotas bimestrales | {n} bimonthly installments |
+| `finanzas.parcialidad.bimestral` | `components/demo/finanzas/etiquetas.ts:36` | {n} cuotas bimestrales | {n} installments every two months |
 | `finanzas.parcialidad.trimestral` | `components/demo/finanzas/etiquetas.ts:37` | {n} cuotas trimestrales | {n} quarterly installments |
 | `finanzas.parcialidad.semestral` | `components/demo/finanzas/etiquetas.ts:38` | {n} cuotas semestrales | {n} semiannual installments |
 | `finanzas.parcialidad.anual` | `components/demo/finanzas/etiquetas.ts:39` | {n} cuotas anuales | {n} annual installments |
@@ -499,14 +507,14 @@ código (búsqueda literal de la clave). **568 claves.** Rama
 | `finanzas.cobranza.chip.por-vencer` | `app/(app)/(shell)/finanzas/page.tsx:250` | Por vencer | Due soon |
 | `finanzas.cobranza.chip.al-corriente` | `app/(app)/(shell)/finanzas/page.tsx:251` | Al corriente | Current |
 | `finanzas.cobranza.vacia` | `app/(app)/(shell)/finanzas/page.tsx:262` | Sin facturas en cobranza. | No invoices in collections. |
-| `finanzas.cobranza.col.plazo` | `app/(app)/(shell)/finanzas/page.tsx:275` | Plazo | Term |
+| `finanzas.cobranza.col.plazo` | `app/(app)/(shell)/finanzas/page.tsx:275` | Plazo | Payment terms |
 | `finanzas.cobranza.col.vence` | `app/(app)/(shell)/finanzas/page.tsx:276` | Vence | Due |
 | `finanzas.cobranza.col.estatus` | `app/(app)/(shell)/finanzas/page.tsx:277`<br>`app/(app)/(shell)/finanzas/page.tsx:386` | Estatus | Status |
 | `finanzas.cobranza.emite` | `app/(app)/(shell)/finanzas/page.tsx:310`<br>`app/(app)/(shell)/finanzas/page.tsx:1044` | Emite: {entidad} | Issued by: {entidad} |
 | `finanzas.cobranza.cuotas-pagadas` | `app/(app)/(shell)/finanzas/page.tsx:323` | {pagadas} de {total} cuotas pagadas | {pagadas} of {total} installments paid |
 | `finanzas.cobranza.cuota` | `app/(app)/(shell)/finanzas/page.tsx:1032` | Cuota {n} de {total} | Installment {n} of {total} |
 | `finanzas.cobranza.saldo` | `app/(app)/(shell)/finanzas/page.tsx:1065` | saldo {monto} | balance {monto} |
-| `finanzas.cobranza.pagos` | `app/(app)/(shell)/finanzas/page.tsx:1093` | Pagos y comprobantes | Payments and receipts |
+| `finanzas.cobranza.pagos` | `app/(app)/(shell)/finanzas/page.tsx:1093` | Pagos y comprobantes | Payments and proof of payment |
 | `finanzas.cobranza.registrar-pago` | `app/(app)/(shell)/finanzas/page.tsx:1106` | Registrar pago | Record payment |
 | `finanzas.cobranza.recordar` | `app/(app)/(shell)/finanzas/page.tsx:1114` | Recordar | Remind |
 | `finanzas.cobranza.ultimo` | `app/(app)/(shell)/finanzas/page.tsx:1117` | Último: {fecha} | Last: {fecha} |
@@ -519,7 +527,7 @@ código (búsqueda literal de la clave). **568 claves.** Rama
 | `finanzas.facturas.vacio.titulo` | `app/(app)/(shell)/finanzas/page.tsx:369` | Todavía no hay facturas | No invoices yet |
 | `finanzas.facturas.vacio.texto` | `app/(app)/(shell)/finanzas/page.tsx:370` | Aquí aparecerán en cuanto emitas la primera desde «Listas para facturar». | They will show up here as soon as you issue the first one from “Ready to invoice”. |
 | `finanzas.facturas.col.emitida` | `app/(app)/(shell)/finanzas/page.tsx:381` | Emitida | Issued |
-| `finanzas.facturas.ver` | `app/(app)/(shell)/finanzas/page.tsx:395` | Ver el comprobante | View the receipt |
+| `finanzas.facturas.ver` | `app/(app)/(shell)/finanzas/page.tsx:395` | Ver el comprobante | View the payment receipt |
 | `finanzas.facturas.estatus.pagada` | `app/(app)/(shell)/finanzas/page.tsx:417` | Pagada | Paid |
 | `finanzas.facturas.estatus.anulada` | `app/(app)/(shell)/finanzas/page.tsx:419` | Anulada | Voided |
 | `finanzas.facturas.estatus.emitida` | `app/(app)/(shell)/finanzas/page.tsx:420` | Emitida | Issued |
@@ -531,9 +539,9 @@ código (búsqueda literal de la clave). **568 claves.** Rama
 | `finanzas.factura.generando` | `app/(app)/(shell)/finanzas/page.tsx:668` | Generando… | Generating… |
 | `finanzas.factura.emitir` | `app/(app)/(shell)/finanzas/page.tsx:669` | Emitir factura | Issue invoice |
 | `finanzas.factura.emisora` | `app/(app)/(shell)/finanzas/page.tsx:709` | Con cuál de tus razones sociales se emite | Which of your legal entities issues it |
-| `finanzas.factura.la-que-vende` | `app/(app)/(shell)/finanzas/page.tsx:721` | ␣— la que vende | ␣— the one that sells |
+| `finanzas.factura.la-que-vende` | `app/(app)/(shell)/finanzas/page.tsx:721` | ␣— la que vende | ␣— selling entity |
 | `finanzas.factura.sin-entidades` | `app/(app)/(shell)/finanzas/page.tsx:727` | Todavía no tienes razones sociales capturadas. Se dan de alta en Razones sociales; la factura se emite igual y queda «sin asignar». | You have no legal entities entered yet. They are added under Legal entities; the invoice is issued anyway and stays “unassigned”. |
-| `finanzas.factura.sin-elegir` | `app/(app)/(shell)/finanzas/page.tsx:731` | Sin elegir, el comprobante queda «sin asignar». No se inventa: hay más de una razón social que vende, o ninguna la tiene marcada. | If none is chosen, the receipt stays “unassigned”. It is not guessed: more than one legal entity sells, or none is marked as selling. |
+| `finanzas.factura.sin-elegir` | `app/(app)/(shell)/finanzas/page.tsx:731` | Sin elegir, el comprobante queda «sin asignar». No se inventa: hay más de una razón social que vende, o ninguna la tiene marcada. | If none is chosen, the payment receipt stays “unassigned”. It is not guessed: more than one legal entity sells, or none is marked as selling. |
 | `finanzas.factura.dura.uno` | `app/(app)/(shell)/finanzas/page.tsx:743` | Esta campaña dura {n} mes: no admite un reparto en cuotas iguales, así que se cobra en una sola exhibición. | This campaign lasts {n} month: it can’t be split into equal installments, so it is billed in a single payment. |
 | `finanzas.factura.dura.otros` | `app/(app)/(shell)/finanzas/page.tsx:743` | Esta campaña dura {n} meses: no admite un reparto en cuotas iguales, así que se cobra en una sola exhibición. | This campaign lasts {n} months: it can’t be split into equal installments, so it is billed in a single payment. |
 | `finanzas.factura.en-cuotas` | `app/(app)/(shell)/finanzas/page.tsx:757` | Cobrar en parcialidades | Bill in installments |
@@ -542,36 +550,36 @@ código (búsqueda literal de la clave). **568 claves.** Rama
 | `finanzas.factura.cuotas` | `app/(app)/(shell)/finanzas/page.tsx:765` | Cuotas | Installments |
 | `finanzas.factura.primer-venc` | `app/(app)/(shell)/finanzas/page.tsx:779` | Primer vencimiento | First due date |
 | `finanzas.factura.reparto` | `app/(app)/(shell)/finanzas/page.tsx:790` | {n} cuotas de {monto} (la última ajusta el redondeo) · suman {total} | {n} installments of {monto} (the last one absorbs the rounding) · total {total} |
-| `finanzas.factura.plazo` | `app/(app)/(shell)/finanzas/page.tsx:809` | Plazo de cobranza | Collection term |
-| `finanzas.factura.plazo.informativo` | `app/(app)/(shell)/finanzas/page.tsx:809` | Plazo de cobranza (informativo con parcialidades) | Collection term (for reference with installments) |
-| `finanzas.pago.liquidada` | `app/(app)/(shell)/finanzas/page.tsx:882` | Cobranza liquidada | Collection paid in full |
+| `finanzas.factura.plazo` | `app/(app)/(shell)/finanzas/page.tsx:809` | Plazo de cobranza | Payment terms |
+| `finanzas.factura.plazo.informativo` | `app/(app)/(shell)/finanzas/page.tsx:809` | Plazo de cobranza (informativo con parcialidades) | Payment terms (for reference only when billing in installments) |
+| `finanzas.pago.liquidada` | `app/(app)/(shell)/finanzas/page.tsx:882` | Cobranza liquidada | Paid in full |
 | `finanzas.pago.abono-registrado` | `app/(app)/(shell)/finanzas/page.tsx:882` | Abono registrado | Partial payment recorded |
 | `finanzas.pago.no-registrar` | `app/(app)/(shell)/finanzas/page.tsx:884` | No se pudo registrar el pago | Could not record the payment |
 | `finanzas.pago.titulo` | `app/(app)/(shell)/finanzas/page.tsx:892` | Registrar pago | Record payment |
 | `finanzas.pago.subtitulo` | `app/(app)/(shell)/finanzas/page.tsx:893` | {folio} · saldo {saldo} | {folio} · balance {saldo} |
 | `finanzas.pago.confirmar` | `app/(app)/(shell)/finanzas/page.tsx:912` | Confirmar y registrar | Confirm and record |
-| `finanzas.pago.liquidar` | `app/(app)/(shell)/finanzas/page.tsx:924` | Liquidar total | Pay in full |
+| `finanzas.pago.liquidar` | `app/(app)/(shell)/finanzas/page.tsx:924` | Liquidar total | Record full payment |
 | `finanzas.pago.guardando` | `app/(app)/(shell)/finanzas/page.tsx:931` | Guardando… | Saving… |
 | `finanzas.pago.registrar-abono` | `app/(app)/(shell)/finanzas/page.tsx:931` | Registrar abono | Record partial payment |
 | `finanzas.pago.monto` | `app/(app)/(shell)/finanzas/page.tsx:942` | Monto del abono | Payment amount |
 | `finanzas.pago.fecha` | `app/(app)/(shell)/finanzas/page.tsx:955` | Fecha en que se recibió | Date received |
 | `finanzas.pago.excede` | `app/(app)/(shell)/finanzas/page.tsx:975` | ⚠ El monto excede el saldo ({saldo}). Solo se aplicará el saldo pendiente. | ⚠ The amount exceeds the balance ({saldo}). Only the outstanding balance will be applied. |
-| `finanzas.pago.al-cubrir` | `app/(app)/(shell)/finanzas/page.tsx:979` | Al cubrir el saldo total, la cobranza pasa a {pagada} y se detienen los recordatorios. | When the full balance is covered, the collection becomes {pagada} and reminders stop. |
+| `finanzas.pago.al-cubrir` | `app/(app)/(shell)/finanzas/page.tsx:979` | Al cubrir el saldo total, la cobranza pasa a {pagada} y se detienen los recordatorios. | When the full balance is covered, this item is marked {pagada} and reminders stop. |
 | `finanzas.pago.pagada` | `app/(app)/(shell)/finanzas/page.tsx:979` | Pagada | Paid |
 | `finanzas.comprobante-pago.tipo` | `components/demo/finanzas/ComprobantePago.tsx:39` | Debe ser un PDF o una imagen (PNG, JPG o WebP) | It must be a PDF or an image (PNG, JPG or WebP) |
 | `finanzas.comprobante-pago.supera` | `components/demo/finanzas/ComprobantePago.tsx:40` | El archivo supera {mb} MB | The file exceeds {mb} MB |
 | `finanzas.comprobante-pago.no-leer` | `components/demo/finanzas/ComprobantePago.tsx:43` | No se pudo leer el archivo | Could not read the file |
-| `finanzas.comprobante-pago.titulo` | `components/demo/finanzas/ComprobantePago.tsx:65` | Comprobante de pago | Payment receipt |
+| `finanzas.comprobante-pago.titulo` | `components/demo/finanzas/ComprobantePago.tsx:65` | Comprobante de pago | Proof of payment |
 | `finanzas.comprobante-pago.quitar` | `components/demo/finanzas/ComprobantePago.tsx:74` | Quitar | Remove |
 | `finanzas.comprobante-pago.adjuntar` | `components/demo/finanzas/ComprobantePago.tsx:87` | Adjuntar PDF o imagen | Attach PDF or image |
 | `finanzas.pagos.no-cargar` | `components/demo/finanzas/ComprobantePago.tsx:127` | No se pudieron cargar los pagos | Could not load the payments |
-| `finanzas.pagos.no-guardar` | `components/demo/finanzas/ComprobantePago.tsx:142` | No se pudo guardar el comprobante | Could not save the receipt |
+| `finanzas.pagos.no-guardar` | `components/demo/finanzas/ComprobantePago.tsx:142` | No se pudo guardar el comprobante | Could not save the proof of payment |
 | `finanzas.pagos.titulo` | `components/demo/finanzas/ComprobantePago.tsx:152` | Pagos recibidos | Payments received |
 | `finanzas.pagos.vacio` | `components/demo/finanzas/ComprobantePago.tsx:164` | Esta cobranza aún no tiene pagos registrados. | This collection has no payments recorded yet. |
 | `finanzas.pagos.sin-fecha` | `components/demo/finanzas/ComprobantePago.tsx:174` | Sin fecha | No date |
 | `finanzas.pagos.historico` | `components/demo/finanzas/ComprobantePago.tsx:175` | ␣· cobrado antes del 08/10 (aproximado) | ␣· collected before Oct 8 (approximate) |
-| `finanzas.pagos.comprobante` | `components/demo/finanzas/ComprobantePago.tsx:187` | Comprobante | Receipt |
-| `finanzas.pagos.sin-comprobante` | `components/demo/finanzas/ComprobantePago.tsx:190` | Sin comprobante | No receipt |
+| `finanzas.pagos.comprobante` | `components/demo/finanzas/ComprobantePago.tsx:187` | Comprobante | Proof of payment |
+| `finanzas.pagos.sin-comprobante` | `components/demo/finanzas/ComprobantePago.tsx:190` | Sin comprobante | No proof of payment |
 | `finanzas.pagos.subiendo` | `components/demo/finanzas/ComprobantePago.tsx:201` | Subiendo… | Uploading… |
 | `finanzas.pagos.reemplazar` | `components/demo/finanzas/ComprobantePago.tsx:203` | Reemplazar | Replace |
 | `finanzas.pagos.adjuntar` | `components/demo/finanzas/ComprobantePago.tsx:204` | Adjuntar | Attach |
@@ -599,7 +607,7 @@ código (búsqueda literal de la clave). **568 claves.** Rama
 | `finanzas.periodo.aria` | `components/demo/finanzas/TableroPeriodo.tsx:110` | Periodo | Period |
 | `finanzas.periodo.elige` | `components/demo/finanzas/TableroPeriodo.tsx:139` | Elige la fecha de inicio y la de fin. | Choose the start and end dates. |
 | `finanzas.periodo.por-cobrar` | `components/demo/finanzas/TableroPeriodo.tsx:159` | Por cobrar al cierre | Receivable at close |
-| `finanzas.periodo.al-inicio` | `components/demo/finanzas/TableroPeriodo.tsx:161` | al inicio: {monto} | at start: {monto} |
+| `finanzas.periodo.al-inicio` | `components/demo/finanzas/TableroPeriodo.tsx:161` | al inicio: {monto} | opening: {monto} |
 | `finanzas.periodo.vencido` | `components/demo/finanzas/TableroPeriodo.tsx:166` | Vencido | Overdue |
 | `finanzas.periodo.vencido.sub.uno` | `components/demo/finanzas/TableroPeriodo.tsx:168` | {n} factura al {fecha} | {n} invoice as of {fecha} |
 | `finanzas.periodo.vencido.sub.otros` | `components/demo/finanzas/TableroPeriodo.tsx:168` | {n} facturas al {fecha} | {n} invoices as of {fecha} |
@@ -612,14 +620,14 @@ código (búsqueda literal de la clave). **568 claves.** Rama
 | `finanzas.periodo.renta.pagada` | `components/demo/finanzas/TableroPeriodo.tsx:197` | Pagada {monto} | Paid {monto} |
 | `finanzas.periodo.renta.por-pagar` | `components/demo/finanzas/TableroPeriodo.tsx:202` | Por pagar del periodo {monto} | Payable this period {monto} |
 | `finanzas.periodo.sin-fecha` | `components/demo/finanzas/TableroPeriodo.tsx:215` | {monto} de lo cobrado son pagos de antes de que el sistema guardara la fecha de cada pago: se fecharon con la fecha de su factura, así que su mes es aproximado. | {monto} of what was collected comes from payments made before the system stored each payment’s date: they were dated with their invoice’s date, so their month is approximate. |
-| `finanzas.comprobante.titulo` | `components/demo/finanzas/ComprobanteDialog.tsx:50` | Comprobante {folio} | Receipt {folio} |
+| `finanzas.comprobante.titulo` | `components/demo/finanzas/ComprobanteDialog.tsx:50` | Comprobante {folio} | Payment receipt {folio} |
 | `finanzas.comprobante.cerrar` | `components/demo/finanzas/ComprobanteDialog.tsx:56` | Cerrar | Close |
 | `finanzas.comprobante.imprimir` | `components/demo/finanzas/ComprobanteDialog.tsx:59` | Imprimir | Print |
-| `finanzas.comprobante.la-recibe` | `components/demo/finanzas/ComprobanteDialog.tsx:78` | La recibe | Received by |
-| `finanzas.comprobante.uso` | `components/demo/finanzas/ComprobanteDialog.tsx:82` | Uso: {uso} | Use: {uso} |
+| `finanzas.comprobante.la-recibe` | `components/demo/finanzas/ComprobanteDialog.tsx:78` | La recibe | Billed to |
+| `finanzas.comprobante.uso` | `components/demo/finanzas/ComprobanteDialog.tsx:82` | Uso: {uso} | CFDI use: {uso} |
 | `finanzas.comprobante.serie` | `components/demo/finanzas/ComprobanteDialog.tsx:88` | Serie | Series |
 | `finanzas.comprobante.fecha` | `components/demo/finanzas/ComprobanteDialog.tsx:90` | Fecha de emisión | Issue date |
 | `finanzas.comprobante.subtotal` | `components/demo/finanzas/ComprobanteDialog.tsx:95` | Subtotal | Subtotal |
 | `finanzas.comprobante.iva` | `components/demo/finanzas/ComprobanteDialog.tsx:96` | IVA | VAT |
-| `finanzas.comprobante.no-cuadra` | `components/demo/finanzas/ComprobanteDialog.tsx:110` | Los importes de este comprobante no cuadran: el subtotal más el IVA no da el total. Revísalo antes de entregarlo. | The amounts on this receipt do not add up: the subtotal plus VAT does not equal the total. Check it before handing it over. |
+| `finanzas.comprobante.no-cuadra` | `components/demo/finanzas/ComprobanteDialog.tsx:110` | Los importes de este comprobante no cuadran: el subtotal más el IVA no da el total. Revísalo antes de entregarlo. | The amounts on this payment receipt do not add up: the subtotal plus VAT does not equal the total. Check it before handing it over. |
 | `finanzas.comprobante.aviso` | `components/demo/finanzas/ComprobanteDialog.tsx:120` | Comprobante de pago. NO es un CFDI timbrado ante el SAT: el timbrado se emite por separado y este documento no sustituye al comprobante fiscal. | Payment receipt. It is NOT a CFDI stamped with the SAT: the stamped invoice is issued separately and this document does not replace it. |

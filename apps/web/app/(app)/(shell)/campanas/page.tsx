@@ -36,7 +36,7 @@ import {
   formatFecha,
 } from '@/lib/data/client'
 import { IndicadoresCampanas } from '@/components/demo/campanas/IndicadoresCampanas'
-import { CLAVE_ESTADO_CAMPANA, CLAVE_ETAPA } from '@/components/demo/campanas/etiquetas'
+import { CLAVE_ESTADO_CAMPANA, CLAVE_ETAPA, CLAVE_TIPO_CAMPANA } from '@/components/demo/campanas/etiquetas'
 import { useIdioma } from '@/lib/i18n/contexto'
 
 // Filas de la cola «Por validar» a la vista antes de «Ver todas (N)».
@@ -142,7 +142,7 @@ export default function CampanasPage() {
                   <div className="min-w-0">
                     <div className="truncate text-[13px] font-medium text-ink">{c.nombre}</div>
                     <div className="demo-num text-[11px] text-muted">
-                      {[c.folio, c.tipoCampana].filter(Boolean).join(' · ')}
+                      {[c.folio, c.tipoCampana ? t(CLAVE_TIPO_CAMPANA[c.tipoCampana]) : null].filter(Boolean).join(' · ')}
                     </div>
                   </div>
                   <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border px-2 py-0.5 text-[11px] font-medium text-info">

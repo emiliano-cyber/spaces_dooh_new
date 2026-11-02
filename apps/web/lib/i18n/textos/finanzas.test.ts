@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest'
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
 import { ES_FINANZAS, EN_FINANZAS } from './finanzas'
 import { DICCIONARIOS, traducir, type ClaveTexto } from '../diccionario'
 import { COBRANZA_LABEL } from '@/components/demo/StatusBadge'
@@ -87,5 +89,36 @@ describe('diccionario de finanzas · el espanol reproduce EXACTAMENTE su modulo'
 
   it('AVISO_NO_ES_CFDI', () => {
     expect(es('finanzas.comprobante.aviso')).toBe(AVISO_NO_ES_CFDI)
+  })
+})
+
+// ============================================================================
+//  QUE CLAVE usa cada mensaje que NO se rinde.
+// ----------------------------------------------------------------------------
+//  La instantanea protege el VALOR de cada clave y las pantallas protegen las
+//  que se pintan, pero nada protegia QUE clave elige un toast. El validador lo
+//  demostro (docs/i18n/validacion-campanas-finanzas.md §5, M7): cambiar el
+//  aviso de «liquidar» por el del abono sobrevivia a la suite entera, y al
+//  liquidar el usuario habria leido «Abono registrado». Se lee el fuente, como
+//  `candado-dinero-y-renovar.test.ts`: lo que se fija es la RAMA del ternario.
+// ============================================================================
+describe('finanzas · los avisos que no se rinden usan su clave', () => {
+  const fuente = readFileSync(path.join(__dirname, '../../../app/(app)/(shell)/finanzas/page.tsx'), 'utf8')
+
+  it('liquidar avisa «Cobranza liquidada» y abonar «Abono registrado», no al reves', () => {
+    expect(fuente).toMatch(
+      /alLograr: \(\) => onDone\(total \|\| num >= cob\.saldo \? t\('finanzas\.pago\.liquidada'\) : t\('finanzas\.pago\.abono-registrado'\)\)/,
+    )
+  })
+
+  it('el recordatorio avisa enviado al lograrlo y el error al fallar', () => {
+    expect(fuente).toMatch(/await recordarCobranzaApi\(id\)\s*\n\s*notify\(t\('finanzas\.recordatorio\.enviado'\)\)/)
+    expect(fuente).toMatch(/e\.message : t\('finanzas\.recordatorio\.no-enviar'\)/)
+  })
+
+  it('emitir avisa «Factura generada» y su fallo «No se pudo generar la factura»', () => {
+    expect(fuente).toMatch(/onDone=\{\(\) => notify\(t\('finanzas\.factura\.generada'\)\)\}/)
+    expect(fuente).toMatch(/mensajeSiFalla: t\('finanzas\.factura\.no-generar'\)/)
+    expect(fuente).toMatch(/mensajeSiFalla: t\('finanzas\.pago\.no-registrar'\)/)
   })
 })

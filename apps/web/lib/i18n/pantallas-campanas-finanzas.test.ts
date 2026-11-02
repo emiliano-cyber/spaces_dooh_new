@@ -312,9 +312,9 @@ const PANTALLAS: Pantalla[] = [
       'Se marcó como completada antes de que terminara su periodo.', 'El periodo contratado ya terminó.',
       'Lista para facturar', 'Minimizar esta campaña', 'Ocultar de mi lista',
       'Ocultar de mi lista (solo en este navegador; la campaña sigue igual para todos)', 'Reservada', 'OC recibida',
-      'Sin presupuesto capturado en la propuesta', 'Ver pipeline',
+      'Sin presupuesto capturado en la propuesta', 'Ver pipeline', 'CA-010 · HIBRIDA',
     ],
-    ingles: ['Campaigns', 'Ready to invoice', 'To review (6)', 'Search by name, Internal ref. or client…', 'View pipeline', 'Jan 1, 2026–Jun 30, 2026'],
+    ingles: ['CA-010 · Hybrid', 'demo storyline', 'Campaigns', 'Ready to invoice', 'To review (6)', 'Search by name, Internal ref. or client…', 'View pipeline', 'Jan 1, 2026–Jun 30, 2026'],
   },
   {
     nombre: 'lista filtrada sin resultados (texto y estado)',
@@ -429,7 +429,7 @@ const PANTALLAS: Pantalla[] = [
       'Enviar al dominio', 'Aprobar los creativos no los sube a DOOHmain.', 'Tienes 2 aprobados listos.',
       'Envía la campaña al dominio y apruébala aquí: el arte se publica en DOOHmain', 'al aprobar la publicación.',
     ],
-    ingles: ['Send to the domain', 'You have 2 approved and ready.'],
+    ingles: ['Submit for publishing', 'You have 2 approved creatives ready.'],
   },
   {
     nombre: 'validacion: sin enviar, un solo aprobado',
@@ -439,7 +439,7 @@ const PANTALLAS: Pantalla[] = [
       return pintar(idioma, createElement(ValidacionPanel, { campanaId: 'c1' }))
     },
     espanol: ['Tienes 1 aprobado listo.'],
-    ingles: ['You have 1 approved and ready.'],
+    ingles: ['You have 1 approved creative ready.'],
   },
   {
     nombre: 'validacion: rechazada',
@@ -450,7 +450,7 @@ const PANTALLAS: Pantalla[] = [
       return pintar(idioma, createElement(ValidacionPanel, { campanaId: 'c1' }))
     },
     espanol: ['Publicación rechazada', 'Rechazada', ' por ', 'Motivo: ', 'Corregir y reenviar al dominio'],
-    ingles: ['Rejected by', 'Reason: Logo borroso', 'Fix and resend to the domain'],
+    ingles: ['Rejected by', 'Reason: Logo borroso', 'Fix and resubmit for publishing'],
   },
   {
     nombre: 'validacion: aprobada, con el resultado de DOOHmain y los tres dialogos',
@@ -814,7 +814,7 @@ const PANTALLAS: Pantalla[] = [
       'Ver el comprobante', 'Anulada', 'Ver todas (11)', 'Estado de cuenta', 'Todos los clientes', 'Mes', 'CSV',
       'Comprobante F-000', 'La recibe', 'Uso: ', 'Serie', 'Fecha de emisión', 'Subtotal', 'Imprimir', 'Cerrar',
     ],
-    ingles: ['Collections', 'Invoices', 'Account statement', 'Receipt F-000', 'Installment 1 of 2', '2 sent', '1 sent', 'Show all (11)'],
+    ingles: ['Collections', 'Invoices', 'Account statement', 'Payment receipt F-000', 'Invoice no.', 'CFDI UUID', 'Payment terms', 'Payments and proof of payment', 'Billed to', 'CFDI use: G03', 'Installment 1 of 2', '2 sent', '1 sent', 'Show all (11)'],
   },
   {
     nombre: 'finanzas vacia',
@@ -859,7 +859,7 @@ const PANTALLAS: Pantalla[] = [
       '(la última ajusta el redondeo) · suman', 'Plazo de cobranza (informativo con parcialidades)', '60 días', '90 días',
       'Emitir factura', 'Cancelar',
     ],
-    ingles: ['Issue invoice', 'Bill in installments', '6 monthly installments', 'Collection term (for reference with installments)'],
+    ingles: ['Issue invoice', 'Bill in installments', '6 monthly installments', 'Payment terms (for reference only when billing in installments)'],
   },
   {
     nombre: 'generar factura de una campana de un mes',
@@ -897,7 +897,7 @@ const PANTALLAS: Pantalla[] = [
       'Adjuntar PDF o imagen', '⚠ El monto excede el saldo (', '). Solo se aplicará el saldo pendiente.',
       'Al cubrir el saldo total, la cobranza pasa a', 'y se detienen los recordatorios.', 'Liquidar total', 'Registrar abono',
     ],
-    ingles: ['Record payment', 'Pay in full', 'Record partial payment'],
+    ingles: ['Record payment', 'Record full payment', 'Record partial payment'],
   },
   {
     nombre: 'pagos recibidos',
@@ -910,7 +910,7 @@ const PANTALLAS: Pantalla[] = [
       return pintar(idioma, createElement(PagosCobranzaModal, { cobranzaId: 'cb1', folio: 'F-000', puedeAdjuntar: true, onClose: () => {} }))
     },
     espanol: ['Pagos recibidos', 'Sin fecha', ' · cobrado antes del 08/10 (aproximado)', 'Comprobante', 'Sin comprobante', 'Reemplazar', 'Adjuntar', 'Cerrar'],
-    ingles: ['Payments received', 'No date', 'No receipt'],
+    ingles: ['Payments received', 'No date', 'No proof of payment'],
   },
   {
     nombre: 'pagos recibidos: cargando y vacio',
@@ -930,7 +930,7 @@ const PANTALLAS: Pantalla[] = [
       return pintar(idioma, createElement(CampoComprobante, { nombre: 'recibo.pdf', onCambio: () => {}, onQuitar: () => {} }))
     },
     espanol: ['Comprobante de pago', 'aria-label="Quitar"'],
-    ingles: ['Payment receipt'],
+    ingles: ['Proof of payment'],
   },
   {
     nombre: 'estado de cuenta con movimientos',
@@ -995,7 +995,7 @@ const PANTALLAS: Pantalla[] = [
     espanol: [
       'Los importes de este comprobante no cuadran: el subtotal más el IVA no da el total.', 'Revísalo antes de entregarlo.',
     ],
-    ingles: ['The amounts on this receipt do not add up'],
+    ingles: ['The amounts on this payment receipt do not add up'],
   },
 ]
 

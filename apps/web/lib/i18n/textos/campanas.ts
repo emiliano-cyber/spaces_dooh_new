@@ -106,6 +106,11 @@ export const ES_CAMPANAS = {
   'campanas.remoto.eliminada': 'Eliminada en DOOHmain',
   'campanas.remoto.no-encontrada': 'No está en DOOHmain',
 
+  // ── Tipo de campana: el espanol es el valor crudo que ya se pintaba (`c.tipoCampana`) ──
+  'campanas.tipo.ooh': 'OOH',
+  'campanas.tipo.dooh': 'DOOH',
+  'campanas.tipo.hibrida': 'HIBRIDA',
+
   // ── Lista de campanas (`campanas/page.tsx`) ──
   'campanas.lista.titulo': 'Campañas',
   'campanas.lista.subtitulo': 'Cada campaña viaja sola por la empresa · pipeline en vivo',
@@ -524,12 +529,12 @@ export const EN_CAMPANAS: Record<ClaveCampanas, string> = {
   'campanas.estado.cancelada': 'Cancelled',
   'campanas.estado.lista-facturar': 'Ready to invoice',
 
-  'campanas.etapa.reservada': 'Reserved',
+  'campanas.etapa.reservada': 'Booked',
   'campanas.etapa.confirmada': 'Confirmed',
   'campanas.etapa.oc-recibida': 'PO received',
   'campanas.etapa.creativo-recibido': 'Creative received',
   'campanas.etapa.creativo-validado': 'Creative approved',
-  'campanas.etapa.enviada-dominio': 'Sent to the domain',
+  'campanas.etapa.enviada-dominio': 'Submitted for publishing',
   'campanas.etapa.publicada': 'Published',
   'campanas.etapa.en-imprenta': 'At the printer',
   'campanas.etapa.en-produccion': 'In production',
@@ -570,10 +575,14 @@ export const EN_CAMPANAS: Record<ClaveCampanas, string> = {
   'campanas.remoto.eliminada': 'Deleted in DOOHmain',
   'campanas.remoto.no-encontrada': 'Not in DOOHmain',
 
+  'campanas.tipo.ooh': 'OOH',
+  'campanas.tipo.dooh': 'DOOH',
+  'campanas.tipo.hibrida': 'Hybrid',
+
   'campanas.lista.titulo': 'Campaigns',
-  'campanas.lista.subtitulo': 'Each campaign moves through the company on its own · live pipeline',
+  'campanas.lista.subtitulo': 'Every campaign’s path through the company · live pipeline',
   'campanas.lista.por-validar.titulo': 'To review ({n})',
-  'campanas.lista.por-validar.sub': 'Sent to the domain, awaiting approval before publishing',
+  'campanas.lista.por-validar.sub': 'Submitted for publishing, awaiting approval before going live',
   'campanas.lista.validar': 'Review',
   'campanas.lista.buscar': 'Search by name, Internal ref. or client…',
   'campanas.lista.todos-estados': 'All statuses',
@@ -595,7 +604,7 @@ export const EN_CAMPANAS: Record<ClaveCampanas, string> = {
   'campanas.lista.ocultas.titulo': 'You hid every campaign in this view',
   'campanas.lista.ocultas.texto':
     'Hiding only removes them from your list in this browser: they stay active for everyone.',
-  'campanas.lista.hilo': 'common thread',
+  'campanas.lista.hilo': 'demo storyline',
   'campanas.lista.vencida.title': 'The booked period has already ended.',
   'campanas.lista.antes.title': 'It was marked as completed before its period ended.',
   'campanas.lista.vencida': '· period ended',
@@ -610,7 +619,7 @@ export const EN_CAMPANAS: Record<ClaveCampanas, string> = {
   'campanas.kpi.activas.sub.uno': '{n} confirmed, yet to start',
   'campanas.kpi.activas.sub.otros': '{n} confirmed, yet to start',
   'campanas.kpi.por-validar': 'Awaiting publication review',
-  'campanas.kpi.por-validar.sub': 'sent to the domain',
+  'campanas.kpi.por-validar.sub': 'submitted for publishing',
   'campanas.kpi.listas': 'Ready to invoice',
   'campanas.kpi.listas.sub': 'billing lock open',
   'campanas.kpi.contratado': 'Active booked value',
@@ -661,7 +670,7 @@ export const EN_CAMPANAS: Record<ClaveCampanas, string> = {
   'campanas.ficha.testigos': 'Proof photos',
   'campanas.ficha.dias-contratados': 'Days booked',
   'campanas.ficha.orden-compra': 'Purchase order',
-  'campanas.ficha.folio-odc': 'PO Internal ref.',
+  'campanas.ficha.folio-odc': 'Internal PO ref.',
   'campanas.ficha.numero-oc': 'PO number (client)',
   'campanas.ficha.documento': 'Document',
   'campanas.ficha.sitios': 'Campaign sites',
@@ -677,8 +686,8 @@ export const EN_CAMPANAS: Record<ClaveCampanas, string> = {
   'campanas.resumen.entregado': 'Delivered',
   'campanas.resumen.candado': 'Lock',
   'campanas.resumen.ot': 'Work orders',
-  'campanas.resumen.ot.uno': '{n} open of {total}',
-  'campanas.resumen.ot.otros': '{n} open of {total}',
+  'campanas.resumen.ot.uno': '{n} of {total} open',
+  'campanas.resumen.ot.otros': '{n} of {total} open',
   'campanas.resumen.evidencias': 'Evidence',
 
   'campanas.menu.mostrar': 'Show the campaign menu',
@@ -787,7 +796,7 @@ export const EN_CAMPANAS: Record<ClaveCampanas, string> = {
   'campanas.horario.todo-el-dia': 'All day',
   'campanas.horario.titulo': 'Broadcast schedule',
   'campanas.horario.vendida': 'Sold (doesn’t change here)',
-  'campanas.horario.se-transmite': 'Airs in',
+  'campanas.horario.se-transmite': 'Airs during',
   'campanas.horario.dada-de-baja': ' (deactivated)',
   'campanas.horario.sin-franja': 'No daypart scheduled',
   'campanas.horario.sin-permiso':
@@ -805,7 +814,7 @@ export const EN_CAMPANAS: Record<ClaveCampanas, string> = {
   'campanas.playlogs.no-publicada':
     'This campaign is not published in DOOHmain, so there are no plays to query. Static screens are verified with photo evidence.',
   'campanas.playlogs.tab.campana': 'This campaign',
-  'campanas.playlogs.tab.pantallas': 'History of its screens',
+  'campanas.playlogs.tab.pantallas': 'Screen history',
   'campanas.playlogs.pantallas.texto':
     'Everything DOOHmain recorded on the screens where this campaign was published, day by day. It includes other campaigns on those screens: it shows that they were playing, but {noCuenta} and does not open the billing lock.',
   'campanas.playlogs.pantallas.no-cuenta': 'does not count as proof for this campaign',
@@ -869,9 +878,9 @@ export const EN_CAMPANAS: Record<ClaveCampanas, string> = {
 
   'campanas.validacion.aviso-pantalla':
     'Remember not to have the screen open on the DOOHmain site so the process can run: close it there before sending or publishing.',
-  'campanas.validacion.no-enviar': 'Could not send to the domain',
+  'campanas.validacion.no-enviar': 'Could not submit for publishing',
   'campanas.validacion.motivo-prompt': 'Reason for rejection (what to fix in the ads):',
-  'campanas.validacion.no-validar': 'Could not review the publication',
+  'campanas.validacion.no-validar': 'Could not save the publication review',
   'campanas.validacion.toast.ninguna': 'None of this campaign’s screens go to DOOHmain',
   'campanas.validacion.toast.publicada.uno': 'Published in DOOHmain: {n} screen',
   'campanas.validacion.toast.publicada.otros': 'Published in DOOHmain: {n} screens',
@@ -883,7 +892,7 @@ export const EN_CAMPANAS: Record<ClaveCampanas, string> = {
   'campanas.validacion.bajado.toast': '“{nombre}” was removed',
   'campanas.validacion.no-bajar': 'Could not remove the creative',
   'campanas.validacion.titulo': 'Publication review',
-  'campanas.validacion.enviada': 'Sent to the domain / CMS',
+  'campanas.validacion.enviada': 'Submitted for publishing (CMS)',
   'campanas.validacion.anuncios': 'Ads loaded ({validadas}/{total} approved)',
   'campanas.validacion.informacion': 'Ad details',
   'campanas.validacion.retirado.title': 'Withdrawn; its artwork is still in DOOHmain (remove it in its panel)',
@@ -893,18 +902,18 @@ export const EN_CAMPANAS: Record<ClaveCampanas, string> = {
   'campanas.validacion.sello.rechazada': 'Rejected by {por} · {fecha}',
   'campanas.validacion.motivo': 'Reason: {motivo}',
   'campanas.validacion.enviando': 'Sending…',
-  'campanas.validacion.corregir': 'Fix and resend to the domain',
-  'campanas.validacion.enviar': 'Send to the domain',
+  'campanas.validacion.corregir': 'Fix and resubmit for publishing',
+  'campanas.validacion.enviar': 'Submit for publishing',
   'campanas.validacion.aprobar': 'Approve publication',
   'campanas.validacion.rechazar': 'Reject',
   'campanas.validacion.publicando': 'Publishing…',
   'campanas.validacion.republicar': 'Publish again in DOOHmain',
   'campanas.validacion.pendiente.sin':
-    'Approving the creatives does not upload them to DOOHmain. Send the campaign to the domain and approve it here: the artwork is published in DOOHmain when the publication is approved.',
+    'Approving the creatives does not upload them to DOOHmain. Submit the campaign for publishing and approve it here: the artwork is published in DOOHmain when the publication is approved.',
   'campanas.validacion.pendiente.uno':
-    'Approving the creatives does not upload them to DOOHmain. You have {n} approved and ready. Send the campaign to the domain and approve it here: the artwork is published in DOOHmain when the publication is approved.',
+    'Approving the creatives does not upload them to DOOHmain. You have {n} approved creative ready. Submit the campaign for publishing and approve it here: the artwork is published in DOOHmain when the publication is approved.',
   'campanas.validacion.pendiente.otros':
-    'Approving the creatives does not upload them to DOOHmain. You have {n} approved and ready. Send the campaign to the domain and approve it here: the artwork is published in DOOHmain when the publication is approved.',
+    'Approving the creatives does not upload them to DOOHmain. You have {n} approved creatives ready. Submit the campaign for publishing and approve it here: the artwork is published in DOOHmain when the publication is approved.',
   'campanas.validacion.bajar.titulo': 'Remove creative',
   'campanas.validacion.bajar.si': 'Yes, remove',
   'campanas.validacion.bajar.texto':

@@ -1,5 +1,6 @@
 import type { ClaveTexto } from '@/lib/i18n/diccionario'
 import type {
+  TipoCampana,
   EstComercialCampana,
   EtapaPipeline,
   EstValidacionPublicacion,
@@ -22,6 +23,13 @@ import type { EstadoRemoto } from '@/lib/doohmain-estado'
 //  «Lista para facturar» alli, la prueba obliga a traerlo aqui. Mismo patron
 //  que `CLAVE_ESTATUS` de Propuestas.
 // ============================================================================
+
+/** El tipo de campana. Su espanol es el valor crudo que ya se pintaba («HIBRIDA»). */
+export const CLAVE_TIPO_CAMPANA: Record<TipoCampana, ClaveTexto> = {
+  OOH: 'campanas.tipo.ooh',
+  DOOH: 'campanas.tipo.dooh',
+  HIBRIDA: 'campanas.tipo.hibrida',
+}
 
 export const CLAVE_ESTADO_CAMPANA: Record<EstComercialCampana, ClaveTexto> = {
   DRAFT: 'campanas.estado.draft',
