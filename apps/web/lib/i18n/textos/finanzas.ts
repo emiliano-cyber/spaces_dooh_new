@@ -8,10 +8,14 @@
 //  NI UNA cifra de dinero: los importes entran por hueco ya formateados con
 //  `formatMonto` (la moneda la lleva otro lote).
 //
-//  Las etiquetas que tienen su verdad en otro modulo —`COBRANZA_LABEL`, las
-//  opciones de `OPCIONES_PERIODO`, `PERIODICIDAD_LABEL`, `etiquetaVencimiento`
-//  y el aviso `AVISO_NO_ES_CFDI`— van aqui con su clave, y
-//  `textos/finanzas.test.ts` exige que el espanol sea IDENTICO al del modulo.
+//  Las etiquetas que tienen su verdad en otro modulo —`COBRANZA_LABEL`,
+//  `PERIODICIDAD_LABEL`, `etiquetaVencimiento` y el aviso `AVISO_NO_ES_CFDI`—
+//  van aqui con su clave, y `textos/finanzas.test.ts` exige que el espanol
+//  sea IDENTICO al del modulo. El selector de periodo NO va aqui desde la
+//  costura (2026-11-02): sus opciones (`OPCIONES_PERIODO`, via
+//  `CLAVE_PERIODO`) y lo que lo rodea (aria, «elige fechas», desde / a /
+//  hasta) viven en `compartidos.periodo.*`, una sola fuente para Finanzas y
+//  Propuestas.
 // ============================================================================
 
 export const ES_FINANZAS = {
@@ -29,9 +33,6 @@ export const ES_FINANZAS = {
   'finanzas.comun.total': 'Total',
   'finanzas.comun.dias': '{n} días',
   'finanzas.comun.enviando': 'Enviando…',
-  'finanzas.comun.desde': 'Desde',
-  'finanzas.comun.hasta': 'Hasta',
-  'finanzas.comun.a': 'a',
   'finanzas.comun.todos-clientes': 'Todos los clientes',
 
   // ── Semaforo de cobranza (mismo texto que `COBRANZA_LABEL`, StatusBadge.tsx) ──
@@ -182,8 +183,6 @@ export const ES_FINANZAS = {
   'finanzas.periodo.no-calcular': 'No se pudo calcular el periodo',
   'finanzas.periodo.titulo': 'Resumen del periodo',
   'finanzas.periodo.subtitulo': '{etiqueta} · {desde} a {hasta}',
-  'finanzas.periodo.aria': 'Periodo',
-  'finanzas.periodo.elige': 'Elige la fecha de inicio y la de fin.',
   'finanzas.periodo.por-cobrar': 'Por cobrar al cierre',
   'finanzas.periodo.al-inicio': 'al inicio: {monto}',
   'finanzas.periodo.vencido': 'Vencido',
@@ -236,9 +235,6 @@ export const EN_FINANZAS: Record<ClaveFinanzas, string> = {
   'finanzas.comun.total': 'Total',
   'finanzas.comun.dias': '{n} days',
   'finanzas.comun.enviando': 'Sending…',
-  'finanzas.comun.desde': 'From',
-  'finanzas.comun.hasta': 'To',
-  'finanzas.comun.a': 'to',
   'finanzas.comun.todos-clientes': 'All clients',
 
   'finanzas.cobranza.al-corriente': 'Current',
@@ -380,8 +376,6 @@ export const EN_FINANZAS: Record<ClaveFinanzas, string> = {
   'finanzas.periodo.no-calcular': 'Could not calculate the period',
   'finanzas.periodo.titulo': 'Period summary',
   'finanzas.periodo.subtitulo': '{etiqueta} · {desde} to {hasta}',
-  'finanzas.periodo.aria': 'Period',
-  'finanzas.periodo.elige': 'Choose the start and end dates.',
   'finanzas.periodo.por-cobrar': 'Receivable at close',
   'finanzas.periodo.al-inicio': 'opening: {monto}',
   'finanzas.periodo.vencido': 'Overdue',

@@ -100,7 +100,7 @@ export function TableroPropuestas() {
           <select
             value={tipo}
             onChange={(e) => setTipo(e.target.value as TipoPeriodo)}
-            aria-label={t('propuestas.tablero.periodo')}
+            aria-label={t('compartidos.periodo.aria')}
             className="h-8 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink sm:hidden"
           >
             {OPCIONES_PERIODO.map((o) => (
@@ -125,16 +125,16 @@ export function TableroPropuestas() {
           </div>
           {tipo === 'rango' && (
             <span className="flex items-center gap-1.5">
-              <input type="date" className={inputFecha} value={desde} onChange={(e) => setDesde(e.target.value)} aria-label={t('propuestas.comun.desde')} />
-              <span className="text-[12px] text-muted">{t('propuestas.tablero.a')}</span>
-              <input type="date" className={inputFecha} value={hasta} onChange={(e) => setHasta(e.target.value)} aria-label={t('propuestas.comun.hasta')} />
+              <input type="date" className={inputFecha} value={desde} onChange={(e) => setDesde(e.target.value)} aria-label={t('compartidos.periodo.desde')} />
+              <span className="text-[12px] text-muted">{t('compartidos.periodo.a')}</span>
+              <input type="date" className={inputFecha} value={hasta} onChange={(e) => setHasta(e.target.value)} aria-label={t('compartidos.periodo.hasta')} />
             </span>
           )}
         </div>
       }
     >
         {!listo ? (
-          <p className="text-[13px] text-muted">{t('propuestas.tablero.elige-fechas')}</p>
+          <p className="text-[13px] text-muted">{t('compartidos.periodo.elige')}</p>
         ) : error !== null ? (
           <p className="text-[13px] text-error">{error || t('propuestas.tablero.error')}</p>
         ) : !r ? (

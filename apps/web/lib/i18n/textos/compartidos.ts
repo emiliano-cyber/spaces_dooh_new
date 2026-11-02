@@ -106,6 +106,13 @@ export const ES_COMPARTIDOS = {
   // La etiqueta que manda el servidor (`periodoDe`), rearmada en el idioma.
   'compartidos.periodo.etiqueta.trimestre': '{n}.º trimestre {anio}',
   'compartidos.periodo.etiqueta.rango': '{desde} a {hasta}',
+  // Lo que rodea al selector en los dos tableros (retoque de la costura):
+  // el aria, el aviso sin fechas y las dos fechas del rango con su «a».
+  'compartidos.periodo.aria': 'Periodo',
+  'compartidos.periodo.elige': 'Elige la fecha de inicio y la de fin.',
+  'compartidos.periodo.desde': 'Desde',
+  'compartidos.periodo.hasta': 'Hasta',
+  'compartidos.periodo.a': 'a',
 
   // ── Lo que se manda a DOOHmain (`lib/doohmain-programacion.ts`) ──
   // Costura (2026-11-02). El espanol es el literal del modulo.
@@ -232,6 +239,11 @@ export const EN_COMPARTIDOS: Record<ClaveCompartidos, string> = {
   'compartidos.periodo.rango': 'Custom range',
   'compartidos.periodo.etiqueta.trimestre': 'Q{n} {anio}',
   'compartidos.periodo.etiqueta.rango': '{desde} to {hasta}',
+  'compartidos.periodo.aria': 'Period',
+  'compartidos.periodo.elige': 'Choose the start and end dates.',
+  'compartidos.periodo.desde': 'From',
+  'compartidos.periodo.hasta': 'To',
+  'compartidos.periodo.a': 'to',
 
   // «daypart», como el glosario; «profile» es la ficha (lote comercial).
   'compartidos.doohmain.todo-el-dia': 'All day (no daypart)',

@@ -83,6 +83,25 @@ describe('diccionario de finanzas · el espanol reproduce EXACTAMENTE su modulo'
     expect(duplicadas).toEqual([])
   })
 
+  it('los textos ALREDEDOR del selector tambien: aria, «elige fechas», desde / a / hasta', () => {
+    // Retoque de la costura (validador, 2026-11-02): el selector ya era uno,
+    // pero cada tablero tenia su copia del «Elige la fecha…», del aria
+    // «Periodo» y del «a» entre las dos fechas. Ahora viven en
+    // `compartidos.periodo.*` y las copias de cada tablero no existen.
+    const dic = DICCIONARIOS.es as Record<string, string>
+    for (const k of ['aria', 'elige', 'desde', 'hasta', 'a']) expect(dic[`compartidos.periodo.${k}`]).toBeTypeOf('string')
+    const copias = [
+      'finanzas.periodo.aria', 'finanzas.periodo.elige', 'finanzas.comun.desde', 'finanzas.comun.hasta', 'finanzas.comun.a',
+      'propuestas.tablero.periodo', 'propuestas.tablero.a', 'propuestas.tablero.elige-fechas',
+    ].filter((k) => k in dic)
+    expect(copias).toEqual([])
+    const fuentes = ['components/demo/finanzas/TableroPeriodo.tsx', 'components/demo/propuestas/TableroPropuestas.tsx']
+    for (const f of fuentes) {
+      const s = readFileSync(path.join(__dirname, '../../..', f), 'utf8')
+      for (const k of ['aria', 'elige', 'desde', 'hasta', 'a']) expect(s).toContain(`t('compartidos.periodo.${k}')`)
+    }
+  })
+
   it('«{n} cuotas » + PERIODICIDAD_LABEL, la frase que pintaba la opcion', () => {
     for (const p of Object.keys(PERIODICIDAD_LABEL) as PeriodicidadCuota[]) {
       expect(traducir('es', CLAVE_PARCIALIDAD[p], { n: 3 })).toBe(`3 cuotas ${PERIODICIDAD_LABEL[p]}`)

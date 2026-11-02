@@ -76,9 +76,9 @@ export function TableroPeriodo() {
   // tecleen.
   const fechasRango = (
     <>
-      <input type="date" className={inputFecha} value={desde} onChange={(e) => setDesde(e.target.value)} aria-label={t('finanzas.comun.desde')} />
-      <span className="text-[12px] text-muted">{t('finanzas.comun.a')}</span>
-      <input type="date" className={inputFecha} value={hasta} onChange={(e) => setHasta(e.target.value)} aria-label={t('finanzas.comun.hasta')} />
+      <input type="date" className={inputFecha} value={desde} onChange={(e) => setDesde(e.target.value)} aria-label={t('compartidos.periodo.desde')} />
+      <span className="text-[12px] text-muted">{t('compartidos.periodo.a')}</span>
+      <input type="date" className={inputFecha} value={hasta} onChange={(e) => setHasta(e.target.value)} aria-label={t('compartidos.periodo.hasta')} />
     </>
   )
 
@@ -113,7 +113,7 @@ export function TableroPeriodo() {
           <select
             value={tipo}
             onChange={(e) => setTipo(e.target.value as TipoPeriodo)}
-            aria-label={t('finanzas.periodo.aria')}
+            aria-label={t('compartidos.periodo.aria')}
             className="h-8 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink sm:hidden"
           >
             {OPCIONES_PERIODO.map((o) => (
@@ -142,7 +142,7 @@ export function TableroPeriodo() {
     >
         {tipo === 'rango' && <div className="mb-3 flex items-center gap-1.5 sm:hidden">{fechasRango}</div>}
         {!listo ? (
-          <p className="text-[13px] text-muted">{t('finanzas.periodo.elige')}</p>
+          <p className="text-[13px] text-muted">{t('compartidos.periodo.elige')}</p>
         ) : error ? (
           <p className="text-[13px] text-error">{error}</p>
         ) : !r ? (
