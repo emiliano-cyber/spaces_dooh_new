@@ -40,14 +40,6 @@ export const ES_FINANZAS = {
   'finanzas.cobranza.vencida': 'Vencida',
   'finanzas.cobranza.pagada': 'Pagada',
 
-  // ── Periodos (mismo texto que `OPCIONES_PERIODO`, TableroPeriodo.tsx) ──
-  'finanzas.periodo.mes': 'Este mes',
-  'finanzas.periodo.mes-anterior': 'Mes pasado',
-  'finanzas.periodo.trimestre': 'Trimestre',
-  'finanzas.periodo.trimestre-anterior': 'Trimestre pasado',
-  'finanzas.periodo.anio': 'Año',
-  'finanzas.periodo.rango': 'Rango',
-
   // ── Opciones de parcialidades: «{n} cuotas » + `PERIODICIDAD_LABEL` ──
   'finanzas.parcialidad.quincenal': '{n} cuotas quincenales',
   'finanzas.parcialidad.mensual': '{n} cuotas mensuales',
@@ -253,13 +245,6 @@ export const EN_FINANZAS: Record<ClaveFinanzas, string> = {
   'finanzas.cobranza.por-vencer': 'Due soon',
   'finanzas.cobranza.vencida': 'Overdue',
   'finanzas.cobranza.pagada': 'Paid',
-
-  'finanzas.periodo.mes': 'This month',
-  'finanzas.periodo.mes-anterior': 'Last month',
-  'finanzas.periodo.trimestre': 'This quarter',
-  'finanzas.periodo.trimestre-anterior': 'Last quarter',
-  'finanzas.periodo.anio': 'This year',
-  'finanzas.periodo.rango': 'Custom range',
 
   'finanzas.parcialidad.quincenal': '{n} semi-monthly installments',
   'finanzas.parcialidad.mensual': '{n} monthly installments',

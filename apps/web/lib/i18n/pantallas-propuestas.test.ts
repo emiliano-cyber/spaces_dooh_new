@@ -3,6 +3,8 @@ import { createElement, type ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { ProveedorIdioma } from './contexto'
 import type { Idioma } from './idiomas'
+import { mkdirSync, writeFileSync } from 'node:fs'
+import path from 'node:path'
 
 // ============================================================================
 //  I18N · LOTE PILOTO «PROPUESTAS», RENDIDO DE VERDAD EN LOS DOS IDIOMAS.
@@ -856,14 +858,21 @@ const PANTALLAS: Pantalla[] = [
 ]
 
 describe('lote PROPUESTAS · en ESPANOL sale el texto de siempre', () => {
-  for (const p of PANTALLAS) {
+  PANTALLAS.forEach((p, i) => {
     it(p.nombre, async () => {
       const crudo = await p.pintar('es')
+      // Con `I18N_VOLCAR=<carpeta>` el HTML espanol de cada estado va a disco:
+      // es lo que se compara antes y despues de tocar los componentes.
+      const dir = process.env.I18N_VOLCAR
+      if (dir) {
+        mkdirSync(dir, { recursive: true })
+        writeFileSync(path.join(dir, `${String(i).padStart(2, '0')}-es.html`), crudo)
+      }
       const html = texto(crudo)
       const faltan = p.espanol.filter((f) => !html.includes(f))
       expect(faltan).toEqual([])
     })
-  }
+  })
 })
 
 describe('lote PROPUESTAS · en INGLES no queda ninguna frase espanola del lote', () => {

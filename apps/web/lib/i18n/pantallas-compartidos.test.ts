@@ -3,6 +3,8 @@ import { createElement, type ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { ProveedorIdioma } from './contexto'
 import type { Idioma } from './idiomas'
+import { mkdirSync, writeFileSync } from 'node:fs'
+import path from 'node:path'
 
 // ============================================================================
 //  I18N · LOTE «COMPARTIDOS», LAS PIEZAS RENDIDAS EN LOS DOS IDIOMAS.
@@ -164,12 +166,19 @@ const PIEZAS: Pieza[] = [
 ]
 
 describe('lote COMPARTIDOS · en ESPANOL sale el texto de siempre', () => {
-  for (const p of PIEZAS) {
+  PIEZAS.forEach((p, i) => {
     it(p.nombre, async () => {
-      const html = texto(await p.pintar('es'))
+      const crudo = await p.pintar('es')
+      // Con `I18N_VOLCAR=<carpeta>` el HTML espanol de cada pieza va a disco.
+      const dir = process.env.I18N_VOLCAR
+      if (dir) {
+        mkdirSync(dir, { recursive: true })
+        writeFileSync(path.join(dir, `${String(i).padStart(2, '0')}-es.html`), crudo)
+      }
+      const html = texto(crudo)
       expect(p.espanol.filter((f) => !html.includes(f))).toEqual([])
     })
-  }
+  })
 })
 
 describe('lote COMPARTIDOS · en INGLES no queda ninguna frase espanola', () => {

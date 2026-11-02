@@ -73,6 +73,16 @@ describe('diccionario de finanzas · el espanol reproduce EXACTAMENTE su modulo'
     for (const o of OPCIONES_PERIODO) expect(es(CLAVE_PERIODO[o.tipo])).toBe(o.label)
   })
 
+  it('el selector de periodo tiene UNA sola fuente: las claves `compartidos.periodo.*`', () => {
+    // Costura (2026-11-02): Finanzas y el lote de compartidos tradujeron el
+    // MISMO selector cada uno con sus claves. Dos copias divergen en cuanto
+    // alguien corrige una; ahora `CLAVE_PERIODO` apunta a las compartidas y las
+    // de Finanzas no existen.
+    for (const o of OPCIONES_PERIODO) expect(CLAVE_PERIODO[o.tipo]).toBe(`compartidos.periodo.${o.tipo}`)
+    const duplicadas = OPCIONES_PERIODO.map((o) => `finanzas.periodo.${o.tipo}`).filter((k) => k in ES_FINANZAS)
+    expect(duplicadas).toEqual([])
+  })
+
   it('«{n} cuotas » + PERIODICIDAD_LABEL, la frase que pintaba la opcion', () => {
     for (const p of Object.keys(PERIODICIDAD_LABEL) as PeriodicidadCuota[]) {
       expect(traducir('es', CLAVE_PARCIALIDAD[p], { n: 3 })).toBe(`3 cuotas ${PERIODICIDAD_LABEL[p]}`)

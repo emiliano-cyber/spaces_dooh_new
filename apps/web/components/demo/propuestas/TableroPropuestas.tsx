@@ -7,10 +7,10 @@ import { cn } from '@/lib/cn'
 import { formatMonto, formatFecha, usePropuestas } from '@/lib/data/client'
 import { esEtiquetaRango, etiquetaPeriodo, type TipoPeriodo } from '@/lib/finanzas-periodo'
 import { OPCIONES_PERIODO } from '@/components/demo/finanzas/TableroPeriodo'
+import { CLAVE_PERIODO } from '@/components/demo/finanzas/etiquetas'
 import { resumenPropuestasApi, type RespuestaResumenPropuestas } from '@/lib/data/propuestas-resumen-api'
 import { formatNumero } from '@/lib/formato-numero'
 import { useIdioma } from '@/lib/i18n/contexto'
-import type { ClaveTexto } from '@/lib/i18n/diccionario'
 
 // ============================================================================
 //  El tablero de propuestas por periodo (PROP-PER, 06/10).
@@ -104,7 +104,7 @@ export function TableroPropuestas() {
             className="h-8 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink sm:hidden"
           >
             {OPCIONES_PERIODO.map((o) => (
-              <option key={o.tipo} value={o.tipo}>{t(`compartidos.periodo.${o.tipo}` as ClaveTexto)}</option>
+              <option key={o.tipo} value={o.tipo}>{t(CLAVE_PERIODO[o.tipo])}</option>
             ))}
           </select>
           <div className="hidden flex-wrap items-center gap-1.5 sm:flex">
@@ -119,7 +119,7 @@ export function TableroPropuestas() {
                   tipo === o.tipo ? 'border-accent bg-accent text-white' : 'border-border-strong bg-surface text-ink hover:bg-surface-2',
                 )}
               >
-                {t(`compartidos.periodo.${o.tipo}` as ClaveTexto)}
+                {t(CLAVE_PERIODO[o.tipo])}
               </button>
             ))}
           </div>

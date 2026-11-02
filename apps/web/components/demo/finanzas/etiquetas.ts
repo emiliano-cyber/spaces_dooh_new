@@ -11,6 +11,11 @@ import type { PeriodicidadCuota } from '@/lib/finanzas-calculo'
 //  `etiquetaVencimiento` (vencimiento-cuota.ts). Esos modulos NO se tocan;
 //  `textos/finanzas.test.ts` exige que el espanol del diccionario sea IDENTICO
 //  al suyo.
+//
+//  `CLAVE_PERIODO` apunta a las claves `compartidos.periodo.*` desde la costura
+//  (2026-11-02): el lote de compartidos ya habia traducido el mismo selector
+//  para el tablero de Propuestas, y dos juegos de claves para seis botones
+//  iguales divergen en cuanto alguien corrige uno.
 // ============================================================================
 
 export const CLAVE_COBRANZA: Record<EstCobranza, ClaveTexto> = {
@@ -21,12 +26,12 @@ export const CLAVE_COBRANZA: Record<EstCobranza, ClaveTexto> = {
 }
 
 export const CLAVE_PERIODO: Record<TipoPeriodo, ClaveTexto> = {
-  mes: 'finanzas.periodo.mes',
-  'mes-anterior': 'finanzas.periodo.mes-anterior',
-  trimestre: 'finanzas.periodo.trimestre',
-  'trimestre-anterior': 'finanzas.periodo.trimestre-anterior',
-  anio: 'finanzas.periodo.anio',
-  rango: 'finanzas.periodo.rango',
+  mes: 'compartidos.periodo.mes',
+  'mes-anterior': 'compartidos.periodo.mes-anterior',
+  trimestre: 'compartidos.periodo.trimestre',
+  'trimestre-anterior': 'compartidos.periodo.trimestre-anterior',
+  anio: 'compartidos.periodo.anio',
+  rango: 'compartidos.periodo.rango',
 }
 
 /** «{n} cuotas mensuales»: la frase ENTERA por periodicidad, sin pegar trozos. */
