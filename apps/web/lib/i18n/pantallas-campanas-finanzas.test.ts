@@ -1123,3 +1123,32 @@ describe('costura · el periodo de Finanzas en ingles', () => {
     expect(html).not.toContain('2026-01-05 a 2026-03-09')
   })
 })
+
+describe('costura · los MODULOS COMPARTIDOS en las pantallas de Campanas y Finanzas', () => {
+  it('ninguna frase espanola de `textos/compartidos.ts` aparece en ingles', async () => {
+    // El segundo barrido de `pantallas-propuestas.test.ts`, sobre este lote
+    // (costura, 2026-11-02): la reserva, la frecuencia, el horario de DOOHmain
+    // y la etiqueta del periodo salen de modulos compartidos. Umbral de 4 letras
+    // y palabra entera, como alli.
+    const { ES_COMPARTIDOS, EN_COMPARTIDOS } = await import('./textos/compartidos')
+    let html = ''
+    for (const p of PANTALLAS) {
+      reiniciar()
+      const crudo = await p.pintar('en')
+      const visibles = [...crudo.matchAll(/(?:title|aria-label|placeholder|alt)="([^"]*)"/g)].map((m) => m[1])
+      html += texto(crudo.replace(/<[^>]*>/g, '\n') + '\n' + visibles.join('\n'))
+    }
+    for (const a of ['Pantalla Reforma', 'Pantalla Sur', 'Pantalla Norte', 'Pantalla Oriente']) html = html.split(a).join('\n')
+    const escapar = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const culpables: string[] = []
+    for (const [clave, es] of Object.entries(ES_COMPARTIDOS)) {
+      const en = EN_COMPARTIDOS[clave as keyof typeof EN_COMPARTIDOS]
+      for (const trozo of es.split(/\{\w+\}/)) {
+        const t = trozo.trim()
+        if (t.length < 4 || en.includes(t)) continue
+        if (new RegExp(`(^|[^\\p{L}])${escapar(t)}($|[^\\p{L}])`, 'u').test(html)) culpables.push(`${clave} · «${t}»`)
+      }
+    }
+    expect(culpables).toEqual([])
+  })
+})

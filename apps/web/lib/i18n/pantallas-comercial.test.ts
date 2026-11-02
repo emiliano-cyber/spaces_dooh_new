@@ -438,6 +438,8 @@ const PANTALLAS: Pantalla[] = [
       'Renta al arrendador (mensual)',
       'Margen',
       'Tarifas por unidad (1)',
+      'CPS · costo por salida',
+      'Mensual',
       'Tarifas por franja',
       'Sin rejilla: esta pantalla se vende con las tarifas de arriba a cualquier hora y en cualquier época. Añade una solo si el prime o una temporada cuestan distinto.',
       'Arrendador y renta',
@@ -460,8 +462,9 @@ const PANTALLAS: Pantalla[] = [
     ],
     ingles: [
       'Book this site', 'Gallery', 'Commercial data', 'Rates per daypart', 'Landlord and rent', 'Jan 1, 2026', 'North',
-      // Costura: `textoOrigenDoohmain` con el idioma.
+      // Costura: `textoOrigenDoohmain`, `etiquetaUnidad` y `periodicidadLabel` con el idioma.
       'scr_9 · from the server map (not entered on the profile)',
+      'CPS · cost per play', 'Monthly',
     ],
   },
   {
@@ -575,8 +578,12 @@ const PANTALLAS: Pantalla[] = [
     ],
     ingles: [
       'Edit screen', 'Rates per sales unit', ' It currently has ', 'Display address', 'Pause for legal reasons', 'Relocate screen', 'Delete screen', 'Save changes',
-      // Costura: el origen del id de DOOHmain, en ingles.
+      // Costura: el origen del id de DOOHmain, en ingles, y la unidad de la
+      // tarifa nueva («Por hora»).
       ', from the server map (not entered on the profile). Enter it here to pin it on the profile.',
+      'Per hour',
+      // El sitio tiene 1 cliente: con el plural cambiado saldria «1 clients.».
+      ' client.',
     ],
   },
   {
@@ -1178,5 +1185,38 @@ describe('lote COMERCIAL · los espejos reproducen EXACTAMENTE las etiquetas com
       }
     }
     expect(o.CLAVE_RESPONSABLE.map((k) => DICCIONARIOS.es[k])).toEqual([...n.ETAPAS_RESPONSABLE])
+  })
+})
+
+describe('costura · los MODULOS COMPARTIDOS en las pantallas de Comercial', () => {
+  it('ninguna frase espanola de `textos/compartidos.ts` aparece en ingles', async () => {
+    // El mismo segundo barrido que hace `pantallas-propuestas.test.ts`, ahora
+    // sobre Comercial (costura, 2026-11-02): las unidades, las periodicidades y
+    // el origen del id de DOOHmain salen de modulos compartidos, y una llamada
+    // sin `idioma` deja su espanol a la vista sin que lo vea el barrido del
+    // lote (que solo mira `comercial.*` y `codigos.*`). Umbral de 4 letras y
+    // palabra entera, como alli.
+    const { ES_COMPARTIDOS, EN_COMPARTIDOS } = await import('./textos/compartidos')
+    let html = ''
+    for (const p of PANTALLAS) {
+      forzado.cola = []
+      datos.sitios = [SITIO_DIGITAL, SITIO_FIJO, SITIO_PROPIO]
+      datos.propuestas = PROPUESTAS
+      datos.margenes = [{ sitioId: 's1', tieneContrato: true, rentaMensual: 10000 }]
+      const crudo = await p.pintar('en')
+      const visibles = [...crudo.matchAll(/(?:title|aria-label|placeholder|alt)="([^"]*)"/g)].map((m) => m[1])
+      html += texto(crudo.replace(/<[^>]*>/g, '\n') + '\n' + visibles.join('\n'))
+    }
+    const escapar = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const culpables: string[] = []
+    for (const [clave, es] of Object.entries(ES_COMPARTIDOS)) {
+      const en = EN_COMPARTIDOS[clave as keyof typeof EN_COMPARTIDOS]
+      for (const trozo of es.split(/\{\w+\}/)) {
+        const t = trozo.trim()
+        if (t.length < 4 || en.includes(t)) continue
+        if (new RegExp(`(^|[^\\p{L}])${escapar(t)}($|[^\\p{L}])`, 'u').test(html)) culpables.push(`${clave} · «${t}»`)
+      }
+    }
+    expect(culpables).toEqual([])
   })
 })

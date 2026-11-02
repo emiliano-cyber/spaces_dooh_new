@@ -43,7 +43,8 @@ import {
   CONTRATO_TONO,
   PAGO_TONO,
 } from '@/components/demo/StatusBadge'
-import { useIdioma, useTexto } from '@/lib/i18n/contexto'
+import { useIdioma } from '@/lib/i18n/contexto'
+import type { Idioma } from '@/lib/i18n/idiomas'
 import { interpolarNodos } from '@/lib/i18n/nodos'
 import type { ClaveTexto } from '@/lib/i18n/diccionario'
 import {
@@ -61,12 +62,15 @@ import { RejillaDialog } from '@/components/demo/rejilla/RejillaDialog'
 // unidades existen y cuáles admite esta pantalla. Se importan en vez de
 // repetirse — dos copias de la misma regla divergen (ver `lib/modalidades.ts`).
 import { UNIDADES_VENTA, motivoModalidadInvalida } from '@/lib/modalidades'
-import { UNIDAD_LABEL } from '@/lib/periodos'
+import { etiquetaUnidad } from '@/lib/periodos'
 
 // CPS-CPM (07/10) · la unidad se lee con su nombre de venta («CPS · costo por
 // salida», «CPM · costo por millar») y no con la clave guardada. Las que no
 // tienen nombre (programático) se quedan con la clave, como antes.
-const nombreUnidad = (u: string) => UNIDAD_LABEL[u] ?? u
+// El nombre de la unidad («Mensual», «CPS · costo por salida»). Costura
+// (2026-11-02): `etiquetaUnidad` es la misma tabla `UNIDAD_LABEL` en espanol y
+// el diccionario en otro idioma; lo que no reconoce lo deja como llego.
+const nombreUnidad = (u: string, idioma: Idioma) => etiquetaUnidad(u, idioma)
 import {
   useReservas,
   usePropuestas,
@@ -631,7 +635,7 @@ export function SiteFicha({
                 <ul className="divide-y divide-border rounded-md border border-border">
                   {modalidades.map((m, i) => (
                     <li key={i} className="flex items-center justify-between px-3 py-1.5 text-[12px]">
-                      <span className="capitalize text-ink">{nombreUnidad(m.unidad)}</span>
+                      <span className="capitalize text-ink">{nombreUnidad(m.unidad, idioma)}</span>
                       <span className="demo-num text-muted">{formatMonto(m.tarifaPublicada)}</span>
                     </li>
                   ))}
@@ -694,7 +698,7 @@ export function SiteFicha({
 
               <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-[13px]">
                 <Caracteristica icon={<Wallet className="h-4 w-4" />} label={t('comercial.ficha.renta')} valor={rentaEfectiva != null ? formatMonto(rentaEfectiva) : '—'} mono />
-                <Caracteristica icon={<Repeat className="h-4 w-4" />} label={t('comercial.ficha.periodicidad')} valor={periodicidadEfectiva ? periodicidadLabel(periodicidadEfectiva) : '—'} />
+                <Caracteristica icon={<Repeat className="h-4 w-4" />} label={t('comercial.ficha.periodicidad')} valor={periodicidadEfectiva ? periodicidadLabel(periodicidadEfectiva, '—', idioma) : '—'} />
                 {contrato && (
                   <Caracteristica
                     icon={<CalendarClock className="h-4 w-4" />}
@@ -931,7 +935,7 @@ const inputCls =
 //  acción tiene cuadro propio, así que no hace falta que el 403 abra otro.
 // ============================================================================
 function ModalidadesDialog({ sitio, open, onClose }: { sitio: Sitio; open: boolean; onClose: () => void }) {
-  const t = useTexto()
+  const { t, idioma } = useIdioma()
   const previas = sitio.modalidadesDetalle ?? []
   // Las tarifas se editan como TEXTO y no como número: un `<input type=number>`
   // controlado con `Number('')` convierte un campo vacío en 0, y un 0 aquí es un
@@ -1093,7 +1097,7 @@ function ModalidadesDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
           return (
             <div key={m.unidad} className="flex items-center gap-2">
               <span className={`w-44 shrink-0 text-[13px] capitalize ${quitada ? 'text-muted line-through' : 'text-ink'}`}>
-                {nombreUnidad(m.unidad)}
+                {nombreUnidad(m.unidad, idioma)}
               </span>
               <CampoCifra
                 valor={tarifas[m.unidad] ?? ''}
@@ -1126,7 +1130,7 @@ function ModalidadesDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
             className="flex items-center gap-2"
           >
             <span className={`w-44 shrink-0 text-[13px] capitalize ${obNuevas.falta(n.unidad) ? 'text-error' : 'text-ink'}`}>
-              {nombreUnidad(n.unidad)}
+              {nombreUnidad(n.unidad, idioma)}
               <span aria-hidden="true" className="ml-0.5 text-error">*</span>
               <span className="sr-only">{t('comercial.comun.obligatorio')}</span>
             </span>
@@ -1171,7 +1175,7 @@ function ModalidadesDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
             >
               <option value="">{t('comercial.tarifas.anadir-unidad')}</option>
               {disponibles.map((u) => (
-                <option key={u} value={u} className="capitalize">{nombreUnidad(u)}</option>
+                <option key={u} value={u} className="capitalize">{nombreUnidad(u, idioma)}</option>
               ))}
             </select>
             <Button variant="success" size="sm" onClick={anadir} disabled={!porAnadir}>
