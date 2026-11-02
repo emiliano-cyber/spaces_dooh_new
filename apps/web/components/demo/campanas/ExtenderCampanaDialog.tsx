@@ -7,6 +7,7 @@ import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { extenderCampanaApi } from '@/lib/data/estado-api'
+import { useTexto } from '@/lib/i18n/contexto'
 
 // ============================================================================
 //  ExtenderCampanaDialog — alargar la fecha de fin de una campaña (FOLIO-VENTA:
@@ -44,6 +45,7 @@ export function ExtenderCampanaDialog({
   onClose: () => void
   onDone: (nombre: string) => void
 }) {
+  const t = useTexto()
   const [fin, setFin] = useState(() => finPropuesto(campana?.fechaFin))
   const [contrato, setContrato] = useState<{ nombre: string; url: string } | null>(null)
   const [enviando, setEnviando] = useState(false)
@@ -64,16 +66,16 @@ export function ExtenderCampanaDialog({
     e.target.value = ''
     if (!f) return
     if (f.type && f.type !== 'application/pdf') {
-      toast.error('El contrato tiene que ser un PDF')
+      toast.error(t('campanas.extender.pdf'))
       return
     }
     if (f.size > MAX_MB * 1024 * 1024) {
-      toast.error(`El contrato supera ${MAX_MB} MB`)
+      toast.error(t('campanas.comun.contrato-supera', { mb: MAX_MB }))
       return
     }
     const reader = new FileReader()
     reader.onload = () => setContrato({ nombre: f.name, url: reader.result as string })
-    reader.onerror = () => toast.error('No se pudo leer el archivo')
+    reader.onerror = () => toast.error(t('campanas.comun.leer-archivo'))
     reader.readAsDataURL(f)
   }
 
@@ -87,7 +89,7 @@ export function ExtenderCampanaDialog({
       onDone(campana.nombre)
       cerrar()
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'No se pudo extender')
+      toast.error(err instanceof Error ? err.message : t('campanas.extender.no-extender'))
     }
     setEnviando(false)
   }
@@ -96,21 +98,21 @@ export function ExtenderCampanaDialog({
     <Modal
       open={!!campana}
       onOpenChange={(v) => !v && cerrar()}
-      title="Extender campaña"
+      title={t('campanas.extender.titulo')}
       subtitle={campana.nombre}
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="secondary" size="sm" onClick={cerrar} disabled={enviando}>
-            Cancelar
+            {t('comun.cancelar')}
           </Button>
           <Button size="sm" onClick={extender} disabled={enviando}>
-            <CalendarClock className="h-3.5 w-3.5" /> {enviando ? 'Extendiendo…' : 'Extender'}
+            <CalendarClock className="h-3.5 w-3.5" /> {enviando ? t('campanas.extender.extendiendo') : t('campanas.extender.extender')}
           </Button>
         </div>
       }
     >
       <div className="space-y-4">
-        <Campo label="Nueva fecha de fin" obligatorio falta={ob.falta('fin')}>
+        <Campo label={t('campanas.extender.fin')} obligatorio falta={ob.falta('fin')}>
           <input
             type="date"
             value={fin}
@@ -120,7 +122,7 @@ export function ExtenderCampanaDialog({
           />
         </Campo>
 
-        <Campo label="Contrato firmado de la extensión (PDF)" obligatorio falta={ob.falta('contrato')}>
+        <Campo label={t('campanas.extender.contrato')} obligatorio falta={ob.falta('contrato')}>
           <input ref={fileRef} type="file" accept="application/pdf" className="hidden" onChange={onFile} />
           {contrato ? (
             <div className="flex items-center justify-between gap-2 rounded border border-border bg-surface-2 px-3 py-2 text-[13px]">
@@ -130,7 +132,7 @@ export function ExtenderCampanaDialog({
               </span>
               <button
                 type="button"
-                aria-label="Quitar contrato"
+                aria-label={t('campanas.extender.quitar')}
                 onClick={() => setContrato(null)}
                 className="text-muted hover:text-ink"
               >
@@ -139,14 +141,13 @@ export function ExtenderCampanaDialog({
             </div>
           ) : (
             <Button size="sm" variant="secondary" onClick={() => fileRef.current?.click()}>
-              <Upload className="h-3.5 w-3.5" /> Adjuntar contrato (PDF)
+              <Upload className="h-3.5 w-3.5" /> {t('campanas.extender.adjuntar')}
             </Button>
           )}
         </Campo>
 
         <p className="text-[12px] text-muted">
-          Sin el contrato firmado de la extensión no se puede extender. Queda en el expediente de la
-          campaña junto con el folio del tramo nuevo; el contrato original del cliente no se toca.
+          {t('campanas.extender.nota')}
         </p>
       </div>
     </Modal>

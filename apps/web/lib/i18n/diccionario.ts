@@ -1,6 +1,8 @@
 import { IDIOMA_POR_OMISION, type Idioma } from './idiomas'
 import { ES_PROPUESTAS, EN_PROPUESTAS } from './textos/propuestas'
 import { ES_COMPARTIDOS, EN_COMPARTIDOS } from './textos/compartidos'
+import { ES_CAMPANAS, EN_CAMPANAS } from './textos/campanas'
+import { ES_FINANZAS, EN_FINANZAS } from './textos/finanzas'
 
 // ============================================================================
 //  lib/i18n/diccionario.ts — LOS TEXTOS, Y LA CONVENCION DE CLAVES.
@@ -220,6 +222,8 @@ const ES = {
   // siendo un error de compilacion, solo que en el archivo del area.
   ...ES_PROPUESTAS,
   ...ES_COMPARTIDOS,
+  ...ES_CAMPANAS,
+  ...ES_FINANZAS,
 } as const
 
 export type ClaveTexto = keyof typeof ES
@@ -365,6 +369,8 @@ const EN: Record<ClaveTexto, string> = {
 
   ...EN_PROPUESTAS,
   ...EN_COMPARTIDOS,
+  ...EN_CAMPANAS,
+  ...EN_FINANZAS,
 }
 
 export const DICCIONARIOS: Record<Idioma, Record<ClaveTexto, string>> = {

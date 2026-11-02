@@ -649,6 +649,78 @@ en español sigue saliendo del dato (`mensual`); el servidor (`resolverCalculado
 `MSJ_APROBAR_CON_PENDIENTE`, los textos de Actividad de `codigo-aprobacion.ts`) y el
 selector de periodo de **Finanzas** (`TableroPeriodo`), que es de su lote. La tabla
 de revisión está en `docs/i18n/revision-compartidos.md`.
+### Lote campañas y finanzas
+
+**2026-11-02, rama `feat/ingles-campanas-finanzas`.** El inglés sigue APAGADO;
+en español no cambia ni una letra.
+
+**Pantallas cubiertas:** la lista de campañas (indicadores, cola «Por validar»,
+filtros, vacíos), la ficha de la campaña con sus once secciones, la validación
+de publicación y sus tres diálogos, lo que se manda a DOOHmain y el horario
+propio, los creativos en DOOHmain, el candado, los datos de facturación, el
+horario de transmisión, extender campaña y sus extensiones, el proof of play,
+la galería de evidencias, el alta rápida de creativos y el menú lateral. En
+Finanzas: la página (listas para facturar, cobranza agrupada por factura,
+facturas), generar factura con parcialidades, registrar pago, pagos y
+comprobantes, el estado de cuenta, el resumen del periodo y el comprobante.
+
+**Mecanismo, igual que el piloto:** `lib/i18n/textos/campanas.ts` (396 claves) y
+`textos/finanzas.ts` (175), esparcidos en `diccionario.ts`, cada uno con su
+instantánea (`textos/*.test.ts`). Las etiquetas de estado cuya verdad está en
+un módulo compartido que el lote NO toca (`CAMPANA_LABEL`, `ETAPA_LABEL`,
+`COBRANZA_LABEL`, `ETIQUETA_ESTADO_REMOTO`, `AVISO_PANTALLA_DOOHMAIN`,
+`OPCIONES_PERIODO`, `PERIODICIDAD_LABEL`, `etiquetaVencimiento`,
+`AVISO_NO_ES_CFDI`…) se traducen en el punto de uso con mapas de claves
+(`components/demo/campanas/etiquetas.ts`, `components/demo/finanzas/etiquetas.ts`)
+y una prueba exige que su español sea IDÉNTICO al del módulo.
+
+**Cómo se midió el español:** `lib/i18n/pantallas-campanas-finanzas.test.ts`
+rinde **54 estados**. Para abrir las secciones plegadas de la ficha fuerza
+`useState` reconociendo en la PILA que la llamada sale de `Seccion` (el orden de
+los demás `useState(false)` no es estable). Con `I18N_VOLCAR=<carpeta>` vuelca
+el HTML español; se volcó antes y después y los 54 archivos salieron
+**idénticos** (`diff -rq`). La prueba barre además los dos diccionarios enteros
+contra el HTML inglés de todas las pantallas.
+
+**Términos nuevos** (tabla completa en `docs/i18n/revision-campanas-finanzas.md`):
+candado de facturación → *billing lock* · lista para facturar → *ready to
+invoice* · OC → *PO* · enviada al dominio → *submitted for publishing* (el
+«dominio» es el CMS de destino, no siempre DOOHmain) · validación de publicación
+→ *publication review* · evidencia → **evidence** (física; lo digital sigue
+*proof of play*) · testigos = fotografías comprobatorias → *proof photos* (en
+el código son lo mismo) · cuotas / parcialidades → *installments* · abono →
+*partial payment* · liquidar → *record full payment* · saldo → *balance* · folio
+de factura → *Invoice no.* (*Internal ref.* solo para propuestas y campañas) ·
+folio fiscal → *CFDI UUID* · comprobante de la factura → *payment receipt*;
+el archivo adjunto de un pago → *proof of payment* · plazo de cobranza →
+*payment terms* · hilo conductor → *demo storyline* · etapa reservada →
+*Booked* (como Comercial) · HIBRIDA → *Hybrid* · razón social → *legal name* /
+*legal entity* · selector de periodo → *This month / Last month / This quarter
+/ Last quarter / This year / Custom range* (glosario del lote de compartidos).
+
+**Segunda vuelta (validador ÁMBAR, `docs/i18n/validacion-campanas-finanzas.md`):**
+los 6 hallazgos medios y los 12 bajos aplicados. El mutante M7 (el aviso de
+liquidar con la clave del abono) sobrevivía: ahora lo mata
+`textos/finanzas.test.ts`, que lee del fuente QUÉ clave usa cada aviso que no
+se rinde. El español se volvió a medir: 54 de 54 estados idénticos.
+
+**Sigue en español dentro de estas pantallas (otro lote o el servidor):**
+`resumenReserva` y `etiquetaFrecuencia` (`lib/periodos.ts`), `textoHorario` y
+`textoReproducciones` de `lib/doohmain-programacion.ts` («Todo el día (sin
+franja)», «Las que quepan»), `etiquetaFranja` (solo nombre y horas), los avisos
+de franja que manda el servidor y `AvisoFranjaCMS`, la `etiqueta` del periodo
+que manda el servidor («Noviembre 2026»), `etiquetaAsignacion` y
+`opcionesDeAsignacion` de razones sociales («Sin asignar»), los campos de
+`armarComprobante` (emisor «Sin asignar», fecha en formato español), el CSV del
+estado de cuenta y su nombre de archivo, `PipelineView`/`Stepper`, `KPICard`,
+`EmptyState`, `ConfirmDialog` (su «Cancelar»), `PasoContrasena`,
+`PagosRentaCard` y `CompromisoRentaCard`, y los mensajes del servidor (I18N-05).
+El dinero sigue por `formatMonto` (lote de moneda). Al juntar con el lote de
+compartidos: si traduce `OPCIONES_PERIODO`, `TableroPeriodo` y `EstadoCuenta`
+ya pintan con `CLAVE_PERIODO` (claves `finanzas.periodo.*`), y las llamadas a
+`resumenReserva`, `etiquetaFrecuencia` (ficha de campaña) y a
+`textoHorario`/`textoReproducciones` (`ProgramacionDoohmain`) son las que
+tendrían que recibir el idioma.
 
 ## Enlaces
 

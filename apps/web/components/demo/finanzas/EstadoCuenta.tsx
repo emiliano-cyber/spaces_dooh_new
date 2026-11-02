@@ -8,6 +8,8 @@ import { cn } from '@/lib/cn'
 import { useCobranzas, useFacturas, usePagosRenta, formatMonto, formatFecha, useClientes } from '@/lib/data/client'
 import { resumenFinanzasApi, type RespuestaResumen } from '@/lib/data/finanzas-periodo-api'
 import { csvEstadoCuenta } from './estado-cuenta-csv'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { CLAVE_PERIODO } from './etiquetas'
 
 // ============================================================================
 //  Estado de cuenta: este mes y el mes pasado (06/10, ADR 0046).
@@ -20,6 +22,7 @@ import { csvEstadoCuenta } from './estado-cuenta-csv'
 type Mes = 'mes' | 'mes-anterior'
 
 export function EstadoCuenta() {
+  const { t, idioma } = useIdioma()
   const clientes = useClientes()
   const [mes, setMes] = useState<Mes>('mes')
   const [cliente, setCliente] = useState<string>('')
@@ -38,8 +41,9 @@ export function EstadoCuenta() {
     setError(null)
     resumenFinanzasApi({ periodo: mes, cliente: cliente || null })
       .then((d) => { if (vivo) setDatos(d) })
-      .catch((e) => { if (vivo) setError(e instanceof Error ? e.message : 'No se pudo calcular el estado de cuenta') })
+      .catch((e) => { if (vivo) setError(e instanceof Error ? e.message : t('finanzas.estado-cuenta.no-calcular')) })
     return () => { vivo = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mes, cliente, cobranzas, facturas, rentas])
 
   const nombreCliente = useMemo(() => {
@@ -47,7 +51,7 @@ export function EstadoCuenta() {
     return (id: string) => m.get(id) ?? '—'
   }, [clientes])
 
-  const titular = cliente ? nombreCliente(cliente) : 'Todos los clientes'
+  const titular = cliente ? nombreCliente(cliente) : t('finanzas.comun.todos-clientes')
 
   function descargar() {
     if (!datos) return
@@ -68,7 +72,7 @@ export function EstadoCuenta() {
     // vive en este componente, así que plegar no pierde lo elegido.
     <CardColapsable
       id="finanzas.estado-cuenta"
-      titulo="Estado de cuenta"
+      titulo={t('finanzas.estado-cuenta.titulo')}
       subtitulo={`${titular}${datos ? ` · ${datos.periodo.etiqueta}` : ''}`}
       contentClassName="px-0 pb-0"
       accion={
@@ -81,11 +85,11 @@ export function EstadoCuenta() {
           <select
             value={mes}
             onChange={(e) => setMes(e.target.value as Mes)}
-            aria-label="Mes"
+            aria-label={t('finanzas.estado-cuenta.mes')}
             className="h-8 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink sm:hidden"
           >
-            <option value="mes">Este mes</option>
-            <option value="mes-anterior">Mes pasado</option>
+            <option value="mes">{t(CLAVE_PERIODO.mes)}</option>
+            <option value="mes-anterior">{t(CLAVE_PERIODO['mes-anterior'])}</option>
           </select>
           {(['mes', 'mes-anterior'] as const).map((m) => (
             <button
@@ -98,16 +102,16 @@ export function EstadoCuenta() {
                 mes === m ? 'border-accent bg-accent text-white' : 'border-border-strong bg-surface text-ink hover:bg-surface-2',
               )}
             >
-              {m === 'mes' ? 'Este mes' : 'Mes pasado'}
+              {t(CLAVE_PERIODO[m])}
             </button>
           ))}
           <select
             value={cliente}
             onChange={(e) => setCliente(e.target.value)}
-            aria-label="Cliente"
+            aria-label={t('finanzas.comun.cliente')}
             className="h-8 max-w-[8.5rem] rounded border border-border-strong bg-surface px-2 text-[12px] text-ink sm:max-w-[14rem]"
           >
-            <option value="">Todos los clientes</option>
+            <option value="">{t('finanzas.comun.todos-clientes')}</option>
             {(clientes ?? []).map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
           </select>
           <Button size="sm" variant="secondary" disabled={!datos} onClick={descargar}>
@@ -127,39 +131,39 @@ export function EstadoCuenta() {
                 = cierre. Son las mismas cinco cifras del servidor; aquí no se
                 suma nada, solo se ponen en una línea. */}
             <dl className="mx-4 mb-3 flex flex-wrap items-baseline gap-x-4 gap-y-1 rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px]">
-              <Renglon k="Saldo al inicio" v={formatMonto(r.saldoInicial)} />
-              <Renglon k="+ Facturado" v={formatMonto(r.facturado.monto)} />
-              <Renglon k="− Cobrado" v={formatMonto(r.cobrado)} />
-              <Renglon k="= Saldo al cierre" v={formatMonto(r.saldoFinal)} fuerte />
+              <Renglon k={t('finanzas.estado-cuenta.saldo-inicio')} v={formatMonto(r.saldoInicial)} />
+              <Renglon k={t('finanzas.estado-cuenta.facturado')} v={formatMonto(r.facturado.monto)} />
+              <Renglon k={t('finanzas.estado-cuenta.cobrado')} v={formatMonto(r.cobrado)} />
+              <Renglon k={t('finanzas.estado-cuenta.saldo-cierre')} v={formatMonto(r.saldoFinal)} fuerte />
               {/* `div` y no `span`: dentro de un `dl` solo valen `div`, `dt` y `dd`. */}
               <div className="hidden text-muted sm:block" aria-hidden>·</div>
-              <Renglon k={`Vencido al ${formatFecha(r.corte)}`} v={formatMonto(r.vencido.monto)} tono={r.vencido.monto > 0} />
+              <Renglon k={t('finanzas.estado-cuenta.vencido-al', { fecha: formatFecha(r.corte, idioma) })} v={formatMonto(r.vencido.monto)} tono={r.vencido.monto > 0} />
             </dl>
             {datos.movimientos.length === 0 ? (
-              <p className="border-t border-border px-4 py-4 text-[13px] text-muted">Sin facturas ni pagos en {datos.periodo.etiqueta.toLowerCase()}.</p>
+              <p className="border-t border-border px-4 py-4 text-[13px] text-muted">{t('finanzas.estado-cuenta.vacio', { periodo: datos.periodo.etiqueta.toLowerCase() })}</p>
             ) : (
               <div className="overflow-x-auto border-t border-border">
                 <table className="w-full text-left text-[13px]">
                   <thead>
                     <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted">
-                      <th className="px-4 py-2 font-medium">Fecha</th>
-                      <th className="px-4 py-2 font-medium">Movimiento</th>
-                      <th className="px-4 py-2 font-medium">Folio</th>
-                      {!cliente && <th className="px-4 py-2 font-medium">Cliente</th>}
-                      <th className="px-4 py-2 text-right font-medium">Cargo</th>
-                      <th className="px-4 py-2 text-right font-medium">Abono</th>
-                      <th className="px-4 py-2 text-right font-medium">Saldo</th>
+                      <th className="px-4 py-2 font-medium">{t('finanzas.estado-cuenta.col.fecha')}</th>
+                      <th className="px-4 py-2 font-medium">{t('finanzas.estado-cuenta.col.movimiento')}</th>
+                      <th className="px-4 py-2 font-medium">{t('finanzas.comun.folio')}</th>
+                      {!cliente && <th className="px-4 py-2 font-medium">{t('finanzas.comun.cliente')}</th>}
+                      <th className="px-4 py-2 text-right font-medium">{t('finanzas.estado-cuenta.col.cargo')}</th>
+                      <th className="px-4 py-2 text-right font-medium">{t('finanzas.estado-cuenta.col.abono')}</th>
+                      <th className="px-4 py-2 text-right font-medium">{t('finanzas.estado-cuenta.col.saldo')}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {datos.movimientos.map((m, i) => (
                       <tr key={i} className="border-b border-border last:border-0">
-                        <td className="demo-num px-4 py-2 text-muted">{formatFecha(m.fecha)}</td>
+                        <td className="demo-num px-4 py-2 text-muted">{formatFecha(m.fecha, idioma)}</td>
                         <td className="px-4 py-2 text-ink">
-                          {m.tipo === 'factura' ? 'Factura' : 'Pago recibido'}
+                          {m.tipo === 'factura' ? t('finanzas.estado-cuenta.factura') : t('finanzas.estado-cuenta.pago')}
                           {m.aproximado && (
-                            <span className="block text-[10px] text-muted" title="Pago anterior a que el sistema guardara fechas: lleva la fecha de su factura">
-                              fecha aproximada
+                            <span className="block text-[10px] text-muted" title={t('finanzas.estado-cuenta.aproximada.title')}>
+                              {t('finanzas.estado-cuenta.aproximada')}
                             </span>
                           )}
                         </td>

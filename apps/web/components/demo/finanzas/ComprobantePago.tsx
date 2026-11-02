@@ -11,6 +11,8 @@ import {
   urlComprobanteAbono,
   type AbonoCobranzaUI,
 } from '@/lib/data/estado-api'
+import { useIdioma, useTexto } from '@/lib/i18n/contexto'
+import type { ClaveTexto } from '@/lib/i18n/diccionario'
 
 // ============================================================================
 //  COB-COMP · el comprobante de un pago de cliente (recibo, transferencia).
@@ -29,15 +31,16 @@ function leerArchivo(
   e: React.ChangeEvent<HTMLInputElement>,
   alLeer: (dataUrl: string, nombre: string) => void,
   alFallar: (msg: string) => void,
+  t: (clave: ClaveTexto, valores?: Record<string, string | number>) => string,
 ) {
   const f = e.target.files?.[0]
   e.target.value = ''
   if (!f) return
-  if (!TIPOS_OK.includes(f.type)) return alFallar('Debe ser un PDF o una imagen (PNG, JPG o WebP)')
-  if (f.size > MAX_MB * 1024 * 1024) return alFallar(`El archivo supera ${MAX_MB} MB`)
+  if (!TIPOS_OK.includes(f.type)) return alFallar(t('finanzas.comprobante-pago.tipo'))
+  if (f.size > MAX_MB * 1024 * 1024) return alFallar(t('finanzas.comprobante-pago.supera', { mb: MAX_MB }))
   const reader = new FileReader()
   reader.onload = () => alLeer(reader.result as string, f.name)
-  reader.onerror = () => alFallar('No se pudo leer el archivo')
+  reader.onerror = () => alFallar(t('finanzas.comprobante-pago.no-leer'))
   reader.readAsDataURL(f)
 }
 
@@ -54,11 +57,12 @@ export function CampoComprobante({
   onCambio: (dataUrl: string, nombre: string) => void
   onQuitar: () => void
 }) {
+  const t = useTexto()
   const [err, setErr] = useState<string | null>(null)
   return (
     <div>
       <span className="mb-1 block text-[12px] font-medium text-ink">
-        Comprobante de pago
+        {t('finanzas.comprobante-pago.titulo')}
       </span>
       {nombre ? (
         <div className="flex items-center justify-between gap-2 rounded border border-border bg-surface-2 px-2.5 py-1.5">
@@ -67,7 +71,7 @@ export function CampoComprobante({
             <span className="truncate">{nombre}</span>
           </span>
           {!disabled && (
-            <button type="button" onClick={onQuitar} className="shrink-0 text-muted hover:text-ink" aria-label="Quitar">
+            <button type="button" onClick={onQuitar} className="shrink-0 text-muted hover:text-ink" aria-label={t('finanzas.comprobante-pago.quitar')}>
               <X className="h-3.5 w-3.5" />
             </button>
           )}
@@ -80,14 +84,14 @@ export function CampoComprobante({
           }
         >
           <Paperclip className="h-3.5 w-3.5 text-muted" />
-          Adjuntar PDF o imagen
+          {t('finanzas.comprobante-pago.adjuntar')}
           <input
             type="file"
             accept=".pdf,image/png,image/jpeg,image/webp"
             disabled={disabled}
             onChange={(e) => {
               setErr(null)
-              leerArchivo(e, onCambio, setErr)
+              leerArchivo(e, onCambio, setErr, t)
             }}
             className="hidden"
           />
@@ -111,6 +115,7 @@ export function PagosCobranzaModal({
   puedeAdjuntar: boolean
   onClose: () => void
 }) {
+  const { t, idioma } = useIdioma()
   const [abonos, setAbonos] = useState<AbonoCobranzaUI[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [subiendo, setSubiendo] = useState<string | null>(null)
@@ -119,7 +124,7 @@ export function PagosCobranzaModal({
     try {
       setAbonos(await listarAbonosApi(cobranzaId))
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudieron cargar los pagos')
+      setError(e instanceof Error ? e.message : t('finanzas.pagos.no-cargar'))
     }
   }
   useEffect(() => {
@@ -134,7 +139,7 @@ export function PagosCobranzaModal({
       await adjuntarComprobanteAbonoApi(cobranzaId, abonoId, dataUrl)
       await cargar()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo guardar el comprobante')
+      setError(e instanceof Error ? e.message : t('finanzas.pagos.no-guardar'))
     } finally {
       setSubiendo(null)
     }
@@ -144,19 +149,19 @@ export function PagosCobranzaModal({
     <Modal
       open
       onOpenChange={(v) => !v && onClose()}
-      title="Pagos recibidos"
+      title={t('finanzas.pagos.titulo')}
       subtitle={folio}
       footer={
         <div className="flex items-center justify-between">
           {error ? <span className="text-[12px] text-error">{error}</span> : <span />}
-          <Button variant="secondary" size="sm" onClick={onClose}>Cerrar</Button>
+          <Button variant="secondary" size="sm" onClick={onClose}>{t('comun.cerrar')}</Button>
         </div>
       }
     >
       {abonos === null ? (
-        <p className="text-[12px] text-muted">{error ? '' : 'Cargando…'}</p>
+        <p className="text-[12px] text-muted">{error ? '' : t('comun.cargando')}</p>
       ) : abonos.length === 0 ? (
-        <p className="text-[12px] text-muted">Esta cobranza aún no tiene pagos registrados.</p>
+        <p className="text-[12px] text-muted">{t('finanzas.pagos.vacio')}</p>
       ) : (
         <ul className="divide-y divide-border">
           {abonos.map((a) => (
@@ -166,8 +171,8 @@ export function PagosCobranzaModal({
                 <div className="text-[11px] text-muted">
                   {/* Lo rescatado por la migración del 08/10 es aproximado: un
                       solo renglón por lo ya cobrado, y a veces sin fecha. */}
-                  {a.fecha ? formatFecha(a.fecha) : 'Sin fecha'}
-                  {a.origen === 'historico' ? ' · cobrado antes del 08/10 (aproximado)' : ''}
+                  {a.fecha ? formatFecha(a.fecha, idioma) : t('finanzas.pagos.sin-fecha')}
+                  {a.origen === 'historico' ? t('finanzas.pagos.historico') : ''}
                   {a.registradoPor ? ` · ${a.registradoPor}` : ''}
                 </div>
               </div>
@@ -179,10 +184,10 @@ export function PagosCobranzaModal({
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 text-[12px] text-info hover:underline"
                   >
-                    <FileText className="h-3.5 w-3.5" /> Comprobante
+                    <FileText className="h-3.5 w-3.5" /> {t('finanzas.pagos.comprobante')}
                   </a>
                 ) : (
-                  <span className="text-[11px] text-muted">Sin comprobante</span>
+                  <span className="text-[11px] text-muted">{t('finanzas.pagos.sin-comprobante')}</span>
                 )}
                 {puedeAdjuntar && (
                   <label
@@ -192,12 +197,16 @@ export function PagosCobranzaModal({
                     }
                   >
                     <Paperclip className="h-3 w-3 text-muted" />
-                    {subiendo === a.id ? 'Subiendo…' : a.tieneComprobante ? 'Reemplazar' : 'Adjuntar'}
+                    {subiendo === a.id
+                      ? t('finanzas.pagos.subiendo')
+                      : a.tieneComprobante
+                        ? t('finanzas.pagos.reemplazar')
+                        : t('finanzas.pagos.adjuntar')}
                     <input
                       type="file"
                       accept=".pdf,image/png,image/jpeg,image/webp"
                       disabled={!!subiendo}
-                      onChange={(e) => leerArchivo(e, (url) => void subir(a.id, url), setError)}
+                      onChange={(e) => leerArchivo(e, (url) => void subir(a.id, url), setError, t)}
                       className="hidden"
                     />
                   </label>
