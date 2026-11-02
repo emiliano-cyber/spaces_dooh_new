@@ -25,6 +25,7 @@ import type {
 import { factorMensual, diasAvisoPago, diasCriticoPago } from '../renta-periodicidad'
 import { costoEfectivoDeOt } from '../costos-ot'
 import type { Idioma } from '../i18n/idiomas'
+import { monedaInstancia, simboloMoneda } from '../i18n/dinero'
 import { itemsEnPropuesta, enPropuestaEntre, type ItemEnPropuesta } from './en-propuesta'
 
 // Orden canónico de las 10 etapas del pipeline (sección 7.4).
@@ -281,7 +282,9 @@ export function totalizarMoneda(
 ): TotalPorMoneda {
   const porMoneda: Record<string, number> = {}
   for (const it of items) {
-    const m = (typeof it.moneda === 'string' && it.moneda.trim()) || 'MXN'
+    // Sin moneda en la fila, la de la INSTANCIA (ADR 0048). Era el literal 'MXN',
+    // que en una instancia en dolares habria declarado «mixto» un total que no lo es.
+    const m = (typeof it.moneda === 'string' && it.moneda.trim()) || monedaInstancia()
     porMoneda[m] = (porMoneda[m] ?? 0) + (Number(it.monto) || 0)
   }
   const monedas = Object.keys(porMoneda)
@@ -1422,12 +1425,20 @@ export function medioLabel(s: Pick<Sitio, 'tipoMedio' | 'esRotativo' | 'exhibici
 // «$ -156,986.66» se lee mal en una columna de cifras — el signo se pierde
 // entre dígitos y una cantidad que resta parece que suma. El color lo pone
 // quien lo pinta (`tono`), no el formateador.
-export function formatMonto(n: number): string {
+//
+// ADR 0048 (02/11) · el SIMBOLO es el de la moneda de la instancia
+// (`lib/i18n/dinero.ts`): `$` en una instancia MXN —identico a como era— y
+// `US$` en una USD. No recibe moneda, igual que `formatearDinero`: no se
+// puede pasar la equivocada. El `idioma` es opcional y solo cambia el
+// simbolo (en ingles, `MX$` para el peso y `$` para el dolar); la cifra se
+// escribe igual en los dos, con el estilo de siempre.
+export function formatMonto(n: number, idioma: Idioma = 'es'): string {
   const cifra = Math.abs(n).toLocaleString('es-MX', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })
-  return n < 0 ? `($ ${cifra})` : `$ ${cifra}`
+  const s = simboloMoneda(idioma)
+  return n < 0 ? `(${s} ${cifra})` : `${s} ${cifra}`
 }
 
 // Monto compacto para ejes, tarjetas y etiquetas ($ 18.5k, $ 4.9M).
@@ -1436,7 +1447,7 @@ export function formatMonto(n: number): string {
 // «$ 4897.5k»: sin separador de miles, sin unidad reconocible y más largo que
 // la cifra que abreviaba. Se escala por magnitud y se apoya en toLocaleString
 // para que, si la cifra abreviada aún tiene miles (1,234.5M), lleve su coma.
-export function formatMontoCorto(n: number): string {
+export function formatMontoCorto(n: number, idioma: Idioma = 'es'): string {
   // El redondeo puede DESBORDAR la escala: 999,999 cae en el tramo de miles,
   // redondea a 1000 y sale «$ 1,000.0k» — el mismo defecto que este arreglo
   // venía a quitar, reaparecido justo en el borde. Cuando pasa, se sube a la
@@ -1456,7 +1467,8 @@ export function formatMontoCorto(n: number): string {
     minimumFractionDigits: decimales,
     maximumFractionDigits: decimales,
   })
-  return n < 0 ? `($ ${cifra}${sufijo})` : `$ ${cifra}${sufijo}`
+  const s = simboloMoneda(idioma)
+  return n < 0 ? `(${s} ${cifra}${sufijo})` : `${s} ${cifra}${sufijo}`
 }
 
 // Fecha dd/mm/yyyy (formato de la demo).

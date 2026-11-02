@@ -5,6 +5,8 @@ import { Providers } from './providers'
 import { idiomaDeLaPeticion } from '@/lib/i18n/servidor'
 import { inglesActivo } from '@/lib/i18n/idiomas'
 import { ProveedorIdioma } from '@/lib/i18n/contexto'
+import { ProveedorMoneda } from '@/lib/i18n/moneda-cliente'
+import { monedaDeLaInstancia } from '@/lib/server/moneda-instancia'
 
 export const metadata: Metadata = {
   title: 'Spaces DOOH',
@@ -60,14 +62,33 @@ const inter = Inter({
 // `lang` en el `<html>` no es decoracion: es lo que usan los lectores de
 // pantalla para elegir voz y el navegador para ofrecer la traduccion. Hasta hoy
 // decia `es` fijo, y para un usuario en ingles eso era una afirmacion falsa.
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+
+// ── Y la MONEDA, tambien aqui (ADR 0048, 02/11) ──────────────────────────────
+//
+// Es de la INSTANCIA —se elige al crearla y la base no deja cambiarla— y este
+// layout es el unico sitio por el que pasa TODA pagina, incluidas las publicas
+// (la propuesta que ve el cliente, el comprobante). `ProveedorMoneda` la fija
+// antes del primer `formatMonto` de cualquier pantalla.
+//
+// Si la base no contesta, la pagina FALLA en vez de caer a MXN. Se penso lo
+// contrario —no tumbar /login por esto— y se descarto: el valor que fija este
+// layout se queda en el navegador toda la sesion, y los importes llegan
+// DESPUES por la API. Un tropiezo de la base en este instante, con la API
+// sana un segundo despues, dejaria una instancia en dolares pintando pesos
+// hasta recargar, sin ningun error. Sin base tampoco se puede iniciar sesion,
+// asi que el fallo no quita nada que funcionara.
+
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const idioma = idiomaDeLaPeticion()
+  const moneda = await monedaDeLaInstancia()
   return (
     <html lang={idioma} className={`${serif.variable} ${inter.variable}`}>
       <body>
-        <ProveedorIdioma idioma={idioma} puedeElegir={inglesActivo()}>
-          <Providers>{children}</Providers>
-        </ProveedorIdioma>
+        <ProveedorMoneda moneda={moneda}>
+          <ProveedorIdioma idioma={idioma} puedeElegir={inglesActivo()}>
+            <Providers>{children}</Providers>
+          </ProveedorIdioma>
+        </ProveedorMoneda>
       </body>
     </html>
   )

@@ -4,6 +4,7 @@ import { respuestaError } from '@/lib/server/errores'
 import { registrarAccion } from '@/lib/server/acciones-repo'
 import { agregarSitiosCtrl } from '@/lib/server/propuestas-controller'
 import { textoBitacoraAjusteTarifa } from '@/lib/tarifa-calculada'
+import { monedaDeLaInstancia } from '@/lib/server/moneda-instancia'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -25,6 +26,9 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     )
     // PRECIO-01 · como en el alta, con la misma frase: cada tarifa apartada de
     // la calculada queda en Actividad.
+    // ADR 0048 · la frase lleva importes con el simbolo de la moneda de la
+    // instancia; en servidor hay que pedirla antes de escribirla.
+    await monedaDeLaInstancia()
     for (const a of ajustes) {
       await registrarAccion(g.usuario, textoBitacoraAjusteTarifa(a), propuesta.nombre)
     }

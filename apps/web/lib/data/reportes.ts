@@ -7,6 +7,10 @@ import {
   type DatosAtribucion,
 } from './derive'
 import { costoEfectivoDeOt, tieneCostoReal } from '../costos-ot'
+// ADR 0048: las notas de cobertura nombran importes en la moneda de la
+// instancia. Era un `toLocaleString` con el peso escrito a mano, cuatro
+// veces: en una instancia en dolares habrian dicho pesos.
+import { formatearDineroRedondo } from '../i18n/dinero'
 
 // ============================================================================
 //  lib/data/reportes.ts — Rentabilidad por periodo. LÓGICA PURA.
@@ -1895,7 +1899,7 @@ export function rentabilidadPorTrimestre(
  */
 function notaDeCostosOt(c: Omit<CoberturaCostoOt, 'nota'>): string {
   const pesos = (v: number) =>
-    v.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 })
+    formatearDineroRedondo(v, 'es')
 
   const total = c.visitasConCostoReal + c.visitasConEstimacion
 
@@ -2219,7 +2223,7 @@ const CLAVE_SIN_ASIGNAR = ''
 
 function notaDeAtribucion(a: Omit<AtribucionEntidad, 'nota'>): string {
   const pesos = (v: number) =>
-    v.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 })
+    formatearDineroRedondo(v, 'es')
 
   // Primero lo estructural, que es lo que cambia cómo se lee la tabla entera, y
   // después los huecos de captura, que son arreglables por una persona.
@@ -2377,7 +2381,7 @@ export function rentabilidadPorEntidad(
 
 function notaDeTarifas(c: Omit<CoberturaTarifa, 'nota'>): string {
   const pesos = (v: number) =>
-    v.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 })
+    formatearDineroRedondo(v, 'es')
 
   // Primero QUÉ ES la brecha, porque sin eso la columna se lee mal entera: el
   // hueco entre la publicada y el neto lleva dentro la comisión de la agencia,
@@ -2541,7 +2545,7 @@ export function rentabilidadPorTarifa(
 
 function notaDeVendedores(c: Omit<CoberturaVendedor, 'nota'>): string {
   const pesos = (v: number) =>
-    v.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 })
+    formatearDineroRedondo(v, 'es')
 
   // Primero QUÉ ES la brecha, y hace falta SIEMPRE —aunque no falte ni una
   // atribución—: sin esa frase la columna «Descuento y comisión» se lee como si

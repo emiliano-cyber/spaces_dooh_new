@@ -8,36 +8,51 @@ import type { Idioma } from './idiomas'
 //      EL IDIOMA DECIDE COMO SE ESCRIBE UN IMPORTE. NUNCA CUANTO VALE
 //      NI EN QUE MONEDA ESTA.
 //
-//  ─── LA MONEDA VIVE AQUI Y EN NINGUN OTRO SITIO ────────────────────────────
+//  ─── LA MONEDA ES DE LA INSTANCIA, Y SE ELIGE UNA SOLA VEZ ─────────────────
 //
-//  Decision del dueno, 2026-09-30, literal: «el sistema se rige 100% en pesos
-//  mexicanos por ahora, despues lo moveremos».
+//  Hasta el 2026-11-02 aqui habia una constante, `MONEDA = 'MXN'`: decision
+//  del dueno del 30/09, «el sistema se rige 100% en pesos mexicanos por ahora,
+//  despues lo moveremos». El «despues» llego el 02/11 (ADR 0048):
 //
-//  Asi que hay UNA moneda y se declara UNA VEZ, en la constante `MONEDA` de
-//  abajo. No se construye multimoneda —no hace falta hoy y seria inventar
-//  trabajo—, pero tampoco se reparte el literal por las pantallas, y ese es el
-//  punto entero de este archivo:
+//    · cada INSTANCIA trabaja en UNA moneda, MXN o USD;
+//    · se elige al crearla (`POST /api/bootstrap`, `moneda`), y por omision
+//      es MXN, que es en lo que se quedan todas las que ya existen;
+//    · y NO SE PUEDE CAMBIAR despues. Lo impide la base
+//      (`20261102_moneda_inmutable_por_instancia.sql`) y lo rechaza la API.
 //
-//    · el dia que «despues lo moveremos» llegue, se cambia UNA linea;
-//    · si en vez de eso el simbolo y el formato estuvieran escritos a mano en
-//      veinte componentes, serian veinte oportunidades de que uno se quede
-//      atras — y el que se quede atras NO DARA ERROR: pintara el precio
-//      equivocado, que es el modo de fallo caro de este repositorio.
+//  Por que inmutable: los importes guardados —contratos, propuestas,
+//  cobranza— NO llevan moneda propia. Cambiar la de la instancia volveria
+//  «$10,000 MXN» en «$10,000 USD» sin convertir nada: el mismo numero, otra
+//  divisa, veinte veces mas caro, y ningun error.
+//
+//  Asi que sigue habiendo UNA moneda y sigue viviendo en UN sitio —la variable
+//  de abajo— con una diferencia: ya no la escribe el codigo, la escribe la
+//  base al arrancar cada peticion (`lib/server/moneda-instancia.ts` en el
+//  servidor, `ProveedorMoneda` en el navegador). Que sea una variable de
+//  MODULO y no un parametro es lo que deja intactas las ~250 llamadas a
+//  `formatMonto(n)`: ninguna pantalla tiene que enterarse.
+//
+//  ¿Y por que es seguro un global de modulo en un servidor que atiende a
+//  varias organizaciones? Porque la moneda NO es de la organizacion: es de la
+//  INSTANCIA, y la base impide que dos organizaciones de la misma instancia
+//  tengan monedas distintas (trigger `tenants_moneda_unica`). Todas las
+//  peticiones escriben el MISMO valor. Con el idioma, que si cambia por
+//  peticion, esto seria un error — y por eso el idioma sigue siendo parametro.
 //
 //  ─── QUE ES EXACTAMENTE LO QUE PUEDE CAMBIAR CON EL IDIOMA ─────────────────
 //
-//  Solo la escritura del numero: donde va el separador de miles, donde el
-//  decimal, y donde se coloca el simbolo. El importe es el MISMO y la moneda es
-//  la MISMA.
+//  Solo la escritura: separadores y el SIMBOLO. El importe es el MISMO y la
+//  moneda es la MISMA.
 //
-//    formatearDinero(1234.5, 'es')  ->  "$1,234.50"
-//    formatearDinero(1234.5, 'en')  ->  "MX$1,234.50"
+//                     espanol        ingles
+//      MXN            $1,234.50      MX$1,234.50
+//      USD            US$1,234.50    $1,234.50
 //
-//  Fijarse en el ingles, porque es el argumento de por que NO se fuerza el
-//  locale mexicano en la rama inglesa: en `es-MX` el peso se escribe `$`, que
-//  un lector anglosajon lee como DOLAR. En `en-US`, ICU escribe `MX$`. O sea
-//  que el ingles DESAMBIGUA la moneda en vez de oscurecerla. Son pesos en los
-//  dos casos, y en ingles ademas lo dice.
+//  La regla de la tabla: el `$` a secas es la moneda LOCAL del lector. En
+//  espanol de Mexico el `$` es el peso, asi que el dolar lleva `US$`; en
+//  ingles el `$` es el dolar, asi que el peso lleva `MX$`. Nunca hay un `$`
+//  que un lector pueda leer como la otra moneda. El espanol de una instancia
+//  MXN es IDENTICO al de antes del 02/11 (lo mide `dinero.test.ts`).
 //
 //  ─── LO QUE NO PUEDE PASAR NUNCA ───────────────────────────────────────────
 //
@@ -46,17 +61,76 @@ import type { Idioma } from './idiomas'
 //  misma pantalla afirma otro precio segun el idioma. Por eso `currency` no es
 //  un parametro de estas funciones —no se puede pasar el valor equivocado si no
 //  se puede pasar— y por eso `dinero.test.ts` lleva la prueba negativa
-//  obligatoria mas dos guardias que recorren todo `apps/web`.
+//  obligatoria mas las guardias que recorren todo `apps/web`.
 // ============================================================================
 
-// EL UNICO SITIO. Todo lo demas de este archivo cuelga de esta linea.
-export const MONEDA = 'MXN'
+/** Las monedas en las que puede nacer una instancia. Ni una mas. */
+export const MONEDAS = ['MXN', 'USD'] as const
+export type Moneda = (typeof MONEDAS)[number]
+
+/** En la que nace una instancia si nadie elige, y en la que estan las de antes del 02/11. */
+export const MONEDA_POR_OMISION: Moneda = 'MXN'
+
+export function esMoneda(x: unknown): x is Moneda {
+  return typeof x === 'string' && (MONEDAS as readonly string[]).includes(x)
+}
+
+// EL UNICO SITIO. Todo lo demas de este archivo cuelga de esta variable. La
+// escribe `fijarMonedaInstancia` y nadie mas.
+let monedaVigente: Moneda = MONEDA_POR_OMISION
+
+/**
+ * La moneda de ESTA instancia. La leen los formateadores y quien tenga que
+ * estampar o rotular un importe (el alta de contrato, el comprobante).
+ */
+export function monedaInstancia(): Moneda {
+  return monedaVigente
+}
+
+/**
+ * La fija quien la leyo de la base: `monedaDeLaInstancia()` en el servidor y
+ * `ProveedorMoneda` en el navegador. Un valor que no es una de las monedas
+ * permitidas LANZA en vez de caer a MXN: pintar pesos en una instancia en
+ * dolares es exactamente el fallo silencioso que este archivo existe para
+ * impedir.
+ */
+export function fijarMonedaInstancia(m: string): void {
+  if (!esMoneda(m)) {
+    throw new Error(`Moneda de instancia no soportada: ${JSON.stringify(m)} (solo ${MONEDAS.join(' o ')})`)
+  }
+  monedaVigente = m
+}
 
 // Los locales de FORMATEO. No son monedas y no hay que confundirlos: el locale
-// dice como se escribe un numero; `MONEDA`, de que dinero se habla.
+// dice como se escribe un numero; la moneda, de que dinero se habla.
 export const LOCALE_DE_IDIOMA: Record<Idioma, string> = {
   es: 'es-MX',
   en: 'en-US',
+}
+
+// El simbolo, por idioma del LECTOR y moneda del IMPORTE. Ver la tabla de la
+// cabecera: el `$` a secas solo se usa para la moneda local del lector.
+const SIMBOLO: Record<Idioma, Record<Moneda, string>> = {
+  es: { MXN: '$', USD: 'US$' },
+  en: { MXN: 'MX$', USD: '$' },
+}
+
+// El nombre, para la ficha de Administracion. Vive aqui y no en el
+// diccionario porque la GUARDIA 2 prohibe codigos de moneda en los
+// diccionarios —y con razon: este es el unico sitio donde una moneda se nombra.
+const NOMBRE: Record<Idioma, Record<Moneda, string>> = {
+  es: { MXN: 'Peso mexicano (MXN)', USD: 'Dólar estadounidense (USD)' },
+  en: { MXN: 'Mexican peso (MXN)', USD: 'US dollar (USD)' },
+}
+
+/** El simbolo de la moneda de la instancia, para quien lo pinta suelto (`$ 1,234.50`). */
+export function simboloMoneda(idioma: Idioma = 'es'): string {
+  return SIMBOLO[idioma][monedaVigente]
+}
+
+/** «Peso mexicano (MXN)» / «Dólar estadounidense (USD)», en el idioma de quien mira. */
+export function nombreMoneda(idioma: Idioma = 'es', moneda: Moneda = monedaVigente): string {
+  return NOMBRE[idioma][moneda]
 }
 
 // Lo que se pinta cuando no hay un numero que pintar. Un guion es informacion
@@ -68,19 +142,41 @@ function esNumero(n: unknown): n is number {
 }
 
 /**
- * Formatea un importe para enseñarlo.
- *
- * NO recibe moneda, y es deliberado: hay una sola y esta arriba. Quien necesite
- * otra el dia que «se mueva» cambia `MONEDA`, no las llamadas.
+ * Los decimales son lo UNICO que se deja ajustar. Ni `currency`, ni `style`,
+ * ni `currencyDisplay`: el tipo no los admite, y asi nadie puede colar otra
+ * moneda por el objeto de opciones.
  */
-export function formatearDinero(monto: number, idioma: Idioma): string {
+export interface DecimalesDinero {
+  minimumFractionDigits?: number
+  maximumFractionDigits?: number
+}
+
+/**
+ * Formatea un importe para ensenarlo.
+ *
+ * NO recibe moneda, y es deliberado: es la de la instancia. El simbolo se
+ * pone a mano sobre las partes de `Intl` porque ICU no da la tabla de la
+ * cabecera: en `es-MX` un dolar sale «USD 1,234.50».
+ */
+export function formatearDinero(
+  monto: number,
+  idioma: Idioma,
+  decimales: DecimalesDinero = { minimumFractionDigits: 2, maximumFractionDigits: 2 },
+): string {
   if (!esNumero(monto)) return SIN_DATO
-  return new Intl.NumberFormat(LOCALE_DE_IDIOMA[idioma], {
+  const partes = new Intl.NumberFormat(LOCALE_DE_IDIOMA[idioma], {
     style: 'currency',
-    currency: MONEDA,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(monto)
+    currency: monedaInstancia(),
+    minimumFractionDigits: decimales.minimumFractionDigits,
+    maximumFractionDigits: decimales.maximumFractionDigits,
+  }).formatToParts(monto)
+  const simbolo = SIMBOLO[idioma][monedaVigente]
+  return partes
+    // El espacio que ICU pone entre «USD» y la cifra sobra con el simbolo: en
+    // estos dos locales, un literal en blanco solo aparece junto a la moneda.
+    .filter((p) => !(p.type === 'literal' && /^\s+$/.test(p.value)))
+    .map((p) => (p.type === 'currency' ? simbolo : p.value))
+    .join('')
 }
 
 /**
@@ -92,12 +188,7 @@ export function formatearDinero(monto: number, idioma: Idioma): string {
  * archivo esta para evitar.
  */
 export function formatearDineroRedondo(monto: number, idioma: Idioma): string {
-  if (!esNumero(monto)) return SIN_DATO
-  return new Intl.NumberFormat(LOCALE_DE_IDIOMA[idioma], {
-    style: 'currency',
-    currency: MONEDA,
-    maximumFractionDigits: 0,
-  }).format(monto)
+  return formatearDinero(monto, idioma, { maximumFractionDigits: 0 })
 }
 
 /** Una cantidad SIN moneda (spots, pantallas, dias). */
