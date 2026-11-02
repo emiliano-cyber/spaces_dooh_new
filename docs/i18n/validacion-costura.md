@@ -224,3 +224,71 @@ Ninguna bloquea la integración.
 2. **«thousand (invariable)»:** `propuestas.alta.cpm.titulo` dice `Impressions booked, in thousands (1 = {mil} impressions)`. «in thousands» es un modismo, no la unidad contada, y yo lo daría por válido. Si el glosario quiere el singular estricto, la forma sería `Impressions booked, per thousand (1 = {mil} impressions)`.
 3. **Cifra o letra en las periodicidades.** El glosario fija «every two weeks» (en letra), y la costura dejó «every 2 months» / «every 6 months» (en cifra), igual que `compartidos.periodicidad.*`. Es coherente dentro de la aplicación, pero mezcla las dos formas. Conviene decidir una.
 4. **Los textos alrededor del selector de periodo** (`elige`, aria, «a»/«to») siguen duplicados entre Finanzas y Propuestas. Hay que decidir si se llevan a `compartidos.periodo.*` o si se aceptan como textos de cada tablero.
+
+---
+
+## Segunda pasada (2026-11-02)
+
+Revisé `git diff 36d7a210..HEAD`: 7 commits, de `e3421317` a `f79240b7`, y 20 archivos.
+
+### Veredicto: **VERDE**. Se puede integrar.
+
+Los 11 hallazgos están resueltos y se cumplen las cuatro decisiones del dueño. El español no cambia: 109 de 109 estados salen idénticos y no cambia ningún valor de `DICCIONARIOS.es`. Typecheck y unitarias en verde, y los 6 mutantes mueren, incluidos los dos que antes sobrevivían.
+
+### 1 · Hallazgos de la primera pasada
+
+| Hallazgo | Cómo quedó | ¿Resuelto? |
+|---|---|---|
+| Estado de cuenta vacío con rango | `EstadoCuenta.tsx:144-158`: en inglés y con `esEtiquetaRango`, usa `finanzas.estado-cuenta.vacio-rango`, que se pinta «No invoices or payments from Jan 5, 2026 to Mar 9, 2026.». Se lee bien. En español sigue la rama de siempre (el estado nuevo afirma «Sin facturas ni pagos en 2026-01-05 a 2026-03-09.»). La versión española de `vacio-rango` («del {desde} al {hasta}») no se pinta nunca, pero existe porque `ClaveTexto` sale del español, y es correcta si algún día se usa. | Sí |
+| M1b: falta un estado sin id de DOOHmain | Hay un estado nuevo en `pantallas-comercial.test.ts`. M1b ahora **muere** (3 rojas). | Sí |
+| M5b: los toasts de Comercial no estaban atados a su clave | Hay una gemela nueva en `textos/comercial.test.ts` (SiteFicha, la página de Comercial y GestionCodigos). M5b ahora **muere**. | Sí |
+| Textos alrededor del selector | `compartidos.periodo.{aria,elige,desde,hasta,a}` sustituyen a `finanzas.periodo.{aria,elige}`, `finanzas.comun.{desde,hasta,a}` y `propuestas.tablero.{periodo,a,elige-fechas}`. Los dos tableros los usan, y ya no queda ninguna referencia a las claves viejas (solo la lista de «retiradas» de `finanzas.test.ts:94-95`). Siguen existiendo `Desde`/`Hasta` en `propuestas.comun.*` y `campanas.playlogs.*`, pero son campos de otros formularios, no del selector. | Sí |
+| Comentario viejo en `textos/finanzas.ts` | Reescrito: ahora explica que el selector vive en `compartidos.periodo.*`. | Sí |
+| `Don't` en `diccionario.ts` | Cambiado a `Don’t`. La prueba del apóstrofo ahora recorre `DICCIONARIOS.en` entero. | Sí |
+| Comillas rectas en `paquete-conjunto` | Cambiadas a `“{nombre}”`. Hay una prueba nueva de comillas tipográficas en todo el diccionario; sigue respetando los segundos de las coordenadas (`57"N`). | Sí |
+| «Internal ref.» a media frase | Cambiado a «internal ref.» en `campanas.lista.buscar` y `campanas.extender.nota`. Hay una prueba que lo vigila. | Sí |
+| Sangría de `ComprobanteDialog.tsx` | Corregida (`:91-97`). | Sí |
+| La bóveda atribuía la fecha a `armarComprobante` | La línea 749 de la bóveda ahora dice «el emisor de `armarComprobante` y la fecha en `ComprobanteDialog`». | Sí |
+
+**Las decisiones del dueño:**
+- **«Pricing»:** `campanas.ficha.comercial` vale `Pricing` y casa con su contexto (Subtotal (net), VAT). La excepción de `costura.test.ts` está actualizada.
+- **«in thousands»:** sin cambios.
+- **Periodicidades en letra:** «Every two months», «Every six months» e «installments every two/six months». Buscar `every \d` o `\d+-(week|month|day)` en todo el inglés da 0, y hay una prueba nueva que lo vigila.
+- **Una sola fuente en `compartidos.periodo.*`:** ver la fila del selector en la tabla de arriba.
+
+### 2 · Español intacto
+
+Repetí el espejo de la primera pasada: las 19 fuentes no-prueba del diff `f2e0a15f..HEAD`, en su versión de `f2e0a15f`, con un `vi.mock` por módulo y las pruebas de pantallas de HEAD.
+
+**Estados:** propuestas 23, compartidos 6, campañas y finanzas 56, comercial 24. Son **109 estados** y 1 140 543 bytes. `diff -rq viejo nuevo` sale **vacío**.
+
+Para comprobar que el espejo carga el código viejo, corrí el inglés del espejo. Falla como se espera, por ejemplo con `'Todo el día (sin franja)'`, `'Sin asignar…'` y `'All clients · November 2026'`.
+
+**`DICCIONARIOS.es` de f2e0a15f frente a HEAD**, con copias completas de los diccionarios viejos:
+- **0 valores cambiados**;
+- 14 claves retiradas, todas duplicados que pasaron a `compartidos.periodo.*`;
+- 23 nuevas: 5 de `compartidos.periodo`, 17 de la primera pasada y `vacio-rango`.
+
+En `DICCIONARIOS.en` cambiaron 38 valores. Los que no son solo el apóstrofo son los esperados: comillas, Payment frequency, profile, periodicidades en letra, internal ref., Pricing, cuotas y proof photos.
+
+### 3 · Pruebas y mutantes
+
+```
+cd apps/web && npm run typecheck   → tsc --noEmit, limpio (exit 0)
+cd apps/web && npm test            → Test Files 331 passed (331) · Tests 4529 passed (4529)
+```
+
+Todos los mutantes se corrieron contra la suite entera y se restauraron con `git checkout -- <archivo>`:
+
+| # | Mutante | Resultado |
+|---|---|---|
+| M1b | Quitar `idioma` de `textoOrigenDoohmain(null, idioma)` (SiteFicha) | **muere** (3) |
+| M5b | Toast `comercial.tarifas.guardadas` → `comercial.ficha.galeria-guardada` | **muere** (1, `comercial.test.ts`) |
+| M6 | Quitar la rama `vacio-rango` de `EstadoCuenta` | **muere** (1) |
+| M7 | `compartidos.periodo.elige` → otra clave en `TableroPropuestas` | **muere** (1) |
+| M8 | «Every six months» → «Every 6 months» | **muere** (2) |
+| M9 | «Pricing» → «Commercial» | **muere** (2) |
+
+El árbol queda limpio: borré el directorio temporal y `git status --short`, sin los `desktop.ini` ajenos, solo muestra este informe. No usé `git stash`.
+
+**Nota:** el autor commiteó la primera versión de este informe en `36d7a210`. Esta sección va añadida encima y está sin commitear.
