@@ -1,5 +1,7 @@
 import { IDIOMA_POR_OMISION, type Idioma } from './idiomas'
 import { ES_PROPUESTAS, EN_PROPUESTAS } from './textos/propuestas'
+import { ES_COMERCIAL, EN_COMERCIAL } from './textos/comercial'
+import { ES_CODIGOS, EN_CODIGOS } from './textos/codigos'
 
 // ============================================================================
 //  lib/i18n/diccionario.ts — LOS TEXTOS, Y LA CONVENCION DE CLAVES.
@@ -218,6 +220,8 @@ const ES = {
   // `Record<ClaveDeSuArea, string>`, asi que una clave inglesa que falte sigue
   // siendo un error de compilacion, solo que en el archivo del area.
   ...ES_PROPUESTAS,
+  ...ES_COMERCIAL,
+  ...ES_CODIGOS,
 } as const
 
 export type ClaveTexto = keyof typeof ES
@@ -362,6 +366,8 @@ const EN: Record<ClaveTexto, string> = {
   'nav.administracion': 'Settings',
 
   ...EN_PROPUESTAS,
+  ...EN_COMERCIAL,
+  ...EN_CODIGOS,
 }
 
 export const DICCIONARIOS: Record<Idioma, Record<ClaveTexto, string>> = {
