@@ -944,7 +944,9 @@ const PANTALLAS: Pantalla[] = [
       '= Saldo al cierre', 'Vencido al 02/11/2026', 'Fecha', 'Movimiento', 'Cargo', 'Abono', 'Saldo', 'Factura',
       'Pago recibido', 'fecha aproximada', 'Pago anterior a que el sistema guardara fechas: lleva la fecha de su factura',
     ],
-    ingles: ['Opening balance', 'Closing balance', 'Overdue as of Nov 2, 2026', 'Payment received'],
+    // Costura: la etiqueta del periodo la manda el servidor en espanol; en
+    // ingles se rearma con `etiquetaPeriodo` (lote compartidos).
+    ingles: ['Opening balance', 'Closing balance', 'Overdue as of Nov 2, 2026', 'Payment received', 'All clients · November 2026'],
   },
   {
     nombre: 'estado de cuenta sin movimientos',
@@ -954,7 +956,7 @@ const PANTALLAS: Pantalla[] = [
       return pintar(idioma, createElement(EstadoCuenta))
     },
     espanol: ['Sin facturas ni pagos en noviembre 2026.'],
-    ingles: ['No invoices or payments in noviembre 2026.'],
+    ingles: ['No invoices or payments in November 2026.'],
   },
   {
     nombre: 'resumen del periodo con cifras',
@@ -971,7 +973,23 @@ const PANTALLAS: Pantalla[] = [
       'de lo cobrado son pagos de antes de que el sistema guardara la fecha de',
       'cada pago: se fecharon con la fecha de su factura, así que su mes es aproximado.',
     ],
-    ingles: ['Receivable at close', 'Overdue', '2 invoices as of Nov 2, 2026', '1 invoice', 'Rent to landlords', 'Nov 1, 2026 to Nov 30, 2026'],
+    ingles: ['Receivable at close', 'Overdue', '2 invoices as of Nov 2, 2026', '1 invoice', 'Rent to landlords', 'November 2026 · Nov 1, 2026 to Nov 30, 2026'],
+  },
+  {
+    // Costura: con un rango a mano la etiqueta del servidor YA son las fechas;
+    // en ingles el subtitulo las pinta una vez, no dos.
+    nombre: 'resumen del periodo con un rango a mano',
+    pintar: async (idioma) => {
+      const { TableroPeriodo } = await import('../../components/demo/finanzas/TableroPeriodo')
+      forzar(esNull, {
+        ...RESUMEN_FIN,
+        periodo: { desde: '2026-01-05', hasta: '2026-03-09', etiqueta: '2026-01-05 a 2026-03-09' },
+      })
+      forzar(esTrue, false)
+      return pintar(idioma, createElement(TableroPeriodo))
+    },
+    espanol: ['2026-01-05 a 2026-03-09 · 05/01/2026 a 09/03/2026'],
+    ingles: ['Jan 5, 2026 to Mar 9, 2026'],
   },
   {
     nombre: 'resumen del periodo: rango sin fechas',
@@ -1079,5 +1097,16 @@ describe('lote CAMPANAS y FINANZAS · barrido con el diccionario entero', () => 
       }
     }
     expect(culpables).toEqual([])
+  })
+})
+
+describe('costura · el periodo de Finanzas en ingles', () => {
+  it('con un rango a mano, el subtitulo no repite las fechas', async () => {
+    reiniciar()
+    const p = PANTALLAS.find((x) => x.nombre === 'resumen del periodo con un rango a mano')!
+    const html = texto(await p.pintar('en'))
+    expect(html).not.toContain('Mar 9, 2026 · Jan 5, 2026')
+    // Ni la etiqueta espanola del servidor tal cual llega.
+    expect(html).not.toContain('2026-01-05 a 2026-03-09')
   })
 })

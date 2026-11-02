@@ -6,7 +6,7 @@ import { KPICard, KPICardSkeleton } from '@/components/demo/KPICard'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { cn } from '@/lib/cn'
 import { useCobranzas, useFacturas, usePagosRenta, formatMonto, formatFecha } from '@/lib/data/client'
-import type { TipoPeriodo } from '@/lib/finanzas-periodo'
+import { esEtiquetaRango, etiquetaPeriodo, type TipoPeriodo } from '@/lib/finanzas-periodo'
 import { resumenFinanzasApi, type RespuestaResumen } from '@/lib/data/finanzas-periodo-api'
 import { useIdioma } from '@/lib/i18n/contexto'
 import { interpolarNodos } from '@/lib/i18n/nodos'
@@ -90,9 +90,15 @@ export function TableroPeriodo() {
       id="finanzas.resumen-periodo"
       titulo={t('finanzas.periodo.titulo')}
       subtitulo={
-        datos
+        // La etiqueta la arma el servidor en espanol («Noviembre 2026»); en
+        // otro idioma se rearma con `etiquetaPeriodo` (costura, 2026-11-02).
+        // Con un rango a mano la etiqueta YA son las fechas: en ingles saldrian
+        // dos veces, asi que se pinta una, como en el tablero de Propuestas.
+        datos && idioma !== 'es' && esEtiquetaRango(datos.periodo.etiqueta)
+          ? etiquetaPeriodo(datos.periodo, idioma)
+          : datos
           ? t('finanzas.periodo.subtitulo', {
-              etiqueta: datos.periodo.etiqueta,
+              etiqueta: etiquetaPeriodo(datos.periodo, idioma),
               desde: formatFecha(datos.periodo.desde, idioma),
               hasta: formatFecha(datos.periodo.hasta, idioma),
             })

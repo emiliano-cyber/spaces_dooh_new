@@ -7,6 +7,7 @@ import { Button } from '@/components/demo/ui/Button'
 import { cn } from '@/lib/cn'
 import { useCobranzas, useFacturas, usePagosRenta, formatMonto, formatFecha, useClientes } from '@/lib/data/client'
 import { resumenFinanzasApi, type RespuestaResumen } from '@/lib/data/finanzas-periodo-api'
+import { etiquetaPeriodo } from '@/lib/finanzas-periodo'
 import { csvEstadoCuenta } from './estado-cuenta-csv'
 import { useIdioma } from '@/lib/i18n/contexto'
 import { CLAVE_PERIODO } from './etiquetas'
@@ -73,7 +74,7 @@ export function EstadoCuenta() {
     <CardColapsable
       id="finanzas.estado-cuenta"
       titulo={t('finanzas.estado-cuenta.titulo')}
-      subtitulo={`${titular}${datos ? ` · ${datos.periodo.etiqueta}` : ''}`}
+      subtitulo={`${titular}${datos ? ` · ${etiquetaPeriodo(datos.periodo, idioma)}` : ''}`}
       contentClassName="px-0 pb-0"
       accion={
         <div className="flex flex-wrap items-center gap-1.5">
@@ -140,7 +141,11 @@ export function EstadoCuenta() {
               <Renglon k={t('finanzas.estado-cuenta.vencido-al', { fecha: formatFecha(r.corte, idioma) })} v={formatMonto(r.vencido.monto)} tono={r.vencido.monto > 0} />
             </dl>
             {datos.movimientos.length === 0 ? (
-              <p className="border-t border-border px-4 py-4 text-[13px] text-muted">{t('finanzas.estado-cuenta.vacio', { periodo: datos.periodo.etiqueta.toLowerCase() })}</p>
+              <p className="border-t border-border px-4 py-4 text-[13px] text-muted">{t('finanzas.estado-cuenta.vacio', {
+                // En espanol, en minusculas a media frase («en noviembre 2026»);
+                // en ingles el mes va con mayuscula y «Q4» no se baja.
+                periodo: idioma === 'es' ? datos.periodo.etiqueta.toLowerCase() : etiquetaPeriodo(datos.periodo, idioma),
+              })}</p>
             ) : (
               <div className="overflow-x-auto border-t border-border">
                 <table className="w-full text-left text-[13px]">
