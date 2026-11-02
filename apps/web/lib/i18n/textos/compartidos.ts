@@ -188,7 +188,7 @@ export const EN_COMPARTIDOS: Record<ClaveCompartidos, string> = {
 
   'compartidos.calc.motivo.solo-digital': 'The spot calculator only applies to digital screens sold per spot.',
   'compartidos.calc.motivo.sin-loop':
-    "This screen's number of loop slots hasn't been entered; add it on the screen's page before using the calculator.",
+    "This screen’s number of loop slots hasn’t been entered; add it on the screen’s profile before using the calculator.",
   // «every loop slot ({total})» y no «all {total} loop slots»: con un loop de
   // uno, el plural se leeria mal y aqui no hay contador que lo elija.
   'compartidos.calc.motivo.roadblock-todos': 'A Roadblock buys every loop slot ({total}), not {espacios}.',
@@ -200,8 +200,8 @@ export const EN_COMPARTIDOS: Record<ClaveCompartidos, string> = {
   'compartidos.calc.motivo.sin-dias': 'The line has no days: check the dates.',
   'compartidos.calc.motivo.cero-spots': 'With these slots and hours, not a single spot would play per day.',
   'compartidos.calc.motivo.roadblock-libres': 'A Roadblock needs every loop slot free ({total}); the screen has {libres} free.',
-  'compartidos.calc.motivo.pocos-libres.uno': "You're asking for {espacios} loop slot and the screen only has {libres} free.",
-  'compartidos.calc.motivo.pocos-libres.otros': "You're asking for {espacios} loop slots and the screen only has {libres} free.",
+  'compartidos.calc.motivo.pocos-libres.uno': "You’re asking for {espacios} loop slot and the screen only has {libres} free.",
+  'compartidos.calc.motivo.pocos-libres.otros': "You’re asking for {espacios} loop slots and the screen only has {libres} free.",
 
   'compartidos.periodicidad.diaria': 'Daily',
   'compartidos.periodicidad.semanal': 'Weekly',

@@ -246,12 +246,12 @@ export const EN_FINANZAS: Record<ClaveFinanzas, string> = {
   'finanzas.cobranza.vencida': 'Overdue',
   'finanzas.cobranza.pagada': 'Paid',
 
-  'finanzas.parcialidad.quincenal': '{n} semi-monthly installments',
+  'finanzas.parcialidad.quincenal': '{n} twice-monthly installments',
   'finanzas.parcialidad.mensual': '{n} monthly installments',
-  'finanzas.parcialidad.bimestral': '{n} installments every two months',
+  'finanzas.parcialidad.bimestral': '{n} installments every 2 months',
   'finanzas.parcialidad.trimestral': '{n} quarterly installments',
-  'finanzas.parcialidad.semestral': '{n} semiannual installments',
-  'finanzas.parcialidad.anual': '{n} annual installments',
+  'finanzas.parcialidad.semestral': '{n} installments every 6 months',
+  'finanzas.parcialidad.anual': '{n} yearly installments',
 
   'finanzas.vence.pagada': 'paid',
   'finanzas.vence.vencida': '{n}d overdue',
