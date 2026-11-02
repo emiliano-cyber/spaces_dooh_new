@@ -986,6 +986,80 @@ cambiado**.
   valores cambiados**, y ningún texto español retirado se quedó sin clave que lo
   pinte.
 
+### Lote Space Eyes
+
+**2026-11-02, rama `feat/ingles-space-eyes`** (sale de `integra/ingles`,
+`ec427a66`). El inglés sigue APAGADO; en español no cambia ni una letra. Tabla
+de revisión en `docs/i18n/revision-spaceeyes.md`.
+
+**Pantallas cubiertas:** todo `/space-eyes/*` — la lista de equipos, la ficha
+de un equipo con sus cuatro pestañas (fotos con el veredicto de la IA, pantalla
+y fallas, creativos, equipo: datos del sitio, programa, ajustes de imagen y
+registros), el histórico, la vista en vivo, la galería y su visor, las fallas
+de la flota, las campañas de verificación, la programación de fotos, la
+verificación, las gráficas, ajustar texto, el alta de un dispositivo, la
+demostración para quien no tiene el módulo, el aviso «sin respuesta» y las
+solicitudes de activación del padre; y la página `/space-eyes/[id]` con un id
+inválido.
+
+- **984 claves** `spaceeyes.*` en `lib/i18n/textos/spaceeyes.ts`, esparcidas en
+  `diccionario.ts`, con su instantánea y sus guardias en
+  `textos/spaceeyes.test.ts` (ningún inglés igual al español salvo 10
+  declaradas, sin acentos, mismos huecos, sin espacio antes de «%», apóstrofo y
+  comillas tipográficos, nunca «tap»/«press», frecuencias en letra y plurales
+  `.uno/.otros` siempre en pareja). El lote entra en `costura.test.ts`.
+- **Funciones con texto ganaron `idioma` con `'es'` por omisión:** en
+  `piezas.tsx` `hace`, `calidadSenal` y `fechaHora` (en inglés,
+  `formatFechaHora(…, 'en')`), más `haceSinPrefijo` (sustituye a
+  `hace(x).replace('hace ', '')`, que en inglés no quitaba nada); y
+  `comoSeActualiza` (`lib/space-eyes-actualizacion.ts`). El servidor
+  (`lib/server/space-eye.ts`) la sigue llamando sin idioma: español de siempre,
+  y `space-eyes-actualizacion.test.ts` lo fija letra por letra.
+- **El veredicto de la foto** usa las claves `comercial.eye.*` («Correct ad ·
+  confidence 93%», «Does not match the creative»): la misma foto dice lo mismo
+  en la ficha comercial y en la de Space Eyes.
+- **Los avisos que no se rinden** (toasts de Programación y de la vista en
+  vivo, avisos de la galería, de ajustar texto, de las fallas y del equipo, el
+  `window.confirm` de descartar la marca) se fijan leyendo el fuente en
+  `textos/spaceeyes.test.ts`, rama por rama, como la gemela de Finanzas.
+
+**Cómo se midió el español:** `lib/i18n/pantallas-spaceeyes.test.ts` rinde
+**95 estados** (con `useState` forzado y el reloj fijo). Como `Button` lleva su
+propio `useState(false)`, el envoltorio lo reconoce en la pila y no le da
+valores de la cola. Con `I18N_VOLCAR=<carpeta>` vuelca el HTML español: se
+volcó con las fuentes de `ec427a66` y con las del lote, con la misma prueba, y
+`diff -rq` salió vacío (95/95). La prueba barre además el diccionario del lote,
+el de compartidos y `comun.*` contra el HTML inglés de todas las pantallas.
+
+**Glosario del lote** (decisiones del traductor; el dueño puede cambiarlas):
+equipo / dispositivo → **device** (como el menú, «Devices»); falla → **fault**
+(menú «Faults»); vista en vivo → **live view**; verificación →
+**verification**; solicitud de activación → **activation request**; flota →
+**fleet**; gabinete → *cabinet*; creativo / creatividad → *creative*; encuadre
+→ *framing*; vigilancia → *monitoring*; código de vinculación → *pairing code*;
+la marca de la foto → *label* (menú «Photo label»); programación de fotos →
+*scheduling*; franja → *daypart* (glosario); zona → *area*; sin comunicación →
+*not reporting*. «Pide un toque en el teléfono» → *someone has to confirm on
+the phone* (nunca «tap»). Las frecuencias en letra: *every half hour, every
+two hours, every twelve hours*. Tres divergencias declaradas en la costura:
+«Actualizar» (*Refresh* una lista / *Update* el programa del equipo),
+«Estado» (*Status* / *State* en la dirección) y «Ganancia» (*Profit* / *Gain*
+de la cámara).
+
+**Lo que NO se traduce, a propósito:** el ticket que abre «Solicitar
+activación» (es un dato que lee soporte), la marca que se graba EN la foto
+(`lib/space-eyes-marca*`: es la evidencia), el nombre del `.zip` del álbum y
+del archivo de la microSD, el CSV de telemetría, el comando de instalación, y
+lo que manda el servidor o Space Eye: el nombre, la zona y la nota de una falla,
+las alertas de telemetría, el `mensaje` de pedir una foto, el
+`actualizacion.texto` de la lista (solo sale en un `title`) y los errores de
+`lib/space-eyes-whep.ts` y `lib/space-eyes-marca.ts`.
+
+> [!warning] Para confirmar con el dueño
+> El paso del alta «En la app, toca **Vincular**» nombra un botón de la app
+> Android de Space Eye; en inglés dice **Pair**. Si la app no tiene inglés,
+> habría que dejar «Vincular» en las dos.
+
 ## Enlaces
 
 - [[acceso-y-sesion-ui]] — la pantalla de entrar, que es la traducida

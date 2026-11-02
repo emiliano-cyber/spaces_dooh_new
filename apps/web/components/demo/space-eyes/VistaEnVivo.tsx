@@ -22,6 +22,10 @@ import { cn } from '@/lib/cn'
 import { Button } from '@/components/demo/ui/Button'
 import { seApi, ErrorSE } from '@/lib/data/space-eyes-se'
 import { VisorWhep, type EncuadreTemporal } from '@/lib/space-eyes-whep'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { traducir, type ClaveTexto } from '@/lib/i18n/diccionario'
+import type { Idioma } from '@/lib/i18n/idiomas'
+import { interpolarNodos } from '@/lib/i18n/nodos'
 
 // ============================================================================
 //  Space Eyes — vista en vivo de un equipo.
@@ -88,12 +92,12 @@ type Estado = 'apagado' | 'conectando' | 'vivo'
 type Lente = 'main' | 'wide'
 type Balance = 'auto' | 'daylight' | 'cloudy' | 'incandescent' | 'fluorescent'
 
-const BALANCES: { valor: Balance; texto: string }[] = [
-  { valor: 'auto', texto: 'Balance auto' },
-  { valor: 'daylight', texto: 'Luz de día' },
-  { valor: 'cloudy', texto: 'Nublado' },
-  { valor: 'incandescent', texto: 'Incandescente' },
-  { valor: 'fluorescent', texto: 'Fluorescente' },
+const BALANCES: { valor: Balance; texto: ClaveTexto }[] = [
+  { valor: 'auto', texto: 'spaceeyes.vivo.balance.auto' },
+  { valor: 'daylight', texto: 'spaceeyes.balance.daylight' },
+  { valor: 'cloudy', texto: 'spaceeyes.balance.cloudy' },
+  { valor: 'incandescent', texto: 'spaceeyes.vivo.balance.incandescent' },
+  { valor: 'fluorescent', texto: 'spaceeyes.balance.fluorescent' },
 ]
 
 const num = (v: unknown, def: number) => {
@@ -138,18 +142,19 @@ function cuerpoAjustes(a: Ajustes): Ajustes | null {
   return Object.keys(c).length ? c : null
 }
 
-function motivoDe(e: unknown, porDefecto: string): string {
+function motivoDe(e: unknown, porDefecto: string, idioma: Idioma): string {
   if (e instanceof ErrorSE) {
-    if (e.status === 403) return 'No tienes permiso para cambiar este equipo'
+    if (e.status === 403) return traducir(idioma, 'spaceeyes.vivo.sin-permiso')
     const cuerpo = e.cuerpo as { error?: string } | null
     if (cuerpo?.error === 'servidor_de_medios_no_configurado') {
-      return 'El servidor de video no está configurado. Es cosa del servidor, no del equipo.'
+      return traducir(idioma, 'spaceeyes.vivo.sin-servidor')
     }
   }
   return e instanceof Error && e.message ? e.message : porDefecto
 }
 
 export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embebida = false }: VistaEnVivoProps) {
+  const { t, idioma } = useIdioma()
   const id = equipo.id
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const clienteRef = useRef<VisorWhep | null>(null)
@@ -210,11 +215,11 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
         setRotacion(rot)
         setRotacionGuardada(rot)
       })
-      .catch((e) => vigente && setErrorCarga(motivoDe(e, 'No se pudo leer el equipo')))
+      .catch((e) => vigente && setErrorCarga(motivoDe(e, traducir(idioma, 'spaceeyes.vivo.no-leer'), idioma)))
     return () => {
       vigente = false
     }
-  }, [id])
+  }, [id, idioma])
 
   // ─── Control en vivo (teléfonos) ─────────────────────────────────────────
   const control = useCallback(
@@ -321,10 +326,10 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
         setEstado('apagado')
         const cuerpo = e instanceof ErrorSE ? (e.cuerpo as { error?: string; con?: string; minutos?: number } | null) : null
         if (e instanceof ErrorSE && e.status === 409 && cuerpo?.error === 'vista_ocupada') {
-          setOcupada({ con: cuerpo.con || 'otra persona', minutos: Number(cuerpo.minutos) || 1 })
+          setOcupada({ con: cuerpo.con || t('spaceeyes.vivo.otra-persona'), minutos: Number(cuerpo.minutos) || 1 })
           return
         }
-        const motivo = motivoDe(e, 'No se pudo iniciar la transmisión.')
+        const motivo = motivoDe(e, t('spaceeyes.vivo.no-iniciar.punto'), idioma)
         setError(motivo)
         toast.error(motivo)
         return
@@ -342,7 +347,7 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
       })
       setEstado('vivo')
       if (cliente.compartida && !opciones.reabriendo) {
-        toast.info(`Viendo la transmisión que abrió ${cliente.compartidaCon ?? 'otra persona'}`)
+        toast.info(t('spaceeyes.vivo.compartida', { quien: cliente.compartidaCon ?? t('spaceeyes.vivo.otra-persona') }))
       }
 
       // Corte a los 3 minutos: una vista olvidada no sigue gastando datos.
@@ -354,7 +359,7 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
         setRestante(s)
         if (s <= 0) {
           clearInterval(tic)
-          void detener().then(() => toast.info('Transmisión detenida automáticamente a los 3 minutos'))
+          void detener().then(() => toast.info(t('spaceeyes.vivo.corte-auto')))
         }
       }, 1000)
       timersRef.current.push(tic as unknown as ReturnType<typeof setTimeout>)
@@ -364,7 +369,7 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
         setTimeout(async () => {
           if (!esVigente()) return
           const bytes = await cliente.bytesRecibidos()
-          if (bytes === 0) perdida('Conectado con el servidor pero no está llegando imagen del equipo.')
+          if (bytes === 0) perdida(t('spaceeyes.vivo.sin-imagen'))
         }, REVISION_MS),
       )
 
@@ -384,7 +389,7 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
         )
       }
     },
-    [id, detener, control, esRelay, encuadreDeAhora],
+    [id, detener, control, esRelay, encuadreDeAhora, t, idioma],
   )
 
   // ─── Salir de la página: que el equipo no siga transmitiendo solo ────────
@@ -441,10 +446,10 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
       guardadoRef.current = nuevo
       setGuardado(nuevo)
     } catch (e) {
-      toast.error(motivoDe(e, 'No se pudo guardar el encuadre'))
+      toast.error(motivoDe(e, t('spaceeyes.vivo.no-encuadre'), idioma))
       return
     }
-    toast.success('Encuadre fijado: se aplica también a las fotos programadas')
+    toast.success(t('spaceeyes.vivo.encuadre-fijado'))
     if (!reabrir) return
     // Forzado: el encuadre nuevo es el de TODOS, así que la transmisión se
     // reabre también para quien esté mirando.
@@ -493,17 +498,10 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
     if (reencuadrando) return
     await reabrirVisor(false)
     if (clienteRef.current?.compartida) {
-      toast.info(
-        `${clienteRef.current.compartidaCon ?? 'Otra persona'} está viendo este equipo: la vista sigue con su encuadre. ` +
-          'La foto que pidas sí sale como la tienes puesta.',
-      )
+      toast.info(t('spaceeyes.vivo.ver-asi.compartida', { quien: clienteRef.current.compartidaCon ?? t('spaceeyes.vivo.otra-persona.may') }))
       return
     }
-    toast.info(
-      cambioLente
-        ? 'Así se ve con este lente. No cambió el encuadre del sitio.'
-        : 'Ya se ve nítido a este acercamiento. No cambió el encuadre del sitio.',
-    )
+    toast.info(cambioLente ? t('spaceeyes.vivo.ver-asi.lente') : t('spaceeyes.vivo.ver-asi.nitido'))
   }
 
   // ─── Enfoque (teléfonos) ─────────────────────────────────────────────────
@@ -512,9 +510,9 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
     setAjustes(a)
     try {
       await seApi(`devices/${id}/camera`, { method: 'PUT', body: { ajustes: cuerpoAjustes(a) } })
-      toast.success(fijo ? 'Enfoque fijado: se aplica solo cada vez que se abra la vista' : 'Enfoque libre: la cámara vuelve a enfocar sola')
+      toast.success(fijo ? t('spaceeyes.vivo.enfoque.fijado') : t('spaceeyes.vivo.enfoque.libre'))
     } catch (e) {
-      toast.error(motivoDe(e, 'No se pudo guardar el enfoque'))
+      toast.error(motivoDe(e, t('spaceeyes.vivo.enfoque.no-guardar'), idioma))
     }
   }
 
@@ -545,9 +543,9 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
     try {
       await seApi(`devices/${id}/stream-rotation`, { method: 'PUT', body: { rotation: rotacion } })
       setRotacionGuardada(rotacion)
-      toast.success('Orientación fijada para todos')
+      toast.success(t('spaceeyes.vivo.orientacion.fijada'))
     } catch (e) {
-      toast.error(motivoDe(e, 'No se pudo fijar la orientación'))
+      toast.error(motivoDe(e, t('spaceeyes.vivo.orientacion.no-fijar'), idioma))
     }
   }
 
@@ -575,10 +573,10 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
           },
         },
       })
-      toast.success('Foto pedida: llega en unos segundos')
+      toast.success(t('spaceeyes.vivo.foto.pedida'))
       onFoto?.()
     } catch (e) {
-      toast.error(motivoDe(e, 'No se pudo pedir la foto'))
+      toast.error(motivoDe(e, t('spaceeyes.comun.no-pedir-foto'), idioma))
     } finally {
       setTimeout(() => setTomandoFoto(false), 2500)
     }
@@ -638,41 +636,41 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border p-2.5">
         <div className="flex items-center gap-2">
           <Eye className="h-4 w-4 text-muted" strokeWidth={1.8} />
-          <h2 className="text-[14px] font-semibold text-ink">Vista en vivo</h2>
+          <h2 className="text-[14px] font-semibold text-ink">{t('spaceeyes.vivo.titulo')}</h2>
           {vivo ? (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-error-soft px-2 py-0.5 text-[11px] font-semibold text-[#b91c1c]">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-error" />
-              En vivo
+              {t('spaceeyes.vivo.en-vivo')}
             </span>
           ) : null}
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
           {vivo ? (
-            <span className="text-[12px] tabular-nums text-muted" title="La transmisión se detiene sola para no gastar datos del equipo">
-              <span className="hidden sm:inline">Corte en </span>
+            <span className="text-[12px] tabular-nums text-muted" title={t('spaceeyes.vivo.corte.ayuda')}>
+              <span className="hidden sm:inline">{t('spaceeyes.vivo.corte')}</span>
               {mmss(restante)}
             </span>
           ) : null}
           {puedeOperar ? (
             <Button variant="secondary" size="sm" onClick={tomarFoto} disabled={tomandoFoto}>
               <Camera className="mr-1.5 h-3.5 w-3.5" />
-              {tomandoFoto ? 'Pidiendo…' : 'Foto'}
+              {tomandoFoto ? t('spaceeyes.comun.pidiendo') : t('spaceeyes.vivo.foto')}
             </Button>
           ) : null}
           {estado === 'apagado' ? (
             <Button variant="primary" size="sm" onClick={() => iniciar()} disabled={!puedeIniciar}>
               <Play className="mr-1.5 h-3.5 w-3.5" />
-              Iniciar
+              {t('spaceeyes.vivo.iniciar')}
             </Button>
           ) : estado === 'conectando' ? (
             <Button variant="primary" size="sm" disabled>
               <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-              Conectando…
+              {t('spaceeyes.vivo.conectando')}
             </Button>
           ) : (
             <Button variant="danger" size="sm" onClick={() => detener()}>
               <Square className="mr-1.5 h-3.5 w-3.5" />
-              Detener
+              {t('spaceeyes.vivo.detener')}
             </Button>
           )}
         </div>
@@ -703,7 +701,7 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
             {errorCarga ? (
               <>
                 <AlertTriangle className="mx-auto mb-2 h-8 w-8 text-warning" strokeWidth={1.5} />
-                <p className="text-[13px] text-white/80">No se pudo leer el equipo</p>
+                <p className="text-[13px] text-white/80">{t('spaceeyes.vivo.no-leer')}</p>
                 <p className="mt-1 text-[12px] text-white/50">{errorCarga}</p>
               </>
             ) : !dispositivo ? (
@@ -711,55 +709,47 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
             ) : sinVivo ? (
               <>
                 <VideoOff className="mx-auto mb-2 h-8 w-8 text-white/40" strokeWidth={1.5} />
-                <p className="text-[13px] text-white/80">Agente anterior a la vista en vivo</p>
-                <p className="mx-auto mt-1 max-w-sm text-[12px] text-white/50">
-                  Esta PC corre el agente v1.0. Actualízala y la vista en vivo se enciende sola. Mientras tanto, usa «Foto» para
-                  ver el sitio.
-                </p>
+                <p className="text-[13px] text-white/80">{t('spaceeyes.vivo.agente-viejo')}</p>
+                <p className="mx-auto mt-1 max-w-sm text-[12px] text-white/50">{t('spaceeyes.vivo.agente-viejo.texto')}</p>
               </>
             ) : !porServidor ? (
               <>
                 <VideoOff className="mx-auto mb-2 h-8 w-8 text-white/40" strokeWidth={1.5} />
-                <p className="text-[13px] text-white/80">Este equipo transmite punto a punto</p>
-                <p className="mx-auto mt-1 max-w-sm text-[12px] text-white/50">
-                  Su versión no pasa el video por el servidor de medios, y desde aquí solo se puede ver por ahí. Actualiza la app del
-                  equipo para verlo en vivo.
-                </p>
+                <p className="text-[13px] text-white/80">{t('spaceeyes.vivo.p2p')}</p>
+                <p className="mx-auto mt-1 max-w-sm text-[12px] text-white/50">{t('spaceeyes.vivo.p2p.texto')}</p>
               </>
             ) : estado === 'conectando' ? (
               <>
                 <Loader2 className="mx-auto h-8 w-8 animate-spin text-white/50" />
-                <p className="mt-3 text-[13px] text-white/80">Conectando con el equipo…</p>
-                <p className="mt-1 text-[12px] text-white/50">
-                  Puede tardar unos segundos mientras la cámara arranca. No hace falta volver a presionar.
-                </p>
+                <p className="mt-3 text-[13px] text-white/80">{t('spaceeyes.vivo.conectando.equipo')}</p>
+                <p className="mt-1 text-[12px] text-white/50">{t('spaceeyes.vivo.conectando.texto')}</p>
               </>
             ) : error ? (
               <>
                 <AlertTriangle className="mx-auto mb-2 h-8 w-8 text-warning" strokeWidth={1.5} />
-                <p className="text-[13px] text-white/80">No se pudo iniciar la transmisión</p>
+                <p className="text-[13px] text-white/80">{t('spaceeyes.vivo.no-iniciar')}</p>
                 <p className="mx-auto mt-1 max-w-sm text-[12px] text-white/50">{error}</p>
                 {puedeIniciar ? (
                   <Button variant="primary" size="sm" className="mt-4" onClick={() => iniciar()}>
-                    Reintentar
+                    {t('spaceeyes.comun.reintentar')}
                   </Button>
                 ) : null}
               </>
             ) : (
               <>
-                <p className="text-[13px] text-white/60">Vista en vivo apagada</p>
+                <p className="text-[13px] text-white/60">{t('spaceeyes.vivo.apagada')}</p>
                 {puedeOperar ? (
                   <Button variant="primary" size="md" className="mt-4" onClick={() => iniciar()} disabled={!puedeIniciar}>
                     <Play className="mr-2 h-4 w-4" fill="currentColor" />
-                    Iniciar vista en vivo
+                    {t('spaceeyes.vivo.iniciar-vista')}
                   </Button>
                 ) : (
-                  <p className="mt-2 text-[12px] text-white/50">Necesitas permiso para operar equipos para abrir la vista.</p>
+                  <p className="mt-2 text-[12px] text-white/50">{t('spaceeyes.vivo.sin-permiso-abrir')}</p>
                 )}
                 {!equipo.online ? (
-                  <p className="mt-3 text-[12px] text-warning">El equipo no está reportando: puede que no conteste.</p>
+                  <p className="mt-3 text-[12px] text-warning">{t('spaceeyes.vivo.no-reporta')}</p>
                 ) : null}
-                <p className="mt-3 text-[12px] text-white/40">Se detiene sola a los 3 minutos para no gastar datos del equipo.</p>
+                <p className="mt-3 text-[12px] text-white/40">{t('spaceeyes.vivo.se-detiene')}</p>
               </>
             )}
           </div>
@@ -774,8 +764,8 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
               void tomarFoto()
             }}
             disabled={tomandoFoto}
-            title="Tomar foto"
-            aria-label="Tomar foto"
+            title={t('spaceeyes.comun.tomar-foto')}
+            aria-label={t('spaceeyes.comun.tomar-foto')}
             className="absolute right-3 top-12 z-10 flex h-14 w-14 items-center justify-center rounded-full border-4 border-white/40 bg-white/95 text-[#111] transition hover:bg-white active:scale-95 disabled:opacity-60 sm:top-1/2 sm:h-16 sm:w-16 sm:-translate-y-1/2"
           >
             {tomandoFoto ? <Loader2 className="h-6 w-6 animate-spin" /> : <Camera className="h-6 w-6 sm:h-7 sm:w-7" />}
@@ -785,7 +775,7 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
         {vivo && enfoqueFijo && !esRelay ? (
           <div className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-[#d97706e6] px-2.5 py-1 text-[11px] font-medium text-white">
             <Lock className="h-3.5 w-3.5" />
-            Enfoque fijo
+            {t('spaceeyes.vivo.enfoque-fijo')}
           </div>
         ) : null}
 
@@ -810,7 +800,7 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
                     aria-label="Zoom"
                   />
                 </label>
-                <label className="flex flex-1 items-center gap-2" title="Exposición">
+                <label className="flex flex-1 items-center gap-2" title={t('spaceeyes.comun.exposicion')}>
                   <Sun className="h-4 w-4 shrink-0 text-white/80" />
                   <input
                     type="range"
@@ -824,7 +814,7 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
                       controlDiferido('exposure', { action: 'exposure', value: v })
                     }}
                     className={deslizador}
-                    aria-label="Exposición"
+                    aria-label={t('spaceeyes.comun.exposicion')}
                   />
                 </label>
               </div>
@@ -846,7 +836,7 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
                   />
                   <span className="w-12 text-right text-[11px] tabular-nums">{Math.round(zoom * 100)}%</span>
                 </label>
-                <label className="flex items-center gap-3" title="Brillo">
+                <label className="flex items-center gap-3" title={t('spaceeyes.comun.brillo')}>
                   <Sun className="h-4 w-4 shrink-0 text-white/80" />
                   <input
                     type="range"
@@ -856,7 +846,7 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
                     value={num(ajustes.brillo, 0)}
                     onChange={(e) => moverAjuste('brillo', Number(e.target.value))}
                     className={deslizador}
-                    aria-label="Brillo"
+                    aria-label={t('spaceeyes.comun.brillo')}
                   />
                   <span className="w-12 text-right text-[11px] tabular-nums">
                     {num(ajustes.brillo, 0) > 0 ? '+' : ''}
@@ -873,8 +863,8 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
                     value={num(ajustes.centro_x, 0.5)}
                     onChange={(e) => moverAjuste('centro_x', Number(e.target.value))}
                     className={deslizador}
-                    title="Mover a los lados"
-                    aria-label="Mover a los lados"
+                    title={t('spaceeyes.vivo.mover-lados')}
+                    aria-label={t('spaceeyes.vivo.mover-lados')}
                   />
                   <input
                     type="range"
@@ -884,8 +874,8 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
                     value={num(ajustes.centro_y, 0.5)}
                     onChange={(e) => moverAjuste('centro_y', Number(e.target.value))}
                     className={deslizador}
-                    title="Mover arriba y abajo"
-                    aria-label="Mover arriba y abajo"
+                    title={t('spaceeyes.vivo.mover-arriba')}
+                    aria-label={t('spaceeyes.vivo.mover-arriba')}
                   />
                 </div>
               </div>
@@ -902,11 +892,11 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
                       control({ action: 'wb', value: v })
                     }}
                     className={cn(ctlBoton, ctlSuave, 'cursor-pointer border-0 outline-none')}
-                    aria-label="Balance de blancos"
+                    aria-label={t('spaceeyes.comun.balance')}
                   >
                     {BALANCES.map((b) => (
                       <option key={b.valor} value={b.valor} className="text-black">
-                        {b.texto}
+                        {t(b.texto)}
                       </option>
                     ))}
                   </select>
@@ -916,17 +906,29 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
                     className={cn(ctlBoton, enfoqueFijo ? 'bg-[#d97706] hover:bg-[#b45309]' : ctlSuave)}
                   >
                     <Lock className="h-3.5 w-3.5" />
-                    {enfoqueFijo ? 'Enfoque fijo' : 'Fijar enfoque'}
+                    {enfoqueFijo ? t('spaceeyes.vivo.enfoque-fijo') : t('spaceeyes.vivo.fijar-enfoque')}
                   </button>
                 </>
               ) : null}
 
               <div className="flex shrink-0 items-center overflow-hidden rounded bg-white/15 backdrop-blur-sm">
-                <button type="button" onClick={() => girar(-1)} title="Girar a la izquierda" aria-label="Girar a la izquierda" className="px-2 py-1 hover:bg-white/20">
+                <button
+                  type="button"
+                  onClick={() => girar(-1)}
+                  title={t('spaceeyes.vivo.girar-izq')}
+                  aria-label={t('spaceeyes.vivo.girar-izq')}
+                  className="px-2 py-1 hover:bg-white/20"
+                >
                   <RotateCcw className="h-3.5 w-3.5" />
                 </button>
                 <span className="px-1 text-[11px] tabular-nums">{rotacion}°</span>
-                <button type="button" onClick={() => girar(1)} title="Girar a la derecha" aria-label="Girar a la derecha" className="px-2 py-1 hover:bg-white/20">
+                <button
+                  type="button"
+                  onClick={() => girar(1)}
+                  title={t('spaceeyes.vivo.girar-der')}
+                  aria-label={t('spaceeyes.vivo.girar-der')}
+                  className="px-2 py-1 hover:bg-white/20"
+                >
                   <RotateCw className="h-3.5 w-3.5" />
                 </button>
               </div>
@@ -936,11 +938,15 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
                   value={lente}
                   onChange={(e) => setLente(e.target.value as Lente)}
                   className={cn(ctlBoton, ctlSuave, 'cursor-pointer border-0 outline-none')}
-                  title="Gran angular: abarca más desde la misma distancia. Solo si el equipo lo tiene."
-                  aria-label="Lente"
+                  title={t('spaceeyes.vivo.lente.ayuda')}
+                  aria-label={t('spaceeyes.vivo.lente')}
                 >
-                  <option value="main" className="text-black">Lente normal</option>
-                  <option value="wide" className="text-black">Gran angular 0.5x</option>
+                  <option value="main" className="text-black">
+                    {t('spaceeyes.vivo.lente.normal')}
+                  </option>
+                  <option value="wide" className="text-black">
+                    {t('spaceeyes.vivo.lente.gran-angular')}
+                  </option>
                 </select>
               ) : null}
 
@@ -957,14 +963,14 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
                   onClick={verAsi}
                   disabled={reencuadrando}
                   className={cn(ctlBoton, 'bg-accent hover:bg-accent-hover disabled:opacity-40')}
-                  title={
-                    cambioLente
-                      ? 'Abre la vista con este lente. No cambia el encuadre del sitio.'
-                      : 'Abre la vista a este acercamiento, ya nítida. No cambia el encuadre del sitio.'
-                  }
+                  title={cambioLente ? t('spaceeyes.vivo.ver-lente.ayuda') : t('spaceeyes.vivo.ver-nitido.ayuda')}
                 >
                   <Check className="h-3.5 w-3.5" />
-                  {reencuadrando ? 'Abriendo…' : cambioLente ? 'Ver con este lente' : 'Ver nítido'}
+                  {reencuadrando
+                    ? t('spaceeyes.vivo.abriendo')
+                    : cambioLente
+                      ? t('spaceeyes.vivo.ver-lente')
+                      : t('spaceeyes.vivo.ver-nitido')}
                 </button>
               ) : null}
               {puedeEncuadrar ? (
@@ -973,15 +979,24 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
                   onClick={aplicarEncuadre}
                   disabled={!encuadreCambiado || reencuadrando}
                   className={cn(ctlBoton, 'bg-[#15803d] hover:bg-[#166534] disabled:cursor-default disabled:opacity-40')}
-                  title="Guarda el encuadre actual. Se aplica también a las fotos programadas."
+                  title={t('spaceeyes.vivo.fijar-encuadre.ayuda')}
                 >
                   <Check className="h-3.5 w-3.5" />
-                  {reencuadrando ? 'Aplicando…' : encuadreCambiado ? 'Fijar encuadre' : 'Encuadre guardado'}
+                  {reencuadrando
+                    ? t('spaceeyes.vivo.aplicando')
+                    : encuadreCambiado
+                      ? t('spaceeyes.vivo.fijar-encuadre')
+                      : t('spaceeyes.vivo.encuadre-guardado')}
                 </button>
               ) : null}
               {puedeOperar && encuadreCambiado && !reencuadrando ? (
-                <button type="button" onClick={descartarEncuadre} className={cn(ctlBoton, ctlSuave)} title="Volver al encuadre que tiene guardado el equipo">
-                  Descartar
+                <button
+                  type="button"
+                  onClick={descartarEncuadre}
+                  className={cn(ctlBoton, ctlSuave)}
+                  title={t('spaceeyes.vivo.descartar.ayuda')}
+                >
+                  {t('spaceeyes.comun.descartar')}
                 </button>
               ) : null}
               {puedeEncuadrar && rotacion !== rotacionGuardada ? (
@@ -989,15 +1004,20 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
                   type="button"
                   onClick={fijarOrientacion}
                   className={cn(ctlBoton, 'bg-accent hover:bg-accent-hover')}
-                  title="Fijar esta orientación para todos"
+                  title={t('spaceeyes.vivo.fijar-orientacion.ayuda')}
                 >
                   <Check className="h-3.5 w-3.5" />
-                  Fijar orientación
+                  {t('spaceeyes.vivo.fijar-orientacion')}
                 </button>
               ) : null}
               {rotacion !== rotacionGuardada ? (
-                <button type="button" onClick={() => setRotacion(rotacionGuardada)} className={cn(ctlBoton, ctlSuave)} title="Volver a la orientación guardada del equipo">
-                  Volver
+                <button
+                  type="button"
+                  onClick={() => setRotacion(rotacionGuardada)}
+                  className={cn(ctlBoton, ctlSuave)}
+                  title={t('spaceeyes.vivo.volver.ayuda')}
+                >
+                  {t('spaceeyes.vivo.volver')}
                 </button>
               ) : null}
             </div>
@@ -1008,24 +1028,22 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
             <p className="mt-2 text-[10.5px] leading-snug text-white/60">
               {!puedeEncuadrar ? (
                 <>
-                  Mueve el zoom, el lente, la luz y el enfoque a tu gusto y pide la foto:{' '}
-                  <strong>sale como la estás viendo</strong>.{' '}
-                  {esRelay ? 'Aquí el acercamiento es una vista previa: «Ver nítido» abre la imagen de verdad. ' : ''}
-                  Nada de esto se guarda, así que el encuadre del sitio no cambia —fijarlo para todos lo hace solo el
-                  Dueño, porque borra lo que el equipo aprendió de su pantalla—.
+                  {interpolarNodos(t('spaceeyes.vivo.pie.mirar'), {
+                    asi: <strong>{t('spaceeyes.vivo.pie.mirar.asi')}</strong>,
+                  })}{' '}
+                  {esRelay ? t('spaceeyes.vivo.pie.mirar.relay') : ''}
+                  {t('spaceeyes.vivo.pie.mirar.nada')}
                 </>
               ) : esRelay ? (
-                <>
-                  Lo que ves al mover los deslizadores es una vista previa: el equipo no cambia hasta que pulses{' '}
-                  <strong>Fijar encuadre</strong> (ahí la vista se reabre un segundo para traer la imagen nítida).
-                </>
+                interpolarNodos(t('spaceeyes.vivo.pie.relay'), {
+                  boton: <strong>{t('spaceeyes.vivo.fijar-encuadre')}</strong>,
+                })
               ) : (
-                <>
-                  Toca el video para enfocar. El zoom, la exposición y el balance cambian la cámara al momento, pero son
-                  temporales: solo el zoom y el lente se guardan, al pulsar <strong>Fijar encuadre</strong>.
-                </>
+                interpolarNodos(t('spaceeyes.vivo.pie.telefono'), {
+                  boton: <strong>{t('spaceeyes.vivo.fijar-encuadre')}</strong>,
+                })
               )}{' '}
-              {puedeEncuadrar ? 'La orientación fija es la que todos ven al abrir la vista.' : ''}
+              {puedeEncuadrar ? t('spaceeyes.vivo.pie.orientacion') : ''}
             </p>
           </div>
         ) : null}
@@ -1035,14 +1053,14 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/80 px-6 text-white">
             <div className="max-w-sm text-center">
               <Eye className="mx-auto mb-3 h-9 w-9 text-warning" strokeWidth={1.5} />
-              <p className="font-medium">Vista en uso</p>
+              <p className="font-medium">{t('spaceeyes.vivo.en-uso')}</p>
               <p className="mt-1 text-[13px] text-white/70">
-                <span className="font-medium text-white">{ocupada.con}</span> está viendo este equipo desde hace {ocupada.minutos} min.
+                {interpolarNodos(t('spaceeyes.vivo.en-uso.quien'), {
+                  quien: <span className="font-medium text-white">{ocupada.con}</span>,
+                  min: ocupada.minutos,
+                })}
               </p>
-              <p className="mt-3 text-[12px] text-white/50">
-                Este equipo solo admite un espectador a la vez: cada conexión de video gasta datos móviles del sitio. La transmisión
-                se corta sola a los 3 minutos.
-              </p>
+              <p className="mt-3 text-[12px] text-white/50">{t('spaceeyes.vivo.en-uso.texto')}</p>
               <button
                 type="button"
                 onClick={() => {
@@ -1051,7 +1069,7 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
                 }}
                 className="mt-4 rounded bg-white/15 px-3 py-1.5 text-[12px] hover:bg-white/25"
               >
-                Reintentar
+                {t('spaceeyes.comun.reintentar')}
               </button>
             </div>
           </div>
@@ -1061,7 +1079,7 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 text-white">
             <div className="flex items-center gap-3 text-[13px]">
               <Loader2 className="h-5 w-5 animate-spin" />
-              Aplicando el encuadre nuevo…
+              {t('spaceeyes.vivo.aplicando-encuadre')}
             </div>
           </div>
         ) : null}

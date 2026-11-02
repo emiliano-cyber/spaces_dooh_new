@@ -9,6 +9,10 @@ import { Modal } from '@/components/demo/ui/Modal'
 import { seApi, fotoSE, ErrorSE } from '@/lib/data/space-eyes-se'
 import { VisorFoto, fechaHora } from './piezas'
 import { formatNumero } from '@/lib/formato-numero'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { traducir, type ClaveTexto } from '@/lib/i18n/diccionario'
+import type { Idioma } from '@/lib/i18n/idiomas'
+import { interpolarNodos } from '@/lib/i18n/nodos'
 
 // ============================================================================
 //  Space Eyes — fallas de pantalla de TODA la flota.
@@ -55,32 +59,41 @@ interface RespuestaFallas {
   fallas: FallaSE[]
 }
 
-const ESTADO: Record<Estado, { texto: string; clase: string }> = {
-  abierta: { texto: 'Abierta', clase: 'bg-error-soft text-error' },
-  recuperada: { texto: 'Recuperada', clase: 'bg-success-soft text-success' },
-  descartada: { texto: 'No era falla', clase: 'bg-surface-2 text-muted' },
+const ESTADO: Record<Estado, { texto: ClaveTexto; clase: string }> = {
+  abierta: { texto: 'spaceeyes.falla.estado.abierta', clase: 'bg-error-soft text-error' },
+  recuperada: { texto: 'spaceeyes.falla.estado.recuperada', clase: 'bg-success-soft text-success' },
+  descartada: { texto: 'spaceeyes.falla.estado.descartada', clase: 'bg-surface-2 text-muted' },
 }
 
-const FILTROS: [Estado | '', string][] = [
-  ['', 'Todas'],
-  ['abierta', 'Abiertas'],
-  ['recuperada', 'Recuperadas'],
-  ['descartada', 'No eran falla'],
+const FILTROS: [Estado | '', ClaveTexto][] = [
+  ['', 'spaceeyes.fallas.filtro.todas'],
+  ['abierta', 'spaceeyes.fallas.abiertas'],
+  ['recuperada', 'spaceeyes.fallas.recuperadas'],
+  ['descartada', 'spaceeyes.fallas.descartadas'],
 ]
 
 /** Dónde falló, como lo diría una persona. Igual que Pantalla.donde de Space Eye. */
-function donde(f: FallaSE): string {
-  if (f.gabinete) return `Gabinete ${f.gabinete} (fila ${(f.fila ?? 0) + 1}, columna ${(f.columna ?? 0) + 1})`
+function donde(f: FallaSE, idioma: Idioma): string {
+  const tr = (clave: ClaveTexto, valores?: Record<string, string | number>) => traducir(idioma, clave, valores)
+  if (f.gabinete) {
+    return tr('spaceeyes.fallas.donde.gabinete', { n: f.gabinete, fila: (f.fila ?? 0) + 1, columna: (f.columna ?? 0) + 1 })
+  }
   const g = f.detalle?.gabinetes
-  if (g && g.length) return `Gabinetes ${g.join(', ')}` + (f.detalle?.total ? ` (${g.length} de ${f.detalle.total})` : '')
-  if (f.tipo === 'camara_movida') return 'Cámara (hay que volver a marcar la pantalla)'
-  if (f.tipo === 'sin_imagen') return 'Lente tapada, o pantalla apagada de noche'
-  return 'Toda la pantalla'
+  if (g && g.length) {
+    return (
+      tr('spaceeyes.fallas.donde.gabinetes', { lista: g.join(', ') }) +
+      (f.detalle?.total ? tr('spaceeyes.fallas.donde.de', { n: g.length, total: f.detalle.total }) : '')
+    )
+  }
+  if (f.tipo === 'camara_movida') return tr('spaceeyes.fallas.donde.camara')
+  if (f.tipo === 'sin_imagen') return tr('spaceeyes.fallas.donde.sin-imagen')
+  return tr('spaceeyes.fallas.donde.toda')
 }
 
 const RECARGA_MS = 60_000
 
 export function FallasFlota() {
+  const { t, idioma } = useIdioma()
   const [fallas, setFallas] = useState<FallaSE[]>([])
   const [cuentas, setCuentas] = useState<RespuestaFallas['cuentas']>(null)
   const [equipos, setEquipos] = useState<{ id: number; name: string }[]>([])
@@ -117,11 +130,11 @@ export function FallasFlota() {
       setCuentas(r.cuentas ?? null)
       setError(null)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo consultar Space Eye')
+      setError(e instanceof Error ? e.message : t('spaceeyes.fallas.no-consultar'))
     }
     setCargado(true)
     setCargando(false)
-  }, [deviceId])
+  }, [deviceId, t])
 
   useEffect(() => {
     if (!listo) return
@@ -149,19 +162,19 @@ export function FallasFlota() {
         body: { estado: cerrando.estado, nota: nota.trim() || undefined },
       })
       setCerrando(null)
-      setAviso({ tono: 'ok', texto: descartar ? 'Falla descartada.' : 'Falla marcada como arreglada.' })
+      setAviso({ tono: 'ok', texto: descartar ? t('spaceeyes.fallas.descartada') : t('spaceeyes.fallas.arreglada') })
       await cargar()
     } catch (e) {
       const msg =
         e instanceof ErrorSE && e.status === 403
-          ? 'No tienes permiso para cerrar fallas.'
+          ? t('spaceeyes.fallas.sin-permiso')
           : e instanceof ErrorSE && e.status === 404
-            ? 'Esta falla ya no está abierta.'
+            ? t('spaceeyes.fallas.ya-cerrada')
             : e instanceof Error
               ? e.message
               : String(e)
       setCerrando(null)
-      setAviso({ tono: 'error', texto: `No se pudo cerrar: ${msg}` })
+      setAviso({ tono: 'error', texto: t('spaceeyes.fallas.no-cerrar', { motivo: msg }) })
       await cargar()
     }
   }
@@ -174,14 +187,12 @@ export function FallasFlota() {
           <MonitorX className="h-5 w-5" strokeWidth={1.75} />
         </span>
         <div className="min-w-[12rem] flex-1">
-          <h1 className="text-lg font-semibold text-ink">Fallas de pantalla</h1>
-          <p className="text-[13px] text-muted">
-            Lo que cada equipo detectó por sí mismo al revisar su pantalla. Se actualiza cada minuto.
-          </p>
+          <h1 className="text-lg font-semibold text-ink">{t('spaceeyes.fallas.titulo')}</h1>
+          <p className="text-[13px] text-muted">{t('spaceeyes.fallas.descripcion')}</p>
         </div>
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
           <label className="sr-only" htmlFor="se-fallas-equipo">
-            Equipo
+            {t('spaceeyes.comun.equipo')}
           </label>
           <select
             id="se-fallas-equipo"
@@ -189,7 +200,7 @@ export function FallasFlota() {
             onChange={(e) => setDeviceId(e.target.value)}
             className="h-8 min-w-0 flex-1 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent sm:w-64 sm:flex-none"
           >
-            <option value="">Todos los equipos</option>
+            <option value="">{t('spaceeyes.comun.todos-equipos')}</option>
             {equipos.map((d) => (
               <option key={d.id} value={String(d.id)}>
                 {d.name}
@@ -202,7 +213,7 @@ export function FallasFlota() {
             ) : (
               <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
             )}
-            Actualizar
+            {t('spaceeyes.comun.actualizar')}
           </Button>
         </div>
       </div>
@@ -226,7 +237,7 @@ export function FallasFlota() {
         <div className="flex items-start gap-2 rounded-md border border-[#dc262640] bg-error-soft p-3 text-[12px]">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-error" />
           <div>
-            <div className="font-medium text-ink">No se pudieron leer las fallas</div>
+            <div className="font-medium text-ink">{t('spaceeyes.fallas.error')}</div>
             <div className="text-muted">{error}</div>
           </div>
         </div>
@@ -234,16 +245,18 @@ export function FallasFlota() {
 
       {/* Indicadores: los cuenta el servidor */}
       <div className="grid grid-cols-3 gap-3">
-        <Indicador titulo="Abiertas" valor={cuenta('abierta')} punto="bg-error" resaltar={cuenta('abierta') > 0} />
-        <Indicador titulo="Recuperadas" valor={cuenta('recuperada')} punto="bg-success" />
-        <Indicador titulo="No eran falla" valor={cuenta('descartada')} punto="bg-border-strong" />
+        <Indicador titulo={t('spaceeyes.fallas.abiertas')} valor={cuenta('abierta')} punto="bg-error" resaltar={cuenta('abierta') > 0} />
+        <Indicador titulo={t('spaceeyes.fallas.recuperadas')} valor={cuenta('recuperada')} punto="bg-success" />
+        <Indicador titulo={t('spaceeyes.fallas.descartadas')} valor={cuenta('descartada')} punto="bg-border-strong" />
       </div>
 
       {/* Abiertas: es lo que hay que atender */}
       {abiertas.length > 0 && (
         <section>
           <h2 className="mb-2 text-[11px] uppercase tracking-wide text-muted">
-            Requieren atención · <span className="tabular-nums">{formatNumero(abiertas.length)}</span>
+            {interpolarNodos(t('spaceeyes.fallas.atencion'), {
+              n: <span className="tabular-nums">{formatNumero(abiertas.length)}</span>,
+            })}
           </h2>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {abiertas.map((f) => {
@@ -258,39 +271,39 @@ export function FallasFlota() {
                       type="button"
                       onClick={() => setVerFoto(fotoSE(f.evidencia ?? f.evidencia_mini))}
                       className="aspect-[4/3] w-24 shrink-0 self-start overflow-hidden rounded bg-surface-2 sm:w-40"
-                      title="Ver la foto de evidencia"
+                      title={t('spaceeyes.falla.ver-evidencia')}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={mini} alt="Evidencia de la falla" className="h-full w-full object-cover" />
+                      <img src={mini} alt={t('spaceeyes.falla.alt-evidencia')} className="h-full w-full object-cover" />
                     </button>
                   )}
                   <div className="min-w-0 flex-1 text-[12px]">
                     <span className="inline-flex items-center gap-1 rounded-full bg-error-soft px-2 py-0.5 text-[11px] font-medium text-error">
-                      <AlertTriangle className="h-3 w-3" /> Falla detectada
+                      <AlertTriangle className="h-3 w-3" /> {t('spaceeyes.fallas.detectada')}
                     </span>
                     <p className="mt-1.5 text-[13px] font-semibold text-ink">{f.nombre}</p>
                     <dl className="mt-1 space-y-0.5">
-                      <Dato titulo="Equipo">
+                      <Dato titulo={t('spaceeyes.comun.equipo')}>
                         <Link href={`/space-eyes/${f.device_id}`} className="text-accent hover:underline">
                           {f.equipo}
                         </Link>
                       </Dato>
-                      <Dato titulo="Zona">
-                        <span className="break-words text-ink">{donde(f)}</span>
+                      <Dato titulo={t('spaceeyes.fallas.zona')}>
+                        <span className="break-words text-ink">{donde(f, idioma)}</span>
                       </Dato>
-                      <Dato titulo="Detectada">
-                        <span className="tabular-nums text-ink">{fechaHora(f.detectada_en)}</span>
+                      <Dato titulo={t('spaceeyes.falla.detectada')}>
+                        <span className="tabular-nums text-ink">{fechaHora(f.detectada_en, idioma)}</span>
                       </Dato>
-                      <Dato titulo="Confianza">
+                      <Dato titulo={t('spaceeyes.comun.confianza')}>
                         <span className="tabular-nums text-ink">{Math.round(f.confianza * 100)}%</span>
                       </Dato>
                     </dl>
                     <div className="mt-2.5 flex flex-wrap gap-2">
                       <Button size="sm" variant="secondary" onClick={() => setCerrando({ falla: f, estado: 'recuperada' })}>
-                        Ya se arregló
+                        {t('spaceeyes.fallas.ya-arreglada')}
                       </Button>
                       <Button size="sm" variant="ghost" onClick={() => setCerrando({ falla: f, estado: 'descartada' })}>
-                        No es falla
+                        {t('spaceeyes.fallas.no-es')}
                       </Button>
                     </div>
                   </div>
@@ -304,7 +317,7 @@ export function FallasFlota() {
       {/* Historial */}
       <section className="overflow-hidden rounded-md border border-border bg-surface">
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-3">
-          <h2 className="text-[14px] font-semibold text-ink">Historial</h2>
+          <h2 className="text-[14px] font-semibold text-ink">{t('spaceeyes.fallas.historial')}</h2>
           <div className="inline-flex flex-wrap rounded-md border border-border bg-surface p-0.5 text-[13px]">
             {FILTROS.map(([valor, texto]) => (
               <button
@@ -316,7 +329,7 @@ export function FallasFlota() {
                   estado === valor ? 'bg-surface-2 font-medium text-ink' : 'text-muted hover:text-ink',
                 )}
               >
-                {texto}
+                {t(texto)}
               </button>
             ))}
           </div>
@@ -324,10 +337,10 @@ export function FallasFlota() {
 
         {!cargado ? (
           <div className="flex items-center gap-2 p-4 text-[12px] text-muted">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Leyendo las fallas…
+            <Loader2 className="h-3.5 w-3.5 animate-spin" /> {t('spaceeyes.fallas.leyendo')}
           </div>
         ) : lista.length === 0 ? (
-          <p className="px-3 py-10 text-center text-[13px] text-muted">Sin fallas con este filtro.</p>
+          <p className="px-3 py-10 text-center text-[13px] text-muted">{t('spaceeyes.fallas.vacio')}</p>
         ) : (
           <>
           {/* Hasta 1280 px, tarjetas: la tabla mide 820 y en celular o con el
@@ -338,19 +351,19 @@ export function FallasFlota() {
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="font-medium text-ink">{f.nombre}</span>
                   <span className={cn('rounded-full px-2 py-0.5 text-[11px]', ESTADO[f.estado]?.clase)}>
-                    {ESTADO[f.estado]?.texto ?? f.estado}
+                    {ESTADO[f.estado] ? t(ESTADO[f.estado].texto) : f.estado}
                   </span>
                 </div>
-                <div className="text-muted">{donde(f)}</div>
+                <div className="text-muted">{donde(f, idioma)}</div>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-muted">
                   <Link href={`/space-eyes/${f.device_id}`} className="text-accent hover:underline">
                     {f.equipo}
                   </Link>
-                  <span className="tabular-nums">{fechaHora(f.detectada_en)}</span>
+                  <span className="tabular-nums">{fechaHora(f.detectada_en, idioma)}</span>
                   {f.recuperada_en && (
                     <span className="tabular-nums">
-                      → {fechaHora(f.recuperada_en)}
-                      {f.cerrada_por === 'usuario' ? ' · a mano' : ''}
+                      → {fechaHora(f.recuperada_en, idioma)}
+                      {f.cerrada_por === 'usuario' ? t('spaceeyes.falla.a-mano') : ''}
                     </span>
                   )}
                 </div>
@@ -359,7 +372,7 @@ export function FallasFlota() {
                   <div className="flex gap-3">
                     {f.evidencia && (
                       <button type="button" onClick={() => setVerFoto(fotoSE(f.evidencia))} className="text-accent hover:underline">
-                        Foto al detectar
+                        {t('spaceeyes.fallas.foto-detectar')}
                       </button>
                     )}
                     {f.evidencia_recuperacion && (
@@ -368,7 +381,7 @@ export function FallasFlota() {
                         onClick={() => setVerFoto(fotoSE(f.evidencia_recuperacion))}
                         className="text-accent hover:underline"
                       >
-                        Foto al recuperar
+                        {t('spaceeyes.fallas.foto-recuperar')}
                       </button>
                     )}
                   </div>
@@ -380,41 +393,41 @@ export function FallasFlota() {
             <table className="w-full min-w-[820px] text-[12px]">
               <thead className="border-b border-border text-left text-[11px] text-muted">
                 <tr>
-                  <th className="px-3 py-2 font-medium">Detectada</th>
-                  <th className="px-3 py-2 font-medium">Equipo</th>
-                  <th className="px-3 py-2 font-medium">Falla</th>
-                  <th className="px-3 py-2 font-medium">Zona</th>
-                  <th className="px-3 py-2 font-medium">Estado</th>
-                  <th className="px-3 py-2 font-medium">Recuperación</th>
-                  <th className="px-3 py-2 font-medium">Evidencia</th>
+                  <th className="px-3 py-2 font-medium">{t('spaceeyes.falla.detectada')}</th>
+                  <th className="px-3 py-2 font-medium">{t('spaceeyes.comun.equipo')}</th>
+                  <th className="px-3 py-2 font-medium">{t('spaceeyes.falla.falla')}</th>
+                  <th className="px-3 py-2 font-medium">{t('spaceeyes.fallas.zona')}</th>
+                  <th className="px-3 py-2 font-medium">{t('spaceeyes.comun.estado')}</th>
+                  <th className="px-3 py-2 font-medium">{t('spaceeyes.fallas.recuperacion')}</th>
+                  <th className="px-3 py-2 font-medium">{t('spaceeyes.falla.evidencia')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {lista.map((f) => (
                   <tr key={f.id} className="hover:bg-surface-2">
-                    <td className="whitespace-nowrap px-3 py-2 tabular-nums">{fechaHora(f.detectada_en)}</td>
+                    <td className="whitespace-nowrap px-3 py-2 tabular-nums">{fechaHora(f.detectada_en, idioma)}</td>
                     <td className="px-3 py-2">
                       <Link href={`/space-eyes/${f.device_id}`} className="text-accent hover:underline">
                         {f.equipo}
                       </Link>
                     </td>
                     <td className="px-3 py-2 text-ink">{f.nombre}</td>
-                    <td className="px-3 py-2 text-muted">{donde(f)}</td>
+                    <td className="px-3 py-2 text-muted">{donde(f, idioma)}</td>
                     <td className="px-3 py-2">
                       <span className={cn('rounded-full px-2 py-0.5 text-[11px]', ESTADO[f.estado]?.clase)}>
-                        {ESTADO[f.estado]?.texto ?? f.estado}
+                        {ESTADO[f.estado] ? t(ESTADO[f.estado].texto) : f.estado}
                       </span>
                       {f.nota && <span className="mt-1 block text-[11px] text-muted">{f.nota}</span>}
                     </td>
                     <td className="whitespace-nowrap px-3 py-2 tabular-nums text-muted">
                       {f.recuperada_en
-                        ? `${fechaHora(f.recuperada_en)}${f.cerrada_por === 'usuario' ? ' · a mano' : ''}`
+                        ? `${fechaHora(f.recuperada_en, idioma)}${f.cerrada_por === 'usuario' ? t('spaceeyes.falla.a-mano') : ''}`
                         : '—'}
                     </td>
                     <td className="whitespace-nowrap px-3 py-2">
                       {f.evidencia && (
                         <button type="button" onClick={() => setVerFoto(fotoSE(f.evidencia))} className="text-accent hover:underline">
-                          al detectar
+                          {t('spaceeyes.falla.al-detectar')}
                         </button>
                       )}
                       {f.evidencia_recuperacion && (
@@ -423,7 +436,7 @@ export function FallasFlota() {
                           onClick={() => setVerFoto(fotoSE(f.evidencia_recuperacion))}
                           className="ml-2 text-accent hover:underline"
                         >
-                          al recuperar
+                          {t('spaceeyes.falla.al-recuperar')}
                         </button>
                       )}
                     </td>
@@ -437,8 +450,8 @@ export function FallasFlota() {
       </section>
 
       {/* Evidencia en grande */}
-      <Modal open={!!verFoto} onOpenChange={(v) => !v && setVerFoto(null)} size="lg" title="Evidencia">
-        {verFoto && <VisorFoto src={verFoto} alt="Evidencia de la falla" />}
+      <Modal open={!!verFoto} onOpenChange={(v) => !v && setVerFoto(null)} size="lg" title={t('spaceeyes.falla.evidencia')}>
+        {verFoto && <VisorFoto src={verFoto} alt={t('spaceeyes.falla.alt-evidencia')} />}
       </Modal>
 
       <DialogoCierre cierre={cerrando} onCancelar={() => setCerrando(null)} onConfirmar={confirmarCierre} />
@@ -457,6 +470,7 @@ function DialogoCierre({
   onCancelar: () => void
   onConfirmar: (nota: string) => Promise<void>
 }) {
+  const t = useIdioma().t
   const [nota, setNota] = useState('')
   const [enviando, setEnviando] = useState(false)
   useEffect(() => {
@@ -477,27 +491,33 @@ function DialogoCierre({
     <Modal
       open={!!cierre}
       onOpenChange={(v) => !v && !enviando && onCancelar()}
-      title={descartar ? 'No es una falla' : 'Marcar como arreglada'}
+      title={descartar ? t('spaceeyes.fallas.cierre.no-es') : t('spaceeyes.fallas.cierre.arreglada')}
       subtitle={cierre ? `${cierre.falla.nombre} · ${cierre.falla.equipo}` : undefined}
       footer={
         <div className="flex justify-end gap-2">
           <Button size="sm" variant="secondary" disabled={enviando} onClick={onCancelar}>
-            Cancelar
+            {t('comun.cancelar')}
           </Button>
           <Button size="sm" variant="primary" disabled={enviando} onClick={() => void enviar()}>
-            {enviando ? 'Guardando…' : descartar ? 'Descartar' : 'Marcar arreglada'}
+            {enviando
+              ? t('spaceeyes.comun.guardando')
+              : descartar
+                ? t('spaceeyes.comun.descartar')
+                : t('spaceeyes.fallas.cierre.boton')}
           </Button>
         </div>
       }
     >
       <p className="text-[13px] leading-relaxed text-muted">
         {descartar
-          ? 'El equipo no volverá a avisar de esta zona durante 7 días.'
-          : 'Se cierra sin esperar a que el equipo lo compruebe en su próxima foto.'}
+          ? t('spaceeyes.fallas.cierre.texto-descartar')
+          : t('spaceeyes.fallas.cierre.texto-arreglada')}
       </p>
       <label className="mt-3 block">
         <span className="block text-[12px] text-ink">
-          Qué se hizo <span className="text-muted">(opcional)</span>
+          {interpolarNodos(t('spaceeyes.fallas.cierre.nota'), {
+            opcional: <span className="text-muted">{t('spaceeyes.comun.opcional')}</span>,
+          })}
         </span>
         <input
           value={nota}
@@ -508,7 +528,7 @@ function DialogoCierre({
           maxLength={500}
           disabled={enviando}
           autoFocus
-          placeholder={descartar ? 'Por ejemplo: es un reflejo del sol' : 'Por ejemplo: se cambió la fuente'}
+          placeholder={descartar ? t('spaceeyes.fallas.cierre.ej-descartar') : t('spaceeyes.fallas.cierre.ej-arreglada')}
           className="mt-1 h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none placeholder:text-muted focus-visible:ring-2 focus-visible:ring-accent"
         />
       </label>

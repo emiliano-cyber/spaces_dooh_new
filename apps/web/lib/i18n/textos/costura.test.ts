@@ -5,6 +5,7 @@ import { ES_CAMPANAS, EN_CAMPANAS } from './campanas'
 import { ES_FINANZAS, EN_FINANZAS } from './finanzas'
 import { ES_COMERCIAL, EN_COMERCIAL } from './comercial'
 import { ES_CODIGOS, EN_CODIGOS } from './codigos'
+import { ES_SPACEEYES, EN_SPACEEYES } from './spaceeyes'
 import { DICCIONARIOS } from '../diccionario'
 
 // ============================================================================
@@ -25,6 +26,7 @@ const LOTES: [string, Record<string, string>, Record<string, string>][] = [
   ['finanzas', ES_FINANZAS, EN_FINANZAS],
   ['comercial', ES_COMERCIAL, EN_COMERCIAL],
   ['codigos', ES_CODIGOS, EN_CODIGOS],
+  ['spaceeyes', ES_SPACEEYES, EN_SPACEEYES],
 ]
 
 // El mismo espanol que en ingles se dice distinto A PROPOSITO, porque en cada
@@ -39,6 +41,10 @@ const DISTINTOS_A_PROPOSITO: Record<string, string> = {
   'Por vencer': 'una cuota que vence pronto («Due soon») frente a un contrato que caduca («Expiring soon»)',
   Vencido: 'un pago atrasado («Overdue») frente a un contrato o codigo caducado («Expired»)',
   Vigencia: 'glosario: la vigencia de una propuesta o codigo («Validity») frente al plazo de un contrato («Term»)',
+  // Lote Space Eyes (2026-11-02):
+  Actualizar: 'recargar una lista («Refresh») frente a instalar la version nueva del programa de un equipo («Update»)',
+  Estado: 'el estatus de algo («Status») frente al estado de la republica en la direccion de un equipo («State»)',
+  Ganancia: 'la ganancia de una propuesta («Profit») frente a la ganancia del sensor de la camara («Gain»)',
 }
 
 describe('costura · los lotes dicen lo mismo de la misma manera', () => {

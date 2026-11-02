@@ -29,6 +29,9 @@ import { Button } from '@/components/demo/ui/Button'
 import { ErrorSE, seApi, urlSE } from '@/lib/data/space-eyes-se'
 import { estaEnLinea, PildoraConexion } from './piezas'
 import { formatNumero } from '@/lib/formato-numero'
+import { useIdioma } from '@/lib/i18n/contexto'
+import type { ClaveTexto } from '@/lib/i18n/diccionario'
+import type { Idioma } from '@/lib/i18n/idiomas'
 
 // ============================================================================
 //  Space Eyes — Gráficas.
@@ -96,18 +99,18 @@ type Datos = {
   granularidad: 'raw' | 'hour'
 }
 
-const PERIODOS: { valor: Rango; etiqueta: string }[] = [
-  { valor: '24h', etiqueta: 'Hoy (24 h)' },
-  { valor: '7d', etiqueta: 'Semana' },
-  { valor: '30d', etiqueta: 'Mes' },
-  { valor: 'custom', etiqueta: 'Personalizado' },
+const PERIODOS: { valor: Rango; etiqueta: ClaveTexto }[] = [
+  { valor: '24h', etiqueta: 'spaceeyes.graficas.periodo.24h' },
+  { valor: '7d', etiqueta: 'spaceeyes.graficas.semana' },
+  { valor: '30d', etiqueta: 'spaceeyes.graficas.mes' },
+  { valor: 'custom', etiqueta: 'spaceeyes.graficas.periodo.custom' },
 ]
 
-const FILAS_CONSUMO: [string, string][] = [
-  ['Hoy', 'today'],
-  ['Semana', 'week'],
-  ['Mes', 'month'],
-  ['Total', 'total'],
+const FILAS_CONSUMO: [ClaveTexto, string][] = [
+  ['spaceeyes.graficas.hoy', 'today'],
+  ['spaceeyes.graficas.semana', 'week'],
+  ['spaceeyes.graficas.mes', 'month'],
+  ['spaceeyes.graficas.total', 'total'],
 ]
 
 // Colores: solo tokens del tema, como variables CSS (recharts las acepta).
@@ -152,28 +155,31 @@ const num = (v: unknown): number | null => {
   return Number.isFinite(n) ? n : null
 }
 
-function fmtBytes(n: unknown): string {
+// `null` sin dato: quien la pinta pone el «n/d» de su idioma.
+function fmtBytes(n: unknown): string | null {
   const b = num(n)
-  if (b == null) return 'n/d'
+  if (b == null) return null
   if (b < 1024) return `${b} B`
   if (b < 1048576) return `${(b / 1024).toFixed(1)} KB`
   if (b < 1073741824) return `${(b / 1048576).toFixed(1)} MB`
   return `${(b / 1073741824).toFixed(2)} GB`
 }
 
-function etiquetaTiempo(p: Punto, granularidad: 'raw' | 'hour'): string {
+function etiquetaTiempo(p: Punto, granularidad: 'raw' | 'hour', idioma: Idioma): string {
   const crudo = p.bucket ?? p.reported_at ?? ''
   const d = new Date(crudo.includes('T') ? crudo : crudo.replace(' ', 'T'))
   if (Number.isNaN(d.getTime())) return crudo
+  const locale = idioma === 'en' ? 'en-US' : 'es-MX'
   return granularidad === 'hour'
-    ? d.toLocaleString('es-MX', { month: 'short', day: 'numeric', hour: '2-digit' })
-    : d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
+    ? d.toLocaleString(locale, { month: 'short', day: 'numeric', hour: '2-digit' })
+    : d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
 }
 
 const mensajeError = (e: unknown, defecto: string) =>
   e instanceof ErrorSE ? e.message : e instanceof Error ? e.message : defecto
 
 export function Graficas() {
+  const { t, idioma } = useIdioma()
   const [equipos, setEquipos] = useState<Equipo[] | null>(null)
   const [errorEquipos, setErrorEquipos] = useState<string | null>(null)
   const [equipoId, setEquipoId] = useState('')
@@ -214,10 +220,10 @@ export function Graficas() {
       })
     } catch (e) {
       if (mia !== peticion.current) return
-      setError(mensajeError(e, 'No se pudo leer la telemetría'))
+      setError(mensajeError(e, t('spaceeyes.graficas.error.telemetria')))
     }
     if (mia === peticion.current) setCargando(false)
-  }, [])
+  }, [t])
 
   const cargarEquipos = useCallback(async () => {
     setErrorEquipos(null)
@@ -233,10 +239,10 @@ export function Graficas() {
         void cargar(id, '24h', '', '')
       }
     } catch (e) {
-      setErrorEquipos(mensajeError(e, 'No se pudo consultar Space Eyes'))
+      setErrorEquipos(mensajeError(e, t('spaceeyes.comun.no-consultar')))
       setEquipos([])
     }
-  }, [cargar])
+  }, [cargar, t])
 
   useEffect(() => {
     void cargarEquipos()
@@ -273,7 +279,7 @@ export function Graficas() {
       a.remove()
       setTimeout(() => URL.revokeObjectURL(a.href), 4000)
     } catch (e) {
-      setErrorCsv(`No se pudo exportar el CSV. ${mensajeError(e, '')}`.trim())
+      setErrorCsv(t('spaceeyes.graficas.error.csv', { motivo: mensajeError(e, '') }).trim())
     }
     setExportando(false)
   }
@@ -283,7 +289,7 @@ export function Graficas() {
   const puntos = useMemo(
     () =>
       (datos?.serie ?? []).map((p) => ({
-        t: etiquetaTiempo(p, datos?.granularidad ?? 'raw'),
+        t: etiquetaTiempo(p, datos?.granularidad ?? 'raw', idioma),
         cpu: num(p.cpu_temp),
         batTemp: num(p.battery_temp),
         bat: num(p.battery_pct),
@@ -291,7 +297,7 @@ export function Graficas() {
         storage: num(p.storage_free_mb),
         ram: num(p.ram_free_mb),
       })),
-    [datos],
+    [datos, idioma],
   )
 
   const consumoBarras = useMemo(() => {
@@ -299,11 +305,11 @@ export function Graficas() {
     if (!du) return []
     const mb = (v: unknown) => (num(v) ?? 0) / 1048576
     return FILAS_CONSUMO.map(([etiqueta, k]) => ({
-      etiqueta,
+      etiqueta: t(etiqueta),
       movil: Number(mb(du[`mobile_${k}`]).toFixed(1)),
       wifi: Number(mb(du[`wifi_${k}`]).toFixed(1)),
     }))
-  }, [datos])
+  }, [datos, t])
 
   const u = datos?.umbrales
   const cpuMax = num(datos?.resumen.cpu_temp_max)
@@ -321,8 +327,8 @@ export function Graficas() {
           <BarChart3 className="h-5 w-5" strokeWidth={1.75} />
         </span>
         <div className="min-w-[12rem] flex-1">
-          <h1 className="text-lg font-semibold text-ink">Gráficas</h1>
-          <p className="text-[13px] text-muted">Estadísticas y telemetría de cada equipo: cómo ha estado y cuánto consume.</p>
+          <h1 className="text-lg font-semibold text-ink">{t('spaceeyes.graficas.titulo')}</h1>
+          <p className="text-[13px] text-muted">{t('spaceeyes.graficas.descripcion')}</p>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -336,7 +342,7 @@ export function Graficas() {
             ) : (
               <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
             )}
-            Actualizar
+            {t('spaceeyes.comun.actualizar')}
           </Button>
           <Button variant="secondary" size="sm" onClick={() => void exportarCsv()} disabled={exportando || !equipoId}>
             {exportando ? (
@@ -344,13 +350,13 @@ export function Graficas() {
             ) : (
               <Download className="mr-1.5 h-3.5 w-3.5" />
             )}
-            Exportar CSV
+            {t('spaceeyes.graficas.exportar')}
           </Button>
         </div>
       </div>
 
       {errorEquipos ? (
-        <Aviso titulo="No se pudo consultar Space Eyes" texto={errorEquipos} />
+        <Aviso titulo={t('spaceeyes.comun.no-consultar')} texto={errorEquipos} />
       ) : equipos === null ? (
         <div className="space-y-3">
           <div className="h-20 animate-pulse rounded-md bg-surface-2" />
@@ -362,14 +368,14 @@ export function Graficas() {
         </div>
       ) : equipos.length === 0 ? (
         <div className="rounded-md border border-border bg-surface-2 px-3 py-10 text-center text-[13px] text-muted">
-          Todavía no hay equipos Space Eyes dados de alta para esta cuenta.
+          {t('spaceeyes.comun.sin-equipos')}
         </div>
       ) : (
         <>
           {/* Filtros */}
           <div className="rounded-md border border-border bg-surface p-3">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <Campo etiqueta="Dispositivo" htmlFor="gr-equipo">
+              <Campo etiqueta={t('spaceeyes.graficas.dispositivo')} htmlFor="gr-equipo">
                 <select
                   id="gr-equipo"
                   value={equipoId}
@@ -379,12 +385,12 @@ export function Graficas() {
                   {equipos.map((d) => (
                     <option key={d.id} value={String(d.id)}>
                       {d.name}
-                      {d.online ? '' : ' · sin conexión'}
+                      {d.online ? '' : t('spaceeyes.graficas.sin-conexion')}
                     </option>
                   ))}
                 </select>
               </Campo>
-              <Campo etiqueta="Periodo" htmlFor="gr-periodo">
+              <Campo etiqueta={t('spaceeyes.comun.periodo')} htmlFor="gr-periodo">
                 <select
                   id="gr-periodo"
                   value={rango}
@@ -393,14 +399,14 @@ export function Graficas() {
                 >
                   {PERIODOS.map((p) => (
                     <option key={p.valor} value={p.valor}>
-                      {p.etiqueta}
+                      {t(p.etiqueta)}
                     </option>
                   ))}
                 </select>
               </Campo>
               {rango === 'custom' && (
                 <>
-                  <Campo etiqueta="Desde" htmlFor="gr-desde">
+                  <Campo etiqueta={t('spaceeyes.comun.desde')} htmlFor="gr-desde">
                     <input
                       id="gr-desde"
                       type="datetime-local"
@@ -409,7 +415,7 @@ export function Graficas() {
                       className={claseControl}
                     />
                   </Campo>
-                  <Campo etiqueta="Hasta" htmlFor="gr-hasta">
+                  <Campo etiqueta={t('spaceeyes.comun.hasta')} htmlFor="gr-hasta">
                     <input
                       id="gr-hasta"
                       type="datetime-local"
@@ -425,7 +431,7 @@ export function Graficas() {
                       onClick={() => void cargar(equipoId, rango, desde, hasta)}
                       disabled={cargando}
                     >
-                      Aplicar
+                      {t('spaceeyes.graficas.aplicar')}
                     </Button>
                   </div>
                 </>
@@ -433,10 +439,10 @@ export function Graficas() {
             </div>
           </div>
 
-          {errorCsv && <Aviso titulo="Exportación fallida" texto={errorCsv} />}
+          {errorCsv && <Aviso titulo={t('spaceeyes.graficas.exportacion-fallida')} texto={errorCsv} />}
 
           {error ? (
-            <Aviso titulo="No se pudo leer la telemetría" texto={error} />
+            <Aviso titulo={t('spaceeyes.graficas.error.telemetria')} texto={error} />
           ) : !datos ? (
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               {[0, 1, 2, 3].map((i) => (
@@ -448,20 +454,20 @@ export function Graficas() {
               {/* Estado */}
               <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                 <div className="rounded-md border border-border bg-surface p-3">
-                  <div className="text-[11px] uppercase tracking-wide text-muted">Estado</div>
+                  <div className="text-[11px] uppercase tracking-wide text-muted">{t('spaceeyes.comun.estado')}</div>
                   <PildoraConexion online={datos.enLinea} className="mt-1.5" />
                 </div>
                 <Indicador
-                  titulo="Temp CPU máx"
-                  valor={cpuMax != null ? `${cpuMax.toFixed(1)} °C` : 'n/d'}
+                  titulo={t('spaceeyes.graficas.cpu-max')}
+                  valor={cpuMax != null ? `${cpuMax.toFixed(1)} °C` : t('spaceeyes.graficas.nd')}
                   alerta={cpuMax != null && u != null && cpuMax > u.cpu_temp_max}
                 />
                 <Indicador
-                  titulo="Batería mín"
-                  valor={batMin != null ? `${batMin} %` : 'n/d'}
+                  titulo={t('spaceeyes.graficas.bateria-min')}
+                  valor={batMin != null ? t('spaceeyes.graficas.pct', { n: batMin }) : t('spaceeyes.graficas.nd')}
                   alerta={batMin != null && u != null && batMin < u.battery_pct_min}
                 />
-                <Indicador titulo="Muestras" valor={formatNumero(muestras)} />
+                <Indicador titulo={t('spaceeyes.graficas.muestras')} valor={formatNumero(muestras)} />
               </div>
 
               {/* Alertas: icono + texto, nunca solo color */}
@@ -488,11 +494,9 @@ export function Graficas() {
 
               {/* Consumo de datos */}
               <section className="rounded-md border border-border bg-surface p-4">
-                <h2 className="text-sm font-semibold text-ink">Consumo de datos (chip / WiFi)</h2>
+                <h2 className="text-sm font-semibold text-ink">{t('spaceeyes.graficas.consumo')}</h2>
                 {!datos.consumo ? (
-                  <p className="mt-2 text-[13px] text-muted">
-                    Sin datos de consumo (requiere la app v0.7.0 en el equipo).
-                  </p>
+                  <p className="mt-2 text-[13px] text-muted">{t('spaceeyes.graficas.consumo.sin')}</p>
                 ) : (
                   <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
                     <ResponsiveContainer width="100%" height={180}>
@@ -500,31 +504,33 @@ export function Graficas() {
                         <CartesianGrid stroke={C.borde} vertical={false} />
                         <XAxis dataKey="etiqueta" tick={ejeTick} tickLine={false} axisLine={{ stroke: C.borde }} />
                         <YAxis tick={ejeTick} tickLine={false} axisLine={false} tickFormatter={(v) => formatNumero(v)} />
-                        <Tooltip content={<CajaTooltip unidad="MB" />} cursor={{ fill: 'var(--surface-2)' }} />
+                        <Tooltip content={<CajaTooltip unidad="MB" idioma={idioma} />} cursor={{ fill: 'var(--surface-2)' }} />
                         <Legend wrapperStyle={{ fontSize: 11 }} iconSize={10} />
-                        <Bar dataKey="movil" name="Móvil (MB)" fill={C.acento} radius={[3, 3, 0, 0]} />
+                        <Bar dataKey="movil" name={t('spaceeyes.graficas.movil-mb')} fill={C.acento} radius={[3, 3, 0, 0]} />
                         <Bar dataKey="wifi" name="WiFi (MB)" fill={C.exito} radius={[3, 3, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                     <table className="self-center text-[13px]">
-                      <caption className="sr-only">Consumo de datos por periodo</caption>
+                      <caption className="sr-only">{t('spaceeyes.graficas.consumo.caption')}</caption>
                       <thead>
                         <tr className="text-[12px] text-muted">
                           <th scope="col" className="pb-1 text-left font-medium">
-                            <span className="sr-only">Periodo</span>
+                            <span className="sr-only">{t('spaceeyes.comun.periodo')}</span>
                           </th>
-                          <th scope="col" className="pb-1 text-right font-medium">Móvil</th>
+                          <th scope="col" className="pb-1 text-right font-medium">{t('spaceeyes.senal.movil')}</th>
                           <th scope="col" className="pb-1 text-right font-medium">WiFi</th>
                         </tr>
                       </thead>
                       <tbody className="tabular-nums">
                         {FILAS_CONSUMO.map(([etiqueta, k]) => (
                           <tr key={k} className="border-t border-border">
-                            <th scope="row" className="py-1.5 text-left font-normal text-muted">{etiqueta}</th>
+                            <th scope="row" className="py-1.5 text-left font-normal text-muted">{t(etiqueta)}</th>
                             <td className="py-1.5 text-right font-medium text-ink">
-                              {fmtBytes(datos.consumo?.[`mobile_${k}`])}
+                              {fmtBytes(datos.consumo?.[`mobile_${k}`]) ?? t('spaceeyes.graficas.nd')}
                             </td>
-                            <td className="py-1.5 text-right text-ink">{fmtBytes(datos.consumo?.[`wifi_${k}`])}</td>
+                            <td className="py-1.5 text-right text-ink">
+                              {fmtBytes(datos.consumo?.[`wifi_${k}`]) ?? t('spaceeyes.graficas.nd')}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -536,38 +542,42 @@ export function Graficas() {
               {/* Gráficas de telemetría */}
               {muestras > 0 && puntos.length > 0 ? (
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                  <Tarjeta titulo="Temperatura (CPU / batería)">
+                  <Tarjeta titulo={t('spaceeyes.graficas.temperatura')}>
                     <GraficaLinea
                       datos={puntos}
                       unidad="°C"
+                      idioma={idioma}
                       series={[
-                        { clave: 'cpu', nombre: 'Temp CPU °C', color: C.error },
-                        { clave: 'batTemp', nombre: 'Temp batería °C', color: C.aviso },
+                        { clave: 'cpu', nombre: t('spaceeyes.graficas.serie.cpu'), color: C.error },
+                        { clave: 'batTemp', nombre: t('spaceeyes.graficas.serie.bat-temp'), color: C.aviso },
                       ]}
                       umbral={u?.cpu_temp_max}
                     />
                   </Tarjeta>
-                  <Tarjeta titulo="Nivel de batería">
+                  <Tarjeta titulo={t('spaceeyes.graficas.bateria')}>
                     <GraficaLinea
                       datos={puntos}
                       unidad="%"
+                      idioma={idioma}
                       dominio={[0, 100]}
-                      series={[{ clave: 'bat', nombre: 'Batería %', color: C.exito }]}
+                      series={[{ clave: 'bat', nombre: t('spaceeyes.graficas.serie.bateria'), color: C.exito }]}
                       umbral={u?.battery_pct_min}
                     />
                   </Tarjeta>
-                  <Tarjeta titulo="Intensidad de señal">
+                  <Tarjeta titulo={t('spaceeyes.graficas.senal')}>
                     <GraficaLinea
                       datos={puntos}
                       unidad="dBm"
-                      series={[{ clave: 'senal', nombre: 'Señal dBm', color: C.acento }]}
+                      idioma={idioma}
+                      series={[{ clave: 'senal', nombre: t('spaceeyes.graficas.serie.senal'), color: C.acento }]}
                       umbral={u?.signal_dbm_min}
                     />
                   </Tarjeta>
-                  <Tarjeta titulo="Almacenamiento y memoria libres">
+                  <Tarjeta titulo={t('spaceeyes.graficas.almacenamiento')}>
                     <GraficaLinea
                       datos={puntos}
                       unidad="MB"
+                      idioma={idioma}
                       series={[
                         { clave: 'storage', nombre: 'Storage MB', color: C.acento },
                         { clave: 'ram', nombre: 'RAM MB', color: C.tinta, punteada: true },
@@ -578,7 +588,7 @@ export function Graficas() {
                 </div>
               ) : (
                 <p className="rounded-md border border-border bg-surface-2 px-3 py-10 text-center text-[13px] text-muted">
-                  Sin telemetría en el periodo seleccionado para este dispositivo.
+                  {t('spaceeyes.graficas.sin-telemetria')}
                 </p>
               )}
             </div>
@@ -641,12 +651,14 @@ function GraficaLinea({
   datos,
   series,
   unidad,
+  idioma,
   dominio,
   umbral,
 }: {
   datos: PuntoGrafica[]
   series: { clave: string; nombre: string; color: string; punteada?: boolean }[]
   unidad: string
+  idioma: Idioma
   dominio?: [number, number]
   umbral?: number
 }) {
@@ -668,7 +680,7 @@ function GraficaLinea({
           domain={dominio ?? ['auto', 'auto']}
           width={48}
         />
-        <Tooltip content={<CajaTooltip unidad={unidad} />} cursor={{ stroke: C.bordeFuerte }} />
+        <Tooltip content={<CajaTooltip unidad={unidad} idioma={idioma} />} cursor={{ stroke: C.bordeFuerte }} />
         <Legend wrapperStyle={{ fontSize: 11 }} iconSize={10} />
         {umbral != null && (
           <ReferenceLine y={umbral} stroke={C.aviso} strokeDasharray="4 4" strokeOpacity={0.7} ifOverflow="hidden" />
@@ -692,7 +704,7 @@ function GraficaLinea({
   )
 }
 
-function CajaTooltip({ active, payload, label, unidad }: any) {
+function CajaTooltip({ active, payload, label, unidad, idioma }: any) {
   if (!active || !payload?.length) return null
   return (
     <div className="rounded border border-border bg-surface px-2.5 py-1.5 text-[12px]">
@@ -702,7 +714,10 @@ function CajaTooltip({ active, payload, label, unidad }: any) {
           <span className="h-2 w-2 rounded-full" style={{ background: p.color }} />
           <span className="text-muted">{p.name}:</span>
           <span className="font-medium">
-            {p.value == null ? '—' : Number(p.value).toLocaleString('es-MX', { maximumFractionDigits: 1 })} {unidad}
+            {p.value == null
+              ? '—'
+              : Number(p.value).toLocaleString(idioma === 'en' ? 'en-US' : 'es-MX', { maximumFractionDigits: 1 })}{' '}
+            {unidad}
           </span>
         </div>
       ))}
