@@ -177,3 +177,103 @@ Son 4610 de la base más 74 del lote: 8 del diccionario, 34 de las fuentes y 32 
   - Propuesta: redacción neutra, como «(whole amounts, no cents)» y «adds up exactly». En español no se puede tocar en este lote (regla 1), así que es una tarea aparte.
 - **«Codes?» / «Takes codes»:** abreviar *negotiation code* en una columna estrecha, o escribirlo entero.
 - **La unidad en el cuadro de tarifas.** En español se pinta el dato (`spot`, `mensual`) y en inglés la etiqueta larga (*CPS · cost per play*, *Monthly*). Es coherente con Volumen, pero las dos lenguas enseñan cosas distintas. ¿Se acepta?
+
+---
+
+## Segunda pasada (2026-11-02): **VERDE**, con 3 menores que no bloquean
+
+**Qué revisé:** `git diff 5aa3b787..HEAD`, es decir `afa5c441` (el informe) y `298e6e18` (las correcciones). Lo validé por mi cuenta y no me apoyé en el informe del traductor.
+
+### A · Hallazgos de la primera pasada
+
+| hallazgo | estado | comprobación |
+|---|---|---|
+| `MSJ_FORMA` de `CampoCifra` en español en la pantalla inglesa | **resuelto** | `leerCifra` acepta `opciones.idioma` (por omisión `'es'`) y hay 13 claves `compartidos.cifra.*`. En inglés el render dice «Enter digits only: … Example: 212,500.50». Las cifras de ejemplo van por hueco, y el «En México» se quitó del inglés («Here the period is the decimal point…»), que además vale en una instancia USD. |
+| `programatico` en el selector | **resuelto** | Se pinta «Programmatic» con `comercial.comun.programatico`, reusando una clave existente. En español sigue saliendo el dato. |
+| *Retired* frente a *(deactivated)* | **resuelto** según la decisión del orquestador | «Deactivated / Deactivate / Could not deactivate», coherente con `campanas.horario.dada-de-baja` y `compartidos.asignacion.baja`. |
+| «{monto} is not billed» | **resuelto** | Ahora «MX$ 10,000 below list» y «MX$ 10,000 ABOVE list». |
+| bajas: «at list», «by list rate», «in proportion to», «You can view the current schedule here.», «came into the campaign from the proposal», «doesn’t affect what was sold», «The discount a high-volume buyer gets.» | **resueltas** | Las leí en el diccionario y en las expectativas de la prueba de pantallas. Tienen sentido en su contexto. |
+| doble espacio «Schedule  in Tarde» | **resuelto en inglés** | Nueva clave `catalogos.programacion.boton.vacio`. El español conserva su «Programar  en {franja}» (doble espacio incluido), así que sale idéntico. |
+| «Codes?» / «Takes codes» | **resuelto** según el orquestador | «Negotiation codes» / «Takes negotiation codes». |
+| «pesos» | **sin tocar**, según el orquestador | «whole pesos», «to the peso» y «whole number of pesos» siguen igual en los dos idiomas: tarea aparte. |
+| unidad del cuadro de tarifas | **sin cambios**, según el orquestador | Solo se añadió `programatico`. |
+| contracciones | **resuelto en parte** | Los motivos de error pasan a «cannot». Los textos de ayuda conservan «can’t» y «doesn’t». La bóveda lo declara como regla (errores sin contracción). Es aceptable. |
+
+### B · Español intacto, medido mecánicamente
+
+**1. Render de las cinco pruebas de pantallas: 124 estados, byte a byte.**
+
+- **Método:** volqué el HTML español en HEAD y otra vez con los 6 archivos de código de `298e6e18` (`captura-cifra.ts`, `CampoCifra.tsx`, `GestionPaquetes`, `ProgramacionPorFranja`, `RejillaDialog` y `GestionVolumen`) devueltos a `5aa3b787`. Usé las mismas pruebas y luego restauré con `git checkout`.
+- **Resultado:** `diff -rq` vacío en las cinco:
+  - catálogos: 15;
+  - propuestas: 23;
+  - campañas y finanzas: 56;
+  - compartidos: 6;
+  - **comercial: 24**. El traductor no la había volcado; la volqué con su variable propia, `VOLCAR_HTML`.
+- **Además:** los 15 de catálogos en HEAD son idénticos a los de `ec427a66`, el código anterior al lote.
+- **Detalle útil:** con el código viejo, la prueba de campañas y finanzas da 1 rojo. Es el barrido de compartidos, que caza el «Escribe solo cifras…» en el inglés de Finanzas. Eso confirma que el cambio llega también a las otras pantallas que usan `CampoCifra`, y solo en inglés.
+
+**2. `CampoCifra` aislado, para cubrir todas las pantallas que lo usan.**
+
+`CampoCifra` aparece en 21 archivos: Inventario, Energía, Arrendadores, OT, Administración, Finanzas, Propuestas, Comercial…
+
+- **Método:** rendí el componente viejo (`5aa3b787`) y el nuevo sobre **1248 combinaciones**. Combiné 13 valores (entre ellos `'NaN'`, `'1.500'`, `'2,5'`, `'abc'` y `'-3'`) con decimales, `mostrarError`, mínimo, máximo, `permiteVacio` y `disabled`. Cada combinación se rindió de tres formas:
+  - sin proveedor;
+  - dentro de `ProveedorIdioma` en español;
+  - con la prop `idioma="es"`.
+- **Resultado:** **0 diferencias**. En 920 de esas combinaciones sale un motivo de error, y es idéntico en las tres.
+- `useIdioma` fuera del proveedor devuelve `IDIOMA_POR_OMISION`, que es `'es'`. Ningún llamador podía pasar ya `idioma`, porque la prop no existía en la interfaz.
+
+**3. `leerCifra` sin idioma frente a la versión anterior.**
+
+- **Método:** copié la versión vieja de `captura-cifra.ts` a una carpeta temporal y la comparé con la nueva sobre **90 084 entradas**: 30 028 textos (28 fijos y 30 000 aleatorios con semilla fija), cada uno con 3 juegos de opciones al azar.
+- **Resultado:** `viejo === nuevo sin idioma === nuevo 'es'` (JSON entero), y `textoAlSalir` igual: **0 divergencias** sobre 76 130 rechazos con 14 formas de error.
+- **En inglés:**
+  - devuelve el mismo `ok` y el mismo `valor`;
+  - el error nunca coincide con el español;
+  - no lleva acentos ni huecos sin rellenar;
+  - salen 14 formas, todas naturales.
+- El único llamador fuera del componente, `lib/costo-ot-captura.ts:45`, no pasa idioma y sigue igual.
+
+**4. `compartidos.ts`.**
+
+- Solo se añaden las 13 claves `cifra.*`. Ningún valor `es` existente cambia, según el diff.
+- El inglés es correcto, incluido el plural `max-decimales.uno/.otros` («At most 1 decimal place» / «… places»).
+
+### C · Pruebas
+
+```
+cd apps/web && npm run typecheck   →  tsc --noEmit, limpio
+cd apps/web && npm test            →  Test Files 337 passed (337) · Tests 4699 passed (4699)
+```
+
+Son 4684 más 15 nuevas.
+
+**Mutantes.** Los corrí contra catálogos (diccionario, fuentes y pantallas), `costura`, `compartidos`, las pantallas de campañas y finanzas, y `captura-cifra` (259 pruebas). Restauré cada uno con `git checkout`.
+
+| # | mutante | resultado |
+|---|---|---|
+| P1 | **plural**: `catalogos.volumen.tramos.uno` en inglés pasa a « · {n} tiers» | **muere** (2). En la primera pasada solo lo atrapaba la instantánea; ahora lo atrapan también las pantallas («· 1 tier</span>»). |
+| P2 | plural invertido en el llamador (`GestionVolumen`) | **muere** (2) |
+| C1 | `CampoCifra` ignora el idioma (`idioma: 'es'` fijo) | **muere** (3) |
+| C2 | `max-decimales.uno` ↔ `.otros` invertido en `captura-cifra` | **muere** (1) |
+| C4 | clave cruzada en `captura-cifra` (grande → vacia) | **muere** (1) |
+| C5 | sin `programatico` → Programmatic | **muere** (1) |
+| C6 | el botón sin marcadas vuelve a la clave con `n: ''` | **muere** (1) |
+| C7 | `dar-de-baja` en inglés → «Retire» | **muere** (2) |
+| C3 | literal español de `captura-cifra` («No puede ser negativo» → «negativa»), y lo mismo con «demasiado grande» | **SOBREVIVE**, también con la suite completa (4699 en verde). Ver menor 1. |
+
+### D · Menores (no bloquean)
+
+1. **Seis claves `compartidos.cifra.*` no están atadas a su literal.**
+   - Afecta a `vacia`, `enteras`, `max-decimales.otros`, `grande`, `negativo` y `mayor`.
+   - La prueba «el español del diccionario reproduce los literales» (`catalogos.fuentes.test.ts`) cubre 7 de las 13. Ni ella ni `captura-cifra.test.ts`, que usa regex como `/negativ/`, atan el español exacto de las otras 6.
+   - No se ve en pantalla, porque el español sale del literal y no del diccionario. Pero el diccionario y el módulo pueden divergir sin que nada lo avise, y la costura compara justo esos españoles.
+   - El hueco del literal ya existía antes del lote.
+   - **Corrección:** completar esa prueba con las 6 ramas que faltan.
+2. **Mismo español, dos ingleses.** El servidor traduce «No puede ser mayor que {n}» como «Must not be greater than {n}» (`errores-servidor.ts:677`, I18N-05). El campo dice ahora «It cannot be greater than {n}». La costura no lo ve porque no mira `errores-servidor`.
+3. **Comentario de cabecera desactualizado.** `catalogos.ts:23-24` sigue diciendo «dar de baja / dada de baja → retire / Retired». Hay que cambiarlo a deactivate / Deactivated.
+
+**Observación sin acción.** Con el inglés encendido, `CampoCifra` muestra sus motivos en inglés también en las pantallas que todavía no se tradujeron (Inventario, Energía, Arrendadores, OT): un mensaje en inglés en medio de una pantalla en español. Es el efecto esperado de tomar el idioma de la pantalla, y desaparece cuando esos lotes se traduzcan.
+
+**Árbol:** queda limpio salvo esta sección. Las carpetas temporales `lib/__valcat2` se borraron y los volcados están en el scratchpad.
