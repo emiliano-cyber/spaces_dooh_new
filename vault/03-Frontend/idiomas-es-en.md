@@ -1024,6 +1024,94 @@ cambiado**.
   valores cambiados**, y ningún texto español retirado se quedó sin clave que lo
   pinte.
 
+### Lote operaciones y clientes
+
+**2026-11-02, rama `feat/ingles-operaciones-clientes`** (sale de `integra/ingles`
+en `2e622add`, que ya trae el `MX$` en inglés). El inglés sigue APAGADO; en
+español no cambia ni una letra. **El lote quedó A MEDIAS a propósito:** se
+cerraron completos (prueba de pantallas, español medido, suites en verde y su
+commit) los submódulos de abajo, y el resto no se tocó.
+
+**Hechos, uno por commit:**
+
+- **Clientes** (`/clientes` con su ficha: pipeline y campañas del cliente),
+  **Comisiones** y **Captación** → `lib/i18n/textos/clientes.ts`, **220 claves**
+  `clientes.*`.
+- **Disponibilidad** y las tres piezas que pinta también Comercial
+  (`SlotsBadge`, `ClientesBadge`, `CalendarioDisponibilidad`), **Almacén** e
+  **Imprenta** → `lib/i18n/textos/operaciones.ts`, **177 claves**
+  `operaciones.*`.
+
+**Sin tocar (siguen en español, y hay borradores sin revisar en el scratchpad
+de la sesión):** `/operaciones` y la ficha de la OT (`OTVista`), `/creativos`,
+el **Dashboard** (`/inicio`, `charts.tsx` y los avisos de `lib/data/derive.ts`),
+**Consumo de luz** (`/energia` y `components/demo/energia/*`) y **Reportes**
+(`/reportes` y `components/demo/reportes/*`).
+
+- **Espejos.** `ETAPA_CLIENTE_LABEL` (`lib/cliente-pipeline.ts`),
+  `ETIQUETA_TIPO` (`lib/captacion.ts`), `ETIQUETA_TIPO_ACTIVO` y
+  `ETIQUETA_CAMPO` (`lib/almacen-tipos.ts`) y los mensajes `CP_INVALIDO`,
+  `TELEFONO_INVALIDO` y `EMAIL_INVALIDO` (`lib/validacion.ts`) NO se tocaron:
+  siguen siendo la verdad en español (el servidor los usa). Las pantallas
+  pintan una clave por valor, y `textos/clientes.test.ts` y
+  `textos/operaciones.test.ts` exigen que su español sea IDÉNTICO. Los de
+  almacén no se exportan (un `page.tsx` de Next no admite exportaciones
+  propias): la prueba comprueba la regla de nombres de la clave.
+- **Se reusan claves de otros lotes:** las etapas de captación son las de
+  Comercial negociación (`CLAVE_ETAPA`, mismas `ETIQUETA_ETAPA`); los estatus y
+  etapas de campaña, y las etapas de impresión, las de Campañas
+  (`CLAVE_ESTADO_CAMPANA`, `CLAVE_ETAPA`, `CLAVE_IMPRESION`); la contraseña, la
+  de compartidos.
+- **`faltantesParaRevision` (`lib/captacion.ts`) recibe `idioma`** con `'es'`
+  por omisión: `captacion-repo.ts` la sigue llamando sin él y contesta en
+  español. Es la única función de `lib/` que cambió de firma.
+- **Fechas y dinero.** Las fechas pasan por `formatFecha(…, idioma)`; la
+  bitácora de captación usa `en-US` en inglés. Los importes (pipeline del
+  cliente, campañas) pasan el idioma: `MX$` en inglés para una instancia MXN.
+  La etiqueta de cada periodo de Disponibilidad la arma `lib/data/derive.ts` en
+  español («1/3–14/3», «mar 26»); en inglés la página la rehace con las mismas
+  fechas («3/1–3/14», «Mar 26»). El calendario toma el mes de `Intl`.
+- **Se quedan en español, a propósito:** los regímenes fiscales y usos de CFDI
+  del SAT del alta de cliente (son el valor que se guarda), los ejemplos de
+  marca/modelo/placas del almacén (solo se traduce el «Ej.»), y los nombres que
+  vienen de datos.
+- **Un español raro que se conserva:** la imprenta pinta «2 ordenes» SIN tilde
+  (`orden{n === 1 ? '' : 'es'}`). La clave `operaciones.imprenta.orden.otros`
+  lo copia tal cual, con un comentario; corregirlo es otro cambio. Lo cazó el
+  `diff` del HTML español, no la lectura.
+
+**Cómo se demostró el español idéntico:** `pantallas-clientes.test.ts` (25
+estados) y `pantallas-operaciones.test.ts` (12 estados) rinden el componente
+REAL con `useState` forzado por valor inicial y por el nombre del componente
+que lo llama (se lee de la pila). Con `I18N_VOLCAR=<carpeta>` escriben el HTML
+español de cada estado; se volcó con las fuentes viejas (`git show HEAD:…`) y
+con las nuevas, y `diff -rq` salió vacío en cada submódulo. Con las fuentes
+viejas, las dos pruebas fallan (rojo demostrado: 39 en clientes; 6, 6 y 3 en
+los tres commits de operaciones).
+
+**Glosario añadido** (además del de arriba): captación → **Prospecting** (como
+el menú) · prospecto → *prospect* · bitácora → *log* · comisión → *commission*
+· comisión aplicada → *applied commission* · negociación validada →
+*negotiation validated* (validar → *Validate*) · razón social → *legal name* ·
+C.P. fiscal → *tax ZIP code* · uso de CFDI → *CFDI use* · tasa de cierre →
+*close rate* · embudo → *funnel* · disponibilidad → **availability** ·
+catorcena → *two-week period* · hueco libre → *free space* · almacén →
+**warehouse** · bodega → *depot* · dar de baja (un artículo) → **Retire**, igual
+que la baja lógica de franjas y temporadas del lote de catálogos; el estado
+«Baja» → *Decommissioned*, como el del sitio · traslado → *transit* · imprenta
+→ **Printing** (el módulo; el proveedor que imprime → *print shop*) · prueba de
+color → *color proof* · montaje → *installation*. Pendientes de decidir para los
+submódulos que faltan: recibo de luz → *electricity bill*, consumo →
+*consumption* (el menú ya dice «Power usage»), rentabilidad → *profitability*.
+
+**Costura.** Cinco españoles nuevos que se dicen distinto a propósito, cada uno
+con su motivo en `DISTINTOS_A_PROPOSITO`: «Aprobada» (estatus frente a la
+columna con fecha «Approved on»), «RFC» (cabecera corta frente a «RFC (tax
+ID)»), «Validada» y «Validar» (un creativo revisado frente a una negociación
+validada), «Vista» (hacia dónde mira una cara frente al selector de la
+rejilla) y «Movimiento» (renglón del estado de cuenta frente a traslado del
+almacén).
+
 ## Enlaces
 
 - [[acceso-y-sesion-ui]] — la pantalla de entrar, que es la traducida
