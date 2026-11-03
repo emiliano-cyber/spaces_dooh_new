@@ -170,6 +170,13 @@ function enesimo(componente: string, pred: (v: unknown) => boolean, n = 1) {
     return vistos === n
   }
 }
+// ORDEN (validacion, segunda pasada): cada estado importa su pagina PRIMERO
+// y fuerza DESPUES. La cola es una sola para el archivo; si un estado metia sus
+// forzados antes del import dinamico de la pagina y agotaba el tiempo, su render seguia
+// vivo y, al terminar el import, se comia los forzados del estado siguiente,
+// que rendia sin forzar y fallaba una asercion (sobre todo en captacion, cuyo
+// import arrastra ComercialOpex). Con el import antes, el render es sincrono y
+// consume solo lo suyo.
 const forzar = (si: Forzado['si'], valor: unknown) => forzado.cola.push({ si, valor })
 
 const imprenta = async () => (await import('../../app/(app)/(shell)/imprenta/page')).default
@@ -235,13 +242,14 @@ const ESTADOS: Estado[] = [
   {
     nombre: 'disponibilidad · por mes, sin digitales con lugar',
     pintar: async (idioma) => {
+      const C_disponibilidad = await disponibilidad() // la pagina PRIMERO, los forzados despues
       forzar(enesimo('DisponibilidadPage', (v) => v === 'catorcena'), 'mes')
       datos.disponibilidad = {
         ...DISPONIBILIDAD,
         periodos: [{ clave: '2026-03', label: 'mar 26', inicio: '2026-03-01', fin: '2026-03-31' }],
         filas: [{ ...DISPONIBILIDAD.filas[0], celdas: [celda('LIBRE')] }],
       }
-      return pintar(idioma, createElement(await disponibilidad()))
+      return pintar(idioma, createElement(C_disponibilidad))
     },
     espanol: ['en mar 26', '>mar 26<', 'ninguna digital con lugar en el periodo', 'ninguna propuesta abierta las pide'],
     ingles: ['in Mar 2026', '>Mar 2026<', 'no digital screen has room in the period', 'no open proposal requests them'],
@@ -249,8 +257,9 @@ const ESTADOS: Estado[] = [
   {
     nombre: 'disponibilidad · cargando',
     pintar: async (idioma) => {
+      const C_disponibilidad = await disponibilidad() // la pagina PRIMERO, los forzados despues
       datos.disponibilidad = undefined
-      return pintar(idioma, createElement(await disponibilidad()))
+      return pintar(idioma, createElement(C_disponibilidad))
     },
     espanol: ['Cargando disponibilidad…'],
     ingles: ['Loading availability…'],
@@ -258,9 +267,10 @@ const ESTADOS: Estado[] = [
   {
     nombre: 'disponibilidad · una busqueda sin resultados',
     pintar: async (idioma) => {
+      const C_disponibilidad = await disponibilidad() // la pagina PRIMERO, los forzados despues
       forzar(enesimo('DisponibilidadPage', (v) => v === ''), '')
       forzar(enesimo('DisponibilidadPage', (v) => v === ''), 'zzz')
-      return pintar(idioma, createElement(await disponibilidad()))
+      return pintar(idioma, createElement(C_disponibilidad))
     },
     espanol: ['Sin pantallas que coincidan.'],
     ingles: ['No matching screens.'],
@@ -268,9 +278,10 @@ const ESTADOS: Estado[] = [
   {
     nombre: 'almacen · la lista con los cuatro estados',
     pintar: async (idioma) => {
+      const C_almacen = await almacen() // la pagina PRIMERO, los forzados despues
       // Los articulos llegan por un `fetch` en un efecto: se fuerza el estado.
       forzar(enesimo('AlmacenPage', (v) => v === null), ACTIVOS)
-      return pintar(idioma, createElement(await almacen()))
+      return pintar(idioma, createElement(C_almacen))
     },
     espanol: [
       'Almacén', 'Vehículos, herramientas, pantallas, cámaras y demás artículos, y sus traslados.', 'Registrar artículo',
@@ -291,11 +302,12 @@ const ESTADOS: Estado[] = [
   {
     nombre: 'almacen · vacio, con permiso y sin el',
     pintar: async (idioma) => {
+      const C_almacen = await almacen() // la pagina PRIMERO, los forzados despues
       forzar(enesimo('AlmacenPage', (v) => v === null), [])
-      const con = pintar(idioma, createElement(await almacen()))
+      const con = pintar(idioma, createElement(C_almacen))
       datos.puede = false
       forzar(enesimo('AlmacenPage', (v) => v === null), [])
-      return con + pintar(idioma, createElement(await almacen()))
+      return con + pintar(idioma, createElement(C_almacen))
     },
     espanol: [
       'Aún no hay artículos. Registra vehículos, herramientas, pantallas o cámaras para seguir dónde está cada uno.',
@@ -306,9 +318,10 @@ const ESTADOS: Estado[] = [
   {
     nombre: 'almacen · fallo de carga',
     pintar: async (idioma) => {
+      const C_almacen = await almacen() // la pagina PRIMERO, los forzados despues
       forzar(enesimo('AlmacenPage', (v) => v === null), [])
       forzar(enesimo('AlmacenPage', (v) => v === null, 3), 'red caida') // falloCarga, tras mover y filtroTipo
-      return pintar(idioma, createElement(await almacen()))
+      return pintar(idioma, createElement(C_almacen))
     },
     espanol: ['No se pudo cargar el almacén — red caida', 'Reintentar'],
     ingles: ['The warehouse could not be loaded — red caida', 'Retry'],
@@ -316,10 +329,11 @@ const ESTADOS: Estado[] = [
   {
     nombre: 'almacen · registrar un vehiculo',
     pintar: async (idioma) => {
+      const C_almacen = await almacen() // la pagina PRIMERO, los forzados despues
       forzar(enesimo('AlmacenPage', (v) => v === null), ACTIVOS)
       forzar(enesimo('AlmacenPage', (v) => v === false), true) // altaOpen
       forzar(enesimo('AltaActivoModal', (v) => v === 'PANTALLA'), 'VEHICULO')
-      return pintar(idioma, createElement(await almacen()))
+      return pintar(idioma, createElement(C_almacen))
     },
     espanol: [
       'Entra al almacén', 'Etiqueta / número de inventario', 'placeholder="Ej. INV-0231"',
@@ -337,9 +351,10 @@ const ESTADOS: Estado[] = [
   {
     nombre: 'almacen · mover un articulo a una pantalla',
     pintar: async (idioma) => {
+      const C_almacen = await almacen() // la pagina PRIMERO, los forzados despues
       forzar(enesimo('AlmacenPage', (v) => v === null), ACTIVOS)
       forzar(enesimo('AlmacenPage', (v) => v === null), ACTIVOS[1]) // mover
-      return pintar(idioma, createElement(await almacen()))
+      return pintar(idioma, createElement(C_almacen))
     },
     espanol: [
       'Mover activo', 'INV-2 · Articulo 2', 'Movimiento', 'Instalar en pantalla', 'Marcar en traslado', 'Dar de baja',
@@ -373,10 +388,11 @@ const ESTADOS: Estado[] = [
   {
     nombre: 'imprenta · sin ordenes, con el alta abierta',
     pintar: async (idioma) => {
+      const C_imprenta = await imprenta() // la pagina PRIMERO, los forzados despues
       datos.ois = [OIS[0]]
       datos.campanas = [{ id: 'c1', nombre: 'Verano', tipoCampana: 'DOOH' }]
       forzar(enesimo('ImprentaPage', (v) => v === false), true) // nueva
-      return pintar(idioma, createElement(await imprenta()))
+      return pintar(idioma, createElement(C_imprenta))
     },
     espanol: [
       'Sin órdenes de impresión', 'Crea una orden ligada a una campaña fija (OOH/híbrida) para llevar el proceso del arte al montaje.',

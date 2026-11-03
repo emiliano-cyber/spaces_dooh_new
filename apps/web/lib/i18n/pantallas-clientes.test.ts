@@ -167,6 +167,13 @@ function enesimo(componente: string, pred: (v: unknown) => boolean, n = 1) {
     return vistos === n
   }
 }
+// ORDEN (validacion, segunda pasada): cada estado importa su pagina PRIMERO
+// y fuerza DESPUES. La cola es una sola para el archivo; si un estado metia sus
+// forzados antes del import dinamico de la pagina y agotaba el tiempo, su render seguia
+// vivo y, al terminar el import, se comia los forzados del estado siguiente,
+// que rendia sin forzar y fallaba una asercion (sobre todo en captacion, cuyo
+// import arrastra ComercialOpex). Con el import antes, el render es sincrono y
+// consume solo lo suyo.
 const forzar = (si: Forzado['si'], valor: unknown) => forzado.cola.push({ si, valor })
 const esNull = (v: unknown) => v === null
 const esFalse = (v: unknown) => v === false
@@ -197,8 +204,9 @@ const ESTADOS: Estado[] = [
   {
     nombre: 'clientes · vacia',
     pintar: async (idioma) => {
+      const C_clientesPagina = await clientesPagina() // la pagina PRIMERO, los forzados despues
       datos.clientes = []
-      return pintar(idioma, createElement(await clientesPagina()))
+      return pintar(idioma, createElement(C_clientesPagina))
     },
     espanol: ['Aún no hay clientes. Da de alta el primero con «Nuevo cliente».'],
     ingles: ['No clients yet. Add the first one with “New client”.'],
@@ -206,9 +214,10 @@ const ESTADOS: Estado[] = [
   {
     nombre: 'clientes · un filtro sin resultados',
     pintar: async (idioma) => {
+      const C_clientesPagina = await clientesPagina() // la pagina PRIMERO, los forzados despues
       forzar(enesimo('ClientesPage', (v) => v === ''), 'zzz')
       forzar(enesimo('ClientesPage', (v) => v === ''), 'AGENCIA')
-      return pintar(idioma, createElement(await clientesPagina()))
+      return pintar(idioma, createElement(C_clientesPagina))
     },
     espanol: ['0 de 5', 'Ningún cliente coincide con «zzz» entre las agencias. Quita el filtro para ver los 5.'],
     ingles: ['0 of 5', 'No clients match “zzz” among agencies. Clear the filter to see all 5.'],
@@ -216,10 +225,11 @@ const ESTADOS: Estado[] = [
   {
     nombre: 'clientes · alta de una agencia con negociacion',
     pintar: async (idioma) => {
+      const C_clientesPagina = await clientesPagina() // la pagina PRIMERO, los forzados despues
       forzar(enesimo('ClientesPage', esFalse), true) // nuevoOpen
       forzar(enesimo('ClienteDialog', (v) => v === 'DIRECTO'), 'AGENCIA')
       forzar(enesimo('ClienteDialog', esFalse), true) // tieneNegociacion
-      return pintar(idioma, createElement(await clientesPagina()))
+      return pintar(idioma, createElement(C_clientesPagina))
     },
     espanol: [
       'Datos generales y fiscales (para facturar)', 'Nombre del cliente', 'Correo de contacto', 'Teléfono',
@@ -239,9 +249,10 @@ const ESTADOS: Estado[] = [
   {
     nombre: 'clientes · borrar, con la contrasena',
     pintar: async (idioma) => {
+      const C_clientesPagina = await clientesPagina() // la pagina PRIMERO, los forzados despues
       forzar(enesimo('ClientesPage', esNull, 2), AGENCIA) // borrar
       forzar(enesimo('BorrarClienteDialog', esFalse), true) // reautenticando
-      return pintar(idioma, createElement(await clientesPagina()))
+      return pintar(idioma, createElement(C_clientesPagina))
     },
     espanol: ['Borrar Andina Media', 'Esta acción no se puede deshacer', 'Borrar un cliente es irreversible, así que hace falta tu contraseña.', 'Tu contraseña', 'Confirmar y borrar'],
     ingles: ['Delete Andina Media', 'This action can’t be undone', 'Deleting a client is irreversible, so your password is required.', 'Your password', 'Confirm and delete'],
@@ -249,8 +260,9 @@ const ESTADOS: Estado[] = [
   {
     nombre: 'clientes · borrar, el primer paso',
     pintar: async (idioma) => {
+      const C_clientesPagina = await clientesPagina() // la pagina PRIMERO, los forzados despues
       forzar(enesimo('ClientesPage', esNull, 2), AGENCIA)
-      return pintar(idioma, createElement(await clientesPagina()))
+      return pintar(idioma, createElement(C_clientesPagina))
     },
     espanol: ['Se borrará <span class="text-ink">Andina Media</span> (<span class="demo-num">AND010101AB1</span>).', '>Borrar<'],
     ingles: ['<span class="text-ink">Andina Media</span> (<span class="demo-num">AND010101AB1</span>) will be deleted.', '>Delete<'],
@@ -258,8 +270,9 @@ const ESTADOS: Estado[] = [
   {
     nombre: 'clientes · la ficha con pipeline y campanas',
     pintar: async (idioma) => {
+      const C_clientesPagina = await clientesPagina() // la pagina PRIMERO, los forzados despues
       forzar(enesimo('ClientesPage', esNull, 3), DIRECTO) // ver
-      return pintar(idioma, createElement(await clientesPagina()))
+      return pintar(idioma, createElement(C_clientesPagina))
     },
     espanol: [
       'Directo · pipeline y campañas', 'Montos con IVA · en pipeline', 'tasa de cierre histórica', 'Campaña en curso',
@@ -275,9 +288,10 @@ const ESTADOS: Estado[] = [
   {
     nombre: 'clientes · un cliente sin campanas',
     pintar: async (idioma) => {
+      const C_clientesPagina = await clientesPagina() // la pagina PRIMERO, los forzados despues
       datos.resumen = []
       forzar(enesimo('ClientesPage', esNull, 3), DIRECTO_SOLO)
-      return pintar(idioma, createElement(await clientesPagina()))
+      return pintar(idioma, createElement(C_clientesPagina))
     },
     espanol: ['Este cliente aún no tiene campañas.'],
     ingles: ['This client has no campaigns yet.'],
@@ -300,8 +314,9 @@ const ESTADOS: Estado[] = [
   {
     nombre: 'comisiones · sin permiso de editar',
     pintar: async (idioma) => {
+      const C_comisionesPagina = await comisionesPagina() // la pagina PRIMERO, los forzados despues
       datos.puede = false
-      return pintar(idioma, createElement(await comisionesPagina()))
+      return pintar(idioma, createElement(C_comisionesPagina))
     },
     espanol: ['Directo · sin comisión', 'title="Cliente sin agencia asignada"'],
     ingles: ['Direct · no commission', 'Client with no agency assigned'],
@@ -309,8 +324,9 @@ const ESTADOS: Estado[] = [
   {
     nombre: 'comisiones · sin agencias ni directos',
     pintar: async (idioma) => {
+      const C_comisionesPagina = await comisionesPagina() // la pagina PRIMERO, los forzados despues
       datos.clientes = []
-      return pintar(idioma, createElement(await comisionesPagina()))
+      return pintar(idioma, createElement(C_comisionesPagina))
     },
     espanol: ['Aún no hay agencias', 'Usa «Nueva agencia» para crear una.', 'No hay clientes directos'],
     ingles: ['No agencies yet', 'Use “New agency” to create one.', 'No direct clients'],
@@ -318,9 +334,10 @@ const ESTADOS: Estado[] = [
   {
     nombre: 'comisiones · sin agencias, sin permiso',
     pintar: async (idioma) => {
+      const C_comisionesPagina = await comisionesPagina() // la pagina PRIMERO, los forzados despues
       datos.clientes = []
       datos.puede = false
-      return pintar(idioma, createElement(await comisionesPagina()))
+      return pintar(idioma, createElement(C_comisionesPagina))
     },
     espanol: ['Cuando se dé de alta una agencia aparecerá aquí.'],
     ingles: ['Once an agency is added, it will show up here.'],
@@ -328,9 +345,10 @@ const ESTADOS: Estado[] = [
   {
     nombre: 'comisiones · alta de una agencia',
     pintar: async (idioma) => {
+      const C_comisionesPagina = await comisionesPagina() // la pagina PRIMERO, los forzados despues
       forzar(enesimo('ComisionesPage', esFalse), true)
       forzar(enesimo('NuevaAgenciaDialog', esFalse), true) // tieneNeg
-      return pintar(idioma, createElement(await comisionesPagina()))
+      return pintar(idioma, createElement(C_comisionesPagina))
     },
     espanol: [
       'Alta de cliente tipo Agencia con su comisión', 'Crear agencia', 'Nombre de la agencia', 'placeholder="p. ej. Andina Media"',
@@ -342,8 +360,9 @@ const ESTADOS: Estado[] = [
   {
     nombre: 'captacion · la lista, con paginas',
     pintar: async (idioma) => {
+      const C_captacionPagina = await captacionPagina() // la pagina PRIMERO, los forzados despues
       forzar(enesimo('Captacion', esNull), PAGINA)
-      return pintar(idioma, createElement(await captacionPagina()))
+      return pintar(idioma, createElement(C_captacionPagina))
     },
     espanol: [
       'Clientes, arrendadores, predios y pantallas que se están trabajando, con la bitácora de cada uno. Cuando uno está listo se envía a revisión, y al aprobarlo se da de alta.',
@@ -359,9 +378,10 @@ const ESTADOS: Estado[] = [
   {
     nombre: 'captacion · por aprobar, sin permiso y vacia',
     pintar: async (idioma) => {
+      const C_captacionPagina = await captacionPagina() // la pagina PRIMERO, los forzados despues
       forzar(enesimo('Captacion', (v) => v === 'curso'), 'revision')
       forzar(enesimo('Captacion', esNull), { ...PAGINA, prospectos: [], puedeAprobar: false })
-      return pintar(idioma, createElement(await captacionPagina()))
+      return pintar(idioma, createElement(C_captacionPagina))
     },
     espanol: ['Estos esperan a que un gerente, director o administrador los revise.', 'Nada espera aprobación.'],
     ingles: ['These are waiting for a manager, director or admin to review them.', 'Nothing is waiting for approval.'],
@@ -369,8 +389,9 @@ const ESTADOS: Estado[] = [
   {
     nombre: 'captacion · en curso vacia',
     pintar: async (idioma) => {
+      const C_captacionPagina = await captacionPagina() // la pagina PRIMERO, los forzados despues
       forzar(enesimo('Captacion', esNull), { ...PAGINA, prospectos: [] })
-      return pintar(idioma, createElement(await captacionPagina()))
+      return pintar(idioma, createElement(C_captacionPagina))
     },
     espanol: ['No hay prospectos en curso. Da de alta el primero con «Nuevo prospecto».'],
     ingles: ['No prospects in progress. Add the first one with “New prospect”.'],
@@ -378,8 +399,9 @@ const ESTADOS: Estado[] = [
   {
     nombre: 'captacion · alta de un predio',
     pintar: async (idioma) => {
+      const C_captacionPagina = await captacionPagina() // la pagina PRIMERO, los forzados despues
       forzar(enesimo('Captacion', esNull, 4), { valor: { tipo: 'PREDIO', nombre: '', contacto: {}, direccion: '', datos: {}, siguientePaso: '', siguientePasoFecha: '', nota: '' } })
-      return pintar(idioma, createElement(await captacionPagina()))
+      return pintar(idioma, createElement(C_captacionPagina))
     },
     espanol: [
       'Captura lo que tengas; lo mínimo para enviarlo a revisión se pide al enviarlo.', '¿Qué estás captando?',
@@ -398,8 +420,9 @@ const ESTADOS: Estado[] = [
   {
     nombre: 'captacion · editar una pantalla',
     pintar: async (idioma) => {
+      const C_captacionPagina = await captacionPagina() // la pagina PRIMERO, los forzados despues
       forzar(enesimo('Captacion', esNull, 4), { id: 'x', valor: { tipo: 'PANTALLA', nombre: 'Sitio', contacto: {}, direccion: '', datos: {}, siguientePaso: '', siguientePasoFecha: '' } })
-      return pintar(idioma, createElement(await captacionPagina()))
+      return pintar(idioma, createElement(C_captacionPagina))
     },
     espanol: ['Editar prospecto', 'El tipo no se cambia: decide qué registro se crea al aprobar.', 'placeholder="Nombre de la ubicación"', 'Ancho (m)', 'Alto (m)', 'Caras', 'Estática'],
     ingles: ['Edit prospect', 'The type can’t be changed: it decides which record is created on approval.', 'Location name', 'Width (m)', 'Height (m)', 'Faces', 'Static'],
@@ -407,10 +430,11 @@ const ESTADOS: Estado[] = [
   {
     nombre: 'captacion · un prospecto abierto, pidiendo revision',
     pintar: async (idioma) => {
+      const C_captacionPagina = await captacionPagina() // la pagina PRIMERO, los forzados despues
       forzar(enesimo('Captacion', esNull), PAGINA)
       forzar(enesimo('Captacion', esNull, 2), DETALLE) // abierto
       forzar(enesimo('Detalle', (v) => v === 'VISITA'), 'EN_REVISION')
-      return pintar(idioma, createElement(await captacionPagina()))
+      return pintar(idioma, createElement(C_captacionPagina))
     },
     espanol: [
       'Etapa', 'Vendedor', 'Contacto', ' · para el 01/02/2026', 'Editar datos', 'Registrar avance', 'Qué pasó',
@@ -426,10 +450,11 @@ const ESTADOS: Estado[] = [
   {
     nombre: 'captacion · en revision, para quien aprueba',
     pintar: async (idioma) => {
+      const C_captacionPagina = await captacionPagina() // la pagina PRIMERO, los forzados despues
       forzar(enesimo('Captacion', esNull), PAGINA)
       forzar(enesimo('Captacion', esNull, 2), { ...DETALLE, tipo: 'CLIENTE', etapa: 'EN_REVISION' })
       forzar(enesimo('Detalle', esFalse), true) // duplicado
-      return pintar(idioma, createElement(await captacionPagina()))
+      return pintar(idioma, createElement(C_captacionPagina))
     },
     espanol: ['Revisión', 'Al aprobar se da de alta el cliente.', 'Aprobar', 'Es otro distinto: aprobar de todos modos', 'placeholder="Motivo del rechazo (lo lee el vendedor)"', 'Rechazar'],
     ingles: ['Review', 'Approving adds the client.', 'Approve', 'It’s a different one: approve anyway', 'Reason for rejection (the sales rep reads it)', 'Reject'],
@@ -437,9 +462,10 @@ const ESTADOS: Estado[] = [
   {
     nombre: 'captacion · un predio en revision',
     pintar: async (idioma) => {
+      const C_captacionPagina = await captacionPagina() // la pagina PRIMERO, los forzados despues
       forzar(enesimo('Captacion', esNull), PAGINA)
       forzar(enesimo('Captacion', esNull, 2), { ...DETALLE, etapa: 'EN_REVISION' })
-      return pintar(idioma, createElement(await captacionPagina()))
+      return pintar(idioma, createElement(C_captacionPagina))
     },
     espanol: ['Al aprobar se da de alta el predio (y su arrendador, si es nuevo).'],
     ingles: ['Approving adds the property (and its landlord, if new).'],
@@ -447,9 +473,10 @@ const ESTADOS: Estado[] = [
   {
     nombre: 'captacion · una pantalla en revision',
     pintar: async (idioma) => {
+      const C_captacionPagina = await captacionPagina() // la pagina PRIMERO, los forzados despues
       forzar(enesimo('Captacion', esNull), PAGINA)
       forzar(enesimo('Captacion', esNull, 2), { ...DETALLE, tipo: 'PANTALLA', etapa: 'EN_REVISION' })
-      return pintar(idioma, createElement(await captacionPagina()))
+      return pintar(idioma, createElement(C_captacionPagina))
     },
     espanol: ['Al aprobar se da de alta nada todavía: la pantalla se completa en Inventario.'],
     ingles: ['Approving doesn’t add anything yet: the screen is completed in Inventory.'],
@@ -457,9 +484,10 @@ const ESTADOS: Estado[] = [
   {
     nombre: 'captacion · rechazado',
     pintar: async (idioma) => {
+      const C_captacionPagina = await captacionPagina() // la pagina PRIMERO, los forzados despues
       forzar(enesimo('Captacion', esNull), PAGINA)
       forzar(enesimo('Captacion', esNull, 2), { ...DETALLE, etapa: 'RECHAZADO', motivoRechazo: 'Caro', decididoPorNombre: 'Eva' })
-      return pintar(idioma, createElement(await captacionPagina()))
+      return pintar(idioma, createElement(C_captacionPagina))
     },
     espanol: ['Rechazado por Eva:'],
     ingles: ['Rejected by Eva:'],
@@ -467,9 +495,10 @@ const ESTADOS: Estado[] = [
   {
     nombre: 'captacion · aprobados',
     pintar: async (idioma) => {
+      const C_captacionPagina = await captacionPagina() // la pagina PRIMERO, los forzados despues
       forzar(enesimo('Captacion', esNull), PAGINA)
       forzar(enesimo('Captacion', esNull, 2), { ...DETALLE, tipo: 'ARRENDADOR', etapa: 'APROBADO', decididoPorNombre: 'Eva' })
-      return pintar(idioma, createElement(await captacionPagina()))
+      return pintar(idioma, createElement(C_captacionPagina))
     },
     espanol: ['Aprobado por Eva.', 'El arrendador ya existe en el sistema.'],
     ingles: ['Approved by Eva.', 'The landlord already exists in the system.'],
@@ -477,9 +506,10 @@ const ESTADOS: Estado[] = [
   {
     nombre: 'captacion · una pantalla aprobada',
     pintar: async (idioma) => {
+      const C_captacionPagina = await captacionPagina() // la pagina PRIMERO, los forzados despues
       forzar(enesimo('Captacion', esNull), PAGINA)
       forzar(enesimo('Captacion', esNull, 2), { ...DETALLE, tipo: 'PANTALLA', etapa: 'APROBADO' })
-      return pintar(idioma, createElement(await captacionPagina()))
+      return pintar(idioma, createElement(C_captacionPagina))
     },
     espanol: ['Falta darla de alta en Inventario con sus medidas y tarifas.'],
     ingles: ['It still has to be added in Inventory with its dimensions and rates.'],
