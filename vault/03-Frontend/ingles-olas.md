@@ -131,6 +131,34 @@ Detalle del lote:
 - **Pendiente.** Tres decisiones nuevas para el dueño: notificaciones, papeles y
   la lista de comprobación de una OT. Ver `docs/i18n/revision-ola5.md` §7.
 
+### Ola 6 · Lo que se guarda en español (2026-11-03)
+
+Lo que la ola 5 dejó a decisión del dueño, más los menores A y C de su
+validador. **Nada de lo que se guarda cambia**: todo se traduce al pintarlo.
+
+| Lote | Rama | Estado |
+|---|---|---|
+| Notificaciones, papeles, checklist de OT, los dos mensajes de venta y menores A y C | `feat/ingles-ola6` | **Pendiente del validador.** Informe en `docs/i18n/revision-ola6.md`: español idéntico en los 555 estados (0 diferencias, 4 estados nuevos), 0 valores de `DICCIONARIOS.es` cambiados, 28 de 28 mutantes, 6854 unitarias en verde |
+
+Detalle del lote:
+
+- **Notificaciones** (`lib/i18n/notificaciones.ts`, 38 claves). El español de cada
+  clave es la plantilla del servidor; la pantalla reconoce el aviso guardado y lo
+  rearma en inglés con sus datos. El saldo sale con `MX$`. Cubre las 11 fuentes del
+  servidor, y una prueba exige plantilla para cualquier fuente nueva.
+- **Papeles** (`lib/i18n/papeles.ts`). La etiqueta se traduce solo si es la de la
+  migración; el código lleva un nombre inglés (ASSETS…). Se ven en Razones
+  sociales, Administración, la bienvenida y el reporte por razón social.
+- **Checklist de una OT nueva** (`lib/i18n/checklist-ot.ts`): solo el texto exacto
+  de los tres puntos por omisión.
+- **Los dos mensajes de venta.** Cinco patrones en `PATRONES_ERROR` (de 56 a 61) y
+  `traducirError` en dos respuestas a mano de `PATCH /api/propuestas/[id]`.
+- **Menor A**: los dos 400 de acceso, en `errores-acceso.ts`. **Menor C, arreglado**:
+  la fecha sin hora del pipeline, la única excepción al español idéntico, porque
+  ahora dice el día correcto.
+- **Queda:** `PaqueteImposible` al quitar un paquete, que envuelve la frase del tope
+  y no tiene patrón.
+
 ## 3 · Decisiones del dueño (2026-11-02)
 
 - **El español se queda tal cual.** La única excepción autorizada es la
@@ -154,10 +182,8 @@ Detalle del lote:
 |---|---|
 | El CSV del estado de cuenta: ¿en el idioma de la pantalla o siempre en español? | el dueño |
 | «MX$ 1,160.00 MXN» en el comprobante: el validador recomienda dejarlo | el dueño |
-| Notificaciones de la campanita guardadas en español: ¿traducirlas al pintarlas (lote propio) o aceptarlas? | el dueño |
-| Los cinco papeles de las razones sociales («Compra los activos…»): ¿etiqueta inglesa por código? | el dueño |
-| La lista de comprobación por omisión de una OT nueva se guarda en español | el dueño |
-| Los dos mensajes del flujo de venta (tope al editar el descuento; 400 de la agencia sin validar) | el dueño: «después» |
+| ~~Notificaciones de la campanita, papeles, checklist de una OT y los dos mensajes del flujo de venta~~ | hechos en la ola 6 (`feat/ingles-ola6`), traducidos al pintarlos; falta el validador |
+| `PaqueteImposible` al quitar un paquete (envuelve la frase del tope) | otra ola |
 | Encender `IDIOMA_INGLES=1` en DEMO y luego en las instancias | el dueño: la ola 5 ya está cerrada |
 | Entrada en `docs/Registro_Cambios.md` | al encender, porque antes no se nota |
 | PR de `integra/ingles` hacia `main` | el dueño |
