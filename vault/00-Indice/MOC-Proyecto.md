@@ -118,6 +118,7 @@ cobranza.
 - [[acceso-y-sesion-ui]] — login, recuperar, autoregistro
 - [[idiomas-es-en]] — la aplicación en español e inglés: cómo se detecta, cómo se cambia, y por qué el dinero no se mueve
 - [[ingles-olas]] — el tablero de la traducción al inglés: olas, ramas, veredictos y lo que falta
+- [[italiano-olas]] — el tablero de la versión en italiano: la ola 0, los lotes y las decisiones del dueño
 - [[modulos-internos]] — las pantallas del shell (eran 22 el 31/08; el recuento de hoy está en la propia nota)
 - [[03-Frontend/pantalla-reportes]] — la pantalla de reportes de rentabilidad
 - [[03-Frontend/dashboard-inicio]] — el Dashboard de inicio: de dónde sale cada número y quién lo ve
