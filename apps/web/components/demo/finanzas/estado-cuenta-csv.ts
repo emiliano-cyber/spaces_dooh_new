@@ -1,4 +1,8 @@
 import type { RespuestaResumen } from '@/lib/data/finanzas-periodo-api'
+import { etiquetaPeriodo } from '@/lib/finanzas-periodo'
+import { traducir, type ClaveTexto } from '@/lib/i18n/diccionario'
+import { formatearFecha, simboloMoneda } from '@/lib/i18n/dinero'
+import type { Idioma } from '@/lib/i18n/idiomas'
 
 // ============================================================================
 //  El estado de cuenta en CSV (abre en Excel). Aparte del componente para
@@ -26,23 +30,55 @@ export function csvEstadoCuenta(
   titular: string,
   nombreCliente: (id: string) => string,
   conCliente: boolean,
+  idioma: Idioma = 'es',
 ): string {
+  // Ola 7 · en el IDIOMA DE LA PANTALLA (decision del dueño, 2026-11-03).
+  //  · En espanol, byte a byte el CSV de siempre: cada texto fijo sale de una
+  //    clave cuyo espanol es el literal de antes (lo fija
+  //    `estado-cuenta-csv-idioma.test.ts`), y fechas e importes van crudos.
+  //  · En ingles, los textos fijos en ingles, las fechas «Sep 1, 2026» y la
+  //    moneda (`MX$`) en el ENCABEZADO de cada importe. El importe sigue siendo
+  //    un numero: con «MX$23,200.00» Excel no sumaria la columna, y un saldo
+  //    negativo («-MX$100.00») lo abriria como formula.
+  //  · Los datos (titular, folios, nombres) no cambian.
+  const t = (k: ClaveTexto, v?: Record<string, string>) => traducir(idioma, k, v)
+  const es = idioma === 'es'
+  const fecha = (iso: string) =>
+    es ? iso : texto(formatearFecha(iso, idioma, { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }))
+  // En espanol nunca lleva moneda: es el encabezado de siempre.
+  const importe = (rotulo: string) => (es ? rotulo : `${rotulo} (${simboloMoneda(idioma)})`)
   const r = d.resumen
+  const vencidoAl = t('finanzas.estado-cuenta.vencido-al', {
+    fecha: es ? r.corte : formatearFecha(r.corte, idioma, { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }),
+  })
+  const columnas = [
+    t('finanzas.estado-cuenta.col.fecha'),
+    t('finanzas.estado-cuenta.col.movimiento'),
+    t('finanzas.comun.folio'),
+    ...(conCliente ? [t('finanzas.comun.cliente')] : []),
+    importe(t('finanzas.estado-cuenta.col.cargo')),
+    importe(t('finanzas.estado-cuenta.col.abono')),
+    importe(t('finanzas.estado-cuenta.col.saldo')),
+  ]
   const lineas: string[] = [
-    `Estado de cuenta,${texto(titular)}`,
-    `Periodo,${texto(d.periodo.etiqueta)},${d.periodo.desde},${d.periodo.hasta}`,
+    `${t('finanzas.estado-cuenta.titulo')},${texto(titular)}`,
+    `${t('finanzas.csv.periodo')},${texto(etiquetaPeriodo(d.periodo, idioma))},${fecha(d.periodo.desde)},${fecha(d.periodo.hasta)}`,
     '',
-    `Saldo al inicio,${num(r.saldoInicial)}`,
-    `Facturado,${num(r.facturado.monto)}`,
-    `Cobrado,${num(r.cobrado)}`,
-    `Saldo al cierre,${num(r.saldoFinal)}`,
-    `Vencido al ${r.corte},${num(r.vencido.monto)}`,
+    `${importe(t('finanzas.estado-cuenta.saldo-inicio'))},${num(r.saldoInicial)}`,
+    `${importe(t('finanzas.periodo.facturado'))},${num(r.facturado.monto)}`,
+    `${importe(t('finanzas.periodo.cobrado'))},${num(r.cobrado)}`,
+    `${importe(t('finanzas.csv.saldo-cierre'))},${num(r.saldoFinal)}`,
+    `${texto(importe(vencidoAl))},${num(r.vencido.monto)}`,
     '',
-    conCliente ? 'Fecha,Movimiento,Folio,Cliente,Cargo,Abono,Saldo' : 'Fecha,Movimiento,Folio,Cargo,Abono,Saldo',
+    columnas.join(','),
     ...d.movimientos.map((m) =>
       [
-        m.fecha,
-        m.tipo === 'factura' ? 'Factura' : m.aproximado ? 'Pago recibido (fecha aproximada)' : 'Pago recibido',
+        fecha(m.fecha),
+        m.tipo === 'factura'
+          ? t('finanzas.estado-cuenta.factura')
+          : m.aproximado
+            ? t('finanzas.csv.pago-aproximado')
+            : t('finanzas.estado-cuenta.pago'),
         texto(m.folio),
         ...(conCliente ? [texto(nombreCliente(m.clienteId))] : []),
         m.cargo ? num(m.cargo) : '',
@@ -52,4 +88,11 @@ export function csvEstadoCuenta(
     ),
   ]
   return lineas.join('\n')
+}
+
+/** El nombre del archivo que se descarga, en el idioma de la pantalla. */
+export function nombreArchivoEstadoCuenta(desde: string, deUnCliente: boolean, idioma: Idioma = 'es'): string {
+  const base = traducir(idioma, 'finanzas.csv.archivo')
+  const cliente = deUnCliente ? `-${traducir(idioma, 'finanzas.csv.archivo.cliente')}` : ''
+  return `${base}-${desde.slice(0, 7)}${cliente}.csv`
 }

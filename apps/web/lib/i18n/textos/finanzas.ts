@@ -181,6 +181,14 @@ export const ES_FINANZAS = {
   'finanzas.estado-cuenta.aproximada.title':
     'Pago anterior a que el sistema guardara fechas: lleva la fecha de su factura',
   'finanzas.estado-cuenta.aproximada': 'fecha aproximada',
+  // Ola 7 · el CSV del estado de cuenta (`estado-cuenta-csv.ts`), en el idioma
+  // de la pantalla (decision del dueño, 03/11). El espanol es el literal que
+  // escribia el CSV, letra por letra; lo que ya decia la pantalla se reusa.
+  'finanzas.csv.periodo': 'Periodo',
+  'finanzas.csv.saldo-cierre': 'Saldo al cierre',
+  'finanzas.csv.pago-aproximado': 'Pago recibido (fecha aproximada)',
+  'finanzas.csv.archivo': 'estado-de-cuenta',
+  'finanzas.csv.archivo.cliente': 'cliente',
 
   // ── Resumen del periodo (`TableroPeriodo`) ──
   'finanzas.periodo.no-calcular': 'No se pudo calcular el periodo',
@@ -376,6 +384,11 @@ export const EN_FINANZAS: Record<ClaveFinanzas, string> = {
   'finanzas.estado-cuenta.aproximada.title':
     'Payment from before the system stored dates: it carries its invoice’s date',
   'finanzas.estado-cuenta.aproximada': 'approximate date',
+  'finanzas.csv.periodo': 'Period',
+  'finanzas.csv.saldo-cierre': 'Closing balance',
+  'finanzas.csv.pago-aproximado': 'Payment received (approximate date)',
+  'finanzas.csv.archivo': 'account-statement',
+  'finanzas.csv.archivo.cliente': 'client',
 
   'finanzas.periodo.no-calcular': 'Could not calculate the period',
   'finanzas.periodo.titulo': 'Period summary',
