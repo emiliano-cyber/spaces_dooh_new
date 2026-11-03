@@ -137,7 +137,7 @@ de la maquinaria: **textos de ejemplo del diccionario** (que caen al inglés, «
 ### Lote L3 · Inventario, arrendadores y operaciones
 
 **Rama `feat/italiano-l3-inventario`** (sale de `integra/idiomas`, `6fea374a`).
-**Hecho, sin validar.** Revisión clave por clave en
+**Validación ÁMBAR corregida, pendiente de revalidar** (`docs/i18n/validacion-italiano-l3.md`). Revisión clave por clave en
 `docs/i18n/revision-italiano-l3.md`.
 
 - **Cobertura:** `operaciones` 177/177, `operaciones2` 205/205, `inventario`
@@ -165,13 +165,16 @@ de la maquinaria: **textos de ejemplo del diccionario** (que caen al inglés, «
   | orden de impresión · prueba de color · montaje · arte | ordine di stampa · prova colore · montaggio · grafica | |
   | OT | **OdL** (ordine di lavoro, masc.: «Nuovo OdL», «OdL in ritardo») | glosario común |
   | cuadrilla · fecha compromiso · vencida (OT) · por vencer | squadra · data di scadenza · in ritardo · in scadenza | |
-  | candado de facturación | lucchetto della fatturazione («aperto» = se puede facturar) | |
+  | candado de facturación | blocco fatturazione («tengono bloccata la fatturazione»; abierto → «Fatturazione sbloccata») | validación H6 |
   | evidencia · sello de ubicación · costo real · estimación | prova · timbro di posizione · costo effettivo · stima | |
   | creativo | **creatività** (fem., invariable: «1 creatività», «3 creatività») | uso del sector |
-  | emplazamiento · cuadre · incidencia | postazione · riconciliazione · problema | |
+  | emplazamiento · cuadre · incidencia | postazione · riconciliazione · **anomalia** | incidencia → anomalia en todo el italiano (orquestador, alineado con L4) |
   | P&L | conto economico | |
   | licencia vigente / contrato vigente | valida / in vigore | |
 
+- **Regla para TODO el italiano (orquestador, validación H1): nunca artículo delante de una fecha.** «il 8» y «al 11» son errores (sería «l’8», «all’11»). Se escribe «in data {fecha}», «fino al giorno {fin}» o «Etichetta: {fecha}»; los rangos, con guion.
+- **Días abreviados:** «gg» («tra 29 gg»). **Periodicidades** como adjetivo junto a un sustantivo («rate quindicinali / bimestrali / semestrali»): este lote no escribe ninguna; las pone L5 por hueco.
+- **Prueba estática del diccionario** (`lib/i18n/textos/italiano-l3.test.ts`): ninguna clave igual al inglés ni al español salvo cognados declarados, y ningún `.uno` igual a su `.otros` salvo invariables declarados.
 - **Arreglos de formato que solo se veían en italiano** (es/en idénticos):
   `NuevaPantallaForm.tsx` pintaba la renta con `'es-MX'` fijo («45,000») y
   `OTVista.tsx` pegaba el símbolo a la cifra («MX$1.500»; el italiano lleva

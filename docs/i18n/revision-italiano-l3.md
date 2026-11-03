@@ -2,7 +2,7 @@
 
 **Fecha:** 2026-11-03 · **Rama:** `feat/italiano-l3-inventario`, sobre
 `integra/idiomas` (`6fea374a`) · **Tablero:** `vault/03-Frontend/italiano-olas.md`
-(subsección «Lote L3») · **Estado:** hecho, sin validar.
+(subsección «Lote L3») · **Estado:** validación ÁMBAR corregida (§6 bis), pendiente de revalidar.
 
 ## 1 · Qué se tradujo
 
@@ -138,6 +138,32 @@ las listas de frases italianas de cada estado (M6).
 - Las fechas ISO que algunas pantallas pintan tal cual («2026-10-25» en el
   cuadre, «2026-06-01 → 2026-12-31» en el resumen del asistente) salen igual en
   español: no son de idioma.
+
+## 6 bis · Segunda vuelta (validación ÁMBAR, `docs/i18n/validacion-italiano-l3.md`)
+
+| Hallazgo | Qué se hizo |
+|---|---|
+| H1 · artículo ante la fecha («il 8», «al 11») | **Regla para todo el italiano (orquestador): nunca artículo delante de una fecha.** Las 10 claves pasan a «in data {fecha}», «fino al giorno {fin}», «spostala al giorno {desde}»: `operaciones2.ficha.cerrada-el`, `arrendadores.pago.pagado-el`, `.versiones.archivada`, `.versiones.firmo-el`, `.licencias.vence`, `.firmas.congelado`, `.firmas.envia`, `inventario.wizard.arrendado-hasta`, `.wizard.historial`, `.wizard.pantalla-historial` |
+| H2 | «Quella che fattura questo contratto si sceglie nella sua scheda.» |
+| H3 | «Cambia solo la società a nome della quale si paga questo canone.» |
+| H4 | «homoclave» (término del SAT, no se traduce) |
+| H5 | «gg» para giorni: «tra 29 gg», «Scaduta da 32 gg», «Scade tra 18 gg» |
+| H6 | «blocco fatturazione»: «tengono bloccata la fatturazione», «Fatturazione sbloccata» |
+| H7 | Prueba estática nueva `lib/i18n/textos/italiano-l3.test.ts`: por ámbito, ninguna clave igual al inglés ni al español salvo 36 cognados declarados, y ningún `.uno` igual a su `.otros` salvo 2 invariables declarados; la lista declarada se vigila (si un cognado deja de serlo, falla) |
+| H8 | «Actualmente: 45,000.» / «Currently: 45,000.» en lo esperado es/en del visor de detección |
+| H9 | «Rinomina ogni file con il {codigo}: …» |
+| Orquestador | **incidencia → anomalia** en todo el lote («Segnala anomalia», «Anomalia segnalata», «Descrivi l’anomalia…»), alineado con L4. «Incidente» se queda para el TIPO «Accidente» |
+| Orquestador | Periodicidades como adjetivo junto a un sustantivo: el lote no escribe ninguna; las que salen en sus pantallas («calendario dei pagamenti {periodicidad}», «canone … {periodicidad}») las pone `compartidos.periodicidad.*` (L5) por hueco |
+
+Rojo primero: con las expectativas nuevas y el italiano viejo fallaban 9 estados.
+
+**Mutantes del validador ahora:** V2, V3, V4 y V6 **mueren** (los que sobrevivían).
+Propios de esta vuelta: artículo de vuelta ante la fecha, «lucchetto» de vuelta,
+«problema» de vuelta, un cognado declarado que deja de serlo: los cuatro mueren.
+
+**Medido otra vez:** typecheck limpio; `vitest` 384 archivos, 7146 pruebas; HTML
+es/en de todas las pruebas contra la base `6fea374a`: 0 distintos, 0
+desaparecidos; `DICCIONARIOS.es`/`.en` 0 cambiados de 5590.
 
 ## 7 · Tabla clave por clave
 
@@ -364,13 +390,13 @@ las listas de frases italianas de cada estado (M6).
 | `operaciones2.ot.kpi.abiertas` | Abiertas | Open | Aperti |
 | `operaciones2.ot.kpi.en-proceso` | {n} en proceso | {n} in progress | {n} in corso |
 | `operaciones2.ot.kpi.vencidas` | Vencidas | Overdue | In ritardo |
-| `operaciones2.ot.kpi.frenan` | frenan el candado de facturación | keeping the billing lock closed | tengono chiuso il lucchetto della fatturazione |
+| `operaciones2.ot.kpi.frenan` | frenan el candado de facturación | keeping the billing lock closed | tengono bloccata la fatturazione |
 | `operaciones2.ot.kpi.compromiso` | compromiso en 2 días o menos | due in 2 days or less | in scadenza entro 2 giorni |
 | `operaciones2.ot.kpi.sin-responsable` | abiertas sin responsable | open with no assignee | aperti senza responsabile |
 | `operaciones2.ot.banner.vencidas.uno` | {n} OT vencida | {n} overdue work order | {n} OdL in ritardo |
 | `operaciones2.ot.banner.vencidas.otros` | {n} OT vencidas | {n} overdue work orders | {n} OdL in ritardo |
 | `operaciones2.ot.banner.por-vencer` | {n} por vencer | {n} due soon | {n} in scadenza |
-| `operaciones2.ot.banner.explica` | — una OT abierta que pasó su fecha compromiso frena el candado de facturación. | — an open work order past its due date keeps the billing lock closed. | — un OdL aperto oltre la data di scadenza tiene chiuso il lucchetto della fatturazione. |
+| `operaciones2.ot.banner.explica` | — una OT abierta que pasó su fecha compromiso frena el candado de facturación. | — an open work order past its due date keeps the billing lock closed. | — un OdL aperto oltre la data di scadenza tiene bloccata la fatturazione. |
 | `operaciones2.ot.lista` | Órdenes de trabajo | Work orders | Ordini di lavoro |
 | `operaciones2.ot.vacio.filtro` | Ninguna OT en «{filtro}» | No work orders in “{filtro}” | Nessun OdL in «{filtro}» |
 | `operaciones2.ot.vacio.filtro-detalle` | Las demás siguen en «Todas». | The rest are still under “All”. | Gli altri restano in «Tutti». |
@@ -433,12 +459,12 @@ las listas de frases italianas de cada estado (M6).
 | `operaciones2.ficha.candado.confirmar` | Confirmar y guardar el costo | Confirm and save the cost | Conferma e salva il costo |
 | `operaciones2.ficha.cerrada` | OT cerrada | Work order closed | OdL chiuso |
 | `operaciones2.ficha.evidencia-enviada` | La evidencia se envió al pipeline de la campaña. | The evidence was sent to the campaign pipeline. | La prova è stata inviata alla pipeline della campagna. |
-| `operaciones2.ficha.cerrada-el` | Cerrada el {fecha} | Closed on {fecha} | Chiuso il {fecha} |
+| `operaciones2.ficha.cerrada-el` | Cerrada el {fecha} | Closed on {fecha} | Chiuso in data {fecha} |
 | `operaciones2.ficha.checklist-cumplido` | Checklist cumplido | Checklist completed | Checklist completata |
 | `operaciones2.checklist.omision.inspeccion` | Inspección de estructura y herrajes | Structure and hardware inspection | Ispezione della struttura e della ferramenta |
 | `operaciones2.checklist.omision.montaje` | Montaje / ejecución | Installation / execution | Montaggio / esecuzione |
 | `operaciones2.checklist.omision.foto` | Foto comprobatoria con geolocalización | Proof photo with geolocation | Foto di verifica con geolocalizzazione |
-| `operaciones2.ficha.candado-encendido` | Candado de facturación encendido | Billing lock open | Lucchetto della fatturazione aperto |
+| `operaciones2.ficha.candado-encendido` | Candado de facturación encendido | Billing lock open | Fatturazione sbloccata |
 | `operaciones2.ficha.evidencia-alt` | evidencia | evidence | prova |
 | `operaciones2.ficha.puedes-cerrar` | Puedes cerrar esta ventana. La evidencia ya quedó registrada. | You can close this window. The evidence is already recorded. | Puoi chiudere questa finestra. La prova è già stata registrata. |
 | `operaciones2.ot.costo.negativo` | El costo no puede ser negativo | The cost cannot be negative | Il costo non può essere negativo |
@@ -688,7 +714,7 @@ las listas de frases italianas de cada estado (M6).
 | `inventario.tipo.otro` | Otro | Other | Altro |
 | `inventario.wizard.renta-ilegible` | La renta no se entiende: la coma separa miles y el punto, decimales ({ejemplo}). | The rent can’t be read: the comma separates thousands and the period, decimals ({ejemplo}). | Il canone non si capisce: la virgola separa le migliaia e il punto i decimali ({ejemplo}). |
 | `inventario.wizard.fin-antes` | La fecha de fin no puede ser anterior a la de inicio. | The end date cannot be earlier than the start date. | La data di fine non può essere precedente a quella di inizio. |
-| `inventario.wizard.arrendado-hasta` | Ese espacio estuvo arrendado hasta el {fin}. El contrato nuevo debe empezar el {desde} o después. | That space was leased until {fin}. The new contract must start on {desde} or later. | Quello spazio è stato in locazione fino al {fin}. Il nuovo contratto deve iniziare il {desde} o dopo. |
+| `inventario.wizard.arrendado-hasta` | Ese espacio estuvo arrendado hasta el {fin}. El contrato nuevo debe empezar el {desde} o después. | That space was leased until {fin}. The new contract must start on {desde} or later. | Quello spazio è stato in locazione fino al giorno {fin}. Il nuovo contratto deve iniziare in data {desde} o successiva. |
 | `inventario.wizard.renta-negativa` | Captura la renta (no negativa). | Enter the rent (not negative). | Inserisci il canone (non negativo). |
 | `inventario.wizard.pdf-tipo` | El documento debe ser un PDF | The document must be a PDF | Il documento deve essere un PDF |
 | `inventario.wizard.pdf-tamano` | El PDF supera 8 MB | The PDF is over 8 MB | Il PDF supera 8 MB |
@@ -720,7 +746,7 @@ las listas de frases italianas de cada estado (M6).
 | `inventario.wizard.p2.pasadas` | Puedes usar fechas pasadas | You can use past dates | Puoi usare date passate |
 | `inventario.wizard.inicio-vigencia` | Inicio de vigencia | Start date | Inizio validità |
 | `inventario.wizard.fin-vigencia` | Fin de vigencia | End date | Fine validità |
-| `inventario.wizard.historial` | Este espacio estuvo arrendado hasta el {fin}. El contrato nuevo empieza el {desde} o después. | This space was leased until {fin}. The new contract starts on {desde} or later. | Questo spazio è stato in locazione fino al {fin}. Il nuovo contratto inizia il {desde} o dopo. |
+| `inventario.wizard.historial` | Este espacio estuvo arrendado hasta el {fin}. El contrato nuevo empieza el {desde} o después. | This space was leased until {fin}. The new contract starts on {desde} or later. | Questo spazio è stato in locazione fino al giorno {fin}. Il nuovo contratto inizia in data {desde} o successiva. |
 | `inventario.wizard.no-antes-inicio` | No puede ser anterior al inicio | Can’t be earlier than the start | Non può essere precedente all’inizio |
 | `inventario.wizard.renta` | Renta | Rent | Canone |
 | `inventario.wizard.cifra` | No se entiende la cifra | The figure can’t be read | La cifra non si capisce |
@@ -733,7 +759,7 @@ las listas de frases italianas de cada estado (M6).
 | `inventario.wizard.del-inventario` | Del inventario | From inventory | Dall’inventario |
 | `inventario.wizard.pantalla-nueva` | Pantalla nueva | New screen | Nuovo impianto |
 | `inventario.wizard.pantalla-libres` | Pantalla ({n} sin arrendador) | Screen ({n} without landlord) | Impianto ({n} senza locatore) |
-| `inventario.wizard.pantalla-historial` | Esta pantalla estuvo arrendada hasta el {fin}. La vigencia que capturaste empieza el {inicio}: regresa al paso 2 y muévela al {desde} o después. | This screen was leased until {fin}. The term you entered starts on {inicio}: go back to step 2 and move it to {desde} or later. | Questo impianto è stato in locazione fino al {fin}. La validità che hai inserito inizia il {inicio}: torna al passo 2 e spostala al {desde} o dopo. |
+| `inventario.wizard.pantalla-historial` | Esta pantalla estuvo arrendada hasta el {fin}. La vigencia que capturaste empieza el {inicio}: regresa al paso 2 y muévela al {desde} o después. | This screen was leased until {fin}. The term you entered starts on {inicio}: go back to step 2 and move it to {desde} or later. | Questo impianto è stato in locazione fino al giorno {fin}. La validità che hai inserito inizia in data {inicio}: torna al passo 2 e spostala al giorno {desde} o dopo. |
 | `inventario.wizard.todas-asignadas` | Todas tus pantallas ya están asignadas a un predio. Cambia a “Pantalla nueva”. | All your screens are already assigned to a property. Switch to “New screen”. | Tutti i tuoi impianti sono già assegnati a un immobile. Passa a «Nuovo impianto». |
 | `inventario.wizard.datos-que-tiene` | Datos que ya tiene | Data it already has | Dati che ha già |
 | `inventario.wizard.caras` | Caras | Faces | Facce |
@@ -866,7 +892,7 @@ las listas de frases italianas de cada estado (M6).
 | `inventario.carga.imagenes-cargadas.uno` | {n} imágenes cargadas | {n} image uploaded | {n} immagine caricata |
 | `inventario.carga.imagenes-cargadas.otros` | {n} imágenes cargadas | {n} images uploaded | {n} immagini caricate |
 | `inventario.carga.subir-imagenes` | Subir imágenes (JPG/PNG ≤5MB) | Upload images (JPG/PNG ≤5MB) | Carica immagini (JPG/PNG ≤5MB) |
-| `inventario.carga.nombra` | Nombra cada archivo con el {codigo}: {a} (principal) o {b}, {c}… para varias por pantalla. | Name each file with the {codigo}: {a} (main) or {b}, {c}… for several per screen. | Dai a ogni file il nome del {codigo}: {a} (principale) o {b}, {c}… per averne più di una per impianto. |
+| `inventario.carga.nombra` | Nombra cada archivo con el {codigo}: {a} (principal) o {b}, {c}… para varias por pantalla. | Name each file with the {codigo}: {a} (main) or {b}, {c}… for several per screen. | Rinomina ogni file con il {codigo}: {a} (principale) o {b}, {c}… se ce n’è più di una per impianto. |
 | `inventario.carga.codigo-proveedor` | código de proveedor | supplier code | codice fornitore |
 | `inventario.carga.duplicados.uno` | {n} código(s) ya existen | {n} code already exists | {n} codice esiste già |
 | `inventario.carga.duplicados.otros` | {n} código(s) ya existen | {n} codes already exist | {n} codici esistono già |
@@ -931,7 +957,7 @@ las listas de frases italianas de cada estado (M6).
 | `arrendadores.comun.deposito` | Depósito | Security deposit | Deposito cauzionale |
 | `arrendadores.comun.motivo` | «{motivo}» | “{motivo}” | «{motivo}» |
 | `arrendadores.comun.hoy` | hoy | today | oggi |
-| `arrendadores.comun.en-dias` | en {n} d | in {n} d | tra {n} g |
+| `arrendadores.comun.en-dias` | en {n} d | in {n} d | tra {n} gg |
 | `arrendadores.comun.mes` | /mes | /mo | /mese |
 | `arrendadores.comun.monto-mes` | {monto}/mes | {monto}/mo | {monto}/mese |
 | `arrendadores.comun.confirmar-renovar` | Confirmar y renovar | Confirm and renew | Conferma e rinnova |
@@ -983,7 +1009,7 @@ las listas de frases italianas de cada estado (M6).
 | `arrendadores.alta.sub` | Alta de arrendador (dueño del predio) | Add a landlord (owner of the property) | Registrazione di un locatore (proprietario dell’immobile) |
 | `arrendadores.alta.crear-igual` | Crear de todos modos | Create anyway | Crea comunque |
 | `arrendadores.alta.repetido` | Si te equivocaste, cierra y búscalo en la lista; si de verdad es otro propietario distinto, vuelve a pulsar. | If it was a mistake, close and look for it in the list; if it really is a different landlord, click again. | Se hai sbagliato, chiudi e cercalo nell’elenco; se è davvero un altro locatore, premi di nuovo. |
-| `arrendadores.alta.rfc-malo` | Formato inválido. Son 3 letras (empresa) o 4 (persona), fecha AAMMDD y 3 caracteres de homoclave. | Invalid format. It’s 3 letters (company) or 4 (person), a YYMMDD date and 3 homoclave characters. | Formato non valido. Sono 3 lettere (azienda) o 4 (persona), la data AAMMGG e 3 caratteri di omoclave. |
+| `arrendadores.alta.rfc-malo` | Formato inválido. Son 3 letras (empresa) o 4 (persona), fecha AAMMDD y 3 caracteres de homoclave. | Invalid format. It’s 3 letters (company) or 4 (person), a YYMMDD date and 3 homoclave characters. | Formato non valido. Sono 3 lettere (azienda) o 4 (persona), la data AAMMGG e 3 caratteri di homoclave. |
 | `arrendadores.alta.domicilio-ph` | Calle, número, colonia, CP, ciudad, estado | Street, number, neighborhood, postal code, city, state | Via, numero, quartiere, CAP, città, stato |
 | `arrendadores.alta.domicilio-ayuda` | El contrato de arrendamiento lo necesita para las notificaciones. Sin él, el documento sale con ese hueco en blanco. | The lease agreement needs it for notices. Without it, the document comes out with that gap left blank. | Il contratto di locazione ne ha bisogno per le notifiche. Senza, il documento esce con quello spazio in bianco. |
 | `arrendadores.alta.fiscales` | Datos fiscales | Tax details | Dati fiscali |
@@ -1049,7 +1075,7 @@ las listas de frases italianas de cada estado (M6).
 | `arrendadores.incidencia.accidente` | Accidente | Accident | Incidente |
 | `arrendadores.incidencia.otro` | Otro | Other | Altro |
 | `arrendadores.ficha.contrato` | Contrato | Contract | Contratto |
-| `arrendadores.ficha.reportar` | Reportar incidencia | Report incident | Segnala problema |
+| `arrendadores.ficha.reportar` | Reportar incidencia | Report incident | Segnala anomalia |
 | `arrendadores.ficha.renovacion-iniciada` | Renovación iniciada | Renewal started | Rinnovo avviato |
 | `arrendadores.ficha.no-renovar` | No se pudo iniciar la renovación | Could not start the renewal | Impossibile avviare il rinnovo |
 | `arrendadores.ficha.renovar` | Renovar | Renew | Rinnova |
@@ -1070,11 +1096,11 @@ las listas de frases italianas de cada estado (M6).
 | `arrendadores.ficha.registrar` | Registrar | Record | Registra |
 | `arrendadores.ficha.ruc` | RUC | RUC (tax ID) | RUC |
 | `arrendadores.ficha.correo` | Correo | Email | Email |
-| `arrendadores.ficha.incidencia-reportada` | Incidencia reportada · {nombre} bloqueado en Comercial | Incident reported · {nombre} blocked in Sales | Problema segnalato · {nombre} bloccato in Vendite |
+| `arrendadores.ficha.incidencia-reportada` | Incidencia reportada · {nombre} bloqueado en Comercial | Incident reported · {nombre} blocked in Sales | Anomalia segnalata · {nombre} bloccato in Vendite |
 | `arrendadores.ficha.renovar-sensible` | Renovar un contrato es un cambio sensible: tu organización pide que vuelvas a identificarte. | Renewing a contract is a sensitive change: your organization asks you to confirm your identity again. | Rinnovare un contratto è una modifica sensibile: la tua organizzazione chiede di identificarti di nuovo. |
 | `arrendadores.pagadora.asignada` | Razón social asignada al contrato | Legal entity assigned to the contract | Ragione sociale assegnata al contratto |
 | `arrendadores.pagadora.sin` | El contrato quedó sin razón social asignada | The contract was left without an assigned legal entity | Il contratto è rimasto senza ragione sociale assegnata |
-| `arrendadores.pagadora.sub` | Solo cambia a nombre de quién sale esta renta. No toca el importe. | It only changes whose name this rent is paid under. It doesn’t touch the amount. | Cambia solo a nome di chi esce questo canone. Non tocca l’importo. |
+| `arrendadores.pagadora.sub` | Solo cambia a nombre de quién sale esta renta. No toca el importe. | It only changes whose name this rent is paid under. It doesn’t touch the amount. | Cambia solo la società a nome della quale si paga questo canone. Non tocca l’importo. |
 | `arrendadores.pagadora.sin-entidades` | Todavía no tienes razones sociales capturadas. Se dan de alta en Razones sociales. | You don’t have any legal entities yet. They are added in Legal entities. | Non hai ancora ragioni sociali inserite. Si registrano in Ragioni sociali. |
 | `arrendadores.pagadora.sin-asignar` | Dejarlo sin asignar es legítimo: el contrato es un acuerdo real aunque todavía no se haya decidido con qué sociedad se paga. | Leaving it unassigned is legitimate: the contract is a real agreement even if it hasn’t been decided yet which company pays it. | Lasciarlo senza assegnazione è legittimo: il contratto è un accordo reale anche se non si è ancora deciso con quale società si paga. |
 | `arrendadores.completar.falta-razon` | razón social | legal name | ragione sociale |
@@ -1085,7 +1111,7 @@ las listas de frases italianas de cada estado (M6).
 | `arrendadores.completar.sub` | Los cuatro datos que faltan para que cuente como acuerdo real | The four details missing for it to count as a real agreement | I quattro dati che mancano perché conti come accordo reale |
 | `arrendadores.completar.guardar` | Guardar contrato | Save contract | Salva contratto |
 | `arrendadores.completar.elige` | Elige el arrendador… | Choose the landlord… | Scegli il locatore… |
-| `arrendadores.completar.varias` | Tiene {n} razones sociales; se muestra la primera. Cuál factura este contrato se elige en su ficha. | It has {n} legal names; the first one is shown. Choose which one this contract is billed to in their profile. | Ha {n} ragioni sociali; si mostra la prima. Quale fattura questo contratto si sceglie nella sua scheda. |
+| `arrendadores.completar.varias` | Tiene {n} razones sociales; se muestra la primera. Cuál factura este contrato se elige en su ficha. | It has {n} legal names; the first one is shown. Choose which one this contract is billed to in their profile. | Ha {n} ragioni sociali; si mostra la prima. Quella che fattura questo contratto si sceglie nella sua scheda. |
 | `arrendadores.completar.le-falta` | Le falta {lista}. Puedes guardar el contrato igual, pero sin eso no se le podrá facturar la renta cuando toque pagarle. | It’s missing {lista}. You can save the contract anyway, but without it the rent can’t be invoiced when it’s time to pay. | Gli manca: {lista}. Puoi salvare il contratto comunque, ma senza questi dati non gli si potrà fatturare il canone quando toccherà pagarlo. |
 | `arrendadores.completar.importe` | Importe de la renta | Rent amount | Importo del canone |
 | `arrendadores.completar.importe-cero` | Captura un importe mayor que cero | Enter an amount greater than zero | Inserisci un importo maggiore di zero |
@@ -1114,7 +1140,7 @@ las listas de frases italianas de cada estado (M6).
 | `arrendadores.pago.registrado` | Pago registrado | Payment recorded | Pagamento registrato |
 | `arrendadores.pago.adjuntos-titulo` | Adjuntos del pago | Payment attachments | Allegati del pagamento |
 | `arrendadores.pago.guardar-adjuntos` | Guardar adjuntos | Save attachments | Salva allegati |
-| `arrendadores.pago.pagado-el` | Pagado el {fecha}{metodo}. Aquí solo se adjuntan los documentos: el pago no se vuelve a registrar. | Paid on {fecha}{metodo}. Only the documents are attached here: the payment isn’t recorded again. | Pagato il {fecha}{metodo}. Qui si allegano solo i documenti: il pagamento non viene registrato di nuovo. |
+| `arrendadores.pago.pagado-el` | Pagado el {fecha}{metodo}. Aquí solo se adjuntan los documentos: el pago no se vuelve a registrar. | Paid on {fecha}{metodo}. Only the documents are attached here: the payment isn’t recorded again. | Pagato in data {fecha}{metodo}. Qui si allegano solo i documenti: il pagamento non viene registrato di nuovo. |
 | `arrendadores.pago.fecha` | Fecha de pago | Payment date | Data di pagamento |
 | `arrendadores.pago.metodo` | Método de pago | Payment method | Metodo di pagamento |
 | `arrendadores.pago.factura` | Factura del arrendador | Landlord’s invoice | Fattura del locatore |
@@ -1124,7 +1150,7 @@ las listas de frases italianas de cada estado (M6).
 | `arrendadores.incidencia.bloquear` | Reportar y bloquear sitio | Report and block site | Segnala e blocca il sito |
 | `arrendadores.incidencia.tipo` | Tipo | Type | Tipo |
 | `arrendadores.incidencia.descripcion` | Descripción | Description | Descrizione |
-| `arrendadores.incidencia.descripcion-ph` | Describe la incidencia… | Describe the incident… | Descrivi il problema… |
+| `arrendadores.incidencia.descripcion-ph` | Describe la incidencia… | Describe the incident… | Descrivi l’anomalia… |
 | `arrendadores.incidencia.aviso` | Al reportar, el sitio pasa a {bloqueado} y aparece en rojo en el mapa de Comercial al instante. | When you report it, the site becomes {bloqueado} and shows up in red on the Sales map instantly. | Segnalandolo, il sito diventa {bloqueado} e appare subito in rosso sulla mappa di Vendite. |
 | `arrendadores.incidencia.bloqueado` | bloqueado | blocked | bloccato |
 | `arrendadores.parte.arrendador` | El arrendador | The landlord | Il locatore |
@@ -1143,10 +1169,10 @@ las listas de frases italianas de cada estado (M6).
 | `arrendadores.versiones.no-leer` | No se pudo leer la versión firmada | Could not read the signed version | Impossibile leggere la versione firmata |
 | `arrendadores.versiones.titulo` | Versiones firmadas anteriores | Previous signed versions | Versioni firmate precedenti |
 | `arrendadores.versiones.version` | Versión {n} | Version {n} | Versione {n} |
-| `arrendadores.versiones.archivada` | ␣· archivada {fecha} | ␣· archived {fecha} | ␣· archiviata il {fecha} |
+| `arrendadores.versiones.archivada` | ␣· archivada {fecha} | ␣· archived {fecha} | ␣· archiviata in data {fecha} |
 | `arrendadores.versiones.ver` | Ver texto firmado | View signed text | Vedi testo firmato |
 | `arrendadores.versiones.firmo` | {parte} firmó {nombre} | {parte} signed by {nombre} | {parte}: firmato da {nombre} |
-| `arrendadores.versiones.firmo-el` | {parte} firmó {nombre} el {fecha} | {parte} signed by {nombre} on {fecha} | {parte}: firmato da {nombre} il {fecha} |
+| `arrendadores.versiones.firmo-el` | {parte} firmó {nombre} el {fecha} | {parte} signed by {nombre} on {fecha} | {parte}: firmato da {nombre} in data {fecha} |
 | `arrendadores.versiones.modal` | Versión firmada {n} | Signed version {n} | Versione firmata {n} |
 | `arrendadores.versiones.sello` | Sello SHA-256: {hash} | SHA-256 seal: {hash} | Sigillo SHA-256: {hash} |
 | `arrendadores.editar.no-guardar` | No se pudo guardar el cambio | Could not save the change | Impossibile salvare la modifica |
@@ -1170,13 +1196,13 @@ las listas de frases italianas de cada estado (M6).
 | `arrendadores.editar.mayor-cero` | Tiene que ser mayor que cero | It must be greater than zero | Deve essere maggiore di zero |
 | `arrendadores.editar.moneda` | Moneda | Currency | Valuta |
 | `arrendadores.editar.negativo` | No puede ser negativo | It cannot be negative | Non può essere negativo |
-| `arrendadores.licencias.vencio` | Venció hace {n} d | Expired {n} d ago | Scaduta da {n} g |
-| `arrendadores.licencias.vence-en` | Vence en {n} d | Expires in {n} d | Scade tra {n} g |
+| `arrendadores.licencias.vencio` | Venció hace {n} d | Expired {n} d ago | Scaduta da {n} gg |
+| `arrendadores.licencias.vence-en` | Vence en {n} d | Expires in {n} d | Scade tra {n} gg |
 | `arrendadores.licencias.vigente` | Vigente | Valid | Valida |
 | `arrendadores.licencias.titulo` | Licencias y permisos | Permits and licenses | Licenze e permessi |
 | `arrendadores.licencias.amparan` | Amparan a todas las pantallas de este predio. | They cover all the screens on this property. | Coprono tutti gli impianti di questo immobile. |
 | `arrendadores.licencias.vacio` | Sin licencias registradas. Al capturar la vigencia, el sistema avisa con {n} días de anticipación. | No permits recorded. Once the expiration date is entered, the system warns {n} days ahead. | Nessuna licenza registrata. Inserendo la scadenza, il sistema avvisa con {n} giorni di anticipo. |
-| `arrendadores.licencias.vence` | vence {fecha} | expires {fecha} | scade il {fecha} |
+| `arrendadores.licencias.vence` | vence {fecha} | expires {fecha} | scade in data {fecha} |
 | `arrendadores.licencias.borrar` | Borrar licencia | Delete permit | Elimina licenza |
 | `arrendadores.licencias.borrada` | Licencia borrada | Permit deleted | Licenza eliminata |
 | `arrendadores.licencias.registrada` | Licencia registrada | Permit recorded | Licenza registrata |
@@ -1248,7 +1274,7 @@ las listas de frases italianas de cada estado (M6).
 | `arrendadores.firmas.congela` | congela | freezes | congela |
 | `arrendadores.firmas.faltan` | No se puede enviar a firma mientras falten datos por capturar (ver arriba). | It can’t be sent for signature while there is data missing (see above). | Non si può inviare per la firma finché mancano dati da inserire (vedi sopra). |
 | `arrendadores.firmas.enviar` | Enviar a firma | Send for signature | Invia per la firma |
-| `arrendadores.firmas.congelado` | Documento congelado el {fecha}. Sello SHA-256: {hash} | Document frozen on {fecha}. SHA-256 seal: {hash} | Documento congelato il {fecha}. Sigillo SHA-256: {hash} |
+| `arrendadores.firmas.congelado` | Documento congelado el {fecha}. Sello SHA-256: {hash} | Document frozen on {fecha}. SHA-256 seal: {hash} | Documento congelato in data {fecha}. Sigillo SHA-256: {hash} |
 | `arrendadores.firmas.ya-tiene` | {titulo} Si hay que modificar renta, vigencia o cualquier otra condición, edítalo desde «Editar términos» en su ficha: esta versión se archiva tal como se firmó —texto y firmas— y el contrato se vuelve a enviar a firma con los datos actuales. | {titulo} If the rent, the term or any other condition has to change, edit it from “Edit terms” in its profile: this version is archived exactly as it was signed —text and signatures— and the contract is sent for signature again with the current data. | {titulo} Se bisogna modificare canone, durata o qualsiasi altra condizione, fallo da «Modifica termini» nella sua scheda: questa versione viene archiviata così come è stata firmata —testo e firme— e il contratto viene inviato di nuovo per la firma con i dati attuali. |
 | `arrendadores.firmas.ya-tiene-titulo` | Este contrato ya tiene firmas. | This contract already has signatures. | Questo contratto ha già delle firme. |
 | `arrendadores.firmas.desfasado` | {titulo} Las firmas ya no corresponden al texto actual. Vuelve a enviar a firma para sellar la versión nueva y recabar las firmas otra vez. | {titulo} The signatures no longer match the current text. Send it for signature again to seal the new version and collect new signatures. | {titulo} Le firme non corrispondono più al testo attuale. Invialo di nuovo per la firma per sigillare la nuova versione e raccogliere di nuovo le firme. |
@@ -1263,7 +1289,7 @@ las listas de frases italianas de cada estado (M6).
 | `arrendadores.firmas.firmando` | Firmando… | Signing… | Firma in corso… |
 | `arrendadores.firmas.firmar-arrendataria` | Firmar como arrendataria | Sign as lessee | Firma come conduttrice |
 | `arrendadores.firmas.copiar` | Copiar enlace de firma | Copy signature link | Copia link di firma |
-| `arrendadores.firmas.envia` | Envíaselo al arrendador. Vence el {fecha}. Quien tenga el enlace puede firmar, así que trátalo como una credencial. | Send it to the landlord. It expires on {fecha}. Anyone with the link can sign, so treat it like a credential. | Invialo al locatore. Scade il {fecha}. Chi ha il link può firmare, quindi trattalo come una credenziale. |
+| `arrendadores.firmas.envia` | Envíaselo al arrendador. Vence el {fecha}. Quien tenga el enlace puede firmar, así que trátalo como una credencial. | Send it to the landlord. It expires on {fecha}. Anyone with the link can sign, so treat it like a credential. | Invialo al locatore. Scade in data {fecha}. Chi ha il link può firmare, quindi trattalo come una credenziale. |
 | `arrendadores.firmas.anula` | Las firmas actuales se anulan. La versión firmada queda archivada tal como se firmó. | The current signatures are voided. The signed version stays archived exactly as it was signed. | Le firme attuali vengono annullate. La versione firmata resta archiviata così come è stata firmata. |
 | `arrendadores.firmas.reenviar-archiva` | Volver a enviar a firma (archiva las firmas actuales) | Send it again for signature (archives the current signatures) | Invia di nuovo per la firma (archivia le firme attuali) |
 | `arrendadores.firmas.reenviar-reinicia` | Volver a enviar a firma (reinicia las firmas) | Send it again for signature (restarts the signatures) | Invia di nuovo per la firma (azzera le firme) |
