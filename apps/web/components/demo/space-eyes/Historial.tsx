@@ -5,6 +5,8 @@ import { AlertTriangle, ChevronDown, Loader2, TriangleAlert } from 'lucide-react
 import { cn } from '@/lib/cn'
 import { telemetriaApi, type PuntoTelemetria, type Telemetria } from '@/lib/data/space-eyes-api'
 import { formatNumero } from '@/lib/formato-numero'
+import { useIdioma } from '@/lib/i18n/contexto'
+import type { Idioma } from '@/lib/i18n/idiomas'
 
 // ============================================================================
 //  Historial del equipo — batería y señal, por hora.
@@ -39,6 +41,7 @@ const BATERIA_MIN = 20
 const SENAL_MIN = -105
 
 export function Historial({ id }: { id: number }) {
+  const { t, idioma } = useIdioma()
   const [abierto, setAbierto] = useState(false)
   const [horas, setHoras] = useState<24 | 168 | 720>(24)
   const [datos, setDatos] = useState<Telemetria | null>(null)
@@ -51,10 +54,10 @@ export function Historial({ id }: { id: number }) {
     try {
       setDatos(await telemetriaApi(id, h))
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo leer el histórico')
+      setError(e instanceof Error ? e.message : t('spaceeyes.historial.no-leer'))
     }
     setCargando(false)
-  }, [id])
+  }, [id, t])
 
   useEffect(() => {
     if (abierto) void traer(horas)
@@ -72,7 +75,7 @@ export function Historial({ id }: { id: number }) {
         className="flex w-full items-center gap-2 p-3 text-left"
       >
         <span className="flex-1 text-[11px] uppercase tracking-wide text-muted">
-          Histórico del equipo
+          {t('spaceeyes.historial.titulo')}
         </span>
         {cargando && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted" />}
         <ChevronDown className={cn('h-4 w-4 text-muted transition-transform', abierto && 'rotate-180')} />
@@ -98,7 +101,11 @@ export function Historial({ id }: { id: number }) {
               </button>
             ))}
             {datos?.muestras != null && (
-              <span className="ml-auto text-[11px] text-muted">{formatNumero(datos.muestras)} reportes</span>
+              <span className="ml-auto text-[11px] text-muted">
+                {t(datos.muestras === 1 ? 'spaceeyes.historial.reportes.uno' : 'spaceeyes.historial.reportes.otros', {
+                  n: formatNumero(datos.muestras),
+                })}
+              </span>
             )}
           </div>
 
@@ -108,29 +115,28 @@ export function Historial({ id }: { id: number }) {
             <div className="mt-3 h-40 animate-pulse rounded-md bg-surface-2" />
           ) : !hayDatos ? (
             <p className="mt-3 text-[12px] text-muted">
-              Este equipo no reportó nada en el rango elegido, así que no hay nada que dibujar. Prueba con un rango más
-              amplio.
+              {t('spaceeyes.historial.vacio')}
             </p>
           ) : (
             <>
               <Grafica
-                titulo="Batería"
+                titulo={t('spaceeyes.historial.bateria')}
                 unidad="%"
                 serie={serie}
                 valor={(p) => p.battery_pct}
                 dominio={[0, 100]}
                 umbral={BATERIA_MIN}
-                umbralTexto="20% · batería baja"
+                umbralTexto={t('spaceeyes.historial.umbral.bateria')}
                 peorEs="min"
               />
               <Grafica
-                titulo="Señal"
+                titulo={t('spaceeyes.historial.senal')}
                 unidad="dBm"
                 serie={serie}
                 valor={(p) => p.signal_dbm}
                 dominio={[-120, -50]}
                 umbral={SENAL_MIN}
-                umbralTexto="−105 dBm · señal débil"
+                umbralTexto={t('spaceeyes.historial.umbral.senal')}
                 peorEs="min"
                 className="mt-4"
               />
@@ -153,21 +159,21 @@ export function Historial({ id }: { id: number }) {
 
               {/* Los mismos números, legibles sin ver la gráfica */}
               <details className="mt-3">
-                <summary className="cursor-pointer text-[12px] text-muted hover:text-ink">Ver los datos</summary>
+                <summary className="cursor-pointer text-[12px] text-muted hover:text-ink">{t('spaceeyes.historial.ver-datos')}</summary>
                 <div className="mt-2 max-h-52 overflow-auto">
                   <table className="w-full text-[11px]">
-                    <caption className="sr-only">Batería y señal por hora</caption>
+                    <caption className="sr-only">{t('spaceeyes.historial.caption')}</caption>
                     <thead className="sticky top-0 bg-surface text-left text-muted">
                       <tr>
-                        <th scope="col" className="py-1 pr-2 font-medium">Hora</th>
-                        <th scope="col" className="py-1 pr-2 font-medium">Batería</th>
-                        <th scope="col" className="py-1 font-medium">Señal</th>
+                        <th scope="col" className="py-1 pr-2 font-medium">{t('spaceeyes.historial.hora')}</th>
+                        <th scope="col" className="py-1 pr-2 font-medium">{t('spaceeyes.historial.bateria')}</th>
+                        <th scope="col" className="py-1 font-medium">{t('spaceeyes.historial.senal')}</th>
                       </tr>
                     </thead>
                     <tbody className="tabular-nums text-ink">
                       {serie.map((p) => (
                         <tr key={p.bucket} className="border-t border-border">
-                          <td className="py-1 pr-2">{horaCorta(p.bucket, horas)}</td>
+                          <td className="py-1 pr-2">{horaCorta(p.bucket, horas, idioma)}</td>
                           <td className="py-1 pr-2">{p.battery_pct != null ? `${p.battery_pct}%` : '—'}</td>
                           <td className="py-1">{p.signal_dbm != null ? `${p.signal_dbm} dBm` : '—'}</td>
                         </tr>
@@ -206,6 +212,7 @@ function Grafica({
   peorEs: 'min' | 'max'
   className?: string
 }) {
+  const { t, idioma } = useIdioma()
   const [activo, setActivo] = useState<number | null>(null)
 
   const W = 600
@@ -253,7 +260,9 @@ function Grafica({
       <figcaption className="flex items-baseline gap-2">
         <span className="text-[12px] font-medium text-ink">{titulo}</span>
         <span className="text-[11px] text-muted">
-          {peor != null ? `peor ${peor}${unidad === '%' ? '%' : ` ${unidad}`}` : 'sin dato'}
+          {peor != null
+            ? t('spaceeyes.historial.peor', { valor: `${peor}${unidad === '%' ? '%' : ` ${unidad}`}` })
+            : t('spaceeyes.comun.sin-dato')}
         </span>
         {ultimo != null && (
           <span className="ml-auto text-[12px] tabular-nums text-ink">
@@ -269,7 +278,19 @@ function Grafica({
           preserveAspectRatio="none"
           className="block h-24 w-full touch-none"
           role="img"
-          aria-label={`${titulo} por hora. Peor valor del rango: ${peor ?? 'sin dato'} ${unidad}.`}
+          aria-label={t('spaceeyes.historial.aria', {
+            titulo,
+            // El español deja «17 %» y «sin dato dBm» como siempre; en ingles
+            // el «%» va pegado y «no data» no lleva unidad.
+            valor:
+              idioma === 'en'
+                ? peor == null
+                  ? t('spaceeyes.comun.sin-dato')
+                  : unidad === '%'
+                    ? `${peor}%`
+                    : `${peor} ${unidad}`
+                : `${peor ?? t('spaceeyes.comun.sin-dato')} ${unidad}`,
+          })}
           onMouseLeave={() => setActivo(null)}
           onMouseMove={(e) => {
             const r = e.currentTarget.getBoundingClientRect()
@@ -315,7 +336,7 @@ function Grafica({
               {activoValor}
               {unidad === '%' ? '%' : ` ${unidad}`}
             </span>
-            <span className="ml-1.5 text-muted">{horaCorta(activoPunto.bucket, 24)}</span>
+            <span className="ml-1.5 text-muted">{horaCorta(activoPunto.bucket, 24, idioma)}</span>
           </div>
         )}
       </div>
@@ -324,10 +345,11 @@ function Grafica({
 }
 
 // "14:00" en un día; "mar 14 h" en rangos largos, donde la hora suelta no ubica.
-function horaCorta(bucket: string, horas: number): string {
+function horaCorta(bucket: string, horas: number, idioma: Idioma): string {
   const d = new Date(bucket.replace(' ', 'T'))
   if (Number.isNaN(d.getTime())) return bucket
+  const locale = idioma === 'en' ? 'en-US' : 'es-MX'
   return horas <= 24
-    ? d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
-    : d.toLocaleString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit' })
+    ? d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
+    : d.toLocaleString(locale, { day: '2-digit', month: 'short', hour: '2-digit' })
 }

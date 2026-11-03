@@ -1493,6 +1493,107 @@ validada), «Vista» (hacia dónde mira una cara frente al selector de la
 rejilla), «Movimiento» (renglón del estado de cuenta frente a traslado del
 almacén) y «Dar de baja» (la baja lógica de catálogos, «Deactivate», frente a la
 definitiva de un artículo del almacén, «Decommission»).
+### Lote Space Eyes
+
+**2026-11-02, rama `feat/ingles-space-eyes`** (sale de `integra/ingles`,
+`ec427a66`). El inglés sigue APAGADO; en español no cambia ni una letra. Tabla
+de revisión en `docs/i18n/revision-spaceeyes.md`.
+
+**Pantallas cubiertas:** todo `/space-eyes/*` — la lista de equipos, la ficha
+de un equipo con sus cuatro pestañas (fotos con el veredicto de la IA, pantalla
+y fallas, creativos, equipo: datos del sitio, programa, ajustes de imagen y
+registros), el histórico, la vista en vivo, la galería y su visor, las fallas
+de la flota, las campañas de verificación, la programación de fotos, la
+verificación, las gráficas, ajustar texto, el alta de un dispositivo, la
+demostración para quien no tiene el módulo, el aviso «sin respuesta» y las
+solicitudes de activación del padre; y la página `/space-eyes/[id]` con un id
+inválido.
+
+- **992 claves** `spaceeyes.*` en `lib/i18n/textos/spaceeyes.ts`, esparcidas en
+  `diccionario.ts`, con su instantánea y sus guardias en
+  `textos/spaceeyes.test.ts` (ningún inglés igual al español salvo 10
+  declaradas —11 desde la segunda vuelta, con «Vincular»—, sin acentos, mismos huecos, sin espacio antes de «%», apóstrofo y
+  comillas tipográficos, nunca «tap»/«press», frecuencias en letra y plurales
+  `.uno/.otros` siempre en pareja). El lote entra en `costura.test.ts`.
+- **Funciones con texto ganaron `idioma` con `'es'` por omisión:** en
+  `piezas.tsx` `hace`, `calidadSenal` y `fechaHora` (en inglés,
+  `formatFechaHora(…, 'en')`), más `haceSinPrefijo` (sustituye a
+  `hace(x).replace('hace ', '')`, que en inglés no quitaba nada); y
+  `comoSeActualiza` (`lib/space-eyes-actualizacion.ts`). El servidor
+  (`lib/server/space-eye.ts`) la sigue llamando sin idioma: español de siempre,
+  y `space-eyes-actualizacion.test.ts` lo fija letra por letra.
+- **El veredicto de la foto** usa las claves `comercial.eye.*` («Correct ad ·
+  confidence 93%», «Does not match the creative»): la misma foto dice lo mismo
+  en la ficha comercial y en la de Space Eyes.
+- **Los avisos que no se rinden** (toasts de Programación y de la vista en
+  vivo, avisos de la galería, de ajustar texto, de las fallas y del equipo, el
+  `window.confirm` de descartar la marca) se fijan leyendo el fuente en
+  `textos/spaceeyes.test.ts`, rama por rama, como la gemela de Finanzas.
+
+**Cómo se midió el español:** `lib/i18n/pantallas-spaceeyes.test.ts` rinde
+**95 estados** (con `useState` forzado y el reloj fijo). Como `Button` lleva su
+propio `useState(false)`, el envoltorio lo reconoce en la pila y no le da
+valores de la cola. Con `I18N_VOLCAR=<carpeta>` vuelca el HTML español: se
+volcó con las fuentes de `ec427a66` y con las del lote, con la misma prueba, y
+`diff -rq` salió vacío (95/95). La prueba barre además el diccionario del lote,
+el de compartidos y `comun.*` contra el HTML inglés de todas las pantallas.
+
+**Glosario del lote** (decisiones del traductor; el dueño puede cambiarlas):
+equipo / dispositivo → **device** (como el menú, «Devices»); falla → **fault**
+(menú «Faults»); vista en vivo → **live view**; verificación →
+**verification**; solicitud de activación → **activation request**; flota →
+**fleet**; gabinete → *cabinet*; creativo / creatividad → *creative*; encuadre
+→ *framing*; vigilancia → *monitoring*; código de vinculación → *pairing code*;
+la marca de la foto → *label* (menú «Photo label»); programación de fotos →
+*scheduling*; franja → *daypart* (glosario); zona → *area*; sin comunicación →
+*not reporting*. «Pide un toque en el teléfono» → *someone has to confirm on
+the phone* (nunca «tap»). Las frecuencias en letra: *every half hour, every
+two hours, every twelve hours*. Tres divergencias declaradas en la costura:
+«Actualizar» (*Refresh* una lista / *Update* el programa del equipo),
+«Estado» (*Status* / *State* en la dirección) y «Ganancia» (*Profit* / *Gain*
+de la cámara).
+
+**Lo que NO se traduce, a propósito:** el ticket que abre «Solicitar
+activación» (es un dato que lee soporte), la marca que se graba EN la foto
+(`lib/space-eyes-marca*`: es la evidencia), el nombre del `.zip` del álbum y
+del archivo de la microSD, el CSV de telemetría, el comando de instalación, y
+lo que manda el servidor o Space Eye: el nombre, la zona y la nota de una falla,
+las alertas de telemetría, el `mensaje` de pedir una foto, el
+`actualizacion.texto` de la lista (solo sale en un `title`) y los errores de
+los errores de `lib/space-eyes-marca.ts` (la descarga de la foto con su marca).
+
+#### Segunda vuelta (validador ÁMBAR, `docs/i18n/validacion-spaceeyes.md`)
+
+- **«Vincular» en los dos idiomas** (decisión del dueño, 02/11: la app Android
+  de Space Eye solo está en español). El paso dice «On the phone, open the app,
+  confirm with **Vincular** and scan the QR»; la clave está declarada igual.
+- **«Space Eye respondió N» ya no sale en español en la pantalla inglesa.**
+  `ErrorSE` marca cuándo su mensaje es el genérico (Space Eye no mandó motivo)
+  y `textoDeError(e, idioma)` / `textoRespondio(status, idioma)`
+  (`lib/data/space-eyes-se.ts`, `'es'` por omisión) lo dicen en el idioma de
+  quien lo lee; lo que manda Space Eye sigue siendo un dato. Lo usan todos los
+  manejadores de error del módulo y la exportación del CSV de `Graficas`.
+- **Los motivos de la vista en vivo son interfaz** (decisión del orquestador):
+  `VisorWhep` recibe `idioma` (`'es'` por omisión) y sus cuatro motivos salen
+  de `spaceeyes.whep.*`. La marca de la foto sigue SIN traducirse.
+- **Guardias nuevas en el barrido inglés:** `(?<!MX)\$ ?\d` y
+  `\d{2}/\d{2}/\d{4}` (las mismas expresiones que prepara el lote de
+  inventario para su ayudante común, que aún no está en esta base; aquí van
+  locales), más el mes abreviado y el «a. m.» de es-MX. Se quita antes la marca
+  de la foto, y otra prueba exige que en inglés esa marca SIGA en es-MX. La
+  nueva `lib/space-eyes-marca-idioma.test.ts` fija `lineasMarca` y
+  `renglonesMarca` en es-MX y que ninguno de los dos módulos sepa de idiomas.
+  Mutantes: quitar el idioma de un `fechaHora` (M3), traducir la marca (M6,
+  M7), quitar el idioma de `textoDeError` y de `VisorWhep` — **mueren los
+  cinco**.
+- **Glosario (orquestador):** Administración › Configuración › Soporte →
+  *Settings › Business settings › Support*; folio de un ticket → *ticket*;
+  el padre → *parent server*. Además: «Updates: …» → *Update mode: …*; el lote
+  de códigos en inglés natural; *manually* en vez de *by hand*; *On demand* en
+  los dos sitios; *checksum*; posesivos; plurales `.uno/.otros` en «of {n}
+  devices», «Applies to the {n} devices» y «Cabinets {lista}»; la próxima foto
+  y el pie del visor de la galería con el formato inglés de la aplicación.
+- **Español, otra vez medido:** 95/95 estados idénticos frente a `ec427a66`.
 
 ## Enlaces
 

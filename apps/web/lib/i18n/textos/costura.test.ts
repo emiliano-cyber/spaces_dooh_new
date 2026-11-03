@@ -12,6 +12,7 @@ import { ES_SHELL, EN_SHELL } from './shell'
 import { ES_SERVIDOR, EN_SERVIDOR } from './servidor'
 import { ES_CLIENTES, EN_CLIENTES } from './clientes'
 import { ES_OPERACIONES, EN_OPERACIONES } from './operaciones'
+import { ES_SPACEEYES, EN_SPACEEYES } from './spaceeyes'
 import { DICCIONARIOS } from '../diccionario'
 import { traducirError } from '../errores-servidor'
 
@@ -45,11 +46,12 @@ const LOTES: [string, Record<string, string>, Record<string, string>][] = [
   ['servidor', ES_SERVIDOR, EN_SERVIDOR],
   ['clientes', ES_CLIENTES, EN_CLIENTES],
   ['operaciones', ES_OPERACIONES, EN_OPERACIONES],
+  ['spaceeyes', ES_SPACEEYES, EN_SPACEEYES],
 ]
 
 function baseDelDiccionario(): [Record<string, string>, Record<string, string>] {
   const deLotes = new Set(
-    [ES_PROPUESTAS, ES_COMPARTIDOS, ES_CAMPANAS, ES_FINANZAS, ES_COMERCIAL, ES_CODIGOS, ES_CATALOGOS, ES_ADMIN, ES_CUENTA, ES_SHELL, ES_SERVIDOR, ES_CLIENTES, ES_OPERACIONES].flatMap((o) => Object.keys(o)),
+    [ES_PROPUESTAS, ES_COMPARTIDOS, ES_CAMPANAS, ES_FINANZAS, ES_COMERCIAL, ES_CODIGOS, ES_CATALOGOS, ES_ADMIN, ES_CUENTA, ES_SHELL, ES_SERVIDOR, ES_CLIENTES, ES_OPERACIONES, ES_SPACEEYES].flatMap((o) => Object.keys(o)),
   )
   const es: Record<string, string> = {}
   const en: Record<string, string> = {}
@@ -67,7 +69,7 @@ function baseDelDiccionario(): [Record<string, string>, Record<string, string>] 
 const DISTINTOS_A_PROPOSITO: Record<string, string> = {
   '{n} pantalla': 'en el loop de Administracion la frase cuenta solo las pantallas digitales y el adjetivo vive dentro de la clave en ingles («{n} digital screen»); en paquetes son pantallas a secas (aparecio al juntar admin con catalogos, 2026-11-02)',
   '{n} pantallas': 'lo mismo que «{n} pantalla», en plural',
-  Actualizar: 'refrescar una lista («Refresh») frente a guardar un correo ya escrito («Update»), en Administracion',
+  Actualizar: 'refrescar o recargar una lista («Refresh») frente a guardar un correo ya escrito, en Administracion, o instalar la version nueva del programa de un equipo, en Space Eyes («Update»)',
   Baja: 'el estatus de un sitio dado de baja («Decommissioned») frente a la prioridad de un ticket de soporte («Low»)',
   Cargo: 'un cargo contable del estado de cuenta («Charge») frente al puesto de un usuario («Job title»)',
   Configuración: 'la pestaña de configuracion del negocio en Administracion («Business settings») frente a la de la cuenta del usuario («Account settings»), decision del orquestador',
@@ -88,6 +90,14 @@ const DISTINTOS_A_PROPOSITO: Record<string, string> = {
   Vencido: 'un pago atrasado («Overdue») frente a un contrato o codigo caducado («Expired»)',
   Vista: 'hacia donde mira una cara del sitio («Facing») frente al selector de vista de la rejilla de Disponibilidad, catorcena o mes («View»)',
   Vigencia: 'glosario: la vigencia de una propuesta o codigo («Validity») frente al plazo de un contrato («Term»)',
+  // Lote Space Eyes (2026-11-02):
+  Estado: 'el estatus de algo («Status») frente al estado de la republica en la direccion de un equipo («State»)',
+  Ganancia: 'la ganancia de una propuesta («Profit») frente a la ganancia del sensor de la camara («Gain»)',
+  // Costura 2 (2026-11-02): aparecieron al juntar Space Eyes con catalogos, admin y cuenta.
+  'Dada de baja': 'la baja logica de un registro que se reactiva, franja, temporada, paquete o razon social («Deactivated») frente a la pantalla que sale de la flota de Space Eyes, como el sitio dado de baja («Decommissioned»)',
+  Equipo: 'el equipo de personas de una organizacion, en Administracion («Team») frente al aparato de Space Eyes («Device»)',
+  Operador: 'la empresa duena de una pantalla de la Network («Operator») frente a la compania de telefonia de la SIM de un equipo de Space Eyes («Carrier»)',
+  Volver: 'regresar a la pantalla anterior («Back») frente a devolver la camara a la orientacion guardada, en la vista en vivo de Space Eyes («Revert»)',
 }
 
 describe('costura · los lotes dicen lo mismo de la misma manera', () => {

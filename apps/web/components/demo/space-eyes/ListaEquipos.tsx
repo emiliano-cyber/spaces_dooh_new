@@ -17,7 +17,8 @@ import {
 import { cn } from '@/lib/cn'
 import { Button } from '@/components/demo/ui/Button'
 import { listarEquiposApi, type EquipoResumen } from '@/lib/data/space-eyes-api'
-import { Bateria, FotoGirada, PildoraConexion, Senal, estaEnLinea, hace, tonoBateria } from './piezas'
+import { Bateria, FotoGirada, PildoraConexion, Senal, estaEnLinea, hace, haceSinPrefijo, tonoBateria } from './piezas'
+import { useIdioma } from '@/lib/i18n/contexto'
 import { formatNumero } from '@/lib/formato-numero'
 
 // ============================================================================
@@ -41,6 +42,7 @@ import { formatNumero } from '@/lib/formato-numero'
 type Filtro = 'todos' | 'linea' | 'atencion' | 'manual'
 
 export function ListaEquipos() {
+  const { t, idioma } = useIdioma()
   const [equipos, setEquipos] = useState<EquipoResumen[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [noConfigurado, setNoConfigurado] = useState(false)
@@ -57,10 +59,10 @@ export function ListaEquipos() {
       setNoConfigurado(!d.disponible)
       setEquipos(d.equipos)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo consultar Space Eyes')
+      setError(e instanceof Error ? e.message : t('spaceeyes.comun.no-consultar'))
     }
     setCargando(false)
-  }, [])
+  }, [t])
 
   useEffect(() => {
     void sincronizar()
@@ -120,7 +122,7 @@ export function ListaEquipos() {
         <div className="min-w-[12rem] flex-1">
           <h1 className="text-lg font-semibold text-ink">Space Eyes</h1>
           <p className="text-[13px] text-muted">
-            Los equipos que vigilan tus pantallas: qué están viendo y cómo están.
+            {t('spaceeyes.lista.descripcion')}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -130,12 +132,12 @@ export function ListaEquipos() {
             ) : (
               <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
             )}
-            Actualizar
+            {t('spaceeyes.comun.actualizar')}
           </Button>
           <Link href="/space-eyes/nuevo">
             <Button variant="primary" size="sm">
               <Plus className="mr-1.5 h-3.5 w-3.5" />
-              Agregar dispositivo
+              {t('spaceeyes.alta.titulo')}
             </Button>
           </Link>
         </div>
@@ -143,13 +145,13 @@ export function ListaEquipos() {
 
       {noConfigurado ? (
         <div className="rounded-md border border-border bg-surface-2 p-4 text-[13px] text-muted">
-          La integración con Space Eyes no está configurada en este entorno.
+          {t('spaceeyes.lista.no-configurado')}
         </div>
       ) : error ? (
         <div className="flex items-start gap-2 rounded-md border border-[#dc262640] bg-error-soft p-3 text-[12px]">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-error" />
           <div>
-            <div className="font-medium text-ink">No se pudo consultar Space Eyes</div>
+            <div className="font-medium text-ink">{t('spaceeyes.comun.no-consultar')}</div>
             <div className="text-muted">{error}</div>
           </div>
         </div>
@@ -157,18 +159,25 @@ export function ListaEquipos() {
         <>
           {/* Los cuatro números que deciden si hay que hacer algo hoy */}
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <Indicador titulo="En línea" valor={enLinea} pie={`de ${formatNumero(conEstado.length)} equipos`} punto="bg-success" />
-            <Indicador titulo="Sin comunicación" valor={caidos} pie="más de 10 min" punto="bg-error" />
             <Indicador
-              titulo="Batería crítica"
+              titulo={t('spaceeyes.conexion.en-linea')}
+              valor={enLinea}
+              pie={t(conEstado.length === 1 ? 'spaceeyes.lista.kpi.de-equipos.uno' : 'spaceeyes.lista.kpi.de-equipos.otros', {
+                n: formatNumero(conEstado.length),
+              })}
+              punto="bg-success"
+            />
+            <Indicador titulo={t('spaceeyes.conexion.sin')} valor={caidos} pie={t('spaceeyes.lista.kpi.mas-10')} punto="bg-error" />
+            <Indicador
+              titulo={t('spaceeyes.lista.kpi.bateria')}
               valor={bateriaBaja}
-              pie="bajo 20%"
+              pie={t('spaceeyes.lista.kpi.bajo-20')}
               icono={<BatteryLow className="h-3.5 w-3.5 text-warning" strokeWidth={1.8} />}
             />
             <Indicador
-              titulo="Última captura"
-              valor={ultimaCaptura ? hace(ultimaCaptura).replace('hace ', '') : '—'}
-              pie={ultimaCaptura ? 'de toda la flota' : 'sin fotos todavía'}
+              titulo={t('spaceeyes.lista.kpi.ultima')}
+              valor={ultimaCaptura ? haceSinPrefijo(ultimaCaptura, idioma) : '—'}
+              pie={ultimaCaptura ? t('spaceeyes.lista.kpi.flota') : t('spaceeyes.lista.kpi.sin-fotos')}
               icono={<Camera className="h-3.5 w-3.5 text-muted" strokeWidth={1.8} />}
             />
           </div>
@@ -177,23 +186,23 @@ export function ListaEquipos() {
           <div className="flex flex-wrap items-center gap-2">
             <div className="inline-flex rounded-md border border-border bg-surface p-0.5 text-[13px]">
               <Pestana activa={filtro === 'todos'} onClick={() => setFiltro('todos')}>
-                Todos · {formatNumero(conEstado.length)}
+                {t('spaceeyes.lista.filtro.todos', { n: formatNumero(conEstado.length) })}
               </Pestana>
               <Pestana activa={filtro === 'linea'} onClick={() => setFiltro('linea')}>
-                En línea · {enLinea}
+                {t('spaceeyes.lista.filtro.linea', { n: enLinea })}
               </Pestana>
               <Pestana activa={filtro === 'atencion'} onClick={() => setFiltro('atencion')}>
-                Con atención · {formatNumero(conEstado.filter(necesitaAtencion).length)}
+                {t('spaceeyes.lista.filtro.atencion', { n: formatNumero(conEstado.filter(necesitaAtencion).length) })}
               </Pestana>
               <Pestana activa={filtro === 'manual'} onClick={() => setFiltro('manual')}>
-                Se actualizan a mano · {conEstado.filter((e) => e.actualizacion?.sola === false).length}
+                {t('spaceeyes.lista.filtro.manual', { n: conEstado.filter((e) => e.actualizacion?.sola === false).length })}
               </Pestana>
             </div>
 
             {empresas.length > 1 && (
               <>
                 <label className="sr-only" htmlFor="se-empresa">
-                  Empresa
+                  {t('spaceeyes.lista.empresa')}
                 </label>
                 <select
                   id="se-empresa"
@@ -201,7 +210,7 @@ export function ListaEquipos() {
                   onChange={(e) => setEmpresa(e.target.value)}
                   className="h-8 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
                 >
-                  <option value="todas">Todas las empresas</option>
+                  <option value="todas">{t('spaceeyes.lista.empresas')}</option>
                   {empresas.map((x) => (
                     <option key={x} value={x}>
                       {x}
@@ -217,13 +226,13 @@ export function ListaEquipos() {
                 strokeWidth={1.8}
               />
               <label className="sr-only" htmlFor="se-buscar">
-                Buscar equipo o pantalla
+                {t('spaceeyes.lista.buscar')}
               </label>
               <input
                 id="se-buscar"
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
-                placeholder="Buscar equipo o pantalla"
+                placeholder={t('spaceeyes.lista.buscar')}
                 className="h-9 w-full rounded border border-border-strong bg-surface pl-8 pr-3 text-[13px] text-ink outline-none placeholder:text-muted focus-visible:ring-2 focus-visible:ring-accent"
               />
             </div>
@@ -239,8 +248,8 @@ export function ListaEquipos() {
           ) : visibles.length === 0 ? (
             <div className="rounded-md border border-border bg-surface-2 px-3 py-10 text-center text-[13px] text-muted">
               {conEstado.length === 0
-                ? 'Todavía no hay equipos Space Eyes dados de alta para esta cuenta.'
-                : 'Ningún equipo coincide con el filtro.'}
+                ? t('spaceeyes.comun.sin-equipos')
+                : t('spaceeyes.lista.sin-coincidencias')}
             </div>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 min-[1900px]:grid-cols-5 min-[2400px]:grid-cols-6">
@@ -308,6 +317,7 @@ function Pestana({
 }
 
 function TarjetaEquipo({ equipo: e, enLinea }: { equipo: EquipoResumen; enLinea: boolean }) {
+  const { t, idioma } = useIdioma()
   return (
     <Link
       href={`/space-eyes/${e.id}`}
@@ -316,18 +326,18 @@ function TarjetaEquipo({ equipo: e, enLinea }: { equipo: EquipoResumen; enLinea:
       {/* La última captura manda: es lo que se viene a ver */}
       <div className="relative aspect-[16/9] overflow-hidden bg-surface-2">
         {e.ultimaFoto ? (
-          <FotoGirada src={e.ultimaFoto.miniatura} alt={`Última captura de ${e.nombre}`} giro={e.ultimaFoto.giro} />
+          <FotoGirada src={e.ultimaFoto.miniatura} alt={t('spaceeyes.lista.alt-captura', { nombre: e.nombre })} giro={e.ultimaFoto.giro} />
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-1.5 text-muted">
             <CameraOff className="h-5 w-5" strokeWidth={1.4} />
-            <span className="text-[12px]">Sin capturas todavía</span>
+            <span className="text-[12px]">{t('spaceeyes.lista.sin-capturas')}</span>
           </div>
         )}
         <PildoraConexion online={enLinea} pendiente={!e.ultimaConexion} sobreFoto className="absolute left-2 top-2" />
         {e.ultimaFoto?.tomadaEn && (
           <span className="absolute bottom-2 right-2 inline-flex items-center gap-1.5 rounded-full bg-black/60 px-2 py-0.5 text-[10.5px] text-white backdrop-blur-sm">
             <Clock className="h-3 w-3" strokeWidth={2} />
-            {hace(e.ultimaFoto.tomadaEn)}
+            {hace(e.ultimaFoto.tomadaEn, idioma)}
           </span>
         )}
       </div>
@@ -343,7 +353,7 @@ function TarjetaEquipo({ equipo: e, enLinea }: { equipo: EquipoResumen; enLinea:
           ) : e.codigoPantalla ? (
             <span className="demo-num">{e.codigoPantalla}</span>
           ) : (
-            <span className="italic">sin pantalla asignada</span>
+            <span className="italic">{t('spaceeyes.comun.sin-pantalla')}</span>
           )}
         </div>
 
@@ -355,7 +365,7 @@ function TarjetaEquipo({ equipo: e, enLinea }: { equipo: EquipoResumen; enLinea:
             )}
             title={e.actualizacion.texto}
           >
-            {e.actualizacion.tono === 'visita' ? 'Para actualizar necesita una visita' : 'Para actualizar pide un toque'}
+            {e.actualizacion.tono === 'visita' ? t('spaceeyes.lista.actualizar.visita') : t('spaceeyes.lista.actualizar.toque')}
           </div>
         )}
 
@@ -363,7 +373,7 @@ function TarjetaEquipo({ equipo: e, enLinea }: { equipo: EquipoResumen; enLinea:
           <Bateria pct={e.bateriaPct} />
           <Senal dbm={e.senalDbm} tipo={e.redTipo} />
           <span className={cn('ml-auto text-[12px]', enLinea ? 'text-muted' : 'font-medium text-error')}>
-            {hace(e.ultimaConexion)}
+            {hace(e.ultimaConexion, idioma)}
           </span>
         </div>
       </div>
