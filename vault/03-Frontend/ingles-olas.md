@@ -157,7 +157,36 @@ Detalle del lote:
   la fecha sin hora del pipeline, la única excepción al español idéntico, porque
   ahora dice el día correcto.
 - **Queda:** `PaqueteImposible` al quitar un paquete, que envuelve la frase del tope
-  y no tiene patrón.
+  y no tiene patrón. *(Hecho en la ola 7.)*
+
+### Ola 7 · Cierre final (2026-11-03)
+
+Los tres menores que quedaban, la decisión del dueño sobre el CSV del estado de
+cuenta y el recorrido en navegador de lo que la ola 5 no pudo ver.
+
+| Lote | Rama | Estado |
+|---|---|---|
+| Menores, CSV en el idioma de la pantalla y recorrido con Space Eyes activo, portal y firma con token válido, campanita y pipeline | `feat/ingles-ola7` | Pendiente del validador. Revisión en `docs/i18n/revision-ola7.md`: español idéntico en los 559 estados (0 diferencias, 4 archivos nuevos), 0 valores de `DICCIONARIOS.es` cambiados (15 claves nuevas), 24 de 24 mutantes, 6900 unitarias en verde. e2e de la rama: 1186 en verde y 21 saltadas; solo cae `grants-rol-app`, por Docker |
+
+Detalle del lote:
+
+- **Menores.** «due today» / «Contract expires TODAY» con la variante `.cero`; el
+  `PaqueteImposible` de quitar un paquete por patrón, con el tope traducido dentro; y
+  los códigos de papel en inglés en `admin.razones.falta.papel`.
+- **CSV del estado de cuenta** en el idioma de la pantalla (decisión del dueño, §3). En
+  español, byte a byte el de antes (prueba contra el texto de `d4fe7883`). En inglés la
+  moneda va en el encabezado y el importe sigue siendo número, para que Excel sume y un
+  negativo no se abra como fórmula: lectura de la decisión, a confirmar.
+- **Recorrido.** Space Eyes se activó con configuración (`SPACE_EYE_BASE_URL`,
+  `SPACE_EYE_KEY`) contra un doble del backend escrito fuera del repositorio. Cuatro
+  hallazgos corregidos: la vigencia del panel de firma con fecha ISO, el `title` de
+  cómo se actualiza un equipo, el «dónde» de una falla en la ficha y el nombre de la
+  falla (catálogo fijo del teléfono, atado a `Monitor.kt`). Portal, firma, campanita
+  con las 24 plantillas y el aviso emergente, y pipeline: en inglés.
+- **Queda para el dueño:** «Rent: $6,000.00 MXN» en la revisión del contrato (mismo
+  caso que el comprobante) y el aviso legal al pie del contrato. Y un posible defecto
+  ajeno al inglés: `equipoDetalle()` lee `data_mobile_month` y el backend manda
+  `mobile_month`.
 
 ## 3 · Decisiones del dueño (2026-11-02)
 
@@ -176,14 +205,22 @@ Detalle del lote:
   Aun así se blindó el cotejo de firmas (ADR 0048, «Compatibilidad»).
 - **Recibos de CFE:** sin cambios; el dueño dará más tipos de recibo.
 
+**2026-11-03:**
+
+- **El CSV del estado de cuenta sale en el idioma de la pantalla.** Encabezados,
+  estados y textos fijos en inglés si el usuario usa inglés, con fechas y moneda del
+  idioma (`MX$`); los datos no cambian; en español, byte a byte el de antes. Hecho en
+  la ola 7.
+- **«MX$ 1,160.00 MXN» del comprobante se queda así.** No se toca.
+
 ## 4 · Lo que falta, y quién lo decide
 
 | Pendiente | Lo decide / lo hace |
 |---|---|
-| El CSV del estado de cuenta: ¿en el idioma de la pantalla o siempre en español? | el dueño |
-| «MX$ 1,160.00 MXN» en el comprobante: el validador recomienda dejarlo | el dueño |
+| ~~El CSV del estado de cuenta: ¿en el idioma de la pantalla o siempre en español?~~ | decidido (03/11): en el idioma de la pantalla; hecho en la ola 7. Falta confirmar si el importe va formateado en cada celda o como número con `MX$` en el encabezado |
+| ~~«MX$ 1,160.00 MXN» en el comprobante~~ | decidido (03/11): se queda así |
 | ~~Notificaciones de la campanita, papeles, checklist de una OT y los dos mensajes del flujo de venta~~ | hechos en la ola 6, traducidos al pintarlos; integrados (bc591b7a) |
-| `PaqueteImposible` al quitar un paquete (envuelve la frase del tope) | otra ola |
+| ~~`PaqueteImposible` al quitar un paquete (envuelve la frase del tope)~~ | hecho en la ola 7 |
 | Encender `IDIOMA_INGLES=1` en DEMO y luego en las instancias | el dueño: la ola 5 ya está cerrada |
 | Entrada en `docs/Registro_Cambios.md` | al encender, porque antes no se nota |
 | PR de `integra/ingles` hacia `main` | el dueño |
