@@ -175,6 +175,7 @@ const PIEZAS: Pieza[] = [
     nombre: 'tarjeta plegable abierta',
     pintar: async (idioma) => {
       const { CardColapsable } = await import('../../components/demo/ui/CardColapsable')
+      // eslint-disable-next-line react/no-children-prop -- el tipo de CardColapsable exige children en las props (como Campo, arriba)
       return pintar(idioma, createElement(CardColapsable, { titulo: 'Cobranza', children: 'x' }))
     },
     espanol: ['aria-label="Minimizar Cobranza"'],
@@ -184,6 +185,7 @@ const PIEZAS: Pieza[] = [
     nombre: 'tarjeta plegable cerrada',
     pintar: async (idioma) => {
       const { CardColapsable } = await import('../../components/demo/ui/CardColapsable')
+      // eslint-disable-next-line react/no-children-prop -- el tipo de CardColapsable exige children en las props (como Campo, arriba)
       return pintar(idioma, createElement(CardColapsable, { titulo: 'Cobranza', defaultAbierto: false, children: 'x' }))
     },
     espanol: ['aria-label="Expandir Cobranza"'],
