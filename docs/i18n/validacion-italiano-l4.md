@@ -234,3 +234,38 @@ que no muerdan lo que dicen.
 - El texto de las 15 claves de H2 con un día 8 u 11 real: lo deduzco del
   formato «1 dic 2026» de la ola 0, no lo rendí.
 - Las e2e (no se tocan rutas, sesión, tenant ni dinero).
+
+## 2.ª pasada (2026-11-03) · VERDE
+
+Sobre `86389aab` (correcciones `de8146ae` rojo, `5e548277` fix, `86389aab` docs).
+
+| Comprobación | Resultado |
+|---|---|
+| H1 «Il immobile» | corregido: «Questo {tipo} esiste già nel sistema.» |
+| H2 fechas con artículo | regla común aplicada: «in data {fecha}», «al giorno {fecha}», «{desde} – {hasta}», «Tra {desde} e {hasta}»; ninguna de las 15 claves queda con «il/al/dal» delante de un hueco de fecha, y `reglasDelItaliano` lo vigila |
+| H3 incidencia | «anomalia» (`inicio.alerta.incidencia`, `tipo-alerta.incidencia`); «incidente» solo en `incidencia.accidente` |
+| H4 periodicidades | «rate quindicinali / bimestrali / semestrali» |
+| H5–H8 | «Nessun cliente trovato … per «zzz»», «Valore contrattato in corso», «Fascia in onda», «su DOOHmain» en todo el lote (salvo «Chiedi a DOOHmain», correcto) |
+| Candado | «Blocco fatturazione» / «La fatturazione si sblocca…» / «fatturazione sbloccata»: natural |
+| `inicio/page.tsx` | `enviadas` y `sinTarifa` ya pasan por `formatNumero(…, 0, idioma)` |
+| CSV es/en | mi propio guion (`jiti`) con titular «Tit;ular, "x"», folios «F;1», «=HYPERLINK(…)», «+1;-2» y clientes «Acme; S.A.», «@SUM(1)», «-cmd\|x», saldos negativos: la salida es/en de la rama es **byte a byte la de `6fea374a`** |
+| CSV italiano | separador «;», coma decimal («-1500,25», «5000,5»), sin miles ni símbolo; los textos con «;» van entre comillas y `= + - @` siguen con el apóstrofo delante, también dentro de comillas («"'+1;-2"») |
+| es/en de toda la suite | `I18N_VOLCAR_TODO`: 3027 HTML en la base, 3556 en la rama, **0 distintos, 0 desaparecidos**; `ES_*`/`EN_*` idénticos (1082 claves), 0 italianos vacíos |
+| `npm run typecheck` | limpio |
+| `npx vitest run` | **383 archivos, 7326 pruebas** en verde |
+
+**Mutantes repetidos y nuevos:**
+
+| # | Mutante | Resultado |
+|---|---|---|
+| M3 | «Sin movimento in questo periodo» | **muere** ahora (`palabrasEspanolas`, pantallas-reportes) |
+| M7 | `dCapacidad` sin `idioma` | **muere** ahora (cifras de mil o más en el Dashboard) |
+| M11 | el «;» no se entrecomilla en italiano | **muere** |
+| M12 | el importe italiano con punto decimal | **muere** |
+| M13 | «{n} fatture al {fecha}» (artículo delante de fecha) | **muere** (`reglasDelItaliano`) |
+| M14 | sin la defensa contra fórmulas | **muere** (es, en e italiano) |
+
+Restaurados todos (`git status` limpio). El build no se repitió: los cambios
+son de diccionario, del CSV y de dos llamadas a `formatNumero`, y el
+typecheck cubre los tipos. Queda solo M9 (un inglés inventado que no está en el
+diccionario) como límite conocido del barrido.
