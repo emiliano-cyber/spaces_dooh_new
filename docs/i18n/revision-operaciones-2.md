@@ -3,8 +3,9 @@
 Generada el 2026-11-02 a partir de `apps/web/lib/i18n/textos/operaciones2.ts`,
 `textos/inicio.ts` y `textos/energia.ts`, y de los usos en el código (búsqueda
 literal de la clave; «por plantilla de clave» = la clave se arma con un hueco,
-p. ej. `` `energia.motivo.${campo}.falta` ``). **463 claves**: 202 de
-operaciones2 (OT y Creativos), 141 del Dashboard y 120 de Consumo de luz. Rama
+p. ej. `` `energia.motivo.${campo}.falta` ``). **471 claves**: 202 de
+operaciones2 (OT y Creativos), 148 del Dashboard y 121 de Consumo de luz (tras la
+segunda vuelta). Rama
 `feat/ingles-operaciones-2`, sale de `integra/ingles` en `34022673`.
 
 - **Pantallas:** `/operaciones` (lista de OT, indicadores, aviso de SLA,
@@ -49,18 +50,23 @@ operaciones2 (OT y Creativos), 141 del Dashboard y 120 de Consumo de luz. Rama
 | responsable / sin asignar | assignee / Unassigned | «Unassigned» como razones sociales |
 | prioridad baja / normal / alta / urgente | Low / Normal / High / Urgent | «Baja» se declara distinta en la costura (sitio «Decommissioned») |
 | tipos de OT | Vinyl installation, Digital installation, Removal, Preventive / Corrective maintenance, Metalwork, Electrical, Inspection, Other | |
-| frenan el candado de facturación | keep the billing lock closed | el candado «se abre» al cumplirse (Campañas) |
+| frenan el candado de facturación | keeping the billing lock closed | el candado «se abre» al cumplirse (Campañas); subtítulo de KPI sin «they» (2.ª vuelta) |
 | candado de facturación encendido | Billing lock open | |
 | fotografía comprobatoria / sello de ubicación | proof photo / location stamp | |
 | costo real / estimación por tipo | actual cost / per-type estimate | |
 | rentabilidad | profitability | glosario del orquestador |
 | creativo / arte / retirado | creative / artwork / withdrawn | «withdrawn… in its panel» y «exceeds», como Campañas (costura) |
+| spots / slots (Creativos) | slots | orquestador, 2.ª vuelta: «spot» es el anuncio y «slot» el espacio del loop; lo que se reserva y se queda sin creativo es un slot |
+| tipo de alerta (Dashboard) | Rent issues / Contract issues / Invoices (collections) / Blocked or paused sites / Work orders (SLA) / Licenses and permits | orquestador, 2.ª vuelta: que cubran todo lo que agrupan |
+| dictamen estructural | Structural inspection report | orquestador, 2.ª vuelta |
+| tipo de incidencia (enum) | weather, maintenance, legal issue, vandalism, operational suspension, accident, other | solo inglés; en español el dato en minúsculas, como siempre |
+| tipo de campaña en Creativos | OOH / DOOH / Hybrid | reusa `campanas.tipo.*` solo en inglés |
 | slots reservados | booked slots | |
 | ingreso / margen / tasa de cierre / ganado | revenue / margin / close rate / won | |
-| ocupación de la red / espacio·día / cara libre | network occupancy / space·day / free face | |
+| ocupación de la red / espacio·día / cara libre | network occupancy / space·day / available face | «available face», orquestador, 2.ª vuelta |
 | huecos y renovaciones | gaps and renewals | |
 | por cobrar por antigüedad / cuota / sin vencer | receivables by age / installment / not yet due | |
-| pausa legal | legal hold | |
+| pausa legal | legal restriction | orquestador, 2.ª vuelta («legal hold» en EE. UU. es retención de documentos) |
 | razón social / nombre comercial | legal name / trade name | |
 | recibo de luz / consumo | electricity bill / consumption | orquestador |
 | predio / medidor / número de servicio | property / meter / service number | |
@@ -70,23 +76,44 @@ operaciones2 (OT y Creativos), 141 del Dashboard y 120 de Consumo de luz. Rama
 | recibo BIMESTRAL | bill issued EVERY TWO MONTHS | periodicidades en letra; «bimonthly» lo prohíbe la costura |
 | título de `/energia` | Power usage | el del menú (`nav.energia`) |
 
+## Segunda vuelta (validación ÁMBAR, `docs/i18n/validacion-operaciones-2.md`)
+
+| hallazgo | qué se hizo |
+|---|---|
+| `energia.lectura.ok` «All 1 file were read» | partida en `.uno/.otros` por `total`: «1 file was read and it produces 1 row.» / «3 files were read…» |
+| `desajuste.*` «the 1 months you declared», `cubre.otros` «all 2 cover» | sin plural por `esperados`: «…don’t match the number of months you declared (1): the number of calendar months covered by those 2 is 3» |
+| `derive.ts` tipo de incidencia crudo | `CLAVE_INCIDENCIA` → `inicio.incidencia.*` solo en inglés; el español sigue con `toLowerCase()`. Se quitaron «vandalismo» y «otro» de `COMUNES` |
+| `creativos/page.tsx` `tipoCampana` crudo | `CLAVE_TIPO_CAMPANA` de Campañas solo en inglés; el fixture usa ya un valor válido (`HIBRIDA`, y `DOOH` en la ficha de OT) |
+| `inicio.sale` «no client leaves» | «Ending {fecha}: {campana} ({cliente})» → «Ending Nov 20, 2026: Otoño (no client)» |
+| `energia.lectura.alerta` «1 rows / 1 of 1 files» | «Files read: {leidos} of {total}; rows: {filas}.»: sin plural que romper |
+| «Assign to (assignee)» | «Assign to» |
+| «Your 1 campaign is» | «You have 1 campaign and it is on static media…» |
+| «its campaign is finished» | «its campaign in DOOHmain is ended» |
+| «meter no number» | «(no number)» |
+| «3 points» | «3 metering points» |
+| «billing» del recibo de CFE | «period charges» |
+| subtítulo de Huecos | «what becomes free in the next {n} days» |
+| «Over 90» | «Over 90 days» |
+| sujetos «they» en subtítulos de KPI | «keeping the billing lock closed», «holding back publishing» |
+| Mutantes de clases del Dashboard (M5/M5b/M5c) | el mock de `CardColapsable` pinta `className` y `contentClassName`, y una instantánea guarda el HTML español de los 7 estados. Medido: `lg:col-span-2` → `lg:col-span-3` (M5c, el que ni el volcado veía) y `text-2xl` → `text-xl` (M5) ponen en rojo las 7 instantáneas |
+
 ## Diccionario
 
 ### `textos/operaciones2.ts` (202 claves)
 
 | clave | español | inglés | dónde |
 |---|---|---|---|
-| `operaciones2.comun.de` | {a} de {b} | {a} of {b} | page.tsx:237, page.tsx:238, page.tsx:556 |
+| `operaciones2.comun.de` | {a} de {b} | {a} of {b} | page.tsx:238, page.tsx:238, page.tsx:556 |
 | `operaciones2.comun.campana` | Campaña | Campaign | page.tsx:510, OTVista.tsx:580 |
 | `operaciones2.comun.pantalla` | Pantalla | Screen | page.tsx:519 |
 | `operaciones2.comun.descripcion` | Descripción | Description | page.tsx:556 |
 | `operaciones2.comun.tipo` | Tipo | Type | OTVista.tsx:546 |
 | `operaciones2.comun.prioridad` | Prioridad | Priority | page.tsx:565, OTVista.tsx:551 |
 | `operaciones2.comun.responsable` | Responsable | Assignee | OTVista.tsx:577 |
-| `operaciones2.comun.sin-asignar` | Sin asignar | Unassigned | page.tsx:845, page.tsx:94, page.tsx:187 |
+| `operaciones2.comun.sin-asignar` | Sin asignar | Unassigned | page.tsx:852, page.tsx:94, page.tsx:187 |
 | `operaciones2.comun.vencida` | Vencida | Overdue | page.tsx:349, OTVista.tsx:566 |
 | `operaciones2.comun.por-vencer` | Por vencer | Due soon | page.tsx:181, page.tsx:354, OTVista.tsx:571 |
-| `operaciones2.comun.guardando` | Guardando… | Saving… | page.tsx:614, OTVista.tsx:305, OTVista.tsx:371 |
+| `operaciones2.comun.guardando` | Guardando… | Saving… | page.tsx:621, OTVista.tsx:305, OTVista.tsx:371 |
 | `operaciones2.comun.ver-todas` | Ver todas | Show all | page.tsx:282, page.tsx:381 |
 | `operaciones2.comun.ver-todas-n` | Ver todas ({n}) | Show all ({n}) | page.tsx:381 |
 | `operaciones2.comun.ver-menos` | Ver menos | Show less | page.tsx:381 |
@@ -113,7 +140,7 @@ operaciones2 (OT y Creativos), 141 del Dashboard y 120 de Consumo de luz. Rama
 | `operaciones2.ot.kpi.abiertas` | Abiertas | Open | page.tsx:170 |
 | `operaciones2.ot.kpi.en-proceso` | {n} en proceso | {n} in progress | page.tsx:172 |
 | `operaciones2.ot.kpi.vencidas` | Vencidas | Overdue | page.tsx:175 |
-| `operaciones2.ot.kpi.frenan` | frenan el candado de facturación | they keep the billing lock closed | page.tsx:177 |
+| `operaciones2.ot.kpi.frenan` | frenan el candado de facturación | keeping the billing lock closed | page.tsx:177 |
 | `operaciones2.ot.kpi.compromiso` | compromiso en 2 días o menos | due in 2 days or less | page.tsx:183 |
 | `operaciones2.ot.kpi.sin-responsable` | abiertas sin responsable | open with no assignee | page.tsx:189 |
 | `operaciones2.ot.banner.vencidas.uno` | {n} OT vencida | {n} overdue work order | page.tsx:210 |
@@ -145,7 +172,7 @@ operaciones2 (OT y Creativos), 141 del Dashboard y 120 de Consumo de luz. Rama
 | `operaciones2.ot.nueva.opciones-digital` | (opciones de pantalla digital) | (options for a digital screen) | page.tsx:544 |
 | `operaciones2.ot.nueva.opciones-fija` | (opciones de pantalla fija) | (options for a static screen) | page.tsx:544 |
 | `operaciones2.ot.nueva.descripcion-ej` | p. ej. Montaje de lona en espectacular… | e.g. Vinyl installation on a billboard… | page.tsx:561 |
-| `operaciones2.ot.nueva.asignar` | Asignar a (responsable) | Assign to (assignee) | page.tsx:574 |
+| `operaciones2.ot.nueva.asignar` | Asignar a (responsable) | Assign to | page.tsx:574 |
 | `operaciones2.ot.nueva.sin-asignar` | — Sin asignar — | — Unassigned — | page.tsx:576 |
 | `operaciones2.ficha.no-cargar` | No se pudo cargar la orden de trabajo. | Could not load the work order. | OTVista.tsx:188 |
 | `operaciones2.ficha.inicia-sesion` | Inicia sesión para continuar | Sign in to continue | OTVista.tsx:190 |
@@ -192,94 +219,94 @@ operaciones2 (OT y Creativos), 141 del Dashboard y 120 de Consumo de luz. Rama
 | `operaciones2.ot.costo.aviso-con` | Al cerrarla, el costo de {importe} queda fijo: ya no se podrá cambiar. | Once closed, the cost of {importe} is final: it can’t be changed. | costo-ot-captura.ts:108 |
 | `operaciones2.ot.costo.cerrada-sin` | Se cerró sin costo capturado: el reporte de rentabilidad usa la estimación por tipo de tarea. | It was closed with no cost entered: the profitability report uses the per-type estimate. | costo-ot-captura.ts:114 |
 | `operaciones2.ot.costo.cerrada-con` | Costo registrado: {importe}. La OT está cerrada y ya no se puede cambiar. | Recorded cost: {importe}. The work order is closed and can no longer be changed. | costo-ot-captura.ts:117 |
-| `operaciones2.creativos.descripcion` | Sube y aprueba las imágenes de cada campaña, y asigna cuál va en cada slot reservado. | Upload and approve each campaign’s images, and assign which one goes in each booked slot. | page.tsx:182 |
-| `operaciones2.creativos.kpi.por-aprobar` | Por aprobar | Pending approval | page.tsx:189 |
-| `operaciones2.creativos.kpi.frenan` | frenan la publicación | they hold back publishing | page.tsx:191 |
-| `operaciones2.creativos.kpi.aprobados` | Aprobados | Approved | page.tsx:194 |
-| `operaciones2.creativos.kpi.listos` | listos para asignar | ready to assign | page.tsx:194 |
-| `operaciones2.creativos.kpi.rechazados` | Rechazados | Rejected | page.tsx:196 |
-| `operaciones2.creativos.kpi.reemplazar` | hay que reemplazarlos | they need to be replaced | page.tsx:198 |
-| `operaciones2.creativos.kpi.sin-creativo` | Spots sin creativo | Spots with no creative | page.tsx:202 |
-| `operaciones2.creativos.kpi.de-spots.uno` | de {n} spot reservado | of {n} booked spot | page.tsx:204 |
-| `operaciones2.creativos.kpi.de-spots.otros` | de {n} spots reservados | of {n} booked spots | page.tsx:204 |
-| `operaciones2.creativos.buscar` | Buscar por campaña, folio, cliente o nombre del creativo… | Search by campaign, internal ref., client or creative name… | page.tsx:221 |
-| `operaciones2.creativos.filtro.todos` | Todos los creativos | All creatives | page.tsx:230 |
-| `operaciones2.creativos.filtro.pendientes` | Con pendientes de aprobar | With creatives pending approval | page.tsx:231 |
-| `operaciones2.creativos.filtro.aprobados` | Con aprobados | With approved creatives | page.tsx:232 |
-| `operaciones2.creativos.filtro.rechazados` | Con rechazados | With rejected creatives | page.tsx:233 |
-| `operaciones2.creativos.filtro.sin` | Sin creativos todavía | No creatives yet | page.tsx:234 |
-| `operaciones2.creativos.vacio.sin-digitales` | Ninguna campaña tiene pantallas digitales | No campaign has digital screens | page.tsx:250, page.tsx:253, page.tsx:254 |
-| `operaciones2.creativos.vacio.sin-digitales-detalle.uno` | Aquí solo se gestionan los creativos de pantallas digitales. Tus {n} campaña son de medios fijos: su arte se lleva en Imprenta. | Only creatives for digital screens are managed here. Your {n} campaign is on static media: its artwork is handled in Printing. | page.tsx:253, page.tsx:254 |
-| `operaciones2.creativos.vacio.sin-digitales-detalle.otros` | Aquí solo se gestionan los creativos de pantallas digitales. Tus {n} campañas son de medios fijos: su arte se lleva en Imprenta. | Only creatives for digital screens are managed here. Your {n} campaigns are on static media: their artwork is handled in Printing. | page.tsx:253, page.tsx:254 |
-| `operaciones2.creativos.vacio.ir-imprenta` | Ir a Imprenta | Go to Printing | page.tsx:259 |
-| `operaciones2.creativos.vacio.sin-campanas` | Sin campañas con slots o creativos | No campaigns with slots or creatives | page.tsx:266, page.tsx:267 |
-| `operaciones2.creativos.vacio.sin-campanas-detalle` | Reserva sitios en Comercial o sube un creativo para gestionarlos aquí. | Book sites in Sales or upload a creative to manage them here. | page.tsx:267 |
-| `operaciones2.creativos.vacio.ninguna` | Ninguna campaña coincide | No campaign matches | page.tsx:275, page.tsx:276 |
-| `operaciones2.creativos.vacio.ninguna-detalle` | Prueba con otro texto de búsqueda o quita el filtro de estado. | Try a different search or remove the status filter. | page.tsx:276 |
-| `operaciones2.creativos.limpiar` | Limpiar filtros | Clear filters | page.tsx:285 |
-| `operaciones2.creativos.imagen-supera` | La imagen supera {mb} MB | The image exceeds {mb} MB | page.tsx:374, page.tsx:477 |
-| `operaciones2.creativos.no-subir` | No se pudo subir | Could not upload | page.tsx:390 |
-| `operaciones2.creativos.no-guardar` | No se pudo guardar | Could not save | page.tsx:412 |
-| `operaciones2.creativos.motivo-rechazo` | Motivo de rechazo (opcional): | Reason for rejection (optional): | page.tsx:419 |
-| `operaciones2.creativos.no-validar` | No se pudo validar | Could not save the review | page.tsx:424 |
-| `operaciones2.creativos.retirado-doohmain` | “{nombre}” se retiró. Su arte sigue en DOOHmain — quítalo en su panel | “{nombre}” was withdrawn. Its artwork is still in DOOHmain — remove it in its panel | page.tsx:439 |
-| `operaciones2.creativos.eliminado` | “{nombre}” se eliminó | “{nombre}” was deleted | page.tsx:440 |
-| `operaciones2.creativos.no-eliminar` | No se pudo eliminar | Could not delete | page.tsx:444 |
-| `operaciones2.creativos.reemplazado-doohmain` | Arte reemplazado. En DOOHmain el anterior ya no se reproduce, pero sigue en la lista: elimina la campaña anterior en su panel (la que aparece como finalizada). Aprueba el nuevo para publicarlo. | Artwork replaced. In DOOHmain the previous one no longer plays, but it is still on the list: delete the previous campaign from its panel (the one shown as finished). Approve the new one to publish it. | page.tsx:496 |
-| `operaciones2.creativos.reemplazado` | Arte reemplazado. Apruébalo de nuevo para publicarlo. | Artwork replaced. Approve it again to publish it. | page.tsx:496, page.tsx:497 |
-| `operaciones2.creativos.no-reemplazar` | No se pudo reemplazar | Could not replace | page.tsx:501 |
-| `operaciones2.creativos.no-asignar` | No se pudo asignar | Could not assign | page.tsx:515 |
-| `operaciones2.creativos.chip.por-aprobar` | {n} por aprobar | {n} pending approval | page.tsx:556 |
-| `operaciones2.creativos.chip.spots-con` | {con}/{total} spots con creativo | {con}/{total} spots with a creative | page.tsx:561 |
-| `operaciones2.creativos.imagen` | Imagen | Image | page.tsx:374, page.tsx:477, page.tsx:573 |
-| `operaciones2.creativos.codigo` | Código | Code | page.tsx:576, page.tsx:593, page.tsx:597 |
-| `operaciones2.creativos.nombre` | Nombre del creativo | Creative name | page.tsx:586 |
-| `operaciones2.creativos.codigo-ej` | Pega aquí el código del creativo (HTML/UTF)… | Paste the creative’s code here (HTML/UTF)… | page.tsx:597 |
-| `operaciones2.creativos.guardar-codigo` | Guardar código | Save code | page.tsx:614 |
-| `operaciones2.creativos.lista` | Creativos ({n}) | Creatives ({n}) | page.tsx:622 |
-| `operaciones2.creativos.sin-creativos` | Sin creativos. Sube una imagen para aprobarla. | No creatives. Upload an image to approve it. | page.tsx:624 |
-| `operaciones2.creativos.etiqueta-codigo` | código | code | page.tsx:673 |
-| `operaciones2.creativos.retirado-title` | Retirado del sistema; su arte sigue en DOOHmain (quítalo en su panel) | Withdrawn from the system; its artwork is still in DOOHmain (remove it in its panel) | page.tsx:680 |
-| `operaciones2.creativos.retirado` | Retirado · pendiente en DOOHmain | Withdrawn · pending in DOOHmain | page.tsx:439, page.tsx:680, page.tsx:682 |
-| `operaciones2.creativos.ver-html` | Ver HTML | View HTML | page.tsx:698 |
-| `operaciones2.creativos.ya-aprobado` | El creativo ya fue aprobado — reemplázalo o elimínalo para cambiarlo | This creative is already approved — replace or delete it to change it | page.tsx:718 |
-| `operaciones2.creativos.aprobar` | Aprobar | Approve | page.tsx:721 |
-| `operaciones2.creativos.rechazar` | Rechazar | Reject | page.tsx:732 |
-| `operaciones2.creativos.reemplazar-de` | Reemplazar el arte de {nombre} | Replace the artwork of {nombre} | page.tsx:740 |
-| `operaciones2.creativos.reemplazar` | Reemplazar el arte | Replace the artwork | page.tsx:740, page.tsx:741, page.tsx:924 |
-| `operaciones2.creativos.eliminar-de` | Eliminar {nombre} | Delete {nombre} | page.tsx:751 |
-| `operaciones2.creativos.eliminar` | Eliminar | Delete | page.tsx:751, page.tsx:752, page.tsx:910 |
-| `operaciones2.creativos.slots` | Slots reservados ({n}) | Booked slots ({n}) | page.tsx:771 |
-| `operaciones2.creativos.sin-slots` | Sin slots reservados todavía. | No booked slots yet. | page.tsx:777 |
-| `operaciones2.creativos.sitio` | Sitio | Site | page.tsx:790 |
-| `operaciones2.creativos.sin-creativo` | Sin creativo | No creative | page.tsx:624, page.tsx:794 |
-| `operaciones2.creativos.rotan.uno` | 1 creativo | 1 creative | page.tsx:798 |
-| `operaciones2.creativos.rotan.otros` | {n} creativos rotan | {n} creatives rotate | page.tsx:798 |
-| `operaciones2.creativos.aprueba-uno` | Aprueba un creativo para asignarlo aquí. | Approve a creative to assign it here. | page.tsx:805 |
-| `operaciones2.creativos.del-sitio` | Creativo del sitio | Site creative | page.tsx:836 |
-| `operaciones2.creativos.aprueba-al-menos` | Aprueba al menos un creativo para poder asignarlo a los slots. | Approve at least one creative to be able to assign it to the slots. | page.tsx:860 |
-| `operaciones2.creativos.creativo` | Creativo | Creative | page.tsx:872, page.tsx:964 |
-| `operaciones2.creativos.creativo-min` | creativo | creative | page.tsx:964 |
-| `operaciones2.creativos.fuente.cargando` | {formato} · cargando… | {formato} · loading… | page.tsx:876, page.tsx:902 |
-| `operaciones2.creativos.fuente.caracteres` | {formato} · {n} caracteres | {formato} · {n} characters | page.tsx:877 |
-| `operaciones2.creativos.descargar` | Descargar .html | Download .html | page.tsx:894 |
-| `operaciones2.creativos.fuente.cargando-texto` | Cargando la fuente… | Loading the source… | page.tsx:902 |
-| `operaciones2.creativos.fuente.no-cargar` | No se pudo cargar la fuente de este creativo. | Could not load this creative’s source. | page.tsx:903 |
-| `operaciones2.creativos.eliminar.titulo` | Eliminar creativo | Delete creative | page.tsx:910 |
-| `operaciones2.creativos.eliminar.si` | Sí, eliminar | Yes, delete | page.tsx:911 |
-| `operaciones2.creativos.eliminar.cuerpo` | ¿Seguro que quieres bajar {nombre}? Si ya está publicado, su campaña se finaliza, pero {arte} (su API no lo permite): quedará marcado como “pendiente en DOOHmain” para que lo quites en su panel. | Are you sure you want to take down {nombre}? If it is already published, its campaign is finished, but {arte} (its API does not allow it): it will be marked as “pending in DOOHmain” so you can remove it from its panel. | page.tsx:915 |
-| `operaciones2.creativos.eliminar.arte` | el arte no se puede quitar de DOOHmain | the artwork cannot be removed from DOOHmain | page.tsx:917 |
-| `operaciones2.creativos.reemplazo.elegir` | Elegir el arte nuevo | Choose the new artwork | page.tsx:925 |
-| `operaciones2.creativos.reemplazo.cuerpo` | Si {nombre} ya está publicado, al reemplazarlo {orden}: deja de reproducirse en todas sus pantallas. El nuevo queda pendiente hasta que lo apruebes. | If {nombre} is already published, replacing it {orden}: it stops playing on all its screens. The new one stays pending until you approve it. | page.tsx:934 |
-| `operaciones2.creativos.reemplazo.orden` | se manda a DOOHmain la orden de bajar el arte anterior | sends DOOHmain the order to take down the previous artwork | page.tsx:936 |
-| `operaciones2.creativos.reemplazo.recordatorio` | {recordatorio} después entra al panel de DOOHmain y {elimina}. DOOHmain no deja borrarla desde aquí, y la nueva lleva el mismo nombre: la anterior es la que aparece como finalizada. | {recordatorio} afterwards, go to the DOOHmain panel and {elimina}. DOOHmain doesn’t let you delete it from here, and the new one has the same name: the previous one is the one shown as finished. | page.tsx:940, page.tsx:941 |
-| `operaciones2.creativos.reemplazo.recordatorio-etiqueta` | Recordatorio: | Reminder: | page.tsx:941 |
-| `operaciones2.creativos.reemplazo.elimina` | elimina la campaña anterior | delete the previous campaign | page.tsx:942 |
-| `operaciones2.creativos.estado.pendiente` | Pendiente | Pending | page.tsx:999 |
-| `operaciones2.creativos.estado.validada` | Aprobado | Approved | page.tsx:1000 |
-| `operaciones2.creativos.estado.rechazada` | Rechazado | Rejected | page.tsx:1001 |
+| `operaciones2.creativos.descripcion` | Sube y aprueba las imágenes de cada campaña, y asigna cuál va en cada slot reservado. | Upload and approve each campaign’s images, and assign which one goes in each booked slot. | page.tsx:183 |
+| `operaciones2.creativos.kpi.por-aprobar` | Por aprobar | Pending approval | page.tsx:190 |
+| `operaciones2.creativos.kpi.frenan` | frenan la publicación | holding back publishing | page.tsx:192 |
+| `operaciones2.creativos.kpi.aprobados` | Aprobados | Approved | page.tsx:195 |
+| `operaciones2.creativos.kpi.listos` | listos para asignar | ready to assign | page.tsx:195 |
+| `operaciones2.creativos.kpi.rechazados` | Rechazados | Rejected | page.tsx:197 |
+| `operaciones2.creativos.kpi.reemplazar` | hay que reemplazarlos | they need to be replaced | page.tsx:199 |
+| `operaciones2.creativos.kpi.sin-creativo` | Spots sin creativo | Slots with no creative | page.tsx:203 |
+| `operaciones2.creativos.kpi.de-spots.uno` | de {n} spot reservado | of {n} booked slot | page.tsx:205 |
+| `operaciones2.creativos.kpi.de-spots.otros` | de {n} spots reservados | of {n} booked slots | page.tsx:205 |
+| `operaciones2.creativos.buscar` | Buscar por campaña, folio, cliente o nombre del creativo… | Search by campaign, internal ref., client or creative name… | page.tsx:222 |
+| `operaciones2.creativos.filtro.todos` | Todos los creativos | All creatives | page.tsx:231 |
+| `operaciones2.creativos.filtro.pendientes` | Con pendientes de aprobar | With creatives pending approval | page.tsx:232 |
+| `operaciones2.creativos.filtro.aprobados` | Con aprobados | With approved creatives | page.tsx:233 |
+| `operaciones2.creativos.filtro.rechazados` | Con rechazados | With rejected creatives | page.tsx:234 |
+| `operaciones2.creativos.filtro.sin` | Sin creativos todavía | No creatives yet | page.tsx:235 |
+| `operaciones2.creativos.vacio.sin-digitales` | Ninguna campaña tiene pantallas digitales | No campaign has digital screens | page.tsx:251, page.tsx:254, page.tsx:255 |
+| `operaciones2.creativos.vacio.sin-digitales-detalle.uno` | Aquí solo se gestionan los creativos de pantallas digitales. Tus {n} campaña son de medios fijos: su arte se lleva en Imprenta. | Only creatives for digital screens are managed here. You have {n} campaign and it is on static media: its artwork is handled in Printing. | page.tsx:254, page.tsx:255 |
+| `operaciones2.creativos.vacio.sin-digitales-detalle.otros` | Aquí solo se gestionan los creativos de pantallas digitales. Tus {n} campañas son de medios fijos: su arte se lleva en Imprenta. | Only creatives for digital screens are managed here. Your {n} campaigns are on static media: their artwork is handled in Printing. | page.tsx:254, page.tsx:255 |
+| `operaciones2.creativos.vacio.ir-imprenta` | Ir a Imprenta | Go to Printing | page.tsx:260 |
+| `operaciones2.creativos.vacio.sin-campanas` | Sin campañas con slots o creativos | No campaigns with slots or creatives | page.tsx:267, page.tsx:268 |
+| `operaciones2.creativos.vacio.sin-campanas-detalle` | Reserva sitios en Comercial o sube un creativo para gestionarlos aquí. | Book sites in Sales or upload a creative to manage them here. | page.tsx:268 |
+| `operaciones2.creativos.vacio.ninguna` | Ninguna campaña coincide | No campaign matches | page.tsx:276, page.tsx:277 |
+| `operaciones2.creativos.vacio.ninguna-detalle` | Prueba con otro texto de búsqueda o quita el filtro de estado. | Try a different search or remove the status filter. | page.tsx:277 |
+| `operaciones2.creativos.limpiar` | Limpiar filtros | Clear filters | page.tsx:286 |
+| `operaciones2.creativos.imagen-supera` | La imagen supera {mb} MB | The image exceeds {mb} MB | page.tsx:381, page.tsx:484 |
+| `operaciones2.creativos.no-subir` | No se pudo subir | Could not upload | page.tsx:397 |
+| `operaciones2.creativos.no-guardar` | No se pudo guardar | Could not save | page.tsx:419 |
+| `operaciones2.creativos.motivo-rechazo` | Motivo de rechazo (opcional): | Reason for rejection (optional): | page.tsx:426 |
+| `operaciones2.creativos.no-validar` | No se pudo validar | Could not save the review | page.tsx:431 |
+| `operaciones2.creativos.retirado-doohmain` | “{nombre}” se retiró. Su arte sigue en DOOHmain — quítalo en su panel | “{nombre}” was withdrawn. Its artwork is still in DOOHmain — remove it in its panel | page.tsx:446 |
+| `operaciones2.creativos.eliminado` | “{nombre}” se eliminó | “{nombre}” was deleted | page.tsx:447 |
+| `operaciones2.creativos.no-eliminar` | No se pudo eliminar | Could not delete | page.tsx:451 |
+| `operaciones2.creativos.reemplazado-doohmain` | Arte reemplazado. En DOOHmain el anterior ya no se reproduce, pero sigue en la lista: elimina la campaña anterior en su panel (la que aparece como finalizada). Aprueba el nuevo para publicarlo. | Artwork replaced. In DOOHmain the previous one no longer plays, but it is still on the list: delete the previous campaign from its panel (the one shown as finished). Approve the new one to publish it. | page.tsx:503 |
+| `operaciones2.creativos.reemplazado` | Arte reemplazado. Apruébalo de nuevo para publicarlo. | Artwork replaced. Approve it again to publish it. | page.tsx:503, page.tsx:504 |
+| `operaciones2.creativos.no-reemplazar` | No se pudo reemplazar | Could not replace | page.tsx:508 |
+| `operaciones2.creativos.no-asignar` | No se pudo asignar | Could not assign | page.tsx:522 |
+| `operaciones2.creativos.chip.por-aprobar` | {n} por aprobar | {n} pending approval | page.tsx:563 |
+| `operaciones2.creativos.chip.spots-con` | {con}/{total} spots con creativo | {con}/{total} slots with a creative | page.tsx:568 |
+| `operaciones2.creativos.imagen` | Imagen | Image | page.tsx:381, page.tsx:484, page.tsx:580 |
+| `operaciones2.creativos.codigo` | Código | Code | page.tsx:583, page.tsx:600, page.tsx:604 |
+| `operaciones2.creativos.nombre` | Nombre del creativo | Creative name | page.tsx:593 |
+| `operaciones2.creativos.codigo-ej` | Pega aquí el código del creativo (HTML/UTF)… | Paste the creative’s code here (HTML/UTF)… | page.tsx:604 |
+| `operaciones2.creativos.guardar-codigo` | Guardar código | Save code | page.tsx:621 |
+| `operaciones2.creativos.lista` | Creativos ({n}) | Creatives ({n}) | page.tsx:629 |
+| `operaciones2.creativos.sin-creativos` | Sin creativos. Sube una imagen para aprobarla. | No creatives. Upload an image to approve it. | page.tsx:631 |
+| `operaciones2.creativos.etiqueta-codigo` | código | code | page.tsx:680 |
+| `operaciones2.creativos.retirado-title` | Retirado del sistema; su arte sigue en DOOHmain (quítalo en su panel) | Withdrawn from the system; its artwork is still in DOOHmain (remove it in its panel) | page.tsx:687 |
+| `operaciones2.creativos.retirado` | Retirado · pendiente en DOOHmain | Withdrawn · pending in DOOHmain | page.tsx:446, page.tsx:687, page.tsx:689 |
+| `operaciones2.creativos.ver-html` | Ver HTML | View HTML | page.tsx:705 |
+| `operaciones2.creativos.ya-aprobado` | El creativo ya fue aprobado — reemplázalo o elimínalo para cambiarlo | This creative is already approved — replace or delete it to change it | page.tsx:725 |
+| `operaciones2.creativos.aprobar` | Aprobar | Approve | page.tsx:728 |
+| `operaciones2.creativos.rechazar` | Rechazar | Reject | page.tsx:739 |
+| `operaciones2.creativos.reemplazar-de` | Reemplazar el arte de {nombre} | Replace the artwork of {nombre} | page.tsx:747 |
+| `operaciones2.creativos.reemplazar` | Reemplazar el arte | Replace the artwork | page.tsx:747, page.tsx:748, page.tsx:931 |
+| `operaciones2.creativos.eliminar-de` | Eliminar {nombre} | Delete {nombre} | page.tsx:758 |
+| `operaciones2.creativos.eliminar` | Eliminar | Delete | page.tsx:758, page.tsx:759, page.tsx:917 |
+| `operaciones2.creativos.slots` | Slots reservados ({n}) | Booked slots ({n}) | page.tsx:778 |
+| `operaciones2.creativos.sin-slots` | Sin slots reservados todavía. | No booked slots yet. | page.tsx:784 |
+| `operaciones2.creativos.sitio` | Sitio | Site | page.tsx:797 |
+| `operaciones2.creativos.sin-creativo` | Sin creativo | No creative | page.tsx:631, page.tsx:801 |
+| `operaciones2.creativos.rotan.uno` | 1 creativo | 1 creative | page.tsx:805 |
+| `operaciones2.creativos.rotan.otros` | {n} creativos rotan | {n} creatives rotate | page.tsx:805 |
+| `operaciones2.creativos.aprueba-uno` | Aprueba un creativo para asignarlo aquí. | Approve a creative to assign it here. | page.tsx:812 |
+| `operaciones2.creativos.del-sitio` | Creativo del sitio | Site creative | page.tsx:843 |
+| `operaciones2.creativos.aprueba-al-menos` | Aprueba al menos un creativo para poder asignarlo a los slots. | Approve at least one creative to be able to assign it to the slots. | page.tsx:867 |
+| `operaciones2.creativos.creativo` | Creativo | Creative | page.tsx:879, page.tsx:971 |
+| `operaciones2.creativos.creativo-min` | creativo | creative | page.tsx:971 |
+| `operaciones2.creativos.fuente.cargando` | {formato} · cargando… | {formato} · loading… | page.tsx:883, page.tsx:909 |
+| `operaciones2.creativos.fuente.caracteres` | {formato} · {n} caracteres | {formato} · {n} characters | page.tsx:884 |
+| `operaciones2.creativos.descargar` | Descargar .html | Download .html | page.tsx:901 |
+| `operaciones2.creativos.fuente.cargando-texto` | Cargando la fuente… | Loading the source… | page.tsx:909 |
+| `operaciones2.creativos.fuente.no-cargar` | No se pudo cargar la fuente de este creativo. | Could not load this creative’s source. | page.tsx:910 |
+| `operaciones2.creativos.eliminar.titulo` | Eliminar creativo | Delete creative | page.tsx:917 |
+| `operaciones2.creativos.eliminar.si` | Sí, eliminar | Yes, delete | page.tsx:918 |
+| `operaciones2.creativos.eliminar.cuerpo` | ¿Seguro que quieres bajar {nombre}? Si ya está publicado, su campaña se finaliza, pero {arte} (su API no lo permite): quedará marcado como “pendiente en DOOHmain” para que lo quites en su panel. | Are you sure you want to take down {nombre}? If it is already published, its campaign in DOOHmain is ended, but {arte} (its API does not allow it): it will be marked as “pending in DOOHmain” so you can remove it from its panel. | page.tsx:922 |
+| `operaciones2.creativos.eliminar.arte` | el arte no se puede quitar de DOOHmain | the artwork cannot be removed from DOOHmain | page.tsx:924 |
+| `operaciones2.creativos.reemplazo.elegir` | Elegir el arte nuevo | Choose the new artwork | page.tsx:932 |
+| `operaciones2.creativos.reemplazo.cuerpo` | Si {nombre} ya está publicado, al reemplazarlo {orden}: deja de reproducirse en todas sus pantallas. El nuevo queda pendiente hasta que lo apruebes. | If {nombre} is already published, replacing it {orden}: it stops playing on all its screens. The new one stays pending until you approve it. | page.tsx:941 |
+| `operaciones2.creativos.reemplazo.orden` | se manda a DOOHmain la orden de bajar el arte anterior | sends DOOHmain the order to take down the previous artwork | page.tsx:943 |
+| `operaciones2.creativos.reemplazo.recordatorio` | {recordatorio} después entra al panel de DOOHmain y {elimina}. DOOHmain no deja borrarla desde aquí, y la nueva lleva el mismo nombre: la anterior es la que aparece como finalizada. | {recordatorio} afterwards, go to the DOOHmain panel and {elimina}. DOOHmain doesn’t let you delete it from here, and the new one has the same name: the previous one is the one shown as finished. | page.tsx:947, page.tsx:948 |
+| `operaciones2.creativos.reemplazo.recordatorio-etiqueta` | Recordatorio: | Reminder: | page.tsx:948 |
+| `operaciones2.creativos.reemplazo.elimina` | elimina la campaña anterior | delete the previous campaign | page.tsx:949 |
+| `operaciones2.creativos.estado.pendiente` | Pendiente | Pending | page.tsx:1006 |
+| `operaciones2.creativos.estado.validada` | Aprobado | Approved | page.tsx:1007 |
+| `operaciones2.creativos.estado.rechazada` | Rechazado | Rejected | page.tsx:1008 |
 
-### `textos/inicio.ts` (141 claves)
+### `textos/inicio.ts` (148 claves)
 
 | clave | español | inglés | dónde |
 |---|---|---|---|
@@ -344,20 +371,20 @@ operaciones2 (OT y Creativos), 141 del Dashboard y 120 de Consumo de luz. Rama
 | `inicio.config-alertas` | Configurar alertas | Configure alerts | page.tsx:655 |
 | `inicio.elegir-alertas` | Elegir qué alertas ver | Choose which alerts to see | page.tsx:656 |
 | `inicio.alertas-a-mostrar` | Alertas a mostrar | Alerts to show | page.tsx:673 |
-| `inicio.tipo-alerta.pago` | Rentas vencidas | Overdue rent | page.tsx:73 |
-| `inicio.tipo-alerta.contrato` | Contratos por vencer | Contracts expiring soon | page.tsx:74 |
+| `inicio.tipo-alerta.pago` | Rentas vencidas | Rent issues | page.tsx:73 |
+| `inicio.tipo-alerta.contrato` | Contratos por vencer | Contract issues | page.tsx:74 |
 | `inicio.tipo-alerta.cobranza` | Facturas (cobranza) | Invoices (collections) | page.tsx:75 |
-| `inicio.tipo-alerta.incidencia` | Sitios bloqueados por incidencia | Sites blocked by an incident | page.tsx:76 |
+| `inicio.tipo-alerta.incidencia` | Sitios bloqueados por incidencia | Blocked or paused sites | page.tsx:76 |
 | `inicio.tipo-alerta.ot` | Órdenes de trabajo (SLA) | Work orders (SLA) | page.tsx:77 |
 | `inicio.tipo-alerta.licencia` | Licencias y permisos | Licenses and permits | page.tsx:78 |
 | `inicio.huecos` | Huecos y renovaciones | Gaps and renewals | page.tsx:485, page.tsx:487, page.tsx:493 |
-| `inicio.huecos-sub` | lo que se queda sin campaña en los próximos {n} días | what is left without a campaign in the next {n} days | page.tsx:487 |
+| `inicio.huecos-sub` | lo que se queda sin campaña en los próximos {n} días | what becomes free in the next {n} days | page.tsx:487 |
 | `inicio.huecos-nada` | Nada se queda libre en los próximos {n} días. | Nothing becomes free in the next {n} days. | page.tsx:493 |
 | `inicio.slots-libres.uno` | {n} slot libre | {n} free slot | page.tsx:505 |
 | `inicio.slots-libres.otros` | {n} slots libres | {n} free slots | page.tsx:505 |
 | `inicio.slots-libres` | slots libres | free slots | page.tsx:505 |
-| `inicio.cara-libre` | cara libre | free face | page.tsx:505 |
-| `inicio.sale` | Sale {cliente} · {campana} · termina {fecha} | {cliente} leaves · {campana} · ends {fecha} | page.tsx:509 |
+| `inicio.cara-libre` | cara libre | available face | page.tsx:505 |
+| `inicio.sale` | Sale {cliente} · {campana} · termina {fecha} | Ending {fecha}: {campana} ({cliente}) | page.tsx:509 |
 | `inicio.sin-cliente` | sin cliente | no client | page.tsx:510 |
 | `inicio.en-propuesta-lista` | En propuesta: {lista} | In a proposal: {lista} | page.tsx:522 |
 | `inicio.hoy` | hoy | today | page.tsx:531 |
@@ -370,7 +397,7 @@ operaciones2 (OT y Creativos), 141 del Dashboard y 120 de Consumo de luz. Rama
 | `inicio.tramo.d1-30` | 1–30 días | 1–30 days | page.tsx:82 |
 | `inicio.tramo.d31-60` | 31–60 días | 31–60 days | page.tsx:83 |
 | `inicio.tramo.d61-90` | 61–90 días | 61–90 days | page.tsx:84 |
-| `inicio.tramo.d90` | Más de 90 | Over 90 | page.tsx:85 |
+| `inicio.tramo.d90` | Más de 90 | Over 90 days | page.tsx:85 |
 | `inicio.vencido` | Vencido: {monto} | Overdue: {monto} | page.tsx:601 |
 | `inicio.mapa` | Tu red en el mapa | Your network on the map | page.tsx:615 |
 | `inicio.ver-comercial` | Ver comercial | View Sales | page.tsx:622 |
@@ -380,52 +407,59 @@ operaciones2 (OT y Creativos), 141 del Dashboard y 120 de Consumo de luz. Rama
 | `inicio.leyenda.en-propuesta` | En propuesta | In a proposal | page.tsx:638 |
 | `inicio.grafica.tentativas` | Tentativas | Tentative | charts.tsx:93 |
 | `inicio.grafica.confirmadas` | Confirmadas | Confirmed | charts.tsx:94 |
-| `inicio.alerta.sitio` | Sitio | Site | derive.ts:808 |
-| `inicio.alerta.renta-vencida` | Renta vencida | Overdue rent | derive.ts:840, derive.ts:843, derive.ts:844 |
-| `inicio.alerta.renta-vencida.una` | {sitio} — pago {periodo} sin liquidar ({monto}) | {sitio} — payment {periodo} unpaid ({monto}) | derive.ts:843 |
-| `inicio.alerta.renta-vencida.varias` | {sitio} — {n} cuotas sin liquidar desde {periodo} ({monto}) | {sitio} — {n} installments unpaid since {periodo} ({monto}) | derive.ts:844 |
-| `inicio.alerta.renta-por-vencer` | Renta por vencer | Rent due soon | derive.ts:870 |
-| `inicio.alerta.renta-hoy` | {sitio} — vence hoy ({monto}) | {sitio} — due today ({monto}) | derive.ts:873 |
-| `inicio.alerta.renta-en.uno` | {sitio} — vence en {n} día ({monto}) | {sitio} — due in {n} day ({monto}) | derive.ts:874 |
-| `inicio.alerta.renta-en.otros` | {sitio} — vence en {n} días ({monto}) | {sitio} — due in {n} days ({monto}) | derive.ts:874 |
-| `inicio.alerta.contrato-incompleto` | Contrato incompleto | Incomplete contract | derive.ts:890, derive.ts:891 |
-| `inicio.alerta.contrato-incompleto.detalle` | {sitio} — falta arrendador e importe de renta | {sitio} — landlord and rent amount missing | derive.ts:891 |
-| `inicio.alerta.contrato-por-vencer` | Contrato por vencer | Contract expiring soon | derive.ts:899 |
-| `inicio.alerta.contrato-vence.uno` | {sitio} — vence en {n} días | {sitio} — expires in {n} day | derive.ts:900 |
-| `inicio.alerta.contrato-vence.otros` | {sitio} — vence en {n} días | {sitio} — expires in {n} days | derive.ts:900 |
-| `inicio.alerta.contrato-vencido` | Contrato vencido | Contract expired | derive.ts:908 |
-| `inicio.alerta.contrato-vencio.uno` | {sitio} — venció hace {n} días | {sitio} — expired {n} day ago | derive.ts:909 |
-| `inicio.alerta.contrato-vencio.otros` | {sitio} — venció hace {n} días | {sitio} — expired {n} days ago | derive.ts:909 |
-| `inicio.alerta.ubicacion` | Ubicación | Location | derive.ts:935 |
-| `inicio.alerta.licencia-vencida` | Licencia vencida | License expired | derive.ts:942 |
-| `inicio.alerta.licencia-vencio.uno` | {donde} — {que} venció hace {n} días | {donde} — {que} expired {n} day ago | derive.ts:943 |
-| `inicio.alerta.licencia-vencio.otros` | {donde} — {que} venció hace {n} días | {donde} — {que} expired {n} days ago | derive.ts:943 |
-| `inicio.alerta.licencia-por-vencer` | Licencia por vencer | License expiring soon | derive.ts:949 |
-| `inicio.alerta.licencia-vence.uno` | {donde} — {que} vence en {n} días | {donde} — {que} expires in {n} day | derive.ts:950 |
-| `inicio.alerta.licencia-vence.otros` | {donde} — {que} vence en {n} días | {donde} — {que} expires in {n} days | derive.ts:950 |
-| `inicio.licencia.municipal` | Licencia municipal | Municipal license | derive.ts:367 |
-| `inicio.licencia.ambiental` | Permiso ambiental | Environmental permit | derive.ts:368 |
-| `inicio.licencia.estructural` | Dictamen estructural | Structural report | derive.ts:369 |
-| `inicio.licencia.otro` | Permiso | Permit | derive.ts:370, derive.ts:933 |
-| `inicio.alerta.campana` | campaña | campaign | derive.ts:983 |
-| `inicio.alerta.cobertura` | El contrato no cubre la campaña | The contract does not cover the campaign | derive.ts:994, derive.ts:999 |
-| `inicio.alerta.cobertura.vence` | {sitio} — «{campana}» va hasta {hasta} y el contrato vence el {fin} | {sitio} — “{campana}” runs until {hasta} and the contract expires on {fin} | derive.ts:999 |
-| `inicio.alerta.cobertura.sin-fin` | {sitio} — «{campana}» va hasta {hasta} y el contrato no tiene fecha de fin | {sitio} — “{campana}” runs until {hasta} and the contract has no end date | derive.ts:999 |
-| `inicio.alerta.factura-vencida` | Factura vencida | Overdue invoice | derive.ts:1014 |
-| `inicio.alerta.factura-por-vencer` | Factura por vencer | Invoice due soon | derive.ts:1014 |
-| `inicio.alerta.factura` | Factura | Invoice | derive.ts:1014, derive.ts:1015 |
-| `inicio.alerta.pausa-legal` | Pantalla en pausa legal | Screen on legal hold | derive.ts:1027 |
-| `inicio.alerta.incidencia` | Sitio bloqueado por incidencia | Site blocked by an incident | derive.ts:1041 |
-| `inicio.alerta.ot-vencida` | OT vencida | Overdue work order | derive.ts:1064 |
-| `inicio.alerta.ot-por-vencer` | OT por vencer | Work order due soon | derive.ts:1064 |
-| `inicio.alerta.ot-sin-sitio` | sin sitio | no site | derive.ts:1072 |
-| `inicio.alerta.ot-vencio.uno` | {folio} · {sitio} — venció hace {n} día(s){sinAsignar} | {folio} · {sitio} — {n} day overdue{sinAsignar} | derive.ts:1068 |
-| `inicio.alerta.ot-vencio.otros` | {folio} · {sitio} — venció hace {n} día(s){sinAsignar} | {folio} · {sitio} — {n} days overdue{sinAsignar} | derive.ts:1068 |
-| `inicio.alerta.ot-vence.uno` | {folio} · {sitio} — vence en {n} día(s){sinAsignar} | {folio} · {sitio} — due in {n} day{sinAsignar} | derive.ts:1069 |
-| `inicio.alerta.ot-vence.otros` | {folio} · {sitio} — vence en {n} día(s){sinAsignar} | {folio} · {sitio} — due in {n} days{sinAsignar} | derive.ts:1069 |
-| `inicio.alerta.ot-sin-asignar` |  · sin asignar |  · unassigned | derive.ts:1074 |
+| `inicio.alerta.sitio` | Sitio | Site | derive.ts:821 |
+| `inicio.alerta.renta-vencida` | Renta vencida | Overdue rent | derive.ts:853, derive.ts:856, derive.ts:857 |
+| `inicio.alerta.renta-vencida.una` | {sitio} — pago {periodo} sin liquidar ({monto}) | {sitio} — payment {periodo} unpaid ({monto}) | derive.ts:856 |
+| `inicio.alerta.renta-vencida.varias` | {sitio} — {n} cuotas sin liquidar desde {periodo} ({monto}) | {sitio} — {n} installments unpaid since {periodo} ({monto}) | derive.ts:857 |
+| `inicio.alerta.renta-por-vencer` | Renta por vencer | Rent due soon | derive.ts:883 |
+| `inicio.alerta.renta-hoy` | {sitio} — vence hoy ({monto}) | {sitio} — due today ({monto}) | derive.ts:886 |
+| `inicio.alerta.renta-en.uno` | {sitio} — vence en {n} día ({monto}) | {sitio} — due in {n} day ({monto}) | derive.ts:887 |
+| `inicio.alerta.renta-en.otros` | {sitio} — vence en {n} días ({monto}) | {sitio} — due in {n} days ({monto}) | derive.ts:887 |
+| `inicio.alerta.contrato-incompleto` | Contrato incompleto | Incomplete contract | derive.ts:903, derive.ts:904 |
+| `inicio.alerta.contrato-incompleto.detalle` | {sitio} — falta arrendador e importe de renta | {sitio} — landlord and rent amount missing | derive.ts:904 |
+| `inicio.alerta.contrato-por-vencer` | Contrato por vencer | Contract expiring soon | derive.ts:912 |
+| `inicio.alerta.contrato-vence.uno` | {sitio} — vence en {n} días | {sitio} — expires in {n} day | derive.ts:913 |
+| `inicio.alerta.contrato-vence.otros` | {sitio} — vence en {n} días | {sitio} — expires in {n} days | derive.ts:913 |
+| `inicio.alerta.contrato-vencido` | Contrato vencido | Contract expired | derive.ts:921 |
+| `inicio.alerta.contrato-vencio.uno` | {sitio} — venció hace {n} días | {sitio} — expired {n} day ago | derive.ts:922 |
+| `inicio.alerta.contrato-vencio.otros` | {sitio} — venció hace {n} días | {sitio} — expired {n} days ago | derive.ts:922 |
+| `inicio.alerta.ubicacion` | Ubicación | Location | derive.ts:948 |
+| `inicio.alerta.licencia-vencida` | Licencia vencida | License expired | derive.ts:955 |
+| `inicio.alerta.licencia-vencio.uno` | {donde} — {que} venció hace {n} días | {donde} — {que} expired {n} day ago | derive.ts:956 |
+| `inicio.alerta.licencia-vencio.otros` | {donde} — {que} venció hace {n} días | {donde} — {que} expired {n} days ago | derive.ts:956 |
+| `inicio.alerta.licencia-por-vencer` | Licencia por vencer | License expiring soon | derive.ts:962 |
+| `inicio.alerta.licencia-vence.uno` | {donde} — {que} vence en {n} días | {donde} — {que} expires in {n} day | derive.ts:963 |
+| `inicio.alerta.licencia-vence.otros` | {donde} — {que} vence en {n} días | {donde} — {que} expires in {n} days | derive.ts:963 |
+| `inicio.licencia.municipal` | Licencia municipal | Municipal license | derive.ts:380 |
+| `inicio.licencia.ambiental` | Permiso ambiental | Environmental permit | derive.ts:381 |
+| `inicio.licencia.estructural` | Dictamen estructural | Structural inspection report | derive.ts:382 |
+| `inicio.licencia.otro` | Permiso | Permit | derive.ts:383, derive.ts:946 |
+| `inicio.alerta.campana` | campaña | campaign | derive.ts:996 |
+| `inicio.alerta.cobertura` | El contrato no cubre la campaña | The contract does not cover the campaign | derive.ts:1007, derive.ts:1012 |
+| `inicio.alerta.cobertura.vence` | {sitio} — «{campana}» va hasta {hasta} y el contrato vence el {fin} | {sitio} — “{campana}” runs until {hasta} and the contract expires on {fin} | derive.ts:1012 |
+| `inicio.alerta.cobertura.sin-fin` | {sitio} — «{campana}» va hasta {hasta} y el contrato no tiene fecha de fin | {sitio} — “{campana}” runs until {hasta} and the contract has no end date | derive.ts:1012 |
+| `inicio.alerta.factura-vencida` | Factura vencida | Overdue invoice | derive.ts:1027 |
+| `inicio.alerta.factura-por-vencer` | Factura por vencer | Invoice due soon | derive.ts:1027 |
+| `inicio.alerta.factura` | Factura | Invoice | derive.ts:1027, derive.ts:1028 |
+| `inicio.alerta.pausa-legal` | Pantalla en pausa legal | Screen under legal restriction | derive.ts:1040 |
+| `inicio.alerta.incidencia` | Sitio bloqueado por incidencia | Site blocked by an incident | derive.ts:1054 |
+| `inicio.incidencia.clima` | clima | weather | derive.ts:370 |
+| `inicio.incidencia.mantenimiento` | mantenimiento | maintenance | derive.ts:371 |
+| `inicio.incidencia.legal` | legal | legal issue | derive.ts:372 |
+| `inicio.incidencia.vandalismo` | vandalismo | vandalism | derive.ts:373 |
+| `inicio.incidencia.suspension-operativa` | suspension_operativa | operational suspension | derive.ts:374 |
+| `inicio.incidencia.accidente` | accidente | accident | derive.ts:375 |
+| `inicio.incidencia.otro` | otro | other | derive.ts:376, derive.ts:1056 |
+| `inicio.alerta.ot-vencida` | OT vencida | Overdue work order | derive.ts:1079 |
+| `inicio.alerta.ot-por-vencer` | OT por vencer | Work order due soon | derive.ts:1079 |
+| `inicio.alerta.ot-sin-sitio` | sin sitio | no site | derive.ts:1087 |
+| `inicio.alerta.ot-vencio.uno` | {folio} · {sitio} — venció hace {n} día(s){sinAsignar} | {folio} · {sitio} — {n} day overdue{sinAsignar} | derive.ts:1083 |
+| `inicio.alerta.ot-vencio.otros` | {folio} · {sitio} — venció hace {n} día(s){sinAsignar} | {folio} · {sitio} — {n} days overdue{sinAsignar} | derive.ts:1083 |
+| `inicio.alerta.ot-vence.uno` | {folio} · {sitio} — vence en {n} día(s){sinAsignar} | {folio} · {sitio} — due in {n} day{sinAsignar} | derive.ts:1084 |
+| `inicio.alerta.ot-vence.otros` | {folio} · {sitio} — vence en {n} día(s){sinAsignar} | {folio} · {sitio} — due in {n} days{sinAsignar} | derive.ts:1084 |
+| `inicio.alerta.ot-sin-asignar` |  · sin asignar |  · unassigned | derive.ts:1089 |
 
-### `textos/energia.ts` (120 claves)
+### `textos/energia.ts` (121 claves)
 
 | clave | español | inglés | dónde |
 |---|---|---|---|
@@ -440,8 +474,8 @@ operaciones2 (OT y Creativos), 141 del Dashboard y 120 de Consumo de luz. Rama
 | `energia.cobertura.titulo` | Qué está capturado y qué falta | What’s entered and what’s missing | page.tsx:244 |
 | `energia.meses.uno` | {n} mes | {n} month | page.tsx:250 |
 | `energia.meses.otros` | {n} meses | {n} months | page.tsx:250 |
-| `energia.puntos.uno` | {n} punto | {n} point | page.tsx:251 |
-| `energia.puntos.otros` | {n} puntos | {n} points | page.tsx:251 |
+| `energia.puntos.uno` | {n} punto | {n} metering point | page.tsx:251 |
+| `energia.puntos.otros` | {n} puntos | {n} metering points | page.tsx:251 |
 | `energia.resumen` | {meses} · {puntos} | {meses} · {puntos} | page.tsx:249 |
 | `energia.vacio.error` | No se pudo cargar la captura | Could not load the entries | page.tsx:303 |
 | `energia.vacio.periodo` | Revisa el periodo | Check the period | page.tsx:305 |
@@ -475,7 +509,7 @@ operaciones2 (OT y Creativos), 141 del Dashboard y 120 de Consumo de luz. Rama
 | `energia.rejilla.borrar-este` | Borrar este recibo | Delete this bill | RejillaCaptura.tsx:111, RejillaCaptura.tsx:139 |
 | `energia.rejilla.borrar-aria` | Borrar el recibo del medidor {medidor} | Delete the bill for meter {medidor} | RejillaCaptura.tsx:112 |
 | `energia.rejilla.borrar` | Borrar el recibo | Delete the bill | RejillaCaptura.tsx:111, RejillaCaptura.tsx:112, RejillaCaptura.tsx:139 |
-| `energia.sin-numero` | sin número | no number | RejillaCaptura.tsx:112, RejillaCaptura.tsx:115, captura.ts:397 |
+| `energia.sin-numero` | sin número | (no number) | RejillaCaptura.tsx:112, RejillaCaptura.tsx:115, captura.ts:397 |
 | `energia.subir.error-leer` | No se pudieron leer los archivos | Could not read the files | SubirRecibos.tsx:101 |
 | `energia.subir.no-guardar` | No se pudo guardar | Could not save | SubirRecibos.tsx:133 |
 | `energia.subir.no-contactar` | No se pudo contactar al servidor | Could not reach the server | SubirRecibos.tsx:139 |
@@ -528,16 +562,17 @@ operaciones2 (OT y Creativos), 141 del Dashboard y 120 de Consumo de luz. Rama
 | `energia.lectura.importe.falta` | Escribe el importe: no se pudieron leer del PDF | Enter the amount: it could not be read from the PDF | (por plantilla de clave) |
 | `energia.lectura.no-recibo.uno` | {n} archivo no es un recibo de CFE | {n} file is not a CFE bill | recibos.ts:270 |
 | `energia.lectura.no-recibo.otros` | {n} archivos no son un recibo de CFE | {n} files are not CFE bills | recibos.ts:270 |
-| `energia.lectura.desajuste.uno` | {n} no coincide con los {esperados} meses que declaraste | {n} doesn’t match the {esperados} months you declared | recibos.ts:330 |
-| `energia.lectura.desajuste.otros` | {n} no coinciden con los {esperados} meses que declaraste | {n} don’t match the {esperados} months you declared | recibos.ts:330 |
-| `energia.lectura.cubre.uno` | {base}: cubre {unico} meses de calendario | {base}: it covers {unico} calendar months | recibos.ts:339 |
-| `energia.lectura.cubre.otros` | {base}: los {n} cubren {unico} meses de calendario | {base}: all {n} cover {unico} calendar months | recibos.ts:339 |
+| `energia.lectura.desajuste.uno` | {n} no coincide con los {esperados} meses que declaraste | {n} doesn’t match the number of months you declared ({esperados}) | recibos.ts:330 |
+| `energia.lectura.desajuste.otros` | {n} no coinciden con los {esperados} meses que declaraste | {n} don’t match the number of months you declared ({esperados}) | recibos.ts:330 |
+| `energia.lectura.cubre.uno` | {base}: cubre {unico} meses de calendario | {base}: the number of calendar months it covers is {unico} | recibos.ts:339 |
+| `energia.lectura.cubre.otros` | {base}: los {n} cubren {unico} meses de calendario | {base}: the number of calendar months covered by those {n} is {unico} | recibos.ts:339 |
 | `energia.lectura.sin-predio` | {n} sin predio: eligelo tú | {n} with no property: choose it yourself | recibos.ts:218, recibos.ts:276 |
 | `energia.lectura.sin-cifra` | {n} con una cifra que no se pudo leer | {n} with a figure that could not be read | recibos.ts:218, recibos.ts:277 |
 | `energia.lectura.repetidos` | {n} ya capturados: volver a guardarlos DUPLICA el costo | {n} already entered: saving them again DOUBLES the cost | recibos.ts:218, recibos.ts:278 |
-| `energia.lectura.alerta` | Se leyeron {leidos} de {total} archivos y salen {filas} renglones. Revisa antes de confirmar: {pegas}. | {leidos} of {total} files were read and they produce {filas} rows. Check before confirming: {pegas}. | recibos.ts:218, recibos.ts:287 |
+| `energia.lectura.alerta` | Se leyeron {leidos} de {total} archivos y salen {filas} renglones. Revisa antes de confirmar: {pegas}. | Files read: {leidos} of {total}; rows: {filas}. Check before confirming: {pegas}. | recibos.ts:218, recibos.ts:287 |
 | `energia.lectura.ninguno` | No salió ningún renglón de estos archivos. | These files produced no rows. | recibos.ts:218, recibos.ts:293 |
-| `energia.lectura.ok` | Se leyeron los {total} {archivos} y salen {filas} {renglones}. Míralos contra el recibo y confírmalos: nada se guarda hasta que le des a guardar. | All {total} {archivos} were read and they produce {filas} {renglones}. Check them against the bill and confirm them: nothing is saved until you click save. | recibos.ts:218, recibos.ts:302 |
+| `energia.lectura.ok.uno` | Se leyeron los {total} {archivos} y salen {filas} {renglones}. Míralos contra el recibo y confírmalos: nada se guarda hasta que le des a guardar. | {total} {archivos} was read and it produces {filas} {renglones}. Check them against the bill and confirm them: nothing is saved until you click save. | recibos.ts:302 |
+| `energia.lectura.ok.otros` | Se leyeron los {total} {archivos} y salen {filas} {renglones}. Míralos contra el recibo y confírmalos: nada se guarda hasta que le des a guardar. | {total} {archivos} were read and they produce {filas} {renglones}. Check them against the bill and confirm them: nothing is saved until you click save. | recibos.ts:302 |
 | `energia.lectura.archivo.uno` | archivo | file | recibos.ts:305 |
 | `energia.lectura.archivo.otros` | archivos | files | recibos.ts:305 |
 | `energia.lectura.renglon.uno` | renglón | row | recibos.ts:307 |
@@ -546,6 +581,6 @@ operaciones2 (OT y Creativos), 141 del Dashboard y 120 de Consumo de luz. Rama
 | `energia.leido.medidor` | medidor {n} | meter {n} | recibos.ts:355 |
 | `energia.leido.periodo` | periodo {desde} → {hasta} | period {desde} → {hasta} | recibos.ts:357 |
 | `energia.leido.pdf-dice` | el PDF dice {kwh} kWh | the PDF says {kwh} kWh | recibos.ts:360 |
-| `energia.leido.facturacion` | facturación {monto} | billing {monto} | recibos.ts:362 |
+| `energia.leido.facturacion` | facturación {monto} | period charges {monto} | recibos.ts:362 |
 | `energia.leido.alumbrado` | alumbrado {monto} | street lighting {monto} | recibos.ts:363 |
 | `energia.leido.total` | Total del recibo {monto} (incluye adeudos y pagos) | Bill total {monto} (includes past-due balances and payments) | recibos.ts:368 |

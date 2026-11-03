@@ -1109,7 +1109,7 @@ escritorio y móvil), `/creativos`, el **Dashboard** (`/inicio`, solo los
 textos: su diseño está aprobado y ni una clase cambia) y `/energia` (Consumo
 de luz, solo la interfaz).
 
-- **463 claves** en tres archivos: `textos/operaciones2.ts` (202, OT y
+- **463 claves** (471 tras la segunda vuelta) en tres archivos: `textos/operaciones2.ts` (202, OT y
   Creativos), `textos/inicio.ts` (141) y `textos/energia.ts` (120), cada uno con
   su instantánea, sus guardias y su «qué clave usa cada aviso que no se rinde».
 - **Funciones con `idioma` (`'es'` por omisión):** `lib/costo-ot-captura.ts`;
@@ -1141,6 +1141,22 @@ consumo → *consumption* (orquestador) · predio → *property* · medidor →
 *meter* · pantalla suelta → *standalone screen* · recibo BIMESTRAL → *bill
 issued EVERY TWO MONTHS*. El título de `/energia` es el del menú (*Power
 usage*).
+
+> [!note] Segunda vuelta (validación ÁMBAR, `docs/i18n/validacion-operaciones-2.md`)
+> - Los 5 medios y los 10 bajos aplicados (detalle en la tabla de revisión).
+>   Plurales de la lectura de PDF por total; el tipo de incidencia del
+>   Dashboard (`CLAVE_INCIDENCIA`) y el tipo de campaña de Creativos
+>   (`CLAVE_TIPO_CAMPANA`) salen por clave solo en inglés, con el dato crudo en
+>   español como siempre; «Ending {fecha}: {campana} ({cliente})».
+> - **El diseño del Dashboard queda protegido por prueba**: el mock de
+>   `CardColapsable` pinta sus clases y una instantánea guarda el HTML español
+>   de los 7 estados. Un mutante de clase (`lg:col-span-2` → `lg:col-span-3`)
+>   pone las 7 en rojo.
+> - Glosario del orquestador: pausa legal → *legal restriction* · cara libre →
+>   *available face* · tipos de alerta → *Rent issues / Contract issues /
+>   Blocked or paused sites…* · dictamen estructural → *Structural inspection
+>   report* · en Creativos lo reservado es un *slot* (el *spot* es el anuncio).
+> - 471 claves. Español, otra vez medido: los 42 estados idénticos.
 
 **Sigue en español:** los avisos que manda el servidor (el error del
 autoguardado del checklist, los avisos de cada PDF de CFE, I18N-05), los datos
