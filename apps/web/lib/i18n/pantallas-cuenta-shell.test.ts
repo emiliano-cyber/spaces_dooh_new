@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { huellasDeFormatoEspanol } from './guardias-ingles'
+import { huellasEnItaliano } from './guardias-italiano'
+import { culpablesEnItaliano } from '../test/barrido-italiano'
 import { createElement, type ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { mkdirSync, writeFileSync } from 'node:fs'
@@ -1177,3 +1179,62 @@ describe('lote CUENTA Y SHELL · en ingles, ninguna fecha, hora ni importe con f
     })
   }
 })
+
+// ============================================================================
+//  LOTE L5 DEL ITALIANO (2026-11-03) · las mismas pantallas, en italiano.
+//  Con el italiano ENCENDIDO (los Server Components leen la cookie con
+//  `idiomasActivos()`). Por pantalla: ninguna frase espanola ni inglesa de
+//  los diccionarios del lote (`culpablesEnItaliano`: la inglesa seria una
+//  clave sin traducir que cae al ingles) y ningun formato ajeno.
+// ============================================================================
+describe('lote L5 · CUENTA Y SHELL en ITALIANO', () => {
+  beforeEach(() => {
+    process.env.IDIOMA_ITALIANO = '1'
+  })
+  afterEach(() => {
+    delete process.env.IDIOMA_ITALIANO
+  })
+
+  async function diccionariosDelLote() {
+    const { ES_CUENTA, EN_CUENTA, IT_CUENTA } = await import('./textos/cuenta')
+    const { ES_SHELL, EN_SHELL, IT_SHELL } = await import('./textos/shell')
+    const { ES_COMPARTIDOS, EN_COMPARTIDOS, IT_COMPARTIDOS } = await import('./textos/compartidos')
+    const { ES_ADMIN, EN_ADMIN, IT_ADMIN } = await import('./textos/admin')
+    const { ES_NOTIFICACIONES, EN_NOTIFICACIONES, IT_NOTIFICACIONES } = await import('./textos/notificaciones')
+    const { DICCIONARIOS, IT_PARCIAL } = await import('./diccionario')
+    const { clavesBase } = await import('./cobertura-italiano')
+    const base = (d: Record<string, string>) => Object.fromEntries(clavesBase().map((k) => [k, d[k]]))
+    return {
+      es: { ...ES_CUENTA, ...ES_SHELL, ...ES_COMPARTIDOS, ...ES_ADMIN, ...ES_NOTIFICACIONES, ...base(DICCIONARIOS.es) },
+      en: { ...EN_CUENTA, ...EN_SHELL, ...EN_COMPARTIDOS, ...EN_ADMIN, ...EN_NOTIFICACIONES, ...base(DICCIONARIOS.en) },
+      it: {
+        ...IT_CUENTA, ...IT_SHELL, ...IT_COMPARTIDOS, ...IT_ADMIN, ...IT_NOTIFICACIONES,
+        ...base(IT_PARCIAL as Record<string, string>),
+      } as Partial<Record<string, string>>,
+    }
+  }
+
+  for (const p of PANTALLAS) {
+    it(p.nombre, async () => {
+      const crudo = await p.pintar('it')
+      vi.unstubAllGlobals()
+      const dic = await diccionariosDelLote()
+      expect(culpablesEnItaliano(crudo, dic, { ignorar: DATOS_IT })).toEqual([])
+      expect(huellasEnItaliano(crudo)).toEqual([])
+    })
+  }
+
+  it('la pagina de error global y el `_error` salen en italiano', async () => {
+    vi.stubGlobal('document', { documentElement: { lang: 'it' } })
+    const { default: ErrorGlobal } = await import('../../app/global-error')
+    const html = renderToStaticMarkup(createElement(ErrorGlobal, { error: new Error('x'), reset: () => {} }))
+    expect(html).toContain('<html lang="it">')
+    expect(html).toContain('Il sistema non è disponibile in questo momento')
+    const { default: Err } = await import('../../pages/_error')
+    expect(renderToStaticMarkup(createElement(Err, { statusCode: 404, idioma: 'it' }))).toContain('Pagina non trovata')
+  })
+})
+
+// Datos de las pruebas que no son texto de la interfaz.
+// «Operación» es la etiqueta de prueba de un papel que NO es la de la migracion: es dato.
+const DATOS_IT = ['Pantalla Reforma', 'Verano Refrescos', 'Propuesta Verano', 'Pago registrado', 'Operación']

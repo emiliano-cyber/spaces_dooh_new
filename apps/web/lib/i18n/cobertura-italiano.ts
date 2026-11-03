@@ -70,15 +70,24 @@ const huecos = (s: string) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sor
  *    `textos/`, pero no en un objeto armado a mano);
  *  · una cadena vacia (no cuenta como traducida y esconde la caida);
  *  · huecos `{n}` distintos de los del espanol: el ingles los respeta, y un
- *    italiano que pierde uno pinta la frase sin el dato.
+ *    italiano que pierde uno pinta la frase sin el dato. Salvo `{n}` en una
+ *    variante `.cero` (lote L5): «scade oggi» no lleva la cifra, como el
+ *    «due today» del ingles (ola 7). Cualquier otro hueco perdido cuenta.
  */
+// Los huecos que el italiano de `k` tiene que llevar.
+function esperados(k: string, es: string, it: string): string[] {
+  const todos = huecos(es)
+  if (k.endsWith('.cero') && !huecos(it).includes('n')) return todos.filter((h) => h !== 'n')
+  return todos
+}
+
 export function problemasItaliano(): string[] {
   const es = DICCIONARIOS.es as Record<string, string>
   const problemas: string[] = []
   for (const [k, v] of Object.entries(IT_PARCIAL as Record<string, string | undefined>)) {
     if (!(k in es)) problemas.push(`clave sin espanol: ${k}`)
     else if (v === '') problemas.push(`vacia: ${k}`)
-    else if (typeof v === 'string' && huecos(v).join() !== huecos(es[k]).join())
+    else if (typeof v === 'string' && huecos(v).join() !== esperados(k, es[k], v).join())
       problemas.push(`huecos distintos en ${k}: es {${huecos(es[k])}} · it {${huecos(v)}}`)
   }
   for (const [tabla, nombre, en] of [

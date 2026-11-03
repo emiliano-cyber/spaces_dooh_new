@@ -134,11 +134,56 @@ export const EN_SERVIDOR: Record<ClaveServidor, string> = {
   'servidor.periodo.cliente-invalido': 'Invalid client',
 }
 
-// ─── ITALIANO · ola 0 (2026-11-03) ──────────────────────────────────────────
-// PARCIAL a proposito: lo rellena el lote de traduccion de este ambito
-// (`vault/03-Frontend/italiano-olas.md`). Mientras falte una clave, la
-// pantalla la pinta en INGLES (`diccionario.ts`, `DICCIONARIOS.it`) y la
-// prueba de cobertura (`cobertura-italiano.test.ts`) la cuenta como pendiente.
-// Cuando el lote termine, el tipo pasa a `Record<ClaveServidor, string>` y `tsc`
-// vuelve a exigir cada clave, como en el ingles.
-export const IT_SERVIDOR: Partial<Record<ClaveServidor, string>> = {}
+// ─── ITALIANO · lote L5 (2026-11-03) ────────────────────────────────────────
+// COMPLETO: `Record`, asi que una clave nueva sin italiano no compila, como
+// en el ingles. Traducido desde el ESPANOL (el ingles, solo de apoyo), con
+// el glosario de `vault/03-Frontend/italiano-olas.md`.
+export const IT_SERVIDOR: Record<ClaveServidor, string> = {
+  'servidor.negociacion.etapa-no-existe': 'Questa fase della ricerca del responsabile non esiste',
+  'servidor.negociacion.falta-quien-firma': 'Per confermare il responsabile legale, indica prima quale contatto firma',
+  'servidor.negociacion.quitar-quien-firma':
+    'È il contatto che firma e il responsabile legale è già confermato: indica prima un altro contatto che firmi, oppure riporta indietro la fase',
+  'servidor.negociacion.presupuesto': 'Il minimo del budget non può essere maggiore del massimo',
+  'servidor.negociacion.oferta-cerrada.aceptada': 'Questa offerta è già stata accettata: crea una nuova versione',
+  'servidor.negociacion.oferta-cerrada.rechazada': 'Questa offerta è già stata rifiutata: crea una nuova versione',
+  'servidor.negociacion.perdido': 'Lo spazio è perso: ormai accetta solo note',
+  'servidor.negociacion.en-revision': 'È in revisione: attendi la decisione prima di modificare la scheda',
+
+  'servidor.horario.formato': 'Gli orari vanno nel formato HH:mm, per esempio 07:30',
+  'servidor.horario.iguales': 'L’ora di inizio e quella di fine non possono essere uguali',
+  'servidor.horario.sin-dias': 'Scegli almeno un giorno, o nessuno perché siano tutti',
+  'servidor.horario.dia-no-existe': 'Questo giorno della settimana non esiste',
+  'servidor.horario.dia-repetido': 'C’è un giorno ripetuto',
+
+  // Las coordenadas de ejemplo son las que se teclean (con punto), no una cifra pintada.
+  'servidor.ubicacion.vacio':
+    'Scrivi un indirizzo, incolla delle coordinate (19.4326, -99.1332) o un link di Google Maps',
+  'servidor.ubicacion.otro-dominio': 'Si accettano solo link di Google Maps (google.com/maps o maps.app.goo.gl)',
+  'servidor.ubicacion.sin-coordenadas':
+    'Questo link di Google Maps non contiene coordinate. In Google Maps clicca sul luogo, copia le coordinate che compaiono in alto e incollale qui',
+  'servidor.ubicacion.enlace-corto': 'Questo link breve non è di Google Maps, oppure manca la parte finale',
+  'servidor.ubicacion.latitud':
+    'La latitudine va da -90 a 90. Sono invertite? Prima va la latitudine (in Messico, circa da 14 a 33)',
+  'servidor.ubicacion.longitud': 'La longitudine va da -180 a 180',
+  'servidor.ubicacion.cero': 'Il punto (0, 0) è in mare: non è una posizione',
+  'servidor.ubicacion.minutos': 'I minuti e i secondi vanno da 0 a 59',
+  'servidor.ubicacion.orden': 'Prima va la latitudine (N o S) e poi la longitudine (E o O)',
+
+  'servidor.franja.aviso':
+    'Venduta come {vendida} ({pantallas}) e programmata in «{programada}». Il prezzo e quanto contrattato non cambiano; ' +
+    'conferma con il cliente che l’orario di trasmissione sia quello concordato.',
+  'servidor.franja.vendida': '«{nombre}»',
+  'servidor.franja.otra': 'un’altra fascia oraria',
+  'servidor.franja.pantallas.uno': '{n} schermo',
+  'servidor.franja.pantallas.otros': '{n} schermi',
+
+  'servidor.codigo.aprobar-con-pendiente':
+    'Prima approva o rifiuta il codice di negoziazione: è in attesa di approvazione e il cliente non lo vede ancora.',
+
+  'servidor.propuesta.aprobar-en-cero':
+    'Stai per approvare una proposta con un totale di {total}. Conferma esplicitamente per continuare.',
+
+  'servidor.periodo.invalido': 'Periodo non valido',
+  'servidor.periodo.rango': 'L’intervallo richiede una data di inizio e una di fine (AAAA-MM-GG)',
+  'servidor.periodo.cliente-invalido': 'Cliente non valido',
+}

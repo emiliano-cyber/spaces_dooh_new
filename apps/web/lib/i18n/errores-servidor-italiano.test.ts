@@ -3,6 +3,7 @@ import {
   CATALOGO_ERRORES,
   CATALOGO_ERRORES_IT,
   CATALOGO_LIB,
+  CATALOGO_LIB_IT,
   CAMPO_IT,
   PATRONES_ERROR,
   traducirError,
@@ -29,7 +30,10 @@ function ponerIt(tabla: Partial<Record<string, string>>, es: string, it: string)
 describe('sin italiano escrito, cae al ingles', () => {
   it('todo el catalogo y el de lib: identico al ingles', () => {
     const distintos = [...Object.keys(CATALOGO_ERRORES), ...Object.keys(CATALOGO_LIB)].filter(
-      (m) => CATALOGO_ERRORES_IT[m] === undefined && traducirError(m, 'it') !== traducirError(m, 'en'),
+      (m) =>
+        CATALOGO_ERRORES_IT[m] === undefined &&
+        CATALOGO_LIB_IT[m] === undefined &&
+        traducirError(m, 'it') !== traducirError(m, 'en'),
     )
     expect(distintos).toEqual([])
   })

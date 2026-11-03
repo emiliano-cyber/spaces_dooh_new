@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { huellasDeFormatoEspanol } from './guardias-ingles'
+import { huellasEnItaliano } from './guardias-italiano'
+import { culpablesEnItaliano } from '../test/barrido-italiano'
 import { createElement, type ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { mkdirSync, writeFileSync } from 'node:fs'
@@ -857,6 +859,42 @@ describe('lote ADMIN · en ingles, ninguna fecha, hora ni importe con formato es
   for (const p of PANTALLAS) {
     it(p.nombre, async () => {
       expect(huellasDeFormatoEspanol(await p.pintar('en'))).toEqual([])
+    })
+  }
+})
+
+// ============================================================================
+//  LOTE L5 DEL ITALIANO (2026-11-03) · las mismas pantallas, en italiano.
+//  Por pantalla: ninguna frase espanola ni inglesa de admin, compartidos,
+//  shell ni la base (`culpablesEnItaliano`: una inglesa es una clave que cae
+//  al ingles porque nadie la tradujo) y ningun formato ajeno.
+// ============================================================================
+describe('lote L5 · ADMIN en ITALIANO', () => {
+  async function diccionarios() {
+    const { ES_ADMIN, EN_ADMIN, IT_ADMIN } = await import('./textos/admin')
+    const { ES_COMPARTIDOS, EN_COMPARTIDOS, IT_COMPARTIDOS } = await import('./textos/compartidos')
+    const { ES_SHELL, EN_SHELL, IT_SHELL } = await import('./textos/shell')
+    const { DICCIONARIOS, IT_PARCIAL } = await import('./diccionario')
+    const { clavesBase } = await import('./cobertura-italiano')
+    const base = (d: Record<string, string>) => Object.fromEntries(clavesBase().map((k) => [k, d[k]]))
+    return {
+      es: { ...ES_ADMIN, ...ES_COMPARTIDOS, ...ES_SHELL, ...base(DICCIONARIOS.es) },
+      en: { ...EN_ADMIN, ...EN_COMPARTIDOS, ...EN_SHELL, ...base(DICCIONARIOS.en) },
+      it: { ...IT_ADMIN, ...IT_COMPARTIDOS, ...IT_SHELL, ...base(IT_PARCIAL as Record<string, string>) } as Partial<
+        Record<string, string>
+      >,
+    }
+  }
+  // Datos de prueba y el nombre oficial del catalogo del SAT (como en ingles).
+  // «Error del servidor» es el estado forzado de InvitarModal: el mensaje que
+  // llegaria del servidor, ya en el idioma de la peticion.
+  const DATOS = ['Pantalla Reforma', '601 - General de Ley Personas Morales', 'Error del servidor']
+
+  for (const p of PANTALLAS) {
+    it(p.nombre, async () => {
+      const crudo = await p.pintar('it')
+      expect(culpablesEnItaliano(crudo, await diccionarios(), { ignorar: DATOS })).toEqual([])
+      expect(huellasEnItaliano(crudo)).toEqual([])
     })
   }
 })

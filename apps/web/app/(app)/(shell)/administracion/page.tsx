@@ -135,7 +135,7 @@ function Usuarios({ onToast }: { onToast: (m: string) => void }) {
   // El plural con `.uno`/`.otros` (I18N, 2026-11-02); el espanol es el de
   // `conteo()` de siempre («3 usuarios», «1 inactivo»).
   const contar = (n: number, base: 'usuarios' | 'activos' | 'inactivos') =>
-    t(`admin.usuarios.n-${base}.${Math.abs(n) === 1 ? 'uno' : 'otros'}` as ClaveTexto, { n: formatNumero(n) })
+    t(`admin.usuarios.n-${base}.${Math.abs(n) === 1 ? 'uno' : 'otros'}` as ClaveTexto, { n: formatNumero(n, 0, idioma) })
   // Solo conteo de lo que ya está cargado: no es otra consulta.
   const activos = usuarios?.filter((u) => u.activo).length ?? 0
   const inactivos = (usuarios?.length ?? 0) - activos
@@ -1244,7 +1244,7 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
               <p className="mt-1.5 text-[11px] text-muted">
                 {interpolarNodos(
                   t(conSlotsPropios.length === 1 ? 'admin.loop.propios.uno' : 'admin.loop.propios.otros', {
-                    pantallas: t(Math.abs(digitales.length) === 1 ? 'admin.loop.pantallas.uno' : 'admin.loop.pantallas.otros', { n: formatNumero(digitales.length) }),
+                    pantallas: t(Math.abs(digitales.length) === 1 ? 'admin.loop.pantallas.uno' : 'admin.loop.pantallas.otros', { n: formatNumero(digitales.length, 0, idioma) }),
                     slots: spotsPorLoop,
                     lista: Array.from(new Set(conSlotsPropios.map((x) => x.totalSpots))).sort((a, b) => (a ?? 0) - (b ?? 0)).join(', '),
                   }),
@@ -1456,7 +1456,7 @@ function DatosFiscales({
 }) {
   // Espejo del bloque `exigir(arrendatario…)` de lib/contrato-documento.ts: se
   // avisa aquí, donde se arregla, y no solo al abrir el documento ya generado.
-  const t = useTexto()
+  const { t, idioma } = useIdioma()
   const faltan = CAMPOS_CONTRATO.filter(([k]) => !String(config[k] ?? '').trim()).map(([, l]) => t(l))
 
   // El campo se pinta desde `config` y se guarda al salir. `null` y no '' para
@@ -1507,7 +1507,7 @@ function DatosFiscales({
         {campo('domicilioFiscal', t('admin.fiscal.domicilio'), t('admin.fiscal.domicilio-ejemplo'), t('admin.fiscal.domicilio-toast'), true)}
         {campo('datosConstitucion', t('admin.fiscal.constitucion'),
           // La cifra entra por hueco: el diccionario no lleva cifras con miles (GUARDIA 2 de `dinero.test.ts`).
-          t('admin.fiscal.constitucion-ejemplo', { escritura: '12,345' }),
+          t('admin.fiscal.constitucion-ejemplo', { escritura: formatNumero(12345, 0, idioma) }),
           t('admin.fiscal.constitucion-toast'), true)}
         <span className="-mt-1 block text-[11px] text-muted">
           {t('admin.fiscal.rfc-principal')}

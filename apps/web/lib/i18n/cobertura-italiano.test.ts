@@ -92,7 +92,7 @@ describe('cobertura del italiano', () => {
 //  LOTE L5 (armazon, cuenta, administracion, compartidos y servidor) · sus
 //  filas, COMPLETAS. Una por ambito para que el rojo diga cual falta.
 // ============================================================================
-const AMBITOS_L5 = ['base (diccionario.ts)', 'compartidos']
+const AMBITOS_L5 = ['base (diccionario.ts)', 'compartidos', 'shell', 'cuenta', 'admin', 'notificaciones', 'servidor']
 
 describe('lote L5 · sus ambitos sin pendientes', () => {
   const filas = coberturaItaliano()

@@ -164,8 +164,8 @@ export default function IntegracionesPage() {
         </div>
         {metricas && (
           <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px]">
-            <Dato label={t('admin.integ.vehiculos')} valor={formatNumero(metricas.vehiculos)} />
-            <Dato label={t('admin.integ.personas')} valor={formatNumero(metricas.personas)} />
+            <Dato label={t('admin.integ.vehiculos')} valor={formatNumero(metricas.vehiculos, 0, idioma)} />
+            <Dato label={t('admin.integ.personas')} valor={formatNumero(metricas.personas, 0, idioma)} />
             <Dato label={t('admin.integ.velocidad')} valor={`${metricas.velocidadPromedioKmh} km/h`} />
             <Dato label={t('admin.integ.ventana')} valor={metricas.ventana} />
             {metricas.simulado && (

@@ -104,7 +104,12 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
   const [aceptadaLocal, setAceptadaLocal] = useState<{ aceptadoEn: string; aceptadoPor: string } | null>(null)
   // I18N (lote cuenta, 2026-11-02) · la liga la abre el CLIENTE, con el idioma
   // de su navegador; las cifras pasan el idioma a `formatMonto` (ADR 0048).
-  const { t, idioma } = useIdioma()
+  const { t, idioma, numero } = useIdioma()
+  // Lote L5 del italiano (2026-11-03): un porcentaje con decimales («2.5»)
+  // salia con punto en la pantalla italiana. Solo el italiano pasa por el
+  // formato; en espanol e ingles sigue la cifra cruda de siempre (es-MX y
+  // en-US la escriben igual, y asi su HTML no cambia ni un byte).
+  const pct = (v: number) => (idioma === 'it' ? numero(v, { maximumFractionDigits: 2 }) : v)
   const tipoMedioIngles = (tipo: string) => {
     const clave = claveTipoMedio(tipo)
     return clave ? t(clave) : etiquetaTipoMedio(tipo)
@@ -394,12 +399,12 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
                   volumen no figura, la cuenta de la cotización no da. */}
               {(p.descuentoVolumenMonto ?? 0) > 0 && (
                 <Fila
-                  label={t('propuestas.comun.descuento-volumen', { pct: Math.round((p.descuentoVolumenPct ?? 0) * 10) / 10 })}
+                  label={t('propuestas.comun.descuento-volumen', { pct: pct(Math.round((p.descuentoVolumenPct ?? 0) * 10) / 10) })}
                   valor={`− ${formatMonto(p.descuentoVolumenMonto ?? 0, idioma)}`}
                 />
               )}
               {p.descuentoMonto > 0 && (
-                <Fila label={t('propuestas.documento.descuento', { pct: p.descuentoPct })} valor={`− ${formatMonto(p.descuentoMonto, idioma)}`} />
+                <Fila label={t('propuestas.documento.descuento', { pct: pct(p.descuentoPct) })} valor={`− ${formatMonto(p.descuentoMonto, idioma)}`} />
               )}
               {/* COD-01 · y el código, CON SU NOMBRE. Es la superficie que ve el
                   cliente y el documento que acepta: si el cupón que se le
@@ -411,7 +416,7 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
                   sitio revisando el diff, no corriendo pruebas. */}
               {(p.codigoDescuentoMonto ?? 0) > 0 && (
                 <Fila
-                  label={t('propuestas.comun.codigo-pct', { codigo: p.codigoTexto ?? '', pct: p.codigoDescuentoPct ?? 0 })}
+                  label={t('propuestas.comun.codigo-pct', { codigo: p.codigoTexto ?? '', pct: pct(p.codigoDescuentoPct ?? 0) })}
                   valor={`− ${formatMonto(p.codigoDescuentoMonto ?? 0, idioma)}`}
                 />
               )}

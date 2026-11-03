@@ -37,12 +37,16 @@ describe('catalogos fuera de textos/ · italiano = ingles mientras falte', () =>
     expect(mensajeDeAcceso('raro', 'it')).toBe('raro')
   })
 
-  it('papeles y checklist de OT', () => {
-    for (const r of PAPELES_FIJOS) {
-      const etiqueta = ES[`admin.papel.${r.toLowerCase()}`]
-      expect(etiquetaDePapel(etiqueta, 'it')).toBe(etiquetaDePapel(etiqueta, 'en'))
-      expect(codigoDePapel(r, 'it')).toBe(codigoDePapel(r, 'en'))
-    }
+  // Lote L5 (2026-11-03): los papeles ya tienen italiano (`admin.papel.*`).
+  it('papeles, en italiano', () => {
+    expect(PAPELES_FIJOS.map((r) => codigoDePapel(r, 'it'))).toEqual(['AFFITTI', 'BENI', 'LICENZE', 'OPERATIVITÀ', 'VENDITE'])
+    expect(etiquetaDePapel(ES['admin.papel.ventas'], 'it')).toBe('Vende pubblicità')
+    // Una etiqueta renombrada por la instancia es dato: sale tal cual.
+    expect(etiquetaDePapel('Vende espectaculares', 'it')).toBe('Vende espectaculares')
+    expect(codigoDePapel('OTRO', 'it')).toBe('OTRO')
+  })
+
+  it('checklist de OT', () => {
     for (const l of CHECKLIST_OT_POR_OMISION) expect(etiquetaDePuntoOT(l, 'it')).toBe(etiquetaDePuntoOT(l, 'en'))
   })
 
@@ -54,9 +58,24 @@ describe('catalogos fuera de textos/ · italiano = ingles mientras falte', () =>
     expect(nombreDeFallaEnIdioma(nombre, 'it')).toBe(nombreDeFallaEnIdioma(nombre, 'en'))
   })
 
-  it('la campanita', () => {
-    const n = { titulo: 'Factura emitida', detalle: 'F-1 · 1,000' }
-    expect(traducirNotificacion(n, 'it')).toEqual(traducirNotificacion(n, 'en'))
+  // Lote L5 (2026-11-03): la campanita ya tiene italiano; el saldo sale con
+  // el formato italiano y, con 0 dias, «scade oggi».
+  it('la campanita, en italiano', () => {
+    expect(traducirNotificacion({ titulo: 'Factura emitida', detalle: 'F-1 · 1,000' }, 'it')).toEqual({
+      titulo: 'Fattura emessa',
+      detalle: 'F-1 · 1,000',
+    })
+    const vencida = { titulo: 'Cobranza vencida', detalle: 'F-7 — vencida hace 3 día(s) · saldo $1,234' }
+    expect(traducirNotificacion(vencida, 'it')).toEqual({
+      titulo: 'Incasso scaduto',
+      detalle: 'F-7 — scaduto da 3 giorni · saldo MX$ 1.234',
+    })
+    const una = { titulo: 'Recordatorio de cobro', detalle: 'F-7 — vence en 1 día(s) · saldo $10' }
+    expect(traducirNotificacion(una, 'it').detalle).toBe('F-7 — scade tra 1 giorno · saldo MX$ 10')
+    const hoy = { titulo: 'Recordatorio de cobro', detalle: 'F-7 — vence en 0 día(s) · saldo $10' }
+    expect(traducirNotificacion(hoy, 'it').detalle).toBe('F-7 — scade oggi · saldo MX$ 10')
+    const contrato = { titulo: 'Contrato vence en 0 días: un espacio', detalle: null }
+    expect(traducirNotificacion(contrato, 'it').titulo).toBe('Il contratto scade OGGI: uno spazio')
   })
 })
 
