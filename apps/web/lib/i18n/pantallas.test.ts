@@ -61,6 +61,9 @@ vi.mock('next/headers', () => ({
 // ADR 0048 · el layout raiz lee de la base la moneda de la instancia. Aqui no
 // hay base, y lo que se mide es el idioma: se le da la de por omision.
 vi.mock('../server/moneda-instancia', () => ({ monedaDeLaInstancia: async () => 'MXN' }))
+// ADR 0049 · y el idioma de los DOCUMENTOS de la instancia.
+const instanciaDoc = vi.hoisted(() => ({ idioma: 'es' as 'es' | 'en' | 'it' }))
+vi.mock('../server/idioma-instancia', () => ({ idiomaDeLaInstancia: async () => instanciaDoc.idioma }))
 
 beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))
@@ -275,6 +278,27 @@ async function pintarRaiz(cookie: string | null, accept: string | null): Promise
   // Desde el ADR 0048 es ASINCRONO (lee la moneda de la instancia): se espera.
   return renderToStaticMarkup(await RootLayout({ children: null }))
 }
+
+describe('ADR 0049 · el layout raiz deja el idioma de los DOCUMENTOS a los papeles', () => {
+  it('un papel (`EnIdiomaDeLosDocumentos`) sale en el de la instancia, no en el de la peticion', async () => {
+    const { EnIdiomaDeLosDocumentos } = await import('./idioma-documentos-cliente')
+    const { useIdioma } = await import('./contexto')
+    const Sonda = () => createElement('i', null, `papel:${useIdioma().idioma}`)
+    cabeceras.cookie = 'en'
+    instanciaDoc.idioma = 'it'
+    try {
+      const { default: RootLayout } = await import('../../app/layout')
+      const html = renderToStaticMarkup(
+        await RootLayout({ children: createElement(EnIdiomaDeLosDocumentos, null, createElement(Sonda)) }),
+      )
+      expect(html).toMatch(/<html[^>]*lang="en"/)
+      expect(html).toContain('papel:it')
+    } finally {
+      instanciaDoc.idioma = 'es'
+      cabeceras.cookie = null
+    }
+  })
+})
 
 describe('el layout raiz decide el idioma y lo DECLARA en el <html>', () => {
   it('con el navegador en ingles, lang="en"', async () => {

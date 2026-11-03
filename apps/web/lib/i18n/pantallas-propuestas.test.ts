@@ -190,6 +190,14 @@ vi.mock('@/lib/server/db', () => ({ q1: async () => ({ token_publico: 'tok' }) }
 vi.mock('@/lib/server/tenant', () => ({ tenantActual: async () => 't1' }))
 // ADR 0048 · el documento imprimible pide la moneda de la instancia a la base.
 vi.mock('@/lib/server/moneda-instancia', () => ({ monedaDeLaInstancia: async () => 'MXN' }))
+// ADR 0049 · el documento imprimible va en el idioma de los DOCUMENTOS de la
+// instancia. Por omision aqui es el MISMO que el de la peticion, para que los
+// casos de siempre sigan midiendo la traduccion de cada idioma; el caso
+// «instancia espanola, persona en ingles» lo fija aparte.
+const instancia = vi.hoisted(() => ({ idioma: null as null | 'es' | 'en' | 'it' }))
+vi.mock('@/lib/server/idioma-instancia', () => ({
+  idiomaDeLaInstancia: async () => instancia.idioma ?? cabeceras.cookie ?? 'es',
+}))
 vi.mock('@/lib/server/propuestas-repo', () => ({
   obtenerPropuestaPublica: async () => ({
     ...PROPUESTA, orgNombre: 'Medios SA', orgLogoUrl: null, clienteNombre: 'Refrescos del Norte',
@@ -1040,4 +1048,41 @@ describe('lote PROPUESTAS · en ingles, ninguna fecha, hora ni importe con forma
       expect(huellasDeFormatoEspanol(await p.pintar('en'))).toEqual([])
     })
   }
+})
+
+// ─── ADR 0049 · el documento imprimible va en el idioma de la INSTANCIA ─────
+// Decision del dueno (03/11): «todo debe salir en el idioma que se configuro
+// el programa». Fuera de PANTALLAS a proposito: aqui el ingles de la persona
+// convive con un papel en espanol, y los barridos de esa lista lo tomarian
+// por una traduccion olvidada.
+describe('ADR 0049 · el documento imprimible de la propuesta, en el idioma de la instancia', () => {
+  async function documento(persona: 'es' | 'en', deLaInstancia: 'es' | 'en' | 'it') {
+    cabeceras.cookie = persona
+    instancia.idioma = deLaInstancia
+    try {
+      const { default: Documento } = await import('../../app/(app)/propuesta/[id]/page')
+      return texto(pintar(persona, await Documento({ params: { id: 'p1' } })))
+    } finally {
+      instancia.idioma = null
+      cabeceras.cookie = null
+    }
+  }
+
+  it('instancia ESPANOLA, persona en ingles: el papel en espanol, la barra en ingles', async () => {
+    const html = await documento('en', 'es')
+    for (const f of ['PROPUESTA COMERCIAL', 'ACEPTA EL CLIENTE', 'Válida hasta el 01/12/2026', 'Acéptala en línea']) {
+      expect(html, f).toContain(f)
+    }
+    expect(html).not.toContain('COMMERCIAL PROPOSAL')
+    expect(html).toContain('Back to the proposal')
+  })
+
+  it('instancia INGLESA, persona en espanol: el papel en ingles, la barra en espanol', async () => {
+    const html = await documento('es', 'en')
+    for (const f of ['COMMERCIAL PROPOSAL', 'CLIENT ACCEPTANCE', 'Valid until Dec 1, 2026', 'Accept it online']) {
+      expect(html, f).toContain(f)
+    }
+    expect(html).not.toContain('PROPUESTA COMERCIAL')
+    expect(html).toContain('Volver a la propuesta')
+  })
 })
