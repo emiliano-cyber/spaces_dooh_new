@@ -19,7 +19,7 @@ import { ES_OPERACIONES2, EN_OPERACIONES2 } from './operaciones2'
 import { ES_INICIO, EN_INICIO } from './inicio'
 import { ES_ENERGIA, EN_ENERGIA } from './energia'
 import { ES_REPORTES, EN_REPORTES } from './reportes'
-import { DICCIONARIOS } from '../diccionario'
+import { DICCIONARIOS, AMBITOS_ITALIANO, IT_PARCIAL } from '../diccionario'
 import { traducirError } from '../errores-servidor'
 
 // ============================================================================
@@ -249,5 +249,100 @@ describe('costura · los lotes dicen lo mismo de la misma manera', () => {
 
   it('las excepciones de la calculadora siguen divergiendo (si una se unifica, se quita de la lista)', () => {
     expect(CALCULADORA_DIVERGE_OLA_4.filter((k) => !conocidasPorElServidor.includes(k) || igualQueElServidor(k))).toEqual([])
+  })
+})
+
+// ============================================================================
+//  LA COSTURA DEL ITALIANO (ola 0, 2026-11-03).
+// ----------------------------------------------------------------------------
+//  La misma regla que el ingles —el mismo espanol en dos lotes se dice igual—
+//  aplicada al italiano, que lo traducen 4 o 5 lotes en paralelo. Tolera las
+//  claves aun vacias: solo compara lo que YA tiene italiano. Hoy casi todo
+//  falta y la prueba pasa sola; la que la hace morder es la de los datos de
+//  muestra, abajo.
+// ============================================================================
+
+type LoteIt = [string, Record<string, string>, Partial<Record<string, string>>]
+
+const escrita = (v: unknown): v is string => typeof v === 'string' && v !== ''
+
+/** Los textos espanoles que en dos lotes llevan dos italianos distintos. */
+function divergenciasItaliano(lotes: LoteIt[], excepciones: Record<string, string>): string[] {
+  const porTexto = new Map<string, Map<string, string[]>>()
+  for (const [lote, es, it] of lotes) {
+    for (const clave of Object.keys(es)) {
+      const italiano = it[clave]
+      if (!escrita(italiano)) continue
+      const texto = es[clave].trim()
+      if (!porTexto.has(texto)) porTexto.set(texto, new Map())
+      const m = porTexto.get(texto)!
+      m.set(italiano.trim(), [...(m.get(italiano.trim()) ?? []), `${lote}:${clave}`])
+    }
+  }
+  const divergentes: string[] = []
+  for (const [texto, italianos] of porTexto) {
+    const lotes = new Set([...italianos.values()].flat().map((c) => c.split(':')[0]))
+    if (lotes.size < 2 || italianos.size < 2 || texto in excepciones) continue
+    divergentes.push(`«${texto}» → ${[...italianos].map(([it, c]) => `«${it}» (${c.join(', ')})`).join(' / ')}`)
+  }
+  return divergentes
+}
+
+// Los mismos de antes: si en ingles se dicen distinto a proposito es porque
+// en cada pantalla significa otra cosa, y en italiano tambien. Lo que el
+// italiano necesite aparte lo declara aqui su lote, con el porque.
+const DISTINTOS_A_PROPOSITO_IT: Record<string, string> = {
+  ...DISTINTOS_A_PROPOSITO,
+}
+
+function lotesItaliano(): LoteIt[] {
+  const deAmbito = new Set(AMBITOS_ITALIANO.flatMap((a) => Object.keys(a.es)))
+  const esBase = Object.fromEntries(
+    Object.entries(DICCIONARIOS.es as Record<string, string>).filter(([k]) => !deAmbito.has(k)),
+  )
+  return [
+    ['base', esBase, IT_PARCIAL as Partial<Record<string, string>>],
+    ...AMBITOS_ITALIANO.map((a): LoteIt => [a.ambito, a.es, a.it]),
+  ]
+}
+
+describe('costura del italiano · los lotes dicen lo mismo de la misma manera', () => {
+  it('el mismo espanol en dos lotes lleva el mismo italiano (tolerando los vacios)', () => {
+    expect(divergenciasItaliano(lotesItaliano(), DISTINTOS_A_PROPOSITO_IT)).toEqual([])
+  })
+
+  it('y muerde: con datos de muestra, una divergencia se ve y un vacio no cuenta', () => {
+    const muestra: LoteIt[] = [
+      ['a', { x: 'Guardar', y: 'Cerrar' }, { x: 'Salva', y: 'Chiudi' }],
+      ['b', { x: 'Guardar', y: 'Cerrar' }, { x: 'Memorizza', y: '' }],
+    ]
+    expect(divergenciasItaliano(muestra, {})).toEqual(['«Guardar» → «Salva» (a:x) / «Memorizza» (b:x)'])
+    expect(divergenciasItaliano(muestra, { Guardar: 'porque si' })).toEqual([])
+  })
+
+  it('el apostrofo italiano es el tipografico (’): «l’ordine», no «l\'ordine»', () => {
+    const malas = Object.entries(IT_PARCIAL as Record<string, string>).filter(([, v]) => /[A-Za-zÀ-ú]'[A-Za-zÀ-ú]/.test(v))
+    expect(malas.map(([k]) => k)).toEqual([])
+  })
+
+  it('ningun texto italiano da por hecha la moneda (ADR 0048)', () => {
+    const malas = Object.entries(IT_PARCIAL as Record<string, string>)
+      .filter(([, v]) => {
+        const t = v.replace(/\{\w+\}/g, '')
+        return /\bpesos?\b|\bdollar[oi]\b|\beuro\b|\b(MXN|USD|EUR)\b/i.test(t)
+      })
+      .map(([k]) => k)
+    expect(malas).toEqual([])
+  })
+
+  it('un texto que tambien manda el servidor se dice igual en el campo y en el error (si los dos tienen italiano)', () => {
+    const ES_D = DICCIONARIOS.es as Record<string, string>
+    const rellenar = (t: string) => t.replace(/\{\w+\}/g, '1000')
+    const distintos = Object.entries(IT_PARCIAL as Record<string, string>)
+      .filter(([k, v]) => escrita(v) && k in ES_D)
+      .filter(([k]) => traducirError(rellenar(ES_D[k]), 'it') !== traducirError(rellenar(ES_D[k]), 'en'))
+      .filter(([k, v]) => rellenar(v) !== traducirError(rellenar(ES_D[k]), 'it'))
+      .map(([k]) => k)
+    expect(distintos).toEqual([])
   })
 })
