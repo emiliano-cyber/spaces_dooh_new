@@ -1071,6 +1071,18 @@ export const PATRONES_ERROR: ReadonlyArray<PatronError> = [
     re: /^La negociación con la agencia (.*) no está validada; no se puede aprobar la propuesta$/,
     en: 'The negotiation with the agency $1 is not validated; the proposal can’t be approved',
   },
+  // Ola 7 · `PaqueteImposible` al QUITAR un paquete (`paquetes-repo.ts`). La
+  // frase ENVUELVE el mensaje del tope (`DescuentoSobreTope`, los tres patrones
+  // de arriba): el hueco 2 se traduce a su vez con `traducirMotivo`, y si no se
+  // reconoce se queda en espanol SOLO esa pieza. El nombre del paquete es dato.
+  // `.+?` en el tope y el cierre literal anclado: el nombre puede llevar comillas.
+  {
+    re: /^No se puede quitar el paquete "(.*)": sin el paquete vuelve a aplicarse el descuento por volumen de las lineas\. (.+?) Baja primero el descuento comercial y vuelve a quitar el paquete\.$/,
+    en:
+      'The bundle “$1” can’t be removed: without the bundle, the volume discount of the lines applies again. $2 ' +
+      'Lower the commercial discount first, then remove the bundle again.',
+    huecos: { 2: (v) => traducirMotivo(v) },
+  },
 ]
 
 // Rearma un patron con los huecos del mensaje: `$n` (pasado por su funcion de
