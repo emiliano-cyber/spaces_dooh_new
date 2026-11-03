@@ -1098,6 +1098,58 @@ está en `UNIDADES`; en inglés usa `comercial.comun.programatico`.
 > borradores de diccionario y de pruebas de pantalla sin conectar a ningún
 > componente; no están en la rama.
 
+### Lote operaciones (parte 2)
+
+**2026-11-02, rama `feat/ingles-operaciones-2`** (sale de `integra/ingles`,
+`34022673`). El inglés sigue APAGADO; en español no cambia ni una letra. Tabla
+de revisión en `docs/i18n/revision-operaciones-2.md`.
+
+**Pantallas cubiertas:** `/operaciones` y la ficha de la OT (`OTVista`,
+escritorio y móvil), `/creativos`, el **Dashboard** (`/inicio`, solo los
+textos: su diseño está aprobado y ni una clase cambia) y `/energia` (Consumo
+de luz, solo la interfaz).
+
+- **463 claves** en tres archivos: `textos/operaciones2.ts` (202, OT y
+  Creativos), `textos/inicio.ts` (141) y `textos/energia.ts` (120), cada uno con
+  su instantánea, sus guardias y su «qué clave usa cada aviso que no se rinde».
+- **Funciones con `idioma` (`'es'` por omisión):** `lib/costo-ot-captura.ts`;
+  `construirAlertas` vía `dashboardMetrics` y `useDashboard(idioma)`;
+  `pipelineComercial`; y las de texto de `energia/captura.ts` y
+  `energia/recibos.ts`. Las alertas del Dashboard se comprueban sobre
+  `lib/i18n/estado-alertas.fixture.ts`, un estado que dispara todas las ramas:
+  en español, idénticas con y sin idioma.
+- **Tipos de OT:** clave propia (`components/operaciones/claves.ts`) atada a
+  `TIPO_OT_LABEL`; **se unifica con `etiquetaTipoOt`** del lote de
+  administración al juntar los lotes.
+- **Español idéntico, medido:** HTML volcado con `I18N_VOLCAR` antes y después
+  de tocar los componentes, `diff -rq` vacío en 24 + 7 + 11 estados. Las tres
+  pruebas importan la página PRIMERO y fuerzan `useState` DESPUÉS (lección del
+  validador de clientes: un estado que agota el tiempo no se come los forzados
+  del siguiente).
+- **Costura:** «Baja» (prioridad «Low» frente a sitio «Decommissioned») y
+  «{n} meses» (el singular de Comercial) quedan declarados.
+
+**Términos nuevos** (decisión del agente salvo donde se dice; el dueño puede
+cambiarlos): cuadrilla → *crew* · fecha compromiso → *due date* · responsable
+→ *assignee* · frenar el candado → *keep the billing lock closed* ·
+fotografía comprobatoria → *proof photo* · sello de ubicación → *location
+stamp* · costo real → *actual cost* · rentabilidad → *profitability*
+(orquestador) · ingreso → *revenue* · tasa de cierre → *close rate* · hueco →
+*gap* · cara libre → *free face* · por cobrar por antigüedad → *receivables by
+age* · pausa legal → *legal hold* · recibo de luz → *electricity bill* y
+consumo → *consumption* (orquestador) · predio → *property* · medidor →
+*meter* · pantalla suelta → *standalone screen* · recibo BIMESTRAL → *bill
+issued EVERY TWO MONTHS*. El título de `/energia` es el del menú (*Power
+usage*).
+
+**Sigue en español:** los avisos que manda el servidor (el error del
+autoguardado del checklist, los avisos de cada PDF de CFE, I18N-05), los datos
+(puntos del checklist de una OT nueva, nombres de cuadrilla de la demo,
+«Creativo (código)»), los ejes de la gráfica de ocupación (`etiquetaBucket`,
+compartida con Reportes), `FotoUploaderMock` y `ConfirmDialog`. **Reportes
+no se tocó**: `/reportes` y `components/demo/reportes/*` quedan para otra
+entrega.
+
 ## Enlaces
 
 - [[ingles-olas]] — el tablero de la traducción: qué lote, en qué rama, qué validador y qué falta
