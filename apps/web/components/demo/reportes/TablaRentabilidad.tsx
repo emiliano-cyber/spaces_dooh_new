@@ -7,6 +7,7 @@ import { useIdioma } from '@/lib/i18n/contexto'
 import { interpolarNodos } from '@/lib/i18n/nodos'
 import type { ClaveTexto } from '@/lib/i18n/diccionario'
 import type { FilaRentabilidad, ReporteRentabilidad } from '@/lib/data/reportes'
+import { formatFecha } from '@/lib/data/derive'
 import {
   columnasDesglose,
   columnasDeDimension,
@@ -315,7 +316,16 @@ function FilaTabla({
                           c.formato === 'texto' ? 'text-ink' : 'demo-num whitespace-nowrap text-right',
                           c.clave === 'margenBruto' && tonoMargen(p.margenBruto),
                         )}
-                        title={c.clave === 'etiqueta' ? t('reportes.rango', { desde: p.desde, hasta: p.hasta }) : undefined}
+                        // En espanol, las fechas ISO de siempre; en ingles, como el
+                        // titulo de la tarjeta («Jan 1, 2026»).
+                        title={
+                          c.clave === 'etiqueta'
+                            ? t('reportes.rango', {
+                                desde: idioma === 'es' ? p.desde : formatFecha(p.desde, idioma),
+                                hasta: idioma === 'es' ? p.hasta : formatFecha(p.hasta, idioma),
+                              })
+                            : undefined
+                        }
                       >
                         {c.clave === 'etiqueta'
                           ? etiquetaDePeriodo(p, idioma)

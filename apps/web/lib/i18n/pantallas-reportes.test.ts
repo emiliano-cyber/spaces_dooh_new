@@ -173,14 +173,14 @@ const ESTADOS: Estado[] = [
       'Period indicators', 'Period revenue', '3 screens with activity', 'Total cost',
       'Space MX$ 600.00 · Operations MX$ 200.00 · Electricity MX$ 100.00', 'Margin on revenue', '55.0%', 'Margin MX$ 1,100.00',
       'Jan 1, 2026 to Mar 31, 2026', 'periods',
-      'The period you are viewing touches Q1 2026, which is IN PROGRESS: 46 of its 90 days have gone by.',
+      'The period you are viewing overlaps Q1 2026, which is IN PROGRESS: 46 of its 90 days have gone by.',
       'Notes on these figures (', 'The margin in this report is GROSS',
       '1 screen has no lease contract in the period',
       '1 screen cost money without selling anything in the period, so it has no percentage margin (the column shows “—”).',
       'Space cost', 'Operations cost', 'Electricity cost', 'Gross margin (%)', 'Reforma · no contract', 'Reforma · owned',
       'Reforma · Don Pepe', 'Total (', 'title="No revenue in the range: there is no percentage to calculate"',
       'title="Hide the breakdown by period"', 'title="Show the breakdown by period"', '>Space<', '>Operations<', '>Electricity<',
-      '>Visits<', '>Period<', '>Jan<', 'title="2026-01-01 to 2026-01-28"',
+      '>Visits<', '>Period<', '>Jan<', 'title="Jan 1, 2026 to Jan 28, 2026"',
     ],
   },
   {
@@ -201,7 +201,7 @@ const ESTADOS: Estado[] = [
     ingles: [
       'The area adds up ALL the faces of each screen', 'Area', 'Revenue / m²', 'Gross margin / m²', '1 screen with activity',
       '36.00 m²',
-      'Left out of the ranking: 1 digital or rotating screen, because its correct denominator is spots, not meters · 2 static screens with no width or height recorded.',
+      'Left out of the ranking: 1 digital or rotating screen, because its correct denominator is spots, not meters · 2 static screens missing their width or height.',
       'Which static area pays off.',
     ],
   },
@@ -256,7 +256,7 @@ const ESTADOS: Estado[] = [
       'title="No revenue in the range: there is no ratio to calculate"',
       'Where the money goes on visits',
       'The estimate charges a metalwork job of MX$12,000 the same as one of MX$800.',
-      '2 of the 5 visits in the period go in at the per-type estimate (MX$3,000) and 3 at their actual cost (MX$12,000).',
+      '2 of the 5 visits in the period are costed at the per-type estimate (MX$3,000) and 3 at their actual cost (MX$12,000).',
     ],
   },
   {
@@ -298,7 +298,7 @@ const ESTADOS: Estado[] = [
       }))),
     espanol: ['Tarifa publicada', 'Neto comparable', 'Descuento y comisión', '% sobre publicada', '33.3 %', '1 de las 5 reservas del periodo'],
     ingles: [
-      'Published rate', 'Comparable net', 'Discount and commission', '% of published', '33.3%',
+      'Published rate', 'Comparable net', 'Discount and commission', '% of published rate', '33.3%',
       '1 of the 5 bookings in the period has no published rate to compare against (MX$700 of revenue)',
       'The difference between the published rate and the net is the commercial discount PLUS the agency commission',
     ],

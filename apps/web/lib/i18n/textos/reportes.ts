@@ -198,8 +198,11 @@ export const ES_REPORTES = {
     '{estimadas} de las {total} visitas del periodo entra con la estimación por tipo ({estimado}) y {reales} con su costo real ({capturado}). Esa parte del costo —y el margen que sale de ella— es una estimación, no una medición: capturar el costo en la orden de trabajo la sustituye.',
   'reportes.nota.ot.estimacion.otros':
     '{estimadas} de las {total} visitas del periodo entran con la estimación por tipo ({estimado}) y {reales} con su costo real ({capturado}). Esa parte del costo —y el margen que sale de ella— es una estimación, no una medición: capturar el costo en la orden de trabajo la sustituye.',
+  // Sin hueco: esta variante sale solo con UNA visita, y el ingles dice «the
+  // period’s only visit» sin cifra. El espanol escribe el 1 que antes ponia el
+  // hueco: la frase es la misma, letra por letra (incluido «Las 1 visita»).
   'reportes.nota.ot.reales.uno':
-    'Las {total} visita del periodo van con su costo REAL capturado ({capturado}): aquí no hay ninguna estimación, el costo de operación que ves es lo que se pagó.',
+    'Las 1 visita del periodo van con su costo REAL capturado ({capturado}): aquí no hay ninguna estimación, el costo de operación que ves es lo que se pagó.',
   'reportes.nota.ot.reales.otros':
     'Las {total} visitas del periodo van con su costo REAL capturado ({capturado}): aquí no hay ninguna estimación, el costo de operación que ves es lo que se pagó.',
   // Metro cuadrado: lo que quedo fuera (`notaDeExclusiones`).
@@ -311,7 +314,7 @@ export const EN_REPORTES: Record<ClaveReportes, string> = {
     'Which rate was published and how much of it came in. What was sold from Sales has no frozen published rate and shows a dash, not a zero.',
   'reportes.dim.vendedor': 'By sales rep',
   'reportes.dim.vendedor.ayuda':
-    'How much each person sold and how much discount they granted. The sales rep is whoever creates the proposal, and it is stored since 2026-09-28: anything earlier shows under “No sales rep” and cannot be recovered.',
+    'How much each person sold and how much discount they granted. The sales rep is whoever creates the proposal, and it has been recorded since 2026-09-28: anything earlier shows under “No sales rep” and cannot be recovered.',
   'reportes.gran.mes': 'Monthly',
   'reportes.gran.trimestre': 'Quarterly',
 
@@ -347,7 +350,7 @@ export const EN_REPORTES: Record<ClaveReportes, string> = {
   'reportes.col.tarifa-publicada': 'Published rate',
   'reportes.col.neto-comparable': 'Comparable net',
   'reportes.col.descuento-comision': 'Discount and commission',
-  'reportes.col.pct-publicada': '% of published',
+  'reportes.col.pct-publicada': '% of published rate',
   'reportes.desglose.periodo': 'Period',
   'reportes.desglose.espacio': 'Space',
   'reportes.desglose.operacion': 'Operations',
@@ -385,15 +388,15 @@ export const EN_REPORTES: Record<ClaveReportes, string> = {
 
   // ── Notices the screen builds ──
   'reportes.aviso.en-curso.uno':
-    'The period you are viewing touches {etiqueta}, which is IN PROGRESS: {corridos} of its {totales} days has gone by. Space rent has already run for that {corridos} full day, but what was sold is billed at the close, so the revenue is not in yet and the margin looks worse than it will end up. Do not compare it with a finished quarter.',
+    'The period you are viewing overlaps {etiqueta}, which is IN PROGRESS: {corridos} of its {totales} days has gone by. Space rent has already run for that {corridos} full day, but what was sold is billed when the period closes, so the revenue is not in yet and the margin looks worse than it will end up. Do not compare it with a finished quarter.',
   'reportes.aviso.en-curso.otros':
-    'The period you are viewing touches {etiqueta}, which is IN PROGRESS: {corridos} of its {totales} days have gone by. Space rent has already run for those {corridos} full days, but what was sold is billed at the close, so the revenue is not in yet and the margin looks worse than it will end up. Do not compare it with a finished quarter.',
+    'The period you are viewing overlaps {etiqueta}, which is IN PROGRESS: {corridos} of its {totales} days have gone by. Space rent has already run for those {corridos} full days, but what was sold is billed when the period closes, so the revenue is not in yet and the margin looks worse than it will end up. Do not compare it with a finished quarter.',
   'reportes.aviso.margen-bruto':
     'The margin in this report is GROSS: it is revenue minus the screen’s DIRECT costs —space, operations and electricity—. It is NOT the net margin, and you do not get to it by subtracting anything in this table: the net would be missing the indirect costs (payroll, office, overhead) and this system records none of them. Until they are recorded, the business’s net margin cannot be calculated here, and it is not hidden on another screen either.',
   'reportes.aviso.m2.todas-las-caras':
-    'The area adds up ALL the faces of each screen: a two-faced 3 × 6 screen counts as 36 m², not 18. It is the area that is sold, and each screen contributes that of its own faces.',
+    'The area adds up ALL the faces of each screen: a double-sided 3 × 6 screen counts as 36 m², not 18. It is the area that is sold, and each screen contributes that of its own faces.',
   'reportes.aviso.m2.una-cara':
-    'The area is that of ONE face: a two-faced 3 × 6 screen counts as 18 m², not 36. It measures the structure’s area and not the area that is sold, so screens with several faces rank better than if all of them were counted.',
+    'The area is that of ONE face: a double-sided 3 × 6 screen counts as 18 m², not 36. It measures the structure’s area and not the area that is sold, so screens with several faces rank better than if all of them were counted.',
   'reportes.aviso.sin-contrato.uno':
     '{cuenta} has no lease contract in the period: its space cost shows as zero because the data is missing, not because it is free, and its margin reads better than it is.',
   'reportes.aviso.sin-contrato.otros':
@@ -409,27 +412,27 @@ export const EN_REPORTES: Record<ClaveReportes, string> = {
 
   // ── Notes written by the engine ──
   'reportes.nota.ot.sin-visitas':
-    'There were no visits in this period, so the operations cost is zero because nobody went to any screen, not because it is missing.',
+    'There were no visits in this period, so the operations cost is zero because nobody went to any screen, not because it hasn’t been recorded.',
   'reportes.nota.ot.intro':
     'The operations cost is built from two sources and they are NOT the same: what each visit actually cost, when someone recorded it on its work order, and an ESTIMATE per order type —the one in Settings— when not. The estimate charges a metalwork job of {caro} the same as one of {barato}.',
   'reportes.nota.ot.estimacion.uno':
-    '{estimadas} of {total} visit in the period goes in at the per-type estimate ({estimado}) and {reales} at its actual cost ({capturado}). That part of the cost —and the margin that comes from it— is an estimate, not a measurement: recording the cost on the work order replaces it.',
+    '{estimadas} of {total} visit in the period is costed at the per-type estimate ({estimado}) and {reales} at its actual cost ({capturado}). That part of the cost —and the margin that comes from it— is an estimate, not a measurement: recording the cost on the work order replaces it.',
   'reportes.nota.ot.estimacion.una-de-varias':
-    '{estimadas} of the {total} visits in the period goes in at the per-type estimate ({estimado}) and {reales} at their actual cost ({capturado}). That part of the cost —and the margin that comes from it— is an estimate, not a measurement: recording the cost on the work order replaces it.',
+    '{estimadas} of the {total} visits in the period is costed at the per-type estimate ({estimado}) and {reales} at their actual cost ({capturado}). That part of the cost —and the margin that comes from it— is an estimate, not a measurement: recording the cost on the work order replaces it.',
   'reportes.nota.ot.estimacion.otros':
-    '{estimadas} of the {total} visits in the period go in at the per-type estimate ({estimado}) and {reales} at their actual cost ({capturado}). That part of the cost —and the margin that comes from it— is an estimate, not a measurement: recording the cost on the work order replaces it.',
+    '{estimadas} of the {total} visits in the period are costed at the per-type estimate ({estimado}) and {reales} at their actual cost ({capturado}). That part of the cost —and the margin that comes from it— is an estimate, not a measurement: recording the cost on the work order replaces it.',
   'reportes.nota.ot.reales.uno':
-    'The period’s {total} visit goes in at its ACTUAL recorded cost ({capturado}): there is no estimate here, the operations cost you see is what was paid.',
+    'The period’s only visit is at its ACTUAL recorded cost ({capturado}): there is no estimate here, the operations cost you see is what was paid.',
   'reportes.nota.ot.reales.otros':
-    'All {total} visits in the period go in at their ACTUAL recorded cost ({capturado}): there is no estimate here, the operations cost you see is what was paid.',
+    'All {total} visits in the period are at their ACTUAL recorded cost ({capturado}): there is no estimate here, the operations cost you see is what was paid.',
   'reportes.nota.m2.ninguna':
     'No screen was excluded: all the ones with activity are static and have their measurements recorded.',
   'reportes.nota.m2.fuera': 'Left out of the ranking: {partes}.',
   'reportes.nota.m2.digitales.uno': '{n} digital or rotating screen, because its correct denominator is spots, not meters',
   'reportes.nota.m2.digitales.otros':
     '{n} digital or rotating screens, because their correct denominator is spots, not meters',
-  'reportes.nota.m2.sin-medidas.uno': '{n} static screen with no width or height recorded',
-  'reportes.nota.m2.sin-medidas.otros': '{n} static screens with no width or height recorded',
+  'reportes.nota.m2.sin-medidas.uno': '{n} static screen missing its width or height',
+  'reportes.nota.m2.sin-medidas.otros': '{n} static screens missing their width or height',
   'reportes.nota.entidad.intro':
     'Operations ({operacion}) and electricity ({luz}) are NOT split among legal entities: no data says in whose name they are paid. That is why this view shows no margin — it would come out better than the real one.',
   'reportes.nota.entidad.sin-emisora.uno':
@@ -452,7 +455,7 @@ export const EN_REPORTES: Record<ClaveReportes, string> = {
   'reportes.nota.vendedor.sin-propuesta':
     '{n} from campaigns created directly in Sales, which never had a proposal and so have no one to be attributed to',
   'reportes.nota.vendedor.historicas':
-    '{n} from proposals before 2026-09-28, when who made them was not stored yet: that data CANNOT BE RECOVERED —the log stores the proposal’s name, not its identifier— so those sales stay without a sales rep for good',
+    '{n} from proposals before 2026-09-28, when the proposal’s creator was not yet recorded: that data CANNOT BE RECOVERED —the log stores the proposal’s name, not its identifier— so those sales stay without a sales rep for good',
   'reportes.nota.vendedor.sin-vendedor.uno':
     '{sin} of {total} booking in the period shows under “No sales rep” ({ingreso} of revenue): {causas}.',
   'reportes.nota.vendedor.sin-vendedor.una-de-varias':
@@ -465,7 +468,7 @@ export const EN_REPORTES: Record<ClaveReportes, string> = {
   'reportes.nota.luz.completa.uno':
     'No bill is missing: the period’s {esperados} bill is recorded, so the electricity cost is complete.',
   'reportes.nota.luz.completa.otros':
-    'No bill is missing: all {esperados} for the period are recorded, so the electricity cost is complete.',
+    'No bill is missing: all {esperados} bills for the period are recorded, so the electricity cost is complete.',
   'reportes.nota.luz.faltan.uno':
     'Missing: {faltantes} of {esperados} bill for the period, so the electricity cost you see is INCOMPLETE and the margin looks better than it will end up. A month without a bill is not a month without consumption: it is data nobody has recorded yet.',
   'reportes.nota.luz.faltan.otros':
