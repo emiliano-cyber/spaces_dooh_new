@@ -94,6 +94,9 @@ vi.mock('sonner', () => ({ toast: Object.assign(vi.fn(), { success: vi.fn(), err
 
 // Los cuadros reales van por portales de Radix, que en el servidor no pintan
 // nada: se sustituyen por su contenido en linea. Lo que se mide es el TEXTO.
+// Una fabrica de componentes de prueba: sin nombre propio a proposito. Sin esta
+// linea, `next build` para en el lint (react/display-name) aunque sea un .test.ts.
+// eslint-disable-next-line react/display-name
 const caja = (tag: string) => (p: { open?: boolean; title: string; subtitle?: string; children?: unknown; footer?: unknown }) =>
   p.open === false
     ? null
