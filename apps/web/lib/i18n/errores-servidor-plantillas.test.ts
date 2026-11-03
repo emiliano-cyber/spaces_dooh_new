@@ -248,7 +248,7 @@ describe('las plantillas con valores REALES', () => {
     expect(en('No se puede editar un prospecto aprobado')).toBe('This prospect cannot be edited: it is approved')
     expect(en('No se puede editar un prospecto en revisión')).toBe('This prospect cannot be edited: it is in review')
     expect(en('Para enviarlo a revisión falta: la dirección, el dueño: un arrendador existente o el nombre y teléfono del contacto')).toBe(
-      'To send it for review, this is missing: the address, the owner: an existing landlord or the contact’s name and phone number',
+      'To send it for review, it still needs: the address, the owner: an existing landlord or the contact’s name and phone number',
     )
   })
 

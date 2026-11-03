@@ -916,7 +916,7 @@ export const PATRONES_ERROR: ReadonlyArray<PatronError> = [
   },
   {
     re: /^Para enviarlo a revisión falta: (.+)$/,
-    en: 'To send it for review, this is missing: $1',
+    en: 'To send it for review, it still needs: $1',
     huecos: { 1: lista(FALTA_REVISION_EN) },
   },
   // lib/server/clientes-controller.ts
