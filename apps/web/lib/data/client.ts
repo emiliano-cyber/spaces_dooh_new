@@ -20,6 +20,8 @@
 
 'use client'
 
+import type { Idioma } from '@/lib/i18n/idiomas'
+
 import { useEffect, useMemo, useState } from 'react'
 import { useDemoStore, type DemoStore } from './store'
 import {
@@ -311,9 +313,11 @@ export function useAcciones() {
 }
 
 /** Métricas del dashboard del dueño, recalculadas en vivo. */
-export function useDashboard(): DashboardMetrics | undefined {
+// I18N (2026-11-02) · `idioma` solo cambia el texto de las alertas; sin él,
+// español, como siempre.
+export function useDashboard(idioma: Idioma = 'es'): DashboardMetrics | undefined {
   const m = useMounted()
-  const v = useStoreMemo((s) => dashboardMetrics(s), [])
+  const v = useStoreMemo((s) => dashboardMetrics(s, new Date(), idioma), [idioma])
   return m ? v : undefined
 }
 

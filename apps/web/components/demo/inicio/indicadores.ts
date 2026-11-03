@@ -1,3 +1,5 @@
+import { traducir } from '@/lib/i18n/diccionario'
+import type { Idioma } from '@/lib/i18n/idiomas'
 import { saldoCobranza, type Alerta } from '@/lib/data/derive'
 import type { Tono } from '@/components/demo/StatusBadge'
 import { enPropuestaEntre, type ItemEnPropuesta } from '@/lib/data/en-propuesta'
@@ -138,6 +140,9 @@ export function pipelineComercial(
   // `operaciones` (`app/api/estado/route.ts`): a un VENDEDOR le llega vacía, y
   // sin esto ni su propio nombre se resolvería.
   yo?: { id: string; nombre: string } | null,
+  // I18N (2026-11-02) · solo cambia las dos etiquetas de respaldo («Otros
+  // vendedores», «Sin vendedor»); sin el, espanol, como siempre.
+  idioma: Idioma = 'es',
 ): PipelineComercial {
   const nombre = new Map(usuarios.map((u) => [u.id, u.nombre]))
   if (yo) nombre.set(yo.id, yo.nombre)
@@ -146,7 +151,11 @@ export function pipelineComercial(
   // P19 · y sin id pero con el nombre congelado tampoco: el vendedor se borró,
   // y la propuesta sabe quién era.
   const etiqueta = (id: string | null | undefined, congelado?: string | null) =>
-    (id ? nombre.get(id) : undefined) ?? (congelado?.trim() || (id ? 'Otros vendedores' : 'Sin vendedor'))
+    (id ? nombre.get(id) : undefined) ??
+    (congelado?.trim() ||
+      (idioma === 'es'
+        ? (id ? 'Otros vendedores' : 'Sin vendedor')
+        : traducir(idioma, id ? 'inicio.otros-vendedores' : 'inicio.sin-vendedor')))
   const abierto = { n: 0, valor: 0, enviadas: 0 }
   const ganadoMes = { n: 0, valor: 0 }
   const vend = new Map<string, { nombre: string; n: number; valor: number }>()

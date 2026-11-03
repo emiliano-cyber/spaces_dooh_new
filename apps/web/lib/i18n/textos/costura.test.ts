@@ -7,6 +7,7 @@ import { ES_COMERCIAL, EN_COMERCIAL } from './comercial'
 import { ES_CODIGOS, EN_CODIGOS } from './codigos'
 import { ES_CATALOGOS, EN_CATALOGOS } from './catalogos'
 import { ES_OPERACIONES2, EN_OPERACIONES2 } from './operaciones2'
+import { ES_INICIO, EN_INICIO } from './inicio'
 import { DICCIONARIOS } from '../diccionario'
 
 // ============================================================================
@@ -29,6 +30,7 @@ const LOTES: [string, Record<string, string>, Record<string, string>][] = [
   ['codigos', ES_CODIGOS, EN_CODIGOS],
   ['catalogos', ES_CATALOGOS, EN_CATALOGOS],
   ['operaciones2', ES_OPERACIONES2, EN_OPERACIONES2],
+  ['inicio', ES_INICIO, EN_INICIO],
 ]
 
 // El mismo espanol que en ingles se dice distinto A PROPOSITO, porque en cada

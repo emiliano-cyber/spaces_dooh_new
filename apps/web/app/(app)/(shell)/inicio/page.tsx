@@ -18,7 +18,6 @@ import {
 } from 'lucide-react'
 import { useAlertasVisibles, TIPOS_ALERTA } from '@/lib/alertas-visibles'
 import { formatNumero } from '@/lib/formato-numero'
-import { conteo } from '@/lib/plural'
 import { KPICard, KPICardSkeleton } from '@/components/demo/KPICard'
 import { OcupacionChart } from '@/components/demo/charts'
 import { MapView, type MapPoint } from '@/components/demo/MapView'
@@ -61,6 +60,35 @@ import {
   formatFecha,
   type Granularidad,
 } from '@/lib/data/client'
+import { useIdioma } from '@/lib/i18n/contexto'
+import type { ClaveTexto } from '@/lib/i18n/diccionario'
+import { interpolarNodos } from '@/lib/i18n/nodos'
+import type { TipoAlerta } from '@/lib/data/derive'
+
+// I18N (lote operaciones parte 2, 2026-11-02) · SOLO los textos: el diseño de
+// esta pagina esta aprobado y ni una clase ni un nodo cambian. Las tablas de
+// etiquetas (`TIPOS_ALERTA`, `TRAMOS_COBRANZA`, `GRANS`) siguen siendo la
+// verdad en espanol; aqui se pinta la clave de cada valor.
+const CLAVE_TIPO_ALERTA: Record<TipoAlerta, ClaveTexto> = {
+  pago: 'inicio.tipo-alerta.pago',
+  contrato: 'inicio.tipo-alerta.contrato',
+  cobranza: 'inicio.tipo-alerta.cobranza',
+  incidencia: 'inicio.tipo-alerta.incidencia',
+  ot: 'inicio.tipo-alerta.ot',
+  licencia: 'inicio.tipo-alerta.licencia',
+}
+const CLAVE_TRAMO: Record<string, ClaveTexto> = {
+  corriente: 'inicio.tramo.corriente',
+  d1_30: 'inicio.tramo.d1-30',
+  d31_60: 'inicio.tramo.d31-60',
+  d61_90: 'inicio.tramo.d61-90',
+  d90: 'inicio.tramo.d90',
+}
+const CLAVE_GRAN: Record<string, ClaveTexto> = {
+  dia: 'inicio.gran.dia',
+  semana: 'inicio.gran.semana',
+  mes: 'inicio.gran.mes',
+}
 
 function margenTono(pct: number): Tono {
   if (pct >= 30) return 'verde'
@@ -109,7 +137,8 @@ const ALERTAS_A_LA_VISTA = 6
 const HUECOS_A_LA_VISTA = 8
 
 export default function DashboardPage() {
-  const m = useDashboard()
+  const { t, idioma } = useIdioma()
+  const m = useDashboard(idioma)
   const sitios = useSitios()
   const [gran, setGran] = useState<Granularidad>('semana')
   const serie = useOcupacionSerie(gran)
@@ -126,7 +155,7 @@ export default function DashboardPage() {
   const [todosLosHuecos, setTodosLosHuecos] = useState(false)
 
   const hoy = useMemo(() => new Date(), [])
-  const mesActual = hoy.toLocaleDateString('es-MX', { month: 'long' })
+  const mesActual = hoy.toLocaleDateString(idioma === 'es' ? 'es-MX' : 'en-US', { month: 'long' })
   // ─── Por rol (DASH-REF, punto 2) ──────────────────────────────────────────
   // Sin `finanzas:ver`, `/api/estado` le manda vacías las cobranzas, los
   // contratos y las facturas, y el motor de Reportes le contesta 403. Enseñarle
@@ -137,8 +166,8 @@ export default function DashboardPage() {
   const precio = useDelMotor<PrecioDelMes>(veFinanzas ? consultaPrecioDelMes(hoy) : null, precioDesdeRespuesta, { fase: 'cargando' })
 
   const subtitulo = [
-    cfg?.razonSocial ? `Razón social: ${cfg.razonSocial}` : null,
-    cfg?.nombreComercial ? `Nombre comercial: ${cfg.nombreComercial}` : null,
+    cfg?.razonSocial ? t('inicio.razon-social', { nombre: cfg.razonSocial }) : null,
+    cfg?.nombreComercial ? t('inicio.nombre-comercial', { nombre: cfg.nombreComercial }) : null,
   ]
     .filter(Boolean)
     .join(' · ')
@@ -157,8 +186,8 @@ export default function DashboardPage() {
 
   const yo = useSesionCtx().sesion?.usuario ?? null
   const pipeline = useMemo(
-    () => (propuestas ? pipelineComercial(propuestas, usuarios ?? [], hoy, yo) : null),
-    [propuestas, usuarios, hoy, yo],
+    () => (propuestas ? pipelineComercial(propuestas, usuarios ?? [], hoy, yo, idioma) : null),
+    [propuestas, usuarios, hoy, yo, idioma],
   )
   const antiguedad = useMemo(
     () => (cobranzas && facturas ? antiguedadCobranza(cobranzas, facturas, hoy) : null),
@@ -177,14 +206,14 @@ export default function DashboardPage() {
   return (
     <div className="w-full space-y-5">
       <div>
-        <h1 className="text-2xl text-ink">Dashboard</h1>
+        <h1 className="text-2xl text-ink">{t('nav.dashboard')}</h1>
         {subtitulo && <p className="mt-1 text-[13px] text-muted">{subtitulo}</p>}
       </div>
 
       {/* KPIs — 4 columnas solo desde xl (1280px). Entre 1024 y 1279 el sidebar
           se come 240px y cada tarjeta quedaba en ~235px, demasiado angosta para
           un monto de 14 caracteres en mono; ahí van 2 columnas. */}
-      <CardColapsable id="inicio.indicadores" titulo="Indicadores del mes" contentClassName="space-y-3">
+      <CardColapsable id="inicio.indicadores" titulo={t('inicio.indicadores')} contentClassName="space-y-3">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {!m || !pipeline ? (
           <>
@@ -206,47 +235,50 @@ export default function DashboardPage() {
               ) : pnl.fase === 'datos' ? (
                 <>
                   <KPICard
-                    label={`Ingreso de ${mesActual}`}
-                    value={formatMonto(pnl.totales.ingreso)}
-                    sub="lo que se devenga este mes, prorrateado por días"
+                    label={t('inicio.ingreso-de', { mes: mesActual })}
+                    value={formatMonto(pnl.totales.ingreso, idioma)}
+                    sub={t('inicio.ingreso-sub')}
                     tono="azul"
                     icon={<TrendingUp className="h-4 w-4" />}
                   />
                   <KPICard
-                    label={`Margen de ${mesActual}`}
+                    label={t('inicio.margen-de', { mes: mesActual })}
                     value={pnl.totales.margenBrutoPct == null ? '—' : `${pnl.totales.margenBrutoPct.toFixed(0)}%`}
-                    sub={`${formatMonto(pnl.totales.margenBruto)} · costo ${formatMonto(pnl.totales.costoTotal)}`}
+                    sub={t('inicio.margen-sub', { margen: formatMonto(pnl.totales.margenBruto, idioma), costo: formatMonto(pnl.totales.costoTotal, idioma) })}
                     tono={pnl.totales.margenBrutoPct == null ? 'neutro' : margenTono(pnl.totales.margenBrutoPct)}
                     icon={<Wallet className="h-4 w-4" />}
                   />
                 </>
               ) : (
                 <>
-                  <KPICard label={`Ingreso de ${mesActual}`} value="—" sub={pnl.fase === 'sin-acceso' ? 'requiere permiso de Finanzas' : 'no se pudo calcular'} icon={<TrendingUp className="h-4 w-4" />} />
-                  <KPICard label={`Margen de ${mesActual}`} value="—" sub={pnl.fase === 'sin-acceso' ? 'requiere permiso de Finanzas' : 'no se pudo calcular'} icon={<Wallet className="h-4 w-4" />} />
+                  <KPICard label={t('inicio.ingreso-de', { mes: mesActual })} value="—" sub={pnl.fase === 'sin-acceso' ? t('inicio.requiere-finanzas') : t('inicio.no-calcular')} icon={<TrendingUp className="h-4 w-4" />} />
+                  <KPICard label={t('inicio.margen-de', { mes: mesActual })} value="—" sub={pnl.fase === 'sin-acceso' ? t('inicio.requiere-finanzas') : t('inicio.no-calcular')} icon={<Wallet className="h-4 w-4" />} />
                 </>
               )
             ) : (
               <>
                 <KPICard
-                  label="Pipeline abierto"
-                  value={formatMonto(pipeline.abierto.valor)}
-                  sub={`${conteo(pipeline.abierto.n, 'propuesta', 'propuestas')} · ${pipeline.abierto.enviadas} enviada${pipeline.abierto.enviadas === 1 ? '' : 's'}`}
+                  label={t('inicio.pipeline-abierto')}
+                  value={formatMonto(pipeline.abierto.valor, idioma)}
+                  sub={t('inicio.pipeline-sub', {
+                    propuestas: t(pipeline.abierto.n === 1 ? 'inicio.propuestas.uno' : 'inicio.propuestas.otros', { n: formatNumero(pipeline.abierto.n) }),
+                    enviadas: t(pipeline.abierto.enviadas === 1 ? 'inicio.enviadas.uno' : 'inicio.enviadas.otros', { n: pipeline.abierto.enviadas }),
+                  })}
                   tono="ambar"
                   icon={<Briefcase className="h-4 w-4" />}
                 />
                 <KPICard
-                  label="Tasa de cierre"
+                  label={t('inicio.tasa')}
                   value={tasa}
-                  sub={`aprobadas de las decididas en ${VENTANA_TASA_DIAS} días`}
+                  sub={t('inicio.tasa-sub', { n: VENTANA_TASA_DIAS })}
                   icon={<Target className="h-4 w-4" />}
                 />
               </>
             )}
             <KPICard
-              label={`Ganado en ${mesActual}`}
-              value={formatMonto(pipeline.ganadoMes.valor)}
-              sub={conteo(pipeline.ganadoMes.n, 'propuesta aprobada', 'propuestas aprobadas')}
+              label={t('inicio.ganado-en', { mes: mesActual })}
+              value={formatMonto(pipeline.ganadoMes.valor, idioma)}
+              sub={t(pipeline.ganadoMes.n === 1 ? 'inicio.aprobadas-propuestas.uno' : 'inicio.aprobadas-propuestas.otros', { n: formatNumero(pipeline.ganadoMes.n) })}
               tono="verde"
               icon={<Trophy className="h-4 w-4" />}
             />
@@ -255,9 +287,16 @@ export default function DashboardPage() {
                 crudo (espacios) y el reparto digital/fija, porque un mismo % se
                 lee muy distinto si viene de slots o de espectaculares. */}
             <KPICard
-              label="Ocupación de la red"
+              label={t('inicio.ocupacion-red')}
               value={`${m.ocupacionPct.toFixed(0)}%`}
-              sub={`${formatNumero(m.espaciosOcupados)} de ${formatNumero(m.capacidadRed)} espacios · digital ${formatNumero(m.ocupacionDigitales.ocupados)}/${formatNumero(m.ocupacionDigitales.capacidad)} · fijas ${formatNumero(m.ocupacionFijas.ocupados)}/${formatNumero(m.ocupacionFijas.capacidad)}`}
+              sub={t('inicio.ocupacion-red-sub', {
+                ocupados: formatNumero(m.espaciosOcupados),
+                capacidad: formatNumero(m.capacidadRed),
+                dOcupados: formatNumero(m.ocupacionDigitales.ocupados),
+                dCapacidad: formatNumero(m.ocupacionDigitales.capacidad),
+                fOcupados: formatNumero(m.ocupacionFijas.ocupados),
+                fCapacidad: formatNumero(m.ocupacionFijas.capacidad),
+              })}
               tono="azul"
               icon={<Gauge className="h-4 w-4" />}
             />
@@ -273,34 +312,34 @@ export default function DashboardPage() {
       {m && veFinanzas && pnl.fase === 'datos' && (
         <div className="space-y-1.5 rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px]">
           <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
-            <span className="font-medium text-ink">Costos de {mesActual}</span>
-            <CostoItem label="Renta" valor={formatMonto(pnl.totales.costoEspacio)} />
-            <CostoItem label="Operación" valor={formatMonto(pnl.totales.costoOperacion)} />
-            <CostoItem label="Luz" valor={formatMonto(pnl.totales.costoEnergia)} />
-            <CostoItem label="Total" valor={formatMonto(pnl.totales.costoTotal)} fuerte />
-            <CostoItem label="Impresión (aparte)" valor={formatMonto(m.costoImpresionMes)} />
+            <span className="font-medium text-ink">{t('inicio.costos-de', { mes: mesActual })}</span>
+            <CostoItem label={t('inicio.costo.renta')} valor={formatMonto(pnl.totales.costoEspacio, idioma)} />
+            <CostoItem label={t('inicio.costo.operacion')} valor={formatMonto(pnl.totales.costoOperacion, idioma)} />
+            <CostoItem label={t('inicio.costo.luz')} valor={formatMonto(pnl.totales.costoEnergia, idioma)} />
+            <CostoItem label={t('inicio.costo.total')} valor={formatMonto(pnl.totales.costoTotal, idioma)} fuerte />
+            <CostoItem label={t('inicio.costo.impresion')} valor={formatMonto(m.costoImpresionMes, idioma)} />
             <Link href={rutaReportesDelMes(hoy)} className="ml-auto text-accent hover:underline">
-              Ver por pantalla
+              {t('inicio.ver-por-pantalla')}
             </Link>
           </div>
           <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
-            <span className="font-medium text-ink">Rendimiento</span>
+            <span className="font-medium text-ink">{t('inicio.rendimiento')}</span>
             <CostoItem
-              label="Renta / ingreso"
+              label={t('inicio.renta-ingreso')}
               valor={pnl.totales.ingreso > 0 ? `${Math.round((pnl.totales.costoEspacio / pnl.totales.ingreso) * 100)}%` : '—'}
             />
             <CostoItem
-              label="Tarifa publicada cobrada"
+              label={t('inicio.tarifa-cobrada')}
               valor={precio.fase === 'datos' ? `${precio.pct}%` : '—'}
             />
             <span className="text-muted">
               {precio.fase === 'datos'
-                ? `de ${conteo(precio.conTarifa, 'venta con tarifa publicada', 'ventas con tarifa publicada')}${precio.sinTarifa ? ` · ${precio.sinTarifa} sin tarifa con qué comparar` : ''}`
+                ? `${t(precio.conTarifa === 1 ? 'inicio.de-ventas.uno' : 'inicio.de-ventas.otros', { n: formatNumero(precio.conTarifa) })}${precio.sinTarifa ? t('inicio.sin-tarifa', { n: precio.sinTarifa }) : ''}`
                 : precio.fase === 'sin-datos'
-                  ? 'sin ventas con tarifa publicada este mes'
+                  ? t('inicio.sin-ventas')
                   : precio.fase === 'cargando'
                     ? ''
-                    : 'no se pudo calcular'}
+                    : t('inicio.no-calcular')}
             </span>
           </div>
         </div>
@@ -311,13 +350,12 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-3">
         <CardColapsable
           id="inicio.ocupacion"
-          titulo="Ocupación"
+          titulo={t('inicio.ocupacion')}
           className="lg:col-span-2"
           subtitulo={
             serie ? (
               <>
-                {formatNumero(serie.diasOcupados)} espacios·día ocupados de{' '}
-                {formatNumero(serie.diasDisponibles)} disponibles
+                {t('inicio.ocupacion-sub', { ocupados: formatNumero(serie.diasOcupados), disponibles: formatNumero(serie.diasDisponibles) })}
               </>
             ) : undefined
           }
@@ -334,10 +372,10 @@ export default function DashboardPage() {
             abiertas contra el acumulado HISTÓRICO de reservas. */}
         <CardColapsable
           id="inicio.pipeline"
-          titulo="Pipeline comercial"
+          titulo={t('inicio.pipeline')}
           accion={
             <Link href="/propuestas" className="inline-flex items-center gap-1 text-[12px] font-medium text-info hover:underline">
-              Propuestas <ArrowRight className="h-3.5 w-3.5" />
+              {t('nav.propuestas')} <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           }
         >
@@ -346,21 +384,21 @@ export default function DashboardPage() {
           ) : (
             <div className="space-y-3 text-[12px]">
               <div className="grid grid-cols-2 gap-3">
-                <Dato label="Abierto" valor={formatMonto(pipeline.abierto.valor)} sub={conteo(pipeline.abierto.n, 'propuesta', 'propuestas')} />
-                <Dato label={`Ganado en ${mesActual}`} valor={formatMonto(pipeline.ganadoMes.valor)} sub={conteo(pipeline.ganadoMes.n, 'aprobada', 'aprobadas')} />
-                <Dato label="Tasa de cierre" valor={tasa} sub={`últimos ${VENTANA_TASA_DIAS} días`} />
+                <Dato label={t('inicio.abierto')} valor={formatMonto(pipeline.abierto.valor, idioma)} sub={t(pipeline.abierto.n === 1 ? 'inicio.propuestas.uno' : 'inicio.propuestas.otros', { n: formatNumero(pipeline.abierto.n) })} />
+                <Dato label={t('inicio.ganado-en', { mes: mesActual })} valor={formatMonto(pipeline.ganadoMes.valor, idioma)} sub={t(pipeline.ganadoMes.n === 1 ? 'inicio.aprobadas.uno' : 'inicio.aprobadas.otros', { n: formatNumero(pipeline.ganadoMes.n) })} />
+                <Dato label={t('inicio.tasa')} valor={tasa} sub={t('inicio.ultimos', { n: VENTANA_TASA_DIAS })} />
               </div>
               <div>
-                <div className="mb-1 font-medium text-ink">Ganado por vendedor</div>
+                <div className="mb-1 font-medium text-ink">{t('inicio.por-vendedor')}</div>
                 {pipeline.porVendedor.length === 0 ? (
-                  <p className="text-muted">Nada aprobado en {mesActual} todavía.</p>
+                  <p className="text-muted">{t('inicio.nada-aprobado', { mes: mesActual })}</p>
                 ) : (
                   <ul className="space-y-1">
                     {pipeline.porVendedor.map((v) => (
                       <li key={v.nombre} className="flex items-center justify-between gap-2">
                         <span className="truncate text-ink">{v.nombre}</span>
                         <span className="demo-num shrink-0 text-muted">
-                          {formatMonto(v.valor)} · {v.n}
+                          {formatMonto(v.valor, idioma)} · {v.n}
                         </span>
                       </li>
                     ))}
@@ -374,7 +412,7 @@ export default function DashboardPage() {
 
       {/* Alertas + Huecos y renovaciones */}
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-3">
-        <CardColapsable id="inicio.alertas" titulo="Alertas" accion={<ConfigAlertas cfg={alertasCfg} />}>
+        <CardColapsable id="inicio.alertas" titulo={t('inicio.alertas')} accion={<ConfigAlertas cfg={alertasCfg} />}>
             {(() => {
               if (!m) return <div className="h-32 animate-pulse rounded bg-surface-2" />
               // Solo los tipos encendidos, y las ROJAS primero: antes salían en
@@ -386,25 +424,25 @@ export default function DashboardPage() {
                 return (
                   <p className="text-[13px] text-muted">
                     {m.alertas.length === 0
-                      ? 'Sin alertas activas.'
-                      : 'No hay alertas de los tipos que elegiste mostrar.'}
+                      ? t('inicio.sin-alertas')
+                      : t('inicio.sin-alertas-tipo')}
                   </p>
                 )
               }
               const rojas = visibles.filter((a) => a.nivel === 'rojo').length
-              const porTipo = TIPOS_ALERTA.map((t) => ({ ...t, n: visibles.filter((a) => a.tipo === t.tipo).length })).filter((t) => t.n > 0)
+              const porTipo = TIPOS_ALERTA.map((ta) => ({ ...ta, n: visibles.filter((a) => a.tipo === ta.tipo).length })).filter((ta) => ta.n > 0)
               const mostradas = todasLasAlertas ? visibles : visibles.slice(0, ALERTAS_A_LA_VISTA)
               return (
               <div className="space-y-3">
                 <div className="flex flex-wrap gap-1.5 text-[11px]">
                   {rojas > 0 && (
                     <span className="rounded-full border border-[#ef444440] px-2 py-0.5 font-medium text-error">
-                      {conteo(rojas, 'urgente', 'urgentes')}
+                      {t(rojas === 1 ? 'inicio.urgentes.uno' : 'inicio.urgentes.otros', { n: formatNumero(rojas) })}
                     </span>
                   )}
-                  {porTipo.map((t) => (
-                    <span key={t.tipo} className="rounded-full border border-border px-2 py-0.5 text-muted">
-                      {t.label} · {t.n}
+                  {porTipo.map((ta) => (
+                    <span key={ta.tipo} className="rounded-full border border-border px-2 py-0.5 text-muted">
+                      {t(CLAVE_TIPO_ALERTA[ta.tipo])} · {ta.n}
                     </span>
                   ))}
                 </div>
@@ -431,7 +469,7 @@ export default function DashboardPage() {
                     onClick={() => setTodasLasAlertas((v) => !v)}
                     className="text-[12px] font-medium text-info hover:underline"
                   >
-                    {todasLasAlertas ? 'Ver menos' : `Ver todas (${visibles.length})`}
+                    {todasLasAlertas ? t('inicio.ver-menos') : t('inicio.ver-todas', { n: visibles.length })}
                   </button>
                 )}
               </div>
@@ -444,15 +482,15 @@ export default function DashboardPage() {
             ofrecerle renovar. Ver `huecosProximos`. */}
         <CardColapsable
           id="inicio.huecos"
-          titulo="Huecos y renovaciones"
+          titulo={t('inicio.huecos')}
           className="lg:col-span-2"
-          subtitulo={`lo que se queda sin campaña en los próximos ${VENTANA_HUECOS_DIAS} días`}
+          subtitulo={t('inicio.huecos-sub', { n: VENTANA_HUECOS_DIAS })}
         >
           {!huecos ? (
             <div className="h-20 animate-pulse rounded bg-surface-2" />
           ) : huecos.length === 0 ? (
             <p className="text-[13px] text-muted">
-              Nada se queda libre en los próximos {VENTANA_HUECOS_DIAS} días.
+              {t('inicio.huecos-nada', { n: VENTANA_HUECOS_DIAS })}
             </p>
           ) : (
             <>
@@ -464,20 +502,24 @@ export default function DashboardPage() {
                         {h.sitioNombre}
                         <span className="text-muted">
                           {' · '}
-                          {h.digital ? (h.slots ? `${h.slots} slot${h.slots === 1 ? '' : 's'} libre${h.slots === 1 ? '' : 's'}` : 'slots libres') : 'cara libre'}
+                          {h.digital ? (h.slots ? t(h.slots === 1 ? 'inicio.slots-libres.uno' : 'inicio.slots-libres.otros', { n: h.slots }) : t('inicio.slots-libres')) : t('inicio.cara-libre')}
                         </span>
                       </div>
                       <div className="demo-num truncate text-[11px] text-muted">
-                        Sale {h.clienteNombre ?? 'sin cliente'} ·{' '}
-                        <Link href={`/campanas/${h.campanaId}`} className="hover:underline">
-                          {h.campanaNombre}
-                        </Link>
-                        {' · '}termina {formatFecha(h.fechaFin)}
+                        {interpolarNodos(t('inicio.sale'), {
+                          cliente: h.clienteNombre ?? t('inicio.sin-cliente'),
+                          campana: (
+                            <Link href={`/campanas/${h.campanaId}`} className="hover:underline">
+                              {h.campanaNombre}
+                            </Link>
+                          ),
+                          fecha: formatFecha(h.fechaFin, idioma),
+                        })}
                       </div>
                       {/* TENT-PROP: quién ya la está pidiendo. No cierra el hueco
                           (una propuesta puede no cerrarse), pero dice a quién llamar. */}
                       {h.enPropuesta.length > 0 && (
-                        <div className="truncate text-[11px] text-[#9a6700]">En propuesta: {h.enPropuesta.join(', ')}</div>
+                        <div className="truncate text-[11px] text-[#9a6700]">{t('inicio.en-propuesta-lista', { lista: h.enPropuesta.join(', ') })}</div>
                       )}
                     </div>
                     <span
@@ -486,7 +528,7 @@ export default function DashboardPage() {
                         h.dias <= 7 ? 'border-[#ef444440] text-error' : 'border-[#f59e0b40] text-[#9a6700]',
                       )}
                     >
-                      {h.dias === 0 ? 'hoy' : `en ${h.dias} d`}
+                      {h.dias === 0 ? t('inicio.hoy') : t('inicio.en-dias', { n: h.dias })}
                     </span>
                   </li>
                 ))}
@@ -497,7 +539,7 @@ export default function DashboardPage() {
                   onClick={() => setTodosLosHuecos((v) => !v)}
                   className="mt-2 text-[12px] font-medium text-info hover:underline"
                 >
-                  {todosLosHuecos ? 'Ver menos' : `Ver todos (${huecos.length})`}
+                  {todosLosHuecos ? t('inicio.ver-menos') : t('inicio.ver-todos', { n: huecos.length })}
                 </button>
               )}
             </>
@@ -510,46 +552,55 @@ export default function DashboardPage() {
         {veFinanzas && (
           <CardColapsable
             id="inicio.cobranza"
-            titulo="Por cobrar por antigüedad"
+            titulo={t('inicio.por-cobrar')}
             accion={
               <Link href="/finanzas" className="inline-flex items-center gap-1 text-[12px] font-medium text-info hover:underline">
-                Finanzas <ArrowRight className="h-3.5 w-3.5" />
+                {t('nav.finanzas')} <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             }
           >
             {!antiguedad ? (
               <div className="h-32 animate-pulse rounded bg-surface-2" />
             ) : antiguedad.total === 0 ? (
-              <p className="text-[13px] text-muted">No hay saldos por cobrar.</p>
+              <p className="text-[13px] text-muted">{t('inicio.sin-saldos')}</p>
             ) : (
               <div className="space-y-3 text-[12px]">
                 <div className="flex items-baseline justify-between gap-2">
                   <span className="inline-flex items-center gap-1.5 text-muted">
-                    <HandCoins className="h-4 w-4" /> Total
+                    <HandCoins className="h-4 w-4" /> {t('inicio.costo.total')}
                   </span>
-                  <span className="demo-num text-[18px] text-ink">{formatMonto(antiguedad.total)}</span>
+                  <span className="demo-num text-[18px] text-ink">{formatMonto(antiguedad.total, idioma)}</span>
                 </div>
                 {/* Una barra por tramo, un solo color: es una comparación de
                     magnitudes, no de categorías. La etiqueta y el monto van en
                     texto, así que el color no carga el significado. */}
                 <ul className="list-none space-y-1.5 pl-0">
-                  {antiguedad.tramos.map((t) => (
-                    <li key={t.clave} title={`${t.label}: ${formatMonto(t.monto)} en ${conteo(t.n, 'cuota', 'cuotas')}`}>
+                  {antiguedad.tramos.map((tr) => (
+                    <li
+                      key={tr.clave}
+                      title={t(tr.n === 1 ? 'inicio.tramo-titulo.uno' : 'inicio.tramo-titulo.otros', {
+                        tramo: t(CLAVE_TRAMO[tr.clave]),
+                        monto: formatMonto(tr.monto, idioma),
+                        n: formatNumero(tr.n),
+                      })}
+                    >
                       <div className="flex items-center justify-between gap-2">
-                        <span className={cn(t.clave === 'corriente' ? 'text-muted' : 'text-ink')}>{t.label}</span>
-                        <span className="demo-num text-ink">{formatMonto(t.monto)}</span>
+                        <span className={cn(tr.clave === 'corriente' ? 'text-muted' : 'text-ink')}>{t(CLAVE_TRAMO[tr.clave])}</span>
+                        <span className="demo-num text-ink">{formatMonto(tr.monto, idioma)}</span>
                       </div>
                       <div className="mt-0.5 h-1.5 w-full rounded-full bg-surface-2">
                         <div
                           className="h-1.5 rounded-full bg-info"
-                          style={{ width: `${antiguedad.total > 0 ? (t.monto / antiguedad.total) * 100 : 0}%` }}
+                          style={{ width: `${antiguedad.total > 0 ? (tr.monto / antiguedad.total) * 100 : 0}%` }}
                         />
                       </div>
                     </li>
                   ))}
                 </ul>
                 <p className="text-muted">
-                  Vencido: <span className="demo-num text-error">{formatMonto(antiguedad.vencido)}</span>
+                  {interpolarNodos(t('inicio.vencido'), {
+                    monto: <span className="demo-num text-error">{formatMonto(antiguedad.vencido, idioma)}</span>,
+                  })}
                 </p>
               </div>
             )}
@@ -561,14 +612,14 @@ export default function DashboardPage() {
             (`tonoPinHoy`), no del estatus guardado del sitio. */}
         <CardColapsable
           id="inicio.mapa"
-          titulo="Tu red en el mapa"
+          titulo={t('inicio.mapa')}
           className={veFinanzas ? 'lg:col-span-2' : 'lg:col-span-3'}
           accion={
             <Link
               href="/comercial"
               className="inline-flex items-center gap-1 text-[12px] font-medium text-info hover:underline"
             >
-              Ver comercial <ArrowRight className="h-3.5 w-3.5" />
+              {t('inicio.ver-comercial')} <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           }
         >
@@ -580,11 +631,11 @@ export default function DashboardPage() {
               )}
             </div>
             <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-[11px] text-muted">
-              <LeyendaPin color="#0a66ff" label="Digital" />
-              <LeyendaPin color="#10b981" label="Libre hoy" />
-              <LeyendaPin color="#ef4444" label="Ocupado hoy" />
+              <LeyendaPin color="#0a66ff" label={t('inicio.leyenda.digital')} />
+              <LeyendaPin color="#10b981" label={t('inicio.leyenda.libre')} />
+              <LeyendaPin color="#ef4444" label={t('inicio.leyenda.ocupado')} />
               {/* El ámbar es «en propuesta» desde TENT-PROP (ver `tonoPinHoy`). */}
-              <LeyendaPin color="#f59e0b" label="En propuesta" />
+              <LeyendaPin color="#f59e0b" label={t('inicio.leyenda.en-propuesta')} />
             </div>
         </CardColapsable>
       </div>
@@ -595,13 +646,14 @@ export default function DashboardPage() {
 // Menú para elegir qué tipos de alerta se muestran en pantalla. Todas encendidas
 // por default; la preferencia se guarda por navegador (localStorage).
 function ConfigAlertas({ cfg }: { cfg: ReturnType<typeof useAlertasVisibles> }) {
+  const t = useIdioma().t
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>
         <button
           type="button"
-          aria-label="Configurar alertas"
-          title="Elegir qué alertas ver"
+          aria-label={t('inicio.config-alertas')}
+          title={t('inicio.elegir-alertas')}
           className="relative inline-flex h-8 w-8 items-center justify-center rounded border border-border-strong bg-white text-muted transition-colors duration-150 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >
           <SlidersHorizontal className="h-4 w-4" strokeWidth={1.75} />
@@ -618,16 +670,16 @@ function ConfigAlertas({ cfg }: { cfg: ReturnType<typeof useAlertasVisibles> }) 
           sideOffset={6}
           className="z-50 w-64 rounded-md border border-border bg-surface p-1 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95"
         >
-          <div className="px-2 py-1.5 text-[12px] font-medium text-ink">Alertas a mostrar</div>
+          <div className="px-2 py-1.5 text-[12px] font-medium text-ink">{t('inicio.alertas-a-mostrar')}</div>
           <div className="my-1 h-px bg-border" />
-          {TIPOS_ALERTA.map((t) => {
-            const activo = cfg.esVisible(t.tipo)
+          {TIPOS_ALERTA.map((ta) => {
+            const activo = cfg.esVisible(ta.tipo)
             return (
               <DropdownMenu.Item
-                key={t.tipo}
+                key={ta.tipo}
                 onSelect={(e) => {
                   e.preventDefault() // no cerrar el menú al alternar
-                  cfg.alternar(t.tipo)
+                  cfg.alternar(ta.tipo)
                 }}
                 className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-[13px] text-ink outline-none data-[highlighted]:bg-surface-2"
               >
@@ -639,7 +691,7 @@ function ConfigAlertas({ cfg }: { cfg: ReturnType<typeof useAlertasVisibles> }) 
                 >
                   {activo && <Check className="h-3 w-3" strokeWidth={3} />}
                 </span>
-                {t.label}
+                {t(CLAVE_TIPO_ALERTA[ta.tipo])}
               </DropdownMenu.Item>
             )
           })}
@@ -656,6 +708,7 @@ function Segmented({
   value: Granularidad
   onChange: (g: Granularidad) => void
 }) {
+  const t = useIdioma().t
   return (
     <div className="inline-flex rounded border border-border p-0.5">
       {GRANS.map((g) => (
@@ -668,7 +721,7 @@ function Segmented({
             value === g.value ? 'bg-surface-2 text-ink' : 'text-muted hover:text-ink',
           )}
         >
-          {g.label}
+          {t(CLAVE_GRAN[g.value])}
         </button>
       ))}
     </div>
