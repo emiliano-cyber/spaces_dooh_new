@@ -144,3 +144,90 @@ Restauré todo con `git checkout --`. `git status --short` sale vacío salvo est
 2. **Origen de la confusión, para corregirlo en catálogos.** El encabezado de `catalogos.ts:23`, tal como está commiteado en `integra/ingles`, sigue diciendo «dar de baja / dada de baja → retire / Retired». Los valores son «Deactivate / Deactivated» desde la segunda vuelta. El traductor de este lote se fió del comentario. Hay que corregir también `operaciones.ts:19-21` y `idiomas-es-en.md:1099`, que copian la afirmación.
 3. **«Administración → Configuración»** en texto de ayuda. Conviene fijar un único nombre en el glosario cuando aterrice el lote de administración, que en su borrador usa «Settings → Business settings», y que los lotes ya integrados lo adopten.
 4. **Nombre del periodo mensual** en Disponibilidad: «Mar 2026» o «Mar ’26». Es estilo, pero lo verá cualquier usuario de inglés en la cabecera de la rejilla.
+
+---
+
+## Segunda pasada (2026-11-02)
+
+Diff revisado: `git diff f3e41c40..HEAD`. Son dos commits:
+
+- `61ead612`: este informe, commiteado por el traductor.
+- `aa592555`: las correcciones.
+
+Esta sección se añade sin commitear.
+
+### Veredicto: **ÁMBAR**. Solo queda el arnés.
+
+**Los 4 hallazgos medios y los 10 bajos de la tabla del §1 quedaron resueltos**, con sentido en su contexto. Pero aparece un hallazgo **medio nuevo**: el arnés de forzado no es estable (§S2). Es una corrección de la prueba, no del producto. Con ella, el lote pasa a VERDE.
+
+### S1 · Los hallazgos, uno por uno
+
+| hallazgo | ahora | estado |
+|---|---|---|
+| «Dar de baja» → «Retire» rompía la costura | `mov.baja` = «Decommission», y «Dar de baja» en `DISTINTOS_A_PROPOSITO` con su motivo (`costura.test.ts:43`). Repetí la simulación con catálogos de `integra/ingles`: **cero divergencias sin declarar** (las 7 que quedan están declaradas) | resuelto |
+| Tres nombres para la baja | «Decommission» · «1 decommissioned» · «none decommissioned» · «Decommissioned». Coincide con la decisión del orquestador | resuelto |
+| Toasts de almacén e imprenta sin prueba | Nuevo `describe` en `textos/operaciones.test.ts:106-126`. **M4a, M4c y M4d mueren** (§S4) | resuelto |
+| «Mar 26» | `year: 'numeric'` (`disponibilidad/page.tsx:47`). En el render sale «in Mar 2026» y «>Mar 2026<» | resuelto |
+| «Settings → Configuration» | «Settings → Business settings» (`clientes.ts:338`), como decidió el orquestador | resuelto |
+| Los 9 bajos restantes | «No clients match», «Log progress / Save progress / Progress could not be logged», «Free static screens», «· not blocking», «Only with availability», «client openings left», «already on this screen», «Landowner», «{n}d overdue». Las aserciones inglesas de las pruebas de pantallas se pusieron al día, y en el HTML se leen bien | resuelto |
+| Documentación | `operaciones.ts:16-22` y la bóveda corregidos (ahora dicen «Siete españoles nuevos» y enumeran siete). El comentario viejo de `pantallas-comercial.test.ts:45` también está corregido | resuelto |
+| `catalogos.ts:23` («retire / Retired») | No está en esta rama, que sale de `2e622add`, sin catálogos. **Sigue pendiente en `integra/ingles`** | pendiente, fuera de esta rama |
+
+### S2 · Estabilidad del arnés: **hallazgo MEDIO, causa localizada**
+
+**En condiciones normales es estable.** Corrí `pantallas-clientes` y `pantallas-operaciones` **8 veces seguidas** y salió `231 passed (231)` en las 8.
+
+**Bajo carga falla, y la causa es una fuga entre pruebas cuando una agota su tiempo.**
+
+1. La cola de forzado es una sola, compartida por todo el archivo: `forzado.cola` en `pantallas-clientes.test.ts:36`. `beforeEach` la vacía (`:96`).
+2. Cada estado **mete sus `forzar(...)` antes** del `await import(...)` de la página (por ejemplo `:362-364`, con `captacionPagina` en `:176`).
+3. Si un estado agota el `testTimeout` mientras espera ese import, vitest pasa al siguiente. **La función del estado anterior sigue viva**: cuando el import resuelve, rinde.
+4. Ese render lee `forzado.cola[0]` (`:42-45`), que ya es la cola del estado **siguiente**, y **se come sus entradas**. El estado siguiente rinde sin forzar, por ejemplo en la pestaña «curso» por omisión, y falla **una aserción**, no un timeout.
+
+El primer import de Captación es lento: arrastra `ComercialOpex` entero (`Captacion.tsx:15`). Por eso los fallos se concentran en captación, que es justo lo que vio el traductor («pestaña equivocada», en español).
+
+**Reproducido de forma determinista** acortando el tiempo:
+
+```
+npx vitest run lib/i18n/pantallas-clientes.test.ts --testTimeout=100
+→ 1 «Test timed out» (captacion · por aprobar) y, justo detrás,
+  AssertionError en ESPANOL en «captacion · en curso vacia»:
+  falta «No hay prospectos en curso. Da de alta el primero con «Nuevo prospecto».»
+```
+
+`pantallas-operaciones.test.ts` tiene el mismo patrón: la cola en `:36`, el reinicio en `:88`, y los `forzar` y `datos.* =` antes del `await import`. Con `--testTimeout=100` dio «2 failed» con un solo timeout en 2 de 3 corridas.
+
+**La corrección que propongo** (en la prueba, no en el producto). Cualquiera de las dos basta, y conviene aplicar la primera en los dos archivos:
+
+- Resolver el componente **antes** de forzar: `const C = await captacionPagina(); forzar(...); return pintar(idioma, createElement(C))`. `renderToStaticMarkup` es síncrono, así que entre forzar y rendir ya no puede entrar nadie.
+- O importar las páginas una sola vez en un `beforeAll`, y marcar cada cola con un número de generación que el `useState` simulado compruebe.
+
+### S3 · Español intacto (otra vez, mecánico)
+
+Volví a volcar el HTML español de los 37 estados con HEAD (`I18N_VOLCAR`) y lo comparé con el volcado de la primera pasada, hecho con los componentes de `2e622add`. `diff -rq` salió vacío: **25/25 y 12/12 idénticos**. El único componente que cambió es `disponibilidad/page.tsx`, y solo en la rama inglesa de `etiquetaPeriodo`; el `if (idioma === 'es') return p.label` sigue igual.
+
+### S4 · Pruebas y mutantes
+
+Las corrí con la máquina cargada (otros agentes en paralelo), con **`--testTimeout=60000`**:
+
+```
+cd apps/web && npm run typecheck                  → tsc --noEmit, sin errores
+cd apps/web && npm test -- --testTimeout=60000    → Test Files 339 passed (339) · Tests 5297 passed (5297) · 80.17 s
+```
+
+| # | mutante | resultado |
+|---|---|---|
+| M4a | almacén: toast de mover con la clave de registrar | **muere** (1 de 1170) |
+| M4c | imprenta: `no-avanzar` → `no-crear` | **muere** (1) |
+| M4d | imprenta: `no-crear` → `no-avanzar` | **muere** (1) |
+| M7 | Disponibilidad: el mes vuelve a `'2-digit'` | **muere** (1) |
+| M8 | `mov.baja` vuelve a «Retire» | **muere** (1: la instantánea) |
+
+Restauré todo con `git checkout --`.
+
+### S5 · Reglas
+
+- No hay dinero en los diccionarios.
+- El diff no toca ningún archivo prohibido y no añade ningún `desktop.ini`.
+- No usé `git stash`.
+- El árbol queda limpio salvo esta sección del informe.
