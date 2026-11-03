@@ -191,6 +191,18 @@ export class ConfirmacionCeroError extends Error {
   requiereConfirmacionCero = true
 }
 
+// COD-03 · aprobar con el cupón PENDIENTE (409 con `codigoPendiente: true`).
+//
+// I18N (lote servidor, 2026-11-02) · esa respuesta la arma la RUTA a mano
+// (`{ error: e.message, codigoPendiente: true }`) y no pasa por
+// `respuestaError()`, así que I18N-05 no la traduce: el `error` llega siempre en
+// español. Con la bandera, la pantalla pinta su propia clave
+// (`servidor.codigo.aprobar-con-pendiente`) en el idioma de quien la lee. El
+// `message` conserva el texto del servidor, para quien lo registre.
+export class CodigoPendienteApiError extends Error {
+  codigoPendiente = true
+}
+
 export async function cambiarEstatusPropuestaApi(
   id: string,
   estatus: string,
@@ -204,6 +216,7 @@ export async function cambiarEstatusPropuestaApi(
   const d = await r.json().catch(() => ({}))
   if (!r.ok) {
     if (d.requiereConfirmacionCero) throw new ConfirmacionCeroError(d.error ?? 'Confirma la aprobación en $0')
+    if (d.codigoPendiente) throw new CodigoPendienteApiError(d.error ?? 'No se pudo actualizar la propuesta')
     throw new Error(d.error ?? 'No se pudo actualizar la propuesta')
   }
   await refrescarEstado()

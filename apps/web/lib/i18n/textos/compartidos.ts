@@ -311,5 +311,5 @@ export const EN_COMPARTIDOS: Record<ClaveCompartidos, string> = {
   'compartidos.cifra.grande': 'That number is too large',
   'compartidos.cifra.negativo': 'It cannot be negative',
   'compartidos.cifra.menor': 'It cannot be less than {n}',
-  'compartidos.cifra.mayor': 'It cannot be greater than {n}',
+  'compartidos.cifra.mayor': 'Must not be greater than {n}',
 }

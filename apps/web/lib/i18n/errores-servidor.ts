@@ -1,4 +1,5 @@
 import { IDIOMA_POR_OMISION, type Idioma } from './idiomas'
+import { ES_SERVIDOR, EN_SERVIDOR, type ClaveServidor } from './textos/servidor'
 
 // ============================================================================
 //  lib/i18n/errores-servidor.ts — LOS ERRORES DEL SERVIDOR, EN DOS IDIOMAS.
@@ -339,17 +340,17 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   'La calculadora de spots necesita la tarifa por spot de la línea.':
     "The spot calculator needs the line's per-spot rate.",
   'Solo un gerente o superior puede poner prima a un Roadblock.':
-    'Only a manager or above can put a premium on a Roadblock.',
+    'Only a manager or above can add a premium to a Roadblock.',
   'La calculadora de spots solo aplica a pantallas digitales vendidas por spot.':
     'The spot calculator only applies to digital screens sold per spot.',
   'La pantalla no tiene capturado cuántos espacios tiene su loop; captúralo en su ficha antes de usar la calculadora.':
-    'The screen does not record how many slots its loop has; enter it on its record before using the calculator.',
+    'This screen’s number of loop slots hasn’t been entered; add it on the screen’s profile before using the calculator.',
   'La prima de Roadblock va de 0 a 100 %.':
-    'The Roadblock premium goes from 0 to 100 %.',
+    'The Roadblock premium goes from 0 to 100%.',
   'La prima de Roadblock solo aplica a una línea marcada como Roadblock.':
     'The Roadblock premium only applies to a line marked as Roadblock.',
   'Con esos espacios y esas horas no sale ni un spot al día.':
-    'With those slots and hours not even one spot a day comes out.',
+    'With these slots and hours, not a single spot would play per day.',
   'La línea no tiene días: revisa las fechas.':
     'The line has no days: check the dates.',
   // 1 sitio · lib/server/impresion-controller.ts:14
@@ -581,7 +582,7 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   'Ese enlace no lleva a un lugar de Google Maps':
     'That link does not lead to a Google Maps place',
   'Ese enlace de Google Maps no trae coordenadas. En Google Maps toca el lugar, copia las coordenadas que salen arriba y pégalas aquí':
-    'That Google Maps link has no coordinates. In Google Maps tap the place, copy the coordinates shown at the top and paste them here',
+    'That Google Maps link has no coordinates. In Google Maps click the place, copy the coordinates shown at the top and paste them here',
   'Escribe una dirección, pega unas coordenadas (19.4326, -99.1332) o un enlace de Google Maps':
     'Enter an address, paste coordinates (19.4326, -99.1332) or a Google Maps link',
   'Solo se aceptan enlaces de Google Maps (google.com/maps o maps.app.goo.gl)':
@@ -617,6 +618,27 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   'La contraseña no puede contener espacios':
     'The password cannot contain spaces',
 }
+
+
+// ─── Los motivos de `lib/` que comparten servidor y pantalla ────────────────
+//
+// Lote servidor (2026-11-02). Las reglas puras de `lib/negociacion.ts`,
+// `motivoHorarioInvalido`, `interpretarUbicacion` y `MSJ_APROBAR_CON_PENDIENTE`
+// devuelven una frase que la pantalla PINTA y que el servidor LANZA por
+// variable (`new AppError(motivo)`). El ingles se escribe una sola vez, en el
+// diccionario (`textos/servidor.ts`), y de ahi sale este catalogo: asi el mismo
+// fallo dice lo mismo lo detecte el navegador o el servidor.
+//
+// Va APARTE de `CATALOGO_ERRORES` a proposito: aquel lo vigila la guardia de
+// entradas muertas de `errores-servidor.test.ts`, que solo ve literales; estas
+// viajan por variable y su prueba es `textos/servidor.test.ts`. Se excluyen las
+// que llevan huecos `{…}` (el aviso de la franja no es un error y se arma en
+// el servidor con el idioma de la peticion).
+export const CATALOGO_LIB: Record<string, string> = Object.fromEntries(
+  (Object.keys(ES_SERVIDOR) as ClaveServidor[])
+    .filter((k) => !ES_SERVIDOR[k].includes('{'))
+    .map((k) => [ES_SERVIDOR[k], EN_SERVIDOR[k]]),
+)
 
 
 // ─── Las etiquetas de campo ─────────────────────────────────────────────────
@@ -655,15 +677,133 @@ export const CAMPO_EN: Record<string, string> = {
   'Logo': 'Logo',
   'Archivo': 'File',
   'Código': 'Code',
+  // Lote servidor (02/11) · `periodo` no esta en `CAMPO_ES`: `humanizarCampo`
+  // lo deja en «Periodo», y sin esto «Periodo: Periodo inválido» no se partia.
+  'Periodo': 'Period',
 }
 
+
+// ─── Los HUECOS que traen español dentro (lote servidor, 2026-11-02) ────────
+//
+// Casi todos los huecos de una plantilla son cifras, fechas o nombres que el
+// usuario escribio, y se conservan tal cual. Unos pocos traen ESPAÑOL armado
+// por el propio servidor —la periodicidad en minuscula, la etapa de un
+// prospecto, la lista de datos que faltan—, y dejarlos asi daria «payments
+// billed mensual». Esos se traducen pieza por pieza con estas tablas, cerradas
+// y sacadas del codigo que las produce. Lo que no esta en la tabla se conserva
+// (un nombre propio, una etiqueta nueva): mejor un hueco en español que uno
+// inventado.
+
+/** Comillas rectas del español → curvas del ingles (glosario). */
+const curvas = (v: string) => v.replace(/"([^"]*)"/g, '“$1”')
+
+// `c.periodicidad.toLowerCase()` (`arrendadores-repo.ts`). En letra, como
+// manda el glosario: «billed every two weeks», nunca «billed biweekly».
+const PERIODICIDAD_EN: Record<string, string> = {
+  diaria: 'daily',
+  semanal: 'weekly',
+  catorcenal: 'every two weeks',
+  quincenal: 'twice a month',
+  mensual: 'monthly',
+  bimestral: 'every two months',
+  trimestral: 'quarterly',
+  semestral: 'every six months',
+  anual: 'yearly',
+}
+
+// `ETIQUETA_ETAPA[...].toLowerCase()` (`lib/captacion.ts`); el ingles es el de
+// `comercial.negociacion.etapa.*`, en minuscula.
+const ETAPA_EN: Record<string, string> = {
+  prospecto: 'a prospect',
+  contactado: 'contacted',
+  visita: 'at the visit stage',
+  negociación: 'in negotiation',
+  'en revisión': 'in review',
+  aprobado: 'approved',
+  rechazado: 'rejected',
+  perdido: 'lost',
+}
+
+// `faltantesParaRevision()` (`lib/captacion.ts`).
+const FALTA_REVISION_EN: Record<string, string> = {
+  'un teléfono o un correo de contacto': 'a contact phone number or email',
+  'la dirección': 'the address',
+  'el dueño: un arrendador existente o el nombre y teléfono del contacto':
+    'the owner: an existing landlord or the contact’s name and phone number',
+}
+
+// Las etiquetas de `exigir(...)` (`lib/contrato-documento.ts`). Son las del
+// mensaje de error, NO el texto legal del contrato: ese no se traduce nunca.
+export const FALTA_FIRMA_EN: Record<string, string> = {
+  'Razón social de tu empresa': 'Your company’s legal name',
+  'RFC de tu empresa': 'Your company’s RFC',
+  'Domicilio fiscal de tu empresa': 'Your company’s tax address',
+  'Representante legal de tu empresa': 'Your company’s legal representative',
+  'Nombre del arrendador': 'Landlord’s name',
+  'RFC del arrendador': 'Landlord’s RFC',
+  'Domicilio del arrendador': 'Landlord’s address',
+  'Dirección del espacio': 'Space address',
+  'Fecha de inicio': 'Start date',
+  'Fecha de fin': 'End date',
+  'Importe de la renta': 'Rent amount',
+  'Periodicidad del pago': 'Payment frequency',
+}
+
+const deTabla = (tabla: Record<string, string>) => (v: string) => tabla[v] ?? v
+const lista = (tabla: Record<string, string>) => (v: string) =>
+  v.split(', ').map(deTabla(tabla)).join(', ')
+
+// `motivosDeBloqueo(r).join(' y ')` (`clientes-controller.ts`): «1 campaña y
+// 3 clientes que lo tienen como agencia». Cada pieza lleva su plural.
+function bloqueoClienteEn(v: string): string {
+  return v
+    .split(' y ')
+    .map((pieza) => {
+      const m = /^(\d+) (campañas?|facturas?|clientes?|propuestas?)( que lo tienen como agencia)?$/.exec(pieza)
+      if (!m) return pieza
+      const uno = m[1] === '1'
+      const cosa = { campaña: 'campaign', factura: 'invoice', cliente: 'client', propuesta: 'proposal' }[
+        m[2].replace(/s$/, '') as 'campaña'
+      ]
+      const agencia = m[3] ? (uno ? ' that has it as its agency' : ' that have it as their agency') : ''
+      return `${m[1]} ${cosa}${uno ? '' : 's'}${agencia}`
+    })
+    .join(' and ')
+}
+
+// `contratos-sitio.ts` · quien esta lejos y de que.
+function pantallaLejosEn(v: string): string {
+  return v === 'La pantalla' ? 'The screen' : curvas(v)
+}
+function referenciaPredioEn(v: string): string {
+  const yaEsta = /^"(.*)", que ya está en el predio "(.*)"$/.exec(v)
+  if (yaEsta) return `“${yaEsta[1]}”, which is already on the property “${yaEsta[2]}”`
+  const predio = /^el predio "(.*)"$/.exec(v)
+  if (predio) return `the property “${predio[1]}”`
+  return curvas(v)
+}
+
+/**
+ * Un patron de error: reconoce el mensaje YA ARMADO en español y lo rearma en
+ * ingles.
+ *
+ *  · `$n` en `en` es el hueco n, conservado (o pasado por `huecos[n]`).
+ *  · `{n|uno|otros}` es el plural del hueco n: «uno» si vale 1, «otros» si no.
+ *    Es la regla de los plurales con contador del glosario, que un `$1` solo
+ *    no puede cumplir («1 pages»).
+ */
+export type PatronError = {
+  re: RegExp
+  en: string
+  huecos?: Record<number, (valor: string) => string>
+}
 
 // ─── Los motivos de zod que llevan un NUMERO dentro ─────────────────────────
 //
 // El numero sale del esquema, asi que no cabe en un catalogo de frases: va por
 // patron y se conserva tal cual. Son los de `mapaZodEs`
 // (`lib/server/errores.ts`), uno por uno.
-export const PATRONES_ERROR: ReadonlyArray<{ re: RegExp; en: string }> = [
+export const PATRONES_ERROR: ReadonlyArray<PatronError> = [
   // PROP-COMPLETA (29/10) · la liga de una propuesta vencida lleva la fecha.
   {
     re: /^Esta propuesta venció el (\d{2}\/\d{2}\/\d{4})\. Pide una actualizada a quien te la envió\.$/,
@@ -678,21 +818,23 @@ export const PATRONES_ERROR: ReadonlyArray<{ re: RegExp; en: string }> = [
   // ADR 0042 · los de `resolverCalculadora` (`lib/calculadora-spots.ts`): el
   // número sale de la pantalla y de la línea, no del esquema, pero el problema
   // es el mismo — no cabe en un catálogo de frases.
-  { re: /^Un Roadblock compra los (\d+) espacios del loop, no (\d+)\.$/, en: 'A Roadblock buys all $1 slots of the loop, not $2.' },
+  { re: /^Un Roadblock compra los (\d+) espacios del loop, no (\d+)\.$/, en: 'A Roadblock buys every loop slot ($1), not $2.' },
   { re: /^Los espacios del loop van de 1 a (\d+)\.$/, en: 'Loop slots go from 1 to $1.' },
   {
     re: /^Las horas al día van de más de 0 a ([\d.,]+): más horas de las que transmite la pantalla serían spots que no salen\.$/,
-    en: 'Hours per day go from more than 0 to $1: more hours than the screen broadcasts would be spots that never air.',
+    en: 'Hours per day must be greater than 0 and at most $1: hours beyond what the screen broadcasts would be spots that never play.',
   },
   {
     re: /^La cantidad de spots no cuadra con la calculadora: con (\d+) espacios, ([\d.,]+) h al día y (\d+) días son (\d+) spots, no (.+)\.$/,
     en: 'The spot quantity does not match the calculator: with $1 slots, $2 h a day and $3 days it is $4 spots, not $5.',
+    // Sin cantidad enviada el servidor escribe «ninguna» (lote servidor).
+    huecos: { 5: (v) => (v === 'ninguna' ? 'none' : v) },
   },
   {
     re: /^Un Roadblock necesita los (\d+) espacios del loop libres, y la pantalla tiene (\d+)\.$/,
-    en: 'A Roadblock needs all $1 loop slots free, and the screen has $2.',
+    en: 'A Roadblock needs every loop slot free ($1); the screen has $2 free.',
   },
-  { re: /^Pides (\d+) espacios del loop y la pantalla solo tiene (\d+) libres\.$/, en: 'You ask for $1 loop slots and the screen only has $2 free.' },
+  { re: /^Pides (\d+) espacios del loop y la pantalla solo tiene (\d+) libres\.$/, en: 'You’re asking for $1 loop {1|slot|slots} and the screen only has $2 free.' },
   // 2026-10-05 · regla 2 del ADR 0039, las dos direcciones: el canje sobre un
   // paquete de precio final (`canjearCodigo`) y el paquete sobre un cupón ya
   // canjeado (`aplicarPaquete`). Llevan el nombre del paquete y del cupón, y
@@ -706,14 +848,183 @@ export const PATRONES_ERROR: ReadonlyArray<{ re: RegExp; en: string }> = [
     re: /^El paquete "(.+)" es precio final y no admite codigos promocionales\. Quita el codigo "(.+)" antes de aplicarlo, o usa un paquete que si los admita\.$/,
     en: 'The package "$1" is a final price and does not accept promo codes. Remove the code "$2" before applying it, or use a package that does.',
   },
+
+  // ── LOTE SERVIDOR (ola 4, 2026-11-02) · las `new AppError(`…${x}…`)` ──────
+  //
+  // Una por plantilla del arbol, en el orden de `errores-servidor-plantillas
+  // .test.ts`, que es quien exige que no falte ninguna. La regex es el español
+  // LITERAL del sitio con cada `${…}` cambiado por un grupo.
+
+  // app/api/energia/recibos/route.ts y lib/server/recibos-cfe/controller.ts
+  { re: /^Los meses esperados tienen que ser (.+)\.$/, en: 'The expected months must be $1.' },
+  {
+    re: /^Son (\d+) archivos y el maximo por tanda es (\d+)\.$/,
+    en: 'There are $1 files and the maximum per batch is $2.',
+  },
+  {
+    re: /^Son (\d+) archivos y el maximo por tanda es (\d+)\. Subelos en varias veces\.$/,
+    en: 'There are $1 files and the maximum per batch is $2. Upload them in several batches.',
+  },
+  { re: /^«(.+)» pesa demasiado para ser un recibo de CFE\.$/, en: '“$1” is too large to be a CFE bill.' },
+  // lib/server/recibos-cfe/lector-pdf.ts
+  {
+    re: /^El PDF tiene (\d+) paginas y un recibo de CFE tiene 2\. Sube los recibos por separado\.$/,
+    en: 'The PDF has $1 {1|page|pages} and a CFE bill has 2. Upload the bills separately.',
+  },
+  // lib/server/arrendadores-controller.ts
+  {
+    re: /^No se puede borrar: el arrendador tiene (\d+) predio\(s\) y (\d+) contrato\(s\) activo\(s\)\. Reasigna o cancela sus contratos primero\.$/,
+    en: 'Cannot delete: the landlord has $1 {1|property|properties} and $2 active {2|contract|contracts}. Reassign or cancel their contracts first.',
+  },
+  {
+    re: /^La fecha de fin \((.+)\) no puede ser anterior a la de inicio \((.+)\)\.$/,
+    en: 'The end date ($1) cannot be earlier than the start date ($2).',
+  },
+  {
+    re: /^La nueva fecha de fin debe ser posterior a la vigencia actual \((.+)\)\.$/,
+    en: 'The new end date must be after the current term ($1).',
+  },
+  {
+    re: /^Este periodo ya está pagado \((.+)\)\. Cancélalo antes de volver a registrarlo\.$/,
+    en: 'This period is already paid ($1). Cancel it before recording it again.',
+    huecos: { 1: (v) => (v === 'sin fecha' ? 'no date' : v) },
+  },
+  {
+    re: /^No se puede eliminar: (\d+) contratos? facturan? a esta razón social\. Cámbiala en esos contratos primero\.$/,
+    en: 'Cannot delete: $1 {1|contract bills|contracts bill} to this legal entity. Change it in {1|that contract|those contracts} first.',
+  },
+  // lib/server/arrendadores-repo.ts
+  {
+    re: /^La vigencia del contrato genera más de (\d+) pagos con periodicidad (.+)\. Revisa la fecha de fin: con esa cadencia el calendario no puede cubrir un plazo tan largo\.$/,
+    en: 'The contract term generates more than $1 payments billed $2. Check the end date: at that frequency the schedule cannot cover such a long term.',
+    huecos: { 2: deTabla(PERIODICIDAD_EN) },
+  },
+  {
+    re: /^Ese espacio ya estuvo arrendado hasta el (.+)\. El contrato nuevo debe empezar el (.+) o después, para no traslapar la vigencia anterior\.$/,
+    en: 'That space was already leased until $1. The new contract must start on $2 or later, so it does not overlap the previous term.',
+  },
+  // lib/server/campanas-repo.ts
+  {
+    re: /^Esta campana llega hasta el (.+)\. Extender solo puede alargarla: elige una fecha posterior\.$/,
+    en: 'This campaign runs until $1. Extending can only make it longer: choose a later date.',
+  },
+  // lib/server/captacion-repo.ts
+  {
+    re: /^No se puede editar un prospecto (.+)$/,
+    en: 'This prospect cannot be edited: it is $1',
+    huecos: { 1: deTabla(ETAPA_EN) },
+  },
+  {
+    re: /^Para enviarlo a revisión falta: (.+)$/,
+    en: 'To send it for review, this is missing: $1',
+    huecos: { 1: lista(FALTA_REVISION_EN) },
+  },
+  // lib/server/clientes-controller.ts
+  {
+    re: /^No se puede borrar: el cliente tiene (.+)\. Quítalos o reasígnalos antes de borrarlo\.$/,
+    en: 'Cannot delete: the client has $1. Remove or reassign them before deleting it.',
+    huecos: { 1: bloqueoClienteEn },
+  },
+  // lib/server/contratos-sitio.ts
+  {
+    re: /^(.+?) está a (.+?) de (.+)\. Un predio es un solo inmueble y su renta se reparte entre las pantallas que cuelgan de él, así que una que está lejos abarataría a las demás\. Revisa la dirección o las coordenadas, o dale su propio predio\. \(El límite son (\d+) m\.\)$/,
+    en: '$1 is $2 from $3. A property is a single premises and its rent is split among the screens attached to it, so one that is far away would lower the cost for the others. Check the address or the coordinates, or give it its own property. (The limit is $4 m.)',
+    huecos: { 1: pantallaLejosEn, 3: referenciaPredioEn },
+  },
+  {
+    re: /^"(.+)" todavía no se puede vender: su contrato de arrendamiento está incompleto\. Complétalo en Arrendadores \(arrendador, vigencia, importe y periodicidad\) antes de reservarla\.$/,
+    en: '“$1” cannot be sold yet: its lease is incomplete. Complete it in Landlords (landlord, term, amount and frequency) before booking it.',
+  },
+  // lib/server/entidades-controller.ts
+  { re: /^El rol (.+) viene repetido$/, en: 'The role $1 is repeated' },
+  {
+    re: /^Estos roles no existen en el catalogo: (.+)\. Los disponibles son: (.+)\.$/,
+    en: 'These roles do not exist in the catalog: $1. The available ones are: $2.',
+  },
+  // lib/server/firmas-repo.ts
+  {
+    re: /^No se puede enviar a firma: faltan (\d+) datos por capturar \((.+)\)\.$/,
+    en: 'Cannot send for signature: $1 {1|field is|fields are} still missing ($2).',
+    huecos: { 2: lista(FALTA_FIRMA_EN) },
+  },
+  { re: /^El nombre no puede pasar de (\d+) caracteres\.$/, en: 'The name cannot be longer than $1 characters.' },
+  // lib/server/horario-doohmain.ts
+  {
+    re: /^Esta campaña ya tiene franja horaria \((.+), (.+) a (.+)\): ese es el horario que se manda a DOOHmain y no lleva otro\.$/,
+    en: 'This campaign already has a daypart ($1, $2 to $3): that is the schedule sent to DOOHmain, and it cannot have another one.',
+  },
+  // lib/server/propuestas-controller.ts y lib/server/rejilla-controller.ts
+  {
+    re: /^La franja horaria "(.+)" no existe en esta organización o está desactivada\.$/,
+    en: 'The daypart “$1” does not exist in this organization or is deactivated.',
+  },
+  {
+    re: /^La temporada "(.+)" no existe en esta organización o está desactivada\.$/,
+    en: 'The season “$1” does not exist in this organization or is deactivated.',
+  },
+  {
+    re: /^La misma combinación de unidad, franja y temporada viene dos veces \((.+)\)\.$/,
+    en: 'The same combination of unit, daypart and season appears twice ($1).',
+  },
+  {
+    re: /^La combinación (.+) viene a la vez para guardar y para quitar\.$/,
+    en: 'The combination $1 is sent both to save and to remove.',
+  },
+  // lib/server/sitios-controller.ts
+  { re: /^La unidad "(.+)" viene repetida\.$/, en: 'The unit “$1” is repeated.' },
+  {
+    re: /^La unidad "(.+)" se manda a guardar y a quitar a la vez: decide una\.$/,
+    en: 'The unit “$1” is sent to be saved and removed at the same time: choose one.',
+  },
+  // lib/server/uploads.ts · todas llevan delante `${campo}`: «Logo: », vacio,
+  // o el nombre de la propiedad («arte: »). El grupo 1 lo conserva; con un
+  // campo de `CAMPO_EN` ya llega partido por `traducirError` y vale ''.
+  { re: /^(.*?)No se recibió ningún archivo$/, en: '$1No file was received' },
+  {
+    re: /^(.*?)El archivo debe venir como data URL en base64 \((.+)\)$/,
+    en: '$1The file must come as a base64 data URL ($2)',
+  },
+  {
+    re: /^(.*?)Tipo de archivo no permitido aquí\. Se aceptan: (.+)$/,
+    en: '$1File type not allowed here. Accepted: $2',
+  },
+  { re: /^(.*?)El archivo supera el límite de (.+) MB$/, en: '$1The file exceeds the $2 MB limit' },
+  { re: /^(.*?)El archivo está corrupto o mal codificado$/, en: '$1The file is corrupt or badly encoded' },
+  { re: /^(.*?)El archivo está vacío$/, en: '$1The file is empty' },
+  {
+    re: /^(.*?)El contenido del archivo no corresponde a un (.+) real$/,
+    en: '$1The file content is not a real $2',
+  },
+  { re: /^(.*?)El contenido del archivo no es texto válido$/, en: '$1The file content is not valid text' },
+  {
+    re: /^(.*?)El SVG contiene código ejecutable \(scripts o manejadores de eventos\) y no se puede aceptar$/,
+    en: '$1The SVG contains executable code (scripts or event handlers) and cannot be accepted',
+  },
 ]
+
+// Rearma un patron con los huecos del mensaje: `$n` (pasado por su funcion de
+// `huecos`, si tiene) y `{n|uno|otros}`. No se usa `String.replace` con la
+// cadena `en` como antes porque `$n` solo sabe copiar: ni traduce un hueco ni
+// elige un plural.
+function armar(p: PatronError, grupos: string[]): string {
+  return p.en
+    .replace(/\{(\d)\|([^|}]*)\|([^}]*)\}/g, (_, n: string, uno: string, otros: string) =>
+      grupos[Number(n) - 1] === '1' ? uno : otros,
+    )
+    .replace(/\$(\d)/g, (_, n: string) => {
+      const v = grupos[Number(n) - 1] ?? ''
+      const f = p.huecos?.[Number(n)]
+      return f ? f(v) : v
+    })
+}
 
 // Una pieza suelta: el motivo, sin la etiqueta de campo delante.
 function traducirMotivo(motivo: string): string {
-  const exacto = CATALOGO_ERRORES[motivo]
+  const exacto = CATALOGO_ERRORES[motivo] ?? CATALOGO_LIB[motivo]
   if (exacto !== undefined) return exacto
   for (const p of PATRONES_ERROR) {
-    if (p.re.test(motivo)) return motivo.replace(p.re, p.en)
+    const m = p.re.exec(motivo)
+    if (m) return armar(p, m.slice(1))
   }
   return motivo
 }
@@ -729,7 +1040,7 @@ export function traducirError(mensaje: string, idioma: Idioma): string {
   if (typeof mensaje !== 'string') return SIN_MENSAJE
   if (idioma === IDIOMA_POR_OMISION) return mensaje
 
-  const exacto = CATALOGO_ERRORES[mensaje]
+  const exacto = CATALOGO_ERRORES[mensaje] ?? CATALOGO_LIB[mensaje]
   if (exacto !== undefined) return exacto
 
   // `Campo: motivo`. Se parte SOLO si la izquierda es una etiqueta de campo

@@ -9,6 +9,7 @@ import { ES_CATALOGOS, EN_CATALOGOS } from './catalogos'
 import { ES_ADMIN, EN_ADMIN } from './admin'
 import { ES_CUENTA, EN_CUENTA } from './cuenta'
 import { ES_SHELL, EN_SHELL } from './shell'
+import { ES_SERVIDOR, EN_SERVIDOR } from './servidor'
 import { DICCIONARIOS } from '../diccionario'
 
 // ============================================================================
@@ -38,11 +39,12 @@ const LOTES: [string, Record<string, string>, Record<string, string>][] = [
   // titulo de la misma pagina «Activity log» sin que nadie lo viera
   // (validacion del lote de administracion, 2026-11-02).
   ['base', ...baseDelDiccionario()],
+  ['servidor', ES_SERVIDOR, EN_SERVIDOR],
 ]
 
 function baseDelDiccionario(): [Record<string, string>, Record<string, string>] {
   const deLotes = new Set(
-    [ES_PROPUESTAS, ES_COMPARTIDOS, ES_CAMPANAS, ES_FINANZAS, ES_COMERCIAL, ES_CODIGOS, ES_CATALOGOS, ES_ADMIN, ES_CUENTA, ES_SHELL].flatMap((o) => Object.keys(o)),
+    [ES_PROPUESTAS, ES_COMPARTIDOS, ES_CAMPANAS, ES_FINANZAS, ES_COMERCIAL, ES_CODIGOS, ES_CATALOGOS, ES_ADMIN, ES_CUENTA, ES_SHELL, ES_SERVIDOR].flatMap((o) => Object.keys(o)),
   )
   const es: Record<string, string> = {}
   const en: Record<string, string> = {}

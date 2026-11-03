@@ -11,7 +11,7 @@ import { motivoHorarioInvalido, textoHorario, textoReproducciones } from '@/lib/
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { Button } from '@/components/demo/ui/Button'
 import type { ClaveTexto } from '@/lib/i18n/diccionario'
-import { useIdioma, useTexto } from '@/lib/i18n/contexto'
+import { useIdioma } from '@/lib/i18n/contexto'
 import { interpolarNodos } from '@/lib/i18n/nodos'
 
 // ============================================================================
@@ -68,7 +68,7 @@ function HorarioIndividual({
   franja: VistaPreviaDoohmain['franjaCampana']
   onGuardado: () => void
 }) {
-  const t = useTexto()
+  const { t, idioma } = useIdioma()
   const puede = usePuede('comercial', 'crear')
   const [inicio, setInicio] = useState(actual?.horaInicio ?? '')
   const [fin, setFin] = useState(actual?.horaFin ?? '')
@@ -84,7 +84,7 @@ function HorarioIndividual({
   async function guardar(horario: { horaInicio: string; horaFin: string; dias: number[] | null } | null) {
     setError(null)
     if (horario) {
-      const motivo = motivoHorarioInvalido(horario)
+      const motivo = motivoHorarioInvalido(horario, idioma)
       if (motivo) return setError(motivo)
     }
     setGuardando(true)

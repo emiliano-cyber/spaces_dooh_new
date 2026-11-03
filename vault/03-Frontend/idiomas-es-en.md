@@ -449,6 +449,38 @@ mapa de Postgres, de los motivos de zod y de las constantes compartidas.
 > la guardia de `errores-servidor.test.ts`. Los 142 / 251 / 179 no se volvieron
 > a medir: tómalos como la foto de la entrega, no como el estado de hoy.
 
+> [!success] 2026-11-02 · lote servidor: las plantillas YA se traducen (medido)
+> Medido sobre `feat/ingles-servidor` con el mismo extractor de las guardias
+> (comentarios tachados, pruebas fuera):
+>
+> | | Sitios | |
+> |---|---:|---|
+> | `new AppError(...)` de producción, en 57 archivos | **343** | |
+> | · literales (todos en el catálogo; la guardia lo exige) | 219 | 64 % |
+> | · **plantillas con `${…}`** | **45** | 13 % |
+> | &nbsp;&nbsp;– traducidas por patrón | **44** | |
+> | &nbsp;&nbsp;– la composición de `validar()`, que va por partes | 1 | |
+> | · por variable (`e.message`, `motivo`, una constante) | 79 | 23 % |
+>
+> Las **44** se traducen con `PATRONES_ERROR` —la vía que ya usaban los
+> motivos de zod con un número—, que pasa de **15 a 53** patrones. El patrón
+> aprendió dos cosas: `{n|uno|otros}` (el plural con contador: «1 page» /
+> «5 pages») y `huecos` (los pocos valores que traen español armado por el
+> propio servidor: periodicidad, etapa del prospecto, datos que faltan, lo que
+> bloquea borrar un cliente). `CATALOGO_ERRORES` sigue en **201** entradas y
+> gana un hermano, `CATALOGO_LIB` (**27**), que sale del diccionario
+> (`textos/servidor.ts`). **`lib/server/errores.ts` no se tocó.** La guardia
+> nueva es `errores-servidor-plantillas.test.ts`: arma cada plantilla del árbol
+> con valores de ejemplo y exige español idéntico e inglés sin rastro de
+> español. Detalle en [[#Lote servidor]].
+>
+> **Lo que sigue sin medir con certeza son los 79 por variable.** Un barrido
+> aproximado de las clases de dominio que los controladores reenvían
+> (`PropuestaError`, `CanjeImposible`, `PaqueteImposible`, `ValidacionError`,
+> `FacturaError`…) y de los `return` de las funciones `motivo*` da **128
+> mensajes distintos**, de los que **20** ya están cubiertos: quedan **~108**
+> en español. Es el lote siguiente, y está contado.
+
 ### Detalles que costaron una medición
 
 - **El archivo se generó leyendo el código.** Las claves en español no se
@@ -1207,6 +1239,101 @@ uso con sus espejos) y los mensajes del servidor (I18N-05). Tablas de revisión:
   cuestionario, «who issues invoices» y «Go to the home page».
 - **Español, otra vez medido:** 60 de 60 estados idénticos frente a
   `ec427a66` (`diff -rq` vacío).
+### Lote servidor
+
+**2026-11-02, rama `feat/ingles-servidor`** (sale de `integra/ingles` en
+`0ceacb0b`). Ola 4: lo que el SERVIDOR manda al cliente y seguía en español
+con la pantalla en inglés. El inglés sigue APAGADO; en español no cambia ni
+una letra. Tabla de revisión en `docs/i18n/revision-servidor.md`.
+
+**1 · Las plantillas de error con huecos.** Contadas otra vez: **44** (más la
+composición de `validar()`, que ya se traducía por partes). Dos vías posibles:
+
+- que `AppError` aceptara una clave y sus valores: tocaba los 44 sitios,
+  `lib/server/errores.ts` (alto contacto) y el embudo, y reescribía el
+  español como plantilla del diccionario;
+- **un patrón por plantilla** en `PATRONES_ERROR`, la vía de los motivos de zod:
+  reconoce el mensaje ya armado y lo rearma en inglés conservando los valores.
+
+Se eligió la segunda porque toca **un archivo** (`lib/i18n/errores-servidor.ts`)
+y deja el español como fuente. `traducirMotivo` ya no usa `String.replace` con
+la cadena: un `$n` solo sabe copiar. `armar()` entiende además
+`{n|uno|otros}` (plural del hueco n) y `huecos[n]` (una función para el valor).
+
+> [!warning] Los huecos con español dentro
+> Casi todos los huecos son cifras, fechas o nombres y se conservan. Cinco
+> traen español armado por el propio servidor y se traducen con tablas
+> CERRADAS, comprobadas contra el código que las produce: la periodicidad en
+> minúscula (en letra: «billed every two weeks»), la etapa del prospecto, los
+> faltantes para revisión (`faltantesParaRevision`), las etiquetas de
+> `exigir(...)` de `contrato-documento.ts` (las del MENSAJE, nunca el texto
+> legal) y lo que bloquea borrar un cliente. Un valor que no está en la tabla
+> se conserva: mejor un hueco en español que uno inventado. Los prefijos de
+> `uploads.ts` que no son etiqueta (`arte: `, `imagen: `, el nombre de la
+> propiedad) también se conservan.
+
+**2 · Los motivos de `lib/` que comparten servidor y pantalla.** Archivo propio
+`lib/i18n/textos/servidor.ts` (**31 claves**, prefijo `servidor.*`). Las
+funciones ganan `idioma` con `'es'` por omisión y en español devuelven su
+literal de siempre; `textos/servidor.test.ts` ata el diccionario al módulo.
+
+| Función | Quién pasa el idioma |
+|---|---|
+| `motivoEtapaResponsable`, `motivoQuitarLegal`, `motivoPresupuesto`, `motivoCambioOferta`, `motivoEdicion` (`lib/negociacion.ts`) | `ComercialOpex` (el `title` de los pasos y el aviso de la ficha) |
+| `interpretarUbicacion` | `ComercialOpex` (el buscador); la tabla de motivos SALE del diccionario, no se repite |
+| `motivoHorarioInvalido` | `ProgramacionDoohmain` |
+| `avisosDeProgramacion` | `programacionCtrl`, con `idiomaDeLaPeticion()`: el aviso viaja en el cuerpo |
+| `MSJ_APROBAR_CON_PENDIENTE` | la ruta lo responde a mano, sin `respuestaError()`: el cliente reconoce `codigoPendiente` (`CodigoPendienteApiError`) y pinta `servidor.codigo.aprobar-con-pendiente` |
+
+Y el servidor dice lo mismo: **`CATALOGO_LIB`** (`errores-servidor.ts`) se
+construye con las claves sin huecos de `textos/servidor.ts`. Va aparte de
+`CATALOGO_ERRORES` para no tocar la guardia de entradas muertas, que solo ve
+literales. Entran también «Periodo inválido», «Cliente inválido» y «El rango
+necesita fecha de inicio y de fin», y `Periodo` en `CAMPO_EN`.
+
+**Ya estaba hecho y no se tocó:** la etiqueta del periodo que manda el servidor
+(la rearma `etiquetaPeriodo` en la pantalla desde la costura) y los motivos de
+`resolverCalculadora` (patrones del ADR 0042; solo se añadió «ninguna» →
+«none»).
+
+> [!danger] Lo que es REGISTRO no se tradujo, a propósito
+> Los textos de Actividad de `codigo-aprobacion.ts` (`textoReactivacion`,
+> `textoAprobacion`, `textoRechazo`, `textoQuitadoAlAceptar`) y
+> `textoAccionProgramacion` se GUARDAN en `acciones`: son la bitácora. Siguen
+> en español (§8, «lo que es REGISTRO se queda en español»).
+
+**Pantalla y servidor, el mismo inglés** (lo encontró la tarea de «pesos»,
+`feat/pesos-neutral`): ocho motivos de la calculadora (`compartidos.calc.motivo.*`
+y `propuestas.calc.prima.no-puede`) decían el mismo español con un inglés en la
+pantalla y otro en el catálogo y los patrones del servidor. Manda el de la
+pantalla, que validaron compartidos y propuestas; «pocos libres» elige además el
+plural con `{1|slot|slots}`. Prueba en `textos/servidor.test.ts` («pantalla y
+servidor dicen el mismo inglés»), que recorre el diccionario ENTERO. **Al juntar
+con `feat/pesos-neutral`, se quita la excepción de `compartidos.calc.motivo.*` y
+`propuestas.calc.*` de su prueba de `costura.test.ts`.**
+
+**Términos nuevos:** responsable legal → *legal representative* (como
+`comercial.negociacion.responsable.5`); búsqueda del responsable → *finding
+the decision-maker*; predio → *property*; recibo de CFE → *CFE bill*; tanda →
+*batch*; «sin fecha» → *no date*; «ninguna» (cantidad) → *none*.
+**Corregido:** el motivo de Google Maps decía «tap the place» en el catálogo;
+ahora «click», como manda el glosario.
+
+**Cómo se midió que el español no cambió:** el HTML de las cuatro pruebas de
+pantallas (109 estados) volcado con los archivos de `0ceacb0b` y con los de la
+rama: `diff -rq` vacío. Las plantillas, todas: `traducirError(m, 'es') === m`
+para cada una armada con valores de ejemplo y para cada clave del catálogo.
+
+**Lo que NO cubre este lote:**
+
+- **Las rutas que responden `{ error: e.message }` a mano** sin pasar por
+  `respuestaError()` (`app/api/propuestas/[id]/route.ts` y al menos otras seis): su
+  error llega en español. No se tocó `app/api`; el cupón pendiente se resolvió
+  en el cliente porque trae bandera.
+- **~108 mensajes por variable** de las clases de dominio y de las funciones
+  `motivo*` (§8). Es la ola siguiente.
+- El nombre del punto que devuelve `geo-buscar` («Punto del enlace de Google
+  Maps», «Coordenadas …»), que es dato de respuesta y no error.
 
 ## Enlaces
 

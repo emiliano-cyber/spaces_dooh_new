@@ -96,8 +96,8 @@ traductor  ──►  validador  ──►  ¿VERDE?  ──sí──►  se jun
 
 | Lote | Rama | Estado |
 |---|---|---|
-| Plantillas de error con huecos y motivos compartidos con el servidor | `feat/ingles-servidor` | Traduciendo |
-| «pesos» en redacción neutra (español **e** inglés) | `feat/pesos-neutral` | Hecho (4 claves de Paquetes). En validación. Es el único cambio autorizado del español |
+| Plantillas de error con huecos y motivos compartidos con el servidor | `feat/ingles-servidor` | **VERDE**. Integrado. 45 plantillas por patrón, 31 claves `servidor.*`; la calculadora dice lo mismo en servidor y pantalla. Pendiente para otra ola: ~108 frases de dominio y 7 rutas que responden `e.message` (las más visibles: los `confirm` de aprobar en $0 y descuento sobre el tope) |
+| «pesos» en redacción neutra (español **e** inglés) | `feat/pesos-neutral` | Hecho (4 claves de Paquetes). En 2.ª validación. Es el único cambio autorizado del español |
 
 ### Ola 5 · Cierre (por lanzar)
 

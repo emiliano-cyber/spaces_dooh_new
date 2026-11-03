@@ -938,8 +938,10 @@ const PANTALLAS: Pantalla[] = [
       'Sin ubicación guardada · GPS del teléfono: pendiente',
       'Sin contactos registrados.',
       'Sin notas todavía.',
+      // Lote servidor (02/11): el aviso de la ficha sale de `motivoEdicion`.
+      'El espacio está perdido: ya solo admite notas',
     ],
-    ingles: ['0 of 2', 'No spaces match.', 'Inactive', 'No notes yet.'],
+    ingles: ['0 of 2', 'No spaces match.', 'Inactive', 'No notes yet.', 'The space is lost: it only accepts notes now'],
   },
   {
     nombre: 'codigos · la lista, con el selector de propuesta abierto',

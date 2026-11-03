@@ -63,7 +63,7 @@ import {
 import { useRouter } from 'next/navigation'
 import { ArrowUpRight } from 'lucide-react'
 import { withTrail } from '@/lib/nav-trail'
-import { crearPropuestaApi, agregarSitiosPropuestaApi, cambiarEstatusPropuestaApi, aprobarItemPropuestaApi, generarCampanaDesdePropuestaApi, ConfirmacionCeroError } from '@/lib/data/estado-api'
+import { crearPropuestaApi, agregarSitiosPropuestaApi, cambiarEstatusPropuestaApi, aprobarItemPropuestaApi, generarCampanaDesdePropuestaApi, ConfirmacionCeroError, CodigoPendienteApiError } from '@/lib/data/estado-api'
 import {
   UNIDADES,
   unidadCorta,
@@ -411,6 +411,7 @@ function PropuestaCard({
         if (window.confirm(`${e.message}\n\n${t('propuestas.comun.aprobar-igual')}`)) return cambiar(estatus, true)
         return
       }
+      if (e instanceof CodigoPendienteApiError) return void toast.error(t('servidor.codigo.aprobar-con-pendiente'))
       toast.error(e instanceof Error ? e.message : t('propuestas.comun.error'))
     }
   }

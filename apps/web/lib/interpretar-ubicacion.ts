@@ -30,6 +30,10 @@
 //     silencio dejaría pasar un error de verdad en otra parte del mundo.
 // ============================================================================
 
+import { traducir, type ClaveTexto } from './i18n/diccionario'
+import type { Idioma } from './i18n/idiomas'
+import { ES_SERVIDOR } from './i18n/textos/servidor'
+
 export type Interpretacion =
   | { tipo: 'punto'; lat: number; lng: number; fuente: 'coordenadas' | 'enlace' }
   | { tipo: 'enlace-corto'; url: string }
@@ -193,7 +197,27 @@ function interpretarEnlace(token: string): Interpretacion {
 
 // ─── La entrada ─────────────────────────────────────────────────────────────
 
-export function interpretarUbicacion(texto: string): Interpretacion {
+// I18N (lote servidor, 2026-11-02) · el motivo de rechazo en el idioma de
+// quien lo lee. El servidor no pasa `idioma` y sigue lanzando el español de
+// siempre (`AppError(i.motivo)`, que traduce I18N-05); la pantalla de Comercial
+// negociacion le pasa el suyo, porque ese motivo lo pinta sin preguntar a
+// nadie. La tabla sale del diccionario (`servidor.ubicacion.*`), cuyo español
+// `textos/servidor.test.ts` exige que sea el de este archivo: aqui no se
+// repite ninguna frase.
+const CLAVE_DEL_MOTIVO: Record<string, ClaveTexto> = Object.fromEntries(
+  Object.entries(ES_SERVIDOR)
+    .filter(([clave]) => clave.startsWith('servidor.ubicacion.'))
+    .map(([clave, es]) => [es, clave as ClaveTexto]),
+)
+
+export function interpretarUbicacion(texto: string, idioma: Idioma = 'es'): Interpretacion {
+  const r = interpretarEnEspanol(texto)
+  if (idioma === 'es' || r.tipo !== 'invalido') return r
+  const clave = CLAVE_DEL_MOTIVO[r.motivo]
+  return clave ? { ...r, motivo: traducir(idioma, clave) } : r
+}
+
+function interpretarEnEspanol(texto: string): Interpretacion {
   const t = (texto ?? '').trim()
 
   // Un enlace puede venir dentro de un texto: «Compartir» en el teléfono pega
