@@ -29,6 +29,7 @@ import { useIdioma, useTexto } from '@/lib/i18n/contexto'
 import { interpolarNodos } from '@/lib/i18n/nodos'
 import type { ClaveTexto } from '@/lib/i18n/diccionario'
 import type { Idioma } from '@/lib/i18n/idiomas'
+import { cifraEnEtiqueta } from '@/lib/i18n/cifra-en-etiqueta'
 import { CLAVE_ESTATUS } from '@/components/demo/propuestas/estatus'
 
 // ============================================================================
@@ -312,7 +313,7 @@ export function GestionCodigos() {
                       {t(ETIQUETA[estado].texto)}
                     </StatusBadge>
                   </td>
-                  <td className="demo-num whitespace-nowrap px-3 py-2.5 text-right font-medium text-ink">{t('codigos.pct', { pct: c.descuentoPct })}</td>
+                  <td className="demo-num whitespace-nowrap px-3 py-2.5 text-right font-medium text-ink">{t('codigos.pct', { pct: cifraEnEtiqueta(c.descuentoPct, idioma) })}</td>
                   <td className={`demo-num whitespace-nowrap px-3 py-2.5 ${estado === 'VENCIDO' ? 'text-muted' : 'text-ink'}`}>
                     {fecha(c.vigenteDesde, idioma)} → {fecha(c.vigenteHasta, idioma)}
                   </td>

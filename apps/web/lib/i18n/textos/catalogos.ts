@@ -519,11 +519,267 @@ export const EN_CATALOGOS: Record<ClaveCatalogos, string> = {
     'Buying more cannot discount less: the tier from {otroDesde} gives {otroPct}% and this one, from {n}, would give {pct}%.',
 }
 
-// ─── ITALIANO · ola 0 (2026-11-03) ──────────────────────────────────────────
-// PARCIAL a proposito: lo rellena el lote de traduccion de este ambito
-// (`vault/03-Frontend/italiano-olas.md`). Mientras falte una clave, la
-// pantalla la pinta en INGLES (`diccionario.ts`, `DICCIONARIOS.it`) y la
-// prueba de cobertura (`cobertura-italiano.test.ts`) la cuenta como pendiente.
-// Cuando el lote termine, el tipo pasa a `Record<ClaveCatalogos, string>` y `tsc`
-// vuelve a exigir cada clave, como en el ingles.
-export const IT_CATALOGOS: Partial<Record<ClaveCatalogos, string>> = {}
+// ─── ITALIANO · lote L2 «Comercial y propuestas» (2026-11-03) ──────────────
+// Completo: desde este lote el tipo es `Record` y `tsc` exige cada clave, como
+// en el ingles. Traducido desde el ESPANOL (el ingles solo como apoyo).
+// Glosario del lote (`vault/03-Frontend/italiano-olas.md`): paquete cerrado →
+// «pacchetto» · precio cerrado → «prezzo fisso» · a prorrata → «in
+// proporzione» · reparto → «ripartizione» · parte del paquete → «quota del
+// pacchetto» · franja → «fascia oraria» · temporada → «stagione» · dar de baja
+// / dada de baja → «disattivare» / «Disattivata» (baja LOGICA, como el ingles)
+// · tramo → «scaglione» · escalon → «gradino» · escala plana → «scala piatta» ·
+// rejilla → «griglia tariffaria» · horario de transmision → «palinsesto» ·
+// programar → «programmare» · tarifa de lista → «tariffa di listino» ·
+// pantalla (de inventario) → «impianto» · «se compone» → «si applica a
+// cascata». Porcentajes sin espacio («10%»).
+// Los motivos (`catalogos.motivo.*`) los manda tambien el servidor: el
+// catalogo de errores italiano (lote L5) tiene que decirlos IGUAL.
+// El «({ejemplo})» de la tarifa ilegible es «15,000.50» A PROPOSITO: describe
+// como se TECLEA la cifra (`lib/captura-cifra.ts`, coma de miles), no como se
+// pinta en italiano.
+export const IT_CATALOGOS: Record<ClaveCatalogos, string> = {
+  // ── Comunes del lote ──
+  'catalogos.comun.nombre': 'Nome',
+  'catalogos.comun.desde': 'Dal',
+  'catalogos.comun.hasta': 'Al',
+  'catalogos.comun.estado': 'Stato',
+  'catalogos.comun.anadir': 'Aggiungi',
+  'catalogos.comun.eliminar': 'Elimina',
+  'catalogos.comun.activa': 'Attiva',
+  'catalogos.comun.dada-de-baja': 'Disattivata',
+  'catalogos.comun.dar-de-baja': 'Disattiva',
+  'catalogos.comun.unidad': 'Unità',
+  'catalogos.comun.franja': 'Fascia oraria',
+  'catalogos.comun.temporada': 'Stagione',
+  'catalogos.comun.tarifa': 'Tariffa',
+  'catalogos.comun.todo-el-dia': 'Tutto il giorno',
+  'catalogos.comun.todo-el-ano': 'Tutto l’anno',
+  'catalogos.comun.no-guardar': 'Impossibile salvare',
+  'catalogos.comun.no-eliminar': 'Impossibile eliminare',
+
+  // ── Paquetes cerrados ──
+  'catalogos.paquetes.descripcion':
+    'Un insieme di impianti con un prezzo per l’insieme. Sostituisce la somma delle loro tariffe di listino; non la sconta.',
+  'catalogos.paquetes.no-leer': 'Impossibile leggere il catalogo dei pacchetti',
+  'catalogos.paquetes.no-guardar': 'Impossibile salvare il pacchetto',
+  'catalogos.paquetes.no-cambiar': 'Impossibile modificare il pacchetto',
+  'catalogos.paquetes.no-eliminar': 'Impossibile eliminare il pacchetto',
+  'catalogos.paquetes.cargando': 'Caricamento dei pacchetti',
+  'catalogos.paquetes.aviso.sustituye':
+    'Il prezzo del pacchetto SOSTITUISCE la somma delle tariffe di listino: non la sconta, la rimpiazza.',
+  'catalogos.paquetes.aviso.da-igual': 'Non importa quanto sommino gli impianti: si fattura il prezzo del pacchetto.',
+  'catalogos.paquetes.aviso.volumen':
+    'Per questo un pacchetto {negrita} (il suo prezzo lo include già) né codici di negoziazione, a meno che tu non spunti la casella qui sotto. Lo sconto commerciale della proposta invece continua ad applicarsi sopra.',
+  'catalogos.paquetes.aviso.volumen.negrita': 'non ammette sconto per volume',
+  'catalogos.paquetes.aviso.quitar':
+    'E {negrita}: la ripartizione si ricalcola tra quelli che restano e la proposta lo segnala.',
+  'catalogos.paquetes.aviso.quitar.negrita': 'togliere un impianto da una proposta già quotata NON abbassa il prezzo',
+  'catalogos.paquetes.lista.titulo': 'Pacchetti dell’organizzazione',
+  'catalogos.paquetes.lista.subtitulo': 'Si ripartisce in proporzione alla tariffa di listino',
+  'catalogos.paquetes.lista.explicacion':
+    'Il prezzo si ripartisce tra gli impianti {prorrata}, e la somma delle quote dà il prezzo del pacchetto {peso}. Questa ripartizione è il ricavo che il report di redditività attribuisce a ciascun impianto.',
+  'catalogos.paquetes.lista.explicacion.prorrata': 'in proporzione alla loro tariffa di listino',
+  'catalogos.paquetes.lista.explicacion.peso': 'esattamente',
+  'catalogos.paquetes.col.paquete': 'Pacchetto',
+  'catalogos.paquetes.col.pantallas': 'Impianti',
+  'catalogos.paquetes.col.precio': 'Prezzo fisso',
+  'catalogos.paquetes.col.codigos': 'Codici di negoziazione',
+  'catalogos.paquetes.col.en-uso': 'In uso',
+  'catalogos.paquetes.vacio':
+    'Non ce n’è ancora nessuno. Senza pacchetti, tutto si vende alla tariffa di listino, che è esattamente come funziona oggi.',
+  'catalogos.paquetes.activo': 'Attivo',
+  'catalogos.paquetes.desactivado': 'Disattivato',
+  'catalogos.paquetes.pantallas.uno': '{n} impianto',
+  'catalogos.paquetes.pantallas.otros': '{n} impianti',
+  'catalogos.paquetes.admite-codigo': 'Ammette codici',
+  'catalogos.paquetes.precio-final': 'Prezzo finale',
+  'catalogos.paquetes.en-uso.title': 'Proposte che applicano questo pacchetto',
+  'catalogos.paquetes.en-uso': 'In uso · {n}',
+  'catalogos.paquetes.desactivar': 'Disattiva',
+  'catalogos.paquetes.activar': 'Attiva',
+  'catalogos.paquetes.desactivar.title':
+    'Disattivare conserva la definizione e il pacchetto non si può più vendere. Ciò che è già stato quotato o approvato non cambia.',
+  'catalogos.paquetes.eliminar.title':
+    'Elimina: nessuna vendita cambia, perché il suo prezzo è già copiato in ogni proposta. Ciò che si perde è sapere da quale pacchetto proveniva.',
+  'catalogos.paquetes.nuevo': 'Nuovo pacchetto',
+  'catalogos.paquetes.nombre.aria': 'Nome del pacchetto',
+  'catalogos.paquetes.nombre.placeholder': 'es. Pacchetto Periferico',
+  'catalogos.paquetes.precio': 'Prezzo dell’insieme (importo intero, senza centesimi)',
+  'catalogos.paquetes.precio.aria': 'Prezzo fisso del pacchetto',
+  'catalogos.paquetes.precio.placeholder': 'es. {ejemplo}',
+  'catalogos.paquetes.admite-codigo-encima': 'Ammette un codice di negoziazione in aggiunta',
+  'catalogos.paquetes.pantallas-del-paquete': 'Impianti del pacchetto',
+  'catalogos.paquetes.minimo':
+    ' (minimo 2). Una proposta può applicare questo pacchetto solo se ha {exactamente} questi impianti.',
+  'catalogos.paquetes.minimo.exactamente': 'esattamente',
+  'catalogos.paquetes.elegidas.uno': '{n} scelto',
+  'catalogos.paquetes.elegidas.otros': '{n} scelti',
+  'catalogos.paquetes.de-lista': '{monto} di listino',
+  'catalogos.paquetes.resumen.lista': 'Listino {monto}',
+  'catalogos.paquetes.resumen.paquete': 'Pacchetto {monto}',
+  'catalogos.paquetes.resumen.deja-de-cobrar': 'si incassano {monto} in meno',
+  'catalogos.paquetes.resumen.por-encima': 'si incassano {monto} IN PIÙ rispetto al listino',
+  'catalogos.paquetes.reparto.intro':
+    'Ecco come si ripartirebbe tra gli impianti, ed è ciò che il report di redditività attribuirà a ciascuno:',
+  'catalogos.paquetes.reparto.pantalla': 'Impianto',
+  'catalogos.paquetes.reparto.lista': 'Listino',
+  'catalogos.paquetes.reparto.parte': 'Quota del pacchetto',
+  'catalogos.paquetes.reparto.suma': 'Somma delle quote {cuadra}',
+  'catalogos.paquetes.reparto.cuadra': '— torna esatta',
+  'catalogos.paquetes.crear': 'Crea pacchetto',
+
+  // ── Franjas y temporadas ──
+  'catalogos.rejilla.descripcion':
+    'Le due dimensioni della tariffa: l’ora del giorno e il periodo dell’anno. Si inseriscono una volta e valgono per tutto l’inventario.',
+  'catalogos.rejilla.no-leer': 'Impossibile leggere il catalogo',
+  'catalogos.rejilla.no-dar-de-baja': 'Impossibile disattivare',
+  'catalogos.rejilla.cargando': 'Caricamento del catalogo',
+  'catalogos.rejilla.candado.titulo': 'Conferma con la tua password',
+  'catalogos.rejilla.candado.subtitulo':
+    'Fasce orarie e stagioni sono prezzo: la tua organizzazione chiede la password per modificarle.',
+  'catalogos.rejilla.candado.confirmar': 'Conferma e salva',
+  'catalogos.rejilla.franjas.titulo': 'Fasce orarie',
+  'catalogos.rejilla.franjas.subtitulo': 'Fine esclusa · senza sovrapposizioni',
+  'catalogos.rejilla.franjas.explicacion':
+    'La fine è {exclusivo}: 06:00–10:00 e 10:00–14:00 si toccano senza sovrapporsi. Due fasce orarie non possono sovrapporsi: se potessero, il prezzo di uno spot alle 09:30 dipenderebbe da uno spareggio che nessuno ha deciso.',
+  'catalogos.rejilla.franjas.explicacion.exclusivo': 'esclusa',
+  'catalogos.rejilla.col.orden': 'Ordine',
+  'catalogos.rejilla.franjas.vacio':
+    'Non ce n’è ancora nessuna. Senza fasce orarie, tutto si vende con la tariffa base, che è esattamente come funziona oggi.',
+  'catalogos.rejilla.dar-de-baja.title': 'Disattiva: non viene più offerta, e ciò che è già stato venduto resta valido',
+  'catalogos.rejilla.franja.nombre.aria': 'Nome della fascia oraria',
+  'catalogos.rejilla.franja.nombre.placeholder': 'es. Prime',
+  'catalogos.rejilla.franja.inicio.aria': 'Ora di inizio',
+  'catalogos.rejilla.franja.fin.aria': 'Ora di fine',
+  'catalogos.rejilla.temporadas.titulo': 'Stagioni',
+  'catalogos.rejilla.temporadas.subtitulo': 'Date con anno · entrambi gli estremi inclusi',
+  'catalogos.rejilla.temporadas.explicacion':
+    'Date {concretas}, con l’anno: «Buen Fin 2026» e «Buen Fin 2027» sono due stagioni, perché le date cambiano ogni anno. Entrambi gli estremi sono inclusi. Nemmeno le stagioni possono sovrapporsi: se «Dicembre» e «Buen Fin» si sovrappongono, bisogna decidere quale prezzo vale in quei giorni.',
+  'catalogos.rejilla.temporadas.explicacion.concretas': 'precise',
+  'catalogos.rejilla.temporadas.vacio': 'Non ce n’è ancora nessuna.',
+  'catalogos.rejilla.temporada.nombre.aria': 'Nome della stagione',
+  'catalogos.rejilla.temporada.nombre.placeholder': 'es. Buen Fin 2026',
+  'catalogos.rejilla.temporada.inicio.aria': 'Data di inizio',
+  'catalogos.rejilla.temporada.fin.aria': 'Data di fine',
+
+  // ── Horario de transmision ──
+  'catalogos.programacion.no-leer': 'Impossibile leggere la programmazione',
+  'catalogos.programacion.no-programar': 'Impossibile programmare',
+  'catalogos.programacion.cargando': 'Caricamento della programmazione',
+  'catalogos.programacion.titulo': 'Palinsesto',
+  'catalogos.programacion.subtitulo': 'Non cambia alcun prezzo',
+  'catalogos.programacion.explicacion':
+    'In quale fascia oraria {negrita} ogni campagna. Non cambia alcun prezzo: ciò che è stato venduto è già nella campagna dalla proposta. Puoi selezionare più campagne e programmarle in una volta sola; se una non si può programmare, non se ne programma nessuna.',
+  'catalogos.programacion.explicacion.negrita': 'va in onda',
+  'catalogos.programacion.sin-permiso':
+    'Solo il responsabile vendite, il direttore commerciale e la direzione possono programmare il palinsesto. Qui vedi com’è.',
+  'catalogos.programacion.sin-franjas': 'Crea almeno una fascia oraria qui sopra per poterci programmare delle campagne.',
+  'catalogos.programacion.campanas.uno': '{n} campagna',
+  'catalogos.programacion.campanas.otros': '{n} campagne',
+  'catalogos.programacion.ninguna': 'Nessuna campagna va in onda in questa fascia oraria.',
+  'catalogos.programacion.quitar.aria': 'Rimuovi {campana} da {franja}',
+  'catalogos.programacion.quitar.title': 'Rimuovi da questa fascia oraria (non tocca ciò che è stato venduto)',
+  'catalogos.programacion.programar-en': 'Programma campagne in {franja}',
+  'catalogos.programacion.marcadas.uno': ' ({n} selezionata)',
+  'catalogos.programacion.marcadas.otros': ' ({n} selezionate)',
+  'catalogos.programacion.hoy-en': '(oggi in {franja})',
+  'catalogos.programacion.boton': 'Programma {n} in {franja}',
+  'catalogos.programacion.boton.vacio': 'Programma in {franja}',
+
+  // ── Tarifas por franja y temporada de UNA pantalla ──
+  'catalogos.tarifas.no-leer': 'Impossibile leggere la griglia tariffaria',
+  'catalogos.tarifas.guardadas': 'Tariffe per fascia oraria salvate',
+  'catalogos.tarifas.no-guardar': 'Impossibile salvare le tariffe per fascia oraria',
+  'catalogos.tarifas.titulo': 'Tariffe per fascia oraria e stagione',
+  'catalogos.tarifas.guardando': 'Salvataggio…',
+  'catalogos.tarifas.guardar': 'Salva tariffe',
+  'catalogos.tarifas.invalida':
+    'C’è una tariffa in rosso che non si capisce: la virgola separa le migliaia e il punto i decimali ({ejemplo}).',
+  'catalogos.tarifas.sin-catalogo':
+    'Questa organizzazione non ha ancora fasce orarie né stagioni. Si definiscono una sola volta in {pantalla} e valgono per tutto l’inventario.',
+  'catalogos.tarifas.dispersa':
+    'Basta inserire le combinazioni che hanno un prezzo diverso. Ciò che non è qui si fattura con la solita tariffa per unità: la griglia non obbliga a compilare nulla.',
+  'catalogos.tarifas.tarifa-de.aria': 'Tariffa di {unidad}',
+  'catalogos.tarifas.conservar': 'Mantieni',
+  'catalogos.tarifas.quitar': 'Rimuovi',
+  'catalogos.tarifas.nueva.unidad.aria': 'Unità della nuova tariffa',
+  'catalogos.tarifas.nueva.unidad': 'Unità…',
+  'catalogos.tarifas.nueva.franja.aria': 'Fascia oraria della nuova tariffa',
+  'catalogos.tarifas.nueva.temporada.aria': 'Stagione della nuova tariffa',
+  'catalogos.tarifas.nueva.tarifa.aria': 'Tariffa della nuova riga',
+
+  // ── Descuentos por volumen ──
+  'catalogos.volumen.descripcion':
+    'Quale sconto ottiene chi compra molto. Si inserisce una volta per unità di vendita e vale per tutto l’inventario.',
+  'catalogos.volumen.no-leer': 'Impossibile leggere la scala',
+  'catalogos.volumen.cargando': 'Caricamento della scala',
+  'catalogos.volumen.aviso.todas': 'Lo sconto si applica a TUTTE le unità, non solo a quelle oltre la soglia.',
+  'catalogos.volumen.aviso.ejemplo':
+    '«Da 50 spot, 10%» vuol dire che chi compra 50 spot li paga tutti e 50 con il 10% in meno. Conseguenza: chi ne compra 49 paga più di chi ne compra 50, e il salto può essere maggiore del prezzo di un’unità.',
+  'catalogos.volumen.aviso.compone':
+    'E si applica {compone} sullo sconto commerciale: un 20% qui e un 20% nella proposta lasciano al cliente da pagare il {pct}, non il 60%.',
+  'catalogos.volumen.aviso.compone.negrita': 'a cascata',
+  'catalogos.volumen.aviso.compone.pct': '64%',
+  'catalogos.volumen.tramos.titulo': 'Scaglioni per unità di vendita',
+  'catalogos.volumen.tramos.subtitulo': 'Ogni unità ha la propria scala',
+  'catalogos.volumen.escala.title': 'Lo sconto dello scaglione raggiunto si applica a TUTTE le unità',
+  'catalogos.volumen.escala': 'Scala piatta (volume)',
+  'catalogos.volumen.explicacion':
+    'Ogni unità ha la propria scala, perché 50 spot e 50 mesi non sono lo stesso acquisto. Gli scaglioni devono {crecer}: comprare di più non può mai scontare di meno.',
+  'catalogos.volumen.explicacion.crecer': 'crescere',
+  'catalogos.volumen.col.a-partir': 'A partire da',
+  'catalogos.volumen.col.descuento': 'Sconto',
+  'catalogos.volumen.vacio':
+    'Non ce n’è ancora nessuno. Senza scaglioni, tutto si vende alla tariffa di listino, che è esattamente come funziona oggi.',
+  'catalogos.volumen.tramos.uno': ' · {n} scaglione',
+  'catalogos.volumen.tramos.otros': ' · {n} scaglioni',
+  'catalogos.volumen.escalon': 'Gradino {n}',
+  'catalogos.volumen.desde': 'da {cantidad} {unidad}',
+  'catalogos.volumen.pct': '→ {pct}%',
+  'catalogos.volumen.eliminar.title':
+    'Elimina: smette di applicarsi da ora in poi. Ciò che è già stato quotato o approvato non cambia.',
+  'catalogos.volumen.unidad.aria': 'Unità di vendita',
+  'catalogos.volumen.cantidad.aria': 'A partire da quale quantità',
+  'catalogos.volumen.cantidad.placeholder': 'es. 50',
+  'catalogos.volumen.pct.aria': 'Sconto percentuale',
+  'catalogos.volumen.pct.placeholder': 'es. 10',
+  'catalogos.volumen.anadir': 'Aggiungi scaglione',
+
+  // ── Motivos de rechazo ──
+  'catalogos.motivo.paquete.nombre': 'Il pacchetto ha bisogno di un nome.',
+  'catalogos.motivo.paquete.nombre-largo': 'Il nome del pacchetto non può superare i 120 caratteri.',
+  'catalogos.motivo.paquete.precio-numero': 'Il prezzo del pacchetto deve essere un numero.',
+  'catalogos.motivo.paquete.precio-cero':
+    'Il prezzo di un pacchetto deve essere maggiore di 0: un pacchetto gratuito non è un pacchetto.',
+  'catalogos.motivo.paquete.precio-entero':
+    'Il prezzo del pacchetto deve essere un importo intero: la ripartizione tra gli impianti non ammette centesimi.',
+  'catalogos.motivo.paquete.dos-pantallas':
+    'Un pacchetto ha bisogno di almeno 2 impianti; con uno solo, quella è una tariffa e va nella scheda dell’impianto.',
+  'catalogos.motivo.paquete.repetida': 'C’è un impianto ripetuto nel pacchetto.',
+  'catalogos.motivo.franja.nombre': 'La fascia oraria ha bisogno di un nome.',
+  'catalogos.motivo.franja.hora': 'Ora non valida in «{nombre}»: si scrive HH:MM nel formato 24 ore, da 00:00 a 23:59.',
+  'catalogos.motivo.franja.misma-hora': 'La fascia oraria «{nombre}» inizia e finisce alla stessa ora: non copre nulla.',
+  'catalogos.motivo.franja.solape':
+    'La fascia oraria «{nombre}» ({inicio}–{fin}) si sovrappone a «{otra}» ({otraInicio}–{otraFin}).',
+  'catalogos.motivo.temporada.nombre': 'La stagione ha bisogno di un nome.',
+  'catalogos.motivo.temporada.fecha': 'Data non valida in «{nombre}»: si scrive AAAA-MM-GG.',
+  'catalogos.motivo.temporada.al-reves': 'La stagione «{nombre}» finisce prima di iniziare.',
+  'catalogos.motivo.temporada.solape':
+    'La stagione «{nombre}» (dal {desde} al {hasta}) si sovrappone a «{otra}» (dal {otraDesde} al {otraHasta}).',
+  'catalogos.motivo.tramo.unidad': 'Lo scaglione ha bisogno di un’unità di vendita.',
+  'catalogos.motivo.tramo.cantidad-entera': 'La quantità da cui si applica deve essere un numero intero.',
+  'catalogos.motivo.tramo.sin-fracciones':
+    'La quantità da cui si applica deve essere un numero intero: non si vendono frazioni di unità.',
+  'catalogos.motivo.tramo.desde-dos':
+    'Uno scaglione di volume parte da 2 unità o più; «da 1» vorrebbe dire abbassare l’intero listino.',
+  'catalogos.motivo.tramo.pct-numero': 'Lo sconto deve essere un numero.',
+  'catalogos.motivo.tramo.pct-cero':
+    'Lo sconto di uno scaglione deve essere maggiore dello 0%: uno scaglione allo 0% non fa nulla.',
+  'catalogos.motivo.tramo.pct-cien': 'Lo sconto di uno scaglione non può superare il 100%.',
+  'catalogos.motivo.tramo.mismo-umbral':
+    'Esiste già uno scaglione da {n} per questa unità ({pct}%). Due scaglioni con la stessa soglia sono due prezzi per lo stesso acquisto.',
+  'catalogos.motivo.tramo.mas-y-menos':
+    'Non si può comprare di più e scontare di meno: lo scaglione da {otroDesde} dà già il {otroPct}% e questo, da {n}, darebbe il {pct}%.',
+  'catalogos.motivo.tramo.menos-y-mas':
+    'Non si può comprare di più e scontare di meno: lo scaglione da {otroDesde} dà il {otroPct}% e questo, da {n}, darebbe il {pct}%.',
+}

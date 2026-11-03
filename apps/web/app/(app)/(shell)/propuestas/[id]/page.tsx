@@ -2,6 +2,7 @@
 
 import { toast } from 'sonner'
 import { pctConDosDecimales } from '@/lib/descuento-comercial'
+import { cifraEnEtiqueta } from '@/lib/i18n/cifra-en-etiqueta'
 import { conteo } from '@/lib/plural'
 import { useIdioma, useTexto } from '@/lib/i18n/contexto'
 import { interpolarNodos } from '@/lib/i18n/nodos'
@@ -587,19 +588,19 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                   lee como un defecto del sistema. */}
               {p.descuentoVolumenMonto > 0 && (
                 <Fila
-                  label={t('propuestas.comun.descuento-volumen', { pct: Math.round(p.descuentoVolumenPct * 10) / 10 })}
+                  label={t('propuestas.comun.descuento-volumen', { pct: cifraEnEtiqueta(Math.round(p.descuentoVolumenPct * 10) / 10, idioma) })}
                   valor={`− ${formatMonto(p.descuentoVolumenMonto, idioma)}`}
                   tono="text-error"
                 />
               )}
-              <Fila label={t('propuestas.ficha.descuento-comercial-pct', { pct: pctConDosDecimales(p.descuentoPct) })} valor={p.descuentoMonto ? `− ${formatMonto(p.descuentoMonto, idioma)}` : '—'} tono={p.descuentoMonto ? 'text-error' : undefined} />
+              <Fila label={t('propuestas.ficha.descuento-comercial-pct', { pct: cifraEnEtiqueta(Number(pctConDosDecimales(p.descuentoPct)), idioma, 2) })} valor={p.descuentoMonto ? `− ${formatMonto(p.descuentoMonto, idioma)}` : '—'} tono={p.descuentoMonto ? 'text-error' : undefined} />
               {/* COD-01 · el renglón aparece SOLO cuando hay código, y tiene que
                   aparecer con SU NOMBRE: un descuento sin decir de qué cupón salió
                   no se puede explicar seis meses después, y sin él la escalera no
                   cuadra en pantalla. */}
               {p.codigoDescuentoMonto > 0 && (
                 <Fila
-                  label={`${t('propuestas.comun.codigo-pct', { codigo: p.codigoTexto ?? '', pct: p.codigoDescuentoPct })}${
+                  label={`${t('propuestas.comun.codigo-pct', { codigo: p.codigoTexto ?? '', pct: cifraEnEtiqueta(p.codigoDescuentoPct, idioma) })}${
                     // COD-03 · el total INTERNO cuenta el cupón aunque esté
                     // pendiente (es lo que se ofrece); el renglón avisa de que
                     // el cliente todavía no lo ve.
@@ -610,7 +611,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                 />
               )}
               <Fila label={t('propuestas.ficha.base')} valor={formatMonto(p.base, idioma)} />
-              <Fila label={t('propuestas.ficha.comision', { pct: comisionPct, divisor: p.divisor.toFixed(2) })} valor={`− ${formatMonto(p.base - p.neto, idioma)}`} />
+              <Fila label={t('propuestas.ficha.comision', { pct: comisionPct, divisor: cifraEnEtiqueta(p.divisor, idioma, 2) })} valor={`− ${formatMonto(p.base - p.neto, idioma)}`} />
               <Fila label={t('propuestas.ficha.neto')} valor={formatMonto(p.neto, idioma)} />
               <Fila label={t('propuestas.comun.iva', { pct: ivaPct })} valor={formatMonto(p.iva, idioma)} />
               <div className="border-t border-border pt-1.5">
@@ -666,7 +667,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                       sería ruido, y peor: enseñaría un límite donde no lo hay. */}
                   {topeDescuento < 100 && (
                     <>{interpolarNodos(t('propuestas.ficha.descuento.tope-aviso'), {
-                      tope: <b>{t('propuestas.comun.pct', { pct: topeDescuento })}</b>,
+                      tope: <b>{t('propuestas.comun.pct', { pct: cifraEnEtiqueta(topeDescuento, idioma) })}</b>,
                     })}</>
                   )}
                 </p>

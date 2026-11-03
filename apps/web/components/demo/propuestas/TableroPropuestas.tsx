@@ -11,6 +11,9 @@ import { CLAVE_PERIODO } from '@/components/demo/finanzas/etiquetas'
 import { resumenPropuestasApi, type RespuestaResumenPropuestas } from '@/lib/data/propuestas-resumen-api'
 import { formatNumero } from '@/lib/formato-numero'
 import { useIdioma } from '@/lib/i18n/contexto'
+import type { Idioma } from '@/lib/i18n/idiomas'
+import { porcentajeEnIdioma } from '@/lib/i18n/formato-idioma'
+import { cifraEnEtiqueta } from '@/lib/i18n/cifra-en-etiqueta'
 
 // ============================================================================
 //  El tablero de propuestas por periodo (PROP-PER, 06/10).
@@ -24,7 +27,13 @@ import { useIdioma } from '@/lib/i18n/contexto'
 const inputFecha =
   'h-8 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
 
-const pct = (v: number | null) => (v === null ? '—' : `${Math.round(v * 10) / 10} %`)
+// Italiano (lote L2, 2026-11-03): en es y en, el «50 %» de siempre, tal cual;
+// en italiano, «12,5%» (coma decimal y sin espacio, `formato-idioma.ts`).
+const pct = (v: number | null, idioma: Idioma) => {
+  if (v === null) return '—'
+  const r = Math.round(v * 10) / 10
+  return idioma === 'es' || idioma === 'en' ? `${r} %` : porcentajeEnIdioma(cifraEnEtiqueta(r, idioma), idioma)
+}
 
 export function TableroPropuestas() {
   const { t, idioma } = useIdioma()
@@ -146,10 +155,10 @@ export function TableroPropuestas() {
             {/* Sin ganancia (quien no ve finanzas) son cuatro cifras: en una
                 rejilla de seis dejaban dos huecos vacíos a la derecha. */}
             <div className={cn('grid grid-cols-2 gap-3', conGanancia ? 'md:grid-cols-3 xl:grid-cols-6' : 'md:grid-cols-4')}>
-              <Cifra label={t('propuestas.tablero.generadas')} valor={formatNumero(r.generadas)} pie={t('propuestas.tablero.generadas.pie')} />
+              <Cifra label={t('propuestas.tablero.generadas')} valor={formatNumero(r.generadas, 0, idioma)} pie={t('propuestas.tablero.generadas.pie')} />
               <Cifra
                 label={t('propuestas.tablero.aprobadas')}
-                valor={formatNumero(r.aprobadas.n)}
+                valor={formatNumero(r.aprobadas.n, 0, idioma)}
                 pie={
                   ventaSinCalcular
                     ? t('propuestas.tablero.aprobadas.sin-venta')
@@ -157,13 +166,13 @@ export function TableroPropuestas() {
                 }
                 tono="ok"
               />
-              <Cifra label={t('propuestas.tablero.rechazadas')} valor={formatNumero(r.rechazadas)} pie={t('propuestas.tablero.rechazadas.pie')} tono={r.rechazadas > 0 ? 'error' : undefined} />
+              <Cifra label={t('propuestas.tablero.rechazadas')} valor={formatNumero(r.rechazadas, 0, idioma)} pie={t('propuestas.tablero.rechazadas.pie')} tono={r.rechazadas > 0 ? 'error' : undefined} />
               {/* «del periodo» en la etiqueta: arriba hay una tasa histórica y
                   el Dashboard tiene otra de ventana fija, y sin decirlo se leían
                   dos porcentajes distintos para la misma pregunta. */}
               <Cifra
                 label={t('propuestas.tablero.tasa')}
-                valor={r.tasaCierre === null ? '—' : pct(r.tasaCierre * 100)}
+                valor={r.tasaCierre === null ? '—' : pct(r.tasaCierre * 100, idioma)}
                 pie={t('propuestas.tablero.tasa.pie')}
               />
               {conGanancia && (
@@ -174,7 +183,7 @@ export function TableroPropuestas() {
                     pie={
                       gananciaSinCalcular
                         ? t('propuestas.tablero.ganancia.sin-calcular')
-                        : t('propuestas.tablero.ganancia.margen', { pct: pct(r.aprobadas.margenPct) })
+                        : t('propuestas.tablero.ganancia.margen', { pct: pct(r.aprobadas.margenPct, idioma) })
                     }
                     tono={gananciaSinCalcular ? undefined : 'ok'}
                   />
@@ -213,9 +222,9 @@ export function TableroPropuestas() {
                     {r.porVendedor.map((v) => (
                       <tr key={v.vendedor} className="border-b border-border last:border-0">
                         <td className="py-2 pr-4 text-ink">{v.vendedor}</td>
-                        <td className="demo-num py-2 pr-4 text-right text-muted">{formatNumero(v.generadas)}</td>
-                        <td className="demo-num py-2 pr-4 text-right text-ink">{formatNumero(v.aprobadas)}</td>
-                        <td className="demo-num py-2 pr-4 text-right text-muted">{formatNumero(v.rechazadas)}</td>
+                        <td className="demo-num py-2 pr-4 text-right text-muted">{formatNumero(v.generadas, 0, idioma)}</td>
+                        <td className="demo-num py-2 pr-4 text-right text-ink">{formatNumero(v.aprobadas, 0, idioma)}</td>
+                        <td className="demo-num py-2 pr-4 text-right text-muted">{formatNumero(v.rechazadas, 0, idioma)}</td>
                         <td className="demo-num py-2 pr-4 text-right text-ink">{formatMonto(v.venta, idioma)}</td>
                         {conGanancia && <td className="demo-num py-2 text-right text-ink">{formatMonto(v.ganancia ?? 0, idioma)}</td>}
                       </tr>
