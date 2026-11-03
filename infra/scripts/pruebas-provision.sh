@@ -636,6 +636,16 @@ limpiar
 # ============================================================================
 #  ADR 0049 · el idioma de los DOCUMENTOS se elige en el bootstrap y NO se cambia
 # ============================================================================
+escenario 'B60 · --ayuda imprime la cabecera hasta donde siempre, ahora con --idioma'
+preparar
+correr -- --ayuda
+codigo_es 0
+dice '[--idioma es|en|it]'
+dice 'SPACES_REGION                 OBLIGATORIA'
+# Ni una linea de mas: la ventana de `uso()` se corre con la cabecera.
+if grep -qF 'del bucket se lee en su URL' "$SALIDA"; then mal 'la ayuda imprime una linea de mas'; else bien; fi
+limpiar
+
 escenario 'ADR 0049 · sin --idioma el cuerpo pide es, y la pantalla lo avisa'
 preparar
 correr D_CODIGO_BOOT=201 --   --host "$IP" --dominio "$DOM" --instancia p --email a@ejemplo.com --bootstrap --confirmar
