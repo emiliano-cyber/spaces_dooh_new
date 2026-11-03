@@ -210,3 +210,43 @@ italiano.
   las pruebas unitarias.
 - Solo se leyeron los estados que las pruebas rinden; el resto de claves se leyó
   en el diccionario (las 1122).
+
+## 2.ª pasada · 2026-11-03 — VERDE
+
+Revisa `27f5ea10` (rojo), `d2a7794f` (arreglo) y `9e067b82` (documentación).
+
+**Los seis puntos, comprobados en el diccionario y en el HTML:**
+
+| Punto | Estado |
+|---|---|
+| 1 · «fa fa» | Arreglado: `creativo.visto.*` = «Vista {n} volte · l’ultima {hace}». En el volcado sale «l’ultima 5 min fa» y ya no hay ningún «fa fa». Lo protegen tres cosas: el italiano esperado con el `<` detrás, `not.toMatch(/\bfa fa\b/)` en el HTML y una guardia `{hace} fa` en el diccionario |
+| 2 · Fechas sin artículo | «Inizio: {fecha}», «Scaduta: {fecha}», «Non scatta prima di: {fecha}», «valido fino a: {fecha}», «Scatto: {fecha}». La guardia `textos/spaceeyes.test.ts` impide `il/al/del/dal/nel/sul/l’/all’/dell’ {fecha}`. La regla queda en `italiano-olas.md` para todo el italiano |
+| 3 · Las nueve frases | Las nueve, como se propusieron («esce nitida», «L’agente verifica…», «In modalità raggruppata», «Verrà eliminata», «Verrà cancellato», «il caso normale», «{n} gg fa», «Non è stato possibile scaricare nessuna foto», «prepara la microSD») |
+| 4 · immobile | Las nueve apariciones de «proprietà» pasan a «immobile», con su concordancia: «il suo immobile», «senza immobile: sceglilo tu». La guardia impide que vuelva «propriet». Lo que queda, «l’app non sia proprietaria del dispositivo», es el *device owner* de Android, y es correcto |
+| 5 · Glosario | «parco dispositivi» / «del parco», «sovrimpressione» (en las 9 claves de la marca), «punto di prelievo (POD)», «Prova di messa in onda». Una guardia impide que vuelvan flotta/etichetta/affissione/punto di misura |
+| 6 · Titolare | Sigue igual, a la espera de L5 (`admin.rol.dueno`). Es nota de costura, no un defecto |
+
+**Mutantes, repetidos sobre el código nuevo y restaurados (`git status` limpio):**
+
+| Mutante | Resultado |
+|---|---|
+| V1 · SSIM con `toFixed(3)` | **Muere** (1) |
+| V2 · `cifra()` sin idioma | **Muere** (1) |
+| V3 · `fijo()` en español por `Intl` | **Muere** (2) |
+| V4 · una clave italiana en español | **Muere** (3) |
+| V5 · plural italiano mal en `.uno` | **Muere** (2) |
+| V6 · total de la galería sin idioma | **Muere** (1) |
+| V7 · `fmtBytes` sin idioma | **Muere** (1) |
+| V8 · kWh aceptados sin idioma | **Muere** (1) |
+| V9 (nuevo) · vuelve «{hace} fa» | **Muere** (5) |
+| V10 (nuevo) · vuelve «Inizia il {fecha}» | **Muere** (3) |
+
+Mueren los 10. La prueba unitaria nueva `components/demo/space-eyes/piezas-cifras.test.ts` fija `fijo`, `cifra` y `gigas` en es/en con los mismos bordes que medí en la 1.ª pasada.
+
+**Español e inglés idénticos.** Volví a volcar el HTML de toda la suite, en copias `git archive` de `6fea374a` (3027 archivos) y de `9e067b82` (3392). `diff -rq` da **0 distintos y 0 desaparecidos**; los 226 directorios nuevos son solo de `pantallas-spaceeyes` y `pantallas-energia` en italiano.
+
+- `DICCIONARIOS.es` y `.en`: 5590 claves cada uno, **0 cambiadas, 0 quitadas, 0 nuevas**.
+- `.it` fuera de `spaceeyes.*` y `energia.*`: 0 cambios.
+- En las copias fallan los mismos 3 tests de entorno en base y rama (las copias no tienen `infra/` ni `.github/`).
+
+**Pruebas.** `npm run typecheck` limpio y `npx vitest run --testTimeout=60000` en el worktree con **7276 pruebas en verde**. Esta vez no recompilé (`npm run build`): la segunda vuelta solo cambia textos y pruebas, y ningún componente.
