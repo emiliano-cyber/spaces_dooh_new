@@ -7,6 +7,9 @@ import { ProveedorIdioma } from './contexto'
 import type { Idioma } from './idiomas'
 import { MONEDAS, fijarMonedaInstancia } from './dinero'
 import { leerDinero } from './simbolo-en-pantalla'
+import { ES_OPERACIONES2, EN_OPERACIONES2, IT_OPERACIONES2 } from './textos/operaciones2'
+import { huellasEnItaliano } from './guardias-italiano'
+import { legible, fugasEnItaliano } from '../test/italiano-l3'
 
 // ============================================================================
 //  I18N · LOTE «OPERACIONES (parte 2)», RENDIDO EN LOS DOS IDIOMAS.
@@ -728,5 +731,117 @@ describe('lote OPERACIONES (parte 2) · barrido con el diccionario entero', () =
       }
     }
     expect(culpables).toEqual([])
+  })
+})
+
+// ─── ITALIANO · lote L3 (2026-11-03) ────────────────────────────────────────
+// Los mismos estados, rendidos en `it`: ninguna huella de formato espanol o
+// ingles, las frases italianas de los estados con lista, y el barrido del
+// diccionario del lote contra el HTML italiano (la caida al ingles de una
+// clave sin italiano no da error: solo se ve aqui).
+const ITALIANO: Record<string, string[]> = {
+  'operaciones · cargando': ['Attività delle squadre · monitoraggio sul campo', 'Nuovo OdL', 'Ordini di lavoro', '>Tutti<', '>Assegnati<', '>Completati<'],
+  'operaciones · con OT, aviso de SLA y filtros': [
+    '>Aperti<', '1 in corso', '>In ritardo<', 'tengono chiuso il lucchetto della fatturazione', 'In scadenza',
+    'in scadenza entro 2 giorni', 'Non assegnato', 'aperti senza responsabile', '1 OdL in ritardo', '1 in scadenza',
+    '— un OdL aperto oltre la data di scadenza tiene chiuso il lucchetto della fatturazione.', '4 di 4', 'Montaggio telo',
+    'Manutenzione correttiva', 'Elettrico', 'Smontaggio', 'Urgente', '>Alta<', 'title="Data di scadenza"', 'title="Apri OdL"',
+    'title="Vedi OdL"', 'title="2 prove"', 'title="1 prova"', '20 ott 2026',
+  ],
+  'operaciones · varias vencidas y lista larga': ['26 OdL in ritardo', 'Mostra tutti (26)'],
+  'operaciones · lista larga desplegada': ['Mostra meno'],
+  'operaciones · sin OT': ['Non ci sono ancora ordini di lavoro', 'Crea il primo con «Nuovo OdL»: si collega a una campagna e al suo impianto.', '0 di 0'],
+  'operaciones · filtro sin resultados': ['Nessun OdL in «Completati»', 'Gli altri restano in «Tutti».', 'Mostra tutti'],
+  'operaciones · alta de OT con campaña y pantalla': [
+    'Nuovo ordine di lavoro', 'Assegna un’attività a una squadra', 'Crea OdL', 'Campagna', '— Nessuna campagna —',
+    '(automatico dalla campagna)', '— Nessun impianto —', 'Pantalla Reforma · Digitale', 'Tipo di attività',
+    '(opzioni per schermo digitale)', 'Ispezione', 'Manutenzione preventiva', 'Descrizione',
+    'placeholder="es. Montaggio telo su cartellone…"', 'Priorità', '>Bassa<', '>Normale<', 'Data di scadenza',
+    'Assegna a (responsabile)', '— Non assegnato —',
+  ],
+  'operaciones · alta de OT con pantalla fija y campaña sin sitios': ['Questa campagna non ha siti prenotati.'],
+  'operaciones · alta de OT sin campaña, con pantalla fija': ['Valla Sur · Fisso', '(opzioni per impianto fisso)', 'Carpenteria metallica', 'Creazione…'],
+  'ficha · no se pudo cargar': ['Impossibile caricare l’ordine di lavoro.', 'Accedi per continuare'],
+  'ficha · escritorio abierta, solo lectura y error de guardado': [
+    '>Tipo<', '>Priorità<', '>Scadenza<', '20 ott 2026', '>In ritardo<', '>Responsabile<', '>Non assegnato<', '>Campagna<',
+    'Errore durante il salvataggio: error-del-servidor. Le voci spuntate si vedono qui ma NON sono ancora salvate.', 'Riprova',
+    'Sola lettura: il tuo ruolo può vedere questo ordine di lavoro, ma non spuntarne la checklist.', 'Foto di verifica',
+    'Scatta foto', 'Ispezione della struttura e della ferramenta', 'Montaggio / esecuzione', 'Timbro di posizione',
+    'Rileva posizione', 'Alla chiusura, il costo di MX$ 1.500,00 resta fisso: non si potrà più modificare.', 'Chiudi OdL',
+    'Completa la checklist, scatta una foto e rileva la posizione.', 'Costo effettivo di questa visita',
+    'Quanto è costata davvero. <strong>Sostituisce</strong> la stima per tipo di attività usata dal report di redditività',
+    'placeholder="Non inserito"', 'Salva costo', 'Salvato: <span class="demo-num">MX$ 1.500</span>',
+  ],
+  'ficha · escritorio sin costo, guardando y con cero': [
+    '>Alta<', '>In scadenza<', 'Salvataggio…', 'Chiusura…',
+    'Questo OdL non ha un costo inserito. Se lo chiudi, non potrai più registrarlo: il report di redditività userà la stima per tipo di attività.',
+    'Non inserito: il report usa la stima per tipo di attività.',
+  ],
+  'ficha · escritorio con costo cero y guardado': [
+    'Salvato: <span class="demo-num">MX$ 0</span> — questa visita risulta registrata come senza alcun costo.', ' Salvato</span>',
+  ],
+  'ficha · escritorio cerrada con costo': [
+    'OdL chiuso', 'La prova è stata inviata alla pipeline della campagna.', 'Chiuso il 5 ott 2026', 'Checklist completata',
+    'Lucchetto della fatturazione aperto', 'alt="prova"', 'Costo registrato: MX$ 2.300,00. L’OdL è chiuso e non si può più modificare.',
+  ],
+  'ficha · escritorio cerrada sin costo': ['Chiuso senza costo inserito: il report di redditività usa la stima per tipo di attività.'],
+  'ficha · movil abierta': ['Campagna: Verano', 'Responsabile: <span class="text-ink">Luisa Campo</span>', 'Foto di verifica'],
+  'ficha · movil cerrada': ['OdL chiuso', 'Puoi chiudere questa finestra. La prova è già stata registrata.', 'Responsabile: <span class="text-ink">Non assegnato</span>'],
+  'creativos · guardando, un spot con un creativo y la fuente cargando': [
+    'Salvataggio…', '1 creatività', 'text/html · caricamento…', 'Caricamento del sorgente…', ' Scarica .html</button>',
+  ],
+  'creativos · ninguna coincide': ['Nessuna campagna corrisponde', 'Prova con un altro testo di ricerca o togli il filtro di stato.', 'Cancella filtri', '0 di 3'],
+  'creativos · sin campañas': ['Nessuna campagna con slot o creatività', 'Prenota siti in Vendite o carica una creatività per gestirli qui.'],
+  'creativos · una campaña solo de medios fijos': ['Hai 1 campagna, su mezzi statici: la sua grafica si gestisce in Stampa.', 'Vai a Stampa'],
+  'creativos · dos campañas solo de medios fijos': ['Hai 2 campagne, tutte su mezzi statici: la loro grafica si gestisce in Stampa.'],
+}
+
+describe('lote OPERACIONES (parte 2) · en ITALIANO, sin formatos ajenos y con su texto', () => {
+  for (const p of ESTADOS) {
+    it(p.nombre, async () => {
+      const crudo = await p.pintar('it')
+      expect(huellasEnItaliano(crudo)).toEqual([])
+      const html = texto(crudo)
+      expect((ITALIANO[p.nombre] ?? []).filter((f) => !html.includes(f))).toEqual([])
+    })
+  }
+})
+
+describe('lote OPERACIONES (parte 2) · el dinero en italiano lleva el simbolo de la instancia', () => {
+  afterEach(() => fijarMonedaInstancia('MXN'))
+  for (const moneda of MONEDAS) {
+    for (const p of ESTADOS.filter((e) => e.dinero)) {
+      it(`${p.nombre} · ${moneda} · it`, async () => {
+        fijarMonedaInstancia(moneda)
+        const { importes, ajenos } = leerDinero(texto(await p.pintar('it')), 'it', moneda)
+        expect(importes).toBeGreaterThan(0)
+        expect(ajenos).toEqual([])
+      })
+    }
+  }
+})
+
+describe('lote OPERACIONES (parte 2) · barrido del diccionario contra el HTML italiano', () => {
+  it('ningun texto ingles ni espanol del lote aparece en italiano', async () => {
+    let html = ''
+    for (const p of ESTADOS) {
+      forzado.cola = []
+      datos.ots = undefined
+      datos.sitios = []
+      datos.campanas = []
+      datos.evidencias = []
+      datos.reservas = []
+      datos.usuarios = []
+      datos.creativos = undefined
+      datos.clientes = []
+      datos.puede = true
+      html += legible(await p.pintar('it'))
+    }
+    // Los datos de prueba no son texto de la interfaz («Pantalla Reforma» no es
+    // la palabra «Pantalla» del diccionario).
+    for (const d of ['Verano', 'Otoño', 'Invierno', 'Luisa Campo', 'Pantalla Reforma', 'Pantalla Sur', 'Valla Sur', 'Valla Norte', 'Cliente Uno', 'Revisar estructura']) {
+      html = html.split(d).join('\n')
+    }
+    expect(fugasEnItaliano(html, [{ es: ES_OPERACIONES2, en: EN_OPERACIONES2, it: IT_OPERACIONES2 }])).toEqual([])
   })
 })

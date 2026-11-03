@@ -7,7 +7,9 @@ import path from 'node:path'
 import { ProveedorIdioma } from './contexto'
 import type { Idioma } from './idiomas'
 import { DICCIONARIOS } from './diccionario'
-import { ES_OPERACIONES, EN_OPERACIONES } from './textos/operaciones'
+import { ES_OPERACIONES, EN_OPERACIONES, IT_OPERACIONES } from './textos/operaciones'
+import { huellasEnItaliano } from './guardias-italiano'
+import { legible, fugasEnItaliano } from '../test/italiano-l3'
 import { MONEDAS, fijarMonedaInstancia } from './dinero'
 import { leerDinero } from './simbolo-en-pantalla'
 
@@ -469,7 +471,7 @@ describe('lote OPERACIONES · barrido del diccionario contra el HTML ingles', ()
 describe('lote OPERACIONES · cada importe lleva el simbolo de la moneda de la instancia', () => {
   afterEach(() => fijarMonedaInstancia('MXN'))
   for (const moneda of MONEDAS) {
-    for (const idioma of ['es', 'en'] as const) {
+    for (const idioma of ['es', 'en', 'it'] as const) {
       ESTADOS.forEach((e) => {
         it(`${moneda} · ${idioma} · ${e.nombre}`, async () => {
           fijarMonedaInstancia(moneda)
@@ -492,4 +494,83 @@ describe('lote OPERACIONES · en ingles, ninguna fecha, hora ni importe con form
       expect(huellasDeFormatoEspanol(await p.pintar('en'))).toEqual([])
     })
   }
+})
+
+// ─── ITALIANO · lote L3 (2026-11-03) ────────────────────────────────────────
+// Los mismos estados, rendidos en `it`. Se comprueba:
+//   (e) ninguna huella de formato espanol o ingles (`guardias-italiano.ts`);
+//   (f) las frases italianas de cada estado (las que tienen lista);
+//   (g) el barrido: ningun texto ingles ni espanol del lote aparece en el HTML
+//       italiano —la caida al ingles de una clave sin italiano no da error,
+//       solo se ve aqui—.
+const ITALIANO: Record<string, string[]> = {
+  'piezas · slots, cupo de clientes y calendario': [
+    'title="2 di 6 slot liberi"', 'title="8 slot"', 'title="2 di 3 posti cliente liberi"',
+    'Limite clienti raggiunto: 3 clienti.', 'clienti</span>', 'aria-label="Mese precedente"', 'febbraio 2026',
+    '>G</div>', '> confermata</span>', '> in proposta</span>',
+  ],
+  'disponibilidad · la rejilla por catorcena': [
+    'Disponibilità', 'Impianti statici liberi', '1 di 2', 'Digitali con spazio', 'non pieni in', 'Slot liberi',
+    'impianti richiesti da 1 proposta aperta · non bloccano', '>Quindicina<', '8 periodi', 'Solo con spazio libero',
+    'Calendario per impianto', '1 di 2 liberi', '>digitale<', 'Verano (confermata)', 'Otoño (confermata, 5 slot)\nRestano 1 di 6 slot',
+    'In proposta PR-0001 · Refresco Azul (1 mar 2026 – 14 mar 2026, 2 spot)', '>1 libero<', '>Pieno<', '>Occupato<', '>2 usati<',
+    'In proposta (libero, ma una proposta aperta lo richiede)',
+  ],
+  'disponibilidad · por mes, sin digitales con lugar': ['nessun digitale con spazio nel periodo', 'nessuna proposta aperta li richiede'],
+  'disponibilidad · cargando': ['Caricamento della disponibilità…'],
+  'disponibilidad · una busqueda sin resultados': ['Nessun impianto corrispondente.'],
+  'almacen · la lista con los cuatro estados': [
+    'Magazzino', 'Registra articolo', 'Indicatori', '1 dismesso', 'su un impianto', 'custoditi in deposito', 'in viaggio',
+    'aria-label="Filtra per tipo"', 'Veicolo / furgone <span', 'Schermo <span', 'Altro <span', 'Etichetta', 'Posizione',
+    'Nissan NP300 · S/N VIN9 · Targa ABC-1', '>Installato<', '>Dismesso<', 'Su impianto: ', 'Deposito: ', '> Sposta<',
+  ],
+  'almacen · vacio, con permiso y sin el': ['nessuno dismesso', 'Chiedi a Operazioni di registrarli.'],
+  'almacen · fallo de carga': ['Impossibile caricare il magazzino — red caida', 'Riprova'],
+  'almacen · registrar un vehiculo': [
+    'Entra in magazzino', 'Etichetta / numero di inventario', 'placeholder="Es. INV-0231"', 'Apparecchiatura elettronica',
+    'Numero di serie (VIN)', 'Targa', 'Dove è custodito', 'placeholder="Es. Deposito nord, scaffale 3"', '>Registra<',
+  ],
+  'almacen · mover un articulo a una pantalla': [
+    'Sposta articolo', 'Installa su un impianto', 'Segna in trasferimento', 'Dismetti', 'Impianto di destinazione', '— Scegli —',
+    'Registra movimento',
+  ],
+  'imprenta · dos ordenes, una lista para montaje': [
+    'Stampa', 'Ordini di stampa · dalla grafica al montaggio', 'Nuovo ordine', 'Prova colore in sospeso', 'Pronti per il montaggio',
+    'passano a un OdL', '2 ordini', 'Campagna: Verano', 'Nessuna campagna', 'Nessun materiale', 'Contenuto digitale', 'Passo 3 di 5',
+    'Prova colore: in sospeso', 'Prova colore: approvata', 'Approva prova', 'Avanza',
+  ],
+  'imprenta · sin ordenes, con el alta abierta': [
+    'Nessun ordine di stampa', 'Nuovo ordine di stampa', 'Seleziona una campagna…', 'Larghezza (m)', 'Altezza (m)', 'Fornitore',
+    'Lascia larghezza e altezza a 0 per i contenuti digitali.', 'Crea ordine', '0 ordini',
+  ],
+}
+
+describe('lote OPERACIONES · en ITALIANO, sin formatos ajenos y con su texto', () => {
+  for (const e of ESTADOS) {
+    it(e.nombre, async () => {
+      const crudo = await e.pintar('it')
+      expect(huellasEnItaliano(crudo)).toEqual([])
+      const html = texto(crudo)
+      expect((ITALIANO[e.nombre] ?? []).filter((f) => !html.includes(f))).toEqual([])
+    })
+  }
+})
+
+describe('lote OPERACIONES · barrido del diccionario contra el HTML italiano', () => {
+  it('ningun texto ingles ni espanol del lote aparece en italiano', async () => {
+    let html = ''
+    for (const e of ESTADOS) {
+      forzado.cola = []
+      datos.disponibilidad = DISPONIBILIDAD
+      datos.puede = true
+      datos.sitios = [{ id: 's1', nombre: 'Muro Reforma' }]
+      datos.ois = OIS
+      datos.campanas = [{ id: 'c1', nombre: 'Verano', tipoCampana: 'OOH' }, { id: 'c2', nombre: 'Red', tipoCampana: 'DOOH' }]
+      html +=legible(await e.pintar('it'))
+    }
+    expect(fugasEnItaliano(html, [{ es: ES_OPERACIONES, en: EN_OPERACIONES, it: IT_OPERACIONES }], {
+      // Datos de prueba, no texto de la interfaz.
+      datos: ['Verano', 'Otoño', 'Muro Reforma', 'LED Insurgentes', 'LED Sur', 'Grafica Sur', 'Frontlit 13 oz', 'Refresco Azul', 'Norte'],
+    })).toEqual([])
+  })
 })

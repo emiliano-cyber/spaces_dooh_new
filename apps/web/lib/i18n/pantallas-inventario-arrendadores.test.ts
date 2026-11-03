@@ -5,6 +5,8 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { ProveedorIdioma } from './contexto'
 import { huellasDeFormatoEspanol } from './guardias-ingles'
+import { huellasEnItaliano } from './guardias-italiano'
+import { legible, fugasEnItaliano } from '../test/italiano-l3'
 import type { Idioma } from './idiomas'
 
 // ============================================================================
@@ -909,7 +911,7 @@ const PANTALLAS: Pantalla[] = [
     pintar: async (idioma) => {
       forzar('PropietariosCard', 3, { id: 'ar1', nombre: 'Don Pepe' })
       forzar('BajaPropietarioDialog', 1, true) // reautenticando
-      forzar('BajaPropietarioDialog', 0, idioma === 'es' ? 'Escribe tu contraseña para confirmar.' : 'Enter your password to confirm.') // error
+      forzar('BajaPropietarioDialog', 0, idioma === 'es' ? 'Escribe tu contraseña para confirmar.' : idioma === 'en' ? 'Enter your password to confirm.' : 'Inserisci la tua password per confermare.') // error
       return pintar(idioma, createElement(await arrendadoresPagina()))
     },
     espanol: ['Dar de baja a un propietario no se puede deshacer desde la aplicación', 'Tu contraseña', 'Confirmar y dar de baja'],
@@ -998,7 +1000,7 @@ const PANTALLAS: Pantalla[] = [
     pintar: async (idioma) => {
       forzar('ContratoSheet', 3, PAGOS[1]) // pagoActivo
       forzar('PagoModal', 8, true) // reautenticando
-      forzar('PagoModal', 7, idioma === 'es' ? 'Escribe tu contraseña para confirmar.' : 'Enter your password to confirm.') // error
+      forzar('PagoModal', 7, idioma === 'es' ? 'Escribe tu contraseña para confirmar.' : idioma === 'en' ? 'Enter your password to confirm.' : 'Inserisci la tua password per confermare.') // error
       const H = await hoja()
       return pintar(idioma, createElement(H, { contrato: CONTRATOS[0] as never, open: true, onOpenChange: () => {}, onToast: () => {} }))
     },
@@ -1013,7 +1015,7 @@ const PANTALLAS: Pantalla[] = [
     nombre: 'ficha del contrato · adjuntos de un pago hecho',
     pintar: async (idioma) => {
       forzar('ContratoSheet', 3, PAGOS[0])
-      forzar('AdjuntoInput', 0, idioma === 'es' ? 'El archivo supera 5 MB' : 'The file exceeds 5 MB')
+      forzar('AdjuntoInput', 0, idioma === 'es' ? 'El archivo supera 5 MB' : idioma === 'en' ? 'The file exceeds 5 MB' : 'Il file supera 5 MB')
       const H = await hoja()
       return pintar(idioma, createElement(H, { contrato: CONTRATOS[0] as never, open: true, onOpenChange: () => {}, onToast: () => {} }))
     },
@@ -1397,7 +1399,7 @@ const PANTALLAS: Pantalla[] = [
   {
     nombre: 'firma pública · con error',
     pintar: async (idioma) => {
-      forzar('FirmaPublica', 4, idioma === 'es' ? 'No se pudo firmar' : 'Could not sign') // error
+      forzar('FirmaPublica', 4, idioma === 'es' ? 'No se pudo firmar' : idioma === 'en' ? 'Could not sign' : 'Impossibile firmare') // error
       const F = await publica()
       return pintar(idioma, createElement(F, { token: 't', documento: 'TEXTO', nombreEsperado: null, expirado: false, yaFirmada: false }))
     },
@@ -1589,5 +1591,168 @@ describe('lote INVENTARIO Y ARRENDADORES · barrido con el diccionario entero', 
       }
     }
     expect(culpables).toEqual([])
+  })
+})
+
+// ─── ITALIANO · lote L3 (2026-11-03) ────────────────────────────────────────
+// Las mismas pantallas, rendidas en `it`. Se comprueba:
+//   (e) ninguna huella de formato espanol o ingles (`guardias-italiano.ts`);
+//   (f) las frases italianas de las pantallas con lista;
+//   (g) el barrido: ningun texto ingles ni espanol de `textos/inventario.ts`
+//       ni de `textos/arrendadores.ts` aparece en el HTML italiano.
+//
+// Fuera, por decision del dueño (03/11): el DOCUMENTO del contrato (sigue en
+// espanol: `sinLoQueEsEspanolPorDiseno`) y la CONSTANCIA de firmas, que iran en
+// el idioma de la instancia en la tarea roja aparte. Sus claves
+// (`arrendadores.constancia.*`) no son de este lote y su seccion se quita
+// antes del barrido; el formato de sus fechas SI se mira.
+const ITALIANO: Record<string, string[]> = {
+  'inventario · la lista con indicadores y chips': [
+    'Consulta l’inventario completo, o aggiungi impianti con caricamento massivo o inserimento manuale.', 'Impianti',
+    '1 digitali · 4 fissi', 'Disponibili', 'su 5 · 1 con slot venduti', 'Senza contratto', 'inseriscilo in Locatori',
+    // El rotulo del indicador (`kpi.propias`), no el chip ni la etiqueta de la fila, que dicen lo mismo.
+    'text-muted">Di proprietà</span>', 'senza canone: il loro costo è elettricità e gestione', 'Con slot venduti', 'Fuori vendita o senza dati',
+    'Con contratto', '6 di 8 liberi',
+  ],
+  'inventario · sin permiso': ['Questa sezione è riservata al Titolare e all’amministratore.'],
+  'inventario · el alta con contrato (vía elegida)': ['Inserimento di un impianto insieme al suo contratto di locazione.', 'Contratto + impianto'],
+  'inventario · selección y cambio masivo de tarifa': ['2 selezionati', 'Fissa tariffa', 'placeholder="Nuova tariffa"'],
+  'inventario · cambio masivo de renta por porcentaje': ['1 selezionato', 'Fissa canone', 'Adegua %', 'placeholder="es. 10 o -5"', 'Applica'],
+  'inventario · búsqueda sin resultados con filtros': ['Nessun sito corrisponde a «zzz» e ai filtri scelti.', 'Rimuovi filtri'],
+  'inventario · solo filtros sin resultados': ['Nessun impianto corrisponde ai filtri scelti.'],
+  'inventario · vacío': ['0 digitali · 0 fissi', 'tutti hanno un contratto o sono di proprietà', 'Non ci sono ancora impianti nell’inventario.'],
+  'contrato + pantalla · paso 1, predio con contrato vigente': [
+    'Immobile esistente', 'Nuovo immobile', 'Questo immobile ha già un contratto in vigore di',
+    'Non se ne firma un altro: l’impianto si aggiunge all’immobile e condivide quel canone con gli altri.',
+  ],
+  'contrato + pantalla · paso 2 con historial del espacio': [
+    'Questo spazio è stato in locazione fino al', '30 giu 2026', 'Il nuovo contratto inizia il 1 lug 2026 o dopo.',
+    'Allega il PDF del contratto firmato (max 8 MB)',
+  ],
+  'contrato + pantalla · paso 3 del inventario con historial': [
+    'Impianto (3 senza locatore)', 'Questo impianto è stato in locazione fino al 30 giu 2026. La validità che hai inserito inizia il 1 giu 2026: torna al passo 2 e spostala al 1 lug 2026 o dopo.',
+    'Dati che ha già', 'Verrà collegato all’immobile del contratto.', 'Crea contratto e impianto',
+  ],
+  'contrato + pantalla · todas las pantallas con predio': ['Tutti i tuoi impianti sono già assegnati a un immobile. Passa a «Nuovo impianto».'],
+  'alta manual · todas las pestañas': [
+    'Nuovo impianto', 'Inserimento manuale di un solo impianto', 'Locatore (proprietario dello spazio)', 'Canone al locatore',
+    'Fissa (stampata)', 'Digitale (schermo)', 'Cartellone', 'Poster', 'Arredo urbano (pensiline/mupi/espositori nei negozi)',
+    'Mensile', 'Ogni due settimane', 'Slot totali', 'Il costo di questo impianto è il', 'Non ancora inserito.', 'Salva impianto',
+  ],
+  'alta manual · el visor de la detección': ['Attualmente: 45.000.', 'Rilevamento con Computer Vision', 'Latitudine e longitudine obbligatorie (scheda Posizione)'],
+  'alta manual · cifra en rojo': ['C’è una cifra in rosso che non si capisce (canone, tariffa, prezzo per m² o slot)'],
+  'carga masiva · archivo leído con duplicados y un predio': [
+    'Caricamento massivo dell’inventario', 'Sono impianti di proprietà', 'Verrà creato l’immobile e tutti condivideranno UN solo contratto.',
+    'Un impianto non sembra trovarsi in questo immobile.', '1 codice esiste già', 'Crea nuovo', '3 righe lette', 'Elabora importazione',
+  ],
+  'carga masiva · el resumen tras importar': ['2 immagini caricate', 'Creati', 'Aggiornati', 'Vedi le informazioni aggiunte (1)', '1 riga letta'],
+  'carga masiva · sin archivo': ['Il locatore è obbligatorio.', 'Nessun file'],
+  'información añadida': ['Informazioni aggiunte', '2 impianti nell’inventario', '1 modalità', 'CDMX · coordinate da verificare'],
+  'información añadida · vacía': ['0 impianti nell’inventario', 'Non ci sono impianti da mostrare.'],
+  'arrendadores · la página con datos': [
+    'Locatori', 'L’altro lato della rete · contratti, canoni e scadenze', 'Canone mensile', '+ 1 da inserire', 'di 2 locatori',
+    'Il canone mensile non include 1 contratto incompleto (da inserire: locatore, durata, importo e periodicità), quindi il costo reale è maggiore.',
+    'tra 29 g', 'Venduto in «Navidad»', '1 rata scaduta (MX$ 10.000,00) · ', 'MX$ 30.000,00 da pagare', '8 giorni fa', 'tra 2 giorni',
+    'Riconciliazione dei canoni per locatore', '1 postazione', 'Redditività per impianto', 'Attivi: 1 su 1.', '1 contratto fattura qui',
+  ],
+  'arrendadores · vacía': ['0 contratti attivi', 'di 0 locatori'],
+  'arrendadores · dar de baja pide la contraseña': [
+    'Disattiva Don Pepe', 'La disattivazione di un locatore non si può annullare dall’applicazione, quindi serve la tua password.',
+    'Conferma e disattiva',
+  ],
+  'ficha del contrato · completar con un arrendador sin datos fiscales': [
+    'Completa il contratto di locazione', 'Gli manca: ragione sociale, RFC, regime fiscale.', 'Fino a',
+    'Non può essere precedente all’inizio (1 mar 2026)', 'Medios SA — quella che prende in locazione',
+  ],
+  'ficha del contrato · adjuntos de un pago hecho': [
+    'Licenza comunale · LM-9', 'Scade tra 18 g', 'Scaduta da 32 g', 'Perizia strutturale', 'Valida',
+    'Pagato il 2 ott 2026 · bonifico. Qui si allegano solo i documenti: il pagamento non viene registrato di nuovo.', 'Il file supera 5 MB',
+  ],
+  'ficha del contrato · un arrendador con varias razones': ['Ha 2 ragioni sociali; si mostra la prima.'],
+  'cambios al contrato · sin cambios y enviado sin firmar': ['Nessuna modifica registrata da quando è stato inserito.', 'è già stato inviato per la firma'],
+  'licencias · fechas invertidas': ['La licenza non può scadere prima di essere rilasciata.'],
+  'renta comprometida (en Finanzas)': [
+    'Canoni impegnati con i locatori', 'Si elenca 1 contratto scaduto perché sia visibile, ma non si somma al totale: non matura più canone.',
+  ],
+  'panel de firmas · sin enviar': ['il testo esatto di questo contratto e lo sigilla con SHA-256.', 'Invia per la firma'],
+  'panel de firmas · el arrendador firmó, falta la arrendataria': ['Firma come conduttrice', 'Controlla i dati che conterrà il contratto', 'I dati sono corretti, invia per la firma'],
+  'barra del documento con un faltante': ['Manca 1 dato da inserire.'],
+  'documento del contrato (Server Component)': [
+    // El documento sigue en espanol (decision del dueño); lo que lo rodea, en italiano.
+    'CONTRATO DE ARRENDAMIENTO', 'Firma del contratto', 'Documento congelato il 19 ottobre 2026 alle ore 09:00.',
+    'In sospeso — si attende la firma di Don Pepe', 'La tua azienda (conduttrice)',
+  ],
+  'firma pública · expirada': ['Il link è scaduto.', 'Chiedi al mittente di inviartene uno nuovo.'],
+  'firma pública · recién firmado': ['Contratto firmato.', 'Puoi salvarne una copia con Ctrl+P → «Salva come PDF».'],
+}
+
+// «Mozilla/5.0» es el navegador del firmante: un dato, no una cifra con
+// formato ingles.
+const sinNavegador = (crudo: string) => crudo.split('Mozilla/5.0').join('Mozilla')
+
+// Los EJEMPLOS de lo que se teclea en un campo de cifra. El campo
+// (`lib/captura-cifra.ts`, compartido) lee la coma como millar y el punto como
+// decimal en CUALQUIER idioma, asi que el ejemplo tiene que decirlo asi: un
+// «212.500,50» italiano ensenaria a escribir algo que el campo no entiende.
+// Son instrucciones de captura, no un formato de pantalla. Cambiar la
+// convencion de captura en italiano es una decision aparte (anotada en el
+// tablero del italiano), no de este lote.
+const CIFRAS_DE_CAPTURA = [
+  /^212,500(?:\.50)?$/, // el ejemplo de `compartidos.cifra.forma` (L5)
+  /^65\.50$/, // `inventario.carga.precio-m2-ilegible`
+  /^0\.00$/, // el `placeholder` del importe en la ficha del contrato
+]
+
+// Los datos de prueba: nombres y textos que la prueba mete y no son del
+// diccionario («Azotea Propia» no es la palabra «Propia» de la interfaz).
+const DATOS_DE_PRUEBA = [
+  'Azotea Propia', 'Don Pepe', 'Doña Rosa', 'Mupi Centro', 'Muro Insurgentes', 'Navidad', 'Predio Reforma', 'Torre Reforma',
+  'Valla Sur', 'Inmuebles Pepe SA', 'Medios SA', 'Vieja SA', 'Reforma 222', 'Calle 1', 'Otro dato', 'falta tarifa', 'Lejana',
+]
+
+async function pintarEnItaliano(p: Pantalla): Promise<string> {
+  forzado.cola = []
+  sesion.rol = 'DUENO'
+  sesion.puede = true
+  servidor.permiso = true
+  servidor.firma = null
+  datos.sitios = SITIOS
+  datos.contratos = CONTRATOS
+  datos.arrendadores = ARRENDADORES
+  datos.pagos = PAGOS
+  datos.licencias = LICENCIAS
+  return p.pintar('it')
+}
+
+describe('lote INVENTARIO Y ARRENDADORES · en ITALIANO, sin formatos ajenos y con su texto', () => {
+  for (const p of PANTALLAS) {
+    it(p.nombre, async () => {
+      const crudo = sinNavegador(await pintarEnItaliano(p))
+      // El importe que recita el paso de revision de firmas («$10,000.00 MXN») es
+      // el DATO que se congela con el contrato, como en la guardia inglesa.
+      const sinCongelado = sinLoQueEsEspanolPorDiseno(crudo).replace(/\$[\d,.]+ MXN/g, '')
+      expect(huellasEnItaliano(sinCongelado, { permitidos: CIFRAS_DE_CAPTURA })).toEqual([])
+      const html = texto(crudo)
+      expect((ITALIANO[p.nombre] ?? []).filter((f) => !html.includes(f))).toEqual([])
+    })
+  }
+})
+
+describe('lote INVENTARIO Y ARRENDADORES · barrido del diccionario contra el HTML italiano', () => {
+  it('ningun texto ingles ni espanol del lote aparece en italiano', async () => {
+    const { ES_INVENTARIO, EN_INVENTARIO, IT_INVENTARIO } = await import('./textos/inventario')
+    const { ES_ARRENDADORES, EN_ARRENDADORES, IT_ARRENDADORES } = await import('./textos/arrendadores')
+    const sinConstancia = <T,>(d: Record<string, T>) =>
+      Object.fromEntries(Object.entries(d).filter(([k]) => !k.startsWith('arrendadores.constancia.')))
+    let html = ''
+    for (const p of PANTALLAS) {
+      const crudo = sinLoQueEsEspanolPorDiseno(await pintarEnItaliano(p))
+        .replace(/<section class="doc-constancia">[\s\S]*?<\/section>/g, '')
+      html += legible(crudo)
+    }
+    expect(fugasEnItaliano(html, [
+      { es: ES_INVENTARIO, en: EN_INVENTARIO, it: IT_INVENTARIO },
+      { es: sinConstancia(ES_ARRENDADORES), en: sinConstancia(EN_ARRENDADORES), it: sinConstancia(IT_ARRENDADORES) as Partial<Record<string, string>> },
+    ], { datos: DATOS_DE_PRUEBA })).toEqual([])
   })
 })

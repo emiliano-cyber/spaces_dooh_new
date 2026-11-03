@@ -293,6 +293,8 @@ function divergenciasItaliano(lotes: LoteIt[], excepciones: Record<string, strin
 // italiano necesite aparte lo declara aqui su lote, con el porque.
 const DISTINTOS_A_PROPOSITO_IT: Record<string, string> = {
   ...DISTINTOS_A_PROPOSITO,
+  // Lote L3 (2026-11-03):
+  Pantalla: 'la pantalla como punto de inventario, que puede ser un espectacular o una valla («Impianto», glosario del italiano) frente al articulo del almacen de tipo pantalla, un aparato electronico («Schermo»). En ingles las dos son «Screen»',
 }
 
 function lotesItaliano(): LoteIt[] {
