@@ -797,6 +797,30 @@ pantalla({
     ' times · last ',
   ],
 })
+// Ola 7 · el recorrido con el modulo activo encontro «Gabinete 8 (fila 2,
+// columna 3)» y «Toda la pantalla» en ingles: el `donde` lo arma el SERVIDOR en
+// espanol (`dondeDeFalla`, `lib/server/space-eye.ts`). Se traduce al pintarlo,
+// como ya lo calculaba la pantalla de la flota. El nombre de la falla lo
+// escribe el telefono (la app solo esta en espanol) y es dato.
+pantalla({
+  nombre: 'pantalla y creativos · donde de cada falla, como lo manda el servidor (ola 7)',
+  pintar: async (idioma) => {
+    const C = await pyc()
+    forzar(esNull, {
+      ...PANTALLA_EQUIPO,
+      fallas: [
+        FALLA_API(1, 'abierta', { donde: 'Gabinete 8 (fila 2, columna 3)' }),
+        FALLA_API(2, 'recuperada', { donde: 'Gabinetes 2, 5, 8 (3 de 15)', recuperadaEn: hace(30), cerradaPor: 'equipo' }),
+        FALLA_API(3, 'descartada', { donde: 'Toda la pantalla', evidencia: null, evidenciaMini: null }),
+        FALLA_API(4, 'descartada', { donde: 'Gabinetes 4', evidencia: null, evidenciaMini: null }),
+      ],
+    })
+    forzar(esNull, CREATIVOS_EQUIPO)
+    return pintar(idioma, el(C, { id: 7, onAmpliar: () => {} }))
+  },
+  espanol: ['Gabinete 8 (fila 2, columna 3)', 'Gabinetes 2, 5, 8 (3 de 15)', 'Toda la pantalla', 'Gabinetes 4'],
+  ingles: ['Cabinet 8 (row 2, column 3)', 'Cabinets 2, 5, 8 (3 of 15)', 'The whole screen', 'Cabinet 4'],
+})
 pantalla({
   nombre: 'pantalla y creativos · sin vigilancia',
   pintar: async (idioma) => {

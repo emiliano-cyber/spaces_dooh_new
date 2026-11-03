@@ -1,0 +1,35 @@
+import { traducir } from './diccionario'
+import type { Idioma } from './idiomas'
+
+// ============================================================================
+//  DONDE FALLO UNA PANTALLA, EN EL IDIOMA DE QUIEN MIRA (ola 7 del ingles).
+// ----------------------------------------------------------------------------
+//  `pantallaDeEquipo()` (`lib/server/space-eye.ts`, `dondeDeFalla`) manda el
+//  `donde` de cada falla ya escrito, en espanol: «Gabinete 8 (fila 2, columna
+//  3)», «Gabinetes 2, 5, 8 (3 de 15)», «Toda la pantalla». La pantalla de la
+//  flota (`FallasFlota.tsx`) lo arma ella misma con `spaceeyes.fallas.donde.*`;
+//  la ficha del equipo lo pintaba tal cual y en ingles salia en espanol.
+//
+//  Aqui se RECONOCEN esas tres formas y se rearman con las mismas claves que
+//  usa la flota, asi las dos pantallas dicen lo mismo. Lo que no casa se pinta
+//  como llega. En espanol devuelve el texto tal cual.
+// ============================================================================
+
+const GABINETE = /^Gabinete (\d+) \(fila (\d+), columna (\d+)\)$/
+// La lista puede venir cortada a 12 con «…» al final; el total es opcional.
+const GABINETES = /^Gabinetes (\d+(?:, \d+)*…?)(?: \((\d+) de (\d+)\))?$/
+
+export function dondeDeFallaEnIdioma(donde: string, idioma: Idioma): string {
+  if (idioma === 'es') return donde
+  const uno = GABINETE.exec(donde)
+  if (uno) return traducir(idioma, 'spaceeyes.fallas.donde.gabinete', { n: uno[1], fila: uno[2], columna: uno[3] })
+  const varios = GABINETES.exec(donde)
+  if (varios) {
+    const [, lista, n, total] = varios
+    const cuantos = n ? Number(n) : lista.split(', ').length
+    const base = traducir(idioma, cuantos === 1 ? 'spaceeyes.fallas.donde.gabinetes.uno' : 'spaceeyes.fallas.donde.gabinetes.otros', { lista })
+    return total ? base + traducir(idioma, 'spaceeyes.fallas.donde.de', { n: n!, total }) : base
+  }
+  if (donde === traducir('es', 'spaceeyes.fallas.donde.toda')) return traducir(idioma, 'spaceeyes.fallas.donde.toda')
+  return donde
+}
