@@ -41,7 +41,7 @@ import {
   textoCostoDeCerrada,
 } from '@/lib/costo-ot-captura'
 import type { FotoMeta, EstOT, ChecklistItem, TipoOT, Prioridad } from '@/lib/data/types'
-import { numeroEnIdioma } from '@/lib/i18n/formato-idioma'
+import { FORMATO_IDIOMA, numeroEnIdioma } from '@/lib/i18n/formato-idioma'
 
 // blob: URL → data URL (base64) para que la foto persista en la BD.
 //
@@ -312,7 +312,10 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
       {ot.costoReal != null && (
         <p className="text-[12px] text-muted">
           {interpolarNodos(t('operaciones2.ficha.guardado-importe'), {
-            importe: <span className="demo-num">{simboloMoneda(idioma)}{numeroEnIdioma(Number(ot.costoReal), idioma)}</span>,
+            // En italiano el simbolo va separado de la cifra («MX$ 1.500», decision del
+            // dueño del 03/11); en es y en, pegado como siempre. Un solo texto: el
+            // HTML de es y en sale identico.
+            importe: <span className="demo-num">{`${simboloMoneda(idioma)}${FORMATO_IDIOMA[idioma].posicionSimbolo === 'delante-con-espacio' ? ' ' : ''}${numeroEnIdioma(Number(ot.costoReal), idioma)}`}</span>,
           })}
           {Number(ot.costoReal) === 0 && t('operaciones2.ficha.guardado-cero')}
         </p>

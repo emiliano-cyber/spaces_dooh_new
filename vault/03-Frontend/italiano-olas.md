@@ -133,3 +133,59 @@ de la maquinaria: **textos de ejemplo del diccionario** (que caen al inglés, «
 12.9») y **Server Components** cuyo idioma lo fija el simulacro de la prueba
 (`servidor.idioma`), que el espejo no puede cambiar. La lista por archivo está en
 `docs/i18n/revision-italiano-base.md` §5: es el punto de partida de cada lote.
+
+### Lote L3 · Inventario, arrendadores y operaciones
+
+**Rama `feat/italiano-l3-inventario`** (sale de `integra/idiomas`, `6fea374a`).
+**Validación ÁMBAR corregida, pendiente de revalidar** (`docs/i18n/validacion-italiano-l3.md`). Revisión clave por clave en
+`docs/i18n/revision-italiano-l3.md`.
+
+- **Cobertura:** `operaciones` 177/177, `operaciones2` 205/205, `inventario`
+  360/360, `arrendadores` 431/444. Los **13 que faltan son la constancia de
+  firmas** (`arrendadores.constancia.*`): van en el idioma de la instancia, tarea
+  roja aparte (P4). El tipo lo dice:
+  `Record<Exclude<ClaveArrendadores, 'arrendadores.constancia.…'>, string>`; los
+  otros tres pasan a `Record` completo. La lista por omisión de una OT
+  (`checklist-ot.ts`) sale de `operaciones2` y ya pinta italiano.
+- **Glosario propio** (además del común):
+
+  | Español | Italiano | Por qué |
+  |---|---|---|
+  | pantalla (de inventario, en general) | **impianto** (masc.: «libero», «occupato», «{n} selezionati») | glosario común; una pantalla del inventario puede ser un espectacular |
+  | pantalla digital | schermo digitale | glosario común |
+  | artículo del almacén de tipo «Pantalla» | **schermo** | es un aparato; declarado en `costura.test.ts` (`DISTINTOS_A_PROPOSITO_IT`) |
+  | predio | immobile | |
+  | renta (al arrendador) | canone | |
+  | arrendataria (nuestra empresa) | conduttrice | término legal italiano frente a «locatore» |
+  | propia | di proprietà | |
+  | alta manual / carga masiva / plantilla | inserimento manuale / caricamento massivo / modello | |
+  | almacén · bodega · traslado | magazzino · deposito · trasferimento | |
+  | dar de baja (almacén, definitiva) / (arrendador) | dismettere / disattivare | como el inglés (Decommission / Deactivate) |
+  | imprenta (módulo) · proveedor | Stampa · tipografia | |
+  | orden de impresión · prueba de color · montaje · arte | ordine di stampa · prova colore · montaggio · grafica | |
+  | OT | **OdL** (ordine di lavoro, masc.: «Nuovo OdL», «OdL in ritardo») | glosario común |
+  | cuadrilla · fecha compromiso · vencida (OT) · por vencer | squadra · data di scadenza · in ritardo · in scadenza | |
+  | candado de facturación | blocco fatturazione («tengono bloccata la fatturazione»; abierto → «Fatturazione sbloccata») | validación H6 |
+  | evidencia · sello de ubicación · costo real · estimación | prova · timbro di posizione · costo effettivo · stima | |
+  | creativo | **creatività** (fem., invariable: «1 creatività», «3 creatività») | uso del sector |
+  | emplazamiento · cuadre · incidencia | postazione · riconciliazione · **anomalia** | incidencia → anomalia en todo el italiano (orquestador, alineado con L4) |
+  | P&L | conto economico | |
+  | licencia vigente / contrato vigente | valida / in vigore | |
+
+- **Regla para TODO el italiano (orquestador, validación H1): nunca artículo delante de una fecha.** «il 8» y «al 11» son errores (sería «l’8», «all’11»). Se escribe «in data {fecha}», «fino al giorno {fin}» o «Etichetta: {fecha}»; los rangos, con guion.
+- **Días abreviados:** «gg» («tra 29 gg»). **Periodicidades** como adjetivo junto a un sustantivo («rate quindicinali / bimestrali / semestrali»): este lote no escribe ninguna; las pone L5 por hueco.
+- **Prueba estática del diccionario** (`lib/i18n/textos/italiano-l3.test.ts`): ninguna clave igual al inglés ni al español salvo cognados declarados, y ningún `.uno` igual a su `.otros` salvo invariables declarados.
+- **Arreglos de formato que solo se veían en italiano** (es/en idénticos):
+  `NuevaPantallaForm.tsx` pintaba la renta con `'es-MX'` fijo («45,000») y
+  `OTVista.tsx` pegaba el símbolo a la cifra («MX$1.500»; el italiano lleva
+  espacio, D1). El espejo de la ola 0 no los veía: son estados FORZADOS que el
+  espejo no reproduce; las pruebas del lote rinden cada estado en `it`.
+- **Las 24 huellas de partida** de `pantallas-inventario-arrendadores` eran el
+  navegador del firmante («Mozilla/5.0», un dato) y el documento del contrato
+  (español por decisión del dueño, P4). Las pruebas del lote los apartan con el
+  porqué y dan **0** en lo demás.
+- **Pendiente para el dueño (nuevo):** el campo de cifra (`captura-cifra.ts`,
+  compartido) lee la coma como millar y el punto como decimal en todos los
+  idiomas, así que los ejemplos de captura en italiano siguen diciendo «65.50» y
+  «212,500.50». Cambiar la convención de CAPTURA en italiano es una decisión
+  aparte (y toca dinero).

@@ -14,7 +14,8 @@ import { cn } from '@/lib/cn'
 import { altaSitioApi } from '@/lib/data/sitios-api'
 import { useArrendadores, type Sitio, type TipoMedio } from '@/lib/data/client'
 import { puntoUtil } from '@/lib/coordenadas'
-import { useTexto } from '@/lib/i18n/contexto'
+import { useIdioma, useTexto } from '@/lib/i18n/contexto'
+import { numeroEnIdioma } from '@/lib/i18n/formato-idioma'
 import { interpolarNodos } from '@/lib/i18n/nodos'
 import type { ClaveTexto } from '@/lib/i18n/diccionario'
 
@@ -66,6 +67,9 @@ export function NuevaPantallaForm({
 }) {
   // Tab 1
   const t = useTexto()
+  // La cifra de la renta en el idioma de quien lee: con `'es-MX'` fijo salia
+  // «45,000» en italiano (lote L3 del italiano). En es y en no cambia nada.
+  const { idioma } = useIdioma()
   const arrendadores = useArrendadores()
   const [arrendadorId, setArrendadorId] = useState('')
   // v0.12.3 · pantalla PROPIA: sin arrendador ni renta; su costo es luz + operación.
@@ -401,7 +405,7 @@ export function NuevaPantallaForm({
                 basico: <b className="text-ink">{t('inventario.alta.tab.basico')}</b>,
                 estado:
                   Number(renta) > 0
-                    ? t('inventario.alta.costo-actual', { n: Number(renta).toLocaleString('es-MX') })
+                    ? t('inventario.alta.costo-actual', { n: numeroEnIdioma(Number(renta), idioma) })
                     : t('inventario.alta.costo-sin'),
               })}
             </div>

@@ -30,13 +30,25 @@ describe('catalogos fuera de textos/ · italiano = ingles mientras falte', () =>
     }
   })
 
-  it('papeles y checklist de OT', () => {
+  it('papeles', () => {
     for (const r of PAPELES_FIJOS) {
       const etiqueta = ES[`admin.papel.${r.toLowerCase()}`]
       expect(etiquetaDePapel(etiqueta, 'it')).toBe(etiquetaDePapel(etiqueta, 'en'))
       expect(codigoDePapel(r, 'it')).toBe(codigoDePapel(r, 'en'))
     }
-    for (const l of CHECKLIST_OT_POR_OMISION) expect(etiquetaDePuntoOT(l, 'it')).toBe(etiquetaDePuntoOT(l, 'en'))
+  })
+
+  // Lote L3 (2026-11-03): la lista por omision de una OT ya tiene italiano. Lo
+  // guardado sigue siendo el espanol; al pintarlo en `it` sale el italiano, y
+  // lo que escribio una persona sigue saliendo tal cual.
+  it('checklist de OT · ya en italiano (lote L3)', () => {
+    expect(CHECKLIST_OT_POR_OMISION.map((l) => etiquetaDePuntoOT(l, 'it'))).toEqual([
+      'Ispezione della struttura e della ferramenta',
+      'Montaggio / esecuzione',
+      'Foto di verifica con geolocalizzazione',
+    ])
+    for (const l of CHECKLIST_OT_POR_OMISION) expect(etiquetaDePuntoOT(l, 'it')).not.toBe(etiquetaDePuntoOT(l, 'en'))
+    expect(etiquetaDePuntoOT('Inspección de estructura', 'it')).toBe('Inspección de estructura')
   })
 
   it('nombres y lugares de falla de Space Eyes', () => {
