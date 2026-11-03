@@ -3,6 +3,8 @@ import { qRaw1 as q1, qConTenant } from '@/lib/server/db'
 import { verifyPassword, crearSesion, cookieSesion, cookieCsrf, nuevoCsrfToken, permisosDeRol } from '@/lib/server/auth'
 import { limitar, consultar, olvidar, ipDe } from '@/lib/server/rate-limit'
 import { respuestaError } from '@/lib/server/errores'
+import { cookieIdiomaCuenta } from '@/lib/server/idioma-cuenta'
+import { idiomasActivos, normalizarIdioma } from '@/lib/i18n/idiomas'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -108,9 +110,11 @@ async function entrar(email: string, password: string): Promise<NextResponse> {
   // ABIERTO, y un candado que se abre solo cuando el dato falta no es un candado.
   // Si algún día llegara null, `qConTenant` revienta y el login da 500. Es la
   // respuesta correcta: no entra nadie hasta que se sepa por qué.
-  const [banderas] = await qConTenant<{ solo_google: boolean }>(
+  // `idioma_preferido` viaja en ESTA misma consulta (IDIOMA-USUARIO, 03/11):
+  // el login no paga una consulta más por la preferencia de idioma.
+  const [banderas] = await qConTenant<{ solo_google: boolean; idioma_preferido: string | null }>(
     u.tenant_id,
-    `select solo_google from usuarios where id = $1 and tenant_id = $2`,
+    `select solo_google, idioma_preferido from usuarios where id = $1 and tenant_id = $2`,
     [u.id, u.tenant_id],
   )
 
@@ -131,8 +135,15 @@ async function entrar(email: string, password: string): Promise<NextResponse> {
   const res = NextResponse.json({
     usuario: { id: u.id, nombre: u.nombre, email: u.email, cargo: u.cargo, rol: u.rol, activo: u.activo },
     permisos,
+    // El idioma de la cuenta, si está encendido. La pantalla de entrar lo usa
+    // para saber si tiene que recargar: la navegación de Next no vuelve a pintar
+    // el layout raíz, que es quien lleva el idioma.
+    idioma: normalizarIdioma(banderas?.idioma_preferido, idiomasActivos()),
   })
   res.cookies.set(cookieSesion(token))
+  // La preferencia de la cuenta, atada a ESTA sesión. Sin preferencia la
+  // borra: si alguien usó antes este navegador, su elección no se hereda.
+  res.cookies.set(cookieIdiomaCuenta(token, normalizarIdioma(banderas?.idioma_preferido)))
   // Emite el token anti-CSRF junto con la sesión (double-submit). El front lo
   // lee de esta cookie y lo reenvía en X-CSRF-Token; el middleware lo exige.
   res.cookies.set(cookieCsrf(nuevoCsrfToken()))

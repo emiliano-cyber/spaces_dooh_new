@@ -37,6 +37,13 @@ import { formatearDinero, formatearDineroRedondo, formatearFecha, formatearNumer
 //  **No se vuelve a preguntar.** Si algun dia se quiere por persona, eso SI es
 //  una migracion y la aprueba el dueno antes de escribirla.
 //
+//  **Y el 2026-11-03 el dueno lo pidio** (IDIOMA-USUARIO): «el idioma de lo
+//  demas se debe poder configurar por usuario y navegador». La cuenta opina y
+//  MANDA (`usuarios.idioma_preferido`, «Mi cuenta → Idioma»); la cookie de
+//  aqui sigue siendo la eleccion DEL NAVEGADOR y manda cuando la cuenta no
+//  tiene preferencia. Este proveedor no cambio: el servidor ya le entrega el
+//  idioma resuelto con las dos. Ver `idiomas.ts` (`resolverIdioma`).
+//
 //  ─── POR QUE `router.refresh()` Y NO UNA RECARGA ───────────────────────────
 //
 //  Al cambiar de idioma hay que volver a pedirle al servidor el arbol, porque
