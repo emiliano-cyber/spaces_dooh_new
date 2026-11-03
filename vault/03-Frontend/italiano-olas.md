@@ -133,3 +133,62 @@ de la maquinaria: **textos de ejemplo del diccionario** (que caen al inglés, «
 12.9») y **Server Components** cuyo idioma lo fija el simulacro de la prueba
 (`servidor.idioma`), que el espejo no puede cambiar. La lista por archivo está en
 `docs/i18n/revision-italiano-base.md` §5: es el punto de partida de cada lote.
+
+### Lote L1 · Space Eyes y luz
+
+**2026-11-03, rama `feat/italiano-l1-spaceeyes`** (sale de `integra/idiomas`,
+`6fea374a`). **Hecho, sin validar.** Revisión: `docs/i18n/revision-italiano-l1.md`.
+
+- **`IT_SPACEEYES` 1001 e `IT_ENERGIA` 121, completos**: el tipo pasa a
+  `Record` y `tsc` exige cada clave. Cubre también `lib/i18n/donde-falla.ts`
+  (dónde falló y los 8 nombres de falla del teléfono), que usa claves
+  `spaceeyes.fallas.*`. Cobertura: 0 pendientes en las dos filas.
+- **Las cifras del módulo, en italiano.** Las 87 huellas del espejo («1.2»,
+  «0.00» de *Regola il testo*) y otras que ninguna prueba rendía en italiano
+  («3.10 GB», «63.3 GB», «1,200», «8,000 µs») salían de `toFixed` y
+  `formatNumero` sin idioma. Nuevos `fijo()` y `cifra()` en `piezas.tsx`: en es
+  y en, `toFixed`/`String` tal cual; en it, coma decimal y punto de millar.
+  Espejo de Space Eyes y energía: **0** huellas (el total baja de 358 a 271).
+- **Un hallazgo de la ola 0 para quien lleve `dinero.ts`:** `formatearDinero`
+  con **solo** `maximumFractionDigits` da «MX$ 3.400,5» y «MX$ 50» en italiano
+  (`dineroSimboloDelante` no pone el mínimo de la moneda, que en es/en pone el
+  estilo `currency`). Aquí se arregló en el llamador (`energia/captura.ts`, los
+  dos límites); `dinero.ts` no se tocó.
+- **Otro, de la guardia:** «0,812» (un SSIM italiano) cae en «cifra con coma de
+  millar». La prueba de Space Eyes lo permite con `/^0,\d{3}$/`; la guardia
+  podría excluir los millares que empiezan por «0,».
+
+**Glosario del lote** (decisión del traductor; el dueño puede cambiarla):
+
+| Español | Italiano |
+|---|---|
+| equipo / dispositivo | dispositivo |
+| falla (abierta / recuperada / descartada) | guasto (aperto / risolto / scartato) |
+| vista en vivo | vista in diretta |
+| verificación | verifica |
+| solicitud de activación | richiesta di attivazione |
+| flota | flotta |
+| gabinete | cabinet (invariable, como en el sector LED) |
+| creativo / creatividad | creatività (femenino, invariable) |
+| encuadre | inquadratura |
+| vigilancia | monitoraggio |
+| código de vinculación | codice di abbinamento |
+| marca de la foto | etichetta |
+| captura | scatto |
+| lente / cámara | obiettivo / fotocamera (telecamera IP en la PC) |
+| pantalla | **schermo** la LED que mira el equipo; **impianto** la del inventario (asignada, asociada, su galería) |
+| el padre | server padre |
+| folio de un ticket | ticket |
+| Administración › Configuración › Soporte | Impostazioni › Impostazioni aziendali › Supporto (como el inglés; **lo fija L5**) |
+| «pide un toque» | serve una conferma sul telefono (en la web, siempre «Clicca») |
+| recibo de luz · predio · medidor | bolletta (della luce) · proprietà · contatore |
+| punto de medición · pantalla suelta | punto di misura · impianto isolato |
+| capturar · hueco · tanda · renglón | registrare · buco / dato mancante · lotto · riga |
+| alumbrado público · adeudos | illuminazione pubblica · arretrati |
+| recibo bimestral | bolletta emessa ogni due mesi |
+| reporte de rentabilidad | report di redditività |
+
+**Se queda igual, a propósito:** «Vincular» (botón de la app Android, solo en
+español), la marca grabada en la foto (es-MX: es la evidencia; una prueba lo
+fija también en italiano), el ticket de activación, el veredicto de la foto
+(`comercial.eye.*`, es de L2).
