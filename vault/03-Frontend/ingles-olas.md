@@ -138,7 +138,7 @@ validador. **Nada de lo que se guarda cambia**: todo se traduce al pintarlo.
 
 | Lote | Rama | Estado |
 |---|---|---|
-| Notificaciones, papeles, checklist de OT, los dos mensajes de venta y menores A y C | `feat/ingles-ola6` | **Pendiente del validador.** Informe en `docs/i18n/revision-ola6.md`: español idéntico en los 555 estados (0 diferencias, 4 estados nuevos), 0 valores de `DICCIONARIOS.es` cambiados, 28 de 28 mutantes, 6854 unitarias en verde |
+| Notificaciones, papeles, checklist de OT, los dos mensajes de venta y menores A y C | `feat/ingles-ola6` | **VERDE**. Integrado (bc591b7a). Validación en `docs/i18n/validacion-ola6.md`: 14 de 15 mutantes propios (el vivo es equivalente). Menores sin bloquear: el arreglo de fecha solo cubre fechas sin hora en el cliente (la API manda `Date` a medianoche del servidor; con `TZ` de México ya salía bien), «due in 0 days» en vez de «due today», doble espacio con agencia sin nombre (igual en español), y la prueba de fuentes de notificaciones solo ve archivos rastreados. Revisión en `docs/i18n/revision-ola6.md`: español idéntico en los 555 estados (0 diferencias, 4 estados nuevos), 0 valores de `DICCIONARIOS.es` cambiados, 28 de 28 mutantes, 6854 unitarias en verde |
 
 Detalle del lote:
 
@@ -182,7 +182,7 @@ Detalle del lote:
 |---|---|
 | El CSV del estado de cuenta: ¿en el idioma de la pantalla o siempre en español? | el dueño |
 | «MX$ 1,160.00 MXN» en el comprobante: el validador recomienda dejarlo | el dueño |
-| ~~Notificaciones de la campanita, papeles, checklist de una OT y los dos mensajes del flujo de venta~~ | hechos en la ola 6 (`feat/ingles-ola6`), traducidos al pintarlos; falta el validador |
+| ~~Notificaciones de la campanita, papeles, checklist de una OT y los dos mensajes del flujo de venta~~ | hechos en la ola 6, traducidos al pintarlos; integrados (bc591b7a) |
 | `PaqueteImposible` al quitar un paquete (envuelve la frase del tope) | otra ola |
 | Encender `IDIOMA_INGLES=1` en DEMO y luego en las instancias | el dueño: la ola 5 ya está cerrada |
 | Entrada en `docs/Registro_Cambios.md` | al encender, porque antes no se nota |
