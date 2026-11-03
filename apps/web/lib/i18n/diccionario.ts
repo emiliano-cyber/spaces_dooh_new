@@ -550,12 +550,6 @@ const IT: Partial<Record<ClaveTexto, string>> = {
 /** El italiano que YA esta escrito, sin la caida al ingles. Para la cobertura y los lotes. */
 export const IT_PARCIAL: Readonly<Partial<Record<ClaveTexto, string>>> = IT
 
-/**
- * Las claves de `diccionario.ts` que no son de ningun `textos/<ambito>.ts`
- * (comun, idioma, login, menu lateral…): el «ambito base» de la cobertura.
- */
-export const IT_BASE_PARCIAL: Readonly<Partial<Record<ClaveTexto, string>>> = IT_BASE
-
 export const DICCIONARIOS: Record<Idioma, Record<ClaveTexto, string>> = {
   es: ES,
   en: EN,
