@@ -1,5 +1,47 @@
 [
   {
+    "version": "v0.12.0",
+    "fecha": "2026-11-03",
+    "items": [
+      {
+        "tipo": "NUEVO",
+        "texto": "La camara de cada equipo puede tener un ajuste de dia y otro de noche. Se configuran en la ficha del equipo, en Ajustes de imagen: eliges desde que hora y hasta que hora rige el de noche, y el equipo cambia solo. Sirve para los sitios donde la pantalla deslumbra al anochecer y la foto sale quemada."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "La ficha de un creativo ensena dos fotos: como aparecio la primera vez y como se ve hoy. Es la forma rapida de ver que una lona se decoloro o que la pantalla perdio un modulo."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Cada foto de la galeria dice de donde salio -programada, creativo nuevo, campana o pedida a mano- y de que campana es, cuando la hay."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "El plazo entre fotos del mismo creativo se ajusta equipo por equipo. En un sitio con muchos anuncios se puede acortar, y en uno con pocos alargarlo para gastar menos datos."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Cuando a un creativo del catalogo le falta la foto, la ficha dice por que falta en vez de dejar el hueco sin explicacion."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "Los creativos que estaban sin foto adoptan las que ya se habian subido, en lugar de pedirle al equipo que las vuelva a tomar. Se aplica solo, sin gastar datos."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "Space Eyes usa el mismo encabezado y los mismos margenes que el resto del sistema. Antes sus pantallas se dibujaban mas adentro y con el titulo mas chico que las de Inventario o Almacen, y se notaba al pasar de una a otra."
+      },
+      {
+        "tipo": "CORREGIDO",
+        "texto": "Una pantalla apagada ya no entra a la galeria como si fuera un creativo nuevo."
+      },
+      {
+        "tipo": "CORREGIDO",
+        "texto": "Los equipos dejan de acusar a su propia camara de noche y de ver creativos donde no hay ninguno."
+      }
+    ]
+  },
+  {
     "version": "v0.11.3",
     "fecha": "2026-10-08",
     "items": [
