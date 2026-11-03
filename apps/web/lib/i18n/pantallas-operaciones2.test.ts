@@ -24,6 +24,12 @@ import { leerDinero } from './simbolo-en-pantalla'
 //  predicado sobre el valor inicial y sobre la PILA (el nombre del componente
 //  que llama), y se consume en orden.
 //
+//  Cada estado importa su pagina PRIMERO y fuerza DESPUES, justo antes de
+//  rendir (leccion del validador de clientes): la cola es una sola para todo
+//  el archivo, y si los forzados entran antes del `await import(...)`, un
+//  estado que agota el tiempo deja un render vivo que se come los forzados del
+//  siguiente — fallos que salen solo a veces.
+//
 //  Con `I18N_VOLCAR=<carpeta>` vuelca el HTML espanol de cada estado: se corre
 //  antes y despues de tocar los componentes y se compara con `diff -rq`.
 //
@@ -183,19 +189,23 @@ type Estado = { nombre: string; pintar: (idioma: Idioma) => Promise<string>; esp
 export const ESTADOS_OT: Estado[] = [
   {
     nombre: 'operaciones · cargando',
-    pintar: async (idioma) => pintar(idioma, createElement(await operaciones())),
+    pintar: async (idioma) => {
+      const Pagina = await operaciones()
+      return pintar(idioma, createElement(Pagina))
+    },
     espanol: ['Operaciones', 'Tareas de cuadrilla · seguimiento de campo', 'Nueva OT', 'Órdenes de trabajo', 'Todas', 'Pendientes', 'Asignadas', 'En proceso', 'Completadas'],
     ingles: ['Operations', 'Crew tasks · field tracking', 'New work order', 'Work orders', '>All<', '>Pending<', '>Assigned<', '>In progress<', '>Completed<'],
   },
   {
     nombre: 'operaciones · con OT, aviso de SLA y filtros',
     pintar: async (idioma) => {
+      const Pagina = await operaciones() // primero la pagina, despues los forzados
       datos.ots = OTS
       datos.sitios = SITIOS
       datos.campanas = CAMPANAS
       datos.usuarios = USUARIOS
       datos.evidencias = EVIDENCIAS
-      return pintar(idioma, createElement(await operaciones()))
+      return pintar(idioma, createElement(Pagina))
     },
     espanol: [
       'Abiertas', '1 en proceso', 'Vencidas', 'frenan el candado de facturación', 'Por vencer',
@@ -217,8 +227,9 @@ export const ESTADOS_OT: Estado[] = [
   {
     nombre: 'operaciones · varias vencidas y lista larga',
     pintar: async (idioma) => {
+      const Pagina = await operaciones() // primero la pagina, despues los forzados
       datos.ots = [...Array.from({ length: 26 }, (_, i) => ot(`v${i}`, { fechaProgramada: '2026-10-01' }))]
-      return pintar(idioma, createElement(await operaciones()))
+      return pintar(idioma, createElement(Pagina))
     },
     espanol: ['26 OT vencidas', 'Ver todas (26)'],
     ingles: ['26 overdue work orders', 'Show all (26)'],
@@ -226,9 +237,10 @@ export const ESTADOS_OT: Estado[] = [
   {
     nombre: 'operaciones · lista larga desplegada',
     pintar: async (idioma) => {
+      const Pagina = await operaciones() // primero la pagina, despues los forzados
       datos.ots = [...Array.from({ length: 26 }, (_, i) => ot(`v${i}`, { fechaProgramada: '2026-12-01' }))]
       forzar(enesimo('OperacionesPage', esFalse, 2), true) // verTodas
-      return pintar(idioma, createElement(await operaciones()))
+      return pintar(idioma, createElement(Pagina))
     },
     espanol: ['Ver menos'],
     ingles: ['Show less'],
@@ -236,8 +248,9 @@ export const ESTADOS_OT: Estado[] = [
   {
     nombre: 'operaciones · sin OT',
     pintar: async (idioma) => {
+      const Pagina = await operaciones() // primero la pagina, despues los forzados
       datos.ots = []
-      return pintar(idioma, createElement(await operaciones()))
+      return pintar(idioma, createElement(Pagina))
     },
     espanol: ['Todavía no hay órdenes de trabajo', 'Crea la primera con «Nueva OT»: se liga a una campaña y a su pantalla.', '0 de 0'],
     ingles: ['No work orders yet', 'Create the first one with “New work order”: it is linked to a campaign and its screen.', '0 of 0'],
@@ -245,9 +258,10 @@ export const ESTADOS_OT: Estado[] = [
   {
     nombre: 'operaciones · filtro sin resultados',
     pintar: async (idioma) => {
+      const Pagina = await operaciones() // primero la pagina, despues los forzados
       datos.ots = OTS_UNA_VENCIDA
       forzar(enesimo('OperacionesPage', esCadenaVacia), 'COMPLETADA')
-      return pintar(idioma, createElement(await operaciones()))
+      return pintar(idioma, createElement(Pagina))
     },
     espanol: ['Ninguna OT en «Completadas»', 'Las demás siguen en «Todas».', 'Ver todas'],
     ingles: ['No work orders in “Completed”', 'The rest are still under “All”.', 'Show all'],
@@ -255,6 +269,7 @@ export const ESTADOS_OT: Estado[] = [
   {
     nombre: 'operaciones · alta de OT con campaña y pantalla',
     pintar: async (idioma) => {
+      const Pagina = await operaciones() // primero la pagina, despues los forzados
       datos.ots = []
       datos.sitios = SITIOS
       datos.campanas = CAMPANAS
@@ -263,7 +278,7 @@ export const ESTADOS_OT: Estado[] = [
       forzar(enesimo('OperacionesPage', esFalse, 1), true) // nuevaOpen
       forzar(enesimo('NuevaOTModal', esCadenaVacia, 2), 's1') // sitioId
       forzar(enesimo('NuevaOTModal', esCadenaVacia, 1), 'c1') // campanaId (el contador empieza tras sitioId)
-      return pintar(idioma, createElement(await operaciones()))
+      return pintar(idioma, createElement(Pagina))
     },
     espanol: [
       'Nueva orden de trabajo', 'Asigna una tarea a cuadrilla', 'Cancelar', 'Crear OT', 'Campaña', '— Sin campaña —',
@@ -282,6 +297,7 @@ export const ESTADOS_OT: Estado[] = [
   {
     nombre: 'operaciones · alta de OT con pantalla fija y campaña sin sitios',
     pintar: async (idioma) => {
+      const Pagina = await operaciones() // primero la pagina, despues los forzados
       datos.ots = []
       datos.sitios = SITIOS
       datos.campanas = CAMPANAS
@@ -289,7 +305,7 @@ export const ESTADOS_OT: Estado[] = [
       forzar(enesimo('OperacionesPage', esFalse, 1), true)
       forzar(enesimo('NuevaOTModal', esCadenaVacia, 2), 's2')
       forzar(enesimo('NuevaOTModal', esCadenaVacia, 1), 'c2')
-      return pintar(idioma, createElement(await operaciones()))
+      return pintar(idioma, createElement(Pagina))
     },
     espanol: ['Esta campaña no tiene sitios reservados.'],
     ingles: ['This campaign has no booked sites.'],
@@ -297,13 +313,14 @@ export const ESTADOS_OT: Estado[] = [
   {
     nombre: 'operaciones · alta de OT sin campaña, con pantalla fija',
     pintar: async (idioma) => {
+      const Pagina = await operaciones() // primero la pagina, despues los forzados
       datos.ots = []
       datos.sitios = SITIOS
       datos.campanas = CAMPANAS
       forzar(enesimo('OperacionesPage', esFalse, 1), true)
       forzar(enesimo('NuevaOTModal', esCadenaVacia, 2), 's2')
       forzar(enesimo('NuevaOTModal', esFalse, 1), true) // enviando
-      return pintar(idioma, createElement(await operaciones()))
+      return pintar(idioma, createElement(Pagina))
     },
     espanol: ['Valla Sur · Fija', '(opciones de pantalla fija)', 'Montaje de lona', 'Herrería', 'Creando…'],
     ingles: ['Valla Sur · Static', '(options for a static screen)', 'Vinyl installation', 'Metalwork', 'Creating…'],
@@ -312,8 +329,9 @@ export const ESTADOS_OT: Estado[] = [
   {
     nombre: 'ficha · no se pudo cargar',
     pintar: async (idioma) => {
+      const Pagina = await vista() // primero la pagina, despues los forzados
       forzar(enesimo('OTVista', esIndefinido), null)
-      return pintar(idioma, createElement(await vista(), { id: 'x', embedded: true }))
+      return pintar(idioma, createElement(Pagina, { id: 'x', embedded: true }))
     },
     espanol: ['No se pudo cargar la orden de trabajo.', 'Inicia sesión para continuar'],
     ingles: ['Could not load the work order.', 'Sign in to continue'],
@@ -322,10 +340,11 @@ export const ESTADOS_OT: Estado[] = [
     nombre: 'ficha · escritorio abierta, solo lectura y error de guardado',
     dinero: true,
     pintar: async (idioma) => {
+      const Pagina = await vista() // primero la pagina, despues los forzados
       forzar(enesimo('OTVista', esIndefinido), fichaAbierta({ costoReal: 1500 }))
       forzar(enesimo('OTVista', esVacio), [true, false]) // checks
       forzar(enesimo('OTVista', esGuardado), { estado: 'error', error: 'error-del-servidor', pendientes: 1 })
-      return pintar(idioma, createElement(await vista(), { id: '1', embedded: true }))
+      return pintar(idioma, createElement(Pagina, { id: '1', embedded: true }))
     },
     espanol: [
       ' Operaciones</a>', 'Revisar estructura 1', 'OT-1 · Pantalla Reforma', 'Av. Reforma 1', 'Pendiente', '>Tipo<',
@@ -353,11 +372,12 @@ export const ESTADOS_OT: Estado[] = [
   {
     nombre: 'ficha · escritorio sin costo, guardando y con cero',
     pintar: async (idioma) => {
+      const Pagina = await vista() // primero la pagina, despues los forzados
       forzar(enesimo('OTVista', esIndefinido), fichaAbierta({ fechaProgramada: '2026-11-03', prioridad: 'ALTA' }))
       forzar(enesimo('OTVista', esFalse, 1), true) // cerrando
       forzar(enesimo('OTVista', esFalse, 1), true) // guardandoCosto (el contador empieza tras cerrando)
       forzar(enesimo('OTVista', esGuardado), { estado: 'guardando', error: null, pendientes: 1 })
-      return pintar(idioma, createElement(await vista(), { id: '1', embedded: true }))
+      return pintar(idioma, createElement(Pagina, { id: '1', embedded: true }))
     },
     espanol: [
       'Alta', '>Por vencer<', 'Guardando…', 'Cerrando…',
@@ -373,9 +393,10 @@ export const ESTADOS_OT: Estado[] = [
   {
     nombre: 'ficha · escritorio con costo cero y guardado',
     pintar: async (idioma) => {
+      const Pagina = await vista() // primero la pagina, despues los forzados
       forzar(enesimo('OTVista', esIndefinido), { ...fichaAbierta({ costoReal: 0 }), responsable: 'Luisa Campo', puedeEditar: true })
       forzar(enesimo('OTVista', esGuardado), { estado: 'guardado', error: null, pendientes: 0 })
-      return pintar(idioma, createElement(await vista(), { id: '1', embedded: true }))
+      return pintar(idioma, createElement(Pagina, { id: '1', embedded: true }))
     },
     espanol: [' — esta visita está capturada como que no costó nada.', ' Guardado</span>', 'Luisa Campo'],
     ingles: [' — this visit is recorded as having cost nothing.', ' Saved</span>'],
@@ -384,8 +405,9 @@ export const ESTADOS_OT: Estado[] = [
     nombre: 'ficha · escritorio cerrada con costo',
     dinero: true,
     pintar: async (idioma) => {
+      const Pagina = await vista() // primero la pagina, despues los forzados
       forzar(enesimo('OTVista', esIndefinido), fichaCerrada(2300))
-      return pintar(idioma, createElement(await vista(), { id: '1', embedded: true }))
+      return pintar(idioma, createElement(Pagina, { id: '1', embedded: true }))
     },
     espanol: [
       'OT cerrada', 'La evidencia se envió al pipeline de la campaña.', 'Cerrada el 05/10/2026', 'Checklist cumplido',
@@ -401,8 +423,9 @@ export const ESTADOS_OT: Estado[] = [
   {
     nombre: 'ficha · escritorio cerrada sin costo',
     pintar: async (idioma) => {
+      const Pagina = await vista() // primero la pagina, despues los forzados
       forzar(enesimo('OTVista', esIndefinido), fichaCerrada(null))
-      return pintar(idioma, createElement(await vista(), { id: '1', embedded: true }))
+      return pintar(idioma, createElement(Pagina, { id: '1', embedded: true }))
     },
     espanol: ['Se cerró sin costo capturado: el reporte de rentabilidad usa la estimación por tipo de tarea.'],
     ingles: ['It was closed with no cost entered: the profitability report uses the per-type estimate.'],
@@ -410,9 +433,10 @@ export const ESTADOS_OT: Estado[] = [
   {
     nombre: 'ficha · movil abierta',
     pintar: async (idioma) => {
+      const Pagina = await vista() // primero la pagina, despues los forzados
       forzar(enesimo('OTVista', esIndefinido), { ...fichaAbierta(), responsable: 'Luisa Campo' })
       forzar(enesimo('OTVista', esNull, 1), { lat: 19.4, lng: -99.1 }) // geo
-      return pintar(idioma, createElement(await vista(), { id: '1' }))
+      return pintar(idioma, createElement(Pagina, { id: '1' }))
     },
     espanol: ['Campaña: Verano', 'Responsable: <span class="text-ink">Luisa Campo</span>', ' Operaciones</a>', 'Fotografía comprobatoria'],
     ingles: ['Campaign: Verano', 'Assignee: <span class="text-ink">Luisa Campo</span>', ' Operations</a>', 'Proof photo'],
@@ -420,8 +444,9 @@ export const ESTADOS_OT: Estado[] = [
   {
     nombre: 'ficha · movil cerrada',
     pintar: async (idioma) => {
+      const Pagina = await vista() // primero la pagina, despues los forzados
       forzar(enesimo('OTVista', esIndefinido), { ...fichaCerrada(null), responsable: null })
-      return pintar(idioma, createElement(await vista(), { id: '1' }))
+      return pintar(idioma, createElement(Pagina, { id: '1' }))
     },
     espanol: ['OT cerrada', 'Puedes cerrar esta ventana. La evidencia ya quedó registrada.', 'Responsable: <span class="text-ink">Sin asignar</span>'],
     ingles: ['Work order closed', 'You can close this window. The evidence is already recorded.', 'Assignee: <span class="text-ink">Unassigned</span>'],
@@ -470,9 +495,10 @@ export const ESTADOS_CREATIVOS: Estado[] = [
   {
     nombre: 'creativos · con campañas, alta por código abierta',
     pintar: async (idioma) => {
+      const Pagina = await creativos() // primero la pagina, despues los forzados
       conCreativos()
       forzar(enesimo('CampanaCard', esFalse, 2), true) // codeOpen (la primera tarjeta)
-      return pintar(idioma, createElement(await creativos()))
+      return pintar(idioma, createElement(Pagina))
     },
     espanol: [
       'Creativos', 'Sube y aprueba las imágenes de cada campaña, y asigna cuál va en cada slot reservado.',
@@ -506,6 +532,7 @@ export const ESTADOS_CREATIVOS: Estado[] = [
   {
     nombre: 'creativos · guardando, un spot con un creativo y la fuente cargando',
     pintar: async (idioma) => {
+      const Pagina = await creativos() // primero la pagina, despues los forzados
       conCreativos()
       datos.reservas = [reserva('r1', 'c1', 'd1', { creativos: [{ creatividadId: 'k2', veces: 1 }] })]
       datos.campanas = [camp('c1', 'Verano')]
@@ -513,7 +540,7 @@ export const ESTADOS_CREATIVOS: Estado[] = [
       forzar(enesimo('CampanaCard', esFalse, 1), true) // codeOpen
       forzar(enesimo('CampanaCard', esNull, 1), CREAS[0]) // verFuente (busy va antes que codeOpen)
       forzar(enesimo('CampanaCard', esFalse, 1), true) // cargandoFuente (intento va antes que verFuente)
-      return pintar(idioma, createElement(await creativos()))
+      return pintar(idioma, createElement(Pagina))
     },
     espanol: ['Guardando…', '1 creativo', 'text/html · cargando…', 'Cargando la fuente…', ' Descargar .html</button>', 'Cerrar'],
     ingles: ['Saving…', '1 creative', 'text/html · loading…', 'Loading the source…', ' Download .html</button>', 'Close'],
@@ -521,12 +548,13 @@ export const ESTADOS_CREATIVOS: Estado[] = [
   {
     nombre: 'creativos · la fuente no se pudo cargar y los dos diálogos',
     pintar: async (idioma) => {
+      const Pagina = await creativos() // primero la pagina, despues los forzados
       conCreativos()
       datos.campanas = [camp('c1', 'Verano')]
       forzar(enesimo('CampanaCard', esNull, 2), { ...CREAS[0], formato: null }) // verFuente
       forzar(enesimo('CampanaCard', esNull, 3), CREAS[0]) // confirmarEliminar (tras fuente y reemplazarId)
       forzar(enesimo('CampanaCard', esNull, 1), CREAS[1]) // confirmarReemplazo
-      return pintar(idioma, createElement(await creativos()))
+      return pintar(idioma, createElement(Pagina))
     },
     espanol: [
       'HTML · 0 caracteres', 'No se pudo cargar la fuente de este creativo.', 'Eliminar creativo', 'Sí, eliminar',
@@ -546,9 +574,10 @@ export const ESTADOS_CREATIVOS: Estado[] = [
   {
     nombre: 'creativos · ninguna coincide',
     pintar: async (idioma) => {
+      const Pagina = await creativos() // primero la pagina, despues los forzados
       conCreativos()
       forzar(enesimo('CreativosPage', esCadenaVacia, 1), 'zzz') // q: una busqueda que no encuentra nada
-      return pintar(idioma, createElement(await creativos()))
+      return pintar(idioma, createElement(Pagina))
     },
     espanol: ['Ninguna campaña coincide', 'Prueba con otro texto de búsqueda o quita el filtro de estado.', 'Limpiar filtros', '0 de 3'],
     ingles: ['No campaign matches', 'Try a different search or remove the status filter.', 'Clear filters', '0 of 3'],
@@ -556,9 +585,10 @@ export const ESTADOS_CREATIVOS: Estado[] = [
   {
     nombre: 'creativos · sin campañas',
     pintar: async (idioma) => {
+      const Pagina = await creativos() // primero la pagina, despues los forzados
       conCreativos()
       datos.campanas = []
-      return pintar(idioma, createElement(await creativos()))
+      return pintar(idioma, createElement(Pagina))
     },
     espanol: ['Sin campañas con slots o creativos', 'Reserva sitios en Comercial o sube un creativo para gestionarlos aquí.'],
     ingles: ['No campaigns with slots or creatives', 'Book sites in Sales or upload a creative to manage them here.'],
@@ -566,10 +596,11 @@ export const ESTADOS_CREATIVOS: Estado[] = [
   {
     nombre: 'creativos · una campaña solo de medios fijos',
     pintar: async (idioma) => {
+      const Pagina = await creativos() // primero la pagina, despues los forzados
       conCreativos()
       datos.campanas = [camp('c1', 'Verano')]
       datos.reservas = [reserva('r1', 'c1', 'f1')]
-      return pintar(idioma, createElement(await creativos()))
+      return pintar(idioma, createElement(Pagina))
     },
     espanol: [
       'Ninguna campaña tiene pantallas digitales',
@@ -585,10 +616,11 @@ export const ESTADOS_CREATIVOS: Estado[] = [
   {
     nombre: 'creativos · dos campañas solo de medios fijos',
     pintar: async (idioma) => {
+      const Pagina = await creativos() // primero la pagina, despues los forzados
       conCreativos()
       datos.campanas = [camp('c1', 'Verano'), camp('c22', 'Otoño')]
       datos.reservas = [reserva('r1', 'c1', 'f1'), reserva('r2', 'c22', 'f1')]
-      return pintar(idioma, createElement(await creativos()))
+      return pintar(idioma, createElement(Pagina))
     },
     espanol: ['Tus 2 campañas son de medios fijos: su arte se lleva en Imprenta.'],
     ingles: ['Your 2 campaigns are on static media: their artwork is handled in Printing.'],
