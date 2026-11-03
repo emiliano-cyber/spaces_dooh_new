@@ -3406,7 +3406,7 @@ const ITALIANO: Record<string, string[]> = {
   'lista · con equipos': [
     'I dispositivi che sorvegliano i tuoi impianti: cosa stanno vedendo e come stanno.',
     'Aggiorna', 'Aggiungi dispositivo', 'di 4 dispositivi', 'Non comunica', 'oltre 10 min', 'Batteria critica', 'sotto il 20%',
-    'Ultimo scatto', 'di tutta la flotta', 'Tutti · 4', 'Online · 1', 'Da controllare · 3', 'Si aggiornano manualmente · 2',
+    'Ultimo scatto', 'di tutto il parco dispositivi', 'Tutti · 4', 'Online · 1', 'Da controllare · 3', 'Si aggiornano manualmente · 2',
     'Tutte le aziende', 'Cerca dispositivo o impianto', 'Azienda', 'Ultimo scatto di Reforma 222 · Cara A',
     'Ancora nessuno scatto', 'nessun impianto assegnato', 'Per aggiornarlo serve un sopralluogo',
     'Per aggiornarlo serve una conferma sul telefono', 'nessun dato', 'Rete mobile', '2 min fa', '5 h fa', '30 min fa',
@@ -3420,8 +3420,8 @@ const ITALIANO: Record<string, string[]> = {
     'Programmazione delle foto',
     'Le foto si scattano da sole, a un’ora imprevedibile all’interno delle fasce orarie che definisci.',
     'Nuova programmazione', 'Tutti i dispositivi', 'Campagna: Verano', 'Gruppo: Norte', '08:00-10:00 (casuale)',
-    'Nessuna fascia oraria', 'Ogni 2 h', 'Ogni 45 min', 'In pausa', 'Inizia il 1 dic 2026', 'Scaduta il 1 ott 2026',
-    'Non scatta fino al 1 dic 2026', 'Non scatta: scaduta', 'Non calcolata', ' (tra 30 min)', ' (tra 5 h)', ' (in coda)',
+    'Nessuna fascia oraria', 'Ogni 2 h', 'Ogni 45 min', 'In pausa', 'Inizio: 1 dic 2026', 'Scaduta: 1 ott 2026',
+    'Non scatta prima di: 1 dic 2026', 'Non scatta: scaduta', 'Non calcolata', ' (tra 30 min)', ' (tra 5 h)', ' (in coda)',
     'Prossima: ', '(3 questa settimana)', 'Metti in pausa', 'Si applica a', 'Quando', 'Prossima foto', 'Azioni',
   ],
   'fallas · abiertas, historial y descartar': [
@@ -3433,10 +3433,14 @@ const ITALIANO: Record<string, string[]> = {
   ],
   'demo · la demostracion': [
     'ESEMPIO', 'IL TUO MARCHIO', 'Illustrazione di un cartellone di esempio', 'Città di esempio',
-    'I tuoi impianti, visti dal sito, senza andare sul sito', 'Prova di affissione', 'I guasti prima del cliente',
+    'I tuoi impianti, visti dal sito, senza andare sul sito', 'Prova di messa in onda', 'I guasti prima del cliente',
     'Meno sopralluoghi', 'Cosa è andato in onda', 'Online · Rete mobile, segnale buono', '92% · in carica',
     'Richiedi l’attivazione', 'Lo vuoi per i tuoi impianti?',
   ],
+  // Validacion L1: «{hace}» ya trae el «fa»; la plantilla lo repetia.
+  'pantalla y creativos · con fallas y creativos': ['Vista 42 volte · l’ultima 5 min fa'],
+  // Validacion L1 (V1): el SSIM con coma, no «0.812».
+  'verificacion · resultados con paginas': ['SSIM 0,812'],
   'sin respuesta': [
     'Il servizio delle fotocamere non risponde in questo momento', 'Riprova',
     'Se continua così per più di un’ora, avvisa il supporto da Impostazioni › Impostazioni aziendali › Supporto.',
@@ -3455,8 +3459,23 @@ describe('lote SPACE EYES · en ITALIANO no queda ninguna frase espanola y sale 
       expect(quedan).toEqual([])
       const faltan = (ITALIANO[p.nombre] ?? []).filter((f) => !html.includes(f))
       expect(faltan).toEqual([])
+      // Una plantilla que repite lo que ya trae su hueco («5 min fa fa»).
+      expect(html).not.toMatch(/\bfa fa\b/)
     })
   }
+
+  // Validacion L1 (V6): el total de la galeria con millar, que las pruebas del
+  // ingles no rendian (su total es 45).
+  it('galeria · un total de 1234 fotos sale «1.234», no «1,234»', async () => {
+    const C = await galeria()
+    forzar(esNull, FOTOS)
+    forzar(esCero, 1234)
+    forzar(esTrue, false)
+    forzar(esArregloVacio, [{ id: 1, name: 'Reforma 222' }])
+    const html = texto(pintar('it', el(C)))
+    expect(html).toContain('1.234')
+    expect(html).not.toContain('1,234')
+  })
 
   it('cada pantalla de `ITALIANO` existe (un nombre mal escrito no prueba nada)', () => {
     const nombres = new Set(PANTALLAS.map((p) => p.nombre))

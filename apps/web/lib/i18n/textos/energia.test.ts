@@ -117,6 +117,16 @@ describe('energia · `captura.ts` y `recibos.ts`: el espanol no cambia con `idio
     })
   }
 
+  // Validacion L1 (V8): la rama de los kWh ACEPTADOS (no la de «il PDF
+  // indica») tambien lleva la cifra en italiano.
+  it('lo leido con los kWh aceptados: «1.500 kWh» en italiano, «1,500 kWh» en es y en', () => {
+    const aceptado = { ...(lectura as object), kwh: 1500 } as never
+    expect(textoDeLoLeido(aceptado, 'it')).toContain(' · 1.500 kWh')
+    expect(textoDeLoLeido(aceptado, 'it')).not.toContain('1,500')
+    expect(textoDeLoLeido(aceptado, 'en')).toContain(' · 1,500 kWh')
+    expect(textoDeLoLeido(aceptado)).toContain(' · 1,500 kWh')
+  })
+
   for (const [nombre, f] of casos) {
     it(`${nombre}: igual con y sin 'es', y otro texto en ingles`, () => {
       expect(f('es')).toEqual(f())
@@ -191,6 +201,9 @@ describe('diccionario de ENERGIA · italiano', () => {
   })
   it('las periodicidades en letra: «ogni due mesi», nunca «bimestrale» (ambiguo) ni «ogni 2»', () => {
     expect(it_.filter(([, v]) => /bimestral|\bogni \d/i.test(v)).map(([k]) => k)).toEqual([])
+  })
+  it('glosario de la validacion: predio → immobile, punto de medicion → punto di prelievo (POD)', () => {
+    expect(it_.filter(([, v]) => /propriet|punt[oi] di misura/i.test(v)).map(([k]) => k)).toEqual([])
   })
   it('ninguna cifra de dinero ni simbolo de moneda', () => {
     expect(it_.filter(([, v]) => /\$|MXN|USD|\beuro\b|\bpesos?\b|\d\.\d{3}/.test(v)).map(([k]) => k)).toEqual([])

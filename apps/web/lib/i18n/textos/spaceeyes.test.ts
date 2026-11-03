@@ -336,6 +336,21 @@ describe('diccionario de Space Eyes · italiano', () => {
     expect(it_.filter(([, v]) => /\btocc[ah]i?\b|\bprem[ie]\b/i.test(v)).map(([k]) => k)).toEqual([])
   })
 
+  // Validacion L1 + decision del orquestador para TODO el italiano: ninguna
+  // fecha con articulo delante («il 8 dic», «al 11 ott» piden elision y no la
+  // llevan): «Inizio: {fecha}», «Valido fino a: {fecha}».
+  it('ninguna fecha con articulo delante: «Inizio: {fecha}», no «il {fecha}»', () => {
+    expect(it_.filter(([, v]) => /\b(?:il|al|del|dal|nel|sul|l’|all’|dell’) ?\{fecha\}/i.test(v)).map(([k]) => k)).toEqual([])
+  })
+
+  it('{hace} ya trae el «fa»: la plantilla no lo repite', () => {
+    expect(it_.filter(([, v]) => /\{hace\} fa\b/.test(v)).map(([k]) => k)).toEqual([])
+  })
+
+  it('glosario de la validacion: parco dispositivi, sovrimpressione, messa in onda', () => {
+    expect(it_.filter(([, v]) => /\bflotta\b|etichett|affissione/i.test(v)).map(([k]) => k)).toEqual([])
+  })
+
   it('los anglicismos del sector se quedan: ni «bucle» ni «riproduzione» por loop/spot', () => {
     expect(it_.filter(([, v]) => /\bbucle\b|\bciclo di riproduzione\b/i.test(v)).map(([k]) => k)).toEqual([])
   })
