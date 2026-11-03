@@ -156,6 +156,19 @@ const ES = {
   'login.error.enviar-enlace': 'No se pudo enviar el enlace',
   'login.error.crear-cuenta': 'No se pudo crear la cuenta',
   'login.error.iniciar-sesion': 'No se pudo iniciar sesión',
+  // Ola 5 · lo que SI manda el servidor de acceso (sus rutas no pasan por
+  // respuestaError) y lo que escribe lib/auth-real.ts. Literal de su origen:
+  // los traduce lib/i18n/errores-acceso.ts al pintarlos.
+  'login.error.credenciales': 'Correo o contraseña inválidos',
+  'login.error.faltan-datos': 'Correo y contraseña requeridos',
+  'login.error.sin-conexion': 'No se pudo conectar con el servidor. Revisa tu conexión e intenta de nuevo.',
+  'login.error.solo-google':
+    'Esta cuenta entra con Google. Usa el botón de Google, o un código de recuperación si perdiste el acceso a esa cuenta.',
+  'login.error.registro-apagado': 'El registro de cuentas nuevas está deshabilitado. Contacta al administrador.',
+  'login.error.recuperacion-apagada':
+    'La recuperación de contraseña está deshabilitada temporalmente. Contacta al administrador.',
+  'login.error.demasiados': 'Demasiados intentos. Espera {s}s e intenta de nuevo.',
+  'login.error.demasiados-corto': 'Demasiados intentos. Espera {s}s.',
 
   // ── Validacion compartida con el servidor ──
   // Estos DUPLICAN a proposito el texto de `lib/validacion.ts` y
@@ -339,6 +352,15 @@ const EN: Record<ClaveTexto, string> = {
   'login.error.enviar-enlace': 'The link could not be sent',
   'login.error.crear-cuenta': 'The account could not be created',
   'login.error.iniciar-sesion': 'Could not sign in',
+  'login.error.credenciales': 'Incorrect email or password',
+  'login.error.faltan-datos': 'Email and password are required',
+  'login.error.sin-conexion': 'Could not reach the server. Check your connection and try again.',
+  'login.error.solo-google':
+    'This account signs in with Google. Use the Google button, or a recovery code if you lost access to that account.',
+  'login.error.registro-apagado': 'New account sign-up is disabled. Contact your administrator.',
+  'login.error.recuperacion-apagada': 'Password recovery is temporarily disabled. Contact your administrator.',
+  'login.error.demasiados': 'Too many attempts. Wait {s}s and try again.',
+  'login.error.demasiados-corto': 'Too many attempts. Wait {s}s.',
 
   'validacion.email': 'Invalid email. Use the format example@email.com',
   'password.regla': 'at least 8, with a letter and a number',

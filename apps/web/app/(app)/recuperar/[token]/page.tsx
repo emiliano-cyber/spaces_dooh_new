@@ -6,7 +6,8 @@ import { KeyRound, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react'
 import { Button } from '@/components/demo/ui/Button'
 import { SpaceOsMark } from '@/components/demo/ui/SpaceOsMark'
 import { validarPassword } from '@/lib/password'
-import { useTexto } from '@/lib/i18n/contexto'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { mensajeDeAcceso } from '@/lib/i18n/errores-acceso'
 import { DICCIONARIOS, type ClaveTexto } from '@/lib/i18n/diccionario'
 
 // I18N (lote cuenta, 2026-11-02) · `validarPassword` la comparte el servidor y
@@ -34,7 +35,7 @@ export default function RecuperarPage({ params, searchParams }: { params: { toke
   const [confirmar, setConfirmar] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
-  const t = useTexto()
+  const { t, idioma } = useIdioma()
 
   // Verifica el token al cargar para decidir si mostramos el formulario.
   useEffect(() => {
@@ -64,7 +65,7 @@ export default function RecuperarPage({ params, searchParams }: { params: { toke
       if (!r.ok) throw new Error((d as { error?: string }).error ?? t('cuenta.recuperar.error'))
       setEstado('listo')
     } catch (e) {
-      setError(e instanceof Error ? e.message : t('cuenta.recuperar.error'))
+      setError(e instanceof Error ? mensajeDeAcceso(e.message, idioma) : t('cuenta.recuperar.error'))
       setEnviando(false)
     }
   }

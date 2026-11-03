@@ -10,6 +10,7 @@ import { landingDeRol } from '@/lib/data/client'
 import { esEmailValido } from '@/lib/validacion'
 import { motivoPassword } from '@/lib/password'
 import { useIdioma } from '@/lib/i18n/contexto'
+import { mensajeDeAcceso } from '@/lib/i18n/errores-acceso'
 import { SelectorIdioma } from '@/components/demo/ui/SelectorIdioma'
 import type { ClaveTexto } from '@/lib/i18n/diccionario'
 
@@ -61,7 +62,7 @@ export default function LoginPage() {
   // I18N-01. El idioma ya viene resuelto desde el servidor (layout raíz), así
   // que el primer render de esta página sale en el idioma correcto: no hay un
   // segundo pase que cambie el texto delante de quien mira.
-  const { t } = useIdioma()
+  const { t, idioma } = useIdioma()
   const [modo, setModo] = useState<Modo>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -182,7 +183,7 @@ export default function LoginPage() {
         setAviso((d as { mensaje?: string }).mensaje ?? t('login.aviso-generico'))
         setEnlaceDev((d as { enlaceDev?: string }).enlaceDev ?? null)
       } catch (e) {
-        setError(e instanceof Error ? e.message : t('login.error.enviar-enlace'))
+        setError(e instanceof Error ? mensajeDeAcceso(e.message, idioma) : t('login.error.enviar-enlace'))
       }
       setEnviando(false)
       return
@@ -202,7 +203,9 @@ export default function LoginPage() {
       }
       await entrar(email, password)
     } catch (e) {
-      setError(e instanceof Error ? e.message : esSignup ? t('login.error.crear-cuenta') : t('login.error.iniciar-sesion'))
+      // Ola 5: el texto de las rutas de acceso llega en español (no pasan por
+      // respuestaError); se pinta en el idioma de la pantalla.
+      setError(e instanceof Error ? mensajeDeAcceso(e.message, idioma) : esSignup ? t('login.error.crear-cuenta') : t('login.error.iniciar-sesion'))
       setEnviando(false)
     }
   }

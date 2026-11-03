@@ -71,7 +71,7 @@ describe('cuenta y shell · los avisos que no se rinden usan su clave', () => {
   it('recuperar la contrasena', () => {
     const s = leer('app/(app)/recuperar/[token]/page.tsx')
     expect(s).toContain("setError(t('cuenta.comun.no-coinciden'))")
-    expect(s).toContain("e.message : t('cuenta.recuperar.error')")
+    expect(s).toContain("mensajeDeAcceso(e.message, idioma) : t('cuenta.recuperar.error')")
     // La regla de `validarPassword` se pinta por su clave `password.*`.
     expect(s).toContain("const k = claveDeRegla(regla); setError(k ? t(k) : regla)")
   })
