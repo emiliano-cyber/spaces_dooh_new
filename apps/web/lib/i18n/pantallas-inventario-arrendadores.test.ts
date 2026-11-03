@@ -659,8 +659,10 @@ const PANTALLAS: Pantalla[] = [
       'Detección por Computer Vision', 'Vista de muestra del conteo de vehículos y personas (AdMobilize)',
       'Las cajas y métricas (velocidad, conteo por zona) las genera el módulo de Computer Vision en tiempo real.',
       'Cambiar imagen', 'Coordenadas fuera de rango', 'Latitud y longitud obligatorias (pestaña Ubicación)',
+      // La cifra de la renta, con el formato del idioma (validacion italiano L3, H8).
+      'Actualmente: 45,000.',
     ],
-    ingles: ['Computer Vision detection', 'Change image', 'Coordinates out of range'],
+    ingles: ['Computer Vision detection', 'Change image', 'Coordinates out of range', 'Currently: 45,000.'],
   },
   {
     nombre: 'alta manual · faltan obligatorios del básico',
@@ -1626,11 +1628,11 @@ const ITALIANO: Record<string, string[]> = {
     'Non se ne firma un altro: l’impianto si aggiunge all’immobile e condivide quel canone con gli altri.',
   ],
   'contrato + pantalla · paso 2 con historial del espacio': [
-    'Questo spazio è stato in locazione fino al', '30 giu 2026', 'Il nuovo contratto inizia il 1 lug 2026 o dopo.',
+    'Questo spazio è stato in locazione fino al giorno', '30 giu 2026', 'Il nuovo contratto inizia in data 1 lug 2026 o successiva.',
     'Allega il PDF del contratto firmato (max 8 MB)',
   ],
   'contrato + pantalla · paso 3 del inventario con historial': [
-    'Impianto (3 senza locatore)', 'Questo impianto è stato in locazione fino al 30 giu 2026. La validità che hai inserito inizia il 1 giu 2026: torna al passo 2 e spostala al 1 lug 2026 o dopo.',
+    'Impianto (3 senza locatore)', 'Questo impianto è stato in locazione fino al giorno 30 giu 2026. La validità che hai inserito inizia in data 1 giu 2026: torna al passo 2 e spostala al giorno 1 lug 2026 o dopo.',
     'Dati che ha già', 'Verrà collegato all’immobile del contratto.', 'Crea contratto e impianto',
   ],
   'contrato + pantalla · todas las pantallas con predio': ['Tutti i tuoi impianti sono già assegnati a un immobile. Passa a «Nuovo impianto».'],
@@ -1652,7 +1654,7 @@ const ITALIANO: Record<string, string[]> = {
   'arrendadores · la página con datos': [
     'Locatori', 'L’altro lato della rete · contratti, canoni e scadenze', 'Canone mensile', '+ 1 da inserire', 'di 2 locatori',
     'Il canone mensile non include 1 contratto incompleto (da inserire: locatore, durata, importo e periodicità), quindi il costo reale è maggiore.',
-    'tra 29 g', 'Venduto in «Navidad»', '1 rata scaduta (MX$ 10.000,00) · ', 'MX$ 30.000,00 da pagare', '8 giorni fa', 'tra 2 giorni',
+    'tra 29 gg', 'Venduto in «Navidad»', '1 rata scaduta (MX$ 10.000,00) · ', 'MX$ 30.000,00 da pagare', '8 giorni fa', 'tra 2 giorni',
     'Riconciliazione dei canoni per locatore', '1 postazione', 'Redditività per impianto', 'Attivi: 1 su 1.', '1 contratto fattura qui',
   ],
   'arrendadores · vacía': ['0 contratti attivi', 'di 0 locatori'],
@@ -1661,14 +1663,14 @@ const ITALIANO: Record<string, string[]> = {
     'Conferma e disattiva',
   ],
   'ficha del contrato · completar con un arrendador sin datos fiscales': [
-    'Completa il contratto di locazione', 'Gli manca: ragione sociale, RFC, regime fiscale.', 'Fino a',
+    'Completa il contratto di locazione', 'Gli manca: ragione sociale, RFC, regime fiscale.', 'Fino a', 'placeholder="Descrivi l’anomalia…"',
     'Non può essere precedente all’inizio (1 mar 2026)', 'Medios SA — quella che prende in locazione',
   ],
   'ficha del contrato · adjuntos de un pago hecho': [
-    'Licenza comunale · LM-9', 'Scade tra 18 g', 'Scaduta da 32 g', 'Perizia strutturale', 'Valida',
-    'Pagato il 2 ott 2026 · bonifico. Qui si allegano solo i documenti: il pagamento non viene registrato di nuovo.', 'Il file supera 5 MB',
+    'Segnala anomalia', 'Licenza comunale · LM-9', 'Scade tra 18 gg', 'Scaduta da 32 gg', 'Perizia strutturale', 'Valida',
+    'Pagato in data 2 ott 2026 · bonifico. Qui si allegano solo i documenti: il pagamento non viene registrato di nuovo.', 'Il file supera 5 MB',
   ],
-  'ficha del contrato · un arrendador con varias razones': ['Ha 2 ragioni sociali; si mostra la prima.'],
+  'ficha del contrato · un arrendador con varias razones': ['Ha 2 ragioni sociali; si mostra la prima. Quella che fattura questo contratto si sceglie nella sua scheda.'],
   'cambios al contrato · sin cambios y enviado sin firmar': ['Nessuna modifica registrata da quando è stato inserito.', 'è già stato inviato per la firma'],
   'licencias · fechas invertidas': ['La licenza non può scadere prima di essere rilasciata.'],
   'renta comprometida (en Finanzas)': [
@@ -1679,7 +1681,7 @@ const ITALIANO: Record<string, string[]> = {
   'barra del documento con un faltante': ['Manca 1 dato da inserire.'],
   'documento del contrato (Server Component)': [
     // El documento sigue en espanol (decision del dueño); lo que lo rodea, en italiano.
-    'CONTRATO DE ARRENDAMIENTO', 'Firma del contratto', 'Documento congelato il 19 ottobre 2026 alle ore 09:00.',
+    'CONTRATO DE ARRENDAMIENTO', 'Firma del contratto', 'Documento congelato in data 19 ottobre 2026 alle ore 09:00.',
     'In sospeso — si attende la firma di Don Pepe', 'La tua azienda (conduttrice)',
   ],
   'firma pública · expirada': ['Il link è scaduto.', 'Chiedi al mittente di inviartene uno nuovo.'],

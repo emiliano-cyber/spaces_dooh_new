@@ -742,9 +742,9 @@ describe('lote OPERACIONES (parte 2) · barrido con el diccionario entero', () =
 const ITALIANO: Record<string, string[]> = {
   'operaciones · cargando': ['Attività delle squadre · monitoraggio sul campo', 'Nuovo OdL', 'Ordini di lavoro', '>Tutti<', '>Assegnati<', '>Completati<'],
   'operaciones · con OT, aviso de SLA y filtros': [
-    '>Aperti<', '1 in corso', '>In ritardo<', 'tengono chiuso il lucchetto della fatturazione', 'In scadenza',
+    '>Aperti<', '1 in corso', '>In ritardo<', 'tengono bloccata la fatturazione', 'In scadenza',
     'in scadenza entro 2 giorni', 'Non assegnato', 'aperti senza responsabile', '1 OdL in ritardo', '1 in scadenza',
-    '— un OdL aperto oltre la data di scadenza tiene chiuso il lucchetto della fatturazione.', '4 di 4', 'Montaggio telo',
+    '— un OdL aperto oltre la data di scadenza tiene bloccata la fatturazione.', '4 di 4', 'Montaggio telo',
     'Manutenzione correttiva', 'Elettrico', 'Smontaggio', 'Urgente', '>Alta<', 'title="Data di scadenza"', 'title="Apri OdL"',
     'title="Vedi OdL"', 'title="2 prove"', 'title="1 prova"', '20 ott 2026',
   ],
@@ -781,8 +781,8 @@ const ITALIANO: Record<string, string[]> = {
     'Salvato: <span class="demo-num">MX$ 0</span> — questa visita risulta registrata come senza alcun costo.', ' Salvato</span>',
   ],
   'ficha · escritorio cerrada con costo': [
-    'OdL chiuso', 'La prova è stata inviata alla pipeline della campagna.', 'Chiuso il 5 ott 2026', 'Checklist completata',
-    'Lucchetto della fatturazione aperto', 'alt="prova"', 'Costo registrato: MX$ 2.300,00. L’OdL è chiuso e non si può più modificare.',
+    'OdL chiuso', 'La prova è stata inviata alla pipeline della campagna.', 'Chiuso in data 5 ott 2026', 'Checklist completata',
+    'Fatturazione sbloccata', 'alt="prova"', 'Costo registrato: MX$ 2.300,00. L’OdL è chiuso e non si può più modificare.',
   ],
   'ficha · escritorio cerrada sin costo': ['Chiuso senza costo inserito: il report di redditività usa la stima per tipo di attività.'],
   'ficha · movil abierta': ['Campagna: Verano', 'Responsabile: <span class="text-ink">Luisa Campo</span>', 'Foto di verifica'],

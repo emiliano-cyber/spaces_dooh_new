@@ -1079,8 +1079,8 @@ export const EN_ARRENDADORES: Record<ClaveArrendadores, string> = {
 // · renta → canone · contrato de arrendamiento → contratto di locazione ·
 // vigencia (de un contrato) → durata / validità · vigente → in vigore (un
 // contrato), valida (una licencia) · vence → scade / scadenza · emplazamiento
-// → postazione · cuadre → riconciliazione · incidencia → problema
-// («Segnala problema») · dictamen estructural → perizia strutturale · P&L →
+// → postazione · cuadre → riconciliazione · incidencia → anomalia (alineado con L4)
+// («Segnala anomalia») · dictamen estructural → perizia strutturale · P&L →
 // conto economico · dar de baja (a un arrendador, se puede revertir en la
 // base) → disattivare · congelar (el texto que se firma) → congelare · sello
 // SHA-256 → sigillo SHA-256 · enlace → link.
@@ -1114,7 +1114,7 @@ export const IT_ARRENDADORES: Record<Exclude<ClaveArrendadores, `arrendadores.co
   'arrendadores.comun.deposito': 'Deposito cauzionale',
   'arrendadores.comun.motivo': '«{motivo}»',
   'arrendadores.comun.hoy': 'oggi',
-  'arrendadores.comun.en-dias': 'tra {n} g',
+  'arrendadores.comun.en-dias': 'tra {n} gg',
   'arrendadores.comun.mes': '/mese',
   'arrendadores.comun.monto-mes': '{monto}/mese',
   'arrendadores.comun.confirmar-renovar': 'Conferma e rinnova',
@@ -1173,7 +1173,7 @@ export const IT_ARRENDADORES: Record<Exclude<ClaveArrendadores, `arrendadores.co
   'arrendadores.alta.crear-igual': 'Crea comunque',
   'arrendadores.alta.repetido': 'Se hai sbagliato, chiudi e cercalo nell’elenco; se è davvero un altro locatore, premi di nuovo.',
   'arrendadores.alta.rfc-malo':
-    'Formato non valido. Sono 3 lettere (azienda) o 4 (persona), la data AAMMGG e 3 caratteri di omoclave.',
+    'Formato non valido. Sono 3 lettere (azienda) o 4 (persona), la data AAMMGG e 3 caratteri di homoclave.',
   'arrendadores.alta.domicilio-ph': 'Via, numero, quartiere, CAP, città, stato',
   'arrendadores.alta.domicilio-ayuda':
     'Il contratto di locazione ne ha bisogno per le notifiche. Senza, il documento esce con quello spazio in bianco.',
@@ -1249,7 +1249,7 @@ export const IT_ARRENDADORES: Record<Exclude<ClaveArrendadores, `arrendadores.co
   'arrendadores.incidencia.accidente': 'Incidente',
   'arrendadores.incidencia.otro': 'Altro',
   'arrendadores.ficha.contrato': 'Contratto',
-  'arrendadores.ficha.reportar': 'Segnala problema',
+  'arrendadores.ficha.reportar': 'Segnala anomalia',
   'arrendadores.ficha.renovacion-iniciada': 'Rinnovo avviato',
   'arrendadores.ficha.no-renovar': 'Impossibile avviare il rinnovo',
   'arrendadores.ficha.renovar': 'Rinnova',
@@ -1271,11 +1271,11 @@ export const IT_ARRENDADORES: Record<Exclude<ClaveArrendadores, `arrendadores.co
   'arrendadores.ficha.registrar': 'Registra',
   'arrendadores.ficha.ruc': 'RUC',
   'arrendadores.ficha.correo': 'Email',
-  'arrendadores.ficha.incidencia-reportada': 'Problema segnalato · {nombre} bloccato in Vendite',
+  'arrendadores.ficha.incidencia-reportada': 'Anomalia segnalata · {nombre} bloccato in Vendite',
   'arrendadores.ficha.renovar-sensible': 'Rinnovare un contratto è una modifica sensibile: la tua organizzazione chiede di identificarti di nuovo.',
   'arrendadores.pagadora.asignada': 'Ragione sociale assegnata al contratto',
   'arrendadores.pagadora.sin': 'Il contratto è rimasto senza ragione sociale assegnata',
-  'arrendadores.pagadora.sub': 'Cambia solo a nome di chi esce questo canone. Non tocca l’importo.',
+  'arrendadores.pagadora.sub': 'Cambia solo la società a nome della quale si paga questo canone. Non tocca l’importo.',
   'arrendadores.pagadora.sin-entidades': 'Non hai ancora ragioni sociali inserite. Si registrano in Ragioni sociali.',
   'arrendadores.pagadora.sin-asignar':
     'Lasciarlo senza assegnazione è legittimo: il contratto è un accordo reale anche se non si è ancora deciso con quale società si paga.',
@@ -1287,7 +1287,7 @@ export const IT_ARRENDADORES: Record<Exclude<ClaveArrendadores, `arrendadores.co
   'arrendadores.completar.sub': 'I quattro dati che mancano perché conti come accordo reale',
   'arrendadores.completar.guardar': 'Salva contratto',
   'arrendadores.completar.elige': 'Scegli il locatore…',
-  'arrendadores.completar.varias': 'Ha {n} ragioni sociali; si mostra la prima. Quale fattura questo contratto si sceglie nella sua scheda.',
+  'arrendadores.completar.varias': 'Ha {n} ragioni sociali; si mostra la prima. Quella che fattura questo contratto si sceglie nella sua scheda.',
   'arrendadores.completar.le-falta':
     'Gli manca: {lista}. Puoi salvare il contratto comunque, ma senza questi dati non gli si potrà fatturare il canone quando toccherà pagarlo.',
   'arrendadores.completar.importe': 'Importo del canone',
@@ -1322,7 +1322,7 @@ export const IT_ARRENDADORES: Record<Exclude<ClaveArrendadores, `arrendadores.co
   'arrendadores.pago.adjuntos-titulo': 'Allegati del pagamento',
   'arrendadores.pago.guardar-adjuntos': 'Salva allegati',
   'arrendadores.pago.pagado-el':
-    'Pagato il {fecha}{metodo}. Qui si allegano solo i documenti: il pagamento non viene registrato di nuovo.',
+    'Pagato in data {fecha}{metodo}. Qui si allegano solo i documenti: il pagamento non viene registrato di nuovo.',
   'arrendadores.pago.fecha': 'Data di pagamento',
   'arrendadores.pago.metodo': 'Metodo di pagamento',
   'arrendadores.pago.factura': 'Fattura del locatore',
@@ -1332,7 +1332,7 @@ export const IT_ARRENDADORES: Record<Exclude<ClaveArrendadores, `arrendadores.co
   'arrendadores.incidencia.bloquear': 'Segnala e blocca il sito',
   'arrendadores.incidencia.tipo': 'Tipo',
   'arrendadores.incidencia.descripcion': 'Descrizione',
-  'arrendadores.incidencia.descripcion-ph': 'Descrivi il problema…',
+  'arrendadores.incidencia.descripcion-ph': 'Descrivi l’anomalia…',
   'arrendadores.incidencia.aviso': 'Segnalandolo, il sito diventa {bloqueado} e appare subito in rosso sulla mappa di Vendite.',
   'arrendadores.incidencia.bloqueado': 'bloccato',
 
@@ -1353,10 +1353,10 @@ export const IT_ARRENDADORES: Record<Exclude<ClaveArrendadores, `arrendadores.co
   'arrendadores.versiones.no-leer': 'Impossibile leggere la versione firmata',
   'arrendadores.versiones.titulo': 'Versioni firmate precedenti',
   'arrendadores.versiones.version': 'Versione {n}',
-  'arrendadores.versiones.archivada': ' · archiviata il {fecha}',
+  'arrendadores.versiones.archivada': ' · archiviata in data {fecha}',
   'arrendadores.versiones.ver': 'Vedi testo firmato',
   'arrendadores.versiones.firmo': '{parte}: firmato da {nombre}',
-  'arrendadores.versiones.firmo-el': '{parte}: firmato da {nombre} il {fecha}',
+  'arrendadores.versiones.firmo-el': '{parte}: firmato da {nombre} in data {fecha}',
   'arrendadores.versiones.modal': 'Versione firmata {n}',
   'arrendadores.versiones.sello': 'Sigillo SHA-256: {hash}',
   'arrendadores.editar.no-guardar': 'Impossibile salvare la modifica',
@@ -1383,13 +1383,13 @@ export const IT_ARRENDADORES: Record<Exclude<ClaveArrendadores, `arrendadores.co
   'arrendadores.editar.moneda': 'Valuta',
   'arrendadores.editar.negativo': 'Non può essere negativo',
 
-  'arrendadores.licencias.vencio': 'Scaduta da {n} g',
-  'arrendadores.licencias.vence-en': 'Scade tra {n} g',
+  'arrendadores.licencias.vencio': 'Scaduta da {n} gg',
+  'arrendadores.licencias.vence-en': 'Scade tra {n} gg',
   'arrendadores.licencias.vigente': 'Valida',
   'arrendadores.licencias.titulo': 'Licenze e permessi',
   'arrendadores.licencias.amparan': 'Coprono tutti gli impianti di questo immobile.',
   'arrendadores.licencias.vacio': 'Nessuna licenza registrata. Inserendo la scadenza, il sistema avvisa con {n} giorni di anticipo.',
-  'arrendadores.licencias.vence': 'scade il {fecha}',
+  'arrendadores.licencias.vence': 'scade in data {fecha}',
   'arrendadores.licencias.borrar': 'Elimina licenza',
   'arrendadores.licencias.borrada': 'Licenza eliminata',
   'arrendadores.licencias.registrada': 'Licenza registrata',
@@ -1472,7 +1472,7 @@ export const IT_ARRENDADORES: Record<Exclude<ClaveArrendadores, `arrendadores.co
   'arrendadores.firmas.congela': 'congela',
   'arrendadores.firmas.faltan': 'Non si può inviare per la firma finché mancano dati da inserire (vedi sopra).',
   'arrendadores.firmas.enviar': 'Invia per la firma',
-  'arrendadores.firmas.congelado': 'Documento congelato il {fecha}. Sigillo SHA-256: {hash}',
+  'arrendadores.firmas.congelado': 'Documento congelato in data {fecha}. Sigillo SHA-256: {hash}',
   'arrendadores.firmas.ya-tiene':
     '{titulo} Se bisogna modificare canone, durata o qualsiasi altra condizione, fallo da «Modifica termini» nella sua scheda: questa versione viene archiviata così come è stata firmata —testo e firme— e il contratto viene inviato di nuovo per la firma con i dati attuali.',
   'arrendadores.firmas.ya-tiene-titulo': 'Questo contratto ha già delle firme.',
@@ -1490,7 +1490,7 @@ export const IT_ARRENDADORES: Record<Exclude<ClaveArrendadores, `arrendadores.co
   'arrendadores.firmas.firmar-arrendataria': 'Firma come conduttrice',
   'arrendadores.firmas.copiar': 'Copia link di firma',
   'arrendadores.firmas.envia':
-    'Invialo al locatore. Scade il {fecha}. Chi ha il link può firmare, quindi trattalo come una credenziale.',
+    'Invialo al locatore. Scade in data {fecha}. Chi ha il link può firmare, quindi trattalo come una credenziale.',
   'arrendadores.firmas.anula': 'Le firme attuali vengono annullate. La versione firmata resta archiviata così come è stata firmata.',
   'arrendadores.firmas.reenviar-archiva': 'Invia di nuovo per la firma (archivia le firme attuali)',
   'arrendadores.firmas.reenviar-reinicia': 'Invia di nuovo per la firma (azzera le firme)',

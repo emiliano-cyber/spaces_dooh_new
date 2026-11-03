@@ -500,8 +500,8 @@ export const EN_OPERACIONES2: Record<ClaveOperaciones2, string> = {
 // (ademas del comun): OT → OdL (ordine di lavoro, maschile: «OdL scaduto»,
 // «Nuovo OdL») · cuadrilla → squadra · fecha compromiso → data di scadenza ·
 // vencida (una OT) → in ritardo · por vencer → in scadenza · responsable →
-// responsabile · candado de facturacion → lucchetto della fatturazione
-// («aperto» = se puede facturar) · evidencia → prova · fotografia
+// responsabile · candado de facturacion → blocco fatturazione («tengono bloccata la fatturazione»;
+// abierto → «Fatturazione sbloccata») · evidencia → prova · fotografia
 // comprobatoria → foto di verifica · sello de ubicacion → timbro di posizione
 // · costo real → costo effettivo · estimacion → stima · rentabilidad →
 // redditività · tachar → spuntare · creativo → creatività (femminile e
@@ -548,13 +548,13 @@ export const IT_OPERACIONES2: Record<ClaveOperaciones2, string> = {
   'operaciones2.ot.kpi.abiertas': 'Aperti',
   'operaciones2.ot.kpi.en-proceso': '{n} in corso',
   'operaciones2.ot.kpi.vencidas': 'In ritardo',
-  'operaciones2.ot.kpi.frenan': 'tengono chiuso il lucchetto della fatturazione',
+  'operaciones2.ot.kpi.frenan': 'tengono bloccata la fatturazione',
   'operaciones2.ot.kpi.compromiso': 'in scadenza entro 2 giorni',
   'operaciones2.ot.kpi.sin-responsable': 'aperti senza responsabile',
   'operaciones2.ot.banner.vencidas.uno': '{n} OdL in ritardo',
   'operaciones2.ot.banner.vencidas.otros': '{n} OdL in ritardo',
   'operaciones2.ot.banner.por-vencer': '{n} in scadenza',
-  'operaciones2.ot.banner.explica': '— un OdL aperto oltre la data di scadenza tiene chiuso il lucchetto della fatturazione.',
+  'operaciones2.ot.banner.explica': '— un OdL aperto oltre la data di scadenza tiene bloccata la fatturazione.',
   'operaciones2.ot.lista': 'Ordini di lavoro',
   'operaciones2.ot.vacio.filtro': 'Nessun OdL in «{filtro}»',
   'operaciones2.ot.vacio.filtro-detalle': 'Gli altri restano in «Tutti».',
@@ -621,12 +621,12 @@ export const IT_OPERACIONES2: Record<ClaveOperaciones2, string> = {
   'operaciones2.ficha.candado.confirmar': 'Conferma e salva il costo',
   'operaciones2.ficha.cerrada': 'OdL chiuso',
   'operaciones2.ficha.evidencia-enviada': 'La prova è stata inviata alla pipeline della campagna.',
-  'operaciones2.ficha.cerrada-el': 'Chiuso il {fecha}',
+  'operaciones2.ficha.cerrada-el': 'Chiuso in data {fecha}',
   'operaciones2.ficha.checklist-cumplido': 'Checklist completata',
   'operaciones2.checklist.omision.inspeccion': 'Ispezione della struttura e della ferramenta',
   'operaciones2.checklist.omision.montaje': 'Montaggio / esecuzione',
   'operaciones2.checklist.omision.foto': 'Foto di verifica con geolocalizzazione',
-  'operaciones2.ficha.candado-encendido': 'Lucchetto della fatturazione aperto',
+  'operaciones2.ficha.candado-encendido': 'Fatturazione sbloccata',
   'operaciones2.ficha.evidencia-alt': 'prova',
   'operaciones2.ficha.puedes-cerrar': 'Puoi chiudere questa finestra. La prova è già stata registrata.',
 
