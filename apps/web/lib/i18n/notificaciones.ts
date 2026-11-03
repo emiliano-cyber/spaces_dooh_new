@@ -145,8 +145,16 @@ function convertir(valores: Record<string, string>, idioma: Idioma): Record<stri
   return r
 }
 
+// La forma del plural que toca a la cifra. Con 0, la variante `.cero` si la
+// plantilla la tiene («due today» en vez de «due in 0 days», ola 7); si no, el
+// plural de siempre.
+function formaDePlural(base: string, n: string | undefined): string {
+  if (n === '0' && ES[`${base}.cero`] !== undefined) return `${base}.cero`
+  return `${base}.${n === '1' ? 'uno' : 'otros'}`
+}
+
 function armar(forma: Forma, valores: Record<string, string>, idioma: Idioma): string {
-  const clave = forma.plural ? `${forma.clave}.${valores.n === '1' ? 'uno' : 'otros'}` : forma.clave
+  const clave = forma.plural ? formaDePlural(forma.clave, valores.n) : forma.clave
   return traducir(idioma, clave as ClaveTexto, convertir(valores, idioma))
 }
 

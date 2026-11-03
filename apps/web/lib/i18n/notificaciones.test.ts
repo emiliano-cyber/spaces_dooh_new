@@ -97,6 +97,14 @@ const CASOS: Array<[string, string | null, string, string | null]> = [
     'Payment reminder',
     'F001-0008 — due in 1 day · balance MX$3,480',
   ],
+  // Ola 7: el dia del vencimiento el servidor escribe «vence en 0 día(s)».
+  // En ingles «due today», no «due in 0 days».
+  [
+    'Recordatorio de cobro',
+    'F001-0008 · Cliente Dos — vence en 0 día(s) · saldo $3,480',
+    'Payment reminder',
+    'F001-0008 · Cliente Dos — due today · balance MX$3,480',
+  ],
   ['OT vencida', 'OT-14 · Pantalla Reforma no se cerró a tiempo', 'Overdue work order', 'OT-14 · Pantalla Reforma was not closed on time'],
   ['OT vencida', 'OT-14 no se cerró a tiempo (sin asignar)', 'Overdue work order', 'OT-14 was not closed on time (unassigned)'],
 ]
@@ -229,6 +237,18 @@ describe('notificaciones · los recordatorios de contratos, armados por su funci
       expect(traducirNotificacion({ titulo: r.titulo, detalle: r.detalle }, 'en')).toEqual({ titulo, detalle })
     })
   }
+
+  it('un «vence en 0 días» (que hoy el servidor escribe «HOY») dice «today», no «in 0 days»', () => {
+    expect(en('Contrato vence en 0 días: Predio Norte').titulo).toBe('Contract expires TODAY: Predio Norte')
+    expect(traducirNotificacion({ titulo: 'Contrato vence en 0 días: Predio Norte', detalle: null }, 'es').titulo).toBe(
+      'Contrato vence en 0 días: Predio Norte',
+    )
+  })
+
+  it('el cero solo cambia la cifra 0: «10» y «20» siguen en plural', () => {
+    expect(en('Recordatorio de cobro', 'F1 — vence en 10 día(s) · saldo $1').detalle).toBe('F1 — due in 10 days · balance MX$1')
+    expect(en('Contrato vence en 20 días: P').titulo).toBe('Contract expires in 20 days: P')
+  })
 
   it('«un espacio» solo se traduce cuando es el nombre que pone el servidor', () => {
     // Un predio que se llama «un espacio comercial» es dato.
