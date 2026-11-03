@@ -1116,17 +1116,17 @@ const ITALIANO: Record<string, string[]> = {
     'Commissione 15% · divisore 0,85', '× 0,85', 'Approvato · 1/2 siti', '−5%',
   ],
   'ficha de la propuesta': [
-    'Sconto per volume (2,5%)', 'Sconto commerciale (5,00%)', 'divisore ×0,85', 'Valida fino al 1 dic 2026',
+    'Sconto per volume (2,5%)', 'Sconto commerciale (5,00%)', 'divisore ×0,85', 'Valida fino al giorno 1 dic 2026',
     'Codice VERANO20 (20%) · in attesa di approvazione',
   ],
   'documento imprimible (Server Component)': [
-    'PROPOSTA COMMERCIALE', 'Valida fino al 1 dic 2026', 'Sconto per volume (2,5%)', 'MX$ 6.612,00', 'IMPIANTI',
+    'PROPOSTA COMMERCIALE', 'Valida fino al giorno 1 dic 2026', 'Sconto per volume (2,5%)', 'MX$ 6.612,00', 'IMPIANTI',
     'Impianti senza coordinate: 1; il loro indirizzo è nella tabella.', 'ACCETTAZIONE DEL CLIENTE',
   ],
   'calculadora de spots encendida': ['3.240 spot/giorno × 30 giorni =', '97.200 spot', 'su 8 · 6 liberi', 'Loop di 4 inserzionisti (2 oggi + questa riga)'],
-  'tablero de propuestas por periodo': ['dal 1 nov 2026 al 30 nov 2026', '50%', '2 approvate hanno qualche impianto'],
+  'tablero de propuestas por periodo': ['1 nov 2026 – 30 nov 2026', '50%', '2 approvate hanno qualche impianto'],
   'lista filtrada sin resultados': ['Nessuna proposta approvata di Refrescos del Norte che corrisponda a «xyz». Togli il filtro per vedere tutte le proposte (1).'],
-  'ficha de un borrador vencido, con catalogo de paquetes': ['Scaduta il 1 dic 2026', 'Combo — MX$ 5.000,00 · 2 impianti', 'nessun sito approvato su 2', 'divisore ×1,00'],
+  'ficha de un borrador vencido, con catalogo de paquetes': ['Scaduta in data 1 dic 2026', 'Combo — MX$ 5.000,00 · 2 impianti', 'nessun sito approvato su 2', 'divisore ×1,00'],
 }
 for (const p of PANTALLAS) p.italiano = ITALIANO[p.nombre]
 
@@ -1157,6 +1157,48 @@ describe('lote PROPUESTAS · en ITALIANO', () => {
       expect(huellasEnItaliano(await p.pintar('it'))).toEqual([])
     })
   }
+
+  // Validacion del lote (V2, V15): un porcentaje con decimales y conteos de
+  // cuatro cifras en el tablero. Estado SOLO italiano.
+  it('tablero · porcentaje con decimales y conteos con miles, en italiano', async () => {
+    const { TableroPropuestas } = await import('../../components/demo/propuestas/TableroPropuestas')
+    forzar(esNull, {
+      periodo: { etiqueta: 'Noviembre 2026', desde: '2026-11-01', hasta: '2026-11-30' },
+      conGanancia: true,
+      resumen: {
+        generadas: 1234, rechazadas: 1001, tasaCierre: 0.125,
+        aprobadas: { n: 1500, venta: 3000, ganancia: 1000, margenPct: 33.33, gananciaPromedio: 10, sinCosto: 0 },
+        porVendedor: [{ vendedor: 'Ana', generadas: 1234, aprobadas: 1500, rechazadas: 1001, venta: 3000, ganancia: 1000 }],
+        lista: [],
+      },
+    })
+    const html = texto(pintar('it', createElement(TableroPropuestas)))
+    for (const f of ['12,5%', 'margine 33,3%', '>1.234<', '>1.500<', '>1.001<']) expect(html).toContain(f)
+    expect(html).not.toContain('12,5 %')
+    expect(huellasEnItaliano(html)).toEqual([])
+  })
+
+  // Validacion del lote (H2): la liga publica que el cliente acepta, con
+  // descuentos de volumen, comercial y de codigo con decimales.
+  it('liga publica `/p/[id]` · descuentos con decimales, en italiano', async () => {
+    const PUB = {
+      orgNombre: 'Medios SA', orgLogoUrl: null, folio: 'P-0042', nombre: 'Propuesta Verano', estatus: 'ENVIADA',
+      aceptadoEn: null, aceptadoPor: null, version: 1, clienteNombre: null, agenciaNombre: null,
+      comisionPct: 15, descuentoPct: 7.5, descuentoMonto: 100, descuentoVolumenMonto: 50, descuentoVolumenPct: 2.5,
+      codigoTexto: 'VERANO20', codigoDescuentoMonto: 40, codigoDescuentoPct: 12.5, paquete: null,
+      divisor: 0.85, bruto: 6000, base: 5000, neto: 4250, iva: 800, total: 5800, itemsAprobados: 1,
+      vigenteHasta: '2026-12-01', vencida: false, condiciones: null,
+      items: [
+        { sitioNombre: 'Pantalla Reforma', alcaldia: 'Cuauhtémoc', ciudad: 'CDMX', estado: null, tipoMedio: 'PANTALLA_DIGITAL',
+          lat: 19.4, lng: -99.1, direccion: 'Reforma 1', fechaInicio: '2026-11-01', fechaFin: '2026-11-30', precio: 1000, aprobado: true },
+      ],
+    }
+    forzar((v) => v === undefined, PUB)
+    const { default: Pagina } = await import('../../app/(app)/p/[id]/page')
+    const html = texto(pintar('it', createElement(Pagina, { params: { id: 'p1' } })))
+    for (const f of ['Sconto per volume (2,5%)', 'Sconto (7,5%)', 'Codice VERANO20 (12,5%)']) expect(html).toContain(f)
+    expect(html).not.toMatch(/\(\d+\.\d%\)/)
+  })
 
   it('barrido: ningun trozo espanol ni ingles de `propuestas.*` en el HTML italiano', async () => {
     const { ES_PROPUESTAS, EN_PROPUESTAS, IT_PROPUESTAS } = await import('./textos/propuestas')

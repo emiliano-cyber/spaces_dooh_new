@@ -152,6 +152,18 @@ const GLOSARIO: [string, RegExp, RegExp][] = [
   ['tentativa → provvisoria', /tentativ/i, /provvisori/i],
   ['Arrendadores (modulo) → Locatori', /Arrendadores/, /Locatori/],
   ['rotaciones/h → loop/h', /rotaciones\/h/, /loop\/h/],
+  // Los que fija el propio lote (validacion, V10 y V11): sin ellos solo los
+  // guardaba la instantanea, que se acepta con `-u`.
+  ['renta → canone', /\brentas?\b/i, /canon/i],
+  ['OC → OdA', /\bOC\b/, /\bOdA\b/],
+  ['prima (del Roadblock) → maggiorazione', /\bprima\b/i, /maggiorazion/i],
+  ['horario de transmisión → palinsesto', /horario de transmisión|programar el horario/i, /palinsesto/i],
+  ['el medio → la concessionaria', /para el medio/i, /concessionaria/i],
+  ['gerente → manager', /gerente/i, /\bmanager\b/i],
+  ['predio → immobile (decision comun a todos los lotes)', /predio/i, /immobil/i],
+  ['incidencia → anomalia (regla comun)', /incidencia/i, /anomali/i],
+  ['rejilla → griglia tariffaria', /\brejilla\b/i, /griglia tariffaria/i],
+  ['tramo → scaglione', /\btramos?\b/i, /scaglion/i],
 ]
 
 // Clave → por que no lleva el termino del glosario.
@@ -160,7 +172,33 @@ const SIN_TERMINO: Record<string, string> = {
   'comercial.negociacion.canal.visita': '«Visita en sitio» → «Sopralluogo»: una sola palabra italiana dice «visita al lugar»',
   'propuestas.ficha.codigo-pendiente': '« · cupón pendiente de aprobación» va pegado a «Codice {codigo} ({pct}%)»: repetir «codice» sobra (el ingles tampoco lo repite)',
   'catalogos.motivo.tramo.desde-dos': '«el tarifario entero» es la lista de precios: «l’intero listino», no una tarifa',
+  'comercial.ficha.tramo': '«Tramo» es el tramo de calle de la ficha («Tratto stradale»), no un tramo de volumen',
+  'propuestas.ficha.tabla.sin-contrato': '«contrato de renta» es «contratto di locazione»: «canone» sobraria',
+  'propuestas.tablero.sin-costo.uno': '«contrato de renta vigente» → «contratto di locazione attivo»',
+  'propuestas.tablero.sin-costo.otros': '«contrato de renta vigente» → «contratto di locazione attivo»',
 }
+
+describe('italiano L2 · reglas comunes del italiano (todos los lotes, 03/11)', () => {
+  it('nunca articulo delante de una fecha («in data {fecha}», «fino al giorno {fecha}»)', () => {
+    const malas = todas().filter((x) =>
+      /\b(il|lo|la|al|dal|del|nel|sul|all’|dall’|dell’)\s*\{(fecha|desde|hasta|inicio|fin|otraDesde|otraHasta)\}/i.test(x.it),
+    )
+    expect(malas.map((x) => x.k)).toEqual([])
+  })
+
+  it('los dias abreviados son «gg», no «g»', () => {
+    expect(todas().filter((x) => /(\}|\+|\d) g\b/.test(x.it)).map((x) => x.k)).toEqual([])
+  })
+
+  it('«Network» es masculino: «nel Network», nunca «nella Network»', () => {
+    expect(todas().filter((x) => /\b(la|nella|alla|della|dalla) Network\b/i.test(x.it)).map((x) => x.k)).toEqual([])
+  })
+
+  it('la vista en lista es «Elenco» y el precio de lista, «Listino»', () => {
+    expect(IT_PROPUESTAS['propuestas.alta.vista.lista']).toBe('Elenco')
+    expect(IT_CATALOGOS['catalogos.paquetes.reparto.lista']).toBe('Listino')
+  })
+})
 
 describe('italiano L2 · el glosario, obedecido', () => {
   it('si el espanol dice el termino, el italiano dice el suyo', () => {

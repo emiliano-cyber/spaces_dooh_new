@@ -1363,7 +1363,7 @@ const ITALIANO: Record<string, string[]> = {
   'comercial · filtros sin resultados': ['Azzera (3)', 'Nessun impianto corrisponde: «zzz» · tipo «Murale» · non disponibile. Togli un filtro o clicca Azzera.', '0 risultati'],
   'comercial · sin propuestas abiertas ni digitales con slots': ['nessuna proposta aperta', ' slot/h'],
   'comercial · con una pantalla seleccionada': ['1 sel. · ', '/mese', 'Togli dalla selezione'],
-  'ficha de una pantalla propia en pausa legal, con incidencia': ['Non prenotabile (stato: Occupato)', 'Sospeso per motivi legali', ' · dal 1 ott 2026'],
+  'ficha de una pantalla propia en pausa legal, con incidencia': ['Non prenotabile (stato: Occupato)', 'Sospeso per motivi legali', ' · dal giorno 1 ott 2026'],
   'ficha con sus cuadros abiertos (editar, tarifas, pausa, reubicar, eliminar)': [' Al momento ha ', ' cliente.', 'Vuoto = usa il valore globale (3), che si imposta in Impostazioni.'],
   'reservar dos pantallas digitales sin cupo': [
     '2 siti selezionati', '2 impianti hanno già raggiunto il loro limite di clienti',
@@ -1374,10 +1374,10 @@ const ITALIANO: Record<string, string[]> = {
     'Un impianto ha già raggiunto il suo limite di clienti',
   ],
   'space eye · foto correcta, en grande': ['Ultimo segnale 2 h fa', '5 min fa', 'Annuncio corretto · affidabilità 93%'],
-  'space eye · foto que no coincide, y sin foto': ['Ultimo segnale 3 g fa', 'pochi secondi fa', 'Non corrisponde alla creatività · 40%'],
+  'space eye · foto que no coincide, y sin foto': ['Ultimo segnale 3 gg fa', 'pochi secondi fa', 'Non corrisponde alla creatività · 40%'],
   'comercial negociacion · un espacio con todo': [
-    '36 mesi', 'MX$ 9.000,00/mese', 'dal 15 set 2026', 'si mostrano i 2 con attività più recente su 5',
-    'Salvata da Ana il 1 ott 2026 · dalla ricerca · GPS del telefono: in sospeso', 'Passa a «In contatto con il proprietario»',
+    '36 mesi', 'MX$ 9.000,00/mese', 'dal giorno 15 set 2026', 'si mostrano i 2 con attività più recente su 5',
+    'Salvata da Ana in data 1 ott 2026 · dalla ricerca · GPS del telefono: in sospeso', 'Passa a «In contatto con il proprietario»',
   ],
   'comercial negociacion · filtro vacio y un espacio perdido sin nada': ['0 di 2', 'Nessuno spazio corrisponde. Togli il filtro per vedere tutti gli spazi (2).'],
   'codigos · la lista, con el selector de propuesta abierto': [
@@ -1414,6 +1414,35 @@ describe('lote COMERCIAL · en ITALIANO', () => {
       expect(huellasEnItaliano(await p.pintar('it'), { permitidos: PERMITIDOS_IT })).toEqual([])
     })
   }
+
+  // Validacion del lote (V5, V6): los datos de arriba no tienen un porcentaje
+  // con decimales ni una cifra de cuatro digitos, asi que una cifra sin el
+  // idioma pasaba sin que nada la viera. Estados SOLO italianos: el HTML
+  // espanol e ingles de las pruebas de arriba no cambia.
+  it('codigos · un descuento con decimales y usos de cuatro cifras, en italiano', async () => {
+    const G = await codigos()
+    forzar(esArregloVacio, [
+      { id: 'cd9', codigo: 'MEDIO', descuentoPct: 12.5, vigenteDesde: '2020-01-01', vigenteHasta: '2099-12-31', usosMaximos: 5000, usos: 1200 },
+    ])
+    forzar(esNull, null)
+    forzar((v) => v === true, false)
+    const html = texto(await pintar('it', createElement(G)))
+    expect(html).toContain('12,5%')
+    expect(html).toContain('1.200 di 5.000')
+    expect(huellasEnItaliano(html)).toEqual([])
+  })
+
+  it('reserva · el total de slots con miles, en italiano', async () => {
+    const { ReservaDialog } = await import('../../components/demo/comercial/ReservaDialog')
+    forzar(esVacio, 'Seguros Andinos')
+    const sitios = [
+      { ...SITIO_DIGITAL, totalSpots: 1200, spotsDisponibles: 1200 },
+      { ...SITIO_DIGITAL, id: 's2', nombre: 'Pantalla Sur', totalSpots: 1200, spotsDisponibles: 1200 },
+    ]
+    const html = texto(pintar('it', createElement(ReservaDialog, { open: true, onOpenChange: () => {}, sitios: sitios as never, onReserved: () => {} })))
+    expect(html).toContain('>2.400<')
+    expect(html).not.toContain('2,400')
+  })
 
   it('barrido: ningun trozo espanol ni ingles de `comercial.*` ni `codigos.*` en el HTML italiano', async () => {
     const { ES_COMERCIAL, EN_COMERCIAL, IT_COMERCIAL } = await import('./textos/comercial')
