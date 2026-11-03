@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { CLAVES, DICCIONARIOS, AMBITOS_ITALIANO, IT_PARCIAL } from './diccionario'
+import { CLAVES, DICCIONARIOS, AMBITOS_ITALIANO, IT_PARCIAL, conCaidaAlIngles } from './diccionario'
 import { CATALOGO_ERRORES_IT } from './errores-servidor'
 import { coberturaItaliano, problemasItaliano, tablaCobertura, clavesBase } from './cobertura-italiano'
 
@@ -30,6 +30,13 @@ describe('cobertura del italiano', () => {
     expect(base.traducidas).toBeGreaterThanOrEqual(5)
     expect(DICCIONARIOS.it['idioma.cambiar']).toBe('Cambia lingua')
     expect(DICCIONARIOS.it['idioma.it']).toBe('Italiano')
+  })
+
+  it('la caida: lo escrito gana, lo vacio no cuenta', () => {
+    const it_ = conCaidaAlIngles(DICCIONARIOS.en, { 'comun.o': '', 'comun.cancelar': 'Annulla' })
+    expect(it_['comun.cancelar']).toBe('Annulla')
+    expect(it_['comun.o']).toBe('or')
+    expect(it_['comun.guardar']).toBe('Save')
   })
 
   it('lo que falta se pinta en INGLES, no en espanol', () => {

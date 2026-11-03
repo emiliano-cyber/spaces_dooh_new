@@ -550,17 +550,24 @@ const IT: Partial<Record<ClaveTexto, string>> = {
 /** El italiano que YA esta escrito, sin la caida al ingles. Para la cobertura y los lotes. */
 export const IT_PARCIAL: Readonly<Partial<Record<ClaveTexto, string>>> = IT
 
+/**
+ * El italiano COMPLETO que ve la pantalla: el ingles, y encima lo que ya este
+ * traducido. Una cadena vacia no cuenta como traducida —un '' de un lote a
+ * medias no borra el ingles—. Exportada para probarla sin recargar el modulo.
+ */
+export function conCaidaAlIngles(
+  en: Record<ClaveTexto, string>,
+  it: Partial<Record<ClaveTexto, string>>,
+): Record<ClaveTexto, string> {
+  const escritas = Object.entries(it).filter(([, v]) => typeof v === 'string' && v !== '')
+  return { ...en, ...(Object.fromEntries(escritas) as Partial<Record<ClaveTexto, string>>) }
+}
+
 export const DICCIONARIOS: Record<Idioma, Record<ClaveTexto, string>> = {
   es: ES,
   en: EN,
-  // La caida al ingles, en una linea (ver arriba). Las claves vacias no
-  // cuentan como traducidas: un '' en un lote a medias no borra el ingles.
-  it: {
-    ...EN,
-    ...(Object.fromEntries(Object.entries(IT).filter(([, v]) => typeof v === 'string' && v !== '')) as Partial<
-      Record<ClaveTexto, string>
-    >),
-  },
+  // La caida al ingles, en una linea (ver arriba).
+  it: conCaidaAlIngles(EN, IT),
 }
 
 export const CLAVES = Object.keys(ES) as ClaveTexto[]
