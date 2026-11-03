@@ -65,6 +65,7 @@ import {
 } from '@/lib/negociacion'
 import { useIdioma, useTexto } from '@/lib/i18n/contexto'
 import type { ClaveTexto } from '@/lib/i18n/diccionario'
+import { numeroEnIdioma } from '@/lib/i18n/formato-idioma'
 
 // ============================================================================
 //  Comercial negociación · prospección de arrendadores.  NEG-01.
@@ -278,7 +279,7 @@ function Pasos({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; pued
 
 // ─── La ficha ───────────────────────────────────────────────────────────────
 function Ficha({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; puede: boolean }) {
-  const t = useTexto()
+  const { t, idioma } = useIdioma()
   const inicial = () => ({
     tipoEspacio: p.tipoEspacio ?? '',
     visibilidad: (p.visibilidad ?? '') as Visibilidad | '',
@@ -340,7 +341,7 @@ function Ficha({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; pued
         </label>
         <div>
           <span className={labelCls}>{t('comercial.negociacion.ficha.area')}</span>
-          <span className="block py-2 text-ink">{area == null ? '—' : `${area.toLocaleString('es-MX')} m²`}</span>
+          <span className="block py-2 text-ink">{area == null ? '—' : `${numeroEnIdioma(area, idioma)} m²`}</span>
         </div>
         <label>
           <span className={labelCls}>{t('comercial.negociacion.ficha.superficie')}</span>

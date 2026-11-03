@@ -29,6 +29,7 @@ import {
   solapaTrimestreEnCurso,
   type DimensionUI,
 } from './consulta'
+import { numeroEnIdioma, porcentajeEnIdioma } from '@/lib/i18n/formato-idioma'
 
 // ============================================================================
 //  components/demo/reportes/tabla.ts — Qué columnas trae cada dimensión.
@@ -621,12 +622,11 @@ export function totalDeColumna(
 // `es-MX` y en `en-US` (coma de miles, punto decimal).
 export function formatoPorcentaje(v: number | null, idioma: Idioma = 'es'): string {
   if (v == null) return '—'
-  const cifra = v.toLocaleString(idioma === 'es' ? 'es-MX' : 'en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
-  return idioma === 'es' ? `${cifra} %` : `${cifra}%`
+  const cifra = numeroEnIdioma(v, idioma, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+  return porcentajeEnIdioma(cifra, idioma)
 }
 
 export function formatoCelda(v: string | number | null, formato: FormatoColumna, idioma: Idioma = 'es'): string {
-  const locale = idioma === 'es' ? 'es-MX' : 'en-US'
   if (formato === 'texto') return v == null ? '' : String(v)
   if (formato === 'porcentaje') return formatoPorcentaje(v as number | null, idioma)
   // Solo aquí el `null` se pinta como raya en las tres restantes. En `entero` el
@@ -634,19 +634,19 @@ export function formatoCelda(v: string | number | null, formato: FormatoColumna,
   if (v == null) return '—'
   const n = Number(v)
   if (formato === 'dinero') return formatMonto(n, idioma)
-  if (formato === 'entero') return n.toLocaleString(locale, { maximumFractionDigits: 0 })
+  if (formato === 'entero') return numeroEnIdioma(n, idioma, { maximumFractionDigits: 0 })
   if (formato === 'horas') {
-    return `${n.toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} h`
+    return `${numeroEnIdioma(n, idioma, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} h`
   }
   // El consumo lleva su unidad: «1,500» a secas no dice kWh, y esta columna
   // convive con cinco de pesos. Sin decimales, porque un recibo se lee en kWh
   // enteros y los decimales aquí vienen del reparto entre caras, no del medidor.
   if (formato === 'kwh') {
-    return `${n.toLocaleString(locale, { maximumFractionDigits: 0 })} kWh`
+    return `${numeroEnIdioma(n, idioma, { maximumFractionDigits: 0 })} kWh`
   }
   // La superficie lleva su unidad: «18» a secas no dice metros, y esta columna
   // convive con cinco de pesos.
-  return `${n.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m²`
+  return `${numeroEnIdioma(n, idioma, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m²`
 }
 
 // «Van a arreglarla» no es lo mismo que «van a inspeccionarla», y esa

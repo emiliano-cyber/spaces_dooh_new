@@ -37,6 +37,7 @@ import {
   type ProspectoDetalle,
   type ProspectoForm,
 } from '@/lib/data/captacion-api'
+import { localeDe } from '@/lib/i18n/formato-idioma'
 
 // ============================================================================
 //  La bitácora de captación.  CAP-01.
@@ -88,7 +89,7 @@ function Etiqueta({ etapa }: { etapa: Etapa }) {
 
 // En ingles, el mismo formato con la convencion de `en-US` (como `formatFecha`).
 const fechaHora = (iso: string, idioma: Idioma = 'es') =>
-  new Date(iso).toLocaleString(idioma === 'en' ? 'en-US' : 'es-MX', { dateStyle: 'medium', timeStyle: 'short' })
+  new Date(iso).toLocaleString(localeDe(idioma), { dateStyle: 'medium', timeStyle: 'short' })
 
 // Las pestañas agrupan etapas: lo que el vendedor trabaja, lo que espera a
 // quien aprueba, y lo cerrado.

@@ -14,6 +14,7 @@ import { traducir, type ClaveTexto } from '@/lib/i18n/diccionario'
 import type { Idioma } from '@/lib/i18n/idiomas'
 import { interpolarNodos } from '@/lib/i18n/nodos'
 import { formatFecha } from '@/lib/data/derive'
+import { localeDe } from '@/lib/i18n/formato-idioma'
 
 // ============================================================================
 //  Space Eyes — programación de fotos.
@@ -172,7 +173,7 @@ function fechaIso(v: string | null): string | null {
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
 function fechaCorta(iso: string, idioma: Idioma): string {
   // En ingles, el formato del resto de la aplicacion («Dec 1, 2026»).
-  if (idioma === 'en') return formatFecha(iso, 'en')
+  if (idioma !== 'es') return formatFecha(iso, idioma)
   const [a, m, d] = iso.split('-')
   return `${Number(d)} ${MESES[Number(m) - 1] || m} ${a}`
 }
@@ -219,8 +220,8 @@ function proximaTexto(s: Programa, idioma: Idioma): string {
   // En ingles, como el resto de la aplicacion: «Nov 2, 11:30 AM» (dia sin
   // cero y reloj de 12 h). El español es el de siempre.
   const fecha =
-    idioma === 'en'
-      ? new Intl.DateTimeFormat('en-US', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }).format(d)
+    idioma !== 'es'
+      ? new Intl.DateTimeFormat(localeDe(idioma), { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }).format(d)
       : d.toLocaleString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false })
   if (faltan < 0) return traducir(idioma, 'spaceeyes.prog.proxima.cola', { fecha })
   const horas = Math.floor(faltan / 3_600_000)

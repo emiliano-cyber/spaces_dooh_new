@@ -57,6 +57,8 @@ export interface FormatoIdioma {
   nombreMoneda: Record<Moneda, string>
   /** «12.5 %» (es) o «12.5%» (en, it). */
   espacioAntesDePorcentaje: boolean
+  /** La letra del trimestre en las etiquetas de periodo: «T1 2026» (es), «Q1 2026» (en). */
+  letraTrimestre: string
 }
 
 export const FORMATO_IDIOMA: Record<Idioma, FormatoIdioma> = {
@@ -68,6 +70,7 @@ export const FORMATO_IDIOMA: Record<Idioma, FormatoIdioma> = {
     posicionSimbolo: 'intl',
     nombreMoneda: { MXN: 'Peso mexicano (MXN)', USD: 'Dólar estadounidense (USD)' },
     espacioAntesDePorcentaje: true,
+    letraTrimestre: 'T',
   },
   en: {
     locale: 'en-US',
@@ -77,6 +80,7 @@ export const FORMATO_IDIOMA: Record<Idioma, FormatoIdioma> = {
     posicionSimbolo: 'intl',
     nombreMoneda: { MXN: 'Mexican peso (MXN)', USD: 'US dollar (USD)' },
     espacioAntesDePorcentaje: false,
+    letraTrimestre: 'Q',
   },
   it: {
     locale: 'it-IT',
@@ -87,6 +91,8 @@ export const FORMATO_IDIOMA: Record<Idioma, FormatoIdioma> = {
     posicionSimbolo: 'delante-con-espacio',
     nombreMoneda: { MXN: 'Peso messicano (MXN)', USD: 'Dollaro statunitense (USD)' },
     espacioAntesDePorcentaje: false,
+    // «T1 2026» (trimestre). PROVISIONAL: lo confirma el lote de reportes.
+    letraTrimestre: 'T',
   },
 }
 

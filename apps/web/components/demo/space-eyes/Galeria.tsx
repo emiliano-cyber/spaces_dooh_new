@@ -600,7 +600,7 @@ function Visor({
   const pie = foto
     ? `${foto.device_name ?? ''}${
         foto.taken_at
-          ? ` · ${idioma === 'en' ? fechaHora(foto.taken_at, 'en') : new Date(foto.taken_at).toLocaleString('es-MX')}`
+          ? ` · ${idioma !== 'es' ? fechaHora(foto.taken_at, idioma) : new Date(foto.taken_at).toLocaleString('es-MX')}`
           : ''
       }${gps}`
     : ''

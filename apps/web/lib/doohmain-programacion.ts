@@ -25,6 +25,7 @@
 
 import { traducir, type ClaveTexto } from './i18n/diccionario'
 import type { Idioma } from './i18n/idiomas'
+import { numeroEnIdioma } from './i18n/formato-idioma'
 
 export interface Franja {
   horaInicio: string
@@ -169,7 +170,7 @@ export function textoHorario(p: ProgramacionDoohmain, idioma: Idioma = 'es'): st
   return `${p.horaInicio} a ${p.horaFin}${dias}`
 }
 
-const miles = (n: number) => n.toLocaleString('es-MX')
+const miles = (n: number, idioma: Idioma) => numeroEnIdioma(n, idioma)
 
 /**
  * Las reproducciones, por día y en toda la campaña. Sin pauta contratada NO se
@@ -179,8 +180,8 @@ const miles = (n: number) => n.toLocaleString('es-MX')
 export function textoReproducciones(p: ProgramacionDoohmain, idioma: Idioma = 'es'): { porDia: string; total: string } {
   const quepan = idioma === 'es' ? 'Las que quepan' : traducir(idioma, 'compartidos.doohmain.las-que-quepan')
   return {
-    porDia: p.cantDia != null ? miles(p.cantDia) : quepan,
-    total: p.cantTotal != null ? miles(p.cantTotal) : quepan,
+    porDia: p.cantDia != null ? miles(p.cantDia, idioma) : quepan,
+    total: p.cantTotal != null ? miles(p.cantTotal, idioma) : quepan,
   }
 }
 

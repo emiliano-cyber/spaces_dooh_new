@@ -80,6 +80,7 @@ import {
 import { PERIODICIDADES, factorMensual, periodicidadLabel } from '@/lib/renta-periodicidad'
 import { formatNumero } from '@/lib/formato-numero'
 import { formatearDineroRedondo } from '@/lib/i18n/dinero'
+import { numeroEnIdioma } from '@/lib/i18n/formato-idioma'
 
 // Periodicidades de la renta al propietario (enum `periodicidad_pago` en la BD)
 // y su equivalencia a mensual: ambas vienen de lib/renta-periodicidad.ts, la
@@ -1559,7 +1560,7 @@ function NuevaPropuestaDialog({
                       <span className="demo-num whitespace-nowrap text-muted" title={t('propuestas.alta.salidas.titulo')}>
                         {calcDe(s)?.ok
                           ? t(cantidadDe(s) === 1 ? 'propuestas.alta.salidas.uno' : 'propuestas.alta.salidas.otros', {
-                              n: cantidadDe(s).toLocaleString('es-MX'),
+                              n: numeroEnIdioma(cantidadDe(s), idioma),
                             })
                           : t('propuestas.alta.salidas.otros', { n: '—' })}
                       </span>
@@ -1581,7 +1582,7 @@ function NuevaPropuestaDialog({
                         // GUARDIA 2 de `dinero.test.ts`.
                         title={
                           c.unidad === 'cpm'
-                            ? t('propuestas.alta.cpm.titulo', { mil: (1000).toLocaleString('es-MX') })
+                            ? t('propuestas.alta.cpm.titulo', { mil: numeroEnIdioma(1000, idioma) })
                             : t('propuestas.alta.cantidad.titulo', { unidad: unidadCorta(c.unidad, 2, idioma) })
                         }
                       />
@@ -1595,7 +1596,7 @@ function NuevaPropuestaDialog({
                         van 2,500: cobraría mil veces de más. */}
                     {esManual && !usaCalcDe(s) && c.unidad === 'cpm' && (
                       <span className="demo-num whitespace-nowrap text-muted">
-                        {t('propuestas.alta.cpm.equivale', { n: (c.cantidadManual * 1000).toLocaleString('es-MX') })}
+                        {t('propuestas.alta.cpm.equivale', { n: numeroEnIdioma(c.cantidadManual * 1000, idioma) })}
                       </span>
                     )}
                     {/* Programación: spots por día — solo pantallas digitales.
@@ -1604,7 +1605,7 @@ function NuevaPropuestaDialog({
                       <span className="demo-num w-24 text-center text-[11px] text-muted" title={t('propuestas.alta.programacion.titulo')}>
                         {(() => {
                           const p = calcDe(s)
-                          return p?.ok ? t('propuestas.alta.pases-dia', { n: p.spotsDia.toLocaleString('es-MX') }) : '—'
+                          return p?.ok ? t('propuestas.alta.pases-dia', { n: numeroEnIdioma(p.spotsDia, idioma) }) : '—'
                         })()}
                       </span>
                     ) : digital ? (
@@ -1975,14 +1976,14 @@ function CalculadoraSpotsLinea({
               </div>
               <div className="demo-num text-ink">
                 {resultado.roadblock
-                  ? `${spotsHoraRB.toLocaleString('es-MX')} spots/h`
+                  ? `${numeroEnIdioma(spotsHoraRB, idioma)} spots/h`
                   : t('propuestas.calc.rotaciones', { n: fmtNum(resultado.rotacionesHora) })}{' '}
                 {t('propuestas.calc.spots-dia', {
                   spots: fmtNum(resultado.spotsDiaExactos),
                   dias,
                   unidad: plural(dias, t('propuestas.calc.dia'), t('propuestas.calc.dias')),
                 })}{' '}
-                <b>{resultado.cantidad.toLocaleString('es-MX')} spots</b>
+                <b>{numeroEnIdioma(resultado.cantidad, idioma)} spots</b>
               </div>
               {tarifaSpot.calculable && (
                 <div className="demo-num">

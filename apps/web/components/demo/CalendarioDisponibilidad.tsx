@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { useIdioma } from '@/lib/i18n/contexto'
+import { localeDe } from '@/lib/i18n/formato-idioma'
 
 // ============================================================================
 //  CalendarioDisponibilidad — grilla mensual que pinta los días según reservas
@@ -77,9 +78,10 @@ export function CalendarioDisponibilidad({
           <ChevronLeft className="h-4 w-4" />
         </button>
         <span className="text-[13px] font-medium capitalize text-ink">
-          {/* En ingles el nombre del mes lo da `Intl` (`en-US`); el espanol sigue
-              saliendo de `MESES`, como siempre. */}
-          {idioma === 'en' ? new Intl.DateTimeFormat('en-US', { month: 'long' }).format(base) : MESES[month]} {year}
+          {/* Fuera del espanol el nombre del mes lo da `Intl` con el locale del
+              idioma (`formato-idioma.ts`); el espanol sigue saliendo de
+              `MESES`, como siempre. */}
+          {idioma !== 'es' ? new Intl.DateTimeFormat(localeDe(idioma), { month: 'long' }).format(base) : MESES[month]} {year}
         </span>
         <button
           type="button"

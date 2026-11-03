@@ -10,6 +10,7 @@ import type { ClaveTexto } from '@/lib/i18n/diccionario'
 import type { Idioma } from '@/lib/i18n/idiomas'
 import { periodicidadLabel } from '@/lib/renta-periodicidad'
 import { formatearFecha } from '@/lib/i18n/dinero'
+import { localeDe } from '@/lib/i18n/formato-idioma'
 
 // Lo que el contrato va a recitar, tal como está HOY en la base, y su huella
 // (`huellaDatosContrato`). Se enseña antes de congelar: es el «revisa y valida»
@@ -57,7 +58,7 @@ const diaDeVigencia = (iso: string, idioma: Idioma) =>
     : formatearFecha(iso, idioma, { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
 
 const fecha = (iso: string | null, idioma: Idioma = 'es') =>
-  iso ? new Date(iso).toLocaleString(idioma === 'es' ? 'es-MX' : 'en-US', { dateStyle: 'long', timeStyle: 'short' }) : '—'
+  iso ? new Date(iso).toLocaleString(localeDe(idioma), { dateStyle: 'long', timeStyle: 'short' }) : '—'
 
 export function PanelFirmas({
   contratoId,

@@ -145,7 +145,8 @@ describe('inicio · el resto de la pagina', () => {
   it('la pagina pide las metricas y el pipeline EN su idioma, y el mes con el locale del idioma', () => {
     expect(FUENTE).toContain('const m = useDashboard(idioma)')
     expect(FUENTE).toContain('pipelineComercial(propuestas, usuarios ?? [], hoy, yo, idioma)')
-    expect(FUENTE).toContain("hoy.toLocaleDateString(idioma === 'es' ? 'es-MX' : 'en-US', { month: 'long' })")
+    // Ola 0 del italiano: el locale sale de `formato-idioma.ts`, ya no de una bifurcacion es/en.
+    expect(FUENTE).toContain("hoy.toLocaleDateString(localeDe(idioma), { month: 'long' })")
   })
 
   it('el menu de configurar alertas (se monta en un portal y no se rinde) usa sus claves', () => {

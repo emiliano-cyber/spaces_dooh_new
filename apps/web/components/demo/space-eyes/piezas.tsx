@@ -36,12 +36,21 @@ export function hace(iso: string | null, idioma: Idioma = 'es'): string {
   return traducir(idioma, 'spaceeyes.hace.semanas', { n: Math.floor(d / 7) })
 }
 
+// Como se le quita el «hace» a cada idioma. El italiano («5 min fa») quita
+// tambien el « ago»: mientras su lote no traduzca `spaceeyes.hace.*`, la
+// frase le llega en ingles (caida al ingles, `diccionario.ts`).
+const SIN_PREFIJO_HACE: Record<Idioma, (t: string) => string> = {
+  es: (t) => t.replace('hace ', ''),
+  en: (t) => t.replace(/ ago$/, ''),
+  it: (t) => t.replace(/ (?:fa|ago)$/, ''),
+}
+
 // Lo mismo sin el «hace» / «ago»: para un indicador que ya dice qué mide
 // («Última captura · 30 min»). Antes era `hace(x).replace('hace ', '')`, que en
 // ingles no quitaba nada.
 export function haceSinPrefijo(iso: string | null, idioma: Idioma = 'es'): string {
   const t = hace(iso, idioma)
-  return idioma === 'en' ? t.replace(/ ago$/, '') : t.replace('hace ', '')
+  return SIN_PREFIJO_HACE[idioma](t)
 }
 
 // Un equipo se da por caído a los 10 minutos sin reportar: es el mismo umbral
@@ -190,7 +199,7 @@ export function fechaHora(iso: string | null, idioma: Idioma = 'es'): string {
   if (!iso) return '—'
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return '—'
-  if (idioma === 'en') return formatFechaHora(iso, 'en')
+  if (idioma !== 'es') return formatFechaHora(iso, idioma)
   return d.toLocaleString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 

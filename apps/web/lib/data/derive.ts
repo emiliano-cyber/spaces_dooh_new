@@ -27,6 +27,7 @@ import { costoEfectivoDeOt } from '../costos-ot'
 import type { Idioma } from '../i18n/idiomas'
 import { traducir, type ClaveTexto } from '../i18n/diccionario'
 import { monedaInstancia, simboloMoneda } from '../i18n/dinero'
+import { FORMATO_IDIOMA, localeDe, numeroEnIdioma } from '../i18n/formato-idioma'
 import { itemsEnPropuesta, enPropuestaEntre, type ItemEnPropuesta } from './en-propuesta'
 
 // Orden canónico de las 10 etapas del pipeline (sección 7.4).
@@ -1489,7 +1490,10 @@ export function medioLabel(s: Pick<Sitio, 'tipoMedio' | 'esRotativo' | 'exhibici
 // simbolo (en ingles, `MX$` para el peso y `$` para el dolar); la cifra se
 // escribe igual en los dos, con el estilo de siempre.
 export function formatMonto(n: number, idioma: Idioma = 'es'): string {
-  const cifra = Math.abs(n).toLocaleString('es-MX', {
+  // Ola 0 del italiano: la cifra en el idioma de quien lee. `es-MX` y `en-US`
+  // escriben los numeros IGUAL (medido sobre 200 000 importes), asi que es y en
+  // no cambian; en italiano sale «MX$ 1.160,00», la decision del dueno.
+  const cifra = numeroEnIdioma(Math.abs(n), idioma, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })
@@ -1519,7 +1523,7 @@ export function formatMontoCorto(n: number, idioma: Idioma = 'es'): string {
   // Un decimal solo si aporta: 4.9M sí, 5.0M no. Se mira el valor ya redondeado
   // — sobre el crudo, 4,999,999 daba «5.0M» con un decimal que no dice nada.
   const decimales = sufijo && valor % 1 !== 0 ? 1 : 0
-  const cifra = valor.toLocaleString('es-MX', {
+  const cifra = numeroEnIdioma(valor, idioma, {
     minimumFractionDigits: decimales,
     maximumFractionDigits: decimales,
   })
@@ -1565,10 +1569,13 @@ export function formatFecha(iso: string, idioma: Idioma = 'es'): string {
   const d = soloFecha
     ? new Date(Number(soloFecha[1]), Number(soloFecha[2]) - 1, Number(soloFecha[3]))
     : new Date(iso)
-  if (idioma === 'en') {
+  // Ola 0 del italiano: cualquier idioma que no sea el espanol va por `Intl`
+  // con SU locale (`formato-idioma.ts`). Mismas opciones que el ingles de
+  // siempre; `Intl` pone el orden de cada idioma: «Dec 1, 2026», «1 dic 2026».
+  if (idioma !== 'es') {
     // `Intl` LANZA con una fecha invalida; la rama espanola pintaba «NaN/…».
     if (isNaN(d.getTime())) return '—'
-    return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(d)
+    return new Intl.DateTimeFormat(localeDe(idioma), { month: 'short', day: 'numeric', year: 'numeric' }).format(d)
   }
   const dd = String(d.getDate()).padStart(2, '0')
   const mm = String(d.getMonth() + 1).padStart(2, '0')
@@ -1581,8 +1588,8 @@ export function formatFechaHora(iso: string, idioma: Idioma = 'es'): string {
   if (!iso) return '—'
   const d = new Date(iso)
   if (isNaN(d.getTime())) return '—'
-  if (idioma === 'en') {
-    return new Intl.DateTimeFormat('en-US', {
+  if (idioma !== 'es') {
+    return new Intl.DateTimeFormat(localeDe(idioma), {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
@@ -1683,10 +1690,11 @@ export function ocupacionSerie(state: DemoState, gran: Granularidad, idioma: Idi
 // el mes con `en-US` («Jan») y la semana como «Jan 12»: un `12/01` lo lee un
 // lector de EE. UU. como 1 de diciembre.
 export function etiquetaBucket(d: Date, gran: Granularidad, idioma: Idioma = 'es'): string {
-  if (idioma === 'en') {
-    if (gran === 'trimestre') return `Q${Math.floor(d.getMonth() / 3) + 1} ${d.getFullYear()}`
-    if (gran === 'mes') return d.toLocaleDateString('en-US', { month: 'short' })
-    if (gran === 'semana') return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  if (idioma !== 'es') {
+    // La letra del trimestre es del idioma (`formato-idioma.ts`): «Q» en ingles.
+    if (gran === 'trimestre') return `${FORMATO_IDIOMA[idioma].letraTrimestre}${Math.floor(d.getMonth() / 3) + 1} ${d.getFullYear()}`
+    if (gran === 'mes') return d.toLocaleDateString(localeDe(idioma), { month: 'short' })
+    if (gran === 'semana') return d.toLocaleDateString(localeDe(idioma), { month: 'short', day: 'numeric' })
     return String(d.getDate())
   }
   if (gran === 'trimestre') {

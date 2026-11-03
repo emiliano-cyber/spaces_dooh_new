@@ -30,6 +30,7 @@ import { useIdioma } from '@/lib/i18n/contexto'
 import type { ClaveTexto } from '@/lib/i18n/diccionario'
 import { interpolarNodos } from '@/lib/i18n/nodos'
 import { CLAVE_TIPO_CAMPANA } from '@/components/demo/campanas/etiquetas'
+import { numeroEnIdioma } from '@/lib/i18n/formato-idioma'
 
 // Si un creativo HTML es una imagen envuelta (ver imagenAHtml), devuelve su data
 // URL para mostrarlo como imagen en previews/miniaturas; si no, null.
@@ -883,7 +884,7 @@ function CampanaCard({
               ? t('operaciones2.creativos.fuente.cargando', { formato: verFuente.formato ?? 'HTML' })
               : t('operaciones2.creativos.fuente.caracteres', {
                   formato: verFuente.formato ?? 'HTML',
-                  n: (fuente ?? '').length.toLocaleString('es-MX'),
+                  n: numeroEnIdioma((fuente ?? '').length, idioma),
                 })
             : undefined
         }
