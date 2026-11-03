@@ -151,3 +151,73 @@ Una nota sobre M5: la ruta no tiene por dónde pasar idioma al motor (`rentabili
 - **D2 · El trimestre:** «This quarter» (selector) frente a «Quarter» (columna). Está bien resuelto y declarado. Solo necesita el visto bueno.
 - **D3 · El consumo eléctrico:** hay que elegir un solo término de módulo en inglés. El menú dice «Power usage» y el lote dice «electricity» en todo (dimensión, columnas, KPIs, notas). El lote de propuestas también dice «electricity». Propongo dejar «electricity» y cambiar el menú a «Electricity usage», o al revés, pero que sea uno solo.
 - **Fuera del lote, preexistente:** en la dimensión `vendedor`, `notaDeArrendador` no excluye las filas de persona (`FILAS_QUE_NO_SON_PANTALLAS` solo tiene `trimestre` y `entidad`, `tabla.ts:482`), y el motor les pone `tieneContrato: false` (`reportes.ts:2678`). Una fila de vendedor real pintaría «Ejecutiva · sin contrato», y ahora en inglés «· no contract». El lote no lo introduce y el español es idéntico, pero vale una tarea propia.
+
+---
+
+## Segunda pasada (2026-11-02): `git diff 816530af..HEAD`, commits `65380282`, `39d455d2` y `74826088`
+
+### Veredicto: **VERDE**
+
+Están resueltos todos los hallazgos de la primera pasada y todas las frases nuevas se entienden en su contexto. El español sigue idéntico en los 16 estados y en las seis notas, comprobado de forma mecánica otra vez. Typecheck y unitarias en verde. Los dos mutantes que sobrevivían ahora mueren.
+
+Queda una recomendación de severidad baja que **no bloquea**: una prueba de la nota de OT con dos o más visitas todas con costo real (ver M6a).
+
+No marco como hallazgo lo que ya está decidido: «Power usage» en el menú frente a «electricity» en el cuerpo, y «por 350» y «sin contrato» en las filas de vendedor, que van en tareas aparte.
+
+### 1 · Los hallazgos de la primera pasada
+
+| hallazgo | estado | cómo se lee ahora |
+|---|---|---|
+| «two-faced» | resuelto | «a **double-sided** 3 × 6 screen counts as 36 m², not 18» (y «…18 m², not 36»). Lo vi en el HTML inglés del estado del m². No queda ningún «two-faced». |
+| H-T1 · `ocupacionSerie` / `useOcupacionSerie` | resuelto | `lib/data/ocupacion-idioma.test.ts`: etiquetas inglesas (`Q4 2026`, `Nov`, `Nov 2`), los mismos `pct`, `ocupados` y días en las cuatro granularidades, y lo mismo sin idioma que con `'es'`. Además rinde el hook de verdad. **M3c y M3d ahora mueren** (tabla de abajo). |
+| `dim.vendedor.ayuda` | resuelto | «…and it has been recorded since 2026-09-28» |
+| `ot.sin-visitas` | resuelto | «…not because it hasn’t been recorded.» |
+| `ot.estimacion.*` / `ot.reales.otros` | resuelto | «1 of the 5 visits … is costed at the per-type estimate», «2 of the 5 … are costed at», «All 5 visits in the period are at their ACTUAL recorded cost». Concuerdan. |
+| `ot.reales.uno` | resuelto | «The period’s only visit is at its ACTUAL recorded cost (MX$450)…» |
+| `luz.completa.otros` | resuelto | «…all {esperados} bills for the period are recorded…» |
+| `m2.sin-medidas.*` | resuelto | «1 static screen missing its width or height» / «2 static screens missing their width or height» |
+| `vendedor.historicas` | resuelto | «…when the proposal’s creator was not yet recorded» |
+| `aviso.en-curso.*` | resuelto | «…overlaps Q1 2026…», «…billed when the period closes…» |
+| `col.pct-publicada` | resuelto | «% of published rate» |
+| tooltip del desglose | resuelto | En inglés `title="Jan 1, 2026 to Jan 28, 2026"`. En español sigue `title="Del 2026-01-01 al 2026-01-28"`, igual que antes. |
+
+**La clave `.uno` de la visita única («Las 1 visita» literal).**
+
+- **¿El español sale letra por letra igual con una visita? Sí.**
+  - Viejo (`00815aa3`): «…Las 1 visita del periodo van con su costo REAL capturado ($450): …»
+  - Nuevo, sin idioma: la misma cadena.
+  - Lo comprobé con `toBe` y además dentro del barrido de 1825 combinaciones.
+- **¿Puede salir esa variante con otro número? Hoy no.** El único que la elige es `reportes.ts:1944`: `total === 1 ? 'reportes.nota.ot.reales.uno' : …`. Está dentro de la rama `visitasConEstimacion === 0`, así que `total = visitasConCostoReal = 1` siempre. `total === 0` sale antes con `ot.sin-visitas`.
+- **Riesgo residual (severidad baja):** como la cifra ya no viaja por el hueco, que sea correcta depende solo de ese selector. El mutante M6a (`total <= 2`) haría decir «Las 1 visita» con dos visitas, y **sobrevive**: ninguna prueba fija el texto de la nota cuando todas las visitas (2 o más) tienen costo real.
+  - **Propuesta:** en `textos/reportes.test.ts`, que `notaDeCostosOt({ visitasConCostoReal: 2, visitasConEstimacion: 0, … })` contenga «Las 2 visitas del periodo» y, en inglés, «All 2 visits in the period».
+  - La primera versión tenía el mismo hueco del lado inglés. No es una regresión.
+
+### 2 · Español intacto: VERIFICADO otra vez
+
+- **Seis notas.** Volví a copiar el `reportes.ts` de `00815aa3` y lo comparé en las mismas **1825 combinaciones**: el texto es idéntico sin idioma y con `'es'`.
+  - Hay 192 divergencias de cifras entre inglés y español.
+  - 180 son el importe de la luz con decimales, ya decidido.
+  - Las otras **12 son exactamente** `ot 1/0/*`: el inglés de la visita única ya no lleva el «1», a propósito.
+  - No hay ninguna más.
+- **16 estados.** Rehice el espejo de los seis componentes de `00815aa3`, con el `derive.ts` y el `reportes.ts` viejos, y volqué el HTML con el arnés de `pantallas-reportes.test.ts`: **16 de 16 iguales** (`cmp -s`). Control: el espejo rendido en inglés falla 16 de 16, así que era de verdad el código viejo.
+- **Formato del HTML inglés:** ningún `$` sin `MX`, ningún `dd/mm/aaaa`, ningún `%` con espacio.
+
+### 3 · Pruebas
+
+```
+cd apps/web && npm run typecheck                      → tsc --noEmit, sin errores
+cd apps/web && npx vitest run --testTimeout=60000     → Test Files 347 passed (347) · Tests 5405 passed (5405)
+```
+
+Mutantes, contra 61 archivos y 972 pruebas (las mismas de la primera pasada más `lib/data/ocupacion-idioma.test.ts`). Restauré cada uno con `git checkout --`.
+
+| # | mutante | resultado | lo mata |
+|---|---|---|---|
+| M3c | `ocupacionSerie` sin idioma en `etiquetaBucket` (`derive.ts`) | **muere** (sobrevivía) | `ocupacion-idioma.test.ts` (2 pruebas) |
+| M3d | `useOcupacionSerie` sin pasar idioma (`client.ts`) | **muere** (sobrevivía) | `ocupacion-idioma.test.ts` (el hook) |
+| M3e | `useOcupacionSerie` sin `idioma` en las dependencias del memo | sobrevive | Es equivalente en un render estático: cada render monta de cero. Solo se vería al cambiar de idioma con la pantalla abierta. Aceptable. |
+| M6a | selector de la visita única `total === 1` → `total <= 2` | **sobrevive** | — (ver la propuesta de arriba, severidad baja) |
+| M6b | español de `.uno`: «Las 1 visita … van» → «La 1 visita … va» | **muere** | instantánea ES |
+| M6c | volver a «two-faced» | **muere** | instantánea EN |
+
+**Árbol:** borré el espejo, las copias viejas y las pruebas temporales. `git status` solo muestra este informe, modificado y sin commitear, más los `desktop.ini` sin seguimiento que ya estaban. No usé `git stash`.
