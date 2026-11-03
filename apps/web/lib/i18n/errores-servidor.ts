@@ -449,6 +449,9 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   // 1 sitio · lib/server/ot-repo.ts (una OT cerrada ya no admite costo, 08/10)
   'Esta orden de trabajo ya está cerrada: su costo ya no se puede registrar ni cambiar.':
     'This work order is already closed: its cost can no longer be recorded or changed.',
+  // 1 sitio · lib/server/idioma-controller.ts (IDIOMA-USUARIO, 03/11)
+  'Ese idioma no está disponible en este servidor.':
+    'That language is not available on this server.',
   // 2 sitios · lib/server/perfil-controller.ts:78
   'No hay cambios que guardar':
     'There are no changes to save',

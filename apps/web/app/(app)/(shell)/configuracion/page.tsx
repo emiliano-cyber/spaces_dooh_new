@@ -16,6 +16,7 @@ import { puedeFijarPasswordSinAnterior } from '@/lib/perfil-acceso'
 import { rolLabel } from '@/components/demo/shell/nav'
 import { Chip, TONO } from '@/components/demo/admin/Chip'
 import Link from 'next/link'
+import { IdiomaCuenta } from '@/components/demo/admin/IdiomaCuenta'
 
 const API = '/spaces-dooh/api'
 const inputCls =
@@ -66,6 +67,7 @@ export default function ConfiguracionPage() {
           quien llega redirigido con una contraseña temporal. */}
       <div className="grid items-start gap-4 lg:grid-cols-2">
         <CuentaCard emailActual={sesion?.usuario.email ?? ''} />
+        <IdiomaCuenta />
         {puedeEmpresa && <EmpresaCard nombreActual={config?.nombreTenant ?? ''} />}
       </div>
     </div>

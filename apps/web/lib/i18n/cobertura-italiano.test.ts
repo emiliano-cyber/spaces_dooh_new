@@ -62,7 +62,9 @@ describe('cobertura del italiano', () => {
         'errores: entrada sin espanol canonico: Frase que no existe',
       ])
       // Y una vacia no cuenta como traducida.
-      expect(coberturaItaliano()[0].traducidas).toBe(6)
+      // 11 = las 10 del ambito base (selector de idioma y, desde IDIOMA-USUARIO,
+      // «Mi cuenta → Idioma») + la que esta prueba anade; la vacia no suma.
+      expect(coberturaItaliano()[0].traducidas).toBe(11)
     } finally {
       delete it_['login.error.demasiados']
       delete it_['comun.o']

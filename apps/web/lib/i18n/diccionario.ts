@@ -94,6 +94,14 @@ const ES = {
   'idioma.en': 'English',
   'idioma.it': 'Italiano',
   'idioma.cambiar': 'Cambiar idioma',
+  // «Mi cuenta → Idioma» (IDIOMA-USUARIO, 03/11): la preferencia de la CUENTA,
+  // que sigue a la persona a cualquier dispositivo.
+  'idioma.cuenta.titulo': 'Idioma',
+  'idioma.cuenta.ayuda':
+    'El idioma en que ves la aplicación, en cualquier dispositivo donde entres. Los contratos y documentos no cambian: van en el idioma de la empresa.',
+  'idioma.cuenta.navegador': 'Usar el idioma del navegador',
+  'idioma.cuenta.toast': 'Idioma guardado',
+  'idioma.cuenta.error': 'No se pudo guardar el idioma',
 
   // ── Marca (no se traduce el nombre; si el descriptivo) ──
   'marca.descriptivo': 'Gestión de espacios publicitarios',
@@ -308,6 +316,12 @@ const EN: Record<ClaveTexto, string> = {
   'idioma.en': 'English',
   'idioma.it': 'Italiano',
   'idioma.cambiar': 'Change language',
+  'idioma.cuenta.titulo': 'Language',
+  'idioma.cuenta.ayuda':
+    'The language you see the app in, on any device you sign in from. Contracts and documents do not change: they use the company language.',
+  'idioma.cuenta.navegador': 'Use the browser language',
+  'idioma.cuenta.toast': 'Language saved',
+  'idioma.cuenta.error': 'Could not save the language',
 
   'marca.descriptivo': 'Advertising space management',
 
@@ -491,6 +505,13 @@ const IT_BASE: Partial<Record<ClaveTexto, string>> = {
   'idioma.en': 'English',
   'idioma.it': 'Italiano',
   'idioma.cambiar': 'Cambia lingua',
+  // IDIOMA-USUARIO (03/11). Sin validar todavía por el validador del italiano.
+  'idioma.cuenta.titulo': 'Lingua',
+  'idioma.cuenta.ayuda':
+    'La lingua in cui vedi l’applicazione, su qualsiasi dispositivo da cui accedi. Contratti e documenti non cambiano: usano la lingua dell’azienda.',
+  'idioma.cuenta.navegador': 'Usa la lingua del browser',
+  'idioma.cuenta.toast': 'Lingua salvata',
+  'idioma.cuenta.error': 'Impossibile salvare la lingua',
 }
 
 /** Cada ambito de `textos/` con su espanol y su italiano, para la prueba de cobertura. */

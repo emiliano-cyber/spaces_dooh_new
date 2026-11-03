@@ -1,7 +1,7 @@
 ---
 tipo: referencia
 estado: verificado
-actualizado: 2026-11-02
+actualizado: 2026-11-03
 tags: [backend, api, endpoints]
 archivos:
   - apps/web/app/api/
@@ -16,6 +16,7 @@ archivos:
   - apps/web/lib/server/flota.ts
   - apps/web/app/api/auth/codigo/route.ts
   - apps/web/app/api/perfil/codigos-recuperacion/route.ts
+  - apps/web/app/api/perfil/idioma/route.ts
   - apps/web/app/api/bienvenida/route.ts
   - apps/web/app/api/captacion/
   - apps/web/app/api/codigos-promocionales/
@@ -131,6 +132,8 @@ Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo el
 | POST | `/api/bootstrap` | PÚBLICO | **De un solo uso.** 404 —nunca 401— si falta `BOOTSTRAP_TOKEN`, si no coincide, si `tenants` ya tiene algo o si se pasa de 10/h por IP. 201 solo con los tres cerrojos abiertos. **Desde el 02/11 (ADR 0048) el cuerpo admite `moneda: 'MXN' | 'USD'`** —la de la instancia, para siempre; sin ella MXN; cualquier otra, 400 sin crear nada (`lib/server/moneda-alta.ts`) |
 | POST | `/api/auth/codigo` | PÚBLICO | (05/10) Entrar con un **código de recuperación** (ADR 0028). Sin correo: el código identifica al usuario. **5/15min por IP**, más estricto que el login; la sesión se abre como `password`, no `google`. No está en la lista de exentos de CSRF, pero quien llega aquí no trae cookie de sesión y el middleware solo exige CSRF si la hay (`middleware.ts:134-135`) |
 | PATCH | `/api/perfil` | usuarioActual | Exige `passwordActual` |
+| GET | `/api/perfil/idioma` | usuarioActual | (03/11, IDIOMA-USUARIO) `{ preferido, disponibles }`: la preferencia de idioma de la interfaz de la PROPIA cuenta (`null` = sigue al navegador; un idioma apagado se lee como `null`) y los idiomas encendidos |
+| PUT | `/api/perfil/idioma` | usuarioActual (+ CSRF del middleware) | (03/11) `{ idioma: 'es'\|'en'\|'it'\|'navegador'\|null }`. Solo idiomas **encendidos** (400 si no). El id sale de la sesión, nunca del cuerpo. Deja la cookie `spaces_idioma_cuenta` de esta sesión al día (o la borra con `null`) para que la siguiente petición salga ya en ese idioma. Ver [[03-Frontend/idiomas-es-en]] |
 | POST | `/api/perfil/codigos-recuperacion` | usuarioActual; el **segundo** lote, además **REAUTH** | (05/10) Genera el lote y lo devuelve en claro **una vez** (`no-store`); `?ya=1` confirma que se guardaron. Resuelve con `usuarioActual()` y no con `exigir()` porque es la **salida** del corte de `exigir()` (`auth.ts:230-237`). Regenerar invalida los anteriores y va por `exigirReautenticacionSiempre()` |
 | GET | `/api/permisos` | exigir | |
 | GET | `/api/admin/permisos-matriz` | exigir | |
