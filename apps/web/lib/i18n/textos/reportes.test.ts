@@ -205,6 +205,12 @@ describe('REPORTES · lo que no se rinde en la prueba de pantallas', () => {
     expect(notaDeCostosOt({ visitasConCostoReal: 0, visitasConEstimacion: 1, costoRealCapturado: 0, costoEstimado: 1500 }, 'en')).toContain('1 of 1 visit in the period is costed at')
     expect(notaDeCostosOt({ visitasConCostoReal: 4, visitasConEstimacion: 1, costoRealCapturado: 0, costoEstimado: 1500 }, 'en')).toContain('1 of the 5 visits in the period is costed at')
     expect(notaDeCostosOt({ visitasConCostoReal: 1, visitasConEstimacion: 0, costoRealCapturado: 900, costoEstimado: 0 }, 'en')).toContain('The period’s only visit is at its ACTUAL recorded cost')
+    // Ola 5 (M6a de la validacion de reportes): el selector de la visita unica
+    // es `total === 1`. Con `total <= 2` dos visitas dirian «Las 1 visita» /
+    // «The period’s only visit»; esto lo mata en los dos idiomas.
+    const dos = { visitasConCostoReal: 2, visitasConEstimacion: 0, costoRealCapturado: 900, costoEstimado: 0 }
+    expect(notaDeCostosOt(dos)).toContain('Las 2 visitas del periodo van con su costo REAL capturado')
+    expect(notaDeCostosOt(dos, 'en')).toContain('All 2 visits in the period are at their ACTUAL recorded cost')
     expect(notaDeTarifas({ reservasConTarifa: 0, reservasSinTarifa: 1, ingresoLista: 0, ingresoComparable: 0, ingresoSinTarifa: 10 }, 'en')).toContain('1 of 1 booking in the period has')
     expect(notaDeVendedores({ reservasConVendedor: 3, reservasSinVendedor: 1, reservasSinPropuesta: 1, reservasDePropuestaSinVendedor: 0, ingresoSinVendedor: 10 }, 'en')).toContain('1 of the 4 bookings in the period shows')
     expect(notaDeCobertura(0, 1, 0, 0, 'en')).toBe(EN['reportes.nota.luz.completa.uno'].replace('{esperados}', '1'))
