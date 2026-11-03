@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest'
 import { createElement, type ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { mkdirSync, writeFileSync } from 'node:fs'
@@ -308,6 +308,15 @@ const MODULOS: Record<string, () => Promise<Record<string, unknown>>> = {
   SinRespuesta: () => import('../../components/demo/space-eyes/SinRespuesta'),
   SolicitudesActivacion: () => import('../../components/demo/space-eyes/SolicitudesActivacion'),
 }
+// Los veinte modulos (recharts incluido) se cargan UNA vez antes de las pruebas:
+// importarlos dentro del primer `it` de cada uno costaba mas de los 5 s por
+// omision con la maquina cargada, y una prueba que se pasa de tiempo sigue
+// corriendo y le ensucia la cola de `useState` a la siguiente.
+beforeAll(async () => {
+  await Promise.all(Object.values(MODULOS).map((f) => f()))
+  await import('../../app/(app)/(shell)/space-eyes/[id]/page')
+}, 120_000)
+
 const comp = async (archivo: string, nombre: string) =>
   (await MODULOS[archivo]())[nombre] as (p: never) => ReactElement
 const el = (C: unknown, props: Record<string, unknown> = {}) => createElement(C as never, props as never)
@@ -1268,7 +1277,7 @@ pantalla({
     'Latitude goes from −90 to 90 and longitude from −180 to 180.',
     'A new version is available: ',
     'Someone has to confirm on the phone for every update: it runs Android 11 or earlier.',
-    'Updates: ',
+    'Update mode: ',
     'Update the device software',
     ' Send anyway?',
     'Image settings',
@@ -1313,7 +1322,7 @@ pantalla({
   ingles: [
     'Restart the app or the device, or install the published version, without going to the site.',
     'It has the published version.',
-    'Updates: Updates on its own.',
+    'Update mode: Updates on its own.',
     'Restart the Raspberry',
     '16 frames',
     'No logs yet.',
@@ -1391,7 +1400,7 @@ pantalla({
   ],
   ingles: [
     'nothing published',
-    'Updates: Updates on its own (kiosk mode).',
+    'Update mode: Updates on its own (kiosk mode).',
     'Restart the app',
   ],
 })
@@ -1790,7 +1799,7 @@ pantalla({
     'Photo gallery',
     'Download album',
     'All sources',
-    'On request',
+    'On demand',
     'Screen fault',
     'At startup',
     'Verified · correct',
@@ -1834,7 +1843,7 @@ pantalla({
   pintar: async (idioma) => {
     const C = await galeria()
     forzar(esTrue, false)
-    forzar(esNull, 'Space Eye respondió 500')
+    forzar(esNull, 'sin red') // el motivo ya armado: aqui da igual cual
     return pintar(idioma, el(C))
   },
   espanol: ['No se pudieron consultar las fotos', 'Reintentar'],
@@ -2451,7 +2460,7 @@ pantalla({
     forzar(esFalse, false) // cargando
     forzar(esNull, null) // error
     forzar(esFalse, false) // exportando
-    forzar(esNull, 'Space Eye respondió 500') // errorCsv
+    forzar(esNull, 'ERR-CSV') // errorCsv: el manejador lo arma con t(); aqui solo se mide el titulo
     return pintar(idioma, el(C))
   },
   espanol: [
@@ -2755,8 +2764,8 @@ pantalla({
     'Install the ',
     ' app on the phone',
     'download app 0.16.4',
-    'In the app, choose ',
-    'Pair',
+    'Vincular',
+    'On the phone, open the app, confirm with ',
     'Works only once',
     ' · expires ',
     'Pairing codes',
@@ -2795,7 +2804,7 @@ pantalla({
     'The code lasts',
     '1 day',
     '14 days',
-    'One QR for all 5: each device joins separately. Device number 6 is not let in, and you can cancel it at any time.',
+    'One QR for 5 devices: each one joins on its own. From device no. 6 on, nobody else gets in, and you can cancel the QR at any time.',
     'Generate code',
     'The QR will show up here',
   ],
@@ -3191,6 +3200,7 @@ const COMUNES = new Set<string>([
   '— – —', // un periodo sin fechas
   'Activa', // esta dentro de «Activate»
   'OCR No', // «No» tambien es ingles
+  'Vincular', // el boton de la app Android, que solo esta en español (dueño, 02/11)
 ])
 
 describe('lote SPACE EYES · en INGLES no queda ninguna frase espanola del lote', () => {
@@ -3207,6 +3217,11 @@ describe('lote SPACE EYES · en INGLES no queda ninguna frase espanola del lote'
   }
 })
 
+// La marca de la foto en la vista previa de «Ajustar texto» es la EVIDENCIA
+// (nombre · fecha · hora en es-MX, `lib/space-eyes-marca-editor.ts`): va igual
+// en los dos idiomas a proposito y se quita antes de buscar español.
+const MARCA = /<div aria-hidden="true" class="pointer-events-none absolute"[^>]*>(?:<div>[^<]*<\/div>)*<\/div>/g
+
 // Solo lo que se LEE: nodos de texto y los atributos visibles.
 async function htmlIngles(): Promise<string> {
   let html = ''
@@ -3214,12 +3229,45 @@ async function htmlIngles(): Promise<string> {
     forzado.cola = []
     sesion.puede = true
     nav.params = { id: '7' }
-    const crudo = await p.pintar('en')
+    const crudo = (await p.pintar('en')).replace(MARCA, '')
     const visibles = [...crudo.matchAll(/(?:title|aria-label|placeholder|alt)="([^"]*)"/g)].map((m) => m[1])
     html += texto(crudo.replace(/<[^>]*>/g, '\n') + '\n' + visibles.join('\n'))
   }
   return html
 }
+
+describe('lote SPACE EYES · ninguna fecha, hora ni importe en formato español en ingles', () => {
+  // Validacion (M3): quitar el `idioma` de un `fechaHora` dejaba «02 nov 2026,
+  // 10:15 a.m.» en la pantalla inglesa y no lo veia nadie, porque una fecha no
+  // es un trozo del diccionario. Las dos primeras expresiones son las del
+  // ayudante comun que prepara el lote de inventario (`(?<!MX)\$ ?\d` y
+  // `\d{2}/\d{2}/\d{4}`, fuera de `value=`); aun no esta en esta base, asi que
+  // van aqui con la misma expresion. Las otras dos cazan el mes abreviado y el
+  // «a. m.» de es-MX.
+  const GUARDIAS: [string, RegExp][] = [
+    ['dinero sin MX', /(?<!MX)\$ ?\d/],
+    ['fecha dd/mm/aaaa', /\d{2}\/\d{2}\/\d{4}/],
+    ['mes en español', /\b\d{1,2} (ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)\b/],
+    ['a. m. / p. m.', /\b[ap]\.\s?m\./],
+  ]
+  for (const p of PANTALLAS) {
+    it(p.nombre, async () => {
+      const crudo = (await p.pintar('en')).replace(MARCA, '').replace(/\svalue="[^"]*"/g, '')
+      const visibles = [...crudo.matchAll(/(?:title|aria-label|placeholder|alt)="([^"]*)"/g)].map((m) => m[1])
+      const html = texto(crudo.replace(/<[^>]*>/g, '\n') + '\n' + visibles.join('\n'))
+      const malas = GUARDIAS.filter(([, re]) => re.test(html)).map(([n, re]) => `${n}: «${html.match(re)?.[0]}»`)
+      expect(malas).toEqual([])
+    })
+  }
+
+  it('la marca de la foto SI sigue en es-MX en ingles (es la evidencia)', async () => {
+    const p = PANTALLAS.find((x) => x.nombre === 'texto · con foto, capturando y sin guardar')!
+    forzado.cola = []
+    const marca = (await p.pintar('en')).match(MARCA)?.[0] ?? ''
+    expect(marca).toMatch(/<div>\d{2}\/\d{2}\/\d{4}<\/div>/)
+    expect(marca).toMatch(/[ap]\.\s?m\./)
+  })
+})
 
 describe('lote SPACE EYES · barrido con el diccionario entero', () => {
   it('ninguna frase espanola del diccionario del lote aparece en las pantallas en ingles', async () => {
@@ -3243,7 +3291,7 @@ describe('lote SPACE EYES · barrido con el diccionario entero', () => {
       }
     }
     expect(culpables).toEqual([])
-  })
+  }, 60_000)
 
   it('tampoco queda ninguna de los modulos compartidos ni de las claves comunes', async () => {
     const { ES_COMPARTIDOS, EN_COMPARTIDOS } = await import('./textos/compartidos')
@@ -3268,5 +3316,5 @@ describe('lote SPACE EYES · barrido con el diccionario entero', () => {
       }
     }
     expect(culpables).toEqual([])
-  })
+  }, 60_000)
 })

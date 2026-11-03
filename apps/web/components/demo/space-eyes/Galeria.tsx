@@ -18,7 +18,7 @@ import {
 import { cn } from '@/lib/cn'
 import { Button } from '@/components/demo/ui/Button'
 import { ConfirmDialog } from '@/components/demo/ui/ConfirmDialog'
-import { seApi, fotoSE, ErrorSE } from '@/lib/data/space-eyes-se'
+import { seApi, fotoSE, textoDeError } from '@/lib/data/space-eyes-se'
 import {
   crearZip,
   descargarBlob,
@@ -34,6 +34,7 @@ import { FotoGirada, fechaHora } from './piezas'
 import { formatNumero } from '@/lib/formato-numero'
 import { useIdioma } from '@/lib/i18n/contexto'
 import type { ClaveTexto } from '@/lib/i18n/diccionario'
+import type { Idioma } from '@/lib/i18n/idiomas'
 import { interpolarNodos } from '@/lib/i18n/nodos'
 
 // ============================================================================
@@ -95,10 +96,8 @@ const TEXTO_VERIFICACION: Record<string, ClaveTexto> = {
   skipped: 'spaceeyes.galeria.verif.skipped',
 }
 
-function mensaje(e: unknown, porOmision: string): string {
-  if (e instanceof ErrorSE) return e.message
-  if (e instanceof Error && e.message) return e.message
-  return porOmision
+function mensaje(e: unknown, porOmision: string, idioma: Idioma): string {
+  return textoDeError(e, idioma) || porOmision
 }
 
 // `to` llega como fecha sola, y en el servidor «<= 2026-10-01» es «<= las 00:00»:
@@ -115,7 +114,7 @@ function consulta(f: Filtros): string {
 type Aviso = { tipo: 'exito' | 'error' | 'info'; texto: string }
 
 export function Galeria() {
-  const { t } = useIdioma()
+  const { t, idioma } = useIdioma()
   const [filtros, setFiltros] = useState<Filtros>(SIN_FILTROS)
   const [listo, setListo] = useState(false) // ya se leyó ?device_id= de la URL
   const [pagina, setPagina] = useState(1)
@@ -166,10 +165,10 @@ export function Galeria() {
       setFotos(d?.photos ?? [])
       setTotal(Number(d?.total) || 0)
     } catch (e) {
-      setError(mensaje(e, t('spaceeyes.galeria.error')))
+      setError(mensaje(e, t('spaceeyes.galeria.error'), idioma))
     }
     setCargando(false)
-  }, [filtros, pagina, t])
+  }, [filtros, pagina, t, idioma])
 
   useEffect(() => {
     if (listo) void cargar()
@@ -199,7 +198,7 @@ export function Galeria() {
       setABorrar(null)
       avisar(t('spaceeyes.galeria.eliminada'), 'exito')
     } catch (e) {
-      avisar(t('spaceeyes.galeria.no-eliminar', { motivo: mensaje(e, t('spaceeyes.comun.error-desconocido')) }), 'error')
+      avisar(t('spaceeyes.galeria.no-eliminar', { motivo: mensaje(e, t('spaceeyes.comun.error-desconocido'), idioma) }), 'error')
     }
     setBorrando(false)
   }
@@ -258,7 +257,7 @@ export function Galeria() {
         fallidas ? 'info' : 'exito',
       )
     } catch (e) {
-      avisar(t('spaceeyes.galeria.album.error', { motivo: mensaje(e, t('spaceeyes.comun.error-desconocido')) }), 'error')
+      avisar(t('spaceeyes.galeria.album.error', { motivo: mensaje(e, t('spaceeyes.comun.error-desconocido'), idioma) }), 'error')
     } finally {
       setAlbum(null)
     }
@@ -589,7 +588,7 @@ function Visor({
       descargarBlob(blob, nombreDescarga(foto), 4000)
       avisar(t('spaceeyes.galeria.descargando-foto'), 'exito')
     } catch (e) {
-      avisar(t('spaceeyes.galeria.no-descargar', { motivo: mensaje(e, t('spaceeyes.comun.error-desconocido')) }), 'error')
+      avisar(t('spaceeyes.galeria.no-descargar', { motivo: mensaje(e, t('spaceeyes.comun.error-desconocido'), idioma) }), 'error')
     }
     setDescargando(false)
   }
@@ -599,7 +598,11 @@ function Visor({
       ? ` · GPS ${Number(foto.gps_lat).toFixed(5)}, ${Number(foto.gps_lng).toFixed(5)}`
       : ''
   const pie = foto
-    ? `${foto.device_name ?? ''}${foto.taken_at ? ` · ${new Date(foto.taken_at).toLocaleString(idioma === 'en' ? 'en-US' : 'es-MX')}` : ''}${gps}`
+    ? `${foto.device_name ?? ''}${
+        foto.taken_at
+          ? ` · ${idioma === 'en' ? fechaHora(foto.taken_at, 'en') : new Date(foto.taken_at).toLocaleString('es-MX')}`
+          : ''
+      }${gps}`
     : ''
   const miniatura = foto ? fotoSE(foto.thumbnail_path || foto.storage_path) : null
 

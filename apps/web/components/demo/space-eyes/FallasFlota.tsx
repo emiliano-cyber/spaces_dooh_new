@@ -6,7 +6,7 @@ import { AlertTriangle, CheckCircle2, Loader2, MonitorX, RefreshCw } from 'lucid
 import { cn } from '@/lib/cn'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
-import { seApi, fotoSE, ErrorSE } from '@/lib/data/space-eyes-se'
+import { seApi, fotoSE, ErrorSE, textoDeError } from '@/lib/data/space-eyes-se'
 import { VisorFoto, fechaHora } from './piezas'
 import { formatNumero } from '@/lib/formato-numero'
 import { useIdioma } from '@/lib/i18n/contexto'
@@ -81,7 +81,9 @@ function donde(f: FallaSE, idioma: Idioma): string {
   const g = f.detalle?.gabinetes
   if (g && g.length) {
     return (
-      tr('spaceeyes.fallas.donde.gabinetes', { lista: g.join(', ') }) +
+      tr(g.length === 1 ? 'spaceeyes.fallas.donde.gabinetes.uno' : 'spaceeyes.fallas.donde.gabinetes.otros', {
+        lista: g.join(', '),
+      }) +
       (f.detalle?.total ? tr('spaceeyes.fallas.donde.de', { n: g.length, total: f.detalle.total }) : '')
     )
   }
@@ -130,11 +132,11 @@ export function FallasFlota() {
       setCuentas(r.cuentas ?? null)
       setError(null)
     } catch (e) {
-      setError(e instanceof Error ? e.message : t('spaceeyes.fallas.no-consultar'))
+      setError(textoDeError(e, idioma) ?? t('spaceeyes.fallas.no-consultar'))
     }
     setCargado(true)
     setCargando(false)
-  }, [deviceId, t])
+  }, [deviceId, t, idioma])
 
   useEffect(() => {
     if (!listo) return
@@ -170,9 +172,7 @@ export function FallasFlota() {
           ? t('spaceeyes.fallas.sin-permiso')
           : e instanceof ErrorSE && e.status === 404
             ? t('spaceeyes.fallas.ya-cerrada')
-            : e instanceof Error
-              ? e.message
-              : String(e)
+            : (textoDeError(e, idioma) ?? String(e))
       setCerrando(null)
       setAviso({ tono: 'error', texto: t('spaceeyes.fallas.no-cerrar', { motivo: msg }) })
       await cargar()

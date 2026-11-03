@@ -162,7 +162,9 @@ export function ListaEquipos() {
             <Indicador
               titulo={t('spaceeyes.conexion.en-linea')}
               valor={enLinea}
-              pie={t('spaceeyes.lista.kpi.de-equipos', { n: formatNumero(conEstado.length) })}
+              pie={t(conEstado.length === 1 ? 'spaceeyes.lista.kpi.de-equipos.uno' : 'spaceeyes.lista.kpi.de-equipos.otros', {
+                n: formatNumero(conEstado.length),
+              })}
               punto="bg-success"
             />
             <Indicador titulo={t('spaceeyes.conexion.sin')} valor={caidos} pie={t('spaceeyes.lista.kpi.mas-10')} punto="bg-error" />

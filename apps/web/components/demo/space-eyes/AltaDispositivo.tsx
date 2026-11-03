@@ -23,7 +23,7 @@ import { cn } from '@/lib/cn'
 import { Button } from '@/components/demo/ui/Button'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { infoAltaApi, type InfoAlta } from '@/lib/data/space-eyes-api'
-import { seApi, ErrorSE } from '@/lib/data/space-eyes-se'
+import { seApi, ErrorSE, textoDeError } from '@/lib/data/space-eyes-se'
 import { kitRaspberry } from '@/lib/space-eyes-kit-pi'
 import { fechaHora } from './piezas'
 import { useIdioma } from '@/lib/i18n/contexto'
@@ -100,7 +100,7 @@ function mensaje(e: unknown, idioma: Idioma): string {
     if (e.status === 403) return traducir(idioma, 'spaceeyes.alta.error.permiso')
     if (c) return traducir(idioma, 'spaceeyes.alta.error.no-se-pudo', { motivo: c })
   }
-  return e instanceof Error ? e.message : traducir(idioma, 'spaceeyes.alta.error.completar')
+  return textoDeError(e, idioma) ?? traducir(idioma, 'spaceeyes.alta.error.completar')
 }
 
 function Copiar({ texto, etiqueta }: { texto: string; etiqueta?: string }) {

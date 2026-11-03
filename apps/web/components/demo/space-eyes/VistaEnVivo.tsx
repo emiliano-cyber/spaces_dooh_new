@@ -20,7 +20,7 @@ import {
 import { toast } from 'sonner'
 import { cn } from '@/lib/cn'
 import { Button } from '@/components/demo/ui/Button'
-import { seApi, ErrorSE } from '@/lib/data/space-eyes-se'
+import { seApi, ErrorSE, textoDeError } from '@/lib/data/space-eyes-se'
 import { VisorWhep, type EncuadreTemporal } from '@/lib/space-eyes-whep'
 import { useIdioma } from '@/lib/i18n/contexto'
 import { traducir, type ClaveTexto } from '@/lib/i18n/diccionario'
@@ -150,7 +150,7 @@ function motivoDe(e: unknown, porDefecto: string, idioma: Idioma): string {
       return traducir(idioma, 'spaceeyes.vivo.sin-servidor')
     }
   }
-  return e instanceof Error && e.message ? e.message : porDefecto
+  return e instanceof Error && e.message ? (textoDeError(e, idioma) ?? porDefecto) : porDefecto
 }
 
 export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embebida = false }: VistaEnVivoProps) {
@@ -312,7 +312,7 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
           toast.error(motivo)
         })
       }
-      const cliente = new VisorWhep(id, videoRef.current, perdida)
+      const cliente = new VisorWhep(id, videoRef.current, perdida, idioma)
       clienteRef.current = cliente
       try {
         // Si el visor esta en otro lente o mas cerca que el encuadre guardado, la

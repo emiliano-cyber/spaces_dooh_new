@@ -26,7 +26,7 @@ import {
 } from 'recharts'
 import { cn } from '@/lib/cn'
 import { Button } from '@/components/demo/ui/Button'
-import { ErrorSE, seApi, urlSE } from '@/lib/data/space-eyes-se'
+import { seApi, textoDeError, textoRespondio, urlSE } from '@/lib/data/space-eyes-se'
 import { estaEnLinea, PildoraConexion } from './piezas'
 import { formatNumero } from '@/lib/formato-numero'
 import { useIdioma } from '@/lib/i18n/contexto'
@@ -175,8 +175,7 @@ function etiquetaTiempo(p: Punto, granularidad: 'raw' | 'hour', idioma: Idioma):
     : d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
 }
 
-const mensajeError = (e: unknown, defecto: string) =>
-  e instanceof ErrorSE ? e.message : e instanceof Error ? e.message : defecto
+const mensajeError = (e: unknown, defecto: string, idioma: Idioma) => textoDeError(e, idioma) ?? defecto
 
 export function Graficas() {
   const { t, idioma } = useIdioma()
@@ -220,10 +219,10 @@ export function Graficas() {
       })
     } catch (e) {
       if (mia !== peticion.current) return
-      setError(mensajeError(e, t('spaceeyes.graficas.error.telemetria')))
+      setError(mensajeError(e, t('spaceeyes.graficas.error.telemetria'), idioma))
     }
     if (mia === peticion.current) setCargando(false)
-  }, [t])
+  }, [t, idioma])
 
   const cargarEquipos = useCallback(async () => {
     setErrorEquipos(null)
@@ -239,10 +238,10 @@ export function Graficas() {
         void cargar(id, '24h', '', '')
       }
     } catch (e) {
-      setErrorEquipos(mensajeError(e, t('spaceeyes.comun.no-consultar')))
+      setErrorEquipos(mensajeError(e, t('spaceeyes.comun.no-consultar'), idioma))
       setEquipos([])
     }
-  }, [cargar, t])
+  }, [cargar, t, idioma])
 
   useEffect(() => {
     void cargarEquipos()
@@ -268,7 +267,7 @@ export function Graficas() {
         urlSE(`devices/${equipoId}/telemetry/export?from=${encodeURIComponent(fromISO)}&to=${encodeURIComponent(toISO)}`),
         { cache: 'no-store' },
       )
-      if (!r.ok) throw new Error(`Space Eye respondió ${r.status}`)
+      if (!r.ok) throw new Error(textoRespondio(r.status, idioma))
       const blob = await r.blob()
       const equipo = equipos?.find((d) => String(d.id) === equipoId)
       const a = document.createElement('a')
@@ -279,7 +278,7 @@ export function Graficas() {
       a.remove()
       setTimeout(() => URL.revokeObjectURL(a.href), 4000)
     } catch (e) {
-      setErrorCsv(t('spaceeyes.graficas.error.csv', { motivo: mensajeError(e, '') }).trim())
+      setErrorCsv(t('spaceeyes.graficas.error.csv', { motivo: mensajeError(e, '', idioma) }).trim())
     }
     setExportando(false)
   }

@@ -1,12 +1,12 @@
 # Tabla de revisión · lote de inglés «Space Eyes»
 
 Generada el 2026-11-02 a partir de `apps/web/lib/i18n/textos/spaceeyes.ts` y de
-los usos en el código (búsqueda literal de la clave). **984 claves**
+los usos en el código (búsqueda literal de la clave). **992 claves**
 (`spaceeyes.*`), rama `feat/ingles-space-eyes` (sale de `integra/ingles`,
 `ec427a66`).
 
 - **español** es la copia literal de lo que decía el componente antes del lote,
-  comprobado comparando el HTML rendido de **95 estados de pantalla** con las
+  comprobado (también tras la segunda vuelta) comparando el HTML rendido de **95 estados de pantalla** con las
   fuentes de `ec427a66` y con las del lote, con la MISMA prueba
   (`lib/i18n/pantallas-spaceeyes.test.ts`, que con `I18N_VOLCAR=<carpeta>`
   vuelca el HTML español de cada estado): `diff -rq` vacío, 95 de 95.
@@ -35,19 +35,19 @@ los usos en el código (búsqueda literal de la clave). **984 claves**
 | `spaceeyes.hace.h` | `components/demo/space-eyes/piezas.tsx:33` | texto de una función (lib o componente) | hace {n} h | {n} h ago |
 | `spaceeyes.hace.d` | `components/demo/space-eyes/piezas.tsx:35` | texto de una función (lib o componente) | hace {n} d | {n} d ago |
 | `spaceeyes.hace.semanas` | `components/demo/space-eyes/piezas.tsx:36` | texto de una función (lib o componente) | hace {n} semanas | {n} weeks ago |
-| `spaceeyes.comun.sin-dato` | `components/demo/space-eyes/EquipoAdmin.tsx:489`<br>`components/demo/space-eyes/FichaEquipo.tsx:793`<br>`components/demo/space-eyes/FichaEquipo.tsx:803`<br>`components/demo/space-eyes/Historial.tsx:265`<br>`components/demo/space-eyes/Historial.tsx:286`<br>`components/demo/space-eyes/Historial.tsx:287`<br>… | texto de una función (lib o componente) · texto en pantalla | sin dato | no data |
+| `spaceeyes.comun.sin-dato` | `components/demo/space-eyes/EquipoAdmin.tsx:489`<br>`components/demo/space-eyes/FichaEquipo.tsx:793`<br>`components/demo/space-eyes/FichaEquipo.tsx:803`<br>`components/demo/space-eyes/Historial.tsx:265`<br>`components/demo/space-eyes/Historial.tsx:288`<br>`components/demo/space-eyes/Historial.tsx:292`<br>… | texto de una función (lib o componente) · texto en pantalla | sin dato | no data |
 | `spaceeyes.senal.buena` | `components/demo/space-eyes/DemoSpaceEyes.tsx:123`<br>`components/demo/space-eyes/piezas.tsx:92` | etiqueta de un valor (mapa de claves) · texto de una función (lib o componente) | buena | good |
 | `spaceeyes.senal.regular` | `components/demo/space-eyes/DemoSpaceEyes.tsx:124`<br>`components/demo/space-eyes/piezas.tsx:93` | etiqueta de un valor (mapa de claves) · texto de una función (lib o componente) | regular | fair |
 | `spaceeyes.senal.debil` | `components/demo/space-eyes/piezas.tsx:94` | texto de una función (lib o componente) | débil | weak |
-| `spaceeyes.senal.movil` | `components/demo/space-eyes/DemoSpaceEyes.tsx:263`<br>`components/demo/space-eyes/FichaEquipo.tsx:616`<br>`components/demo/space-eyes/Graficas.tsx:520`<br>`components/demo/space-eyes/piezas.tsx:115` | texto en pantalla | Móvil | Mobile |
+| `spaceeyes.senal.movil` | `components/demo/space-eyes/DemoSpaceEyes.tsx:263`<br>`components/demo/space-eyes/FichaEquipo.tsx:616`<br>`components/demo/space-eyes/Graficas.tsx:519`<br>`components/demo/space-eyes/piezas.tsx:115` | texto en pantalla | Móvil | Mobile |
 | `spaceeyes.conexion.en-linea` | `components/demo/space-eyes/DemoSpaceEyes.tsx:247`<br>`components/demo/space-eyes/ListaEquipos.tsx:163`<br>`components/demo/space-eyes/piezas.tsx:146` | rótulo · texto en pantalla | En línea | Online |
 | `spaceeyes.conexion.pendiente` | `components/demo/space-eyes/piezas.tsx:146` | texto en pantalla | Pendiente de vincular | Pending pairing |
-| `spaceeyes.conexion.sin` | `components/demo/space-eyes/DemoSpaceEyes.tsx:247`<br>`components/demo/space-eyes/ListaEquipos.tsx:168`<br>`components/demo/space-eyes/piezas.tsx:146` | rótulo · texto en pantalla | Sin comunicación | Not reporting |
+| `spaceeyes.conexion.sin` | `components/demo/space-eyes/DemoSpaceEyes.tsx:247`<br>`components/demo/space-eyes/ListaEquipos.tsx:170`<br>`components/demo/space-eyes/piezas.tsx:146` | rótulo · texto en pantalla | Sin comunicación | Not reporting |
 | `spaceeyes.visor.completo` | `components/demo/space-eyes/piezas.tsx:308` | texto en pantalla | Abrir en tamaño completo | Open full size |
 | `spaceeyes.sin-respuesta.titulo` | `components/demo/space-eyes/SinRespuesta.tsx:26` | rótulo | El servicio de cámaras no responde en este momento | The camera service is not responding right now |
 | `spaceeyes.sin-respuesta.texto` | `components/demo/space-eyes/SinRespuesta.tsx:28` | texto en pantalla | Tus equipos siguen trabajando en los sitios: lo que tomen mientras tanto aparecerá aquí en cuanto el servicio vuelva. Suele resolverse solo en unos minutos (por ejemplo, durante una actualización). | Your devices keep working on site: anything they capture in the meantime will show up here as soon as the service is back. It usually sorts itself out within a few minutes (for example, during an update). |
 | `spaceeyes.sin-respuesta.reintentar` | `components/demo/space-eyes/SinRespuesta.tsx:41` | texto en pantalla | Volver a intentar | Try again |
-| `spaceeyes.sin-respuesta.soporte` | `components/demo/space-eyes/SinRespuesta.tsx:43` | texto en pantalla | Si sigue así más de una hora, avisa a soporte desde Administración › Configuración › Soporte. | If it stays like this for more than an hour, contact support from Settings › Configuration › Support. |
+| `spaceeyes.sin-respuesta.soporte` | `components/demo/space-eyes/SinRespuesta.tsx:43` | texto en pantalla | Si sigue así más de una hora, avisa a soporte desde Administración › Configuración › Soporte. | If it stays like this for more than an hour, contact support from Settings › Business settings › Support. |
 | `spaceeyes.solicitudes.titulo` | `components/demo/space-eyes/SolicitudesActivacion.tsx:68` | rótulo | Solicitudes de activación de Space Eyes | Space Eyes activation requests |
 | `spaceeyes.solicitudes.ninguna` | `components/demo/space-eyes/SolicitudesActivacion.tsx:71` | texto en pantalla | Ninguna pendiente | None pending |
 | `spaceeyes.solicitudes.pendientes.uno` | `components/demo/space-eyes/SolicitudesActivacion.tsx:72` | texto en pantalla | {n} pendiente(s) | {n} pending |
@@ -103,8 +103,8 @@ los usos en el código (búsqueda literal de la clave). **984 claves**
 | `spaceeyes.demo.enviada` | `components/demo/space-eyes/DemoSpaceEyes.tsx:187` | texto en pantalla | Solicitud enviada | Request sent |
 | `spaceeyes.demo.solicitar` | `components/demo/space-eyes/DemoSpaceEyes.tsx:187` | texto en pantalla | Solicitar activación | Request activation |
 | `spaceeyes.demo.sin-permiso` | `components/demo/space-eyes/DemoSpaceEyes.tsx:190` | texto en pantalla | Para activarlo, pide a un administrador de tu empresa que lo solicite desde esta misma pantalla. | To activate it, ask an admin at your company to request it from this same screen. |
-| `spaceeyes.demo.listo` | `components/demo/space-eyes/DemoSpaceEyes.tsx:194` | texto en pantalla | Listo: recibimos tu solicitud y te contactaremos. Puedes seguirla en Administración › Configuración › Soporte. | Done: we received your request and will get in touch. You can follow it in Settings › Configuration › Support. |
-| `spaceeyes.demo.listo.folio` | `components/demo/space-eyes/DemoSpaceEyes.tsx:194` | texto en pantalla | Listo: recibimos tu solicitud (folio {folio}) y te contactaremos. Puedes seguirla en Administración › Configuración › Soporte. | Done: we received your request (ticket {folio}) and will get in touch. You can follow it in Settings › Configuration › Support. |
+| `spaceeyes.demo.listo` | `components/demo/space-eyes/DemoSpaceEyes.tsx:194` | texto en pantalla | Listo: recibimos tu solicitud y te contactaremos. Puedes seguirla en Administración › Configuración › Soporte. | Done: we received your request and will get in touch. You can follow it in Settings › Business settings › Support. |
+| `spaceeyes.demo.listo.folio` | `components/demo/space-eyes/DemoSpaceEyes.tsx:194` | texto en pantalla | Listo: recibimos tu solicitud (folio {folio}) y te contactaremos. Puedes seguirla en Administración › Configuración › Soporte. | Done: we received your request (ticket {folio}) and will get in touch. You can follow it in Settings › Business settings › Support. |
 | `spaceeyes.demo.error` | `components/demo/space-eyes/DemoSpaceEyes.tsx:197` | texto en pantalla | No se pudo enviar la solicitud. Inténtalo de nuevo en unos minutos. | The request could not be sent. Try again in a few minutes. |
 | `spaceeyes.demo.aviso` | `components/demo/space-eyes/DemoSpaceEyes.tsx:207` | texto en pantalla | Estás viendo una {demo} con datos de ejemplo. Tu empresa todavía no tiene Space Eyes activado; ninguno de estos equipos es tuyo. | You are viewing a {demo} with sample data. Your company does not have Space Eyes activated yet; none of these devices are yours. |
 | `spaceeyes.demo.aviso.demo` | `components/demo/space-eyes/DemoSpaceEyes.tsx:207` | texto en pantalla | demostración | demo |
@@ -121,36 +121,38 @@ los usos en el código (búsqueda literal de la clave). **984 claves**
 | `spaceeyes.demo.beneficios` | `components/demo/space-eyes/DemoSpaceEyes.tsx:335` | texto en pantalla | Para qué le sirve a tu operación | What it does for your operation |
 | `spaceeyes.demo.cierre` | `components/demo/space-eyes/DemoSpaceEyes.tsx:350` | texto en pantalla | ¿Lo quieres para tus pantallas? | Want it for your screens? |
 | `spaceeyes.demo.cierre.texto` | `components/demo/space-eyes/DemoSpaceEyes.tsx:352` | texto en pantalla | Al activarlo, esta sección se convierte en la de tus equipos reales. No hay que configurar nada de tu empresa. | Once activated, this section becomes the one for your real devices. Nothing in your company needs to be configured. |
-| `spaceeyes.comun.actualizar` | `components/demo/space-eyes/AltaDispositivo.tsx:607`<br>`components/demo/space-eyes/CampanasEyes.tsx:334`<br>`components/demo/space-eyes/EquipoAdmin.tsx:964`<br>`components/demo/space-eyes/FallasFlota.tsx:216`<br>`components/demo/space-eyes/Galeria.tsx:289`<br>`components/demo/space-eyes/Graficas.tsx:345`<br>… | etiqueta accesible (aria-label) · texto en pantalla | Actualizar | Refresh |
-| `spaceeyes.comun.no-consultar` | `components/demo/space-eyes/AjustarTexto.tsx:160`<br>`components/demo/space-eyes/AjustarTexto.tsx:253`<br>`components/demo/space-eyes/FichaEquipo.tsx:113`<br>`components/demo/space-eyes/Graficas.tsx:242`<br>`components/demo/space-eyes/Graficas.tsx:359`<br>`components/demo/space-eyes/ListaEquipos.tsx:62`<br>… | mensaje de error · rótulo · texto en pantalla | No se pudo consultar Space Eyes | Could not reach Space Eyes |
-| `spaceeyes.comun.sin-equipos` | `components/demo/space-eyes/AjustarTexto.tsx:259`<br>`components/demo/space-eyes/Graficas.tsx:371`<br>`components/demo/space-eyes/ListaEquipos.tsx:249` | texto en pantalla | Todavía no hay equipos Space Eyes dados de alta para esta cuenta. | There are no Space Eyes devices registered for this account yet. |
-| `spaceeyes.comun.sin-pantalla` | `components/demo/space-eyes/FichaEquipo.tsx:286`<br>`components/demo/space-eyes/ListaEquipos.tsx:354` | texto en pantalla | sin pantalla asignada | no screen assigned |
+| `spaceeyes.comun.actualizar` | `components/demo/space-eyes/AltaDispositivo.tsx:607`<br>`components/demo/space-eyes/CampanasEyes.tsx:334`<br>`components/demo/space-eyes/EquipoAdmin.tsx:964`<br>`components/demo/space-eyes/FallasFlota.tsx:216`<br>`components/demo/space-eyes/Galeria.tsx:288`<br>`components/demo/space-eyes/Graficas.tsx:344`<br>… | etiqueta accesible (aria-label) · texto en pantalla | Actualizar | Refresh |
+| `spaceeyes.comun.no-consultar` | `components/demo/space-eyes/AjustarTexto.tsx:160`<br>`components/demo/space-eyes/AjustarTexto.tsx:253`<br>`components/demo/space-eyes/FichaEquipo.tsx:113`<br>`components/demo/space-eyes/Graficas.tsx:241`<br>`components/demo/space-eyes/Graficas.tsx:358`<br>`components/demo/space-eyes/ListaEquipos.tsx:62`<br>… | mensaje de error · rótulo · texto en pantalla | No se pudo consultar Space Eyes | Could not reach Space Eyes |
+| `spaceeyes.comun.sin-equipos` | `components/demo/space-eyes/AjustarTexto.tsx:259`<br>`components/demo/space-eyes/Graficas.tsx:370`<br>`components/demo/space-eyes/ListaEquipos.tsx:251` | texto en pantalla | Todavía no hay equipos Space Eyes dados de alta para esta cuenta. | There are no Space Eyes devices registered for this account yet. |
+| `spaceeyes.comun.sin-pantalla` | `components/demo/space-eyes/FichaEquipo.tsx:286`<br>`components/demo/space-eyes/ListaEquipos.tsx:356` | texto en pantalla | sin pantalla asignada | no screen assigned |
 | `spaceeyes.lista.descripcion` | `components/demo/space-eyes/ListaEquipos.tsx:125` | texto en pantalla | Los equipos que vigilan tus pantallas: qué están viendo y cómo están. | The devices that watch your screens: what they see and how they are doing. |
 | `spaceeyes.alta.titulo` | `components/demo/space-eyes/AltaDispositivo.tsx:296`<br>`components/demo/space-eyes/ListaEquipos.tsx:140` | rótulo | Agregar dispositivo | Add device |
 | `spaceeyes.lista.no-configurado` | `components/demo/space-eyes/ListaEquipos.tsx:148` | texto en pantalla | La integración con Space Eyes no está configurada en este entorno. | The Space Eyes integration is not configured in this environment. |
-| `spaceeyes.lista.kpi.de-equipos` | `components/demo/space-eyes/ListaEquipos.tsx:165` | texto en pantalla | de {n} equipos | of {n} devices |
-| `spaceeyes.lista.kpi.mas-10` | `components/demo/space-eyes/ListaEquipos.tsx:168` | rótulo | más de 10 min | over 10 min |
-| `spaceeyes.lista.kpi.bateria` | `components/demo/space-eyes/ListaEquipos.tsx:170` | rótulo | Batería crítica | Critical battery |
-| `spaceeyes.lista.kpi.bajo-20` | `components/demo/space-eyes/ListaEquipos.tsx:172` | texto en pantalla | bajo 20% | under 20% |
-| `spaceeyes.lista.kpi.ultima` | `components/demo/space-eyes/ListaEquipos.tsx:176` | rótulo | Última captura | Last capture |
-| `spaceeyes.lista.kpi.flota` | `components/demo/space-eyes/ListaEquipos.tsx:178` | texto en pantalla | de toda la flota | across the fleet |
-| `spaceeyes.lista.kpi.sin-fotos` | `components/demo/space-eyes/ListaEquipos.tsx:178` | texto en pantalla | sin fotos todavía | no photos yet |
-| `spaceeyes.lista.filtro.todos` | `components/demo/space-eyes/ListaEquipos.tsx:187` | texto en pantalla | Todos · {n} | All · {n} |
-| `spaceeyes.lista.filtro.linea` | `components/demo/space-eyes/ListaEquipos.tsx:190` | texto en pantalla | En línea · {n} | Online · {n} |
-| `spaceeyes.lista.filtro.atencion` | `components/demo/space-eyes/ListaEquipos.tsx:193` | texto en pantalla | Con atención · {n} | Need attention · {n} |
-| `spaceeyes.lista.filtro.manual` | `components/demo/space-eyes/ListaEquipos.tsx:196` | texto en pantalla | Se actualizan a mano · {n} | Manual updates · {n} |
-| `spaceeyes.lista.empresa` | `components/demo/space-eyes/ListaEquipos.tsx:203` | texto en pantalla | Empresa | Company |
-| `spaceeyes.lista.empresas` | `components/demo/space-eyes/ListaEquipos.tsx:211` | texto en pantalla | Todas las empresas | All companies |
-| `spaceeyes.lista.buscar` | `components/demo/space-eyes/ListaEquipos.tsx:227`<br>`components/demo/space-eyes/ListaEquipos.tsx:233` | texto de ejemplo (placeholder) · texto en pantalla | Buscar equipo o pantalla | Search device or screen |
-| `spaceeyes.lista.sin-coincidencias` | `components/demo/space-eyes/ListaEquipos.tsx:250` | texto en pantalla | Ningún equipo coincide con el filtro. | No devices match the filter. |
-| `spaceeyes.lista.alt-captura` | `components/demo/space-eyes/ListaEquipos.tsx:327` | texto alternativo de imagen | Última captura de {nombre} | Last capture from {nombre} |
-| `spaceeyes.lista.sin-capturas` | `components/demo/space-eyes/ListaEquipos.tsx:331` | texto en pantalla | Sin capturas todavía | No captures yet |
-| `spaceeyes.lista.actualizar.visita` | `components/demo/space-eyes/ListaEquipos.tsx:366` | texto en pantalla | Para actualizar necesita una visita | Needs a site visit to update |
-| `spaceeyes.lista.actualizar.toque` | `components/demo/space-eyes/ListaEquipos.tsx:366` | texto en pantalla | Para actualizar pide un toque | Needs a confirmation on the phone to update |
+| `spaceeyes.lista.kpi.de-equipos.uno` | `components/demo/space-eyes/ListaEquipos.tsx:165` | texto en pantalla | de {n} equipos | of {n} device |
+| `spaceeyes.lista.kpi.de-equipos.otros` | `components/demo/space-eyes/ListaEquipos.tsx:165` | texto en pantalla | de {n} equipos | of {n} devices |
+| `spaceeyes.lista.kpi.mas-10` | `components/demo/space-eyes/ListaEquipos.tsx:170` | rótulo | más de 10 min | over 10 min |
+| `spaceeyes.lista.kpi.bateria` | `components/demo/space-eyes/ListaEquipos.tsx:172` | rótulo | Batería crítica | Critical battery |
+| `spaceeyes.lista.kpi.bajo-20` | `components/demo/space-eyes/ListaEquipos.tsx:174` | texto en pantalla | bajo 20% | under 20% |
+| `spaceeyes.lista.kpi.ultima` | `components/demo/space-eyes/ListaEquipos.tsx:178` | rótulo | Última captura | Last capture |
+| `spaceeyes.lista.kpi.flota` | `components/demo/space-eyes/ListaEquipos.tsx:180` | texto en pantalla | de toda la flota | across the fleet |
+| `spaceeyes.lista.kpi.sin-fotos` | `components/demo/space-eyes/ListaEquipos.tsx:180` | texto en pantalla | sin fotos todavía | no photos yet |
+| `spaceeyes.lista.filtro.todos` | `components/demo/space-eyes/ListaEquipos.tsx:189` | texto en pantalla | Todos · {n} | All · {n} |
+| `spaceeyes.lista.filtro.linea` | `components/demo/space-eyes/ListaEquipos.tsx:192` | texto en pantalla | En línea · {n} | Online · {n} |
+| `spaceeyes.lista.filtro.atencion` | `components/demo/space-eyes/ListaEquipos.tsx:195` | texto en pantalla | Con atención · {n} | Need attention · {n} |
+| `spaceeyes.lista.filtro.manual` | `components/demo/space-eyes/ListaEquipos.tsx:198` | texto en pantalla | Se actualizan a mano · {n} | Manual updates · {n} |
+| `spaceeyes.lista.empresa` | `components/demo/space-eyes/ListaEquipos.tsx:205` | texto en pantalla | Empresa | Company |
+| `spaceeyes.lista.empresas` | `components/demo/space-eyes/ListaEquipos.tsx:213` | texto en pantalla | Todas las empresas | All companies |
+| `spaceeyes.lista.buscar` | `components/demo/space-eyes/ListaEquipos.tsx:229`<br>`components/demo/space-eyes/ListaEquipos.tsx:235` | texto de ejemplo (placeholder) · texto en pantalla | Buscar equipo o pantalla | Search device or screen |
+| `spaceeyes.lista.sin-coincidencias` | `components/demo/space-eyes/ListaEquipos.tsx:252` | texto en pantalla | Ningún equipo coincide con el filtro. | No devices match the filter. |
+| `spaceeyes.lista.alt-captura` | `components/demo/space-eyes/ListaEquipos.tsx:329` | texto alternativo de imagen | Última captura de {nombre} | Last capture from {nombre} |
+| `spaceeyes.lista.sin-capturas` | `components/demo/space-eyes/ListaEquipos.tsx:333` | texto en pantalla | Sin capturas todavía | No captures yet |
+| `spaceeyes.lista.actualizar.visita` | `components/demo/space-eyes/ListaEquipos.tsx:368` | texto en pantalla | Para actualizar necesita una visita | Needs a site visit to update |
+| `spaceeyes.lista.actualizar.toque` | `components/demo/space-eyes/ListaEquipos.tsx:368` | texto en pantalla | Para actualizar pide un toque | Needs a confirmation on the phone to update |
+| `spaceeyes.comun.respondio` | `lib/data/space-eyes-se.ts:29` | texto de una función (lib o componente) | Space Eye respondió {status} | Space Eye returned {status} |
 | `spaceeyes.comun.equipo` | `components/demo/space-eyes/AjustarTexto.tsx:266`<br>`components/demo/space-eyes/AltaDispositivo.tsx:623`<br>`components/demo/space-eyes/FallasFlota.tsx:195`<br>`components/demo/space-eyes/FallasFlota.tsx:286`<br>`components/demo/space-eyes/FallasFlota.tsx:397`<br>`components/demo/space-eyes/FichaEquipo.tsx:361`<br>… | etiqueta accesible (aria-label) · etiqueta de un valor (mapa de claves) · rótulo · texto en pantalla | Equipo | Device |
 | `spaceeyes.comun.modelo` | `components/demo/space-eyes/EquipoAdmin.tsx:313`<br>`components/demo/space-eyes/FichaEquipo.tsx:654` | rótulo · texto en pantalla | Modelo | Model |
 | `spaceeyes.comun.almacenamiento` | `components/demo/space-eyes/EquipoAdmin.tsx:323`<br>`components/demo/space-eyes/FichaEquipo.tsx:657` | rótulo · texto en pantalla | Almacenamiento libre | Free storage |
-| `spaceeyes.comun.descargar` | `components/demo/space-eyes/FichaEquipo.tsx:504`<br>`components/demo/space-eyes/Galeria.tsx:692` | etiqueta accesible (aria-label) · texto en pantalla | Descargar | Download |
+| `spaceeyes.comun.descargar` | `components/demo/space-eyes/FichaEquipo.tsx:504`<br>`components/demo/space-eyes/Galeria.tsx:695` | etiqueta accesible (aria-label) · texto en pantalla | Descargar | Download |
 | `spaceeyes.comun.tomar-foto` | `components/demo/space-eyes/FichaEquipo.tsx:311`<br>`components/demo/space-eyes/VistaEnVivo.tsx:767`<br>`components/demo/space-eyes/VistaEnVivo.tsx:768` | etiqueta accesible (aria-label) · texto en pantalla · título / tooltip | Tomar foto | Take photo |
 | `spaceeyes.comun.pidiendo` | `components/demo/space-eyes/FichaEquipo.tsx:310`<br>`components/demo/space-eyes/VistaEnVivo.tsx:657` | texto en pantalla | Pidiendo… | Requesting… |
 | `spaceeyes.comun.no-pedir-foto` | `components/demo/space-eyes/FichaEquipo.tsx:189`<br>`components/demo/space-eyes/VistaEnVivo.tsx:579` | aviso emergente (toast) · aviso en pantalla | No se pudo pedir la foto | Could not request the photo |
@@ -163,7 +165,7 @@ los usos en el código (búsqueda literal de la clave). **984 claves**
 | `spaceeyes.ficha.subir.sin-pantalla` | `components/demo/space-eyes/FichaEquipo.tsx:328` | título / tooltip | Este equipo no tiene una pantalla asignada donde guardar la foto | This device has no assigned screen to store the photo |
 | `spaceeyes.ficha.subir` | `components/demo/space-eyes/FichaEquipo.tsx:331` | texto en pantalla | Subir foto | Upload photo |
 | `spaceeyes.ficha.actualizar-estado` | `components/demo/space-eyes/FichaEquipo.tsx:333` | etiqueta accesible (aria-label) | Actualizar estado | Refresh status |
-| `spaceeyes.ficha.tab.fotos` | `components/demo/space-eyes/CampanasEyes.tsx:625`<br>`components/demo/space-eyes/FichaEquipo.tsx:358`<br>`components/demo/space-eyes/Programacion.tsx:506` | etiqueta de un valor (mapa de claves) · rótulo · texto en pantalla | Fotos | Photos |
+| `spaceeyes.ficha.tab.fotos` | `components/demo/space-eyes/CampanasEyes.tsx:625`<br>`components/demo/space-eyes/FichaEquipo.tsx:358`<br>`components/demo/space-eyes/Programacion.tsx:505` | etiqueta de un valor (mapa de claves) · rótulo · texto en pantalla | Fotos | Photos |
 | `spaceeyes.ficha.tab.creativos` | `components/demo/space-eyes/FichaEquipo.tsx:360` | etiqueta de un valor (mapa de claves) | Creativos | Creatives |
 | `spaceeyes.ficha.captura` | `components/demo/space-eyes/FichaEquipo.tsx:375`<br>`components/demo/space-eyes/FichaEquipo.tsx:411`<br>`components/demo/space-eyes/FichaEquipo.tsx:484` | texto en pantalla | Captura Space Eyes | Space Eyes capture |
 | `spaceeyes.ficha.cliente` | `components/demo/space-eyes/FichaEquipo.tsx:378`<br>`components/demo/space-eyes/FichaEquipo.tsx:403`<br>`components/demo/space-eyes/FichaEquipo.tsx:484` | texto en pantalla | Foto del cliente | Client photo |
@@ -218,7 +220,7 @@ los usos en el código (búsqueda literal de la clave). **984 claves**
 | `spaceeyes.historial.hora` | `components/demo/space-eyes/Historial.tsx:168` | texto en pantalla | Hora | Time |
 | `spaceeyes.historial.peor` | `components/demo/space-eyes/Historial.tsx:264` | texto en pantalla | peor {valor} | worst {valor} |
 | `spaceeyes.historial.aria` | `components/demo/space-eyes/Historial.tsx:281` | etiqueta accesible (aria-label) | {titulo} por hora. Peor valor del rango: {valor}. | {titulo} per hour. Worst value in the range: {valor}. |
-| `spaceeyes.comun.estado` | `components/demo/space-eyes/AltaDispositivo.tsx:625`<br>`components/demo/space-eyes/EquipoAdmin.tsx:305`<br>`components/demo/space-eyes/FallasFlota.tsx:400`<br>`components/demo/space-eyes/Graficas.tsx:457`<br>`components/demo/space-eyes/PantallaYCreativos.tsx:189`<br>`components/demo/space-eyes/Programacion.tsx:507` | texto en pantalla | Estado | Status |
+| `spaceeyes.comun.estado` | `components/demo/space-eyes/AltaDispositivo.tsx:625`<br>`components/demo/space-eyes/EquipoAdmin.tsx:305`<br>`components/demo/space-eyes/FallasFlota.tsx:400`<br>`components/demo/space-eyes/Graficas.tsx:456`<br>`components/demo/space-eyes/PantallaYCreativos.tsx:189`<br>`components/demo/space-eyes/Programacion.tsx:506` | texto en pantalla | Estado | Status |
 | `spaceeyes.comun.encendida` | `components/demo/space-eyes/PantallaConfig.tsx:456`<br>`components/demo/space-eyes/PantallaYCreativos.tsx:124` | texto en pantalla | Encendida de {inicio} a {fin} | On from {inicio} to {fin} |
 | `spaceeyes.pantalla.titulo` | `components/demo/space-eyes/FichaEquipo.tsx:359`<br>`components/demo/space-eyes/PantallaConfig.tsx:401`<br>`components/demo/space-eyes/PantallaYCreativos.tsx:96` | rótulo | Pantalla y fallas | Screen and faults |
 | `spaceeyes.vigilancia.aprendiendo` | `components/demo/space-eyes/CreativosConfig.tsx:283`<br>`components/demo/space-eyes/PantallaConfig.tsx:414`<br>`components/demo/space-eyes/PantallaYCreativos.tsx:303` | texto en pantalla | Aprendiendo | Learning |
@@ -231,13 +233,13 @@ los usos en el código (búsqueda literal de la clave). **984 claves**
 | `spaceeyes.falla.detectada` | `components/demo/space-eyes/FallasFlota.tsx:294`<br>`components/demo/space-eyes/FallasFlota.tsx:396`<br>`components/demo/space-eyes/PantallaYCreativos.tsx:186` | rótulo · texto en pantalla | Detectada | Detected |
 | `spaceeyes.falla.falla` | `components/demo/space-eyes/FallasFlota.tsx:398`<br>`components/demo/space-eyes/PantallaYCreativos.tsx:187` | texto en pantalla | Falla | Fault |
 | `spaceeyes.falla.evidencia` | `components/demo/space-eyes/FallasFlota.tsx:402`<br>`components/demo/space-eyes/FallasFlota.tsx:453`<br>`components/demo/space-eyes/PantallaYCreativos.tsx:191` | texto en pantalla · título / tooltip | Evidencia | Evidence |
-| `spaceeyes.falla.a-mano` | `components/demo/space-eyes/FallasFlota.tsx:366`<br>`components/demo/space-eyes/FallasFlota.tsx:424`<br>`components/demo/space-eyes/PantallaYCreativos.tsx:207` | texto en pantalla | ␣· a mano | ␣· by hand |
+| `spaceeyes.falla.a-mano` | `components/demo/space-eyes/FallasFlota.tsx:366`<br>`components/demo/space-eyes/FallasFlota.tsx:424`<br>`components/demo/space-eyes/PantallaYCreativos.tsx:207` | texto en pantalla | ␣· a mano | ␣· manually |
 | `spaceeyes.falla.al-detectar` | `components/demo/space-eyes/FallasFlota.tsx:430`<br>`components/demo/space-eyes/PantallaYCreativos.tsx:213` | texto en pantalla | al detectar | when detected |
 | `spaceeyes.falla.al-recuperar` | `components/demo/space-eyes/FallasFlota.tsx:439`<br>`components/demo/space-eyes/PantallaYCreativos.tsx:222` | texto en pantalla | al recuperar | when cleared |
 | `spaceeyes.creativo.alt` | `components/demo/space-eyes/CreativosConfig.tsx:415`<br>`components/demo/space-eyes/PantallaYCreativos.tsx:269` | texto alternativo de imagen | Creativo detectado | Detected creative |
 | `spaceeyes.creativo.aparecio` | `components/demo/space-eyes/CreativosConfig.tsx:432`<br>`components/demo/space-eyes/PantallaYCreativos.tsx:273` | texto en pantalla | Apareció {fecha} | First seen {fecha} |
-| `spaceeyes.creativo.visto.uno` | `components/demo/space-eyes/CreativosConfig.tsx:434`<br>`components/demo/space-eyes/PantallaYCreativos.tsx:275` | texto en pantalla | Visto {n} veces · último {hace} | Seen {n} time · last {hace} |
-| `spaceeyes.creativo.visto.otros` | `components/demo/space-eyes/CreativosConfig.tsx:434`<br>`components/demo/space-eyes/PantallaYCreativos.tsx:275` | texto en pantalla | Visto {n} veces · último {hace} | Seen {n} times · last {hace} |
+| `spaceeyes.creativo.visto.uno` | `components/demo/space-eyes/CreativosConfig.tsx:434`<br>`components/demo/space-eyes/PantallaYCreativos.tsx:275` | texto en pantalla | Visto {n} veces · último {hace} | Seen {n} time · last seen {hace} |
+| `spaceeyes.creativo.visto.otros` | `components/demo/space-eyes/CreativosConfig.tsx:434`<br>`components/demo/space-eyes/PantallaYCreativos.tsx:275` | texto en pantalla | Visto {n} veces · último {hace} | Seen {n} times · last seen {hace} |
 | `spaceeyes.creativo.ninguno` | `components/demo/space-eyes/CreativosConfig.tsx:458`<br>`components/demo/space-eyes/PantallaYCreativos.tsx:286` | texto en pantalla | Todavía no ha detectado creativos nuevos. | No new creatives detected yet. |
 | `spaceeyes.pyc.error` | `components/demo/space-eyes/PantallaYCreativos.tsx:74` | texto en pantalla | No se pudo leer lo que el equipo vio en su pantalla: {error} | Could not read what the device saw on its screen: {error} |
 | `spaceeyes.pyc.leyendo` | `components/demo/space-eyes/PantallaYCreativos.tsx:81` | texto en pantalla | Leyendo la vigilancia de la pantalla… | Reading the screen monitoring… |
@@ -307,7 +309,7 @@ los usos en el código (búsqueda literal de la clave). **984 claves**
 | `spaceeyes.creativos.reaprender.titulo` | `components/demo/space-eyes/CreativosConfig.tsx:469` | título / tooltip | Volver a aprender la pantalla | Relearn the screen |
 | `spaceeyes.creativos.reaprender.texto` | `components/demo/space-eyes/CreativosConfig.tsx:474` | texto en pantalla | Se borra todo lo que el equipo aprendió de esta pantalla. Vuelve a aprender durante el plazo de aprendizaje, y en ese tiempo no toma fotos. | Everything the device learned about this screen is erased. It learns again during the learning period, and takes no photos in that time. |
 | `spaceeyes.comun.encendido` | `components/demo/space-eyes/PantallaConfig.tsx:516` | rótulo | Encendido | On |
-| `spaceeyes.comun.guardando` | `components/demo/space-eyes/CampanasEyes.tsx:514`<br>`components/demo/space-eyes/EquipoAdmin.tsx:342`<br>`components/demo/space-eyes/EquipoAdmin.tsx:898`<br>`components/demo/space-eyes/FallasFlota.tsx:503`<br>`components/demo/space-eyes/PantallaConfig.tsx:664`<br>`components/demo/space-eyes/Programacion.tsx:609` | texto en pantalla | Guardando… | Saving… |
+| `spaceeyes.comun.guardando` | `components/demo/space-eyes/CampanasEyes.tsx:514`<br>`components/demo/space-eyes/EquipoAdmin.tsx:342`<br>`components/demo/space-eyes/EquipoAdmin.tsx:898`<br>`components/demo/space-eyes/FallasFlota.tsx:503`<br>`components/demo/space-eyes/PantallaConfig.tsx:664`<br>`components/demo/space-eyes/Programacion.tsx:608` | texto en pantalla | Guardando… | Saving… |
 | `spaceeyes.pconfig.aprendizaje.0` | `components/demo/space-eyes/PantallaConfig.tsx:113` | etiqueta de un valor (mapa de claves) | Solo la primera vuelta (pruebas) | First pass only (testing) |
 | `spaceeyes.pconfig.aprendizaje.30` | `components/demo/space-eyes/PantallaConfig.tsx:114` | etiqueta de un valor (mapa de claves) | 30 minutos | 30 minutes |
 | `spaceeyes.pconfig.aprendizaje.120` | `components/demo/space-eyes/PantallaConfig.tsx:115` | etiqueta de un valor (mapa de claves) | 2 horas | 2 hours |
@@ -343,7 +345,7 @@ los usos en el código (búsqueda literal de la clave). **984 claves**
 | `spaceeyes.pconfig.filas` | `components/demo/space-eyes/PantallaConfig.tsx:544` | texto en pantalla | Filas | Rows |
 | `spaceeyes.pconfig.columnas` | `components/demo/space-eyes/PantallaConfig.tsx:555` | texto en pantalla | Columnas | Columns |
 | `spaceeyes.pconfig.editor.desde` | `components/demo/space-eyes/PantallaConfig.tsx:566` | texto en pantalla | Encendida de | On from |
-| `spaceeyes.pconfig.editor.a` | `components/demo/space-eyes/PantallaConfig.tsx:575`<br>`components/demo/space-eyes/Programacion.tsx:753` | texto en pantalla | a | to |
+| `spaceeyes.pconfig.editor.a` | `components/demo/space-eyes/PantallaConfig.tsx:575`<br>`components/demo/space-eyes/Programacion.tsx:756` | texto en pantalla | a | to |
 | `spaceeyes.pconfig.horario-mal` | `components/demo/space-eyes/PantallaConfig.tsx:587` | texto en pantalla | El horario va en HH:MM, de 00:00 a 24:00. | Hours go in HH:MM, from 00:00 to 24:00. |
 | `spaceeyes.pconfig.ayuda.esquinas` | `components/demo/space-eyes/PantallaConfig.tsx:591` | texto en pantalla | Toca las 4 esquinas de la pantalla en orden: {orden}. Después puedes arrastrarlas. Pon filas y columnas de gabinetes para que las líneas coincidan con las uniones. Si cambias el zoom o el lente del equipo, hay que volver a marcarla. | Click the 4 corners of the screen in order: {orden}. Then you can drag them. Set the cabinet rows and columns so the lines match the seams. If you change the device zoom or lens, you have to mark it again. |
 | `spaceeyes.pconfig.ayuda.orden` | `components/demo/space-eyes/PantallaConfig.tsx:592` | texto en pantalla | arriba izquierda, arriba derecha, abajo derecha, abajo izquierda | top left, top right, bottom right, bottom left |
@@ -382,7 +384,7 @@ los usos en el código (búsqueda literal de la clave). **984 claves**
 | `spaceeyes.actualizacion.proxima` | `lib/space-eyes-actualizacion.ts:56`<br>`lib/space-eyes-actualizacion.ts:62` | texto en pantalla | La próxima actualización pide un toque en el teléfono; después se actualiza sola. | The next update needs a confirmation on the phone; after that it updates on its own. |
 | `spaceeyes.actualizacion.visita` | `lib/space-eyes-actualizacion.ts:61` | texto en pantalla | Necesita una visita: esta versión no se puede actualizar a distancia. | Needs a site visit: this version cannot be updated remotely. |
 | `spaceeyes.comun.sin-permiso` | `components/demo/space-eyes/EquipoAdmin.tsx:116` | texto de una función (lib o componente) | No tienes permiso para esto. | You do not have permission for this. |
-| `spaceeyes.comun.nombre` | `components/demo/space-eyes/CampanasEyes.tsx:366`<br>`components/demo/space-eyes/EquipoAdmin.tsx:301`<br>`components/demo/space-eyes/EquipoAdmin.tsx:349`<br>`components/demo/space-eyes/Programacion.tsx:502`<br>`components/demo/space-eyes/Programacion.tsx:622` | rótulo · texto de ejemplo (placeholder) · texto en pantalla | Nombre | Name |
+| `spaceeyes.comun.nombre` | `components/demo/space-eyes/CampanasEyes.tsx:366`<br>`components/demo/space-eyes/EquipoAdmin.tsx:301`<br>`components/demo/space-eyes/EquipoAdmin.tsx:349`<br>`components/demo/space-eyes/Programacion.tsx:501`<br>`components/demo/space-eyes/Programacion.tsx:621` | rótulo · texto de ejemplo (placeholder) · texto en pantalla | Nombre | Name |
 | `spaceeyes.comun.brillo` | `components/demo/space-eyes/EquipoAdmin.tsx:89`<br>`components/demo/space-eyes/VistaEnVivo.tsx:839`<br>`components/demo/space-eyes/VistaEnVivo.tsx:849` | etiqueta accesible (aria-label) · etiqueta de un valor (mapa de claves) · título / tooltip | Brillo | Brightness |
 | `spaceeyes.comun.exposicion` | `components/demo/space-eyes/EquipoAdmin.tsx:90`<br>`components/demo/space-eyes/VistaEnVivo.tsx:803`<br>`components/demo/space-eyes/VistaEnVivo.tsx:817` | etiqueta accesible (aria-label) · etiqueta de un valor (mapa de claves) · título / tooltip | Exposición | Exposure |
 | `spaceeyes.comun.balance` | `components/demo/space-eyes/EquipoAdmin.tsx:816`<br>`components/demo/space-eyes/VistaEnVivo.tsx:895` | etiqueta accesible (aria-label) · texto en pantalla | Balance de blancos | White balance |
@@ -432,9 +434,9 @@ los usos en el código (búsqueda literal de la clave). **984 claves**
 | `spaceeyes.admin.coordenadas-mal` | `components/demo/space-eyes/EquipoAdmin.tsx:361` | texto en pantalla | La latitud va de −90 a 90 y la longitud de −180 a 180. | Latitude goes from −90 to 90 and longitude from −180 to 180. |
 | `spaceeyes.admin.coordenadas` | `components/demo/space-eyes/EquipoAdmin.tsx:363` | texto en pantalla | Déjalas vacías si no las sabes. Sirven para ubicar la pantalla y para calcular la luz de su sitio, que es lo que decide a qué horas la foto sale limpia y a qué horas sale con líneas. | Leave them empty if you do not know them. They place the screen on the map and work out the light at its site, which decides at what times the photo comes out clean and at what times it shows lines. |
 | `spaceeyes.admin.estado-pantalla` | `components/demo/space-eyes/EquipoAdmin.tsx:365` | texto en pantalla | Estado de la pantalla | Screen status |
-| `spaceeyes.admin.estado-ayuda` | `components/demo/space-eyes/EquipoAdmin.tsx:378` | texto en pantalla | Mantenimiento y dada de baja dejan a la pantalla fuera de las programaciones: no le llegan fotos y deja de gastar datos, sin borrar nada. En operación y activa hoy se comportan igual. | Maintenance and decommissioned take the screen out of the schedules: it gets no photos and stops using data, without deleting anything. In operation and active behave the same today. |
-| `spaceeyes.admin.actualizar.pc` | `components/demo/space-eyes/EquipoAdmin.tsx:427` | texto en pantalla | Se instalará el agente publicado en esta PC. Verifica la huella del archivo antes de sustituirlo y, si el programa nuevo no arranca, vuelve solo al anterior. | The published agent will be installed on this PC. It checks the file fingerprint before replacing it and, if the new program does not start, it rolls back on its own. |
-| `spaceeyes.admin.actualizar.pi` | `components/demo/space-eyes/EquipoAdmin.tsx:429` | texto en pantalla | Se instalará el agente publicado en esta Raspberry. Verifica la huella y lo prueba antes de reemplazar nada; si la versión nueva no arranca, vuelve sola a la anterior. La identidad del equipo y sus fotos pendientes se conservan. | The published agent will be installed on this Raspberry. It checks the fingerprint and tests it before replacing anything; if the new version does not start, it rolls back on its own. The device identity and its pending photos are kept. |
+| `spaceeyes.admin.estado-ayuda` | `components/demo/space-eyes/EquipoAdmin.tsx:378` | texto en pantalla | Mantenimiento y dada de baja dejan a la pantalla fuera de las programaciones: no le llegan fotos y deja de gastar datos, sin borrar nada. En operación y activa hoy se comportan igual. | Maintenance and decommissioned take the screen out of the schedules: it gets no photos and stops using data, without deleting anything. “In operation” and “Active” currently behave the same. |
+| `spaceeyes.admin.actualizar.pc` | `components/demo/space-eyes/EquipoAdmin.tsx:427` | texto en pantalla | Se instalará el agente publicado en esta PC. Verifica la huella del archivo antes de sustituirlo y, si el programa nuevo no arranca, vuelve solo al anterior. | The published agent will be installed on this PC. It verifies the file checksum before replacing it and, if the new program does not start, it rolls back on its own. |
+| `spaceeyes.admin.actualizar.pi` | `components/demo/space-eyes/EquipoAdmin.tsx:429` | texto en pantalla | Se instalará el agente publicado en esta Raspberry. Verifica la huella y lo prueba antes de reemplazar nada; si la versión nueva no arranca, vuelve sola a la anterior. La identidad del equipo y sus fotos pendientes se conservan. | The published agent will be installed on this Raspberry. It verifies the checksum and tests it before replacing anything; if the new version does not start, it rolls back on its own. The device identity and its pending photos are kept. |
 | `spaceeyes.admin.actualizar.version` | `components/demo/space-eyes/EquipoAdmin.tsx:432` | texto en pantalla | Se instalará la versión {version} en este equipo. Tardará un par de minutos y la app se reiniciará sola. | Version {version} will be installed on this device. It takes a couple of minutes and the app restarts on its own. |
 | `spaceeyes.admin.actualizar.publicada` | `components/demo/space-eyes/EquipoAdmin.tsx:433` | texto en pantalla | Se instalará la versión publicada en este equipo. Tardará un par de minutos y la app se reiniciará sola. | The published version will be installed on this device. It takes a couple of minutes and the app restarts on its own. |
 | `spaceeyes.admin.actualizar.de-todos-modos` | `components/demo/space-eyes/EquipoAdmin.tsx:434` | texto en pantalla | {como} ¿Enviar de todos modos? | {como} Send anyway? |
@@ -456,7 +458,7 @@ los usos en el código (búsqueda literal de la clave). **984 claves**
 | `spaceeyes.admin.nueva` | `components/demo/space-eyes/EquipoAdmin.tsx:501` | texto en pantalla | Hay una versión nueva: {version}. | A new version is available: {version}. |
 | `spaceeyes.admin.se-instala-sola` | `components/demo/space-eyes/EquipoAdmin.tsx:504` | texto en pantalla | Se instala sola, sin tocar el equipo. | It installs on its own, without touching the device. |
 | `spaceeyes.admin.al-dia` | `components/demo/space-eyes/EquipoAdmin.tsx:508` | texto en pantalla | Tiene la versión publicada. | It has the published version. |
-| `spaceeyes.admin.actualizaciones` | `components/demo/space-eyes/EquipoAdmin.tsx:517` | texto en pantalla | Actualizaciones: {como} | Updates: {como} |
+| `spaceeyes.admin.actualizaciones` | `components/demo/space-eyes/EquipoAdmin.tsx:517` | texto en pantalla | Actualizaciones: {como} | Update mode: {como} |
 | `spaceeyes.admin.boton.actualizar` | `components/demo/space-eyes/EquipoAdmin.tsx:527` | texto en pantalla | Actualizar app | Update app |
 | `spaceeyes.admin.boton.reiniciar` | `components/demo/space-eyes/EquipoAdmin.tsx:530` | texto en pantalla | Reiniciar app | Restart app |
 | `spaceeyes.admin.boton.reiniciar-equipo` | `components/demo/space-eyes/EquipoAdmin.tsx:534`<br>`components/demo/space-eyes/EquipoAdmin.tsx:554` | texto en pantalla | Reiniciar equipo | Restart device |
@@ -483,7 +485,7 @@ los usos en el código (búsqueda literal de la clave). **984 claves**
 | `spaceeyes.admin.cuadros` | `components/demo/space-eyes/EquipoAdmin.tsx:772` | texto en pantalla | Cuadros a promediar | Frames to average |
 | `spaceeyes.admin.cuadros.n` | `components/demo/space-eyes/EquipoAdmin.tsx:773` | texto en pantalla | {n} cuadros | {n} frames |
 | `spaceeyes.admin.cuadros.un-disparo` | `components/demo/space-eyes/EquipoAdmin.tsx:773` | texto en pantalla | un disparo | single shot |
-| `spaceeyes.admin.cuadros.texto` | `components/demo/space-eyes/EquipoAdmin.tsx:775` | texto en pantalla | Contra las líneas de la pantalla: cada cuadro las agarra en otra posición y al promediarlos se cancelan (con 16 la marca baja de 40% a 10%). Tarda ~1 s más y, si el creativo cambia a media captura, sale mezclado. | Against screen lines: each frame catches them in a different position and averaging cancels them out (with 16 the banding drops from 40% to 10%). It takes ~1 s longer and, if the creative changes mid-capture, it comes out blended. |
+| `spaceeyes.admin.cuadros.texto` | `components/demo/space-eyes/EquipoAdmin.tsx:775` | texto en pantalla | Contra las líneas de la pantalla: cada cuadro las agarra en otra posición y al promediarlos se cancelan (con 16 la marca baja de 40% a 10%). Tarda ~1 s más y, si el creativo cambia a media captura, sale mezclado. | Reduces screen lines: each frame catches them in a different position and averaging cancels them out (with 16 the banding drops from 40% to 10%). It takes ~1 s longer and, if the creative changes mid-capture, it comes out blended. |
 | `spaceeyes.admin.medicion` | `components/demo/space-eyes/EquipoAdmin.tsx:778` | texto en pantalla | Dónde mide la luz | Where it meters light |
 | `spaceeyes.admin.exposicion-mano` | `components/demo/space-eyes/EquipoAdmin.tsx:801` | texto en pantalla | Fijar la exposición a mano | Set exposure manually |
 | `spaceeyes.admin.obturador` | `components/demo/space-eyes/EquipoAdmin.tsx:806` | texto en pantalla | Obturador | Shutter |
@@ -511,12 +513,12 @@ los usos en el código (búsqueda literal de la clave). **984 claves**
 | `spaceeyes.admin.registros.error` | `components/demo/space-eyes/EquipoAdmin.tsx:967` | texto en pantalla | No se pudieron leer los registros: {error} | Could not read the logs: {error} |
 | `spaceeyes.admin.registros.leyendo` | `components/demo/space-eyes/EquipoAdmin.tsx:971` | texto en pantalla | Leyendo registros… | Reading logs… |
 | `spaceeyes.admin.registros.vacio` | `components/demo/space-eyes/EquipoAdmin.tsx:974` | texto en pantalla | Sin registros todavía. | No logs yet. |
-| `spaceeyes.comun.reintentar` | `components/demo/space-eyes/Galeria.tsx:363`<br>`components/demo/space-eyes/VistaEnVivo.tsx:734`<br>`components/demo/space-eyes/VistaEnVivo.tsx:1072` | texto en pantalla | Reintentar | Retry |
+| `spaceeyes.comun.reintentar` | `components/demo/space-eyes/Galeria.tsx:362`<br>`components/demo/space-eyes/VistaEnVivo.tsx:734`<br>`components/demo/space-eyes/VistaEnVivo.tsx:1072` | texto en pantalla | Reintentar | Retry |
 | `spaceeyes.comun.descartar` | `components/demo/space-eyes/AjustarTexto.tsx:332`<br>`components/demo/space-eyes/FallasFlota.tsx:505`<br>`components/demo/space-eyes/VistaEnVivo.tsx:999` | texto en pantalla | Descartar | Discard |
 | `spaceeyes.vivo.balance.auto` | `components/demo/space-eyes/VistaEnVivo.tsx:96` | etiqueta de un valor (mapa de claves) | Balance auto | Auto balance |
 | `spaceeyes.vivo.balance.incandescent` | `components/demo/space-eyes/VistaEnVivo.tsx:99` | etiqueta de un valor (mapa de claves) | Incandescente | Incandescent |
 | `spaceeyes.vivo.sin-permiso` | `components/demo/space-eyes/VistaEnVivo.tsx:147` | texto de una función (lib o componente) | No tienes permiso para cambiar este equipo | You do not have permission to change this device |
-| `spaceeyes.vivo.sin-servidor` | `components/demo/space-eyes/VistaEnVivo.tsx:150` | texto de una función (lib o componente) | El servidor de video no está configurado. Es cosa del servidor, no del equipo. | The video server is not configured. It is a server issue, not the device. |
+| `spaceeyes.vivo.sin-servidor` | `components/demo/space-eyes/VistaEnVivo.tsx:150` | texto de una función (lib o componente) | El servidor de video no está configurado. Es cosa del servidor, no del equipo. | The video server is not configured. It is a server issue, not a device issue. |
 | `spaceeyes.vivo.no-leer` | `components/demo/space-eyes/AjustarTexto.tsx:137`<br>`components/demo/space-eyes/VistaEnVivo.tsx:218`<br>`components/demo/space-eyes/VistaEnVivo.tsx:704` | aviso en pantalla · mensaje de error · texto en pantalla | No se pudo leer el equipo | Could not read the device |
 | `spaceeyes.vivo.otra-persona` | `components/demo/space-eyes/VistaEnVivo.tsx:329`<br>`components/demo/space-eyes/VistaEnVivo.tsx:350` | aviso emergente (toast) · texto en pantalla | otra persona | someone else |
 | `spaceeyes.vivo.otra-persona.may` | `components/demo/space-eyes/VistaEnVivo.tsx:501` | aviso emergente (toast) | Otra persona | Someone else |
@@ -537,7 +539,7 @@ los usos en el código (búsqueda literal de la clave). **984 claves**
 | `spaceeyes.vivo.foto.pedida` | `components/demo/space-eyes/VistaEnVivo.tsx:576` | aviso emergente (toast) | Foto pedida: llega en unos segundos | Photo requested: it arrives in a few seconds |
 | `spaceeyes.vivo.titulo` | `components/demo/space-eyes/VistaEnVivo.tsx:639` | rótulo | Vista en vivo | Live view |
 | `spaceeyes.vivo.en-vivo` | `components/demo/space-eyes/FichaEquipo.tsx:372`<br>`components/demo/space-eyes/VistaEnVivo.tsx:643` | texto en pantalla | En vivo | Live |
-| `spaceeyes.vivo.corte.ayuda` | `components/demo/space-eyes/VistaEnVivo.tsx:649` | título / tooltip | La transmisión se detiene sola para no gastar datos del equipo | The stream stops on its own so it does not use the device data |
+| `spaceeyes.vivo.corte.ayuda` | `components/demo/space-eyes/VistaEnVivo.tsx:649` | título / tooltip | La transmisión se detiene sola para no gastar datos del equipo | The stream stops on its own so it does not use the device’s data |
 | `spaceeyes.vivo.corte` | `components/demo/space-eyes/VistaEnVivo.tsx:650` | texto en pantalla | Corte en␣ | Stops in␣ |
 | `spaceeyes.vivo.foto` | `components/demo/space-eyes/Verificacion.tsx:198`<br>`components/demo/space-eyes/VistaEnVivo.tsx:657` | texto en pantalla | Foto | Photo |
 | `spaceeyes.vivo.iniciar` | `components/demo/space-eyes/VistaEnVivo.tsx:663` | texto en pantalla | Iniciar | Start |
@@ -554,7 +556,7 @@ los usos en el código (búsqueda literal de la clave). **984 claves**
 | `spaceeyes.vivo.iniciar-vista` | `components/demo/space-eyes/VistaEnVivo.tsx:744` | texto en pantalla | Iniciar vista en vivo | Start live view |
 | `spaceeyes.vivo.sin-permiso-abrir` | `components/demo/space-eyes/VistaEnVivo.tsx:747` | texto en pantalla | Necesitas permiso para operar equipos para abrir la vista. | You need permission to operate devices to open the view. |
 | `spaceeyes.vivo.no-reporta` | `components/demo/space-eyes/VistaEnVivo.tsx:750` | texto en pantalla | El equipo no está reportando: puede que no conteste. | The device is not reporting: it may not answer. |
-| `spaceeyes.vivo.se-detiene` | `components/demo/space-eyes/VistaEnVivo.tsx:752` | texto en pantalla | Se detiene sola a los 3 minutos para no gastar datos del equipo. | It stops on its own after 3 minutes so it does not use the device data. |
+| `spaceeyes.vivo.se-detiene` | `components/demo/space-eyes/VistaEnVivo.tsx:752` | texto en pantalla | Se detiene sola a los 3 minutos para no gastar datos del equipo. | It stops on its own after 3 minutes so it does not use the device’s data. |
 | `spaceeyes.vivo.enfoque-fijo` | `components/demo/space-eyes/VistaEnVivo.tsx:778`<br>`components/demo/space-eyes/VistaEnVivo.tsx:909` | texto en pantalla | Enfoque fijo | Focus locked |
 | `spaceeyes.vivo.fijar-enfoque` | `components/demo/space-eyes/VistaEnVivo.tsx:909` | texto en pantalla | Fijar enfoque | Lock focus |
 | `spaceeyes.vivo.mover-lados` | `components/demo/space-eyes/VistaEnVivo.tsx:866`<br>`components/demo/space-eyes/VistaEnVivo.tsx:867` | etiqueta accesible (aria-label) · título / tooltip | Mover a los lados | Move sideways |
@@ -588,88 +590,93 @@ los usos en el código (búsqueda literal de la clave). **984 claves**
 | `spaceeyes.vivo.pie.orientacion` | `components/demo/space-eyes/VistaEnVivo.tsx:1046` | texto en pantalla | La orientación fija es la que todos ven al abrir la vista. | The locked orientation is the one everyone sees when opening the view. |
 | `spaceeyes.vivo.en-uso` | `components/demo/space-eyes/VistaEnVivo.tsx:1056` | texto en pantalla | Vista en uso | View in use |
 | `spaceeyes.vivo.en-uso.quien` | `components/demo/space-eyes/VistaEnVivo.tsx:1058` | texto en pantalla | {quien} está viendo este equipo desde hace {min} min. | {quien} has been watching this device for {min} min. |
-| `spaceeyes.vivo.en-uso.texto` | `components/demo/space-eyes/VistaEnVivo.tsx:1063` | texto en pantalla | Este equipo solo admite un espectador a la vez: cada conexión de video gasta datos móviles del sitio. La transmisión se corta sola a los 3 minutos. | This device allows only one viewer at a time: each video connection uses the site mobile data. The stream stops on its own after 3 minutes. |
+| `spaceeyes.vivo.en-uso.texto` | `components/demo/space-eyes/VistaEnVivo.tsx:1063` | texto en pantalla | Este equipo solo admite un espectador a la vez: cada conexión de video gasta datos móviles del sitio. La transmisión se corta sola a los 3 minutos. | This device allows only one viewer at a time: each video connection uses the site’s mobile data. The stream stops on its own after 3 minutes. |
 | `spaceeyes.vivo.aplicando-encuadre` | `components/demo/space-eyes/VistaEnVivo.tsx:1082` | texto en pantalla | Aplicando el encuadre nuevo… | Applying the new framing… |
-| `spaceeyes.comun.desde` | `components/demo/space-eyes/Galeria.tsx:307`<br>`components/demo/space-eyes/Graficas.tsx:409`<br>`components/demo/space-eyes/Programacion.tsx:692` | rótulo · texto en pantalla | Desde | From |
-| `spaceeyes.comun.hasta` | `components/demo/space-eyes/Galeria.tsx:317`<br>`components/demo/space-eyes/Graficas.tsx:418`<br>`components/demo/space-eyes/Programacion.tsx:704` | rótulo · texto en pantalla | Hasta | To |
-| `spaceeyes.comun.todos-equipos` | `components/demo/space-eyes/FallasFlota.tsx:203`<br>`components/demo/space-eyes/Galeria.tsx:338`<br>`components/demo/space-eyes/Programacion.tsx:138`<br>`components/demo/space-eyes/Programacion.tsx:594` | texto de una función (lib o componente) · texto en pantalla | Todos los equipos | All devices |
-| `spaceeyes.comun.equipo-n` | `components/demo/space-eyes/Galeria.tsx:341`<br>`components/demo/space-eyes/Galeria.tsx:523` | texto en pantalla | Equipo {id} | Device {id} |
-| `spaceeyes.comun.anterior` | `components/demo/space-eyes/Galeria.tsx:400`<br>`components/demo/space-eyes/Verificacion.tsx:282` | texto en pantalla | Anterior | Previous |
-| `spaceeyes.comun.siguiente` | `components/demo/space-eyes/Galeria.tsx:408`<br>`components/demo/space-eyes/Verificacion.tsx:291` | texto en pantalla | Siguiente | Next |
-| `spaceeyes.comun.pagina` | `components/demo/space-eyes/Galeria.tsx:405`<br>`components/demo/space-eyes/Verificacion.tsx:273` | texto en pantalla | Página {pagina} | Page {pagina} |
-| `spaceeyes.comun.pagina-de` | `components/demo/space-eyes/Galeria.tsx:404` | texto en pantalla | Página {pagina} de {paginas} | Page {pagina} of {paginas} |
-| `spaceeyes.comun.eliminar` | `components/demo/space-eyes/Galeria.tsx:433`<br>`components/demo/space-eyes/Galeria.tsx:695`<br>`components/demo/space-eyes/Programacion.tsx:491`<br>`components/demo/space-eyes/Programacion.tsx:544`<br>`components/demo/space-eyes/Programacion.tsx:561` | texto en pantalla | Eliminar | Delete |
-| `spaceeyes.comun.error-desconocido` | `components/demo/space-eyes/CampanasEyes.tsx:296`<br>`components/demo/space-eyes/Galeria.tsx:202`<br>`components/demo/space-eyes/Galeria.tsx:261`<br>`components/demo/space-eyes/Galeria.tsx:592` | aviso en pantalla · mensaje de error | error desconocido | unknown error |
-| `spaceeyes.galeria.origen.manual` | `components/demo/space-eyes/Galeria.tsx:80` | etiqueta de un valor (mapa de claves) | Manual | Manual |
-| `spaceeyes.galeria.origen.scheduled` | `components/demo/space-eyes/Galeria.tsx:81` | etiqueta de un valor (mapa de claves) | Programada | Scheduled |
-| `spaceeyes.galeria.origen.on-demand` | `components/demo/space-eyes/Galeria.tsx:82` | etiqueta de un valor (mapa de claves) | A petición | On request |
-| `spaceeyes.galeria.origen.creative` | `components/demo/space-eyes/Galeria.tsx:83` | etiqueta de un valor (mapa de claves) | Creativo nuevo | New creative |
-| `spaceeyes.galeria.origen.falla` | `components/demo/space-eyes/Galeria.tsx:84` | etiqueta de un valor (mapa de claves) | Falla de pantalla | Screen fault |
-| `spaceeyes.galeria.origen.boot` | `components/demo/space-eyes/Galeria.tsx:85` | etiqueta de un valor (mapa de claves) | Al encender | At startup |
-| `spaceeyes.galeria.verif.pending` | `components/demo/space-eyes/Galeria.tsx:90` | etiqueta de un valor (mapa de claves) | Sin verificar | Not verified |
-| `spaceeyes.galeria.verif.queued` | `components/demo/space-eyes/Galeria.tsx:91` | etiqueta de un valor (mapa de claves) | En cola | Queued |
-| `spaceeyes.galeria.verif.running` | `components/demo/space-eyes/Galeria.tsx:92` | etiqueta de un valor (mapa de claves) | Verificando | Verifying |
-| `spaceeyes.galeria.verif.verified` | `components/demo/space-eyes/Galeria.tsx:93` | etiqueta de un valor (mapa de claves) | Verificada | Verified |
-| `spaceeyes.galeria.verif.failed` | `components/demo/space-eyes/Galeria.tsx:94` | etiqueta de un valor (mapa de claves) | Falló la verificación | Verification failed |
-| `spaceeyes.galeria.verif.skipped` | `components/demo/space-eyes/Galeria.tsx:95` | etiqueta de un valor (mapa de claves) | Omitida | Skipped |
-| `spaceeyes.galeria.verif.correcta` | `components/demo/space-eyes/Galeria.tsx:471` | texto en pantalla | Verificada · correcta | Verified · correct |
-| `spaceeyes.galeria.verif.no-coincide` | `components/demo/space-eyes/Galeria.tsx:471` | texto en pantalla | Verificada · no coincide | Verified · does not match |
-| `spaceeyes.galeria.error` | `components/demo/space-eyes/Galeria.tsx:169`<br>`components/demo/space-eyes/Galeria.tsx:360` | mensaje de error · texto en pantalla | No se pudieron consultar las fotos | Could not load the photos |
-| `spaceeyes.galeria.eliminada` | `components/demo/space-eyes/Galeria.tsx:200` | aviso en pantalla | Fotografía eliminada | Photo deleted |
-| `spaceeyes.galeria.no-eliminar` | `components/demo/space-eyes/Galeria.tsx:202` | aviso en pantalla | No se pudo eliminar la fotografía: {motivo} | Could not delete the photo: {motivo} |
-| `spaceeyes.galeria.preparando` | `components/demo/space-eyes/Galeria.tsx:210` | texto en pantalla | Preparando… | Preparing… |
-| `spaceeyes.galeria.album.vacio` | `components/demo/space-eyes/Galeria.tsx:221` | aviso en pantalla | Sin fotos para descargar | No photos to download |
-| `spaceeyes.galeria.album.ninguna` | `components/demo/space-eyes/Galeria.tsx:249` | aviso en pantalla | No se pudo descargar ninguna foto del álbum | Could not download any photo from the album |
-| `spaceeyes.galeria.album.parcial.uno` | `components/demo/space-eyes/Galeria.tsx:256` | texto en pantalla | Álbum descargado; {n} foto no se pudo incluir | Album downloaded; {n} photo could not be included |
-| `spaceeyes.galeria.album.parcial.otros` | `components/demo/space-eyes/Galeria.tsx:256` | texto en pantalla | Álbum descargado; {n} fotos no se pudo incluir | Album downloaded; {n} photos could not be included |
-| `spaceeyes.galeria.album.listo` | `components/demo/space-eyes/Galeria.tsx:257` | texto en pantalla | Álbum descargado | Album downloaded |
-| `spaceeyes.galeria.album.error` | `components/demo/space-eyes/Galeria.tsx:261` | aviso en pantalla | Error al descargar el álbum: {motivo} | Error downloading the album: {motivo} |
-| `spaceeyes.galeria.titulo` | `components/demo/space-eyes/Galeria.tsx:283` | rótulo | Galería de fotos | Photo gallery |
-| `spaceeyes.galeria.descripcion` | `components/demo/space-eyes/Galeria.tsx:284` | texto en pantalla | Todas las fotos de los equipos: programadas, pedidas a mano, de creativos nuevos y de fallas. | Every photo from the devices: scheduled, requested by hand, of new creatives and of faults. |
-| `spaceeyes.galeria.album.ayuda` | `components/demo/space-eyes/Galeria.tsx:296` | título / tooltip | Descarga en un .zip todas las fotos que coinciden con los filtros, con su marca | Downloads every photo that matches the filters as a .zip, with its label |
-| `spaceeyes.galeria.descargando` | `components/demo/space-eyes/Galeria.tsx:299` | texto en pantalla | Descargando {progreso} | Downloading {progreso} |
-| `spaceeyes.galeria.album` | `components/demo/space-eyes/Galeria.tsx:299` | texto en pantalla | Descargar álbum | Download album |
-| `spaceeyes.galeria.origen` | `components/demo/space-eyes/Galeria.tsx:327` | texto en pantalla | Origen | Source |
-| `spaceeyes.galeria.origenes` | `components/demo/space-eyes/Galeria.tsx:329` | texto en pantalla | Todos los orígenes | All sources |
-| `spaceeyes.galeria.quitar-filtros` | `components/demo/space-eyes/Galeria.tsx:351` | texto en pantalla | Quitar filtros | Clear filters |
-| `spaceeyes.galeria.vacio.filtros` | `components/demo/space-eyes/Galeria.tsx:374` | texto en pantalla | Sin fotos para los filtros seleccionados. | No photos for the selected filters. |
-| `spaceeyes.galeria.vacio` | `components/demo/space-eyes/Galeria.tsx:374` | texto en pantalla | Todavía no hay fotos de ningún equipo. | No photos from any device yet. |
-| `spaceeyes.galeria.total.uno` | `components/demo/space-eyes/Galeria.tsx:393` | texto en pantalla | {n} fotos | {n} photo |
-| `spaceeyes.galeria.total.otros` | `components/demo/space-eyes/Galeria.tsx:393` | texto en pantalla | {n} fotos | {n} photos |
-| `spaceeyes.galeria.filtradas` | `components/demo/space-eyes/Galeria.tsx:396` | texto en pantalla | Fotos filtradas | Filtered photos |
-| `spaceeyes.galeria.eliminar` | `components/demo/space-eyes/Galeria.tsx:432`<br>`components/demo/space-eyes/Galeria.tsx:515`<br>`components/demo/space-eyes/Galeria.tsx:516` | etiqueta accesible (aria-label) · título / tooltip | Eliminar fotografía | Delete photo |
-| `spaceeyes.galeria.eliminar.pregunta` | `components/demo/space-eyes/Galeria.tsx:440` | texto en pantalla | ¿Eliminar esta fotografía? | Delete this photo? |
-| `spaceeyes.galeria.eliminar.pregunta.de` | `components/demo/space-eyes/Galeria.tsx:439` | texto en pantalla | ¿Eliminar esta fotografía de {nombre}? | Delete this photo from {nombre}? |
-| `spaceeyes.galeria.eliminar.texto` | `components/demo/space-eyes/Galeria.tsx:442` | texto en pantalla | No se puede deshacer. | This cannot be undone. |
-| `spaceeyes.galeria.equipo` | `components/demo/space-eyes/Galeria.tsx:490`<br>`components/demo/space-eyes/Galeria.tsx:495`<br>`components/demo/space-eyes/Galeria.tsx:618`<br>`components/demo/space-eyes/Galeria.tsx:661`<br>`components/demo/space-eyes/Verificacion.tsx:157`<br>`components/demo/space-eyes/Verificacion.tsx:230` | etiqueta accesible (aria-label) · texto alternativo de imagen · texto en pantalla | equipo | device |
-| `spaceeyes.galeria.ver-grande` | `components/demo/space-eyes/Galeria.tsx:490` | etiqueta accesible (aria-label) | Ver foto de {nombre} en grande | View photo from {nombre} larger |
-| `spaceeyes.galeria.alt` | `components/demo/space-eyes/Galeria.tsx:495` | texto alternativo de imagen | Foto {id} de {nombre} | Photo {id} from {nombre} |
-| `spaceeyes.galeria.no-cargar` | `components/demo/space-eyes/Galeria.tsx:503` | texto en pantalla | No se pudo cargar | Could not load |
-| `spaceeyes.galeria.sin-archivo` | `components/demo/space-eyes/Galeria.tsx:587` | mensaje de error | La foto no tiene archivo | The photo has no file |
-| `spaceeyes.galeria.descargando-foto` | `components/demo/space-eyes/Galeria.tsx:590` | aviso en pantalla | Descargando foto… | Downloading photo… |
-| `spaceeyes.galeria.no-descargar` | `components/demo/space-eyes/Galeria.tsx:592` | aviso en pantalla | No se pudo descargar la foto: {motivo} | Could not download the photo: {motivo} |
-| `spaceeyes.galeria.foto-de` | `components/demo/space-eyes/Galeria.tsx:618`<br>`components/demo/space-eyes/Galeria.tsx:661`<br>`components/demo/space-eyes/Verificacion.tsx:157`<br>`components/demo/space-eyes/Verificacion.tsx:230` | texto alternativo de imagen · texto en pantalla | Foto de {nombre} | Photo from {nombre} |
-| `spaceeyes.galeria.anterior` | `components/demo/space-eyes/Galeria.tsx:640` | etiqueta accesible (aria-label) | Foto anterior | Previous photo |
-| `spaceeyes.galeria.siguiente` | `components/demo/space-eyes/Galeria.tsx:650` | etiqueta accesible (aria-label) | Foto siguiente | Next photo |
-| `spaceeyes.galeria.no-cargar-foto` | `components/demo/space-eyes/Galeria.tsx:667` | texto en pantalla | No se pudo cargar la foto. | Could not load the photo. |
-| `spaceeyes.galeria.rotar` | `components/demo/space-eyes/Galeria.tsx:688` | texto en pantalla | Rotar | Rotate |
+| `spaceeyes.whep.sin-direccion` | `lib/space-eyes-whep.ts:97` | mensaje de error | Space Eye no entregó la dirección de la transmisión | Space Eye did not provide the stream address |
+| `spaceeyes.whep.no-transmite` | `lib/space-eyes-whep.ts:105` | mensaje de error | El equipo no comenzó a transmitir. Puede estar sin señal o con la cámara ocupada. | The device did not start streaming. It may have no signal, or its camera may be busy. |
+| `spaceeyes.whep.no-conectar` | `lib/space-eyes-whep.ts:111` | mensaje de error | No se pudo conectar el video ({motivo}). | Could not connect the video ({motivo}). |
+| `spaceeyes.whep.perdida` | `lib/space-eyes-whep.ts:144` | texto de una función (lib o componente) | Se perdió la conexión de video con el servidor. | The video connection to the server was lost. |
+| `spaceeyes.comun.desde` | `components/demo/space-eyes/Galeria.tsx:306`<br>`components/demo/space-eyes/Graficas.tsx:408`<br>`components/demo/space-eyes/Programacion.tsx:695` | rótulo · texto en pantalla | Desde | From |
+| `spaceeyes.comun.hasta` | `components/demo/space-eyes/Galeria.tsx:316`<br>`components/demo/space-eyes/Graficas.tsx:417`<br>`components/demo/space-eyes/Programacion.tsx:707` | rótulo · texto en pantalla | Hasta | To |
+| `spaceeyes.comun.todos-equipos` | `components/demo/space-eyes/FallasFlota.tsx:203`<br>`components/demo/space-eyes/Galeria.tsx:337`<br>`components/demo/space-eyes/Programacion.tsx:138`<br>`components/demo/space-eyes/Programacion.tsx:593` | texto de una función (lib o componente) · texto en pantalla | Todos los equipos | All devices |
+| `spaceeyes.comun.equipo-n` | `components/demo/space-eyes/Galeria.tsx:340`<br>`components/demo/space-eyes/Galeria.tsx:522` | texto en pantalla | Equipo {id} | Device {id} |
+| `spaceeyes.comun.anterior` | `components/demo/space-eyes/Galeria.tsx:399`<br>`components/demo/space-eyes/Verificacion.tsx:282` | texto en pantalla | Anterior | Previous |
+| `spaceeyes.comun.siguiente` | `components/demo/space-eyes/Galeria.tsx:407`<br>`components/demo/space-eyes/Verificacion.tsx:291` | texto en pantalla | Siguiente | Next |
+| `spaceeyes.comun.pagina` | `components/demo/space-eyes/Galeria.tsx:404`<br>`components/demo/space-eyes/Verificacion.tsx:273` | texto en pantalla | Página {pagina} | Page {pagina} |
+| `spaceeyes.comun.pagina-de` | `components/demo/space-eyes/Galeria.tsx:403` | texto en pantalla | Página {pagina} de {paginas} | Page {pagina} of {paginas} |
+| `spaceeyes.comun.eliminar` | `components/demo/space-eyes/Galeria.tsx:432`<br>`components/demo/space-eyes/Galeria.tsx:698`<br>`components/demo/space-eyes/Programacion.tsx:490`<br>`components/demo/space-eyes/Programacion.tsx:543`<br>`components/demo/space-eyes/Programacion.tsx:560` | texto en pantalla | Eliminar | Delete |
+| `spaceeyes.comun.error-desconocido` | `components/demo/space-eyes/CampanasEyes.tsx:296`<br>`components/demo/space-eyes/Galeria.tsx:201`<br>`components/demo/space-eyes/Galeria.tsx:260`<br>`components/demo/space-eyes/Galeria.tsx:591` | aviso en pantalla · mensaje de error | error desconocido | unknown error |
+| `spaceeyes.galeria.origen.manual` | `components/demo/space-eyes/Galeria.tsx:81` | etiqueta de un valor (mapa de claves) | Manual | Manual |
+| `spaceeyes.galeria.origen.scheduled` | `components/demo/space-eyes/Galeria.tsx:82` | etiqueta de un valor (mapa de claves) | Programada | Scheduled |
+| `spaceeyes.galeria.origen.on-demand` | `components/demo/space-eyes/Galeria.tsx:83` | etiqueta de un valor (mapa de claves) | A petición | On demand |
+| `spaceeyes.galeria.origen.creative` | `components/demo/space-eyes/Galeria.tsx:84` | etiqueta de un valor (mapa de claves) | Creativo nuevo | New creative |
+| `spaceeyes.galeria.origen.falla` | `components/demo/space-eyes/Galeria.tsx:85` | etiqueta de un valor (mapa de claves) | Falla de pantalla | Screen fault |
+| `spaceeyes.galeria.origen.boot` | `components/demo/space-eyes/Galeria.tsx:86` | etiqueta de un valor (mapa de claves) | Al encender | At startup |
+| `spaceeyes.galeria.verif.pending` | `components/demo/space-eyes/Galeria.tsx:91` | etiqueta de un valor (mapa de claves) | Sin verificar | Not verified |
+| `spaceeyes.galeria.verif.queued` | `components/demo/space-eyes/Galeria.tsx:92` | etiqueta de un valor (mapa de claves) | En cola | Queued |
+| `spaceeyes.galeria.verif.running` | `components/demo/space-eyes/Galeria.tsx:93` | etiqueta de un valor (mapa de claves) | Verificando | Verifying |
+| `spaceeyes.galeria.verif.verified` | `components/demo/space-eyes/Galeria.tsx:94` | etiqueta de un valor (mapa de claves) | Verificada | Verified |
+| `spaceeyes.galeria.verif.failed` | `components/demo/space-eyes/Galeria.tsx:95` | etiqueta de un valor (mapa de claves) | Falló la verificación | Verification failed |
+| `spaceeyes.galeria.verif.skipped` | `components/demo/space-eyes/Galeria.tsx:96` | etiqueta de un valor (mapa de claves) | Omitida | Skipped |
+| `spaceeyes.galeria.verif.correcta` | `components/demo/space-eyes/Galeria.tsx:470` | texto en pantalla | Verificada · correcta | Verified · correct |
+| `spaceeyes.galeria.verif.no-coincide` | `components/demo/space-eyes/Galeria.tsx:470` | texto en pantalla | Verificada · no coincide | Verified · does not match |
+| `spaceeyes.galeria.error` | `components/demo/space-eyes/Galeria.tsx:168`<br>`components/demo/space-eyes/Galeria.tsx:359` | mensaje de error · texto en pantalla | No se pudieron consultar las fotos | Could not load the photos |
+| `spaceeyes.galeria.eliminada` | `components/demo/space-eyes/Galeria.tsx:199` | aviso en pantalla | Fotografía eliminada | Photo deleted |
+| `spaceeyes.galeria.no-eliminar` | `components/demo/space-eyes/Galeria.tsx:201` | aviso en pantalla | No se pudo eliminar la fotografía: {motivo} | Could not delete the photo: {motivo} |
+| `spaceeyes.galeria.preparando` | `components/demo/space-eyes/Galeria.tsx:209` | texto en pantalla | Preparando… | Preparing… |
+| `spaceeyes.galeria.album.vacio` | `components/demo/space-eyes/Galeria.tsx:220` | aviso en pantalla | Sin fotos para descargar | No photos to download |
+| `spaceeyes.galeria.album.ninguna` | `components/demo/space-eyes/Galeria.tsx:248` | aviso en pantalla | No se pudo descargar ninguna foto del álbum | Could not download any photo from the album |
+| `spaceeyes.galeria.album.parcial.uno` | `components/demo/space-eyes/Galeria.tsx:255` | texto en pantalla | Álbum descargado; {n} foto no se pudo incluir | Album downloaded; {n} photo could not be included |
+| `spaceeyes.galeria.album.parcial.otros` | `components/demo/space-eyes/Galeria.tsx:255` | texto en pantalla | Álbum descargado; {n} fotos no se pudo incluir | Album downloaded; {n} photos could not be included |
+| `spaceeyes.galeria.album.listo` | `components/demo/space-eyes/Galeria.tsx:256` | texto en pantalla | Álbum descargado | Album downloaded |
+| `spaceeyes.galeria.album.error` | `components/demo/space-eyes/Galeria.tsx:260` | aviso en pantalla | Error al descargar el álbum: {motivo} | Error downloading the album: {motivo} |
+| `spaceeyes.galeria.titulo` | `components/demo/space-eyes/Galeria.tsx:282` | rótulo | Galería de fotos | Photo gallery |
+| `spaceeyes.galeria.descripcion` | `components/demo/space-eyes/Galeria.tsx:283` | texto en pantalla | Todas las fotos de los equipos: programadas, pedidas a mano, de creativos nuevos y de fallas. | Every photo from the devices: scheduled, requested manually, of new creatives and of faults. |
+| `spaceeyes.galeria.album.ayuda` | `components/demo/space-eyes/Galeria.tsx:295` | título / tooltip | Descarga en un .zip todas las fotos que coinciden con los filtros, con su marca | Downloads every photo that matches the filters as a .zip, with its label |
+| `spaceeyes.galeria.descargando` | `components/demo/space-eyes/Galeria.tsx:298` | texto en pantalla | Descargando {progreso} | Downloading {progreso} |
+| `spaceeyes.galeria.album` | `components/demo/space-eyes/Galeria.tsx:298` | texto en pantalla | Descargar álbum | Download album |
+| `spaceeyes.galeria.origen` | `components/demo/space-eyes/Galeria.tsx:326` | texto en pantalla | Origen | Source |
+| `spaceeyes.galeria.origenes` | `components/demo/space-eyes/Galeria.tsx:328` | texto en pantalla | Todos los orígenes | All sources |
+| `spaceeyes.galeria.quitar-filtros` | `components/demo/space-eyes/Galeria.tsx:350` | texto en pantalla | Quitar filtros | Clear filters |
+| `spaceeyes.galeria.vacio.filtros` | `components/demo/space-eyes/Galeria.tsx:373` | texto en pantalla | Sin fotos para los filtros seleccionados. | No photos for the selected filters. |
+| `spaceeyes.galeria.vacio` | `components/demo/space-eyes/Galeria.tsx:373` | texto en pantalla | Todavía no hay fotos de ningún equipo. | No photos from any device yet. |
+| `spaceeyes.galeria.total.uno` | `components/demo/space-eyes/Galeria.tsx:392` | texto en pantalla | {n} fotos | {n} photo |
+| `spaceeyes.galeria.total.otros` | `components/demo/space-eyes/Galeria.tsx:392` | texto en pantalla | {n} fotos | {n} photos |
+| `spaceeyes.galeria.filtradas` | `components/demo/space-eyes/Galeria.tsx:395` | texto en pantalla | Fotos filtradas | Filtered photos |
+| `spaceeyes.galeria.eliminar` | `components/demo/space-eyes/Galeria.tsx:431`<br>`components/demo/space-eyes/Galeria.tsx:514`<br>`components/demo/space-eyes/Galeria.tsx:515` | etiqueta accesible (aria-label) · título / tooltip | Eliminar fotografía | Delete photo |
+| `spaceeyes.galeria.eliminar.pregunta` | `components/demo/space-eyes/Galeria.tsx:439` | texto en pantalla | ¿Eliminar esta fotografía? | Delete this photo? |
+| `spaceeyes.galeria.eliminar.pregunta.de` | `components/demo/space-eyes/Galeria.tsx:438` | texto en pantalla | ¿Eliminar esta fotografía de {nombre}? | Delete this photo from {nombre}? |
+| `spaceeyes.galeria.eliminar.texto` | `components/demo/space-eyes/Galeria.tsx:441` | texto en pantalla | No se puede deshacer. | This cannot be undone. |
+| `spaceeyes.galeria.equipo` | `components/demo/space-eyes/Galeria.tsx:489`<br>`components/demo/space-eyes/Galeria.tsx:494`<br>`components/demo/space-eyes/Galeria.tsx:621`<br>`components/demo/space-eyes/Galeria.tsx:664`<br>`components/demo/space-eyes/Verificacion.tsx:157`<br>`components/demo/space-eyes/Verificacion.tsx:230` | etiqueta accesible (aria-label) · texto alternativo de imagen · texto en pantalla | equipo | device |
+| `spaceeyes.galeria.ver-grande` | `components/demo/space-eyes/Galeria.tsx:489` | etiqueta accesible (aria-label) | Ver foto de {nombre} en grande | View photo from {nombre} larger |
+| `spaceeyes.galeria.alt` | `components/demo/space-eyes/Galeria.tsx:494` | texto alternativo de imagen | Foto {id} de {nombre} | Photo {id} from {nombre} |
+| `spaceeyes.galeria.no-cargar` | `components/demo/space-eyes/Galeria.tsx:502` | texto en pantalla | No se pudo cargar | Could not load |
+| `spaceeyes.galeria.sin-archivo` | `components/demo/space-eyes/Galeria.tsx:586` | mensaje de error | La foto no tiene archivo | The photo has no file |
+| `spaceeyes.galeria.descargando-foto` | `components/demo/space-eyes/Galeria.tsx:589` | aviso en pantalla | Descargando foto… | Downloading photo… |
+| `spaceeyes.galeria.no-descargar` | `components/demo/space-eyes/Galeria.tsx:591` | aviso en pantalla | No se pudo descargar la foto: {motivo} | Could not download the photo: {motivo} |
+| `spaceeyes.galeria.foto-de` | `components/demo/space-eyes/Galeria.tsx:621`<br>`components/demo/space-eyes/Galeria.tsx:664`<br>`components/demo/space-eyes/Verificacion.tsx:157`<br>`components/demo/space-eyes/Verificacion.tsx:230` | texto alternativo de imagen · texto en pantalla | Foto de {nombre} | Photo from {nombre} |
+| `spaceeyes.galeria.anterior` | `components/demo/space-eyes/Galeria.tsx:643` | etiqueta accesible (aria-label) | Foto anterior | Previous photo |
+| `spaceeyes.galeria.siguiente` | `components/demo/space-eyes/Galeria.tsx:653` | etiqueta accesible (aria-label) | Foto siguiente | Next photo |
+| `spaceeyes.galeria.no-cargar-foto` | `components/demo/space-eyes/Galeria.tsx:670` | texto en pantalla | No se pudo cargar la foto. | Could not load the photo. |
+| `spaceeyes.galeria.rotar` | `components/demo/space-eyes/Galeria.tsx:691` | texto en pantalla | Rotar | Rotate |
 | `spaceeyes.comun.confianza` | `components/demo/space-eyes/FallasFlota.tsx:297`<br>`components/demo/space-eyes/Verificacion.tsx:204` | rótulo · texto en pantalla | Confianza | Confidence |
-| `spaceeyes.comun.opcional` | `components/demo/space-eyes/FallasFlota.tsx:519`<br>`components/demo/space-eyes/Programacion.tsx:692`<br>`components/demo/space-eyes/Programacion.tsx:704` | texto en pantalla | (opcional) | (optional) |
+| `spaceeyes.comun.opcional` | `components/demo/space-eyes/FallasFlota.tsx:519`<br>`components/demo/space-eyes/Programacion.tsx:695`<br>`components/demo/space-eyes/Programacion.tsx:707` | texto en pantalla | (opcional) | (optional) |
 | `spaceeyes.fallas.filtro.todas` | `components/demo/space-eyes/FallasFlota.tsx:69` | texto en pantalla | Todas | All |
 | `spaceeyes.fallas.abiertas` | `components/demo/space-eyes/FallasFlota.tsx:70`<br>`components/demo/space-eyes/FallasFlota.tsx:248` | rótulo · texto en pantalla | Abiertas | Open |
 | `spaceeyes.fallas.recuperadas` | `components/demo/space-eyes/FallasFlota.tsx:71`<br>`components/demo/space-eyes/FallasFlota.tsx:249` | rótulo · texto en pantalla | Recuperadas | Cleared |
 | `spaceeyes.fallas.descartadas` | `components/demo/space-eyes/FallasFlota.tsx:72`<br>`components/demo/space-eyes/FallasFlota.tsx:250` | rótulo · texto en pantalla | No eran falla | Not faults |
 | `spaceeyes.fallas.donde.gabinete` | `components/demo/space-eyes/FallasFlota.tsx:79` | texto en pantalla | Gabinete {n} (fila {fila}, columna {columna}) | Cabinet {n} (row {fila}, column {columna}) |
-| `spaceeyes.fallas.donde.gabinetes` | `components/demo/space-eyes/FallasFlota.tsx:84` | texto en pantalla | Gabinetes {lista} | Cabinets {lista} |
-| `spaceeyes.fallas.donde.de` | `components/demo/space-eyes/FallasFlota.tsx:85` | texto en pantalla | ␣({n} de {total}) | ␣({n} of {total}) |
-| `spaceeyes.fallas.donde.camara` | `components/demo/space-eyes/FallasFlota.tsx:88` | texto en pantalla | Cámara (hay que volver a marcar la pantalla) | Camera (the screen has to be marked again) |
-| `spaceeyes.fallas.donde.sin-imagen` | `components/demo/space-eyes/FallasFlota.tsx:89` | texto en pantalla | Lente tapada, o pantalla apagada de noche | Lens covered, or screen off at night |
-| `spaceeyes.fallas.donde.toda` | `components/demo/space-eyes/FallasFlota.tsx:90` | texto en pantalla | Toda la pantalla | The whole screen |
-| `spaceeyes.fallas.no-consultar` | `components/demo/space-eyes/FallasFlota.tsx:133` | mensaje de error | No se pudo consultar Space Eye | Could not reach Space Eye |
-| `spaceeyes.fallas.descartada` | `components/demo/space-eyes/FallasFlota.tsx:165` | aviso en pantalla | Falla descartada. | Fault dismissed. |
-| `spaceeyes.fallas.arreglada` | `components/demo/space-eyes/FallasFlota.tsx:165` | aviso en pantalla | Falla marcada como arreglada. | Fault marked as fixed. |
-| `spaceeyes.fallas.sin-permiso` | `components/demo/space-eyes/FallasFlota.tsx:170` | texto en pantalla | No tienes permiso para cerrar fallas. | You do not have permission to close faults. |
-| `spaceeyes.fallas.ya-cerrada` | `components/demo/space-eyes/FallasFlota.tsx:172` | texto en pantalla | Esta falla ya no está abierta. | This fault is no longer open. |
+| `spaceeyes.fallas.donde.gabinetes.uno` | `components/demo/space-eyes/FallasFlota.tsx:84` | texto en pantalla | Gabinetes {lista} | Cabinet {lista} |
+| `spaceeyes.fallas.donde.gabinetes.otros` | `components/demo/space-eyes/FallasFlota.tsx:84` | texto en pantalla | Gabinetes {lista} | Cabinets {lista} |
+| `spaceeyes.fallas.donde.de` | `components/demo/space-eyes/FallasFlota.tsx:87` | texto en pantalla | ␣({n} de {total}) | ␣({n} of {total}) |
+| `spaceeyes.fallas.donde.camara` | `components/demo/space-eyes/FallasFlota.tsx:90` | texto en pantalla | Cámara (hay que volver a marcar la pantalla) | Camera (the screen has to be marked again) |
+| `spaceeyes.fallas.donde.sin-imagen` | `components/demo/space-eyes/FallasFlota.tsx:91` | texto en pantalla | Lente tapada, o pantalla apagada de noche | Lens covered, or screen off at night |
+| `spaceeyes.fallas.donde.toda` | `components/demo/space-eyes/FallasFlota.tsx:92` | texto en pantalla | Toda la pantalla | The whole screen |
+| `spaceeyes.fallas.no-consultar` | `components/demo/space-eyes/FallasFlota.tsx:135` | mensaje de error | No se pudo consultar Space Eye | Could not reach Space Eye |
+| `spaceeyes.fallas.descartada` | `components/demo/space-eyes/FallasFlota.tsx:167` | aviso en pantalla | Falla descartada. | Fault dismissed. |
+| `spaceeyes.fallas.arreglada` | `components/demo/space-eyes/FallasFlota.tsx:167` | aviso en pantalla | Falla marcada como arreglada. | Fault marked as fixed. |
+| `spaceeyes.fallas.sin-permiso` | `components/demo/space-eyes/FallasFlota.tsx:172` | texto en pantalla | No tienes permiso para cerrar fallas. | You do not have permission to close faults. |
+| `spaceeyes.fallas.ya-cerrada` | `components/demo/space-eyes/FallasFlota.tsx:174` | texto en pantalla | Esta falla ya no está abierta. | This fault is no longer open. |
 | `spaceeyes.fallas.no-cerrar` | `components/demo/space-eyes/FallasFlota.tsx:177` | aviso en pantalla | No se pudo cerrar: {motivo} | Could not close it: {motivo} |
 | `spaceeyes.fallas.titulo` | `components/demo/space-eyes/FallasFlota.tsx:190` | rótulo | Fallas de pantalla | Screen faults |
 | `spaceeyes.fallas.descripcion` | `components/demo/space-eyes/FallasFlota.tsx:191` | texto en pantalla | Lo que cada equipo detectó por sí mismo al revisar su pantalla. Se actualiza cada minuto. | What each device detected on its own while checking its screen. Refreshes every minute. |
@@ -694,11 +701,11 @@ los usos en el código (búsqueda literal de la clave). **984 claves**
 | `spaceeyes.fallas.cierre.ej-descartar` | `components/demo/space-eyes/FallasFlota.tsx:531` | texto de ejemplo (placeholder) | Por ejemplo: es un reflejo del sol | For example: it is a sun reflection |
 | `spaceeyes.fallas.cierre.ej-arreglada` | `components/demo/space-eyes/FallasFlota.tsx:531` | texto de ejemplo (placeholder) | Por ejemplo: se cambió la fuente | For example: the power supply was replaced |
 | `spaceeyes.comun.dato-invalido` | `components/demo/space-eyes/CampanasEyes.tsx:94`<br>`components/demo/space-eyes/Programacion.tsx:119` | etiqueta de un valor (mapa de claves) | Hay un dato inválido en el formulario | There is an invalid value in the form |
-| `spaceeyes.comun.guardar-cambios` | `components/demo/space-eyes/CampanasEyes.tsx:516`<br>`components/demo/space-eyes/Programacion.tsx:611` | texto en pantalla | Guardar cambios | Save changes |
+| `spaceeyes.comun.guardar-cambios` | `components/demo/space-eyes/CampanasEyes.tsx:516`<br>`components/demo/space-eyes/Programacion.tsx:610` | texto en pantalla | Guardar cambios | Save changes |
 | `spaceeyes.comun.activa` | `components/demo/space-eyes/CampanasEyes.tsx:615`<br>`components/demo/space-eyes/Programacion.tsx:205` | texto de una función (lib o componente) · texto en pantalla | Activa | Active |
 | `spaceeyes.comun.equipos` | `components/demo/space-eyes/AltaDispositivo.tsx:530`<br>`components/demo/space-eyes/CampanasEyes.tsx:624` | rótulo · texto en pantalla | Equipos | Devices |
-| `spaceeyes.comun.periodo` | `components/demo/space-eyes/CampanasEyes.tsx:626`<br>`components/demo/space-eyes/Graficas.tsx:393`<br>`components/demo/space-eyes/Graficas.tsx:518` | rótulo · texto en pantalla | Periodo | Period |
-| `spaceeyes.comun.editar` | `components/demo/space-eyes/CampanasEyes.tsx:646`<br>`components/demo/space-eyes/Programacion.tsx:485`<br>`components/demo/space-eyes/Programacion.tsx:538` | texto en pantalla | Editar | Edit |
+| `spaceeyes.comun.periodo` | `components/demo/space-eyes/CampanasEyes.tsx:626`<br>`components/demo/space-eyes/Graficas.tsx:392`<br>`components/demo/space-eyes/Graficas.tsx:517` | rótulo · texto en pantalla | Periodo | Period |
+| `spaceeyes.comun.editar` | `components/demo/space-eyes/CampanasEyes.tsx:646`<br>`components/demo/space-eyes/Programacion.tsx:484`<br>`components/demo/space-eyes/Programacion.tsx:537` | texto en pantalla | Editar | Edit |
 | `spaceeyes.campanas.error.sin-archivo` | `components/demo/space-eyes/CampanasEyes.tsx:92` | texto en pantalla | No se recibió la imagen | The image was not received |
 | `spaceeyes.campanas.error.not-found` | `components/demo/space-eyes/CampanasEyes.tsx:93` | texto en pantalla | La campaña ya no existe | The campaign no longer exists |
 | `spaceeyes.campanas.error.forbidden` | `components/demo/space-eyes/CampanasEyes.tsx:95` | etiqueta de un valor (mapa de claves) | No tienes permiso para esto | You do not have permission for this |
@@ -750,10 +757,10 @@ los usos en el código (búsqueda literal de la clave). **984 claves**
 | `spaceeyes.campanas.operaciones.ayuda` | `components/demo/space-eyes/CampanasEyes.tsx:640` | título / tooltip | Llegó de Operaciones: se cambia allá (creativo, pantallas y fechas de sus reservas) y aquí se actualiza solo. | It came from Operations: change it there (creative, screens and booking dates) and it updates here on its own. |
 | `spaceeyes.campanas.operaciones` | `components/demo/space-eyes/CampanasEyes.tsx:642` | texto en pantalla | Se cambia en Operaciones | Changed in Operations |
 | `spaceeyes.prog.error.franjas` | `components/demo/space-eyes/Programacion.tsx:115` | texto en pantalla | Revisa las franjas: alguna tiene una hora inválida | Check the dayparts: one has an invalid time |
-| `spaceeyes.prog.error.horas` | `components/demo/space-eyes/Programacion.tsx:116`<br>`components/demo/space-eyes/Programacion.tsx:341` | aviso emergente (toast) · texto en pantalla | Agrega al menos una hora | Add at least one time |
+| `spaceeyes.prog.error.horas` | `components/demo/space-eyes/Programacion.tsx:116`<br>`components/demo/space-eyes/Programacion.tsx:340` | aviso emergente (toast) · texto en pantalla | Agrega al menos una hora | Add at least one time |
 | `spaceeyes.prog.error.intervalo` | `components/demo/space-eyes/Programacion.tsx:117` | texto en pantalla | Falta el intervalo en minutos | The interval in minutes is missing |
 | `spaceeyes.prog.error.cron` | `components/demo/space-eyes/Programacion.tsx:118` | texto en pantalla | Falta la expresión de programación | The schedule expression is missing |
-| `spaceeyes.prog.error.cargar` | `components/demo/space-eyes/Programacion.tsx:285`<br>`components/demo/space-eyes/Programacion.tsx:443` | mensaje de error · texto en pantalla | No se pudieron cargar las programaciones | Could not load the schedules |
+| `spaceeyes.prog.error.cargar` | `components/demo/space-eyes/Programacion.tsx:284`<br>`components/demo/space-eyes/Programacion.tsx:442` | mensaje de error · texto en pantalla | No se pudieron cargar las programaciones | Could not load the schedules |
 | `spaceeyes.prog.destino.campana` | `components/demo/space-eyes/Programacion.tsx:136` | texto de una función (lib o componente) | Campaña: {nombre} | Campaign: {nombre} |
 | `spaceeyes.prog.destino.grupo` | `components/demo/space-eyes/Programacion.tsx:137` | texto de una función (lib o componente) | Grupo: {nombre} | Group: {nombre} |
 | `spaceeyes.prog.sin-franjas` | `components/demo/space-eyes/Programacion.tsx:144` | texto de una función (lib o componente) | Sin franjas | No dayparts |
@@ -765,80 +772,81 @@ los usos en el código (búsqueda literal de la clave). **984 claves**
 | `spaceeyes.prog.proxima.espera` | `components/demo/space-eyes/Programacion.tsx:214` | texto de una función (lib o componente) | No dispara hasta el {fecha} | Does not fire until {fecha} |
 | `spaceeyes.prog.proxima.vencida` | `components/demo/space-eyes/Programacion.tsx:215` | texto de una función (lib o componente) | No dispara: vencida | Does not fire: expired |
 | `spaceeyes.prog.proxima.sin-calcular` | `components/demo/space-eyes/Programacion.tsx:216` | texto de una función (lib o componente) | Sin calcular | Not calculated |
-| `spaceeyes.prog.proxima.cola` | `components/demo/space-eyes/Programacion.tsx:226` | texto de una función (lib o componente) | {fecha} (en cola) | {fecha} (queued) |
-| `spaceeyes.prog.proxima.min` | `components/demo/space-eyes/Programacion.tsx:228` | texto de una función (lib o componente) | {fecha} (en {n} min) | {fecha} (in {n} min) |
-| `spaceeyes.prog.proxima.h` | `components/demo/space-eyes/Programacion.tsx:229` | texto de una función (lib o componente) | {fecha} (en {n} h) | {fecha} (in {n} h) |
-| `spaceeyes.prog.sin-fotos` | `components/demo/space-eyes/Programacion.tsx:246` | texto de una función (lib o componente) | sin fotos | no photos |
-| `spaceeyes.prog.fotos-dia.uno` | `components/demo/space-eyes/Programacion.tsx:248` | texto de una función (lib o componente) | {n} foto al día | {n} photo a day |
-| `spaceeyes.prog.fotos-dia.otros` | `components/demo/space-eyes/Programacion.tsx:248` | texto de una función (lib o componente) | {n} fotos al día | {n} photos a day |
-| `spaceeyes.prog.gb-mes` | `components/demo/space-eyes/Programacion.tsx:255` | texto de una función (lib o componente) | {n} GB al mes | {n} GB a month |
-| `spaceeyes.prog.mb-mes` | `components/demo/space-eyes/Programacion.tsx:256` | texto de una función (lib o componente) | {n} MB al mes | {n} MB a month |
-| `spaceeyes.prog.toast.nombre` | `components/demo/space-eyes/Programacion.tsx:331` | aviso emergente (toast) | Ponle un nombre a la programación | Give the schedule a name |
-| `spaceeyes.prog.toast.equipo` | `components/demo/space-eyes/Programacion.tsx:332` | aviso emergente (toast) | Elige el equipo | Choose the device |
-| `spaceeyes.prog.toast.campana` | `components/demo/space-eyes/Programacion.tsx:333` | aviso emergente (toast) | Elige la campaña | Choose the campaign |
-| `spaceeyes.prog.toast.franja` | `components/demo/space-eyes/Programacion.tsx:335` | aviso emergente (toast) | Agrega al menos una franja de horario | Add at least one daypart |
-| `spaceeyes.prog.toast.franja-mal` | `components/demo/space-eyes/Programacion.tsx:337` | aviso emergente (toast) | Hay una franja sin horas o con la misma hora de inicio y fin | A daypart has no times or the same start and end time |
-| `spaceeyes.prog.toast.intervalo` | `components/demo/space-eyes/Programacion.tsx:344` | aviso emergente (toast) | El intervalo mínimo es de 5 minutos | The minimum interval is 5 minutes |
-| `spaceeyes.prog.toast.actualizada` | `components/demo/space-eyes/Programacion.tsx:364` | aviso emergente (toast) | Programación actualizada | Schedule updated |
-| `spaceeyes.prog.toast.creada` | `components/demo/space-eyes/Programacion.tsx:367` | aviso emergente (toast) | Programación creada | Schedule created |
-| `spaceeyes.prog.toast.no-guardar` | `components/demo/space-eyes/Programacion.tsx:372` | aviso emergente (toast) | No se pudo guardar la programación | Could not save the schedule |
-| `spaceeyes.prog.toast.pausada` | `components/demo/space-eyes/Programacion.tsx:381` | aviso emergente (toast) | Programación pausada | Schedule paused |
-| `spaceeyes.prog.toast.activada` | `components/demo/space-eyes/Programacion.tsx:381` | aviso emergente (toast) | Programación activada | Schedule activated |
-| `spaceeyes.prog.toast.no-estado` | `components/demo/space-eyes/Programacion.tsx:384` | aviso emergente (toast) | No se pudo cambiar el estado | Could not change the status |
-| `spaceeyes.prog.toast.eliminada` | `components/demo/space-eyes/Programacion.tsx:393` | aviso emergente (toast) | Programación eliminada | Schedule deleted |
-| `spaceeyes.prog.toast.no-eliminar` | `components/demo/space-eyes/Programacion.tsx:397` | aviso emergente (toast) | No se pudo eliminar | Could not delete |
-| `spaceeyes.prog.titulo` | `components/demo/space-eyes/Programacion.tsx:412` | rótulo | Programación de fotos | Photo scheduling |
-| `spaceeyes.prog.descripcion` | `components/demo/space-eyes/Programacion.tsx:413` | texto en pantalla | Las fotos se toman solas, a una hora impredecible dentro de las franjas que definas. | Photos are taken automatically, at an unpredictable time within the dayparts you define. |
-| `spaceeyes.prog.nueva` | `components/demo/space-eyes/Programacion.tsx:422`<br>`components/demo/space-eyes/Programacion.tsx:601` | texto en pantalla · título / tooltip | Nueva programación | New schedule |
-| `spaceeyes.prog.editar` | `components/demo/space-eyes/Programacion.tsx:601` | título / tooltip | Editar programación | Edit schedule |
-| `spaceeyes.prog.crear` | `components/demo/space-eyes/Programacion.tsx:612` | texto en pantalla | Crear programación | Create schedule |
-| `spaceeyes.prog.vacio` | `components/demo/space-eyes/Programacion.tsx:451` | texto en pantalla | Todavía no hay ninguna programación. | There are no schedules yet. |
-| `spaceeyes.prog.vacio.texto` | `components/demo/space-eyes/Programacion.tsx:452` | texto en pantalla | Hoy las fotos solo se toman cuando alguien las pide a mano. | Right now photos are only taken when someone requests them by hand. |
-| `spaceeyes.prog.linea.uno` | `components/demo/space-eyes/Programacion.tsx:473` | texto en pantalla | Próxima: {proxima} · {n} fotos {semana} | Next: {proxima} · {n} photo {semana} |
-| `spaceeyes.prog.linea.otros` | `components/demo/space-eyes/Programacion.tsx:473` | texto en pantalla | Próxima: {proxima} · {n} fotos {semana} | Next: {proxima} · {n} photos {semana} |
-| `spaceeyes.prog.semana` | `components/demo/space-eyes/Programacion.tsx:478`<br>`components/demo/space-eyes/Programacion.tsx:527` | texto en pantalla | ({n} esta semana) | ({n} this week) |
-| `spaceeyes.prog.pausar` | `components/demo/space-eyes/Programacion.tsx:488`<br>`components/demo/space-eyes/Programacion.tsx:541` | texto en pantalla | Pausar | Pause |
-| `spaceeyes.prog.activar` | `components/demo/space-eyes/Programacion.tsx:488`<br>`components/demo/space-eyes/Programacion.tsx:541` | texto en pantalla | Activar | Activate |
-| `spaceeyes.prog.aplica-a` | `components/demo/space-eyes/Programacion.tsx:503` | texto en pantalla | Aplica a | Applies to |
-| `spaceeyes.prog.cuando` | `components/demo/space-eyes/Programacion.tsx:504`<br>`components/demo/space-eyes/Programacion.tsx:721` | texto en pantalla | Cuándo | When |
-| `spaceeyes.prog.proxima-foto` | `components/demo/space-eyes/Programacion.tsx:505` | texto en pantalla | Próxima foto | Next photo |
-| `spaceeyes.prog.acciones` | `components/demo/space-eyes/Programacion.tsx:508` | texto en pantalla | Acciones | Actions |
-| `spaceeyes.prog.eliminar` | `components/demo/space-eyes/Programacion.tsx:560` | título / tooltip | Eliminar programación | Delete schedule |
-| `spaceeyes.prog.eliminar.palabra` | `components/demo/space-eyes/Programacion.tsx:563` | texto en pantalla | ELIMINAR | DELETE |
-| `spaceeyes.prog.eliminar.pregunta` | `components/demo/space-eyes/Programacion.tsx:566` | texto en pantalla | Se eliminará «{nombre}». | “{nombre}” will be deleted. |
-| `spaceeyes.prog.eliminar.texto` | `components/demo/space-eyes/Programacion.tsx:567` | texto en pantalla | Las fotos que ya se tomaron se conservan; lo que se pierde es la programación futura. | Photos already taken are kept; what is lost is the future schedule. |
-| `spaceeyes.prog.destino.un-equipo` | `components/demo/space-eyes/Programacion.tsx:595` | texto en pantalla | Un equipo | One device |
-| `spaceeyes.prog.destino.una-campana` | `components/demo/space-eyes/Programacion.tsx:596` | texto en pantalla | Una campaña | One campaign |
-| `spaceeyes.prog.nombre-ej` | `components/demo/space-eyes/Programacion.tsx:628` | texto de ejemplo (placeholder) | Ej. Evidencia diaria de la ruta norte | E.g. Daily evidence for the north route |
-| `spaceeyes.prog.aplicar-a` | `components/demo/space-eyes/Programacion.tsx:634` | texto en pantalla | Aplicar a | Apply to |
-| `spaceeyes.prog.todos.texto` | `components/demo/space-eyes/Programacion.tsx:652` | texto en pantalla | Aplica a los {n} equipos de la flota, incluyendo los que se den de alta después. | Applies to the {n} devices in the fleet, including any registered later. |
-| `spaceeyes.prog.elegir-equipo` | `components/demo/space-eyes/Programacion.tsx:661` | texto en pantalla | — Elegir equipo — | — Choose device — |
-| `spaceeyes.prog.campana` | `components/demo/space-eyes/Programacion.tsx:671` | etiqueta accesible (aria-label) | Campaña | Campaign |
-| `spaceeyes.prog.elegir-campana` | `components/demo/space-eyes/Programacion.tsx:676` | texto en pantalla | — Elegir campaña — | — Choose campaign — |
-| `spaceeyes.prog.campana-equipos.uno` | `components/demo/space-eyes/Programacion.tsx:679` | texto en pantalla | {nombre} · {n} equipos | {nombre} · {n} device |
-| `spaceeyes.prog.campana-equipos.otros` | `components/demo/space-eyes/Programacion.tsx:679` | texto en pantalla | {nombre} · {n} equipos | {nombre} · {n} devices |
-| `spaceeyes.prog.tipo.franjas` | `components/demo/space-eyes/Programacion.tsx:729` | texto en pantalla | Hora al azar dentro de franjas (recomendado) | Random time within dayparts (recommended) |
-| `spaceeyes.prog.tipo.horas` | `components/demo/space-eyes/Programacion.tsx:730` | texto en pantalla | Horas exactas | Exact times |
-| `spaceeyes.prog.tipo.intervalo` | `components/demo/space-eyes/Programacion.tsx:731` | texto en pantalla | Cada cierto tiempo | At a fixed interval |
-| `spaceeyes.prog.tipo.cron` | `components/demo/space-eyes/Programacion.tsx:732` | texto en pantalla | Expresión cron (no editable aquí) | Cron expression (not editable here) |
-| `spaceeyes.prog.franjas.texto` | `components/demo/space-eyes/Programacion.tsx:739` | texto en pantalla | Una foto por franja, en un minuto sorteado cada día. La hora no se repite, así que la evidencia no se puede acomodar de antemano. | One photo per daypart, at a minute drawn at random each day. The time never repeats, so the evidence cannot be staged in advance. |
-| `spaceeyes.prog.franja` | `components/demo/space-eyes/Programacion.tsx:743` | texto en pantalla | Franja {n} | Daypart {n} |
-| `spaceeyes.prog.franja.inicio` | `components/demo/space-eyes/Programacion.tsx:746` | etiqueta accesible (aria-label) | Inicio de la franja {n} | Start of daypart {n} |
-| `spaceeyes.prog.franja.fin` | `components/demo/space-eyes/Programacion.tsx:756` | etiqueta accesible (aria-label) | Fin de la franja {n} | End of daypart {n} |
-| `spaceeyes.prog.franja.quitar` | `components/demo/space-eyes/Programacion.tsx:766` | etiqueta accesible (aria-label) | Quitar la franja {n} | Remove daypart {n} |
-| `spaceeyes.prog.quitar` | `components/demo/space-eyes/Programacion.tsx:767`<br>`components/demo/space-eyes/Programacion.tsx:827` | título / tooltip | Quitar | Remove |
-| `spaceeyes.prog.franja.agregar` | `components/demo/space-eyes/Programacion.tsx:781` | texto en pantalla | Agregar franja | Add daypart |
-| `spaceeyes.prog.rapido` | `components/demo/space-eyes/Programacion.tsx:784` | texto en pantalla | Rápido: | Quick: |
-| `spaceeyes.prog.rapido.tres` | `components/demo/space-eyes/Programacion.tsx:798` | texto en pantalla | Mañana, tarde y noche | Morning, afternoon and evening |
-| `spaceeyes.prog.rapido.una` | `components/demo/space-eyes/Programacion.tsx:801` | texto en pantalla | Una al día | Once a day |
-| `spaceeyes.prog.horas.texto` | `components/demo/space-eyes/Programacion.tsx:810` | texto en pantalla | Siempre al mismo minuto. Sirve para un reporte fijo, pero como evidencia es débil: una hora predecible se puede preparar. | Always at the same minute. Useful for a fixed report, but weak as evidence: a predictable time can be prepared for. |
-| `spaceeyes.prog.hora` | `components/demo/space-eyes/Programacion.tsx:816` | etiqueta accesible (aria-label) | Hora {n} | Time {n} |
-| `spaceeyes.prog.hora.quitar` | `components/demo/space-eyes/Programacion.tsx:826` | etiqueta accesible (aria-label) | Quitar la hora {n} | Remove time {n} |
-| `spaceeyes.prog.hora.agregar` | `components/demo/space-eyes/Programacion.tsx:837` | texto en pantalla | Agregar hora | Add time |
-| `spaceeyes.prog.intervalo` | `components/demo/space-eyes/Programacion.tsx:846` | texto en pantalla | Cada cuántos minutos | Interval in minutes |
-| `spaceeyes.prog.intervalo.ojo` | `components/demo/space-eyes/Programacion.tsx:858` | texto en pantalla | Ojo con los datos móviles: a este ritmo son {fotos}. | Watch the mobile data: at this rate that is {fotos}. |
-| `spaceeyes.prog.consumo` | `components/demo/space-eyes/Programacion.tsx:865` | texto en pantalla | Consumo estimado por equipo | Estimated usage per device |
-| `spaceeyes.prog.consumo.texto` | `components/demo/space-eyes/Programacion.tsx:871` | texto en pantalla | A 1.5 MB por foto, que es lo que pesan hoy. Cada equipo gasta ~20 MB al mes sin fotos programadas. | At 1.5 MB per photo, which is what they weigh today. Each device uses ~20 MB a month without scheduled photos. |
+| `spaceeyes.prog.proxima.cola` | `components/demo/space-eyes/Programacion.tsx:225` | texto de una función (lib o componente) | {fecha} (en cola) | {fecha} (queued) |
+| `spaceeyes.prog.proxima.min` | `components/demo/space-eyes/Programacion.tsx:227` | texto de una función (lib o componente) | {fecha} (en {n} min) | {fecha} (in {n} min) |
+| `spaceeyes.prog.proxima.h` | `components/demo/space-eyes/Programacion.tsx:228` | texto de una función (lib o componente) | {fecha} (en {n} h) | {fecha} (in {n} h) |
+| `spaceeyes.prog.sin-fotos` | `components/demo/space-eyes/Programacion.tsx:245` | texto de una función (lib o componente) | sin fotos | no photos |
+| `spaceeyes.prog.fotos-dia.uno` | `components/demo/space-eyes/Programacion.tsx:247` | texto de una función (lib o componente) | {n} foto al día | {n} photo a day |
+| `spaceeyes.prog.fotos-dia.otros` | `components/demo/space-eyes/Programacion.tsx:247` | texto de una función (lib o componente) | {n} fotos al día | {n} photos a day |
+| `spaceeyes.prog.gb-mes` | `components/demo/space-eyes/Programacion.tsx:254` | texto de una función (lib o componente) | {n} GB al mes | {n} GB a month |
+| `spaceeyes.prog.mb-mes` | `components/demo/space-eyes/Programacion.tsx:255` | texto de una función (lib o componente) | {n} MB al mes | {n} MB a month |
+| `spaceeyes.prog.toast.nombre` | `components/demo/space-eyes/Programacion.tsx:330` | aviso emergente (toast) | Ponle un nombre a la programación | Give the schedule a name |
+| `spaceeyes.prog.toast.equipo` | `components/demo/space-eyes/Programacion.tsx:331` | aviso emergente (toast) | Elige el equipo | Choose the device |
+| `spaceeyes.prog.toast.campana` | `components/demo/space-eyes/Programacion.tsx:332` | aviso emergente (toast) | Elige la campaña | Choose the campaign |
+| `spaceeyes.prog.toast.franja` | `components/demo/space-eyes/Programacion.tsx:334` | aviso emergente (toast) | Agrega al menos una franja de horario | Add at least one daypart |
+| `spaceeyes.prog.toast.franja-mal` | `components/demo/space-eyes/Programacion.tsx:336` | aviso emergente (toast) | Hay una franja sin horas o con la misma hora de inicio y fin | A daypart has no times or the same start and end time |
+| `spaceeyes.prog.toast.intervalo` | `components/demo/space-eyes/Programacion.tsx:343` | aviso emergente (toast) | El intervalo mínimo es de 5 minutos | The minimum interval is 5 minutes |
+| `spaceeyes.prog.toast.actualizada` | `components/demo/space-eyes/Programacion.tsx:363` | aviso emergente (toast) | Programación actualizada | Schedule updated |
+| `spaceeyes.prog.toast.creada` | `components/demo/space-eyes/Programacion.tsx:366` | aviso emergente (toast) | Programación creada | Schedule created |
+| `spaceeyes.prog.toast.no-guardar` | `components/demo/space-eyes/Programacion.tsx:371` | aviso emergente (toast) | No se pudo guardar la programación | Could not save the schedule |
+| `spaceeyes.prog.toast.pausada` | `components/demo/space-eyes/Programacion.tsx:380` | aviso emergente (toast) | Programación pausada | Schedule paused |
+| `spaceeyes.prog.toast.activada` | `components/demo/space-eyes/Programacion.tsx:380` | aviso emergente (toast) | Programación activada | Schedule activated |
+| `spaceeyes.prog.toast.no-estado` | `components/demo/space-eyes/Programacion.tsx:383` | aviso emergente (toast) | No se pudo cambiar el estado | Could not change the status |
+| `spaceeyes.prog.toast.eliminada` | `components/demo/space-eyes/Programacion.tsx:392` | aviso emergente (toast) | Programación eliminada | Schedule deleted |
+| `spaceeyes.prog.toast.no-eliminar` | `components/demo/space-eyes/Programacion.tsx:396` | aviso emergente (toast) | No se pudo eliminar | Could not delete |
+| `spaceeyes.prog.titulo` | `components/demo/space-eyes/Programacion.tsx:411` | rótulo | Programación de fotos | Photo scheduling |
+| `spaceeyes.prog.descripcion` | `components/demo/space-eyes/Programacion.tsx:412` | texto en pantalla | Las fotos se toman solas, a una hora impredecible dentro de las franjas que definas. | Photos are taken automatically, at an unpredictable time within the dayparts you define. |
+| `spaceeyes.prog.nueva` | `components/demo/space-eyes/Programacion.tsx:421`<br>`components/demo/space-eyes/Programacion.tsx:600` | texto en pantalla · título / tooltip | Nueva programación | New schedule |
+| `spaceeyes.prog.editar` | `components/demo/space-eyes/Programacion.tsx:600` | título / tooltip | Editar programación | Edit schedule |
+| `spaceeyes.prog.crear` | `components/demo/space-eyes/Programacion.tsx:611` | texto en pantalla | Crear programación | Create schedule |
+| `spaceeyes.prog.vacio` | `components/demo/space-eyes/Programacion.tsx:450` | texto en pantalla | Todavía no hay ninguna programación. | There are no schedules yet. |
+| `spaceeyes.prog.vacio.texto` | `components/demo/space-eyes/Programacion.tsx:451` | texto en pantalla | Hoy las fotos solo se toman cuando alguien las pide a mano. | Right now photos are only taken when someone requests them manually. |
+| `spaceeyes.prog.linea.uno` | `components/demo/space-eyes/Programacion.tsx:472` | texto en pantalla | Próxima: {proxima} · {n} fotos {semana} | Next: {proxima} · {n} photo {semana} |
+| `spaceeyes.prog.linea.otros` | `components/demo/space-eyes/Programacion.tsx:472` | texto en pantalla | Próxima: {proxima} · {n} fotos {semana} | Next: {proxima} · {n} photos {semana} |
+| `spaceeyes.prog.semana` | `components/demo/space-eyes/Programacion.tsx:477`<br>`components/demo/space-eyes/Programacion.tsx:526` | texto en pantalla | ({n} esta semana) | ({n} this week) |
+| `spaceeyes.prog.pausar` | `components/demo/space-eyes/Programacion.tsx:487`<br>`components/demo/space-eyes/Programacion.tsx:540` | texto en pantalla | Pausar | Pause |
+| `spaceeyes.prog.activar` | `components/demo/space-eyes/Programacion.tsx:487`<br>`components/demo/space-eyes/Programacion.tsx:540` | texto en pantalla | Activar | Activate |
+| `spaceeyes.prog.aplica-a` | `components/demo/space-eyes/Programacion.tsx:502` | texto en pantalla | Aplica a | Applies to |
+| `spaceeyes.prog.cuando` | `components/demo/space-eyes/Programacion.tsx:503`<br>`components/demo/space-eyes/Programacion.tsx:724` | texto en pantalla | Cuándo | When |
+| `spaceeyes.prog.proxima-foto` | `components/demo/space-eyes/Programacion.tsx:504` | texto en pantalla | Próxima foto | Next photo |
+| `spaceeyes.prog.acciones` | `components/demo/space-eyes/Programacion.tsx:507` | texto en pantalla | Acciones | Actions |
+| `spaceeyes.prog.eliminar` | `components/demo/space-eyes/Programacion.tsx:559` | título / tooltip | Eliminar programación | Delete schedule |
+| `spaceeyes.prog.eliminar.palabra` | `components/demo/space-eyes/Programacion.tsx:562` | texto en pantalla | ELIMINAR | DELETE |
+| `spaceeyes.prog.eliminar.pregunta` | `components/demo/space-eyes/Programacion.tsx:565` | texto en pantalla | Se eliminará «{nombre}». | “{nombre}” will be deleted. |
+| `spaceeyes.prog.eliminar.texto` | `components/demo/space-eyes/Programacion.tsx:566` | texto en pantalla | Las fotos que ya se tomaron se conservan; lo que se pierde es la programación futura. | Photos already taken are kept; what is lost is the future schedule. |
+| `spaceeyes.prog.destino.un-equipo` | `components/demo/space-eyes/Programacion.tsx:594` | texto en pantalla | Un equipo | One device |
+| `spaceeyes.prog.destino.una-campana` | `components/demo/space-eyes/Programacion.tsx:595` | texto en pantalla | Una campaña | One campaign |
+| `spaceeyes.prog.nombre-ej` | `components/demo/space-eyes/Programacion.tsx:627` | texto de ejemplo (placeholder) | Ej. Evidencia diaria de la ruta norte | E.g. Daily evidence for the north route |
+| `spaceeyes.prog.aplicar-a` | `components/demo/space-eyes/Programacion.tsx:633` | texto en pantalla | Aplicar a | Apply to |
+| `spaceeyes.prog.todos.texto.uno` | `components/demo/space-eyes/Programacion.tsx:652` | texto en pantalla | Aplica a los {n} equipos de la flota, incluyendo los que se den de alta después. | Applies to the {n} device in the fleet, including any registered later. |
+| `spaceeyes.prog.todos.texto.otros` | `components/demo/space-eyes/Programacion.tsx:652` | texto en pantalla | Aplica a los {n} equipos de la flota, incluyendo los que se den de alta después. | Applies to the {n} devices in the fleet, including any registered later. |
+| `spaceeyes.prog.elegir-equipo` | `components/demo/space-eyes/Programacion.tsx:664` | texto en pantalla | — Elegir equipo — | — Choose device — |
+| `spaceeyes.prog.campana` | `components/demo/space-eyes/Programacion.tsx:674` | etiqueta accesible (aria-label) | Campaña | Campaign |
+| `spaceeyes.prog.elegir-campana` | `components/demo/space-eyes/Programacion.tsx:679` | texto en pantalla | — Elegir campaña — | — Choose campaign — |
+| `spaceeyes.prog.campana-equipos.uno` | `components/demo/space-eyes/Programacion.tsx:682` | texto en pantalla | {nombre} · {n} equipos | {nombre} · {n} device |
+| `spaceeyes.prog.campana-equipos.otros` | `components/demo/space-eyes/Programacion.tsx:682` | texto en pantalla | {nombre} · {n} equipos | {nombre} · {n} devices |
+| `spaceeyes.prog.tipo.franjas` | `components/demo/space-eyes/Programacion.tsx:732` | texto en pantalla | Hora al azar dentro de franjas (recomendado) | Random time within dayparts (recommended) |
+| `spaceeyes.prog.tipo.horas` | `components/demo/space-eyes/Programacion.tsx:733` | texto en pantalla | Horas exactas | Exact times |
+| `spaceeyes.prog.tipo.intervalo` | `components/demo/space-eyes/Programacion.tsx:734` | texto en pantalla | Cada cierto tiempo | At a fixed interval |
+| `spaceeyes.prog.tipo.cron` | `components/demo/space-eyes/Programacion.tsx:735` | texto en pantalla | Expresión cron (no editable aquí) | Cron expression (not editable here) |
+| `spaceeyes.prog.franjas.texto` | `components/demo/space-eyes/Programacion.tsx:742` | texto en pantalla | Una foto por franja, en un minuto sorteado cada día. La hora no se repite, así que la evidencia no se puede acomodar de antemano. | One photo per daypart, at a minute drawn at random each day. The time never repeats, so the evidence cannot be staged in advance. |
+| `spaceeyes.prog.franja` | `components/demo/space-eyes/Programacion.tsx:746` | texto en pantalla | Franja {n} | Daypart {n} |
+| `spaceeyes.prog.franja.inicio` | `components/demo/space-eyes/Programacion.tsx:749` | etiqueta accesible (aria-label) | Inicio de la franja {n} | Start of daypart {n} |
+| `spaceeyes.prog.franja.fin` | `components/demo/space-eyes/Programacion.tsx:759` | etiqueta accesible (aria-label) | Fin de la franja {n} | End of daypart {n} |
+| `spaceeyes.prog.franja.quitar` | `components/demo/space-eyes/Programacion.tsx:769` | etiqueta accesible (aria-label) | Quitar la franja {n} | Remove daypart {n} |
+| `spaceeyes.prog.quitar` | `components/demo/space-eyes/Programacion.tsx:770`<br>`components/demo/space-eyes/Programacion.tsx:830` | título / tooltip | Quitar | Remove |
+| `spaceeyes.prog.franja.agregar` | `components/demo/space-eyes/Programacion.tsx:784` | texto en pantalla | Agregar franja | Add daypart |
+| `spaceeyes.prog.rapido` | `components/demo/space-eyes/Programacion.tsx:787` | texto en pantalla | Rápido: | Quick: |
+| `spaceeyes.prog.rapido.tres` | `components/demo/space-eyes/Programacion.tsx:801` | texto en pantalla | Mañana, tarde y noche | Morning, afternoon and evening |
+| `spaceeyes.prog.rapido.una` | `components/demo/space-eyes/Programacion.tsx:804` | texto en pantalla | Una al día | Once a day |
+| `spaceeyes.prog.horas.texto` | `components/demo/space-eyes/Programacion.tsx:813` | texto en pantalla | Siempre al mismo minuto. Sirve para un reporte fijo, pero como evidencia es débil: una hora predecible se puede preparar. | Always at the same minute. Useful for a fixed report, but weak as evidence: a predictable time can be prepared for. |
+| `spaceeyes.prog.hora` | `components/demo/space-eyes/Programacion.tsx:819` | etiqueta accesible (aria-label) | Hora {n} | Time {n} |
+| `spaceeyes.prog.hora.quitar` | `components/demo/space-eyes/Programacion.tsx:829` | etiqueta accesible (aria-label) | Quitar la hora {n} | Remove time {n} |
+| `spaceeyes.prog.hora.agregar` | `components/demo/space-eyes/Programacion.tsx:840` | texto en pantalla | Agregar hora | Add time |
+| `spaceeyes.prog.intervalo` | `components/demo/space-eyes/Programacion.tsx:849` | texto en pantalla | Cada cuántos minutos | Interval in minutes |
+| `spaceeyes.prog.intervalo.ojo` | `components/demo/space-eyes/Programacion.tsx:861` | texto en pantalla | Ojo con los datos móviles: a este ritmo son {fotos}. | Watch the mobile data: at this rate that is {fotos}. |
+| `spaceeyes.prog.consumo` | `components/demo/space-eyes/Programacion.tsx:868` | texto en pantalla | Consumo estimado por equipo | Estimated usage per device |
+| `spaceeyes.prog.consumo.texto` | `components/demo/space-eyes/Programacion.tsx:874` | texto en pantalla | A 1.5 MB por foto, que es lo que pesan hoy. Cada equipo gasta ~20 MB al mes sin fotos programadas. | At 1.5 MB per photo, which is what they weigh today. Each device uses ~20 MB a month without scheduled photos. |
 | `spaceeyes.verif.titulo` | `components/demo/space-eyes/Verificacion.tsx:83` | rótulo | Verificación | Verification |
 | `spaceeyes.verif.descripcion` | `components/demo/space-eyes/Verificacion.tsx:84` | texto en pantalla | Comparación de cada foto contra la creatividad de su campaña. | Each photo compared against its campaign creative. |
 | `spaceeyes.verif.filtro.todos` | `components/demo/space-eyes/Verificacion.tsx:96` | texto en pantalla | Todos los resultados | All results |
@@ -863,33 +871,33 @@ los usos en el código (búsqueda literal de la clave). **984 claves**
 | `spaceeyes.graficas.periodo.custom` | `components/demo/space-eyes/Graficas.tsx:106` | rótulo | Personalizado | Custom |
 | `spaceeyes.graficas.hoy` | `components/demo/space-eyes/Graficas.tsx:110` | texto en pantalla | Hoy | Today |
 | `spaceeyes.graficas.total` | `components/demo/space-eyes/Graficas.tsx:113` | texto en pantalla | Total | Total |
-| `spaceeyes.graficas.error.telemetria` | `components/demo/space-eyes/Graficas.tsx:223`<br>`components/demo/space-eyes/Graficas.tsx:445` | mensaje de error · rótulo | No se pudo leer la telemetría | Could not read the telemetry |
-| `spaceeyes.graficas.error.csv` | `components/demo/space-eyes/Graficas.tsx:282` | mensaje de error | No se pudo exportar el CSV. {motivo} | Could not export the CSV. {motivo} |
-| `spaceeyes.graficas.titulo` | `components/demo/space-eyes/Graficas.tsx:330` | rótulo | Gráficas | Charts |
-| `spaceeyes.graficas.descripcion` | `components/demo/space-eyes/Graficas.tsx:331` | texto en pantalla | Estadísticas y telemetría de cada equipo: cómo ha estado y cuánto consume. | Statistics and telemetry for each device: how it has been doing and how much it uses. |
-| `spaceeyes.graficas.exportar` | `components/demo/space-eyes/Graficas.tsx:353` | texto en pantalla | Exportar CSV | Export CSV |
-| `spaceeyes.graficas.dispositivo` | `components/demo/space-eyes/Graficas.tsx:378` | rótulo | Dispositivo | Device |
-| `spaceeyes.graficas.sin-conexion` | `components/demo/space-eyes/Graficas.tsx:388` | texto en pantalla | ␣· sin conexión | ␣· offline |
-| `spaceeyes.graficas.aplicar` | `components/demo/space-eyes/Graficas.tsx:434` | texto en pantalla | Aplicar | Apply |
-| `spaceeyes.graficas.exportacion-fallida` | `components/demo/space-eyes/Graficas.tsx:442` | rótulo | Exportación fallida | Export failed |
-| `spaceeyes.graficas.cpu-max` | `components/demo/space-eyes/Graficas.tsx:461` | rótulo | Temp CPU máx | Max CPU temp |
-| `spaceeyes.graficas.nd` | `components/demo/space-eyes/Graficas.tsx:462`<br>`components/demo/space-eyes/Graficas.tsx:467`<br>`components/demo/space-eyes/Graficas.tsx:529`<br>`components/demo/space-eyes/Graficas.tsx:532` | texto en pantalla | n/d | n/a |
-| `spaceeyes.graficas.bateria-min` | `components/demo/space-eyes/Graficas.tsx:466` | rótulo | Batería mín | Min battery |
-| `spaceeyes.graficas.pct` | `components/demo/space-eyes/Graficas.tsx:467` | texto en pantalla | {n} % | {n}% |
-| `spaceeyes.graficas.muestras` | `components/demo/space-eyes/Graficas.tsx:470` | rótulo | Muestras | Samples |
-| `spaceeyes.graficas.consumo` | `components/demo/space-eyes/Graficas.tsx:497` | texto en pantalla | Consumo de datos (chip / WiFi) | Data usage (SIM / WiFi) |
-| `spaceeyes.graficas.consumo.sin` | `components/demo/space-eyes/Graficas.tsx:499` | texto en pantalla | Sin datos de consumo (requiere la app v0.7.0 en el equipo). | No usage data (requires app v0.7.0 on the device). |
-| `spaceeyes.graficas.movil-mb` | `components/demo/space-eyes/Graficas.tsx:509` | texto en pantalla | Móvil (MB) | Mobile (MB) |
-| `spaceeyes.graficas.consumo.caption` | `components/demo/space-eyes/Graficas.tsx:514` | texto en pantalla | Consumo de datos por periodo | Data usage per period |
-| `spaceeyes.graficas.temperatura` | `components/demo/space-eyes/Graficas.tsx:545` | rótulo | Temperatura (CPU / batería) | Temperature (CPU / battery) |
-| `spaceeyes.graficas.serie.cpu` | `components/demo/space-eyes/Graficas.tsx:551` | etiqueta de un valor (mapa de claves) | Temp CPU °C | CPU temp °C |
-| `spaceeyes.graficas.serie.bat-temp` | `components/demo/space-eyes/Graficas.tsx:552` | etiqueta de un valor (mapa de claves) | Temp batería °C | Battery temp °C |
-| `spaceeyes.graficas.bateria` | `components/demo/space-eyes/Graficas.tsx:557` | rótulo | Nivel de batería | Battery level |
-| `spaceeyes.graficas.serie.bateria` | `components/demo/space-eyes/Graficas.tsx:563` | texto en pantalla | Batería % | Battery (%) |
-| `spaceeyes.graficas.senal` | `components/demo/space-eyes/Graficas.tsx:567` | rótulo | Intensidad de señal | Signal strength |
-| `spaceeyes.graficas.serie.senal` | `components/demo/space-eyes/Graficas.tsx:572` | texto en pantalla | Señal dBm | Signal dBm |
-| `spaceeyes.graficas.almacenamiento` | `components/demo/space-eyes/Graficas.tsx:576` | rótulo | Almacenamiento y memoria libres | Free storage and memory |
-| `spaceeyes.graficas.sin-telemetria` | `components/demo/space-eyes/Graficas.tsx:591` | texto en pantalla | Sin telemetría en el periodo seleccionado para este dispositivo. | No telemetry in the selected period for this device. |
+| `spaceeyes.graficas.error.telemetria` | `components/demo/space-eyes/Graficas.tsx:222`<br>`components/demo/space-eyes/Graficas.tsx:444` | mensaje de error · rótulo | No se pudo leer la telemetría | Could not read the telemetry |
+| `spaceeyes.graficas.error.csv` | `components/demo/space-eyes/Graficas.tsx:281` | mensaje de error | No se pudo exportar el CSV. {motivo} | Could not export the CSV. {motivo} |
+| `spaceeyes.graficas.titulo` | `components/demo/space-eyes/Graficas.tsx:329` | rótulo | Gráficas | Charts |
+| `spaceeyes.graficas.descripcion` | `components/demo/space-eyes/Graficas.tsx:330` | texto en pantalla | Estadísticas y telemetría de cada equipo: cómo ha estado y cuánto consume. | Statistics and telemetry for each device: how it has been doing and how much it uses. |
+| `spaceeyes.graficas.exportar` | `components/demo/space-eyes/Graficas.tsx:352` | texto en pantalla | Exportar CSV | Export CSV |
+| `spaceeyes.graficas.dispositivo` | `components/demo/space-eyes/Graficas.tsx:377` | rótulo | Dispositivo | Device |
+| `spaceeyes.graficas.sin-conexion` | `components/demo/space-eyes/Graficas.tsx:387` | texto en pantalla | ␣· sin conexión | ␣· offline |
+| `spaceeyes.graficas.aplicar` | `components/demo/space-eyes/Graficas.tsx:433` | texto en pantalla | Aplicar | Apply |
+| `spaceeyes.graficas.exportacion-fallida` | `components/demo/space-eyes/Graficas.tsx:441` | rótulo | Exportación fallida | Export failed |
+| `spaceeyes.graficas.cpu-max` | `components/demo/space-eyes/Graficas.tsx:460` | rótulo | Temp CPU máx | Max CPU temp |
+| `spaceeyes.graficas.nd` | `components/demo/space-eyes/Graficas.tsx:461`<br>`components/demo/space-eyes/Graficas.tsx:466`<br>`components/demo/space-eyes/Graficas.tsx:528`<br>`components/demo/space-eyes/Graficas.tsx:531` | texto en pantalla | n/d | n/a |
+| `spaceeyes.graficas.bateria-min` | `components/demo/space-eyes/Graficas.tsx:465` | rótulo | Batería mín | Min battery |
+| `spaceeyes.graficas.pct` | `components/demo/space-eyes/Graficas.tsx:466` | texto en pantalla | {n} % | {n}% |
+| `spaceeyes.graficas.muestras` | `components/demo/space-eyes/Graficas.tsx:469` | rótulo | Muestras | Samples |
+| `spaceeyes.graficas.consumo` | `components/demo/space-eyes/Graficas.tsx:496` | texto en pantalla | Consumo de datos (chip / WiFi) | Data usage (SIM / WiFi) |
+| `spaceeyes.graficas.consumo.sin` | `components/demo/space-eyes/Graficas.tsx:498` | texto en pantalla | Sin datos de consumo (requiere la app v0.7.0 en el equipo). | No usage data (requires app v0.7.0 on the device). |
+| `spaceeyes.graficas.movil-mb` | `components/demo/space-eyes/Graficas.tsx:508` | texto en pantalla | Móvil (MB) | Mobile (MB) |
+| `spaceeyes.graficas.consumo.caption` | `components/demo/space-eyes/Graficas.tsx:513` | texto en pantalla | Consumo de datos por periodo | Data usage per period |
+| `spaceeyes.graficas.temperatura` | `components/demo/space-eyes/Graficas.tsx:544` | rótulo | Temperatura (CPU / batería) | Temperature (CPU / battery) |
+| `spaceeyes.graficas.serie.cpu` | `components/demo/space-eyes/Graficas.tsx:550` | etiqueta de un valor (mapa de claves) | Temp CPU °C | CPU temp °C |
+| `spaceeyes.graficas.serie.bat-temp` | `components/demo/space-eyes/Graficas.tsx:551` | etiqueta de un valor (mapa de claves) | Temp batería °C | Battery temp °C |
+| `spaceeyes.graficas.bateria` | `components/demo/space-eyes/Graficas.tsx:556` | rótulo | Nivel de batería | Battery level |
+| `spaceeyes.graficas.serie.bateria` | `components/demo/space-eyes/Graficas.tsx:562` | texto en pantalla | Batería % | Battery (%) |
+| `spaceeyes.graficas.senal` | `components/demo/space-eyes/Graficas.tsx:566` | rótulo | Intensidad de señal | Signal strength |
+| `spaceeyes.graficas.serie.senal` | `components/demo/space-eyes/Graficas.tsx:571` | texto en pantalla | Señal dBm | Signal dBm |
+| `spaceeyes.graficas.almacenamiento` | `components/demo/space-eyes/Graficas.tsx:575` | rótulo | Almacenamiento y memoria libres | Free storage and memory |
+| `spaceeyes.graficas.sin-telemetria` | `components/demo/space-eyes/Graficas.tsx:590` | texto en pantalla | Sin telemetría en el periodo seleccionado para este dispositivo. | No telemetry in the selected period for this device. |
 | `spaceeyes.texto.confirmar-descartar` | `components/demo/space-eyes/AjustarTexto.tsx:169` | confirmación del navegador | Hay cambios sin guardar en la marca de este equipo. ¿Descartarlos? | There are unsaved changes to this device’s label. Discard them? |
 | `spaceeyes.texto.capturada` | `components/demo/space-eyes/AjustarTexto.tsx:194` | aviso en pantalla | Fotografía capturada | Photo captured |
 | `spaceeyes.texto.no-llego` | `components/demo/space-eyes/AjustarTexto.tsx:198` | aviso en pantalla | No llegó la foto. ¿El equipo está en línea? | The photo did not arrive. Is the device online? |
@@ -940,7 +948,7 @@ los usos en el código (búsqueda literal de la clave). **984 claves**
 | `spaceeyes.alta.nombre.pc` | `components/demo/space-eyes/AltaDispositivo.tsx:83` | etiqueta de un valor (mapa de claves) | PC | PC |
 | `spaceeyes.alta.error.permiso` | `components/demo/space-eyes/AltaDispositivo.tsx:100` | texto de una función (lib o componente) | No tienes permiso para agregar equipos. | You do not have permission to add devices. |
 | `spaceeyes.alta.error.no-se-pudo` | `components/demo/space-eyes/AltaDispositivo.tsx:101` | texto de una función (lib o componente) | No se pudo: {motivo} | Could not do it: {motivo} |
-| `spaceeyes.alta.error.completar` | `components/demo/space-eyes/AltaDispositivo.tsx:103` | texto de una función (lib o componente) | No se pudo completar | Could not complete it |
+| `spaceeyes.alta.error.completar` | `components/demo/space-eyes/AltaDispositivo.tsx:103` | mensaje de error | No se pudo completar | Could not complete it |
 | `spaceeyes.alta.error.red` | `components/demo/space-eyes/AltaDispositivo.tsx:233` | mensaje de error | Escribe el nombre de la red WiFi del sitio, o elige "Cable o módem". | Type the name of the site WiFi network, or choose “Cable or modem”. |
 | `spaceeyes.alta.copiado` | `components/demo/space-eyes/AltaDispositivo.tsx:120` | rótulo | Copiado | Copied |
 | `spaceeyes.alta.copiar` | `components/demo/space-eyes/AltaDispositivo.tsx:120` | rótulo | Copiar | Copy |
@@ -955,15 +963,15 @@ los usos en el código (búsqueda literal de la clave). **984 claves**
 | `spaceeyes.alta.dura` | `components/demo/space-eyes/AltaDispositivo.tsx:342` | texto en pantalla | El código dura | The code lasts |
 | `spaceeyes.alta.dias.uno` | `components/demo/space-eyes/AltaDispositivo.tsx:350` | texto en pantalla | {n} día | {n} day |
 | `spaceeyes.alta.dias.otros` | `components/demo/space-eyes/AltaDispositivo.tsx:350` | texto en pantalla | {n} días | {n} days |
-| `spaceeyes.alta.lote.qr` | `components/demo/space-eyes/AltaDispositivo.tsx:360` | texto en pantalla | Un solo QR para los {n}: cada equipo entra por separado. Al equipo {siguiente} ya no lo deja entrar, y puedes cancelarlo en cualquier momento. | One QR for all {n}: each device joins separately. Device number {siguiente} is not let in, and you can cancel it at any time. |
-| `spaceeyes.alta.lote.archivo` | `components/demo/space-eyes/AltaDispositivo.tsx:362` | texto en pantalla | Un solo archivo para los {n}: cada equipo entra por separado. Al equipo {siguiente} ya no lo deja entrar, y puedes cancelarlo en cualquier momento. | One file for all {n}: each device joins separately. Device number {siguiente} is not let in, and you can cancel it at any time. |
-| `spaceeyes.alta.lote.codigo` | `components/demo/space-eyes/AltaDispositivo.tsx:363` | texto en pantalla | Un solo código para los {n}: cada equipo entra por separado. Al equipo {siguiente} ya no lo deja entrar, y puedes cancelarlo en cualquier momento. | One code for all {n}: each device joins separately. Device number {siguiente} is not let in, and you can cancel it at any time. |
+| `spaceeyes.alta.lote.qr` | `components/demo/space-eyes/AltaDispositivo.tsx:360` | texto en pantalla | Un solo QR para los {n}: cada equipo entra por separado. Al equipo {siguiente} ya no lo deja entrar, y puedes cancelarlo en cualquier momento. | One QR for {n} devices: each one joins on its own. From device no. {siguiente} on, nobody else gets in, and you can cancel the QR at any time. |
+| `spaceeyes.alta.lote.archivo` | `components/demo/space-eyes/AltaDispositivo.tsx:362` | texto en pantalla | Un solo archivo para los {n}: cada equipo entra por separado. Al equipo {siguiente} ya no lo deja entrar, y puedes cancelarlo en cualquier momento. | One file for {n} devices: each one joins on its own. From device no. {siguiente} on, nobody else gets in, and you can cancel the file at any time. |
+| `spaceeyes.alta.lote.codigo` | `components/demo/space-eyes/AltaDispositivo.tsx:363` | texto en pantalla | Un solo código para los {n}: cada equipo entra por separado. Al equipo {siguiente} ya no lo deja entrar, y puedes cancelarlo en cualquier momento. | One code for {n} devices: each one joins on its own. From device no. {siguiente} on, nobody else gets in, and you can cancel the code at any time. |
 | `spaceeyes.alta.uno-solo` | `components/demo/space-eyes/AltaDispositivo.tsx:366` | texto en pantalla | Uno solo: el código sirve una vez. | Just one: the code works once. |
 | `spaceeyes.alta.tel.1` | `components/demo/space-eyes/AltaDispositivo.tsx:377` | texto en pantalla | Instala la app {app} en el teléfono{enlace}. | Install the {app} app on the phone{enlace}. |
 | `spaceeyes.alta.tel.descargar` | `components/demo/space-eyes/AltaDispositivo.tsx:384` | texto en pantalla | descargar la app {version} | download app {version} |
 | `spaceeyes.alta.tel.2` | `components/demo/space-eyes/AltaDispositivo.tsx:391` | texto en pantalla | Genera el código y ábrelo junto al teléfono. | Generate the code and keep it open next to the phone. |
-| `spaceeyes.alta.tel.3` | `components/demo/space-eyes/AltaDispositivo.tsx:393` | texto en pantalla | En la app, toca {vincular} y escanea el QR. Si la cámara no lo lee, escribe el código. | In the app, choose {vincular} and scan the QR. If the camera cannot read it, type the code. |
-| `spaceeyes.alta.tel.vincular` | `components/demo/space-eyes/AltaDispositivo.tsx:393` | texto en pantalla | Vincular | Pair |
+| `spaceeyes.alta.tel.3` | `components/demo/space-eyes/AltaDispositivo.tsx:393` | texto en pantalla | En la app, toca {vincular} y escanea el QR. Si la cámara no lo lee, escribe el código. | On the phone, open the app, confirm with {vincular} and scan the QR. If the camera cannot read it, type the code. |
+| `spaceeyes.alta.tel.vincular` | `components/demo/space-eyes/AltaDispositivo.tsx:393` | texto en pantalla | Vincular | Vincular |
 | `spaceeyes.alta.tel.4` | `components/demo/space-eyes/AltaDispositivo.tsx:395` | texto en pantalla | El teléfono aparece en Equipos en unos segundos. Ahí le pones el nombre del sitio. | The phone shows up in Devices within seconds. Give it the site name there. |
 | `spaceeyes.alta.tel.escanea` | `components/demo/space-eyes/AltaDispositivo.tsx:402` | texto en pantalla | Escanéalo desde la app Space Eye | Scan it from the Space Eye app |
 | `spaceeyes.alta.tel.qr` | `components/demo/space-eyes/AltaDispositivo.tsx:405` | texto en pantalla | Aquí aparecerá el QR | The QR will show up here |

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { ES_SPACEEYES, EN_SPACEEYES } from './spaceeyes'
+import { vi } from 'vitest'
 
 // ============================================================================
 //  EL DICCIONARIO DE SPACE EYES, CONGELADO.
@@ -39,6 +40,7 @@ describe('diccionario de Space Eyes · forma', () => {
     'spaceeyes.alta.nombre.raspberry', // «Raspberry»
     'spaceeyes.alta.nombre.pc', // «PC»
     'spaceeyes.alta.pi.1.no', // el boton «No» del Raspberry Pi Imager
+    'spaceeyes.alta.tel.vincular', // el boton «Vincular» de la app Android, que solo esta en español (dueño, 02/11)
   ])
   const en = Object.entries(EN_SPACEEYES)
 
@@ -187,5 +189,54 @@ describe('spaceeyes · los avisos que no se rinden usan su clave', () => {
       /texto: r\?\.reiniciado \? t\('spaceeyes\.pconfig\.guardada\.reinicia'\) : t\('spaceeyes\.pconfig\.guardada'\)/,
     )
     expect(leer('FichaEquipo.tsx')).toMatch(/const llego = t\('spaceeyes\.ficha\.llego'\)/)
+  })
+})
+
+// ============================================================================
+//  Los textos de error que arma el CLIENTE (validacion, hallazgo medio n.º 1, y
+//  decision del orquestador del 02/11 sobre la vista en vivo): «Space Eye
+//  respondió N» y los motivos de `VisorWhep` son interfaz y van en el idioma de
+//  quien los lee, con 'es' por omision (el español de siempre).
+// ============================================================================
+describe('spaceeyes · los errores del cliente, en los dos idiomas', () => {
+  it('seApi sin motivo del servidor: «respondió N» y su ingles', async () => {
+    const { seApi, textoDeError, textoRespondio } = await import('../../data/space-eyes-se')
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 500 })))
+    const e = await seApi('devices').catch((x) => x)
+    expect(e.message).toBe('Space Eye respondió 500')
+    expect(textoDeError(e)).toBe('Space Eye respondió 500')
+    expect(textoDeError(e, 'es')).toBe('Space Eye respondió 500')
+    expect(textoDeError(e, 'en')).toBe('Space Eye returned 500')
+    expect(textoRespondio(404, 'en')).toBe('Space Eye returned 404')
+    vi.unstubAllGlobals()
+  })
+
+  it('lo que manda Space Eye es un dato y pasa tal cual en los dos idiomas', async () => {
+    const { seApi, textoDeError } = await import('../../data/space-eyes-se')
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ mensaje: 'espejo de solo lectura' }), { status: 409 })))
+    const e = await seApi('schedules').catch((x) => x)
+    expect(textoDeError(e, 'en')).toBe('espejo de solo lectura')
+    vi.unstubAllGlobals()
+  })
+
+  it('VisorWhep: sin dirección de la transmisión, el motivo en el idioma pedido', async () => {
+    const { VisorWhep } = await import('../../space-eyes-whep')
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 200 })))
+    const en = await new VisorWhep(7, {} as never, () => {}, 'en').iniciar().catch((x) => x)
+    expect(en.message).toBe('Space Eye did not provide the stream address')
+    const es = await new VisorWhep(7, {} as never, () => {}).iniciar().catch((x) => x)
+    expect(es.message).toBe('Space Eye no entregó la dirección de la transmisión')
+    vi.unstubAllGlobals()
+  })
+
+  it('cada motivo de VisorWhep usa su clave (los que no se pueden provocar sin WebRTC)', () => {
+    const f = readFileSync(path.join(__dirname, '../../space-eyes-whep.ts'), 'utf8')
+    expect(f).toMatch(/throw new Error\(traducir\(this\.idioma, 'spaceeyes\.whep\.no-transmite'\)\)/)
+    expect(f).toMatch(/traducir\(this\.idioma, 'spaceeyes\.whep\.no-conectar', \{ motivo:/)
+    expect(f).toMatch(/this\.alPerderse\(traducir\(this\.idioma, 'spaceeyes\.whep\.perdida'\)\)/)
+    const vivo = readFileSync(path.join(__dirname, '../../../components/demo/space-eyes/VistaEnVivo.tsx'), 'utf8')
+    expect(vivo).toMatch(/new VisorWhep\(id, videoRef\.current, perdida, idioma\)/)
+    const graf = readFileSync(path.join(__dirname, '../../../components/demo/space-eyes/Graficas.tsx'), 'utf8')
+    expect(graf).toMatch(/if \(!r\.ok\) throw new Error\(textoRespondio\(r\.status, idioma\)\)/)
   })
 })

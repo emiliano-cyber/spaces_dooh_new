@@ -6,7 +6,7 @@ import { AlertTriangle, ArrowLeft, Camera, CameraOff, Loader2, Move, Type } from
 import { cn } from '@/lib/cn'
 import { Button } from '@/components/demo/ui/Button'
 import { usePuede } from '@/components/demo/shell/SesionContext'
-import { seApi, fotoSE, ErrorSE } from '@/lib/data/space-eyes-se'
+import { seApi, fotoSE, ErrorSE, textoDeError } from '@/lib/data/space-eyes-se'
 import {
   MARCA_POR_OMISION,
   RANGOS,
@@ -63,7 +63,7 @@ type Aviso = { tono: 'ok' | 'error'; texto: string } | null
 const INTENTOS_FOTO = 15 // cada 2 s → ~30 s, lo mismo que el original
 
 export function AjustarTexto() {
-  const { t } = useIdioma()
+  const { t, idioma } = useIdioma()
   const puedeEditar = usePuede('inventario', 'crear')
 
   const [equipos, setEquipos] = useState<EquipoSE[] | null>(null)
@@ -134,11 +134,11 @@ export function AjustarTexto() {
         setFoto(f)
       } catch (e) {
         if (mio !== turno.current) return
-        avisar('error', e instanceof Error ? e.message : t('spaceeyes.vivo.no-leer'))
+        avisar('error', textoDeError(e, idioma) ?? t('spaceeyes.vivo.no-leer'))
       }
       if (mio === turno.current) setCargandoEquipo(false)
     },
-    [avisar, pararEncuesta, ultimaFoto, t],
+    [avisar, pararEncuesta, ultimaFoto, t, idioma],
   )
 
   useEffect(() => {
@@ -157,13 +157,13 @@ export function AjustarTexto() {
         setDeviceId(String(elegido.id))
         void cargarEquipo(String(elegido.id))
       } catch (e) {
-        if (vivo) setError(e instanceof ErrorSE || e instanceof Error ? e.message : t('spaceeyes.comun.no-consultar'))
+        if (vivo) setError(textoDeError(e, idioma) ?? t('spaceeyes.comun.no-consultar'))
       }
     })()
     return () => {
       vivo = false
     }
-  }, [cargarEquipo, t])
+  }, [cargarEquipo, t, idioma])
 
   const cambiarEquipo = (id: string) => {
     if (!mismaMarca(marca, guardada) && !window.confirm(t('spaceeyes.texto.confirmar-descartar'))) return

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { AlertTriangle, ChevronLeft, ChevronRight, ImageOff, Loader2, RefreshCw, ShieldCheck } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { Button } from '@/components/demo/ui/Button'
-import { ErrorSE, fotoSE, seApi } from '@/lib/data/space-eyes-se'
+import { fotoSE, seApi, textoDeError } from '@/lib/data/space-eyes-se'
 import { fechaHora } from './piezas'
 import { useIdioma } from '@/lib/i18n/contexto'
 import type { ClaveTexto } from '@/lib/i18n/diccionario'
@@ -61,10 +61,10 @@ export function Verificacion() {
       const d = await seApi<{ verifications: Verificacion[] }>(q)
       setFilas(d.verifications ?? [])
     } catch (e) {
-      setError(e instanceof ErrorSE || e instanceof Error ? e.message : t('spaceeyes.comun.no-consultar'))
+      setError(textoDeError(e, idioma) ?? t('spaceeyes.comun.no-consultar'))
     }
     setCargando(false)
-  }, [pagina, resultado, t])
+  }, [pagina, resultado, t, idioma])
 
   useEffect(() => {
     void cargar()

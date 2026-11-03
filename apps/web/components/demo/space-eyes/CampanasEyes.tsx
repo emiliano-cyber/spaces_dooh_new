@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { AlertTriangle, ImageIcon, Loader2, Plus, RefreshCw, ScanEye } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { Button } from '@/components/demo/ui/Button'
-import { ErrorSE, fotoSE, seApi } from '@/lib/data/space-eyes-se'
+import { ErrorSE, fotoSE, seApi, textoDeError } from '@/lib/data/space-eyes-se'
 import { formatNumero } from '@/lib/formato-numero'
 import { useIdioma } from '@/lib/i18n/contexto'
 import { traducir, type ClaveTexto } from '@/lib/i18n/diccionario'
@@ -102,7 +102,7 @@ function mensajeDeError(e: unknown, porDefecto: string, idioma: Idioma): string 
     if (cuerpo.mensaje) return cuerpo.mensaje
     if (e.status === 403) return traducir(idioma, TEXTOS_ERROR.forbidden)
     if (cuerpo.error && TEXTOS_ERROR[cuerpo.error]) return traducir(idioma, TEXTOS_ERROR[cuerpo.error])
-    return e.message || porDefecto
+    return textoDeError(e, idioma) || porDefecto
   }
   return e instanceof Error ? e.message : porDefecto
 }

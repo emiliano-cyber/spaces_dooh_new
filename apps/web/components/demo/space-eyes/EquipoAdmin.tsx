@@ -6,7 +6,7 @@ import { cn } from '@/lib/cn'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
 import { ConfirmDialog } from '@/components/demo/ui/ConfirmDialog'
-import { seApi, fotoSE, ErrorSE } from '@/lib/data/space-eyes-se'
+import { seApi, fotoSE, ErrorSE, textoDeError } from '@/lib/data/space-eyes-se'
 import { fechaHora } from './piezas'
 import { comoSeActualiza } from '@/lib/space-eyes-actualizacion'
 import { formatNumero } from '@/lib/formato-numero'
@@ -114,7 +114,7 @@ const esPi = (v: string | null | undefined) => /^pi-agent/i.test(String(v || '')
 
 function mensaje(e: unknown, idioma: Idioma): string {
   if (e instanceof ErrorSE && e.status === 403) return traducir(idioma, 'spaceeyes.comun.sin-permiso')
-  return e instanceof Error ? e.message : String(e)
+  return textoDeError(e, idioma) ?? String(e)
 }
 
 function leerAjustes(v: Equipo['camera_ajustes']): Ajustes {

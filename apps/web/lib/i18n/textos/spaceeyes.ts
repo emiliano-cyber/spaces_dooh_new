@@ -149,7 +149,8 @@ export const ES_SPACEEYES = {
   'spaceeyes.lista.descripcion': 'Los equipos que vigilan tus pantallas: qué están viendo y cómo están.',
   'spaceeyes.alta.titulo': 'Agregar dispositivo',
   'spaceeyes.lista.no-configurado': 'La integración con Space Eyes no está configurada en este entorno.',
-  'spaceeyes.lista.kpi.de-equipos': 'de {n} equipos',
+  'spaceeyes.lista.kpi.de-equipos.uno': 'de {n} equipos',
+  'spaceeyes.lista.kpi.de-equipos.otros': 'de {n} equipos',
   'spaceeyes.lista.kpi.mas-10': 'más de 10 min',
   'spaceeyes.lista.kpi.bateria': 'Batería crítica',
   'spaceeyes.lista.kpi.bajo-20': 'bajo 20%',
@@ -168,6 +169,7 @@ export const ES_SPACEEYES = {
   'spaceeyes.lista.sin-capturas': 'Sin capturas todavía',
   'spaceeyes.lista.actualizar.visita': 'Para actualizar necesita una visita',
   'spaceeyes.lista.actualizar.toque': 'Para actualizar pide un toque',
+  'spaceeyes.comun.respondio': 'Space Eye respondió {status}',
 
   // ── La ficha de un equipo (`FichaEquipo`) y la pagina `/space-eyes/[id]` ──
   'spaceeyes.comun.equipo': 'Equipo',
@@ -675,6 +677,10 @@ export const ES_SPACEEYES = {
   'spaceeyes.vivo.en-uso.texto':
     'Este equipo solo admite un espectador a la vez: cada conexión de video gasta datos móviles del sitio. La transmisión se corta sola a los 3 minutos.',
   'spaceeyes.vivo.aplicando-encuadre': 'Aplicando el encuadre nuevo…',
+  'spaceeyes.whep.sin-direccion': 'Space Eye no entregó la dirección de la transmisión',
+  'spaceeyes.whep.no-transmite': 'El equipo no comenzó a transmitir. Puede estar sin señal o con la cámara ocupada.',
+  'spaceeyes.whep.no-conectar': 'No se pudo conectar el video ({motivo}).',
+  'spaceeyes.whep.perdida': 'Se perdió la conexión de video con el servidor.',
 
   // ── La galeria de fotos (`Galeria`). La marca grabada en la foto y el nombre del .zip NO se traducen: son la evidencia ──
   'spaceeyes.comun.desde': 'Desde',
@@ -750,7 +756,8 @@ export const ES_SPACEEYES = {
   'spaceeyes.fallas.recuperadas': 'Recuperadas',
   'spaceeyes.fallas.descartadas': 'No eran falla',
   'spaceeyes.fallas.donde.gabinete': 'Gabinete {n} (fila {fila}, columna {columna})',
-  'spaceeyes.fallas.donde.gabinetes': 'Gabinetes {lista}',
+  'spaceeyes.fallas.donde.gabinetes.uno': 'Gabinetes {lista}',
+  'spaceeyes.fallas.donde.gabinetes.otros': 'Gabinetes {lista}',
   'spaceeyes.fallas.donde.de': ' ({n} de {total})',
   'spaceeyes.fallas.donde.camara': 'Cámara (hay que volver a marcar la pantalla)',
   'spaceeyes.fallas.donde.sin-imagen': 'Lente tapada, o pantalla apagada de noche',
@@ -912,7 +919,9 @@ export const ES_SPACEEYES = {
   'spaceeyes.prog.destino.una-campana': 'Una campaña',
   'spaceeyes.prog.nombre-ej': 'Ej. Evidencia diaria de la ruta norte',
   'spaceeyes.prog.aplicar-a': 'Aplicar a',
-  'spaceeyes.prog.todos.texto': 'Aplica a los {n} equipos de la flota, incluyendo los que se den de alta después.',
+  'spaceeyes.prog.todos.texto.uno': 'Aplica a los {n} equipos de la flota, incluyendo los que se den de alta después.',
+  'spaceeyes.prog.todos.texto.otros':
+    'Aplica a los {n} equipos de la flota, incluyendo los que se den de alta después.',
   'spaceeyes.prog.elegir-equipo': '— Elegir equipo —',
   'spaceeyes.prog.campana': 'Campaña',
   'spaceeyes.prog.elegir-campana': '— Elegir campaña —',
@@ -1167,7 +1176,7 @@ export const EN_SPACEEYES: Record<ClaveSpaceEyes, string> = {
     'Your devices keep working on site: anything they capture in the meantime will show up here as soon as the service is back. It usually sorts itself out within a few minutes (for example, during an update).',
   'spaceeyes.sin-respuesta.reintentar': 'Try again',
   'spaceeyes.sin-respuesta.soporte':
-    'If it stays like this for more than an hour, contact support from Settings › Configuration › Support.',
+    'If it stays like this for more than an hour, contact support from Settings › Business settings › Support.',
   'spaceeyes.solicitudes.titulo': 'Space Eyes activation requests',
   'spaceeyes.solicitudes.ninguna': 'None pending',
   'spaceeyes.solicitudes.pendientes.uno': '{n} pending',
@@ -1231,9 +1240,9 @@ export const EN_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.demo.solicitar': 'Request activation',
   'spaceeyes.demo.sin-permiso': 'To activate it, ask an admin at your company to request it from this same screen.',
   'spaceeyes.demo.listo':
-    'Done: we received your request and will get in touch. You can follow it in Settings › Configuration › Support.',
+    'Done: we received your request and will get in touch. You can follow it in Settings › Business settings › Support.',
   'spaceeyes.demo.listo.folio':
-    'Done: we received your request (ticket {folio}) and will get in touch. You can follow it in Settings › Configuration › Support.',
+    'Done: we received your request (ticket {folio}) and will get in touch. You can follow it in Settings › Business settings › Support.',
   'spaceeyes.demo.error': 'The request could not be sent. Try again in a few minutes.',
   'spaceeyes.demo.aviso':
     'You are viewing a {demo} with sample data. Your company does not have Space Eyes activated yet; none of these devices are yours.',
@@ -1262,7 +1271,8 @@ export const EN_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.lista.descripcion': 'The devices that watch your screens: what they see and how they are doing.',
   'spaceeyes.alta.titulo': 'Add device',
   'spaceeyes.lista.no-configurado': 'The Space Eyes integration is not configured in this environment.',
-  'spaceeyes.lista.kpi.de-equipos': 'of {n} devices',
+  'spaceeyes.lista.kpi.de-equipos.uno': 'of {n} device',
+  'spaceeyes.lista.kpi.de-equipos.otros': 'of {n} devices',
   'spaceeyes.lista.kpi.mas-10': 'over 10 min',
   'spaceeyes.lista.kpi.bateria': 'Critical battery',
   'spaceeyes.lista.kpi.bajo-20': 'under 20%',
@@ -1281,6 +1291,7 @@ export const EN_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.lista.sin-capturas': 'No captures yet',
   'spaceeyes.lista.actualizar.visita': 'Needs a site visit to update',
   'spaceeyes.lista.actualizar.toque': 'Needs a confirmation on the phone to update',
+  'spaceeyes.comun.respondio': 'Space Eye returned {status}',
 
   // ── La ficha de un equipo (`FichaEquipo`) y la pagina `/space-eyes/[id]` ──
   'spaceeyes.comun.equipo': 'Device',
@@ -1375,13 +1386,13 @@ export const EN_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.falla.detectada': 'Detected',
   'spaceeyes.falla.falla': 'Fault',
   'spaceeyes.falla.evidencia': 'Evidence',
-  'spaceeyes.falla.a-mano': ' · by hand',
+  'spaceeyes.falla.a-mano': ' · manually',
   'spaceeyes.falla.al-detectar': 'when detected',
   'spaceeyes.falla.al-recuperar': 'when cleared',
   'spaceeyes.creativo.alt': 'Detected creative',
   'spaceeyes.creativo.aparecio': 'First seen {fecha}',
-  'spaceeyes.creativo.visto.uno': 'Seen {n} time · last {hace}',
-  'spaceeyes.creativo.visto.otros': 'Seen {n} times · last {hace}',
+  'spaceeyes.creativo.visto.uno': 'Seen {n} time · last seen {hace}',
+  'spaceeyes.creativo.visto.otros': 'Seen {n} times · last seen {hace}',
   'spaceeyes.creativo.ninguno': 'No new creatives detected yet.',
   'spaceeyes.pyc.error': 'Could not read what the device saw on its screen: {error}',
   'spaceeyes.pyc.leyendo': 'Reading the screen monitoring…',
@@ -1610,11 +1621,11 @@ export const EN_SPACEEYES: Record<ClaveSpaceEyes, string> = {
     'Leave them empty if you do not know them. They place the screen on the map and work out the light at its site, which decides at what times the photo comes out clean and at what times it shows lines.',
   'spaceeyes.admin.estado-pantalla': 'Screen status',
   'spaceeyes.admin.estado-ayuda':
-    'Maintenance and decommissioned take the screen out of the schedules: it gets no photos and stops using data, without deleting anything. In operation and active behave the same today.',
+    'Maintenance and decommissioned take the screen out of the schedules: it gets no photos and stops using data, without deleting anything. “In operation” and “Active” currently behave the same.',
   'spaceeyes.admin.actualizar.pc':
-    'The published agent will be installed on this PC. It checks the file fingerprint before replacing it and, if the new program does not start, it rolls back on its own.',
+    'The published agent will be installed on this PC. It verifies the file checksum before replacing it and, if the new program does not start, it rolls back on its own.',
   'spaceeyes.admin.actualizar.pi':
-    'The published agent will be installed on this Raspberry. It checks the fingerprint and tests it before replacing anything; if the new version does not start, it rolls back on its own. The device identity and its pending photos are kept.',
+    'The published agent will be installed on this Raspberry. It verifies the checksum and tests it before replacing anything; if the new version does not start, it rolls back on its own. The device identity and its pending photos are kept.',
   'spaceeyes.admin.actualizar.version':
     'Version {version} will be installed on this device. It takes a couple of minutes and the app restarts on its own.',
   'spaceeyes.admin.actualizar.publicada':
@@ -1639,7 +1650,7 @@ export const EN_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.admin.nueva': 'A new version is available: {version}.',
   'spaceeyes.admin.se-instala-sola': 'It installs on its own, without touching the device.',
   'spaceeyes.admin.al-dia': 'It has the published version.',
-  'spaceeyes.admin.actualizaciones': 'Updates: {como}',
+  'spaceeyes.admin.actualizaciones': 'Update mode: {como}',
   'spaceeyes.admin.boton.actualizar': 'Update app',
   'spaceeyes.admin.boton.reiniciar': 'Restart app',
   'spaceeyes.admin.boton.reiniciar-equipo': 'Restart device',
@@ -1670,7 +1681,7 @@ export const EN_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.admin.cuadros.n': '{n} frames',
   'spaceeyes.admin.cuadros.un-disparo': 'single shot',
   'spaceeyes.admin.cuadros.texto':
-    'Against screen lines: each frame catches them in a different position and averaging cancels them out (with 16 the banding drops from 40% to 10%). It takes ~1 s longer and, if the creative changes mid-capture, it comes out blended.',
+    'Reduces screen lines: each frame catches them in a different position and averaging cancels them out (with 16 the banding drops from 40% to 10%). It takes ~1 s longer and, if the creative changes mid-capture, it comes out blended.',
   'spaceeyes.admin.medicion': 'Where it meters light',
   'spaceeyes.admin.exposicion-mano': 'Set exposure manually',
   'spaceeyes.admin.obturador': 'Shutter',
@@ -1707,7 +1718,7 @@ export const EN_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.vivo.balance.auto': 'Auto balance',
   'spaceeyes.vivo.balance.incandescent': 'Incandescent',
   'spaceeyes.vivo.sin-permiso': 'You do not have permission to change this device',
-  'spaceeyes.vivo.sin-servidor': 'The video server is not configured. It is a server issue, not the device.',
+  'spaceeyes.vivo.sin-servidor': 'The video server is not configured. It is a server issue, not a device issue.',
   'spaceeyes.vivo.no-leer': 'Could not read the device',
   'spaceeyes.vivo.otra-persona': 'someone else',
   'spaceeyes.vivo.otra-persona.may': 'Someone else',
@@ -1729,7 +1740,7 @@ export const EN_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.vivo.foto.pedida': 'Photo requested: it arrives in a few seconds',
   'spaceeyes.vivo.titulo': 'Live view',
   'spaceeyes.vivo.en-vivo': 'Live',
-  'spaceeyes.vivo.corte.ayuda': 'The stream stops on its own so it does not use the device data',
+  'spaceeyes.vivo.corte.ayuda': 'The stream stops on its own so it does not use the device’s data',
   'spaceeyes.vivo.corte': 'Stops in ',
   'spaceeyes.vivo.foto': 'Photo',
   'spaceeyes.vivo.iniciar': 'Start',
@@ -1748,7 +1759,7 @@ export const EN_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.vivo.iniciar-vista': 'Start live view',
   'spaceeyes.vivo.sin-permiso-abrir': 'You need permission to operate devices to open the view.',
   'spaceeyes.vivo.no-reporta': 'The device is not reporting: it may not answer.',
-  'spaceeyes.vivo.se-detiene': 'It stops on its own after 3 minutes so it does not use the device data.',
+  'spaceeyes.vivo.se-detiene': 'It stops on its own after 3 minutes so it does not use the device’s data.',
   'spaceeyes.vivo.enfoque-fijo': 'Focus locked',
   'spaceeyes.vivo.fijar-enfoque': 'Lock focus',
   'spaceeyes.vivo.mover-lados': 'Move sideways',
@@ -1786,8 +1797,13 @@ export const EN_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.vivo.en-uso': 'View in use',
   'spaceeyes.vivo.en-uso.quien': '{quien} has been watching this device for {min} min.',
   'spaceeyes.vivo.en-uso.texto':
-    'This device allows only one viewer at a time: each video connection uses the site mobile data. The stream stops on its own after 3 minutes.',
+    'This device allows only one viewer at a time: each video connection uses the site’s mobile data. The stream stops on its own after 3 minutes.',
   'spaceeyes.vivo.aplicando-encuadre': 'Applying the new framing…',
+  'spaceeyes.whep.sin-direccion': 'Space Eye did not provide the stream address',
+  'spaceeyes.whep.no-transmite':
+    'The device did not start streaming. It may have no signal, or its camera may be busy.',
+  'spaceeyes.whep.no-conectar': 'Could not connect the video ({motivo}).',
+  'spaceeyes.whep.perdida': 'The video connection to the server was lost.',
 
   // ── La galeria de fotos (`Galeria`). La marca grabada en la foto y el nombre del .zip NO se traducen: son la evidencia ──
   'spaceeyes.comun.desde': 'From',
@@ -1802,7 +1818,7 @@ export const EN_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.comun.error-desconocido': 'unknown error',
   'spaceeyes.galeria.origen.manual': 'Manual',
   'spaceeyes.galeria.origen.scheduled': 'Scheduled',
-  'spaceeyes.galeria.origen.on-demand': 'On request',
+  'spaceeyes.galeria.origen.on-demand': 'On demand',
   'spaceeyes.galeria.origen.creative': 'New creative',
   'spaceeyes.galeria.origen.falla': 'Screen fault',
   'spaceeyes.galeria.origen.boot': 'At startup',
@@ -1826,7 +1842,7 @@ export const EN_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.galeria.album.error': 'Error downloading the album: {motivo}',
   'spaceeyes.galeria.titulo': 'Photo gallery',
   'spaceeyes.galeria.descripcion':
-    'Every photo from the devices: scheduled, requested by hand, of new creatives and of faults.',
+    'Every photo from the devices: scheduled, requested manually, of new creatives and of faults.',
   'spaceeyes.galeria.album.ayuda': 'Downloads every photo that matches the filters as a .zip, with its label',
   'spaceeyes.galeria.descargando': 'Downloading {progreso}',
   'spaceeyes.galeria.album': 'Download album',
@@ -1863,7 +1879,8 @@ export const EN_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.fallas.recuperadas': 'Cleared',
   'spaceeyes.fallas.descartadas': 'Not faults',
   'spaceeyes.fallas.donde.gabinete': 'Cabinet {n} (row {fila}, column {columna})',
-  'spaceeyes.fallas.donde.gabinetes': 'Cabinets {lista}',
+  'spaceeyes.fallas.donde.gabinetes.uno': 'Cabinet {lista}',
+  'spaceeyes.fallas.donde.gabinetes.otros': 'Cabinets {lista}',
   'spaceeyes.fallas.donde.de': ' ({n} of {total})',
   'spaceeyes.fallas.donde.camara': 'Camera (the screen has to be marked again)',
   'spaceeyes.fallas.donde.sin-imagen': 'Lens covered, or screen off at night',
@@ -2006,7 +2023,7 @@ export const EN_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.prog.editar': 'Edit schedule',
   'spaceeyes.prog.crear': 'Create schedule',
   'spaceeyes.prog.vacio': 'There are no schedules yet.',
-  'spaceeyes.prog.vacio.texto': 'Right now photos are only taken when someone requests them by hand.',
+  'spaceeyes.prog.vacio.texto': 'Right now photos are only taken when someone requests them manually.',
   'spaceeyes.prog.linea.uno': 'Next: {proxima} · {n} photo {semana}',
   'spaceeyes.prog.linea.otros': 'Next: {proxima} · {n} photos {semana}',
   'spaceeyes.prog.semana': '({n} this week)',
@@ -2024,7 +2041,8 @@ export const EN_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.prog.destino.una-campana': 'One campaign',
   'spaceeyes.prog.nombre-ej': 'E.g. Daily evidence for the north route',
   'spaceeyes.prog.aplicar-a': 'Apply to',
-  'spaceeyes.prog.todos.texto': 'Applies to the {n} devices in the fleet, including any registered later.',
+  'spaceeyes.prog.todos.texto.uno': 'Applies to the {n} device in the fleet, including any registered later.',
+  'spaceeyes.prog.todos.texto.otros': 'Applies to the {n} devices in the fleet, including any registered later.',
   'spaceeyes.prog.elegir-equipo': '— Choose device —',
   'spaceeyes.prog.campana': 'Campaign',
   'spaceeyes.prog.elegir-campana': '— Choose campaign —',
@@ -2185,17 +2203,18 @@ export const EN_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.alta.dias.uno': '{n} day',
   'spaceeyes.alta.dias.otros': '{n} days',
   'spaceeyes.alta.lote.qr':
-    'One QR for all {n}: each device joins separately. Device number {siguiente} is not let in, and you can cancel it at any time.',
+    'One QR for {n} devices: each one joins on its own. From device no. {siguiente} on, nobody else gets in, and you can cancel the QR at any time.',
   'spaceeyes.alta.lote.archivo':
-    'One file for all {n}: each device joins separately. Device number {siguiente} is not let in, and you can cancel it at any time.',
+    'One file for {n} devices: each one joins on its own. From device no. {siguiente} on, nobody else gets in, and you can cancel the file at any time.',
   'spaceeyes.alta.lote.codigo':
-    'One code for all {n}: each device joins separately. Device number {siguiente} is not let in, and you can cancel it at any time.',
+    'One code for {n} devices: each one joins on its own. From device no. {siguiente} on, nobody else gets in, and you can cancel the code at any time.',
   'spaceeyes.alta.uno-solo': 'Just one: the code works once.',
   'spaceeyes.alta.tel.1': 'Install the {app} app on the phone{enlace}.',
   'spaceeyes.alta.tel.descargar': 'download app {version}',
   'spaceeyes.alta.tel.2': 'Generate the code and keep it open next to the phone.',
-  'spaceeyes.alta.tel.3': 'In the app, choose {vincular} and scan the QR. If the camera cannot read it, type the code.',
-  'spaceeyes.alta.tel.vincular': 'Pair',
+  'spaceeyes.alta.tel.3':
+    'On the phone, open the app, confirm with {vincular} and scan the QR. If the camera cannot read it, type the code.',
+  'spaceeyes.alta.tel.vincular': 'Vincular',
   'spaceeyes.alta.tel.4': 'The phone shows up in Devices within seconds. Give it the site name there.',
   'spaceeyes.alta.tel.escanea': 'Scan it from the Space Eye app',
   'spaceeyes.alta.tel.qr': 'The QR will show up here',

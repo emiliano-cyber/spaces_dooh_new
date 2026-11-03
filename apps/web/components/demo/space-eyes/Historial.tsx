@@ -280,10 +280,15 @@ function Grafica({
           role="img"
           aria-label={t('spaceeyes.historial.aria', {
             titulo,
-            // El español deja «17 %» como siempre; en ingles el «%» va pegado.
+            // El español deja «17 %» y «sin dato dBm» como siempre; en ingles
+            // el «%» va pegado y «no data» no lleva unidad.
             valor:
-              idioma === 'en' && unidad === '%'
-                ? `${peor ?? t('spaceeyes.comun.sin-dato')}%`
+              idioma === 'en'
+                ? peor == null
+                  ? t('spaceeyes.comun.sin-dato')
+                  : unidad === '%'
+                    ? `${peor}%`
+                    : `${peor} ${unidad}`
                 : `${peor ?? t('spaceeyes.comun.sin-dato')} ${unidad}`,
           })}
           onMouseLeave={() => setActivo(null)}

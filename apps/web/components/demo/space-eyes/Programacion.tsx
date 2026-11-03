@@ -7,7 +7,7 @@ import { cn } from '@/lib/cn'
 import { Button } from '@/components/demo/ui/Button'
 import { ConfirmDialog } from '@/components/demo/ui/ConfirmDialog'
 import { InlinePanel } from '@/components/demo/ui/InlinePanel'
-import { ErrorSE, seApi } from '@/lib/data/space-eyes-se'
+import { ErrorSE, seApi, textoDeError } from '@/lib/data/space-eyes-se'
 import { formatNumero } from '@/lib/formato-numero'
 import { useIdioma } from '@/lib/i18n/contexto'
 import { traducir, type ClaveTexto } from '@/lib/i18n/diccionario'
@@ -124,7 +124,7 @@ function mensajeDeError(e: unknown, porDefecto: string, idioma: Idioma): string 
     const clave = (e.cuerpo as { error?: string } | null)?.error
     if (clave === 'espejo_solo_lectura') return e.message
     if (clave && TEXTOS_ERROR[clave]) return traducir(idioma, TEXTOS_ERROR[clave])
-    return e.message || porDefecto
+    return textoDeError(e, idioma) || porDefecto
   }
   return e instanceof Error ? e.message : porDefecto
 }
@@ -216,13 +216,12 @@ function proximaTexto(s: Programa, idioma: Idioma): string {
   if (!s.next_fire_at) return traducir(idioma, 'spaceeyes.prog.proxima.sin-calcular')
   const d = new Date(s.next_fire_at)
   const faltan = d.getTime() - Date.now()
-  const fecha = d.toLocaleString(idioma === 'en' ? 'en-US' : 'es-MX', {
-    day: '2-digit',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  })
+  // En ingles, como el resto de la aplicacion: «Nov 2, 11:30 AM» (dia sin
+  // cero y reloj de 12 h). El español es el de siempre.
+  const fecha =
+    idioma === 'en'
+      ? new Intl.DateTimeFormat('en-US', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }).format(d)
+      : d.toLocaleString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false })
   if (faltan < 0) return traducir(idioma, 'spaceeyes.prog.proxima.cola', { fecha })
   const horas = Math.floor(faltan / 3_600_000)
   if (horas < 1) return traducir(idioma, 'spaceeyes.prog.proxima.min', { fecha, n: Math.max(1, Math.round(faltan / 60_000)) })
@@ -649,7 +648,11 @@ function FormularioProgramacion({
             </div>
 
             {f.destino === 'todos' && (
-              <p className="text-[12px] text-muted">{t('spaceeyes.prog.todos.texto', { n: formatNumero(equipos.length) })}</p>
+              <p className="text-[12px] text-muted">
+                {t(equipos.length === 1 ? 'spaceeyes.prog.todos.texto.uno' : 'spaceeyes.prog.todos.texto.otros', {
+                  n: formatNumero(equipos.length),
+                })}
+              </p>
             )}
             {f.destino === 'device' && (
               <select

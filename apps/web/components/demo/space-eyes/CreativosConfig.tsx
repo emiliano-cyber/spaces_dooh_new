@@ -5,7 +5,7 @@ import { AlertTriangle, Info, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { Button } from '@/components/demo/ui/Button'
 import { ConfirmDialog } from '@/components/demo/ui/ConfirmDialog'
-import { seApi, fotoSE, ErrorSE } from '@/lib/data/space-eyes-se'
+import { seApi, fotoSE, ErrorSE, textoDeError } from '@/lib/data/space-eyes-se'
 import { fechaHora, gigas, hace } from './piezas'
 import { useIdioma } from '@/lib/i18n/contexto'
 import { traducir, type ClaveTexto } from '@/lib/i18n/diccionario'
@@ -131,7 +131,7 @@ function MedidorMes({ bytes }: { bytes: number | null }) {
 
 function mensaje(e: unknown, idioma: Idioma): string {
   if (e instanceof ErrorSE && e.status === 403) return traducir(idioma, 'spaceeyes.comun.sin-permiso-cambiar')
-  return e instanceof Error ? e.message : String(e)
+  return textoDeError(e, idioma) ?? String(e)
 }
 
 export function CreativosConfig({

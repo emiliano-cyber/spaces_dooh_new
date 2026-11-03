@@ -1002,10 +1002,10 @@ demostración para quien no tiene el módulo, el aviso «sin respuesta» y las
 solicitudes de activación del padre; y la página `/space-eyes/[id]` con un id
 inválido.
 
-- **984 claves** `spaceeyes.*` en `lib/i18n/textos/spaceeyes.ts`, esparcidas en
+- **992 claves** `spaceeyes.*` en `lib/i18n/textos/spaceeyes.ts`, esparcidas en
   `diccionario.ts`, con su instantánea y sus guardias en
   `textos/spaceeyes.test.ts` (ningún inglés igual al español salvo 10
-  declaradas, sin acentos, mismos huecos, sin espacio antes de «%», apóstrofo y
+  declaradas —11 desde la segunda vuelta, con «Vincular»—, sin acentos, mismos huecos, sin espacio antes de «%», apóstrofo y
   comillas tipográficos, nunca «tap»/«press», frecuencias en letra y plurales
   `.uno/.otros` siempre en pareja). El lote entra en `costura.test.ts`.
 - **Funciones con texto ganaron `idioma` con `'es'` por omisión:** en
@@ -1053,12 +1053,40 @@ del archivo de la microSD, el CSV de telemetría, el comando de instalación, y
 lo que manda el servidor o Space Eye: el nombre, la zona y la nota de una falla,
 las alertas de telemetría, el `mensaje` de pedir una foto, el
 `actualizacion.texto` de la lista (solo sale en un `title`) y los errores de
-`lib/space-eyes-whep.ts` y `lib/space-eyes-marca.ts`.
+los errores de `lib/space-eyes-marca.ts` (la descarga de la foto con su marca).
 
-> [!warning] Para confirmar con el dueño
-> El paso del alta «En la app, toca **Vincular**» nombra un botón de la app
-> Android de Space Eye; en inglés dice **Pair**. Si la app no tiene inglés,
-> habría que dejar «Vincular» en las dos.
+#### Segunda vuelta (validador ÁMBAR, `docs/i18n/validacion-spaceeyes.md`)
+
+- **«Vincular» en los dos idiomas** (decisión del dueño, 02/11: la app Android
+  de Space Eye solo está en español). El paso dice «On the phone, open the app,
+  confirm with **Vincular** and scan the QR»; la clave está declarada igual.
+- **«Space Eye respondió N» ya no sale en español en la pantalla inglesa.**
+  `ErrorSE` marca cuándo su mensaje es el genérico (Space Eye no mandó motivo)
+  y `textoDeError(e, idioma)` / `textoRespondio(status, idioma)`
+  (`lib/data/space-eyes-se.ts`, `'es'` por omisión) lo dicen en el idioma de
+  quien lo lee; lo que manda Space Eye sigue siendo un dato. Lo usan todos los
+  manejadores de error del módulo y la exportación del CSV de `Graficas`.
+- **Los motivos de la vista en vivo son interfaz** (decisión del orquestador):
+  `VisorWhep` recibe `idioma` (`'es'` por omisión) y sus cuatro motivos salen
+  de `spaceeyes.whep.*`. La marca de la foto sigue SIN traducirse.
+- **Guardias nuevas en el barrido inglés:** `(?<!MX)\$ ?\d` y
+  `\d{2}/\d{2}/\d{4}` (las mismas expresiones que prepara el lote de
+  inventario para su ayudante común, que aún no está en esta base; aquí van
+  locales), más el mes abreviado y el «a. m.» de es-MX. Se quita antes la marca
+  de la foto, y otra prueba exige que en inglés esa marca SIGA en es-MX. La
+  nueva `lib/space-eyes-marca-idioma.test.ts` fija `lineasMarca` y
+  `renglonesMarca` en es-MX y que ninguno de los dos módulos sepa de idiomas.
+  Mutantes: quitar el idioma de un `fechaHora` (M3), traducir la marca (M6,
+  M7), quitar el idioma de `textoDeError` y de `VisorWhep` — **mueren los
+  cinco**.
+- **Glosario (orquestador):** Administración › Configuración › Soporte →
+  *Settings › Business settings › Support*; folio de un ticket → *ticket*;
+  el padre → *parent server*. Además: «Updates: …» → *Update mode: …*; el lote
+  de códigos en inglés natural; *manually* en vez de *by hand*; *On demand* en
+  los dos sitios; *checksum*; posesivos; plurales `.uno/.otros` en «of {n}
+  devices», «Applies to the {n} devices» y «Cabinets {lista}»; la próxima foto
+  y el pie del visor de la galería con el formato inglés de la aplicación.
+- **Español, otra vez medido:** 95/95 estados idénticos frente a `ec427a66`.
 
 ## Enlaces
 
