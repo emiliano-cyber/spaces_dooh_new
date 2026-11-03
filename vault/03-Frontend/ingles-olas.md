@@ -102,7 +102,7 @@ traductor  ──►  validador  ──►  ¿VERDE?  ──sí──►  se jun
 | Las confirmaciones de aprobar una propuesta (en $0 y descuento sobre el tope) | `feat/ingles-confirmaciones` | **VERDE**. Integrado (15022a6a). Siguen en español, para otra ola: el tope al EDITAR el descuento y el 400 de la negociación con la agencia sin validar |
 | «pesos» en redacción neutra (español **e** inglés) | `feat/pesos-neutral` | **VERDE** (2.ª). Integrado (00815aa3). Hecho (02/11): cuatro claves de Paquetes, «cantidad entera / sin centavos / exacto». El resto del español, idéntico (medido). Y los tres menores del validador de catálogos. Ver [[idiomas-es-en]] §7 |
 
-### Ola 5 · Cierre (siguiente)
+### Ola 5 · Cierre (cerrada: integrada el 2026-11-03)
 
 Al 2026-11-02 por la noche **toda la interfaz está traducida e integrada** en `integra/ingles` (7059fdce): `npm test` 6645 de 6645 en verde, typecheck limpio, y el inventario baja a **211** textos en 91 archivos (de unos 2200), casi todos tablas españolas que se quedan a propósito como la verdad, datos y falsos positivos de clases CSS. Quedan los menores preventivos de la guardia de formato y de estilo que dejaron los validadores.
 
@@ -112,7 +112,7 @@ quedar solo con falsos positivos. Con eso, el dueño decide si se enciende.
 
 | Lote | Rama | Estado |
 |---|---|---|
-| Recorrido en navegador y menores de los validadores | `feat/ingles-ola5` | **Hecho, falta el validador** (2026-11-03) |
+| Recorrido en navegador y menores de los validadores | `feat/ingles-ola5` | **VERDE**. Integrado (b13de665). Informe en `docs/i18n/validacion-ola5.md`: español idéntico en 550 estados, 14 de 15 mutantes; el que sobrevivía (espera de dos cifras en el login) lo mata una prueba añadida al integrar |
 
 Detalle del lote:
 
@@ -126,6 +126,8 @@ Detalle del lote:
   «Check them».
 - **Cifras.** 6697 unitarias en verde y typecheck limpio. Español idéntico: 550
   estados, 0 valores de `DICCIONARIOS.es` cambiados.
+- **Lo que el inventario no ve.** `scripts/i18n-inventario.mjs` siguió en 211 con los siete hallazgos dentro: no mira `login` ni `Sidebar`, no lee literales en plantillas ni datos pintados crudos. **El contador no basta para declarar terminado el inglés; el recorrido sí.**
+- **Menores del validador, sin bloquear:** dos 400 de las rutas de acceso que la interfaz no provoca siguen en español (`Cuerpo inválido`, `Falta el enlace de restablecimiento.`), y un defecto previo en los dos idiomas: una fecha de inicio sin hora se pinta un día antes en el pipeline.
 - **Pendiente.** Tres decisiones nuevas para el dueño: notificaciones, papeles y
   la lista de comprobación de una OT. Ver `docs/i18n/revision-ola5.md` §7.
 
@@ -152,11 +154,24 @@ Detalle del lote:
 |---|---|
 | El CSV del estado de cuenta: ¿en el idioma de la pantalla o siempre en español? | el dueño |
 | «MX$ 1,160.00 MXN» en el comprobante: el validador recomienda dejarlo | el dueño |
-| Encender `IDIOMA_INGLES=1` en DEMO y luego en las instancias | el dueño, tras la ola 5 |
+| Notificaciones de la campanita guardadas en español: ¿traducirlas al pintarlas (lote propio) o aceptarlas? | el dueño |
+| Los cinco papeles de las razones sociales («Compra los activos…»): ¿etiqueta inglesa por código? | el dueño |
+| La lista de comprobación por omisión de una OT nueva se guarda en español | el dueño |
+| Los dos mensajes del flujo de venta (tope al editar el descuento; 400 de la agencia sin validar) | el dueño: «después» |
+| Encender `IDIOMA_INGLES=1` en DEMO y luego en las instancias | el dueño: la ola 5 ya está cerrada |
 | Entrada en `docs/Registro_Cambios.md` | al encender, porque antes no se nota |
 | PR de `integra/ingles` hacia `main` | el dueño |
 
 ## 5 · Cifras de `integra/ingles` (medidas, no copiadas)
+
+Al 2026-11-03, con la ola 5 integrada:
+
+- `npm run typecheck`: limpio. `npm run build`: limpio (el 03/11 paraba en el lint de una prueba; arreglado en 008bb1b9).
+- `npx vitest run --testTimeout=60000`: **6699 en verde** en 366 archivos.
+- e2e completa (antes de la ola 5, con f4eaa365): **1186 en verde**; solo `grants-rol-app`, por Docker. Ya no caen diez cada tarde: la base de pruebas habla en UTC (ver [[entorno-y-despliegue]]).
+- Inventario: **211** textos, clasificados en `docs/i18n/revision-ola5.md`.
+
+Anteriores:
 
 Al 2026-11-02 (`2e622add`):
 

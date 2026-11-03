@@ -32,6 +32,8 @@ const CASOS: Array<[string, string]> = [
   ],
   ['Demasiados intentos. Espera 30s e intenta de nuevo.', 'Too many attempts. Wait 30s and try again.'],
   ['Demasiados intentos. Espera 5s.', 'Too many attempts. Wait 5s.'],
+  // Dos cifras: sin este caso sobrevivia el mutante que cambia la espera de varias cifras por una sola en el limite corto.
+  ['Demasiados intentos. Espera 45s.', 'Too many attempts. Wait 45s.'],
   // Los que ya conoce el catalogo del servidor pasan por `traducirError`.
   [
     'El servicio no está disponible en este momento. Intenta de nuevo en unos minutos.',
