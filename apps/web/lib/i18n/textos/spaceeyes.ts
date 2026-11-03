@@ -2305,11 +2305,11 @@ export const EN_SPACEEYES: Record<ClaveSpaceEyes, string> = {
 // GLOSARIO DEL LOTE (decision del traductor; el dueño puede cambiarla):
 // equipo / dispositivo → dispositivo · falla → guasto (aperto / risolto /
 // scartato) · vista en vivo → vista in diretta · verificacion → verifica ·
-// solicitud de activacion → richiesta di attivazione · flota → flotta ·
+// solicitud de activacion → richiesta di attivazione · flota → parco dispositivi ·
 // gabinete → cabinet (invariable, como en el sector LED) · creativo /
 // creatividad → creatività (femenino, invariable) · encuadre → inquadratura ·
 // vigilancia → monitoraggio · codigo de vinculacion → codice di abbinamento ·
-// marca de la foto → etichetta · programacion de fotos → programmazione ·
+// marca de la foto → sovrimpressione · programacion de fotos → programmazione ·
 // captura → scatto · lente → obiettivo · camara → fotocamera (telecamera IP en
 // la PC) · Dueño → Titolare · el padre → server padre · folio de un ticket →
 // ticket · Administracion › Configuracion › Soporte → Impostazioni ›
@@ -2324,7 +2324,7 @@ export const IT_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.hace.segundos': 'pochi secondi fa',
   'spaceeyes.hace.min': '{n} min fa',
   'spaceeyes.hace.h': '{n} h fa',
-  'spaceeyes.hace.d': '{n} g fa',
+  'spaceeyes.hace.d': '{n} gg fa',
   'spaceeyes.hace.semanas': '{n} settimane fa',
   'spaceeyes.comun.sin-dato': 'nessun dato',
   'spaceeyes.senal.buena': 'buono',
@@ -2380,7 +2380,7 @@ export const IT_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.demo.historial.3': 'Guasto: 2 cabinet spenti (con foto di prova)',
   'spaceeyes.demo.historial.4': 'Guasto risolto: il dispositivo ha rivisto lo schermo intero',
   'spaceeyes.demo.historial.5': 'Foto richiesta dall’ufficio, ricevuta in 9 secondi',
-  'spaceeyes.demo.beneficio.1.titulo': 'Prova di affissione',
+  'spaceeyes.demo.beneficio.1.titulo': 'Prova di messa in onda',
   'spaceeyes.demo.beneficio.1.texto':
     'Foto con data, ora e posizione di ogni annuncio in onda, pronte da inviare al cliente.',
   'spaceeyes.demo.beneficio.2.titulo': 'I guasti prima del cliente',
@@ -2443,7 +2443,7 @@ export const IT_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.lista.kpi.bateria': 'Batteria critica',
   'spaceeyes.lista.kpi.bajo-20': 'sotto il 20%',
   'spaceeyes.lista.kpi.ultima': 'Ultimo scatto',
-  'spaceeyes.lista.kpi.flota': 'di tutta la flotta',
+  'spaceeyes.lista.kpi.flota': 'di tutto il parco dispositivi',
   'spaceeyes.lista.kpi.sin-fotos': 'ancora nessuna foto',
   'spaceeyes.lista.filtro.todos': 'Tutti · {n}',
   'spaceeyes.lista.filtro.linea': 'Online · {n}',
@@ -2503,7 +2503,7 @@ export const IT_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.ficha.velo.tarda': 'Di solito ci vogliono tra 5 e 20 secondi',
   'spaceeyes.ficha.sin-capturas': 'Nessuno scatto',
   'spaceeyes.ficha.recientes': 'Recenti',
-  'spaceeyes.ficha.captura-del': 'Scatto del {fecha}',
+  'spaceeyes.ficha.captura-del': 'Scatto: {fecha}',
   'spaceeyes.ficha.energia': 'Alimentazione',
   'spaceeyes.ficha.cargando': 'in carica',
   'spaceeyes.ficha.sin-cargar': 'non in carica',
@@ -2558,8 +2558,8 @@ export const IT_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.falla.al-recuperar': 'alla risoluzione',
   'spaceeyes.creativo.alt': 'Creatività rilevata',
   'spaceeyes.creativo.aparecio': 'Comparsa {fecha}',
-  'spaceeyes.creativo.visto.uno': 'Vista {n} volta · l’ultima {hace} fa',
-  'spaceeyes.creativo.visto.otros': 'Vista {n} volte · l’ultima {hace} fa',
+  'spaceeyes.creativo.visto.uno': 'Vista {n} volta · l’ultima {hace}',
+  'spaceeyes.creativo.visto.otros': 'Vista {n} volte · l’ultima {hace}',
   'spaceeyes.creativo.ninguno': 'Non ha ancora rilevato nuove creatività.',
   'spaceeyes.pyc.error': 'Impossibile leggere cosa ha visto il dispositivo sul suo schermo: {error}',
   'spaceeyes.pyc.leyendo': 'Lettura del monitoraggio dello schermo…',
@@ -2629,7 +2629,7 @@ export const IT_SPACEEYES: Record<ClaveSpaceEyes, string> = {
     'Continuo: il dispositivo guarda il suo schermo tutto il giorno entro l’orario e avvisa in meno di un minuto quando compare una nuova creatività. Continua a non consumare dati: invia solo la foto delle novità.',
   'spaceeyes.creativos.reaprender': 'Riapprendi',
   'spaceeyes.creativos.envio.ayuda':
-    'Guardare e inviare sono due cose distinte: il dispositivo guarda sempre e qui si sceglie quando partono le foto. Raggruppate ne arriva una per creatività, la più nitida; una creatività che si ripete non viene inviata di nuovo.',
+    'Guardare e inviare sono due cose distinte: il dispositivo guarda sempre e qui si sceglie quando partono le foto. In modalità raggruppata ne arriva una per creatività, la più nitida; una creatività che si ripete non viene inviata di nuovo.',
   'spaceeyes.creativos.envio': 'Invia le foto nuove',
   'spaceeyes.creativos.envio.pie': 'Solo le nuove: una foto per creatività. Guardare non consuma dati.',
   'spaceeyes.creativos.intervalos':
@@ -2640,7 +2640,7 @@ export const IT_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.creativos.no-nuevo': 'Non è nuova',
   'spaceeyes.creativos.reaprender.titulo': 'Riapprendi lo schermo',
   'spaceeyes.creativos.reaprender.texto':
-    'Si cancella tutto ciò che il dispositivo ha appreso di questo schermo. Lo riapprende durante il periodo di apprendimento, e in quel tempo non scatta foto.',
+    'Verrà cancellato tutto ciò che il dispositivo ha appreso di questo schermo. Lo riapprende durante il periodo di apprendimento, e in quel tempo non scatta foto.',
 
   // ── Pantalla y fallas, ajustes (`PantallaConfig`) ──
   'spaceeyes.comun.encendido': 'Attivo',
@@ -2785,12 +2785,12 @@ export const IT_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.admin.longitud': 'Longitudine',
   'spaceeyes.admin.coordenadas-mal': 'La latitudine va da −90 a 90 e la longitudine da −180 a 180.',
   'spaceeyes.admin.coordenadas':
-    'Lasciale vuote se non le conosci. Servono a localizzare l’impianto e a calcolare la luce del suo sito, che è ciò che decide a che ora la foto viene pulita e a che ora viene con le righe.',
+    'Lasciale vuote se non le conosci. Servono a localizzare l’impianto e a calcolare la luce del suo sito, che è ciò che decide a che ora la foto esce nitida e a che ora esce con le righe.',
   'spaceeyes.admin.estado-pantalla': 'Stato dell’impianto',
   'spaceeyes.admin.estado-ayuda':
     'In manutenzione e Dismesso lasciano l’impianto fuori dalle programmazioni: non riceve foto e smette di consumare dati, senza cancellare nulla. In esercizio e Attivo oggi si comportano allo stesso modo.',
   'spaceeyes.admin.actualizar.pc':
-    'Verrà installato l’agente pubblicato su questo PC. Verifica l’impronta del file prima di sostituirlo e, se il nuovo programma non si avvia, torna da solo al precedente.',
+    'Verrà installato l’agente pubblicato su questo PC. L’agente verifica l’impronta del file prima di sostituirlo e, se il nuovo programma non si avvia, torna da solo al precedente.',
   'spaceeyes.admin.actualizar.pi':
     'Verrà installato l’agente pubblicato su questo Raspberry. Verifica l’impronta e lo prova prima di sostituire qualsiasi cosa; se la nuova versione non si avvia, torna da sola alla precedente. L’identità del dispositivo e le sue foto in sospeso vengono conservate.',
   'spaceeyes.admin.actualizar.version':
@@ -3001,7 +3001,7 @@ export const IT_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.galeria.no-eliminar': 'Impossibile eliminare la fotografia: {motivo}',
   'spaceeyes.galeria.preparando': 'Preparazione…',
   'spaceeyes.galeria.album.vacio': 'Nessuna foto da scaricare',
-  'spaceeyes.galeria.album.ninguna': 'Impossibile scaricare qualsiasi foto dell’album',
+  'spaceeyes.galeria.album.ninguna': 'Non è stato possibile scaricare nessuna foto dell’album',
   'spaceeyes.galeria.album.parcial.uno': 'Album scaricato; non è stato possibile includere {n} foto',
   'spaceeyes.galeria.album.parcial.otros': 'Album scaricato; non è stato possibile includere {n} foto',
   'spaceeyes.galeria.album.listo': 'Album scaricato',
@@ -3009,7 +3009,7 @@ export const IT_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.galeria.titulo': 'Galleria foto',
   'spaceeyes.galeria.descripcion':
     'Tutte le foto dei dispositivi: programmate, richieste manualmente, di nuove creatività e di guasti.',
-  'spaceeyes.galeria.album.ayuda': 'Scarica in un .zip tutte le foto che corrispondono ai filtri, con la loro etichetta',
+  'spaceeyes.galeria.album.ayuda': 'Scarica in un .zip tutte le foto che corrispondono ai filtri, con la loro sovrimpressione',
   'spaceeyes.galeria.descargando': 'Scaricamento {progreso}',
   'spaceeyes.galeria.album': 'Scarica album',
   'spaceeyes.galeria.origen': 'Origine',
@@ -3164,9 +3164,9 @@ export const IT_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.prog.al-azar': '{lista} (casuale)',
   'spaceeyes.prog.cada-h': 'Ogni {n} h',
   'spaceeyes.prog.estado.pausada': 'In pausa',
-  'spaceeyes.prog.estado.empieza': 'Inizia il {fecha}',
-  'spaceeyes.prog.estado.vencio': 'Scaduta il {fecha}',
-  'spaceeyes.prog.proxima.espera': 'Non scatta fino al {fecha}',
+  'spaceeyes.prog.estado.empieza': 'Inizio: {fecha}',
+  'spaceeyes.prog.estado.vencio': 'Scaduta: {fecha}',
+  'spaceeyes.prog.proxima.espera': 'Non scatta prima di: {fecha}',
   'spaceeyes.prog.proxima.vencida': 'Non scatta: scaduta',
   'spaceeyes.prog.proxima.sin-calcular': 'Non calcolata',
   'spaceeyes.prog.proxima.cola': '{fecha} (in coda)',
@@ -3216,9 +3216,9 @@ export const IT_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.prog.destino.una-campana': 'Una campagna',
   'spaceeyes.prog.nombre-ej': 'Es. Prova giornaliera del percorso nord',
   'spaceeyes.prog.aplicar-a': 'Applica a',
-  'spaceeyes.prog.todos.texto.uno': 'Si applica a tutti i dispositivi della flotta ({n}), compresi quelli che verranno registrati in seguito.',
+  'spaceeyes.prog.todos.texto.uno': 'Si applica a tutti i dispositivi del parco ({n}), compresi quelli che verranno registrati in seguito.',
   'spaceeyes.prog.todos.texto.otros':
-    'Si applica ai {n} dispositivi della flotta, compresi quelli che verranno registrati in seguito.',
+    'Si applica ai {n} dispositivi del parco, compresi quelli che verranno registrati in seguito.',
   'spaceeyes.prog.elegir-equipo': '— Scegli il dispositivo —',
   'spaceeyes.prog.campana': 'Campagna',
   'spaceeyes.prog.elegir-campana': '— Scegli la campagna —',
@@ -3306,13 +3306,13 @@ export const IT_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.graficas.sin-telemetria': 'Nessuna telemetria nel periodo selezionato per questo dispositivo.',
 
   // ── Ajustar texto de las fotos (`AjustarTexto`). Lo que se GRABA en la foto no se traduce ──
-  'spaceeyes.texto.confirmar-descartar': 'Ci sono modifiche non salvate nell’etichetta di questo dispositivo. Scartarle?',
+  'spaceeyes.texto.confirmar-descartar': 'Ci sono modifiche non salvate nella sovrimpressione di questo dispositivo. Scartarle?',
   'spaceeyes.texto.capturada': 'Fotografia scattata',
   'spaceeyes.texto.no-llego': 'La foto non è arrivata. Il dispositivo è online?',
   'spaceeyes.texto.sin-permiso-foto': 'Non hai il permesso di scattare foto',
   'spaceeyes.texto.no-orden': 'Impossibile inviare il comando al dispositivo',
   'spaceeyes.texto.guardada': 'Configurazione salvata e applicata al dispositivo',
-  'spaceeyes.texto.sin-permiso-marca': 'Non hai il permesso di modificare l’etichetta',
+  'spaceeyes.texto.sin-permiso-marca': 'Non hai il permesso di modificare la sovrimpressione',
   'spaceeyes.texto.no-guardar': 'Impossibile salvare la configurazione',
   'spaceeyes.texto.titulo': 'Regola il testo delle foto',
   'spaceeyes.texto.descripcion':
@@ -3323,17 +3323,17 @@ export const IT_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.texto.tomar': 'Scatta fotografia',
   'spaceeyes.texto.solo-boton': 'La fotocamera scatta solo quando clicchi il pulsante.',
   'spaceeyes.texto.esperando': 'In attesa della foto dal dispositivo (fino a 30 s)…',
-  'spaceeyes.texto.sin-permiso': 'Solo chi può modificare l’inventario può scattare la foto e salvare l’etichetta.',
+  'spaceeyes.texto.sin-permiso': 'Solo chi può modificare l’inventario può scattare la foto e salvare la sovrimpressione.',
   'spaceeyes.texto.arrastra':
-    'Trascina sulla foto per spostare l’etichetta (o usa le frecce della tastiera). Le modifiche si vedono subito.',
+    'Trascina sulla foto per spostare la sovrimpressione (o usa le frecce della tastiera). Le modifiche si vedono subito.',
   'spaceeyes.texto.fecha-foto': 'La data e l’ora dell’anteprima sono quelle di questa foto.',
   'spaceeyes.texto.sin-guardar': 'non salvato',
   'spaceeyes.texto.guardar': 'Salva configurazione',
-  'spaceeyes.texto.posicion': 'Posizione dell’etichetta: trascina o usa le frecce',
+  'spaceeyes.texto.posicion': 'Posizione della sovrimpressione: trascina o usa le frecce',
   'spaceeyes.texto.alt': 'Foto di riferimento del dispositivo',
   'spaceeyes.texto.previsualizar': 'Scatta una fotografia per l’anteprima',
-  'spaceeyes.texto.desactivada': 'Etichetta disattivata',
-  'spaceeyes.texto.mostrar': 'Mostra etichetta',
+  'spaceeyes.texto.desactivada': 'Sovrimpressione disattivata',
+  'spaceeyes.texto.mostrar': 'Mostra sovrimpressione',
   'spaceeyes.texto.tamano': 'Dimensione',
   'spaceeyes.texto.peso': 'Spessore del carattere',
   'spaceeyes.texto.normal': 'Normale',
@@ -3411,7 +3411,7 @@ export const IT_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.alta.pi.listo.una': 'Vale per un solo Raspberry.',
   'spaceeyes.alta.pi.listo.vence': 'Scade {fecha}.',
   'spaceeyes.alta.pi.1':
-    'Sul tuo computer, scrivi la microSD con {imager}: Raspberry Pi OS Lite (64-bit). Quando chiede se vuoi personalizzare, scegli {no}.',
+    'Sul tuo computer, prepara la microSD con {imager}: Raspberry Pi OS Lite (64-bit). Quando chiede se vuoi personalizzare, scegli {no}.',
   'spaceeyes.alta.pi.1.no': 'No',
   'spaceeyes.alta.pi.2':
     'Senza estrarre la microSD, aprila in Esplora file (si chiama {bootfs}) e copia lì {userdata} e {network} dal file scaricato. Sostituisci quelli già presenti.',
@@ -3435,13 +3435,13 @@ export const IT_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.alta.col.codigo': 'Codice',
   'spaceeyes.alta.col.genero': 'Generato da',
   'spaceeyes.alta.usos': '{usos} di {max} dispositivi',
-  'spaceeyes.alta.lote.vigente': ' · valido fino al {fecha}',
+  'spaceeyes.alta.lote.vigente': ' · valido fino a: {fecha}',
   'spaceeyes.alta.lote.completo': ' · esaurito',
   'spaceeyes.alta.lote.cancelado': ' · annullato',
   'spaceeyes.alta.lote.vencido': ' · scaduto',
   'spaceeyes.alta.equipo-n': 'dispositivo {id}',
   'spaceeyes.alta.usado-por': 'Usato · {nombre}',
-  'spaceeyes.alta.vigente-hasta': 'Valido fino al {fecha}',
+  'spaceeyes.alta.vigente-hasta': 'Valido fino a: {fecha}',
   'spaceeyes.alta.estado.vencido': 'Scaduto',
   'spaceeyes.alta.estado.cancelado': 'Annullato',
   'spaceeyes.alta.estado.usado': 'Usato',

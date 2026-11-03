@@ -3438,7 +3438,9 @@ const ITALIANO: Record<string, string[]> = {
     'Richiedi l’attivazione', 'Lo vuoi per i tuoi impianti?',
   ],
   // Validacion L1: «{hace}» ya trae el «fa»; la plantilla lo repetia.
-  'pantalla y creativos · con fallas y creativos': ['Vista 42 volte · l’ultima 5 min fa'],
+  // El contador va en su propio nodo (`interpolarNodos`); el «<» detras exige
+  // que la frase acabe ahi, sin un segundo «fa».
+  'pantalla y creativos · con fallas y creativos': ['Vista <span', '42</span> volte · l’ultima 5 min fa<'],
   // Validacion L1 (V1): el SSIM con coma, no «0.812».
   'verificacion · resultados con paginas': ['SSIM 0,812'],
   'sin respuesta': [
