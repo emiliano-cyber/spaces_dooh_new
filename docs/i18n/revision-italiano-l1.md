@@ -2,7 +2,8 @@
 
 **Fecha:** 2026-11-03 · **Rama:** `feat/italiano-l1-spaceeyes` (sale de
 `integra/idiomas`, `6fea374a`) · **Tablero:** `vault/03-Frontend/italiano-olas.md`
-(subsección «Lote L1») · **Estado:** hecho, sin validar.
+(subsección «Lote L1») · **Estado:** validado ÁMBAR
+(`docs/i18n/validacion-italiano-l1.md`) y corregido en la segunda vuelta (§6).
 
 ## 1 · Qué se hizo
 
@@ -116,14 +117,35 @@ el mismo árbol (`git checkout 6fea374a -- <los 28 archivos>`), y se volvió a
   *impianto*.
 - **«creatività»** (femenino, invariable) para creativo/creatividad; «cabinet»
   invariable para gabinete.
-- **Fechas con artículo:** «Inizia il 1 dic 2026», «valido fino al 1 dic 2026».
-  El italiano esmerado diría «l’1» o «il 1°»; se deja la forma corriente de
-  interfaz.
+- **Fechas sin artículo** (segunda vuelta, decisión del orquestador para todo
+  el italiano): «Inizio: 1 dic 2026», «Valido fino a: 1 dic 2026».
 - Plurales sin forma en español: «{n} con il mese già registrato» (era «{n} ya
   capturados») y «Bollette mancanti nel periodo: {faltan} su {esperados}» para
   que concuerden con cualquier cifra.
 
-## 6 · Tabla de revisión
+## 6 · Segunda vuelta (validación ÁMBAR)
+
+| Hallazgo | Corrección |
+|---|---|
+| «Vista 42 volte · l’ultima 5 min fa **fa**» (`{hace}` ya trae el «fa») | «Vista {n} volte · l’ultima {hace}». Prueba: lo esperado acaba en «5 min fa<» y una guardia contra «fa fa» en las 95 pantallas italianas; en el diccionario, ningún «{hace} fa» |
+| Fechas con artículo («il 8 dic», «al 11 ott») | Sin artículo, en las 6 claves: «Inizio: {fecha}», «Scaduta: {fecha}», «Non scatta prima di: {fecha}», « · valido fino a: {fecha}», «Valido fino a: {fecha}», «Scatto: {fecha}». Guardia en el diccionario: ninguna fecha detrás de il/al/del/dal/nel/sul/l’/all’/dell’ |
+| 9 frases (§3.3 de la validación) | Aplicadas tal cual: «esce nitida», «L’agente verifica…», «In modalità raggruppata…», «Verrà eliminata la bolletta», «Verrà cancellato», «il caso normale per», «{n} gg fa», «Non è stato possibile scaricare nessuna foto», «prepara la microSD» |
+| predio → «proprietà» choca con L3/L4 | **immobile** en `energia.ts` (y «sceglilo tu», «il suo immobile») |
+| Glosario | **parco dispositivi** (flota), **sovrimpressione** (marca de la foto), **punto di prelievo (POD)** (punto de medición), **Prova di messa in onda**. Guardias en el diccionario contra flotta, etichetta, affissione, proprietà y punto di misura |
+| Mutantes vivos V1, V2, V3, V6, V8 | Prueba unitaria `components/demo/space-eyes/piezas-cifras.test.ts` (`fijo`/`cifra`/`gigas` en es/en = `toFixed`/`String` con los bordes de la validación; en it, «0,812», «1.440», «3,10 GB»; «0.812» en inglés), «SSIM 0,812» esperado, total de galería 1234 → «1.234» en italiano, y la rama de kWh aceptados («· 1.500 kWh») |
+
+**Mutantes de la segunda vuelta: los 8 de la validación (V1–V8) y 3 nuevos
+(«fa fa», fecha con artículo, «proprietà»): mueren los 11.** Rojo medido antes
+de corregir: 15 fallos (commit `27f5ea10`).
+
+**Español e inglés, otra vez medidos:** volcado de toda la suite frente a la
+base `6fea374a` (3027 archivos) — `diff -rq` 0 distintos, 0 desaparecidos;
+`DICCIONARIOS.es`/`.en` 5590 valores, 0 cambiados. Suite: 384 archivos, 7276
+pruebas en verde; typecheck limpio.
+
+«Titolare» (Dueño) se queda: es del glosario común.
+
+## 7 · Tabla de revisión
 
 `␣` marca un espacio al principio o al final (el texto va pegado a otro nodo).
 Los huecos `{nombre}` se rellenan en tiempo de ejecución.
@@ -136,7 +158,7 @@ Los huecos `{nombre}` se rellenan en tiempo de ejecución.
 | `spaceeyes.hace.segundos` | hace segundos | seconds ago | pochi secondi fa |
 | `spaceeyes.hace.min` | hace {n} min | {n} min ago | {n} min fa |
 | `spaceeyes.hace.h` | hace {n} h | {n} h ago | {n} h fa |
-| `spaceeyes.hace.d` | hace {n} d | {n} d ago | {n} g fa |
+| `spaceeyes.hace.d` | hace {n} d | {n} d ago | {n} gg fa |
 | `spaceeyes.hace.semanas` | hace {n} semanas | {n} weeks ago | {n} settimane fa |
 | `spaceeyes.comun.sin-dato` | sin dato | no data | nessun dato |
 | `spaceeyes.senal.buena` | buena | good | buono |
@@ -184,7 +206,7 @@ Los huecos `{nombre}` se rellenan en tiempo de ejecución.
 | `spaceeyes.demo.historial.3` | Falla: 2 gabinetes apagados (con foto de evidencia) | Fault: 2 cabinets off (with an evidence photo) | Guasto: 2 cabinet spenti (con foto di prova) |
 | `spaceeyes.demo.historial.4` | Falla recuperada: el equipo vio la pantalla completa otra vez | Fault cleared: the device saw the whole screen again | Guasto risolto: il dispositivo ha rivisto lo schermo intero |
 | `spaceeyes.demo.historial.5` | Foto pedida desde la oficina, recibida en 9 segundos | Photo requested from the office, received in 9 seconds | Foto richiesta dall’ufficio, ricevuta in 9 secondi |
-| `spaceeyes.demo.beneficio.1.titulo` | Prueba de exhibición | Proof of display | Prova di affissione |
+| `spaceeyes.demo.beneficio.1.titulo` | Prueba de exhibición | Proof of display | Prova di messa in onda |
 | `spaceeyes.demo.beneficio.1.texto` | Fotos con fecha, hora y ubicación de cada anuncio al aire, listas para enviar al cliente. | Photos with the date, time and location of every ad on air, ready to send to the client. | Foto con data, ora e posizione di ogni annuncio in onda, pronte da inviare al cliente. |
 | `spaceeyes.demo.beneficio.2.titulo` | Fallas antes que el cliente | Faults before the client sees them | I guasti prima del cliente |
 | `spaceeyes.demo.beneficio.2.texto` | El equipo detecta gabinetes apagados o una pantalla congelada y avisa con la foto del problema. | The device detects cabinets that are off or a frozen screen and alerts you with a photo of the problem. | Il dispositivo rileva cabinet spenti o uno schermo bloccato e avvisa con la foto del problema. |
@@ -237,7 +259,7 @@ Los huecos `{nombre}` se rellenan en tiempo de ejecución.
 | `spaceeyes.lista.kpi.bateria` | Batería crítica | Critical battery | Batteria critica |
 | `spaceeyes.lista.kpi.bajo-20` | bajo 20% | under 20% | sotto il 20% |
 | `spaceeyes.lista.kpi.ultima` | Última captura | Last capture | Ultimo scatto |
-| `spaceeyes.lista.kpi.flota` | de toda la flota | across the fleet | di tutta la flotta |
+| `spaceeyes.lista.kpi.flota` | de toda la flota | across the fleet | di tutto il parco dispositivi |
 | `spaceeyes.lista.kpi.sin-fotos` | sin fotos todavía | no photos yet | ancora nessuna foto |
 | `spaceeyes.lista.filtro.todos` | Todos · {n} | All · {n} | Tutti · {n} |
 | `spaceeyes.lista.filtro.linea` | En línea · {n} | Online · {n} | Online · {n} |
@@ -293,7 +315,7 @@ Los huecos `{nombre}` se rellenan en tiempo de ejecución.
 | `spaceeyes.ficha.velo.tarda` | Suele tardar entre 5 y 20 segundos | It usually takes 5 to 20 seconds | Di solito ci vogliono tra 5 e 20 secondi |
 | `spaceeyes.ficha.sin-capturas` | Sin capturas | No captures | Nessuno scatto |
 | `spaceeyes.ficha.recientes` | Recientes | Recent | Recenti |
-| `spaceeyes.ficha.captura-del` | Captura del {fecha} | Capture from {fecha} | Scatto del {fecha} |
+| `spaceeyes.ficha.captura-del` | Captura del {fecha} | Capture from {fecha} | Scatto: {fecha} |
 | `spaceeyes.ficha.energia` | Energía | Power | Alimentazione |
 | `spaceeyes.ficha.cargando` | cargando | charging | in carica |
 | `spaceeyes.ficha.sin-cargar` | sin cargar | not charging | non in carica |
@@ -342,8 +364,8 @@ Los huecos `{nombre}` se rellenan en tiempo de ejecución.
 | `spaceeyes.falla.al-recuperar` | al recuperar | when cleared | alla risoluzione |
 | `spaceeyes.creativo.alt` | Creativo detectado | Detected creative | Creatività rilevata |
 | `spaceeyes.creativo.aparecio` | Apareció {fecha} | First seen {fecha} | Comparsa {fecha} |
-| `spaceeyes.creativo.visto.uno` | Visto {n} veces · último {hace} | Seen {n} time · last seen {hace} | Vista {n} volta · l’ultima {hace} fa |
-| `spaceeyes.creativo.visto.otros` | Visto {n} veces · último {hace} | Seen {n} times · last seen {hace} | Vista {n} volte · l’ultima {hace} fa |
+| `spaceeyes.creativo.visto.uno` | Visto {n} veces · último {hace} | Seen {n} time · last seen {hace} | Vista {n} volta · l’ultima {hace} |
+| `spaceeyes.creativo.visto.otros` | Visto {n} veces · último {hace} | Seen {n} times · last seen {hace} | Vista {n} volte · l’ultima {hace} |
 | `spaceeyes.creativo.ninguno` | Todavía no ha detectado creativos nuevos. | No new creatives detected yet. | Non ha ancora rilevato nuove creatività. |
 | `spaceeyes.pyc.error` | No se pudo leer lo que el equipo vio en su pantalla: {error} | Could not read what the device saw on its screen: {error} | Impossibile leggere cosa ha visto il dispositivo sul suo schermo: {error} |
 | `spaceeyes.pyc.leyendo` | Leyendo la vigilancia de la pantalla… | Reading the screen monitoring… | Lettura del monitoraggio dello schermo… |
@@ -402,7 +424,7 @@ Los huecos `{nombre}` se rellenan en tiempo de ejecución.
 | `spaceeyes.creativos.catalogo` | En el catálogo | In the catalog | Nel catalogo |
 | `spaceeyes.creativos.frecuencia.ayuda` | Continuo: el equipo mira su pantalla todo el día dentro del horario y avisa en menos de un minuto cuando sale un creativo nuevo. Sigue sin gastar datos: solo manda la foto de lo nuevo. | Continuous: the device watches its screen all day within operating hours and alerts within a minute when a new creative appears. It still uses no data: it only sends the photo of what is new. | Continuo: il dispositivo guarda il suo schermo tutto il giorno entro l’orario e avvisa in meno di un minuto quando compare una nuova creatività. Continua a non consumare dati: invia solo la foto delle novità. |
 | `spaceeyes.creativos.reaprender` | Volver a aprender | Relearn | Riapprendi |
-| `spaceeyes.creativos.envio.ayuda` | Mirar y mandar son dos cosas: el equipo mira todo el tiempo y aquí se elige cuándo viajan las fotos. Juntas llega una por creativo, la más nítida; un creativo que se repite no se vuelve a mandar. | Watching and sending are two different things: the device watches all the time, and here you choose when the photos travel. Batched, one arrives per creative, the sharpest; a creative that repeats is not sent again. | Guardare e inviare sono due cose distinte: il dispositivo guarda sempre e qui si sceglie quando partono le foto. Raggruppate ne arriva una per creatività, la più nitida; una creatività che si ripete non viene inviata di nuovo. |
+| `spaceeyes.creativos.envio.ayuda` | Mirar y mandar son dos cosas: el equipo mira todo el tiempo y aquí se elige cuándo viajan las fotos. Juntas llega una por creativo, la más nítida; un creativo que se repite no se vuelve a mandar. | Watching and sending are two different things: the device watches all the time, and here you choose when the photos travel. Batched, one arrives per creative, the sharpest; a creative that repeats is not sent again. | Guardare e inviare sono due cose distinte: il dispositivo guarda sempre e qui si sceglie quando partono le foto. In modalità raggruppata ne arriva una per creatività, la più nitida; una creatività che si ripete non viene inviata di nuovo. |
 | `spaceeyes.creativos.envio` | Mandar las fotos nuevas | Send new photos | Invia le foto nuove |
 | `spaceeyes.creativos.envio.pie` | Solo las nuevas: una foto por creativo. Mirar no gasta datos. | Only new ones: one photo per creative. Watching uses no data. | Solo le nuove: una foto per creatività. Guardare non consuma dati. |
 | `spaceeyes.creativos.intervalos` | Mirando por intervalos, un creativo que sale una sola vez entre dos miradas no se ve. Para no perder ninguno, usa «Continuo»: mirar no gasta datos, y con «Juntas cada N horas» decides cuándo llegan las fotos. | Watching at intervals, a creative that plays only once between two looks is missed. To miss none, use “Continuous”: watching uses no data, and with “Batched every N hours” you decide when the photos arrive. | Guardando a intervalli, una creatività che compare una sola volta tra due controlli non si vede. Per non perderne nessuna, usa «Continuo»: guardare non consuma dati, e con «Raggruppate ogni N ore» decidi quando arrivano le foto. |
@@ -411,7 +433,7 @@ Los huecos `{nombre}` se rellenan en tiempo de ejecución.
 | `spaceeyes.creativos.descartando` | Descartando… | Dismissing… | Scarto in corso… |
 | `spaceeyes.creativos.no-nuevo` | No es nuevo | Not new | Non è nuova |
 | `spaceeyes.creativos.reaprender.titulo` | Volver a aprender la pantalla | Relearn the screen | Riapprendi lo schermo |
-| `spaceeyes.creativos.reaprender.texto` | Se borra todo lo que el equipo aprendió de esta pantalla. Vuelve a aprender durante el plazo de aprendizaje, y en ese tiempo no toma fotos. | Everything the device learned about this screen is erased. It learns again during the learning period, and takes no photos in that time. | Si cancella tutto ciò che il dispositivo ha appreso di questo schermo. Lo riapprende durante il periodo di apprendimento, e in quel tempo non scatta foto. |
+| `spaceeyes.creativos.reaprender.texto` | Se borra todo lo que el equipo aprendió de esta pantalla. Vuelve a aprender durante el plazo de aprendizaje, y en ese tiempo no toma fotos. | Everything the device learned about this screen is erased. It learns again during the learning period, and takes no photos in that time. | Verrà cancellato tutto ciò che il dispositivo ha appreso di questo schermo. Lo riapprende durante il periodo di apprendimento, e in quel tempo non scatta foto. |
 | `spaceeyes.comun.encendido` | Encendido | On | Attivo |
 | `spaceeyes.comun.guardando` | Guardando… | Saving… | Salvataggio… |
 | `spaceeyes.pconfig.aprendizaje.0` | Solo la primera vuelta (pruebas) | First pass only (testing) | Solo il primo giro (prove) |
@@ -536,10 +558,10 @@ Los huecos `{nombre}` se rellenan en tiempo de ejecución.
 | `spaceeyes.admin.latitud` | Latitud | Latitude | Latitudine |
 | `spaceeyes.admin.longitud` | Longitud | Longitude | Longitudine |
 | `spaceeyes.admin.coordenadas-mal` | La latitud va de −90 a 90 y la longitud de −180 a 180. | Latitude goes from −90 to 90 and longitude from −180 to 180. | La latitudine va da −90 a 90 e la longitudine da −180 a 180. |
-| `spaceeyes.admin.coordenadas` | Déjalas vacías si no las sabes. Sirven para ubicar la pantalla y para calcular la luz de su sitio, que es lo que decide a qué horas la foto sale limpia y a qué horas sale con líneas. | Leave them empty if you do not know them. They place the screen on the map and work out the light at its site, which decides at what times the photo comes out clean and at what times it shows lines. | Lasciale vuote se non le conosci. Servono a localizzare l’impianto e a calcolare la luce del suo sito, che è ciò che decide a che ora la foto viene pulita e a che ora viene con le righe. |
+| `spaceeyes.admin.coordenadas` | Déjalas vacías si no las sabes. Sirven para ubicar la pantalla y para calcular la luz de su sitio, que es lo que decide a qué horas la foto sale limpia y a qué horas sale con líneas. | Leave them empty if you do not know them. They place the screen on the map and work out the light at its site, which decides at what times the photo comes out clean and at what times it shows lines. | Lasciale vuote se non le conosci. Servono a localizzare l’impianto e a calcolare la luce del suo sito, che è ciò che decide a che ora la foto esce nitida e a che ora esce con le righe. |
 | `spaceeyes.admin.estado-pantalla` | Estado de la pantalla | Screen status | Stato dell’impianto |
 | `spaceeyes.admin.estado-ayuda` | Mantenimiento y dada de baja dejan a la pantalla fuera de las programaciones: no le llegan fotos y deja de gastar datos, sin borrar nada. En operación y activa hoy se comportan igual. | Maintenance and decommissioned take the screen out of the schedules: it gets no photos and stops using data, without deleting anything. “In operation” and “Active” currently behave the same. | In manutenzione e Dismesso lasciano l’impianto fuori dalle programmazioni: non riceve foto e smette di consumare dati, senza cancellare nulla. In esercizio e Attivo oggi si comportano allo stesso modo. |
-| `spaceeyes.admin.actualizar.pc` | Se instalará el agente publicado en esta PC. Verifica la huella del archivo antes de sustituirlo y, si el programa nuevo no arranca, vuelve solo al anterior. | The published agent will be installed on this PC. It verifies the file checksum before replacing it and, if the new program does not start, it rolls back on its own. | Verrà installato l’agente pubblicato su questo PC. Verifica l’impronta del file prima di sostituirlo e, se il nuovo programma non si avvia, torna da solo al precedente. |
+| `spaceeyes.admin.actualizar.pc` | Se instalará el agente publicado en esta PC. Verifica la huella del archivo antes de sustituirlo y, si el programa nuevo no arranca, vuelve solo al anterior. | The published agent will be installed on this PC. It verifies the file checksum before replacing it and, if the new program does not start, it rolls back on its own. | Verrà installato l’agente pubblicato su questo PC. L’agente verifica l’impronta del file prima di sostituirlo e, se il nuovo programma non si avvia, torna da solo al precedente. |
 | `spaceeyes.admin.actualizar.pi` | Se instalará el agente publicado en esta Raspberry. Verifica la huella y lo prueba antes de reemplazar nada; si la versión nueva no arranca, vuelve sola a la anterior. La identidad del equipo y sus fotos pendientes se conservan. | The published agent will be installed on this Raspberry. It verifies the checksum and tests it before replacing anything; if the new version does not start, it rolls back on its own. The device identity and its pending photos are kept. | Verrà installato l’agente pubblicato su questo Raspberry. Verifica l’impronta e lo prova prima di sostituire qualsiasi cosa; se la nuova versione non si avvia, torna da sola alla precedente. L’identità del dispositivo e le sue foto in sospeso vengono conservate. |
 | `spaceeyes.admin.actualizar.version` | Se instalará la versión {version} en este equipo. Tardará un par de minutos y la app se reiniciará sola. | Version {version} will be installed on this device. It takes a couple of minutes and the app restarts on its own. | Verrà installata la versione {version} su questo dispositivo. Ci vorrà un paio di minuti e l’app si riavvierà da sola. |
 | `spaceeyes.admin.actualizar.publicada` | Se instalará la versión publicada en este equipo. Tardará un par de minutos y la app se reiniciará sola. | The published version will be installed on this device. It takes a couple of minutes and the app restarts on its own. | Verrà installata la versione pubblicata su questo dispositivo. Ci vorrà un paio di minuti e l’app si riavvierà da sola. |
@@ -729,14 +751,14 @@ Los huecos `{nombre}` se rellenan en tiempo de ejecución.
 | `spaceeyes.galeria.no-eliminar` | No se pudo eliminar la fotografía: {motivo} | Could not delete the photo: {motivo} | Impossibile eliminare la fotografia: {motivo} |
 | `spaceeyes.galeria.preparando` | Preparando… | Preparing… | Preparazione… |
 | `spaceeyes.galeria.album.vacio` | Sin fotos para descargar | No photos to download | Nessuna foto da scaricare |
-| `spaceeyes.galeria.album.ninguna` | No se pudo descargar ninguna foto del álbum | Could not download any photo from the album | Impossibile scaricare qualsiasi foto dell’album |
+| `spaceeyes.galeria.album.ninguna` | No se pudo descargar ninguna foto del álbum | Could not download any photo from the album | Non è stato possibile scaricare nessuna foto dell’album |
 | `spaceeyes.galeria.album.parcial.uno` | Álbum descargado; {n} foto no se pudo incluir | Album downloaded; {n} photo could not be included | Album scaricato; non è stato possibile includere {n} foto |
 | `spaceeyes.galeria.album.parcial.otros` | Álbum descargado; {n} fotos no se pudo incluir | Album downloaded; {n} photos could not be included | Album scaricato; non è stato possibile includere {n} foto |
 | `spaceeyes.galeria.album.listo` | Álbum descargado | Album downloaded | Album scaricato |
 | `spaceeyes.galeria.album.error` | Error al descargar el álbum: {motivo} | Error downloading the album: {motivo} | Errore durante lo scaricamento dell’album: {motivo} |
 | `spaceeyes.galeria.titulo` | Galería de fotos | Photo gallery | Galleria foto |
 | `spaceeyes.galeria.descripcion` | Todas las fotos de los equipos: programadas, pedidas a mano, de creativos nuevos y de fallas. | Every photo from the devices: scheduled, requested manually, of new creatives and of faults. | Tutte le foto dei dispositivi: programmate, richieste manualmente, di nuove creatività e di guasti. |
-| `spaceeyes.galeria.album.ayuda` | Descarga en un .zip todas las fotos que coinciden con los filtros, con su marca | Downloads every photo that matches the filters as a .zip, with its label | Scarica in un .zip tutte le foto che corrispondono ai filtri, con la loro etichetta |
+| `spaceeyes.galeria.album.ayuda` | Descarga en un .zip todas las fotos que coinciden con los filtros, con su marca | Downloads every photo that matches the filters as a .zip, with its label | Scarica in un .zip tutte le foto che corrispondono ai filtri, con la loro sovrimpressione |
 | `spaceeyes.galeria.descargando` | Descargando {progreso} | Downloading {progreso} | Scaricamento {progreso} |
 | `spaceeyes.galeria.album` | Descargar álbum | Download album | Scarica album |
 | `spaceeyes.galeria.origen` | Origen | Source | Origine |
@@ -879,9 +901,9 @@ Los huecos `{nombre}` se rellenan en tiempo de ejecución.
 | `spaceeyes.prog.al-azar` | {lista} (al azar) | {lista} (random) | {lista} (casuale) |
 | `spaceeyes.prog.cada-h` | Cada {n} h | Every {n} h | Ogni {n} h |
 | `spaceeyes.prog.estado.pausada` | Pausada | Paused | In pausa |
-| `spaceeyes.prog.estado.empieza` | Empieza el {fecha} | Starts {fecha} | Inizia il {fecha} |
-| `spaceeyes.prog.estado.vencio` | Venció el {fecha} | Expired on {fecha} | Scaduta il {fecha} |
-| `spaceeyes.prog.proxima.espera` | No dispara hasta el {fecha} | Does not fire until {fecha} | Non scatta fino al {fecha} |
+| `spaceeyes.prog.estado.empieza` | Empieza el {fecha} | Starts {fecha} | Inizio: {fecha} |
+| `spaceeyes.prog.estado.vencio` | Venció el {fecha} | Expired on {fecha} | Scaduta: {fecha} |
+| `spaceeyes.prog.proxima.espera` | No dispara hasta el {fecha} | Does not fire until {fecha} | Non scatta prima di: {fecha} |
 | `spaceeyes.prog.proxima.vencida` | No dispara: vencida | Does not fire: expired | Non scatta: scaduta |
 | `spaceeyes.prog.proxima.sin-calcular` | Sin calcular | Not calculated | Non calcolata |
 | `spaceeyes.prog.proxima.cola` | {fecha} (en cola) | {fecha} (queued) | {fecha} (in coda) |
@@ -930,8 +952,8 @@ Los huecos `{nombre}` se rellenan en tiempo de ejecución.
 | `spaceeyes.prog.destino.una-campana` | Una campaña | One campaign | Una campagna |
 | `spaceeyes.prog.nombre-ej` | Ej. Evidencia diaria de la ruta norte | E.g. Daily evidence for the north route | Es. Prova giornaliera del percorso nord |
 | `spaceeyes.prog.aplicar-a` | Aplicar a | Apply to | Applica a |
-| `spaceeyes.prog.todos.texto.uno` | Aplica a los {n} equipos de la flota, incluyendo los que se den de alta después. | Applies to the {n} device in the fleet, including any registered later. | Si applica a tutti i dispositivi della flotta ({n}), compresi quelli che verranno registrati in seguito. |
-| `spaceeyes.prog.todos.texto.otros` | Aplica a los {n} equipos de la flota, incluyendo los que se den de alta después. | Applies to the {n} devices in the fleet, including any registered later. | Si applica ai {n} dispositivi della flotta, compresi quelli che verranno registrati in seguito. |
+| `spaceeyes.prog.todos.texto.uno` | Aplica a los {n} equipos de la flota, incluyendo los que se den de alta después. | Applies to the {n} device in the fleet, including any registered later. | Si applica a tutti i dispositivi del parco ({n}), compresi quelli che verranno registrati in seguito. |
+| `spaceeyes.prog.todos.texto.otros` | Aplica a los {n} equipos de la flota, incluyendo los que se den de alta después. | Applies to the {n} devices in the fleet, including any registered later. | Si applica ai {n} dispositivi del parco, compresi quelli che verranno registrati in seguito. |
 | `spaceeyes.prog.elegir-equipo` | — Elegir equipo — | — Choose device — | — Scegli il dispositivo — |
 | `spaceeyes.prog.campana` | Campaña | Campaign | Campagna |
 | `spaceeyes.prog.elegir-campana` | — Elegir campaña — | — Choose campaign — | — Scegli la campagna — |
@@ -1010,13 +1032,13 @@ Los huecos `{nombre}` se rellenan en tiempo de ejecución.
 | `spaceeyes.graficas.serie.senal` | Señal dBm | Signal dBm | Segnale dBm |
 | `spaceeyes.graficas.almacenamiento` | Almacenamiento y memoria libres | Free storage and memory | Spazio e memoria liberi |
 | `spaceeyes.graficas.sin-telemetria` | Sin telemetría en el periodo seleccionado para este dispositivo. | No telemetry in the selected period for this device. | Nessuna telemetria nel periodo selezionato per questo dispositivo. |
-| `spaceeyes.texto.confirmar-descartar` | Hay cambios sin guardar en la marca de este equipo. ¿Descartarlos? | There are unsaved changes to this device’s label. Discard them? | Ci sono modifiche non salvate nell’etichetta di questo dispositivo. Scartarle? |
+| `spaceeyes.texto.confirmar-descartar` | Hay cambios sin guardar en la marca de este equipo. ¿Descartarlos? | There are unsaved changes to this device’s label. Discard them? | Ci sono modifiche non salvate nella sovrimpressione di questo dispositivo. Scartarle? |
 | `spaceeyes.texto.capturada` | Fotografía capturada | Photo captured | Fotografia scattata |
 | `spaceeyes.texto.no-llego` | No llegó la foto. ¿El equipo está en línea? | The photo did not arrive. Is the device online? | La foto non è arrivata. Il dispositivo è online? |
 | `spaceeyes.texto.sin-permiso-foto` | No tienes permiso para tomar fotos | You do not have permission to take photos | Non hai il permesso di scattare foto |
 | `spaceeyes.texto.no-orden` | No se pudo enviar la orden al equipo | Could not send the command to the device | Impossibile inviare il comando al dispositivo |
 | `spaceeyes.texto.guardada` | Configuración guardada y aplicada al equipo | Settings saved and applied to the device | Configurazione salvata e applicata al dispositivo |
-| `spaceeyes.texto.sin-permiso-marca` | No tienes permiso para cambiar la marca | You do not have permission to change the label | Non hai il permesso di modificare l’etichetta |
+| `spaceeyes.texto.sin-permiso-marca` | No tienes permiso para cambiar la marca | You do not have permission to change the label | Non hai il permesso di modificare la sovrimpressione |
 | `spaceeyes.texto.no-guardar` | No se pudo guardar la configuración | Could not save the settings | Impossibile salvare la configurazione |
 | `spaceeyes.texto.titulo` | Ajustar texto de las fotos | Photo label | Regola il testo delle foto |
 | `spaceeyes.texto.descripcion` | Toma una fotografía de prueba y acomoda cómo se verá {marca}. Se aplica a todas las fotos del equipo. | Take a test photo and arrange how {marca} will look. It applies to every photo from the device. | Scatta una fotografia di prova e sistema come apparirà {marca}. Si applica a tutte le foto del dispositivo. |
@@ -1026,16 +1048,16 @@ Los huecos `{nombre}` se rellenan en tiempo de ejecución.
 | `spaceeyes.texto.tomar` | Tomar fotografía | Take photo | Scatta fotografia |
 | `spaceeyes.texto.solo-boton` | La cámara solo captura al pulsar el botón. | The camera only captures when you click the button. | La fotocamera scatta solo quando clicchi il pulsante. |
 | `spaceeyes.texto.esperando` | Esperando la foto del equipo (hasta 30 s)… | Waiting for the device photo (up to 30 s)… | In attesa della foto dal dispositivo (fino a 30 s)… |
-| `spaceeyes.texto.sin-permiso` | Solo quien puede editar inventario puede tomar la foto y guardar la marca. | Only someone who can edit inventory can take the photo and save the label. | Solo chi può modificare l’inventario può scattare la foto e salvare l’etichetta. |
-| `spaceeyes.texto.arrastra` | Arrastra sobre la foto para mover la marca (o usa las flechas del teclado). Los cambios se ven al momento. | Drag over the photo to move the label (or use the arrow keys). Changes show up instantly. | Trascina sulla foto per spostare l’etichetta (o usa le frecce della tastiera). Le modifiche si vedono subito. |
+| `spaceeyes.texto.sin-permiso` | Solo quien puede editar inventario puede tomar la foto y guardar la marca. | Only someone who can edit inventory can take the photo and save the label. | Solo chi può modificare l’inventario può scattare la foto e salvare la sovrimpressione. |
+| `spaceeyes.texto.arrastra` | Arrastra sobre la foto para mover la marca (o usa las flechas del teclado). Los cambios se ven al momento. | Drag over the photo to move the label (or use the arrow keys). Changes show up instantly. | Trascina sulla foto per spostare la sovrimpressione (o usa le frecce della tastiera). Le modifiche si vedono subito. |
 | `spaceeyes.texto.fecha-foto` | La fecha y la hora de la vista previa son las de esta foto. | The date and time in the preview are this photo’s. | La data e l’ora dell’anteprima sono quelle di questa foto. |
 | `spaceeyes.texto.sin-guardar` | sin guardar | unsaved | non salvato |
 | `spaceeyes.texto.guardar` | Guardar configuración | Save settings | Salva configurazione |
-| `spaceeyes.texto.posicion` | Posición de la marca: arrastra o usa las flechas | Label position: drag or use the arrow keys | Posizione dell’etichetta: trascina o usa le frecce |
+| `spaceeyes.texto.posicion` | Posición de la marca: arrastra o usa las flechas | Label position: drag or use the arrow keys | Posizione della sovrimpressione: trascina o usa le frecce |
 | `spaceeyes.texto.alt` | Foto de referencia del equipo | Device reference photo | Foto di riferimento del dispositivo |
 | `spaceeyes.texto.previsualizar` | Toma una fotografía para previsualizar | Take a photo to preview | Scatta una fotografia per l’anteprima |
-| `spaceeyes.texto.desactivada` | Marca desactivada | Label turned off | Etichetta disattivata |
-| `spaceeyes.texto.mostrar` | Mostrar marca | Show label | Mostra etichetta |
+| `spaceeyes.texto.desactivada` | Marca desactivada | Label turned off | Sovrimpressione disattivata |
+| `spaceeyes.texto.mostrar` | Mostrar marca | Show label | Mostra sovrimpressione |
 | `spaceeyes.texto.tamano` | Tamaño | Size | Dimensione |
 | `spaceeyes.texto.peso` | Peso de la fuente | Font weight | Spessore del carattere |
 | `spaceeyes.texto.normal` | Normal | Normal | Normale |
@@ -1103,7 +1125,7 @@ Los huecos `{nombre}` se rellenan en tiempo de ejecución.
 | `spaceeyes.alta.pi.listo.varias` | Cópialo en las {n} microSD; sirve hasta para {n} Raspberry. | Copy it to all {n} microSD cards; it works for up to {n} Raspberry devices. | Copialo sulle {n} microSD; vale per un massimo di {n} Raspberry. |
 | `spaceeyes.alta.pi.listo.una` | Sirve para una sola Raspberry. | It works for a single Raspberry. | Vale per un solo Raspberry. |
 | `spaceeyes.alta.pi.listo.vence` | Vence {fecha}. | Expires {fecha}. | Scade {fecha}. |
-| `spaceeyes.alta.pi.1` | En tu computadora, graba la microSD con {imager}: Raspberry Pi OS Lite (64-bit). Cuando pregunte si quieres personalizar, elige {no}. | On your computer, flash the microSD with {imager}: Raspberry Pi OS Lite (64-bit). When it asks whether to customize, choose {no}. | Sul tuo computer, scrivi la microSD con {imager}: Raspberry Pi OS Lite (64-bit). Quando chiede se vuoi personalizzare, scegli {no}. |
+| `spaceeyes.alta.pi.1` | En tu computadora, graba la microSD con {imager}: Raspberry Pi OS Lite (64-bit). Cuando pregunte si quieres personalizar, elige {no}. | On your computer, flash the microSD with {imager}: Raspberry Pi OS Lite (64-bit). When it asks whether to customize, choose {no}. | Sul tuo computer, prepara la microSD con {imager}: Raspberry Pi OS Lite (64-bit). Quando chiede se vuoi personalizzare, scegli {no}. |
 | `spaceeyes.alta.pi.1.no` | No | No | No |
 | `spaceeyes.alta.pi.2` | Sin sacar la microSD, ábrela en el explorador (se llama {bootfs}) y copia ahí {userdata} y {network} del archivo descargado. Reemplaza los que trae. | Without removing the microSD, open it in the file explorer (it is called {bootfs}) and copy {userdata} and {network} from the downloaded file there. Replace the ones it has. | Senza estrarre la microSD, aprila in Esplora file (si chiama {bootfs}) e copia lì {userdata} e {network} dal file scaricato. Sostituisci quelli già presenti. |
 | `spaceeyes.alta.pi.3` | Pon la microSD en la Raspberry, conecta la cámara, el cable o módem si se usa, y la fuente de 5V/3A. | Put the microSD in the Raspberry, connect the camera, the cable or modem if used, and the 5V/3A power supply. | Inserisci la microSD nel Raspberry, collega la telecamera, il cavo o il modem se si usa, e l’alimentatore da 5V/3A. |
@@ -1123,13 +1145,13 @@ Los huecos `{nombre}` se rellenan en tiempo de ejecución.
 | `spaceeyes.alta.col.codigo` | Código | Code | Codice |
 | `spaceeyes.alta.col.genero` | Generó | Created by | Generato da |
 | `spaceeyes.alta.usos` | {usos} de {max} equipos | {usos} of {max} devices | {usos} di {max} dispositivi |
-| `spaceeyes.alta.lote.vigente` | ␣· vigente hasta {fecha} | ␣· valid until {fecha} | ␣· valido fino al {fecha} |
+| `spaceeyes.alta.lote.vigente` | ␣· vigente hasta {fecha} | ␣· valid until {fecha} | ␣· valido fino a: {fecha} |
 | `spaceeyes.alta.lote.completo` | ␣· completo | ␣· full | ␣· esaurito |
 | `spaceeyes.alta.lote.cancelado` | ␣· cancelado | ␣· cancelled | ␣· annullato |
 | `spaceeyes.alta.lote.vencido` | ␣· vencido | ␣· expired | ␣· scaduto |
 | `spaceeyes.alta.equipo-n` | equipo {id} | device {id} | dispositivo {id} |
 | `spaceeyes.alta.usado-por` | Usado · {nombre} | Used · {nombre} | Usato · {nombre} |
-| `spaceeyes.alta.vigente-hasta` | Vigente hasta {fecha} | Valid until {fecha} | Valido fino al {fecha} |
+| `spaceeyes.alta.vigente-hasta` | Vigente hasta {fecha} | Valid until {fecha} | Valido fino a: {fecha} |
 | `spaceeyes.alta.estado.vencido` | Vencido | Expired | Scaduto |
 | `spaceeyes.alta.estado.cancelado` | Cancelado | Cancelled | Annullato |
 | `spaceeyes.alta.estado.usado` | Usado | Used | Usato |
@@ -1138,24 +1160,24 @@ Los huecos `{nombre}` se rellenan en tiempo de ejecución.
 
 | clave | español | inglés | italiano |
 |---|---|---|---|
-| `energia.descripcion` | Un recibo por predio y por mes. Se reparte entre sus pantallas igual que la renta. | One bill per property per month. It is split among its screens the same way as the rent. | Una bolletta per proprietà e per mese. Si ripartisce tra i suoi impianti come l’affitto. |
+| `energia.descripcion` | Un recibo por predio y por mes. Se reparte entre sus pantallas igual que la renta. | One bill per property per month. It is split among its screens the same way as the rent. | Una bolletta per immobile e per mese. Si ripartisce tra i suoi impianti come l’affitto. |
 | `energia.error.cargar` | No se pudo cargar la captura de consumos | Could not load the consumption entries | Impossibile caricare i consumi registrati |
 | `energia.error.contactar` | No se pudo contactar al servidor. Revisa la conexión y vuelve a intentar. | Could not reach the server. Check your connection and try again. | Impossibile contattare il server. Controlla la connessione e riprova. |
 | `energia.error.guardar-recibo` | No se pudo guardar el recibo | Could not save the bill | Impossibile salvare la bolletta |
 | `energia.error.borrar-recibo` | No se pudo borrar el recibo | Could not delete the bill | Impossibile eliminare la bolletta |
 | `energia.capturar` | Capturar un recibo | Enter a bill | Registra una bolletta |
-| `energia.cargando-puntos` | Cargando los puntos de medición… | Loading the metering points… | Caricamento dei punti di misura… |
+| `energia.cargando-puntos` | Cargando los puntos de medición… | Loading the metering points… | Caricamento dei punti di prelievo (POD)… |
 | `energia.sin-donde-abajo` | No hay dónde capturar todavía: el motivo está abajo. | There is nowhere to enter bills yet: the reason is below. | Non c’è ancora dove registrare bollette: il motivo è qui sotto. |
 | `energia.cobertura.titulo` | Qué está capturado y qué falta | What’s entered and what’s missing | Cosa è registrato e cosa manca |
 | `energia.meses.uno` | {n} mes | {n} month | {n} mese |
 | `energia.meses.otros` | {n} meses | {n} months | {n} mesi |
-| `energia.puntos.uno` | {n} punto | {n} metering point | {n} punto di misura |
-| `energia.puntos.otros` | {n} puntos | {n} metering points | {n} punti di misura |
+| `energia.puntos.uno` | {n} punto | {n} metering point | {n} punto di prelievo |
+| `energia.puntos.otros` | {n} puntos | {n} metering points | {n} punti di prelievo |
 | `energia.resumen` | {meses} · {puntos} | {meses} · {puntos} | {meses} · {puntos} |
 | `energia.vacio.error` | No se pudo cargar la captura | Could not load the entries | Impossibile caricare le registrazioni |
 | `energia.vacio.periodo` | Revisa el periodo | Check the period | Controlla il periodo |
 | `energia.vacio.sin-puntos` | Todavía no hay dónde capturar | Nowhere to enter bills yet | Non c’è ancora dove registrare bollette |
-| `energia.vacio.sin-puntos-detalle` | Un recibo de luz cuelga de un predio con pantallas, o de una pantalla sin predio. Da de alta el inventario y esta pantalla se llena sola. | An electricity bill belongs to a property with screens, or to a screen with no property. Set up the inventory and this page fills itself in. | Una bolletta della luce appartiene a una proprietà con impianti, o a un impianto senza proprietà. Registra l’inventario e questa pagina si riempie da sola. |
+| `energia.vacio.sin-puntos-detalle` | Un recibo de luz cuelga de un predio con pantallas, o de una pantalla sin predio. Da de alta el inventario y esta pantalla se llena sola. | An electricity bill belongs to a property with screens, or to a screen with no property. Set up the inventory and this page fills itself in. | Una bolletta della luce appartiene a un immobile con impianti, o a un impianto senza immobile. Registra l’inventario e questa pagina si riempie da sola. |
 | `energia.kpi.capturados` | Recibos capturados | Bills entered | Bollette registrate |
 | `energia.kpi.no-cargar` | no se pudo cargar | could not be loaded | impossibile caricare |
 | `energia.kpi.faltan` | Faltan | Missing | Mancanti |
@@ -1168,7 +1190,7 @@ Los huecos `{nombre}` se rellenan en tiempo de ejecución.
 | `energia.kpi.solo-capturado` | solo lo capturado | entered only | solo il registrato |
 | `energia.kpi.sin-pantalla.uno` | solo lo capturado · {n} recibo sin pantalla | entered only · {n} bill with no screen | solo il registrato · {n} bolletta senza impianto |
 | `energia.kpi.sin-pantalla.otros` | solo lo capturado · {n} recibos sin pantalla | entered only · {n} bills with no screen | solo il registrato · {n} bollette senza impianto |
-| `energia.predio-o-pantalla` | Predio o pantalla | Property or screen | Proprietà o impianto |
+| `energia.predio-o-pantalla` | Predio o pantalla | Property or screen | Immobile o impianto |
 | `energia.opcion.pantallas.uno` | ␣· {n} pantalla | ␣· {n} screen | ␣· {n} impianto |
 | `energia.opcion.pantallas.otros` | ␣· {n} pantallas | ␣· {n} screens | ␣· {n} impianti |
 | `energia.opcion.suelta` | ␣· pantalla suelta | ␣· standalone screen | ␣· impianto isolato |
@@ -1191,8 +1213,8 @@ Los huecos `{nombre}` se rellenan en tiempo de ejecución.
 | `energia.subir.pregunta` | 1 · ¿Cuántos meses de calendario cubre cada recibo de esta tanda? | 1 · How many calendar months does each bill in this batch cover? | 1 · Quanti mesi di calendario copre ogni bolletta di questo lotto? |
 | `energia.subir.elige-antes` | — elige antes de subir — | — choose before uploading — | — scegli prima di caricare — |
 | `energia.subir.opcion.1` | 1 mes de calendario — un periodo corto, dentro de un solo mes | 1 calendar month — a short period, within a single month | 1 mese di calendario — un periodo breve, dentro un solo mese |
-| `energia.subir.opcion.2` | 2 meses de calendario — lo normal en un recibo MENSUAL | 2 calendar months — the usual for a MONTHLY bill | 2 mesi di calendario — il normale per una bolletta MENSILE |
-| `energia.subir.opcion.3` | 3 meses de calendario — lo normal en un recibo BIMESTRAL | 3 calendar months — the usual for a bill issued EVERY TWO MONTHS | 3 mesi di calendario — il normale per una bolletta emessa OGNI DUE MESI |
+| `energia.subir.opcion.2` | 2 meses de calendario — lo normal en un recibo MENSUAL | 2 calendar months — the usual for a MONTHLY bill | 2 mesi di calendario — il caso normale per una bolletta MENSILE |
+| `energia.subir.opcion.3` | 3 meses de calendario — lo normal en un recibo BIMESTRAL | 3 calendar months — the usual for a bill issued EVERY TWO MONTHS | 3 mesi di calendario — il caso normale per una bolletta emessa OGNI DUE MESI |
 | `energia.subir.opcion.4` | 4 meses de calendario — un periodo largo o atrasado | 4 calendar months — a long or late period | 4 mesi di calendario — un periodo lungo o arretrato |
 | `energia.subir.explica` | Se cuentan los meses de calendario que {toca} el periodo, no lo que dura. Un recibo mensual empieza a mitad de mes, así que casi siempre toca {dos}; uno bimestral, {tres}. Si mezclas mensuales y bimestrales en la misma tanda, muchos saldrán marcados: súbelos por separado. | Count the calendar months the period {toca}, not how long it lasts. A monthly bill starts mid-month, so it almost always touches {dos}; one issued every two months, {tres}. If you mix monthly bills and bills issued every two months in the same batch, many will be flagged: upload them separately. | Si contano i mesi di calendario che il periodo {toca}, non quanto dura. Una bolletta mensile inizia a metà mese, quindi quasi sempre ne tocca {dos}; una emessa ogni due mesi, {tres}. Se mescoli bollette mensili e bollette emesse ogni due mesi nello stesso lotto, molte risulteranno segnalate: caricale separatamente. |
 | `energia.subir.toca` | toca | touches | tocca |
@@ -1216,7 +1238,7 @@ Los huecos `{nombre}` se rellenan en tiempo de ejecución.
 | `energia.motivo.falta-fin` | Falta el mes de fin | The end month is missing | Manca il mese di fine |
 | `energia.motivo.formato` | Usa fechas con formato AAAA-MM-DD | Use dates in YYYY-MM-DD format | Usa date nel formato AAAA-MM-GG |
 | `energia.motivo.orden` | El mes de fin no puede ser anterior al de inicio | The end month cannot be before the start month | Il mese di fine non può essere precedente a quello di inizio |
-| `energia.motivo.punto` | Elige a qué predio o pantalla corresponde el recibo | Choose which property or screen the bill belongs to | Scegli a quale proprietà o impianto corrisponde la bolletta |
+| `energia.motivo.punto` | Elige a qué predio o pantalla corresponde el recibo | Choose which property or screen the bill belongs to | Scegli a quale immobile o impianto corrisponde la bolletta |
 | `energia.motivo.mes` | Elige el mes del recibo | Choose the bill month | Scegli il mese della bolletta |
 | `energia.motivo.kwh.falta` | Captura los kWh del recibo | Enter the bill’s kWh | Inserisci i kWh della bolletta |
 | `energia.motivo.importe.falta` | Captura el importe del recibo | Enter the bill amount | Inserisci l’importo della bolletta |
@@ -1225,14 +1247,14 @@ Los huecos `{nombre}` se rellenan en tiempo de ejecución.
 | `energia.motivo.kwh.mayor` | los kWh tiene que ser mayor que cero | The kWh must be greater than zero | i kWh devono essere maggiori di zero |
 | `energia.motivo.importe.mayor` | el importe tiene que ser mayor que cero | The amount must be greater than zero | l’importo deve essere maggiore di zero |
 | `energia.motivo.futuro` | Ese mes todavía no ha terminado: no puede haber recibo | That month hasn’t ended yet: there can’t be a bill for it | Quel mese non è ancora finito: non può esserci una bolletta |
-| `energia.cobertura.huerfanos.uno` | {n} recibo capturado por {monto} no llega a ninguna pantalla, porque su predio no tiene ninguna dada de alta. Ese dinero no aparece en el reporte de rentabilidad. | {n} entered bill for {monto} doesn’t reach any screen, because its property has none set up. That money does not appear in the profitability report. | {n} bolletta registrata per {monto} non arriva a nessun impianto, perché la sua proprietà non ne ha nessuno registrato. Quel denaro non compare nel report di redditività. |
-| `energia.cobertura.huerfanos.otros` | {n} recibos capturados por {monto} no llegan a ninguna pantalla, porque su predio no tiene ninguna dada de alta. Ese dinero no aparece en el reporte de rentabilidad. | {n} entered bills for {monto} don’t reach any screen, because their property has none set up. That money does not appear in the profitability report. | {n} bollette registrate per {monto} non arrivano a nessun impianto, perché la loro proprietà non ne ha nessuno registrato. Quel denaro non compare nel report di redditività. |
-| `energia.cobertura.sin-puntos` | Todavía no hay dónde capturar recibos: hace falta al menos un predio con pantallas, o una pantalla sin predio. | There is nowhere to enter bills yet: you need at least one property with screens, or a screen with no property. | Non c’è ancora dove registrare bollette: serve almeno una proprietà con impianti, o un impianto senza proprietà. |
+| `energia.cobertura.huerfanos.uno` | {n} recibo capturado por {monto} no llega a ninguna pantalla, porque su predio no tiene ninguna dada de alta. Ese dinero no aparece en el reporte de rentabilidad. | {n} entered bill for {monto} doesn’t reach any screen, because its property has none set up. That money does not appear in the profitability report. | {n} bolletta registrata per {monto} non arriva a nessun impianto, perché il suo immobile non ne ha nessuno registrato. Quel denaro non compare nel report di redditività. |
+| `energia.cobertura.huerfanos.otros` | {n} recibos capturados por {monto} no llegan a ninguna pantalla, porque su predio no tiene ninguna dada de alta. Ese dinero no aparece en el reporte de rentabilidad. | {n} entered bills for {monto} don’t reach any screen, because their property has none set up. That money does not appear in the profitability report. | {n} bollette registrate per {monto} non arrivano a nessun impianto, perché il loro immobile non ne ha nessuno registrato. Quel denaro non compare nel report di redditività. |
+| `energia.cobertura.sin-puntos` | Todavía no hay dónde capturar recibos: hace falta al menos un predio con pantallas, o una pantalla sin predio. | There is nowhere to enter bills yet: you need at least one property with screens, or a screen with no property. | Non c’è ancora dove registrare bollette: serve almeno un immobile con impianti, o un impianto senza immobile. |
 | `energia.cobertura.completa.uno` | Captura completa: están los {n} recibos del periodo. El costo de la luz del reporte de rentabilidad es el total de verdad. | All entered: the period’s {n} bill is in. The electricity cost in the profitability report is the real total. | Registrazione completa: è presente la bolletta del periodo ({n}). Il costo della luce nel report di redditività è il totale reale. |
 | `energia.cobertura.completa.otros` | Captura completa: están los {n} recibos del periodo. El costo de la luz del reporte de rentabilidad es el total de verdad. | All entered: all {n} bills for the period are in. The electricity cost in the profitability report is the real total. | Registrazione completa: ci sono tutte le {n} bollette del periodo. Il costo della luce nel report di redditività è il totale reale. |
 | `energia.cobertura.faltan` | Faltan {faltan} de {esperados} recibos del periodo. Mientras falten, el reporte de rentabilidad suma solo lo capturado y enseña un costo de luz MENOR del real, sin avisar de nada: un mes sin recibo no es un mes sin consumo. | {faltan} of {esperados} bills for the period are missing. Until they are entered, the profitability report adds up only what has been entered and shows an electricity cost LOWER than the real one, with no warning: a month with no bill is not a month with no consumption. | Bollette mancanti nel periodo: {faltan} su {esperados}. Finché mancano, il report di redditività somma solo il registrato e mostra un costo della luce MINORE di quello reale, senza nessun avviso: un mese senza bolletta non è un mese senza consumo. |
-| `energia.borrado.confirmacion` | Se borra el recibo del medidor {medidor}, de {mes}, por {monto}. No se puede deshacer: ese mes vuelve a contar como un hueco, y hasta que lo captures otra vez el reporte de rentabilidad enseñará un costo de luz menor del real. | This deletes the bill for meter {medidor}, for {mes}, for {monto}. It cannot be undone: that month counts as a gap again, and until you enter it again the profitability report will show an electricity cost lower than the real one. | Si elimina la bolletta del contatore {medidor}, di {mes}, per {monto}. Non si può annullare: quel mese torna a contare come un buco, e finché non la registri di nuovo il report di redditività mostrerà un costo della luce minore di quello reale. |
-| `energia.lectura.punto` | Elige a qué predio o pantalla corresponde este recibo | Choose which property or screen this bill belongs to | Scegli a quale proprietà o impianto corrisponde questa bolletta |
+| `energia.borrado.confirmacion` | Se borra el recibo del medidor {medidor}, de {mes}, por {monto}. No se puede deshacer: ese mes vuelve a contar como un hueco, y hasta que lo captures otra vez el reporte de rentabilidad enseñará un costo de luz menor del real. | This deletes the bill for meter {medidor}, for {mes}, for {monto}. It cannot be undone: that month counts as a gap again, and until you enter it again the profitability report will show an electricity cost lower than the real one. | Verrà eliminata la bolletta del contatore {medidor}, di {mes}, per {monto}. Non si può annullare: quel mese torna a contare come un buco, e finché non la registri di nuovo il report di redditività mostrerà un costo della luce minore di quello reale. |
+| `energia.lectura.punto` | Elige a qué predio o pantalla corresponde este recibo | Choose which property or screen this bill belongs to | Scegli a quale immobile o impianto corrisponde questa bolletta |
 | `energia.lectura.kwh.falta` | Escribe los kWh: no se pudieron leer del PDF | Enter the kWh: they could not be read from the PDF | Scrivi i kWh: non è stato possibile leggerli dal PDF |
 | `energia.lectura.importe.falta` | Escribe el importe: no se pudieron leer del PDF | Enter the amount: it could not be read from the PDF | Scrivi l’importo: non è stato possibile leggerlo dal PDF |
 | `energia.lectura.no-recibo.uno` | {n} archivo no es un recibo de CFE | {n} file is not a CFE bill | {n} file non è una bolletta CFE |
@@ -1241,7 +1263,7 @@ Los huecos `{nombre}` se rellenan en tiempo de ejecución.
 | `energia.lectura.desajuste.otros` | {n} no coinciden con los {esperados} meses que declaraste | {n} don’t match the number of months you declared ({esperados}) | {n} non corrispondono al numero di mesi che hai dichiarato ({esperados}) |
 | `energia.lectura.cubre.uno` | {base}: cubre {unico} meses de calendario | {base}: the number of calendar months it covers is {unico} | {base}: i mesi di calendario che copre sono {unico} |
 | `energia.lectura.cubre.otros` | {base}: los {n} cubren {unico} meses de calendario | {base}: the number of calendar months covered by those {n} is {unico} | {base}: i mesi di calendario coperti da quei {n} sono {unico} |
-| `energia.lectura.sin-predio` | {n} sin predio: eligelo tú | {n} with no property: choose it yourself | {n} senza proprietà: sceglila tu |
+| `energia.lectura.sin-predio` | {n} sin predio: eligelo tú | {n} with no property: choose it yourself | {n} senza immobile: sceglilo tu |
 | `energia.lectura.sin-cifra` | {n} con una cifra que no se pudo leer | {n} with a figure that could not be read | {n} con una cifra che non è stato possibile leggere |
 | `energia.lectura.repetidos` | {n} ya capturados: volver a guardarlos DUPLICA el costo | {n} already entered: saving them again DOUBLES the cost | {n} con il mese già registrato: salvare di nuovo RADDOPPIA il costo |
 | `energia.lectura.alerta` | Se leyeron {leidos} de {total} archivos y salen {filas} renglones. Revisa antes de confirmar: {pegas}. | Files read: {leidos} of {total}; rows: {filas}. Check before confirming: {pegas}. | File letti: {leidos} su {total}; righe: {filas}. Controlla prima di confermare: {pegas}. |

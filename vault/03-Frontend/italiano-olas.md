@@ -137,7 +137,8 @@ de la maquinaria: **textos de ejemplo del diccionario** (que caen al inglés, «
 ### Lote L1 · Space Eyes y luz
 
 **2026-11-03, rama `feat/italiano-l1-spaceeyes`** (sale de `integra/idiomas`,
-`6fea374a`). **Hecho, sin validar.** Revisión: `docs/i18n/revision-italiano-l1.md`.
+`6fea374a`). **Validado ÁMBAR y corregido** (segunda vuelta, 03/11):
+`docs/i18n/validacion-italiano-l1.md` · revisión: `docs/i18n/revision-italiano-l1.md`.
 
 - **`IT_SPACEEYES` 1001 e `IT_ENERGIA` 121, completos**: el tipo pasa a
   `Record` y `tsc` exige cada clave. Cubre también `lib/i18n/donde-falla.ts`
@@ -167,13 +168,13 @@ de la maquinaria: **textos de ejemplo del diccionario** (que caen al inglés, «
 | vista en vivo | vista in diretta |
 | verificación | verifica |
 | solicitud de activación | richiesta di attivazione |
-| flota | flotta |
+| flota | parco dispositivi |
 | gabinete | cabinet (invariable, como en el sector LED) |
 | creativo / creatividad | creatività (femenino, invariable) |
 | encuadre | inquadratura |
 | vigilancia | monitoraggio |
 | código de vinculación | codice di abbinamento |
-| marca de la foto | etichetta |
+| marca de la foto | sovrimpressione |
 | captura | scatto |
 | lente / cámara | obiettivo / fotocamera (telecamera IP en la PC) |
 | pantalla | **schermo** la LED que mira el equipo; **impianto** la del inventario (asignada, asociada, su galería) |
@@ -181,12 +182,20 @@ de la maquinaria: **textos de ejemplo del diccionario** (que caen al inglés, «
 | folio de un ticket | ticket |
 | Administración › Configuración › Soporte | Impostazioni › Impostazioni aziendali › Supporto (como el inglés; **lo fija L5**) |
 | «pide un toque» | serve una conferma sul telefono (en la web, siempre «Clicca») |
-| recibo de luz · predio · medidor | bolletta (della luce) · proprietà · contatore |
-| punto de medición · pantalla suelta | punto di misura · impianto isolato |
+| recibo de luz · predio · medidor | bolletta (della luce) · **immobile** · contatore |
+| punto de medición · pantalla suelta | punto di prelievo (POD) · impianto isolato |
+| prueba de exhibición | Prova di messa in onda |
 | capturar · hueco · tanda · renglón | registrare · buco / dato mancante · lotto · riga |
 | alumbrado público · adeudos | illuminazione pubblica · arretrati |
 | recibo bimestral | bolletta emessa ogni due mesi |
 | reporte de rentabilidad | report di redditività |
+
+> [!important] Regla para TODO el italiano: fechas SIN artículo delante
+> Decisión del orquestador (03/11, validación de L1). «il 8 dic», «al 11 ott»,
+> «del 8 dic» piden elisión («l’8», «all’11») y no la llevan, porque la fecha
+> es un hueco. Se escribe sin artículo: «Inizio: {fecha}», «Scaduta: {fecha}»,
+> «Non scatta prima di: {fecha}», «Valido fino a: {fecha}», «Scatto: {fecha}».
+> L1 lo vigila en su diccionario (`textos/spaceeyes.test.ts`).
 
 **Se queda igual, a propósito:** «Vincular» (botón de la app Android, solo en
 español), la marca grabada en la foto (es-MX: es la evidencia; una prueba lo
