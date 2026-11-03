@@ -16,6 +16,7 @@ import { TONO } from './Chip'
 import { useIdioma } from '@/lib/i18n/contexto'
 import { interpolarNodos } from '@/lib/i18n/nodos'
 import type { Idioma } from '@/lib/i18n/idiomas'
+import { localeDe } from '@/lib/i18n/formato-idioma'
 
 // ============================================================================
 //  ActualizacionesPanel — ADR 0037: el dueño de la instancia ve qué versión
@@ -44,7 +45,7 @@ const TONO_ICONO_CLASE = { ok: 'text-success', alerta: 'text-warning', info: 'te
 
 function formatearFecha(iso: string | null, idioma: Idioma = 'es', nunca = 'nunca'): string {
   if (!iso) return nunca
-  return new Date(iso).toLocaleString(idioma === 'es' ? 'es-MX' : 'en-US', { dateStyle: 'medium', timeStyle: 'short' })
+  return new Date(iso).toLocaleString(localeDe(idioma), { dateStyle: 'medium', timeStyle: 'short' })
 }
 
 export function ActualizacionesPanel({ onToast }: { onToast: (m: string) => void }) {

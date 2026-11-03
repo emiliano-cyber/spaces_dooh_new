@@ -187,6 +187,9 @@ function muestra(): number[] {
 
 describe('PARIDAD · MXN se escribe igual que antes del 02/11, en los dos idiomas', () => {
   const IMPORTES_PARIDAD = muestra()
+  // Solo es y en: el «antes» es de cuando no habia italiano (su formato lo fija
+  // `formato-idioma.test.ts`).
+  const IDIOMAS = ['es', 'en'] as const
 
   it('formatearDinero: idéntico, importe por importe', () => {
     const distintos = IMPORTES_PARIDAD.flatMap((m) =>

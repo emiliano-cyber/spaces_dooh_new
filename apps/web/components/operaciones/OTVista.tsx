@@ -41,6 +41,7 @@ import {
   textoCostoDeCerrada,
 } from '@/lib/costo-ot-captura'
 import type { FotoMeta, EstOT, ChecklistItem, TipoOT, Prioridad } from '@/lib/data/types'
+import { numeroEnIdioma } from '@/lib/i18n/formato-idioma'
 
 // blob: URL → data URL (base64) para que la foto persista en la BD.
 //
@@ -311,7 +312,7 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
       {ot.costoReal != null && (
         <p className="text-[12px] text-muted">
           {interpolarNodos(t('operaciones2.ficha.guardado-importe'), {
-            importe: <span className="demo-num">{simboloMoneda(idioma)}{Number(ot.costoReal).toLocaleString('es-MX')}</span>,
+            importe: <span className="demo-num">{simboloMoneda(idioma)}{numeroEnIdioma(Number(ot.costoReal), idioma)}</span>,
           })}
           {Number(ot.costoReal) === 0 && t('operaciones2.ficha.guardado-cero')}
         </p>

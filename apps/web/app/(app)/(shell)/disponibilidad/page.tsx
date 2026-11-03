@@ -9,6 +9,7 @@ import { KPICard, KPICardSkeleton } from '@/components/demo/KPICard'
 import { useDisponibilidad, formatFecha, type GranDisponibilidad, type EstadoCelda } from '@/lib/data/client'
 import { useIdioma } from '@/lib/i18n/contexto'
 import type { Idioma } from '@/lib/i18n/idiomas'
+import { localeDe } from '@/lib/i18n/formato-idioma'
 
 // Calendario de disponibilidad futura: responde "¿qué tengo libre en septiembre?".
 // Cruza las reservas confirmadas contra una rejilla de catorcenas o meses y
@@ -44,9 +45,14 @@ const TONO_EN_PROPUESTA = 'bg-warning-soft text-[#9a6700] border-dashed border-w
 function etiquetaPeriodo(p: { label: string; inicio: string; fin: string }, gran: GranDisponibilidad, idioma: Idioma): string {
   if (idioma === 'es') return p.label
   const [y, m, d] = p.inicio.split('-').map(Number)
-  if (gran === 'mes') return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-  const [, m2, d2] = p.fin.split('-').map(Number)
-  return `${m}/${d}–${m2}/${d2}`
+  // Con el locale del idioma (`formato-idioma.ts`): «Mar 2026» y «3/1–3/14» en
+  // ingles —lo de siempre—, «mar 2026» y «1/3–14/3» en italiano.
+  const locale = localeDe(idioma)
+  if (gran === 'mes') return new Date(y, m - 1, d).toLocaleDateString(locale, { month: 'short', year: 'numeric' })
+  const [y2, m2, d2] = p.fin.split('-').map(Number)
+  const diaMes = (a: number, b: number, c: number) =>
+    new Date(a, b - 1, c).toLocaleDateString(locale, { month: 'numeric', day: 'numeric' })
+  return `${diaMes(y, m, d)}–${diaMes(y2, m2, d2)}`
 }
 
 function hoyISO(): string {

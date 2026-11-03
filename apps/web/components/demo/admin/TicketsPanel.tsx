@@ -17,6 +17,7 @@ import { useIdioma } from '@/lib/i18n/contexto'
 import { interpolarNodos } from '@/lib/i18n/nodos'
 import type { ClaveTexto } from '@/lib/i18n/diccionario'
 import type { Idioma } from '@/lib/i18n/idiomas'
+import { localeDe } from '@/lib/i18n/formato-idioma'
 
 // ============================================================================
 //  TicketsPanel — ADR 0038, tarea 7: el dueño de la instancia escribe una
@@ -71,7 +72,7 @@ const inputCls =
 // En espanol, `es-MX` como siempre; en ingles, `en-US` (fecha legible en EE. UU.).
 function formatearFecha(iso: string | null, idioma: Idioma = 'es'): string {
   if (!iso) return '—'
-  return new Date(iso).toLocaleString(idioma === 'es' ? 'es-MX' : 'en-US', { dateStyle: 'medium', timeStyle: 'short' })
+  return new Date(iso).toLocaleString(localeDe(idioma), { dateStyle: 'medium', timeStyle: 'short' })
 }
 
 export function TicketsPanel({ onToast }: { onToast: (m: string) => void }) {

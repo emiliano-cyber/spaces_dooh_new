@@ -13,6 +13,7 @@ import {
   type TableroUI,
 } from './captura'
 import { useIdioma } from '@/lib/i18n/contexto'
+import { numeroEnIdioma } from '@/lib/i18n/formato-idioma'
 
 // ============================================================================
 //  La rejilla: un punto de medición por fila, un mes por columna.
@@ -92,7 +93,7 @@ export function RejillaCaptura({
                     <div className="space-y-0.5">
                       <div className="text-ink">{formatMonto(c.importe ?? 0, idioma)}</div>
                       <div className="text-[11px] text-muted">
-                        {(c.kwh ?? 0).toLocaleString('es-MX', { maximumFractionDigits: 0 })} kWh
+                        {numeroEnIdioma(c.kwh ?? 0, idioma, { maximumFractionDigits: 0 })} kWh
                       </div>
                       {/* Cuando hay más de un recibo se dice, con su medidor:
                           un predio con dos medidores tiene dos recibos de

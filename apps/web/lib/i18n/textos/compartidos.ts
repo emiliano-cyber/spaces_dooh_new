@@ -318,3 +318,12 @@ export const EN_COMPARTIDOS: Record<ClaveCompartidos, string> = {
   'compartidos.cifra.menor': 'Must not be less than {n}',
   'compartidos.cifra.mayor': 'Must not be greater than {n}',
 }
+
+// ─── ITALIANO · ola 0 (2026-11-03) ──────────────────────────────────────────
+// PARCIAL a proposito: lo rellena el lote de traduccion de este ambito
+// (`vault/03-Frontend/italiano-olas.md`). Mientras falte una clave, la
+// pantalla la pinta en INGLES (`diccionario.ts`, `DICCIONARIOS.it`) y la
+// prueba de cobertura (`cobertura-italiano.test.ts`) la cuenta como pendiente.
+// Cuando el lote termine, el tipo pasa a `Record<ClaveCompartidos, string>` y `tsc`
+// vuelve a exigir cada clave, como en el ingles.
+export const IT_COMPARTIDOS: Partial<Record<ClaveCompartidos, string>> = {}

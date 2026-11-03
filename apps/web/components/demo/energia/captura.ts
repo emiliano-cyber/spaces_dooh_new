@@ -4,6 +4,7 @@ import type { ConsumoEnergia, PuntoDeMedicion } from '@/lib/server/energia-repo'
 import { formatearDinero } from '@/lib/i18n/dinero'
 import { traducir, type ClaveTexto } from '@/lib/i18n/diccionario'
 import type { Idioma } from '@/lib/i18n/idiomas'
+import { localeDe } from '@/lib/i18n/formato-idioma'
 
 // ============================================================================
 //  components/demo/energia/captura.ts — Lo que decide la pantalla de captura.
@@ -260,7 +261,7 @@ export function resumenDeCobertura(t: TableroUI, idioma: Idioma = 'es'): Resumen
  */
 export function etiquetaDeMes(mes: string, idioma: Idioma = 'es'): string {
   const [a, m] = mes.split('-').map(Number)
-  return new Date(a, m - 1, 1).toLocaleDateString(idioma === 'es' ? 'es-MX' : 'en-US', { month: 'short', year: 'numeric' })
+  return new Date(a, m - 1, 1).toLocaleDateString(localeDe(idioma), { month: 'short', year: 'numeric' })
 }
 
 // ─── El formulario de alta ──────────────────────────────────────────────────

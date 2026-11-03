@@ -176,3 +176,12 @@ export const EN_CODIGOS: Record<ClaveCodigos, string> = {
   'codigos.nuevo.anadir': 'Add negotiation code',
   'codigos.obligatorio': ' (required)',
 }
+
+// ─── ITALIANO · ola 0 (2026-11-03) ──────────────────────────────────────────
+// PARCIAL a proposito: lo rellena el lote de traduccion de este ambito
+// (`vault/03-Frontend/italiano-olas.md`). Mientras falte una clave, la
+// pantalla la pinta en INGLES (`diccionario.ts`, `DICCIONARIOS.it`) y la
+// prueba de cobertura (`cobertura-italiano.test.ts`) la cuenta como pendiente.
+// Cuando el lote termine, el tipo pasa a `Record<ClaveCodigos, string>` y `tsc`
+// vuelve a exigir cada clave, como en el ingles.
+export const IT_CODIGOS: Partial<Record<ClaveCodigos, string>> = {}

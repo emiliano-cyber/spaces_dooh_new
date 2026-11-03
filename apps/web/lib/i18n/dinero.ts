@@ -1,4 +1,5 @@
-import type { Idioma } from './idiomas'
+import { IDIOMAS, type Idioma } from './idiomas'
+import { FORMATO_IDIOMA, opcionesNumero } from './formato-idioma'
 
 // ============================================================================
 //  lib/i18n/dinero.ts — EL IDIOMA NO TOCA EL DINERO.
@@ -118,25 +119,23 @@ export function fijarMonedaInstancia(m: string): void {
 
 // Los locales de FORMATEO. No son monedas y no hay que confundirlos: el locale
 // dice como se escribe un numero; la moneda, de que dinero se habla.
-export const LOCALE_DE_IDIOMA: Record<Idioma, string> = {
-  es: 'es-MX',
-  en: 'en-US',
-}
+//
+// Desde la ola 0 del italiano (2026-11-03) los locales, los simbolos y los
+// nombres de moneda viven en `formato-idioma.ts` —UN sitio por idioma— y aqui
+// solo se leen. Los valores de es y en son los mismos que estaban escritos aqui.
+const deCadaIdioma = <T>(f: (i: Idioma) => T): Record<Idioma, T> =>
+  Object.fromEntries(IDIOMAS.map((i) => [i, f(i)])) as Record<Idioma, T>
+
+export const LOCALE_DE_IDIOMA: Record<Idioma, string> = deCadaIdioma((i) => FORMATO_IDIOMA[i].locale)
 
 // El simbolo, por idioma del LECTOR y moneda del IMPORTE. Ver la tabla de la
 // cabecera: el `$` a secas solo se usa para la moneda local del lector.
-const SIMBOLO: Record<Idioma, Record<Moneda, string>> = {
-  es: { MXN: '$', USD: 'US$' },
-  en: { MXN: 'MX$', USD: '$' },
-}
+const SIMBOLO: Record<Idioma, Record<Moneda, string>> = deCadaIdioma((i) => FORMATO_IDIOMA[i].simbolo)
 
-// El nombre, para la ficha de Administracion. Vive aqui y no en el
-// diccionario porque la GUARDIA 2 prohibe codigos de moneda en los
-// diccionarios —y con razon: este es el unico sitio donde una moneda se nombra.
-const NOMBRE: Record<Idioma, Record<Moneda, string>> = {
-  es: { MXN: 'Peso mexicano (MXN)', USD: 'Dólar estadounidense (USD)' },
-  en: { MXN: 'Mexican peso (MXN)', USD: 'US dollar (USD)' },
-}
+// El nombre, para la ficha de Administracion. Vive en `formato-idioma.ts` y no
+// en el diccionario porque la GUARDIA 2 prohibe codigos de moneda en los
+// diccionarios —y con razon: esa tabla es el unico sitio donde una moneda se nombra.
+const NOMBRE: Record<Idioma, Record<Moneda, string>> = deCadaIdioma((i) => FORMATO_IDIOMA[i].nombreMoneda)
 
 /** El simbolo de la moneda de la instancia, para quien lo pinta suelto (`$ 1,234.50`). */
 export function simboloMoneda(idioma: Idioma = 'es'): string {
@@ -179,6 +178,9 @@ export function formatearDinero(
   decimales: DecimalesDinero = { minimumFractionDigits: 2, maximumFractionDigits: 2 },
 ): string {
   if (!esNumero(monto)) return SIN_DATO
+  if (FORMATO_IDIOMA[idioma].posicionSimbolo === 'delante-con-espacio') {
+    return dineroSimboloDelante(monto, idioma, decimales)
+  }
   const partes = new Intl.NumberFormat(LOCALE_DE_IDIOMA[idioma], {
     style: 'currency',
     currency: monedaInstancia(),
@@ -192,6 +194,28 @@ export function formatearDinero(
     .filter((p) => !(p.type === 'literal' && /^\s+$/.test(p.value)))
     .map((p) => (p.type === 'currency' ? simbolo : p.value))
     .join('')
+}
+
+/**
+ * El italiano (2026-11-03, decision del dueno): «MX$ 1.160,00». `it-IT` pone
+ * la moneda DETRAS («1.160,00 MXN») y no agrupa las cuatro cifras, asi que no
+ * se toman las partes de moneda de `Intl`: se escribe la cifra sola y el
+ * simbolo se pone delante, separado. El signo va delante de todo, como en
+ * es y en («-MX$ 1.160,00»).
+ */
+function dineroSimboloDelante(monto: number, idioma: Idioma, decimales: DecimalesDinero): string {
+  const conSigno = new Intl.NumberFormat(
+    LOCALE_DE_IDIOMA[idioma],
+    opcionesNumero(idioma, {
+      minimumFractionDigits: decimales.minimumFractionDigits,
+      maximumFractionDigits: decimales.maximumFractionDigits,
+    }),
+  ).format(monto)
+  // El signo lo decide `Intl` (igual que en es y en: un -0.001 que redondea a
+  // cero sale con su «-»), y aqui solo se mueve delante del simbolo.
+  const negativo = /^[-−]/.test(conSigno)
+  const cifra = negativo ? conSigno.slice(1) : conSigno
+  return `${negativo ? '-' : ''}${SIMBOLO[idioma][monedaInstancia()]} ${cifra}`
 }
 
 /**
@@ -213,7 +237,7 @@ export function formatearNumero(
   opciones: Intl.NumberFormatOptions = {},
 ): string {
   if (!esNumero(n)) return SIN_DATO
-  return new Intl.NumberFormat(LOCALE_DE_IDIOMA[idioma], opciones).format(n)
+  return new Intl.NumberFormat(LOCALE_DE_IDIOMA[idioma], opcionesNumero(idioma, opciones)).format(n)
 }
 
 /**
@@ -225,7 +249,10 @@ export function formatearNumero(
 export function formatearFecha(
   fecha: Date | string | number,
   idioma: Idioma,
-  opciones: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'short', day: '2-digit' },
+  // Sin opciones, las del idioma (`formato-idioma.ts`): en es y en, las de
+  // siempre (`{ year, month: 'short', day: '2-digit' }`); en italiano, el dia
+  // sin cero delante («1 dic 2026»).
+  opciones: Intl.DateTimeFormatOptions = FORMATO_IDIOMA[idioma].fechaPorOmision,
 ): string {
   const d = fecha instanceof Date ? fecha : new Date(fecha)
   if (Number.isNaN(d.getTime())) return SIN_DATO

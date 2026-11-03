@@ -37,8 +37,9 @@ describe('inglesActivo · el interruptor del ingles (2026-09-30)', () => {
 // ============================================================================
 
 describe('IDIOMAS · el catalogo', () => {
-  it('son exactamente dos, y el de omision es el espanol', () => {
-    expect(IDIOMAS).toEqual(['es', 'en'])
+  // Eran dos hasta el 2026-11-03; el italiano lo fija `idiomas-italiano.test.ts`.
+  it('son exactamente tres, y el de omision es el espanol', () => {
+    expect(IDIOMAS).toEqual(['es', 'en', 'it'])
     expect(IDIOMA_POR_OMISION).toBe('es')
   })
 

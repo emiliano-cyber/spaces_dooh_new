@@ -478,3 +478,12 @@ export const EN_REPORTES: Record<ClaveReportes, string> = {
   'reportes.nota.luz.sin-destino.otros':
     'Also, {n} bills for {importe} do not appear in any row, because their property has no screens set up yet.',
 }
+
+// ─── ITALIANO · ola 0 (2026-11-03) ──────────────────────────────────────────
+// PARCIAL a proposito: lo rellena el lote de traduccion de este ambito
+// (`vault/03-Frontend/italiano-olas.md`). Mientras falte una clave, la
+// pantalla la pinta en INGLES (`diccionario.ts`, `DICCIONARIOS.it`) y la
+// prueba de cobertura (`cobertura-italiano.test.ts`) la cuenta como pendiente.
+// Cuando el lote termine, el tipo pasa a `Record<ClaveReportes, string>` y `tsc`
+// vuelve a exigir cada clave, como en el ingles.
+export const IT_REPORTES: Partial<Record<ClaveReportes, string>> = {}

@@ -32,6 +32,7 @@ import { formatNumero } from '@/lib/formato-numero'
 import { useIdioma } from '@/lib/i18n/contexto'
 import type { ClaveTexto } from '@/lib/i18n/diccionario'
 import type { Idioma } from '@/lib/i18n/idiomas'
+import { localeDe, numeroEnIdioma } from '@/lib/i18n/formato-idioma'
 
 // ============================================================================
 //  Space Eyes — Gráficas.
@@ -169,7 +170,7 @@ function etiquetaTiempo(p: Punto, granularidad: 'raw' | 'hour', idioma: Idioma):
   const crudo = p.bucket ?? p.reported_at ?? ''
   const d = new Date(crudo.includes('T') ? crudo : crudo.replace(' ', 'T'))
   if (Number.isNaN(d.getTime())) return crudo
-  const locale = idioma === 'en' ? 'en-US' : 'es-MX'
+  const locale = localeDe(idioma)
   return granularidad === 'hour'
     ? d.toLocaleString(locale, { month: 'short', day: 'numeric', hour: '2-digit' })
     : d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
@@ -715,7 +716,7 @@ function CajaTooltip({ active, payload, label, unidad, idioma }: any) {
           <span className="font-medium">
             {p.value == null
               ? '—'
-              : Number(p.value).toLocaleString(idioma === 'en' ? 'en-US' : 'es-MX', { maximumFractionDigits: 1 })}{' '}
+              : numeroEnIdioma(Number(p.value), idioma, { maximumFractionDigits: 1 })}{' '}
             {unidad}
           </span>
         </div>

@@ -5,6 +5,7 @@ actualizado: 2026-11-03
 tags: [frontend, i18n, idiomas, ingles, dinero]
 archivos:
   - apps/web/lib/i18n/idiomas.ts
+  - apps/web/lib/i18n/formato-idioma.ts
   - apps/web/lib/i18n/diccionario.ts
   - apps/web/lib/i18n/dinero.ts
   - apps/web/lib/i18n/moneda-cliente.tsx
@@ -74,6 +75,26 @@ archivos:
 > **Para reactivarlo**, cuando la traducción esté completa: `IDIOMA_INGLES=1` en
 > el entorno del proceso (en el PADRE, `/etc/space-os/padre.env`; en una
 > instancia, `app.env`), y reiniciar.
+
+> [!note] 2026-11-03 · Hay un TERCER idioma: el italiano, también apagado
+> Ola 0 del italiano ([[italiano-olas]]). Lo que cambió en esta nota:
+>
+> - El interruptor ya no es uno: cada idioma tiene el suyo (`IDIOMA_INGLES`,
+>   `IDIOMA_ITALIANO`) y `idiomasActivos()` (`lib/i18n/idiomas.ts`) dice cuáles
+>   están encendidos. `idiomaDeLaPeticion()`, `pages/_error.tsx` y el layout raíz
+>   leen esa lista; un idioma apagado se trata **como uno que no hablamos**
+>   (`resolverIdioma({ …, permitidos })`). Con todo apagado, lo de siempre:
+>   español sin mirar nada.
+> - El layout pasa `disponibles={idiomasActivos()}` y `puedeElegir` si hay más de
+>   uno; el selector ofrece solo esos.
+> - **El formato de cada idioma vive en `lib/i18n/formato-idioma.ts`**
+>   (`FORMATO_IDIOMA`): locale, símbolo y su posición, fecha por omisión,
+>   porcentaje. `LOCALE_DE_IDIOMA` y los símbolos de `dinero.ts` salen de ahí.
+>   Las bifurcaciones `idioma === 'en' ? 'en-US' : 'es-MX'` del árbol pasaron a
+>   `localeDe(idioma)` / `numeroEnIdioma()`.
+> - `DICCIONARIOS.it` es el inglés con el italiano encima: lo que falta cae al
+>   **inglés**. Español e inglés quedaron idénticos byte a byte (medido sobre
+>   todo el HTML de las pruebas: `docs/i18n/revision-italiano-base.md` §4).
 
 > [!important] Traducir la interfaz NO es traducir el código
 > El repositorio **sigue escribiéndose en español** — archivos, funciones,
@@ -2086,6 +2107,7 @@ with geolocation*. Cuerpo inválido → *Invalid request*.
 ## Enlaces
 
 - [[ingles-olas]] — el tablero de la traducción: qué lote, en qué rama, qué validador y qué falta
+- [[italiano-olas]] — el tercer idioma (2026-11-03): `IDIOMA_ITALIANO`, la tabla de formatos por idioma (`formato-idioma.ts`), la caída al inglés y los lotes
 - [[acceso-y-sesion-ui]] — la pantalla de entrar, que es la traducida
 - [[shell-y-navegacion]] — el menú lateral
 - [[convenciones]] — el español como idioma del código

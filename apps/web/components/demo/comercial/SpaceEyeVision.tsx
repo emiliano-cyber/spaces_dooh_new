@@ -145,10 +145,10 @@ export function SpaceEyeVision({ sitioId, sitioNombre }: { sitioId: string; siti
           size="xl"
           title={t('comercial.eye.camara')}
           // En espanol, la hora como siempre (`toLocaleString('es-MX')`); en
-          // ingles, el formato sin ambiguedad de `formatFechaHora`.
+          // cualquier otro idioma, el formato sin ambiguedad de `formatFechaHora`.
           subtitle={`${sitioNombre}${
             data.foto.tomadaEn
-              ? ` · ${idioma === 'en' ? formatFechaHora(data.foto.tomadaEn, 'en') : new Date(data.foto.tomadaEn).toLocaleString('es-MX')}`
+              ? ` · ${idioma !== 'es' ? formatFechaHora(data.foto.tomadaEn, idioma) : new Date(data.foto.tomadaEn).toLocaleString('es-MX')}`
               : ''
           }`}
         >

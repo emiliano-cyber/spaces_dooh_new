@@ -9,6 +9,7 @@ import { formatNumero } from '@/lib/formato-numero'
 import { useIdioma } from '@/lib/i18n/contexto'
 import { traducir, type ClaveTexto } from '@/lib/i18n/diccionario'
 import type { Idioma } from '@/lib/i18n/idiomas'
+import { localeDe } from '@/lib/i18n/formato-idioma'
 
 // ============================================================================
 //  Space Eyes — campañas de verificación.
@@ -77,11 +78,11 @@ const soloFecha = (v: string | null | undefined) => (v ? String(v).slice(0, 10) 
 function periodo(c: CampanaSE, idioma: Idioma): string {
   const f = (v: string | null) => {
     if (!v) return '—'
-    if (idioma === 'en') {
+    if (idioma !== 'es') {
       const [a, m, d] = String(v).slice(0, 10).split('-').map(Number)
       const fecha = new Date(Date.UTC(a, m - 1, d))
       if (Number.isNaN(fecha.getTime())) return '—'
-      return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(fecha)
+      return new Intl.DateTimeFormat(localeDe(idioma), { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(fecha)
     }
     return String(v).slice(0, 10).split('-').reverse().slice(0, 2).join('/')
   }

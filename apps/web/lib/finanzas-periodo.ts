@@ -34,6 +34,7 @@
 import { traducir } from './i18n/diccionario'
 import type { Idioma } from './i18n/idiomas'
 import { formatFecha } from './data/derive'
+import { localeDe } from '@/lib/i18n/formato-idioma'
 
 export type TipoPeriodo = 'mes' | 'mes-anterior' | 'trimestre' | 'trimestre-anterior' | 'anio' | 'rango'
 
@@ -150,7 +151,7 @@ export function etiquetaPeriodo(p: { etiqueta: string }, idioma: Idioma = 'es'):
   const mes = /^(\S+) (\d{4})$/.exec(e)
   if (mes && MESES.includes(mes[1])) {
     const fecha = new Date(Date.UTC(Number(mes[2]), MESES.indexOf(mes[1]), 1))
-    return fecha.toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+    return fecha.toLocaleDateString(localeDe(idioma), { month: 'long', year: 'numeric', timeZone: 'UTC' })
   }
   const trimestre = /^(\d)\.º trimestre (\d{4})$/.exec(e)
   if (trimestre) return traducir(idioma, 'compartidos.periodo.etiqueta.trimestre', { n: trimestre[1], anio: trimestre[2] })

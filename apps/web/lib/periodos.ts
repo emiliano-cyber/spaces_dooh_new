@@ -14,6 +14,7 @@ import { formatMonto } from '@/lib/data/derive'
 import { formatNumero } from '@/lib/formato-numero'
 import { traducir, type ClaveTexto } from '@/lib/i18n/diccionario'
 import type { Idioma } from '@/lib/i18n/idiomas'
+import { numeroEnIdioma } from '@/lib/i18n/formato-idioma'
 
 export type Unidad = 'mensual' | 'catorcenal' | 'semanal' | 'diaria' | 'spot' | 'hora' | 'cpm'
 
@@ -113,7 +114,7 @@ export function etiquetaUnidad(unidad: string, idioma: Idioma = 'es'): string {
 /** `50 spots` · `1 mes` · `3 meses`. El QUÉ, sin el precio. */
 export function etiquetaCantidad(unidad: string, cantidad: number, idioma: Idioma = 'es'): string {
   const n = Number(cantidad) || 0
-  return `${n.toLocaleString('es-MX', { maximumFractionDigits: 2 })} ${unidadCorta(unidad, n, idioma)}`
+  return `${numeroEnIdioma(n, idioma, { maximumFractionDigits: 2 })} ${unidadCorta(unidad, n, idioma)}`
 }
 
 /**
@@ -181,7 +182,7 @@ export function etiquetaFrecuencia(spotsPorDia: number | null | undefined, idiom
   if (!Number.isFinite(n) || n <= 0) return null
   // Con coma de miles: una digital pasa de 6,000 pases al día.
   return traducir(idioma, n === 1 ? 'compartidos.frecuencia.uno' : 'compartidos.frecuencia.otros', {
-    n: formatNumero(n),
+    n: formatNumero(n, 0, idioma),
   })
 }
 

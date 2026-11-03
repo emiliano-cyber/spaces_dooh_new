@@ -34,6 +34,7 @@ import { useIdioma } from '@/lib/i18n/contexto'
 import { interpolarNodos } from '@/lib/i18n/nodos'
 import type { Idioma } from '@/lib/i18n/idiomas'
 import { CLAVE_CAMPO_CONTRATO, CLAVE_PARTE } from '@/components/demo/arrendadores/etiquetas'
+import { localeDe } from '@/lib/i18n/formato-idioma'
 
 // ============================================================================
 //  CONTRATO-CAMBIOS (07/10) · cambiar un contrato ANTES de firmarlo, diciendo
@@ -64,7 +65,7 @@ const inputCls =
 // de reloj de alla.
 function fechaHora(iso: string, idioma: Idioma = 'es') {
   const d = new Date(iso)
-  return `${formatFecha(iso, idioma)} ${d.toLocaleTimeString(idioma === 'es' ? 'es-MX' : 'en-US', { hour: '2-digit', minute: '2-digit' })}`
+  return `${formatFecha(iso, idioma)} ${d.toLocaleTimeString(localeDe(idioma), { hour: '2-digit', minute: '2-digit' })}`
 }
 
 export function CambiosContrato({

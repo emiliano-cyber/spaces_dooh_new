@@ -1,6 +1,7 @@
 import { AlertTriangle } from 'lucide-react'
 import { traducir, type ClaveTexto } from '@/lib/i18n/diccionario'
 import type { Idioma } from '@/lib/i18n/idiomas'
+import { localeDe } from '@/lib/i18n/formato-idioma'
 
 // ============================================================================
 //  Constancia de firma electrónica. A diferencia de PanelFirmas (que es la
@@ -40,7 +41,7 @@ const ETIQUETA: Record<FirmaConstancia['parte'], ClaveTexto> = {
 // hora que la pantalla de quien lo generó, y no la del huso del contenedor.
 function fechaHora(iso: string | null, idioma: Idioma = 'es'): string {
   if (!iso) return '—'
-  return new Date(iso).toLocaleString(idioma === 'es' ? 'es-MX' : 'en-US', {
+  return new Date(iso).toLocaleString(localeDe(idioma), {
     dateStyle: 'long',
     timeStyle: 'medium',
     timeZone: 'America/Mexico_City',

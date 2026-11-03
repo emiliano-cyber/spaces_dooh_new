@@ -64,6 +64,7 @@ import { useIdioma } from '@/lib/i18n/contexto'
 import type { ClaveTexto } from '@/lib/i18n/diccionario'
 import { interpolarNodos } from '@/lib/i18n/nodos'
 import type { TipoAlerta } from '@/lib/data/derive'
+import { localeDe } from '@/lib/i18n/formato-idioma'
 
 // I18N (lote operaciones parte 2, 2026-11-02) · SOLO los textos: el diseño de
 // esta pagina esta aprobado y ni una clase ni un nodo cambian. Las tablas de
@@ -155,7 +156,7 @@ export default function DashboardPage() {
   const [todosLosHuecos, setTodosLosHuecos] = useState(false)
 
   const hoy = useMemo(() => new Date(), [])
-  const mesActual = hoy.toLocaleDateString(idioma === 'es' ? 'es-MX' : 'en-US', { month: 'long' })
+  const mesActual = hoy.toLocaleDateString(localeDe(idioma), { month: 'long' })
   // ─── Por rol (DASH-REF, punto 2) ──────────────────────────────────────────
   // Sin `finanzas:ver`, `/api/estado` le manda vacías las cobranzas, los
   // contratos y las facturas, y el motor de Reportes le contesta 403. Enseñarle

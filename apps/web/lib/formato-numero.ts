@@ -1,3 +1,5 @@
+import type { Idioma } from '@/lib/i18n/idiomas'
+import { numeroEnIdioma } from '@/lib/i18n/formato-idioma'
 // ============================================================================
 //  lib/formato-numero.ts — Las CANTIDADES que se muestran (spots, pases,
 //  registros, kWh, impactos…), con coma cada tres dígitos.
@@ -15,7 +17,10 @@
 
 const SIN_DATO = '—'
 
-export function formatNumero(n: number | null | undefined, decimales = 0): string {
+// Ola 0 del italiano (2026-11-03): `idioma` opcional, con 'es' por omision.
+// `es-MX` y `en-US` escriben las cifras igual, asi que los llamadores de hoy
+// —que no lo pasan— pintan lo mismo; el italiano lo pasa y sale «1.160».
+export function formatNumero(n: number | null | undefined, decimales = 0, idioma: Idioma = 'es'): string {
   if (n == null || !Number.isFinite(n)) return SIN_DATO
-  return n.toLocaleString('es-MX', { minimumFractionDigits: decimales, maximumFractionDigits: decimales })
+  return numeroEnIdioma(n, idioma, { minimumFractionDigits: decimales, maximumFractionDigits: decimales })
 }

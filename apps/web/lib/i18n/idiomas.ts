@@ -44,7 +44,10 @@
 //  que llega a tiempo.
 // ============================================================================
 
-export const IDIOMAS = ['es', 'en'] as const
+// El italiano entra el 2026-11-03 (ola 0 del italiano, pedido del dueno:
+// «ahora version en italiano»). Va TERCERO a proposito: el orden de esta lista
+// es el del selector, y los dos que ya existian no se mueven.
+export const IDIOMAS = ['es', 'en', 'it'] as const
 export type Idioma = (typeof IDIOMAS)[number]
 
 // El espanol es el idioma ORIGINAL del producto y el unico que esta completo.
@@ -77,6 +80,39 @@ export function inglesActivo(
   return entorno.IDIOMA_INGLES === '1'
 }
 
+/**
+ * ¿Está ENCENDIDO el italiano? APAGADO por omisión (2026-11-03), con la MISMA
+ * regla que el inglés y por el mismo motivo: hasta que los lotes de traducción
+ * terminen, encenderlo enseñaría una aplicación a medias (lo que falta cae al
+ * inglés, ver `diccionario.ts`). Apagado, nadie ve italiano aunque su cookie o
+ * su navegador lo pidan. Solo el valor exacto `1` lo enciende.
+ *
+ * Es SU interruptor y no uno compartido: encender el italiano no enciende el
+ * inglés, ni al revés. Cada idioma se publica cuando está listo.
+ */
+export function italianoActivo(
+  entorno: Record<string, string | undefined> = process.env,
+): boolean {
+  return entorno.IDIOMA_ITALIANO === '1'
+}
+
+/**
+ * Los idiomas que ESTA instancia ofrece, en el orden del selector. El español
+ * siempre, y cada uno de los otros si su interruptor está encendido. Es lo
+ * único que mira el resto del código (el layout raíz, `servidor.ts`,
+ * `pages/_error.tsx`): un cuarto idioma se añade aquí y en `IDIOMAS`.
+ */
+export function idiomasActivos(
+  entorno: Record<string, string | undefined> = process.env,
+): Idioma[] {
+  const encendido: Record<Idioma, boolean> = {
+    es: true,
+    en: inglesActivo(entorno),
+    it: italianoActivo(entorno),
+  }
+  return IDIOMAS.filter((i) => encendido[i])
+}
+
 // Mismo prefijo que `spaces_sesion` y `spaces_csrf`. NO es `httpOnly`: es una
 // preferencia de presentacion, no una credencial, y el selector de idioma la
 // escribe desde el navegador.
@@ -93,10 +129,16 @@ function esIdioma(v: string): v is Idioma {
  * comparar por prefijo de texto. La diferencia importa: con `startsWith('es')`,
  * «esperanto» seria espanol.
  */
-export function normalizarIdioma(valor: string | null | undefined): Idioma | null {
+export function normalizarIdioma(
+  valor: string | null | undefined,
+  // Los idiomas que se aceptan. Por omision todos los del catalogo; quien
+  // decide de verdad (`resolverIdioma`) pasa solo los ENCENDIDOS, y asi un
+  // idioma apagado se comporta exactamente como uno que no hablamos.
+  permitidos: readonly Idioma[] = IDIOMAS,
+): Idioma | null {
   if (typeof valor !== 'string') return null
   const primaria = valor.trim().toLowerCase().split('-')[0]
-  return primaria && esIdioma(primaria) ? primaria : null
+  return primaria && esIdioma(primaria) && permitidos.includes(primaria) ? primaria : null
 }
 
 /**
@@ -107,7 +149,10 @@ export function normalizarIdioma(valor: string | null | undefined): Idioma | nul
  * configuro su navegador. Una entrada con `q=0` es un RECHAZO explicito y se
  * descarta; el comodin `*` no es una eleccion y se ignora.
  */
-export function idiomaDeCabecera(cabecera: string | null | undefined): Idioma | null {
+export function idiomaDeCabecera(
+  cabecera: string | null | undefined,
+  permitidos: readonly Idioma[] = IDIOMAS,
+): Idioma | null {
   if (typeof cabecera !== 'string' || cabecera.trim() === '') return null
 
   const candidatos = cabecera
@@ -122,7 +167,7 @@ export function idiomaDeCabecera(cabecera: string | null | undefined): Idioma | 
       // no puede pasar es que tumbe el render de la pagina.
       const calidad = q ? Number(q[1]) : 1
       return {
-        idioma: normalizarIdioma(etiqueta),
+        idioma: normalizarIdioma(etiqueta, permitidos),
         calidad: Number.isFinite(calidad) ? calidad : 1,
         orden,
       }
@@ -151,10 +196,17 @@ export function idiomaDeCabecera(cabecera: string | null | undefined): Idioma | 
 export function resolverIdioma(entrada: {
   cookie?: string | null
   cabecera?: string | null
+  /**
+   * Los idiomas ENCENDIDOS (`idiomasActivos()`). Un idioma fuera de esta lista
+   * se trata como uno que no hablamos: una cookie que lo pide es basura y se
+   * cae a la cabecera. El español no se puede apagar: es el destino final.
+   */
+  permitidos?: readonly Idioma[]
 }): Idioma {
+  const permitidos = entrada.permitidos ?? IDIOMAS
   return (
-    normalizarIdioma(entrada.cookie) ??
-    idiomaDeCabecera(entrada.cabecera) ??
+    normalizarIdioma(entrada.cookie, permitidos) ??
+    idiomaDeCabecera(entrada.cabecera, permitidos) ??
     IDIOMA_POR_OMISION
   )
 }

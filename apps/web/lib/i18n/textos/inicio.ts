@@ -359,3 +359,12 @@ export const EN_INICIO: Record<ClaveInicio, string> = {
   'inicio.alerta.ot-vence.otros': '{folio} · {sitio} — due in {n} days{sinAsignar}',
   'inicio.alerta.ot-sin-asignar': ' · unassigned',
 }
+
+// ─── ITALIANO · ola 0 (2026-11-03) ──────────────────────────────────────────
+// PARCIAL a proposito: lo rellena el lote de traduccion de este ambito
+// (`vault/03-Frontend/italiano-olas.md`). Mientras falte una clave, la
+// pantalla la pinta en INGLES (`diccionario.ts`, `DICCIONARIOS.it`) y la
+// prueba de cobertura (`cobertura-italiano.test.ts`) la cuenta como pendiente.
+// Cuando el lote termine, el tipo pasa a `Record<ClaveInicio, string>` y `tsc`
+// vuelve a exigir cada clave, como en el ingles.
+export const IT_INICIO: Partial<Record<ClaveInicio, string>> = {}

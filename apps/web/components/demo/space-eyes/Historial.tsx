@@ -7,6 +7,7 @@ import { telemetriaApi, type PuntoTelemetria, type Telemetria } from '@/lib/data
 import { formatNumero } from '@/lib/formato-numero'
 import { useIdioma } from '@/lib/i18n/contexto'
 import type { Idioma } from '@/lib/i18n/idiomas'
+import { localeDe, porcentajeEnIdioma } from '@/lib/i18n/formato-idioma'
 
 // ============================================================================
 //  Historial del equipo — batería y señal, por hora.
@@ -280,14 +281,14 @@ function Grafica({
           role="img"
           aria-label={t('spaceeyes.historial.aria', {
             titulo,
-            // El español deja «17 %» y «sin dato dBm» como siempre; en ingles
-            // el «%» va pegado y «no data» no lleva unidad.
+            // El español deja «17 %» y «sin dato dBm» como siempre; en los
+            // demas idiomas el «%» va pegado y «no data» no lleva unidad.
             valor:
-              idioma === 'en'
+              idioma !== 'es'
                 ? peor == null
                   ? t('spaceeyes.comun.sin-dato')
                   : unidad === '%'
-                    ? `${peor}%`
+                    ? porcentajeEnIdioma(String(peor), idioma)
                     : `${peor} ${unidad}`
                 : `${peor ?? t('spaceeyes.comun.sin-dato')} ${unidad}`,
           })}
@@ -348,7 +349,7 @@ function Grafica({
 function horaCorta(bucket: string, horas: number, idioma: Idioma): string {
   const d = new Date(bucket.replace(' ', 'T'))
   if (Number.isNaN(d.getTime())) return bucket
-  const locale = idioma === 'en' ? 'en-US' : 'es-MX'
+  const locale = localeDe(idioma)
   return horas <= 24
     ? d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
     : d.toLocaleString(locale, { day: '2-digit', month: 'short', hour: '2-digit' })
