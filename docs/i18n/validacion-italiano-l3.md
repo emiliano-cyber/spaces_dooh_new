@@ -5,7 +5,7 @@
 `docs/i18n/revision-italiano-l3.md` · **Validador:** sesión independiente (solo
 código y HTML rendido; sin el razonamiento del traductor).
 
-## Veredicto: **ÁMBAR** (sin bloqueantes)
+## Veredicto: **ÁMBAR** (sin bloqueantes) → **VERDE** en la 2.ª pasada (§11)
 
 Español e inglés idénticos, medido. El italiano se lee bien y con el registro
 correcto; la cobertura es completa (salvo la constancia, excluida a propósito y
@@ -198,3 +198,30 @@ No pisa a otros lotes: solo toca `IT_*` de sus cuatro ámbitos.
 - Las 203 claves no rendidas se juzgaron leyendo el texto, no en pantalla.
 - Que «quindicina», «poster» y «Titolare» sean lo que quiere el dueño: vienen
   del glosario común, no se reabren aquí.
+
+## 11 · 2.ª pasada (sobre `f35fc668` + `f5f81aa6`) — **VERDE**
+
+| Hallazgo | Comprobado en el código |
+|---|---|
+| H1 | Las 10 claves sin artículo ante la fecha: «Chiuso in data {fecha}», «Pagato in data…», «archiviata in data…», «firmato da {nombre} in data…», «scade in data…», «Documento congelato in data…», «Scade in data…», «fino al giorno {fin}», «in data {desde} o successiva», «spostala al giorno {desde}». Barrido por regex de los cuatro ámbitos: 0 restos de «il/al/dal {fecha…}» |
+| H2, H3, H4, H9 | Corregidos con la frase propuesta («Quella che fattura…», «la società a nome della quale si paga…», «homoclave», «Rinomina ogni file con il {codigo}…») |
+| H5 | «gg» en las tres claves |
+| H6 | «tengono bloccata la fatturazione», «tiene bloccata la fatturazione», «Fatturazione sbloccata»; 0 «lucchetto» en el lote |
+| incidencia | «Segnala anomalia», «Anomalia segnalata», «Descrivi l’anomalia…»; «Incidente» queda solo como tipo «Accidente». 0 «problema» |
+| H7 | `lib/i18n/textos/italiano-l3.test.ts`: italiano ≠ inglés ≠ español salvo los 36 cognados (los mismos que listé en §2), `.uno` ≠ `.otros` salvo 2 invariables justificados, y la lista declarada se vigila a sí misma |
+| H8 | «Actualmente: 45,000.» / «Currently: 45,000.» en las listas es/en del visor |
+
+**Mutantes repetidos:** V2 muere (2 pruebas es/en del visor), V3 muere (singular
+= plural), V4 y V6 mueren (copia del español / del inglés). Mutante nuevo V11
+(«archiviata il {fecha}», clave no rendida): **sobrevive** — la regla «sin
+artículo ante la fecha» solo la vigilan las claves rendidas. Sugerencia, no
+bloqueante: una expresión regular en `italiano-l3.test.ts`
+(`/\b(il|al|dal|del) \{(fecha|fin|desde|inicio|hasta)\}/`). Queda también la
+cabecera de columna «Pagato il» (`arrendadores.pagos.col.pagado-el`), que no
+interpola fecha; se puede dejar o poner «Data di pagamento».
+
+**Medido otra vez:** `npm run typecheck` limpio; `npx vitest run` **384
+archivos / 7146 pruebas** en verde; HTML de toda la suite contra la base
+`6fea374a`: 3293 archivos, **0 distintos, 0 desaparecidos**; `DICCIONARIOS.es` y
+`.en`: 5590, **0 cambiados**, 0 quitados, 0 nuevos. `git status` limpio tras los
+mutantes.
