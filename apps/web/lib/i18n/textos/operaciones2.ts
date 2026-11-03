@@ -151,6 +151,12 @@ export const ES_OPERACIONES2 = {
   'operaciones2.ficha.evidencia-enviada': 'La evidencia se envió al pipeline de la campaña.',
   'operaciones2.ficha.cerrada-el': 'Cerrada el {fecha}',
   'operaciones2.ficha.checklist-cumplido': 'Checklist cumplido',
+  // Ola 6 · la lista por omision de una OT nueva (`operaciones/page.tsx`). Se
+  // guarda en espanol en la OT; la ficha la pinta en ingles solo si el texto
+  // es exactamente este (`lib/i18n/checklist-ot.ts`).
+  'operaciones2.checklist.omision.inspeccion': 'Inspección de estructura y herrajes',
+  'operaciones2.checklist.omision.montaje': 'Montaje / ejecución',
+  'operaciones2.checklist.omision.foto': 'Foto comprobatoria con geolocalización',
   'operaciones2.ficha.candado-encendido': 'Candado de facturación encendido',
   'operaciones2.ficha.evidencia-alt': 'evidencia',
   'operaciones2.ficha.puedes-cerrar': 'Puedes cerrar esta ventana. La evidencia ya quedó registrada.',
@@ -375,6 +381,9 @@ export const EN_OPERACIONES2: Record<ClaveOperaciones2, string> = {
   'operaciones2.ficha.evidencia-enviada': 'The evidence was sent to the campaign pipeline.',
   'operaciones2.ficha.cerrada-el': 'Closed on {fecha}',
   'operaciones2.ficha.checklist-cumplido': 'Checklist completed',
+  'operaciones2.checklist.omision.inspeccion': 'Structure and hardware inspection',
+  'operaciones2.checklist.omision.montaje': 'Installation / execution',
+  'operaciones2.checklist.omision.foto': 'Proof photo with geolocation',
   'operaciones2.ficha.candado-encendido': 'Billing lock open',
   'operaciones2.ficha.evidencia-alt': 'evidence',
   'operaciones2.ficha.puedes-cerrar': 'You can close this window. The evidence is already recorded.',

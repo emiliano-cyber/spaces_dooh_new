@@ -2,6 +2,9 @@
 
 exports[`diccionario de OPERACIONES (parte 2) · instantanea > el ESPANOL no cambia sin que se vea 1`] = `
 {
+  "operaciones2.checklist.omision.foto": "Foto comprobatoria con geolocalización",
+  "operaciones2.checklist.omision.inspeccion": "Inspección de estructura y herrajes",
+  "operaciones2.checklist.omision.montaje": "Montaje / ejecución",
   "operaciones2.comun.campana": "Campaña",
   "operaciones2.comun.de": "{a} de {b}",
   "operaciones2.comun.descripcion": "Descripción",
@@ -209,6 +212,9 @@ exports[`diccionario de OPERACIONES (parte 2) · instantanea > el ESPANOL no cam
 
 exports[`diccionario de OPERACIONES (parte 2) · instantanea > el INGLES tampoco 1`] = `
 {
+  "operaciones2.checklist.omision.foto": "Proof photo with geolocation",
+  "operaciones2.checklist.omision.inspeccion": "Structure and hardware inspection",
+  "operaciones2.checklist.omision.montaje": "Installation / execution",
   "operaciones2.comun.campana": "Campaign",
   "operaciones2.comun.de": "{a} of {b}",
   "operaciones2.comun.descripcion": "Description",
