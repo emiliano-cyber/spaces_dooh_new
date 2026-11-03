@@ -2,6 +2,7 @@ import { LIMITE_RAZON_SOCIAL, claveRazonSocial } from '@/lib/cuestionario-entida
 import { esRfcValido } from '@/lib/rfc'
 import type { Idioma } from '@/lib/i18n/idiomas'
 import { traducir, type ClaveTexto } from '@/lib/i18n/diccionario'
+import { codigoDePapel } from '@/lib/i18n/papeles'
 
 // ============================================================================
 //  La lógica de la pantalla de razones sociales, FUERA del `.tsx`.
@@ -124,7 +125,13 @@ export function loQueFaltaEnElBorrador(
     .map((r) => String(r).trim().toUpperCase())
     .find((r) => r && !validos.has(r))
   if (intruso) {
-    return t('admin.razones.falta.papel', { papel: intruso, validos: [...validos].join(', ') })
+    // Ola 7 · los codigos validos con su nombre en el idioma de quien lee
+    // (RENT, ASSETS… en ingles); un codigo que no es de los cinco y el intruso
+    // tecleado son dato y se pintan como estan. En espanol, los de siempre.
+    return t('admin.razones.falta.papel', {
+      papel: intruso,
+      validos: [...validos].map((r) => codigoDePapel(r, idioma)).join(', '),
+    })
   }
 
   // Sin ningún rol SÍ se guarda: cuál papel juega una sociedad se puede decidir

@@ -150,6 +150,23 @@ describe('diccionario de administracion · el espanol reproduce EXACTAMENTE su m
       'The RFC “MAL” doesn’t have a valid format. Leave it empty if you don’t have it yet.',
     )
   })
+
+  it('ola 7 · el papel que no existe: en ingles, los codigos validos con su nombre ingles; en espanol, los de siempre', async () => {
+    const { loQueFaltaEnElBorrador, BORRADOR_VACIO } = await import('../../../components/demo/razones-sociales/gestion')
+    const ctx = { existentes: [], editando: null, catalogo: ['ARRENDAMIENTOS', 'ACTIVOS', 'LICENCIAS', 'OPERACION', 'VENTAS', 'OTRO'] }
+    const b = (o: object) => ({ ...BORRADOR_VACIO, ...o })
+    expect(loQueFaltaEnElBorrador(b({ razonSocial: 'Dos', roles: ['x'] }), ctx as never)).toBe(
+      'El papel «X» no existe. Los que hay son: ARRENDAMIENTOS, ACTIVOS, LICENCIAS, OPERACION, VENTAS, OTRO.',
+    )
+    // Un codigo que no es de los cinco (OTRO) es dato: se queda como esta.
+    expect(loQueFaltaEnElBorrador(b({ razonSocial: 'Dos', roles: ['x'] }), ctx as never, 'en')).toBe(
+      'The role “X” doesn’t exist. The available ones are: RENT, ASSETS, PERMITS, OPERATIONS, SALES, OTRO.',
+    )
+    // El intruso es lo que tecleo quien captura: dato, aunque coincida con un codigo ingles.
+    expect(loQueFaltaEnElBorrador(b({ razonSocial: 'Dos', roles: ['sales'] }), ctx as never, 'en')).toBe(
+      'The role “SALES” doesn’t exist. The available ones are: RENT, ASSETS, PERMITS, OPERATIONS, SALES, OTRO.',
+    )
+  })
 })
 
 describe('administracion · las frases de `actualizaciones-ui` y `tickets-ui` en los dos idiomas', () => {
