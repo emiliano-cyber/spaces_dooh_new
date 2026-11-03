@@ -1,7 +1,7 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-11-02
+actualizado: 2026-11-03
 tags: [datos, esquema, er, postgres]
 archivos:
   - db/schema.sql
@@ -583,7 +583,7 @@ erDiagram
 | Tabla | RLS | Nota |
 |---|---|---|
 | `tenants` | **Exenta** | Una fila por organización. **El esquema no siembra ninguna** (ver el aviso de arriba). Desde el 21/09 lleva `cambios_password_hash` — la contraseña compartida del candado de cambios (ADR 0036), `null` = sin asignar — ver [[02-Backend/autenticacion-y-sesion]]. Desde el 12/10 lleva `entidad_principal_id`: la razón social de la empresa es una de `entidades_fiscales` y se lee de ahí (FK compuesta con `id`); `razon_social` y `rfc` quedan de respaldo — ver [[02-Backend/entidades-fiscales]]  **Desde el 02/11 (ADR 0048), `moneda` es la de la INSTANCIA:** `check (moneda in ('MXN','USD'))`, no se puede cambiar (trigger `trg_tenants_moneda_inmutable`) y todas las organizaciones de la instancia comparten la misma (`trg_tenants_moneda_unica`) |
-| `usuarios` | fail-closed + FORCE | Correo UNIQUE **global** `lower(email)` |
+| `usuarios` | fail-closed + FORCE | Correo UNIQUE **global** `lower(email)`. **(03/11, IDIOMA-USUARIO)** `idioma_preferido text null`, CHECK `usuarios_idioma_preferido_valido` (`es`/`en`/`it`); `null` = sigue al navegador. Se lee con `qConTenant` al abrir sesión y con `q` en «Mi cuenta» — ver [[03-Frontend/idiomas-es-en]] |
 | `sesiones` | **Exenta** | + `desbloqueo_expira_en` + `desbloqueo_es_propio` (ADR 0036: si el desbloqueo vigente fue con la contraseña propia o la compartida) |
 | `identidades_externas` | fail-closed + FORCE | ADR 0012 |
 | `password_resets` | fail-closed (desde 07/08) | Token único, 60 min |
