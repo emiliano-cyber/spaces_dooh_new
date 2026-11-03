@@ -133,3 +133,31 @@ de la maquinaria: **textos de ejemplo del diccionario** (que caen al inglés, «
 12.9») y **Server Components** cuyo idioma lo fija el simulacro de la prueba
 (`servidor.idioma`), que el espejo no puede cambiar. La lista por archivo está en
 `docs/i18n/revision-italiano-base.md` §5: es el punto de partida de cada lote.
+
+### Lote L4 · Campañas, finanzas, clientes, reportes y Dashboard
+
+Rama `feat/italiano-l4-campanas` (sobre `integra/idiomas`, `6fea374a`).
+**Hecho, sin validar.** 1082 claves (`campanas` 396 · `finanzas` 170 ·
+`clientes` 220 · `reportes` 148 · `inicio` 148), los cinco `IT_*` ya en
+`Record` completo. Español e inglés idénticos (3020 HTML, `diff -rq` = 0); el
+espejo pierde las 32 huellas del Dashboard (358 → 326). Detalle, pruebas y
+mutantes (13/13) en `docs/i18n/revision-italiano-l4.md`.
+
+Términos que el glosario no traía y fijó este lote: OC = **OdA** («ordine
+d’acquisto», masc.) · candado = **lucchetto** · creativo = **creatività**
+(fem., invariable) · arte = **grafica** · imprenta = **tipografia** ·
+evidencias = **prove fotografiche** · prospecto = **prospect** · bitácora =
+**registro** · predio = **immobile** · captación = **acquisizione** · luz /
+recibo = **luce / bolletta** · Configuración = **Configurazione** · pantalla de
+la aplicación = **schermata** · Abono = **Accredito** · recordatorio de cobro
+= **sollecito**. Finanzas (módulo) = «Finanza» provisional: **lo fija L5** con
+el menú. **P2:** se confirma «T1 2026».
+
+Costura: «Vencida» (Scaduta/Scaduto) y «Pantalla» (Schermo/Impianto) quedan
+declaradas distintas a propósito en `costura.test.ts`.
+
+> [!warning] Pendiente para el dueño (dinero, ROJO)
+> El campo de cifra lee **es-MX en todos los idiomas** (`lib/captura-cifra.ts`):
+> un italiano que teclee «212.500,50» ve el rechazo. El aviso lo dice con verdad
+> («la virgola separa le migliaia…»), pero leer el formato italiano es otra
+> tarea, de `compartidos` y de dinero.
