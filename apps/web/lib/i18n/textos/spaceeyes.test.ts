@@ -211,6 +211,22 @@ describe('spaceeyes · los errores del cliente, en los dos idiomas', () => {
     vi.unstubAllGlobals()
   })
 
+  it('la flota (space-eyes-api) sin error del servidor: el respaldo en el idioma de quien lo lee', async () => {
+    // Costura 2 (validacion de Space Eyes, menor): el respaldo iba fijo en
+    // español. `'es'` por omision, como `textoDeError`.
+    const api = await import('../../data/space-eyes-api')
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 502 })))
+    expect((await api.equipoApi(7).catch((x) => x)).message).toBe('No se pudo hablar con Space Eyes')
+    expect((await api.equipoApi(7, 'es').catch((x) => x)).message).toBe('No se pudo hablar con Space Eyes')
+    expect((await api.equipoApi(7, 'en').catch((x) => x)).message).toBe('Could not reach Space Eyes')
+    expect((await api.listarEquiposApi('en').catch((x) => x)).message).toBe('Could not reach Space Eyes')
+    expect((await api.telemetriaApi(7, 24, 'en').catch((x) => x)).message).toBe('Could not reach Space Eyes')
+    // Lo que manda el servidor es un dato: pasa tal cual en los dos idiomas.
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ error: 'Sin llave' }), { status: 502 })))
+    expect((await api.fallasApi(7, 'en').catch((x) => x)).message).toBe('Sin llave')
+    vi.unstubAllGlobals()
+  })
+
   it('lo que manda Space Eye es un dato y pasa tal cual en los dos idiomas', async () => {
     const { seApi, textoDeError } = await import('../../data/space-eyes-se')
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ mensaje: 'espejo de solo lectura' }), { status: 409 })))

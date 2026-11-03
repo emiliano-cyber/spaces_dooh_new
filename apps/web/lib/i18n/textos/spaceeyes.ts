@@ -170,6 +170,7 @@ export const ES_SPACEEYES = {
   'spaceeyes.lista.actualizar.visita': 'Para actualizar necesita una visita',
   'spaceeyes.lista.actualizar.toque': 'Para actualizar pide un toque',
   'spaceeyes.comun.respondio': 'Space Eye respondió {status}',
+  'spaceeyes.comun.sin-hablar': 'No se pudo hablar con Space Eyes',
 
   // ── La ficha de un equipo (`FichaEquipo`) y la pagina `/space-eyes/[id]` ──
   'spaceeyes.comun.equipo': 'Equipo',
@@ -1292,6 +1293,7 @@ export const EN_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.lista.actualizar.visita': 'Needs a site visit to update',
   'spaceeyes.lista.actualizar.toque': 'Needs a confirmation on the phone to update',
   'spaceeyes.comun.respondio': 'Space Eye returned {status}',
+  'spaceeyes.comun.sin-hablar': 'Could not reach Space Eyes',
 
   // ── La ficha de un equipo (`FichaEquipo`) y la pagina `/space-eyes/[id]` ──
   'spaceeyes.comun.equipo': 'Device',
@@ -2213,7 +2215,7 @@ export const EN_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.alta.tel.descargar': 'download app {version}',
   'spaceeyes.alta.tel.2': 'Generate the code and keep it open next to the phone.',
   'spaceeyes.alta.tel.3':
-    'On the phone, open the app, confirm with {vincular} and scan the QR. If the camera cannot read it, type the code.',
+    'On the phone, open the app, choose {vincular} and scan the QR. If the camera cannot read it, type the code.',
   'spaceeyes.alta.tel.vincular': 'Vincular',
   'spaceeyes.alta.tel.4': 'The phone shows up in Devices within seconds. Give it the site name there.',
   'spaceeyes.alta.tel.escanea': 'Scan it from the Space Eye app',

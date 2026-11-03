@@ -99,10 +99,10 @@ export function FichaEquipo({ id }: { id: number }) {
   const sondeo = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const traer = useCallback(async () => {
-    const d = await equipoApi(id)
+    const d = await equipoApi(id, idioma)
     setDatos(d)
     return d
-  }, [id])
+  }, [id, idioma])
 
   const sincronizar = useCallback(async () => {
     setCargando(true)
@@ -144,7 +144,7 @@ export function FichaEquipo({ id }: { id: number }) {
     setCaptura('pidiendo')
     const referencia = fotos[0]?.tomadaEn ?? null
     try {
-      const r = await pedirCapturaApi(equipo.id)
+      const r = await pedirCapturaApi(equipo.id, idioma)
       if (!r.enLinea) {
         setCaptura('encolada')
         setAvisoCaptura(r.mensaje)

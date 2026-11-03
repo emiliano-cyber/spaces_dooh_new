@@ -55,14 +55,14 @@ export function ListaEquipos() {
     setCargando(true)
     setError(null)
     try {
-      const d = await listarEquiposApi()
+      const d = await listarEquiposApi(idioma)
       setNoConfigurado(!d.disponible)
       setEquipos(d.equipos)
     } catch (e) {
       setError(e instanceof Error ? e.message : t('spaceeyes.comun.no-consultar'))
     }
     setCargando(false)
-  }, [t])
+  }, [t, idioma])
 
   useEffect(() => {
     void sincronizar()

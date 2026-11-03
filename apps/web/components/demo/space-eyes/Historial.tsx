@@ -52,12 +52,12 @@ export function Historial({ id }: { id: number }) {
     setCargando(true)
     setError(null)
     try {
-      setDatos(await telemetriaApi(id, h))
+      setDatos(await telemetriaApi(id, h, idioma))
     } catch (e) {
       setError(e instanceof Error ? e.message : t('spaceeyes.historial.no-leer'))
     }
     setCargando(false)
-  }, [id, t])
+  }, [id, t, idioma])
 
   useEffect(() => {
     if (abierto) void traer(horas)

@@ -56,7 +56,7 @@ export function PantallaYCreativos({
 
   useEffect(() => {
     let vivo = true
-    Promise.all([fallasApi(id), creativosApi(id)])
+    Promise.all([fallasApi(id, idioma), creativosApi(id, idioma)])
       .then(([p, c]) => {
         if (!vivo) return
         setPantalla(p)
@@ -66,7 +66,7 @@ export function PantallaYCreativos({
     return () => {
       vivo = false
     }
-  }, [id])
+  }, [id, idioma])
 
   if (error) {
     return (

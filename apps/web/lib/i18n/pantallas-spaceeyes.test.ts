@@ -2766,7 +2766,7 @@ pantalla({
     ' app on the phone',
     'download app 0.16.4',
     'Vincular',
-    'On the phone, open the app, confirm with ',
+    'On the phone, open the app, choose ',
     'Works only once',
     ' · expires ',
     'Pairing codes',
