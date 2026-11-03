@@ -28,8 +28,9 @@ import { formatNumero } from '@/lib/formato-numero'
 //  arriba, y por eso cada equipo enseña SU ÚLTIMA FOTO: un equipo que reporta
 //  bien pero lleva una semana viendo una lona caída solo se nota mirando.
 //
-//  VISTE COMO INVENTARIO, no como un módulo invitado. El encabezado es el mismo
-//  patrón —icono en cuadro de 40, título de 18 px, subtítulo de 13—, el selector
+//  VISTE COMO EL RESTO DEL SISTEMA, no como un módulo invitado. El encabezado
+//  es el mismo patrón —icono en cuadro de 40, título `text-2xl`, subtítulo de
+//  13—, el selector
 //  de filtros es el mismo segmentado con el que Inventario elige entre lista,
 //  contrato y carga masiva, y los bordes, radios y tamaños salen de ahí. Lo
 //  único que NO se copia es la tabla: aquí cada fila tiene una fotografía que
@@ -109,7 +110,7 @@ export function ListaEquipos() {
     .pop()
 
   return (
-    <div className="w-full space-y-4 p-4 sm:p-6">
+    <div className="w-full space-y-4">
       {/* El encabezado de Inventario, exacto. En celular los botones bajan a
           su propia fila: a 390 px el título quedaba en una columna de una
           palabra por renglón. */}
@@ -118,7 +119,7 @@ export function ListaEquipos() {
           <Eye className="h-5 w-5" strokeWidth={1.75} />
         </span>
         <div className="min-w-[12rem] flex-1">
-          <h1 className="text-lg font-semibold text-ink">Space Eyes</h1>
+          <h1 className="text-2xl text-ink">Space Eyes</h1>
           <p className="text-[13px] text-muted">
             Los equipos que vigilan tus pantallas: qué están viendo y cómo están.
           </p>

@@ -310,7 +310,7 @@ export function Graficas() {
   const batMin = num(datos?.resumen.battery_pct_min)
 
   return (
-    <div className="w-full space-y-4 p-6">
+    <div className="w-full space-y-4">
       <Link href="/space-eyes" className="inline-flex items-center gap-1.5 text-[12px] text-muted hover:text-ink">
         <ChevronLeft className="h-3.5 w-3.5" /> Space Eyes
       </Link>
@@ -321,7 +321,7 @@ export function Graficas() {
           <BarChart3 className="h-5 w-5" strokeWidth={1.75} />
         </span>
         <div className="min-w-[12rem] flex-1">
-          <h1 className="text-lg font-semibold text-ink">Gráficas</h1>
+          <h1 className="text-2xl text-ink">Gráficas</h1>
           <p className="text-[13px] text-muted">Estadísticas y telemetría de cada equipo: cómo ha estado y cuánto consume.</p>
         </div>
         <div className="flex items-center gap-2">

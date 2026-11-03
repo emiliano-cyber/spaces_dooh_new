@@ -222,7 +222,7 @@ export function AjustarTexto() {
   const sucio = !mismaMarca(marca, guardada)
 
   return (
-    <div className="w-full space-y-4 p-4 sm:p-6">
+    <div className="w-full space-y-4">
       <Link href="/space-eyes" className="inline-flex items-center gap-1.5 text-[12px] text-muted hover:text-ink">
         <ArrowLeft className="h-3.5 w-3.5" />
         Space Eyes
@@ -233,7 +233,7 @@ export function AjustarTexto() {
           <Type className="h-5 w-5" strokeWidth={1.75} />
         </span>
         <div className="min-w-[12rem] flex-1">
-          <h1 className="text-lg font-semibold text-ink">Ajustar texto de las fotos</h1>
+          <h1 className="text-2xl text-ink">Ajustar texto de las fotos</h1>
           <p className="text-[13px] text-muted">
             Toma una fotografía de prueba y acomoda cómo se verá <b className="font-medium text-ink">nombre · fecha · hora</b>.
             Se aplica a todas las fotos del equipo.

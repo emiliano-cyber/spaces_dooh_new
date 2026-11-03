@@ -279,7 +279,7 @@ export function AltaDispositivo() {
           <Eye className="h-5 w-5" strokeWidth={1.75} />
         </span>
         <div className="min-w-[12rem] flex-1">
-          <h1 className="text-lg font-semibold text-ink">Agregar dispositivo</h1>
+          <h1 className="text-2xl text-ink">Agregar dispositivo</h1>
           <p className="text-[13px] text-muted">
             Cada equipo nuevo entra con un código de un solo uso que se genera aquí. Elige qué equipo vas a instalar.
           </p>
