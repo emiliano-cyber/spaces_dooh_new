@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest'
+import { huellasDeFormatoEspanol } from './guardias-ingles'
 import { createElement, type ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { mkdirSync, writeFileSync } from 'node:fs'
@@ -3239,24 +3240,15 @@ async function htmlIngles(): Promise<string> {
 describe('lote SPACE EYES · ninguna fecha, hora ni importe en formato español en ingles', () => {
   // Validacion (M3): quitar el `idioma` de un `fechaHora` dejaba «02 nov 2026,
   // 10:15 a.m.» en la pantalla inglesa y no lo veia nadie, porque una fecha no
-  // es un trozo del diccionario. Las dos primeras expresiones son las del
-  // ayudante comun que prepara el lote de inventario (`(?<!MX)\$ ?\d` y
-  // `\d{2}/\d{2}/\d{4}`, fuera de `value=`); aun no esta en esta base, asi que
-  // van aqui con la misma expresion. Las otras dos cazan el mes abreviado y el
-  // «a. m.» de es-MX.
-  const GUARDIAS: [string, RegExp][] = [
-    ['dinero sin MX', /(?<!MX)\$ ?\d/],
-    ['fecha dd/mm/aaaa', /\d{2}\/\d{2}\/\d{4}/],
-    ['mes en español', /\b\d{1,2} (ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)\b/],
-    ['a. m. / p. m.', /\b[ap]\.\s?m\./],
-  ]
+  // es un trozo del diccionario. Las huellas viven en el ayudante comun
+  // (`lib/i18n/guardias-ingles.ts`, costura 2): el dinero sin MX$, dd/mm/aaaa,
+  // el mes corto, el «a. m.» de es-MX, la fecha larga y el corto con guion
+  // («02-nov», el de Programacion: mutante M10), en el texto y en los
+  // atributos que se leen. La marca de la foto se quita antes: es la evidencia.
   for (const p of PANTALLAS) {
     it(p.nombre, async () => {
-      const crudo = (await p.pintar('en')).replace(MARCA, '').replace(/\svalue="[^"]*"/g, '')
-      const visibles = [...crudo.matchAll(/(?:title|aria-label|placeholder|alt)="([^"]*)"/g)].map((m) => m[1])
-      const html = texto(crudo.replace(/<[^>]*>/g, '\n') + '\n' + visibles.join('\n'))
-      const malas = GUARDIAS.filter(([, re]) => re.test(html)).map(([n, re]) => `${n}: «${html.match(re)?.[0]}»`)
-      expect(malas).toEqual([])
+      const crudo = (await p.pintar('en')).replace(MARCA, '')
+      expect(huellasDeFormatoEspanol(crudo)).toEqual([])
     })
   }
 

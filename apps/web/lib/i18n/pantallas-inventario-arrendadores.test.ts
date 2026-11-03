@@ -1507,11 +1507,13 @@ async function pintarTodasEnIngles(): Promise<string[]> {
   return htmls
 }
 
-describe('lote INVENTARIO Y ARRENDADORES · en ingles, ni dinero sin MX$ ni fechas dd/mm/aaaa', () => {
+describe('lote INVENTARIO Y ARRENDADORES · en ingles, ninguna fecha, hora ni importe con formato espanol', () => {
   // Segunda vuelta (validador, medio 1, mutante 5): quitar el idioma a un
   // `formatMonto` o a un `formatFecha` no deja ninguna frase espanola, asi que
   // el barrido de frases no lo veia. Esta guardia (`lib/i18n/guardias-ingles.ts`,
-  // para cualquier lote) busca las dos huellas.
+  // comun a todos los lotes desde la costura 2) busca esas huellas y las demas:
+  // la fecha larga del panel de firmas (mutante E), el mes corto, el «02-nov»
+  // y el «a. m.», en el texto y en los atributos que se leen.
   it('ningun estado ingles las lleva, salvo lo declarado', async () => {
     const htmls = await pintarTodasEnIngles()
     const huellas = htmls.flatMap((h, i) =>

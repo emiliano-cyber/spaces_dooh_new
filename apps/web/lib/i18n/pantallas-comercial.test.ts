@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { huellasDeFormatoEspanol } from './guardias-ingles'
 import { createElement, type ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { mkdirSync, writeFileSync } from 'node:fs'
@@ -1266,5 +1267,18 @@ describe('lote COMERCIAL · cada importe lleva el simbolo de la moneda de la ins
         expect(vistos[`${moneda}-${idioma}`] ?? 0).toBeGreaterThan(0)
       })
     }
+  }
+})
+
+// Costura 2 (2026-11-02): un `formatFecha` o un `formatMonto` sin idioma no
+// deja ninguna FRASE espanola, solo su formato (dd/mm/aaaa, «20 de octubre
+// de 2026», «02-nov», «a. m.», «$ 1,000.00» sin MX$). El barrido de frases
+// no lo ve; el ayudante comun (`lib/i18n/guardias-ingles.ts`) si, tambien en
+// los `title`, `aria-label`, `placeholder` y `alt`.
+describe('lote COMERCIAL · en ingles, ninguna fecha, hora ni importe con formato espanol', () => {
+  for (const p of PANTALLAS) {
+    it(p.nombre, async () => {
+      expect(huellasDeFormatoEspanol(await p.pintar('en'))).toEqual([])
+    })
   }
 })
