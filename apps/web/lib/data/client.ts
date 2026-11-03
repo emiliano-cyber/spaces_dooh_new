@@ -22,6 +22,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useDemoStore, type DemoStore } from './store'
+import type { Idioma } from '../i18n/idiomas'
 import {
   dashboardMetrics,
   pipelineStage,
@@ -318,9 +319,11 @@ export function useDashboard(): DashboardMetrics | undefined {
 }
 
 /** Serie de ocupación día/semana/mes, recalculada en vivo. */
-export function useOcupacionSerie(gran: Granularidad): SerieOcupacion | undefined {
+// `idioma` ('es' por omision) es el de los rotulos del eje; el Dashboard pasa
+// el de `useIdioma()`.
+export function useOcupacionSerie(gran: Granularidad, idioma: Idioma = 'es'): SerieOcupacion | undefined {
   const m = useMounted()
-  const v = useStoreMemo((s) => ocupacionSerie(s, gran), [gran])
+  const v = useStoreMemo((s) => ocupacionSerie(s, gran, idioma), [gran, idioma])
   return m ? v : undefined
 }
 

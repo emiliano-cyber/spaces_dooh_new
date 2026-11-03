@@ -10,6 +10,7 @@ import { ES_ADMIN, EN_ADMIN } from './admin'
 import { ES_CUENTA, EN_CUENTA } from './cuenta'
 import { ES_SHELL, EN_SHELL } from './shell'
 import { ES_SERVIDOR, EN_SERVIDOR } from './servidor'
+import { ES_REPORTES, EN_REPORTES } from './reportes'
 import { DICCIONARIOS } from '../diccionario'
 import { traducirError } from '../errores-servidor'
 
@@ -41,11 +42,12 @@ const LOTES: [string, Record<string, string>, Record<string, string>][] = [
   // (validacion del lote de administracion, 2026-11-02).
   ['base', ...baseDelDiccionario()],
   ['servidor', ES_SERVIDOR, EN_SERVIDOR],
+  ['reportes', ES_REPORTES, EN_REPORTES],
 ]
 
 function baseDelDiccionario(): [Record<string, string>, Record<string, string>] {
   const deLotes = new Set(
-    [ES_PROPUESTAS, ES_COMPARTIDOS, ES_CAMPANAS, ES_FINANZAS, ES_COMERCIAL, ES_CODIGOS, ES_CATALOGOS, ES_ADMIN, ES_CUENTA, ES_SHELL, ES_SERVIDOR].flatMap((o) => Object.keys(o)),
+    [ES_PROPUESTAS, ES_COMPARTIDOS, ES_CAMPANAS, ES_FINANZAS, ES_COMERCIAL, ES_CODIGOS, ES_CATALOGOS, ES_ADMIN, ES_CUENTA, ES_SHELL, ES_SERVIDOR, ES_REPORTES].flatMap((o) => Object.keys(o)),
   )
   const es: Record<string, string> = {}
   const en: Record<string, string> = {}
@@ -75,6 +77,7 @@ const DISTINTOS_A_PROPOSITO: Record<string, string> = {
   Horario: 'el horario que se manda a DOOHmain («Schedule») frente al horario de operacion del sitio («Operating hours»)',
   Plazo: 'el plazo de cobranza («Payment terms») frente al plazo de una oferta de renta («Term»)',
   'Por vencer': 'una cuota que vence pronto («Due soon») frente a un contrato que caduca («Expiring soon»)',
+  Trimestre: 'la opcion del selector de periodo, el trimestre en curso («This quarter»), frente al encabezado de la columna del reporte de rentabilidad cuyas filas son trimestres («Quarter»)',
   Vencido: 'un pago atrasado («Overdue») frente a un contrato o codigo caducado («Expired»)',
   Vigencia: 'glosario: la vigencia de una propuesta o codigo («Validity») frente al plazo de un contrato («Term»)',
 }
