@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import {
   IDIOMAS,
   italianoActivo,
@@ -52,8 +52,10 @@ describe('idiomasActivos · lo que se puede elegir', () => {
 
 describe('el italiano en la deteccion', () => {
   it('normalizarIdioma reconoce it e it-IT', () => {
-    expect(normalizarIdioma('it')).toBe('it')
-    expect(normalizarIdioma('it-IT')).toBe('it')
+    // Lote L5: con la lista explicita. Por omision ya no se acepta un
+    // italiano apagado (ver abajo).
+    expect(normalizarIdioma('it', IDIOMAS)).toBe('it')
+    expect(normalizarIdioma('it-IT', IDIOMAS)).toBe('it')
     expect(normalizarIdioma('it', ['es', 'en'])).toBeNull()
   })
 
@@ -78,5 +80,49 @@ describe('el italiano en la deteccion', () => {
 
   it('el espanol nunca se puede apagar: es el destino de cualquier duda', () => {
     expect(resolverIdioma({ cookie: 'es', cabecera: null, permitidos: [] })).toBe('es')
+  })
+})
+
+// ============================================================================
+//  Lote L5 (2026-11-03) · el valor por omision de `permitidos`. Lo sugirio el
+//  validador de la ola 0: un llamador que olvide pasar la lista no puede dejar
+//  pasar un italiano APAGADO. El espanol y el ingles se comportan como antes
+//  (el ingles lo filtra quien decide, que siempre pasa la lista).
+// ============================================================================
+describe('por omision, un italiano apagado no se acepta', () => {
+  let antes: string | undefined
+  beforeEach(() => {
+    antes = process.env.IDIOMA_ITALIANO
+    delete process.env.IDIOMA_ITALIANO
+  })
+  afterEach(() => {
+    if (antes === undefined) delete process.env.IDIOMA_ITALIANO
+    else process.env.IDIOMA_ITALIANO = antes
+  })
+
+  it('apagado: ni la cookie, ni la cabecera, ni normalizar', () => {
+    expect(normalizarIdioma('it')).toBeNull()
+    expect(idiomaDeCabecera('it-IT,it;q=0.9,en;q=0.8')).toBe('en')
+    expect(resolverIdioma({ cookie: 'it', cabecera: null })).toBe('es')
+  })
+
+  it('encendido: si', () => {
+    process.env.IDIOMA_ITALIANO = '1'
+    expect(normalizarIdioma('it')).toBe('it')
+    expect(idiomaDeCabecera('it-IT,en;q=0.8')).toBe('it')
+    expect(resolverIdioma({ cookie: 'it', cabecera: null })).toBe('it')
+  })
+
+  it('el espanol y el ingles, como antes, aunque el ingles este apagado', () => {
+    const ingles = process.env.IDIOMA_INGLES
+    delete process.env.IDIOMA_INGLES
+    try {
+      expect(normalizarIdioma('en-US')).toBe('en')
+      expect(normalizarIdioma('es-MX')).toBe('es')
+      expect(idiomaDeCabecera('en-US,es;q=0.5')).toBe('en')
+      expect(resolverIdioma({ cookie: 'en', cabecera: null })).toBe('en')
+    } finally {
+      if (ingles !== undefined) process.env.IDIOMA_INGLES = ingles
+    }
   })
 })

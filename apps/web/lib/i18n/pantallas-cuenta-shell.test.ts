@@ -1165,6 +1165,46 @@ describe('lote CUENTA Y SHELL · funciones y metadatos que no se rinden', () => 
     expect(gip({ res: { statusCode: 500 }, req: { headers: {} } }).idioma).toBe('es')
     expect(gip({ err: { statusCode: 500 } }).idioma).toBe('es')
   })
+
+  // Lote L5 del italiano (2026-11-03) · el V5 del validador de la ola 0: el
+  // `_error` decide con los idiomas ENCENDIDOS. Sin pasarle `permitidos`, el
+  // segundo caso salia en ingles con el ingles apagado.
+  it('el `_error` no habla un idioma apagado', async () => {
+    const { default: Err } = await import('../../pages/_error')
+    const gip = Err.getInitialProps as (c: unknown) => { statusCode: number; idioma: Idioma }
+    const con = (cookie: string) => gip({ res: { statusCode: 404 }, req: { headers: { cookie: `spaces_idioma=${cookie}` } } }).idioma
+    const antes = { en: process.env.IDIOMA_INGLES, it: process.env.IDIOMA_ITALIANO }
+    try {
+      process.env.IDIOMA_INGLES = '1'
+      delete process.env.IDIOMA_ITALIANO
+      expect(con('it')).toBe('es')
+      delete process.env.IDIOMA_INGLES
+      process.env.IDIOMA_ITALIANO = '1'
+      expect(con('en')).toBe('es')
+      expect(con('it')).toBe('it')
+    } finally {
+      if (antes.en === undefined) delete process.env.IDIOMA_INGLES
+      else process.env.IDIOMA_INGLES = antes.en
+      if (antes.it === undefined) delete process.env.IDIOMA_ITALIANO
+      else process.env.IDIOMA_ITALIANO = antes.it
+    }
+  })
+
+  // El navegador no ve `IDIOMA_ITALIANO`: la pagina de error global se fia
+  // del `lang` que ya puso el servidor, sin volver a filtrar por interruptor.
+  it('la pagina de error global respeta el `lang` del servidor, tambien el italiano', async () => {
+    const antes = process.env.IDIOMA_ITALIANO
+    delete process.env.IDIOMA_ITALIANO
+    try {
+      vi.stubGlobal('document', { documentElement: { lang: 'it' } })
+      const { default: ErrorGlobal } = await import('../../app/global-error')
+      const html = renderToStaticMarkup(createElement(ErrorGlobal, { error: new Error('x'), reset: () => {} }))
+      expect(html).toContain('<html lang="it">')
+    } finally {
+      vi.unstubAllGlobals()
+      if (antes !== undefined) process.env.IDIOMA_ITALIANO = antes
+    }
+  })
 })
 
 // Costura 2 (2026-11-02): un `formatFecha` o un `formatMonto` sin idioma no

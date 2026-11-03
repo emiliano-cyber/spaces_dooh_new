@@ -63,6 +63,10 @@ describe('cobertura del italiano', () => {
     it_['comun.o'] = ''
     it_['no.existe'] = 'x'
     CATALOGO_ERRORES_IT['Frase que no existe'] = 'y'
+    // Una variante `.cero` puede no llevar {n}, pero no perder otro hueco.
+    const cero = 'notificaciones.cobranza.vence.detalle.cero'
+    const ceroAntes = it_[cero]
+    it_[cero] = '{cobranza} — scade oggi'
     try {
       expect(problemasItaliano().sort()).toEqual(
         [
@@ -70,6 +74,7 @@ describe('cobertura del italiano', () => {
           'vacia: comun.o',
           'clave sin espanol: no.existe',
           'errores: entrada sin espanol canonico: Frase que no existe',
+          `huecos distintos en ${cero}: es {cobranza,n,saldo} · it {cobranza}`,
         ].sort(),
       )
       // Y una vacia no cuenta como traducida (`comun.o` tenia italiano).
@@ -82,6 +87,8 @@ describe('cobertura del italiano', () => {
         if (v === undefined) delete it_[k]
         else it_[k] = v
       }
+      if (ceroAntes === undefined) delete it_[cero]
+      else it_[cero] = ceroAntes
       delete it_['no.existe']
       delete CATALOGO_ERRORES_IT['Frase que no existe']
     }
@@ -106,4 +113,39 @@ describe('lote L5 · sus ambitos sin pendientes', () => {
       expect(f!.pendientes).toBe(0)
     })
   }
+})
+
+// Una clave que se queda igual que el ingles (o que el espanol) no la ve el
+// barrido de pantallas —el trozo «ya esta en el italiano»—, y es justo el
+// aspecto de una clave sin traducir. Las del lote que se dicen igual a
+// proposito, declaradas una por una (lote L5, 2026-11-03).
+describe('lote L5 · el italiano que coincide con otro idioma, solo el declarado', () => {
+  const IGUAL_AL_INGLES = [
+    'idioma.es', 'idioma.en', 'idioma.it', 'login.campo.correo', 'login.campo.password', 'sidebar.logo-alt',
+    'nav.grupo.ojos', 'nav.dashboard', 'nav.network', 'shell.topbar.cuenta', 'shell.candado.contrasena',
+    'cuenta.cuestionario.no', 'admin.modulo.dashboard', 'admin.modulo.network', 'admin.usuarios.equipo',
+    'admin.usuarios.col.contrasena', 'admin.alta.correo', 'admin.alta.contrasena', 'admin.logo.campo',
+    'admin.cuenta.correo', 'admin.network.no',
+  ]
+  const IGUAL_AL_ESPANOL = [
+    'comun.o', 'nav.grupo.patrimonio', 'nav.grupo.sistema', 'nav.inventario', 'compartidos.periodo.aria',
+    'compartidos.dia.0', 'compartidos.dia.1', 'compartidos.dia.2', 'admin.fiscal.rfc', 'admin.tickets.prioridad.alta',
+    'admin.tickets.prioridad.urgente', 'admin.integ.conector.admobilize.nombre', 'admin.integ.dispositivo',
+    'admin.network.col.tipo', 'admin.razones.serie-n', 'servidor.franja.vendida',
+  ]
+  const delLote = () => {
+    const ambitos = new Set(['compartidos', 'shell', 'cuenta', 'admin', 'notificaciones', 'servidor'])
+    return [...clavesBase(), ...AMBITOS_ITALIANO.filter((a) => ambitos.has(a.ambito)).flatMap((a) => Object.keys(a.es))]
+  }
+  it('igual al ingles', () => {
+    const it_ = IT_PARCIAL as Record<string, string>
+    const en = DICCIONARIOS.en as Record<string, string>
+    expect(delLote().filter((k) => it_[k] === en[k]).sort()).toEqual([...IGUAL_AL_INGLES].sort())
+  })
+  it('igual al espanol', () => {
+    const it_ = IT_PARCIAL as Record<string, string>
+    const es = DICCIONARIOS.es as Record<string, string>
+    const en = DICCIONARIOS.en as Record<string, string>
+    expect(delLote().filter((k) => it_[k] === es[k] && es[k] !== en[k]).sort()).toEqual([...IGUAL_AL_ESPANOL].sort())
+  })
 })
