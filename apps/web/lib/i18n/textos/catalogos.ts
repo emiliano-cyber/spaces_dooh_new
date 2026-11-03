@@ -672,7 +672,7 @@ export const IT_CATALOGOS: Record<ClaveCatalogos, string> = {
     'In quale fascia oraria {negrita} ogni campagna. Non cambia alcun prezzo: ciò che è stato venduto è già nella campagna dalla proposta. Puoi selezionare più campagne e programmarle in una volta sola; se una non si può programmare, non se ne programma nessuna.',
   'catalogos.programacion.explicacion.negrita': 'va in onda',
   'catalogos.programacion.sin-permiso':
-    'Solo il responsabile vendite, il direttore commerciale e la direzione possono programmare il palinsesto. Qui vedi com’è.',
+    'Solo il manager delle vendite, il direttore commerciale e la direzione possono programmare il palinsesto. Qui vedi com’è.',
   'catalogos.programacion.sin-franjas': 'Crea almeno una fascia oraria qui sopra per poterci programmare delle campagne.',
   'catalogos.programacion.campanas.uno': '{n} campagna',
   'catalogos.programacion.campanas.otros': '{n} campagne',
@@ -698,7 +698,7 @@ export const IT_CATALOGOS: Record<ClaveCatalogos, string> = {
   'catalogos.tarifas.sin-catalogo':
     'Questa organizzazione non ha ancora fasce orarie né stagioni. Si definiscono una sola volta in {pantalla} e valgono per tutto l’inventario.',
   'catalogos.tarifas.dispersa':
-    'Basta inserire le combinazioni che hanno un prezzo diverso. Ciò che non è qui si fattura con la solita tariffa per unità: la griglia non obbliga a compilare nulla.',
+    'Basta inserire le combinazioni che hanno un prezzo diverso. Ciò che non è qui si fattura con la solita tariffa per unità: la griglia tariffaria non obbliga a compilare nulla.',
   'catalogos.tarifas.tarifa-de.aria': 'Tariffa di {unidad}',
   'catalogos.tarifas.conservar': 'Mantieni',
   'catalogos.tarifas.quitar': 'Rimuovi',
@@ -765,7 +765,7 @@ export const IT_CATALOGOS: Record<ClaveCatalogos, string> = {
   'catalogos.motivo.temporada.fecha': 'Data non valida in «{nombre}»: si scrive AAAA-MM-GG.',
   'catalogos.motivo.temporada.al-reves': 'La stagione «{nombre}» finisce prima di iniziare.',
   'catalogos.motivo.temporada.solape':
-    'La stagione «{nombre}» (dal {desde} al {hasta}) si sovrappone a «{otra}» (dal {otraDesde} al {otraHasta}).',
+    'La stagione «{nombre}» ({desde} – {hasta}) si sovrappone a «{otra}» ({otraDesde} – {otraHasta}).',
   'catalogos.motivo.tramo.unidad': 'Lo scaglione ha bisogno di un’unità di vendita.',
   'catalogos.motivo.tramo.cantidad-entera': 'La quantità da cui si applica deve essere un numero intero.',
   'catalogos.motivo.tramo.sin-fracciones':

@@ -155,7 +155,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
     // que saber qué número sí puede teclear sin preguntarle a nadie. El servidor
     // lo rechaza igualmente (`descuentoDentroDelTope`): esto solo evita el viaje.
     if (d > topeDescuento) {
-      toast.error(t('propuestas.ficha.descuento.tope', { tope: topeDescuento }))
+      toast.error(t('propuestas.ficha.descuento.tope', { tope: cifraEnEtiqueta(topeDescuento, idioma) }))
       return
     }
     setGuardandoDesc(true)

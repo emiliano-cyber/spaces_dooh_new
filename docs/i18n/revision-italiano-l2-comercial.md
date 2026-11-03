@@ -163,3 +163,26 @@ tipográfico (’), porcentaje sin espacio («20%»).
   `propuestas/[id]/page.tsx`, `propuesta/[id]/page.tsx`, `SiteFicha`,
   `ReservaDialog`, `BloqueCodigoPropuesta`, `GestionCodigos`, `TableroPropuestas`,
   `GestionPaquetes`, `GestionVolumen` (solo formatos de cifras y los 3 literales).
+
+## 8 · Segunda vuelta: lo que pidió la validación (ÁMBAR, `validacion-italiano-l2-comercial.md`)
+
+| Punto | Qué se hizo |
+|---|---|
+| «predio» → **immobile** (decisión común) | Las nueve claves de la §5 de la validación: `direccion-predio`, `arrendador-del-predio`, `pausar.motivo-ej`, `reubicar.ayuda`, `reubicar.destino`, `reubicar.elige`, `negociacion.alta.predio` («Un immobile (muro, tetto, terreno)»), `kpi.seguimiento.sub` («immobili e impianti»), `alta.renta.pactada.predio`. `negociacion.ficha.superficie` sigue «terreno» (el español dice «terreno») |
+| H2 · cifras con decimales | `cifraEnEtiqueta` en la liga pública `app/(app)/p/[id]/page.tsx` (volumen, descuento, código), el aviso del tope (`propuestas/[id]/page.tsx`), el IVA de `ElegirClienteDialog` y, además, los usos y el tope de `GestionCodigos` («1.200 di 5.000»; en es/en, `String(n)` como antes) |
+| V2, V5, V6, V15 | Estados SOLO italianos: tablero con `tasaCierre` 0,125, margen 33,33 y conteos de cuatro cifras («12,5%», «margine 33,3%», «1.234»); códigos al 12,5 % con 1200 de 5000 usos; reserva con 2400 slots; y la liga pública con 2,5 / 7,5 / 12,5 % |
+| V10, V11 | El `GLOSARIO` de `italiano-l2.test.ts` lleva ahora los términos del lote: canone, OdA, maggiorazione, palinsesto, concessionaria, manager, immobile, anomalia, griglia tariffaria, scaglione; más Elenco/Listino por clave |
+| Frases | «Nel Network», «Condividi nel Network», «Data di approvazione», «Disponibili alla vendita», «{n} impianti scaricati» / «{n} impianto scaricato», «fino al {tope}» («fino al 30%»). «gerente» es **manager** en todo el lote (`catalogos.programacion.sin-permiso` decía «responsabile») |
+| Reglas comunes | Nunca artículo delante de una fecha: «Scaduta in data {fecha}», «Valida fino al giorno {fecha}», «Accettata in data …», «dal giorno {fecha}», «in data {fecha}», «{periodo} · {desde} – {hasta}», «({desde} – {hasta})» en el motivo de temporadas. «gg» para días («3 gg fa», «30+ gg»). «incidencia» → «Anomalia aperta». El lote no tiene «candado de facturación». Las cuatro reglas tienen prueba propia en `italiano-l2.test.ts` |
+| `AltaSitioDialog.tsx:221` | **No se tocó.** `simbolo: '$'` fijo: «Tarifa publicada ($)» también en español en una instancia MXN. Defecto previo, para el lote de moneda |
+
+**Medido otra vez:** HTML es/en de toda la suite (`lib` y `components`) contra el
+volcado de la base: 0 distintos, 0 desaparecidos, todos los nuevos de pruebas
+italianas. Las instantáneas ES/EN de los cuatro ámbitos pasan sin `-u`.
+`tsc` limpio; **378 archivos, 7102 pruebas en verde.**
+
+**Mutantes de la segunda vuelta: 13, mueren los 13** — V2, V5, V6, V15, V10, V11
+(estos dos ahora por la prueba de glosario, sin contar la instantánea), la liga
+pública sin `cifraEnEtiqueta` (volumen y código), los usos de códigos sin
+idioma, un artículo delante de una fecha, «nella Network», «predio» de vuelta a
+«terreno» y «3 g fa».
