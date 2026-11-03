@@ -154,3 +154,70 @@ Cada mutante se restauró con `git checkout -- .`. El árbol queda limpio salvo 
 
    Es texto en español, así que lo decide él.
 2. **Si la guardia debe prohibir también los códigos MXN y USD en los diccionarios** (H2). Hoy ningún diccionario los lleva; los nombres salen de `nombreMoneda()`. Si se amplía, habrá que prever el caso de «peso» en el sentido de *weight* cuando se traduzca Space Eyes.
+
+---
+
+## Segunda pasada (2026-11-02) · commit `9e890d72` sobre `0aa75db9`
+
+### Veredicto: VERDE
+
+H1 a H5 quedaron resueltos tal como decidió el orquestador. El español cambia solo en las 4 claves autorizadas, y lo comprobé de forma mecánica. La guardia ya no tiene los dos puntos ciegos: atrapa MXN y USD, y no señala el «peso» que no es dinero. Typecheck limpio y 5131 unitarias en verde.
+
+### 1 · Cada hallazgo
+
+- **H1 · resuelto.** `catalogos.ts:71`, `:117`, `:320` y `:366`. Así queda cada frase, completa:
+  - Español: «…y la suma de las partes da el precio del paquete **con exactitud**.» y «Suma de las partes **— cuadra exacto**».
+  - Inglés: «…the shares add up to the bundle price **exactly**.» y «Sum of the shares **— adds up exactly**».
+  - Los dos idiomas se leen bien. La razón del autor para no poner «exacto» en la explicación se sostiene: el hueco cierra la frase, y «…el precio del paquete exacto» se leería como un adjetivo del precio o del paquete. «Con exactitud» modifica a «da», que es lo que se quiere decir.
+  - Ya no choca con «(cantidad entera, sin centavos)». Y describe bien `repartirPaquete`, que reparte en unidades enteras y cuya suma da el precio exacto.
+- **H2 · resuelto.** `costura.test.ts:110-131`:
+  - La guardia exige además `\b(MXN|USD)\b`, en mayúsculas y como palabra suelta.
+  - Las excepciones son frases enteras y cada una lleva su motivo: «peso de la fuente» y «peso visual».
+  - Una metaprueba (`:139`) impide que una excepción contenga «pesos», «centav», «precio», «monto» o «importe».
+- **H3 · resuelto.** Medí la paridad por mi cuenta, recorriendo el diccionario con `traducirError` y los huecos rellenos con «1000». Salen **19** textos que el servidor reconoce: 7 con hueco y 12 fijos. **10** coinciden. **9** divergen: 5 con hueco y 4 fijos.
+  - Esos 9 son exactamente los de `CALCULADORA_DIVERGE_OLA_4` (`:149`): `propuestas.calc.prima.no-puede`, `sin-loop`, `rango-prima`, `cero-spots`, `roadblock-todos`, `horas`, `roadblock-libres` y las dos `pocos-libres`.
+  - La prueba ahora vigila los 10 que coinciden, y exige que sean al menos 10 (`:176`).
+  - Hay otra prueba que obliga a sacar de la lista cada clave que se unifique.
+- **H4 · resuelto.** `docs/Registro_Cambios.md` ya dice «124 estados de pantalla» y nombra las pruebas. Ya no dice «todas las pantallas».
+- **H5 · resuelto.** `compartidos.cifra.menor` dice «Must not be less than {n}». La bóveda aclara que es por estilo: el servidor no manda «No puede ser menor que».
+- **H6 · sigue igual**, como estaba previsto. Es informativo, ya existía y corresponde a la ola 4.
+
+### 2 · El español, comparado de forma mecánica
+
+- **El método:**
+  - HEAD (`9e890d72`) contra `85a8ee67`, con `git checkout 85a8ee67 -- apps/web`, volcado y `git checkout HEAD -- apps/web`.
+  - El HTML español de las cinco pruebas de pantallas, con `I18N_VOLCAR` en cuatro y `VOLCAR_HTML` en comercial: **124 estados**.
+  - Además, `DICCIONARIOS` volcado a JSON ordenado.
+- **HTML:** solo difieren `catalogos/01`, `02` y `03`. Las únicas líneas nuevas son las tres frases de arriba y «Precio del conjunto (cantidad entera, sin centavos)».
+- **`DICCIONARIOS.es`:** cambian **exactamente 4 claves**: `motivo.paquete.precio-entero`, `lista.explicacion.peso`, `paquetes.precio` y `reparto.cuadra`.
+- **`DICCIONARIOS.en`:** cambian esas 4, más `compartidos.cifra.mayor` y `compartidos.cifra.menor`. No se añade ni se pierde ninguna clave.
+
+### 3 · La guardia: mutantes
+
+Corrí los mutantes solo contra `costura.test.ts`, que en la base da 11 en verde.
+
+| Mutante | Esperado | Resultado |
+|---|---|---|
+| M7 · `en` «(whole MXN)» | cae | **cae**: «ningún texto da por hecho la moneda» |
+| M8 · `en` «Price for the set in USD» | cae | **cae** |
+| M9 · clave nueva `es` «Peso de la fuente» / `en` «Font weight» | no cae | **no cae**: 11 en verde |
+| M10 · `es` «Peso visual del botón» | no cae | **no cae** |
+| M11 · `es` «Peso de la fuente: 100 pesos» (la excepción no tapa) | cae | **cae** |
+| M12 · `es` «cuadra al peso» | cae | **cae** |
+| M4 · `en` «It cannot be greater than {n}» | cae | **cae**: paridad con el servidor |
+| M14 · `cero-spots` en inglés, igualado al del servidor | cae | **cae**: «las excepciones de la calculadora siguen divergiendo» señala `cero-spots` |
+
+Queda un detalle sin consecuencia práctica: la excepción se quita con `new RegExp(frase, 'gi')`, sin límite de palabra. Por eso «contrapeso visual» también se borraría. No encubre dinero, y la metaprueba sigue vigilando. Los símbolos `US$` y `MX$` no entran en esta guardia, pero ya los cubre la guardia anterior de «ningún diccionario lleva dinero» (§7 de la bóveda).
+
+### 4 · Pruebas
+
+```
+cd apps/web && npm run typecheck   →  tsc --noEmit, limpio
+cd apps/web && npm test            →  Test Files 338 passed (338) · Tests 5131 passed (5131)
+```
+
+La suite completa pasó sin `--testTimeout`. Son 5131, dos más que en la primera pasada: las dos pruebas nuevas de `costura`. Cada mutante se restauró con `git checkout -- .`, y no usé `git stash`. El árbol queda limpio salvo este informe, modificado y sin commitear.
+
+### Para que decida el dueño
+
+Nada nuevo. Las dos preguntas de la primera pasada las resolvió el orquestador: «exacto» y la guardia con MXN y USD.
