@@ -71,6 +71,7 @@
 // ============================================================================
 import pg from 'pg'
 import { dataUrlDeArte, imagenAHtml } from './semilla-arte-demo.mjs'
+import { planModulos, sentenciasModulos, deshacerModulos } from './semilla-catalogo-modulos.mjs'
 
 // ─── Fechas de CALENDARIO, sin zona horaria ────────────────────────────────
 // La misma técnica que `semilla-demo.mjs`: `new Date('2026-07-01')` es
@@ -886,7 +887,7 @@ export function planCatalogo(opciones = {}) {
 
   const { creativos, asignaciones, impresiones } = planCreativos(campanas, reservas)
 
-  return {
+  const plan = {
     organizacion: { slug, nombre: nombreOrg },
     hoy,
     meses,
@@ -909,6 +910,10 @@ export function planCatalogo(opciones = {}) {
     ordenes,
     usuarios: USUARIOS,
   }
+  // Lo de cada módulo que el catálogo no cubría (ver su cabecera). Sale del
+  // plan ya armado: usa sus pantallas, campañas, comprobantes y fechas.
+  plan.modulos = planModulos(plan)
+  return plan
 }
 
 /**
@@ -1348,6 +1353,7 @@ export function sentenciasDelCatalogo(plan, T, clave, opciones = {}) {
     )
   }
 
+  out.push(...sentenciasModulos(plan, T))
   return out
 }
 
@@ -1370,6 +1376,7 @@ export function sentenciasDeshacer(plan, T) {
   const correos = plan.usuarios.map((u) => u.email.toLowerCase())
   const q = (etiqueta, sql, valores = [T]) => ({ etiqueta, sql, valores })
   return [
+    ...deshacerModulos(plan, T),
     q('ordenes_impresion', `delete from ordenes_impresion where tenant_id = $1::uuid and folio like 'CAT-OI-%'`),
     // Solo los creativos sembrados (su nombre empieza por el folio CAT-): uno
     // que alguien suba en la demo no se borra aquí, y entonces el borrado de la
@@ -1401,7 +1408,12 @@ export function sentenciasDeshacer(plan, T) {
     // Los clientes de la agencia antes que la agencia: la referencian.
     q('clientes', `delete from clientes where tenant_id = $1::uuid and rfc = any($2::text[]) and agencia_id is not null`, [T, rfcs]),
     q('clientes', `delete from clientes where tenant_id = $1::uuid and rfc = any($2::text[])`, [T, rfcs]),
-    q('usuarios', `delete from usuarios where tenant_id = $1::uuid and lower(email) = any($2::text[])`, [T, correos]),
+    // Un usuario demo que ya actuó en la demo tiene filas en la bitácora, y
+    // borrarlo haría un `on delete set null` sobre `acciones` —un UPDATE que
+    // el trigger append-only prohíbe—: la transacción entera volvería atrás.
+    // Esos se quedan (activos, con su contraseña) y `deshacer` lo avisa.
+    q('usuarios', `delete from usuarios where tenant_id = $1::uuid and lower(email) = any($2::text[])
+        and not exists (select 1 from acciones a where a.usuario_id = usuarios.id)`, [T, correos]),
   ]
 }
 
@@ -1461,6 +1473,7 @@ export async function comprobarBase(cli, plan, opciones = {}) {
     ['comprobantes', 'facturas', 'folio', plan.comprobantes.map((f) => f.folio)],
     ['ordenes', 'ordenes_trabajo', 'folio', plan.ordenes.map((o) => o.folio)],
     ['ordenes de imprenta', 'ordenes_impresion', 'folio', plan.impresiones.map((o) => o.folio)],
+    ['ordenes de compra', 'ordenes_compra', 'folio', plan.modulos.ordenesCompra.map((o) => o.folio)],
   ]
   for (const [que, tabla, col, claves] of consultas) {
     const x = await cli.query(
@@ -1541,6 +1554,11 @@ function imprimirResumen(plan) {
   console.log(`  ordenes      ${plan.ordenes.length}: ${cuenta(plan.ordenes, (o) => o.estatus)}`)
   console.log(`  creativos    ${plan.creativos.length} digitales: ${cuenta(plan.creativos, (c) => c.estatus)} · ${plan.asignaciones.length} spots con creativo asignado`)
   console.log(`  imprenta     ${plan.impresiones.length} ordenes con prueba de color: ${cuenta(plan.impresiones, (o) => o.estatus)}`)
+  const md = plan.modulos
+  console.log(`  modulos      prospectos ${md.prospectos.length} (${cuenta(md.prospectos, (p) => p.etapa)})`)
+  console.log(`               codigos ${md.codigos.length} · canjes ${md.canjes.length} · paquetes ${md.paquetes.length} · franjas ${md.franjas.length} · temporadas ${md.temporadas.length} · rejilla ${md.tarifas.length} · escalas ${md.escalas.length}`)
+  console.log(`               almacen ${md.activos.length} activos / ${md.movimientos.length} movimientos · incidencias ${md.incidencias.length} · evidencias ${md.evidencias.length} · costos OT ${md.costosOt.length}`)
+  console.log(`               abonos ${md.abonos.length} · extensiones ${md.extensiones.length} · ordenes de compra ${md.ordenesCompra.length} · notificaciones ${md.notificaciones.length} · actividad ${md.acciones.length} · tickets ${md.tickets.length}`)
   console.log(`  usuarios     ${plan.usuarios.map((u) => `${u.rol} <${u.email}>`).join('\n               ')}`)
   console.log('')
 }
@@ -1715,8 +1733,14 @@ ${USO}`)
       const r = await cli.query(s.sql, s.valores)
       if (r.rowCount) borradas.push(`${s.etiqueta} ${r.rowCount}`)
     }
+    const quedan = await cli.query(
+      `select email from usuarios where tenant_id = $1::uuid and lower(email) = any($2::text[])`,
+      [T, plan.usuarios.map((u) => u.email.toLowerCase())],
+    )
     await cli.query('commit')
     console.log(`deshecho en '${plan.organizacion.slug}': ${borradas.join(' · ') || 'no habia nada del catalogo'}`)
+    console.log('la bitacora (acciones) es append-only: sus entradas de ejemplo se quedan.')
+    for (const u of quedan.rows) console.log(`AVISO: ${u.email} se queda: tiene acciones en la bitacora y borrarlo la reescribiria.`)
     return 0
   } catch (e) {
     await cli.query('rollback').catch(() => {})

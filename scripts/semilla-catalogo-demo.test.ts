@@ -11,6 +11,7 @@ import {
   mesesDeDesplazamiento,
 } from './semilla-catalogo-demo.mjs'
 import { pngDeArte, imagenAHtml as imagenAHtmlSemilla } from './semilla-arte-demo.mjs'
+import { pdfDeTexto } from './semilla-pdf-demo.mjs'
 import { imagenAHtml, imagenDeHtml } from '@/lib/creativo-html'
 
 // ============================================================================
@@ -170,10 +171,16 @@ describe('semilla-catalogo-demo', () => {
 
   it('deshacer borra solo lo de ESTA organización y solo lo CAT-, sin cascade', () => {
     for (const s of sentenciasDeshacer(plan(), TENANT)) {
-      expect(s.sql, s.etiqueta).toMatch(/^delete from \w+ where tenant_id = \$1::uuid/)
+      // Las que no borran devuelven a vacío los datos de la organización
+      // (identidad, logotipo, condiciones), y solo si siguen siendo los sembrados.
+      expect(s.sql, s.etiqueta).toMatch(
+        /^(delete from \w+\s+where tenant_id = \$1::uuid|update (config_negocio|tenants|campanas) set ([a-z_]+ = null,?\s*)+where (tenant_id|id) = \$1::uuid)/,
+      )
       expect(s.valores[0]).toBe(TENANT)
       expect(s.sql, s.etiqueta).not.toMatch(/cascade/i)
-      expect(s.sql, s.etiqueta).toMatch(/CAT-|any\(\$2::text\[\]\)/)
+      // Acotada por la marca CAT, por la lista exacta de claves del plan o por
+      // el valor exacto que se sembró.
+      expect(s.sql, s.etiqueta).toMatch(/CAT|\$2::(text|int)\[\]|= \$2::text/)
     }
   })
 
@@ -185,8 +192,22 @@ describe('semilla-catalogo-demo', () => {
         .map((s) => /insert into (\w+)/.exec(s.sql)?.[1])
         .filter((t): t is string => !!t),
     )
-    const borradas = new Set(sentenciasDeshacer(plan(), TENANT).map((s) => /delete from (\w+)/.exec(s.sql)![1]))
-    expect([...sembradas].filter((t) => !borradas.has(t))).toEqual([])
+    const borradas = new Set(
+      sentenciasDeshacer(plan(), TENANT)
+        .map((s) => /delete from (\w+)/.exec(s.sql)?.[1])
+        .filter((t): t is string => !!t),
+    )
+    // `acciones` es la única excepción, y no por elección: la bitácora es
+    // append-only por trigger y no admite DELETE.
+    expect([...sembradas].filter((t) => !borradas.has(t))).toEqual(['acciones'])
+  })
+
+  it('la bitácora de ejemplo no queda atada a los usuarios demo (si no, no se podrían borrar)', () => {
+    const s = sentenciasDelCatalogo(plan(), TENANT, 'x'.repeat(12)).filter((x) => /insert into acciones/.test(x.sql))
+    expect(s.length).toBeGreaterThan(0)
+    for (const x of s) expect(x.sql).toMatch(/\$3::text, null,/)
+    const u = sentenciasDeshacer(plan(), TENANT).find((x) => /delete from usuarios/.test(x.sql))!
+    expect(u.sql).toContain('not exists (select 1 from acciones')
   })
 
   // ─── Creativos (lo pidió el dueño: creativos de fijas Y de digitales) ─────
@@ -231,5 +252,48 @@ describe('semilla-catalogo-demo', () => {
     const spots = sentenciasDelCatalogo(plan(), TENANT, 'x'.repeat(12)).filter((s) => /^update reservas/.test(s.sql))
     expect(spots.length).toBeGreaterThan(0)
     for (const s of spots) expect(s.sql).toContain("and r.creativos = '[]'::jsonb")
+  })
+
+  // ─── Los módulos que el catálogo no cubría (auditoría del 2026-11-03) ─────
+  it('cada módulo del menú tiene al menos un ejemplo, y en sus estados', () => {
+    const m = plan().modulos
+    expect(new Set(m.prospectos.filter((p) => ['PREDIO', 'PANTALLA'].includes(p.tipo)).map((p) => p.etapa))).toEqual(
+      new Set(['PROSPECTO', 'CONTACTADO', 'VISITA', 'NEGOCIACION', 'EN_REVISION', 'RECHAZADO', 'APROBADO', 'PERDIDO']),
+    )
+    for (const k of ['codigos', 'canjes', 'paquetes', 'franjas', 'temporadas', 'tarifas', 'escalas', 'activos', 'movimientos',
+      'incidencias', 'evidencias', 'costosOt', 'abonos', 'extensiones', 'ordenesCompra', 'notificaciones', 'acciones', 'tickets'] as const)
+      expect((m as Record<string, unknown[]>)[k].length, k).toBeGreaterThan(0)
+    expect(new Set(m.activos.map((a) => a.estado))).toEqual(new Set(['EN_ALMACEN', 'INSTALADO', 'EN_TRASLADO', 'BAJA']))
+  })
+
+  it('las fechas de los módulos se mueven con el ancla', () => {
+    const a = plan('2026-10-06').modulos
+    const b = plan('2027-03-06').modulos
+    expect(a.codigos[0].desde).not.toBe(b.codigos[0].desde)
+    expect(b.notificaciones.length).toBe(a.notificaciones.length)
+  })
+
+  it('la extensión deja la campaña terminando en su fin NUEVO', () => {
+    const p = plan()
+    for (const x of p.modulos.extensiones) {
+      const c = p.campanas.find((k) => k.folio === x.campana)!
+      expect(x.nueva).toBe(c.hasta)
+      expect(x.anterior < x.nueva).toBe(true)
+    }
+  })
+
+  it('los abonos no pasan del total del comprobante', () => {
+    const p = plan()
+    for (const a of p.modulos.abonos)
+      expect(a.monto).toBeLessThanOrEqual(p.comprobantes.find((f) => f.folio === a.factura)!.monto)
+  })
+
+  it('el PDF de los documentos es un PDF que abre (cabecera, xref y fin)', () => {
+    const t = pdfDeTexto('Prueba', ['linea con acento: campaña']).toString('latin1')
+    expect(t.startsWith('%PDF-1.4')).toBe(true)
+    expect(t.trimEnd().endsWith('%%EOF')).toBe(true)
+    const xref = Number(/startxref\n(\d+)/.exec(t)![1])
+    expect(t.slice(xref, xref + 4)).toBe('xref')
+    expect(t).toContain('campana')
   })
 })
