@@ -70,6 +70,13 @@ export const SIN_TRADUCIR: readonly string[] = []
 // 115 mensajes de `new AppError('...')` + 27 del embudo, del mapa de
 // Postgres, de zod y de las constantes compartidas.
 export const CATALOGO_ERRORES: Record<string, string> = {
+  // ADR 0049 (03/11) · el idioma de los DOCUMENTOS se elige al crear la instancia y no se cambia.
+  'El idioma de los documentos debe ser es, en o it':
+    'The document language must be es, en or it',
+  'El idioma de los documentos de la instancia ya está fijado: una organización nueva nace en el mismo que las demás':
+    'The instance document language is already set: a new organization is created with the same one as the others',
+  'El idioma de los documentos de la instancia solo se elige al darla de alta':
+    'The instance document language can only be chosen when the instance is created',
   // ADR 0048 (02/11) · la moneda de la instancia se elige al crearla y no se cambia.
   'La moneda debe ser MXN o USD':
     'The currency must be MXN or USD',

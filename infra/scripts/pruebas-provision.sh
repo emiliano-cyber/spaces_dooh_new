@@ -633,6 +633,56 @@ codigo_es 64
 no_hubo 'cuerpo-bootstrap'
 limpiar
 
+# ============================================================================
+#  ADR 0049 · el idioma de los DOCUMENTOS se elige en el bootstrap y NO se cambia
+# ============================================================================
+escenario 'ADR 0049 · sin --idioma el cuerpo pide es, y la pantalla lo avisa'
+preparar
+correr D_CODIGO_BOOT=201 --   --host "$IP" --dominio "$DOM" --instancia p --email a@ejemplo.com --bootstrap --confirmar
+codigo_es 0
+hubo '"idiomaDocumentos":"es"'
+dice 'idioma de los documentos: es'
+limpiar
+
+escenario 'ADR 0049 · --idioma en viaja en el cuerpo del POST, junto con la moneda'
+preparar
+correr D_CODIGO_BOOT=201 --   --host "$IP" --dominio "$DOM" --instancia p --email a@ejemplo.com --bootstrap --moneda USD --idioma en --confirmar
+codigo_es 0
+hubo '"idiomaDocumentos":"en"'
+hubo '"moneda":"USD"'
+no_hubo '"idiomaDocumentos":"es"'
+limpiar
+
+escenario 'ADR 0049 · --idioma=it (con igual) tambien vale'
+preparar
+correr D_CODIGO_BOOT=201 --   --host "$IP" --dominio "$DOM" --instancia p --email a@ejemplo.com --bootstrap --idioma=it --confirmar
+codigo_es 0
+hubo '"idiomaDocumentos":"it"'
+limpiar
+
+escenario 'ADR 0049 · --idioma fr se para ANTES de tocar el servidor'
+preparar
+correr D_CODIGO_BOOT=201 --   --host "$IP" --dominio "$DOM" --instancia p --email a@ejemplo.com --bootstrap --idioma fr --confirmar
+codigo_es 64
+dice 'tiene que ser es, en o it'
+no_hubo 'cuerpo-bootstrap'
+limpiar
+
+escenario 'ADR 0049 · EN en mayusculas tambien se para (no se adivina)'
+preparar
+correr D_CODIGO_BOOT=201 --   --host "$IP" --dominio "$DOM" --instancia p --email a@ejemplo.com --bootstrap --idioma EN --confirmar
+codigo_es 64
+no_hubo 'cuerpo-bootstrap'
+limpiar
+
+escenario 'ADR 0049 · --idioma sin --bootstrap se para, no se ignora'
+preparar
+correr -- --host "$IP" --dominio "$DOM" --instancia p --idioma en --confirmar
+codigo_es 64
+dice 'solo vale junto con --bootstrap'
+no_hubo 'cuerpo-bootstrap'
+limpiar
+
 escenario '36d · con 201 SI lo afirma, y sale bien'
 preparar
 correr D_CODIGO_BOOT=201 -- \

@@ -372,6 +372,45 @@ describe('F5.2 · con token configurado', () => {
     expect(await cuantosTenants()).toBe(0)
   })
 
+  // ─── ADR 0049 · el idioma de los DOCUMENTOS se elige AQUI, y solo aqui ────
+  async function idiomas(): Promise<string[]> {
+    return (await poolTest().query('select idioma_documentos from tenants')).rows.map((r) => r.idioma_documentos)
+  }
+
+  it('ADR 0049 · sin `idiomaDocumentos` la instancia nace en es', async () => {
+    await vaciarTenants()
+    expect((await llamarBootstrap({ token: TOKEN })).status).toBe(201)
+    expect(await idiomas()).toEqual(['es'])
+  })
+
+  it('ADR 0049 · con `idiomaDocumentos: it` nace en italiano (y la moneda va aparte)', async () => {
+    await vaciarTenants()
+    const r = await llamarBootstrap({
+      token: TOKEN,
+      cuerpoPropio: { ...cuerpo(), idiomaDocumentos: 'it', moneda: 'USD' },
+    })
+    expect(r.datos?.error).toBeUndefined()
+    expect(r.status).toBe(201)
+    expect(await idiomas()).toEqual(['it'])
+    expect((await poolTest().query('select moneda from tenants')).rows[0].moneda).toBe('USD')
+  })
+
+  it('NEGATIVO ADR 0049 · con `idiomaDocumentos: fr` es un 400 y NO nace nada', async () => {
+    await vaciarTenants()
+    const r = await llamarBootstrap({ token: TOKEN, cuerpoPropio: { ...cuerpo(), idiomaDocumentos: 'fr' } })
+    expect(r.status).toBe(400)
+    expect(JSON.stringify(r.datos)).toContain('es, en o it')
+    expect(await cuantosTenants()).toBe(0)
+    expect(await cuantosUsuarios()).toBe(0)
+  })
+
+  it('NEGATIVO ADR 0049 · `EN` en mayusculas tampoco: no se adivina', async () => {
+    await vaciarTenants()
+    const r = await llamarBootstrap({ token: TOKEN, cuerpoPropio: { ...cuerpo(), idiomaDocumentos: 'EN' } })
+    expect(r.status).toBe(400)
+    expect(await cuantosTenants()).toBe(0)
+  })
+
   it('(se deja la base como la dejaba el caso anterior: una organizacion en MXN)', async () => {
     await vaciarTenants()
     expect((await llamarBootstrap({ token: TOKEN })).status).toBe(201)

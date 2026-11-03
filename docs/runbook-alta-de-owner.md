@@ -169,7 +169,7 @@ Al terminar, comprueba `login 200`.
 ```bash
 infra/scripts/provision-instancia.sh \
   --host <ip> --dominio <dominio> --instancia <nombre> \
-  --email <correo-del-dueño> --bootstrap --moneda MXN --confirmar
+  --email <correo-del-dueño> --bootstrap --moneda MXN --idioma es --confirmar
 ```
 
 > [!danger] `--moneda MXN|USD` se decide AQUÍ y es para siempre (ADR 0048, 02/11)
@@ -182,6 +182,18 @@ infra/scripts/provision-instancia.sh \
 > cambio, en `docs/datos/`, y después hay que reiniciar la aplicación (la
 > moneda se cachea por proceso). `--moneda` solo vale junto con `--bootstrap`:
 > en otra corrida el guion para con salida 64.
+
+> [!danger] `--idioma es|en|it` tambien se decide AQUÍ y es para siempre (ADR 0049, 03/11)
+> Es el idioma en que se redactan el **contrato** y la **constancia de firmas**
+> de toda la instancia, no el de la interfaz (ese lo elige cada persona). La
+> base no deja cambiarlo (`20261103_idioma_documentos_por_instancia.sql`),
+> porque las firmas se cotejan regenerando el texto: en otro idioma, todas
+> aparecerían alteradas. Sin la bandera, **es**. Acepta `--idioma en` y
+> `--idioma=en`; `EN`, `es-MX` o `fr` paran el guion antes de tocar el
+> servidor, y fuera de `--bootstrap` sale con 64. **Ojo:** el texto en inglés e
+> italiano es una traducción que **todavía no revisó un abogado**; no elijas
+> `en`/`it` para un cliente real hasta que el dueño diga que esa revisión está
+> hecha.
 
 Llama a `POST /api/bootstrap` **desde el propio servidor, por loopback**: el
 token no cruza internet y funciona aunque el DNS aún no haya propagado del todo.
