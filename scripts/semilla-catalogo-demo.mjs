@@ -912,8 +912,7 @@ export function planCatalogo(opciones = {}) {
   }
   // Lo de cada módulo que el catálogo no cubría (ver su cabecera). Sale del
   // plan ya armado: usa sus pantallas, campañas, comprobantes y fechas.
-  plan.modulos = planModulos(plan)
-  return plan
+  return { ...plan, modulos: planModulos(plan) }
 }
 
 /**

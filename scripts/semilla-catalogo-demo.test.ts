@@ -262,7 +262,7 @@ describe('semilla-catalogo-demo', () => {
     )
     for (const k of ['codigos', 'canjes', 'paquetes', 'franjas', 'temporadas', 'tarifas', 'escalas', 'activos', 'movimientos',
       'incidencias', 'evidencias', 'costosOt', 'abonos', 'extensiones', 'ordenesCompra', 'notificaciones', 'acciones', 'tickets'] as const)
-      expect((m as Record<string, unknown[]>)[k].length, k).toBeGreaterThan(0)
+      expect((m as unknown as Record<string, unknown[]>)[k].length, k).toBeGreaterThan(0)
     expect(new Set(m.activos.map((a) => a.estado))).toEqual(new Set(['EN_ALMACEN', 'INSTALADO', 'EN_TRASLADO', 'BAJA']))
   })
 

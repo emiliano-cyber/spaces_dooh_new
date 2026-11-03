@@ -151,8 +151,8 @@ export function planModulos(plan) {
 
   // ── Franjas, temporadas y la rejilla de tarifas ──
   const franjas = [
-    { nombre: 'CAT Manana', inicio: '06:00', fin: '10:00', orden: 1 },
-    { nombre: 'CAT Mediodia', inicio: '10:00', fin: '16:00', orden: 2 },
+    { nombre: 'CAT Mañana', inicio: '06:00', fin: '10:00', orden: 1 },
+    { nombre: 'CAT Mediodía', inicio: '10:00', fin: '16:00', orden: 2 },
     { nombre: 'CAT Tarde', inicio: '16:00', fin: '21:00', orden: 3 },
     { nombre: 'CAT Noche', inicio: '21:00', fin: '23:59', orden: 4 },
   ]
@@ -168,7 +168,7 @@ export function planModulos(plan) {
   for (const clave of ['CAT-D01', 'CAT-D02']) {
     const s = sitio(clave)
     const base = Math.round(s.tarifa / (s.spotsPorHora * 18 * 30) * 10) * 10 || 10
-    const factor = { 'CAT Manana': 0.9, 'CAT Mediodia': 1, 'CAT Tarde': 1.3, 'CAT Noche': 0.8 }
+    const factor = { 'CAT Mañana': 0.9, 'CAT Mediodía': 1, 'CAT Tarde': 1.3, 'CAT Noche': 0.8 }
     for (const f of franjas) {
       tarifas.push({ sitio: clave, franja: f.nombre, temporada: null, tarifa: Math.round(base * factor[f.nombre]) })
       tarifas.push({ sitio: clave, franja: f.nombre, temporada: 'CAT Temporada decembrina', tarifa: Math.round(base * factor[f.nombre] * 1.25) })
@@ -245,7 +245,12 @@ export function planModulos(plan) {
   const abonos = []
   for (const f of plan.comprobantes) {
     if (f.cobranza === 'PAGADA') {
-      const fecha = nDia(masDias(f.vence, -5)) < nDia(f.emision) ? f.emision : masDias(f.vence, -5)
+      // La de una campaña al aire se cobró AYER: así «Cobrado» del mes en
+      // Finanzas tiene algo que enseñar.
+      const alAire = plan.campanas.find((c) => c.folio === f.campanaFolio)?.estado === 'ACTIVA'
+      const fecha = alAire && nDia(masDias(hoy, -1)) >= nDia(f.emision)
+        ? masDias(hoy, -1)
+        : nDia(masDias(f.vence, -5)) < nDia(f.emision) ? f.emision : masDias(f.vence, -5)
       abonos.push({ factura: f.folio, monto: f.monto, fecha: nDia(fecha) > nDia(hoy) ? hoy : fecha, origen: 'registro', conComprobante: nDia(fecha) >= nDia(hoy) - 365 })
     }
     if (f.folio === 'CAT-FAC-013')
@@ -831,7 +836,7 @@ export function sentenciasModulos(plan, T) {
     'franja programada de CAT-CMP-016',
     `update campanas set franja_programada_id = f.id
        from franjas_horarias f
-      where f.tenant_id = $1::uuid and f.nombre = 'CAT Manana'
+      where f.tenant_id = $1::uuid and f.nombre = 'CAT Mañana'
         and campanas.tenant_id = $1::uuid and campanas.folio = 'CAT-CMP-016' and campanas.franja_programada_id is null`,
     [T],
   )
