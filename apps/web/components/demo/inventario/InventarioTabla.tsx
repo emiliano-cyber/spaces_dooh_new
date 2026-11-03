@@ -57,10 +57,12 @@ import {
 // devuelve espanol y se colaba entera en el cuadro ingles. Se arma aqui con
 // claves desde los mismos numeros —aplicadas, pendientes, total— y la misma
 // unidad, sin tocar `lib/`; `textos/inventario.test.ts` exige que en espanol
-// salga EXACTAMENTE `lote.frase()`.
-type T = (clave: ClaveTexto, v?: Record<string, string | number>) => string
-type UnidadLote = 'pantalla' | 'contrato'
-function fraseDeLote(lote: Lote, unidad: UnidadLote, t: T): string {
+// salga EXACTAMENTE `lote.frase()`. Se exportan para que esa prueba LLAME a
+// estas y no reescriba la formula (costura 2: sobrevivian los mutantes D1, `ya`
+// por `faltan`, y D2, la unidad fija en el subtitulo).
+export type T = (clave: ClaveTexto, v?: Record<string, string | number>) => string
+export type UnidadLote = 'pantalla' | 'contrato'
+export function fraseDeLote(lote: Lote, unidad: UnidadLote, t: T): string {
   const total = lote.total()
   const clave: ClaveTexto =
     unidad === 'pantalla'
@@ -68,7 +70,7 @@ function fraseDeLote(lote: Lote, unidad: UnidadLote, t: T): string {
       : total === 1 ? 'inventario.lote.unidad.contrato' : 'inventario.lote.unidad.contratos'
   return t('inventario.lote.frase', { ya: lote.aplicadas(), total, faltan: lote.pendientes(), unidad: t(clave) })
 }
-function avisoDeLote(lote: Lote | null, unidad: UnidadLote, t: T): string {
+export function avisoDeLote(lote: Lote | null, unidad: UnidadLote, t: T): string {
   const base = t('inventario.lote.base')
   if (!lote || lote.aplicadas() === 0) return base
   const faltan = lote.pendientes()

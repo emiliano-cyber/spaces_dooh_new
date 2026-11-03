@@ -7,6 +7,7 @@ import { medioLabel } from '@/lib/data/derive'
 import { disponibilidadInventario } from '@/components/demo/StatusBadge'
 import { textoDisponibilidad, textoMedio } from '@/components/demo/inventario/etiquetas'
 import { crearLote } from '@/lib/cambios-lote'
+import { fraseDeLote, avisoDeLote } from '@/components/demo/inventario/InventarioTabla'
 
 // ============================================================================
 //  EL DICCIONARIO DE INVENTARIO ENTERO, CONGELADO — y atado a sus fuentes.
@@ -81,13 +82,19 @@ describe('diccionario de inventario · el espanol reproduce EXACTAMENTE su modul
         unidadPlural: `${unidad}s`,
       })
       await lote.paso().catch(() => {})
-      const nombre = t(
-        unidad === 'pantalla'
-          ? total === 1 ? 'inventario.lote.unidad.pantalla' : 'inventario.lote.unidad.pantallas'
-          : total === 1 ? 'inventario.lote.unidad.contrato' : 'inventario.lote.unidad.contratos',
-      )
-      expect(t('inventario.lote.frase', { ya: lote.aplicadas(), total, faltan: lote.pendientes(), unidad: nombre })).toBe(lote.frase())
+      // La funcion DEL COMPONENTE, no la formula reescrita aqui (costura 2:
+      // reescribirla dejaba vivo el mutante D1, `ya` por `faltan`).
+      expect(fraseDeLote(lote, unidad, t)).toBe(lote.frase())
+      // Y el aviso del subtitulo la lleva dentro, con la misma unidad.
+      if (lote.aplicadas() > 0) expect(avisoDeLote(lote, unidad, t)).toContain(lote.frase())
     }
+  })
+
+  it('el subtitulo usa la unidad del lote en curso, no una fija', () => {
+    // Mutante D2: `avisoDeLote(loteRef.current, 'pantalla', t)` decia
+    // «pantallas» en un lote de contratos y ninguna prueba lo veia.
+    const tabla = readFileSync(path.join(__dirname, '../../../components/demo/inventario/InventarioTabla.tsx'), 'utf8')
+    expect(tabla).toMatch(/subtitulo=\{avisoDeLote\(loteRef\.current, unidadLoteRef\.current, t\)\}/)
   })
 
   it('la tabla arma esa frase con claves y no pinta `lote.frase()`', () => {

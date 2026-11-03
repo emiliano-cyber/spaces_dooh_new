@@ -579,7 +579,7 @@ exports[`diccionario de arrendadores · instantanea > el INGLES tampoco 1`] = `
   "arrendadores.constancia.ip-no": "not recorded",
   "arrendadores.constancia.navegador": "Browser: {navegador}",
   "arrendadores.constancia.navegador-no": "not recorded",
-  "arrendadores.constancia.nota": "Simple electronic signature. The IP address and the browser are data supplied by the signer’s own device and are kept as indications; on their own they are not proof of identity. This certificate doesn’t include an e.firma certificate from the SAT or a NOM-151 preservation certificate.",
+  "arrendadores.constancia.nota": "Simple electronic signature. The IP address and the browser are data supplied by the signer’s own device and are kept as circumstantial evidence; on their own they are not proof of identity. This certificate doesn’t include an e.firma certificate from the SAT or a NOM-151 preservation certificate.",
   "arrendadores.constancia.parte.arrendador": "THE LANDLORD",
   "arrendadores.constancia.parte.arrendatario": "THE LESSEE",
   "arrendadores.constancia.sello": "Seal of the signed document: {hash}",

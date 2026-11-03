@@ -995,7 +995,7 @@ export const EN_ARRENDADORES: Record<ClaveArrendadores, string> = {
   'arrendadores.constancia.navegador-no': 'not recorded',
   'arrendadores.constancia.sello': 'Seal of the signed document: {hash}',
   'arrendadores.constancia.nota':
-    'Simple electronic signature. The IP address and the browser are data supplied by the signer’s own device and are kept as indications; on their own they are not proof of identity. This certificate doesn’t include an e.firma certificate from the SAT or a NOM-151 preservation certificate.',
+    'Simple electronic signature. The IP address and the browser are data supplied by the signer’s own device and are kept as circumstantial evidence; on their own they are not proof of identity. This certificate doesn’t include an e.firma certificate from the SAT or a NOM-151 preservation certificate.',
 
   'arrendadores.campo.arrendador-id': 'Landlord',
   'arrendadores.campo.razon-social-id': 'Landlord’s legal name',
