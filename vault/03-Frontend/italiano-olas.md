@@ -137,14 +137,14 @@ de la maquinaria: **textos de ejemplo del diccionario** (que caen al inglés, «
 ### Lote L4 · Campañas, finanzas, clientes, reportes y Dashboard
 
 Rama `feat/italiano-l4-campanas` (sobre `integra/idiomas`, `6fea374a`).
-**Hecho, sin validar.** 1082 claves (`campanas` 396 · `finanzas` 170 ·
+**Validación ÁMBAR, corregida** (`docs/i18n/validacion-italiano-l4.md`; correcciones en la revisión, §5). 1082 claves (`campanas` 396 · `finanzas` 170 ·
 `clientes` 220 · `reportes` 148 · `inicio` 148), los cinco `IT_*` ya en
 `Record` completo. Español e inglés idénticos (3020 HTML, `diff -rq` = 0); el
 espejo pierde las 32 huellas del Dashboard (358 → 326). Detalle, pruebas y
-mutantes (13/13) en `docs/i18n/revision-italiano-l4.md`.
+mutantes (13/13 y 14/14 tras la validación) en `docs/i18n/revision-italiano-l4.md`.
 
 Términos que el glosario no traía y fijó este lote: OC = **OdA** («ordine
-d’acquisto», masc.) · candado = **lucchetto** · creativo = **creatività**
+d’acquisto», masc.) · candado = **blocco fatturazione** / «fatturazione sbloccata» (alineado con L3) · incidencia = **anomalia** (no «incidente») · creativo = **creatività**
 (fem., invariable) · arte = **grafica** · imprenta = **tipografia** ·
 evidencias = **prove fotografiche** · prospecto = **prospect** · bitácora =
 **registro** · predio = **immobile** · captación = **acquisizione** · luz /
@@ -155,6 +155,18 @@ el menú. **P2:** se confirma «T1 2026».
 
 Costura: «Vencida» (Scaduta/Scaduto) y «Pantalla» (Schermo/Impianto) quedan
 declaradas distintas a propósito en `costura.test.ts`.
+
+> [!important] Regla para TODO el italiano: nunca un artículo delante de una fecha
+> La fecha llega formateada («8 dic 2026», «11 nov 2026») y el artículo tendría
+> que elidirse («l’8», «dall’11»), cosa que un hueco no puede hacer. Se escribe
+> «in data {fecha}», «fino al giorno {fin}», «al giorno {fecha}», «{desde} –
+> {hasta}» o «Etiqueta: {fecha}». Además, en este lote: DOOHmain siempre con
+> «su» (salvo «Chiedi a DOOHmain»), cuotas en adjetivo («rate quindicinali /
+> bimestrali / semestrali»). Lo vigila `reglasDelItaliano`
+> (`lib/test/barrido-italiano-l4.ts`).
+
+El CSV del estado de cuenta, **solo en italiano**, sale con «;» y coma decimal
+(lo que abre una Excel italiana); español e inglés como siempre.
 
 > [!warning] Pendiente para el dueño (dinero, ROJO)
 > El campo de cifra lee **es-MX en todos los idiomas** (`lib/captura-cifra.ts`):

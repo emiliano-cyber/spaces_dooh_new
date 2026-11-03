@@ -56,7 +56,7 @@ existe la prueba de copias.
 | Español | Italiano | Por qué |
 |---|---|---|
 | OC / orden de compra | OdA / ordine d’acquisto (m.) | «OdA ricevuto» |
-| candado (de facturación) | lucchetto | «il lucchetto si apre» conserva la imagen |
+| candado (de facturación) | blocco fatturazione / fatturazione sbloccata | alineado con L3 (validación, §5); era «lucchetto» |
 | creativo | creatività (f., invariable) | el uso del sector en Italia |
 | arte | grafica | |
 | imprenta | tipografia | |
@@ -66,6 +66,7 @@ existe la prueba de copias.
 | predio | immobile | |
 | captación | acquisizione | |
 | luz / recibo | luce / bolletta | |
+| incidencia | anomalia | «incidente» es un accidente (validación H3) |
 | Finanzas (módulo) | Finanza | **lo decide L5** con el menú; aquí solo en «richiede il permesso di Finanza» |
 | Configuración | Configurazione | sección de Impostazioni |
 | pantalla de la APLICACIÓN | schermata | distinta de «schermo» e «impianto» |
@@ -87,7 +88,32 @@ existe la prueba de copias.
   de Captación (L2, `comercial`), «(required)» y el aviso de la franja (L5,
   `compartidos`).
 
-## 5 · Las claves
+## 5 · Correcciones de la validación (ÁMBAR, `docs/i18n/validacion-italiano-l4.md`)
+
+Commits `de8146ae` (pruebas, en rojo: 18) y `5e548277` (corrección).
+
+| # | Qué | Cómo quedó |
+|---|---|---|
+| H1 | «Il immobile esiste già» | «Questo {tipo} esiste già nel sistema.» |
+| H2 | Artículo delante de una fecha («il 8 dic»; «l’8», «dall’11» no se pueden hacer en un hueco) | **Regla para todo el italiano: nunca artículo delante de una fecha.** 16 claves: «in data {fecha}», «al giorno {fecha}», «fino al giorno {hasta}», «{desde} – {hasta}», «tra {desde} e {hasta}», «a partire da {periodo}» |
+| H3 | incidencia = «incidente» | «anomalia»; «incidente» solo para `inicio.incidencia.accidente` |
+| H4 | «rate due volte al mese / ogni due mesi / ogni sei mesi» | «rate quindicinali / bimestrali / semestrali» |
+| H5 | «Nessun cliente corrisponde tra le agenzie» | «Nessun cliente trovato{busqueda}{tipo}», con « per «{texto}»» |
+| H6 | «Contrattato in corso» | «Valore contrattato in corso» |
+| H7 | «Va in onda in» | «Fascia in onda» |
+| H8 | «in DOOHmain» / «a DOOHmain» mezclados | siempre «su DOOHmain»; solo «Chiedi a DOOHmain» (dirigirse a él) |
+| — | propuestas menores de la tabla | «Impossibile applicare la modifica su DOOHmain», «…puoi riprendere la riproduzione quando vuoi», «Nessuna fattura da incassare», «Non sono previste bollette…», «negli ultimi {n} giorni». No se aplicó «quell’unico giorno» (`reportes.aviso.en-curso.uno`): quita el hueco `{corridos}` que el español exige |
+| — | candado | «Blocco fatturazione» / «fatturazione sbloccata» / «Fatturazione bloccata: …» (alineado con L3) |
+| — | CSV del estado de cuenta | **solo en italiano**: separador «;» y coma decimal («5000,5»), lo que abre una Excel italiana con doble clic; un texto con «;» va entre comillas y la defensa contra fórmulas no cambia. Español e inglés, byte a byte los de antes |
+| — | Dashboard | `enviadas` y `sinTarifa` con `formatNumero(…, 0, idioma)`; prueba con cifras ≥ 1000 («1.500 di 12.000 spazi · digitali 1.200/2.000», «1.001 inviate») |
+
+**Pruebas nuevas:** `reglasDelItaliano` (fechas sin artículo, DOOHmain con «su», blocco, anomalia, cuotas en adjetivo) y `palabrasEspanolas` (palabras españolas frecuentes en el HTML italiano: ve el «Sin movimento…» que el barrido por trozos no veía) en las cuatro pruebas de pantallas; H1, H5–H7; cifras ≥ 1000; CSV italiano byte a byte.
+
+**Mutantes: 14, mueren 14**, incluidos M3 y M7 del validador, `enviadas`/`sinTarifa` sin idioma, el CSV italiano con «,» o con punto decimal, un «;» sin comillas, el CSV español con «;», un artículo delante de una fecha, «in DOOHmain», el lucchetto, «incidente», cuotas en letra y «Il {tipo}».
+
+**Medición:** HTML es/en de `lib/i18n` y `components` contra 6fea374a: `diff -rq` con 0 distintos y 0 desaparecidos; `ES_*`/`EN_*` idénticos; espejo 326 huellas, 0 en el lote; typecheck limpio; **383 archivos, 7326 pruebas** en verde.
+
+## 6 · Las claves
 
 ## `textos/campanas.ts` · 396 claves
 
@@ -158,8 +184,8 @@ existe la prueba de copias.
 | `campanas.remoto.pending` | Pendiente | In sospeso |
 | `campanas.remoto.vencida` | Terminó | Conclusa |
 | `campanas.remoto.programada` | Programada | Programmata |
-| `campanas.remoto.eliminada` | Eliminada en DOOHmain | Eliminata in DOOHmain |
-| `campanas.remoto.no-encontrada` | No está en DOOHmain | Non è in DOOHmain |
+| `campanas.remoto.eliminada` | Eliminada en DOOHmain | Eliminata su DOOHmain |
+| `campanas.remoto.no-encontrada` | No está en DOOHmain | Non è su DOOHmain |
 | `campanas.tipo.ooh` | OOH | OOH |
 | `campanas.tipo.dooh` | DOOH | DOOH |
 | `campanas.tipo.hibrida` | HIBRIDA | Ibrida |
@@ -202,8 +228,8 @@ existe la prueba de copias.
 | `campanas.kpi.por-validar` | Por validar publicación | Pubblicazione da convalidare |
 | `campanas.kpi.por-validar.sub` | enviadas al dominio | inviate per la pubblicazione |
 | `campanas.kpi.listas` | Listas para facturar | Pronte da fatturare |
-| `campanas.kpi.listas.sub` | candado abierto | lucchetto aperto |
-| `campanas.kpi.contratado` | Contratado vigente | Contrattato in corso |
+| `campanas.kpi.listas.sub` | candado abierto | fatturazione sbloccata |
+| `campanas.kpi.contratado` | Contratado vigente | Valore contrattato in corso |
 | `campanas.kpi.contratado.sin-activas` | sin campañas activas | nessuna campagna attiva |
 | `campanas.kpi.contratado.sin-presupuesto.uno` | {n} activa sin presupuesto capturado | {n} attiva senza budget inserito |
 | `campanas.kpi.contratado.sin-presupuesto.otros` | {n} activas sin presupuesto capturado | {n} attive senza budget inserito |
@@ -221,7 +247,7 @@ existe la prueba de copias.
 | `campanas.ficha.creativos.vacio` | Aún no hay creativos. Súbelos aquí mismo. | Ancora nessuna creatività. Caricale direttamente qui. |
 | `campanas.ficha.pipeline` | Pipeline | Pipeline |
 | `campanas.ficha.extensiones` | Extensiones | Estensioni |
-| `campanas.ficha.candado` | Candado de facturación | Lucchetto di fatturazione |
+| `campanas.ficha.candado` | Candado de facturación | Blocco fatturazione |
 | `campanas.ficha.comercial` | Comercial | Dati commerciali |
 | `campanas.ficha.subtotal-neto` | Subtotal (neto) | Subtotale (netto) |
 | `campanas.ficha.iva-pct` | IVA ({pct}%) | IVA ({pct}%) |
@@ -262,7 +288,7 @@ existe la prueba de copias.
 | `campanas.ficha.seccion.no-aplica` | No aplica | Non applicabile |
 | `campanas.ficha.seccion.expandir` | Expandir | Espandi |
 | `campanas.resumen.entregado` | Entregado | Erogato |
-| `campanas.resumen.candado` | Candado | Lucchetto |
+| `campanas.resumen.candado` | Candado | Blocco fatturazione |
 | `campanas.resumen.ot` | OT | OdL |
 | `campanas.resumen.ot.uno` | {n} abierta de {total} | {n} aperto su {total} |
 | `campanas.resumen.ot.otros` | {n} abiertas de {total} | {n} aperti su {total} |
@@ -286,7 +312,7 @@ existe la prueba de copias.
 | `campanas.creativo.subir` | Subir creativo | Carica creatività |
 | `campanas.creativo.asi-se-vera` | Así se verá el creativo en la pantalla: | Ecco come apparirà la creatività sullo schermo: |
 | `campanas.candado.no-registrar` | No se pudo registrar la OC | Impossibile registrare l’OdA |
-| `campanas.candado.cerrado` | Cerrado: faltan condiciones por cumplir | Chiuso: mancano condizioni da soddisfare |
+| `campanas.candado.cerrado` | Cerrado: faltan condiciones por cumplir | Fatturazione bloccata: mancano condizioni da soddisfare |
 | `campanas.candado.oc` | Orden de compra recibida | Ordine d’acquisto ricevuto |
 | `campanas.candado.fotos` | Fotografías comprobatorias | Foto di verifica |
 | `campanas.candado.reporte` | Reporte de publicación | Report di pubblicazione |
@@ -296,24 +322,24 @@ existe la prueba de copias.
 | `campanas.candado.registrar` | Registrar OC | Registra OdA |
 | `campanas.candado.monto-ilegible` | El monto no se entiende: la coma separa miles y el punto, decimales ({ejemplo}). | L’importo non si capisce: la virgola separa le migliaia e il punto i decimali ({ejemplo}). |
 | `campanas.candado.precargados` | Número, monto y fecha vienen precargados de la campaña; ajústalos si el cliente dio otros. El documento de la OC es el contrato (se adjunta en “Datos de facturación”). | Numero, importo e data sono precompilati dalla campagna; modificali se il cliente ne ha indicati altri. Il documento dell’OdA è il contratto (si allega in «Dati di fatturazione»). |
-| `campanas.candado.se-abre` | El candado se abre cuando se cumplen estas condiciones. | Il lucchetto si apre quando queste condizioni sono soddisfatte. |
-| `campanas.doohmain-ahora.no-leer` | No se pudo leer el estado en DOOHmain | Impossibile leggere lo stato in DOOHmain |
-| `campanas.doohmain-ahora.pausado` | “{nombre}” quedó en pausa en DOOHmain | «{nombre}» è in pausa in DOOHmain |
-| `campanas.doohmain-ahora.reanudado` | “{nombre}” volvió al aire en DOOHmain | «{nombre}» è di nuovo in onda in DOOHmain |
-| `campanas.doohmain-ahora.no-cambiar` | No se pudo cambiar en DOOHmain | Impossibile modificarlo in DOOHmain |
+| `campanas.candado.se-abre` | El candado se abre cuando se cumplen estas condiciones. | La fatturazione si sblocca quando queste condizioni sono soddisfatte. |
+| `campanas.doohmain-ahora.no-leer` | No se pudo leer el estado en DOOHmain | Impossibile leggere lo stato su DOOHmain |
+| `campanas.doohmain-ahora.pausado` | “{nombre}” quedó en pausa en DOOHmain | «{nombre}» è in pausa su DOOHmain |
+| `campanas.doohmain-ahora.reanudado` | “{nombre}” volvió al aire en DOOHmain | «{nombre}» è di nuovo in onda su DOOHmain |
+| `campanas.doohmain-ahora.no-cambiar` | No se pudo cambiar en DOOHmain | Impossibile applicare la modifica su DOOHmain |
 | `campanas.doohmain-ahora.titulo` | En DOOHmain ahora | In DOOHmain ora |
 | `campanas.doohmain-ahora.preguntar` | Volver a preguntar a DOOHmain | Chiedi di nuovo a DOOHmain |
 | `campanas.doohmain-ahora.sin-pantallas` | sin pantallas registradas | nessuno schermo registrato |
 | `campanas.doohmain-ahora.sin-confirmar` | Sin confirmar | Non confermato |
 | `campanas.doohmain-ahora.pausar` | Pausar | Metti in pausa |
 | `campanas.doohmain-ahora.reanudar` | Reanudar | Riprendi |
-| `campanas.doohmain-ahora.pausar.titulo` | Pausar en DOOHmain | Metti in pausa in DOOHmain |
-| `campanas.doohmain-ahora.reanudar.titulo` | Reanudar en DOOHmain | Riprendi in DOOHmain |
+| `campanas.doohmain-ahora.pausar.titulo` | Pausar en DOOHmain | Metti in pausa su DOOHmain |
+| `campanas.doohmain-ahora.reanudar.titulo` | Reanudar en DOOHmain | Riprendi su DOOHmain |
 | `campanas.doohmain-ahora.pausar.si` | Sí, pausar | Sì, metti in pausa |
 | `campanas.doohmain-ahora.reanudar.si` | Sí, reanudar | Sì, riprendi |
-| `campanas.doohmain-ahora.pausar.texto.uno` | {nombre} deja de reproducirse en {n} pantalla(s) de DOOHmain. El arte se queda en su lista y se puede reanudar cuando quieras. | La riproduzione di {nombre} si interrompe su {n} schermo di DOOHmain. La grafica resta nel suo elenco e si può riprendere quando vuoi. |
-| `campanas.doohmain-ahora.pausar.texto.otros` | {nombre} deja de reproducirse en {n} pantalla(s) de DOOHmain. El arte se queda en su lista y se puede reanudar cuando quieras. | La riproduzione di {nombre} si interrompe su {n} schermi di DOOHmain. La grafica resta nel suo elenco e si può riprendere quando vuoi. |
-| `campanas.doohmain-ahora.reanudar.texto` | {nombre} vuelve a reproducirse en DOOHmain con la programación que ya tenía. | La riproduzione di {nombre} riprende in DOOHmain con la programmazione che aveva già. |
+| `campanas.doohmain-ahora.pausar.texto.uno` | {nombre} deja de reproducirse en {n} pantalla(s) de DOOHmain. El arte se queda en su lista y se puede reanudar cuando quieras. | La riproduzione di {nombre} si interrompe su {n} schermo di DOOHmain. La grafica resta nel suo elenco e puoi riprendere la riproduzione quando vuoi. |
+| `campanas.doohmain-ahora.pausar.texto.otros` | {nombre} deja de reproducirse en {n} pantalla(s) de DOOHmain. El arte se queda en su lista y se puede reanudar cuando quieras. | La riproduzione di {nombre} si interrompe su {n} schermi di DOOHmain. La grafica resta nel suo elenco e puoi riprendere la riproduzione quando vuoi. |
+| `campanas.doohmain-ahora.reanudar.texto` | {nombre} vuelve a reproducirse en DOOHmain con la programación que ya tenía. | La riproduzione di {nombre} riprende su DOOHmain con la programmazione che aveva già. |
 | `campanas.facturacion.uso.g01` | G01 · Adquisición de mercancías | G01 · Acquisto di merci |
 | `campanas.facturacion.uso.g03` | G03 · Gastos en general | G03 · Spese in generale |
 | `campanas.facturacion.uso.p01` | P01 · Por definir | P01 · Da definire |
@@ -352,7 +378,7 @@ existe la prueba de copias.
 | `campanas.extender.quitar` | Quitar contrato | Rimuovi contratto |
 | `campanas.extender.adjuntar` | Adjuntar contrato (PDF) | Allega contratto (PDF) |
 | `campanas.extender.nota` | Sin el contrato firmado de la extensión no se puede extender. Queda en el expediente de la campaña junto con el folio del tramo nuevo; el contrato original del cliente no se toca. | Senza il contratto firmato dell’estensione non si può estendere. Resta nel fascicolo della campagna insieme al rif. interno del nuovo tratto; il contratto originale del cliente non si tocca. |
-| `campanas.extensiones.termina` | Termina el {fecha}. Para alargarla hace falta el contrato firmado de la extensión. | Termina il {fecha}. Per prolungarla serve il contratto firmato dell’estensione. |
+| `campanas.extensiones.termina` | Termina el {fecha}. Para alargarla hace falta el contrato firmado de la extensión. | Termina in data {fecha}. Per prolungarla serve il contratto firmato dell’estensione. |
 | `campanas.extensiones.vacio` | Sin extensiones con contrato. | Nessuna estensione con contratto. |
 | `campanas.extensiones.hecha` | {nombre} extendida | {nombre} estesa |
 | `campanas.horario.no-leer` | No se pudo leer el horario de transmisión | Impossibile leggere l’orario di trasmissione |
@@ -361,7 +387,7 @@ existe la prueba de copias.
 | `campanas.horario.todo-el-dia` | Todo el día | Tutto il giorno |
 | `campanas.horario.titulo` | Horario de transmisión | Orario di trasmissione |
 | `campanas.horario.vendida` | Vendida (no cambia aquí) | Venduta (non cambia qui) |
-| `campanas.horario.se-transmite` | Se transmite en | Va in onda in |
+| `campanas.horario.se-transmite` | Se transmite en | Fascia in onda |
 | `campanas.horario.dada-de-baja` |  (dada de baja) |  (disattivata) |
 | `campanas.horario.sin-franja` | Sin franja programada | Nessuna fascia oraria programmata |
 | `campanas.horario.sin-permiso` | Solo el gerente de ventas, el director comercial y la dirección pueden cambiar el horario de transmisión. | Solo il responsabile vendite, il direttore commerciale e la direzione possono cambiare l’orario di trasmissione. |
@@ -372,17 +398,17 @@ existe la prueba de copias.
 | `campanas.listas.vencida` | Vencida | Scaduto |
 | `campanas.playlogs.no-consultar` | No se pudo consultar | Impossibile eseguire la richiesta |
 | `campanas.playlogs.intro` | Cuántas veces se reprodujo el creativo en las pantallas digitales, según lo que reporta DOOHmain. Es la prueba que respalda lo que se le cobra al anunciante, así que se muestra exactamente lo que responde el proveedor. | Quante volte la creatività è passata sugli schermi digitali, secondo quanto riporta DOOHmain. È la prova che giustifica ciò che si addebita all’inserzionista, quindi si mostra esattamente ciò che risponde il fornitore. |
-| `campanas.playlogs.no-publicada` | Esta campaña no está publicada en DOOHmain, así que no hay reproducciones que consultar. Las pantallas fijas se comprueban con las evidencias fotográficas. | Questa campagna non è pubblicata in DOOHmain, quindi non ci sono passaggi da consultare. Gli impianti statici si verificano con le prove fotografiche. |
+| `campanas.playlogs.no-publicada` | Esta campaña no está publicada en DOOHmain, así que no hay reproducciones que consultar. Las pantallas fijas se comprueban con las evidencias fotográficas. | Questa campagna non è pubblicata su DOOHmain, quindi non ci sono passaggi da consultare. Gli impianti statici si verificano con le prove fotografiche. |
 | `campanas.playlogs.tab.campana` | De esta campaña | Di questa campagna |
 | `campanas.playlogs.tab.pantallas` | Historial de sus pantallas | Storico dei suoi schermi |
-| `campanas.playlogs.pantallas.texto` | Todo lo que DOOHmain registró en las pantallas donde se publicó esta campaña, día por día. Incluye otras campañas de esas pantallas: sirve para ver que estuvieron reproduciendo, pero {noCuenta} ni abre el candado de facturación. | Tutto ciò che DOOHmain ha registrato sugli schermi dove è stata pubblicata questa campagna, giorno per giorno. Include altre campagne di quegli schermi: serve a vedere che erano in riproduzione, ma {noCuenta} né apre il lucchetto di fatturazione. |
+| `campanas.playlogs.pantallas.texto` | Todo lo que DOOHmain registró en las pantallas donde se publicó esta campaña, día por día. Incluye otras campañas de esas pantallas: sirve para ver que estuvieron reproduciendo, pero {noCuenta} ni abre el candado de facturación. | Tutto ciò che DOOHmain ha registrato sugli schermi dove è stata pubblicata questa campagna, giorno per giorno. Include altre campagne di quegli schermi: serve a vedere che erano in riproduzione, ma {noCuenta} né sblocca la fatturazione. |
 | `campanas.playlogs.pantallas.no-cuenta` | no cuenta como prueba de esta campaña | non vale come prova di questa campagna |
 | `campanas.playlogs.desde` | Desde | Da |
 | `campanas.playlogs.hasta` | Hasta | A |
 | `campanas.playlogs.consultar` | Consultar a DOOHmain | Chiedi a DOOHmain |
 | `campanas.playlogs.sin-consulta` | Aún no se ha consultado. Elige un rango y pregunta. | Non ancora consultato. Scegli un intervallo e chiedi. |
-| `campanas.playlogs.rango` | {desde} a {hasta} | dal {desde} al {hasta} |
-| `campanas.playlogs.fuente` | Fuente: DOOHmain · consultado {fecha} | Fonte: DOOHmain · consultato il {fecha} |
+| `campanas.playlogs.rango` | {desde} a {hasta} | {desde} – {hasta} |
+| `campanas.playlogs.fuente` | Fuente: DOOHmain · consultado {fecha} | Fonte: DOOHmain · consultato in data {fecha} |
 | `campanas.playlogs.vacio` | DOOHmain no reporta reproducciones en ese rango. | DOOHmain non riporta passaggi in quell’intervallo. |
 | `campanas.playlogs.vacio.nota` | Es lo esperado mientras la campaña no haya salido al aire. Un cero aquí es lo que dice el proveedor, no una estimación nuestra. | È normale finché la campagna non è andata in onda. Uno zero qui è ciò che dice il fornitore, non una nostra stima. |
 | `campanas.playlogs.con-datos.texto` | DOOHmain devolvió datos. Se muestran sin interpretar: todavía no hemos visto una respuesta con contenido, así que no se convierten en totales para no arriesgar números equivocados en la prueba de cobro. | DOOHmain ha restituito dati. Si mostrano senza interpretarli: non abbiamo ancora visto una risposta con contenuto, quindi non si trasformano in totali per non rischiare cifre sbagliate nella prova di addebito. |
@@ -390,7 +416,7 @@ existe la prueba de copias.
 | `campanas.playlogs.estado.error` | error | errore |
 | `campanas.playlogs.estado.vacio` | sin reproducciones | nessun passaggio |
 | `campanas.playlogs.estado.datos` | con datos | con dati |
-| `campanas.doohmain.destino.otro-cms` | No va a DOOHmain: la opera otro CMS | Non va a DOOHmain: lo gestisce un altro CMS |
+| `campanas.doohmain.destino.otro-cms` | No va a DOOHmain: la opera otro CMS | Non va su DOOHmain: lo gestisce un altro CMS |
 | `campanas.doohmain.destino.sin-pantalla` | Sin pantalla de DOOHmain asignada | Nessuno schermo di DOOHmain assegnato |
 | `campanas.doohmain.dia.1` | Lun | Lun |
 | `campanas.doohmain.dia.2` | Mar | Mar |
@@ -401,13 +427,13 @@ existe la prueba de copias.
 | `campanas.doohmain.dia.0` | Dom | Dom |
 | `campanas.doohmain.no-guardar` | No se pudo guardar | Impossibile salvare |
 | `campanas.doohmain.no-leer` | No se pudo leer | Impossibile leggere |
-| `campanas.doohmain.franja.programada` | Horario en DOOHmain: la franja programada | Orario in DOOHmain: la fascia oraria programmata |
-| `campanas.doohmain.franja.contratada` | Horario en DOOHmain: la franja contratada | Orario in DOOHmain: la fascia oraria contrattata |
+| `campanas.doohmain.franja.programada` | Horario en DOOHmain: la franja programada | Orario su DOOHmain: la fascia oraria programmata |
+| `campanas.doohmain.franja.contratada` | Horario en DOOHmain: la franja contratada | Orario su DOOHmain: la fascia oraria contrattata |
 | `campanas.doohmain.franja.texto` | {nombre}, {inicio} a {fin}. La campaña ya tiene franja, así que no lleva otro horario. | {nombre}, {inicio}–{fin}. La campagna ha già una fascia oraria, quindi non prende un altro orario. |
 | `campanas.doohmain.franja.ademas` | Tiene además un horario propio ({inicio} a {fin}), de antes, y es el que se manda: quítalo para que viaje la franja. | Ha anche un orario proprio ({inicio}–{fin}), precedente, ed è quello che viene inviato: rimuovilo perché venga inviata la fascia oraria. |
 | `campanas.doohmain.quitar` | Quitar | Rimuovi |
 | `campanas.doohmain.horario-campana` | Horario de la campaña: | Orario della campagna: |
-| `campanas.doohmain.horario.titulo` | Horario de esta campaña en DOOHmain | Orario di questa campagna in DOOHmain |
+| `campanas.doohmain.horario.titulo` | Horario de esta campaña en DOOHmain | Orario di questa campagna su DOOHmain |
 | `campanas.doohmain.horario.de` | De | Dalle |
 | `campanas.doohmain.horario.a` | a | alle |
 | `campanas.doohmain.horario.inicio` | Hora de inicio | Ora di inizio |
@@ -415,7 +441,7 @@ existe la prueba de copias.
 | `campanas.doohmain.horario.dias` | Días de la semana | Giorni della settimana |
 | `campanas.doohmain.horario.nota` | Solo para campañas sin franja horaria. Sin días marcados, sale todos los días. | Solo per campagne senza fascia oraria. Senza giorni selezionati, va in onda tutti i giorni. |
 | `campanas.doohmain.horario.guardar` | Guardar horario | Salva orario |
-| `campanas.doohmain.titulo` | Lo que se manda a DOOHmain | Cosa viene inviato a DOOHmain |
+| `campanas.doohmain.titulo` | Lo que se manda a DOOHmain | Cosa viene inviato su DOOHmain |
 | `campanas.doohmain.actualizar` | Actualizar | Aggiorna |
 | `campanas.doohmain.apagada` | La publicación en DOOHmain está apagada en esta instancia: esto es lo que se mandaría. | La pubblicazione su DOOHmain è disattivata in questa istanza: ecco cosa verrebbe inviato. |
 | `campanas.doohmain.cliente` | Cliente: | Cliente: |
@@ -427,28 +453,28 @@ existe la prueba de copias.
 | `campanas.doohmain.col.por-dia` | Por día | Al giorno |
 | `campanas.doohmain.col.total` | Total campaña | Totale campagna |
 | `campanas.doohmain.sin-creativo` | Sin creativo aprobado asignado: al publicar, esta pantalla no recibe nada. | Nessuna creatività approvata assegnata: alla pubblicazione, questo schermo non riceve nulla. |
-| `campanas.doohmain.pie` | Del {inicio} al {fin}. Si la campaña tiene franja, DOOHmain reparte las del día dentro de ese horario. Un anuncio ya publicado no cambia de horario al volver a publicar. | Dal {inicio} al {fin}. Se la campagna ha una fascia oraria, DOOHmain distribuisce i passaggi del giorno dentro quell’orario. Un annuncio già pubblicato non cambia orario quando si ripubblica. |
+| `campanas.doohmain.pie` | Del {inicio} al {fin}. Si la campaña tiene franja, DOOHmain reparte las del día dentro de ese horario. Un anuncio ya publicado no cambia de horario al volver a publicar. | Periodo: {inicio} – {fin}. Se la campagna ha una fascia oraria, DOOHmain distribuisce i passaggi del giorno dentro quell’orario. Un annuncio già pubblicato non cambia orario quando si ripubblica. |
 | `campanas.validacion.aviso-pantalla` | Recuerda no estar en la pantalla dentro del sitio de DOOHmain para permitir el proceso: ciérrala allí antes de enviar o publicar. | Ricorda di non avere aperta la schermata nel sito di DOOHmain, perché il processo possa andare avanti: chiudila lì prima di inviare o pubblicare. |
 | `campanas.validacion.no-enviar` | No se pudo enviar al dominio | Impossibile inviare per la pubblicazione |
 | `campanas.validacion.motivo-prompt` | Motivo del rechazo (qué corregir en los anuncios): | Motivo del rifiuto (cosa correggere negli annunci): |
 | `campanas.validacion.no-validar` | No se pudo validar la publicación | Impossibile convalidare la pubblicazione |
-| `campanas.validacion.toast.ninguna` | Ninguna pantalla de esta campaña va a DOOHmain | Nessuno schermo di questa campagna va a DOOHmain |
-| `campanas.validacion.toast.publicada.uno` | Publicada en DOOHmain: {n} pantalla(s) | Pubblicata in DOOHmain: {n} schermo |
-| `campanas.validacion.toast.publicada.otros` | Publicada en DOOHmain: {n} pantalla(s) | Pubblicata in DOOHmain: {n} schermi |
+| `campanas.validacion.toast.ninguna` | Ninguna pantalla de esta campaña va a DOOHmain | Nessuno schermo di questa campagna va su DOOHmain |
+| `campanas.validacion.toast.publicada.uno` | Publicada en DOOHmain: {n} pantalla(s) | Pubblicata su DOOHmain: {n} schermo |
+| `campanas.validacion.toast.publicada.otros` | Publicada en DOOHmain: {n} pantalla(s) | Pubblicata su DOOHmain: {n} schermi |
 | `campanas.validacion.toast.parcial.uno` | DOOHmain: {n} pantalla(s) con error | DOOHmain: {n} schermo con errore |
 | `campanas.validacion.toast.parcial.otros` | DOOHmain: {n} pantalla(s) con error | DOOHmain: {n} schermi con errore |
-| `campanas.validacion.toast.error` | No se publicó en DOOHmain | Non pubblicata in DOOHmain |
+| `campanas.validacion.toast.error` | No se publicó en DOOHmain | Non pubblicata su DOOHmain |
 | `campanas.validacion.no-republicar` | No se pudo volver a publicar | Impossibile ripubblicare |
-| `campanas.validacion.retirado.toast` | “{nombre}” se retiró. Su arte sigue en DOOHmain — quítalo en su panel | «{nombre}» è stata ritirata. La sua grafica è ancora in DOOHmain — rimuovila dal suo pannello |
+| `campanas.validacion.retirado.toast` | “{nombre}” se retiró. Su arte sigue en DOOHmain — quítalo en su panel | «{nombre}» è stata ritirata. La sua grafica è ancora su DOOHmain — rimuovila dal suo pannello |
 | `campanas.validacion.bajado.toast` | “{nombre}” se bajó | «{nombre}» è stata rimossa |
 | `campanas.validacion.no-bajar` | No se pudo bajar el creativo | Impossibile rimuovere la creatività |
 | `campanas.validacion.titulo` | Validación de publicación | Convalida della pubblicazione |
 | `campanas.validacion.enviada` | Enviada al dominio / CMS | Inviata per la pubblicazione / CMS |
 | `campanas.validacion.anuncios` | Anuncios cargados ({validadas}/{total} validados) | Annunci caricati ({validadas}/{total} approvati) |
 | `campanas.validacion.informacion` | Información de los anuncios | Informazioni sugli annunci |
-| `campanas.validacion.retirado.title` | Retirado; su arte sigue en DOOHmain (quítalo en su panel) | Ritirata; la sua grafica è ancora in DOOHmain (rimuovila dal suo pannello) |
+| `campanas.validacion.retirado.title` | Retirado; su arte sigue en DOOHmain (quítalo en su panel) | Ritirata; la sua grafica è ancora su DOOHmain (rimuovila dal suo pannello) |
 | `campanas.validacion.retirado` | Retirado | Ritirata |
-| `campanas.validacion.bajar.title` | Bajar creativo (finaliza su campaña en DOOHmain) | Rimuovi la creatività (termina la sua campagna in DOOHmain) |
+| `campanas.validacion.bajar.title` | Bajar creativo (finaliza su campaña en DOOHmain) | Rimuovi la creatività (termina la sua campagna su DOOHmain) |
 | `campanas.validacion.sello.aprobada` | Aprobada por {por} · {fecha} | Approvata da {por} · {fecha} |
 | `campanas.validacion.sello.rechazada` | Rechazada por {por} · {fecha} | Rifiutata da {por} · {fecha} |
 | `campanas.validacion.motivo` | Motivo: {motivo} | Motivo: {motivo} |
@@ -458,37 +484,37 @@ existe la prueba de copias.
 | `campanas.validacion.aprobar` | Aprobar publicación | Approva la pubblicazione |
 | `campanas.validacion.rechazar` | Rechazar | Rifiuta |
 | `campanas.validacion.publicando` | Publicando… | Pubblicazione… |
-| `campanas.validacion.republicar` | Volver a publicar en DOOHmain | Ripubblica in DOOHmain |
-| `campanas.validacion.pendiente.sin` | Aprobar los creativos no los sube a DOOHmain. Envía la campaña al dominio y apruébala aquí: el arte se publica en DOOHmain al aprobar la publicación. | Approvare le creatività non le carica su DOOHmain. Invia la campagna per la pubblicazione e approvala qui: la grafica si pubblica in DOOHmain quando si approva la pubblicazione. |
-| `campanas.validacion.pendiente.uno` | Aprobar los creativos no los sube a DOOHmain. Tienes {n} aprobado listo. Envía la campaña al dominio y apruébala aquí: el arte se publica en DOOHmain al aprobar la publicación. | Approvare le creatività non le carica su DOOHmain. Hai {n} creatività approvata pronta. Invia la campagna per la pubblicazione e approvala qui: la grafica si pubblica in DOOHmain quando si approva la pubblicazione. |
-| `campanas.validacion.pendiente.otros` | Aprobar los creativos no los sube a DOOHmain. Tienes {n} aprobados listos. Envía la campaña al dominio y apruébala aquí: el arte se publica en DOOHmain al aprobar la publicación. | Approvare le creatività non le carica su DOOHmain. Hai {n} creatività approvate pronte. Invia la campagna per la pubblicazione e approvala qui: la grafica si pubblica in DOOHmain quando si approva la pubblicazione. |
+| `campanas.validacion.republicar` | Volver a publicar en DOOHmain | Ripubblica su DOOHmain |
+| `campanas.validacion.pendiente.sin` | Aprobar los creativos no los sube a DOOHmain. Envía la campaña al dominio y apruébala aquí: el arte se publica en DOOHmain al aprobar la publicación. | Approvare le creatività non le carica su DOOHmain. Invia la campagna per la pubblicazione e approvala qui: la grafica si pubblica su DOOHmain quando si approva la pubblicazione. |
+| `campanas.validacion.pendiente.uno` | Aprobar los creativos no los sube a DOOHmain. Tienes {n} aprobado listo. Envía la campaña al dominio y apruébala aquí: el arte se publica en DOOHmain al aprobar la publicación. | Approvare le creatività non le carica su DOOHmain. Hai {n} creatività approvata pronta. Invia la campagna per la pubblicazione e approvala qui: la grafica si pubblica su DOOHmain quando si approva la pubblicazione. |
+| `campanas.validacion.pendiente.otros` | Aprobar los creativos no los sube a DOOHmain. Tienes {n} aprobados listos. Envía la campaña al dominio y apruébala aquí: el arte se publica en DOOHmain al aprobar la publicación. | Approvare le creatività non le carica su DOOHmain. Hai {n} creatività approvate pronte. Invia la campagna per la pubblicazione e approvala qui: la grafica si pubblica su DOOHmain quando si approva la pubblicazione. |
 | `campanas.validacion.bajar.titulo` | Bajar creativo | Rimuovi la creatività |
 | `campanas.validacion.bajar.si` | Sí, bajar | Sì, rimuovi |
-| `campanas.validacion.bajar.texto` | ¿Seguro que quieres bajar {nombre}? Si estaba publicado, su campaña se finaliza, pero {arte}(su API no lo permite): quedará marcado como “pendiente en DOOHmain”. | Vuoi davvero rimuovere {nombre}? Se era pubblicata, la sua campagna termina, ma {arte} (la sua API non lo consente): resterà segnata come «in sospeso in DOOHmain». |
+| `campanas.validacion.bajar.texto` | ¿Seguro que quieres bajar {nombre}? Si estaba publicado, su campaña se finaliza, pero {arte}(su API no lo permite): quedará marcado como “pendiente en DOOHmain”. | Vuoi davvero rimuovere {nombre}? Se era pubblicata, la sua campagna termina, ma {arte} (la sua API non lo consente): resterà segnata come «in sospeso su DOOHmain». |
 | `campanas.validacion.bajar.arte` | el arte no se puede quitar de DOOHmain | la grafica non si può togliere da DOOHmain |
-| `campanas.validacion.aprobar.titulo` | Aprobar y publicar en DOOHmain | Approva e pubblica in DOOHmain |
+| `campanas.validacion.aprobar.titulo` | Aprobar y publicar en DOOHmain | Approva e pubblica su DOOHmain |
 | `campanas.validacion.aprobar.si` | Sí, publicar | Sì, pubblica |
 | `campanas.validacion.aprobar.texto` | Al aprobar, los anuncios se suben a DOOHmain. {noSe} (la API de DOOHmain no lo permite): cualquier cambio posterior deberá hacerse {manual}. ¿Continuar? | Con l’approvazione, gli annunci vengono caricati su DOOHmain. {noSe} (l’API di DOOHmain non lo consente): qualsiasi modifica successiva andrà fatta {manual}. Continuare? |
 | `campanas.validacion.aprobar.no-se` | Una vez publicados no se pueden eliminar ni reemplazar desde el sistema | Una volta pubblicati non si possono eliminare né sostituire dal sistema |
 | `campanas.validacion.aprobar.manual` | manualmente en el panel de DOOHmain | manualmente nel pannello di DOOHmain |
 | `campanas.validacion.republicar.si` | Sí, volver a publicar | Sì, ripubblica |
-| `campanas.validacion.republicar.texto` | Se manda otra vez a DOOHmain cada pantalla de la campaña con la pieza que tiene asignada {hoy}. Lo que ya está publicado no se duplica. La campaña no cambia de estado. | Ogni schermo della campagna viene inviato di nuovo a DOOHmain con la creatività che ha assegnata {hoy}. Ciò che è già pubblicato non si duplica. La campagna non cambia stato. |
+| `campanas.validacion.republicar.texto` | Se manda otra vez a DOOHmain cada pantalla de la campaña con la pieza que tiene asignada {hoy}. Lo que ya está publicado no se duplica. La campaña no cambia de estado. | Ogni schermo della campagna viene inviato di nuovo su DOOHmain con la creatività che ha assegnata {hoy}. Ciò che è già pubblicato non si duplica. La campagna non cambia stato. |
 | `campanas.validacion.republicar.hoy` | hoy | oggi |
 | `campanas.validacion.resultado.publicada` | Publicada | Pubblicata |
 | `campanas.validacion.resultado.ya-publicada` | Ya estaba publicada | Era già pubblicata |
 | `campanas.validacion.resultado.otro-cms` | Se programa en su CMS | Si programma nel suo CMS |
 | `campanas.validacion.resultado.apagada` | No se subió nada a DOOHmain: la publicación está apagada en esta instancia | Non è stato caricato nulla su DOOHmain: la pubblicazione è disattivata in questa istanza |
 | `campanas.validacion.resultado.sin-pantallas` | No había pantallas digitales que subir a DOOHmain | Non c’erano schermi digitali da caricare su DOOHmain |
-| `campanas.validacion.resultado.error-detalle` | No se publicó en DOOHmain: {error} | Non pubblicata in DOOHmain: {error} |
+| `campanas.validacion.resultado.error-detalle` | No se publicó en DOOHmain: {error} | Non pubblicata su DOOHmain: {error} |
 | `campanas.validacion.resultado.sin-detalle` | sin detalle | nessun dettaglio |
 | `campanas.validacion.resultado.error` | No se publicó en ninguna pantalla de DOOHmain | Non pubblicata su nessuno schermo di DOOHmain |
-| `campanas.validacion.resultado.parcial.uno` | Publicada en DOOHmain con {n} pantalla(s) con error | Pubblicata in DOOHmain con {n} schermo con errore |
-| `campanas.validacion.resultado.parcial.otros` | Publicada en DOOHmain con {n} pantalla(s) con error | Pubblicata in DOOHmain con {n} schermi con errore |
-| `campanas.validacion.resultado.todas-otro-cms` | Ninguna pantalla de esta campaña va a DOOHmain: todas usan otro CMS | Nessuno schermo di questa campagna va a DOOHmain: usano tutti un altro CMS |
-| `campanas.validacion.resultado.ok` | Publicada en DOOHmain | Pubblicata in DOOHmain |
-| `campanas.validacion.resultado.la-opera` | no va a DOOHmain: la opera {cms} | non va a DOOHmain: lo gestisce {cms} |
+| `campanas.validacion.resultado.parcial.uno` | Publicada en DOOHmain con {n} pantalla(s) con error | Pubblicata su DOOHmain con {n} schermo con errore |
+| `campanas.validacion.resultado.parcial.otros` | Publicada en DOOHmain con {n} pantalla(s) con error | Pubblicata su DOOHmain con {n} schermi con errore |
+| `campanas.validacion.resultado.todas-otro-cms` | Ninguna pantalla de esta campaña va a DOOHmain: todas usan otro CMS | Nessuno schermo di questa campagna va su DOOHmain: usano tutti un altro CMS |
+| `campanas.validacion.resultado.ok` | Publicada en DOOHmain | Pubblicata su DOOHmain |
+| `campanas.validacion.resultado.la-opera` | no va a DOOHmain: la opera {cms} | non va su DOOHmain: lo gestisce {cms} |
 | `campanas.validacion.resultado.otro-cms-nombre` | otro CMS | un altro CMS |
-| `campanas.validacion.resultado.sin-pantalla` | sin pantalla en DOOHmain | nessuno schermo in DOOHmain |
+| `campanas.validacion.resultado.sin-pantalla` | sin pantalla en DOOHmain | nessuno schermo su DOOHmain |
 
 ## `textos/finanzas.ts` · 170 claves
 
@@ -512,11 +538,11 @@ existe la prueba de copias.
 | `finanzas.cobranza.por-vencer` | Por vencer | In scadenza |
 | `finanzas.cobranza.vencida` | Vencida | Scaduta |
 | `finanzas.cobranza.pagada` | Pagada | Pagata |
-| `finanzas.parcialidad.quincenal` | {n} cuotas quincenales | {n} rate due volte al mese |
+| `finanzas.parcialidad.quincenal` | {n} cuotas quincenales | {n} rate quindicinali |
 | `finanzas.parcialidad.mensual` | {n} cuotas mensuales | {n} rate mensili |
-| `finanzas.parcialidad.bimestral` | {n} cuotas bimestrales | {n} rate ogni due mesi |
+| `finanzas.parcialidad.bimestral` | {n} cuotas bimestrales | {n} rate bimestrali |
 | `finanzas.parcialidad.trimestral` | {n} cuotas trimestrales | {n} rate trimestrali |
-| `finanzas.parcialidad.semestral` | {n} cuotas semestrales | {n} rate ogni sei mesi |
+| `finanzas.parcialidad.semestral` | {n} cuotas semestrales | {n} rate semestrali |
 | `finanzas.parcialidad.anual` | {n} cuotas anuales | {n} rate annuali |
 | `finanzas.vence.pagada` | pagada | pagata |
 | `finanzas.vence.vencida` | {n}d vencida | scaduta da {n} g |
@@ -526,7 +552,7 @@ existe la prueba de copias.
 | `finanzas.recordatorio.enviado` | Recordatorio de cobro enviado | Sollecito di pagamento inviato |
 | `finanzas.recordatorio.no-enviar` | No se pudo enviar el recordatorio | Impossibile inviare il sollecito |
 | `finanzas.listas.titulo` | Listas para facturar | Pronte da fatturare |
-| `finanzas.listas.vacio` | Nada por facturar ahora. Cuando una campaña complete su candado (OC + fotos + reporte) aparecerá aquí. | Niente da fatturare per ora. Quando una campagna completa il suo lucchetto (OdA + foto + report) apparirà qui. |
+| `finanzas.listas.vacio` | Nada por facturar ahora. Cuando una campaña complete su candado (OC + fotos + reporte) aparecerá aquí. | Niente da fatturare per ora. Quando una campagna sblocca la fatturazione (OdA + foto + report) apparirà qui. |
 | `finanzas.listas.iva-inc` | {monto} · IVA inc. | {monto} · IVA incl. |
 | `finanzas.listas.generar` | Generar factura | Genera fattura |
 | `finanzas.listas.requiere` | Lista · requiere Finanzas | Pronta · richiede Finanza |
@@ -535,7 +561,7 @@ existe la prueba de copias.
 | `finanzas.cobranza.chip.vencidas` | Vencidas | Scadute |
 | `finanzas.cobranza.chip.por-vencer` | Por vencer | In scadenza |
 | `finanzas.cobranza.chip.al-corriente` | Al corriente | In regola |
-| `finanzas.cobranza.vacia` | Sin facturas en cobranza. | Nessuna fattura in incasso. |
+| `finanzas.cobranza.vacia` | Sin facturas en cobranza. | Nessuna fattura da incassare. |
 | `finanzas.cobranza.col.plazo` | Plazo | Termini di pagamento |
 | `finanzas.cobranza.col.vence` | Vence | Scadenza |
 | `finanzas.cobranza.col.estatus` | Estatus | Stato |
@@ -619,9 +645,9 @@ existe la prueba de copias.
 | `finanzas.estado-cuenta.facturado` | + Facturado | + Fatturato |
 | `finanzas.estado-cuenta.cobrado` | − Cobrado | − Incassato |
 | `finanzas.estado-cuenta.saldo-cierre` | = Saldo al cierre | = Saldo finale |
-| `finanzas.estado-cuenta.vencido-al` | Vencido al {fecha} | Scaduto al {fecha} |
+| `finanzas.estado-cuenta.vencido-al` | Vencido al {fecha} | Scaduto al giorno {fecha} |
 | `finanzas.estado-cuenta.vacio` | Sin facturas ni pagos en {periodo}. | Nessuna fattura né pagamento in {periodo}. |
-| `finanzas.estado-cuenta.vacio-rango` | Sin facturas ni pagos del {desde} al {hasta}. | Nessuna fattura né pagamento dal {desde} al {hasta}. |
+| `finanzas.estado-cuenta.vacio-rango` | Sin facturas ni pagos del {desde} al {hasta}. | Nessuna fattura né pagamento tra {desde} e {hasta}. |
 | `finanzas.estado-cuenta.col.fecha` | Fecha | Data |
 | `finanzas.estado-cuenta.col.movimiento` | Movimiento | Movimento |
 | `finanzas.estado-cuenta.col.cargo` | Cargo | Addebito |
@@ -638,12 +664,12 @@ existe la prueba de copias.
 | `finanzas.csv.archivo.cliente` | cliente | cliente |
 | `finanzas.periodo.no-calcular` | No se pudo calcular el periodo | Impossibile calcolare il periodo |
 | `finanzas.periodo.titulo` | Resumen del periodo | Riepilogo del periodo |
-| `finanzas.periodo.subtitulo` | {etiqueta} · {desde} a {hasta} | {etiqueta} · dal {desde} al {hasta} |
+| `finanzas.periodo.subtitulo` | {etiqueta} · {desde} a {hasta} | {etiqueta} · {desde} – {hasta} |
 | `finanzas.periodo.por-cobrar` | Por cobrar al cierre | Da incassare alla chiusura |
 | `finanzas.periodo.al-inicio` | al inicio: {monto} | all’inizio: {monto} |
 | `finanzas.periodo.vencido` | Vencido | Scaduto |
-| `finanzas.periodo.vencido.sub.uno` | {n} factura al {fecha} | {n} fattura al {fecha} |
-| `finanzas.periodo.vencido.sub.otros` | {n} facturas al {fecha} | {n} fatture al {fecha} |
+| `finanzas.periodo.vencido.sub.uno` | {n} factura al {fecha} | {n} fattura al giorno {fecha} |
+| `finanzas.periodo.vencido.sub.otros` | {n} facturas al {fecha} | {n} fatture al giorno {fecha} |
 | `finanzas.periodo.facturado` | Facturado | Fatturato |
 | `finanzas.periodo.facturas.uno` | {n} factura | {n} fattura |
 | `finanzas.periodo.facturas.otros` | {n} facturas | {n} fatture |
@@ -691,8 +717,8 @@ existe la prueba de copias.
 | `clientes.col.pipeline` | En pipeline | In pipeline |
 | `clientes.col.en-curso` | Campañas en curso | Campagne in corso |
 | `clientes.col.contacto` | Contacto | Contatto |
-| `clientes.filtro.ninguno` | Ningún cliente coincide{busqueda}{tipo}. Quita el filtro para ver los {n}. | Nessun cliente corrisponde{busqueda}{tipo}. Rimuovi il filtro per vedere tutti i {n}. |
-| `clientes.filtro.con` |  con «{texto}» |  a «{texto}» |
+| `clientes.filtro.ninguno` | Ningún cliente coincide{busqueda}{tipo}. Quita el filtro para ver los {n}. | Nessun cliente trovato{busqueda}{tipo}. Rimuovi il filtro per vedere tutti i {n}. |
+| `clientes.filtro.con` |  con «{texto}» |  per «{texto}» |
 | `clientes.filtro.entre-agencias` |  entre las agencias |  tra le agenzie |
 | `clientes.filtro.entre-directos` |  entre los directos |  tra i diretti |
 | `clientes.ver-ficha` | Ver pipeline y campañas | Vedi pipeline e campagne |
@@ -845,13 +871,13 @@ existe la prueba de copias.
 | `clientes.captacion.error.guardar` | No se pudo guardar | Impossibile salvare |
 | `clientes.captacion.detalle.etapa` | Etapa | Fase |
 | `clientes.captacion.detalle.vendedor` | Vendedor | Commerciale |
-| `clientes.captacion.detalle.para-el` |  · para el {fecha} |  · entro il {fecha} |
+| `clientes.captacion.detalle.para-el` |  · para el {fecha} |  · entro il giorno {fecha} |
 | `clientes.captacion.rechazado` | Rechazado: | Rifiutato: |
 | `clientes.captacion.rechazado-por` | Rechazado por {nombre}: | Rifiutato da {nombre}: |
 | `clientes.captacion.aprobado` | Aprobado. | Approvato. |
 | `clientes.captacion.aprobado-por` | Aprobado por {nombre}. | Approvato da {nombre}. |
 | `clientes.captacion.falta-inventario` | Falta darla de alta en Inventario con sus medidas y tarifas. | Manca ancora la registrazione in Inventario con le sue misure e tariffe. |
-| `clientes.captacion.ya-existe` | El {tipo} ya existe en el sistema. | Il {tipo} esiste già nel sistema. |
+| `clientes.captacion.ya-existe` | El {tipo} ya existe en el sistema. | Questo {tipo} esiste già nel sistema. |
 | `clientes.captacion.editar-datos` | Editar datos | Modifica dati |
 | `clientes.captacion.revision` | Revisión | Revisione |
 | `clientes.captacion.al-aprobar.predio` | Al aprobar se da de alta el predio (y su arrendador, si es nuevo). | All’approvazione viene registrato l’immobile (e il suo locatore, se è nuovo). |
@@ -901,7 +927,7 @@ existe la prueba de copias.
 | `reportes.kpi.costo-sub` | Espacio {espacio} · Operación {operacion} · Luz {luz} | Spazio {espacio} · Operazioni {operacion} · Luce {luz} |
 | `reportes.kpi.margen` | Margen sobre ingreso | Margine sui ricavi |
 | `reportes.kpi.margen-sub` | Margen {monto} | Margine {monto} |
-| `reportes.rango` | Del {desde} al {hasta} | Dal {desde} al {hasta} |
+| `reportes.rango` | Del {desde} al {hasta} | {desde} – {hasta} |
 | `reportes.resultado` | Resultado | Risultato |
 | `reportes.periodos` | {n} {periodos} | {n} {periodos} |
 | `reportes.periodos.palabra.uno` | periodo | periodo |
@@ -911,7 +937,7 @@ existe la prueba de copias.
 | `reportes.error.red` | No se pudo contactar al servidor. Revisa la conexión y vuelve a intentar. | Impossibile contattare il server. Controlla la connessione e riprova. |
 | `reportes.invalido.titulo` | Revisa el periodo | Controlla il periodo |
 | `reportes.vacio.titulo` | Sin movimiento en este periodo | Nessun movimento in questo periodo |
-| `reportes.vacio.detalle` | Entre el {desde} y el {hasta} ninguna pantalla registró ingreso, renta ni órdenes de trabajo. Una pantalla sin nada de eso no aparece en el reporte; prueba con un rango más amplio. | Tra il {desde} e il {hasta} nessun impianto ha registrato ricavi, affitti né ordini di lavoro. Un impianto senza nulla di tutto ciò non compare nel report; prova con un intervallo più ampio. |
+| `reportes.vacio.detalle` | Entre el {desde} y el {hasta} ninguna pantalla registró ingreso, renta ni órdenes de trabajo. Una pantalla sin nada de eso no aparece en el reporte; prueba con un rango más amplio. | Tra {desde} e {hasta} nessun impianto ha registrato ricavi, affitti né ordini di lavoro. Un impianto senza nulla di tutto ciò non compare nel report; prova con un intervallo più ampio. |
 | `reportes.notas` | Notas sobre estas cifras ({n}) | Note su queste cifre ({n}) |
 | `reportes.inicial.titulo` | Elige un periodo | Scegli un periodo |
 | `reportes.inicial.detalle` | El reporte se calcula al elegir las fechas. | Il report si calcola quando scegli le date. |
@@ -1035,7 +1061,7 @@ existe la prueba de copias.
 | `reportes.nota.vendedor.sin-vendedor.una-de-varias` | {sin} de las {total} reservas del periodo salen en «Sin vendedor» ({ingreso} de ingreso): {causas}. | {sin} delle {total} prenotazioni del periodo esce in «Nessun commerciale» ({ingreso} di ricavi): {causas}. |
 | `reportes.nota.vendedor.sin-vendedor.otros` | {sin} de las {total} reservas del periodo salen en «Sin vendedor» ({ingreso} de ingreso): {causas}. | {sin} delle {total} prenotazioni del periodo escono in «Nessun commerciale» ({ingreso} di ricavi): {causas}. |
 | `reportes.nota.vendedor.raya` | Esas filas salen con una raya y no con un cero: un cero en «Descuento y comisión» afirmaría que no se concedió ninguno. | Quelle righe escono con un trattino e non con uno zero: uno zero in «Sconto e commissione» affermerebbe che non ne è stato concesso nessuno. |
-| `reportes.nota.luz.sin-esperados` | No hay recibos de luz que esperar en este periodo. | Non ci sono bollette della luce da attendersi in questo periodo. |
+| `reportes.nota.luz.sin-esperados` | No hay recibos de luz que esperar en este periodo. | Non sono previste bollette della luce in questo periodo. |
 | `reportes.nota.luz.completa.uno` | No falta ningún recibo: están capturados los {esperados} del periodo, así que el costo de la luz está completo. | Non manca nessuna bolletta: risulta registrata {esperados} bolletta attesa nel periodo, quindi il costo della luce è completo. |
 | `reportes.nota.luz.completa.otros` | No falta ningún recibo: están capturados los {esperados} del periodo, así que el costo de la luz está completo. | Non manca nessuna bolletta: risultano registrate tutte le {esperados} bollette attese nel periodo, quindi il costo della luce è completo. |
 | `reportes.nota.luz.faltan.uno` | Faltan {faltantes} de {esperados} recibos del periodo, así que el costo de la luz que ves está INCOMPLETO y el margen sale mejor de lo que va a quedar. Un mes sin recibo no es un mes sin consumo: es un dato que nadie ha capturado todavía. | Mancanti: {faltantes} su {esperados} bolletta del periodo, quindi il costo della luce che vedi è INCOMPLETO e il margine risulta migliore di quanto sarà. Un mese senza bolletta non è un mese senza consumo: è un dato che nessuno ha ancora registrato. |
@@ -1063,7 +1089,7 @@ existe la prueba de copias.
 | `inicio.enviadas.uno` | {n} enviada | {n} inviata |
 | `inicio.enviadas.otros` | {n} enviadas | {n} inviate |
 | `inicio.tasa` | Tasa de cierre | Tasso di chiusura |
-| `inicio.tasa-sub` | aprobadas de las decididas en {n} días | approvate tra quelle decise in {n} giorni |
+| `inicio.tasa-sub` | aprobadas de las decididas en {n} días | approvate tra quelle decise negli ultimi {n} giorni |
 | `inicio.ganado-en` | Ganado en {mes} | Vinto a {mes} |
 | `inicio.aprobadas-propuestas.uno` | {n} propuesta aprobada | {n} proposta approvata |
 | `inicio.aprobadas-propuestas.otros` | {n} propuestas aprobadas | {n} proposte approvate |
@@ -1111,7 +1137,7 @@ existe la prueba de copias.
 | `inicio.tipo-alerta.pago` | Rentas vencidas | Affitti scaduti |
 | `inicio.tipo-alerta.contrato` | Contratos por vencer | Contratti in scadenza |
 | `inicio.tipo-alerta.cobranza` | Facturas (cobranza) | Fatture (incassi) |
-| `inicio.tipo-alerta.incidencia` | Sitios bloqueados por incidencia | Siti bloccati per incidente |
+| `inicio.tipo-alerta.incidencia` | Sitios bloqueados por incidencia | Siti bloccati per anomalia |
 | `inicio.tipo-alerta.ot` | Órdenes de trabajo (SLA) | Ordini di lavoro (SLA) |
 | `inicio.tipo-alerta.licencia` | Licencias y permisos | Licenze e permessi |
 | `inicio.huecos` | Huecos y renovaciones | Spazi liberi e rinnovi |
@@ -1121,7 +1147,7 @@ existe la prueba de copias.
 | `inicio.slots-libres.otros` | {n} slots libres | {n} slot liberi |
 | `inicio.slots-libres` | slots libres | slot liberi |
 | `inicio.cara-libre` | cara libre | faccia libera |
-| `inicio.sale` | Sale {cliente} · {campana} · termina {fecha} | Esce {cliente} · {campana} · termina il {fecha} |
+| `inicio.sale` | Sale {cliente} · {campana} · termina {fecha} | Esce {cliente} · {campana} · termina in data {fecha} |
 | `inicio.sin-cliente` | sin cliente | senza cliente |
 | `inicio.en-propuesta-lista` | En propuesta: {lista} | In proposta: {lista} |
 | `inicio.hoy` | hoy | oggi |
@@ -1147,7 +1173,7 @@ existe la prueba de copias.
 | `inicio.alerta.sitio` | Sitio | Sito |
 | `inicio.alerta.renta-vencida` | Renta vencida | Affitto scaduto |
 | `inicio.alerta.renta-vencida.una` | {sitio} — pago {periodo} sin liquidar ({monto}) | {sitio} — pagamento {periodo} non saldato ({monto}) |
-| `inicio.alerta.renta-vencida.varias` | {sitio} — {n} cuotas sin liquidar desde {periodo} ({monto}) | {sitio} — {n} rate non saldate dal {periodo} ({monto}) |
+| `inicio.alerta.renta-vencida.varias` | {sitio} — {n} cuotas sin liquidar desde {periodo} ({monto}) | {sitio} — {n} rate non saldate a partire da {periodo} ({monto}) |
 | `inicio.alerta.renta-por-vencer` | Renta por vencer | Affitto in scadenza |
 | `inicio.alerta.renta-hoy` | {sitio} — vence hoy ({monto}) | {sitio} — scade oggi ({monto}) |
 | `inicio.alerta.renta-en.uno` | {sitio} — vence en {n} día ({monto}) | {sitio} — scade tra {n} giorno ({monto}) |
@@ -1173,13 +1199,13 @@ existe la prueba de copias.
 | `inicio.licencia.otro` | Permiso | Permesso |
 | `inicio.alerta.campana` | campaña | campagna |
 | `inicio.alerta.cobertura` | El contrato no cubre la campaña | Il contratto non copre la campagna |
-| `inicio.alerta.cobertura.vence` | {sitio} — «{campana}» va hasta {hasta} y el contrato vence el {fin} | {sitio} — «{campana}» dura fino al {hasta} e il contratto scade il {fin} |
-| `inicio.alerta.cobertura.sin-fin` | {sitio} — «{campana}» va hasta {hasta} y el contrato no tiene fecha de fin | {sitio} — «{campana}» dura fino al {hasta} e il contratto non ha una data di fine |
+| `inicio.alerta.cobertura.vence` | {sitio} — «{campana}» va hasta {hasta} y el contrato vence el {fin} | {sitio} — «{campana}» dura fino al giorno {hasta} e il contratto scade in data {fin} |
+| `inicio.alerta.cobertura.sin-fin` | {sitio} — «{campana}» va hasta {hasta} y el contrato no tiene fecha de fin | {sitio} — «{campana}» dura fino al giorno {hasta} e il contratto non ha una data di fine |
 | `inicio.alerta.factura-vencida` | Factura vencida | Fattura scaduta |
 | `inicio.alerta.factura-por-vencer` | Factura por vencer | Fattura in scadenza |
 | `inicio.alerta.factura` | Factura | Fattura |
 | `inicio.alerta.pausa-legal` | Pantalla en pausa legal | Impianto in sospensione legale |
-| `inicio.alerta.incidencia` | Sitio bloqueado por incidencia | Sito bloccato per incidente |
+| `inicio.alerta.incidencia` | Sitio bloqueado por incidencia | Sito bloccato per anomalia |
 | `inicio.incidencia.clima` | clima | meteo |
 | `inicio.incidencia.mantenimiento` | mantenimiento | manutenzione |
 | `inicio.incidencia.legal` | legal | questione legale |
