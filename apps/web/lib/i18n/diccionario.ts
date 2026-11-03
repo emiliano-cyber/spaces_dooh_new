@@ -170,6 +170,10 @@ const ES = {
     'La recuperación de contraseña está deshabilitada temporalmente. Contacta al administrador.',
   'login.error.demasiados': 'Demasiados intentos. Espera {s}s e intenta de nuevo.',
   'login.error.demasiados-corto': 'Demasiados intentos. Espera {s}s.',
+  // Ola 6 · los dos 400 de las rutas de acceso que la interfaz no provoca
+  // (`login` y `codigo`; `reset`). Las rutas no se tocan: zona roja.
+  'login.error.cuerpo-invalido': 'Cuerpo inválido',
+  'login.error.falta-enlace': 'Falta el enlace de restablecimiento.',
 
   // ── Validacion compartida con el servidor ──
   // Estos DUPLICAN a proposito el texto de `lib/validacion.ts` y
@@ -363,6 +367,8 @@ const EN: Record<ClaveTexto, string> = {
   'login.error.recuperacion-apagada': 'Password recovery is temporarily disabled. Contact your administrator.',
   'login.error.demasiados': 'Too many attempts. Wait {s}s and try again.',
   'login.error.demasiados-corto': 'Too many attempts. Wait {s}s.',
+  'login.error.cuerpo-invalido': 'Invalid request',
+  'login.error.falta-enlace': 'The reset link is missing.',
 
   'validacion.email': 'Invalid email. Use the format example@email.com',
   'password.regla': 'at least 8, with a letter and a number',
