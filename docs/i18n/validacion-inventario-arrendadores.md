@@ -189,3 +189,124 @@ Ninguna bloquea la integración. Son elecciones del traductor que conviene confi
 6. **La casilla de consentimiento de la firma pública, traducida.** Quien firma en inglés lee el contrato en español y acepta en inglés que «my electronic signature will have the same effects as a handwritten signature». El texto de la casilla no se guarda ni entra en el hash (lo comprobé en `firmas-repo` y en la ruta de firma), así que no hay riesgo técnico. Pero es una declaración de voluntad. ¿Se deja en inglés, se pone en los dos idiomas o se deja en español como el documento?
 7. **«RFC (tax ID)» y «Tax ID (RUC)».** La glosa entre paréntesis sigue a `campanas`. Falta fijar el orden para RUC.
 8. **«Static» para pantalla *fija*** y **«Medium»** para el filtro *Medio*. Son razonables; conviene fijarlos en el glosario para los lotes que siguen.
+
+---
+
+## Segunda pasada (2026-11-02)
+
+- **Diff revisado:** `git diff e008a105..HEAD`, que añade `c17f99ee` (código) y `db405279` (bóveda y tablas de revisión). El commit `85e29fce` es este mismo informe.
+- **Decisión del dueño que manda sobre mi recomendación de §1:** la constancia se pinta en el idioma configurado.
+- **Decisiones del orquestador:** lessee, Placement, Rent reconciliation, permit, Legal name / Legal entities, RUC (tax ID), Static / Medium y Valid. Comprobé que las ocho se aplicaron.
+
+### Veredicto: **VERDE**
+
+- Los tres hallazgos de severidad media están resueltos y verificados con mutantes.
+- Lo crítico de las firmas está intacto.
+- El español es idéntico en los 81 estados.
+- Sobreviven tres mutantes. Todos son huecos de prueba sobre código que, leído, es correcto. Quedan abajo como recomendaciones de severidad baja, no bloqueantes.
+
+### Lo crítico: la constancia en el idioma configurado
+
+| Comprobación | Resultado | Evidencia |
+|---|---|---|
+| La constancia no entra en ningún hash ni se guarda como texto | **Sí** | `ConstanciaFirmas` solo se usa en `app/(app)/contrato/[id]/page.tsx:176`. `firmas-repo.ts` sella con `hashDocumento(documentoATexto(generarContrato(…)))` (líneas 42 y 242) y no menciona la constancia. Lo fija `arrendadores.test.ts` («el hash de las firmas es el del documento, no el de la constancia») |
+| `lib/contrato-documento.ts` intacto | **Sí, misma sha256** | `git show ec427a66:…` y `git show HEAD:…` dan los dos `662e1799…cbcc4` con `sha256sum`. La nueva prueba de huella normaliza CRLF → LF antes de hashear, así que no falla en un checkout de Windows (el archivo está en CRLF en este disco y pasa) |
+| Pruebas de firmas sin tocar | **Sí** | `contrato-documento.test` y `firmas-repo.*` no aparecen en el diff y pasan |
+| Ningún camino hace que el documento firmado cambie con el idioma | **Confirmado** | La constancia recibe `idioma` como prop desde la página y no toca `documento`. El texto congelado (`<pre>`) y el POST de firma siguen igual que en la primera pasada |
+| La constancia sigue el idioma | **Sí** | En el estado 71 en inglés: «Electronic signature certificate», «THE LESSEE», «— SIGNATURE INVALIDATED», «Date and time: October 20, 2026 at 9:00:00 AM». El documento de encima sigue en español («CLÁUSULAS», el aviso de borrador) |
+
+### Los hallazgos de la tabla de §2, uno por uno
+
+| Hallazgo | Estado | Comprobación |
+|---|---|---|
+| `lote.frase()` en español en el cuadro inglés | **Resuelto** | `fraseDeLote()` en `InventarioTabla.tsx` arma la frase con `inventario.lote.frase` y la unidad correcta según `total === 1`. Es la misma regla que `crearLote().frase()` (`cambios-lote.ts:94-95`, con `lote.total()`, que ya existía). La prueba de paridad fija que en español sale exactamente `lote.frase()` en cuatro casos. Para el toast, `alFallar` traduce solo cuando `m === lote.frase()`; los demás errores (el candado, el servidor) pasan tal cual. Correcto |
+| `valorParaMostrar` sin idioma | **Resuelto** | `valorParaMostrar(campo, valor, idioma = 'es')` llama a `formatMonto(…, idioma)`. Los llamadores que no lo pasan, como el servidor, quedan igual. El historial en inglés pinta `MX$ 10,000.00` |
+| Etiqueta del historial en español | **Resuelto** | `CLAVE_CAMPO_CONTRATO`, con paridad contra `CAMPOS`: los once campos, con el español idéntico. En inglés pinta «Rent:» y «Security deposit». Un campo desconocido sale tal cual |
+| «In Administración:» | **Resuelto** | `CLAVE_FALTANTE_DOC` y `CLAVE_DONDE_DOC` cubren las 12 llamadas a `exigir()` de `contrato-documento.ts:279-290` y los cuatro «dónde». La prueba exige que cada cadena exista literalmente en el redactor. En español la barra pinta siempre la cadena original. Lo desconocido cae al texto original (el fixture «In Otra sección:»), que es la caída esperada |
+| «No screen/site/landlord matches» | **Resuelto** | Ahora «No screens match…», «No sites match “{q}”…» y «No landlords match the filter.» |
+| `code(s)` | **Resuelto** | `.uno` es «{n} code already exists» y `.otros` es «{n} codes already exist». El español no cambia |
+| its/their, «Total slots», «Export active (Excel)», « — recommended», «billed to this name», el «again» repetido, «Valid», «RUC (tax ID)» y la cita del comentario | **Resueltos** | Leídos en el diff y en el HTML inglés |
+| Mutante 5: hueco de la guardia | **Resuelto** | Lo cubre `lib/i18n/guardias-ingles.ts`; detalle abajo |
+
+**Términos de las decisiones**, comprobados en el HTML inglés:
+
+- «Landlord / placement» y «{n} placement(s)» en el cuadre.
+- «THE LESSEE» en la constancia, coherente con «Your company (lessee)».
+- «Valid» en licencias, con su entrada `Vigente` en `DISTINTOS_A_PROPOSITO` frente a «Active» de contratos y códigos.
+
+### El español intacto
+
+- **Volcado propio de los 81 estados, otra vez.**
+  1. `I18N_VOLCAR` con HEAD.
+  2. `git --literal-pathspecs checkout ec427a66 --` de los 24 archivos modificados. Ahora incluye `ConstanciaFirmas.tsx` y `lib/contrato-cambios.ts`.
+  3. Segundo volcado y restauración con `checkout HEAD`.
+  4. `diff -rq` de los dos volcados: **vacío, 81 de 81 idénticos**.
+
+  La constancia en español sale byte a byte igual que antes.
+- **`valorParaMostrar`:** con `idioma = 'es'` por omisión hace lo mismo que antes. `formatMonto(n, 'es')` es el mismo formato que `formatMonto(n)`.
+
+### `lib/i18n/guardias-ingles.ts`
+
+**Lo que detecta**, comprobado con mutantes:
+
+- el dinero sin `MX$` que sale de `formatMonto` y `formatMontoCorto`. El separador es un espacio normal, no NBSP (`derive.ts:1441`), y la regex lo cubre con y sin espacio;
+- las fechas `dd/mm/aaaa` de `formatFecha` y `formatFechaHora` en español.
+
+**Falsos positivos:** no encontré ninguno. Hoy pasa limpio con el HTML inglés de los 81 estados. Los `value=` de los campos se excluyen, y la rama USD apaga la guardia del dinero, como corresponde.
+
+**Falsos negativos** (los tres de severidad baja):
+
+1. **Fechas largas en español** («20 de octubre de 2026, 9:00»): no las ve. El **mutante E** (quitar `idioma` en `fecha(estado.congeladoEn, idioma)` de `PanelFirmas`) **sobrevive**: el panel pintaría «Document frozen on…» en inglés con la fecha en español, y ninguna prueba se entera. Propuesta: añadir `/\b\d{1,2} de [a-záéíóú]+ de \d{4}\b/` (y quizá un patrón para las fechas cortas de `es-MX`).
+2. **Atributos:** quita las etiquetas con sus atributos, así que no mira `title`, `aria-label` ni `placeholder`. Si una fecha o un importe se pintan en un `title`, no se ven.
+3. **Lo permitido:** `permitidos` se compara contra 30 caracteres de contexto a cada lado. Una huella real pegada a un «$10,000.00 MXN» declarado quedaría perdonada. Es poco probable; sería más estricto comparar contra el trozo encontrado más el sufijo inmediato.
+
+### `fraseDeLote` frente a `crearLote().frase()`
+
+- **Leída, es correcta:**
+  - `ya` sale de `aplicadas()`, `faltan` de `pendientes()` y `total` de `total()`;
+  - la unidad va en singular solo si `total === 1`, igual que `cambios-lote.ts:94`;
+  - `unidadLoteRef` se fija a `'pantalla'` o `'contrato'` justo antes de cada `candado.ejecutar`.
+- **Pero la prueba de paridad vuelve a escribir la fórmula en vez de llamar a la del componente.** `fraseDeLote` no se exporta, y ningún estado rinde el cuadro de un lote a medias. Sobreviven dos mutantes:
+  - **D1:** intercambiar `ya` y `faltan` dentro de `fraseDeLote`;
+  - **D2:** fijar `'pantalla'` en el subtítulo en vez de `unidadLoteRef.current`.
+
+  Severidad baja: el código es correcto hoy, pero nada lo fija. Propuesta: exportar `fraseDeLote` (o moverla a `inventario/etiquetas.ts`) y que la prueba de paridad la llame. O añadir un estado de pantallas con el cuadro abierto y un lote a medias.
+
+### Textos nuevos, en contexto
+
+Las 17 claves de la constancia, las 11 de campos del historial, las 16 de faltantes y «dónde» y las 5 del lote se leen bien. Una sola nota baja: en `arrendadores.constancia.nota`, «are kept as indications» suena forzado; propongo «are kept as circumstantial evidence».
+
+### Pruebas
+
+```
+cd apps/web && npm run typecheck          → tsc --noEmit, código 0
+cd apps/web && npm test                   → 1.ª corrida, máquina cargada: 9 fallos, todos por
+                                            «Test timed out in 5000ms» en pantallas de campañas,
+                                            comercial y de este lote
+cd apps/web && npx vitest run --testTimeout=60000
+                                          → Test Files 338 passed (338) · Tests 4824 passed (4824)
+```
+
+**Mutantes de esta pasada.** Todos se aplicaron, se corrieron (con `--testTimeout=60000`) y se restauraron con `git checkout --`.
+
+| # | Mutante | Resultado |
+|---|---|---|
+| A1 | La página no pasa `idioma` a la constancia | **Muere**: estado del documento en inglés, los dos barridos y la guardia de fuente |
+| A2 | La constancia ignora la prop (`traducir('es', …)`) | **Muere**, las mismas 4 pruebas |
+| B1 | `contrato-documento.ts`: «CLÁUSULAS» → «CLAUSULAS» | **Muere**: 3 de `contrato-documento.test` (texto sellado y `hashParaCotejar`) y la huella sha256 |
+| B2 | `contrato-documento.ts`: un espacio al final de la línea 1 | **Muere** en la huella sha256 |
+| C1 | `PagosRentaCard`: `formatMonto(p.monto)` sin idioma | **Muere** en la guardia («dinero sin MX$ «$ 10,000.00»») |
+| C2 | `PagosRentaCard`: `formatFecha(p.fechaPago)` sin idioma | **Muere** en la guardia («fecha dd/mm/aaaa «02/10/2026»») |
+| C3 | `CambiosContrato`: `valorParaMostrar` sin idioma | **Muere** en la guardia («$ 12,000.00») |
+| D1 | `fraseDeLote`: `ya` ↔ `faltan` | **Sobrevive** (baja, ver arriba) |
+| D2 | Subtítulo con la unidad fija en `'pantalla'` | **Sobrevive** (baja) |
+| E | `PanelFirmas`: fecha larga sin idioma | **Sobrevive**: falso negativo de la guardia (baja) |
+
+El árbol quedó limpio después de cada mutante (`git status` vacío). La única modificación es esta sección del informe, sin commitear.
+
+### Recomendaciones (no bloquean)
+
+1. Añadir a `guardias-ingles.ts` el patrón de fecha larga en español, que mata al mutante E.
+2. Exportar `fraseDeLote` y que la prueba de paridad la llame, o rendir el cuadro de un lote a medias. Mata a D1 y D2.
+3. Que `permitidos` se compare contra el trozo encontrado y no contra los 60 caracteres de contexto.
+4. Cambiar «kept as indications» por «kept as circumstantial evidence» en la constancia.
