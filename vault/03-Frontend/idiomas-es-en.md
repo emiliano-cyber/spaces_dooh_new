@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-11-02
+actualizado: 2026-11-03
 tags: [frontend, i18n, idiomas, ingles, dinero]
 archivos:
   - apps/web/lib/i18n/idiomas.ts
@@ -20,6 +20,7 @@ archivos:
   - scripts/i18n-inventario.mjs
   - apps/web/lib/i18n/guardias-ingles.ts
   - apps/web/lib/i18n/errores-servidor.ts
+  - apps/web/lib/i18n/errores-acceso.ts
   - apps/web/components/demo/inventario/ContratoWizard.tsx
   - apps/web/lib/i18n/textos/propuestas.ts
   - apps/web/lib/i18n/nodos.ts
@@ -2002,6 +2003,54 @@ contrato de arrendamiento → *lease contract*; propia → *owned*; bitácora �
 > hueco, porque el inglés no lleva cifra: mismo español. Español medido otra
 > vez: 16 estados idénticos y las seis notas iguales al motor de `00815aa3`. El
 > «por 350» y la línea de `inicio` siguen fuera, a propósito.
+
+### Ola 5 · cierre (recorrido en navegador)
+
+Rama `feat/ingles-ola5`. La tabla completa, con las pantallas recorridas, está en
+`docs/i18n/revision-ola5.md`.
+
+**Lo que apareció en el navegador** y ninguna prueba veía, porque los barridos solo
+buscan las frases de su propio diccionario:
+
+- El galón de `CardColapsable`. Su `aria-label` era «Minimizar {título}», un
+  literal en plantilla. Ahora usa `compartidos.plegar.minimizar/expandir`.
+- Los fallos de `/login` y `/recuperar/[token]`. Las rutas de acceso responden su
+  JSON sin `respuestaError()` y son zona roja, así que se traducen **en la
+  pantalla** con `lib/i18n/errores-acceso.ts` (`mensajeDeAcceso`, 10 claves
+  `login.error.*`). El resto pasa a `traducirError`.
+- El aria-label del panel móvil del menú lateral (`Sidebar.tsx`).
+- La periodicidad cruda de la renta en el alta de propuesta.
+- Las fechas `dd/mm` del pipeline de campaña. `usePipeline` pasa ahora `iso` y
+  `PipelineView` la formatea en inglés.
+- La exhibición `fijo`. Es el dato real; el mapa solo conocía `fija`.
+- El tipo de medio crudo en la liga pública `/p/[id]`.
+
+**Términos.** *legal entity* en toda la tarjeta de razones sociales de
+Arrendadores, también en `arrendadores.comun.sin-razon`. «it still needs:» en
+lugar de «this is missing:», que no concordaba con varios faltantes (servidor y
+captación a la vez). Los errores, sin contracción: «Cannot be earlier than the
+issue date».
+
+**Guardia de formato** (`guardias-ingles.ts`), siete huellas:
+
+- fechas `d/m/aa(aa)` sin relleno;
+- el `$` partido entre elementos;
+- `US$` en modo MXN, que ya no da falso positivo;
+- en modo USD, una huella nueva para el `US$`, que es el símbolo del español de
+  esa instancia.
+
+**El inventario no basta.** `i18n-inventario.mjs` siguió en 211 tras siete
+correcciones reales. No mira los archivos de `YA_HECHO` (login, Sidebar), ni los
+literales en plantillas, ni los datos crudos. Declarar el inglés terminado pide
+el recorrido, no solo el contador.
+
+**Siguen en español y van a decisión del dueño:**
+
+- las notificaciones de la campanita, que se guardan como dato;
+- los papeles de `catalogo_roles_entidad`;
+- la lista de comprobación por omisión de una OT nueva;
+- además de lo ya declarado: Actividad, las notas de versión, los catálogos del
+  SAT y el texto legal del contrato.
 
 ## Enlaces
 
