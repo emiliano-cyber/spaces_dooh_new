@@ -293,6 +293,8 @@ function divergenciasItaliano(lotes: LoteIt[], excepciones: Record<string, strin
 // italiano necesite aparte lo declara aqui su lote, con el porque.
 const DISTINTOS_A_PROPOSITO_IT: Record<string, string> = {
   ...DISTINTOS_A_PROPOSITO,
+  // Lote L2 (2026-11-03):
+  Lista: 'la vista en lista del alta de propuestas, la alternativa al mapa («Elenco»), frente a la columna del precio de lista en el reparto de un paquete («Listino»); en ingles las dos son «List»',
 }
 
 function lotesItaliano(): LoteIt[] {
