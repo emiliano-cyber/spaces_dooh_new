@@ -5,7 +5,7 @@ import { AlertTriangle, CalendarSearch, CheckCircle2, Info, ServerCrash, Zap } f
 import { cn } from '@/lib/cn'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/demo/ui/Card'
 import { IndicadoresEnergia } from '@/components/demo/energia/IndicadoresEnergia'
-import { conteo } from '@/lib/plural'
+import { formatNumero } from '@/lib/formato-numero'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { EmptyState } from '@/components/demo/EmptyState'
 import { FormularioRecibo } from '@/components/demo/energia/FormularioRecibo'
@@ -23,6 +23,7 @@ import {
   type ReciboEnFormulario,
   type TableroUI,
 } from '@/components/demo/energia/captura'
+import { useIdioma } from '@/lib/i18n/contexto'
 
 // ============================================================================
 //  /energia — Captura mensual del recibo de luz, por predio.
@@ -54,6 +55,7 @@ import {
 // ============================================================================
 
 export default function EnergiaPage() {
+  const { t, idioma } = useIdioma()
   const [rango, setRango] = useState<RangoCaptura>(() => RANGO_DE_APERTURA(new Date()))
   const [cargando, setCargando] = useState(false)
   const [tablero, setTablero] = useState<TableroUI | null>(null)
@@ -67,7 +69,7 @@ export default function EnergiaPage() {
   // la lógica del efecto en dos sitios.
   const [version, setVersion] = useState(0)
 
-  const motivo = motivoInvalido(rango)
+  const motivo = motivoInvalido(rango, idioma)
 
   useEffect(() => {
     if (motivo) return
@@ -86,7 +88,7 @@ export default function EnergiaPage() {
         if (control.signal.aborted) return
         if (!r.ok) {
           setTablero(null)
-          setErrorCarga(cuerpo?.error ?? 'No se pudo cargar la captura de consumos')
+          setErrorCarga(cuerpo?.error ?? t('energia.error.cargar'))
           return
         }
         setTablero(cuerpo)
@@ -94,13 +96,15 @@ export default function EnergiaPage() {
       } catch {
         if (control.signal.aborted) return
         setTablero(null)
-        setErrorCarga('No se pudo contactar al servidor. Revisa la conexión y vuelve a intentar.')
+        setErrorCarga(t('energia.error.contactar'))
       } finally {
         // En el `finally`: es lo que impide el spinner infinito pase lo que pase.
         if (!control.signal.aborted) setCargando(false)
       }
     })()
     return () => control.abort()
+    // `t` solo pone el texto del fallo; no cambia mientras no cambia el idioma.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rango, motivo, version])
 
   const recargar = useCallback(() => setVersion((v) => v + 1), [])
@@ -127,11 +131,11 @@ export default function EnergiaPage() {
         const cuerpo = (await r.json().catch(() => null)) as { error?: string } | null
         // El 409 del índice único llega con su mensaje: capturar dos veces el
         // mismo recibo duplicaría el costo de la luz de ese mes sin dar error.
-        throw new Error(cuerpo?.error ?? 'No se pudo guardar el recibo')
+        throw new Error(cuerpo?.error ?? t('energia.error.guardar-recibo'))
       }
       recargar()
     },
-    [recargar],
+    [recargar, t],
   )
 
   const borrar = useCallback(
@@ -142,16 +146,16 @@ export default function EnergiaPage() {
         // A SU PROPIO estado. El 403 de aqui —Operaciones no tiene `aprobar`—
         // no tiene nada que ver con si el tablero cargo, y mandarlo al estado
         // de la carga vaciaba la rejilla entera. B33.
-        setErrorBorrado(cuerpo?.error ?? 'No se pudo borrar el recibo')
+        setErrorBorrado(cuerpo?.error ?? t('energia.error.borrar-recibo'))
         return
       }
       setErrorBorrado(null)
       recargar()
     },
-    [recargar],
+    [recargar, t],
   )
 
-  const resumen = useMemo(() => (tablero ? resumenDeCobertura(tablero) : null), [tablero])
+  const resumen = useMemo(() => (tablero ? resumenDeCobertura(tablero, idioma) : null), [tablero, idioma])
   const vista = vistaDeCaptura({ cargando, errorCarga, errorBorrado, motivo, tablero })
 
   return (
@@ -159,9 +163,9 @@ export default function EnergiaPage() {
       {/* Encabezado como el Dashboard: título y subtítulo, sin la caja ámbar
           con el icono (era el único módulo que la llevaba). */}
       <div>
-        <h1 className="text-2xl text-ink">Consumo de luz</h1>
+        <h1 className="text-2xl text-ink">{t('nav.energia')}</h1>
         <p className="mt-1 text-[13px] text-muted">
-          Un recibo por predio y por mes. Se reparte entre sus pantallas igual que la renta.
+          {t('energia.descripcion')}
         </p>
       </div>
 
@@ -171,10 +175,10 @@ export default function EnergiaPage() {
           del recibo: dentro de la tarjeta de captura se leía como un formulario
           de cinco campos más dos fechas. Mismo `setRango` y mismos `id`. */}
       <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
-        <span className="pb-2 text-[13px] font-medium text-ink">Periodo</span>
+        <span className="pb-2 text-[13px] font-medium text-ink">{t('compartidos.periodo.aria')}</span>
         <div>
           <label className="mb-1 block text-[11px] text-muted" htmlFor="desde">
-            Desde
+            {t('compartidos.periodo.desde')}
           </label>
           <input
             id="desde"
@@ -186,7 +190,7 @@ export default function EnergiaPage() {
         </div>
         <div>
           <label className="mb-1 block text-[11px] text-muted" htmlFor="hasta">
-            Hasta
+            {t('compartidos.periodo.hasta')}
           </label>
           <input
             id="hasta"
@@ -203,7 +207,7 @@ export default function EnergiaPage() {
           desmontaría un recibo a medio teclear). */}
       <Card>
         <CardHeader>
-          <CardTitle>Capturar un recibo</CardTitle>
+          <CardTitle>{t('energia.capturar')}</CardTitle>
         </CardHeader>
         <CardContent>
           {tablero && tablero.puntos.length > 0 ? (
@@ -216,8 +220,8 @@ export default function EnergiaPage() {
             // Con título, la tarjeta ya no puede quedar vacía sin decir por qué.
             <p className="m-0 text-[12px] text-muted">
               {cargando || (!tablero && !errorCarga)
-                ? 'Cargando los puntos de medición…'
-                : 'No hay dónde capturar todavía: el motivo está abajo.'}
+                ? t('energia.cargando-puntos')
+                : t('energia.sin-donde-abajo')}
             </p>
           )}
 
@@ -237,12 +241,15 @@ export default function EnergiaPage() {
           teclear. Esta es solo lectura (más el borrado por fila). */}
       <CardColapsable
         id="energia.cobertura"
-        titulo="Qué está capturado y qué falta"
+        titulo={t('energia.cobertura.titulo')}
         contentClassName="space-y-3"
         resumen={
           tablero ? (
             <span className="demo-num text-[12px] text-muted">
-              {conteo(tablero.meses.length, 'mes', 'meses')} · {conteo(tablero.puntos.length, 'punto', 'puntos')}
+              {t('energia.resumen', {
+                meses: t(tablero.meses.length === 1 ? 'energia.meses.uno' : 'energia.meses.otros', { n: formatNumero(tablero.meses.length) }),
+                puntos: t(tablero.puntos.length === 1 ? 'energia.puntos.uno' : 'energia.puntos.otros', { n: formatNumero(tablero.puntos.length) }),
+              })}
             </span>
           ) : null
         }
@@ -293,17 +300,17 @@ export default function EnergiaPage() {
           {vista === 'cargando' ? (
             <div className="h-48 w-full animate-pulse rounded-md bg-surface-2" />
           ) : vista === 'error-carga' ? (
-            <EmptyState icon={ServerCrash} titulo="No se pudo cargar la captura" detalle={errorCarga ?? ''} />
+            <EmptyState icon={ServerCrash} titulo={t('energia.vacio.error')} detalle={errorCarga ?? ''} />
           ) : vista === 'periodo-invalido' ? (
-            <EmptyState icon={CalendarSearch} titulo="Revisa el periodo" detalle={motivo ?? ''} />
+            <EmptyState icon={CalendarSearch} titulo={t('energia.vacio.periodo')} detalle={motivo ?? ''} />
           ) : vista === 'sin-puntos' ? (
             /* Vacío HONESTO: se dice POR QUÉ está vacío y qué hacer, en vez de
                un «no hay datos» que deja sin saber si el problema es el rango o
                el inventario. */
             <EmptyState
               icon={Zap}
-              titulo="Todavía no hay dónde capturar"
-              detalle="Un recibo de luz cuelga de un predio con pantallas, o de una pantalla sin predio. Da de alta el inventario y esta pantalla se llena sola."
+              titulo={t('energia.vacio.sin-puntos')}
+              detalle={t('energia.vacio.sin-puntos-detalle')}
             />
           ) : vista === 'rejilla' && tablero ? (
             <RejillaCaptura tablero={tablero} onBorrar={borrar} />

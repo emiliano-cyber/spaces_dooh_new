@@ -873,7 +873,7 @@ export const EN_ARRENDADORES: Record<ClaveArrendadores, string> = {
   'arrendadores.licencias.invertidas': 'The permit cannot expire before it is issued.',
   'arrendadores.licencia.municipal': 'Municipal license',
   'arrendadores.licencia.ambiental': 'Environmental permit',
-  'arrendadores.licencia.estructural': 'Structural report',
+  'arrendadores.licencia.estructural': 'Structural inspection report',
   'arrendadores.licencia.otro': 'Permit',
 
   'arrendadores.cuadre.titulo': 'Rent reconciliation by landlord',
@@ -887,7 +887,7 @@ export const EN_ARRENDADORES: Record<ClaveArrendadores, string> = {
   'arrendadores.cuadre.emplazamientos.uno': '{n} placement',
   'arrendadores.cuadre.emplazamientos.otros': '{n} placements',
   'arrendadores.cuadre.predio': 'Property',
-  'arrendadores.cuadre.suelta': 'Individual screen',
+  'arrendadores.cuadre.suelta': 'Standalone screen',
   'arrendadores.cuadre.contratos.uno': '{n} contract',
   'arrendadores.cuadre.contratos.otros': '{n} contracts',
   'arrendadores.cuadre.sin-arrendador': 'No landlord assigned',

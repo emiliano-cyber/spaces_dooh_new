@@ -6,7 +6,6 @@ import Link from 'next/link'
 import { Images, Upload, Check, X, Code2, Eye, Download, RefreshCw, Trash2, AlertTriangle, Search } from 'lucide-react'
 import { KPICard } from '@/components/demo/KPICard'
 import { StatusBadge, CREATIVIDAD_TONO } from '@/components/demo/StatusBadge'
-import { conteo } from '@/lib/plural'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
@@ -27,6 +26,10 @@ import { soloDigitales } from '@/lib/creativos-digitales'
 import type { Campana, Creatividad, Reserva, Sitio, EstValidacionCreatividad } from '@/lib/data/types'
 import { formatNumero } from '@/lib/formato-numero'
 import { rotacionEnSpot } from '@/lib/reparto-creativos'
+import { useIdioma } from '@/lib/i18n/contexto'
+import type { ClaveTexto } from '@/lib/i18n/diccionario'
+import { interpolarNodos } from '@/lib/i18n/nodos'
+import { CLAVE_TIPO_CAMPANA } from '@/components/demo/campanas/etiquetas'
 
 // Si un creativo HTML es una imagen envuelta (ver imagenAHtml), devuelve su data
 // URL para mostrarlo como imagen en previews/miniaturas; si no, null.
@@ -101,6 +104,7 @@ export default function CreativosPage() {
   // de un return condicional.
   const [q, setQ] = useState('')
   const [filtro, setFiltro] = useState('')
+  const t = useIdioma().t
 
   if (!campanas || !creatividades || !reservas || !sitios) {
     return (
@@ -174,31 +178,31 @@ export default function CreativosPage() {
   return (
     <div className="w-full space-y-4">
       <div>
-        <h1 className="text-2xl text-ink">Creativos</h1>
+        <h1 className="text-2xl text-ink">{t('nav.creativos')}</h1>
         <p className="mt-1 text-[13px] text-muted">
-          Sube y aprueba las imágenes de cada campaña, y asigna cuál va en cada slot reservado.
+          {t('operaciones2.creativos.descripcion')}
         </p>
       </div>
 
       {gestionables.length > 0 && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <KPICard
-            label="Por aprobar"
+            label={t('operaciones2.creativos.kpi.por-aprobar')}
             value={formatNumero(porAprobar)}
-            sub="frenan la publicación"
+            sub={t('operaciones2.creativos.kpi.frenan')}
             tono={porAprobar > 0 ? 'ambar' : 'neutro'}
           />
-          <KPICard label="Aprobados" value={formatNumero(aprobadosRed)} sub="listos para asignar" />
+          <KPICard label={t('operaciones2.creativos.kpi.aprobados')} value={formatNumero(aprobadosRed)} sub={t('operaciones2.creativos.kpi.listos')} />
           <KPICard
-            label="Rechazados"
+            label={t('operaciones2.creativos.kpi.rechazados')}
             value={formatNumero(rechazados)}
-            sub="hay que reemplazarlos"
+            sub={t('operaciones2.creativos.kpi.reemplazar')}
             tono={rechazados > 0 ? 'rojo' : 'neutro'}
           />
           <KPICard
-            label="Spots sin creativo"
+            label={t('operaciones2.creativos.kpi.sin-creativo')}
             value={formatNumero(spotsSin)}
-            sub={`de ${conteo(spotsRed.length, 'spot reservado', 'spots reservados')}`}
+            sub={t(spotsRed.length === 1 ? 'operaciones2.creativos.kpi.de-spots.uno' : 'operaciones2.creativos.kpi.de-spots.otros', { n: formatNumero(spotsRed.length) })}
             tono={spotsSin > 0 ? 'ambar' : 'neutro'}
           />
         </div>
@@ -215,7 +219,7 @@ export default function CreativosPage() {
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Buscar por campaña, folio, cliente o nombre del creativo…"
+              placeholder={t('operaciones2.creativos.buscar')}
               className="h-9 w-full rounded border border-border-strong bg-surface pl-9 pr-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
             />
           </div>
@@ -224,14 +228,14 @@ export default function CreativosPage() {
             onChange={(e) => setFiltro(e.target.value)}
             className="h-9 rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
-            <option value="">Todos los creativos</option>
-            <option value="PENDIENTE">Con pendientes de aprobar</option>
-            <option value="VALIDADA">Con aprobados</option>
-            <option value="RECHAZADA">Con rechazados</option>
-            <option value="SIN">Sin creativos todavía</option>
+            <option value="">{t('operaciones2.creativos.filtro.todos')}</option>
+            <option value="PENDIENTE">{t('operaciones2.creativos.filtro.pendientes')}</option>
+            <option value="VALIDADA">{t('operaciones2.creativos.filtro.aprobados')}</option>
+            <option value="RECHAZADA">{t('operaciones2.creativos.filtro.rechazados')}</option>
+            <option value="SIN">{t('operaciones2.creativos.filtro.sin')}</option>
           </select>
           <span className="demo-num ml-auto text-[12px] text-muted">
-            {visibles.length} de {gestionables.length}
+            {t('operaciones2.comun.de', { a: visibles.length, b: gestionables.length })}
           </span>
         </div>
       )}
@@ -244,19 +248,24 @@ export default function CreativosPage() {
         campanas.length > 0 && campanasDigitales.length === 0 ? (
           <EmptyState
             icon={Images}
-            titulo="Ninguna campaña tiene pantallas digitales"
-            detalle={`Aquí solo se gestionan los creativos de pantallas digitales. Tus ${conteo(campanas.length, 'campaña', 'campañas')} son de medios fijos: su arte se lleva en Imprenta.`}
+            titulo={t('operaciones2.creativos.vacio.sin-digitales')}
+            detalle={t(
+              campanas.length === 1
+                ? 'operaciones2.creativos.vacio.sin-digitales-detalle.uno'
+                : 'operaciones2.creativos.vacio.sin-digitales-detalle.otros',
+              { n: formatNumero(campanas.length) },
+            )}
             accion={
               <Link href="/imprenta">
-                <Button variant="secondary">Ir a Imprenta</Button>
+                <Button variant="secondary">{t('operaciones2.creativos.vacio.ir-imprenta')}</Button>
               </Link>
             }
           />
         ) : (
           <EmptyState
             icon={Images}
-            titulo="Sin campañas con slots o creativos"
-            detalle="Reserva sitios en Comercial o sube un creativo para gestionarlos aquí."
+            titulo={t('operaciones2.creativos.vacio.sin-campanas')}
+            detalle={t('operaciones2.creativos.vacio.sin-campanas-detalle')}
           />
         )
       ) : visibles.length === 0 ? (
@@ -264,8 +273,8 @@ export default function CreativosPage() {
         // pasa el filtro. Decirlo evita que parezca que se perdieron los datos.
         <EmptyState
           icon={Search}
-          titulo="Ninguna campaña coincide"
-          detalle="Prueba con otro texto de búsqueda o quita el filtro de estado."
+          titulo={t('operaciones2.creativos.vacio.ninguna')}
+          detalle={t('operaciones2.creativos.vacio.ninguna-detalle')}
           accion={
             <Button
               variant="secondary"
@@ -274,7 +283,7 @@ export default function CreativosPage() {
                 setFiltro('')
               }}
             >
-              Limpiar filtros
+              {t('operaciones2.creativos.limpiar')}
             </Button>
           }
         />
@@ -307,6 +316,13 @@ function CampanaCard({
   sitios: Sitio[]
   puede: boolean
 }) {
+  const { t, idioma } = useIdioma()
+  // El tipo de campaña (OOH/DOOH/HIBRIDA) es un enum: en español, el dato tal
+  // cual, como siempre; en inglés, la clave de Campañas («Hybrid»).
+  const tipoCampana =
+    idioma !== 'es' && campana.tipoCampana && CLAVE_TIPO_CAMPANA[campana.tipoCampana]
+      ? t(CLAVE_TIPO_CAMPANA[campana.tipoCampana])
+      : campana.tipoCampana
   const fileRef = useRef<HTMLInputElement | null>(null)
   const reemplazarRef = useRef<HTMLInputElement | null>(null)
   const [subiendo, setSubiendo] = useState(false)
@@ -362,7 +378,7 @@ function CampanaCard({
     e.target.value = ''
     if (!f) return
     if (f.size > IMAGEN_CREATIVO_MAX_MB * 1024 * 1024) {
-      toast.error(`La imagen supera ${IMAGEN_CREATIVO_MAX_MB} MB`)
+      toast.error(t('operaciones2.creativos.imagen-supera', { mb: IMAGEN_CREATIVO_MAX_MB }))
       return
     }
     setSubiendo(true)
@@ -378,7 +394,7 @@ function CampanaCard({
           formato: 'text/html',
         })
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'No se pudo subir')
+        toast.error(err instanceof Error ? err.message : t('operaciones2.creativos.no-subir'))
       }
       setSubiendo(false)
     }
@@ -400,19 +416,19 @@ function CampanaCard({
       setCodeOpen(false)
       ob.reiniciar()
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'No se pudo guardar')
+      toast.error(err instanceof Error ? err.message : t('operaciones2.creativos.no-guardar'))
     }
     setSubiendo(false)
   }
 
   async function validar(id: string, aprobar: boolean) {
     let motivo: string | undefined
-    if (!aprobar) motivo = window.prompt('Motivo de rechazo (opcional):') ?? undefined
+    if (!aprobar) motivo = window.prompt(t('operaciones2.creativos.motivo-rechazo')) ?? undefined
     setBusy(id)
     try {
       await validarCreatividadApi(id, aprobar, motivo)
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'No se pudo validar')
+      toast.error(e instanceof Error ? e.message : t('operaciones2.creativos.no-validar'))
     }
     setBusy(null)
   }
@@ -427,12 +443,12 @@ function CampanaCard({
       const res = await eliminarCreatividadApi(cr.id)
       toast.success(
         res?.pendienteEnDoohmain
-          ? `“${cr.nombre}” se retiró. Su arte sigue en DOOHmain — quítalo en su panel`
-          : `“${cr.nombre}” se eliminó`,
+          ? t('operaciones2.creativos.retirado-doohmain', { nombre: cr.nombre })
+          : t('operaciones2.creativos.eliminado', { nombre: cr.nombre }),
       )
       setConfirmarEliminar(null)
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'No se pudo eliminar')
+      toast.error(e instanceof Error ? e.message : t('operaciones2.creativos.no-eliminar'))
     }
     setBusy(null)
   }
@@ -465,7 +481,7 @@ function CampanaCard({
     const id = reemplazarId
     if (!f || !id) return
     if (f.size > IMAGEN_CREATIVO_MAX_MB * 1024 * 1024) {
-      toast.error(`La imagen supera ${IMAGEN_CREATIVO_MAX_MB} MB`)
+      toast.error(t('operaciones2.creativos.imagen-supera', { mb: IMAGEN_CREATIVO_MAX_MB }))
       return
     }
     setBusy(id)
@@ -484,12 +500,12 @@ function CampanaCard({
         // para que no parezca que se subió de más.
         toast.success(
           res?.doohmain?.estado === 'retirado'
-            ? 'Arte reemplazado. En DOOHmain el anterior ya no se reproduce, pero sigue en la lista: elimina la campaña anterior en su panel (la que aparece como finalizada). Aprueba el nuevo para publicarlo.'
-            : 'Arte reemplazado. Apruébalo de nuevo para publicarlo.',
+            ? t('operaciones2.creativos.reemplazado-doohmain')
+            : t('operaciones2.creativos.reemplazado'),
           { duration: 10000 },
         )
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'No se pudo reemplazar')
+        toast.error(err instanceof Error ? err.message : t('operaciones2.creativos.no-reemplazar'))
       }
       setBusy(null)
       setReemplazarId(null)
@@ -503,7 +519,7 @@ function CampanaCard({
     try {
       await asignarCreativosApi(reserva.id, creativos)
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'No se pudo asignar')
+      toast.error(e instanceof Error ? e.message : t('operaciones2.creativos.no-asignar'))
     }
     setBusy(null)
   }
@@ -541,15 +557,15 @@ function CampanaCard({
         // Conteos de la campaña en chips (lenguaje del Dashboard), para ver lo
         // pendiente sin desplegar. `CardColapsable` no cambia: solo el nodo.
         <span className="inline-flex flex-wrap items-center gap-1.5">
-          <span className="demo-num">{[campana.folio, campana.tipoCampana].filter(Boolean).join(' · ')}</span>
+          <span className="demo-num">{[campana.folio, tipoCampana].filter(Boolean).join(' · ')}</span>
           {pendientesAqui > 0 && (
             <span className="rounded-full border border-transparent bg-warning-soft px-2 py-0.5 text-[11px] font-medium text-[#9a6700]">
-              {pendientesAqui} por aprobar
+              {t('operaciones2.creativos.chip.por-aprobar', { n: pendientesAqui })}
             </span>
           )}
           {reservas.length > 0 && (
             <span className="demo-num rounded-full border border-border px-2 py-0.5 text-[11px] text-muted">
-              {reservas.length - spotsSinAqui}/{reservas.length} spots con creativo
+              {t('operaciones2.creativos.chip.spots-con', { con: reservas.length - spotsSinAqui, total: reservas.length })}
             </span>
           )}
         </span>
@@ -561,10 +577,10 @@ function CampanaCard({
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile} />
             <input ref={reemplazarRef} type="file" accept="image/*" className="hidden" onChange={onReemplazoFile} />
             <Button variant="success" size="sm" disabled={subiendo} onClick={() => fileRef.current?.click()}>
-              <Upload className="h-3.5 w-3.5" /> Imagen
+              <Upload className="h-3.5 w-3.5" /> {t('operaciones2.creativos.imagen')}
             </Button>
             <Button size="sm" variant="secondary" disabled={subiendo} onClick={() => setCodeOpen((v) => !v)}>
-              <Code2 className="h-3.5 w-3.5" /> Código
+              <Code2 className="h-3.5 w-3.5" /> {t('operaciones2.creativos.codigo')}
             </Button>
           </div>
         ) : undefined
@@ -574,18 +590,18 @@ function CampanaCard({
       {/* Alta por código (HTML/UTF) */}
       {puede && codeOpen && (
         <div className="space-y-2 rounded-md border border-border bg-surface-2 p-2.5">
-          <Campo label="Nombre del creativo">
+          <Campo label={t('operaciones2.creativos.nombre')}>
             <input
               value={codeNombre}
               onChange={(e) => setCodeNombre(e.target.value)}
               className="h-8 w-full rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
             />
           </Campo>
-          <Campo label="Código" obligatorio falta={ob.falta('codigo')}>
+          <Campo label={t('operaciones2.creativos.codigo')} obligatorio falta={ob.falta('codigo')}>
             <textarea
               value={codigo}
               onChange={(e) => setCodigo(e.target.value)}
-              placeholder="Pega aquí el código del creativo (HTML/UTF)…"
+              placeholder={t('operaciones2.creativos.codigo-ej')}
               rows={5}
               className="w-full rounded border border-border-strong bg-surface px-2 py-1.5 font-mono text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
             />
@@ -599,10 +615,10 @@ function CampanaCard({
                 ob.reiniciar()
               }}
             >
-              Cancelar
+              {t('comun.cancelar')}
             </Button>
             <Button size="sm" disabled={subiendo} onClick={guardarCodigo}>
-              {subiendo ? 'Guardando…' : 'Guardar código'}
+              {subiendo ? t('operaciones2.comun.guardando') : t('operaciones2.creativos.guardar-codigo')}
             </Button>
           </div>
         </div>
@@ -610,9 +626,9 @@ function CampanaCard({
 
       {/* Creativos */}
       <div>
-        <div className="mb-2 text-[12px] font-medium text-muted">Creativos ({creativos.length})</div>
+        <div className="mb-2 text-[12px] font-medium text-muted">{t('operaciones2.creativos.lista', { n: creativos.length })}</div>
         {creativos.length === 0 ? (
-          <p className="text-[12px] text-muted">Sin creativos. Sube una imagen para aprobarla.</p>
+          <p className="text-[12px] text-muted">{t('operaciones2.creativos.sin-creativos')}</p>
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {creativos.map((cr) => (
@@ -661,16 +677,16 @@ function CampanaCard({
                         código. */}
                     {esCreativoHtml(cr) && (
                       <span className="inline-flex shrink-0 items-center gap-0.5 rounded bg-surface-2 px-1 text-[10px] text-muted">
-                        <Code2 className="h-2.5 w-2.5" /> código
+                        <Code2 className="h-2.5 w-2.5" /> {t('operaciones2.creativos.etiqueta-codigo')}
                       </span>
                     )}
                   </div>
                   {cr.retiradoEn ? (
                     <div
                       className="inline-flex items-center gap-1 rounded-full border border-transparent bg-warning-soft px-2 py-0.5 text-[10px] font-medium text-[#9a6700]"
-                      title="Retirado del sistema; su arte sigue en DOOHmain (quítalo en su panel)"
+                      title={t('operaciones2.creativos.retirado-title')}
                     >
-                      <AlertTriangle className="h-2.5 w-2.5" /> Retirado · pendiente en DOOHmain
+                      <AlertTriangle className="h-2.5 w-2.5" /> {t('operaciones2.creativos.retirado')}
                     </div>
                   ) : (
                     <EstadoCrea estatus={cr.estatusValidacion} motivo={cr.rechazadoMotivo} />
@@ -686,7 +702,7 @@ function CampanaCard({
                       className="inline-flex items-center gap-1 bg-transparent text-[11px] font-medium text-info hover:underline"
                       onClick={() => setVerFuente(cr)}
                     >
-                      <Eye className="h-3 w-3" /> Ver HTML
+                      <Eye className="h-3 w-3" /> {t('operaciones2.creativos.ver-html')}
                     </button>
                   )}
                   {/* UNA fila de acciones (antes, cuatro botones en dos filas
@@ -706,10 +722,10 @@ function CampanaCard({
                         variant={cr.estatusValidacion === 'VALIDADA' ? 'secondary' : 'primary'}
                         className="px-2"
                         disabled={busy === cr.id || cr.estatusValidacion === 'VALIDADA'}
-                        title={cr.estatusValidacion === 'VALIDADA' ? 'El creativo ya fue aprobado — reemplázalo o elimínalo para cambiarlo' : undefined}
+                        title={cr.estatusValidacion === 'VALIDADA' ? t('operaciones2.creativos.ya-aprobado') : undefined}
                         onClick={() => validar(cr.id, true)}
                       >
-                        <Check className="h-3 w-3" /> Aprobar
+                        <Check className="h-3 w-3" /> {t('operaciones2.creativos.aprobar')}
                       </Button>
                       {/* Rechazar: se quita cuando el creativo ya fue aprobado. */}
                       {cr.estatusValidacion !== 'VALIDADA' && (
@@ -720,7 +736,7 @@ function CampanaCard({
                           disabled={busy === cr.id}
                           onClick={() => validar(cr.id, false)}
                         >
-                          <X className="h-3 w-3" /> Rechazar
+                          <X className="h-3 w-3" /> {t('operaciones2.creativos.rechazar')}
                         </Button>
                       )}
                       <span className="ml-auto inline-flex items-center">
@@ -728,8 +744,8 @@ function CampanaCard({
                           size="sm"
                           variant="ghost"
                           className="px-1.5"
-                          aria-label={`Reemplazar el arte de ${cr.nombre}`}
-                          title="Reemplazar el arte"
+                          aria-label={t('operaciones2.creativos.reemplazar-de', { nombre: cr.nombre })}
+                          title={t('operaciones2.creativos.reemplazar')}
                           disabled={busy === cr.id}
                           onClick={() => pedirReemplazo(cr)}
                         >
@@ -739,8 +755,8 @@ function CampanaCard({
                           size="sm"
                           variant="ghost"
                           className="px-1.5 text-error hover:bg-error-soft"
-                          aria-label={`Eliminar ${cr.nombre}`}
-                          title="Eliminar"
+                          aria-label={t('operaciones2.creativos.eliminar-de', { nombre: cr.nombre })}
+                          title={t('operaciones2.creativos.eliminar')}
                           disabled={busy === cr.id}
                           onClick={() => setConfirmarEliminar(cr)}
                         >
@@ -759,13 +775,13 @@ function CampanaCard({
       {/* Spots reservados */}
       <div className="border-t border-border pt-3">
         <div className="mb-2 flex items-center justify-between gap-2">
-          <div className="text-[12px] font-medium text-muted">Slots reservados ({reservas.length})</div>
+          <div className="text-[12px] font-medium text-muted">{t('operaciones2.creativos.slots', { n: reservas.length })}</div>
           {/* El botón de reparto masivo se quitó el 2026-09-30 a pedido del
               dueño. La ruta de reparto y su repo siguen; para volver, revertir
               ese commit. */}
         </div>
         {reservas.length === 0 ? (
-          <p className="text-[12px] text-muted">Sin slots reservados todavía.</p>
+          <p className="text-[12px] text-muted">{t('operaciones2.creativos.sin-slots')}</p>
         ) : (
           // Lista `divide-y` en vez de una caja con borde por spot (bordes
           // anidados dentro de la tarjeta), y lo que falta —«Sin creativo»— en
@@ -778,22 +794,22 @@ function CampanaCard({
               return (
                 <li key={r.id} className="py-2.5 first:pt-0 last:pb-0">
                   <div className="flex items-center justify-between gap-2">
-                    <div className="truncate text-[13px] font-medium text-ink">{sitio?.nombre ?? 'Sitio'}</div>
+                    <div className="truncate text-[13px] font-medium text-ink">{sitio?.nombre ?? t('operaciones2.creativos.sitio')}</div>
                     {digital && (
                       r.creativos.length === 0 ? (
                         <span className="shrink-0 rounded-full border border-transparent bg-warning-soft px-2 py-0.5 text-[11px] font-medium text-[#9a6700]">
-                          Sin creativo
+                          {t('operaciones2.creativos.sin-creativo')}
                         </span>
                       ) : (
                         <span className="demo-num shrink-0 rounded-full border border-border px-2 py-0.5 text-[11px] text-muted">
-                          {r.creativos.length === 1 ? '1 creativo' : `${r.creativos.length} creativos rotan`}
+                          {r.creativos.length === 1 ? t('operaciones2.creativos.rotan.uno') : t('operaciones2.creativos.rotan.otros', { n: r.creativos.length })}
                         </span>
                       )
                     )}
                   </div>
 
                   {aprobados.length === 0 ? (
-                    <p className="mt-1 text-[11px] text-muted">Aprueba un creativo para asignarlo aquí.</p>
+                    <p className="mt-1 text-[11px] text-muted">{t('operaciones2.creativos.aprueba-uno')}</p>
                   ) : digital ? (
                     // Spot digital: se marcan los creativos que van; rotan solos.
                     <div className="mt-2 space-y-1.5">
@@ -824,7 +840,7 @@ function CampanaCard({
                     <div className="mt-2 flex items-center justify-between gap-2">
                       <div className="flex min-w-0 items-center gap-2">
                         <Thumb cr={unico} className="h-8 w-8" />
-                        <span className="text-[12px] text-muted">Creativo del sitio</span>
+                        <span className="text-[12px] text-muted">{t('operaciones2.creativos.del-sitio')}</span>
                       </div>
                       {puede && (
                         <select
@@ -833,7 +849,7 @@ function CampanaCard({
                           onChange={(e) => setUnico(r, e.target.value)}
                           className="h-8 max-w-[180px] rounded border border-border-strong bg-surface px-2 text-[12px] text-ink"
                         >
-                          <option value="">Sin asignar</option>
+                          <option value="">{t('operaciones2.comun.sin-asignar')}</option>
                           {aprobados.map((cr) => (
                             <option key={cr.id} value={cr.id}>{cr.nombre}</option>
                           ))}
@@ -848,7 +864,7 @@ function CampanaCard({
         )}
         {aprobados.length === 0 && reservas.length > 0 && (
           <p className="mt-2 text-[11px] text-muted">
-            Aprueba al menos un creativo para poder asignarlo a los slots.
+            {t('operaciones2.creativos.aprueba-al-menos')}
           </p>
         )}
       </div>
@@ -860,12 +876,15 @@ function CampanaCard({
       <Modal
         open={verFuente !== null}
         onOpenChange={(v) => !v && setVerFuente(null)}
-        title={verFuente?.nombre ?? 'Creativo'}
+        title={verFuente?.nombre ?? t('operaciones2.creativos.creativo')}
         subtitle={
           verFuente
             ? cargandoFuente
-              ? `${verFuente.formato ?? 'HTML'} · cargando…`
-              : `${verFuente.formato ?? 'HTML'} · ${(fuente ?? '').length.toLocaleString('es-MX')} caracteres`
+              ? t('operaciones2.creativos.fuente.cargando', { formato: verFuente.formato ?? 'HTML' })
+              : t('operaciones2.creativos.fuente.caracteres', {
+                  formato: verFuente.formato ?? 'HTML',
+                  n: (fuente ?? '').length.toLocaleString('es-MX'),
+                })
             : undefined
         }
         size="xl"
@@ -879,39 +898,38 @@ function CampanaCard({
                 if (fuente && verFuente) descargarHtml(verFuente.nombre, fuente)
               }}
             >
-              <Download className="h-3.5 w-3.5" /> Descargar .html
+              <Download className="h-3.5 w-3.5" /> {t('operaciones2.creativos.descargar')}
             </Button>
-            <Button size="sm" onClick={() => setVerFuente(null)}>Cerrar</Button>
+            <Button size="sm" onClick={() => setVerFuente(null)}>{t('comun.cerrar')}</Button>
           </div>
         }
       >
         <pre className="max-h-[60vh] overflow-auto whitespace-pre-wrap break-all rounded border border-border bg-surface-2 p-3 font-mono text-[12px] leading-relaxed text-ink">
           {cargandoFuente
-            ? 'Cargando la fuente…'
-            : fuente ?? 'No se pudo cargar la fuente de este creativo.'}
+            ? t('operaciones2.creativos.fuente.cargando-texto')
+            : fuente ?? t('operaciones2.creativos.fuente.no-cargar')}
         </pre>
       </Modal>
 
       <ConfirmDialog
         open={confirmarEliminar !== null}
         onOpenChange={(v) => !v && setConfirmarEliminar(null)}
-        title="Eliminar creativo"
-        confirmLabel="Sí, eliminar"
+        title={t('operaciones2.creativos.eliminar.titulo')}
+        confirmLabel={t('operaciones2.creativos.eliminar.si')}
         busy={busy !== null && busy === confirmarEliminar?.id}
         onConfirm={confirmarEliminarDo}
       >
-        ¿Seguro que quieres bajar{' '}
-        <span className="font-medium text-ink">“{confirmarEliminar?.nombre}”</span>? Si ya está
-        publicado, su campaña se finaliza, pero <span className="text-ink">el arte no se puede
-        quitar de DOOHmain</span> (su API no lo permite): quedará marcado como “pendiente en DOOHmain”
-        para que lo quites en su panel.
+        {interpolarNodos(t('operaciones2.creativos.eliminar.cuerpo'), {
+          nombre: <span className="font-medium text-ink">“{confirmarEliminar?.nombre}”</span>,
+          arte: <span className="text-ink">{t('operaciones2.creativos.eliminar.arte')}</span>,
+        })}
       </ConfirmDialog>
 
       <ConfirmDialog
         open={confirmarReemplazo !== null}
         onOpenChange={(v) => !v && setConfirmarReemplazo(null)}
-        title="Reemplazar el arte"
-        confirmLabel="Elegir el arte nuevo"
+        title={t('operaciones2.creativos.reemplazar')}
+        confirmLabel={t('operaciones2.creativos.reemplazo.elegir')}
         variant="primary"
         onConfirm={() => {
           const cr = confirmarReemplazo
@@ -920,15 +938,16 @@ function CampanaCard({
         }}
       >
         <p>
-          Si <span className="font-medium text-ink">“{confirmarReemplazo?.nombre}”</span> ya está
-          publicado, al reemplazarlo{' '}
-          <span className="text-ink">se manda a DOOHmain la orden de bajar el arte anterior</span>: deja
-          de reproducirse en todas sus pantallas. El nuevo queda pendiente hasta que lo apruebes.
+          {interpolarNodos(t('operaciones2.creativos.reemplazo.cuerpo'), {
+            nombre: <span className="font-medium text-ink">“{confirmarReemplazo?.nombre}”</span>,
+            orden: <span className="text-ink">{t('operaciones2.creativos.reemplazo.orden')}</span>,
+          })}
         </p>
         <p className="mt-2 rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-[12px] text-amber-900">
-          <span className="font-medium">Recordatorio:</span> después entra al panel de DOOHmain y{' '}
-          <span className="font-medium">elimina la campaña anterior</span>. DOOHmain no deja borrarla
-          desde aquí, y la nueva lleva el mismo nombre: la anterior es la que aparece como finalizada.
+          {interpolarNodos(t('operaciones2.creativos.reemplazo.recordatorio'), {
+            recordatorio: <span className="font-medium">{t('operaciones2.creativos.reemplazo.recordatorio-etiqueta')}</span>,
+            elimina: <span className="font-medium">{t('operaciones2.creativos.reemplazo.elimina')}</span>,
+          })}
         </p>
       </ConfirmDialog>
     </>
@@ -938,6 +957,7 @@ function CampanaCard({
 // Miniatura de un creativo: imagen si la hay, icono de código si es código,
 // o placeholder si no hay nada asignado.
 function Thumb({ cr, className }: { cr?: Creatividad; className: string }) {
+  const t = useIdioma().t
   // Igual que en la rejilla, y aquí importa MÁS: esta miniatura se repite por
   // cada creativo Y por cada pantalla en la asignación de slots, así que un
   // <iframe> de 1 MB por pieza se multiplica rápido.
@@ -948,7 +968,7 @@ function Thumb({ cr, className }: { cr?: Creatividad; className: string }) {
   if (esCreativoHtml(cr)) {
     return (
       <iframe
-        title={cr?.nombre ?? 'creativo'}
+        title={cr?.nombre ?? t('operaciones2.creativos.creativo-min')}
         src={cr!.archivoUrl!}
         sandbox=""
         className={`${className} shrink-0 rounded border border-border bg-white`}
@@ -975,15 +995,22 @@ function Thumb({ cr, className }: { cr?: Creatividad; className: string }) {
 // que son las de sus botones. El motivo de un rechazo va en su propia línea, a
 // la vista, y no escondido en un `title`.
 function EstadoCrea({ estatus, motivo }: { estatus: EstValidacionCreatividad; motivo: string | null }) {
+  const t = useIdioma().t
   const label: Record<string, string> = {
     PENDIENTE: 'Pendiente',
     VALIDADA: 'Aprobado',
     RECHAZADA: 'Rechazado',
   }
+  // I18N · `label` sigue siendo el espanol de esta pantalla; se pinta su clave.
+  const clave: Record<string, ClaveTexto> = {
+    PENDIENTE: 'operaciones2.creativos.estado.pendiente',
+    VALIDADA: 'operaciones2.creativos.estado.validada',
+    RECHAZADA: 'operaciones2.creativos.estado.rechazada',
+  }
   const tono = CREATIVIDAD_TONO[estatus] ?? CREATIVIDAD_TONO.PENDIENTE
   return (
     <div className="space-y-1">
-      <StatusBadge tono={tono}>{label[estatus] ?? label.PENDIENTE}</StatusBadge>
+      <StatusBadge tono={tono}>{t(label[estatus] ? clave[estatus] : clave.PENDIENTE)}</StatusBadge>
       {estatus === 'RECHAZADA' && motivo && <p className="m-0 text-[11px] text-error">{motivo}</p>}
     </div>
   )

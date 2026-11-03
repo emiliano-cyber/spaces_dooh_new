@@ -15,6 +15,9 @@ import { ES_OPERACIONES, EN_OPERACIONES } from './operaciones'
 import { ES_SPACEEYES, EN_SPACEEYES } from './spaceeyes'
 import { ES_INVENTARIO, EN_INVENTARIO } from './inventario'
 import { ES_ARRENDADORES, EN_ARRENDADORES } from './arrendadores'
+import { ES_OPERACIONES2, EN_OPERACIONES2 } from './operaciones2'
+import { ES_INICIO, EN_INICIO } from './inicio'
+import { ES_ENERGIA, EN_ENERGIA } from './energia'
 import { DICCIONARIOS } from '../diccionario'
 import { traducirError } from '../errores-servidor'
 
@@ -51,11 +54,14 @@ const LOTES: [string, Record<string, string>, Record<string, string>][] = [
   ['spaceeyes', ES_SPACEEYES, EN_SPACEEYES],
   ['inventario', ES_INVENTARIO, EN_INVENTARIO],
   ['arrendadores', ES_ARRENDADORES, EN_ARRENDADORES],
+  ['operaciones2', ES_OPERACIONES2, EN_OPERACIONES2],
+  ['inicio', ES_INICIO, EN_INICIO],
+  ['energia', ES_ENERGIA, EN_ENERGIA],
 ]
 
 function baseDelDiccionario(): [Record<string, string>, Record<string, string>] {
   const deLotes = new Set(
-    [ES_PROPUESTAS, ES_COMPARTIDOS, ES_CAMPANAS, ES_FINANZAS, ES_COMERCIAL, ES_CODIGOS, ES_CATALOGOS, ES_ADMIN, ES_CUENTA, ES_SHELL, ES_SERVIDOR, ES_CLIENTES, ES_OPERACIONES, ES_SPACEEYES, ES_INVENTARIO, ES_ARRENDADORES].flatMap((o) => Object.keys(o)),
+    [ES_PROPUESTAS, ES_COMPARTIDOS, ES_CAMPANAS, ES_FINANZAS, ES_COMERCIAL, ES_CODIGOS, ES_CATALOGOS, ES_ADMIN, ES_CUENTA, ES_SHELL, ES_SERVIDOR, ES_CLIENTES, ES_OPERACIONES, ES_SPACEEYES, ES_INVENTARIO, ES_ARRENDADORES, ES_OPERACIONES2, ES_INICIO, ES_ENERGIA].flatMap((o) => Object.keys(o)),
   )
   const es: Record<string, string> = {}
   const en: Record<string, string> = {}
@@ -73,8 +79,9 @@ function baseDelDiccionario(): [Record<string, string>, Record<string, string>] 
 const DISTINTOS_A_PROPOSITO: Record<string, string> = {
   '{n} pantalla': 'en el loop de Administracion la frase cuenta solo las pantallas digitales y el adjetivo vive dentro de la clave en ingles («{n} digital screen»); en paquetes son pantallas a secas (aparecio al juntar admin con catalogos, 2026-11-02)',
   '{n} pantallas': 'lo mismo que «{n} pantalla», en plural',
+  'sin número': 'en Energia va justo detras del medidor y entre parentesis («Meter (no number)», pedido del validador de operaciones parte 2); en Space Eyes es el valor suelto de una celda («no number»). Aparecio al juntar operaciones parte 2, 2026-11-02',
   Actualizar: 'refrescar o recargar una lista o lo que dice DOOHmain («Refresh») frente a guardar un correo ya escrito, en Administracion, instalar la version nueva del programa de un equipo, en Space Eyes, o actualizar las pantallas que ya existen en una carga masiva de Inventario («Update»)',
-  Baja: 'el estatus de un sitio dado de baja («Decommissioned») frente a la prioridad de un ticket de soporte («Low»)',
+  Baja: 'el estatus de un sitio dado de baja («Decommissioned») frente a la prioridad de un ticket de soporte o de una OT («Low»)',
   Cargo: 'un cargo contable del estado de cuenta («Charge») frente al puesto de un usuario («Job title»)',
   Configuración: 'la pestaña de configuracion del negocio en Administracion («Business settings») frente a la de la cuenta del usuario («Account settings»), decision del orquestador',
   Imprenta: 'el modulo y la seccion de la ficha («Printing») frente al rol de una persona («Print shop»), decision del orquestador',
@@ -85,6 +92,7 @@ const DISTINTOS_A_PROPOSITO: Record<string, string> = {
   Próximo: 'un codigo que aun no entra en vigor («Upcoming») frente al siguiente pago de renta del cuadre («Next»)',
   Vigente: 'un permiso o licencia vigente («Valid», decision del orquestador) frente a un contrato o codigo vigente («Active»)',
   Vence: 'una cuota o un pago («Due») frente a un contrato que caduca («Expires»)',
+  '{n} meses': 'Comercial tiene un singular (`.uno`) cuyo espanol es el de siempre («1 meses») y su ingles «{n} month»; el plural dice «{n} months» en todos los lotes',
   Comercial: 'en la ficha de campaña es la seccion de importes («Pricing», decision del orquestador); el modulo es «Sales», como el menu',
   'Dar de baja': 'la baja logica de una franja, temporada o paquete en catalogos, que se puede revertir («Deactivate»), frente a la baja definitiva de un articulo fisico del almacen, sin movimiento posible despues («Decommission», como el sitio de Comercial)',
   Desde: 'un periodo de fechas («From») frente a la competencia del espacio, que esta ahi «desde» («Since»)',
