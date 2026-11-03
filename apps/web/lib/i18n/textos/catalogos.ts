@@ -68,7 +68,7 @@ export const ES_CATALOGOS = {
   'catalogos.paquetes.lista.explicacion':
     'El precio se reparte entre las pantallas {prorrata}, y la suma de las partes da el precio del paquete {peso}. Ese reparto es el ingreso que el reporte de rentabilidad le atribuye a cada pantalla.',
   'catalogos.paquetes.lista.explicacion.prorrata': 'a prorrata de su tarifa de lista',
-  'catalogos.paquetes.lista.explicacion.peso': 'al centavo',
+  'catalogos.paquetes.lista.explicacion.peso': 'con exactitud',
   'catalogos.paquetes.col.paquete': 'Paquete',
   'catalogos.paquetes.col.pantallas': 'Pantallas',
   'catalogos.paquetes.col.precio': 'Precio cerrado',
@@ -114,7 +114,7 @@ export const ES_CATALOGOS = {
   'catalogos.paquetes.reparto.lista': 'Lista',
   'catalogos.paquetes.reparto.parte': 'Parte del paquete',
   'catalogos.paquetes.reparto.suma': 'Suma de las partes {cuadra}',
-  'catalogos.paquetes.reparto.cuadra': '— cuadra al centavo',
+  'catalogos.paquetes.reparto.cuadra': '— cuadra exacto',
   'catalogos.paquetes.crear': 'Crear paquete',
 
   // ── Franjas y temporadas ──
@@ -317,7 +317,7 @@ export const EN_CATALOGOS: Record<ClaveCatalogos, string> = {
   'catalogos.paquetes.lista.explicacion':
     'The price is split among the screens {prorrata}, and the shares add up to the bundle price {peso}. That split is the revenue the profitability report assigns to each screen.',
   'catalogos.paquetes.lista.explicacion.prorrata': 'in proportion to their list rate',
-  'catalogos.paquetes.lista.explicacion.peso': 'to the cent',
+  'catalogos.paquetes.lista.explicacion.peso': 'exactly',
   'catalogos.paquetes.col.paquete': 'Bundle',
   'catalogos.paquetes.col.pantallas': 'Screens',
   'catalogos.paquetes.col.precio': 'Fixed price',
@@ -363,7 +363,7 @@ export const EN_CATALOGOS: Record<ClaveCatalogos, string> = {
   'catalogos.paquetes.reparto.lista': 'List',
   'catalogos.paquetes.reparto.parte': 'Bundle share',
   'catalogos.paquetes.reparto.suma': 'Sum of the shares {cuadra}',
-  'catalogos.paquetes.reparto.cuadra': '— adds up to the cent',
+  'catalogos.paquetes.reparto.cuadra': '— adds up exactly',
   'catalogos.paquetes.crear': 'Create bundle',
 
   // ── Franjas y temporadas ──

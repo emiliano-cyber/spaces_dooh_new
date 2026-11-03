@@ -188,7 +188,7 @@ const PANTALLAS: Pantalla[] = [
       'El precio se reparte entre las pantallas ',
       'a prorrata de su tarifa de lista',
       ', y la suma de las partes da el precio del paquete ',
-      'al centavo',
+      'con exactitud',
       '. Ese reparto es el ingreso que el reporte de rentabilidad le atribuye a cada pantalla.',
       'Precio cerrado',
       '¿Códigos?',
@@ -254,7 +254,7 @@ const PANTALLAS: Pantalla[] = [
       'Así se repartiría entre las pantallas — y esto es lo que el reporte de rentabilidad le atribuirá a cada una:',
       'Parte del paquete',
       'Suma de las partes ',
-      '— cuadra al centavo',
+      '— cuadra exacto',
     ],
     ingles: [
       'Active',

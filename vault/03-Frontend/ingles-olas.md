@@ -96,7 +96,7 @@ traductor  ──►  validador  ──►  ¿VERDE?  ──sí──►  se jun
 | Lote | Rama | Estado |
 |---|---|---|
 | Plantillas de error con huecos y motivos compartidos con el servidor | `feat/ingles-servidor` | Traduciendo |
-| «pesos» en redacción neutra (español **e** inglés) | `feat/pesos-neutral` | Hecho (02/11): cuatro claves de Paquetes, «cantidad entera / sin centavos / al centavo». El resto del español, idéntico (medido). Y los tres menores del validador de catálogos. Ver [[idiomas-es-en]] §7 |
+| «pesos» en redacción neutra (español **e** inglés) | `feat/pesos-neutral` | Hecho (02/11): cuatro claves de Paquetes, «cantidad entera / sin centavos / exacto». El resto del español, idéntico (medido). Y los tres menores del validador de catálogos. Ver [[idiomas-es-en]] §7 |
 
 ### Ola 5 · Cierre (por lanzar)
 

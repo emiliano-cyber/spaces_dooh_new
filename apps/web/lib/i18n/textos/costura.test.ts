@@ -103,44 +103,80 @@ describe('costura · los lotes dicen lo mismo de la misma manera', () => {
     expect(malas.map(([k]) => k)).toEqual([])
   })
 
-  it('ningun texto da por hecho el peso: la moneda es de la instancia (ADR 0048)', () => {
+  // «peso» que NO es dinero: el grosor de una letra o la importancia de algo.
+  // Cada excepcion es una frase entera, con su motivo; un «peso» suelto sigue
+  // cayendo. (Space Eyes aun no esta traducido: cuando lo este, «Peso de la
+  // fuente» llegara a un diccionario y no debe hacer caer la guardia.)
+  const PESO_QUE_NO_ES_DINERO: Record<string, string> = {
+    'peso de la fuente': 'el grosor de la letra en el editor de Space Eyes (AjustarTexto.tsx)',
+    'peso visual': 'la importancia de un boton en la ficha del sitio (SiteFicha.tsx)',
+  }
+
+  it('ningun texto da por hecho la moneda: es de la instancia (ADR 0048)', () => {
     // «Precio del conjunto (pesos enteros)», «cuadra al peso», «whole number of
-    // pesos»… eran falsos en una instancia en dolares. Se dice neutro: «cantidad
-    // entera», «sin centavos», «al centavo». El nombre de la moneda sale de
-    // `nombreMoneda()`, nunca de un diccionario.
+    // pesos»… eran falsos en una instancia en dolares. Se dice neutro:
+    // «cantidad entera», «sin centavos», «exacto». El nombre de la moneda sale
+    // de `nombreMoneda()` y su simbolo de `simboloMoneda()`, nunca de un
+    // diccionario: ni la palabra (pesos, dolares, M.N.) ni el codigo (MXN, USD).
     // Los huecos no cuentan: `{peso}` es el nombre de una pieza, no texto.
+    const sinExcepciones = (v: string) => {
+      let t = v.replace(/\{\w+\}/g, '')
+      for (const frase of Object.keys(PESO_QUE_NO_ES_DINERO)) t = t.replace(new RegExp(frase, 'gi'), '')
+      return t
+    }
     const malas = (['es', 'en'] as const).flatMap((idioma) =>
       Object.entries(DICCIONARIOS[idioma] as Record<string, string>)
-        .filter(([, v]) => /\bpesos?\b|\bM\.N\.|\bd[oó]lar(es)?\b|\bdollars?\b/i.test(v.replace(/\{\w+\}/g, '')))
+        .filter(([, v]) => {
+          const t = sinExcepciones(v)
+          return /\bpesos?\b|\bM\.N\.|\bd[oó]lar(es)?\b|\bdollars?\b/i.test(t) || /\b(MXN|USD)\b/.test(t)
+        })
         .map(([k]) => `${idioma}:${k}`),
     )
     expect(malas).toEqual([])
   })
 
-  it('un motivo con cifra que tambien manda el servidor se dice igual en el campo y en el error', () => {
+  it('las excepciones de «peso» son frases que no hablan de dinero (y no tapan un «pesos» de verdad)', () => {
+    for (const frase of Object.keys(PESO_QUE_NO_ES_DINERO)) expect(frase).not.toMatch(/\bpesos\b|centav|precio|monto|importe/i)
+  })
+
+  // El mismo espanol que manda el servidor tiene que leerse igual en ingles en
+  // la pantalla y en el error. Medido el 02/11 recorriendo el diccionario: el
+  // servidor (`traducirError`) conoce 19 textos espanoles del diccionario
+  // —7 con hueco, que van por `PATRONES_ERROR`, y 12 frases fijas—. Coinciden
+  // 10. Los 9 que divergen son todos de la calculadora y estan aqui, uno por
+  // uno: unificarlos es del lote del servidor (ola 4), no de esta prueba. Cuando
+  // se unifique uno, la segunda prueba obliga a quitarlo de la lista.
+  const CALCULADORA_DIVERGE_OLA_4 = [
+    'propuestas.calc.prima.no-puede',
+    'compartidos.calc.motivo.sin-loop',
+    'compartidos.calc.motivo.rango-prima',
+    'compartidos.calc.motivo.cero-spots',
+    'compartidos.calc.motivo.roadblock-todos',
+    'compartidos.calc.motivo.horas',
+    'compartidos.calc.motivo.roadblock-libres',
+    'compartidos.calc.motivo.pocos-libres.uno',
+    'compartidos.calc.motivo.pocos-libres.otros',
+  ]
+  const ES_D = DICCIONARIOS.es as Record<string, string>
+  const EN_D = DICCIONARIOS.en as Record<string, string>
+  const rellenar = (t: string) => t.replace(/\{\w+\}/g, '1000')
+  const conocidasPorElServidor = Object.keys(ES_D).filter((k) => traducirError(rellenar(ES_D[k]), 'en') !== rellenar(ES_D[k]))
+  const igualQueElServidor = (k: string) => rellenar(EN_D[k]) === traducirError(rellenar(ES_D[k]), 'en')
+
+  it('un texto que tambien manda el servidor se dice igual en el campo y en el error', () => {
     // «No puede ser mayor que {n}» lo pinta CampoCifra y lo manda zod: el campo
     // decia «It cannot be greater than» y el servidor «Must not be greater
-    // than» (validador de catalogos). Se rellenan los huecos con una cifra y,
-    // si el servidor conoce el espanol, el ingles tiene que ser el suyo.
-    //
-    // Solo los que llevan HUECO, que son los que van por `PATRONES_ERROR`. Y sin
-    // los motivos de la calculadora (`compartidos.calc.motivo.*` y
-    // `propuestas.calc.*`): el servidor y la pantalla aun los dicen distinto en
-    // nueve claves (medido el 02/11), y unificarlos es de la ola 4 («lo que
-    // sale del servidor»), no de esta prueba. Cuando se unifiquen, se quita la
-    // excepcion.
-    const ES = DICCIONARIOS.es as Record<string, string>
-    const EN = DICCIONARIOS.en as Record<string, string>
-    const rellenar = (t: string) => t.replace(/\{\w+\}/g, '1000')
-    const distintos: string[] = []
-    for (const clave of Object.keys(ES)) {
-      if (!/\{\w+\}/.test(ES[clave])) continue
-      if (clave.startsWith('compartidos.calc.motivo.') || clave.startsWith('propuestas.calc.')) continue
-      const es = rellenar(ES[clave])
-      const delServidor = traducirError(es, 'en')
-      if (delServidor === es) continue
-      if (rellenar(EN[clave]) !== delServidor) distintos.push(`${clave}: «${rellenar(EN[clave])}» / servidor «${delServidor}»`)
-    }
+    // than» (validador de catalogos). Se rellenan los huecos con una cifra.
+    const distintos = conocidasPorElServidor
+      .filter((k) => !CALCULADORA_DIVERGE_OLA_4.includes(k) && !igualQueElServidor(k))
+      .map((k) => `${k}: «${rellenar(EN_D[k])}» / servidor «${traducirError(rellenar(ES_D[k]), 'en')}»`)
     expect(distintos).toEqual([])
+    // Y que la prueba mire algo: si el diccionario o el catalogo cambian y esto
+    // se queda en cero, no protege nada.
+    expect(conocidasPorElServidor.filter((k) => !CALCULADORA_DIVERGE_OLA_4.includes(k)).length).toBeGreaterThanOrEqual(10)
+  })
+
+  it('las excepciones de la calculadora siguen divergiendo (si una se unifica, se quita de la lista)', () => {
+    expect(CALCULADORA_DIVERGE_OLA_4.filter((k) => !conocidasPorElServidor.includes(k) || igualQueElServidor(k))).toEqual([])
   })
 })

@@ -14,20 +14,25 @@ de texto en español que el dueño autorizó en la traducción al inglés.
 
 - «Precio del conjunto (pesos enteros)» → **«Precio del conjunto (cantidad
   entera, sin centavos)»**.
-- «la suma de las partes da el precio del paquete al peso» → **«… al centavo»**.
-- «Suma de las partes — cuadra al peso» → **«— cuadra al centavo»**.
+- «la suma de las partes da el precio del paquete al peso» → **«… con
+  exactitud»**.
+- «Suma de las partes — cuadra al peso» → **«— cuadra exacto»**.
 - El aviso al guardar un paquete con centavos: «tiene que ser un numero entero
   de pesos» → **«tiene que ser una cantidad entera»** (el resto de la frase
   sigue igual: el reparto entre las pantallas no admite centavos).
 
-Lo demás del español no cambió: se comparó el HTML de todas las pantallas
-traducidas antes y después, y solo cambian esas frases. La cantidad con letra
+Lo demás del español no cambió. Se comprobó con las pruebas automáticas que
+dibujan las pantallas ya traducidas (propuestas, campañas, finanzas, comercial,
+catálogos de precio y piezas compartidas): 124 estados de pantalla, comparados
+antes y después. Solo cambian esas frases, y solo en Paquetes. Las pantallas
+que aún no se traducen no tienen esas pruebas, pero tampoco tenían ninguno de
+estos textos. La cantidad con letra
 de los contratos («… PESOS 00/100 M.N.») y los recibos de CFE se quedan como
 están, a propósito.
 
-Además, en inglés, el aviso «no puede ser mayor que…» de un campo de cifra ahora
-dice lo mismo que el mismo aviso cuando lo manda el servidor («Must not be
-greater than…»).
+Además, en inglés, los avisos «no puede ser mayor que…» y «no puede ser menor
+que…» de un campo de cifra ahora dicen «Must not be greater than…» y «Must not
+be less than…», igual que el aviso del servidor.
 
 ---
 

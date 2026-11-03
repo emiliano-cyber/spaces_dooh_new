@@ -323,14 +323,14 @@ caer a MXN. Las guardias que recorren **todo `apps/web`**:
 > pesos» eran falsos en una instancia USD. **Única excepción autorizada** al
 > «el español se queda tal cual» ([[ingles-olas]] §3). Redacción neutra, la
 > misma en los dos idiomas: **«cantidad entera» / «whole amount»**, **«sin
-> centavos» / «no cents»** y **«al centavo» / «to the cent»**. Las cuatro
+> centavos» / «no cents»** y **«exacto» / «exactly»**. Las cuatro
 > claves de `lib/i18n/textos/catalogos.ts` que cambiaron:
 >
 > | Clave | Español | Inglés |
 > |---|---|---|
 > | `catalogos.paquetes.precio` | Precio del conjunto (cantidad entera, sin centavos) | Price for the set (whole amount, no cents) |
-> | `catalogos.paquetes.lista.explicacion.peso` | al centavo | to the cent |
-> | `catalogos.paquetes.reparto.cuadra` | — cuadra al centavo | — adds up to the cent |
+> | `catalogos.paquetes.lista.explicacion.peso` | con exactitud | exactly |
+> | `catalogos.paquetes.reparto.cuadra` | — cuadra exacto | — adds up exactly |
 > | `catalogos.motivo.paquete.precio-entero` | El precio del paquete tiene que ser una cantidad entera: el reparto… | The bundle price has to be a whole amount: the split… |
 >
 > La última es también el literal de `motivoPaqueteInvalido` (`lib/paquete.ts`),
@@ -338,6 +338,13 @@ caer a MXN. Las guardias que recorren **todo `apps/web`**:
 > `errores-servidor.ts` (llega por `AppError(motivo)` sin entrada propia).
 > El nombre de clave `…explicacion.peso` y su hueco `{peso}` se quedan: son
 > identificadores, no texto.
+>
+> **Por qué «exacto» y no «al centavo»** (validación ÁMBAR, H1, decisión del
+> orquestador): `repartirPaquete` reparte en unidades enteras, así que «al
+> centavo» sugería una precisión que no existe y chocaba con «(cantidad entera,
+> sin centavos)» en la misma pantalla. En la explicación va «con exactitud»
+> porque el hueco cierra la frase («…da el precio del paquete con exactitud»);
+> «exacto» ahí se leía como adjetivo del precio. En inglés, «exactly» en los dos.
 >
 > **No se tocó, a propósito:** la cantidad con letra del contrato (ya depende de
 > la moneda y va ligada al hash de las firmas), los recibos de CFE,
@@ -350,7 +357,10 @@ caer a MXN. Las guardias que recorren **todo `apps/web`**:
 > tres estados de Paquetes y solo en esas frases; `DICCIONARIOS.es` solo
 > cambia en esas cuatro claves. Y lo vigila una guardia
 > (`textos/costura.test.ts`): **ningún diccionario, en ningún idioma, nombra
-> pesos, «M.N.» ni dólares** fuera de los huecos.
+> pesos, «M.N.», dólares ni los códigos MXN o USD como palabra suelta** fuera
+> de los huecos. «Peso» en el sentido de grosor o importancia («peso de la
+> fuente», «peso visual») va en una lista corta de excepciones con su motivo;
+> el mutante «(whole MXN)» en el inglés muere.
 
 **Inmutable en dos capas** (ver [[04-Datos/migraciones]] y
 [[04-Datos/esquema]]): la migración `20261102_moneda_inmutable_por_instancia.sql`
@@ -1124,16 +1134,21 @@ está en `UNIDADES`; en inglés usa `comercial.comun.programatico`.
 >   the peso», «whole number of pesos»): es falso en una instancia USD (ADR 0048),
 >   en los dos idiomas. ~~No se tocó: redactarlo neutro es una tarea aparte.~~
 >   **Hecho el 02/11** (`feat/pesos-neutral`): «cantidad entera», «sin
->   centavos», «al centavo» / «whole amount», «no cents», «to the cent». Ver §7.
+>   centavos», «exacto» / «whole amount», «no cents», «exactly». Ver §7.
 > - **Los tres menores del validador, cerrados el 02/11** (`feat/pesos-neutral`):
 >   las seis claves `compartidos.cifra.*` que no estaban atadas a su literal
 >   (`vacia`, `enteras`, `max-decimales.otros`, `grande`, `negativo`, `mayor`) ya
 >   lo están en `catalogos.fuentes.test.ts` (el mutante «No puede ser negativa»
 >   muere); `compartidos.cifra.mayor` dice en inglés «Must not be greater than
->   {n}», como el patrón del servidor, y `costura.test.ts` exige que todo motivo
->   con cifra que también conoce `errores-servidor.ts` se traduzca igual (salvo
->   los de la calculadora, que divergen en nueve claves y son de la ola 4); y la
->   cabecera de `catalogos.ts` dice «deactivate / Deactivated».
+>   {n}», como el patrón del servidor (y `cifra.menor`, «Must not be less than
+>   {n}», por estilo: el servidor no manda ese español; su mínimo es «Debe ser
+>   mayor o igual a {n}» → «Must be greater than or equal to»). La paridad con el
+>   servidor (`costura.test.ts`), medida el 02/11: `traducirError` reconoce
+>   **19** textos del diccionario (7 con hueco, por `PATRONES_ERROR`, y 12
+>   frases fijas); **10 coinciden** y la prueba los vigila; **9 divergen**, todos
+>   de la calculadora (5 con hueco y 4 fijos), declarados clave por clave como
+>   de la ola 4, con otra prueba que obliga a quitar cada uno cuando se
+>   unifique. Y la cabecera de `catalogos.ts` dice «deactivate / Deactivated».
 > - Español: los 15 estados, idénticos otra vez.
 
 > [!warning] Lo que falta del lote: operaciones y clientes
