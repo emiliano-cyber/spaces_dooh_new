@@ -2,6 +2,7 @@ import { formatMonto, etiquetaBucket } from '@/lib/data/derive'
 import { TIPO_OT_LABEL, etiquetaTipoOt } from '@/lib/tipos-ot'
 import { traducir, type ClaveTexto } from '@/lib/i18n/diccionario'
 import type { Idioma } from '@/lib/i18n/idiomas'
+import { etiquetaDePapel } from '@/lib/i18n/papeles'
 import {
   notaDeAtribucion,
   notaDeCobertura,
@@ -749,6 +750,12 @@ export function textoDeFila(
   }
   if (dimension === 'trimestre') {
     return { etiqueta: etiquetaDePeriodo(f, idioma), detalle: f.detalle }
+  }
+  // Ola 6 · el detalle de una razon social son sus papeles, unidos con « · »
+  // por el motor. Cada uno se traduce solo si es la etiqueta de partida del
+  // catalogo (`etiquetaDePapel`); un papel renombrado es dato y se queda.
+  if (dimension === 'entidad') {
+    return { etiqueta: f.etiqueta, detalle: f.detalle.split(' · ').map((p) => etiquetaDePapel(p, idioma)).join(' · ') }
   }
   return { etiqueta: f.etiqueta, detalle: f.detalle }
 }

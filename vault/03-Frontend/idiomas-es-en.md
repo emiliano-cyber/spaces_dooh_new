@@ -2052,6 +2052,37 @@ el recorrido, no solo el contador.
 - además de lo ya declarado: Actividad, las notas de versión, los catálogos del
   SAT y el texto legal del contrato.
 
+### Ola 6 · lo que se guarda en español, traducido al pintarlo
+
+Rama `feat/ingles-ola6`. Tabla completa en `docs/i18n/revision-ola6.md`. La regla
+común: **el dato no cambia**. La pantalla reconoce el texto guardado y lo pinta
+en el idioma de quien lee; lo que no reconoce lo pinta tal cual.
+
+- **Notificaciones** (`lib/i18n/notificaciones.ts`, `textos/notificaciones.ts`). El
+  español de cada clave es la plantilla exacta del servidor, con huecos, y de ella
+  sale el patrón. Cada título lleva las plantillas que puede tener su detalle. El
+  saldo se reformatea con `MX$`. «No se pudo generar la campaña» pasa su detalle
+  por `traducirError`. `notificaciones.test.ts` ata cada plantilla al literal de su
+  archivo y cuenta las fuentes del servidor.
+- **Papeles** (`lib/i18n/papeles.ts`, `admin.papel.*`). La etiqueta se traduce solo
+  si es la de la migración: una renombrada en la instancia es dato. El código lleva
+  un nombre inglés corto para la bienvenida.
+- **Checklist de una OT nueva** (`lib/i18n/checklist-ot.ts`): solo el texto exacto
+  de los tres puntos por omisión. Al marcar, se manda el texto guardado.
+- **Mensajes de venta**: cinco patrones más en `PATRONES_ERROR` (el tope al editar y
+  la agencia sin validar), y `traducirError` en dos respuestas a mano del `PATCH`.
+- **Acceso**: «Cuerpo inválido» y «Falta el enlace de restablecimiento.» en
+  `errores-acceso.ts`. **Pipeline**: `isoDePaso` lee una fecha sin hora como día
+  local (antes salía un día antes, en los dos idiomas).
+
+**Términos nuevos:** ODC → *PO*; cobranza (aviso) → *collection*; saldo →
+*balance*; al aire → *on air*; contrato sin capturar → *contract not entered*; un
+espacio (sin nombre) → *a space*. Papeles: *Pays rent to landlords* (RENT), *Buys
+assets and equipment* (ASSETS), *Government permits and licenses* (PERMITS),
+*Operations and payroll* (OPERATIONS), *Sells advertising* (SALES). Checklist:
+*Structure and hardware inspection*, *Installation / execution*, *Proof photo
+with geolocation*. Cuerpo inválido → *Invalid request*.
+
 ## Enlaces
 
 - [[ingles-olas]] — el tablero de la traducción: qué lote, en qué rama, qué validador y qué falta

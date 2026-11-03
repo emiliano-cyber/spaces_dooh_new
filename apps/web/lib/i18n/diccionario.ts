@@ -19,6 +19,7 @@ import { ES_OPERACIONES2, EN_OPERACIONES2 } from './textos/operaciones2'
 import { ES_INICIO, EN_INICIO } from './textos/inicio'
 import { ES_ENERGIA, EN_ENERGIA } from './textos/energia'
 import { ES_REPORTES, EN_REPORTES } from './textos/reportes'
+import { ES_NOTIFICACIONES, EN_NOTIFICACIONES } from './textos/notificaciones'
 
 // ============================================================================
 //  lib/i18n/diccionario.ts — LOS TEXTOS, Y LA CONVENCION DE CLAVES.
@@ -169,6 +170,10 @@ const ES = {
     'La recuperación de contraseña está deshabilitada temporalmente. Contacta al administrador.',
   'login.error.demasiados': 'Demasiados intentos. Espera {s}s e intenta de nuevo.',
   'login.error.demasiados-corto': 'Demasiados intentos. Espera {s}s.',
+  // Ola 6 · los dos 400 de las rutas de acceso que la interfaz no provoca
+  // (`login` y `codigo`; `reset`). Las rutas no se tocan: zona roja.
+  'login.error.cuerpo-invalido': 'Cuerpo inválido',
+  'login.error.falta-enlace': 'Falta el enlace de restablecimiento.',
 
   // ── Validacion compartida con el servidor ──
   // Estos DUPLICAN a proposito el texto de `lib/validacion.ts` y
@@ -269,6 +274,7 @@ const ES = {
   ...ES_INICIO,
   ...ES_ENERGIA,
   ...ES_REPORTES,
+  ...ES_NOTIFICACIONES,
 } as const
 
 export type ClaveTexto = keyof typeof ES
@@ -361,6 +367,8 @@ const EN: Record<ClaveTexto, string> = {
   'login.error.recuperacion-apagada': 'Password recovery is temporarily disabled. Contact your administrator.',
   'login.error.demasiados': 'Too many attempts. Wait {s}s and try again.',
   'login.error.demasiados-corto': 'Too many attempts. Wait {s}s.',
+  'login.error.cuerpo-invalido': 'Invalid request',
+  'login.error.falta-enlace': 'The reset link is missing.',
 
   'validacion.email': 'Invalid email. Use the format example@email.com',
   'password.regla': 'at least 8, with a letter and a number',
@@ -443,6 +451,7 @@ const EN: Record<ClaveTexto, string> = {
   ...EN_INICIO,
   ...EN_ENERGIA,
   ...EN_REPORTES,
+  ...EN_NOTIFICACIONES,
 }
 
 export const DICCIONARIOS: Record<Idioma, Record<ClaveTexto, string>> = {

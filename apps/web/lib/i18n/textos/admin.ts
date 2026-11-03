@@ -690,6 +690,20 @@ export const ES_ADMIN = {
   'admin.razones.falta.duplicada': 'Ya tienes «{nombre}», que es la misma razon social escrita de otra forma.',
   'admin.razones.falta.rfc': 'El RFC «{rfc}» no tiene una forma valida. Dejalo vacio si todavia no lo tienes.',
   'admin.razones.falta.papel': 'El papel «{papel}» no existe. Los que hay son: {validos}.',
+  // Ola 6 · los cinco papeles FIJOS de `catalogo_roles_entidad`, la etiqueta
+  // y el codigo. El espanol es el de la migracion, letra por letra (sin
+  // tildes, como se guardo); lo ata `lib/i18n/papeles.test.ts`. Se traducen al
+  // pintarlos: el dato no cambia.
+  'admin.papel.arrendamientos': 'Paga las rentas a los arrendadores',
+  'admin.papel.activos': 'Compra los activos y el equipo',
+  'admin.papel.licencias': 'Tramites y licencias con gobierno',
+  'admin.papel.operacion': 'Operacion y nomina',
+  'admin.papel.ventas': 'Vende publicidad',
+  'admin.papel.codigo.arrendamientos': 'ARRENDAMIENTOS',
+  'admin.papel.codigo.activos': 'ACTIVOS',
+  'admin.papel.codigo.licencias': 'LICENCIAS',
+  'admin.papel.codigo.operacion': 'OPERACION',
+  'admin.papel.codigo.ventas': 'VENTAS',
 } as const
 
 export type ClaveAdmin = keyof typeof ES_ADMIN
@@ -1309,4 +1323,14 @@ export const EN_ADMIN: Record<ClaveAdmin, string> = {
   'admin.razones.falta.duplicada': 'You already have “{nombre}”, which is the same legal entity written differently.',
   'admin.razones.falta.rfc': 'The RFC “{rfc}” doesn’t have a valid format. Leave it empty if you don’t have it yet.',
   'admin.razones.falta.papel': 'The role “{papel}” doesn’t exist. The available ones are: {validos}.',
+  'admin.papel.arrendamientos': 'Pays rent to landlords',
+  'admin.papel.activos': 'Buys assets and equipment',
+  'admin.papel.licencias': 'Government permits and licenses',
+  'admin.papel.operacion': 'Operations and payroll',
+  'admin.papel.ventas': 'Sells advertising',
+  'admin.papel.codigo.arrendamientos': 'RENT',
+  'admin.papel.codigo.activos': 'ASSETS',
+  'admin.papel.codigo.licencias': 'PERMITS',
+  'admin.papel.codigo.operacion': 'OPERATIONS',
+  'admin.papel.codigo.ventas': 'SALES',
 }

@@ -40,6 +40,10 @@ const CASOS: Array<[string, string]> = [
     'The service is unavailable right now. Please try again in a few minutes.',
   ],
   ['No se pudo iniciar sesión', 'Could not sign in'],
+  // Ola 6 (menor A del validador de la ola 5): los dos 400 de las rutas de
+  // acceso que la interfaz no provoca, pero que un cliente raro si.
+  ['Cuerpo inválido', 'Invalid request'],
+  ['Falta el enlace de restablecimiento.', 'The reset link is missing.'],
 ]
 
 describe('mensajeDeAcceso', () => {
@@ -71,5 +75,17 @@ describe('las pantallas de acceso pintan el error por mensajeDeAcceso', () => {
     expect(login.match(/mensajeDeAcceso\(e\.message, idioma\)/g)).toHaveLength(2)
     const recuperar = readFileSync(path.join(raiz, 'app/(app)/recuperar/[token]/page.tsx'), 'utf8')
     expect(recuperar).toContain('mensajeDeAcceso(e.message, idioma)')
+  })
+})
+
+describe('ola 6 · los dos 400 de acceso son los literales de sus rutas (que no se tocan)', () => {
+  const { readFileSync } = require('node:fs') as typeof import('node:fs')
+  const leer = (f: string) => readFileSync(require('node:path').join(__dirname, '../..', f), 'utf8') as string
+  it('login y codigo: «Cuerpo inválido»', () => {
+    expect(leer('app/api/auth/login/route.ts')).toContain("{ error: 'Cuerpo inválido' }")
+    expect(leer('app/api/auth/codigo/route.ts')).toContain("{ error: 'Cuerpo inválido' }")
+  })
+  it('reset: «Falta el enlace de restablecimiento.»', () => {
+    expect(leer('app/api/auth/reset/route.ts')).toContain("{ error: 'Falta el enlace de restablecimiento.' }")
   })
 })

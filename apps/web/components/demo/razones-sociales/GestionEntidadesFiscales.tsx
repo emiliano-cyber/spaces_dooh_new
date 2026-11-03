@@ -23,6 +23,7 @@ import {
   type EntidadUI,
 } from './gestion'
 import { useIdioma } from '@/lib/i18n/contexto'
+import { etiquetaDePapel } from '@/lib/i18n/papeles'
 import { interpolarNodos } from '@/lib/i18n/nodos'
 import { formatNumero } from '@/lib/formato-numero'
 
@@ -76,8 +77,10 @@ export function GestionEntidadesFiscales({
   const { t, idioma } = useIdioma()
 
   const claves = useMemo(() => catalogo.map((c) => c.rol), [catalogo])
+  // Ola 6 · la etiqueta del catalogo es dato en espanol; en ingles se pinta la
+  // de partida traducida (si alguien la renombro, se queda como esta).
   const etiquetaDe = (rol: string) =>
-    catalogo.find((c) => c.rol === rol)?.etiqueta ?? rol
+    etiquetaDePapel(catalogo.find((c) => c.rol === rol)?.etiqueta ?? rol, idioma)
   const ordenadas = useMemo(() => entidadesOrdenadas(entidades), [entidades])
   const huerfanos = useMemo(() => rolesSinDueno(entidades, claves), [entidades, claves])
   const compartidos = useMemo(() => rolesCompartidos(entidades, claves), [entidades, claves])
@@ -274,7 +277,7 @@ export function GestionEntidadesFiscales({
                     : 'border-border-strong bg-surface text-ink hover:border-accent',
                 )}
               >
-                {c.etiqueta}
+                {etiquetaDePapel(c.etiqueta, idioma)}
               </button>
             )
           })}

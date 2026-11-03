@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { candadoDeSegmentos, estadoSLAOT, formatFecha, formatFechaHora } from '@/lib/data/derive'
 import { useIdioma } from '@/lib/i18n/contexto'
+import { etiquetaDePuntoOT } from '@/lib/i18n/checklist-ot'
 import { CLAVE_OT } from '@/components/demo/campanas/etiquetas'
 import { CLAVE_PRIORIDAD, CLAVE_TIPO_OT } from '@/components/operaciones/claves'
 import { interpolarNodos } from '@/lib/i18n/nodos'
@@ -426,7 +427,9 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
               >
                 {checks[i] && <Check className="h-3 w-3" strokeWidth={3} />}
               </span>
-              <span className={cn('text-[13px]', checks[i] ? 'text-ink' : 'text-muted')}>{c.label}</span>
+              {/* Ola 6 · se PINTA traducido si es un punto de la lista por omision; a
+                  `alternarPunto` (arriba) va el texto guardado. */}
+              <span className={cn('text-[13px]', checks[i] ? 'text-ink' : 'text-muted')}>{etiquetaDePuntoOT(c.label, idioma)}</span>
             </button>
           </li>
         ))}
@@ -750,7 +753,7 @@ function CompletadaView({
                 >
                   {c.hecho && <Check className="h-3 w-3" strokeWidth={3} />}
                 </span>
-                <span className={c.hecho ? 'text-ink' : 'text-muted'}>{c.label}</span>
+                <span className={c.hecho ? 'text-ink' : 'text-muted'}>{etiquetaDePuntoOT(c.label, idioma)}</span>
               </li>
             ))}
           </ul>

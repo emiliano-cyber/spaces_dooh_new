@@ -363,6 +363,9 @@ export const ESTADOS_OT: Estado[] = [
       '>Assignee<', '>Unassigned<', '>Campaign<', '>Checklist<',
       'Error while saving: error-del-servidor. What you checked off shows here but is NOT saved yet.', 'Retry',
       'Read only: your role can see this work order but cannot check off its checklist.', 'Proof photo', 'Take photo',
+      // Ola 6 · los puntos de la lista POR OMISION de una OT nueva (dato guardado
+      // en espanol) se pintan en ingles; lo que escribe el usuario, no.
+      'Structure and hardware inspection', 'Installation / execution',
       'Location stamp', 'Capture location', 'Once closed, the cost of MX$ 1,500.00 is final: it can’t be changed.',
       'Close work order', 'Complete the checklist, take a photo and capture the location.', 'Actual cost of this visit',
       'What it really cost. It <strong>replaces</strong> the per-type estimate that the profitability report uses; it is not added to it.',
@@ -413,11 +416,13 @@ export const ESTADOS_OT: Estado[] = [
       'OT cerrada', 'La evidencia se envió al pipeline de la campaña.', 'Cerrada el 05/10/2026', 'Checklist cumplido',
       'Candado de facturación encendido', 'alt="evidencia"', 'Costo real de esta visita',
       'Costo registrado: $ 2,300.00. La OT está cerrada y ya no se puede cambiar.', 'Completada',
+      'Inspección de estructura y herrajes', 'Montaje / ejecución',
     ],
     ingles: [
       'Work order closed', 'The evidence was sent to the campaign pipeline.', 'Closed on Oct 5, 2026', 'Checklist completed',
       'Billing lock open', 'alt="evidence"', 'Actual cost of this visit',
       'Recorded cost: MX$ 2,300.00. The work order is closed and can no longer be changed.', 'Completed',
+      'Structure and hardware inspection', 'Installation / execution',
     ],
   },
   {
@@ -649,7 +654,7 @@ describe('lote OPERACIONES (parte 2) · en ESPANOL sale el texto de siempre', ()
 // de prueba, el nombre de una persona, lo que manda el servidor.
 const COMUNES = new Set<string>([
   'Luisa Campo', 'Revisar estructura 1', 'OT-1 · Pantalla Reforma', 'Av. Reforma 1', 'Verano', 'Pantalla Reforma · Digital',
-  'Inspección de estructura y herrajes', 'Normal', '>Checklist<',
+  'Normal', '>Checklist<',
   'motivo-del-cliente',
 ])
 

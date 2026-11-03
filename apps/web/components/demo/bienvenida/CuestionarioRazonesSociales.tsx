@@ -5,7 +5,8 @@ import { toast } from 'sonner'
 import { Button } from '@/components/demo/ui/Button'
 import { Card, CardContent } from '@/components/demo/ui/Card'
 import { PreguntaSiNo } from './PreguntaSiNo'
-import { useTexto } from '@/lib/i18n/contexto'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { codigoDePapel, etiquetaDePapel } from '@/lib/i18n/papeles'
 import {
   camposDelPaso3,
   planDelCuestionario,
@@ -52,7 +53,7 @@ export function CuestionarioRazonesSociales({
   // obligaría a mantener dos valores sincronizados a mano.
   const [porCampo, setPorCampo] = useState<Record<string, string>>({})
   const [enviando, setEnviando] = useState(false)
-  const t = useTexto()
+  const { t, idioma } = useIdioma()
 
   const campos = useMemo(
     () => camposDelPaso3({ variasRazonesSociales: varias, operacionYVentasJuntas: juntas }, roles),
@@ -183,7 +184,11 @@ export function CuestionarioRazonesSociales({
               <div className="space-y-3">
                 {campos.map((campo) => (
                   <label key={campo.clave} className="block">
-                    <span className="mb-1 block text-[13px] text-muted">{campo.etiqueta}</span>
+                    {/* Ola 6 · la etiqueta sale del catalogo (dato en espanol), y el campo
+                        que junta dos papeles las une con « · ». */}
+                    <span className="mb-1 block text-[13px] text-muted">
+                      {campo.etiqueta.split(' · ').map((p) => etiquetaDePapel(p, idioma)).join(' · ')}
+                    </span>
                     <input
                       value={porCampo[campo.clave] ?? ''}
                       onChange={(e) =>
@@ -208,7 +213,7 @@ export function CuestionarioRazonesSociales({
                   {plan.entidades.map((e) => (
                     <li key={e.razonSocial}>
                       <span className="font-medium">{e.razonSocial}</span>
-                      <span className="text-muted"> — {e.roles.join(', ')}</span>
+                      <span className="text-muted"> — {e.roles.map((r) => codigoDePapel(r, idioma)).join(', ')}</span>
                     </li>
                   ))}
                 </ul>

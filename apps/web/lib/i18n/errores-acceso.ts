@@ -28,6 +28,9 @@ const EXACTOS: Record<string, ClaveTexto> = {
   'La recuperación de contraseña está deshabilitada temporalmente. Contacta al administrador.':
     'login.error.recuperacion-apagada',
   'No se pudo iniciar sesión': 'login.error.iniciar-sesion',
+  // Ola 6 (menor A del validador de la ola 5).
+  'Cuerpo inválido': 'login.error.cuerpo-invalido',
+  'Falta el enlace de restablecimiento.': 'login.error.falta-enlace',
 }
 
 // Los dos limites de intentos llevan la espera en segundos dentro.

@@ -1032,6 +1032,45 @@ export const PATRONES_ERROR: ReadonlyArray<PatronError> = [
       'current discount cap, $4%: the cap was lowered after it was saved. The volume discount ($5%) is already ' +
       'over the cap ($6%): leave the commercial discount at 0% or ask an admin to raise the cap in Settings.',
   },
+
+  // ── OLA 6 (2026-11-03, `feat/ingles-ola6`) · los dos que dejo la ola 4 ──
+  //
+  // TOPE-02/04 · `DescuentoSobreTope` (`lib/descuento.ts`): EDITAR el descuento
+  // por encima del tope. La ruta `PATCH /api/propuestas/[id]` lo responde a
+  // mano y ahora lo pasa por `traducirError`. Tres formas: sin volumen, con
+  // volumen, y con el volumen solo por encima del tope (la misma frase que
+  // cierra el patron de arriba, aqui sola). Mismo glosario que la ola 4:
+  // discount cap, commercial / volume discount, «an admin … in Settings».
+  {
+    re: /^El descuento máximo que autoriza tu organización es (\d+(?:\.\d+)?) %, y se pidió (\d+(?:\.\d+)?) %\. Cabe hasta (\d+(?:\.\d+)?) % comercial\. Pídele a Administración que lo suba si hace falta\.$/,
+    en:
+      'The maximum discount your organization allows is $1%, and $2% was requested. The commercial discount can go up ' +
+      'to $3%. Ask an admin to raise it in Settings if needed.',
+  },
+  {
+    re: /^El descuento máximo que autoriza tu organización es (\d+(?:\.\d+)?) %\. Esta propuesta ya lleva (\d+(?:\.\d+)?) % por volumen, así que un (\d+(?:\.\d+)?) % comercial deja un (\d+(?:\.\d+)?) % en total \(los descuentos se componen, no se suman\)\. Cabe hasta (\d+(?:\.\d+)?) % comercial\. Pídele a Administración que lo suba si hace falta\.$/,
+    en:
+      'The maximum discount your organization allows is $1%. This proposal already has a $2% volume discount, so a $3% ' +
+      'commercial discount leaves $4% in total (discounts compound, they don’t add up). The commercial discount can go ' +
+      'up to $5%. Ask an admin to raise it in Settings if needed.',
+  },
+  {
+    re: /^El descuento por volumen \((\d+(?:\.\d+)?) %\) ya supera el tope \((\d+(?:\.\d+)?) %\): deja el descuento comercial en 0 % o pide a Administración que suba el tope\.$/,
+    en:
+      'The volume discount ($1%) is already over the cap ($2%): leave the commercial discount at 0% or ask an admin to ' +
+      'raise the cap in Settings.',
+  },
+  // La negociacion con la agencia sin validar (`propuestas-repo.ts`). Al CREAR
+  // llega por `respuestaError()`; al APROBAR, por el 400 a mano del `PATCH`.
+  // El nombre puede venir vacio (`bloq.nombre ?? ''`): de ahi el `.*`.
+  {
+    re: /^La negociación con la agencia (.*) no está validada; valídala antes de crear la propuesta$/,
+    en: 'The negotiation with the agency $1 is not validated; validate it before creating the proposal',
+  },
+  {
+    re: /^La negociación con la agencia (.*) no está validada; no se puede aprobar la propuesta$/,
+    en: 'The negotiation with the agency $1 is not validated; the proposal can’t be approved',
+  },
 ]
 
 // Rearma un patron con los huecos del mensaje: `$n` (pasado por su funcion de

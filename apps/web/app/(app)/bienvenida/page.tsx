@@ -7,7 +7,8 @@ import { Button } from '@/components/demo/ui/Button'
 import { Card, CardContent } from '@/components/demo/ui/Card'
 import { CuestionarioRazonesSociales } from '@/components/demo/bienvenida/CuestionarioRazonesSociales'
 import type { RolCatalogo, EntidadConRoles } from '@/lib/cuestionario-entidades'
-import { useTexto } from '@/lib/i18n/contexto'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { codigoDePapel } from '@/lib/i18n/papeles'
 import { interpolarNodos } from '@/lib/i18n/nodos'
 
 const API = '/spaces-dooh/api'
@@ -43,7 +44,7 @@ export default function Bienvenida() {
   const router = useRouter()
   const [estado, setEstado] = useState<Estado | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const t = useTexto()
+  const { t, idioma } = useIdioma()
 
   useEffect(() => {
     let vivo = true
@@ -115,7 +116,7 @@ export default function Bienvenida() {
                     <span className="font-medium text-ink">{e.razonSocial}</span>
                     <span className="text-muted">
                       {' '}
-                      — {e.roles.length ? e.roles.join(', ') : t('cuenta.bienvenida.sin-roles')}
+                      — {e.roles.length ? e.roles.map((r) => codigoDePapel(r, idioma)).join(', ') : t('cuenta.bienvenida.sin-roles')}
                       {e.activo === false ? t('cuenta.bienvenida.de-baja') : ''}
                     </span>
                   </li>

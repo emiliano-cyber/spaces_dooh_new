@@ -88,7 +88,14 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       return NextResponse.json(prop)
     } catch (e) {
       const status = e instanceof PropuestaError ? 409 : 400
-      return NextResponse.json({ error: e instanceof Error ? e.message : 'No se pudo actualizar' }, { status })
+      // I18N (ola 6) · esta respuesta tampoco pasa por `respuestaError()`: la
+      // frase del tope al EDITAR el descuento (`DescuentoSobreTope`) salia en
+      // español con la pantalla en inglés. Se traduce aquí, como el 409 del
+      // tope vigente de abajo. En español devuelve el mensaje tal cual.
+      return NextResponse.json(
+        { error: traducirError(e instanceof Error ? e.message : 'No se pudo actualizar', idiomaDeLaPeticion()) },
+        { status },
+      )
     }
   }
 
@@ -182,8 +189,10 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         { status: 409 },
       )
     }
+    // I18N (ola 6) · el 400 genérico de aprobar, donde cae la negociación con
+    // la agencia sin validar (`PropuestaError`). Mismo `traducirError`.
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : 'No se pudo actualizar' },
+      { error: traducirError(e instanceof Error ? e.message : 'No se pudo actualizar', idiomaDeLaPeticion()) },
       { status: 400 },
     )
   }
