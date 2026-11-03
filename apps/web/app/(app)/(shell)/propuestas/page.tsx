@@ -1698,7 +1698,11 @@ function NuevaPropuestaDialog({
                         <div className="flex w-full items-center gap-2 rounded bg-surface-2 px-2 py-1.5 text-[11px] text-muted">
                           <span className="font-medium">{t('propuestas.alta.renta.titulo')}</span>
                           <span className="text-ink">
-                            {formatMonto(cv.montoRenta ?? 0, idioma)} {String(cv.periodicidad ?? '').toLowerCase()}
+                            {/* Ola 5: en ingles, la etiqueta traducida; en español, el dato crudo de siempre. */}
+                            {formatMonto(cv.montoRenta ?? 0, idioma)}{' '}
+                            {idioma === 'es'
+                              ? String(cv.periodicidad ?? '').toLowerCase()
+                              : periodicidadLabel(cv.periodicidad, '', idioma).toLowerCase()}
                           </span>
                           <span className="ml-auto">
                             {t('propuestas.alta.renta.pactada', {

@@ -860,6 +860,24 @@ const PANTALLAS: Pantalla[] = [
     espanol: ['Propuesta no encontrada.', 'Volver a propuestas'],
     ingles: ['Proposal not found.'],
   },
+  {
+    // Ola 5 (recorrido en navegador): en el alta, la renta ya pactada de un
+    // sitio con contrato pintaba la periodicidad CRUDA en minusculas —«MX$
+    // 28,000.00 mensual»— en la pantalla inglesa. El dato es `MENSUAL`.
+    nombre: 'duplicar propuesta con la renta ya pactada en el contrato',
+    pintar: async (idioma) => {
+      const { default: Pagina } = await import('../../app/(app)/(shell)/propuestas/page')
+      datos.contratos = [
+        { sitioId: 's1', montoRenta: 28000, periodicidad: 'MENSUAL', arrendadorId: 'ar1', estatus: 'VIGENTE' },
+        { sitioId: 's2', montoRenta: 3000, periodicidad: 'CATORCENAL', arrendadorId: 'ar1', estatus: 'VIGENTE' },
+      ]
+      forzar(esNull, { tipo: 'duplicar', propuesta: PROPUESTA })
+      return pintar(idioma, createElement(Pagina))
+    },
+    // El español es el de siempre: el dato en minusculas, tal cual.
+    espanol: ['$ 28,000.00 mensual', '$ 3,000.00 catorcenal', 'ya pactada en el contrato · costo $ 28,000.00/mes'],
+    ingles: ['MX$ 28,000.00 monthly', 'MX$ 3,000.00 every two weeks'],
+  },
 ]
 
 describe('lote PROPUESTAS · en ESPANOL sale el texto de siempre', () => {
