@@ -484,13 +484,145 @@ const EN: Record<ClaveTexto, string> = {
 // Registro: el «tu» directo de una aplicacion de trabajo, como el espanol y el
 // ingles. Los anglicismos del sector se quedan en ingles (decision del dueno
 // del 03/11): «spot», «loop/h», «DOOH», «codice di negoziazione».
+//
+// Lote L5 (2026-11-03): la base COMPLETA —acceso, menu y lo comun—. Sigue
+// tipada `Partial` porque `ClaveTexto` incluye los ambitos de `textos/`; quien
+// exige que no falte ninguna es `cobertura-italiano.test.ts` (fila «base»).
 const IT_BASE: Partial<Record<ClaveTexto, string>> = {
+  'comun.cancelar': 'Annulla',
+  'comun.guardar': 'Salva',
+  'comun.cerrar': 'Chiudi',
+  'comun.cargando': 'Caricamento…',
+  'comun.o': 'o',
+
   // El selector de idioma: cada idioma, en si mismo, como en ES y EN.
   'idioma.etiqueta': 'Lingua',
   'idioma.es': 'Español',
   'idioma.en': 'English',
   'idioma.it': 'Italiano',
   'idioma.cambiar': 'Cambia lingua',
+
+  'marca.descriptivo': 'Gestione degli spazi pubblicitari',
+
+  'login.titulo.login': 'Accedi',
+  'login.titulo.signup': 'Crea account',
+  'login.titulo.forgot': 'Recupera la password',
+  'login.subtitulo.login': 'Accedi con il tuo account.',
+  'login.subtitulo.signup': 'Registra la tua organizzazione e il tuo utente. Avrai il tuo CRM.',
+  'login.subtitulo.forgot': 'Inserisci la tua email e ti invieremo un link per scegliere una nuova password.',
+
+  'login.campo.organizacion': 'Organizzazione',
+  'login.campo.nombre': 'Il tuo nome',
+  'login.campo.correo': 'Email',
+  'login.campo.password': 'Password',
+  // Ejemplos adaptados, como en ingles: «Mario Rossi» es el «Ana López» italiano.
+  'login.ejemplo.organizacion': 'Es. Media Norte',
+  'login.ejemplo.nombre': 'Es. Mario Rossi',
+  'login.ejemplo.correo': 'tu@email.it',
+
+  'login.boton.entrar': 'Accedi',
+  'login.boton.crear': 'Crea account',
+  'login.boton.enviar-enlace': 'Invia link',
+  'login.boton.entrando': 'Accesso in corso…',
+  'login.boton.creando': 'Creazione dell’account…',
+  'login.boton.enviando': 'Invio in corso…',
+
+  'login.olvidaste': 'Hai dimenticato la password?',
+  'login.ya-tienes-cuenta': 'Hai già un account? ',
+  'login.no-tienes-cuenta': 'Non hai un account? ',
+  // Dos trozos (el segundo es el enlace): «← Torna alla» + «pagina di accesso».
+  'login.volver': '← Torna alla ',
+  'login.volver.enlace': 'pagina di accesso',
+  'login.enlace-dev': 'Link (solo in sviluppo):',
+  'login.aviso-generico': 'Se l’email è registrata, ti abbiamo inviato un link.',
+
+  'login.google.continuar': 'Continua con Google',
+  'login.google.crear': 'Crea l’azienda con Google',
+  'login.google.falta-organizacion': 'Inserisci il nome della tua organizzazione prima di continuare con Google.',
+  'login.google.error.no_disponible': 'L’accesso con Google non è disponibile in questo momento.',
+  'login.google.error.cancelado': 'Hai annullato l’accesso con Google.',
+  'login.google.error.invalido': 'Non è stato possibile completare l’accesso con Google. Riprova.',
+  'login.google.error.no_registrado':
+    'Questo account Google non è registrato. Chiedi al tuo amministratore di aggiungerti.',
+  'login.google.error.inactivo': 'Il tuo utente è disattivato. Chiedi al tuo amministratore di riattivarlo.',
+  'login.google.error.ya_vinculada':
+    'Il tuo utente ha già un altro account Google collegato. Chiedi al tuo amministratore di verificarlo.',
+  'login.google.error.generico': 'Non è stato possibile accedere con Google.',
+
+  'login.error.enviar-enlace': 'Non è stato possibile inviare il link',
+  'login.error.crear-cuenta': 'Non è stato possibile creare l’account',
+  'login.error.iniciar-sesion': 'Non è stato possibile accedere',
+  'login.error.credenciales': 'Email o password non validi',
+  'login.error.faltan-datos': 'Email e password obbligatorie',
+  'login.error.sin-conexion': 'Impossibile connettersi al server. Controlla la connessione e riprova.',
+  'login.error.solo-google':
+    'Questo account accede con Google. Usa il pulsante di Google, oppure un codice di recupero se hai perso l’accesso a quell’account.',
+  'login.error.registro-apagado': 'La registrazione di nuovi account è disattivata. Contatta l’amministratore.',
+  'login.error.recuperacion-apagada':
+    'Il recupero della password è temporaneamente disattivato. Contatta l’amministratore.',
+  'login.error.demasiados': 'Troppi tentativi. Attendi {s}s e riprova.',
+  'login.error.demasiados-corto': 'Troppi tentativi. Attendi {s}s.',
+  'login.error.cuerpo-invalido': 'Richiesta non valida',
+  'login.error.falta-enlace': 'Manca il link di reimpostazione.',
+
+  'validacion.email': 'Email non valida. Usa il formato esempio@email.com',
+  'password.regla': 'minimo 8, con una lettera e un numero',
+  'password.corta': 'La password deve avere almeno 8 caratteri',
+  'password.sin-letra': 'La password deve contenere almeno una lettera',
+  'password.sin-numero': 'La password deve contenere almeno un numero',
+  'password.con-espacios': 'La password non può contenere spazi',
+
+  'sidebar.expandir': 'Espandi menu',
+  'sidebar.colapsar': 'Comprimi menu',
+  'sidebar.logo-alt': 'logo',
+  'sidebar.abrir-portal': 'Apri il portale',
+  'sidebar.solo-portal': 'Come cliente esterno hai accesso solo al tuo portale.',
+  'sidebar.derechos': 'Tutti i diritti riservati',
+
+  // El menu, con el glosario: Comercial = Vendite, Administración = Impostazioni.
+  'nav.grupo.patrimonio': 'Inventario',
+  'nav.grupo.ojos': 'Space Eyes',
+  'nav.grupo.vender': 'Vendite',
+  'nav.grupo.entregar': 'Operazioni',
+  'nav.grupo.cobrar': 'Finanza',
+  'nav.grupo.sistema': 'Sistema',
+
+  'nav.dashboard': 'Dashboard',
+  'nav.inventario': 'Inventario',
+  'nav.arrendadores': 'Locatori',
+  'nav.network': 'Network',
+  'nav.almacen': 'Magazzino',
+  'nav.space-eyes': 'Dispositivi',
+  'nav.space-eyes-galeria': 'Galleria',
+  'nav.space-eyes-graficas': 'Grafici',
+  'nav.space-eyes-texto': 'Etichetta delle foto',
+  'nav.space-eyes-programacion': 'Programmazione',
+  'nav.space-eyes-campanas': 'Campagne',
+  'nav.space-eyes-verificacion': 'Verifica',
+  'nav.space-eyes-fallas': 'Guasti',
+  'nav.clientes': 'Clienti',
+  'nav.comercial': 'Vendite',
+  'nav.disponibilidad': 'Disponibilità',
+  'nav.propuestas': 'Proposte',
+  // Captacion es buscar espacios nuevos que arrendar, no clientes.
+  'nav.captacion': 'Acquisizione siti',
+  'nav.comercial-opex': 'Negoziazione locazioni',
+  'nav.franjas-y-temporadas': 'Fasce orarie e stagioni',
+  'nav.descuentos-por-volumen': 'Sconti per volume',
+  'nav.codigos-promocionales': 'Codici di negoziazione',
+  'nav.paquetes': 'Pacchetti',
+  'nav.creativos': 'Creatività',
+  'nav.campanas': 'Campagne',
+  'nav.imprenta': 'Stampa',
+  'nav.operaciones': 'Operazioni',
+  'nav.energia': 'Consumo elettrico',
+  'nav.finanzas': 'Finanza',
+  'nav.reportes': 'Report',
+  'nav.comisiones': 'Provvigioni',
+  'nav.integraciones': 'Integrazioni',
+  'nav.razones-sociales': 'Ragioni sociali',
+  'nav.actividad': 'Registro attività',
+  'nav.administracion': 'Impostazioni',
 }
 
 /** Cada ambito de `textos/` con su espanol y su italiano, para la prueba de cobertura. */

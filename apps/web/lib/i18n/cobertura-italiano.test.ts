@@ -40,8 +40,14 @@ describe('cobertura del italiano', () => {
   })
 
   it('lo que falta se pinta en INGLES, no en espanol', () => {
-    expect(DICCIONARIOS.it['login.titulo.login']).toBe(DICCIONARIOS.en['login.titulo.login'])
-    expect(DICCIONARIOS.it['comun.cancelar']).toBe('Cancel')
+    // Lote L5: la base ya tiene italiano, asi que la caida se mira con una
+    // tabla vacia y, sobre el diccionario real, clave por clave.
+    const sinNada = conCaidaAlIngles(DICCIONARIOS.en, {})
+    expect(sinNada['login.titulo.login']).toBe('Sign in')
+    expect(sinNada['comun.cancelar']).toBe('Cancel')
+    const it_ = IT_PARCIAL as Record<string, string | undefined>
+    const mal = CLAVES.filter((k) => DICCIONARIOS.it[k] !== (it_[k] ? it_[k] : DICCIONARIOS.en[k]))
+    expect(mal).toEqual([])
   })
 
   it('el italiano escrito esta bien formado', () => {
@@ -50,24 +56,51 @@ describe('cobertura del italiano', () => {
 
   it('y la comprobacion MUERDE: vacio, huecos perdidos y claves inventadas', () => {
     const it_ = IT_PARCIAL as Record<string, string>
+    // Lote L5: las dos claves ya tienen italiano; se guardan y se restauran.
+    const antes = { demasiados: it_['login.error.demasiados'], o: it_['comun.o'] }
+    const traducidasAntes = coberturaItaliano()[0].traducidas
     it_['login.error.demasiados'] = 'Troppi tentativi.'
     it_['comun.o'] = ''
     it_['no.existe'] = 'x'
     CATALOGO_ERRORES_IT['Frase que no existe'] = 'y'
     try {
-      expect(problemasItaliano()).toEqual([
-        'huecos distintos en login.error.demasiados: es {s} · it {}',
-        'vacia: comun.o',
-        'clave sin espanol: no.existe',
-        'errores: entrada sin espanol canonico: Frase que no existe',
-      ])
-      // Y una vacia no cuenta como traducida.
-      expect(coberturaItaliano()[0].traducidas).toBe(6)
+      expect(problemasItaliano().sort()).toEqual(
+        [
+          'huecos distintos en login.error.demasiados: es {s} · it {}',
+          'vacia: comun.o',
+          'clave sin espanol: no.existe',
+          'errores: entrada sin espanol canonico: Frase que no existe',
+        ].sort(),
+      )
+      // Y una vacia no cuenta como traducida (`comun.o` tenia italiano).
+      expect(coberturaItaliano()[0].traducidas).toBe(traducidasAntes - (antes.o ? 1 : 0))
     } finally {
-      delete it_['login.error.demasiados']
-      delete it_['comun.o']
+      for (const [k, v] of [
+        ['login.error.demasiados', antes.demasiados],
+        ['comun.o', antes.o],
+      ] as const) {
+        if (v === undefined) delete it_[k]
+        else it_[k] = v
+      }
       delete it_['no.existe']
       delete CATALOGO_ERRORES_IT['Frase que no existe']
     }
   })
+})
+
+// ============================================================================
+//  LOTE L5 (armazon, cuenta, administracion, compartidos y servidor) · sus
+//  filas, COMPLETAS. Una por ambito para que el rojo diga cual falta.
+// ============================================================================
+const AMBITOS_L5 = ['base (diccionario.ts)', 'compartidos']
+
+describe('lote L5 · sus ambitos sin pendientes', () => {
+  const filas = coberturaItaliano()
+  for (const ambito of AMBITOS_L5) {
+    it(ambito, () => {
+      const f = filas.find((x) => x.ambito === ambito)
+      expect(f, ambito).toBeDefined()
+      expect(f!.pendientes).toBe(0)
+    })
+  }
 })

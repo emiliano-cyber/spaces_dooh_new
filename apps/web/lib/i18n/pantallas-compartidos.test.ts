@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { huellasDeFormatoEspanol } from './guardias-ingles'
+import { huellasEnItaliano } from './guardias-italiano'
 import { createElement, type ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { ProveedorIdioma } from './contexto'
@@ -81,6 +82,8 @@ type Pieza = {
   pintar: (idioma: Idioma) => Promise<string>
   espanol: string[]
   ingles: string[]
+  /** Lote L5 del italiano (2026-11-03): lo que tiene que salir en italiano. */
+  italiano: string[]
 }
 
 const PUNTOS = [
@@ -110,6 +113,7 @@ const PIEZAS: Pieza[] = [
       'pantallas sin ubicación capturada',
     ],
     ingles: ['Close area (3)', 'Cancel', 'Click the map to mark the area (at least 3 points)', 'screens with no location entered'],
+    italiano: ['Chiudi zona (3)', 'Annulla', 'Clicca sulla mappa per segnare la zona (min. 3 punti)', '2 impianti senza posizione inserita'],
   },
   {
     nombre: 'mapa · zona cerrada, una pantalla sin ubicacion',
@@ -122,6 +126,7 @@ const PIEZAS: Pieza[] = [
     },
     espanol: ['Limpiar zona', '1 pantalla sin ubicación capturada'],
     ingles: ['Clear area', '1 screen with no location entered'],
+    italiano: ['Cancella zona', '1 impianto senza posizione inserita'],
   },
   {
     nombre: 'campo obligatorio que falta',
@@ -135,6 +140,7 @@ const PIEZAS: Pieza[] = [
     },
     espanol: [' (obligatorio)', 'Falta este dato'],
     ingles: [' (required)', 'This field is required'],
+    italiano: [' (obbligatorio)', 'Manca questo dato'],
   },
   {
     nombre: 'migas de pan',
@@ -144,6 +150,7 @@ const PIEZAS: Pieza[] = [
     },
     espanol: ['aria-label="Ruta de navegación"'],
     ingles: ['aria-label="Breadcrumb"'],
+    italiano: ['aria-label="Percorso di navigazione"'],
   },
   {
     nombre: 'cuadro de la contrasena (candado)',
@@ -158,6 +165,12 @@ const PIEZAS: Pieza[] = [
       'Confirmar',
     ],
     ingles: ['Your organization requires your password to confirm sensitive changes.', 'Your password', 'Cancel', 'Confirm'],
+    italiano: [
+      'La tua organizzazione richiede la password per confermare le modifiche sensibili.',
+      'La tua password',
+      'Annulla',
+      'Conferma',
+    ],
   },
   {
     nombre: 'aviso de la franja',
@@ -167,6 +180,7 @@ const PIEZAS: Pieza[] = [
     },
     espanol: ['La franja horaria es un compromiso comercial: se cotiza y se cobra.'],
     ingles: ['The daypart is a commercial commitment: it is quoted and billed.'],
+    italiano: ['La fascia oraria è un impegno commerciale: si quota e si fattura.'],
   },
   // Ola 5 (recorrido en navegador): el boton del galon de TODAS las tarjetas
   // plegables decia «Minimizar Cobranza» en ingles. Es un `aria-label`, asi
@@ -180,6 +194,7 @@ const PIEZAS: Pieza[] = [
     },
     espanol: ['aria-label="Minimizar Cobranza"'],
     ingles: ['aria-label="Collapse Cobranza"'],
+    italiano: ['aria-label="Riduci Cobranza"'],
   },
   {
     nombre: 'tarjeta plegable cerrada',
@@ -190,6 +205,7 @@ const PIEZAS: Pieza[] = [
     },
     espanol: ['aria-label="Expandir Cobranza"'],
     ingles: ['aria-label="Expand Cobranza"'],
+    italiano: ['aria-label="Espandi Cobranza"'],
   },
 ]
 
@@ -228,6 +244,25 @@ describe('lote COMPARTIDOS · en ingles, ninguna fecha, hora ni importe con form
   for (const p of PIEZAS) {
     it(p.nombre, async () => {
       expect(huellasDeFormatoEspanol(await p.pintar('en'))).toEqual([])
+    })
+  }
+})
+
+// ============================================================================
+//  LOTE L5 DEL ITALIANO (2026-11-03) · las mismas piezas, en italiano.
+//  Tres cosas por pieza: (a) sale el italiano esperado; (b) no queda ninguna
+//  frase espanola ni INGLESA (una inglesa seria la caida de `diccionario.ts`:
+//  una clave que el lote no tradujo); (c) ningun formato ajeno.
+// ============================================================================
+describe('lote L5 · COMPARTIDOS en ITALIANO', () => {
+  for (const p of PIEZAS) {
+    it(p.nombre, async () => {
+      const crudo = await p.pintar('it')
+      const html = texto(crudo)
+      expect(p.italiano.filter((f) => !html.includes(f))).toEqual([])
+      expect(p.espanol.filter((f) => html.includes(f) && !p.italiano.includes(f))).toEqual([])
+      expect(p.ingles.filter((f) => html.includes(f) && !p.italiano.includes(f))).toEqual([])
+      expect(huellasEnItaliano(crudo)).toEqual([])
     })
   }
 })

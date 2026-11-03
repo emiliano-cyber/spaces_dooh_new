@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { DICCIONARIOS } from './diccionario'
 import { mensajeDeAcceso } from './errores-acceso'
+import { traducirError } from './errores-servidor'
 import { traducirNotificacion } from './notificaciones'
 import { etiquetaDePapel, codigoDePapel, PAPELES_FIJOS } from './papeles'
 import { etiquetaDePuntoOT, CHECKLIST_OT_POR_OMISION } from './checklist-ot'
@@ -24,10 +25,16 @@ import type { RespuestaResumen } from '../data/finanzas-periodo-api'
 const ES = DICCIONARIOS.es as Record<string, string>
 
 describe('catalogos fuera de textos/ · italiano = ingles mientras falte', () => {
-  it('errores de acceso', () => {
-    for (const m of ['Correo o contraseña inválidos', 'Demasiados intentos. Espera 30s.', 'No encontrado', 'raro']) {
-      expect(mensajeDeAcceso(m, 'it')).toBe(mensajeDeAcceso(m, 'en'))
-    }
+  // Lote L5 (2026-11-03): los de acceso ya tienen italiano (base de
+  // `diccionario.ts`); lo que no conocen sigue por `traducirError`.
+  it('errores de acceso, en italiano', () => {
+    expect(mensajeDeAcceso('Correo o contraseña inválidos', 'it')).toBe('Email o password non validi')
+    expect(mensajeDeAcceso('Demasiados intentos. Espera 30s.', 'it')).toBe('Troppi tentativi. Attendi 30s.')
+    expect(mensajeDeAcceso('Demasiados intentos. Espera 30s e intenta de nuevo.', 'it')).toBe(
+      'Troppi tentativi. Attendi 30s e riprova.',
+    )
+    expect(mensajeDeAcceso('No encontrado', 'it')).toBe(traducirError('No encontrado', 'it'))
+    expect(mensajeDeAcceso('raro', 'it')).toBe('raro')
   })
 
   it('papeles y checklist de OT', () => {
